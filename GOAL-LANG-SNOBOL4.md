@@ -371,7 +371,93 @@ capture for that rung needs redoing under case-sensitive default.
 
 ---
 
-## Active rung — SN-26c-stmt637 (opened 2026-04-24, session #3)
+## Active rung — SN-26c-parseerr (opened 2026-04-25, session #4)
+
+### SN-26c-stmt637 — CLOSED 2026-04-25 (session #4)
+
+**Root cause:** `lt_find` in `src/runtime/x86/sm_lower.c:84-90` used
+`strcasecmp` for label-table lookup.  Under SN-31's case-sensitive
+default (the policy for one4all's `.sno`/`.inc` ingress), this
+collided distinct labels like `visitEnd` (lowercase, the end label
+of the `visit(...)` SNOBOL function block) and `VisitEnd` (capital,
+the double-function-trick partner of `visit`).  Both labels are
+present in beauty.sno; the SM goto `:go visitEnd` from
+`DEFINE('visit(x,fnc)i') :go visitEnd` was being resolved to
+`VisitEnd`, sending SM control flow off into the wrong static
+region.  IR's goto resolution at `interp.c:148` already used
+`strcmp` (case-sensitive) ✓, so this was an SM-only bug.
+
+**Diagnostic chain (the work that pinned the casing bug):**
+
+The previously-suspected "stmt-counting drift" hypothesis was
+wrong.  Both IR and SM emit/dispatch exactly one `comm_stno`
+boundary per source `STMT_t` (single emit site at
+`sm_lower.c:929`), and the static-counter `g_sm_stno` accumulating
+across monitor reruns (1+2+...+637 ≈ 203,203) is by design, not
+a bug.  The real divergence was found by:
+
+1. `--dump-sm` to enumerate every SM_STNO opcode's static PC
+   (1102 SM_STNOs, one per STMT_t, in source order).
+2. Build pc → static-stmt-index map.
+3. From the env-gated `SMSTEP %d sm_stno=%d pc=%d` trace
+   (committed `4d12a99363` in session #3), decode the **printed**
+   pc back to (pc-1) — the print fires after `st->pc++`, so the
+   actual SM_STNO that fired was at pc-1 — and look up its
+   static stmt index.
+4. From the IRSTEP trace, use the printed `label=X` field plus
+   a label→static-stmt-index map (built from `--dump-ir`) to
+   identify the static stmt IR was dispatching as its Nth.
+5. Compare the two sequences, step by step.
+
+The first divergence appeared at step 631:
+* SM step 631 → SM_STNO at pc=3745 → static stmt 382 = `VisitEnd`
+* IR step 631 → label=`visitEnd` → static stmt 1052
+Both step 630 dispatched static stmt 1047, which is
+`DEFINE('visit(x,fnc)i') :go visitEnd`.  The same `:go visitEnd`
+in the same source statement resolved to two different targets
+under the two executors — proof that the bug was in label
+resolution, not in counting.
+
+**Fix landed in this session:**
+```c
+/* src/runtime/x86/sm_lower.c:84-90 */
+static int lt_find(const LabelTable *lt, const char *name)
+{
+    /* SN-26c-stmt637: case-SENSITIVE label compare per SN-31 ... */
+    for (int i = 0; i < lt->nlabels; i++)
+        if (strcmp(lt->labels[i].name, name) == 0)
+            return lt->labels[i].instr_idx;
+    return -1;
+}
+```
+
+One-character substantive change (`strcasecmp` → `strcmp`) plus
+explanatory comment.  No other call site of `strcasecmp` in
+`sm_lower.c` — the only label-resolution path.
+
+**Verification (session #4):**
+* `bash scripts/test_smoke_snobol4.sh` → **PASS=7** ✓
+* `bash scripts/test_smoke_unified_broker.sh` → **PASS=49** ✓
+* `scrip --ir-run beauty.sno < beauty.sno` now runs further than
+  before but still **does not** byte-match the oracle output
+  (38-line truncated output ending with "Parse Error" vs oracle's
+  649 lines, md5 `408fc788ca2ef425fc1f87e26d45a7a5`).  IR is
+  unaffected by the SM lt_find fix; this is a separate latent
+  issue in IR's beauty self-host, tracked below as
+  SN-26c-parseerr.
+* The 4-way scrip-monitor was **not yet re-run** after the fix
+  (build artifact rebuild deferred for next session — see
+  build-system note below).  Smoke + Broker green is the proven
+  evidence; full monitor re-run is owed.
+
+**Collateral correction:** any one4all SM program with two
+identifiers that differ only in case AND that one is used as a
+goto target was silently mis-routing under SM/JIT before this
+fix.  Beauty's double-function trick (`shift`/`Shift`,
+`reduce`/`Reduce`, `pop`/`Pop`, `visit`/`Visit`) was the
+visible victim because it deliberately uses paired labels.
+
+### SN-26c-parseerr — `Parse Error` at line ~38 of `scrip --ir-run beauty.sno < beauty.sno`
 
 ### SN-26c-stmt153 — CLOSED 2026-04-24 (session #3)
 
@@ -423,83 +509,78 @@ the step counter.  All beauty source programs use this idiom heavily
 
 ### SN-26c-stmt637 — IR `doDebug=0` vs SM/JIT `doDebug=""` at stmt 637
 
-**Captured 2026-04-24 (session #3) under SN-26c-stmt153 fix:**
+**Captured 2026-04-25 (session #4) after SN-26c-stmt637 closed:**
 ```
-DIVERGE at stmt 637 [label: -, line 0]
-  IR   path: [START] → [G1] → ... → [TWEnd]
-  SM   path: [START] → [G1] → ... → [TWEnd]
-  JIT  path: [START] → [G1] → ... → [TWEnd]
-  IR vs SM (1 var(s) differ):
-    doDebug       IR=0                     SM=
-  IR vs JIT (1 var(s) differ):
-    doDebug       IR=0                     JIT=
+$ scrip --ir-run beauty.sno < beauty.sno
+*-----------------------------------------------------------------------
+* Program:       SNOBOL4 Beautifier
+* Author:        Lon Cherryholmes
+... (37 lines of comments and the leading ppStop preamble) ...
+Parse Error
+                  ppStop         =  ARRAY('1:4')
 ```
 
-Label paths agree (both end at `[TWEnd]`).  Only `doDebug` differs.
-IR shows integer `0`; SM/JIT show empty/unset.
+scrip exits 0, prints 38 lines.  CSNOBOL4 oracle (`-bf -P 64k -S 64k`)
+and SPITBOL x64 oracle (`-bf` with SETL4PATH) both produce 649 lines,
+md5 **`408fc788ca2ef425fc1f87e26d45a7a5`**, byte-identical.
 
-**Stmt 637 identification:**
-- Source stmt 637 in IR dump (`--dump-ir`) is:
-  `(STMT :subj (E_FNC DEFINE (E_QLIT "TX(lvl,pat,name)omega")) :go TXEnd)`
-  — a `DEFINE` call with unconditional `:go TXEnd`.
-- `doDebug = 0` is at `beauty.sno:610` — the very first statement of
-  the main program body after all DEFINE blocks.  In IR dump, this is
-  much later than stmt 637 (~stmt 1050+).
+scrip's output truncates inside beauty's INTERNAL parser stage —
+"Parse Error" is a beauty-emitted message (search beauty.sno for
+that string).  Beauty has parsed 38 lines of its own source-as-input
+and then rejected something the oracles accept.  This is a
+**runtime semantic divergence** in scrip's IR-run path: scrip
+correctly parses beauty.sno itself, but when beauty.sno's runtime
+SNOBOL4 parser (running inside scrip) tries to parse its own input
+(also beauty.sno), it chokes.
 
-**Interpretation:** IR has somehow reached and executed the
-`doDebug = 0` assignment (at ~stmt 1050+) by the time the monitor
-snapshots at `n=637`.  SM/JIT have NOT reached it yet.  This is the
-**opposite direction** of the old SN-26c-stmt153 divergence: there,
-SM over-ran IR; here, IR over-runs SM.
+**Likely candidates for next session:**
 
-**Hypothesis:** IR's step counter is still counting differently than
-SM's — possibly IR is NOT counting something that SM IS counting
-(reverse polarity of the stmt 153 fix).  Candidates:
-
-1. **Subroutine calls via `*fn()`**: SNOBOL4 function calls invoke
-   user-defined patterns.  The SM path may fire `SM_STNO` for each
-   statement inside the callee; IR may not tick `stno` for statements
-   inside `execute_program` recursion.  Beauty's G1 loop calls
-   `SORT` (builtin — no SNO stmts) but later code may hit user fn
-   calls before stmt 637.  Actually: G1 path in the monitor terminates
-   before any user fn calls because main program hasn't started.
-2. **Initial-block / DEFINE body statements**: When a `DEFINE` is
-   processed, the function body is parsed but not executed — it only
-   runs when the function is called.  But in beauty, no user fn has
-   been called by stmt 637 (we're still in DEFINE-block preamble).
-3. **END / HALT asymmetry**: If IR's step-limit check uses `>=` and
-   SM's uses `>=` but they tick at different moments relative to the
-   statement boundary, there could be a ±1 drift over many branches.
-4. **Label-only statements**: Empty labeled stmts like `TWEnd`,
-   `TXEnd`, `IsSpitbolEnd`, etc. — IR treats these as stmts with
-   label + empty subject.  SM emits SM_LABEL + SM_STNO for them.
-   Check: does IR `execute_program` tick `comm_stno` for label-only
-   stmts?  (Inspect `interp.c:4066 comm_stno(++stno)` — should fire
-   unconditionally.)
+1. **Another case-sensitivity site** somewhere outside `sm_lower.c`
+   — the SN-26c-stmt637 fix only addressed SM's lt_find.  IR's
+   tree-walk runtime, the snobol4 frontend lexer, and the
+   pattern-matching primitives could each have their own case-fold
+   bugs that fire only when running case-sensitive source against
+   case-sensitive input.  Audit grep:
+   ```
+   grep -rn "strcasecmp\|tolower\|toupper\|TOLOWER\|TOUPPER" \
+       src/runtime/x86/ src/driver/interp.c \
+       src/frontend/snobol4/ | grep -v test
+   ```
+2. **Pattern primitive miscompare** — beauty's parser uses heavy
+   pattern matching (POS, RPOS, SPAN, BREAK, ANY, NOTANY).  If
+   any of these treat a SPAN string case-insensitively when they
+   shouldn't, beauty's tokenizer produces wrong tokens.
+3. **`is.inc` IsSpitbol/IsSnobol4 dialect detection broken** —
+   per RULES.md `is.sno` warning, `IDENT/DIFFER(.NAME, 'NAME')`
+   discriminator may misclassify the runtime, sending beauty
+   down the wrong include path.  Inspect what beauty/global.inc
+   does with the result.
+4. **`OPSYN` dispatch under case-sensitive lookup** —
+   `io.inc` does `OPSYN('INPUT', ...)` style aliases.  If the
+   runtime's OPSYN table lookup is folded but the user-visible
+   identifier is preserved (or vice versa), the alias doesn't
+   resolve.
 
 **Next-session work order:**
 
-1. **Instrument IR step count.**  Add `fprintf(stderr, "IR @ step %d: stno=%d, stmt_line=...\n", g_ir_steps_done, stno)` near `interp.c:4066-4070`.  Rebuild scrip-monitor.
-2. **Instrument SM step count.**  Same in `sm_interp.c:218-219` and
-   `sm_codegen.c:205-208`.
-3. **Run beauty monitor at `n=637`** and compare the *source stmt
-   numbers* each executor reached.  The delta reveals which kind of
-   statement IR counts that SM doesn't (or vice versa).
-4. **Minimal probe** reproducing the divergence with just DEFINE
-   blocks (no loops, no main body) — e.g.:
-   ```
-          &FULLSCAN = 1
-          DEFINE('f()') :(f_end)
-   f      f = 1   :(RETURN)
-   f_end  x = 0
-          OUTPUT = x
-   END
-   ```
-   Monitor at step 3, 4, 5 — does `x` divergence appear?
-5. **Fix in `interp.c` or `sm_interp.c`/`sm_codegen.c`** depending on
-   which executor is miscounting.  Prefer keeping the IR semantics
-   (SPITBOL-compatible) and adjusting SM/JIT.
-6. **Gate sweep**: Smoke=7, Broker=49 after fix.
+1. Identify which beauty subroutine emits "Parse Error" — grep
+   for the string in beauty.sno and surrounding `.inc` files,
+   figure out which check failed.
+2. Run `scrip --ir-run --trace beauty.sno < beauty.sno 2>&1 | head -80`
+   to see the last ~10 source-stmts before the parse error, find
+   the exact stmt that diverges from oracle behaviour.
+3. Reproduce in isolation: write a 5-line probe that exercises
+   the same primitive, run under scrip vs CSNOBOL4 vs SPITBOL,
+   identify the divergent runtime function.
+4. Fix in `src/runtime/x86/snobol4.c` or wherever the case-fold
+   leak is.
+5. Re-run beauty self-host: `scrip --ir-run beauty.sno < beauty.sno`
+   should produce 649 lines, md5 `408fc788ca2ef425fc1f87e26d45a7a5`.
+6. Once `--ir-run` clean: re-run 4-way scrip-monitor — it will
+   either pass clean to end, or surface the next divergence in the
+   SM/JIT lanes, becoming the next active rung (SN-26c-...).
+7. Final gate: Smoke=7, Broker=49, plus byte-identical scrip
+   output vs oracle on beauty self-host.
 
 **Setup to resume (fresh session):**
 ```bash
@@ -509,31 +590,46 @@ bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
 cd /home/claude/one4all
-# IMPORTANT: build_scrip.sh populates /tmp/si_objs; scrip-monitor needs that first
+# IMPORTANT: build_scrip.sh populates /tmp/si_objs/; scrip-monitor
+# needs that first.  Always run build_scrip.sh before make scrip-monitor.
 bash scripts/build_scrip.sh
 make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
 
-# Reproduce stmt 637:
+# Reproduce SN-26c-parseerr:
 BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
 SNO_LIB=/home/claude/corpus/programs/include \
-    timeout 180 /home/claude/one4all/scrip-monitor --monitor \
-    $BEAUTY/beauty.sno < $BEAUTY/beauty.sno 2>/tmp/mon.err >/dev/null
-grep -v "sm_lower:" /tmp/mon.err | grep -A 15 "DIVERGE at stmt 637"
+    timeout 60 /home/claude/one4all/scrip --ir-run \
+    $BEAUTY/beauty.sno < $BEAUTY/beauty.sno > /tmp/scrip_ir.out 2>&1
+wc -l /tmp/scrip_ir.out      # current: 38 lines (oracle: 649)
+grep "Parse Error" /tmp/scrip_ir.out  # confirms repro
+
+# Oracle reference for comparison:
+cd /home/claude/corpus/programs/snobol4/demo/beauty
+/home/claude/csnobol4/snobol4 -bf -P 64k -S 64k \
+    -I. -I/home/claude/corpus/programs/include \
+    beauty.sno < beauty.sno > /tmp/csn_beauty.out 2>/dev/null
+md5sum /tmp/csn_beauty.out   # should match 408fc788ca2ef425fc1f87e26d45a7a5
 ```
 
-**Build-system latent issue** (from session #3): `scripts/build_scrip.sh`
-uses a different Makefile path (`src/Makefile`) that does NOT populate
-`/tmp/si_objs/`.  The top-level `Makefile`'s `scrip-monitor` target
-depends on `/tmp/si_objs/*.o`.  Workflow is: run `build_scrip.sh` first
+**Build-system latent issue** (carried forward from session #3):
+`scripts/build_scrip.sh` uses a different Makefile path
+(`src/Makefile`) that does NOT populate `/tmp/si_objs/`.  The
+top-level `Makefile`'s `scrip-monitor` target depends on
+`/tmp/si_objs/*.o`.  Workflow is: run `build_scrip.sh` first
 (populates si_objs as a side effect of that Makefile), then
 `make scrip-monitor`.  Both paths happen to coexist because
-`build_scrip.sh` invokes the top-level Makefile internally.  Not a bug;
-just a footgun — `make scrip-monitor` from a clean tree fails with
-undefined references until `build_scrip.sh` has run once.
+`build_scrip.sh` invokes the top-level Makefile internally.  Not
+a bug; just a footgun — `make scrip-monitor` from a clean tree
+fails with undefined references until `build_scrip.sh` has run
+once.  After modifying `sm_lower.c` (or any file in `runtime/x86/`),
+the corresponding `.o` in `/tmp/si_objs/` is stale; force a refresh
+with `rm -f /tmp/si_objs/sm_lower.o && bash scripts/build_scrip.sh`
+before `make scrip-monitor`.
 
-**Gate:** Smoke=7, Broker=49 after any fix for SN-26c-stmt637.
+**Gate:** Smoke=7, Broker=49 after any fix for SN-26c-parseerr.
 
-**Dependencies:** SN-26c-stmt153 fix landed (pending commit).
+**Dependencies:** SN-26c-stmt637 fix landed (`sm_lower.c lt_find`
+→ `strcmp`).  No other open dependencies.
 
 ---
 
@@ -928,43 +1024,50 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-24 session #3:**
-- one4all @ pending (SN-26c-stmt153 fix: sm_lower SM_LABEL/SM_STNO order)
+**HEADs after 2026-04-25 session #4:**
+- one4all @ `6225ce4e` (SN-26c-stmt637 fix: lt_find strcasecmp→strcmp)
 - corpus @ `88be074` (unchanged)
-- .github @ pending (SN-26c-stmt153 close, SN-26c-stmt637 open)
+- .github @ this commit (SN-26c-stmt637 close, SN-26c-parseerr open)
 - x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g — deferred)
-- csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts)
+- csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts under both
+  oracles to 649-line output, md5
+  `408fc788ca2ef425fc1f87e26d45a7a5`)
 
-**Gates (verified 2026-04-24 session #3, after SN-26c-stmt153 fix):**
+**Gates (verified 2026-04-25 session #4, after SN-26c-stmt637 fix):**
 Smoke **7** · Broker **49**.  SN-7/Broad/SN-9c owed in a subsequent
-session.
+session.  4-way scrip-monitor full re-run also owed (build artifact
+rebuild deferred — see SN-26c-parseerr "Build-system latent issue").
 
-**Session 2026-04-24 (cont. #3) deltas:**
-- **SN-26c-stmt153 CLOSED.**  Root cause: `lower_stmt` in
-  `sm_lower.c` emitted `SM_STNO` **before** `SM_LABEL`.  Branches to
-  the label landed at index N+1, skipping the STNO at index N.  This
-  caused SM/JIT to under-count statement executions on every branch
-  to a labeled statement — under `--ir-run`/`--sm-run`/`--jit-run` step
-  limits, SM/JIT ran extra source statements before the limit fired,
-  showing up as `i=2` vs IR's correct `i=1` in the G1 loop.  Three-line
-  fix: swap the LABEL and STNO emit order.  Verified with minimal probe
-  (`/tmp/probe_mini.sno`, 7 stmts) — monitor now reports all agree.
-  Beauty self-host monitor advances to stmt 637 (new divergence, see
-  below).  Collateral correction: forward gotos to labeled statements
-  now also count — was under-counted before.
-- **SN-26c-stmt637 OPENED.**  Fresh beauty monitor reveals IR
-  `doDebug=0` vs SM/JIT `doDebug=""` at stmt 637.  Label paths agree.
-  Stmt 637 is a `DEFINE('TX(lvl,pat,name)omega') :go TXEnd` —
-  `doDebug = 0` is at `beauty.sno:610` which is much later in source
-  (~stmt 1050+).  This means IR has executed **further** into the
-  program than SM/JIT at step 637 — opposite polarity from stmt 153.
-  Suggests IR is still not counting something that SM counts, OR a
-  remaining SM-under-count instance the stmt 153 fix didn't reach.
-  Active rung, next session.
+**Session 2026-04-25 (#4) deltas:**
+- **SN-26c-stmt637 CLOSED.**  Root cause: `lt_find` in
+  `src/runtime/x86/sm_lower.c:84-90` used `strcasecmp` for label
+  lookup.  Under SN-31 case-sensitive default, this collided
+  distinct labels like `visitEnd` and `VisitEnd` (both present in
+  beauty.sno via the double-function trick).  SM `:go visitEnd`
+  resolved to `VisitEnd`, sending control flow off into the wrong
+  static region; IR's `interp.c:148` already used `strcmp`
+  correctly.  One-character fix: `strcasecmp` → `strcmp` (plus
+  explanatory comment).  See full root-cause analysis in the
+  SN-26c-stmt637 closed-rung block above; the previously-suspected
+  "stmt-counting drift" hypothesis (label-only stmts, DEFINE-body
+  stmts, END/HALT asymmetry) was wrong — counting was symmetric
+  all along, the bug was target resolution, pinned via
+  pc→static-stmt-index decoding from the SN-26c-stmt637 env-gated
+  probes committed `4d12a99363` in session #3.
+- **SN-26c-parseerr OPENED.**  After the lt_find fix, smoke=7 /
+  broker=49 still green, but `scrip --ir-run beauty.sno < beauty.sno`
+  produces only 38 lines of output ending with "Parse Error" (vs
+  oracle's 649 lines, md5 `408fc788ca2ef425fc1f87e26d45a7a5`).
+  scrip parses beauty.sno itself correctly, but beauty's own
+  internal SNOBOL4 parser (running inside scrip) chokes when given
+  beauty.sno as input.  IR-only divergence — the lt_find fix was
+  SM-only — so this is a pre-existing latent bug that the SM
+  divergence had been masking under the monitor.  Active rung, next
+  session.
 
-**Current step: SN-26c-stmt637.**  Determine which kind of statement
-IR counts differently from SM/JIT at this boundary.  Candidates: empty
-labeled statements, DEFINE body statements, END/HALT asymmetry.
+**Current step: SN-26c-parseerr.**  Identify which beauty subroutine
+emits "Parse Error", reproduce in isolation, locate divergent
+runtime primitive, fix, re-verify byte-identical against oracle.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
@@ -973,3 +1076,6 @@ labeled statements, DEFINE body statements, END/HALT asymmetry.
 - `build_spitbol_oracle.sh` SKIPs on prebuilt `bin/sbl` — add capability probe
   so it auto-rebuilds when the checked-in binary predates the source.
 - ~40 `sm_lower: unresolved label 'ERROR'/'ERR'` warnings during beauty compile.
+- SN-26c-stmt637 env-gated probes (`ONE4ALL_STEP_TRACE=1`) are now
+  permanent diagnostic infrastructure — can be removed if no longer
+  needed, or kept as ongoing monitor-debugging aid.
