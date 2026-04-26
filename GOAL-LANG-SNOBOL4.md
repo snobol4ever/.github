@@ -552,21 +552,31 @@ participant and reports first divergence.
 
 - [x] **SN-26-scrip-env-gate** — landed this session (above).
 
-- [ ] **SN-26-auto-binary-scrip** — switch scrip's catch-all
-  `comm_var`/`comm_call`/`comm_return` to emit binary records via a
-  new `mon_emit_value_auto` / `mon_emit_call_auto` when `MONITOR_BIN=1`
-  is set.  Names auto-interned into `g_bin_names` via a new
-  `intern_name_bin(name, len)` helper that grows the table on demand.
-  At process exit (atexit handler), dump the table to
-  `MONITOR_NAMES_OUT`.  Final `MWK_END` record sent before atexit
-  return.  *Session #20 attempted this* — landed in
-  `src/runtime/x86/snobol4.c` but failed to build (likely cause:
-  function-local `extern` declarations for `mon_at_exit` and
-  `g_names_out_path_ref` confused the compiler since the symbols are
-  defined later in the same TU; fix is to move the forward decls to
-  file scope near where `monitor_fd` is declared).  WIP stashed:
-  `git stash list` shows "SN-26-auto WIP" — apply with
-  `git stash pop` to resume; or start fresh.
+- [x] **SN-26-auto-binary-scrip** — switch scrip's catch-all
+  `comm_var`/`comm_call`/`comm_return` to emit binary records via
+  `mon_send_bin` when `MONITOR_BIN=1` is set.  Names auto-interned
+  into `g_bin_names` via a new `intern_name_bin(name, len)` helper
+  that grows the table on demand.  At process exit (atexit handler),
+  dump the table to `MONITOR_NAMES_OUT` and emit a final `MWK_END`
+  record on the wire.  Landed this session (2026-04-26 session #21):
+  forward decls for `mon_at_exit`, `g_names_out_path_ref`,
+  `monitor_bin_mode`, and `intern_name_bin` placed at file scope
+  immediately after `monitor_fd`/`monitor_ack_fd`/`monitor_ready` —
+  this is the fix for session #20's build failure where the same
+  symbols had been declared `extern` inside `SNO_INIT_fn` and so
+  weren't visible to the compiler when the body of `mon_at_exit`
+  was reached.  Smoke=7, Broker=49 green.  Validated end-to-end via
+  `scripts/test_smoke_sn26_auto_binary.sh`: 14 records emitted
+  (VALUE×11 + CALL×1 + RETURN×1 + END×1) for a 6-statement probe
+  with one `DEFINE`/`SQR(7)` call, names sidecar lists 7 names
+  (`a`,`b`,`c`,`SQR`,`x`,`f`,`d`).  No source modification —
+  `MONITOR_BIN=1 SCRIP_TRACE=1 SCRIP_FTRACE=1` env vars only.
+
+  Notable side-observation: comm_var fires VALUE records on local-arg
+  unbinding too, so the wire shows `x → 7 → NULL` and `f → NULL → NULL`
+  bracketing each call — useful telemetry for sub-h2 forensics later
+  (the local-arg push/pop traffic is exactly the NM_CALL ordering work
+  that diverges).
 
 - [ ] **SN-26-auto-controller** — update `monitor_sync_bin.py` to
   accept multiple per-participant names sidecars (one per participant
