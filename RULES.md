@@ -71,12 +71,9 @@ behavior invisible to code reading the source.
 ### SPITBOL and CSNOBOL4 are exempt
 
 SPITBOL (x64, x32) and CSNOBOL4 fold inside `GTNVR` / `GENVUP`,
-gated on the `&case` / `CASECL` keyword. That is how they have
-always worked and how they will continue to work. We do **not**
+gated on the `&case` / `CASECL` keyword.  That is how they have
+always worked and how they will continue to work.  We do **not**
 retrofit these legacy runtimes to the ingress-at-lex technique.
-Sessions 2-6 explored patching SPITBOL at `gnv10` and at the SIL
-level in `sbl.min:23093`; all of that work is deferred permanently.
-See SN-25 in `GOAL-LANG-SNOBOL4.md` for the history.
 
 ### Source-of-truth if a legacy patch is ever justified
 
@@ -107,28 +104,12 @@ HQ docs are state, not history.
 ## Project files — keep small; don't preload reference material
 
 ⛔ Do **not** attach large reference files (PDFs, generated C, SIL
-dumps, manual scans) as project-file attachments. Project-file
-attachments are preloaded into every session's context window before
-the first message. Session 6 (2026-04-21) opened at ~70-80% consumed
-because `spitbol-manual-v3.7.pdf`, `green-book.pdf`, `v311.sil`,
-`snobol4.c`, and `syntax.tbl` were all project-file attached.
+dumps, manual scans) as project-file attachments — they are preloaded
+into every session's context window before the first message.  Add
+them as **project knowledge** instead (retrieved on-demand via
+`project_knowledge_search`).  Cloned repos already contain source.
 
-The fix (user action in claude.ai UI):
-1. Remove all five files from the project's file attachments.
-2. If searchable reference is needed, add them as **project
-   knowledge** instead — these are retrieved on-demand via
-   `project_knowledge_search`, not preloaded.
-3. Cloned repos (`.github`, `one4all`, `x64`, `corpus`, `csnobol4`)
-   already contain the source Claude needs; the PDF manuals can be
-   re-fetched from the web or kept as knowledge-base entries.
-
-**Target:** session 7+ should open at < 20% context consumed, leaving
-full headroom for build + test + verify + commit cycles within a
-single session.
-
-⛔ Do **not** create or maintain append-only accumulating files (e.g.
-`SESSIONS_ARCHIVE.md`). The git commit log is the permanent session record.
-HQ docs are state, not history.
+**Target:** sessions open at < 20% context consumed.
 
 ---
 
@@ -182,14 +163,10 @@ CSNOBOL4's SIL source.
 
 ### SPITBOL `-f` — fixed in SN-30 (x64 @ `cc68516`)
 
-Historical note: pre-SN-30, `-f` (case-sensitive) on x64 caused "No END
-statement found" on all files.  Root cause was lowercase canonical
-keyword tables in `sbl.min` (not a bug in the fold logic).  SN-30
-flipped 173 DTC strings to UPPERCASE and inverted the FLC/FLSTG fold
-direction; x64 `sbl -bf` now accepts standard UPPERCASE SNOBOL4 source
-correctly.  Beauty self-host confirmed 2026-04-24: `sbl -bf beauty.sno
-< beauty.sno` with `SETL4PATH=".:<corpus/include>"` produces 649 lines,
-exit 0, byte-identical to CSNOBOL4 HEAD `b3aeb9f` output.
+x64 `sbl -bf` accepts UPPERCASE SNOBOL4 source.  Beauty self-host
+under `sbl -bf beauty.sno < beauty.sno` with
+`SETL4PATH=".:<corpus/include>"` produces 649 lines byte-identical to
+CSNOBOL4 HEAD `b3aeb9f` output (md5 `408fc788ca2ef425fc1f87e26d45a7a5`).
 
 The double-function trick still requires `-bf` (case-sensitive) on
 both oracles.  CSNOBOL4 `-bf` remains valid.
