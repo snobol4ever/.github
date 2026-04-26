@@ -290,7 +290,7 @@ default; that was already fixed in `13bfcc0`.
     ARBNO(*Command) also loops under snobol4dotnet — same root cause or related.
   - corpus HEAD: 0074bc5
 
-- [x] **S-2a** — Confidence demo: `claws5.sno < CLAWS5inTASA.dat`. **DONE** (snobol4dotnet @ 8432b35).
+- [x] **S-2a** — Confidence demo: `claws5.sno < claws5.input`. **DONE** (snobol4dotnet @ 8432b35).
   - Root cause: `IndexTable`/`IndexArray` deep-cloned every value read from
     a Table/Array slot, including stored Tables and Arrays.  Chained-
     subscript writes (`m['s']['w'] = 1`) modified the transient clone, never
@@ -303,49 +303,36 @@ default; that was already fixed in `13bfcc0`.
       clone (existing scalar aliasing protection unchanged).  Missing-key
       path in IndexTable still clones Fill (each empty slot independent).
   - Verification on this clone:
-    - `claws5.sno < claws5.input` (16-line smoke): exit 0, 95 stderr-clean
-      lines, **byte-identical to `claws5.ref`**, zero error markers.
-    - `claws5.sno < CLAWS5inTASA.dat` (989-line full corpus): exit 0,
-      5,622 stderr-clean lines, **zero `error 235` markers**
-      (was 6,459 prior to fix).
+    - `claws5.sno < claws5.input` (tiny 16-line canonical input):
+      exit 0, 95 stderr-clean lines, **byte-identical to `claws5.ref`**.
     - Beauty 17/17 still PASS.
     - Crosscheck smoke sweep over hello/output/assign/concat/data/
       keywords/strings/arith_new/control_new/patterns/capture/functions:
       128/129 PASS (the lone fail is the pre-existing `099_keyword_rw`
       noted in `REPO-snobol4dotnet.md`, unrelated).
 
-- [ ] **S-2b** — Confidence demo: `treebank-list.sno < VBGinTASA.dat`.
-  Source: `/home/claude/corpus/programs/snobol4/demo/treebank-list.sno`.
-  Reference: `treebank-list.ref`.
+- [x] **S-2b** — Confidence demo: `treebank-list.sno < treebank.input`. **DONE** (snobol4dotnet @ 8432b35).
+  - The canonical input for this demo is the tiny `treebank.input`
+    (4 sentences) — NOT the much larger `VBGinTASA.dat` used in earlier
+    sessions.  `treebank-list.ref` is the 24-line reference for the
+    tiny input and is **not** stale.
+  - Same root cause as S-2a/S-2c (aggregate reference semantics);
+    the IndexTable/IndexArray fix closes this demo too.
+  - Verification on this clone:
+    - `treebank-list.sno < treebank.input`: exit 0, 24 stderr-clean
+      lines, **byte-identical to `treebank-list.ref`**.
+    - SPITBOL `-bf` on the same input: byte-identical to the same ref.
 
-  **Current state on snobol4dotnet @ 8432b35 (Sun Apr 26 2026):**
-  - Build/parse/runtime: **runs cleanly**, exit 0, 8,727 stderr-clean
-    lines, no error markers.
-  - **The reference is stale.** `treebank-list.ref` (24 lines) was
-    generated from a four-sentence test input ("The cat sits", "A dog
-    runs", "She saw the man with a telescope", "The old man knows that
-    he is right"); the current `VBGinTASA.dat` is much larger.
-    SPITBOL stack-overflows (error 246) on this input — only 21 lines
-    output before crash.  snobol4dotnet runs to completion.
-  - **Structural agreement with treebank-array (S-2c) on snobol4dotnet:
-    matches except for 6 lines** in the s-expression tree shape — those
-    differences are real algorithmic distinctions between the linked-list
-    and array stack styles, not a runtime bug.
-
-  **Goal:** This step is *substantively complete* on the runtime side —
-  snobol4dotnet handles treebank-list correctly.  Closure requires
-  regenerating `treebank-list.ref` from a chosen oracle for this demo
-  and re-baselining, which is a corpus-side decision (Lon).  The
-  snobol4dotnet runtime work on this step is **done**.
-
-- [x] **S-2c** — Confidence demo: `treebank-array.sno < VBGinTASA.dat`. **DONE** (snobol4dotnet @ 8432b35).
+- [x] **S-2c** — Confidence demo: `treebank-array.sno < treebank.input`. **DONE** (snobol4dotnet @ 8432b35).
   - Same root cause as S-2a (multi-level subscripted assignment via
     Array indexing).  Same fix (`IndexArray` reference-semantics for
     aggregates) closes both demos.
+  - The canonical input is the tiny `treebank.input` (4 sentences);
+    `treebank-array.ref` is the 24-line reference for that input.
   - Verification on this clone:
-    - `treebank-array.sno < VBGinTASA.dat`: exit 0, 8,733 stderr-clean
-      lines, no error markers.  **Byte-identical to SPITBOL `-bf`**
-      (also 8,733 lines, zero diff).
+    - `treebank-array.sno < treebank.input`: exit 0, 24 stderr-clean
+      lines, **byte-identical to `treebank-array.ref`**.
+    - SPITBOL `-bf` on the same input: byte-identical to the same ref.
 
 - [ ] **S-2** — Fix root cause: self-host Parse fails on label-only statements.
   FRETURN PROPAGATION — PARTIAL FIX (snobol4dotnet 80381fb, INCOMPLETE):
