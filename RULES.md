@@ -399,6 +399,82 @@ Two-way (SIL + ours only) is wrong. All three, every line, no exceptions.
 
 ---
 
+## Sync-step monitor — keyword catch-alls only, no source preprocessing
+
+⛔ **The user's source is never modified to enable monitoring.**  No
+Python injection.  No SNOBOL4 source-scanning driver that emits an
+include file.  No `monitor_preamble.inc` for the user to add at the
+top of their program.  No build step that produces an "instrumented"
+copy of the input.  Source preprocessing of any kind is banned for
+the sync-step monitor.
+
+The instrumentation lives in the **C runtime** of each participant.
+At process startup, the runtime checks env vars (`MONITOR_READY_PIPE`,
+`MONITOR_GO_PIPE`) and opens the IPC connection.  The runtime's
+existing CALL/RETURN/VALUE trace hooks fire on every event when the
+catch-all keywords are non-zero, and those hooks write fixed-size
+binary records (`monitor_wire.h` format) directly to the wire.  The
+controller process reads each runtime's ready FIFO, compares records,
+acks each step, and stops at the first divergence.
+
+The user's `.sno` runs unmodified.
+
+| Keyword | Effect | scrip | SPITBOL | CSNOBOL4 |
+|---------|--------|-------|---------|----------|
+| `&FTRACE = N` (N>0) | Fire CALL/RETURN trace event on every DEFINE'd function | ✓ on IPC wire (session #19) | needs runtime patch — currently routes only to stdout | needs runtime patch — same |
+| `&TRACE = N` (N>0)  | Fire VALUE trace event on every variable assignment       | ✓ on IPC wire (session #19) | no native catch-all                                    | no native catch-all                                  |
+
+Removed in session #19: `inject_traces.py`, `inject_traces_bin.py`
+(source rewriters).  The controllers (`monitor_sync.py`,
+`monitor_sync_bin.py`) and the C IPC libraries (`monitor_ipc_sync.c`,
+`monitor_ipc_bin_csn.c`, `x64/monitor_ipc_bin_spl.c`) **stay** —
+they are the cross-process comparison engine that reads each
+runtime's ready FIFO.
+
+The pre-#19 architecture loaded the IPC `.so` via SNOBOL4 `LOAD()`
+calls injected into the user's source.  That violated this rule.
+Bringing the oracles to scrip's standard requires patching their C
+runtimes to read `MONITOR_READY_PIPE` at startup and bridging
+`&FTRACE`/`&TRACE` events to the IPC wire directly — the same
+treatment scrip already has in `runtime/x86/snobol4.c`.  Tracked as
+an open question; not yet started.
+
+---
+
+## Sync-step monitor — read the divergence point, not the trace
+
+⛔ **Never read the full trace stream during debugging.**  Reading
+hundreds or thousands of trace records into a chat context wastes
+context and obscures what matters.  The monitor process exists to
+read traces for you.
+
+What you want from the monitor is exactly two records:
+
+1. The **last record where all participants agree** — the runtime's
+   state was demonstrably correct up through this point.
+2. The **first record where they diverge** — what each runtime emitted
+   when their behaviour first differed.
+
+The bug is the work that happens between (1) and (2).  Always.  With
+two adjacent records, the divergence is bounded to the code path
+executed between them — usually a single statement or a single
+function entry/exit.  The bug is then crystal clear.
+
+Workflow:
+1. Run the harness; it stops at first divergence and reports those
+   two records (last-agree + first-disagree).
+2. Read **only those two records** plus the matching SNOBOL4 source
+   line numbers.
+3. Identify what the runtime was doing between them.
+4. Fix; re-run; the next divergence (if any) is now the next bug.
+
+If the harness output dumps more than two records' worth of context,
+trim it before reading.  If you need to look at trace history in a
+debugger, open the harness's saved log file directly — never paste
+it into the chat.
+
+---
+
 ## Session setup — run only what the Goal file lists
 
 Session setup is defined in the Goal file's `## Session Setup` section.
