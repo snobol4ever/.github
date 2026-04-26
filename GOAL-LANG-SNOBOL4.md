@@ -524,6 +524,107 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 **Gates (verified 2026-04-26 session #19):** Smoke **7** · Broker **49**.
 
+### Closed in session #20 (2026-04-26)
+
+- [x] **SN-26-scrip-env-gate** — `SCRIP_FTRACE` / `SCRIP_TRACE` env vars in
+  `src/runtime/x86/snobol4.c` `SNO_INIT_fn` auto-activate `kw_ftrace` /
+  `kw_trace` at startup.  Set the env var, run an unmodified `.sno`, and
+  every CALL/RETURN/VALUE event emits on the monitor wire — no
+  `&FTRACE = 1` / `&TRACE = 1` in the source.  Verified in all three
+  modes: `--ir-run`, `--sm-run`, `--jit-run` all emit identical
+  text-format records via `mon_send` for a 6-stmt probe with one
+  `DEFINE`/`SQUARE(7)` call.  This is the scrip side of "super
+  automatic" sync tracing.  Smoke=7, Broker=49 green.  Tiny diff
+  (~22 lines) just before the `Register numeric comparison builtins`
+  block in `SNO_INIT_fn`.
+
+### Active rung — SN-26-auto (binary catch-all, oracle bridges)
+
+**Done-when:** `MONITOR_BIN=1 MONITOR_READY_PIPE=fifo MONITOR_GO_PIPE=go
+MONITOR_NAMES_OUT=names.out SCRIP_TRACE=1 SCRIP_FTRACE=1 scrip --ir-run
+beauty.sno < beauty.sno` produces a binary wire stream readable by
+`monitor_sync_bin.py`, plus a names sidecar at `names.out`, with no
+source modification of `beauty.sno`.  Same env vars on CSNOBOL4 +
+SPITBOL produce comparable streams; controller resolves names per
+participant and reports first divergence.
+
+**Sub-rungs:**
+
+- [x] **SN-26-scrip-env-gate** — landed this session (above).
+
+- [ ] **SN-26-auto-binary-scrip** — switch scrip's catch-all
+  `comm_var`/`comm_call`/`comm_return` to emit binary records via a
+  new `mon_emit_value_auto` / `mon_emit_call_auto` when `MONITOR_BIN=1`
+  is set.  Names auto-interned into `g_bin_names` via a new
+  `intern_name_bin(name, len)` helper that grows the table on demand.
+  At process exit (atexit handler), dump the table to
+  `MONITOR_NAMES_OUT`.  Final `MWK_END` record sent before atexit
+  return.  *Session #20 attempted this* — landed in
+  `src/runtime/x86/snobol4.c` but failed to build (likely cause:
+  function-local `extern` declarations for `mon_at_exit` and
+  `g_names_out_path_ref` confused the compiler since the symbols are
+  defined later in the same TU; fix is to move the forward decls to
+  file scope near where `monitor_fd` is declared).  WIP stashed:
+  `git stash list` shows "SN-26-auto WIP" — apply with
+  `git stash pop` to resume; or start fresh.
+
+- [ ] **SN-26-auto-controller** — update `monitor_sync_bin.py` to
+  accept multiple per-participant names sidecars (one per participant
+  via the existing CLI: extend `NAME:READY_FIFO:GO_FIFO:NAMES_FILE`
+  spec) and resolve `name_id` → string per participant before
+  comparing.  Tuple comparison flips from `(kind, name_id, type, value)`
+  to `(kind, name_string, type, value)`.  Today's controller fails the
+  comparison whenever participants assign different ids to the same
+  name — which is exactly what the auto path produces.
+
+- [ ] **SN-26-auto-harness** — write
+  `scripts/test_monitor_3way_sync_step_auto.sh` that creates 3 FIFO
+  pairs + 3 names-out paths, sets `MONITOR_BIN=1` etc. on each
+  participant, launches scrip + (eventually) csnobol4 + spitbol on the
+  same `.sno`, and pipes them all to `monitor_sync_bin.py`.  No
+  `inject_traces*.py` step.  Until oracle bridges land, this script
+  should support a `SCRIP_ONLY=1` mode that only launches scrip and
+  pipes its wire to the controller (single participant, useful for
+  validating the auto path in isolation).
+
+- [ ] **SN-26-csn-bridge** — patch `csnobol4/v311.sil` at the five
+  trace fire-points identified in session #19's Goal-file scout
+  (lines 2641–2647 INIT1/STNO, 3516–3520 SJSRV2/VALUE, 4471–4478
+  DEFF18/CALL, 4500–4507 DEFF20/RETURN; FAIL trap at 2662–2666 is
+  out-of-scope) to call new `XCALLC monitor_emit_*` functions.  Add a
+  shared `monitor_ipc_runtime.c` (next to `monitor_ipc_bin_csn.c` but
+  loaded statically into the runtime, not as a `.so`) that opens
+  `MONITOR_READY_PIPE` / `MONITOR_GO_PIPE` on first emit, marshalls
+  CSNOBOL4-internal type tags → `MWT_*`, and writes the binary record
+  + reads ack.  Catch-all gate: emit when `kw_trace > 0` /
+  `kw_ftrace > 0` (CSNOBOL4-side counters), independent of any
+  per-name `LOCAPT`/`LOCAPV`.  Build path:
+  `make Makefile2 && make -f Makefile2 xsnobol4`.
+
+- [ ] **SN-26-spl-bridge** — same shape for SPITBOL `sbl.min`.  Trace
+  fire-points to identify next session: search around `trace`,
+  `fentr` (sites at 15602, 15705, 15707), function-return at 16353,
+  and the `sjsr`-equivalent for value assignment (needs grep).  Add
+  `XCALLC monitor_emit_*` calls (or `.if` blocks gated on a build
+  flag).  Build path: `make bootsbl && make BASEBOL=./bootsbl sbl &&
+  make bininst`, plus `bootstrap/sbl.asm` regen per RULES.md SN-30g.
+
+**Architecture note (one paragraph).**  The "super automatic" model
+has two halves.  *Half one (scrip side, SN-26-scrip-env-gate, done):*
+env vars set the keyword counters at startup so the user's `.sno`
+runs unmodified.  *Half two (cross-runtime, SN-26-auto-* + bridges):*
+each runtime emits `monitor_wire.h`-format binary records on every
+trace event when `MONITOR_BIN=1` is set, auto-interning names into
+its own per-participant sidecar.  The controller post-resolves
+name_ids to strings via the sidecars and compares string tuples.
+This decouples participants completely — they no longer need a
+shared, pre-baked names file (which the source-injection era required).
+
+**Gate after each sub-rung:** Smoke=7, Broker=49.
+
+**Dependencies:** SN-26-scrip-env-gate done; rest of SN-26-auto blocks
+on a build-then-test cycle that didn't fit in session #20's budget.
+
 **3-way binary harness:** broken pending oracle-side instrumentation
 (SN-26-csn-bridge / SN-26-spl-bridge) and harness-script rewrite
 (SN-26-harness-rewrite).  Pre-#19 design loaded the .so via SNOBOL4
