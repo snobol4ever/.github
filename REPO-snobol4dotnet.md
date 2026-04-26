@@ -89,7 +89,7 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `13bfcc0` (S-2 progress; AmpCaseFolding seeded from -f; EVAL/CODE case-sensitive under -f)
+- HEAD: `0914fbf` (S-2 progress; ExpressionVar evaluates on demand in numeric/conversion contexts; runtime errors 109/1/etc. eliminated from self-host; Parse Error on assignment remains)
 - Unit tests: not re-run this session (build clean, beauty gate verifies no regression)
 - Beauty suite: 17/17 PASS (verified)
 - Crosscheck: 79/80 (unchanged)

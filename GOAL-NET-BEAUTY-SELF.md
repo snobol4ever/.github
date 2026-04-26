@@ -109,80 +109,96 @@ a blocker for this goal — snobol4dotnet must match SPITBOL.
 
 ## Current diagnosis (supersedes all prior notes below)
 
-**Sun Apr 26 2026, late afternoon.** Three infrastructure bugs in
-snobol4dotnet were fixed this session, all of which were blocking
-correct `-bf` invocation. After the fixes the program compiles and
-runs but trips beauty's own `mainErr1` (Parse Error) path on the very
-first input statement, returning to the original S-2 territory:
-the parser pattern `Parse = nPush() ARBNO(*Command) *Top()` does not
-match label-only statements such as `START\n`.
+**Sun Apr 26 2026, evening.** Three runtime fixes landed in
+snobol4dotnet @ `0914fbf` that unblock the deferred-expression path
+through user-defined functions.  Beauty 17/17 still PASS.  Self-host
+no longer raises any `error 109 -- ge first argument is not numeric`
+(the prior-session blocker); it now reaches "Parse Error" on simple
+assignments without any runtime exceptions in between.  The remaining
+work is the parser pattern itself — the ARBNO(*Command) graft issue.
 
-**Bugs fixed this session (snobol4dotnet, working tree, not yet committed):**
+**Bugs fixed this session (snobol4dotnet @ 0914fbf):**
 
-1. **CommandLine.cs** — concatenated boolean flags. The dispatcher took
-   only the first 2 chars of each arg, so `-bf` parsed as `-b` and the
-   `-f` was silently dropped. Added SPITBOL-compatible flag-pack
-   expansion: `-bf`→`-b -f`, `-lcx`→`-l -c -x`, `-bm4m`→`-b -m4m`.
+1. **Var.cs `ToNumeric`** — when the arg is an `ExpressionVar`, run its
+   `DeferredCode`, pop the resulting top-of-stack value, then continue
+   numeric extraction (recursing through NameVar resolution as needed).
+   Mirrors SPITBOL semantics: a deferred `*(...)` evaluates on demand
+   whenever a numeric value is needed.
 
-2. **SourceCode.cs IsEndStatement** — when `-f` (no-fold) was set, the
-   END keyword check compared against lowercase `"end"`. Per RULES.md
-   "Always uppercase END", changed to `"END"` in both branches.
+2. **NumericComparisonHelper.cs `BinaryComparison`** — when `ToNumeric`
+   returns false because the deferred expression itself failed
+   (`Failure` already set), call `NonExceptionFailure()` rather than
+   `LogRuntimeException(errorLeft/errorRight)`.  A failed `*(...)` in
+   numeric-comparison position yields a SNOBOL match-failure, not a
+   fatal "first/second argument is not numeric" error (errors 101–150).
 
-3. **MainConsole.cs** — removed unconditional debug print of
-   `Environment.CurrentDirectory` to stdout.
+3. **NumericHelper.cs `BinaryNumericOperation`** — same propagation
+   rule for `+`, `-`, `*`, `/`, `^` (errors 1, 2, 12, 16, 26, 32).
 
-**Verification after fixes:**
+**Verification:**
 - Beauty 17/17 gate still PASS.
-- Minimal repro (case-sensitive 2-arg DEFINE):
-  ```
-  $ dotnet Snobol4.dll -bf /tmp/case.sno
-  lower / Upper                                    ← was: error 217
-  ```
-- Self-host gate: `dotnet -bf beauty.sno < beauty.sno` now compiles
-  and runs end-to-end; mainErr1 fires → "Parse Error" + source dump.
-  No compiler errors. SPITBOL handles the same input cleanly.
+- Self-host: `error 109` (in ShiftReduce.inc and counter.inc) and
+  `error 1` (addition in counter.inc) — all gone.  Output is now
+  clean up to `Parse Error` on the first non-comment statement.
+- Minimal Reduce-with-`*(GT(nTop(),1) nTop())` repro confirmed:
+  evaluates correctly, no runtime exception.
 
-**Remaining bug (the actual S-2 work):**
+**Remaining bug (the actual S-2 work) — Parse Error on assignment:**
 
 ```
-$ cat > /tmp/parse_test.sno << 'EOF'
-       &ANCHOR    = 0
-       &FULLSCAN  = 1
-       DEFINE('Shift(t,v)')
-       DEFINE('shift(p,t)','shift_')                         :(setup_end)
-Shift  OUTPUT = 'SHIFT(' t ', v=[' v '])'                    :(NRETURN)
-shift_ shift = EVAL("p . thx . *Shift('" t "', thx)")        :(RETURN)
-setup_end
-       Lbl  = shift(BREAK(' ' CHAR(10) ';'), 'Label')
-       x    = 'A B'
-       x POS(0) Lbl                                          :S(ok)F(fail)
-ok     OUTPUT = 'match passed'                               :(END)
-fail   OUTPUT = 'match failed'
+$ cat > /tmp/tiny2.sno << 'EOF'
+              x = 1
 END
 EOF
-$ dotnet Snobol4.dll -bf /tmp/parse_test.sno
-parse_test.sno(...): error 22 -- undefined function called
-$ /home/claude/x64/bin/sbl -bf /tmp/parse_test.sno
-SHIFT(Label, v=[A])
-match failed
+$ dotnet Snobol4.dll -bf beauty.sno < /tmp/tiny2.sno
+Parse Error
+              x = 1
 ```
 
-The `*Shift` callback compiled into the pattern (via `EVAL("... *Shift('" t "', thx)")`)
-fails to resolve `Shift` at match time. The function IS in `FunctionTable`
-(both DEFINE calls succeed), but the deferred-eval pattern's call site
-can't find it. This is **the original S-2 bug**, now visible explicitly
-(error 22) instead of silent.
+`Parse = nPush() ARBNO(*Command) *Top()` only succeeds on input that
+the grammar already accepts at zero-Commands (comment-only input,
+label-only `START\n`).  Real statements (`x = 1\n`, `&FULLSCAN = 1\n`)
+trip Parse Error.  No runtime errors fire — the pattern just fails.
+This is the ARBNO(*Command) graft territory from prior sessions:
+multiple sessions have noted that `'AB' POS(0) *Parse RPOS(0)` works
+when `Parse = nPush() ARBNO(LEN(1))` (Graft fix landed) but fails
+when the inner pattern is `*Command` — semantic actions inside the
+ARBNO body don't fire and/or backtracking alternates are dropped.
 
-**Likely fix sites:**
-1. `Snobol4.Common/Runtime/Execution/Function.cs` — error 22 fires here.
-   Inspect what symbol the lookup uses and whether it's foldcased.
-2. `Snobol4.Common/Builder/BuilderEmitMsil.cs` — `R_PAREN_FUNCTION`
-   reads `FunctionSlotIndex` which may have been populated under
-   different folding than the runtime lookup.
-3. `Snobol4.Common/Runtime/Functions/Compilation/Eval.cs` —
-   the EVAL of a string literal with `*Shift` — does it set up the
-   pattern's deferred call by symbol name (good) or by slot index
-   captured at build time (might be stale)?
+**Likely fix sites for next session:**
+1. `Snobol4.Common/Runtime/Pattern/ArbNoPattern.cs` — verify the Graft
+   fix (826d4ff) applies correctly when inner is `*X` returning a
+   pattern that itself contains `*Y` (nested star-expressions, which
+   is what `*Command` ultimately expands to via the `&` OPSYN chain).
+2. `Snobol4.Common/Runtime/Pattern/UnevaluatedPattern.cs` — `Scan`
+   uses `Graft` on the outer scanner.  When it grafts a pattern whose
+   nodes themselves contain `*` references, those inner stars
+   themselves Scan via the outer scanner — does that re-graft path
+   preserve ARBNO's alternates?
+3. Test target: a minimal `Parse = nPush() ARBNO(*X) *Top()` where
+   `X = ('a' . *push) | ('b' . *push)` (i.e. *X picks tokens with
+   semantic actions on each), feed it `'aab'`, expect 3 push calls.
+   If that fails, the graft + ARBNO loop has the same root cause as
+   beauty's Parse failure.
+
+The runtime is now SPITBOL-compatible enough for deferred expressions
+in numeric/comparison contexts; the pattern engine is the next layer.
+
+---
+
+## Prior diagnosis (superseded by above; preserved for history)
+
+**Sun Apr 26 2026, late afternoon.** Three infrastructure bugs in
+snobol4dotnet were fixed (CommandLine.cs concatenated boolean flags,
+SourceCode.cs IsEndStatement uppercase END, MainConsole.cs debug print
+removed); committed as `13bfcc0`.  After those fixes the program ran
+end-to-end but tripped `mainErr1` (Parse Error).  See git log for
+detail.
+
+**Original repro that drove this session** — now passes after `0914fbf`:
+the `*Shift` resolution failure was a symptom of `AmpCaseFolding`
+default; that was already fixed in `13bfcc0`.
+
 
 ---
 
@@ -625,3 +641,72 @@ can't find it. This is **the original S-2 bug**, now visible explicitly
     - Beauty gate: 17/17 PASS (verified end-of-session)
     - Self-host: now reaches `&FULLSCAN = 1`, fails with error 109 on
       ExpressionVar arg to Reduce
+
+  SESSION WORK (Sun Apr 26 evening — runtime errors fixed, parser still blocks):
+
+    Approach B (from prior session's recommended fixes) implemented:
+    on-demand evaluation of ExpressionVar in non-pattern conversion
+    contexts.  Three small changes in snobol4dotnet (commit 0914fbf):
+
+      • Var.cs ToNumeric: ExpressionVar arg → run DeferredCode, pop
+        result, recurse for numeric extraction.
+      • NumericComparisonHelper.cs BinaryComparison: when ToNumeric
+        fails because Failure was already set by the deferred eval,
+        use NonExceptionFailure() instead of error 109/110/etc.
+      • NumericHelper.cs BinaryNumericOperation: same propagation rule
+        for +, -, *, /, ^ (errors 1, 2, 12, 16, 26, 32).
+
+    Approach A (eager-evaluate ExpressionVar in ExtractArguments) was
+    tried first and **regressed Qize/XDump/omega** drivers.  Root
+    cause: the *assign(.part, *'literal') idiom in Qize.inc relies on
+    `expression` arriving at the user-defined `assign` function as
+    EXPRESSION so it can `EVAL(expression)` later.  Eager evaluation
+    in ExtractArguments breaks that idiom.  Reverted; replaced with
+    the on-demand strategy in conversion sites only.  Build-time
+    `reduce(t, n)` calls are also unaffected because their args are
+    StringVar (the EVAL'd source string), not ExpressionVar.
+
+    Also discovered: `_reusableArgList` is shared across recursive
+    Function/Operator calls; running DeferredCode mid-ExtractArguments
+    corrupts the list (ArgumentOutOfRangeException).  Documented but
+    not exploited — the on-demand fix sidesteps the issue.
+
+    Self-host result on this clone:
+      • All `error 109` lines: gone.
+      • All `error 1` lines: gone.
+      • Output is now clean up to "Parse Error" on the first
+        non-comment statement.
+      • Tiny inputs that succeed: comment-only, label-only `START\n`,
+        `END`-only.
+      • Tiny input that fails (Parse Error): `              x = 1`.
+
+    Conclusion: the runtime is now SPITBOL-compatible enough for the
+    Reduce/EVAL deferred-expression chain.  The remaining S-2 work is
+    the **pattern engine** — `nPush() ARBNO(*Command) *Top()` only
+    matches at zero-Command count.  Same territory as multiple prior
+    sessions; the Graft fix from 826d4ff handles direct `*P` but not
+    the nested-star case that `*Command` ultimately compiles to via
+    the `&` OPSYN chain.
+
+  NEXT SESSION must:
+    1. Write a minimal repro outside beauty: e.g.
+         X = ('a' . *push) | ('b' . *push)
+         Parse = nPush() ARBNO(*X) *Top()
+         'aab' POS(0) *Parse RPOS(0)
+       Expect 3 push calls.  If <3, that's the same root cause.
+    2. Re-investigate ArbNoPattern.Scan + UnevaluatedPattern.Scan
+       interaction.  Specifically: when an ARBNO body is `*X` and
+       `X` itself contains `*Y` callbacks, do those callbacks run
+       AND does ARBNO see the alternates needed for backtracking?
+    3. After fix: beauty 17/17 must pass; self-host gate must produce
+       SELF-HOST PASS (≥500 stderr lines, exit 0, no error markers).
+    4. Side task (independent): add `-I` include-path support to
+       CommandLine.cs so beauty.sno can self-host without copying
+       is.inc/FENCE.inc/io.inc into demo/beauty/.  Goal-file already
+       notes the temp-copy trick is not the answer.
+
+    - snobol4dotnet HEAD: 0914fbf (committed and pushed)
+    - corpus HEAD: 7d26569 (unchanged)
+    - Beauty gate: 17/17 PASS (verified end-of-session)
+    - Self-host: runtime errors eliminated; Parse Error on assignment
+      remains (graft + ARBNO interaction)
