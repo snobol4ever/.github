@@ -1270,6 +1270,69 @@ No regressions.
    d. ARBNO with `*fn(args)` inside — beauty's `snoStmt` production
       uses ARBNO heavily.
 
+**Session #10 (2026-04-26) parseerr-g diagnostic — failure pinned:**
+
+- **Failure isolated to function-call recognition.**  Probes:
+  - `x = 'hello'`           → IR partial output (no Parse Error)
+  - `x = ARRAY` (bare id)   → IR works
+  - `x = ARRAY('1:4')`      → **Parse Error**
+  - `x = FN('arg')`         → **Parse Error**
+
+  Beauty's parser inside scrip cannot recognize `IDENT('arg')` as a
+  valid expression atom.  This is the very first non-comment line of
+  beauty.sno (line 40), which is why scrip stops at output line 42.
+
+- **Pinpointed source location:** beauty.sno lines 185-186 in `snoExpr17`:
+  ```
+  *snoFunction ~ 'snoFunction' $'(' *snoExprList $')' ("'snoCall'" & 2)
+  *snoId       ~ 'snoId'       $'(' *snoExprList $')' ("'snoCall'" & 2)
+  ```
+  Neither alternative fires when input is `FN('arg')`.  Trace
+  with `ONE4ALL_USERCALL_TRACE=1` shows zero `Shift` / `Reduce`
+  invocations during parsing of these probes.  Beauty bails earlier
+  in the alternation chain.
+
+- **OPSYN(`~`, 'shift', 2) is correctly registered.**  Source:
+  `corpus/programs/include/semantic.inc:8`.  Isolated probe with
+  the beauty-faithful idiom — `shift` returns `EVAL("p . thx .
+  *Shift('" t "', thx)")` — fires `NM_CALL name=Shift nargs=2`
+  correctly with both args thawed.  OPSYN-of-`~`-in-pattern-context
+  is not generally broken.
+
+- **`$'('` is a user-defined pattern variable lookup.**  Beauty
+  defines `$'(' = '(' *snoGray` at line 115 (`$` indirect-name set
+  → NV variable named literally `"("`).  Then `snoExpr17` reads it
+  back via `$'('`.  The interp.c E_INDIRECT fallback (~line 2855)
+  handles this via `interp_eval(child)` → `VARVAL_fn` → `NV_GET_fn`.
+  This path **has not been verified** to fire correctly in pattern
+  context for beauty's specific case.
+
+- **Hypotheses for next session (in order of likelihood):**
+
+  1. **`$'('` evaluated in pattern context returns wrong type.**
+     `snoExpr17`'s first alt is `nPush() $'(' *snoExpr ...`.  If
+     `$'('` resolves to NULVCL or epsilon (instead of `'(' *snoGray`),
+     the first alt fails immediately, AND so do the function-call
+     alts on lines 185-186 (which also start with `... $'('`).
+     Build a probe: `$'(' = '(' *snoGray; pat = $'(' 'foo'; '(foo)' pat`.
+     Confirm `$'('` resolves to the right pattern in pattern context.
+
+  2. **`*snoFunction` returns empty.**  `snoFunction` is defined at
+     line 63 with the `*match(...)` guard fixed in parseerr-f.  But
+     `snoFunction`'s value as a pattern has not been runtime-dumped.
+     Verify it holds a non-trivial pattern at the time beauty
+     applies it.
+
+  3. **Pattern alternation backtrack of OPSYN-built nodes.**  When
+     `*snoFunction ~ 'snoFunction'` succeeds (matching nothing for
+     non-builtin-name input), it builds an XCALLCAP-ish pattern.
+     If alt 1 partially matches before failing, NAM stack residue
+     could prevent alt 2 from cleanly retrying.  Less likely given
+     parseerr-f / parseerr-d landed clean.
+
+- **Probe files left in /tmp:** probe_arr.sno, probe_fn.sno,
+  probe_v.sno, probe_s.sno, probe_opsyn3.sno — good starting points.
+
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
 - SN-22/23 cleanups: `NAME_push` return `void *` → `void`; `cache_get_fresh` template purity.
