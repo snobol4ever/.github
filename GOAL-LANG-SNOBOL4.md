@@ -515,86 +515,154 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-26 session #16:**
-- one4all @ `988b7a70` (binary-protocol monitor scaffolding)
+**HEADs after 2026-04-26 session #17:**
+- one4all @ `7ac50ec3` (binary monitor: typed entry points + DATATYPE dispatch)
 - corpus @ `9a62ff9` (SN-29b)
 - .github @ this commit
-- x64 @ `fef193e` (monitor_ipc_bin_spl.c + .gitignore)
+- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points)
 - csnobol4 @ `b3aeb9f`
 
-**Gates (verified 2026-04-26 session #16):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #17):** Smoke **7** · Broker **49**.
 
-### Active rung — binary-protocol sync-step monitor (session #16)
+### Active rung — binary-protocol sync-step monitor (session #17)
 
-Implemented MONITOR-BINARY-DESIGN.md.  Files added in `one4all @ 988b7a70`
-and `x64 @ fef193e`:
+Session #16 implemented the binary-protocol scaffolding but was blocked
+by a SPITBOL/CSNOBOL4 type-check at LOAD prototype level on non-string
+values.  Session #17 closed that blocker.
 
-| Path | Role |
-|------|------|
-| `one4all/scripts/monitor/monitor_wire.h` | 13-byte fixed header + value bytes; type tags MWT_NULL..MWT_FILE. |
-| `one4all/scripts/monitor/monitor_ipc_bin_csn.c` | CSNOBOL4 LOAD()able .so. |
-| `x64/monitor_ipc_bin_spl.c` | SPITBOL ABI .so (lowercase + UPPERCASE entry points). |
-| `one4all/scripts/build_monitor_ipc_bin_libraries.sh` | Idempotent builder for both .so files. |
-| `one4all/scripts/monitor/inject_traces_bin.py` | Trace injector + names-file emission. |
-| `one4all/scripts/monitor/monitor_sync_bin.py` | Controller: tuple-equality compare; treats simultaneous EOF as clean END. |
-| `one4all/scripts/monitor/tracepoints_bin.conf` | INCLUDE/EXCLUDE rules; **no IGNORE rules**. |
-| `one4all/scripts/test_monitor_2way_sync_step_bin.sh` | 2-way harness. |
+#### Investigation findings (session #17)
 
-**Validation:** 2-way binary harness on probe (`x='hello' / y=42 / END`)
-and 4-event probe (CALL/RETURN added) — both exit 0, agree byte-for-byte
-on every event, clean EOF.
+Read SPITBOL `sbl.min:14681-14770` and CSNOBOL4 `v311.sil:4564-4636`:
+both LOAD prototype parsers behave identically — they recognize a small
+fixed set of type-name tokens (`STRING`, `INTEGER`, `REAL`, `FILE`)
+and stamp each formal-arg slot with that code.  Unrecognized tokens
+fall through to a "no convert" path (code 0) — `zer wb` at sbl.min:14755,
+`PUSH ZEROCL` at v311.sil:4628.
 
-**Blocker:** beauty self-host through binary harness fails at first MV
-call on a non-string variable (`ppStop = ARRAY('1:4')`).  Both oracles
-type-check the LOAD prototype's STRING declaration before invoking the
-C function:
+The type check that produces ERROR 039 / Error 1 happens at *call*
+time when the runtime tries to convert each actual arg according to
+the formal slot's stamped code.  STRING-stamped slot + non-string
+actual → error.  No-convert slot (code 0) → raw block-pointer
+pass-through.
 
-- CSNOBOL4: `Error 1 — Illegal data type`
-- SPITBOL:  `ERROR 039 — external function argument is not a string`
+Cannot use no-convert path on SPITBOL alone, however: `syslinux.c:188`
+overwrites `cargs[i].v = LDESCR_INT` for every default-branch arg,
+losing the type tag the C side relies on.  Therefore typed entry
+points are the right fix.
 
-Earlier reading of `lib/load.h` ("XXX check nargs?? check datatypes??")
-was misleading — the type-check happens before the C call, not within it.
+#### What was implemented (session #17)
 
-#### Three options for the fix
+Eight new LOAD-able entry points, four for VALUE and four for RETURN,
+each declaring its second arg with the matching prototype token so the
+runtime accepts the call.  Wrapper preamble in `inject_traces_bin.py`
+dispatches via `DATATYPE($N)` against runtime-derived tokens
+(`MON_DT_S_ = DATATYPE('')`, etc.) — portable across CSNOBOL4
+UPPERCASE and SPITBOL x64 lowercase DATATYPE conventions.
 
-1. **Pass NAME instead of value** — declare 2nd arg as NAME, call
-   `MON_PUT_VALUE(N, .N)`.  C-side dereferences via runtime's
-   NAME→value lookup.  More elegant; ABI-specific work in each .so.
+| Channel | Prototype | Wire emit |
+|---------|-----------|-----------|
+| `MON_PUT_S_VALUE` / `MON_PUT_S_RETURN` | `(STRING,STRING)INTEGER` | type=STRING, raw bytes |
+| `MON_PUT_I_VALUE` / `MON_PUT_I_RETURN` | `(STRING,INTEGER)INTEGER` | type=INTEGER, 8 LE bytes |
+| `MON_PUT_R_VALUE` / `MON_PUT_R_RETURN` | `(STRING,REAL)INTEGER` | type=REAL, 8 LE bytes |
+| `MON_PUT_O_VALUE` / `MON_PUT_O_RETURN` | `(STRING,STRING)INTEGER` | type from name string, len=0 |
 
-2. **Typed entry points + DATATYPE() dispatch** — recommended.
-   Declare separate `MON_PUT_STRING(N,$N)` / `MON_PUT_INTEGER(N,$N)` /
-   `MON_PUT_REAL(N,$N)` / `MON_PUT_OPAQUE(N, type_string)`.  SNOBOL4
-   wrapper does `DATATYPE($N)` discrimination.  ~1 hour of work.
+SPITBOL REAL handling: SPITBOL's syslinux.c routes REAL through the
+default branch, stuffing the rcblk pointer into `args[1].a.i` (NOT the
+marshalled double in `.a.f`).  C side reads the double from
+`blk + sizeof(word)` per the rcblk struct layout
+(`x64/osint/spitblks.h:115`).  Both runtimes now agree on REAL values.
 
-3. **CONVERT to STRING with type tag prefix** — defeats the redesign;
-   reject.
+Legacy `MON_PUT_VALUE` / `MON_PUT_RETURN` retained for direct C-side
+test programs but no longer LOAD()ed by the injected preamble.
+
+#### Validation (session #17)
+
+| Probe | Events | Result |
+|-------|-------:|--------|
+| `x='hello' / y=42 / END` | 3 | ✅ all byte-equal, clean EOF |
+| Mixed: STRING/INTEGER/REAL/ARRAY/TABLE/PATTERN/CODE | 8 | ✅ all byte-equal |
+| Function CALL/RETURN (`SQUARE(7)`, `GREET('world')`) | 5 | ✅ all byte-equal |
+| beauty.sno with 5-line input | 162 | ✅ all byte-equal |
+| `beauty.sno < beauty.sno` (full self-host) | 162 (then DIVERGE) | First real cross-oracle divergence — see below |
+
+`beauty.sno < beauty.sno` ran 162 events deep before the first real
+CSNOBOL4-vs-SPITBOL semantic divergence:
+```
+[ctrl] DIVERGE step 162
+  csn: VALUE PushCounter = STRING(5)='dummy'
+  spl: VALUE PushCounter = NAME(0)=''
+```
+This is exactly what the binary protocol is designed to expose.  The
+divergence relates to the NRETURN convention (RULES.md "NRETURN
+functions — dot-star calls": return `.dummy` as a NAME).  CSNOBOL4 sees
+the STRING value of `dummy`; SPITBOL sees the NAME descriptor.
+
+This divergence is **not** SN-26c-parseerr-h sub-h2 (which is a
+scrip-vs-oracle bug).  It's an oracle-vs-oracle representation
+difference around NRETURN.  Tracked as a new sub-rung below.
+
+#### Sub-rungs
+
+- [x] **SN-26-binmon-typed (session #17, this commit)** — typed entry
+  points + DATATYPE dispatch landed.  ARRAY/TABLE/PATTERN/CODE/REAL
+  all flow through binary harness without runtime type-check failures.
+- [ ] **SN-26-binmon-nreturn-divergence** — oracle-vs-oracle divergence
+  on `dummy` (STRING vs NAME) at step 162 of beauty self-host.  Likely
+  rooted in how each runtime represents the `.dummy` NRETURN value when
+  the dot-star call happens.  Low priority — exposes a real semantic
+  gap but does not gate scrip work.  Investigate by adding an EXCLUDE
+  for `dummy` and `PushCounter` and seeing how far the run gets, OR
+  understand the SIL-level convention for NRETURN return values.
+- [ ] **SN-26-binmon-3way** — wire scrip --ir-run as third participant
+  in the binary harness.  First scrip-vs-oracle divergence will surface
+  the actual SN-26c-parseerr-h sub-h2 bug.  Same again for --sm-run,
+  --jit-run.  Requires writing `test_monitor_3way_sync_step_bin.sh`
+  (analogous to the existing 2-way harness) and adding scrip-side
+  binary-protocol emitter to `src/runtime/x86/snobol4.c` (replacing
+  the text-protocol `mon_send`).
 
 #### Next-session work order
 
-1. Standard setup chain.  Required clones: `.github`, `one4all`,
-   `corpus`, `csnobol4`, `x64`.
-2. Implement option 2: add `MON_PUT_STRING` / `MON_PUT_INTEGER` /
-   `MON_PUT_REAL` / `MON_PUT_OPAQUE` to both `monitor_ipc_bin_csn.c`
-   and `monitor_ipc_bin_spl.c`.  Update `inject_traces_bin.py`
-   `MONITOR_PREAMBLE` MV callback to dispatch via DATATYPE($N).
-3. Re-run probes (probe_bin, probe_bin2) — should still pass.
-4. Re-run `beauty.sno < beauty.sno` 2-way binary — target: 0
-   divergences across all events.  Expected 1000s of events.
-5. Wire scrip --ir-run as 3rd participant.  First divergence event
-   IS SN-26c-parseerr-h sub-h2.  Same for --sm-run, --jit-run.
+1. Standard setup chain (`.github`, `one4all`, `corpus`, `csnobol4`,
+   `x64` clones; install_system_packages.sh; build_scrip.sh;
+   build_spitbol_oracle.sh; build_csnobol4_oracle.sh).
+2. Build the binary-IPC libraries:
+   `bash scripts/build_monitor_ipc_bin_libraries.sh`.
+3. Sanity check the 2-way binary harness with the four probes:
+   `probe_bin.sno` (string+int), mixed-types probe, function CALL/RETURN
+   probe, beauty short-input.  All should hit clean EOF.
+4. Investigate **SN-26-binmon-nreturn-divergence** OR jump to
+   **SN-26-binmon-3way**.  3-way is the higher-value path — it directly
+   surfaces sub-h2.
+5. For 3-way: write `test_monitor_3way_sync_step_bin.sh` (template:
+   the existing 2-way), add a third participant pipe set, and add
+   binary-emit code to scrip's `mon_send` (or a new `mon_send_bin`).
+   Per MONITOR-BINARY-DESIGN.md §5: scrip's runtime is C-internal, no
+   LOAD ABI dance — just inspect the descriptor's `.v` tag and emit
+   the matching wire record.
 
 #### Notes
 
 - **CALL/RETURN trace 4-arg form** does not invoke the callback in
   either oracle — only the dialect's built-in trace OUTPUT fires.
-  Pre-existing limitation, both protocols affected equally.  CALL/RETURN
-  tracking would need explicit `MC(name,'')` calls inserted at function
-  entry/exit.  Defer until needed.
+  Pre-existing limitation, both protocols affected equally.  Inserting
+  explicit `MC(name,'')` calls at function entry/exit would track these
+  but only matters once we hit a CALL/RETURN-only divergence.
 - **Session #15 completed:** restored 2-way text-protocol harness as
   reference (`scripts/monitor/monitor_ipc_sync.c` + `inject_traces.py`
   + `monitor_sync.py` + `test_monitor_2way_sync_step.sh`); fixed
   `interp.c:953` E_ASSIGN trace hook bypassing `set_and_trace`.
   See commit `5ad12633`.
+- **Session #17 finding for archive:** SPITBOL `sbl.min:14755` and
+  CSNOBOL4 `v311.sil:4628`-style fall-through to "no convert"
+  *would* allow non-string args to flow through if SPITBOL didn't
+  also stamp `cargs[i].v = LDESCR_INT` in `syslinux.c:188`.  Patching
+  syslinux.c to preserve the original block's type tag (read first
+  word, compare to `b_scl`/`b_icl`/`b_rcl` / etc.) could enable a
+  single polymorphic entry point — but only `b_scl`, `b_icl`, `b_rcl`,
+  `b_xnt` are exported globals; ARRAY/TABLE/PATTERN/CODE/NAME aren't,
+  so cross-translation-unit comparison is awkward.  Typed entry
+  points are the cleaner fix and that is what shipped.
 
 ---
 
