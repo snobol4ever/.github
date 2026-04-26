@@ -1148,18 +1148,137 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-26 session #9:**
-- one4all @ `41b68e4c` (SN-26c-parseerr-f: $ *fn(args) guard pattern
-  closed.  Two orthogonal bugs fixed: deferred-call XCALLCAP with imm
-  flag, and scan-context save/restore in `call_user_function`.  Beauty
-  self-host 38 → 42 lines.  See sub-rung status for full detail.)
+**HEADs after 2026-04-26 session #11:**
+- one4all @ `7e41175c` (SN-26c-parseerr-g: value-context E_SEQ with
+  E_DEFER children now lowers as a pattern.  Closes the 7-line probe
+  `pat = *v 'B'` failure.  Beauty self-host 42 → 526 lines.  Remaining
+  gap (LHS of beauty's emitted assignments dropped) = SN-26c-parseerr-h.)
 - corpus @ `9a62ff9` (unchanged; SN-29b commit)
-- .github @ this commit (session #9 progress recorded)
-- x64 @ unchanged (SN-30 build)
+- .github @ this commit (session #11 progress recorded)
+- x64 @ `e68dfeb` (SN-30g build, rebuilt this session — the prebuilt
+  bin/sbl in fresh clone was lowercase-canonical pre-SN-30; force
+  rebuild via `rm bin/sbl && make bootsbl && make BASEBOL=./bootsbl
+  sbl && make bininst` was needed.  build_spitbol_oracle.sh SKIPped on
+  the prebuilt — the capability probe in SN-30c is still owed.)
 - csnobol4 @ `b3aeb9f` (unchanged)
 
-**Gates (verified 2026-04-26 session #9):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #11):** Smoke **7** · Broker **49**.
 No regressions.
+
+**Session 2026-04-26 (#11) deltas — SN-26c-parseerr-g CLOSED:**
+
+- **7-line minimal repro pinned the bug.**  Starting from
+  `x = ARRAY('1:4')` → "Parse Error" at beauty self-host line 42, narrowing
+  through `*snoFunction $'(' *snoExprList $')'` (12-line probe) →
+  `*v 'B'` against `'AB'` (7-line probe).  All three scrip modes failed
+  on the 7-line probe; both oracles matched.  Crucially `*v` alone, and
+  `*v 'B'` inline (no pattern variable), both worked — only the
+  `pat = *v 'B'` value-context assignment was broken.
+
+- **Root cause located in two files.**  E_SEQ value-context handler in
+  `interp.c` (line ~2629) and `sm_lower.c` (line ~602) both evaluated
+  children one-at-a-time in value/expr context, switching to pattern
+  mode only after seeing a DT_P operand.  But `interp_eval(E_DEFER)`
+  returns DT_E (frozen), which `IS_PAT(acc)` does not recognize as a
+  pattern.  When E_DEFER is the FIRST child, the late-promotion
+  branch never fires.  `CONCAT_fn(DT_E, "B")` returned garbage that
+  matched nothing.  In SM lane the parallel issue: `lower_expr(E_DEFER)`
+  emits SM_PUSH_EXPR (pushes DT_E to value-stack), then SM_CONCAT
+  produces the same garbage.
+
+- **Fix (parallel in interp.c + sm_lower.c):** pre-scan E_SEQ children
+  for any E_DEFER.  If found: route to pattern-context evaluation from
+  the start (interp_eval_pat for child[0] then pat_cat in interp.c;
+  lower_pat_expr per child + SM_PAT_CAT in sm_lower.c).  In sm_lower.c
+  added the `SM_PAT_BOXVAL` bridge after the cats so the result lands
+  on the value-stack for the surrounding SM_STORE_VAR (initial omission
+  caused stack-underflow on first SM run; one-line follow-up fixed it).
+  JIT works automatically — sm_codegen.c reads the same SM ops.
+
+- **Probe verification (all under `-bf` oracle vs all 3 scrip modes):**
+  ```
+  probe_g1g (`pat = *v 'B'` / 'AB' pat):  oracle ok,  scrip IR/SM/JIT ok ✓
+  probe_g1  (4-piece beauty-style):       oracle ok,  scrip IR/SM/JIT ok ✓
+  ```
+  The bare `*v`-alone, the inline `'AB' *v 'B'`, and the
+  `pat = SPAN('A') 'B'` (pattern-builtin first, IS_PAT triggers
+  immediately) cases all continue to work.
+
+- **Beauty self-host:** 42 → 526 lines under `--ir-run`.  Output now
+  reaches its END (final line is `END`), no Parse Error.  But md5
+  diverges from oracle (oracle: 649 lines, md5
+  `408fc788ca2ef425fc1f87e26d45a7a5`; scrip-IR: 526 lines).  The diff
+  shows scrip is dropping the LHS of beauty's emitted assignment lines:
+  ```
+  oracle line 29:  &FULLSCAN      =  1
+  scrip  line 29:                                  1
+  oracle line 40:  ppStop         =  ARRAY('1:4')
+  scrip  line 40:  '1:4'
+  ```
+  The variable name and `=` are missing — beauty's own pp() (pattern
+  printer) is dropping the head of each parse tree.  This is
+  SN-26c-parseerr-h (next sub-rung).
+
+**Sub-rung status for SN-26c-parseerr:**
+- [x] **SN-26c-parseerr-a** — Reproduce minimally; decompose into A+B.
+- [x] **SN-26c-parseerr-b/c/d/e/f/g** — Closed in sessions #5-#11.
+- [ ] **SN-26c-parseerr-h** — Beauty's pp() drops the LHS / `=` /
+  pattern-head of emitted assignment lines.  526 → 649 line gap.
+  Hypothesis: a pattern-list traversal in beauty (likely in pp.inc or
+  one of the fn_*.inc family) is failing to recurse into the head
+  of an snoCall or snoLet tree.  Could be another `*var concat lit`
+  variant we haven't pinned yet, OR a deferred-call site that
+  parseerr-f's fix didn't reach.
+
+**Next-session work order — SN-26c-parseerr-h:**
+
+1. Setup: clones (.github, one4all, corpus, csnobol4, x64) + standard
+   build chain.  Note: build_spitbol_oracle.sh still SKIPs on the
+   prebuilt lowercase-canonical bin/sbl in fresh x64 clone — force
+   rebuild manually until SN-30c capability probe lands:
+   ```
+   cd /home/claude/x64 && rm -f bin/sbl bootsbl *.o
+   make bootsbl && make BASEBOL=./bootsbl sbl && make bininst
+   ```
+
+2. Reproduce the new symptom (LHS dropping):
+   ```
+   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+   SNO_LIB=/home/claude/corpus/programs/include \
+       /home/claude/one4all/scrip --ir-run \
+       $BEAUTY/beauty.sno < $BEAUTY/beauty.sno > /tmp/scrip.out
+   wc -l /tmp/scrip.out          # 526 (oracle: 649)
+   diff /tmp/scrip.out /tmp/oracle.out | head -20
+   # Look for: oracle has `name = value`, scrip has just `value`
+   ```
+
+3. The simplest repro path: take a beauty input line that triggers
+   the symptom and feed it as input to a fresh scrip run.  E.g.:
+   ```
+   echo "                  ppStop         =  ARRAY('1:4')" > /tmp/asg.sno
+   echo "END" >> /tmp/asg.sno
+   SNO_LIB=/home/claude/corpus/programs/include \
+       /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < /tmp/asg.sno
+   ```
+   Compare to oracle on same input.
+
+4. Once minimal probe pins the diverging output, dump beauty's
+   pp(sno) call sequence (use `ONE4ALL_USERCALL_TRACE=1` if needed) to
+   find which pattern-printer subroutine is dropping the head.
+
+5. Hypotheses (in priority order):
+   a. Another `*var ... concat ...` form not caught by parseerr-g —
+      maybe with E_ALT or E_CAT instead of E_SEQ.
+   b. The traversal pattern in pp.inc uses `LEN(1) . head ...` style
+      decomposition; a regression in cursor-capture inside ARBNO?
+   c. Beauty stores `'='` as `$'='` (indirect); could be another
+      `*var literal` variant where the literal happens to be `=`.
+
+6. Latent: the SM lane stack-underflow that appeared during this
+   session's interim build was the missing SM_PAT_BOXVAL.  Worth a
+   regression test — maybe a smoke entry that exercises
+   `pat = *v 'literal'` then matches and stores result, to lock in
+   the bridge.
 
 **Session 2026-04-26 (#9) deltas — SN-26c-parseerr-f CLOSED:**
 
