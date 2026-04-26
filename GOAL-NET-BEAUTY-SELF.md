@@ -834,3 +834,180 @@ default; that was already fixed in `13bfcc0`.
     - Beauty gate: 17/17 PASS still expected (not re-run; build clean,
       no code changes)
     - SPITBOL self-host baseline: re-verified 649 lines exit 0 stderr-clean
+
+  SESSION WORK (Sun Apr 26 late evening — Graft theory invalidated, bug localized to match ordering):
+
+    Beauty 17/17 confirmed at session start (HEAD 0914fbf).
+    Self-host: same 'Parse Error' on `              x = 1\n`.
+
+    GRAFT-ON-MULTI-ELEMENT-CONCAT THEORY INVALIDATED.
+
+    Built the predicted minimal repro per the prior session's "NEXT SESSION
+    must" Step 1, in increasingly faithful versions (v1 → v6).  Final v6
+    mirrors beauty exactly: function-form nPush()/nInc()/nPop()/nTop(),
+    `~`/`&` OPSYN'd to EVAL-building shift_/reduce_, ARBNO(*Command)
+    where Command = nInc() FENCE(*token), trailing
+    `("'Top'" & 'nTop()')`.  ALL versions PASS byte-identical on
+    snobol4dotnet and SPITBOL.  Output:
+      PushCounter() / IncCounter() / Shift(Tok,a) (3x) /
+      Reduce(Top,2) / PopCounter() / OK
+    The "Graft skips first node of multi-element concat" hypothesis is
+    therefore FALSE at the level the prior session imagined.  ARBNO +
+    nested-* + EVAL'd reduce-pat all work together correctly.
+
+    NEW BISECTION — input form determines outcome.
+
+    With instrumented beauty in /tmp/beauty_inst (added unconditional
+    TRACE- OUTPUTs to Shift/Reduce/PushCounter/IncCounter — NOT modifying
+    corpus per RULES.md):
+
+    | input              | snobol4dotnet result                  | matches SPITBOL? |
+    |--------------------|---------------------------------------|------------------|
+    | `\n` (newline only)| full traces, beautified output OK     | yes              |
+    | `START\n` + `END\n`| full traces, prints START / END       | yes              |
+    | `END\n`            | full traces, prints END               | yes              |
+    | `x\n`              | snoLabel='x' path (BREAK swallowed it)| yes              |
+    | `x=1\n` (no spaces)| snoLabel='x=1'  (BREAK swallowed it)  | yes              |
+    | `              x\n`| **Parse Error** (with all-includes)   | NO (SPITBOL OK)  |
+    | `              x = 1\n`| Parse Error                       | NO (SPITBOL OK)  |
+    | `  x = 1\n`        | Parse Error                           | NO (SPITBOL OK)  |
+
+    Trigger condition: ANY input where `*snoLabel` matches empty (BREAK
+    at POS(0) when first char is space/tab) and snoStmt's grammar has
+    to enter the non-epsilon arm starting `*snoWhite *snoExpr14 ...`.
+    The all-epsilon arm 4 (`epsilon~'' epsilon~'' epsilon~'' epsilon~''`)
+    works on snobol4dotnet; the *snoExpr14 arm does not.
+
+    SECONDARY DIVERGENCE — semantic action ORDER is wrong.
+
+    Compared trace order on `              x = 1\n` (input where SPITBOL
+    succeeds and snobol4dotnet fails):
+
+    SPITBOL fires (in this order):
+      PushCounter, IncCounter,
+      Shift(snoLabel,''), Shift(snoId,'x'), Shift('',''), Shift('=','='),
+      PushCounter, IncCounter, PushCounter, IncCounter,   (nested in ())
+      Shift(snoInteger,'1'), PATTERN, PATTERN, Shift('',''), Shift('',''),
+      Reduce(snoStmt, 7), Reduce(snoParse, 1).
+      Output: `                  x              =  1`
+
+    snobol4dotnet fires:
+      Shift(snoInteger,'1'),               ← first event! out of order
+      PushCounter,                         ← only ONE total (vs 3 in SPITBOL)
+      pattern, pattern,                    ← lowercase — DATATYPE='pattern'
+      Shift('',''), Shift('',''),
+      Reduce(snoStmt, 7),
+      Reduce(snoParse, '').                ← second arg EMPTY, not 1!
+      → Parse Error
+
+    Three observations from this:
+
+    (a) Side effects fire OUT OF MATCH ORDER on snobol4dotnet.  Shift
+        for snoInteger fires BEFORE PushCounter, even though in the
+        match Push must fire before any inner cursor.  SPITBOL fires
+        them strictly in match-position order.  Smells like the EVAL'd
+        patterns are replaying their build-time expressions during the
+        match traversal, in build order rather than positional order.
+
+    (b) Many side effects DON'T FIRE: the LHS Shifts (snoLabel,
+        snoId='x', the '=' token) never produce trace lines on
+        snobol4dotnet.  But the structural match still claims to
+        succeed (Reduce(snoStmt, 7) is called).  This means the
+        Stmt match completes structurally — the `=` literal IS
+        consumed — but the cursor-bound `~ 'snoX'` semantic actions
+        on intermediate slots never invoke shift_.
+
+    (c) `Reduce(snoParse, )` with empty second arg confirms `nTop()`
+        FRETURNed at match time.  TopCounter checks `DIFFER($'#N')`;
+        FRETURN means `$'#N'` is empty.  But (a)+(b) explain why:
+        only one PushCounter fired, and it may have fired AFTER the
+        inner pattern that called nTop().  So nTop sees an empty
+        counter stack at the moment Reduce uses its return value.
+
+    The pattern `pattern` (lowercase) appears twice in the trace.  Its
+    source is unknown but it's not from explicit OUTPUT in any beauty
+    .inc file — searched all .inc and beauty.sno.  Likely an implicit
+    type print via some failed conversion.  SPITBOL prints
+    `PATTERN PATTERN` (uppercase) at the SAME trace position — so the
+    underlying mechanism agrees, only the case differs (DATATYPE return
+    case for pattern type).
+
+    HYPOTHESIS — re-stated for next session.
+
+    The bug is in how snobol4dotnet schedules side-effects of
+    EVAL-built patterns containing `*Fn()` callbacks.  When a pattern
+    of the shape `s . *Fn1 OTHERPAT . *Fn2` is built via EVAL and
+    later grafted into an outer scanner, the Fn1/Fn2 callbacks fire
+    in graft/build order rather than at the match cursor positions
+    they originally annotated.  For a single-element concat
+    (e.g. v6: `nPush ARBNO(*Cmd) reduce nPop`) the build order
+    happens to coincide with match order because each side-effect
+    is at a distinct positional anchor — so it works.  For
+    snoStmt's deep alternation, where multiple cursor-bound `~` and
+    `&` actions inside one statement-level pattern compete, the
+    order goes wrong.
+
+  NEXT SESSION must:
+
+    1. Verify hypothesis (a) in isolation.  Build a 2-cursor pattern:
+         P = ('a' . *F1) ('b' . *F2)
+       built via two separate EVAL calls and concatenated.  Match
+       'ab' POS(0) *P RPOS(2).  Expect F1, F2 in order.  Then build
+       it as ONE big EVAL("('a' . *F1) ('b' . *F2)") and match.
+       Compare to a hand-coded (no EVAL) version.  If side effects
+       fire in different order in the EVAL'd version vs the
+       hand-coded one, hypothesis confirmed.
+
+    2. If (1) reproduces, the cause is in
+       `Snobol4.Common/Runtime/Pattern/UnevaluatedPattern.cs` Scan or
+       in how `EVAL` builds the pattern AST in the first place
+       (`Builder.cs` BuildEval).  Likely the *Fn() nodes are being
+       detached from their `s . *Fn` cursor parent and re-attached as
+       root-level callbacks in the grafted graph.
+
+    3. If (1) does NOT reproduce, the bug is specific to *Variable
+       references where the variable holds an EVAL'd pattern.  Test
+       with the 4-element concat from v6 but make one element
+       depend on a deferred `*P` where P holds a multi-cursor
+       pattern.  This is closer to beauty's nested *snoExpr14 chain.
+
+    4. Side check: the lowercase `pattern` lines.  When XDump fires
+       on a PATTERN object, snobol4dotnet returns 'pattern' from
+       DATATYPE; XDump's `IDENT(objType, 'PATTERN')` test fails
+       under -bf (case-sensitive); falls through to XDump40 which
+       outputs `nm = pattern()`.  But XDump isn't called from
+       beauty proper.  Source unknown — find what code path emits
+       lowercase `pattern` standalone in the trace.  Possibly a
+       diagnostic OUTPUT inside snobol4dotnet's runtime.  Worth
+       finding because it indicates which exact pattern is being
+       processed when the divergence happens.
+
+    5. After the runtime fix: beauty 17/17 must pass; self-host gate
+       must produce SELF-HOST PASS.
+
+    Useful debugging files left in /tmp (NOT committed):
+      • /tmp/beauty_inst/   instrumented beauty copy (unconditional
+        TRACE- OUTPUTs in Shift, Reduce, PushCounter, IncCounter;
+        is.inc, FENCE.inc, io.inc copied in for self-host)
+      • /tmp/repro_v6.sno   verified-clean repro of v6 (passes both)
+      • /tmp/t3.sno         minimal failing input: `              x = 1\nEND\n`
+
+    Operational notes for next session:
+
+    • SPITBOL oracle is at /home/claude/x64/bin/sbl after running
+      `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`.
+      Exits 0 normally on this clone.
+
+    • dotnet-sdk-10.0 installs cleanly via apt-get on Ubuntu 24.04
+      after `apt-get update`.  Proxy blocks dot.net.  Binary at
+      /usr/bin/dotnet (NOT /usr/local/dotnet10 as REPO doc says).
+
+    • Beauty 17/17 gate from REPO-snobol4dotnet.md works as written,
+      but reports `*_driver.sno` (filenames in this corpus tree
+      omit the `beauty_` prefix that the REPO doc shows; total is
+      17 drivers, not 19).
+
+    - snobol4dotnet HEAD: 0914fbf (unchanged this session — diagnosis only)
+    - corpus HEAD: 0074bc5 (unchanged)
+    - Beauty gate: 17/17 PASS (verified at session start)
+    - SPITBOL/CSNOBOL4 baselines unchanged.
