@@ -515,40 +515,221 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-26 session #18:**
-- one4all @ `605c0f0c` (3-way binary harness landed; scrip third participant)
-- corpus @ `32cefc1` (SN-26b: beauty folder self-contained)
-- .github @ this commit
-- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points)
-- csnobol4 @ `b3aeb9f`
+**HEADs after 2026-04-26 session #19:**
+- one4all @ `ee55d30d` (kw_trace catch-all + Python source rewriters removed)
+- corpus @ `32cefc1` (SN-26b: beauty folder self-contained; no #19 changes)
+- .github @ this commit (RULES.md: no-source-preprocessing rule; instrumentation map)
+- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points; no #19 changes)
+- csnobol4 @ `b3aeb9f` (no #19 changes)
 
-**Gates (verified 2026-04-26 session #18):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #19):** Smoke **7** · Broker **49**.
 
-**3-way binary harness (PASS, byte-equal across CSN/SPL/scrip --ir-run):**
-
-| Probe | Steps | Coverage |
-|-------|------:|----------|
-| probe1_basic     | 3 | STRING + INTEGER assignment |
-| probe2_mixed     | 8 | STRING/INT/REAL/ARRAY/TABLE/PATTERN/CODE |
-| probe4_beauty5   | 6 | 5-line beauty-style assignment block |
-| probe5_arith     | 9 | arithmetic, real division, str concat |
-
-**Beauty 3-way:** scrip exits silently at step 1 during pre-MON_OPEN
-include processing.  CSN/SPL both reach `VALUE ppStop = ARRAY`; scrip
-emits zero events.  This is the SN-26c-parseerr-h sub-h2 surface:
-the harness has done its job and isolated the divergence point.
+**3-way binary harness:** broken pending oracle-side instrumentation
+(SN-26-csn-bridge / SN-26-spl-bridge) and harness-script rewrite
+(SN-26-harness-rewrite).  Pre-#19 design loaded the .so via SNOBOL4
+LOAD() calls injected by Python; that violated the new rule.
 
 ### Active rung — drive SN-26c-parseerr-h sub-h2 via 3-way (session #19)
 
-The 3-way binary harness is now the right tool for this bug.
-Workflow:
-1. Add `OUTPUT` probes around the section of beauty's includes scrip
-   chokes on, OR enable `ONE4ALL_USERCALL_TRACE=1` on scrip and capture
-   the MV-callback timeline.
-2. Compare scrip's last successful operation against the oracles'
-   first divergent operation (visible in `/tmp/monitor_3way_bin_last/`).
-3. Apply the standard scrip-vs-oracle bisection on the parser /
-   runtime path that diverges.
+#### Pivot in session #19 (this session)
+
+The 3-way binary harness as designed in sessions #16–#18 had a
+Python-driven instrumentation layer (`inject_traces_bin.py`) that
+rewrote each `.sno` source to insert per-name `TRACE()` registrations
+and a `LOAD()`ed dispatcher.  Lon's direction in this session: **no
+source preprocessing of any kind**, in any language.  The user's
+`.sno` runs unmodified.  Instrumentation lives in the C runtime,
+triggered by env vars and `&FTRACE`/`&TRACE` catch-alls.  See
+`RULES.md → Sync-step monitor — keyword catch-alls only, no source
+preprocessing`.
+
+**Removed** in this session: `scripts/monitor/inject_traces.py`,
+`scripts/monitor/inject_traces_bin.py`.  The controllers
+(`monitor_sync.py`, `monitor_sync_bin.py`) and the C-side IPC
+libraries **remain** — they are the cross-process comparison engine.
+
+**scrip catch-all keyword wiring** landed in `runtime/x86/snobol4.{c,h}`:
+- `kw_trace` global added next to existing `kw_ftrace`.
+- `&TRACE` wired into the keyword get/set/ptr tables.
+- `comm_var` now emits a VALUE wire record when `kw_trace > 0`,
+  bypassing the per-name `trace_registered()` filter.
+- `comm_call`/`comm_return` already emitted CALL/RETURN when
+  `kw_ftrace > 0`; that wiring needed no change.
+
+scrip is the only participant that conforms to the rule today — it
+reads `MONITOR_READY_PIPE` at startup (`SNO_INIT_fn` line 1729) and
+its `comm_*` C functions write the binary record format directly to
+`monitor_fd`.  Smoke=7, Broker=49 still green.
+
+#### Oracle-side gap — concrete instrumentation map (session #19 scout)
+
+Both SPITBOL and CSNOBOL4 currently require SNOBOL4-level `LOAD()`
+calls in the user's source to attach the IPC `.so`.  That's the
+source modification the rule bans.  The clean fix is to **patch each
+oracle's source-of-truth** so:
+
+1. At process startup, the runtime reads `MONITOR_READY_PIPE` /
+   `MONITOR_GO_PIPE` env vars and opens the FIFO — same shape as
+   scrip's `SNO_INIT_fn`.
+2. Existing trace fire-points emit a binary record on the wire,
+   gated on `&FTRACE > 0` / `&TRACE > 0` in catch-all mode (no
+   per-name `LOCAPT`/`LOCAPV` lookup required).
+3. Four event kinds: VALUE, LABEL/STNO, CALL, RETURN.
+
+##### CSNOBOL4 — `v311.sil`  (12 405 lines, regenerated via `genc.sno`)
+
+Source-of-truth fire-points already exist in the SIL, gated on
+`&TRACE` (the `TRAPCL` constant) and using `XCALLC` to call C:
+
+| Event kind | Site (label / line)         | Currently fires | Catch-all patch shape                                      |
+|------------|-----------------------------|-----------------|------------------------------------------------------------|
+| LABEL/STNO | `INIT1` area, lines 2641–2647 | `STNOKY` keyword trace via `LOCAPT TKEYL,STNOKY` + `RCALL TRPHND` | Add `XCALLC monitor_emit_stno,(EXNOCL)` immediately after the existing TRPHND, gated on `kw_trace > 0` only |
+| FAIL       | `INTRP0`, lines 2662–2666     | `FALKY` keyword trace                                          | (out of scope; not one of the four kinds Lon listed)       |
+| VALUE      | `SJSRV2`, lines 3516–3520     | `LOCAPT ATPTR,TVALL,WPTR` per-name trace                        | Add `XCALLC monitor_emit_value,(WPTR,ZPTR)` — variable name + value descriptor |
+| CALL       | `DEFF18`, lines 4471–4478     | `LOCAPT ATPTR,TFENTL,ATPTR` per-name trace                      | Add `XCALLC monitor_emit_call,(ATPTR)` — function name descriptor |
+| RETURN     | `DEFF20`, lines 4500–4507     | `LOCAPT ATPTR,TFEXTL,ATPTR` per-name trace                      | Add `XCALLC monitor_emit_return,(ATPTR,RETPCL)` — function name + return value |
+
+Build path:
+```bash
+cd /home/claude/csnobol4
+# edit v311.sil — patch the five sites above
+make Makefile2
+make -f Makefile2 xsnobol4   # NOT top-level make xsnobol4 (that tries to bootstrap)
+```
+The new C functions (`monitor_emit_*`) live in a new file
+`monitor_ipc_runtime.c` linked into the runtime alongside `data.c`,
+`isnobol4.c`, etc.  They open the FIFO once on first call (lazy init
+gated on the env var), then write `monitor_wire.h`-format records
+followed by a 1-byte ack read on the go FIFO.
+
+##### SPITBOL x64 — `sbl.min`  (29 310 lines)
+
+`sbl.min` uses different idiom (MINIMAL macro language compiled to
+x86_64 asm via the in-tree assembler).  Trace fire-points need
+identification next session:
+- Function entry trace: search around `trace` and `fentr` (sites at
+  lines 15602, 15705, 15707 already known to call the trace handler).
+- Function return trace: site at line 16353 (`* here for print trace
+  of function return`).
+- Value-assignment trace: needs grep for `sjsr` equivalent and the
+  &TRACE check.
+- STNO trace: needs identification.
+
+Build path:
+```bash
+cd /home/claude/x64
+# edit sbl.min — patch the four trace sites
+rm -f bin/sbl
+make bootsbl
+make BASEBOL=./bootsbl sbl
+make bininst
+```
+SPITBOL also has the `bootstrap/sbl.asm` regen path documented in
+RULES.md SN-30g — needed for fresh-clone builds.
+
+##### Shared C-side runtime (new file)
+
+`monitor_ipc_runtime.c` — single file, included in both runtime
+builds.  Provides:
+```c
+void monitor_emit_value (const char *name, void *descr);
+void monitor_emit_call  (const char *fname);
+void monitor_emit_return(const char *fname, void *retval);
+void monitor_emit_stno  (long stno);
+```
+Each function:
+1. On first call, reads `MONITOR_READY_PIPE` env var; opens FIFO; sets
+   static `monitor_fd`; reads `MONITOR_GO_PIPE`; reads
+   `MONITOR_NAMES_FILE` to populate name → name_id map.
+2. Looks up name in name_id map (or assigns a new id if extending the
+   map dynamically — TBD whether we keep static names file or move to
+   variable-length name records).
+3. Marshalls the descriptor's type tag → `MWT_*` and value bytes per
+   `monitor_wire.h` rules.
+4. `writev()` the 13-byte header + value bytes to FIFO.
+5. `read()` 1-byte ack from go FIFO; if 'S' or EOF, exit cleanly.
+
+The dialect-to-MWT mapping is the only dialect-specific glue: each
+oracle's internal type tag is a different value, so the function
+needs ABI-specific glue (one set of `monitor_emit_*` per oracle, or
+one shared file with a small dialect-detect at compile time).
+
+##### Sub-rung sequence (revised)
+
+- [ ] **SN-26-csn-bridge-a** — Write `monitor_ipc_runtime.c` for CSNOBOL4
+  ABI.  Call from `XCALLC` test sites in v311.sil.  Build, smoke.
+- [ ] **SN-26-csn-bridge-b** — Patch the five trace fire-points in
+  `v311.sil` to emit on the wire when `kw_trace > 0` (catch-all).
+  Regenerate, build, sync-step against scrip on a tiny program.
+- [ ] **SN-26-spl-bridge-a** — Identify trace fire-points in `sbl.min`.
+  Document line numbers in this file before patching.
+- [ ] **SN-26-spl-bridge-b** — Patch them.  Rebuild via `make bootsbl
+  / make sbl / make bininst`.
+- [ ] **SN-26-harness-rewrite** — Drop the inject step from the 9
+  harness shell scripts.  Set `MONITOR_READY_PIPE` etc. env vars
+  before launching each participant.  No source modification of the
+  user's `.sno`.
+
+The minimum unit of progress is **SN-26-csn-bridge-a** — a single
+runnable XCALLC from a test site, proving the runtime can open the
+FIFO and emit one record.  Build it on the smaller, easier oracle
+first; SPITBOL follows the same pattern.
+
+#### Divergence-point workflow (RULES.md)
+
+When the harness reports a divergence, read **only** the last-agree
+record + the first-disagree record.  The bug is in the runtime work
+between those two timestamps.  Do not paste long trace dumps into
+chat.
+
+#### Sub-h2 reproducer (sub-h2 still open)
+
+Confirmed in this session via plain stdout diff:
+
+```bash
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+printf "        x = 'hello'\nEND\n" > /tmp/simple.sno
+
+# Both oracles produce the same correct output:
+SETL4PATH=".:/home/claude/corpus/programs/include" \
+    /home/claude/x64/bin/sbl -bf $BEAUTY/beauty.sno < /tmp/simple.sno
+# →                   x              =  'hello'
+# → END
+
+# scrip drops the LHS:
+SNO_LIB=/home/claude/corpus/programs/include \
+    /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < /tmp/simple.sno
+# →                                  'hello'
+# → END
+```
+
+The "Parse Error" output sometimes seen above this is beauty's own
+mainErr1 branch firing — beauty detects its parse state is broken
+(c[1..2] null in pp_snoStmt) and prints "Parse Error" before the
+broken stmt.
+
+#### Next session work order (session #20)
+
+1. Standard setup chain.
+2. Land **SN-26-scrip-env-gate**: `SCRIP_FTRACE` / `SCRIP_TRACE` env
+   vars in `runtime/x86/snobol4.c`'s `SNO_INIT_fn`.  ~5 lines.
+3. Confirm `MONITOR_READY_PIPE=fifo SCRIP_FTRACE=N` produces wire
+   records on `fifo` from beauty.sno without any source modification.
+4. Triage the 9 harness shell scripts: rewrite to remove the inject
+   step.  At minimum, rewrite `test_monitor_3way_sync_step_bin.sh`
+   for the no-preprocessing model — even if scrip is the only
+   participant emitting events until SN-26-oracle-monitor-bridge
+   lands, the harness shape should be correct.
+5. With scrip emitting against a one-time captured SPITBOL reference,
+   apply the divergence-point workflow to drive sub-h2 to root cause.
+
+### Closed in session #19
+
+- [x] **SN-26-keyword-catchall** — `kw_trace` global + `&TRACE` keyword
+  + `comm_var` catch-all branch landed in `runtime/x86/snobol4.{c,h}`.
+  Smoke=7, Broker=49 green.  Source rewriters
+  (`inject_traces.py`, `inject_traces_bin.py`) deleted from
+  `scripts/monitor/`.
 
 ### Active rung — binary-protocol sync-step monitor (session #17)
 
