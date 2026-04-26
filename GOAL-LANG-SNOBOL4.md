@@ -1224,61 +1224,101 @@ No regressions.
 - [x] **SN-26c-parseerr-b/c/d/e/f/g** — Closed in sessions #5-#11.
 - [ ] **SN-26c-parseerr-h** — Beauty's pp() drops the LHS / `=` /
   pattern-head of emitted assignment lines.  526 → 649 line gap.
-  Hypothesis: a pattern-list traversal in beauty (likely in pp.inc or
-  one of the fn_*.inc family) is failing to recurse into the head
-  of an snoCall or snoLet tree.  Could be another `*var concat lit`
-  variant we haven't pinned yet, OR a deferred-call site that
-  parseerr-f's fix didn't reach.
+  **Session #11 diagnosis (2026-04-26): bug is in PARSER tree construction,
+  not pp() output.**  Shift trace shows beauty pushes all 7 items
+  correctly (`Push(snoLabel)`, `Push(snoId)`, `Push()`, `Push(=)`,
+  `Push(snoString)`, `Push()`, `Push()` — identical to oracle).  But
+  beauty's `Reduce(snoStmt, 7)` only successfully Pops **2 items**
+  before `$'@S'` (the stack head global) goes null and Pop FRETURNs.
+  c[3..7] are never assigned, so the snoStmt tree is built with c[2]=
+  what should be c[4]= ('=' tree), and pp_snoStmt later prints garbage.
+  **5 items vanish from the `$'@S'` global between successful Push
+  during pattern match and Reduce running afterwards.**  Direct
+  linked-list probe (link/next/value DATA accessor) passes cleanly in
+  scrip — basic DATA isn't broken.  Suspicion: pattern-match engine
+  is restoring `$'@S'` to an earlier value on some backtrack/save/
+  restore path that should be transparent to user-function side
+  effects.
 
-**Next-session work order — SN-26c-parseerr-h:**
+**Next-session work order — SN-26c-parseerr-h (UPDATED with session #11 diagnosis):**
 
-1. Setup: clones (.github, one4all, corpus, csnobol4, x64) + standard
-   build chain.  Note: build_spitbol_oracle.sh still SKIPs on the
-   prebuilt lowercase-canonical bin/sbl in fresh x64 clone — force
-   rebuild manually until SN-30c capability probe lands:
-   ```
-   cd /home/claude/x64 && rm -f bin/sbl bootsbl *.o
-   make bootsbl && make BASEBOL=./bootsbl sbl && make bininst
-   ```
+The bug is now characterised: beauty's parser stack `$'@S'` is losing 5
+of 7 pushed items somewhere between Push (during pattern match) and
+Reduce (after match completes).  Diagnostic plan:
 
-2. Reproduce the new symptom (LHS dropping):
+1. Setup: standard clone + build chain.  Note `build_spitbol_oracle.sh`
+   SKIPs on prebuilt lowercase-canonical bin/sbl in fresh x64; force
+   rebuild manually (`rm bin/sbl && make bootsbl && make BASEBOL=./bootsbl
+   sbl && make bininst`).
+
+2. Reproduce minimal: 1-line input + END:
    ```
+   echo "                  x              =  'hello'" > /tmp/asg.sno
+   echo "END" >> /tmp/asg.sno
    BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
    SNO_LIB=/home/claude/corpus/programs/include \
-       /home/claude/one4all/scrip --ir-run \
-       $BEAUTY/beauty.sno < $BEAUTY/beauty.sno > /tmp/scrip.out
-   wc -l /tmp/scrip.out          # 526 (oracle: 649)
-   diff /tmp/scrip.out /tmp/oracle.out | head -20
-   # Look for: oracle has `name = value`, scrip has just `value`
-   ```
-
-3. The simplest repro path: take a beauty input line that triggers
-   the symptom and feed it as input to a fresh scrip run.  E.g.:
-   ```
-   echo "                  ppStop         =  ARRAY('1:4')" > /tmp/asg.sno
-   echo "END" >> /tmp/asg.sno
-   SNO_LIB=/home/claude/corpus/programs/include \
        /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < /tmp/asg.sno
+   # Expected oracle: `                  x              =  'hello'\nEND`
+   # Actual scrip:    `                                 'hello'\nEND` (LHS+= dropped)
    ```
-   Compare to oracle on same input.
 
-4. Once minimal probe pins the diverging output, dump beauty's
-   pp(sno) call sequence (use `ONE4ALL_USERCALL_TRACE=1` if needed) to
-   find which pattern-printer subroutine is dropping the head.
+3. Reproduce instrumented (mirrors session #11 setup):
+   ```
+   mkdir -p /tmp/beauty_trace
+   cp $BEAUTY/*.inc /tmp/beauty_trace/
+   cp $BEAUTY/beauty.sno /tmp/beauty_trace/
+   sed -i 's|doDebug        =  0|doDebug        =  1\n                  xTrace         =  5|' \
+       /tmp/beauty_trace/beauty.sno
+   # Then run scrip vs oracle on /tmp/beauty_trace/.  Oracle's Pop trace
+   # shows 7 items popped; scrip's shows only 2 before POP-FAIL.
+   ```
 
-5. Hypotheses (in priority order):
-   a. Another `*var ... concat ...` form not caught by parseerr-g —
-      maybe with E_ALT or E_CAT instead of E_SEQ.
-   b. The traversal pattern in pp.inc uses `LEN(1) . head ...` style
-      decomposition; a regression in cursor-capture inside ARBNO?
-   c. Beauty stores `'='` as `$'='` (indirect); could be another
-      `*var literal` variant where the literal happens to be `=`.
+4. Hypothesis verification: write a probe that runs a pattern containing
+   a user function which appends to a global linked list 7 times.  After
+   the match, walk the list — if length<7 in scrip but =7 in oracle, the
+   bug is in scrip's pattern-match save/restore of global state.  Likely
+   suspects in one4all source:
+   - `src/runtime/x86/snobol4_nmd.c` — the NAM stack and NAME_commit path
+   - `src/runtime/x86/bb_usercall.c` (or wherever bb_usercall lives)
+   - The snapshot/restore in `bb_boxes.c` for failed alternation backtrack
+     that should NOT roll back successful committed user-function side
+     effects on globals
+   - `src/driver/interp.c call_user_function` — session #9 added save/
+     restore of Σ/Δ/Ω/Σlen for the parseerr-f fix; check whether that
+     same site needs to also avoid leaking pattern-state into the user
+     function's own variable assignments
 
-6. Latent: the SM lane stack-underflow that appeared during this
-   session's interim build was the missing SM_PAT_BOXVAL.  Worth a
-   regression test — maybe a smoke entry that exercises
-   `pat = *v 'literal'` then matches and stores result, to lock in
-   the bridge.
+5. The instrumented stack.inc that exposed the bug (use as starting
+   point — recreate if needed):
+   ```snobol4
+   Push           $'@S'          =    link($'@S', x)
+                  OUTPUT         =    'PUSH x.t=' t(x) ' new.t=' t(value($'@S'))
+                  Push           =    IDENT(x)  .value($'@S')        :S(NRETURN)
+                  Push           =    DIFFER(x) .dummy               :(NRETURN)
+   Pop            DIFFER($'@S')                                      :F(POPFAIL)
+                  IDENT(var)                                         :F(Pop1)
+                  Pop            =    value($'@S')
+                  OUTPUT         =    'POP Pop.t=' t(Pop)
+                  $'@S'          =    next($'@S')                    :(RETURN)
+   POPFAIL        OUTPUT         =    'POP-FAIL'                     :(FRETURN)
+   ```
+   Plus inject `OUTPUT = 'TRC_BEFORE_POP i=' i` immediately before the
+   `c[i] = Pop()` line in `ShiftReduce.inc`.  scrip's output: 7
+   TRC_BEFORE_POP lines, but only the first 2 produce `POP Pop.t=...`
+   — iterations 3+ produce `POP-FAIL`.
+
+6. Once root-cause is found, re-test full beauty self-host:
+   ```
+   SNO_LIB=/home/claude/corpus/programs/include \
+       /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < $BEAUTY/beauty.sno \
+       | wc -l   # target 649; currently 526
+   md5sum  # target 408fc788ca2ef425fc1f87e26d45a7a5
+   ```
+
+7. Latent: linked-list probe (link/next/value DATA accessor cycling
+   through 4-deep list) passes in scrip.  Basic DATA not broken.  Bug
+   is specifically about persistence of global mutations across multiple
+   user-function invocations within a single pattern match.
 
 **Session 2026-04-26 (#9) deltas — SN-26c-parseerr-f CLOSED:**
 
