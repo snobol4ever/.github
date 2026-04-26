@@ -9,9 +9,15 @@ emits no `error ` lines on stderr — matching the SPITBOL `-bf` baseline.
 ## ⛔ Read this first — every session
 
 1. **Source location:** `/home/claude/corpus/programs/snobol4/demo/beauty/`
-   contains `beauty.sno` and all its `.inc` files in **one folder**.
-   That folder is the only one that works for self-host because beauty.sno
-   uses `-INCLUDE 'global.inc'` etc. with no path prefix.
+   contains `beauty.sno` and **all 19** of its `.inc` files in **one
+   folder** — including `is.inc`, `FENCE.inc`, and `io.inc` which are also
+   carried verbatim from `programs/include/`. The folder is intentionally
+   self-contained: it runs from a single CWD with no `-I` / `SETL4PATH` /
+   `SNO_LIB` flag on any runtime. See RULES.md "No duplicate corpus
+   source files → Exception — self-contained demo programs" for the
+   duplication policy. If `programs/include/{is,FENCE,io}.inc` ever
+   changes, the copies in `demo/beauty/` must be updated in the same
+   commit (byte-diff check).
    Do **not** use `/home/claude/corpus/programs/snobol4/demo/beauty.sno`
    (that one uses `-INCLUDE 'global.sno'` and lives next to demo siblings,
    not its includes — different program).
@@ -39,17 +45,20 @@ emits no `error ` lines on stderr — matching the SPITBOL `-bf` baseline.
 
 ## Canonical oracle invocations
 
+The folder is self-contained — no path flags needed for any runtime.
+
 ```bash
 cd /home/claude/corpus/programs/snobol4/demo/beauty
 
 # SPITBOL x64 — primary oracle
-SETL4PATH=".:/home/claude/corpus/programs/include" \
-    /home/claude/x64/bin/sbl -bf beauty.sno < beauty.sno
+/home/claude/x64/bin/sbl -bf beauty.sno < beauty.sno
 
 # CSNOBOL4 — secondary oracle
-/home/claude/csnobol4/snobol4 -bf -P 64k -S 64k \
-    -I. -I/home/claude/corpus/programs/include \
-    beauty.sno < beauty.sno
+/home/claude/csnobol4/snobol4 -bf -P 64k -S 64k beauty.sno < beauty.sno
+
+# snobol4dotnet — the runtime under test
+dotnet /home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll \
+    -bf beauty.sno < beauty.sno
 ```
 
 ## What this means
@@ -91,13 +100,17 @@ echo "exit=$RC stderr-lines=$LINES"
     && echo "SELF-HOST PASS" || echo "SELF-HOST FAIL"
 ```
 
-### Oracle baselines (verified Sun Apr 26 2026, x64 build)
+### Oracle baselines (re-verified Sun Apr 26 2026, x64 build, self-contained folder)
+
+`demo/beauty/` is now self-contained: `is.inc`, `FENCE.inc`, `io.inc` are
+present alongside the other 16 includes, so every runtime is invoked
+with bare `beauty.sno` from CWD — no `SETL4PATH`, no `-I` flags.
 
 | Oracle | Invocation | Result on this clone |
 |--------|------------|----------------------|
-| SPITBOL  | `SETL4PATH=… sbl -bf beauty.sno < beauty.sno` | exit 0, 646 stdout lines, stderr clean — **PASS** ✅ |
-| CSNOBOL4 | `snobol4 -bf -P 64k -S 64k -I. -I… beauty.sno < beauty.sno` | exit 1, 32 stdout lines, `beauty.sno:616: Caught signal 11 in statement 1074 at level 0` — **segfault** |
-| snobol4dotnet | `dotnet Snobol4.dll -bf beauty.sno < beauty.sno` | exit 0, mainErr1 path — **current S-2 bug** |
+| SPITBOL  | `sbl -bf beauty.sno < beauty.sno` | exit 0, 649 stdout lines, stderr clean — **PASS** ✅ |
+| CSNOBOL4 | `snobol4 -bf -P 64k -S 64k beauty.sno < beauty.sno` | exit 1, 32 stdout lines, `beauty.sno:616: Caught signal 11 in statement 1074 at level 0` — **segfault** |
+| snobol4dotnet | `dotnet Snobol4.dll -bf beauty.sno < beauty.sno` | exit 0, 31 stderr lines, `Parse Error` on `&FULLSCAN = 1` — **current S-2 bug** |
 
 **SPITBOL is the canonical oracle for this gate.**
 
@@ -108,6 +121,69 @@ binary built fresh) it segfaults at stmt 1074. Could be platform-specific
 a blocker for this goal — snobol4dotnet must match SPITBOL.
 
 ## Current diagnosis (supersedes all prior notes below)
+
+**Sun Apr 26 2026, evening session 2 — diagnosis sharpened, pivot to confidence demos.**
+
+S-2 root cause investigation this session:
+
+- Prior session's "callbacks re-fire on backtrack" hypothesis was tested
+  with isolated probes and **does not reproduce**. Both runtimes agree
+  on ARBNO + alternation + nested cursor callbacks when the callback
+  function returns `epsilon`. The `'ABB'` divergence in prior probe4 was
+  a misformed test (`addg` returning NRETURN with no value).
+- Real divergence captured by instrumenting `Shift`/`Reduce`/`Push`/`Inc`/`Pop`
+  in a working copy of `demo/beauty/` (in `/tmp/bi/`, **not** modifying
+  corpus per RULES.md):
+  - Input `START\n` (works on both) — traces are byte-identical, all 6
+    epsilon Shifts + 2 Reduces fire in the same order.
+  - Input `              x = 1\n` — SPITBOL fires 7 Shifts + 2 Reduces in
+    cursor order; snobol4dotnet fires only 3 Shifts + 2 Reduces, in
+    REVERSE order, with `Reduce(snoParse, )` getting empty `n` because
+    the counter stack is empty when nTop() is called.
+- Architectural cause now clear: snobol4dotnet's `pat . *fn(args)` is
+  implemented by stashing `*fn(args)` as an `ExpressionVar` Assignee in
+  `ConditionalVariableAssociation1.Scan` (`AlphaStack.Push`), promoting
+  to BetaStack at CVA2, and **only evaluating the ExpressionVar (calling
+  fn) AFTER the entire pattern match succeeds**, in
+  `PatternMatch (?).cs` line 50 (`foreach (BetaStack.Reverse())`). SPITBOL
+  evaluates `*fn(args)` AT MATCH-CURSOR-CROSS time inside CVA2 — so
+  side effects fire in match order and intermediate failures (NRETURN)
+  fail the local match.
+- Attempted fix: move ExpressionVar evaluation into `CVA2.Scan` in
+  `ConditionalVariableAssociationPattern.cs`. Build clean, beauty 17/17
+  preserved, but self-host hits `InvalidOperationException: Stack empty`
+  — fix needs to handle `MsilHelpers.CallFuncBySlot` line 75
+  SystemStack-unwind on Failure (NRETURN/FRETURN). Reverted; the fix
+  direction is right but needs a SystemStack-water-mark guard. Recommend
+  resuming after the demo-confidence steps below.
+
+**Pivot rationale.** S-2 is a deep architectural fix touching pattern
+matching semantics. Before continuing the runtime work, ensure
+snobol4dotnet handles three known-good corpus demos cleanly:
+
+| Demo | Status today | New step |
+|------|-------------|----------|
+| `claws5.sno` | error 235 — multi-level TABLE subscript fails | S-2a |
+| `treebank-list.sno` | runs cleanly, output structurally matches SPITBOL; only `.ref` is stale | S-2b |
+| `treebank-array.sno` | runs cleanly but output is empty `''`s (likely same root cause as S-2a) | S-2c |
+
+Two of the three (S-2a, S-2c) likely share a root cause in
+multi-level subscripted assignment. That is potentially a smaller fix
+than the cursor-callback architecture in S-2, and a green status on
+all three would establish a confidence baseline before tackling S-2's
+deeper graft + commit-time-vs-cursor-time semantic.
+
+**Sun Apr 26 2026, late session — infrastructure update.** `demo/beauty/`
+is now self-contained: `is.inc`, `FENCE.inc`, `io.inc` carried verbatim
+from `programs/include/`, alongside the existing 16 includes (19 total).
+Every runtime now self-hosts from CWD with no path flags; SPITBOL,
+CSNOBOL4, and snobol4dotnet all use the same bare `beauty.sno` invocation.
+The previously-flagged side-task "add `-I` include-path support to
+snobol4dotnet's CommandLine.cs" is **no longer required** for this goal —
+the duplication policy carve-out (RULES.md "Exception — self-contained
+demo programs") supersedes it. Note: in older session entries below,
+references to copying inc files into `demo/beauty/` and to the proposed
+`-I` flag are now historical only.
 
 **Sun Apr 26 2026, evening.** Three runtime fixes landed in
 snobol4dotnet @ `0914fbf` that unblock the deferred-expression path
@@ -213,6 +289,83 @@ default; that was already fixed in `13bfcc0`.
     it via string evaluation ("'nTop()'" & ...) in a pattern context expecting NRETURN.
     ARBNO(*Command) also loops under snobol4dotnet — same root cause or related.
   - corpus HEAD: 0074bc5
+
+- [ ] **S-2a** — Confidence demo: `claws5.sno < CLAWS5inTASA.dat`.
+  Source: `/home/claude/corpus/programs/snobol4/demo/claws5.sno`.
+  Inputs: `claws5.input` (16 lines, smoke) and `CLAWS5inTASA.dat` (989 lines, full corpus).
+  Reference: `claws5.ref`.
+
+  **Current state on snobol4dotnet @ 0914fbf (Sun Apr 26 2026, late session):**
+  - Build/parse: OK.
+  - Runtime: **fails** at line 84 — `mem[sentno][wrd][tag] = 1` raises
+    `error 235 -- subscripted operand is not table or array`.
+  - On `claws5.input`: 219 stderr-clean lines, all errors. On
+    `CLAWS5inTASA.dat`: 12,919 stderr-clean lines, 6,459 error 235 occurrences.
+  - SPITBOL on this clone also fails (`Pattern match failed`); the `.ref`
+    was last regenerated from CSNOBOL4 — see corpus commit 5d75439.
+    Treat CSNOBOL4 as the secondary oracle for this demo until a fresh
+    regeneration is done.
+
+  **Goal:** snobol4dotnet runs `claws5.sno < claws5.input` cleanly (no
+  error markers) and produces output that diffs cleanly against the
+  reference (or, if the reference is stale, regenerate from the secondary
+  oracle and ensure both oracles agree before re-baselining).
+
+  **Likely fix surface:** the `mem[sentno][wrd][tag]` chain. `mem` is a
+  TABLE, `mem[sentno]` is `TABLE()`, `mem[sentno][wrd]` is `TABLE()`. The
+  triply-subscripted assignment is failing because somewhere in the
+  chain a subscript yields a non-table. snobol4dotnet's chained-subscript
+  assignment lowering may not parallel SPITBOL's. Reproduce in isolation
+  with a tiny program before chasing.
+
+- [ ] **S-2b** — Confidence demo: `treebank-list.sno < VBGinTASA.dat`.
+  Source: `/home/claude/corpus/programs/snobol4/demo/treebank-list.sno`.
+  Reference: `treebank-list.ref`.
+
+  **Current state on snobol4dotnet @ 0914fbf:**
+  - Build/parse/runtime: **runs cleanly**, exit 0, 8,727 stderr-clean
+    lines, no error markers.
+  - **The reference is stale.** `treebank-list.ref` (24 lines) was
+    generated from a four-sentence test input ("The cat sits", "A dog
+    runs", "She saw the man with a telescope", "The old man knows that
+    he is right"); the current `VBGinTASA.dat` is much larger. Both
+    SPITBOL and snobol4dotnet produce the new, larger output and disagree
+    with the ref.
+  - **Structural agreement with SPITBOL: ✓.** Side-by-side diff on the
+    first 50 lines of OUTPUT shows snobol4dotnet's tree matches SPITBOL's
+    s-expression layout exactly.
+
+  **Goal:** This step is *substantively complete* on the runtime side —
+  snobol4dotnet handles treebank-list correctly. To close it, regenerate
+  `treebank-list.ref` from the chosen primary oracle for this demo
+  (CSNOBOL4 -bf), confirm SPITBOL and snobol4dotnet both diff cleanly
+  against the new ref, and commit corpus.
+
+- [ ] **S-2c** — Confidence demo: `treebank-array.sno < VBGinTASA.dat`.
+  Source: `/home/claude/corpus/programs/snobol4/demo/treebank-array.sno`.
+  Reference: `treebank-array.ref`.
+
+  **Current state on snobol4dotnet @ 0914fbf:**
+  - Build/parse: OK. Runtime: exit 0, **no error markers**, but output is
+    **structurally wrong**: 266 stderr lines starting with `( 'BANK',`
+    then dozens of empty `''` placeholders instead of the expected
+    nested s-expressions.
+  - SPITBOL produces 8,733 lines of correct nested output (same shape as
+    treebank-list).
+
+  **Goal:** snobol4dotnet output matches treebank-list output for the
+  same input (the two demos are different stack-implementation styles —
+  list vs. array — but should produce identical tree output).
+
+  **Likely fix surface:** `treebank-array.sno` uses array-indexed stack
+  frames (`stk_tag[id]`, `stk_n[id]`, `stk_c[id]`) where treebank-list
+  uses linked-list `head`/`tail` traversal. snobol4dotnet's runtime
+  handles the linked-list version correctly but loses the data through
+  the array indirection — pointing at the same chained-subscript area as
+  S-2a (claws5).
+
+  S-2a and S-2c are very likely the same root cause — both involve
+  multi-level TABLE/ARRAY subscripted assignment.
 
 - [ ] **S-2** — Fix root cause: self-host Parse fails on label-only statements.
   FRETURN PROPAGATION — PARTIAL FIX (snobol4dotnet 80381fb, INCOMPLETE):

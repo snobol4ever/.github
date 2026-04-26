@@ -522,6 +522,27 @@ If a duplicate is discovered: keep the more authoritative copy (beauty/
 over demo/inc/, crosscheck/ over a redundant subfolder, etc.) and delete
 the other. Never resolve duplication with symlinks.
 
+### Exception — self-contained demo programs
+
+A demo or test program that is intentionally **self-contained** — runnable
+from a single folder with no `-I` / `SETL4PATH` / `SNO_LIB` flags and no
+references to files outside its own folder — is allowed to carry its own
+copies of shared helper includes (`is.inc`, `FENCE.inc`, `io.inc`, etc.).
+The duplication is the point: the folder is a sealed, portable unit that
+runs identically on every runtime regardless of include-path support.
+
+Current self-contained programs (kept verbatim with their includes):
+
+| Folder | Notes |
+|--------|-------|
+| `programs/snobol4/demo/beauty/` | beauty self-host; carries `is.inc`, `FENCE.inc`, `io.inc` alongside its own 16 includes |
+
+When such a duplicate exists, the canonical copy still lives in
+`programs/include/`. Self-contained folders track that copy: if
+`programs/include/io.inc` changes, every self-contained folder carrying a
+copy must be updated in the same commit. CI / hand verification: a byte
+diff between the two paths must come back empty.
+
 ---
 
 ## No symlinks
