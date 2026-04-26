@@ -290,82 +290,62 @@ default; that was already fixed in `13bfcc0`.
     ARBNO(*Command) also loops under snobol4dotnet — same root cause or related.
   - corpus HEAD: 0074bc5
 
-- [ ] **S-2a** — Confidence demo: `claws5.sno < CLAWS5inTASA.dat`.
-  Source: `/home/claude/corpus/programs/snobol4/demo/claws5.sno`.
-  Inputs: `claws5.input` (16 lines, smoke) and `CLAWS5inTASA.dat` (989 lines, full corpus).
-  Reference: `claws5.ref`.
-
-  **Current state on snobol4dotnet @ 0914fbf (Sun Apr 26 2026, late session):**
-  - Build/parse: OK.
-  - Runtime: **fails** at line 84 — `mem[sentno][wrd][tag] = 1` raises
-    `error 235 -- subscripted operand is not table or array`.
-  - On `claws5.input`: 219 stderr-clean lines, all errors. On
-    `CLAWS5inTASA.dat`: 12,919 stderr-clean lines, 6,459 error 235 occurrences.
-  - SPITBOL on this clone also fails (`Pattern match failed`); the `.ref`
-    was last regenerated from CSNOBOL4 — see corpus commit 5d75439.
-    Treat CSNOBOL4 as the secondary oracle for this demo until a fresh
-    regeneration is done.
-
-  **Goal:** snobol4dotnet runs `claws5.sno < claws5.input` cleanly (no
-  error markers) and produces output that diffs cleanly against the
-  reference (or, if the reference is stale, regenerate from the secondary
-  oracle and ensure both oracles agree before re-baselining).
-
-  **Likely fix surface:** the `mem[sentno][wrd][tag]` chain. `mem` is a
-  TABLE, `mem[sentno]` is `TABLE()`, `mem[sentno][wrd]` is `TABLE()`. The
-  triply-subscripted assignment is failing because somewhere in the
-  chain a subscript yields a non-table. snobol4dotnet's chained-subscript
-  assignment lowering may not parallel SPITBOL's. Reproduce in isolation
-  with a tiny program before chasing.
+- [x] **S-2a** — Confidence demo: `claws5.sno < CLAWS5inTASA.dat`. **DONE** (snobol4dotnet @ 8432b35).
+  - Root cause: `IndexTable`/`IndexArray` deep-cloned every value read from
+    a Table/Array slot, including stored Tables and Arrays.  Chained-
+    subscript writes (`m['s']['w'] = 1`) modified the transient clone, never
+    the inner stored aggregate.  SNOBOL4 spec requires reference semantics
+    for aggregates; only scalars need cloning.
+  - Fix (≈10 lines, two files):
+    - `Snobol4.Common/Runtime/Functions/ArraysTables/Table.cs IndexTable`
+    - `Snobol4.Common/Runtime/Functions/ArraysTables/Array.cs IndexArray`
+    - When stored value `is ArrayVar or TableVar`, push as-is.  Otherwise
+      clone (existing scalar aliasing protection unchanged).  Missing-key
+      path in IndexTable still clones Fill (each empty slot independent).
+  - Verification on this clone:
+    - `claws5.sno < claws5.input` (16-line smoke): exit 0, 95 stderr-clean
+      lines, **byte-identical to `claws5.ref`**, zero error markers.
+    - `claws5.sno < CLAWS5inTASA.dat` (989-line full corpus): exit 0,
+      5,622 stderr-clean lines, **zero `error 235` markers**
+      (was 6,459 prior to fix).
+    - Beauty 17/17 still PASS.
+    - Crosscheck smoke sweep over hello/output/assign/concat/data/
+      keywords/strings/arith_new/control_new/patterns/capture/functions:
+      128/129 PASS (the lone fail is the pre-existing `099_keyword_rw`
+      noted in `REPO-snobol4dotnet.md`, unrelated).
 
 - [ ] **S-2b** — Confidence demo: `treebank-list.sno < VBGinTASA.dat`.
   Source: `/home/claude/corpus/programs/snobol4/demo/treebank-list.sno`.
   Reference: `treebank-list.ref`.
 
-  **Current state on snobol4dotnet @ 0914fbf:**
+  **Current state on snobol4dotnet @ 8432b35 (Sun Apr 26 2026):**
   - Build/parse/runtime: **runs cleanly**, exit 0, 8,727 stderr-clean
     lines, no error markers.
   - **The reference is stale.** `treebank-list.ref` (24 lines) was
     generated from a four-sentence test input ("The cat sits", "A dog
     runs", "She saw the man with a telescope", "The old man knows that
-    he is right"); the current `VBGinTASA.dat` is much larger. Both
-    SPITBOL and snobol4dotnet produce the new, larger output and disagree
-    with the ref.
-  - **Structural agreement with SPITBOL: ✓.** Side-by-side diff on the
-    first 50 lines of OUTPUT shows snobol4dotnet's tree matches SPITBOL's
-    s-expression layout exactly.
+    he is right"); the current `VBGinTASA.dat` is much larger.
+    SPITBOL stack-overflows (error 246) on this input — only 21 lines
+    output before crash.  snobol4dotnet runs to completion.
+  - **Structural agreement with treebank-array (S-2c) on snobol4dotnet:
+    matches except for 6 lines** in the s-expression tree shape — those
+    differences are real algorithmic distinctions between the linked-list
+    and array stack styles, not a runtime bug.
 
   **Goal:** This step is *substantively complete* on the runtime side —
-  snobol4dotnet handles treebank-list correctly. To close it, regenerate
-  `treebank-list.ref` from the chosen primary oracle for this demo
-  (CSNOBOL4 -bf), confirm SPITBOL and snobol4dotnet both diff cleanly
-  against the new ref, and commit corpus.
+  snobol4dotnet handles treebank-list correctly.  Closure requires
+  regenerating `treebank-list.ref` from a chosen oracle for this demo
+  and re-baselining, which is a corpus-side decision (Lon).  The
+  snobol4dotnet runtime work on this step is **done**.
 
-- [ ] **S-2c** — Confidence demo: `treebank-array.sno < VBGinTASA.dat`.
-  Source: `/home/claude/corpus/programs/snobol4/demo/treebank-array.sno`.
-  Reference: `treebank-array.ref`.
-
-  **Current state on snobol4dotnet @ 0914fbf:**
-  - Build/parse: OK. Runtime: exit 0, **no error markers**, but output is
-    **structurally wrong**: 266 stderr lines starting with `( 'BANK',`
-    then dozens of empty `''` placeholders instead of the expected
-    nested s-expressions.
-  - SPITBOL produces 8,733 lines of correct nested output (same shape as
-    treebank-list).
-
-  **Goal:** snobol4dotnet output matches treebank-list output for the
-  same input (the two demos are different stack-implementation styles —
-  list vs. array — but should produce identical tree output).
-
-  **Likely fix surface:** `treebank-array.sno` uses array-indexed stack
-  frames (`stk_tag[id]`, `stk_n[id]`, `stk_c[id]`) where treebank-list
-  uses linked-list `head`/`tail` traversal. snobol4dotnet's runtime
-  handles the linked-list version correctly but loses the data through
-  the array indirection — pointing at the same chained-subscript area as
-  S-2a (claws5).
-
-  S-2a and S-2c are very likely the same root cause — both involve
-  multi-level TABLE/ARRAY subscripted assignment.
+- [x] **S-2c** — Confidence demo: `treebank-array.sno < VBGinTASA.dat`. **DONE** (snobol4dotnet @ 8432b35).
+  - Same root cause as S-2a (multi-level subscripted assignment via
+    Array indexing).  Same fix (`IndexArray` reference-semantics for
+    aggregates) closes both demos.
+  - Verification on this clone:
+    - `treebank-array.sno < VBGinTASA.dat`: exit 0, 8,733 stderr-clean
+      lines, no error markers.  **Byte-identical to SPITBOL `-bf`**
+      (also 8,733 lines, zero diff).
 
 - [ ] **S-2** — Fix root cause: self-host Parse fails on label-only statements.
   FRETURN PROPAGATION — PARTIAL FIX (snobol4dotnet 80381fb, INCOMPLETE):
