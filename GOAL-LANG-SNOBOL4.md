@@ -1148,16 +1148,132 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-26 session #13:**
-- one4all @ `223a1284` (unchanged from #12; no code changes this session —
-  diagnostic-only)
+**HEADs after 2026-04-26 session #14:**
+- one4all @ `223a1284` (unchanged from #12/#13; no code changes this
+  session — diagnostic-only)
 - corpus @ `9a62ff9` (unchanged; SN-29b commit)
-- .github @ this commit (session #13 diagnostic findings recorded)
+- .github @ this commit (session #14 diagnostic findings recorded)
 - x64 @ `e68dfeb` (unchanged)
 - csnobol4 @ `b3aeb9f` (unchanged)
 
-**Gates (verified 2026-04-26 session #13):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #14):** Smoke **7** · Broker **49**.
 No regressions.
+
+**Session 2026-04-26 (#14) deltas — async monitor was wrong tool; pivot to synchronous IPC sync-step monitor for next session:**
+
+Lon directed a pivot from session #13's NM_CALL-timeline trace
+approach to running the 4-way scrip-monitor on the minimal beauty
+input (`x = 'hello'\nEND\n`).  Session #14 ran the 4-way
+`scrip-monitor --monitor` (the snapshot-based async monitor) and
+observed first DIVERGE at stmt 637 with `doDebug IR=0 SM/JIT=""`.
+
+**That signal turned out to be a monitor instrumentation
+artifact**, not the beauty bug:
+
+- Reduced repro: lines 1..610 of beauty.sno + END (no parser, no
+  input) reproduces identical DIVERGE.
+- Standalone runs of the same program (with `OUTPUT='AFTER doDebug='
+  doDebug` inserted) print correct integer 0 in all three lanes.
+- The bug only appears in the snapshot monitor's
+  restore→run-N→snapshot iteration cycle.
+
+The async snapshot monitor compares NV-table state at *statement
+boundaries*.  Beauty's actual bug (session #13) is **intra-statement**
+— Reduce(snoStmt, 7) fires after only 5 of 7 expected Shifts have
+NM_CALL-committed inside a single pattern match.  Statement-boundary
+snapshots cannot see this.  Wrong tool for this bug.
+
+**Next session — pivot to the synchronous IPC sync-step monitor.**
+
+Lon clarified the right tool is the synchronous (not asynchronous)
+multi-way monitor.  IPC device: **POSIX named FIFOs created by
+`mkfifo`** (two per backend).
+
+| Env var | Direction | Purpose |
+|---|---|---|
+| `MONITOR_READY_PIPE` | runtime→monitor (write) | Trace events: VALUE, CALL, RETURN |
+| `MONITOR_GO_PIPE`    | monitor→runtime (read)  | Single-byte GO/STOP ack |
+
+Source of truth: `src/runtime/x86/snobol4.c:1369-1380` opens both
+FIFOs at runtime startup; `mon_send` (lines 85-101) writes a trace
+event then **blocks** on `read(monitor_ack_fd, 1)` until the
+controller writes one byte.  Byte `'S'` → runtime exits cleanly;
+any other byte (e.g. `'G'`) → release runtime to next event.
+
+Existing harness: **`scripts/test_monitor_sync_step.sh`** —
+5-way (CSNOBOL4, SPITBOL, ASM, JVM, NET) sync-step monitor.  Per
+backend two FIFOs in a tmpdir: `<n>.ready` and `<n>.go`.  First
+divergence stops all 5 immediately; exit 0 = agree, 1 = diverge,
+2 = timeout.
+
+The async `scrip-monitor --monitor` tool used in session #14 is
+the wrong vehicle — it does NOT speak the FIFO sync protocol.  It
+runs each lane to N statements then compares NV state.  For
+beauty's intra-statement NM_CALL bug, we need the FIFO-driven
+event-by-event handshake that catches a divergence the moment a
+trace event differs.
+
+**Next-session work order:**
+
+1. Audit `scripts/test_monitor_sync_step.sh` to confirm it still
+   builds + runs against current x86 runtime.  May need updates to
+   inject sync-step trace points at NM_CALL sites in beauty's
+   includes (especially Shift, Reduce, Push, Pop in
+   ShiftReduce.inc and stack.inc).
+2. Trace-point config: instrument every `Shift`, `Reduce`, `Push`,
+   `Pop` call site to emit a `CALL/RETURN` event.  Run sync-step
+   with the minimal input (`x = 'hello'`) against SPITBOL (oracle)
+   + scrip --ir-run + scrip --sm-run + scrip --jit-run.
+3. First DIVERGE event from sync-step IS the bug.  Unlike the
+   async snapshot monitor, sync-step catches divergences at the
+   exact event boundary, not at the next statement boundary.  For
+   beauty's NM_CALL ordering issue, this should pinpoint the
+   moment scrip's order departs from oracle's.
+4. Apply session #13's hypothesis: a premature `name_commit_value`
+   call somewhere between Shift#5 and Shift#6 fires the pending
+   Reduce slot early.  Sync-step trace will name that exact
+   commit's call site.
+
+**Falsified hypotheses (this session):**
+
+- *"First DIVERGE from async snapshot monitor reveals the beauty
+  bug"* — no, async snapshots cannot see intra-statement
+  pattern-match ordering bugs.
+- *"Plain integer literal assignment is broken in SM/JIT"* —
+  probe proves all four lanes assign 0 correctly when run in
+  isolation.
+- *"END off-by-one in IR vs SM stno accounting causes the
+  divergence"* — reproduces with a `marker = '...'` statement
+  after doDebug=0, ruling out END as proximate cause.
+- *"`static int g_sm_stno` not reset across `sm_interp_run_steps`
+  calls poisons execution"* — `comm_stno(n)` ignores n and just
+  does `++kw_stcount`; the unreset stno only affects trace
+  printout, not semantics.  Red herring.
+
+**Setup chain run this session (all clean):**
+
+```
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
+make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+```
+
+Gates verified: Smoke=7, Broker=49.  No regressions; no code
+changes this session.
+
+**Sub-rung status update (session #14):**
+
+- [ ] **SN-26c-parseerr-h sub-h2** — unchanged.  Session #14
+  explored the async snapshot monitor and confirmed it cannot see
+  this bug (the bug is intra-statement; snapshots only compare at
+  statement boundaries).  Next session pivots to the synchronous
+  IPC sync-step monitor (FIFO-based, `test_monitor_sync_step.sh`)
+  which catches divergences at trace-event granularity.
+
+---
 
 **Session 2026-04-26 (#13) deltas — SN-26c-parseerr-h sub-h2 BUG PINNED, NOT FIXED:**
 
