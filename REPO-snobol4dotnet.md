@@ -89,9 +89,9 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `080e19c`
+- HEAD: `482211f` (S-2 progress; -bf works end-to-end; 3 infra bugs fixed)
 - Unit tests: not re-run this session (build clean)
-- Beauty suite: not re-run this session (build clean)
+- Beauty suite: 17/17 PASS (verified)
 - Crosscheck: 79/80 (unchanged)
 
 ## SPITBOL oracle semantics
