@@ -1011,3 +1011,109 @@ default; that was already fixed in `13bfcc0`.
     - corpus HEAD: 0074bc5 (unchanged)
     - Beauty gate: 17/17 PASS (verified at session start)
     - SPITBOL/CSNOBOL4 baselines unchanged.
+
+    REVISED HYPOTHESIS — EMPIRICALLY CONFIRMED:
+
+    The pattern-match engine in snobol4dotnet RE-FIRES `*Fn()` callbacks
+    on backtrack.  When a match has to retry an alternation arm whose
+    body contains `pat $ *Fn(...)` cursor callbacks, the callbacks are
+    invoked AGAIN on the retry — even though the arm was already
+    structurally evaluated.  SPITBOL fires each callback exactly once,
+    at the moment the cursor crosses its position.
+
+    Evidence (test in /tmp/probe4.sno):
+
+      P = 'a' $ *addg('A') ('y' $ *addg('Y') | 'b' $ *addg('B'))
+
+      Successful match `'ab' POS(0) P`:
+        SPITBOL → g='AB', snobol4dotnet → g='AB' (identical)
+
+      Failing match `'ab' POS(0) P RPOS(99)` (RPOS always fails,
+      forces engine into post-match retry sweep):
+        SPITBOL → g='AB' (one A, one B)
+        snobol4dotnet → g='ABB' (one A, TWO Bs)
+
+    On a match that must retry, snobol4dotnet re-runs the alternation
+    arm and re-fires its callback.  For beauty's deep grammar with many
+    nested alternations and deep backtracking, this inflates Push counts
+    on `$'@S'` (tree stack) and `$'#N'` (counter stack).  Reduce(snoStmt, 7)
+    then pops 7 items from a stack that may have many duplicates from
+    spurious retries — popping the wrong children.  The resulting
+    tree has bogus structure, pp() prints garbage / drops fields, and
+    the gate fails.
+
+    This is also consistent with the parallel scrip finding (commit
+    7ca7af1: "5 items vanish from `$'@S'`") — same symptom seen from
+    the other end: scrip's diagnosis interprets the resulting wrong
+    children as "missing items"; snobol4dotnet's instrumented trace
+    shows EXTRA Reduces firing.  Same root cause: callbacks firing
+    on backtrack/retry that should not.
+
+    The "build-order" appearance in my earlier trace is then explained:
+    the trace's first event Shift(snoInteger,1) is the LATEST retry —
+    earlier events of the SAME callback fired first and were correct,
+    but the trace shows the last write of g (or the OUTPUT line of the
+    latest invocation), not the full history.  My instrumentation used
+    OUTPUT directly so each call DOES print, but with multiple inner
+    backtracks the order of OUTPUT lines reflects the retry sequence
+    rather than the final-successful-path order.
+
+  NEXT SESSION must:
+
+    1. Build snobol4dotnet, reproduce /tmp/probe4.sno's T2 divergence
+       (SPITBOL g='AB' vs snobol4dotnet g='ABB').  This is the
+       single-line confirmation that the bug is "backtrack re-fires
+       callbacks", not anything ARBNO/Graft-specific.
+
+    2. Find the alternation backtrack path in
+       `Snobol4.Common/Runtime/PatternMatching/Scanner.cs` (or wherever
+       alternation try/retry is implemented).  When the engine
+       advances past a `$ *Fn` cursor-callback node, it must remember
+       that the callback ALREADY FIRED and not re-fire it on retry.
+
+       The fix is conceptually: each AST node that has fired a
+       callback during the current match attempt records that fact
+       in the per-match scratch; on retry/backtrack, the Scanner
+       checks before invoking *Fn.  Or equivalently: alternation
+       backtrack restores the cursor but does NOT replay any callbacks
+       between the alternation start and the failure point.
+
+    3. After the runtime fix:
+         - /tmp/probe4.sno T2 must produce g='AB' on snobol4dotnet
+         - Beauty 17/17 must remain green
+         - Self-host gate must produce SELF-HOST PASS
+
+    Useful debugging files left in /tmp (NOT committed):
+      • /tmp/probe4.sno          minimal repro (1 page)
+      • /tmp/beauty_inst/        instrumented beauty copy
+      • /tmp/repro_v6.sno        verified-clean repro of v6 (passes both)
+      • /tmp/t3.sno              minimal failing input
+
+    Operational notes for next session:
+
+    • SPITBOL oracle is at /home/claude/x64/bin/sbl after running
+      `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`.
+
+    • dotnet-sdk-10.0 installs cleanly via apt-get on Ubuntu 24.04
+      after `apt-get update`.  Proxy blocks dot.net.  Binary at
+      /usr/bin/dotnet (NOT /usr/local/dotnet10 as REPO doc says).
+
+    • Beauty 17/17 gate from REPO-snobol4dotnet.md works as written,
+      but reports `*_driver.sno` (filenames in this corpus tree
+      omit the `beauty_` prefix that the REPO doc shows; total is
+      17 drivers, not 19).
+
+  CROSS-REFERENCE — see GOAL-LANG-SNOBOL4 SN-26c-parseerr-h (commit 7ca7af1):
+
+    A parallel session on `scrip` (the other SNOBOL4 implementation in
+    one4all) reports an isomorphic symptom on beauty: items appear to
+    "vanish" from `$'@S'` between Push and Reduce.  The diagnosis there
+    blamed pattern-match save/restore stomping on globals.  The
+    snobol4dotnet evidence in this session shows the inverse mechanism
+    (callbacks RE-FIRE on backtrack, inflating the stack), which
+    produces the same downstream symptom (Reduce pops wrong children →
+    pp() prints garbage).  The two implementations may have the same
+    bug, the same root cause, or two different bugs in the same area.
+    Worth keeping the cross-reference open: a fix in either runtime
+    should be checked against both repros.
+
