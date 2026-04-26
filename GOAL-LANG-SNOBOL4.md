@@ -1148,11 +1148,165 @@ cd $DEST
 
 ## Current state
 
+**HEADs after 2026-04-26 session #15:**
+- one4all @ this commit (sync-step monitor restored from history; one
+  real bug fixed in interp.c E_ASSIGN trace path)
+- corpus @ `9a62ff9` (unchanged; SN-29b commit)
+- .github @ this commit (MONITOR-BINARY-DESIGN.md added; session #15
+  findings recorded below)
+- x64 @ `e68dfeb` (unchanged)
+- csnobol4 @ `b3aeb9f` (unchanged)
+
+**Gates (verified 2026-04-26 session #15):** Smoke **7** · Broker **49**.
+No regressions.
+
+**Session 2026-04-26 (#15) deltas — restored historic 2-way sync-step monitor; uncovered + fixed a latent IR trace-hook bug; design for binary-protocol successor logged for next session:**
+
+Lon directed: 3-way sync-step monitor of {SPITBOL, CSNOBOL4, one4all
+SCRIP SNOBOL4} in IR / SM / JIT, one mode per sweep.  Investigation
+revealed the historic harness (commits `6c5eee41`, `89fd186f`,
+`e3d2bdb6`, `245af434`, `a4a27ab7`) was a 3-way of {CSNOBOL4, SPITBOL,
+scrip→x86-NASM-text-emitter}, where the third backend was deliberately
+**deleted** in commit `2c760e3d` (April 7) with the note "replaced by
+scrip --jit-emit --x64" — but `--jit-emit` was never implemented; only
+`--jit-run` (in-memory, no link-against-`.so` path).  100%
+restoration of the historic 3-way is therefore not possible.
+
+What I restored — the closest available approximation:
+
+| File | Source | Status |
+|------|--------|--------|
+| `scripts/monitor/inject_traces.py` | git `85c2834b` | restored, then patched (SPITBOL bare-keyword TRACE syntax) |
+| `scripts/monitor/monitor_sync.py` | git `e3d2bdb6` | restored, extended with per-participant event log + IGNORE-rule canonicalization |
+| `scripts/monitor/monitor_ipc_sync.c` | git `245af434` | restored verbatim (177 lines, builds clean to 16KB .so) |
+| `scripts/monitor/tracepoints.conf` | git `2e22f6ef^/test/beauty/match/` | restored, expanded with SPITBOL builtins exclude list + IGNORE rules |
+| `scripts/test_monitor_2way_sync_step.sh` | new | 2-way harness (CSNOBOL4 oracle + SPITBOL participant) |
+| `scripts/build_monitor_ipc_sync_library.sh` | new | idempotent .so build per RULES.md "self-contained scripts" |
+
+Plus `/home/claude/x64/monitor_ipc_spitbol.so` was already in x64 from
+the historic build — its source `monitor_ipc_spitbol.c` confirms
+identical RS/US wire format.
+
+**End-to-end validation (2-way only):**
+- `multi_probe.sno` (5 var assigns + 1 fn call): all 5 events flow
+  through CSNOBOL4 + SPITBOL, controller stepwise-compares them, both
+  agree at every step, exit 0.
+- Full `beauty.sno < beauty.sno`: **267 sync-stepped trace events
+  agreed** before first non-ignorable divergence at `s = tree(t,v)`
+  (CSNOBOL4 stringifies user-DATA as prototype name `'tree'`; SPITBOL's
+  CONVERT fails → `'(undef)'`).  This is dialect representation
+  divergence inside `MONVAL`'s `CONVERT($MONN,'STRING')` call —
+  **not** a behavioral divergence between the oracles.
+
+**Real bug found and fixed in scrip:**
+
+`src/driver/interp.c:953` — the `E_ASSIGN` case for plain
+`var = expr` was calling `NV_SET_fn(name, val)` directly,
+bypassing `set_and_trace`.  Consequence: VALUE traces fired only on
+pattern-match replacement (`subj pat = repl`), never on plain
+assignment.  Reproducer: `TRACE('y',VALUE) y='X'` set the trace_set
+slot but `comm_var` never fired.  One-line fix: route plain-var
+assignment through `set_and_trace` (which calls `NV_SET_fn` AND
+`comm_var` correctly).  Smoke=7, Broker=49 unchanged.
+
+This bug had been hiding the fact that scrip already has full
+FIFO/RS/US sync-step IPC built in to `src/runtime/x86/snobol4.c`
+(`mon_send`, `monitor_fd`, `monitor_ack_fd`, `comm_var/call/return`,
+`MONITOR_READY_PIPE`/`MONITOR_GO_PIPE` env vars — all there since
+B-251 timeframe).  The trace hook was just disconnected from plain
+assignment in the IR runtime.  After this fix scrip can in principle
+participate in the sync-step protocol — but with the current
+text-protocol contamination problem (see below) we shouldn't ramp it
+up until the binary protocol lands.
+
+**Lon's binary-protocol direction (2026-04-26):**
+
+> Ensure that no parsing and string processing occurs during
+> communication between monitor and monitored processes. Use binary
+> buffers. No lex or parsing trace info.
+
+The current restored protocol IS binary at the framing layer
+(RS/US delimiters, `writev` of raw byte buffers) BUT lex/parse-
+contaminated at the value layer because every event runs through
+SNOBOL4-side `CONVERT(...,'STRING')`.  The IGNORE rules in
+tracepoints.conf are masking this contamination — exactly what Lon
+flagged.
+
+Full redesign captured in `.github/MONITOR-BINARY-DESIGN.md`:
+
+  - Fixed-size binary record: `u32 kind | u32 name_id | u8 type | u32 value_len | value_bytes`
+  - Type tag drives interpretation: STRING/NAME → raw SCBLK bytes;
+    INTEGER → 8 LE bytes; REAL → 8 IEEE bytes; PATTERN/ARRAY/TABLE/
+    CODE/DATA/EXPRESSION → empty
+  - Names sent once at startup as a sidecar names-file; events carry
+    `name_id` (u32) — no name strings on the wire
+  - Drop `MONVAL/MONCALL/MONRET` SNOBOL4 callbacks entirely; replace
+    with thin LOAD()ed C functions `MON_PUT_VALUE/CALL/RETURN` that
+    inspect the value descriptor's type tag + raw bytes directly
+  - Drop IGNORE rules in tracepoints.conf — pattern values from both
+    oracles serialize as `(type=5, len=0)` and agree automatically by
+    byte equality
+  - Drop `.upper()` name normalization in monitor_sync.py — names
+    compared by id, not text
+
+Three .so modules (CSNOBOL4 ABI, SPITBOL ABI, in-process for scrip).
+Estimated 8.5 hours = one full session to implement and validate
+through full beauty self-host.
+
+**Next-session work order:**
+
+1. Standard setup chain.  build_spitbol_oracle.sh now SKIPs cleanly on
+   the SN-30 prebuilt; no force-rebuild needed.
+2. `bash scripts/build_monitor_ipc_sync_library.sh`  (rebuilds the
+   text-protocol .so as a reference for diffing).
+3. Read `MONITOR-BINARY-DESIGN.md` in full.
+4. Implement `scripts/monitor/monitor_ipc_bin.c` (CSNOBOL4 ABI version).
+5. Implement `x64/monitor_ipc_bin_spl.c` (SPITBOL ABI version).
+6. Rewrite `scripts/monitor/inject_traces.py` per the design.
+7. Rewrite `scripts/monitor/monitor_sync.py` per the design.
+8. Rewrite `src/runtime/x86/snobol4.c mon_send` to inspect descriptor
+   type tag + raw bytes directly (no `VARVAL_fn` call which CONVERTs
+   internally).
+9. Validate 2-way on hello + multi probes + full beauty self-host —
+   target: 0 divergences across all events, both oracles to END.
+10. Wire scrip --ir-run as 3rd participant; first divergence event IS
+    the SN-26c-parseerr-h sub-h2 bug.
+11. Same for --sm-run, --jit-run as separate sweeps.
+
+**Sub-rung status update (session #15):**
+
+- [ ] **SN-26c-parseerr-h sub-h2** — unchanged.  Cannot be pinned by
+  the text-protocol monitor because dialect representation noise drowns
+  out behavioral signal.  Blocked on binary-protocol redesign.
+- [x] **interp.c E_ASSIGN trace hook** — fixed this session
+  (one-line, line 953).
+
+**Files modified / added this session:**
+
+| Path | Action |
+|------|--------|
+| `one4all/src/driver/interp.c` | modified (line 953 NV_SET_fn → set_and_trace) |
+| `one4all/scripts/monitor/inject_traces.py` | added (302 lines) |
+| `one4all/scripts/monitor/monitor_ipc_sync.c` | added (177 lines) |
+| `one4all/scripts/monitor/monitor_sync.py` | added (220 lines) |
+| `one4all/scripts/monitor/tracepoints.conf` | added (119 lines) |
+| `one4all/scripts/test_monitor_2way_sync_step.sh` | added (109 lines) |
+| `one4all/scripts/build_monitor_ipc_sync_library.sh` | added (idempotent build) |
+| `one4all/.gitignore` | added `scripts/monitor/*.so` |
+| `.github/MONITOR-BINARY-DESIGN.md` | added — design for binary protocol successor |
+
+The .so binary itself is gitignored per "no committed binaries" policy
+(commit `bc8dfca4`).  Rebuild via the new build script.
+
+---
+
+## Session #14 history (preserved below for continuity)
+
 **HEADs after 2026-04-26 session #14:**
 - one4all @ `223a1284` (unchanged from #12/#13; no code changes this
   session — diagnostic-only)
 - corpus @ `9a62ff9` (unchanged; SN-29b commit)
-- .github @ this commit (session #14 diagnostic findings recorded)
+- .github @ session #14 commit (session #14 diagnostic findings recorded)
 - x64 @ `e68dfeb` (unchanged)
 - csnobol4 @ `b3aeb9f` (unchanged)
 
