@@ -1148,24 +1148,211 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-26 session #12:**
-- one4all @ `223a1284` (SN-26c-parseerr-h **partial**: bare-*fn() with
-  NRETURN now correctly epsilon-matches, fixing a real latent bug
-  validated by 12-line probe.  Beauty self-host line count unchanged
-  at 526 — the bug exposing the latent fault is independent of beauty's
-  remaining truncation, which lives in the `.`-capture / NM_CALL path.)
+**HEADs after 2026-04-26 session #13:**
+- one4all @ `223a1284` (unchanged from #12; no code changes this session —
+  diagnostic-only)
 - corpus @ `9a62ff9` (unchanged; SN-29b commit)
-- .github @ this commit (session #12 progress recorded)
-- x64 @ `e68dfeb` (unchanged from #11; build_spitbol_oracle.sh **now
-  passes** with the prebuilt — fresh clone of x64 main has SN-30 baked
-  in.  The capability probe owed in #11 is no longer required: a fresh
-  clone of x64 + `bash build_spitbol_oracle.sh` produces a sbl that
-  self-hosts beauty at md5 `408fc78...`.  Mark SN-30c capability-probe
-  follow-up as resolved upstream.)
+- .github @ this commit (session #13 diagnostic findings recorded)
+- x64 @ `e68dfeb` (unchanged)
 - csnobol4 @ `b3aeb9f` (unchanged)
 
-**Gates (verified 2026-04-26 session #12):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #13):** Smoke **7** · Broker **49**.
 No regressions.
+
+**Session 2026-04-26 (#13) deltas — SN-26c-parseerr-h sub-h2 BUG PINNED, NOT FIXED:**
+
+Diagnostic-only session.  No code changes; pinned the bug to a specific
+mechanism in scrip's pattern matching.  Beauty self-host still 526 lines
+(target 649, md5 `408fc788ca2ef425fc1f87e26d45a7a5`).  Three earlier
+hypotheses **falsified**:
+
+- **Falsified — "fewer Shifts fire than oracle":** TR_SHIFT trace at
+  the top of Shift body shows scrip and oracle both call Shift exactly
+  7 times for the first stmt with byte-identical `(t, v)` arg pairs.
+- **Falsified — "Reduce/c[] indexing wrong":** Standalone probe (7
+  Shifts via Push, then Reduce, then enumerate c[1..7]) passes in all
+  three scrip modes.  Reduce builds the array correctly when stack
+  has the right contents.
+- **Falsified — "chained NM_CALL commits don't all survive":** Probe
+  with 7 chained `'' ~ 'X'` shifts via beauty's actual `~` OPSYN
+  pushes 7 trees in all modes (`probe_stack.sno`).  Simple chained
+  callcap is fine.
+
+**Decisive evidence (the actual bug):** with `ONE4ALL_USERCALL_TRACE=1`
+plus traced `Push` instrumentation in `stack.inc`, the **timeline of
+NM_CALL invocations** for the first beauty stmt (`x = 'hello'`) shows:
+
+```
+NM_CALL Shift("snoLabel","")        — fires
+NM_CALL Shift("snoId","x")          — fires
+NM_CALL Shift("","")                — fires
+NM_CALL Shift("=","=")              — fires
+NM_CALL Shift("snoString","'hello'")— fires
+NM_CALL Reduce("'snoStmt'", 7)      — FIRES BEFORE THE LAST 2 SHIFTS
+NM_CALL Shift("","")                — trailing #1 (line 228 epsilon~'')
+NM_CALL Shift("","")                — trailing #2 (line 228 epsilon~'')
+NM_CALL Reduce("'snoParse'", 1)
+```
+
+Oracle's NM_CALL order has all 7 Shifts FIRST then both Reduces.
+Scrip splits the Reduce inside the Shift sequence.
+
+**Inside the runtime — what each NM_CALL does:** Shift's body executes
+`s = tree(t, v); Push(s)`.  When the trailing 2 Shifts fire AFTER the
+Reduce, they execute their NM_CALL hooks (Shift body runs, side effects
+happen) — but at that point Reduce has already run with stack-depth=5,
+not 7.  Reduce(snoStmt, 7) therefore pops 5 trees + 2 nulls into
+c[1..7].  c[1] (snoLabel) and c[2] (snoId) end up as nulls; c[3]..c[5]
+hold what oracle would have at c[5]..c[3].  pp_snoStmt's `DIFFER(t(ppSubj))`
+test fires with c[2]=null (where snoId belongs), so it skips the LHS
+and =, jumping to pp_snoStmt5 which prints just the RHS — exactly the
+truncation symptom we observe.
+
+**Why scrip mis-orders Shifts vs Reduce:** beauty's pattern shape is
+
+```
+snoCommand = nInc()
+             FENCE( ...
+                  | *snoStmt ("'snoStmt'" & 7) (nl|';')   ← outer wrapper
+                  )
+snoStmt    = *snoLabel
+             ( ... 5 inner shifts via FENCE alternation ... )
+             FENCE(*snoGoto | epsilon ~ '' epsilon ~ '')   ← line 228
+             *snoGray
+```
+
+The OUTER `(... & 7)` expands to `epsilon . *Reduce("'snoStmt'", 7)` —
+a NM_CALL slot pushed into NAM as a sibling of `*snoStmt`'s pushes.
+The 5 inner Shifts come from inside `*snoStmt`'s body (the inner
+FENCE first alternative).  The 2 trailing Shifts come from `*snoStmt`'s
+own trailing FENCE on line 228.  All Shifts and Reduce push NM_CALL
+slots into the same active NAM ctx.
+
+Source-code order of the slot pushes should be: 7 Shifts, then Reduce.
+Scrip's actual order is: 5 Shifts, Reduce, 2 Shifts.  This means scrip
+pushes the Reduce slot BEFORE *snoStmt finishes matching — i.e., **the
+parent's NAM-slot push for `*Reduce(...)` happens between two of the
+child's pushes**.  Most likely causes:
+
+1. The outer `*snoStmt epsilon . *Reduce(...)` is being lowered such
+   that the `*Reduce` callcap registers its NAM slot BEFORE `*snoStmt`
+   finishes its sub-match — i.e. wrong ordering between deferred-ref
+   match-completion and sibling capture-registration.
+
+2. The trailing FENCE in snoStmt (line 228) is being matched in a way
+   that pushes its captures AFTER an enclosing `*snoStmt`-completion
+   trigger has already registered the parent's deferred Reduce.
+
+3. `*snoStmt` resolves at match time to a fresh pattern via deferred-
+   reference; the fresh pattern's tail captures may be pushed onto a
+   different NAM frame from its head captures.
+
+**Probe shapes that DO NOT reproduce the bug** (saved in /tmp during
+session #13, deleted before handoff):
+
+- `probe_stack.sno`: 7 chained `'' ~ 'X'` shifts directly (no outer
+  Reduce wrapper).  All 3 modes push 7 in correct order.
+- `probe_nested.sno`: 5 shifts via `*inner` reference + 2 shifts in
+  outer FENCE + outer `& 7` reduce.  All 3 modes order correctly:
+  7 Pushes then Reduce.
+- `probe_nested2.sno`: deeper nesting mimicking snoStmt+snoCommand,
+  with `*innerstmt` containing nested FENCE alternation.  Still
+  orders correctly.
+- `probe_reduce_pat.sno`, `probe_beauty_shape.sno`: Reduce-then-c[]
+  indexing tests.  All 3 modes pass.
+
+**The minimal probe that DOES reproduce is still the full beauty:**
+
+```bash
+printf "                  x              =  'hello'\nEND\n" > /tmp/asg.sno
+SNO_LIB=/home/claude/corpus/programs/include \
+    /home/claude/one4all/scrip --ir-run \
+    /home/claude/corpus/programs/snobol4/demo/beauty/beauty.sno < /tmp/asg.sno
+# Expected: "                  x              =  'hello'\nEND"  (oracle output)
+# Actual:   "                                 'hello'\nEND"     (LHS dropped)
+```
+
+There is some structural feature of beauty's snoStmt/snoCommand
+combination that none of my standalone probes captured.  Candidates
+for next session's smaller probe:
+
+- The interaction between `nInc()` (which is `epsilon . *IncCounter()`
+  in semantic.inc) and the `*snoStmt` reference inside snoCommand's
+  FENCE.  Beauty's snoCommand wraps every stmt with nInc() — does
+  that NM_CALL slot interact poorly with the inner `*snoStmt`?
+- The `(nl | ';')` literal-alternation tail after the `& 7` reduce
+  in snoCommand — when the input has `\n`, the nl alt matches; does
+  that retroactively re-order the prior `& 7` slot?
+- The FENCE wrapper itself.  beauty's snoStmt has FENCE around the
+  trailing `(*snoGoto | epsilon ~ '' epsilon ~ '')`.  What if FENCE
+  flushes pending NAM slots when it commits?
+
+**Reproduce path for next session:**
+
+```bash
+# Standard setup
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+
+# Reproduce the timeline disagreement (this is the smoking gun):
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+printf "                  x              =  'hello'\nEND\n" > /tmp/asg.sno
+SNO_LIB=/home/claude/corpus/programs/include ONE4ALL_USERCALL_TRACE=1 \
+    /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < /tmp/asg.sno \
+    > /tmp/scrip.out 2> /tmp/scrip.err
+# scrip.err shows NM_CALL trace — first 9 NM_CALLs of stmt 1:
+#   5 Shift, 1 Reduce, 2 Shift, 1 Reduce  (BAD)
+# Oracle equivalent (manually compare or instrument similarly) has:
+#   7 Shift, 1 Reduce, 1 Reduce  (correct)
+
+# Also run 4-way scrip-monitor to confirm IR vs SM vs JIT:
+cd /home/claude/one4all
+make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+    $BEAUTY/beauty.sno < /tmp/asg.sno 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
+```
+
+**Code locations to investigate:**
+
+| File | Role |
+|------|------|
+| `src/runtime/x86/snobol4_nmd.c` | NAM ctx, NAME_push, NAME_commit |
+| `src/runtime/x86/bb_boxes.c` `bb_cap` | γ/β/ω deferred-capture FSM |
+| `src/runtime/x86/bb_broker.c` | nested pattern-call entry/exit |
+| `src/driver/interp.c` E_DEFER, E_INDIRECT | `*var` deferred reference |
+| `src/runtime/x86/eval_code.c` EXPVAL_fn | DT_E thaw with ctx isolation |
+
+**Specifically watch for:** any code that calls NAME_commit on the
+*current* ctx mid-pattern (not just at top-level statement boundary).
+A premature NAME_commit between Shift#5 and Shift#6 would explain
+the observed timeline by firing the Reduce slot that was already
+pending and clearing the ctx, then Shifts 6 and 7 push fresh slots
+into a now-empty ctx that fires a second time as Reduce(snoParse, 1).
+
+**Sub-rung status update (session #13):**
+
+- [x] **SN-26c-parseerr-h sub-h1** — bare `*fn()` NRETURN bug (closed
+  in session #12, commit `223a1284`).
+- [ ] **SN-26c-parseerr-h sub-h2** — NM_CALL timeline misorder.
+  **Bug pinned** (this session); not fixed.
+
+**Files modified this session and reverted before handoff:**
+
+- `corpus/programs/snobol4/demo/beauty/beauty.sno` (added `pushCnt = 0`,
+  `popCnt = 0`, `sCnt = 0` for trace counters; reverted)
+- `corpus/programs/snobol4/demo/beauty/stack.inc` (added Push trace
+  OUTPUT line; reverted)
+- `corpus/programs/snobol4/demo/beauty/ShiftReduce.inc` (added Shift
+  trace OUTPUT line, modified Reduce to dump stack; reverted)
+- `corpus/programs/snobol4/demo/beauty/probe_*.sno` (multiple probe
+  files; deleted)
+
+All cleaned up.  Verified: `cd corpus && git status` clean,
+`cd one4all && git status` clean.
+
+---
 
 **Session 2026-04-26 (#12) deltas — SN-26c-parseerr-h PARTIAL (bare-*fn NRETURN closed; .-capture NRETURN still open):**
 
