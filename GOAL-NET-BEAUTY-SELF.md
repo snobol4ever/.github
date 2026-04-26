@@ -710,3 +710,127 @@ default; that was already fixed in `13bfcc0`.
     - Beauty gate: 17/17 PASS (verified end-of-session)
     - Self-host: runtime errors eliminated; Parse Error on assignment
       remains (graft + ARBNO interaction)
+
+  SESSION WORK (Sun Apr 26 evening — diagnosis only, no code changes):
+
+    PRIOR HYPOTHESIS INVALIDATED — ARBNO + nested-* is not the bug.
+
+    Step 1 of the prior "NEXT SESSION must" list specified a minimal
+    repro: `X = ('a' . *push) | ('b' . *push); Parse = nPush() ARBNO(*X)
+    *Top(); 'aab' POS(0) *Parse RPOS(0)` — expect 3 push calls; if <3,
+    that confirms the ARBNO + nested-* root cause.
+
+    Result on this clone (HEAD 0914fbf): produces **3 push calls**.
+    Output identical to SPITBOL.  The Graft fix from 826d4ff handles
+    this shape correctly.  ARBNO + nested-* with cursor-driven
+    callbacks (including alternation under *X) is NOT the bug.
+
+    Variations tested, all PASS on snobol4dotnet at 0914fbf:
+      • ARBNO(LEN(1) *push())                       on 'aab' → 3 ✓
+      • ARBNO(*X) where X = ('a' . *push) | ('b' . *push)   → 3 ✓
+      • Cmd = nInc FENCE(*A | *B | *C); ARBNO(*Cmd)         → 6 ✓
+      • r19: EVAL("epsilon . *Reduce('lit', nTop())") where
+        nTop is properly DEFINEd as a function                → ✓
+      • Mini-beauty (r16d): nPush ARBNO(*snoCommand) without
+        the trailing reduce-pattern                           → ✓
+
+    NEW DIAGNOSIS — divergence is at *snoParse match dispatch.
+
+    Instrumented Shift/Reduce/PushCounter/IncCounter in a temp copy of
+    semantic.inc + counter.inc + ShiftReduce.inc (under /tmp/inst_beauty/,
+    NOT modifying corpus per RULES.md).  Ran beauty.sno < tiny.sno where
+    tiny.sno is `              x = 1\n` (the documented self-host failure
+    input).
+
+    BUILD-PHASE TRACES: identical for the first 79 lines on both runtimes.
+    All shift(p,t=...) and reduce(t=...,n=...) build-time helper calls
+    fire in the same order with the same arguments.  The grammar build
+    is sound; snoParse on both runtimes ends up with type PATTERN
+    (snobol4dotnet returns lowercase 'pattern' per spec).
+
+    MATCH-PHASE TRACES:
+      • SPITBOL: fires [T] PushCounter() then [T] IncCounter() 4 times
+        (= 4 successful match invocations across main loop), beautifies
+        cleanly to 5 output lines.
+      • snobol4dotnet: fires ZERO match-time semantic actions, falls
+        straight through to mainErr1 → "Parse Error".
+
+    Added [M2] trace at beauty.sno:619 (the first `snoSrc POS(0)
+    *snoParse *snoSpace RPOS(0)` invocation):
+      • SPITBOL: [M2] before match: DATATYPE=PATTERN SIZE=20 → match OK
+      • snobol4dotnet: [M2] before match: DATATYPE=pattern SIZE=20
+        → :F(mainErr1) taken, NO callback fires in between.
+
+    The match dispatch reaches the call site with a valid PATTERN value
+    and the correct 20-byte snoSrc, then fails in the engine before
+    any inner action — including nPush()'s `epsilon . *PushCounter()`
+    cursor — can run.  Since epsilon always matches, *PushCounter()
+    should fire if the engine even enters snoParse's body.  It doesn't.
+
+    FOCUS REGION FOR NEXT SESSION
+
+    `Snobol4.Common/Runtime/Pattern/UnevaluatedPattern.cs` Scan() — the
+    Graft path when the pattern being grafted is a 4-element
+    concatenation: `nPush ARBNO(*snoCommand) ("'snoParse'" & 'nTop()')
+    nPop()`.  Hypothesis: Graft wires the wrong start node — possibly
+    skipping past nPush directly to ARBNO — so the cursor on nPush's
+    epsilon never executes its *PushCounter() callback.  ARBNO then
+    matches zero Commands (stack empty), the trailing reduce expects
+    nTop() ≥ 1 children, and the whole match fails before any
+    semantic action fires.
+
+    Files to read first:
+      • Snobol4.Common/Runtime/Pattern/UnevaluatedPattern.cs
+      • Snobol4.Common/Runtime/PatternMatching/Scanner.cs (Graft, Match)
+      • Snobol4.Common/Runtime/AbstractSyntaxTree.cs (Graft impl)
+
+  NEXT SESSION must:
+    1. Build a minimal repro proving the issue: a 4-element concat
+         P = nPush ARBNO(LEN(1)) reduce_pat nPop
+       where nPush, reduce_pat, nPop are each independently shown to
+       work, and assert that `'foo' POS(0) *P RPOS(3)` fires
+       PushCounter exactly once on snobol4dotnet.  If it fires zero
+       times, that confirms the Graft-on-multi-element-concat bug.
+    2. Read AbstractSyntaxTree.Graft and Scanner.Match to verify Graft
+       wires the FIRST node of the grafted pattern as the entry, not
+       (e.g.) the last leaf or some other node.
+    3. Fix Graft / UnevaluatedPattern.Scan as needed.  Beauty 17/17 must
+       remain green after the fix.
+    4. Run self-host gate: SELF-HOST PASS (≥500 stderr lines, exit 0).
+    5. Side task: add `-I` include-path support to CommandLine.cs so
+       beauty.sno can self-host without copying is.inc/FENCE.inc/io.inc
+       into demo/beauty/.  (Independent from S-2 fix.)
+
+    UNRELATED FINDING worth a sub-rung: snobol4dotnet's case-sensitive
+    mode (`-bf`) appears to fold the lowercase identifier `input` to the
+    `INPUT` reserved I/O name.  Repro:
+      cat > /tmp/r14.sno << 'EOF'
+                     &ANCHOR        =  0
+                     &FULLSCAN      =  1
+                     input          =  'hello'
+                     OUTPUT         =  'value=[' input ']'
+      END
+      EOF
+      dotnet Snobol4.dll -bf /tmp/r14.sno              # hangs on stdin
+      dotnet Snobol4.dll -bf /tmp/r14.sno < /dev/null  # exits silently
+      sbl    -bf /tmp/r14.sno                          # prints value=[hello]
+    Expected per SN-31 (case-sensitive): lowercase `input` is a normal
+    user variable, distinct from `INPUT`.  Likely separate bug —
+    consider a new rung NET-INPUT-CASE.
+
+    INFRA NOTE: dotnet-install.sh URL (https://dot.net/v1/...) and the
+    CDN mirror are blocked by the egress proxy on this clone (HTTP 503
+    "DNS cache overflow" from the proxy).  `apt-get install -y
+    dotnet-sdk-10.0` on Ubuntu 24.04 (after `apt-get update`) works and
+    yields 10.0.107 at /usr/bin/dotnet.  Consider adding
+    `install_dotnet10.sh` under one4all/scripts/ that prefers apt and
+    falls back to the script.  REPO-snobol4dotnet.md currently says
+    `apt-get install -y dotnet-sdk-10.0` which works — but the
+    `export PATH=/usr/local/dotnet10:$PATH` line is misleading on this
+    clone (apt installs to /usr/bin).
+
+    - snobol4dotnet HEAD: 0914fbf (unchanged this session — diagnosis only)
+    - corpus HEAD: 7d26569 (unchanged)
+    - Beauty gate: 17/17 PASS still expected (not re-run; build clean,
+      no code changes)
+    - SPITBOL self-host baseline: re-verified 649 lines exit 0 stderr-clean
