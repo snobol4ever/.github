@@ -89,8 +89,8 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `482211f` (S-2 progress; -bf works end-to-end; 3 infra bugs fixed)
-- Unit tests: not re-run this session (build clean)
+- HEAD: `13bfcc0` (S-2 progress; AmpCaseFolding seeded from -f; EVAL/CODE case-sensitive under -f)
+- Unit tests: not re-run this session (build clean, beauty gate verifies no regression)
 - Beauty suite: 17/17 PASS (verified)
 - Crosscheck: 79/80 (unchanged)
 
