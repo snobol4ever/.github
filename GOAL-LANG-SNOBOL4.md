@@ -515,14 +515,40 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-26 session #17:**
-- one4all @ `7ac50ec3` (binary monitor: typed entry points + DATATYPE dispatch)
-- corpus @ `9a62ff9` (SN-29b)
+**HEADs after 2026-04-26 session #18:**
+- one4all @ `605c0f0c` (3-way binary harness landed; scrip third participant)
+- corpus @ `32cefc1` (SN-26b: beauty folder self-contained)
 - .github @ this commit
 - x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points)
 - csnobol4 @ `b3aeb9f`
 
-**Gates (verified 2026-04-26 session #17):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #18):** Smoke **7** · Broker **49**.
+
+**3-way binary harness (PASS, byte-equal across CSN/SPL/scrip --ir-run):**
+
+| Probe | Steps | Coverage |
+|-------|------:|----------|
+| probe1_basic     | 3 | STRING + INTEGER assignment |
+| probe2_mixed     | 8 | STRING/INT/REAL/ARRAY/TABLE/PATTERN/CODE |
+| probe4_beauty5   | 6 | 5-line beauty-style assignment block |
+| probe5_arith     | 9 | arithmetic, real division, str concat |
+
+**Beauty 3-way:** scrip exits silently at step 1 during pre-MON_OPEN
+include processing.  CSN/SPL both reach `VALUE ppStop = ARRAY`; scrip
+emits zero events.  This is the SN-26c-parseerr-h sub-h2 surface:
+the harness has done its job and isolated the divergence point.
+
+### Active rung — drive SN-26c-parseerr-h sub-h2 via 3-way (session #19)
+
+The 3-way binary harness is now the right tool for this bug.
+Workflow:
+1. Add `OUTPUT` probes around the section of beauty's includes scrip
+   chokes on, OR enable `ONE4ALL_USERCALL_TRACE=1` on scrip and capture
+   the MV-callback timeline.
+2. Compare scrip's last successful operation against the oracles'
+   first divergent operation (visible in `/tmp/monitor_3way_bin_last/`).
+3. Apply the standard scrip-vs-oracle bisection on the parser /
+   runtime path that diverges.
 
 ### Active rung — binary-protocol sync-step monitor (session #17)
 
@@ -613,13 +639,49 @@ difference around NRETURN.  Tracked as a new sub-rung below.
   gap but does not gate scrip work.  Investigate by adding an EXCLUDE
   for `dummy` and `PushCounter` and seeing how far the run gets, OR
   understand the SIL-level convention for NRETURN return values.
-- [ ] **SN-26-binmon-3way** — wire scrip --ir-run as third participant
-  in the binary harness.  First scrip-vs-oracle divergence will surface
-  the actual SN-26c-parseerr-h sub-h2 bug.  Same again for --sm-run,
-  --jit-run.  Requires writing `test_monitor_3way_sync_step_bin.sh`
-  (analogous to the existing 2-way harness) and adding scrip-side
-  binary-protocol emitter to `src/runtime/x86/snobol4.c` (replacing
-  the text-protocol `mon_send`).
+- [x] **SN-26-binmon-3way (session #18, 2026-04-26)** — scrip --ir-run
+  wired in as third participant in the binary harness.  All three
+  participants run the SAME instrumented `.sno` source, hitting the
+  source-level `MON_OPEN(...)` gate at the same statement number —
+  startup synchronization is automatic.  Architecture follows the
+  historic `run_monitor_3way.sh` pattern (commit `a4a27ab7`) per
+  `MONITOR-BINARY-DESIGN.md` (commit `669b3b4`):
+    * scrip pre-registers `MON_OPEN`, `MON_PUT_S/I/R/O_VALUE`,
+      `MON_PUT_S/I/R/O_RETURN`, `MON_PUT_CALL`, `MON_CLOSE` as C
+      builtins (`_b_MON_*` in `src/runtime/x86/snobol4.c`).
+    * scrip exposes a `LOAD` stub that succeeds for any `MON_*`
+      prototype so the preamble's LOAD-chain doesn't take MON_NOOP_.
+    * Harness sets `MONITOR_SO=builtin` (sentinel non-empty string)
+      so the preamble's `IDENT(MON_SO_)` doesn't short-circuit.
+    * scrip's `_TRACE_` honors the 4-arg form `TRACE(var,type,tag,fn)`:
+      registers a callback that fires via `APPLY_fn` on every assignment.
+      Re-entry guard prevents recursion when the callback itself assigns.
+    * `comm_var` moved post-commit in `NV_SET_fn` so `$N` lookups inside
+      the callback see the new value.  `set_and_trace` updated to avoid
+      double-emission (NV_SET_fn already fires for normal-store path).
+    * `interp.c` E_VAR fallback to `APPLY_fn` for zero-arg builtins now
+      treats FAIL returns as "unset variable" (NULVCL) rather than
+      propagating the FAIL — matches CSNOBOL4 / SPITBOL semantics where
+      bare unbound `VALUE` (and similar) is the empty string when used
+      as a function arg, not a hard failure aborting the enclosing call.
+
+  **Sanity probes (all PASS, byte-equal across CSN/SPL/scrip):**
+    * probe1_basic — 3 steps (STRING + INTEGER)
+    * probe2_mixed — 8 steps (STRING/INT/REAL/ARRAY/TABLE/PATTERN/CODE)
+    * probe4_beauty5 — 6 steps (5-line beauty-style block)
+    * probe5_arith — 9 steps (arithmetic, real division, str concat)
+
+  **Beauty status:** `beauty.sno < beauty.sno` through 3-way harness now
+  isolates a real scrip-vs-oracle divergence — scrip exits silently
+  during beauty's pre-MON_OPEN include processing (`global.inc`,
+  `is.inc`, etc.).  CSN and SPL both reach `VALUE ppStop = ARRAY` at
+  step 1; scrip emits nothing and EOFs.  This is exactly the kind of
+  divergence the 3-way harness was designed to surface — likely
+  SN-26c-parseerr-h sub-h2 or a related parser/runtime gap.  Tracked as
+  **SN-26c-parseerr-h sub-h2** (the active rung this work was driving
+  toward).  Investigate by capturing scrip's preamble execution trace
+  with `ONE4ALL_USERCALL_TRACE=1` and comparing to the oracles' MV
+  callback timeline.
 
 #### Next-session work order
 
