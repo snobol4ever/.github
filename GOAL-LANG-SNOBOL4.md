@@ -1148,6 +1148,147 @@ cd $DEST
 
 ## Current state
 
+**HEADs after 2026-04-26 session #16:**
+- one4all @ this commit (binary-protocol monitor: wire format, CSN .so,
+  injector, controller, harness — all wired up and proven on 2-line
+  probes; ARRAY/PATTERN values still blocked by LOAD ABI prototype
+  type-check, see findings below)
+- corpus @ `9a62ff9` (unchanged; SN-29b commit)
+- .github @ this commit (session #16 findings recorded)
+- x64 @ this commit (binary-protocol SPITBOL .so source + .gitignore entry)
+- csnobol4 @ `b3aeb9f` (unchanged)
+
+**Gates (verified 2026-04-26 session #16):** Smoke **7** · Broker **49**.
+No regressions.
+
+**Session 2026-04-26 (#16) deltas — binary-protocol sync-step monitor: wire format + .so modules + injector + controller all built; works for STRING/INTEGER/REAL values; ARRAY/PATTERN/etc blocked by LOAD prototype type-check.**
+
+Implemented the binary protocol design from MONITOR-BINARY-DESIGN.md.
+All core pieces compile clean and run end-to-end on simple probes.
+
+**Files added (this session):**
+
+| Path | Role |
+|------|------|
+| `one4all/scripts/monitor/monitor_wire.h` | Single source of truth for binary record layout (13-byte header + value bytes, type tags MWT_NULL..MWT_FILE).  Endianness-explicit packing helper. |
+| `one4all/scripts/monitor/monitor_ipc_bin_csn.c` | CSNOBOL4 LOAD()able .so: MON_OPEN(ready,go,names) / MON_PUT_VALUE(name,$name) / MON_PUT_CALL(name) / MON_PUT_RETURN(name,$name) / MON_CLOSE.  C-side reads descriptor's type tag (CSNOBOL4 small-int convention from equ.h: S=1, P=3, A=4, T=5, I=6, R=7, N=9, etc.) and emits raw bytes for STRING/INTEGER/REAL, empty value for everything else. |
+| `x64/monitor_ipc_bin_spl.c` | Same but for SPITBOL ABI: ASCII-char type tags ('S','I','R','P','N','A','T','C','E') and `spitblk_sc` SCBLK shape.  Lowercase + UPPERCASE entry-point aliases per SPITBOL LOAD lookup convention. |
+| `one4all/scripts/build_monitor_ipc_bin_libraries.sh` | Self-contained idempotent builder for both .so files. |
+| `one4all/scripts/monitor/inject_traces_bin.py` | Trace injector: drops MONVAL/MONCALL/MONRET CONVERT-to-string callbacks; replaces with thin MV/MC/MR wrappers that just pass `N, $N` to the LOAD()ed C function.  Emits a sidecar names file (one per line; index = name_id on the wire). |
+| `one4all/scripts/monitor/monitor_sync_bin.py` | Controller: reads 13-byte headers + value bytes; compares records as `(kind, name_id, type, value_bytes)` tuples; G/S ack per step.  Treats simultaneous EOF on all participants as clean termination. |
+| `one4all/scripts/monitor/tracepoints_bin.conf` | INCLUDE/EXCLUDE rules.  IGNORE rules removed entirely — pattern/array/data values all serialize as `(type=N, len=0)` and compare byte-equal. |
+| `one4all/scripts/test_monitor_2way_sync_step_bin.sh` | 2-way harness (CSNOBOL4 + SPITBOL).  Idempotent, exit-code clean. |
+
+**End-to-end validation (2-way binary, this session):**
+
+| Probe | Events | Result |
+|---|---|---|
+| `x='hello' / y=42 / END` (STRING + INTEGER) | 2 VALUE | exit 0, both agree, clean EOF |
+| `add(a,b)c / x='hello' / s=add(3,4) / y=s+1` | 4 VALUE | exit 0, both agree |
+| `beauty.sno < beauty.sno` | 1 VALUE then both error | both crash on ARRAY value |
+
+**Bug found in design — LOAD prototype type-check:**
+
+When the SNOBOL4 wrapper `MV(N,T)V / MV  MON_PUT_VALUE(N, $N)` runs against a
+variable whose value is an ARRAY (e.g. beauty's `ppStop = ARRAY('1:4')`),
+both oracles error out:
+
+* CSNOBOL4: `Error 1 — Illegal data type` (line where MON_PUT_VALUE called)
+* SPITBOL:  `ERROR 039 — external function argument is not a string`
+
+The LOAD prototype `MON_PUT_VALUE(STRING,STRING)INTEGER` declares the
+2nd argument as STRING, and **both runtimes type-check at call time**.
+Earlier reading of CSNOBOL4 `lib/load.h` ("XXX check nargs?? check
+datatypes???") was misleading — the check happens elsewhere in the
+LOAD/LINK path, before the C function is called.
+
+This contradicts the design assumption in MONITOR-BINARY-DESIGN.md that
+`$N` could be passed verbatim with C-side type dispatch.  The design
+needs a fix; three options:
+
+1. **Pass NAME instead of value** — declare 2nd arg as NAME, call
+   `MON_PUT_VALUE(N, .N)`.  C-side dereferences the NAME via the
+   runtime's NAME→value lookup machinery.  This is ABI-specific code
+   (CSNOBOL4 and SPITBOL have different NAME representations).  Both
+   ABIs must support a NAME prototype-type.
+
+2. **Multiple typed entry points** — `MON_PUT_STRING(N,$N)`,
+   `MON_PUT_INTEGER(N,$N)`, etc.  SNOBOL4 wrapper does
+   `DATATYPE($N)` discrimination and dispatches to the appropriate
+   typed entry point.  Avoids the type-check by using prototypes
+   that match each value's actual type.  Cost: per-event SNOBOL4
+   conditional, but DATATYPE() is a builtin so it's fast.
+
+3. **CONVERT to STRING with type tag prefix** — give up on full
+   type-tag fidelity; emit `<typeprefix><stringbytes>`.  This is
+   the text protocol with fewer bells, defeats the purpose of the
+   redesign.
+
+Option 2 is the simplest path: SNOBOL4 wrapper does
+```snobol4
+MV    DT = DATATYPE($N)
+      DIFFER(DT, 'STRING')                                  :S(MV_NS)
+      MON_PUT_STRING(N, $N)                                 :(RETURN)
+MV_NS DIFFER(DT, 'INTEGER')                                 :S(MV_NI)
+      MON_PUT_INTEGER(N, $N)                                :(RETURN)
+MV_NI DIFFER(DT, 'REAL')                                    :S(MV_NR)
+      MON_PUT_REAL(N, $N)                                   :(RETURN)
+MV_NR MON_PUT_OPAQUE(N, DT)                                 :(RETURN)
+```
+where `MON_PUT_OPAQUE(N, type_string)` records the datatype name
+(byte-canonicalised: both dialects emit `'STRING'` etc. — the C side
+strcmps a small fixed table to map to the wire MWT_* code).
+NB: DATATYPE case differs per runtime (RULES.md table).  Use the
+ingress-at-lex normalization from `is.inc` — but that's the very file
+we're working around.  Cleanest: case-insensitive strcmp on the type
+string in C.
+
+Option 1 (NAME-passing) is more elegant but carries more ABI-specific
+risk — CSNOBOL4 NAME descriptors point into the variable table, and
+the .so would need to walk those tables.  This is per-runtime work
+that increases the .so footprint significantly.
+
+**Next-session work order:**
+
+1. Standard setup chain.
+2. Read `MONITOR-BINARY-DESIGN.md` and this session's findings.
+3. Pick option 1 vs 2 for the LOAD-prototype type-check workaround
+   (recommend option 2 for simplicity; option 1 only if a future need
+   for genuine type fidelity on user-DATA / PATTERN / TABLE / ARRAY
+   appears).
+4. Update `monitor_ipc_bin_csn.c` and `monitor_ipc_bin_spl.c` with the
+   chosen entry points.
+5. Update `inject_traces_bin.py`'s `MONITOR_PREAMBLE` MV callback
+   to do the type discrimination + dispatch.
+6. Re-run probes (probe_bin, probe_bin2) — should still pass.
+7. Re-run `beauty.sno < beauty.sno` 2-way binary — target: 0
+   divergences across all events, both oracles to clean EOF.
+8. Wire scrip --ir-run as 3rd participant.  First divergence event
+   IS SN-26c-parseerr-h sub-h2.  Same for --sm-run, --jit-run.
+
+**Sub-rung status update (session #16):**
+
+- [ ] **SN-26c-parseerr-h sub-h2** — unchanged.  Blocked on completing
+  the binary protocol (option 2 dispatch needed before beauty self-host
+  can flow through it without ARRAY-value errors).
+- [x] **Binary protocol scaffolding** — wire format, .so modules,
+  injector, controller, harness, build script all in place; STRING +
+  INTEGER values verified working 2-way.
+
+**CALL/RETURN events note:** session #16 confirmed the 4-arg
+`TRACE('fn',CALL,'',cb)` form does NOT invoke the callback in either
+oracle — only the dialect's built-in trace OUTPUT fires for CALL/RETURN.
+This is a pre-existing limitation that affects both text and binary
+protocols equally.  Session #15's "267 sync-stepped events agreed"
+referred to VALUE events only.  CALL/RETURN tracking would require a
+different mechanism (insert explicit `MC(name,'')` calls at function
+entry/exit, possibly via source rewriting in `inject_traces_bin.py`).
+Defer until needed.
+
+---
+
+## Current state (session #15)
+
 **HEADs after 2026-04-26 session #15:**
 - one4all @ this commit (sync-step monitor restored from history; one
   real bug fixed in interp.c E_ASSIGN trace path)
