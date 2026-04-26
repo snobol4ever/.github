@@ -522,3 +522,106 @@ can't find it. This is **the original S-2 bug**, now visible explicitly
     - corpus HEAD: 7d26569 (unchanged)
     - Beauty gate: 17/17 PASS (verified end-of-session)
 
+
+  SESSION WORK (this session — ROOT CAUSE FIXED for prior repros, new error 109 surfaces):
+
+    PRIOR THEORY INVALIDATED.  The "2-arg DEFINE breaks pattern callbacks" theory
+    from last session was wrong.  Both 1-arg and 2-arg DEFINE forms had the SAME
+    bug.  Real root cause:
+
+    BUG: `AmpCaseFolding` field defaults to `1` (fold ON) and was never seeded
+    from the `-f` command-line flag.  When `EVAL` runs, it does:
+        Parent.BuildOptions.CaseFolding = AmpCaseFolding != 0;
+    to restore the user's `&CASE` keyword setting.  This temporarily flipped
+    CaseFolding back to `true` even with `-bf`, folding identifiers like
+    `Shift` to `SHIFT` inside the EVAL'd pattern.  At match time, *Shift's
+    function call looked up `'SHIFT'` in FunctionTable -> not found -> error 22.
+
+    FIX (snobol4dotnet 13bfcc0):  ApplyStartupOptions seeds AmpCaseFolding=0
+    when -f is set.  8-line minimal diff in Builder.cs.
+
+    VERIFICATION:
+      - Beauty 17/17 PASS (unchanged, no regression)
+      - Original S-2 minimal repros from goal file (REPRO-FAILS and REPRO-WORKS):
+        BOTH PASS now; output matches SPITBOL exactly:
+          SHIFT(Label, v=[ABC])
+          match passed
+      - Isolated EVAL+star repros (t3, t4, t10, t11, t13, t17, t18 — see
+        instrumented test sequence in commit message of 13bfcc0): ALL PASS
+      - Self-host PROGRESS: was 16-line output (Parse Error on START),
+        now 35-line output reaching `&FULLSCAN = 1` before failing with
+        new bug -- error 109 in ShiftReduce.inc
+
+    NEW BUG SURFACED (now the actual S-2 blocker):
+
+    Self-host on `&FULLSCAN = 1` input fails with:
+      ShiftReduce.inc(3/3/3): error 109 -- ge first argument is not numeric
+                     c              =    GE(n, 1) ARRAY('1:' n)
+
+    Reduce trace shows `n` arrives as DATATYPE(n)='expression' (an
+    ExpressionVar), not integer.  The expression is `*(GT(nTop(),1) nTop())`
+    which IS what beauty's grammar passes via the `&` OPSYN reduce wiring:
+        ("'|'" & '*(GT(nTop(),1) nTop())')
+    -> reduce("'|'", "*(GT(nTop(),1) nTop())")
+    -> EVAL("epsilon . *Reduce('|', *(GT(nTop(),1) nTop()))")
+
+    Inside that EVAL'd pattern, `*(GT(nTop(),1) nTop())` is in function-arg
+    position to `*Reduce`.  snobol4dotnet pushes it as ExpressionVar (deferred)
+    rather than evaluating it eagerly.  When *Reduce fires, `n` is the
+    ExpressionVar.  ShiftReduce.inc tries `IDENT(DATATYPE(n), 'EXPRESSION')`
+    to detect this and EVAL it -- but DATATYPE returns lowercase 'expression'
+    while the test compares uppercase 'EXPRESSION', so the IDENT fails under
+    case-sensitive `-f` mode and falls through to `GE(ExpressionVar, 1)` ->
+    error 109.
+
+    THREE POSSIBLE FIX APPROACHES (none committed this session):
+
+    A. Make snobol4dotnet evaluate ExpressionVar args eagerly when calling
+       user-defined functions (matches SPITBOL semantics).  Tried this:
+       added EvaluateExpressionArgs in Function() and CallFuncBySlot().
+       BLOCKER: also fires during BUILD-TIME grammar construction calls
+       like `reduce(t, n)` where n is a string -> EVAL builds the pattern
+       -- but the pattern is then used as left-side of an assignment
+       `snoStmt = reduce_result`, which evaluates left-side ExpressionVars
+       in Assign().  That sub-thread runs OUTSIDE Scanner so a ScanDepth
+       gate doesn't help: ScanDepth=0 when Reduce ultimately fires inside
+       the grafted pattern.  All revert: no code changes survived.
+
+    B. Fix ExpressionVar's PATTERN conversion to evaluate eagerly when the
+       result is non-pattern (integer, string).  Likely the cleaner fix.
+       In IntegerConversionStrategy.cs, the EXPRESSION case wraps integers
+       as ExpressionVar by re-compiling them as star-expressions.  This is
+       wrong direction; a star-expression that yielded an integer should
+       BE the integer when used as a function argument.
+
+    C. Patch beauty source: change `IDENT(DATATYPE(n), 'EXPRESSION')` to
+       compare case-insensitively.  Per RULES.md "Portable tests only"
+       (DATATYPE Portable Tests goal), this is what corpus tests are
+       supposed to do anyway:
+           dEXPR = REPLACE(DATATYPE(*(0)), &LCASE, &UCASE)
+           ...
+           IDENT(REPLACE(DATATYPE(n), &LCASE, &UCASE), dEXPR)
+       But RULES.md ALSO says "never patch corpus to work around runtime
+       bugs" -- and SPITBOL handles this case without needing the EXPRESSION
+       branch (it never produces ExpressionVar from `*(integer)`).  So this
+       is a runtime bug, not a corpus bug.
+
+    RECOMMEND APPROACH B for next session: make IntegerConversionStrategy
+    (and similar) convert to PATTERN by producing a SucceedPattern (or
+    proper terminal) wrapping the value, NOT wrapping as another
+    ExpressionVar.  Then `*(GT(nTop(),1) nTop())` evaluates to integer 7,
+    which when needed as a pattern wraps to a pattern-of-int-7, and when
+    needed as a function arg passes as integer 7.
+
+    SIDE NOTE: Three corpus include files (is.inc, FENCE.inc, io.inc) had
+    to be copied into demo/beauty/ for self-host to find them, since
+    snobol4dotnet's -INCLUDE searches CWD only (no -I or SETL4PATH support).
+    These copies were temporary and cleaned up at session end.  Adding
+    -I include-path support to snobol4dotnet's CommandLine.cs is a
+    follow-on (independent of S-2).
+
+    - snobol4dotnet HEAD: 13bfcc0 (committed and pushed)
+    - corpus HEAD: 7d26569 (unchanged)
+    - Beauty gate: 17/17 PASS (verified end-of-session)
+    - Self-host: now reaches `&FULLSCAN = 1`, fails with error 109 on
+      ExpressionVar arg to Reduce
