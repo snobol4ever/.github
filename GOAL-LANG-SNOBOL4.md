@@ -275,13 +275,13 @@ copies already live at `corpus/programs/include/`).
   **PASS** — 649 lines of beautified output, exit 0, no errors.
   Pattern-stack default (8k) and interp-stack default (4k) are **not**
   sufficient — `-P 64k -S 64k` is the minimum for beauty self-host.
-- [~] **SN-29d** — SPITBOL x64 4.0f cannot self-host beauty —
-  **upstream v4.0f `-f` bug.**  Without `-f`, duplicate-label errors
-  fire on the double-function trick (`shift`/`Shift`, `reduce`/`Reduce`,
-  `pop`/`Pop`, `visit`/`VISIT`).  This matches RULES.md's
-  "SPITBOL `-f` is broken in v4.0f" guidance and SN-25's won't-fix
-  closure.  **Consequence:** beauty's `.ref` for self-host lane comes
-  from CSNOBOL4 only, not from both oracles.
+- [x] **SN-29d** — Originally `[~]` because SPITBOL x64 4.0f could not
+  self-host beauty under `-f`.  **Superseded by SN-30** (2026-04-24):
+  the lowercase-canonical-keyword bug in `sbl.min` was patched, and
+  SPITBOL x64 now self-hosts beauty under `-bf` to byte-identical
+  output (md5 `408fc788ca2ef425fc1f87e26d45a7a5`).  Re-verified
+  2026-04-26 (this session) on a fresh clone of x64 with the SN-30
+  build.  Both oracles produce identical 649-line output.
 - [ ] **SN-29e** — Idempotency scout: `beauty(beauty_output)` is **not**
   byte-identical to `beauty(beauty.sno)`.  Running beauty on its own
   beautified output emits "Parse Error".  Likely the emitted form
@@ -561,26 +561,116 @@ SNOBOL4 parser (running inside scrip) tries to parse its own input
    identifier is preserved (or vice versa), the alias doesn't
    resolve.
 
-**Next-session work order:**
+**Session 2026-04-26 (#5) diagnostic update — BUG DECOMPOSED INTO TWO:**
 
-1. Identify which beauty subroutine emits "Parse Error" — grep
-   for the string in beauty.sno and surrounding `.inc` files,
-   figure out which check failed.
-2. Run `scrip --ir-run --trace beauty.sno < beauty.sno 2>&1 | head -80`
-   to see the last ~10 source-stmts before the parse error, find
-   the exact stmt that diverges from oracle behaviour.
-3. Reproduce in isolation: write a 5-line probe that exercises
-   the same primitive, run under scrip vs CSNOBOL4 vs SPITBOL,
-   identify the divergent runtime function.
-4. Fix in `src/runtime/x86/snobol4.c` or wherever the case-fold
-   leak is.
-5. Re-run beauty self-host: `scrip --ir-run beauty.sno < beauty.sno`
-   should produce 649 lines, md5 `408fc788ca2ef425fc1f87e26d45a7a5`.
-6. Once `--ir-run` clean: re-run 4-way scrip-monitor — it will
-   either pass clean to end, or surface the next divergence in the
-   SM/JIT lanes, becoming the next active rung (SN-26c-...).
-7. Final gate: Smoke=7, Broker=49, plus byte-identical scrip
-   output vs oracle on beauty self-host.
+Reproduced cleanly with a 2-line probe: `printf "                  x =
+'hello'\nEND\n" > /tmp/probe3.sno` fed as stdin to `scrip <mode>
+beauty.sno < /tmp/probe3.sno`.  All three modes diverge from CSNOBOL4
+oracle (which beautifies the assignment correctly).
+
+| Mode | Behaviour on probe3 |
+|------|---------------------|
+| CSNOBOL4 oracle | beautifies `x = 'hello'` to `                  x              =  'hello'`, exit 0 |
+| scrip `--ir-run` | **silent** — no output at all, exit 0 |
+| scrip `--sm-run` | prints `Parse Error\n                  x = 'hello'`, exit 0 |
+| scrip `--jit-run` | same as SM |
+
+The same 4-way scrip-monitor DIVERGE seen on full beauty self-host
+also reproduces on probe3 — symptom is identical, just an order of
+magnitude smaller corpus.  Monitor reports DIVERGE at stmt 637
+(`DEFINE('TX(lvl,pat,name)omega') :go TXEnd` in omega.inc) with
+`doDebug IR=0 SM=` — but this is **misleading**: stmt 637 is just
+the snapshot point, not the bug site.
+
+Root analysis via env-gated step trace (`ONE4ALL_STEP_TRACE=1`):
+
+| | IR | SM |
+|---|---|---|
+| total stmts run | 654 | 648 |
+| main00 iterations | 1 | 1 |
+| main01 iterations | **2** | 1 |
+| main02 iterations | **2** | 1 |
+| reaches main05 | yes (stno=652) | no |
+| reaches mainErr1 | no | yes (sm_stno=646) |
+
+**Bifurcation point:** SM's parse pattern at static stmt 1092 (`snoSrc
+POS(0) *snoParse *snoSpace RPOS(0) :goF mainErr1`) **fails** on
+`x = 'hello'\n` — this is the "Parse Error" path.  IR's same parse
+pattern **succeeds** — so IR loops back to main01 for a 2nd iteration,
+hits EOF in main02's INPUT, jumps to main05, runs parse on
+`END\n`, and calls `pp(sno)` — but **`pp(sno)` produces no OUTPUT**.
+
+**Two distinct bugs feed the same observable:**
+
+**Bug A — SM/JIT pattern matching: `*snoParse` deferred reference
+fails to match valid SNOBOL4 statements.**  In SM/JIT lanes,
+`SM_PAT_REFNAME s="snoParse"` (pc 9627 in this build) is consulted
+via the BB pattern-match driver.  The pattern is a 175+ alternation
+defining beauty's grammar (lines 50-200 of beauty.sno).  Something
+in this dispatch — the deferred-reference resolution itself, or
+how the variable-bound pattern is bound to the BB machinery, or
+how the alternation's components are evaluated — diverges from
+IR/oracle behaviour.  Look at:
+- `bb_boxes.c` deferred-reference handler for `*var` patterns
+- `SM_PAT_REFNAME` / `SM_PAT_USERCALL` (the non-arg versions)
+  emitted by `sm_lower.c` for `*var` pattern primitives
+- `bb_build` dispatch for the deferred-reference case
+- Whether the pattern `*snoParse` is being re-resolved per match
+  attempt or cached at lower-time (caching it would break beauty
+  because `snoParse` is built from many `*sub_pattern` deferrals
+  whose values are themselves pattern variables defined later in
+  source)
+
+**Bug B — IR `pp(sno)` emits no OUTPUT.**  In IR lane the parse
+succeeds, so beauty's main loop calls `pp(sno)` to format and emit
+the parsed statement.  CSNOBOL4 emits the formatted line; scrip's
+IR emits nothing.  Either:
+- `pp` is being called but its `OUTPUT = ...` assignments fail
+  silently (perhaps an OPSYN issue: `OUTPUT` opsyn'd to a function
+  in `io.inc` that returns null on the IR path?)
+- `pp` returns early due to a pattern-match conditional that takes
+  a different branch in IR than in oracle
+- `sno` (the parse tree returned by Pop()) is malformed in IR's
+  Pop semantics, causing pp to walk an empty tree
+
+**Symptom hierarchy:**
+```
+SN-26c-parseerr (visible: scrip can't run beauty)
+├── Bug A: SM/JIT *snoParse fails  → "Parse Error" output
+└── Bug B: IR pp(sno) emits nothing → silent empty output
+```
+
+**Sub-rungs:**
+- [x] **SN-26c-parseerr-a** — Reproduce minimally; decompose into A+B.
+- [ ] **SN-26c-parseerr-b** — Investigate Bug A: SM/JIT `*snoParse`
+  deferred-reference dispatch.  Smaller probe needed: write a
+  10-line test that uses `*var` pattern matching with an
+  alternation; see if probe agrees IR vs SM.  If probe diverges,
+  the bug is generic to `*var` dispatch.  If probe agrees, the bug
+  is specific to beauty's deeply-nested alternation structure.
+- [ ] **SN-26c-parseerr-c** — Investigate Bug B: IR `pp(sno)`
+  emits nothing.  Probe: define `pp(x)` as a trivial OUTPUT-only
+  function in a standalone test, see if IR's call/return mechanics
+  are broken; or call beauty's pp on a hand-built sno tree.
+
+**Re-verified baseline (this session):**
+- Both oracles self-host beauty cleanly: CSNOBOL4 (`b3aeb9f`) and
+  SPITBOL x64 (SN-30 build) both produce 649-line output with md5
+  `408fc788ca2ef425fc1f87e26d45a7a5` from the canonical commands:
+  ```
+  cd /home/claude/corpus/programs/snobol4/demo/beauty
+  /home/claude/csnobol4/snobol4 -bf -P 64k -S 64k \
+      -I. -I/home/claude/corpus/programs/include \
+      beauty.sno < beauty.sno
+  SETL4PATH=".:/home/claude/corpus/programs/include" \
+      /home/claude/x64/bin/sbl -bf beauty.sno < beauty.sno
+  ```
+- Gates: Smoke **7**, Broker **49** (after corpus repo cloned —
+  Broker drops to 48 without it because `rung01 ICN` SKIPs).
+- 4-way scrip-monitor confirms: beauty<beauty and probe3<probe3
+  produce IDENTICAL DIVERGE signature at stmt 637.
+
+
 
 **Setup to resume (fresh session):**
 ```bash
@@ -595,7 +685,7 @@ cd /home/claude/one4all
 bash scripts/build_scrip.sh
 make scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
 
-# Reproduce SN-26c-parseerr:
+# Reproduce SN-26c-parseerr — full self-host:
 BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
 SNO_LIB=/home/claude/corpus/programs/include \
     timeout 60 /home/claude/one4all/scrip --ir-run \
@@ -603,13 +693,47 @@ SNO_LIB=/home/claude/corpus/programs/include \
 wc -l /tmp/scrip_ir.out      # current: 38 lines (oracle: 649)
 grep "Parse Error" /tmp/scrip_ir.out  # confirms repro
 
+# Reproduce SN-26c-parseerr — minimal probe (session #5):
+printf "                  x = 'hello'\nEND\n" > /tmp/probe3.sno
+SNO_LIB=/home/claude/corpus/programs/include \
+    /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < /tmp/probe3.sno
+# Expected: silent (no output) on IR.  CSNOBOL4 oracle prints the
+# beautified line.  This is Bug B (IR pp(sno) silent).
+SNO_LIB=/home/claude/corpus/programs/include \
+    /home/claude/one4all/scrip --sm-run $BEAUTY/beauty.sno < /tmp/probe3.sno
+# Expected: "Parse Error\n                  x = 'hello'".
+# This is Bug A (SM/JIT *snoParse fails).
+
+# Decompose IR vs SM step-by-step (proves the bifurcation):
+SNO_LIB=/home/claude/corpus/programs/include ONE4ALL_STEP_TRACE=1 \
+    /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno \
+    < /tmp/probe3.sno 2> /tmp/ir.trace > /dev/null
+SNO_LIB=/home/claude/corpus/programs/include ONE4ALL_STEP_TRACE=1 \
+    /home/claude/one4all/scrip --sm-run $BEAUTY/beauty.sno \
+    < /tmp/probe3.sno 2> /tmp/sm.trace > /dev/null
+echo "IR steps: $(grep -c '^IRSTEP' /tmp/ir.trace) (expect 654)"
+echo "SM steps: $(grep -c '^SMSTEP' /tmp/sm.trace) (expect 648)"
+echo "IR main01 iterations: $(grep -c 'label=main01' /tmp/ir.trace) (expect 2)"
+echo "SM main01 iterations (via pc=9586): $(grep -c 'pc=9586' /tmp/sm.trace) (expect 1)"
+
 # Oracle reference for comparison:
 cd /home/claude/corpus/programs/snobol4/demo/beauty
 /home/claude/csnobol4/snobol4 -bf -P 64k -S 64k \
     -I. -I/home/claude/corpus/programs/include \
     beauty.sno < beauty.sno > /tmp/csn_beauty.out 2>/dev/null
 md5sum /tmp/csn_beauty.out   # should match 408fc788ca2ef425fc1f87e26d45a7a5
+SETL4PATH=".:/home/claude/corpus/programs/include" \
+    /home/claude/x64/bin/sbl -bf beauty.sno < beauty.sno > /tmp/sbl_beauty.out
+md5sum /tmp/sbl_beauty.out   # should match 408fc788ca2ef425fc1f87e26d45a7a5
 ```
+
+**Required clones (session #5 footgun):** Broker gate fails 48/49
+unless `corpus` is cloned (the missing PASS is `rung01 ICN`,
+which SKIPs when `/home/claude/corpus/programs/icon` doesn't
+exist).  Always clone `corpus` even if your goal doesn't seem to
+need it.  Same applies to `csnobol4` and `x64` — both build
+scripts FAIL without the source repo present.  Fresh-session
+clone list: `.github`, `one4all`, `corpus`, `csnobol4`, `x64`.
 
 **Build-system latent issue** (carried forward from session #3):
 `scripts/build_scrip.sh` uses a different Makefile path
@@ -1024,58 +1148,64 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-25 session #4:**
-- one4all @ `6225ce4e` (SN-26c-stmt637 fix: lt_find strcasecmp→strcmp)
-- corpus @ `88be074` (unchanged)
-- .github @ this commit (SN-26c-stmt637 close, SN-26c-parseerr open)
-- x64 @ pending (bin/sbl + bootstrap/ resync for SN-30g — deferred)
+**HEADs after 2026-04-26 session #5:**
+- one4all @ `6225ce4e` (unchanged from session #4 — diagnostic only this session)
+- corpus @ `9a62ff9` (unchanged; SN-29b commit)
+- .github @ this commit (SN-26c-parseerr decomposed into Bug A + Bug B)
+- x64 @ unchanged (SN-30 build, bin/sbl resync still owed)
 - csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts under both
   oracles to 649-line output, md5
   `408fc788ca2ef425fc1f87e26d45a7a5`)
 
-**Gates (verified 2026-04-25 session #4, after SN-26c-stmt637 fix):**
-Smoke **7** · Broker **49**.  SN-7/Broad/SN-9c owed in a subsequent
-session.  4-way scrip-monitor full re-run also owed (build artifact
-rebuild deferred — see SN-26c-parseerr "Build-system latent issue").
+**Gates (verified 2026-04-26 session #5):**
+Smoke **7** · Broker **49**.  Both oracles re-verified self-hosting
+beauty cleanly to byte-identical 649-line output.  No code changes
+this session — only diagnosis.
 
-**Session 2026-04-25 (#4) deltas:**
-- **SN-26c-stmt637 CLOSED.**  Root cause: `lt_find` in
-  `src/runtime/x86/sm_lower.c:84-90` used `strcasecmp` for label
-  lookup.  Under SN-31 case-sensitive default, this collided
-  distinct labels like `visitEnd` and `VisitEnd` (both present in
-  beauty.sno via the double-function trick).  SM `:go visitEnd`
-  resolved to `VisitEnd`, sending control flow off into the wrong
-  static region; IR's `interp.c:148` already used `strcmp`
-  correctly.  One-character fix: `strcasecmp` → `strcmp` (plus
-  explanatory comment).  See full root-cause analysis in the
-  SN-26c-stmt637 closed-rung block above; the previously-suspected
-  "stmt-counting drift" hypothesis (label-only stmts, DEFINE-body
-  stmts, END/HALT asymmetry) was wrong — counting was symmetric
-  all along, the bug was target resolution, pinned via
-  pc→static-stmt-index decoding from the SN-26c-stmt637 env-gated
-  probes committed `4d12a99363` in session #3.
-- **SN-26c-parseerr OPENED.**  After the lt_find fix, smoke=7 /
-  broker=49 still green, but `scrip --ir-run beauty.sno < beauty.sno`
-  produces only 38 lines of output ending with "Parse Error" (vs
-  oracle's 649 lines, md5 `408fc788ca2ef425fc1f87e26d45a7a5`).
-  scrip parses beauty.sno itself correctly, but beauty's own
-  internal SNOBOL4 parser (running inside scrip) chokes when given
-  beauty.sno as input.  IR-only divergence — the lt_find fix was
-  SM-only — so this is a pre-existing latent bug that the SM
-  divergence had been masking under the monitor.  Active rung, next
-  session.
+**Session 2026-04-26 (#5) deltas:**
+- **SN-29 baseline re-verified.**  Both CSNOBOL4 (`b3aeb9f`) and
+  SPITBOL x64 (SN-30 build) self-host beauty to byte-identical
+  649-line output (md5 `408fc788ca2ef425fc1f87e26d45a7a5`).
+  SN-29d updated: no longer `[~]` won't-fix — superseded by SN-30
+  which fixed the upstream `-f` issue.
+- **SN-26c-parseerr decomposed.**  The bug is NOT a single
+  case-sensitivity leak.  It is **two distinct bugs** that happen
+  to share the same observable on full beauty self-host:
+  - **Bug A (SM/JIT)**: `*snoParse` deferred-reference pattern
+    fails to match valid SNOBOL4 statements.  Visible as the
+    "Parse Error" output.  SM/JIT specific — IR's same pattern
+    succeeds.
+  - **Bug B (IR)**: `pp(sno)` produces no OUTPUT even though it
+    runs successfully.  Visible as silent empty output on
+    `--ir-run`.  IR-specific — SM/JIT never reach `pp` because
+    Bug A halts them earlier.
+- **Minimal repro found**: 2-line probe (`x = 'hello'\nEND\n`)
+  reproduces same DIVERGE as full beauty<beauty.  Reduces
+  iteration cycle from 60s monitor runs to <1s direct runs.
+- **Sub-rungs added** (see SN-26c-parseerr open block):
+  - SN-26c-parseerr-a `[x]`: decompose bug.  CLOSED this session.
+  - SN-26c-parseerr-b `[ ]`: investigate Bug A.
+  - SN-26c-parseerr-c `[ ]`: investigate Bug B.
 
-**Current step: SN-26c-parseerr.**  Identify which beauty subroutine
-emits "Parse Error", reproduce in isolation, locate divergent
-runtime primitive, fix, re-verify byte-identical against oracle.
+**Current step: SN-26c-parseerr** (still active; sub-step b or c
+next — orthogonal investigations, can pick either).  Pre-decomposition
+work order in goal file is now obsolete; new work order is in the
+session-5 diagnostic update block.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
 - SN-22/23 cleanups: `NAME_push` return `void *` → `void`; `cache_get_fresh` template purity.
-- SN-26 scout: `IR last_ok=?` on DIVERGE — uncaptured in `sync_monitor.c`, one-line fix.
+- SN-26 scout: `IR last_ok=?` on DIVERGE — uncaptured in `sync_monitor.c`,
+  one-line fix at `sync_monitor.c:330` (add `ir_snap.last_ok = ...` after
+  `exec_snapshot_take(&ir_snap)` — but IR has no equivalent of `sm_st.last_ok`
+  to copy from, so the fix is non-trivial after all).  Cosmetic for now.
 - `build_spitbol_oracle.sh` SKIPs on prebuilt `bin/sbl` — add capability probe
   so it auto-rebuilds when the checked-in binary predates the source.
 - ~40 `sm_lower: unresolved label 'ERROR'/'ERR'` warnings during beauty compile.
+  Cosmetic but noisy.  May be related to Bug A — `:S(error)` and `:F(err)` in
+  beauty's parser definitions could be unresolved goto targets that SM treats
+  as Error 24 halt, potentially explaining why some pattern alternatives
+  silently halt instead of failing-and-trying-the-next-alternative.
 - SN-26c-stmt637 env-gated probes (`ONE4ALL_STEP_TRACE=1`) are now
-  permanent diagnostic infrastructure — can be removed if no longer
-  needed, or kept as ongoing monitor-debugging aid.
+  permanent diagnostic infrastructure — proven invaluable in session #5
+  for pinning the IR-vs-SM step-count divergence.  Keep.
