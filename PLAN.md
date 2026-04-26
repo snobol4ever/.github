@@ -29,7 +29,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | Catch-all keywords landed; rewriting harness on SNOBOL4 preamble next |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-26-scrip-env-gate landed; SN-26-auto binary catch-all + oracle bridges next |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
