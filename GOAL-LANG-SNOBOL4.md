@@ -1148,166 +1148,193 @@ cd $DEST
 
 ## Current state
 
-**HEADs after 2026-04-26 session #7:**
-- one4all @ pending commit (SN-26c-parseerr-d: extend E_FNC arg-defer
-  to E_VAR — closes the isolated shift probe but does NOT close beauty
-  self-host; deeper diagnosis needed)
+**HEADs after 2026-04-26 session #8:**
+- one4all @ this commit (SN-26c-parseerr-e: bb_usercall now matches
+  function-return-string as anchored literal pattern primitive instead
+  of unconditional epsilon; closes a real bug class but does NOT close
+  beauty self-host because beauty's `*match(...)` calls take a
+  different codepath that drops them entirely from the pattern tree).
+  Permanent env-gated diagnostic infrastructure added: `BB_USERCALL`,
+  `NM_CALL`, `PAT_USER_CALL_BUILD` traces under
+  `ONE4ALL_USERCALL_TRACE=1`.
 - corpus @ `9a62ff9` (unchanged; SN-29b commit)
-- .github @ this commit (session #7 progress recorded)
-- x64 @ unchanged (SN-30 build, bin/sbl resync still owed)
-- csnobol4 @ `b3aeb9f` (unchanged; beauty self-hosts under both
-  oracles to 649-line output, md5
-  `408fc788ca2ef425fc1f87e26d45a7a5`)
+- .github @ this commit (session #8 progress recorded)
+- x64 @ unchanged (SN-30 build)
+- csnobol4 @ `b3aeb9f` (unchanged)
 
-**Gates (verified 2026-04-26 session #7 after E_VAR defer extension):**
-Smoke **7** · Broker **49**.  No regressions from the 6-site change.
+**Gates (verified 2026-04-26 session #8):** Smoke **7** · Broker **49**.
+No regressions.  Setup chain ran clean from a fresh sandbox in <2 min.
 
-**Session 2026-04-26 (#7) deltas — root cause refined; isolated probe
-closed; beauty still broken:**
+**Session 2026-04-26 (#8) deltas — bug class CLOSED, deeper bug uncovered:**
 
-- **New isolated probe pins the bug at one site.**  14-line
-  `/tmp/probe_shift.sno` reproduces SN-26c-parseerr without any of
-  beauty's machinery:
+- **Diagnosis refined further.**  Session #7's hypothesis ("bb_usercall
+  thaw is broken") was tested via env-gated trace and disproved:
+  `bb_usercall` is **never entered** during probe3.  Of the 32 user
+  calls fired, all go through `name_commit_value`'s NM_CALL branch
+  (capture-call form).  The defer-then-thaw mechanism Session #7
+  patched is working — confirmed by tracing args at NM_CALL site:
+  `Shift("snoBuiltinVar", "x")`, `Shift("snoString", "'hello'")`,
+  `Reduce("snoStmt", N)` etc. all carry correct values.  Beauty's
+  parser builds a parse tree successfully; the bug is in pattern
+  *guards* that should reject mis-classifications.
+
+- **NEW bug isolated and fixed (SN-26c-parseerr-e).**  In
+  `stmt_exec.c::bb_usercall`, SN-17d implemented bare `*fn()` in
+  pattern context as: call function, FAIL on FAIL, otherwise match
+  **epsilon** unconditionally.  That contradicts SPITBOL semantics:
+  `*fn()` must use the function's return value as a pattern primitive
+  at the current cursor.  String returns must match as anchored
+  literals against the subject.
+
+  Minimal repro (no beauty machinery):
   ```snobol4
-                    DEFINE('Shift_t(t,v)')                     :(Shift_t_end)
-  Shift_t           OUTPUT = '  Shift_t called: t=' t ' v=' v
-                    Shift_t = .dummy                           :(NRETURN)
-  Shift_t_end
-                    word    = SPAN(...)
-                    shifty  = EVAL("word . thx . *Shift_t('idtag', thx)")
-                    'hello world' shifty
-  END
+                    DEFINE('fn()')           :(fn_end)
+  fn                fn = 'ARB'              :(RETURN)
+  fn_end
+                    'ARB' POS(0) *fn() RPOS(0)   :S(ok)F(fail)
+  ok                OUTPUT = 'matched'
+  fail              OUTPUT = 'no match'
   ```
-  Pre-fix: oracle prints `v=hello`; all three scrip lanes print `v=`
-  (empty).  Post-fix: all four agree `v=hello`.  This is the same shape
-  beauty's `~ 'name'` OPSYN produces via `EVAL("p . thx . *Shift('name',
-  thx)")` — the cursor-captured `thx` was being eagerly read at pattern-
-  build time instead of at match time.
+  Pre-fix: `no match` in all three scrip lanes (function called,
+  returns 'ARB', but match consumes 0 chars; RPOS(0) then fails
+  because cursor is still at 0 with 3 chars left).
+  Oracle: `matched`.
 
-- **Refined diagnosis vs session #6.**  Session #6 said the bug was
-  E_FNC args evaluating eagerly; that was real but **incomplete**.  The
-  larger pattern is: **any arg of `*fn(args)` whose value depends on
-  later events (cursor capture, ARBNO progress, etc.) must be deferred
-  to match time, not just E_FNC args**.  E_VAR was the missed case —
-  a comment at `interp.c:4018` literally said "Plain E_LIT and E_VAR
-  args don't need this", which was wrong for E_VAR when the variable
-  is set by a cursor capture earlier in the same pattern.
+  **Fix (`src/runtime/x86/stmt_exec.c::bb_usercall`):**  After
+  `g_user_call_hook` returns non-FAIL, if the result is DT_S/DT_SNUL,
+  do an anchored memcmp at `Σ+Δ`, advance Δ on match, FAIL on
+  mismatch.  Added `consumed` field to `usercall_t` for β-branch
+  retraction.  DT_P/DT_I/DT_R returns still match epsilon
+  (backward-compat with SN-17d guard idiom — `*g_m_gt_0()` returns
+  DT_I, must continue to match epsilon-on-success).  Closes
+  probe_min, probe_consumed, probe_disamb, probe_final2 — all
+  isolated probes now pass IR/SM/JIT.
 
-- **Fix landed (in working tree, will commit at handoff):**
+- **Fix is correct but does NOT close beauty self-host.**  Trace
+  evidence: of beauty's many `*match(snoBuiltinVars, snoTxInList)`
+  pattern guards in lines 64–70, only **one** `*upr(tx)` (in
+  `snoTxInList`) reaches `pat_user_call`.  All `*match(...)` calls
+  in beauty's classifying patterns are silently dropped from the
+  pattern tree by the lowerer — never built, never invoked.  This
+  explains beauty's misclassification cascade: `x` matches as
+  `snoBuiltinVar` because the `*match(snoBuiltinVars, snoTxInList)`
+  guard that should reject it is *missing entirely* from the
+  compiled pattern.
 
-  | File | Site | Change |
-  |------|------|--------|
-  | `src/driver/interp.c` ~3125 | E_CAPT_COND_ASGN E_DEFER(E_FNC) defer-loop | E_FNC → (E_FNC ∥ E_VAR) |
-  | `src/driver/interp.c` ~3157 | E_INDIRECT(E_FNC) Snocone variant defer-loop | same |
-  | `src/driver/interp.c` ~4027 | bare `*fn(args)` defer-loop | same |
-  | `src/runtime/x86/sm_lower.c` ~337 | SM E_CAPT_COND_ASGN args defer-loop | same |
-  | `src/runtime/x86/sm_lower.c` ~374 | SM E_CAPT_IMMED_ASGN args defer-loop | same |
-  | `src/runtime/x86/sm_lower.c` ~449 | SM bare `*fn(args)` args defer-loop | same |
+  Standalone repro (`/tmp/probe_beauty_snoBV.sno`, 24 lines): builds
+  beauty's `snoBuiltinVar = SPAN(...) $ tx $ *match(...)` idiom in
+  isolation.  Trace shows `PAT_USER_CALL_BUILD name=upr nargs=1`
+  fires (for `snoTxInList`'s `*upr`), but **no event for `match`** —
+  `*match(snoBuiltinVars, snoTxInList)` never gets built into an
+  XATP node.  Result: `'xyz' snoBuiltinVar` matches (WRONG — xyz
+  is not in the builtins list).  Oracle correctly rejects.
 
-  Mechanism unchanged from session #6: wrap arg as DT_E (frozen
-  EXPR_t*); `bb_usercall` and `name_commit_value(NM_CALL)` already
-  thaw DT_E via EVAL_fn at match time.  Extending the kind check to
-  include E_VAR was a one-line edit per site.
-
-- **Side investigation (ultimately a wash): EVAL_fn parser.**  Spent
-  effort on the hand-rolled `_ev_expr` parser in `snobol4_pattern.c`
-  — added a `defer_idents` parameter and `_ev_make_dt_e_var` helper.
-  Then discovered that path is unreachable in the current scrip
-  config: `g_eval_str_hook` is wired to `_eval_str_impl_fn` in
-  `scrip.c:399`, which routes through `parse_expr_pat_from_str` (real
-  bison parser) → `interp_eval_pat`.  `_ev_expr` is fallback only.
-  Reverted those changes to keep the diff minimal.  If anyone ever
-  NULLs `g_eval_str_hook`, the same bug exists in `_ev_val` and
-  needs the same fix.
-
-- **CRITICAL: probe3 (beauty minimal, `x = 'hello'\nEND\n`) STILL
-  FAILS post-fix.**  This was the surprise of the session.  The
-  isolated shift probe passes cleanly but beauty self-host on the
-  same 2-line input still shows the same divergence:
-
-  | Lane | probe3 result | shift probe result |
-  |------|---------------|--------------------|
-  | oracle | `                  x              =  'hello'` | `v=hello` ✓ |
-  | --ir-run | `                                 'hello'` (x missing) | `v=hello` ✓ FIXED |
-  | --sm-run | `Parse Error\n                  x = 'hello'` | `v=hello` ✓ FIXED |
-  | --jit-run | same as --sm-run | `v=hello` ✓ FIXED |
-
-  The shift probe and beauty's actual shift call should produce the
-  same EXPR_t lowering for `*Shift('snoLabel', thx)`.  Both reach
-  `interp_eval_pat`'s E_DEFER(E_FNC) handler; both should hit the
-  patched defer-loop.  But beauty doesn't close.  Possibilities:
-
-  1. Beauty's `shift` template differs structurally from my probe in
-     a way that bypasses the patched site — perhaps the call goes
-     through `pat_assign_callcap` (which I patched at one site) but
-     a different path through `bb_build` that I missed.
-  2. `thx` gets reset/clobbered between the cursor capture and the
-     `*Shift` fire by an intervening pattern operation.
-  3. There's a SECOND eager-eval site in the deferred-arg
-     materialisation (in `bb_boxes.c` or `bb_build.c`) that
-     evaluates DT_E args before the Shift call fires.
-
-- **Decisive next-session move:**  add a one-line trace in
-  `bb_usercall`'s thaw loop printing `(name, arg.v, arg.s, arg.ptr)`
-  for each thawed arg.  Run beauty's probe3 with the trace.  If the
-  arg comes in as DT_E and thaws to `''`, the bug is in `eval_node`
-  for E_VAR (NV_GET_fn at thaw time).  If the arg comes in as DT_S
-  with empty value, the defer-wrapping never happened — meaning
-  beauty takes a DIFFERENT codepath that I didn't patch.  The trace
-  decides.
+- **Permanent diagnostic infrastructure landed.**  Three env-gated
+  traces under `ONE4ALL_USERCALL_TRACE=1`:
+  - `BB_USERCALL name=… nargs=… arg[i]=…` — fires on every
+    bb_usercall α invocation, dumps raw + thawed arg shapes.  In
+    `stmt_exec.c::bb_usercall`.
+  - `NM_CALL name=… nargs=… arg[k] raw v=… eff v=… s=…` — fires
+    on every name_commit_value NM_CALL (capture-call) invocation.
+    In `name_t.c::name_commit_value`.
+  - `PAT_USER_CALL_BUILD name=… nargs=…` — fires when
+    `interp_eval_pat`'s E_DEFER(E_FNC) branch builds an XATP node.
+    In `interp.c::interp_eval_pat`.
+  All three remain in the source as permanent diagnostic
+  infrastructure (mirroring `ONE4ALL_STEP_TRACE` from SN-26c-stmt637).
 
 **Sub-rung status:**
 - SN-26c-parseerr-a `[x]`: decompose bug — closed session #5.
-- SN-26c-parseerr-b `[~]`: Bug A — Closed for the isolated probe in
-  session #6/#7.  Beauty's full self-host still produces "Parse
-  Error" on SM/JIT, so closure is incomplete.
-- SN-26c-parseerr-c `[~]`: Bug B — Closed for the isolated probe in
-  session #6/#7 (E_FNC defer + E_VAR defer).  Beauty's IR self-host
-  still emits the LHS as empty, so closure is incomplete.
-- SN-26c-parseerr-d `[~]`: NEW sub-rung — extend defer to E_VAR.
-  Closes the isolated shift probe but not beauty.  See diagnosis
-  above for next session.
+- SN-26c-parseerr-b `[~]`: Bug A — closed for isolated probe; beauty
+  full self-host remains broken.
+- SN-26c-parseerr-c `[~]`: Bug B — closed for isolated probe; beauty
+  full self-host remains broken.
+- SN-26c-parseerr-d `[~]`: E_VAR defer landed; closes shift probe.
+- SN-26c-parseerr-e `[x]`: bb_usercall return-as-pattern — closes
+  probe_min/probe_consumed/probe_disamb/probe_final2.  Real bug
+  class fixed; beauty unchanged.
+- SN-26c-parseerr-f `[ ]`: NEW open — diagnose why `*match(...)` in
+  beauty's pattern guards never reaches `pat_user_call`.
 
-**Current step: SN-26c-parseerr** — sub-step d (E_VAR defer landed but
-beauty still broken; trace bb_usercall thaw to find the real path).
+**Current step: SN-26c-parseerr** — sub-step f (find the missing
+`*match(args)` lowering site).
 
 **Next-session work order (resume here):**
+
 1. Run the canonical setup chain (install_system_packages, build_scrip,
    build_csnobol4_oracle, build_spitbol_oracle, build_csnobol4_archive,
    make scrip-monitor).  Required clones: `.github`, `one4all`,
    `corpus`, `csnobol4`, `x64`.
-2. Confirm working tree clean and HEAD has SN-26c-parseerr-d.
-3. Re-run the shift probe to confirm it still passes:
-   ```bash
-   /home/claude/one4all/scrip --sm-run /tmp/probe_shift.sno
-   # expect: Shift_t called: t=idtag v=hello
-   ```
-4. Reproduce beauty failure:
-   ```bash
-   printf "                  x = 'hello'\nEND\n" > /tmp/probe3.sno
-   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-   SNO_LIB=/home/claude/corpus/programs/include \
-       /home/claude/one4all/scrip --ir-run $BEAUTY/beauty.sno < /tmp/probe3.sno
-   # current: 33 spaces + 'hello' (x missing).  Oracle: x then 14 spaces then = then 'hello'.
-   ```
-5. Add one-line trace in `bb_usercall` (`stmt_exec.c:423`) at the start
-   of the thaw loop.  Print each arg's `(v, s, ptr)`.  Re-run probe3.
-   The trace tells you whether args arrive as DT_E (defer worked,
-   thaw broken) or DT_S empty (defer never happened, different codepath).
-6. If args are DT_E and thaw to empty: inspect `eval_node` for E_VAR
-   at the moment the cursor capture fires.  Expect NV_GET_fn(thx) to
-   return the captured substring; if it returns empty, the cursor
-   capture itself isn't writing to NV table (different bug).
-7. If args are DT_S empty: hunt for the unpatched codepath.  Likely
-   candidates: `bb_build.c` materialisation, the trampoline path in
-   `bb_boxes.c`, or a third eager-eval site in `interp.c` I missed.
-8. Once probe3 closes for IR: the SM/JIT \"Parse Error\" is likely a
-   downstream consequence — verify by re-running.
-9. Once probe3 fully closes: full beauty self-host, all 3 modes,
-   md5-match `408fc788ca2ef425fc1f87e26d45a7a5`.
-10. Re-run gates (Smoke 7, Broker 49) and 4-way scrip-monitor.
-11. Commit with proper SN-26c-parseerr closure.
 
+2. Confirm working tree clean and HEAD has SN-26c-parseerr-e.
+   Verify gates: Smoke=7, Broker=49.
+
+3. Reproduce the probe in 24 lines (no beauty machinery needed):
+   ```snobol4
+                     &ANCHOR    =  0
+                     &FULLSCAN  =  1
+                     DEFINE('match(subject,pattern)') :(match_end)
+   match             match = .dummy
+                     subject pattern :S(NRETURN)F(FRETURN)
+   match_end
+                     DEFINE('upr(s)') :(upr_end)
+   upr               upr = REPLACE(s, &LCASE, &UCASE) :(RETURN)
+   upr_end
+                     snoTxInList    = (POS(0) | ' ') *upr(tx) (' ' | RPOS(0))
+                     snoBuiltinVars = 'ABORT ARB BAL FAIL FENCE INPUT OUTPUT REM TERMINAL'
+                     snoBuiltinVar  = SPAN('.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz')
+   +                                $ tx $ *match(snoBuiltinVars, snoTxInList)
+                     'xyz' snoBuiltinVar     :S(t1ok)F(t1fail)
+   t1ok              OUTPUT = 'xyz matched (WRONG)'   :(end)
+   t1fail            OUTPUT = 'xyz NOT matched (correct)'
+   end               END
+   ```
+   Run with `ONE4ALL_USERCALL_TRACE=1`.  Pre-fix-f: trace shows
+   `PAT_USER_CALL_BUILD name=upr` only — **NO match build event**.
+   Output: `xyz matched (WRONG)`.
+
+4. **Hypothesis to test first:** the `$` capture operator's grammar
+   may be eating the trailing `*fn(args)` as part of the capture
+   target instead of as a sequenced primitive.  Beauty's idiom is
+   `SPAN(...) $ tx $ *match(...)` — two `$` captures separated by a
+   primitive.  Look at `interp.c` E_CAPT_COND_ASGN handler (~line
+   3097) and how `pat_cat` composes the trailing `*match(...)`
+   pattern with the second `$ tx` capture.  Specifically check:
+   does `parse_expr_pat_from_str`'s precedence give `$ tx $ *match`
+   as `(SPAN $ tx) $ (*match)` or as `((SPAN $ tx) $ (*match))`
+   where `*match` becomes the value-target of the second `$` rather
+   than an additional sequenced primitive?
+
+5. **Second hypothesis:** the lowerer might detect that
+   `*match(snoBuiltinVars, snoTxInList)` has args that resolve to
+   uninitialized variables (defined later in beauty.sno — lines
+   78, 80) at pattern-build time and silently drops the call.
+   Test by re-ordering the definitions in the standalone probe so
+   `snoBuiltinVars` and `snoTxInList` are defined BEFORE
+   `snoBuiltinVar`.  If the bug then disappears, the issue is
+   eager arg-evaluation of nil-valued vars.
+
+6. **Third hypothesis:** the parsed AST for beauty's classifying
+   pattern is structurally different — e.g., `*match(...)` appears
+   as the RHS of an `&` (ampersand-conditional) operator rather
+   than as a sequenced primitive.  Use `--dump-ir` on the
+   standalone probe to inspect the tree before lowering.
+
+7. Once `*match(...)` correctly builds and fires: re-run beauty
+   self-host probe3.  Verify the beauty parse correctly rejects
+   misclassifications.  Then full beauty self-host, all 3 modes,
+   md5-match `408fc788ca2ef425fc1f87e26d45a7a5`.
+
+8. Re-run gates (Smoke 7, Broker 49) and 4-way scrip-monitor.
+
+9. Commit with proper SN-26c-parseerr closure.
+
+**Tooling hint for next session.**  To get a clean trace narrowing
+to the offending pattern build, run with `ONE4ALL_USERCALL_TRACE=1`
+and grep for `PAT_USER_CALL_BUILD`.  If the count is < expected
+(should be 1 per `*fn(args)` in pattern context per defining
+statement), the lowerer is dropping calls.  Pair with
+`scrip --dump-ir` to inspect the structural AST before lowering.
 
 **Latent follow-ups** (small, not gating):
 - SN-8a latent: named-args path in `SM_PAT_USERCALL` all-E_VAR stash never consumed.
@@ -1326,3 +1353,8 @@ beauty still broken; trace bb_usercall thaw to find the real path).
 - SN-26c-stmt637 env-gated probes (`ONE4ALL_STEP_TRACE=1`) are now
   permanent diagnostic infrastructure — proven invaluable in session #5
   for pinning the IR-vs-SM step-count divergence.  Keep.
+- SN-26c-parseerr-d/e env-gated probes (`ONE4ALL_USERCALL_TRACE=1`) are
+  permanent diagnostic infrastructure as of session #8.  Three trace
+  points: BB_USERCALL, NM_CALL, PAT_USER_CALL_BUILD.  Keep.
+
+
