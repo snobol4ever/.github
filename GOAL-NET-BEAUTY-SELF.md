@@ -458,6 +458,57 @@ below remain as session history but are no longer the primary lens):**
   Beauty 17/17 still PASS.  All six dot bridge gates green
   (PASS=5 dormancy, 5 value, 9 complex, 7 call, 3 latin1, 6 stno).
 
+  **Mon Apr 28 2026 — first 2-way `spl dot` run after both fixes.**
+  With the encoding (28625e1) and stno (42c1ef7) fixes both landed,
+  re-ran `PARTICIPANTS="spl dot"` against beauty self-host.  Result:
+
+  ```
+  [ctrl] DIVERGE step 47
+    spl: VALUE UTF = UNKNOWN
+    dot: VALUE UTF = TABLE
+  ```
+
+  47 wire records of byte-identical agreement, then divergence on
+  the type tag of `UTF = TABLE()` (global.inc:27).  This is **not a
+  snobol4dotnet bug** — it is a documented gap in SPITBOL's bridge:
+
+  ```c
+  // x64/osint/monitor_ipc_runtime.c spl_block_to_wire (line 279):
+  /* No public extern for nmblk, ptblk, atblk, tbblk, cdblk, efblk —
+   * report UNKNOWN so the wire still records *something*.  Future
+   * work: export their b_xxx symbols or compare via TYPE_XNT/XRT. */
+  return MWT_UNKNOWN;
+  ```
+
+  spl emits MWT_UNKNOWN(=255) for **every** aggregate type (table,
+  array, pattern, name, code, expression, file).  dot emits the
+  correct typed kind (MWT_TABLE=8 here).  The name (`UTF`) and
+  empty value bytes match — only the type byte differs.
+
+  This is a SPITBOL bridge coverage gap, not a snobol4dotnet runtime
+  bug.  The fix belongs in x64/osint/monitor_ipc_runtime.c +
+  x64/osint/osint.h: extend the TYPE_* extern table with TYPE_NMB /
+  TYPE_PAT / TYPE_AT / TYPE_TB / TYPE_CD / TYPE_EF (or equivalent
+  via TYPE_XNT/XRT pattern) and discriminate in spl_block_to_wire.
+  Cross-reference: SN-26-bridge-coverage in GOAL-LANG-SNOBOL4 — it
+  is the home for x64/csn bridge improvements.
+
+  **Csn parity check (also done this session):** `PARTICIPANTS="csn dot"`
+  on the same input diverges at step 1: csn emits LABEL stno=2 (skipping
+  the START label-only line) then SIGPIPEs at global.inc:2.  Both are
+  csnobol4 issues; not snobol4dotnet.
+
+  **Recommended sequencing:** S-2-bridge-7's iterative loop ("read
+  divergence pair, fix dot runtime, advance") cannot start cleanly on
+  the wire until the spl bridge covers aggregates — otherwise every
+  aggregate creation in beauty (~dozen TABLE() and ARRAY() calls in
+  global.inc alone) trips a spurious DIVERGE before any real dot bug.
+  Either (a) wait for SN-26-bridge-coverage to extend spl's
+  spl_block_to_wire, or (b) make the controller treat MWT_UNKNOWN as a
+  wildcard (compare succeeds when either side is UNKNOWN).  Option (a)
+  is the right long-term answer; option (b) is a one-line controller
+  patch in monitor_sync_bin.py event_key.
+
 - [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
   With the canonical divergence pair in hand, fix the snobol4dotnet
   runtime at the appropriate site (`Scanner.cs` Match, `Builder.cs`
