@@ -515,14 +515,35 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #25:**
-- one4all @ `3f6bdbb3` (no changes this session)
-- corpus @ `32cefc1` (no changes this session)
-- .github @ this commit (SN-26-csn-bridge-a-xcallc closed)
+**HEADs after 2026-04-27 session #26:**
+- one4all @ `40314fa3` (test_smoke_sn26_csn_bridge_b.sh added)
+- corpus @ `87a49e4` (programs/snobol4/demo/csn_bridge_b/probe_b.sno added)
+- .github @ this commit (SN-26-csn-bridge-b closed)
 - x64 @ `4c85c38a` (no changes this session)
-- csnobol4 @ `64652ed` (SN-26-csn-bridge-a-xcallc: XCALLC + hand-applied C mirror)
+- csnobol4 @ `b83db40` (SN-26-csn-bridge-b: SJSRV1+DEFF18+DEFF20 wired)
 
-**Gates (verified 2026-04-27 session #25):** Smoke **7** · Broker **49** · csn-bridge smoke **1**.
+**Gates (verified 2026-04-27 session #26):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1**.
+
+### Closed in session #26 (2026-04-27)
+
+- [x] **SN-26-csn-bridge-b** — Three remaining XCALLC sites wired into
+  `v311.sil` and hand-applied to `snobol4.c`/`isnobol4.c`:
+  `monitor_emit_value` at SJSRV1 (pattern-substitute assignment),
+  `monitor_emit_call` at DEFF18 (function entry),
+  `monitor_emit_return` at DEFF20 (function exit, payload is &RTNTYPE
+  per SIL trace convention — clarified in monitor_ipc_runtime.c
+  header).  End-to-end probe `corpus/programs/snobol4/demo/csn_bridge_b/probe_b.sno`
+  produces the expected 7-record wire stream (3xVALUE + 1xCALL +
+  1xVALUE + 1xRETURN + 1xEND).  Permanent gate
+  `scripts/test_smoke_sn26_csn_bridge_b.sh` PASS=1 added.  No
+  regressions: Smoke=7, Broker=49, csn-bridge-a=1 all green.
+
+  Full detail in the SN-26-csn-bridge-b sub-rung above; key items
+  for resumption: (1) SIL XCALLC pattern, (2) hand-edit-the-C
+  workaround due to genc.sno regen breaking FNCP — `SN-26-csn-regen-fix`
+  remains owed as a follow-up rung, (3) RETPCL is &RTNTYPE not
+  result-value, with the result delivered as the preceding VALUE
+  record on the function-name variable.
 
 ### Closed in session #25 (2026-04-27)
 
@@ -875,9 +896,45 @@ one shared file with a small dialect-detect at compile time).
   baseline.  Then future XCALLC additions can follow the proper edit-SIL-and-
   regenerate workflow without manual restoration.
 
-- [ ] **SN-26-csn-bridge-b** — Patch the five trace fire-points in
-  `v311.sil` to emit on the wire when `kw_trace > 0` (catch-all).
-  Regenerate, build, sync-step against scrip on a tiny program.
+- [x] **SN-26-csn-bridge-b** — Patched the four trace fire-points in
+  `v311.sil` to emit unconditionally on the wire when env vars are
+  set: `XCALLC monitor_emit_value,(WPTR,ZPTR)` at SJSRV1 (the
+  pattern-substitute store, e.g. `S 'world' = 'there'`), `XCALLC
+  monitor_emit_call,(ATPTR)` at DEFF18 (function entry), `XCALLC
+  monitor_emit_return,(ATPTR,RETPCL)` at DEFF20 (function exit).
+  Hand-applied equivalent C edits to `snobol4.c` and `isnobol4.c` per
+  the SN-26-csn-bridge-a-xcallc precedent (genc.sno regen still
+  drops FNCP top-level — `SN-26-csn-regen-fix` rung still owed).
+
+  Catch-all gating: nothing in the SIL — the runtime's
+  `monitor_init()` short-circuit handles "env vars unset" cleanly
+  (returns 0; no FIFO open; emit is a no-op).  No new field on the
+  scrip-style `kw_trace` keyword in CSNOBOL4; instrumentation is
+  unconditional and free when monitoring is off.
+
+  RETPCL semantics clarified in `monitor_ipc_runtime.c` header
+  comment for `monitor_emit_return`: SIL passes &RTNTYPE (a NAME
+  pointing to RETURN/NRETURN/FRETURN), not the function's result
+  value.  The actual result is delivered via the preceding VALUE
+  record on the function-name variable (e.g. `SQR = N*N` inside
+  the body fires `monitor_emit_value(SQR, INTEGER(49))` at
+  ASGNVV before the RETURN record carrying STRING("RETURN")).
+  Wire consumers should treat the RETURN payload as exit-type, not
+  result.
+
+  End-to-end probe (`corpus/programs/snobol4/demo/csn_bridge_b/probe_b.sno`):
+  ```
+  #0 VALUE  S    STRING(11)='hello world'   (ASGNVV)
+  #1 VALUE  S    STRING(11)='hello there'   (SJSRV1)
+  #2 CALL   SQR                             (DEFF18)
+  #3 VALUE  SQR  INTEGER(49)                (ASGNVV inside body)
+  #4 RETURN SQR  STRING(6)='RETURN'         (DEFF20: &RTNTYPE)
+  #5 VALUE  N    INTEGER(49)                (ASGNVV)
+  #6 END
+  ```
+  Smoke=7, Broker=49, csn-bridge-a=1, csn-bridge-b=1 all green.
+  Permanent gate: `bash scripts/test_smoke_sn26_csn_bridge_b.sh`.
+
 - [ ] **SN-26-spl-bridge-a** — Identify trace fire-points in `sbl.min`.
   Document line numbers in this file before patching.
 - [ ] **SN-26-spl-bridge-b** — Patch them.  Rebuild via `make bootsbl
