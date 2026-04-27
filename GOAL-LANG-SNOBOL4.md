@@ -515,14 +515,39 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #26:**
-- one4all @ `40314fa3` (test_smoke_sn26_csn_bridge_b.sh added)
-- corpus @ `87a49e4` (programs/snobol4/demo/csn_bridge_b/probe_b.sno added)
-- .github @ this commit (SN-26-csn-bridge-b closed)
-- x64 @ `4c85c38a` (no changes this session)
-- csnobol4 @ `b83db40` (SN-26-csn-bridge-b: SJSRV1+DEFF18+DEFF20 wired)
+**HEADs after 2026-04-27 session #27:**
+- one4all @ this commit (test_smoke_sn26_spl_bridge.sh added)
+- corpus @ this commit (programs/snobol4/demo/spl_bridge/probe.sno added)
+- .github @ this commit (SN-26-spl-bridge-a/b closed)
+- x64 @ this commit (sbl.min + int.asm + osint/monitor_ipc_runtime.c + bootstrap regen)
+- csnobol4 @ `b83db40` (no changes this session)
 
-**Gates (verified 2026-04-27 session #26):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1**.
+**Gates (verified 2026-04-27 session #27):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · spl-bridge smoke **1**.
+
+### Closed in session #27 (2026-04-27)
+
+- [x] **SN-26-spl-bridge-a** + **SN-26-spl-bridge-b** — SPITBOL x64
+  monitor bridge landed.  Three new MINIMAL externs `sysmv`/`sysmc`/`sysmr`
+  declared in `sbl.min`, thunked in `int.asm`, implemented in
+  `osint/monitor_ipc_runtime.c` (468 lines, mirror of CSNOBOL4's with
+  SPITBOL block layout via `spitblks.h`).  Three fire-points patched:
+  `b_vrs` (universal var-store) → sysmv, `bpf09` predecessor (function
+  call gate) → sysmc, retrn body → sysmr.  End-to-end probe at
+  `corpus/programs/snobol4/demo/spl_bridge/probe.sno` produces the
+  expected 6-record wire (VALUE+CALL+VALUE+RETURN+VALUE+END).
+  Bootstrap files (`bootstrap/sbl.{asm,lex}`, `bootstrap/err.asm`)
+  regenerated via `make makeboot` so a fresh clone can build.
+  SN-30 invariant preserved: `beauty.sno < beauty.sno` still md5
+  `408fc788ca2ef425fc1f87e26d45a7a5`.  Permanent gate
+  `scripts/test_smoke_sn26_spl_bridge.sh` PASS=1 added.
+
+  Cross-oracle asymmetry observed and tracked as new sub-rung
+  **SN-26-spl-bridge-c** (deferred): SPITBOL's pattern-substitute
+  store doesn't traverse `b_vrs`, so the SPITBOL probe drops one
+  record vs the CSNOBOL4 probe (`S 'world' = 'there'`).  Not
+  blocking — both probes individually validate their respective
+  oracle's bridge.  Full detail in the SN-26-spl-bridge sub-rung
+  table above.
 
 ### Closed in session #26 (2026-04-27)
 
@@ -935,10 +960,106 @@ one shared file with a small dialect-detect at compile time).
   Smoke=7, Broker=49, csn-bridge-a=1, csn-bridge-b=1 all green.
   Permanent gate: `bash scripts/test_smoke_sn26_csn_bridge_b.sh`.
 
-- [ ] **SN-26-spl-bridge-a** — Identify trace fire-points in `sbl.min`.
-  Document line numbers in this file before patching.
-- [ ] **SN-26-spl-bridge-b** — Patch them.  Rebuild via `make bootsbl
-  / make sbl / make bininst`.
+- [x] **SN-26-spl-bridge-a** — Identified trace fire-points in `sbl.min`
+  (29 310 lines).  Calling convention is **`sysxx`-family externs**, NOT
+  XCALLC: each external is declared `sysxx exp N` in `sbl.min`, has a
+  thunk in `int.asm` (`%macro syscall %1,%2`), and is implemented as
+  `int zysxx(void)` in `osint/sysxx.c`.  Args reach the C function
+  through `reg_xr` / `reg_xl` / `reg_wa` / `reg_wb` / `reg_wc` / `reg_xs`
+  globals (saved by `syscall_init`).  Wrapper macros `XR(t)`, `WA(t)`,
+  `XS(t)` etc. live in `osint/osint.h`.
+
+  | Event | sbl.min line | Site label | Args at call site |
+  |-------|------|------|-------------------|
+  | VALUE (universal) | 11043 | `b_vrs ent` (untrapped vrsto) | `xr` → vrsto field of vrblk; `(xs)` → value-block ptr |
+  | VALUE (trapped path; alt) | 11095 | `b_vrv ent` | already trace-aware via `asign` line 17597; not used in catch-all model |
+  | CALL  | 10850 | `bpf09` (function-call gate) | `xl` → pfblk; `pfctr(xl)` is trace trblk |
+  | RETURN | 16337 | retrn body (function-return gate) | `xr` → pfblk; `kvrtn` (& via `wa`) → "RETURN"/"FRETURN"/"NRETURN" |
+  | STNO  | 16521 / 16543 | `stmgo` body / `stgo3` | `kvstn ← cdstm(xr)` — advisory only |
+
+  Wire protocol identical to `csnobol4/monitor_ipc_runtime.c` so a
+  single controller can compare the two oracles byte-for-byte.
+
+  SPITBOL value-block discrimination: read first word of value pointer
+  and compare to `TYPE_SCL` / `TYPE_ICL` / `TYPE_RCL` from `osint.h`.
+  Other type tags (nmblk/ptblk/atblk/tbblk/cdblk/efblk) lack public
+  externs in `osint.h` today — they fall through to MWT_UNKNOWN; the
+  wire still carries the kind+name so divergence detection remains
+  meaningful.
+
+  vrblk name extraction: `vr->vrlen > 0` → name in `vr->vrchs[]`;
+  `vrlen == 0` → system variable, name in svblk via vrsvp (skipped
+  for now; user-written code is the catch-all target).
+
+  Build path:
+  ```bash
+  cd /home/claude/x64
+  # 1. Add osint/monitor_ipc_runtime.c (zysmv/zysmc/zysmr).
+  # 2. Add 3 sysxx thunks to int.asm (sysmv/sysmc/sysmr).
+  # 3. Add 3 `<n> exp N` declarations + jsr fire-points to sbl.min.
+  # 4. Add monitor_ipc_runtime.o to osint Makefile OBJS.
+  # 5. Rebuild:
+  rm -f bin/sbl
+  make bootsbl
+  make BASEBOL=./bootsbl sbl
+  make bininst
+  # 6. Regen bootstrap/sbl.asm so fresh clones can build (RULES.md SN-30g):
+  make makeboot
+  ```
+
+- [x] **SN-26-spl-bridge-b** — Patched sbl.min/int.asm/osint with three
+  new MINIMAL externs `sysmv`/`sysmc`/`sysmr` and their C
+  implementations (`zysmv`/`zysmc`/`zysmr`) in
+  `osint/monitor_ipc_runtime.c`.  Fire-points landed:
+  - `b_vrs` (line 11077, after `ent`): `jsr sysmv` before the actual
+    store, so wire records reflect pre-write state.
+  - `bpf09` predecessor (line ~10867, immediately before
+    `mov wa,kvtra` of the existing trace-trblk gate): `mov wb,xl;
+    mov xr,pfvbl(xl); jsr sysmc; mov xl,wb` — saves/restores xl, leaves
+    xr ready for the C side.
+  - retrn body (line 16363 region, after `mov r_cod,wc`): `mov -(xs),xr;
+    mov -(xs),wa; mov xr,pfvbl(xr); jsr sysmr; mov wa,(xs)+; mov xr,(xs)+`
+    — saves/restores xr+wa around the call.
+
+  Catch-all gating: nothing in the SIL.  The runtime's `monitor_init()`
+  short-circuit handles "env vars unset" cleanly (returns 0; FIFO
+  never opened; emits become no-ops).  No new field on a SPITBOL keyword;
+  instrumentation is unconditional and cheap when monitoring is off
+  (verified: SN-30 invariant `beauty.sno < beauty.sno` md5 still
+  `408fc788ca2ef425fc1f87e26d45a7a5`).
+
+  End-to-end probe `corpus/programs/snobol4/demo/spl_bridge/probe.sno`
+  produces 6 wire records:
+  ```
+  #0 VALUE  S    STRING(11)='hello world'   (b_vrs)
+  #1 CALL   SQR                             (bpf09)
+  #2 VALUE  SQR  INTEGER(49)                (b_vrs inside body)
+  #3 RETURN SQR  STRING(6)='RETURN'         (retrn: &RTNTYPE)
+  #4 VALUE  N    INTEGER(49)                (b_vrs)
+  #5 END
+  ```
+  Smoke=7, Broker=49, csn-bridge-b=1, spl-bridge=1 all green.
+  Permanent gate: `bash scripts/test_smoke_sn26_spl_bridge.sh`.
+
+  bootstrap files (`bootstrap/sbl.asm`, `bootstrap/err.asm`,
+  `bootstrap/sbl.lex`) regenerated via `make makeboot` so a fresh clone
+  can build SN-26-spl-bridge-b sbl from scratch via
+  `make bootsbl && make BASEBOL=./bootsbl sbl && make bininst`.
+
+  **Cross-oracle asymmetry observed (low priority follow-up):**
+  CSNOBOL4's SJSRV1 site fires monitor_emit_value for the
+  pattern-substitute store `S 'world' = 'there'`, but SPITBOL's
+  pattern-match path doesn't traverse `b_vrs` — substring replacement
+  writes via a different path inside `bpat`/`assn`.  The SPITBOL probe
+  drops that line; the controller will see one fewer record than the
+  CSNOBOL4 probe.  Tracked as **SN-26-spl-bridge-c** (deferred): find
+  the SPITBOL pattern-substitute store-back point (likely inside
+  `match` epilog around the `pmval` flag), insert a fourth fire-point
+  so the two oracles emit identical wires for identical programs.
+
+- [ ] **SN-26-spl-bridge-c** — Pattern-substitute store-back fire-point
+  for SPITBOL.  Recover the missing record from the CSNOBOL4-vs-SPITBOL
+  asymmetry above.  Low priority; deferred.
 - [ ] **SN-26-harness-rewrite** — Drop the inject step from the 9
   harness shell scripts.  Set `MONITOR_READY_PIPE` etc. env vars
   before launching each participant.  No source modification of the
