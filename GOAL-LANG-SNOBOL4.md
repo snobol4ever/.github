@@ -272,30 +272,95 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
     `SN-26-csn-regen-fix`); they remain inline `L_FNCP:` etc., so
     direct C surgery is still required to keep `data_init.h`
     function-pointer references resolving.
-  - **Hardware watchpoint paradox.** A gdb hardware watchpoint on
-    `res.pdlptr->a.i` set after init (with verified valid value
-    at `0x...170`) catches **zero writes**, yet at the crash
-    `res.pdlptr->a.i == 192`.  Either gdb dropped writes, or the
-    macro chain at the read site computes 192 from somewhere
-    other than `res.pdlptr`.  Need to investigate next session.
+  - **Hardware watchpoint paradox RESOLVED — environmental, not
+    a bug.** Session #38 verified gdb HW watchpoints don't fire
+    at all in this container (trivial `long g; g=42; g=100;
+    watch g` test: zero stops).  Container's ptrace doesn't
+    expose debug registers.  See RULES.md "Debugging — gdb
+    hardware watchpoints DO NOT work in this container" for
+    full alternatives table.  Use C-level `_check()` +
+    `__builtin_trap()` instead.  Software watchpoints
+    (`set can-use-hw-watchpoints 0`) technically work but are
+    too slow for this codebase.
 
-  Bug location candidates (refined): the `L_SALT1` PDL pop logic
-  is reading from a wrong base.  Possibly a recursive STARP
-  re-entry where the inner SCIN succeeded with a residual seal
-  on the PDL, and the outer SALT walk-back follows a stale
-  saved cursor that points into a now-stale PDL slot.  The fix
-  is likely in either `STARP` save/restore (`PUSH MAXLEN/PATBCL/
-  PATICL/XCL/YCL` does not include PDLPTR — by design — but
-  the corruption appears after a STARP-frame return) or in
-  `FNCB`'s POP order (the inner-fail path).  More tracing
-  needed.
+  **Session #38 progress (NOT closed — root cause located,
+  fix not yet implemented):**
+  - **Trigger bisected to a 1-line minimum.**  Input `X` (no
+    leading space) → clean.  Input ` X` (one leading space, so
+    parsed as a body-statement not a label) → segfault.  Any
+    real statement that exercises beauty's `*snoExpr` recursion
+    chain triggers the bug.  Confirms the bug requires deep
+    `*P` recursion through nested FENCE patterns, which beauty's
+    grammar uses extensively (`snoExpr0..15`, `snoXList`, etc.,
+    every level wraps in `FENCE(...)`).
+  - **State at fault, with -g symbols:** `PDLPTR.a.i = 0xc0`
+    (= 192 = 12·DESCR), `PDLHED.a.i = 0x60` (= 96 = 6·DESCR),
+    `PDLEND.a.ptr = 0x7ed3...` (valid heap), `MAXLEN = 1`,
+    `LENFCL = 0x31` (49).  cstack lives in heap at
+    `0x7ed3065dd010..0x7ed3066dd010`, far from `&res.pdlptr` —
+    so a cstack overrun cannot directly clobber `res.pdlptr`.
+    All POP(PDLPTR) sites compile to plain 8-byte `mov`s, no
+    SSE; the value 192 IS arriving via plain stores.
+  - **Diagnostic technique:** five generations of C-level
+    instrumentation (helper + `__builtin_trap()` after every
+    PDLPTR-mutating site).  v6 added a 128-event circular log
+    of every PUSH(PDLPTR) and POP(PDLPTR) with cstack slot
+    address and the value at that slot.
+  - **ROOT CAUSE LOCATED — stale cstack slot read after
+    intermediate RSTSTK:**  Final v6 trace shows the failing
+    `POP(PDLPTR)` at `isnobol4.c:12362` reads slot `0x...360`
+    holding `0xc0`.  No PUSH(PDLPTR) in the recent 128 events
+    wrote to that slot — the matching PUSH happened far
+    earlier and scrolled out of the window.  Between the
+    matching PUSH and the failing POP, the trace shows
+    `cstack` jumped DOWN by ~41 slots in one step (a `RSTSTK`
+    rewinding past many frames at once), then a normal
+    P/O sequence resumed at fresh, unrelated slots.  The
+    saved-PDLPTR slot `0x...360` was left exposed in
+    not-currently-tracked memory; subsequent unrelated PUSHes
+    of small-integer values (the `0xc0` is the integer 192,
+    matching SIL idioms like `SIZE = 6*DESCR`, `12*DESCR`,
+    indices, or PDL-offset arithmetic) overwrote it.
+  - **The architectural tension:**  L_FNCA at `isnobol4.c:12325`
+    sits **4 lines after** a `SAVSTK()` at line 12321 inside
+    the STARP/RCALL block setting up `switch (SCIN1(NORET))`.
+    L_FNCA is reached as fall-through from that switch when
+    inner SCIN1's return code didn't match cases 1/2/3.  The
+    inner SCIN1's `RSTSTK()` rewound cstack DIRECTLY to the
+    SAVSTK-recorded value (not pop-by-pop) — so any recursion
+    farther down that did its own SAVSTK/PUSH(PDLPTR) chain
+    has a window where the saved-PDLPTR slot lives at an
+    address ABOVE the current cstack and is no longer
+    "protected": a later PUSH from a different recursion arm
+    can land at that exact slot and overwrite it.
 
-  Investigation should patch the source-of-truth (`v311.sil`,
-  regenerate via `genc.sno`, per RULES.md "Source-of-truth"),
-  but the FNCC fix landed in this session is on the generated C
-  pending the regen-fix.  Next session: resolve the watchpoint
-  paradox (instrument both `&res.pdlptr` and the macro-derived
-  `D_A(PDLPTR)` evaluation site to pinpoint write).
+    SIL's FENCE design assumes FNCA's 6 cstack pushes are
+    durable until matching FNCB/FNCC pops them.  In the C
+    generation, FNCA, intermediate `RCALL ,SCIN1,...` (which
+    emits `SAVSTK(); switch(SCIN1(NORET))`), and FNCB are all
+    in the same C function (SCIN1) — so on the surface the
+    cstack pushes "should" survive.  But under sufficient
+    recursion depth, the combination of RSTSTK rewinds and
+    re-pushes at fresh frames produces stale-slot reads.
+
+  **Fix candidates (ordered by likelihood, all pending):**
+  1. Save FENCE state on the **PDL** (along with FNCBCL)
+     instead of cstack, so values persist across recursive
+     SCIN1 boundaries.  This is the SIL-level fix in
+     `v311.sil` FNCA/FNCB/FNCC/FNCD.
+  2. Have `genc.sno`'s RCALL macro emit additional protection
+     so FNCA's cstack pushes are not exposed by RSTSTK
+     rewinds (e.g., re-anchor or relocate).
+  3. Investigate whether SPITBOL x64 (which has its own
+     hand-written assembly for these paths) handles this
+     correctly — comparison may show the canonical fix.
+
+  **Next session entry point:** read this section fresh, then
+  open `csnobol4/v311.sil` lines 4093-4143 (FNCA..FNCD) and
+  `csnobol4/genc.sno` line ~1523 (XRCALL macro).  Inspect
+  whether SPITBOL x64 saves FENCE context on the PDL or
+  cstack — the answer dictates whether the fix is at v311.sil
+  level (option 1) or genc.sno level (option 2).
   Bypass for now: re-add FENCE.inc from the canonical
   `programs/include/` path on a per-test basis — but this is a
   WORKAROUND, not the fix; -h cannot close while csn is in this
@@ -422,8 +487,9 @@ the trace" — until -h, there is no trustable divergence point.
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
 spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
-session #36.  auto-binary verifies streaming-intern semantics
-end-to-end (NAME_DEF on the wire, no sidecar written).
+session #36.  Session #38 reverified Smoke=7, Broker=49 at session
+start before any work.  auto-binary verifies streaming-intern
+semantics end-to-end (NAME_DEF on the wire, no sidecar written).
 label-flow PASS=5 (csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3,
 sm-run=4, jit-run=4).
 
