@@ -343,28 +343,116 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
     recursion depth, the combination of RSTSTK rewinds and
     re-pushes at fresh frames produces stale-slot reads.
 
-  **Fix candidates (ordered by likelihood, all pending):**
-  1. Save FENCE state on the **PDL** (along with FNCBCL)
-     instead of cstack, so values persist across recursive
-     SCIN1 boundaries.  This is the SIL-level fix in
-     `v311.sil` FNCA/FNCB/FNCC/FNCD.
-  2. Have `genc.sno`'s RCALL macro emit additional protection
-     so FNCA's cstack pushes are not exposed by RSTSTK
-     rewinds (e.g., re-anchor or relocate).
-  3. Investigate whether SPITBOL x64 (which has its own
-     hand-written assembly for these paths) handles this
-     correctly — comparison may show the canonical fix.
+  **Session #39 progress (analysis-only, no code changes):**
+  - **SPITBOL comparison performed.**  Read sbl.min lines
+    11978-12039 (`p_fna..p_fnd`) and the doc block at
+    11473-11500.  SPITBOL's FENCE save list is **dramatically
+    smaller**: `p_fna` saves only `pmhbs` (history-stack base)
+    and the `=ndfnb` indirect pointer onto **`xs`** (the
+    pattern matching stack — analog of CSNOBOL4's PDL).  No
+    save of MAXLEN, no separate save of LENFCL beyond what's
+    in the trap entry, no save of name-list state.
+    CSNOBOL4 saves 6 things on cstack; SPITBOL saves the
+    semantic-equivalent of 1-2 things on `xs`.
+  - **Bug mechanism re-confirmed.**  PUSH/POP compile to
+    `cstack` ops (heap-allocated descriptor stack, not the C
+    call stack).  `RETURN(VALUE)` macro = `RSTSTK(); return`.
+    `BRANCH(NAME)` = tail call, NO RSTSTK.  A long BRANCH
+    chain inside SCIN1 (which contains L_FNCA, L_FNCB, L_FNCC
+    as labels) defers all SAVSTK records until the final
+    RETURN — at which point cstack rewinds bulk-style past
+    FNCA's saves.  The "41-slot RSTSTK" session #38 observed
+    is exactly that.  The corrupted slots (e.g., 0xc0 = 12·DESCR)
+    are integer constants pushed by unrelated later code that
+    landed in the now-exposed slots.
+  - **ATP2 / EXPV7 / ENMI4 are NOT vulnerable.**  ATP2 wraps
+    its 6-PUSH around an `RCALL ,TRPHND,...` which is a
+    regular C call — TRPHND's RSTSTK rewinds only to AFTER
+    ATP2's PUSHes.  EXPV7 is in EXPVAL (its own C function)
+    with balanced SAVSTK at entry / RSTSTK at exit.  ENMI4
+    same pattern as EXPV7.  Only FNCA is structurally
+    different because FNCA/FNCB/FNCC live as labels INSIDE
+    SCIN1 separated by tail-call BRANCH chains.
+  - **Two fix axes identified; merit re-ranking:**
+    - **Axis A (audit-then-minimize):** which of the 6 saved
+      values does FNCA actually NEED to preserve across inner-P
+      matching?  Hypothesis (from SPITBOL comparison): MAXLEN
+      doesn't change during inner-P (SCNR reloads it from XSP);
+      LENFCL is already in trap entry slot 3 (redundant on
+      cstack); NAMICL and NHEDCL may have other invariants.
+      If audit shrinks the save list to 1-2 values, the fix
+      becomes much smaller.
+    - **Axis B (relocation):** wherever the audit says state
+      genuinely needs to survive, move it to PDL (extending
+      FNCA's trap entry from 3 to N descriptors) rather than
+      cstack.  Same mechanic as fix candidate 1 below, but
+      applied to a smaller set after Axis A reduces the count.
+  - **Decision deferred.**  Did not write any code.  Concluded
+    that "good solid fix" requires the Axis A audit before
+    committing to a structural change — otherwise we widen
+    the trap entry for values that didn't need saving in the
+    first place.
 
-  **Next session entry point:** read this section fresh, then
-  open `csnobol4/v311.sil` lines 4093-4143 (FNCA..FNCD) and
-  `csnobol4/genc.sno` line ~1523 (XRCALL macro).  Inspect
-  whether SPITBOL x64 saves FENCE context on the PDL or
-  cstack — the answer dictates whether the fix is at v311.sil
-  level (option 1) or genc.sno level (option 2).
-  Bypass for now: re-add FENCE.inc from the canonical
-  `programs/include/` path on a per-test basis — but this is a
-  WORKAROUND, not the fix; -h cannot close while csn is in this
-  state.
+  **Fix candidates (ordered by likelihood, all pending):**
+  1. **Audit + minimize (Axis A):** Read FNCA-FNCC and
+     adjacent SIL to determine the actual minimum save set.
+     Cross-reference with SPITBOL's 1-save model.  Drop any
+     redundant cstack PUSH.  Likely outcome: save list
+     shrinks from 6 to 1-3 items.
+  2. **Save FENCE state on the PDL** (alongside FNCBCL)
+     instead of cstack, for the items audit determines genuinely
+     need cross-RCALL persistence.  SIL-level fix in
+     `v311.sil` FNCA/FNCB/FNCC/FNCD.  Specifically: extend
+     FNCA's trap entry from 3 descriptors to (3 + N)
+     descriptors where N is the audit-confirmed save count.
+     FNCB/FNCC read from the extended slots via positive
+     offsets (with a +3*DESCR adjustment because SALT2's
+     `DECRA PDLPTR,3*DESCR` runs before the dispatch).  SALT
+     itself unchanged; trap-entry size customization is per-site
+     and FNCB/FNCC handle their own layout.
+  3. Have `genc.sno`'s RCALL macro emit additional protection
+     so FNCA's cstack pushes are not exposed by RSTSTK
+     rewinds (e.g., re-anchor or relocate).  More invasive;
+     touches the macro layer, affects all sites.
+
+  **Next session entry point:** start with the Axis A audit.
+  Specifically:
+  1. Trace `MAXLEN` through inner-P matching.  Does any
+     pattern primitive write to MAXLEN between FNCA and
+     FNCB/FNCC?  If no — drop the MAXLEN save entirely.
+     SCNR/SCNR1 (lines 3535-3547) reloads MAXLEN from XSP
+     on each scanner entry, suggesting it's recomputed and
+     not preserved across pattern recursion — confirm by
+     grep `MAXLEN` writes vs reads in v311.sil.
+  2. Confirm LENFCL: trap entry slot 3 already saves it; the
+     cstack PUSH(LENFCL) is **provably redundant** with what
+     the SALT walker restores via `GETDC LENFCL,PDLPTR,3*DESCR`
+     at line 3613.  Drop without further analysis.
+  3. Trace `NAMICL`/`NHEDCL`: FNCA does `MOVD NHEDCL,NAMICL`
+     to set inner name-list base.  How does inner-P modify
+     NAMICL?  If the only modification is via NME/ENME pairs
+     that always undo themselves on FAIL, the save may be
+     redundant; otherwise it's needed.
+  4. PDLPTR_outer: at FNCB entry (after SALT2's DECRA-3),
+     PDLPTR points at `PDLPTR_outer + 3*DESCR` from the
+     extended trap entry.  No save needed — compute via
+     `DECRA PDLPTR,3*DESCR` to get back to PDLPTR_outer.
+     Possibly: PDLPTR_outer == PDLHED_outer if FNCA is the
+     first thing in the pattern — needs verification.
+  5. After audit, write the SIL fix in v311.sil only.
+     Regenerate via `./snobol4 -b genc.sno --with BLOCKS
+     v311.sil > snobol4.c2`.  Apply the established hand-edit
+     dance per latent SN-26-csn-regen-fix (regen drops
+     FNCP/FNCA..FNCD as top-level functions; tsort inlines
+     them).  Verify tiny repro doesn't segfault.  Verify
+     beauty self-host produces N>500 lines.
+
+  **Bypass available for blocked work:** SN-26-bridge-coverage-h
+  cannot close until -i is fixed.  But -g and -j are independent
+  scrip work that doesn't depend on csnobol4 stability — those
+  could be picked up first by a parallel session per the active-rung
+  banner ("active step → SN-26-bridge-coverage-i ‖ -g ‖ -j").
+
   Gate: csn `snobol4 -bf -P64k -S64k beauty.sno < beauty.sno`
   produces N>500 lines without segfault and without "Caught
   signal" diagnostic.  PLUS Smoke=7, Broker=49 preserved.
@@ -488,10 +576,12 @@ the trace" — until -h, there is no trustable divergence point.
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
 spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
 session #36.  Session #38 reverified Smoke=7, Broker=49 at session
-start before any work.  auto-binary verifies streaming-intern
-semantics end-to-end (NAME_DEF on the wire, no sidecar written).
-label-flow PASS=5 (csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3,
-sm-run=4, jit-run=4).
+start before any work.  Session #39 was analysis-only (no code
+changes, no rebuilds beyond initial csnobol4 build); gates not
+re-run but unchanged from session #38 since no source modified.
+auto-binary verifies streaming-intern semantics end-to-end
+(NAME_DEF on the wire, no sidecar written).  label-flow PASS=5
+(csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3, sm-run=4, jit-run=4).
 
 **Beauty self-host status (session #36, post corpus `7041a14`):**
 - SPITBOL x64 `-bf`: **CLEAN** — 646 lines, md5
