@@ -515,14 +515,22 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-26 session #19:**
-- one4all @ `ee55d30d` (kw_trace catch-all + Python source rewriters removed)
-- corpus @ `32cefc1` (SN-26b: beauty folder self-contained; no #19 changes)
-- .github @ this commit (RULES.md: no-source-preprocessing rule; instrumentation map)
-- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points; no #19 changes)
-- csnobol4 @ `b3aeb9f` (no #19 changes)
+**HEADs after 2026-04-26 session #22:**
+- one4all @ `05ae400b` (SN-26-auto-controller: per-participant names sidecar in monitor_sync_bin.py)
+- corpus @ `32cefc1` (SN-26b: beauty folder self-contained; no #22 changes)
+- .github @ this commit (SN-26-auto-controller closed; PLAN step pointer advanced)
+- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points; no #22 changes)
+- csnobol4 @ `b3aeb9f` (no #22 changes)
 
-**Gates (verified 2026-04-26 session #19):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #22):** Smoke **7** · Broker **49**.
+
+### Closed in session #22 (2026-04-26)
+
+- [x] **SN-26-auto-controller** — `monitor_sync_bin.py` 4-part spec
+  `NAME:READY:GO:NAMES`, per-participant name resolution, tuple compare
+  on `(kind, name_string, type, value)`.  Backward compatible with
+  legacy 3-part spec.  Three synthetic tests + one end-to-end with real
+  scrip all PASS.  one4all @ `05ae400b`.
 
 ### Closed in session #20 (2026-04-26)
 
@@ -578,14 +586,23 @@ participant and reports first divergence.
   (the local-arg push/pop traffic is exactly the NM_CALL ordering work
   that diverges).
 
-- [ ] **SN-26-auto-controller** — update `monitor_sync_bin.py` to
-  accept multiple per-participant names sidecars (one per participant
-  via the existing CLI: extend `NAME:READY_FIFO:GO_FIFO:NAMES_FILE`
-  spec) and resolve `name_id` → string per participant before
-  comparing.  Tuple comparison flips from `(kind, name_id, type, value)`
-  to `(kind, name_string, type, value)`.  Today's controller fails the
-  comparison whenever participants assign different ids to the same
-  name — which is exactly what the auto path produces.
+- [x] **SN-26-auto-controller** — `monitor_sync_bin.py` now accepts
+  per-participant names sidecars via the `NAME:READY:GO:NAMES` 4-part
+  spec.  Comparison tuple flipped from `(kind, name_id, type, value)` to
+  `(kind, name_string, type, value)` — participants that assign different
+  ids to the same logical name now agree.  Sidecars are loaded at startup
+  and lazily re-read when divergences appear or on partial-EOF (the
+  participant's atexit handler may write the sidecar after the controller
+  opens the pipe).  Legacy 3-part shape (`NAMES_FILE NAME:READY:GO ...`)
+  detected by colon-presence in `argv[1]` and kept working unchanged so
+  existing harnesses still run until SN-26-auto-harness rewrites them.
+  Validated three ways: synthetic 2-participant test with intentionally
+  misaligned id maps (rc=0, names resolve), synthetic value-divergence
+  test (rc=1 at correct step), legacy compat test (rc=0).  End-to-end
+  with real scrip + `MONITOR_BIN=1` + the existing
+  `test_smoke_sn26_auto_binary.sh` probe (DEFINE+SQR(7), 14 records,
+  7-name sidecar): controller consumes the wire, sees MWK_END, exits 0.
+  Smoke=7, Broker=49 green.
 
 - [ ] **SN-26-auto-harness** — write
   `scripts/test_monitor_3way_sync_step_auto.sh` that creates 3 FIFO
