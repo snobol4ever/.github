@@ -138,6 +138,48 @@ them as **project knowledge** instead (retrieved on-demand via
 
 ---
 
+## Debugging — gdb hardware watchpoints DO NOT work in this container
+
+⛔ The session container does not expose ptrace's hardware debug
+registers.  Every `watch <expr>` and `watch -location <expr>` is
+silently a no-op — the watchpoint is created, the binary runs, the
+watched memory changes, and the watchpoint never fires.  Verified
+2026-04-27 with a trivial test program (`long g; g=42; g=100; g=200`
++ `watch g` — zero stops).
+
+This is environmental, not a bug in the inferior.  Do **not** spend
+session time chasing "watchpoint paradoxes" where a value clearly
+changes but the watchpoint never trips — the watchpoint is broken,
+not the inferior.
+
+### What to use instead
+
+| Need | Tool |
+|------|------|
+| Stop on the **first bad write** to a memory location | C-source instrumentation: write a `_check(site)` helper that asserts the value is in range and `__builtin_trap()`s on violation, then call it after every assignment site (find them with `grep -nE 'D_A\(VAR\)\s*[+\-]?=\|D\(VAR\)\s*=\|POP\(VAR\)' file.c`). Trap fires SIGABRT with a clean gdb backtrace. |
+| Stop on the **first read** of a corrupt value | Same pattern, hook the read site with `assert(value_is_sane)` |
+| Catch any access to a page | `mprotect()` the containing page read-only after init — works in containers where ptrace HW regs don't |
+| Software watchpoint (gdb fallback) | `set can-use-hw-watchpoints 0; watch <expr>` — technically works but **absurdly slow** (instruction-stepping the entire inferior); only viable for tiny repros |
+
+### When `__builtin_trap()` is the right diagnostic
+
+When a value is reaching a known-bad state via an unknown path, a
+trap-on-assertion at every write site is faster, cleaner, and more
+informative than a watchpoint would have been even in a non-container
+env: gdb gets a SIGABRT at the exact bad write with full backtrace,
+whereas a watchpoint just stops on a write (good or bad) and you'd
+have to filter conditionally.  Don't lament the missing watchpoint —
+this technique is often better.
+
+### Diagnostic patches are diagnostic — never commit them
+
+`__builtin_trap()` instrumentation, `_check()` helpers, `fprintf` to
+stderr in hot paths, and `mprotect` traps are debugging aids.  Keep
+them in `.orig` backups, revert before commit.  If the bug was found,
+the **fix** ships; the instrumentation does not.
+
+---
+
 ## Never patch corpus source to work around runtime bugs
 
 ⛔ Do **not** modify `.sno` or `.inc` source files to work around a problem
