@@ -515,14 +515,46 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #27:**
-- one4all @ this commit (test_smoke_sn26_spl_bridge.sh added)
-- corpus @ this commit (programs/snobol4/demo/spl_bridge/probe.sno added)
-- .github @ this commit (SN-26-spl-bridge-a/b closed)
-- x64 @ this commit (sbl.min + int.asm + osint/monitor_ipc_runtime.c + bootstrap regen)
-- csnobol4 @ `b83db40` (no changes this session)
+**HEADs after 2026-04-27 session #28:**
+- one4all @ this commit (SN-26-harness-rewrite landed)
+- corpus @ unchanged this session
+- .github @ this commit (SN-26-harness-rewrite closed)
+- x64 @ unchanged this session
+- csnobol4 @ `b83db40` (unchanged this session)
 
-**Gates (verified 2026-04-27 session #27):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · spl-bridge smoke **1**.
+**Gates (verified 2026-04-27 session #28):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · spl-bridge smoke **1**.
+
+### Closed in session #28 (2026-04-27)
+
+- [x] **SN-26-harness-rewrite** — Sync-step harness family collapsed to
+  one canonical script (`test_monitor_3way_sync_step_auto.sh`) plus three
+  thin 2-way wrappers.  Deleted 5 obsolete harnesses (ASM/JVM/NET-era
+  and the inject-based `_3way_sync_step_bin.sh`).  Generalized the auto
+  harness with a `PARTICIPANTS` env var (`{csn, spl, scr}`, first entry
+  is oracle).  All four remaining `test_monitor_*.sh` scripts run via
+  env-var-driven binary IPC — no source preprocessing, no LOAD-chain.
+  Net diff `scripts/`: −1078 lines.  Detail in the SN-26-harness-rewrite
+  closed sub-rung above.  No regressions: Smoke=7, Broker=49,
+  csn-bridge-a=1, csn-bridge-b=1, spl-bridge=1.
+
+  **Active set after this rung:**
+  ```
+  scripts/test_monitor_3way_sync_step_auto.sh    — canonical (any subset of csn/spl/scr)
+  scripts/test_monitor_2way_sync_step.sh         — wrapper: PARTICIPANTS="csn spl"
+  scripts/test_monitor_2way_sync_step_bin.sh     — wrapper: PARTICIPANTS="csn spl"
+  scripts/test_monitor_2way_spitbol_vs_ir.sh     — wrapper: PARTICIPANTS="spl scr"
+  ```
+
+  **Latent follow-ups (out of scope, none gating):**
+  - `build_monitor_ipc_*_library.sh` (3 scripts) build the legacy LOAD()
+    `.so` modules; now unreferenced by any harness but harmless.  Could
+    be deleted in a cleanup pass alongside their `monitor_ipc*.c` sources
+    in `scripts/monitor/`.
+  - `runtime/x86/snobol4.c` `MONITOR_SO=builtin` sentinel (session #18)
+    is dead code now that no harness sets it.  Trim in a future runtime
+    pass.
+  - README.md and Makefile in `one4all/` still mention `monitor_ipc.so`;
+    historical context, no action needed.
 
 ### Closed in session #27 (2026-04-27)
 
@@ -1060,10 +1092,26 @@ one shared file with a small dialect-detect at compile time).
 - [ ] **SN-26-spl-bridge-c** — Pattern-substitute store-back fire-point
   for SPITBOL.  Recover the missing record from the CSNOBOL4-vs-SPITBOL
   asymmetry above.  Low priority; deferred.
-- [ ] **SN-26-harness-rewrite** — Drop the inject step from the 9
-  harness shell scripts.  Set `MONITOR_READY_PIPE` etc. env vars
-  before launching each participant.  No source modification of the
-  user's `.sno`.
+- [x] **SN-26-harness-rewrite** (session #28, 2026-04-27) — Generalized
+  `test_monitor_3way_sync_step_auto.sh` with a `PARTICIPANTS` env var
+  accepting any subset of `{csn, spl, scr}` (first entry is the oracle).
+  Rewrote the three 2-way scripts as thin 18-line wrappers around the
+  auto harness:
+    * `test_monitor_2way_sync_step.sh` → `PARTICIPANTS="csn spl"`
+    * `test_monitor_2way_sync_step_bin.sh` → `PARTICIPANTS="csn spl"`
+    * `test_monitor_2way_spitbol_vs_ir.sh` → `PARTICIPANTS="spl scr"`
+  Deleted five harnesses targeting retired pipelines:
+    * `test_monitor_3way.sh` (ASM backend retired commit `2c760e3d`)
+    * `test_monitor_3way_sync_step_bin.sh` (superseded by `_auto.sh`)
+    * `test_monitor_5way_ipc.sh` (ASM/JVM/NET retired)
+    * `test_monitor_sync_step.sh` (ASM/JVM/NET retired)
+    * `test_monitor_precheck_prerequisites.sh` (precheck for retired pipeline)
+  Net diff `scripts/`: −1078 lines.  No external `.sh`/`.md`/`Makefile`
+  references to the deleted scripts in `one4all/`.  `SCRIP_ONLY=1`
+  back-compat preserved as alias for `PARTICIPANTS="scr"`.  Validated
+  in 7 PARTICIPANTS configurations on a simple `x = 'hello' / END`
+  probe (rc=0 each).  Smoke=7, Broker=49, csn-bridge-a=1, csn-bridge-b=1,
+  spl-bridge=1 all green.
 
 The minimum unit of progress is **SN-26-csn-bridge-a-xcallc** — a single
 runnable XCALLC from a test site, proving the runtime can open the
