@@ -515,14 +515,22 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-26 session #22:**
-- one4all @ `05ae400b` (SN-26-auto-controller: per-participant names sidecar in monitor_sync_bin.py)
-- corpus @ `32cefc1` (SN-26b: beauty folder self-contained; no #22 changes)
-- .github @ this commit (SN-26-auto-controller closed; PLAN step pointer advanced)
-- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points; no #22 changes)
-- csnobol4 @ `b3aeb9f` (no #22 changes)
+**HEADs after 2026-04-26 session #23:**
+- one4all @ `2042f294` (SN-26-auto-harness: test_monitor_3way_sync_step_auto.sh)
+- corpus @ `32cefc1` (SN-26b: beauty folder self-contained; no #23 changes)
+- .github @ this commit (SN-26-auto-harness closed; PLAN step pointer advanced)
+- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points; no #23 changes)
+- csnobol4 @ `b3aeb9f` (no #23 changes)
 
-**Gates (verified 2026-04-26 session #22):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-26 session #23):** Smoke **7** · Broker **49**.
+
+### Closed in session #23 (2026-04-26)
+
+- [x] **SN-26-auto-harness** — `test_monitor_3way_sync_step_auto.sh`
+  written.  No inject step.  4-part-spec controller invocation,
+  per-participant names sidecars, `SCRIP_ONLY=1` mode for
+  single-participant validation.  Validated end-to-end on a DEFINE+SQR
+  probe in SCRIP_ONLY mode: 14 steps, rc=0.  one4all @ `2042f294`.
 
 ### Closed in session #22 (2026-04-26)
 
@@ -604,15 +612,18 @@ participant and reports first divergence.
   7-name sidecar): controller consumes the wire, sees MWK_END, exits 0.
   Smoke=7, Broker=49 green.
 
-- [ ] **SN-26-auto-harness** — write
-  `scripts/test_monitor_3way_sync_step_auto.sh` that creates 3 FIFO
-  pairs + 3 names-out paths, sets `MONITOR_BIN=1` etc. on each
-  participant, launches scrip + (eventually) csnobol4 + spitbol on the
-  same `.sno`, and pipes them all to `monitor_sync_bin.py`.  No
-  `inject_traces*.py` step.  Until oracle bridges land, this script
-  should support a `SCRIP_ONLY=1` mode that only launches scrip and
-  pipes its wire to the controller (single participant, useful for
-  validating the auto path in isolation).
+- [x] **SN-26-auto-harness** — `scripts/test_monitor_3way_sync_step_auto.sh`
+  written.  No inject step.  Each participant gets its own FIFO pair
+  + `MONITOR_NAMES_OUT` sidecar.  Controller called with the new 4-part
+  `NAME:READY:GO:NAMES` spec (one entry per participant).  scrip is
+  always launched; CSN/SPL are launched only when oracle bridges land.
+  `SCRIP_ONLY=1` env var activates single-participant mode, useful for
+  validating the auto path while CSN/SPL bridges (SN-26-csn-bridge,
+  SN-26-spl-bridge) are pending.  Default mode (3-way) fails fast with
+  a pointer to `SCRIP_ONLY=1` when the oracles aren't built.
+  Validated: `SCRIP_ONLY=1 bash test_monitor_3way_sync_step_auto.sh
+  /tmp/auto_probe.sno` (DEFINE+SQR(7) probe) → controller consumes 14
+  records, hits END, rc=0, 7-name sidecar written.
 
 - [ ] **SN-26-csn-bridge** — patch `csnobol4/v311.sil` at the five
   trace fire-points identified in session #19's Goal-file scout
