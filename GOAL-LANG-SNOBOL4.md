@@ -141,14 +141,22 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   scrip `runtime/x86/snobol4.c`. Gate: existing bridge smokes all
   PASS — same wire content, different on-wire encoding.
 
-- [ ] **SN-26-bridge-coverage-f — MWK_LABEL events.** Add kind=5
-  to `monitor_wire.h`. Fires on every STNO advance (every statement
-  entry, not just DEFINE'd labels). All three runtimes implement.
-  Touch points: csn `v311.sil` STNO advance + hand-apply to
-  generated C; spl `sbl.min` interpreter loop + bootstrap regen via
-  `make makeboot`; scrip `runtime/x86/stmt_exec.c` `exec_stmt`
-  entry. Gate: new `test_smoke_sn26_label_flow.sh` PASS=1 on a
-  3-statement probe.
+- [x] **SN-26-bridge-coverage-f — MWK_LABEL events.** Closed
+  session #34. `monitor_wire.h` adds `MWK_LABEL = 5` with
+  `name_id=NONE`, `type=INTEGER`, 8-byte LE STNO payload —
+  sidesteps label-table reverse lookup. CSN: `XCALLC
+  monitor_emit_label,(STNOCL)` in `v311.sil INIT` (post-`MOVA
+  STNOCL,XCL`); hand-applied to `snobol4.c` and `isnobol4.c`.
+  SPL: `sysml exp 0` declared in `sbl.min`; `mov wa,kvstn / jsr
+  sysml` fire-points in `stmgo` and `stgo3`; `int.asm` syscall id
+  42. scrip: `mon_emit_label_bin()` helper called from
+  `interp.c:execute_program` (--ir-run), `sm_interp.c SM_STNO`
+  (--sm-run), `sm_codegen.c h_stno` (--jit-run). Gate
+  `test_smoke_sn26_label_flow.sh` PASS=5 (csn=3 LABELs, sbl=4,
+  scrip ir-run=3, sm-run=4, jit-run=4 — SPL counts END as a
+  stmt). All existing bridge smokes updated for new record
+  ordering and PASS. Smoke=7, Broker=49 preserved. SN-30
+  beauty md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved.
 
 - [ ] **SN-26-bridge-coverage-g — symmetric lvalue coverage.**
   scrip is missing the subscript-set fire-point. Land in
@@ -256,14 +264,16 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `5ffd3af7`
-- corpus @ `fab43a1`
-- x64 @ `3cd2dcc`
-- csnobol4 @ `ad993fe`
+- one4all @ `69ad74c3`
+- corpus @ `a9f283b`
+- x64 @ `888ac01`
+- csnobol4 @ `4ade8a4`
 - active step → SN-26-bridge-coverage-e
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
-spl-bridge, spl-bridge-d, auto-binary) all PASS as of session #32.
+spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
+session #34. label-flow PASS=5 (csn=3 LABELs, sbl=4 LABELs,
+scrip ir-run=3, sm-run=4, jit-run=4).
 
 **SN-30 invariant:** `beauty.sno < beauty.sno` md5
 `408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`.
