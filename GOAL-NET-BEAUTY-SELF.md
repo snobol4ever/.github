@@ -222,6 +222,96 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   - Unit tests still green (baseline 2375p/0f/2s).
   - Existing dot bridge smokes still PASS (5+5+9+7+3+6).
 
+  **Mon Apr 27 2026 session — diagnostic notes (no fix landed):**
+
+  Traced the spurious `VALUE i = 1` at step 801 to a stack-imbalance
+  bug at the dispatch level, NOT inside `Executive.Assign`'s monitor
+  fire-point. The actual chain at OOB iteration of
+  `$UTF_Array[i, 2] = UTF_Array[i, 1]`:
+
+  1. LHS `IndexCollection` for `UTF_Array[126, 2]` calls
+     `NonExceptionFailure()` → pushes failed sentinel, sets `Failure=true`.
+  2. `$` (`OpIndirection` via `OperatorFast`) sees the failed arg in
+     `ExtractArguments`, propagates failure cleanly. Stack now has 1
+     failed sentinel.
+  3. RHS path: `PushVar(UTF_Array)`, `PushVar(i)`, `PushConst(1)` all
+     push **unconditionally** (lines 124,134 of `ThreadedExecuteLoop.cs`
+     do not check `Failure`).
+  4. RHS `IndexCollection` hits `if (Failure) return;` (Array.cs:34) and
+     returns silently — does NOT pop the 3 operands it just had pushed
+     for it, does NOT push a sentinel.
+  5. Stack is now `[…, failed_$, UTF_Array, i, IntegerConst(1)]`.
+  6. `BinaryEquals.ExtractArguments(2)` pops `IntegerConst(1)` and `i`,
+     both `Succeeded=true` — it does NOT detect failure. `Assign` runs
+     legitimately with `leftVar=i, rightVar=1`, fires `EmitValue(i,1)`.
+
+  Two fix attempts, both reverted:
+
+  - **Attempt A — drain in `IndexCollection`** when `Failure` is set:
+    pop indices until ArrayVar/TableVar/StatementSeparator, pop the
+    collection, then `NonExceptionFailure()`. Broke 0 *new* tests
+    relative to the current 26-failure baseline (see baseline note
+    below) but the visible Parse Error on `&FULLSCAN = 1` did not
+    move — same 28 stderr lines, same Parse Error, same line. So this
+    fix targets a path that doesn't actually run before the early
+    Parse Error fires.
+
+  - **Attempt B — skip-to-Finalize in `BinaryEquals` dispatch** when
+    `Failure` is set, mirroring the `CallFunc` FRETURN-propagation
+    pattern. Same observable outcome: 28-line Parse Error unchanged.
+
+  Neither fix advanced the visible self-host gate, because the gate
+  fails LONG before step 801 — at line 26 of beauty.sno
+  (`&FULLSCAN = 1`, the very first executable statement after the
+  `-INCLUDE` block). The monitor-step-801 divergence and the
+  user-visible Parse Error on `&FULLSCAN = 1` are almost certainly
+  **different bugs**. The monitor diagnosis was made with
+  `MONITOR_NAME_WILDCARD=spl` skipping disagreements, which can let
+  the harness advance past a real prior divergence. Direct-run
+  evidence (28 stderr lines, choke at the `&FULLSCAN` keyword
+  assignment) suggests an issue in keyword-assignment handling,
+  pattern preamble parsing, or the include-resolution path is
+  reachable at runtime but the parser fires from the input stream.
+
+  **Important: pre-existing regression.** Running the documented unit
+  test gate against this clone produced **26f/2063p** (test run
+  aborted after 2089), versus the goal file's documented baseline of
+  **2375p/0f/2s**. Failures cluster around predicate-handling tests:
+  `TEST_Negation_001/004/006`, `TEST_GT_002`, `TEST_LT_002`,
+  `TEST_NE_002`, `TEST_Choice_002/003`, `TEST_008`,
+  `MsilCache_ChoiceOperator_*`, `MsilCache_NegationOperator`, plus 14
+  CSNOBOL4 corpus smoke tests (`TEST_Csnobol4__8bit`,
+  `_a`, `_alis`, `_alph`, `_atn`, `_base`, `_case1`, `_contin`,
+  `_diag1`, `_diag2`, `_digits`, `_dump`, `_err`, …). Reproduced on
+  HEAD `2414a26` with no working-tree changes:
+  `TEST_Negation_001` fails with `Expected:<succeed>. Actual:<failure>`
+  on `~integer('a') :f(n) ; result = 'succeed' :(end) ; n result = 'failure'`,
+  meaning `~` does not flip Failure from a prior `integer('a')` call
+  — which is consistent with the `CallFunc`-skip-to-Finalize handler
+  unconditionally bypassing the `~` predicate when the inner function
+  set `Failure=true`.
+
+  **Recommendation for next session.** Decide between two
+  starting points:
+  1. **Fix the predicate-handling regression first.** If `~`, `?`,
+     `LT`, `GT`, `NE`, etc. are not flipping `Failure` correctly when
+     called as predicates after a failing function call, that bug is
+     upstream of the beauty self-host. Beauty contains ~1000 such
+     predicate uses; without correct predicate semantics, no part of
+     S-2-bridge-7+ is meaningful. The `CallFunc`-skip-to-Finalize
+     handler likely needs to NOT skip when the next opcode is a
+     predicate operator (`OpNegation`, `OpInterrogation`, `OpTilde`,
+     `OpQuestion`).
+  2. **Diagnose the `&FULLSCAN = 1` Parse Error directly** with a
+     minimal-input repro (`echo '&FULLSCAN = 1\nEND\n' | dotnet …
+     beauty.sno`) — the existing self-host gate is a 25-line
+     reduction already; trace what beauty's parser does with that
+     keyword assignment under dot vs spl.
+
+  Both root-cause investigations should precede any further bridge
+  fire-point work; the bridge can only advance as fast as the
+  underlying runtime is correct.
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
