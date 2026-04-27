@@ -567,6 +567,44 @@ below remain as session history but are no longer the primary lens):**
 
   Beauty 17/17 still PASS.
 
+  **Mon Apr 28 2026 (later) — S-2-bridge-7-lval landed (snobol4dotnet `2414a26`).**
+  Improved dot's lvalue name extraction at the assignment chokepoint:
+  for aggregate-element stores (`a<i>=v`, `d<'k'>=v`), when the immediate
+  lvalue's `Symbol` is empty, fall back to `Collection.Symbol` (the
+  underlying ArrayVar/TableVar's name).  Truly anonymous lvalues still
+  route to the `<lval>` sentinel.
+
+  Result: dot now names the table or array being written, instead of
+  the opaque `<lval>` sentinel.  For `UTF[CHAR(194) CHAR(160)] =
+  'NO_BREAK_SPACE'`, dot emits `VALUE UTF = STRING(14)='NO_BREAK_SPACE'`.
+
+  The 2-way `spl dot` run on beauty self-host now reports the divergence
+  at step 49 as:
+  ```
+  [ctrl] DIVERGE step 49
+    spl: VALUE ss  = STRING(14)='NO_BREAK_SPACE'   (spl bug — fake vrblk)
+    dot: VALUE UTF = STRING(14)='NO_BREAK_SPACE'   (correct — names the table)
+  ```
+
+  The dot side is now strictly more informative than csn/spl on aggregate
+  stores.  Once SN-26-bridge-coverage extends csn and spl with the same
+  fallback, all three runtimes will converge on the collection symbol.
+
+  Verification:
+    - Updated `test_smoke_dot_bridge_complex.sh` checks 7-9: now
+      assert names `a` and `d` for the array/table-element stores
+      (was `<lval>`), and 7 names total in sidecar (no `<lval>` line).
+    - All 6 dot bridge gates green (5+5+9+7+3+6).
+    - Beauty 17/17 PASS.
+
+  Cross-references for next session:
+    - SN-26-bridge-coverage in GOAL-LANG-SNOBOL4 — open work to
+      mirror the same fallback in csn `lvalue_name_id()` and spl
+      `spl_vrblk_name`.  Until that lands, dot's wire is intentionally
+      richer than the oracles' wire on aggregate stores.
+    - The csn SIGPIPE (B-A) item from S-2-bridge-6 remains open
+      (csnobol4 work, not snobol4dotnet).
+
 - [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
   With the canonical divergence pair in hand, fix the snobol4dotnet
   runtime at the appropriate site (`Scanner.cs` Match, `Builder.cs`
