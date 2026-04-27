@@ -368,13 +368,13 @@ repro reproduces the ORIGINAL crash signature
 (`L_SCIN4 ZCL deref`).
 
 **Steps:**
-- [ ] `cd /home/claude/csnobol4 && git revert --no-edit 1d225f8`
-- [ ] Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
-- [ ] Tiny repro: confirm OLD crash signature (`Caught signal 11 in statement 1074`).
-- [ ] gdb confirm: `CSN_NO_SEGV_HANDLER=1 gdb --args ... < /tmp/tiny.in` shows L_SALT1 at the crash, NOT L_SCIN4.
-- [ ] fence_function/ regression: `cd /home/claude/csnobol4 && make -f Makefile2 test` — confirm 10/10 tests still PASS.
-- [ ] Commit revert with message `F-0: revert session #41 C-helper FENCE save migration; baseline restored before fix-design investigation`.
-- [ ] Push.
+- [x] `cd /home/claude/csnobol4 && git revert --no-edit 1d225f8`
+- [x] Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
+- [x] Tiny repro: confirm OLD crash signature (`Caught signal 11 in statement 1074`).
+- [x] gdb confirm: `CSN_NO_SEGV_HANDLER=1 gdb --args ... < /tmp/tiny.in` shows L_SALT1 at the crash, NOT L_SCIN4.
+- [x] fence_function/ regression: `cd /home/claude/csnobol4 && make -f Makefile2 test` — confirm 10/10 tests still PASS.
+- [x] Commit revert with message `F-0: revert session #41 C-helper FENCE save migration; baseline restored before fix-design investigation`.
+- [x] Push.
 
 **No code changes; pure revert.** This step exists to give the
 investigation rung (F-1) a clean starting point.  We do not yet
@@ -517,12 +517,11 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ `1d225f8` (session #41 EMERGENCY HANDOFF — to be reverted by F-0)
+- csnobol4 @ `4172be1` (F-0 complete — baseline restored; session #41 C-helper reverted)
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- active step → **F-0** (revert session #41; restore baseline) →
-  **F-1** (investigation: SPITBOL reading + PDL-write/SALT-read
+- active step → **F-1** (investigation: SPITBOL reading + PDL-write/SALT-read
   logging to choose between D1–D5)
 
 **Gates as of session start:**
