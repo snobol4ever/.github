@@ -178,15 +178,46 @@ below remain as session history but are no longer the primary lens):**
   assignment chokepoint with `S='hello'\nEND\n` → 1 VALUE + END wire
   records, byte-comparable against csn-bridge-a's hello probe.
 
-- [ ] **S-2-bridge-2 — Fire-point: assignment chokepoint**
-  Hook `MonitorIpc.EmitValue` from snobol4dotnet's central
-  assignment path.  Candidate: `ConcreteVar.AssignFromStack` (or
-  whatever method funnels every `=` lvalue store; needs source-side
-  audit).  Mirrors csn `ASGNVV` (v311.sil:5938) and spl `asign:asg01`
-  (sbl.min:17596).
+- [x] **S-2-bridge-2 — Fire-point: assignment chokepoint** (CLOSED 2026-04-27, snobol4dotnet @ `7b67cb0`)
+  Hooked `MonitorIpc.EmitValue` from `Executive.Assign` in
+  `Snobol4.Common/Runtime/Functions/OperatorsBinary/AssignReplace (=).cs`
+  — the canonical chokepoint through which all `=` lvalue stores funnel.
+  Two fire-points landed (one per early-return path):
+  1. Right after `KeywordTable` handler invocation (~line 110) for
+     keyword assignments like `&FULLSCAN = 1`.  Mirrors csn ASGNVV
+     path for keyword stores.
+  2. After the `switch (leftVar.Collection)` (~line 172), before the
+     OutputChannel side-effect block, covering scalar IdentifierTable
+     writes + ArrayVar element stores + TableVar slot stores in one
+     place.
 
-  Validation probe equivalent to csn-bridge-a hello probe.
-  `S='hello'\nEND\n` → exactly 1 VALUE record + END.
+  Lvalue name extraction:
+  - Scalar:        `stored.Symbol`  (e.g. `S` for `S = 'hello'`)
+  - Array element: empty → `<lval>` sentinel via `LvalueNameId`
+  - Table slot:    empty → `<lval>` sentinel via `LvalueNameId`
+  - Keyword:       `leftVar.Symbol` (e.g. `&fullscan`)
+
+  Mirrors csn `ASGNVV` (v311.sil:5938) and spl `asign:asg01`
+  (sbl.min:17596) as the structural anchor.
+
+  **Sidecar byte-format fix** also landed: `StreamWriter` forced to
+  no-BOM UTF-8 (`UTF8Encoding(emitIdentifier:false)`); `NewLine`
+  forced to `\n` so Windows runs produce LF-terminated sidecar
+  identical to csn/spl on Linux.  Cross-runtime byte comparison
+  of `names.txt` now works.
+
+  **Live hello probe `S = 'hello' / END` produces exactly:**
+  ```
+  #0  kind=VALUE name_id=0 STRING(5)=b'hello'
+  #1  kind=END   name_id=0xffffffff NULL(empty)
+  names sidecar bytes: 53 0a   (i.e. 'S' '\n', no BOM)
+  ```
+
+  **Smoke gates:**
+  - `scripts/test_smoke_dot_bridge.sh`        PASS=5 FAIL=0 (dormancy)
+  - `scripts/test_smoke_dot_bridge_value.sh`  PASS=5 FAIL=0 (live FIFO)
+
+  Beauty 17/17 baseline preserved.
 
 - [ ] **S-2-bridge-3 — Fire-point: `.`-capture commit + element stores**
   Hook the commit path of `CursorAssignmentPattern` (the runtime
