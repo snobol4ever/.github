@@ -605,6 +605,58 @@ below remain as session history but are no longer the primary lens):**
     - The csn SIGPIPE (B-A) item from S-2-bridge-6 remains open
       (csnobol4 work, not snobol4dotnet).
 
+  **Mon Apr 28 2026 (later still) — `<lval>` wildcard on name field
+  (one4all `f0f72977`).**  monitor_sync_bin.py's keys_match now treats
+  the `<lval>` sentinel as a wildcard on the name field, paralleling
+  the MWT_UNKNOWN wildcard on the type field.  This lets a run advance
+  through aggregate-element stores when one bridge emits `<lval>`
+  (csn / pre-enrichment dot) and another emits the collection name
+  (post-enrichment dot).  Three smoke checks added in
+  `test_smoke_monitor_unknown_wildcard.sh` (PASS=3) including
+  unit-style assertions on keys_match itself.
+
+  **Mon Apr 28 2026 — dot solo end-to-end:** When dot runs alone
+  (`PARTICIPANTS=dot`) on beauty self-host, it reaches the END wire
+  record after **3414 steps**.  The Parse Error is OUTPUT'd by beauty's
+  own mainErr1 path but does not terminate the program.  Confirms
+  dot's wire stream is internally consistent end-to-end; the
+  self-host failure is a structural pattern-match failure, not a
+  crash.
+
+  **Mon Apr 28 2026 — csn `LABEL` skip on label-only statements (newly
+  isolated bug):**  csn's monitor bridge does not fire `MWK_LABEL`
+  on label-only statements (e.g. `START` line by itself).  Probe:
+  ```
+  START
+                    a = 1
+  END
+  ```
+  csn wire: LABEL=2 (skipping 1), VALUE, END.
+  dot wire: LABEL=1, LABEL=2, VALUE, LABEL=3, END.
+  spl wire: LABEL=1, LABEL=2, VALUE, LABEL=3, END.
+
+  Beauty self-host hits `START` at beauty.sno:8, so csn diverges at
+  step 1 against both spl and dot.  Cross-ref SN-26-bridge-coverage
+  (csnobol4 work) to fix the bridge fire-point.
+
+  **State summary of this session's iterative-fix work:**
+  - All snobol4dotnet-side wire bugs found + fixed:
+      - StringVar UTF-8 → Latin-1 (28625e1)
+      - LABEL stno blank-line slot alignment (42c1ef7)
+      - Aggregate-element lvalue collection name (2414a26)
+  - Controller wildcards landed:
+      - MWT_UNKNOWN on type field (one4all a5117b32)
+      - `<lval>` on name field   (one4all f0f72977)
+  - Remaining first-divergence bugs are oracle-side only:
+      - spl `ss` stale-memory in spl_vrblk_name (x64 / SN-26)
+      - csn LABEL skip on label-only stmts (csnobol4 / SN-26)
+  - The S-2 self-host root cause (Parse Error on `&FULLSCAN = 1`)
+    is unchanged — that is the deeper Parse-engine work.  The wire
+    cannot drive its diagnosis cleanly until SN-26-bridge-coverage
+    closes the oracle-side bugs above.
+
+  Beauty 17/17 still PASS.  All 6 dot bridge gates green.
+
 - [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
   With the canonical divergence pair in hand, fix the snobol4dotnet
   runtime at the appropriate site (`Scanner.cs` Match, `Builder.cs`
