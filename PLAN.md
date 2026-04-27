@@ -57,7 +57,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-6 |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7 (predicate ~/?/LT/GT regression: 26 unit-test failures vs baseline; visible Parse Error at &FULLSCAN = 1 likely upstream of step-801 monitor diagnosis) |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 |
