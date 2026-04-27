@@ -397,72 +397,155 @@ as scrip does today.
 
 **Sub-rungs (sequenced — work in order):**
 
-- [ ] **SN-26-bridge-coverage-a — SN-26-csn-bridge-c** — Add
-  `XCALLC monitor_emit_value,(TVAL,VVAL)` to `csnobol4/v311.sil`
-  immediately after `NMD4 PUTDC TVAL,DESCR,VVAL` (line 6166).
-  This is the "Value Assignment in Pattern Matching" commit — the
-  unified site reached by every conditional-value (`.`) capture
-  during a successful match.  Hand-apply equivalent C edit at the
-  matching label site in `snobol4.c` and `isnobol4.c` per the
-  SN-26-csn-bridge-a-xcallc precedent (genc.sno regen still drops
-  FNCP — `SN-26-csn-regen-fix` remains a separate owed rung; do
-  not block on it).
+- [x] **SN-26-bridge-coverage-a — SN-26-csn-bridge-c** — Closed
+  2026-04-27 session #30 (csnobol4 @ `ad993fe`, corpus @ `fab43a1`,
+  one4all @ `dfc88e8e`, x64 @ `040d063`).  Coverage went beyond the
+  originally-scoped NMD4-only patch when Lon flagged that catch-all
+  must handle every lvalue form: `PAT . X`, `PAT $ X`, `@X`, plus
+  array/table element stores via `a<i,j>` and `d<'k'>`.
 
-  **Validation:**
-  1. `bash scripts/test_smoke_sn26_csn_bridge_b.sh` must stay
-     PASS=1 with 7 records (no regression on the existing fire-points).
-  2. New probe `corpus/programs/snobol4/demo/csn_bridge_c/probe_c.sno`:
-     ```snobol4
-                S = 'AXBYC'
-                S ANY('AB') . captured
-                END
-     ```
-     Expected wire stream: 3 records — VALUE S, VALUE captured,
-     END.  The middle record (`captured = 'A'`) is the new one.
-     Add `scripts/test_smoke_sn26_csn_bridge_c.sh` mirroring the
-     `_b` smoke script.
-  3. Smoke=7, Broker=49 must stay green.
+  **Landed in v311.sil + snobol4.c + isnobol4.c:**
+    * **NMD4 (line 6167)** — `XCALLC monitor_emit_value,(TVAL,VVAL)`
+      for `PAT . X` and `PAT . *f(X)`.  Both forms converge here
+      because EXPEVL resolves the `*f(X)` deferred form back through
+      NMD5 → NMD4.
+    * **ENMI3 (line 4254)** — `XCALLC monitor_emit_value,(YPTR,VVAL)`
+      for `PAT $ X` (immediate value-assignment in pattern match).
+    * **ATP (line 3930)** — `XCALLC monitor_emit_value,(XPTR,NVAL)`
+      for `@X` (cursor-position capture).
+  Hand-applied equivalent C edits at L_NMD4, L_ENMI3, L_ATP1 in both
+  generated C files per the SN-26-csn-bridge-a-xcallc precedent
+  (`SN-26-csn-regen-fix` remains owed but unblocking).  All 5
+  LOCAPT-TVALL sites in v311.sil now emit a wire record on the same
+  step the trace machinery already chose as a "post-store commit"
+  point.  This is the structural convergence the runtime authors
+  already factored.
 
-- [ ] **SN-26-bridge-coverage-b — SN-26-spl-bridge-d** — Add a
-  fire-point in `pnth4` of `x64/sbl.min` immediately before the
-  `jsr asinp` at line 12257.  Pattern .-captures route through
-  `pnth4` → `asinp` (line 17847) which **bypasses `b_vrs`** —
-  that's why the existing SPITBOL bridge misses them entirely.
+  **NEW lvalue_name_id() helper in monitor_ipc_runtime.c:**
+  Array element (a<i,j>) and table slot (d<'k'>) stores route
+  through ASGNVV with a NAME descriptor whose `.a.i` points into
+  anonymous element storage rather than at a vrblk with a name
+  field.  Reading +BCDFLD bytes yielded GC bookkeeping / ARBLK
+  headers that corrupted the wire when interned naively.  Helper
+  validates candidate name characters as printable-ASCII identifier
+  bytes; on failure it interns the sentinel `<lval>` so the wire
+  stays well-formed.  Symmetric edit in
+  `x64/osint/monitor_ipc_runtime.c` (zysmv): empty-name vrblks
+  (system variables, anonymous slots) now emit `<lval>` instead of
+  silently dropping.
 
-  Register state at `pnth4` entry to the assignment block (around
-  line 12253-12257):
-  - `xt` = history stack scan ptr (saved on stack at 12253)
-  - `xl` = pointer to p_pac node holding the name (line 12254)
-  - `wa` = name offset (line 12255)
-  - `xl` post-12256 = name base (vrblk)
-  - `wb` = sliced substring pointer (the value to be assigned)
-
-  Suggested fire-point shape (mirrors session #27's bpf09 pattern):
-  ```minimal
-       mov  -(xs),wb         save value pointer
-       mov  -(xs),wa         save name offset
-       mov  -(xs),xl         save name base
-       ; reconstruct vrblk address for sysmv:
-       ;   xr = xl + wa  (name base + name offset = vrblk slot)
-       mov  xr,xl
-       add  xr,wa
-       jsr  sysmv            emit VALUE record (name from xr, value from wb)
-       mov  xl,(xs)+         restore name base
-       mov  wa,(xs)+         restore name offset
-       mov  wb,(xs)+         restore value pointer
-       jsr  asinp            then proceed with the original assignment
+  **Validation (probe_complex.sno, all 5 LHS forms):**
   ```
-  Note: `sysmv` already expects `xr = vrblk ptr` and the value on
-  the stack via `(xs)`.  Adjust the shape to match
-  `osint/monitor_ipc_runtime.c`'s actual entry contract — diff
-  against the existing `b_vrs` site at line 11086 to confirm the
-  exact register/stack convention.
+  myname='unset'                    record #0  (ASGNVV)
+  S='AXBYC' / S ANY('AB') . dotcap  records #1-2  (ASGNVV+NMD4)
+  S2='AXBYC' / S2 ANY('AB') $ dolcap  records #3-4 (ASGNVV+ENMI3)
+  S3='AXBYC' / PAT . *myfn('hi')   records #5-9 (NMD4 via *f, with
+                                     interleaved CALL/inner-VALUE/RETURN)
+  a=ARRAY(...); a<1,2>='array_elem'  records #10-11 (#11 uses <lval>)
+  d=TABLE();   d<'mykey'>='tbl_elem' records #12-13 (#13 uses <lval>)
+  END                                record #14
+  ```
+  Sidecar names: `myname S dotcap S2 dolcap S3 myfn a <lval> d`.
+  Ten clean printable identifiers, no GC garbage.
+
+  **Permanent gate** added: `scripts/test_smoke_sn26_csn_bridge_c.sh`
+  PASS=1 (3 records: ASGNVV+NMD4+END from a minimal probe).
+
+  **3-way auto harness on `beauty.sno < /tmp/asg.sno` (the actual
+  sub-h2 reproducer)** now reaches a clean first-divergence:
+  ```
+  [ctrl] DIVERGE step 1
+    csn: VALUE (id=0) = STRING(1)='\x00'
+    spl: VALUE (id=0) = INT=1
+    scr: VALUE (id=0) = STRING(1)='\x00'
+  ```
+  csn and scr **agree** on the first record (`nul='\x00'` from
+  `global.inc:2`'s `&ALPHABET POS(0) LEN(1) . nul` — NMD4 fires now).
+  SPITBOL still diverges because its bridge doesn't fire on `.`-capture
+  yet (sbl.min `pnth4` site), so its first record is `TRUE=1` from
+  global.inc:23.  Closing -b will eliminate this asymmetry and let
+  the controller advance to a real runtime divergence between scrip
+  and the oracles.
+
+  **Gates:** Smoke=7, Broker=49, csn-bridge-a=1, csn-bridge-b=1,
+  csn-bridge-c=1, spl-bridge=1, sn26_auto_binary=1.  SN-30 invariant
+  preserved (beauty md5 still `408fc788ca2ef425fc1f87e26d45a7a5`).
+
+- [ ] **SN-26-bridge-coverage-b — SPL fire-point coverage to match
+  SN-26-bridge-coverage-a** — The CSN side patched 5 LOCAPT-TVALL
+  sites in v311.sil.  SPL needs the symmetric set in `sbl.min`.
+
+  **The five SIL sites and their SPL counterparts:**
+
+  | SIL site (CSN, done) | Form               | SPL site (sbl.min) | Status |
+  |----------------------|--------------------|--------------------|--------|
+  | ASGNVV @ 5944        | `X = Y`            | `b_vrs` @ 11077    | done (SN-26-spl-bridge-b) |
+  | SJSRV1 @ 3511        | `S 'pat'='rep'`    | tbd — see note below | open |
+  | NMD4   @ 6167        | `PAT . X`/`. *f(X)`| `pnth4` ~12257     | open |
+  | ENMI3  @ 4254        | `PAT $ X`          | tbd — analog of pnth4 for `$` | open |
+  | ATP    @ 3930        | `@X`               | tbd                 | open |
+
+  Note on SJSRV1: SPITBOL routes pattern-substitute store through
+  a path that doesn't traverse `b_vrs`.  The SN-26-spl-bridge-c
+  rung already deferred this — pattern-substitute store-back
+  fire-point likely lives inside `bpat`/`assn` epilog, around the
+  `pmval` flag.  Roll into this rung and close together.
+
+  **Suggested fire-point shape for `pnth4`** (mirrors the existing
+  `b_vrs` precedent at line 11077; mirror the same save/restore
+  discipline session #27 used at `bpf09`):
+  ```minimal
+  pnth4  mov  wa,num01(xt)     load final cursor              [orig]
+         mov  wb,(xs)          load initial cursor from stack [orig]
+         mov  (xs),xt          save history stack scan ptr    [orig]
+         sub  wa,wb            compute length of string       [orig]
+         mov  xl,r_pms         point to subject string        [orig]
+         jsr  sbstr            construct substring            [orig]
+         mov  wb,xr            copy substring pointer         [orig]
+         mov  xt,(xs)          reload history stack scan ptr  [orig]
+         mov  xl,num02(xt)     load p_pac node ptr            [orig]
+         mov  wa,parm2(xl)     load name offset               [orig]
+         mov  xl,parm1(xl)     load name base                 [orig]
+  *      SN-26-bridge-coverage-b: monitor fire-point.
+         mov  -(xs),wb         save value pointer
+         mov  -(xs),wa         save name offset
+         mov  -(xs),xl         save name base
+         mov  xr,xl            xr = vrblk pointer (name base)
+         add  xr,wa            xr += name offset (slot offset)
+         jsr  sysmv            emit VALUE record (name from xr-derived
+                               vrblk; value pointer on (xs)+1)
+         mov  xl,(xs)+         restore name base
+         mov  wa,(xs)+         restore name offset
+         mov  wb,(xs)+         restore value pointer
+         jsr  asinp            perform assignment             [orig]
+  ```
+
+  Verify against the existing `zysmv` contract in
+  `x64/osint/monitor_ipc_runtime.c`: it expects `xr` to be the
+  pointer to the **vrsto field** of the vrblk (which is at
+  `vrget+1`), and the value pointer at `(xs)+1` (skipping the saved
+  return address).  The `xr = xl + wa` trick gets you the slot
+  offset, but if the vrblk header is canonical at offset 0 you may
+  instead need `xr = xl` plus `wb` already pushed.  Read the
+  zysmv header comment carefully and pick the matching invariant.
+
+  Same shape needed for the `$` analog (likely `pnth5` or another
+  pnth subroutine — search around `enmi`-equivalent in sbl.min).
+
+  Indexed-element stores: SPL's a<i,j>= today doesn't fire on
+  `b_vrs` because the assignment is performed inline in the array-
+  reference handler.  Hunt for the `assn` site that handles
+  indexed stores; add `jsr sysmv` there with the right register
+  convention.  Same applies for table.  Both should land an
+  empty-name vrblk, which the C-side already converts to `<lval>`
+  per the SN-26-bridge-coverage-a SPL edit landed at x64 @ `040d063`.
 
   **Validation:**
-  1. `bash scripts/test_smoke_sn26_spl_bridge.sh` must stay PASS=1
-     with 6 records.
-  2. Same `probe_c.sno` against SPITBOL produces an analogous
-     3-record wire (VALUE S + VALUE captured + END).
+  1. `bash scripts/test_smoke_sn26_spl_bridge.sh` PASS=1 (regression).
+  2. `probe_complex.sno` (in this Goal file's session #30 notes,
+     also planted at `corpus/programs/snobol4/demo/csn_bridge_c/`)
+     produces a wire with `dotcap`, `dolcap`, `<lval>` records
+     symmetric to CSN's output.
   3. SN-30 invariant: `beauty.sno < beauty.sno` md5 still
      `408fc788ca2ef425fc1f87e26d45a7a5`.
   4. Regenerate `bootstrap/sbl.{asm,lex}` via `make makeboot`
@@ -668,14 +751,61 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #29:**
-- one4all @ unchanged this session (no code changes)
-- corpus @ unchanged this session
-- .github @ this commit (session #29 forensic notes added)
-- x64 @ unchanged this session
-- csnobol4 @ `b83db40` (unchanged this session)
+**HEADs after 2026-04-27 session #30:**
+- one4all @ `dfc88e8e` — csn-bridge-c smoke + libcsnobol4.a archive monitor link
+- corpus @ `fab43a1` — csn_bridge_c/probe_c.sno
+- .github @ this commit — session #30 closure of SN-26-bridge-coverage-a + expanded scope of -b
+- x64 @ `040d063` — `<lval>` sentinel for empty-name stores in zysmv (SPL C runtime)
+- csnobol4 @ `ad993fe` — NMD4 + ENMI3 + ATP fire-points + lvalue_name_id helper
 
-**Gates (verified 2026-04-27 session #29):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · spl-bridge smoke **1** · auto-binary smoke **1**.
+**Gates (verified 2026-04-27 session #30):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · csn-bridge-c smoke **1** · spl-bridge smoke **1** · auto-binary smoke **1**.
+
+**SN-30 invariant:** beauty.sno < beauty.sno md5 still `408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`.
+
+### Session #30 audit notes (open questions for next session)
+
+Lon raised three audit questions during -a closure that were not
+fully resolved before hand-off:
+
+1. **Unnamed lvalue case** — the `<lval>` sentinel was a workaround
+   for array element / table slot stores where the descriptor's
+   `+BCDFLD` bytes don't form a valid identifier.  But these stores
+   aren't *unnamed* — they're indexed-mutations of named parents
+   (`a<1,2>`, `d<'mykey'>`).  Two cleaner options:
+   (a) **Suppress** the record entirely — the parent's existence was
+       already recorded when assigned (`a = ARRAY(...)` fires a
+       record; subsequent `a<1,2> = v` just mutates contents).
+   (b) **Synthesize a structured name** like `a[1,2]` or `d["mykey"]`
+       by walking back from the slot pointer to the parent vrblk.
+       Requires struct-aware code; CSN obscures vrblk layout via
+       descriptor arithmetic.
+   For now, sentinel is harmless and well-formed; switch to (a) in
+   the next session by tightening lvalue_name_id() and zysmv() to
+   return early without emitting when validation fails.
+
+2. **Catch-all completeness** — the 5 LOCAPT-TVALL sites cover
+   user-level assignments through standard SIL paths.  Not
+   audited / likely missed:
+   * **Keyword assignment** — `&keyword = X` routes through
+     ASGNIC / keyword-specific paths, not ASGNVV.
+   * **Function-arg binding** at DEFINE-call entry (push to local
+     namelist).  Restored on return.
+   * **DATA / DEFINE / OPSYN / FIELD** — these create or rename
+     identifiers but aren't simple value-stores.
+   * **READ / INPUT-association** auto-fill — actually IS routed
+     through ASGNVN → ASGNVV per session #25 audit.
+   For sub-h2 progress, the 5 sites suffice — beauty's `global.inc`
+   does only plain assigns and `.`-captures.  Document remaining
+   gaps as **SN-26-bridge-coverage-extras** (deferred).
+
+3. **Label / statement-number events** — labels are control-flow
+   transfer points, not data stores; no per-label trace exists.
+   Statement-level events fire via the IM-15b hook
+   (`D_A(EXNOCL)++`) which the existing monitor architecture uses
+   for sync-step boundaries — already working.  No new work needed
+   for labels per se.  If structural-flow events are desired in
+   future, add `MWK_LABEL` to `monitor_wire.h` and fire on STNO
+   advancing — not gating sub-h2.
 
 ### Forensic notes from session #29 (2026-04-27)
 
