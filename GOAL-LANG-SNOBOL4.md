@@ -288,8 +288,41 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gates:** Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-l — SPITBOL lvalue name fix at
-  asign/asinp fire-points.** Session #44 2-way harness with
+- [x] **SN-26-bridge-coverage-l — SPITBOL lvalue name fix at
+  asign/asinp fire-points.** Session #45 (2026-04-27).
+
+  **Root cause confirmed:** `spl_vrblk_name()` was called for all
+  paths through `asg01`/`asinp` — including aggregate-element stores
+  where `xl` is mid-arblk/teblk/vcblk/pdblk, not a real vrblk.  The
+  bytes at `xl - vrvlo` happened to spell `"ss"` (or similar junk)
+  for `UTF[k]='NO_BREAK_SPACE'`, passing the ASCII filter and getting
+  emitted as the variable name.
+
+  **Fix:** Split fire-points at the SIL level.  At `asg01` and `asinp`
+  untrapped paths, check `(xl - *vrvlo)` against `=b_vrs`.  For real
+  vrblks, `vrsto` holds `b_vrs` → natural-var path → call `sysmw`
+  (`zysmw`) which emits `<lval>` unconditionally without name
+  synthesis.  For natural-var path, continue to call `sysmv` with the
+  real vrblk.  Added `sysmw  exp  0` declaration in `sbl.min`,
+  `sysmw`/`zysmw` syscall id 43 in `int.asm`, `zysmw()` in
+  `osint/monitor_ipc_runtime.c`.
+
+  **Verification:** 2-way harness on `beauty.sno < "  a = 1"` now
+  advances past the former step-49 `UTF[k]` divergence to step 306.
+  Steps 1–305 all agree. New divergence at step 306 is a LABEL stno
+  disagreement (spl=160, scr=162) — a separate loop-counting issue,
+  not a -l artifact.  SN-30 invariant md5
+  `abfd19a7a834484a96e824851caee159` preserved on beauty.sno
+  self-host.
+
+  **Also fixed:** Pre-existing `test_smoke_sn26_label_flow.sh`
+  FAIL=2 from -k: sm-run/jit-run expected 4 LABELs but got 5 after
+  blank-line fix. Updated to expect 5 (1 blank + 3 stmts + END).
+  Fixed `UnboundLocalError` in `monitor_sync_bin.py` (redundant
+  local `from collections import deque` shadowed top-level import).
+
+  **Gates:** Smoke=7, Broker=49, all bridge smokes PASS (csn skipped
+  — csnobol4 not built this session).  x64 @ new HEAD.
   `MONITOR_SOFT_LABEL=1` on `beauty.sno < "  a = 1"` reaches step 49,
   the first store into `UTF[CHAR(194) CHAR(160)] = 'NO_BREAK_SPACE'`.
   Values agree (`STRING(14)='NO_BREAK_SPACE'`); names diverge:
@@ -499,11 +532,14 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `35aac3fe`
+- one4all @ new HEAD (post session #45)
 - corpus @ `7041a14`
-- x64 @ `3e519f9`
+- x64 @ new HEAD (post session #45)
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-l (SPITBOL lvalue name fix).
+- active step → SN-26-bridge-coverage-j (scrip --ir-run formatting
+  divergence vs SPITBOL on new beauty).
+  -l CLOSED session #45: SPITBOL lvalue name fix at asign/asinp.
+  2-way harness now reaches step 306 without LABEL or lvalue-name noise.
   -k CLOSED session #44 (two real bugs found and fixed: blank lines
   not parsed as stmts; &STNO aliased to kw_stcount).
   -g CLOSED session #43; -i lifted to GOAL-CSN-FENCE-FIX;
