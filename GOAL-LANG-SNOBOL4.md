@@ -99,8 +99,22 @@ Full detail for closed rungs lives in the git log. Search by rung id
 **Sub-rungs:** SN-28a (macro-ize DESCR field access — defensible standalone refactor) → SN-28b..h open.
 **Risk:** MEDIUM-HIGH. **Dependencies:** orthogonal to SN-26, SN-27.
 
-### SN-29 — Beauty under original oracles (mostly closed)
-SN-29c/d closed: original csnobol4 `a509cd7` self-hosts beauty under `-bf -P 64k -S 64k`; SPITBOL x64 (post-SN-30) self-hosts to byte-identical output (md5 `408fc788ca2ef425fc1f87e26d45a7a5`). Open: SN-29e (idempotency scout — `beauty(beauty_output)` non-byte-identical, non-blocking) and SN-29f (canonical `.ref` capture, blocked on Lon's call).
+### SN-29 — Beauty under original oracles (partially superseded)
+SN-29c/d closed: csnobol4 `a509cd7` and SPITBOL x64 (post-SN-30)
+self-hosted the OLD beauty.sno (with `is.inc`/`FENCE.inc`/`io.inc`
+includes) to byte-identical output md5 `408fc788ca2ef425fc1f87e26d45a7a5`.
+That md5 is **historical** — it does not apply to the post-corpus-7041a14
+beauty.sno (those three includes are gone).  New per-runtime md5s
+captured session #36 on the cleaned beauty.sno:
+SPITBOL x64 `abfd19a7a834484a96e824851caee159` (646 lines, clean run);
+CSNOBOL4 segfaults — see SN-26-bridge-coverage-i;
+scrip `195f9320d836948a0f21b63a4fc68b08` (523 lines, clean run but
+diverges from SPITBOL — see SN-26-bridge-coverage-j).
+SN-29 cross-oracle byte-identical state will return only after both
+SN-26-bridge-coverage-i and SN-26-bridge-coverage-j land.
+Open: SN-29e (idempotency scout — `beauty(beauty_output)` non-byte-
+identical, non-blocking) and SN-29f (canonical `.ref` capture, blocked
+on Lon's call AND on -i/-j convergence).
 
 ### SN-30 — UPPERCASE keyword case for SPITBOL x64 (mostly closed)
 SN-30a..e and SN-30g landed; x64 @ `cc68516` accepts UPPERCASE keywords under `-bf` and self-hosts beauty to byte-identical output with CSNOBOL4. Open: SN-30f (explicit regression sweep of SN-7=51/51, Broad=225/225, SN-9c=207/207/207 under new sbl). Supersedes SN-25.
@@ -186,20 +200,80 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   With -e/-f/-g landed, re-run 3-way harness on
   `beauty.sno < beauty.sno`. Read last-agree + first-disagree
   pair only; hand off to SN-26c-parseerr-h sub-h2.
-  Resolve `is.inc` interaction during this rung — `IsSpitbol` /
-  `IsSnobol4` are designed to return different answers per
-  runtime so lockstep label/call traces diverge at every
-  predicate site even when output converges. Three options:
-  (1) harness skips matched CALL/RETURN brackets around
-  dialect-specific branches; (2) migrate beauty to runtime-
-  derived token check (RULES.md portable-tests pattern);
-  (3) close SN-27 first (UPPERCASE DATATYPE on x64) so
-  `IsSnobol4()` succeeds uniformly across csn/spl/scr.
+  `is.inc` / `FENCE.inc` / `io.inc` interaction RESOLVED in corpus
+  `7041a14` — those three includes are no longer pulled in by
+  beauty.sno on the self-host path (beauty reads stdin / writes
+  stdout, so io.inc's INPUT/OUTPUT-arity shim never fires; FENCE
+  is built into all 3 target runtimes; is.inc is invalid per
+  RULES.md and was only kept to feed FENCE.inc and io.inc).  This
+  unblocks -h but exposes two real runtime bugs the includes were
+  hiding — see -i (csn FENCE(P) builtin segfault) and -j (scrip
+  vs SPITBOL formatting divergence).  -h proper cannot run cleanly
+  on csn until -i lands, and cannot terminate cleanly on scrip
+  until -j lands.
   Gate: Smoke=7, Broker=49, all bridge smokes, harness reaches
   ≥1000 steps or runs clean to MWK_END.
 
-**Dependencies:** -e → -f → -g → -h. -h may pull SN-27 forward.
-**Sequencing:** active step is -g.
+- [ ] **SN-26-bridge-coverage-i — CSNOBOL4 FENCE(P) builtin
+  segfault on heavy beauty pattern load.**  After corpus `7041a14`
+  removed the user-defined `FENCE.inc` stub from beauty.sno, the
+  builtin `FENCE(P)` 1-arg pattern primitive in csnobol4 segfaults
+  during beauty self-host: `Caught signal 11 in statement 1074 at
+  level 0` at beauty.sno:616 (`snoSrc POS(0) *snoParse *snoSpace
+  RPOS(0)`).  Bisect confirms the crash is present at every
+  csnobol4 commit from `7654cda` (the FENCE(P) implementation
+  landing) onward, including `5990456` ("FENCE(P): fix S-9 bugs —
+  10/10 tests pass").  Pre-FENCE(P) commit `a509cd7` produces
+  Error 5 (Undefined function) on beauty.sno:51 because FENCE(P)
+  was not yet implemented — i.e. csnobol4 has never run the new
+  beauty.sno cleanly.  The user-defined FENCE stub from FENCE.inc
+  was masking the bug because the stub never invokes the broken
+  pattern opcode.  SPITBOL x64 runs the new beauty.sno cleanly
+  (646 lines).
+  Bug location candidates: `lib/pat.c` (pattern matcher),
+  `v311.sil` FENCE(P) opcode emission (commits `7654cda` /
+  `5990456`).  Investigation should reduce to a smaller repro than
+  beauty.sno (probe `FENCE(p)` under deep recursion / heavy
+  backtracking), then patch the source-of-truth (`v311.sil`,
+  regenerate via `genc.sno`, per RULES.md "Source-of-truth").
+  Bypass for now: re-add FENCE.inc from the canonical
+  `programs/include/` path on a per-test basis — but this is a
+  WORKAROUND, not the fix; -h cannot close while csn is in this
+  state.
+  Gate: csn `snobol4 -bf -P64k -S64k beauty.sno < beauty.sno`
+  produces N>500 lines without segfault and without "Caught
+  signal" diagnostic.  PLUS Smoke=7, Broker=49 preserved.
+
+- [ ] **SN-26-bridge-coverage-j — scrip --ir-run formatting
+  divergence vs SPITBOL on new beauty.**  After corpus `7041a14`,
+  scrip --ir-run produces 523 lines of output vs SPITBOL's 646
+  lines (md5s differ: scrip `195f9320d836948a0f21b63a4fc68b08`
+  vs sbl `abfd19a7a834484a96e824851caee159`).  Diff shows scrip
+  drops the LHS variable name and `=` separator on assignment
+  statements after the first one, e.g.:
+  ```
+    sbl:                  &FULLSCAN      =  1
+    scr:                                  1
+  ```
+  This is beauty's tab-stop / column-alignment pattern set
+  (`ppStop[1..4]`, `ppSmBump`, `ppLgBump`) interacting with
+  scrip's pattern matching such that the LHS column doesn't get
+  emitted.  Almost certainly a scrip pattern-matching bug, not a
+  beauty bug, since SPITBOL (the oracle) handles the same source
+  correctly.  Without -i, the 3-way harness can't run; once -i is
+  fixed, the harness on beauty.sno will surface this as a value
+  divergence and pinpoint the exact statement/iteration where
+  scrip first diverges.
+  Gate: scrip --ir-run beauty.sno < beauty.sno output md5 matches
+  SPITBOL x64 -bf output md5.  PLUS Smoke=7, Broker=49 preserved.
+
+**Dependencies:** -e → -f → -g → -i → -j → -h.  -i (csn FENCE
+bug) and -j (scrip formatting divergence) BOTH block -h since
+-h needs all three runtimes producing comparable output on the
+new beauty.sno.  -h may also pull SN-27 forward.
+**Sequencing:** active step is -g (existing); -i is parallel-
+prioritizable since it's a pure csnobol4 fix orthogonal to
+scrip work.
 
 ---
 
@@ -277,20 +351,38 @@ the trace" — until -h, there is no trustable divergence point.
 
 **HEADs:**
 - one4all @ `78a2a98e`
-- corpus @ `a9f283b`
+- corpus @ `7041a14`
 - x64 @ `3e519f9`
 - csnobol4 @ `52bee67`
-- active step → SN-26-bridge-coverage-g
+- active step → SN-26-bridge-coverage-i (csn FENCE(P) builtin
+  segfault — runtime stability blocker for -h) PARALLEL with
+  SN-26-bridge-coverage-g (scrip subscript-set fire-point —
+  orthogonal scrip work) and SN-26-bridge-coverage-j (scrip
+  formatting divergence on beauty)
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
 spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
-session #35.  auto-binary verifies streaming-intern semantics
+session #36.  auto-binary verifies streaming-intern semantics
 end-to-end (NAME_DEF on the wire, no sidecar written).
 label-flow PASS=5 (csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3,
 sm-run=4, jit-run=4).
 
-**SN-30 invariant:** `beauty.sno < beauty.sno` md5
-`408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`.
+**Beauty self-host status (session #36, post corpus `7041a14`):**
+- SPITBOL x64 `-bf`: **CLEAN** — 646 lines, md5
+  `abfd19a7a834484a96e824851caee159`
+- CSNOBOL4 `-bf`: **SIGSEGV** at beauty.sno:616 statement 1074
+  during `*snoParse` pattern match.  Bug in builtin `FENCE(P)`
+  pattern primitive; bisected to commits `7654cda` + `5990456`
+  (FENCE(P) implementation work).  See SN-26-bridge-coverage-i.
+- scrip `--ir-run`: clean run, 523 lines, md5
+  `195f9320d836948a0f21b63a4fc68b08` — but diverges from SPITBOL
+  output (formatting bug).  See SN-26-bridge-coverage-j.
+
+**Historical SN-30 invariant** md5 `408fc788ca2ef425fc1f87e26d45a7a5`
+applies only to the OLD beauty.sno (pre-corpus-7041a14, with
+`is.inc`/`FENCE.inc`/`io.inc` includes).  Useful as a regression
+check against `git show 7041a14^:programs/snobol4/demo/beauty/beauty.sno`
+but not against current beauty.sno.
 
 ---
 
