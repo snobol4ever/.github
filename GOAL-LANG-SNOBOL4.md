@@ -500,6 +500,117 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   reading.
 
   Bypass for now: same as session #39 (re-add FENCE.inc per-test).
+
+  **Session #41 progress (PARTIAL FIX LANDED — bug not yet
+  resolved, NEW crash signature exposed):**
+  - **C-helper save/restore implemented per session #40 plan.**
+    Approach: dynamic stack via `XCALLC fnc_save_push,(0)` and
+    `XCALLC fnc_save_pop,(0)`.  Helpers in `lib/pat.c` access
+    `res.pdlhed[0]` and `res.namicl[0]` directly (since `res`
+    is a global `struct res`); stack grown via realloc; never
+    freed.  Helpers gated with `STATIC_PAT` prefix to match
+    `linkor`/`cpypat` so they get `static` linkage when inlined
+    into `isnobol4.c` via `parms.h #include "lib/pat.c"` and
+    plain external linkage in standalone `pat.o`.
+  - **SIL changes in `v311.sil`:** FNCA replaces 6-PUSH with
+    `XCALLC fnc_save_push,(0)`; FNCB replaces 6-POP with
+    `XCALLC fnc_save_pop,(0)`; FNCC restores LENFCL via
+    `GETDC LENFCL,PDLPTR,3*DESCR` after `MOVD PDLPTR,PDLHED`,
+    then calls `XCALLC fnc_save_pop,(0)`, then explicit
+    `DECRA PDLPTR,3*DESCR` to walk past trap entry to the
+    pre-FNCA PDLPTR position (no longer obtained from cstack).
+  - **Option A (extend PDL trap entry from 3 to 5 slots) was
+    investigated and rejected.** PDL slot geometry: PDLPTR
+    points well below its data; INCRA-N reserves N slots
+    written at offsets `+1..+N *DESCR`.  After FNCA's
+    INCRA-3, PDLPTR = X+3*DESCR with PDLHED also = X+3*DESCR.
+    SCNR's `MOVD PDLPTR,PDLHED` then `INCRA PDLPTR,3*DESCR`
+    advances PDLPTR to X+6*DESCR and writes its trap entry
+    at memory X+7..X+9 *DESCR.  An extended FNCA entry's
+    proposed slots 4, 5 at memory X+9, X+10 *DESCR overlap
+    SCNR's slot 1 at X+7 once SCNR writes — proving Option A
+    unsafe under the existing PDL conventions.
+  - **`XCALLC fname,()` strips empty parens.** genc.sno's
+    XXCALLC concatenates ARGV<1> ARGV<2>; empty `()` produces
+    `fname;` not `fname();`.  Workaround: pass dummy `(0)`,
+    declare helpers `(int unused)` ignoring the value.
+  - **Regen via `./snobol4 -b genc.sno --with BLOCKS v311.sil`
+    produced clean output.** Both isnobol4.c and snobol4.c
+    spliced from regen at the FNCA-D label block (replacing
+    the 6-PUSH/6-POP code with the new XCALLC-emitted calls).
+    FNCP top-level definition preserved per latent
+    SN-26-csn-regen-fix (regen produces L_FNCP label only).
+    Build clean at -O3.
+  - **Tiny repro still segfaults — but at a NEW location.**
+    Old crash signature: `L_SALT1: D(LENFCL) = D(D_A(PDLPTR) +
+    3*DESCR);` reading from a stale PDL slot with
+    `PDLPTR.a.i = 192` (= 12·DESCR sentinel value from
+    cstack overwrite).  New crash signature (with fix
+    applied, -O0 -g build): `L_SCIN4: D(PTBRCL) =
+    D(D_A(ZCL));` at isnobol4.c line ~11456, dereferencing
+    ZCL whose `.a.i` is invalid.  Backtrace shows deep
+    SCIN1 recursion through SCAN/INVOKE.  This is at SCIN3's
+    pattern-node walk — ZCL was just loaded from
+    `D(D_A(PATBCL) + D_A(PATICL))` immediately prior, so
+    PATBCL or PATICL is already corrupt before ZCL is read.
+    No longer the integer-192 cstack-overwrite signature
+    that defined the old bug.
+  - **Interpretation:** the 6-cstack-PUSH/POP saves WERE
+    semantically wrong (the audit was correct that NAMICL
+    save is needed), but they were also masking a separate
+    bug elsewhere — possibly in PATBCL/PATICL handling
+    inside SCIN1's recursive pattern walk under nested
+    FENCE.  OR: my FNCC `DECRA PDLPTR,3*DESCR` after
+    `XCALLC fnc_save_pop,(0)` is wrong in some path.
+    Specifically I assumed FNCC's pre-FNCA PDLPTR equals
+    `inner-PDLHED - 3*DESCR` — but if the outer pattern's
+    PDLPTR was already at a different position (e.g. after
+    its own SCNR traps), the pre-FNCA PDLPTR_outer may have
+    been higher than what `inner-PDLHED - 3*DESCR` yields.
+    Need to re-audit FNCC's PDLPTR restoration: original code
+    `POP(PDLPTR)` got it from cstack (= true outer value);
+    my replacement derives it from PDLHED — only correct if
+    the outer pattern's PDLPTR == FNCA-time PDLHED minus the
+    INCRA-3 reservation.  This holds when FENCE's outer
+    context is SCNR's own initial `MOVD PDLPTR,PDLHED` reset,
+    but NOT when FENCE is called inside an alt branch where
+    outer PDLPTR > outer PDLHED.
+  - **Build state:** clean.  Helpers wired correctly
+    (verified in nm output: `T fnc_save_push`, `T
+    fnc_save_pop`, plus `t .cold` static copies inside
+    SCIN1).  smoke `OUTPUT='csn-ok'` PASSes.  beauty tiny
+    repro segfaults but at the new SCIN4 location.
+  - **Files touched (this session, committed in emergency
+    handoff):** `csnobol4/v311.sil`, `csnobol4/lib/pat.c`,
+    `csnobol4/isnobol4.c`, `csnobol4/snobol4.c`.
+
+  **Next session entry point:**
+  1. Confirm the FNCC PDLPTR-restoration audit gap.  Read
+     SCIN1 pattern flow to determine whether FENCE is ever
+     entered when outer PDLPTR ≠ outer PDLHED.  If yes,
+     FNCC needs to also save outer PDLPTR (e.g., extend the
+     C save frame to 3 fields: pdlhed, namicl, pdlptr).
+  2. Add `pdlptr` to `struct fnc_save_frame` in pat.c;
+     re-audit fnc_save_push/pop to save/restore the third
+     field.  In FNCC, drop the explicit `DECRA PDLPTR,
+     3*DESCR` since fnc_save_pop will set PDLPTR directly
+     from the saved value.  In FNCB, no change needed
+     because SALT2's DECRA-3 already handles PDLPTR before
+     dispatch.  But wait: with PDLPTR saved on the C stack,
+     FNCB CAN restore PDLPTR directly without depending on
+     SALT2's DECRA — making the design more uniform.  Both
+     FNCB and FNCC just call fnc_save_pop and let the C
+     helper restore everything.
+  3. Regen, splice, rebuild, retest tiny repro.  If clean,
+     run beauty self-host.  If still segfaults, instrument
+     fnc_save_push/pop with `fprintf(stderr, "depth=%zu
+     pdlhed=%lx namicl=%lx pdlptr=%lx\\n", ...)` (env-gated
+     diagnostic, revert before commit) and trace through
+     to identify which restore step produces the bad value.
+
+  Bypass available: the partial fix is no worse than the
+  prior state (still segfaults), so no production
+  regression. -h cannot run on csn until full fix lands.
   - **SPITBOL comparison performed.**  Read sbl.min lines
     11978-12039 (`p_fna..p_fnd`) and the doc block at
     11473-11500.  SPITBOL's FENCE save list is **dramatically
@@ -722,7 +833,7 @@ the trace" — until -h, there is no trustable divergence point.
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- csnobol4 @ `b01b47b`
+- csnobol4 @ `1d225f8`
 - active step → SN-26-bridge-coverage-i (csn FENCE(P) builtin
   segfault — runtime stability blocker for -h) PARALLEL with
   SN-26-bridge-coverage-g (scrip subscript-set fire-point —
@@ -739,6 +850,13 @@ Session #40 was audit (instrumented isnobol4.c diagnostically,
 reverted before exit per RULES.md "diagnostic patches are
 diagnostic — never commit them"); no committed source changed,
 gates not re-run but unchanged.
+Session #41 landed partial FENCE fix as committed source change
+in csnobol4 (v311.sil + lib/pat.c + spliced isnobol4.c + snobol4.c).
+Build clean.  Tiny repro still segfaults but with a different
+crash signature (L_SCIN4 ZCL deref, not L_SALT1 PDLPTR=192).
+Smoke=7, Broker=49 NOT re-run on one4all this session — only
+csnobol4 source touched, no one4all change to gate.
+EMERGENCY HANDOFF: SN-26-bridge-coverage-i remains [ ].
 auto-binary verifies streaming-intern semantics end-to-end
 (NAME_DEF on the wire, no sidecar written).  label-flow PASS=5
 (csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3, sm-run=4, jit-run=4).
