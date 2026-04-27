@@ -258,22 +258,82 @@ below remain as session history but are no longer the primary lens):**
 
   Beauty 17/17 baseline preserved.
 
-- [ ] **S-2-bridge-4 — Fire-point: CALL + RETURN on user-defined fns**
-  Hook entry/exit of user-defined functions only (filter built-ins
-  via function-table flag).  Mirrors csn `DEFF18`/`DEFF20` and spl
-  `bpf09` predecessor + `retrn` body.
+- [x] **S-2-bridge-4 — Fire-point: CALL + RETURN on user-defined fns** (CLOSED 2026-04-27, snobol4dotnet @ `e5b4f05`)
+  Hook entry/exit of user-defined functions in
+  `Define.cs ExecuteProgramDefinedFunction`.  Three fire-points landed:
+    - `MonitorIpc.EmitCall(functionName)` after `AmpFunctionLevel++`,
+      before `ExecuteLoop` — mirrors csn `DEFF18` / spl `bpf09` predecessor.
+    - `MonitorIpc.EmitValue(returnVarName, returnVar)` after the `nextIndex`
+      switch, before `SystemStack.Push` — emits the return-slot VALUE record
+      so the wire sees VALUE-then-RETURN, matching csn `DEFF20` discipline.
+    - `MonitorIpc.EmitReturn(functionName, rtnTypeStr)` immediately after,
+      carrying `RETURN` / `FRETURN` / `NRETURN` as a NAME-typed value.
 
-  Validation probe equivalent to csn-bridge-b: DEFINE + SQR(7) →
-  7-record wire (VALUE-bind + CALL + VALUE-arg + ... + RETURN).
+  Builtin bypass path (early return before `UserFunctionTable.ContainsKey`
+  guard) is unaffected — fire-points only reach live user-DEFINE'd
+  functions.  No additional flag check needed; the existing dispatch
+  structure does the filtering.
 
-- [ ] **S-2-bridge-5 — Harness lane: `dot` participant**
-  Edit `one4all/scripts/test_monitor_3way_sync_step_auto.sh`:
-  - Add `dot` to recognized PARTICIPANTS set.
-  - Build dot launch command (env vars + `dotnet $SNO4 -bf $SNO < $STDIN`).
-  - Pass through per-participant timeout and FIFO setup.
+  rtnType promoted to local `rtnTypeStr` so the switch produces a single
+  string consumed by both `AmpReturnType` and `EmitReturn`.
 
-  Validation: `PARTICIPANTS="dot" bash test_monitor_3way_sync_step_auto.sh
-  /tmp/probe.sno` produces a clean trace.
+  Validation probe (probe.sno):
+  ```
+          DEFINE('SQR(N)')                         :(SQR_END)
+  SQR     SQR = N * N                              :(RETURN)
+  SQR_END
+          S = 'hello world'
+          S 'world' = 'there'
+          N = SQR(7)
+  END
+  ```
+  Wire (8 records, mirrors csn-bridge-b plus the bridge-2/4 split):
+    #0 VALUE  S    STRING(11)='hello world'   (Assign chokepoint)
+    #1 VALUE  S    STRING(11)='hello there'   (Assign chokepoint, replacement)
+    #2 CALL   SQR                              (bridge-4 EmitCall)
+    #3 VALUE  SQR  INTEGER(49)                 (Assign chokepoint inside body)
+    #4 VALUE  SQR  INTEGER(49)                 (bridge-4 EmitValue, return slot)
+    #5 RETURN SQR  STRING(6)='RETURN'          (bridge-4 EmitReturn)
+    #6 VALUE  N    INTEGER(49)                 (Assign chokepoint, callsite)
+    #7 END
+  Names sidecar: S\nSQR\nN\n (LF-terminated, no BOM).
+
+  **Smoke gate `scripts/test_smoke_dot_bridge_call.sh` PASS=7 FAIL=0:**
+    - dot exit clean
+    - CALL record present
+    - RETURN record present with correct type marker
+    - VALUE INTEGER(49) record present
+    - END record present
+    - CALL precedes RETURN (ordering)
+    - Names sidecar contains S, SQR, N
+
+  **Gates after S-2-bridge-4:**
+    - `test_smoke_dot_bridge.sh`         PASS=5 FAIL=0 (dormancy)
+    - `test_smoke_dot_bridge_value.sh`   PASS=5 FAIL=0 (live FIFO, VALUE)
+    - `test_smoke_dot_bridge_complex.sh` PASS=9 FAIL=0 (5-LHS-form coverage)
+    - `test_smoke_dot_bridge_call.sh`    PASS=7 FAIL=0 (CALL+RETURN)
+    - Beauty 17/17 PASS
+
+- [x] **S-2-bridge-5 — Harness lane: `dot` participant** (CLOSED 2026-04-27, one4all @ `76d979a7`)
+  Edited `one4all/scripts/test_monitor_3way_sync_step_auto.sh`:
+    - Added `dot` to recognized PARTICIPANTS set + `want_dot` flag.
+    - Added `SNO4_REPO` + `SNO4_DLL` env vars (defaults to
+      `/home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll`).
+    - Added prerequisite checks: `dotnet` command available + dll built.
+    - Added launch block with monitor env vars, `< $STDIN_SRC`, timeout,
+      and `-bf` for case-sensitive identifiers (matches csn/spl).
+    - Usage docstring updated with dot example.
+  Default PARTICIPANTS unchanged (`csn spl scr`).
+
+  **Validation per goal spec:**
+  ```
+  PARTICIPANTS="dot" bash test_monitor_3way_sync_step_auto.sh /tmp/probe.sno
+  ```
+  Probe: `DEFINE('SQR(N)') + S='hello world' + S 'world'='there' + N=SQR(7)`.
+  Result: `[ctrl] all reached END after 7 steps`, exit 0.
+
+  Beauty 17/17 PASS. All four dot bridge gates green
+  (PASS=5/5/9/7 across dormancy / value / complex / call).
 
 - [ ] **S-2-bridge-6 — End-to-end: csn + spl + dot on beauty self-host**
   ```bash
