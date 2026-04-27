@@ -447,32 +447,85 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
     beauty (pre-corpus-7041a14); current beauty md5s are different
     and tracked separately in the closing notes for SN-29.
 
-- [ ] **SN-26-bridge-coverage-m — record-ordering / control-flow
-  divergence at goto-to-bare-label statement.**  After -j closure,
-  the 2-way harness on `beauty.sno < beauty.sno` reaches step 882
-  cleanly, then diverges:
+- [ ] **SN-26-bridge-coverage-m — control-flow divergence in SPITBOL
+  caused by active-monitor IPC handshake (session #47, 2026-04-27).**
+
+  After -j closure, the 2-way harness on `beauty.sno < beauty.sno`
+  reaches step 882 cleanly, then diverges:
   ```
     spl #882: LABEL stno=INT=463
     scr #882: LABEL stno=INT=461
   ```
-  Last-agreed trail steps 877-881 show alternating LABEL events
-  at stnos 440, 441, 442, 443 (matching) followed by `VALUE indent
-  = STRING(120)='<120 spaces>'` (matching).  After that, SPITBOL
-  jumps to stno=463 while scrip jumps to stno=461 — divergent
-  control flow rather than divergent record ordering.
+  Last-agreed trail: ..., LABEL=440, LABEL=441, LABEL=442, LABEL=443,
+  VALUE indent = STRING(120)='<120 spaces>'.  Stmt 443 is
+  `indent = DUPL(' ',120) :go GenEnd` (in `Gen.inc`).  Stmt 461 is
+  `GenEnd` (bare label only).  Stmt 462 is `DEFINE('Qize(str)part')`.
+  Stmt 463 is `QizeWierd = ... :go QizeEnd`.  Expected flow after
+  stmt 443's `:(GenEnd)`: land on 461, fall through 462, then 463.
 
-  On the smaller probe2.sno repro the analogous pattern was
-  observed at step 806: SPITBOL fired LABEL stno=165 (a bare
-  label statement `end_pgm`) while scrip emitted VALUE OUTPUT
-  before the next LABEL.
+  **Root cause is NOT a bridge-emit asymmetry.** Confirmed via an
+  env-gated `[zysml] kvstn=N` printf inserted BEFORE `monitor_init()`
+  in `osint/monitor_ipc_runtime.c::zysml`, written to a fixed-path
+  log file:
 
-  Likely culprits to investigate:
-  (1) does scrip emit MWK_LABEL for bare label-only statements
-  reached via goto?  (2) is the goto-to-label landing on the
-  wrong STMT_t — e.g. landing on the previous statement's
-  trailing position?  (3) does empty-statement skip-logic in
-  `execute_program` (the `!s->label && !s->subject && ...` guard
-  at interp.c:4214) need updating to fire LABEL before skipping?
+  - **Plain run** (no monitor pipes set, same binary, same source,
+    same stdin): `zysml` is called for stnos in order
+    `…, 442, 443, 461, 462, 463, 475, 476, 483, …` — correct flow.
+  - **Harness run** (MONITOR_READY_PIPE / MONITOR_GO_PIPE set, controller
+    blocking on every record): `zysml` is called for stnos
+    `…, 442, 443, 463, 464, …` — **stnos 461 and 462 are silently
+    skipped at the `stmgo` level**, before any wire emission can
+    happen.
+
+  Same SIL, same compiled binary, deterministic input, but two
+  different paths through `stmgo` / `b_vrg`.  The divergence is
+  caused by something that changes when the C-side `emit_record_raw`
+  actually does work (writev + read on FIFOs) versus its early-return
+  path (`if (g_ready_fd < 0) return;`).
+
+  **Hypotheses for next session:**
+  1. **Register clobber across the syscall thunk for `sysml`.**
+     `int.asm syscall` macro saves/restores rcx, rbx, rdx, rdi, rsi,
+     r12, r13, xmm12.  The `sysml` thunk (line 848) is just
+     `syscall zysml,42` — unlike `sysmv` (line 833) which precedes
+     with `mov m_word [reg_xs],rsp`.  If the SIL `stmgo` code path
+     after `jsr sysml` reads any register the thunk doesn't preserve
+     across the active-IPC code path's deeper call chain
+     (writev → glibc → kernel → read), control flow shifts.
+  2. **Compsp/osisp stack switch interaction.** `syscall` does
+     `mov compsp,rsp; mov rsp,osisp; and rsp,~0xf`.  When the C side
+     blocks on `read()` from go-fifo, glibc may use additional stack
+     and clobber state that on quick-return (early-return path) does
+     not get touched.  Check whether anything below `osisp` in the
+     C stack frame is reachable from SPL's saved-register slots.
+  3. **`_rc_` declared as `dd` (4 bytes) but written/dec'd as
+     `m_word` (8 bytes).** Following padding before
+     `align cfp_b` gets clobbered.  Probably benign but verify.
+
+  **Diagnostic technique that proved the root cause** (re-applicable
+  next session): in `zysml`, before `monitor_init()`:
+  ```c
+  if (getenv("SPL_TRACE_LABEL")) {
+      FILE *tf = fopen("/tmp/spl_zysml.log", "a");
+      if (tf) { fprintf(tf, "[zysml] kvstn=%ld\n", (long)stno); fclose(tf); }
+  }
+  ```
+  Run beauty plain (`SPL_TRACE_LABEL=1 sbl -bf $BEAUTY/beauty.sno
+  < $BEAUTY/beauty.sno`) and via harness (`PARTICIPANTS="spl scr"
+  SPL_TRACE_LABEL=1 STDIN_SRC=$BEAUTY/beauty.sno bash
+  scripts/test_monitor_3way_sync_step_auto.sh $BEAUTY/beauty.sno`),
+  diff the two `/tmp/spl_zysml.log` snapshots around line 480.
+  RULES.md: revert before any commit.
+
+  **Probes that did NOT reproduce in isolation** (still useful as
+  controls):
+  - `probe_bare.sno` (`a=1 :(L1) / b=99 / L1 / c=3 / END`) — bare
+    label LABEL emission agrees on both sides.
+  - `probe_define7.sno` (`a=1:(LL) / DEFINE / fnbody / LL / DEFINE
+    :(BarEnd) / fnbody / BarEnd / c=5 / OUTPUT / END`) — full
+    agreement, including LABEL for bare LL and BarEnd.
+  Beauty-specific factor not yet bisected — try shrinking beauty
+  toward a minimum reproducer that triggers the harness-only skip.
 
   **Gate:** 2-way harness on `beauty.sno < beauty.sno` advances
   past step 882 to clean MWK_END or to a divergence rooted in a
@@ -571,8 +624,19 @@ the trace" — until -h, there is no trustable divergence point.
 - corpus @ `7041a14`
 - x64 @ new HEAD (post session #45)
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-m (record-ordering /
-  control-flow divergence at goto-to-bare-label statement).
+- active step → SN-26-bridge-coverage-m (control-flow divergence in
+  SPITBOL caused by active-monitor IPC handshake — NOT a bridge-
+  emit asymmetry as previously hypothesized).  Session #47 confirmed
+  via env-gated `[zysml] kvstn=N` printf placed BEFORE
+  `monitor_init()` in `osint/monitor_ipc_runtime.c::zysml`,
+  written to `/tmp/spl_zysml.log`: same SIL, same source, same
+  stdin, but `kvstn` sequence differs based on whether monitor
+  pipes are open.  Plain run goes 442 → 443 → 461 → 462 → 463
+  (correct); harness run goes 442 → 443 → 463 (skips 461 and 462).
+  Root cause must be in the `syscall` thunk path (register clobber
+  / stack switch interaction with active write+read) since the
+  early-return path (`if (g_ready_fd < 0) return;`) of
+  `emit_record_raw` does not exhibit the divergence.
   -j CLOSED session #46: linear-stno bug in `execute_program` —
   `int stno = 0; ++stno` was a linear execution counter, made
   `&STNO` and MWK_LABEL stno wrong on backward gotos.  Added
@@ -582,6 +646,45 @@ the trace" — until -h, there is no trustable divergence point.
   306 → 882; on probe2.sno 306 → 806.
   -l CLOSED session #45; -k CLOSED session #44; -g CLOSED session #43;
   -i lifted to GOAL-CSN-FENCE-FIX; -h unblocked once -m lands.
+
+**Session #47 (2026-04-27) — SN-26-bridge-coverage-m diagnosis:**
+Disproved the hypothesis from session #46 that scrip emits LABEL
+events SPITBOL doesn't.  Probes (`probe_bare.sno`,
+`probe_define7.sno`) showed full agreement on bare-label LABEL
+emission and DEFINE-with-goto LABEL emission in isolation.  The
+beauty-specific divergence at step 882 (spl=463, scr=461) is
+caused by SPITBOL ITSELF taking different control flow when the
+monitor wire is active vs idle.  Plain run: `kvstn` sequence
+includes 461 and 462 (correct flow `:(GenEnd)` → 461 → 462 → 463).
+Harness run: `kvstn` jumps 443 → 463, skipping 461 and 462 entirely
+at the `stmgo` level — not at the bridge-emit level.
+
+The active-monitor codepath does writev → wait_ack(read).  The
+idle codepath early-returns.  Something in the syscall thunk
+register save/restore (`int.asm` lines 624-665) or stack switch
+(`compsp` ↔ `osisp`) interacts with active write/read to alter
+SIL register state SPITBOL relies on across `jsr sysml` returns.
+Notable: the `sysml` thunk at line 848 is `syscall zysml,42`
+without the `mov m_word [reg_xs],rsp` preamble that `sysmv`
+(line 833) and `sysmw` (line 856) have.  Also `_rc_` is declared
+`dd` (4 bytes) at line 245 but written as `m_word` (8 bytes) at
+line 639; padding before `align cfp_b` gets clobbered (likely
+benign but verify).
+
+**Diagnostic technique** (re-applicable; revert before commit per
+RULES.md):
+```c
+/* in zysml, before monitor_init() */
+if (getenv("SPL_TRACE_LABEL")) {
+    FILE *tf = fopen("/tmp/spl_zysml.log", "a");
+    if (tf) { fprintf(tf, "[zysml] kvstn=%ld\n", (long)stno); fclose(tf); }
+}
+```
+Compare logs from plain and harness runs.  Around line 480 (just
+after `kvstn=443`) the divergence appears.
+
+No source file changes committed this session — diagnostic only.
+Gates: Smoke=7, Broker=49 preserved.
 
 **Session #46 (2026-04-27) — SN-26-bridge-coverage-j root cause:**
 The prior hypothesis (beauty parser `Reduce(snoStmt, 7)` dropping
