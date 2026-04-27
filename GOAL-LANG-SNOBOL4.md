@@ -230,12 +230,72 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   was masking the bug because the stub never invokes the broken
   pattern opcode.  SPITBOL x64 runs the new beauty.sno cleanly
   (646 lines).
-  Bug location candidates: `lib/pat.c` (pattern matcher),
-  `v311.sil` FENCE(P) opcode emission (commits `7654cda` /
-  `5990456`).  Investigation should reduce to a smaller repro than
-  beauty.sno (probe `FENCE(p)` under deep recursion / heavy
-  backtracking), then patch the source-of-truth (`v311.sil`,
-  regenerate via `genc.sno`, per RULES.md "Source-of-truth").
+
+  **Session #37 progress (NOT closed — bug still reproduces):**
+  - **Tiny repro found.** Single SNOBOL4 statement as input
+    (`                  ppStop         =  ARRAY('1:4')` + `END`)
+    fed to `beauty.sno` reproduces the segfault reliably. No need
+    for the full 646-line beauty self-host to trigger it.
+  - **Diagnostic infrastructure added.** `lib/init.c` now has an
+    env-gated `CSN_NO_SEGV_HANDLER` bypass — when set, the SEGV
+    handler is not installed, so gdb gets a clean backtrace
+    instead of csnobol4's friendly "Caught signal 11" error
+    message.  Use as: `CSN_NO_SEGV_HANDLER=1 gdb --args
+    /home/claude/csnobol4/snobol4 -bf -P64k -S64k beauty.sno
+    < /tmp/tiny.in`.  Always-off in normal runs (no perf cost).
+  - **Crash location pinned:** `isnobol4.c:11468` in `L_SALT1`:
+    `D(LENFCL) = D(D_A(PDLPTR) + 3*DESCR);`  At crash,
+    `res.pdlptr->a.i = 192` (= 12×DESCR), `res.pdlhed->a.i = 96`
+    (= 6×DESCR) — both descriptors hold tiny integer offsets,
+    not real PDL addresses.  PDLEND remains valid.  Trace shows
+    PDLPTR was valid at the previous L_SALT1 hit; between hits
+    something replaces both PDLPTR and PDLHED with offset-like
+    values.
+  - **One latent bug found and fixed (necessary, not sufficient):**
+    `FNCC` PCOMP mistranslation in `isnobol4.c` and `snobol4.c`.
+    The hand-edit at SN-30/S-9 fix #3 emitted `if equal goto SCOK`
+    (skip seal) but the SIL `PCOMP PDLPTR,PDLHED,FNCC1,FNCC1,INTR13`
+    means **less → INTR13, equal → FNCC1, greater → FNCC1** per
+    `genc.sno` `DOCMP3` macro arg order `(X,Y,G,E,L)`.  Verified
+    by running `./snobol4 -b genc.sno --with BLOCKS v311.sil >
+    /tmp/snobol4.c2` — the regenerated FNCC has `else goto
+    L_FNCC1` (no equal-to-SCOK shortcut).  Fix applied to both
+    `isnobol4.c` and `snobol4.c`.  All 10 tests in
+    `test/fence_function/` still PASS.  Beauty still segfaults,
+    so there is a **second** bug.
+  - **Bootstrap path confirmed.** `csnobol4` itself bootstraps
+    its own regen: `./snobol4 -b genc.sno --with BLOCKS v311.sil
+    > snobol4.c2`.  SPITBOL cannot directly run genc.sno because
+    line 850 uses CSNOBOL4's `LABEL()` extension (SPITBOL has no
+    `LABEL` builtin → Error 22).  The regen still does NOT emit
+    FNCP/FNCA..FNCD as top-level functions (latent
+    `SN-26-csn-regen-fix`); they remain inline `L_FNCP:` etc., so
+    direct C surgery is still required to keep `data_init.h`
+    function-pointer references resolving.
+  - **Hardware watchpoint paradox.** A gdb hardware watchpoint on
+    `res.pdlptr->a.i` set after init (with verified valid value
+    at `0x...170`) catches **zero writes**, yet at the crash
+    `res.pdlptr->a.i == 192`.  Either gdb dropped writes, or the
+    macro chain at the read site computes 192 from somewhere
+    other than `res.pdlptr`.  Need to investigate next session.
+
+  Bug location candidates (refined): the `L_SALT1` PDL pop logic
+  is reading from a wrong base.  Possibly a recursive STARP
+  re-entry where the inner SCIN succeeded with a residual seal
+  on the PDL, and the outer SALT walk-back follows a stale
+  saved cursor that points into a now-stale PDL slot.  The fix
+  is likely in either `STARP` save/restore (`PUSH MAXLEN/PATBCL/
+  PATICL/XCL/YCL` does not include PDLPTR — by design — but
+  the corruption appears after a STARP-frame return) or in
+  `FNCB`'s POP order (the inner-fail path).  More tracing
+  needed.
+
+  Investigation should patch the source-of-truth (`v311.sil`,
+  regenerate via `genc.sno`, per RULES.md "Source-of-truth"),
+  but the FNCC fix landed in this session is on the generated C
+  pending the regen-fix.  Next session: resolve the watchpoint
+  paradox (instrument both `&res.pdlptr` and the macro-derived
+  `D_A(PDLPTR)` evaluation site to pinpoint write).
   Bypass for now: re-add FENCE.inc from the canonical
   `programs/include/` path on a per-test basis — but this is a
   WORKAROUND, not the fix; -h cannot close while csn is in this
@@ -353,7 +413,7 @@ the trace" — until -h, there is no trustable divergence point.
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- csnobol4 @ `52bee67`
+- csnobol4 @ `b01b47b`
 - active step → SN-26-bridge-coverage-i (csn FENCE(P) builtin
   segfault — runtime stability blocker for -h) PARALLEL with
   SN-26-bridge-coverage-g (scrip subscript-set fire-point —
