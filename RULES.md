@@ -12,6 +12,31 @@ REPO or Goal file first. Training data is wrong. Verify before asserting.
 
 ---
 
+## Read the Goal's spec sections, not just the active rung
+
+⛔ A Goal file's active rung is the **next step**.  It is not the
+**destination**.  Before working on any active rung, read every
+section in that Goal file that describes the system — top-of-file
+goal statement, "Done when", "Architecture reminder", protocol
+sections, invariants — and walk the closed-rung pointer trail.
+The active rung is one step inside a system whose shape is
+described elsewhere in the Goal file.
+
+If a section names properties of the deliverable (synchronous IPC,
+full event coverage, single wire protocol, no sidecar files,
+symmetric coverage across runtimes, etc.), those properties are
+binding on every sub-rung that touches that subsystem.  An agent
+that observes a gap between current state and stated properties
+must treat that gap as work to be done within the existing plan,
+not as a new architectural shift to be discussed.
+
+The closed-rung pointer trail is part of the picture.  A long list
+of closed sub-rungs converging on a single subsystem describes the
+shape of that subsystem; an agent who cannot see the destination
+in the trail has missed it.
+
+---
+
 ## Commit identity — always Lon, never Claude
 
 ```bash

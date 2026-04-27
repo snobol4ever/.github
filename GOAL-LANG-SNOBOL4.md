@@ -527,47 +527,199 @@ as scrip does today.
   bootstrap/sbl.{asm,lex} and bootstrap/err.asm updated so fresh
   clones can build.
 
-- [ ] **SN-26-bridge-coverage-c — 3-way validation on beauty
-  self-host** — With both oracles' bridges now firing on
-  `.`-captures, re-run the 3-way auto harness:
-  ```bash
-  BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-  cd /home/claude/one4all
-  STDIN_SRC=/tmp/asg.sno MONITOR_TIMEOUT=60 \
-      bash scripts/test_monitor_3way_sync_step_auto.sh \
-      $BEAUTY/beauty.sno
-  ```
-  Expected: the first DIVERGE no longer appears at step 1 on
-  `nul = '\x00'`.  All three participants now agree through the
-  `&ALPHABET ... . nul/bs/ht/...` chain in `global.inc`.  The
-  controller advances to a step where scrip and the oracles
-  genuinely disagree on the value of a real assignment.  Read
-  **only** that divergence record's last-agree + first-disagree
-  pair.  This is the canonical hand-off point to SN-26c-parseerr-h
-  sub-h2.
+- [~] **SN-26-bridge-coverage-c — 3-way validation on beauty
+  self-host** — Partially run 2026-04-27 session #33.  The
+  apples-to-apples 3-way harness on `STDIN_SRC=/tmp/asg.sno`
+  reproduces session #32's step 23 outcome (csn/scr agree, spl
+  diverges on tbblk-typing gap).  Switching to 2-way `csn scr`
+  on `STDIN_SRC=$BEAUTY/beauty.sno` reveals the **next coverage
+  asymmetry**: scrip's bridge has no fire-point on `subscript_set` /
+  `subscript_set2`, so every `UTF[k1 k2] = '...'` slot store in
+  `global.inc` is invisible to the wire.  csn fires `<lval>`
+  records (per SN-26-csn-bridge-c) for each slot store; scrip
+  silently advances.  First DIVERGE at step 24: csn emits
+  `VALUE STRING(14)='NO_BREAK_SPACE'`, scrip emits `VALUE ARRAY`
+  (the next plain-var assignment, `UTF_Array = SORT(UTF)` from
+  global.inc:158).  **Closing -c is now reframed**: the work shifts
+  from "validate apples-to-apples on beauty" to "rebuild the IPC
+  protocol so the comparison is unambiguous in the first place" —
+  see SN-26-bridge-coverage-e..h below.
 
-- [ ] **SN-26-bridge-coverage-d — Hand sub-h2 the result** — Once
-  the canonical divergence point is known from sub-rung -c above,
-  re-open SN-26c-parseerr-h sub-h2 with a clean ground-truth
-  record pair and proceed to fix the runtime.  Session #29's
-  forensic hint (`Reduce('..', DT_FAIL)` vs `Reduce('..', EXPRESSION)`,
-  likely caused by E_VAR fallback not covering DT_E thaw inside
-  NM_CALL) should be **verified** against the controller's
-  divergence record before any code change — RULES.md "read the
-  divergence point, not the trace".
+- [~] **SN-26-bridge-coverage-d — Hand sub-h2 the result** —
+  Deferred behind SN-26-bridge-coverage-e..h.  Cannot proceed
+  until -e..-g land; current wire ambiguity
+  (sidecar-dependent name resolution, missing label/flow events,
+  asymmetric lvalue coverage) means any divergence the harness
+  reports today is suspect as a coverage artifact rather than a
+  real runtime bug.
+
+---
+
+### SN-26-bridge-coverage — finishing the monitor spec (continued, session #33, 2026-04-27)
+
+The Monitor System section above is the spec.  Sub-rungs -a and -b
+brought csn and spl up to scrip's existing coverage on
+`.`-captures and value-stores.  Sub-rungs -e..-h finish the spec:
+streaming intern on the wire (drop sidecars), MWK_LABEL events,
+symmetric lvalue coverage including subscript-set, then validate
+on beauty self-host.  -c and -d as originally written are subsumed
+by -h.
+
+**Three structural gaps remain between current state and spec
+(observed during session #33 diagnostic run on `beauty.sno <
+beauty.sno`):**
+
+1. **Sidecar-dependent name resolution.** Spec calls for wire
+   content to be authoritative.  Current controller resolves
+   `name_id → name_string` from per-participant `*.names`
+   sidecars written at atexit; race conditions and signal-default
+   terminations leave sidecars empty (in #33's run, `scr.names`
+   was 0 bytes while the controller still reported 401 steps of
+   "agreement" — comparing `(unknown)==(unknown)`).
+
+2. **Missing label/flow events.** Spec calls for MWK_LABEL on
+   every STNO advance.  Wire format defines four kinds today
+   (VALUE, CALL, RETURN, END); MWK_LABEL is in the latent list
+   from session #28 but never landed.  Without label-flow,
+   divergence reports can name the diverging value but not
+   localize *which statement* caused it.
+
+3. **Asymmetric lvalue coverage.** Spec calls for identical
+   coverage across all three runtimes.  Current state: csn fires
+   on five LOCAPT-TVALL sites + array/table slot stores; spl
+   fires on asign/asinp; scrip fires on natural-var assigns and
+   `.`-captures only — *not* on subscript-set.  Session #33's
+   step-24 divergence on `UTF[k1 k2] = 'NO_BREAK_SPACE'` is this
+   gap.
+
+**Sub-rungs (sequenced — work in order):**
+
+- [ ] **SN-26-bridge-coverage-e — Wire format: streaming intern**
+  Extend the wire record format in `scripts/monitor/monitor_wire.h`
+  so a name's first emission embeds the string inline; subsequent
+  emissions carry the id only.  Header gains an "embed-name" flag
+  bit; new optional trailer carries `name_len + name_bytes` when
+  flag set.  Backward-compat path: if all participants advertise
+  the new flag, sidecars are unused.
+  - Update `monitor_sync_bin.py` to maintain per-participant
+    intern tables built *from the wire* during the lockstep loop;
+    delete sidecar reads from the comparison hot path.
+  - Update csn's `monitor_ipc_runtime.c` `emit_record_raw` to set
+    embed-name flag on first emission of each interned name.
+  - Update spl's `osint/monitor_ipc_runtime.c` symmetrically.
+  - Update scrip's `runtime/x86/snobol4.c` `mon_send_bin`
+    symmetrically.
+  - Delete `MONITOR_NAMES_OUT` env handling and `mon_at_exit`
+    sidecar dump from all three runtimes (atexit can still emit
+    `MWK_END` — that's load-bearing).
+  - Update harness shell script to stop creating `*.names` paths.
+
+  **Gate:** existing smoke gates (csn-bridge-a/b/c, spl-bridge,
+  spl-bridge-d, auto-binary) all PASS after rewrite — same wire
+  content, different on-wire encoding.
+
+- [ ] **SN-26-bridge-coverage-f — Add MWK_LABEL events**
+  Add `MWK_LABEL` to `monitor_wire.h` (kind value: 5).  Fires on
+  STNO advancing — i.e., every statement transition, not just
+  DEFINE'd labels.  All three runtimes emit one MWK_LABEL per
+  statement entry.  Carries `name_id` = label string if the
+  statement is labeled, or empty-string-id if unlabeled.
+  - csn: fire-point in `v311.sil` at the STNO advance site
+    (post-statement decode, pre-execution).  Hand-apply to
+    generated C until SN-26-csn-regen-fix is closed.
+  - spl: fire-point in `sbl.min` at the analogous STNO advance
+    in the interpreter loop.  Bootstrap regen via `make makeboot`.
+  - scrip: fire-point in `runtime/x86/stmt_exec.c` at
+    `exec_stmt` entry.
+
+  **Gate:** new smoke `test_smoke_sn26_label_flow.sh` PASS=1 on
+  a 3-statement probe that should produce 3 MWK_LABEL records
+  (one per statement).
+
+- [ ] **SN-26-bridge-coverage-g — Symmetric lvalue coverage**
+  Bring scrip's lvalue fire-points into parity with csn/spl.
+  scrip currently misses subscript-set (`subscript_set` /
+  `subscript_set2` in `runtime/x86/snobol4_pattern.c`).  Land
+  the fire-point at the **callers in interp.c** (line 691-692,
+  708, 2734-2736, 2751-2753, 4372-4374, 4431-4433, 4617-4618)
+  rather than inside `subscript_set` itself — the caller has
+  the base expression in scope (`s->subject->children[0]->sval`
+  when `kind == E_VAR`), so the wire record carries the **real
+  base name** like `"UTF"`, not a `<lval>` sentinel.  Discussion:
+  the latent `<lval> sentinel cleanup` note in PLAN endorsed
+  suppression as an alternative; landing the real base name is
+  strictly better — it's what `comm_var` already does for
+  `UTF = TABLE()`, so the wire shows `"UTF"` getting modified at
+  every step that touches it (table init + every slot store).
+  - Same treatment for SM-run path in `sm_interp.c` and
+    `sm_codegen.c` if subscript-set fires through those.
+  - Audit: keyword assignment (`&keyword = X`), function-arg
+    binding at DEFINE-call entry, DATA/DEFINE/OPSYN/FIELD
+    identifier creation/rename — per "SN-26-bridge-coverage-extras"
+    latent note.  These may already be covered; verify via
+    instrumentation probe before adding fire-points.
+
+  **Gate:** new smoke `test_smoke_sn26_scr_subscript_bridge.sh`
+  PASS=1 on a probe doing `a<1>='x' / a<2>='y' / d<'k'>='z'` —
+  expect 3 VALUE records with names `a`, `a`, `d` respectively.
+
+- [ ] **SN-26-bridge-coverage-h — Validate apples-to-apples**
+  With -e, -f, -g landed, re-run the 3-way harness on
+  `beauty.sno < beauty.sno`.  Expected: harness advances to a
+  divergence rooted in **runtime semantic disagreement**, not
+  protocol/coverage artifacts.  Read the last-agree +
+  first-disagree pair only.  Hand off to SN-26c-parseerr-h
+  sub-h2 with that pair as ground truth.
+
+  **`is.inc` interaction (must be addressed during -h):**
+  `is.inc` defines `IsSpitbol()` / `IsSnobol4()` using
+  `IDENT/DIFFER(.NAME, 'NAME')`.  Per RULES.md DATATYPE table,
+  this discriminator is dialect-dependent and per RULES.md
+  "is.sno is invalid" note, it is "no longer valid" — yet
+  beauty calls these predicates to gate behavior.  In lockstep,
+  the predicates are *designed* to return different answers per
+  runtime, which means label-flow and call-sequence diverge from
+  every `IsSpitbol()` / `IsSnobol4()` site even when output
+  ultimately converges (md5 `408fc788ca2ef425fc1f87e26d45a7a5`
+  matches across CSN and SPL despite the predicates going
+  different ways).  Decision needed (Lon):
+  (1) accept that `is.inc` divergences are protocol-expected
+      and the harness ignores them by skipping past matched
+      CALL/RETURN pairs that bracket dialect-specific branches;
+  (2) migrate beauty off `is.inc` to a runtime-derived token
+      check (per RULES.md DATATYPE portable-tests pattern), so
+      every runtime takes the same branch and lockstep stays
+      aligned;
+  (3) close SN-27 first (UPPERCASE DATATYPE on x64), then
+      `IsSnobol4()` succeeds uniformly on csn/spl/scr and the
+      problem disappears for beauty.  Dotnet remains the outlier
+      but isn't part of the 3-way harness.
+
+  **Gate:** Smoke=7, Broker=49, all bridge smokes, plus
+  `test_monitor_3way_sync_step_auto.sh $BEAUTY/beauty.sno`
+  with `STDIN_SRC=$BEAUTY/beauty.sno` reaching at least
+  step 1000 before DIVERGE (or running clean to MWK_END).
+
+**Dependencies:** -e blocks -f blocks -g blocks -h.  -h decision
+on `is.inc` interaction may pull SN-27 forward.
+
+**Estimated session count:** 4 — one per sub-rung.  -e is the
+largest (3 runtimes + harness); -f and -g are smaller; -h is
+analysis + decision + final validation.
 
 **Gate after each sub-rung:** Smoke=7, Broker=49 plus the new and
-existing bridge smoke scripts (csn-bridge-a=1, csn-bridge-b=1,
-csn-bridge-c=1, spl-bridge=1, spl-bridge-d=1, auto-binary=1).
+existing bridge smoke scripts.  Sub-rung -e adds:
+test_smoke_sn26_label_flow.sh (after -f),
+test_smoke_sn26_scr_subscript_bridge.sh (after -g).
 
-**Dependencies:** None open.  This rung sequences before any further
-sub-h2 runtime work.
+**Dependencies:** None open at the rung level.  Internal sequencing:
+-e → -f → -g → -h.  Sub-rung -h may pull SN-27 forward depending
+on the `is.inc` decision (see -h notes).
 
-**Estimated session count:** 2 (one each for -a and -b, then -c and
--d in a single follow-up session).  Both -a and -b are
-scaffolding-equivalent in shape to existing landed work
-(SN-26-csn-bridge-a-xcallc, SN-26-spl-bridge-b) and dominated by
-validation rather than new code.
+**Estimated session count:** 4 (one per sub-rung -e..-h).  Original
+estimate of 2 sessions for -c/-d was wrong because the underlying
+protocol gap was discovered during -c work in session #33; -e..-h
+replace that work.
 
 ---
 
@@ -722,30 +874,57 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #32:**
-- one4all @ `5ffd3af7` — `test_smoke_sn26_spl_bridge_d.sh` permanent gate
+**HEADs after 2026-04-27 session #33:**
+- one4all @ `5ffd3af7` — unchanged (no code landed in #33; reverted
+  `subscript_set` lvalue patch — see session #33 outcome)
 - corpus @ `fab43a1` — unchanged
-- x64 @ `3cd2dcc` — asign+asinp fire-points + spl_vrblk_name ASCII guard + bootstrap regen
+- x64 @ `3cd2dcc` — unchanged
 - csnobol4 @ `ad993fe` — unchanged
-- .github @ this commit — SN-26-bridge-coverage-b closed; active step → SN-26-bridge-coverage-c
+- .github @ this commit — SN-26-bridge-coverage-c reframed; active
+  step → SN-26-bridge-coverage-e (streaming intern on the wire)
 
-**Gates (verified 2026-04-27 session #32):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · csn-bridge-c smoke **1** · spl-bridge smoke **1** · **spl-bridge-d smoke 1 (new)** · auto-binary smoke **1**.
+**Gates (verified 2026-04-27 session #33):** Smoke **7** · Broker
+**49** (unchanged from #32).  Other bridge smokes not re-run in #33;
+last verified state from #32 still applies.
 
-**SN-30 invariant:** beauty.sno < beauty.sno md5 still `408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`.
+**SN-30 invariant:** beauty.sno < beauty.sno md5 still
+`408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf` (no oracle-side
+changes in #33).
 
-**Session #32 outcome:** Landed SN-26-bridge-coverage-b — two
-fire-points in sbl.min (`asign:asg01` line 17596, `asinp` body line
-17853) + ASCII guard in `spl_vrblk_name`.  Critical implementation
-discovery: natural variables use `*vrval` offset (16 bytes), not
-`*vrsto` (8 bytes) — fire-points need `sub xr,*vrvlo` to back-step
-from vrval to vrsto field before `jsr sysmv`.  Initial probe before
-this fix showed sidecar `S` + `<lval>` instead of `S` + `captured`;
-after fix, names match expected.  3-way auto harness on
-`beauty.sno < /tmp/asg.sno` advances from step 1 → **step 23**
-before DIVERGE — first 22 steps now agree across csn/spl/scr.
-Step 23 divergence (spl `UNKNOWN` vs csn/scr `TABLE`) is a
-pre-existing tbblk-typing gap in `spl_block_to_wire`; not blocking,
-captured as latent.  Side-closed SN-26-spl-bridge-c automatically.
+**Session #33 outcome:** Diagnostic session, no code landed.
+
+1. Ran 3-way harness on `STDIN_SRC=/tmp/asg.sno` per
+   SN-26-bridge-coverage-c plan — reproduced session #32's step-23
+   divergence (csn/scr agree, spl tbblk-typing gap).
+
+2. Switched to 2-way `csn scr` on
+   `STDIN_SRC=$BEAUTY/beauty.sno` — DIVERGE at step 24:
+   csn `VALUE STRING(14)='NO_BREAK_SPACE'` (UTF[k]=v slot store
+   via `<lval>` sentinel from SN-26-csn-bridge-c) vs scr
+   `VALUE ARRAY` (next plain-var assign `UTF_Array=SORT(UTF)`).
+   Diagnosed as **scrip bridge missing fire-point on subscript_set
+   / subscript_set2** — exactly the asymmetric-coverage gap the
+   Monitor System spec rules out.
+
+3. Tried in-helper fix (`comm_var("<lval>", val)` inside
+   `subscript_set` and `subscript_set2`).  Smoke=7, Broker=49
+   green; harness advanced step 24 → step 402.  **Reverted** —
+   `<lval>` sentinel loses identity.  The right fix lands in
+   sub-rung -g, emitting from `interp.c` callers where the base
+   variable's name is in scope, so wire records carry real names
+   like `"UTF"`.
+
+4. Confirmed three structural gaps between current state and
+   Monitor System spec (sidecar-dependent names, missing
+   MWK_LABEL, asymmetric lvalue coverage).  These map 1:1 to
+   sub-rungs -e, -f, -g.  None of this is new — the gaps were
+   captured across sessions #15–#32 in incremental form (latent
+   list, closed-rung pointers); session #33 named them as the
+   sequenced finishing work.
+
+5. **HQ fix landed** (this commit): added "Read the Goal's spec
+   sections, not just the active rung" principle to RULES.md so
+   future sessions read the destination, not just the next step.
 
 ---
 
