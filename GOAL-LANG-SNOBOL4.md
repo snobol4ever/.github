@@ -246,6 +246,97 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   git log.  This sub-rung is no longer a blocker for SCRIP work
   per the 2026-04-27 oracle pivot — see top-of-file note.
 
+- [x] **SN-26-bridge-coverage-k — LABEL stno numbering disagreement
+  on beauty.** **CLOSED session #44.** Two distinct bugs were both
+  fixed in scrip:
+
+  **Bug 1 — blank lines not parsed as statements.** `snobol4.l:113`
+  consumed blank lines without emitting `T_STMT_END`, so the parser
+  never created an empty STMT_t for them. SPITBOL/CSNOBOL4 (and the
+  Green Book / Griswold spec) treat blank lines as empty statements
+  that advance &STNO. Fix: blank-line lex rule now returns
+  T_STMT_END.  `unlabeled_stmt: opt_subject opt_repl opt_goto
+  T_STMT_END` already accepts the all-empty case, so no grammar
+  change.
+
+  **Bug 2 — `&STNO` was aliased to `kw_stcount`.**
+  `runtime/x86/snobol4.c:2825` returned `INTVAL(kw_stcount)` for
+  `&STNO` — so `&STNO` and `&STCOUNT` were the same variable.
+  Fix: added `kw_stno` global; `execute_program` updates it on
+  every iteration; the keyword read returns `INTVAL(kw_stno)`.
+  `&STCOUNT` (executed-stmts counter) is unchanged — the empty-stmt
+  path skips `comm_stno()` so `kw_stcount` doesn't bump for blanks.
+
+  **Verification:**
+  - probe `a='A' / blank / b='B' / OUTPUT &STNO &STCOUNT`:
+    SPITBOL stno=4 stcount=3, scrip stno=4 stcount=3 ✓
+  - 3 blanks: SPITBOL stno=6 stcount=3, scrip stno=6 stcount=3 ✓
+  - no blanks: scrip stcount=3 ✓ (no regression)
+  - 2-way harness on `beauty.sno < "  a = 1"` advances cleanly
+    from step 26 (was DIVERGE on LABEL stno) to step 49 (next real
+    divergence — sub-rung -l).
+  - All LABEL stnos in trail (23, 24, 25, 27, 29) match SPITBOL
+    exactly; both runtimes skip 22, 26, 28 (blank stmts).
+
+  **Files touched:**
+  - `src/frontend/snobol4/snobol4.l` (blank-line returns T_STMT_END)
+  - `src/frontend/snobol4/snobol4.lex.c` (regenerated)
+  - `src/runtime/x86/snobol4.h` (kw_stno extern)
+  - `src/runtime/x86/snobol4.c` (kw_stno definition, &STNO read fix)
+  - `src/driver/interp.c` (empty-stmt detection in execute_program;
+    kw_stno update on real-stmt path)
+
+  **Gates:** Smoke=7, Broker=49.
+
+- [ ] **SN-26-bridge-coverage-l — SPITBOL lvalue name fix at
+  asign/asinp fire-points.** Session #44 2-way harness with
+  `MONITOR_SOFT_LABEL=1` on `beauty.sno < "  a = 1"` reaches step 49,
+  the first store into `UTF[CHAR(194) CHAR(160)] = 'NO_BREAK_SPACE'`.
+  Values agree (`STRING(14)='NO_BREAK_SPACE'`); names diverge:
+  SPITBOL `VALUE ss = ...`, scrip `VALUE UTF = ...` (correct, our -g
+  enrichment).
+
+  **Root cause:** `osint/monitor_ipc_runtime.c:spl_vrblk_name()` runs
+  the printable-ASCII filter on a "fake vrblk" synthesized by the
+  asign/asinp fire-points from `xl - vrsto_offset` when xl is mid-arblk
+  / mid-tbblk during a subscript store. The bytes at the fake vrblk's
+  vrlen/vrchs slots happen to be `len=2, "ss"` for `UTF[k]=...` —
+  passes validation, gets emitted as the variable name. The filter
+  cannot distinguish a real 2-char variable from junk based on bytes
+  alone — the call site is the only place that knows the path was
+  a subscript store.
+
+  **Fix path (architectural, asign/asinp side):** at the SIL level in
+  `sbl.min`, the asign/asinp fire-points already know whether they
+  reached `asg01` via the natural-variable path (xr = real vrblk) or
+  via an aggregate-element path (xl = mid-arblk/mid-tbblk, fake vrblk
+  synthesized). Pass an explicit flag to a new entry point (e.g.
+  `zysmv_lval` for "this is a subscript store, name is `<lval>`")
+  separate from `zysmv` (natural store, real name). The current
+  conflated entry point is the bug — the C-side validator is doing
+  guesswork the SIL caller has the answer to.
+
+  Alternative (suppress entirely): the parent's existence is already
+  recorded at `a = ARRAY(...)` time. A subscript store's individual
+  emission is decorative; suppressing it on the SPITBOL side would
+  match the cleaner-than-`<lval>` design suggested in the latent
+  follow-up note. Trade-off: scrip currently DOES emit the collection
+  name on subscript stores (-g), so suppression on SPITBOL would
+  introduce an asymmetry the controller would need to absorb (extend
+  `<lval>` wildcard to "any name when other side suppressed"). Pick
+  the explicit-flag path for symmetry with -g.
+
+  **Gate:** 2-way harness with current `MONITOR_SOFT_LABEL=1` reaches
+  step >49 cleanly past `UTF[k]='NO_BREAK_SPACE'`; SPITBOL bridge
+  emits `<lval>` (or the collection name `UTF` if the fix takes the
+  collection-name route) on every aggregate-element store, never
+  junk like `ss`. Smoke=7, Broker=49 preserved. SN-30 invariant md5
+  `408fc788ca2ef425fc1f87e26d45a7a5` preserved on x64 self-host of
+  the OLD beauty.
+
+  **Sequencing note:** -l is independent of -k. -l unblocks deeper
+  semantic comparison on aggregate-store paths.
+
 - [ ] **SN-26-bridge-coverage-j — scrip --ir-run formatting
   divergence vs SPITBOL on new beauty.**  After corpus `7041a14`,
   scrip --ir-run produces 523 lines of output vs SPITBOL's 646
@@ -269,13 +360,69 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   Gate: scrip --ir-run beauty.sno < beauty.sno output md5 matches
   SPITBOL x64 -bf output md5.  PLUS Smoke=7, Broker=49 preserved.
 
-**Dependencies (post 2026-04-27 pivot):** -e → -f → -g → -j → -h.
--i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.  -j
-(scrip formatting divergence) still gates clean termination on
-the 2-way harness.
-**Sequencing:** active step is -g (scrip subscript-set fire-point)
-in parallel with -j (scrip formatting divergence).  Both are pure
-scrip work, no csnobol4 dependency.
+  **Session #44 deep-probe (with both diagnostic overrides):**
+  Running 2-way harness on `beauty.sno < "  a = 1"` with
+  `MONITOR_SOFT_LABEL=1 MONITOR_SOFT_LVAL_NAME=1` advances past the
+  -k LABEL stno noise and the -l SPITBOL lvalue name noise to
+  **step 1035 — first real semantic divergence**:
+  ```
+    spl: CALL nPush
+    scr: VALUE nPush = STRING(0)=''
+  ```
+  Last-agreed trail (steps 1015-1034) shows alternating LABEL/VALUE
+  pairs on single-character punctuation token registrations
+  (`# % ~ , ( [ < ) ] >`), all UNKNOWN type, agreeing perfectly.
+  Then at step 1035 (corresponding to beauty.sno line 119,
+  `snoExprList = nPush() *snoXList ("'snoExprList'" & '*(GT(nTop(),
+  1) nTop())') nPop()` — a continuation-line statement spanning
+  lines 119-122):
+  - SPITBOL fires `CALL nPush` — entering the function as expected.
+  - scrip fires `VALUE nPush = ''` — does NOT enter the function,
+    instead emits an empty-string assignment into nPush's name.
+
+  **Minimal isolated repros that DO NOT trigger the bug:**
+  - `snoExprList = nPush()` on a single line — both runtimes return
+    PATTERN. Clean.
+  - Same continuation-line form with `&` defined as OPSYN for `reduce`
+    and Reduce/PushCounter/PopCounter/TopCounter as no-op DEFINE'd
+    stubs — both runtimes return PATTERN. Clean.
+
+  **What this tells us:** scrip's `nPush()` invocation works correctly
+  in isolation. Something in beauty's full parse-builder context
+  (nested DEFINE'd functions, OPSYN, EVAL-built patterns, `*deferred`
+  references, recursive pattern self-reference) breaks scrip's ability
+  to recognize `nPush()` at line 119 as a function call. The bug
+  surface is in continuation-statement parsing or pattern-evaluation
+  context — consistent with the session #43 hypothesis about
+  `Reduce(snoStmt, 7)` dropping `c[4]` and `c[5]`.
+
+  **Diagnostic next step:** narrow the repro by adding beauty's setup
+  in stages — first the OPSYN's, then the `$` token-pattern table
+  (lines 100-117), then the multi-line statement form. Identify which
+  added construct flips scrip from "calls nPush correctly" to "treats
+  nPush as a string variable". That construct is the bug surface.
+
+  **Diagnostic features added to `monitor_sync_bin.py` (session #44):**
+  - `MONITOR_LAST_AGREE_TRAIL=N` — print last N agreed events at
+    DIVERGE. Useful long-term per RULES.md "read the divergence point,
+    not the trace". Keep.
+  - `MONITOR_SOFT_LABEL=1` — LABEL kind-only match for advancing past
+    stno disagreements. Diagnostic only; revert once -k closes.
+  - `MONITOR_SOFT_LVAL_NAME=1` — name-wildcard on VALUE events when
+    kind+type+value match. Diagnostic only; revert once -l closes.
+
+**Dependencies (post 2026-04-27 pivot):** -e → -f → -g → (-k, -l) → -j → -h.
+-i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.  -k
+(LABEL stno numbering) and -l (SPITBOL lvalue name) both gate clean
+2-way harness flow on beauty; once both land, -j gets a clean
+divergence signal without diagnostic overrides. -j (scrip formatting
+divergence) still gates clean termination on the 2-way harness.
+**Sequencing:** -k and -l are independent diagnostic/fix rungs that
+can run in parallel. -j becomes actionable only after both land —
+otherwise the harness either stops on LABEL noise (without -k) or
+on subscript-name noise (without -l) before reaching the real
+formatting bug, which lives deep in beauty's parser (`Reduce(snoStmt, 7)`
+per session #43 hypothesis).
 
 ---
 
@@ -352,13 +499,49 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `311993c6`
+- one4all @ `35aac3fe`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-j (scrip formatting divergence
-  on beauty self-host). -g CLOSED session #43; -i lifted to
-  GOAL-CSN-FENCE-FIX; -h unblocked once -j lands.
+- active step → SN-26-bridge-coverage-l (SPITBOL lvalue name fix).
+  -k CLOSED session #44 (two real bugs found and fixed: blank lines
+  not parsed as stmts; &STNO aliased to kw_stcount).
+  -g CLOSED session #43; -i lifted to GOAL-CSN-FENCE-FIX;
+  -h unblocked once -j lands.
+
+**Session #44 (2026-04-27) — sync-step harness probe of beauty:**
+2-way harness on `beauty.sno < "  a = 1"` initially agreed through
+step 25 (VALUE bSlash; 12 ALPHABET captures clean), then diverged
+at step 26 on a LABEL-only event: spl=15, scr=14. Reading the
+divergence point per RULES.md (not the trace) revealed two real
+scrip bugs:
+
+1. **Blank lines not parsed as statements.** `snobol4.l:113`
+   consumed blank `\n` without emitting `T_STMT_END`. SPITBOL,
+   CSNOBOL4, and the Green Book all treat blank lines as empty
+   statements that advance &STNO. Fix landed in -k.
+
+2. **`&STNO` aliased to `kw_stcount`.** `snobol4.c:2825` returned
+   `INTVAL(kw_stcount)` for `&STNO`, making them literally the
+   same variable. Added `kw_stno` global, fixed read site, made
+   `execute_program` update `kw_stno` on every iteration (real
+   and empty stmts). `&STCOUNT` semantics unchanged — empty stmts
+   don't bump it. Fix landed in -k.
+
+After -k closure: harness flows naturally from step 1 to step 48
+with NO diagnostic overrides. Step 49 is the next divergence,
+which is the genuine SPITBOL `<lval>`/`ss` lvalue-name issue
+(sub-rung -l).
+
+Diagnostic features added to `monitor_sync_bin.py` during
+investigation: `MONITOR_LAST_AGREE_TRAIL=N` (kept — useful
+long-term per RULES.md "read the divergence point"),
+`MONITOR_SOFT_LABEL=1` and `MONITOR_SOFT_LVAL_NAME=1` (both
+reverted before commit per RULES.md "diagnostic patches don't
+ship"). Lesson learned: the soft overrides masked the real
+bugs and pushed the divergence 1009 steps downstream — reading
+the FIRST divergence (step 26) without overrides was the
+correct play and immediately surfaced two real bugs.
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
 spl-bridge, spl-bridge-d, auto-binary, label-flow,
