@@ -203,17 +203,19 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   ordering and PASS. Smoke=7, Broker=49 preserved. SN-30
   beauty md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved.
 
-- [ ] **SN-26-bridge-coverage-g — symmetric lvalue coverage.**
-  scrip is missing the subscript-set fire-point. Land in
-  **interp.c callers**, not inside `subscript_set` helper, so the
-  base name (`s->subject->children[0]->sval`) reaches the wire as
-  the real name (e.g. `"UTF"`), not an `<lval>` sentinel. Same
-  treatment for SM-run path if subscript-set fires through it.
-  Audit `&keyword=X`, DEFINE-arg binding, DATA/DEFINE/OPSYN/FIELD
-  identifier creation per the latent extras note. Gate: new
-  `test_smoke_sn26_scr_subscript_bridge.sh` PASS=1 on
-  `a<1>='x' / a<2>='y' / d<'k'>='z'` (3 VALUE records, names
-  `a`, `a`, `d`).
+- [x] **SN-26-bridge-coverage-g — symmetric lvalue coverage.**
+  Closed session #43. `comm_var()` fire-point landed at both
+  subscript-set call sites in `interp.c`: `execute_program`
+  (stmt-level `A<i>=val`) and `call_user_function` (function-body
+  path). Base name extracted from `idx_e->children[0]->sval` when
+  base is `E_VAR`; no fire for complex expressions. New smoke test
+  `test_smoke_sn26_scr_subscript_bridge.sh` PASS=1 — verifies
+  `a<1>='x' / a<2>='y' / d<'k'>='z'` → 3 STRING VALUE records,
+  names `[a, a, d]`. Note: SPITBOL still emits `<lval>` for
+  subscript stores (pre-existing behavior, latent follow-up);
+  controller will flag sbl vs scrip subscript records as "diverge"
+  until SPITBOL's bridge is updated. one4all @ `311993c6`.
+  Gate: Smoke=7, Broker=49.
 
 - [ ] **SN-26-bridge-coverage-h — apples-to-apples on beauty (2-way).**
   With -e/-f/-g landed, re-run **2-way SPITBOL+scrip** harness on
@@ -350,17 +352,17 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `78a2a98e`
+- one4all @ `311993c6`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-g (scrip subscript-set fire-point)
-  PARALLEL with SN-26-bridge-coverage-j (scrip formatting divergence
-  on beauty).  -i lifted to GOAL-CSN-FENCE-FIX; not a SCRIP blocker.
+- active step → SN-26-bridge-coverage-j (scrip formatting divergence
+  on beauty self-host). -g CLOSED session #43; -i lifted to
+  GOAL-CSN-FENCE-FIX; -h unblocked once -j lands.
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
-spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
-session #36.
+spl-bridge, spl-bridge-d, auto-binary, label-flow,
+scr-subscript-bridge) all PASS as of session #43.
 
 **Pivot 2026-04-27 (session #42):** Oracle policy revised — SPITBOL
 x64 is sole oracle for SCRIP development.  CSNOBOL4 excluded from
@@ -369,15 +371,46 @@ the sync-step monitor harness pending GOAL-CSN-FENCE-FIX closure
 recursion, a runtime bug that is independent of any SCRIP work).
 Sub-rung -i is lifted to that goal; -h pivoted from 3-way to 2-way.
 
-**Beauty self-host status (session #36, post corpus `7041a14`):**
+**-j diagnostic state (session #43):**
+2-way monitor (SPITBOL + scrip) on `beauty.sno < "  a = 1"` agrees
+on all initialization VALUE events. First semantic divergence: SPITBOL
+emits `<lval>` for `UTF[k]='NO_BREAK_SPACE'` subscript store while
+scrip emits `UTF` (correct — our -g fire-point). That is a
+wire-protocol difference (SPITBOL still uses `<lval>`), not a real
+semantic divergence.
+
+The actual OUTPUT divergence (scrip drops LHS name `a` and `=` from
+assignment statements): confirmed by direct SPITBOL vs scrip diff.
+In-process `--monitor` (IR vs SM vs JIT) diverges at stmt 629:
+`snoLine = INPUT` — IR reads correctly, SM/JIT get empty string.
+That is a separate SM/JIT bug unrelated to the -j formatting issue.
+
+Wire trace of actual Reduce('snoStmt', 7) during `a=1` parse: c[4]
+(should be `=` tree) and c[5] (should be `snoInt 1` tree) arrive as
+NULL from Pop(). c[1..3,6,7] are correct tree objects. This means the
+`=` and `snoInt` Shift calls during the FENCE first alternative do not
+push to `$'@S'` in the full beauty context — despite isolated unit
+tests of FENCE+Shift working correctly in scrip.
+
+**Next diagnostic step:** Inject `xTrace=5` via a thin wrapper (not
+modifying corpus) to trace every Shift/Reduce/Push/Pop call during the
+actual parse. The wrapper should `-INCLUDE` all of beauty's `.inc`
+files, override `xTrace=5`, then define the main loop. The trace
+output from SPITBOL vs scrip on `a=1` input will show exactly which
+Shift calls fire (and which don't) in each runtime, pinpointing the
+stack divergence to a specific FENCE alternative or `*snoExpr` level.
+An alternative: intercept at the `E_DEFER` node in `bb_boxes.c` or
+`interp_eval()` — `snoParse` is stored as `E_DEFER(snoParse)` in the
+IR; if the deferred re-evaluation doesn't see the same `snoParse`
+pattern value that was built during init, the whole parse would be
+wrong in a different way.
+
+**Beauty self-host status (session #43, post corpus `7041a14`):**
 - SPITBOL x64 `-bf`: **CLEAN** — 646 lines, md5
   `abfd19a7a834484a96e824851caee159`
-- CSNOBOL4 `-bf`: **SIGSEGV** at beauty.sno:616 statement 1074
-  during `*snoParse` pattern match.  Bug in builtin `FENCE(P)`
-  pattern primitive.  See `GOAL-CSN-FENCE-FIX.md`.
 - scrip `--ir-run`: clean run, 523 lines, md5
-  `195f9320d836948a0f21b63a4fc68b08` — but diverges from SPITBOL
-  output (formatting bug).  See SN-26-bridge-coverage-j.
+  `195f9320d836948a0f21b63a4fc68b08` — drops LHS var+`=` on
+  assignment statements. See SN-26-bridge-coverage-j.
 
 **Historical SN-30 invariant** md5 `408fc788ca2ef425fc1f87e26d45a7a5`
 applies only to the OLD beauty.sno (pre-corpus-7041a14, with
