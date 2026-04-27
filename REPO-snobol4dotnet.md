@@ -89,10 +89,14 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## State
 
-- HEAD: `8432b35` (S-2a/S-2c: aggregate types preserve reference semantics in subscript indexing; chained-subscript writes now work; claws5 byte-identical to ref, treebank-array byte-identical to SPITBOL)
+- HEAD: `18a2946` (S-2-bridge-1..3: MonitorIpc.cs C# IPC bridge + VALUE fire-point at Executive.Assign chokepoint covers all 5 LHS forms — plain scalar, .-capture, \$-capture, array element, table slot — via single hook because PatternMatch BetaStack walk routes through Assign())
 - Unit tests: not re-run this session (build clean, beauty gate verifies no regression)
-- Beauty suite: 17/17 PASS (verified)
-- Crosscheck: not re-baselined this session; manual smoke sweep over hello/output/assign/concat/data/keywords/strings/arith_new/control_new/patterns/capture/functions = 128/129 (the lone fail `099_keyword_rw` is the documented pre-existing one)
+- Beauty suite: 17/17 PASS (verified before-and-after bridge fire-point)
+- Crosscheck: not re-baselined this session
+- New smoke gates (all green at this HEAD):
+  - `scripts/test_smoke_dot_bridge.sh`         PASS=5 (dormancy)
+  - `scripts/test_smoke_dot_bridge_value.sh`   PASS=5 (live FIFO hello)
+  - `scripts/test_smoke_dot_bridge_complex.sh` PASS=9 (5 LHS forms)
 
 ## SPITBOL oracle semantics
 
