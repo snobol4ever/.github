@@ -8,6 +8,13 @@
 immediately benefits Icon, Prolog, Raku, Snocone, Rebus sessions.
 Share fixes via main — no branches.
 
+**Oracle policy (revised 2026-04-27):** SPITBOL x64 is the **sole**
+oracle for scrip development.  CSNOBOL4 is excluded from the
+sync-step monitor harness for SCRIP work until `GOAL-CSN-FENCE-FIX`
+closes — see that goal for the current FENCE(P) builtin segfault on
+nested-recursion patterns.  All harness work proceeds 2-way
+(SPITBOL ⇄ scrip) per the updated protocol below.
+
 **Forensic history:** closed rungs are summarized below; full session
 narratives live in `archive/ARCHIVE-LANG-SNOBOL4-HISTORY.md` and in git.
 
@@ -19,8 +26,11 @@ narratives live in `archive/ARCHIVE-LANG-SNOBOL4-HISTORY.md` and in git.
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 ```
+
+(CSNOBOL4 build dropped from this goal's setup.  If CSNOBOL4 is
+needed for an unrelated cross-check, build via
+`bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh` ad hoc.)
 
 Gate after setup:
 ```bash
@@ -44,20 +54,23 @@ Oracle: SPITBOL x64 at /home/claude/x64/bin/sbl.
 
 ---
 
-## scrip-monitor Protocol
+## scrip-monitor Protocol (2-way: SPITBOL + scrip)
+
+CSNOBOL4 is excluded from this harness while GOAL-CSN-FENCE-FIX is
+open.  Once that goal closes, the 3-way protocol can be restored;
+until then, SPITBOL x64 is the sole oracle.
 
 Step 1 (--monitor) runs EVERY iteration, unconditionally.
-Steps 2 and 3 only if Step 1 shows DIVERGE or IR vs CSN.
+Steps 2 and 3 only if Step 1 shows DIVERGE.
 
 ```bash
-# Build once per session:
-bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
-make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+# Build once per session (no csn archive needed for 2-way):
+make -C /home/claude/one4all scrip-monitor
 
-# Step 1 -- ALWAYS:
+# Step 1 -- ALWAYS (2-way harness, csn participant disabled):
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
-    $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
+SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor --no-csn \
+    $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
 
 # Step 2 -- only if Step 1 shows problem: SPITBOL diff
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
@@ -65,9 +78,15 @@ SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --ir-run $BEAUTY/beauty_${
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 # Step 3 -- only if Step 1 shows problem: OUTPUT probe -> fix -> rebuild -> repeat
-# Rebuild: make scrip && make scrip-monitor CSN_A=...
+# Rebuild: make scrip && make scrip-monitor
 # Broker gate: bash scripts/test_smoke_unified_broker.sh
 ```
+
+**Note on `--no-csn`:** if `scrip-monitor` does not yet support a
+flag to suppress the csn participant, the controller's startup logic
+must be patched to skip the csn ready-pipe wait and the csn record
+absorption.  This is tracked under SN-26-bridge-coverage-g sub-rung
+"2-way protocol mode" (sequence with the active step there).
 
 ---
 
@@ -196,533 +215,34 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   `a<1>='x' / a<2>='y' / d<'k'>='z'` (3 VALUE records, names
   `a`, `a`, `d`).
 
-- [ ] **SN-26-bridge-coverage-h — apples-to-apples on beauty.**
-  With -e/-f/-g landed, re-run 3-way harness on
+- [ ] **SN-26-bridge-coverage-h — apples-to-apples on beauty (2-way).**
+  With -e/-f/-g landed, re-run **2-way SPITBOL+scrip** harness on
   `beauty.sno < beauty.sno`. Read last-agree + first-disagree
   pair only; hand off to SN-26c-parseerr-h sub-h2.
+
+  **Pivot 2026-04-27:** csn participant excluded from this harness
+  pending GOAL-CSN-FENCE-FIX closure (csn segfaults on the new
+  beauty.sno via FENCE(P) builtin under nested recursion).  The
+  3-way variant returns once that fix lands.
+
   `is.inc` / `FENCE.inc` / `io.inc` interaction RESOLVED in corpus
   `7041a14` — those three includes are no longer pulled in by
   beauty.sno on the self-host path (beauty reads stdin / writes
   stdout, so io.inc's INPUT/OUTPUT-arity shim never fires; FENCE
-  is built into all 3 target runtimes; is.inc is invalid per
-  RULES.md and was only kept to feed FENCE.inc and io.inc).  This
-  unblocks -h but exposes two real runtime bugs the includes were
-  hiding — see -i (csn FENCE(P) builtin segfault) and -j (scrip
-  vs SPITBOL formatting divergence).  -h proper cannot run cleanly
-  on csn until -i lands, and cannot terminate cleanly on scrip
-  until -j lands.
-  Gate: Smoke=7, Broker=49, all bridge smokes, harness reaches
-  ≥1000 steps or runs clean to MWK_END.
+  is built into all target runtimes; is.inc is invalid per
+  RULES.md).  This unblocks -h on the 2-way path; -j (scrip vs
+  SPITBOL formatting divergence) still gates clean termination.
+  Gate: Smoke=7, Broker=49, all bridge smokes, 2-way harness
+  reaches ≥1000 steps or runs clean to MWK_END.
 
-- [ ] **SN-26-bridge-coverage-i — CSNOBOL4 FENCE(P) builtin
-  segfault on heavy beauty pattern load.**  After corpus `7041a14`
-  removed the user-defined `FENCE.inc` stub from beauty.sno, the
-  builtin `FENCE(P)` 1-arg pattern primitive in csnobol4 segfaults
-  during beauty self-host: `Caught signal 11 in statement 1074 at
-  level 0` at beauty.sno:616 (`snoSrc POS(0) *snoParse *snoSpace
-  RPOS(0)`).  Bisect confirms the crash is present at every
-  csnobol4 commit from `7654cda` (the FENCE(P) implementation
-  landing) onward, including `5990456` ("FENCE(P): fix S-9 bugs —
-  10/10 tests pass").  Pre-FENCE(P) commit `a509cd7` produces
-  Error 5 (Undefined function) on beauty.sno:51 because FENCE(P)
-  was not yet implemented — i.e. csnobol4 has never run the new
-  beauty.sno cleanly.  The user-defined FENCE stub from FENCE.inc
-  was masking the bug because the stub never invokes the broken
-  pattern opcode.  SPITBOL x64 runs the new beauty.sno cleanly
-  (646 lines).
-
-  **Session #37 progress (NOT closed — bug still reproduces):**
-  - **Tiny repro found.** Single SNOBOL4 statement as input
-    (`                  ppStop         =  ARRAY('1:4')` + `END`)
-    fed to `beauty.sno` reproduces the segfault reliably. No need
-    for the full 646-line beauty self-host to trigger it.
-  - **Diagnostic infrastructure added.** `lib/init.c` now has an
-    env-gated `CSN_NO_SEGV_HANDLER` bypass — when set, the SEGV
-    handler is not installed, so gdb gets a clean backtrace
-    instead of csnobol4's friendly "Caught signal 11" error
-    message.  Use as: `CSN_NO_SEGV_HANDLER=1 gdb --args
-    /home/claude/csnobol4/snobol4 -bf -P64k -S64k beauty.sno
-    < /tmp/tiny.in`.  Always-off in normal runs (no perf cost).
-  - **Crash location pinned:** `isnobol4.c:11468` in `L_SALT1`:
-    `D(LENFCL) = D(D_A(PDLPTR) + 3*DESCR);`  At crash,
-    `res.pdlptr->a.i = 192` (= 12×DESCR), `res.pdlhed->a.i = 96`
-    (= 6×DESCR) — both descriptors hold tiny integer offsets,
-    not real PDL addresses.  PDLEND remains valid.  Trace shows
-    PDLPTR was valid at the previous L_SALT1 hit; between hits
-    something replaces both PDLPTR and PDLHED with offset-like
-    values.
-  - **One latent bug found and fixed (necessary, not sufficient):**
-    `FNCC` PCOMP mistranslation in `isnobol4.c` and `snobol4.c`.
-    The hand-edit at SN-30/S-9 fix #3 emitted `if equal goto SCOK`
-    (skip seal) but the SIL `PCOMP PDLPTR,PDLHED,FNCC1,FNCC1,INTR13`
-    means **less → INTR13, equal → FNCC1, greater → FNCC1** per
-    `genc.sno` `DOCMP3` macro arg order `(X,Y,G,E,L)`.  Verified
-    by running `./snobol4 -b genc.sno --with BLOCKS v311.sil >
-    /tmp/snobol4.c2` — the regenerated FNCC has `else goto
-    L_FNCC1` (no equal-to-SCOK shortcut).  Fix applied to both
-    `isnobol4.c` and `snobol4.c`.  All 10 tests in
-    `test/fence_function/` still PASS.  Beauty still segfaults,
-    so there is a **second** bug.
-  - **Bootstrap path confirmed.** `csnobol4` itself bootstraps
-    its own regen: `./snobol4 -b genc.sno --with BLOCKS v311.sil
-    > snobol4.c2`.  SPITBOL cannot directly run genc.sno because
-    line 850 uses CSNOBOL4's `LABEL()` extension (SPITBOL has no
-    `LABEL` builtin → Error 22).  The regen still does NOT emit
-    FNCP/FNCA..FNCD as top-level functions (latent
-    `SN-26-csn-regen-fix`); they remain inline `L_FNCP:` etc., so
-    direct C surgery is still required to keep `data_init.h`
-    function-pointer references resolving.
-  - **Hardware watchpoint paradox RESOLVED — environmental, not
-    a bug.** Session #38 verified gdb HW watchpoints don't fire
-    at all in this container (trivial `long g; g=42; g=100;
-    watch g` test: zero stops).  Container's ptrace doesn't
-    expose debug registers.  See RULES.md "Debugging — gdb
-    hardware watchpoints DO NOT work in this container" for
-    full alternatives table.  Use C-level `_check()` +
-    `__builtin_trap()` instead.  Software watchpoints
-    (`set can-use-hw-watchpoints 0`) technically work but are
-    too slow for this codebase.
-
-  **Session #38 progress (NOT closed — root cause located,
-  fix not yet implemented):**
-  - **Trigger bisected to a 1-line minimum.**  Input `X` (no
-    leading space) → clean.  Input ` X` (one leading space, so
-    parsed as a body-statement not a label) → segfault.  Any
-    real statement that exercises beauty's `*snoExpr` recursion
-    chain triggers the bug.  Confirms the bug requires deep
-    `*P` recursion through nested FENCE patterns, which beauty's
-    grammar uses extensively (`snoExpr0..15`, `snoXList`, etc.,
-    every level wraps in `FENCE(...)`).
-  - **State at fault, with -g symbols:** `PDLPTR.a.i = 0xc0`
-    (= 192 = 12·DESCR), `PDLHED.a.i = 0x60` (= 96 = 6·DESCR),
-    `PDLEND.a.ptr = 0x7ed3...` (valid heap), `MAXLEN = 1`,
-    `LENFCL = 0x31` (49).  cstack lives in heap at
-    `0x7ed3065dd010..0x7ed3066dd010`, far from `&res.pdlptr` —
-    so a cstack overrun cannot directly clobber `res.pdlptr`.
-    All POP(PDLPTR) sites compile to plain 8-byte `mov`s, no
-    SSE; the value 192 IS arriving via plain stores.
-  - **Diagnostic technique:** five generations of C-level
-    instrumentation (helper + `__builtin_trap()` after every
-    PDLPTR-mutating site).  v6 added a 128-event circular log
-    of every PUSH(PDLPTR) and POP(PDLPTR) with cstack slot
-    address and the value at that slot.
-  - **ROOT CAUSE LOCATED — stale cstack slot read after
-    intermediate RSTSTK:**  Final v6 trace shows the failing
-    `POP(PDLPTR)` at `isnobol4.c:12362` reads slot `0x...360`
-    holding `0xc0`.  No PUSH(PDLPTR) in the recent 128 events
-    wrote to that slot — the matching PUSH happened far
-    earlier and scrolled out of the window.  Between the
-    matching PUSH and the failing POP, the trace shows
-    `cstack` jumped DOWN by ~41 slots in one step (a `RSTSTK`
-    rewinding past many frames at once), then a normal
-    P/O sequence resumed at fresh, unrelated slots.  The
-    saved-PDLPTR slot `0x...360` was left exposed in
-    not-currently-tracked memory; subsequent unrelated PUSHes
-    of small-integer values (the `0xc0` is the integer 192,
-    matching SIL idioms like `SIZE = 6*DESCR`, `12*DESCR`,
-    indices, or PDL-offset arithmetic) overwrote it.
-  - **The architectural tension:**  L_FNCA at `isnobol4.c:12325`
-    sits **4 lines after** a `SAVSTK()` at line 12321 inside
-    the STARP/RCALL block setting up `switch (SCIN1(NORET))`.
-    L_FNCA is reached as fall-through from that switch when
-    inner SCIN1's return code didn't match cases 1/2/3.  The
-    inner SCIN1's `RSTSTK()` rewound cstack DIRECTLY to the
-    SAVSTK-recorded value (not pop-by-pop) — so any recursion
-    farther down that did its own SAVSTK/PUSH(PDLPTR) chain
-    has a window where the saved-PDLPTR slot lives at an
-    address ABOVE the current cstack and is no longer
-    "protected": a later PUSH from a different recursion arm
-    can land at that exact slot and overwrite it.
-
-    SIL's FENCE design assumes FNCA's 6 cstack pushes are
-    durable until matching FNCB/FNCC pops them.  In the C
-    generation, FNCA, intermediate `RCALL ,SCIN1,...` (which
-    emits `SAVSTK(); switch(SCIN1(NORET))`), and FNCB are all
-    in the same C function (SCIN1) — so on the surface the
-    cstack pushes "should" survive.  But under sufficient
-    recursion depth, the combination of RSTSTK rewinds and
-    re-pushes at fresh frames produces stale-slot reads.
-
-  **Session #39 progress (analysis-only, no code changes):**
-  - **SPITBOL comparison performed.**  Read sbl.min lines
-    11978-12039 (`p_fna..p_fnd`) and the doc block at
-    11473-11500.  SPITBOL's FENCE save list is **dramatically
-    smaller**: `p_fna` saves only `pmhbs` (history-stack base)
-    and the `=ndfnb` indirect pointer onto **`xs`** (the
-    pattern matching stack — analog of CSNOBOL4's PDL).  No
-    save of MAXLEN, no separate save of LENFCL beyond what's
-    in the trap entry, no save of name-list state.
-    CSNOBOL4 saves 6 things on cstack; SPITBOL saves the
-    semantic-equivalent of 1-2 things on `xs`.
-  - **Bug mechanism identified at the macro level.**  PUSH/POP
-    compile to `cstack` ops (heap-allocated descriptor stack,
-    not the C call stack).  `RETURN(VALUE)` macro =
-    `RSTSTK(); return`.  `BRANCH(NAME)` = tail call, NO RSTSTK.
-    Initial hypothesis: a long BRANCH chain inside SCIN1
-    defers all SAVSTK records into one bulk RSTSTK at the
-    final RETURN, rewinding cstack past FNCA's saves.
-    Session #40 trace evidence shows the actual mechanism is
-    more subtle (12-slot drop between FNCA-end and FNCB-entry,
-    indicating two SAVSTK/RSTSTK pairs whose bracket doesn't
-    contain FNCA's pushes).
-  - **ATP2 / EXPV7 / ENMI4 are NOT vulnerable.**  ATP2 wraps
-    its 6-PUSH around an `RCALL ,TRPHND,...` which is a
-    regular C call — TRPHND's RSTSTK rewinds only to AFTER
-    ATP2's PUSHes.  EXPV7 is in EXPVAL (its own C function)
-    with balanced SAVSTK at entry / RSTSTK at exit.  ENMI4
-    same pattern as EXPV7.  Only FNCA is structurally
-    different because FNCA/FNCB/FNCC live as labels INSIDE
-    SCIN1 separated by tail-call BRANCH chains.
-  - **Two fix axes identified:**
-    - **Axis A (audit-then-minimize):** which of the 6 saved
-      values does FNCA actually NEED?  Hypothesis: most are
-      unnecessary.  Pursued in session #40.
-    - **Axis B (relocation):** for values that genuinely need
-      cross-RCALL persistence, move them to PDL trap entry.
-
-  **Session #40 progress (audit, no source modified):**
-  Built csnobol4 oracle, hand-instrumented `isnobol4.c` with
-  C-level PUSH/POP slot-address logging (32-entry circular
-  buffer, trap-on-bogus-PDLPTR after each POP), reverted all
-  instrumentation per RULES.md before exit.
-
-  **MAXLEN audit complete — DROP THE SAVE.**
-  `grep -nE "MOVD|SUM|SUBTRT|SETAC|SETLC|GETLG|MOVA" v311.sil
-   | grep MAXLEN` finds exactly 3 write sites:
-  - line 3536 `SCNR`: `GETLG MAXLEN,XSP` — top-of-scanner reload.
-    Not inside FENCE-protected region.
-  - lines 4039 `STARP`, 4067 `DSARP2`: each paired with its own
-    `PUSH(MAXLEN,...)` + matching `POP(MAXLEN,...)`. Self-saving.
-  Inner-P matching never leaves MAXLEN in a state requiring
-  FNCA-level save.  **FNCA's MAXLEN save is provably unnecessary.**
-
-  **LENFCL save is provably redundant.**  FNCA already writes
-  LENFCL into trap entry slot 3 (`PUTDC PDLPTR,3*DESCR,LENFCL`
-  at v311.sil line 4102).  When FNCB fires via SALT2's dispatch,
-  SALT1 has already restored LENFCL via `GETDC LENFCL,PDLPTR,
-  3*DESCR` (v311.sil line 3613) BEFORE control reaches L_FNCB.
-  The `POP(LENFCL)` at L_FNCB POPs into a value that gets
-  immediately overwritten by future SALT calls.
-  **DROP from cstack save list.**
-
-  **PDLPTR save is computable, not strictly required.**  FNCA
-  records the trap-entry anchor implicitly via `INCRA PDLPTR,
-  3*DESCR`.  The pre-FNCA PDLPTR equals the post-FNCA PDLPTR
-  minus 3*DESCR.  PDLHED_outer == pre-FNCA PDLPTR (set by
-  trap entries always being placed at the top).  So
-  PDLPTR_outer is recoverable from PDLHED_outer.  If we save
-  PDLHED_outer, PDLPTR_outer is implicit.
-
-  **PDLHED save IS required.**  FNCA does `MOVD PDLHED,PDLPTR`
-  to start a new history-stack region.  FNCB/FNCC must restore
-  the outer PDLHED.  This is the one save SPITBOL also makes
-  (its `pmhbs` is the analog of CSNOBOL4's PDLHED).  KEEP.
-
-  **NAMICL/NHEDCL save audit remaining.**  FNCA does
-  `MOVD NHEDCL,NAMICL`.  Does inner-P matching mutate NAMICL?
-  Likely yes (NME/ENME/DNME pattern naming primitives modify
-  the name list).  Whether the failure walker's existing PDL-
-  unwind also unwinds NAMICL is the unverified bit.  Suspect
-  NAMICL save is needed; NHEDCL save (at FNCC for re-entry
-  optimization) is needed too.  KEEP both pending verification.
-
-  **Refined save list — 2 items instead of 6:**
-  Required cross-RCALL persistence: PDLHED_outer + NAMICL_outer
-  (and possibly NHEDCL_outer = NAMICL_outer at FNCA-time).
-  The other 4 saves (MAXLEN, LENFCL, PDLPTR, NHEDCL_outer
-  redundant-with-NAMICL) can be dropped or computed.
-
-  **Trace evidence pinpoints the failing site.**
-  Hand-instrumentation with circular slot-address logging
-  showed: FNCA pushed PDLPTR at slot 0x...c420; FNCB tried
-  to pop PDLPTR from slot 0x...c360 (12 descriptors lower);
-  read value 0xc0 = 192 = 12·DESCR (a typical SIL `INCRA`
-  argument that landed in the slot via an unrelated push).
-  Counters at trap: FNCA=4, FNCB=1, FNCC=2.  4 FENCE entries,
-  2 successful exits, 1 failed exit which is the corrupted one.
-  The 4-vs-3 imbalance confirms NESTED FENCE — at trap moment
-  one FNCA push is still outstanding (the outer FENCE's), and
-  it's the inner FENCE's FNCB whose POP reads stale data.
-
-  **Conclusion: structural fix is correct AND save-list shrinks.**
-  Move FENCE state to PDL trap entry.  Save 2 items
-  (PDLHED_outer, NAMICL_outer) instead of 6.  Trap entry size
-  grows from 3 to 5 descriptors.  FNCB/FNCC read from the
-  extended slots.  Implementation:
-
-  ```sil
-  FNCA   XPROC   ,
-         INCRA   PDLPTR,5*DESCR    ; was 3*DESCR
-         ACOMP   PDLPTR,PDLEND,INTR31
-         PUTDC   PDLPTR,DESCR,FNCBCL
-         GETLG   TMVAL,TXSP
-         PUTDC   PDLPTR,2*DESCR,TMVAL
-         PUTDC   PDLPTR,3*DESCR,LENFCL  ; existing trap-entry slot 3
-         PUTDC   PDLPTR,4*DESCR,PDLHED  ; new: save outer PDLHED
-         PUTDC   PDLPTR,5*DESCR,NAMICL  ; new: save outer NAMICL
-         MOVD    PDLHED,PDLPTR     ; set new inner PDLHED
-         MOVD    NHEDCL,NAMICL     ; set new inner NHEDCL
-         BRANCH  SCOK
-  ```
-
-  At FNCB/FNCC entry, PDLPTR has been DECRA'd by 3 by SALT2,
-  so it points 3 descriptors below the trap entry's anchor.
-  The extended slots (4*DESCR, 5*DESCR from FNCA's anchor) are
-  now at PDLPTR + 4*DESCR + 3*DESCR = PDLPTR + 7*DESCR, etc.
-  Wait — needs careful re-verification.  The slot 3 LENFCL is
-  read by SALT1 at PDLPTR + 3*DESCR BEFORE SALT2 DECRAs.  After
-  DECRA, those slots are at PDLPTR + 6, 7, 8 *DESCR if entry is
-  5-wide.  FNCB/FNCC need to read from PDLPTR + 7*DESCR
-  (PDLHED_outer) and PDLPTR + 8*DESCR (NAMICL_outer), then
-  DECRA PDLPTR by 2*DESCR to roll back the extra slots.
-  Subsequent failure-walking (when control leaves FNCB/FNCC)
-  expects PDLPTR to point past where the extended entry was.
-
-  **Next session entry point:** verify NAMICL save necessity by
-  tracing NAMICL writes through pattern primitives (NME, ENME,
-  DNME, etc.).  Then write the SIL fix per the layout above,
-  regenerate via `./snobol4 -b genc.sno --with BLOCKS v311.sil`,
-  apply the established hand-edit dance for FNCP/FNCA..FNCD
-  drops (latent SN-26-csn-regen-fix), verify tiny repro, run
-  full beauty self-host.
-
-  **Layout precision note:** when SALT1 reads `PDLPTR + 3*DESCR`
-  and SALT2 then DECRAs PDLPTR by 3*DESCR before dispatching to
-  FNCB/FNCC, the PDLPTR-relative offsets shift by +3*DESCR.
-  For a 5-descr extended FNCA entry, FNCB/FNCC see:
-  - slot 3 LENFCL: at PDLPTR+6*DESCR (already restored by SALT1)
-  - slot 4 PDLHED_outer: at PDLPTR+7*DESCR
-  - slot 5 NAMICL_outer: at PDLPTR+8*DESCR
-  After reading slots 4-5, FNCB/FNCC must DECRA PDLPTR by an
-  ADDITIONAL 2*DESCR so that downstream failure-walking sees
-  PDLPTR at the pre-FNCA position (= original PDLHED_outer).
-  Or: simpler — assign PDLPTR ← PDLHED_outer directly after
-  reading.
-
-  Bypass for now: same as session #39 (re-add FENCE.inc per-test).
-
-  **Session #41 progress (PARTIAL FIX LANDED — bug not yet
-  resolved, NEW crash signature exposed):**
-  - **C-helper save/restore implemented per session #40 plan.**
-    Approach: dynamic stack via `XCALLC fnc_save_push,(0)` and
-    `XCALLC fnc_save_pop,(0)`.  Helpers in `lib/pat.c` access
-    `res.pdlhed[0]` and `res.namicl[0]` directly (since `res`
-    is a global `struct res`); stack grown via realloc; never
-    freed.  Helpers gated with `STATIC_PAT` prefix to match
-    `linkor`/`cpypat` so they get `static` linkage when inlined
-    into `isnobol4.c` via `parms.h #include "lib/pat.c"` and
-    plain external linkage in standalone `pat.o`.
-  - **SIL changes in `v311.sil`:** FNCA replaces 6-PUSH with
-    `XCALLC fnc_save_push,(0)`; FNCB replaces 6-POP with
-    `XCALLC fnc_save_pop,(0)`; FNCC restores LENFCL via
-    `GETDC LENFCL,PDLPTR,3*DESCR` after `MOVD PDLPTR,PDLHED`,
-    then calls `XCALLC fnc_save_pop,(0)`, then explicit
-    `DECRA PDLPTR,3*DESCR` to walk past trap entry to the
-    pre-FNCA PDLPTR position (no longer obtained from cstack).
-  - **Option A (extend PDL trap entry from 3 to 5 slots) was
-    investigated and rejected.** PDL slot geometry: PDLPTR
-    points well below its data; INCRA-N reserves N slots
-    written at offsets `+1..+N *DESCR`.  After FNCA's
-    INCRA-3, PDLPTR = X+3*DESCR with PDLHED also = X+3*DESCR.
-    SCNR's `MOVD PDLPTR,PDLHED` then `INCRA PDLPTR,3*DESCR`
-    advances PDLPTR to X+6*DESCR and writes its trap entry
-    at memory X+7..X+9 *DESCR.  An extended FNCA entry's
-    proposed slots 4, 5 at memory X+9, X+10 *DESCR overlap
-    SCNR's slot 1 at X+7 once SCNR writes — proving Option A
-    unsafe under the existing PDL conventions.
-  - **`XCALLC fname,()` strips empty parens.** genc.sno's
-    XXCALLC concatenates ARGV<1> ARGV<2>; empty `()` produces
-    `fname;` not `fname();`.  Workaround: pass dummy `(0)`,
-    declare helpers `(int unused)` ignoring the value.
-  - **Regen via `./snobol4 -b genc.sno --with BLOCKS v311.sil`
-    produced clean output.** Both isnobol4.c and snobol4.c
-    spliced from regen at the FNCA-D label block (replacing
-    the 6-PUSH/6-POP code with the new XCALLC-emitted calls).
-    FNCP top-level definition preserved per latent
-    SN-26-csn-regen-fix (regen produces L_FNCP label only).
-    Build clean at -O3.
-  - **Tiny repro still segfaults — but at a NEW location.**
-    Old crash signature: `L_SALT1: D(LENFCL) = D(D_A(PDLPTR) +
-    3*DESCR);` reading from a stale PDL slot with
-    `PDLPTR.a.i = 192` (= 12·DESCR sentinel value from
-    cstack overwrite).  New crash signature (with fix
-    applied, -O0 -g build): `L_SCIN4: D(PTBRCL) =
-    D(D_A(ZCL));` at isnobol4.c line ~11456, dereferencing
-    ZCL whose `.a.i` is invalid.  Backtrace shows deep
-    SCIN1 recursion through SCAN/INVOKE.  This is at SCIN3's
-    pattern-node walk — ZCL was just loaded from
-    `D(D_A(PATBCL) + D_A(PATICL))` immediately prior, so
-    PATBCL or PATICL is already corrupt before ZCL is read.
-    No longer the integer-192 cstack-overwrite signature
-    that defined the old bug.
-  - **Interpretation:** the 6-cstack-PUSH/POP saves WERE
-    semantically wrong (the audit was correct that NAMICL
-    save is needed), but they were also masking a separate
-    bug elsewhere — possibly in PATBCL/PATICL handling
-    inside SCIN1's recursive pattern walk under nested
-    FENCE.  OR: my FNCC `DECRA PDLPTR,3*DESCR` after
-    `XCALLC fnc_save_pop,(0)` is wrong in some path.
-    Specifically I assumed FNCC's pre-FNCA PDLPTR equals
-    `inner-PDLHED - 3*DESCR` — but if the outer pattern's
-    PDLPTR was already at a different position (e.g. after
-    its own SCNR traps), the pre-FNCA PDLPTR_outer may have
-    been higher than what `inner-PDLHED - 3*DESCR` yields.
-    Need to re-audit FNCC's PDLPTR restoration: original code
-    `POP(PDLPTR)` got it from cstack (= true outer value);
-    my replacement derives it from PDLHED — only correct if
-    the outer pattern's PDLPTR == FNCA-time PDLHED minus the
-    INCRA-3 reservation.  This holds when FENCE's outer
-    context is SCNR's own initial `MOVD PDLPTR,PDLHED` reset,
-    but NOT when FENCE is called inside an alt branch where
-    outer PDLPTR > outer PDLHED.
-  - **Build state:** clean.  Helpers wired correctly
-    (verified in nm output: `T fnc_save_push`, `T
-    fnc_save_pop`, plus `t .cold` static copies inside
-    SCIN1).  smoke `OUTPUT='csn-ok'` PASSes.  beauty tiny
-    repro segfaults but at the new SCIN4 location.
-  - **Files touched (this session, committed in emergency
-    handoff):** `csnobol4/v311.sil`, `csnobol4/lib/pat.c`,
-    `csnobol4/isnobol4.c`, `csnobol4/snobol4.c`.
-
-  **Next session entry point:**
-  1. Confirm the FNCC PDLPTR-restoration audit gap.  Read
-     SCIN1 pattern flow to determine whether FENCE is ever
-     entered when outer PDLPTR ≠ outer PDLHED.  If yes,
-     FNCC needs to also save outer PDLPTR (e.g., extend the
-     C save frame to 3 fields: pdlhed, namicl, pdlptr).
-  2. Add `pdlptr` to `struct fnc_save_frame` in pat.c;
-     re-audit fnc_save_push/pop to save/restore the third
-     field.  In FNCC, drop the explicit `DECRA PDLPTR,
-     3*DESCR` since fnc_save_pop will set PDLPTR directly
-     from the saved value.  In FNCB, no change needed
-     because SALT2's DECRA-3 already handles PDLPTR before
-     dispatch.  But wait: with PDLPTR saved on the C stack,
-     FNCB CAN restore PDLPTR directly without depending on
-     SALT2's DECRA — making the design more uniform.  Both
-     FNCB and FNCC just call fnc_save_pop and let the C
-     helper restore everything.
-  3. Regen, splice, rebuild, retest tiny repro.  If clean,
-     run beauty self-host.  If still segfaults, instrument
-     fnc_save_push/pop with `fprintf(stderr, "depth=%zu
-     pdlhed=%lx namicl=%lx pdlptr=%lx\\n", ...)` (env-gated
-     diagnostic, revert before commit) and trace through
-     to identify which restore step produces the bad value.
-
-  Bypass available: the partial fix is no worse than the
-  prior state (still segfaults), so no production
-  regression. -h cannot run on csn until full fix lands.
-  - **SPITBOL comparison performed.**  Read sbl.min lines
-    11978-12039 (`p_fna..p_fnd`) and the doc block at
-    11473-11500.  SPITBOL's FENCE save list is **dramatically
-    smaller**: `p_fna` saves only `pmhbs` (history-stack base)
-    and the `=ndfnb` indirect pointer onto **`xs`** (the
-    pattern matching stack — analog of CSNOBOL4's PDL).  No
-    save of MAXLEN, no separate save of LENFCL beyond what's
-    in the trap entry, no save of name-list state.
-    CSNOBOL4 saves 6 things on cstack; SPITBOL saves the
-    semantic-equivalent of 1-2 things on `xs`.
-  - **Bug mechanism re-confirmed.**  PUSH/POP compile to
-    `cstack` ops (heap-allocated descriptor stack, not the C
-    call stack).  `RETURN(VALUE)` macro = `RSTSTK(); return`.
-    `BRANCH(NAME)` = tail call, NO RSTSTK.  A long BRANCH
-    chain inside SCIN1 (which contains L_FNCA, L_FNCB, L_FNCC
-    as labels) defers all SAVSTK records until the final
-    RETURN — at which point cstack rewinds bulk-style past
-    FNCA's saves.  The "41-slot RSTSTK" session #38 observed
-    is exactly that.  The corrupted slots (e.g., 0xc0 = 12·DESCR)
-    are integer constants pushed by unrelated later code that
-    landed in the now-exposed slots.
-  - **ATP2 / EXPV7 / ENMI4 are NOT vulnerable.**  ATP2 wraps
-    its 6-PUSH around an `RCALL ,TRPHND,...` which is a
-    regular C call — TRPHND's RSTSTK rewinds only to AFTER
-    ATP2's PUSHes.  EXPV7 is in EXPVAL (its own C function)
-    with balanced SAVSTK at entry / RSTSTK at exit.  ENMI4
-    same pattern as EXPV7.  Only FNCA is structurally
-    different because FNCA/FNCB/FNCC live as labels INSIDE
-    SCIN1 separated by tail-call BRANCH chains.
-  - **Two fix axes identified; merit re-ranking:**
-    - **Axis A (audit-then-minimize):** which of the 6 saved
-      values does FNCA actually NEED to preserve across inner-P
-      matching?  Hypothesis (from SPITBOL comparison): MAXLEN
-      doesn't change during inner-P (SCNR reloads it from XSP);
-      LENFCL is already in trap entry slot 3 (redundant on
-      cstack); NAMICL and NHEDCL may have other invariants.
-      If audit shrinks the save list to 1-2 values, the fix
-      becomes much smaller.
-    - **Axis B (relocation):** wherever the audit says state
-      genuinely needs to survive, move it to PDL (extending
-      FNCA's trap entry from 3 to N descriptors) rather than
-      cstack.  Same mechanic as fix candidate 1 below, but
-      applied to a smaller set after Axis A reduces the count.
-  - **Decision deferred.**  Did not write any code.  Concluded
-    that "good solid fix" requires the Axis A audit before
-    committing to a structural change — otherwise we widen
-    the trap entry for values that didn't need saving in the
-    first place.
-
-  **Fix candidates (ordered by likelihood, all pending):**
-  1. **Audit + minimize (Axis A):** Read FNCA-FNCC and
-     adjacent SIL to determine the actual minimum save set.
-     Cross-reference with SPITBOL's 1-save model.  Drop any
-     redundant cstack PUSH.  Likely outcome: save list
-     shrinks from 6 to 1-3 items.
-  2. **Save FENCE state on the PDL** (alongside FNCBCL)
-     instead of cstack, for the items audit determines genuinely
-     need cross-RCALL persistence.  SIL-level fix in
-     `v311.sil` FNCA/FNCB/FNCC/FNCD.  Specifically: extend
-     FNCA's trap entry from 3 descriptors to (3 + N)
-     descriptors where N is the audit-confirmed save count.
-     FNCB/FNCC read from the extended slots via positive
-     offsets (with a +3*DESCR adjustment because SALT2's
-     `DECRA PDLPTR,3*DESCR` runs before the dispatch).  SALT
-     itself unchanged; trap-entry size customization is per-site
-     and FNCB/FNCC handle their own layout.
-  3. Have `genc.sno`'s RCALL macro emit additional protection
-     so FNCA's cstack pushes are not exposed by RSTSTK
-     rewinds (e.g., re-anchor or relocate).  More invasive;
-     touches the macro layer, affects all sites.
-
-  **Next session entry point:** start with the Axis A audit.
-  Specifically:
-  1. Trace `MAXLEN` through inner-P matching.  Does any
-     pattern primitive write to MAXLEN between FNCA and
-     FNCB/FNCC?  If no — drop the MAXLEN save entirely.
-     SCNR/SCNR1 (lines 3535-3547) reloads MAXLEN from XSP
-     on each scanner entry, suggesting it's recomputed and
-     not preserved across pattern recursion — confirm by
-     grep `MAXLEN` writes vs reads in v311.sil.
-  2. Confirm LENFCL: trap entry slot 3 already saves it; the
-     cstack PUSH(LENFCL) is **provably redundant** with what
-     the SALT walker restores via `GETDC LENFCL,PDLPTR,3*DESCR`
-     at line 3613.  Drop without further analysis.
-  3. Trace `NAMICL`/`NHEDCL`: FNCA does `MOVD NHEDCL,NAMICL`
-     to set inner name-list base.  How does inner-P modify
-     NAMICL?  If the only modification is via NME/ENME pairs
-     that always undo themselves on FAIL, the save may be
-     redundant; otherwise it's needed.
-  4. PDLPTR_outer: at FNCB entry (after SALT2's DECRA-3),
-     PDLPTR points at `PDLPTR_outer + 3*DESCR` from the
-     extended trap entry.  No save needed — compute via
-     `DECRA PDLPTR,3*DESCR` to get back to PDLPTR_outer.
-     Possibly: PDLPTR_outer == PDLHED_outer if FNCA is the
-     first thing in the pattern — needs verification.
-  5. After audit, write the SIL fix in v311.sil only.
-     Regenerate via `./snobol4 -b genc.sno --with BLOCKS
-     v311.sil > snobol4.c2`.  Apply the established hand-edit
-     dance per latent SN-26-csn-regen-fix (regen drops
-     FNCP/FNCA..FNCD as top-level functions; tsort inlines
-     them).  Verify tiny repro doesn't segfault.  Verify
-     beauty self-host produces N>500 lines.
-
-  **Bypass available for blocked work:** SN-26-bridge-coverage-h
-  cannot close until -i is fixed.  But -g and -j are independent
-  scrip work that doesn't depend on csnobol4 stability — those
-  could be picked up first by a parallel session per the active-rung
-  banner ("active step → SN-26-bridge-coverage-i ‖ -g ‖ -j").
-
-  Gate: csn `snobol4 -bf -P64k -S64k beauty.sno < beauty.sno`
-  produces N>500 lines without segfault and without "Caught
-  signal" diagnostic.  PLUS Smoke=7, Broker=49 preserved.
+- [~] **SN-26-bridge-coverage-i — LIFTED to GOAL-CSN-FENCE-FIX.**
+  CSNOBOL4 FENCE(P) builtin segfault on nested-recursion patterns.
+  Sessions #37–#41 history (cstack-overwrite root-cause; partial fix
+  via fnc_save_push/pop in lib/pat.c migrated cstack save to
+  C-helper stack; new crash signature L_SCIN4 ZCL deref still
+  reproduces) lives in `GOAL-CSN-FENCE-FIX.md` and the csnobol4
+  git log.  This sub-rung is no longer a blocker for SCRIP work
+  per the 2026-04-27 oracle pivot — see top-of-file note.
 
 - [ ] **SN-26-bridge-coverage-j — scrip --ir-run formatting
   divergence vs SPITBOL on new beauty.**  After corpus `7041a14`,
@@ -747,13 +267,13 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   Gate: scrip --ir-run beauty.sno < beauty.sno output md5 matches
   SPITBOL x64 -bf output md5.  PLUS Smoke=7, Broker=49 preserved.
 
-**Dependencies:** -e → -f → -g → -i → -j → -h.  -i (csn FENCE
-bug) and -j (scrip formatting divergence) BOTH block -h since
--h needs all three runtimes producing comparable output on the
-new beauty.sno.  -h may also pull SN-27 forward.
-**Sequencing:** active step is -g (existing); -i is parallel-
-prioritizable since it's a pure csnobol4 fix orthogonal to
-scrip work.
+**Dependencies (post 2026-04-27 pivot):** -e → -f → -g → -j → -h.
+-i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.  -j
+(scrip formatting divergence) still gates clean termination on
+the 2-way harness.
+**Sequencing:** active step is -g (scrip subscript-set fire-point)
+in parallel with -j (scrip formatting divergence).  Both are pure
+scrip work, no csnobol4 dependency.
 
 ---
 
@@ -833,41 +353,28 @@ the trace" — until -h, there is no trustable divergence point.
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- csnobol4 @ `1d225f8`
-- active step → SN-26-bridge-coverage-i (csn FENCE(P) builtin
-  segfault — runtime stability blocker for -h) PARALLEL with
-  SN-26-bridge-coverage-g (scrip subscript-set fire-point —
-  orthogonal scrip work) and SN-26-bridge-coverage-j (scrip
-  formatting divergence on beauty)
+- csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
+- active step → SN-26-bridge-coverage-g (scrip subscript-set fire-point)
+  PARALLEL with SN-26-bridge-coverage-j (scrip formatting divergence
+  on beauty).  -i lifted to GOAL-CSN-FENCE-FIX; not a SCRIP blocker.
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
 spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
-session #36.  Session #38 reverified Smoke=7, Broker=49 at session
-start before any work.  Session #39 was analysis-only (no code
-changes, no rebuilds beyond initial csnobol4 build); gates not
-re-run but unchanged from session #38 since no source modified.
-Session #40 was audit (instrumented isnobol4.c diagnostically,
-reverted before exit per RULES.md "diagnostic patches are
-diagnostic — never commit them"); no committed source changed,
-gates not re-run but unchanged.
-Session #41 landed partial FENCE fix as committed source change
-in csnobol4 (v311.sil + lib/pat.c + spliced isnobol4.c + snobol4.c).
-Build clean.  Tiny repro still segfaults but with a different
-crash signature (L_SCIN4 ZCL deref, not L_SALT1 PDLPTR=192).
-Smoke=7, Broker=49 NOT re-run on one4all this session — only
-csnobol4 source touched, no one4all change to gate.
-EMERGENCY HANDOFF: SN-26-bridge-coverage-i remains [ ].
-auto-binary verifies streaming-intern semantics end-to-end
-(NAME_DEF on the wire, no sidecar written).  label-flow PASS=5
-(csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3, sm-run=4, jit-run=4).
+session #36.
+
+**Pivot 2026-04-27 (session #42):** Oracle policy revised — SPITBOL
+x64 is sole oracle for SCRIP development.  CSNOBOL4 excluded from
+the sync-step monitor harness pending GOAL-CSN-FENCE-FIX closure
+(beauty.sno triggers a builtin FENCE(P) segfault under nested
+recursion, a runtime bug that is independent of any SCRIP work).
+Sub-rung -i is lifted to that goal; -h pivoted from 3-way to 2-way.
 
 **Beauty self-host status (session #36, post corpus `7041a14`):**
 - SPITBOL x64 `-bf`: **CLEAN** — 646 lines, md5
   `abfd19a7a834484a96e824851caee159`
 - CSNOBOL4 `-bf`: **SIGSEGV** at beauty.sno:616 statement 1074
   during `*snoParse` pattern match.  Bug in builtin `FENCE(P)`
-  pattern primitive; bisected to commits `7654cda` + `5990456`
-  (FENCE(P) implementation work).  See SN-26-bridge-coverage-i.
+  pattern primitive.  See `GOAL-CSN-FENCE-FIX.md`.
 - scrip `--ir-run`: clean run, 523 lines, md5
   `195f9320d836948a0f21b63a4fc68b08` — but diverges from SPITBOL
   output (formatting bug).  See SN-26-bridge-coverage-j.
