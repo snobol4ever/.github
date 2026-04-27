@@ -464,163 +464,68 @@ as scrip does today.
   csn-bridge-c=1, spl-bridge=1, sn26_auto_binary=1.  SN-30 invariant
   preserved (beauty md5 still `408fc788ca2ef425fc1f87e26d45a7a5`).
 
-- [ ] **SN-26-bridge-coverage-b — SPL fire-point coverage to match
-  SN-26-bridge-coverage-a** — The CSN side patched 5 LOCAPT-TVALL
-  sites in v311.sil.  SPL needs symmetric coverage but achieves it
-  with **only two fire-points** by exploiting SPL's natural
-  assignment chokepoints.  Plan revised in session #31 (2026-04-27)
-  after reading sbl.min and `osint/monitor_ipc_runtime.c` directly.
+- [x] **SN-26-bridge-coverage-b — SPL fire-point coverage** — Closed
+  2026-04-27 session #32 (x64 @ `3cd2dcc`, one4all @ `5ffd3af7`).
+  Two fire-points landed at the central assignment chokepoints
+  (`asign:asg01` line 17596 and `asinp` line 17853, both untrapped
+  fast paths).  Plus C-side printable-ASCII guard in
+  `spl_vrblk_name` to mirror CSN's `lvalue_name_id` discipline for
+  array/table element stores.
 
-  **Why two fire-points cover all five SIL sites.**  SPITBOL routes
-  every non-direct-vrsto store through one of two procedures:
+  **Critical discovery during implementation:** for natural variables,
+  `parm2` holds `*vrval` (16 bytes from vrblk), not `*vrsto`
+  (8 bytes) — see sbl.min:1359 "natural variable base is ptr to
+  vrblk, offset is *vrval".  After `add xl,wa`, `xl` points at the
+  vrval field, but `zysmv` expects `xr` at the vrsto field
+  (it does `vr = vrsto_field - vrsto_offset` to recover the
+  vrblk header).  Initial probe showed `S` and **`<lval>`** in the
+  sidecar — the captured value with the wrong name.  Fix:
+  `sub xr,*vrvlo` step back-steps from vrval to vrsto;
+  vrvlo is defined as exactly that delta at sbl.min:5458
+  (`vrvlo equ vrval-vrsto`).  Probe then produced `S` and
+  `captured` correctly.
 
-  | Procedure | Line | Calling convention | What goes through it |
-  |-----------|-----:|--------------------|----------------------|
-  | `asign`   | 17592 | xl=name base, wa=offset, wb=value | `o_ass` (X=Y when not direct vrsto), `o_rpl` (pattern substitute, merges into `oass0`), `a<i,j>=v`, `d<'k'>=v`, expression-variable evaluation |
-  | `asinp`   | 17843 | same as asign            | `pnth4` (`PAT . X`), `p_imc` (`PAT $ X`), `p_cas` (`@X`); falls through to `asign` for trapped vars |
-
-  Both procedures unconditionally execute `add xl,wa` then `mov (xl),wb`
-  to perform the in-place store on the untrapped fast path
-  (`asign:asg01` line 17596–17601 and `asinp` line 17844–17849).
-  After `add xl,wa`, **`xl` holds the vrsto-field pointer** —
-  exactly what `zysmv` expects in `xr` per the existing b_vrs contract
-  (`b_vrs` at sbl.min line 11082 calls `jsr sysmv` with `xr` = vrsto
-  field, value at `(xs)+1` after the syscall macro pops the return
-  address).
-
-  **The fire-point shape (4 instructions + comment).**  Inserted
-  immediately before each procedure's `mov (xl),wb` in-place store:
-
+  **Final fire-point shape (4 instructions + 1 comment per site):**
   ```minimal
-  *  SN-26-bridge-coverage-b: monitor fire-point.
-  *  At entry: xl = vrsto field (post add at line ~17596 / ~17844),
-  *            wb = value pointer.
-  *  zysmv contract: xr = vrsto field, (xs)+1 = value (after RA push).
-         mov  -(xs),wb         stack value pointer for sysmv
-         mov  xr,xl            xr = vrsto field = xl
-         jsr  sysmv            emit VALUE record on monitor wire
-         mov  wb,(xs)+         pop value back
-         mov  (xl),wb          [orig: in-place store]
+       mov  -(xs),wb         stack value pointer for sysmv
+       mov  xr,xl            xr = vrval field
+       sub  xr,*vrvlo        xr = vrsto field (vrvlo = vrval - vrsto)
+       jsr  sysmv            emit VALUE record on monitor wire
+       mov  wb,(xs)+         pop value back
+       mov  (xl),wb          [orig: in-place store]
   ```
 
-  No save/restore of `xl`/`wa`/`xr` needed — the syscall thunk
-  already preserves all caller-saved registers via the
-  `syscall_init`/`syscall_exit` save-globals discipline (int.asm
-  lines 624–652).  Only `wb` needs explicit handling because we
-  use it to feed `(xs)+1` for the C side.
+  **No overlap with existing `b_vrs` fire-point** confirmed by
+  test runs:
+  - `spl_bridge` probe (6 records, ordinary stores via b_vrs):
+    asign untouched on its trace.
+  - `spl_bridge_d` probe (3 records, .-capture): b_vrs untouched.
+  - Pattern-substitute probe (`S 'world' = 'there'`): 3 records
+    (b_vrs+asign+END); closes SN-26-spl-bridge-c gap.
 
-  **Why no overlap with the existing `b_vrs` fire-point.**
-  `b_vrs` is invoked by **direct vrsto dispatch** from generated
-  code (when the compiler emits `lcw xr ; bri (xr)` after loading
-  a vrblk's vrsto field — the fast path for ordinary `X = Y` on
-  simple variables).  `asign` and `asinp` are reached by an
-  entirely different chain: `o_ass`, `o_rpl`, `o_amn`/`o_amv`
-  (array-ref `arref`), pattern-match procedures.  The two paths
-  do not intersect on the same statement.  Verified via the
-  existing SN-26-spl-bridge-b probe: `S = 'hello world'` produced
-  one b_vrs record (no asign trip) and `S 'world' = 'there'`
-  produced no record at all (b_vrs not invoked for o_rpl) — that
-  missing record is the SN-26-spl-bridge-c gap, exactly what the
-  asign fire-point will close.
+  **Validation results:**
+  - SN-30 invariant: `beauty.sno < beauty.sno` md5 still
+    `408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`. ✓
+  - All gates green: Smoke=7, Broker=49, csn-bridge-a=1,
+    csn-bridge-b=1, csn-bridge-c=1, spl-bridge=1, **spl-bridge-d=1
+    (new)**.
+  - 3-way auto harness on `beauty.sno < /tmp/asg.sno`: now
+    advances to **step 23** before DIVERGE (was step 1 on
+    coverage gap).  At step 23, csn and scr emit `VALUE TABLE`
+    while spl emits `VALUE UNKNOWN` — pre-existing limitation
+    in `spl_block_to_wire` (tbblk type code not a public extern;
+    not blocking, captured in monitor_ipc_runtime.c:275 comment).
+    The first 22 steps now agree across all three participants —
+    this is exactly the apples-to-apples 3-way harness
+    SN-26-bridge-coverage-c was waiting on.
 
-  **C-side guard needed: printable-ASCII validation in
-  `spl_vrblk_name`.**  For `a<i,j>=v` and `d<'k'>=v`, the post-
-  `add xl,wa` pointer is mid-arblk / mid-tbblk, not a real vrblk.
-  Back-computing `vr = xl - vrsto_offset` (the existing zysmv
-  trick at lines 333–335) yields a fake vrblk whose `vrlen` field
-  reads whatever the previous arblk slot held — could be a positive
-  integer, in which case `spl_vrblk_name` reads garbage from
-  `vr->vrchs` into the names sidecar.  CSN handles this with
-  `lvalue_name_id()` (printable-ASCII validation, fall through to
-  `<lval>` on failure).  SPL needs the same.  Add a guard in
-  `spl_vrblk_name` (or equivalently in `zysmv` after the call):
+  **Side closure:** SN-26-spl-bridge-c (pattern-substitute
+  store-back) — was tracked as latent follow-up; now closed by
+  asign fire-point catching `o_rpl → oass0 → asign`.
 
-  ```c
-  /* Validate name as printable ASCII identifier.  If any byte is
-   * non-printable or len is absurdly large (>255), fall through
-   * to <lval> sentinel.  Mirrors CSN's lvalue_name_id() per
-   * SN-26-bridge-coverage-a. */
-  if (nl > 0) {
-      if (nl > 255) { nl = 0; }
-      else {
-          for (int i = 0; i < nl; i++) {
-              unsigned char c = (unsigned char)np[i];
-              if (c < 0x20 || c >= 0x7f) { nl = 0; break; }
-          }
-      }
-  }
-  if (nl == 0) { np = "<lval>"; nl = 6; }
-  ```
-
-  **Sites to patch in sbl.min:**
-
-  | Site | Line (current HEAD) | Insert position |
-  |------|--------------------:|-----------------|
-  | `asign:asg01` | 17596 (`add xl,wa`) | between line 17596 and line 17599 (`mov (xl),wb`) |
-  | `asinp` body  | 17844 (`add xl,wa`) | between line 17844 and line 17847 (`mov (xl),wb`) |
-
-  Both insertion points are 4 lines of new code, no register save
-  beyond the explicit `wb` push/pop.
-
-  **Sites to patch in `osint/monitor_ipc_runtime.c`:**
-
-  | Function | Line range | Change |
-  |----------|-----------:|--------|
-  | `spl_vrblk_name` | 289–300 | Add printable-ASCII validation; clamp `nl=0` on failure so caller sees empty name and falls to `<lval>` |
-  | (no thunk changes needed — sysmv already exists at int.asm:832–834) |
-
-  **Why this is better than the originally-suggested pnth4 shape.**
-  The session #29 plan suggested four separate fire-points
-  (pnth4 / pnth5 / pnth6 indexed-array / table) with custom register
-  arithmetic at each site (`mov xr,xl ; add xr,wa`).  After reading
-  the actual sources, every one of those sites lands at `jsr asinp`
-  with the same calling convention.  Instrumenting the *callee*
-  (asinp itself) replaces four sites with one, and incidentally
-  closes the SJSRV1 gap (SN-26-spl-bridge-c) by also instrumenting
-  asign — which o_rpl falls through into.  The "tbd — analog of
-  pnth4 for `$`" / "tbd — indexed stores" entries in the table
-  above are subsumed: `p_imc` (line 12095) and `p_cas` (line 11893)
-  both call `jsr asinp`, and `arref`-mediated stores call `o_ass`
-  → `asign`.
-
-  **Build chain (RULES.md SN-30g, full rebuild required):**
-  ```bash
-  cd /home/claude/x64
-  # 1. Edit osint/monitor_ipc_runtime.c (add ASCII guard).
-  # 2. Edit sbl.min (insert 2 fire-point blocks).
-  # 3. Force rebuild — build_spitbol_oracle.sh SKIPs on prebuilt sbl:
-  rm -f bin/sbl
-  make bootsbl
-  make BASEBOL=./bootsbl sbl
-  make bininst
-  # 4. Regen bootstrap so fresh clones can build:
-  make makeboot
-  ```
-
-  **Validation:**
-  1. `bash scripts/test_smoke_sn26_spl_bridge.sh` PASS=1
-     (regression — existing 6-record b_vrs probe must still pass).
-  2. `probe_complex.sno` (planted at
-     `corpus/programs/snobol4/demo/csn_bridge_c/probe_c.sno`)
-     produces a wire with `dotcap`, `dolcap`, `<lval>` records
-     symmetric to CSN's output (CSN shape: 14 records + END;
-     SPL must match record-for-record).
-  3. **SN-30 invariant**: `beauty.sno < beauty.sno` under
-     `sbl -bf` md5 still `408fc788ca2ef425fc1f87e26d45a7a5`.
-  4. Smoke=7, Broker=49 must stay green.
-  5. New permanent gate `scripts/test_smoke_sn26_spl_bridge_d.sh`
-     (PASS=1) for the `.`-capture probe specifically — landed
-     alongside the patch.
-
-  **Key sbl.min insight that makes this plan work** (not in
-  archive — discovered session #31): `asinp` and `asign` share
-  identical untrapped-fast-path shape (`add xl,wa` then
-  `mov (xl),wb`).  This means a single fire-point shape covers
-  both call sites, and both procedures together cover every
-  non-vrsto-direct store.  The `vrsto` offset is 1 word
-  (`vrsto equ vrget+1` at sbl.min:5456), so after `add xl,wa`,
-  `xl` IS the vrsto-field pointer the C-side `zysmv` expects
-  via its `vrsto_field - offsetof(vrsto)` trick.
+  **Bootstrap regen** done via `make makeboot` per RULES.md SN-30g;
+  bootstrap/sbl.{asm,lex} and bootstrap/err.asm updated so fresh
+  clones can build.
 
 - [ ] **SN-26-bridge-coverage-c — 3-way validation on beauty
   self-host** — With both oracles' bridges now firing on
@@ -808,7 +713,7 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 - **SN-26-csn-regen-fix** — `genc.sno` regen drops FNCP/FNCA..FNCD top-level definitions; `tsort` inlining promotes them to labels but `data_init.c` references them as functions. Hand-edit-the-C workaround used at every XCALLC landing site. Fix: diagnose `with`/`procs` inlining config, regenerate cleanly once, commit baseline.
 - **SN-26-bridge-coverage-extras** — Catch-all completeness audit gaps (deferred). Sites likely missing: keyword assignment (`&keyword = X` via ASGNIC), function-arg binding at DEFINE-call entry, DATA/DEFINE/OPSYN/FIELD identifier creation/rename. Beauty's `global.inc` only does plain assigns and `.`-captures, so the 5 LOCAPT-TVALL sites suffice for sub-h2.
 - **`<lval>` sentinel cleanup** — Currently `<lval>` is interned for array element / table slot stores. Cleaner: suppress the record entirely (parent's existence already recorded at `a = ARRAY(...)` time) by tightening `lvalue_name_id()` and `zysmv()` to return early without emitting when validation fails. Alternative: synthesize structured names like `a[1,2]`.
-- **SN-26-spl-bridge-c** — Pattern-substitute store-back fire-point for SPITBOL. SPITBOL's pattern-substitute store doesn't traverse `b_vrs`, so SPL probe drops one record vs CSN probe (`S 'world' = 'there'`). Find SPITBOL's store-back point (likely inside `match`/`bpat`/`assn` epilog around the `pmval` flag). Now subsumed by SN-26-bridge-coverage-b's SJSRV1-counterpart work.
+- **SN-26-spl-bridge-c** — **CLOSED 2026-04-27 session #32** by SN-26-bridge-coverage-b. Pattern-substitute store-back fire-point now fires via `o_rpl → oass0 → asign` fire-point landed at x64 @ `3cd2dcc`. Probe `S 'world' = 'there'` produces 3 records (b_vrs+asign+END). No separate work needed.
 - **SN-26-binmon-nreturn-divergence** — Oracle-vs-oracle divergence on `dummy` (CSN: STRING, SPL: NAME) at step 162 of beauty self-host. Likely rooted in how each runtime represents the `.dummy` NRETURN value when the dot-star call happens. Low priority — exposes a real semantic gap but does not gate scrip work.
 - **MWK_LABEL events** — If structural-flow events are desired in future, add `MWK_LABEL` to `monitor_wire.h` and fire on STNO advancing. Not gating sub-h2.
 - **Legacy LOAD-based monitor cleanup** — `build_monitor_ipc_*_library.sh` (3 scripts) build the legacy LOAD() `.so` modules; now unreferenced by any harness but harmless. Could be deleted in a cleanup pass alongside their `monitor_ipc*.c` sources in `scripts/monitor/`. `runtime/x86/snobol4.c` `MONITOR_SO=builtin` sentinel is dead code now that no harness sets it.
@@ -817,29 +722,30 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #31:**
-- one4all @ `dfc88e8e` — csn-bridge-c smoke + libcsnobol4.a archive monitor link (unchanged from #30)
-- corpus @ `fab43a1` — csn_bridge_c/probe_c.sno (unchanged from #30)
-- x64 @ `040d063` — `<lval>` sentinel for empty-name stores in zysmv (unchanged from #30)
-- csnobol4 @ `ad993fe` — NMD4 + ENMI3 + ATP fire-points + lvalue_name_id helper (unchanged from #30)
-- .github @ this commit — SN-26-bridge-coverage-b plan revised to asign+asinp two-fire-point approach (session #31)
+**HEADs after 2026-04-27 session #32:**
+- one4all @ `5ffd3af7` — `test_smoke_sn26_spl_bridge_d.sh` permanent gate
+- corpus @ `fab43a1` — unchanged
+- x64 @ `3cd2dcc` — asign+asinp fire-points + spl_vrblk_name ASCII guard + bootstrap regen
+- csnobol4 @ `ad993fe` — unchanged
+- .github @ this commit — SN-26-bridge-coverage-b closed; active step → SN-26-bridge-coverage-c
 
-**Gates (verified 2026-04-27 session #31):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · csn-bridge-c smoke **1** · spl-bridge smoke **1** · auto-binary smoke **1**.
+**Gates (verified 2026-04-27 session #32):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · csn-bridge-c smoke **1** · spl-bridge smoke **1** · **spl-bridge-d smoke 1 (new)** · auto-binary smoke **1**.
 
 **SN-30 invariant:** beauty.sno < beauty.sno md5 still `408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`.
 
-**Session #31 outcome (HQ-only, no source changes):** Re-grounded the
-SN-26-bridge-coverage-b plan in actual sbl.min reading.  Replaced the
-session-#29-suggested four-site approach (pnth4 / `$`-analog / indexed
-array / indexed table) with a **two-fire-point** plan at `asign` (line
-17596 region) and `asinp` (line 17844 region) — the central
-chokepoints all five SIL-counterpart sites route through.  Plus C-side
-printable-ASCII guard in `spl_vrblk_name` to match CSN's
-`lvalue_name_id` discipline.  See SN-26-bridge-coverage-b sub-rung
-above for full detail and build chain.  Pruned 1069 lines of stale
-session narrative from the goal file (1818→785→823 lines, the +38 is
-the revised plan).  No source edits this session — actual SPL patch is
-the next session's work.
+**Session #32 outcome:** Landed SN-26-bridge-coverage-b — two
+fire-points in sbl.min (`asign:asg01` line 17596, `asinp` body line
+17853) + ASCII guard in `spl_vrblk_name`.  Critical implementation
+discovery: natural variables use `*vrval` offset (16 bytes), not
+`*vrsto` (8 bytes) — fire-points need `sub xr,*vrvlo` to back-step
+from vrval to vrsto field before `jsr sysmv`.  Initial probe before
+this fix showed sidecar `S` + `<lval>` instead of `S` + `captured`;
+after fix, names match expected.  3-way auto harness on
+`beauty.sno < /tmp/asg.sno` advances from step 1 → **step 23**
+before DIVERGE — first 22 steps now agree across csn/spl/scr.
+Step 23 divergence (spl `UNKNOWN` vs csn/scr `TABLE`) is a
+pre-existing tbblk-typing gap in `spl_block_to_wire`; not blocking,
+captured as latent.  Side-closed SN-26-spl-bridge-c automatically.
 
 ---
 
