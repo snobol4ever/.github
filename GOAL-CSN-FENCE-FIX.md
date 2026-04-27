@@ -489,7 +489,7 @@ urge to start writing FNCA/FNCB/FNCC edits before F-1 closes.
 in `csnobol4/docs/F-1-findings.md`.
 
 **Steps:**
-- [ ] **Step 1: STAR/EXPVAL precedent reading.**  Read `STARP6`,
+- [x] **Step 1: STAR/EXPVAL precedent reading.**  Read `STARP6`,
       `L_STARP6`, `L_STAR1`, `STAR1` in `isnobol4.c` and `v311.sil`.
       Confirm the shape we'll mirror.  Note pattern-node layout for
       STAR (likely 4-descriptor: function descr, then-or, value-
@@ -598,19 +598,36 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ `ed98f13` (F-1 closed; F-1 findings notes committed)
+- csnobol4 @ EMERGENCY (F-2 in progress — broken, see below)
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- active step → **F-2** (implement D6 recursive-SCAN reimplementation
-  per `csnobol4/docs/F-1-findings.md`)
+- active step → **F-2 Step 2** (FENCEPT node builder — segfault in FNCPP block-write)
 
-**Gates as of session #43 end:**
-- Tiny repro: SEGFAULTS at L_SALT1 (PDLPTR=0xc0) — original signature.
-- F-1 outcome: D6 (Recursive-SCAN, modeled on STAR per Gimpel 1973)
-  chosen.  Layouts A-E of D3 attempted and rejected.  See
-  `docs/F-1-findings.md`.
-- After F-2: tiny repro and full self-host should pass.
-- After F-2: tiny repro should produce beauty output cleanly.
-- one4all Smoke=7, Broker=49: not affected by csnobol4-only work.
-- csnobol4 fence_function/ 10-test suite: PASS=10 currently (verified session #41).
+**Gates as of session #44 end (EMERGENCY HANDOFF):**
+- D6 FNCA body: correct — recursive SCIN call, save/restore outer state, FNCD seal on success.
+- D6 FNCP builder: BROKEN — segfault at statement 1 during pattern construction.
+- Root cause identified: `int_t base = D_A(ZPTR); D_A(base) = base;` — `base` is
+  `int_t` (long), not `ptr_t`; the macro `D_A(base)` casts `long` to `struct descr*`
+  which may not work correctly. Fix: use `D_A(D_A(ZPTR)) = D_A(ZPTR)` style (passing
+  `D_A(ZPTR)` directly as the macro arg, which is the pattern used everywhere else in
+  the generated C e.g. `D(D_A(PDLPTR) + DESCR) = D(FNCBCL)`).
+- Key discovery: SCIN3 slot[3]=YCL is used as a LENGTH value (`D_A(YCL)` checked
+  against MAXLEN). So slot[3] MUST have D_A=0. P goes in slot[4]. Node is 5 descriptors.
+- CPYPAT cannot be used (corrupts zero then-or: F2 macro sets v=0 to a5=total_size).
+- fence_function/ suite: 4/10 pass (basic dispatch broken due to FNCPP segfault).
+
+**Next session F-2 Step 2 fix (one change):**
+Replace the `{ int_t base = ... }` block in FNCPP (both isnobol4.c and snobol4.c) with:
+```c
+/* slot[0]: title self-ptr, TTL+MARK, 5*DESCR — ZERBLK already zeroed the block */
+D_A(D_A(ZPTR))               = D_A(ZPTR);
+D_F(D_A(ZPTR))               = TTL+MARK;
+D_V(D_A(ZPTR))               = 5*DESCR;
+/* slot[1]: FNCAFN function descriptor */
+D(D_A(ZPTR) + DESCR)         = D(FNCAFN);
+/* slots [2],[3] already zero from ZERBLK — slot[3].D_A=0 satisfies SCIN3 length check */
+/* slot[4]: P pattern descriptor */
+D(D_A(ZPTR) + 4*DESCR)       = D(XPTR);
+```
+Then rebuild, run fence_function/ regression (expect 10/10), run tiny repro, run beauty self-host.
