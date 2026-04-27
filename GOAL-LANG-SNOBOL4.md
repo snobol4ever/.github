@@ -515,14 +515,31 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #24:**
-- one4all @ `3f6bdbb3` (SN-26-csn-bridge-a: smoke test + minimal wire reader)
+**HEADs after 2026-04-27 session #25:**
+- one4all @ `3f6bdbb3` (no changes this session)
 - corpus @ `32cefc1` (no changes this session)
-- .github @ this commit (SN-26-csn-bridge-a closed; -a-xcallc opened)
+- .github @ this commit (SN-26-csn-bridge-a-xcallc closed)
 - x64 @ `4c85c38a` (no changes this session)
-- csnobol4 @ `c1843eb` (SN-26-csn-bridge-a: monitor IPC runtime, statically linked)
+- csnobol4 @ `64652ed` (SN-26-csn-bridge-a-xcallc: XCALLC + hand-applied C mirror)
 
-**Gates (verified 2026-04-27 session #24):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-27 session #25):** Smoke **7** · Broker **49** · csn-bridge smoke **1**.
+
+### Closed in session #25 (2026-04-27)
+
+- [x] **SN-26-csn-bridge-a-xcallc** — `XCALLC monitor_emit_value,(XPTR,YPTR)`
+  inserted at `ASGNVV` in `v311.sil` (line 5938 region of `ASGN PROC ,` —
+  the central simple-assignment store for `X = Y`).  Equivalent
+  `monitor_emit_value(XPTR, YPTR);` hand-applied at `L_ASGNVV` in both
+  `snobol4.c` and `isnobol4.c` because regenerating from `v311.sil` on
+  current csnobol4 HEAD breaks the link (FNCP/FNCA..FNCD inlined to
+  labels but referenced as functions by data_init.c — pre-existing,
+  reproduces without any XCALLC edit) and also wipes the IM-15b hook
+  block (commit `b3aeb9f`).  See SN-26-csn-bridge-a-xcallc detail above
+  for the full footgun analysis and suggested follow-up rung
+  `SN-26-csn-regen-fix`.  End-to-end FIFO probe: `x = 'hello' / END`
+  produces one VALUE record (name_id=0, STRING(5)=`hello`) + MWK_END
+  on the wire, sidecar dumps `id=0: X`.  Smoke=7, Broker=49,
+  csn-bridge smoke=1 all green.
 
 ### Closed in session #24 (2026-04-27)
 
@@ -826,15 +843,38 @@ one shared file with a small dialect-detect at compile time).
   csnobol4 @ `c1843eb`.  one4all @ `3f6bdbb3` (smoke script + reader).
   Smoke=7, Broker=49 unchanged (runtime symbol unused until SIL XCALLC
   sites land in -a-xcallc / -b).
-- [ ] **SN-26-csn-bridge-a-xcallc** — Wire one XCALLC site in
-  `v311.sil` (smallest possible: `XCALLC monitor_emit_value,(WPTR,ZPTR)`
-  somewhere benign) to prove the SIL→C boundary works end-to-end.
-  Run `xsnobol4` on a trivial `.sno` (e.g. `x = 'hello' / END`) under
-  `MONITOR_READY_PIPE=fifo MONITOR_GO_PIPE=go MONITOR_NAMES_OUT=names`
-  + `read_one_wire.py` controller, observe one VALUE record on wire.
-  This is the original "minimum unit of progress" finish line.  Held
-  out of -a so the C scaffolding could be committed in isolation
-  before any SIL edits.
+- [x] **SN-26-csn-bridge-a-xcallc** — Wired `XCALLC monitor_emit_value,(XPTR,YPTR)`
+  at `ASGNVV` in `v311.sil` (the central simple-assignment store, line 5938
+  region of the `ASGN PROC ,` block — `X = Y`).  End-to-end FIFO probe with
+  `x = 'hello' / END` produces exactly one VALUE record on the wire: `kind=VALUE
+  name_id=0 STRING(5)=b'hello'` followed by `MWK_END`, sidecar `id=0: X`.
+  SIL→C boundary proven.  csnobol4 @ session #25 commit (this rung).
+  Smoke=7, Broker=49, csn-bridge smoke=1 all green.
+
+  **Build-path footgun discovered (worth a follow-up rung).**  The Goal file's
+  plan assumed `edit v311.sil → regenerate snobol4.c/isnobol4.c → build` would
+  work.  It does not on current HEAD (`c1843eb`):
+  1. **IM-15b (commit `b3aeb9f`)** is a hand-edit on the generated `snobol4.c`
+     (typedef + 3 externs at top, hook firing site at `D_A(EXNOCL)++`).  Top-level
+     `make snobol4.c` wipes both blocks.
+  2. **`genc.sno` regenerates a broken `isnobol4.c`** on this HEAD: the tsort
+     inlining decisions promote `FNCP`/`FNCA..FNCD` from top-level C functions
+     to mere labels, but `data_init.c` references `FNCP` as a function symbol
+     via `(int_t)(FNCP)`.  Result: `undefined reference to FNCP` at link time.
+     Reproduces with no XCALLC edit at all — pre-existing.
+
+  **Pragmatic compromise shipped:** treat `v311.sil` as documentation-source-of-
+  truth for the XCALLC, and apply the equivalent C-level edit directly to
+  `snobol4.c` and `isnobol4.c` at `L_ASGNVV` (with explanatory comment in
+  `snobol4.c`).  Mirrors the precedent set by IM-15b.  This is what regen
+  *would* produce if regen worked.
+
+  **Suggested follow-up rung** (not opened): `SN-26-csn-regen-fix` — diagnose
+  why `genc.sno` regen drops FNCP/FNCA..FNCD top-level definitions, fix
+  `with`/`procs` inlining config, regenerate cleanly once, commit the fresh
+  baseline.  Then future XCALLC additions can follow the proper edit-SIL-and-
+  regenerate workflow without manual restoration.
+
 - [ ] **SN-26-csn-bridge-b** — Patch the five trace fire-points in
   `v311.sil` to emit on the wire when `kw_trace > 0` (catch-all).
   Regenerate, build, sync-step against scrip on a tiny program.
