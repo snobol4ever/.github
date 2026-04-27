@@ -120,6 +120,154 @@ binary built fresh) it segfaults at stmt 1074. Could be platform-specific
 (stack guards, signal handling, libc differences). Not investigated; not
 a blocker for this goal — snobol4dotnet must match SPITBOL.
 
+## NEW APPROACH (Mon Apr 27 2026) — 3-way binary sync-step monitor
+
+Prior diagnosis sessions (preserved in detail below) chased S-2 by
+hand-instrumenting `Shift`/`Reduce`/`Push`/`Inc`/`Pop` callbacks in a
+copy of `demo/beauty/` and reading the trace.  Per RULES.md *"Sync-step
+monitor — read the divergence point, not the trace"*, that approach is
+deprecated.  The canonical workflow is now: drive csn + spl + dot
+through the runtime-agnostic 3-way harness in one4all, let the
+controller stop at first DIVERGE, and read **only** the last-agreed
++ first-disagreed wire-record pair.
+
+The `csn` and `spl` bridges already fire on the chokepoint events
+required for sync stepping (assignment, `.`-capture commit, user-fn
+CALL/RETURN) — landed in csnobol4 `ad993fe` and x64 `3cd2dcc` under
+SN-26-bridge-coverage-a/b in GOAL-LANG-SNOBOL4.  The wire format
+(`one4all/scripts/monitor/monitor_wire.h`) and the controller
+(`monitor_sync_bin.py`) are runtime-agnostic — they compare records
+byte-for-byte across an arbitrary participant set identified by a
+4-part `NAME:READY:GO:NAMES` spec.
+
+**Active S-2 sub-rungs (this is the work; the speculative hypotheses
+below remain as session history but are no longer the primary lens):**
+
+- [ ] **S-2-bridge-1 — DotNet IPC bridge, standalone smoke**
+  Implement `Snobol4.Common/Runtime/Monitor/MonitorIpc.cs` with three
+  public static entry points: `EmitValue(string name, Var value)`,
+  `EmitCall(string fnName)`, `EmitReturn(string fnName)`.  Static
+  ctor reads `MONITOR_BIN`/`MONITOR_READY_PIPE`/`MONITOR_GO_PIPE`/
+  `MONITOR_NAMES_OUT` env vars.  When `READY_PIPE` is absent, all
+  entry points become no-op single-bool checks (zero overhead on
+  normal beauty 17/17 runs).  When set, opens FIFOs, writes ready
+  handshake, emits 13-byte fixed-header records on each call.
+
+  Wire-format spec: see `one4all/scripts/monitor/monitor_wire.h`.
+  Reference port: `csnobol4/monitor_ipc_runtime.c` lines ~150-280.
+  Names interned via `Dictionary<string,uint>` + sidecar text file
+  flushed after each emit (small file; cheap; survives shutdown
+  paths where `ProcessExit` doesn't fire).
+
+  **Smoke gate:** new `scripts/test_smoke_dot_bridge.sh` PASS=1.
+  Probe: `S='hello'\nEND\n` produces 2 wire records (VALUE + END).
+
+  Beauty 17/17 must remain green.
+
+- [ ] **S-2-bridge-2 — Fire-point: assignment chokepoint**
+  Hook `MonitorIpc.EmitValue` from snobol4dotnet's central
+  assignment path.  Candidate: `ConcreteVar.AssignFromStack` (or
+  whatever method funnels every `=` lvalue store; needs source-side
+  audit).  Mirrors csn `ASGNVV` (v311.sil:5938) and spl `asign:asg01`
+  (sbl.min:17596).
+
+  Validation probe equivalent to csn-bridge-a hello probe.
+  `S='hello'\nEND\n` → exactly 1 VALUE record + END.
+
+- [ ] **S-2-bridge-3 — Fire-point: `.`-capture commit + element stores**
+  Hook the commit path of `CursorAssignmentPattern` (the runtime
+  implementation of `pat . var` and `pat . *fn(args)`).  Mirrors
+  csn `NMD4`, `ENMI3`, `ATP` and spl post-asign coverage.
+
+  `<lval>` sentinel discipline from SN-26-bridge-coverage-a applies:
+  if the captured name resolves to anonymous storage (array element,
+  table slot) instead of a vrblk-with-name, validate that candidate
+  name characters are printable-ASCII identifier bytes; on failure
+  intern sentinel `<lval>`.
+
+  Validation: probe equivalent to csn-bridge-c `probe_complex.sno`
+  (5 LHS forms: plain `=`, `pat . X`, `pat $ X`, `a<i,j>=`,
+  `d<'k'>=`).
+
+- [ ] **S-2-bridge-4 — Fire-point: CALL + RETURN on user-defined fns**
+  Hook entry/exit of user-defined functions only (filter built-ins
+  via function-table flag).  Mirrors csn `DEFF18`/`DEFF20` and spl
+  `bpf09` predecessor + `retrn` body.
+
+  Validation probe equivalent to csn-bridge-b: DEFINE + SQR(7) →
+  7-record wire (VALUE-bind + CALL + VALUE-arg + ... + RETURN).
+
+- [ ] **S-2-bridge-5 — Harness lane: `dot` participant**
+  Edit `one4all/scripts/test_monitor_3way_sync_step_auto.sh`:
+  - Add `dot` to recognized PARTICIPANTS set.
+  - Build dot launch command (env vars + `dotnet $SNO4 -bf $SNO < $STDIN`).
+  - Pass through per-participant timeout and FIFO setup.
+
+  Validation: `PARTICIPANTS="dot" bash test_monitor_3way_sync_step_auto.sh
+  /tmp/probe.sno` produces a clean trace.
+
+- [ ] **S-2-bridge-6 — End-to-end: csn + spl + dot on beauty self-host**
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+  PARTICIPANTS="csn spl dot" \
+      STDIN_SRC=$BEAUTY/beauty.sno \
+      MONITOR_TIMEOUT=120 \
+      bash /home/claude/one4all/scripts/test_monitor_3way_sync_step_auto.sh \
+      $BEAUTY/beauty.sno
+  ```
+  Expected: controller advances step-by-step, stops at the step
+  where `dot` first diverges from csn/spl agreement, prints
+  last-agreed + first-disagreed pair.  Read **only** that pair —
+  per RULES.md.  Past hypotheses (cursor-callback re-fire, ARBNO
+  graft, ExpressionVar deferred eval) become **verifiable**: the
+  wire shows exactly which VALUE/CALL/RETURN record dot emits where
+  csn and spl agree on something different (or omits one they both
+  emit).
+
+- [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
+  With the canonical divergence pair in hand, fix the snobol4dotnet
+  runtime at the appropriate site (`Scanner.cs` Match, `Builder.cs`
+  BuildEval, `UnevaluatedPattern.cs` Scan, `ConditionalVariableAssociationPattern.cs`,
+  `ArbNoPattern.cs` — depending on what the wire reveals).  Re-run
+  S-2-bridge-6.  Repeat until exit 0 and ≥500 stderr lines.
+
+**Why this supersedes the speculative path.** The session log below
+documents *six* distinct hypotheses for S-2 root cause, several of
+which were definitively invalidated by isolated probes:
+- ARBNO + nested-* with cursor callbacks: **not the bug** (verified
+  with v6 repro).
+- "2-arg DEFINE breaks pattern callbacks": **not the bug** (verified;
+  was an `AmpCaseFolding` artifact, fixed in `13bfcc0`).
+- Graft on multi-element concat: **not the bug** (4-element repro
+  passes byte-identical to SPITBOL).
+- ExpressionVar deferred eval in numeric context: **was a contributing
+  bug**, fixed in `0914fbf`; not the residual.
+- Callbacks re-fire on backtrack: **partially confirmed** by `probe4`
+  but only in a malformed-NRETURN edge case; doesn't reproduce on
+  well-formed callbacks.
+
+Each hypothesis cost a session.  The 3-way binary monitor short-circuits
+this: instead of building a probe to *prove* a hypothesis, the wire
+shows the divergence directly.  Whatever the root cause is, it manifests
+as a specific record at a specific step — and the fix site follows
+from the record kind and name.
+
+**Gates after every sub-rung:**
+- snobol4dotnet beauty 17/17 still green.
+- snobol4dotnet unit tests still green (baseline 2375p/0f/2s).
+- `test_smoke_dot_bridge.sh` PASS=1 (after S-2-bridge-1).
+- one4all existing bridge smokes unchanged: `test_smoke_sn26_csn_bridge_a.sh`,
+  `_b.sh`, `_c.sh`, `test_smoke_sn26_spl_bridge.sh`,
+  `test_smoke_sn26_spl_bridge_d.sh`, `test_smoke_sn26_auto_binary.sh`.
+
+**Estimated session count for S-2-bridge-1..7:** 3-4 sessions.
+S-2-bridge-1+2 in one (scaffolding + first fire-point);
+S-2-bridge-3+4 in another (remaining fire-points);
+S-2-bridge-5+6 in a third (harness wiring + first divergence);
+S-2-bridge-7 is iterative — one fix per session until self-host PASS.
+
+---
+
 ## Current diagnosis (supersedes all prior notes below)
 
 **Sun Apr 26 2026, evening session 2 — diagnosis sharpened, pivot to confidence demos.**
