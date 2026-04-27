@@ -447,95 +447,197 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
     beauty (pre-corpus-7041a14); current beauty md5s are different
     and tracked separately in the closing notes for SN-29.
 
-- [ ] **SN-26-bridge-coverage-m — control-flow divergence in SPITBOL
-  caused by active-monitor IPC handshake (session #47, 2026-04-27).**
+- [x] **SN-26-bridge-coverage-m — corpus include duplication caused
+  phantom step-882 divergence.  CLOSED session #48 (2026-04-27).**
 
-  After -j closure, the 2-way harness on `beauty.sno < beauty.sno`
-  reaches step 882 cleanly, then diverges:
+  **Root cause (session #48, supersedes session #47 hypothesis):** the
+  step-882 divergence (`spl=463 vs scr=461 for GenEnd`) was NOT a
+  control-flow bug in SPITBOL's `syscall` thunk.  It was the two
+  runtimes loading **different copies of `Gen.inc` and `semantic.inc`**
+  due to corpus duplication between `programs/include/` and
+  `programs/snobol4/demo/beauty/`.  Same logical include, divergent
+  bytes (Gen.inc differed by 2 lines; semantic.inc by ~10 lines of
+  one-arg vs two-arg DEFINEs).  The 2-line Gen.inc difference shifted
+  every subsequent stno by 2, manifesting as the spl=463 / scr=461
+  spread.
+
+  **Why the auto harness exposed this.**
+  `test_monitor_3way_sync_step_auto.sh` set `SETL4PATH=".:$INC"` for
+  SPITBOL and `SNO_LIB="$INC"` for scrip, where
+  `INC=/home/claude/corpus/programs/include`.  But scrip's lexer
+  always searches the input file's parent directory FIRST regardless
+  of `SNO_LIB` (`src/frontend/snobol4/snobol4.l`).  Running
+  `beauty.sno < beauty.sno` from CWD=/ thus had:
+  - SPITBOL: tried `.` (= /), miss; tried `$INC`, hit
+    `programs/include/Gen.inc`.
+  - scrip: tried source dir
+    `programs/snobol4/demo/beauty/`, hit
+    `programs/snobol4/demo/beauty/Gen.inc` — never reached `$INC`.
+  Both runtimes correctly executed their own program; they were just
+  executing slightly different programs.
+
+  **Diagnostic that exposed the false hypothesis.**  The session #47
+  `[zysml] kvstn=N` printf in `osint/monitor_ipc_runtime.c` showed
+  what looked like SPITBOL's `stmgo` skipping stnos under harness vs
+  plain.  The trap was conflating two variables: monitor-active vs
+  inactive AND monitor-via-`monitor_sync_bin.py`-2-way vs
+  monitor-via-`read_one_wire.py`-1-way.  Session #48 isolated them by
+  driving SPITBOL through `read_one_wire.py` alone (single
+  participant): the kvstn sequence under that monitor was
+  byte-identical to the plain run.  The IPC handshake does NOT
+  perturb SIL state.  No register clobber, no stack-switch
+  interaction, no `_rc_` padding bug.  The "skipped 461 and 462" was
+  an artifact of comparing a 2-line-shorter file (scrip's resolution)
+  against a 2-line-longer file (spl's resolution).
+
+  **Fix (corpus, this commit).** Removed the duplicate `.inc` files
+  from `programs/include/` (16 files: Gen, Qize, ReadWrite,
+  ShiftReduce, TDump, XDump, assign, case, counter, global, match,
+  omega, semantic, stack, trace, tree).  The demo/beauty copies are
+  now the only copies; `demo/beauty/` is the canonical source for
+  these includes.  This inverts the RULES.md "self-contained demo"
+  section's previous claim that "the canonical copy still lives in
+  `programs/include/`" — that text needs updating in a future HQ
+  pass.  Tracked as a follow-up on `GOAL-README-CORPUS.md` /
+  RULES.md cleanup.
+
+  **Collateral.** ~35 non-demo programs (`programs/lon/sno/*.sno`,
+  `programs/lon/rinky/*.sno`, `programs/beauty/expression.sno`)
+  carried `-INCLUDE 'Gen.inc'` etc. resolved via
+  `programs/include/`.  After this change those programs no longer
+  resolve their includes from `programs/include/`; they were
+  previously broken by ERROR 284 (excessively nested) and are not
+  exercised by any current gate (Smoke, Broker, or the corpus test
+  scripts).  Listed verbatim below for whoever maintains them; not
+  blocking SNOBOL4 frontend ladder work.
+
+  Affected programs (all currently un-gated):
   ```
-    spl #882: LABEL stno=INT=463
-    scr #882: LABEL stno=INT=461
+  programs/beauty/expression.sno
+  programs/lon/rinky/Activists.sno
+  programs/lon/rinky/Analysis.sno
+  programs/lon/rinky/Backtype.sno
+  programs/lon/rinky/Decorate.sno
+  programs/lon/rinky/Extractor.sno
+  programs/lon/rinky/MobyThesaurus2sql.sno
+  programs/lon/rinky/Subscriptions.sno
+  programs/lon/rinky/Technorati-search.sno
+  programs/lon/rinky/Technorati.sno
+  programs/lon/rinky/WordNet.sno
+  programs/lon/rinky/YelpReviews.sno
+  programs/lon/sno/Bouvier.sno
+  programs/lon/sno/Dict.sno
+  programs/lon/sno/Dictionary.sno
+  programs/lon/sno/HTML.sno
+  programs/lon/sno/OConners-Generator.sno
+  programs/lon/sno/OConners.sno
+  programs/lon/sno/XML.sno
+  programs/lon/sno/aclsprof.sno
+  programs/lon/sno/addMsg.sno
+  programs/lon/sno/blob.sno
+  programs/lon/sno/bootstrap.sno
+  programs/lon/sno/branch.sno
+  programs/lon/sno/cb.sno
+  programs/lon/sno/cypher.sno
+  programs/lon/sno/ebnf.sno
+  programs/lon/sno/gelderen.sno
+  programs/lon/sno/mm.sno
+  programs/lon/sno/msl2c.sno
+  programs/lon/sno/rc.sno
+  programs/lon/sno/ssls.sno
+  programs/lon/sno/tpl2c.sno
+  programs/lon/sno/transl8.sno
+  programs/lon/sno/tsql.sno
   ```
-  Last-agreed trail: ..., LABEL=440, LABEL=441, LABEL=442, LABEL=443,
-  VALUE indent = STRING(120)='<120 spaces>'.  Stmt 443 is
-  `indent = DUPL(' ',120) :go GenEnd` (in `Gen.inc`).  Stmt 461 is
-  `GenEnd` (bare label only).  Stmt 462 is `DEFINE('Qize(str)part')`.
-  Stmt 463 is `QizeWierd = ... :go QizeEnd`.  Expected flow after
-  stmt 443's `:(GenEnd)`: land on 461, fall through 462, then 463.
 
-  **Root cause is NOT a bridge-emit asymmetry.** Confirmed via an
-  env-gated `[zysml] kvstn=N` printf inserted BEFORE `monitor_init()`
-  in `osint/monitor_ipc_runtime.c::zysml`, written to a fixed-path
-  log file:
+  **Verification (session #48):**
+  - 2-way harness on `beauty.sno < /dev/null` advances from step 882
+    to **step 1035** before next divergence.  Steps 1..1034 all agree;
+    LABEL stnos match exactly.  Divergence at step 1035 is genuine
+    semantic disagreement (`spl: CALL nPush` vs
+    `scr: VALUE nPush = STRING(0)=''`) — a real CALL-vs-VALUE
+    asymmetry on bare `nPush` invocation, not an artifact.
+  - Smoke=7, Broker=49 preserved.
 
-  - **Plain run** (no monitor pipes set, same binary, same source,
-    same stdin): `zysml` is called for stnos in order
-    `…, 442, 443, 461, 462, 463, 475, 476, 483, …` — correct flow.
-  - **Harness run** (MONITOR_READY_PIPE / MONITOR_GO_PIPE set, controller
-    blocking on every record): `zysml` is called for stnos
-    `…, 442, 443, 463, 464, …` — **stnos 461 and 462 are silently
-    skipped at the `stmgo` level**, before any wire emission can
-    happen.
+  **What landed on the SPITBOL side:** nothing.  The diagnostic
+  printf was reverted before commit (RULES.md "Diagnostic patches
+  don't ship").  x64 working tree is clean.
 
-  Same SIL, same compiled binary, deterministic input, but two
-  different paths through `stmgo` / `b_vrg`.  The divergence is
-  caused by something that changes when the C-side `emit_record_raw`
-  actually does work (writev + read on FIFOs) versus its early-return
-  path (`if (g_ready_fd < 0) return;`).
+- [ ] **SN-26-bridge-coverage-n — CALL-vs-VALUE asymmetry on bare
+  function invocation in patterns.  Opened session #48.**
 
-  **Hypotheses for next session:**
-  1. **Register clobber across the syscall thunk for `sysml`.**
-     `int.asm syscall` macro saves/restores rcx, rbx, rdx, rdi, rsi,
-     r12, r13, xmm12.  The `sysml` thunk (line 848) is just
-     `syscall zysml,42` — unlike `sysmv` (line 833) which precedes
-     with `mov m_word [reg_xs],rsp`.  If the SIL `stmgo` code path
-     after `jsr sysml` reads any register the thunk doesn't preserve
-     across the active-IPC code path's deeper call chain
-     (writev → glibc → kernel → read), control flow shifts.
-  2. **Compsp/osisp stack switch interaction.** `syscall` does
-     `mov compsp,rsp; mov rsp,osisp; and rsp,~0xf`.  When the C side
-     blocks on `read()` from go-fifo, glibc may use additional stack
-     and clobber state that on quick-return (early-return path) does
-     not get touched.  Check whether anything below `osisp` in the
-     C stack frame is reachable from SPL's saved-register slots.
-  3. **`_rc_` declared as `dd` (4 bytes) but written/dec'd as
-     `m_word` (8 bytes).** Following padding before
-     `align cfp_b` gets clobbered.  Probably benign but verify.
-
-  **Diagnostic technique that proved the root cause** (re-applicable
-  next session): in `zysml`, before `monitor_init()`:
-  ```c
-  if (getenv("SPL_TRACE_LABEL")) {
-      FILE *tf = fopen("/tmp/spl_zysml.log", "a");
-      if (tf) { fprintf(tf, "[zysml] kvstn=%ld\n", (long)stno); fclose(tf); }
-  }
+  After -m closure, the 2-way harness on `beauty.sno < /dev/null`
+  reaches step 1035 cleanly and diverges:
   ```
-  Run beauty plain (`SPL_TRACE_LABEL=1 sbl -bf $BEAUTY/beauty.sno
-  < $BEAUTY/beauty.sno`) and via harness (`PARTICIPANTS="spl scr"
-  SPL_TRACE_LABEL=1 STDIN_SRC=$BEAUTY/beauty.sno bash
-  scripts/test_monitor_3way_sync_step_auto.sh $BEAUTY/beauty.sno`),
-  diff the two `/tmp/spl_zysml.log` snapshots around line 480.
-  RULES.md: revert before any commit.
+    spl #1030: LABEL stno=INT=706
+    spl #1031: VALUE ] = UNKNOWN
+    spl #1032: LABEL stno=INT=707
+    spl #1033: VALUE > = UNKNOWN
+    spl #1034: LABEL stno=INT=709
+    spl #1035: CALL nPush
+    scr #1030: LABEL stno=INT=706
+    scr #1031: VALUE ] = PATTERN
+    scr #1032: LABEL stno=INT=707
+    scr #1033: VALUE > = PATTERN
+    scr #1034: LABEL stno=INT=709
+    scr #1035: VALUE nPush = STRING(0)=''
+  ```
 
-  **Probes that did NOT reproduce in isolation** (still useful as
-  controls):
-  - `probe_bare.sno` (`a=1 :(L1) / b=99 / L1 / c=3 / END`) — bare
-    label LABEL emission agrees on both sides.
-  - `probe_define7.sno` (`a=1:(LL) / DEFINE / fnbody / LL / DEFINE
-    :(BarEnd) / fnbody / BarEnd / c=5 / OUTPUT / END`) — full
-    agreement, including LABEL for bare LL and BarEnd.
-  Beauty-specific factor not yet bisected — try shrinking beauty
-  toward a minimum reproducer that triggers the harness-only skip.
+  Two issues visible:
+  1. **VALUE type asymmetry on `]` and `>`:** SPITBOL emits the
+     value-type as UNKNOWN; scrip emits PATTERN.  Both refer to
+     pattern variables (`]` and `>` are Snobol4 pattern operators in
+     beauty's pattern setup).  SPITBOL's `spl_block_to_wire`
+     discriminator in `osint/monitor_ipc_runtime.c` may not recognize
+     pattern-block typewords; falls through to MWT_UNKNOWN.  scrip
+     correctly classifies them as MWT_PATTERN.  Pure bridge-emit
+     asymmetry; not a runtime correctness bug.
+  2. **CALL vs VALUE on `nPush`:** SPITBOL's bridge fires `sysmc`
+     (CALL) at the function-call gate (bpf09); scrip's
+     `comm_var()` fires VALUE at the assignment chokepoint.  When
+     beauty does `nPush()` as a bare invocation in a pattern context
+     (no LHS), SPITBOL sees a function call and emits CALL; scrip
+     sees an assignment-target store of the function's return value
+     and emits VALUE.  This is symmetric to the long-known
+     `sysmc`/`sysmr` vs `comm_call`/`comm_return` boundary issue.
 
-  **Gate:** 2-way harness on `beauty.sno < beauty.sno` advances
-  past step 882 to clean MWK_END or to a divergence rooted in a
-  different subsystem.  PLUS Smoke=7, Broker=49 preserved.
+  **Done-when:** the 2-way harness on `beauty.sno < beauty.sno`
+  either reaches MWK_END or diverges on a fundamentally different
+  symptom.  Plus Smoke=7, Broker=49 preserved.
 
-**Dependencies (post 2026-04-27 pivot, post -j closure session #46):**
--e → -f → -g → (-k, -l) → -j → -m → -h.
+  **Hypotheses for next session (in priority order):**
+  - **2.a** Audit `spl_block_to_wire` in `osint/monitor_ipc_runtime.c`
+    for missing pattern-block typewords (`b_pat`, `b_pcd`, `b_pmt`,
+    etc.) — fix would be one or two `if (typ == TYPE_PAT) return
+    MWT_PATTERN` clauses based on `osint.h` externs.  Easy win on
+    issue (1).
+  - **2.b** For issue (2), the choice is: either (a) add a scrip
+    fire-point at the bare-function-call site that emits CALL
+    instead of VALUE, matching SPITBOL's semantics; or (b) suppress
+    SPITBOL's CALL emit on bare-invocation paths and let the VALUE
+    record represent both runtimes' view.  (a) is closer to what
+    SN-26-bridge-coverage-d implies the catch-all should look like.
+
+  **Diagnostic technique:** before any code change, drive each
+  runtime through `read_one_wire.py` alone on the same beauty.sno
+  and dump the wire records around step 1035 from each side.
+  Compare to confirm the symptom is exactly as the 2-way harness
+  reports it (no controller artifact).  If both single-runtime
+  dumps reproduce the asymmetry, fix in the runtime; if only one
+  does, fix at the controller / wire-protocol level.
+
+  **Gate:** Smoke=7, Broker=49.  Plus 2-way harness advances past
+  step 1035.
+
+**Dependencies (post 2026-04-27 pivot, post -j closure session #46,
+post -m closure session #48):**
+-e → -f → -g → (-k, -l) → -j → -m → -n → -h.
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
 -j CLOSED (linear-stno bug).
--m is the new active rung for the harness flow on beauty.
+-m CLOSED session #48 (corpus include duplication; no SPITBOL register
+clobber as session #47 had hypothesized).
+-n is the new active rung — CALL-vs-VALUE asymmetry on bare function
+invocation, surfaced when the corpus duplication was removed.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
 landed in the IR-run path only.  `sm_interp.c SM_STNO` and
@@ -620,71 +722,162 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ new HEAD (post session #46)
-- corpus @ `7041a14`
-- x64 @ new HEAD (post session #45)
+- one4all @ unchanged (no commits this session)
+- corpus @ new HEAD (post session #48 — duplicate .inc removal)
+- x64 @ unchanged (no commits this session — diagnostic patch reverted)
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-m (control-flow divergence in
-  SPITBOL caused by active-monitor IPC handshake — NOT a bridge-
-  emit asymmetry as previously hypothesized).  Session #47 confirmed
-  via env-gated `[zysml] kvstn=N` printf placed BEFORE
-  `monitor_init()` in `osint/monitor_ipc_runtime.c::zysml`,
-  written to `/tmp/spl_zysml.log`: same SIL, same source, same
-  stdin, but `kvstn` sequence differs based on whether monitor
-  pipes are open.  Plain run goes 442 → 443 → 461 → 462 → 463
-  (correct); harness run goes 442 → 443 → 463 (skips 461 and 462).
-  Root cause must be in the `syscall` thunk path (register clobber
-  / stack switch interaction with active write+read) since the
-  early-return path (`if (g_ready_fd < 0) return;`) of
-  `emit_record_raw` does not exhibit the divergence.
-  -j CLOSED session #46: linear-stno bug in `execute_program` —
-  `int stno = 0; ++stno` was a linear execution counter, made
-  `&STNO` and MWK_LABEL stno wrong on backward gotos.  Added
-  `STMT_t.stno` (source stno, set at parse time, 1-based);
-  `execute_program` now reads `stno = s->stno;` instead of
-  `++stno;`.  2-way harness on beauty.sno self-host advances
-  306 → 882; on probe2.sno 306 → 806.
-  -l CLOSED session #45; -k CLOSED session #44; -g CLOSED session #43;
-  -i lifted to GOAL-CSN-FENCE-FIX; -h unblocked once -m lands.
+- active step → SN-26-bridge-coverage-n (CALL-vs-VALUE asymmetry on
+  bare function invocation in patterns; surfaced when corpus include
+  duplication was removed in -m closure).  2-way harness on beauty.sno
+  now advances cleanly to step 1035.  At that step SPITBOL emits
+  `CALL nPush` while scrip emits `VALUE nPush = STRING(0)=''`.
+  Two issues mixed together: (1) value-type asymmetry on pattern
+  blocks (`spl: UNKNOWN` vs `scr: PATTERN` at steps 1031, 1033) —
+  likely missing pattern typewords in `spl_block_to_wire`; and
+  (2) the CALL-vs-VALUE asymmetry on the bare invocation itself.
+  -m CLOSED session #48: NOT a syscall-thunk register clobber as
+  session #47 hypothesized.  The phantom step-882 divergence was
+  caused by `programs/include/Gen.inc` (and `semantic.inc`)
+  differing from `programs/snobol4/demo/beauty/Gen.inc`
+  (and `semantic.inc`); SPITBOL pulled the include version while
+  scrip pulled the demo version, because scrip's lexer always
+  searches the source-file's directory first regardless of
+  SNO_LIB.  Fix: deleted 16 duplicate .inc files from
+  `programs/include/`; demo/beauty is now canonical.  35
+  un-gated programs are now broken (`-INCLUDE 'Gen.inc'` no
+  longer resolves) and listed in the -m closure block.
+  -l CLOSED session #45; -k CLOSED session #44; -j CLOSED session #46;
+  -g CLOSED session #43; -i lifted to GOAL-CSN-FENCE-FIX;
+  -h unblocked once -n lands.
 
-**Session #47 (2026-04-27) — SN-26-bridge-coverage-m diagnosis:**
-Disproved the hypothesis from session #46 that scrip emits LABEL
-events SPITBOL doesn't.  Probes (`probe_bare.sno`,
-`probe_define7.sno`) showed full agreement on bare-label LABEL
-emission and DEFINE-with-goto LABEL emission in isolation.  The
-beauty-specific divergence at step 882 (spl=463, scr=461) is
-caused by SPITBOL ITSELF taking different control flow when the
-monitor wire is active vs idle.  Plain run: `kvstn` sequence
-includes 461 and 462 (correct flow `:(GenEnd)` → 461 → 462 → 463).
-Harness run: `kvstn` jumps 443 → 463, skipping 461 and 462 entirely
-at the `stmgo` level — not at the bridge-emit level.
+**Session #47 (2026-04-27) — SN-26-bridge-coverage-m diagnosis
+[SUPERSEDED by session #48].**  The hypothesis below — that SPITBOL's
+syscall thunk for `sysml` perturbs SIL state when the IPC wire is
+active vs idle — turned out to be wrong.  The visible "skipped 461
+and 462" effect was an artifact of comparing two scenarios that
+differed in a second variable: monitor-active vs inactive, AND
+controller=`monitor_sync_bin.py` (2-way) vs controller=
+`read_one_wire.py` (1-way).  Session #48 isolated them by driving
+SPITBOL through `read_one_wire.py` alone with monitor pipes active —
+the kvstn sequence was identical to the plain run.  The IPC handshake
+does not perturb SIL state.  Original session #47 narrative kept
+below for reference; it is now historical.
 
-The active-monitor codepath does writev → wait_ack(read).  The
-idle codepath early-returns.  Something in the syscall thunk
-register save/restore (`int.asm` lines 624-665) or stack switch
-(`compsp` ↔ `osisp`) interacts with active write/read to alter
-SIL register state SPITBOL relies on across `jsr sysml` returns.
-Notable: the `sysml` thunk at line 848 is `syscall zysml,42`
-without the `mov m_word [reg_xs],rsp` preamble that `sysmv`
-(line 833) and `sysmw` (line 856) have.  Also `_rc_` is declared
-`dd` (4 bytes) at line 245 but written as `m_word` (8 bytes) at
-line 639; padding before `align cfp_b` gets clobbered (likely
-benign but verify).
+> Disproved the hypothesis from session #46 that scrip emits LABEL
+> events SPITBOL doesn't.  Probes (`probe_bare.sno`,
+> `probe_define7.sno`) showed full agreement on bare-label LABEL
+> emission and DEFINE-with-goto LABEL emission in isolation.  The
+> beauty-specific divergence at step 882 (spl=463, scr=461) is
+> caused by SPITBOL ITSELF taking different control flow when the
+> monitor wire is active vs idle.  Plain run: `kvstn` sequence
+> includes 461 and 462 (correct flow `:(GenEnd)` → 461 → 462 → 463).
+> Harness run: `kvstn` jumps 443 → 463, skipping 461 and 462 entirely
+> at the `stmgo` level — not at the bridge-emit level.
+>
+> The active-monitor codepath does writev → wait_ack(read).  The
+> idle codepath early-returns.  Something in the syscall thunk
+> register save/restore (`int.asm` lines 624-665) or stack switch
+> (`compsp` ↔ `osisp`) interacts with active write/read to alter
+> SIL register state SPITBOL relies on across `jsr sysml` returns.
+> Notable: the `sysml` thunk at line 848 is `syscall zysml,42`
+> without the `mov m_word [reg_xs],rsp` preamble that `sysmv`
+> (line 833) and `sysmw` (line 856) have.  Also `_rc_` is declared
+> `dd` (4 bytes) at line 245 but written as `m_word` (8 bytes) at
+> line 639; padding before `align cfp_b` gets clobbered (likely
+> benign but verify).
+>
+> **Diagnostic technique** (re-applicable; revert before commit per
+> RULES.md):
+> ```c
+> /* in zysml, before monitor_init() */
+> if (getenv("SPL_TRACE_LABEL")) {
+>     FILE *tf = fopen("/tmp/spl_zysml.log", "a");
+>     if (tf) { fprintf(tf, "[zysml] kvstn=%ld\n", (long)stno); fclose(tf); }
+> }
+> ```
+> Compare logs from plain and harness runs.  Around line 480 (just
+> after `kvstn=443`) the divergence appears.
+>
+> No source file changes committed this session — diagnostic only.
+> Gates: Smoke=7, Broker=49 preserved.
 
-**Diagnostic technique** (re-applicable; revert before commit per
-RULES.md):
-```c
-/* in zysml, before monitor_init() */
-if (getenv("SPL_TRACE_LABEL")) {
-    FILE *tf = fopen("/tmp/spl_zysml.log", "a");
-    if (tf) { fprintf(tf, "[zysml] kvstn=%ld\n", (long)stno); fclose(tf); }
-}
-```
-Compare logs from plain and harness runs.  Around line 480 (just
-after `kvstn=443`) the divergence appears.
+**Session #48 (2026-04-27) — SN-26-bridge-coverage-m closed; -n
+opened.**
 
-No source file changes committed this session — diagnostic only.
-Gates: Smoke=7, Broker=49 preserved.
+Reproduced session #47's `[zysml] kvstn=N` finding cleanly — same
+binary, harness goes 442 → 443 → 463 (skips 461, 462), plain goes
+442 → 443 → 461 → 462 → 463.  Then drove SPITBOL through
+`read_one_wire.py` alone (single participant, monitor pipes still
+open, controller still acks every record): the kvstn sequence was
+**byte-identical to the plain run**.  This rules out the
+syscall-thunk register-clobber hypothesis from session #47 — the
+IPC handshake doesn't perturb SIL state.
+
+The remaining variable was the controller.  Inspection of the auto
+harness (`test_monitor_3way_sync_step_auto.sh`) showed it set
+`SETL4PATH=".:$INC"` for SPITBOL and `SNO_LIB="$INC"` for scrip.
+With CWD=/, `.` is empty so SPITBOL went to `$INC`.  But scrip's
+lexer (`src/frontend/snobol4/snobol4.l`) walks the source file's
+parent directory FIRST regardless of `SNO_LIB` — and
+`programs/snobol4/demo/beauty/Gen.inc` exists, so scrip pulled it
+before reaching `$INC`.  Confirmed via `strace -e openat`:
+SPITBOL opens `programs/include/Gen.inc` (59 lines), scrip opens
+`programs/snobol4/demo/beauty/Gen.inc` (57 lines).
+
+`diff` of the two: the `programs/include/` version has 2 extra
+lines (lines 52, 54 — alternative S:(NRETURN) paths inside
+`GenTab`).  Same logical include, divergent bytes.  The 2-line
+difference shifts every subsequent stno by 2.  In the SPITBOL
+numbering `GenEnd` is stno 463; in the scrip numbering it's stno
+461.  Both runtimes correctly executed their own program; the
+"divergence" was a numbering artifact, not a runtime bug.
+
+`semantic.inc` was also divergent — `programs/include/` uses
+two-arg DEFINEs with `_`-suffixed body labels (SPITBOL-compat
+form), demo/beauty uses one-arg DEFINEs.  Both files are referenced
+by beauty.
+
+**Fix landed (corpus this commit):** removed every duplicate `.inc`
+file from `programs/include/` that has a copy in
+`programs/snobol4/demo/beauty/` — 16 files total.  demo/beauty is
+now canonical.  35 un-gated programs (mostly `programs/lon/sno/`)
+that `-INCLUDE 'Gen.inc'` etc. now no longer resolve their includes
+from `programs/include/`; listed in the -m closure block.
+
+Verification: 2-way harness on `beauty.sno < /dev/null` advances
+from step 882 → step 1035.  Steps 1..1034 all agree.  New
+divergence at 1035 is genuine (CALL-vs-VALUE asymmetry on bare
+`nPush()` invocation) and tracked as -n.  Smoke=7, Broker=49
+preserved.
+
+**SPITBOL side: nothing committed.** The session #47 diagnostic
+printf was reverted before commit (RULES.md "Diagnostic patches
+don't ship").  x64 working tree is clean; bin/sbl restored to the
+pre-session-47 committed binary
+(md5 79cab92f8529ebb22a5260dfbee7ddc8).
+
+**Lesson for future sessions.** When a sync-step harness reports a
+divergence, before reaching for runtime hypotheses, verify that
+both runtimes are executing the **same source** — including all
+`-INCLUDE`d files.  scrip and SPITBOL resolve `-INCLUDE`
+differently (scrip walks the source's parent dir first; SPITBOL
+strictly follows SETL4PATH order), so giving each runtime "the
+same path" via env vars does NOT guarantee they open the same
+files.  The cleanest invariant is: corpus must have no
+byte-divergent duplicate `.inc` files anywhere, period.  This
+session enforces that for the demo/beauty include set; future
+audits should check the broader corpus.
+
+**Follow-up flagged:** RULES.md "No duplicate corpus source files →
+Exception — self-contained demo programs" still says "the canonical
+copy still lives in `programs/include/`".  After this session,
+that's no longer true for the 16 .inc files involved in beauty's
+self-host.  Either the rule needs flipping (canonical lives in
+demo/beauty for these) or the demo/beauty copies need to be
+regenerated as exact mirrors of replacement programs/include
+copies (which would re-introduce duplication; not preferred).
+Tracked as a HQ-text update for a future "grand master reorg"
+session, not blocking SNOBOL4 ladder work.
 
 **Session #46 (2026-04-27) — SN-26-bridge-coverage-j root cause:**
 The prior hypothesis (beauty parser `Reduce(snoStmt, 7)` dropping
