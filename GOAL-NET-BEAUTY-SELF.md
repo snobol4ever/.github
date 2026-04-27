@@ -432,22 +432,31 @@ below remain as session history but are no longer the primary lens):**
 
   **Open work (next session):**
     - [x] Fix dot's STRING byte encoding in `MonitorIpc.ClassifyValue`
-      — landed Mon Apr 28 2026.  `Encoding.UTF8.GetBytes` → `Encoding.Latin1.GetBytes`
+      — landed Mon Apr 28 2026 (snobol4dotnet `28625e1`).
+      `Encoding.UTF8.GetBytes` → `Encoding.Latin1.GetBytes`
       for the `StringVar` arm.  Smoke test
       `scripts/test_smoke_dot_bridge_latin1.sh` PASS=3 verifies
       `S = CHAR(128) CHAR(129)` emits STRING(2)=b'\\x80\\x81' on the
-      wire (not STRING(4)=b'\\xc2\\x80\\xc2\\x81').  Beauty 17/17 still
-      green; all 4 prior dot-bridge smokes still PASS=5/5/9/7.
-    - [ ] Decide on stno counting convention for dot (probably +0
-      offset between assignment and END, matching scrip).  May be
-      a beauty-source-line-specific issue rather than a global bug.
+      wire (not STRING(4)=b'\\xc2\\x80\\xc2\\x81').
+    - [x] Align dot's LABEL stno with SPITBOL `&STNO` convention
+      — landed Mon Apr 28 2026 (snobol4dotnet `42c1ef7`).
+      SPITBOL counts blank lines as consuming an stno slot (the
+      compiler assigns them slots; runtime skips emit).  Pre-fix dot
+      only counted executable SourceLines.  Fix: at the three
+      `EmitLabel` call sites (`MsilHelpers.InitStatementMsil`,
+      `ThreadedExecuteLoop OpCode.Init`, `InitializeFinalize.InitializeStatement`),
+      look up the per-SourceLine running `BlankLineCount` (already
+      captured at parse time in `SourceCode.ProcessSubLine`) and
+      add it to the wire stno.  Verified byte-identical to spl on
+      beauty.sno records #022–#035.  New smoke gate
+      `scripts/test_smoke_dot_bridge_stno.sh` PASS=6.
     - [ ] Investigate csn SIGPIPE early death (B-A) — possibly a csn
       bridge-coverage fix.
     - After both: re-run `csn spl dot` 3-way and confirm DIVERGE
       moves further into beauty's run.
 
-  Beauty 17/17 still PASS.  All five dot bridge gates green
-  (PASS=5 dormancy, 5 value, 9 complex, 7 call, 3 latin1).
+  Beauty 17/17 still PASS.  All six dot bridge gates green
+  (PASS=5 dormancy, 5 value, 9 complex, 7 call, 3 latin1, 6 stno).
 
 - [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
   With the canonical divergence pair in hand, fix the snobol4dotnet
