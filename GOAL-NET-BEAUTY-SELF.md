@@ -335,6 +335,38 @@ below remain as session history but are no longer the primary lens):**
   Beauty 17/17 PASS. All four dot bridge gates green
   (PASS=5/5/9/7 across dormancy / value / complex / call).
 
+- [x] **S-2-bridge-5b — dot adopts SN-26-bridge-coverage-e/f** (CLOSED 2026-04-27, snobol4dotnet @ `8e5ff9e`, one4all @ `21eac9a5`)
+  Brings snobol4dotnet up to the post-coverage-e/f wire protocol that
+  csn/spl/scrip adopted in session #34/#35 — required for byte-comparable
+  3-way runs in S-2-bridge-6.
+
+  **coverage-e (streaming intern):**
+    - `MonitorIpc.InternName()` emits `MWK_NAME_DEF` (kind=6) inline when
+      a fresh id is assigned, BEFORE any record using that id flows.
+    - `FlushNamesSidecar` and `MONITOR_NAMES_OUT` env-var read removed.
+    - Harness `dot` launch block drops `MONITOR_NAMES_OUT="$TMP/dot.names"`.
+
+  **coverage-f (MWK_LABEL):**
+    - New `MonitorIpc.EmitLabel(long stno)` public entry point.
+      Wire shape: kind=`MWK_LABEL`(5), name_id=NONE, type=INTEGER, 8-byte LE.
+    - Hooked from all three statement-entry paths:
+      `Executive.InitializeStatement`, `Executive.InitStatementMsil`,
+      `OpCode.Init` in `ThreadedExecuteLoop`.
+    - Wire payload: 1-based statement number (`stmtIdx + 1`) — matches
+      scrip's `++stno` and oracle STNOCL/kvstn semantics.
+
+  **Smoke gates updated for new wire shape:**
+    - `test_smoke_dot_bridge.sh`         PASS=5 (dormancy unchanged)
+    - `test_smoke_dot_bridge_value.sh`   PASS=5 (now 4 records: LABEL VALUE LABEL END)
+    - `test_smoke_dot_bridge_complex.sh` PASS=9 (now 20 records: 10 LABEL + 9 VALUE + 1 END)
+    - `test_smoke_dot_bridge_call.sh`    PASS=7 (presence-only checks, still green)
+
+  Beauty 17/17 PASS preserved.
+
+  Standalone harness gate:
+    `PARTICIPANTS=dot bash test_monitor_3way_sync_step_auto.sh /tmp/probe.sno`
+    → `[ctrl] all reached END after 14 steps`, exit 0.
+
 - [ ] **S-2-bridge-6 — End-to-end: csn + spl + dot on beauty self-host**
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
