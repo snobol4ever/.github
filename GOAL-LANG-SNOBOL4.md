@@ -515,14 +515,31 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-26 session #23:**
-- one4all @ `2042f294` (SN-26-auto-harness: test_monitor_3way_sync_step_auto.sh)
-- corpus @ `32cefc1` (SN-26b: beauty folder self-contained; no #23 changes)
-- .github @ this commit (SN-26-auto-harness closed; PLAN step pointer advanced)
-- x64 @ `4c85c38a` (monitor_ipc_bin_spl.c: 8 typed entry points; no #23 changes)
-- csnobol4 @ `b3aeb9f` (no #23 changes)
+**HEADs after 2026-04-27 session #24:**
+- one4all @ `3f6bdbb3` (SN-26-csn-bridge-a: smoke test + minimal wire reader)
+- corpus @ `32cefc1` (no changes this session)
+- .github @ this commit (SN-26-csn-bridge-a closed; -a-xcallc opened)
+- x64 @ `4c85c38a` (no changes this session)
+- csnobol4 @ `c1843eb` (SN-26-csn-bridge-a: monitor IPC runtime, statically linked)
 
-**Gates (verified 2026-04-26 session #23):** Smoke **7** · Broker **49**.
+**Gates (verified 2026-04-27 session #24):** Smoke **7** · Broker **49**.
+
+### Closed in session #24 (2026-04-27)
+
+- [x] **SN-26-csn-bridge-a** — `monitor_ipc_runtime.c` (412 lines, no
+  internal-header deps) + standalone `test_monitor_ipc_runtime.c` smoke
+  harness landed in csnobol4 @ `c1843eb`.  Build wiring via
+  `Makefile2.m4` (source of truth) — regenerated `Makefile2` committed
+  alongside per RULES.md.  Three public C entry points
+  (`monitor_emit_value` / `_call` / `_return`) ready for XCALLC use
+  from `v311.sil`.  End-to-end validation: 6 wire records (3xVALUE
+  STRING/INTEGER/REAL + CALL + RETURN + END), 4 names sidecar, all
+  decode byte-equal on controller side.  Silent no-op fallback when
+  env vars unset confirmed.  Companion smoke script
+  `scripts/test_smoke_sn26_csn_bridge.sh` + minimal wire reader
+  `scripts/monitor/read_one_wire.py` landed in one4all @ `3f6bdbb3`.
+  Smoke=7, Broker=49 unchanged.  SIL XCALLC test-site held out as
+  -a-xcallc to keep this commit pure-scaffolding.
 
 ### Closed in session #23 (2026-04-26)
 
@@ -795,8 +812,29 @@ one shared file with a small dialect-detect at compile time).
 
 ##### Sub-rung sequence (revised)
 
-- [ ] **SN-26-csn-bridge-a** — Write `monitor_ipc_runtime.c` for CSNOBOL4
-  ABI.  Call from `XCALLC` test sites in v311.sil.  Build, smoke.
+- [x] **SN-26-csn-bridge-a** — Wrote `monitor_ipc_runtime.c` (412 lines,
+  self-contained, no csnobol4 internal header deps).  Three public
+  C entry points (`monitor_emit_value` / `_call` / `_return`) ready
+  for XCALLC use.  Lazy FIFO open from `MONITOR_READY_PIPE` /
+  `MONITOR_GO_PIPE`; auto-interns names; dumps sidecar to
+  `MONITOR_NAMES_OUT` and emits MWK_END at process exit; silent
+  no-op when env vars unset.  Linked into xsnobol4 via Makefile2.m4
+  edit (source of truth, regenerated Makefile2 committed alongside
+  per RULES.md).  Validated end-to-end via standalone harness:
+  6 wire records (3xVALUE STRING/INTEGER/REAL + CALL + RETURN +
+  END), 4 names in sidecar, all decode byte-equal on controller side.
+  csnobol4 @ `c1843eb`.  one4all @ `3f6bdbb3` (smoke script + reader).
+  Smoke=7, Broker=49 unchanged (runtime symbol unused until SIL XCALLC
+  sites land in -a-xcallc / -b).
+- [ ] **SN-26-csn-bridge-a-xcallc** — Wire one XCALLC site in
+  `v311.sil` (smallest possible: `XCALLC monitor_emit_value,(WPTR,ZPTR)`
+  somewhere benign) to prove the SIL→C boundary works end-to-end.
+  Run `xsnobol4` on a trivial `.sno` (e.g. `x = 'hello' / END`) under
+  `MONITOR_READY_PIPE=fifo MONITOR_GO_PIPE=go MONITOR_NAMES_OUT=names`
+  + `read_one_wire.py` controller, observe one VALUE record on wire.
+  This is the original "minimum unit of progress" finish line.  Held
+  out of -a so the C scaffolding could be committed in isolation
+  before any SIL edits.
 - [ ] **SN-26-csn-bridge-b** — Patch the five trace fire-points in
   `v311.sil` to emit on the wire when `kw_trace > 0` (catch-all).
   Regenerate, build, sync-step against scrip on a tiny program.
@@ -809,7 +847,7 @@ one shared file with a small dialect-detect at compile time).
   before launching each participant.  No source modification of the
   user's `.sno`.
 
-The minimum unit of progress is **SN-26-csn-bridge-a** — a single
+The minimum unit of progress is **SN-26-csn-bridge-a-xcallc** — a single
 runnable XCALLC from a test site, proving the runtime can open the
 FIFO and emit one record.  Build it on the smaller, easier oracle
 first; SPITBOL follows the same pattern.
