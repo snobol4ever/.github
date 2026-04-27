@@ -19,22 +19,151 @@ PLUS one4all Smoke=7, Broker=49 preserved.  PLUS the existing 10-test
 A second memory structure that has to stay in sync with PDL unwinds
 is exactly the cross-cutting fragility we want to avoid.
 
-**Canonical fix path: extend the FENCE PDL trap entry.**  FNCA's
-trap entry currently occupies 3 descriptors (slots 1=FNCBCL,
-2=cursor, 3=LENFCL).  Grow it to N descriptors (N = 5 or 6) and
-store the FENCE outer-state values in the extended slots.  FNCB
-and FNCC read them out of the trap entry directly via `GETDC`.
-The PDL is already the right structure for this — it's how SCNR,
-STARP, ATP, and every other PDL-using primitive in CSNOBOL4 saves
-state, and it's how SPITBOL's `p_fna..p_fnd` puts saves on `xs`
-(its pattern matching stack analog).  No second stack, no
-allocator, no synchronization hazards.
+⛔ **No assumed fix.**  As of session #42 we **do not know** what
+the right fix is.  An earlier draft of this file proposed a specific
+PDL-trap-entry-extension as if it were the solution; that proposal
+was speculation, not a verified fix path.  Trace evidence from
+session #42 (see "The remaining bug" below) shows the crash happens
+**after** FNCB has cleanly restored byte-correct outer state — i.e.
+the bug may not be in the save/restore mechanism at all.  Saving
+more state, or saving it in a different place, may not help.
 
-**First step F-0** is to revert csnobol4 `1d225f8` (session #41's
-C-helper landing) back to its parent `b01b47b` (the original 6-cstack
-PUSH state).  That gives a clean starting point — we don't want to
-build the PDL-extension fix on top of a partial fix that will then
-need un-untangling.
+The next session's first job is **investigation**, not coding.
+F-0 (revert session #41) is a baseline-cleanup step; F-1 is now an
+**investigation rung**, not an implementation rung.  Code lands
+only after the design space below has been weighed against fresh
+diagnostic evidence.
+
+---
+
+## Open design space — none verified, all candidates
+
+These are alternative shapes the fix could take.  Each is a
+hypothesis about where the bug actually lives.  The right one
+depends on diagnostic evidence we have not yet gathered.
+
+### D1 — Failure-walker fence-aware mode (Lon's suggestion)
+
+Add a "you are inside a FENCEd region" flag (or a depth counter,
+or a sentinel PDL entry the walker recognizes) so the failure
+walker knows it cannot backtrack past a seal.  FNCA sets it on
+entry; FNCC1's seal entry maintains it; FNCD or FNCB clears it.
+
+Why this is plausible: SIL's FENCE is conceptually a *wall*, not
+a save/restore point.  The save/restore model treats FENCE as if
+it were ATP-like (with a paired entry/exit save), which may be a
+misframing.  If the failure walker is reading garbage PDL slots
+*beyond* the FENCE seal, the right fix isn't "save more state"
+but "stop the walker from going there."
+
+What we'd need to know:
+- Is the failure walker actually crossing a seal boundary it
+  shouldn't?  Currently unverified.
+- What does CSNOBOL4 currently do when the walker hits FNCDCL
+  in slot 1?  (It dispatches to FNCD, which does
+  `MOVD PDLPTR,PDLHED` + `MOVD NAMICL,NHEDCL` + `BRANCH FAIL`
+  — i.e. it already truncates.  But maybe truncation alone isn't
+  enough; maybe the walker re-reads slots before reaching FNCD.)
+
+### D2 — Compile FENCE(P) to a different pattern shape
+
+FNCA/FNCB/FNCC/FNCD as four cooperating PDL primitives may be
+the wrong decomposition.  SPITBOL's `p_fna..p_fnd` are also four,
+but they share `xs` (the pattern stack), not cstack — and SPITBOL
+saves much less.  An alternative is to make FENCE(P) compile to
+a wrapper that sets a one-shot mode flag, calls P normally, then
+restores the mode flag — no separate trap entries needed.
+
+Why this is plausible: it sidesteps the entire FNCA/FNCB/FNCC/FNCD
+machinery, which has clearly been a chronic source of subtle bugs
+(SN-26-csn-regen-fix has been latent forever; the cstack-overwrite
+took 5 sessions to diagnose; the new crash signature is post-fix).
+
+Risk: changes the IR contract for FENCE.  May break the
+fence_function/ regression tests in ways that are themselves
+revealing.
+
+### D3 — PDL-trap-entry extension (the earlier proposal)
+
+Grow FNCA's trap entry from 3 to N descriptors and store outer
+state in slots 4..N.  Drop cstack PUSH entirely.  Documented
+above in the now-revised Layout section.
+
+Why we are NOT defaulting to this: trace evidence from session
+#42 shows that even with byte-correct PDLPTR/PDLHED/NAMICL
+restoration via the C-helper migration, the crash persists.
+This suggests saving more state in the trap entry won't fix
+anything — the bug isn't in WHAT we save, it's in something
+the failure walker does after FNCB returns.
+
+Keep on the list because the trace evidence may be misleading
+us, and PDL-extension remains the conservative fix if no other
+approach pans out.
+
+### D4 — Failure walker reads stale PDL slot 1 — fix at the read site
+
+The session #42 trace shows the crash is at SCIN3 line 11437
+reading `D(D_A(PATBCL) + D_A(PATICL))` where PATICL holds a
+heap-pointer-shaped value.  PATICL was set by SALT2 from PDL
+slot 1.  Slot 1 should hold a then-or descriptor; instead it
+holds something whose `.a.i` is a heap pointer.
+
+Possibilities:
+- a4. Slot 1 was written legitimately by some earlier matching
+  primitive but never overwritten/cleared when FNCC1 wrote
+  the seal entry.  In that case the fix is to clear slots
+  1..3 of FNCC1's INCRA region before the seal write.
+- b4. Slot 1 was written by a primitive that uses `.a.ptr`
+  semantics (heap pointer) for its then-or, not `.a.i` semantics
+  (offset).  In that case there's a type-tag mismatch and the
+  fix is at SALT2 to read `.f` and dispatch on type.
+- c4. The slot we're reading is in an entirely different PDL
+  region than we think.  The investigation tool would be PDL
+  write-tracking.
+
+### D5 — It's not in FENCE; it's in some primitive FENCE composes with
+
+Beauty's `*snoParse *snoSpace` chain composes FENCE with other
+pattern primitives.  Maybe the bug is in one of those (e.g. STAR,
+ARBNO, BAL) and FENCE is just the messenger.  Test: build a
+non-FENCE-using pattern that exercises the same primitive depth
+and see if it segfaults too.
+
+---
+
+## Investigation plan
+
+The first session on this goal (after F-0 baseline-revert) does
+NOT write a fix.  It writes diagnostic instrumentation and
+gathers evidence to choose between D1–D5.
+
+Concrete diagnostic targets:
+1. **PDL-write-site sweep.**  Find every site in `isnobol4.c`
+   that writes to a PDL slot 1 (`D(D_A(PDLPTR) + DESCR) = ...`).
+   Add an env-gated logger.  Run tiny repro.  Identify which
+   site wrote the bad slot-1 descriptor that SALT2 later reads.
+   This is the single most informative thing we can measure.
+
+2. **PDL slot 1 content at every SALT2 entry.**  Log
+   `D(D_A(PDLPTR) + DESCR)` at SALT2 entry on every cycle.
+   Identify the cycle where slot 1 first contains a
+   heap-pointer-shaped descriptor.  Cross-reference with the
+   write-site sweep to find the corresponding writer.
+
+3. **FENCE seal verification.**  At FNCC1 (seal write), log
+   the slots that FNCC1 INCRA'd into.  Verify they were
+   either pristine or owned by FNCC1.  If they were owned by
+   inner-P matching that hasn't been popped, we have a FENCE
+   leak.
+
+4. **Cross-check on SPITBOL.**  Run the same tiny repro on
+   SPITBOL x64 with maximum tracing.  SPITBOL handles this
+   pattern correctly.  Compare FNCB/FNCC equivalents'
+   behavior.
+
+The result of this investigation is **a clear hypothesis** about
+which design (D1–D5) is right, with evidence.  Only then do we
+write code.
 
 ---
 
@@ -189,141 +318,44 @@ with FENCE-sealed regions and gets its own sub-rung.
 
 ---
 
-## SPITBOL reference (port this structure)
+## SPITBOL reference (read first)
 
 Source of truth: `x64/sbl.min` lines 11473–11500 (doc block) and
 11978–12039 (`p_fna..p_fnd` implementation).
 
-SPITBOL saves only TWO things on `xs` at FENCE entry:
-- `pmhbs` — the pattern history-stack base (analog of PDLHED)
-- An indirect `=ndfnb` pointer (the FNC-trap-back link)
+SPITBOL saves only TWO things on `xs` at FENCE entry: `pmhbs`
+(pattern history-stack base, analog of PDLHED) and an indirect
+`=ndfnb` pointer (FNC-trap-back link).  No save of MAXLEN, no
+save of LENFCL beyond what the trap entry itself carries, no
+save of name-list state.  CSNOBOL4's 6-item save list is heavier
+than necessary even ignoring the cstack-overwrite issue.
 
-No save of MAXLEN, no save of LENFCL beyond what the trap entry
-itself carries, no save of name-list state.  CSNOBOL4's 6-item
-save list is significantly heavier than necessary even ignoring
-the cstack-overwrite issue.
-
-When implementing the PDL-extension fix, **first port SPITBOL's
-save list** (PDLHED equivalent + back-link), then add CSNOBOL4-
-specific items only if regression tests demand them.  Do not
-preserve CSNOBOL4's 6-item save by default — that was always
-overkill.
+Whichever design (D1–D5 above) we ultimately pick, the SPITBOL
+implementation is the reference for what state actually needs
+preserving and how a robust FENCE behaves under nested recursion.
+Read it before writing any code.
 
 ---
 
 ## Audit of what genuinely needs cross-RCALL persistence
 
-(Verified session #40, still applies to PDL-extension path.)
+(Verified session #40.  Useful as background; informs but does
+not decide between D1–D5.)
 
 | Value | Save needed? | Reasoning |
 |-------|--------------|-----------|
-| MAXLEN | NO | SCNR reloads from XSP at every scanner entry (v311.sil:3536). Never preserved across pattern recursion. |
-| LENFCL | partly | Already in trap-entry slot 3 from FNCA's `PUTDC PDLPTR,3*DESCR,LENFCL`. SALT1 restores it before FNCB dispatch. SALF1 path enters FNCB with LENFCL=0 — verify whether outer-LENFCL recovery matters there. |
-| PDLPTR_outer | YES | Currently derived in FNCC via `MOVD PDLPTR,PDLHED` + `DECRA -3*DESCR`. Derivation is correct ONLY when outer PDLPTR == outer PDLHED at FNCA-time. Not safe in general; save it explicitly. |
-| PDLHED_outer | YES | FNCA does `MOVD PDLHED,PDLPTR` to set new inner PDLHED. Outer value must be saved. SPITBOL's `pmhbs`. |
-| NAMICL_outer | YES | Inner-P pattern primitives (NME/ENME/DNME) write to NAMICL. Outer value needs explicit restore. |
-| NHEDCL_outer | YES (probably) | Pre-fix POP restored NHEDCL. Audit said `NHEDCL == NAMICL at FNCA-time`, but for nested FENCE that's only true for the OUTERMOST. Trace evidence inconclusive — save it to be safe; remove later if tests prove redundant. |
+| MAXLEN | NO | SCNR reloads from XSP at every scanner entry (v311.sil:3536).  Never preserved across pattern recursion. |
+| LENFCL | partly | Already in trap-entry slot 3 from FNCA's `PUTDC PDLPTR,3*DESCR,LENFCL`.  SALT1 restores it before FNCB dispatch.  SALF1 path enters FNCB with LENFCL=0 — verify whether outer-LENFCL recovery matters there. |
+| PDLPTR_outer | YES (under save/restore framing) | Currently derived in FNCC via `MOVD PDLPTR,PDLHED` + `DECRA -3*DESCR`.  Derivation is correct ONLY when outer PDLPTR == outer PDLHED at FNCA-time.  Not safe in general. |
+| PDLHED_outer | YES (under save/restore framing) | FNCA does `MOVD PDLHED,PDLPTR` to set new inner PDLHED.  Outer value must be saved.  SPITBOL's `pmhbs`. |
+| NAMICL_outer | YES (under save/restore framing) | Inner-P pattern primitives (NME/ENME/DNME) write to NAMICL.  Outer value needs explicit restore. |
+| NHEDCL_outer | YES (probably, under save/restore framing) | Pre-fix POP restored NHEDCL.  Audit said `NHEDCL == NAMICL at FNCA-time`, but for nested FENCE that's only true for the OUTERMOST.  Trace evidence inconclusive. |
 
-**Net save set: 3 to 4 items** (PDLPTR, PDLHED, NAMICL, [NHEDCL]).
-
----
-
-## Layout — extended FENCE trap entry
-
-Current 3-descriptor layout (PDLPTR points at base; slots 1..3
-written above):
-
-```
-PDLPTR_pre + 0:    (unused — base; PDLPTR sits here after INCRA -3)
-PDLPTR_pre + 1*D:  FNCBCL          (then-or: triggers FNCB on failure)
-PDLPTR_pre + 2*D:  cursor (TMVAL)
-PDLPTR_pre + 3*D:  LENFCL
-```
-
-Proposed N=6 layout (6 descriptors):
-
-```
-PDLPTR_pre + 0:    (unused — base)
-PDLPTR_pre + 1*D:  FNCBCL
-PDLPTR_pre + 2*D:  cursor (TMVAL)
-PDLPTR_pre + 3*D:  LENFCL          ; trap-entry slot 3 — SALT1 reads this
-PDLPTR_pre + 4*D:  PDLPTR_outer    ; explicit save
-PDLPTR_pre + 5*D:  PDLHED_outer    ; explicit save
-PDLPTR_pre + 6*D:  NAMICL_outer    ; explicit save
-                                   ; (NHEDCL_outer if H1's worry materializes)
-```
-
-After FNCA's `INCRA PDLPTR, 6*DESCR`, PDLPTR sits at the base of
-the new entry; PDLHED is then assigned that same value.  PDLEND
-overflow check applies to the larger size.
-
-**FNCB entry path (failure walker via SALT1→SALT2→PATBRA):**
-
-When inner-P fails, SALT1 reads `LENFCL` from `PDLPTR+3*DESCR`
-(works as today — slot 3 unchanged).  SALT2 reads then-or from
-`PDLPTR+1*DESCR` (= FNCBCL), reads cursor from slot 2, then
-**`DECRA PDLPTR, 3*DESCR`** which moves PDLPTR back by 3
-descriptors — but our entry is 6 descriptors deep!
-
-Resolution: FNCB itself does the additional restoration.  After
-SALT2's DECRA-3, PDLPTR points 3 slots above the trap-entry base.
-The FENCE saves (slots 4, 5, 6 at the base) live at PDLPTR-2*DESCR,
-PDLPTR-1*DESCR, and PDLPTR+0*DESCR.  Restore order: read PDLHED
-and NAMICL first (they don't change PDLPTR), then read PDLPTR
-last (because reading PDLPTR_outer overwrites PDLPTR itself):
-
-```sil
-FNCB   XPROC   ,
-       GETDC   PDLHED,PDLPTR,(-1)*DESCR  ; slot 5: PDLHED_outer
-       GETDC   NAMICL,PDLPTR,0           ; slot 6: NAMICL_outer
-       GETDC   PDLPTR,PDLPTR,(-2)*DESCR  ; slot 4: PDLPTR_outer — LAST
-       BRANCH  FAIL
-```
-
-If genc.sno's GETDC macro doesn't accept negative offsets,
-reformulate using a TMP register:
-```sil
-FNCB   XPROC   ,
-       MOVD    TMP,PDLPTR
-       DECRA   TMP,2*DESCR              ; TMP now at trap-entry base+1
-       GETDC   PDLHED,TMP,DESCR         ; slot 5
-       GETDC   NAMICL,TMP,2*DESCR       ; slot 6
-       GETDC   PDLPTR,TMP,0             ; slot 4: PDLPTR_outer
-       BRANCH  FAIL
-```
-
-**FNCC entry path (P matched cleanly):**
-
-P left PDLPTR somewhere ≥ inner-PDLHED.  FNCC needs to restore
-outer state and seal the FENCE region.
-
-```sil
-FNCC   XPROC   ,
-       MOVD    PDLPTR,PDLHED       ; snap PDLPTR back to FNCA-time post-INCRA value
-*                                   ; PDLPTR now at base+6
-       MOVD    TMP,PDLPTR
-       DECRA   TMP,3*DESCR              ; TMP at trap-entry base
-       GETDC   LENFCL,TMP,3*DESCR       ; slot 3 (unchanged from current)
-       GETDC   PDLHED,TMP,5*DESCR       ; slot 5: PDLHED_outer
-       GETDC   NAMICL,TMP,6*DESCR       ; slot 6: NAMICL_outer
-       GETDC   PDLPTR,TMP,4*DESCR       ; slot 4: PDLPTR_outer — LAST
-       PCOMP   PDLPTR,PDLHED,FNCC1,FNCC1,INTR13
-FNCC1  ...    (unchanged from current, but writes seal at slots 1..3 of the NEW INCRA-3 region)
-```
-
-**Trap-entry slot overlap with subsequent SCNR pushes** — the
-session #41 rejection note's concern.  Walk through: FNCA's
-6-wide entry occupies `Po+0 .. Po+6*DESCR`.  After FNCA, PDLPTR
-sits at `Po+6*DESCR`; PDLHED also.  Inner-P matching does
-`INCRA PDLPTR, 3*DESCR` for SCNR/SCIN3 entries — the next entry
-lands at `Po+9*DESCR`, with its slots at `Po+10`, `Po+11`,
-`Po+12`.  No overlap with FNCA's region (`Po+1..Po+6`).
-The session #41 concern was about Option A (extend to 5
-descriptors) where SCNR's slot 1 at `Po+7` would have overlapped
-FNCA's hypothetical slot 5 at `Po+7` from a shared base — that
-analysis assumed a different layout.  With 6 slots and PDLPTR
-ending at `Po+6`, the next push lands at `Po+9` and there is
-no overlap.
+**Caveat:** every "save needed" entry above is conditional on
+the fix being a save/restore design (D3).  Under D1 (fence-aware
+walker) or D2 (different pattern shape), most of these become
+moot — the outer state is not corrupted in the first place because
+the failure walker doesn't reach into the FENCEd region.
 
 ---
 
@@ -341,46 +373,84 @@ repro reproduces the ORIGINAL crash signature
 - [ ] Tiny repro: confirm OLD crash signature (`Caught signal 11 in statement 1074`).
 - [ ] gdb confirm: `CSN_NO_SEGV_HANDLER=1 gdb --args ... < /tmp/tiny.in` shows L_SALT1 at the crash, NOT L_SCIN4.
 - [ ] fence_function/ regression: `cd /home/claude/csnobol4 && make -f Makefile2 test` — confirm 10/10 tests still PASS.
-- [ ] Commit revert with message `F-0: revert session #41 C-helper FENCE save migration; baseline restored for PDL-extension fix`.
+- [ ] Commit revert with message `F-0: revert session #41 C-helper FENCE save migration; baseline restored before fix-design investigation`.
 - [ ] Push.
 
 **No code changes; pure revert.** This step exists to give the
-PDL-extension fix (F-1) a clean starting point.
+investigation rung (F-1) a clean starting point.  We do not yet
+know what the fix is — F-0 only ensures we are diagnosing the
+ORIGINAL bug, not the session #41 partial-fix's downstream effects.
 
 ---
 
-## Active rung — F-1 (extend FENCE PDL trap entry to 6 descriptors)
+## Active rung — F-1 (investigation, not implementation)
 
-**Done-when:** tiny repro produces beauty's formatted output
-(no segfault).  fence_function/ 10/10.  Beauty self-host
-N>500 lines.  Smoke=7, Broker=49.
+**Done-when:** we have **a clear hypothesis** about which design
+(D1–D5, or some sixth not-yet-named candidate) is correct,
+backed by diagnostic evidence — not by argument.  At that point
+F-1 closes and a new rung F-2 opens for the actual implementation.
+
+**This rung writes NO production code.**  Diagnostic
+instrumentation only, reverted before any commit per RULES.md.
+The goal is to read the bug, not to fix it.
 
 **Steps:**
-- [ ] Read SPITBOL `sbl.min:11473–11500` doc block; read `sbl.min:11978–12039` (`p_fna..p_fnd`).
-- [ ] Confirm via SPITBOL exactly which values it puts on `xs`.
-- [ ] In `v311.sil`: change FNCA's `INCRA PDLPTR, 3*DESCR` to `INCRA PDLPTR, 6*DESCR`.
-- [ ] Add three `PUTDC` to FNCA: slots 4=PDLPTR_outer, 5=PDLHED_outer, 6=NAMICL_outer.  These must reference the PRE-INCRA values — capture them in temporary registers before the INCRA.
-- [ ] Replace FNCA's 6-cstack PUSH with the new INCRA + 3 PUTDCs.  Drop the cstack PUSH entirely.
-- [ ] Rewrite FNCB body per the layout block above (3 GETDCs in dependency order; PDLPTR last; then `BRANCH FAIL`).  Drop the cstack POP.
-- [ ] Rewrite FNCC body per the layout block above (MOVD then 4 GETDCs; PDLPTR last; PCOMP unchanged).  Drop the cstack POP.
-- [ ] Verify FNCD doesn't need updating — it does `MOVD PDLPTR,PDLHED` + `MOVD NAMICL,NHEDCL` + `BRANCH FAIL`; those should still work since PDLHED is the inner-P's, but verify NHEDCL is what we want post-FENCE-seal.
-- [ ] Regenerate: `cd /home/claude/csnobol4 && ./snobol4 -b genc.sno --with BLOCKS v311.sil > snobol4.c2`.
-- [ ] Apply the established hand-edit dance for FNCP/FNCA..FNCD (latent SN-26-csn-regen-fix — regen produces L_FNCA: labels but not top-level functions; tsort inlining handles the rest).
-- [ ] Build `-O0 -g`: `make -f Makefile2 OPT="-O0 -g" xsnobol4 && cp xsnobol4 snobol4`.
-- [ ] Tiny repro: expected to produce beauty output, not segfault.
-- [ ] If tiny repro still segfaults: gdb to identify the new signature.  May indicate residual bug in failure walker (independent of FENCE save mechanism) — open F-2.
-- [ ] If tiny repro clean: full beauty self-host, expect N>500 lines.
-- [ ] If beauty clean: capture md5; record as new csn invariant.
-- [ ] Run `make -f Makefile2 test` — confirm fence_function/ 10/10 PLUS no other regressions.
-- [ ] Run `bash /home/claude/one4all/scripts/test_smoke_snobol4.sh` (PASS=7) and `test_smoke_unified_broker.sh` (PASS=49).
-- [ ] Commit + push.
+- [ ] **Step 1: SPITBOL reading.**  Read `x64/sbl.min:11473–11500`
+      (FENCE doc block) and `11978–12039` (`p_fna..p_fnd`).  Record
+      what state SPITBOL preserves and how its failure walker
+      handles a sealed region.  Note any structural differences
+      from CSNOBOL4's FNCA/FNCB/FNCC/FNCD shape.
+- [ ] **Step 2: PDL-write-site sweep.**  Find every site in
+      `isnobol4.c` that writes to PDL slot 1
+      (`D(D_A(PDLPTR) + DESCR) = ...`).  These are the candidates
+      for who wrote the bad heap-pointer-shaped descriptor at the
+      crash.  Likely list: SCIN3, SCNR, SCNR3, SCNR5, STARP6,
+      STAR1, BAL, ATP, SCIN1A's setup paths.
+- [ ] **Step 3: Add a PDL-slot-1 write logger.**  Env-gated
+      (`PDL_S1_TRACE=1`).  Each logger call records site name,
+      cycle counter, target address, and descriptor written
+      (`.a.i`, `.f`, `.v`).  Run tiny repro.
+- [ ] **Step 4: Add a SALT2 read-side logger.**  At the line that
+      reads slot 1 into XCL, log address + descriptor read.  Each
+      SALT2 read-of-slot-1 must correspond to a write-of-slot-1
+      observed in step 3.  If a SALT2 read finds a slot with no
+      matching write — that's the smoking gun.
+- [ ] **Step 5: Find the bad write.**  Cross-reference: identify
+      the write that put the heap-pointer-shaped descriptor at
+      the slot SALT2 later reads.  This pins the writer and the
+      timing.
+- [ ] **Step 6: Decide between D1–D5.**  Based on the writer's
+      identity and the timing relative to FNCA/FNCB/FNCC events,
+      pick the design that addresses what we actually observed.
+      Possible outcomes:
+      - Writer is INSIDE FENCE region, slot is supposed to be
+        sealed → D1 (walker fence-aware) or D2 (different pattern
+        shape).
+      - Writer is BEFORE FENCE entry, slot survived FNCB's
+        unwind incorrectly → D3 (PDL-extension may help) or D4
+        (clear slots in FNCC1's seal write).
+      - Writer is something composing with FENCE, not FENCE
+        itself → D5 (bug is elsewhere; FENCE is messenger).
+- [ ] **Step 7: Revert all instrumentation per RULES.md.**
+      Diagnostic patches do NOT ship.
+- [ ] **Step 8: Commit a NOTES file** (e.g. `docs/F-1-findings.md`
+      in csnobol4, or update this goal file) summarizing the
+      finding, naming the chosen design, and listing concrete
+      steps for F-2.
+- [ ] **Step 9: Open F-2.**  Implementation rung for whichever
+      design F-1 chose.  F-2 is where code lands.
 
-**Risk:** MEDIUM.  This is the right architectural shape, but the
-SIL/genc.sno tooling is fragile (the FNCP/FNCA..FNCD hand-edit
-dance is documented as "latent SN-26-csn-regen-fix" precisely
-because regen behavior with `--with BLOCKS` is fiddly).  Budget
-2 sessions for F-1: one to land + verify tiny repro, one to
-debug residuals if any.
+**Risk:** investigation rungs sometimes fail to converge on a
+clear answer.  If F-1 produces ambiguous evidence after one full
+session, the right move is to commit the partial findings as a
+notes file and re-plan, not to start writing code on a hunch.
+
+**Anti-goal:** do NOT pre-decide between D1–D5.  An earlier draft
+of this goal file proposed D3 (PDL-extension) as the canonical
+fix without evidence.  That was a mistake.  The trace evidence we
+already have suggests the bug may not be in the save/restore
+mechanism at all — saving more state may not help.  Resist the
+urge to start writing FNCA/FNCB/FNCC edits before F-1 closes.
 
 ---
 
@@ -451,11 +521,14 @@ F-1 lands.
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- active step → **F-0** (revert session #41; restore 6-cstack baseline)
+- active step → **F-0** (revert session #41; restore baseline) →
+  **F-1** (investigation: SPITBOL reading + PDL-write/SALT-read
+  logging to choose between D1–D5)
 
 **Gates as of session start:**
 - Tiny repro: SEGFAULTS at isnobol4.c:11456 (L_SCIN4 ZCL deref) — session #41 signature.
 - After F-0: tiny repro will SEGFAULT at L_SALT1 (PDLPTR=0xc0) — original signature.
-- After F-1: tiny repro should produce beauty output cleanly.
+- After F-1: NO code change yet — F-1 produces a notes file naming the chosen design.
+- After F-2: tiny repro should produce beauty output cleanly.
 - one4all Smoke=7, Broker=49: not affected by csnobol4-only work.
 - csnobol4 fence_function/ 10-test suite: PASS=10 currently (verified session #41).
