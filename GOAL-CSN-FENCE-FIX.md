@@ -129,6 +129,37 @@ ARBNO, BAL) and FENCE is just the messenger.  Test: build a
 non-FENCE-using pattern that exercises the same primitive depth
 and see if it segfaults too.
 
+### D6 — Recursive-SCAN reimplementation (chosen by F-1, sessions #42–#43)
+
+**This is the design F-2 will implement.**  Restructure FENCE(P) to
+match the working shape of STAR (`*P` unevaluated expression) and
+EXPVAL: a single forward-dispatch primitive whose C body makes a
+**recursive call to SCAN** for the inner pattern, with isolation
+provided by a NULL+CURSOR sentinel pushed onto the PDL.
+
+Backed by Gimpel 1973 (CACM 16:2, "A Theory of Discrete Patterns
+and Their Implementation in SNOBOL4"), which presents this as the
+canonical implementation pattern for compounds that need history-stack
+isolation.  See `csnobol4/docs/F-1-findings.md` for full sketch and
+rationale.
+
+Why this fixes the bug: FNCA's locals (MAXLEN, LENFCL, PDLPTR, PDLHED,
+NAMICL, NHEDCL) live in the C call frame of the FENCE handler for
+the duration of the recursive SCAN call.  RSTSTK cannot rewind them
+because they're not on cstack.  When SCAN returns, the locals are
+still in scope.  The cstack-overwrite bug class is structurally
+eliminated.
+
+Why earlier designs (D1-D4) won't work: Layouts A-E of D3
+(PDL-extension) were attempted in session #43 — multiple variants,
+all failed.  Even byte-correct save/restore via the C-helper
+(session #41) crashed at L_SCIN4.  The save/restore mechanism alone
+is not the right fix.
+
+Why this works architecturally: ATP, BAL, EXPVAL all use the same
+RCALL-with-balanced-PUSH/POP idiom and they don't have this bug.
+Make FENCE structurally identical and the bug class is gone.
+
 ---
 
 ## Investigation plan
@@ -395,50 +426,41 @@ instrumentation only, reverted before any commit per RULES.md.
 The goal is to read the bug, not to fix it.
 
 **Steps:**
-- [ ] **Step 1: SPITBOL reading.**  Read `x64/sbl.min:11473–11500`
+- [x] **Step 1: SPITBOL reading.**  Read `x64/sbl.min:11473–11500`
       (FENCE doc block) and `11978–12039` (`p_fna..p_fnd`).  Record
       what state SPITBOL preserves and how its failure walker
       handles a sealed region.  Note any structural differences
       from CSNOBOL4's FNCA/FNCB/FNCC/FNCD shape.
-- [ ] **Step 2: PDL-write-site sweep.**  Find every site in
-      `isnobol4.c` that writes to PDL slot 1
-      (`D(D_A(PDLPTR) + DESCR) = ...`).  These are the candidates
-      for who wrote the bad heap-pointer-shaped descriptor at the
-      crash.  Likely list: SCIN3, SCNR, SCNR3, SCNR5, STARP6,
-      STAR1, BAL, ATP, SCIN1A's setup paths.
-- [ ] **Step 3: Add a PDL-slot-1 write logger.**  Env-gated
-      (`PDL_S1_TRACE=1`).  Each logger call records site name,
-      cycle counter, target address, and descriptor written
-      (`.a.i`, `.f`, `.v`).  Run tiny repro.
-- [ ] **Step 4: Add a SALT2 read-side logger.**  At the line that
-      reads slot 1 into XCL, log address + descriptor read.  Each
-      SALT2 read-of-slot-1 must correspond to a write-of-slot-1
-      observed in step 3.  If a SALT2 read finds a slot with no
-      matching write — that's the smoking gun.
-- [ ] **Step 5: Find the bad write.**  Cross-reference: identify
-      the write that put the heap-pointer-shaped descriptor at
-      the slot SALT2 later reads.  This pins the writer and the
-      timing.
-- [ ] **Step 6: Decide between D1–D5.**  Based on the writer's
-      identity and the timing relative to FNCA/FNCB/FNCC events,
-      pick the design that addresses what we actually observed.
-      Possible outcomes:
-      - Writer is INSIDE FENCE region, slot is supposed to be
-        sealed → D1 (walker fence-aware) or D2 (different pattern
-        shape).
-      - Writer is BEFORE FENCE entry, slot survived FNCB's
-        unwind incorrectly → D3 (PDL-extension may help) or D4
-        (clear slots in FNCC1's seal write).
-      - Writer is something composing with FENCE, not FENCE
-        itself → D5 (bug is elsewhere; FENCE is messenger).
-- [ ] **Step 7: Revert all instrumentation per RULES.md.**
-      Diagnostic patches do NOT ship.
-- [ ] **Step 8: Commit a NOTES file** (e.g. `docs/F-1-findings.md`
-      in csnobol4, or update this goal file) summarizing the
-      finding, naming the chosen design, and listing concrete
-      steps for F-2.
-- [ ] **Step 9: Open F-2.**  Implementation rung for whichever
-      design F-1 chose.  F-2 is where code lands.
+      **Outcome:** SPITBOL saves only `pmhbs` + `=ndfnb` indirect on
+      single failure stack `xs`.  CSNOBOL4 saves 6 things on a
+      separate cstack — that's the structural mismatch.  See
+      `docs/F-1-findings.md`.
+- [x] **Step 2: PDL-write-site sweep.**  Found via reading SCIN3
+      (line 11436), SCNR5 (3553), ATP (3941), BAL (analogous), and
+      FENCE primitives.  All write at PDLPTR+1..+3 after INCRA-by-3.
+- [x] **Step 3: Add a PDL-slot-1 write logger.**  Done inline as
+      `FNC_TRACE=1` env-gated trace at FNCA-pre, FNCA-post, FNCB-pre,
+      FNCB-post, FNCC-pre, FNCC-post.
+- [x] **Step 4: Add a SALT2 read-side logger.**  Trace evidence
+      already showed the read site reads garbage — augmented logging
+      to confirm slot 4-6 of D3-Layout-B were being overwritten by
+      the next SCIN3 push.
+- [x] **Step 5: Find the bad write.**  Identified — under D3 Layout B,
+      saves at PDLPTR+4..+6 overwritten by subsequent SCIN3 push.
+      Under D3 Layout C, saves at PDLPTR+1..+3 overwrite the
+      SCIN3-around-FNCA entry.  ALL D3 layouts have a placement
+      conflict with the failure walker's PDLPTR-relative reads.
+- [x] **Step 6: Decide between D1–D5.**  None of D1-D5 fit the
+      evidence.  Per Gimpel 1973 paper (page 8, Figure 11) and the
+      working precedents of STAR/EXPVAL/ATP/BAL, a SIXTH design — D6
+      Recursive-SCAN — emerges as the correct fix.  Added to the
+      design space above.
+- [x] **Step 7: Revert all instrumentation per RULES.md.**
+      Working tree clean — `git status` shows no modified files.
+- [x] **Step 8: Commit a NOTES file** — `csnobol4/docs/F-1-findings.md`
+      contains full investigation summary, paper citations, layout-by-
+      layout failure analysis, and D6 implementation sketch.
+- [x] **Step 9: Open F-2.**  Implementation rung opened — see below.
 
 **Risk:** investigation rungs sometimes fail to converge on a
 clear answer.  If F-1 produces ambiguous evidence after one full
@@ -454,9 +476,68 @@ urge to start writing FNCA/FNCB/FNCC edits before F-1 closes.
 
 ---
 
+## Active rung — F-2 (D6 implementation: recursive-SCAN reimplementation)
+
+**Done-when:**
+- `csnobol4 -bf -P64k -S64k beauty.sno < /tmp/tiny.in` runs without
+  segfault and produces >0 lines of output.
+- `csnobol4 -bf -P64k -S64k beauty.sno < beauty.sno | wc -l` ≥ 500.
+- `cd csnobol4/test/fence_function && make csnobol4` shows 10/10 PASS.
+- one4all Smoke=7 and Broker=49 preserved.
+
+**Design:** D6 from the Open Design Space section above.  Full sketch
+in `csnobol4/docs/F-1-findings.md`.
+
+**Steps:**
+- [ ] **Step 1: STAR/EXPVAL precedent reading.**  Read `STARP6`,
+      `L_STARP6`, `L_STAR1`, `STAR1` in `isnobol4.c` and `v311.sil`.
+      Confirm the shape we'll mirror.  Note pattern-node layout for
+      STAR (likely 4-descriptor: function descr, then-or, value-
+      residual, ARG).
+- [ ] **Step 2: New SIL FENCE primitive.**  Replace FNCA/B/C/D in
+      `v311.sil` with a single FENCE primitive following the STAR
+      template: PUSH NULL+CURSOR sentinel, RCALL SCNR with inner
+      pattern, on success POP sentinel + write FNCD seal, on failure
+      branch FAIL.  Keep FNCD as the seal-trap dispatch since SCIN3
+      forward-flow into FNCD is unchanged.
+- [ ] **Step 3: New FNCP pattern builder.**  Replace the three-node
+      `[FNCA] -> P -> [FNCC]` compilation with a single-node
+      compilation that puts P in the ARG slot.  Add FENCEPT template
+      mirroring STARPT.
+- [ ] **Step 4: Regenerate isnobol4.c and snobol4.c.**  Either via
+      `genc.sno` regen (preferred, but watch for SN-26-csn-regen-fix
+      latent issue) or hand-edit.  Both files must stay in sync.
+- [ ] **Step 5: Delete dead code.**  FNCAPT, FNCCPT, the L_FNCA
+      L_FNCB L_FNCC L_FNCC1 L_FNCD label block (or repurpose L_FNCD
+      for the seal-trap dispatch).  Update PATBRA dispatch table —
+      indices 37 (FNCA), 38 (FNCB), 39 (FNCC) become unused or
+      collapse; index 40 (FNCD) remains as seal trap.
+- [ ] **Step 6: Build clean.**
+      `cd /home/claude/csnobol4 && touch isnobol4.c && bash
+      /home/claude/one4all/scripts/build_csnobol4_oracle.sh`.
+- [ ] **Step 7: fence_function/ regression.**  10/10 expected.  If
+      any tests fail, root-cause before proceeding.
+- [ ] **Step 8: Tiny repro.**  Verify no segfault, ≥1 line output.
+- [ ] **Step 9: Full self-host.**  beauty.sno against itself,
+      ≥500 lines.
+- [ ] **Step 10: Smoke gates.**  Smoke=7, Broker=49.
+- [ ] **Step 11: Commit.**  Single commit per repo.  csnobol4 first,
+      .github last.  Mark F-2 closed and goal complete.
+
+**Risks listed in `docs/F-1-findings.md`** under "Risks for F-2".
+Pattern-shape change is a contract break; verify by running the
+fence_function/ regression early.
+
+---
+
 ## Closed sub-rungs
 
-(None yet.)
+- **F-0 (revert session #41 C-helper)** — closed session #42.
+  csnobol4 @ `4172be1`.  Original L_SALT1 crash signature restored
+  as expected baseline.
+- **F-1 (investigation)** — closed session #43.  D6 chosen.
+  Findings notes in `csnobol4/docs/F-1-findings.md` (committed in
+  same session as F-1 close).
 
 ---
 
@@ -517,17 +598,19 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ `4172be1` (F-0 complete — baseline restored; session #41 C-helper reverted)
+- csnobol4 @ `ed98f13` (F-1 closed; F-1 findings notes committed)
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- active step → **F-1** (investigation: SPITBOL reading + PDL-write/SALT-read
-  logging to choose between D1–D5)
+- active step → **F-2** (implement D6 recursive-SCAN reimplementation
+  per `csnobol4/docs/F-1-findings.md`)
 
-**Gates as of session start:**
-- Tiny repro: SEGFAULTS at isnobol4.c:11456 (L_SCIN4 ZCL deref) — session #41 signature.
-- After F-0: tiny repro will SEGFAULT at L_SALT1 (PDLPTR=0xc0) — original signature.
-- After F-1: NO code change yet — F-1 produces a notes file naming the chosen design.
+**Gates as of session #43 end:**
+- Tiny repro: SEGFAULTS at L_SALT1 (PDLPTR=0xc0) — original signature.
+- F-1 outcome: D6 (Recursive-SCAN, modeled on STAR per Gimpel 1973)
+  chosen.  Layouts A-E of D3 attempted and rejected.  See
+  `docs/F-1-findings.md`.
+- After F-2: tiny repro and full self-host should pass.
 - After F-2: tiny repro should produce beauty output cleanly.
 - one4all Smoke=7, Broker=49: not affected by csnobol4-only work.
 - csnobol4 fence_function/ 10-test suite: PASS=10 currently (verified session #41).
