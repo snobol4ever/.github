@@ -515,16 +515,183 @@ SETL4PATH=".:/home/claude/corpus/programs/include" \
 
 ## Current state
 
-**HEADs after 2026-04-27 session #28:**
-- one4all @ this commit (SN-26-harness-rewrite landed)
+**HEADs after 2026-04-27 session #29:**
+- one4all @ unchanged this session (no code changes)
 - corpus @ unchanged this session
-- .github @ this commit (SN-26-harness-rewrite closed)
+- .github @ this commit (session #29 forensic notes added)
 - x64 @ unchanged this session
 - csnobol4 @ `b83db40` (unchanged this session)
 
-**Gates (verified 2026-04-27 session #28):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · spl-bridge smoke **1**.
+**Gates (verified 2026-04-27 session #29):** Smoke **7** · Broker **49** · csn-bridge-a smoke **1** · csn-bridge-b smoke **1** · spl-bridge smoke **1** · auto-binary smoke **1**.
 
-### Closed in session #28 (2026-04-27)
+### Forensic notes from session #29 (2026-04-27)
+
+No code changed.  Session focused on driving SN-26c-parseerr-h sub-h2
+through the new SN-26-harness-rewrite 3-way auto harness.  Two
+findings worth recording for whoever picks this up next.
+
+**Finding #1 — bridge fire-point coverage gap (new sub-rung
+SN-26-csn-bridge-c + SN-26-spl-bridge-d).**
+
+The 3-way auto harness on `beauty.sno < /tmp/asg.sno` reports
+`DIVERGE step 1`:
+```
+csn: VALUE (id=0) = INT=1
+spl: VALUE (id=0) = INT=1
+scr: VALUE (id=0) = STRING(1)='\x00'
+```
+Both oracles' first VALUE is `TRUE = 1` from `global.inc:23`.  Scrip's
+first VALUE is `nul = '\x00'` from `global.inc:2`'s
+`&ALPHABET POS(0) LEN(1) . nul`.  This is **not** a runtime bug — it
+is asymmetric instrumentation coverage between the bridges.
+
+- **scrip** fires `comm_var` (VALUE record) on every `NV_SET_fn` —
+  including pattern-match conditional captures (`.`-stores).
+- **CSNOBOL4 bridge** (SN-26-csn-bridge-b) fires `monitor_emit_value`
+  only at `ASGNVV` (line ~5938) and `SJSRV1` (line 3510) in
+  `v311.sil`.  The `.`-capture commit at **`NMD4` line 6166**
+  (`NMD PROC` — "Value Assignment in Pattern Matching", `PUTDC TVAL,
+  DESCR,VVAL`) currently has NO fire-point.
+- **SPITBOL bridge** (SN-26-spl-bridge-b) fires `sysmv` at `b_vrs`
+  (line 11086) for the standard variable-store opcode, plus `sysmc`
+  at `bpf09` and `sysmr` at `retrn`.  Pattern `.`-captures route
+  through `pnth4` (line 12257) → `asinp` (line 17847), **bypassing
+  `b_vrs` entirely**.  No fire-point at the pattern-assign path.
+
+Until both gaps close, the binary 3-way harness compares apples to
+oranges on any program that uses `.`-captures (i.e., almost every
+non-trivial SNOBOL4 program — anything using `&ALPHABET POS(N) LEN(N) . name`,
+which `global.inc` does 13 times before any user code runs).
+
+**Suggested sub-rungs (open):**
+- **SN-26-csn-bridge-c** — Add `XCALLC monitor_emit_value,(TVAL,VVAL)`
+  immediately after `NMD4 PUTDC TVAL,DESCR,VVAL` (line 6166) in
+  `v311.sil`.  Hand-apply equivalent C-level edit at the `L_NMD4`
+  (or equivalent label) sites in `snobol4.c` and `isnobol4.c` per
+  the SN-26-csn-bridge-a-xcallc precedent (genc.sno regen still
+  drops FNCP; SN-26-csn-regen-fix still owed).  Validate by re-running
+  `bash scripts/test_smoke_sn26_csn_bridge_b.sh` (must stay green at
+  PASS=1 with 7 records) plus a new probe that uses `.`-capture
+  (e.g., `S = 'AXBYC'; S ANY('AB') . captured`) and confirming the
+  oracle now emits the captured-value VALUE record.
+- **SN-26-spl-bridge-d** — Add a fire-point in `pnth4` immediately
+  before (or after, with proper register saves) the `jsr asinp` at
+  line 12257 of `sbl.min`.  At entry: `wa` = name offset, `xl` =
+  name base, `wb` = value just sliced.  Wrap with the same
+  save/restore pattern session #27 used for `bpf09`:
+  ```minimal
+       mov  -(xs),wb         save value
+       mov  -(xs),xl         save name base
+       ; xr = name vrblk = xl + wa (or similar reconstruction)
+       ; jsr sysmv
+       mov  xl,(xs)+         restore
+       mov  wb,(xs)+         restore
+  ```
+  Then `jsr asinp` proceeds.  Validate via `test_smoke_sn26_spl_bridge.sh`
+  (must stay PASS=1 with 6 records) plus the same `.`-capture probe.
+  Note SN-30g: regenerate `bootstrap/sbl.{asm,lex}` after `sbl.min`
+  edits so fresh clones can build.
+
+Both rungs are scaffolding-equivalent in shape to existing landed
+rungs (SN-26-csn-bridge-a-xcallc, SN-26-spl-bridge-b).  Estimate:
+~half-session each, dominated by validation rather than code.
+
+**Finding #2 — sub-h2 manifests as wrong arg[1] to Reduce, not as
+wrong call ordering (bypassed canonical workflow to find this).**
+
+Caveat first.  This finding came from reading `ONE4ALL_USERCALL_TRACE`
+stderr directly (~291 lines of NM_CALL records), which is precisely
+what RULES.md "Sync-step monitor — read the divergence point, not
+the trace" forbids.  The reason it happened: with the bridge
+coverage gap above, the binary harness can't be apples-to-apples
+on any beauty program, so the canonical last-agree/first-disagree
+output isn't trustworthy.  Whoever picks this up next should land
+SN-26-csn-bridge-c + SN-26-spl-bridge-d **first**, then re-run the
+3-way and let the controller report the divergence point.  This
+finding is recorded as a hint, not as confirmed forensic ground
+truth.
+
+With that caveat: when scrip-only NM_CALL trace on `beauty.sno <
+/tmp/asg.sno` is compared against a SPITBOL `&FTRACE = 999999`
+trace on the same input (technique: prepend a 1-line `.sno` setting
+`&FTRACE`, since the prepend trick works under `sbl -bf`), the
+**call sequence is identical**: 4×Shift, nested PushCounter+IncCounter
+×2, Shift('snoString',''hello''), Reduce('..',...), PopCounter,
+Reduce('|',...), PopCounter, Shift, Shift, Reduce('snoStmt',7),
+Reduce('snoParse',1), PopCounter.  No reordering, no missing calls.
+The Goal file's older description of "5 Shifts, then Reduce, then
+2 Shifts" is from a pre-sub-h1 state and is now stale.
+
+The first divergence is in the **arg values**, not the call order:
+
+| Site | SPITBOL arg[1] | scrip arg[1] |
+|------|----------------|--------------|
+| `Reduce('..', ...)` | `EXPRESSION` (string-tag, the bound value of the bare identifier) | `DT_FAIL` |
+| `Reduce('|', ...)` | `EXPRESSION` (same) | `DT_FAIL` |
+| `Reduce('snoStmt', ...)` | `7` (integer literal) | `7` (integer literal — agrees) |
+| `Reduce('snoParse', ...)` | `1` (integer literal) | `1` (integer literal — agrees) |
+
+In `ShiftReduce.inc:21`, beauty does `IDENT(DATATYPE(t), 'EXPRESSION')`
+to test type tags.  The bare identifier `EXPRESSION` is used elsewhere
+in beauty as a sentinel value.  In SPITBOL/CSNOBOL4 an unbound
+identifier read in value context returns the empty string; `Reduce`
+receives the bound (or empty-string-fallback) value.  In scrip the
+same read produces `DT_FAIL`, and that FAIL flows through `EVAL_fn`
+inside `name_commit_value`'s `DT_E` thaw at `name_t.c:43` rather than
+becoming an empty string.
+
+The likely root cause is in the **interp.c E_VAR fallback to APPLY_fn
+for zero-arg builtins** path that landed in session #18.  Session #18
+documented: *"now treats FAIL returns as 'unset variable' (NULVCL)
+rather than propagating the FAIL — matches CSNOBOL4 / SPITBOL
+semantics where bare unbound `VALUE` (and similar) is the empty
+string when used as a function arg, not a hard failure aborting the
+enclosing call."*  That fix appears to cover the direct E_VAR
+fallback case but not the **deferred** path where a bare identifier
+is reached via `DT_E` thaw inside `name_commit_value` for an
+NM_CALL slot.  When `Reduce('..', EXPRESSION)` is built as
+`pat_assign_callcap` with `EXPRESSION` lowered as a DT_E expression,
+the thaw at match-commit time evaluates `EXPRESSION` and the FAIL
+return isn't intercepted with the same NULVCL fallback.
+
+**Code locations for next session to investigate:**
+| File | Role |
+|------|------|
+| `src/runtime/x86/name_t.c:35-43` | `name_commit_value` DT_E thaw before dispatch |
+| `src/runtime/x86/name_t.c:84-100` | NM_CALL DT_E thaw of fn args |
+| `src/driver/interp.c` E_VAR fallback (session #18 site) | the working path; compare to NM_CALL thaw |
+| `src/runtime/x86/eval_code.c` `EVAL_fn` | what does it return when the expression resolves an unbound identifier? |
+
+**Reproducer (single line, fast):**
+```bash
+printf "                  x              =  'hello'\nEND\n" > /tmp/asg.sno
+SETL4PATH=".:/home/claude/corpus/programs/include" /home/claude/x64/bin/sbl -bf \
+    /home/claude/corpus/programs/snobol4/demo/beauty/beauty.sno < /tmp/asg.sno
+# →                   x              =  'hello'   (correct)
+SNO_LIB=/home/claude/corpus/programs/include /home/claude/one4all/scrip --ir-run \
+    /home/claude/corpus/programs/snobol4/demo/beauty/beauty.sno < /tmp/asg.sno
+# →                                  'hello'      (wrong — LHS dropped)
+```
+
+**SPITBOL `&FTRACE` ground-truth technique** (one-line, no source mod):
+```bash
+printf "        &FTRACE = 999999\n" > /tmp/trace_on.sno
+SETL4PATH=".:/home/claude/corpus/programs/include" /home/claude/x64/bin/sbl -bf \
+    /tmp/trace_on.sno /home/claude/corpus/programs/snobol4/demo/beauty/beauty.sno < /tmp/asg.sno \
+    > /tmp/spl_traced.out 2>&1
+grep -E "Shift|Reduce|PushCounter|IncCounter|PopCounter" /tmp/spl_traced.out
+# Note: cap is 999999; 1000000+ trips ERROR 210 "keyword value too large"
+```
+
+**Once the bridge gaps close (SN-26-csn-bridge-c, SN-26-spl-bridge-d):**
+re-run `bash scripts/test_monitor_3way_sync_step_auto.sh
+$BEAUTY/beauty.sno` with `STDIN_SRC=/tmp/asg.sno` and let the
+controller report the first divergence.  Expected: at the step
+where scrip's `Reduce('..', DT_FAIL)` lands while the oracles emit
+`Reduce('..', EXPRESSION-as-string)`.  That is the canonical
+last-agree / first-disagree pair to drive the fix.
+
+
 
 - [x] **SN-26-harness-rewrite** — Sync-step harness family collapsed to
   one canonical script (`test_monitor_3way_sync_step_auto.sh`) plus three
