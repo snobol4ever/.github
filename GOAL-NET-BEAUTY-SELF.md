@@ -509,6 +509,64 @@ below remain as session history but are no longer the primary lens):**
   is the right long-term answer; option (b) is a one-line controller
   patch in monitor_sync_bin.py event_key.
 
+  **Mon Apr 28 2026 — Option (b) landed (one4all `a5117b32`).**
+  Controller's `keys_match` helper treats MWT_UNKNOWN as a wildcard
+  on the type field only.  kind/name/value still compared strictly.
+  New smoke gate `test_smoke_monitor_unknown_wildcard.sh` PASS=1.
+  S-2-bridge-7 unblocked; harness now advances past UNKNOWN noise.
+
+  **Mon Apr 28 2026 — second 2-way `spl dot` run after wildcard.**
+  ```
+  [ctrl] DIVERGE step 49
+    spl: VALUE ss = STRING(14)='NO_BREAK_SPACE'
+    dot: VALUE <lval> = STRING(14)='NO_BREAK_SPACE'
+  ```
+
+  The next divergence (step 49, two beyond the wildcard'd one) is
+  ALSO a SPITBOL bridge bug, not snobol4dotnet.  Per
+  `x64/osint/monitor_ipc_runtime.c spl_vrblk_name` (line 304):
+
+  ```c
+  /* Validate name as printable ASCII identifier bytes (0x20..0x7e).
+   * For asign/asinp fire-points (SN-26-bridge-coverage-b), array-element
+   * and table-slot stores reach this code with a fake vrblk synthesized
+   * from xl - vrsto_offset where xl is mid-arblk/mid-tbblk.  vrlen then
+   * reads whatever the previous slot held; could be a positive integer.
+   * Mirrors CSN's lvalue_name_id() — fall through to caller's <lval>
+   * sentinel on validation failure. */
+  ```
+
+  The validation is too loose: when the stale memory at `vrlen`/`vrchs`
+  happens to be a positive integer in `[1..255]` AND the bytes are all
+  printable ASCII (0x20..0x7e), the bridge accepts them as a real name.
+  In this case it accepted `ss` — two literal `s` bytes left over in
+  memory at the synthesized vrblk's name region.  The real semantic is
+  `<lval>` (table-element store of `UTF[CHAR(194) CHAR(160)] = ...`),
+  which is what dot emits.
+
+  Fix path (also SN-26-bridge-coverage scope, not snobol4dotnet):
+  tighter validation in `spl_vrblk_name`, e.g. cross-check against
+  the symbol table, or detect the synthesized-vrblk case at the
+  `asign/asinp` fire-point and short-circuit to `<lval>` directly
+  rather than re-deriving it from a possibly-bogus vrblk.
+
+  Cannot wildcard this in the controller — the name bytes really do
+  differ between participants, and name divergence is a genuine
+  signal of disagreement when both bridges are clean.
+
+  **State summary at session end Mon Apr 28 2026:**
+  - dot wire is verified clean against spl through step 47, then 49,
+    on beauty self-host (with wildcard).
+  - Both remaining post-wildcard divergences (step 49 onward, until
+    SN-26 fixes them) are spl-side bridge bugs, not snobol4dotnet.
+  - The S-2 root cause (Parse Error on `&FULLSCAN = 1` at line 28
+    of self-host stderr) remains unfixed — that is the deeper Parse
+    engine work tracked under S-2-bridge-7's iterative loop, and it
+    cannot be approached cleanly via the wire until SN-26 lands the
+    spl bridge fixes.
+
+  Beauty 17/17 still PASS.
+
 - [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
   With the canonical divergence pair in hand, fix the snobol4dotnet
   runtime at the appropriate site (`Scanner.cs` Match, `Builder.cs`
