@@ -143,26 +143,40 @@ byte-for-byte across an arbitrary participant set identified by a
 **Active S-2 sub-rungs (this is the work; the speculative hypotheses
 below remain as session history but are no longer the primary lens):**
 
-- [ ] **S-2-bridge-1 — DotNet IPC bridge, standalone smoke**
-  Implement `Snobol4.Common/Runtime/Monitor/MonitorIpc.cs` with three
-  public static entry points: `EmitValue(string name, Var value)`,
-  `EmitCall(string fnName)`, `EmitReturn(string fnName)`.  Static
-  ctor reads `MONITOR_BIN`/`MONITOR_READY_PIPE`/`MONITOR_GO_PIPE`/
-  `MONITOR_NAMES_OUT` env vars.  When `READY_PIPE` is absent, all
-  entry points become no-op single-bool checks (zero overhead on
-  normal beauty 17/17 runs).  When set, opens FIFOs, writes ready
-  handshake, emits 13-byte fixed-header records on each call.
+- [x] **S-2-bridge-1 — DotNet IPC bridge, standalone smoke** (CLOSED 2026-04-27, snobol4dotnet @ `ba18e88`)
+  Implemented `Snobol4.Common/Runtime/Monitor/MonitorIpc.cs` (~330 lines)
+  with three public static entry points: `EmitValue(string name, Var value)`,
+  `EmitCall(string fnName)`, `EmitReturn(string fnName, string rtnType)`.
+  Lazy init reads `MONITOR_READY_PIPE`/`MONITOR_GO_PIPE`/`MONITOR_NAMES_OUT`
+  on first emit; if `READY_PIPE` is absent or FIFO open() fails, all entry
+  points become a single boolean check (`Enabled` getter) — zero overhead
+  on normal beauty 17/17 runs.
 
-  Wire-format spec: see `one4all/scripts/monitor/monitor_wire.h`.
-  Reference port: `csnobol4/monitor_ipc_runtime.c` lines ~150-280.
-  Names interned via `Dictionary<string,uint>` + sidecar text file
-  flushed after each emit (small file; cheap; survives shutdown
-  paths where `ProcessExit` doesn't fire).
+  When fully activated: opens FIFOs (write-end ready, read-end go),
+  emits 13-byte LE-packed headers + optional typed value bytes per
+  `monitor_wire.h`.  Auto-interns lvalue/fn names; dumps names sidecar
+  at `ProcessExit`.  Anonymous lvalues (array elements, table slots)
+  intern the sentinel `<lval>` via `LooksLikeIdentifier` — mirrors csn
+  `lvalue_name_id()` discipline.  Type discrimination via `switch (v)`:
+  `StringVar`/`IntegerVar`/`RealVar` carry typed value bytes;
+  `NameVar` carries `Pointer`; pattern/expression/array/table/code/data
+  vars emit empty value (consistent with csn).
 
-  **Smoke gate:** new `scripts/test_smoke_dot_bridge.sh` PASS=1.
-  Probe: `S='hello'\nEND\n` produces 2 wire records (VALUE + END).
+  **Smoke gate `scripts/test_smoke_dot_bridge.sh` PASS=5 FAIL=0:**
+    - Build clean.
+    - Beauty driver runs no-env: exit 0.
+    - With `MONITOR_BIN=1` only (FIFOs absent): byte-identical to
+      baseline on stdout AND stderr.
+    - With non-existent FIFO paths: byte-identical to baseline.
+    - Confirms zero side effects on hot path when monitor is off.
 
-  Beauty 17/17 must remain green.
+  Beauty 17/17 baseline preserved before-and-after.
+
+  **Live-FIFO end-to-end smoke deferred to S-2-bridge-2** — until a
+  fire-point is wired into the runtime, no `.sno` program can trigger
+  the bridge.  S-2-bridge-2 will exercise `EmitValue` from the
+  assignment chokepoint with `S='hello'\nEND\n` → 1 VALUE + END wire
+  records, byte-comparable against csn-bridge-a's hello probe.
 
 - [ ] **S-2-bridge-2 — Fire-point: assignment chokepoint**
   Hook `MonitorIpc.EmitValue` from snobol4dotnet's central
