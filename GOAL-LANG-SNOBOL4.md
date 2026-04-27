@@ -131,15 +131,27 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
 ### SN-26-bridge-coverage — open sub-rungs
 
-- [ ] **SN-26-bridge-coverage-e — streaming intern on the wire.**
-  Names embedded inline on first emission, id-only thereafter.
-  Drop `MONITOR_NAMES_OUT` env handling and `mon_at_exit` sidecar
-  dump in all three runtimes (atexit still emits MWK_END — load-
-  bearing). Touch points: `scripts/monitor/monitor_wire.h`,
-  `monitor_sync_bin.py` (build intern table from wire, not file),
-  csn `monitor_ipc_runtime.c`, x64 `osint/monitor_ipc_runtime.c`,
-  scrip `runtime/x86/snobol4.c`. Gate: existing bridge smokes all
-  PASS — same wire content, different on-wire encoding.
+- [x] **SN-26-bridge-coverage-e — streaming intern on the wire.**
+  Closed session #35.  New record kind `MWK_NAME_DEF = 6` carries
+  (id -> name bytes) inline on the wire: emitted by each runtime's
+  intern_name function on first use, consumed by controllers into a
+  per-participant intern table.  No sidecar file is read or written.
+  Touch points landed: `monitor_wire.h` (constant + doc); scrip
+  `runtime/x86/snobol4.c` (intern_name_bin emits NAME_DEF; mon_at_exit
+  drops sidecar dump but keeps MWK_END; SNO_INIT_fn drops
+  MONITOR_NAMES_OUT env read); csnobol4 `monitor_ipc_runtime.c`
+  (same pattern); x64 `osint/monitor_ipc_runtime.c` (same).
+  `monitor_sync_bin.py` rewritten with `read_semantic_record` that
+  absorbs NAME_DEFs and acks transparently; legacy CLI mode + sidecar
+  refresh logic removed; spec is now `NAME:READY:GO`.  `read_one_wire.py`
+  absorbs NAME_DEF and writes optional back-compat names file from wire.
+  `test_smoke_sn26_auto_binary.sh` rewritten to verify NAME_DEF-on-wire
+  semantics and assert no sidecar gets written.  LABEL records remain
+  fully comparison-eligible — a LABEL divergence (different STNO at
+  the same step) is a real structural-flow bug and surfaces immediately.
+  Gate: Smoke=7, Broker=49, all 7 bridge smokes PASS, SN-30 invariant
+  md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved, negative tests
+  confirm all 3 runtimes ignore MONITOR_NAMES_OUT.
 
 - [x] **SN-26-bridge-coverage-f — MWK_LABEL events.** Closed
   session #34. `monitor_wire.h` adds `MWK_LABEL = 5` with
@@ -187,7 +199,7 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   ≥1000 steps or runs clean to MWK_END.
 
 **Dependencies:** -e → -f → -g → -h. -h may pull SN-27 forward.
-**Sequencing:** active step is -e.
+**Sequencing:** active step is -g.
 
 ---
 
@@ -264,16 +276,18 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `69ad74c3`
+- one4all @ `78a2a98e`
 - corpus @ `a9f283b`
-- x64 @ `888ac01`
-- csnobol4 @ `4ade8a4`
-- active step → SN-26-bridge-coverage-e
+- x64 @ `3e519f9`
+- csnobol4 @ `52bee67`
+- active step → SN-26-bridge-coverage-g
 
 **Gates:** Smoke=7, Broker=49. Bridge smokes (csn-bridge-a/b/c,
 spl-bridge, spl-bridge-d, auto-binary, label-flow) all PASS as of
-session #34. label-flow PASS=5 (csn=3 LABELs, sbl=4 LABELs,
-scrip ir-run=3, sm-run=4, jit-run=4).
+session #35.  auto-binary verifies streaming-intern semantics
+end-to-end (NAME_DEF on the wire, no sidecar written).
+label-flow PASS=5 (csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3,
+sm-run=4, jit-run=4).
 
 **SN-30 invariant:** `beauty.sno < beauty.sno` md5
 `408fc788ca2ef425fc1f87e26d45a7a5` under SPL `-bf`.
