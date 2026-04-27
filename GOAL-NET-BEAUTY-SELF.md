@@ -367,7 +367,7 @@ below remain as session history but are no longer the primary lens):**
     `PARTICIPANTS=dot bash test_monitor_3way_sync_step_auto.sh /tmp/probe.sno`
     → `[ctrl] all reached END after 14 steps`, exit 0.
 
-- [ ] **S-2-bridge-6 — End-to-end: csn + spl + dot on beauty self-host**
+- [~] **S-2-bridge-6 — End-to-end: csn + spl + dot on beauty self-host** (IN PROGRESS 2026-04-27)
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
   PARTICIPANTS="csn spl dot" \
@@ -376,14 +376,74 @@ below remain as session history but are no longer the primary lens):**
       bash /home/claude/one4all/scripts/test_monitor_3way_sync_step_auto.sh \
       $BEAUTY/beauty.sno
   ```
-  Expected: controller advances step-by-step, stops at the step
-  where `dot` first diverges from csn/spl agreement, prints
-  last-agreed + first-disagreed pair.  Read **only** that pair —
-  per RULES.md.  Past hypotheses (cursor-callback re-fire, ARBNO
-  graft, ExpressionVar deferred eval) become **verifiable**: the
-  wire shows exactly which VALUE/CALL/RETURN record dot emits where
-  csn and spl agree on something different (or omits one they both
-  emit).
+
+  **First divergence captured this session.** Two findings, in order
+  of appearance on the wire:
+
+  **(A) csn segfaults at global.inc:2** — 3-way harness reports
+  `DIVERGE step 1` because csn emits `LABEL stno=2` while spl + dot
+  both emit `LABEL stno=1`, AND csn stderr shows
+  `global.inc:2: Caught signal 13 in statement 2 at level 0`.
+  This is csn dying with SIGPIPE (signal 13 = broken pipe) early —
+  not a dot issue.  Likely csn's bridge-e or bridge-f emit on
+  global.inc:2 is racing the controller close, or csn's first
+  LABEL counts comments/blanks differently from spl/dot.  Cross-ref
+  SN-26-bridge-coverage-i (csn FENCE bug) — that may be related.
+
+  **(B) Real dot vs spl divergence at step 26** (2-way `spl dot`,
+  csn excluded):
+    - Records #000–024 byte-identical between spl and dot.
+    - **#025**: spl emits `LABEL stno=15`, dot emits `LABEL stno=14`
+      (off-by-one in stmt numbering).
+    - **#028**: spl emits `VALUE STRING(128)` of raw bytes 0x80–0xff
+      (Latin-1, 128 bytes); dot emits `VALUE STRING(256)` of UTF-8
+      encoded bytes (0xc2 0x80 .. 0xc3 0xbf, 256 bytes).
+
+  **Diagnosis of (B-stno):** Beauty's source has 18 statements before
+  the divergence point.  spl skips one stno number around the area —
+  likely a CONTINUE or label-only line that spl excludes from `&STNO`
+  but dot counts.  This matches the existing SN-26-bridge-coverage-f
+  observation: "csn=3 LABELs, sbl=4, scrip ir-run=3, sm-run=4 —
+  SPL counts END as a stmt".  Per-runtime LABEL count differences
+  are documented; ordering on wire is what matters for divergence.
+  Need to align dot's stno counting with one of the existing
+  conventions (probably scrip's, since it's our own code).
+
+  **Diagnosis of (B-utf8):** This is a real dot bridge bug.
+  `MonitorIpc.ClassifyValue` for `StringVar` does
+  `Encoding.UTF8.GetBytes(sv.Data)`.  But SPITBOL stores raw bytes
+  in StringVar; dot's StringVar.Data is a C# `string` (UTF-16),
+  which when UTF-8-encoded doubles the length of any non-ASCII char.
+  The 128-byte STRING #028 in beauty (Latin-1 chars 0x80–0xff,
+  the second half of `&UCASE`/`&LCASE` complement set) becomes
+  256 bytes on dot's wire.
+
+  **Fix path for (B-utf8):** snobol4dotnet's StringVar should be
+  treated as a byte-buffer, not Unicode text, for monitor emit.
+  Options:
+    1. ClassifyValue iterates `sv.Data` as chars and writes each
+       low byte (`(byte)(c & 0xff)`) — assumes StringVar holds
+       Latin-1 in the C# string.
+    2. Use ISO-8859-1 encoding: `Encoding.Latin1.GetBytes(sv.Data)`.
+       Cleaner if StringVar's contract is "8-bit clean bytes
+       smuggled into a C# string".
+  Need to confirm the snobol4dotnet StringVar contract — see
+  `Snobol4.Common/Runtime/Variable/StringVar/StringVar.cs`.
+
+  **Open work (next session):**
+    - Fix dot's STRING byte encoding in `MonitorIpc.ClassifyValue`
+      (preferred: `Encoding.Latin1`).  Add smoke test:
+      `S = '\\x80\\x81'; OUTPUT = S` should emit STRING(2)=b'\\x80\\x81'
+      not STRING(4)=b'\\xc2\\x80\\xc2\\x81'.
+    - Decide on stno counting convention for dot (probably +0
+      offset between assignment and END, matching scrip).  May be
+      a beauty-source-line-specific issue rather than a global bug.
+    - Investigate csn SIGPIPE early death (B-A) — possibly a csn
+      bridge-coverage fix.
+    - After both: re-run `csn spl dot` 3-way and confirm DIVERGE
+      moves further into beauty's run.
+
+  Beauty 17/17 still PASS.  All four dot bridge gates green.
 
 - [ ] **S-2-bridge-7 — Fix the runtime gap, advance to next divergence**
   With the canonical divergence pair in hand, fix the snobol4dotnet
