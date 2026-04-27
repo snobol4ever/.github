@@ -354,6 +354,162 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
     in the trap entry, no save of name-list state.
     CSNOBOL4 saves 6 things on cstack; SPITBOL saves the
     semantic-equivalent of 1-2 things on `xs`.
+  - **Bug mechanism identified at the macro level.**  PUSH/POP
+    compile to `cstack` ops (heap-allocated descriptor stack,
+    not the C call stack).  `RETURN(VALUE)` macro =
+    `RSTSTK(); return`.  `BRANCH(NAME)` = tail call, NO RSTSTK.
+    Initial hypothesis: a long BRANCH chain inside SCIN1
+    defers all SAVSTK records into one bulk RSTSTK at the
+    final RETURN, rewinding cstack past FNCA's saves.
+    Session #40 trace evidence shows the actual mechanism is
+    more subtle (12-slot drop between FNCA-end and FNCB-entry,
+    indicating two SAVSTK/RSTSTK pairs whose bracket doesn't
+    contain FNCA's pushes).
+  - **ATP2 / EXPV7 / ENMI4 are NOT vulnerable.**  ATP2 wraps
+    its 6-PUSH around an `RCALL ,TRPHND,...` which is a
+    regular C call — TRPHND's RSTSTK rewinds only to AFTER
+    ATP2's PUSHes.  EXPV7 is in EXPVAL (its own C function)
+    with balanced SAVSTK at entry / RSTSTK at exit.  ENMI4
+    same pattern as EXPV7.  Only FNCA is structurally
+    different because FNCA/FNCB/FNCC live as labels INSIDE
+    SCIN1 separated by tail-call BRANCH chains.
+  - **Two fix axes identified:**
+    - **Axis A (audit-then-minimize):** which of the 6 saved
+      values does FNCA actually NEED?  Hypothesis: most are
+      unnecessary.  Pursued in session #40.
+    - **Axis B (relocation):** for values that genuinely need
+      cross-RCALL persistence, move them to PDL trap entry.
+
+  **Session #40 progress (audit, no source modified):**
+  Built csnobol4 oracle, hand-instrumented `isnobol4.c` with
+  C-level PUSH/POP slot-address logging (32-entry circular
+  buffer, trap-on-bogus-PDLPTR after each POP), reverted all
+  instrumentation per RULES.md before exit.
+
+  **MAXLEN audit complete — DROP THE SAVE.**
+  `grep -nE "MOVD|SUM|SUBTRT|SETAC|SETLC|GETLG|MOVA" v311.sil
+   | grep MAXLEN` finds exactly 3 write sites:
+  - line 3536 `SCNR`: `GETLG MAXLEN,XSP` — top-of-scanner reload.
+    Not inside FENCE-protected region.
+  - lines 4039 `STARP`, 4067 `DSARP2`: each paired with its own
+    `PUSH(MAXLEN,...)` + matching `POP(MAXLEN,...)`. Self-saving.
+  Inner-P matching never leaves MAXLEN in a state requiring
+  FNCA-level save.  **FNCA's MAXLEN save is provably unnecessary.**
+
+  **LENFCL save is provably redundant.**  FNCA already writes
+  LENFCL into trap entry slot 3 (`PUTDC PDLPTR,3*DESCR,LENFCL`
+  at v311.sil line 4102).  When FNCB fires via SALT2's dispatch,
+  SALT1 has already restored LENFCL via `GETDC LENFCL,PDLPTR,
+  3*DESCR` (v311.sil line 3613) BEFORE control reaches L_FNCB.
+  The `POP(LENFCL)` at L_FNCB POPs into a value that gets
+  immediately overwritten by future SALT calls.
+  **DROP from cstack save list.**
+
+  **PDLPTR save is computable, not strictly required.**  FNCA
+  records the trap-entry anchor implicitly via `INCRA PDLPTR,
+  3*DESCR`.  The pre-FNCA PDLPTR equals the post-FNCA PDLPTR
+  minus 3*DESCR.  PDLHED_outer == pre-FNCA PDLPTR (set by
+  trap entries always being placed at the top).  So
+  PDLPTR_outer is recoverable from PDLHED_outer.  If we save
+  PDLHED_outer, PDLPTR_outer is implicit.
+
+  **PDLHED save IS required.**  FNCA does `MOVD PDLHED,PDLPTR`
+  to start a new history-stack region.  FNCB/FNCC must restore
+  the outer PDLHED.  This is the one save SPITBOL also makes
+  (its `pmhbs` is the analog of CSNOBOL4's PDLHED).  KEEP.
+
+  **NAMICL/NHEDCL save audit remaining.**  FNCA does
+  `MOVD NHEDCL,NAMICL`.  Does inner-P matching mutate NAMICL?
+  Likely yes (NME/ENME/DNME pattern naming primitives modify
+  the name list).  Whether the failure walker's existing PDL-
+  unwind also unwinds NAMICL is the unverified bit.  Suspect
+  NAMICL save is needed; NHEDCL save (at FNCC for re-entry
+  optimization) is needed too.  KEEP both pending verification.
+
+  **Refined save list — 2 items instead of 6:**
+  Required cross-RCALL persistence: PDLHED_outer + NAMICL_outer
+  (and possibly NHEDCL_outer = NAMICL_outer at FNCA-time).
+  The other 4 saves (MAXLEN, LENFCL, PDLPTR, NHEDCL_outer
+  redundant-with-NAMICL) can be dropped or computed.
+
+  **Trace evidence pinpoints the failing site.**
+  Hand-instrumentation with circular slot-address logging
+  showed: FNCA pushed PDLPTR at slot 0x...c420; FNCB tried
+  to pop PDLPTR from slot 0x...c360 (12 descriptors lower);
+  read value 0xc0 = 192 = 12·DESCR (a typical SIL `INCRA`
+  argument that landed in the slot via an unrelated push).
+  Counters at trap: FNCA=4, FNCB=1, FNCC=2.  4 FENCE entries,
+  2 successful exits, 1 failed exit which is the corrupted one.
+  The 4-vs-3 imbalance confirms NESTED FENCE — at trap moment
+  one FNCA push is still outstanding (the outer FENCE's), and
+  it's the inner FENCE's FNCB whose POP reads stale data.
+
+  **Conclusion: structural fix is correct AND save-list shrinks.**
+  Move FENCE state to PDL trap entry.  Save 2 items
+  (PDLHED_outer, NAMICL_outer) instead of 6.  Trap entry size
+  grows from 3 to 5 descriptors.  FNCB/FNCC read from the
+  extended slots.  Implementation:
+
+  ```sil
+  FNCA   XPROC   ,
+         INCRA   PDLPTR,5*DESCR    ; was 3*DESCR
+         ACOMP   PDLPTR,PDLEND,INTR31
+         PUTDC   PDLPTR,DESCR,FNCBCL
+         GETLG   TMVAL,TXSP
+         PUTDC   PDLPTR,2*DESCR,TMVAL
+         PUTDC   PDLPTR,3*DESCR,LENFCL  ; existing trap-entry slot 3
+         PUTDC   PDLPTR,4*DESCR,PDLHED  ; new: save outer PDLHED
+         PUTDC   PDLPTR,5*DESCR,NAMICL  ; new: save outer NAMICL
+         MOVD    PDLHED,PDLPTR     ; set new inner PDLHED
+         MOVD    NHEDCL,NAMICL     ; set new inner NHEDCL
+         BRANCH  SCOK
+  ```
+
+  At FNCB/FNCC entry, PDLPTR has been DECRA'd by 3 by SALT2,
+  so it points 3 descriptors below the trap entry's anchor.
+  The extended slots (4*DESCR, 5*DESCR from FNCA's anchor) are
+  now at PDLPTR + 4*DESCR + 3*DESCR = PDLPTR + 7*DESCR, etc.
+  Wait — needs careful re-verification.  The slot 3 LENFCL is
+  read by SALT1 at PDLPTR + 3*DESCR BEFORE SALT2 DECRAs.  After
+  DECRA, those slots are at PDLPTR + 6, 7, 8 *DESCR if entry is
+  5-wide.  FNCB/FNCC need to read from PDLPTR + 7*DESCR
+  (PDLHED_outer) and PDLPTR + 8*DESCR (NAMICL_outer), then
+  DECRA PDLPTR by 2*DESCR to roll back the extra slots.
+  Subsequent failure-walking (when control leaves FNCB/FNCC)
+  expects PDLPTR to point past where the extended entry was.
+
+  **Next session entry point:** verify NAMICL save necessity by
+  tracing NAMICL writes through pattern primitives (NME, ENME,
+  DNME, etc.).  Then write the SIL fix per the layout above,
+  regenerate via `./snobol4 -b genc.sno --with BLOCKS v311.sil`,
+  apply the established hand-edit dance for FNCP/FNCA..FNCD
+  drops (latent SN-26-csn-regen-fix), verify tiny repro, run
+  full beauty self-host.
+
+  **Layout precision note:** when SALT1 reads `PDLPTR + 3*DESCR`
+  and SALT2 then DECRAs PDLPTR by 3*DESCR before dispatching to
+  FNCB/FNCC, the PDLPTR-relative offsets shift by +3*DESCR.
+  For a 5-descr extended FNCA entry, FNCB/FNCC see:
+  - slot 3 LENFCL: at PDLPTR+6*DESCR (already restored by SALT1)
+  - slot 4 PDLHED_outer: at PDLPTR+7*DESCR
+  - slot 5 NAMICL_outer: at PDLPTR+8*DESCR
+  After reading slots 4-5, FNCB/FNCC must DECRA PDLPTR by an
+  ADDITIONAL 2*DESCR so that downstream failure-walking sees
+  PDLPTR at the pre-FNCA position (= original PDLHED_outer).
+  Or: simpler — assign PDLPTR ← PDLHED_outer directly after
+  reading.
+
+  Bypass for now: same as session #39 (re-add FENCE.inc per-test).
+  - **SPITBOL comparison performed.**  Read sbl.min lines
+    11978-12039 (`p_fna..p_fnd`) and the doc block at
+    11473-11500.  SPITBOL's FENCE save list is **dramatically
+    smaller**: `p_fna` saves only `pmhbs` (history-stack base)
+    and the `=ndfnb` indirect pointer onto **`xs`** (the
+    pattern matching stack — analog of CSNOBOL4's PDL).  No
+    save of MAXLEN, no separate save of LENFCL beyond what's
+    in the trap entry, no save of name-list state.
+    CSNOBOL4 saves 6 things on cstack; SPITBOL saves the
+    semantic-equivalent of 1-2 things on `xs`.
   - **Bug mechanism re-confirmed.**  PUSH/POP compile to
     `cstack` ops (heap-allocated descriptor stack, not the C
     call stack).  `RETURN(VALUE)` macro = `RSTSTK(); return`.
@@ -579,6 +735,10 @@ session #36.  Session #38 reverified Smoke=7, Broker=49 at session
 start before any work.  Session #39 was analysis-only (no code
 changes, no rebuilds beyond initial csnobol4 build); gates not
 re-run but unchanged from session #38 since no source modified.
+Session #40 was audit (instrumented isnobol4.c diagnostically,
+reverted before exit per RULES.md "diagnostic patches are
+diagnostic — never commit them"); no committed source changed,
+gates not re-run but unchanged.
 auto-binary verifies streaming-intern semantics end-to-end
 (NAME_DEF on the wire, no sidecar written).  label-flow PASS=5
 (csn=3 LABELs, sbl=4 LABELs, scrip ir-run=3, sm-run=4, jit-run=4).
