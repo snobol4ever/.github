@@ -371,6 +371,159 @@ capture for that rung needs redoing under case-sensitive default.
 
 ---
 
+## Active rung — SN-26-bridge-coverage (opened 2026-04-27, session #29)
+
+**Goal of this rung:** make the 3-way binary harness apples-to-apples
+on `beauty.sno < beauty.sno` so that subsequent SN-26c-parseerr-h
+sub-h2 work can use the canonical RULES.md "read the divergence
+point, not the trace" workflow.  Currently the bridges' fire-point
+coverage is asymmetric (see session #29 forensic notes above), so
+the harness reports DIVERGE at step 1 on a coverage gap rather than
+a real runtime bug.  Until this closes, sub-h2 cannot be driven via
+the binary harness — it has to be driven by reading raw stderr
+trace, which RULES.md forbids.
+
+This rung is **the gate** on SN-26c-parseerr-h sub-h2 progress.
+Until 3-way is apples-to-apples, sub-h2 stays at the "forensic
+hint" level documented in session #29.
+
+**Done-when:** `bash scripts/test_monitor_3way_sync_step_auto.sh
+$BEAUTY/beauty.sno` with `STDIN_SRC=/tmp/asg.sno` reports its first
+DIVERGE at a real runtime divergence between scrip and the oracles
+(not on the `nul = '\x00'` coverage asymmetry from
+`global.inc:2`'s `&ALPHABET POS(0) LEN(1) . nul`).  Both oracles
+must emit a VALUE wire record for every `.`-capture commit, just
+as scrip does today.
+
+**Sub-rungs (sequenced — work in order):**
+
+- [ ] **SN-26-bridge-coverage-a — SN-26-csn-bridge-c** — Add
+  `XCALLC monitor_emit_value,(TVAL,VVAL)` to `csnobol4/v311.sil`
+  immediately after `NMD4 PUTDC TVAL,DESCR,VVAL` (line 6166).
+  This is the "Value Assignment in Pattern Matching" commit — the
+  unified site reached by every conditional-value (`.`) capture
+  during a successful match.  Hand-apply equivalent C edit at the
+  matching label site in `snobol4.c` and `isnobol4.c` per the
+  SN-26-csn-bridge-a-xcallc precedent (genc.sno regen still drops
+  FNCP — `SN-26-csn-regen-fix` remains a separate owed rung; do
+  not block on it).
+
+  **Validation:**
+  1. `bash scripts/test_smoke_sn26_csn_bridge_b.sh` must stay
+     PASS=1 with 7 records (no regression on the existing fire-points).
+  2. New probe `corpus/programs/snobol4/demo/csn_bridge_c/probe_c.sno`:
+     ```snobol4
+                S = 'AXBYC'
+                S ANY('AB') . captured
+                END
+     ```
+     Expected wire stream: 3 records — VALUE S, VALUE captured,
+     END.  The middle record (`captured = 'A'`) is the new one.
+     Add `scripts/test_smoke_sn26_csn_bridge_c.sh` mirroring the
+     `_b` smoke script.
+  3. Smoke=7, Broker=49 must stay green.
+
+- [ ] **SN-26-bridge-coverage-b — SN-26-spl-bridge-d** — Add a
+  fire-point in `pnth4` of `x64/sbl.min` immediately before the
+  `jsr asinp` at line 12257.  Pattern .-captures route through
+  `pnth4` → `asinp` (line 17847) which **bypasses `b_vrs`** —
+  that's why the existing SPITBOL bridge misses them entirely.
+
+  Register state at `pnth4` entry to the assignment block (around
+  line 12253-12257):
+  - `xt` = history stack scan ptr (saved on stack at 12253)
+  - `xl` = pointer to p_pac node holding the name (line 12254)
+  - `wa` = name offset (line 12255)
+  - `xl` post-12256 = name base (vrblk)
+  - `wb` = sliced substring pointer (the value to be assigned)
+
+  Suggested fire-point shape (mirrors session #27's bpf09 pattern):
+  ```minimal
+       mov  -(xs),wb         save value pointer
+       mov  -(xs),wa         save name offset
+       mov  -(xs),xl         save name base
+       ; reconstruct vrblk address for sysmv:
+       ;   xr = xl + wa  (name base + name offset = vrblk slot)
+       mov  xr,xl
+       add  xr,wa
+       jsr  sysmv            emit VALUE record (name from xr, value from wb)
+       mov  xl,(xs)+         restore name base
+       mov  wa,(xs)+         restore name offset
+       mov  wb,(xs)+         restore value pointer
+       jsr  asinp            then proceed with the original assignment
+  ```
+  Note: `sysmv` already expects `xr = vrblk ptr` and the value on
+  the stack via `(xs)`.  Adjust the shape to match
+  `osint/monitor_ipc_runtime.c`'s actual entry contract — diff
+  against the existing `b_vrs` site at line 11086 to confirm the
+  exact register/stack convention.
+
+  **Validation:**
+  1. `bash scripts/test_smoke_sn26_spl_bridge.sh` must stay PASS=1
+     with 6 records.
+  2. Same `probe_c.sno` against SPITBOL produces an analogous
+     3-record wire (VALUE S + VALUE captured + END).
+  3. SN-30 invariant: `beauty.sno < beauty.sno` md5 still
+     `408fc788ca2ef425fc1f87e26d45a7a5`.
+  4. Regenerate `bootstrap/sbl.{asm,lex}` via `make makeboot`
+     (RULES.md SN-30g) so fresh clones can build.
+  5. Smoke=7, Broker=49 must stay green.
+
+- [ ] **SN-26-bridge-coverage-c — 3-way validation on beauty
+  self-host** — With both oracles' bridges now firing on
+  `.`-captures, re-run the 3-way auto harness:
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+  cd /home/claude/one4all
+  STDIN_SRC=/tmp/asg.sno MONITOR_TIMEOUT=60 \
+      bash scripts/test_monitor_3way_sync_step_auto.sh \
+      $BEAUTY/beauty.sno
+  ```
+  Expected: the first DIVERGE no longer appears at step 1 on
+  `nul = '\x00'`.  All three participants now agree through the
+  `&ALPHABET ... . nul/bs/ht/...` chain in `global.inc`.  The
+  controller advances to a step where scrip and the oracles
+  genuinely disagree on the value of a real assignment.  Read
+  **only** that divergence record's last-agree + first-disagree
+  pair.  This is the canonical hand-off point to SN-26c-parseerr-h
+  sub-h2.
+
+- [ ] **SN-26-bridge-coverage-d — Hand sub-h2 the result** — Once
+  the canonical divergence point is known from sub-rung -c above,
+  re-open SN-26c-parseerr-h sub-h2 with a clean ground-truth
+  record pair and proceed to fix the runtime.  Session #29's
+  forensic hint (`Reduce('..', DT_FAIL)` vs `Reduce('..', EXPRESSION)`,
+  likely caused by E_VAR fallback not covering DT_E thaw inside
+  NM_CALL) should be **verified** against the controller's
+  divergence record before any code change — RULES.md "read the
+  divergence point, not the trace".
+
+**Gate after each sub-rung:** Smoke=7, Broker=49 plus the new and
+existing bridge smoke scripts (csn-bridge-a=1, csn-bridge-b=1,
+csn-bridge-c=1, spl-bridge=1, spl-bridge-d=1, auto-binary=1).
+
+**Dependencies:** None open.  This rung sequences before any further
+sub-h2 runtime work.
+
+**Estimated session count:** 2 (one each for -a and -b, then -c and
+-d in a single follow-up session).  Both -a and -b are
+scaffolding-equivalent in shape to existing landed work
+(SN-26-csn-bridge-a-xcallc, SN-26-spl-bridge-b) and dominated by
+validation rather than new code.
+
+**Why this is the current step (not sub-h2 directly):** The 3-way
+harness was designed to deliver canonical divergence records so
+debugging doesn't require reading hundreds of trace lines.  With
+the coverage gap, the harness can't fulfill that contract on
+beauty self-host — every probe with `.`-captures (i.e., almost
+all of them, since `global.inc` has 13 in its first 13 lines)
+reports the coverage gap as step 1 instead of advancing to a real
+divergence.  Closing the gap unblocks the canonical workflow for
+sub-h2 and for every future SNOBOL4 frontend bug that needs 3-way
+diagnosis.
+
+---
+
 ## Active rung — SN-26c-parseerr (opened 2026-04-25)
 
 Sub-rungs `stmt153` and `stmt637` closed in sessions #3 and #4
