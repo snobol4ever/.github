@@ -219,20 +219,44 @@ below remain as session history but are no longer the primary lens):**
 
   Beauty 17/17 baseline preserved.
 
-- [ ] **S-2-bridge-3 — Fire-point: `.`-capture commit + element stores**
-  Hook the commit path of `CursorAssignmentPattern` (the runtime
-  implementation of `pat . var` and `pat . *fn(args)`).  Mirrors
-  csn `NMD4`, `ENMI3`, `ATP` and spl post-asign coverage.
+- [x] **S-2-bridge-3 — Fire-point: `.`-capture commit + element stores** (CLOSED 2026-04-27, snobol4dotnet @ `18a2946`)
+  **Discovery:** no new fire-point needed.  snobol4dotnet's
+  pattern-match commit walks `BetaStack` and calls `Executive.Assign()`
+  per `nameListEntry` — see line 58 of
+  `Runtime/Functions/OperatorsBinary/PatternMatch (Question Mark).cs`.
+  This routes `.`-capture (CVA1/CVA2 commit) and `$`-capture through
+  the same `Executive.Assign` chokepoint as plain `=` stores.
 
-  `<lval>` sentinel discipline from SN-26-bridge-coverage-a applies:
-  if the captured name resolves to anonymous storage (array element,
-  table slot) instead of a vrblk-with-name, validate that candidate
-  name characters are printable-ASCII identifier bytes; on failure
-  intern sentinel `<lval>`.
+  Consequence: S-2-bridge-2's single fire-point already covers all
+  five csn fire sites in one stroke:
+  - csn `ASGNVV`  → dot `Assign` default branch (scalar IdentifierTable)
+  - csn `NMD4`    → dot `Assign` via `PatternMatch` BetaStack walk (`.`-cap)
+  - csn `ENMI3`   → dot `Assign` via `PatternMatch` BetaStack walk (`$`-cap)
+  - csn `ATP`     → dot `Assign` via `PatternMatch` BetaStack walk (`@`-pos)
+  - csn array/table element store → dot `Assign` `Collection` switch
 
-  Validation: probe equivalent to csn-bridge-c `probe_complex.sno`
-  (5 LHS forms: plain `=`, `pat . X`, `pat $ X`, `a<i,j>=`,
-  `d<'k'>=`).
+  The `<lval>` sentinel discipline (printable-ASCII heuristic in
+  `LvalueNameId`) handles array element + table slot stores cleanly —
+  both produce `<lval>` in the names sidecar at the same id (interning
+  correctly deduplicates).
+
+  **Smoke gate `scripts/test_smoke_dot_bridge_complex.sh` PASS=9 FAIL=0**
+  (mirrors csn-bridge-c `probe_complex.sno` minus user-fn calls):
+  ```
+  myname = 'unset'              -> #0 VALUE name_id=0 STRING(5) 'unset'
+  S = 'AXBYC'                   -> #1 VALUE name_id=1 STRING(5) 'AXBYC'
+  S ANY('AB') . dotcap          -> #2 VALUE name_id=2 STRING(1) 'A'
+  S2 = 'AXBYC'                  -> #3 VALUE name_id=3 STRING(5) 'AXBYC'
+  S2 ANY('AB') $ dolcap         -> #4 VALUE name_id=4 STRING(1) 'A'
+  a = ARRAY('1:3')              -> #5 VALUE name_id=5 ARRAY  empty
+  a<2> = 'array_elem'           -> #6 VALUE name_id=6 STRING(10) 'array_elem'
+  d = TABLE()                   -> #7 VALUE name_id=7 TABLE  empty
+  d<'mykey'> = 'tbl_elem'       -> #8 VALUE name_id=6 STRING(8) 'tbl_elem'
+  END                           -> #9 END   name_id=0xffffffff
+  ```
+  Names sidecar: `S\ndotcap\nS2\ndolcap\na\n<lval>\nd\n` (LF-terminated, no BOM).
+
+  Beauty 17/17 baseline preserved.
 
 - [ ] **S-2-bridge-4 — Fire-point: CALL + RETURN on user-defined fns**
   Hook entry/exit of user-defined functions only (filter built-ins
