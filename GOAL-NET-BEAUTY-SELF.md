@@ -6,6 +6,15 @@
 completion with exit 0, produces ≥500 lines of beautified output, and
 emits no `error ` lines on stderr — matching the SPITBOL `-bf` baseline.
 
+> **Mon Apr 28 2026 — CSNOBOL4 retired as oracle.** Per RULES.md
+> "Oracles" section update of the same date, CSNOBOL4 is no longer
+> used as a general oracle.  A separate session (`GOAL-CSN-FENCE-FIX`)
+> is investigating its FENCE bug; until that closes, only SPITBOL x64
+> serves as the oracle for this goal.  Drop `csn` from any new harness
+> invocations: `PARTICIPANTS="spl dot"` is the canonical set.
+> Historical references to CSNOBOL4 throughout this file are preserved
+> as session record.
+
 ## ⛔ Read this first — every session
 
 1. **Source location:** `/home/claude/corpus/programs/snobol4/demo/beauty/`
@@ -450,10 +459,12 @@ below remain as session history but are no longer the primary lens):**
       add it to the wire stno.  Verified byte-identical to spl on
       beauty.sno records #022–#035.  New smoke gate
       `scripts/test_smoke_dot_bridge_stno.sh` PASS=6.
-    - [ ] Investigate csn SIGPIPE early death (B-A) — possibly a csn
-      bridge-coverage fix.
-    - After both: re-run `csn spl dot` 3-way and confirm DIVERGE
-      moves further into beauty's run.
+    - [N/A] ~~Investigate csn SIGPIPE early death (B-A)~~ — moot per
+      RULES.md update of Mon Apr 28 2026: CSNOBOL4 is retired as
+      oracle for this goal.  Drop `csn` from harness invocations.
+    - After both: re-run `spl dot` 2-way and confirm DIVERGE
+      moves further into beauty's run.  (3-way with csn no longer
+      applies.)
 
   Beauty 17/17 still PASS.  All six dot bridge gates green
   (PASS=5 dormancy, 5 value, 9 complex, 7 call, 3 latin1, 6 stno).
@@ -599,20 +610,22 @@ below remain as session history but are no longer the primary lens):**
 
   Cross-references for next session:
     - SN-26-bridge-coverage in GOAL-LANG-SNOBOL4 — open work to
-      mirror the same fallback in csn `lvalue_name_id()` and spl
-      `spl_vrblk_name`.  Until that lands, dot's wire is intentionally
-      richer than the oracles' wire on aggregate stores.
-    - The csn SIGPIPE (B-A) item from S-2-bridge-6 remains open
-      (csnobol4 work, not snobol4dotnet).
+      mirror the collection-symbol fallback in spl's `spl_vrblk_name`
+      so the wire converges on the collection name across runtimes.
+      (csn parity is no longer pursued — see retirement note at top.)
+    - csn-side bugs are no longer this goal's concern; CSNOBOL4 is
+      retired as an oracle.  Run `PARTICIPANTS="spl dot"` only.
 
   **Mon Apr 28 2026 (later still) — `<lval>` wildcard on name field
   (one4all `f0f72977`).**  monitor_sync_bin.py's keys_match now treats
   the `<lval>` sentinel as a wildcard on the name field, paralleling
-  the MWT_UNKNOWN wildcard on the type field.  This lets a run advance
-  through aggregate-element stores when one bridge emits `<lval>`
-  (csn / pre-enrichment dot) and another emits the collection name
-  (post-enrichment dot).  Three smoke checks added in
-  `test_smoke_monitor_unknown_wildcard.sh` (PASS=3) including
+  the MWT_UNKNOWN wildcard on the type field.  This was originally
+  designed to let a run advance through aggregate-element stores
+  when one bridge emits `<lval>` (csn / pre-enrichment dot) and
+  another emits the collection name (post-enrichment dot).  With csn
+  retired, this wildcard now mainly serves as protocol-flexibility
+  for any future runtime that emits the sentinel.  Three smoke checks
+  added in `test_smoke_monitor_unknown_wildcard.sh` (PASS=3) including
   unit-style assertions on keys_match itself.
 
   **Mon Apr 28 2026 — dot solo end-to-end:** When dot runs alone
@@ -623,22 +636,6 @@ below remain as session history but are no longer the primary lens):**
   self-host failure is a structural pattern-match failure, not a
   crash.
 
-  **Mon Apr 28 2026 — csn `LABEL` skip on label-only statements (newly
-  isolated bug):**  csn's monitor bridge does not fire `MWK_LABEL`
-  on label-only statements (e.g. `START` line by itself).  Probe:
-  ```
-  START
-                    a = 1
-  END
-  ```
-  csn wire: LABEL=2 (skipping 1), VALUE, END.
-  dot wire: LABEL=1, LABEL=2, VALUE, LABEL=3, END.
-  spl wire: LABEL=1, LABEL=2, VALUE, LABEL=3, END.
-
-  Beauty self-host hits `START` at beauty.sno:8, so csn diverges at
-  step 1 against both spl and dot.  Cross-ref SN-26-bridge-coverage
-  (csnobol4 work) to fix the bridge fire-point.
-
   **State summary of this session's iterative-fix work:**
   - All snobol4dotnet-side wire bugs found + fixed:
       - StringVar UTF-8 → Latin-1 (28625e1)
@@ -647,13 +644,16 @@ below remain as session history but are no longer the primary lens):**
   - Controller wildcards landed:
       - MWT_UNKNOWN on type field (one4all a5117b32)
       - `<lval>` on name field   (one4all f0f72977)
-  - Remaining first-divergence bugs are oracle-side only:
+  - Remaining first-divergence bug is oracle-side only:
       - spl `ss` stale-memory in spl_vrblk_name (x64 / SN-26)
-      - csn LABEL skip on label-only stmts (csnobol4 / SN-26)
+  - With csn retired (Mon Apr 28 2026 RULES.md update), only `spl dot`
+    2-way runs are canonical.  The csn label-only-LABEL-skip and
+    SIGPIPE issues observed in this session's investigation are no
+    longer in scope.
   - The S-2 self-host root cause (Parse Error on `&FULLSCAN = 1`)
     is unchanged — that is the deeper Parse-engine work.  The wire
     cannot drive its diagnosis cleanly until SN-26-bridge-coverage
-    closes the oracle-side bugs above.
+    closes the spl-side bug above.
 
   Beauty 17/17 still PASS.  All 6 dot bridge gates green.
 

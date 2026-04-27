@@ -190,9 +190,9 @@ runtime — fix the runtime, not the source.
 
 ---
 
-## Oracles — SPITBOL x64 primary, CSNOBOL4 secondary
+## Oracles — SPITBOL x64 primary; CSNOBOL4 retired except for Silly
 
-### SPITBOL x64 — primary
+### SPITBOL x64 — primary (and effectively sole) oracle
 ```
 /home/claude/x64/bin/sbl          # binary
 /home/claude/x64/                 # repo (snobol4ever/x64)
@@ -206,27 +206,37 @@ Always invoke with `-b` to suppress the version banner:
 Derive `.ref`: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `-I/home/claude/corpus/programs/snobol4/demo/inc`
 
-SPITBOL is the **primary oracle for all goals and all testing**.
+SPITBOL is the **oracle for all goals and all testing** (Silly excepted —
+see below).
 
-### CSNOBOL4 2.3.3 — secondary
+### CSNOBOL4 2.3.3 — RETIRED as a general oracle (Mon Apr 28 2026)
+
+⛔ **Do not use CSNOBOL4 as an oracle for new work.** A separate session
+is tracking the FENCE bug (`GOAL-CSN-FENCE-FIX`) and until that goal
+closes, CSNOBOL4's behaviour cannot be relied on for cross-runtime
+comparison.  Existing references in goal files, REPO files, and harness
+configs that name CSNOBOL4 alongside SPITBOL should be read as
+historical — drop the `csn` participant from any new harness invocations
+and trust SPITBOL alone.
+
 ```
-/home/claude/csnobol4/snobol4     # binary
+/home/claude/csnobol4/snobol4     # binary (Silly use only)
 /home/claude/csnobol4/            # repo (snobol4ever/csnobol4)
 ```
 Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
 
-Used alongside SPITBOL in the sync-step monitor harness and for any goal
-where CSNOBOL4 compatibility is explicitly required.
+**Silly exception (still active):** CSNOBOL4 is the **sole** oracle for
+Silly SNOBOL4 goals (`SS-MONITOR`, `GOAL-SILLY-*`) because Silly is a
+faithful C rewrite of CSNOBOL4's SIL source.  These goals are
+unaffected by the retirement above — they need bug-for-bug fidelity
+with CSNOBOL4, not correctness against SPITBOL.
 
-When SPITBOL and CSNOBOL4 agree: correct. When they disagree: investigate;
-SPITBOL wins on ambiguous cases unless the goal explicitly targets CSNOBOL4
-behaviour.
+For all other goals: when a Goal file or REPO file mentions CSNOBOL4
+as an oracle, treat that mention as obsolete pending a future cleanup
+pass.  Run only SPITBOL.
 
-**Silly exception:** CSNOBOL4 is the sole oracle for Silly SNOBOL4 goals
-(SS-MONITOR, GOAL-SILLY-*) because Silly is a faithful C rewrite of
-CSNOBOL4's SIL source.
-
-`.ref` files are pre-baked in corpus. SPITBOL not required to run test gates.
+`.ref` files are pre-baked in corpus.  SPITBOL not required to run
+test gates.
 
 ### SPITBOL `-f` — fixed in SN-30 (x64 @ `cc68516`)
 
