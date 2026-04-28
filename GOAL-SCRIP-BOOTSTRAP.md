@@ -1004,8 +1004,77 @@ Other risks tracked but not blocking:
 
 ## Active rung
 
-CB-1 — mapping audit. Output is the lock-in table replacing the
-"starting partition" above. Until CB-1 lands, no port work begins.
+**CB-0: 4th mode (`--text-run`) working end-to-end for SNOBOL4.**
+This is the current ladder — the immediate work before CB-1 (mapping
+audit) and all port work. The 4th mode (SM/BB text codegen → NASM
+assembly → assemble → link → execute) must be proven correct on
+SNOBOL4 before it can be trusted as the unification point for CB-7e
+and the entire backend grid. The ladder proves correctness by
+ascending through smoke, demos, beauty test suite, and finally
+beauty self-host — the same proof sequence used for --ir-run and
+--sm-run before them.
+
+The dual-mode emitter infrastructure already exists in `bb_emit.c`
+(`EMIT_TEXT` / `EMIT_BINARY`) but `--text-run` is not yet wired
+into the scrip driver. CB-0a wires it; CB-0b..e prove it.
+
+- [ ] **CB-0a — Wire `--text-run` into scrip driver.**
+  Add `--text-run` CLI flag to `src/driver/scrip.c`. When active:
+  set `bb_emit_mode = EMIT_TEXT`, run SM lowering, invoke the
+  bb/SM emitter to write NASM `.s` to a temp file, shell out to
+  `nasm -f elf64` + `ld` (or `cc`) to produce an executable,
+  execute it and capture stdout. The flag is mutually exclusive
+  with `--ir-run`, `--sm-run`, `--jit-run`.
+  **Gate:** `scrip --text-run` on `corpus/programs/snobol4/smoke/hello.sno`
+  prints `Hello World` (or equivalent) without crashing. Build
+  must not regress Smoke=7 on the other three modes.
+
+- [ ] **CB-0b — Smoke suite passes under `--text-run`.**
+  Run `test_smoke_snobol4.sh` with `--text-run` as the execution
+  mode. All 7 cases must pass. Add a `test_smoke_snobol4_text.sh`
+  (or extend the existing script with a `--text-run` sweep) that
+  is committed alongside this rung.
+  **Gate:** PASS=7, FAIL=0, exits 0 in < 10s.
+
+- [ ] **CB-0c — Demo programs pass under `--text-run`.**
+  Run the SNOBOL4 demo programs from
+  `corpus/programs/snobol4/demo/` through `--text-run` and diff
+  against the `--sm-run` (oracle) output for each. Demos include
+  at minimum: `expression.sno`, `porter.sno` (with `porter.input`),
+  `claws5.sno` (with `claws5.input`), `treebank-list.sno` (with
+  `treebank.input`). Any demo that already passes `--sm-run` must
+  produce byte-identical output under `--text-run`.
+  **Gate:** zero diffs across all passing demos; no new failures.
+  Commit a `test_smoke_snobol4_text_demos.sh` script.
+
+- [ ] **CB-0d — Beauty test suite passes under `--text-run`.**
+  Run the beauty test suite (the corpus fixtures exercised by
+  `test_smoke_self_beautify.sh` and the beauty oracle) under
+  `--text-run`. The beauty program is pattern-intensive — every
+  Byrd box that EMIT_TEXT emits must fire correctly. Diff each
+  output against the `--sm-run` baseline.
+  **Gate:** all beauty suite fixtures byte-identical between
+  `--text-run` and `--sm-run`. Commit a
+  `test_smoke_beauty_text.sh` script.
+
+- [ ] **CB-0e — Beauty self-host byte-identical under `--text-run`.**
+  ```bash
+  BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+  SNO_LIB=$BEAUTY scrip --text-run \
+      $BEAUTY/beauty.sno < $BEAUTY/beauty.sno | md5sum
+  # must be abfd19a7a834484a96e824851caee159
+  ```
+  This is the 4th-mode proof, equivalent to what `--ir-run` /
+  `--sm-run` / `--jit-run` achieved at Milestone 1. When this
+  gate is green, the 4th mode is trustworthy as the unification
+  point for CB-7e and the BB-template generator ladder.
+  **Gate:** md5 = `abfd19a7a834484a96e824851caee159`, 646 lines.
+  Commit message records this as the 4th-mode proof landing.
+
+---
+
+**CB-1 — Mapping audit and partition lock-in** follows CB-0e.
+No port work begins until CB-1 lands.
 
 After CB-1 closes, the natural ordering reflects the **4th-mode-first**
 unification design (see "Historical record: `runtime/boxes/`" above):
