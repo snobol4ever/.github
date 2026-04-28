@@ -734,7 +734,7 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   `MWT_UNKNOWN` wildcard can be narrowed or removed once all block types
   are discriminated.  Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-s — fix RETURN record display format.**
+- [x] **SN-26-bridge-coverage-s — fix RETURN record display format. CLOSED session #52.**
 
   `fmt_event` in `monitor_sync_bin.py` formats a RETURN record as
   `RETURN fname = STRING(6)='RETURN'` — looks like a value assignment,
@@ -751,31 +751,85 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   **Done-when:** Grid row 1254 shows `RETURN nPush (RETURN)` not
   `RETURN nPush = STRING(6)='RETURN'`.  Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-t — find eager nTop caller (the -o bug).**
+- [x] **SN-26-bridge-coverage-t — eager E_FNC inside compound pat-target
+  argument expressions.  CLOSED session #53 (2026-04-28).**
 
-  The step-1257 divergence: scrip emits `CALL nTop` at stno=589
-  (`reduce = EVAL("epsilon . *Reduce(" t ", " n ")")`) while SPITBOL
-  stores the EVAL result.  The string `n` at that call site contains
-  `'*(GT(nTop(), 1) nTop())'` — scrip is evaluating `nTop()` eagerly
-  inside argument construction instead of deferring it.
+  **Root cause (gdb-confirmed):** in `interp.c` at the
+  `E_CAPT_COND_ASGN` case for `pat . *fn(args)` deferred-function
+  targets, the sub-arg deferral loop only wrapped args as `DT_E`
+  when the arg's top-level kind was `E_FNC` or `E_VAR`.  Compound
+  expressions like `nTop() + 1` (an `E_ADD` containing an `E_FNC`)
+  fell into the `else` branch and were eagerly evaluated via
+  `interp_eval(arg)` at pattern-build time, calling the inner
+  function before the pattern could match.  Two sites had the
+  same bug: ~line 3210 (`E_DEFER` target) and ~line 3243
+  (`E_INDIRECT` target, snocone path).
 
-  **Diagnostic (do not commit):** in scrip `interp.c`
-  `call_user_function`, add a temporary trap inside `comm_call`:
-  ```c
-  if (strcmp(fname, "nTop") == 0) { __builtin_trap(); }
-  ```
-  Run under gdb: `run --ir-run beauty.sno < /dev/null`.  The trap fires
-  at the first eager `nTop` call; the backtrace shows the exact scrip
-  C call path that triggered it.  From the backtrace identify whether
-  the eager call originates in `EVAL_fn`, `parse_expr_pat_from_str`,
-  `interp_eval` E_FNC handling, or the 5-phase replacement-before-match
-  ordering bug identified in session #50.
+  **Discovery surprise:** session #50 hypothesised the FIRST eager
+  call came from beauty.sno line 121's `*(GT(nTop(), 1) nTop())`
+  wrapped form.  gdb backtrace at the trap showed the actual
+  EVAL'd string at frame #6 was `"epsilon . *Reduce('[]', nTop()
+  + 1)"` — the bare-arg shape from a later call site (semantic.inc
+  bare-arg `*Reduce(t, nTop() + 1)` calls at lines 169/177/238/243),
+  not the wrapped form.  The wrapped form may already have been
+  correct in scrip; the bare-arg bug was hiding behind it.  This
+  is why session #50's isolated probes did not reproduce the bug.
 
-  **Done-when:** root cause identified; fix landed; 2-way harness advances
-  past step 1257.  Smoke=7, Broker=49.
+  **Fix:** at both sites, defer all non-`E_QLIT` args as `DT_E`.
+  `E_QLIT` (string literals) stay eager since they are idempotent
+  under EVAL and saving the wrap cost is trivial.  The thaw side
+  at `name_t.c:97` already routes `DT_E` args through `EVAL_fn →
+  EXPVAL_fn`, which handles arbitrary `EXPR_t` shapes correctly —
+  no change needed on the thaw side.
 
-- [ ] **SN-26-bridge-coverage-o — extra CALL during EVAL/argument
-  evaluation in scrip.  Opened session #49.**
+  **Diagnostic technique used (re-applicable):**
+  1. Edit `comm_call` in `runtime/x86/snobol4.c`: insert
+     `if (strcmp(fname, "nTop") == 0) { __builtin_trap(); }` at
+     entry.
+  2. `make scrip` from one4all root.
+  3. `gdb -batch -ex 'set environment SNO_LIB=...' -ex 'run --ir-run
+     beauty.sno < /dev/null' -ex 'bt 60' --args ./scrip --ir-run
+     beauty.sno`.
+  4. Read frames bottom-up: each `interp_eval(e=...)` line tells you
+     the EXPR_t kind being evaluated; `interp_eval_pat → interp_eval`
+     transitions tell you where pattern context falls back to value
+     context.  Frame containing `_eval_str_impl_fn` shows the EVAL'd
+     string as the `s=` argument — read what scrip is actually trying
+     to parse.
+  5. Revert the trap before commit.
+
+  **Verification:**
+  - Probe `pat . *Reduce('[]', nTop() + 1)`: scrip output now matches
+    SPITBOL byte-for-byte (`nTop` fires only at MATCH time, not BUILD
+    time).
+  - 2-way harness on `beauty.sno < /dev/null` advances from step 1257
+    to step 1507 (+250 steps).  Steps 1..1506 all agree.  New
+    divergence at step 1507 is a different bug class (CALL upr vs
+    VALUE icase = UNKNOWN inside `case.inc:23 icase = icase
+    (upr(letter) | lwr(letter))` — tracked as -u).
+  - Smoke=7, Broker=49 preserved.
+  - All 5 buildable bridge smokes PASS (3 SKIP for missing csnobol4
+    per oracle pivot — not regressions).
+
+  **Files touched:**
+  - `src/driver/interp.c` (~line 3210 and ~line 3243: defer all
+    non-`E_QLIT` args as `DT_E`)
+
+- [x] **SN-26-bridge-coverage-o — extra CALL during EVAL/argument
+  evaluation in scrip.  CLOSED session #53 (subsumed by -t fix).**
+
+  Same root cause as -t (eager E_FNC inside compound pat-target
+  argument expressions at `interp.c:3210/3243`).  The -o framing
+  focused on the symptom at step 1257 (`CALL nTop` vs `VALUE
+  reduce = UNKNOWN` during the `reduce = EVAL("epsilon . *Reduce("
+  t ", " n ")")` body); the -t framing focused on identifying the
+  C call path via gdb backtrace.  Both close together when the
+  defer-non-E_QLIT-args fix lands.  Harness advanced from step
+  1257 to step 1507; remaining symptom-shape divergence at 1507
+  is a different bug class (`upr|lwr` alternation inside
+  `icase = icase (upr(letter) | lwr(letter))`), tracked as -u.
+
+  Original -o block contents follow for historical reference:
 
   After -n closure, the 2-way harness on `beauty.sno < /dev/null`
   reaches step 1257 cleanly and diverges:
@@ -840,10 +894,80 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gate:** Smoke=7, Broker=49.
 
-**Dependencies (post 2026-04-28 session #51, -p closed):**
--e → -f → -g → (-k, -l) → -j → -m → -n → -o → -h.
+- [ ] **SN-26-bridge-coverage-u — extra CALL upr at step 1507 during
+  `icase = icase (upr(letter) | lwr(letter))` build.  Opened session #53.**
+
+  After -t closure, the 2-way harness on `beauty.sno < /dev/null`
+  reaches step 1507 cleanly and diverges:
+  ```
+  step  stno  src                                                  spl                          scr
+  ----  ----  ---------------------------------------------------  ---------------------------  ---------------------------
+  1502   168  upr  upr = REPLACE(upr,&LCASE,&UCASE) :(RETURN)       RETURN upr (RETURN)          RETURN upr (RETURN)
+  1503   168  upr  upr = REPLACE(upr,&LCASE,&UCASE) :(RETURN)       CALL lwr                     CALL lwr
+  1504   165  lwr  lwr = REPLACE(lwr,&UCASE,&LCASE) :(RETURN)       LABEL stno=165               LABEL stno=165
+  1505   165  lwr  lwr = REPLACE(lwr,&UCASE,&LCASE) :(RETURN)       VALUE lwr = STRING(1)='e'    VALUE lwr = STRING(1)='e'
+  1506   165  lwr  lwr = REPLACE(lwr,&UCASE,&LCASE) :(RETURN)       RETURN lwr (RETURN)          RETURN lwr (RETURN)
+ >1507   165  lwr  lwr = REPLACE(lwr,&UCASE,&LCASE) :(RETURN)       VALUE icase = UNKNOWN        CALL upr        DIVERGE
+  ```
+
+  **Source context (case.inc:23, the actual diverging line —
+  source attribution shows stno=165 because of the latent
+  &STNO-inside-function-body bug from session #50 #5):**
+  ```snobol4
+  icase  =  icase (upr(letter) | lwr(letter))   :(icase)
+  ```
+
+  This is a plain value-context assignment.  `upr(letter)` and
+  `lwr(letter)` are NOT prefixed with `*`, so they should each
+  evaluate to a string.  `string1 | string2` is then a 2-element
+  pattern alternation (concatenation with `icase` to extend the
+  growing pattern).  SPITBOL builds the alternation, concatenates
+  with prior `icase`, stores the result as a pattern (UNKNOWN type
+  due to -r open).  scrip makes an extra `upr` call at this point.
+
+  **Probe `pat = upr('A') | lwr('B')` (no surrounding self-assign,
+  no recursion) MATCHES BYTE-FOR-BYTE between SPITBOL and scrip.**
+  So the bug is NOT in plain alternation of two function calls.
+  It is something specific to:
+  - the `icase = icase (...)` self-concat shape (right-recursive
+    pattern build), or
+  - `letter` being a `.`-captured variable from a prior pattern
+    match (case.inc:22), making `upr(letter)` indirectly a
+    deferred reference, or
+  - an interaction between the two.
+
+  **Hypothesis:** the `icase = icase (upr(letter) | lwr(letter))`
+  loop runs once per character of the input string.  scrip may be
+  double-evaluating the alternation, or re-executing `upr` while
+  building the concatenation with `icase`.  Worth testing first
+  whether the bug appears on the first or a later iteration of
+  the `:(icase)` loop.
+
+  **Diagnostic plan (next session):**
+  1. Reduce to a probe that mirrors the case.inc:21–25 loop
+     structure exactly.  If probe diverges, narrow further.
+  2. If the probe agrees, instrument scrip's `interp_eval` for
+     `E_ALT` and `E_CONCAT` to log every entry, run beauty up to
+     step 1507, compare the call counts at the diverging stno
+     against SPITBOL's `****N` ftrace.
+  3. Suspect site: `interp_eval E_CONCAT` may evaluate the LHS
+     (`icase`) and RHS (`(upr(letter) | lwr(letter))`) in a way
+     that triggers a second walk of the RHS — e.g. via pattern
+     coercion of one operand causing a re-evaluation of the
+     other.
+
+  **Done-when:** root cause identified; fix landed; 2-way harness
+  advances past step 1507.  Smoke=7, Broker=49.
+
+  **Gate:** Smoke=7, Broker=49.
+
+**Dependencies (post 2026-04-28 session #53, -t/-o closed):**
+-e → -f → -g → (-k, -l) → -j → -m → -n → -t/-o → -u → -h.
 -p CLOSED session #51 (interleaved trail + stno annotation; gates preserved).
--q open (SPITBOL keyword-assignment fire-point — independent of -o, can land any session).
+-s CLOSED session #52 (RETURN display fix).
+-t/-o CLOSED session #53 (eager E_FNC inside compound pat-target args).
+-q open (SPITBOL keyword-assignment fire-point — independent, can land any session).
+-r open (SPITBOL pattern/name/array/table block discrimination — independent).
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
@@ -929,13 +1053,68 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `6f1b7bb8` (session #52 — SN-26-bridge-coverage-s: RETURN display fix; -p grid+source; sub-rungs -r/-s/-t added)
+- one4all @ `2700acde` (session #53 — SN-26-bridge-coverage-t/-o closed: defer all non-E_QLIT args in E_CAPT_COND_ASGN; harness 1257 → 1507)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-o (extra CALL during
-  EVAL/argument evaluation; surfaces at step 1257 of 2-way harness
-  on beauty.sno).
+- active step → SN-26-bridge-coverage-u (extra CALL upr at step 1507
+  during `icase = icase (upr(letter) | lwr(letter))` build in case.inc:23).
+
+**Session #53 (2026-04-28) — SN-26-bridge-coverage-t/-o CLOSED;
+-u opened.**
+
+The eager `nTop` call traced via gdb originated from compound-arg
+expressions in `pat . *fn(args)` deferred-function targets.  The
+deferral loop at `interp.c:3210` (and twin at 3243) only wrapped
+args as `DT_E` when their top-level kind was `E_FNC` or `E_VAR`;
+compound expressions like `nTop() + 1` (E_ADD wrapping E_FNC) fell
+into the `else` branch and were eagerly evaluated.
+
+**Discovery surprise:** the FIRST eager call was NOT from line 121
+(wrapped form `*(GT(nTop(), 1) nTop())`) as session #50 hypothesized,
+but from a later bare-arg `*Reduce(t, nTop() + 1)` call.  This is why
+session #50's isolated probes matched SPITBOL — they tested the
+wrapped form, which was already correct.
+
+**Fix:** at both sites in `interp.c`, defer all non-`E_QLIT` args as
+`DT_E`.  The thaw at `name_t.c:97` already handles arbitrary
+`EXPR_t` shapes via `EVAL_fn → EXPVAL_fn`, so no thaw-side change
+needed.  `E_QLIT` (string literals) stay eager since they are
+idempotent under EVAL.
+
+**Verification:**
+- Probe `pat . *Reduce('[]', nTop() + 1)`: scrip output matches
+  SPITBOL byte-for-byte after fix.
+- 2-way harness on `beauty.sno < /dev/null`: step 1257 → step 1507
+  (+250 steps).  All steps 1..1506 agree.
+- Smoke=7, Broker=49 preserved.
+- All 5 buildable bridge smokes PASS (3 SKIP for missing csnobol4 —
+  expected per oracle pivot).
+
+**New divergence at step 1507** is a different bug class — `case.inc:23
+icase = icase (upr(letter) | lwr(letter))`.  spl emits `VALUE icase =
+UNKNOWN` (pattern stored), scr emits `CALL upr` (extra eager call).
+Plain `pat = upr('A') | lwr('B')` agrees byte-for-byte, so the bug
+involves either the `icase = icase (...)` self-concat shape, the
+`.`-captured `letter` variable interaction, or both.  Tracked as -u.
+
+**Files touched (session #53):**
+- `src/driver/interp.c` (~line 3210 and ~line 3243: defer all non-E_QLIT
+  args in E_CAPT_COND_ASGN sub-arg loop)
+- `.github/GOAL-LANG-SNOBOL4.md` (-t/-o closed, -u opened, state updated)
+- `.github/PLAN.md` (step updated to -u)
+
+**Gates:** Smoke=7, Broker=49.
+
+**Next session resume:**
+- Reduce step 1507 to a probe.  Start from
+  `icase = icase (upr(letter) | lwr(letter))` with `letter` being a
+  `.`-captured variable from a prior pattern match.  If probe matches
+  SPITBOL byte-for-byte, narrow until it diverges.
+- Suspect: `interp_eval E_CONCAT` re-walks the RHS pattern when LHS
+  is also a pattern (concatenating two patterns into one).
+- -r (SPITBOL pattern type) and -q (keyword-assignment fire-point)
+  remain independent and can land same session.
 
 **Session #52 (2026-04-28) — sub-rungs -r/-s/-t added; -s closed; grid with source.**
 
