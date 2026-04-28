@@ -57,7 +57,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan (predicate regression CLOSED — full-suite 2075p/14f vs 2063p/26f baseline; remaining 14 are pre-existing Csnobol4 corpus tests; visible Parse Error at `&FULLSCAN = 1` still blocks self-host gate) |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan (session #56 dot@3a74102: 3 wire fixes — IndexCollection sentinel on Failure guard, suppress duplicate fn-return VALUE emission, RETURN event type MWT_STRING; monitor at step 1046; NEXT: after nPop() RETURN from snoExprList=nPush()…nPop() RHS, dot jumps to stno=587/XDump.inc:14 instead of correct stno=595/XDump.inc:22 — function return-stack corruption during nested calls in expression eval) |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 |
