@@ -850,48 +850,105 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gates:** Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-x — `n=INTEGER` vs `n=STRING` wire-type
-  asymmetry on `&`-OPSYN'd reduce calls.**
+- [x] **SN-26-bridge-coverage-x — `n=INTEGER` vs `n=STRING` wire-type
+  asymmetry on `&`-OPSYN'd reduce calls.  CLOSED session #56 (2026-04-28).**
 
-  After -w, the 2-way harness on `beauty.sno < beauty.sno` reaches
-  step 22857 cleanly.  New divergence:
+  **Root cause:** scrip's `CONCAT_fn` (`runtime/x86/snobol4.c:2222`)
+  unconditionally stringified both operands of value-context
+  concatenation.  SPITBOL's SIL `CONCAT` proc short-circuits when
+  either operand is null/empty — returns the OTHER operand as-is,
+  preserving its type.  Observable: `'' 2` yields INTEGER 2 (not
+  STRING "2"), `'' 2.5` yields REAL 2.5, etc.  scrip's
+  coerce-to-string broke the type-preservation invariant.
+
+  **How it surfaced at step 22857.**  beauty.sno:128, 130 build
+  patterns like `("'|'" & '*(GT(nTop(), 1) nTop())')` where the
+  second arg to `reduce` (= `&`) is the string
+  `'*(GT(nTop(),1) nTop())'`.  reduce body:
+  `EVAL("epsilon . *Reduce(" t ", " n ")")` produces a deferred
+  pattern with `*Reduce(...)` whose second arg is a frozen DT_E
+  pointing at `E_DEFER → E_SEQ [GT(nTop(),1), nTop()]`.  At
+  pattern-match time NM_CALL thaws this DT_E, the thaw lands in
+  Reduce body's `n = EVAL(n)` (after `IDENT(DATATYPE(n),
+  'EXPRESSION')` succeeds because n is DT_E).  EVAL re-thaws to
+  E_SEQ, evaluates: child[0] = `GT(nTop(),1)` returns NULVCL
+  (success), child[1] = `nTop()` returns INT 2.  Then
+  `CONCAT_fn(NULVCL, INT 2)` runs.  SPITBOL preserves INT 2;
+  scrip used to return STRVAL("2").  The resulting `n = "2"` then
+  fired comm_var with DT_S, diverging from SPITBOL's INT.
+
+  **Diagnostic technique.**
+  1. `__builtin_trap()` in `comm_var` gated on `name=="n" && val.v
+     ==DT_S && val.s=="2"`, run under
+     `gdb -batch ... -ex bt 40`.  Backtrace landed at
+     `interp.c:722 set_and_trace("n", repl_val)` inside Reduce
+     body's statement-level `n = EVAL(n)`.
+  2. `DBG_REDUCE_X` log in EVAL_fn's DT_E branch printed ekind +
+     sval.  The trap's preceding line was
+     `EVAL_fn(DT_E ekind=19 [E_SEQ]) -> v=1 s="2"` — pinpointing
+     CONCAT as the type-loss site.
+  3. 7-line probe of value-context concat (`'' 2`, `2 ''`,
+     `'' 2.5`, `'' ''`, `'a' 2`, `2 'a'`, `'' 0`) confirmed
+     SPITBOL preserves INT/REAL when either side is null, in BOTH
+     directions, so the fix needed to be symmetric.
+
+  **Fix (`runtime/x86/snobol4.c` `CONCAT_fn`):** detect null
+  operands via `IS_NULL_fn` (covers `DT_SNUL` and `DT_S` with
+  empty/NULL `.s` pointer), return the other operand verbatim.
+  Two-non-null path unchanged (still routes through
+  `STRCONCAT_fn`).
+
+  **Verification:**
+  - Probe `probe_concat2.sno` (7 cases) matches SPITBOL byte-for-
+    byte: INT/REAL types preserved when other operand is null;
+    both-null yields STRING (empty); two non-null operands
+    stringify normally.
+  - 2-way harness on `beauty.sno < beauty.sno`: advances from
+    step 22857 to **step 370311** (+347454 steps).  Steps
+    1..370310 all agree.
+  - New divergence at 370311 is a different bug class —
+    `assign.inc:11 $name = EVAL(expression) :(NRETURN)`: SPITBOL
+    emits `VALUE snoBrackets = '()'`, scrip emits
+    `VALUE (none) = '()'` (indirect-assign name capture missing
+    on scrip).  Tracked as -y.
+  - Beauty self-host md5 unchanged
+    (`dc2e07f20a1f0dbe8e473aa65edb0ce6`, 646 lines vs SPITBOL's
+    `abfd19a7a834484a96e824851caee159`, 646 lines).  The 544-line
+    textual diff is downstream of -y and likely shrinks once that
+    lands.
+  - Smoke=7, Broker=49 preserved.
+
+  **Files touched (session #56):**
+  - `src/runtime/x86/snobol4.c` (`CONCAT_fn`: null operand → return
+    other side; preserves INT/REAL type through null+numeric concat)
+
+  **Gates:** Smoke=7, Broker=49.
+
+- [ ] **SN-26-bridge-coverage-y — `$name = EVAL(expression)` indirect-
+  assign name capture.**
+
+  After -x landed, the 2-way harness on `beauty.sno < beauty.sno`
+  advances to step 370311 with a new divergence:
   ```
-  spl: VALUE n = INT=2
-  scr: VALUE n = STRING(1)='2'
+  spl: VALUE snoBrackets = STRING(2)='()'
+  scr: VALUE (none) = STRING(2)='()'
   ```
+  Source: `assign.inc:11  $name = EVAL(expression)  :(NRETURN)`.
 
-  Beauty calls `reduce(t, n)` (semantic.inc:7, OPSYN'd to `&`)
-  from many sites.  Some pass INTEGER 2 directly (e.g. beauty.sno
-  line 125: `("'='" & 2)`); others pass STRING expressions (e.g.
-  line 121: `("'snoExprList'" & '*(GT(nTop(), 1) nTop())')`).
-  Inside `Reduce(t,n)` body (`ShiftReduce.inc:19`), `n` is bound
-  as a parameter; the IDENT(DATATYPE(n), 'EXPRESSION') check at
-  line 24 routes EXPRESSION values through EVAL.  For INTEGER
-  `n`, both checks fail and n stays INTEGER — but scrip somewhere
-  along this path has `n` as STRING `'2'`.
+  This is `$name = ...` (indirect assign).  SPITBOL recovers the
+  variable name (`snoBrackets` here) from the indirection target
+  and emits it on the wire; scrip's bridge emits `(none)` —
+  likely the indirect-assign path in scrip's runtime is calling
+  `comm_var` without a meaningful name argument.  Likely fix
+  lives in the `E_INDIRECT` or `E_ASSIGN` path where `$name = val`
+  is committed (`interp.c` E_ASSIGN E_INDIRECT subbranch around
+  line 700-735, or the corresponding eval_node case in
+  `eval_code.c:194-211`).
 
-  **Hypothesis:** scrip's `EVAL_fn` or `EVAL` builtin coerces
-  integer arguments to string when the EVAL'd expression is a
-  string-context concat (e.g. `"epsilon . *Reduce(" t ", " n ")"`
-  in reduce's body — concatenating `n` into the string).  That
-  concat creates a string but should NOT mutate the `n` NV cell
-  itself.  Either scrip is mutating `n` via a save/restore that
-  isn't bracketed, or it's coercing at param-binding time for the
-  OPSYN'd call site.
-
-  **Done-when:** 2-way harness on beauty advances past step 22857;
-  the actual self-host output's 544-line diff against SPITBOL
-  shrinks (since the goto-suffix-drop on `pp` stmts at output
-  lines 264, 271 is likely a downstream effect of the same
-  build-vs-run-vs-coerce confusion).  Smoke=7, Broker=49.
-
-  **Diagnostic plan:** isolate the eager-coerce site by adding
-  `__builtin_trap()` in `interp.c` `call_user_function` entry when
-  `strcmp(retname, "reduce")==0 && nargs==2 && args[1].v != DT_I`
-  and SPITBOL has `n=INTEGER` at the same call site.  Read the
-  backtrace; if the coercion happens at param-binding, fix it
-  there; if it happens during EVAL string-concat, fix the concat
-  to leave the NV cell alone.
+  **Done-when:** scrip emits the recovered indirect target name
+  on the wire matching SPITBOL's `snoBrackets`.  Harness advances
+  past step 370311 to either MWK_END or another bug class.
+  Smoke=7, Broker=49.
 
 - [ ] **SN-26-bridge-coverage-r — SPITBOL pattern-block type discrimination.**
 
@@ -1211,10 +1268,13 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 -w CLOSED session #55 (DT_SNUL → MWT_STRING wire-type symmetry; harness
   1867 → 22857, +20990 steps through real beauty parsing/rewriting).
 -r open (SPITBOL pattern/name/array/table block discrimination — independent).
--x open (n=INT vs n=STRING wire-type asymmetry on `&`-OPSYN'd reduce calls;
-  surfaces at step 22857; first divergence after -w).
+-x CLOSED session #56 (CONCAT_fn null-operand short-circuit; preserves
+  INT/REAL type when either side is null/empty; harness 22857 → 370311,
+  +347454 steps through deep beauty rewriting).
+-y open (`$name = EVAL(expression)` indirect-assign name capture missing
+  in scrip; surfaces at step 370311; first divergence after -x).
 -h essentially satisfied: 2-way harness reaches step 1560 (terminal) on
-  /dev/null; advances to 22857 on beauty<beauty before next divergence (-x).
+  /dev/null; advances to 370311 on beauty<beauty before next divergence (-y).
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
@@ -1300,141 +1360,144 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `afd3bbef` (session #55 — SN-26-bridge-coverage-q/-v/-w closed: OUTPUT trap symmetry, NM_PTR/NM_CALL/FIELD_SET store-back fire-points, DT_SNUL → MWT_STRING; harness 1565 → 22857 on beauty<beauty, terminal at 1560 on /dev/null)
-- (session #56 — investigation only, no code changes; -x divergence reproduced cleanly at step 22857; minimal probe of call shape AGREES, confirming bug requires more context than the isolated probe captures)
+- one4all @ session #56 HEAD (SN-26-bridge-coverage-x CLOSED: CONCAT_fn null-operand short-circuit; harness 22857 → 370311 on beauty<beauty)
+- (session #55 — SN-26-bridge-coverage-q/-v/-w closed: OUTPUT trap symmetry, NM_PTR/NM_CALL/FIELD_SET store-back fire-points, DT_SNUL → MWT_STRING; harness 1565 → 22857 on beauty<beauty, terminal at 1560 on /dev/null)
+- (session #56 — SN-26-bridge-coverage-x CLOSED; opened -y for indirect-assign name capture)
 - corpus @ unchanged
 - x64 @ unchanged (no SPITBOL-side patches needed — -q's actual root cause was scrip-side OUTPUT trap symmetry, not keyword fire-point)
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-x (n=INT vs n=STRING wire-type
-  asymmetry on `&`-OPSYN'd reduce calls; first divergence after -w at
-  step 22857).  -h is essentially satisfied — harness reaches terminal
-  end-of-input on /dev/null and advances 21292 steps past the original
-  -u-closed state on beauty<beauty.
+- active step → SN-26-bridge-coverage-y (`$name = EVAL(expression)`
+  indirect-assign name capture missing in scrip; first divergence after
+  -x at step 370311).  -h is essentially satisfied — harness reaches
+  terminal end-of-input on /dev/null and advances 347454 steps past
+  the -w-closed state on beauty<beauty.
 
-**Session #56 (2026-04-28) — SN-26-bridge-coverage-x reproduced;
-investigation only, no code changes.**
+**Session #56 (2026-04-28) — SN-26-bridge-coverage-x CLOSED.**
 
-Cleanly reproduced the step-22857 divergence on the 2-way harness:
+**One sub-rung landed.**  The 2-way harness on
+`beauty.sno < beauty.sno` advances from step 22857 to **step 370311**
+(+347454 steps) — one of the largest single-rung advances on this
+ladder.  All on the scrip side; no SPITBOL or csnobol4 changes
+needed.
 
-```
-| 22855 | 215 | @215 VALUE nTop = INT=2          | @215 VALUE nTop = INT=2          |
-| 22856 | 215 | @215 RETURN nTop (RETURN)        | @215 RETURN nTop (RETURN)        |
-| >22857 | 215 | @215 VALUE n = INT=2            | @215 VALUE n = STRING(1)='2'     | DIVERGE
-```
+**Root cause.**  scrip's value-context concatenation (`CONCAT_fn`
+in `runtime/x86/snobol4.c`) unconditionally stringified both
+operands.  SPITBOL's SIL `CONCAT` short-circuits when either
+operand is null/empty: returns the OTHER operand verbatim,
+preserving its type.  This is observable on a 7-line probe:
 
-Source mapping (15-step trail, MONITOR_LAST_AGREE_TRAIL=15):
-- step 22842–22847: first iteration of `nTop = TopCounter()` (semantic.inc:23) returns INT=2 on both runtimes — agree
-- step 22848: `CALL nTop` from caller
-- step 22849–22856: second iteration of `nTop = TopCounter()` — also returns INT=2 on both — agree
-- step 22857: `VALUE n = ...` — this is **inside Reduce body**, the assignment `n = EVAL(n) :F(NRETURN)` at ShiftReduce.inc:24, fired after `IDENT(DATATYPE(n), 'EXPRESSION')` succeeded at line 23.
+| expression  | SPITBOL          | scrip (pre-fix)   | scrip (post-fix) |
+|-------------|------------------|-------------------|------------------|
+| `'' 2`      | INTEGER 2        | STRING "2"        | INTEGER 2        |
+| `2 ''`      | INTEGER 2        | STRING "2"        | INTEGER 2        |
+| `'' 2.5`    | REAL 2.5         | STRING "2.5"      | REAL 2.5         |
+| `'' ''`     | STRING ""        | STRING ""         | STRING ""        |
+| `'a' 2`     | STRING "a2"      | STRING "a2"       | STRING "a2"      |
+| `2 'a'`     | STRING "2a"      | STRING "2a"       | STRING "2a"      |
+| `'' 0`      | INTEGER 0        | STRING "0"        | INTEGER 0        |
 
-So `n` arrives at Reduce as DT_E (deferred expression containing E_FNC `nTop()`) on BOTH runtimes — IDENT(DATATYPE(n), 'EXPRESSION') succeeds in both, otherwise scrip would have skipped the EVAL line and the divergence would not be on the assignment to `n`. The bug is in **what `EVAL(n)` returns** when `n` is a frozen DT_E containing a user function call `nTop()`:
-- SPITBOL: returns INT=2
-- scrip:   returns STRING `'2'`
-
-**Path through scrip's runtime:**
-- `EVAL_fn(DT_E)` (`snobol4_pattern.c:776`) → `EXPVAL_fn(DT_E)`
-- `EXPVAL_fn(DT_E)` (`eval_code.c:547`) → `eval_node((EXPR_t*)expr_d.ptr)`
-- `eval_node(E_FNC "nTop")` (`eval_code.c:224`) → `APPLY_fn("nTop", args, 0)`
-- `APPLY_fn` → user function dispatch → returns whatever `nTop` body produced
-
-The trail confirms `nTop` itself returns INT=2 (steps 22855 and earlier match SPITBOL's INT=2), so APPLY_fn must be returning DT_I 2 here too. Yet the value that reaches the `n = ...` assignment is DT_S "2". So the conversion to string happens **between APPLY_fn returning and the assignment landing in NV**.
-
-**Probe isolation finding (matches session #50 lesson):**
-A minimal probe at `/home/claude/probe_x.sno` recreating the exact call shape:
+**How the divergence surfaced.**  beauty.sno:128, 130 build
+patterns like `("'|'" & '*(GT(nTop(), 1) nTop())')` where `&`
+is OPSYN'd to `reduce`, and the second arg is the string
+`'*(GT(nTop(),1) nTop())'`.  reduce body
+(`semantic.inc:17`) does:
 ```snobol4
-          DEFINE('reduce(t,n)')
-          DEFINE('Reduce(t,n)c,i,r')
-          DEFINE('nTop()')                        :(end)
-reduce    reduce = EVAL("epsilon . *Reduce(" t ", " n ")") :(RETURN)
-Reduce    Reduce = .dummy
-          OUTPUT = "Reduce: t=" t " DT(t)=" DATATYPE(t) " n=" n " DT(n)=" DATATYPE(n) :(NRETURN)
-nTop      nTop = 2                                :(RETURN)
-end
-          OPSYN('&', 'reduce', 2)
-          xpat = ("'X'" & 'nTop()')
-          'X' xpat                                :S(ok)F(fail)
+reduce  reduce = EVAL("epsilon . *Reduce(" t ", " n ")") :(RETURN)
 ```
-Both runtimes produce identical output:
+producing a deferred pattern `epsilon . *Reduce('|', *(GT(nTop(),1)
+nTop()))`.  scrip's lowerer freezes the second arg of `*Reduce`
+as a DT_E pointing at the E_DEFER node.  At pattern-match time,
+NM_CALL thaws this DT_E one level — yielding another DT_E
+pointing at the inner E_SEQ `[GT(nTop(),1), nTop()]` — and binds
+it to parameter `n`.
+
+Inside `Reduce(t,n)` (`ShiftReduce.inc:23-24`):
+```snobol4
+Reduce0  IDENT(DATATYPE(n), 'EXPRESSION')  :F(Reduce1)
+         n   =   EVAL(n)                    :F(NRETURN)
 ```
-Reduce: t=X DT(t)=STRING n=2 DT(n)=INTEGER
-```
-So the call shape itself is correct in scrip. The bug requires beauty's
-context — likely something about the recursion depth, or the fact that
-this Reduce call is happening from inside a sub-Reduce already in flight,
-or that `nTop` returns INT=2 via a longer call chain (`nTop → TopCounter →
-DIFFER + value` rather than `nTop = 2`).
+DATATYPE(DT_E) → `'EXPRESSION'`, IDENT succeeds, so we fall
+through to `n = EVAL(n)`.  EVAL_fn re-thaws the DT_E into the
+E_SEQ, evaluates: child[0] = `GT(nTop(),1)` returns NULVCL
+(success), child[1] = `nTop()` returns INT 2.  Then
+`CONCAT_fn(NULVCL, INT 2)` ran — and (pre-fix) returned
+`STRVAL("2")`.  The resulting `n = "2"` then fired comm_var with
+DT_S, diverging from SPITBOL's INT 2.  Step 22857 is the first
+beauty path that hits this CONCAT shape with a numeric operand.
 
-**Diagnostic plan for next session (carries forward from -x block):**
+**Diagnostic technique that worked.**
+1. `__builtin_trap()` in `comm_var` gated on
+   `name=="n" && val.v==DT_S && val.s=="2"` — the divergence's
+   exact wire shape.  Run `gdb -batch ... -ex "bt 40"`; backtrace
+   landed at `interp.c:722 set_and_trace("n", repl_val)` —
+   confirming the bad value was inside Reduce body's `n = EVAL(n)`
+   statement, not at param-binding time.
+2. `DBG_REDUCE_X` log in EVAL_fn's DT_E branch printed
+   `ekind` + `sval` of the thawed EXPR_t.  The trap's preceding
+   trace line was
+   `EVAL_fn(DT_E ekind=19 [E_SEQ]) -> v=1 s="2"` —
+   pinpointing E_SEQ's CONCAT_fn return as the type-loss site.
+3. 7-line probe `probe_concat2.sno` covering both directions and
+   edge cases (null+INT, null+REAL, INT+null, etc.) confirmed
+   the issue is symmetric and non-numeric (STRING+STRING)
+   stringification was unaffected — informing the symmetric
+   `IS_NULL_fn(a)` / `IS_NULL_fn(b)` short-circuit shape.
 
-1. Add `__builtin_trap()` in `call_user_function` (`interp.c:446+`) at
-   the top, gated on `strcmp(retname, "Reduce") == 0 && nargs >= 2 &&
-   args[1].v != DT_I`.  Build, run beauty under gdb:
-   ```bash
-   cd /home/claude/one4all
-   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-   gdb -batch \
-       -ex "set environment SNO_LIB=$BEAUTY" \
-       -ex "run --ir-run $BEAUTY/beauty.sno < $BEAUTY/beauty.sno > /dev/null" \
-       -ex "bt 60" --args ./scrip --ir-run $BEAUTY/beauty.sno
-   ```
-   The trap fires SIGABRT at the first Reduce call where args[1] is
-   not DT_I.  Read what args[1].v is — DT_E? DT_S? — and the C path
-   bottom-up to the source line.
+**Probe-isolation lesson (matches session #50/#54).**  An earlier
+isolated probe of `pat = ("'X'" & 'nTop()')` AGREED between
+SPITBOL and scrip — the call shape itself was correct.  The bug
+required CONCAT inside an EVAL'd E_SEQ inside a deferred
+sub-pattern call.  The minimal trigger is just `'' 2` though;
+once the trap+gdb pinpointed CONCAT_fn as the site, the probe
+narrowed to the simplest possible repro.
 
-2. **Hypothesis A (DT_E on entry):** if args[1].v == DT_E at trap, the
-   bug is downstream: `n = EVAL(n) :F(NRETURN)` evaluates to a string
-   instead of an integer.  Look at `interp.c:execute_program`'s
-   E_ASSIGN path for the assignment of `n = EVAL(n)` — likely the
-   builtin EVAL_fn return is being coerced to string before NV_SET_fn
-   stores it.  Candidate site: `interp_eval_str`/`interp_eval` falling
-   back to a string-context evaluation when the assignment context
-   isn't recognised as integer-preserving.
+**Verification.**
+- 2-way harness on `beauty.sno < beauty.sno`: 22857 → 370311
+  (+347454 steps).  Steps 1..370310 all agree.  New divergence
+  at 370311 is `assign.inc:11 $name = EVAL(expression)` —
+  scrip's bridge emits `(none)` for the indirect-assign target
+  name where SPITBOL emits the recovered name (`snoBrackets`).
+  Different bug class; tracked as -y.
+- 2-way harness on `beauty.sno < /dev/null`: still terminates
+  cleanly at step 1560 (`:F(END)` end-of-input — no regression).
+- Smoke=7, Broker=49 preserved.
+- Probe `probe_concat2.sno`: matches SPITBOL byte-for-byte on all
+  7 cases.
+- Beauty self-host md5 unchanged
+  (scrip `dc2e07f20a1f0dbe8e473aa65edb0ce6` vs SPITBOL
+  `abfd19a7a834484a96e824851caee159`); the 544-line textual diff
+  is downstream of -y and likely shrinks once that lands.
 
-3. **Hypothesis B (DT_S on entry):** if args[1].v == DT_S "2" at trap,
-   the bug is upstream in how `*Reduce(...)` deferred-call thawed its
-   args.  `bb_usercall` (`stmt_exec.c:478`) thaws DT_E args via
-   `EVAL_fn` before passing to `g_user_call_hook`.  But IDENT(DATATYPE(n),
-   'EXPRESSION') succeeded inside Reduce body — meaning n WAS DT_E at
-   body entry, which contradicts B.  Unless the caller's view was DT_S
-   but it got re-wrapped to DT_E at param-bind time, which is
-   architecturally weird.  Test by also instrumenting `EVAL_fn` to log
-   `expr.v` and `result.v` for "nTop"-bearing expressions.
+**Files touched (session #56).**
+- `src/runtime/x86/snobol4.c` (`CONCAT_fn`: null operand →
+  return other side; preserves INT/REAL type through null+numeric
+  concat)
+- `.github/GOAL-LANG-SNOBOL4.md` (-x closed; -y opened; HEADs
+  updated; this session-#56 narrative)
+- `.github/PLAN.md` (step → SN-26-bridge-coverage-y)
 
-4. **Hypothesis C (the `n = EVAL(n)` body assignment):** a third
-   possibility — IDENT branch fires (so `n` IS DT_E), then EVAL_fn
-   returns DT_I 2 correctly, but the ASSIGN op stores it as DT_S "2".
-   Look at how `interp.c` handles `E_ASSIGN` when the RHS is the
-   result of a builtin call.  Possibly an unconditional `to_string`
-   coercion somewhere in the assignment path that SPITBOL doesn't have.
+**Gates.**  Smoke=7, Broker=49.
 
-5. After identifying the site, fix, rebuild, re-run the harness.
-   Expected outcome: harness advances past 22857 to either MWK_END or a
-   genuinely different bug class.
-
-**The 544-line output diff** between SPITBOL's beauty self-host
-(`abfd19a7a834484a96e824851caee159`, 646 lines) and scrip's
-(`dc2e07f20a1f0dbe8e473aa65edb0ce6`, 646 lines) is plausibly downstream
-of -x: if the wrong type of `n` propagates through Reduce-tree
-construction, the resulting AST shape differs in places that beauty's
-beautification logic then renders differently.  After -x lands, the
-diff should shrink substantially.
-
-**Files touched (session #56):**
-- `.github/GOAL-LANG-SNOBOL4.md` (this session-#56 block, no other changes)
-
-**Gates (verified at session start before any work):** Smoke=7, Broker=49.
-
-**Next session resume:**
-- Active step is still SN-26-bridge-coverage-x.
-- Begin with the `__builtin_trap` instrumentation in `call_user_function`
-  per Diagnostic plan step 1.  Read the gdb backtrace to choose between
-  Hypotheses A/B/C, then fix at the identified site.
-- Per RULES.md, revert the trap before commit.
+**Next session resume.**
+- Active step is SN-26-bridge-coverage-y.  Investigate
+  `assign.inc:11 $name = EVAL(expression) :(NRETURN)` —
+  scrip emits `(none)` instead of the recovered `name` value
+  (`snoBrackets` in the failing case).
+- Likely site: scrip's `E_INDIRECT` lvalue commit path at
+  `interp.c` E_ASSIGN E_INDIRECT subbranch (around line 700-735)
+  or the corresponding eval_node case in
+  `eval_code.c:194-211` E_ASSIGN.  Check how the recovered
+  variable name (after `sno_fold_name`) gets passed to
+  `comm_var` — current code likely either (a) fires `comm_var`
+  with the wrong name, or (b) fires it with no name at all and
+  scrip's bridge emits the placeholder `(none)`.
+- Other open rungs unchanged: -r (SPITBOL block-type
+  discrimination, independent), -h (essentially satisfied —
+  close after -y lands).
 
 ---
 
-
+**Session #55 (2026-04-28) — SN-26-bridge-coverage-q/-v/-w CLOSED.**
 
 Three sub-rungs landed in a single session, advancing the 2-way
 harness from step 1565 to step 22857 (+21292 steps) on
