@@ -1437,17 +1437,22 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ unchanged from session #57 (SN-26-bridge-coverage-y CLOSED:
-  E_INDIRECT VARVAL_fn-on-NAMEPTR garbage fix + IS_NAMEPTR comm_var
-  fire-points; harness 370311 → 1277812 on beauty<beauty;
-  **--ir-run self-host md5 byte-identical to SPITBOL**)
+- one4all @ session #61 HEAD (SN-32c CLOSED: `sm_codegen.c` `h_store_var`
+  receives the same two-bug fix that landed in `sm_interp.c` in session
+  #60; `--jit-run beauty.sno < beauty.sno` byte-identical to SPITBOL,
+  matching --ir-run from session #57 and --sm-run from session #60)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-32-sm-jit-beauty (NEW: SM/JIT modes bail at
-  beauty's `mainErr2` Internal Error path; pattern execution gap
-  on `*snoParse` deferred-fn calls; --ir-run remains byte-identical;
-  see SN-32 sub-rung block below)
+- active step → **SN-32 done.**  Goal Done-when achieved on all three
+  modes:
+  - `--ir-run`  : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
+  - `--sm-run`  : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
+  - `--jit-run` : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
+  Future work on this goal can pivot to SN-29f (canonical .ref capture),
+  SN-30f (regression sweep under new sbl), -r (SPITBOL block-type
+  discrimination), or end-of-program LABEL ordering at the harness
+  termination point.
 
 **Session #58 (2026-04-28) — SN-32 opened: SM/JIT beauty self-host status.**
 
@@ -1581,6 +1586,24 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
 `scrip --jit-run beauty.sno < beauty.sno` both produce 646 lines
 of output md5 `abfd19a7a834484a96e824851caee159` — byte-identical
 to the SPITBOL oracle and to scrip's `--ir-run` from session #57.
+
+**Status (session #61, 2026-04-28):** SN-32c CLOSED, SN-32d CLOSED.
+**Goal Done-when achieved.**  The same two `SM_STORE_VAR` bugs fixed in
+`sm_interp.c` in session #60 also existed in `sm_codegen.c`'s
+`h_store_var`.  Applied the identical fix:
+(1) stack-underrun when RHS is FAIL (push FAILDESCR to stay balanced);
+(2) pushing NV_SET_fn's unreliable return instead of the original `val`
+(mirrors IR `E_ASSIGN:2844` which always returns `val`).
+`scrip --jit-run beauty.sno < beauty.sno` now produces 646-line output
+md5 `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL
+oracle, to scrip --ir-run, and to scrip --sm-run.  All three modes
+agree byte-for-byte.
+
+The 2-way IPC harness on `beauty.sno < beauty.sno` (SPITBOL ⇄ scrip
+--jit-run) advances to step **128068** before SPITBOL hits clean EOF
+(scrip continues emitting LABEL records — same end-of-program flow
+ordering as session #57's IR-run termination, not a semantic
+divergence).  Smoke=7, Broker=49.
 
 **Status (session #60):** SN-32b CLOSED, SN-32d CLOSED for `--sm-run`.
 Two `SM_STORE_VAR` bugs fixed in `sm_interp.c`:
@@ -1725,12 +1748,69 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
     - Fail path: push FAILDESCR (stack balance fix).
     - Success path: push `val` not `NV_SET_fn` return (IR-parity fix).
 
-- [ ] **SN-32c-beauty-jit** — `--jit-run beauty.sno < beauty.sno`
-  byte-identical.  JIT md5 still `b6873a89707f671133fae5e07b40942c`
-  (diverges); SM and JIT share `sm_lower` but `sm_codegen.c` has its
-  own `SM_STORE_VAR`-equivalent code paths to audit.
-- [x] **SN-32d** — `--sm-run` md5 byte-identical confirmed session #60.
-  `--jit-run` md5 gate remains open (tracked under SN-32c).
+- [x] **SN-32c-beauty-jit** — *CLOSED session #61 (2026-04-28).*
+  `--jit-run beauty.sno < beauty.sno` now produces 646-line output md5
+  `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL,
+  to scrip --ir-run, and to scrip --sm-run.
+
+  **Root cause:** `sm_codegen.c` `h_store_var` carried the same two
+  `SM_STORE_VAR` bugs that session #60 fixed in `sm_interp.c`.  SM and
+  JIT share `sm_lower`'s SM_Program output, but each backend has its
+  own opcode handler for SM_STORE_VAR — sm_interp's `SM_STORE_VAR` case
+  in the dispatch loop, sm_codegen's `h_store_var` static helper.  The
+  -j → -32b → -32c bug pattern is therefore: any IR-side fix that
+  touches NV_SET_fn return semantics or RHS-FAIL stack discipline must
+  be mirrored in BOTH SM and JIT handlers.
+
+  **Discovery — IPC harness divergence at step 2552:**
+  ```
+  step 2548  LABEL stno=278   stack.inc:21  $'@S' = next($'@S') :(RETURN)
+  step 2549  VALUE @S = STRING(0)=''       (first store inside Pop body)
+  step 2550  RETURN Pop                    (Pop returns)
+  step 2551  spl: VALUE sno = UNKNOWN      scr: VALUE sno = DATA
+  > 2552    spl: LABEL stno=1076           scr: LABEL stno=1082   ← DIVERGE
+  ```
+  Same shape as the SM-side step-2552 divergence in session #60:
+  `DIFFER(sno = Pop()) :F(mainErr2)` — SPITBOL falls through to
+  stno=1076 (DIFFER passed), JIT branches to stno=1082 (FAIL path
+  taken because sno was stripped to SNUL between the assignment
+  and the DIFFER check, since `h_store_var` pushed NV_SET_fn's
+  unreliable DT_DATA return instead of the original DT_DATA `val`).
+
+  **Fix (`runtime/x86/sm_codegen.c` `h_store_var`):** mirror the
+  session #60 sm_interp.c fix exactly:
+  - Fail path: push FAILDESCR (stack balance fix) — was bare `return`.
+  - Success path: push `val` not `NV_SET_fn` return (IR-parity fix) —
+    was `PUSH(stored)` where `stored = NV_SET_fn(...)`.
+
+  **Verification (session #61):**
+  - `scrip --jit-run beauty.sno < beauty.sno` → 646 lines, md5
+    `abfd19a7a834484a96e824851caee159` ✓ byte-identical to SPITBOL.
+  - 2-way IPC harness on `beauty.sno < beauty.sno` (SPITBOL ⇄ scrip
+    --jit-run): advances to step 128068 before SPITBOL hits clean EOF
+    (was DIVERGE at step 2552 before fix).  scrip continues emitting
+    LABEL records past EOF — same end-of-program flow ordering noted
+    in session #57 for IR-run, not a runtime semantic divergence.
+  - 2-way IPC harness on `beauty.sno < /dev/null`: still reaches MWK_END
+    at step 1561 under `--jit-run` (no regression).
+  - All three modes (`--ir-run`, `--sm-run`, `--jit-run`) now produce
+    byte-identical output to SPITBOL on the beauty self-host.
+  - Smoke=7, Broker=49.
+
+  **Files touched (session #61):**
+  - `src/runtime/x86/sm_codegen.c` `h_store_var`:
+    - Fail path: push FAILDESCR (stack balance fix, mirrors SN-32b-store-fail).
+    - Success path: push `val` not `NV_SET_fn` return (mirrors SN-32b-store-val).
+
+  **Lesson for future sessions.**  When a runtime-semantic bug is fixed
+  in the IR path (`interp.c`), check both `sm_interp.c` AND
+  `sm_codegen.c` for parallel implementations.  The three executors
+  share `sm_lower` lowering output but each has its own opcode handler
+  layer; bug fixes do not propagate automatically.
+
+- [x] **SN-32d** — `--sm-run` md5 byte-identical confirmed session #60;
+  `--jit-run` md5 byte-identical confirmed session #61.  Both backend
+  parity gates closed.
 
 **Gate:** Smoke=7, Broker=49 after every commit.  Plus
 `--sm-run` and `--jit-run` md5 must approach

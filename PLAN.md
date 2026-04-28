@@ -103,7 +103,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32c (--sm-run byte-identical session #60; next: JIT parity in sm_codegen.c) |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 DONE (all three modes byte-identical to SPITBOL on beauty self-host, session #61) |
 | CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (STAR-against-empty bug blocks beauty; pre-existing in vanilla 2.3.3, not a FENCE bug but currently gating done-when; FENCE-specific FNCBX fix landed @ csnobol4 c314e49 — fence_function 10/10) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
