@@ -1437,16 +1437,186 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ session #57 HEAD (SN-26-bridge-coverage-y CLOSED:
+- one4all @ unchanged from session #57 (SN-26-bridge-coverage-y CLOSED:
   E_INDIRECT VARVAL_fn-on-NAMEPTR garbage fix + IS_NAMEPTR comm_var
   fire-points; harness 370311 → 1277812 on beauty<beauty;
-  **self-host md5 byte-identical to SPITBOL**)
+  **--ir-run self-host md5 byte-identical to SPITBOL**)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-z (post-MWK_END label ordering on
-  beauty<beauty — not gating, harness reaches functional terminal;
-  byte-identical output already achieved)
+- active step → SN-32-sm-jit-beauty (NEW: SM/JIT modes bail at
+  beauty's `mainErr2` Internal Error path; pattern execution gap
+  on `*snoParse` deferred-fn calls; --ir-run remains byte-identical;
+  see SN-32 sub-rung block below)
+
+**Session #58 (2026-04-28) — SN-32 opened: SM/JIT beauty self-host status.**
+
+Per the goal's stated Done-when ("beauty.sno self-hosts cleanly under
+all three modes (--ir-run, --sm-run, --jit-run)"), session #58
+verified the IR-run achievement from session #57 and characterised
+the gap remaining for SM-run and JIT-run.
+
+**Verified (no code changes):**
+
+| Mode        | Lines | md5                                | Result |
+|-------------|------:|------------------------------------|--------|
+| `--ir-run`  | 646   | `abfd19a7a834484a96e824851caee159` | ✅ byte-identical to SPITBOL |
+| `--sm-run`  | 27    | `b6873a89707f671133fae5e07b40942c` | ❌ bails to `Internal Error` |
+| `--jit-run` | 27    | `b6873a89707f671133fae5e07b40942c` | ❌ same — shares sm_lower with SM |
+
+SM and JIT produce byte-identical output, consistent with both
+sharing the SM_Program from `sm_lower`.  Both bail at beauty's
+`mainErr2` path — `DIFFER(sno = Pop()) :F(mainErr2) ... OUTPUT =
+'Internal Error'` (beauty.sno:617, 624).  This means beauty's
+`*snoParse` pattern-match against the input file SUCCEEDED on the
+left-recursive scan, but `Pop()` returned an empty / unchanged
+value, so `DIFFER` fails, branching to `mainErr2`.  Beauty's
+`Push()`/`Pop()` use the recursive `link($'@S', x)` DATA chain
+pattern, driven by deferred-function calls (`*nPush()`, `*nPop()`)
+inside FENCE alternatives and ARBNO under `snoParse`.  The IR
+side made it through this entire mechanism in session #57 by
+virtue of -t/-o/-x/-y closing eager-evaluation and capture
+fire-point bugs in `interp.c` / `name_t.c`.  Those fixes did not
+propagate to `sm_lower.c` / `sm_interp.c` / `sm_codegen.c` /
+`bb_boxes.c` SM-side paths.
+
+**Bail is input-independent.**  Feeding 25 lines of `-INCLUDE`-only
+text triggers `Internal Error` identically.  `< /dev/null` produces
+zero output (clean main-loop exit on `:F(END)`).  The bail fires on
+the first non-comment, non-blank input line beauty tries to actually
+parse with `*snoParse`.
+
+**`--monitor` (in-process IR vs SM vs JIT comparator) DIVERGE at
+stmt 15.**  The first 14 statements (the early `&ALPHABET POS LEN .
+var` low-half captures incl. `X0xxxxxxx`) agree across all three.
+Stmt 15 = `&ALPHABET POS(128) LEN(128) . X1xxxxxxx` (global.inc:16,
+the high-half capture) shows `IR=[len=128] SM=[len=0] JIT=[len=0]`
+under instrumentation.  However, an isolated probe loading
+global.inc and querying `SIZE(X1xxxxxxx)` after gave 128 in all
+three modes.  The monitor's stmt-15 divergence is therefore likely
+a harness artifact — `kw_fullscan` is NOT in `exec_snapshot_take/
+restore` so each mode's per-step replay starts with `&FULLSCAN=0`
+even though earlier stmts wrote it.  The actual SM/JIT bug surfaces
+only later, in beauty's `*snoParse` execution, and is masked from
+the per-stmt monitor view because the monitor compares NV state at
+stmt boundaries, not pattern-internal state.
+
+**Diagnostic instrumentation (reverted before commit per RULES.md):**
+`sync_monitor.c` `snap_diff` printf temporarily changed to print
+string lengths instead of values, to discriminate "both empty"
+from "different non-printable bytes".  Reverted; working tree clean.
+
+**Session setup verified:**
+- `bash scripts/install_system_packages.sh` → OK
+- `bash scripts/build_scrip.sh` → OK (scrip built)
+- `bash scripts/build_spitbol_oracle.sh` → SKIP (prebuilt; smoke OK)
+- `bash scripts/test_smoke_snobol4.sh` → PASS=7
+- `bash scripts/test_smoke_unified_broker.sh` → PASS=49
+
+**Files inspected (no changes committed):**
+- `src/driver/sync_monitor.c` (read snap_diff + sync_monitor_run)
+- `corpus/programs/snobol4/demo/beauty/{beauty.sno,global.inc,stack.inc}`
+- `src/driver/scrip.c` (--monitor flag wiring)
+
+**Gates:** Smoke=7, Broker=49.
+
+**Next session resume.**  Active step is **SN-32-sm-jit-beauty**
+(see sub-rung block below).  Pivot is now from IR-run sync-step
+sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
+
+1. **Reduce the bail to a minimal probe.**  Take beauty's stack.inc
+   `Push(x)/Pop(var)/link(next,value)` plus a small driver pattern
+   `pat = nPush() ARBNO(LEN(1)) ('X' & 1) nPop()` — run under
+   `--sm-run` and `--ir-run`; compare `Pop()` results.  Probe the
+   smallest case where SM diverges from IR on deferred-fn-during-
+   pattern-build → effect-on-NV.
+
+2. **Audit `bb_boxes.c` for deferred-fn/capture parity.**  The IR
+   path's eager-eval fixes (sessions #50/#53/#54) lived in
+   `interp.c` E_CAT/E_SEQ promotion and E_CAPT_COND_ASGN sub-arg
+   loops.  The SM path uses `bb_box_fn` boxes lowered from the
+   same EXPR_t tree by `sm_lower.c`.  Check whether SM's
+   `bb_userfn` / `bb_def` / `bb_cap` boxes carry the build-vs-run
+   distinction the IR path now has — they probably don't.
+
+3. **Audit `sm_interp.c` for &STNO and other keyword parity.**
+   Latent follow-up from PLAN.md is the `g_sm_stno` linear-counter
+   bug that mirrors the IR-path -j fix; that won't fix the
+   Internal-Error bail but will be needed for SM-run output to
+   match IR-run in stno-dependent contexts.
+
+4. **Don't try to ride existing sub-rungs.**  The SN-26-bridge-
+   coverage-* chain was a 2-way wire-protocol harness; SM/JIT bugs
+   are not visible on that wire (the wire fires on `comm_call` /
+   `comm_var` from the IR runtime).  SN-32 is a parallel ladder
+   that uses the in-process `--monitor` (IR vs SM vs JIT) plus
+   direct output diff against IR/SPITBOL.
+
+---
+
+## Active rung — SN-32-sm-jit-beauty (opened session #58)
+
+**Done-when:** `scrip --sm-run beauty.sno < beauty.sno` and
+`scrip --jit-run beauty.sno < beauty.sno` both produce 646 lines
+of output md5 `abfd19a7a834484a96e824851caee159` — byte-identical
+to the SPITBOL oracle and to scrip's `--ir-run` from session #57.
+
+**Status (session #58):** opened.  Both modes currently bail at
+beauty's `mainErr2` Internal Error path (md5
+`b6873a89707f671133fae5e07b40942c`, 27 lines).
+
+**Architecture reminder.**
+```
+.sno -> sno_parse() -> Program* [LANG_SNO]
+    --ir-run  -> execute_program() -> interp_eval()        ← session #57 byte-identical
+    --sm-run  -> sm_lower() -> SM_Program -> sm_interp_run() ← SN-32 ladder
+    --jit-run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()
+                                                             ↑ shares sm_lower output
+                                                               with --sm-run
+```
+SM and JIT bail identically because `sm_codegen` emits x86 from
+the same SM_Program produced by `sm_lower`.  Fixing SM's
+SM_Program correctness should fix JIT in lockstep, modulo a few
+codegen-only sites (sm_codegen.c h_stno, etc.).
+
+**Suspect surface (un-validated, for next-session triage):**
+- `bb_boxes.c` `bb_userfn` / `bb_def` / `bb_cap` boxes — do they
+  honour the build-vs-run distinction the IR path got via -t/-o
+  (defer non-E_QLIT args as DT_E)?
+- `sm_lower.c` lowering of `*fn(args)` deferred dot-star calls —
+  does it produce a frozen DT_E for compound args, or does it
+  emit eager calls?
+- `sm_interp.c` lowering for E_INDIRECT (`$name = ...`) commits —
+  the session #57 -y fix lived in `interp.c call_user_function`;
+  no SM equivalent yet.
+- `sm_interp.c` SM_STNO opcode — `g_sm_stno` linear counter,
+  unchanged from the latent follow-up (won't fix the bail, but
+  will affect downstream `&STNO` correctness once the bail is
+  fixed).
+
+**Sub-rungs (proposed, not yet opened):**
+- [ ] **SN-32a** — minimal probe: stack.inc + tiny `pat = nPush()
+  ARBNO(LEN(1)) ('X' & 1) nPop()` under all three modes.  Capture
+  exact `Pop()` divergence point.  Reduce until SM and IR disagree
+  on a single-statement effect.
+- [ ] **SN-32b** — `bb_boxes.c` deferred-fn parity audit.  Mirror
+  the IR-path -t/-o fix into the SM build path.
+- [ ] **SN-32c** — `bb_boxes.c` capture commit parity (bb_cap and
+  related).  Mirror the IR-path -v/-y commit fixes.
+- [ ] **SN-32d** — verify md5 byte-identical on `beauty.sno <
+  beauty.sno` under both `--sm-run` and `--jit-run`.  Done-when
+  trigger.
+
+**Gate:** Smoke=7, Broker=49 after every commit.  Plus
+`--sm-run` and `--jit-run` md5 must approach
+`abfd19a7a834484a96e824851caee159` as sub-rungs land.
+
+**Cross-pollination (from PLAN.md):** SM/JIT fixes share lowering
+infrastructure with Icon, Prolog, Raku, Snocone, Rebus.  Bug fixes
+in `sm_lower.c`, `sm_interp.c`, `bb_boxes.c` benefit those goals
+immediately.
+
+---
 
 **Session #57 (2026-04-28) — SN-26-bridge-coverage-y CLOSED.
 Sharpened end-state target ACHIEVED.**
