@@ -1301,6 +1301,7 @@ the trace" — until -h, there is no trustable divergence point.
 
 **HEADs:**
 - one4all @ `afd3bbef` (session #55 — SN-26-bridge-coverage-q/-v/-w closed: OUTPUT trap symmetry, NM_PTR/NM_CALL/FIELD_SET store-back fire-points, DT_SNUL → MWT_STRING; harness 1565 → 22857 on beauty<beauty, terminal at 1560 on /dev/null)
+- (session #56 — investigation only, no code changes; -x divergence reproduced cleanly at step 22857; minimal probe of call shape AGREES, confirming bug requires more context than the isolated probe captures)
 - corpus @ unchanged
 - x64 @ unchanged (no SPITBOL-side patches needed — -q's actual root cause was scrip-side OUTPUT trap symmetry, not keyword fire-point)
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
@@ -1310,7 +1311,130 @@ the trace" — until -h, there is no trustable divergence point.
   end-of-input on /dev/null and advances 21292 steps past the original
   -u-closed state on beauty<beauty.
 
-**Session #55 (2026-04-28) — SN-26-bridge-coverage-q/-v/-w CLOSED.**
+**Session #56 (2026-04-28) — SN-26-bridge-coverage-x reproduced;
+investigation only, no code changes.**
+
+Cleanly reproduced the step-22857 divergence on the 2-way harness:
+
+```
+| 22855 | 215 | @215 VALUE nTop = INT=2          | @215 VALUE nTop = INT=2          |
+| 22856 | 215 | @215 RETURN nTop (RETURN)        | @215 RETURN nTop (RETURN)        |
+| >22857 | 215 | @215 VALUE n = INT=2            | @215 VALUE n = STRING(1)='2'     | DIVERGE
+```
+
+Source mapping (15-step trail, MONITOR_LAST_AGREE_TRAIL=15):
+- step 22842–22847: first iteration of `nTop = TopCounter()` (semantic.inc:23) returns INT=2 on both runtimes — agree
+- step 22848: `CALL nTop` from caller
+- step 22849–22856: second iteration of `nTop = TopCounter()` — also returns INT=2 on both — agree
+- step 22857: `VALUE n = ...` — this is **inside Reduce body**, the assignment `n = EVAL(n) :F(NRETURN)` at ShiftReduce.inc:24, fired after `IDENT(DATATYPE(n), 'EXPRESSION')` succeeded at line 23.
+
+So `n` arrives at Reduce as DT_E (deferred expression containing E_FNC `nTop()`) on BOTH runtimes — IDENT(DATATYPE(n), 'EXPRESSION') succeeds in both, otherwise scrip would have skipped the EVAL line and the divergence would not be on the assignment to `n`. The bug is in **what `EVAL(n)` returns** when `n` is a frozen DT_E containing a user function call `nTop()`:
+- SPITBOL: returns INT=2
+- scrip:   returns STRING `'2'`
+
+**Path through scrip's runtime:**
+- `EVAL_fn(DT_E)` (`snobol4_pattern.c:776`) → `EXPVAL_fn(DT_E)`
+- `EXPVAL_fn(DT_E)` (`eval_code.c:547`) → `eval_node((EXPR_t*)expr_d.ptr)`
+- `eval_node(E_FNC "nTop")` (`eval_code.c:224`) → `APPLY_fn("nTop", args, 0)`
+- `APPLY_fn` → user function dispatch → returns whatever `nTop` body produced
+
+The trail confirms `nTop` itself returns INT=2 (steps 22855 and earlier match SPITBOL's INT=2), so APPLY_fn must be returning DT_I 2 here too. Yet the value that reaches the `n = ...` assignment is DT_S "2". So the conversion to string happens **between APPLY_fn returning and the assignment landing in NV**.
+
+**Probe isolation finding (matches session #50 lesson):**
+A minimal probe at `/home/claude/probe_x.sno` recreating the exact call shape:
+```snobol4
+          DEFINE('reduce(t,n)')
+          DEFINE('Reduce(t,n)c,i,r')
+          DEFINE('nTop()')                        :(end)
+reduce    reduce = EVAL("epsilon . *Reduce(" t ", " n ")") :(RETURN)
+Reduce    Reduce = .dummy
+          OUTPUT = "Reduce: t=" t " DT(t)=" DATATYPE(t) " n=" n " DT(n)=" DATATYPE(n) :(NRETURN)
+nTop      nTop = 2                                :(RETURN)
+end
+          OPSYN('&', 'reduce', 2)
+          xpat = ("'X'" & 'nTop()')
+          'X' xpat                                :S(ok)F(fail)
+```
+Both runtimes produce identical output:
+```
+Reduce: t=X DT(t)=STRING n=2 DT(n)=INTEGER
+```
+So the call shape itself is correct in scrip. The bug requires beauty's
+context — likely something about the recursion depth, or the fact that
+this Reduce call is happening from inside a sub-Reduce already in flight,
+or that `nTop` returns INT=2 via a longer call chain (`nTop → TopCounter →
+DIFFER + value` rather than `nTop = 2`).
+
+**Diagnostic plan for next session (carries forward from -x block):**
+
+1. Add `__builtin_trap()` in `call_user_function` (`interp.c:446+`) at
+   the top, gated on `strcmp(retname, "Reduce") == 0 && nargs >= 2 &&
+   args[1].v != DT_I`.  Build, run beauty under gdb:
+   ```bash
+   cd /home/claude/one4all
+   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
+   gdb -batch \
+       -ex "set environment SNO_LIB=$BEAUTY" \
+       -ex "run --ir-run $BEAUTY/beauty.sno < $BEAUTY/beauty.sno > /dev/null" \
+       -ex "bt 60" --args ./scrip --ir-run $BEAUTY/beauty.sno
+   ```
+   The trap fires SIGABRT at the first Reduce call where args[1] is
+   not DT_I.  Read what args[1].v is — DT_E? DT_S? — and the C path
+   bottom-up to the source line.
+
+2. **Hypothesis A (DT_E on entry):** if args[1].v == DT_E at trap, the
+   bug is downstream: `n = EVAL(n) :F(NRETURN)` evaluates to a string
+   instead of an integer.  Look at `interp.c:execute_program`'s
+   E_ASSIGN path for the assignment of `n = EVAL(n)` — likely the
+   builtin EVAL_fn return is being coerced to string before NV_SET_fn
+   stores it.  Candidate site: `interp_eval_str`/`interp_eval` falling
+   back to a string-context evaluation when the assignment context
+   isn't recognised as integer-preserving.
+
+3. **Hypothesis B (DT_S on entry):** if args[1].v == DT_S "2" at trap,
+   the bug is upstream in how `*Reduce(...)` deferred-call thawed its
+   args.  `bb_usercall` (`stmt_exec.c:478`) thaws DT_E args via
+   `EVAL_fn` before passing to `g_user_call_hook`.  But IDENT(DATATYPE(n),
+   'EXPRESSION') succeeded inside Reduce body — meaning n WAS DT_E at
+   body entry, which contradicts B.  Unless the caller's view was DT_S
+   but it got re-wrapped to DT_E at param-bind time, which is
+   architecturally weird.  Test by also instrumenting `EVAL_fn` to log
+   `expr.v` and `result.v` for "nTop"-bearing expressions.
+
+4. **Hypothesis C (the `n = EVAL(n)` body assignment):** a third
+   possibility — IDENT branch fires (so `n` IS DT_E), then EVAL_fn
+   returns DT_I 2 correctly, but the ASSIGN op stores it as DT_S "2".
+   Look at how `interp.c` handles `E_ASSIGN` when the RHS is the
+   result of a builtin call.  Possibly an unconditional `to_string`
+   coercion somewhere in the assignment path that SPITBOL doesn't have.
+
+5. After identifying the site, fix, rebuild, re-run the harness.
+   Expected outcome: harness advances past 22857 to either MWK_END or a
+   genuinely different bug class.
+
+**The 544-line output diff** between SPITBOL's beauty self-host
+(`abfd19a7a834484a96e824851caee159`, 646 lines) and scrip's
+(`dc2e07f20a1f0dbe8e473aa65edb0ce6`, 646 lines) is plausibly downstream
+of -x: if the wrong type of `n` propagates through Reduce-tree
+construction, the resulting AST shape differs in places that beauty's
+beautification logic then renders differently.  After -x lands, the
+diff should shrink substantially.
+
+**Files touched (session #56):**
+- `.github/GOAL-LANG-SNOBOL4.md` (this session-#56 block, no other changes)
+
+**Gates (verified at session start before any work):** Smoke=7, Broker=49.
+
+**Next session resume:**
+- Active step is still SN-26-bridge-coverage-x.
+- Begin with the `__builtin_trap` instrumentation in `call_user_function`
+  per Diagnostic plan step 1.  Read the gdb backtrace to choose between
+  Hypotheses A/B/C, then fix at the identified site.
+- Per RULES.md, revert the trap before commit.
+
+---
+
+
 
 Three sub-rungs landed in a single session, advancing the 2-way
 harness from step 1565 to step 22857 (+21292 steps) on
