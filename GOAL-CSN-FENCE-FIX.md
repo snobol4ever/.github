@@ -537,43 +537,72 @@ in `csnobol4/docs/F-1-findings.md`.
       NOT a regression from any FENCE work, but it IS what blocks the
       Step 3 done-when (beauty self-host ≥500 lines).
 
-      Repro:
-      ```snobol4
-              e = LEN(0)
-              '' *e            :S(ok)F(no)
-      ok      OUTPUT = 'matched'
-      no      OUTPUT = 'failed'   ; csn says this; SPITBOL says 'matched'
-      ```
-      Fails for *every* pattern against empty: `*LEN(0)`, `*''`,
-      `*ARBNO(...)`, `*NULL`, `LEN(1) | *e`, etc.  Works for any
-      non-empty subject and works for `e` (no `*`).  Code path is
-      `L_STAR` → EXPVAL → `L_STARP` → `STARP1`/`STARP4`/`STARP6` in
-      `isnobol4.c:12121-12190`.  Static trace of the math says it
-      should succeed (NVAL=0, MAXLEN=0, recursive SCIN of LEN(0)
-      returns case 2, switch falls through to POP+SCOK), so the bug
-      is somewhere subtle in either:
-        - YCL's `.v` field at STARP1 entry (loaded from STAR pattern
-          node slot[3].v, possibly never initialized)
-        - the STARP6 PDL-trap-entry layout when `MAXLEN := NVAL = 0`
-        - the recursive-SCIN return-value handling in STARP6's switch
+      **Session #47 update (2026-04-28): the simple STAR-against-empty
+      repro now passes.** Either the bug class shifted under earlier
+      FENCE fixes or the original diagnosis was overly narrow. The
+      tiny repro `*LEN(0)` against `''` now matches on both csnobol4
+      and SPITBOL.  Beauty still crashes at stmt 1074 (line 616, the
+      `*snoParse *snoSpace RPOS(0)` chain) but the immediate crash is
+      different — see investigation below.
 
-      Strategy for next session: instrument STARP1/STARP4/STARP6 with
-      env-gated `fprintf(stderr, ...)` of NVAL/MAXLEN/YCL/TSIZ at each
-      checkpoint, run the trivial `*e against ''` repro, see exactly
-      where the path diverges from the static trace.  Then either fix
-      in `isnobol4.c`+`snobol4.c` (this session's FNCBX precedent) or
-      via `v311.sil` if structural.  This is OUTSIDE the FENCE scope
-      as written but currently blocks the F-2 done-when, so handle
-      it under Step 3a rather than spawning a new goal.
+      **Session #47 investigation found and partially fixed a different
+      bug class** (cpypat / FENCE(P) node layout):
 
-- [ ] **Step 3b: SIL/C consistency cleanup.**  This session fixed
-      `L_FNCBX` in the C only.  Per RULES.md the SIL is the source of
-      truth; the same edit (`BRANCH FAIL` → `BRANCH SALT`) belongs in
-      `v311.sil` FNCBX block.  Update SIL after Step 3a closes.
-      Per REPO-csnobol4.md the C must be hand-edited to match — done
-      in this session.  v311.sil deferred so the SIL/C divergence is
-      fixed in one cleanup commit alongside any v311.sil changes Step
-      3a needs.
+      Root cause: the 5-descriptor FENCE(P) node built by FNCPP with
+      `slot[1].v=3` was incompatible with cpypat's STAR-style v=3
+      semantics ("4-descr advance with slot[4] overlapping next node's
+      title"). When FENCE(P) was concatenated into a larger pattern
+      via CONPP→cpypat, the source FENCE(P) block was 5*DESCR but
+      cpypat advanced 4*DESCR per iteration, causing it to read past
+      the block end on the second iteration and corrupt destination
+      pattern memory.
+
+      Fix landed (working tree, uncommitted at session #47 end):
+      1. `lib/pat.c` cpypat: handle `v7==4` as a self-contained 5-descr
+         node — copies slot[4] AND advances 5*DESCR.
+      2. `isnobol4.c` + `snobol4.c` FNCPP: writes `slot[1].v=4` instead
+         of 3, preserving 5-descr / slot[4]=P layout (slot[3]=0 stays
+         needed for QUICKSCAN length check at SCIN3).
+      3. `isnobol4.c` + `snobol4.c` FNCA / FNCBX: also pushes/pops
+         PDLPTR onto cstack so success and failure paths can rewind PDL
+         past inner-SCIN's leaked entries before pushing the FNCD seal
+         (success) or returning to outer failure walker (failure). Also
+         removed the spurious `D(PDLHED) = D(PDLPTR)` clobber that was
+         destroying outer's PDLHED.
+
+      Results:
+      - fence_function 10/10 PASS preserved (no regression).
+      - Beauty tiny repro: was SIGSEGV, now Error 17 (controlled
+        program error — no memory corruption).
+      - Beauty self-host: still 36 lines (need 500+).
+      - The remaining failure is **inside the recursive SCIN call from
+        FNCA**: at SCIN1's PATBRA fall-through (BRANCH INTR13) because
+        PTBRCL.a points to a non-pattern global function (KEYWRD).
+        gdb stack shows `INTR13 ← SCIN1 ← SCIN ← SCIN1 (FNCA's SCIN
+        call) ← SCIN`. So the inner pattern P that FNCA fed to SCIN
+        has a corrupted dispatch tag — `D_A(ZCL)` points into `res`
+        (global static area) instead of a valid PATBRA index.
+
+      **Hypothesis for next session**: P itself becomes corrupted
+      during inner SCIN matching. Candidates:
+      - L_STAR's residual cache write `D(D_A(XPTR) + 7*DESCR) = D(YPTR)`
+        is hitting P's territory if P is shorter than 8 descriptors.
+      - PDL-based pattern building during inner-P evaluation overwrites
+        P's slot[1] dispatch tag.
+      - cpypat is being called inside inner-P matching with stale or
+        wrong source/dest, corrupting P.
+
+      Next session should add a SCIN1-entry trap that records the
+      pattern at PATBCL and verifies slot[1] is FNC-flagged — re-run
+      the trap during beauty to catch the first time P is corrupt.
+
+- [ ] **Step 3b: SIL/C consistency cleanup.**  Per RULES.md the SIL is
+      the source of truth; the same edits made in `isnobol4.c` and
+      `snobol4.c` for cpypat / FNCPP / FNCA must be ported back to
+      `v311.sil` and `lib/pat.c` (pat.c is C source, not generated, so
+      that one is already canonical). Also: the SIL FNCAPT template at
+      v311.sil:12203 still says `4*DESCR / v=2` — it needs to be
+      reconciled with the implemented C 5*DESCR / v=4 layout.
 - [ ] **Step 4: Build clean after Step 3a fix.**
       `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
 - [ ] **Step 5: fence_function/ regression.**  10/10 expected.
@@ -656,31 +685,31 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #46 (F-2 Step 3 partial — FNCBX failure-walker fix landed)
+- csnobol4 @ session #47 (F-2 Step 3a partial — cpypat v=4 + FNCA PDL-rewind)
 - one4all @ `06433f90`
 - corpus @ `ae9ea8d`
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (pre-existing STAR-against-empty-subject bug, blocks beauty)
+- active step → **F-2 Step 3a** (P-corruption inside FNCA's recursive SCIN)
 
-**Gates as of session #46 end:**
-- fence_function/ suite: **10/10 PASS** (unchanged)
-- Tiny repro: segfault at stmt 1074 (was: "Parse Error" before fix; the
-  bug class shifted, the FENCE-specific failure-walker bug is fixed)
-- beauty self-host: **37 lines** (need ≥500); SPITBOL produces 646 lines.
-  The remaining gap is now caused by the STAR-against-empty bug (Step 3a),
-  not by FENCE.
+**Gates as of session #47 end:**
+- fence_function/ suite: **10/10 PASS** (preserved)
+- Tiny repro: Error 17 at stmt 1074 (was: SIGSEGV; the bug class shifted
+  from memory corruption to controlled program error — meaningful progress)
+- beauty self-host: **36 lines** (unchanged from #46 baseline; SPITBOL: 646)
 - one4all Smoke/Broker: NOT YET RUN (still gated on beauty)
 
-**What session #46 fixed (F-2 Step 3 partial):**
-`L_FNCBX` in `isnobol4.c` and `snobol4.c`: `BRANCH(FAIL)` → `goto L_TSALT`.
-Lets a FENCE failure on the left of an outer alternation correctly fall
-through to the right alternative.  csnobol4 @ `c314e49`.
+**What session #47 fixed (F-2 Step 3a partial — uncommitted in working tree):**
+1. cpypat now handles `v7==4` as self-contained 5-descr node — copies
+   slot[4] AND advances 5*DESCR. (`lib/pat.c`)
+2. FNCPP writes `slot[1].v=4` (was 3) so cpypat sees the right semantics.
+   (`isnobol4.c`, `snobol4.c`)
+3. FNCA pushes/pops PDLPTR onto cstack so success and failure paths can
+   rewind PDL past inner-SCIN's leaked entries. Removed spurious
+   `D(PDLHED) = D(PDLPTR)` clobber. (`isnobol4.c`, `snobol4.c`)
 
 **What remains:**
-1. Step 3a — fix STAR-against-empty bug.  Located in
-   `L_STAR`/`L_STARP`/`L_STARP1`/`STARP4`/`STARP6` (isnobol4.c lines
-   12121-12190).  Pre-existing in vanilla CSNOBOL4 2.3.3.  Diagnosis
-   strategy in Step 3a above.
-2. Step 3b — port the C FNCBX fix back into v311.sil and re-verify the
-   SIL/C are consistent (combine with any v311.sil changes Step 3a needs).
-3. Step 4 onwards — build, regression, beauty repros, smoke gates.
+1. Step 3a continued — diagnose why inner P's slot[1] dispatch tag is
+   corrupted during FNCA's recursive SCIN (now a controlled INTR13 in
+   the recursive SCIN frame, not memory corruption).
+2. Step 3b — port the C edits back into `v311.sil` for SIL/C consistency.
+3. Steps 4-9 — clean build, regression, beauty, smoke gates, commit.
