@@ -812,7 +812,7 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ new HEAD (session #49 — SN-26-bridge-coverage-n closure)
+- one4all @ new HEAD (session #50 — `end`-label `strcasecmp` fix; SN-26-bridge-coverage-o investigation + 5-phase audit)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
@@ -833,6 +833,103 @@ the trace" — until -h, there is no trustable divergence point.
   -m CLOSED session #48; -l CLOSED session #45; -k CLOSED session #44;
   -j CLOSED session #46; -g CLOSED session #43;
   -i lifted to GOAL-CSN-FENCE-FIX; -h unblocked once -o lands.
+
+**Session #50 (2026-04-28) — SN-26-bridge-coverage-o investigation;
+`end`-label `strcasecmp` fix landed; 5-phase audit.**
+
+Two findings this session:
+
+1. **Bug fixed (independent of -o): `end` label treated as program
+   terminator.**  `src/frontend/snobol4/snobol4.y:247` used
+   `strcasecmp(lbl.sval,"END")==0` to detect the program terminator,
+   so a user label spelled `end`, `End`, `eNd`, etc. caused scrip
+   to terminate the program at that label.  Per RULES.md "Always
+   uppercase `END`" and the casing-at-ingress rule, the comparison
+   must be case-sensitive.  Minimal repro: `DEFINE('f') :(end)` with
+   a body label `f` and a skip-target label `end` — SPITBOL prints
+   the post-`end` statement, scrip silently exits 0.  Fix: change
+   `strcasecmp` → `strcmp`.  Regenerate parser via
+   `regenerate_parser_and_lexer_from_sources.sh`.  Smoke=7,
+   Broker=49, harness still diverges at step 1257 (no regression on
+   the active rung).
+
+2. **5-phase statement-execution audit (answers a question raised
+   this session, no fix landed):** scrip's `execute_program` (~L4310)
+   and `call_user_function` (~L600 — a parallel implementation of
+   the same logic) evaluate statement parts in this order:
+   subject → pattern → **replacement (before match)** → match → replace.
+   Classical SNOBOL4 (Green Book §1.7 / SIL) requires:
+   subject → pattern → match → replacement → replace, where the
+   replacement evaluates **only on match success** and **after** the
+   match.  The eager-replacement order means (a) replacement side
+   effects fire even when the match would fail, and (b) the
+   replacement cannot reference variables set by `.` captures during
+   the same match.  Two parallel implementations of the same
+   statement-execution logic also violate the spirit of "single
+   source of truth".  Tracked as a latent follow-up under SN-26
+   ("scrip 5-phase parity") — not immediately gating -o.  Fixing
+   this could shift the divergence either upstream (closer to root)
+   or further downstream (different bug class).
+
+3. **-o progress: cause not yet pinpointed.**  Diagnostic patches
+   (DBG_EVAL_PAT in `_eval_pat_impl_fn`, DBG_FNC in `interp_eval`
+   E_FNC, DBG_EXEC at `exec_stmt` entry, DBG_EVAL at `EVAL_fn`
+   entry) confirmed:
+   - `_eval_pat_impl_fn` is **not** called during beauty's run;
+     ruling out the DT_P-at-EVAL_fn path as the eager-call source.
+   - `exec_stmt` is called only 19 times during the harness window,
+     all on stno=2..21 (`&ALPHABET POS(N) LEN(1) . xxx` init).  The
+     eager `nTop` does not happen via `exec_stmt`.
+   - DBG_EVAL captured the actual EVAL'd strings.  Beauty calls
+     `reduce` with two argument shapes:
+     - **`*(...)` wrapped:** `epsilon . *Reduce('snoExprList', *(GT(nTop(), 1) nTop()))` — args fully deferred.  This is the FIRST reduce call (line 121, beauty stno that maps to harness step 1257).
+     - **bare arg:** `epsilon . *Reduce('[]', nTop() + 1)` (line 169), `epsilon . *Reduce(',', nTop() + 1)` (line 177), `epsilon . *Reduce('snoParse', nTop())` (lines 238, 243).  These have NO `*(...)` wrap on the second arg.
+   - All probes that mirror the FIRST reduce-call's tree shape in
+     isolation (using full beauty-style DEFINE chain) correctly
+     defer all inner functions in scrip.  No eager nTop fires.
+     The bug requires additional state from beauty's run that the
+     probes have not captured.
+
+4. **Source mapping for the divergence (so a future session does
+   not re-discover):**
+   ```
+   step 1252  LABEL stno=591   → semantic.inc:20  nPush body
+   step 1253  VALUE nPush      → same line (UNKNOWN vs PATTERN — wire-typing diff, pre-existing)
+   step 1254  RETURN nPush     → same line, RTNTYPE='RETURN'
+   step 1255  CALL reduce      → entering reduce body (line 121 call site)
+   step 1256  LABEL stno=589   → semantic.inc:17  reduce body
+   step 1257  spl: VALUE reduce = UNKNOWN  (RHS done, store)
+              scr: CALL nTop                (eager call inside RHS)
+   ```
+   Beauty source for stno=589: `reduce  reduce = EVAL("epsilon . *Reduce(" t ", " n ")")  :(RETURN)`.
+
+5. **scrip's `&STNO` is wrong inside function bodies (latent).**
+   `call_user_function` (~L605) fires `mon_emit_label_bin(s->stno)`
+   for the body line but does **not** update `kw_stno`.  So `&STNO`
+   reads as the caller's stno during body execution.  The harness
+   wire is unaffected (uses `mon_emit_label_bin` directly), but
+   ftrace `****N` prefixes show stale stnos.  Tracked as latent
+   follow-up — not gating.
+
+**Files touched (session #50):**
+- `src/frontend/snobol4/snobol4.y` (line 247: `strcasecmp` → `strcmp`)
+- `src/frontend/snobol4/snobol4.tab.c` (regenerated)
+
+**Gates:** Smoke=7, Broker=49.  Harness still diverges at step 1257.
+
+**Next session resume hint:**
+- `_eval_pat_impl_fn` is NOT the eager-eval source.  Don't re-check.
+- Prove the beauty-specific state difference: instrument `EVAL_fn`
+  to log the input string AND the parsed tree shape.  Compare the
+  tree shape for the FIRST reduce call (stno that maps to step 1257)
+  in isolation vs in beauty's run.  If trees match but behavior
+  differs, the bug is in tree evaluation; if trees differ, the bug
+  is in `parse_expr_pat_from_str` (lex/parse state pollution from
+  earlier statements).
+- Consider landing the 5-phase fix as a separate sub-rung
+  (`SN-26-bridge-coverage-p` perhaps) — it may surface or shift -o.
+
+---
 
 **Session #49 (2026-04-27) — SN-26-bridge-coverage-n closed; -o
 opened.**
