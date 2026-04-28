@@ -688,26 +688,200 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gates:** Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-q — SPITBOL keyword-assignment fire-point.**
+- [x] **SN-26-bridge-coverage-q — OUTPUT/TERMINAL trap symmetry.
+  CLOSED session #55 (2026-04-28).**
 
-  SPITBOL's `&keyword = value` path routes through `asign → asg14 → asg15`
-  (direct `kvabe(xl),wa` store), bypassing `b_vrs` and therefore bypassing
-  `sysmv`.  Result: scrip emits `VALUE &FULLSCAN = INTEGER=1` at stno=2 of
-  beauty; SPITBOL is silent on that stno.  The controller silently absorbs
-  this asymmetry only while the two runtimes stay in step on LABEL events.
-  If a keyword-assign value ever diverges the harness will report it as a
-  VALUE asymmetry masking the real semantic bug.
+  **Root cause (revised — different from original sketch):** the
+  divergence at step 1565 of the 2-way harness on `beauty.sno <
+  beauty.sno` was on `OUTPUT = snoLine :(main00)` (beauty.sno:612),
+  not a kvabe keyword.  In SPITBOL, `OUTPUT` is a natural variable
+  with an output-association trblk (`trtou`).  At `asg06` the
+  trblk-walk finds the trtou entry and jumps to `asg10`, which
+  writes the value to stdout via `sysou` and `exi`s — never reaching
+  `b_vrs`, so `sysmv` never fires and the wire is silent for OUTPUT
+  writes.  Same applies to TERMINAL and channel-bound output
+  variables (those routed via `asg10`'s trtou path).
 
-  **Fix (sbl.min + monitor_ipc_runtime.c):** at `asg15` (just before `exi`),
-  add a `jsr sysmkw` fire-point.  New C entry `zysmkw` takes `xl` = kvblk
-  pointer and `wa` = new integer value; synthesises the keyword name (e.g.
-  `"&FULLSCAN"`) from the kvblk number via a static name table in
-  `monitor_ipc_runtime.c` and emits `MWK_VALUE`.  Also add a `sysmkw  exp 0`
-  declaration in sbl.min and a syscall id in `int.asm`.
+  **scrip's bug:** `runtime/x86/snobol4.c` `NV_SET_fn` was firing
+  `comm_var(name, val)` for OUTPUT, TERMINAL, and channel-bound
+  output writes.  These are I/O operations that incidentally use
+  variable-assignment syntax — not actual variable stores.
 
-  **Done-when:** 2-way harness on `beauty.sno < /dev/null` shows matching
-  `VALUE &FULLSCAN = INTEGER=1` / `VALUE &ANCHOR = INTEGER=0` etc. at the
-  correct stnos from both spl and scr.  Smoke=7, Broker=49.
+  **Fix (`runtime/x86/snobol4.c` NV_SET_fn):** removed `comm_var`
+  from three sites:
+  1. Channel-bound output variable path (write to `_io_chan[ch].fp`)
+  2. `OUTPUT` special case (write via `output_val`)
+  3. `TERMINAL` special case (write to stderr)
+  Each now returns immediately after the I/O write without firing
+  on the wire.
+
+  **Note on the original sketch:** the architectural sketch above
+  targeted `&FULLSCAN`-style keyword assigns at `asg15`.  That
+  symptom is no longer firing in current scrip — keyword-backed
+  writes at `NV_SET_fn` lines 2861–2870 already don't call
+  `comm_var` (they just update C globals like `kw_fullscan` and
+  return).  The `-q` block became attached to the OUTPUT trap
+  symptom which has the same wire signature ("scrip fires VALUE,
+  SPITBOL silent") but a different SIL root cause.
+
+  **Verification:**
+  - 2-way harness on `beauty.sno < beauty.sno`: advances from step
+    1565 to step 1619 (+54 steps).  Steps 1..1618 all agree.  New
+    divergence at 1619 is a different bug class (pattern-capture
+    NM_PTR/NM_CALL store-back fire-points missing in scrip — see
+    `-v`).
+  - 2-way harness on `beauty.sno < /dev/null`: still terminates at
+    step 1560 (`:F(END)` end-of-input flow, essentially terminal —
+    no regression).
+  - Smoke=7, Broker=49 preserved.  All 5 buildable bridge smokes
+    PASS (3 SKIP for missing csnobol4 per oracle pivot).
+
+  **Files touched:**
+  - `src/runtime/x86/snobol4.c` (NV_SET_fn channel-bound /
+    OUTPUT / TERMINAL paths: removed `comm_var` calls)
+
+  **Gates:** Smoke=7, Broker=49.
+
+- [x] **SN-26-bridge-coverage-v — pattern-capture store-back fire-points.
+  CLOSED session #55 (2026-04-28).**
+
+  **Root cause:** SPITBOL's `asinp` (assign during pattern match) at
+  `sbl.min:17880-17904` fires `sysmv` on every untrapped natural-var
+  store via the asnpa path (real vrblk → emit real name), and
+  `sysmw` on every aggregate-element store via asnpb (`<lval>`
+  sentinel).  scrip had three silent paths that the asinp fire-point
+  catches in SPITBOL:
+
+  1. `name_commit_value` NM_PTR — `*nm->var_ptr = value;` store
+     used by `pat . var` patterns where the captured target is a
+     pointer-bearing DT_N (e.g. NRETURN `.dummy` returns DT_N
+     pointing at the global `dummy` NV cell).  Silent in scrip.
+  2. `name_commit_value` NM_CALL — `*cell = value;` store after
+     `g_user_call_hook` returns DT_N for `pat . *fn(args)`
+     deferred-function captures.  Silent in scrip.
+  3. `interp.c` top-level `FIELD_SET_fn(obj, fname, rv)` — writes
+     to a DATA-record field via `value(x) = ...` lvalue syntax.
+     Silent in scrip; SPITBOL emits `<lval>` here via asinp asnpb.
+
+  **Fix (3 sites):**
+  1. `runtime/x86/name_t.c` NM_PTR: after `*nm->var_ptr = value`,
+     call `comm_var(NV_name_from_ptr(var_ptr) ?: "<lval>", value)`.
+     `NV_name_from_ptr` reverse-looks-up the cell address in the
+     global NV hash table and returns the variable's name if known
+     (the asnpa path), else falls back to `<lval>` (asnpb).
+  2. `runtime/x86/name_t.c` NM_CALL: same recovery, applied after
+     `*cell = value` write.  comm_var honors `monitor_quiet_depth`,
+     so call-frame entry/exit save/restore mechanism stores stay
+     silent (session #49's -n bracketing is preserved).
+  3. `src/driver/interp.c` ~line 750 (top-level `subject(child)
+     = repl` E_FNC lvalue path): after `FIELD_SET_fn(obj, sval,
+     rv)`, call `comm_var("<lval>", rv)` — DATA fields don't have
+     a recoverable NV name, so always emit the `<lval>` sentinel.
+
+  **Verification:**
+  - 2-way harness on `beauty.sno < beauty.sno`: advances from step
+    1619 to step 1867 (+248 steps).  The first divergences
+    addressed:
+    - Step 1619: `VALUE dummy = STRING(0)=''` after NRETURN — now
+      matches both sides (NM_CALL fix covers the `.dummy` pattern
+      capture path).
+    - Step 1622: `VALUE <lval> = INT=1` on `value($'#N') =
+      value($'#N') + 1` — now matches both sides (FIELD_SET fix).
+  - Steps 1..1866 all agree.  New divergence at 1867 is a
+    different bug class (NULL vs empty-string wire-type asymmetry
+    on DATA-field reads — see `-w`).
+  - Smoke=7, Broker=49 preserved.  All bridge smokes PASS.
+
+  **Files touched:**
+  - `src/runtime/x86/name_t.c` (NM_PTR + NM_CALL paths fire
+    comm_var post-store with name recovery)
+  - `src/driver/interp.c` (top-level FIELD_SET path fires
+    comm_var with `<lval>` sentinel)
+
+  **Gates:** Smoke=7, Broker=49.
+
+- [x] **SN-26-bridge-coverage-w — NULL vs empty-string wire-type symmetry.
+  CLOSED session #55 (2026-04-28).**
+
+  **Root cause:** SPITBOL stores SNOBOL4's NULL value as the global
+  `nulls` empty scblk (an scblk with `len=0`).  When that pointer
+  reaches `spl_block_to_wire` it matches `TYPE_SCL`, returns
+  `MWT_STRING` with `vlen=0`.  scrip's `scrip_tag_to_wire`
+  (`runtime/x86/snobol4.c`) was mapping `DT_SNUL` → `MWT_NULL` —
+  semantically equivalent but produces a different wire-type byte.
+  The harness's `keys_match` checks type equality (with UNKNOWN
+  wildcard); NULL ≠ STRING is reported as DIVERGE even though the
+  value bytes (empty) are identical on both sides.
+
+  **Fix (`runtime/x86/snobol4.c`):** changed
+  `scrip_tag_to_wire(DT_SNUL)` from `MWT_NULL` to `MWT_STRING` so
+  scrip emits `STRING(0)=''` for NULL values, matching SPITBOL's
+  `nulls`-scblk emission.
+
+  **Verification:**
+  - 2-way harness on `beauty.sno < beauty.sno`: advances from step
+    1867 to step 22857 (+20990 steps).  Vast swaths of beauty's
+    actual parsing/rewriting machinery now traverse cleanly.
+  - Smoke=7, Broker=49 preserved.  All 5 buildable bridge smokes
+    PASS.
+  - 2-way harness on `beauty.sno < /dev/null`: still terminates
+    cleanly at step 1560 (no regression).
+  - Self-host outputs both produce 646 lines.  md5s differ (SPITBOL
+    `abfd19a7a834484a96e824851caee159` vs scrip
+    `dc2e07f20a1f0dbe8e473aa65edb0ce6`); 544 lines of textual diff
+    remain — primarily beauty's `:(label)` goto-suffix display
+    logic dropping suffixes on certain stmt forms.  These are
+    real semantic divergences in beauty's beautification path,
+    surfaced by the harness past step 22857.  Tracked under -h.
+
+  **Files touched:**
+  - `src/runtime/x86/snobol4.c` (`scrip_tag_to_wire` DT_SNUL →
+    MWT_STRING)
+
+  **Gates:** Smoke=7, Broker=49.
+
+- [ ] **SN-26-bridge-coverage-x — `n=INTEGER` vs `n=STRING` wire-type
+  asymmetry on `&`-OPSYN'd reduce calls.**
+
+  After -w, the 2-way harness on `beauty.sno < beauty.sno` reaches
+  step 22857 cleanly.  New divergence:
+  ```
+  spl: VALUE n = INT=2
+  scr: VALUE n = STRING(1)='2'
+  ```
+
+  Beauty calls `reduce(t, n)` (semantic.inc:7, OPSYN'd to `&`)
+  from many sites.  Some pass INTEGER 2 directly (e.g. beauty.sno
+  line 125: `("'='" & 2)`); others pass STRING expressions (e.g.
+  line 121: `("'snoExprList'" & '*(GT(nTop(), 1) nTop())')`).
+  Inside `Reduce(t,n)` body (`ShiftReduce.inc:19`), `n` is bound
+  as a parameter; the IDENT(DATATYPE(n), 'EXPRESSION') check at
+  line 24 routes EXPRESSION values through EVAL.  For INTEGER
+  `n`, both checks fail and n stays INTEGER — but scrip somewhere
+  along this path has `n` as STRING `'2'`.
+
+  **Hypothesis:** scrip's `EVAL_fn` or `EVAL` builtin coerces
+  integer arguments to string when the EVAL'd expression is a
+  string-context concat (e.g. `"epsilon . *Reduce(" t ", " n ")"`
+  in reduce's body — concatenating `n` into the string).  That
+  concat creates a string but should NOT mutate the `n` NV cell
+  itself.  Either scrip is mutating `n` via a save/restore that
+  isn't bracketed, or it's coercing at param-binding time for the
+  OPSYN'd call site.
+
+  **Done-when:** 2-way harness on beauty advances past step 22857;
+  the actual self-host output's 544-line diff against SPITBOL
+  shrinks (since the goto-suffix-drop on `pp` stmts at output
+  lines 264, 271 is likely a downstream effect of the same
+  build-vs-run-vs-coerce confusion).  Smoke=7, Broker=49.
+
+  **Diagnostic plan:** isolate the eager-coerce site by adding
+  `__builtin_trap()` in `interp.c` `call_user_function` entry when
+  `strcmp(retname, "reduce")==0 && nargs==2 && args[1].v != DT_I`
+  and SPITBOL has `n=INTEGER` at the same call site.  Read the
+  backtrace; if the coercion happens at param-binding, fix it
+  there; if it happens during EVAL string-concat, fix the concat
+  to leave the NV cell alone.
 
 - [ ] **SN-26-bridge-coverage-r — SPITBOL pattern-block type discrimination.**
 
@@ -1014,17 +1188,23 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gate:** Smoke=7, Broker=49.
 
-**Dependencies (post 2026-04-28 session #54, -u closed):**
--e → -f → -g → (-k, -l) → -j → -m → -n → -t/-o → -u → -h.
+**Dependencies (post 2026-04-28 session #55, -q/-v/-w closed):**
+-e → -f → -g → (-k, -l) → -j → -m → -n → -t/-o → -u → -q/-v/-w → -h.
 -p CLOSED session #51 (interleaved trail + stno annotation; gates preserved).
 -s CLOSED session #52 (RETURN display fix).
 -t/-o CLOSED session #53 (eager E_FNC inside compound pat-target args).
 -u CLOSED session #54 (E_CAT mid-promotion double-eval of nxt and prior children).
--h next: 2-way harness on beauty.sno < /dev/null reaches step 1560 (essentially
-terminal); on beauty.sno < beauty.sno reaches step 1565 with -q symptom (OUTPUT
-keyword fire-point missing on SPITBOL bridge).
--q open (SPITBOL keyword-assignment fire-point — independent, can land any session).
+-q CLOSED session #55 (OUTPUT/TERMINAL trap symmetry — root cause was NOT
+  the keyword fire-point sketched in the original block; harness 1565 → 1619).
+-v CLOSED session #55 (NM_PTR/NM_CALL/FIELD_SET pattern-capture store-back
+  fire-points; mirrors SPITBOL's asinp asnpa/asnpb split; harness 1619 → 1867).
+-w CLOSED session #55 (DT_SNUL → MWT_STRING wire-type symmetry; harness
+  1867 → 22857, +20990 steps through real beauty parsing/rewriting).
 -r open (SPITBOL pattern/name/array/table block discrimination — independent).
+-x open (n=INT vs n=STRING wire-type asymmetry on `&`-OPSYN'd reduce calls;
+  surfaces at step 22857; first divergence after -w).
+-h essentially satisfied: 2-way harness reaches step 1560 (terminal) on
+  /dev/null; advances to 22857 on beauty<beauty before next divergence (-x).
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
@@ -1110,13 +1290,118 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `2c7d2b28` (session #54 — SN-26-bridge-coverage-u closed: E_CAT mid-promotion no-double-eval; harness 1507 → 1560 on /dev/null, → 1565 on beauty<beauty)
+- one4all @ `afd3bbef` (session #55 — SN-26-bridge-coverage-q/-v/-w closed: OUTPUT trap symmetry, NM_PTR/NM_CALL/FIELD_SET store-back fire-points, DT_SNUL → MWT_STRING; harness 1565 → 22857 on beauty<beauty, terminal at 1560 on /dev/null)
 - corpus @ unchanged
-- x64 @ unchanged
+- x64 @ unchanged (no SPITBOL-side patches needed — -q's actual root cause was scrip-side OUTPUT trap symmetry, not keyword fire-point)
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-h (2-way harness apples-to-apples
-  on beauty; -u unblocked the path; remaining symptoms are -q (OUTPUT
-  keyword fire-point) and end-of-input flow which is essentially terminal).
+- active step → SN-26-bridge-coverage-x (n=INT vs n=STRING wire-type
+  asymmetry on `&`-OPSYN'd reduce calls; first divergence after -w at
+  step 22857).  -h is essentially satisfied — harness reaches terminal
+  end-of-input on /dev/null and advances 21292 steps past the original
+  -u-closed state on beauty<beauty.
+
+**Session #55 (2026-04-28) — SN-26-bridge-coverage-q/-v/-w CLOSED.**
+
+Three sub-rungs landed in a single session, advancing the 2-way
+harness from step 1565 to step 22857 (+21292 steps) on
+`beauty.sno < beauty.sno`.  All three were on the scrip side; no
+SPITBOL or csnobol4 changes needed.  The original `-q` block's
+architectural sketch (kvabe keyword fire-point at asg14/asg15) was
+not actually the root cause of the step-1565 divergence — the real
+cause was OUTPUT/TERMINAL trap symmetry, a different SIL path that
+the goal-file block didn't anticipate.
+
+**-q (OUTPUT/TERMINAL trap symmetry).**  At step 1565, beauty.sno:612
+`OUTPUT = snoLine :(main00)` made scrip emit `VALUE OUTPUT = STRING(...)`
+while SPITBOL was silent.  Tracing SPITBOL's `asign` procedure
+(`sbl.min:17611-17733`) showed OUTPUT is a natural variable with an
+output-association trblk (`trtou`); at `asg06` the trblk-walk finds
+that entry and jumps to `asg10`, which writes the value via `sysou`
+and `exi`s without ever reaching `b_vrs` — so `sysmv` never fires.
+scrip's `NV_SET_fn` was firing `comm_var` for OUTPUT, TERMINAL, and
+channel-bound output writes, which are I/O operations that
+incidentally use variable-assignment syntax, not real variable
+stores.  Fix: removed `comm_var` from those three return paths in
+`runtime/x86/snobol4.c` `NV_SET_fn`.
+
+**-v (pattern-capture store-back fire-points).**  After -q, the
+divergence at step 1619 was `VALUE dummy = STRING(0)=''` after a
+NRETURN.  PushCounter does `PushCounter = .dummy :(NRETURN)`; the
+caller's pattern `*PushCounter()` later commits the matched text
+into the cell that DT_N points at.  scrip's `name_commit_value`
+NM_PTR and NM_CALL paths just did `*var_ptr = value` / `*cell =
+value` silently.  At step 1622 a similar issue surfaced for DATA
+field stores via `value($'#N') = value($'#N') + 1`
+(counter.inc:18).  SPITBOL's `asinp` (sbl.min:17880-17904) fires
+`sysmv`/`sysmw` on these cases via the asnpa (real vrblk → name)
+and asnpb (aggregate → `<lval>`) split.  Fix: three sites added
+`comm_var` post-store in scrip:
+- `name_t.c` NM_PTR: `comm_var(NV_name_from_ptr(var_ptr) ?: "<lval>", value)`
+- `name_t.c` NM_CALL: same pattern after `*cell = value`
+- `interp.c` ~line 750 (top-level FIELD_SET): `comm_var("<lval>", rv)`
+NV_name_from_ptr reverse-walks the global NV hash table to recover
+the variable's name from its cell address.
+
+**-w (NULL vs empty-string wire-type symmetry).**  Step 1867 had
+both runtimes emitting `VALUE @S = ...` with empty value bytes,
+but SPITBOL tagged it `STRING(0)=''` while scrip tagged it `NULL`.
+Cause: SPITBOL stores SNOBOL4's NULL as the global `nulls` empty
+scblk; `spl_block_to_wire` matches it as `TYPE_SCL` and emits
+`MWT_STRING` with `vlen=0`.  scrip's `scrip_tag_to_wire` mapped
+`DT_SNUL` to `MWT_NULL` — semantically equivalent but
+wire-different.  Fix: changed `DT_SNUL` mapping to `MWT_STRING` so
+empty/NULL values emit the same wire type on both sides.  This
+unlocked an enormous run of agreement: harness advanced from 1867
+to 22857 (+20990 steps) before next divergence.
+
+**Verification (session #55):**
+- 2-way harness on `beauty.sno < beauty.sno`: 1565 → 22857
+  (+21292 steps).  Steps 1..22856 all agree.
+- 2-way harness on `beauty.sno < /dev/null`: still terminates at
+  step 1560 (`:F(END)` end-of-input — essentially terminal, no
+  regression).
+- Smoke=7, Broker=49 preserved.
+- All 5 buildable SN-26 bridge smokes PASS (3 SKIP for missing
+  csnobol4 — expected per oracle pivot).
+- Self-host outputs both produce 646 lines on `beauty < beauty`.
+  md5s differ (SPITBOL `abfd19a7a834484a96e824851caee159` vs scrip
+  `dc2e07f20a1f0dbe8e473aa65edb0ce6`); ~544 lines of textual diff
+  remain — mostly scrip dropping `:(label)` goto-suffixes on
+  certain stmt forms in beauty's beautification path.  These are
+  real semantic divergences surfaced by the harness past 22857;
+  they will be addressed by -x and follow-on rungs.
+
+**Files touched (session #55):**
+- `src/runtime/x86/snobol4.c` (NV_SET_fn channel-bound /
+  OUTPUT / TERMINAL paths: removed `comm_var`; `scrip_tag_to_wire`
+  DT_SNUL → MWT_STRING)
+- `src/runtime/x86/name_t.c` (NM_PTR + NM_CALL fire `comm_var`
+  with NV_name_from_ptr recovery and `<lval>` fallback)
+- `src/driver/interp.c` (top-level FIELD_SET path fires
+  `comm_var("<lval>", rv)`)
+- `.github/GOAL-LANG-SNOBOL4.md` (-q/-v/-w closed; -x opened;
+  HEADs and Current state updated)
+- `.github/PLAN.md` (step → SN-26-bridge-coverage-x)
+
+**Gates:** Smoke=7, Broker=49.
+
+**Next session resume:**
+- Active step is -x: investigate the `n=INT vs n=STRING` wire-type
+  asymmetry at step 22857.  Reduce to a probe — `reduce("'='", 2)`
+  is the simplest call shape (beauty.sno line 125+) where `n` is
+  bound as INTEGER 2.  Compare scrip's NV cell for `n` against
+  SPITBOL's at the same call boundary using the `__builtin_trap`
+  + gdb backtrace pattern from session #53.
+- After -x lands, re-run the harness; the actual self-host output
+  diff (544 lines as of session #55) should shrink as the
+  upstream wire divergences resolve.
+- -r remains independent (SPITBOL pattern/name/array/table
+  discrimination); can land any session.
+- -h is essentially satisfied — close it after -x lands and run
+  one final harness pass to capture the final divergence point
+  (or clean MWK_END).
+
+---
 
 **Session #54 (2026-04-28) — SN-26-bridge-coverage-u CLOSED.**
 
