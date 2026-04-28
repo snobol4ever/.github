@@ -44,20 +44,35 @@ FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes tot
 One binary. `scrip-interp` and `scrip-cc` names are retired. Harness passes `INTERP=scrip`.
 
 ```
-scrip [mode] [bb] [target] [options] source.sno [-- program-args...]
+scrip [mode] [bb] [--target=T] [options] source.sno [-- program-args...]
 
-Execution modes (default: --sm-run):
-  --ir-run         interpret via IR tree-walk (correctness reference)
-  --sm-run         interpret SM_Program via dispatch loop  [DEFAULT]
-  --jit-run        SM_Program -> x86 bytes -> mmap slab -> jump in
-  --jit-emit       SM_Program -> emit to file (target selects format)
+Execution modes (default: --sm-interp):
+  --ir-walk        interpret via IR tree-walk (correctness reference)
+  --sm-interp      interpret SM_Program via dispatch loop  [DEFAULT]
+  --sm-native      SM_Program -> x86 bytes -> mmap slab -> jump in
+                   (implies --target=x64; no emit to disk)
+  --sm-emit        SM_Program -> emit target-language text -> toolchain -> run
+                   (target selects output language; see --target below)
 
-Byrd Box pattern mode (default: --bb-driver):
-  --bb-driver      pattern matching via driver/broker
-  --bb-live        live-wired BB blobs in exec memory (requires M-DYN-B* blobs)
+Byrd Box pattern mode (default: --bb-brokered):
+  --bb-brokered    pattern matching via bb_broker() driver
+  --bb-flat        flat inlined blob in exec memory (no broker call overhead)
 
-Target (default: --x64):
-  --x64  --jvm  --net  --js  --c  --wasm
+Target (for --sm-emit; default: x64):
+  --target=x64     emit NASM .s  -> nasm -> ld -> exec
+  --target=js      emit JS       -> node -> exec
+  --target=wasm    emit WAT      -> wat2wasm -> node -> exec
+  --target=jvm     emit Jasmin   -> jasmin.jar -> java -> exec
+  --target=msil    emit MSIL .il -> ilasm -> dotnet -> exec
+  --target=c       emit C        -> cc -> exec
+
+Legacy aliases (deprecated, map to new names):
+  --ir-run    -> --ir-walk
+  --sm-run    -> --sm-interp
+  --jit-run   -> --sm-native
+  --jit-emit  -> --sm-emit --target=x64
+  --bb-driver -> --bb-brokered
+  --bb-live   -> --bb-flat
 
 Diagnostic options:
   --dump-ir        print IR after frontend
@@ -68,6 +83,24 @@ Diagnostic options:
   --dump-parse     dump CMPILE parse tree
   --dump-ir-bison  dump IR via old Bison/Flex parser
 ```
+
+### Mode × Target matrix
+
+The four engine modes and six targets are largely orthogonal.
+`--sm-native` is the exception — it always emits x86 bytes in-process
+and does not use the `--target` flag.
+
+|                | x64 | js | wasm | jvm | msil | c |
+|----------------|:---:|:--:|:----:|:---:|:----:|:-:|
+| `--ir-walk`    | ✓   | —  | —    | —   | —    | — |
+| `--sm-interp`  | ✓   | —  | —    | —   | —    | — |
+| `--sm-native`  | ✓   | —  | —    | —   | —    | — |
+| `--sm-emit`    | ✓   | ✓  | ✓    | ✓   | ✓    | ✓ |
+
+`--ir-walk` and `--sm-interp` always run in the C host process;
+target is irrelevant. `--sm-emit` is the universal text-codegen path —
+the same SM_Program walks to a target-language emitter, the emitter
+writes source text, and the target's toolchain assembles/compiles/runs it.
 
 ## Binary box coverage (current)
 
