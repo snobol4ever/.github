@@ -4,6 +4,16 @@
 **Done when:** beauty.sno self-hosts cleanly under all three modes (--ir-run,
 --sm-run, --jit-run). Full corpus PASS count matches SPITBOL oracle.
 
+**Sharpened end-state target (session #55, 2026-04-28):** the 2-way
+sync-step harness on `beauty.sno < beauty.sno` runs to clean
+`MWK_END` on both participants — no `DIVERGE`, no timeout, no
+truncation — across the full millions of sync-step events that
+beauty's full self-host emits.  Self-host output md5 must match
+SPITBOL's `abfd19a7a834484a96e824851caee159` byte-for-byte.  Until
+that final harness pass is captured, every closed sub-rung
+(SN-26-bridge-coverage-*) advances the next-divergence step number,
+and the work continues.
+
 **Cross-pollination:** Every bug fix in interp.c, sm_lower.c, or bb_boxes.c
 immediately benefits Icon, Prolog, Raku, Snocone, Rebus sessions.
 Share fixes via main — no branches.
