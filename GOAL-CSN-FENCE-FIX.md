@@ -508,19 +508,73 @@ in `csnobol4/docs/F-1-findings.md`.
       by mirroring STARP6: push SCFLCL trap, set PDLHED=PDLPTR
       (sentinel base), then push outer state + SAVSTK + SCIN.
       **fence_function/ suite: 10/10 PASS.**
-- [ ] **Step 3: IPC two-way divergence hunt for beauty self-host.**
-      fence_function/ is 10/10 but beauty self-host produces only
-      39 lines (need ≥500).  Fails at `ARRAY('1:4')` with "Parse
-      Error".  SPITBOL produces 646 lines cleanly.  Root cause
-      unknown — gdb diagnostics exhausted context budget.
-      **Next session MUST use the IPC sync-step monitor:**
-      run beauty.sno under both SPITBOL and CSNOBOL4 via the
-      two-way monitor harness, let it stop at first divergence,
-      read ONLY the last-agree + first-disagree records, identify
-      the exact statement and variable values where they split.
-      That divergence point is the bug.  Fix only after reading it.
-      See RULES.md "Sync-step monitor" section for protocol.
-- [ ] **Step 4: Build clean after Step 3 fix.**
+- [x] **Step 3: IPC two-way divergence hunt for beauty self-host.**
+      Run via `STDIN_SRC=/tmp/tiny.in PARTICIPANTS="csn spl" \
+      bash one4all/scripts/test_monitor_3way_sync_step_auto.sh \
+      corpus/programs/snobol4/demo/beauty/beauty.sno` (run with the
+      beauty dir as CWD and `SNO_LIB=.` so includes resolve).  First
+      divergence: csn record #1 = `LABEL stno=2`, spl record #1 =
+      `LABEL stno=1` — protocol-shape difference, not a bug.  Real
+      semantic divergence surfaces immediately as csn dies SIGPIPE
+      after stmt 2 of `global.inc` while spl runs cleanly through
+      beauty's load and parse phases.
+
+      **First FENCE-specific bug located and fixed (csnobol4 c314e49):**
+      `L_FNCBX` in `isnobol4.c`/`snobol4.c` did `BRANCH(FAIL)` after
+      restoring outer cstack state; that returns from SCIN1 with the
+      outer alternation's PDL trap entry unconsumed.  Fix: replace
+      `BRANCH(FAIL)` with `goto L_TSALT` so the local failure walker
+      consumes the outer trap and lets the alternation try its second
+      branch.  Minimal repro `p = FENCE('a') | 'b'` matched against
+      `'b'` now matches as it does in SPITBOL.  fence_function/ still
+      10/10 PASS.  beauty advanced past "Parse Error" — now segfaults
+      later at stmt 1074 (line 616, the *snoParse top-level call).
+- [ ] **Step 3a: pre-existing STAR-against-empty-subject bug.**
+      Discovered while bisecting beauty's remaining failure: any `*var`
+      pattern matched against an empty subject fails on csnobol4 but
+      succeeds on SPITBOL — independent of FENCE.  Verified present in
+      vanilla CSNOBOL4 2.3.3 (`a509cd7` "Initial import"), so it is
+      NOT a regression from any FENCE work, but it IS what blocks the
+      Step 3 done-when (beauty self-host ≥500 lines).
+
+      Repro:
+      ```snobol4
+              e = LEN(0)
+              '' *e            :S(ok)F(no)
+      ok      OUTPUT = 'matched'
+      no      OUTPUT = 'failed'   ; csn says this; SPITBOL says 'matched'
+      ```
+      Fails for *every* pattern against empty: `*LEN(0)`, `*''`,
+      `*ARBNO(...)`, `*NULL`, `LEN(1) | *e`, etc.  Works for any
+      non-empty subject and works for `e` (no `*`).  Code path is
+      `L_STAR` → EXPVAL → `L_STARP` → `STARP1`/`STARP4`/`STARP6` in
+      `isnobol4.c:12121-12190`.  Static trace of the math says it
+      should succeed (NVAL=0, MAXLEN=0, recursive SCIN of LEN(0)
+      returns case 2, switch falls through to POP+SCOK), so the bug
+      is somewhere subtle in either:
+        - YCL's `.v` field at STARP1 entry (loaded from STAR pattern
+          node slot[3].v, possibly never initialized)
+        - the STARP6 PDL-trap-entry layout when `MAXLEN := NVAL = 0`
+        - the recursive-SCIN return-value handling in STARP6's switch
+
+      Strategy for next session: instrument STARP1/STARP4/STARP6 with
+      env-gated `fprintf(stderr, ...)` of NVAL/MAXLEN/YCL/TSIZ at each
+      checkpoint, run the trivial `*e against ''` repro, see exactly
+      where the path diverges from the static trace.  Then either fix
+      in `isnobol4.c`+`snobol4.c` (this session's FNCBX precedent) or
+      via `v311.sil` if structural.  This is OUTSIDE the FENCE scope
+      as written but currently blocks the F-2 done-when, so handle
+      it under Step 3a rather than spawning a new goal.
+
+- [ ] **Step 3b: SIL/C consistency cleanup.**  This session fixed
+      `L_FNCBX` in the C only.  Per RULES.md the SIL is the source of
+      truth; the same edit (`BRANCH FAIL` → `BRANCH SALT`) belongs in
+      `v311.sil` FNCBX block.  Update SIL after Step 3a closes.
+      Per REPO-csnobol4.md the C must be hand-edited to match — done
+      in this session.  v311.sil deferred so the SIL/C divergence is
+      fixed in one cleanup commit alongside any v311.sil changes Step
+      3a needs.
+- [ ] **Step 4: Build clean after Step 3a fix.**
       `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
 - [ ] **Step 5: fence_function/ regression.**  10/10 expected.
 - [ ] **Step 6: Tiny repro.**  ≥1 line output, no segfault.
@@ -602,23 +656,31 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #45 (F-2 Step 2 landed — fence_function 10/10, beauty broken)
-- one4all @ `78a2a98e`
-- corpus @ `7041a14`
-- x64 @ `3e519f9`
-- active step → **F-2 Step 3** (IPC two-way divergence hunt for beauty self-host)
+- csnobol4 @ session #46 (F-2 Step 3 partial — FNCBX failure-walker fix landed)
+- one4all @ `06433f90`
+- corpus @ `ae9ea8d`
+- x64 @ `71ff275`
+- active step → **F-2 Step 3a** (pre-existing STAR-against-empty-subject bug, blocks beauty)
 
-**Gates as of session #45 end:**
-- fence_function/ suite: **10/10 PASS**
-- Tiny repro: "Parse Error" on `ARRAY('1:4')` — beauty parser fails
-- beauty self-host: **39 lines** (need ≥500); SPITBOL produces 646 lines
-- one4all Smoke/Broker: NOT YET RUN (pending beauty fix)
+**Gates as of session #46 end:**
+- fence_function/ suite: **10/10 PASS** (unchanged)
+- Tiny repro: segfault at stmt 1074 (was: "Parse Error" before fix; the
+  bug class shifted, the FENCE-specific failure-walker bug is fixed)
+- beauty self-host: **37 lines** (need ≥500); SPITBOL produces 646 lines.
+  The remaining gap is now caused by the STAR-against-empty bug (Step 3a),
+  not by FENCE.
+- one4all Smoke/Broker: NOT YET RUN (still gated on beauty)
 
-**What session #45 fixed (F-2 Step 2):**
-Four bugs in FNCPP node-write and FNCA inner-scan setup.
-See Step 2 above for full list.
+**What session #46 fixed (F-2 Step 3 partial):**
+`L_FNCBX` in `isnobol4.c` and `snobol4.c`: `BRANCH(FAIL)` → `goto L_TSALT`.
+Lets a FENCE failure on the left of an outer alternation correctly fall
+through to the right alternative.  csnobol4 @ `c314e49`.
 
 **What remains:**
-beauty.sno fails to parse `ARRAY('1:4')`.  Root cause unknown.
-Next session: IPC two-way monitor, SPITBOL vs CSNOBOL4, beauty.sno
-input.  Read last-agree + first-disagree only.  Fix the divergence.
+1. Step 3a — fix STAR-against-empty bug.  Located in
+   `L_STAR`/`L_STARP`/`L_STARP1`/`STARP4`/`STARP6` (isnobol4.c lines
+   12121-12190).  Pre-existing in vanilla CSNOBOL4 2.3.3.  Diagnosis
+   strategy in Step 3a above.
+2. Step 3b — port the C FNCBX fix back into v311.sil and re-verify the
+   SIL/C are consistent (combine with any v311.sil changes Step 3a needs).
+3. Step 4 onwards — build, regression, beauty repros, smoke gates.
