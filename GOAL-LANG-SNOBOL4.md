@@ -563,81 +563,171 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   printf was reverted before commit (RULES.md "Diagnostic patches
   don't ship").  x64 working tree is clean.
 
-- [ ] **SN-26-bridge-coverage-n — CALL-vs-VALUE asymmetry on bare
-  function invocation in patterns.  Opened session #48.**
+- [x] **SN-26-bridge-coverage-n — bridge-emission alignment for
+  function CALL/RETURN.  CLOSED session #49 (2026-04-27).**
 
-  After -m closure, the 2-way harness on `beauty.sno < /dev/null`
-  reaches step 1035 cleanly and diverges:
+  At step 1035 of the 2-way harness on `beauty.sno < /dev/null`,
+  scrip emitted `VALUE nPush = STRING(0)=''` while SPITBOL emitted
+  `CALL nPush`.  The visible "CALL vs VALUE" was not a build-vs-run
+  semantic divergence; it was a stack of five distinct
+  bridge-emission alignment bugs in scrip's function-call code path.
+  Fixing them advanced the harness from step 1035 to step 1257 — 222
+  steps — before hitting the next divergence (which is a different
+  bug class, tracked as -o).
+
+  **Five bugs fixed (all in scrip):**
+
+  1. **comm_call ordering.**  `call_user_function` fired
+     `comm_call(fname)` AFTER the entry-pass `NV_SET_fn(retname,
+     STRVAL(""))` clear.  That clear goes through `NV_SET_fn` →
+     `comm_var`, putting `VALUE retname=''` on the wire BEFORE the
+     CALL.  Fix: moved `comm_call(retname)` to fire immediately
+     after `retname` is computed, before the save/clear pass.
+
+  2. **monitor_quiet_depth.**  Even with comm_call moved up, the
+     entry-pass save/clear and exit-pass restore in
+     `call_user_function` were still firing `comm_var` for every NV
+     write — interpreter mechanism that SPITBOL's SIL doesn't emit.
+     Fix: added `monitor_quiet_depth` global (declared in
+     `snobol4.h`, defined in `snobol4.c`); `comm_var` early-returns
+     when depth > 0; `call_user_function` brackets the save/clear
+     and the restore passes with `monitor_quiet_depth++ / --`.
+
+  3. **LABEL inside function bodies.**  `execute_program` fires
+     `mon_emit_label_bin(s->stno)` per executed statement (-f);
+     `call_user_function`'s body-loop didn't.  SPITBOL's `stmgo`
+     fires LABEL for every executed stmt regardless of nesting;
+     scrip was silent on function-body stmts.  Fix: added
+     `mon_emit_label_bin((int64_t)s->stno)` at the head of the
+     body-loop, after the E_CHOICE/E_UNIFY/E_CLAUSE skip.
+
+  4. **RETURN payload.**  `comm_return` was marshaling the
+     function's actual result value via `scrip_tag_to_wire` /
+     binary type encoding.  SPITBOL emits the rtntype STRING
+     (`"RETURN"`/`"FRETURN"`/`"NRETURN"`) per the bridge contract:
+     "the RETURN payload is the return *type*, not the function's
+     result value.  Result is delivered via the preceding VALUE
+     record on the function-name variable."  Fix: scrip emits
+     `kw_rtntype` as MWT_STRING, falling back to `"RETURN"` if the
+     keyword is empty.
+
+  5. **OPSYN canonical name.**  `comm_call(fname)` and
+     `comm_return(fname, ...)` reported the caller-side alias name.
+     For `OPSYN('&', 'reduce', 2)` the call-site invokes `&` but
+     SPITBOL reports `CALL reduce` (the body name).  Fix: pass
+     `retname` to both — for OPSYN aliases, retname is already set
+     to the entry-label name via `FUNC_ENTRY_fn(fname)`.
+
+  **Verification:**
+  - 2-way harness on `beauty.sno < /dev/null`: advances from former
+    step-1035 divergence to step 1257.  Steps 1..1256 all agree.
+    New divergence at step 1257 is `spl: VALUE reduce = UNKNOWN`
+    (body's `reduce = EVAL(...)` assignment) vs `scr: CALL nTop`
+    (scrip making an extra call during EVAL/argument evaluation
+    that SPITBOL isn't).  Different bug class — pattern build-vs-run
+    distinction, tracked as -o.
+  - Smoke=7, Broker=49 preserved.
+  - Probe `nPush()` user-function in `kw_ftrace>0` mode: scrip
+    emits expected `****N nPush()` / `****N RETURN nPush = 'hello'`.
+
+  **Files touched:**
+  - `src/runtime/x86/snobol4.h` (extern monitor_quiet_depth)
+  - `src/runtime/x86/snobol4.c` (define monitor_quiet_depth, gate
+    comm_var, rewrite comm_return to emit kw_rtntype)
+  - `src/driver/interp.c` (call_user_function: move comm_call early
+    using retname; bracket save/clear and restore with
+    monitor_quiet_depth; pass retname to comm_call/comm_return; add
+    mon_emit_label_bin in body-loop)
+
+  **Note on issue (1) of the original -n block** (VALUE type
+  asymmetry on `]`/`>`: SPITBOL emits UNKNOWN, scrip emits PATTERN):
+  unaffected by this work — SPITBOL's `spl_block_to_wire` still
+  doesn't discriminate pattern-block typewords.  The harness'
+  controller absorbs this via the MWT_UNKNOWN wildcard, so it
+  doesn't gate -n.  Still tracked as a latent follow-up.
+
+  **Gate:** Smoke=7, Broker=49.  2-way harness advances ≥ 222 steps
+  past former -n divergence.
+
+- [ ] **SN-26-bridge-coverage-o — extra CALL during EVAL/argument
+  evaluation in scrip.  Opened session #49.**
+
+  After -n closure, the 2-way harness on `beauty.sno < /dev/null`
+  reaches step 1257 cleanly and diverges:
   ```
-    spl #1030: LABEL stno=INT=706
-    spl #1031: VALUE ] = UNKNOWN
-    spl #1032: LABEL stno=INT=707
-    spl #1033: VALUE > = UNKNOWN
-    spl #1034: LABEL stno=INT=709
-    spl #1035: CALL nPush
-    scr #1030: LABEL stno=INT=706
-    scr #1031: VALUE ] = PATTERN
-    scr #1032: LABEL stno=INT=707
-    scr #1033: VALUE > = PATTERN
-    scr #1034: LABEL stno=INT=709
-    scr #1035: VALUE nPush = STRING(0)=''
+    spl #1252: LABEL stno=INT=591
+    spl #1253: VALUE nPush = UNKNOWN
+    spl #1254: RETURN nPush = STRING(6)='RETURN'
+    spl #1255: CALL reduce
+    spl #1256: LABEL stno=INT=589
+    scr #1252..1256: identical
+    spl #1257: VALUE reduce = UNKNOWN
+    scr #1257: CALL nTop
   ```
 
-  Two issues visible:
-  1. **VALUE type asymmetry on `]` and `>`:** SPITBOL emits the
-     value-type as UNKNOWN; scrip emits PATTERN.  Both refer to
-     pattern variables (`]` and `>` are Snobol4 pattern operators in
-     beauty's pattern setup).  SPITBOL's `spl_block_to_wire`
-     discriminator in `osint/monitor_ipc_runtime.c` may not recognize
-     pattern-block typewords; falls through to MWT_UNKNOWN.  scrip
-     correctly classifies them as MWT_PATTERN.  Pure bridge-emit
-     asymmetry; not a runtime correctness bug.
-  2. **CALL vs VALUE on `nPush`:** SPITBOL's bridge fires `sysmc`
-     (CALL) at the function-call gate (bpf09); scrip's
-     `comm_var()` fires VALUE at the assignment chokepoint.  When
-     beauty does `nPush()` as a bare invocation in a pattern context
-     (no LHS), SPITBOL sees a function call and emits CALL; scrip
-     sees an assignment-target store of the function's return value
-     and emits VALUE.  This is symmetric to the long-known
-     `sysmc`/`sysmr` vs `comm_call`/`comm_return` boundary issue.
+  Source context (semantic.inc:14):
+  ```snobol4
+  reduce  reduce = EVAL("epsilon . *Reduce(" t ", " n ")")  :(RETURN)
+  ```
+  with reduce called from beauty.sno line 121:
+  ```snobol4
+  +    ("'snoExprList'" & '*(GT(nTop(), 1) nTop())')
+  ```
+  Here `&` is OPSYN'd to `reduce` (semantic.inc:7).  The call is
+  `reduce("'snoExprList'", '*(GT(nTop(), 1) nTop())')` — both args
+  are STRING literals.  At LABEL stno=589 (inside reduce body) the
+  next event SPITBOL emits is the body's `reduce = EVAL(...)`
+  assignment (`VALUE reduce = UNKNOWN`).  scrip instead emits
+  `CALL nTop` — scrip is calling `nTop()` somewhere it shouldn't.
 
-  **Done-when:** the 2-way harness on `beauty.sno < beauty.sno`
-  either reaches MWK_END or diverges on a fundamentally different
-  symptom.  Plus Smoke=7, Broker=49 preserved.
+  **Hypothesis (echoes Lon's session-#49 framing):** this is the
+  pattern build-vs-run distinction.  SPITBOL builds the pattern
+  (the `*Reduce(...)` deferred sub-pattern) without invoking the
+  inner functions; the deferred functions only run when the pattern
+  is later matched.  scrip is evaluating eagerly — likely either:
+  - (a) parsing the contents of the single-quoted second argument
+    as code somewhere in the OPSYN-aliased call path, or
+  - (b) treating the EVAL'd string's `*nTop()` as an immediate call
+    rather than a deferred dot-star reference inside a pattern.
 
-  **Hypotheses for next session (in priority order):**
-  - **2.a** Audit `spl_block_to_wire` in `osint/monitor_ipc_runtime.c`
-    for missing pattern-block typewords (`b_pat`, `b_pcd`, `b_pmt`,
-    etc.) — fix would be one or two `if (typ == TYPE_PAT) return
-    MWT_PATTERN` clauses based on `osint.h` externs.  Easy win on
-    issue (1).
-  - **2.b** For issue (2), the choice is: either (a) add a scrip
-    fire-point at the bare-function-call site that emits CALL
-    instead of VALUE, matching SPITBOL's semantics; or (b) suppress
-    SPITBOL's CALL emit on bare-invocation paths and let the VALUE
-    record represent both runtimes' view.  (a) is closer to what
-    SN-26-bridge-coverage-d implies the catch-all should look like.
+  **Done-when:** 2-way harness advances past step 1257 to either
+  MWK_END or a fundamentally different symptom.  Plus Smoke=7,
+  Broker=49 preserved.
 
-  **Diagnostic technique:** before any code change, drive each
-  runtime through `read_one_wire.py` alone on the same beauty.sno
-  and dump the wire records around step 1035 from each side.
-  Compare to confirm the symptom is exactly as the 2-way harness
-  reports it (no controller artifact).  If both single-runtime
-  dumps reproduce the asymmetry, fix in the runtime; if only one
-  does, fix at the controller / wire-protocol level.
+  **Diagnostic technique for next session:** before code changes,
+  reduce the repro to a minimal `.sno`:
+  ```snobol4
+          DEFINE('reduce(t,n)')  :(end)
+          DEFINE('nTop()')
+  reduce  reduce = EVAL("epsilon . *Reduce(" t ", " n ")")  :(RETURN)
+  nTop    nTop = 'top'  :(RETURN)
+  end
+          OPSYN('&', 'reduce', 2)
+          x = ("'a'" & '*(nTop() + 1)')
+          OUTPUT = "x=" x
+  END
+  ```
+  Run under `SCRIP_FTRACE=1 scrip --ir-run` and `SCRIP_FTRACE=1
+  sbl -bf` and compare the `****` traces.  If scrip's trace shows
+  `nTop()` and SPITBOL's doesn't, the bug is at scrip's argument
+  or EVAL handling.  If both show `nTop()`, the divergence is
+  elsewhere (e.g. the dot-star deferral in pattern compilation).
 
-  **Gate:** Smoke=7, Broker=49.  Plus 2-way harness advances past
-  step 1035.
+  **Gate:** Smoke=7, Broker=49.
 
 **Dependencies (post 2026-04-27 pivot, post -j closure session #46,
-post -m closure session #48):**
--e → -f → -g → (-k, -l) → -j → -m → -n → -h.
+post -m closure session #48, post -n closure session #49):**
+-e → -f → -g → (-k, -l) → -j → -m → -n → -o → -h.
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
 -j CLOSED (linear-stno bug).
 -m CLOSED session #48 (corpus include duplication; no SPITBOL register
 clobber as session #47 had hypothesized).
--n is the new active rung — CALL-vs-VALUE asymmetry on bare function
-invocation, surfaced when the corpus duplication was removed.
+-n CLOSED session #49 (bridge-emission alignment: comm_call ordering,
+monitor_quiet_depth, function-body LABEL coverage, RETURN payload
+shape, OPSYN canonical names).  Advanced harness 222 steps.
+-o is the new active rung — extra CALL during EVAL/argument
+evaluation, surfaces as scrip emitting `CALL nTop` while SPITBOL
+emits `VALUE reduce = ...` at step 1257.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
 landed in the IR-run path only.  `sm_interp.c SM_STNO` and
@@ -722,33 +812,96 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ unchanged (no commits this session)
-- corpus @ new HEAD (post session #48 — duplicate .inc removal)
-- x64 @ unchanged (no commits this session — diagnostic patch reverted)
+- one4all @ new HEAD (session #49 — SN-26-bridge-coverage-n closure)
+- corpus @ unchanged
+- x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-n (CALL-vs-VALUE asymmetry on
-  bare function invocation in patterns; surfaced when corpus include
-  duplication was removed in -m closure).  2-way harness on beauty.sno
-  now advances cleanly to step 1035.  At that step SPITBOL emits
-  `CALL nPush` while scrip emits `VALUE nPush = STRING(0)=''`.
-  Two issues mixed together: (1) value-type asymmetry on pattern
-  blocks (`spl: UNKNOWN` vs `scr: PATTERN` at steps 1031, 1033) —
-  likely missing pattern typewords in `spl_block_to_wire`; and
-  (2) the CALL-vs-VALUE asymmetry on the bare invocation itself.
-  -m CLOSED session #48: NOT a syscall-thunk register clobber as
-  session #47 hypothesized.  The phantom step-882 divergence was
-  caused by `programs/include/Gen.inc` (and `semantic.inc`)
-  differing from `programs/snobol4/demo/beauty/Gen.inc`
-  (and `semantic.inc`); SPITBOL pulled the include version while
-  scrip pulled the demo version, because scrip's lexer always
-  searches the source-file's directory first regardless of
-  SNO_LIB.  Fix: deleted 16 duplicate .inc files from
-  `programs/include/`; demo/beauty is now canonical.  35
-  un-gated programs are now broken (`-INCLUDE 'Gen.inc'` no
-  longer resolves) and listed in the -m closure block.
-  -l CLOSED session #45; -k CLOSED session #44; -j CLOSED session #46;
-  -g CLOSED session #43; -i lifted to GOAL-CSN-FENCE-FIX;
-  -h unblocked once -n lands.
+- active step → SN-26-bridge-coverage-o (extra CALL during
+  EVAL/argument evaluation; surfaces at step 1257 of 2-way harness
+  on beauty.sno).  At that step SPITBOL emits `VALUE reduce = UNKNOWN`
+  (the body's `reduce = EVAL(...)` assignment inside reduce/&'s
+  body) while scrip emits `CALL nTop` — scrip is making an extra
+  call during EVAL/argument evaluation that SPITBOL isn't.  Likely
+  the pattern build-vs-run distinction: SPITBOL builds the
+  `*Reduce(...)` deferred sub-pattern without invoking the inner
+  functions; scrip evaluates eagerly.  See -o for repro and
+  diagnostic plan.  -n CLOSED session #49: stack of five distinct
+  bridge-emission alignment bugs in scrip's function-call path
+  (comm_call ordering, monitor_quiet_depth gate, function-body
+  LABEL coverage, RETURN payload shape, OPSYN canonical names).
+  Harness advanced 222 steps.
+  -m CLOSED session #48; -l CLOSED session #45; -k CLOSED session #44;
+  -j CLOSED session #46; -g CLOSED session #43;
+  -i lifted to GOAL-CSN-FENCE-FIX; -h unblocked once -o lands.
+
+**Session #49 (2026-04-27) — SN-26-bridge-coverage-n closed; -o
+opened.**
+
+The visible "CALL vs VALUE" asymmetry at step 1035 turned out NOT
+to be a build-vs-run semantic divergence in the runtime.  It was a
+stack of five distinct bridge-emission alignment bugs in scrip's
+`call_user_function` and `comm_*` code path.  Each one shifted the
+"first divergence" further down the wire; fixing all five advanced
+the harness from step 1035 to step 1257.
+
+The five bugs (in the order they surfaced as Lon walked the harness
+forward, one record at a time):
+
+1. `comm_call` fired AFTER the entry-pass `NV_SET_fn(retname, "")`
+   clear, so the wire's first record on function entry was
+   `VALUE retname=''` not `CALL fname`.  Moved comm_call up.
+
+2. With comm_call at the right place, the entry-pass save/clear
+   and exit-pass restore still fired comm_var on every NV write.
+   Added `monitor_quiet_depth` global; comm_var early-returns when
+   depth > 0; bracketed the two passes.
+
+3. scrip's function-body loop in `call_user_function` didn't fire
+   `mon_emit_label_bin` per stmt.  SPITBOL's stmgo fires LABEL for
+   every executed stmt regardless of nesting.  Added at body-loop
+   head.
+
+4. `comm_return` was marshaling the return value's bytes; SPITBOL
+   emits the rtntype STRING (`"RETURN"`/`"FRETURN"`/`"NRETURN"`).
+   Result is delivered via the preceding VALUE record on the
+   function-name variable.  Aligned scrip to emit `kw_rtntype`.
+
+5. `comm_call`/`comm_return` reported `fname` (caller-side alias);
+   for `OPSYN('&', 'reduce', 2)` the call site is `&` but the body
+   is `reduce`, and SPITBOL reports the body name.  Switched to
+   `retname` (canonical body name from `FUNC_ENTRY_fn`).
+
+After the five fixes, step 1257 surfaces a genuinely different bug
+class: scrip emits `CALL nTop` where SPITBOL emits `VALUE reduce`
+during the `reduce = EVAL("epsilon . *Reduce(" t ", " n ")")`
+assignment inside reduce's body.  This is the build-vs-run
+distinction Lon flagged earlier — SPITBOL builds the `*Reduce`
+deferred pattern without invoking inner functions; scrip is
+calling `nTop()` eagerly somewhere it shouldn't.  Tracked as -o.
+
+**Files touched (session #49):**
+- `src/runtime/x86/snobol4.h` (extern monitor_quiet_depth)
+- `src/runtime/x86/snobol4.c` (define monitor_quiet_depth, gate
+  comm_var on it, rewrite comm_return to emit kw_rtntype)
+- `src/driver/interp.c` (call_user_function: move comm_call early
+  and pass retname; bracket entry-pass save/clear and exit-pass
+  restore with monitor_quiet_depth; pass retname to comm_return;
+  add mon_emit_label_bin in body-loop)
+
+**Lesson for future sessions.**  When a sync-step harness reports
+a divergence and the two records look like they're at different
+points in the execution model ("CALL vs VALUE", "build vs run"),
+walk the harness forward one record at a time after each fix.  The
+visible top-level shape ("scrip went straight to assign while
+SPITBOL was still in build phase") may decompose into a stack of
+small, independent bridge-emission bugs that each shift the
+divergence by one or two records.  Resist the temptation to fix
+the perceived top-level shape with a big architectural change
+before fixing the small per-record alignments — the small fixes
+are independently correct (they bring the wire shape into
+agreement with SPITBOL on the records they touch) and the residual
+bug, if any, becomes much clearer once the small ones are out of
+the way.
 
 **Session #47 (2026-04-27) — SN-26-bridge-coverage-m diagnosis
 [SUPERSEDED by session #48].**  The hypothesis below — that SPITBOL's
