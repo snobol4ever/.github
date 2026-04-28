@@ -340,3 +340,55 @@ The proper fix belongs in SN-26-bridge-coverage (GOAL-LANG-SNOBOL4).
 - **Windows compatibility:** never use bare `'\n'` as a line separator
   in C# source; always use `Environment.NewLine`.
 - See RULES.md for full rules including handoff checklist.
+
+---
+
+## Session #56 findings — appended for next-session orientation
+
+**snobol4dotnet commit:** `3a74102`  
+**Monitor state:** reached step **1046** (was 801 before this session)
+
+### Three bugs fixed (all in monitor bridge, not runtime)
+
+1. **`Array.cs` `IndexCollection` Failure sentinel missing** — early `if (Failure) return` left stale operands (`i`, subscript `1`) on the stack; `BinaryEquals` consumed them as spurious `i = 1` assignment + false `VALUE i = INT=1` wire event. Fix: push `StringVar(false){Succeeded=false}` sentinel before returning. Advanced monitor 801 → 933.
+
+2. **`AssignReplace (=).cs` duplicate VALUE for function return slot** — when a function body assigns to its own name (e.g. `nPush = epsilon . *PushCounter()`), `Assign` fired `EmitValue` mid-body AND `Define.cs` fired it again at RETURN time. spl/csn emit only the latter. Fix: suppress `EmitValue` in `Assign` when `ProgramDefinedFunctionStack.TryPeek()` matches the lvalue symbol. Advanced monitor 933 → 1040.
+
+3. **`MonitorIpc.cs` RETURN event type byte** — `EmitReturn` used `MWT_NAME` (4); spl's `spl_block_to_wire` returns `MWT_STRING` (1) for the return-type scblk. Fix: use `MWT_STRING`. Advanced monitor to 1046.
+
+### Next divergence (step 1046, OPEN)
+
+Context: beauty.sno line 787-790 builds `snoExprList` pattern at init time:
+```
+snoExprList = nPush() *snoXList ("'snoExprList'" & '*(GT(nTop(), 1) nTop())') nPop()
+```
+During execution of this assignment, `nPush()` is called, which calls `PushCounter()`. After the entire RHS is evaluated, `nPop()` is called as the last sub-expression. When `nPop()` returns:
+- **spl** → `LABEL stno=595` = `XDump.inc:22` (`XDump20  objProto = PROTOTYPE(object)`, inside `refs` function body — the correct continuation after the `snoExprList` assignment statement)
+- **dot** → `LABEL stno=587` = `XDump.inc:14` (`IDENT(objType, 'PATTERN') :S(XDump00)`, a different point inside XDump)
+
+Both landing addresses are inside the `XDump` function body (which was defined and compiled earlier). This is **function return-stack corruption**: dot's return address for `nPop()` (called during expression evaluation, not from a statement-level call) is pointing at the wrong label. The stno values come from the stno_map: stno 587 = XDump.inc line 14, stno 595 = XDump.inc line 22.
+
+**Hypothesis:** The threaded execute loop's call-return stack (`ExecuteLoop` return index) is being indexed wrongly when a user-defined function is called *during evaluation of an expression that appears on the RHS of an assignment* (as opposed to being called from a top-level statement). The `snoExprList = nPush() ... nPop()` line calls `nPush` and `nPop` as part of the RHS expression. The return from `nPop` may be using a stale/wrong saved return address, possibly because `ExecuteLoop` is reinvoked recursively and the return-address stack shared with earlier calls (like the XDump function definition) has not been fully cleaned up.
+
+**Where to look in dot code:**
+- `Snobol4.Common/Runtime/Execution/ThreadedExecuteLoop.cs` — how `ExecuteLoop` saves/restores return addresses for function calls
+- `Snobol4.Common/Runtime/Functions/FunctionControl/Define.cs` — `ExecuteProgramDefinedFunction` calls `ExecuteLoop(LabelTable[entry])` which returns `nextIndex`; the RETURN/FRETURN/NRETURN cases then push `returnVar` and resume. The bug may be that after this inner `ExecuteLoop` returns, the outer `ExecuteLoop` resumes at the wrong instruction index.
+- Compare with how csn (`csnobol4`) handles the same: the call stack in csn is separate from the threaded code pointer.
+
+**The monitor skip patch** (`MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`) is needed to get past the spl bridge's keyword-VALUE gap at step 933. The patched controller is at `/tmp/monitor_sync_bin_local.py` but is NOT committed (it's a local diagnostic aid). To reproduce the step-1046 divergence, run:
+
+```bash
+cp /tmp/monitor_sync_bin_local.py one4all/scripts/monitor/monitor_sync_bin.py
+PARTICIPANTS="spl dot" \
+    STDIN_SRC=corpus/programs/snobol4/demo/beauty/mini_beauty.sno \
+    MONITOR_TIMEOUT=120 \
+    MONITOR_NAME_WILDCARD=spl \
+    MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1 \
+    MONITOR_TRACE_LOG=/tmp/wire5 \
+    bash one4all/scripts/test_monitor_3way_sync_step_auto.sh \
+    corpus/programs/snobol4/demo/beauty/beauty.sno
+# Restore after: cp monitor_sync_bin_orig.py one4all/scripts/monitor/monitor_sync_bin.py
+```
+
+where `mini_beauty.sno` is the first 26 lines of beauty.sno + "END" (the minimal stdin that reproduces the Parse Error).
+
