@@ -29,7 +29,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-26-bridge-coverage-o (extra CALL during EVAL/argument evaluation; build-vs-run asymmetry — scrip emits CALL nTop where SPITBOL emits VALUE reduce at step 1257; -n CLOSED session #49 advanced harness 222 steps via 5 bridge-emission alignment fixes) |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-26-bridge-coverage-t (find eager nTop caller via comm_call trap + gdb; -p closed session #51 interleaved grid+stno+source; -s closed RETURN display; -r open SPITBOL PATTERN/NAME/ARRAY/TABLE type discrimination; -q open SPITBOL keyword-assign fire-point) |
 | CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3 (IPC two-way: SPITBOL vs CSNOBOL4 on beauty.sno — find divergence) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |

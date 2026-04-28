@@ -929,13 +929,55 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ new HEAD (session #51 — SN-26-bridge-coverage-p: interleaved trail + stno annotation)
+- one4all @ `6f1b7bb8` (session #52 — SN-26-bridge-coverage-s: RETURN display fix; -p grid+source; sub-rungs -r/-s/-t added)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
 - active step → SN-26-bridge-coverage-o (extra CALL during
   EVAL/argument evaluation; surfaces at step 1257 of 2-way harness
   on beauty.sno).
+
+**Session #52 (2026-04-28) — sub-rungs -r/-s/-t added; -s closed; grid with source.**
+
+1. **DIVERGE grid now renders as markdown table** with source column.
+   `monitor_sync_bin.py` builds stno→source map inline at startup from
+   `MONITOR_SNO_FILE` + `MONITOR_INC_DIR` env vars (pure Python, no sidecar,
+   no subprocess). Grid: `| step | stno | spl | scr | source |`.
+
+2. **-s closed:** RETURN record display changed from `RETURN fname =
+   STRING(6)='RETURN'` to `RETURN fname (RETURN)` — parentheses make clear
+   it is the return kind, not a value assignment.
+
+3. **New sub-rungs:**
+   - **-r** (open): SPITBOL pattern/name/array/table block discrimination.
+     `spl_block_to_wire` returns `MWT_UNKNOWN` for all non-scalar blocks.
+     Fix: add `b_p0l/b_p1l/b_p2l/b_nml/b_arl/b_tbl` externs to `osint.h`
+     and discriminate in `spl_block_to_wire`. Unblocks `VALUE nPush =
+     PATTERN` matching between spl and scr.
+   - **-s** (closed this session): RETURN display fix (above).
+   - **-t** (open, active): find eager nTop caller. Trap in `comm_call`
+     when `fname=="nTop"`, run `scrip --ir-run beauty.sno < /dev/null`
+     under gdb. Backtrace shows exact C path causing eager nTop evaluation
+     inside `reduce = EVAL("epsilon . *Reduce(" t ", " n ")")` at stno=589.
+
+**Active step: SN-26-bridge-coverage-t.**
+
+**Next session resume:**
+- Implement -t diagnostic: add `if (strcmp(fname,"nTop")==0) __builtin_trap();`
+  in `comm_call` (interp.c or snobol4.c — wherever comm_call is defined),
+  rebuild scrip, run under gdb `--ir-run beauty.sno < /dev/null`.
+- Do NOT commit the trap. Read the backtrace, identify the call site, fix
+  the eager-evaluation bug, revert the trap, commit the fix.
+- After -t lands, run the 2-way harness — expect to advance past step 1257.
+- -r (SPITBOL pattern type) is independent and can land same session.
+
+**Files touched (session #52):**
+- `scripts/monitor/monitor_sync_bin.py` (markdown grid, source col, RETURN fmt)
+- `scripts/test_monitor_3way_sync_step_auto.sh` (pass MONITOR_SNO_FILE/INC_DIR)
+- `.github/GOAL-LANG-SNOBOL4.md` (sub-rungs -r/-s/-t; -s closed; state updated)
+- `.github/PLAN.md` (step updated to -t)
+
+**Gates:** Smoke=7, Broker=49.
 
 **Session #51 (2026-04-28) — SN-26-bridge-coverage-p closed.**
 
