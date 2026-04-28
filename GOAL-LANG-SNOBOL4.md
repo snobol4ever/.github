@@ -1582,6 +1582,33 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
 of output md5 `abfd19a7a834484a96e824851caee159` — byte-identical
 to the SPITBOL oracle and to scrip's `--ir-run` from session #57.
 
+**Status (session #59):** SN-32b first sub-rung landed. Root cause of
+the step-2023 divergence identified and fixed in `sm_lower.c`'s
+`lower_pat_expr` E_DEFER handler. The all-E_VAR fast path was packing
+arg names into `ins->a[2].s` but `SM_PAT_USERCALL`'s handler in
+`sm_interp.c` was discarding them via `pat_user_call(fname, NULL, 0)`
+— so `*upr(tx)` was being invoked at match time with **zero args**,
+not the captured value of `tx`.  Fix: always take args-on-stack path
+when `nchildren>0`; defer non-E_QLIT args via `SM_PUSH_EXPR`/DT_E
+(mirrors IR-side at interp.c:4188-4208 exactly).  Same defer-non-E_QLIT
+rule extended to `E_CAPT_COND_ASGN` and `E_CAPT_IMMED_ASGN` args-on-stack
+paths for parity with the IR-side -t fix.  Result: 2-way IPC harness on
+`beauty.sno < beauty.sno` advances **from step 2023 → step 2552**
+(+529 steps) under both `--sm-run` and `--jit-run`.  Both modes lockstep
+as expected (shared sm_lower).  `beauty.sno < /dev/null` still cleanly
+reaches MWK_END at step 1561 (no regression).  Direct-stdout self-host
+`beauty.sno < beauty.sno` now produces 88 lines (was 27 before fix)
+before bailing to `Internal Error` — more progress through beauty's
+logic, remaining bugs need additional sub-rungs.
+
+**New divergence at step 2552** (the next sub-rung's territory):
+`stack.inc:21  $'@S' = next($'@S') :(RETURN)`.  spl emits `VALUE sno =
+UNKNOWN`; scr SM emits `VALUE sno = DATA`.  Same shape as latent
+SN-26-bridge-coverage-r (SPITBOL pattern/data block type discrimination
+returning UNKNOWN where scrip emits the precise type).  Followed
+immediately by stno mismatch (spl=1076, scr=1082 — likely arithmetic
+offset downstream of the type-emission asymmetry, not a runtime bug).
+
 **Status (session #58):** SN-32a partially landed — IPC harness
 wire-up + SM_STNO source-stno operand + blank-stmt skip + IDX_SET
 `<lval>` fire-point.  Both `--sm-run` and `--jit-run` IPC harness
@@ -1660,21 +1687,76 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   - **Remaining work** (to close `-a`): if any deferred fire-point
     surfaces during SN-32b — e.g. NM_PTR/NM_CALL stores during
     pattern capture — mirror them on the SM lowering side.
-- [ ] **SN-32b-beauty-ipc** — re-run 2-way IPC harness on
-  `beauty.sno < beauty.sno` driving scrip with `--sm-run`.  Read
-  last-agree / first-disagree pair only (per RULES.md).  Fix bugs
-  found in `bb_boxes.c` / `sm_lower.c` / `sm_interp.c` that
-  surface there — most likely the build-vs-run distinction (SN-26-t
-  shape) and capture commit fire-points (SN-26-v/-y shape) that
-  the IR path got, but on the SM lowering side.  **Current state:**
-  harness reaches step 2023 (was 26).  Next divergence:
-  `case.inc:9 upr = REPLACE(upr, &LCASE, &UCASE)` during deferred-
-  `*upr` call from `match.inc:8`'s pattern — SPITBOL emits VALUE
-  for the assignment, scr SM emits an extra CALL upr.  Same shape
-  family as SN-26-bridge-coverage-u (extra CALL during pattern
-  build); fix path is to mirror IR's E_CAT/E_SEQ pat-mode promotion
-  (interp.c ~line 2722) into the SM path's pattern-build lowering
-  in `bb_boxes.c` / `sm_lower.c`.
+- [~] **SN-32b-beauty-ipc** — *partial; sub-rung-1 landed session #59.*
+  re-run 2-way IPC harness on `beauty.sno < beauty.sno` driving scrip
+  with `--sm-run`.  Read last-agree / first-disagree pair only (per
+  RULES.md).  Fix bugs found in `bb_boxes.c` / `sm_lower.c` /
+  `sm_interp.c` that surface there — most likely the build-vs-run
+  distinction (SN-26-t shape) and capture commit fire-points (SN-26-v/-y
+  shape) that the IR path got, but on the SM lowering side.
+
+  **Sub-rung-1 (session #59) — bare *fn(args) all-E_VAR fast path was
+  discarding args.**  The fast path in `lower_pat_expr` E_DEFER (case
+  E_FNC) at `sm_lower.c` packed arg names into `ins->a[2].s` and emitted
+  `SM_PAT_USERCALL`, but the `SM_PAT_USERCALL` handler at
+  `sm_interp.c:582-596` always called `pat_user_call(fname, NULL, 0)` —
+  zero args, regardless of the namelist.  Result: `*upr(tx)` at match
+  time invoked upr() with no parameter, not the captured value of `tx`.
+  This was the **first** upr call (step 2021 of the harness), and inside
+  upr's body executing `upr = REPLACE(upr, &LCASE, &UCASE)` the engine's
+  match-driving sweep (still operating on the in-flight pattern from
+  the OUTER `*match(...)` call) re-fired `*upr(tx)` again — manifesting
+  as `CALL upr` at step 2023 inside upr's own body where SPITBOL
+  emitted `VALUE upr=`.
+
+  **Fix (`src/runtime/x86/sm_lower.c` `lower_pat_expr` E_DEFER E_FNC):**
+  - When `ch->nchildren == 0`: emit bare `SM_PAT_USERCALL` with
+    `a[2].s = NULL` (correct).
+  - When `ch->nchildren > 0`: ALWAYS take the args-on-stack path
+    (`SM_PAT_USERCALL_ARGS`).  Defer non-E_QLIT args via `SM_PUSH_EXPR`
+    (DT_E) so match-time thaw via `bb_usercall` → `EVAL_fn` resolves
+    them in the correct (post-cursor-capture) state.  E_QLIT args stay
+    eager (idempotent under EVAL).  Mirrors IR-side at interp.c:4188-4208
+    exactly.
+
+  **Also extended:** the same defer-non-E_QLIT rule applied to
+  `E_CAPT_COND_ASGN` (~L340) and `E_CAPT_IMMED_ASGN` (~L378)
+  args-on-stack paths — for parity with the IR-side -t fix
+  (SN-26-bridge-coverage-t).  Previously these branches deferred only
+  E_FNC and E_VAR; compound expressions like `nTop()+1` lowered
+  eagerly via `lower_expr` would invoke the inner function at
+  pattern-build time.
+
+  **Verification:**
+  - 2-way harness on `beauty.sno < beauty.sno`: advances from step
+    2023 to step 2552 (+529 steps) under both `--sm-run` and `--jit-run`
+    (SM and JIT lockstep — shared sm_lower).  Steps 1..2551 all agree.
+    New divergence at step 2552: `stack.inc:21  $'@S' = next($'@S') :(RETURN)`,
+    `VALUE sno = UNKNOWN` (spl) vs `VALUE sno = DATA` (scr) — same
+    shape as latent SN-26-bridge-coverage-r (SPITBOL type discrimination
+    returning UNKNOWN where scrip emits the precise block type).
+  - 2-way harness on `beauty.sno < /dev/null`: still reaches MWK_END
+    cleanly at step 1561 under both `--sm-run` and `--jit-run` (no
+    regression).
+  - Direct self-host `beauty.sno < beauty.sno`: 27 lines → 88 lines
+    before bail (was 27 lines `Internal Error`; still bails but
+    significantly more progress through beauty's processing).
+  - Smoke=7, Broker=49 preserved.
+
+  **Files touched (session #59):**
+  - `src/runtime/x86/sm_lower.c`:
+    - `lower_pat_expr` E_DEFER E_FNC (~L431): kill all-E_VAR fast path
+      when `nchildren > 0`, always go args-on-stack with DT_E deferral
+    - `lower_pat_expr` E_CAPT_COND_ASGN args-on-stack (~L340): defer
+      all non-E_QLIT args
+    - `lower_pat_expr` E_CAPT_IMMED_ASGN args-on-stack (~L378): same
+
+  **Remaining work to close `-b`:** chase the divergence chain forward
+  one sub-rung at a time per RULES.md "read the divergence point, not
+  the trace".  Next: step 2552 — pattern/data block type discrimination
+  (`-r` shape on SM side).  After that, harness should advance further.
+  Goal: reach clean MWK_END or a divergence rooted in a structurally
+  different bug class.
 - [ ] **SN-32c-beauty-jit** — same as -b but for `--jit-run`.  SM
   and JIT share `sm_lower`; expect lockstep, modulo `sm_codegen.c`
   codegen-only sites.
