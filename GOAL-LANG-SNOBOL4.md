@@ -894,8 +894,61 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gate:** Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-u — extra CALL upr at step 1507 during
-  `icase = icase (upr(letter) | lwr(letter))` build.  Opened session #53.**
+- [x] **SN-26-bridge-coverage-u — extra CALL upr at step 1507 during
+  `icase = icase (upr(letter) | lwr(letter))` build.  CLOSED session #54
+  (2026-04-28).**
+
+  **Root cause:** `interp.c` E_CAT/E_SEQ mid-loop pattern promotion
+  (~line 2722) was double-evaluating the child operand that triggered
+  the promotion.  When `nxt = interp_eval(children[i])` returned DT_P
+  (because the child was an E_ALT, which internally calls
+  `interp_eval_pat` and fires its inner functions once during build),
+  the promotion path at the original line 2729 unconditionally
+  re-evaluated `nxt` via `interp_eval_pat`, calling those functions
+  a second time.  It also re-evaluated prior children 0..i-1, which
+  would double-call any fn-bearing children there too — but in the
+  observed cases prior children were plain scalars (strings) so
+  that aspect was latent until exposed.
+
+  **Fix:** when promoting to pat_mode mid-loop, keep `nxt` as-is
+  (it's already DT_P).  Don't re-evaluate prior children either —
+  `has_defer` pre-scan already catches the only case that would
+  produce frozen DT_E among them (E_DEFER children), starting the
+  loop in pat_mode from child[0].  When has_defer is false, all
+  prior `acc` values are valid scalars (DT_S/DT_I/DT_R/DT_SNUL)
+  that `pat_cat` coerces correctly via `pat_to_patnd`.
+
+  **Probe narrowing:** isolated the trigger to "non-pattern LHS
+  concatenated with E_ALT-containing-fn-calls RHS", i.e. shapes
+  like `'X' (upr(l) | lwr(l))` and `letter (upr(l) | lwr(l))`,
+  not the bare `upr(l) | lwr(l)` or `(upr(l) | lwr(l))` forms.
+  The `icase = icase (...)` self-concat shape and the `.`-captured
+  `letter` variable were red herrings — the bug fires on any
+  non-pattern LHS, not just `icase`.
+
+  **Verification:**
+  - 9 probes (`p1..p9`) all match SPITBOL byte-for-byte after fix.
+  - Smoke=7, Broker=49 preserved.
+  - All 5 buildable SN-26 bridge smokes PASS (3 SKIP for missing
+    csnobol4 — expected per oracle pivot).
+  - 2-way harness on `beauty.sno < /dev/null`: advances from step
+    1507 to step 1560 (+53 steps).  New divergence at 1560 is the
+    `:F(END)` end-of-input flow on /dev/null stdin — different bug
+    class entirely (SPITBOL emits one more LABEL for END stmt; scrip
+    reaches MWK_END).  Not gating; harness essentially terminates.
+  - 2-way harness on `beauty.sno < beauty.sno`: advances to step
+    1565.  New divergence is `OUTPUT = snoLine` — scrip emits a
+    VALUE record for the `OUTPUT` keyword-assignment, SPITBOL is
+    silent (next emission is a LABEL).  This matches sub-rung -q
+    exactly (SPITBOL keyword-assignment fire-point missing).
+
+  **Files touched:**
+  - `src/driver/interp.c` (~line 2722: removed `nxt` and prior-child
+    re-evaluation in mid-loop pat promotion)
+
+  **Gates:** Smoke=7, Broker=49.
+
+  Original -u investigation block follows for historical reference:
 
   After -t closure, the 2-way harness on `beauty.sno < /dev/null`
   reaches step 1507 cleanly and diverges:
@@ -961,11 +1014,15 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gate:** Smoke=7, Broker=49.
 
-**Dependencies (post 2026-04-28 session #53, -t/-o closed):**
+**Dependencies (post 2026-04-28 session #54, -u closed):**
 -e → -f → -g → (-k, -l) → -j → -m → -n → -t/-o → -u → -h.
 -p CLOSED session #51 (interleaved trail + stno annotation; gates preserved).
 -s CLOSED session #52 (RETURN display fix).
 -t/-o CLOSED session #53 (eager E_FNC inside compound pat-target args).
+-u CLOSED session #54 (E_CAT mid-promotion double-eval of nxt and prior children).
+-h next: 2-way harness on beauty.sno < /dev/null reaches step 1560 (essentially
+terminal); on beauty.sno < beauty.sno reaches step 1565 with -q symptom (OUTPUT
+keyword fire-point missing on SPITBOL bridge).
 -q open (SPITBOL keyword-assignment fire-point — independent, can land any session).
 -r open (SPITBOL pattern/name/array/table block discrimination — independent).
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
@@ -1053,12 +1110,103 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ `2700acde` (session #53 — SN-26-bridge-coverage-t/-o closed: defer all non-E_QLIT args in E_CAPT_COND_ASGN; harness 1257 → 1507)
+- one4all @ `2c7d2b28` (session #54 — SN-26-bridge-coverage-u closed: E_CAT mid-promotion no-double-eval; harness 1507 → 1560 on /dev/null, → 1565 on beauty<beauty)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-u (extra CALL upr at step 1507
-  during `icase = icase (upr(letter) | lwr(letter))` build in case.inc:23).
+- active step → SN-26-bridge-coverage-h (2-way harness apples-to-apples
+  on beauty; -u unblocked the path; remaining symptoms are -q (OUTPUT
+  keyword fire-point) and end-of-input flow which is essentially terminal).
+
+**Session #54 (2026-04-28) — SN-26-bridge-coverage-u CLOSED.**
+
+The "extra CALL upr at step 1507" turned out to be a generic
+double-evaluation in `interp.c` E_CAT/E_SEQ mid-loop pattern
+promotion, not specific to the `icase = icase (...)` self-concat
+shape or the `.`-captured `letter` variable.  Probe-narrowing
+(`p1..p9` in `/home/claude/probe_u/`) showed the bug fires on any
+non-pattern LHS concatenated with a pattern operand containing
+function calls.  The two parenthesized E_ALT shapes (`a = upr|lwr`
+and `b = (upr|lwr)`) both agreed with SPITBOL, but `'X' (upr|lwr)`
+and `letter (upr|lwr)` both diverged with the double-call.
+
+**Root cause (interp.c E_CAT/E_SEQ ~line 2722):** when value-mode
+evaluation of children[i] returned DT_P (typically because the
+child was an E_ALT, which calls `interp_eval_pat` internally and
+fires inner functions once during build), the mid-loop promotion
+path threw that valid `nxt` away and called `interp_eval_pat` on
+it again — calling the inner functions a second time.  It also
+re-evaluated prior children 0..i-1, which would double-call any
+functions among them as well; in the observed cases prior children
+were plain scalars so that aspect was latent.
+
+The original justification for the re-evaluation (comment at the
+old line 2722-2727) was "without this, `*term integer` produces
+DT_E for `*term` in value ctx, then hits pat_cat when integer
+arrives".  But `*term` is E_DEFER, which makes `has_defer = 1` in
+the pre-scan above, which makes the loop start in pat_mode from
+child[0] — the mid-promotion path doesn't fire at all in that case.
+So the re-evaluation was never necessary; it was the bug.
+
+**Fix:** keep `nxt` as-is when promoting; don't re-evaluate prior
+children either.  `pat_cat` calls `pat_to_patnd` which coerces
+DT_S/DT_I/DT_R/DT_SNUL to literal patterns — so prior `acc` values
+work correctly without re-eval.  E_DEFER among prior children is
+already prevented by `has_defer` pre-scan starting the whole loop
+in pat_mode.
+
+**Verification:**
+- 9 probes match SPITBOL byte-for-byte (was 4× call counts in scrip
+  for shapes p1, p2, p6, p8c, p8d before fix; 2× after fix matches
+  oracle).
+- Smoke=7, Broker=49 preserved.
+- All 5 buildable SN-26 bridge smokes PASS (3 SKIP for missing
+  csnobol4 — expected per oracle pivot).
+- 2-way harness on `beauty.sno < /dev/null`: advances from step 1507
+  to step 1560 (+53 steps).  New divergence at 1560 is the `:F(END)`
+  end-of-input flow on /dev/null — different bug class, essentially
+  terminal.
+- 2-way harness on `beauty.sno < beauty.sno`: advances to step 1565.
+  New divergence is the `OUTPUT = snoLine` line (beauty.sno:612):
+  scrip emits a VALUE record on the OUTPUT keyword-assignment,
+  SPITBOL is silent (next emission is a LABEL).  This is the open
+  -q sub-rung exactly (SPITBOL keyword-assignment fire-point missing).
+
+**Files touched (session #54):**
+- `src/driver/interp.c` (~line 2722: removed `nxt` and prior-child
+  re-evaluation in mid-loop pat promotion; added explanatory comment
+  pointing at SN-26-bridge-coverage-u)
+- `.github/GOAL-LANG-SNOBOL4.md` (-u closed; HEADs updated; session
+  #54 narrative)
+- `.github/PLAN.md` (step updated to -h)
+
+**Gates:** Smoke=7, Broker=49.
+
+**Next session resume:**
+- Active step is now -h (apples-to-apples on beauty, 2-way).  -u
+  was the last semantic-runtime divergence.  Remaining symptoms
+  reachable via -h are: -q (OUTPUT keyword fire-point on SPITBOL
+  bridge), and end-of-input flow which is essentially terminal.
+- Landing -q is straightforward: SPITBOL has the asign/asg14/asg15
+  keyword-assignment path; add a `sysmkw` fire-point analogous to
+  the existing `sysmv`/`sysmw` work from -b/-l.  See -q block
+  earlier in this file for the architectural sketch.
+- After -q lands, re-run the 2-way harness and document where the
+  new first divergence falls.  If it's truly inside END/EOF flow,
+  -h closes by inspection and the goal pivots to broader corpus
+  parity (SN-29f canonical .ref capture, SN-30f regression sweep).
+
+**Lesson for future sessions.**  When a bug "specific to" some
+elaborate source shape (right-recursive self-concat, .-captured
+variable, etc.) is reduced through aggressive probe narrowing,
+look at what the simpler probes can still trigger.  Both the
+self-concat and the .-capture turned out to be irrelevant to the
+actual bug; the trigger was just "non-pattern LHS + alternation
+with fn calls".  The narrative trail in -u (sessions #43–#53
+descriptions) led with the symptom shape, which is a natural
+starting point but rarely the whole story.
+
+---
 
 **Session #53 (2026-04-28) — SN-26-bridge-coverage-t/-o CLOSED;
 -u opened.**
