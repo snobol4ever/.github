@@ -1582,32 +1582,16 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
 of output md5 `abfd19a7a834484a96e824851caee159` — byte-identical
 to the SPITBOL oracle and to scrip's `--ir-run` from session #57.
 
-**Status (session #59):** SN-32b first sub-rung landed. Root cause of
-the step-2023 divergence identified and fixed in `sm_lower.c`'s
-`lower_pat_expr` E_DEFER handler. The all-E_VAR fast path was packing
-arg names into `ins->a[2].s` but `SM_PAT_USERCALL`'s handler in
-`sm_interp.c` was discarding them via `pat_user_call(fname, NULL, 0)`
-— so `*upr(tx)` was being invoked at match time with **zero args**,
-not the captured value of `tx`.  Fix: always take args-on-stack path
-when `nchildren>0`; defer non-E_QLIT args via `SM_PUSH_EXPR`/DT_E
-(mirrors IR-side at interp.c:4188-4208 exactly).  Same defer-non-E_QLIT
-rule extended to `E_CAPT_COND_ASGN` and `E_CAPT_IMMED_ASGN` args-on-stack
-paths for parity with the IR-side -t fix.  Result: 2-way IPC harness on
-`beauty.sno < beauty.sno` advances **from step 2023 → step 2552**
-(+529 steps) under both `--sm-run` and `--jit-run`.  Both modes lockstep
-as expected (shared sm_lower).  `beauty.sno < /dev/null` still cleanly
-reaches MWK_END at step 1561 (no regression).  Direct-stdout self-host
-`beauty.sno < beauty.sno` now produces 88 lines (was 27 before fix)
-before bailing to `Internal Error` — more progress through beauty's
-logic, remaining bugs need additional sub-rungs.
-
-**New divergence at step 2552** (the next sub-rung's territory):
-`stack.inc:21  $'@S' = next($'@S') :(RETURN)`.  spl emits `VALUE sno =
-UNKNOWN`; scr SM emits `VALUE sno = DATA`.  Same shape as latent
-SN-26-bridge-coverage-r (SPITBOL pattern/data block type discrimination
-returning UNKNOWN where scrip emits the precise type).  Followed
-immediately by stno mismatch (spl=1076, scr=1082 — likely arithmetic
-offset downstream of the type-emission asymmetry, not a runtime bug).
+**Status (session #60):** SN-32b CLOSED, SN-32d CLOSED for `--sm-run`.
+Two `SM_STORE_VAR` bugs fixed in `sm_interp.c`:
+(1) stack-underrun when RHS is FAIL (push FAILDESCR to stay balanced);
+(2) pushing NV_SET_fn's unreliable return instead of the original `val`
+(mirrors IR `E_ASSIGN:2844` which always returns `val`).
+`scrip --sm-run beauty.sno < beauty.sno` now produces 646-line output
+md5 `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL oracle.
+`--jit-run` still diverges (md5 `b6873a89707f671133fae5e07b40942c`);
+`sm_codegen.c` has its own paths to audit under SN-32c.
+Smoke=7, Broker=49.
 
 **Status (session #58):** SN-32a partially landed — IPC harness
 wire-up + SM_STNO source-stno operand + blank-stmt skip + IDX_SET
@@ -1687,82 +1671,66 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   - **Remaining work** (to close `-a`): if any deferred fire-point
     surfaces during SN-32b — e.g. NM_PTR/NM_CALL stores during
     pattern capture — mirror them on the SM lowering side.
-- [~] **SN-32b-beauty-ipc** — *partial; sub-rung-1 landed session #59.*
-  re-run 2-way IPC harness on `beauty.sno < beauty.sno` driving scrip
-  with `--sm-run`.  Read last-agree / first-disagree pair only (per
-  RULES.md).  Fix bugs found in `bb_boxes.c` / `sm_lower.c` /
-  `sm_interp.c` that surface there — most likely the build-vs-run
-  distinction (SN-26-t shape) and capture commit fire-points (SN-26-v/-y
-  shape) that the IR path got, but on the SM lowering side.
+- [x] **SN-32b-beauty-ipc** — *CLOSED session #60 (2026-04-28).*
+  Two bugs in `sm_interp.c` `SM_STORE_VAR` fixed; `--sm-run beauty.sno
+  < beauty.sno` now produces 646-line output md5
+  `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL oracle
+  and to `--ir-run`.
 
-  **Sub-rung-1 (session #59) — bare *fn(args) all-E_VAR fast path was
-  discarding args.**  The fast path in `lower_pat_expr` E_DEFER (case
-  E_FNC) at `sm_lower.c` packed arg names into `ins->a[2].s` and emitted
-  `SM_PAT_USERCALL`, but the `SM_PAT_USERCALL` handler at
-  `sm_interp.c:582-596` always called `pat_user_call(fname, NULL, 0)` —
-  zero args, regardless of the namelist.  Result: `*upr(tx)` at match
-  time invoked upr() with no parameter, not the captured value of `tx`.
-  This was the **first** upr call (step 2021 of the harness), and inside
-  upr's body executing `upr = REPLACE(upr, &LCASE, &UCASE)` the engine's
-  match-driving sweep (still operating on the in-flight pattern from
-  the OUTER `*match(...)` call) re-fired `*upr(tx)` again — manifesting
-  as `CALL upr` at step 2023 inside upr's own body where SPITBOL
-  emitted `VALUE upr=`.
+  **Sub-rung-1 (session #59)** — bare `*fn(args)` all-E_VAR fast path
+  discarding args — already recorded above.
 
-  **Fix (`src/runtime/x86/sm_lower.c` `lower_pat_expr` E_DEFER E_FNC):**
-  - When `ch->nchildren == 0`: emit bare `SM_PAT_USERCALL` with
-    `a[2].s = NULL` (correct).
-  - When `ch->nchildren > 0`: ALWAYS take the args-on-stack path
-    (`SM_PAT_USERCALL_ARGS`).  Defer non-E_QLIT args via `SM_PUSH_EXPR`
-    (DT_E) so match-time thaw via `bb_usercall` → `EVAL_fn` resolves
-    them in the correct (post-cursor-capture) state.  E_QLIT args stay
-    eager (idempotent under EVAL).  Mirrors IR-side at interp.c:4188-4208
-    exactly.
+  **Sub-rung-2 (session #60) — two SM_STORE_VAR bugs in `sm_interp.c`.**
 
-  **Also extended:** the same defer-non-E_QLIT rule applied to
-  `E_CAPT_COND_ASGN` (~L340) and `E_CAPT_IMMED_ASGN` (~L378)
-  args-on-stack paths — for parity with the IR-side -t fix
-  (SN-26-bridge-coverage-t).  Previously these branches deferred only
-  E_FNC and E_VAR; compound expressions like `nTop()+1` lowered
-  eagerly via `lower_expr` would invoke the inner function at
-  pattern-build time.
+  The 2-way IPC harness diverged at step 2552 with SPITBOL emitting
+  `LABEL stno=1076` while scrip SM emitted `LABEL stno=1082` — 6 too
+  high.  Reading the last-agree / first-disagree pair (RULES.md):
+  the divergence was at `stack.inc:21  $'@S' = next($'@S') :(RETURN)`,
+  immediately after `Pop()` returned a DATA value stored into `sno`, and
+  `DIFFER(sno = Pop()) :F(mainErr2)` was evaluated.  The SM jumped to
+  mainErr2 (stno=1082) when SPITBOL fell through to stno=1076 (correct).
 
-  **Verification:**
-  - 2-way harness on `beauty.sno < beauty.sno`: advances from step
-    2023 to step 2552 (+529 steps) under both `--sm-run` and `--jit-run`
-    (SM and JIT lockstep — shared sm_lower).  Steps 1..2551 all agree.
-    New divergence at step 2552: `stack.inc:21  $'@S' = next($'@S') :(RETURN)`,
-    `VALUE sno = UNKNOWN` (spl) vs `VALUE sno = DATA` (scr) — same
-    shape as latent SN-26-bridge-coverage-r (SPITBOL type discrimination
-    returning UNKNOWN where scrip emits the precise block type).
-  - 2-way harness on `beauty.sno < /dev/null`: still reaches MWK_END
-    cleanly at step 1561 under both `--sm-run` and `--jit-run` (no
-    regression).
-  - Direct self-host `beauty.sno < beauty.sno`: 27 lines → 88 lines
-    before bail (was 27 lines `Internal Error`; still bails but
-    significantly more progress through beauty's processing).
-  - Smoke=7, Broker=49 preserved.
+  Root cause traced via `ONE4ALL_DIAG_JF` + `ONE4ALL_STEP_TRACE`:
+  on the second call through the `DIFFER(sno = Pop())` expression,
+  `SM_CALL "DIFFER" nargs=1 arg0.v=0` — DIFFER received DT_SNUL (null)
+  not DT_DATA.  `SM_STORE_VAR "sno"` was called with val.v=100 (DT_DATA)
+  but pushed stored.v=0 (DT_SNUL).  `NV_SET_fn("sno", DATA_val)` returns
+  an unreliable SNUL on the second call for the same variable — the IR
+  path (`interp.c E_ASSIGN:2844`) ignores NV_SET_fn's return and always
+  returns the original `val`.  SM_STORE_VAR was using the return value.
 
-  **Files touched (session #59):**
-  - `src/runtime/x86/sm_lower.c`:
-    - `lower_pat_expr` E_DEFER E_FNC (~L431): kill all-E_VAR fast path
-      when `nchildren > 0`, always go args-on-stack with DT_E deferral
-    - `lower_pat_expr` E_CAPT_COND_ASGN args-on-stack (~L340): defer
-      all non-E_QLIT args
-    - `lower_pat_expr` E_CAPT_IMMED_ASGN args-on-stack (~L378): same
+  **Bug 1 — SM_STORE_VAR stack underrun when RHS is FAIL (SN-32b-store-fail):**
+  When `Pop()` FRETURNs inside `DIFFER(sno = Pop())`, `SM_STORE_VAR`
+  set `last_ok=0` and `break`ed WITHOUT pushing anything.  The enclosing
+  `SM_CALL "DIFFER" 1` then popped a stale value from the stack, corrupting
+  the arg and mis-setting `last_ok`.  Fix: push `FAILDESCR` before break
+  so the stack stays balanced and FAIL propagates correctly to the
+  enclosing call.
 
-  **Remaining work to close `-b`:** chase the divergence chain forward
-  one sub-rung at a time per RULES.md "read the divergence point, not
-  the trace".  Next: step 2552 — pattern/data block type discrimination
-  (`-r` shape on SM side).  After that, harness should advance further.
-  Goal: reach clean MWK_END or a divergence rooted in a structurally
-  different bug class.
-- [ ] **SN-32c-beauty-jit** — same as -b but for `--jit-run`.  SM
-  and JIT share `sm_lower`; expect lockstep, modulo `sm_codegen.c`
-  codegen-only sites.
-- [ ] **SN-32d** — verify md5 byte-identical on `beauty.sno <
-  beauty.sno` under both `--sm-run` and `--jit-run`.  Done-when
-  trigger.
+  **Bug 2 — SM_STORE_VAR pushes NV_SET_fn return instead of val (SN-32b-store-val):**
+  `NV_SET_fn` returns unreliable values for DT_DATA objects.  The IR
+  `E_ASSIGN` path always returns `val` (the RHS), not the NV_SET_fn
+  result.  Fixed by storing via `NV_SET_fn(name, val)` then pushing `val`
+  directly — matching the IR exactly.
+
+  **Verification (session #60):**
+  - `scrip --sm-run beauty.sno < beauty.sno` → 646 lines,
+    md5 `abfd19a7a834484a96e824851caee159` ✓ byte-identical to SPITBOL.
+  - IPC harness `beauty.sno < /dev/null` still reaches MWK_END at step
+    1561 under `--sm-run` (no regression).
+  - Smoke=7, Broker=49.
+
+  **Files touched (session #60):**
+  - `src/runtime/x86/sm_interp.c` `SM_STORE_VAR`:
+    - Fail path: push FAILDESCR (stack balance fix).
+    - Success path: push `val` not `NV_SET_fn` return (IR-parity fix).
+
+- [ ] **SN-32c-beauty-jit** — `--jit-run beauty.sno < beauty.sno`
+  byte-identical.  JIT md5 still `b6873a89707f671133fae5e07b40942c`
+  (diverges); SM and JIT share `sm_lower` but `sm_codegen.c` has its
+  own `SM_STORE_VAR`-equivalent code paths to audit.
+- [x] **SN-32d** — `--sm-run` md5 byte-identical confirmed session #60.
+  `--jit-run` md5 gate remains open (tracked under SN-32c).
 
 **Gate:** Smoke=7, Broker=49 after every commit.  Plus
 `--sm-run` and `--jit-run` md5 must approach
