@@ -29,7 +29,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-26-bridge-coverage-y (harness 22857 → 370311 on beauty<beauty after -x closed session #56; CONCAT_fn null-operand short-circuit preserves INT/REAL type when either side is null/empty; -y open `$name = EVAL(expression)` indirect-assign name capture missing in scrip) |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-26-bridge-coverage-y CLOSED session #57 (sharpened end-state target ACHIEVED: harness 370311 → 1277812 on beauty<beauty; self-host md5 abfd19a7a834484a96e824851caee159 byte-identical to SPITBOL; remaining +1.27M divergence is terminal MWK_END label ordering, non-gating; -h closed) |
 | CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (STAR-against-empty bug blocks beauty; pre-existing in vanilla 2.3.3, not a FENCE bug but currently gating done-when; FENCE-specific FNCBX fix landed @ csnobol4 c314e49 — fence_function 10/10) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
