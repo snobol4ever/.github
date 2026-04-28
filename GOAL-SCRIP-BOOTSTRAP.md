@@ -265,13 +265,13 @@ sharpens:
 
 | Sub-rung | Deliverable |
 |----------|-------------|
-| **CB-7a — Template grammar.** | Define the `.tmpl` syntax — three-column LABEL/ACTION/GOTO with typed fields (cursor ops, char-class ops, sentinel returns).  Express all ~30 today's boxes as templates. |
-| **CB-7b — Generator: template → C×x86-64×IR-interp.** | First emission target.  Lock in: generated `bb_*.c` byte-identical to today's hand-written file.  No semantic change; this is the round-trip proof. |
-| **CB-7c — Generator: template → C×x86-64×SM-interp.** | Second cell.  Replaces the SM_BB_* handlers in `sm_interp.c`. |
-| **CB-7d — Generator: template → C×x86-64×SM-codegen (JIT).** | Third cell.  Replaces the `bb_*_emit_binary` family in `bb_build.c`. |
-| **CB-7e — Generator: template → C×x86-64×SM-text-gen (AOT).** | Fourth cell — the new mode.  Emits ahead-of-time C that other backends can adapt. |
-| **CB-7f — Generator: template → JS / MSIL / Jasmin / WAT.** | Per-backend emitters, one cell at a time.  Each cell's gate: beauty self-host byte-identical on that (language, backend) pair. |
-| **CB-7g — Retire the hand-written bb_*.c.** | Once CB-7b round-trip locks in, the hand-written bb files are deleted; their bytes are re-derivable from templates + generator.  Same for `bb_*_emit_binary` once 7d locks in. |
+| **CB-7a — Template grammar.** | Define the `.tmpl` syntax — three-column LABEL/ACTION/GOTO with typed fields (cursor ops, char-class ops, sentinel returns).  Express all 27 today's boxes as templates.  Use BB-GEN-LANG.md's Three-Column Law as the design reference; CODE-shared / DATA-per-invocation invariant from EMITTER-X86.md is structural. |
+| **CB-7e — Text codegen (4th mode) — the unifying step.** | Generator: template → emitted source text in target languages.  Round-trip lock-in: emitted `bb_boxes.c` byte-identical to today's hand-written file in `runtime/x86/`.  Then extend by surface syntax to emit `.s`, `.cs`, `.il`, `.j`, `.java`, `.js`, `.wat` — reproducing the prior `runtime/boxes/` per-language output but generated, not hand-written.  This rung is the gate that makes all five backends reachable; CB-7b/c/d/f below are specialisations of its output. |
+| **CB-7b — In-memory IR-interp specialisation.** | Generated bb body (CB-7e for C) called directly from `interp.c` tree-walk.  No semantic change; the generator's C×IR output IS today's `bb_boxes.c`. |
+| **CB-7c — In-memory SM-interp specialisation.** | Same templated bodies, wired into SM_BB_* dispatch in `sm_interp.c`.  Replaces hand-written SM_BB_* handlers. |
+| **CB-7d — In-memory JIT specialisation.** | Same templated bodies, lowered to bb_pool emit-binary via `bb_emit.c` EMIT_BINARY mode (BB-GEN-X86-BIN.md's dual-mode emitter design).  Replaces the `bb_*_emit_binary` family in `bb_build.c`. |
+| **CB-7f — Per-backend cells: JS / MSIL / Jasmin / WAT.** | Each backend's box runtime is the CB-7e text-codegen output for that language, plus the host's bb_driver (per BB-DRIVER.md).  Each cell's gate: beauty self-host byte-identical on that (language, backend) pair.  EMITTER-{JS,JVM,NET}.md inform per-backend specifics. |
+| **CB-7g — Retire the hand-written bb_*.c.** | Once CB-7e round-trip locks in for the C cell, the hand-written `bb_boxes.c` is deleted; its bytes are re-derivable from templates + generator.  Same for `bb_*_emit_binary` once 7d locks in.  Archive history (commit `660339cd~1`) preserves what it was. |
 
 ### Same pattern applies to SM opcode handlers
 
@@ -313,6 +313,217 @@ compare the same Stage-2 source under all (mode, backend) pairs
 is the natural Milestone-3 gate: if any cell drifts, the
 in-process monitor fires DIVERGE before the beauty self-host gate
 even runs.  Tracked for CB-17 (Milestone 3 trigger).
+
+---
+
+## Historical record: `runtime/boxes/` and the 4th mode
+
+Session #62 archive scan turned up substantial prior work that
+makes the BB-template approach above less speculative and more
+"resume the prior trajectory".  Recording it here so future
+sessions don't re-discover it.
+
+### What lived in `src/runtime/boxes/` (April 2026)
+
+A canonical layout existed: `src/runtime/boxes/<box>/bb_<box>.<ext>`,
+where `<box>` ∈ {abort, alt, any, arb, arbno, atp, bal, breakx, brk,
+capture, dvar, eps, fail, fence, interr, len, lit, not, notany, pos,
+rem, rpos, rtab, seq, span, succeed, tab} (27 boxes), and `<ext>` ∈
+{`.c`, `.s` (NASM), `.cs` (C#), `.il` (MSIL), `.j` (Jasmin), `.java`,
+`.js`, `.wat` (WASM)} — 8 target representations.  At peak (commit
+`660339cd~1` on `one4all`) this directory held **~216 hand-written
+files** implementing the same 27 logical boxes across 8 backends.
+
+This was the **explicit**, **physical** version of the doubly-
+duplicated matrix the BB-template section above describes
+abstractly — proof that the problem is real, not anticipated.
+Every box was hand-written 8 times.
+
+The collateral cost was visible:
+
+- The session #61 SN-32c-class drift (one cell fixed, sister cells
+  forgotten) was the routine state of `runtime/boxes/`.  Bug
+  reports against `bb_alt.cs` would be fixed in `bb_alt.cs` and
+  not reach `bb_alt.j` until weeks later.
+- Cross-backend semantic conformance was provable only by running
+  the corpus on every backend separately — no shared-source
+  guarantee.
+- Adding a new box meant 8 new file edits.  Adding a new backend
+  meant 27 new file ports.
+
+### What it left behind (the canonical 3-column form)
+
+Despite the maintenance burden, the work proved out the canonical
+**three-column LABEL/ACTION/GOTO form** documented in
+`.github/archive/BB-GEN-LANG.md`:
+
+```
+    LABEL:          ACTION                          GOTO
+    ───────────────────────────────────────────────────────
+    BIRD_α:         if (Σ[Δ+0] != 'B')             goto BIRD_ω;
+                    BIRD = str(Σ+Δ, 4); Δ += 4;    goto BIRD_γ;
+    BIRD_β:         Δ -= 4;                         goto BIRD_ω;
+```
+
+The Three-Column Law (BB-GEN-LANG.md, BB-GEN-X86-TEXT.md):
+
+| Backend | Col 1 (LABEL) | Col 2 (ACTION) | Col 3 (GOTO) |
+|---------|--------------|----------------|--------------|
+| C        | col 0, w=22 | col 22, w=40 | col 62+ — `goto X;` or `return` |
+| NASM .s  | col 0, w=20 | col 20, w=40 | col 60+ — `; comment` or `jmp` |
+| .cs      | C-style with α/β as method names; ports are returns | | |
+| .il      | `LEN_A_FAIL:` style suffix labels; ports are `br`/`bgt` | | |
+| .j       | `len_omega:` lowercase suffix; ports are `goto`/`if_icmpgt` | | |
+| .java    | mirrors C — `α()` and `β()` methods; same goto-or-return shape inside | | |
+| .js      | object methods `α()` / `β()`; returns sentinel for ω | | |
+| .wat     | `bb_len_a` / `bb_len_b` exports; `i32.const -1` for ω | | |
+
+Every backend renders the same three-column logical structure;
+only the surface syntax differs.  This is precisely what makes
+template-based generation tractable: the template encodes the
+LABEL/ACTION/GOTO triples in a backend-neutral form, the
+generator picks the syntax per cell.
+
+The boxes also concretely realised the **CODE/DATA split**
+documented in `EMITTER-X86.md`'s "Core Insight" — the box
+function is shared CODE; only the per-invocation ζ struct is
+DATA.  α allocates ζ → that *is* the save.  γ/ω discards ζ →
+that *is* the restore.  Every backend's box implementation
+respects this split because the template form requires it.
+
+### What happened to the per-box files
+
+Commit `660339cd` (April 7, 2026) **consolidated** the
+27-subfolder × 8-backend layout into 6 fat per-language files
+under `src/runtime/boxes/`:
+
+- `bb_boxes.c`   — 629 lines, all 27 C implementations
+- `bb_boxes.s`   — 1,418 lines, all 27 NASM implementations
+- `bb_boxes.cs`  — all 27 C# (in src/runtime/net/)
+- `bb_boxes.il`  — 2,581 lines (with shared foundation + executor)
+- `bb_boxes.j`   — 2,309 lines, all 27 Jasmin
+- `bb_boxes.java` — all 27 Java
+- `bb_boxes.js`  — 596 lines, all 27 JS
+- `bb_boxes.wat` — all 27 WAT
+
+The consolidation saved file count but kept every line still
+hand-written and still doubly duplicated — it organized the
+problem, didn't solve it.
+
+A later commit (`a210465f` "WIP: Flatten src/runtime/ into 5
+platform folders") attempted further reorganization that hit
+build issues; commit `2c760e3d` ("Runtime reorg: archive
+run-asm pipeline; relocate JS/NET source; purge build artifacts")
+folded the boxes back into the active x86-only path.  Today's
+`one4all` HEAD has only `runtime/x86/bb_boxes.c` (794 LoC) and
+the related `bb_*` infrastructure live; the other backends'
+box files exist in archive history.
+
+### The 4th mode — SM/BB text codegen
+
+The Goal's BB-template ladder (CB-7a..g, CB-8a..d) puts the
+**4th execution mode** — SM/BB **text codegen** — as the unifying
+deliverable.  Today's three modes are all in-memory:
+
+| Mode | Output | Used by |
+|------|--------|---------|
+| IR-interp | tree-walk on `EXPR_t` | `--ir-run`; `bb_*` boxes called from `interp.c` |
+| SM-interp | dispatch loop on `SM_Instr[]` | `--sm-run`; `bb_*` boxes called from `sm_interp.c` |
+| SM in-mem JIT | x86 bytes via `bb_emit.c` EMIT_BINARY | `--jit-run`; `bb_*_emit_binary` from `bb_build.c` |
+| **SM text codegen** | source text in target language | (NEW) — emits `.c` / `.js` / `.cs` / `.il` / `.j` / `.wat` ahead of time |
+
+The 4th mode is exactly what the old `runtime/boxes/<box>/<lang>`
+files were trying to be — except that those were *hand-written*,
+which is the scaling failure.  CB-7e (4th mode) makes the same
+per-language box source emerge from the template generator, so
+the generator's output for `<box>×<C>×IR-interp` is what
+`bb_boxes.c` is today, and its output for `<box>×<JS>×IR-interp`
+is what `bb_boxes.js` was in commit `660339cd`.  The generator
+is the deterministic source those 8 hand-written copies were
+trying to share.
+
+### Sequencing implication: 4th mode first
+
+Because the 4th mode (text codegen) emits **source text** in the
+target language, it is the natural **unification point** for
+all backends.  Once CB-7e closes for one backend (start with C),
+the same generator emits the other backends' boxes as a
+straightforward extension — only the language-specific syntax
+templates differ.  This is the explicit reverse of what the old
+`runtime/boxes/` work tried (write each backend independently,
+then unify): generate a unified source first, then the per-mode
+in-memory specialisations (CB-7b/c/d) fall out as compiled
+forms of the same template.
+
+The CB-7 ordering in the sub-rung list (above) leads with **CB-7a
+(template grammar)** and **CB-7e (text codegen, 4th mode)** as
+the unifying first deliverables — `--ir-run` / `--sm-run` /
+`--jit-run` modes (CB-7b/c/d) are then specialisations of the
+same template targeted at different in-memory execution
+substrates.  Specifically:
+
+1. **CB-7a — Template grammar** — encode 27 boxes as `.tmpl` files.
+2. **CB-7e — Text codegen (4th mode)** — emit `.c` / `.s` / `.js`
+   / `.cs` / `.il` / `.j` / `.java` / `.wat` from templates.
+   Round-trip lock-in: emitted `bb_boxes.c` byte-identical to
+   today's hand-written file.  This is the unification gate;
+   all backends become reachable at this point.
+3. **CB-7b — In-memory IR-interp specialisation** — generated
+   bb body shares the template; ζ struct is the only per-cell
+   variation.
+4. **CB-7c — In-memory SM-interp specialisation** — same template,
+   wired into SM_BB_* dispatch.
+5. **CB-7d — In-memory JIT specialisation** — same template,
+   wired into bb_pool emit-binary mode.
+
+By starting with the 4th mode (text), the BB matrix becomes a
+single tree of source files generated under Stage-1, with the
+in-memory JIT modes as a downstream optimization.  This is also
+the natural way to feed Milestone 3's other backends — JVM,
+.NET, JS, WASM — because their box runtimes will be **emitted
+files**, not hand-written, from day one.
+
+### Per-backend emitter scaffolding already exists
+
+The archive also retains per-backend emitter design docs that
+will inform CB-7f (per-backend cell completion):
+
+| Doc | Backend | Notable content |
+|-----|---------|-----------------|
+| `archive/EMITTER-COMMON.md` | All | Three-column generated C format; multi-backend single-IR rules; SIL naming |
+| `archive/EMITTER-X86.md` | x86-64 | CODE-shared/DATA-per-invocation insight; 151-macro `snobol4_asm.mac` |
+| `archive/EMITTER-X86-DEEP.md` | x86-64 | Deep emitter ABI / register conventions |
+| `archive/EMITTER-JVM.md` | JVM | Jasmin emission patterns; `pl_foo_1$Closure` resumable predicate model |
+| `archive/EMITTER-NET.md` | .NET | Threaded `Instruction[]` + MSIL delegate JIT pipeline (Jeff Cooper's snobol4dotnet) |
+| `archive/EMITTER-JS.md` | JS | `new Function()` for EVAL/CODE; static vs dynamic Byrd box paths |
+| `archive/BB-GEN-LANG.md` | C/Java/JS/WASM/C# | Three-Column Law; per-language generator status |
+| `archive/BB-GEN-X86-TEXT.md` | x86-64 | NASM three-column layout; one proc per box; globbing |
+| `archive/BB-GEN-X86-BIN.md` | x86-64 | Dual-mode emitter (TEXT/BINARY); label resolution; relocation |
+| `archive/BB-DRIVER.md` | All | `bb_driver(root, subj, len, ...)` signature; five-phase context |
+| `archive/BB-GRAPH.md` | All | The 25-standard-box catalogue + four-port (α/β/γ/ω) law |
+| `archive/GENERAL-BYRD-DYNAMIC.md` | All | The fundamental "everything dynamic" framing; M-DYN-* milestone chain |
+
+These docs are reference material, not active spec.  CB-7a's
+template grammar should be designed in light of them — they
+encode several years of per-backend work that the template
+must subsume cleanly.  In particular, the **CODE-shared /
+DATA-per-invocation** principle is the structural law that
+makes templated emission tractable.
+
+### Latent corollary: the SM_Instr emitters too
+
+The same archival pattern exists for SM_Instr handlers — see
+`EMITTER-COMMON.md`'s "Per-Instruction Emit" section.  Each
+`SM_Op` maps to an emit function in every backend.  Today
+`sm_codegen.c` emits sprinkled `PUSH(...)` and `emit_byte(...)`
+calls per opcode; the template approach unifies these the same
+way it unifies the box bodies.  The "generated code looks like
+SNOBOL4 in a way" observation captures this — the template is
+the LABEL/ACTION/GOTO triple, the same shape SNOBOL4 statements
+have natively.  CB-8a..d apply the BB-template approach to the
+~30 SM opcode handlers, eliminating the SN-32c-class drift
+(sm_interp vs sm_codegen vs forthcoming JS/JVM/.NET handlers)
+by construction.
 
 ---
 
@@ -591,6 +802,50 @@ Other risks tracked but not blocking:
 - **GOAL-FULL-INTEGRATION.md** — the parallel-frontend integration
   work. CB-1's mapping audit refines its module boundaries.
 
+**Archive references (informative — not active spec, but design
+inputs for CB-7a's template grammar):**
+
+- `archive/BB-GEN-LANG.md` — Three-Column Law; per-language
+  generator status (C/Java done, JS/WASM/C# stub).
+- `archive/BB-GEN-X86-TEXT.md` — NASM three-column layout; one
+  proc per box; multi-line port bodies; globbing rules for
+  named-pattern procs.
+- `archive/BB-GEN-X86-BIN.md` — Dual-mode emitter (TEXT/BINARY);
+  label resolution; relocation; cache coherence at mprotect
+  RW→RX transition.
+- `archive/BB-DRIVER.md` — Five-phase statement context; `bb_driver`
+  signature; per-platform driver locations (C / Java / C# / JS /
+  WASM).
+- `archive/BB-GRAPH.md` — 25-standard-box catalogue;
+  α/β/γ/ω four-port law; box state ζ structure.
+- `archive/EMITTER-COMMON.md` — Per-instruction emit; multi-backend
+  single-IR rules; SIL naming conventions; three-column generated
+  C format (col 0 / col 18 / col 60).
+- `archive/EMITTER-X86.md` / `EMITTER-X86-DEEP.md` — CODE-shared /
+  DATA-per-invocation insight; `snobol4_asm.mac` (151 macros).
+- `archive/EMITTER-JVM.md` — Jasmin emission; Prolog×JVM resumable
+  predicate pattern.
+- `archive/EMITTER-NET.md` — Threaded `Instruction[]` + MSIL
+  delegate JIT (Jeff Cooper's snobol4dotnet).
+- `archive/EMITTER-JS.md` — `new Function()` for EVAL/CODE; static
+  vs dynamic Byrd box paths.
+- `archive/GENERAL-BYRD-DYNAMIC.md` — The fundamental "everything
+  dynamic" framing; M-DYN-* milestone chain; static compilation
+  as optimization, not model.
+
+**Git history references:**
+
+- `one4all` commit `660339cd~1` — peak `runtime/boxes/<box>/<lang>`
+  layout (~216 hand-written per-language box files).  Use
+  `git show 660339cd~1:src/runtime/boxes/len/bb_len.c` etc. to
+  recover any hand-written cell as a starting point for the
+  template grammar.
+- `one4all` commit `660339cd` — consolidation into 6 fat
+  `bb_boxes.<lang>` files.  6,700+ lines total across all backends.
+- `one4all` commit `ac19c92c` (RT-120) — final hand-written `.s`
+  rewrite with correct ABI; sizes documented per box (e.g.
+  `bb_len: 90 code bytes / 24 data bytes`).
+
 ---
 
 ## Active rung
@@ -598,19 +853,37 @@ Other risks tracked but not blocking:
 CB-1 — mapping audit. Output is the lock-in table replacing the
 "starting partition" above. Until CB-1 lands, no port work begins.
 
-After CB-1 closes, the natural ordering is:
+After CB-1 closes, the natural ordering reflects the **4th-mode-first**
+unification design (see "Historical record: `runtime/boxes/`" above):
 
-- CB-2 (boot-host adapter contract) — defines the C ↔ SCRIP-language ABI
-- **CB-7a (BB template grammar)** — express today's ~30 boxes as
-  templates, before any port begins.  The template grammar is the
-  spec for cells CB-7b..g and CB-8a..d; settling it early prevents
-  re-shaping after pilots.
-- CB-3 (SNOBOL4 frontend pilot) — proven CB-2 boundary contract.
-- CB-7b (template → C×x86-64×IR-interp round-trip) — first lock-in
-  of the generator.
+1. **CB-2** (boot-host adapter contract) — defines the C ↔ SCRIP-language ABI.
+2. **CB-7a** (BB template grammar) — express today's 27 boxes as
+   templates.  Use BB-GEN-LANG.md's Three-Column Law as the design
+   reference.  Settling the grammar early prevents re-shaping after
+   pilots.
+3. **CB-7e** (text codegen, the 4th mode) — generator emits the
+   C cell (`bb_boxes.c`) round-trip byte-identical to today's
+   hand-written file.  This is the unification gate; the same
+   generator, with surface-syntax modules added per backend, then
+   emits `.s` / `.cs` / `.il` / `.j` / `.java` / `.js` / `.wat` —
+   reproducing what the deleted `runtime/boxes/<box>/<lang>` tree
+   would have been if it had been generated, not hand-written.
+4. **CB-7b/c/d** (in-memory IR / SM / JIT specialisations) — fall
+   out of CB-7e's C cell.  These are compiled forms of the same
+   template, wired into the three live execution modes.
+5. **CB-3** (SNOBOL4 frontend pilot) — proven CB-2 boundary contract.
+6. **CB-4 / CB-5** (the big SNOBOL4 runtime ports) — follow the
+   lock-ins above, since they call into the generated bb runtime.
+7. **CB-8a..d** (SM opcode templates) — apply the same template
+   approach to the ~30 SM opcode handlers.  Eliminates the
+   sm_interp.c-vs-sm_codegen.c drift that produced SN-32c.
 
-CB-4 / CB-5 (the big SNOBOL4 runtime ports) follow the lock-ins
-above, since they call into the generated bb runtime.
+The 4th-mode-first ordering is the key sequencing decision.  Prior
+work (`runtime/boxes/` April 2026) tried the opposite — write each
+backend independently, then unify.  That produced 27×8 = 216 hand-
+written files and the maintenance burden that motivated this Goal.
+Generating the 4th-mode source first means every backend's box
+runtime becomes a generator output from day one.
 
 ---
 
