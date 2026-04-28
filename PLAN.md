@@ -131,7 +131,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan (session #56 dot@3a74102: 3 wire fixes — IndexCollection sentinel on Failure guard, suppress duplicate fn-return VALUE emission, RETURN event type MWT_STRING; monitor at step 1046; NEXT: after nPop() RETURN from snoExprList=nPush()…nPop() RHS, dot jumps to stno=587/XDump.inc:14 instead of correct stno=595/XDump.inc:22 — function return-stack corruption during nested calls in expression eval) |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan (session #58: stno-stable fix lands — Executive.SourceStno precomputed at build time, three runtime LABEL emit sites no longer read from mutable Parent.Code; previous step-1044/1046 divergence was wire-only [misdiagnosed in session #56 as fn-return-stack corruption], runtime control flow was correct all along; monitor advances to step 1497 with new real divergence at case.inc:22 — destructive `. letter = ` match-and-replace emits VALUE on spl side but dot side has missing-fire-point in pattern-match `=` rebinding; unit suite still 2075p/14f, no regression; controller gains MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1 opt-in workaround for spl bridge keyword-VALUE gap) |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 |

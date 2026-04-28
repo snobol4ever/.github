@@ -280,6 +280,85 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
     predicate regression and the `&FULLSCAN` Parse Error are **distinct
     bugs**. Predicate fix did not unblock self-host.
 
+- [x] **S-2-bridge-7-stno-stable** — Wire LABEL stno emission no longer
+  depends on mutable `Parent.Code`.  Fixed Mon Apr 28 2026 (snobol4dotnet
+  HEAD-of-session-58).
+
+  **Bug:** All three LABEL emit sites (`MsilHelpers.InitStatementMsil`,
+  `ThreadedExecuteLoop` `OpCode.Init` case, `InitializeFinalize.InitializeStatement`)
+  computed the wire stno at runtime via:
+  ```
+  blanks = Parent.Code.SourceLines[stmtIdx].BlankLineCount;
+  EmitLabel(stmtIdx + 1 + blanks);
+  ```
+  But `Parent.Code` is replaced in-place by every EVAL/CODE invocation
+  (`exec.Parent.Code = new SourceCode(exec.Parent)` in
+  `Eval.cs`, `Code.cs`, and the four `*ConversionStrategy.cs` files).
+  After the first EVAL runs, the main program's `SourceLines` list is
+  gone from `Parent.Code` and `stmtIdx` falls past the end of the
+  replacement (much smaller) list — the guard returned `blanks = 0`
+  and the wire stno was emitted **short by the BlankLineCount of the
+  enclosing statement**.
+
+  **Symptom on the wire:** monitor at the 3-bug-fix watermark step 1046
+  diverged at the first nPop call after the OPSYN'd `&` (= reduce)
+  triggered an EVAL.  reduce body: `EVAL("epsilon . *Reduce(...)")` —
+  EVAL fires, swaps Parent.Code, leaves a tiny replacement.  Subsequent
+  `CALL nPop` correctly executed nPop's body, but the LABEL stno emit
+  read blank-count from the wrong list and reported stno=587 (semantic.inc:14
+  DEFINE line) instead of stno=595 (semantic.inc:24 nPop body).
+
+  **Fix:** added `Executive.SourceStno`, a precomputed `List<long>`
+  parallel to `SourceCode`, populated by `PopulateMainMetadata` and
+  `PopulateCodeMetadata` at build time as `stmtNumber + 1 + line.BlankLineCount`.
+  All three runtime LABEL emit sites now read from `SourceStno` instead
+  of `Parent.Code.SourceLines`.  EVAL/CODE replace `Parent.Code` freely;
+  `SourceStno` is build-time-frozen and never mutated, so the wire stno
+  is stable.
+
+  **Files changed:**
+  - `Snobol4.Common/Runtime/Execution/Executive.cs` — declared `SourceStno`,
+    initialized in constructor.
+  - `Snobol4.Common/Builder/Builder.cs` — populated in
+    `PopulateMainMetadata` and `PopulateCodeMetadata`.
+  - `Snobol4.Common/Runtime/Execution/MsilHelpers.cs` — read from
+    `SourceStno` in `InitStatementMsil`.
+  - `Snobol4.Common/Runtime/Execution/ThreadedExecuteLoop.cs` — read from
+    `SourceStno` in `OpCode.Init`.
+  - `Snobol4.Common/Runtime/Execution/InitializeFinalize.cs` — read from
+    `SourceStno` in `InitializeStatement`.
+
+  **Test gate:**
+  - Full unit suite: **2075 passed / 14 failed** — exact match to
+    pre-fix baseline.  No regression.
+  - Beauty self-host gate: still **FAIL** at line 26 (`&FULLSCAN = 1`,
+    Parse Error) — same line count (28), same exit (0).  This stno fix
+    is necessary infrastructure for the wire monitor and is not the
+    cause of the Parse Error.
+  - Wire monitor `spl` vs `dot` with `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`
+    + `MONITOR_NAME_WILDCARD=spl`: advanced from divergence at step 1044
+    (LABEL stno=595 vs 587) to step **1497**, a much later point.
+
+- [x] **S-2-bridge-7-monitor-kw-skip** — Controller workaround for
+  spl bridge's missing-VALUE-on-keyword-assignment gap, committed.
+
+  Implementation: `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1` env var in
+  `one4all/scripts/monitor/monitor_sync_bin.py`.  When the env var is
+  set and a step diverges where one or more participants have a `VALUE`
+  event with a name starting with `&`, the controller acks just the
+  VALUE-emitting participants and reads their next record, then retries
+  comparison.  Bounded by `SKIP_MAX_PER_STEP=4` per side per step.
+
+  Off by default — explicit opt-in is required, so we don't silently
+  hide divergences in a routine run.  This is a stand-in until
+  SN-26-bridge-coverage extends the spl bridge to emit VALUE for
+  keyword stores; when that lands, the skip becomes a no-op.
+
+  Validated: with both env vars set, the monitor advances past the
+  spl-side keyword-VALUE gap at beauty.sno line 26 (`&FULLSCAN = 1`)
+  and the subsequent reduce-then-nPop chain that previously diverged
+  at 1044/1046.
+
 - [ ] **S-2-bridge-7-fullscan** — Diagnose the `&FULLSCAN = 1` Parse
   Error directly. The minimal repro is lines 1-26 of beauty.sno + END
   fed as stdin to `dotnet Snobol4.dll -bf beauty.sno`. SPITBOL runs
@@ -291,16 +370,37 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   beauty's grammar (snoStmt / snoSubject / snoLabel / etc.) that gets
   exercised when an actual `&FULLSCAN = 1` paragraph is parsed.
 
+  **Session #58 advance:** with the stno-stable fix above, the monitor
+  reaches step **1497**, where the next divergence is in
+  `case.inc:22` — the `icase` function:
+  ```snobol4
+  icase          IDENT(str)                                                           :S(RETURN)
+  str            POS(0) ANY(&UCASE &LCASE) . letter =                  :F(icase1)
+  ```
+  Last 2 agreed and the diverge:
+  ```
+  | 1496 | 175 | VALUE letter = STRING(1)='E' | VALUE letter = STRING(1)='E' |
+  | 1497 | 175 | VALUE str = STRING(2)='ND'   | LABEL stno=176              |
+  ```
+  spl emits a second VALUE event for `str = 'ND'` (the destructive
+  match-and-replace `... . letter = ` consumed the first char of `str`
+  and rebound it).  dot does not emit that VALUE event — it advances
+  directly to LABEL 176 (the next statement).  This is a missing-VALUE
+  emission on the dot side for **destructive pattern-match assignment
+  in the same statement as the `.` capture-and-replace**.  The first
+  `letter = 'E'` event correctly fires from dot's chokepoint; the
+  follow-on `str = 'ND'` does not.  Likely fire-point gap in
+  `Executive.Assign` / pattern-match scanner: the `=` after the `.`
+  capture is a separate logical assignment that the wire chokepoint
+  does not currently see.
+
   Suggested next-session approach:
-  1. Bisect by reducing beauty's grammar — start by feeding a paragraph
-     of `&FULLSCAN = 1` to a stripped beauty that retains only the
-     statement/keyword grammar paths, see what the smallest grammar is
-     that still fails.
-  2. Or: instrument beauty.sno's `pp_*` callbacks to log every grammar
-     rule that fires, compare spl vs dot.
-  3. Or: walk the threaded-loop opcodes for the parse with
-     `BuildOptions.TraceStatements=true` (find a way to enable from
-     CLI — not currently exposed).
+  1. Add a fire-point in the pattern-match `=` (replacement) path so
+     destructive-match rebinds emit a VALUE event.
+  2. Verify by re-running monitor; expect to advance past 1497.
+  3. Continue chasing the next divergence.  The Parse Error itself
+     may surface as a real value disagreement once the wire reaches
+     line 26.
 
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
