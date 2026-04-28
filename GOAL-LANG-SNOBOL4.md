@@ -709,6 +709,71 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   `VALUE &FULLSCAN = INTEGER=1` / `VALUE &ANCHOR = INTEGER=0` etc. at the
   correct stnos from both spl and scr.  Smoke=7, Broker=49.
 
+- [ ] **SN-26-bridge-coverage-r — SPITBOL pattern-block type discrimination.**
+
+  `spl_block_to_wire` in `monitor_ipc_runtime.c` only recognises `scblk`
+  (STRING), `icblk` (INTEGER), `rcblk` (REAL).  All other block types —
+  including pattern blocks `p0blk`, `p1blk`, `p2blk` — fall through to
+  `MWT_UNKNOWN`.  Result: `VALUE nPush = UNKNOWN` from SPITBOL where scrip
+  emits `VALUE nPush = PATTERN`.  The controller absorbs this via the
+  `MWT_UNKNOWN` wildcard, so no spurious DIVERGE, but the grid row is
+  misleading.
+
+  **Fix (`osint/osint.h` + `monitor_ipc_runtime.c`):**
+  Add `extern void b_p0l(); extern void b_p1l(); extern void b_p2l();` and
+  corresponding `TYPE_P0L / TYPE_P1L / TYPE_P2L` macros to `osint.h`
+  (same pattern as `TYPE_ICL`, `TYPE_SCL`).  In `spl_block_to_wire` add
+  three checks: `if (typ == TYPE_P0L || typ == TYPE_P1L || typ == TYPE_P2L)
+  return MWT_PATTERN;`.  Rebuild sbl.
+
+  Also add `extern void b_nml(); extern void b_arl(); extern void b_tbl();`
+  and `TYPE_NML / TYPE_ARL / TYPE_TBL` for NAME, ARRAY, TABLE so those
+  also report their correct type instead of UNKNOWN.
+
+  **Done-when:** `VALUE nPush = PATTERN` from both spl and scr.
+  `MWT_UNKNOWN` wildcard can be narrowed or removed once all block types
+  are discriminated.  Smoke=7, Broker=49.
+
+- [ ] **SN-26-bridge-coverage-s — fix RETURN record display format.**
+
+  `fmt_event` in `monitor_sync_bin.py` formats a RETURN record as
+  `RETURN fname = STRING(6)='RETURN'` — looks like a value assignment,
+  confusing the reader into thinking the function returned the string
+  `'RETURN'`.  The RETURN payload IS the rtntype string by design
+  (session #49 -n fix), not the function result.  The function result is
+  on the preceding VALUE record for `fname`.
+
+  **Fix (`monitor_sync_bin.py`):** For `MWK_RETURN`, format as
+  `RETURN fname (RETURN)` / `RETURN fname (FRETURN)` / `RETURN fname
+  (NRETURN)` — parentheses make clear it is the return kind, not a
+  value.  No wire change.
+
+  **Done-when:** Grid row 1254 shows `RETURN nPush (RETURN)` not
+  `RETURN nPush = STRING(6)='RETURN'`.  Smoke=7, Broker=49.
+
+- [ ] **SN-26-bridge-coverage-t — find eager nTop caller (the -o bug).**
+
+  The step-1257 divergence: scrip emits `CALL nTop` at stno=589
+  (`reduce = EVAL("epsilon . *Reduce(" t ", " n ")")`) while SPITBOL
+  stores the EVAL result.  The string `n` at that call site contains
+  `'*(GT(nTop(), 1) nTop())'` — scrip is evaluating `nTop()` eagerly
+  inside argument construction instead of deferring it.
+
+  **Diagnostic (do not commit):** in scrip `interp.c`
+  `call_user_function`, add a temporary trap inside `comm_call`:
+  ```c
+  if (strcmp(fname, "nTop") == 0) { __builtin_trap(); }
+  ```
+  Run under gdb: `run --ir-run beauty.sno < /dev/null`.  The trap fires
+  at the first eager `nTop` call; the backtrace shows the exact scrip
+  C call path that triggered it.  From the backtrace identify whether
+  the eager call originates in `EVAL_fn`, `parse_expr_pat_from_str`,
+  `interp_eval` E_FNC handling, or the 5-phase replacement-before-match
+  ordering bug identified in session #50.
+
+  **Done-when:** root cause identified; fix landed; 2-way harness advances
+  past step 1257.  Smoke=7, Broker=49.
+
 - [ ] **SN-26-bridge-coverage-o — extra CALL during EVAL/argument
   evaluation in scrip.  Opened session #49.**
 
