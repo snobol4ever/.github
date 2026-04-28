@@ -318,7 +318,7 @@ even runs.  Tracked for CB-17 (Milestone 3 trigger).
 
 ## Historical record: `runtime/boxes/` and the 4th mode
 
-Session #62 archive scan turned up substantial prior work that
+Session #62 git-history scan turned up substantial prior work that
 makes the BB-template approach above less speculative and more
 "resume the prior trajectory".  Recording it here so future
 sessions don't re-discover it.
@@ -354,8 +354,7 @@ The collateral cost was visible:
 ### What it left behind (the canonical 3-column form)
 
 Despite the maintenance burden, the work proved out the canonical
-**three-column LABEL/ACTION/GOTO form** documented in
-`.github/archive/BB-GEN-LANG.md`:
+**three-column LABEL/ACTION/GOTO form**:
 
 ```
     LABEL:          ACTION                          GOTO
@@ -365,7 +364,7 @@ Despite the maintenance burden, the work proved out the canonical
     BIRD_β:         Δ -= 4;                         goto BIRD_ω;
 ```
 
-The Three-Column Law (BB-GEN-LANG.md, BB-GEN-X86-TEXT.md):
+The Three-Column Law (per-backend column conventions):
 
 | Backend | Col 1 (LABEL) | Col 2 (ACTION) | Col 3 (GOTO) |
 |---------|--------------|----------------|--------------|
@@ -417,7 +416,7 @@ run-asm pipeline; relocate JS/NET source; purge build artifacts")
 folded the boxes back into the active x86-only path.  Today's
 `one4all` HEAD has only `runtime/x86/bb_boxes.c` (794 LoC) and
 the related `bb_*` infrastructure live; the other backends'
-box files exist in archive history.
+box files exist in git history.
 
 ### The 4th mode — SM/BB text codegen
 
@@ -483,38 +482,197 @@ the natural way to feed Milestone 3's other backends — JVM,
 .NET, JS, WASM — because their box runtimes will be **emitted
 files**, not hand-written, from day one.
 
-### Per-backend emitter scaffolding already exists
+### Per-backend emitter design — what each cell looks like
 
-The archive also retains per-backend emitter design docs that
-will inform CB-7f (per-backend cell completion):
+CB-7f (per-backend cell completion) emits boxes in five distinct
+output forms.  Each backend's "shape" is captured below; CB-7a's
+template grammar must subsume all of these cleanly so that one
+`.tmpl` per box generates correct output for every cell.  The
+**CODE-shared / DATA-per-invocation** principle holds across all
+five — α allocates ζ, γ/ω discards ζ — because the host's GC or
+stack discipline, not the box, owns lifetime.
 
-| Doc | Backend | Notable content |
-|-----|---------|-----------------|
-| `archive/EMITTER-COMMON.md` | All | Three-column generated C format; multi-backend single-IR rules; SIL naming |
-| `archive/EMITTER-X86.md` | x86-64 | CODE-shared/DATA-per-invocation insight; 151-macro `snobol4_asm.mac` |
-| `archive/EMITTER-X86-DEEP.md` | x86-64 | Deep emitter ABI / register conventions |
-| `archive/EMITTER-JVM.md` | JVM | Jasmin emission patterns; `pl_foo_1$Closure` resumable predicate model |
-| `archive/EMITTER-NET.md` | .NET | Threaded `Instruction[]` + MSIL delegate JIT pipeline (Jeff Cooper's snobol4dotnet) |
-| `archive/EMITTER-JS.md` | JS | `new Function()` for EVAL/CODE; static vs dynamic Byrd box paths |
-| `archive/BB-GEN-LANG.md` | C/Java/JS/WASM/C# | Three-Column Law; per-language generator status |
-| `archive/BB-GEN-X86-TEXT.md` | x86-64 | NASM three-column layout; one proc per box; globbing |
-| `archive/BB-GEN-X86-BIN.md` | x86-64 | Dual-mode emitter (TEXT/BINARY); label resolution; relocation |
-| `archive/BB-DRIVER.md` | All | `bb_driver(root, subj, len, ...)` signature; five-phase context |
-| `archive/BB-GRAPH.md` | All | The 25-standard-box catalogue + four-port (α/β/γ/ω) law |
-| `archive/GENERAL-BYRD-DYNAMIC.md` | All | The fundamental "everything dynamic" framing; M-DYN-* milestone chain |
+**x86-64 (NASM `.s` text, or raw bytes via `bb_emit.c`):**
+- One NASM proc per box.  Sub-box ports become local labels
+  (`.alpha`, `.beta`, `.gamma`, `.omega`) within the enclosing
+  proc.  Globbing rule: named patterns concatenate sub-box labels
+  into one proc, with internal port wiring expressed as `jmp`.
+- Three-column layout: col 0 / col 20 / col 60.  ACTION column
+  expands a macro-like operation (e.g. `LIT_CHECK "Bird", 4`);
+  GOTO column carries a semicolon comment OR a live `jmp`.  Last
+  line of a port body carries the `jmp` in column 3.
+- Dual-mode emitter: same C function generates either NASM `.s`
+  text or raw x86-64 bytes into `bb_pool`.  Mode switch is global
+  state.  Forward refs in BINARY mode emit a 4-byte placeholder
+  and record `(patch_site, target_label)` in a patch list, resolved
+  on label definition.  Cache coherence: `mprotect(buf, size,
+  PROT_READ|PROT_EXEC)` is the I-cache fence.
+- ABI (per ARCH-x86.md): `rdi = buffer base`, `esi = 0 (α) / 1 (β)`,
+  `r10/r11 = scratch` (caller-saved, no push/pop).  10-byte
+  prologue is shared by every stateful box.
 
-These docs are reference material, not active spec.  CB-7a's
-template grammar should be designed in light of them — they
-encode several years of per-backend work that the template
-must subsume cleanly.  In particular, the **CODE-shared /
-DATA-per-invocation** principle is the structural law that
-makes templated emission tractable.
+**JVM (Jasmin `.j` → `.class`):**
+- One class per box.  α and β are public methods on the box class;
+  γ/ω return values (typically a `Spec` object or null sentinel).
+  Sub-box wiring uses `goto`/`if_icmpgt`/`if_icmplt` against
+  internal labels.  Label naming convention: `len_omega`, `len_gamma`
+  (lowercase suffix).
+- Resumable predicate pattern (Prolog × JVM): each `E_CHOICE` for
+  `foo/1` emits a `.j` class with an inner `$Closure` that holds
+  per-call state.  `tableswitch` on a clause-state field selects
+  the next clause to try.  Backtracking unwinds via the trail.
+- Build path: `jasmin.jar` (bundled at `src/backend/jasmin.jar`)
+  assembles `.j` → `.class`, packaged into `boxes.jar`.
+
+**.NET (MSIL `.il` → assembly, or `Reflection.Emit` `DynamicMethod`):**
+- One class per box implementing `IByrdBox` interface with
+  `Alpha(MatchState ms)` and `Beta(MatchState ms)` methods.  `Spec`
+  is a value type with `Of(int start, int len)` and `Fail` static.
+- Label naming: `LEN_A_FAIL` style (UPPERCASE_PORT format).  Port
+  exits use `br` / `bgt` / `ldsfld` against the static `Spec.Fail`.
+- Two paths in active use today: hand-written `.il` assembled by
+  `ilasm` into `boxes.dll` (live runtime), and hand-written `.cs`
+  (oracle/reference only — never linked into the runtime build).
+- `snobol4dotnet`'s threaded interpreter pipeline (Jeffrey Cooper's
+  full C# runtime) is a separate Stage-1 host: lexer → parser →
+  threaded `Instruction[]` → MSIL delegate JIT via `BuilderEmitMsil.cs`.
+
+**JS (`new Function()` + closures):**
+- Each box is a factory function returning an `{α, β}` object.
+  α and β are methods that read/write shared globals `_Σ`, `_Δ`,
+  `_Ω` and return either a `_spec(start, len)` substring or
+  `_FAIL` (null sentinel).
+- Static vs dynamic paths: for patterns known at compile time, the
+  emitter produces hardwired port functions (e.g. `function P_N_α()
+  { ... return γ_outer; }`).  For runtime-built patterns,
+  `build_pattern()` walks the pattern descriptor and constructs the
+  same `{α, β}` graph as the compiled form — both produce
+  structurally identical execution.
+- EVAL / CODE: `new Function('_rt', body)(_runtime)` is JS's
+  built-in JIT — same performance as statically emitted code.
+- Trampoline model: every SNOBOL4 statement compiles to a
+  zero-argument function returning the next function.  Engine is
+  `let pc = block_START; while (pc) pc = pc();` — identical in C
+  and JS, and the JS form is generally shorter than equivalent C.
+
+**WASM (`.wat` text → `.wasm` binary via `wat2wasm`):**
+- Each box's α and β become exported `func`s with `i32` parameters
+  for the box's per-instance state.  Match state (`$Σ`, `$Δ`, `$Ω`)
+  is imported as mutable globals from the host.
+- Failure sentinel: `i32.const -1`.  Success returns the matched
+  length as `i32 ≥ 0`.  No object types — WASM can't easily carry
+  the C `spec_t { σ, δ }` struct, so the host reconstructs the
+  span from cursor + length using `_Σ`.
+- Limitation: WASM cannot do EVAL / CODE natively — no
+  `new Function()` equivalent.  Either bootstrap a sub-compiler in
+  WASM (large) or fall back to a JS host for those ops (small).
+  Decision deferred to CB-15a spike.
+
+**Universal (per `bb_driver` interface, all backends):**
+
+```c
+/* Called by SM_EXEC_STMT for Phase 3 of every pattern statement. */
+int bb_driver(
+    bb_node_t  *root,        /* root of the BB-GRAPH (built in Phase 2) */
+    const char *subject,     /* subject string (built in Phase 1) */
+    int         subj_len,
+    capture_t  *captures,    /* out: capture results */
+    int        *match_start, /* out: match start cursor */
+    int        *match_end    /* out: match end cursor */
+);
+/* returns: 1 = success (γ exited root), 0 = failure (ω exited root) */
+```
+
+The driver loop is trivial — all backtracking lives inside the
+individual box α/β functions and their ζ state:
+
+```c
+spec_t result = root->α(root);
+while (spec_is_empty(result)) result = root->β(root);
+if (result == SPEC_FAIL) return 0;
+flush_captures(captures);
+return 1;
+```
+
+One driver per platform, written in the platform's language: C
+(`stmt_exec.c`), Java (`bb_executor.java`), C# (`StmtExec.cs`),
+JS, WASM.
+
+### The 25-standard-box catalogue
+
+CB-7a's template grammar must express all of these (the full set
+that all backends must support; ARBNO/ALT/SEQ/CAPTURE compose the
+others):
+
+| Box | Description |
+|-----|-------------|
+| LIT | Match literal string |
+| ANY | Match any char in set |
+| NOTANY | Match any char NOT in set |
+| SPAN | Match one or more chars in set |
+| BREAK | Match up to (not including) char in set |
+| BREAKX | BREAK with backtracking extension |
+| LEN | Match exactly N characters |
+| POS | Succeed if cursor = N |
+| RPOS | Succeed if cursor = len-N |
+| TAB | Advance cursor to position N |
+| RTAB | Advance cursor to len-N |
+| ARB | Match any string (0 or more chars, grows on retry) |
+| ARBNO | Match zero or more repetitions of sub-pattern |
+| REM | Match remainder of subject |
+| BAL | Match balanced parentheses |
+| FENCE | Succeed once, cut on backtrack |
+| ABORT | Always fail, cut all backtracking |
+| FAIL | Always fail (force backtrack) |
+| SUCCEED | Always succeed (force retry) |
+| EPS | Epsilon — match empty, always succeed |
+| SEQ | Sequence: left then right (concatenation) |
+| ALT | Alternative: left or right (alternation) |
+| CAPTURE | Conditional assignment on success |
+| DVAR | Deferred variable — resolve pattern at match time |
+| NOT | Invert: succeed if sub-pattern fails |
+| INTERR | Interrogation — cursor capture |
+| ATP | At pattern: match at specific position |
+
+The four-port law (α/β/γ/ω) is universal — every box has all
+four, every connection is port-to-port:
+
+| Port | Direction | Meaning |
+|------|-----------|---------|
+| α (alpha) | IN  | Try to match (forward attempt) |
+| β (beta)  | IN  | Retry after failure (backtrack) |
+| γ (gamma) | OUT | Succeeded — pass control forward |
+| ω (omega) | OUT | Failed — pass control backward |
+
+α and β are entry ports; γ and ω are exit ports.  Box state ζ
+(zeta) carries per-invocation locals.  α allocates ζ; γ/ω
+discards ζ — running forward and backward IS save and restore.
+
+### The "everything is dynamic" framing
+
+A crucial design conclusion from prior work: **everything in
+SNOBOL4 is built on the fly**.  Static compilation is an
+optimization, not the model.  Every sub-phase of every statement
+has a γ port and an ω port — the α/β/γ/ω wiring IS the
+execution model, all the way from the outermost statement to the
+innermost literal match.  A statically-compiled box sequence and
+a dynamically-built one are the same thing; the static case is
+the degenerate case where the builder's output is invariant
+across executions.
+
+This matters for the template grammar: the template encodes the
+**dynamic** form (build the box, wire its ports, run α).  The
+static optimization (cache the box, skip the build, jump
+directly to the cached α) is a downstream specialisation that
+the generator can produce automatically by detecting invariance.
+EVAL / CODE then fall out for free — they are the runtime doing
+what the runtime always does, with source text that arrived
+late.
 
 ### Latent corollary: the SM_Instr emitters too
 
-The same archival pattern exists for SM_Instr handlers — see
-`EMITTER-COMMON.md`'s "Per-Instruction Emit" section.  Each
-`SM_Op` maps to an emit function in every backend.  Today
+The same pattern exists for SM_Instr handlers.  Each `SM_Op`
+maps to an emit function in every backend.  Today
 `sm_codegen.c` emits sprinkled `PUSH(...)` and `emit_byte(...)`
 calls per opcode; the template approach unifies these the same
 way it unifies the box bodies.  The "generated code looks like
@@ -789,8 +947,12 @@ Other risks tracked but not blocking:
 
 ## Cross-references
 
+**Active HQ files referenced by this Goal:**
+
 - **PLAN.md** — Three-milestone authorship agreement. This Goal
   delivers Milestones 2 and 3.
+- **RULES.md** — commit identity, gates, sync-step-monitor
+  protocol; all CB-* sub-rungs are bound by it.
 - **GOAL-LANG-SNOBOL4.md** — Milestone 1 (closed session #61).
   CB-3 / CB-4 / CB-5 inherit its done-when invariant.
 - **GOAL-LANG-SNOCONE.md, -ICON, -PROLOG, -RAKU, -REBUS** — each
@@ -799,41 +961,27 @@ Other risks tracked but not blocking:
 - **GOAL-NET-BEAUTY-SELF.md** — the .NET self-host work in
   progress. CB-14 absorbs that ladder once the SCRIP-language
   port is the input.
+- **GOAL-UNIFIED-BROKER.md** — the `BB_SCAN`/`BB_PUMP`/`BB_ONCE`
+  three-mode broker is the active spec for what every backend's
+  `bb_driver` implementation must dispatch.
 - **GOAL-FULL-INTEGRATION.md** — the parallel-frontend integration
   work. CB-1's mapping audit refines its module boundaries.
+- **ARCH-IR.md** — EXPR_t / STMT_t / EKind / five-phase statement
+  / polyglot Program* / three broker modes (BB_SCAN/BB_PUMP/
+  BB_ONCE).  CB-6 and CB-8 inherit the SM_Program definition
+  from here.
+- **ARCH-x86.md** — x86-64 backend ABI (rdi/esi entry, r10/r11
+  scratch, 10-byte prologue, code+data buffer layout).  CB-7d
+  inherits the BINARY mode emitter spec from here.
+- **ARCH-JVM.md, ARCH-NET.md, ARCH-JS.md, ARCH-WASM.md, ARCH-C.md**
+  — per-backend conventions.  CB-7f's per-backend cell
+  completion lands content into these files as each cell closes.
+- **ARCH-SNOBOL4.md, ARCH-SNOCONE.md, ARCH-ICON.md, ARCH-PROLOG.md,
+  ARCH-REBUS.md, ARCH-SCRIP.md** — per-frontend conventions.
+  CB-3 and CB-9 land content into these files as each frontend
+  port lands.
 
-**Archive references (informative — not active spec, but design
-inputs for CB-7a's template grammar):**
-
-- `archive/BB-GEN-LANG.md` — Three-Column Law; per-language
-  generator status (C/Java done, JS/WASM/C# stub).
-- `archive/BB-GEN-X86-TEXT.md` — NASM three-column layout; one
-  proc per box; multi-line port bodies; globbing rules for
-  named-pattern procs.
-- `archive/BB-GEN-X86-BIN.md` — Dual-mode emitter (TEXT/BINARY);
-  label resolution; relocation; cache coherence at mprotect
-  RW→RX transition.
-- `archive/BB-DRIVER.md` — Five-phase statement context; `bb_driver`
-  signature; per-platform driver locations (C / Java / C# / JS /
-  WASM).
-- `archive/BB-GRAPH.md` — 25-standard-box catalogue;
-  α/β/γ/ω four-port law; box state ζ structure.
-- `archive/EMITTER-COMMON.md` — Per-instruction emit; multi-backend
-  single-IR rules; SIL naming conventions; three-column generated
-  C format (col 0 / col 18 / col 60).
-- `archive/EMITTER-X86.md` / `EMITTER-X86-DEEP.md` — CODE-shared /
-  DATA-per-invocation insight; `snobol4_asm.mac` (151 macros).
-- `archive/EMITTER-JVM.md` — Jasmin emission; Prolog×JVM resumable
-  predicate pattern.
-- `archive/EMITTER-NET.md` — Threaded `Instruction[]` + MSIL
-  delegate JIT (Jeff Cooper's snobol4dotnet).
-- `archive/EMITTER-JS.md` — `new Function()` for EVAL/CODE; static
-  vs dynamic Byrd box paths.
-- `archive/GENERAL-BYRD-DYNAMIC.md` — The fundamental "everything
-  dynamic" framing; M-DYN-* milestone chain; static compilation
-  as optimization, not model.
-
-**Git history references:**
+**Git history references (concrete starting points for CB-7a):**
 
 - `one4all` commit `660339cd~1` — peak `runtime/boxes/<box>/<lang>`
   layout (~216 hand-written per-language box files).  Use
@@ -841,10 +989,16 @@ inputs for CB-7a's template grammar):**
   recover any hand-written cell as a starting point for the
   template grammar.
 - `one4all` commit `660339cd` — consolidation into 6 fat
-  `bb_boxes.<lang>` files.  6,700+ lines total across all backends.
+  `bb_boxes.<lang>` files.  6,700+ lines total across all
+  backends; useful as a side-by-side comparison of the same
+  27 boxes in 8 surface syntaxes.
 - `one4all` commit `ac19c92c` (RT-120) — final hand-written `.s`
-  rewrite with correct ABI; sizes documented per box (e.g.
-  `bb_len: 90 code bytes / 24 data bytes`).
+  rewrite with correct ABI.  Per-box sizes documented in the
+  commit message (e.g. `bb_len: 90 code bytes / 24 data bytes`).
+- `one4all` HEAD `52251653` (post-SN-32c) — current live
+  `runtime/x86/bb_boxes.c` (794 LoC).  This file is the
+  round-trip target for CB-7e: the generator's C×IR-interp
+  emission must equal these bytes exactly before lock-in.
 
 ---
 

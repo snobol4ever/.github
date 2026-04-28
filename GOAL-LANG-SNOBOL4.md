@@ -26,7 +26,7 @@ nested-recursion patterns.  All harness work proceeds 2-way
 (SPITBOL ⇄ scrip) per the updated protocol below.
 
 **Forensic history:** closed rungs are summarized below; full session
-narratives live in `archive/ARCHIVE-LANG-SNOBOL4-HISTORY.md` and in git.
+narratives live in git history (`git log --grep` by rung id).
 
 ---
 
