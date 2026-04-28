@@ -1018,56 +1018,74 @@ The dual-mode emitter infrastructure already exists in `bb_emit.c`
 (`EMIT_TEXT` / `EMIT_BINARY`) but `--text-run` is not yet wired
 into the scrip driver. CB-0a wires it; CB-0b..e prove it.
 
-- [ ] **CB-0a — Wire `--text-run` into scrip driver.**
-  Add `--text-run` CLI flag to `src/driver/scrip.c`. When active:
-  set `bb_emit_mode = EMIT_TEXT`, run SM lowering, invoke the
-  bb/SM emitter to write NASM `.s` to a temp file, shell out to
-  `nasm -f elf64` + `ld` (or `cc`) to produce an executable,
-  execute it and capture stdout. The flag is mutually exclusive
-  with `--ir-run`, `--sm-run`, `--jit-run`.
-  **Gate:** `scrip --text-run` on `corpus/programs/snobol4/smoke/hello.sno`
-  prints `Hello World` (or equivalent) without crashing. Build
-  must not regress Smoke=7 on the other three modes.
+**Naming note:** `--jit-run` is a misnomer. It emits raw x86 bytes
+into an mmap slab and jumps in — that is in-memory binary codegen,
+not a JIT. The 4th mode (NASM text → assemble → link → execute) is
+`--asm-run`. Renaming `--jit-run` → `--bin-run` (or `--native-run`)
+is tracked as a cleanup but is not gating CB-0; the new flag is
+`--asm-run` and does not collide with the old name.
 
-- [ ] **CB-0b — Smoke suite passes under `--text-run`.**
-  Run `test_smoke_snobol4.sh` with `--text-run` as the execution
-  mode. All 7 cases must pass. Add a `test_smoke_snobol4_text.sh`
-  (or extend the existing script with a `--text-run` sweep) that
-  is committed alongside this rung.
-  **Gate:** PASS=7, FAIL=0, exits 0 in < 10s.
+- [ ] **CB-0a — Emit NASM assembly for `roman.sno` and inspect it.**
+  The very first program to see in x86 assembly is
+  `corpus/programs/csnobol4-suite/roman.sno`. This sub-step is
+  emit-only — no assemble, no link, no execute. Wire `--asm-emit`
+  (or `--emit-asm`) into `src/driver/scrip.c`: set
+  `bb_emit_mode = EMIT_TEXT`, run SM lowering, write the NASM `.s`
+  to stdout (or a named file). Inspect the output by eye — verify
+  the LABEL/ACTION/GOTO three-column structure is present, that
+  the Byrd boxes roman.sno exercises (LIT, BREAK, RPOS, LEN,
+  REPLACE pattern) appear correctly formed, and that the `.s` is
+  well-structured enough to hand to `nasm`.
+  **Gate:** `scrip --asm-emit roman.sno` produces non-empty NASM
+  text without crashing. Capture the `.s` to
+  `one4all/artifacts/roman.s` and commit it as the first
+  human-readable proof of the 4th mode.
 
-- [ ] **CB-0c — Demo programs pass under `--text-run`.**
+- [ ] **CB-0b-wire — Wire `--asm-run` into scrip driver.**
+  Extend CB-0a's emit path: after writing the `.s` to a temp file,
+  shell out to `nasm -f elf64 -o /tmp/roman.o /tmp/roman.s` then
+  `cc -o /tmp/roman /tmp/roman.o -lgc` (or equivalent link line),
+  then exec `/tmp/roman` and stream its stdout. The flag is
+  `--asm-run`, mutually exclusive with `--ir-run`, `--sm-run`,
+  `--jit-run`.
+  **Gate:** `scrip --asm-run roman.sno` runs to completion and
+  produces output byte-identical to `scrip --sm-run roman.sno`.
+  Both produce the roman numeral table 1–100 plus the spot-check
+  ranges (149–151, 480–520, 1900–2100).
+
+- [ ] **CB-0c — Smoke suite passes under `--asm-run`.**
+  Run `test_smoke_snobol4.sh` with `--asm-run` as the execution
+  mode. All 7 cases must pass. Add `test_smoke_snobol4_asm.sh`
+  committed alongside this rung.
+  **Gate:** PASS=7, FAIL=0, exits 0 in < 15s.
+
+- [ ] **CB-0d — Demo programs pass under `--asm-run`.**
   Run the SNOBOL4 demo programs from
-  `corpus/programs/snobol4/demo/` through `--text-run` and diff
-  against the `--sm-run` (oracle) output for each. Demos include
-  at minimum: `expression.sno`, `porter.sno` (with `porter.input`),
-  `claws5.sno` (with `claws5.input`), `treebank-list.sno` (with
-  `treebank.input`). Any demo that already passes `--sm-run` must
-  produce byte-identical output under `--text-run`.
+  `corpus/programs/snobol4/demo/` through `--asm-run` and diff
+  against the `--sm-run` (oracle) output. Demos include at
+  minimum: `expression.sno`, `porter.sno`, `claws5.sno`,
+  `treebank-list.sno`. Any demo passing `--sm-run` must produce
+  byte-identical output under `--asm-run`.
   **Gate:** zero diffs across all passing demos; no new failures.
-  Commit a `test_smoke_snobol4_text_demos.sh` script.
+  Commit `test_smoke_snobol4_asm_demos.sh`.
 
-- [ ] **CB-0d — Beauty test suite passes under `--text-run`.**
-  Run the beauty test suite (the corpus fixtures exercised by
-  `test_smoke_self_beautify.sh` and the beauty oracle) under
-  `--text-run`. The beauty program is pattern-intensive — every
-  Byrd box that EMIT_TEXT emits must fire correctly. Diff each
-  output against the `--sm-run` baseline.
+- [ ] **CB-0e — Beauty test suite passes under `--asm-run`.**
+  Run the beauty test suite fixtures under `--asm-run` and diff
+  against `--sm-run`. The beauty program is pattern-intensive —
+  every Byrd box that EMIT_TEXT emits must fire correctly.
   **Gate:** all beauty suite fixtures byte-identical between
-  `--text-run` and `--sm-run`. Commit a
-  `test_smoke_beauty_text.sh` script.
+  `--asm-run` and `--sm-run`. Commit `test_smoke_beauty_asm.sh`.
 
-- [ ] **CB-0e — Beauty self-host byte-identical under `--text-run`.**
+- [ ] **CB-0f — Beauty self-host byte-identical under `--asm-run`.**
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-  SNO_LIB=$BEAUTY scrip --text-run \
+  SNO_LIB=$BEAUTY scrip --asm-run \
       $BEAUTY/beauty.sno < $BEAUTY/beauty.sno | md5sum
   # must be abfd19a7a834484a96e824851caee159
   ```
-  This is the 4th-mode proof, equivalent to what `--ir-run` /
-  `--sm-run` / `--jit-run` achieved at Milestone 1. When this
-  gate is green, the 4th mode is trustworthy as the unification
-  point for CB-7e and the BB-template generator ladder.
+  This is the 4th-mode proof. When this gate is green, the 4th
+  mode is trustworthy as the unification point for CB-7e and the
+  BB-template generator ladder.
   **Gate:** md5 = `abfd19a7a834484a96e824851caee159`, 646 lines.
   Commit message records this as the 4th-mode proof landing.
 
