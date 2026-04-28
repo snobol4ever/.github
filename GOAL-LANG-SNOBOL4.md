@@ -649,6 +649,66 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
   **Gate:** Smoke=7, Broker=49.  2-way harness advances ≥ 222 steps
   past former -n divergence.
 
+- [x] **SN-26-bridge-coverage-p — interleaved last-N trail on by default;
+  stno annotation in VALUE/CALL/RETURN display.  CLOSED session #51.**
+
+  **Part 1 — interleaved trail default.**  `monitor_sync_bin.py` already
+  kept a `deque(maxlen=DIVERGE_HISTORY)` per participant as a circular
+  buffer.  On DIVERGE it printed each participant's history separately,
+  not interleaved.  The `MONITOR_LAST_AGREE_TRAIL` env var gave an
+  interleaved single-stream view but defaulted to 0 (off).
+  Fix: `DIVERGE_HISTORY` now reads `MONITOR_LAST_AGREE_TRAIL` env var
+  at startup (default 5).  The per-participant `history` deque is gone;
+  replaced by a single interleaved `trail` deque of
+  `(step, stno, formatted_line)` tuples — one entry per agreed step,
+  using oracle participant's record.  On DIVERGE, trail prints first
+  (chronological, most-recent last), then the per-participant divergence
+  record.
+
+  **Part 2 — stno annotation in display.**  `fmt_event` now accepts an
+  optional `stno=` kwarg.  The controller tracks `last_agreed_stno`
+  (updated whenever a LABEL record is agreed) and passes it to
+  `fmt_event` for all VALUE / CALL / RETURN records.  Output format:
+  `@589 VALUE reduce = UNKNOWN`.  LABEL records show as before
+  (`LABEL stno=INT=589`).  Wire format unchanged.
+
+  **Verified output (step 1257 divergence):**
+  ```
+  [ctrl] last 5 agreed steps (most recent last):
+    step 1252: LABEL stno=INT=591
+    step 1253: @591 VALUE nPush = UNKNOWN
+    step 1254: @591 RETURN nPush = STRING(6)='RETURN'
+    step 1255: @591 CALL reduce
+    step 1256: LABEL stno=INT=589
+  [ctrl] DIVERGE step 1257
+  [ctrl] divergence record:
+    spl #1257: @589 VALUE reduce = UNKNOWN
+    scr #1257: @589 CALL nTop
+  ```
+
+  **Gates:** Smoke=7, Broker=49.
+
+- [ ] **SN-26-bridge-coverage-q — SPITBOL keyword-assignment fire-point.**
+
+  SPITBOL's `&keyword = value` path routes through `asign → asg14 → asg15`
+  (direct `kvabe(xl),wa` store), bypassing `b_vrs` and therefore bypassing
+  `sysmv`.  Result: scrip emits `VALUE &FULLSCAN = INTEGER=1` at stno=2 of
+  beauty; SPITBOL is silent on that stno.  The controller silently absorbs
+  this asymmetry only while the two runtimes stay in step on LABEL events.
+  If a keyword-assign value ever diverges the harness will report it as a
+  VALUE asymmetry masking the real semantic bug.
+
+  **Fix (sbl.min + monitor_ipc_runtime.c):** at `asg15` (just before `exi`),
+  add a `jsr sysmkw` fire-point.  New C entry `zysmkw` takes `xl` = kvblk
+  pointer and `wa` = new integer value; synthesises the keyword name (e.g.
+  `"&FULLSCAN"`) from the kvblk number via a static name table in
+  `monitor_ipc_runtime.c` and emits `MWK_VALUE`.  Also add a `sysmkw  exp 0`
+  declaration in sbl.min and a syscall id in `int.asm`.
+
+  **Done-when:** 2-way harness on `beauty.sno < /dev/null` shows matching
+  `VALUE &FULLSCAN = INTEGER=1` / `VALUE &ANCHOR = INTEGER=0` etc. at the
+  correct stnos from both spl and scr.  Smoke=7, Broker=49.
+
 - [ ] **SN-26-bridge-coverage-o — extra CALL during EVAL/argument
   evaluation in scrip.  Opened session #49.**
 
@@ -715,19 +775,11 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gate:** Smoke=7, Broker=49.
 
-**Dependencies (post 2026-04-27 pivot, post -j closure session #46,
-post -m closure session #48, post -n closure session #49):**
+**Dependencies (post 2026-04-28 session #51, -p closed):**
 -e → -f → -g → (-k, -l) → -j → -m → -n → -o → -h.
+-p CLOSED session #51 (interleaved trail + stno annotation; gates preserved).
+-q open (SPITBOL keyword-assignment fire-point — independent of -o, can land any session).
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
--j CLOSED (linear-stno bug).
--m CLOSED session #48 (corpus include duplication; no SPITBOL register
-clobber as session #47 had hypothesized).
--n CLOSED session #49 (bridge-emission alignment: comm_call ordering,
-monitor_quiet_depth, function-body LABEL coverage, RETURN payload
-shape, OPSYN canonical names).  Advanced harness 222 steps.
--o is the new active rung — extra CALL during EVAL/argument
-evaluation, surfaces as scrip emitting `CALL nTop` while SPITBOL
-emits `VALUE reduce = ...` at step 1257.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
 landed in the IR-run path only.  `sm_interp.c SM_STNO` and
@@ -812,7 +864,71 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ new HEAD (session #50 — `end`-label `strcasecmp` fix; SN-26-bridge-coverage-o investigation + 5-phase audit)
+- one4all @ new HEAD (session #51 — SN-26-bridge-coverage-p: interleaved trail + stno annotation)
+- corpus @ unchanged
+- x64 @ unchanged
+- csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
+- active step → SN-26-bridge-coverage-o (extra CALL during
+  EVAL/argument evaluation; surfaces at step 1257 of 2-way harness
+  on beauty.sno).
+
+**Session #51 (2026-04-28) — SN-26-bridge-coverage-p closed.**
+
+Two improvements to `monitor_sync_bin.py`:
+
+1. **Interleaved trail on by default.**  Per-participant separate history
+   deques replaced by a single interleaved `deque(maxlen=DIVERGE_HISTORY)`
+   of `(step, stno, line)` tuples.  `DIVERGE_HISTORY` now reads
+   `MONITOR_LAST_AGREE_TRAIL` env var at startup (default 5, min 1).
+   On DIVERGE: interleaved trail prints first (most-recent last), then
+   per-participant divergence record.
+
+2. **stno annotation.**  `fmt_event` accepts `stno=` kwarg.  Controller
+   tracks `last_agreed_stno` from LABEL records; passes to `fmt_event`
+   for VALUE/CALL/RETURN display.  Format: `@589 VALUE reduce = UNKNOWN`.
+
+**Verified divergence output:**
+```
+[ctrl] last 5 agreed steps (most recent last):
+  step 1252: LABEL stno=INT=591
+  step 1253: @591 VALUE nPush = UNKNOWN
+  step 1254: @591 RETURN nPush = STRING(6)='RETURN'
+  step 1255: @591 CALL reduce
+  step 1256: LABEL stno=INT=589
+[ctrl] DIVERGE step 1257
+[ctrl] divergence record:
+  spl #1257: @589 VALUE reduce = UNKNOWN
+  scr #1257: @589 CALL nTop
+```
+
+**Reading the divergence:**
+- stno=591 = semantic.inc line 20: `nPush  nPush = epsilon . *PushCounter()  :(RETURN)`
+- stno=589 = semantic.inc line 17: `reduce  reduce = EVAL("epsilon . *Reduce(" t ", " n ")")  :(RETURN)`
+- SPITBOL at step 1257: stores result of EVAL into `reduce` (UNKNOWN type = pattern)
+- scrip at step 1257: calls `nTop()` — eager call inside EVAL argument construction
+
+**Two new sub-rungs added:** -p (closed this session) and -q (SPITBOL
+keyword-assignment fire-point; `&FULLSCAN=1` etc. not captured by spl bridge).
+
+**Files touched (session #51):**
+- `scripts/monitor/monitor_sync_bin.py` (interleaved trail, stno annotation)
+- `.github/GOAL-LANG-SNOBOL4.md` (sub-rungs -p, -q added; -p closed)
+
+**Gates:** Smoke=7, Broker=49.
+
+**Next session resume hint:**
+- Divergence is clear: scrip calls `nTop()` at step 1257 inside
+  `reduce = EVAL("epsilon . *Reduce(" t ", " n ")")`.
+- SPITBOL does NOT call nTop at this step — it just stores the EVAL result.
+- Per session #50 audit: `_eval_pat_impl_fn` is NOT the eager-eval source.
+- Next: instrument `EVAL_fn` to log the parsed tree of the FIRST reduce call
+  (stno=589 match). If scrip's tree contains a live E_FNC node for nTop
+  where SPITBOL's tree has a deferred E_DEFER, the bug is in how the EVAL
+  string is parsed (parse_expr_pat_from_str). If trees match, bug is in
+  tree evaluation order (the 5-phase parity issue noted in session #50 is
+  a candidate: replacement evaluated before match in scrip).
+- Consider landing the 5-phase fix as SN-26-bridge-coverage-p2 — it may
+  shift this divergence upstream.
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
