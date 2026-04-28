@@ -494,35 +494,39 @@ in `csnobol4/docs/F-1-findings.md`.
       Confirm the shape we'll mirror.  Note pattern-node layout for
       STAR (likely 4-descriptor: function descr, then-or, value-
       residual, ARG).
-- [ ] **Step 2: New SIL FENCE primitive.**  Replace FNCA/B/C/D in
-      `v311.sil` with a single FENCE primitive following the STAR
-      template: PUSH NULL+CURSOR sentinel, RCALL SCNR with inner
-      pattern, on success POP sentinel + write FNCD seal, on failure
-      branch FAIL.  Keep FNCD as the seal-trap dispatch since SCIN3
-      forward-flow into FNCD is unchanged.
-- [ ] **Step 3: New FNCP pattern builder.**  Replace the three-node
-      `[FNCA] -> P -> [FNCC]` compilation with a single-node
-      compilation that puts P in the ARG slot.  Add FENCEPT template
-      mirroring STARPT.
-- [ ] **Step 4: Regenerate isnobol4.c and snobol4.c.**  Either via
-      `genc.sno` regen (preferred, but watch for SN-26-csn-regen-fix
-      latent issue) or hand-edit.  Both files must stay in sync.
-- [ ] **Step 5: Delete dead code.**  FNCAPT, FNCCPT, the L_FNCA
-      L_FNCB L_FNCC L_FNCC1 L_FNCD label block (or repurpose L_FNCD
-      for the seal-trap dispatch).  Update PATBRA dispatch table —
-      indices 37 (FNCA), 38 (FNCB), 39 (FNCC) become unused or
-      collapse; index 40 (FNCD) remains as seal trap.
-- [ ] **Step 6: Build clean.**
-      `cd /home/claude/csnobol4 && touch isnobol4.c && bash
-      /home/claude/one4all/scripts/build_csnobol4_oracle.sh`.
-- [ ] **Step 7: fence_function/ regression.**  10/10 expected.  If
-      any tests fail, root-cause before proceeding.
-- [ ] **Step 8: Tiny repro.**  Verify no segfault, ≥1 line output.
-- [ ] **Step 9: Full self-host.**  beauty.sno against itself,
-      ≥500 lines.
-- [ ] **Step 10: Smoke gates.**  Smoke=7, Broker=49.
-- [ ] **Step 11: Commit.**  Single commit per repo.  csnobol4 first,
-      .github last.  Mark F-2 closed and goal complete.
+- [x] **Step 2: FNCPP node-write fix (session #45).**  Four bugs
+      fixed in FNCPP (isnobol4.c + snobol4.c) and data_init.h/h2:
+      (a) `int_t base = D_A(ZPTR)` cast — replaced with
+      `D_A(D_A(ZPTR))` pattern throughout.
+      (b) slot[1] stored `D(FNCAFN)` (value copy, a.i=37) instead of
+      pointer — fixed to `D_A=ptr(FNCAFN), D_F=FNC, D_V=3`.
+      (c) `D_V=2` in fncafn/fncapt+1 — fixed to `D_V=3` so cpypat
+      walks 5 descriptors (mirrors STARFN) and copies slot[4]=P in
+      concatenated patterns.
+      (d) FNCA had no SCFLCL PDL sentinel before inner SCIN call —
+      inner scan's failure walker crashed into outer SCONCL.  Fixed
+      by mirroring STARP6: push SCFLCL trap, set PDLHED=PDLPTR
+      (sentinel base), then push outer state + SAVSTK + SCIN.
+      **fence_function/ suite: 10/10 PASS.**
+- [ ] **Step 3: IPC two-way divergence hunt for beauty self-host.**
+      fence_function/ is 10/10 but beauty self-host produces only
+      39 lines (need ≥500).  Fails at `ARRAY('1:4')` with "Parse
+      Error".  SPITBOL produces 646 lines cleanly.  Root cause
+      unknown — gdb diagnostics exhausted context budget.
+      **Next session MUST use the IPC sync-step monitor:**
+      run beauty.sno under both SPITBOL and CSNOBOL4 via the
+      two-way monitor harness, let it stop at first divergence,
+      read ONLY the last-agree + first-disagree records, identify
+      the exact statement and variable values where they split.
+      That divergence point is the bug.  Fix only after reading it.
+      See RULES.md "Sync-step monitor" section for protocol.
+- [ ] **Step 4: Build clean after Step 3 fix.**
+      `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
+- [ ] **Step 5: fence_function/ regression.**  10/10 expected.
+- [ ] **Step 6: Tiny repro.**  ≥1 line output, no segfault.
+- [ ] **Step 7: Full self-host.**  beauty.sno ≥500 lines.
+- [ ] **Step 8: Smoke gates.**  Smoke=7, Broker=49.
+- [ ] **Step 9: Commit.**  csnobol4 first, .github last.
 
 **Risks listed in `docs/F-1-findings.md`** under "Risks for F-2".
 Pattern-shape change is a contract break; verify by running the
@@ -598,36 +602,23 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ EMERGENCY (F-2 in progress — broken, see below)
+- csnobol4 @ session #45 (F-2 Step 2 landed — fence_function 10/10, beauty broken)
 - one4all @ `78a2a98e`
 - corpus @ `7041a14`
 - x64 @ `3e519f9`
-- active step → **F-2 Step 2** (FENCEPT node builder — segfault in FNCPP block-write)
+- active step → **F-2 Step 3** (IPC two-way divergence hunt for beauty self-host)
 
-**Gates as of session #44 end (EMERGENCY HANDOFF):**
-- D6 FNCA body: correct — recursive SCIN call, save/restore outer state, FNCD seal on success.
-- D6 FNCP builder: BROKEN — segfault at statement 1 during pattern construction.
-- Root cause identified: `int_t base = D_A(ZPTR); D_A(base) = base;` — `base` is
-  `int_t` (long), not `ptr_t`; the macro `D_A(base)` casts `long` to `struct descr*`
-  which may not work correctly. Fix: use `D_A(D_A(ZPTR)) = D_A(ZPTR)` style (passing
-  `D_A(ZPTR)` directly as the macro arg, which is the pattern used everywhere else in
-  the generated C e.g. `D(D_A(PDLPTR) + DESCR) = D(FNCBCL)`).
-- Key discovery: SCIN3 slot[3]=YCL is used as a LENGTH value (`D_A(YCL)` checked
-  against MAXLEN). So slot[3] MUST have D_A=0. P goes in slot[4]. Node is 5 descriptors.
-- CPYPAT cannot be used (corrupts zero then-or: F2 macro sets v=0 to a5=total_size).
-- fence_function/ suite: 4/10 pass (basic dispatch broken due to FNCPP segfault).
+**Gates as of session #45 end:**
+- fence_function/ suite: **10/10 PASS**
+- Tiny repro: "Parse Error" on `ARRAY('1:4')` — beauty parser fails
+- beauty self-host: **39 lines** (need ≥500); SPITBOL produces 646 lines
+- one4all Smoke/Broker: NOT YET RUN (pending beauty fix)
 
-**Next session F-2 Step 2 fix (one change):**
-Replace the `{ int_t base = ... }` block in FNCPP (both isnobol4.c and snobol4.c) with:
-```c
-/* slot[0]: title self-ptr, TTL+MARK, 5*DESCR — ZERBLK already zeroed the block */
-D_A(D_A(ZPTR))               = D_A(ZPTR);
-D_F(D_A(ZPTR))               = TTL+MARK;
-D_V(D_A(ZPTR))               = 5*DESCR;
-/* slot[1]: FNCAFN function descriptor */
-D(D_A(ZPTR) + DESCR)         = D(FNCAFN);
-/* slots [2],[3] already zero from ZERBLK — slot[3].D_A=0 satisfies SCIN3 length check */
-/* slot[4]: P pattern descriptor */
-D(D_A(ZPTR) + 4*DESCR)       = D(XPTR);
-```
-Then rebuild, run fence_function/ regression (expect 10/10), run tiny repro, run beauty self-host.
+**What session #45 fixed (F-2 Step 2):**
+Four bugs in FNCPP node-write and FNCA inner-scan setup.
+See Step 2 above for full list.
+
+**What remains:**
+beauty.sno fails to parse `ARRAY('1:4')`.  Root cause unknown.
+Next session: IPC two-way monitor, SPITBOL vs CSNOBOL4, beauty.sno
+input.  Read last-agree + first-disagree only.  Fix the divergence.
