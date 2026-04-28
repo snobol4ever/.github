@@ -103,7 +103,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32-sm-jit-beauty (session #58 OPENED: --ir-run beauty self-host byte-identical to SPITBOL [md5 abfd19a7a834484a96e824851caee159, 646 lines]; --sm-run and --jit-run both bail at mainErr2 Internal Error [md5 b6873a89707f671133fae5e07b40942c, 27 lines, identical to each other], deferred-fn-during-pattern-build gap not yet propagated from interp.c to sm_lower/bb_boxes path; goal Done-when requires all three modes byte-identical) |
+| SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32b-beauty-ipc (session #58 IPC wire-up landed: SM_STNO source-stno operand, blank-stmt skip, IDX_SET `<lval>` fire-point in sm_interp.c + sm_codegen.c; new test_monitor_2way_spitbol_vs_{sm,jit}.sh; SCRIP_RUN_FLAG override on the auto harness; **`beauty.sno < /dev/null` IPC harness clean END at step 1561 under both `--sm-run` and `--jit-run`**; self-host `beauty.sno < beauty.sno` IPC harness reaches step 2023 — was step 26 before this session — divergence at `case.inc:9` during deferred-`*upr` call from match.inc:8 pattern; SN-26-u shape on SM lowering side, next session work) |
 | CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (STAR-against-empty bug blocks beauty; pre-existing in vanilla 2.3.3, not a FENCE bug but currently gating done-when; FENCE-specific FNCBX fix landed @ csnobol4 c314e49 — fence_function 10/10) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |

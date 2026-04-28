@@ -1545,12 +1545,33 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
    Internal-Error bail but will be needed for SM-run output to
    match IR-run in stno-dependent contexts.
 
-4. **Don't try to ride existing sub-rungs.**  The SN-26-bridge-
-   coverage-* chain was a 2-way wire-protocol harness; SM/JIT bugs
-   are not visible on that wire (the wire fires on `comm_call` /
-   `comm_var` from the IR runtime).  SN-32 is a parallel ladder
-   that uses the in-process `--monitor` (IR vs SM vs JIT) plus
-   direct output diff against IR/SPITBOL.
+4. **Use the IPC sync-step monitor, not the in-process `--monitor`.**
+   SN-32 inherits SN-26's harness: 2-way SPITBOL ⇄ scrip via
+   `scrip-monitor` and `monitor_sync_bin.py` over the wire defined in
+   `monitor_wire.h`.  The SN-26 sub-rung chain reached step 1,277,812
+   on `beauty.sno < beauty.sno` driving the **scrip side with
+   `--ir-run`**.  The SN-32 work is to make the **same harness** pass
+   on the same input driving the scrip side with `--sm-run` and
+   `--jit-run` — by walking the last-agree / first-disagree pair the
+   way RULES.md "Sync-step monitor — read the divergence point"
+   prescribes, exactly as SN-26 -e..-y did for the IR path.
+
+   The in-process `--monitor` (IR vs SM vs JIT, IM-2/IM-6 machinery
+   in `src/driver/sync_monitor.c`) is a **separate** tool.  It compares
+   the three executors on a clean restart between every statement and
+   diffs the NV store at stmt boundaries.  Useful for catching coarse
+   per-stmt drift, but it is NOT the gate for SN-32 and its
+   "DIVERGE at stmt N" reports can be harness artifacts (e.g. session
+   #58's stmt-15 `X1xxxxxxx` divergence).
+
+   **Pre-req for SN-32 to be diagnosable on the IPC harness:** SM
+   and JIT execution paths must fire the same wire events (CALL,
+   VALUE, LABEL, RETURN, NAME_DEF) that IR fires today.  Audit
+   `sm_interp.c` and `sm_codegen.c` for the equivalents of IR's
+   `comm_call` / `comm_var` / `mon_emit_label_bin` /
+   `comm_return(retname, kw_rtntype)` fire-points (`-f`/`-g`/`-n`
+   chain).  If those are missing, plumbing them in is sub-rung
+   SN-32a-wire-up before any semantic comparison can begin.
 
 ---
 
@@ -1561,9 +1582,18 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
 of output md5 `abfd19a7a834484a96e824851caee159` — byte-identical
 to the SPITBOL oracle and to scrip's `--ir-run` from session #57.
 
-**Status (session #58):** opened.  Both modes currently bail at
-beauty's `mainErr2` Internal Error path (md5
-`b6873a89707f671133fae5e07b40942c`, 27 lines).
+**Status (session #58):** SN-32a partially landed — IPC harness
+wire-up + SM_STNO source-stno operand + blank-stmt skip + IDX_SET
+`<lval>` fire-point.  Both `--sm-run` and `--jit-run` IPC harness
+on `beauty.sno < /dev/null` pass cleanly: **all 1561 steps agree,
+both reach END (exit 0)**.  Direct-stdout self-host
+`beauty.sno < beauty.sno` still bails at `mainErr2 Internal Error`
+(md5 `b6873a89707f671133fae5e07b40942c`, 27 lines), but IPC harness
+on the same input now reaches **step 2023** (was step 26 before
+this session) — divergence at `case.inc:9 upr = REPLACE(upr,&LCASE,
+&UCASE)` body during deferred-`*upr` call from match.inc:8 pattern.
+Same shape family as SN-26-bridge-coverage-u (extra CALL during
+pattern build) — to be addressed under SN-32b.
 
 **Architecture reminder.**
 ```
@@ -1594,15 +1624,60 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   will affect downstream `&STNO` correctness once the bail is
   fixed).
 
-**Sub-rungs (proposed, not yet opened):**
-- [ ] **SN-32a** — minimal probe: stack.inc + tiny `pat = nPush()
-  ARBNO(LEN(1)) ('X' & 1) nPop()` under all three modes.  Capture
-  exact `Pop()` divergence point.  Reduce until SM and IR disagree
-  on a single-statement effect.
-- [ ] **SN-32b** — `bb_boxes.c` deferred-fn parity audit.  Mirror
-  the IR-path -t/-o fix into the SM build path.
-- [ ] **SN-32c** — `bb_boxes.c` capture commit parity (bb_cap and
-  related).  Mirror the IR-path -v/-y commit fixes.
+**Sub-rungs:**
+- [~] **SN-32a-wire-up** — *partial; landed session #58.* Mirrored IR's
+  IPC fire-points into SM/JIT execution paths.  Specifically:
+  - `sm_lower.c` emits `SM_STNO` with the source `s->stno` as
+    operand (was a linear counter).  Mirrors IR-side
+    SN-26-bridge-coverage-j fix.
+  - `sm_lower.c` skips blank statements entirely (no SM_STNO, no
+    body) so blanks don't bump `&STCOUNT` or fire LABEL on the
+    wire — matches IR's `execute_program` empty-stmt path and
+    SPITBOL's `stmgo` SIL.
+  - `sm_interp.c` `SM_STNO` reads `ins->a[0].i` (source stno) and
+    sets `kw_stno`; removed dead `g_sm_stno` linear counter.
+  - `sm_codegen.c` `h_stno` reads `CUR_INS->a[0].i`; removed dead
+    `g_sm_stno_jit` linear counter.
+  - `sm_interp.c` IDX_SET handler fires `comm_var("<lval>", val)`
+    after `subscript_set`/`subscript_set2`/`ITEM_SET` — matches
+    SPITBOL's `asnpb` (aggregate-element store) wire fire-point
+    (SN-26-bridge-coverage-g shape, on the SM side).
+  - `sm_codegen.c` JIT IDX_SET handler: same `comm_var` fire-point.
+  - New scripts `test_monitor_2way_spitbol_vs_sm.sh` and
+    `test_monitor_2way_spitbol_vs_jit.sh`; the underlying
+    `test_monitor_3way_sync_step_auto.sh` now honours
+    `SCRIP_RUN_FLAG` (default `--ir-run`).
+  - Plain-var stores already fire `comm_var` via the shared
+    `NV_SET_fn` chokepoint — no SM/JIT change needed there.
+  - CALL/RETURN during user-function execution already fire via
+    `call_user_function`, which both IR and SM call into; CALL
+    dispatch from SM/JIT goes through `INVOKE_fn` → eventually
+    `call_user_function` → `comm_call`/`comm_return`.  No
+    SM-specific plumbing needed.
+  - **Verified**: `beauty.sno < /dev/null` IPC harness 1561 steps
+    clean END under `--sm-run` and `--jit-run`; tiny smoke
+    probes (`p_def`, `p_loop`, `p_idx`, `p_upr`) all clean.
+  - **Remaining work** (to close `-a`): if any deferred fire-point
+    surfaces during SN-32b — e.g. NM_PTR/NM_CALL stores during
+    pattern capture — mirror them on the SM lowering side.
+- [ ] **SN-32b-beauty-ipc** — re-run 2-way IPC harness on
+  `beauty.sno < beauty.sno` driving scrip with `--sm-run`.  Read
+  last-agree / first-disagree pair only (per RULES.md).  Fix bugs
+  found in `bb_boxes.c` / `sm_lower.c` / `sm_interp.c` that
+  surface there — most likely the build-vs-run distinction (SN-26-t
+  shape) and capture commit fire-points (SN-26-v/-y shape) that
+  the IR path got, but on the SM lowering side.  **Current state:**
+  harness reaches step 2023 (was 26).  Next divergence:
+  `case.inc:9 upr = REPLACE(upr, &LCASE, &UCASE)` during deferred-
+  `*upr` call from `match.inc:8`'s pattern — SPITBOL emits VALUE
+  for the assignment, scr SM emits an extra CALL upr.  Same shape
+  family as SN-26-bridge-coverage-u (extra CALL during pattern
+  build); fix path is to mirror IR's E_CAT/E_SEQ pat-mode promotion
+  (interp.c ~line 2722) into the SM path's pattern-build lowering
+  in `bb_boxes.c` / `sm_lower.c`.
+- [ ] **SN-32c-beauty-jit** — same as -b but for `--jit-run`.  SM
+  and JIT share `sm_lower`; expect lockstep, modulo `sm_codegen.c`
+  codegen-only sites.
 - [ ] **SN-32d** — verify md5 byte-identical on `beauty.sno <
   beauty.sno` under both `--sm-run` and `--jit-run`.  Done-when
   trigger.
