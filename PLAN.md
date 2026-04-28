@@ -93,8 +93,6 @@ Lon names a goal. You:
 5. Run the scripts listed in the Goal file's `## Session Setup` section. If the Goal file has no `## Session Setup` yet, fall back to the matching category in `REPO-one4all.md ## Session Setup`.
 6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
 
-Do not read `archive/` unless a step explicitly says to.
-
 ---
 
 ## Active Goals
@@ -203,5 +201,3 @@ The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native co
 | "grand master reorg" | HQ system work — the goal is improving the HQ itself |
 
 Oracle: SPITBOL x64 primary (`/home/claude/x64/bin/sbl`). See RULES.md.
-
-*archive/ holds prior HQ docs. Git history is the permanent record.*

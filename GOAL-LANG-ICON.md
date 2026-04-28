@@ -250,8 +250,6 @@ Key procedures and their construct:
 | `ir_a_Call` | procedure/function call | `icn_call_proc` |
 | `ir_a_Augop` | augmented assignment `:=` `+:=` … | `icn_bb_binop_gen` augop path |
 
-Full analysis with wiring diagrams: `.github/archive/MISC-ICON-JCON.md`.
-
 ---
 
 ## Invariants

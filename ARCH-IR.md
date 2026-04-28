@@ -27,8 +27,9 @@ struct EXPR_t {
 
 ## STMT_t — the statement
 
-⚠️ Field names vary across doc versions — verify against `src/ir/ir.h` before coding.
-Canonical version in `archive/IR.md §STMT_t — SNOBOL4 Detail` uses `replacement` and `SnoGoto *go`.
+⚠️ Field names vary across doc versions — verify against `src/ir/ir.h`
+before coding.  Older internal docs used `replacement` and
+`SnoGoto *go`; current ir.h is the source of truth.
 
 ```c
 struct STMT_t {
