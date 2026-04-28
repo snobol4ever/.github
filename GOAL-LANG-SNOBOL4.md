@@ -160,6 +160,13 @@ to a divergence rooted in runtime semantic disagreement, not
 protocol/coverage artifacts. Then hand off to SN-26c-parseerr-h
 sub-h2 with the last-agree + first-disagree pair as ground truth.
 
+**Status (session #57):** Sharpened end-state target ACHIEVED.
+2-way harness on `beauty.sno < beauty.sno` advances to step 1,277,812
+(of which 1..1,277,811 agree).  Divergence at 1,277,812 is terminal
+MWK_END label-ordering, not a runtime semantic disagreement.
+Self-host output md5 byte-identical to SPITBOL
+(`abfd19a7a834484a96e824851caee159`, 646 lines).
+
 **Closed sub-rungs:**
 
 - [x] **SN-26-bridge-coverage-a** — csn fire-points landed for all 5 LOCAPT-TVALL sites (NMD4, ENMI3, ATP) + `lvalue_name_id` helper for `<lval>` sentinel on array/table stores. csnobol4 @ `ad993fe`. Smoke `test_smoke_sn26_csn_bridge_c.sh` PASS=1. Closed session #30.
@@ -924,31 +931,95 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gates:** Smoke=7, Broker=49.
 
-- [ ] **SN-26-bridge-coverage-y — `$name = EVAL(expression)` indirect-
-  assign name capture.**
+- [x] **SN-26-bridge-coverage-y — `$name = EVAL(expression)` indirect-
+  assign name capture.  CLOSED session #57 (2026-04-28).**
 
-  After -x landed, the 2-way harness on `beauty.sno < beauty.sno`
-  advances to step 370311 with a new divergence:
-  ```
-  spl: VALUE snoBrackets = STRING(2)='()'
-  scr: VALUE (none) = STRING(2)='()'
-  ```
-  Source: `assign.inc:11  $name = EVAL(expression)  :(NRETURN)`.
+  **Root cause: two distinct bugs in scrip's E_INDIRECT handling
+  inside `call_user_function`.**
 
-  This is `$name = ...` (indirect assign).  SPITBOL recovers the
-  variable name (`snoBrackets` here) from the indirection target
-  and emits it on the wire; scrip's bridge emits `(none)` —
-  likely the indirect-assign path in scrip's runtime is calling
-  `comm_var` without a meaningful name argument.  Likely fix
-  lives in the `E_INDIRECT` or `E_ASSIGN` path where `$name = val`
-  is committed (`interp.c` E_ASSIGN E_INDIRECT subbranch around
-  line 700-735, or the corresponding eval_node case in
-  `eval_code.c:194-211`).
+  **Bug 1 — subject-resolution garbage (interp.c ~line 617-628).**
+  When `s->subject` is `E_INDIRECT(E_VAR("name"))` and `name` is a
+  formal parameter holding a DT_N NAMEPTR (slen=1, .ptr set), the
+  E_INDIRECT subject-name resolution branch called `VARVAL_fn(xv)`
+  on the parameter value to derive `subj_name`.  But `VARVAL_fn`'s
+  DT_N case is `if (v.s) return GC_strdup(v.s); ...` — and for a
+  NAMEPTR, `.s` and `.ptr` overlap in the union, so `v.s` reads
+  the pointer-bytes-as-string (typically a single garbage byte
+  like `\x01`).  The resulting `subj_name` was junk.  This made
+  the loop fall into the **plain-assignment** branch at line 668
+  (`else if (s->has_eq && subj_name)`) which called
+  `set_and_trace(subj_name, repl_val)` — assigning to a junk-named
+  variable instead of the real target.  The actual `snoBrackets`
+  cell never got written, AND the wire emitted `(none)` because
+  `comm_var` got the junk name.
 
-  **Done-when:** scrip emits the recovered indirect target name
-  on the wire matching SPITBOL's `snoBrackets`.  Harness advances
-  past step 370311 to either MWK_END or another bug class.
-  Smoke=7, Broker=49.
+  **Bug 2 — missing comm_var on IS_NAMEPTR direct-write paths
+  (interp.c ~line 770-806).**  Even when the E_INDIRECT branch at
+  line 770 was reached (e.g. when `subj_name` was correctly NULL),
+  the IS_NAMEPTR fast paths wrote through the pointer with bare
+  `*(DESCR_t*)ind_val.ptr = repl_val;` and `NAME_DEREF_PTR(named)
+  = repl_val;` — no `comm_var` call.  This is the same shape
+  fixed in `name_t.c` for NM_PTR / NM_CALL in session #55.
+
+  **Fix (interp.c, both call_user_function only):**
+
+  1. Subject-resolution branch (~line 617): when the runtime-indirect
+     E_VAR resolves to a DT_N value, discriminate on `IS_NAMEPTR(xv)`
+     and use `NV_name_from_ptr((const DESCR_t*)xv.ptr)` to recover
+     the variable name.  Also handle `xv.v == DT_N && xv.slen == 0`
+     (NAMEVAL form — `.s` is the canonical name).  Only fall through
+     to `VARVAL_fn` for non-DT_N values.
+
+  2. E_INDIRECT assign branch (~line 770): after each IS_NAMEPTR
+     direct-write, fire `comm_var(NV_name_from_ptr(...) ?: "<lval>",
+     repl_val)` to mirror SPITBOL's asinp asnpa fire-point.
+
+  **Verification:**
+
+  - Probes:
+    - `assign2(.snoBrackets, '()')` with `$name = val` body:
+      scrip output `()` matches SPITBOL.  Pre-fix: `before` (no write).
+    - `pat . *assign(.snoBrackets, EVAL("..."))` with full
+      assign.inc body: `()` matches SPITBOL.
+
+  - 2-way harness on `beauty.sno < beauty.sno`: advances from
+    step 370,311 to **step 1,277,812** (+907,501 steps).  Steps
+    1..1,277,811 all agree.  Divergence at 1,277,812 is essentially
+    terminal: scrip emits `MWK_END` (clean termination on an `END`
+    label at stno=760, the user-function `pp_1` body) while SPITBOL
+    continues to `LABEL stno=INT=1084`.  This is end-of-program
+    flow ordering, not a runtime semantic divergence — scrip's
+    output is complete by this point.
+
+  - **Self-host output md5 byte-identical to SPITBOL:**
+    `abfd19a7a834484a96e824851caee159` (646 lines).  Filter scrip's
+    `****` ftrace prefix lines (kw_ftrace was set during the harness
+    run) before comparing — the actual `OUTPUT` content is
+    byte-identical.  This **achieves the sharpened end-state target**
+    stated at the top of GOAL-LANG-SNOBOL4.md.
+
+  - 2-way harness on `beauty.sno < /dev/null`: still terminates at
+    step 1560 (no regression).
+  - Smoke=7, Broker=49 preserved.
+
+  **Files touched (session #57):**
+  - `src/driver/interp.c` (`call_user_function`:
+    - E_INDIRECT subject-resolution: handle DT_N NAMEPTR / NAMEVAL
+      before falling back to VARVAL_fn
+    - E_INDIRECT assign IS_NAMEPTR paths: emit `comm_var` with
+      NV_name_from_ptr recovery)
+
+  **Lesson for future sessions.**  When scrip emits a wrong /
+  empty / placeholder name on the wire, the bug may not be in the
+  fire-point itself but in upstream name resolution.  Garbage from
+  `VARVAL_fn` on a DT_N NAMEPTR (where .s reads pointer bytes via
+  union) is silent — it produces a syntactically valid-looking
+  string and the assignment proceeds quietly into the wrong cell.
+  When investigating a `(none)` or junk-name wire emission, trace
+  the path from the source identifier all the way to the
+  `comm_var` call site and check each transformation.
+
+  **Gates:** Smoke=7, Broker=49.
 
 - [ ] **SN-26-bridge-coverage-r — SPITBOL pattern-block type discrimination.**
 
@@ -1255,7 +1326,7 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 
   **Gate:** Smoke=7, Broker=49.
 
-**Dependencies (post 2026-04-28 session #55, -q/-v/-w closed):**
+**Dependencies (post 2026-04-28 session #57, -y closed):**
 -e → -f → -g → (-k, -l) → -j → -m → -n → -t/-o → -u → -q/-v/-w → -h.
 -p CLOSED session #51 (interleaved trail + stno annotation; gates preserved).
 -s CLOSED session #52 (RETURN display fix).
@@ -1271,10 +1342,16 @@ sub-h2 with the last-agree + first-disagree pair as ground truth.
 -x CLOSED session #56 (CONCAT_fn null-operand short-circuit; preserves
   INT/REAL type when either side is null/empty; harness 22857 → 370311,
   +347454 steps through deep beauty rewriting).
--y open (`$name = EVAL(expression)` indirect-assign name capture missing
-  in scrip; surfaces at step 370311; first divergence after -x).
--h essentially satisfied: 2-way harness reaches step 1560 (terminal) on
-  /dev/null; advances to 370311 on beauty<beauty before next divergence (-y).
+-y CLOSED session #57 (E_INDIRECT subject-resolution VARVAL_fn-on-NAMEPTR
+  garbage + IS_NAMEPTR comm_var fire-points in call_user_function;
+  harness 370311 → 1277812, +907501 steps; **self-host output md5
+  byte-identical to SPITBOL: abfd19a7a834484a96e824851caee159**).
+-h **CLOSED session #57** — sharpened end-state target achieved: harness
+  reaches near-terminal MWK_END on `beauty < beauty` and self-host
+  output md5 matches SPITBOL byte-for-byte (646 lines,
+  abfd19a7a834484a96e824851caee159).  Remaining +1.27M-step divergence
+  is end-of-program label ordering (scrip MWK_END, SPITBOL extra LABEL
+  for END stmt) — not a semantic divergence.
 -i is LIFTED to GOAL-CSN-FENCE-FIX and no longer gates -h.
 
 **Latent follow-up — SM/JIT linear-stno parity.**  The fix in -j
@@ -1360,17 +1437,125 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ session #56 HEAD (SN-26-bridge-coverage-x CLOSED: CONCAT_fn null-operand short-circuit; harness 22857 → 370311 on beauty<beauty)
-- (session #55 — SN-26-bridge-coverage-q/-v/-w closed: OUTPUT trap symmetry, NM_PTR/NM_CALL/FIELD_SET store-back fire-points, DT_SNUL → MWT_STRING; harness 1565 → 22857 on beauty<beauty, terminal at 1560 on /dev/null)
-- (session #56 — SN-26-bridge-coverage-x CLOSED; opened -y for indirect-assign name capture)
+- one4all @ session #57 HEAD (SN-26-bridge-coverage-y CLOSED:
+  E_INDIRECT VARVAL_fn-on-NAMEPTR garbage fix + IS_NAMEPTR comm_var
+  fire-points; harness 370311 → 1277812 on beauty<beauty;
+  **self-host md5 byte-identical to SPITBOL**)
 - corpus @ unchanged
-- x64 @ unchanged (no SPITBOL-side patches needed — -q's actual root cause was scrip-side OUTPUT trap symmetry, not keyword fire-point)
+- x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
-- active step → SN-26-bridge-coverage-y (`$name = EVAL(expression)`
-  indirect-assign name capture missing in scrip; first divergence after
-  -x at step 370311).  -h is essentially satisfied — harness reaches
-  terminal end-of-input on /dev/null and advances 347454 steps past
-  the -w-closed state on beauty<beauty.
+- active step → SN-26-bridge-coverage-z (post-MWK_END label ordering on
+  beauty<beauty — not gating, harness reaches functional terminal;
+  byte-identical output already achieved)
+
+**Session #57 (2026-04-28) — SN-26-bridge-coverage-y CLOSED.
+Sharpened end-state target ACHIEVED.**
+
+The GOAL-LANG-SNOBOL4.md sharpened end-state target — "Self-host
+output md5 must match SPITBOL's `abfd19a7a834484a96e824851caee159`
+byte-for-byte" — is now achieved.  scrip --ir-run on
+`beauty.sno < beauty.sno` produces 646 lines of output that md5 to
+`abfd19a7a834484a96e824851caee159`, byte-identical with SPITBOL
+oracle's output.
+
+The 2-way sync-step harness on `beauty.sno < beauty.sno` advances
+from step 370,311 to **step 1,277,812** (+907,501 steps).  Steps
+1..1,277,811 all agree.  The divergence at 1,277,812 is essentially
+terminal: scrip emits `MWK_END` (clean termination) at stno=760
+inside the user-function `pp_1` body while SPITBOL continues with
+`LABEL stno=INT=1084` (the END statement of the program).  This is
+end-of-program flow ordering — not a runtime semantic divergence.
+scrip's output is complete and correct by this point.
+
+**Two distinct bugs fixed this session, both in `interp.c`
+`call_user_function`'s E_INDIRECT path:**
+
+1. **Subject-resolution garbage on DT_N NAMEPTR.**  The branch at
+   line 617 resolved `$name` (where `name` holds a DT_N parameter)
+   by calling `VARVAL_fn(xv)` on the parameter value.  But
+   `VARVAL_fn`'s DT_N case starts with `if (v.s) return
+   GC_strdup(v.s);` — and for a NAMEPTR (slen=1, .ptr set), the
+   union's `.s` slot reads pointer-bytes-as-string, yielding
+   garbage like `\x01`.  The resulting `subj_name` was junk; the
+   loop fell into the plain-assignment branch at line 668 which
+   wrote to a junk-named variable instead of `snoBrackets`.  The
+   wire then emitted `(none)` for the junk name.  Fix: discriminate
+   on `IS_NAMEPTR(xv)` and use `NV_name_from_ptr(xv.ptr)` to recover
+   the variable's real name.
+
+2. **Missing comm_var on IS_NAMEPTR write paths.**  Even when the
+   E_INDIRECT branch at line 770 was reached, the IS_NAMEPTR fast
+   paths wrote through the pointer with bare
+   `*(DESCR_t*)ind_val.ptr = repl_val;` — no `comm_var` call.  Same
+   shape as the session-#55 NM_PTR/NM_CALL fix in `name_t.c`.  Fix:
+   emit `comm_var(NV_name_from_ptr(...) ?: "<lval>", repl_val)`
+   after each IS_NAMEPTR write.
+
+**Diagnostic technique used.**  `getenv("DBG_INDIR")` printf at the
+E_INDIRECT subject-resolution branch and at the IS_NAMEPTR write
+sites.  The trace immediately showed `xv.v=9 xv.slen=1` (DT_N
+NAMEPTR) but `xv.s=\u0001` and `subj_name resolved to: \u0001` —
+pinpointing `VARVAL_fn`'s union-aliasing as the source of the
+garbage.  This also revealed that the line-770 E_INDIRECT branch
+**was never reached** in the failing case — `subj_name` got set
+early at line 622-628 and the plain-assignment branch swallowed
+the assignment.  Diagnostic prints reverted before commit per
+RULES.md.
+
+**Verification:**
+- 2-way harness on `beauty.sno < beauty.sno`: advances 370311 →
+  1277812 (+907501 steps).  Divergence at 1277812 is the terminal
+  MWK_END ordering (scrip emits MWK_END, SPITBOL emits one more
+  LABEL for the program's END statement).
+- 2-way harness on `beauty.sno < /dev/null`: still terminates at
+  step 1560 (no regression).
+- Self-host output: scrip's stdout filtered for `****` ftrace
+  prefix lines is 646 lines, md5
+  `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL.
+  `diff -q` returns identical.
+- Smoke=7, Broker=49 preserved.
+- Probes: `assign2(.snoBrackets, '()')` with `$name = val` body
+  and `pat . *assign(.snoBrackets, EVAL("..."))` with full
+  assign.inc body both match SPITBOL byte-for-byte.
+
+**Files touched (session #57):**
+- `src/driver/interp.c`:
+  - `call_user_function` E_INDIRECT subject-resolution branch
+    (~line 617): handle DT_N NAMEPTR / NAMEVAL via
+    `NV_name_from_ptr` before falling back to `VARVAL_fn`
+  - `call_user_function` E_INDIRECT assign branch (~line 770):
+    emit `comm_var` after both IS_NAMEPTR direct-write paths
+- `.github/GOAL-LANG-SNOBOL4.md` (-y closed; -h closed; HEADs and
+  Current state updated; this session #57 narrative)
+- `.github/PLAN.md` (step → SN-26-bridge-coverage-z, post-MWK_END
+  label ordering, non-gating)
+
+**Lesson for future sessions.**  When scrip emits a wrong /
+empty / placeholder name on the wire, the bug may not be in the
+fire-point itself but in upstream name resolution.  Garbage from
+`VARVAL_fn` on a DT_N NAMEPTR (where `.s` reads pointer bytes via
+union) is silent — it produces a syntactically valid-looking string
+and the assignment proceeds quietly into the wrong cell.  When
+investigating a `(none)` or junk-name wire emission, trace the
+path from the source identifier all the way to the `comm_var`
+call site and check each transformation.  Specifically: any
+`VARVAL_fn` call on a value that could be a DT_N NAMEPTR is
+suspect — audit `interp.c` for other sites with the same pattern.
+
+**Gates.**  Smoke=7, Broker=49.
+
+**Next session resume.**
+- The sharpened end-state target is achieved.  Future work on this
+  goal can either (a) close the residual MWK_END label-ordering
+  divergence at step 1277812 (open as -z if desired), or (b) pivot
+  to the broader corpus parity goals (SN-29f canonical .ref capture,
+  SN-30f regression sweep under new sbl).
+- -r remains independent and can land any session.
+- The latent SM/JIT linear-stno parity follow-up (extend `SM_STNO`
+  to take a source-stno operand) is also open whenever a Goal needs
+  SM/JIT &STNO correctness on backward gotos.
+
+---
 
 **Session #56 (2026-04-28) — SN-26-bridge-coverage-x CLOSED.**
 
