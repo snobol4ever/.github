@@ -212,105 +212,95 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   - `Indirection ($).cs` — array/table NameVar handling (lines 35-53)
   - `IndexArray` / `IndexTable` failure propagation
 
-- [ ] **S-2-bridge-7** — Fix the runtime gap, advance to next divergence.
-  1. Diagnose the spurious `VALUE i = 1` at step 801.
-  2. Fix; re-run S-2-bridge-6.
-  3. Repeat until exit 0 and ≥500 stderr lines.
+- [x] **S-2-bridge-7-predicates** — FRETURN-propagation over-reach.
+  Fixed Mon Apr 28 2026 (snobol4dotnet `e99b65c`).
 
-  **Gates after every sub-rung:**
-  - Beauty 17/17 still green.
-  - Unit tests still green (baseline 2375p/0f/2s).
-  - Existing dot bridge smokes still PASS (5+5+9+7+3+6).
+  **Bug:** Commit `80381fb` ("S-2 FRETURN propagation: partial fix") added
+  three over-broad guards to abort statement execution when a function
+  FRETURNed:
 
-  **Mon Apr 27 2026 session — diagnostic notes (no fix landed):**
+  1. `ThreadedExecuteLoop.cs` `CallFunc`/`CallFuncIndirect`: a
+     skip-to-`Finalize` loop on `Failure=true`.
+  2. `MsilHelpers.cs` `CallFuncBySlot`: a SystemStack drain back to
+     `StatementSeparator` on `Failure=true`.
+  3. `BuilderEmitMsil.cs` `R_PAREN_FUNCTION`: a `Brtrue earlyExit`
+     branch after `_callFuncBySlot` jumping to `FinalizeStatementMsil`.
 
-  Traced the spurious `VALUE i = 1` at step 801 to a stack-imbalance
-  bug at the dispatch level, NOT inside `Executive.Assign`'s monitor
-  fire-point. The actual chain at OOB iteration of
-  `$UTF_Array[i, 2] = UTF_Array[i, 1]`:
+  Each guard *individually* aborted the statement, bypassing semantically
+  required follow-on work:
+  - **Unary predicates** `~` (`OpNegation`) and `?` (`OpInterrogation`):
+    a `~f()` or `?f()` whose `f()` FRETURNed must let the predicate run
+    so it consumes the failed sentinel and (for `~`) flips Failure back
+    to false. The skip/drain/branch all bypassed the predicate, leaving
+    the statement in failed state. Symptom: `TEST_Negation_001/004/006`,
+    `TEST_GT_002`/`LT_002`/`NE_002`, `MsilCache_NegationOperator`.
+  - **Choice expressions** `(alt1, alt2, alt3)`: when `alt1` failed,
+    `COMMA_CHOICE` should pop the failed sentinel and clear Failure so
+    `alt2` runs. The MSIL `Brtrue earlyExit` jumped *past*
+    `COMMA_CHOICE`, escaping the entire choice. Symptom:
+    `TEST_Choice_002/003`, `TEST_008`,
+    `MsilCache_ChoiceOperator_NegationSelectsAlternative/ThirdAlternative`.
 
-  1. LHS `IndexCollection` for `UTF_Array[126, 2]` calls
-     `NonExceptionFailure()` → pushes failed sentinel, sets `Failure=true`.
-  2. `$` (`OpIndirection` via `OperatorFast`) sees the failed arg in
-     `ExtractArguments`, propagates failure cleanly. Stack now has 1
-     failed sentinel.
-  3. RHS path: `PushVar(UTF_Array)`, `PushVar(i)`, `PushConst(1)` all
-     push **unconditionally** (lines 124,134 of `ThreadedExecuteLoop.cs`
-     do not check `Failure`).
-  4. RHS `IndexCollection` hits `if (Failure) return;` (Array.cs:34) and
-     returns silently — does NOT pop the 3 operands it just had pushed
-     for it, does NOT push a sentinel.
-  5. Stack is now `[…, failed_$, UTF_Array, i, IntegerConst(1)]`.
-  6. `BinaryEquals.ExtractArguments(2)` pops `IntegerConst(1)` and `i`,
-     both `Succeeded=true` — it does NOT detect failure. `Assign` runs
-     legitimately with `leftVar=i, rightVar=1`, fires `EmitValue(i,1)`.
+  **Fix:** Removed all three guards. The runtime already had correct
+  operator-level FRETURN propagation:
+  - `OperatorFast` drains arithmetic/concat operands when `Failure=true`
+    (BUG-4 carve-out at `ExecutionCache.cs:185-196`).
+  - `ExtractArguments` returns `true` (signal-abort) for any operator
+    with a failed-Succeeded operand, pushing a fresh sentinel.
+  - `ChoiceStart` (threaded) and `_choiceStartMethod` (MSIL) clear
+    Failure between alternatives.
+  - `_BinaryEquals` bails at `ExtractArguments` rather than running
+    `Assign` on a failed RHS.
 
-  Two fix attempts, both reverted:
+  These are sufficient. The aggressive skip/drain/branch was redundant
+  on the abort path and destructive on the predicate/choice paths.
 
-  - **Attempt A — drain in `IndexCollection`** when `Failure` is set:
-    pop indices until ArrayVar/TableVar/StatementSeparator, pop the
-    collection, then `NonExceptionFailure()`. Broke 0 *new* tests
-    relative to the current 26-failure baseline (see baseline note
-    below) but the visible Parse Error on `&FULLSCAN = 1` did not
-    move — same 28 stderr lines, same Parse Error, same line. So this
-    fix targets a path that doesn't actually run before the early
-    Parse Error fires.
+  **Files changed:**
+  - `Snobol4.Common/Runtime/Execution/ThreadedExecuteLoop.cs`
+  - `Snobol4.Common/Runtime/Execution/MsilHelpers.cs`
+  - `Snobol4.Common/Builder/BuilderEmitMsil.cs`
 
-  - **Attempt B — skip-to-Finalize in `BinaryEquals` dispatch** when
-    `Failure` is set, mirroring the `CallFunc` FRETURN-propagation
-    pattern. Same observable outcome: 28-line Parse Error unchanged.
+  (The MSIL emitter retained an unused `nextToken` parameter on
+  `EmitSingleToken` — added during a tighter intermediate fix that was
+  superseded. Harmless; left in place in case a future fix needs it.)
 
-  Neither fix advanced the visible self-host gate, because the gate
-  fails LONG before step 801 — at line 26 of beauty.sno
-  (`&FULLSCAN = 1`, the very first executable statement after the
-  `-INCLUDE` block). The monitor-step-801 divergence and the
-  user-visible Parse Error on `&FULLSCAN = 1` are almost certainly
-  **different bugs**. The monitor diagnosis was made with
-  `MONITOR_NAME_WILDCARD=spl` skipping disagreements, which can let
-  the harness advance past a real prior divergence. Direct-run
-  evidence (28 stderr lines, choke at the `&FULLSCAN` keyword
-  assignment) suggests an issue in keyword-assignment handling,
-  pattern preamble parsing, or the include-resolution path is
-  reachable at runtime but the parser fires from the input stream.
+  **Test gate:**
+  - Targeted predicate/choice subset (Negation/Interrogation/MsilCache/
+    GT/LT/NE/Choice/008): **62/62 PASS**.
+  - Full unit suite: **2075p / 14f**, up from **2063p / 26f** baseline.
+    The remaining 14 failures are all `TEST_Csnobol4_*` corpus tests;
+    confirmed pre-existing by stash-and-test against HEAD `2414a26`
+    (3 Csnobol4 tests sampled, all fail at baseline too).
+  - One Csnobol4 test (`TEST_Csnobol4_atn` or similar) causes a
+    legitimate user-function infinite-recursion stack overflow that
+    aborts the whole test host. Pre-existing.
+  - Beauty 17/17: **17/17 PASS** (unchanged).
+  - Beauty self-host gate: still **FAIL** at line 26 (`&FULLSCAN = 1`,
+    Parse Error from `mainErr1`). Confirms goal-file diagnosis: the
+    predicate regression and the `&FULLSCAN` Parse Error are **distinct
+    bugs**. Predicate fix did not unblock self-host.
 
-  **Important: pre-existing regression.** Running the documented unit
-  test gate against this clone produced **26f/2063p** (test run
-  aborted after 2089), versus the goal file's documented baseline of
-  **2375p/0f/2s**. Failures cluster around predicate-handling tests:
-  `TEST_Negation_001/004/006`, `TEST_GT_002`, `TEST_LT_002`,
-  `TEST_NE_002`, `TEST_Choice_002/003`, `TEST_008`,
-  `MsilCache_ChoiceOperator_*`, `MsilCache_NegationOperator`, plus 14
-  CSNOBOL4 corpus smoke tests (`TEST_Csnobol4__8bit`,
-  `_a`, `_alis`, `_alph`, `_atn`, `_base`, `_case1`, `_contin`,
-  `_diag1`, `_diag2`, `_digits`, `_dump`, `_err`, …). Reproduced on
-  HEAD `2414a26` with no working-tree changes:
-  `TEST_Negation_001` fails with `Expected:<succeed>. Actual:<failure>`
-  on `~integer('a') :f(n) ; result = 'succeed' :(end) ; n result = 'failure'`,
-  meaning `~` does not flip Failure from a prior `integer('a')` call
-  — which is consistent with the `CallFunc`-skip-to-Finalize handler
-  unconditionally bypassing the `~` predicate when the inner function
-  set `Failure=true`.
+- [ ] **S-2-bridge-7-fullscan** — Diagnose the `&FULLSCAN = 1` Parse
+  Error directly. The minimal repro is lines 1-26 of beauty.sno + END
+  fed as stdin to `dotnet Snobol4.dll -bf beauty.sno`. SPITBOL runs
+  cleanly; dot emits the Parse Error from beauty's own `mainErr1`
+  branch — meaning beauty's `*snoParse *snoSpace RPOS(0)` pattern fails
+  to match `&FULLSCAN = 1` under dot. The keyword-recognition pattern
+  alone (`'&' SPAN(&UCASE &LCASE) $ tx $ *match(snoUnprotKwds, snoTxInList)`)
+  works correctly in isolation on dot — the bug is somewhere deeper in
+  beauty's grammar (snoStmt / snoSubject / snoLabel / etc.) that gets
+  exercised when an actual `&FULLSCAN = 1` paragraph is parsed.
 
-  **Recommendation for next session.** Decide between two
-  starting points:
-  1. **Fix the predicate-handling regression first.** If `~`, `?`,
-     `LT`, `GT`, `NE`, etc. are not flipping `Failure` correctly when
-     called as predicates after a failing function call, that bug is
-     upstream of the beauty self-host. Beauty contains ~1000 such
-     predicate uses; without correct predicate semantics, no part of
-     S-2-bridge-7+ is meaningful. The `CallFunc`-skip-to-Finalize
-     handler likely needs to NOT skip when the next opcode is a
-     predicate operator (`OpNegation`, `OpInterrogation`, `OpTilde`,
-     `OpQuestion`).
-  2. **Diagnose the `&FULLSCAN = 1` Parse Error directly** with a
-     minimal-input repro (`echo '&FULLSCAN = 1\nEND\n' | dotnet …
-     beauty.sno`) — the existing self-host gate is a 25-line
-     reduction already; trace what beauty's parser does with that
-     keyword assignment under dot vs spl.
-
-  Both root-cause investigations should precede any further bridge
-  fire-point work; the bridge can only advance as fast as the
-  underlying runtime is correct.
+  Suggested next-session approach:
+  1. Bisect by reducing beauty's grammar — start by feeding a paragraph
+     of `&FULLSCAN = 1` to a stripped beauty that retains only the
+     statement/keyword grammar paths, see what the smallest grammar is
+     that still fails.
+  2. Or: instrument beauty.sno's `pp_*` callbacks to log every grammar
+     rule that fires, compare spl vs dot.
+  3. Or: walk the threaded-loop opcodes for the parse with
+     `BuildOptions.TraceStatements=true` (find a way to enable from
+     CLI — not currently exposed).
 
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
