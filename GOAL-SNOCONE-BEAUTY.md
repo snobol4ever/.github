@@ -293,6 +293,129 @@ accretion in beauty.sc, which session #65 then stripped (above).
 
 ---
 
+
+## Session #70 progress (2026-04-29)
+
+**No source changes; investigation only. Repos clean (`git status` empty
+across all three).**
+
+**Hang root cause IS NOT what session #69 thought it was.** The hang
+in `Src ? (POS(0) && *Parse && *Space && RPOS(0))` is NOT exponential
+backtracking inside ARBNO(*Command), and is NOT a grammar/&FULLSCAN
+issue. It is a Snocone-runtime bug poisoning pattern-matcher state.
+
+### Minimal reproducer (9 lines, no beauty.sc, no .sno libs)
+
+```snocone
+procedure foo(x) {
+    if (x) { x = 0; }
+    return;
+}
+v = 'X';
+if (v ? POS(0)) { OUTPUT = 'OK'; } else { OUTPUT = 'FAIL'; }
+```
+
+Run: `./scrip --ir-run /tmp/g.sc /tmp/d.sc < /dev/null`
+
+Result: HANG in the C runtime. No `OK`, no `FAIL`, no &STLIMIT trip
+even at very low values. The match never returns.
+
+### What does NOT trigger it
+
+- `procedure foo(x) { return; }` (empty body) — match works fine
+- `procedure foo(x) { x = 0; return; }` (straight assign) — fine
+- Pure context with no procedure at all — fine; Id matches in 5 stmts
+
+### What DOES trigger it
+
+- `procedure foo(x) { if (x) { x = 0; } return; }` — HANG
+- `procedure foo(x) { while (LT(x, 10)) { x = x + 1; } return; }` — HANG
+
+The common element: a `procedure` body containing a control-flow block
+(if/while). The IR for such a body emits conditional-jump labels:
+
+```
+(STMT :subj (E_VAR x) :goS L.1 :goF L.2)
+(STMT :lbl L.1)
+(STMT :eq :subj (E_VAR x) :repl (E_ILIT 0))
+(STMT :lbl L.2)
+```
+
+When this IR sits inside a `DEFINE`'d procedure (`(STMT :go foo.END)`
+... `(STMT :lbl foo.END)` brackets), and ANY pattern match runs in the
+top-level program after that, the match never terminates.
+
+### Bisection that found this
+
+Session #70 started by bisecting GOAL's stated next-step (ARBNO under
+&FULLSCAN=1). Confirmed the hang via `&STLIMIT` (Error 22 fires on
+500K). But narrowing further revealed the hang appears even at
+`'X' ? POS(0)` (trivial match, no grammar). Bisected the library
+chain: hang first appears at line 37 of `global.sc` — the body of
+`procedure define_alphabet_run(start, len, ans, i)` (the very first
+proc in the lib chain whose body contains `while`). Stripping its
+body to a no-op makes the hang go away.
+
+### Why session #69 was misled
+
+Session #69's "ARBNO backtracking under &FULLSCAN=1" hypothesis is
+INCORRECT. The hang fires for trivial matches that have nothing to
+do with ARBNO or alternation. The session-#69 fixes themselves are
+all correct and remain landed:
+
+- `semantic.sc reduce()` double-quote wrapping for tags containing
+  single quotes — correct.
+- `if (~done)` → `if (DIFFER(done))` for non-pattern boolean — correct.
+- Integer-0 → `''`-as-false flags for done/cont/more/eof_inside — correct.
+
+Those fixes do real work. They were just not the path to "beauty.sc
+produces output" because a deeper runtime bug blocks ANY subsequent
+match.
+
+### Next session — three concrete steps
+
+1. **Mode-coverage check.** Verify whether the hang is `--ir-run`-only
+   or also affects `--sm-run` and `--jit-run`. If only `--ir-run`,
+   bug is in `src/driver/interp.c` tree-walker. If all three modes,
+   bug is in shared pattern-matcher state.
+
+2. **SPITBOL cross-check.** Write the SNOBOL4 equivalent of the
+   minimal reproducer:
+   ```snobol4
+                   DEFINE('foo(x)')                                  :(foo_end)
+   foo             differ(x)                                         :s(L1)f(L2)
+   L1              x = 0
+   L2                                                                :(return)
+   foo_end
+                   v = 'X'
+                   v pos(0)                                          :s(ok)f(fail)
+   ok              output = 'OK'                                     :(end)
+   fail            output = 'FAIL'
+   END
+   ```
+   Run under `/home/claude/x64/bin/sbl -bf`. If SPITBOL completes,
+   bug is scrip-Snocone-specific (or scrip-runtime-specific). This
+   is the strongest signal for which subsystem to dig into.
+
+3. **Runtime bisection.** With (1) telling which mode(s), grep
+   relevant runtime for "PDL", "STCOUNT", or pattern-matcher state
+   variables. Look for: anything that could be initialized once at
+   procedure-define time and not reset between calls; any global
+   that the conditional-jump dispatch (`:goS L.N :goF L.N`) might
+   leave in an unexpected state when the jump target is a label
+   inside a procedure. The IR tree-walker (`src/driver/interp.c`)
+   is the smaller surface area; start there.
+
+### Files investigated, not modified
+
+`src/frontend/snocone/snocone_lower.c`,
+`src/frontend/snocone/snocone_control.c`,
+`src/driver/scrip.c` (multi-file merge IS correctly stripping
+intermediate `is_end` — confirmed at lines 338-355). No source
+changes this session. Diagnostic test files in `/tmp/` only.
+
+---
+
 ## Steps
 
 - [x] **SB-1** — Diagnose underflows.
@@ -518,7 +641,7 @@ accretion in beauty.sc, which session #65 then stripped (above).
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
   - [x] **SB-5a** — Port `semantic.inc` → `semantic.sc` (covered by
     SB-4b.15, closed session #66).
-  - [ ] **SB-5b** — **PARTIAL — six gating bugs fixed across sessions #68 and #69.
+  - [ ] **SB-5b** — **PARTIAL — six gating bugs fixed across #68/#69; session #70 isolated a deeper runtime bug as the actual blocker (see Session #70 progress block above). The 9-line reproducer (proc with if-body + any pattern match) HANGS in C runtime. Six gating bugs landed:
     Session #69 fixed three more bugs beyond session #68's three:
     (1) semantic.sc reduce(): single-quote wrapping for t in EVAL string broke
     when t contains embedded single quotes (the three Goto-pattern tags
