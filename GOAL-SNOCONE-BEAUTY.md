@@ -55,8 +55,7 @@ Source modules at top level. Subsystem tests flat in `test/` as `test_<subsys>.s
 Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 Script paths updated in one4all. Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 
-NEXT STEP: SB-5 — beauty.sc produces no output with .sno libs. Development work
-needed: identify which procedures in beauty.sc are incomplete/missing and implement them.
+SB-5 in progress (session #63): all internal labels eliminated from .sc files (Gen, TDump, Qize, ReadWrite, XDump, beauty.sc ss proc). io.sc removed. Full-stack hang persists — cumulative lib interaction cause not yet identified. Next: find which lib combination triggers the hang.
 
 ---
 
