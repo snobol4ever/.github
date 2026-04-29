@@ -46,13 +46,15 @@ Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
 
 ---
 
-## Current state (2026-04-16, one4all HEAD 311ec18c)
+## Current state (2026-04-29)
 
 SB-1..SB-3 DONE.
 
-NEXT STEP: SB-5 — diagnose why beauty.sc produces no output with .sno libs.
-pat_cat warning from io.sno is suspect. beauty.sc main loop
-`while (DIFFER(Line = INPUT))` may not be reading input.
+SC sources moved to `corpus/programs/snocone/demo/beauty/` (session #62).
+Script paths updated in one4all. Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
+
+NEXT STEP: SB-5 — beauty.sc produces no output with .sno libs. Development work
+needed: identify which procedures in beauty.sc are incomplete/missing and implement them.
 
 ---
 
@@ -75,14 +77,10 @@ pat_cat warning from io.sno is suspect. beauty.sc main loop
 
 ---
 
-## Canonical destination — corpus/programs/snobol4/demo/beautify/
+## Canonical destination — corpus/programs/snocone/demo/beauty/
 
-The Snocone implementation is currently sitting in `one4all/test/beauty-sc/`
-as a working location during SB-1..SB-5 development. When SB-5 is
-unblocked and `beauty.sc` produces correct output, the canonical home
-is **`corpus/programs/snobol4/demo/beautify/`** — sibling to the
-existing `corpus/programs/snobol4/demo/beauty/` (the SNOBOL4 BEAUTY
-demo).
+SC sources live at `corpus/programs/snocone/demo/beauty/` as of session #62.
+This is the permanent home.
 
 **Naming distinction (decided in session-#NN with Lon):**
 
