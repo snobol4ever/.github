@@ -685,59 +685,52 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #48 (F-2 Step 3a partial — PDLHED save/restore + FNCDCL byrd-box seal)
+- csnobol4 @ session #49 (F-2 Step 3a continued — *cmd-FENCE-RPOS bug class isolated)
 - one4all @ `06433f90`
-- corpus @ `ae9ea8d`
+- corpus @ session #49 (added test 068 — fence_via_var)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (parse-error — beauty grammar fails to match assignments)
+- active step → **F-2 Step 3a** (cstack-overwrite at deep nesting blocks beauty self-host)
 
-**Gates as of session #48 end:**
+**Gates as of session #49 end:**
 - fence_function/ suite: **10/10 PASS** (preserved)
-- Tiny repro: **clean "Parse Error" output** (was: Error 17 at stmt 1074;
-  before that: SIGSEGV — bug class shifted from memory corruption → controlled
-  program error → clean parse failure. Each step is meaningful progress.)
-- Recursive *FENCE pattern: clean stack overflow (was: stack overflow +
-  segfault — segfault eliminated)
-- beauty self-host: **35 lines** (basically unchanged from #47's 36; SPITBOL: 646)
-- one4all Smoke/Broker: NOT YET RUN (still gated on beauty)
+- Tiny repro: **clean "Parse Error"** (unchanged from session #48)
+- beauty self-host: **35 lines** (unchanged; SPITBOL: 646)
+- one4all Smoke/Broker: NOT RUN (still gated on beauty)
+- New test `corpus/crosscheck/patterns/068_pat_fence_fn_via_var`: **FAIL on csnobol4** (SEGV); SPITBOL passes. Added to corpus but NOT in fence_function/ TESTS list yet — will be added when fix lands.
 
-**What session #48 fixed:**
-Added PDLHED/NAMICL/NHEDCL save/restore around FNCA's recursive SCIN call,
-mirroring ATP/BAL's idiom. The original pre-D6 FNCA saved 6 things including
-PDLHED/NHEDCL; session #45 removed these from the save list (kept set but no
-restore); session #47 removed the set too (calling it "spurious clobber"). Both
-were wrong — without inner-snapshot PDLHED, BAL/nested-FENCE primitives inside
-P read stale outer values, and without OUTER restoration, post-FNCA outer
-matching sees corrupted PDLHED. Fix: save outer PDLHED/NAMICL/NHEDCL on cstack,
-set inner = current PDLPTR/NAMICL after SCFLCL push, restore outer on both
-success and FNCBX failure paths. (`isnobol4.c`, `snobol4.c`)
+**What session #49 found:**
 
-The diagnostic that found this: INTR13 fired with PATICL = a heap pointer in
-res-range. PATICL came from PDL trap entry's then-or that was an FNC-flagged
-pointer to a heap descriptor whose .a was another pointer (not 0..40). Logged
-all SCIN3 pushes, all SALT2 reads, all PATBRA dispatches — none of those paths
-explained the pointer-shaped PATICL. The path that did: post-FNCA outer
-matching where PDLHED had been clobbered to inner P's value, so subsequent
-primitives that use PDLHED (BAL boundary check, nested FENCE) read it as a
-PDL position when it was actually inner-P's history-stack base.
+1. **The bug class beauty triggers, in 5 lines.** The minimal reproducer:
+```snobol
+        cmd = FENCE('a' | 'ab')
+        s = 'ab'
+        s  POS(0) *cmd RPOS(0)  :s(ok)f(fail)
+ok      OUTPUT = 'ok'  :(done)
+fail    OUTPUT = 'fail'
+done
+END
+```
+csnobol4 SIGSEGVs at `isnobol4.c:11437` (SCIN1: `D(ZCL) = D(D_A(PATBCL) + D_A(PATICL))` with PATICL = `stdio_ops+16`-shaped pointer); SPITBOL prints `fail`.
 
-Follow-on commit (same session): converted FNCDCL seal to byrd-box-style
-local memory. The seal trap's slot[2] now carries the outer pmhbs SNAPSHOT
-from FNCDCL-push time; L_FNCD reads it via SALT2's YCL load instead of
-relying on the global PDLHED which other primitives may overwrite between
-FENCE-success and seal-fire. Architecturally cleaner: the seal owns its
-rewind target as local data, no global dependency. fence_function 10/10
-preserved; tiny repro unchanged (still clean Parse Error).
+2. **The bug is in FNCA's seal slot[2] write.** Currently FNCA writes `D(PDLHED)` — the OUTER-SCAN PDLHED (just popped from cstack) — into the FNCDCL trap entry. When the seal fires, L_FNCD does `PDLPTR = YCL` (= seal slot[2]). The walker then reads slot[1] at `outer-scan-PDLHED + DESCR` — STALE memory because outer-scan PDLHED is not a valid PDL position inside the *cmd matching context. STARP6 (the `*` matcher) had pushed SCFLCL at PDLPTR'+DESCR where PDLPTR' = FNCA's outer-PDLPTR-at-entry value `S` — but `S` ≠ outer-scan-PDLHED.
+
+3. **Proposed fix (verified working in isolation):** synthesize a PTR descriptor pointing to `S = current PDLPTR - 3*DESCR` and store IT in seal slot[2]:
+```c
+D_A(TMVAL) = D_A(PDLPTR) - 3*DESCR;
+D_F(TMVAL) = D_V(TMVAL) = 0;
+D(D_A(PDLPTR) + 2*DESCR) = D(TMVAL);
+```
+Result: ✓ min_crash converts SEGV → clean fail. ✓ nested *cmd1*cmd2 case works. ✓ fence_function/ 10/10 preserved. ✗ Beauty self-host: clean "Parse Error" → SEGV (regression in error class — same crash signature `PATICL=0xc0` from F-0 baseline).
+
+4. **The fix is NOT committed.** Per RULES.md, turning clean failure into crash is a regression in error class. The deeper bug exposed by beauty needs a separate fix that likely involves PDL slot zeroing for abandoned regions during FNCA's success-path rewind. The full investigation is in `csnobol4/docs/F-2-Step3a-findings.md`.
+
+**What session #49 produced:**
+- `csnobol4/docs/F-2-Step3a-findings.md` — full investigation, gdb-verified diagnosis, proposed fix code, rationale for not committing yet.
+- `corpus/crosscheck/patterns/068_pat_fence_fn_via_var.sno` and `.ref` — minimal regression test (currently fails on csnobol4, passes on SPITBOL).
+- This goal-file state update.
 
 **What remains:**
-1. Step 3a continued — beauty's grammar fails to match assignments (even
-   `OUTPUT = 'hi'` fails through beauty.sno). The seal mechanism is now
-   architecturally clean (byrd-box local memory); fence_function 10/10
-   passes. The remaining mismatch with SPITBOL is broader than just FENCE —
-   may involve other pattern primitives (BAL, ATP, NME) interacting with
-   beauty's complex grammar. Investigation should pivot from FENCE-internal
-   to comparing CSNOBOL4 vs SPITBOL trace on a single statement.
-2. Step 3b — port the C edits back into `v311.sil` for SIL/C consistency.
-   Current divergence: SIL FNCA's PUSH list omits PDLHED/NAMICL/NHEDCL; the C
-   has them. Reconcile.
-3. Steps 4-9 — clean build, regression, beauty, smoke gates, commit.
+1. **Step 3a continued** — implement the deep-nesting fix together with the seal slot[2] fix, so beauty stops crashing AND ≥500 lines self-host. The seal slot[2] fix from `F-2-Step3a-findings.md` is ready to apply once the deep-nesting bug is resolved.
+2. **Step 3a continued** — add test 068 to `csnobol4/test/fence_function/Makefile` TESTS list (currently fails — will pass with the fix).
+3. **Step 3b** — port C edits back into `v311.sil` for SIL/C consistency.
+4. **Steps 4–9** — clean build, regression, beauty, smoke gates, commit.
