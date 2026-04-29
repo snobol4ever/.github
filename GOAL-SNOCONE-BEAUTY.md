@@ -159,31 +159,27 @@ accretion in beauty.sc, which session #65 then stripped (above).
   settings" means dead code.** Per Lon: "the code is turned on by
   settings."
 
-  ⛔ **Before starting any module, request from Lon:**
-    - The relevant **Snocone specification** section(s) for the
-      Snocone idiom being used (procedure form, struct/data types,
-      pattern-matching shape, conditional/control flow). Snocone differs
-      from SNOBOL4 in non-trivial ways (no binary `&`, no binary `~`,
-      no OPSYN, structured `if/while/break`, `procedure` with named
-      locals, `.` capture-into-name, `*fn()` for indirect call), and
-      the spec text is the only authoritative source for what is and
-      isn't legal.
-    - The relevant **SPITBOL manual** section(s) for the SNOBOL4 syntax
-      and semantics being translated FROM — pattern matching primitives
-      (`SPAN`, `BREAK`, `ANY`, `NOTANY`, `LEN`, `POS`, `RPOS`, `TAB`,
-      `RTAB`, `REM`, `ARB`, `BAL`, `FENCE`), conditional value
-      assignment (`. var`, `$ var`), unevaluated expression
-      (`*expr`), keyword semantics (`&ANCHOR`, `&FULLSCAN`, `&CASE`),
-      function-call return conventions (RETURN / NRETURN / FRETURN /
-      SCONTINUE), and especially OPSYN-defined operators when porting
-      `semantic.inc`'s `shift`/`reduce`.
+  ⛔ **Before starting any module, consult:**
+    - The Snocone language-facts section in this Goal file (below the
+      Steps), which records the canonical operator table and idioms
+      extracted from `snocone.sc`.
+    - The SPITBOL manual (`spitbol-manual-v3_7.pdf`, 368 pages, by
+      Mark Emmer) for the SNOBOL4 semantics being translated FROM.
+      The manual was uploaded in session #66 and the key topics are
+      enumerated in the language-facts section below.
 
   Modules and their order of attack (each carries its own gate via
   `test_<subsys>.sc` + `.ref` in the 14-test suite — run after every
   module port):
 
-  - [ ] **SB-4b.1** `global.sc` — confirm full ALPHABET / UTF /
-    digits / TRUE / FALSE / character-name set against `global.inc`.
+  - [x] **SB-4b.1** `global.sc` — session #66: tightened against
+    `global.inc`. Added missing UTF entry (RIGHTWARDS_ARROW collision
+    at offset 148). Added the seven `&ALPHABET POS LEN`-derived byte
+    range names X0xxxxxxx..X11111xxx via `define_alphabet_run`.
+    Documented a known runtime gap: scrip's CHAR(n)+&&-concat for
+    bytes ≥128 currently loses bytes (217 produced vs SPITBOL's 256).
+    None of those names referenced in beauty so this does not affect
+    output. Gate green.
   - [ ] **SB-4b.2** `case.sc` — `lwr/upr/cap/icase` plus any
     settings-gated paths.
   - [ ] **SB-4b.3** `assign.sc` — `assign`.
@@ -214,17 +210,18 @@ accretion in beauty.sc, which session #65 then stripped (above).
   - [ ] **SB-4b.14** `omega.sc` — `TV, TW, TX, TY, TZ` trace
     instrumentation. `T8Trace` reference in here gates the need
     for a `trace.sc` port.
-  - [ ] **SB-4b.15** **NEW** `semantic.sc` — currently absent. Port
-    `semantic.inc`'s 8 procedures: `shift(p, t)`, `reduce(t, n)`,
-    `pop()`, `nPush()`, `nInc()`, `nDec()`, `nTop()`, `nPop()`.
-    The shift/reduce procedures cannot use SNOBOL4-style OPSYN; their
-    callers in `beauty.sc` must call them as ordinary functions.
-    Test fixture `test/test_semantic.sc` already inlines a working
-    version of the n-counter half — promote that work to a real
-    library file.
-  - [ ] **SB-4b.16** **NEW** `trace.sc` — port `trace.inc`'s
-    `T8Trace`, `T8Pos`. Gated by `xTrace > 0`; needed when omega.sc
-    is exercised at higher trace levels.
+  - [x] **SB-4b.15** **NEW** `semantic.sc` — session #66: ported
+    `semantic.inc`'s 8 procedures (`shift`, `reduce`, `pop`, `nPush`,
+    `nInc`, `nDec`, `nTop`, `nPop`). Snocone has no OPSYN, so the
+    canonical `OPSYN('~', 'shift', 2)` / `OPSYN('&', 'reduce', 2)`
+    pair cannot be expressed; callers in `beauty.sc` must use the
+    function forms (separate SB-5b rung). `test_semantic.sc` fixture
+    PASS in all three modes; gate stays green.
+  - [x] **SB-4b.16** **NEW** `trace.sc` — session #66: ported
+    `trace.inc`'s `T8Trace` and `T8Pos` position-tracking helpers.
+    `:S/:F` loops translated to Snocone `while`. Gated by
+    `doDebug > 0` and `xTrace > 0`; needed when omega.sc runs at
+    higher trace levels. Smoke-tested clean; gate stays green.
 
   **Habit:** after every per-module change, run the beauty test suite
   end-to-end:
@@ -243,9 +240,81 @@ accretion in beauty.sc, which session #65 then stripped (above).
     (shift) site in `beauty.sc` as explicit `reduce(t, n)` / `shift(p, t)`
     function calls. Seven `&` sites at lines 61, 67, 69, 89, 93, 132, 133;
     `~` sites need re-audit (currently translated as wrong
-    `*Pat . '' && 'Name'` form).
+    `*Pat . '' && 'Name'` form). Also sweep beauty.sc for the 14
+    pre-existing `goto` statements (lines 311, 397, 399, 400, 402, 423,
+    429, 431, 433, 437, 439, 442, 444 plus its `goto END` exits) and
+    eliminate where readability allows; keep only those that genuinely
+    de-duplicate large blocks or improve readability.
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 - [ ] **SB-7** — Gate script. Commit. Push.
+
+---
+
+## Snocone language facts (canonical reference, session #66)
+
+Lon supplied the canonical Snocone-to-SNOBOL4 transpiler source
+(SNOCONE.zip: `snocone.sc`, `snocone.sno`, `snocone.snobol4`,
+`Makefile`). Plus a 368-page SPITBOL manual PDF
+(`spitbol-manual-v3_7.pdf`). These are the authoritative references
+for the remaining ports. Key facts extracted:
+
+**Snocone binary-operator table** (from `snocone.sc` `bconv[...]`):
+
+| Snocone | SNOBOL4 emit | Notes |
+|---|---|---|
+| `=` | `=` | assignment |
+| `?` | `?` | match |
+| `\|` | `\|` | alternation |
+| `\|\|` | `OR()` | logical OR (function) |
+| `&&` | ` ` (blank) | concat |
+| `>` `<` `>=` `<=` `==` `!=` | `GT LT GE LE EQ NE` | numeric compare → fn calls |
+| `::` `:!:` `:>:` `:<:` `:>=:` `:<=:` `:==:` `:!=:` | `IDENT DIFFER LGT LLT LGE LLE LEQ LNE` | string compare → fn calls |
+| `+` `-` `/` `*` `%` `^` | `+ - / * REMDR **` | arithmetic |
+| `.` `$` | `.` `$` | conditional / immediate value-assign |
+
+**Snocone unary-operator set** (from `snocone.sc` line 78):
+`+ - * & @ ~ ? . $`. Unary `&` = keyword prefix. Unary `~` = NOT.
+Unary `*` = unevaluated expression. Unary `.` = name-of.
+
+**Things Snocone does NOT have:**
+- Binary `&` (no reduce-style operator). Use a function call.
+- Binary `~` (no shift-style operator). Use a function call.
+- `OPSYN`. Period. Custom operator definitions are not portable
+  to Snocone — port to function calls.
+- `GOTO` as a separate language construct outside structured
+  control flow; Snocone source typically uses `if/while/break/return/
+  freturn/nreturn`. The scrip dialect tolerates `goto LABEL` but
+  this is non-canonical and should be removed where possible.
+
+**Snocone procedure form** (canonical, from `snocone.sc`):
+```
+procedure name (param1, param2) local1, local2 {
+    ...
+    return            // value via assignment to procedure name
+    nreturn .pat      // pattern/name return
+    freturn           // failure
+}
+```
+
+The scrip dialect we use additionally requires `;` after every
+statement and braces around every if/while/else body. Locals can
+be declared with commas after the parameter list (canonical) or
+folded into the parameter list with a comma separator (scrip
+dialect — both forms accepted).
+
+**SPITBOL manual** (`spitbol-manual-v3_7.pdf`, 368 pages, by Mark
+Emmer) is the authoritative source for the SNOBOL4 semantics being
+translated FROM. Key sections to consult when porting:
+- Pattern matching primitives (`SPAN BREAK ANY NOTANY LEN POS RPOS
+  TAB RTAB REM ARB BAL FENCE`).
+- Conditional value assignment (`. var`, `$ var`).
+- Unevaluated expression (`*expr`).
+- Keyword semantics (`&ANCHOR &FULLSCAN &CASE &ALPHABET`).
+- Function-call return conventions (RETURN / NRETURN / FRETURN /
+  SCONTINUE).
+- OPSYN, particularly when porting `semantic.inc`'s `shift`/`reduce`.
+
+Session #66 used these to port `global.sc`, `semantic.sc`, `trace.sc`.
 
 ---
 
@@ -254,6 +323,15 @@ accretion in beauty.sc, which session #65 then stripped (above).
 - Gate = PASS=36 FAIL=0 on test_smoke_unified_broker.sh after every commit.
 - Oracle: corpus/programs/snobol4/smoke/beauty_oracle.sno
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
+
+**Per Lon (session #66):** *every* construct in canonical `.sno`/`.inc`
+gets ported, regardless of whether it appears used at default settings.
+No "dead-code" pruning. Code that looks unused today may be turned on
+by future settings; faithful ports preserve all of it.
+
+**No `goto` in Snocone ports unless absolutely necessary** — only when
+it genuinely improves readability or eliminates massive duplication.
+Default to structured `if/while/break/return/freturn/nreturn`.
 
 ---
 
