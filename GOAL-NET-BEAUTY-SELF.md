@@ -854,3 +854,120 @@ pointer captured at FENCE entry — equivalent to the MarkPattern scheme above,
 not a blanket wipe.  SPITBOL's `xkalt` is the same.  So the blanket-wipe
 implementation in this runtime is genuinely incorrect; the question is just
 whether fixing it alone closes beauty self-host.
+
+
+---
+
+## Session #66 findings — FENCE mark/seal landed; Fence_061 now PASS; beauty self-host still blocked by second downstream bug
+
+**snobol4dotnet HEAD:** `bb28a8d` (FENCE mark/seal mechanism committed).
+
+### What landed
+
+The MarkPattern / SealAlternates fix from session #65's notes — implemented
+afresh, with one critical correction.  Five files changed, +118 / −22 lines:
+
+  1. **NEW** `Snobol4.Common/Runtime/Pattern/MarkPattern.cs` — terminal pattern;
+     pushes a `-3` sentinel onto the alt stack at FENCE entry.
+  2. `Snobol4.Common/Runtime/PatternMatching/ScannerState.cs`:
+     - `MarkAlternates()`: pushes `-3` and current cursor.
+     - `SealAlternates()`: pops entries until the most recent `-3` mark, pops
+       the mark itself, then pushes `-2`.  If no `-3` found (defensive: floor
+       reached), pushes `-2` atop the floor.
+     - `RestoreAlternate()`: skips stale `-3` marks transparently in a loop
+       before popping the real entry.
+     - `HasAlternates()`: walks past `-3` marks; true iff the next non-`-3`
+       entry is a real alternate or a `-2` seal.
+  3. `Snobol4.Common/Runtime/PatternMatching/Scanner.cs`:
+     - Adds `MarkAlternates()` pass-through.
+     - **`-2` seal hit on backtrack now returns `MatchResult.Abort`** (was
+       `MatchResult.Failure`).  This is the critical correction over session
+       #65's attempt: returning Failure allowed `PatternMatch`'s unanchored
+       cursor-retry loop to keep advancing position and rescue the match,
+       defeating the seal entirely.  Returning Abort terminates the entire
+       match without cursor retry, matching Gimpel's `FENCE = NULL | ABORT`.
+  4. `Snobol4.Common/Runtime/Pattern/PatternFactories.cs`:
+     - `CreateFenceFunction` wraps as `Concat(Mark, Concat(p, Seal))` instead
+       of `Concat(p, Seal)`.
+  5. `Snobol4.Common/Runtime/Pattern/SealPattern.cs`: docstring updated.
+
+### Why session #65's mark scheme didn't unblock beauty
+
+Session #65's attempt was structurally correct (Mark-pair-with-Seal) but kept
+the original `MatchResult.Failure(_state)` return on `-2`.  That allowed the
+unanchored retry in `PatternMatch` (`cursorPosition++` loop, line 43 in
+`Scanner.cs`) to advance and try again at the next start position, where the
+sealed pattern could succeed via a different path — masking any seal effect.
+So even though the alt stack was being managed correctly, the `Failure` return
+path defeated the seal's commit semantics.
+
+The fix is to recognize that the seal hit is conceptually an ABORT, not a
+FAILURE.  Per Gimpel 1973 §"Pattern Theory":
+
+> ABORT will terminate pattern matching in whatever state it is in. … FENCE,
+> which can be written FENCE = NULL | ABORT, also does not conform [to the
+> normal alternation laws].
+
+The seal `-2` is the realised form of that ABORT.  When backtrack reaches it,
+the entire match must terminate — no cursor retry, no outer alternates fire
+(those were below the mark; they are not in scope when seal fires after P
+matched).
+
+### Test gate — clean
+
+  | Gate                       | Result                                          |
+  |----------------------------|-------------------------------------------------|
+  | `Pattern.Fence` (8 tests)  | 8/8 PASS                                        |
+  | `CorpusRef_FenceTests`     | 10/10 PASS (was 9/10 — Fence_061 was failing)  |
+  | TestSnobol4 full suite     | 2075p / 14f (matches baseline; +1 from Fence_061; 14 fails are all pre-existing TEST_Csnobol4_*) |
+  | Beauty 17/17               | 17 PASS / 0 FAIL (unchanged)                    |
+  | Beauty self-host           | exit=0, 28 stderr-lines, Parse Error at &FULLSCAN = 1 — **STILL FAILS, unchanged from baseline** |
+
+### Witness test for the fix
+
+`TEST_Fence_061_pat_fence_fn_seal` was the in-tree failing test that
+exercised exactly the seal-with-outer-context bug:
+
+```snobol4
+X = 'AB'
+X FENCE(LEN(1) | LEN(2)) RPOS(0)  :S(YES)F(NO)
+```
+
+Pre-fix output: `should not reach` (match succeeded via unanchored retry at
+cursor=1, where LEN(1)→2, RPOS(0) matches).  Post-fix output: `sealed
+correctly` (LEN(1) chosen at cursor=0, seal fires, RPOS(0) fails at cursor=1,
+backtrack hits seal, ABORT terminates match — F branch).
+
+### Beauty self-host: second gating bug confirmed downstream
+
+Beauty self-host produces byte-identical stderr pre-fix and post-fix (28
+lines, same Parse Error at `&FULLSCAN = 1`).  This **confirms session #65's
+prediction**: "Either the mark scheme has a subtle correctness bug, or there
+is a second gating bug downstream."  The answer is **both** — session #65's
+attempt had the Failure-vs-Abort bug, AND there is a second bug downstream.
+
+The `*snoUnprotKwd` skip from session #64's diagnosis is real and not yet
+explained.  With correct mark/seal semantics in place, beauty's snoExpr14
+alternation should now preserve outer alternates correctly across the
+nested-FENCE chain — but it doesn't reach `*snoUnprotKwd` at the
+`&FULLSCAN = 1` parse anyway.  Either:
+  - The mark is being placed at the wrong syntactic level (need to verify
+    via `DOT_TRACE_ALT=1` re-run on beauty self-host).
+  - Or a different mechanism (graft-time AST construction, alternation-arm
+    walking, or *snoExpr14 grammar invocation order) is responsible for
+    the skip.
+
+### Recommended next-session pivot
+
+1. Re-enable `DOT_TRACE_ALT=1` instrumentation (already env-gated; just
+   uncomment the `Console.Error.WriteLine` lines saved in this session's
+   diagnostic patches if reverted).  Re-run beauty self-host with trace.
+2. Search the trace for the exact sequence around the `&FULLSCAN = 1` parse.
+   Look for: `MARK` events at snoExpr10..snoExpr13 entries; `SEAL` events at
+   their epsilon arms; the alt depth at each point; whether saves for
+   `*snoUnprotKwd` (an arm of snoExpr14) are below or above any active marks.
+3. Differential-AST path (path 2 from session #64) is still the safe fallback
+   if the trace doesn't pinpoint the issue.
+
+`one4all` and `corpus` are unchanged this session.
+
