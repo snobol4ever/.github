@@ -539,6 +539,104 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   pinpointing what state matters.  Once isolated in spl, comparing
   the same state on dot identifies the dot-side accumulation bug.
 
+  **Session #64 — controller MWT_UNKNOWN value-byte wildcard; watermark 1617→2839; first
+  divergence at counter.inc:17 NRETURN body-assign; root cause not isolated.**
+  (one4all `scripts/monitor/monitor_sync_bin.py` keys_match change, no snobol4dotnet
+  runtime changes.)
+
+  **What landed:** `keys_match` extended so that when one participant emits MWT_UNKNOWN,
+  the value-byte equality check is bypassed (was: extended only the type-tag wildcard).
+  Rationale: SPITBOL's `spl_block_to_wire` emits MWT_UNKNOWN with zero value bytes for
+  every nmblk/ptblk/atblk/tbblk/cdblk/efblk; dot's MonitorIpc encodes MWT_NAME with the
+  symbol bytes (5 bytes "dummy" for `.dummy` NRETURN body assigns).  Pre-fix, the
+  value-byte mismatch (`b''` vs `b'dummy'`) tripped DIVERGE before the type wildcard
+  could absorb it; post-fix, an UNKNOWN on either side wildcards both type AND value,
+  consistent with the design intent already documented in keys_match's docstring.
+
+  **Effect on watermark:** beauty self-host monitor now reaches step **2839** (was 1617).
+  Tiny-program smoke gate still PASS=0 (no false negatives).  Real STRING vs STRING /
+  INTEGER vs INTEGER divergences still flag DIVERGE — the carve-out is strictly
+  asymmetric on UNKNOWN.
+
+  **First real divergence at step 2839** — `counter.inc:17 PushCounter = .dummy :(NRETURN)`:
+  ```
+  | step | spl                            | dot                                |
+  |------|--------------------------------|------------------------------------|
+  | 2835 | CALL upr                       | CALL upr                           |
+  | 2836 | LABEL stno=168                 | LABEL stno=168                     |
+  | 2837 | VALUE upr = STRING(8)='FULLSCAN'| VALUE upr = STRING(8)='FULLSCAN'   |
+  | 2838 | RETURN upr (RETURN)            | RETURN upr (RETURN)                |
+  |>2839 | RETURN match (NRETURN)         | CALL upr                           |
+  ```
+  After the 18th `*upr(tx)` returns 'FULLSCAN' inside the snoUnprotKwd match for FULLSCAN,
+  spl unwinds the pattern-match scanner and reaches `:S(NRETURN)` from match.inc:8.  Dot
+  fires a 19th *upr Scan instead.  Root cause not isolated this session.
+
+  **What investigation ruled out (saved-cycles for next session):**
+  - **Standalone repro.**  Built `(POS(0) | ' ') *upr(tx) (' ' | RPOS(0))` matching
+    'FULLSCAN' against the same 18-keyword list, both directly via `match()` and wrapped in
+    `'&FULLSCAN' snoUnprotKwd`.  Both spl and dot make exactly **18 upr calls** and match
+    cleanly.  Confirms session #62's finding: the bug is state-dependent, requires the full
+    beauty self-host context (likely BetaStack residue or pattern-match-scanner state from
+    earlier successful matches).
+  - **Stack trace at every upr entry.**  Patched `Define.cs` `EmitCall` to dump
+    `Environment.StackTrace` on upr calls #18-21.  All identical:
+    `ExecuteProgramDefinedFunction ← Function ← ThreadedExecuteLoop ← RunExpressionThread
+     ← (CompileStarFunctions closure) ← UnevaluatedPattern.Scan ← Scanner.Match
+     ← Scanner.PatternMatch ← PatternMatch (Question Mark) ← OperatorFast`.  Every call —
+    including the 19th — comes from a `*upr(tx)` pattern node, not a source-level call.
+  - **Pattern AST dump.**  Patched `Scanner.PatternMatch` to dump the AST built for each
+    PatternMatch invocation under DOT_DUMP_AST=1.  The standalone `snoTxInList` AST has
+    exactly **one** `UnevaluatedPattern` node (idx 5, Sub=7, Alt=-1) — structurally
+    correct, no duplication.  The earlier "two *upr nodes alternated" reading of node
+    indices in the wire-monitor diagnostic was wrong: those were two DIFFERENT ASTs from
+    consecutive match() calls, not two nodes within one AST.
+  - **Beauty self-host AST inventory.**  82 ASTs built before Parse Error.  Last four
+    chronologically:
+    1. subject='&FULLSCAN = 1' — first parse attempt.  Apparently SUCCEEDS (control proceeds).
+    2. subject='&MAXLNGTH = 524288' — line 27 parse attempt.
+    3. subject='ABORT ALPHABET ARB BAL FAIL FENCE FILE FNCLEVEL ...' = snoProtKwds (24 kwds).
+    4. subject='ANY APPLY ARBNO ARG ARRAY ATAN ...' = snoFunctions list.
+    Then Parse Error fires with `OUTPUT snoSrc='&FULLSCAN = 1'`.  The chronology is
+    inconsistent with main-loop logic (main01 resets snoSrc='' between paragraphs) — needs
+    direct attention.  **Note: dot does NOT build an AST against snoUnprotKwds before the
+    error.**  spl is observed (via wire monitor) to enter that match and succeed.  Dot's
+    grammar never reaches it.  The snoExpr14 alternation order is `... '?' | *snoProtKwd
+    | *snoUnprotKwd | '&' ...` — dot tries snoProtKwd (fails correctly), then jumps to
+    snoFunctions (an alternative inside a different production tree, snoAtom@line 182),
+    skipping snoUnprotKwd entirely.  This is unexpected and likely the actual gating bug.
+  - **Pattern algebra source review.**  `(POS(0) | ' ') *upr(tx)` builds via
+    `PatternConcatenation.cs` as `ConcatenatePattern(AlternatePattern(POS(0), ' '),
+    UnevaluatedPattern(...))` — a tree, not a graph; no shared sub-pattern between
+    alternation arms.  `BuildNodeList` walks the tree once.  No structural duplication.
+
+  **Recommended next-session pivot — pursue the snoExpr14 skip directly.**
+
+  The wire monitor advance to step 2839 is informative but the divergence there is inside
+  the snoUnprotKwd match path that dot never reaches in the unmonitored failing run.  The
+  REAL gating bug is upstream: dot's snoExpr14 alternation tries `*snoProtKwd`, fails,
+  then proceeds to `*snoFunction` (which lives in a DIFFERENT production, snoAtom@line 182)
+  WITHOUT first trying `*snoUnprotKwd` (the very next alternative in snoExpr14@line 154).
+  Two paths forward:
+
+  1. **AST dump path.**  Re-enable Scanner.PatternMatch's AST-dump diagnostic, target the
+     parse of `&FULLSCAN = 1` specifically (instrument *snoParse entry/exit on dot to
+     bracket the relevant ASTs), and inspect the actual snoExpr14 alternation node chain
+     to see whether `*snoUnprotKwd` is even reachable from where the matcher backtracks
+     after `*snoProtKwd` fails.  If the AST is structurally missing the snoUnprotKwd arm
+     or its Alternate edge, that is the bug.
+
+  2. **Differential AST dump path.**  Build the same snoExpr14 pattern in a tiny standalone
+     program on both spl and dot, dump the matched paths, and diff them to see whether
+     dot's PatternFactory or alternation construction gives a different graph than spl's.
+     Standalone reproduction has historically failed to reproduce the FULLSCAN bug
+     (state-dependent), but the snoExpr14 *structure* is state-independent and may differ
+     between runtimes regardless of subject.
+
+  Path 1 is more direct.  Path 2 is the safer fallback if Path 1's instrumentation proves
+  too noisy in the full self-host run.  In either case: STOP at the first concrete AST
+  divergence — do not chase symptom-level retries before isolating the structural diff.
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
