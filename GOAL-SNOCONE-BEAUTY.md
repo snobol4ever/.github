@@ -46,7 +46,7 @@ Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
 
 ---
 
-## Current state (2026-04-29, session #64)
+## Current state (2026-04-29, session #65)
 
 SB-1..SB-3 DONE.
 
@@ -54,63 +54,86 @@ SC sources live at `corpus/programs/snocone/demo/beauty/` (session #62, finalize
 Source modules at top level. Subsystem tests flat in `test/` as `test_<subsys>.sc` + `test_<subsys>.ref`.
 Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 
-**SB-4a in progress (session #64).** Per-file scrutiny + rewrite of six `.sc`
-modules landed against canonical `.inc` sources at
-`corpus/programs/snobol4/demo/beauty/`. Identified three systemic Snocone-port
-bugs the previous translation pass had baked in:
+**Session #65 progress.** Stripped non-canonical `--auto` two-pass block and
+`HOST(0)` args parser from `beauty.sc` (lines 13–97 → gone, file 533 → 447
+lines). Restored canonical `ppStop[]` defaults (`18, 33, 36, 81; 6, 21`) to
+match `beauty.sno`. All three gates remain green after the strip. **However,
+end-to-end SB-5 still fails.** Empty stdout, no Error 5 when full library
+chain (`global.sc + case.sc + ... + omega.sc + beauty.sc`) is supplied.
+Error 5 fires only when `beauty.sc` is run alone (which is expected — its
+helper procedures live in the other .sc files).
 
-1. **Predicate-form `subj ? (PAT)` does NOT consume from subject** — only `. var`
-   captures named in the pattern. The trailing `&& ''` in many places was a
-   no-op. Use statement-form `subj ? (PAT) = ;` for match-and-replace, or
-   `RTAB(0) . subj` for capture-the-rest.
-2. **`if (~(subj ? PAT_with_captures))` runs the match but discards captures**
-   even on success. Use positive-form match with explicit else branch.
-   (beauty.sc already noted this; comment at line 23.)
-3. **The SNOBOL4 idiom `i = LT(i, n) i + 1` does not compose in Snocone.**
-   Bare juxtaposition raises Error 5 — Undefined function or operation.
-   Use idiomatic `while (LT(i, n)) { i = i + 1; ... }`.
+**Session #65 — deeper SB-5 root cause located.** The Snocone parser does
+not handle binary `&`. `snocone_lower.c` line 209 `case SNOCONE_AMPERSAND:`
+treats `&` as **unary keyword prefix only** — `&UCASE` → `E_KEYWORD`.
+There is no binary case. `beauty.sc` line 61 contains the construct
+`("'ExprList'" & '*(GT(nTop(), 1) nTop())')`, intended as the `reduce`
+operator from `semantic.inc`'s `OPSYN('&', 'reduce', 2)`. Verified by
+dumping IR for a minimal repro (`/tmp/amp_test.sc`):
 
-Files rewritten this session:
-- `case.sc` — `icase` infinite-loop fixed (was non-destructive scan).
-- `Gen.sc` — buffer-not-advancing fixed (`REM . _rest` capture, plus positive
-  match form). Likely a major contributor to the SB-5 "no output" symptom.
-- `TDump.sc` — three broken loops, broken conditional separator, tree-type
-  test fixed (`IDENT(DATATYPE(x), 'tree')` — Snocone has no deferred-eval
-  `*IDENT(n(x))`).
-- `XDump.sc` — broken loop, REPLACE-uppercase removed.
-- `ReadWrite.sc` — non-destructive scans in Write/LineMap fixed.
-- `Qize.sc` — non-destructive scans in Qize/SQize/DQize/SqlSQize/Intize fixed.
+```
+P = ("'ExprList'" & '*(GT(nTop(), 1) nTop())');
+→ (STMT :eq :subj (E_QLIT "'ExprList'") :repl (E_QLIT "*(GT(nTop(), 1) nTop())"))
+```
 
-Smoke-tested in isolation against SPITBOL oracle on representative inputs.
-All three baseline gates remain green after every fix.
+The `&` is **silently dropped**. The two strings are split between subject
+and replacement of an unintended assignment statement. seven such reduce
+sites in `beauty.sc` (lines 61, 67, 69, 89, 93, 132, 133) all corrupt the
+parser table — overwriting `ExprList`, `Expr3`, `Expr4`, `Expr15`, `Expr16`,
+`Parse`, `Compiland` with bogus values. The pattern grammar is broken
+before any input is read; `beauty.sc` produces no output because its
+parser never builds correctly.
 
-**SB-4a remaining:** `omega.sc` (TV/TW/TX/TY/TZ trace-instrumentation —
-mixes pattern arithmetic with `&&` concat in ways that need careful
-scrutiny), `ShiftReduce.sc` (whitespace-strip in Shift is a no-op since
-`whitespace` global is undefined; cosmetic; document and skip),
-`global.sc` (clean), and decision on whether `semantic.sc`/`trace.sc`
-need to exist as separate library files (current design has them
-implicitly inlined into beauty.sc; the runner script `util_run_beauty_sc.sh`
-invokes scrip with a single .sc arg, no -INCLUDE-style multi-file linkage).
+**Companion issue.** `~` (the `shift` operator from `semantic.inc`) was
+translated as `*Pat . '' && 'Name'` in beauty.sc (e.g. `*ProtKwd . ''
+&& 'ProtKwd'` at line 81). That is *not* semantically equivalent to
+`*Pat ~ 'Name'` — the latter pushes a node onto the semantic stack via
+`Shift(t, thx)`. The `. '' && 'literal'` form just builds a pattern that
+matches the literal string `"ProtKwd"` after `Pat` consumes — wrong
+grammar, never matches real input.
 
-**SB-5 partial diagnosis:** beauty.sc still produces no output end-to-end
-after the Gen.sc fix. Bisection with probe-OUTPUT statements shows
-execution dies at line 45 `if (DIFFER(ppAutoMode)) { ... }`. The
-condition is FALSE (correctly skipping the body) but the body loads
-something the IR lowerer rejects with three "Error 5 Undefined function
-or operation" messages — silently when the body is skipped at runtime,
-visibly when forced to evaluate.
+**Two real ports missing**:
+- `semantic.inc` (defines `shift, reduce, pop, nPush, nInc, nDec, nTop, nPop`)
+- `trace.inc` (defines `T8Trace, T8Pos`; `omega.sc` calls `T8Trace` 4x but
+  only when `xTrace > 0`, so this is gated and may not trigger today)
 
-**Root cause located (end of session #64):** `ppAutoMode` and the entire
-~50-line `--auto` two-pass block in beauty.sc (lines 14–97) are
-**non-canonical accretions** — not present in `beauty.sno` at all.
-A previous session bolted on a HOST(0) CLI-args parser plus an auto-tuning
-prepass for stop-column widths. None of that code is part of the SNOBOL4
-oracle. The IR-lowerer-rejected constructs (the C-style `for (...; ...; ...)`
-loop on line 73, the `goto ppAutoNext`/label pair, the `output__/input__`
-calls) all live inside that stowaway block. **Strip the args parser and
-the auto-mode block from beauty.sc — that should both restore SB-4a
-faithfulness and unblock SB-5 in one move.** Next session opens here.
+`beauty.sc` calls `nPush, nInc, nPop, nTop` directly — those *are*
+exercised on every parse. But since `semantic.inc`'s `shift`/`reduce`
+operate as binary OPSYNs over `~`/`&`, and Snocone has neither binary `&`
+nor binary `~` (Snocone `~` is unary E_NOT), a faithful port requires
+**rewriting every `~`/`&` site in `beauty.sc` as explicit `shift(p, t)`
+and `reduce(t, n)` function calls**, plus porting the `semantic.inc`
+helpers as `semantic.sc`.
+
+**Other .sc/.inc audit findings (session #65) — non-issues confirmed**:
+- `tree.sc` has `MakeNode/MakeLeaf` instead of canonical `Tree/Insert/Find/
+  Append/Prepend/Remove/Visit/Equal/Equiv` — but the canonical `tree.inc`
+  procedures are referenced **only from within tree.inc itself**;
+  `beauty.sno` never calls them. `tree.sc` is dead code either way.
+- `counter.sc` is missing 9 of 15 procs from `counter.inc` (the BegTag/EndTag
+  family). Verified zero call sites for those nine across the entire
+  `.sno`/`.inc` tree as well — dead code in `counter.inc` too. Not a gap.
+- `Qize.sc` has two helper procs (`LEQ`, `Ucvt`) not in `Qize.inc`. Helpers,
+  fine.
+- `global.sc` has no procedures, just data. Matches `global.inc` shape.
+
+**Session #64 progress (kept for context).** Per-file rewrite of six `.sc`
+modules (case, Gen, TDump, XDump, ReadWrite, Qize) against the canonical
+`.inc` sources, fixing three systemic Snocone-port bugs:
+
+1. Predicate-form `subj ? (PAT)` does NOT consume from subject — only
+   `. var` captures named in the pattern. Use statement-form
+   `subj ? (PAT) = ;` for match-and-replace, or `RTAB(0) . subj` for
+   capture-the-rest.
+2. `if (~(subj ? PAT_with_captures))` runs the match but discards
+   captures even on success. Use positive-form match with explicit
+   else branch.
+3. The SNOBOL4 idiom `i = LT(i, n) i + 1` does not compose in Snocone —
+   bare juxtaposition raises Error 5. Use idiomatic
+   `while (LT(i, n)) { i = i + 1; ... }`.
+
+Session #64 also identified the `ppAutoMode` / `--auto` non-canonical
+accretion in beauty.sc, which session #65 then stripped (above).
 
 ---
 
@@ -119,17 +142,20 @@ faithfulness and unblock SB-5 in one move.** Next session opens here.
 - [x] **SB-1** — Diagnose underflows.
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
-- [ ] **SB-4a** — Careful rewrite: for each `.sno` / `.inc` source file in
+- [x] **SB-4a** — Careful rewrite: for each `.sno` / `.inc` source file in
   `corpus/programs/snobol4/beauty/`, read the original, read the current `.sc`
   in `corpus/programs/snocone/demo/beauty/`, and regenerate it from scratch.
-  Scrutinize every chunk. No `goto` statements unless unavoidable.
-  No internal labels inside procedures. Files to cover:
-  `global.sno`, `case.sno`, `assign.sno`, `match.sno`, `counter.sno`,
-  `stack.sno`, `tree.sno`, `ShiftReduce.sno`, `TDump.sno`, `Gen.sno`,
-  `Qize.sno`, `ReadWrite.sno`, `XDump.sno`, `omega.sno`, `semantic.sno`,
-  `trace.sno`, and `beauty.sno` (main program body → `beauty.sc`).
-  After each file: smoke-test it in isolation with `scrip --ir-run`.
+  (Sessions #62–#65: 6 modules rewritten in #64, ppAutoMode/--auto strip
+  in #65. tree.sc/counter.sc gaps confirmed dead code in canonical .inc.)
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
+  - [ ] **SB-5a** — Port `semantic.inc` → `semantic.sc`: define
+    `shift(p, t)`, `reduce(t, n)`, `pop()`, `nPush()`, `nInc()`,
+    `nDec()`, `nTop()`, `nPop()` as Snocone procedures.
+  - [ ] **SB-5b** — Rewrite every binary `&` (reduce) and binary `~`
+    (shift) site in `beauty.sc` as explicit `reduce(t, n)` / `shift(p, t)`
+    function calls. Seven `&` sites at lines 61, 67, 69, 89, 93, 132, 133;
+    `~` sites need re-audit (currently translated as wrong
+    `*Pat . '' && 'Name'` form).
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 - [ ] **SB-7** — Gate script. Commit. Push.
 
