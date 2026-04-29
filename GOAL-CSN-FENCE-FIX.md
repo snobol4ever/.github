@@ -685,18 +685,18 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #50 (F-2 Step 3a continued — PATBCL context-mismatch diagnosed via gdb + C-trap instrumentation)
+- csnobol4 @ session #51 `48d99a3` (added fence_suite/ — 32-test gate)
 - one4all @ `06433f90`
-- corpus @ session #49 (added test 068 — fence_via_var)
+- corpus @ session #51 `b794c7c` (added 32 tests at IDs 100–131)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (PATBCL context mismatch in failure walker after seal-fire — fix targeted for session #51)
+- active step → **F-2 Step 3a** (4 distinct FENCE bug classes mapped via 32-test suite — fix work for session #52)
 
-**Gates as of session #50 end (working tree CLEAN, no code changes committed):**
+**Gates as of session #51 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved)
-- Tiny repro: **clean "Parse Error"** (unchanged from session #48)
+- fence_suite/ (NEW, 32 tests): **26 OK / 4 FAIL / 2 CRASH** on csnobol4 baseline
+- Tiny repro: **clean "Parse Error"** (unchanged)
 - beauty self-host: **35 lines** (unchanged; SPITBOL: 646)
 - one4all Smoke/Broker: NOT RUN (still gated on beauty)
-- New test `corpus/crosscheck/patterns/068_pat_fence_fn_via_var`: **FAIL on csnobol4** (SEGV); SPITBOL passes. Added to corpus but NOT in fence_function/ TESTS list yet — will be added when fix lands.
 
 **What session #49 found:**
 
@@ -777,3 +777,83 @@ and the SPITBOL `flpop` re-reading.  Session #51 should NOT re-test
 the seal slot[2] fix in isolation — that has been verified twice.
 Session #51 should implement the rewind-one-deeper arithmetic and
 test against beauty directly.
+
+---
+
+## Session #51 update — fence_suite/ landed; 4 distinct bug classes mapped
+
+Session #51 implemented the rewind-one-deeper fix proposed by session #50
+(slot[2] = PDLPTR - 6*DESCR instead of -3*DESCR) and tested it.  Result:
+
+- ✅ `min_crash.sno` (`*cmd RPOS(0)` against FENCE alts): SEGV → `fail`.
+  Same outcome session #49 already had.
+- ✅ fence_function/ 10/10 preserved.
+- ❌ Beauty self-host: still SEGV at stmt 1074 (33 lines). Regression
+  from baseline's clean 35-line "Parse Error".
+
+Per RULES.md (regression in error class is unsafe to commit), the
+arithmetic fix was reverted before commit.  This is the **same outcome
+as sessions #49 and #50** — the seal slot[2] fix alone is correct in
+isolation but doesn't close the gate.
+
+### What session #51 produced (the genuinely-new contribution)
+
+Pivoted from continuing the diagnostic spiral to **building a 32-test
+FENCE regression suite** that maps the bug landscape concretely:
+
+- `corpus/crosscheck/patterns/100..131` (32 new tests)
+- `csnobol4/test/fence_suite/` (Makefile + README)
+- 5 tiers: baseline (A) / *var indirection (B) / ARBNO+FENCE (C) /
+  real grammars (D: calc, regex, JSON) / beauty-class (E)
+
+**Baseline result on csnobol4 HEAD: 26 OK / 4 FAIL / 2 CRASH.**
+
+The 6 non-passing tests reveal **4 distinct csnobol4 FENCE bugs**, all
+absent in fence_function/'s 10/10 PASS coverage:
+
+| Bug | Tests | Shape |
+|-----|-------|-------|
+| 1. Outer-alt fall-through after FENCE-via-`*var` continuation fails | 114, 124 | `(*cmd 'X' \| *cmd 'Y' \| LEN(0))` where `cmd=FENCE(...)` |
+| 2. Conditional-assign `.` inside FENCE not committed on success | 127 | `FENCE(num)` where `num = digits . N` |
+| 3. SEGV on `*outer`/ARBNO/`*cmd`/FENCE triple indirection | 119, 129 | The beauty.sno stmt 1074 bug class |
+| 4. Concat of two `*var`-FENCE with mismatched alt length | 130 | `outer = *cmdA *cmdB` under `*outer` |
+
+Test **119 / 129** is the smallest known repro of the beauty crash —
+5 lines.  Bug 3 is the highest priority; bugs 1, 4 likely share root
+cause; bug 2 is on a separate axis (conditional-assign commit through
+recursive-SCIN return).
+
+### Recommended next-session approach
+
+Stop iterating on isolated repro fixes.  The session #44–#51 pattern of
+"land a fix that passes fence_function but fails beauty" suggests
+fence_function's 10 tests have insufficient coverage to drive
+correctness.  The new 32-test suite has the scope.
+
+For session #52:
+
+1. Commit no code until **all 4 tier C/E CRASH tests pass** (119, 129,
+   118, 116).  Tier A/B sanity-floor (16 tests) must stay green.
+2. Pivot off the seal slot[2] / -6*DESCR arithmetic line of attack.
+   Three sessions (#49, #50, #51) have validated it works in isolation
+   and fails on beauty — that's enough evidence the underlying bug
+   isn't in the seal arithmetic.  Bug 2 (conditional-assign commit)
+   suggests the issue is in how D6's recursive-SCIN call returns
+   match-state to the outer SCIN frame, not in the seal.
+3. Investigate the conditional-assign-not-committed path (bug 2) first
+   on test 127.  It's a non-crashing FAIL — easier to instrument than
+   a SEGV, and may reveal the same underlying mechanism that breaks
+   bugs 1, 3, 4.
+
+### Honest circularity check (session #51)
+
+Sessions #44–#51 = 8 sessions on F-2 Step 3a, beauty self-host stuck at
+33–35 lines for the entire run.  Each session has landed a real fix and
+each session has been blocked by the next-deeper bug.  This pattern is
+visible in the goal file's own state notes.
+
+The 32-test suite is the first session #51 deliverable that DOESN'T touch
+the FNCA/FNCB/FNCC/FNCD code.  It's an explicit attempt to break the
+cycle: a bigger, more precise gate than fence_function/'s 10 tests, so
+future fix attempts are validated against the ACTUAL bug landscape
+rather than a 10-test slice of it.
