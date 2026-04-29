@@ -46,7 +46,7 @@ Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
 
 ---
 
-## Current state (2026-04-29, session #65)
+## Current state (2026-04-29, session #67)
 
 SB-1..SB-3 DONE.
 
@@ -54,7 +54,43 @@ SC sources live at `corpus/programs/snocone/demo/beauty/` (session #62, finalize
 Source modules at top level. Subsystem tests flat in `test/` as `test_<subsys>.sc` + `test_<subsys>.ref`.
 Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 
-**Session #65 progress.** Stripped non-canonical `--auto` two-pass block and
+**Session #67 progress.** SB-4b.2..SB-4b.7 closed.
+- `case.sc`, `assign.sc`, `match.sc`, `stack.sc` audited and confirmed
+  faithful — no source changes needed.
+- `counter.sc` rewritten 6 → 16 procedures (added BegTag + EndTag families
+  per canonical `counter.inc`).
+- `tree.sc` rewritten — replaced the `MakeNode`/`MakeLeaf` stubs with the
+  full canonical 9-procedure ADT (`Tree`, `Append`, `Prepend`, `Insert`,
+  `Remove`, `Equal`, `Equiv`, `Find`, `Visit`). Smoke tests at
+  `/tmp/tree_smoke.sc` confirm all procedures work, including
+  `APPLY(.fn, x)` callback dispatch and the `$('c' && nc)`
+  dynamic-name read for `Tree`'s variadic ctor.
+
+`ShiftReduce.sc` and `omega.sc` audited — both have semantic mismatches
+documented in their rung notes (xTrace-gated paths, not exercised by the
+default gate). Rungs SB-4b.8 and SB-4b.14 remain open.
+
+All three gates remain at PASS=5 / PASS=42 SKIP=3 / PASS=49 after every
+per-module change.
+
+**Snocone-port discovery (session #67).** The Snocone parser
+(`snocone_cf.c::do_procedure`) does not accept the leading-comma
+"no params, only locals" form `procedure Foo(, b, list, v)`. The
+parameter-list loop bails as soon as it sees `,` before any IDENT,
+without consuming the leading `(`, which silently corrupts the rest of
+the parse and causes an infinite hang at runtime (no parse error).
+Workaround: declare locals as ordinary parameters — SNOBOL4 zero-arg
+invocation initializes them to null, the canonical local-var
+semantics. Used in counter.sc's `DumpBegTag(b, list, v)` and
+`DumpEndTag(e, list, v)`. Should be either (a) fixed in the parser
+to recognize `(, locals)`, or (b) documented as the canonical
+Snocone-port idiom in the language-facts section.
+
+**Active rung:** SB-4b.8 (`ShiftReduce.sc`) is the next module.
+SB-5b (rewriting beauty.sc's binary `&`/`~` sites) remains the
+ultimate gating issue for end-to-end self-host.
+
+**Session #66 progress (kept for context).** Stripped non-canonical `--auto` two-pass block and
 `HOST(0)` args parser from `beauty.sc` (lines 13–97 → gone, file 533 → 447
 lines). Restored canonical `ppStop[]` defaults (`18, 33, 36, 81; 6, 21`) to
 match `beauty.sno`. All three gates remain green after the strip. **However,
@@ -180,26 +216,86 @@ accretion in beauty.sc, which session #65 then stripped (above).
     bytes ≥128 currently loses bytes (217 produced vs SPITBOL's 256).
     None of those names referenced in beauty so this does not affect
     output. Gate green.
-  - [ ] **SB-4b.2** `case.sc` — `lwr/upr/cap/icase` plus any
-    settings-gated paths.
-  - [ ] **SB-4b.3** `assign.sc` — `assign`.
-  - [ ] **SB-4b.4** `match.sc` — `match/notmatch`.
-  - [ ] **SB-4b.5** `counter.sc` — full 15-procedure family:
-    `InitCounter, PushCounter, IncCounter, DecCounter, TopCounter,
-    PopCounter, InitBegTag, PushBegTag, PopBegTag, TopBegTag,
-    DumpBegTag, InitEndTag, PushEndTag, PopEndTag, TopEndTag,
-    DumpEndTag`. The BegTag/EndTag family is gated on XML/HTML tag
-    tracking + `xTrace > 4` — present in `counter.inc`, must be
-    present in `counter.sc`.
-  - [ ] **SB-4b.6** `stack.sc` — `InitStack, Push, Pop, Top` plus any
-    OUTPUT trace under `GT(xTrace, ?)` gates.
-  - [ ] **SB-4b.7** `tree.sc` — full 9-procedure family:
-    `Tree, Append, Prepend, Insert, Remove, Equal, Equiv, Find, Visit`.
-    The current `tree.sc` (`MakeNode/MakeLeaf` only) is the wrong
-    procedures — it must be replaced or extended with the canonical
-    set so the full beauty pipeline can use the tree ADT when
-    `doParseTree` (or whichever flag gates it) is set.
+  - [x] **SB-4b.2** `case.sc` — session #67: audited against
+    `case.sno`. Already a faithful port — `lwr`/`upr`/`cap`/`icase`
+    all present, `icase` while-loop correctly uses statement-form
+    match (`subj ? PAT = ;`) for consume-on-match. No source change.
+  - [x] **SB-4b.3** `assign.sc` — session #67: audited against
+    `assign.sno`. Already faithful — uses portable
+    `IDENT(REPLACE(DATATYPE(...), &LCASE, &UCASE), 'EXPRESSION')`
+    case-folded check per RULES.md DATATYPE-portability rule. No
+    source change.
+  - [x] **SB-4b.4** `match.sc` — session #67: audited against
+    `match.sno`. Already faithful — both `match` and `notmatch`
+    follow the canonical `subject ? pattern :S(NRETURN)F(FRETURN)`
+    pattern. No source change.
+  - [x] **SB-4b.5** `counter.sc` — session #67: rewritten from 6
+    procs to full canonical 16-procedure family per `counter.inc`:
+    counter-stack (`InitCounter, PushCounter, IncCounter, DecCounter,
+    PopCounter, TopCounter`) + BegTag (`InitBegTag, PushBegTag,
+    PopBegTag, TopBegTag, DumpBegTag`) + EndTag (`InitEndTag,
+    PushEndTag, PopEndTag, TopEndTag, DumpEndTag`). All OUTPUT
+    trace lines under `GT(xTrace, 4)` gates per canonical. Gate
+    stays green PASS=42 SKIP=3.
+
+    **Snocone-port discovery (recorded in module comment):** the
+    parser (`snocone_cf.c::do_procedure`) does NOT accept the
+    leading-comma "no params, only locals" form
+    `procedure Foo(, b, list, v)`. The loop bails on the leading
+    comma without consuming `(`, corrupting the rest of parsing
+    and causing a silent infinite hang at runtime (no parse error
+    surfaced). Workaround: declare locals as ordinary parameters —
+    SNOBOL4 zero-arg invocation initializes them to null, the
+    canonical local-var semantics. Used in `DumpBegTag(b, list, v)`
+    and `DumpEndTag(e, list, v)`. Future cleanup: extend the parser
+    to recognize `(, locals)` form, OR document the params-as-locals
+    idiom explicitly in the language-facts section.
+  - [x] **SB-4b.6** `stack.sc` — session #67: audited against
+    `stack.inc`. Already a faithful port of the canonical 4-procedure
+    family (`InitStack, Push, Pop, Top`). OUTPUT trace lines under
+    `GT(xTrace, 4)` gates as in canonical. The top-of-file
+    `xTrace = 0;` initializer is a Snocone-port artifact (no global
+    init in stack.inc) but harmless — global.sc sets xTrace
+    independently, this is just a defensive default. No source
+    change.
+  - [x] **SB-4b.7** `tree.sc` — session #67: rewritten from
+    `MakeNode/MakeLeaf` stubs to full canonical 9-procedure family
+    per `tree.inc`: `Tree(t,v,c1..c8)` (variadic ctor, walks
+    `$('c' && nc)` indirection to count children), `Append`,
+    `Prepend`, `Insert`, `Remove`, `Equal` (recursive IDENT-based),
+    `Equiv` (relaxed), `Find` (with `APPLY` callback), `Visit`
+    (preorder traversal with `APPLY`).
+
+    Smoke-tested at `/tmp/tree_smoke.sc` — 7 tests pass: Tree
+    variadic ctor, Append, Visit-preorder, Equal-self, Equal-differ,
+    Insert-mid, Remove-mid. Verifies `APPLY(.fn, args)` callback
+    works in Snocone, and `$('c' && nc)` dynamic-name read/write
+    works for the `Tree(...)` constructor's child-count walk.
+
+    `test_tree.sc` and `test_tree.ref` retain their existing
+    4-test form (struct + field access) — those tests use
+    `MakeNode/MakeLeaf` as inline self-contained driver helpers
+    and are unaffected by the tree.sc rewrite. **Adding test
+    coverage for the canonical 9-proc family at the gate level
+    is a separate scope** — would require a new `tree_driver.sno`
+    in `programs/snobol4/beauty/` exercising the canonical procs,
+    SPITBOL-derived `.ref`, and matching `test_tree.sc` rewrite.
+    Tracked as a follow-on; gate stays at PASS=42 SKIP=3 today.
   - [ ] **SB-4b.8** `ShiftReduce.sc` — `Shift/Reduce` primitives.
+    **Session #67 audit:** current `ShiftReduce.sc` has two
+    semantic gaps vs canonical `ShiftReduce.sno`:
+    (a) `Shift` is missing the canonical opening
+    `v POS(0) whitespace =` strip-leading-whitespace step;
+    (b) `Reduce` checks `if (~DIFFER(t))` after `t = EVAL(t)` to
+    detect EVAL failure, but canonical uses `:F(NRETURN)` for
+    statement-level failure — these are equivalent only when EVAL
+    failure leaves `t` null (Snocone EVAL prints an error and
+    leaves the LHS null, so the current code is defensible but
+    not strictly faithful). Both gaps are gated paths
+    (`xTrace > 3` for the OUTPUT trace; whitespace-stripping
+    affects only callers passing leading-whitespace `v`); the
+    default beauty gate does not exercise them today. Rung remains
+    open for a faithful rewrite.
   - [ ] **SB-4b.9** `TDump.sc` — `TValue/TDump/TLump`.
   - [ ] **SB-4b.10** `Gen.sc` — full output-formatter family:
     `IncLevel, DecLevel, SetLevel, GetLevel, Gen, GenTab, GenSetCont`.
@@ -210,6 +306,23 @@ accretion in beauty.sc, which session #65 then stripped (above).
   - [ ] **SB-4b.14** `omega.sc` — `TV, TW, TX, TY, TZ` trace
     instrumentation. `T8Trace` reference in here gates the need
     for a `trace.sc` port.
+
+    **Session #67 audit:** current `omega.sc` is NOT a faithful
+    port. Two systemic semantic mismatches:
+    (a) Canonical uses `EQ(doParseTree, FALSE)` / `EQ(doParseTree,
+    TRUE)` integer-equality tests against `TRUE=1`, `FALSE=0`
+    (defined in `global.sno`); current `.sc` uses
+    `~DIFFER(doParseTree)` (null-vs-non-null) which only aligns
+    with canonical when doParseTree is unset.
+    (b) Canonical builds an EVAL'd source string containing the
+    literal three-character word `"pat"` (which `EVAL` later
+    evaluates as a reference to caller's `pat` variable);
+    current `.sc` substitutes the variable `pat`'s value at
+    string-build time. The runtime semantics differ when `pat`
+    contains an unevaluated expression vs a string. omega.sc
+    procedures are gated on `xTrace > 0`; default beauty gate
+    does not exercise them. No `test_omega.sc` exists — adding
+    one (with SPITBOL-derived `.ref`) is part of this rung.
   - [x] **SB-4b.15** **NEW** `semantic.sc` — session #66: ported
     `semantic.inc`'s 8 procedures (`shift`, `reduce`, `pop`, `nPush`,
     `nInc`, `nDec`, `nTop`, `nPop`). Snocone has no OPSYN, so the
