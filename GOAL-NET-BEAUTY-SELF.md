@@ -727,3 +727,130 @@ PARTICIPANTS="spl dot" \
 
 where `mini_beauty.sno` is the first 26 lines of beauty.sno + "END" (the minimal stdin that reproduces the Parse Error).
 
+
+---
+
+## Session #65 findings — SealAlternates IS clearing outer alternates, but fix doesn't unblock
+
+**snobol4dotnet HEAD:** `724c1b6` (unchanged — runtime patch reverted, no commit this session).
+
+### What was done
+
+Instrumented `Snobol4.Common/Runtime/PatternMatching/ScannerState.cs` with env-gated
+(`DOT_TRACE_ALT=1`) tracing on every `SaveAlternate` / `RestoreAlternate` /
+`ClearAlternates` / `SealAlternates` call.  Ran `dotnet Snobol4.dll -bf beauty.sno
+< beauty.sno` with the trace on.
+
+The trace produces 2.45M `[ALT]` lines.  82 distinct ScannerStates over the run
+(matches the AST-inventory count from session #64).
+
+### Confirmed: the SEAL clears outer snoExpr14 alternates
+
+Trace excerpt for the failing `&FULLSCAN = 1` parse (the 80th ScannerState):
+
+```
+[ALT] new ScannerState subject=[                  &FULLSCAN      =  1...
+[ALT] CLEAR  curs=0
+[ALT] SAVE   alt=5  curs=0  depth=2     ← outer snoStmt / snoSubject saves
+[ALT] SAVE   alt=10 curs=0  depth=3
+... (depth 2..13 saves at curs=0 — outer parser context) ...
+[ALT] SAVE   alt=491 curs=0  depth=13
+[ALT] SAVE   alt=488 curs=18 depth=14    ← cursor moves to '&' (col 18)
+[ALT] RESTORE alt=488 curs=18 depth=13
+[ALT] SAVE   alt=491 curs=18 depth=14    ← snoExpr14 alternation arm
+[ALT] SAVE   alt=491 curs=18 depth=15    ← deeper snoExpr14 arm
+[ALT] SEAL   curs=18 prevDepth=15        ← *** entire stack wiped ***
+[ALT] SAVE   alt=346 curs=18 depth=2     ← stack now at depth 2 ([-1, -2])
+... no more saves at deeper levels — snoUnprotKwd was on the wiped stack ...
+```
+
+`Snobol4.Common/Runtime/PatternMatching/ScannerState.cs` `SealAlternates`:
+
+```csharp
+public void SealAlternates()
+{
+    _alternatePatternStack.Clear();      // ← wipes ALL 15 entries
+    _alternateCursorStack.Clear();
+    _alternatePatternStack.Push(-2);
+    _alternateCursorStack.Push(CursorPosition);
+}
+```
+
+The docstring at the call site claims the seal clears only "P's saved alternates"
+(the alternates inside FENCE'd p), but the implementation wipes the whole stack
+including outer alternates that should remain live.
+
+### Why session #64's standalone repro could not reproduce
+
+The seal is triggered by a `SealPattern` from `FENCE(...)`.  Beauty has nested
+FENCE in `snoExpr10`..`snoExpr13`:
+
+```
+snoExpr13 = *snoExpr14 FENCE($'~' *snoExpr13 (...) | epsilon)
+snoExpr12 = *snoExpr13 FENCE($'$'... | $'.'... | epsilon)
+snoExpr11 = *snoExpr12 FENCE(($'^' | $'!' | $'**') ...| epsilon)
+snoExpr10 = *snoExpr11 FENCE($'%' *snoExpr10 (...) | epsilon)
+```
+
+When the parser walks `&FULLSCAN`, snoExpr14 alternation pushes ~14 alternates
+(`*snoUnprotKwd` is one of them), then snoExpr13's FENCE matches `epsilon` and
+fires SealPattern — wiping the snoExpr14 alternates.  Standalone reproductions
+without the deep nested-FENCE context lack the depth-15 stack at SEAL time, so
+the SEAL clears only what was actually inside the FENCE.
+
+### Fix attempted (NOT committed; reverted)
+
+Implemented a fence-mark scheme:
+
+1. New `Snobol4.Common/Runtime/Pattern/MarkPattern.cs` — terminal pattern, always
+   succeeds; pushes a `-3` fence-mark sentinel onto the alternate stack.
+2. `ScannerState.SealAlternates` — pop entries until a `-3` is found, then push
+   `-2` seal sentinel.  Outer alternates (below the mark) are preserved.
+3. `ScannerState.RestoreAlternate` — auto-skip `-3` sentinels (handles the case
+   where FENCE'd p fails before SealPattern fires; the mark is a stale leftover).
+4. `ScannerState.HasAlternates` — looks past `-3`s when checking for live alternates.
+5. `Scanner.MarkFence` — pass-through to `_state.MarkFence()`.
+6. `PatternFactories.CreateFenceFunction` — wrap FENCE(p) as
+   `Concat(MarkPattern, Concat(p, SealPattern))` instead of `Concat(p, SealPattern)`.
+
+### Result of the fix attempt
+
+Build clean.  Beauty self-host gate: **same 28 stderr lines, same Parse Error
+at `&FULLSCAN = 1`.**  Unit tests not run (session ended mid-suite).
+
+So: the SEAL-wipes-outer-alternates issue IS real and is observed in the trace,
+but the seal-with-mark fix alone does NOT unblock beauty self-host.  Either:
+- The fix has a subtle correctness bug (mark not landing in the right place,
+  HasAlternates wrong on -3-only stacks, etc.) that masks its effect.
+- A second bug exists upstream of the seal — the parse fails for a different
+  reason and the seal is downstream of the actual gating issue.
+
+The runtime patch and instrumentation were reverted (working tree clean).
+RULES.md "Test gate passes before every commit" was honored — no commit landed.
+
+### Recommended next-session pivot
+
+1. Re-apply the MarkPattern + ScannerState changes from above (small, ~80 LOC
+   total).  Add tracing back temporarily.
+2. Verify the trace shows a fence-mark `-3` being pushed at SEAL site, and the
+   SEAL clearing only down to that `-3` — preserving outer alternates.
+3. If snoExpr14 alternates ARE preserved but parse still fails: the failure is
+   downstream of snoExpr14.  Check whether `*snoUnprotKwd` is now actually
+   tried — instrument `UnevaluatedPattern.Scan` to log the deferred-code name
+   and search the trace for `snoUnprotKwd` evaluations.
+4. If `*snoUnprotKwd` IS evaluated and still fails, that's a state-dependent
+   *match() invocation — back to session #62/#64 territory (BetaStack residue,
+   pattern-match-scanner state from prior matches).
+5. If `*snoUnprotKwd` is NOT evaluated: the AST node Alternate links of
+   snoExpr14 are wrong, OR the cursor position at restore is wrong, OR the
+   `-3` mark is being placed too shallow (above snoExpr14's saves, so SEAL
+   wipes them anyway).  Dump the AST node-by-node with HasAlternate values
+   and check.
+
+### Why "SealAlternates clears all" might be intentional in some sense
+
+CSNOBOL4's FNCD (FENCE) clears the alternate stack down to a saved P-stack
+pointer captured at FENCE entry — equivalent to the MarkPattern scheme above,
+not a blanket wipe.  SPITBOL's `xkalt` is the same.  So the blanket-wipe
+implementation in this runtime is genuinely incorrect; the question is just
+whether fixing it alone closes beauty self-host.
