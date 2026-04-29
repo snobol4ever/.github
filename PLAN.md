@@ -104,7 +104,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **SCRIP Bootstrap (Milestones 2+3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus (reorganize corpus layout — gated by GOAL-CORPUS-LAYOUT.md) |
 | Corpus Layout Formula | `GOAL-CORPUS-LAYOUT.md` | corpus+.github+one4all | (design state — open questions before CL-1) |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 DONE (all three modes byte-identical to SPITBOL on beauty self-host, session #61) |
-| CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (PDLHED/NAMICL/NHEDCL save-restore landed session #48 — Error 17 → clean Parse Error; recursive *FENCE segfault → clean stack overflow; fence_function 10/10 preserved; beauty grammar still fails to match — likely FNCDCL seal semantics next) |
+| CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (session #49 isolated *cmd-FENCE-RPOS bug to 5-line repro; gdb-verified: FNCA writes wrong seal slot[2] target — should be `PDLPTR-3*DESCR`, not `PDLHED`; proposed fix in `csnobol4/docs/F-2-Step3a-findings.md` works in isolation but exposes deep-nesting cstack overwrite in beauty — both fixes need to land together; new corpus test 068_pat_fence_fn_via_var documents the bug; fence_function 10/10 preserved) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
