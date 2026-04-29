@@ -64,6 +64,16 @@ SB-5 in progress (session #63): all internal labels eliminated from .sc files (G
 - [x] **SB-1** — Diagnose underflows.
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
+- [ ] **SB-4a** — Careful rewrite: for each `.sno` / `.inc` source file in
+  `corpus/programs/snobol4/beauty/`, read the original, read the current `.sc`
+  in `corpus/programs/snocone/demo/beauty/`, and regenerate it from scratch.
+  Scrutinize every chunk. No `goto` statements unless unavoidable.
+  No internal labels inside procedures. Files to cover:
+  `global.sno`, `case.sno`, `assign.sno`, `match.sno`, `counter.sno`,
+  `stack.sno`, `tree.sno`, `ShiftReduce.sno`, `TDump.sno`, `Gen.sno`,
+  `Qize.sno`, `ReadWrite.sno`, `XDump.sno`, `omega.sno`, `semantic.sno`,
+  `trace.sno`, and `beauty.sno` (main program body → `beauty.sc`).
+  After each file: smoke-test it in isolation with `scrip --ir-run`.
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 - [ ] **SB-7** — Gate script. Commit. Push.
