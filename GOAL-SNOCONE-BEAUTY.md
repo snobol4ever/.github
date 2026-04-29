@@ -518,7 +518,26 @@ accretion in beauty.sc, which session #65 then stripped (above).
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
   - [x] **SB-5a** — Port `semantic.inc` → `semantic.sc` (covered by
     SB-4b.15, closed session #66).
-  - [ ] **SB-5b** — **PARTIAL — three gating bugs fixed in session #68:
+  - [ ] **SB-5b** — **PARTIAL — six gating bugs fixed across sessions #68 and #69.
+    Session #69 fixed three more bugs beyond session #68's three:
+    (1) semantic.sc reduce(): single-quote wrapping for t in EVAL string broke
+    when t contains embedded single quotes (the three Goto-pattern tags
+    "*(':' Brackets)" x2, "*(':' SorF Brackets)" x1). Fixed to double-quote
+    wrapping — all three EVAL parse errors from session #68 eliminated.
+    (2) Main loop if (~done): in Snocone, unary ~ applied to non-pattern value
+    returns a PATTERN object (non-null), making if(~done) always FAIL as a
+    condition. Fixed to EQ(done,0) then further to ~DIFFER(done).
+    (3) Main loop integer flags done/cont/more/eof_inside initialized to 0:
+    in Snocone 0 is non-null (truthy), so while(cont)/if(done) entered even
+    when flag was 0. Rewrote all four flags to use ''=false, 1=true.
+    Gates PASS=5/PASS=42 SKIP=3/PASS=49 green throughout.
+    Remaining: Parse pattern match hangs with real stdin; /dev/null exits
+    cleanly (0 lines = main loop never runs). Pattern construction completes
+    fine. The hang is inside ARBNO(*Command) matching Src against the full
+    Stmt/Expr grammar. Next session: isolate via &STLIMIT guard or Stmt stub
+    whether ARBNO backtracking under &FULLSCAN=1 is the cause.
+    Session #68 context still applies (see below).**
+  - [ ] **SB-5b-orig** — **PARTIAL — three gating bugs fixed in session #68:
     (1) snocone unary `*` was lowering to E_INDIRECT instead of E_DEFER
     (every `*Pat` was broken); (2) scrip multi-file merge did not
     strip intermediate `is_end` (libraries' END halted main); (3)
