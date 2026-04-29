@@ -46,16 +46,71 @@ Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
 
 ---
 
-## Current state (2026-04-29)
+## Current state (2026-04-29, session #64)
 
 SB-1..SB-3 DONE.
 
 SC sources live at `corpus/programs/snocone/demo/beauty/` (session #62, finalized).
 Source modules at top level. Subsystem tests flat in `test/` as `test_<subsys>.sc` + `test_<subsys>.ref`.
 Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
-Script paths updated in one4all. Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 
-SB-5 in progress (session #63): all internal labels eliminated from .sc files (Gen, TDump, Qize, ReadWrite, XDump, beauty.sc ss proc). io.sc removed. Full-stack hang persists — cumulative lib interaction cause not yet identified. Next: find which lib combination triggers the hang.
+**SB-4a in progress (session #64).** Per-file scrutiny + rewrite of six `.sc`
+modules landed against canonical `.inc` sources at
+`corpus/programs/snobol4/demo/beauty/`. Identified three systemic Snocone-port
+bugs the previous translation pass had baked in:
+
+1. **Predicate-form `subj ? (PAT)` does NOT consume from subject** — only `. var`
+   captures named in the pattern. The trailing `&& ''` in many places was a
+   no-op. Use statement-form `subj ? (PAT) = ;` for match-and-replace, or
+   `RTAB(0) . subj` for capture-the-rest.
+2. **`if (~(subj ? PAT_with_captures))` runs the match but discards captures**
+   even on success. Use positive-form match with explicit else branch.
+   (beauty.sc already noted this; comment at line 23.)
+3. **The SNOBOL4 idiom `i = LT(i, n) i + 1` does not compose in Snocone.**
+   Bare juxtaposition raises Error 5 — Undefined function or operation.
+   Use idiomatic `while (LT(i, n)) { i = i + 1; ... }`.
+
+Files rewritten this session:
+- `case.sc` — `icase` infinite-loop fixed (was non-destructive scan).
+- `Gen.sc` — buffer-not-advancing fixed (`REM . _rest` capture, plus positive
+  match form). Likely a major contributor to the SB-5 "no output" symptom.
+- `TDump.sc` — three broken loops, broken conditional separator, tree-type
+  test fixed (`IDENT(DATATYPE(x), 'tree')` — Snocone has no deferred-eval
+  `*IDENT(n(x))`).
+- `XDump.sc` — broken loop, REPLACE-uppercase removed.
+- `ReadWrite.sc` — non-destructive scans in Write/LineMap fixed.
+- `Qize.sc` — non-destructive scans in Qize/SQize/DQize/SqlSQize/Intize fixed.
+
+Smoke-tested in isolation against SPITBOL oracle on representative inputs.
+All three baseline gates remain green after every fix.
+
+**SB-4a remaining:** `omega.sc` (TV/TW/TX/TY/TZ trace-instrumentation —
+mixes pattern arithmetic with `&&` concat in ways that need careful
+scrutiny), `ShiftReduce.sc` (whitespace-strip in Shift is a no-op since
+`whitespace` global is undefined; cosmetic; document and skip),
+`global.sc` (clean), and decision on whether `semantic.sc`/`trace.sc`
+need to exist as separate library files (current design has them
+implicitly inlined into beauty.sc; the runner script `util_run_beauty_sc.sh`
+invokes scrip with a single .sc arg, no -INCLUDE-style multi-file linkage).
+
+**SB-5 partial diagnosis:** beauty.sc still produces no output end-to-end
+after the Gen.sc fix. Bisection with probe-OUTPUT statements shows
+execution dies at line 45 `if (DIFFER(ppAutoMode)) { ... }`. The
+condition is FALSE (correctly skipping the body) but the body loads
+something the IR lowerer rejects with three "Error 5 Undefined function
+or operation" messages — silently when the body is skipped at runtime,
+visibly when forced to evaluate.
+
+**Root cause located (end of session #64):** `ppAutoMode` and the entire
+~50-line `--auto` two-pass block in beauty.sc (lines 14–97) are
+**non-canonical accretions** — not present in `beauty.sno` at all.
+A previous session bolted on a HOST(0) CLI-args parser plus an auto-tuning
+prepass for stop-column widths. None of that code is part of the SNOBOL4
+oracle. The IR-lowerer-rejected constructs (the C-style `for (...; ...; ...)`
+loop on line 73, the `goto ppAutoNext`/label pair, the `output__/input__`
+calls) all live inside that stowaway block. **Strip the args parser and
+the auto-mode block from beauty.sc — that should both restore SB-4a
+faithfulness and unblock SB-5 in one move.** Next session opens here.
 
 ---
 
