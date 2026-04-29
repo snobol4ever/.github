@@ -46,15 +46,109 @@ Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
 
 ---
 
-## Current state (2026-04-29, session #67)
+## Current state (2026-04-29, session #68)
 
-SB-1..SB-3 DONE.
+SB-1..SB-3 DONE.  SB-4a DONE.  SB-4b DONE (all 14 sub-rungs, session #67).
 
 SC sources live at `corpus/programs/snocone/demo/beauty/` (session #62, finalized).
 Source modules at top level. Subsystem tests flat in `test/` as `test_<subsys>.sc` + `test_<subsys>.ref`.
 Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 
-**Session #67 progress.** SB-4b.2..SB-4b.14 closed (full SB-4b sweep).
+**Session #68 progress.** SB-5b advanced significantly. Three real bugs
+fixed, plus mechanical rename `snocone_cf` → `snocone_control`.
+
+**Three runtime/frontend bugs fixed this session:**
+
+1. **`snocone_lower.c` — unary `*` was lowering to `E_INDIRECT`, not `E_DEFER`.**
+   SNOBOL4 has two visually-similar but distinct concepts: `$expr`
+   (indirect lookup) lowers to `E_INDIRECT`; `*expr` (deferred /
+   unevaluated expression) lowers to `E_DEFER`.  The Snocone frontend
+   was using `E_INDIRECT` for both, so `P = *Id` produced
+   `DATATYPE='STRING'` instead of `'EXPRESSION'`.  Verified via SPITBOL
+   oracle: `*Id POS(0) ... RPOS(0)` matched `'x'` correctly under
+   SPITBOL but failed under Snocone before the fix; matches identically
+   after.  This was the gating bug — it broke every `*Pat`-anchored
+   match in beauty.sc (every parser pattern uses them).
+
+2. **`scrip.c` driver — multi-file merge did not strip intermediate
+   `is_end` sentinels.**  Each frontend emits one `is_end` at end-of-file.
+   When concatenating `lib1 main`, the first file's END halted execution
+   before main ran.  Confirmed bug in pure SNOBOL4 multi-file too:
+   `./scrip --ir-run /tmp/lib1.sno /tmp/main1.sno` produced only lib1's
+   output before the fix; both files' output after.  Fix: in the merge
+   loop strip the trailing `is_end` from running prog before chaining
+   the next sub-program.  The very last sub's `is_end` stays as the
+   merged program's terminator.
+
+3. **`semantic.sc` — `shift()` and `reduce()` EVAL strings malformed.**
+   `reduce()` was building `EVAL("epsilon . *Reduce(=, 2)")` — invalid
+   SNOBOL4 syntax (bare `=`).  Fixed to wrap `t` in single quotes:
+   `"epsilon . *Reduce('" t "', " n ")"`.  `shift()` was concatenating
+   the value of `p` into the EVAL string instead of using the literal
+   name `p` (the canonical SNOBOL4 trick: `p` in the EVAL string is
+   resolved dynamically at EVAL time to the procedure-local pattern).
+   Both fixes match the canonical `semantic.inc` behavior.  `shift()`
+   and `reduce()` now return PATTERN values for every call form used
+   in `beauty.sc`.
+
+**Mechanical rename `snocone_cf` → `snocone_control`** (per Lon, this
+session).  `git mv` on `snocone_cf.{c,h}` → `snocone_control.{c,h}`,
+function `snocone_cf_compile` → `snocone_control_compile`, all
+references updated in `Makefile`, `driver/interp.c`, `driver/scrip.c`,
+`frontend/rebus/rebus_lower.c`, `frontend/snocone/snocone_driver.c`,
+plus the renamed files' own self-references.  Build + all three gates
+remain green.
+
+**Goto/label elimination in `beauty.sc`.**  Per Lon, "reduce number of
+goto statements in Snocone source to almost zero."  All gotos and
+labels eliminated:
+
+- `goto ss_unop` (in `ss()`) — restructured the binary `|` handler with
+  a `~EQ(n,1)` guard so the unary case falls through to the
+  general `EQ(n,1)` block below.  No semantic change.
+- `refs` procedure — the `goto refs_next` skip-rest-of-iteration
+  pattern (4 sites) rewritten as nested `if` blocks.
+- Main loop — 5 gotos and 3 labels (`mainErr1:`, `mainErr2:`, `END:`)
+  rewritten as a structured `done` / `more` / `eof_inside` flag
+  machine with inline error handling.  Same logical behavior as the
+  goto version: read header lines, accumulate continuation lines into
+  Src, parse-and-pp on non-continuation or EOF, print Parse Error or
+  Internal Error inline on failure.
+
+`grep "goto "` on beauty.sc now shows zero gotos.  One remaining
+mention is a comment about "the SNOBOL4 goto AST node" — not a
+Snocone goto, just documentation.
+
+**Snocone-runtime bug (NOT YET FIXED, separate from SB-5b).**
+`INPUT` after EOF does not fail — returns the previous value rather
+than failing the assignment.  SPITBOL oracle: 3rd `INPUT` after 2-line
+input fails the assignment.  Snocone: 3rd `INPUT` returns the previous
+line again, causing `while (DIFFER(Line = INPUT))` to loop forever.
+The session #68 main-loop rewrite uses a `done` flag explicitly set
+on EOF detection, working around this bug — but the underlying issue
+should be tracked as its own rung.  Suggested name: SC-INPUT-EOF.
+
+**Three EVAL parse errors at startup (not yet root-caused).**
+Three lines of `snobol4:0: error: parse error: syntax error` print
+on stderr during pattern construction in beauty.sc.  Bisection placed
+the first @T0 OUTPUT after the errors, then @T1 (after ppStop), then
+@T2 (after Real) — all execute.  Errors fire BEFORE @T0 in real time
+because stderr is unbuffered, but they are emitted DURING beauty.sc's
+top-level execution (in some `EVAL` call inside pattern construction).
+Likely a `reduce()` or `shift()` call where the embedded `t`/`n`
+contains a character SNOBOL4's parser rejects.  Did not reach root
+cause this session.  Stdout still empty after @T2 trace.  No further
+trace points placed past line 25 of beauty.sc this session — that's
+the next session's first task.
+
+**Active rung remains SB-5b.**  Beauty.sc no longer hangs on label
+parse, no longer halts at first END, no longer fails on `*Pat`
+construction, no longer fails on the `&`/`~` operator semantics
+mismatch.  Top-level execution proceeds through pattern construction.
+Whatever blocks output between line 25 and the first parse attempt
+is the next thing to find.
+
+**Session #67 progress (kept for context).** SB-4b.2..SB-4b.14 closed (full SB-4b sweep).
 - `case.sc`, `assign.sc`, `match.sc`, `stack.sc` audited and confirmed
   faithful — no source changes needed.
 - `counter.sc` rewritten 6 → 16 procedures (added BegTag + EndTag families
@@ -424,22 +518,23 @@ accretion in beauty.sc, which session #65 then stripped (above).
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
   - [x] **SB-5a** — Port `semantic.inc` → `semantic.sc` (covered by
     SB-4b.15, closed session #66).
-  - [ ] **SB-5b** — **ACTIVE (session #67 handoff).** Rewrite every
-    binary `&` (reduce) and binary `~` (shift) site in `beauty.sc`
-    as explicit `reduce(t, n)` / `shift(p, t)` function calls.
-    Seven `&` sites at lines 61, 67, 69, 89, 93, 132, 133;
-    `~` sites need re-audit (currently translated as wrong
-    `*Pat . '' && 'Name'` form). Also sweep beauty.sc for the 14
-    pre-existing `goto` statements (lines 311, 397, 399, 400, 402, 423,
-    429, 431, 433, 437, 439, 442, 444 plus its `goto END` exits) and
-    eliminate where readability allows; keep only those that genuinely
-    de-duplicate large blocks or improve readability.
-
-    **All library-side ports are now in place** (all SB-4b sub-rungs
-    closed) so the beauty.sc rewrite no longer waits on any
-    upstream module. `reduce`, `shift`, `nPush`, `nInc`, `nDec`,
-    `nTop`, `nPop`, `pop` are all available as Snocone procedure
-    calls from `semantic.sc`.
+  - [ ] **SB-5b** — **PARTIAL — three gating bugs fixed in session #68:
+    (1) snocone unary `*` was lowering to E_INDIRECT instead of E_DEFER
+    (every `*Pat` was broken); (2) scrip multi-file merge did not
+    strip intermediate `is_end` (libraries' END halted main); (3)
+    semantic.sc shift()/reduce() built malformed EVAL strings (bare
+    `=` in EVAL source, p-value-not-name in shift).  All three fixed.
+    All `&`/`~` sites in beauty.sc rewritten as explicit
+    `reduce('X', n)` / `shift(*Pat, 'Name')` function calls.  All
+    gotos and labels eliminated in beauty.sc — `ss_unop` restructured
+    with a guard, `refs` rewritten with nested ifs, main loop
+    rewritten as a flag-driven structured machine.  beauty.sc now
+    executes through pattern construction (T0/T1/T2 traces fire);
+    stdout silent past T2 — three EVAL parse errors fire on stderr
+    during pattern construction (root cause not yet found).  Gates
+    remain green PASS=5/PASS=42 SKIP=3/PASS=49.  Next session: trace
+    past line 25 of beauty.sc to find which pattern-construction
+    line emits the EVAL errors.**
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 - [ ] **SB-7** — Gate script. Commit. Push.
 
