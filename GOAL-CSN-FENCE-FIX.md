@@ -685,13 +685,13 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #49 (F-2 Step 3a continued — *cmd-FENCE-RPOS bug class isolated)
+- csnobol4 @ session #50 (F-2 Step 3a continued — PATBCL context-mismatch diagnosed via gdb + C-trap instrumentation)
 - one4all @ `06433f90`
 - corpus @ session #49 (added test 068 — fence_via_var)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (cstack-overwrite at deep nesting blocks beauty self-host)
+- active step → **F-2 Step 3a** (PATBCL context mismatch in failure walker after seal-fire — fix targeted for session #51)
 
-**Gates as of session #49 end:**
+**Gates as of session #50 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved)
 - Tiny repro: **clean "Parse Error"** (unchanged from session #48)
 - beauty self-host: **35 lines** (unchanged; SPITBOL: 646)
@@ -734,3 +734,46 @@ Result: ✓ min_crash converts SEGV → clean fail. ✓ nested *cmd1*cmd2 case w
 2. **Step 3a continued** — add test 068 to `csnobol4/test/fence_function/Makefile` TESTS list (currently fails — will pass with the fix).
 3. **Step 3b** — port C edits back into `v311.sil` for SIL/C consistency.
 4. **Steps 4–9** — clean build, regression, beauty, smoke gates, commit.
+
+**What session #50 added (no code, diagnosis only):**
+
+Session #50 re-verified session #49's seal slot[2] = PDLPTR-3*DESCR fix
+(same result: min_crash clean, fence_function 10/10, beauty regresses
+clean→SEGV).  Then went deeper with C-level traps inserted at SCIN3
+slot[1] write and SALT2 slot[1] read, both gated on `XCL == {0x90,0,64}`.
+In a single beauty run, captured BOTH events:
+
+- SCIN3 push wrote slot[1]=`{0x90,0,64}` at PDLPTR=0x..b700, **PATBCL=0x..eeeca90**.
+- Later, SALT2 read THAT SAME slot, **PATBCL=0x..ef5dc40** (different).
+
+The bad slot was a then-or trap pushed under an inner sub-pattern
+(dispatched via STAR/`*var`).  The walker reaches it under the OUTER
+pattern's PATBCL → SCIN3 fall-through dispatches `OUTER_PATBCL + 0x90`
+→ garbage memory → SEGV.  This is a **PATBCL context mismatch**, not
+a cstack-overwrite as session #49 had hypothesized.
+
+Re-read of SPITBOL `p_fnc/p_fnd` (`x64/sbl.min:11978-12047`) revealed
+TWO things missed in earlier sessions:
+- SPITBOL has an optimization where NO seal is placed if inner P
+  leaves no alternatives (`pfnc1` path).
+- SPITBOL's `p_fnd` does `mov xs,wb; brn flpop` — `flpop` consumes
+  ONE MORE trap entry beyond the seal's rewind target.  This is the
+  trap that originally dispatched FENCA (the SCIN3-around-FENCEPT
+  in CSNOBOL4 terms).
+
+The CSNOBOL4 seal currently rewinds to FENCA-entry-PDLPTR.  It needs
+to rewind ONE TRAP REGION DEEPER (entry-PDLPTR - 3*DESCR).  Full
+arithmetic walk-through and Plan B (PATBCL save in extended seal
+entry) documented in `csnobol4/docs/F-2-Step3a-findings.md` "Session
+#50 update" section.
+
+**Honest circularity check (per RULES.md):**
+
+The seal slot[2] = PDLPTR-3*DESCR fix was already proposed and
+verified in session #49.  Session #50 partially repeated that work
+before confirming it via git log inspection.  The genuinely-new
+session #50 contribution is the PATBCL context-mismatch diagnosis
+and the SPITBOL `flpop` re-reading.  Session #51 should NOT re-test
+the seal slot[2] fix in isolation — that has been verified twice.
+Session #51 should implement the rewind-one-deeper arithmetic and
+test against beauty directly.
