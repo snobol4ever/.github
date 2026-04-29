@@ -462,83 +462,82 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
     which state matters.  Path (b) requires more dot-side tooling but
     points directly at the root-cause divergence.
 
-  **Session #63 advance — wire convention aligned with spl/csn**
-  (snobol4dotnet `724c1b6`).  Monitor watermark **1497 → 1617**.
-  Beauty self-host gate **unchanged** (still 28 stderr lines, Parse Error
-  at `&FULLSCAN = 1`) — these are wire-alignment fixes; the underlying
-  parse bug remains the open investigation per (a)/(b) above.
+  **Session #63 — wire convention adjusted, self-host gate untouched.**
+  (snobol4dotnet `724c1b6`).  Monitor watermark moved 1497 → 1617 by
+  closing four wire-encoding inconsistencies between spl's and dot's
+  bridges.  **Beauty self-host gate UNCHANGED — same 28 stderr lines,
+  same Parse Error at `&FULLSCAN = 1`.  None of the four changes
+  affected dot's SNOBOL4 semantics; all are inside `MonitorIpc.Enabled`
+  guards or in the bridge emit calls themselves.  In the unmonitored
+  path (which is what beauty self-host runs), dot's behavior is
+  byte-identical to before the session.**
 
-  Four wire fixes landed together (cleanly committed as one rung):
+  Honest framing: this session did not progress S-2-bridge-7-fullscan.
+  It made the diagnostic instrument more accurate without lowering the
+  patient's fever.  The four changes were:
 
-  1. **`AssignReplace (=).cs` `ReplaceMatch`** — destructive subject
-     rebind now emits VALUE.  Closes the step-1497 gap at `case.inc:22`:
-     `str POS(0) ANY(...) . letter =` — spl emits `VALUE str='ND'`
-     after the destructive match-replace; dot did not.  `_BinaryEquals`
-     dispatches `SubjectVar` to `ReplaceMatch`, scalar to `Assign` —
-     only the latter had a fire-point.  spl's chokepoint at
-     `asign:asg01` fires for both because spl has one path, not two.
+  1. `AssignReplace (=).cs` `ReplaceMatch` — added `MonitorIpc.EmitValue`
+     for destructive subject rebind (was the step-1497 wire-only gap).
+  2. `Define.cs` — `ProgramDefinedFunctionStack.Pop()` to balance Push
+     (was a leak readable only by the suppression check, which itself
+     was a wire concern).
+  3. `Define.cs` — removed `MonitorIpc.EmitValue(returnVarName, ...)`
+     before `EmitReturn` (aligns wire convention with spl/csn:
+     RETURN carries only the type, value comes from body-assign emit).
+  4. `AssignReplace (=).cs` `Assign` — removed `isReturnSlot`
+     suppression and added `OutputChannel`-empty skip (matches spl's
+     trap-bypass behavior at `asg02`/`asg14` for OUTPUT/PUNCH writes).
 
-  2. **`Define.cs` `ProgramDefinedFunctionStack` leak fix** — Pop now
-     balances Push at the top of `ExecuteProgramDefinedFunction`.  The
-     unbalanced stack made `Peek()` return stale data after any
-     successful return, breaking the body-assign `isReturnSlot`
-     suppression in nested-call scenarios.  General-correctness fix;
-     verified via diagnostic trace that `stackCount` grew unboundedly
-     (1→2→3→4 across simple test programs).
+  Test gate clean: 2075p/14f baseline match, beauty 17/17 PASS, beauty
+  self-host stderr unchanged at 28 lines.
 
-  3. **`Define.cs` RETURN-time VALUE emission removed** — per spl/csn
-     convention, RETURN carries only the type (RETURN/FRETURN/NRETURN);
-     the function's return value was already emitted as a VALUE record
-     when the body assigned to the function-name variable.  See the
-     spl runtime comment at `monitor_ipc_runtime.c:449-452`:
-     "Result is delivered via the preceding VALUE record on the
-     function-name variable (already emitted by zysmv when the body
-     ran `<fn> = <expr>`)."
+  **What this session revealed about the harness as a tool:**
 
-  4. **`AssignReplace (=).cs` `Assign` suppression removed +
-     OutputChannel skip added** — the `isReturnSlot` suppression
-     diverged from spl/csn on multiple body-assigns to fn-name (icase
-     loop emits 3 body-assign VALUEs on spl, only 1 RETURN-time VALUE
-     on dot pre-fix) and on bare returns (`IDENT(str) :S(RETURN)`
-     emits 0 extra VALUE on spl, 1 extra on dot pre-fix).  Removed
-     entirely; body-assigns now fire VALUE always.  Added
-     `OutputChannel`-empty check to skip OUTPUT/PUNCH writes — spl's
-     `asign` routes I/O channel stores through the trap chain
-     (`asg02`/`asg14` in `sbl.min`), bypassing `sysmv`, so spl emits
-     no VALUE for `OUTPUT = expr`.  Without this skip, dot diverged
-     from spl on every line of output-driving code (beauty.sno main
-     loop, step 1565).
+  The sync-step monitor's premise — "where the wires first disagree,
+  the bug lives between" — is only useful when both bridges record the
+  same events for semantically-correct execution.  Today, both bridges
+  still have fire-point and type-encoding gaps; every wire divergence
+  surfaced from beauty self-host so far has been a bridge inconsistency
+  rather than a SNOBOL4 semantic bug.  Chasing wire divergences from
+  event 1 has been clearing bridge ghosts, not finding the parse bug.
 
-  **Test gate (clean):**
-  - Unit suite: **2075p / 14f** — exact baseline match, no regression.
-    The 14 failures are pre-existing `TEST_Csnobol4_*` corpus tests.
-  - Beauty 17/17 driver suite: **17/17 PASS** — no regression.
-  - Beauty self-host: 28 stderr lines, exit 0, Parse Error unchanged
-    from baseline.
+  **The goal's rung list does not include a validation step proving
+  the harness can actually catch a known semantic bug.**  Every closed
+  bridge rung (S-2-bridge-1..7-dollar-alt) addresses harness build /
+  cleanup; none injects a synthetic dot bug to confirm the harness
+  pinpoints it.  Without that validation, "watermark advance" is an
+  ambiguous signal: bridge gap closure or real bug, indistinguishable.
 
-  **New divergence at step 1617** — `counter.inc:17` line
-  `PushCounter = .dummy :(NRETURN)`.  spl emits
-  `VALUE PushCounter = UNKNOWN` (empty bytes); dot emits
-  `VALUE PushCounter = NAME(5)='dummy'`.  Different value bytes →
-  controller's `keys_match` reports DIVERGE.  This is the same
-  spl-bridge type-coverage gap noted in earlier sessions: spl's
-  `spl_block_to_wire` returns `MWT_UNKNOWN` for nmblk/ptblk/atblk/
-  tbblk/cdblk/efblk because no public extern names them.  Tracked
-  under SN-26-bridge-coverage in `GOAL-LANG-SNOBOL4.md`.
+  **The actual gating bug is almost certainly invisible to the wire.**
+  Session #62 already established the FULLSCAN parse failure is
+  state-dependent: it fails in isolation on BOTH spl and dot, but spl
+  succeeds during real beauty self-host.  The state that flips the
+  result accumulates through prior parses and is held in pattern-match
+  scanner internals (BetaStack residue, ARBNO state, FENCE bookkeeping,
+  counter/tree stacks) — none of which are on the wire.  Sync-step
+  monitoring will agree at every event while these states diverge.
 
-  **Suggested next-session paths:**
-  - **Continue chasing wire divergences forward.**  The remaining
-    gaps are likely concentrated in spl's bridge type-encoding
-    (NameVar, PatternVar, ArrayVar, TableVar, CodeVar, ExpressionVar
-    blocks all return UNKNOWN with empty bytes).  Either extend
-    spl's bridge to encode these (SN-26 work) or carve a controller
-    workaround that treats UNKNOWN-with-empty-bytes as a
-    value-bytes wildcard (similar to the existing
-    `MONITOR_NAME_WILDCARD` / `MONITOR_SKIP_EXTRA_KEYWORD_VALUES`
-    knobs).  The latter is cheaper and unblocks forward motion.
-  - **Path (a) state-snapshot-replay** is still the cheapest path
-    to the actual `&FULLSCAN = 1` Parse Error if monitor advance
-    keeps producing one-off bridge gaps with no semantic divergence.
+  **Recommended next-session pivot — STOP chasing wire watermark.**
+
+  Either:
+
+  - **Add S-2-bridge-validate rung first** — inject a known semantic
+    divergence in dot (e.g. make `IDENT` always succeed), run the
+    harness, confirm it pinpoints the right event.  Only after this
+    proves the harness can find a real bug should wire watermark
+    advance be treated as meaningful signal.
+
+  - **Pursue path (a) directly without the harness** — instrument
+    beauty.sno to dump scanner-relevant state (counter stack, tree
+    stack, BetaStack analog, IdentifierTable snapshot) right before
+    the FULLSCAN parse on the spl side where it succeeds.  Replay
+    that state in isolated spl where the parse currently fails.
+    Identify the state element that flips the result.  This is a
+    SPITBOL-only diagnostic; no dot changes; bypasses the wire.
+
+  Path (a) is cheaper to start and produces a SPITBOL-only repro
+  pinpointing what state matters.  Once isolated in spl, comparing
+  the same state on dot identifies the dot-side accumulation bug.
 
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
