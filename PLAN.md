@@ -103,7 +103,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 |------|------|------|------|
 | **SCRIP Bootstrap (Milestones 2+3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus (reorganize corpus layout) |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 DONE (all three modes byte-identical to SPITBOL on beauty self-host, session #61) |
-| CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (STAR-against-empty bug blocks beauty; pre-existing in vanilla 2.3.3, not a FENCE bug but currently gating done-when; FENCE-specific FNCBX fix landed @ csnobol4 c314e49 — fence_function 10/10) |
+| CSN FENCE Bug Fix | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a (PDLHED/NAMICL/NHEDCL save-restore landed session #48 — Error 17 → clean Parse Error; recursive *FENCE segfault → clean stack overflow; fence_function 10/10 preserved; beauty grammar still fails to match — likely FNCDCL seal semantics next) |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-7 |
 | Prolog Frontend Ladder | `GOAL-LANG-PROLOG.md` | one4all | PL-12 |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |

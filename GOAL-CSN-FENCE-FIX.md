@@ -685,31 +685,51 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #47 (F-2 Step 3a partial — cpypat v=4 + FNCA PDL-rewind)
+- csnobol4 @ session #48 (F-2 Step 3a partial — PDLHED/NAMICL/NHEDCL save/restore in FNCA)
 - one4all @ `06433f90`
 - corpus @ `ae9ea8d`
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (P-corruption inside FNCA's recursive SCIN)
+- active step → **F-2 Step 3a** (parse-error — beauty grammar fails to match assignments)
 
-**Gates as of session #47 end:**
+**Gates as of session #48 end:**
 - fence_function/ suite: **10/10 PASS** (preserved)
-- Tiny repro: Error 17 at stmt 1074 (was: SIGSEGV; the bug class shifted
-  from memory corruption to controlled program error — meaningful progress)
-- beauty self-host: **36 lines** (unchanged from #46 baseline; SPITBOL: 646)
+- Tiny repro: **clean "Parse Error" output** (was: Error 17 at stmt 1074;
+  before that: SIGSEGV — bug class shifted from memory corruption → controlled
+  program error → clean parse failure. Each step is meaningful progress.)
+- Recursive *FENCE pattern: clean stack overflow (was: stack overflow +
+  segfault — segfault eliminated)
+- beauty self-host: **35 lines** (basically unchanged from #47's 36; SPITBOL: 646)
 - one4all Smoke/Broker: NOT YET RUN (still gated on beauty)
 
-**What session #47 fixed (F-2 Step 3a partial — uncommitted in working tree):**
-1. cpypat now handles `v7==4` as self-contained 5-descr node — copies
-   slot[4] AND advances 5*DESCR. (`lib/pat.c`)
-2. FNCPP writes `slot[1].v=4` (was 3) so cpypat sees the right semantics.
-   (`isnobol4.c`, `snobol4.c`)
-3. FNCA pushes/pops PDLPTR onto cstack so success and failure paths can
-   rewind PDL past inner-SCIN's leaked entries. Removed spurious
-   `D(PDLHED) = D(PDLPTR)` clobber. (`isnobol4.c`, `snobol4.c`)
+**What session #48 fixed:**
+Added PDLHED/NAMICL/NHEDCL save/restore around FNCA's recursive SCIN call,
+mirroring ATP/BAL's idiom. The original pre-D6 FNCA saved 6 things including
+PDLHED/NHEDCL; session #45 removed these from the save list (kept set but no
+restore); session #47 removed the set too (calling it "spurious clobber"). Both
+were wrong — without inner-snapshot PDLHED, BAL/nested-FENCE primitives inside
+P read stale outer values, and without OUTER restoration, post-FNCA outer
+matching sees corrupted PDLHED. Fix: save outer PDLHED/NAMICL/NHEDCL on cstack,
+set inner = current PDLPTR/NAMICL after SCFLCL push, restore outer on both
+success and FNCBX failure paths. (`isnobol4.c`, `snobol4.c`)
+
+The diagnostic that found this: INTR13 fired with PATICL = a heap pointer in
+res-range. PATICL came from PDL trap entry's then-or that was an FNC-flagged
+pointer to a heap descriptor whose .a was another pointer (not 0..40). Logged
+all SCIN3 pushes, all SALT2 reads, all PATBRA dispatches — none of those paths
+explained the pointer-shaped PATICL. The path that did: post-FNCA outer
+matching where PDLHED had been clobbered to inner P's value, so subsequent
+primitives that use PDLHED (BAL boundary check, nested FENCE) read it as a
+PDL position when it was actually inner-P's history-stack base.
 
 **What remains:**
-1. Step 3a continued — diagnose why inner P's slot[1] dispatch tag is
-   corrupted during FNCA's recursive SCIN (now a controlled INTR13 in
-   the recursive SCIN frame, not memory corruption).
+1. Step 3a continued — beauty's snoSrc grammar pattern still fails to match
+   `ppStop = ARRAY('1:4')`. The match returns clean failure (no crash), but
+   SPITBOL succeeds. Likely a SEMANTIC bug in our FENCE seal mechanism
+   (FNCDCL/L_FNCD), not a crash class. Investigation focus: what does L_FNCD
+   actually need to do, given that PDLHED is now correctly outer at the time
+   FNCD fires? Original semantics may need PDL-position-snapshot stored IN
+   the FNCDCL trap entry rather than relying on global PDLHED.
 2. Step 3b — port the C edits back into `v311.sil` for SIL/C consistency.
+   Current divergence: SIL FNCA's PUSH list omits PDLHED/NAMICL/NHEDCL; the C
+   has them. Reconcile.
 3. Steps 4-9 — clean build, regression, beauty, smoke gates, commit.
