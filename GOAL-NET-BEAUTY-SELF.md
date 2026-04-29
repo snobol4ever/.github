@@ -359,6 +359,36 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   and the subsequent reduce-then-nPop chain that previously diverged
   at 1044/1046.
 
+- [x] **S-2-bridge-7-dollar-alt** — Fix `$` operator's alternation-backtrack
+  bug.  `Executive.Assign`'s deferred-Assignee evaluation loop ignored
+  `Failure` after evaluating an `ExpressionVar` Assignee.  When the
+  deferred form was `*fn(...)` and `fn()` FRETURNed, `Assign` consumed
+  the failure-pushed null StringVar (whose Symbol is the function's own
+  name), then proceeded to overwrite that variable with the captured
+  substring.  Worse, `ImmediateVariableAssociation2.Scan` always
+  returned `MatchResult.Success`, never propagating Assignee failure to
+  the scanner — so an outer alternation never backtracked.
+
+  Minimal repro (passes on spl, FAIL pre-fix on dot):
+  ```snobol4
+  patA = SPAN(&UCASE &LCASE) $ tx $ *match(listA, snoTxInList)
+  patB = SPAN(&UCASE &LCASE) $ tx $ *match(listB, snoTxInList)
+  'FULLSCAN' (patA | patB)                       :S(ok)F(fail)
+  ```
+
+  Fix: `AssignReplace (=).cs` — bail when `Failure` after deferred
+  Assignee eval; `ImmediateVariableAssociationPattern.cs` —
+  `ImmediateVariableAssociation2.Scan` returns `MatchResult.Failure`
+  when `Exec.Failure` is set.  Verified: 1898/1898 non-corpus tests
+  PASS, 295/295 pattern tests PASS, 14 pre-existing corpus failures
+  unchanged (verified via stash + retest baseline).
+
+  **Caveat — not the gating issue for S-2-bridge-7-fullscan.**  Beauty
+  self-host produces byte-identical stderr pre-fix and post-fix (28
+  lines, same Parse Error at `&FULLSCAN = 1`).  The actual
+  beauty self-host failure is somewhere else — see updated diagnosis
+  below.
+
 - [ ] **S-2-bridge-7-fullscan** — Diagnose the `&FULLSCAN = 1` Parse
   Error directly. The minimal repro is lines 1-26 of beauty.sno + END
   fed as stdin to `dotnet Snobol4.dll -bf beauty.sno`. SPITBOL runs
@@ -401,6 +431,36 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   3. Continue chasing the next divergence.  The Parse Error itself
      may surface as a real value disagreement once the wire reaches
      line 26.
+
+  **Session #62 investigation:**
+  - Confirmed `icase('END')` works semantically end-to-end on dot
+    (`POS(0) ANY(&UCASE &LCASE) . letter =` rebinds `str` correctly:
+    'END' → 'ND' → 'D' → ''; pattern matches END/end/EnD).
+    The step-1497 divergence is a wire/diagnostic gap, not a
+    semantic gap.
+  - Direct attempt to reproduce the beauty self-host parse failure in
+    isolation: load all -INCLUDE files, set `&FULLSCAN = 1`, then run
+    `src POS(0) *snoParse *snoSpace RPOS(0)` against
+    `'                  &FULLSCAN      =  1\n'`.  **Result: FAIL on
+    BOTH spl and dot.**  But spl successfully parses the same line
+    during real beauty self-host (verified by instrumenting beauty.sno
+    with trace OUTPUT calls before each parse attempt).
+  - Conclusion: the parse's success in spl beauty self-host depends on
+    state accumulated between the program-startup -INCLUDE expansions
+    and the FULLSCAN parse — not just the patterns/OPSYN/keywords
+    visible after `:(semanticEnd)`.  Likely candidates: residue from
+    the prior successful `START\n` and blank-line parses (which call
+    `pp(sno)`, push/pop trees, mutate counters).  Two paths forward:
+    (a) extend the trace of `beauty_trace.sno` to dump *all* relevant
+    state (counter stack, tree stack, AlphaStack/BetaStack analogs)
+    just before the FULLSCAN parse, replay that state in isolation and
+    observe whether spl's parse then succeeds outside beauty —
+    if yes, isolate the state element that flips the result.
+    (b) directly dump dot's internal pattern-match state at the
+    failing parse and compare against an spl trace at the same point.
+    Path (a) is cheaper and gives a SPITBOL-only repro that nails down
+    which state matters.  Path (b) requires more dot-side tooling but
+    points directly at the root-cause divergence.
 
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
