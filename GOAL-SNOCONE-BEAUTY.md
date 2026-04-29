@@ -50,7 +50,9 @@ Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
 
 SB-1..SB-3 DONE.
 
-SC sources moved to `corpus/programs/snocone/demo/beauty/` (session #62).
+SC sources live at `corpus/programs/snocone/demo/beauty/` (session #62, finalized).
+Source modules at top level. Subsystem tests flat in `test/` as `test_<subsys>.sc` + `test_<subsys>.ref`.
+Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 Script paths updated in one4all. Gates green: PASS=5, PASS=42 SKIP=3, PASS=49.
 
 NEXT STEP: SB-5 — beauty.sc produces no output with .sno libs. Development work
