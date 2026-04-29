@@ -462,6 +462,84 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
     which state matters.  Path (b) requires more dot-side tooling but
     points directly at the root-cause divergence.
 
+  **Session #63 advance — wire convention aligned with spl/csn**
+  (snobol4dotnet `724c1b6`).  Monitor watermark **1497 → 1617**.
+  Beauty self-host gate **unchanged** (still 28 stderr lines, Parse Error
+  at `&FULLSCAN = 1`) — these are wire-alignment fixes; the underlying
+  parse bug remains the open investigation per (a)/(b) above.
+
+  Four wire fixes landed together (cleanly committed as one rung):
+
+  1. **`AssignReplace (=).cs` `ReplaceMatch`** — destructive subject
+     rebind now emits VALUE.  Closes the step-1497 gap at `case.inc:22`:
+     `str POS(0) ANY(...) . letter =` — spl emits `VALUE str='ND'`
+     after the destructive match-replace; dot did not.  `_BinaryEquals`
+     dispatches `SubjectVar` to `ReplaceMatch`, scalar to `Assign` —
+     only the latter had a fire-point.  spl's chokepoint at
+     `asign:asg01` fires for both because spl has one path, not two.
+
+  2. **`Define.cs` `ProgramDefinedFunctionStack` leak fix** — Pop now
+     balances Push at the top of `ExecuteProgramDefinedFunction`.  The
+     unbalanced stack made `Peek()` return stale data after any
+     successful return, breaking the body-assign `isReturnSlot`
+     suppression in nested-call scenarios.  General-correctness fix;
+     verified via diagnostic trace that `stackCount` grew unboundedly
+     (1→2→3→4 across simple test programs).
+
+  3. **`Define.cs` RETURN-time VALUE emission removed** — per spl/csn
+     convention, RETURN carries only the type (RETURN/FRETURN/NRETURN);
+     the function's return value was already emitted as a VALUE record
+     when the body assigned to the function-name variable.  See the
+     spl runtime comment at `monitor_ipc_runtime.c:449-452`:
+     "Result is delivered via the preceding VALUE record on the
+     function-name variable (already emitted by zysmv when the body
+     ran `<fn> = <expr>`)."
+
+  4. **`AssignReplace (=).cs` `Assign` suppression removed +
+     OutputChannel skip added** — the `isReturnSlot` suppression
+     diverged from spl/csn on multiple body-assigns to fn-name (icase
+     loop emits 3 body-assign VALUEs on spl, only 1 RETURN-time VALUE
+     on dot pre-fix) and on bare returns (`IDENT(str) :S(RETURN)`
+     emits 0 extra VALUE on spl, 1 extra on dot pre-fix).  Removed
+     entirely; body-assigns now fire VALUE always.  Added
+     `OutputChannel`-empty check to skip OUTPUT/PUNCH writes — spl's
+     `asign` routes I/O channel stores through the trap chain
+     (`asg02`/`asg14` in `sbl.min`), bypassing `sysmv`, so spl emits
+     no VALUE for `OUTPUT = expr`.  Without this skip, dot diverged
+     from spl on every line of output-driving code (beauty.sno main
+     loop, step 1565).
+
+  **Test gate (clean):**
+  - Unit suite: **2075p / 14f** — exact baseline match, no regression.
+    The 14 failures are pre-existing `TEST_Csnobol4_*` corpus tests.
+  - Beauty 17/17 driver suite: **17/17 PASS** — no regression.
+  - Beauty self-host: 28 stderr lines, exit 0, Parse Error unchanged
+    from baseline.
+
+  **New divergence at step 1617** — `counter.inc:17` line
+  `PushCounter = .dummy :(NRETURN)`.  spl emits
+  `VALUE PushCounter = UNKNOWN` (empty bytes); dot emits
+  `VALUE PushCounter = NAME(5)='dummy'`.  Different value bytes →
+  controller's `keys_match` reports DIVERGE.  This is the same
+  spl-bridge type-coverage gap noted in earlier sessions: spl's
+  `spl_block_to_wire` returns `MWT_UNKNOWN` for nmblk/ptblk/atblk/
+  tbblk/cdblk/efblk because no public extern names them.  Tracked
+  under SN-26-bridge-coverage in `GOAL-LANG-SNOBOL4.md`.
+
+  **Suggested next-session paths:**
+  - **Continue chasing wire divergences forward.**  The remaining
+    gaps are likely concentrated in spl's bridge type-encoding
+    (NameVar, PatternVar, ArrayVar, TableVar, CodeVar, ExpressionVar
+    blocks all return UNKNOWN with empty bytes).  Either extend
+    spl's bridge to encode these (SN-26 work) or carve a controller
+    workaround that treats UNKNOWN-with-empty-bytes as a
+    value-bytes wildcard (similar to the existing
+    `MONITOR_NAME_WILDCARD` / `MONITOR_SKIP_EXTRA_KEYWORD_VALUES`
+    knobs).  The latter is cheaper and unblocks forward motion.
+  - **Path (a) state-snapshot-replay** is still the cheapest path
+    to the actual `&FULLSCAN = 1` Parse Error if monitor advance
+    keeps producing one-off bridge gaps with no semantic divergence.
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
