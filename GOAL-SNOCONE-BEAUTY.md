@@ -105,16 +105,18 @@ nor binary `~` (Snocone `~` is unary E_NOT), a faithful port requires
 and `reduce(t, n)` function calls**, plus porting the `semantic.inc`
 helpers as `semantic.sc`.
 
-**Other .sc/.inc audit findings (session #65) — non-issues confirmed**:
-- `tree.sc` has `MakeNode/MakeLeaf` instead of canonical `Tree/Insert/Find/
-  Append/Prepend/Remove/Visit/Equal/Equiv` — but the canonical `tree.inc`
-  procedures are referenced **only from within tree.inc itself**;
-  `beauty.sno` never calls them. `tree.sc` is dead code either way.
-- `counter.sc` is missing 9 of 15 procs from `counter.inc` (the BegTag/EndTag
-  family). Verified zero call sites for those nine across the entire
-  `.sno`/`.inc` tree as well — dead code in `counter.inc` too. Not a gap.
+**Other .sc/.inc audit findings (session #65) — corrected in session #66**:
+- `tree.sc` has only `MakeNode/MakeLeaf`; canonical `tree.inc` defines
+  the full tree ADT (`Tree, Insert, Find, Append, Prepend, Remove,
+  Visit, Equal, Equiv`). Earlier note ("dead code") was **wrong** —
+  Lon clarifies the canonical procedures are gated on settings (e.g.
+  parse-tree mode). SB-4b.7 ports the full canonical set.
+- `counter.sc` has 6 of 15 procs; missing 9 are the BegTag/EndTag
+  family (XML/HTML tag stack). Earlier note ("dead code") was **wrong**
+  — they are gated on `xTrace > 4` and tag-tracking modes. SB-4b.5
+  ports the full canonical set.
 - `Qize.sc` has two helper procs (`LEQ`, `Ucvt`) not in `Qize.inc`. Helpers,
-  fine.
+  fine — keep.
 - `global.sc` has no procedures, just data. Matches `global.inc` shape.
 
 **Session #64 progress (kept for context).** Per-file rewrite of six `.sc`
@@ -146,11 +148,97 @@ accretion in beauty.sc, which session #65 then stripped (above).
   `corpus/programs/snobol4/beauty/`, read the original, read the current `.sc`
   in `corpus/programs/snocone/demo/beauty/`, and regenerate it from scratch.
   (Sessions #62–#65: 6 modules rewritten in #64, ppAutoMode/--auto strip
-  in #65. tree.sc/counter.sc gaps confirmed dead code in canonical .inc.)
+  in #65. **Correction (session #66):** the `tree.sc` / `counter.sc` gaps
+  identified in session #65 are NOT dead code — they are gated on settings
+  like `xTrace > 4` and parse-tree mode. SB-4b takes them up.)
+
+- [ ] **SB-4b** — **ACTIVE.** Per-subsystem faithful conversion of every
+  `.inc` / `.sno` source. For each module, exhaustively port every
+  procedure — including the ones gated on `xTrace`, `doParseTree`, or
+  other runtime settings. **No assumption that "unreferenced at default
+  settings" means dead code.** Per Lon: "the code is turned on by
+  settings."
+
+  ⛔ **Before starting any module, request from Lon:**
+    - The relevant **Snocone specification** section(s) for the
+      Snocone idiom being used (procedure form, struct/data types,
+      pattern-matching shape, conditional/control flow). Snocone differs
+      from SNOBOL4 in non-trivial ways (no binary `&`, no binary `~`,
+      no OPSYN, structured `if/while/break`, `procedure` with named
+      locals, `.` capture-into-name, `*fn()` for indirect call), and
+      the spec text is the only authoritative source for what is and
+      isn't legal.
+    - The relevant **SPITBOL manual** section(s) for the SNOBOL4 syntax
+      and semantics being translated FROM — pattern matching primitives
+      (`SPAN`, `BREAK`, `ANY`, `NOTANY`, `LEN`, `POS`, `RPOS`, `TAB`,
+      `RTAB`, `REM`, `ARB`, `BAL`, `FENCE`), conditional value
+      assignment (`. var`, `$ var`), unevaluated expression
+      (`*expr`), keyword semantics (`&ANCHOR`, `&FULLSCAN`, `&CASE`),
+      function-call return conventions (RETURN / NRETURN / FRETURN /
+      SCONTINUE), and especially OPSYN-defined operators when porting
+      `semantic.inc`'s `shift`/`reduce`.
+
+  Modules and their order of attack (each carries its own gate via
+  `test_<subsys>.sc` + `.ref` in the 14-test suite — run after every
+  module port):
+
+  - [ ] **SB-4b.1** `global.sc` — confirm full ALPHABET / UTF /
+    digits / TRUE / FALSE / character-name set against `global.inc`.
+  - [ ] **SB-4b.2** `case.sc` — `lwr/upr/cap/icase` plus any
+    settings-gated paths.
+  - [ ] **SB-4b.3** `assign.sc` — `assign`.
+  - [ ] **SB-4b.4** `match.sc` — `match/notmatch`.
+  - [ ] **SB-4b.5** `counter.sc` — full 15-procedure family:
+    `InitCounter, PushCounter, IncCounter, DecCounter, TopCounter,
+    PopCounter, InitBegTag, PushBegTag, PopBegTag, TopBegTag,
+    DumpBegTag, InitEndTag, PushEndTag, PopEndTag, TopEndTag,
+    DumpEndTag`. The BegTag/EndTag family is gated on XML/HTML tag
+    tracking + `xTrace > 4` — present in `counter.inc`, must be
+    present in `counter.sc`.
+  - [ ] **SB-4b.6** `stack.sc` — `InitStack, Push, Pop, Top` plus any
+    OUTPUT trace under `GT(xTrace, ?)` gates.
+  - [ ] **SB-4b.7** `tree.sc` — full 9-procedure family:
+    `Tree, Append, Prepend, Insert, Remove, Equal, Equiv, Find, Visit`.
+    The current `tree.sc` (`MakeNode/MakeLeaf` only) is the wrong
+    procedures — it must be replaced or extended with the canonical
+    set so the full beauty pipeline can use the tree ADT when
+    `doParseTree` (or whichever flag gates it) is set.
+  - [ ] **SB-4b.8** `ShiftReduce.sc` — `Shift/Reduce` primitives.
+  - [ ] **SB-4b.9** `TDump.sc` — `TValue/TDump/TLump`.
+  - [ ] **SB-4b.10** `Gen.sc` — full output-formatter family:
+    `IncLevel, DecLevel, SetLevel, GetLevel, Gen, GenTab, GenSetCont`.
+  - [ ] **SB-4b.11** `Qize.sc` — `Qize, SQize, DQize, SqlSQize,
+    Intize, Extize` (plus current helpers `LEQ, Ucvt`).
+  - [ ] **SB-4b.12** `ReadWrite.sc` — `Read, Write, LineMap`.
+  - [ ] **SB-4b.13** `XDump.sc` — `XDump`.
+  - [ ] **SB-4b.14** `omega.sc` — `TV, TW, TX, TY, TZ` trace
+    instrumentation. `T8Trace` reference in here gates the need
+    for a `trace.sc` port.
+  - [ ] **SB-4b.15** **NEW** `semantic.sc` — currently absent. Port
+    `semantic.inc`'s 8 procedures: `shift(p, t)`, `reduce(t, n)`,
+    `pop()`, `nPush()`, `nInc()`, `nDec()`, `nTop()`, `nPop()`.
+    The shift/reduce procedures cannot use SNOBOL4-style OPSYN; their
+    callers in `beauty.sc` must call them as ordinary functions.
+    Test fixture `test/test_semantic.sc` already inlines a working
+    version of the n-counter half — promote that work to a real
+    library file.
+  - [ ] **SB-4b.16** **NEW** `trace.sc` — port `trace.inc`'s
+    `T8Trace`, `T8Pos`. Gated by `xTrace > 0`; needed when omega.sc
+    is exercised at higher trace levels.
+
+  **Habit:** after every per-module change, run the beauty test suite
+  end-to-end:
+  ```bash
+  bash /home/claude/one4all/scripts/test_beauty_snocone_all_modes.sh
+  ```
+  Gate must remain at `PASS=42 SKIP=3 FAIL=0` (or progress beyond it
+  toward `PASS=45 FAIL=0` once `test_beauty.sc` is added in SB-6).
+  Any FAIL is a regression — bisect, fix, re-run before proceeding to
+  the next module.
+
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
-  - [ ] **SB-5a** — Port `semantic.inc` → `semantic.sc`: define
-    `shift(p, t)`, `reduce(t, n)`, `pop()`, `nPush()`, `nInc()`,
-    `nDec()`, `nTop()`, `nPop()` as Snocone procedures.
+  - [ ] **SB-5a** — Port `semantic.inc` → `semantic.sc` (covered by
+    SB-4b.15).
   - [ ] **SB-5b** — Rewrite every binary `&` (reduce) and binary `~`
     (shift) site in `beauty.sc` as explicit `reduce(t, n)` / `shift(p, t)`
     function calls. Seven `&` sites at lines 61, 67, 69, 89, 93, 132, 133;
