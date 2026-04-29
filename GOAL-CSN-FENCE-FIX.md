@@ -685,17 +685,24 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #51 `48d99a3` (added fence_suite/ — 32-test gate)
+- csnobol4 @ session #52 `55a4e47` (working tree CLEAN; session #52 fix saved as docs/F-2-Step3a-session52-flpop-fix.patch)
 - one4all @ `06433f90`
 - corpus @ session #51 `b794c7c` (added 32 tests at IDs 100–131)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (4 distinct FENCE bug classes mapped via 32-test suite — fix work for session #52)
+- active step → **F-2 Step 3a** (SPITBOL-aligned flpop fix verified for `*var`-FENCE class; ARBNO trap-leak class remains for session #53)
 
-**Gates as of session #51 end (working tree CLEAN, no code changes committed):**
-- fence_function/ suite: **10/10 PASS** (preserved)
-- fence_suite/ (NEW, 32 tests): **26 OK / 4 FAIL / 2 CRASH** on csnobol4 baseline
-- Tiny repro: **clean "Parse Error"** (unchanged)
-- beauty self-host: **35 lines** (unchanged; SPITBOL: 646)
+**Gates as of session #52 end (working tree CLEAN, no code changes committed):**
+- fence_function/ suite: **10/10 PASS** (preserved, both baseline and with session #52 patch)
+- fence_suite/ (32 tests):
+  - **csnobol4 baseline (no patch): 24 OK / 2 FAIL / 6 CRASH** (recalibrated from session #51's 26/4/2 — tests 109, 113, 130 actually CRASH on a fresh build of HEAD `48d99a3`)
+  - **csnobol4 with session #52 patch: 26 OK / 4 FAIL / 2 CRASH** (109, 113 now OK; 130, 114 went CRASH→FAIL; 119, 129 still CRASH)
+  - **SPITBOL oracle: 30 OK / 2 FAIL** — tests 127 and 130 have `.ref` files SPITBOL itself doesn't match. Real target is 30/32, not 32/32.
+- Tiny repro:
+  - baseline: **clean "Parse Error"** (35 lines)
+  - with session #52 patch: **SEGV stmt 1074** (33 lines) — same crash signature as test 119/129
+- beauty self-host:
+  - baseline: 35 lines
+  - with session #52 patch: 33 lines + SEGV (regression in error class — UNSAFE TO COMMIT)
 - one4all Smoke/Broker: NOT RUN (still gated on beauty)
 
 **What session #49 found:**
@@ -857,3 +864,121 @@ the FNCA/FNCB/FNCC/FNCD code.  It's an explicit attempt to break the
 cycle: a bigger, more precise gate than fence_function/'s 10 tests, so
 future fix attempts are validated against the ACTUAL bug landscape
 rather than a 10-test slice of it.
+
+---
+
+## Session #52 update — SPITBOL-aligned flpop fix (verified for *var class, NOT committed)
+
+Session #52's genuinely-new contribution: **the first L_FNCD modification
+in the F-2 Step 3a series.**  Sessions #49–#51 only adjusted seal slot[2]
+arithmetic; L_FNCD itself was always `D(PDLPTR)=D(YCL); FAIL`.
+
+### What session #52 did
+
+1. Re-read SPITBOL `p_fna..p_fnd` (`x64/sbl.min:11978-12046`) and `flpop`
+   (`sbl.min:3144`, doc at `:16234`).  Identified the previously-underweighted
+   detail: `p_fnd` does **two** things — `xs=wb` (rewind to inner base) AND
+   `flpop` (pop one more entry = the p_fna entry itself).  The CSNOBOL4
+   L_FNCD was missing the flpop step.
+
+2. Implemented the corresponding two-part fix:
+   - **FNCA success path (slot[2] write):** store `entry-PDLPTR` (= "inner
+     base", `PDLPTR - 3*DESCR` at seal-push time) instead of `D(PDLHED)`.
+   - **L_FNCD body:** after `PDLPTR = YCL`, add `D_A(PDLPTR) -= 3*DESCR`
+     (the flpop equivalent — consumes the SCFLCL trap entry, mirroring
+     SPITBOL's `flpop` consuming p_fna's 2-word entry).
+
+3. Tested:
+   - fence_function: **10/10 PASS** (preserved)
+   - fence_suite: **26/4/2** (up from baseline 24/2/6 — first time 109 and
+     113 PASS on csnobol4)
+   - beauty: regression — clean Parse Error → SEGV at stmt 1074
+
+4. Per RULES.md (regression in error class is unsafe to commit), reverted
+   the working tree to clean.  Saved the patch as
+   `csnobol4/docs/F-2-Step3a-session52-flpop-fix.patch` so session #53 can
+   apply it without re-deriving.
+
+### Why session #52 stopped where it did
+
+The remaining 2 CRASHes (119, 129) and the beauty regression all share
+**the same crash signature**: `PATICL = 0xc0` (= 12*DESCR) with `f=0`
+(no FNC), causing SALT2 to fall through to L_SCIN3, which dispatches at
+`OUTER_PATBCL + 0xc0` → garbage → SEGV.
+
+This is the **PATBCL context-mismatch** bug session #50 diagnosed.  Slot[1]
+was pushed by an INNER pattern's SCIN3 under a different PATBCL.  When
+inner-P matched and the recursive SCIN returned, those traps weren't
+cleared from PDL.  The outer failure walker reaches them with the outer
+PATBCL.
+
+The session #52 SPITBOL-aligned fix correctly handles **single-level**
+`*var → FENCE → tail-fail` (tests 109, 113) — that's where SPITBOL's
+exact mechanism applies cleanly.  But it does NOT help when there's an
+**outer ARBNO loop** (119, 129, beauty) — because ARBNO's iteration
+traps and orphaned inner-P traps from prior ARBNO iterations remain on
+PDL after the seal fires.  Those orphans are what SALT2 then misreads.
+
+### What session #52 produced
+
+- `csnobol4/docs/F-2-Step3a-session52-flpop-fix.patch` — verified-in-isolation
+  patch (54 lines).  `git apply` clean on HEAD `48d99a3`.
+- `csnobol4/docs/F-2-Step3a-session52-findings.md` — full investigation
+  with SPITBOL-to-CSNOBOL4 mapping table, test results matrix, and
+  recommended next-session approach.
+- This goal-file state update.
+
+### Recalibration of session #51's reported baseline
+
+Session #51's note claimed fence_suite baseline was 26/4/2.  A fresh
+build of HEAD `48d99a3` in session #52 measures **24/2/6** — three
+tests session #51 listed as FAIL (109, 113, 130) actually CRASH on
+csnobol4.  The session #51 number was likely measured against a build
+artifact that included some uncommitted experimental change and then
+reported as "baseline."  Session #52's 24/2/6 is the true baseline.
+
+### `.ref` file corrections needed (separate session #53 cleanup task)
+
+`fence_suite/` currently has 2 tests whose `.ref` files don't match
+SPITBOL's actual output:
+
+| Test | SPITBOL output | .ref expects |
+|------|----------------|--------------|
+| 127  | `k=age s="age":42 n=42 b=` | `k=age s= n=42 b=` |
+| 130  | `fail` | `sequence of star-cmd-FENCE matched` |
+
+Test 127's "Bug 2" in the README ("conditional-assign not committed
+inside FENCE") is partly a wrong-`.ref` artifact — SPITBOL's behavior
+matches BREAK + `.` semantics, just not what the test author expected.
+Test 130 is also wrong — SPITBOL fails on that input.
+
+Correcting these `.ref` files turns fence_suite into a legitimate
+30-target oracle gate.  This is a pure-corpus change (no csnobol4 code).
+
+### Recommended session #53 approach
+
+1. **Correct `.ref` files** for tests 127 and 130 in `corpus/crosscheck/patterns/`.
+   This is independent of any csnobol4 code work and unblocks the gate.
+
+2. **Apply `docs/F-2-Step3a-session52-flpop-fix.patch`** as the starting
+   point.  Verified correct in isolation — tests 109, 113 + improvements
+   to 114, 130.
+
+3. **Read SPITBOL `p_arb` and `p_str`** (sbl.min — find via `grep -n p_arb`)
+   to understand how ARBNO/STAR clean up their PDL state on success.
+   Then design and implement the fix for the orphaned-trap class.
+
+4. **Done-when:** beauty self-host ≥ 500 lines with no SEGV, fence_suite
+   30/30 (or 32/32 if `.ref` corrections preserved test count), fence_function
+   10/10 preserved, Smoke=7, Broker=49.
+
+### Honest circularity check (session #52)
+
+Session #52 advanced from "design space" to "first SPITBOL-faithful fix that
+makes the canonical 5-line beauty bug class (test 109) pass."  This is
+distinct from sessions #49–#51's seal-arithmetic-only attempts.  The
+remaining work — orphaned ARBNO traps — is a separately-diagnosable bug
+class with a clear next-session path (read SPITBOL p_arb).  The pattern
+of "land a real fix, hit the next-deeper bug" continues, but the 32-test
+suite + this documented patch make the next step concrete rather than
+exploratory.
