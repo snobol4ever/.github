@@ -685,7 +685,7 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #48 (F-2 Step 3a partial — PDLHED/NAMICL/NHEDCL save/restore in FNCA)
+- csnobol4 @ session #48 (F-2 Step 3a partial — PDLHED save/restore + FNCDCL byrd-box seal)
 - one4all @ `06433f90`
 - corpus @ `ae9ea8d`
 - x64 @ `71ff275`
@@ -721,14 +721,22 @@ matching where PDLHED had been clobbered to inner P's value, so subsequent
 primitives that use PDLHED (BAL boundary check, nested FENCE) read it as a
 PDL position when it was actually inner-P's history-stack base.
 
+Follow-on commit (same session): converted FNCDCL seal to byrd-box-style
+local memory. The seal trap's slot[2] now carries the outer pmhbs SNAPSHOT
+from FNCDCL-push time; L_FNCD reads it via SALT2's YCL load instead of
+relying on the global PDLHED which other primitives may overwrite between
+FENCE-success and seal-fire. Architecturally cleaner: the seal owns its
+rewind target as local data, no global dependency. fence_function 10/10
+preserved; tiny repro unchanged (still clean Parse Error).
+
 **What remains:**
-1. Step 3a continued — beauty's snoSrc grammar pattern still fails to match
-   `ppStop = ARRAY('1:4')`. The match returns clean failure (no crash), but
-   SPITBOL succeeds. Likely a SEMANTIC bug in our FENCE seal mechanism
-   (FNCDCL/L_FNCD), not a crash class. Investigation focus: what does L_FNCD
-   actually need to do, given that PDLHED is now correctly outer at the time
-   FNCD fires? Original semantics may need PDL-position-snapshot stored IN
-   the FNCDCL trap entry rather than relying on global PDLHED.
+1. Step 3a continued — beauty's grammar fails to match assignments (even
+   `OUTPUT = 'hi'` fails through beauty.sno). The seal mechanism is now
+   architecturally clean (byrd-box local memory); fence_function 10/10
+   passes. The remaining mismatch with SPITBOL is broader than just FENCE —
+   may involve other pattern primitives (BAL, ATP, NME) interacting with
+   beauty's complex grammar. Investigation should pivot from FENCE-internal
+   to comparing CSNOBOL4 vs SPITBOL trace on a single statement.
 2. Step 3b — port the C edits back into `v311.sil` for SIL/C consistency.
    Current divergence: SIL FNCA's PUSH list omits PDLHED/NAMICL/NHEDCL; the C
    has them. Reconcile.
