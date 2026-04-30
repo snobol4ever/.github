@@ -4,12 +4,18 @@
 **Working name:** Snocone (rename later if a better one emerges)
 **Done when:** A new Snocone language exists that is
 
-  1. **A full SPITBOL superset** — every SPITBOL operator, every
+  1. **A SPITBOL functional superset** — every SPITBOL operator
+     (the nine printed unary, the eleven printed binary), every
      keyword, every primitive function, the full pattern-matching
      sublanguage, **`OPSYN`**, and every SPITBOL extension
      (multi-assign, embedded match-and-replace, alternative
-     evaluation).  A correct SPITBOL program — modulo statement
-     terminator and label syntax — runs unchanged.
+     evaluation).  Snocone additionally provides C-style
+     comparison-operator sugar (`==` `!=` `<` `<=` `>` `>=`,
+     plus their string and ident counterparts) that lower to the
+     SPITBOL functional forms.  A SPITBOL program that does not
+     itself use `==`/`!=`/`<`/`<=`/`>`/`>=`/`===`/`!==`/`:==:`/etc.
+     as binary operator characters runs unchanged under Snocone,
+     modulo statement terminator (`;`) and label syntax.
   2. **Spaced like SPITBOL** — concatenation is juxtaposition
      (whitespace between value-yielding tokens); function call vs.
      concat is disambiguated by `f(args)` (zero space) vs.
@@ -87,14 +93,16 @@ The directive overrides Koenig in these specific places:
 |--------------------------------|-----------------------------|--------------------------------------------|
 | Concat operator                | `&&`                        | space (juxtaposition), à la SPITBOL        |
 | Alternative-eval / "or"        | `\|\|`                      | SPITBOL `(e1 , e2 , e3)` alternative-eval  |
-| Comparison operators           | `==` `!=` `<` `<=` `>` `>=` | SPITBOL `EQ()` `NE()` `LT()` etc. (functional, succeed/fail) |
-| Lexical comparison forms       | `:==:` `:!=:` `:<:` …       | SPITBOL `LEQ()` `LNE()` `LLT()` etc.       |
-| Modulo                         | `%`                         | SPITBOL `REMDR()`                          |
+| Numeric comparison ops         | `==` `!=` `<` `<=` `>` `>=` | **kept** (Lon session #2) — sugar lowering to `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` |
+| String / lexical comparison    | `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` | **kept** — sugar lowering to `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` |
+| Identity comparison            | (Koenig had none)           | **NEW**: `===` `!==` lowering to `IDENT()` `DIFFER()` (succeed/fail predicates) |
+| Modulo                         | `%`                         | **reserved for `OPSYN`** — no built-in modulo. Use `REMDR(a,b)`. (Lon session #2: "If `%` is user config symbol it can not be used for modulo.") |
 | Conditional in `if (cond)`     | C-like boolean              | SPITBOL backtracking expression (succeed/fail) |
 | `for (init, test, step)`       | three comma-separated exprs | three semicolon-separated SPITBOL exprs (matches C; comma is reserved for value-lists) |
+| Goto keyword                   | `go to label`               | `goto label;` (single keyword, C spelling) |
 
 Koenig kept (no override needed):
-- `if (cond) { … } else { … }`
+- `if (cond) { … } else { … }`  — dangling `else` binds to innermost `if`, C semantics.
 - `while (cond) { … }`
 - `for (a; b; c) { … }`
 - `do { … } while (cond);` and `do { … } until (cond);`
@@ -102,6 +110,82 @@ Koenig kept (no override needed):
 - `procedure name(args) { … }`
 - `return expr;` `freturn;` `nreturn;`
 - block braces `{` `}` and statement terminator `;`
+- empty statement `;`, empty block `{ }`
+- **labels**: `name :` at the start of a clause names the following statement (Koenig L690)
+- **goto**: `goto name;` (C spelling — Koenig used `go to name`; we tighten to single-keyword `goto`)
+- **`break;`** with C semantics — exits the innermost enclosing `for`/`while`/`do`/`switch`
+- **`continue;`** with C semantics — jumps to the next iteration of the innermost enclosing loop
+
+---
+
+## Bare expressions, statements, failure, and newlines
+
+Lon (session 2026-04-30 #2):
+
+> "How does Snocone handle bare expressions that are not contained
+> within an `if (...)` conditional expression?  Can they fail?"
+
+A bare expression statement is just an expression followed by `;` —
+no `if`, no `while`, no surrounding control flow.  Per Koenig's
+`expcl` (line 348 of `snocone.sno`) and `dostmt` (line 384), the
+bare expression lowers to a top-level SPITBOL statement with no
+`:S(...)F(...)` decoration.  This matches the SNOBOL4 default:
+**a statement that fails just falls through to the next statement.**
+Failure of a bare expression has no further consequence.
+
+```snocone
+EQ(x, y);          // succeeds or fails; either way, next stmt runs
+GT(x, 0)  x = -x;  // negate x if positive (succeed-and-side-effect idiom)
+                   // bare-statement: no :S/:F branches generated
+```
+
+Failure-as-control-flow is reserved for the parenthesised conditions
+of `if`, `while`, `do/while`, `do/until`, `for` (test position),
+and `case` tags.  In those positions the success/failure exit
+of the expression drives the branch; everywhere else, failure is
+silent.
+
+This is the SPITBOL way and Snocone does nothing different.
+
+> "There is no special processing of new-line character."
+
+Confirmed and binding.  The Snocone lexer treats newlines exactly
+like blanks and tabs — they are whitespace, full stop.  Statement
+boundary is `;` only.  No "implicit `;` at end of line", no `\`
+continuation token, no off-side rule.  This means
+`x = 1\ny = 2;` is **not** two statements — it is the single
+expression `x = 1 y = 2` (which evaluates `1 y = 2` as a chain
+and assigns the result to `x`, almost certainly not what was
+meant).  Programs that lack `;` will produce surprising parses,
+not error messages.  This is by design; matches C's lack of a
+"forgot the semicolon" warning.
+
+(For one-statement-per-line readability, source files conventionally
+write each statement on its own line with `;` at the end — but the
+parser does not care.)
+
+> "Do implement `label:` and `goto label` statements."
+
+Adopted.  Two productions:
+
+```
+label_stmt : IDENT ':' clause     // labels a clause; can stack: L1: L2: clause
+goto_stmt  : GOTO IDENT ';'       // unconditional jump to label
+```
+
+Lowering: `label:` emits `label  ` at column 1 in the SPITBOL
+output (Koenig's `emitlab`); `goto name;` emits `:(name)` at the
+end of the previous statement, or as a standalone empty statement
+if there is no previous expression (Koenig's `emitg(dest)`).
+
+Snocone keyword: **`goto`** (single word — we tighten Koenig's
+`go to` two-word form to the C single-keyword form).
+
+`goto` is the escape hatch for any control-flow shape the
+structured forms don't cover — labeled-break out of nested loops,
+state-machine dispatch, retry-from-error.  Using it for ordinary
+control flow is discouraged; the structured forms (`if`/`while`/
+`for`/`do`/`switch`) cover the 95% case.
 
 ---
 
@@ -209,34 +293,49 @@ but the relative ordering is the same.
 ### Disagreements (where Koenig diverges from SPITBOL — to fix)
 
 1. **`||` and `&&` exist in Koenig only.**  Both are removed in this goal.
-2. **`==` `!=` `<` `<=` `>` `>=`** — Koenig added these as comparison
-   syntax that lower to `EQ()`/`NE()`/etc.  SPITBOL does **not** have
-   these as binary operators (only `&`, `@`, `#`, `%`, `~` exist as
-   undefined binary operators available for `OPSYN`).
-   **Decision:** drop them.  Use the SPITBOL forms `EQ(a,b)` etc.
-   directly.  This keeps the language a pure superset of SPITBOL
-   and frees those characters for other duties (`==`/`!=` could
-   later become `OPSYN`-defined synonyms if a user wants them).
-3. **`:==:` family** — same reasoning, drop.  Use `LEQ(a,b)` etc.
-4. **`%`** — drop as binary; use `REMDR(a,b)`.  (`%` remains
-   available as an undefined unary for `OPSYN`.)
-5. **`^` exponent right-priority `9/10`** — Koenig's table has
+2. **`==` `!=` `<` `<=` `>` `>=` (numeric comparison)** — Koenig
+   added these as comparison syntax that lower to `EQ()`/`NE()`/etc.
+   SPITBOL does **not** have these as binary operators.  Lon
+   session #2 directs us to **keep all six** as Snocone-only
+   comparison sugar.  They are binary operators at priority 6
+   (same as `+`/`-`), `fn=1` lowering (emit as functional call),
+   succeed/fail predicates whose value is the LHS on success.
+3. **`:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` (string lexical
+   comparison)** — same reasoning as #2.  **Keep all six.**
+   Lower to `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()`
+   respectively.  Priority 6, `fn=1`.
+4. **`===` `!==` (identity comparison)** — NEW operators added by
+   this goal (Koenig had no equivalent).  Lower to `IDENT()` and
+   `DIFFER()` — succeed/fail predicates that test SNOBOL4 object
+   identity (same value, same type, no coercion).  Priority 6,
+   `fn=1`.  These two operators distinguish "same object" from
+   "same numeric value" — SPITBOL programmers know the difference
+   matters; making it lexically distinct from `==` is the win.
+5. **`%`** — Koenig used `%` for modulo (lowering to `REMDR()`).
+   Lon session #2: "If `%` is user config symbol it can not be
+   used for modulo."  **Decision:** `%` is reserved as an
+   undefined binary OPSYN slot (priority 10, matching SPITBOL's
+   undefined-binary table) and as an undefined unary OPSYN slot.
+   Modulo is `REMDR(a, b)` only — no operator syntax.
+6. **`^` exponent right-priority `9/10`** — Koenig's table has
    `lp=9, rp=10`.  SPITBOL prints exponentiation at priority 11.
    **Decision:** match SPITBOL — exponent at priority 11, right
    associative.  The Koenig 9/10 split was a Pratt-parser
    implementation artifact; we use Bison precedence declarations
    and follow the printed SPITBOL table exactly.
-6. **`,` (comma)** — Koenig's table doesn't list it because
+7. **`,` (comma)** — Koenig's table doesn't list it because
    Koenig used `,` only inside `f(a,b)` arg lists.  In this goal
    `,` is also the alternative-evaluation separator inside
    parens.  Precedence: lower than `=` (priority -1, "below
    everything"), unparenthesised at top level it's a syntax error.
 
-Net effect: **the new Snocone has exactly SPITBOL's binary
-operator set, plus the C-style control-flow keywords**.  No more,
-no less.  Koenig's `&&`/`||`/`==`/`%`/`:==:` shortcuts are
-removed; their SPITBOL equivalents (SPACE, `(,)`, `EQ()`,
-`REMDR()`, `LEQ()`) take over.
+Net effect: **Snocone has SPITBOL's full operator set, plus 14
+C-style comparison-sugar operators (six numeric + six string + two
+identity), plus alternative-eval `,`, plus C-style control flow.**
+Koenig's `&&`/`||`/`%` are removed; their SPITBOL equivalents
+(SPACE for AND-ish, `(,)` for OR-ish, `REMDR()` for modulo) take
+over.  `%` joins `&`/`@`/`#`/`~` as the five undefined binary
+OPSYN slots.
 
 ---
 
@@ -314,6 +413,9 @@ branches:
 
 | Snocone source            | SNOBOL4-IR equivalent                             |
 |---------------------------|---------------------------------------------------|
+| `expr;`  (bare statement) | emit `expr` as bare SPITBOL statement; failure is silent fall-through |
+| `name : stmt`             | emit `name` at column 1 before lowered `stmt`     |
+| `goto name;`              | append `:(name)` to current statement, or emit empty `:(name)` clause |
 | `if (cond) S1`            | `cond  :F(after)` `S1` `after  …`                 |
 | `if (cond) S1 else S2`    | `cond  :F(else)` `S1  :(after)` `else  S2` `after  …` |
 | `while (cond) S`          | `top  cond  :F(after)` `S  :(top)` `after  …`     |
@@ -321,30 +423,40 @@ branches:
 | `do S until (cond);`      | `top  S` `cond  :F(top)` (until = while-not — failure repeats) |
 | `for (init; cond; step) S`| `init` `top  cond  :F(after)` `S` `step  :(top)` `after  …` |
 | `switch(e){case v: S; ..}`| chain of `IDENT(e, v)  :S(caseN)` plus a default fallthrough |
-| `break;`                  | `:(after-of-enclosing-loop-or-switch)`            |
-| `continue;`               | `:(top-of-enclosing-loop)`                        |
+| `break;`                  | `:(after-of-innermost-enclosing-loop-or-switch)` (C semantics — innermost only) |
+| `continue;`               | `:(top-of-innermost-enclosing-loop)` (C semantics — innermost only; not legal inside switch unless switch is itself inside a loop) |
 | `return E;`               | `name = E  :(RETURN)`                             |
 | `freturn;`                | `:(FRETURN)`                                       |
 | `nreturn;`                | `:(NRETURN)` (`name = .x` already done before)    |
 | `(e1, e2, e3)` (alt-eval) | already a SPITBOL extension — emit as-is to SPITBOL backend; for non-SPITBOL backends, lower to a chain of `:S(after)` branches |
+| `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` (numeric comparison sugar `==` `!=` `<` `<=` `>` `>=`) | already SPITBOL primitives; emit functional form |
+| `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` (lexical comparison sugar `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:`) | already SPITBOL primitives; emit functional form |
+| `IDENT()` `DIFFER()` (identity sugar `===` `!==`) | already SPITBOL primitives; emit functional form |
 
 ### 4. Corpus migration
 
 Every `.sc` file in `corpus/programs/snocone/` gets:
 
-- `&&` removed (replaced by space)
+- `&&` removed (replaced by space — the new concat operator)
 - `||` removed (rewritten as `(,)` alternative-eval; if the `||`
-  was used as boolean-or in a condition, rewrite as the
-  first-success pattern that SPITBOL would use natively)
-- `==` `!=` `<=` `>=` `<` `>` (between expressions) rewritten as
-  `EQ(a,b)` `NE(a,b)` `LE(a,b)` `GE(a,b)` `LT(a,b)` `GT(a,b)`
-  (functional, succeed/fail)
-- `:==:` family rewritten to `LEQ(a,b)` etc.
-- `%` rewritten to `REMDR(a,b)`
+  was used as boolean-or in a condition, the comma form
+  preserves the short-circuit semantics)
+- `go to NAME` → `goto NAME` (single keyword)
+- Statement terminators verified — `;` already in use today
+
+Comparison operators (`==` `!=` `<` `<=` `>` `>=` `:==:` `:!=:`
+`:<:` `:<=:` `:>:` `:>=:`) are **kept** in the corpus — the new
+grammar accepts them.  Identity comparison (`===` `!==`) is new
+and not yet in the corpus; it can be adopted by hand where
+desired but no mass rewrite is needed.
+
+`%` does not currently appear as binary modulo in the corpus
+(verify with `grep -n '[^&]% [^=]' corpus/programs/snocone/`);
+if any uses appear, rewrite to `REMDR(a, b)`.
 
 A migration script (`scripts/util_migrate_snocone_to_lang_space.py`)
 does the mechanical sweep.  Manual review handles edge cases
-(strings containing `&&`, etc.).
+(strings containing `&&` or `||`, `%` inside format specifiers, etc.).
 
 ---
 
@@ -536,9 +648,10 @@ identifiers, build targets continue to use `snocone` for now.
 ### LS-5 — Corpus migration script
 
 - [ ] LS-5.a — Write `scripts/util_migrate_snocone_to_lang_space.py`.
-      Rewrites `&&` → space, `||` → `(,)`, `==`/`!=`/etc → functional
-      forms, `%` → `REMDR()`, `:==:` family → `L*` functional forms.
-      String literals untouched.  Comment blocks untouched.
+      Rewrites: `&&` → space; `||` → `(,)`; `go to NAME` → `goto NAME`;
+      any `%` modulo uses → `REMDR(a, b)`.  String literals untouched.
+      Comment blocks untouched.  Comparison operators (`==`/`!=`/
+      `<`/`<=`/`>`/`>=`/`:==:`/family) preserved as-is.
 - [ ] LS-5.b — Dry-run on a single file (`omega.sc` or similar small
       one); manual review; iterate until clean.
 - [ ] LS-5.c — Apply to every `.sc` file under
@@ -584,11 +697,15 @@ identifiers, build targets continue to use `snocone` for now.
   are regenerated and committed alongside the `.l`/`.y` sources,
   per RULES.md "Editing `.y` or `.l` files".
 - Commit identity LCherryholmes / lcherryh@yahoo.com per RULES.md.
-- The new language is a **strict superset** of SPITBOL.  Any
-  legal SPITBOL program — modulo statement terminator (`;`) and
-  the optional removal of column-1 label syntax — must run
-  unchanged under the new Snocone.  This is a hard invariant; any
-  divergence is a bug.
+- The new language is a **functional superset** of SPITBOL —
+  every SPITBOL primitive function and operator works.  Snocone
+  adds 14 comparison-operator characters (`==` `!=` `<` `<=` `>`
+  `>=` and the lexical `:==:` family and `===` `!==`) that
+  SPITBOL leaves undefined; Snocone adds C-style control flow.
+  A SPITBOL program that does not itself use those character
+  sequences as binary operators runs unchanged under Snocone,
+  modulo `;` terminator and label syntax.  This is a hard
+  invariant; any divergence is a bug.
 
 ---
 
