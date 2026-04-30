@@ -2611,3 +2611,144 @@ change what blocks progress — it only documents where the work
 lands when unblocked. SB-7 (gate script + commit + push) becomes
 the natural place to do the corpus move as part of the same commit
 sequence that lands the gate.
+
+---
+
+## Session #80 progress (2026-04-30)
+
+**Investigation only. No source changes. All repos clean.**
+
+### SB-6.D root cause bisected to EVAL(EXPRESSION) return value
+
+Session setup gates all green: PASS=5 / PASS=42 SKIP=3 / PASS=49.
+
+**Confirmed**: the 3 stderr errors (`** Error 1 GE first argument is not
+numeric` ×2, `** Error 5 Undefined function or operation` ×1) do NOT fire
+on `/dev/null` input — they fire only when beauty.sc processes actual input
+lines. They are NOT startup/pattern-construction errors as session #78/#79
+hypothesised. They fire inside `ppStmt()` when the grammar eventually calls
+`Reduce(t, n)` from `ShiftReduce.sc`.
+
+**Pre-SB-6 bisection**: attempted checkout of `41c9a50a` sources into current
+working tree — ABI conflict between old `interp.c` and current `icn_runtime.c`
+(`icn_real_str` static/non-static conflict). Pre-SB-6 clean build not
+achievable without a full separate clone. Skipped; not needed — the errors
+clearly exist at HEAD and are the active target.
+
+### Call chain leading to the GE error
+
+```
+beauty.sc pattern construction (top-level):
+  ExprList = nPush() && *XList && reduce('ExprList', '*(GT(nTop(), 1) nTop())') && nPop()
+  → semantic.sc::reduce(t='ExprList', n='*(GT(nTop(), 1) nTop())')
+      omega = 'epsilon . *Reduce("ExprList", *(GT(nTop(), 1) nTop()))'
+      reduce = EVAL(omega)    ← builds PATTERN with deferred Reduce call
+  → ShiftReduce.sc::Reduce(t, n) called at pattern-match time
+      DATATYPE(n) = 'EXPRESSION'          ← n is *(GT(nTop(),1) nTop())
+      n = EVAL(n)                         ← should yield integer or fail
+      GE(n, 1)                            ← ERROR: n is not numeric
+```
+
+### Precise bug: EVAL(EXPRESSION_DESCRIPTOR) returns STRING '' instead of failing
+
+Minimal reproducer:
+
+```snocone
+procedure nTop() { nTop = 1; return; }
+procedure Reduce(t, n) {
+    Reduce = .dummy;
+    n2 = EVAL(n);
+    OUTPUT = 'DATATYPE(e2)=' && DATATYPE(n2);   // → STRING
+    OUTPUT = 'n2=' && n2;                        // → (empty)
+    nreturn;
+}
+e = EVAL('epsilon . *Reduce("test", *(GT(nTop(), 1) nTop()))');
+'x' ? e;
+```
+
+Output:
+```
+DATATYPE(e2)=STRING
+n2=
+```
+
+When `GT(nTop(), 1)` fails (nTop=1, so GT(1,1) fails), the expression
+`*(GT(nTop(), 1) nTop())` should fail — `EVAL(n)` should either return
+FAILDESCR or `''`. In scrip it returns STRING `''`.
+
+The guard in `ShiftReduce.sc::Reduce` is:
+```snocone
+if (IDENT(REPLACE(DATATYPE(n), &LCASE, &UCASE), 'EXPRESSION')) {
+    n = EVAL(n);
+    if (~DIFFER(n)) { nreturn; }   // intended to catch fail/null
+}
+if (GE(n, 1)) { ... }
+```
+
+The `~DIFFER(n)` guard (`n = ''`) should catch the null result and fire
+`nreturn`. But the error still reaches `GE(n, 1)`. This means either:
+(a) `~DIFFER('')` is NOT succeeding in this context (the `~` E_NOT
+    path has a bug when the operand is a function call that returns ''),
+or
+(b) EVAL returns a non-null, non-numeric value that bypasses the guard.
+
+Cross-check: `EVAL(EXPRESSION)` where the expression succeeds works
+correctly — `nTop=3` → `EVAL(n)` returns INTEGER 3, GE(3,1) succeeds.
+The failure path is the broken case.
+
+### Comparison: standalone EVAL(EXPRESSION) works; via-pattern-call does not
+
+Standalone test (no pattern/Reduce intermediary):
+```snocone
+nTop = 3;
+e = EVAL('*(GT(nTop, 1) nTop)');   // → EXPRESSION
+e2 = EVAL(e);                       // → INTEGER 3  ✓
+```
+Both levels work correctly in scrip when called directly.
+
+The failure only occurs when n is passed as `*(expr)` through the
+`epsilon . *Reduce(...)` deferred-call mechanism. The EXPRESSION
+descriptor for `n` at call time may differ from the standalone case —
+possibly the EXPRESSION is evaluated at pattern-build time rather than
+at Reduce-call time, producing a snapshot of a failing expression as
+a frozen STRING rather than a live EXPRESSION descriptor.
+
+### Recommended next session (session #81) — two concrete steps
+
+1. **Verify the guard path.** Add `OUTPUT = 'guard: DIFFER=' && DIFFER(n)`
+   immediately after `n = EVAL(n)` in a diagnostic copy of Reduce. Confirm
+   whether `~DIFFER(n)` is being bypassed or whether EVAL is returning
+   something non-null that passes the guard but is non-numeric.
+
+2. **Bisect EXPRESSION vs STRING.** Compare:
+   - `EVAL('*(GT(nTop(), 1) nTop())')` called directly (standalone) — what
+     DATATYPE does this return in scrip? EXPRESSION or STRING?
+   - `EVAL(n)` inside Reduce when n arrived as the same `*(GT(...))` via
+     the deferred-call mechanism — same DATATYPE check.
+   If the standalone EVAL returns EXPRESSION but the deferred-path returns
+   STRING, the expression is being evaluated at PATTERN-BUILD time (when
+   the `epsilon . *Reduce(...)` pattern is assembled), not at MATCH time.
+   That would mean the `*(expr)` argument in an EVAL'd pattern-call
+   expression is evaluated eagerly during EVAL rather than deferred until
+   the pattern fires. Fix surface: `src/runtime/x86/snobol4.c` or
+   `src/driver/interp.c` EVAL path for EXPRESSION descriptors passed as
+   function arguments inside a pattern-building EVAL string.
+
+3. **SPITBOL cross-check**: run the minimal reproducer under
+   `/home/claude/x64/bin/sbl -b` to confirm SPITBOL correctly defers
+   evaluation of `*(GT(...))` to match time. If SPITBOL also returns
+   STRING '' for the same deferred call, the issue is in `semantic.sc`'s
+   omega construction, not the runtime.
+
+### Files investigated, not modified
+
+`corpus/programs/snocone/demo/beauty/ShiftReduce.sc`,
+`corpus/programs/snocone/demo/beauty/semantic.sc`,
+`corpus/programs/snocone/demo/beauty/beauty.sc`,
+`corpus/programs/snocone/demo/beauty/Gen.sc`.
+Diagnostic test files in `/tmp/` only (not committed).
+
+### Repos state
+
+All clean. No source changes. Plan: commit this `.github` update only, push.
+
