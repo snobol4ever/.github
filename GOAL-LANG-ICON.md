@@ -141,65 +141,114 @@ Rung 12–36 are the ladder for this goal.
 - [ ] **IC-8** — rung36: JCON integration suite (75 tests).
   Baseline (2026-04-16): PASS=2 FAIL=50 XFAIL=23 TOTAL=75.
   Session #16 (2026-04-30) advance: PASS=2 → 4, FAIL=50 → 41, XFAIL=23 → 30.
-  +2 closed: rung36_jcon_map (10/10) and rung36_jcon_trim (10/10).
-  +7 xfail: toby/io (massive output — 64-bit int overflow / file I/O),
-    concord/diffwrds (30s timeout — likely infinite loop on word iteration),
-    btrees/prefix/every (segfault — `!N` integer-iter unimplemented).
+  Session #17 (2026-04-30) advance: PASS=4 → **5**, FAIL=41 → 40, XFAIL=30 (unchanged).
+  +1 closed: rung36_jcon_primes — confirmed by diff -q empty against expected.
 
-  Generic fixes landed this session (in src/driver/interp.c):
-   1. **Multi-arg write/writes** — `every write("c. ", 1 to 10)` now prints
-      `c. 1 ... c. 10` instead of `c. \n` x10. Both `icn_call_builtin` and
-      the inline E_FNC path now iterate all nargs, concatenating int/real/
-      string/&null values, with one trailing newline for write. Was a hard
-      blocker for ~half the rung36 suite.
-   2. **map(s) / map(s, c1) / map(s, , c2)** — 1/2/3 args with Icon defaults
-      &ucase / &lcase. &null arg via DT_SNUL recognized as "use default".
-      Right-to-left scan of c1 so duplicate keys: last definition wins
-      (matches `map("abcdef","aa","bc") → "cbcdef"`).
-   3. **trim(s, c)** — 2-arg form added; cset/string c argument trims any
-      trailing chars in the set (was 1-arg whitespace only). &null defaults.
-   4. **image()** — strings now Icon-spec-quoted with C-style escapes:
-      `image("hello") → "\"hello\""`, `image(&null) → "&null"`.
-      Numeric/table/record forms unchanged. Required updating
-      `corpus/programs/icon/rung29_builtins_type_image.expected` (was
-      passing-by-accident under old unquoted impl) and
-      `one4all/scripts/test_smoke_unified_broker.sh` palindrome test
-      (was passing-by-accident — `map("hello")` returned "" so loop
-      never ran; now correctly returns "no" since 'h' != 'o').
+  **Headline**: GDE-aware E_IF in icon-frame dispatch unlocked **+28 PASS in
+  test_icon_ir_all_rungs** (160 → 188, FAIL 73 → 45) — many rung12–35 tests
+  had `if (test-with-generator)` patterns that were silently consulting only
+  the first generated value. The primes test was just the most visible
+  symptom; the fix is a horizontal win across the whole rung ladder.
 
-  Open failures grouped by root cause (estimated impact):
-   - **GDE inside if-condition** — rung36_jcon_primes: `if i % (2 to i-1) = 0`
-     should succeed if ANY divisor yields 0. Currently fails for every i so
-     `next` never fires. Generator drive in if-condition not propagating.
-     Likely 1-test fix that unlocks several others. (~4-6 tests.)
-   - **!N integer iteration** — `!-514` yields digits as integers/strings.
-     Segfaults on btrees/prefix/every (segfault on access). E_ITERATE for
-     IS_INT_fn(av) needs handling — iterate the absolute decimal digits.
-     (~3 tests with xfails removed once fixed.)
-   - **`proc()` builtin / variable-arity / indirect call (!plist)()** — args,
-     fncs, fncs1 tests. Major Icon feature.
+  Generic fixes landed this session (all in src/driver/interp.c +
+  src/runtime/interp/icn_runtime.h):
+
+   1. **GDE-aware E_IF in icon-frame dispatch (line ~2591)** — when the test
+      child satisfies `icn_is_gen()`, route through `icn_eval_gen` and pump
+      α once. Any non-fail tick → take then-branch; exhaustion (IS_FAIL on
+      α) → take else-branch. Mirrors the E_EVERY pump pattern that already
+      lived a few cases below. The fix landed in the **icon-frame switch**
+      (line 2591) NOT the shared switch's E_IF below (line 3732); inside an
+      Icon procedure body `icn_frame_depth > 0` so the icon-frame switch
+      `return`s and the shared switch is unreachable. (Earlier pass to
+      line 3732 did nothing — see Wrong-Site Lesson below.)
+
+      Confirmed by diff -q: `if i % (2 to i-1) = 0 then next` now succeeds
+      for any composite i, falls through for any prime i.
+
+   2. **`next` keyword wired** — `E_LOOP_NEXT` was parsed (icon_parse.c:563)
+      but had no handler. Added: new `int loop_next` field on `IcnFrame`
+      next to `loop_break`; E_LOOP_NEXT case sets `ICN_CUR.loop_next = 1`;
+      `E_SEQ_EXPR` in icon-frame dispatch short-circuits its child loop on
+      `loop_next` (so `if cond then next; rest_of_block` correctly skips
+      `rest_of_block`); E_EVERY (all three pump variants — E_ASSIGN, E_SEQ
+      conjunction, main), E_WHILE, E_UNTIL, E_REPEAT all save+clear+restore
+      `loop_next` at iteration boundaries so `next` doesn't escape the
+      enclosing loop.
+
+  **Wrong-site lesson — read carefully** (saved future-session time):
+  `interp_eval()` in `src/driver/interp.c` has TWO switch statements with
+  overlapping kind cases:
+   - **Lines 1006–4126**: an `if (icn_frame_depth > 0) { switch(e->kind) ... }`
+     icon-frame block. Most "Icon-context" cases live here and `return`
+     directly out of `interp_eval`.
+   - **Lines 4126→**: the shared switch below the icon-frame `}`. Reached
+     only when `icn_frame_depth == 0` OR when the icon-frame switch's
+     `default: break` falls through.
+
+  Inside any Icon procedure body, `icn_frame_depth > 0` and the icon-frame
+  switch's `case E_IF` returns directly — the shared switch's `case E_IF`
+  is dead code under that condition. Patches must go in the **icon-frame
+  switch** (line 2591 for E_IF, similarly for E_EVERY/E_WHILE/etc), not
+  the lower one. Confirmed via `/tmp/dbg.txt` instrumentation: every E_IF
+  during rung36 hits the icon-frame handler. Wrote initial patch at line
+  3732 by mistake; debug trace was empty for the new path; relocated to
+  line 2591 and the patch fired immediately.
+
+  **Build hazard — clean rebuild required when icn_runtime.h changes**:
+  `bash scripts/build_scrip.sh` does not detect header timestamp changes
+  for `.o` files in subdirs other than the file currently being compiled.
+  Adding `loop_next` to `IcnFrame` shifted offsets of `body_root`, `sc`,
+  `suspending`, `suspend_val`, `suspend_do` — but `icn_runtime.o` was
+  compiled against the OLD layout while `interp.o` saw the NEW layout,
+  producing memory corruption and a phantom 16-test broker regression
+  (49→33). The fix: `find src -name '*.o' -delete && bash scripts/build_scrip.sh`.
+  Anyone editing `icn_runtime.h` should default to a clean rebuild.
+
+  Open failures grouped by root cause (next-session priorities):
+   - **`!N` integer iteration** — `!-514` yields digits as integers/strings.
+     Segfaults on btrees/prefix/every. E_ITERATE for `IS_INT_fn(av)` needs
+     handling — iterate the absolute decimal digits. (~3 tests with xfails
+     removable once fixed.) **Highest leverage next pivot.**
+   - **Tables: `t[k]` semantics for non-string keys / `[X]:NONMEMBER`
+     literal sentinel leaking into output** — rung36_jcon_table shows
+     wide divergence; `[2]&null:NONMEMBER` is appearing in printed output
+     where SPITBOL/Icon would suppress un-set entries. Look at how
+     subscript_get returns its miss sentinel and how `image()`/print of
+     a table iterates entries.
+   - **`Error 3` in rung36_jcon_queens, rung36_jcon_string** —
+     "Erroneous array or table reference" early in execution; suggests
+     a subscript/section path that returns FAILDESCR when something
+     deeper (probably list-of-list construction) wasn't built right.
+   - **Real number formatting edge cases** — radix, numeric, mathfunc
+     have decimal-precision and column-width mismatches.
+   - **`proc()` builtin / variable-arity / indirect call (!plist)()** —
+     args, fncs, fncs1 tests. Major Icon feature; defer until other
+     wins are taken.
    - **co-expressions, &error, &fail, &trace, &errornumber, &errorvalue**
      — already correctly xfailed.
-   - **Real number formatting edge cases** — radix, numeric, mathfunc tests
-     have decimal-precision mismatches.
-   - **scan/scan1/scan2** — `?` scan operator with goal-directed
-     subexpressions. Builds on existing E_SCAN oneshot fallback.
-   - **Tables: `t[k]` semantics for non-string keys** — table test shows
-     wide divergence (current outputs `[:NONMEMBER` literals).
+   - **scan/scan1/scan2** — `?` scan with goal-directed subexpressions.
+     Builds on existing E_SCAN oneshot fallback.
    - **string1, substring** — string subscript/section forms `s[i+:n]`
      with chained `:=` and `:=:` swap not fully working.
 
-  **Next session pivot**: rung36_jcon_primes is the highest-leverage win.
-  The bug is that goal-directed `i % (2 to i-1) = 0` inside an `if` is
-  being short-circuited to one tick. Look at how E_IF treats a generative
-  test child — in interp.c E_IF handler. It likely does
-  `cond=interp_eval(test); if (!IS_FAIL(cond))` which only consults the
-  first generated value. Need: route through icn_eval_gen + α/β-pump until
-  a successful tick OR exhaustion, and only fail if exhausted.
+  **Next session pivot**: implement `!N` integer iteration. Add a case to
+  E_ITERATE (in `icn_runtime.c::icn_eval_gen` or interp.c oneshot path)
+  that detects `IS_INT_fn(av)`, walks `abs(N)` left-to-right one decimal
+  digit at a time, yielding each digit as a 1-character string descriptor.
+  Should be ~20 lines and unblock the three xfails listed.
 
-  Gate: `bash scripts/test_icon_ir_rung_36.sh` — current xfail=30. Goal:
-  reduce FAIL toward 0; XFAIL is acceptable but should ideally shrink too.
-  Note: test_icon_ir_rung_36.sh rewritten for --ir-run (was JVM-era jasmin script).
+  Gate: `bash scripts/test_icon_ir_rung_36.sh` — current PASS=5/40/30/75.
+  Goal: reduce FAIL toward 0; XFAIL is acceptable but should ideally
+  shrink too. Note: test_icon_ir_rung_36.sh rewritten for --ir-run by
+  session #16 (was JVM-era jasmin script).
+
+  Session #17 final state (clean rebuild, all gates clean):
+    smoke_icon                  PASS=5  FAIL=0
+    smoke_unified_broker        PASS=49 FAIL=0
+    crosscheck_icon             PASS=4  FAIL=0  SKIP=0
+    test_icon_ir_all_rungs      PASS=188 FAIL=45 XFAIL=30 TOTAL=263
+    test_icon_ir_rung_36        PASS=5  FAIL=40 XFAIL=30 TOTAL=75
 
 ### Phase 2 — Icon standard library procedures
 
