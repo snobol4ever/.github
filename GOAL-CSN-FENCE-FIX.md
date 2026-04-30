@@ -685,13 +685,13 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #52 `55a4e47` (working tree CLEAN; session #52 fix saved as docs/F-2-Step3a-session52-flpop-fix.patch)
+- csnobol4 @ session #54 (working tree CLEAN; session #52 patch + session #54 zeroing-attempt diff in docs/)
 - one4all @ `06433f90`
-- corpus @ session #51 `b794c7c` (added 32 tests at IDs 100–131)
+- corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (SPITBOL-aligned flpop fix verified for `*var`-FENCE class; ARBNO trap-leak class remains for session #53)
+- active step → **F-2 Step 3a** (sessions #49–#54 all attempted seal-arithmetic / PDL-rewind / slot-zeroing; session #54 sharpened diagnosis to "missing PATBCL-restore sentinel on STAR/DSAR success" — session #55 should implement SPITBOL `=ndexc` analog STREXCCL)
 
-**Gates as of session #52 end (working tree CLEAN, no code changes committed):**
+**Gates as of session #54 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved, both baseline and with session #52 patch)
 - fence_suite/ (32 tests):
   - **csnobol4 baseline (no patch): 24 OK / 2 FAIL / 6 CRASH** (recalibrated from session #51's 26/4/2 — tests 109, 113, 130 actually CRASH on a fresh build of HEAD `48d99a3`)
@@ -982,3 +982,172 @@ class with a clear next-session path (read SPITBOL p_arb).  The pattern
 of "land a real fix, hit the next-deeper bug" continues, but the 32-test
 suite + this documented patch make the next step concrete rather than
 exploratory.
+
+---
+
+## Session #54 update — targeted slot-zeroing rejected; STREXCCL design crystallized
+
+Session #54 implemented the "targeted slot-zeroing" fix proposed by
+session #53's findings (see `docs/F-2-Step3a-session53-findings.md`):
+at L_STARP2 / L_DSARP2 success, walk PDL from saved-pre-SCIN snapshot
+to current PDLPTR, zeroing slot[1] of any non-FNC trap so SALT2 takes
+the SALT3 (clean fail-through) path.
+
+### Results
+
+| Gate | s52 baseline | s54 zeroing |
+|------|--------------|-------------|
+| fence_function | 10/10 | **10/10** ✅ |
+| fence_suite | 27 OK / 3 FAIL / 2 CRASH | **29 OK / 3 FAIL / 0 CRASH** ✅ (best ever) |
+| 5-line inner-backtrack repro | matches | **fails** ❌ |
+| beauty self-host | ~32 lines clean Parse Error | **~10 lines clean Parse Error** ❌ |
+
+The 2 CRASHes (119, 129 — canonical beauty-class) are FIXED.  But two
+4-test classes regress: tests 114/124/(plus 2 others) and the new
+5-line inner-backtrack repro.  Beauty regresses from ~32 lines to ~10
+lines (no SEGV — clean Parse Error, but earlier).  Per RULES.md
+(regression in error class), NOT committed.  Saved as
+`csnobol4/docs/F-2-Step3a-session54-zeroing-attempt.diff`.
+
+### Session #54's genuinely-new contribution
+
+**The 5-line regression guard repro** that demonstrates why session
+#53's hypothesis was wrong:
+
+```snobol4
+        cmd = (LEN(1) | LEN(2))
+        outer = (*cmd 'X')
+        s = 'ABX'
+        s POS(0) outer RPOS(0)                                :S(YES)F(NO)
+YES     OUTPUT = 'inner backtrack worked'                     :(END)
+NO      OUTPUT = 'fail'
+END
+```
+
+SPITBOL outputs `inner backtrack worked`.  csnobol4 + session #52 patch
+also outputs `inner backtrack worked` (correct).  csnobol4 + session
+#54 zeroing outputs `fail` (regression).  This is now a **permanent
+regression guard** — any future fix that breaks this is wrong
+regardless of how many fence_suite tests it improves.
+
+### How outer-pattern walker correctly reaches inner backtrack
+
+Traced via instrumented SALT2 / SCIN1-entry / L_UNSC / L_DSAR.  The
+mechanism uses CSNOBOL4's existing UNSCCL-restart machinery:
+
+1. Outer SCIN1 with PATBCL=outer matches up through `*cmd 'X'`.
+2. `*cmd` is dispatched as DSAR (case 14).  DSARP2 PUSHes outer
+   state to cstack, sets UNSCCL=1, calls SCIN1.
+3. Inner SCIN1 sees UNSCCL=1 → L_UNSC: `D(PATBCL) = D(YPTR)` —
+   sets PATBCL=cmd.  Inner SCIN1 matches LEN(1) and pushes a
+   then-or trap with slot[1] = offset-into-cmd-pattern (FNC=0).
+4. Inner success → SCIN1 returns 2 → STARP2 → POP cstack
+   restoring outer PATBCL.  Outer 'X' fails on 'B'.
+5. SALT2 walks back.  Among outer's traps is the one outer's
+   compilation pushed signaling "redo *cmd" — dispatches via
+   `case 14: goto L_DSAR` (FNC=1, function descriptor).
+6. L_DSAR sets UNSCCL=1, calls SCIN1.  Inner SCIN1 → L_UNSC:
+   PATBCL=cmd AGAIN.  Walker continues PAST L_UNSC into L_SALT3
+   → L_SALT1 → L_SALT2 — but PDLPTR is now at the position WHERE
+   the inner alt traps were left.
+7. Walker dispatches the inner alt trap (slot[1]=offset-into-cmd-
+   pattern) under PATBCL=cmd.  Finds LEN(2).  Match succeeds.
+
+**Step 7 is what zeroing destroys.**  The leaked inner trap that
+session #53 thought was "stale and crashing" is actually the
+legitimate inner-alternation continuation.  When PATBCL is correctly
+restored to inner via the DSAR redo path, the trap dispatches
+correctly.
+
+### Sharpened diagnosis of test 119 crash
+
+Test 119 trace shows: after FNCDCL seal fires, walker correctly walks
+back through several FNC-flagged traps (PATBCL switches via FNCBX/STARP5
+POPs).  Eventually reaches a leaked SCIN3-pushed trap at PDL=ab0 with
+slot[1]=0x200 (an offset valid under cmd PATBCL but NOT outer PATBCL).
+Walker has fully consumed all DSAR-redo traps by this point — there is
+no remaining mechanism to re-route through L_UNSC.  Dispatched under
+outer PATBCL → reads pattern at outer-PATBCL+0x200 → wild memory →
+SEGV.
+
+The crash class is therefore: **leaked inner traps that get reached
+AFTER the walker has consumed all DSAR-redo entries**.  Targeted
+zeroing fixes them but unavoidably destroys live-leak inner-backtrack
+traps too — distinguishing the two is impossible at zeroing time.
+
+### What the right fix shape looks like — STREXCCL
+
+The architectural answer is the SPITBOL `=ndexc` sentinel approach,
+mirrored from `p_nth` (sbl.min:12213).
+
+When STARP6/DSARP success path runs AND inner SCIN pushed entries on
+PDL (i.e. PDLPTR > saved_snapshot), install a NEW sentinel trap that,
+when dispatched by SALT2, restores PATBCL to inner and continues the
+failure walk.  Leaked inner traps remain BELOW the sentinel; walker
+reaches sentinel FIRST and switches PATBCL before walking through them.
+
+Concretely (recommended implementation for session #55):
+
+1. Define a new constant `STREXCCL` analogous to `FNCDCL` —
+   descriptor with FNC flag and a.i = pointer to L_STREXC handler.
+2. Add a new PATBRA case (after case 40 = FNCD).
+3. Define `L_STREXC`: `D(PATBCL) = D(YCL); goto L_SALT3;` (or
+   L_SALT2 if LENFCL needs preserving — verify against SPITBOL
+   p_exc semantics).
+4. STARP6/DSARP entry: ADD a new cstack push for inner-PATBCL
+   (which equals YPTR right before SCIN call).
+5. STARP6/DSARP success path: pop saved-PDL-snapshot AND saved-
+   inner-PATBCL.  If `D_A(PDLPTR) > saved_snapshot`, push STREXCCL
+   trap with slot[2] = saved-inner-PATBCL.  Otherwise no sentinel
+   needed (mirrors SPITBOL p_nth's `beq xt,xs,pnth1` optimization).
+
+The symmetric "restore outer PATBCL when walker descends past the
+inner region" happens automatically via existing FNCBX/STARP5 cstack
+POPs because outer's existing traps remain BELOW the inner region.
+
+### What session #54 did NOT do
+
+- Did not implement STREXCCL (a 4-step landing: define handler, wire
+  dispatch, modify STARP6/DSARP, regen v311.sil for SIL/C consistency).
+  Designing it correctly needs careful reading of how SCFLCL/FNCDCL
+  handlers preserve LENFCL state — done by session #54 but not
+  implemented.
+- Did not commit any code changes.
+
+### Files added this session
+
+- `csnobol4/docs/F-2-Step3a-session54-zeroing-attempt.diff` — the
+  rejected fix, preserved as a "do not repeat" artifact.
+- `csnobol4/docs/F-2-Step3a-session54-findings.md` — full diagnosis
+  + session #55 implementation plan.
+
+### Recommended session #55 plan
+
+1. Apply `csnobol4/docs/F-2-Step3a-session52-flpop-fix.patch`.
+2. Re-read `x64/sbl.min:11515-11600` (expression-pattern doc block)
+   and `12213-12230` (p_nth) carefully.  Note especially how
+   `pnth1` (no-entries-pushed optimization) is structured.
+3. Re-read `csnobol4/docs/F-2-Step3a-session54-findings.md`
+   "Open question for session #55" before deciding conditional
+   vs unconditional sentinel install.
+4. Implement STREXCCL per the design above.
+5. Run BOTH gates AND the 5-line regression guard:
+   - fence_function (must be 10/10)
+   - fence_suite (target 30+/32 including 119, 129)
+   - 5-line `cmd=(LEN(1)|LEN(2)); outer=(*cmd 'X'); s='ABX'`
+     (must produce `inner backtrack worked`)
+   - beauty self-host (target ≥ 500 lines)
+6. If all gates pass, commit csnobol4 first, then .github.  If any
+   regress, do NOT commit; document findings.
+
+### Honest circularity check
+
+Session #54 advanced from "design space" to "explicit refutation of
+session #53's hypothesis with a regression guard, AND a concrete
+SPITBOL-precedented fix path (STREXCCL = `=ndexc` analog)."  Sessions
+#44–#54 = 11 sessions on F-2 Step 3a.  fence_function preserved 10/10
+throughout.  Each session has eliminated a wrong-fix candidate.  The
+remaining wrong-fix candidates (D1–D5 from earlier design space, plus
+zeroing) are now closed.  STREXCCL is the next attempt and fits the
+architecture more precisely than any prior candidate.
+
