@@ -1359,7 +1359,444 @@ push corpus first then .github.
 
 ---
 
-- [x] **SB-1** — Diagnose underflows.
+## Session #78 progress (2026-04-30)
+
+**Investigation only.  Three operator-lowering bugs identified, two fixes
+designed.  No source changes.  All repos clean.**
+
+This session was launched against SB-6 (beauty.sc self-host).  Setup
+gates green throughout (PASS=5 / PASS=42 SKIP=3 / PASS=49).  No source
+changes landed; the entire session was diagnosis and fix design,
+captured here for session #79 to implement.
+
+### Reproducer
+
+A properly-indented two-statement fixture exposes three distinct
+runtime-visible defects:
+
+```
+$ printf '\tA = 1\n\tOUTPUT = A\nEND\n' | scrip --ir-run $LIBS beauty.sc
+stdout:
+    Parse Error
+    \tA = 1
+    (blank)
+    Parse Error
+    \tOUTPUT = A
+    (blank)
+
+stderr:
+    ** Error 1 in statement 0 / GE first argument is not numeric (×2)
+    ** Error 5 in statement 0 / Undefined function or operation (×1)
+```
+
+SPITBOL (cd corpus/programs/snobol4/beauty && sbl -bf
+$smoke/beauty_oracle.sno) on the same input produces clean
+beautified output:
+
+```
+               A              =  1
+               OUTPUT         =  A
+END
+```
+
+The `Parse Error` from beauty.sc is real — beauty.sc's grammar isn't
+recognizing valid SNOBOL4 statements.  Bisection reveals the three
+defects below.  Each is a Snocone or SNOBOL4 frontend operator
+lowering bug.
+
+### Bug A — Snocone `||` lowers to E_CAT instead of value-list/OR
+
+**Location:** `src/frontend/snocone/snocone_lower.c:175-180`,
+`SNOCONE_OR` case.
+
+**Current code:**
+```c
+case SNOCONE_OR: {
+    /* || string concatenation (same as | and && in value context) → E_CAT */
+    EXPR_t *r = es_pop(s), *l = es_pop(s);
+    EXPR_t *e = expr_binary(E_CAT, l, r);
+    es_push(s, e); return 0;
+}
+```
+
+**Per the canonical Snocone spec (corpus/programs/snocone/report.md
+lines 511-516):**
+> `||` Logical disjunction.  The left operand is evaluated first; if
+> it succeeds, its value is the value of `||`.  Otherwise, the value
+> is that of the right operand.  If both operands fail, `||` fails.
+
+**Per the canonical transpiler (SNOCONE.zip / snocone.sc lines
+37, 316-321, 367-375):**
+
+```
+bconv['||'] = or_binfo = binfo('',4,4,0,0,1)
+
+# in dprint:
+if (IDENT (op, or_binfo)) {
+    emit ('(');  bprint (x);  emit (')')
+    return
+}
+
+# bprint flattens nested OR:
+procedure bprint (x) {
+    if (DIFFER (DATATYPE(x), 'B') || DIFFER (op(x), or_binfo)) {
+        dprint (x);  return
+    }
+    bprint (l(x));  emit (',');  bprint (r(x))
+}
+```
+
+`a || b` lowers to **SNOBOL4 paren-list `(a, b)`** — a SPITBOL
+extension at value level whose semantics are exactly OR: try arms
+left-to-right, return first non-failing value, fail if all fail.
+
+**Truth table verified under SPITBOL** for `(IDENT(T,'X'), IDENT(T,'Y'))`
+with T='Id':
+
+| First | Second | (a,b) result | E_CAT result (current scrip) |
+|-------|--------|-------------|------------------------------|
+| ✓ | ✓ | ✓ (yields null) | ✓ (yields null) |
+| ✗ | ✓ | ✓ | ✗ |
+| ✓ | ✗ | ✓ | ✗ |
+| ✗ | ✗ | ✗ | ✗ |
+
+E_CAT yields AND-with-failure-propagation — the opposite of OR
+when it differs.
+
+**Audit:** every `||` use across the entire Snocone corpus expects
+OR semantics:
+- `corpus/programs/snocone/demo/beauty/tree.sc:95`
+- `corpus/programs/snocone/demo/beauty/beauty.sc:233-237, 240, 245,
+  281-283, 401`
+- `corpus/programs/snocone/corpus/sc8_strings.sc:3`
+
+Zero uses depend on E_CAT semantics.
+
+### Bug B — SNOBOL4 frontend `(a, b, c)` lowers to E_ALT
+
+**Location:** `src/frontend/snobol4/snobol4.y:195`.
+
+**Current rule:**
+```yacc
+expr17 : T_LPAREN expr0 T_COMMA exprlist_ne T_RPAREN
+       { EXPR_t*a=expr_new(E_ALT); ... }
+```
+
+**Test:**
+```
+        T = 'Id'
+        OUTPUT = (IDENT(T,'Foo'), IDENT(T,'Id'), 'fallback')
+        OUTPUT = (IDENT(T,'Foo'), IDENT(T,'Bar'), 'fallback')
+        OUTPUT = (IDENT(T,'Id'), 'first')
+END
+```
+
+| Implementation | Output |
+|---|---|
+| SPITBOL | `(blank)\nfallback\n(blank)\n` (correct) |
+| csnobol4 | `(blank)\nfallback\n(blank)\n` (correct) |
+| **scrip --ir-run (SNOBOL4 frontend)** | **`PATTERN\nPATTERN\nPATTERN\n`** |
+
+Our frontend builds an `E_ALT` (pattern alternation) for the
+paren-list, then `OUTPUT = pattern_value` prints the literal string
+`"PATTERN"` (the DATATYPE-coerced value).  This is wrong: SPITBOL's
+paren-list at value level is goal-directed disjunction, not pattern
+alternation.
+
+**Pattern-context paren-list IS pattern-alt** — that part of the rule
+must stay correct.  The fix is to distinguish value-context from
+pattern-context paren-lists at lowering time, OR to introduce a new
+IR node that interp_eval evaluates as goal-directed disjunction and
+interp_eval_pat coerces to pattern_alt as needed.
+
+### Bug A and Bug B are the SAME architectural fix
+
+Both `Snocone ||` and `SNOBOL4 frontend (a, b, c)` should produce the
+same IR node — a goal-directed value-context disjunction, distinct from
+`E_ALT` (which is pattern alternation).
+
+**Proposed name: `E_VLIST`** (value-list) — chosen to parallel `E_ALT`'s
+naming axis (alternation) but distinguish "value context" from
+"pattern context".  Considered alternatives:
+
+- `E_LOGICAL_OR` — accurate but a bit verbose; doesn't match the
+  surface syntax `(a, b, c)`
+- `E_VALT` — short for value-alternation; ambiguous against E_ALT
+  visually
+- `E_OR` — was the historic name for E_ALT; reusing it would
+  re-confuse the rename history (ir.h:82 says "(ORPP in SIL; was
+  E_OR)")
+
+**Behavior:**
+- n-ary children
+- evaluate children left-to-right (eager, NOT lazy/backtracking)
+- short-circuit: return first non-failing child's value
+- if all fail, return FAILDESCR
+- side effects of arm `k` happen exactly once iff arms `1..k-1` all
+  failed; arms `k+1..n` never fire
+
+**Distinction from E_ALT:**
+
+| Axis | E_ALT (pattern alternation) | E_VLIST (value disjunction) |
+|------|-----------------------------|----------------------------|
+| Context | Pattern only | Value (interp_eval) |
+| Trial mode | Lazy at match time, with backtracking | Eager during evaluation, no backtracking |
+| Operand type | Patterns (DT_P), or coerced via pat_to_patnd | Any value: predicates, assigns, strings |
+| Result on success | Combined pattern node `pat_alt(...)` | Value of first non-failing child, returned now |
+| Side effects | At match time, possibly multiple per arm if matcher backtracks | Exactly once per arm tried, in order |
+| All-fail | Pattern that fails to match | FAILDESCR |
+| SNOBOL4 surface | `p1 \| p2 \| p3` inside a pattern | `(a, b, c)` paren-list at value level |
+
+### Bug C — Snocone unary `?x` lowers to DIFFER(x, '')
+
+**Location:** `src/frontend/snocone/snocone_lower.c:229-233`,
+`SNOCONE_QUESTION` unary case.
+
+**Current code:**
+```c
+case SNOCONE_QUESTION:
+    if (tok->is_unary) {
+        /* unary ? = DIFFER(x,"") — not-null test */
+        EXPR_t *operand = es_pop(s);
+        es_push(s, make_fnc1("DIFFER", operand));
+    } else { ... }
+```
+
+**Per spec (report.md lines 554-559):**
+> `?` Query.  If its operand fails, `?` fails.  If its operand
+> succeeds, `?` yields a null string.  Useful for evaluating an
+> expression solely for its side effects.
+
+**Per canonical transpiler:** unary operators emit verbatim
+(snocone.sc line 286-294, dprint U-case).  `?x` → `?x` literal in
+SNOBOL4.  SPITBOL has native unary `?` with exactly the spec
+semantics.  Verified.
+
+**Truth table:**
+
+| `x` | spec `?x` | DIFFER(x, '') (current) |
+|-----|-----------|--------------------------|
+| succeeds, yields null | succeeds → null | DIFFER('','') → fails |
+| succeeds, yields non-null | succeeds → null | succeeds → null |
+| fails | fails | depends on caller's failure handling, often spurious |
+
+The current lowering wrongly fails on null-success and gives wrong
+behavior on failure of `x`.  Verified at /tmp/qtest.sc:
+```
+T1: ?'hello' SUCCEEDED          (correct by accident — non-null)
+T2: ?'' FAILED                  (BUG — should succeed per spec)
+T3: ?(failing pred) FAILED      (right answer, wrong reason)
+```
+
+**Note: `?x` and `~x` are exact opposites.**  Both yield null on
+success.  `?x` succeeds iff `x` succeeds; `~x` succeeds iff `x`
+fails.  So:
+
+```
+?x  ≡  ~~x   (double negation)
+```
+
+This is the cleanest fix shape — uses only the existing `E_NOT`,
+zero new IR.
+
+```c
+case SNOCONE_QUESTION:
+    if (tok->is_unary) {
+        EXPR_t *operand = es_pop(s);
+        es_push(s, expr_unary(E_NOT, expr_unary(E_NOT, operand)));
+    } else { ... }
+```
+
+### Operator comparison grid (full)
+
+For session #79's reference, here's the full comparison: canonical
+Snocone (SNOCONE.zip) vs. one4all Snocone (snocone_lower.c) vs.
+SNOBOL4 native.
+
+**Binary operators:**
+
+| Snocone | Canonical → SNOBOL4 | one4all IR | SNOBOL4 native | Status |
+|---------|---------------------|------------|----------------|--------|
+| `=` | `=` | E_ASSIGN | `=` | OK |
+| `?` | `?` | E_SCAN | `?` | OK |
+| `\|` | `\|` | E_ALT (n-ary) | `\|` | OK |
+| `\|\|` | `(a, b)` paren-list | **E_CAT** | `(a, b)` paren-list | **Bug A** |
+| `&&` | juxtaposition | E_SEQ (n-ary) | juxtaposition | OK |
+| `>` `<` `>=` `<=` `==` `!=` | `GT(a,b)` etc. | E_FNC("GT"...) | function calls | OK |
+| `::` `:!:` | `IDENT/DIFFER` | E_FNC | function calls | OK |
+| `:>:` `:<:` `:>=:` `:<=:` `:==:` `:!=:` | `LGT LLT LGE LLE LEQ LNE` | E_FNC | function calls | OK |
+| `+` `-` `*` `/` | same | E_ADD/SUB/MUL/DIV | same | OK |
+| `%` | `REMDR(a,b)` | E_FNC("REMDR",…) | `REMDR(a,b)` | OK |
+| `^` (R-assoc) | `**` | E_POW | `**` | OK |
+| `.` (cap-cond-asgn) | `.` | E_CAPT_COND_ASGN | `.` | OK |
+| `$` (cap-immed-asgn) | `$` | E_CAPT_IMMED_ASGN | `$` | OK |
+
+**Unary operators** (canonical: `unaryop = ANY("+-*&@~?.$")`,
+emitted verbatim):
+
+| Op | Spec | Canonical → SNOBOL4 | one4all IR | Status |
+|----|------|---------------------|------------|--------|
+| `+x` | numeric coerce | `+x` | E_PLS | OK |
+| `-x` | unary minus | `-x` | E_MNS | OK |
+| `*x` | deferred eval | `*x` | E_DEFER | OK *(was bug, fixed s#68)* |
+| `&x` | keyword | `&x` | E_KEYWORD | OK |
+| `@x` | cursor capture | `@x` | E_CAPT_CURSOR | OK |
+| `~x` | logical negation | `~x` | E_NOT | OK |
+| `?x` | interrogation (succeed-as-null iff x succeeds) | `?x` verbatim | **E_FNC("DIFFER",x,"")** | **Bug C** |
+| `.x` | name-of | `.x` | E_NAME | OK |
+| `$x` | indirect | `$x` | E_INDIRECT | OK |
+
+**SNOBOL4 SPITBOL-extension constructs** (no Snocone surface, but
+referenced by the SNOBOL4 frontend):
+
+| Construct | Spec | one4all | Status |
+|-----------|------|---------|--------|
+| `(a, b, c)` value paren-list | first-non-failing-arm-wins (SPITBOL ext.) | **E_ALT** | **Bug B (= Bug A architecturally)** |
+
+### Recommended next session — session #79
+
+**Implement E_VLIST and the ?x fix.**
+
+1. **`src/ir/ir.h`** — append `E_VLIST` to the EKind enum (right
+   before `E_KIND_COUNT`).  Comment: "Goal-directed value-context
+   disjunction.  N-ary.  Try children left-to-right; return first
+   non-failing value; fail if all fail.  SPITBOL `(a, b, c)`
+   paren-list and Snocone `||`.  Distinct from E_ALT (pattern
+   alternation, lazy at match time)."
+
+2. **`src/ir/ir_print.c`** — add label `[E_VLIST] = "E_VLIST"`.
+
+3. **`src/driver/interp.c`** — add `case E_VLIST` to `interp_eval`
+   (value context):
+   ```c
+   case E_VLIST: {
+       for (int i = 0; i < e->nchildren; i++) {
+           DESCR_t v = interp_eval(e->children[i]);
+           if (!IS_FAIL_fn(v)) return v;
+       }
+       return FAILDESCR;
+   }
+   ```
+   Also add to `interp_eval_pat`.  In pattern context, the paren-list
+   COULD be flattened to E_ALT for backwards-compat, but cleaner is to
+   route to the same value-context evaluation since pattern alternation
+   inside a paren-list at value level isn't a thing — pattern alt uses
+   `|`, paren-list `(a, b, c)` is value-only.
+
+4. **`src/runtime/x86/sm_lower.c`** — add `case E_VLIST` to
+   `lower_expr` and `lower_pat_expr`.  Two viable shapes:
+   - (a) Emit `SM_PUSH_EXPR` + new `SM_EVAL_EXPR` opcode that calls
+     interp_eval directly.  Smaller code surface; trades SM-bytecode
+     transparency.
+   - (b) Emit a sequence of `lower_expr(child[i])` + `SM_TRY_OR_NEXT`
+     + label.  Native SM bytecode, larger change.
+
+   Recommend (a) for session #79; revisit (b) if profiling shows SM
+   value-list is hot.  Need a corresponding handler in
+   `src/runtime/x86/sm_interp.c`.
+
+5. **`src/runtime/x86/sm_codegen.c`** — for `--jit-run`, mirror (a)
+   above.
+
+6. **`src/frontend/snocone/snocone_lower.c:175-180`**: change
+   `SNOCONE_OR` to emit `E_VLIST` instead of `E_CAT`, with n-ary
+   collapsing (mirror E_SEQ / E_ALT pattern in same file):
+   ```c
+   case SNOCONE_OR: {
+       EXPR_t *r = es_pop(s), *l = es_pop(s);
+       EXPR_t *e;
+       if (l->kind == E_VLIST) { expr_add_child(l, r); e = l; }
+       else { e = expr_new(E_VLIST); expr_add_child(e, l); expr_add_child(e, r); }
+       es_push(s, e); return 0;
+   }
+   ```
+
+7. **`src/frontend/snobol4/snobol4.y:195`**: change the
+   `T_LPAREN expr0 T_COMMA exprlist_ne T_RPAREN` reduction to emit
+   `E_VLIST` instead of `E_ALT`.  The pattern-context paren-list is
+   built differently anyway (alternation is `|`, not comma); this
+   rule is unambiguously the value-context paren-list.
+
+8. **`src/frontend/snocone/snocone_lower.c:229-233`**: change
+   `SNOCONE_QUESTION` unary case to `E_NOT(E_NOT(x))`:
+   ```c
+   case SNOCONE_QUESTION:
+       if (tok->is_unary) {
+           EXPR_t *operand = es_pop(s);
+           es_push(s, expr_unary(E_NOT, expr_unary(E_NOT, operand)));
+       } else { ... existing binary ? scan handling ... }
+       return 0;
+   ```
+
+9. **Verify gates after each step.**  Floor invariants:
+   - PASS=5 / PASS=42 SKIP=3 / PASS=49 stay green
+   - crosscheck snobol4 PASS=6, snocone PASS=8 unchanged
+   - broad interp suite unchanged (PASS=222 FAIL=52 baseline)
+
+10. **Beauty.sc tiny-fixture verification.**  Once all three bugs
+    are fixed, the proper-indented two-statement fixture should
+    produce SPITBOL-byte-identical output:
+    ```
+    $ printf '\tA = 1\n\tOUTPUT = A\nEND\n' | scrip --ir-run $LIBS beauty.sc
+                   A              =  1
+                   OUTPUT         =  A
+    END
+    ```
+    No stderr.
+
+11. **Then attack SB-6 self-host.**  With operator semantics correct,
+    beauty.sc should at minimum recognize valid SNOBOL4 statements.
+    Remaining gap to byte-identical-against-SPITBOL is whatever
+    grammar/lowering issues remain in beauty.sc itself.
+
+### What NOT to do in session #79
+
+- **Do not rewrite beauty.sc** to avoid `||`.  Per Lon's session-#73
+  rule: "do not change any SC code to work around a bug.  Make a step
+  in this current GOAL to fix the bug instead."  All three bugs above
+  are runtime/frontend fixes.  beauty.sc stays as-is.
+
+- **Do not fold E_VLIST into E_ALT.**  Pattern-alt and value-disjunction
+  are semantically distinct (lazy/backtracking vs. eager/short-circuit;
+  pattern result vs. value result).  Conflating them is what produced
+  Bug B in the first place.
+
+- **Do not fold ?x into a single-arg DIFFER variant.**  The double-NOT
+  shape is correct, minimal, and uses existing IR.  Adding a new IR
+  node for `?` would be over-engineering.
+
+### Files investigated, not modified
+
+- `src/frontend/snocone/snocone_lower.c` (read; cases 175-180,
+  229-233 identified for change)
+- `src/frontend/snobol4/snobol4.y` (read; line 195 identified for
+  change)
+- `src/driver/interp.c` (read; E_CAT / E_ALT handlers studied as
+  reference for E_VLIST)
+- `src/runtime/x86/sm_lower.c`, `sm_interp.c`, `sm_codegen.c` (read
+  for understanding lowering boundaries)
+- `src/ir/ir.h`, `src/ir/ir_print.c` (read; insertion points
+  identified)
+- `corpus/programs/snocone/report.md` (re-read for `||`, `?x`, `~x`
+  spec)
+- `SNOCONE.zip` (canonical Snocone transpiler — Lon supplied via
+  upload this session) — `snocone.sc`, `snocone.snobol4`,
+  `snocone.sno`.  This is the AUTHORITATIVE reference for canonical
+  Snocone semantics (snocone.sc is the C-style source; snocone.sno
+  and snocone.snobol4 are the bootstrap outputs in canonical Snocone
+  and SNOBOL4 respectively).  No copy committed to corpus this
+  session — Lon's upload remains authoritative.
+
+### Repos state
+
+All clean.  This session was investigation-only; the goal-file update
+is the only change.  No code commits in `one4all`, `corpus`,
+`csnobol4`, or `x64`.  Plan: commit and push this `.github` update
+only.
+
+---
+
+
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
 - [x] **SB-4a** — Careful rewrite: for each `.sno` / `.inc` source file in
@@ -1785,6 +2222,27 @@ push corpus first then .github.
   `treebank-array.ref`, in all three modes.
 
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
+  Session #78 (2026-04-30) bisected the proper-indented two-statement
+  fixture (`\tA = 1\n\tOUTPUT = A\nEND\n`) and identified three
+  operator-lowering bugs that are gating SB-6.  All three are runtime
+  /frontend fixes (no `.sc` workarounds per Lon's session-#73 rule).
+  See "Session #78 progress" section above for full diagnosis,
+  comparison grids, and the 11-step implementation plan for session
+  #79.  Active bugs:
+  - **SB-6.A** Snocone `||` lowers to E_CAT instead of value-list/OR
+    (`snocone_lower.c:175-180`).  Per canonical SNOCONE.zip transpiler
+    and report.md spec, `||` is logical disjunction (first-non-failing
+    arm).
+  - **SB-6.B** SNOBOL4 frontend `(a, b, c)` paren-list lowers to E_ALT
+    instead of value-disjunction (`snobol4.y:195`).  This is a SPITBOL
+    extension construct verified working under SPITBOL and csnobol4.
+    Same architectural fix as SB-6.A — both produce the proposed new
+    `E_VLIST` IR node.
+  - **SB-6.C** Snocone unary `?x` (interrogation) lowers to
+    `DIFFER(x, '')` which has wrong truth table
+    (`snocone_lower.c:229-233`).  Per spec, `?x` succeeds-as-null iff
+    `x` succeeds; it is the exact opposite of `~x` (negation).  Fix:
+    `?x` → `E_NOT(E_NOT(x))` — uses existing IR, zero new node.
 - [ ] **SB-7** — Gate script. Commit. Push.
 
 ---
