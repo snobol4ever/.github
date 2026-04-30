@@ -1,7 +1,7 @@
 # GOAL-SNOCONE-LANG-SPACE — Andrew's Final Snocone Vision + Lon's SPITBOL Space Restoration
 
 **Repo:** one4all + corpus
-**Working repo/build name:** `snocone` (no rename committed — see Naming notes below)
+**Language name:** **Snocone** (Andrew's name preserved — session #5)
 **Done when:** A new Snocone exists that is exactly
 
 > **Andrew Koenig's `.sc` self-host operator design (his "final vision"
@@ -86,26 +86,20 @@ the new Snocone with only three mechanical edits per file: every
 
 ---
 
-## Naming — open
+## Naming — Snocone
 
-Lon (session #4): "The name is not now SNOBOL6 nor will it likely
-be.  We just have ideas is all."
+Lon session #5: **the language is called Snocone.**  This is
+Andrew Koenig's name, preserved.  Fitting since the language is
+Andrew's `.sc` self-host vision (his `bconv[]` at lines 32–60 of
+`snocone.sc`) plus Lon's restoration of SPITBOL space-as-concat
+— not a new design.  The repo/build name `snocone` and the file
+extension `.sc` already match.  No rename, no source-tree sweep.
 
-The working repo/build name remains **`snocone`** through this
-goal and likely beyond.  The name of the language itself is
-unsettled.  Naming ideas explored in earlier sessions and not
-selected:
-
-- **SNOBOL6** — the joke version: SNOBOL4 was the line-by-line
-  one missing structured control, SNOBOL5 is Gimpel's never-shipped
-  successor, SNOBOL6 is the structured-control reboot picking up
-  where 5 left off.  Funny but not a commitment.
-- **Snocone** (Andrew's name) — historical resonance, but this is
-  Andrew's-final-vision-plus-Lon's-restoration, not a clone.
-
-Not selected.  No rename happens during this goal.  When and if a
-name lands, a separate dedicated rename goal handles the source-
-tree sweep cleanly.
+Earlier sessions explored other naming ideas — Lon session #3 had
+floated SNOBOL6 as a joke ("the structured-control reboot picking
+up where SNOBOL5 left off") but session #4 walked it back ("not
+now SNOBOL6 nor will it likely be").  Session #5 closed the
+question by picking Snocone.
 
 ---
 
@@ -697,7 +691,7 @@ Already in use in current `.sc` files.  Keep both.
 syntax errors.  Same atomic-flip approach the previous version
 of this goal called for.
 
-### Q10. Language name — open (no commitment)
+### Q10. Language name — RESOLVED to "Snocone" (session #5)
 
 Lon session #1: "We will do Snocone different from Andrew Koenig.
 We might later find a better name."
@@ -709,16 +703,24 @@ and missing structured control.  And SNOBOL5 already exists."
 Lon session #4: "The name is not now SNOBOL6 nor will it likely
 be.  We just have ideas is all."
 
-**Status:** open.  No name committed.  Working repo/build name
-remains `snocone` indefinitely.  When and if a name lands, a
-separate dedicated rename goal handles the source-tree sweep.
+Lon session #5: "Q10: Snocone."
 
-### Q11. Rename source tree — moot until Q10 lands
+**Decision:** the language is called **Snocone**.  This is
+Andrew's name preserved — fitting since the language is
+Andrew's `.sc` self-host vision plus Lon's space restoration,
+not a new design.  Repo/build name `snocone` already matches.
+No rename happens.
 
-When and if Q10 picks a name, this question opens.  Until then:
-no rename, no source-tree sweep, no file-extension change.
+### Q11. Rename source tree — N/A (session #5)
 
-### Q12. Identity-op spelling — RESOLVED to `::` and `:!:` (session #4)
+Lon session #5: "Q11: N/A."
+
+The language name is Snocone (Q10), the repo/build name is
+already `snocone`, the file extension `.sc` matches Andrew's
+own choice.  Nothing to rename.  This question is closed
+permanently.
+
+### Q12. Identity-op spelling — RESOLVED to `::` and `:!:` (sessions #4 + #5)
 
 Andrew Koenig's `.sc` self-host source already defines them at
 lines 45–46:
@@ -731,13 +733,7 @@ bconv[':!:'] = binfo('DIFFER', 6, 6, 0, 0, 1)
 These are **Andrew's choices**, in his canonical self-host
 source.  We adopt them verbatim.
 
-The session-#3 ambiguity ("Let's keep `::` and `:!:` I suppose
-for IDENT and DIFFER") is resolved here: Lon was directing us to
-preserve what Andrew already had in his self-host, not invent
-new spellings.  This Goal file's title was therefore correct to
-say "Andrew's final vision plus space restoration."  The `.sno`
-bootstrap source we examined first did not have `::`/`:!:`; the
-`.sc` self-host does.  The `.sc` is the canonical Andrew source.
+Lon session #5: "Q12: use `::` and `:!:`" — confirms.
 
 ### Q13. `break;` / `continue;` — with optional label or labeled-only?
 
