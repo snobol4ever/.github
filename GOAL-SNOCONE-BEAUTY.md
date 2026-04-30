@@ -416,6 +416,153 @@ changes this session. Diagnostic test files in `/tmp/` only.
 
 ---
 
+## Session #71 progress (2026-04-29)
+
+**One landed fix; one bug remains; baseline cleaner for next session.**
+
+### Sessions #69 / #70 hypotheses re-tested and disconfirmed
+
+Session #71 began by following the session-#70 prescribed three steps
+verbatim:
+
+1. **Mode-coverage check.** Confirmed: full beauty.sc + 16-lib chain +
+   `corpus/programs/snobol4/demo/beauty.sno` input hangs in **all three
+   modes** (`--ir-run`, `--sm-run`, `--jit-run`) — each timing out at
+   15 s with 0 stdout / 0 stderr. Per session #70's own decision tree
+   ("if all three modes, bug is in shared pattern-matcher state"), this
+   eliminated `src/driver/interp.c` (the IR tree-walker — only
+   `--ir-run` uses it) as the suspect surface. Bug must be in shared
+   runtime (`src/runtime/x86/...`) or upstream (frontend lower /
+   driver merge).
+
+2. **SPITBOL cross-check.** The 9-line "minimal reproducer" session
+   #70 named **does not actually hang** under scrip — it prints `OK`
+   in tens of ms in all three modes. Tested both the Snocone form
+   (`/tmp/repro70.sc`) and the SPITBOL-equivalent SNOBOL4 form
+   (`/tmp/repro70b.sno`); both succeed. **Session #70's claim that
+   "proc body containing if/while corrupts the pattern matcher" is
+   wrong.** The hang requires more than a 9-line setup.
+
+3. **Session #69 hypothesis** also disconfirmed: setting
+   `&FULLSCAN = 0` in beauty.sc does NOT eliminate the hang on the
+   single-line `START` reproducer below. ARBNO+&FULLSCAN exponential
+   backtracking is not the trigger.
+
+### Tightest known reproducer for the residual hang
+
+Single-line input — just the bare label `START\n`:
+
+```bash
+echo START | ./scrip --ir-run $LIBS $BEAUTY/beauty.sc
+# → hangs 5 s, 0 stdout, 0 stderr
+```
+
+SPITBOL on the same input via `(cd $BEAUTY_INC && sbl -bf
+$BEAUTY_SNO)` prints `START\n` and exits in 13 ms. With
+`&STLIMIT = 500000` prepended, scrip emits the full 7-line
+comment-header byte-identically, then trips Error 22 — proving the
+pretty-printer pipeline runs cleanly through comment lines and the
+spin starts specifically when the parser meets a label-only line.
+
+SPITBOL oracle baseline: `(cd corpus/programs/snobol4/beauty && sbl
+-bf demo/beauty.sno < demo/beauty.sno)` → **781 lines, md5
+`f522a98b962449f97da470ab6a0b13c5`, 103 ms.**  This is the SB-6
+target output for byte-identical match.
+
+### Root cause #1: multi-file label collision — IDENTIFIED AND FIXED
+
+Bisecting from "minimal_match alone works, but with libs prepended
+it doesn't", isolated this concrete bug:
+
+`src/frontend/snocone/snocone_control.c::newlab` used a per-`CfState`
+counter. Every call to `snocone_control_compile()` started a fresh
+`CfState` (`memset` to 0) so each .sc file produced its own
+`L.1, L.2, ...`. After scrip's IR-merge in `src/driver/scrip.c`,
+`label_table_build` (`src/driver/interp.c:133`) registered the
+**first** occurrence of each label name; subsequent
+`:goS L.N`/`:goF L.N` references in later files resolved to the
+wrong target.
+
+Symptom on `./scrip --ir-run global.sc m1.sc`, where `m1.sc` is
+`v = 'X'; if (v ? POS(0)) {OUTPUT='OK';} else {OUTPUT='FAIL';}`:
+- m1 emits `:goS L.1 :goF L.2` for the if-test, plus `lbl L.1`,
+  `lbl L.2`, `lbl L.3` for the if-body / else / endif.
+- global.sc also has `lbl L.1` ... `lbl L.8` (its own loops).
+- After merge, `label_lookup("L.1")` returns global's first hit —
+  inside global's UTF loop. The if-arm jumps into global's loop body
+  and the program never reaches OUTPUT.
+- Result: 0 output, rc=0 (silent termination). **Reverse order
+  m1.sc global.sc loops nonsense:** global's `:go L.1` jumps back
+  into m1's OK arm.
+
+**Fix**: replace per-state `st->label_ctr` with a process-global
+`static int g_snocone_label_ctr` at file scope. Every label across
+every `snocone_control_compile()` call in this process is now
+unique. +17/-1 in `snocone_control.c::newlab`.
+
+**Verification:**
+- `./scrip --ir-run global.sc m1.sc` → `>>> OK` ✅
+- `./scrip --ir-run m1.sc global.sc` → `>>> OK` (no loop) ✅
+- `./scrip --ir-run $ALL_16_LIBS m1.sc` → `>>> OK` ✅
+- All three baseline gates remain green: PASS=5, PASS=42 SKIP=3,
+  PASS=49.
+- Beauty-suite all-modes (45 cells: 14 subsystems × 3 modes + 1
+  SKIP × 3) all green. No regression.
+
+### Root cause #2: residual hang on label parse — STILL OPEN
+
+The label-collision fix solves the multi-file-trivial-match scenario,
+but `START\n` still hangs beauty.sc. So there are **two separate
+bugs**: (a) was multi-file label collision, fixed; (b) is something
+specific to beauty.sc's grammar match against a label-only line.
+
+After fix:
+- `./scrip --ir-run $LIBS /tmp/m1.sc < /dev/null` → `OK` ✅ (was
+  empty before; this regression is gone)
+- `./scrip --ir-run $LIBS $BEAUTY/beauty.sc < START_LINE` → still
+  hangs ❌
+
+So the residual is genuinely inside beauty.sc's parsing logic, not in
+the multi-file path. It's now isolated from the noise.
+
+### Recommended next session — session #72
+
+1. **Commit and push the label-collision fix as-is** (this session
+   does that). Clean baseline for #72.
+
+2. **Re-bisect with the new clean baseline** — start from
+   `Stmt = epsilon` (already verified to hang on `START`),
+   progressively reduce `Command`, `Parse`, `*Space`, `RPOS(0)`. The
+   trivial-match `if (Src ? POS(0))` already shown to hang inside
+   beauty.sc — so the spin is in the very-outer match, not in any
+   complex grammar arm.
+
+3. **Compare: minimal_match (`v='X'; if (v ? POS(0))`) works after
+   libs ✅; beauty.sc's nearly-identical `if (Src ? POS(0))` after
+   the same libs hangs ❌.** The difference must be something
+   beauty.sc does at top level before the match — pattern
+   construction, `&FULLSCAN`, `&MAXLNGTH`, the `ppStop` array, the
+   pattern definitions for Integer/DQ/SQ/String/Real/Id/...etc., the
+   `*Pat` deferred references, or one of the `shift()`/`reduce()`
+   side-effects from `semantic.sc`.
+
+4. **High-yield diagnostic**: minimally bisect beauty.sc. Take
+   `m1.sc` (which works), append the smallest amount of beauty.sc's
+   top-level code, retest after every chunk. The boundary statement
+   that turns `OK` into `hang` is the trigger.
+
+### Files touched this session
+
+`src/frontend/snocone/snocone_control.c` — `+17/-1` in `newlab()`
+making the label counter process-global. No other source changes.
+
+### Repos state
+
+`one4all`: dirty (one file). `corpus`, `.github`: clean. Plan: commit
+fix to one4all + this update to .github, push both.
+
+---
+
 ## Steps
 
 - [x] **SB-1** — Diagnose underflows.
@@ -641,8 +788,8 @@ changes this session. Diagnostic test files in `/tmp/` only.
 - [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
   - [x] **SB-5a** — Port `semantic.inc` → `semantic.sc` (covered by
     SB-4b.15, closed session #66).
-  - [ ] **SB-5b** — **PARTIAL — six gating bugs fixed across #68/#69; session #70 isolated a deeper runtime bug as the actual blocker (see Session #70 progress block above). The 9-line reproducer (proc with if-body + any pattern match) HANGS in C runtime. Six gating bugs landed:
-    Session #69 fixed three more bugs beyond session #68's three:
+  - [ ] **SB-5b** — **PARTIAL — seven gating bugs fixed across #68/#69/#71; one residual hang remains (see Session #71 progress block above). Session #71 landed `src/frontend/snocone/snocone_control.c::newlab` process-global label counter — fixes silent termination and infinite loops on multi-file scrip invocations where two .sc files both used `L.1`/`L.2`/etc. Trivial pattern match `if (v ? POS(0))` now works after loading all 16 lib files (was empty output before). Single-line `START` input still hangs — this is a separate, smaller bug, now isolated from the multi-file noise.
+    Session #69's three fixes (still landed):
     (1) semantic.sc reduce(): single-quote wrapping for t in EVAL string broke
     when t contains embedded single quotes (the three Goto-pattern tags
     "*(':' Brackets)" x2, "*(':' SorF Brackets)" x1). Fixed to double-quote
@@ -653,12 +800,21 @@ changes this session. Diagnostic test files in `/tmp/` only.
     (3) Main loop integer flags done/cont/more/eof_inside initialized to 0:
     in Snocone 0 is non-null (truthy), so while(cont)/if(done) entered even
     when flag was 0. Rewrote all four flags to use ''=false, 1=true.
+    Session #70's hypothesis (proc-with-if-body corrupts pattern matcher)
+    DISCONFIRMED — the 9-line repro runs cleanly in all three modes.
+    Session #69's hypothesis (ARBNO+&FULLSCAN exponential backtracking)
+    DISCONFIRMED — `&FULLSCAN = 0` doesn't fix the hang.
     Gates PASS=5/PASS=42 SKIP=3/PASS=49 green throughout.
-    Remaining: Parse pattern match hangs with real stdin; /dev/null exits
-    cleanly (0 lines = main loop never runs). Pattern construction completes
-    fine. The hang is inside ARBNO(*Command) matching Src against the full
-    Stmt/Expr grammar. Next session: isolate via &STLIMIT guard or Stmt stub
-    whether ARBNO backtracking under &FULLSCAN=1 is the cause.
+    Tightest reproducer: `echo START | scrip --ir-run $LIBS beauty.sc`
+    hangs 5s with 0 stdout. SPITBOL on same input outputs `START\n` in
+    13ms. With `&STLIMIT=500000` prepended, scrip emits the 7-line
+    comment-header byte-identically, then trips Error 22 on the label.
+    Comment-header pretty-print works perfectly; spin starts at the
+    bare-label line. Trivial post-libs match `v?POS(0)` works ✅;
+    nearly-identical `Src?POS(0)` inside beauty.sc hangs ❌. Difference
+    must be something beauty.sc does at top level before the match.
+    Next session: bisect by appending beauty.sc top-level chunks to
+    minimal_match until OK→hang transition; that statement is the trigger.
     Session #68 context still applies (see below).**
   - [ ] **SB-5b-orig** — **PARTIAL — three gating bugs fixed in session #68:
     (1) snocone unary `*` was lowering to E_INDIRECT instead of E_DEFER
