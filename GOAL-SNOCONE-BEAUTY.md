@@ -698,7 +698,202 @@ commit `one4all` runtime fix + this `.github` update, push both.
 
 ---
 
-## Steps
+## Session #74 progress (2026-04-30)
+
+**Build hygiene fix landed; one defensive runtime guard landed; SB-5c.1
+diagnosis advanced significantly with concrete trace evidence.**
+
+### Landed: Makefile stale reference
+
+`Makefile` still referenced `snocone_cf.c` after the session #72 rename
+to `snocone_control.c`. `make scrip` failed cleanly with "No such file
+or directory". Fixed: object recipe now compiles
+`src/frontend/snocone/snocone_control.c` (output object name kept as
+`snocone_cf.o` to avoid touching the link line). Three baseline gates
+remain green: PASS=5 / PASS=42 SKIP=3 / PASS=49.
+
+### Landed: defensive `_config_only` guard for `bb_arbno`
+
+`stmt_exec.c::bb_deferred_var` carries a `memset(child_state, 0,
+child_size)` step intended to reset child-box iteration state between
+deferred-var re-uses. Existing guard skipped this for "config-only"
+boxes (`bb_lit`, `bb_any`, `bb_notany`, `bb_span`, `bb_brk`) whose state
+is purely build-time configuration. `bb_arbno` was NOT in that list —
+when `*name` resolves to the same `PATND_t*` between iterations
+(`val.p == ζ->child_state` after both pointers are stale-equal), the
+memset wipes ARBNO's `cap` (→0), `stack` (→NULL), and `depth` (→0).
+ARBNO self-resets at every α; the external memset is unnecessary at
+best, corrupting at worst. Added `bb_arbno` to the `_config_only`
+exclusion. This is a real correctness fix even though it did NOT, on
+its own, resolve SB-5c.1 (see below).
+
+### SB-5c.1 — bisection narrowed; cursor non-advancement isolated
+
+Confirmed the session-#73 8-case bisection: with the trivial reproducer
+`group = '(' && word && ')'; src = '(S)'`, all four control cases pass
+(`group`, `*group`, `ARBNO(group)`, `ARBNO(group) && delim` etc.) and
+exactly two fail: `ARBNO(*group)` and `ARBNO(ARBNO(*group) && Y)`.
+Tightest reproducer is `ARBNO(*group)` alone (no outer ARBNO needed):
+
+```
+word  = NOTANY('( )') && BREAK('( )');
+group = '(' && word && ')';
+src   = '(S)';
+src ? POS(0) && ARBNO(*group) && RPOS(0)   // FAIL on scrip; PASS on SPITBOL
+src ? POS(0) && *group && RPOS(0)          // PASS on scrip
+src ? POS(0) && ARBNO(group) && RPOS(0)    // PASS on scrip
+```
+
+Diagnostic instrumentation on `bb_arbno::ARBNO_try` and
+`bb_deferred_var::DVAR_α/DVAR_γ` produced the smoking-gun trace:
+
+```
+[DVAR_α] entry Δ=0 depth=0
+[DVAR_γ] after child Δ=3 empty=0    ← child advanced cursor to 3
+[ARBNO]  depth=0 start=0 Δ=0 empty=0 ← but ARBNO sees Δ=0
+```
+
+Inside `bb_deferred_var`, the child match advanced `Δ` from 0 to 3
+correctly (DVAR_γ trace right after `child_fn(...,α)` returns sees
+Δ=3). But by the time control returns up to `bb_arbno`'s `ARBNO_try`,
+the global `Δ` cursor is back to 0. The non-empty spec `br` is
+returned (so `body_γ` fires), but the zero-advance guard `if (Δ ==
+fr->start)` IS satisfied (both 0), so ARBNO falls into `ARBNO_γ_now`
+and returns a zero-length match starting at position 0. The outer
+match then fails `RPOS(0)` (cursor still at 0, src has 3 chars).
+
+### Where the cursor is being reset — NOT YET ROOT-CAUSED
+
+`Δ` is a global (`int Δ;` defined in `stmt_exec.c:109`). Between
+`bb_deferred_var` returning to its caller `bb_arbno::ARBNO_try` and
+the `ARBNO_try` line itself reading `Δ`, *something* resets it. The
+two candidates:
+
+1. **`bb_build` rebuild path.** `bb_deferred_var` rebuilds the child
+   box graph on every α call (since `val.p` is `PATND_t*` and
+   `ζ->child_state` is the box state pointer of incompatible type,
+   they are never equal — so the equality-skip optimization never
+   fires for DT_P values). If `bb_build` itself touches Δ during
+   construction (e.g. via inlined helpers), this would reset
+   between calls. Searches in `bb_build.c` and `bb_boxes.c` show
+   only `bb_pos`, `bb_rpos`, `bb_tab`, `bb_rtab`, `bb_rem` writing
+   `Δ` — none of those run during `bb_build` itself. But the
+   freshly-built child IS invoked at α inside `bb_deferred_var`, so
+   the cursor advance during the child's match is real and the
+   trace confirms it. The reset must be AFTER the child returns
+   but BEFORE `bb_arbno` reads Δ.
+
+2. **`spec_from_descr` / `descr_from_spec` round-trip.** The DESCR_t
+   flowing back from `bb_deferred_var` carries `s = Σ + start_pos`
+   and `slen = matched_length` — cursor info is in those, NOT in
+   the global Δ. The `descr_from_spec(DVAR)` call in DVAR_γ packs
+   the spec into a DESCR_t but does NOT re-check or update Δ.
+   Then `spec_from_descr(...)` in `bb_arbno::ARBNO_try` unpacks it.
+   Δ is whatever the deepest box left it as. If the trace shows
+   Δ=3 at DVAR_γ exit but Δ=0 at ARBNO_try return, a write to Δ
+   happens between those two points. **Stack trace via gdb is the
+   next-session step.**
+
+### Recommended next session — session #75
+
+1. **Get `gdb` traces.** Set a watchpoint on `Δ` via `watch Δ`,
+   run the minimal `ARBNO(*group)` reproducer, identify which
+   function writes `Δ=0` between DVAR exit and ARBNO entry. The
+   reset is likely in a callee of `bb_deferred_var::DVAR_γ` —
+   possibly the NAME stack commit/rollback, or a try-and-fail-
+   reset deep in the spec packing path.
+
+2. **If Δ-reset is intentional somewhere** (e.g. ARBNO outer
+   subject scan saving/restoring Δ around each body try), the
+   fix is to ensure the correct restore-vs-keep semantic for
+   the deferred-var ↔ ARBNO boundary. Note: `bb_arbno::ARBNO_α`
+   sets `fr->start = Δ` BEFORE calling fn; the body advance
+   updates Δ; `body_γ` checks `Δ == fr->start`. This requires
+   the body's Δ-advance to PERSIST when the body returns — it
+   does for direct patterns, must also for deferred-var.
+
+3. **Cross-check SPITBOL.** Translate the minimal reproducer to
+   SNOBOL4 syntax and run under the SPITBOL oracle (when
+   available) to confirm the canonical semantics. The .sno test
+   confirmed in session #74: `treebank-list.sno` and
+   `treebank-array.sno` BOTH match their `.ref` byte-identically
+   when run through `scrip --ir-run` (SNOBOL4 frontend). So the
+   bug is specifically in the Snocone path (`*name`-as-pattern
+   inside ARBNO), or specifically in how Snocone-emitted IR
+   interacts with `bb_deferred_var` differently than SNOBOL4
+   IR does. Cross-check: does SNOBOL4-frontend `.sno` with
+   `*group` inside `ARBNO` produce the same buggy behavior?
+   If no, the divergence is in Snocone's lowering of `*name` to
+   IR (likely `E_DEFER` vs `XVAR` choice).
+
+### Translation faithfulness audit (session #74)
+
+Per Lon's session #74 directive: ensure `claws5.sc`,
+`treebank-list.sc`, `treebank-array.sc` are faithful translations
+of their `.sno` counterparts AND use almost zero gotos.
+
+Goto count today (session #74): `claws5.sc=6`, `treebank-list.sc=0`,
+`treebank-array.sc=0`.
+
+Faithfulness review against canonical `.sno`:
+
+- **`treebank-list.sc`** — STRUCTURALLY FAITHFUL. Procedure set
+  matches `treebank-list.sno` 1-for-1 (`list_reverse`,
+  `stk_push_frame`, `stk_push_item`, `stk_pop_into_parent`,
+  `stk_pop_final`, `init_list`, `push_list`, `push_item`,
+  `pop_list`, `pop_final`, `node_repr`, `pp_node`, `pp_bank`).
+  Pattern grammar (`delim`, `word`, `group`, `treebank`) is a
+  direct translation. Snocone-port artifact: the canonical .sno
+  has split surface forms (`init_list/Init_list`, etc., where
+  capitalized variants are EVAL-string builders for OPSYN-style
+  use); `.sc` collapses to function calls because Snocone has no
+  OPSYN. Acceptable given Snocone semantics. **Zero gotos.**
+
+- **`treebank-array.sc`** — STRUCTURALLY FAITHFUL. Same procedure
+  set, plus the array-style state (`frame_id`, `stk_tag`, `stk_n`,
+  `stk_c`). Translates the canonical `nr_lp` / `pp_wch` loops via
+  `while (DIFFER(i = LT(i, n) i + 1))` — the bare-juxtaposition
+  concat that triggers the LS-0 gap. Loop body and exit are
+  semantically the .sno `:F(nr_done)` flow. **Zero gotos.**
+  Main loop translates the .sno `loop / parse_fail` two-label
+  flow into an `if/else` inside `while (src ? (spat && REM .
+  rest))`. Faithful.
+
+- **`claws5.sc`** — NOT FAITHFUL. The `pp_mem` body in `.sc`
+  uses 6 internal gotos (`pp_s`, `pp_w`, `pp_t`, `pp_s_done`,
+  `pp_w_done`, `pp_t_done`) and emits a wholly different output
+  format from the canonical `pp_mem` in `claws5.sno`. The .sno
+  `pp_mem` builds explicit `pfx`/`pad` prefixes per row, handles
+  first-vs-mid-vs-last sentence transitions, and produces the
+  exact `{1: {...}, 2: {...}}` layout in `claws5.ref`. The .sc
+  `pp_mem` produces a different layout (`{` on its own line, `},`
+  per closer, etc.). The .sc was an early sketch, not a faithful
+  port. **Re-port needed (SB-5c.4 below).**
+
+Independently, **`claws5.sno` itself fails under scrip's SNOBOL4
+frontend** with "Pattern match failed" on `claws5.input`
+(verified session #74 via `./scrip --ir-run claws5.sno <
+claws5.input`). Direct sub-pattern tests confirm SPAN/NOTANY/BREAK
+juxtaposition concat works in scrip's SNOBOL4 frontend; the failure
+is in the full-grammar match — likely the same ARBNO + deferred-var
+family as SB-5c.1, or a separate bug in handling the alternation's
+`(epsilon . *fn())` immediate-call inside a SPAN/NOTANY-starting
+arm. Tracked as SB-5c.5 below.
+
+### Files touched this session
+
+`Makefile` — `+1/-1` (snocone_cf.c → snocone_control.c).
+`src/runtime/x86/stmt_exec.c` — `+10/-1` in `bb_deferred_var`
+adding `bb_arbno` to `_config_only` guard with comment.
+No other source changes. Diagnostic test files in `/tmp/` only.
+
+### Repos state
+
+`one4all`: dirty (Makefile + stmt_exec.c). `corpus`, `.github`:
+clean. Plan: commit one4all changes + this `.github` update,
+push both.
+
+---
 
 - [x] **SB-1** — Diagnose underflows.
 - [x] **SB-2** — Fix $'...' lexer.
@@ -1006,6 +1201,44 @@ commit `one4all` runtime fix + this `.github` update, push both.
     independently, bisect input + grammar to a tightest
     reproducer.
 
+  - [ ] **SB-5c.4** — **Faithful re-port of `claws5.sc` from
+    `claws5.sno`.** Current `.sc` `pp_mem` is a structural
+    rewrite that produces a different output layout than
+    `claws5.ref` and uses 6 internal gotos (`pp_s`, `pp_w`,
+    `pp_t` and their `_done` labels). Re-port `pp_mem` 1-for-1
+    against the canonical `claws5.sno` `pp_mem` (which builds
+    `pfx`/`pad`/`last_sent` and emits `pm_cnt_loop`,
+    `pm_sent_loop`, `pm_wrd_loop`, `pm_tag_loop` flows that
+    produce the exact `{1: {...}, 2: {...}}` layout in
+    `claws5.ref`). Each `:F(label)` / `:S(label)` jump in the
+    .sno translates to a `while` with explicit termination
+    flags or to nested `if/else` — NOT to `goto`. Goal: zero
+    gotos in `claws5.sc`. The other procedures (`new_sent`,
+    `add_tok`) and the top-level `claws` pattern + main loop
+    are already faithful — leave them in place. Subsystem and
+    main pattern unchanged; ONLY `pp_mem` is re-ported. Gate:
+    `claws5.sc` goto count = 0; structurally 1-for-1 with .sno
+    `pp_mem` (same procedure-local variables, same control flow
+    shape, same OUTPUT lines).
+
+  - [ ] **SB-5c.5** — **Diagnose `claws5.sno` failure under
+    scrip SNOBOL4 frontend.** `./scrip --ir-run claws5.sno <
+    claws5.input` produces "Pattern match failed" — but
+    individual sub-patterns work in isolation (SPAN, NOTANY,
+    BREAK, ANY all pass standalone). Bisection in session #74
+    showed: `(SPAN(DIGITS) . num) '_CRD :_PUN' (epsilon .
+    *new_sent()) ' '` works alone, BUT wrapping it in
+    `POS(0) ARBNO(...) RPOS(0)` fails. This is plausibly the
+    same root cause as SB-5c.1 (ARBNO + deferred-var
+    cursor non-advancement) but seen from the .sno path. Once
+    SB-5c.1 lands, retest .sno; if still failing, bisect
+    further — the alternation `| (NOTANY('_') BREAK('_')) . wrd`
+    arm with its own `(epsilon . *add_tok())` may be the
+    distinct trigger. Gate: `./scrip --ir-run claws5.sno <
+    claws5.input` produces output byte-identical to `claws5.ref`.
+    SB-5c.4's `.sc` re-port gates on this resolving (otherwise
+    the .sc faithful port hits the same runtime bug).
+
   Gate: `diff` empty against the agreed oracle for the agreed
   input.
 
@@ -1040,6 +1273,31 @@ commit `one4all` runtime fix + this `.github` update, push both.
     parser-quality fix — are tracked under
     `GOAL-SNOCONE-LANG-SPACE.md`; this rung gates on whichever
     lands first that lets the .sc match its `.ref`.
+
+  - [x] **SB-5d.3** — **Translation faithfulness audit:
+    treebank-list.sc and treebank-array.sc.** Verified session #74
+    via line-by-line comparison against `treebank-list.sno` and
+    `treebank-array.sno`. Both `.sc` files are 1-for-1 structural
+    translations: same procedure set, same procedure-local
+    variables, same control-flow shape (`:F(label)` / `:S(label)`
+    flows translated to `while`+condition or `if/else`), same
+    pattern grammar (`delim`, `word`, `group`, `treebank`).
+    Snocone-port artifact accepted: the canonical `.sno` has split
+    surface forms (`init_list/Init_list`, `push_list/Push_list`,
+    etc., where capitalized variants are EVAL-string builders for
+    OPSYN-style use); `.sc` collapses to function calls because
+    Snocone has no OPSYN. Acceptable. Goto count: both files have
+    ZERO gotos. **No source changes needed for faithfulness.**
+
+  - [ ] **SB-5d.4** — **Maintain zero-goto invariant.** Both
+    treebank `.sc` files are at `goto` count = 0 today (session
+    #74). Future edits MUST preserve this. Any `:F(...)` /
+    `:S(...)` flow added when porting new .sno features must
+    translate to structured Snocone (`while`, `if/else`, `break`,
+    `return`, `freturn`, `nreturn`), not to `goto label`. Gate:
+    `grep -c "goto " treebank-list.sc treebank-array.sc` returns
+    0 for both. Closed when first set of post-#74 edits land
+    without introducing gotos.
 
   Gate: `diff` empty for both `treebank-list.sc` and
   `treebank-array.sc` against `treebank-list.ref` /
