@@ -389,7 +389,76 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   beauty self-host failure is somewhere else — see updated diagnosis
   below.
 
-- [ ] **S-2-bridge-7-fullscan** — Diagnose the `&FULLSCAN = 1` Parse
+- [x] **S-2-bridge-7-betastack-failure-leak** — *Failure leak from
+  BetaStack commit loop in Executive.PatternMatch.*  Fixed Thu Apr 30
+  2026 (snobol4dotnet `92b79be`).
+
+  **Bug:** `Executive.PatternMatch` (the `?` operator) iterates
+  `BetaStack` after a successful match and calls `Assign()` on each
+  deferred conditional-assignment entry.  Deferred entries whose
+  Assignee is an `ExpressionVar` (a `*fn(...)` capture) call into
+  user-defined SNOBOL4 functions; if such a function FRETURNs (or
+  otherwise sets `Failure=true` as a side effect), `Failure` is
+  carried over to subsequent BetaStack iterations and out of the
+  PatternMatch operator entirely.  The match itself returned SUCCESS,
+  but the `Failure` flag at the operator's exit was true, so the
+  statement engine took `:F` — taking `mainErr1` ("Parse Error") on
+  beauty.sno line 616 even though the underlying pattern match
+  unambiguously succeeded.
+
+  **Bug found via C# function tracing between last-agreed and
+  first-diverged sync-step events.**  Diagnostic patches (NOT
+  committed): made `MonitorIpc._standaloneCount` tick without an
+  IPC controller (so `MONITOR_TRACE_FROM_EVENT`/`TO_EVENT` works
+  standalone); wired `[PM]`/`[M]`/`[ALT]` traces into `Scanner.cs`
+  and `ScannerState.cs` reading `MonitorIpc.TraceEnabled`; added
+  `[QPM]` traces to `Executive.PatternMatch` covering the BetaStack
+  iteration.  At `MONITOR_TRACE_FROM_EVENT=2390 TO_EVENT=2700` the
+  trace showed:
+
+  ```
+  [QPM ec=2394] MR.Outcome=SUCCESS BetaStack.Count=14
+  [QPM ec=2394] BetaStack[0..5] Assign returned, Failure=False
+  [QPM ec=2482] BetaStack[6] Assign returned, Failure=True
+  ...
+  [QPM ec=2603] BetaStack[13] Assignee=ExpressionVar pre=38 post=38
+  [QPM ec=2607] BetaStack[13] Assign returned, Failure=True
+  [QPM ec=2607] EXIT Failure=True   <-- match SUCCESS leaked Failure
+  ```
+
+  The trace makes the bug crystal clear in two adjacent lines: the
+  match outcome was SUCCESS, but the operator exits with Failure=true
+  because the BetaStack[13] Assign side-effected it.
+
+  **Fix:** added `Failure = false;` after the BetaStack iteration in
+  `Snobol4.Common/Runtime/Functions/OperatorsBinary/PatternMatch (Question Mark).cs`.
+  Statement-level Failure must reflect the match outcome, not the
+  side-effect outcome of deferred conditional-assignment commits.
+
+  **Test gates:**
+  - Unit suite (excluding pre-existing 14 TEST_Csnobol4_* failures):
+    **2385 PASS, 0 FAIL, 2 skipped**.
+  - Beauty 17/17 corpus drivers: **17/17 PASS**.
+  - Beauty self-host: advanced from line 26 (`&FULLSCAN = 1`,
+    28 stderr lines) to **line 48 (`snoDQ = '"' BREAK('"' nl) '"'`,
+    47 stderr lines)**.  23 more lines of beauty.sno now parse.
+
+  **Reframing of S-2-bridge-7-fullscan:** sessions #56–#70 chased
+  this bug under the assumption that the underlying pattern match
+  for `&FULLSCAN = 1` was failing (FENCE/SEAL semantics, snoExpr14
+  alternation order, missing `*snoUnprotKwd` arm).  None of those
+  fixes individually unblocked beauty self-host because the actual
+  pattern match was succeeding all along.  The bug was in the
+  STATEMENT engine's interpretation of the operator's exit state,
+  not in the pattern matcher's match algorithm.  The session #66
+  FENCE Mark/Seal correctness fix (`bb28a8d`) and the session #68
+  Match() seal-skip fix (`c578fb5`) ARE both real and necessary —
+  they fixed real bugs (test 114 `pat_fence_via_var_in_paren_alt`,
+  test 061 `pat_fence_fn_seal`) — but they were not gating beauty
+  self-host on `&FULLSCAN = 1`.  The single-line fix in this rung
+  was.
+
+- [ ] **S-2-bridge-7-fullscan** — Diagnose the next Parse Error
   Error directly. The minimal repro is lines 1-26 of beauty.sno + END
   fed as stdin to `dotnet Snobol4.dll -bf beauty.sno`. SPITBOL runs
   cleanly; dot emits the Parse Error from beauty's own `mainErr1`
@@ -1758,6 +1827,148 @@ events on s80 BEFORE the s81 (snoProtKwds) match begins.
                                  still TODO.
 
 ---
+
+---
+
+## Session #71 — 2026-04-30 (Sonnet 4.7 / Lon)
+
+**Outcome:** S-2-bridge-7-betastack-failure-leak landed (`92b79be`).
+Beauty self-host advanced 28→47 stderr lines (line 26 → line 48).
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+   `snobol4dotnet`, `x64`. Installed `dotnet-sdk-10.0` (10.0.107).
+   snobol4dotnet HEAD `c578fb5` build clean.  Beauty self-host
+   baseline: 28 stderr lines, Parse Error at `&FULLSCAN = 1`.
+
+2. **Re-applied Mechanism B (TraceEnabled wiring) standalone.** Per
+   session #70's "next session's first move":
+     - `MonitorIpc.cs`: added `_standaloneCount` and
+       `StandaloneInitEnvVars()`; made `_standaloneCount` tick on
+       every `EmitCall`/`EmitReturn`/`EmitValue`/`EmitLabel` regardless
+       of IPC pipe state; redirected `EmitCount` and `TraceEnabled`
+       to `_standaloneCount`.  `MONITOR_TRACE_FROM_EVENT`/`TO_EVENT`
+       now works without a controller.
+     - `Scanner.cs`/`ScannerState.cs`: added `[PM]`/`[M]`/`[ALT]`
+       traces gated on `MonitorIpc.TraceEnabled`.  Output to
+       `Console.Out` (not `.Error`) to avoid interleaving with
+       SNOBOL4 OUTPUT (which dot writes to stderr).
+     - `ScannerState`: added stable `Id` per ScannerState instance
+       so trace lines are diff-able across runs.
+   All these patches are diagnostic — reverted before commit.
+
+3. **Trace at MONITOR_TRACE_FROM_EVENT=1700 TO=1750.**
+   Identified scanner-state `s79` at `ec=1709` matching subject
+   `[                  &FULLSCAN      =  1\n] anchor=False` —
+   that is the line 616 outer match `snoSrc POS(0) *snoParse
+   *snoSpace RPOS(0)`.  Inside s79, `s80` started at `ec=1709`
+   `anchor=True` — that's the ARBNO sub-match for `*snoCommand`
+   inside snoParse.
+
+4. **Trace at MONITOR_TRACE_FROM_EVENT=1709 TO=2700.**  s79 returned
+   `Result=SUCCESS curs=38` at `ec=2394`.  s80 also returned SUCCESS.
+   The pattern match for `&FULLSCAN = 1` succeeded.  Yet beauty
+   stderr still contained "Parse Error".  The match's success was
+   not being honoured by the statement engine.
+
+5. **Added [QPM] traces to `Executive.PatternMatch`** (the `?`
+   operator's C# implementation in
+   `OperatorsBinary/PatternMatch (Question Mark).cs`).  Trace lines
+   at `MONITOR_TRACE_FROM_EVENT=2390 TO=2700`:
+
+   ```
+   [QPM ec=2394] MR.Outcome=SUCCESS BetaStack.Count=14
+   [QPM ec=2394] BetaStack[0..5] Assign returned, Failure=False
+   [QPM ec=2482] BetaStack[6] Assign returned, Failure=True
+   ...
+   [QPM ec=2603] BetaStack[13] Assignee=ExpressionVar pre=38 post=38
+   [QPM ec=2607] BetaStack[13] Assign returned, Failure=True
+   [QPM ec=2607] EXIT Failure=True
+   ```
+
+   Two adjacent lines reveal the bug: match outcome was SUCCESS,
+   exit Failure was True.  The 14 BetaStack entries committed
+   deferred conditional assignments by calling `Assign()`, and
+   one of the Assignees was an `ExpressionVar` (`*fn(...)`) whose
+   underlying function FRETURNed, leaving Failure=true.  The
+   PatternMatch operator never cleared Failure before exiting,
+   so the statement engine took `:F(mainErr1)`.
+
+6. **Fix.** Added one statement after the BetaStack iteration:
+   ```csharp
+   Failure = false;
+   ```
+   plus a 9-line comment explaining the rationale.  After a
+   successful match, statement-level Failure must reflect the
+   match outcome, not deferred-commit side effects.
+
+7. **Test gate.**
+     - Unit suite (filter out pre-existing 14 `TEST_Csnobol4_*`):
+       **2385p / 0f / 2s**.  No regressions.
+     - Beauty 17/17 corpus drivers: **17/17 PASS**.
+     - Beauty self-host: **47 stderr lines** (was 28).  Parse Error
+       advanced from line 26 (`&FULLSCAN = 1`) to line 48
+       (`snoDQ = '"' BREAK('"' nl) '"'`).  23 more lines of
+       beauty.sno now parse cleanly.
+
+8. **Reverted diagnostic instrumentation.**  Restored MonitorIpc.cs,
+   Scanner.cs, ScannerState.cs to HEAD via `git checkout`.  Final
+   committed diff is 11 lines in
+   `OperatorsBinary/PatternMatch (Question Mark).cs` only.
+
+### What landed
+
+- `92b79be` — Failure-leak fix in PatternMatch operator.
+
+### What's still open for S-2-bridge-7-fullscan
+
+- A second Parse Error at line 48 (`snoDQ = '"' BREAK('"' nl) '"'`).
+  Likely the same shape (Failure leak from a different commit path)
+  or distinct (BREAK-pattern boundary, SPAN-of-quote handling).
+  Needs the same diagnostic approach: re-apply the diagnostic
+  patches, find the new last-agreed→first-diverge window, run
+  `[QPM]` trace, identify the leak.
+
+### Next session's first move
+
+Repeat session #71's exact workflow on the new failing line 48:
+
+  1. Re-apply MonitorIpc `_standaloneCount` patch.
+  2. Re-apply Scanner / ScannerState `[PM]`/`[M]`/`[ALT]` traces.
+  3. Re-apply `[QPM]` traces in `PatternMatch (Question Mark).cs`.
+  4. Run beauty self-host.  Find the `[PM] Result=SUCCESS` for the
+     line-48 parse and check whether `[QPM] EXIT Failure=True`
+     leaks again.
+  5. If yes: identify which BetaStack entry's Assign sets Failure;
+     trace into Assign / ExpressionVar.FunctionName invocation.
+     The bug may be in:
+       - Another Failure-propagation site analogous to PatternMatch
+         (some other operator that doesn't clear Failure on success).
+       - Assign itself failing on a specific deferred-fn pattern
+         that should silently succeed.
+       - A specific function (icase, upr, match) FRETURNing where
+         it shouldn't.
+  6. If no: the line-48 failure has a different root cause —
+     trace into the pattern matcher itself for `s{N}` where the
+     parse fails, find first `[M] Result=FAILURE` in the outer
+     match and walk back.
+
+### Status updates
+
+  S-2-bridge-7-betastack-failure-leak  [x] LANDED.  92b79be.
+  S-2-bridge-7-fullscan                [~] partial — beauty self-host
+                                            now reaches line 48; new
+                                            Parse Error there is the
+                                            next gating bug.
+  S-2-bridge-event-bombs-coverage      [~] partial — Mechanism B
+                                            wiring approach validated
+                                            (this session demonstrated
+                                            it pinpoints the bug in
+                                            two adjacent trace lines).
+                                            Productionizing into TEL/ASN
+                                            etc. still TODO.
+
 
 ## Sub-steps for "zero regressions, zero skips" hygiene
 
