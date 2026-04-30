@@ -819,3 +819,124 @@ cenv now exists.
 - `one4all/src/driver/polyglot.c` — +51/-2: static helper
   `pl_directive_max_var_slot` and per-directive cenv allocation in the
   `polyglot_execute` LANG_PL branch. Single commit `d9a9b99f`.
+
+---
+
+## Current state (2026-04-30 session #4, one4all HEAD 75d5775b + docs, corpus HEAD 2a69e92)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
+Smoke 5/5, broker 49/49, all gates clean. **No commits to runtime.**
+
+### Session work — fix #2 v2 attempted, regressed 43→7, reverted
+
+This session implemented session #3's plan for fix #2 (`pl_invoke_term`
+with full Term→EXPR bridge). All three primary repros + two new ones
+work standalone, but full SWI suite collapsed from 43/57 → 7/57. Per
+RULES.md regression-in-error-class, **NOT COMMITTED.** Saved attempt
+diff (264 lines) and findings as committed docs.
+
+### Three changes attempted (all in src/runtime/interp/pl_runtime.c)
+
+**Change A — pl_term_to_goal_expr / pl_invoke_term (197 lines, NEW):**
+Recursive Term→EXPR bridge mirroring `prolog_lower.c::lower_term` exactly:
+TT_VAR → E_VAR ival=k with tenv[k]=Term*var (deduped by pointer identity),
+TT_INT → E_ILIT, TT_FLOAT → E_FLIT, TT_ATOM → E_FNC nchildren=0,
+=/2 → E_UNIFY, +/-/*///mod → E_ADD/SUB/MUL/DIV/MOD, general → E_FNC
+sval=fn nchildren=arity. `pl_invoke_term` builds synth+tenv, dispatches
+via `pl_box_goal_from_ir(synth, tenv) + bb_broker(box, BB_ONCE, …)`.
+Wired into catch/3: when `goal_e->kind == E_VAR`, deref env-resolved
+Term and call `pl_invoke_term(gt, env)`.
+
+**Change B — pl_unified_term_from_expr E_UNIFY/E_CUT/E_NUL cases (12 lines):**
+Latent bug surfaced by Change A. The switch had no E_UNIFY case, fell
+to `default: return atom("?")`. Any directive `G = (X = 5)` silently
+bound G to atom("?") instead of `=(X,5)` compound. Fix added:
+E_UNIFY → `=/2 compound`, E_CUT → `!`, E_NUL → `[]`.
+
+**Change C — findall snapshot pl_unified_deep_copy → pl_copy_term (1 line):**
+Was carryover in working tree from a prior session. `pl_unified_deep_copy`
+collapsed every TT_VAR to atom `_`, destroying var sharing within a
+snapshot — kills `findall(t(N,O,G), pj_test(...), Tests)` whenever Opts
+references Goal's vars (e.g. test_list memberchk's X). `pl_copy_term`
+preserves var sharing within one snapshot via existing CopyVarMap.
+
+### Repro evidence — all 5 primary repros pass standalone
+
+`/tmp/pl_invoke_repro1.pl`:
+
+| Repro | Baseline | After A+B+C |
+|---|---|---|
+| 1: `catch(fail,_,fail)` literal | failed_good ✅ | failed_good ✅ |
+| 2: `G=fail, catch(G,_,fail)` | succeeded_bad ❌ | failed_good_var_fail ✅ |
+| 3: `G=(X=5), catch(G,_,fail), X==5` | failed_bad ❌ | succeeded_X_5 ✅ |
+| 4: `G=(A is 3+4), catch(G,_,fail), A==7` | failed_bad_arith ❌ | succeeded_A_7 ✅ |
+| 5: post-assertz `term_singletons(X+X+_Y, [_,_])` | succeeded_bad_ts ❌ | failed_good_ts ✅ |
+
+### Regression — SWI 43/57 → 7/57
+
+36 plunit-harnessed suites went from `PASS suite` to `FAIL: SUITE:NAME
+(goal failed)`. Standalone `memberchk(f(X,a), [f(x,b), f(y,a)])` works
+correctly — but after plunit's assertz round-trip, the caller's X does
+not get bound by the bridge's dispatch.
+
+Decisive repro:
+```prolog
+:- assertz(stored(memberchk(f(X,a), [f(x,b), f(y,a)]))).
+main :- stored(Goal), catch(Goal, _, fail), write(X), nl.
+% Expected: y.  Actual: _G1
+```
+
+The asserted-clause cenv allocated by `pl_box_choice_call` holds the
+X TT_VAR Term; head-unify chains main's X-slot to it via TT_REF. When
+`pl_invoke_term` walks the Goal Term, its tenv[k] = the asserted-clause
+TT_VAR. The synth's user-call dispatch (memberchk) binds that TT_VAR to
+`y` via the trail. Bindings DO live on the asserted-clause Term — but
+main's X is supposed to follow the TT_REF chain back to `y`. It doesn't,
+which suggests either head-unify's β is unwinding the chain prematurely,
+or the chain was never built the way I expected. Needs trace.
+
+### Key diagnostic insight: Change B is independent and correct
+
+Change B (E_UNIFY/E_CUT/E_NUL in `pl_unified_term_from_expr`) is a real
+latent bug fix unrelated to fix #2's mechanism. Without it, any
+directive of shape `G = (X = ...)` silently produces atom `?` for G —
+this was hidden because nothing actually called G. Could be safely
+committed as a standalone pre-fix-#2 cleanup if verified to not move
+the gate either way.
+
+### NEXT SESSION PL-12 — revised ordered task list:
+
+DO NOT re-attempt fix #2 v2 as currently shaped. The Term→EXPR bridge
+is correct in shape but not in lifecycle — the asserted-clause cenv's
+TT_VARs that pl_invoke_term binds are not visible to the caller's
+source-level vars after pl_box_choice_call returns. Investigate first:
+
+1. **Trace the asserted-clause TT_REF chain.** Repro:
+   ```prolog
+   :- assertz(stored(=(X, hello))).
+   main :- stored(Goal), catch(Goal, _, fail), write(X), nl.
+   ```
+   Should print `hello`. If broken, the chain main's X → asserted-cenv X
+   never propagates. Trace `pl_box_choice_call` head-unify exit, then
+   `pl_invoke_term` tenv[k] population, then `pl_box_unify` α/β.
+
+2. **Land Change B as a standalone commit.** It's correct and independent.
+   Verify gate stays at 43/57 before committing. If clean, commit:
+   "PL-12: pl_unified_term_from_expr — handle E_UNIFY/E_CUT/E_NUL".
+
+3. **Land Change C if not already committed elsewhere.** Was working-tree
+   carryover; verify whether prior session committed it or it's stale.
+
+4. **Re-attempt fix #2 v3** only after (1) yields a correct trace
+   diagnosis. The bridge shape is right; the dispatch lifecycle is wrong.
+   May need the synth dispatch to share `g_pl_env` with the caller, or
+   to bind through the caller's cenv directly rather than the asserted
+   cenv's TT_VARs.
+
+### Files committed this session
+
+- `one4all/docs/PL-12-session-2026-04-30-4-attempt.diff` — full diff of
+  Changes A+B+C (264 lines).
+- `one4all/docs/PL-12-session-2026-04-30-4-findings.md` — full narrative,
+  per-step diagnosis, decisive repros, recommendation for next session.
+
