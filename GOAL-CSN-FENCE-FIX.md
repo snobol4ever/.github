@@ -685,11 +685,11 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #58 (working tree CLEAN at HEAD `68075bb`; sessions #56/#57/#58 patches + findings in docs/)
+- csnobol4 @ session #59 (working tree CLEAN at HEAD `1b59147`; sessions #56/#57/#58 patches + #58/#59 findings in docs/)
 - one4all @ `06433f90`
 - corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130) + session #55 untracked Tier F (132–147, 32 files)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#58; **session #58 paired-sentinel design eliminates ALL fence_suite CRASHes (6 → 0)** but tests 119/129 give wrong-answer FAIL — `unexpected match` instead of `triple-indirect FENCE sealed`. Bug class shifted from memory corruption to FENCE-seal-honoring semantics. Beauty advanced 35→42 lines. Session #59 should trace test 119 to identify how the bottom-STREXCCL routing bypasses the FENCE seal, possibly refining with fail-mid-iteration vs. fail-after-iteration-success distinction.)
+- active step → **F-2 Step 3a** (sessions #49–#59; session #58 paired-sentinel design eliminates ALL fence_suite CRASHes (6 → 0); session #59 traced test 119 to identify the **PATBCL-relative-offset architectural issue** — leaked inner SCIN3 entries get mis-interpreted under outer PATBCL when walker descends past bottom-sentinel. Two structural fix candidates documented: (a) PDLHED-bound SALT2 walker (mirrors SPITBOL pmhbs and BAL's existing v311.sil:3975 bound), (b) truncate-on-success with deferred-alts array. **Session #60 should implement (a).** Beauty 42 lines (s58 patch).)** but tests 119/129 give wrong-answer FAIL — `unexpected match` instead of `triple-indirect FENCE sealed`. Bug class shifted from memory corruption to FENCE-seal-honoring semantics. Beauty advanced 35→42 lines. Session #59 should trace test 119 to identify how the bottom-STREXCCL routing bypasses the FENCE seal, possibly refining with fail-mid-iteration vs. fail-after-iteration-success distinction.)
 
 **Gates as of session #58 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58)
@@ -1641,3 +1641,108 @@ but the next bug (119/129 wrong-answer) is no longer in the memory-
 corruption class — it's debugger-tractable with normal traces.
 
 ---
+
+## Session #59 update — trace evidence + PATBCL-offset architectural diagnosis
+
+Session #59 continued from s58's paired-sentinel design.  Added SALT2-
+entry trace and ran test 119: **only 7 SALT2 events** before "unexpected
+match" output (down from session #57's 69 events — s58's paired sentinels
+have already eliminated most walker wandering).
+
+### Decisive trace observation
+
+Event [2] at PDLPTR=9c0 PATBCL=bb60 (outer-most): slot[1]={a=0xb0,f=0,
+v=240}.  Non-FNC, offset 0xb0.  L_SALT2 falls through to L_SCIN3.
+L_SCIN3 increments PATICL to 0xc0 and reads ZCL = D(bb60 + 0xc0).
+Outer-most pattern is `s POS(0) *outer RPOS(0)`; offset 0xc0 = 12*DESCR
+lands past the *outer STARPT block (which is 11*DESCR per v311.sil:12219).
+**The slot was pushed during inner *cmd matching (under PATBCL=cmd)
+where 0xb0 was a valid offset within cmd's compiled pattern.  Read under
+PATBCL=outer-most, 0xb0 indexes into a different node — but one that
+happens to be a valid pattern dispatch (a STAR/DSAR-shaped descriptor),
+so it doesn't crash; it just spuriously redoes the match.**
+
+This is a **CSNOBOL4-vs-SPITBOL architectural difference**:
+
+- **SPITBOL pcode:** alt links are direct memory pointers.  Each pcode
+  node stands alone.  Dispatching a leaked alt does NOT depend on which
+  "container" pattern is current.
+- **CSNOBOL4 PATBRA:** alt links are byte offsets within the current
+  pattern (PATBCL).  Same offset, different PATBCL = different node.
+  Leaked entries become semantically wrong without crashing.
+
+### Two STREXBCL bottom-handler variants tested
+
+1. **FAIL-on-fire** (terminate inner SCAN call when bottom-sentinel
+   reached):
+   - Result: fence_suite **43 OK / 5 FAIL / 0 CRASH** — REGRESSED by 1
+     vs. s58's 44/4/0.
+   - Interpretation: terminating via FAIL is too aggressive; some
+     legitimate alt-backtrack cases need the walker to continue past
+     the bottom-sentinel to dispatch surviving outer alts.
+
+2. **PATBCL=outer + continue walker** (== s58's STREXCCL_bottom behavior,
+   just renamed to STREXBCL):
+   - Result: identical to s58 (44/4/0, test 119 wrong-answer).
+   - Interpretation: the *handler* isn't the discriminator; the bug is
+     which entries the walker reaches AFTER the sentinel.
+
+### Two structural fix candidates for session #60
+
+#### (a) PDLHED-bound SALT2 walker — RECOMMENDED
+
+Maintain PDLHED as a per-iteration base (analog of SPITBOL pmhbs).  At
+STARP6/DSARP2 entry, save PDLHED to cstack and `MOVD PDLHED, PDLPTR`
+(matching what EXPVAL/BAL/ATP already do — see v311.sil:2711, 3941, 4259).
+Modify SALT2 to bound: when `PDLPTR <= PDLHED`, do NOT loop; invoke
+the level's "I'm at base" handler (mirrors SPITBOL `p_exb`/`p_abb`).
+
+This already exists in CSNOBOL4 for BAL: `PCOMP PDLPTR, PDLHED, TSALF,
+TSALF, INTR13` at v311.sil:3975.  STAR/DSAR don't have it.
+
+Implementation:
+- L_STARP6: PUSH(PDLHED) before existing PUSHes; `D(PDLHED) = D(PDLPTR)`
+  after SCFLCL frame setup.
+- L_DSARP2: same.
+- L_STARP2 success / L_STARP5 fail: POP(PDLHED) at the start.
+- L_SALT2: `if (D_A(PDLPTR) <= D_A(PDLHED)) goto L_AT_LEVEL_BASE;`
+- L_AT_LEVEL_BASE: invoke saved-base sentinel; restore outer PDLHED
+  and continue popping.
+
+Pros: Architecturally clean.  Reuses existing PDLHED machinery.
+Mirrors SPITBOL pmhbs faithfully.
+
+Cons: Touches the failure-walker hot loop.  Risk of regression in
+non-STAR cases.  Needs careful PDLHED save/restore plumbing.
+
+#### (b) Truncate-on-success with deferred-alts array
+
+At STARP2 success, walk inner region, copy non-FNC alts to side array,
+truncate PDLPTR.  At DSAR-redo, push deferred alts back.
+
+Pros: No SALT2 hot-loop change.
+
+Cons: Changes pattern descriptor shape (breaks pattern-equality).
+Heavier per-success cost.
+
+### What session #59 did NOT do
+
+- Did NOT modify production code (test patches reverted).
+- Did NOT advance beauty self-host.
+- Did NOT implement (a) or (b).
+
+### What session #59 produced
+
+- `csnobol4/docs/F-2-Step3a-session59-findings.md` — full trace,
+  architectural diagnosis, fix candidates.
+- csnobol4 commit `1b59147` (findings.md only).
+- This goal-file update.
+
+### Honest circularity check
+
+Sessions #44–#59 = 16 sessions on F-2 Step 3a.  Each has narrowed the
+bug.  Session #59's contribution: **identified that the remaining issue
+is architectural (PATBCL-relative offsets), not just sentinel-routing.**
+The fix shape (PDLHED-bound walker) is well-defined and has BAL as an
+existing precedent in CSNOBOL4.  Session #60 has a concrete patch path.
+
