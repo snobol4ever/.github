@@ -1796,6 +1796,182 @@ only.
 
 ---
 
+## Session #79 progress (2026-04-30)
+
+**SB-6.A, SB-6.B, SB-6.C all LANDED.**  Three operator-lowering
+fixes per session #78's plan, plus pre-existing E_VLIST infrastructure
+already partially staged in the working tree from an earlier
+abandoned attempt.  All three baseline gates green; all crosscheck
+gates green; broad corpus suite identical to baseline.  SB-6 itself
+still open: at least one more upstream defect — beauty.sc tiny
+fixture still emits "Parse Error" (see SB-6.D below).
+
+### Build hazard noted
+
+Initial gate run came back `PASS=3 FAIL=2` on `test_smoke_snocone.sh`
+— two basic Snocone shapes (procedure return-value, while-loop)
+broken.  Bisecting against `41c9a50a` (SB-5c.1) showed that commit
+green and `main` HEAD broken.  But: doing a clean `find src -name
+'*.o' -delete` rebuild on `main` then showed PASS=5/0.  The
+"regression" was a stale-`.o` artifact mixed with the dirty
+working-tree changes (the partially-applied E_VLIST machinery).
+**The IC-8 #18 commit message explicitly warns about this** —
+"Build hazard observed: clean rebuild via `find src -name '*.o'
+-delete` required after icn_runtime.h change (per session #17
+lesson)".  Lesson re-confirmed: when stash + new build lib changes
+combine, force a clean rebuild before believing any gate result.
+
+### Inherited infrastructure
+
+The working tree on session start carried a half-finished SB-6
+attempt from an earlier abandoned session: E_VLIST enum + name
+table entry in `ir.h`, E_VLIST cases in `interp_eval` and
+`interp_eval_pat` of `interp.c`, and an E_VLIST lowering in
+`sm_lower.c`.  No frontend was emitting E_VLIST, so the change was
+inert.  Reviewed for correctness against session #78's design;
+matches the spec (eager left-to-right, first-non-failing wins,
+FAIL if all fail).  Kept as-is; rolled into this commit.  No
+SM-mode `case E_VLIST` is needed in `sm_interp.c` or `sm_codegen.c`
+because `lower_expr` handles E_VLIST entirely with existing
+`SM_JUMP_S`/`SM_POP` opcodes — a simpler approach than session
+#78's plan stage 4(a) "new SM_EVAL_EXPR opcode" hint.
+
+### Fix #1 — `snocone_lower.c::SNOCONE_OR` (SB-6.A)
+
+Replaced E_CAT lowering with E_VLIST n-ary collapse mirroring the
+existing E_ALT/E_SEQ pattern:
+
+```c
+case SNOCONE_OR: {
+    EXPR_t *r = es_pop(s), *l = es_pop(s);
+    EXPR_t *e;
+    if (l->kind == E_VLIST) { expr_add_child(l, r); e = l; }
+    else { e = expr_new(E_VLIST); expr_add_child(e, l); expr_add_child(e, r); }
+    es_push(s, e); return 0;
+}
+```
+
+Verified on a 3-case truth-table fixture across all three modes:
+
+| Test | Result | Expected (SPITBOL) |
+|------|--------|--------------------|
+| `(IDENT(T,'Foo') \|\| IDENT(T,'Id') \|\| 'fallback')` with T='Id' | `null` | `null` (IDENT yields null on success) |
+| `(IDENT(T,'Foo') \|\| IDENT(T,'Bar') \|\| 'fallback')` with T='Id' | `'fallback'` | `'fallback'` |
+| `(IDENT(T,'Id') \|\| 'first')` with T='Id' | `null` | `null` |
+
+All 3 cases × 3 modes = 9/9 PASS.
+
+### Fix #2 — `snobol4.y:195` paren-list (SB-6.B)
+
+Single-character change: `E_ALT` → `E_VLIST` in the
+`T_LPAREN expr0 T_COMMA exprlist_ne T_RPAREN` reduction action.
+`scripts/regenerate_parser_and_lexer_from_sources.sh` rerun;
+`snobol4.tab.c` updated by 2 chars.
+
+Verified scrip output **byte-identical to SPITBOL oracle** on the
+SNOBOL4 truth-table fixture (`a=[]\nb=[fallback]\nc=[]\n` from
+both runtimes).
+
+### Fix #3 — `snocone_lower.c::SNOCONE_QUESTION` unary (SB-6.C)
+
+Replaced `make_fnc1("DIFFER", x)` with the nested-NOT shape:
+
+```c
+case SNOCONE_QUESTION:
+    if (tok->is_unary) {
+        EXPR_t *operand = es_pop(s);
+        es_push(s, expr_unary(E_NOT, expr_unary(E_NOT, operand)));
+    } else { ... binary E_SCAN unchanged ... }
+```
+
+Verified truth table:
+
+| Test | Pre-fix | Post-fix | Spec |
+|------|---------|----------|------|
+| `?'hello'` (non-null) | succeed | succeed | succeed |
+| `?''` (null) | **FAIL** | **succeed** | succeed |
+| `?(EQ(2,3))` (failing) | FAIL | FAIL | FAIL |
+| `?(EQ(2,2))` (success-yields-null) | FAIL | succeed | succeed |
+
+`?''` is the regression-fix — the buggy `DIFFER('','')` always
+failed; the correct `~~''` succeeds (operand `''` succeeds; outer
+NOT fails; inner NOT succeeds yielding null).
+
+### Verification — full gate sweep
+
+| Gate | Result |
+|------|--------|
+| `test_smoke_snocone.sh` | PASS=5 FAIL=0 ✅ |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 FAIL=0 SKIP=3 ✅ |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 ✅ |
+| `test_crosscheck_snobol4.sh` | PASS=6 FAIL=0 ✅ |
+| `test_crosscheck_snocone.sh` | PASS=8 FAIL=0 ✅ |
+| `test_interp_broad_corpus_and_beauty.sh` | PASS=222 FAIL=52 ✅ (matches baseline exactly) |
+
+Zero regressions across any gate.
+
+### SB-6 itself NOT yet closed — next bug identified
+
+With A/B/C landed, the session #78 tiny fixture still produces
+"Parse Error" twice plus 3 stderr errors:
+
+```
+$ printf '\tA = 1\n\tOUTPUT = A\nEND\n' | scrip --ir-run $LIBS beauty.sc
+stdout:
+  Parse Error
+  \tA = 1
+  Parse Error
+  \tOUTPUT = A
+stderr:
+  ** Error 1 in statement 0  GE first argument is not numeric  (×2)
+  ** Error 5 in statement 0  Undefined function or operation     (×1)
+```
+
+Session #78 noted these as "three startup errors that fire BEFORE
+@T0 in real time" — the operator fixes were necessary but not
+sufficient.  At least one more upstream bug remains, gating SB-6.
+
+Recorded as **SB-6.D** in the step list above.  Recommended first
+diagnostic for session #80: check out `41c9a50a` (pre-A/B/C),
+clean rebuild, re-run the tiny fixture.  If the same 3 errors
+fire there too, they are pre-existing and merely unmasked by
+SB-6.A/B/C letting beauty.sc proceed further.  If they're new,
+A/B/C have a regression hidden behind the unit verifications and
+need re-examination.
+
+The `GE first argument is not numeric` error pattern strongly
+suggests something is passing a non-numeric (perhaps a PATTERN or
+EXPRESSION descriptor) to a `GE(a,b)` call during beauty.sc's
+pattern construction.  Candidates: the `ppStop[]` array setup, the
+`ppSmBump`/`ppLgBump` arithmetic, the `Real` pattern's nested
+SPAN/FENCE expression, or one of the `*Pat`-deferred procedure-
+result references resolving to the wrong type.
+
+### Files touched this session
+
+- `src/ir/ir.h` — `+6/-0` (E_VLIST enum + name table entry; from
+  inherited infrastructure)
+- `src/driver/interp.c` — `+27/-0` (E_VLIST cases in interp_eval
+  and interp_eval_pat; from inherited infrastructure)
+- `src/runtime/x86/sm_lower.c` — `+31/-0` (E_VLIST lowering using
+  existing SM_JUMP_S/SM_POP opcodes; from inherited infrastructure)
+- `src/frontend/snocone/snocone_lower.c` — `+13/-4` (SNOCONE_OR
+  rewritten + SNOCONE_QUESTION unary rewritten — both this session)
+- `src/frontend/snobol4/snobol4.y` — `+1/-1` (paren-list E_ALT →
+  E_VLIST — this session)
+- `src/frontend/snobol4/snobol4.tab.c` — `+1/-1` (regenerated)
+
+Total: 6 files, +79/-6.  No diagnostic patches; no `.sc`
+workarounds; no other source changes.
+
+### Repos state
+
+`one4all`: dirty (the 6 files above).  `corpus`, `.github`:
+clean (this update only).  `csnobol4`, `x64`: untouched.  Plan:
+commit `one4all` + `.github`, push `one4all` first then `.github`.
+
+---
+
 
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
@@ -2229,20 +2405,58 @@ only.
   See "Session #78 progress" section above for full diagnosis,
   comparison grids, and the 11-step implementation plan for session
   #79.  Active bugs:
-  - **SB-6.A** Snocone `||` lowers to E_CAT instead of value-list/OR
-    (`snocone_lower.c:175-180`).  Per canonical SNOCONE.zip transpiler
-    and report.md spec, `||` is logical disjunction (first-non-failing
-    arm).
-  - **SB-6.B** SNOBOL4 frontend `(a, b, c)` paren-list lowers to E_ALT
-    instead of value-disjunction (`snobol4.y:195`).  This is a SPITBOL
-    extension construct verified working under SPITBOL and csnobol4.
-    Same architectural fix as SB-6.A — both produce the proposed new
-    `E_VLIST` IR node.
-  - **SB-6.C** Snocone unary `?x` (interrogation) lowers to
-    `DIFFER(x, '')` which has wrong truth table
-    (`snocone_lower.c:229-233`).  Per spec, `?x` succeeds-as-null iff
-    `x` succeeds; it is the exact opposite of `~x` (negation).  Fix:
-    `?x` → `E_NOT(E_NOT(x))` — uses existing IR, zero new node.
+  - [x] **SB-6.A** LANDED session #79.  Snocone `||` now lowers to
+    `E_VLIST` (was `E_CAT`).  `snocone_lower.c::SNOCONE_OR` rewritten
+    with left-associative collapse (mirrors E_ALT/E_SEQ shape).
+    Verified across all three modes with the IDENT-OR truth-table
+    fixture: T='Id'; (IDENT(T,'Foo') || IDENT(T,'Id') || 'fallback')
+    → null (second arm succeeds-as-null); (IDENT(T,'Foo') ||
+    IDENT(T,'Bar') || 'fallback') → 'fallback'; (IDENT(T,'Id') ||
+    'first') → null.  All 3 modes match.
+  - [x] **SB-6.B** LANDED session #79.  SNOBOL4 paren-list `(a,b,c)`
+    now lowers to `E_VLIST` (was `E_ALT`).  `snobol4.y:195` rule
+    changed; `regenerate_parser_and_lexer_from_sources.sh` rerun;
+    `snobol4.tab.c` regenerated.  Verified **byte-identical to
+    SPITBOL oracle** on the same IDENT-OR truth-table fixture
+    written in SNOBOL4 syntax: scrip `--ir-run` and `sbl -bf` both
+    print `a=[]`/`b=[fallback]`/`c=[]`.
+  - [x] **SB-6.C** LANDED session #79.  Snocone unary `?x` now
+    lowers to `E_NOT(E_NOT(x))` (was `DIFFER(x,'')`) — uses existing
+    IR, zero new node, exactly per session #78 design.  Verified
+    truth table: ?'hello' → succeed; **?'' → succeed (was FAIL —
+    the regression-fix)**; ?(EQ(2,3)) → FAIL; ?(EQ(2,2)) → succeed.
+  - [ ] **SB-6.D** Beauty.sc tiny-fixture still emits "Parse Error".
+    With SB-6.A/B/C landed and verified at unit level, the
+    session-#78 tiny fixture
+    `printf '\tA = 1\n\tOUTPUT = A\nEND\n' | scrip --ir-run $LIBS beauty.sc`
+    still produces:
+    ```
+    Parse Error
+    \tA = 1
+    Parse Error
+    \tOUTPUT = A
+    ```
+    plus 3 stderr errors (`** Error 1 ... GE first argument is not
+    numeric` ×2, `** Error 5 ... Undefined function or operation`
+    ×1).  Session #78 noted these as "three startup errors during
+    pattern construction" that "fire BEFORE @T0 in real time".
+    Session #79 confirms: the operator bugs were not the only
+    upstream defects — there is at least one more, distinct from
+    A/B/C.  Suggested next step: bisect the pattern-construction
+    section of beauty.sc (Integer/DQ/SQ/String/Real/Id/Function/
+    BuiltinVar definitions, top-of-file ppStop/ppSmBump/ppLgBump
+    arithmetic, &FULLSCAN/&MAXLNGTH setup) until the first error
+    fires; the trigger statement is the next gating defect.  The
+    `GE first argument is not numeric` error is a strong hint —
+    something passes a non-numeric value to a `GE()` call during
+    pattern construction.  Likely candidate: `Real` pattern's
+    nested expression or the `ppStop` array setup interacting
+    with the new E_VLIST semantics.  Recommend confirming the
+    error is NOT introduced by SB-6.A/B/C by checking out
+    `41c9a50a` and re-running the tiny fixture — if the same 3
+    errors fire there, the bugs are pre-existing and merely
+    unmasked when the operator fixes let beauty.sc proceed
+    further.
 - [ ] **SB-7** — Gate script. Commit. Push.
 
 ---
