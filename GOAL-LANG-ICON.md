@@ -799,3 +799,118 @@ icn_bb_suspend coroutine each tick with the substituted arg, instead of calling
 icn_call_builtin.
 
 Next IC-7: fix rung32 strret_every (1 test), then IC-8 rung36 JCON suite.
+
+## Current state (2026-04-30 session 18, one4all HEAD b6350608)
+
+IC-8 IN PROGRESS. Two tactical fixes landed this session — `!N` numeric iteration
+and `===` (E_IDENTICAL) goal-directed evaluation. Gates preserved at 188/45/30,
+but the rung36_jcon_table NONMEMBER-leak symptom is gone (the spurious branch
+in `tdump` no longer prints &null:NONMEMBER for every probed key).
+
+### `!N` integer/real iteration
+
+**Site:** `icn_drive` E_ITERATE handler (icn_runtime.c L191) and `icn_eval_gen`
+E_ITERATE handler (L713 box-construction path).
+
+**Root cause:** `every write(!-514)` parses to `E_ITERATE(E_NEG(E_ILIT 514))`.
+The handler rejected non-string operands (`!IS_STR_fn(sv_d) → return 0`), so
+the `every` produced no output. Per Icon semantics, `!N` for integer or real
+iterates the characters of `image(N)` — `!-514` → `-`,`5`,`1`,`4`;
+`!12.5` → `1`,`2`,`.`,`5`.
+
+**Fix:** before the existing string-rejection check at each site, coerce
+`IS_INT_fn(sv)` via `snprintf("%lld",...)` and `IS_REAL_fn(sv)` via
+`icn_real_str` (un-static'd from interp.c L936; declared in icn_runtime.h).
+Result is a `STRVAL(GC_malloc'd buffer)` that flows through the existing
+char-iterate path unchanged.
+
+Verified on rung36_jcon_every: lines `p. -`, `p. 5`, `p. 1`, `p. 4` and
+`q. 1`, `q. 2`, `q. .`, `q. 5` now match the expected output. Test stays
+.xfail because of unrelated unimplemented features (`every !s := "."`,
+`(...)(args)` invocation form, `proc ! [args]`).
+
+Files: `src/driver/interp.c` (un-static, +1/-1), `src/runtime/interp/icn_runtime.h`
+(+3/-0 for icn_real_str decl), `src/runtime/interp/icn_runtime.c` (+22/-2
+for two coercion blocks).
+
+### `===` (E_IDENTICAL) goal-directed evaluation
+
+**Site:** Three additions —
+  - `interp.c` shared-switch case E_IDENTICAL (non-generator path, +13/-0).
+  - `icn_runtime.c` icn_is_gen() adds E_IDENTICAL to the gen-if-any-child-is
+    list, so `if x === key(T)` routes to icn_eval_gen.
+  - `icn_runtime.c` icn_eval_gen() new E_IDENTICAL block before binop_map,
+    builds icn_bb_identical_gen box that drives RHS as generator and tests
+    identity each tick.
+  - `icn_runtime.c` new helpers icn_descr_identical() (+33/-0 with comment) and
+    icn_bb_identical_gen() (+24/-0 with comment).
+  - `icn_runtime.h` decl for icn_descr_identical (+2/-0).
+
+**Root cause:** `E_IDENTICAL` had no case in interp_eval — fell through to
+`default → NULVCL`. NULVCL is truthy (only FAILDESCR fails), so every
+`if x === key(T)` succeeded spuriously. The rung36_jcon_table NONMEMBER-leak
+was a symptom: tdump's
+   ```
+   every x := &null | (0 to 9) | !"abcde" do
+      if x === key(T) then writes(...)
+      else writes(":NONMEMBER" if member fails)
+   ```
+fired the then-branch unconditionally, then `member(T,x)` correctly failed,
+leaking `:NONMEMBER` for every probed value. Verified the NONMEMBER blocks
+are gone after fix.
+
+**Symbols verified available in icn_runtime.c:** α/β are `static const int`
+in `runtime/x86/bb_box.h`, transitively included via `bb_broker.h →
+icon_gen.h`. (My new box doesn't actually use α/β explicitly — it just
+threads `entry` to the wrapped gen and uses literal `1` for re-entry.)
+
+**Identity semantics implemented in icn_descr_identical:**
+- different non-string types → not identical
+- both null (DT_SNUL or empty DT_S) → identical
+- DT_S/DT_SNUL pair → byte-equal (memcmp of slen-aware bytes)
+- DT_I → same .i
+- DT_R → same .r
+- DT_T → same .tbl pointer (table identity, not deep-equal)
+- DT_DATA → same .ptr pointer
+- fallback: byte-compare DESCR_t
+
+**Verified on minimal repro** (/tmp/test_eqeqeq_gen.icn):
+```
+T := table(); T[2] := 3
+if 7 === key(T) then write("BUG")        # silent — correct (7 not a key)
+if 2 === key(T) then write("OK match")    # OK match — correct
+if "a" === key(T) then write("BUG")       # silent — correct
+```
+
+Pre-fix: all three lines printed (default NULVCL succeeds). Post-fix:
+only the legitimate match prints.
+
+### Gates post-fix (both changes together)
+- test_smoke_icon.sh: PASS=5/5
+- test_smoke_unified_broker.sh: PASS=49/0
+- test_crosscheck_icon.sh: PASS=4/0
+- test_icon_ir_all_rungs.sh: PASS=188 FAIL=45 XFAIL=30 TOTAL=263 (unchanged)
+
+PASS count is unchanged because the rung36 tests these fixes affect have
+multiple unrelated unimplemented features and stay .xfail. The fixes are
+correctness improvements visible in the diff against expected — see
+rung36_jcon_table diff: pre-fix had ~45 lines of NONMEMBER leak per
+tdump call; post-fix tdump output is clean and the remaining diffs
+are different bugs (every !x := V mutate-via-iterate, every x[3] <- 19
+augmented-assign, `\`/`/` null-test on missing keys).
+
+### Remaining rung36_jcon_table failures (separate root causes for IC-9+)
+1. `every !x := 88` — bang-iteration as lvalue: needs E_ITERATE in lvalue
+   context to walk T's entries and bind each to a writable slot.
+2. `every x[k] := 99` where k := key(x) — same family: every-loop with
+   lvalue subscript and generator key needs cross-product write semantics.
+3. `every x[3] <- 19` — augmented assign-on-mismatch operator unimplemented.
+4. `every !x +:= 20` — augmented bang-iterate.
+5. `\x[k]` and `/x[k]` for k not in T — should fail/succeed without
+   inserting; currently inserts &null entries (causing `delete: 4`
+   instead of `delete: 2`).
+6. `image(?x)` on empty table — random selection on empty table needs
+   to fail cleanly, not return &null.
+
+These all touch the same IcnFrame / table-lvalue boundary; one or two
+shared fixes likely address several.
