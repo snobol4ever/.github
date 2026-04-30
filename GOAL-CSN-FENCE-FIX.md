@@ -685,13 +685,13 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #56 (working tree CLEAN; session #56 strexccl-attempt.diff in docs/, includes s52)
+- csnobol4 @ session #57 (working tree CLEAN; session #56 strexccl-attempt.diff + session #57 diagnostic.diff in docs/)
 - one4all @ `06433f90`
 - corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130) + session #55 untracked Tier F (132–147, 32 files)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#56 all attempted seal-arithmetic / PDL-rewind / slot-zeroing / STREXCCL sentinel; session #56 implemented STREXCCL but trace evidence shows PATBCL is already inner when sentinel fires — refutes session #54's hypothesis; session #57 should add PATBCL-write logger to find upstream write site)
+- active step → **F-2 Step 3a** (sessions #49–#57 all attempted seal-arithmetic / PDL-rewind / slot-zeroing / STREXCCL sentinel; session #57 trace evidence finally pinpoints **multi-iteration ARBNO leak class** — STREXCCL only protects most recent iteration; earlier iterations' leaks remain unprotected on PDL; session #58 should read SPITBOL p_str/=ndexc/flpop and implement (b refined paired-bottom-sentinel) / (c persistent STREXCCL) / (d truncate + deferred-alts))
 
-**Gates as of session #56 end (working tree CLEAN, no code changes committed):**
+**Gates as of session #57 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s52+strexccl)
 - fence_suite/ (48 tests, Tier A–F):
   - csnobol4 baseline (HEAD `1b2e28a`): **40 OK / 2 FAIL / 6 CRASH**
@@ -1377,5 +1377,130 @@ that hasn't yet been identified.
 
 The PATBCL-write logger is the next concrete diagnostic — a 1-hour
 task that should pinpoint the specific bug site in `isnobol4.c`.
+
+
+---
+
+## Session #57 update — multi-iteration ARBNO leak class identified; STREXCCL design insufficient
+
+Session #57 followed the session #56 plan: applied
+`docs/F-2-Step3a-session56-strexccl-attempt.diff`, then instrumented
+**all** PATBCL-touching sites in `isnobol4.c` (3 `D(PATBCL) = ...`
+writes + 7 `POP(PATBCL)` cstack restores + every SALT2 entry).
+
+The trace on test 119 **refutes both** session #54's hypothesis
+("leaked traps under wrong PATBCL because no DSAR-redo route") and
+session #56's hypothesis ("upstream write sets PATBCL=inner before
+sentinel fires").
+
+### Genuinely-new diagnosis: multi-iteration ARBNO leak
+
+There are exactly **3 sites in the file** that write `D(PATBCL)` —
+SCIN1A entry, UNSC (DSAR-redo path), STREXC (the sentinel itself) —
+and 7 `POP(PATBCL)` cstack restore sites.  Every PATBCL change in the
+test 119 run is accounted for by these 10 sites.  **There is no
+"upstream write" that sets PATBCL=inner mysteriously.**
+
+The actual mechanism: in `s POS(0) *outer RPOS(0)` where `outer =
+ARBNO(*cmd)`, each successful ARBNO iteration of `*cmd` leaves an
+inner-pattern leak region on PDL with its own STREXCCL on top.
+**STREXCCL only protects the most recent iteration's leak region.**
+Earlier iterations' leaks remain BELOW that STREXCCL on PDL.
+
+When outer's tail (`RPOS(0)`) fails, walker descends:
+1. Hits STREXCCL of iter#3 → PATBCL=cmd. Walks iter#3 leaks safely.
+2. Iter#3 fails → STARP5 cstack POP → PATBCL=outer.
+3. Walker continues descending — now into iter#2's leak region,
+   which has NO STREXCCL above it any more (iter#3's STREXCCL is
+   already consumed/below current PDLPTR).
+4. Reads slot `{a=0x200, f=0, v=96}` from iter#2's leak under
+   `PATBCL=outer`.  L_SCIN3 fallthrough does
+   `D(outer + 0x200)` → garbage descriptor → ZCL=NULL → SEGV at
+   `isnobol4.c:11521` `D(PTBRCL) = D(D_A(ZCL))`.
+
+The crash is now **decisively understood**: it's not "wrong PATBCL on
+the dispatched trap" or "missing PATBCL restore"; it's **earlier
+ARBNO iterations' leaks unprotected because their STREXCCL has been
+consumed**.
+
+### What the right fix looks like (candidates for session #58)
+
+Three candidates documented in
+`csnobol4/docs/F-2-Step3a-session57-findings.md`:
+
+- **(c) Persistent STREXCCL across iterations** — make the sentinel
+  not consume on first walker pass; reinstall it after each
+  iteration.  Non-trivial: when does it actually retire?
+- **(b refined) Paired BOTTOM-of-region sentinel** — push two
+  sentinels per STARP6 (top + bottom of leak region).  Bottom one
+  switches PATBCL back to outer when walker descends past it.  Issue:
+  SCFLCL's `BRANCH(FAIL)` would also fire prematurely.  Need to
+  re-read SPITBOL `p_str / =ndexc` to see how SPITBOL handles this.
+- **(d) Truncate PDL at STARP2 + deferred-alt array** — drop
+  inner-leaks at success time but record them in a side-table on
+  the inner pattern descriptor; DSAR-redo handler re-pushes them.
+  Risk: changes pattern descriptor shape.
+
+### Files added this session (untracked, to be committed)
+
+- `csnobol4/docs/F-2-Step3a-session57-findings.md` — full diagnosis
+  with the decisive 12-event trace before crash, geometric
+  interpretation of multi-iteration leak stratification, and three
+  fix candidates.
+- `csnobol4/docs/F-2-Step3a-session57-diagnostic.diff` — 145-line
+  reusable instrumentation patch (env-gated `PATBCL_LOG=1`) that
+  adds the PATBCL-write/POP loggers + SALT2-entry logger.  Future
+  sessions can apply with `git apply` to reproduce traces.
+
+### What session #57 did NOT do
+
+- Did NOT modify any production code beyond the s56 patch (reverted).
+- Did NOT advance beauty self-host (still 35 lines baseline).
+- Did NOT implement (b), (c), or (d).  All three are credible but
+  none has been verified.
+- Did NOT read SPITBOL `p_str / flpop / =ndexc` interactions in the
+  detail needed to choose between (b), (c), (d).
+
+### Recommended session #58 plan
+
+1. Apply `docs/F-2-Step3a-session56-strexccl-attempt.diff`.
+2. Optionally apply `docs/F-2-Step3a-session57-diagnostic.diff` for
+   trace re-runs.
+3. **Read SPITBOL** `sbl.min` around `p_str` (≈12100s), `=ndexc`
+   (≈12213), `flpop` (≈3144).  Specifically: does SPITBOL leave
+   alts on `xs` (its pattern history stack) on `p_str` success?
+   How does it handle stranded entries from prior iterations of
+   an outer ARBNO of `*var`?
+4. Implement (b), (c), or (d) based on what SPITBOL does.
+5. Test gate stack: guard5, Tier F 16/16, fence_function 10/10,
+   fence_suite ≥45/48, beauty ≥500 lines.
+6. Commit only if all gates pass.
+
+### Honest circularity check
+
+Sessions #44–#57 = 14 sessions on F-2 Step 3a.  fence_function
+preserved 10/10 throughout.  Tier F preserved 16/16 since session #55.
+Beauty stuck at 33–35 lines.
+
+Session #57's genuinely-new contributions:
+
+1. **Direct trace evidence** (not gdb post-mortem inference) of every
+   PATBCL transition AND every PDL slot the walker reads.  Previous
+   sessions reasoned about the bug; #57 watched it.
+2. **Identification of the multi-iteration ARBNO leak class.**
+   Sessions #50/#54/#56 framed the bug as a single region.  It's a
+   stack of regions, all unprotected except the top.
+3. **Refutation of session #56's "upstream write" hypothesis.** No
+   upstream write exists.  All 3 PATBCL-write sites behave correctly.
+   The bug is not about *who writes PATBCL*; it's about *which slots
+   the walker reads under it*.
+4. **Reusable diagnostic patch** that future sessions can apply
+   with `git apply` instead of re-deriving instrumentation.
+
+The pattern of "land a diagnostic, hit deeper structural issue"
+continues, but session #57 has narrowed the structural issue to a
+specific named bug class with three concrete fix shapes to choose
+between.  Session #58's job is to read SPITBOL more carefully and
+implement one.
 
 ---
