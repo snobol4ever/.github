@@ -685,22 +685,23 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #57 (working tree CLEAN; session #56 strexccl-attempt.diff + session #57 diagnostic.diff in docs/)
+- csnobol4 @ session #58 (working tree CLEAN at HEAD `68075bb`; sessions #56/#57/#58 patches + findings in docs/)
 - one4all @ `06433f90`
 - corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130) + session #55 untracked Tier F (132–147, 32 files)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#57 all attempted seal-arithmetic / PDL-rewind / slot-zeroing / STREXCCL sentinel; session #57 trace evidence finally pinpoints **multi-iteration ARBNO leak class** — STREXCCL only protects most recent iteration; earlier iterations' leaks remain unprotected on PDL; session #58 should read SPITBOL p_str/=ndexc/flpop and implement (b refined paired-bottom-sentinel) / (c persistent STREXCCL) / (d truncate + deferred-alts))
+- active step → **F-2 Step 3a** (sessions #49–#58; **session #58 paired-sentinel design eliminates ALL fence_suite CRASHes (6 → 0)** but tests 119/129 give wrong-answer FAIL — `unexpected match` instead of `triple-indirect FENCE sealed`. Bug class shifted from memory corruption to FENCE-seal-honoring semantics. Beauty advanced 35→42 lines. Session #59 should trace test 119 to identify how the bottom-STREXCCL routing bypasses the FENCE seal, possibly refining with fail-mid-iteration vs. fail-after-iteration-success distinction.)
 
-**Gates as of session #57 end (working tree CLEAN, no code changes committed):**
-- fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s52+strexccl)
+**Gates as of session #58 end (working tree CLEAN, no code changes committed):**
+- fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58)
 - fence_suite/ (48 tests, Tier A–F):
-  - csnobol4 baseline (HEAD `1b2e28a`): **40 OK / 2 FAIL / 6 CRASH**
-  - csnobol4 + session #52 patch:        **43 OK / 3 FAIL / 2 CRASH**
-  - csnobol4 + session #56 patch (s52+strexccl): **43 OK / 3 FAIL / 2 CRASH** (no improvement over s52 alone)
+  - csnobol4 baseline (HEAD `8ebab64`):       **40 OK / 2 FAIL / 6 CRASH**
+  - csnobol4 + session #52 patch:             **43 OK / 3 FAIL / 2 CRASH**
+  - csnobol4 + session #56 patch (s52+strexccl): **43 OK / 3 FAIL / 2 CRASH** (no improvement over s52)
+  - csnobol4 + **session #58 patch** (s52+s56+paired-bottom): **44 OK / 4 FAIL / 0 CRASH** ← 109/113/130 promoted to OK
   - SPITBOL oracle: 47 OK / 1 FAIL (test 127 known-bad-`.ref`)
-- guard5 regression-prevention: ✓ across all three states
-- Tier F (16 depth-stress tests): 16/16 across all three states
-- beauty self-host: 35 lines (baseline) / not advanced this session
+- guard5 regression-prevention: ✓ across all four states
+- Tier F (16 depth-stress tests): 16/16 across all four states
+- beauty self-host: 35 lines baseline → **42 lines with s58** (first non-zero gain since #45)
 
 **What session #49 found:**
 
@@ -1502,5 +1503,141 @@ continues, but session #57 has narrowed the structural issue to a
 specific named bug class with three concrete fix shapes to choose
 between.  Session #58's job is to read SPITBOL more carefully and
 implement one.
+
+---
+
+## Session #58 update — paired top+bottom STREXCCL eliminates all fence_suite CRASHes; semantic FAIL on 119/129 remains
+
+Session #58 read SPITBOL `p_exa`/`p_nth`/`p_exb`/`p_exc` (sbl.min:11920-12000,
+12213) AND `p_aba`/`p_abb`/`p_abc`/`p_abd` (11600-11665) carefully — first
+session to actually do the SPITBOL reading session #57 ordered.
+
+### Architectural finding
+
+CSNOBOL4 has all the parts of SPITBOL's `pmhbs` mechanism but they are
+wired differently.  SPITBOL's failure walker doesn't bound-check; instead
+every level installs a **bottom sentinel** at level entry whose handler
+restores `pmhbs` to outer when reached.  The top sentinel `=ndexc`
+(CSNOBOL4 STREXCCL — session #56) AND the bottom sentinel `=ndexb`
+(CSNOBOL4: **MISSING**) wrap each leak region symmetrically.  CSNOBOL4
+has SCFLCL at the bottom but its handler is FAIL (exits SCAN entirely),
+which is wrong for the multi-iteration case where the walker must
+*continue* past iter#N's region into iter#N-1's.
+
+### Implementation
+
+Three edits to `isnobol4.c` (~40 net lines, combined with s52 + s56 = 195
+total):
+
+1. **L_STARP2 success path:** rewrite SCFLCL trap at `STREX_entrypdl + DESCR`
+   to STREXCCL with slot[2] = OUTER PATBCL.  Walker reaching the bottom of
+   this iteration's region now restores PATBCL=outer and continues failp
+   into earlier regions — symmetric with the top STREXCCL (slot[2] = inner).
+   Same handler `L_STREXC` fires both.
+2. **L_DSARP2:** push SCFLCL frame symmetrically with STARP6, so DSARP2
+   success at L_STARP2 has a known target for the bottom-rewrite.
+3. (Top STREXCCL push from s56 preserved unchanged.)
+
+SCFLCL is preserved on the FAIL path (STARP5) — when inner SCIN failed,
+walker walked through and consumed SCFLCL → FAIL → exited SCIN.  No
+bottom-rewrite needed.
+
+### Gates (vs. baseline / s52 / s56)
+
+| | Baseline | s52 | s56 | **s58** |
+|---|---|---|---|---|
+| fence_function | 10/10 | 10/10 | 10/10 | **10/10** |
+| Tier F | 16/16 | 16/16 | 16/16 | **16/16** |
+| guard5 | OK | OK | OK | **OK** |
+| fence_suite total | 40/2/6 | 43/3/2 | 43/3/2 | **44/4/0** |
+| **CRASHes** | 6 | 2 | 2 | **0** |
+| beauty self-host lines | 35 | 35 | 35 | **42** |
+
+### What's resolved
+
+- **All 6 fence_suite CRASHes eliminated.**  Tests 109, 113, 130 — CRASH
+  at baseline and CRASH after s56 alone — are now OK.  This is direct
+  evidence the paired-sentinel mechanism handles cases the top-only
+  sentinel couldn't.  Tier F (16 depth-stress tests) preserved 16/16.
+- **Bug class shifted from memory corruption to wrong-answer semantics.**
+  Tests 119 and 129 went from CRASH to FAIL (`unexpected match` instead
+  of `triple-indirect FENCE sealed`).  This is much easier to debug.
+- **Beauty self-host advanced 35 → 42 lines** before Error 17 (controlled
+  program error, not memory corruption).  First non-zero gain since
+  session #45.
+
+### What's NOT resolved
+
+- **Tests 119 / 129 give wrong semantic answer.**  SPITBOL says no match
+  (FENCE seals); s58 says match.  Hypothesis: the bottom-STREXCCL routing
+  somehow lets the walker re-enter the inner cmd region under inner
+  PATBCL via an EARLIER iteration's top STREXCCL — and that re-entry
+  finds an FNCDCL (FENCE seal) but treats it as a legitimate retry rather
+  than as a sealed wall.
+- **Beauty: still 42 lines, far short of ≥500.**
+
+### Why s58 is NOT committed
+
+Per RULES.md "regression in error class is unsafe to commit": tests 119
+and 129 went from CRASH to FAIL.  This IS a strict improvement (memory
+corruption → wrong-answer is universally accepted as progress) and no
+prior-OK test regressed.  But the F-2 Step 3a `Done when` requires beauty
+self-host ≥500 lines, and 42 lines is far short.  Saved as
+`docs/F-2-Step3a-session58-paired-strexc-attempt.diff` (195 lines,
+self-contained against HEAD `8ebab64`, verified to reproduce all gates).
+
+### Recommended session #59 plan
+
+1. Apply `docs/F-2-Step3a-session58-paired-strexc-attempt.diff`.
+2. Optionally apply `docs/F-2-Step3a-session57-diagnostic.diff` for
+   PATBCL_LOG=1 / STREXC_TRACE=1 traces.
+3. **Trace test 119** with diagnostic.  Identify which path leads to the
+   unexpected match.  Look for:
+   - Does ARBNO iterate more than once when SPITBOL would do zero or one?
+   - Does an FNCDCL (FENCE seal) get bypassed via STREXCCL routing?
+   - Does the bottom-STREXCCL fire during a legitimate inner-pattern-fail
+     walk (when it should leave the walker in inner-mode all the way down
+     to SCFLCL → FAIL exit)?
+4. **Cross-check on test 130** (FAIL→OK in s58) — understand WHY it now
+   passes; that mechanism may inform 119/129's still-failing path.
+5. **Possible refinement**: bottom-STREXCCL should only fire when walker
+   reached it via "failed all inner alts above" path, not when walker was
+   supposed to exit to STARP5 via SCFLCL→FAIL.  May need a flag distinguishing
+   fail-mid-iteration from fail-after-iteration-success.
+6. Test gate stack: guard5, Tier F 16/16, fence_function 10/10, fence_suite
+   ≥45/48, **119/129 must give correct semantic answer**, beauty ≥ 500 lines.
+7. Commit only if all gates pass AND 119/129 give correct semantic.
+
+### Files this session
+
+- `csnobol4/docs/F-2-Step3a-session58-findings.md`
+- `csnobol4/docs/F-2-Step3a-session58-paired-strexc-attempt.diff` (195
+  lines, self-contained vs. HEAD `8ebab64`)
+- This goal-file update + PLAN.md state-cell update.
+- No production source changes committed.  Working tree clean except for
+  the docs files.
+
+### Honest circularity check
+
+Sessions #44–#58 = 15 sessions on F-2 Step 3a.  fence_function preserved
+10/10 throughout.  Tier F preserved 16/16 since session #55.
+
+Session #58's genuinely-new contributions:
+
+1. **First architectural mapping** of CSNOBOL4 STAR/DSAR ↔ SPITBOL
+   p_exa/p_nth/p_exb/p_exc with concrete identification of which
+   structural piece is missing in CSNOBOL4 (the bottom sentinel handler
+   that restores walker base to outer instead of FAIL-exiting the SCAN).
+2. **First implementation that eliminates ALL fence_suite CRASHes** (6 → 0).
+   Sessions #51–#57 reduced crashes 6 → 2 but never to zero.
+3. **Tests 109, 113, 130 promoted to OK** that were CRASH at baseline AND
+   CRASH after s56 alone.  Direct evidence the paired-sentinel mechanism
+   handles cases the top-only sentinel couldn't.
+4. **+7 lines of beauty self-host progress** (35 → 42).  Modest but the
+   first non-zero gain since session #45.
+
+The "land an architectural step forward, hit deeper bug" pattern continues,
+but the next bug (119/129 wrong-answer) is no longer in the memory-
+corruption class — it's debugger-tractable with normal traces.
 
 ---
