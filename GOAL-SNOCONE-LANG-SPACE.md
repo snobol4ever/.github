@@ -56,7 +56,7 @@ This means the new Snocone is
   6. **Andrew's C-style structured control flow, kept verbatim**
      — `if (cond) {…} else {…}`, `while (cond) {…}`,
      `do {…} while (cond);`, `for (init; test; step) {…}`,
-     `procedure name(args) {…}`, `return E;`, `freturn;`,
+     `function name(args) {…}`, `return E;`, `freturn;`,
      `nreturn;`, block braces `{` `}`, statement terminator `;`.
      Andrew's grammar shape preserved exactly.
   7. **Conditions are SPITBOL backtracking expressions, NOT C-style
@@ -158,7 +158,7 @@ We adopt **everything else** from Andrew's `.sc` verbatim:
 | `+` `-` `/` `*`       | `+` `-` `/` `*`   | adopted unchanged                                  |
 | `^`                   | `**` (exponent)   | adopted unchanged                                  |
 | `.` `$`               | `.` `$` (dual unary/binary) | adopted unchanged                       |
-| `if`/`else`/`while`/`do`/`for`/`procedure`/`return` etc. | C-style structured control | adopted unchanged |
+| `if`/`else`/`while`/`do`/`for`/`function`/`return` etc. | C-style structured control | adopted unchanged (Andrew's `procedure` keyword renamed to `function` — see Naming note below) |
 | `{` `}` blocks        | block delimiters  | adopted unchanged                                  |
 | `;` terminator        | statement end     | adopted unchanged                                  |
 | `name :` labels       | label clause      | adopted unchanged                                  |
@@ -435,7 +435,7 @@ What Andrew's `.sc` had that we **did not change**:
   Question Q12 from session #3 closes here: those are the
   spellings.
 - C-style structured control flow (`if`/`else`/`while`/`do`/
-  `for`/`procedure`/`return`/`{`/`}`/`;`).
+  `for`/`function`/`return`/`{`/`}`/`;`).
 - The `name :` label syntax.
 - The `// to EOL` comment syntax.
 - `do/while` (no `do/until` in Andrew — we add).
@@ -578,7 +578,7 @@ Every `.sc` file in `corpus/programs/snocone/` gets:
 
 Comparison operators (`==` `!=` `<` `<=` `>` `>=` `:==:` `:!=:`
 `:<:` `:<=:` `:>:` `:>=:`) are **kept** in the corpus — the new
-grammar accepts them.  Identity comparison (`===` `!==`) is new
+grammar accepts them.  Identity comparison (`::` `:!:`) is new
 and not yet in the corpus; it can be adopted by hand where
 desired but no mass rewrite is needed.
 
@@ -870,17 +870,20 @@ them as syntax or reject.  If accepted, lowering is the obvious
 #### Keywords
 
 The KW_TABLE must include (some are present today; some are
-**NEW**):
+**NEW**; some are renamed):
 
 `if`, `else`, `while`, `do`, `until` **NEW**, `for`, `switch` **NEW**,
 `case` **NEW**, `default` **NEW**, `break`, `continue`, `goto`,
-`return`, `freturn`, `nreturn`, `procedure`, `struct` (already
-present from Andrew's `.sc`).
+`return`, `freturn`, `nreturn`, `function` **RENAMED** (today's
+lexer has `procedure` → rename to `function` since these forms
+return a value — Lon session #7), `struct` (already present from
+Andrew's `.sc`).
 
 Removed from today's KW_TABLE: `then` (Andrew has no `then`;
 today's lexer has it as a vestige — confirm during LS-3 that the
 grammar doesn't depend on it; if so, remove).  Also remove: `go`,
-`to` (already commented out).
+`to` (already commented out).  Also remove: `procedure` (replaced
+by `function`).
 
 The lexer matches a leading-letter word against KW_TABLE; on hit
 emits the keyword token, on miss emits `IDENT`.  Case-sensitive
@@ -1423,7 +1426,7 @@ helper) against the expected.  Test corpus lives at
       maps to the IR).
 - [ ] LS-2.b — Show how every existing `.sc` construct lowers
       under the new grammar.  Specifically: every `if`/`while`/
-      `for`/`do`/`switch`/`procedure` form in the corpus, every
+      `for`/`do`/`switch`/`function` form in the corpus, every
       use of `&&`/`||`/`==`/`!=`/`<`/`<=`/`>`/`>=`/`%`/`:==:`/
       `:!=:`/`:>:`/`:<:`/`:>=:`/`:<=:` in the corpus.
 - [ ] LS-2.c — Define the alternative-evaluation `(,,)` grammar
@@ -1512,7 +1515,7 @@ helper) against the expected.  Test corpus lives at
 - The new language is a **functional superset** of SPITBOL —
   every SPITBOL primitive function and operator works.  Snocone
   adds 14 comparison-operator characters (`==` `!=` `<` `<=` `>`
-  `>=` and the lexical `:==:` family and `===` `!==`) that
+  `>=` and the lexical `:==:` family and `::` `:!:`) that
   SPITBOL leaves undefined; Snocone adds C-style control flow.
   A SPITBOL program that does not itself use those character
   sequences as binary operators runs unchanged under Snocone,
