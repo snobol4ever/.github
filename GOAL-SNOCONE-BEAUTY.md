@@ -563,6 +563,141 @@ fix to one4all + this update to .github, push both.
 
 ---
 
+## Session #73 progress (2026-04-30)
+
+**One landed runtime fix; two new bugs identified and tracked; one
+out-of-scope program documented.**
+
+This session was launched against SB-5c/SB-5d (claws5.sc and
+treebank-{list,array}.sc end-to-end smoke). Setup gates green
+(PASS=5, PASS=42 SKIP=3, PASS=49). Three baseline gates remain green
+after the runtime fix.
+
+### Landed: SB-5c.0 — `&TRIM` keyword honored on INPUT (FIXED)
+
+`scrip` reported `&TRIM = 1` at startup but its `input_read()` did
+NOT consult the keyword — every line read kept its trailing
+whitespace, silently diverging from SPITBOL on every program that
+slurps input. Confirmed by minimal reproducer:
+
+```
+SPITBOL `'hello   '` + `\n` → INPUT returns `'hello'`, SIZE = 5
+scrip   `'hello   '` + `\n` → INPUT returns `'hello   '`, SIZE = 8
+```
+
+Fix in `src/runtime/x86/snobol4.c` `input_read()` (default INPUT
+path) and the channel-bound input branch in `NV_GET_fn`: after the
+existing `\n`-strip, when `kw_trim != 0`, strip trailing space and
+tab characters. Confirmed against SPITBOL: `'X \t \n'` with `&TRIM=1`
+now returns `'X'` (size 1) under both runtimes; `&TRIM=0` preserves
+all bytes under both. Rebuild clean; PASS=5/PASS=42 SKIP=3/PASS=49
+unchanged.
+
+### Identified: SB-5c.1 — `ARBNO(ARBNO(*X) Y)` matcher bug
+
+`treebank-list.sc` fails the outer `treebank` pattern match on real
+input even though SPITBOL accepts it. Bisection isolates the bug to
+**nested ARBNO with deferred-evaluation pattern reference in the
+inner ARBNO**:
+
+```snocone
+&ALPHABET POS(10) LEN(1) . nl;
+delim = SPAN(' ' && nl);
+word  = NOTANY('( )' && nl) && BREAK('( )' && nl);
+group = '(' && word && ARBNO(delim && word) && ')';
+src = '(S sits)' && nl;
+
+// scrip FAIL, SPITBOL OK:
+if (src ? POS(0) && ARBNO(ARBNO(*group) && delim) && RPOS(0)) ...
+
+// scrip OK on these (control bisection):
+//   POS(0) && group && delim && RPOS(0)            — direct group, OK
+//   POS(0) && *group && delim && RPOS(0)           — single deferred, OK
+//   POS(0) && ARBNO(group && delim) && RPOS(0)     — outer ARBNO, OK
+//   POS(0) && ARBNO(*group && delim) && RPOS(0)    — outer ARBNO + deferred, OK
+//   POS(0) && ARBNO(ARBNO(group) && delim) && RPOS(0) — nested w/o deferred, OK
+//   POS(0) && ARBNO(ARBNO(*group) && delim) && RPOS(0)  — FAIL  ✗
+//   POS(0) && ARBNO(ARBNO(*group) && *delim) && RPOS(0) — FAIL  ✗
+```
+
+8-case bisection of variants produced exactly two FAILs, both
+matching the shape `ARBNO(ARBNO(*name) Y)`. Same pattern shape on
+SPITBOL passes all 8. Bug is in the scrip pattern matcher, not in
+the .sc source. Same symptom under all three modes (`--ir-run`,
+`--sm-run`, `--jit-run`), so the bug is in the shared pattern
+runtime (`src/runtime/x86/snobol4_pattern.c` likely), not in any
+mode-specific path.
+
+Per Lon's session-#73 instruction: "Do not change any SC code to work
+around a bug." This is now a step in the goal file, to be fixed in
+the runtime — not papered over by rewriting `treebank-list.sc` to
+avoid the construct.
+
+### Identified: SB-5c.2 — treebank-array.sc Error 5 = bare-juxtaposition concat
+
+`treebank-array.sc` reports `** Error 5 in statement 0 / Undefined
+function or operation` and produces zero stdout. Bisection narrowed
+to lines containing the SNOBOL4 idiom `LT(i, n - 1) i + 1` —
+bare-juxtaposition concat used as a guarded-assignment value. Per
+the Snocone language facts table in this Goal file: Snocone uses
+`&&` for concat, not blank juxtaposition; the bare-juxtaposition
+form is **not valid Snocone source today**.
+
+Status: **NOT a SB-5c.2 runtime bug** — it is the symptom of the
+gap tracked under `GOAL-SNOCONE-LANG-SPACE.md` (LS-0), which
+proposes adopting SNOBOL4 X Y juxtaposition concat in Snocone.
+Adopting space-concat in Snocone would let `treebank-array.sc` run
+unchanged. Until then, the .sc source is structurally unrunnable
+under scrip-Snocone, but per Lon's "no SC workarounds" rule we do
+NOT rewrite it to use `if (LT(...)) { ... }` form. Cross-reference
+recorded; SB-5d gates on LS-0 closing.
+
+A secondary observation that should NOT be lost: the parser accepts
+the bare-juxtaposition form silently (no parse error), and only at
+runtime does it manifest as Error 5 with mislabeled
+"in statement 0". Even if LS-0 is not adopted, the parser should
+reject this construct loudly, and the runtime error should report
+the correct statement number. Tracked as parser-quality follow-on
+under `GOAL-SNOCONE-LANG-SPACE.md`.
+
+### Out of scope: claws5.sc input-file mismatch
+
+`claws5.sc` hangs (0 output, 60-s timeout) and `claws5.sno`
+under SPITBOL on the same `claws5.input` produces "Pattern match
+failed" — neither matches the 95-line `claws5.ref`. The .ref must
+have been generated from `CLAWS5inTASA.dat` (also in corpus, header
+of claws5.sno references it). Until input alignment is fixed, the
+SB-5c gate as written ("scrip output byte-identical to SPITBOL
+oracle on claws5 input") is technically achievable (both side-fail
+to "Pattern match failed") but uninformative. Two independent
+issues:
+
+  - **Input-file alignment.** Determine which input the .ref was
+    generated from; align `claws5.input` (or have the oracle read
+    `CLAWS5inTASA.dat` directly).
+  - **scrip hang.** Even with SPITBOL-failing input, scrip should
+    finish with "Pattern match failed", not hang. This is likely
+    the same family as the beauty.sc hang investigated in sessions
+    #69–#71. May be the same root cause as SB-5c.1 (nested
+    ARBNO pathology), or independent. Re-evaluate after SB-5c.1
+    lands.
+
+Both tracked below as SB-5c.3a and SB-5c.3b for after the SB-5c.1
+runtime fix.
+
+### Files touched this session
+
+`src/runtime/x86/snobol4.c` — `+12/−2` in `input_read()` and the
+channel-bound INPUT branch in `NV_GET_fn`. No other source changes.
+Diagnostic test files in `/tmp/` only.
+
+### Repos state
+
+`one4all`: dirty (one file). `corpus`, `.github`: clean. Plan:
+commit `one4all` runtime fix + this `.github` update, push both.
+
+---
+
 ## Steps
 
 - [x] **SB-1** — Diagnose underflows.
@@ -815,18 +950,100 @@ fix to one4all + this update to .github, push both.
   `claws5.sno`. This exercises the full Snocone runtime (pattern
   construction, ARBNO, FENCE, INPUT loop) on a real corpus program
   independent of beauty — making it a clean regression canary.
-  Steps:
-  1. Run SPITBOL oracle on claws5 input; capture `.ref`.
-  2. Run `./scrip --ir-run claws5.sc` on same input.
-  3. Diff. Fix any scrip-specific failures.
-  Gate: `diff` empty.
 
-- [ ] **SB-5d** — **treebank-list.sc end-to-end smoke test via scrip.**
-  Same pattern as SB-5c but for
-  `corpus/programs/snocone/demo/treebank-list.sc`. Gate: scrip output
-  byte-identical to SPITBOL oracle. Together SB-5c + SB-5d give two
-  independent corpus programs exercising Snocone runtime correctness
-  before the beauty self-host gate.
+  **Per Lon (session #73):** "Do not change any SC code to work
+  around a bug. Make a step in this current GOAL to fix the bug
+  instead. This is true for all, claws5, and treebank-* programs.
+  The idea is to develop the compiler/interpreter/runtime not a
+  program that just runs with workarounds." Every blocking issue
+  on these gates becomes a runtime/compiler/parser fix tracked
+  here, never a `.sc` rewrite.
+
+  - [x] **SB-5c.0** — `&TRIM` keyword honored on INPUT. LANDED
+    session #73. `src/runtime/x86/snobol4.c` `input_read()` and the
+    channel-bound INPUT branch in `NV_GET_fn` now strip trailing
+    space and tab characters from each line read when `kw_trim != 0`,
+    matching SPITBOL semantics. Verified against SPITBOL: `'X \t \n'`
+    with `&TRIM=1` → `'X'` (size 1) on both runtimes; `&TRIM=0`
+    preserves bytes on both. Three baseline gates remain green.
+
+  - [ ] **SB-5c.1** — Fix `ARBNO(ARBNO(*X) Y)` matcher bug in
+    `src/runtime/x86/snobol4_pattern.c`. SPITBOL accepts this
+    nested-ARBNO + deferred-`*name` shape; scrip's pattern matcher
+    fails the match (no error, just `?` returns failure). Tightest
+    reproducer in session #73 above. Same symptom under all three
+    modes — bug is in shared pattern runtime, not in any
+    mode-specific lowering. Likely an interaction between the
+    inner ARBNO's empty-match alternate and the deferred-eval
+    pattern's lazy expansion: the inner ARBNO probably "captures"
+    the deferred reference as a no-op match instead of expanding
+    `*group` to its current value at each iteration. Investigation
+    plan: instrument `pat_arbno` and `pat_deferred` (or whatever
+    the equivalent functions are named in scrip's pattern code) to
+    log entry, body match attempts, and re-entry. Compare against
+    `ARBNO(ARBNO(group) Y)` (which works) to find the divergence.
+    Fix gate: the 8-case bisection in session #73 progress all
+    pass on scrip, matching SPITBOL.
+
+  - [ ] **SB-5c.2** — claws5 input-file alignment. The 95-line
+    `claws5.ref` does not match either SPITBOL's or scrip's output
+    on `claws5.input`. SPITBOL produces "Pattern match failed" on
+    `claws5.input`. The .ref was likely generated from
+    `CLAWS5inTASA.dat` (referenced in `claws5.sno`'s header).
+    Either:
+      (a) regenerate `claws5.ref` from `CLAWS5inTASA.dat` via
+          SPITBOL oracle, or
+      (b) replace `claws5.input` with the data the .ref was
+          generated from.
+    This is a corpus-curation decision, not a runtime bug.
+
+  - [ ] **SB-5c.3** — Fix claws5 hang on SPITBOL-failing input.
+    Even if SPITBOL clean-fails to "Pattern match failed", scrip
+    should also finish — it currently hangs with 0 output past
+    60 s. Likely the same family as the session-#69..71 beauty.sc
+    hang, possibly the same root cause as SB-5c.1's nested-ARBNO
+    pathology. Re-evaluate after SB-5c.1 lands; if hang persists
+    independently, bisect input + grammar to a tightest
+    reproducer.
+
+  Gate: `diff` empty against the agreed oracle for the agreed
+  input.
+
+- [ ] **SB-5d** — **treebank-{list,array}.sc end-to-end smoke test
+  via scrip.** Same pattern as SB-5c but for
+  `corpus/programs/snobol4/demo/treebank-list.sc` and
+  `corpus/programs/snobol4/demo/treebank-array.sc` (both use the
+  shared `treebank.input`). Both `.ref` files are byte-identical to
+  each other; SPITBOL oracle on both `.sno` originals produces the
+  expected 24-line output (verified session #73). Together SB-5c +
+  SB-5d give independent corpus programs exercising Snocone
+  runtime correctness before the beauty self-host gate.
+
+  - [ ] **SB-5d.1** — `treebank-list.sc` blocked on SB-5c.1
+    (`ARBNO(ARBNO(*X) Y)` matcher bug). The `treebank` outer pattern
+    in `treebank-list.sc` uses precisely the failing shape
+    (`ARBNO((epsilon . *push('ROOT')) && ARBNO(*group) && *delim
+    && (epsilon . *pop_list()))`). When SB-5c.1 fixes the matcher,
+    `treebank-list.sc` should produce its expected 24 lines under
+    all three modes. Per Lon's instruction, no rewrite of the .sc
+    is permitted to dodge the bug.
+
+  - [ ] **SB-5d.2** — `treebank-array.sc` blocked on
+    `GOAL-SNOCONE-LANG-SPACE.md` (LS-0). The .sc uses
+    bare-juxtaposition concat (`LT(i, n - 1) i + 1`) — valid
+    SNOBOL4 syntax but rejected as `&&`-required Snocone today.
+    Adopting SNOBOL4 X Y space-concat in Snocone (LS-0's stated
+    direction) would let the .sc run unchanged. Cross-references:
+    parse should fail loudly today rather than emit code that
+    runtime-traps with "Error 5 in statement 0" (mislabeled
+    statement). Both — language-feature adoption AND
+    parser-quality fix — are tracked under
+    `GOAL-SNOCONE-LANG-SPACE.md`; this rung gates on whichever
+    lands first that lets the .sc match its `.ref`.
+
+  Gate: `diff` empty for both `treebank-list.sc` and
+  `treebank-array.sc` against `treebank-list.ref` /
+  `treebank-array.ref`, in all three modes.
 
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 - [ ] **SB-7** — Gate script. Commit. Push.
