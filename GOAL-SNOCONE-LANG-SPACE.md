@@ -1,103 +1,111 @@
-# GOAL-SNOCONE-LANG-SPACE — SNOBOL6: SPITBOL Re-imagined with Structured Control
+# GOAL-SNOCONE-LANG-SPACE — Andrew's Final Snocone Vision + Lon's SPITBOL Space Restoration
 
 **Repo:** one4all + corpus
-**Working repo/build name:** `snocone` (rename to `snobol6` deferred — see Q11 below)
-**User-facing language name:** **SNOBOL6**
-**Done when:** A new language called SNOBOL6 exists that is
+**Working repo/build name:** `snocone` (no rename committed — see Naming notes below)
+**Done when:** A new Snocone exists that is exactly
 
-  1. **A SPITBOL functional superset** — every SPITBOL operator
-     (the nine printed unary, the eleven printed binary), every
-     keyword, every primitive function, the full pattern-matching
-     sublanguage, **`OPSYN`**, and every SPITBOL extension
-     (multi-assign, embedded match-and-replace, alternative
-     evaluation).  Snocone additionally provides C-style
-     comparison-operator sugar (`==` `!=` `<` `<=` `>` `>=`,
-     plus their string and ident counterparts) that lower to the
-     SPITBOL functional forms.  A SPITBOL program that does not
-     itself use `==`/`!=`/`<`/`<=`/`>`/`>=`/`===`/`!==`/`:==:`/etc.
-     as binary operator characters runs unchanged under Snocone,
-     modulo statement terminator (`;`) and label syntax.
-  2. **Spaced like SPITBOL** — concatenation is juxtaposition
-     (whitespace between value-yielding tokens); function call vs.
-     concat is disambiguated by `f(args)` (zero space) vs.
-     `f (args)` (space — concat); unary operators bind tight to
-     their operand (no intervening space).
-  3. **Control-flow like C/C++** — `if`, `else`, `while`, `do`,
-     `for`, `switch`/`case`, `break`, `continue`, `return`.  No
-     `goto` syntax (label-jumps via `:S(...)` etc. retained for
-     SPITBOL-statement compatibility, but never required for new
-     code).  Block delimiters `{` `}`.  Statement terminator `;`.
-  4. **No `&&` and no `||`** — both are removed entirely.  In
-     places C uses `&&`/`||`, Snocone uses SPITBOL's existing
-     primitives: `&` is the keyword-name unary operator, `|` is
-     pattern alternation, juxtaposition is concat, and SPITBOL's
-     **alternative evaluation** `(expr1 , expr2 , expr3)` (comma
-     as value-list inside parens) handles "first that succeeds"
-     short-circuit semantics.
-  5. **Conditional expressions backtrack** — the parenthesised
-     condition of `if`, `while`, `do/while`, `do/until`, the test
-     position of `for`, and the tag of `case` is a **single
-     SPITBOL backtracking expression** that produces success or
-     failure.  Specifically the SPITBOL form
+> **Andrew Koenig's `.sc` self-host operator design (his "final vision"
+> for the language he wrote in itself), plus Lon's restoration of
+> SPITBOL's space-as-concat semantics — `&&`, `||`, and `%` removed,
+> juxtaposition concat and alternative-eval `(,)` and OPSYN-`%`
+> taking over.**
 
-         SUBJ ? PATTERN = REPLACEMENT
+Andrew's `.sc` self-host (`SNOCONE.zip` lines 32–60) is the canonical
+operator set we adopt.  His SPITBOL-implemented bootstrap (`.sno`,
+`.snobol4`) is a slightly earlier and less-complete version of the
+same language; we follow the `.sc` self-host where the two diverge.
 
-     is a legal condition.  The branch (then / else / loop body
-     / fallthrough) is the success or failure exit of that
-     expression — exactly the way SPITBOL's `:S(...)F(...)`
-     branches work today, dressed in C clothing.
-  6. **Implemented with Flex + Bison** — the lexer/parser dual
+This means the new Snocone is
+
+  1. **Andrew's self-host operator set, kept verbatim** — every
+     binary operator from his `.sc` lines 34–60 *except* the three
+     Lon-removes-for-space (`&&`, `||`, `%`), and every unary
+     operator from his `unaryop = ANY("+-*&@~?.$")` definition.
+     Specifically: `=` `?` `|` (alternation) `>` `<` `>=` `<=`
+     `==` `!=` `::` (IDENT) `:!:` (DIFFER) `:>:` `:<:` `:>=:`
+     `:<=:` `:==:` `:!=:` `+` `-` `/` `*` `^` `.` `$` — 23 binary
+     operators and 9 unary operators.
+  2. **Lon's space restoration — `&&` removed, juxtaposition is
+     concat.**  This is the SNOBOL4 / SPITBOL way: whitespace
+     between two value-yielding tokens IS the concat operator.
+     Andrew's `.sc` uses `&&`; we drop it and emit a synthetic
+     CONCAT token from the lexer when prev-token-can-end and
+     next-token-can-start with at least one whitespace char
+     between them.  Same SPITBOL priority-4 right-associative
+     slot, same semantics, just the surface character changes
+     from `&&` to space.
+  3. **Lon's alt-eval restoration — `||` removed, `(e1, e2, e3)`
+     is alternative evaluation.**  This is a documented SPITBOL
+     extension (Manual Ch.15): a parenthesised list of expressions
+     separated by commas, evaluated left-to-right, value of the
+     first to succeed becomes the value of the whole.  Andrew's
+     `||` becomes the `,` form.  No semantic loss — alt-eval is
+     the SPITBOL primitive his `||` was a less-flexible shortcut
+     for.
+  4. **Lon's OPSYN reservation — `%` removed as built-in
+     modulo.**  Andrew lowered `%` to `REMDR()`.  We free `%` as
+     a user-OPSYN slot (priority 10, matching SPITBOL's undefined-
+     binary table).  Programs needing remainder use `REMDR(a, b)`
+     directly.
+  5. **`f(args)` vs `f (args)` disambiguation — restored from
+     SPITBOL.**  Zero whitespace between identifier and `(` means
+     function call; one or more whitespace chars means
+     concatenation of the identifier with a parenthesised
+     expression.  Andrew already wrote his `.sc` this way; we
+     just enforce it via a special lexer token `IDENT_LPAREN_NOSP`.
+  6. **Andrew's C-style structured control flow, kept verbatim**
+     — `if (cond) {…} else {…}`, `while (cond) {…}`,
+     `do {…} while (cond);`, `for (init; test; step) {…}`,
+     `procedure name(args) {…}`, `return E;`, `freturn;`,
+     `nreturn;`, block braces `{` `}`, statement terminator `;`.
+     Andrew's grammar shape preserved exactly.
+  7. **Conditions are SPITBOL backtracking expressions, NOT C-style
+     booleans.**  This is the SNOBOL4 root: the parenthesised
+     condition of `if`, `while`, `do/while`, `do/until`, `for`-test,
+     and `case` tag is a single SPITBOL backtracking expression.
+     Specifically the form `SUBJ ? PATTERN = REPLACEMENT` is a
+     legal condition.  Branch (then/else/loop/fallthrough) is the
+     success/failure exit, exactly the way SPITBOL's `:S(...)F(...)`
+     branches work today.  This was Andrew's intent (his `*exp`
+     production goes inside `if (...)` parens directly) and we
+     keep it.
+  8. **Implemented with Flex + Bison** — the lexer/parser dual
      coordination needed to make space-as-concat unambiguous is
-     handled by Flex/Bison (no hand lexer/parser).  The lexer
-     emits a synthetic CONCAT token at the appropriate boundaries
-     using a "previous-token" state; the grammar treats CONCAT as
-     a normal binary operator at SPITBOL priority 4.
+     handled by Flex/Bison.  Andrew used hand-rolled SNOBOL4
+     pattern matching for his lexer/parser; we use the modern
+     equivalent.  The lexer maintains a previous-token state and
+     emits synthetic CONCAT tokens; the grammar treats CONCAT as a
+     normal binary operator at SPITBOL priority 4.
 
-This is **not** Andrew Koenig's 1978 Snocone.  Koenig's prototype
-is an inspiration and the existing `.sc` corpus borrows his
-surface syntax, but Lon's directive overrides any place where
-Koenig's choices differ from this goal.  This is **a Snocone
-redo** — the SPITBOL face-lift framing of session #1 was wrong.
-We are making a new language.
+A correct SPITBOL program — modulo statement terminator (`;`) and
+label syntax (`name:` not column-1) — runs unchanged under the new
+Snocone.  Andrew's `.sc` self-host source itself can be read into
+the new Snocone with only three mechanical edits per file: every
+`&&` becomes a space, every `||` becomes `(...,...)` alt-eval, every
+`%` (if any) becomes `REMDR(...)`.
 
 ---
 
-## Naming — SNOBOL6
+## Naming — open
 
-Lon (session 2026-04-30 #3):
+Lon (session #4): "The name is not now SNOBOL6 nor will it likely
+be.  We just have ideas is all."
 
-> "The new name would be funny if it was SNOBOL6 since all that
-> was bad with SNOBOL4 as the line by line thing and missing
-> structured control.  And SNOBOL5 already exists."
+The working repo/build name remains **`snocone`** through this
+goal and likely beyond.  The name of the language itself is
+unsettled.  Naming ideas explored in earlier sessions and not
+selected:
 
-The user-facing language name is **SNOBOL6**.
+- **SNOBOL6** — the joke version: SNOBOL4 was the line-by-line
+  one missing structured control, SNOBOL5 is Gimpel's never-shipped
+  successor, SNOBOL6 is the structured-control reboot picking up
+  where 5 left off.  Funny but not a commitment.
+- **Snocone** (Andrew's name) — historical resonance, but this is
+  Andrew's-final-vision-plus-Lon's-restoration, not a clone.
 
-The joke lands on three layers:
-
-1. **SNOBOL4 (1968)** is the version everyone remembers — the
-   line-by-line one with no structured control flow, where every
-   loop is a labeled goto.  Its weakness in the eyes of modern
-   programmers was *exactly* the missing structured control.
-2. **SNOBOL5** does exist as a name — Gimpel's late-1970s
-   announced successor that never shipped (sometimes called
-   "Vanilla SNOBOL").  We are not reusing the name; we step over
-   it.
-3. **SNOBOL6** is the structured-control reboot that picks up
-   where SNOBOL5 was supposed to.  The number tells the story:
-   the line-by-line era ended at 4, the unbuilt successor was 5,
-   and 6 is what should have happened — the same language with
-   `if`/`while`/`for`/`do`/`switch`/`{`/`}`/`break`/`continue`,
-   and juxtaposition concat from SPITBOL.
-
-The source tree, scripts, test gates, and build targets continue
-to use `snocone` through LS-6 to minimize the patch noise during
-implementation.  A separate dedicated rename goal
-(`GOAL-LANG-SNOBOL6-RENAME`) handles the source-tree rename,
-file-extension change, and documentation updates as a single
-sweep — so the structured-control work and the naming change
-don't blur together in git history.  Open question Q11 (below)
-captures the file-extension decision; the rename goal opens
-after LS-6 lands.
+Not selected.  No rename happens during this goal.  When and if a
+name lands, a separate dedicated rename goal handles the source-
+tree sweep cleanly.
 
 ---
 
@@ -121,44 +129,63 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh
 
 ---
 
-## Directive — what overrides Koenig
+## What changes from Andrew's `.sc` self-host
 
-Lon: "Ignore Andrew Koenig where my directive overrides it."
+Andrew's final-vision Snocone is the `.sc` self-host source he
+shipped in `SNOCONE/snocone.sc` lines 32–60.  His SPITBOL-implemented
+bootstrap (`snocone.sno`, `snocone.snobol4`) is a slightly earlier
+version of the same language, missing the `::` and `:!:` operators
+and the `struct` keyword.  The `.sc` is the *final* design — what
+Andrew arrived at when he could write the language in itself.
 
-The directive overrides Koenig in these specific places:
+We adopt his `.sc` operator set verbatim **with three deletions**
+(Lon's "back to SPITBOL space-as-concat" directive):
 
-| Topic                          | Koenig 1978                 | This goal                                  |
-|--------------------------------|-----------------------------|--------------------------------------------|
-| Concat operator                | `&&`                        | space (juxtaposition), à la SPITBOL        |
-| Alternative-eval / "or"        | `\|\|`                      | SPITBOL `(e1 , e2 , e3)` alternative-eval  |
-| Numeric comparison ops         | `==` `!=` `<` `<=` `>` `>=` | **kept** (Lon session #2) — sugar lowering to `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` |
-| String / lexical comparison    | `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` | **kept** — sugar lowering to `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` |
-| Identity comparison            | (Koenig had none)           | **NEW**: spelling **TBD** — see Q12 below. Lowers to `IDENT()` `DIFFER()` (succeed/fail predicates) regardless of spelling. |
-| Modulo                         | `%`                         | **reserved for `OPSYN`** — no built-in modulo. Use `REMDR(a,b)`. (Lon session #2: "If `%` is user config symbol it can not be used for modulo.") |
-| Conditional in `if (cond)`     | C-like boolean              | SPITBOL backtracking expression (succeed/fail) |
-| `for (init, test, step)`       | three comma-separated exprs | three semicolon-separated SPITBOL exprs (matches C; comma is reserved for value-lists) |
-| Goto keyword                   | `go to label`               | `goto label;` (single keyword, C spelling) |
+| Topic                          | Andrew `.sc` self-host      | This goal                                                 |
+|--------------------------------|-----------------------------|------------------------------------------------------------|
+| Concat operator                | `&&` (pri 5, R)             | **REMOVED** — juxtaposition (SPACE, pri 4 SPITBOL, R)      |
+| Alternative-eval / "or"        | `\|\|` (pri 4, fn lowering) | **REMOVED** — SPITBOL `(e1, e2, e3)` alt-eval extension    |
+| Modulo                         | `%` → `REMDR()` (pri 8, fn) | **REMOVED** — reserved as user OPSYN slot; `REMDR(a,b)` directly |
+| `for (init, test, step)`       | comma separator             | `for (init; test; step)` semicolon (frees `,` for alt-eval/value-lists) |
+| `go to label`                  | (Andrew `.sno` only)        | `goto label;` (single keyword)                             |
+| Conditional in `if (cond)`     | (already backtracking)      | unchanged — SPITBOL backtracking expression                |
 
-Koenig kept (no override needed):
-- `if (cond) { … } else { … }`  — dangling `else` binds to innermost `if`, C semantics.
-- `while (cond) { … }`
-- `for (a; b; c) { … }`
-- `do { … } while (cond);` and `do { … } until (cond);`
-- `switch (expr) { case v1: … case v2: … default: … }`
-- `procedure name(args) { … }`
-- `return expr;` `freturn;` `nreturn;`
-- block braces `{` `}` and statement terminator `;`
-- empty statement `;`, empty block `{ }`
-- **labels**: `name :` at the start of a clause names the following statement (Koenig L690)
-- **goto**: `goto name;` (C spelling — Koenig used `go to`; we tighten to single-keyword `goto`)
-- **`break;` and `break label;`** — see Q13 below. Lon session #3:
-  "I like the labeled break since SNOBOL4 and Snocone has labels
-  already.  Let's do that instead of C."  Snocone has labels in
-  the language already, so labeled-break is a natural fit.  We
-  also have `goto` — the SNOBOL6 escape valve — which arguably
-  makes labeled-break redundant.  This is experimental; we will
-  find out the pros and cons as we use it.
-- **`continue;` and `continue label;`** — symmetric with `break`.
+We adopt **everything else** from Andrew's `.sc` verbatim:
+
+| Andrew `.sc` operator | What it lowers to | Status                                             |
+|-----------------------|-------------------|----------------------------------------------------|
+| `=`                   | `=` (assign)      | adopted unchanged                                  |
+| `?`                   | `?` (pat. match)  | adopted unchanged                                  |
+| `\|`                  | `\|` (alternation)| adopted unchanged                                  |
+| `>` `<` `>=` `<=` `==` `!=` | `GT` `LT` `GE` `LE` `EQ` `NE` | adopted unchanged — **6 numeric comparison sugar** |
+| **`::`**              | **`IDENT()`**     | **adopted unchanged from Andrew's `.sc` line 45**  |
+| **`:!:`**             | **`DIFFER()`**    | **adopted unchanged from Andrew's `.sc` line 46**  |
+| `:>:` `:<:` `:>=:` `:<=:` `:==:` `:!=:` | `LGT` `LLT` `LGE` `LLE` `LEQ` `LNE` | adopted unchanged — **6 lexical comparison sugar** |
+| `+` `-` `/` `*`       | `+` `-` `/` `*`   | adopted unchanged                                  |
+| `^`                   | `**` (exponent)   | adopted unchanged                                  |
+| `.` `$`               | `.` `$` (dual unary/binary) | adopted unchanged                       |
+| `if`/`else`/`while`/`do`/`for`/`procedure`/`return` etc. | C-style structured control | adopted unchanged |
+| `{` `}` blocks        | block delimiters  | adopted unchanged                                  |
+| `;` terminator        | statement end     | adopted unchanged                                  |
+| `name :` labels       | label clause      | adopted unchanged                                  |
+| `// to EOL` comments  | line comment      | adopted unchanged                                  |
+
+We add **two things Andrew's `.sc` does not have** but that fit his
+structured-control direction:
+
+- `do {…} until (cond);` — failure-driven loop variant (Andrew has
+  only `do/while`).  Maps cleanly onto SPITBOL `:F(top)` branch.
+- `switch (e) { case v1: … case v2: … default: … }` — multi-way
+  branch.  Andrew's `.sc` doesn't have this; we add it.  Lowers to
+  a chain of `IDENT(tmp, vN) :S(cN)` predicates.
+
+We add **`break`/`continue`** (Andrew has neither) — see Q13 below
+for the form.  This is experimental; we will find out the pros and
+cons as we use it.
+
+We add **`struct`** as Andrew himself did in his `.sc` line 162 —
+his self-host added a `struct` keyword on top of the SPITBOL
+bootstrap.  Treat this as future work; not part of the LS-6 minimum.
 
 ---
 
@@ -295,9 +322,23 @@ for `||`**.  It is already part of SPITBOL — we do not invent it.
 
 ---
 
-## Comparison: SPITBOL precedence vs. Koenig `bconv[]`
+## Comparison: SPITBOL precedence vs. Andrew Koenig `bconv[]`
 
-Koenig's `bconv[]` table from `snocone.sno` lines 600–627:
+Andrew Koenig's Snocone has **two slightly different operator
+tables** in the source we have:
+
+- **`snocone.sno`** and **`snocone.snobol4`** (bootstrap, written
+  in SPITBOL): 25 entries, no `::` or `:!:`.
+- **`snocone.sc`** (self-host, written in Snocone itself): 27
+  entries, **adds `::` for `IDENT()` and `:!:` for `DIFFER()`**.
+
+The `.sc` self-host is **Andrew's final vision** — what he was
+willing to write the language as once he had a working compiler.
+The bootstrap lacks two operators and the `struct` keyword that
+his self-host adds.  We adopt the **`.sc` self-host** as canonical.
+
+Koenig's `bconv[]` table from `snocone.sc` lines 32–60 (the
+canonical Andrew source we adopt):
 
 | Op        | lp | rp | slp | srp | fn | Notes                    |
 |-----------|----|----|-----|-----|----|--------------------------|
@@ -305,14 +346,16 @@ Koenig's `bconv[]` table from `snocone.sno` lines 600–627:
 | `=`       | 1  | 2  | 0   | 1   |    | assign                   |
 | `?`       | 2  | 2  | 1   | 1   |    | pattern match            |
 | `\|`      | 3  | 3  | 2   | 2   |    | alternation              |
-| `\|\|`    | 4  | 4  | 0   | 0   | fn | "or" — Koenig only       |
-| `&&`      | 5  | 5  | 4   | 4   |    | concat — Koenig only     |
+| `\|\|`    | 4  | 4  | 0   | 0   | fn | "or" — REMOVED in this goal |
+| `&&`      | 5  | 5  | 4   | 4   |    | concat — REMOVED (replaced by SPACE) |
 | `>`       | 6  | 6  | 0   | 0   | fn | GT()                     |
 | `<`       | 6  | 6  | 0   | 0   | fn | LT()                     |
 | `>=`      | 6  | 6  | 0   | 0   | fn | GE()                     |
 | `<=`      | 6  | 6  | 0   | 0   | fn | LE()                     |
 | `==`      | 6  | 6  | 0   | 0   | fn | EQ()                     |
 | `!=`      | 6  | 6  | 0   | 0   | fn | NE()                     |
+| **`::`**  | **6** | **6** | **0** | **0** | **fn** | **IDENT() — Andrew `.sc` line 45** |
+| **`:!:`** | **6** | **6** | **0** | **0** | **fn** | **DIFFER() — Andrew `.sc` line 46** |
 | `:>:`     | 6  | 6  | 0   | 0   | fn | LGT()                    |
 | `:<:`     | 6  | 6  | 0   | 0   | fn | LLT()                    |
 | `:>=:`    | 6  | 6  | 0   | 0   | fn | LGE()                    |
@@ -323,7 +366,7 @@ Koenig's `bconv[]` table from `snocone.sno` lines 600–627:
 | `-`       | 7  | 7  | 5   | 5   |    | subtraction              |
 | `/`       | 8  | 8  | 7   | 7   |    | division                 |
 | `*`       | 8  | 8  | 8   | 8   |    | multiplication           |
-| `%`       | 8  | 8  | 0   | 0   | fn | REMDR()                  |
+| `%`       | 8  | 8  | 0   | 0   | fn | REMDR() — REMOVED (reserved as user OPSYN slot) |
 | `^`       | 9  | 10 | 10  | 11  |    | exponentiation           |
 | `.`       | 10 | 10 | 11  | 11  |    | name-of                  |
 | `$`       | 10 | 10 | 11  | 11  |    | indirection              |
@@ -331,55 +374,104 @@ Koenig's `bconv[]` table from `snocone.sno` lines 600–627:
 Where `lp`/`rp` are left/right output priorities (Pratt-style),
 `slp`/`srp` are "stack left/right" priorities, and `fn=1` means
 "emit as `OP(L,R)` rather than `L op R`".  The numeric scale (0..10)
-is Koenig's; SPITBOL's printed table uses a different scale (0..13)
+is Andrew's; SPITBOL's printed table uses a different scale (0..13)
 but the relative ordering is the same.
 
-### Disagreements (where Koenig diverges from SPITBOL — to fix)
+The session's earlier confusion about whether `::` and `:!:` were
+"new operators we were adding" or "operators Andrew already had"
+is resolved here: they are Andrew's, in his `.sc` self-host.  The
+bootstrap `.sno` source he provided didn't have them, but the
+self-host source — his final vision — did.
 
-1. **`||` and `&&` exist in Koenig only.**  Both are removed in this goal.
-2. **`==` `!=` `<` `<=` `>` `>=` (numeric comparison)** — Koenig
-   added these as comparison syntax that lower to `EQ()`/`NE()`/etc.
-   SPITBOL does **not** have these as binary operators.  Lon
-   session #2 directs us to **keep all six** as Snocone-only
-   comparison sugar.  They are binary operators at priority 6
-   (same as `+`/`-`), `fn=1` lowering (emit as functional call),
-   succeed/fail predicates whose value is the LHS on success.
-3. **`:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` (string lexical
-   comparison)** — same reasoning as #2.  **Keep all six.**
-   Lower to `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()`
-   respectively.  Priority 6, `fn=1`.
-4. **`===` `!==` (identity comparison)** — NEW operators added by
-   this goal (Koenig had no equivalent).  Lower to `IDENT()` and
-   `DIFFER()` — succeed/fail predicates that test SNOBOL4 object
-   identity (same value, same type, no coercion).  Priority 6,
-   `fn=1`.  These two operators distinguish "same object" from
-   "same numeric value" — SPITBOL programmers know the difference
-   matters; making it lexically distinct from `==` is the win.
-5. **`%`** — Koenig used `%` for modulo (lowering to `REMDR()`).
-   Lon session #2: "If `%` is user config symbol it can not be
-   used for modulo."  **Decision:** `%` is reserved as an
-   undefined binary OPSYN slot (priority 10, matching SPITBOL's
-   undefined-binary table) and as an undefined unary OPSYN slot.
-   Modulo is `REMDR(a, b)` only — no operator syntax.
-6. **`^` exponent right-priority `9/10`** — Koenig's table has
-   `lp=9, rp=10`.  SPITBOL prints exponentiation at priority 11.
-   **Decision:** match SPITBOL — exponent at priority 11, right
-   associative.  The Koenig 9/10 split was a Pratt-parser
-   implementation artifact; we use Bison precedence declarations
-   and follow the printed SPITBOL table exactly.
-7. **`,` (comma)** — Koenig's table doesn't list it because
-   Koenig used `,` only inside `f(a,b)` arg lists.  In this goal
-   `,` is also the alternative-evaluation separator inside
-   parens.  Precedence: lower than `=` (priority -1, "below
-   everything"), unparenthesised at top level it's a syntax error.
+### What we change vs. Andrew's `.sc` self-host
 
-Net effect: **Snocone has SPITBOL's full operator set, plus 14
-C-style comparison-sugar operators (six numeric + six string + two
-identity), plus alternative-eval `,`, plus C-style control flow.**
-Koenig's `&&`/`||`/`%` are removed; their SPITBOL equivalents
-(SPACE for AND-ish, `(,)` for OR-ish, `REMDR()` for modulo) take
-over.  `%` joins `&`/`@`/`#`/`~` as the five undefined binary
-OPSYN slots.
+The `.sc` self-host operator table (snocone.sc lines 32–60) is
+the canonical Koenig design — what he wrote when he could
+implement Snocone in itself.  This goal adopts it almost
+verbatim.  Three changes for Lon's space-as-concat restoration:
+
+1. **Drop `||` (Andrew `.sc` line 37).**  Andrew lowered `||` to
+   `(...,...)` SPITBOL alt-eval at the binfo emission site
+   (note `binfo('',4,4,0,0,1)` — empty `out` field, `fn=1`).
+   We remove `||` from the surface and require the user to write
+   the SPITBOL `(e1, e2, e3)` form directly.  Same lowering.
+2. **Drop `&&` (Andrew `.sc` line 38).**  Andrew lowered `&&` to
+   `' '` (space) at emit-time (`binfo(' ',5,5,4,4)`).  We remove
+   `&&` from the surface and require the user to write the space
+   directly.  The lexer emits a synthetic CONCAT token at the
+   appropriate boundaries, lifting space from "whitespace, ignored"
+   to "binary operator at SPITBOL priority 4."
+3. **Drop `%` (Andrew `.sc` line 57).**  Andrew lowered `%` to
+   `REMDR()`.  We remove `%` from the surface and reserve it as
+   a user-OPSYN slot.  Programs needing remainder write
+   `REMDR(a, b)` directly.
+
+Plus two surface tightenings that don't change semantics:
+
+4. **`for (init, test, step)` → `for (init; test; step)`.**
+   Andrew's `.sc` uses commas; we switch to semicolons because
+   `,` is now the alternative-eval separator inside parens.
+   Frees `,` exclusively for value-lists.
+5. **`go to label` → `goto label`.**  Andrew's bootstrap (`.sno`)
+   uses two-word `go to`; his `.sc` self-host doesn't have a
+   goto statement at all (his `dostmt` doesn't emit one — labels
+   exist but only as branch targets via SPITBOL `:S(...)/F(...)`).
+   We add single-keyword `goto` because a structured language
+   still needs an escape hatch.
+
+Plus a precedence renumbering (no semantic change):
+
+6. **All operator priorities renumbered to the SPITBOL 0–13
+   scale** (manual Ch.15 pp.181–183).  Andrew's `.sc` uses a
+   0–10 scale; the relative ordering is identical except that
+   Andrew's `^` has `lp=9, rp=10` (right-associative encoded as
+   asymmetric Pratt priorities).  Bison handles right-
+   associativity declaratively (`%right`), so we use SPITBOL's
+   single priority 11 right-associative for `^`/`!`/`**`.  Result
+   is byte-identical for any expression Andrew's `.sc` parses.
+
+What Andrew's `.sc` had that we **did not change**:
+
+- All 23 surviving binary operators (`=` `?` `|` `>` `<` `>=`
+  `<=` `==` `!=` `::` `:!:` `:>:` `:<:` `:>=:` `:<=:` `:==:`
+  `:!=:` `+` `-` `/` `*` `^` `.` `$`).
+- All 9 unary operators (`@` `~` `?` `&` `+` `-` `*` `$` `.`).
+- The `::` for IDENT and `:!:` for DIFFER spellings —
+  **Andrew's choice** (`.sc` lines 45–46), not a Lon invention.
+  Question Q12 from session #3 closes here: those are the
+  spellings.
+- C-style structured control flow (`if`/`else`/`while`/`do`/
+  `for`/`procedure`/`return`/`{`/`}`/`;`).
+- The `name :` label syntax.
+- The `// to EOL` comment syntax.
+- `do/while` (no `do/until` in Andrew — we add).
+- The `f(args)` zero-space call vs. `f (expr)` space-separated
+  concat distinction.
+
+What we **add** that Andrew's `.sc` does not have:
+
+7. **`switch (e) { case v1: … case v2: … default: … }`** — the
+   `.sc` has no switch.  We add it; lowers to a chain of
+   `IDENT(tmp, vN) :S(cN)` tests.
+8. **`do {…} until (cond);`** — Andrew has only `do/while`.  We
+   add `do/until` as the natural failure-driven companion;
+   lowers to `:F(top)`.
+9. **`break;` and `continue;`** (form pending Q13) — Andrew has
+   neither.  Experimental.
+10. **`,` (comma) as alternative-evaluation separator inside
+    parens** — already a SPITBOL extension (Manual Ch.15
+    footnote: `A = (LT(I,J) I, GT(I,J) J, "Same")`).  Andrew's
+    `.sc` has comma only inside `f(a,b)` arg lists; we extend
+    its use to alt-eval at SPITBOL priority -1 (below
+    everything), unparenthesised at top level it's a syntax
+    error.
+
+Net effect: **Snocone is Andrew's `.sc` self-host operator set
+minus three (`&&`, `||`, `%`), plus three structured constructs
+(`switch`, `do/until`, `break`/`continue`), plus alt-eval comma,
+implemented via Flex+Bison instead of hand-rolled SNOBOL4
+patterns, with conditions remaining SPITBOL backtracking
+expressions exactly as Andrew intended.**
 
 ---
 
@@ -477,7 +569,7 @@ branches:
 | `(e1, e2, e3)` (alt-eval) | already a SPITBOL extension — emit as-is to SPITBOL backend; for non-SPITBOL backends, lower to a chain of `:S(after)` branches |
 | `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` (numeric comparison sugar `==` `!=` `<` `<=` `>` `>=`) | already SPITBOL primitives; emit functional form |
 | `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` (lexical comparison sugar `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:`) | already SPITBOL primitives; emit functional form |
-| `IDENT()` `DIFFER()` (identity sugar — spelling TBD per Q12) | already SPITBOL primitives; emit functional form |
+| `IDENT()` `DIFFER()` (identity sugar — `::` `:!:` from Andrew's `.sc` lines 45–46) | already SPITBOL primitives; emit functional form |
 
 ### 4. Corpus migration
 
@@ -605,7 +697,7 @@ Already in use in current `.sc` files.  Keep both.
 syntax errors.  Same atomic-flip approach the previous version
 of this goal called for.
 
-### Q10. Working name — RESOLVED to SNOBOL6 (session #3)
+### Q10. Language name — open (no commitment)
 
 Lon session #1: "We will do Snocone different from Andrew Koenig.
 We might later find a better name."
@@ -614,65 +706,38 @@ Lon session #3: "The new name would be funny if it was SNOBOL6
 since all that was bad with SNOBOL4 as the line by line thing
 and missing structured control.  And SNOBOL5 already exists."
 
-**Decision:** SNOBOL6 is the user-facing language name.  See the
-Naming section near the top of this file for the rationale.  The
-source tree, scripts, and build targets continue to use `snocone`
-through LS-6 to keep the structured-control patch noise low; the
-rename sweep is its own goal.  See Q11 below.
+Lon session #4: "The name is not now SNOBOL6 nor will it likely
+be.  We just have ideas is all."
 
-### Q11. Rename `snocone` → `snobol6` source-tree sweep — when?
+**Status:** open.  No name committed.  Working repo/build name
+remains `snocone` indefinitely.  When and if a name lands, a
+separate dedicated rename goal handles the source-tree sweep.
 
-The user-facing language name is SNOBOL6 (Q10).  The source tree,
-build scripts, test gates, and file extensions all currently use
-`snocone`.  When does the rename happen?
+### Q11. Rename source tree — moot until Q10 lands
 
-**Option A — atomic during this goal.**  Add an LS-8 step that
-renames `src/frontend/snocone/` → `src/frontend/snobol6/`,
-updates every script `test_smoke_snocone.sh` →
-`test_smoke_snobol6.sh`, renames every `.sc` → new extension
-(see file-extension question below), updates every reference in
-`RULES.md`, `PLAN.md`, all goal files.  Single big sweep, single
-commit train.
+When and if Q10 picks a name, this question opens.  Until then:
+no rename, no source-tree sweep, no file-extension change.
 
-**Option B — deferred to its own goal.**  Open
-`GOAL-LANG-SNOBOL6-RENAME` after LS-6 lands.  The structured-
-control work (LS-1..LS-6) keeps using `snocone` paths/names
-internally; user-facing docs and a `LANGUAGE.md` say "SNOBOL6";
-the rename sweep happens cleanly in a single goal with no LS-N
-work mixed in.
+### Q12. Identity-op spelling — RESOLVED to `::` and `:!:` (session #4)
 
-**File extension** — currently `.sc`.  Three candidates if we
-rename: `.sn6`, `.s6`, `.sno6`, or keep `.sc` since it's already
-in every gate and corpus path.
+Andrew Koenig's `.sc` self-host source already defines them at
+lines 45–46:
 
-**Decision (default — Lon may overrule):** Option B for the rename
-timing; extension TBD when the rename goal opens.  The rename is a
-mechanical sweep that's clearer as its own commit than as the tail
-of a structured-control overhaul.
+```snocone
+bconv['::']  = binfo('IDENT', 6, 6, 0, 0, 1)
+bconv[':!:'] = binfo('DIFFER', 6, 6, 0, 0, 1)
+```
 
-### Q12. Identity-op spelling — `::` `:!:` vs `:===:` `:!==:` vs another form
+These are **Andrew's choices**, in his canonical self-host
+source.  We adopt them verbatim.
 
-Three candidate spellings for the new `IDENT()`/`DIFFER()` sugar:
-
-  **A.** `::` and `:!:` — short, no collision with `:==:` (lexical
-     equality, already taken).  Reads as "the colon-bracketed form,
-     stripped to the bare comparison".  Two characters, fast to type.
-     Lon session #3 wrote "`::` and `:!:`" which most naturally
-     parses to this option.
-  **B.** `:===:` and `:!==:` — three-equal-signs to lexically
-     distinguish from the two-equal `:==:` `:!=:` lexical-comparison
-     family.  Symmetric with the existing `:==:` family.  Five chars.
-  **C.** `===` and `!==` — JS/Java/modern syntax, three chars, no
-     colons.  Visually distinct from `==` `!=` but breaks the
-     "the colons mean special" SNOBOL4 convention.
-
-**Pending Lon's confirmation.**  Default placeholder until
-confirmed: **Option A** (`::` and `:!:`), based on the most
-natural reading of session #3's instruction "Let's keep `::` and
-`:!:` I suppose for IDENT and DIFFER."  Once decided, every
-reference to identity-comparison spelling in this file (the
-directive table, the disagreements section, the lowering table)
-gets the chosen spelling.
+The session-#3 ambiguity ("Let's keep `::` and `:!:` I suppose
+for IDENT and DIFFER") is resolved here: Lon was directing us to
+preserve what Andrew already had in his self-host, not invent
+new spellings.  This Goal file's title was therefore correct to
+say "Andrew's final vision plus space restoration."  The `.sno`
+bootstrap source we examined first did not have `::`/`:!:`; the
+`.sc` self-host does.  The `.sc` is the canonical Andrew source.
 
 ### Q13. `break;` / `continue;` — with optional label or labeled-only?
 
@@ -720,17 +785,27 @@ trap in practice.
 > commits if `one4all`+`corpus` both touched), gates green where
 > required, and the next-step pointer in `PLAN.md` updated.
 
-### LS-0 ✅ — Read SPITBOL manual & extract canonical precedence (DONE)
+### LS-0 ✅ — Read SPITBOL manual + Andrew's three sources & extract canonical operator set (DONE)
 
 - [x] LS-0.a — Read SPITBOL Manual Ch.15 "Operators" (printed pp.181-183).
 - [x] LS-0.b — Extract unary table, binary table, undefined-op table,
       and SPITBOL extensions list verbatim into this Goal file.
-- [x] LS-0.c — Extract Koenig's `bconv[]` table from `snocone.sno`
-      (lines 600–627) into this Goal file.
-- [x] LS-0.d — Identify every disagreement between the two and
-      record the resolution.
-- [x] LS-0.e — Resolve open design questions Q1–Q10 with a default
-      decision (see above).  Lon may overrule any of these in LS-1.
+- [x] LS-0.c — Extract Andrew's `bconv[]` table from `snocone.sno`
+      bootstrap (lines 600–627) and from `snocone.sc` self-host
+      (lines 32–60).  Identify the two extra operators (`::` for
+      `IDENT()` and `:!:` for `DIFFER()`) that the self-host adds.
+      Adopt the **`.sc` self-host as canonical Andrew source**.
+- [x] LS-0.d — Identify every change vs Andrew's `.sc` self-host:
+      drop `&&` (replaced by SPACE), drop `||` (replaced by SPITBOL
+      alt-eval `(,)`), drop `%` (reserved as user OPSYN slot),
+      switch `for(,,)` separator from `,` to `;`, add single-keyword
+      `goto`.  Add `switch`/`case`, `do/until`, `break`/`continue`.
+- [x] LS-0.e — Resolve open design questions Q1–Q12 (see above).
+      Q12 (identity-op spelling) closed by reading Andrew's `.sc`:
+      `::` and `:!:` are his choices, we adopt verbatim.  Q10
+      (language name) re-opened by Lon session #4 and remains open
+      with no commitment.  Q11 (rename) moot until Q10 lands.
+      Q13 (break/continue form) still pending Lon's pick.
 
 ### LS-1 — Lexer design specification
 
@@ -878,8 +953,20 @@ trap in practice.
   pp.181–183 is the canonical precedence source.  Lon will
   arrange for this PDF to be added to corpus or `.github`
   knowledge per RULES.md's "no preloaded reference material" rule.
-- `SNOCONE/snocone.sno`, `SNOCONE/snocone.sc`, `SNOCONE/snocone.snobol4`
-  — Andrew Koenig's original 1978 Snocone compiler (uploaded by Lon
-  this session).  `bconv[]` table at `snocone.sno` lines 600–627
-  cited above.  This goal **diverges** from Koenig where Lon's
-  directive overrides; the upload is reference, not template.
+- `SNOCONE.zip` (Lon, session #1) — Andrew Koenig's original
+  Snocone, three source files:
+  - **`snocone.sc` — canonical Andrew source.**  This is the
+    Snocone compiler written in Snocone itself.  `bconv[]` table
+    at lines 32–60 is the operator definition we adopt.  Andrew's
+    final design vision.
+  - `snocone.sno` — bootstrap compiler in SPITBOL.  Slightly
+    earlier version of the language: missing `::`/`:!:` operators
+    and the `struct` keyword that the self-host adds.
+  - `snocone.snobol4` — alternate bootstrap (essentially the
+    same as `.sno` with formatting differences).
+  This goal adopts Andrew's `.sc` operator set verbatim, with
+  three deletions for Lon's space-as-concat restoration: `&&`
+  (replaced by SPACE), `||` (replaced by alt-eval `(,)`), `%`
+  (reserved as user OPSYN slot).  All other Andrew choices
+  preserved.
+
