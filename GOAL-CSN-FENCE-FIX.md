@@ -685,25 +685,22 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #54 (working tree CLEAN; session #52 patch + session #54 zeroing-attempt diff in docs/)
+- csnobol4 @ session #56 (working tree CLEAN; session #56 strexccl-attempt.diff in docs/, includes s52)
 - one4all @ `06433f90`
-- corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130)
+- corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130) + session #55 untracked Tier F (132–147, 32 files)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#54 all attempted seal-arithmetic / PDL-rewind / slot-zeroing; session #54 sharpened diagnosis to "missing PATBCL-restore sentinel on STAR/DSAR success" — session #55 should implement SPITBOL `=ndexc` analog STREXCCL)
+- active step → **F-2 Step 3a** (sessions #49–#56 all attempted seal-arithmetic / PDL-rewind / slot-zeroing / STREXCCL sentinel; session #56 implemented STREXCCL but trace evidence shows PATBCL is already inner when sentinel fires — refutes session #54's hypothesis; session #57 should add PATBCL-write logger to find upstream write site)
 
-**Gates as of session #54 end (working tree CLEAN, no code changes committed):**
-- fence_function/ suite: **10/10 PASS** (preserved, both baseline and with session #52 patch)
-- fence_suite/ (32 tests):
-  - **csnobol4 baseline (no patch): 24 OK / 2 FAIL / 6 CRASH** (recalibrated from session #51's 26/4/2 — tests 109, 113, 130 actually CRASH on a fresh build of HEAD `48d99a3`)
-  - **csnobol4 with session #52 patch: 26 OK / 4 FAIL / 2 CRASH** (109, 113 now OK; 130, 114 went CRASH→FAIL; 119, 129 still CRASH)
-  - **SPITBOL oracle: 30 OK / 2 FAIL** — tests 127 and 130 have `.ref` files SPITBOL itself doesn't match. Real target is 30/32, not 32/32.
-- Tiny repro:
-  - baseline: **clean "Parse Error"** (35 lines)
-  - with session #52 patch: **SEGV stmt 1074** (33 lines) — same crash signature as test 119/129
-- beauty self-host:
-  - baseline: 35 lines
-  - with session #52 patch: 33 lines + SEGV (regression in error class — UNSAFE TO COMMIT)
-- one4all Smoke/Broker: NOT RUN (still gated on beauty)
+**Gates as of session #56 end (working tree CLEAN, no code changes committed):**
+- fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s52+strexccl)
+- fence_suite/ (48 tests, Tier A–F):
+  - csnobol4 baseline (HEAD `1b2e28a`): **40 OK / 2 FAIL / 6 CRASH**
+  - csnobol4 + session #52 patch:        **43 OK / 3 FAIL / 2 CRASH**
+  - csnobol4 + session #56 patch (s52+strexccl): **43 OK / 3 FAIL / 2 CRASH** (no improvement over s52 alone)
+  - SPITBOL oracle: 47 OK / 1 FAIL (test 127 known-bad-`.ref`)
+- guard5 regression-prevention: ✓ across all three states
+- Tier F (16 depth-stress tests): 16/16 across all three states
+- beauty self-host: 35 lines (baseline) / not advanced this session
 
 **What session #49 found:**
 
@@ -861,11 +858,8 @@ visible in the goal file's own state notes.
 
 The 32-test suite is the first session #51 deliverable that DOESN'T touch
 the FNCA/FNCB/FNCC/FNCD code.  It's an explicit attempt to break the
-cycle: a bigger, more precise gate than fence_function/'s 10 tests, so
-future fix attempts are validated against the ACTUAL bug landscape
-rather than a 10-test slice of it.
-
 ---
+
 
 ## Session #52 update — SPITBOL-aligned flpop fix (verified for *var class, NOT committed)
 
@@ -1282,3 +1276,106 @@ corpus working tree status: 32 new untracked files (132–147 .sno/.ref).
 csnobol4 working tree status: 2 modified (Makefile, README.md), 1 new
 docs file.  No runtime source files modified.  Ready to commit as
 "test-only" advancement of the goal.
+## Session #56 update — STREXCCL implemented; insufficient alone
+
+Session #56 implemented the STREXCCL sentinel proposed by sessions #54/#55
+(SPITBOL `=ndexc` analog).  Implementation is correct in shape:
+fence_function preserved 10/10, Tier F preserved 16/16, guard5
+preserved.  But fence_suite did **not** improve over s52 alone — same
+**43 OK / 3 FAIL / 2 CRASH (of 48)**.  119/129 still CRASH; 114/124 still FAIL.
+
+### What landed (uncommitted, saved as patch artifact)
+
+C-only implementation of STREXCCL in `isnobol4.c`, 5 edits:
+
+1. Static descriptors `STREXCCL_d`/`STREXFN_d` lazily initialized via
+   `STREXC_INIT()` macro.  No `res.h`/`data_init.h`/`equ.h` touches —
+   `XSTREX = 41` literal, file-local statics.  SIL parallel edit
+   deferred to Step 3b.
+2. New dispatch `case 41: goto L_STREXC;` in PATBRA switch.
+3. New `L_STREXC:` handler — `D(PATBCL) = D(YCL); goto L_SALT3;`.
+4. STARP6 + DSARP2: `PUSH(PDLPTR); PUSH(YPTR);` after the existing 5
+   saves (entry-PDLPTR snapshot + inner-PATBCL = YPTR).
+5. STARP2 success: pop the two extras + existing 5; conditionally
+   install STREXCCL with `slot[2]=inner_PATBCL` when
+   `D_A(PDLPTR) > D_A(STREX_entrypdl)` (mirrors p_nth's `pnth1`
+   optimization).  STARP5 fail: pop and discard.
+
+Saved as `docs/F-2-Step3a-session56-strexccl-attempt.diff` (90 lines
+combined with s52 — self-contained against HEAD `1b2e28a`).  Verified
+to reproduce gates from a clean checkout.
+
+### Trace evidence — STREXCCL fires but PATBCL is already inner
+
+Added env-gated `STREXC_TRACE=1` instrumentation at install + FIRE
+sites.  Test 114 produces a single trace pair:
+```
+STREXC: install at PDLPTR=...9b0 entry=...950 innerpat=7f667bc0b9d0
+STREXC: FIRE — restoring PATBCL=7f667bc0b9d0 (was 7f667bc0b9d0)
+```
+
+PATBCL was **already** `= cmd` (the inner pattern) at the moment the
+walker reached the sentinel.  Some upstream handler set PATBCL=inner
+during outer's failure walk before the walker hit STREXCCL.  This
+**refutes session #54's hypothesis** — the bug isn't "leaked traps
+dispatched under wrong PATBCL" because by the time the walker reaches
+them, PATBCL has already been changed to inner by some other
+mechanism.
+
+### Recommended session #57 plan
+
+1. Apply `docs/F-2-Step3a-session56-strexccl-attempt.diff` (self-contained,
+   includes both s52 flpop fix and STREXCCL together).
+2. Add a PATBCL-write logger — env-gated `_check_patbcl(site_id)`
+   helper at every `D(PATBCL) = ...` and `D_A(PATBCL) = ...` site
+   in `isnobol4.c`.  Find sites with:
+   ```bash
+   grep -nE 'D_A\(PATBCL\)\s*=|D\(PATBCL\)\s*=' isnobol4.c
+   ```
+3. Run test 114 with the logger.  Identify which write sets PATBCL=cmd
+   at the wrong moment.  That site is the bug.
+4. Decide between (a) fixing the upstream write, or (b) augmenting
+   STREXCCL with a paired BOTTOM-of-region sentinel pushed BEFORE
+   the inner SCIN call (between existing 5 PUSHes and the STREXCCL
+   pair) that switches PATBCL=outer when walker descends past inner.
+5. Test gate stack (in order, stop at first regression):
+   - guard5 must produce `inner backtrack worked`
+   - Tier F all 16 must remain PASS
+   - fence_function 10/10
+   - fence_suite total ≥45/48 (target 47/48 minus test 127 known-bad-ref)
+   - Beauty self-host ≥500 lines
+6. Commit only if all gates pass; save findings + diff if not.
+
+### What session #56 did NOT do
+
+- Did not advance beauty self-host (still 35 lines from baseline).
+- Did not implement the BOTTOM-of-region paired sentinel.
+- Did not port STREXCCL to `v311.sil`/`snobol4.c` — Step 3b.
+
+### Files this session
+
+- `csnobol4/docs/F-2-Step3a-session56-strexccl-attempt.diff` — clean
+  combined patch (s52 + STREXCCL), 90 lines, self-contained.  Verified
+  to reproduce all gates.
+- `csnobol4/docs/F-2-Step3a-session56-findings.md` — full investigation
+  with implementation excerpts and session #57 plan.
+- `.github/PLAN.md` and this goal file updated.
+- No runtime source changes committed.  Working tree clean.
+
+### Honest circularity check
+
+Sessions #44–#56 = 13 sessions on F-2 Step 3a.  fence_function preserved
+10/10 throughout.  Tier F preserved 16/16 since session #55.
+
+Session #56's genuine new contribution: **first-time implementation of
+STREXCCL** + **empirical refutation of session #54's hypothesis** via
+trace evidence.  STREXCCL is a correct-shape change (preserves all
+floors, doesn't break inner-backtrack guard5, doesn't kill any of
+Tier F's 16 stress patterns) but is insufficient because the
+PATBCL=inner state arrives at the sentinel via some upstream write
+that hasn't yet been identified.
+
+The PATBCL-write logger is the next concrete diagnostic — a 1-hour
+task that should pinpoint the specific bug site in `isnobol4.c`.
+
+---
