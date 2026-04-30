@@ -2355,18 +2355,36 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
     (`--ir-run`, `--sm-run`, `--jit-run`), 24 lines, matches
     `treebank-list.ref` (md5 `7096beb49889b0d2c5db66b4a45ae444`).
 
-  - [ ] **SB-5d.2** — `treebank-array.sc` blocked on
-    `GOAL-SNOCONE-LANG-SPACE.md` (LS-0). The .sc uses
-    bare-juxtaposition concat (`LT(i, n - 1) i + 1`) — valid
-    SNOBOL4 syntax but rejected as `&&`-required Snocone today.
-    Adopting SNOBOL4 X Y space-concat in Snocone (LS-0's stated
-    direction) would let the .sc run unchanged. Cross-references:
-    parse should fail loudly today rather than emit code that
-    runtime-traps with "Error 5 in statement 0" (mislabeled
-    statement). Both — language-feature adoption AND
-    parser-quality fix — are tracked under
-    `GOAL-SNOCONE-LANG-SPACE.md`; this rung gates on whichever
-    lands first that lets the .sc match its `.ref`.
+  - [x] **SB-5d.2** — `treebank-array.sc` LANDED session #81.
+    The .sc had two bare-juxtaposition concat sites
+    (`while (DIFFER(i = LT(i, n) i + 1))` in `node_repr` and
+    `while (DIFFER(i = LT(i, n - 1) i + 1))` in `pp_node`) which
+    are valid SNOBOL4 source idiom but not expressible in Snocone
+    (Snocone has no bare-juxtaposition concat — that's the LS-0
+    gap). Replaced both with the canonical Snocone integer-loop
+    idiom mirroring `treebank-array.sno::pp_wch/pp_wlast/pp_wdone`
+    flow exactly: `while (LT(i, n)) { i = i + 1; ... }` for the
+    1..n loop in `node_repr`, and `if (GT(n, 0)) { while (LT(i, n - 1))
+    { i = i + 1; ... } dummy = pp_node(...,n,...); }` for the
+    1..n-1-then-n loop in `pp_node`. The `GT(n, 0)` guard fixes
+    a latent bug — prior code would call `pp_node(stk_c[f][0], ...)`
+    on zero-children nodes, divergent from canonical's
+    `pp_wdone :(RETURN)` early-exit. **Result: byte-identical to
+    `treebank-array.ref` in all three modes** (md5
+    `7096beb49889b0d2c5db66b4a45ae444`, identical to
+    `treebank-list.ref` as expected). This is NOT a workaround for
+    a runtime bug per session #73 rule — Snocone genuinely doesn't
+    have bare-juxtaposition concat as a language feature today
+    (LS-0 is "design state"), so the SNOBOL4 source idiom must be
+    expressed in Snocone-native form. The semantics match the
+    canonical `.sno` byte-for-byte. Three baseline gates green
+    (PASS=5 / PASS=42 SKIP=3 / PASS=49); crosscheck snobol4 PASS=6,
+    snocone PASS=8 unchanged. SB-5d.2 closes WITHOUT the LS-0
+    language-feature adoption — the .sc and .sno can co-exist with
+    different surface idioms while producing the same output. LS-0
+    (parser-loud-error and language-feature decision) remains open
+    in `GOAL-SNOCONE-LANG-SPACE.md` as its own rung but no longer
+    gates SB-5d.2.
 
   - [x] **SB-5d.3** — **Translation faithfulness audit:
     treebank-list.sc and treebank-array.sc.** Verified session #74
@@ -2751,4 +2769,205 @@ Diagnostic test files in `/tmp/` only (not committed).
 ### Repos state
 
 All clean. No source changes. Plan: commit this `.github` update only, push.
+
+---
+
+## Session #81 progress (2026-04-30)
+
+**SB-5d.2 LANDED.** corpus-only diff (no runtime/frontend changes).
+Three baseline gates green; both crosscheck gates green. Lon's
+session-#80 minor edits to `claws5.sc`, `treebank-list.sc`, and
+`treebank-array.sc` verified, and `treebank-array.sc` made byte-
+identical to its `.ref` in all three modes.
+
+### Verification of Lon's three uploaded SC edits
+
+Lon supplied trivially-edited copies of all three demo .sc files
+this session. Diffs vs corpus HEAD were minor:
+
+- **`claws5.sc`** — removed the SB-5c.4 doc-block and the canonical
+  pp_mem label-comments inserted in session #76; consolidated some
+  one-line `else x = y;` forms. Verified faithful: byte-identical
+  to `claws5.sno` under SPITBOL on both `claws5.input` and
+  `CLAWS5inTASA.dat` (md5 `1791a3085440d7702611e3a20cd79a8d`,
+  "Pattern match failed"). The `.ref` mismatch remains the SB-5c.2
+  corpus-curation issue, untouched by Lon's edit.
+
+- **`treebank-list.sc`** — `while (DIFFER(line = INPUT))` →
+  `while (line = INPUT)`. The `DIFFER(...)` wrapper is redundant
+  given the canonical session-#77 assignment-as-predicate idiom
+  (`(line = INPUT)` already yields failure on EOF, which a `while`
+  treats as exit). Verified byte-identical to `treebank-list.ref`
+  in all three modes (md5 `7096beb49889b0d2c5db66b4a45ae444`).
+  SB-5d.1 still LANDED.
+
+- **`treebank-array.sc`** — same `while (line = INPUT)`
+  simplification. Did NOT touch the two bare-juxtaposition concat
+  sites that were tracked under SB-5d.2 — those required a
+  structured rewrite, done below.
+
+### Fix: SB-5d.2 — bare-juxtaposition concat sites in treebank-array.sc
+
+Two sites in `treebank-array.sc` used the SNOBOL4 idiom
+`i = LT(i, n) i + 1` (juxtaposition concat as guarded
+side-effect-and-value). This is valid in SNOBOL4 source but not
+expressible in Snocone today — the LS-0 language gap. Per Lon's
+session-#73 rule, do not modify `.sc` to work around RUNTIME bugs;
+this was NOT a runtime bug, it was an expressibility gap requiring
+a structured-control-flow translation faithful to the canonical
+`.sno` semantics.
+
+Two changes to `corpus/programs/snobol4/demo/treebank-array.sc`:
+
+**1. `node_repr` (loop walking children 1..n):**
+
+```snocone
+// before:
+while (DIFFER(i = LT(i, n) i + 1)) {
+    r = r && ', ' && node_repr(stk_c[f][i]);
+}
+// after:
+while (LT(i, n)) {
+    i = i + 1;
+    r = r && ', ' && node_repr(stk_c[f][i]);
+}
+```
+
+Mirrors canonical `treebank-array.sno::nr_lp`:
+```
+nr_lp i = LT(i, n) i + 1   :F(nr_done)
+      r = r ', ' node_repr(stk_c[f][i])
+      i = i                :(nr_lp)
+nr_done node_repr = r ')'  :(RETURN)
+```
+
+**2. `pp_node` (loop walking children 1..n-1 with `,` suffix; child
+n with `)' suffix`; if n == 0, return without emitting):**
+
+```snocone
+// before:
+i = 0;
+while (DIFFER(i = LT(i, n - 1) i + 1)) {
+    dummy = pp_node(stk_c[f][i], indent + 2, ',');
+}
+dummy = pp_node(stk_c[f][n], indent + 2, ')' && suffix);
+// after:
+i = 0;
+if (GT(n, 0)) {
+    while (LT(i, n - 1)) {
+        i = i + 1;
+        dummy = pp_node(stk_c[f][i], indent + 2, ',');
+    }
+    dummy = pp_node(stk_c[f][n], indent + 2, ')' && suffix);
+}
+```
+
+Mirrors canonical `treebank-array.sno::pp_wch/pp_wlast/pp_wdone`:
+```
+pp_wch  i   = LT(i, n) i + 1   :F(pp_wdone)
+        nxt = LT(i, n) i       :F(pp_wlast)
+        pp_node(stk_c[f][i], indent + 2, ',')
+        i   = i                :(pp_wch)
+pp_wlast pp_node(stk_c[f][i], indent + 2, ')' suffix) :(RETURN)
+pp_wdone                       :(RETURN)
+```
+
+The `GT(n, 0)` guard is a real correctness fix — prior code
+unconditionally executed `dummy = pp_node(stk_c[f][n], indent + 2,
+')' && suffix);` after the loop. When `n == 0` (zero-children
+node), this would call `pp_node(stk_c[f][0], ...)` on a
+non-existent table entry, divergent from canonical's
+`pp_wdone :(RETURN)` early-exit. Latent because treebank inputs
+typically have non-empty nodes. Now safe for all input shapes.
+
+### Verification
+
+| Gate | Result |
+|------|--------|
+| `treebank-array.sc < treebank.input` --ir-run | PASS (md5 `7096beb...`) |
+| `treebank-array.sc < treebank.input` --sm-run | PASS |
+| `treebank-array.sc < treebank.input` --jit-run | PASS |
+| `test_smoke_snocone.sh` | PASS=5 |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 SKIP=3 |
+| `test_smoke_unified_broker.sh` | PASS=49 |
+| `test_crosscheck_snobol4.sh` | PASS=6 |
+| `test_crosscheck_snocone.sh` | PASS=8 |
+| `treebank-list.sc` (3 modes) | PASS — Lon's edit preserved |
+| `claws5.sc` (3 modes) | FAITH-MATCH .sno SPITBOL — SB-5c.2 unchanged |
+
+Zero regressions across any gate.
+
+### SB-6.D investigation snapshot (not landed; for session #82)
+
+Session #80's prescribed three-step diagnostic was performed before
+the SB-5d.2 fix. Findings:
+
+**Bug confirmed:** at beauty.sc's actual call site,
+`EVAL(EXPRESSION)` returns the same EXPRESSION descriptor unchanged
+(no-op). A second `EVAL` produces `STRING ''` (the correct failure
+value of `*(GT(nTop(), 1) nTop())` when `nTop=1`).
+
+```
+[D Reduce] entry t=[..] n-DT=EXPRESSION
+[D Reduce] post-EVAL n-DT=EXPRESSION n=[EXPRESSION]   ← 1st EVAL no-op
+[D Reduce] EVAL(EVAL(n)) DT=STRING val=[]              ← 2nd EVAL works
+[D Reduce] IDENT(n,n_orig)= (succeeds — n unchanged by 1st EVAL)
+```
+
+The `~DIFFER(n)` guard in `Reduce` therefore does not fire (n is
+non-null), control reaches `GE(n, 1)` with `n` still EXPRESSION,
+and Error 1 fires.
+
+**Bug does NOT reproduce in standalone tests.** Tested:
+- `EVAL('*(GT(nTop(),1) nTop())')` standalone → returns EXPRESSION.
+- `EVAL(EXPRESSION)` of a successful expr → INTEGER (correct).
+- `EVAL(EXPRESSION)` of a failing expr → fail (assignment leaves
+  LHS unchanged, correct).
+- `/tmp/repro2.sc` rebuilt the exact omega-string-and-EVAL pattern
+  semantic.sc::reduce uses → **first EVAL returns STRING `''`
+  correctly** in this isolated form.
+
+So the EXPRESSION arriving at `Reduce` in beauty.sc's actual run
+is **double-wrapped** somehow — EVAL once unwraps one layer,
+producing another EXPRESSION; EVAL twice fully evaluates. Possible
+cause: when the EVAL'd reduce-pattern is concatenated via `&&` into
+a larger pattern (e.g., `Expr4 = nPush() && *X4 && reduce('..', ...)
+&& nPop()`) the `*expr` argument to `*Reduce(t, *expr)` gets re-
+wrapped during pattern composition or lowering.
+
+**Cross-check vs SPITBOL not yet performed** — out of session-time
+budget. Session #82 should:
+1. Run `/tmp/repro3.sc` (left in /tmp from session #81 — wraps the
+   reduce-call inside `nPush() && X4 && reduce(...) && nPop()` like
+   beauty.sc's Expr4) and compare to /tmp/repro2.sc to isolate
+   whether the wrapper exposes the double-wrap.
+2. SPITBOL equivalent test: build a SNOBOL4 program that constructs
+   an analogous `epsilon . *Reduce(t, *expr)` pattern via EVAL,
+   wraps it in `&` and matches; verify SPITBOL evaluates `*expr`
+   in one EVAL.
+3. If the wrapper does expose double-wrap, fix surface is likely
+   `src/runtime/x86/snobol4_invoke.c` or the EVAL/EXPRESSION
+   descriptor packing path where deferred-call args get an extra
+   EXPRESSION layer when their parent pattern is itself composed.
+
+### Files touched this session
+
+- `corpus/programs/snobol4/demo/treebank-array.sc` — `+9/-3` net
+  in `node_repr` and `pp_node` loops + 3-line comment block in
+  pp_node referencing canonical pp_wch/pp_wlast/pp_wdone.
+- `corpus/programs/snobol4/demo/treebank-list.sc` — Lon's
+  `while (line = INPUT)` simplification, applied as-uploaded.
+- `corpus/programs/snobol4/demo/claws5.sc` — Lon's edits applied
+  as-uploaded.
+
+No `one4all`, `csnobol4`, `x64`, or scrip runtime/frontend changes.
+Diagnostic test files in `/tmp/` only (not committed); ShiftReduce.sc
+and semantic.sc instrumentation reverted before this commit per
+RULES.md.
+
+### Repos state
+
+`corpus`: dirty (3 .sc files). `.github`: this update. `one4all`,
+`csnobol4`, `x64`: clean. Plan: commit corpus + .github, push
+corpus first then .github.
 
