@@ -1434,3 +1434,224 @@ events on s80 BEFORE the s81 (snoProtKwds) match begins.
                                  in this session (diagnostic only —
                                  reverted before commit). Productionizing
                                  still TODO.
+
+---
+
+## Sub-steps for "zero regressions, zero skips" hygiene
+
+Goal: every baseline and invariant test surface that S-2 / S-3 work
+touches must be at 100 % PASS / 0 SKIP **before** the SELF-HOST PASS
+gate is declared closed, **not** after. Each sub-step below is
+independently shippable and has its own mini test gate.
+
+### S-2-hygiene-csnobol4 — close the 14 baseline `TEST_Csnobol4_*` failures
+
+   [ ] open
+
+The pre-existing 14 failures in `TestSnobol4/Corpus/CorpusRef_Csnobol4Suite.cs`
+abort the full-suite run with a stack overflow somewhere in
+`ExecuteProgramDefinedFunction → CallFuncBySlot` recursion. The 14 are
+all alphabetically early, suggesting one of them throws an unhandled
+exception that VSTest catches as "Test Run Aborted" and prematurely
+ends the run before the remaining ~70 Csnobol4 tests are even attempted.
+The 14 (in `/tmp/csnobol4_14.txt` at handoff time, also reproducible
+via baseline run):
+
+    TEST_Csnobol4__8bit, _8bit2, _a, _alis, _alph, _atn, _base,
+    _case1, _contin, _diag1, _diag2, _digits, _dump, _err
+
+Source programs at `corpus/programs/csnobol4-suite/{8bit,8bit2,a,alis,
+alph,atn,base,case1,contin,diag1,diag2,digits,dump,err}.sno` (Phil
+Budne's CSNOBOL4 test suite, 116 programs total — 8 already excluded
+per the suite header comment).
+
+**Steps:**
+
+  1. Run each of the 14 standalone via `dotnet Snobol4.dll -bf <file>.sno`
+     and diff against `<file>.ref`. Categorize each failure:
+       (a) test program reads stdin via "data below END" — needs
+           `RunWithInput` wrapper; check whether the test method
+           uses it.
+       (b) 8-bit `&ALPHABET` content (`8bit`, `8bit2` are obvious
+           candidates) — likely a string-encoding or `CHAR(n)` for
+           n≥128 issue.
+       (c) deep-recursion programs (`atn` = arctan via Taylor series,
+           `digits` likely similar) — may need stack growth or
+           tail-call optimization, or may be hitting the same bug
+           that aborts the whole run.
+       (d) diagnostic-output programs (`dump`, `diag1`, `diag2`,
+           `err`) — output may differ in formatting from CSNOBOL4
+           reference (e.g. `&ERRTYPE` value, `&STNO` numbering,
+           `DUMP()` output column alignment).
+       (e) the "Test Run Aborted" culprit — one specific test throws
+           an unhandled native exception that kills the runner.
+           Identify by running each test in isolation and looking for
+           the one that produces a stack-overflow stack trace in the
+           output rather than a clean Assert.AreEqual failure.
+
+  2. Fix in priority order: (e) first (it's hiding the actual size of
+     the failure set), then (a) (purely mechanical), then (b)–(d) on
+     their merits.
+
+  3. **Test gate:** the full TestSnobol4 run shows
+     `Failed: 0, Passed: 2089, Skipped: 0` (or 2086 if the 3 ABI-skip
+     `[Ignore]` tests stay deferred — those ARE legitimate skips
+     documented in BUILDING.md and are out of scope for this rung).
+     Beauty 17/17 corpus continues to PASS.
+
+  4. **Commit per fix**, not per category — small commits with clear
+     witness tests. Reference this rung's tag in commit messages.
+
+### S-2-hygiene-corpus-crosscheck — full corpus crosscheck PASS
+
+   [ ] open
+
+The corpus has 30 crosscheck families (`arith`, `arith_new`, `assign`,
+`beauty`, `capture`, `concat`, `control`, `control_new`, `coverage`,
+`data`, `functions`, `hello`, `keywords`, `library`, `output`,
+`patterns`, `rung10`, `rung11`, `rung2`, `rung3`, `rung4`, `rung8`,
+`rung9`, `rungW01`–`rungW07`, `snocone`, `strings`). Session #68
+verified only the FENCE subset of `patterns` (35 tests, 35/35).
+
+**Steps:**
+
+  1. Run dot against EVERY `corpus/crosscheck/*/[!_]*.sno` file
+     (skipping any prefixed with `_` if the convention is "draft").
+     Diff actual output against the matching `.ref`. Build a
+     summary table: family × (PASS / FAIL / TIMEOUT / N/A — `.sno`
+     without a `.ref`). Use a 30-second timeout per test. (No script
+     for this exists at handoff time — write `scripts/test_corpus_full_dot.sh`
+     in `one4all/scripts/`, modeled on the existing
+     `test_crosscheck_net_backend.sh` which already drives a subset.)
+
+  2. Categorize FAILs into:
+       - regressions caused by `c578fb5` (the seal-skip fix): triage
+         immediately — this gates session #68's commit's safety. None
+         expected based on FENCE-suite results, but confirm.
+       - pre-existing baseline failures: log to a tracking ticket
+         under this rung; one fix per commit.
+       - tests with `.sno` but no `.ref`: either generate `.ref` from
+         SPITBOL oracle (and commit) or move to `_skipped/` with a
+         README explaining why. **No silent skips.**
+
+  3. **Test gate:** every crosscheck family has matching `.sno` /
+     `.ref` pairs and dot's actual matches the ref byte-for-byte
+     (modulo trailing newline). The FENCE suite (35) gate from
+     session #68 is preserved. Failures investigated, categorized,
+     and either fixed or formally documented as known-limitation
+     with a tracking step.
+
+  4. **No `.sno` without `.ref`. No `.ref` without `.sno`.** If a
+     `.sno` is intentionally non-runnable (e.g. demonstrates a
+     parse-time error class), move it to `corpus/crosscheck/_pending/`
+     with a one-line README justification and a tracking-rung name.
+
+### S-2-hygiene-harness-orphans — harness scripts must agree on PASS/FAIL
+
+   [ ] open
+
+`one4all/scripts/` ships ~80 `test_*.sh` scripts. Many overlap. Some
+are stale (referenced obsolete file paths). All of them either gate
+real ladder rungs or document old experiments.
+
+**Steps:**
+
+  1. Inventory every `one4all/scripts/test_*.sh`. For each, run it
+     once against current HEADs of all repos. Categorize:
+       (a) PASS — keep, document in a one-line `scripts/README.md`
+           entry that says what rung it gates.
+       (b) FAIL but documents a known-open rung — keep, link to the
+           goal file's tag.
+       (c) FAIL or skip-spam, no documented purpose, references
+           paths that don't exist — propose for deletion in this
+           rung's PR. Don't delete unilaterally; SPITBOL/csnobol4
+           bridges may depend on harnesses that haven't been
+           exercised in months.
+       (d) PASS but irrelevant to S-2/S-3 — keep, leave alone.
+
+  2. **Test gate:** every script in (a) and (b) has a documented
+     home in a goal file (or is a generic infrastructure script
+     like `install_*` / `build_*`). Scripts in (c) are either
+     fixed, deleted, or moved to `scripts/_archive/` with a
+     `README.md` explaining the move. The active sync-step harness
+     `test_monitor_3way_sync_step_auto.sh` keeps full coverage of
+     `{csn, spl, scr, dot}` participants — no participant becomes
+     unreachable.
+
+  3. Commit one batch deletion + one batch documentation update per
+     PR, not 80 commits.
+
+### S-2-hygiene-bridge-trust — close the harness-trust gate
+
+   [ ] open (already tracked as `S-2-bridge-harness-trust`)
+
+The unfiltered harness diverges at step #933 (spl bridge gap for
+keyword-VALUE events on `&FULLSCAN = 1`). With workarounds active
+(`MONITOR_NAME_WILDCARD=spl` + `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`)
+the first real divergence moves to step #2839 — but the workarounds
+mask real bugs in addition to bridge gaps.
+
+**Steps:**
+
+  1. Pick Path A (fix `spl` bridge to fire VALUE on keyword stores)
+     OR Path B (drop the workarounds and rebuild trust by closing
+     spl `vrblk_name` stale-memory issue) — see the existing
+     S-2-bridge-harness-trust narrative above for the analysis.
+
+  2. Once path chosen and landed, run the unfiltered harness on
+     beauty self-host. The first DIVERGE step number must be
+     ≥ #2839 (no regression in trust depth) and the workarounds
+     must be removable from harness invocations going forward.
+
+  3. **Test gate:** `test_monitor_3way_sync_step_auto.sh` with
+     `PARTICIPANTS="csn spl scr"` AND with `PARTICIPANTS="csn spl
+     dot"` both run to completion (full corpus subset of small
+     programs) without needing `MONITOR_*` env-var workarounds.
+     Beauty self-host run against the harness reaches at LEAST the
+     same depth as the workaround-on run does today.
+
+### S-3-hygiene-self-host-witnesses — invariant suite for the SELF-HOST PASS gate
+
+   [ ] open
+
+Once S-2-bridge-7-fullscan closes and beauty self-hosts on dot, the
+SELF-HOST PASS gate (`S-3`) must include INVARIANT tests that detect
+regressions in self-host behaviour without needing to re-derive them
+each session.
+
+**Steps:**
+
+  1. Add `corpus/crosscheck/beauty/self_host.{sno,ref}` (the program
+     is `beauty.sno`, the input is `beauty.sno`, the reference is
+     the SPITBOL oracle's stdout — captured once, committed). The
+     self-host gate's success criterion becomes a byte-diff against
+     this committed reference.
+
+  2. Add 5–10 minimal "snippet" self-host inputs that EXERCISE the
+     specific snoExpr14/snoVar/snoProtKwd/snoUnprotKwd/snoFunction
+     alternation arms in different orders and combinations. These
+     act as regression sentinels for any future Match() / alt-stack
+     change. Reference shapes for each of: identifier-only, keyword-
+     only (both prot and unprot), function-call-only, mixed, and
+     pathological-backtrack cases.
+
+  3. **Test gate:** the test_gate script `test_gate_sn7_beauty_self_host.sh`
+     becomes a regression check — exit 0 when beauty self-hosts AND
+     all 5–10 sentinel snippets self-host. Failure of any sentinel
+     reopens this rung. Beauty 17/17 corpus is a precondition (must
+     pass before self-host gate is even attempted).
+
+  4. The SELF-HOST PASS gate is declared closed only when:
+       - this rung's invariant suite passes,
+       - S-2-hygiene-csnobol4 shows 0 / 0 / 0 (failures / skips / aborts),
+       - S-2-hygiene-corpus-crosscheck shows zero unexplained skips,
+       - the unfiltered harness (S-2-hygiene-bridge-trust) reaches
+         beauty's full execution without divergence.
+
+### Status updates
+
+  S-2-hygiene-csnobol4              [ ] open
+  S-2-hygiene-corpus-crosscheck     [ ] open
+  S-2-hygiene-harness-orphans       [ ] open
+  S-2-hygiene-bridge-trust          [ ] open  (alias of S-2-bridge-harness-trust)
+  S-3-hygiene-self-host-witnesses   [ ] open
