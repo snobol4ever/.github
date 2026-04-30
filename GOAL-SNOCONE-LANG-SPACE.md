@@ -775,6 +775,599 @@ trap in practice.
 
 ---
 
+## LS-1 Lexer specification
+
+The Snocone lexer is a Flex source `src/frontend/snocone/snocone.l`
+(replacing today's hand-written `snocone_lex.c`).  It has one job
+that is non-trivial: deciding when whitespace is a CONCAT
+operator and when it is just whitespace.  Everything else is
+ordinary lexing.
+
+### 1. Token set
+
+The lexer emits these token kinds.  Tokens marked **NEW** do not
+exist in today's `snocone_lex.c` (which is a sufficient pre-LS-3
+inventory).
+
+#### Literals and identifiers
+
+| Token         | Matches                                              |
+|---------------|------------------------------------------------------|
+| `INTEGER`     | `[0-9]+` not followed by `.` or `[eE]`               |
+| `REAL`        | `[0-9]+ \. [0-9]* ([eE][+-]?[0-9]+)?` or `[0-9]+ [eE][+-]?[0-9]+` or `\. [0-9]+ ([eE][+-]?[0-9]+)?` |
+| `STRING`      | `'…'` or `"…"` — embedded quote of the other kind allowed; `\` is **not** an escape (SNOBOL4 strings are literal — to embed the same quote, use the other quote form, or use `CHAR(39)` etc.) |
+| `IDENT`       | `[A-Za-z_][A-Za-z0-9_]*` — Andrew's `.sc` uses `_` for compound names (`cl_type`, `or_binfo`).  Today's lexer matches this rule.  SNOBOL4 source-style names with `.` (`cl.type`, `or.binfo`) are NOT identifiers in Snocone — they'd lex as `IDENT(cl) PERIOD IDENT(type)`. |
+| `KEYWORD_NAME` **NEW** | `& IDENT` with **zero whitespace** between (`&FULLSCAN`, `&UCASE`, `&ANCHOR`).  Single token. |
+
+The case-sensitivity rule from RULES.md (Snocone keeps the byte
+sequence the user wrote) applies — no folding at lex time.
+
+#### Operators (priority shown for grammar reference; lexer just emits)
+
+| Token             | Matches      | Pri | Notes                              |
+|-------------------|--------------|----:|------------------------------------|
+| `ASSIGN`          | `=`          | 0   |                                    |
+| `QUESTION`        | `?`          | 1   | also unary                         |
+| `PIPE`            | `\|`         | 3   |                                    |
+| `CONCAT` **NEW**  | (synthesized — never a literal char) | 4 | emitted by the prev/next-token rule, not by direct character match |
+| `STR_EQ`          | `:==:`       | 6   | LEQ                                |
+| `STR_NE`          | `:!=:`       | 6   | LNE                                |
+| `STR_LT`          | `:<:`        | 6   | LLT                                |
+| `STR_GT`          | `:>:`        | 6   | LGT                                |
+| `STR_LE`          | `:<=:`       | 6   | LLE                                |
+| `STR_GE`          | `:>=:`       | 6   | LGE                                |
+| `STR_IDENT`       | `::`         | 6   | IDENT — Andrew `.sc` line 45       |
+| `STR_DIFFER`      | `:!:`        | 6   | DIFFER — Andrew `.sc` line 46      |
+| `EQ`              | `==`         | 6   | EQ                                 |
+| `NE`              | `!=`         | 6   | NE                                 |
+| `LE`              | `<=`         | 6   | LE                                 |
+| `GE`              | `>=`         | 6   | GE                                 |
+| `LT`              | `<`          | 6   | LT                                 |
+| `GT`              | `>`          | 6   | GT                                 |
+| `PLUS`            | `+`          | 6   | also unary                         |
+| `MINUS`           | `-`          | 6   | also unary                         |
+| `SLASH`           | `/`          | 8   |                                    |
+| `STAR`            | `*`          | 9   | also unary                         |
+| `CARET`           | `^` or `**`  | 11  | `**` is Andrew/SPITBOL synonym for `^` |
+| `BANG_EXPONENT` **NEW** | `!`     | 11  | SPITBOL synonym for `^` (MUST disambiguate from leading-`!` of `!=`) |
+| `PERIOD`          | `.`          | 12  | also unary                         |
+| `DOLLAR`          | `$`          | 12  | also unary                         |
+| `AT`              | `@`          |  —  | unary only (binary `@` is OPSYN slot pri 5) |
+| `TILDE`           | `~`          |  —  | unary only (binary `~` is OPSYN slot pri 13) |
+| `AMPERSAND`       | `&`          |  —  | unary only — but **see KEYWORD_NAME**: `&IDENT` no-whitespace is one token |
+| `PERCENT` **NEW** | `%`          |  —  | unary OR binary OPSYN slot pri 10 — no built-in semantics; the parser hands it to OPSYN lookup |
+
+**Removed** vs today's lexer: `OR` (was `||`), `CONCAT_AMP`
+(was `&&`).  The lexer no longer recognizes these character
+sequences as their own tokens — they become syntax errors via
+the catch-all "unknown character" rule.
+
+#### Compound-assign operators
+
+Today's lexer has `+=` `-=` `*=` `/=` `%=` `^=` (SC pre-existing).
+**Open question, not part of LS-1:** are these in scope for the
+new Snocone or are they a Snocone-only sugar Andrew didn't have?
+Andrew's `.sc` does not have compound-assigns.  We retain them in
+the lexer for now; the grammar (LS-2) decides whether to accept
+them as syntax or reject.  If accepted, lowering is the obvious
+`a += b` → `a = a b` (concat for `+=`?  no — `a + b`); standard.
+
+#### Punctuation
+
+| Token         | Matches                                              |
+|---------------|------------------------------------------------------|
+| `LPAREN`      | `(`                                                  |
+| `RPAREN`      | `)`                                                  |
+| `LBRACE`      | `{`                                                  |
+| `RBRACE`      | `}`                                                  |
+| `LBRACKET`    | `[`                                                  |
+| `RBRACKET`    | `]`                                                  |
+| `COMMA`       | `,`                                                  |
+| `SEMICOLON`   | `;`                                                  |
+| `COLON`       | `:` — only emitted when **not** part of `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` `::` `:!:` (Flex longest-match handles this) |
+| `IDENT_LPAREN_NOSP` **NEW** | `IDENT` immediately followed by `(` with **zero whitespace**.  Single token whose value is the identifier name; the `(` is consumed.  After the matching `RPAREN` of the call, prev-token bookkeeping treats it as `RPAREN_OF_CALL` for can-end-expr purposes. |
+
+#### Keywords
+
+The KW_TABLE must include (some are present today; some are
+**NEW**):
+
+`if`, `else`, `while`, `do`, `until` **NEW**, `for`, `switch` **NEW**,
+`case` **NEW**, `default` **NEW**, `break`, `continue`, `goto`,
+`return`, `freturn`, `nreturn`, `procedure`, `struct` (already
+present from Andrew's `.sc`).
+
+Removed from today's KW_TABLE: `then` (Andrew has no `then`;
+today's lexer has it as a vestige — confirm during LS-3 that the
+grammar doesn't depend on it; if so, remove).  Also remove: `go`,
+`to` (already commented out).
+
+The lexer matches a leading-letter word against KW_TABLE; on hit
+emits the keyword token, on miss emits `IDENT`.  Case-sensitive
+match (RULES.md).
+
+#### Trivia (whitespace and comments — never emitted as tokens)
+
+| Trivia        | Matches                                              |
+|---------------|------------------------------------------------------|
+| line comment  | `// .* (?=\n|$)` — to end of line                    |
+| block comment | `/\* … \*/`  — non-nesting, may span newlines        |
+| whitespace    | `[ \t\n\r\f]+` — including newlines.  No `NEWLINE` token emitted. |
+| line continuation `+` / `.` (SNOBOL4-style) | `^[+.]` at column 1 — already-existing behavior in today's lexer; preserve as transparent line-glue (mid-statement continuation) |
+
+Important: today's lexer emits a `SNOCONE_NEWLINE` token.  In the
+new design that token is **gone**.  Newlines are whitespace.  The
+grammar (LS-2) will use `;` exclusively as the statement
+terminator.
+
+### 2. The previous-token state and CONCAT emission
+
+This is the lexer's distinguishing feature: a synthetic CONCAT
+token is emitted between two tokens A and B when A is value-
+yielding-and-can-end-expr, B is value-yielding-and-can-start-expr,
+and at least one whitespace character (space, tab, newline, line-
+continuation `+`/`.`, comment) appears between them.
+
+#### State variables (Flex extra data)
+
+```c
+typedef enum {
+    PT_NONE,                  /* file start, after ; , ( [ { etc. */
+    PT_VALUE,                 /* IDENT, INTEGER, REAL, STRING, KEYWORD_NAME, RPAREN_of_expr, RBRACKET, RPAREN_of_call */
+    PT_BINOP,                 /* any binary operator just emitted (= ? | concat-yet-to-fire * + - etc.) */
+    PT_UNARY_PREFIX,          /* a unary prefix op just emitted, expecting an operand */
+    PT_OPEN,                  /* ( or [ or { just emitted (nothing yet inside) */
+    PT_KW_BLOCK_OPENER,       /* if/while/for/switch/do/until/case keyword just emitted, expecting ( or { or expr */
+    PT_KW_LOOPCTRL,           /* break/continue/goto/return/freturn/nreturn just emitted */
+    PT_LABEL_COLON_PENDING,   /* IDENT followed by exactly `:` — could be label_name : OR (in expr context) the goto-field marker */
+} PrevTokenClass;
+
+typedef struct {
+    PrevTokenClass  prev;
+    int             whitespace_seen;  /* >0 if any whitespace between prev token and current */
+    int             paren_depth;       /* tracks ( [ { nesting */
+    int             call_paren_depth;  /* tracks call-style ( specifically — see below */
+    /* call_paren_stack: each entry = depth-at-which-the-call-LPAREN-opened.
+     * On RPAREN, if paren_depth+1 was a call entry, set prev=PT_VALUE (RPAREN_of_call). */
+} LexerState;
+```
+
+#### Can-end-expr (sources of CONCAT on the LEFT side)
+
+`PT_VALUE` is the can-end-expr class.  Specifically the token
+just emitted was one of:
+
+- `IDENT` — bare identifier (variable reference, function name)
+- `INTEGER`, `REAL`, `STRING`
+- `KEYWORD_NAME` (`&FULLSCAN` etc.)
+- `RPAREN` — closing a parenthesised sub-expression OR closing a call's arg list
+- `RBRACKET` — closing a subscript
+- `RBRACE` of a block-expression — none in the language today; reserved
+
+#### Can-start-expr (sources of CONCAT on the RIGHT side)
+
+A token-class is can-start-expr if it could begin a new operand.
+
+- `IDENT`, `INTEGER`, `REAL`, `STRING`, `KEYWORD_NAME`
+- `LPAREN` — but **only** if it is NOT the call-form `(` (the
+  call-form is consumed inside `IDENT_LPAREN_NOSP`)
+- `LBRACKET` — subscripting — requires special handling because
+  `a[0]` (no space) is a subscript, but `a [0]` (with space)
+  must mean "concat a with `[0]`" — except `[0]` alone is not a
+  legal expression in Snocone (no array literals), so `a [0]` is
+  a syntax error, not a concat.  **For LS-1 we treat `[` as
+  always part of subscript — i.e., `[` after a value-token is
+  always subscript regardless of whitespace.**  This is a
+  divergence from the strict space-as-concat rule but matches
+  Andrew's `.sc` (which uses `list(*exp ..., blank ",")` — note
+  `blank` permitted between `[` and content).
+- Unary prefix operators: `*`, `&`, `~`, `@`, `.`, `$`, `+`, `-`, `?`
+
+#### Tokens that block CONCAT (cannot start an expression)
+
+These are can-end-expr tokens that the lexer must NOT emit
+CONCAT after, even when they superficially look like values:
+
+- `RPAREN` followed by binary op — no CONCAT (binary op consumes
+  the value).  Example: `(a+b) * c` — the `*` is binary, not
+  concat-then-unary.
+
+These are can-start-expr tokens that the lexer must NOT emit
+CONCAT before:
+
+- A leading position in a top-level statement (`PT_NONE`,
+  `PT_OPEN`, etc.) — first operand has no left side to concat to.
+
+#### CONCAT emission rule
+
+```
+when about to emit token T:
+    if prev == PT_VALUE
+       and T is can-start-expr
+       and whitespace_seen > 0:
+        emit CONCAT first
+    emit T
+    update prev based on T
+    whitespace_seen = 0
+```
+
+### 3. Special cases
+
+#### 3.1 `f(args)` vs `f (expr)` — the zero-space rule
+
+When the lexer matches `IDENT` and the very next character is
+`(` with **zero whitespace** between, it emits the combined
+token `IDENT_LPAREN_NOSP` (carrying the identifier name).
+
+When `IDENT` is followed by whitespace and then `(`, it emits
+`IDENT` then (after CONCAT injection) `LPAREN`.  The
+parenthesised expression is concat'd to the identifier value.
+
+Implementation: in Flex, the rule for `IDENT_LPAREN_NOSP` has
+higher priority than the rule for plain `IDENT`.  The pattern is
+literally `[A-Za-z_][A-Za-z0-9_.]*\(` — capturing the `(` as part
+of the match — and the action emits the combined token, pushes
+"call-LPAREN" on a stack so the matching `RPAREN` knows it's
+closing a call.
+
+#### 3.2 `&IDENT` — the keyword-name token
+
+Same shape: `&[A-Za-z_][A-Za-z0-9_.]*` with no whitespace between
+`&` and the identifier.  Emitted as `KEYWORD_NAME` carrying the
+full sequence (e.g. `&FULLSCAN`).
+
+If `& IDENT` (whitespace), the `&` becomes unary `AMPERSAND`,
+followed by `IDENT` — almost certainly a syntax error, but we
+emit two tokens and let the grammar complain.
+
+#### 3.3 `:` after IDENT — label vs. goto-field colon
+
+`name:` at statement start is a label.  `:` in the goto-field
+position (`stmt :S(L) F(M)`) is a SPITBOL goto-field marker.
+
+In Snocone we **do not have a goto-field** — the C-shaped
+control flow uses `goto label;` instead.  So `:` is always a
+label-suffix in our grammar.
+
+The grammar (LS-2) handles the disambiguation: a leading
+`IDENT COLON` at the statement-start position is a label; a
+trailing `IDENT COLON` would be an error.  The lexer just emits
+`COLON`; no special state.
+
+#### 3.4 String literals — the SNOBOL4 rule, no escapes
+
+A string starts with `'` or `"`.  Body is everything up to the
+matching delimiter.  Backslash is NOT an escape character.  To
+embed a quote, use the other delimiter (`"can't"` or `'a"b'`).
+Newlines inside strings are NOT permitted (would have to be
+multi-line continuation `+`/`.`).  Today's lexer already does
+this; preserve.
+
+#### 3.5 Multi-line continuation — `+` / `.` at column 1
+
+SNOBOL4's continuation lines start with `+` or `.` at column 1.
+This is a tokenizer-level concern: when the next physical line's
+column 1 is `+` or `.`, the line is glued onto the previous one
+and lex restarts mid-statement.  Today's lexer already handles
+this via the `is_continuation()` predicate at lines 175–186.
+Preserve verbatim.
+
+For the new lexer's CONCAT rule: a continuation line counts as
+whitespace between the two physical lines.  So:
+
+```snocone
+   x = 'foo'
++         'bar'
+```
+
+emits `IDENT(x) ASSIGN STRING('foo') CONCAT STRING('bar')`.
+The continuation is transparent.
+
+#### 3.6 Comments
+
+Line and block comments are pure trivia.  They count as
+whitespace for the CONCAT rule:
+
+```snocone
+   x = 'foo' /* hello */ 'bar'
+```
+
+emits `IDENT(x) ASSIGN STRING('foo') CONCAT STRING('bar')`.  The
+comment is a whitespace gap — CONCAT fires across it.
+
+### 4. What the lexer does NOT do
+
+- No statement boundary detection — `;` is emitted as a token,
+  not as an end-of-statement signal.  The grammar enforces
+  statement structure.
+- No precedence — the grammar's Bison `%left/%right` declarations
+  handle precedence.  Lexer just emits one token per operator.
+- No newline tokens — newlines are whitespace.  Today's
+  `SNOCONE_NEWLINE` token is removed.
+- No fold-case — case-sensitive byte-for-byte (RULES.md).
+- No special handling of OPSYN slots — `%`, undefined-binary
+  `&`, `@`, `#`, `~` are emitted as plain tokens; the grammar
+  routes them via the OPSYN catch-all production.
+
+### 5. Test corpus — expected token stream for every edge case
+
+For each input source line below, the expected token stream is
+shown in the comment.  This corpus is the LS-3 acceptance test —
+the new lexer must produce exactly these streams.  CONCAT
+appearances are highlighted with `« CONCAT »`.
+
+```
+// Test 1 — basic concat: two values separated by space
+x y
+// IDENT(x) « CONCAT » IDENT(y)
+
+// Test 2 — call vs. concat-with-paren
+f(x)
+// IDENT_LPAREN_NOSP(f) IDENT(x) RPAREN
+f (x)
+// IDENT(f) « CONCAT » LPAREN IDENT(x) RPAREN
+
+// Test 3 — keyword name vs. unary-amp
+&FULLSCAN = 1;
+// KEYWORD_NAME(&FULLSCAN) ASSIGN INTEGER(1) SEMICOLON
+& FULLSCAN
+// AMPERSAND IDENT(FULLSCAN)
+//   (note: no CONCAT — AMPERSAND is unary prefix, prev is AMPERSAND
+//    not a value-token, so no concat trigger)
+
+// Test 4 — bare expression statement
+EQ(x, 0) x = 1;
+// IDENT_LPAREN_NOSP(EQ) IDENT(x) COMMA INTEGER(0) RPAREN
+//   « CONCAT » IDENT(x) ASSIGN INTEGER(1) SEMICOLON
+//   (note the CONCAT after the call's RPAREN — the call is a
+//    value, "x" can-start-expr, whitespace between them)
+
+// Test 5 — alt-eval (replaces ||)
+A = (LT(I,J) I, GT(I,J) J, "Same");
+// IDENT(A) ASSIGN LPAREN
+//   IDENT_LPAREN_NOSP(LT) IDENT(I) COMMA IDENT(J) RPAREN « CONCAT » IDENT(I)
+//   COMMA
+//   IDENT_LPAREN_NOSP(GT) IDENT(I) COMMA IDENT(J) RPAREN « CONCAT » IDENT(J)
+//   COMMA
+//   STRING("Same")
+//   RPAREN SEMICOLON
+
+// Test 6 — backtracking-expression condition
+if (x ? 'foo' = 'bar') doit();
+// KW_IF LPAREN IDENT(x) QUESTION STRING('foo') ASSIGN STRING('bar') RPAREN
+//   IDENT_LPAREN_NOSP(doit) RPAREN SEMICOLON
+
+// Test 7 — string with embedded && (must NOT lex as CONCAT-AMP)
+s = '&&';
+// IDENT(s) ASSIGN STRING('&&') SEMICOLON
+
+// Test 8 — string with embedded || (must NOT lex as OR)
+s = '||';
+// IDENT(s) ASSIGN STRING('||') SEMICOLON
+
+// Test 9 — bare && in source is now a syntax error (gone from lexer)
+x && y
+// IDENT(x) AMPERSAND AMPERSAND IDENT(y)
+//   (the & becomes two unary AMPERSAND tokens; grammar will reject —
+//    no special "old && " token at all)
+
+// Test 10 — bare || similarly
+x || y
+// IDENT(x) PIPE PIPE IDENT(y)
+//   (the | becomes two PIPE tokens; grammar may accept as alternation
+//    repeated, or reject — the lexer no longer recognizes ||)
+
+// Test 11 — identity comparison ::  (Andrew's .sc spelling)
+x :: y
+// IDENT(x) STR_IDENT IDENT(y)
+
+// Test 12 — DIFFER comparison :!:
+x :!: y
+// IDENT(x) STR_DIFFER IDENT(y)
+
+// Test 13 — exponentiation synonyms
+a ^ b
+// IDENT(a) CARET IDENT(b)
+a ** b
+// IDENT(a) CARET IDENT(b)
+a ! b
+// IDENT(a) BANG_EXPONENT IDENT(b)
+
+// Test 14 — % is not modulo, just an OPSYN slot character
+x % y
+// IDENT(x) PERCENT IDENT(y)
+//   (the grammar will route this to OPSYN lookup; if no OPSYN
+//    is defined for %, the parser/runtime raises an error)
+
+// Test 15 — line continuation with +
+x = 'foo'
++      'bar'
+// IDENT(x) ASSIGN STRING('foo') CONCAT STRING('bar')
+//   (the column-1 + on the second line is treated as whitespace
+//    glue; CONCAT fires across the line break)
+
+// Test 16 — block comment between values triggers CONCAT
+x /* hi */ y
+// IDENT(x) « CONCAT » IDENT(y)
+
+// Test 17 — line comment
+x = y;  // a comment
+z = w;
+// IDENT(x) ASSIGN IDENT(y) SEMICOLON IDENT(z) ASSIGN IDENT(w) SEMICOLON
+
+// Test 18 — keywords vs. identifiers
+if a then b
+// KW_IF IDENT(a) IDENT(then) IDENT(b)
+//   (after LS-3, "then" is removed from KW_TABLE → it's an IDENT;
+//    the grammar will reject "if a then b" because the `if` body
+//    must be `(expr) stmt` — no `then` keyword)
+//   Actually with CONCAT this lexes:
+// KW_IF « CONCAT-NO! » LPAREN-MISSING — see below
+
+// Test 18b — corrected: keyword positions don't get prev=PT_VALUE
+if (a) b
+// KW_IF LPAREN IDENT(a) RPAREN « CONCAT » IDENT(b)
+//   Wait — should there be CONCAT between RPAREN-of-if-cond and the body IDENT(b)?
+//   YES, the lexer doesn't know that (a) was an `if` cond — it just sees
+//   RPAREN followed by IDENT.  The CONCAT fires.  The grammar then must
+//   have an `if-statement` production that consumes
+//     KW_IF LPAREN expr RPAREN stmt
+//   and the CONCAT in the token stream after the RPAREN is silently
+//   absorbed because the next token-kind it sees is a stmt-starting
+//   IDENT, not a binary-op continuation.  Need to verify: does Bison
+//   reject CONCAT in a stmt-starting position?  Resolve in LS-2.
+
+// Test 19 — labels
+top: x = 1;
+// IDENT(top) COLON IDENT(x) ASSIGN INTEGER(1) SEMICOLON
+
+// Test 20 — goto
+goto top;
+// KW_GOTO IDENT(top) SEMICOLON
+
+// Test 21 — break with optional label (Q13 placeholder)
+break loop_done;
+// KW_BREAK IDENT(loop_done) SEMICOLON
+break;
+// KW_BREAK SEMICOLON
+
+// Test 22 — switch
+switch (x) { case 1: a = 1; case 2: a = 2; default: a = 3; }
+// KW_SWITCH LPAREN IDENT(x) RPAREN LBRACE
+//   KW_CASE INTEGER(1) COLON IDENT(a) ASSIGN INTEGER(1) SEMICOLON
+//   KW_CASE INTEGER(2) COLON IDENT(a) ASSIGN INTEGER(2) SEMICOLON
+//   KW_DEFAULT COLON IDENT(a) ASSIGN INTEGER(3) SEMICOLON
+//   RBRACE
+
+// Test 23 — do/until
+do { x = x + 1; } until (GT(x, 10));
+// KW_DO LBRACE IDENT(x) ASSIGN IDENT(x) PLUS INTEGER(1) SEMICOLON RBRACE
+//   KW_UNTIL LPAREN IDENT_LPAREN_NOSP(GT) IDENT(x) COMMA INTEGER(10) RPAREN
+//   RPAREN SEMICOLON
+
+// Test 24 — subscripting (call rule applies — `[` after value is subscript)
+a[0]
+// IDENT(a) LBRACKET INTEGER(0) RBRACKET
+a [0]
+// IDENT(a) LBRACKET INTEGER(0) RBRACKET
+//   (no CONCAT — `[` is always subscript after a value, regardless of space)
+
+// Test 25 — three-way mix of concat, call, subscript
+A[i] f(j) "x"
+// IDENT(A) LBRACKET IDENT(i) RBRACKET « CONCAT »
+//   IDENT_LPAREN_NOSP(f) IDENT(j) RPAREN « CONCAT »
+//   STRING("x")
+
+// Test 26 — pattern with dot-binding (Andrew's .)
+'foo' . target
+// STRING('foo') « CONCAT » PERIOD IDENT(target)
+//   Wait — `.` is binary at pri 12 in pattern context, AND unary
+//   "name-of" at unary priority outside pattern context.  The lexer
+//   doesn't know the context; it always emits PERIOD.  The grammar
+//   resolves binary-vs-unary via Bison's %prec rules.
+//   The CONCAT here is wrong if `.` is binary.  Resolve: look at
+//   prev-token before emitting CONCAT — if prev is PT_VALUE and the
+//   next token is a known-binary operator (like PERIOD when it appears
+//   after a value), DON'T emit CONCAT.
+//   Refine: see "CONCAT with following unary/binary ambiguity" below.
+
+// Test 27 — nested call
+f(g(x))
+// IDENT_LPAREN_NOSP(f) IDENT_LPAREN_NOSP(g) IDENT(x) RPAREN RPAREN
+
+// Test 28 — empty statement
+;
+// SEMICOLON
+
+// Test 29 — empty block
+{ }
+// LBRACE RBRACE
+
+// Test 30 — comma at top level (must be syntax error per grammar)
+a, b
+// IDENT(a) COMMA IDENT(b)
+//   (the lexer emits; the grammar rejects unparenthesised comma at top
+//    level. Inside `(...)` the same tokens become alt-eval.)
+```
+
+### 6. Open lexer-design issues to resolve in LS-2/LS-3
+
+#### 6.1 CONCAT-vs-binary-operator ambiguity (Test 26)
+
+The naive CONCAT rule emits CONCAT whenever PT_VALUE is followed
+by something can-start-expr.  But `.` `$` `+` `-` `*` `?` are all
+**both unary prefix AND binary**.  Example:
+
+```
+x . y         ← Andrew binary `.` → conditional-assign in pattern
+x .y          ← unary `.` (name-of) on y, with concat from x?
+x   . y       ← same as x . y (whitespace doesn't change anything)
+```
+
+Andrew's `.sc` resolves this contextually: `.` is binary unless
+the preceding context is unary-expecting (e.g. just after a binary
+op or after `(`).  In our grammar, we use Bison precedence to do
+the same — so the lexer must NOT emit CONCAT before tokens that
+could be binary operators.
+
+**Refined rule:** the lexer emits CONCAT only before tokens that
+can ONLY start an expression — IDENT, INTEGER, REAL, STRING,
+KEYWORD_NAME, LPAREN-not-call, and the strict unary-only operators
+`~`, `@`.  Before the dual-role tokens `.`, `$`, `+`, `-`, `*`,
+`?`, `&`, the lexer does NOT inject CONCAT — those tokens are
+left for the grammar to interpret as binary or unary based on
+production rules.
+
+This means `x y` is concat (`y` is IDENT, can-only-start-expr) but
+`x . y` is binary `.` (no CONCAT before PERIOD).  The user gets
+the SPITBOL semantics for free.
+
+**Note:** Andrew's `.sc` self-host at lines 658–688 has the same
+distinction — `unaryop = ANY("+-*&@~?.$")` is recognized only in
+operand position, while `binaryop = ANY("+-*/<>=^.$?|%")` is
+recognized only in binary position.  The Pratt parser's role-by-
+position is what we replace with Bison precedence + explicit
+CONCAT emission.
+
+#### 6.2 What about the unary-only `~` and `@`?
+
+`~` and `@` are unary-only (binary slots are OPSYN-reservable but
+empty by default).  If the grammar accepts them as binary
+(via OPSYN catch-all), the Test 26-style ambiguity also applies.
+
+**Decision (default):** treat `~` and `@` exactly like `.`/`$`/etc.
+— no CONCAT before them.  This matches their dual-role potential.
+
+#### 6.3 `?` in unary vs binary
+
+Andrew/SPITBOL `?` is binary (pattern-match) at priority 1.
+Andrew also allows `?` as a unary "interrogation" operator
+(returns null if operand succeeds — SPITBOL Manual p.181).
+
+Same handling: no CONCAT before `?`.  The grammar disambiguates.
+
+#### 6.4 Compound assigns `+=` `-=` `*=` `/=` `^=` `%=`
+
+Today's lexer recognizes them.  Andrew's `.sc` does not.  **Open
+question for LS-2:** keep them as Snocone-only sugar or remove?
+For LS-1 we keep them in the lexer; LS-2 grammar decides.
+
+If `%=` is kept, then `%` outside `%=` is OPSYN-only; if `%=` is
+removed (since `%` has no built-in semantic), then dropping `%=`
+is consistent.  Default placeholder: drop all compound-assigns
+to stay aligned with Andrew.  Revisit if anyone misses them.
+
+### 7. Acceptance for LS-3
+
+The new Flex source must produce token streams identical to the
+expected streams in §5 for every test.  An automated runner
+script (`scripts/test_smoke_snocone_lex.sh`) compares actual
+output (printed via the existing `snocone_token_kind_name()`
+helper) against the expected.  Test corpus lives at
+`tests/snocone/lex/*.in` with companion `*.expect.tokens` files.
+
+---
+
 ## Steps
 
 > Convention: each step closes with a single commit (or back-to-back
@@ -803,18 +1396,23 @@ trap in practice.
       with no commitment.  Q11 (rename) moot until Q10 lands.
       Q13 (break/continue form) still pending Lon's pick.
 
-### LS-1 — Lexer design specification
+### LS-1 ✏️ — Lexer design specification (drafted, awaiting review)
 
-- [ ] LS-1.a — Write the complete lexer state machine in this
-      Goal file: every "previous-token" state, every "can-end" set,
-      every "can-start" set, every special-case rule (`f(`,
-      `&IDENT`, `:` for goto-field, etc.).
-- [ ] LS-1.b — Write a 50-line test corpus in this Goal file:
-      input source on the left, expected token stream on the
-      right.  Include every edge case (string with embedded `&&`,
-      `f (x)` vs `f(x)`, `&FULLSCAN` vs `& FULLSCAN`,
-      backtracking-condition in `if`, alternative-eval `(,,)`).
+- [x] LS-1.a — Lexer state machine written.  See top-level
+      `## LS-1 Lexer specification` section §§ 1–4 for the token
+      set, previous-token state model, CONCAT emission rule, and
+      every special-case rule.
+- [x] LS-1.b — Test corpus written.  See § 5 — 30 tests covering
+      every edge case (`&&` in string, `f(x)` vs `f (x)`,
+      `&FULLSCAN` vs `& FULLSCAN`, backtracking-condition in
+      `if`, alt-eval `(,,)`, line-continuation `+`/`.`, comment
+      between values, dual-role `.` `$` `+` `-` `*` `?`).
 - [ ] LS-1.c — Lon reviews; revise until approved.
+- [ ] LS-1.d — Open lexer-design issues in §6 resolved.  Three
+      open: dual-role `.`/`$`/etc CONCAT-suppression rule (default
+      placeholder: don't emit CONCAT before any token that could
+      be binary), `~`/`@` handling (same), compound-assigns kept
+      or dropped (default placeholder: drop, align with Andrew).
 - [ ] No code yet.
 
 ### LS-2 — Grammar design specification
