@@ -757,6 +757,215 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   is partially gapped (you set the bomb on a DIVERGE you know is real,
   not a ghost).
 
+- [ ] **S-2-bridge-event-bombs-coverage** — *Mechanism B's TraceEnabled
+  hook must instrument every site that runs between two adjacent wire
+  emits, not just the pattern matcher.*  Session #69 demonstrated the
+  failure mode: with TraceEnabled wired only into `Scanner` /
+  `ScannerState`, the trace between #932 (LABEL on `&FULLSCAN = 1`)
+  and #933 (VALUE `&fullscan`) came back **empty**, because the
+  statement does no pattern matching — only a keyword store.  An
+  empty trace was wrongly reported as "nothing happened between the
+  two events", when in fact `Executive.Assign` ran a complete
+  keyword-handler dispatch.  The lesson: **TraceEnabled must light up
+  every C# function on every code path the runtime can take between
+  two emits**, or it lies by omission.
+
+  **Done when:** every code path leading between two adjacent
+  `Emit*` calls produces at least one TraceEnabled-gated line.
+  Concretely, instrument:
+
+    a. **Threaded execute loop** — `ThreadedExecuteLoop.cs`'s
+       opcode-dispatch `while (...)` body emits one `[TEL]` line
+       per opcode dispatched (Op + IntOperand + IntOperand2 +
+       AmpCurrentLineNumber + InstructionPointer).
+    b. **Assign path** — `OperatorsBinary/AssignReplace (=).cs`
+       `Assign(args)` and `ReplaceMatch(args)` emit `[ASN]` lines
+       at entry, at each branch (keyword-path,
+       collection-path, NameVar-path, fallthrough), at the
+       keyword-handler dispatch, and at exit of each branch.
+    c. **Function dispatch** — `Executive.Function(int)` and
+       `ProgramDefinedFunction.Execute` emit `[FN ]` lines at entry
+       and return, before/after the `EmitCall`/`EmitReturn` fire.
+    d. **Pattern matcher** — already covered by the existing
+       `[PM ]`/`[M ]`/`[ALT]` triple in `Scanner.cs`/`ScannerState.cs`.
+       Keep as-is.
+    e. **Builtin / keyword handlers** — when a handler is
+       dispatched from `Assign`'s `KeywordTable.TryGetValue(...)`,
+       a thin wrapper around the handler delegate emits `[KWH]`
+       at entry and return.
+    f. **InitializeFinalize / MsilHelpers** — both contain
+       `EmitLabel` call sites; both emit `[INI]` / `[MSI]` lines
+       on entry to the routine that fires the label.
+
+  **Acceptance smoke test:** with `MONITOR_TRACE_FROM_EVENT=N
+  MONITOR_TRACE_TO_EVENT=N+2` for any chosen N at which beauty
+  self-host runs cleanly, the trace MUST contain at least one line
+  for every C# method actually invoked while `_emitCount == N`.
+  Concretely: pick N=932 (last-agreed before `&FULLSCAN = 1`).
+  Trace must show, in order, an opcode dispatch, an Assign entry,
+  the keyword-path branch, a keyword-handler dispatch, a
+  keyword-handler return, the EmitValue, and the next opcode
+  dispatch.  Session #69 produced 5 of these 7 lines (TEL, ASN x4)
+  before the diagnostic was written down; the remaining 2 (FN at
+  CallMsil dispatch into the JIT body, and the actual keyword-
+  handler dispatch wrapper) are the gap this step closes.
+
+  **Constraint:** all instrumentation is `if (MonitorIpc.TraceEnabled)`-
+  gated.  Zero overhead when monitoring is off.  All trace lines
+  go to `Console.Error` so they pipe into the existing
+  `dot.err` capture from `test_monitor_3way_sync_step_auto.sh`.
+
+  **Done when:**
+    i.   Every callsite (a)–(f) above emits a TraceEnabled line.
+    ii.  Acceptance smoke test passes.
+    iii. Beauty 17/17 corpus unchanged with TraceEnabled OFF
+         (build clean, baseline self-host stderr line count
+         unchanged from the c578fb5 baseline of 28).
+    iv.  Test gate: a `scripts/test_smoke_dot_trace_coverage.sh`
+         that runs beauty self-host with `MONITOR_TRACE_FROM_EVENT=
+         MONITOR_TRACE_TO_EVENT=$(($1+2))` for N supplied as $1,
+         and asserts the resulting `dot.err` contains at least
+         one TEL, one ASN, one FN, one PM, and one INI/MSI line.
+
+- [ ] **S-2-bridge-7-A1** — *Path A: close the spl bridge VALUE-on-
+  keyword-store gap so the unfiltered harness advances past
+  step #933 honestly.*
+
+  **Diagnosis (session #69, with full TEL/ASN tracing):**
+  Trace `MONITOR_TRACE_FROM_EVENT=931 TO=935`, no controller
+  workarounds.  Captured 10 trace events between dot's wire emits
+  #931 and #934.  In particular, between #932 (LABEL stno=653)
+  and #933 (VALUE &fullscan = 1), dot ran:
+
+  ```
+  [TEL ec=931 ip=643 stno=642] OP CallMsil i1=643 i2=0
+  [ASN ec=932] ENTER left=IntegerVar/sym='&fullscan'/kwd=True right=IntegerVar
+  [ASN ec=932] KEYWORD-PATH sym='&fullscan' readonly=False rightType=IntegerVar
+  [ASN ec=932] KEYWORD-HANDLER-FOUND sym='&fullscan' value=1
+  [ASN ec=932] KEYWORD-HANDLER-RETURNED sym='&fullscan'
+  [TEL ec=933 ip=644 stno=643] OP CallMsil i1=644 i2=0
+  ```
+
+  The `[ASN]` block is dot's `Executive.Assign(args)` call which
+  routes through the keyword-path (lines 110–141 of
+  `OperatorsBinary/AssignReplace (=).cs`), looks up `&fullscan`
+  in `KeywordTable`, dispatches the handler, then fires
+  `MonitorIpc.EmitValue("&fullscan", 1)` — wire #933.  **dot is
+  doing the right thing.**
+
+  The same source statement on spl runs `asign → asg14 → asg26
+  → asg15 → exi` (sbl.min:17611, 17766, 17861, 17783).  None of
+  those branches calls `sysmv` / `sysmw`.  spl's wire jumps from
+  #932 (LABEL 653) directly to a LABEL 654, skipping the VALUE.
+  The bug is the missing fire-point in spl's `asign` keyword
+  paths.
+
+  **Fix shape:** new C entry point `zysmk` in
+  `x64/osint/monitor_ipc_runtime.c`, modeled on `zysmv`, that
+  takes the keyword's `kvblk` pointer + value and emits one
+  `MWK_VALUE` record with `name = &kvname` (lower-cased to
+  match dot's emission, e.g. `&fullscan`) and `type = INTEGER`.
+
+  **Fire-point:** `jsr sysmk` inserted in `sbl.min asign`
+  on every successful keyword-commit branch — `asg15`, `asg16`,
+  `asg21..23`, `asg25`, `asg17`, `asg19`.  Cleanest is option
+  (a): one `jsr sysmk` immediately before each `exi`.  Option
+  (b) — refactor `asg14` to converge all keyword-success paths
+  through a single landing pad before commit — is a larger diff
+  for marginal benefit; prefer (a).
+
+  **Deliverables:**
+    i.   `osint/monitor_ipc_runtime.c` — new `zysmk` (~30 lines).
+    ii.  `osint/osint.h` — extern decl for `sysmk` if needed.
+    iii. `int.dcl` — global decl for `sysmk` (parallel to `sysmv`).
+    iv.  `sbl.min` — `jsr sysmk` insertions in keyword paths.
+    v.   `bootstrap/sbl.asm` — regenerated, NOT hand-edited
+         (per RULES.md "Source-of-truth").
+
+  **Test gate:**
+    1. `bash one4all/scripts/build_spitbol_oracle.sh` — smoke OK.
+    2. Beauty 17/17 unchanged.
+    3. corpus crosscheck `assign` family clean (refs are stdout,
+       not wire — should not regress).
+    4. **Primary gate:** unfiltered beauty self-host harness
+       (`PARTICIPANTS="spl dot"`, no `MONITOR_*` workarounds)
+       runs past step #933.  spl's #933 is now `VALUE &fullscan
+       = INT=1` matching dot's; controller advances.
+
+  **Done when:** primary gate passes AND
+  `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1` is removable from every
+  harness invocation referenced in this goal file with no change
+  in observed first-DIVERGE step.
+
+- [ ] **S-2-bridge-7-A2** — *Path A continued: authenticate vrblk
+  in `spl_vrblk_name` so `MONITOR_NAME_WILDCARD=spl` becomes
+  unnecessary.*
+
+  Already specified in detail under "Open SPITBOL bridge issue"
+  below.  Promote here as an active sub-rung.  Fix shape: in
+  `x64/osint/monitor_ipc_runtime.c` `spl_vrblk_name`, verify
+  `vr->vrget == b_vrl || vr->vrget == b_vra` before trusting
+  `vrlen`/`vrchs`.  Synthesized "vrblks" from teblks/arblks
+  have `b_tet`/`b_art` at offset 0 — fail authenticity → emit
+  `<lval>` (the existing empty-name path).
+
+  **Deliverables:** `int.dcl` declares `b_vrl`, `b_vra` global;
+  `osint/osint.h` externs them; `spl_vrblk_name` adds the check
+  at top; regenerate `bootstrap/sbl.asm`.
+
+  **Test gate:** unfiltered harness runs without
+  `MONITOR_NAME_WILDCARD=spl`; first-DIVERGE step ≥ the step A1
+  alone reaches.
+
+  **Done when:** `MONITOR_NAME_WILDCARD` is removable from every
+  harness invocation referenced in this goal file with no change
+  in observed first-DIVERGE step.
+
+- [ ] **S-2-bridge-7-A3** — *Validation gate: the unfiltered
+  harness pinpoints an injected dot semantic divergence.*
+
+  With A1 and A2 landed, the harness's premise is restored:
+  agreement on the wire = agreement in semantics.  Prove it.
+
+  **Steps:**
+    1. Inject a known dot semantic break — e.g. modify
+       `Snobol4.Common/Runtime/Functions/Builtin/Ident.cs` so
+       `IDENT(X, Y)` always succeeds.  Build dot.  Confirm
+       beauty 17/17 fails on the IDENT-exercising test.
+    2. Run unfiltered harness on a `.sno` that uses IDENT.
+       The harness MUST produce a single, clean DIVERGE row
+       pointing at the injected divergence.
+    3. Revert the injection.  Confirm the same harness run is
+       clean (no DIVERGE) on un-injected dot.
+
+  **Done when:** step 2 produces a single clean DIVERGE row
+  pointing at the injected break.  Harness is now a trustworthy
+  oracle for the next dot-side bug.
+
+### Session #69 — what failed and what was learned (recorded for the trail)
+
+  Lon asked for the trace between the last-agreed and first-
+  diverged events on the unfiltered harness.  I wired
+  TraceEnabled into `Scanner` / `ScannerState` only, ran the
+  harness with `MONITOR_TRACE_FROM_EVENT=932 TO=934`, got an
+  empty `dot.err`, and reported "the trace shows nothing
+  happened — dot is fine, the bug is on spl".  That conclusion
+  was correct in the end, but the empty trace did not justify
+  it: the trace was empty because my instrumentation was
+  incomplete, not because the runtime did nothing.  An honest
+  read of the empty trace is "I instrumented the wrong code
+  path", not "no code path was taken".  Lon caught the error
+  ("a C# function was called after the last agreed event...
+  you are an idiot to believe otherwise") and required the
+  instrumentation gap be fixed.  After adding `[TEL]` and
+  `[ASN]` traces in `ThreadedExecuteLoop.cs` and
+  `OperatorsBinary/AssignReplace (=).cs`, the same
+  `MONITOR_TRACE_FROM_EVENT=931 TO=935` window produced the
+  10-line trace shown in S-2-bridge-7-A1 above, which makes
+  the spl gap diagnostic and unambiguous.  S-2-bridge-event-
+  bombs-coverage exists to make sure no future session can
+  read an empty trace as evidence of nothing-happened.
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
