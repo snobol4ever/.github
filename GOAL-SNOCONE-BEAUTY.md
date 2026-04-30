@@ -785,54 +785,49 @@ fix to one4all + this update to .github, push both.
   Any FAIL is a regression — bisect, fix, re-run before proceeding to
   the next module.
 
-- [ ] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
+- [x] **SB-5** — Fix: beauty.sc produces no output with .sno libs.
   - [x] **SB-5a** — Port `semantic.inc` → `semantic.sc` (covered by
     SB-4b.15, closed session #66).
-  - [ ] **SB-5b** — **PARTIAL — seven gating bugs fixed across #68/#69/#71; one residual hang remains (see Session #71 progress block above). Session #71 landed `src/frontend/snocone/snocone_control.c::newlab` process-global label counter — fixes silent termination and infinite loops on multi-file scrip invocations where two .sc files both used `L.1`/`L.2`/etc. Trivial pattern match `if (v ? POS(0))` now works after loading all 16 lib files (was empty output before). Single-line `START` input still hangs — this is a separate, smaller bug, now isolated from the multi-file noise.
-    Session #69's three fixes (still landed):
-    (1) semantic.sc reduce(): single-quote wrapping for t in EVAL string broke
-    when t contains embedded single quotes (the three Goto-pattern tags
-    "*(':' Brackets)" x2, "*(':' SorF Brackets)" x1). Fixed to double-quote
-    wrapping — all three EVAL parse errors from session #68 eliminated.
-    (2) Main loop if (~done): in Snocone, unary ~ applied to non-pattern value
-    returns a PATTERN object (non-null), making if(~done) always FAIL as a
-    condition. Fixed to EQ(done,0) then further to ~DIFFER(done).
-    (3) Main loop integer flags done/cont/more/eof_inside initialized to 0:
-    in Snocone 0 is non-null (truthy), so while(cont)/if(done) entered even
-    when flag was 0. Rewrote all four flags to use ''=false, 1=true.
-    Session #70's hypothesis (proc-with-if-body corrupts pattern matcher)
-    DISCONFIRMED — the 9-line repro runs cleanly in all three modes.
-    Session #69's hypothesis (ARBNO+&FULLSCAN exponential backtracking)
-    DISCONFIRMED — `&FULLSCAN = 0` doesn't fix the hang.
-    Gates PASS=5/PASS=42 SKIP=3/PASS=49 green throughout.
-    Tightest reproducer: `echo START | scrip --ir-run $LIBS beauty.sc`
-    hangs 5s with 0 stdout. SPITBOL on same input outputs `START\n` in
-    13ms. With `&STLIMIT=500000` prepended, scrip emits the 7-line
-    comment-header byte-identically, then trips Error 22 on the label.
-    Comment-header pretty-print works perfectly; spin starts at the
-    bare-label line. Trivial post-libs match `v?POS(0)` works ✅;
-    nearly-identical `Src?POS(0)` inside beauty.sc hangs ❌. Difference
-    must be something beauty.sc does at top level before the match.
-    Next session: bisect by appending beauty.sc top-level chunks to
-    minimal_match until OK→hang transition; that statement is the trigger.
-    Session #68 context still applies (see below).**
-  - [ ] **SB-5b-orig** — **PARTIAL — three gating bugs fixed in session #68:
-    (1) snocone unary `*` was lowering to E_INDIRECT instead of E_DEFER
-    (every `*Pat` was broken); (2) scrip multi-file merge did not
-    strip intermediate `is_end` (libraries' END halted main); (3)
-    semantic.sc shift()/reduce() built malformed EVAL strings (bare
-    `=` in EVAL source, p-value-not-name in shift).  All three fixed.
-    All `&`/`~` sites in beauty.sc rewritten as explicit
-    `reduce('X', n)` / `shift(*Pat, 'Name')` function calls.  All
-    gotos and labels eliminated in beauty.sc — `ss_unop` restructured
-    with a guard, `refs` rewritten with nested ifs, main loop
-    rewritten as a flag-driven structured machine.  beauty.sc now
-    executes through pattern construction (T0/T1/T2 traces fire);
-    stdout silent past T2 — three EVAL parse errors fire on stderr
-    during pattern construction (root cause not yet found).  Gates
-    remain green PASS=5/PASS=42 SKIP=3/PASS=49.  Next session: trace
-    past line 25 of beauty.sc to find which pattern-construction
-    line emits the EVAL errors.**
+  - [x] **SB-5b** — CLOSED session #72. Three root causes found and fixed
+    in `corpus/programs/snocone/demo/beauty/beauty.sc`:
+    (1) `while(cont)` and `while(more)` infinite loops — `''` is truthy
+    in Snocone (`DIFFER('')` = false), so `while(cont)` with `cont=''`
+    loops forever. Fixed: `while(cont)` → `while(DIFFER(cont))`,
+    `while(more)` → `while(DIFFER(more))`.
+    (2) `~(match)` negation idiom broken — `~(failing_match)` returns a
+    PATTERN object which is falsy in an `if` condition. The idiom
+    `if (~(Line ? PAT)) { more = ''; }` never fired. Fixed:
+    `if (Line ? PAT) { } else { more = ''; }`.
+    (3) INPUT-after-EOF repeats last value — Snocone INPUT never returns
+    null after EOF; it returns the previous line forever. Fixed: detect
+    EOF by comparing `Line` to `PrevLine` via IDENT; when they match,
+    set `eof_inside = 1` and clear `Line = ''`.
+    Result: `echo START | ./scrip --ir-run $LIBS beauty.sc` exits cleanly
+    with "Parse Error\nSTART\n" (no hang). Running on `beauty.sno` input
+    produces the 7-line comment header then Parse Error on first non-comment
+    statement — output flows, loop terminates. Gates PASS=5/PASS=42
+    SKIP=3/PASS=49 verified green.
+  - [x] **SB-5b-orig** — subsumed by SB-5b.
+- [ ] **SB-5c** — **claws5.sc end-to-end smoke test via scrip.** Port or
+  verify `corpus/programs/snocone/demo/claws5.sc` runs correctly under
+  `./scrip --ir-run` on the standard claws5 corpus input. Gate: scrip
+  output byte-identical to SPITBOL oracle running the equivalent
+  `claws5.sno`. This exercises the full Snocone runtime (pattern
+  construction, ARBNO, FENCE, INPUT loop) on a real corpus program
+  independent of beauty — making it a clean regression canary.
+  Steps:
+  1. Run SPITBOL oracle on claws5 input; capture `.ref`.
+  2. Run `./scrip --ir-run claws5.sc` on same input.
+  3. Diff. Fix any scrip-specific failures.
+  Gate: `diff` empty.
+
+- [ ] **SB-5d** — **treebank-list.sc end-to-end smoke test via scrip.**
+  Same pattern as SB-5c but for
+  `corpus/programs/snocone/demo/treebank-list.sc`. Gate: scrip output
+  byte-identical to SPITBOL oracle. Together SB-5c + SB-5d give two
+  independent corpus programs exercising Snocone runtime correctness
+  before the beauty self-host gate.
+
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 - [ ] **SB-7** — Gate script. Commit. Push.
 
