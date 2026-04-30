@@ -1210,6 +1210,155 @@ push both.
 
 ---
 
+## Session #77 progress (2026-04-30)
+
+**SC-INPUT-EOF CLOSED — but not as a runtime fix.  As a corpus fix.**
+Three baseline gates green; crosscheck snobol4=6, snocone=8 unchanged;
+broad interp suite PASS=222 FAIL=52 unchanged.  Corpus-only diff;
+`one4all`, `.github`, `csnobol4`, `x64` untouched.
+
+### Reframing
+
+Sessions #68 and #76 both diagnosed an "INPUT-after-EOF returns the
+previous line forever" runtime bug, with the proposed fix landing in
+`src/runtime/x86/snobol4.c::input_read()` to return `''` and signal
+exhaustion.  Session #77 verified that diagnosis is wrong:
+`input_read()` already returns `FAILDESCR` correctly on EOF, and the
+SNOBOL4 frontend handles it identically to SPITBOL (`line = INPUT
+:F(eof)` works byte-for-byte — verified with a 4-statement reproducer
+under `sbl -bf` and `scrip --ir-run`).
+
+The actual problem is the **slurp idiom written in the .sc sources**.
+The loop
+
+```snocone
+line = INPUT;
+while (DIFFER(line)) { ...; line = INPUT; }
+```
+
+is structurally broken in both SNOBOL4 and Snocone: a failing
+assignment leaves the LHS unchanged, so on EOF `line` keeps its
+previous value forever, and `DIFFER(line)` is forever true.  This is
+correct SNOBOL4 semantics — and the workaround SNOBOL4 programmers use
+is `:F(eof)` on the read.  Snocone has no statement-failure goto;
+instead, the canonical idiom (per `programs/snocone/report.md`
+line 1240) uses the assignment expression as the predicate:
+
+```snocone
+while (line = INPUT) { ... }
+```
+
+The assignment-as-expression evaluates to FAIL on EOF, the surrounding
+while-test sees the failure, and the loop exits cleanly.  No runtime
+change needed.  No `IDENT(Line, PrevLine)` workaround needed.
+
+### Fix #1 — `claws5.sc` slurp loop
+
+`corpus/programs/snobol4/demo/claws5.sc` lines 120–124, replaced
+
+```snocone
+line = INPUT;
+while (DIFFER(line)) {
+    src = src && line;
+    line = INPUT;
+}
+```
+
+with
+
+```snocone
+while (line = INPUT) {
+    src = src && line;
+}
+```
+
+`./scrip --ir-run claws5.sc < claws5.input`: was hanging (rc=124,
+0 stdout), now exits cleanly with `Pattern match failed` in all
+three modes — matches SPITBOL on the same input.  Goto count
+remains 0.
+
+### Fix #2 — `beauty.sc` main loop
+
+`corpus/programs/snocone/demo/beauty/beauty.sc` main loop
+(lines 421–478, 56 lines net replacing 60), removed the session #68
+SB-5b workaround flags (`done`, `cont`, `more`, `eof_inside`,
+`PrevLine`, `IDENT(Line, PrevLine)` no-advance detection) and replaced
+with a clean look-ahead structure:
+
+- Outer while: `~DIFFER(input_done)`.
+- `have_line` flag distinguishes "Line holds an unprocessed look-ahead"
+  from "Line just consumed; refetch on next iteration".
+- Refetch: `if (Line = INPUT) have_line = 1; else input_done = 1;`.
+- Header passthrough: `if (Line ? POS(0) && ANY('*-')) OUTPUT = Line;`.
+- Logical-unit accumulator: `Src = Line && nl;`, then continuation
+  loop reads ahead and folds in any line starting with `.` or `+`,
+  preserving non-continuation lookahead for the next outer iteration.
+- Parse Src; pp; emit Parse Error or Internal Error on failure.
+
+The structure mirrors canonical `beauty.sno::main00..main05` exactly.
+Goto count = 0 (one comment-mention of "SNOBOL4 goto AST node" remains
+at line 277, unchanged from session #68).
+
+### Verification
+
+**Slurp loop terminates in all three modes** on the 50KB `beauty_oracle.sno`:
+1449 lines emitted, header-passthrough working, clean rc=0.
+
+**Three baseline gates green:**
+- `test_smoke_snocone.sh` → PASS=5 FAIL=0
+- `test_beauty_snocone_all_modes.sh` → PASS=42 FAIL=0 SKIP=3
+- `test_smoke_unified_broker.sh` → PASS=49 FAIL=0
+
+**Crosscheck gates green:**
+- `test_crosscheck_snobol4.sh` → PASS=6 FAIL=0
+- `test_crosscheck_snocone.sh` → PASS=8 FAIL=0
+
+**Broad interp suite unchanged:** PASS=222 FAIL=52 (same as session #75
+post-SB-5c.1 baseline).
+
+### What this closes vs. what remains
+
+Closed: **SC-INPUT-EOF** — corpus-side, no runtime change.  Both the
+session-#76 hang in `claws5.sc` and the session-#68 IDENT-workaround
+in `beauty.sc` are gone.
+
+Still open and downstream of this rung:
+- **SB-6** — beauty self-host.  On a tiny SNOBOL4 fixture
+  (`*  hdr1\n*  hdr2\nA = 1\nOUTPUT = A\nEND\n`), beauty.sc's slurp
+  loop now correctly produces 3 logical units (A=1, OUTPUT=A, END).
+  Two are Parse Errors; the third (END) parses OK but pp() trips
+  Error 5 ("Undefined function or operation") — **a beauty-internal
+  grammar/runtime issue completely independent of SC-INPUT-EOF**.
+  Three startup errors still fire during pattern construction
+  (the "Error 1: GE first argument is not numeric" and "Error 5:
+  Undefined function" noted as pre-existing in session #68).  These
+  are the remaining work for SB-6.
+- **SB-5c.2** — `claws5.input` vs `CLAWS5inTASA.dat` alignment.
+  Corpus-curation, unchanged by this session.
+- **SB-5d.2** — `treebank-array.sc` blocked on LS-0 (space-concat
+  language feature).  Unchanged.
+
+### Files touched this session
+
+- `corpus/programs/snobol4/demo/claws5.sc` — `+5/-5` net in the
+  slurp loop (4-line expansion → 3-line canonical idiom plus a
+  3-line comment block referencing report.md).
+- `corpus/programs/snocone/demo/beauty/beauty.sc` — `~+60/-50` net
+  in the main loop (file was 478 lines, now 479; structure replaced
+  wholesale with the canonical `Line = INPUT` predicate idiom and
+  `have_line` look-ahead flag).
+
+No runtime/frontend source changes.  No `.github` infrastructure
+changes beyond this progress entry and the rung markers below.
+
+### Repos state
+
+`corpus`: dirty (claws5.sc + beauty.sc).  `.github`: this update only.
+`one4all`, `csnobol4`, `x64`: clean.  Plan: commit corpus + .github,
+push corpus first then .github.
+
+---
+
 - [x] **SB-1** — Diagnose underflows.
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
