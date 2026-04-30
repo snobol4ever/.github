@@ -637,6 +637,62 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   too noisy in the full self-host run.  In either case: STOP at the first concrete AST
   divergence — do not chase symptom-level retries before isolating the structural diff.
 
+- [ ] **S-2-bridge-harness-trust** — *Stop trusting the sync-step harness
+  until it can see the actual gating bug.*  Session #67 (this session)
+  re-ran the unfiltered harness on beauty self-host and found that the
+  **real first DIVERGE is at step 933, on `&FULLSCAN = 1` itself**:
+
+  | step | spl | dot |
+  |------|-----|-----|
+  | #933 | `LABEL stno=654` | `VALUE &fullscan = INT=1` |
+
+  spl emits no VALUE for the keyword store (the SN-26 spl bridge gap
+  recorded in "Open SPITBOL bridge issue" below), so it jumps straight
+  to LABEL 654.  dot emits the VALUE first.  This is a **known bridge
+  gap, not a runtime semantic bug**.  All subsequent DIVERGE points
+  recorded by sessions #56, #58, #62, #63, #64, #65, #66 (watermark
+  801 → 933 → 1046 → 1497 → 1617 → 2839) were reached **only with
+  controller-side skip workarounds** (`MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`,
+  `MONITOR_NAME_WILDCARD=spl`) papering over this and other bridge
+  gaps.  Each "advance" was the controller masking ghosts; the
+  underlying parse-failure bug at line 26 has been invisible to the
+  wire the entire time.
+
+  Session #63 already wrote: *"Chasing wire divergences from event 1
+  has been clearing bridge ghosts, not finding the parse bug."*  The
+  goal file still ladders sub-rungs that depend on watermark advance.
+  That is the contradiction this rung exists to resolve.
+
+  **Done when:** the unfiltered harness (no `MONITOR_NAME_WILDCARD`,
+  no `MONITOR_SKIP_EXTRA_KEYWORD_VALUES`, no other skip env vars)
+  reaches at least the byte where beauty self-host actually fails on
+  dot.  Either:
+  - **Path A** — close the spl bridge VALUE-on-keyword-store gap in
+    `x64/osint/monitor_ipc_runtime.c` (asg01 / asg14 / asg02), so spl
+    emits `VALUE &fullscan = INT=1` like dot does.  This eliminates
+    step #933 as a DIVERGE.  Cross-ref SN-26-bridge-coverage.
+  - **Path B** — close the spl `vrsto = xl - vrvlo` stale-memory issue
+    in `spl_vrblk_name` (the workaround for which is `MONITOR_NAME_WILDCARD=spl`).
+    This eliminates the name-wildcard workaround.
+
+  Both paths together restore the harness's premise: agreement on the
+  wire = agreement in semantics.  Until then, watermark numbers are
+  decoration.
+
+  **Validation gate after fix:** inject a known semantic divergence
+  in dot (e.g. make `IDENT` always succeed, or `RPOS(0)` always fail),
+  run unfiltered harness, confirm it pinpoints the right event.  This
+  is the validation rung session #63 already recommended and which has
+  not been done.
+
+  **Until this rung closes, do not chase wire-watermark advances.**
+  The actual gating bug is a parse-time divergence in dot's pattern
+  matching during the `&FULLSCAN = 1` parse, and it has been
+  state-dependent and invisible to the wire since session #62.  Work
+  that bug directly — instrument `Scanner.PatternMatch` /
+  `UnevaluatedPattern.Scan` / scanner alt-stack on dot during the
+  failing parse — without depending on the harness for localization.
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
@@ -971,3 +1027,124 @@ nested-FENCE chain — but it doesn't reach `*snoUnprotKwd` at the
 
 `one4all` and `corpus` are unchanged this session.
 
+---
+
+## Session #67 findings — harness-trust step opened; minimal repro for dot FENCE bug isolated
+
+**snobol4dotnet HEAD:** `bb28a8d` (unchanged — no commit this session beyond the goal-file edits).
+
+### What happened
+
+Session was scoped to "find and fix the bug between last agreed and first diverge."
+The harness reached the same DIVERGE step #2839 sessions #64–#66 reported
+(`RETURN match (NRETURN)` vs `CALL upr`).  Multiple iterations theorizing
+without isolating; correctly redirected to **stop tracing, run minimal
+example**.
+
+### Minimal repro found: corpus crosscheck test 114
+
+Ran the 34 corpus FENCE crosscheck patterns (`corpus/crosscheck/patterns/*fence*`)
+against dot.  **Two failures on dot, both real divergences from spl:**
+
+  - **`114_pat_fence_via_var_in_paren_alt`** — clean repro of the bug:
+    ```snobol4
+    cmd = FENCE('a' | 'ab')
+    outer = (*cmd 'X' | *cmd 'Y' | LEN(0))
+    s = 'aY'
+    s POS(0) *outer RPOS(0)                               :S(YES)F(NO)
+    ```
+    spl: `second outer alt matched aY` (PASS).
+    dot: `fail`.
+
+  - **`130_pat_two_star_fence_concat_outer`** — *both* spl and dot
+    produce `fail`; the .ref expects `sequence of star-cmd-FENCE matched`.
+    Bad ref or spl bug — set aside.
+
+Test 114 is the **canonical structural bug**: `*cmd 'X'` matches 'a'
+inside the FENCE then fails on 'X', the seal ABORTs the entire match
+on dot, but spl correctly tries the OUTER alternation arms `*cmd 'Y'`
+and `LEN(0)` — those arms were saved on the alt stack BEFORE the FENCE's
+Mark was pushed and remain live below the seal.
+
+This is structurally identical to beauty's `snoExpr14` alternation
+(ladders of `*snoProtKwd | *snoUnprotKwd | ... | *snoExpr15`) under
+`snoExpr13`'s `FENCE($'~' *snoExpr13 ... | epsilon)`.  Same bug class.
+
+### Where the dot bug lives
+
+`Snobol4.Common/Runtime/PatternMatching/Scanner.cs`, `Match()` lines 100–106:
+
+```csharp
+case MatchResult.Status.FAILURE:
+    if (!_state.HasAlternates())
+        return mr;
+    var (alternateIndex, _) = _state.RestoreAlternate();
+    if (alternateIndex == -2)
+        return MatchResult.Abort(_state);   // ← TOO AGGRESSIVE
+    node = _ast![alternateIndex];
+    break;
+```
+
+Session #66's correction (`-2` → ABORT instead of FAILURE) was right
+that ABORT must block the unanchored cursor-retry loop in
+`PatternMatch`.  But it's wrong to ABORT immediately when there are
+real alternates BELOW the `-2` on the stack — those outer alternates
+were saved before the FENCE's Mark and remain live.
+
+**Sketch of fix:** on popping `-2`, keep popping until a real alternate
+is found (fire it) or the stack is exhausted (then ABORT to suppress
+unanchored retry).  Nested `-2` seals stack on top of each other and
+should all be skipped.
+
+This fix was drafted in this session but **not committed** because
+RULES.md "test gate before commit" — needs:
+  1. unit suite to confirm no regression on existing FENCE tests,
+  2. corpus crosscheck — at minimum tests 058–119, 129, 130 to
+     confirm 114 flips FAIL→PASS without flipping any of the 33 PASS→FAIL,
+  3. beauty 17/17 unchanged,
+  4. beauty self-host re-run.
+
+### Why session #67 isn't claiming "fixed"
+
+Beauty self-host failure has been state-dependent (session #62: standalone
+repro fails on BOTH spl and dot; succeeds in real beauty on spl).  The 5-line
+test 114 is structurally similar but is NOT the beauty self-host failure
+itself.  Test 114 may be one bug among several gating beauty self-host;
+fixing it may or may not unblock line 26.
+
+The honest claim: **dot has a real, isolated, 5-line FENCE seal bug** that
+SPITBOL handles correctly.  Probability that fixing it reduces the
+beauty-self-host distance is high.  Probability it closes self-host is
+unknown.
+
+### S-2-bridge-harness-trust step opened
+
+The unfiltered sync-step harness reaches DIVERGE at step **#933 on
+`&FULLSCAN = 1` itself** — a known spl bridge gap (no VALUE on keyword
+store).  Every previous session's watermark advance (801 → 933 → 1046 →
+1497 → 1617 → 2839) required the controller workaround
+`MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1` plus `MONITOR_NAME_WILDCARD=spl` to
+mask bridge gaps.  Watermark numbers were measuring the controller's
+masking, not the runtime's progress.
+
+New step **S-2-bridge-harness-trust** added before S-3.  Done when the
+unfiltered harness can pinpoint a known injected dot semantic bug.  Until
+that gate passes, watermark advances are decoration.
+
+### Recommended next-session pivot
+
+1. **Apply the Match() fix sketched above.**  Run corpus crosscheck
+   FENCE subset (34 tests) and the unit FENCE suite.  Targeted gate:
+   test 114 PASS, no regressions in 058–119/129/130 set.
+2. If 114 PASSes, run beauty 17/17 + beauty self-host.  Beauty self-host
+   may still fail at line 26 — that's the state-dependent second bug.
+3. Either way: **commit the fix** (with tests) — it's a real bug
+   regardless of whether it closes self-host.
+4. After fix lands, decide whether to:
+   - chase the residual beauty self-host failure with direct dot
+     instrumentation (NOT the wire monitor), OR
+   - close S-2-bridge-harness-trust by fixing the spl bridge gaps so
+     the harness becomes trustworthy again.
+
+`one4all` and `corpus` and `snobol4dotnet` are unchanged this session.
+Goal-file edits only.
