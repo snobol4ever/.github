@@ -966,6 +966,119 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   bombs-coverage exists to make sure no future session can
   read an empty trace as evidence of nothing-happened.
 
+### Session #70 — TraceEnabled wired into Scanner; SealAlternates over-eager confirmed; first attempted fix not sufficient
+
+  **snobol4dotnet HEAD:** `c578fb5` (UNCHANGED — diagnostic patches
+  reverted before commit per RULES.md).
+
+  **What ran:** Re-applied the Mechanism B wiring (TraceEnabled-gated
+  `[ALT]`/`[PM]`/`[M]` traces in `Scanner.cs` / `ScannerState.cs`)
+  AND patched `MonitorIpc.cs` so `_standaloneCount` ticks on every
+  `Emit*` call regardless of whether `READY_PIPE` is set.  This
+  makes `MONITOR_TRACE_FROM_EVENT` / `MONITOR_TRACE_TO_EVENT` work
+  in standalone mode (no controller) — useful for direct
+  instrumentation runs.  Verified with a tiny pattern test program;
+  trace fires correctly.
+
+  **Beauty self-host total emit count: 2609** (standalone, no
+  monitor).  Session #68's "controller step #2839" maps to
+  controller-side counting under filtering — not directly
+  comparable to dot's standalone `_emitCount`.  Last live scanner
+  state in beauty self-host is **s90** at `ec=2497`.  The four
+  `&FULLSCAN = 1` parses appear at scanner states **s63 (ec=1395),
+  s77 (ec=1705), s79 (ec=1709), s80 (ec=1709)**.  s80 is the
+  failing parse — 2.5M alt-stack events on s80 alone.
+
+  **Confirmed bug shape on s80:** the alt stack accumulates many
+  `-2` seals from prior FENCEs interleaved with outer alts, with
+  only a single `-3` mark at the bottom.  Example just before the
+  final SEAL on s80:
+  ```
+  SEAL-PRE  depth=32 stack=[94, 91, 86, -2, -2, 352, -2, -2, 594, 589, 588, 588, 588, 566, 561, 352, -2, 503, 503, 352, 479, 476, 471, 466, 56, 51, 24, 19, -3, 10, 5, -1]
+  SEAL-POST depth=4  stack=[-2, 10, 5, -1]
+  ```
+  The seal pops 28 entries — including the prior `-2` seals and
+  the snoExpr14/snoVar outer alts (`19, 24, 51, 56, 466, 471, 476,
+  479, 352, 503, 503`) — to find the lone `-3` mark at the bottom.
+  The outer alts (where `*snoUnprotKwd` lives, per session #68's
+  diagnosis) are wiped.
+
+  **Fix attempted (NOT committed):** added `if (top == -2) break;`
+  to `SealAlternates` so the seal stops at a previous seal as well
+  as at its own mark.  Build clean.  Beauty self-host: **same 28
+  stderr lines, same Parse Error**.  Re-trace post-fix shows the
+  seals DO stop at `-2` correctly (final seal on s80 popped 3
+  entries instead of 28, preserving outer alts), but s80 ends
+  with the same total event count and same outcome.  Either:
+    - The fix is in the right direction but masks a downstream
+      bug (the preserved alts still lead to the same FAILURE path).
+    - The fix has its own correctness problem: `-3` marks now
+      ACCUMULATE on the stack because seals on top of nested marks
+      stop at intermediate `-2`s rather than consuming the marks
+      they were paired with.  Stack depths grow far past the
+      pre-fix depth (107+ vs 32), suggesting mark accumulation is
+      real and is itself a new bug.  Reverted.
+
+  **What this rules out:** the failing-parse outcome is NOT
+  hyper-sensitive to whether `-2`s are barriers in `SealAlternates`.
+  Even with the outer snoExpr14/snoVar alts preserved on the
+  stack post-seal, the parse still fails the same way at the same
+  cursor position.  This corroborates session #68's diagnosis
+  that **the bug is above the seal, not at the seal**.  Backtrack
+  is not even reaching the seal; the outer alts (whether preserved
+  or wiped) are not being consulted.
+
+  **Where the bug actually is — refined hypothesis:** the high-
+  numbered alts (`588, 588, 588, 589, 594` and the 273000-series
+  and 280000-series) that fire BEFORE backtrack reaches snoExpr14's
+  alts include the Subsequent chain that eventually leads to
+  `*snoFunction` (in snoVar/snoAtom production).  When those
+  high-numbered alts succeed at intermediate steps, they consume
+  cursor and never failback far enough to expose `*snoUnprotKwd`
+  underneath.  Concretely: the trace shows hundreds of
+  `RESTORE alt=NNNNNN` events on s80 for high-numbered alts but
+  **the lower-numbered alts (`19, 24, 51, 56, 466, 471, 476, 479`)
+  are never RESTOREd**.  They sit on the stack untouched because
+  the high-numbered alts find a SUCCESS path elsewhere and the
+  match terminates without backtracking that far.
+
+  **Recommended next-session pivot:** the tools needed to find this
+  bug are now wired:
+    1. Restore the diagnostic patches from this session (revert is
+       trivial — copy from session #70 trace text below).
+    2. Run beauty self-host with full TraceEnabled=on, redirect
+       stderr to `/tmp/full_trace.log` (≈6.6M lines, 1.3 GB).
+    3. Find the FIRST `[M  s80] Result=SUCCESS` for any node that
+       leads to `*snoFunction`.  That is the wrong success — it
+       commits the parse to the snoFunction path before snoExpr14
+       has tried snoUnprotKwd.
+    4. Walk back from that node to find which alternate from
+       snoExpr14 was supposed to be tried before snoFunction
+       (per beauty.sno's grammar: `... '?' | *snoProtKwd |
+       *snoUnprotKwd | '&' ...`).  That alternate's index will be
+       in the saved-alt stack at the time of the wrong success,
+       and is one of the lower numbers (19, 24, 51, 56, etc).
+    5. The bug is whatever causes that alternate to be skipped.
+       Likely candidates: AST-build wiring (`*snoUnprotKwd`'s
+       `Alternate` edge points to something other than the next
+       arm); or the SEAL/MARK semantics (a fence between snoExpr14
+       arms is wiping the wrong alts at the wrong time).
+
+  **Status updates:**
+    S-2-bridge-event-bombs-coverage   [~] partial — Mechanism B
+                                          wiring approach validated
+                                          standalone (TraceEnabled
+                                          fires without controller).
+                                          Productionizing into
+                                          ThreadedExecuteLoop /
+                                          AssignReplace / Define /
+                                          builtins still TODO.
+    S-2-bridge-7-fullscan             [~] still partial — seal-stop-
+                                          at-`-2` is NOT the missing
+                                          fix.  Bug is in alternation
+                                          ordering above the seal.
+
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
