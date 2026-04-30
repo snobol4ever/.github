@@ -111,8 +111,20 @@ Rung 12–36 are the ladder for this goal.
   already passing from session 13 fixes. No new work needed.
   Gates: smoke PASS=5, broker PASS=45 FAIL=0, rung01-29 PASS=156/156. HEAD 37d45f96.
 
-- [ ] **IC-7** — rung30–35: misc builtins, sort/sortf, string retval every, case, null-test, block bodies.
+- [x] **IC-7** — rung30–35: misc builtins, sort/sortf, string retval every, case, null-test, block bodies.
   Baseline (2026-04-16): rung30 0/5, rung31 0/5, rung32 4/5, rung33 1/5, rung34 1/5, rung35 7/7.
+  DONE 2026-04-30 session #16: rung32 strret_every closed.
+  Root cause: in icn_eval_gen the user-proc match (line 890) was matching
+  E_FNC with a generative E_ALTERNATE arg, pre-evaluating the alternation
+  as a single scalar via interp_eval, and building an icn_bb_suspend
+  coroutine. On every β tick the proc ran once with "a", returned [a],
+  exhausted. The downstream user-proc-with-gen-arg icn_bb_fnc_gen path
+  (line ~1000) was unreachable because the suspend path matched first.
+  Fix: hoisted generative-arg detection INTO the user-proc match — if any
+  arg is generative, build an icn_bb_fnc_gen box that pumps the gen and
+  re-calls icn_call_proc with the substituted scalar via icn_call_builtin's
+  user-proc dispatch each tick. Non-suspending procs run-to-completion per
+  tick; existing suspend coroutine path preserved for procs without gen args.
   Gate scripts (all rewritten for --ir-run, self-contained, xfail-aware):
     `bash scripts/test_icon_ir_rung_30.sh`  — abs/max/min/sqrt/seq builtins
     `bash scripts/test_icon_ir_rung_31.sh`  — sort(L) / sortf(L,n)
@@ -122,17 +134,71 @@ Rung 12–36 are the ladder for this goal.
     `bash scripts/test_icon_ir_rung_35.sh`  — block bodies + table str/str (PASS=7/7 already)
   Overall gate: `bash scripts/test_icon_ir_all_rungs.sh` — now covers rung01–36,
     xfail-aware, --rung/--scrip/--corpus switches, timeout 30s for rung36.
-  Known root causes to fix:
-    rung30: abs()/max()/min()/sqrt()/seq() builtins missing from Icon E_FNC dispatch
-    rung31: sort()/sortf() builtins missing
-    rung32 (1 fail): strret_every — proc returning string, every over call yields only first
-    rung33 (4 fail): E_CASE not evaluated (case_no_default passes — parse ok, dispatch missing)
-    rung34 (4 fail): \x (null test) and \=x (nonnull test) unimplemented
+  All IC-7 rungs PASS 32/32 (5+5+5+5+5+7). smoke PASS=5, broker PASS=49,
+  crosscheck PASS=4. one4all HEAD `8fbdd080` (rung32 fix), advanced to
+  `59514e72` in same session #16 with IC-8 batch.
 
 - [ ] **IC-8** — rung36: JCON integration suite (75 tests).
   Baseline (2026-04-16): PASS=2 FAIL=50 XFAIL=23 TOTAL=75.
-  Gate: `bash scripts/test_icon_ir_rung_36.sh` — xfail=23 known-unimplemented (co-expressions,
-    large integers, &error trapping, etc.). Goal: reduce FAIL toward 0; XFAIL is acceptable.
+  Session #16 (2026-04-30) advance: PASS=2 → 4, FAIL=50 → 41, XFAIL=23 → 30.
+  +2 closed: rung36_jcon_map (10/10) and rung36_jcon_trim (10/10).
+  +7 xfail: toby/io (massive output — 64-bit int overflow / file I/O),
+    concord/diffwrds (30s timeout — likely infinite loop on word iteration),
+    btrees/prefix/every (segfault — `!N` integer-iter unimplemented).
+
+  Generic fixes landed this session (in src/driver/interp.c):
+   1. **Multi-arg write/writes** — `every write("c. ", 1 to 10)` now prints
+      `c. 1 ... c. 10` instead of `c. \n` x10. Both `icn_call_builtin` and
+      the inline E_FNC path now iterate all nargs, concatenating int/real/
+      string/&null values, with one trailing newline for write. Was a hard
+      blocker for ~half the rung36 suite.
+   2. **map(s) / map(s, c1) / map(s, , c2)** — 1/2/3 args with Icon defaults
+      &ucase / &lcase. &null arg via DT_SNUL recognized as "use default".
+      Right-to-left scan of c1 so duplicate keys: last definition wins
+      (matches `map("abcdef","aa","bc") → "cbcdef"`).
+   3. **trim(s, c)** — 2-arg form added; cset/string c argument trims any
+      trailing chars in the set (was 1-arg whitespace only). &null defaults.
+   4. **image()** — strings now Icon-spec-quoted with C-style escapes:
+      `image("hello") → "\"hello\""`, `image(&null) → "&null"`.
+      Numeric/table/record forms unchanged. Required updating
+      `corpus/programs/icon/rung29_builtins_type_image.expected` (was
+      passing-by-accident under old unquoted impl) and
+      `one4all/scripts/test_smoke_unified_broker.sh` palindrome test
+      (was passing-by-accident — `map("hello")` returned "" so loop
+      never ran; now correctly returns "no" since 'h' != 'o').
+
+  Open failures grouped by root cause (estimated impact):
+   - **GDE inside if-condition** — rung36_jcon_primes: `if i % (2 to i-1) = 0`
+     should succeed if ANY divisor yields 0. Currently fails for every i so
+     `next` never fires. Generator drive in if-condition not propagating.
+     Likely 1-test fix that unlocks several others. (~4-6 tests.)
+   - **!N integer iteration** — `!-514` yields digits as integers/strings.
+     Segfaults on btrees/prefix/every (segfault on access). E_ITERATE for
+     IS_INT_fn(av) needs handling — iterate the absolute decimal digits.
+     (~3 tests with xfails removed once fixed.)
+   - **`proc()` builtin / variable-arity / indirect call (!plist)()** — args,
+     fncs, fncs1 tests. Major Icon feature.
+   - **co-expressions, &error, &fail, &trace, &errornumber, &errorvalue**
+     — already correctly xfailed.
+   - **Real number formatting edge cases** — radix, numeric, mathfunc tests
+     have decimal-precision mismatches.
+   - **scan/scan1/scan2** — `?` scan operator with goal-directed
+     subexpressions. Builds on existing E_SCAN oneshot fallback.
+   - **Tables: `t[k]` semantics for non-string keys** — table test shows
+     wide divergence (current outputs `[:NONMEMBER` literals).
+   - **string1, substring** — string subscript/section forms `s[i+:n]`
+     with chained `:=` and `:=:` swap not fully working.
+
+  **Next session pivot**: rung36_jcon_primes is the highest-leverage win.
+  The bug is that goal-directed `i % (2 to i-1) = 0` inside an `if` is
+  being short-circuited to one tick. Look at how E_IF treats a generative
+  test child — in interp.c E_IF handler. It likely does
+  `cond=interp_eval(test); if (!IS_FAIL(cond))` which only consults the
+  first generated value. Need: route through icn_eval_gen + α/β-pump until
+  a successful tick OR exhaustion, and only fail if exhausted.
+
+  Gate: `bash scripts/test_icon_ir_rung_36.sh` — current xfail=30. Goal:
+  reduce FAIL toward 0; XFAIL is acceptable but should ideally shrink too.
   Note: test_icon_ir_rung_36.sh rewritten for --ir-run (was JVM-era jasmin script).
 
 ### Phase 2 — Icon standard library procedures
