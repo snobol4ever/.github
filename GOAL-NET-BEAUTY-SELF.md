@@ -693,6 +693,70 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   `UnevaluatedPattern.Scan` / scanner alt-stack on dot during the
   failing parse — without depending on the harness for localization.
 
+- [~] **S-2-bridge-event-bombs** — *General-strategy mechanisms baked
+  into MonitorIpc so future sessions never re-invent them.*  Once a
+  DIVERGE row exposes the (last-agreed N, first-diverge N+1) pair, the
+  hard part of any bug is "where in the dot runtime did execution go
+  between event N and event N+1?"  Two mechanisms close that gap:
+
+  **Mechanism A — `MONITOR_BREAK_AT_EVENT=N`** (debugger entry point).
+  In `MonitorIpc.cs`, every `EmitCall`/`EmitReturn`/`EmitValue`/
+  `EmitLabel` increments a static `_emitCount`.  When the env var is
+  set and `_emitCount == N`, fire `System.Diagnostics.Debugger.Break()`
+  if a debugger is attached, otherwise dump the managed stack to stderr
+  via `Environment.StackTrace`.  Then continue normally so the next
+  emit (the diverge event) is reached, where the same handler can be
+  invoked again.  The result: full call-stack at the last-agreed event,
+  full call-stack at the first-diverge event, side by side.  No tracing
+  noise.
+
+  **Mechanism B — `MONITOR_TRACE_FROM_EVENT=N` / `MONITOR_TRACE_TO_EVENT=M`**
+  (focused tracing).  Same emit-counter; when `_emitCount` enters the
+  half-open interval `[N, M)`, flip a global `MonitorIpc.TraceEnabled
+  = true`.  Existing diagnostic instrumentation in dot
+  (`DOT_TRACE_ALT=1` in ScannerState, AST dumps, *upr stack dumps,
+  any future env-gated traces) reads this single flag instead of its
+  own env var.  The harness writes the focused trace to
+  `MONITOR_TRACE_LOG.dot.scan.log` automatically.  Result: a trace
+  bounded to exactly the events between last-agreed and first-diverge
+  — usually a few hundred to a few thousand scan operations — instead
+  of the millions in a full-program trace.
+
+  **Why this generalizes — the "set bombs" pattern.**  This is just
+  event-counted trigger / event-counted untrigger, applied to a single
+  emit counter.  The same mechanism extends to:
+    - `MONITOR_BREAK_ON_LABEL_STNO=N` — fire on a specific source line.
+    - `MONITOR_BREAK_ON_VALUE_NAME=foo` — fire when foo is assigned.
+    - SNOBOL4-side analog on spl using `&STCOUNT` — set a catch-all on
+      a specific statement count to trigger source-side OUTPUT or
+      `DUMP()` at the agreed event, just before divergence.
+
+  These hooks are **fire-and-forget infrastructure** — once installed,
+  every future session that hits a DIVERGE row gets a one-line
+  follow-up: `MONITOR_TRACE_FROM_EVENT=2837 MONITOR_TRACE_TO_EVENT=2840
+  bash test_monitor...` produces a trace covering exactly the bug,
+  ready for inspection.
+
+  **Done when:**
+    1. `MonitorIpc.cs` carries the `_emitCount` and the two env-var
+       handlers.
+    2. `ScannerState.cs` `DOT_TRACE_ALT=1` reads `MonitorIpc.TraceEnabled`
+       (OR'd with the env var, for back-compat).
+    3. A smoke test demonstrates the workflow: inject a known dot bug,
+       run harness, get DIVERGE row, set `BREAK_AT_EVENT` to the
+       last-agreed event count, attach `dotnet-trace` or read the
+       stderr stack dump, identify the bug from the call stack alone.
+    4. Harness driver script (`test_monitor_3way_sync_step_auto.sh`)
+       passes the new env vars through to dot's environment when set.
+
+  **Why this rung is paired with `harness-trust` not folded into it.**
+  `harness-trust` is about the bridge's *output* being honest (no
+  controller masking).  `event-bombs` is about turning each honest
+  divergence row into a *concrete debugger entry point*.  Both are
+  needed but they are independent — bombs help even when the harness
+  is partially gapped (you set the bomb on a DIVERGE you know is real,
+  not a ghost).
+
 - [ ] **S-3** — Gate: `SELF-HOST PASS` per "Test command" above.
 
 ## Open SPITBOL bridge issue (cross-ref SN-26-bridge-coverage)
@@ -1148,3 +1212,84 @@ that gate passes, watermark advances are decoration.
 
 `one4all` and `corpus` and `snobol4dotnet` are unchanged this session.
 Goal-file edits only.
+
+---
+
+## Session #67 follow-up — S-2-bridge-event-bombs partial landed
+
+**snobol4dotnet HEAD:** `3c1637d`.
+
+### What landed
+
+`Snobol4.Common/Runtime/Monitor/MonitorIpc.cs` now carries:
+
+  - `_emitCount` — incremented on every wire record except `MWK_NAME_DEF`.
+  - `MONITOR_BREAK_AT_EVENT=N` — when `_emitCount == N` just before sending
+    the Nth record, dump managed stack to stderr and call
+    `Debugger.Break()` if a debugger is attached.  Sessions that have
+    identified a DIVERGE row at event N can pin the dot-side call stack
+    at that exact emit.
+  - `MONITOR_TRACE_FROM_EVENT=N` / `MONITOR_TRACE_TO_EVENT=M` — half-open
+    interval gate for the public `MonitorIpc.TraceEnabled` flag.  Other
+    dot-side instrumentation (`DOT_TRACE_ALT=1` in ScannerState, AST
+    dumps, scan logging) can read this single flag to scope output to
+    the gap between last-agreed and first-diverge.
+  - Public `MonitorIpc.EmitCount` and `MonitorIpc.TraceEnabled` readers.
+
+All three env vars are silently no-op when unset (back-compat).
+
+### Smoke test result
+
+Harness run with `MONITOR_BREAK_AT_EVENT=2838` on beauty self-host produces
+a stack dump in `dot.err`:
+
+```
+[MonitorIpc] BREAK_AT_EVENT fired at #2838 kind=5 type=2 valueLen=8
+   at System.Environment.get_StackTrace()
+   at Snobol4.Common.MonitorIpc.EmitRecordRaw(...) ...
+   at Snobol4.Common.MonitorIpc.EmitLabel(Int64 stno) ...
+   at Snobol4.Common.Executive.InitStatementMsil(Int32 stmtIdx) ...
+   at Snobol4_Expr(Executive)
+   ...
+```
+
+Beauty self-host stderr unchanged at 28 lines (no semantic regression).
+The bomb fires; the stack is observable.
+
+### Known limitation
+
+Dot's `_emitCount` (with NAME_DEF excluded) does not exactly align with
+the controller's wire-log `#N` numbering.  In the smoke test, controller
+wire-log #2838 = `RETURN upr` but dot's count #2838 = a `LABEL` emit two
+records earlier.  The exact offset varies through the run (controller
+filters or skips some records via `MONITOR_SKIP_EXTRA_KEYWORD_VALUES`,
+`MONITOR_NAME_WILDCARD`, etc., further widening the discrepancy).
+
+**Workaround for next session:** iterate.  Set `MONITOR_BREAK_AT_EVENT=N`,
+read the `kind=` from the stack-dump line, decode against `MWK_*` (1=VALUE,
+2=CALL, 3=RETURN, 5=LABEL), bisect against the wire log's expected event
+to find the alignment offset.  Or set the bomb **+/-50** around the target
+and grep all the dumps for the right kind+source-line.
+
+**Proper fix (future):** either (a) the controller emits its own
+"#N" into the wire-log alongside the dot count, so users can correlate;
+or (b) a third env var `MONITOR_BREAK_ON_KIND_AND_LINE=KIND:STNO` fires
+on a specific (kind, stno) match rather than count, eliminating the
+alignment problem entirely.  Either is ~10 lines.
+
+### Path 2 (TraceEnabled) ready but not yet wired into ScannerState
+
+`MonitorIpc.TraceEnabled` is a public flag the harness can flip via env
+vars, but `ScannerState.cs`'s existing `DOT_TRACE_ALT=1` env var still
+reads its own env var, not `TraceEnabled`.  Wiring the two together is
+the next sub-step (~3 lines in ScannerState).  Not done this session.
+
+### Status of S-2-bridge-event-bombs
+
+  [~] partial: Mechanism A (BREAK_AT_EVENT) landed and demonstrably works.
+              Alignment offset documented as known-limitation.
+  [ ] open:   Mechanism B (TraceEnabled wired into ScannerState et al.).
+  [ ] open:   Validation gate — inject a known dot bug, drive harness to
+              its DIVERGE row, BREAK on that event, read the bug from
+              the call stack alone.
+
