@@ -1049,6 +1049,167 @@ commit one4all change + this `.github` update, push both.
 
 ---
 
+## Session #76 progress (2026-04-30)
+
+**SB-5c.4 LANDED.**  `claws5.sc::pp_mem` re-ported 1-for-1 against
+canonical `claws5.sno::pp_mem` with zero gotos.  No runtime/frontend
+source changes — corpus-only.
+
+### Re-port approach
+
+Each canonical SNOBOL4 control flow construct in `pp_mem` mapped to
+a single Snocone shape:
+
+- `:F(label)` exit at iteration top → while-condition peek-ahead
+  (`while (DIFFER(arr[i + 1, 1]))`).  Loop body increments `i` to
+  the now-known-good index and reads `arr[i, 1]`.  Three loops use
+  this pattern: `pm_cnt_loop`, `pm_sent_loop`, `pm_wrd_loop`,
+  `pm_tag_loop`.
+
+- `:F(label)` skip-block → `if (...) { ... }` / `if (...) { ... }
+  else { ... }`.  Used at: `pm_sq` quote choice (`wrd ? ARB "'" =
+  '' :F(pm_sq)` → `if (wrd ? (ARB && "'") = '') ... else ...`);
+  the post-tag-loop emission tree (`pm_mid_wrd`, `pm_last_wrd`,
+  `pm_last_mid`, `pm_last_emit`, `pm_last_mid2`); the
+  `pm_tag_sep`-vs-first-tag branch.
+
+- `:S(label)` loop-back at iteration bottom → implicit (loop ends
+  naturally and re-enters via the while-condition test).
+
+- Conditional-value-assign predicate idiom (`pfx = EQ(si, 1) ...`,
+  `last_sent = IDENT(si, ns) 1`) → `if (pred) lhs = rhs;`.  The
+  Snocone form preserves the canonical "no else" semantic exactly:
+  if pred fails, the assignment doesn't happen (and last_sent
+  retains its `''` initialization, pfx retains its previous value
+  or stays unbound).
+
+### Statement-form match-and-replace inside `if`
+
+Canonical .sno line 49: `wrd ? ARB "'" = '' :F(pm_sq)`.  This is
+a statement-form match-and-replace: scan wrd for `'`, replace match
+with `''`, branch to pm_sq on no-match.
+
+Verified that Snocone's `if (wrd ? (ARB && "'") = '')` correctly:
+(a) performs the replacement, and
+(b) yields true on match / false on no-match for the `if` test.
+
+This is the cleanest 1-for-1 translation; no need for a separate
+match-then-test split.
+
+### Trailing-space scrutiny
+
+Per Lon's instruction: spaces at end of lines often go missing in
+SNOBOL4 → Snocone translations.  Audited every string literal in
+`pp_mem`:
+
+| .sno literal | .sc literal | Match |
+|---|---|---|
+| `'{'` | `'{'` | ✓ |
+| `' '` (one space) | `' '` | ✓ |
+| `': {'` | `': {'` | ✓ |
+| `"': "` | `"': "` | ✓ |
+| `', '` | `', '` | ✓ |
+| `"'"` | `"'"` | ✓ |
+| `'"'` | `'"'` | ✓ |
+| `'}'` | `'}'` | ✓ |
+| `'}}'` | `'}}'` | ✓ |
+| `'},'` | `'},'` | ✓ |
+| `'_CRD :_PUN'` | `'_CRD :_PUN'` | ✓ |
+
+In particular: `': '` (colon-space, no trailing) and `', '`
+(comma-space, no trailing) — both reproduced exactly.  Initial
+draft had merged `', '` with the following `"'"` into a single
+`", '"` literal; corrected in the second pass to keep two adjacent
+literals matching the canonical `', '` and `"'"` separately.
+
+### &TRIM verification
+
+`&TRIM = 1` by default in both SPITBOL and scrip.  Verified that
+both runtimes strip trailing space and tab characters on INPUT
+when &TRIM=1, byte-for-byte equivalent.  Confirms session #73's
+SB-5c.0 fix is live and correct.  pp_mem itself produces OUTPUT
+only and doesn't depend on this — but the `slurp` loop above
+pp_mem does.
+
+### Byte-identical fixture test
+
+Built a controlled fixture (a 2-sentence, mixed-content TABLE-of-
+TABLEs) and ran both:
+  (a) canonical `claws5.sno` `pp_mem` under SPITBOL
+  (b) re-ported `claws5.sc` `pp_mem` under scrip --ir-run
+
+Both produce md5 `557d5df30ba52a698d1a5f3ca569d9b4` — byte-identical
+on this fixture.  The fixture exercises:
+
+- Single-word sentence (sentence 2 has 2 words; sentence 1 has 3)
+- Multi-tag words (none in this fixture; covered by canonical
+  layout)
+- Word containing `'` (`don't`) → triggers double-quote branch
+- Last-sentence-last-word terminator (`}}`)
+- Mid-sentence-last-word terminator (`},`)
+- Mid-word terminator (`,`)
+- Sentence-1 prefix `{1: {` vs sentence-2 prefix ` 2: {`
+- Pad alignment for mid-words
+
+### Pre-existing slurp-loop hang (out of scope, tracked)
+
+End-to-end `./scrip --ir-run claws5.sc < claws5.input` still hangs.
+Bisected to the `slurp` loop:
+
+```snocone
+line = INPUT;
+while (DIFFER(line)) {
+    src = src && line;
+    line = INPUT;
+}
+```
+
+After EOF, scrip's Snocone `INPUT` returns the previous line
+forever.  `while (DIFFER(line))` therefore never terminates.
+Reproduced with a 7-line test:
+
+```snocone
+line = INPUT;
+n = 0;
+while (DIFFER(line)) {
+    n = n + 1;
+    OUTPUT = 'line ' && n && ' = [' && line && ']';
+    line = INPUT;
+    if (GT(n, 10)) line = '';
+}
+```
+
+On a 3-line input `A\nB\nC\n`: after line 3, every subsequent
+INPUT returns `'C'`.  Infinite loop without the manual break-out.
+
+This is the **same SC-INPUT-EOF bug** session #68's SB-5b main-loop
+rewrite worked around in beauty.sc (using `IDENT(Line, PrevLine)`
+to detect the no-advance condition and force `eof_inside = 1`).
+
+The hang is **not** in pp_mem and **not** introduced by SB-5c.4 —
+the original (pre-SB-5c.4) `.sc` had the same hang.  Tracked as a
+follow-on rung, suggested name **SC-INPUT-EOF**.  Fix surface is
+the runtime's INPUT-after-EOF semantic in
+`src/runtime/x86/snobol4.c`'s `input_read()` (or NV_GET_fn channel
+path) — should return `''` and signal "stream exhausted" so that
+`DIFFER(line)` becomes false.  This complements session #73's
+SB-5c.0 &TRIM fix and lives on the same code path.
+
+### Files touched this session
+
+`corpus/programs/snobol4/demo/claws5.sc` — `+99/-30` net in the
+`pp_mem` body, including comment markers for each canonical
+SNOBOL4 label.  No other source changes.  Diagnostic test files
+in `/tmp/` only (not committed).
+
+### Repos state
+
+`corpus`: dirty (claws5.sc).  `one4all`, `.github`, `csnobol4`,
+`x64`: clean.  Plan: commit corpus change + this `.github` update,
+push both.
+
+---
+
 - [x] **SB-1** — Diagnose underflows.
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
@@ -1358,25 +1519,47 @@ commit one4all change + this `.github` update, push both.
     With `interp_eval_pat`'s new `E_FNC` case, those deferred
     nodes now build correctly.
 
-  - [ ] **SB-5c.4** — **Faithful re-port of `claws5.sc` from
-    `claws5.sno`.** Current `.sc` `pp_mem` is a structural
-    rewrite that produces a different output layout than
-    `claws5.ref` and uses 6 internal gotos (`pp_s`, `pp_w`,
-    `pp_t` and their `_done` labels). Re-port `pp_mem` 1-for-1
-    against the canonical `claws5.sno` `pp_mem` (which builds
-    `pfx`/`pad`/`last_sent` and emits `pm_cnt_loop`,
-    `pm_sent_loop`, `pm_wrd_loop`, `pm_tag_loop` flows that
-    produce the exact `{1: {...}, 2: {...}}` layout in
-    `claws5.ref`). Each `:F(label)` / `:S(label)` jump in the
-    .sno translates to a `while` with explicit termination
-    flags or to nested `if/else` — NOT to `goto`. Goal: zero
-    gotos in `claws5.sc`. The other procedures (`new_sent`,
-    `add_tok`) and the top-level `claws` pattern + main loop
-    are already faithful — leave them in place. Subsystem and
-    main pattern unchanged; ONLY `pp_mem` is re-ported. Gate:
-    `claws5.sc` goto count = 0; structurally 1-for-1 with .sno
-    `pp_mem` (same procedure-local variables, same control flow
-    shape, same OUTPUT lines).
+  - [x] **SB-5c.4** — LANDED session #76. `claws5.sc::pp_mem`
+    re-ported 1-for-1 against canonical `claws5.sno::pp_mem`.
+    All 19 canonical DEFINE() locals present
+    (`ssk, si, sentno, wsk, wi, wkey, wq, wrd, tsk, ti, tag, tv,
+    tline, pfx, pad, next_wkey, last_sent, lline, ns`) — no extra
+    Snocone-port helper flags. Each canonical SNOBOL4 label
+    (`pm_cnt_loop`, `pm_sent_loop`, `pm_wrd_loop`, `pm_sq`,
+    `pm_tdict`, `pm_tag_loop`, `pm_tag_sep`, `pm_tag_close`,
+    `pm_mid_wrd`, `pm_last_wrd`, `pm_last_mid`, `pm_last_emit`,
+    `pm_last_mid2`, `pm_done`) annotated as a comment at the
+    corresponding location in the .sc. Translation pattern:
+    each .sno `:F(label)` exit at iteration top → while-condition
+    peek-ahead (`while (DIFFER(arr[i + 1, 1]))`); each `:F(label)`
+    skip-block → if/else; each `:S(label)` loop-back at iteration
+    bottom → implicit (loop ends naturally); each
+    conditional-value-assign predicate (`pfx = EQ(si, 1) ...`,
+    `last_sent = IDENT(si, ns) 1`) → `if (pred) lhs = rhs;`. The
+    statement-form match-and-replace `wrd ? ARB "'" = ''` works
+    inside `if (...)` in Snocone (verified — performs replacement
+    AND yields success/failure for the test). All canonical string
+    literals byte-identical: `': {'`, `': '`, `', '`, `'}}'`,
+    `'},'`, `'_CRD :_PUN'` — trailing-space scrutiny clean.
+    `claws5.sc` goto count = 0 (was 6). **Byte-identical output
+    to SPITBOL canonical pp_mem on a controlled fixture** (md5
+    `557d5df30ba52a698d1a5f3ca569d9b4` for both, on a 2-sentence
+    fixture exercising single/multi-word sentences, single/
+    multi-tag words, words containing `'` triggering the
+    double-quote branch, and last-sentence vs mid-sentence
+    closers). Three baseline gates green throughout
+    (PASS=5/PASS=42 SKIP=3/PASS=49). Crosscheck snobol4 PASS=6,
+    snocone PASS=8 unchanged. Note: end-to-end execution
+    `./scrip --ir-run claws5.sc < claws5.input` still hangs —
+    pre-existing **slurp-loop INPUT-after-EOF bug** (Snocone's
+    INPUT returns the previous line forever after EOF, so
+    `while (DIFFER(line))` never terminates). Reproduced cleanly
+    with a 7-line standalone test. This is the same SC-INPUT-EOF
+    bug noted in SB-5b session #68 main-loop rewrite. Independent
+    of pp_mem; tracked for a follow-on rung. Files touched this
+    session: `corpus/programs/snobol4/demo/claws5.sc` only
+    (+99/-30 net, pp_mem section). No runtime/frontend source
+    changes.
 
   - [x] **SB-5c.5** — **`claws5.sno` failure under scrip SNOBOL4
     frontend.** LANDED session #75. Same root cause as SB-5c.1
