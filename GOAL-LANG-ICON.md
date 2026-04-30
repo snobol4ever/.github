@@ -914,3 +914,99 @@ augmented-assign, `\`/`/` null-test on missing keys).
 
 These all touch the same IcnFrame / table-lvalue boundary; one or two
 shared fixes likely address several.
+
+## Current state (2026-04-30 session 19, one4all HEAD 7c5f9b45)
+
+IC-9 IN PROGRESS. One scalar-evaluator correctness fix landed; PASS counts unchanged
+across all gates, but the visible diff for `rung36_jcon_table` is one line cleaner.
+
+### `/E` and `\E` — null-test vs fail-test conflation
+
+**Site:** `interp.c` shared switch, `case E_NULL` (line 3857) and
+`case E_NONNULL` (line 3870 pre-fix → 3874 post-fix).
+
+**Root cause:** `E_NULL`'s pre-fix body was the one-liner
+`return IS_FAIL_fn(v) ? NULVCL : FAILDESCR;` — i.e. "/E succeeds iff E
+fails."  That is **wrong**: Icon's `/E` succeeds iff E **succeeds with the
+null value**.  Two contradictory bugs cancelled in some tests:
+  - `/x[k]` for missing key → x[k] returns NULVCL (success-with-null),
+    handler sees `IS_FAIL_fn(NULVCL)==false`, returns FAILDESCR → fails.
+  - `/x[k]` for present non-null → x[k] returns the value, handler same
+    `IS_FAIL_fn==false`, returns FAILDESCR → fails.
+  - `/(some_failing_expr)` → handler sees IS_FAIL true, returns NULVCL
+    (success).  Wrong direction entirely — should fail.
+
+`E_NONNULL` had the same family of bug but caught the empty-string case
+(`v.v==DT_S && empty .s`) — yet missed `DT_SNUL` itself, so `\&null`
+returned `&null` (success) instead of failing.  A dead-code line
+`if (v.v==DT_I && v.i==0 && !IS_INT_fn(v))` was a remnant of an earlier
+confused attempt (the conjunction is unsatisfiable: DT_I implies IS_INT).
+
+**Fix:** rewrite both handlers to test the value directly:
+- `/E` — fail if E failed; succeed (return NULVCL) if v.v==DT_SNUL or
+  v.v==DT_S with empty .s; otherwise (E succeeded with non-null value)
+  fail.
+- `\E` — fail if E failed; fail if v.v==DT_SNUL or v.v==DT_S with empty
+  .s; otherwise return v.
+
+**Verified on minimal repro** (table with one key x[2]:=2, probe x[1]
+missing and x[2] present):
+  - `/x[1]` → succeeded (was failed) — correct, missing key is &null
+  - `\x[1]` → failed (was succeeded) — correct
+  - `/x[2]` → failed (unchanged) — correct, 2 is non-null
+  - `\x[2]` → succeeded (unchanged) — correct
+
+### Correction to prior session diagnosis
+
+GOAL-LANG-ICON.md item #5 above ("\x[k]/x[k] for missing key — currently
+inserts &null entries causing `delete: 4` instead of `delete: 2`") was
+**wrong about the cause**.  Probing a missing key does **not** insert in
+this runtime (verified by minimal repro: `x:=table(); x[2]:="two"; x[1];
+x[3]; *x` → 1, unchanged).  The `delete: 4` symptom is unrelated:
+`delete(x)` (no second arg) and `delete(x, 3, 6)` (3 args) are silently
+failing to remove the entries they should.  Likely a builtin-arity bug
+in the `delete()` dispatch, not a probe-time mutation.
+
+The actual `\x[k]`/`/x[k]` bug was simpler: the **scalar evaluator** had
+wrong null-vs-fail semantics, exposed by the JCON test's
+`/x[1] | write("/1")` line which now correctly suppresses the `/1` write.
+
+### Working-tree pollution cleaned
+
+Found three stray files in `/home/claude/one4all/` working tree at session
+start: `foo.baz` (empty), `src/driver/interp.c.fixed`, and
+`src/driver/interp.c.orig`.  The two `.c.*` files were byte-identical and
+contained a drafted-but-not-committed version of exactly this fix.  Per
+RULES.md, diagnostic and scratch files do not ship — removed.  No commit
+record of who left them; previous session likely.
+
+### Gates post-fix (per-test diff vs baseline is empty)
+- test_smoke_icon.sh: PASS=5/0 (unchanged)
+- test_smoke_unified_broker.sh: PASS=49/0 (unchanged)
+- test_crosscheck_icon.sh: PASS=4/0 SKIP=0 (unchanged)
+- test_icon_ir_all_rungs.sh: PASS=188 FAIL=45 XFAIL=30 (unchanged)
+- test_icon_ir_rung_36.sh: PASS=5 FAIL=40 XFAIL=30 (unchanged)
+- per-test PASS/FAIL/XFAIL list: byte-identical to pre-fix (`diff -q`)
+
+### Remaining IC-9 failures unchanged
+
+Items 1, 2, 3, 4, 6 from the list above are all unaddressed — those touch
+the lvalue path (E_ITERATE in lvalue position, generator-key subscript
+write, `<-` reversible assign, `+:=` over !-iterate, `?T` on empty/sparse
+table).  Item 5 is now correctly understood: scalar `/`/`\` semantics
+fixed; the `delete: 4` symptom is a separate `delete()` arity bug.
+
+Files: `src/driver/interp.c` (+17/-5 lines).  No header changes, no
+clean-rebuild needed.
+
+### Next IC-9 candidate
+
+`?T` random-select-from-table — the `should fail &null` and `>> 3 &null`
+diff lines (visible in `rung36_jcon_table.icn` lines 10, 13) are caused
+by `?T` returning `NULVCL` instead of failing when no random entry can
+be chosen.  Single site, scalar evaluator, low-risk in the same shape
+as this fix.  Open question for next session: does Icon's `?T` actually
+fail on empty tables, or does it return `&null` of the table default?
+The expected output (`should fail ` with no value after) suggests it
+fails (causing `writes` to emit nothing for that arg).
+
