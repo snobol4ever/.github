@@ -1,8 +1,9 @@
-# GOAL-SNOCONE-LANG-SPACE — A New SPITBOL-Superset with C-Style Control Flow
+# GOAL-SNOCONE-LANG-SPACE — SNOBOL6: SPITBOL Re-imagined with Structured Control
 
 **Repo:** one4all + corpus
-**Working name:** Snocone (rename later if a better one emerges)
-**Done when:** A new Snocone language exists that is
+**Working repo/build name:** `snocone` (rename to `snobol6` deferred — see Q11 below)
+**User-facing language name:** **SNOBOL6**
+**Done when:** A new language called SNOBOL6 exists that is
 
   1. **A SPITBOL functional superset** — every SPITBOL operator
      (the nine printed unary, the eleven printed binary), every
@@ -55,11 +56,48 @@
 This is **not** Andrew Koenig's 1978 Snocone.  Koenig's prototype
 is an inspiration and the existing `.sc` corpus borrows his
 surface syntax, but Lon's directive overrides any place where
-Koenig's choices differ from this goal.  Specifically: Koenig
-used `&&` for concat and `||` for alternative-evaluation; we
-remove both.  Koenig used `if (cond) {…}` and `for (init, test,
-step) {…}` already; we keep the C shape but the *cond* now means
-"a SPITBOL backtracking expression."
+Koenig's choices differ from this goal.  This is **a Snocone
+redo** — the SPITBOL face-lift framing of session #1 was wrong.
+We are making a new language.
+
+---
+
+## Naming — SNOBOL6
+
+Lon (session 2026-04-30 #3):
+
+> "The new name would be funny if it was SNOBOL6 since all that
+> was bad with SNOBOL4 as the line by line thing and missing
+> structured control.  And SNOBOL5 already exists."
+
+The user-facing language name is **SNOBOL6**.
+
+The joke lands on three layers:
+
+1. **SNOBOL4 (1968)** is the version everyone remembers — the
+   line-by-line one with no structured control flow, where every
+   loop is a labeled goto.  Its weakness in the eyes of modern
+   programmers was *exactly* the missing structured control.
+2. **SNOBOL5** does exist as a name — Gimpel's late-1970s
+   announced successor that never shipped (sometimes called
+   "Vanilla SNOBOL").  We are not reusing the name; we step over
+   it.
+3. **SNOBOL6** is the structured-control reboot that picks up
+   where SNOBOL5 was supposed to.  The number tells the story:
+   the line-by-line era ended at 4, the unbuilt successor was 5,
+   and 6 is what should have happened — the same language with
+   `if`/`while`/`for`/`do`/`switch`/`{`/`}`/`break`/`continue`,
+   and juxtaposition concat from SPITBOL.
+
+The source tree, scripts, test gates, and build targets continue
+to use `snocone` through LS-6 to minimize the patch noise during
+implementation.  A separate dedicated rename goal
+(`GOAL-LANG-SNOBOL6-RENAME`) handles the source-tree rename,
+file-extension change, and documentation updates as a single
+sweep — so the structured-control work and the naming change
+don't blur together in git history.  Open question Q11 (below)
+captures the file-extension decision; the rename goal opens
+after LS-6 lands.
 
 ---
 
@@ -95,7 +133,7 @@ The directive overrides Koenig in these specific places:
 | Alternative-eval / "or"        | `\|\|`                      | SPITBOL `(e1 , e2 , e3)` alternative-eval  |
 | Numeric comparison ops         | `==` `!=` `<` `<=` `>` `>=` | **kept** (Lon session #2) — sugar lowering to `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` |
 | String / lexical comparison    | `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` | **kept** — sugar lowering to `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` |
-| Identity comparison            | (Koenig had none)           | **NEW**: `===` `!==` lowering to `IDENT()` `DIFFER()` (succeed/fail predicates) |
+| Identity comparison            | (Koenig had none)           | **NEW**: spelling **TBD** — see Q12 below. Lowers to `IDENT()` `DIFFER()` (succeed/fail predicates) regardless of spelling. |
 | Modulo                         | `%`                         | **reserved for `OPSYN`** — no built-in modulo. Use `REMDR(a,b)`. (Lon session #2: "If `%` is user config symbol it can not be used for modulo.") |
 | Conditional in `if (cond)`     | C-like boolean              | SPITBOL backtracking expression (succeed/fail) |
 | `for (init, test, step)`       | three comma-separated exprs | three semicolon-separated SPITBOL exprs (matches C; comma is reserved for value-lists) |
@@ -112,9 +150,15 @@ Koenig kept (no override needed):
 - block braces `{` `}` and statement terminator `;`
 - empty statement `;`, empty block `{ }`
 - **labels**: `name :` at the start of a clause names the following statement (Koenig L690)
-- **goto**: `goto name;` (C spelling — Koenig used `go to name`; we tighten to single-keyword `goto`)
-- **`break;`** with C semantics — exits the innermost enclosing `for`/`while`/`do`/`switch`
-- **`continue;`** with C semantics — jumps to the next iteration of the innermost enclosing loop
+- **goto**: `goto name;` (C spelling — Koenig used `go to`; we tighten to single-keyword `goto`)
+- **`break;` and `break label;`** — see Q13 below. Lon session #3:
+  "I like the labeled break since SNOBOL4 and Snocone has labels
+  already.  Let's do that instead of C."  Snocone has labels in
+  the language already, so labeled-break is a natural fit.  We
+  also have `goto` — the SNOBOL6 escape valve — which arguably
+  makes labeled-break redundant.  This is experimental; we will
+  find out the pros and cons as we use it.
+- **`continue;` and `continue label;`** — symmetric with `break`.
 
 ---
 
@@ -423,15 +467,17 @@ branches:
 | `do S until (cond);`      | `top  S` `cond  :F(top)` (until = while-not — failure repeats) |
 | `for (init; cond; step) S`| `init` `top  cond  :F(after)` `S` `step  :(top)` `after  …` |
 | `switch(e){case v: S; ..}`| chain of `IDENT(e, v)  :S(caseN)` plus a default fallthrough |
-| `break;`                  | `:(after-of-innermost-enclosing-loop-or-switch)` (C semantics — innermost only) |
-| `continue;`               | `:(top-of-innermost-enclosing-loop)` (C semantics — innermost only; not legal inside switch unless switch is itself inside a loop) |
+| `break;`                  | `:(after-of-innermost-enclosing-loop-or-switch)` (Q13: pending whether plain `break;` is permitted alongside labeled form, or labeled-only) |
+| `break label;`            | `:(after-of-loop-or-switch-tagged-by-label)` — explicitly named target |
+| `continue;`               | `:(top-of-innermost-enclosing-loop)` (Q13: same pending question as `break;`) |
+| `continue label;`         | `:(top-of-loop-tagged-by-label)` |
 | `return E;`               | `name = E  :(RETURN)`                             |
 | `freturn;`                | `:(FRETURN)`                                       |
 | `nreturn;`                | `:(NRETURN)` (`name = .x` already done before)    |
 | `(e1, e2, e3)` (alt-eval) | already a SPITBOL extension — emit as-is to SPITBOL backend; for non-SPITBOL backends, lower to a chain of `:S(after)` branches |
 | `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` (numeric comparison sugar `==` `!=` `<` `<=` `>` `>=`) | already SPITBOL primitives; emit functional form |
 | `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` (lexical comparison sugar `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:`) | already SPITBOL primitives; emit functional form |
-| `IDENT()` `DIFFER()` (identity sugar `===` `!==`) | already SPITBOL primitives; emit functional form |
+| `IDENT()` `DIFFER()` (identity sugar — spelling TBD per Q12) | already SPITBOL primitives; emit functional form |
 
 ### 4. Corpus migration
 
@@ -559,15 +605,112 @@ Already in use in current `.sc` files.  Keep both.
 syntax errors.  Same atomic-flip approach the previous version
 of this goal called for.
 
-### Q10. Working name "Snocone" vs. something else
+### Q10. Working name — RESOLVED to SNOBOL6 (session #3)
 
-Lon: "We will do Snocone different from Andrew Koenig.  We might
-later find a better name."
+Lon session #1: "We will do Snocone different from Andrew Koenig.
+We might later find a better name."
 
-**Decision:** keep "Snocone" through LS-7.  Naming review
-deferred to a separate goal (`GOAL-LANG-SNOCONE-RENAME`,
-created when/if Lon picks a name).  All file paths,
-identifiers, build targets continue to use `snocone` for now.
+Lon session #3: "The new name would be funny if it was SNOBOL6
+since all that was bad with SNOBOL4 as the line by line thing
+and missing structured control.  And SNOBOL5 already exists."
+
+**Decision:** SNOBOL6 is the user-facing language name.  See the
+Naming section near the top of this file for the rationale.  The
+source tree, scripts, and build targets continue to use `snocone`
+through LS-6 to keep the structured-control patch noise low; the
+rename sweep is its own goal.  See Q11 below.
+
+### Q11. Rename `snocone` → `snobol6` source-tree sweep — when?
+
+The user-facing language name is SNOBOL6 (Q10).  The source tree,
+build scripts, test gates, and file extensions all currently use
+`snocone`.  When does the rename happen?
+
+**Option A — atomic during this goal.**  Add an LS-8 step that
+renames `src/frontend/snocone/` → `src/frontend/snobol6/`,
+updates every script `test_smoke_snocone.sh` →
+`test_smoke_snobol6.sh`, renames every `.sc` → new extension
+(see file-extension question below), updates every reference in
+`RULES.md`, `PLAN.md`, all goal files.  Single big sweep, single
+commit train.
+
+**Option B — deferred to its own goal.**  Open
+`GOAL-LANG-SNOBOL6-RENAME` after LS-6 lands.  The structured-
+control work (LS-1..LS-6) keeps using `snocone` paths/names
+internally; user-facing docs and a `LANGUAGE.md` say "SNOBOL6";
+the rename sweep happens cleanly in a single goal with no LS-N
+work mixed in.
+
+**File extension** — currently `.sc`.  Three candidates if we
+rename: `.sn6`, `.s6`, `.sno6`, or keep `.sc` since it's already
+in every gate and corpus path.
+
+**Decision (default — Lon may overrule):** Option B for the rename
+timing; extension TBD when the rename goal opens.  The rename is a
+mechanical sweep that's clearer as its own commit than as the tail
+of a structured-control overhaul.
+
+### Q12. Identity-op spelling — `::` `:!:` vs `:===:` `:!==:` vs another form
+
+Three candidate spellings for the new `IDENT()`/`DIFFER()` sugar:
+
+  **A.** `::` and `:!:` — short, no collision with `:==:` (lexical
+     equality, already taken).  Reads as "the colon-bracketed form,
+     stripped to the bare comparison".  Two characters, fast to type.
+     Lon session #3 wrote "`::` and `:!:`" which most naturally
+     parses to this option.
+  **B.** `:===:` and `:!==:` — three-equal-signs to lexically
+     distinguish from the two-equal `:==:` `:!=:` lexical-comparison
+     family.  Symmetric with the existing `:==:` family.  Five chars.
+  **C.** `===` and `!==` — JS/Java/modern syntax, three chars, no
+     colons.  Visually distinct from `==` `!=` but breaks the
+     "the colons mean special" SNOBOL4 convention.
+
+**Pending Lon's confirmation.**  Default placeholder until
+confirmed: **Option A** (`::` and `:!:`), based on the most
+natural reading of session #3's instruction "Let's keep `::` and
+`:!:` I suppose for IDENT and DIFFER."  Once decided, every
+reference to identity-comparison spelling in this file (the
+directive table, the disagreements section, the lowering table)
+gets the chosen spelling.
+
+### Q13. `break;` / `continue;` — with optional label or labeled-only?
+
+Lon session #3: "I like the labeled break since SNOBOL4 and
+Snocone has labels already.  Let's do that instead of C."
+
+Two readings of "instead of C":
+
+  **A.** Both forms allowed: plain `break;` exits innermost loop/
+     switch (the C default), `break label;` exits the loop/switch
+     tagged by `label`.  Same for `continue`.  Java's design.
+     Best of both — common case is short, nested-exit case is
+     possible.
+  **B.** Labeled-only: `break;` is a syntax error; `break label;`
+     is the only form.  Forces the programmer to explicitly name
+     the loop/switch they're exiting.  More verbose but no
+     "innermost" trap.
+
+Lon noted: "we do have `goto` here to solve needing Java's
+labeled break" — which points at a third option:
+
+  **C.** No `break`/`continue` at all.  The structured loops
+     `if`/`while`/`do`/`for`/`switch` cover the common case, and
+     `goto exit_label;` covers any nested-exit need.  Smallest
+     keyword set.
+
+Pros/cons matrix (this is experimental — we will find out):
+
+| Choice | Pros | Cons |
+|--------|------|------|
+| A (both forms) | familiar; common case short; nested-exit possible; C/Java muscle memory | "innermost" rule needs documenting; trap remains for nested switch-in-loop |
+| B (labeled only) | no innermost trap; explicit; readable on grep | verbose at every break; programmers will resist; punishes the common case |
+| C (no break) | smallest keyword set; goto already covers everything; matches "SNOBOL6 has labels already" | every loop exit goes through goto, which we're trying to deprioritize for new code; symmetry with `continue` lost |
+
+**Pending Lon's pick.**  Default placeholder until confirmed:
+**Option A**, with the caveat that this is the experimental
+choice and we may revisit if `break;` plain turns out to be a
+trap in practice.
 
 ---
 
