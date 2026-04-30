@@ -690,3 +690,132 @@ variables that occur exactly once in Term.
 
 **SWI directive no-ops extended**: `$clausable`, `public`, `volatile`,
 `thread_local`, `table`, `set_test_options`, `encoding`.
+
+---
+
+## Current state (2026-04-30 session #3, one4all HEAD d9a9b99f, corpus HEAD 2a69e92)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
+Smoke 5/5, broker 49/49, all gates clean. **Directive-binding fix landed.**
+
+### Session work — one targeted bugfix landed; two finding-of-record corrections
+
+#### Session-#3 finding #1: previous session's Fix #3 plan is invalid in isolation
+
+The plan from session #2 listed Fix #3 (plunit v4 — throw vs succeed) as
+"unblocked, no runtime change required, gives `string` +1." This session
+attempted exactly that change and confirmed empirically that **it does
+not help.** The premise is wrong.
+
+Patch applied: `pj_do_fail` rewritten to use `nb_setval(pj_threw,1)` in the
+recovery clause and check the flag before `pj_inc_fail`. Build clean. SWI
+suite: still 43/57. Diagnosed via repro:
+
+  `catch(number_string(_,"42x"), _, write(rec))   →  fails (correct)`
+  `G = number_string(_,"42x"), catch(G, _, _)    →  succeeds silently (BUG)`
+
+The `string:number_string` "expected fail, succeeded" line is **not**
+caused by a throw being mistaken for success. It is caused by
+`catch(Var, _, _)` returning success silently when `Var` holds a callable
+Term — the same root-cause family as Fix #2. Plunit v4 cannot fix this
+because `catch`'s recovery never fires (catch returns success without
+calling the goal *or* the recovery), so the `pj_threw` flag stays at 0.
+
+Plunit edit reverted. Corpus untouched.
+
+**Conclusion: Fix #3 is blocked on Fix #2 in `pl_runtime.c`.**
+
+#### Session-#3 finding #2: directive-binding bug located in polyglot.c, NOT interp.c
+
+Session #2 hypothesised the directive-binding bug
+(`:- assertz(test_g(hello)), test_g(G), write(G)` → `_G0`) lives at
+`interp.c:4445-4453` (the `LANG_PL` STMT_t handler). **It does not.**
+That branch is the polyglot-mixed-program path. Single-language `.pl`
+files go through `polyglot.c::polyglot_execute`'s `slang == LANG_PL`
+branch (line 234-251 pre-fix) which dispatches each directive via:
+
+  `interp_exec_pl_builtin(_s->subject, NULL);`     <-- env=NULL is the bug
+
+When `env=NULL`, `pl_unified_term_from_expr`'s E_VAR branch (line 249 in
+`pl_runtime.c`) falls through to `term_new_var(e->ival)` — minting a
+fresh disconnected `Term*var` on every read. Two reads of the same
+logical slot produce different unrelated vars, so unify cannot thread
+bindings between conjuncts in a directive body.
+
+#### Fix landed: per-directive cenv (one4all `d9a9b99f`)
+
+`src/driver/polyglot.c`: +51/-2.
+- New static helper `pl_directive_max_var_slot(EXPR_t *root)` walks the
+  directive subject EXPR with an iterative explicit stack (no recursion,
+  caps at 512 entries) and returns the largest E_VAR ival, or -1 if none.
+- The LANG_PL directive loop in `polyglot_execute` now allocates
+  `cenv = pl_env_new(max_slot + 1)` per directive, saves and sets
+  `g_pl_env = cenv`, calls `interp_exec_pl_builtin(subject, cenv)`, then
+  restores `g_pl_env` and frees the env.
+
+Repro now binds correctly:
+
+```prolog
+:- assertz(test_g(hello)), test_g(G), write([dir,G]), nl.
+main :- test_g(G), write([main,G]), nl.
+```
+prints `[dir,hello]` then `[main,hello]` (was `[dir,_G0]` then `[main,hello]`).
+
+**SWI suite: unchanged at 43/57 = 75%.** The plunit harness asserts test
+goals (no result-var read in the directive), then dispatches them from
+inside `run_tests`/`pj_run_one` — clause-body context which already has
+a proper env. None of the MISS suites depend on directive-result-var
+reads, so the fix is correct but does not move the gate. Latent bug
+removed; foundation cleaner for the proper Term→EXPR bridge work that
+remains.
+
+Smoke 5/5, broker 49/49, SWI 43/57 = 75%. No regression.
+
+### NEXT SESSION PL-12 — revised ordered task list (after session #3):
+
+**Session #3's finding makes Fix #3 harder, not easier. Session #2's
+Fix #3 plan should be removed from the queue — it cannot work in
+isolation. Updated priorities:**
+
+1. **Fix #2 properly — `pl_invoke_term` with full Term→EXPR bridge.**
+   This is now the only viable path to the 80% gate.
+   - Build recursive `pl_term_to_goal_expr(Term *t, Term **vars_out, int *nvars_out)`
+     that walks the Term and emits a synthesized EXPR_t whose structure
+     mirrors the lowerer's output. Atom_id → EKind table:
+     `+→E_ADD, -→E_SUB, *→E_MUL, /→E_DIV, mod→E_MOD, =→E_UNIFY,
+      ,→E_FNC sval=",", ;→E_FNC sval=";", →→E_FNC sval="->"`. For
+     unrecognised functors fall back to `E_FNC` with the functor name.
+   - Walking pass collects TT_VAR Term*s, deduped by pointer identity,
+     emits an env array `vars_out[]` so the synth EXPR's E_VAR ival
+     indices index into that env. The Term*var goes in directly — no
+     fresh-var-then-unify dance.
+   - Builtin dispatch: `interp_exec_pl_builtin(synth, vars_out)` —
+     arithmetic now correctly recurses through E_ADD/E_SUB/etc. children
+     to leaf TT_INT/TT_FLOAT Terms. No more "compound-via-E_VAR" trap.
+   - User-pred dispatch in `pl_invoke_term`: existing logic from session
+     #2's saved diff (`docs/PL-12-session-pl-invoke-term-attempt.diff`
+     lines 53-74) is correct and can be retained verbatim.
+   - Expected: `bips`, `arg`, `is_most_general_term`, possibly
+     `term_singletons` → +3 to +4 suites. Target: 46-47/57 = 81-82%
+     ≥ 80% gate.
+
+2. **(After Fix #2 lands and gate clears) plunit v4 throw vs. succeed.**
+   At that point `catch(Var,_,_)` correctly invokes the goal, recovery
+   fires on actual throws, and the v4 patch from session #3 (already
+   applied in working tree once, then reverted — diff trivial to
+   re-apply) becomes meaningful. Expected: `string` +1 → 47-48/57.
+
+3. **Other MISS suites (rem, float_zero, float_special, snip,
+   steadfastness, context, variant)** — independent fixes, no shared
+   root cause. Address one at a time.
+
+The directive-binding fix from session #3 is foundation for any future
+work that touches directive-bound vars; if Fix #2 ever needs to invoke
+a Term inside a directive body (e.g. `:- catch(SomeVar, _, fail)`), the
+cenv now exists.
+
+### Files committed this session
+
+- `one4all/src/driver/polyglot.c` — +51/-2: static helper
+  `pl_directive_max_var_slot` and per-directive cenv allocation in the
+  `polyglot_execute` LANG_PL branch. Single commit `d9a9b99f`.
