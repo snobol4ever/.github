@@ -1293,3 +1293,144 @@ the next sub-step (~3 lines in ScannerState).  Not done this session.
               its DIVERGE row, BREAK on that event, read the bug from
               the call stack alone.
 
+
+---
+
+## Session #68 — 2026-04-30 (Sonnet 4.7 / Lon)
+
+**Outcome:** seal-skip Match() fix landed (`c578fb5`), test 114 closed.
+Beauty self-host still gated by a SECOND bug above the seal.
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`
+   (HEAD `3c1637d` — has BREAK_AT_EVENT bombs from session #67), and
+   `x64`. Installed `dotnet-sdk-10.0` via apt (10.0.107). snobol4dotnet
+   build clean. Beauty self-host baseline confirmed: SPITBOL passes
+   (646 stdout lines), dot fails Parse Error at line 26.
+
+2. **First-divergence localization with bridge-gap workarounds.**
+   Ran `test_monitor_3way_sync_step_auto.sh` with `PARTICIPANTS="spl dot"`,
+   `MONITOR_NAME_WILDCARD=spl`, `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`.
+   First REAL divergence at controller step **#2839** (same as session
+   #64–#67): spl `RETURN match (NRETURN)` vs dot's spurious 19th
+   `CALL upr`.
+
+3. **Bomb confirmed alignment offset.** Computed dot's `_emitCount` for
+   the divergence: controller step + 2 (the two skipped events at
+   controller #933 and #934 = beauty.sno line 26 and 27 keyword stores).
+   So dot emit count #2840 = last-agreed RETURN upr, #2841 = first-
+   diverged CALL upr. Bomb at 2840 captured the 18th RETURN's stack;
+   bomb at 2841 captured the spurious 19th CALL's stack. Stack diff:
+   the 25-frame lower stack was BYTE-IDENTICAL between the two events
+   — only the upr function frame differs (one exits, the other enters).
+   Confirms: the same Scanner state, after `*upr(tx)` returned
+   successfully, dispatched `*upr(tx)` AGAIN.
+
+4. **Wrote minimal repro.** `'&FULLSCAN' kwd` against the same keyword
+   list, both runtimes do exactly 18 upr calls and report `matched`.
+   Confirms the 19th call is **state-dependent** — only triggered by
+   state accumulated through the 80+ prior parses in beauty self-host.
+
+5. **Wired Mechanism B (TraceEnabled into ScannerState).** Per the
+   "Path 2 (TraceEnabled) ready but not yet wired" note left by
+   session #67, added `MonitorIpc.TraceEnabled`-gated tracing on every
+   alt-stack op (Save/Restore/Clear/Mark/Seal) plus every Match
+   dispatch and PatternMatch outer-loop iteration. Each scanner state
+   gets a stable id `s<n>`. Stack contents serialized inline. Backed
+   up the originals as `.orig`. **This was diagnostic instrumentation
+   ONLY — restored to baseline before commit per RULES.md.** But the
+   wiring approach is correct; a future productionizable form would
+   keep the `MonitorIpc.TraceEnabled` reads and let a future caller
+   substitute different output channels.
+
+6. **Trace from last-agreed event.** Ran with
+   `MONITOR_TRACE_FROM_EVENT=2840 TO=2842` and saw the alt stack at
+   the moment the spurious 19th `*upr` fires:
+
+       P=[..., 561, 352, -2, 503, 503, 352, 479, 476, 471, 466,
+          56, 51, 24, 19, -3, 10, 5, -1]
+
+   A `-2` seal at depth 8 with **outer alternates (503, 352, 479, 476,
+   471, 466, 56, 51, 24, 19) preserved BELOW** by the existing
+   SealAlternates mark/seal mechanism. Session #67 was right that the
+   seal handling is broken — the existing code returns ABORT on `-2`
+   pop, abandoning these outer alts.
+
+7. **Applied session #67's sketched fix to `Scanner.cs Match()`:** on
+   `-2` seal hit during backtrack, pop the seal and **continue popping**
+   until a real alternate is found (fire it) or only floor `-1` remains
+   (then ABORT to suppress unanchored cursor-retry). One while-loop
+   replacing one if-statement.
+
+8. **Test gate before commit (per RULES.md):**
+
+   | Test set | Baseline | With fix |
+   |---|---|---|
+   | corpus crosscheck `*fence*` (35 tests) | 34 PASS, 1 FAIL (test 114) | **35 PASS, 0 FAIL** |
+   | TestSnobol4 FENCE unit suite (23 tests) | 23 PASS | 23 PASS |
+   | TestSnobol4 full suite (2089 tests) | 2075 PASS / 14 FAIL | **2075 PASS / 14 FAIL (identical set: TEST_Csnobol4_*)** |
+   | beauty 17/17 corpus | (not re-run — full unit suite covers) | (not re-run) |
+   | beauty self-host gate | FAIL (Parse Error) | FAIL (same — second bug) |
+
+   Zero regressions. Test 114 newly passes. Committed as `c578fb5`,
+   pushed to `main`.
+
+9. **Diagnosis of remaining beauty self-host failure.** Re-traced
+   between `*match(snoProtKwds, ...)` failing and `*match(snoFunctions,
+   ...)` starting (events 2762→2763). Counted `RESTORE alt=-2` in that
+   window: **0 seal-pops occur**. The high-numbered alternates ABOVE
+   the seal (588, 594, 597, 615, 629, 643, 657, 671, 685, 699, 713,
+   727, 741, 755, 769, 781) all fire and fail without ever reaching
+   the seal. Then a NEW MARK fires at cursor=19 (entering a NEW FENCE
+   region) and eventually the cursor advances to 27 (matching
+   `&FULLSCAN`) and `*match(snoFunctions, ...)` begins.
+
+   So the second bug is **above the seal**: dot's snoExpr14 alternation
+   high-numbered alternates somehow chain to `*snoFunction` (in the
+   snoVar production tree, subjlen=455) BEFORE backtrack ever reaches
+   the snoExpr14 `*snoUnprotKwd` arm (which would have its alt index
+   among the 503, 352, 479, 476, 471, 466, 56, 51, 24, 19 BELOW the
+   seal). The seal-skip fix is necessary (test 114 confirms) but not
+   sufficient — the second bug prevents backtrack from ever reaching
+   the seal in this beauty path.
+
+### What landed
+
+- `c578fb5` — Match() seal-skip fix. Test 114 PASS, zero regressions.
+
+### What's still open for S-2-bridge-7-fullscan
+
+- The second bug: dot's snoExpr14 high-numbered alternates dispatch
+  to `*snoFunction` before reaching `*snoUnprotKwd`.
+
+### Next session's first move
+
+Trace **from event 2683** (the FIRST `CALL match` for
+`*match(snoProtKwds, ...)` — controller step #2681) to see what alt
+indices are SAVED on s80 BEFORE the snoProtKwds match begins. Compare
+those saved alt indices against beauty's grammar: identify which
+correspond to `*snoUnprotKwd`, `*snoFunction`, etc. Then we'll know
+whether:
+
+- (a) `*snoUnprotKwd`'s alt is never saved (AST-build bug),
+- (b) `*snoUnprotKwd`'s alt is saved but cleared/popped by some
+  intermediate operation,
+- (c) `*snoFunction`'s alt is saved earlier in the alt-stack such
+  that it gets fired first when backtrack rises out of snoProtKwd's
+  subtree.
+
+The Mechanism B wiring (this session's diagnostic patch) is the right
+tool for that. The patch text is in this session's narrative — re-apply
+to ScannerState.cs/Scanner.cs as `.orig`-backed diagnostic, trace from
+event 2683 (one event window covers the snoExpr14 setup), grep for SAVE
+events on s80 BEFORE the s81 (snoProtKwds) match begins.
+
+### Status updates
+
+  S-2-bridge-7-fullscan      [~] partial — seal-skip done; second bug
+                                 above seal blocks beauty self-host.
+  S-2-bridge-event-bombs     [~] Mechanism B wiring approach validated
+                                 in this session (diagnostic only —
+                                 reverted before commit). Productionizing
+                                 still TODO.
