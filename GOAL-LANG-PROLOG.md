@@ -546,6 +546,131 @@ After 1+2+3: 43 + 1 + 3 + 1 = 48/57 = 84% > 80% gate.
   commented out with `% [scrip-skip non-ASCII atom]` prefix to bypass
   Japanese-bareword lex crash, preserving line numbers.
 
+---
+
+## Current state (2026-04-30 session #2, one4all HEAD 099c61c8, corpus HEAD 2a69e92)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
+Smoke 5/5, broker 49/49, all gates clean. **No commits to runtime.**
+
+### Session work — diagnostic + failed fix attempt (full detail in docs)
+
+This session attempted **fix #2** (`pl_invoke_term` for `catch(Var,_,_)`)
+and discovered **the previous session's plan for fix #1 was based on a
+wrong hypothesis**.
+
+#### Diagnostic findings (reverted before commit)
+
+1. **Fix #1 is not actually a lowering-layer bug.** Instrumented
+   `pl_assert_clause` with `DBG_ASSERTZ` recursive EXPR_t dump; instrumented
+   `pl_unified_term_from_expr` with `DBG_UTFE`. For
+   `assertz(test_g(term_singletons(X+X+_Y, [_,_])))`, lowering produces
+   correct distinct slots: `n_vars=4`, child layout `_V0, _V0, _V1, _V3, _V2`.
+   The two `_` placeholders DO get distinct slots 2 and 3.
+   `prolog_lower.c`'s `assign_clause_anon_slots` IS working as designed.
+   **The actual silent-success path** is `interp_exec_pl_builtin`'s
+   `default: return 1` at line 1595 (pre-fix), reached when handed an
+   `E_VAR` goal — which is exactly what `catch(Goal,_,_)` produces when
+   `Goal` is a runtime variable bound to the asserted body. So the
+   `term_singletons` failure is fundamentally a **fix #2 bug**, not a
+   fix #1 bug.
+
+2. **Latent directive-binding bug discovered (not pursued).**
+   `:- assertz(test_g(hello)).` followed by
+   `:- test_g(G), write(G), nl.` prints `_G0`, not `hello`.
+   `interp.c:4445-4453` evaluates directive subjects via
+   `interp_eval(s->subject)` with no clause-env wrapper. Directive
+   bodies have `E_VAR` slots but no allocated `cenv`. The plunit harness
+   threads test goals through assertz/retrieve cycles inside directive
+   bodies — fixing this might cascade benefits to several MISS suites
+   without any `pl_invoke_term` work.
+
+#### Fix attempt: `pl_invoke_term` (~105 lines)
+
+Added static helper between `pl_copy_term` and `interp_exec_pl_builtin`
+in `pl_runtime.c`. Wired into `catch/3` with `goal_e->kind == E_VAR`
+guard. Helper logic:
+- Deref Term, extract functor/arity from TT_ATOM/TT_COMPOUND.
+- User preds (in `g_pl_pred_table`) → `pl_box_choice` + `bb_broker(BB_ONCE)`.
+- Builtins → synthesize transient `E_FNC` with `E_VAR` placeholder
+  children + `tenv` where `tenv[i]` is unified with `targs[i]`.
+
+**Both repros work:**
+- direct `catch(term_singletons(X+X+_Y,[_,_]),_,fail)` → `FAILED_GOOD`
+- post-assertz `test_g(G), catch(G,_,fail)` → `FAILED_GOOD`
+
+**But: SWI suite regresses 43/57 → 10/57 (massive 33-suite regression).**
+
+#### Root cause of the regression
+
+Synthetic-EXPR-with-tenv approach breaks arithmetic builtins. Inside
+`is/2`, `pl_unified_eval_arith_term(goal->children[1], env)` is called on
+an `E_VAR ival=1` whose `tenv[1]` holds runtime Term `5+5` (a TT_COMPOUND).
+The arith eval's `E_VAR` branch (line 301-304) returns the Term as-is —
+does not recurse into its compound structure as an arithmetic tree. So
+`is/2` unifies the LHS against an unevaluated compound. Cascades to
+test_arith, test_bips, test_call (`call1`/`apply`/`callN`), test_dcg,
+test_exception, test_list, test_misc, test_string, test_term — anything
+where plunit's `pj_has_true`/`pj_do_fail` wraps a body containing
+arithmetic, unification, or comparison.
+
+#### Decision
+
+**NOT COMMITTED** per RULES.md "regression-in-error-class" guideline
+(43→10 is far worse than the +3 the fix targeted). Reverted runtime;
+saved attempt + analysis as committed docs:
+
+- `one4all/docs/PL-12-session-pl-invoke-term-attempt.diff` (143 lines)
+- `one4all/docs/PL-12-session-pl-invoke-term-findings.md` (full narrative)
+
+### NEXT SESSION PL-12 — revised ordered task list:
+
+The plan from the previous session's "Next session" is partly invalidated.
+Updated priorities:
+
+1. **Fix #3 first (plunit v4 — throw vs. succeed).** Independent of any
+   runtime change; only edits `corpus/plunit.pl`. In `pj_do_fail`, replace
+   `catch(Goal,_,true)` with `catch(Goal, _Err, (nb_setval(pj_threw,1), true))`
+   and check the flag — if recovery fired from a throw, do NOT count as
+   "succeeded". Expected: `string` suite +1 → 44/57 = 77%. Cheap, safe,
+   bounded blast radius.
+
+2. **Investigate the directive-binding bug (new fix #1, replaces the
+   anon-var-aliasing hypothesis).** Trace why
+   `:- assertz(test_g(hello)), test_g(G), write(G)` prints `_G0`. Likely
+   in `interp.c:4445-4453`'s `LANG_PL` STMT_t handler — directive subject
+   might need a clause-wrap with `pl_env_new(n_vars)` so the directive's
+   E_VAR slots can be bound. Check if the issue is also why
+   `term_singletons` fails inside plunit even though the lowering is correct.
+   This may resolve `term_singletons` (+1) and possibly other suites for free.
+
+3. **Fix #2 properly (`pl_invoke_term` with full Term→EXPR bridge).**
+   Build a recursive helper `term_to_goal_expr(Term *t)` that walks the
+   Term and emits a synthesized EXPR_t whose structure mirrors the
+   lowerer's output. Atom_id → EKind table:
+   `+→E_ADD, -→E_SUB, *→E_MUL, /→E_DIV, mod→E_MOD, =→E_UNIFY,
+    ,→E_FNC sval=",", ;→E_FNC sval=";", →→E_FNC sval="->"`. For
+   unrecognised functors fall back to `E_FNC` with the functor name.
+   Deeper Terms inside (e.g. `is(A, +(5,5))`) get full recursive expansion:
+   E_FNC sval="is" arity=2; child[0] = synth from `A`; child[1] = E_ADD
+   with children synth from `5` and `5`. Then dispatch via
+   `pl_box_goal_from_ir(synth, NULL)`. Existing code (the failed attempt
+   diff) shows the user-pred dispatch half is already correct; only the
+   builtin half needs replacement.
+   Expected: `bips`, `arg`, `is_most_general_term`, `term_singletons` →
+   +3 to +4 suites. Target: 47-48/57 = 82-84% > 80% gate.
+
+After 1+2+3: 43 + 1 + 1 + 3 = 48/57 = 84% > 80% gate.
+
+If only 1+3 work: 43 + 1 + 3 = 47/57 = 82% > 80% gate.
+
+### Files committed this session
+
+- `one4all/docs/PL-12-session-pl-invoke-term-attempt.diff` — full diff of
+  the failed pl_invoke_term attempt (revert reference for next session).
+- `one4all/docs/PL-12-session-pl-invoke-term-findings.md` — diagnostic
+  narrative + revised plan for next session.
+
 ### Previous session work (preserved for context)
 
 **`once/1` builtin landed.** Was completely absent — `once(X)` was being treated as
