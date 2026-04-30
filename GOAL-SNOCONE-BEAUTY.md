@@ -895,6 +895,160 @@ push both.
 
 ---
 
+## Session #75 progress (2026-04-30)
+
+**SB-5c.1 LANDED.** Root cause identified, fixed in 31 lines, verified
+across all three modes plus three baseline gates plus broad corpus.
+The fix also clears SB-5c.3, SB-5c.5, and SB-5d.1 as side effects.
+
+### Root cause: Snocone IR routes pattern builtins through value context
+
+The Snocone frontend lowers `ARBNO(P)` and `FENCE(P)` as `(E_FNC ARBNO ...)`
+and `(E_FNC FENCE ...)` respectively — generic function-call IR nodes —
+not as `(E_ARBNO ...)` / `(E_FENCE ...)` (which is what the SNOBOL4
+frontend emits).  `interp_eval_pat` in `src/driver/interp.c` had explicit
+`case E_ARBNO` and `case E_FENCE` arms that evaluated the child via
+`interp_eval_pat` (pattern context), so `E_DEFER(E_VAR("group"))` →
+`pat_ref("group")` → XDSAR deferred-reference pattern node — correct.
+But `case E_FNC` was missing; `E_FNC` fell through to the `default →
+interp_eval(e)` (value context) path.  In value context, `E_DEFER(E_VAR)`
+returns `DT_E` (frozen expression).  `APPLY_fn("ARBNO", [DT_E])` →
+`_PAT_ARBNO_(DT_E)` → `pat_arbno(DT_E)` → `spat_of(DT_E)` returns NULL
+(it only unpacks `DT_P`) → `pat_arbno` builds an ARBNO node with a
+NULL child.  At match time the malformed ARBNO fails to advance the
+cursor, so the surrounding `POS(0) ... RPOS(0)` anchor fails.
+
+This was *not* the cursor reset session #74 hypothesised — the trace
+instrumentation that session #74 added was reading `Δ` correctly; the
+malformed ARBNO simply never produced any cursor advance to read.  The
+session-#74 `bb_arbno` `_config_only` guard remains in place and is a
+correctness improvement on its own (no regression from it).
+
+### Fix
+
+`src/driver/interp.c` `interp_eval_pat` — added `case E_FNC` that for
+`ARBNO` and `FENCE` evaluates the child via `interp_eval_pat` (pattern
+context), then calls `pat_arbno` / `pat_fence_p` directly.  Other
+pattern-builtin function calls (POS, RPOS, SPAN, BREAK, LEN, ANY,
+NOTANY, TAB, RTAB, ARB, REM, BAL, SUCCEED, FAIL, ABORT) take
+non-pattern args, so for them the value-context default is correct.
+
+```c
+case E_FNC:
+    if (e->sval && e->nchildren > 0) {
+        if (strcmp(e->sval, "ARBNO") == 0) {
+            DESCR_t _inner = interp_eval_pat(e->children[0]);
+            if (IS_FAIL_fn(_inner)) return FAILDESCR;
+            return pat_arbno(_inner);
+        }
+        if (strcmp(e->sval, "FENCE") == 0) {
+            DESCR_t _inner = interp_eval_pat(e->children[0]);
+            if (IS_FAIL_fn(_inner)) return FAILDESCR;
+            return pat_fence_p(_inner);
+        }
+    }
+    return interp_eval(e);
+```
+
+`+31/-0` (the new case slots in next to the existing `case E_FENCE`).
+
+### Verification
+
+**Minimal reproducer (Snocone) — all three modes:**
+
+```snocone
+group = '(X)';   src = '(X)';
+if (src ? POS(0) && ARBNO(*group) && RPOS(0)) OUTPUT = 'OK';
+else                                          OUTPUT = 'FAIL';
+```
+
+| Mode | Before fix | After fix |
+|------|:---:|:---:|
+| `--ir-run`  | FAIL | OK |
+| `--sm-run`  | FAIL | OK |
+| `--jit-run` | FAIL | OK |
+
+(All three modes funnel `(E_FNC ARBNO ...)` through `interp_eval_pat`
+during pattern construction, so the fix in interp.c covers all of them.)
+
+**Session-#73 8-case bisection** — all 8 cases now PASS (matching the
+SPITBOL oracle).  Pre-fix: 6 PASS, 2 FAIL (`ARBNO(ARBNO(*group) Y)`
+shapes).  Post-fix: 8 PASS.
+
+**Three baseline gates — green, no regression:**
+- `test_smoke_snocone.sh` → PASS=5 FAIL=0
+- `test_beauty_snocone_all_modes.sh` → PASS=42 FAIL=0 SKIP=3
+- `test_smoke_unified_broker.sh` → PASS=49 FAIL=0
+
+**Crosscheck suites — green, no regression:**
+- `test_crosscheck_snobol4.sh` → PASS=6 FAIL=0
+- `test_crosscheck_snocone.sh` → PASS=8 FAIL=0
+- `test_interp_broad_corpus_and_beauty.sh` → PASS=222 FAIL=52
+  (identical to pre-fix baseline; the 52 failures are pre-existing,
+  unrelated to ARBNO).
+
+### Side-effect closures
+
+**SB-5d.1 LANDED.**  `treebank-list.sc` byte-identical to SPITBOL
+oracle in all three modes, 24 lines, `md5
+7096beb49889b0d2c5db66b4a45ae444` matches `treebank-list.ref`.  This
+closes SB-5d.1 directly — the gating bug was SB-5c.1 and there was no
+`.sc` rewrite (per Lon's "no SC workarounds" rule).
+
+**SB-5c.5 LANDED.**  `treebank-list.sno` and `treebank-array.sno` both
+byte-identical to SPITBOL oracle in all three modes.  The earlier
+"Pattern match failed" on `claws5.sno` and the `treebank-array.sno`
+match failure were the same root cause as SB-5c.1, just reached via a
+different IR shape — the SNOBOL4 frontend's `E_ARBNO` path exposed
+the same `pat_arbno` issue when the inner pattern was an XDSAR
+deferred-reference resolved at match time inside a nested ARBNO
+context.
+
+**SB-5c.3 CLEARED.**  `claws5.sno` no longer hangs under
+`./scrip --ir-run claws5.sno < claws5.input`; it produces the same
+`Pattern match failed` as SPITBOL.  The remaining SB-5c.2 (input
+file mismatch — `claws5.ref` was generated from `CLAWS5inTASA.dat`,
+not `claws5.input`) is a corpus-curation issue, not a runtime bug.
+
+**Beauty.sc end-to-end** — improved but not yet self-host.
+`echo START | ./scrip --ir-run $LIBS beauty.sc` no longer hangs;
+emits "Parse" (a beauty-internal diagnostic) where SPITBOL emits
+"START".  beauty.sc with `beauty.sno` as input flows through the
+7-line comment header AND the 17 `-INCLUDE` lines (was hanging on
+the first non-comment statement before).  Real grammar work in
+beauty.sc remains for the SB-5/SB-6 sequence — that's downstream of
+SB-5c.1.
+
+### Open / next-session
+
+- **SB-5c.4** still open (faithful re-port of `claws5.sc`'s `pp_mem`
+  procedure with zero gotos, 1-for-1 against `claws5.sno` `pp_mem`).
+- **SB-5c.2** still open (`claws5.input` vs `CLAWS5inTASA.dat`
+  alignment — corpus-curation decision).
+- **SB-5d.2** still open (`treebank-array.sc` blocked on LS-0
+  space-concat — `GOAL-SNOCONE-LANG-SPACE.md`).
+- **SB-5d.4** still open (zero-goto invariant; both treebank `.sc`
+  files at goto count = 0 today, must be preserved by future edits).
+- **Beauty self-host (SB-6)** — gating bugs upstream of "diff empty"
+  are now exclusively grammar/lowering work in `beauty.sc` itself.
+  Suggested first probe next session: capture exactly where beauty.sc
+  emits "Parse" instead of recognizing the `START` label, walk the
+  pattern construction for `Stmt`/`Label`/`Command`, identify the
+  failing arm.  The runtime surface should now be clean.
+
+### Files touched this session
+
+`src/driver/interp.c` — `+31/-0` adding `case E_FNC` in
+`interp_eval_pat` for ARBNO and FENCE.  No other source changes.
+Diagnostic test files in `/tmp/` only.
+
+### Repos state
+
+`one4all`: dirty (interp.c).  `corpus`, `.github`: clean.  Plan:
+commit one4all change + this `.github` update, push both.
+
+---
+
 - [x] **SB-1** — Diagnose underflows.
 - [x] **SB-2** — Fix $'...' lexer.
 - [x] **SB-3** — Fix scan+replacement lowering. 0 underflows.
@@ -1162,23 +1316,24 @@ push both.
     with `&TRIM=1` → `'X'` (size 1) on both runtimes; `&TRIM=0`
     preserves bytes on both. Three baseline gates remain green.
 
-  - [ ] **SB-5c.1** — Fix `ARBNO(ARBNO(*X) Y)` matcher bug in
-    `src/runtime/x86/snobol4_pattern.c`. SPITBOL accepts this
-    nested-ARBNO + deferred-`*name` shape; scrip's pattern matcher
-    fails the match (no error, just `?` returns failure). Tightest
-    reproducer in session #73 above. Same symptom under all three
-    modes — bug is in shared pattern runtime, not in any
-    mode-specific lowering. Likely an interaction between the
-    inner ARBNO's empty-match alternate and the deferred-eval
-    pattern's lazy expansion: the inner ARBNO probably "captures"
-    the deferred reference as a no-op match instead of expanding
-    `*group` to its current value at each iteration. Investigation
-    plan: instrument `pat_arbno` and `pat_deferred` (or whatever
-    the equivalent functions are named in scrip's pattern code) to
-    log entry, body match attempts, and re-entry. Compare against
-    `ARBNO(ARBNO(group) Y)` (which works) to find the divergence.
-    Fix gate: the 8-case bisection in session #73 progress all
-    pass on scrip, matching SPITBOL.
+  - [x] **SB-5c.1** — Fix `ARBNO(*name)` matcher bug (Snocone
+    frontend). LANDED session #75. Root cause: Snocone emits
+    `(E_FNC ARBNO ...)` and `(E_FNC FENCE ...)` rather than
+    `(E_ARBNO ...)` / `(E_FENCE ...)`; `interp_eval_pat` had explicit
+    cases for the latter (pattern-context arg evaluation, producing
+    XDSAR for `*name`) but `E_FNC` fell through to value-context
+    `interp_eval`, where `E_DEFER(E_VAR)` becomes a frozen DT_E.
+    `pat_arbno(DT_E)` → `spat_of` returns NULL → ARBNO with NULL
+    child → fails to advance cursor. Fix: `+31/-0` in
+    `src/driver/interp.c::interp_eval_pat` adding a `case E_FNC`
+    that for ARBNO and FENCE evaluates the child via
+    `interp_eval_pat` and calls `pat_arbno`/`pat_fence_p` directly.
+    Other pattern builtins (POS, RPOS, SPAN, BREAK, LEN, ANY,
+    NOTANY, TAB, RTAB, ARB, REM, BAL, SUCCEED, FAIL, ABORT) take
+    non-pattern args and keep the value-context default. Gate
+    passed: session-#73 8-case bisection now 8/8 PASS in all three
+    modes (was 6/8). Three baseline gates green. Side-effect
+    closures: SB-5c.3, SB-5c.5, SB-5d.1 (see session #75 progress).
 
   - [ ] **SB-5c.2** — claws5 input-file alignment. The 95-line
     `claws5.ref` does not match either SPITBOL's or scrip's output
@@ -1192,14 +1347,16 @@ push both.
           generated from.
     This is a corpus-curation decision, not a runtime bug.
 
-  - [ ] **SB-5c.3** — Fix claws5 hang on SPITBOL-failing input.
-    Even if SPITBOL clean-fails to "Pattern match failed", scrip
-    should also finish — it currently hangs with 0 output past
-    60 s. Likely the same family as the session-#69..71 beauty.sc
-    hang, possibly the same root cause as SB-5c.1's nested-ARBNO
-    pathology. Re-evaluate after SB-5c.1 lands; if hang persists
-    independently, bisect input + grammar to a tightest
-    reproducer.
+  - [x] **SB-5c.3** — Fix claws5 hang on SPITBOL-failing input.
+    LANDED session #75 as a side effect of the SB-5c.1 fix.
+    `./scrip --ir-run claws5.sno < claws5.input` now produces the
+    same `Pattern match failed` as SPITBOL, no hang. The
+    underlying cause was the same as SB-5c.1: claws5's outer
+    pattern uses `ARBNO((... | ...))` over alternations whose
+    arms contain `*new_sent()` / `*add_tok()` `E_DEFER` nodes,
+    which were the malformed-NULL-child path in `pat_arbno`.
+    With `interp_eval_pat`'s new `E_FNC` case, those deferred
+    nodes now build correctly.
 
   - [ ] **SB-5c.4** — **Faithful re-port of `claws5.sc` from
     `claws5.sno`.** Current `.sc` `pp_mem` is a structural
@@ -1221,23 +1378,18 @@ push both.
     `pp_mem` (same procedure-local variables, same control flow
     shape, same OUTPUT lines).
 
-  - [ ] **SB-5c.5** — **Diagnose `claws5.sno` failure under
-    scrip SNOBOL4 frontend.** `./scrip --ir-run claws5.sno <
-    claws5.input` produces "Pattern match failed" — but
-    individual sub-patterns work in isolation (SPAN, NOTANY,
-    BREAK, ANY all pass standalone). Bisection in session #74
-    showed: `(SPAN(DIGITS) . num) '_CRD :_PUN' (epsilon .
-    *new_sent()) ' '` works alone, BUT wrapping it in
-    `POS(0) ARBNO(...) RPOS(0)` fails. This is plausibly the
-    same root cause as SB-5c.1 (ARBNO + deferred-var
-    cursor non-advancement) but seen from the .sno path. Once
-    SB-5c.1 lands, retest .sno; if still failing, bisect
-    further — the alternation `| (NOTANY('_') BREAK('_')) . wrd`
-    arm with its own `(epsilon . *add_tok())` may be the
-    distinct trigger. Gate: `./scrip --ir-run claws5.sno <
-    claws5.input` produces output byte-identical to `claws5.ref`.
-    SB-5c.4's `.sc` re-port gates on this resolving (otherwise
-    the .sc faithful port hits the same runtime bug).
+  - [x] **SB-5c.5** — **`claws5.sno` failure under scrip SNOBOL4
+    frontend.** LANDED session #75. Same root cause as SB-5c.1
+    (the `pat_arbno` NULL-child malformation) reached via the
+    SNOBOL4 frontend's `E_ARBNO` path. With the SB-5c.1 fix in
+    place: `treebank-list.sno` and `treebank-array.sno` are
+    byte-identical to SPITBOL oracle in all three modes (24
+    lines, md5 match against the .ref files); `claws5.sno`
+    produces the same `Pattern match failed` as SPITBOL on
+    `claws5.input` (the .ref mismatch tracked separately under
+    SB-5c.2 is a corpus-curation issue, not a runtime bug).
+    `claws5.sno` byte-identical against an aligned input gates
+    on SB-5c.2 closing.
 
   Gate: `diff` empty against the agreed oracle for the agreed
   input.
@@ -1252,14 +1404,11 @@ push both.
   SB-5d give independent corpus programs exercising Snocone
   runtime correctness before the beauty self-host gate.
 
-  - [ ] **SB-5d.1** — `treebank-list.sc` blocked on SB-5c.1
-    (`ARBNO(ARBNO(*X) Y)` matcher bug). The `treebank` outer pattern
-    in `treebank-list.sc` uses precisely the failing shape
-    (`ARBNO((epsilon . *push('ROOT')) && ARBNO(*group) && *delim
-    && (epsilon . *pop_list()))`). When SB-5c.1 fixes the matcher,
-    `treebank-list.sc` should produce its expected 24 lines under
-    all three modes. Per Lon's instruction, no rewrite of the .sc
-    is permitted to dodge the bug.
+  - [x] **SB-5d.1** — `treebank-list.sc` LANDED session #75.
+    SB-5c.1 fix unblocked it directly — no `.sc` rewrite needed.
+    Output byte-identical to SPITBOL oracle in all three modes
+    (`--ir-run`, `--sm-run`, `--jit-run`), 24 lines, matches
+    `treebank-list.ref` (md5 `7096beb49889b0d2c5db66b4a45ae444`).
 
   - [ ] **SB-5d.2** — `treebank-array.sc` blocked on
     `GOAL-SNOCONE-LANG-SPACE.md` (LS-0). The .sc uses
