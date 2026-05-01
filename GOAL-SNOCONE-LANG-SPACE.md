@@ -2164,6 +2164,162 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       without an enclosing loop or switch is a parse-time error;
       `continue` without an enclosing loop is also an error.
 
+      **Session 2026-05-01 #2 (EMERGENCY HANDOFF — implementation
+      landed and gate-green; side-channel test extension is the
+      remaining work):**
+
+      Lon's session-#2 directive: Q13 → Option A (both plain and
+      labeled forms accepted).  Implementation lands in
+      `snocone_parse.y` only — no other source touched.
+
+      **Implementation shape (committed in this handoff, all gates
+      green throughout):**
+
+      Grammar additions in `simple_stmt`:
+      ```
+      | T_BREAK T_SEMICOLON              { sc_append_break(st, NULL);  }
+      | T_BREAK T_IDENT T_SEMICOLON      { sc_append_break(st, $2);    }
+      | T_CONTINUE T_SEMICOLON           { sc_append_continue(st, NULL); }
+      | T_CONTINUE T_IDENT T_SEMICOLON   { sc_append_continue(st, $2); }
+      ```
+      Plus a tiny `for_lead : T_FOR { sc_pending_to_stash(st); }`
+      non-terminal that fires before init parses, moving any
+      pending user labels to a one-slot stash.  This is needed
+      because init's `sc_append_stmt` call would otherwise clear
+      pending before `sc_for_head_new` could capture them onto the
+      loop frame.  (For while/do, the head action runs before any
+      stmt commit; pending is alive there.)  `for_head` was
+      reshaped to consume `for_lead` as its first symbol.
+
+      `LoopFrame` struct + linked-list stack rooted at
+      `ScParseState.loop_top`:
+      ```c
+      typedef struct LoopFrame {
+          char    *cont_label;      /* continue target */
+          char    *end_label;       /* break target    */
+          char   **user_labels;     /* labels attached at loop entry */
+          int      user_labels_count;
+          int      is_loop;         /* 0=switch (LS-4.i.3); 1=loop */
+          int      cont_used;       /* lazy-emit flag — see below */
+          struct LoopFrame *outer;
+      } LoopFrame;
+      ```
+
+      Eager label allocation in `sc_while_head_new` /
+      `sc_do_head_new` / `sc_for_head_new` — each head now also
+      allocates `cont_label` and `end_label` up front, stores them
+      on its head struct, and pushes a `LoopFrame` carrying
+      `strdup`'d copies of those labels.  `sc_finalize_*` reuses
+      the head's `cont_label` / `end_label` so any `break`/
+      `continue` stmts emitted DURING body parsing target the same
+      label names the finalize lays down.  Each finalize calls
+      `sc_loop_pop`.  For while loops, `cont_label` is the same
+      `_Ltop_NNNN` always emitted, so no separate `Lcont` pad is
+      needed.  For do/while and for, `cont_label` is a separate
+      `_Lcont_NNNN` that finalize splices in just before the cond
+      stmt (do/while) or just before the step stmt (for) — but
+      lazy-emit: only spliced when the body actually emitted a
+      `continue` (`cont_used` flag set by `sc_append_continue`).
+      This preserves the exact LS-4.f/g lowering shape for code
+      that doesn't use continue, keeping all 95 existing parse-g
+      tests green without modification.
+
+      Pending-user-label tracking: `sc_emit_label_pad` (called
+      from `label_decl`'s action) was extended to call
+      `sc_pending_label_add` after emitting the pad.  Stacked
+      labels (`a: b: while(...)`) accumulate — both `a` and `b`
+      attach to the same loop frame, so `break a;` and `break b;`
+      both work (Java-style).  `sc_append_stmt`,
+      `sc_append_return`, `sc_append_freturn`, `sc_append_nreturn`,
+      `sc_append_goto_label` all clear pending at entry — they
+      consume any preceding label.  Head functions consume-and-
+      clear pending into the loop frame's `user_labels[]` array.
+
+      `sc_loop_find_by_user_label` walks innermost-first; switch
+      frames are skipped when `want_loop=1` (continue case).
+      `sc_loop_find_innermost` handles the unlabeled case.
+
+      `sc_append_break` / `sc_append_continue` — emit a bare goto
+      to the resolved frame's end/cont label.  Out-of-context
+      (`break;` at top level, etc.) and unresolved-label cases
+      call `sc_error` and emit nothing.
+
+      `snocone_parse_program` got a cleanup pass: drains pending,
+      stash, and any leftover loop frames before returning.
+
+      **Gate state at handoff (all green, zero regressions):**
+      ```
+      smoke snocone:               5/5
+      beauty 3-mode:               42/0/3
+      unified broker:              49/0
+      parse-a..i (side-channel):   776/776 (35+119+66+79+71+118+95+85+108)
+      FSM lex acceptance:          31/31
+      Bison conflicts:             0 shift/reduce, 0 reduce/reduce
+      ```
+      LS-4.i.1's 108 parse-i tests remain unchanged (LS-4.i.2
+      added zero new tests in `test_snocone_parse_i.c` — that's
+      the work session #3 needs to do).
+
+      **End-to-end smoke verification at handoff (saved as
+      `docs/LS-4.i.2-session-2026-05-01-smoke-driver.c`):**
+      Five hand-built smoke cases, all pass:
+
+      1. Bare `break;` and `continue;` in single while-loop —
+         `break;` lowers to `:(_Lend_NNNN)` of innermost, `continue;`
+         to `:(_Ltop_NNNN)` of innermost (same as while's back-edge
+         label, so no extra pad emitted).
+      2. Labeled `break outer;` and `continue outer;` from nested
+         inner loop targeting outer-loop labels — both gotos
+         correctly reference the outer frame's end/cont labels.
+      3. `break;` at top level — parse fails with sc_error
+         "break outside of loop or switch".
+      4. `for (...) { ... continue; ... }` — `_Lcont_NNNN` pad is
+         emitted (lazy-emit triggered by `cont_used=1`).
+      5. `for (...) { ... }` without continue — no `_Lcont_*` label
+         appears in the IR (lazy-emit suppressed).
+
+      **What's left for session #3 to close LS-4.i.2:**
+
+      Write ~12-15 ASSERT-based test functions in
+      `test/frontend/snocone/test_snocone_parse_i.c` covering the
+      same shapes the smoke driver verifies, plus:
+      - bare break/continue in while, do/while, for
+      - labeled break/continue, single level of nesting and two
+        levels
+      - stacked labels (`a: b: while(...)` — break a; AND break b;
+        both targeting same loop)
+      - Lcont-pad lazy-emit for do/while+continue and for+continue
+      - Lcont-pad SUPPRESSED for do/while-no-continue and for-no-
+        continue (parse-g shape preserved)
+      - the "label-on-non-loop-stmt followed by loop" disambiguation
+        (`a: x = 1; while(...) {...}` — `a` attaches to assignment,
+        not to loop; pending cleared by sc_append_stmt)
+      - Error cases — break outside loop, continue outside loop,
+        break/continue with unresolved labels — all should yield
+        snocone_parse_program returning NULL with nerrors > 0.
+
+      Use the existing parse-i test functions as templates.  The
+      `test_smoke_snocone_parse_i.sh` runner is already in place
+      and needs no changes.
+
+      Reference smoke driver in `docs/` provides exact expected
+      label-name shapes (`_Ltop_0001`, `_Lend_0002`, `_Lcont_NNNN`)
+      and demonstrates working ASSERT idioms for label-target
+      checking.  Builds & runs in <1s.
+
+      Smoke verification command for session #3 to confirm baseline
+      before adding tests:
+      ```bash
+      cc -Wall -o /tmp/ls4i2_smoke \
+          docs/LS-4.i.2-session-2026-05-01-smoke-driver.c \
+          src/frontend/snocone/snocone_parse.tab.c \
+          src/frontend/snocone/snocone_lex.c \
+          -I src/frontend/snocone -I src/frontend/snobol4 -I src
+      /tmp/ls4i2_smoke   # expect "ALL SMOKE CHECKS PASSED"
+      ```
+
+      one4all working tree CLEAN at HEAD `10a7bf03`.
+
 - [ ] LS-4.i.3 — `switch (e) { case v1: S1; case v2: S2; default: SD; }`.
       Lowers to:
           tmp = e
