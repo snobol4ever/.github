@@ -2624,12 +2624,126 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       production driver.  Next active step: LS-4.i.5 — `struct
       NAME { field, field, ... };`.
 
-- [ ] LS-4.i.5 — `struct NAME { field, field, ... };`.  Andrew's
-      `.sc` line 162 has this — a struct keyword that defines a
-      named record with a list of fields.  Lowers to per-field
-      accessor function definitions following SPITBOL's TABLE
-      idiom, or directly to PROTOTYPE/DATA.  Smallest scope —
-      defer to last so the four control-flow sub-steps land first.
+- [x] LS-4.i.5 — **LANDED session 2026-05-01 #6** (one4all `4a026191`).
+      `struct NAME { f1, f2, ... }` parses and lowers to a single
+      bare-expression statement: `DATA('NAME(f1,f2,...)')`.
+      Andrew's `.sc` line 162 record-decl form, lowered onto SPITBOL's
+      built-in `DATA()` primitive which simultaneously installs the
+      constructor and per-field accessors (each accessor doubling as
+      L-value, e.g. `next(x) = newval`).
+
+      **Grammar shape** — two new rules in `matched_stmt` (no dangling-
+      else risk; struct is a self-contained block-form decl, no body
+      to splice), plus a small left-recursive helper non-terminal:
+
+          matched_stmt += T_STRUCT T_IDENT T_LBRACE struct_field_list T_RBRACE
+                       |  T_STRUCT T_IDENT T_LBRACE T_RBRACE       (empty fields)
+
+          struct_field_list
+                       :  T_IDENT
+                       |  struct_field_list T_COMMA T_IDENT
+
+      `struct_field_list` mirrors `func_arglist_ne` shape verbatim —
+      left-recursive accumulation builds the comma-joined string
+      "f1,f2,f3" left-to-right in a single malloc'd buffer per
+      reduction.  Empty-fields case routes to the second rule and
+      passes `strdup("")` to the emitter.
+
+      No `opt_head_sep` between `T_RPAREN`-equivalent and `T_LBRACE` —
+      same as `func_head` and `switch_head`, the FSM does NOT
+      synthesize T_CONCAT before `{` (T_LBRACE is not a value-starter).
+      Real-corpus surface uses a single space (`struct link { next,
+      value }`); the lexer absorbs it as ordinary whitespace.
+
+      No trailing semicolon — matches Andrew's `.sc` surface and every
+      corpus user (`include-sc/stack.sc`, `tree.sc`, `counter.sc`;
+      `snocone/demo/beauty/{stack,counter,tree}.sc`).  Adjacent
+      structs without semicolons (`struct a{...} struct b{...}`)
+      lex+parse cleanly because Bison's LR(1) lookahead at T_STRUCT
+      after a closed matched_stmt unambiguously starts a new struct
+      decl.  Test 64 covers this.
+
+      **Lowering** — `sc_emit_struct(st, name, fields)` builds the
+      full QLIT spec string `"NAME(f1,f2,...)"` (or `"NAME()"` for
+      empty), constructs `E_FNC("DATA", E_QLIT(spec))`, and appends
+      as a bare-expression statement via `sc_append_stmt()`.  No
+      goto, no label, no head/finalize split — struct is exactly
+      one stmt.  Mirrors `sc_func_head_new`'s DEFINE-emission idiom
+      (which builds `E_FNC("DEFINE", E_QLIT("NAME(args)"))` the same
+      way) but is simpler: no body to splice, no label-pad, no
+      cur-context save/restore.
+
+      **End-to-end SPITBOL semantic check** — verified via probe-run
+      that `DATA('link(next,value)')` (the LS-4.i.5 lowering target
+      for `struct link { next, value }`) installs `link()`, `next()`,
+      `value()` as functions, and a 3-element list built by chained
+      `link(...)` calls traversed via `next(a)` walks correctly:
+
+          struct link { next, value }
+          // lowers to: DATA('link(next,value)')
+          a = link(link(link('', 30), 20), 10)
+          loop  DIFFER(a)                     :F(done)
+                OUTPUT = value(a)
+                a = next(a)                   :(loop)
+          done
+
+      Output `10\n20\n30\n` matches the expected linked-list traversal
+      exactly under `sbl -bf`.  This confirms `DATA()` is the right
+      lowering target — it's not a translation we invented, it's the
+      SPITBOL primitive Andrew's `struct` keyword is sugar for.
+
+      **Tests added** (59–69, +38 assertions):
+      - 59 `test_struct_two_fields_headline` — Andrew's stack.sc shape
+            `struct link { next, value }` → exact `DATA('link(next,
+            value)')` IR
+      - 60 `test_struct_single_field` — `struct one { only }`
+            → `DATA('one(only)')`
+      - 61 `test_struct_empty_fields` — `struct empty { }`
+            → `DATA('empty()')` (zero-field record, rare but legal)
+      - 62 `test_struct_four_fields` — Andrew's tree.sc verbatim
+            `struct tree { t, v, n, c }` → `DATA('tree(t,v,n,c)')`;
+            exercises struct_field_list left-recursive fold for N>2
+      - 63 `test_struct_in_sequence` — splice integrity:
+            `x = 1; struct s { a, b, c } y = 2;` produces 3 stmts
+            in order with the struct in the middle, no disturbance
+      - 64 `test_struct_back_to_back` — counter.sc verbatim:
+            `struct link_counter { next, value }
+             struct link_tag { next, value }` — two adjacent struct
+            decls without separators between them
+      - 65 `test_struct_name_with_underscore` —
+            `struct my_record { a, b }` confirms case-sensitive
+            byte-preservation through the QLIT spec
+      - 66 `test_struct_mixed_case` — `struct Cons { Car, Cdr }`
+            confirms RULES.md case-sensitive name space carries
+            through; QLIT contains exact bytes
+      - 67 `test_struct_followed_by_use` —
+            `struct cons { car, cdr } x = cons(1, 2);` — verifies
+            both stmts emit cleanly and the assignment's RHS is a
+            normal `E_FNC("cons", ...)` call (the call doesn't
+            need to know struct exists; runtime DATA() installs it)
+      - 68 `test_struct_with_explicit_trailing_semi` — regression
+            guard: explicit `;` after `}` parses as standalone
+            empty-stmt (T_SEMICOLON-alone rule produces no stmt
+            entry) so total stmt count stays at 2, not 3
+      - 69 `test_struct_no_name_error` — `struct { a, b }` (no
+            identifier) is a parse error — confirms grammar
+            requires T_IDENT after T_STRUCT
+
+      **All gates green at session-end:**
+      ```
+      smoke snocone:               5/5
+      beauty 3-mode:               42/0/3
+      unified broker:              49/0
+      parse-a..i (side-channel):   965/965  (35+119+66+79+71+118+95+85+297)
+      Bison conflicts:             0 shift/reduce, 0 reduce/reduce
+      ```
+      Combined parse-a..i delta from LS-4.i.5 close: 927 → 965 (+38).
+
+      Side-channel only — LS-4.j wires the new parser into scrip's
+      production driver.  This rung closes LS-4.i — every Andrew `.sc`
+      surface construct now has a Bison rule and an IR lowering.
+      Next active step: LS-4.j — wire `snocone_parse_program()` into
+      `snocone_compile()` as the production parse path.
 
 - [ ] LS-4.j — Wire-in only.  Add `snocone_parse.tab.c` to
       `src/Makefile` `FRONTEND_SNOCONE` (matching `FRONTEND_SNO`'s
