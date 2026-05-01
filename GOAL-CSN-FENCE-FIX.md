@@ -730,11 +730,29 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #64 (working tree CLEAN at HEAD `723ac19`; TXSP fix at L_SALT2 committed; gate-neutral)
+- csnobol4 @ session #65 (working tree CLEAN at HEAD `5fbf2ce`; fence_suite expanded to 53 tests; no runtime change)
 - one4all @ `06433f90`
-- corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130) + session #55 untracked Tier F (132–147, 32 files)
+- corpus @ session #65 `6f00145` (53 tests at IDs 100–152; Tier G additions + 118/127/140/141 corrections)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#64; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral, eliminates a latent FNC-trap-cursor-corruption mode session #63 traced. Refuted FNCDCL-at-P2 placement attempt with trace evidence. Named architectural mechanism: STARP2 abandons FENCE seal AND re-routes walker through abandoned leaks. **Session #65** should implement leaked-alt zeroing at FNCA-success per session #57 (d), with placement that distinguishes from session #54's rejected STAR-success zeroing. Beauty 42 lines (unchanged since #58).)
+- active step → **F-2 Step 3a** (sessions #49–#65; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral; **session #65 verifies test suite against SPITBOL oracle, expands suite to 53 tests with Tier G (148–152), corrects three corpus errors, sharpens bug-class characterization — no runtime change**. The new gate is 7 csnobol4 FAILs to flip + 2 negative discriminators to preserve. **Session #66** should re-run session #62's PDL-dump diagnostic on test 148 (simpler than 119) to resolve the unreconciled tension between session #62 (no-SALT2-events → bug on success path) and session #64 (failure-walker through abandoned-seal region). Trace decides whether session #57(d) FNCA-success zeroing is the right fix or whether investigation must redirect to STARP2's redo-dispatch path. Beauty 42 lines (unchanged since #58).)
+
+**Gates as of session #65 end (working tree CLEAN, no runtime code changed since session #64):**
+- fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58 / s64 / s65)
+- fence_suite/ (53 tests after Tier G additions):
+  - csnobol4 baseline (HEAD `5fbf2ce`):       **46 OK / 7 FAIL / 0 CRASH**
+  - SPITBOL oracle (`-bf`):                   **53 OK / 0 FAIL / 0 CRASH** (clean — first time)
+  - The 7 csnobol4 FAILs: 119, 124, 127, 129, 148, 149, 152 (bug-class regression target)
+  - 150, 151 PASS (negative discriminators that prove bug needs ARBNO + `*var` specifically)
+- guard5 regression-prevention: ✓
+- Tier F (16 depth-stress tests at IDs 132–147): 16/16 PASS
+- beauty self-host: 42 lines (unchanged since #58)
+
+**Session #65 also corrected three pre-existing corpus errors:**
+- Test 127 `.ref` was generated under SPITBOL `-b` (case-fold ON) but Makefile invokes `-bf` (case-fold OFF). Regenerated under `-bf`.
+- Tests 140, 141 used label names colliding under SPITBOL's case-fold default (`shift`/`Shift`, `grab`/`Grab`). Renamed for cross-dialect portability.
+- Test 118 documented as structurally degenerate — `outer` assigned AFTER the match, so `*outer` dereferences unassigned variable and FENCE machinery never runs. The test "passed" for the wrong reason. Test 149 added as the proper version.
+
+**Pre-session-#65 history below this line — superseded gates marked (stale):**
 
 **Gates as of session #58 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58)
@@ -2256,3 +2274,193 @@ Session #64's contributions:
 The pattern of "land an analytic step forward, hit deeper bug"
 continues, but session #65 has a specific surgical fix to attempt
 with clear test predictions.
+
+---
+
+## Session #65 update — fence_suite oracle-verified, expanded to 53 tests, bug class sharpened (NO runtime change)
+
+Session #65 was scoped to **verify the test suite against the SPITBOL oracle
+and fill its actual coverage gaps** before any further attempt at the
+runtime fix outlined in session #64's plan (FNCA-success leaked-alt zeroing).
+
+### Why this scope
+
+20 sessions on F-2 Step 3a, six successive "land a fix, hit deeper bug"
+cycles, two prior sessions where the proposed fix was implemented and
+refuted by gates.  Before another such cycle, audit the gates themselves.
+The audit found three concrete corpus errors and two structural gaps that
+would have invalidated whatever fix landed next.
+
+### Key discoveries
+
+#### 1. SPITBOL was 46/2/0 of 48, not 47/1 as the goal file claimed
+
+Direct measurement on session #65's HEAD (built csnobol4 from clean clone,
+ran fence_suite both `csnobol4` and `spitbol` Makefile targets):
+
+- **Test 127's `.ref` was wrong for the gate.** The .ref (`k=age s="age":42
+  n=42 b=`) was generated under SPITBOL `-b` (case-fold ON) where input
+  variable `s` collides with capture variable `S`.  The Makefile invokes
+  SPITBOL with `-bf` (case-fold OFF), where they don't collide and SPITBOL
+  produces `k=age s= n=42 b=`.  Regenerated `.ref` under `-bf`.
+- **Tests 140 and 141 had cross-dialect label-name collisions.** Used
+  `shift`/`Shift` and `grab`/`Grab` as labels.  Under SPITBOL's case-fold
+  default these are duplicates and SPITBOL rejects with ERROR 217.  csnobol4
+  treats them as distinct.  Renamed labels to `inner`/`outer` and
+  `grab`/`catch` so both implementations accept the source.
+
+After both corrections, **SPITBOL `-bf` is 53/0/0 of 53** — the first time
+the oracle gate is actually clean.
+
+#### 2. Test 118 was structurally degenerate
+
+Test 118's source order:
+```
+        cmd = FENCE('a' | 'ab')
+        s = 'aab'
+        s POS(0) *outer RPOS(0)                               :S(BAD)F(GOOD)
+        outer = ARBNO(*cmd)
+```
+
+In SNOBOL4 statements execute in source order.  `outer` is unassigned at
+match time, so `*outer` dereferences a NULL pattern and the match fails
+immediately — the FENCE machinery never runs.  Both csnobol4 and SPITBOL
+agree on the no-match outcome ("FENCE sealed") only because no one ran
+the seal-test logic.  Test 118 was listed in the goal file's session #51
+strategy section as a target the fix must hit; it never actually exercised
+the bug.
+
+Replaced 118 with comment-only documentation of the degeneracy.  Added
+test 149 as the proper version (outer assigned BEFORE match).
+
+#### 3. The bug class is sharper than session #62 stated
+
+Session #62 reported the bug requires four ingredients (`*var` outer +
+ARBNO inside + `*var` inside + FENCE inner).  Tier G's two new negative
+discriminators tighten this:
+
+- **Test 150** (`outer = (*cmd | *cmd *cmd | *cmd *cmd *cmd)` with no
+  ARBNO, same FENCE'd cmd, same backtrack-needed input) **PASSES** on
+  csnobol4.  This proves the bug requires **ARBNO specifically**, not
+  generic-iteration.  The bug is in ARBNO's redo-trap mechanism, not in
+  any iterating outer construct.
+- **Test 151** (ARBNO of *inline* FENCE with backtrack-needed input,
+  no `*var` indirection) **PASSES** on csnobol4.  This proves the bug
+  requires **`*var` indirection** of the FENCE pattern, not inline FENCE.
+
+The refined bug-class conjunction is precisely:
+1. **`*var` indirection** of a FENCE-containing pattern, AND
+2. **ARBNO** as the outer iterator (not other iteration shapes), AND
+3. Tail-anchor failure that backtracks across the FENCE seal.
+
+This rules out broader hypotheses sessions #50/#54/#57 had entertained.
+
+#### 4. Test 127's failure was masked by case-fold collision
+
+Test 127 used `S` as a capture variable (`BREAK('"') . S`) and `s` as the
+input string.  Under SPITBOL `-b` they collide; under `-bf` they don't.
+csnobol4 always treats them as distinct.  The original `.ref` was generated
+under `-b` semantics, making it impossible to tell what the test was
+actually measuring.
+
+**Test 152 (added)** is 127 with capture variables renamed to `SVAL`,
+`NVAL`, `KVAL`, `BVAL`.  Same FENCE structure, no case-fold ambiguity.
+csnobol4 still fails 152 — that's bug 2 (conditional-assign inside FENCE
+not committed on success), which 127's case-fold collision had been
+hiding.
+
+### What landed (corpus)
+
+5 new test files (10 .sno+.ref pairs total), 4 corrections:
+
+| Action | File | Purpose |
+|--------|------|---------|
+| Modify | 118.sno | Comment-only — documents structural degeneracy |
+| Modify | 127.ref | Regenerated under SPITBOL `-bf` |
+| Modify | 140.sno | Labels renamed for SPITBOL portability |
+| Modify | 141.sno | Labels renamed for SPITBOL portability |
+| Add    | 148.sno + .ref | Bug-class POSITIVE — variant of 119, input `'ab'` |
+| Add    | 149.sno + .ref | Bug-class POSITIVE — corrected version of 118 |
+| Add    | 150.sno + .ref | NEGATIVE — no-ARBNO outer iteration |
+| Add    | 151.sno + .ref | NEGATIVE — inline FENCE in ARBNO |
+| Add    | 152.sno + .ref | Bug-class POSITIVE — 127 with renamed captures |
+
+corpus advanced from `d9f09d6` to `6f00145`.
+
+### What landed (csnobol4)
+
+3 files modified — test infrastructure only, no runtime source changes:
+
+- `test/fence_suite/Makefile` — Tier G integration, count strings updated,
+  header rewritten with session #65 narrative
+- `test/fence_suite/README.md` — title updated, Tier G section appended
+  (per-test role table + findings summary)
+- `docs/F-2-Step3a-session65-findings.md` — full session writeup (180 lines)
+
+csnobol4 advanced from `723ac19` to `5fbf2ce`.
+
+### Suite results after session #65
+
+| Implementation | Tests | OK | FAIL | CRASH |
+|----------------|-------|----|------|-------|
+| SPITBOL `-bf`  | 53    | **53** | 0 | 0 |
+| csnobol4       | 53    | 46 | 7    | 0 |
+
+The 7 csnobol4 FAILs (119, 124, 127, 129, 148, 149, 152) form the
+**bug-class regression target**.
+
+### What this means for the next runtime-fix session
+
+Session #64 proposed FNCA-success leaked-alt zeroing as the next attempt.
+That plan is consistent with Tier G's negative-discriminator evidence:
+inline FENCE inside ARBNO works correctly (test 151), so FNCA itself
+isn't the leak source — the leak is in how `*var`-dispatched FENCE hands
+state back through STAR/DSAR.  Bug requires ARBNO redo specifically,
+consistent with session #57's multi-iteration leak diagnosis.
+
+**However**, session #62's PDL-dump diagnostic (no SALT2 events between
+post-STARP2 dump and wrong-match output) suggests the wrong match goes
+through the SUCCESS path, not the failure walker.  If true, zeroing
+slot[1] of leaked traps doesn't help — the walker never reads them.
+
+Session #62 and session #64 are in tension on this point.  Session #64's
+narrative was written without re-running session #62's diagnostic to
+falsify it.  This tension was not visible from inside session #64; it
+became visible only after session #65's audit.
+
+**Concrete plan for session #66:**
+
+Re-run session #62's PDL-dump diagnostic on **test 148** (not 119).  Test
+148 has shorter input (`'ab'` not `'aab'`) and a single ARBNO iteration
+of FENCE-sealed `'a'` before tail-anchor failure.  The diagnostic state
+space is much smaller than 119's, making the trace easier to read.  The
+trace will either:
+
+- **Show SALT2 events on the wrong-match path** → session #64's framing
+  holds → zeroing is the right fix → implement it.
+- **Show no SALT2 events** → session #62's framing holds → zeroing won't
+  help → redirect investigation to the success path (likely STARP2's
+  redo dispatch).
+
+Either outcome closes the open tension before any code is committed.
+
+### What session #65 did NOT do
+
+- Did NOT modify any runtime source (`isnobol4.c`, `snobol4.c`, `v311.sil`,
+  `lib/pat.c` all unchanged).
+- Did NOT advance beauty self-host (still 42 lines).
+- Did NOT implement session #64's proposed zeroing fix.
+- Did NOT resolve the session #62 vs #64 tension (that's session #66's job).
+
+### Honest checkpoint
+
+Sessions #44–#65 = 21 sessions on F-2 Step 3a.  Session #65's contribution
+is non-runtime: it sharpens the gate.  This is similar to session #55's
+Tier F contribution.  Beauty self-host and fence_function counts unchanged
+because no runtime code changed.
+
+The 7-FAIL bug-class target is more specific than the prior 4-FAIL target
+in two ways: (a) it includes tests 148/149 which are harder for any
+"accidentally passes" fix to satisfy than 119/129 alone (different input
+strings, different output messages), and (b) the negative discriminators
+150/151 reject overly-broad fixes that the prior gate would have allowed.
