@@ -2078,29 +2078,114 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
 - [ ] LS-4.i — `switch`/`case`/`default`, `break`/`continue`, `goto`,
       `struct`, alt-eval `(a, b, c)` → `E_VLIST`.  beauty.sc-class
       programs reachable.
-- [ ] LS-4.j — Wire-in: add `snocone.tab.c` to `src/Makefile`
-      `FRONTEND_SNOCONE` (matching `FRONTEND_SNO`'s shape).
-      Snocone block in `regenerate_parser_and_lexer_from_sources.sh`
-      already added in LS-4.a (session 2026-04-30 #3 — cosmetic
-      pull-forward, only generates `.tab.c`/`.tab.h` since the
-      lexer is the hand-written FSM, not Flex).  Remove the
-      archived legacy lexer (`one4all/archive/snocone_lex.c`/`.h`,
-      placed there during LS-4.a's rename), remove
-      `snocone_parse.c`, `snocone_lower.c`, `snocone_control.c`.
-      `snocone_compile()` collapses to a thin wrapper around
-      `snocone_parse_program()` (~5 lines — mirror
-      `sno_parse_string()` at `snobol4.y:316`).
-      **Invariant at end of LS-4.j:** zero active-code references
-      to `archive/snocone_lex.*` from `src/`, `scripts/`, or
-      `test/`.  Verify with
-      `grep -rn 'archive/snocone' src/ scripts/ test/` — must
-      return empty.  Four references exist after LS-4.a (Makefile
-      line 27, `snocone_control.c:53`, `snocone_parse.h:41`,
-      a doc-comment in `snocone_lex.h:15`); LS-4.j removes the
-      first three by deleting the consuming files and rewriting
-      the Makefile, and the fourth by editing the comment.
-- [ ] LS-4.k — `test_smoke_snocone.sh` PASS=5 again.
-      `test_smoke_unified_broker.sh` PASS=49+ FAIL=0.
+- [ ] LS-4.j — Wire-in only.  Add `snocone_parse.tab.c` to
+      `src/Makefile` `FRONTEND_SNOCONE` (matching `FRONTEND_SNO`'s
+      shape).  Collapse `snocone_compile()` to a thin wrapper
+      around `snocone_parse_program()` (~5 lines — mirror
+      `sno_parse_string()` at `snobol4.y:316`).  Snocone block in
+      `regenerate_parser_and_lexer_from_sources.sh` already added
+      in LS-4.a (session 2026-04-30 #3 — cosmetic pull-forward,
+      only generates `.tab.c`/`.tab.h` since the lexer is the
+      hand-written FSM, not Flex).
+      **No file deletions in this step.**  The legacy archive
+      files are still on disk and still referenced by
+      `snocone_lower.c`/`snocone_control.c` — those go in LS-4.k.
+      Goal of LS-4.j: the Bison parser path becomes the production
+      path; the legacy parser path becomes dead code (unreached
+      but still compiled).  Smoke gate green at end of LS-4.j
+      using the new parser.
+
+- [ ] LS-4.k — **Junk cleanup.**  Now that LS-4.j has the new
+      Bison parser wired into `snocone_compile()`, the legacy
+      shunting-yard parser path is dead code.  Remove the live
+      `src/` files that drive it, and unwire the archive from
+      the build.
+
+      **The archive itself stays.**  `archive/snocone_lex.{c,h}`
+      and `archive/snocone_parse.{c,h}` are the historical record
+      of the pre-Bison Snocone front-end (placed there by LS-4.a's
+      rename, session #7).  An archive is for preservation, not
+      deletion.  Same applies to `docs/` — saved attempts and
+      findings stay.  This step is about removing **active-code
+      references to** the archive, not the archive itself.
+
+      Files to delete (all in `src/frontend/snocone/`):
+      - `snocone_lower.c`, `snocone_lower.h` — the Sprint-SC1
+        token-stream-to-IR lowerer that the archived hand-written
+        parser fed into.  Superseded entirely by Bison semantic
+        actions in `snocone_parse.y`.
+      - `snocone_control.c`, `snocone_control.h` — the legacy
+        compile-driver glue that called the archived lexer +
+        parser + lowerer in sequence.  Superseded by
+        `snocone_compile()`'s thin wrapper around
+        `snocone_parse_program()` after LS-4.j.
+
+      Other edits in the same commit:
+      - `src/Makefile`: drop the four `FRONTEND_SNOCONE` lines
+        feeding `../archive/snocone_lex.c`, `../archive/snocone_parse.c`,
+        `frontend/snocone/snocone_lower.c`, and
+        `frontend/snocone/snocone_control.c` into the build.
+        The archive directory is no longer compiled into the
+        scrip binary.
+      - `archive/snocone_lex.c`: revert the LS-4.h
+        `{ "function", SNOCONE_KW_PROCEDURE }` keyword-table
+        synonym entry.  That edit existed only to keep the
+        production smoke green while the archive was still in
+        the build path.  Once LS-4.j unwires the archive, the
+        synonym is moot, and reverting restores the archived
+        file to byte-equivalence with what was archived in
+        LS-4.a.  The archive stays in the tree; only the
+        synonym goes away.
+
+      **Files NOT touched:**
+      - `archive/snocone_*.{c,h}` — kept verbatim as the
+        historical record (modulo the LS-4.h synonym revert
+        above).
+      - `docs/LS-4-session-2026-04-30-1-attempt.snocone.y` —
+        kept; saved attempt for reference per RULES.md
+        diagnostic-patches-stay-in-docs convention.
+      - `docs/LS-4-session-2026-04-30-1-findings.md` — kept;
+        architectural findings prose.
+      - `src/frontend/snocone/snocone_lex.h:15` doc-comment
+        mentioning `one4all/archive/snocone_lex.c` — kept; the
+        comment is describing legitimate history (the FSM
+        replaced what now lives in the archive).
+
+      **Invariant at end of LS-4.k:** zero active-code references
+      to `archive/snocone` from `src/Makefile`, `src/`, `scripts/`,
+      or `test/`.  Verify with:
+
+          grep -rn 'archive/snocone' src/ scripts/ test/
+          ls src/frontend/snocone/snocone_lower.* \
+             src/frontend/snocone/snocone_control.* 2>/dev/null
+
+      Both commands must return empty (the doc-comment in
+      `snocone_lex.h` matches `one4all/archive/snocone_lex.c`,
+      not `archive/snocone` — it's in narrative prose, not an
+      include path, and `grep -rn 'archive/snocone' src/` will
+      not match it).  Build still succeeds and all gates remain
+      green:
+      - smoke snocone:        5/5
+      - beauty 3-mode:        42/0/3
+      - unified broker:       49/0
+      - parse-a..i:           ≥668/668 (whatever LS-4.i grew to)
+      - FSM lex acceptance:   31/31
+
+      **Why LS-4.k is its own step:** the deletion is mechanical
+      but the diff is sizable.  Keeping it separate from LS-4.j
+      makes the two diffs reviewable individually — LS-4.j shows
+      the new parser taking over, LS-4.k shows the dead glue
+      code being removed and the archive falling out of the
+      build path.  Either step can be reverted independently if
+      a regression surfaces in the smoke or beauty gates.
+
+- [ ] LS-4.l — Final gate confirmation after LS-4.j + LS-4.k.
+      `test_smoke_snocone.sh` PASS=5 (using the new Bison
+      parser, no legacy fallback).  `test_smoke_unified_broker.sh`
+      PASS=49+ FAIL=0.  `test_beauty_snocone_all_modes.sh`
+      PASS=42 FAIL=0 SKIP=3.  Combined parse-a..i gates
+      ≥668/668.  This is the rung that closes "LS-4 the new
+      Snocone front-end is the only Snocone front-end."
 
 - [ ] LS-4.w — Condition-never-fails warning pass (deferred, low priority).
       At lowering time, inspect the condition expression of every `if`,
