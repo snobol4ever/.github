@@ -2846,3 +2846,137 @@ ConcatenatePattern wrapping each FENCE'd arm).
                                               kept; this session's
                                               narrower rung is the
                                               preferred path forward.
+
+
+---
+
+## Session #77 — 2026-05-01 (Sonnet 4.7 / Lon)
+
+**Outcome:** No commit. Diagnostic / analytical session only. Tree clean
+at HEAD `b71ae0c`. Baseline preserved: beauty self-host 47 stderr lines,
+Parse Error at line 48.
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+   `snobol4dotnet`, `x64`. Installed `dotnet-sdk-10.0` (10.0.107).
+   Build clean. Beauty self-host baseline confirmed: 47 stderr lines.
+
+2. **Analyzed session #76's diagnosis trail.** Session #76 reported via
+   `AbstractSyntaxTree.ValidateAlternates()` 27,763 RIGHT-ALT anomalies
+   in Graft sub-ASTs — `ConditionalVariableAssociationBackup` nodes
+   (RIGHT children of inner `AlternatePattern(CVA1, CVABackup1)`) with
+   non-(-1) Alternate values pointing to outer-alternation arms.
+
+3. **Read the full code path** — `AbstractSyntaxTree.ComputeNext()`,
+   `Scanner.Match()`, `ConditionalAssignment (.).cs`,
+   `PatternAlternation (Pipe).cs`, all four `ConditionalVariableAssociation*`
+   classes. Confirmed the `.` operator's structure:
+   `Concat(va, Concat(p, vb))` where `va = Alt(CVA1, CVABackup1)`,
+   `vb = Alt(CVA2, CVABackup2)`.
+
+4. **Traced ComputeAlternate for CVABackup1 in `(p . v) | other`** by hand:
+   - Step 1: CVABackup1 is RIGHT of va → not LEFT-of-Alt → continue up.
+   - Step 2: va is LEFT of Concat (`.` outer wrapper) → not LEFT-of-Alt → continue up.
+   - Step 3: Concat is LEFT of outer-Alt (`(p.v) | other`) → break! → returns
+     leftmost terminal of `other` as CVABackup1.Alternate.
+
+   This appears INTENTIONAL: it's the mechanism by which the outer
+   alternation's right arm gets onto the alt-stack. CVA1.Alternate
+   already points to CVABackup1 (cleanup), and there is no other place
+   for `other` to be saved.
+
+5. **Traced minimal repro `(LEN(10) . v) | LEN(2)` against `'AB'`.**
+   Both SPL and dot return MATCH. No divergence at this scale.
+
+6. **Tried minimal repro mirroring beauty's `shift` pattern** —
+   `arm = LEN(N) . v . *Shift(v)`, `pat = (arm1 | arm2)` against `'AB'`.
+   **Divergence:** SPL → FAIL, dot → MATCH. But this doesn't match
+   beauty's actual semantics (LEN(2) . v should match 'AB' under
+   FULLSCAN). Not the gating bug.
+
+### Critical analysis correction
+
+Session #76's "27,763 RIGHT-ALT anomalies" finding likely conflates
+TWO patterns:
+
+  (a) **Intentional non-(-1) Alternates** on RIGHT children of inner
+      AlternatePatterns whose ancestor chain reaches an outer
+      AlternatePattern through ConcatenatePattern intermediaries.
+      Example: in `(p . v) | other`, `CVABackup1.Alternate = leftmost(other)`
+      IS REQUIRED for the outer alternation to be reached when the
+      `.` capture's `p` fails. This is by design.
+
+  (b) **Truly anomalous** non-(-1) Alternates from some other cause
+      (Graft offset bug, sub-AST structural error).
+
+The validator presumably flagged BOTH classes as anomalies. Distinguishing
+them requires (i) running the validator with structural diagnosis
+(parent-of-parent inspection) or (ii) running C# function tracing
+between adjacent IPC sync-step events as the user requested, but this
+requires the spl-side PM fire-points session #76 listed as the next
+work item.
+
+### Observation about the user's strategy
+
+The user's strategy — *"use automatic C# function tracing from last
+agreed sync step code position through to first diverged sync step
+code position; that C# trace should immediately reveal the bug"* —
+requires that **adjacent sync-step events bracket the bug**. The
+S-2-bridge-7-byrd-pattern wire emits PM_CALL/EXIT/REDO/FAIL events.
+But session #75 only landed dot-side PM emits; spl-side
+emits are still TODO (session #75 explicitly noted: "Next session's
+first move: spl-side fire-points").
+
+Without spl-side PM events, two-runtime divergence is invisible at
+the structural level. The harness's first DIVERGE under
+`PARTICIPANTS="spl dot"` with `MONITOR_PM_TRACE=1` (dot only) would
+be at the FIRST PM_* event from dot — because spl emits ZERO PM_*
+events and the controller would treat that as a kind divergence
+or wire-record-shape divergence on every PM record.
+
+**Recommended for session #78:** implement spl-side PM fire-points
+in `x64/osint/monitor_ipc_runtime.c` + `sbl.min` per
+S-2-bridge-7-byrd-pattern's "Implementation order — dot first, spl
+second" as documented. THEN run two-runtime PM-trace harness on
+beauty self-host. Adjacent PM events should bracket the structural
+bug, and C# tracing in dot's `Scanner.Match` between those events
+will fingerprint the bug directly per the user's strategy.
+
+### What is genuinely known
+
+- Beauty self-host: 47 stderr lines, Parse Error at line 48
+  `snoDQ = '"' BREAK('"' nl) '"'`.
+- Bug class: structural in pattern AST construction or alternation-
+  arm linking. Confirmed structural since session #62 (state-dependent;
+  isolated repros don't reproduce).
+- `*snoString` is never saved as an alternate during the line-48 parse
+  path — known from session #76's SealAlternates trace.
+- Session #75 dot-side PM_TRACE found PosPattern failing with
+  ALT_STACK_EMPTY in grafted sub-patterns — wire-visible symptom of
+  the structural bug.
+- The fix is in `AbstractSyntaxTree.ComputeAlternate` OR `Graft`'s
+  remap logic OR `PatternAlternation (Pipe).cs` — narrow, but session
+  #76's specific hypothesis (CVABackup wrong-Alternate) needs more
+  evidence given that some non-(-1) Alternates on those nodes are
+  intentional.
+
+### Hand-off state
+
+- snobol4dotnet HEAD `b71ae0c` unchanged.
+- All repos clean.
+- Goal-file edits only this session.
+
+### Status updates
+
+  S-2-bridge-7-byrd-pattern   [~] partial — dot-side wire emits already
+                                  landed (session #75); spl-side
+                                  fire-points still TODO. Without them
+                                  the two-runtime harness cannot
+                                  fingerprint structural divergences.
+  S-2-bridge-7-fullscan       [~] partial — line 48 still gating;
+                                  session #76 hypothesis re CVABackup
+                                  Alternate anomalies remains the lead
+                                  but needs corroboration with paired
+                                  PM-event tracing under spl-vs-dot.
+
