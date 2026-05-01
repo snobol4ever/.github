@@ -2188,3 +2188,165 @@ each session.
   S-2-hygiene-harness-orphans       [ ] open
   S-2-hygiene-bridge-trust          [ ] open  (alias of S-2-bridge-harness-trust)
   S-3-hygiene-self-host-witnesses   [ ] open
+
+---
+
+## Session #73 — 2026-05-01 (Sonnet 4.7 / Lon)
+
+**Outcome:** No commit. Strategic redirect. Tree unchanged at `a629a15`.
+
+### What happened
+
+Set up fresh container: cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+`x64`, `harness`. Installed `dotnet-sdk-10.0` (10.0.107). Built snobol4dotnet
+at HEAD `a629a15` (session #71's BetaStack-isolation commit). x64 SPITBOL
+binary at HEAD `71ff275` already had monitor IPC bridge linked.
+
+Verified baseline gates:
+  - Unit suite: 2073p / 14f-Csnobol4-only / 0s. (PLAN row 135's "2385p/0f/2s"
+    is stale from an earlier session; the real invariant — "no non-Csnobol4
+    failures" — holds.)
+  - Beauty 17/17 corpus drivers: PASS.
+  - Beauty self-host: 47 stderr lines / Parse Error at line 48
+    `snoDQ = '"' BREAK('"' nl) '"'` — exactly as PLAN.md described.
+
+Reproduced DIVERGE step #2839 via the IPC sync-step monitor with documented
+controller workarounds (`MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`,
+`MONITOR_NAME_WILDCARD=spl`). Confirmed unchanged from session #72: spl
+emits `RETURN match (NRETURN)` while dot emits a 19th `CALL upr`.
+
+Re-applied diagnostic C# function tracing (`[QPM]`/`[PM]`/`[M]`/`[UEP]`)
+gated on `MonitorIpc.TraceEnabled`, in `PatternMatch (Question Mark).cs`,
+`Scanner.cs`, and `UnevaluatedPattern.cs`. Re-ran the harness with
+`MONITOR_TRACE_FROM_EVENT=2700 MONITOR_TRACE_TO_EVENT=2842`.
+
+### Critical empirical finding
+
+The trace at `[QPM ec=2768] ENTER` shows dot's outer `?` operator subject is
+`'ANY APPLY ARBNO ARG ARRAY ATAN BACKSPACE BREAK BREAKX CHAR C...'` — that's
+**`snoFunctions`** (length 455). spl, at the same logical wire-position, is
+matching against **`snoUnprotKwds`** (length 125). FULLSCAN is in
+snoUnprotKwds (18th keyword) but is NOT in snoFunctions, which is why
+dot keeps iterating cursor positions calling `*upr(tx)` past the 18th
+while spl finds the match and exits.
+
+**Independent confirmation of session #64's diagnosis** (lines 644–707
+above): dot's `snoExpr14` alternation tries `*snoProtKwd` (correctly
+fails for `&FULLSCAN` since FULLSCAN is not in snoProtKwds), then falls
+through to `*snoFunction` in `snoAtom@line 182` instead of trying
+`*snoUnprotKwd` at `snoExpr14@line 154`. The bug is structural in the
+alternation graph.
+
+### What is now known to NOT be the line-48 gating bug
+
+  - Session #71 `a629a15` BetaStack save/restore per PatternMatch
+    invocation. Architecturally correct, shipped, divergence persists.
+  - Session #71 `92b79be` Failure leak clear after BetaStack assignment
+    commits in Executive.PatternMatch. Architecturally correct, shipped,
+    divergence persists.
+  - Session #67 `c578fb5` seal `-2` skip-to-next-real-alt. Architecturally
+    correct, shipped, divergence persists.
+  - `UnevaluatedPattern.Scan`'s `ExpressionVar` re-evaluation block (commit
+    `ec59eeb`). Confirmed inactive for `*upr(tx)`: `evaluatedExpression`
+    is `StringVar`, not `ExpressionVar`. Block doesn't fire.
+  - `Scanner.PatternMatch`'s cursor-retry loop. Mechanically correct given
+    its inputs.
+
+The bug is the AST it's *given* to match against, not what it does
+with it. Look upstream in pattern-construction.
+
+### Why the user's premise didn't apply at this divergence
+
+User's strategy: "After using the IPC sync step monitor tracing to find a
+bug, use automatic C# function tracing from last agreed sync step code
+position through to first diverged sync step code position. That C#
+trace should immediately reveal the bug."
+
+This works when the wire's divergence point IS the runtime's structural
+divergence — i.e. when the bug is behavioural inside a known-good-then-
+suddenly-bad state-machine path, both runtimes built the same AST, and
+they only diverge in how they walk it.
+
+Step #2839 isn't that. The wire emits only program-visible CALL/RETURN/
+VALUE/LABEL records. Pattern-AST navigation, BetaStack push/pop,
+alt-stack save/restore, SealAlternates/MarkAlternates, and FENCE
+mark/seal — all are invisible to the wire. By the time the wire sees
+divergence at #2839, dot has been running the wrong `match()` invocation
+for ~70 wire-events. C# tracing inside that wrong-match shows
+mechanically-correct snoFunctions iteration; it cannot reveal *why*
+that match was started.
+
+### Strategic pivot for session #74 — finer-grained bridges
+
+Per Lon (2026-05-01): don't keep zooming in tighter at #2839. Instead,
+enhance the participant bridges (csn, spl, dot) to emit at finer
+granularity so the wire-visible divergence aligns with the actual
+gating bug. The Silly SNOBOL4 monitor already does this; reuse the
+precedent.
+
+Add new `MWK_*` record kinds (or repurpose existing ones) for:
+
+  1. **Pattern-AST navigation events** — emit on:
+     - PatternMatch entry/exit (subject hash, pattern shape signature,
+       anchor flag, cursor)
+     - Per-node Match step (node index, type, alt index, subseq,
+       cursor in/out, outcome)
+     - Backtrack pop (alt index restored, cursor restored)
+     - SealAlternates / MarkAlternates / RestoreAlternate
+     - UnevaluatedPattern Scan entry/exit (graft target, subsequent)
+
+  2. **Internal housekeeping** — emit on:
+     - SystemStack Push/Pop (kind only, not value, to keep wire small)
+     - BetaStack Push/Pop and Reverse-commit-loop iteration
+     - Failure flag transitions
+     - AmpAnchor / `&FULLSCAN` / mutable-keyword reads on the pattern
+       match path
+
+Each new kind needs:
+  - a line in `one4all/scripts/monitor/monitor_wire.h`
+  - participant-side emit calls in csn `monitor_ipc_runtime.c`,
+    spl `osint/monitor_ipc_runtime.c`, dot `MonitorIpc.cs`
+  - controller-side recognition in
+    `one4all/scripts/monitor/monitor_sync_bin.py`
+
+The controller's "last-agreed N vs first-diverged N+1" model still
+applies. Divergence will now surface at the structural level — likely
+inside `snoExpr14` alternation traversal where spl visits
+`*snoUnprotKwd`'s alt-stack save/restore while dot does not — and
+adjacent C# tracing at THAT site directly fingers
+`PatternAlternation (Pipe).cs` or `AbstractSyntaxTree.Build` as the
+buggy code.
+
+### Concrete starting tasks for session #74
+
+  1. Read silly-snobol4's monitor bridge for the precedent on
+     fine-grained pattern-AST instrumentation.
+  2. Define new `MWK_*` kinds in `monitor_wire.h`.
+  3. Implement them in dot's `MonitorIpc.cs` first (smallest blast
+     radius); verify standalone using
+     `(POS(0) | ' ') *upr(tx) (' ' | RPOS(0))` matched against
+     `'FULLSCAN'` against `snoUnprotKwds`.
+  4. Implement in spl bridge (`x64/osint/monitor_ipc_runtime.c`).
+  5. Update `monitor_sync_bin.py` to recognise/compare the new kinds.
+  6. Re-run beauty self-host harness with `PARTICIPANTS="spl dot"`. The
+     first DIVERGE row should now name the structural buggy site
+     directly.
+  7. Apply C# trace at THAT site between the new adjacent events. Fix.
+
+### Files NOT to revisit blindly
+
+  - `PatternMatch (Question Mark).cs` — session #71 BetaStack isolation
+    is correct.
+  - `Scanner.cs Match()` — session #67 seal-skip is correct.
+  - `Scanner.cs PatternMatch()` cursor-retry loop — behaviourally
+    correct given its inputs.
+  - `UnevaluatedPattern.cs` ExpressionVar re-eval block — confirmed
+    inactive for the symptom path.
+
+### Hand-off state
+
+  - snobol4dotnet HEAD: `a629a15` unchanged.
+  - All diagnostic patches reverted per RULES.md (originals saved as
+    `.orig`, restored, `.orig` files removed).
+  - Tree clean.
+  - PLAN.md row 135 updated with this session's strategic pivot summary.
