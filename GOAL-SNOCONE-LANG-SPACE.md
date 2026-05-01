@@ -1541,18 +1541,50 @@ All sub-rungs LANDED across sessions 2026-04-30 #3 through 2026-05-01 #6. Closed
       LS-6.c requires SB-6.D to land first. Coordinate with
       that goal's session per the cross-goal block below.
 
-### LS-7 — Documentation pass
+### LS-7 — Documentation pass — LANDED session 2026-05-01 #7
 
-- [ ] LS-7.a — Update `RULES.md`'s Snocone language-facts section:
-      no `&&`, no `||`, juxtaposition concat, alt-eval `(,,)`,
-      conditions are SPITBOL backtracking expressions.
-- [ ] LS-7.b — Update `GOAL-SNOCONE-BEAUTY.md`'s language-facts
-      table to drop `&&`/`||` and add the C-control flow + space
-      semantics.
-- [ ] LS-7.c — Update `REPO-one4all.md`'s Snocone section to
-      describe Flex/Bison build path and the SPITBOL-superset goal.
-- [ ] LS-7.d — Add a short `programs/snocone/LANGUAGE.md` to
-      corpus that summarises the language for the next reader.
+- [x] LS-7.a — Created new `## Snocone language facts` section in
+      `RULES.md` (between `## NRETURN functions` and `## Test gate
+      before every commit`). Covers: no `&&` / no `||` / no
+      built-in `%`; juxtaposition concat; alt-eval `(e1, e2, e3)`
+      replaces `||`; `f(x)` zero-space rule; conditions are SPITBOL
+      backtracking expressions; `;` statement boundary, newlines
+      are whitespace; bare expressions may fail silently;
+      `do/until` removed (Lon directive 2026-04-30 #12); identity
+      comparisons `::` / `:!:` are Andrew's choices; SPITBOL
+      functional-superset hard invariant.
+- [x] LS-7.b — Updated `GOAL-SNOCONE-BEAUTY.md` "Snocone language
+      facts" section (was "session #66", now "updated session
+      2026-05-01 #7"). Operator table now strikes through removed
+      `&&` / `||` / `%` rows, adds explicit `(whitespace)` row for
+      space-as-concat, adds explicit notes that the front-end is
+      the post-LS-4 Flex+Bison front-end. Section re-written for
+      added constructs (`switch`, `break`/`continue`, `goto`,
+      alt-eval, `struct`), `function` keyword (was `procedure`),
+      conditions-as-backtracking-expressions, statement-terminator
+      requirement, and the SPITBOL-superset invariant. Added
+      Manual Ch.15 Operators (pp.181–183) and the alt-eval
+      footnote to the SPITBOL-manual reference list.
+- [x] LS-7.c — Added new `## Snocone front-end` section to
+      `REPO-one4all.md` (between `## Key source paths` and
+      `## Silly SNOBOL4 — cherry-picks from one4all`). Covers:
+      LS-6 status (42/0/3 byte-equivalent across three modes);
+      one-sentence goal statement; functional-superset invariant;
+      key source paths table for `src/frontend/snocone/`; lexer
+      shape (threaded-code FSM, T_CONCAT injection); grammar shape
+      (Bison, 0/0 conflicts, SPITBOL Ch.15 priorities, conditions
+      are backtracking expressions); build path through
+      `regenerate_parser_and_lexer_from_sources.sh`; smoke gate
+      commands and expected counts; SB-6.D dependency note.
+- [x] LS-7.d — Created `corpus/programs/snocone/LANGUAGE.md`.
+      Single short doc for the next reader: one-sentence goal,
+      explicit "what changed from Andrew's original" table, how
+      concat works, how `f(x)` vs `f (x)` work, conditions are
+      SPITBOL backtracking expressions, `;` statement boundary,
+      bare expressions may fail silently, comparison-operator
+      sugar table, migration-script invocation, where the
+      implementation lives. Stays under one screen of orientation
+      for someone picking up a `.sc` file in this directory.
 
 ---
 
