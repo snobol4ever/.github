@@ -1141,3 +1141,92 @@ expected outcome is calculable.
 - `one4all/src/runtime/interp/pl_runtime.c` — REVERTED to session #5
   HEAD (84e72705). No commit.
 
+---
+
+## Current state (2026-04-30 session #7, one4all HEAD cde38641, corpus HEAD ac9fcda4)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
+at session-end (working tree reverted). Smoke 5/5, broker 49/49.
+
+### Major new finding — copy_term_rec creates un-trailable vars
+
+Session #6's "silent-success ceiling" diagnosis was incomplete.
+Session #7 discovered a **second** independent bug: `copy_term_rec` in
+`pl_runtime.c:472,480` creates fresh vars via `term_new_var(-1)`. The
+`-1` slot means "anonymous wildcard"; `bind()` in `prolog_unify.c:73`
+skips trailing such vars. Backtracking through copy-term'd vars cannot
+undo bindings — so memberchk-style backtracking through findall
+snapshots fails silently.
+
+**Decisive new repro** (with bridge + Change C + plunit enrichment but
+without the slot fix):
+
+```prolog
+member(X,[X|_]). member(X,[_|T]) :- member(X,T).
+memberchk(X, L) :- member(X, L), !.
+:- assertz(test_t(memberchk(f(X,a), [f(x,b), f(y,a)]))).
+main :- findall(G, test_t(G), Tests), Tests = [Goal|_],
+        ( catch(Goal, _, fail) -> write(success) ; write(failed) ), nl.
+```
+
+Output: `failed`. Direct call (no findall) of the same goal: succeeds.
+
+**Fix:** synthetic non-negative slot `(1<<20)+nmap` in copy_term_rec.
+Tested working: above repro now prints `success`.
+
+### Combined-state mid-session result
+
+Bridge + Change C + plunit enrichment + slot fix combined: SWI 5→7 then
+crashed by late-emerging FPE in test_arith. Better than session #6's
+5/57 in absolute terms but still well below 43 baseline due to the
+test_arith crash + remaining sub-suite logic gaps.
+
+Confirmed-working repros at mid-session combined state:
+
+| Repro | Outcome |
+|---|---|
+| `G=fail; catch(G,_,write(caught))` | failed ✅ |
+| `G=(X=5); catch(G,_,fail), [ok,X]` | [ok,5] ✅ |
+| `G=(A is 3+4); catch(G,_,fail), [ok,A]` | [ok,7] ✅ |
+| `findall+catch+memberchk` (NEW decisive) | success ✅ |
+| Direct memberchk (no findall) | [ok,y] ✅ |
+
+### Late-session FPE blocker (not investigated)
+
+After applying all changes, `test_arith` crashes with SIGFPE (rc=136)
+immediately. No diagnostic time remained at session end. Likely a
+divide-by-zero or modulo-by-zero in some arith path that plunit's new
+between/3 or similar provokes through arithmetic test inputs. Needs
+isolated repro before re-attempting integration.
+
+### Path to PL-12 ≥80% gate — REVISED 3-step plan
+
+**Step A — corpus plunit.pl stdlib enrichment** (corpus repo).
+Diff preserved at `one4all/docs/PL-12-session-2026-04-30-7-plunit.diff`
+(93 lines). ~50 lines of stdlib added (memberchk, length, between, false,
+call/N, term_variables, format/3, string_*, etc.). Apply to
+`corpus/programs/prolog/plunit.pl`. Gate-neutral expected.
+
+**Step B — runtime fixes** in three independent commits to bisect cleanly:
+  B.1. **copy_term_rec slot fix** (~8 lines, standalone, independent).
+       Worth committing first. Likely gate-neutral.
+  B.2. **Change C** — findall pl_copy_term (1 line, independent).
+       Likely small uptick.
+  B.3. **v3 bridge** (211 lines, depends on B.1+B.2). After B.1+B.2 land,
+       bridge's correctness is provable end-to-end. Diff at
+       `docs/PL-12-session-2026-04-30-7-attempt.diff` (combined diff).
+
+**Step C — investigate test_arith FPE** before final integration commit.
+Probably plunit between/3's degenerate case provoking arithmetic on
+infinite recursion or zero-division.
+
+### Files committed this session
+
+- `one4all/docs/PL-12-session-2026-04-30-7-attempt.diff` — combined
+  pl_runtime.c diff (bridge + Change C + slot fix, 252 lines).
+- `one4all/docs/PL-12-session-2026-04-30-7-plunit.diff` — corpus
+  plunit.pl stdlib enrichment diff (93 lines).
+- `one4all/docs/PL-12-session-2026-04-30-7-findings.md` — full narrative,
+  per-step plan, decisive new copy_term_rec slot finding.
+- one4all working tree reverted; corpus working tree reverted.
+
