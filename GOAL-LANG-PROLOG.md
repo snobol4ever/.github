@@ -1232,16 +1232,16 @@ infinite recursion or zero-division.
 
 ---
 
-## Current state (2026-05-01 session, one4all HEAD `<TBD>`, corpus HEAD `<TBD>`)
+## Current state (2026-05-01 session #2, one4all HEAD `02afb3a1`, corpus HEAD `ada87b6`)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
 at session-end on the suite-line metric. Smoke 5/5, broker 49/49.
-**Five new commits land cleanly, bisectable, all gate-neutral.** Bridge
-held back as committed doc — it's mechanically correct but exposes
-real test failures masked by the prior silent-success false-positive
-ceiling.
+**Six landings total across two sessions, all gate-neutral and
+bisectable.** Bridge held back as committed doc — it's mechanically
+correct but exposes real test failures masked by the prior
+silent-success false-positive ceiling.
 
-### Five landings this session
+### Six landings (sessions 2026-05-01 #1 and #2)
 
 | # | Repo | Commit | Effect |
 |---|------|--------|--------|
@@ -1249,9 +1249,10 @@ ceiling.
 | Step A patch | corpus | `80ce2f2` | numbervars/4 stub direction fix |
 | Step B.1 | one4all | `1de19342` | copy_term_rec slot fix (1<<20 + nmap) |
 | Step B.2 | one4all | `018bfdef` | findall snapshots use pl_copy_term |
-| **Step C** | **one4all** | **`3bc1573d`** | **arith INT_MIN/-1 SIGFPE guard (NEW)** |
+| Step C | one4all | `3bc1573d` | arith INT_MIN/-1 SIGFPE guard |
+| **Step D fix** | **corpus** | **`ada87b6`** | **plunit suite-skip honors `condition(...)`** |
 
-Plus `one4all` doc commit with bridge diff + findings.
+Plus `one4all` doc commits with bridge diff + findings (sessions #1, #2).
 
 ### Step C — discovered this session
 
@@ -1312,47 +1313,79 @@ vs 0 baseline. The bridge IS working correctly; remaining FAILs are
 real semantic gaps (negative-start numbering in numbervars/3, options
 list handling, etc).
 
-### Path to PL-12 ≥80% gate — REVISED for next session
+### Path to PL-12 ≥80% gate — REVISED again (session 2026-05-01 #2)
 
-**Step D — harness scoring decision** (one4all/scripts).
-`util_swi_match.py` currently aligns ref `PASS X` lines against
-harness-emitted `PASS X` block lines. With the bridge, individual
-`pass: X:Y` lines mark sub-test wins that the suite-line metric
-ignores. Decision: switch to per-test scoring, OR accept block-level
-scoring and grind sub-tests until each block passes cleanly.
+**Step D — harness scoring decision: KEEP block-level scoring.** ✅ closed.
 
-**Step E — apply held-back B.3 bridge**.
-Diff at `one4all/docs/PL-12-session-2026-05-01-bridge.diff`.
-Mechanically correct (5 decisive repros confirmed in session #7 and
-reconfirmed in this session). Lands once Step D is decided.
+`util_swi_match.py` keeps suite-line granularity. Per-test scoring
+would inflate numbers without improving correctness. The block metric
+is honest: a block PASSes only when every sub-test in it actually runs
+and produces the right answer. SCRIP claiming Prolog conformance with
+bridge-induced 80% coverage where individual blocks are half-broken is
+the kind of false claim the bootstrap-rigor culture rejects. The 80%
+gate is what the harness measures. Reasoning written up in
+`one4all/docs/PL-12-session-2026-05-01-2-findings.md`.
+
+**Step D fix — plunit suite-skip support** (corpus, this session). ✅ landed.
+
+`begin_tests(Suite, Opts)` previously discarded `Opts`. With the v3
+bridge applied, `bigint` (which carries `condition(bounded=false)`)
+ran instead of skipping and segfaulted partway through, killing 14
+test_arith blocks before they could emit verdicts. Fix: `pj_suite/2`
+stores Opts; `pj_run_suite` short-circuits to skip-emission when the
+condition fails. `pj_skip_cond` rewritten to use clause-head pattern
+matching (`pj_cond_fails/1`) — sidesteps the same E_VAR Var-bound-
+goal bug the bridge fixes for `catch/3, \+/1, once/1`. Without this
+fix, `\+ C` where C is Var-bound-to-a-goal silently succeeds for any
+C, so per-test condition checks never fired either.
+
+Bridge-neutral: 43/57 baseline preserved.
+With bridge applied: 14/57 → 15/57 (+1 — bigint now skips cleanly).
+
+**Step E — apply held-back B.3 bridge.** Pending segfault fixes
+elsewhere. Diff at `one4all/docs/PL-12-session-2026-05-01-bridge.diff`.
+Mechanically correct. Will land once segfault-prone test paths are
+gated out (Step E.1 below) so coverage stays ≥ 43/57.
+
+**Step E.1 — `:- if/:- endif` parser-level conditional compilation.**
+Currently `if/else/endif` are runtime no-ops in `pl_runtime.c` and the
+parser passes through their bodies unconditionally. test_arith uses
+these directives extensively to gate out tests that need bigint
+runtime support; those gated-out tests load anyway and contribute to
+the segfault path. Real conditional compilation would gate the
+segfault sources for free.
+
+**Step E.2 — arithmetic overflow guards.** Step C addressed INT_MIN/-1
+IDIV. The `minint_promotion` block segfaults on a different overflow
+path (likely `+`/`-`/`*` overflow producing a wrapped value fed to a
+heap-allocating routine like `format(atom(X), '~w', [N])`). Worth
+tracing under gdb; once-fixed, more bridge-on blocks finish cleanly.
 
 **Step F — sub-test stdlib gap inventory** (corpus enrichment v2).
-Run with bridge applied; collect remaining "undefined predicate" + "goal
-failed" reasons; iterate plunit stdlib. Many small naive impls
-(string_*/N variants, $current_prolog_flag's specific shape, op/3 real
-behavior, etc).
+Probe pass run this session (see findings doc). Dominant patterns:
+test_call has 127 parse errors (single grammar gap probably), test_string
+needs split_string/4, string_bytes/3; test_misc/test_bips have small
+gaps in atom_number/2, sub_atom/5, assert/2.
 
-**Step G — runtime semantic fixes** (one4all). E.g. `numbervars/3` with
-negative start, `=@=` operator, `compound/1` edge cases. Each is small
-and bisectable.
+**Step G — runtime semantic fixes** (one4all). E.g. `numbervars/3`
+with negative start, `=@=` operator, `compound/1` edge cases. Each is
+small and bisectable.
 
 ### Why hold the bridge
 
 RULES.md regression rule: don't ship code that drops a green gate. The
-bridge converts a 43/57 false-positive ceiling into ~14/57 real correctness
-+ surfaced gaps. Until either Step D reframes the metric or Step F+G
-close enough sub-test gaps to clear 80% with the bridge, B.3 stays as
-a saved doc.
+bridge converts a 43/57 false-positive ceiling into ~15/57 real
+correctness + surfaced gaps. Until Step E.1 + E.2 close the segfault
+paths, B.3 stays as a saved doc.
 
-### Files committed this session
+### Files committed across sessions #1 + #2
 
-- `corpus/programs/prolog/plunit.pl` — Step A (84+ lines stdlib) and
-  Step A-patch (numbervars/4 direction).
-- `one4all/src/runtime/interp/pl_runtime.c` — B.1 (8 lines slot fix),
-  B.2 (8 lines findall fix), C (31 lines INT_MIN guard).
-- `one4all/docs/PL-12-session-2026-05-01-bridge.diff` — 211-line v3
-  bridge held back.
-- `one4all/docs/PL-12-session-2026-05-01-findings.md` — full narrative.
+- `corpus/programs/prolog/plunit.pl` — Step A (84+ lines stdlib),
+  Step A-patch (numbervars/4 direction), Step D fix (suite-skip).
+- `one4all/src/runtime/interp/pl_runtime.c` — B.1, B.2, C.
+- `one4all/docs/PL-12-session-2026-05-01-bridge.diff` — held back.
+- `one4all/docs/PL-12-session-2026-05-01-findings.md` — session #1.
+- `one4all/docs/PL-12-session-2026-05-01-2-findings.md` — session #2.
 
 Working trees clean at handoff. SWI baseline 43/57 preserved.
 
