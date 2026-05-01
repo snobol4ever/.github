@@ -2095,89 +2095,110 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       but still compiled).  Smoke gate green at end of LS-4.j
       using the new parser.
 
-- [ ] LS-4.k — **Junk cleanup.**  Now that LS-4.j has the new
-      Bison parser wired into `snocone_compile()`, the legacy
-      shunting-yard parser path is dead code.  Remove the live
-      `src/` files that drive it, and unwire the archive from
-      the build.
+- [ ] LS-4.k — **Junk cleanup — by moving to archive, not deleting.**
+      Now that LS-4.j has the new Bison parser wired into
+      `snocone_compile()`, the legacy shunting-yard parser path is
+      dead code in the live tree.  Move it out of `src/` into
+      `archive/`, alongside the legacy lexer/parser already moved
+      there in LS-4.a.
 
-      **The archive itself stays.**  `archive/snocone_lex.{c,h}`
-      and `archive/snocone_parse.{c,h}` are the historical record
-      of the pre-Bison Snocone front-end (placed there by LS-4.a's
-      rename, session #7).  An archive is for preservation, not
-      deletion.  Same applies to `docs/` — saved attempts and
-      findings stay.  This step is about removing **active-code
-      references to** the archive, not the archive itself.
+      **Files moved (`git mv` to preserve history):**
+      - `src/frontend/snocone/snocone_lower.c` →
+        `archive/snocone_lower.c`
+      - `src/frontend/snocone/snocone_lower.h` →
+        `archive/snocone_lower.h`
+      - `src/frontend/snocone/snocone_control.c` →
+        `archive/snocone_control.c`
+      - `src/frontend/snocone/snocone_control.h` →
+        `archive/snocone_control.h`
 
-      Files to delete (all in `src/frontend/snocone/`):
-      - `snocone_lower.c`, `snocone_lower.h` — the Sprint-SC1
-        token-stream-to-IR lowerer that the archived hand-written
-        parser fed into.  Superseded entirely by Bison semantic
-        actions in `snocone_parse.y`.
-      - `snocone_control.c`, `snocone_control.h` — the legacy
-        compile-driver glue that called the archived lexer +
-        parser + lowerer in sequence.  Superseded by
-        `snocone_compile()`'s thin wrapper around
-        `snocone_parse_program()` after LS-4.j.
+      These are the Sprint-SC1 token-stream-to-IR lowerer and the
+      compile-driver glue that the archived hand-written parser
+      fed into.  They are dead code in the live tree once LS-4.j
+      points `snocone_compile()` at the Bison parser, but they
+      are working code with real history — exactly what the
+      `archive/` directory is for.
 
-      Other edits in the same commit:
+      **No `.c` or `.h` files are deleted.**  Same principle that
+      LS-4.a applied to the legacy lexer/parser: *move to archive,
+      never delete*.  The archive is the historical record.  An
+      archive is for preservation; deletion would unmake the
+      record.
+
+      **Other edits in the same commit:**
       - `src/Makefile`: drop the four `FRONTEND_SNOCONE` lines
-        feeding `../archive/snocone_lex.c`, `../archive/snocone_parse.c`,
+        feeding `../archive/snocone_lex.c`,
+        `../archive/snocone_parse.c`,
         `frontend/snocone/snocone_lower.c`, and
         `frontend/snocone/snocone_control.c` into the build.
-        The archive directory is no longer compiled into the
-        scrip binary.
+        After this, `FRONTEND_SNOCONE` references only the live
+        `src/frontend/snocone/` files: `snocone_lex.c`,
+        `snocone_parse.tab.c`, `snocone_driver.c`.
       - `archive/snocone_lex.c`: revert the LS-4.h
         `{ "function", SNOCONE_KW_PROCEDURE }` keyword-table
         synonym entry.  That edit existed only to keep the
         production smoke green while the archive was still in
-        the build path.  Once LS-4.j unwires the archive, the
-        synonym is moot, and reverting restores the archived
-        file to byte-equivalence with what was archived in
-        LS-4.a.  The archive stays in the tree; only the
-        synonym goes away.
+        the build path.  Once LS-4.j unwires the archive from
+        the build, the synonym is moot, and reverting restores
+        the archived file to byte-equivalence with what was
+        archived in LS-4.a.
+      - `src/frontend/snocone/snocone_lex.h:15` doc-comment
+        mentioning `one4all/archive/snocone_lex.c` — leave as
+        is; it correctly describes legitimate history (the FSM
+        replaced what is now in the archive).
 
-      **Files NOT touched:**
-      - `archive/snocone_*.{c,h}` — kept verbatim as the
-        historical record (modulo the LS-4.h synonym revert
-        above).
+      **Files NOT touched** (this list exists so future sessions
+      don't repeat the deletion mistake from session #13's first
+      LS-4.k draft):
+      - `archive/snocone_lex.{c,h}`, `archive/snocone_parse.{c,h}`
+        — kept verbatim as the historical record (modulo the
+        LS-4.h synonym revert above).  Lon's correction this
+        session: "why would you delete a file from the archive?
+        Is that the archive archive, the trash?"  Answer: no —
+        the archive is for preservation, period.
+      - `archive/snocone_lower.{c,h}`, `archive/snocone_control.{c,h}`
+        — these are the four files just moved here by this very
+        step.  After they arrive, they stay.
       - `docs/LS-4-session-2026-04-30-1-attempt.snocone.y` —
         kept; saved attempt for reference per RULES.md
         diagnostic-patches-stay-in-docs convention.
       - `docs/LS-4-session-2026-04-30-1-findings.md` — kept;
         architectural findings prose.
-      - `src/frontend/snocone/snocone_lex.h:15` doc-comment
-        mentioning `one4all/archive/snocone_lex.c` — kept; the
-        comment is describing legitimate history (the FSM
-        replaced what now lives in the archive).
 
-      **Invariant at end of LS-4.k:** zero active-code references
-      to `archive/snocone` from `src/Makefile`, `src/`, `scripts/`,
+      **Invariant at end of LS-4.k:** zero references to
+      `archive/snocone` from `src/Makefile`, `src/`, `scripts/`,
       or `test/`.  Verify with:
 
-          grep -rn 'archive/snocone' src/ scripts/ test/
+          grep -rn 'archive/snocone' src/Makefile src/ scripts/ test/
           ls src/frontend/snocone/snocone_lower.* \
              src/frontend/snocone/snocone_control.* 2>/dev/null
 
-      Both commands must return empty (the doc-comment in
-      `snocone_lex.h` matches `one4all/archive/snocone_lex.c`,
-      not `archive/snocone` — it's in narrative prose, not an
-      include path, and `grep -rn 'archive/snocone' src/` will
-      not match it).  Build still succeeds and all gates remain
-      green:
+      Both commands must return empty.  And the archive
+      directory grows by four files, preserving everything that
+      was working code.  Build still succeeds and all gates
+      remain green:
       - smoke snocone:        5/5
       - beauty 3-mode:        42/0/3
       - unified broker:       49/0
       - parse-a..i:           ≥668/668 (whatever LS-4.i grew to)
       - FSM lex acceptance:   31/31
 
-      **Why LS-4.k is its own step:** the deletion is mechanical
-      but the diff is sizable.  Keeping it separate from LS-4.j
-      makes the two diffs reviewable individually — LS-4.j shows
-      the new parser taking over, LS-4.k shows the dead glue
-      code being removed and the archive falling out of the
-      build path.  Either step can be reverted independently if
-      a regression surfaces in the smoke or beauty gates.
+      **Why LS-4.k is its own step:** the move is mechanical
+      but the rename diff touches every callsite that
+      `#include`d the moved headers.  Keeping it separate from
+      LS-4.j makes the two diffs reviewable individually —
+      LS-4.j shows the new parser taking over, LS-4.k shows the
+      dead glue moving from `src/` into `archive/`.  Either step
+      can be reverted independently if a regression surfaces.
+
+      **Why move-not-delete:** the archive is the project's
+      record of working code that no longer fits the live
+      build.  Deletion loses that record.  `git log` preserves
+      *changes*, but the archive preserves *the file at the
+      moment it left the live tree* in a place where someone
+      can still `cat` or `grep` it without spelunking through
+      git history.  That's the whole point of having an
+      `archive/` directory.
 
 - [ ] LS-4.l — Final gate confirmation after LS-4.j + LS-4.k.
       `test_smoke_snocone.sh` PASS=5 (using the new Bison
