@@ -406,6 +406,104 @@ the function is called as a bare `*fn()` without `.`. Safe form: always use
 
 ---
 
+## Snocone language facts
+
+⛔ Snocone is **Andrew Koenig's `.sc` self-host operator set, minus
+`&&` / `||` / `%`, plus C-style structured control flow, plus
+SPITBOL space-as-concat.**  See `GOAL-SNOCONE-LANG-SPACE.md` for the
+full design and history.  These are the working rules every author
+must respect.
+
+### No `&&`, no `||` in source
+
+The `&&` and `||` character sequences are not Snocone operators.
+The lexer no longer recognizes either as its own token.  Bare `&&`
+in source lexes as two unary `&` tokens (almost certainly a syntax
+error); bare `||` lexes as two `|` (pattern-alternation) tokens.
+
+- **Concatenation is whitespace.**  `x y` is concat at SPITBOL
+  priority 4, right-associative.  Same operator, same priority,
+  same semantics — only the surface character changes.
+- **Alternative-eval replaces `||`.**  `(e1, e2, e3)` evaluates
+  left to right; the first to succeed becomes the value of the
+  whole.  This is a documented SPITBOL extension (Manual Ch.15
+  footnote), not something we invented.
+
+### `%` is reserved as a user OPSYN slot
+
+The `%` character has no built-in semantic in Snocone.  The lexer
+emits it as a plain token; the grammar routes it through the OPSYN
+catch-all production.  Programs needing remainder write
+`REMDR(a, b)` directly.
+
+### `f(x)` vs `f (x)` — the zero-space rule
+
+`f(args)` (zero whitespace between identifier and `(`) is a
+function call.  `f (expr)` (one or more whitespace chars) is `f`
+concat `(expr)`.  Strict — same SPITBOL rule, enforced by the
+lexer via the `IDENT_LPAREN_NOSP` token.
+
+### Conditions are SPITBOL backtracking expressions
+
+The parenthesised condition of `if`, `while`, `do/while`,
+`for`-test, and `case` tag is a single SPITBOL backtracking
+expression — not a C-style boolean.  `if (subj ? pat = repl) { … }`
+is legal: the success/failure exit drives the branch, exactly the
+way SPITBOL's `:S(...)F(...)` branches do today.  A bare variable
+reference `if (x)` always succeeds (a bound name has a value); the
+LS-4.w warning pass will eventually flag this as "condition can
+never fail," but the construct is not an error.
+
+### Statement boundary is `;` only — newlines are whitespace
+
+Every Snocone statement ends with `;`.  Newlines, tabs, and
+spaces are all whitespace; the lexer treats them identically.
+There is no implicit semicolon at end of line, no continuation
+token, no off-side rule.  `x = 1\ny = 2;` is one statement (the
+expression `x = 1 y = 2`), not two.  Programs that omit `;` produce
+surprising parses, not error messages.  This is by design.
+
+### Bare expression statements may fail silently
+
+A statement that is just `expr;` with no surrounding control flow
+lowers to a bare SPITBOL statement with no `:S(...)F(...)`
+decoration.  If it fails, control falls through to the next
+statement.  This is the SNOBOL4 default — failure-as-control-flow
+is reserved for the parenthesised conditions listed above.
+
+### `do/until` is removed (as of session 2026-04-30 #12)
+
+Snocone follows C exactly: `while` and `do/while` only.  The
+`until` keyword is no longer in the lexer's KW_TABLE.  Existing
+patterns that wanted "loop until cond" use `while (~cond)` or
+the `goto`-with-label escape hatch.
+
+### `goto label;` is the escape hatch — single keyword
+
+Single keyword `goto` (not Andrew's two-word `go to`).  Use for
+labeled-break out of nested loops, state-machine dispatch, retry-
+from-error.  Ordinary control flow goes through the structured
+forms `if` / `while` / `for` / `do/while` / `switch`.
+
+### Identity comparisons `::` and `:!:`
+
+These are Andrew's choices in his `.sc` self-host (lines 45–46) —
+not a Lon invention.  `::` lowers to `IDENT()`, `:!:` to
+`DIFFER()`.  Both are SPITBOL primitives; the surface sugar is
+Andrew's.
+
+### SPITBOL functional superset — hard invariant
+
+A SPITBOL program that does not itself use `&&`, `||`, or `%` as
+binary operators, and that uses `;` statement terminators with
+`name:` label syntax (not column-1 labels), runs unchanged under
+Snocone.  Snocone adds 14 comparison-operator characters (`==`,
+`!=`, `<`, `<=`, `>`, `>=`, the `:==:` family, and `::`/`:!:`)
+that SPITBOL leaves undefined; Snocone adds C-style control flow.
+Any divergence from this functional-superset guarantee is a bug.
+
+---
+
 ## Test gate before every commit
 
 Run the gate for your goal before committing. Do not commit broken builds.
