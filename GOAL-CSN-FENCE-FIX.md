@@ -1871,3 +1871,78 @@ goal pivot?**  Possible pivots:
 The bug now has the smallest known repro (5 lines, `s='ab'`) and a clear
 narrowed locus (SCOK success path).  Session #63 can attempt a focused
 fix.  But Lon's input on whether to continue is welcome.
+
+---
+
+## Session #63 update — session #61 in-place SCIN3 fix attempted; refuted by gates; bug narrowed to TXSP corruption
+
+Session #63 implemented session #61's "CRITICAL NEW FINDING" in-place
+SCIN3-FENCEPT trap overwrite at FNCA's success path: replace the
+3-DESCR push of FNCDCL above the SCFLCL position with an in-place
+overwrite of the SCIN3-FENCEPT trap slots at P0 = entry-PDLPTR.
+
+### Gates after the s63 fix attempt
+
+| Gate | Baseline | s63 attempt |
+|------|----------|-------------|
+| fence_function | 10/10 | **10/10** ✅ |
+| fence_suite | 44/4/0 | **44/4/0** ❌ no change |
+| guard5 | OK | OK |
+| 5-line bug repro | wrong-match | **wrong-match** ❌ no change |
+
+**Reverted before commit per RULES.md.** Same 4 tests (119, 124, 127,
+129) still FAIL with `unexpected match`. The SCIN3-FENCEPT trap is NOT
+the dispatch point that produces the wrong match.
+
+### Genuinely-new contribution: TXSP corruption identified
+
+Added env-gated diagnostics (saved as
+`docs/F-2-Step3a-session63-diag.txt`) at L_RPSII and L_SALT2 entries.
+
+Run with `RPOS_TRACE=1 WALK_TRACE=1` on the 5-line repro shows **6 SALT2
+events** between RPSII failure and "unexpected match" output — refines
+session #62's incomplete "no SALT2 events" claim.
+
+**Decisive finding:** between SALT2 #5 (STREXCCL sentinel fires,
+restoring PATBCL=cmd) and SALT2 #6 (next descent step), **TXSP changes
+from 0 to 140702518392224 — which equals cmd's PATBCL heap-pointer
+value (0x7FF7DBA0B5A0)**. No code in the visible STREXCCL/SALT3/SALT1/
+SALT2 path writes TXSP. So either a SCIN3 fall-through fires off-trace,
+or a primitive dispatched between #5 and #6 sets TXSP from a
+heap-pointer-shaped register. After this corruption, some pattern
+primitive succeeds spuriously and SCOK propagates upward.
+
+The bug is now narrowed to **TXSP corruption during walker descent**,
+NOT pattern-dispatch corruption.
+
+### Recommended session #64 plan
+
+1. Apply `docs/F-2-Step3a-session63-diag.txt` (RPSII + SALT2 trace).
+2. Add additional traces at:
+   - Every `S_L(TXSP) = ...` write site in `isnobol4.c`.
+   - Every L_PATBRA case dispatch (log case number + PATBCL/PATICL/YCL/TXSP).
+   - L_SCIN3 entry (log PATBCL, PATICL, TXSP).
+3. Run with `TXSP_TRACE=1 PATBRA_TRACE=1 SCIN3_TRACE=1` and identify
+   the exact instruction that sets TXSP to PATBCL's value.
+4. Fix candidates depend on what's found.
+
+### Files this session
+
+- `csnobol4/docs/F-2-Step3a-session63-findings.md` — full findings.
+- `csnobol4/docs/F-2-Step3a-session63-diag.txt` — diagnostic patch.
+- This goal-file update.
+- No code changes committed. Working tree clean.
+
+### Honest checkpoint
+
+Sessions #44–#63 = 19 sessions on F-2 Step 3a. fence_function preserved
+10/10. Tier F preserved 16/16 since #55. fence_suite stuck at 44/4/0
+since #58 (6 sessions). Beauty stuck at 42 lines since #58.
+
+Session #63 ruled out the session #61 hypothesis with gate evidence
+(not just argument), and produced the first concrete TXSP-corruption
+diagnosis with reusable diagnostic infrastructure. The bug now has
+a precise handle: "between SALT2 #5 and SALT2 #6, TXSP gets PATBCL's
+value." Session #64 should be able to instrument every TXSP write
+site and pinpoint the line.
+
