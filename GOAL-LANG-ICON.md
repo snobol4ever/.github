@@ -1010,3 +1010,138 @@ fail on empty tables, or does it return `&null` of the table default?
 The expected output (`should fail ` with no value after) suggests it
 fails (causing `writes` to emit nothing for that arg).
 
+## Current state (2026-04-30 session 20, one4all HEAD 2add5179)
+
+IC-9 IN PROGRESS. Three correctness fixes landed; PASS counts unchanged
+across all gates (same shape as session #18/#19 — affected rung36_jcon_*
+tests still `.xfail` due to multiple unrelated unimplemented features),
+but per-test diffs are visibly cleaner.  The `?T` candidate flagged at
+the end of session #19 is now closed.
+
+### `?E` (E_RANDOM) — was unhandled, fell through to NULVCL
+
+**Site:** `interp.c` shared switch, new `case E_RANDOM` (after `E_NONNULL`,
+~line 3900).
+
+**Root cause:** `E_RANDOM` had **no case in interp_eval** — same bug
+class as session #19's `E_NULL`/`E_NONNULL` discovery.  The default
+arm returns NULVCL, which is success-with-null, so `?empty_table`,
+`?[]`, `?""`, `?0`, `?-3` all returned `&null` instead of failing.
+Visible in `rung36_jcon_table` line 2 (`should fail &null` vs expected
+empty) and `rung36_jcon_evalx` (`?table() ----> &null` vs `none`).
+
+**Fix:** New `case E_RANDOM` dispatches by descriptor type:
+- `DT_T` (table) — pick random entry value via bucket walk, fail if `tbl->size==0`
+- `DT_DATA` icnlist — pick random element from `icn_elems[]`, fail if `icn_size==0`
+- `IS_INT_fn` — random in `[1,n]`, fail if `n<=0`
+- `DT_SNUL` — fail
+- String — random character, fail if empty (`v.slen` or `strlen` zero)
+
+RNG: local static LCG using Knuth MMIX constants
+(`seed = seed*6364136223846793005UL + 1442695040888963407UL`; pick from
+`seed >> 33`).  Self-contained — no cross-file linkage with the
+frontend's `icn_random` in `frontend/icon/icon_runtime.c` (which is in a
+different translation unit and not declared in any visible header).
+
+**Verified on minimal repro** (/tmp/test_random.icn — 9 cases, all
+correct: 5 empty/zero fail, 4 non-empty pick valid elements across
+int/string/table/list types).
+
+### `image()` propagates FAILDESCR
+
+**Site:** `interp.c` icon-frame `case E_FNC` builtins block, line 2316.
+
+**Root cause:** `image(av)` did not check `IS_FAIL_fn(av)` before
+dispatching by type.  When the argument failed, av had `.v=DT_S, .s=NULL`
+(or similar zero-state); the string branch fell through to
+`VARVAL_fn(FAILDESCR)` → `""`, then wrapped it in quotes → `"\"\""`.
+Visible in `rung36_jcon_table` line 2 as `should fail ""`.
+
+**Fix:** one-line guard at top of `image` builtin handler:
+`if (IS_FAIL_fn(av)) return FAILDESCR;`
+
+### `write()` / `writes()` evaluate all args before any output
+
+**Site:** `interp.c` icon-frame `case E_FNC` builtins, lines ~1063 (write)
+and ~1078 (writes).
+
+**Root cause:** Both builtins evaluated children one at a time and
+`printf`-ed immediately; only on a failed child did they `return
+FAILDESCR`.  Result: `writes("should fail ", image(?T_empty))` printed
+`"should fail "` to stdout, *then* failed on `image(?T_empty)` — so
+the test saw `should fail ` even though Icon's all-or-nothing semantics
+say nothing should print.
+
+**Fix:** Two-pass — evaluate all args into a GC_malloc'd `DESCR_t[]`
+buffer first; if any fails, return FAILDESCR with no I/O.  Only on
+all-success does the second pass do the actual `printf`/`fputs`.
+Both builtins use the identical pattern.
+
+The other `write`/`writes` site (~line 959/972, in `icn_call_builtin`)
+takes pre-resolved `args[]` from its caller, so the incremental-print
+issue cannot occur there — left untouched.
+
+### Per-test correctness improvements (rung36_jcon_table)
+
+```
+before  initial : 0 :       <-- baseline
+        should fail &null >>          <-- E_RANDOM unhandled, image swallows fail
+         >> 3 &null                   <-- E_RANDOM on 1-entry table returned NULVCL
+
+after   initial : 0 :
+         >>                           <-- writes failed silently (correct)
+         >> 3 3                       <-- ?x picks the value 3 (correct)
+```
+
+Lines 1–3 of the rung36_jcon_table diff now match expected.
+Items 1, 2, 3, 4, 6 from session #18's table-failure list remain — they
+all touch the lvalue path (E_ITERATE in lvalue position, generator-key
+subscript write, `<-` reversible assign, `+:=` over !-iterate, `?T` on
+empty/sparse table is now closed).  Item 5 (`/`/`\`) was closed in #19.
+
+### Side effect on rung36_jcon_random
+
+`rung36_jcon_random` previously FAILed with one set of wrong values; it
+still FAILs (XFAIL not granted — output diverges from expected).  The
+test depends on `&random` keyword for seeding (currently a no-op stub),
+so per-run output is non-deterministic.  Pre-fix and post-fix outputs
+are structurally similar (all expected lines present); the actual
+random-element values differ, as expected from a different RNG path.
+No regression — just a different sequence.
+
+### Gates post-fix (all baseline, no PASS-count movement)
+
+- `test_smoke_icon.sh`: PASS=5/5
+- `test_smoke_unified_broker.sh`: PASS=49/0
+- `test_crosscheck_icon.sh`: PASS=4/0 SKIP=0
+- `test_icon_ir_all_rungs.sh`: PASS=188 FAIL=45 XFAIL=30 TOTAL=263
+- `test_icon_ir_rung_36.sh`: PASS=5 FAIL=40 XFAIL=30 TOTAL=75
+
+### Working-tree pollution (cleaned again)
+
+Found `foo.baz` (empty file) at session start in one4all working tree —
+same kind of stray scratch as session #19 cleaned.  Removed; not committed.
+Per RULES.md "Diagnostic patches are diagnostic — never commit them",
+empty/scratch files don't ship.
+
+Files: `src/driver/interp.c` (+81/-4 lines).  No header changes, no
+clean-rebuild needed.
+
+### Next IC-9 candidate
+
+The four remaining table-touch failures all share a shape: **lvalue
+position needs a generator-aware path** —
+- `every !x := 88` — bang-iterate as lvalue
+- `every x[k] := 99` (k generator) — generator key in subscript lvalue
+- `every x[3] <- 19` — `<-` reversible assign operator
+- `every !x +:= 20` — `+:=` over bang-iterate
+
+These all need `interp_eval_ref` to recognize generator children and pump
+them.  Single subsystem; one well-placed fix in the lvalue evaluator
+likely closes 2–3 at once.  **Highest-leverage next pivot.**
+
+Separately: `delete()` arity bug (`delete(x)` 1-arg and `delete(x,3,6)`
+3-arg both silently fail to delete) — lower leverage but cheap, isolated.
+Visible as `delete : 4` (vs expected `delete : 2`) on rung36_jcon_table
+lines 10, 14.
+
