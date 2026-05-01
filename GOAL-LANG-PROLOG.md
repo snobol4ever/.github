@@ -1247,9 +1247,9 @@ ceiling.
 |---|------|--------|--------|
 | Step A | corpus | `dfc26da` | plunit.pl stdlib enrichment (~25 stubs, 84 lines) |
 | Step A patch | corpus | `80ce2f2` | numbervars/4 stub direction fix |
-| Step B.1 | one4all | `ff4e1933` | copy_term_rec slot fix (1<<20 + nmap) |
-| Step B.2 | one4all | `8decc35e` | findall snapshots use pl_copy_term |
-| **Step C** | **one4all** | **`de0fff7a`** | **arith INT_MIN/-1 SIGFPE guard (NEW)** |
+| Step B.1 | one4all | `1de19342` | copy_term_rec slot fix (1<<20 + nmap) |
+| Step B.2 | one4all | `018bfdef` | findall snapshots use pl_copy_term |
+| **Step C** | **one4all** | **`3bc1573d`** | **arith INT_MIN/-1 SIGFPE guard (NEW)** |
 
 Plus `one4all` doc commit with bridge diff + findings.
 
