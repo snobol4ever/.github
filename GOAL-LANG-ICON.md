@@ -250,6 +250,149 @@ Rung 12–36 are the ladder for this goal.
     test_icon_ir_all_rungs      PASS=188 FAIL=45 XFAIL=30 TOTAL=263
     test_icon_ir_rung_36        PASS=5  FAIL=40 XFAIL=30 TOTAL=75
 
+- [ ] **IC-10** — Unify Icon scan-frame primitives onto SNOBOL4 pattern IR + BBs.
+
+  Architectural: today, Icon `?`-scan goes through E_SCAN (correctly shared
+  with SNOBOL4 — see IC-2b note line 75) but the **scan-frame builtins
+  invoked inside `?`** — `upto`, `many`, `any`, `notany`, `tab`, `move`,
+  `match`, `pos`, `rpos` — are reimplemented as inline α-only shims in
+  `src/driver/interp.c` lines 1372-1413 of the form `if (!strcmp(fn,"upto"))
+  { … advance pos … return INTVAL(pos); }`. They do NOT use Byrd boxes.
+
+  Concrete bug this exposes: `every "aXbYcZ" ? upto('XYZ')` should yield
+  positions 2, 4, 6 sequentially via β-backtracking. Currently yields just
+  2 and exhausts. Confirmed via `/tmp/upto_test.icn` — produces `2` only.
+  This is the root cause of large diffs on rung36_jcon_scan,
+  rung36_jcon_scan1, rung36_jcon_scan2, rung36_jcon_subjpos's `every`-bound
+  scan-frame uses, and likely contributes to the wrong-output portions of
+  rung36_jcon_var.
+
+  The boxes already exist. `src/runtime/x86/bb_boxes.c` carries
+  `bb_brk` (Byrd box for BREAK), `bb_breakx` (BREAKX), `bb_span` (SPAN),
+  `bb_any` (ANY), `bb_notany` (NOTANY), with full α/β tick semantics —
+  these are the boxes SNOBOL4 patterns lower to via `sm_lower.c` lines
+  249-275 (E_ANY / E_NOTANY / E_SPAN / E_BREAK / E_BREAKX / E_LEN /
+  E_POS / E_TAB / E_RTAB / E_FENCE / etc. → SM_PAT_*). The IR enum in
+  `src/ir/ir.h` line 13 explicitly enumerates "14 Pattern Primitives
+  (each has distinct Byrd box wiring)" with SIL heritage codes.
+
+  The Icon frontend never produces these IR nodes today. Verified:
+  `grep -rn "E_BREAK\|E_SPAN\|E_ANY\|E_NOTANY\|E_LEN\|E_TAB\|E_RTAB"
+  src/frontend/icon/` returns zero hits across the entire frontend
+  tree (all source files; `.o` matches excluded).
+
+  Cross-pollination is explicitly named at top-of-goal: "BB broker
+  improvements (bb_broker, bb_boxes.c) benefit SNOBOL4 pattern matching".
+  IC-10 is the **reverse arrow** that note implies but doesn't name —
+  SNOBOL4 pattern boxes benefit Icon scan.
+
+  ### Mapping
+
+  | Icon scan-frame builtin | SNOBOL4 IR node | Existing C box | Caveat |
+  |---|---|---|---|
+  | `upto(c)` | `E_BREAK(c)` | `bb_brk` | yield-shape adapter (cursor int vs matched substring) |
+  | `many(c)` | `E_SPAN(c)` | `bb_span` | yield-shape adapter |
+  | `any(c)` (1-arg, scan-frame) | `E_ANY(c)` | `bb_any` | distinct from Icon's 3-arg `any/3` outside scan |
+  | `notany(c)` | `E_NOTANY(c)` | `bb_notany` | yield-shape adapter |
+  | `tab(N)` | `E_TAB(N)` | sm_lower → bb path | Icon yields matched section between cursor positions |
+  | `move(N)` | `E_LEN(N)` | sm_lower → bb path | LEN's "match exactly N chars" == Icon's "advance N positions" |
+  | `match(s)` | string-literal in pattern context | implicit literal | Icon `match("abc")` ≡ SNOBOL4 `"abc"` inside pattern |
+  | `pos(N)` (predicate) | `E_POS(N)` | sm_lower → bb path | same primitive |
+  | `rpos(N)` (predicate) | `E_RPOS(N)` | sm_lower → bb path | same primitive |
+
+  Caveats — places where this is NOT a 1:1 lower:
+
+  - **Scan-frame globals.** Icon has `&pos`/`&subject` as mutable
+    scan-frame globals (assignable lvalues — see IC-9 session #25 work).
+    SNOBOL4 patterns use a transient cursor inside the match call, not
+    scan-frame globals. The shared boxes don't change this — the bridge
+    is: `&pos` is a global that the scan adapter pulls into the box's
+    cursor on α-entry and pushes back on β-restore.
+  - **Yield value-shape.** Icon `upto(c)` under `every` yields integer
+    cursor positions; SNOBOL4 `BREAK(c)` yields the matched substring
+    descriptor. Same primitive, different yield-shape. Adapter shim
+    per builtin — small; lives at the lowering site or as a thin wrap
+    around the box's α/β return value.
+  - **3-arg variants.** Icon's `any(c, s, i, j)` / `match(s2, s, i, j)`
+    take optional explicit-subject/window args; the subject-aware
+    versions don't share the scan-frame globals at all. Lower these
+    to a non-scan-state pattern primitive or keep as separate
+    interp.c shims — clarify per-builtin during implementation.
+  - **`scan/scan1/scan2` rungs use lots of other features** (cset
+    literal handling, `=` string-match in scan, `tab(1 to 10)`,
+    `?:=` scanned-assign) — IC-10 closes a slice but not the whole
+    rung family.
+
+  ### Implementation shape (two paths, recommend (B))
+
+  **(A) Runtime adapter only.** Add scan-frame box arms in
+  `icn_eval_gen` E_FNC dispatch. When fn is `upto`/`many`/`any`/etc.,
+  build a thin Icon-side state struct that wraps the existing
+  `bb_brk`/`bb_span`/`bb_any` and:
+  1. Saves `icn_scan_pos` on α-entry; sets the box's cursor from it.
+  2. Calls box's α; on success, mutates `icn_scan_pos` to advance, yields
+     `INTVAL(new_pos)` (Icon shape).
+  3. On β-entry, calls box's β to undo the advance, restores
+     `icn_scan_pos` to saved value, yields FAIL on box's ω.
+
+  Keeps the inline scan-frame code in interp.c for non-`every` calls
+  (one-shot path); routes only the box wiring under generator context.
+  **Smaller change; doesn't touch IR or sm_lower.** PASS bump on every
+  Icon scan test where β-backtracking is the missing piece. Backends
+  other than the C interp do NOT gain Icon scan from this path —
+  Icon scan stays C-interp-only.
+
+  **(B) Frontend lowering.** Icon parser/lowerer recognizes scan-frame
+  builtin call shapes inside an enclosing `?` and lowers them to
+  `E_BREAK` / `E_SPAN` / `E_ANY` etc. nodes directly — same IR shape
+  SNOBOL4 produces. `sm_lower.c` already routes those through the BB
+  pipeline. The scan-frame state bridge (icn_scan_pos / icn_scan_subj
+  ↔ pattern engine cursor) lives in a small adapter at sm_lower or
+  in `eval_code.c` — same place SNOBOL4's matcher already pulls
+  cursor state.
+
+  **Bigger change; the architectural answer.** Backends gain Icon
+  scan automatically (.NET / JVM / WASM all already do `E_BREAK` etc.
+  per the IR enum). Code volume in interp.c reduces ~50 lines. The
+  IR's claim in `ir.h:4` ("THE single source of truth for all IR node
+  kinds across all frontends and all backends") becomes literally
+  true for pattern matching for the first time.
+
+  ### Gates
+
+  - `bash scripts/test_smoke_icon.sh` PASS=5/0 (regression floor)
+  - `bash scripts/test_smoke_unified_broker.sh` PASS=49/0
+  - `bash scripts/test_crosscheck_icon.sh` PASS=4/0/0
+  - `bash scripts/test_icon_ir_all_rungs.sh` — net +N PASS (target:
+    one-or-more closures on rung36_jcon_scan / scan1 / scan2 /
+    subjpos's β-backtracking lines)
+  - **New smoke test**: `every "aXbYcZ" ? upto('XYZ')` produces
+    `2\n4\n6\n` byte-identical (currently `2\n` only)
+  - SNOBOL4 floors unchanged (rung01-36 PASS=200 / smoke 5/0 etc.)
+  - Beauty self-host byte-identical against SPITBOL oracle (SN-32
+    floor — must not break Milestone 1)
+
+  ### Why this can't be done as part of IC-8 closures
+
+  IC-8's per-test fixes are point repairs of feature gaps revealed by
+  rung36 corpus tests. IC-10 is a horizontal architectural move that
+  would close a *family* of gaps in one step but requires touching
+  the IR/lowering boundary. Per `ir.h:25` ("DO NOT add new node kinds
+  here without Lon's explicit approval") — IC-10 doesn't add new
+  kinds (uses existing E_BREAK/E_SPAN/E_ANY) but the spirit of that
+  rule says architectural moves at the IR boundary deserve
+  conversation. IC-10 is recorded here pending that conversation;
+  do not implement without Lon's signoff.
+
+  ### Followup-ordering note
+
+  IC-10 path (B) probably subsumes the IC-9 followup item "scan1
+  OOM diagnosis" — the OOM appears in code paths that go through
+  the inline scan-frame shim, and unifying onto the BB pipeline
+  may eliminate the bad-cast site that drives the runaway alloc.
+  Worth checking after IC-10 lands rather than chasing scan1
+  separately first.
+
 ### Phase 2 — Icon standard library procedures
 
 Install the standard Icon ilib procedures as .icn files and wire them:
