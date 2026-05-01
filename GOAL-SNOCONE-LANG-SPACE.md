@@ -1644,6 +1644,49 @@ All sub-rungs LANDED across sessions 2026-04-30 #3 through 2026-05-01 #6. Closed
       end-to-end, generate via SPITBOL oracle on a representative
       input set and add to corpus.
 
+      **Session 2026-05-01 #9 — gap #3 landed; T_CALL atomic +
+      T_FUNCTION→T_DEFINE rename.** Three lexer/grammar fixes:
+      (1) S_OP_EQ no longer requires `had_ws` — `OUTPUT='a'` (no
+      spaces) now correctly emits T_ASSIGN instead of unary
+      E_UN_EQUAL, allowing dense `if(){…}else{…}` one-liners to
+      parse. (2) E_CALL redirects to E_IDENT when the matched range
+      classifies as a keyword (e.g. `if(`, `while(`) so keywords
+      retain their keyword tokens; the `(` is left for the next
+      lexer call. (3) E_CALL also redirects to E_IDENT when the
+      previous token is T_DEFINE, so `function name(` lexes as
+      T_DEFINE T_IDENT T_LPAREN — definitions don't piggy-back on
+      the call-form token.
+
+      **Structural cleanup.** T_CALL now atomically consumes
+      IDENT+`(`; the grammar form is `T_CALL exprlist T_RPAREN`
+      (was `T_CALL T_LPAREN exprlist T_RPAREN`). T_FUNCTION renamed
+      to T_DEFINE throughout (the keyword string `function` is
+      unchanged). func_head reads `T_DEFINE T_IDENT T_LPAREN
+      func_arglist opt_head_sep` (was `T_FUNCTION T_CALL T_LPAREN
+      func_arglist`). T_CALL removed from sc_value_table (it is no
+      longer a value-ender — semantically post-T_CALL is post-LPAREN
+      inside the arg list, so `*` after `f(` correctly lexes as
+      unary defer rather than binary multiplication). Added
+      sc_payload_table + sc_kind_has_payload() predicate to
+      distinguish "value-ender for CONCAT/binary decisions" from
+      "carries text payload to parser thunk"; T_CALL is in the
+      payload table (carries identifier name) but not the value
+      table. Parser thunk uses sc_kind_has_payload() for the
+      strdup-into-yylval decision.
+
+      **Result.** beauty.sc now parses end-to-end with no syntax
+      errors (previously blocked at line 22, then line 284, then
+      line 70). Remaining failures are runtime-level (undefined
+      functions because library .sc files like Gen.sc, Qize.sc,
+      ReadWrite.sc aren't loaded by the driver), not parse-level.
+      Gates green at commit f89dacad: `test_smoke_snocone.sh` 5/0,
+      `test_beauty_snocone_all_modes.sh` 42/0/3,
+      `test_smoke_unified_broker.sh` 49/0, `test_smoke_snobol4.sh`
+      7/0, `test_gate_sn7_beauty_self_host.sh` 51/0. No
+      regressions. NEXT SESSION: wire library-loading for beauty.sc
+      so Gen.sc/Qize.sc/etc. are pulled in, then generate beauty.ref
+      via SPITBOL oracle for byte-identical comparison.
+
 ### LS-7 — Documentation pass — LANDED session 2026-05-01 #7
 
 - [x] LS-7.a — Created new `## Snocone language facts` section in
