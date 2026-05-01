@@ -2410,7 +2410,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       LS-4.i.3 — `switch (e) { case v1: ... case v2: ... default:
       ... }`.
 
-- [ ] LS-4.i.3 — `switch (e) { case v1: S1; case v2: S2; default: SD; }`.
+- [x] LS-4.i.3 — `switch (e) { case v1: S1; case v2: S2; default: SD; }`.
       Lowers to:
           tmp = e
           IDENT(tmp, v1)  :S(c1)
@@ -2422,6 +2422,110 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
         after
       Each case body falls through to the next case implicitly;
       explicit `break;` is needed for non-fall-through (Q6).
+
+      **Session 2026-05-01 #4 — LANDED LS-4.i.3** (one4all `c3a56a6a`).
+      Implementation per Q6 (modern no-fall-through, implicit break at
+      end of each case body except the last — note: the goal-file step
+      prose above appears inverted; the canonical design at Q6 is
+      no-fall-through, and the lowering shape in both descriptions
+      already matches Q6, so the implementation follows Q6 verbatim).
+
+      **Grammar shape:**
+
+          matched_stmt += switch_head T_LBRACE switch_body T_RBRACE
+                        | switch_head T_LBRACE T_RBRACE      (empty body)
+          switch_head  : T_SWITCH T_LPAREN expr0 T_RPAREN
+          switch_body  : case_clause | switch_body case_clause
+          case_clause  : case_or_default_label | case_clause stmt
+          case_or_default_label
+                       : T_CASE expr0 T_COLON
+                       | T_DEFAULT T_COLON
+
+      LR(1) lookahead at T_CASE / T_DEFAULT after a stmt is unambiguous
+      (those tokens cannot appear inside any expr or stmt rule), so
+      Bison resolves the case-clause boundary with zero shift/reduce
+      and zero reduce/reduce conflicts.  `switch_head` has no
+      `opt_head_sep` because the LS-3 W{OP}W lexer does NOT synthesize
+      T_CONCAT between `)` and `{` (T_LBRACE is not a value-starter),
+      same reason `func_head ... T_LBRACE` doesn't need it.
+
+      **Implementation:**
+      - `struct CaseEntry { char *case_label; EXPR_t *value; };` — value
+        is NULL for default entries.
+      - `struct SwitchHead` — disc, tmp_name, end_label, default_label,
+        has_default flag, after_tmp_assign (splice anchor), cases[]
+        (dynamic array), last_case_label_tail (for implicit-break
+        suppression), prev_switch (for nested switches), lineno.
+      - `ScParseState` gains `cur_switch` field — innermost-switch
+        pointer used by case_or_default_label semantic actions to find
+        their owning SwitchHead.  Saved/restored on
+        SwitchHead.prev_switch for nested switches.
+      - `sc_switch_head_new` — eagerly emits `tmp = disc;` assignment
+        statement, allocates `_Lswitch_t_NNNN` (tmp var name) + `_Lend_NNNN`
+        (break target) + `_Ldefault_NNNN` (default jump) up front,
+        snapshots `code->tail` as the splice anchor for the dispatch
+        chain, pushes a LoopFrame with `is_loop=0` (LS-4.i.2 forward-
+        compat — break finds it, continue rejects via want_loop=1
+        skip), saves outer cur_switch, sets `st->cur_switch = h`.
+      - `sc_switch_case_label` — fires DURING body parsing on each
+        `case v:` head.  Calls `sc_switch_emit_implicit_break` (no-op
+        for first case OR when body is empty since previous label),
+        allocates `_Lcase_NNNN`, emits the label pad, records
+        `(case_label, value)` on cases[], snapshots
+        `last_case_label_tail = code->tail`.
+      - `sc_switch_default_label` — same as case but with no value
+        (NULL marker), uses the pre-allocated `_Ldefault_NNNN` from
+        head, sets `has_default=1`, second default raises sc_error.
+      - `sc_finalize_switch` — builds dispatch chain by walking
+        cases[] (non-NULL value entries become
+        `IDENT(tmp, v) :S(case_label)` stmts; a single trailing
+        `:(_Ldefault)` or `:(_Lend)` is the catch-all), splices
+        chain after `after_tmp_assign`, appends `_Lend` pad, pops
+        loop frame, restores outer cur_switch.
+
+      **LS-4.i.2 forward-compat consumed:** switch frames have
+      `is_loop=0`; break inside switch finds the switch's frame via
+      `sc_loop_find_innermost(0)`; continue inside switch is rejected
+      via `sc_loop_find_innermost(1)` which skips `is_loop=0`.
+      `break LOOP_LABEL` from inside a switch nested in a labeled loop
+      correctly walks up through the switch's frame to find the
+      labeled loop's frame (verified test 42).
+
+      **Implicit-break suppression for stacked labels** (`case 1:
+      case 2: stmts;`): when a new case-or-default head fires, if
+      `code->tail == h->last_case_label_tail` no body has been
+      appended since the previous label, so no implicit `:(_Lend)`
+      goto is emitted.  Both pads chain forward to the shared body
+      via SNOBOL4 label-pad chaining.
+
+      **Tests added** (32–45, +45 assertions): empty switch (3 stmts:
+      tmp-assign + catch-all + _Lend pad); single case no default (6
+      stmts); two cases no default; two cases with default (verifies
+      catch-all targets `_Ldefault`, not `_Lend`); default first
+      (allowed); stacked case labels suppress implicit break (the
+      defining test for the stacking optimization); explicit `break;`
+      inside switch case adds extra goto on top of implicit; continue
+      inside switch is parse error; multiple defaults is parse error;
+      nested switches (independent `_Lend`/`_Lcase`/`tmp` per nesting
+      level); `break LABEL` out of switch-in-loop targets the loop's
+      `_Lend` (the LS-4.i.2 forward-compat headline gate); switch in
+      if-then position; switch with user label (label attaches to
+      tmp-assign per LS-4.i.2 disambiguation, NOT to switch frame);
+      bare `case 1:` at top level is parse error.
+
+      **All gates green at session-end:**
+      ```
+      smoke snocone:               5/5
+      beauty 3-mode:               42/0/3
+      unified broker:              49/0
+      parse-a..i (side-channel):   871/871  (35+119+66+79+71+118+95+85+203)
+      Bison conflicts:             0 shift/reduce, 0 reduce/reduce
+      ```
+      Combined parse-a..i delta from LS-4.i.3 close: 826 → 871 (+45).
+
+      Side-channel only — LS-4.j wires the new parser into scrip's
+      production driver.  one4all advances to `c3a56a6a`.  Next active
+      step: LS-4.i.4 — alt-eval `(a, b, c)` → `E_VLIST`.
 
 - [ ] LS-4.i.4 — Alt-eval `(a, b, c)` → `E_VLIST`.  Pure expression-
       tier change at expr0 / paren-grouping.  When a comma-separated
