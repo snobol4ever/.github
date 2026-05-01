@@ -1616,9 +1616,53 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       beauty 42/0/3, broker 49/0; FSM lex test 31/31; LS-4.a
       parse-a 35/35.  This means LS-4.b shipped 154/154 (35+119)
       across both side-channel parser tests.
-- [ ] LS-4.c — Add concat / alternation / match / assignment +
-      compound-assigns (`+=`, `-=`, `*=`, `/=`, `^=`).
-      Parses `s = 'hello' ' world'`.
+- [x] LS-4.c — **LANDED session 2026-04-30 #5.**  Three pattern
+      operator tiers added — `expr1` (match `?` → E_SCAN,
+      right-assoc, pri 1), `expr3` (alternation `|` → E_ALT n-ary
+      fold, pri 3), `expr4` (concat T_CONCAT → E_SEQ n-ary fold,
+      pri 4) — slotted between `expr0` (assignment) and `expr5`
+      (comparison) so the precedence chain is now
+      `=  <  ?  <  |  <  concat  <  ==  <  +/-  <  */  <  ^`,
+      each operator binding tighter than the one to its left.
+      `expr3`/`expr4` use the snobol4.y:131,134 idiom — when the
+      left operand is already an n-ary node of the same kind we
+      extend it with `expr_add_child`; otherwise create a fresh
+      n-ary node.  Bison's left-recursion drives the fold one
+      operand at a time, giving the n-ary collapse for free.
+      Compound-assigns (`+=` `-=` `*=` `/=` `^=`) added at the
+      `expr0` level alongside `=`; each lowers to a clone-LHS
+      pattern: `a += b` → `E_ASSIGN(a, E_ADD(clone(a), b))`.
+      New helper `sc_clone_expr_simple` does a shallow recursive
+      clone (kind/ival/dval/sval/children) — required because the
+      IR's tree representation forbids node aliasing (children
+      pointer arrays would otherwise alias and double-free at
+      cleanup).  Coverage sufficient for atomic LHS (E_VAR /
+      E_KEYWORD / leaf literals); LS-4.d will extend for E_IDX
+      subscripts when those land.  T_CONCAT, T_MATCH,
+      T_ALTERNATION, T_PLUS_ASSIGN, T_MINUS_ASSIGN, T_STAR_ASSIGN,
+      T_SLASH_ASSIGN, T_CARET_ASSIGN promoted out of the catch-all
+      "all other tokens" block into dedicated sections (cosmetic
+      organisation).  Header comment block consolidated and a
+      precedence-table summary added inline.  No bison conflicts.
+      **Headline gate from goal file met:** parses
+      `s = 'hello' ' world'`  →
+      `E_ASSIGN(s, E_SEQ(E_QLIT("hello"), E_QLIT(" world")))`.
+      New gate `test_smoke_snocone_parse_c.sh` runs
+      `test_snocone_parse_c.c` (14 test functions / **66/66 PASS**
+      — concat 2-string headline, n-ary 4-child concat fold,
+      var+string concat, alternation binary and 4-ary fold, alt
+      below concat, match basic, match-pattern-is-alt, assign
+      below match, plus-assign with clone-distinctness check,
+      minus-assign, full compound-assign set (+=, -=, *=, /=, ^=),
+      arithmetic-grouped-under-concat, full chain
+      `result = subject ? a b | c d`).  Production gates remain
+      green: smoke 5/5, beauty 42/0/3, broker 49/0; FSM lex 31/31;
+      LS-4.a 35/35, LS-4.b 119/119.  Combined LS-4.{a,b,c} = 220/220.
+      Lexer behaviour note recorded in test (`1+2` lexes as
+      `T_INT T_UN_PLUS T_INT` per W{OP}W envelope rule — the
+      grammar requires `1 + 2` for binary T_ADDITION; this is
+      SNOBOL4 surface convention, not a parser bug, and was
+      caught/documented during the LS-4.c test write-up).
 - [ ] LS-4.d — Add subscripting `a[i,j]` → `E_IDX`.  (Call-form
       `f(a,b,c)` → `E_FNC` already landed in LS-4.b — it was the
       headline gate vehicle.)  Parses `a[i, j]`.
