@@ -1876,8 +1876,11 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
          `if (DIFFER(c))`.  Most "what the C programmer probably
          meant" semantics, but most surprising in a SPITBOL world.
 
-      All three are mechanical changes from this checkpoint.  Lon
-      picks; the rung re-opens to land it.
+      **Lon's decision (session 2026-04-30 #11):** Option 1 — accept
+      as-is.  Bare-name conditions are legal Snocone; they always
+      succeed at runtime, which is correct SPITBOL behaviour.  Warnings
+      for the always-succeeds case are deferred to LS-4.w (low
+      priority).  LS-4.f is therefore ready to land as committed.
 
       **Implementation choices made this session (all working in
       `c4337189`):**
@@ -1976,6 +1979,24 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       the Makefile, and the fourth by editing the comment.
 - [ ] LS-4.k — `test_smoke_snocone.sh` PASS=5 again.
       `test_smoke_unified_broker.sh` PASS=49+ FAIL=0.
+
+- [ ] LS-4.w — Condition-never-fails warning pass (deferred, low priority).
+      At lowering time, inspect the condition expression of every `if`,
+      `while`, `do/while`, `do/until`, `for`-test, and `case` tag.
+      If the condition is a bare `E_VAR` or `E_KEYWORD` node (no operator,
+      no pattern match, no function call) emit a compiler warning:
+        `warning: condition 'c' is a variable reference and can never fail`
+      (because a bound SNOBOL4 name always succeeds with its value).
+      Function calls are NOT warned — `if (func())` is legitimate since
+      the called function may return failure.  Operator expressions
+      (`GT(x,0)`, `x ? pat`, `s :: t`, etc.) are NOT warned for the
+      same reason.  Implementation: a small `sc_cond_warn(Expr *e,
+      const char *loc)` helper called from each lowering site that
+      emits reduces to a single `E_VAR`/`E_KEYWORD` check — one-liner
+      per call site.  Warning is printed to stderr; compilation
+      continues normally (never fatal).  No new test gate required
+      at this step — existing smoke/beauty/broker gates cover
+      regression; a handful of manual spot-checks suffice.
 
 **Architectural lesson recorded** (`docs/LS-4-session-2026-04-30-1-findings.md`):
 the two-pass design (lex into buffer, then parse from buffer) felt
