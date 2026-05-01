@@ -2951,15 +2951,106 @@ snocone/` clean).
 
 ### LS-5 — Corpus migration script
 
-- [ ] LS-5.a — Write `scripts/util_migrate_snocone_to_lang_space.py`.
-      Rewrites: `&&` → space; `||` → `(,)`; `go to NAME` → `goto NAME`;
-      any `%` modulo uses → `REMDR(a, b)`.  String literals untouched.
-      Comment blocks untouched.  Comparison operators (`==`/`!=`/
-      `<`/`<=`/`>`/`>=`/`:==:`/family) preserved as-is.
-- [ ] LS-5.b — Dry-run on a single file (`omega.sc` or similar small
-      one); manual review; iterate until clean.
-- [ ] LS-5.c — Apply to every `.sc` file under
-      `corpus/programs/snocone/`.  Diff-review every file.
+- [x] LS-5.a — **LANDED session 2026-05-01 #2** (one4all `5bcc7412`).
+      `scripts/util_migrate_snocone_to_lang_space.py` (~700 lines).
+      Rewrites: `&&` → single space; `||` → `(a, b)` n-ary alt-eval;
+      `go to NAME` → `goto NAME`.  String literals (`'...'` and
+      `"..."`) and comments (`//` to EOL, `/* ... */`) preserved
+      verbatim.  Single `|` (pattern alternation) untouched —
+      only doubled `||`.  Comparison operators (`==` `!=` `<` `<=`
+      `>` `>=` `:==:` family) preserved as-is.  `%` modulo NOT
+      handled by the script — rewriting `%` to `REMDR(a,b)` requires
+      distinguishing binary `%` from unary `%` (OPSYN slot), which
+      a regex-driven script cannot do safely; the goal-file LS-5.a
+      note "if any uses appear, rewrite to `REMDR(a,b)`" is
+      respected as a manual exercise.  Initial corpus survey
+      confirmed zero `%` modulo uses, so this gap is moot for
+      today's corpus.
+
+      Implementation strategy is two-stage:
+        Stage 1 — `||` rewrite operates on the WHOLE source via
+          a paren-depth-aware tokenizer that skips strings and
+          comments inline.  Necessary because operands like
+          `IDENT(x, '')` span across literal boundaries; per-span
+          rewriting would split paren-balancing across a literal.
+        Stage 2 — `&&` and `go to` rewrites operate per code-span
+          (post-stage-1) since they're local-replace with no
+          paren balancing required.
+
+      The `||` algorithm builds a full token stream tracking paren
+      depth at every position (LPAREN/LBRACK/LBRACE record outer
+      depth, then increment), groups consecutive `||` tokens at
+      the same depth into chains (broken by depth drops or by any
+      pri-≤3 operator at chain depth: `=` `?` `|` `;` `,`), and
+      for each chain finds the smallest enclosing scope by walking
+      left and right from chain endpoints.  Operands are then
+      stitched into `(e1, e2, ..., eN)`.  Right-to-left edit
+      application keeps offsets stable.
+
+      24 inline unit tests cover: `&&` simple/chain, `&&` in if
+      cond, strings preserved, line/block comments preserved,
+      `||` simple/chain three, `||` in if cond (Andrew's
+      `tree.sc` shape `IDENT(x) || IDENT(y)`), `||` in function
+      call args, `||` stopping at `;` and `=`, single `|` not
+      touched, `go to` single/multi-space, combined `&&` and
+      `||`, `roman.sc` deeply chained ops, idempotence on every
+      case.  All 24/24 PASS.
+
+      Idempotent: re-running on an already-migrated tree reports
+      `CHECK clean`.  Confirmed across all 240 .sc files of the
+      corpus.
+
+      CLI:
+        python3 util_migrate_snocone_to_lang_space.py [--dry-run]
+                                                      [--check]
+                                                      [--root DIR]
+                                                      [files...]
+- [x] LS-5.b — **LANDED session 2026-05-01 #2** (no separate
+      commit — folded into the LS-5.a development cycle).
+      Dry-runs on `tree.sc` (mixed `&&`/`||`), `roman.sc`
+      (deeply chained `&&`), `treebank-array.sc` (heavy
+      `\"'\" && f && \"'\"` inter-string concat), and `sc8_strings.sc`
+      (single `||`) confirmed clean rewrites and verified one
+      pre-existing edge case discovered during review:
+      `crosscheck/snocone/hello_literals.sc` uses SNOBOL4-surface
+      conventions (`#` comments, no `;` terminators) — outside
+      the LS-5.a script's mandate (mechanical sweep of
+      well-formed Snocone), so hand-fixed in the same corpus
+      commit.  See LS-5.c.
+- [x] LS-5.c — **LANDED session 2026-05-01 #2** (corpus
+      `a4aaf83`).  Applied to all 240 `.sc` files; **69 files
+      changed**:
+      - 68 files: auto-migrated by the script (`scripts/
+        util_migrate_snocone_to_lang_space.py`).
+      - 1 file: `crosscheck/snocone/hello_literals.sc` —
+        hand-fixed.  Used `#` comments (not `//`) and lacked
+        `;` terminators; converted `#` → `//` and added `;`
+        alongside the `&&` and `||` rewrites.
+
+      Gate state on the migrated corpus (one4all `5bcc7412`):
+      - smoke snocone:        **PASS=5  FAIL=0**   ✅
+      - unified broker:       **PASS=49 FAIL=0**   ✅
+      - beauty 3-mode:        **PASS=30 FAIL=12 SKIP=3**
+
+      Beauty advances from 6/36/3 (pre-LS-5) to **30/12/3** —
+      24 tests recovered by the migration.  Remaining 12 FAILs
+      are 4 distinct tests across 3 modes (`fence`, `match`,
+      `semantic`, `trace`).  Inspection of the post-migration
+      diffs shows these failures involve no `&&`/`||` at all —
+      they are pre-existing parser/runtime issues unrelated to
+      the language migration that surfaced once the `&&`/`||`
+      breakage cleared the way.  Investigation of those four is
+      out-of-scope for LS-5; LS-4.l acceptance of 42/0/3 remains
+      pending their resolution as a follow-on.
+
+      **Notable corpus-data observation** (no fix applied here):
+      `programs/snocone/corpus/sc8_strings.sc` has `c = a || b;`
+      with `.ref` expecting `hello world` (concat output).
+      Under Andrew's original `||` (alt-eval) this would have
+      yielded `hello` (first succeeder), and the migrated form
+      `c = (a, b);` preserves that semantic.  The `.ref`/`.sc`
+      mismatch is pre-existing corpus-data drift, not caused by
+      this migration.
 
 ### LS-6 — Atomic landing
 
