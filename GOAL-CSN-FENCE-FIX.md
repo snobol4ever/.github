@@ -529,72 +529,117 @@ in `csnobol4/docs/F-1-findings.md`.
       `'b'` now matches as it does in SPITBOL.  fence_function/ still
       10/10 PASS.  beauty advanced past "Parse Error" — now segfaults
       later at stmt 1074 (line 616, the *snoParse top-level call).
-- [ ] **Step 3a: pre-existing STAR-against-empty-subject bug.**
-      Discovered while bisecting beauty's remaining failure: any `*var`
-      pattern matched against an empty subject fails on csnobol4 but
-      succeeds on SPITBOL — independent of FENCE.  Verified present in
-      vanilla CSNOBOL4 2.3.3 (`a509cd7` "Initial import"), so it is
-      NOT a regression from any FENCE work, but it IS what blocks the
-      Step 3 done-when (beauty self-host ≥500 lines).
+- [ ] **Step 3a: TXSP corruption in walker descent (session #63 diagnosis).**
 
-      **Session #47 update (2026-04-28): the simple STAR-against-empty
-      repro now passes.** Either the bug class shifted under earlier
-      FENCE fixes or the original diagnosis was overly narrow. The
-      tiny repro `*LEN(0)` against `''` now matches on both csnobol4
-      and SPITBOL.  Beauty still crashes at stmt 1074 (line 616, the
-      `*snoParse *snoSpace RPOS(0)` chain) but the immediate crash is
-      different — see investigation below.
+      **Current concrete task for next session (#64):**
 
-      **Session #47 investigation found and partially fixed a different
-      bug class** (cpypat / FENCE(P) node layout):
+      Find the exact line in `isnobol4.c` that sets `S_L(TXSP)` to a
+      heap-pointer-shaped value during the failure walker's descent
+      through the leaked-region of `*var`-dispatched FENCE(P).
 
-      Root cause: the 5-descriptor FENCE(P) node built by FNCPP with
-      `slot[1].v=3` was incompatible with cpypat's STAR-style v=3
-      semantics ("4-descr advance with slot[4] overlapping next node's
-      title"). When FENCE(P) was concatenated into a larger pattern
-      via CONPP→cpypat, the source FENCE(P) block was 5*DESCR but
-      cpypat advanced 4*DESCR per iteration, causing it to read past
-      the block end on the second iteration and corrupt destination
-      pattern memory.
+      **Why this is the task** (session #63 evidence):
 
-      Fix landed (working tree, uncommitted at session #47 end):
-      1. `lib/pat.c` cpypat: handle `v7==4` as a self-contained 5-descr
-         node — copies slot[4] AND advances 5*DESCR.
-      2. `isnobol4.c` + `snobol4.c` FNCPP: writes `slot[1].v=4` instead
-         of 3, preserving 5-descr / slot[4]=P layout (slot[3]=0 stays
-         needed for QUICKSCAN length check at SCIN3).
-      3. `isnobol4.c` + `snobol4.c` FNCA / FNCBX: also pushes/pops
-         PDLPTR onto cstack so success and failure paths can rewind PDL
-         past inner-SCIN's leaked entries before pushing the FNCD seal
-         (success) or returning to outer failure walker (failure). Also
-         removed the spurious `D(PDLHED) = D(PDLPTR)` clobber that was
-         destroying outer's PDLHED.
+      With the s58 paired-STREXCCL sentinels committed, all 6 fence_suite
+      CRASHes are gone (44 OK / 4 FAIL / 0 CRASH).  The remaining 4 FAILs
+      (119, 124, 127, 129) all produce `unexpected match` — wrong-answer
+      semantics, not memory corruption.
 
-      Results:
-      - fence_function 10/10 PASS preserved (no regression).
-      - Beauty tiny repro: was SIGSEGV, now Error 17 (controlled
-        program error — no memory corruption).
-      - Beauty self-host: still 36 lines (need 500+).
-      - The remaining failure is **inside the recursive SCIN call from
-        FNCA**: at SCIN1's PATBRA fall-through (BRANCH INTR13) because
-        PTBRCL.a points to a non-pattern global function (KEYWRD).
-        gdb stack shows `INTR13 ← SCIN1 ← SCIN ← SCIN1 (FNCA's SCIN
-        call) ← SCIN`. So the inner pattern P that FNCA fed to SCIN
-        has a corrupted dispatch tag — `D_A(ZCL)` points into `res`
-        (global static area) instead of a valid PATBRA index.
+      Session #63 instrumented L_RPSII and L_SALT2 entries (see
+      `csnobol4/docs/F-2-Step3a-session63-diag.txt`) and ran the 5-line
+      repro on test 119.  The trace shows:
 
-      **Hypothesis for next session**: P itself becomes corrupted
-      during inner SCIN matching. Candidates:
-      - L_STAR's residual cache write `D(D_A(XPTR) + 7*DESCR) = D(YPTR)`
-        is hitting P's territory if P is shorter than 8 descriptors.
-      - PDL-based pattern building during inner-P evaluation overwrites
-        P's slot[1] dispatch tag.
-      - cpypat is being called inside inner-P matching with stale or
-        wrong source/dest, corrupting P.
+      1. RPOS(0) fires correctly with TXSP=0, MAXLEN=2, computes
+         TVAL=2/NVAL=0 → goto L_TSALF (clean fail).  Arithmetic is fine.
+      2. Walker descends through 6 SALT2 events.
+      3. Between SALT2 #5 (slot1=heap-pointer-with-FNC-set, slot2=0x...b5a0
+         = cmd's PATBCL — i.e. STREXCCL fires, restoring PATBCL=cmd) and
+         SALT2 #6, **TXSP transitions from 0 to 140702518392224**, which
+         is exactly cmd's PATBCL value.
 
-      Next session should add a SCIN1-entry trap that records the
-      pattern at PATBCL and verifies slot[1] is FNC-flagged — re-run
-      the trap during beauty to catch the first time P is corrupt.
+      The corruption is `S_L(TXSP) = D_A(<heap-pointer-shaped-thing>)`
+      executed during walker descent.  Some primitive is reading what
+      should be a small integer cursor and getting a heap pointer, then
+      assigning it to TXSP.
+
+      **What was ruled out:**
+
+      - Session #61's "in-place SCIN3-FENCEPT overwrite" — implemented in
+        s63, gates show NO change (44/4/0 unchanged).  Reverted.  The
+        bug is NOT the SCIN3-FENCEPT trap re-dispatching FNCA.
+      - Earlier sessions ruled out: PDLPTR rewind arithmetic (s49–s51),
+        cstack overwrite (closed by s58), single-iteration STREXCCL alone
+        (s56), targeted slot-zeroing (s54).
+
+      **Concrete steps for session #64:**
+
+      1. Apply diagnostic: `csnobol4/docs/F-2-Step3a-session63-diag.txt`
+         (L_RPSII + L_SALT2 trace).
+      2. Find every TXSP-write site:
+         ```bash
+         grep -n 'S_L(TXSP)\s*=' isnobol4.c
+         grep -n 'S_L(TXSP)\s*+=' isnobol4.c
+         ```
+         Likely sites include: SALT2 line 11498, SCIN3 fall-through path,
+         L_ANYC6, L_TBII, L_RTBII, L_SPNC5, primitive success paths.
+      3. Add an env-gated logger at every TXSP-write site:
+         ```c
+         if (getenv("TXSP_TRACE")) {
+             fprintf(stderr, "TXSP_WRITE site=%d new=%ld old=%ld YCL=%lx XPTR=%lx\n",
+                 SITE_ID, (long)D_A(YCL), (long)S_L(TXSP),
+                 (long)D_A(YCL), (long)D_A(XPTR));
+         }
+         ```
+         (One per site, with unique SITE_ID = source line number.)
+      4. Run `RPOS_TRACE=1 WALK_TRACE=1 TXSP_TRACE=1 ./snobol4 -bf
+         /tmp/repro5.sno` where `/tmp/repro5.sno` is:
+         ```
+                 cmd = FENCE('a' | 'ab')
+                 outer = ARBNO(*cmd)
+                 s = 'ab'
+                 s POS(0) *outer RPOS(0)                               :S(BAD)F(GOOD)
+         BAD     OUTPUT = 'unexpected match'                            :(END)
+         GOOD    OUTPUT = 'sealed'
+         END
+         ```
+      5. Find the SITE_ID where TXSP gets set to 140702518392224 (or
+         whatever the heap-pointer value is in the new run — it will be
+         a value with `D_A == cmd's PATBCL`).
+      6. Decide fix candidates based on what site fires:
+         - If SALT2 line 11498 (`S_L(TXSP) = D_A(YCL)`): the trap being
+           dispatched has a wrong slot[2] (YCL).  Fix where that trap
+           was pushed (likely an inner-SCIN3 push during cmd's body
+           matching, where YCL got computed from a corrupted descriptor).
+         - If a primitive (SPNC5 / TBII / etc.): the primitive is being
+           dispatched under wrong PATBCL state, with XPTR/YCL holding
+           pointer-shaped values.  Fix is upstream — that primitive
+           should not have been reachable.
+      7. Test gates AFTER fix: guard5, Tier F 16/16, fence_function 10/10,
+         fence_suite ≥45/48, beauty ≥500 lines.
+      8. Commit only if all gates pass; save diff + findings if not.
+
+      **Floors that must be preserved (unchanged from session #58):**
+      - fence_function/ 10/10 PASS.
+      - fence_suite Tier F (132–147) 16/16 PASS.
+      - fence_suite Tier A–E ≥ 44/48 (don't lose the 6 CRASHes that
+        s58 promoted to OK).
+      - guard5 (`cmd=(LEN(1)|LEN(2)); outer=(*cmd 'X'); s='ABX'`) must
+        continue to produce `inner backtrack worked`.
+
+      **Files of interest for session #64:**
+      - `csnobol4/isnobol4.c` — TXSP write sites.
+      - `csnobol4/docs/F-2-Step3a-session63-findings.md` — full s63 trace.
+      - `csnobol4/docs/F-2-Step3a-session63-diag.txt` — applied diff for
+        existing diag.
+      - `csnobol4/docs/F-2-Step3a-session58-paired-strexc-attempt.diff` —
+        the s58 architectural foundation (NOT YET committed; apply first
+        if working from a HEAD that doesn't have it integrated).
+
+      **History note:** Step 3a has been the active task since session
+      #45 (now 19 sessions).  Sessions #58 made the most progress (6
+      CRASHes → 0).  Session #63 reduced the bug to a single-line
+      diagnostic question.  Sessions #44–#62 narrative is preserved
+      below in the per-session "## Session #N update" sections; do
+      NOT repeat their refuted hypotheses.
 
 - [ ] **Step 3b: SIL/C consistency cleanup.**  Per RULES.md the SIL is
       the source of truth; the same edits made in `isnobol4.c` and
