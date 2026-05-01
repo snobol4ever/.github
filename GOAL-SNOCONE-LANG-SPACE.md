@@ -1534,13 +1534,16 @@ whitespace gap is consumed before the `+` decision.
       step's original acceptance criterion "Mirror snobol4.l
       %option reentrant noyywrap shape" is superseded: the FSM
       replaces flex entirely.
-- [ ] LS-3.f.2 — Move `test_snocone_lex2.c` (LS-1.b 31-test acceptance
-      harness) from production source to `test/frontend/snocone/`.
-      The harness drives `sc_lex_next(ctx)` directly and accumulates
-      tokens for assertions — a test concern, not a production
-      architecture.  Update `snocone_lex2()` wrapper to live in the
-      test harness file (it currently sits in `snocone_fsm.c` as a
-      back-compat trampoline).
+- [x] LS-3.f.2 — **LANDED** session 2026-04-30 #2 (one4all `55a30bcb`).
+      `test_snocone_lex2.c` moved to `test/frontend/snocone/
+      test_snocone_fsm.c`.  `ScTokenBuf`, `ScToken2`, `LexerState`,
+      `snocone_lex2()`, `sc_token_buf_free()` all DELETED — they were
+      dead two-pass-design vestiges with no remaining callers.
+      `snocone_lex2.h` renamed to `snocone_fsm.h` and stripped to just
+      the public FSM API (`ScKind`, `LexCtx`, `sc_lex_next`,
+      `sc_kind_is_value`, `sc2_kind_name`).  The harness now drives
+      `sc_lex_next(ctx)` directly token-by-token; no buffer.  Net:
+      ~470 lines deleted, ~70 added.
 - [x] LS-3.f.3 — Production gates (`test_smoke_snocone.sh` 5/5 etc.)
       remain green throughout LS-3.f.1.  Confirmed at handoff —
       production link path uses old hand-written `snocone_lex.c`
