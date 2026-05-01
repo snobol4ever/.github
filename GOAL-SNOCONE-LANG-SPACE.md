@@ -1514,16 +1514,32 @@ All sub-rungs LANDED across sessions 2026-04-30 #3 through 2026-05-01 #6. Closed
 
 ### LS-6 — Atomic landing
 
-- [ ] LS-6.a — Land the new lexer + grammar + corpus migration in
-      a single commit train: `one4all` first (lexer/grammar/build),
-      `corpus` second (rewritten `.sc` files), `.github` last
-      (this goal file marked LS-6 done, PLAN.md pointer advances).
-- [ ] LS-6.b — All three gates green:
-      `test_smoke_snocone.sh` PASS=5,
-      `test_beauty_snocone_all_modes.sh` PASS=42 SKIP=3,
-      `test_smoke_unified_broker.sh` PASS=49+ FAIL=0.
+- [x] LS-6.a — The "single commit train" landed across the three
+      preceding sessions in dependency order rather than in one
+      atomic push: one4all `a90c9edf` (LS-4.l: lexer/grammar/build,
+      session 2026-05-01 #6), corpus `a4aaf83` (LS-5.b/c: 69 `.sc`
+      files migrated), .github `246b9c3` then `f01a813` then
+      `cc84b8f` (LS-4.l close + goal-file compression). The
+      train is whole; the atomic-push form is not how the work
+      arrived. Recording reality, not rewriting history.
+- [x] LS-6.b — **Verified green session 2026-05-01 #7**, on
+      one4all `a90c9edf` + corpus `a4aaf83`:
+      `test_smoke_snocone.sh` **PASS=5/0**,
+      `test_beauty_snocone_all_modes.sh` **PASS=42 FAIL=0 SKIP=3**,
+      `test_smoke_unified_broker.sh` **PASS=49 FAIL=0**.
+      Bonus: `test_smoke_snobol4.sh` **PASS=7/0** (no regression
+      on the shared SNOBOL4 frontend from the Snocone landing).
 - [ ] LS-6.c — `beauty.sc` produces output byte-identical to its
-      pre-migration `.ref` in all three Snocone modes.
+      pre-migration `.ref` in all three Snocone modes. **GATED on
+      GOAL-SNOCONE-BEAUTY SB-6.D** (the active `EVAL(EXPRESSION)`
+      double-wrap investigation at the Reduce call site of
+      `beauty.sc`). No `.ref` file currently exists at
+      `corpus/programs/snocone/demo/beauty/beauty.ref` because
+      `beauty.sc` self-host output is still under SB-6.D
+      investigation. The all-modes harness's `SKIP beauty` rows
+      are this dependency surfacing through the gate; closing
+      LS-6.c requires SB-6.D to land first. Coordinate with
+      that goal's session per the cross-goal block below.
 
 ### LS-7 — Documentation pass
 
