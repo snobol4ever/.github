@@ -1742,9 +1742,100 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       parse-b 119/119, parse-c 66/66, FSM lex 31/31.  Combined
       frontend tests **251/251**.  Pure rename-and-typedef
       change; semantics unchanged.
-- [ ] LS-4.d — Add subscripting `a[i,j]` → `E_IDX`.  (Call-form
-      `f(a,b,c)` → `E_FNC` already landed in LS-4.b — it was the
-      headline gate vehicle.)  Parses `a[i, j]`.
+- [x] LS-4.d — **LANDED session 2026-04-30 #8.**  Postfix subscript
+      `a[i, j]` parses and lowers to E_IDX.  Single rung, single
+      grammar tier, no surprises.
+
+      **Grammar shape** — new `expr15` tier inserted between
+      `expr11` (exponent) and `expr17` (atoms), mirroring
+      `snobol4.y:183` exactly:
+
+          expr15 : expr15 T_LBRACK exprlist T_RBRACK
+                                { E_IDX node; subject as child[0];
+                                  index expressions drained from the
+                                  exprlist temporary into remaining
+                                  children }
+                 | expr17        ;
+
+      Left-recursive on the same tier so `a[i][j]` chains
+      naturally to `E_IDX(E_IDX(a, i), j)`, while
+      `a[i, j]` produces a single n-ary `E_IDX(a, i, j)`.  The
+      `exprlist` non-terminal already exists from LS-4.b
+      (function-call argument lists); reused without modification.
+      Empty subscript `a[]` is permitted at the grammar level via
+      the empty-list arm of `exprlist` — yields `E_IDX(a)` with
+      just the subject.  Semantic legality of empty subscripts is
+      a downstream concern.
+
+      **Lexer** — no changes.  `[` was already emitted
+      unconditionally as `T_LBRACK` regardless of preceding
+      whitespace (snocone_lex.c E_LBRACK rule); `a[i]` and
+      `a [i]` lex identically — no CONCAT injection between value
+      and `[`, matching Test 24's "no CONCAT before subscript"
+      requirement from the goal file.
+
+      **`expr11` redirect** — exponentiation now delegates to
+      `expr15` instead of directly to `expr17`, so subscript
+      binds tighter than `^` (e.g. `a[i] ^ 2` parses as
+      `(a[i]) ^ 2`).  Other tiers above (mul/div, add/sub,
+      compare, concat, alt, match, assign) inherit the new
+      tightness automatically through the existing delegation
+      chain.
+
+      **Compound-assign LHS** — `a[i] += 1` lowers to
+      `E_ASSIGN(a[i], E_ADD(clone(a[i]), 1))` correctly: the
+      `sc_clone_expr_simple` helper from LS-4.c already handles
+      E_IDX recursively (its switch-by-kind copies sval/ival/dval
+      and recursively clones every child, which works for any
+      n-ary node — the LS-4.c comment already anticipated this:
+      "Coverage … plus n-ary E_IDX / E_FNC for `a[i] += 1`…").
+      Verified by pointer-distinctness check in the test: the
+      LHS subtree and the RHS-embedded clone share no nodes
+      anywhere in the tree (no double-free risk at cleanup).
+
+      **Token block reorganization** — `T_LBRACK` and `T_RBRACK`
+      promoted out of the catch-all "unused" `%token` block
+      into a labeled "LS-4.d" block, matching the convention
+      established by LS-4.b/c (each rung's tokens move from the
+      catch-all into a labeled block when they pick up rules).
+
+      **Testing** — `test/frontend/snocone/test_snocone_parse_d.c`
+      (15 test functions, 79 assertions) covers the headline
+      `a[i, j]` two-index gate plus: single index, empty
+      subscript, two-deep chaining `a[i][j]`, three-deep
+      chaining `a[i][j][k]`, string keys `T['key']`, expression
+      children `a[1+2, 3*4]`, call-then-subscript `f(x)[i]`,
+      paren-then-subscript `(a+b)[i]`, compound-assign with
+      subscript LHS (with deep clone-distinctness + no-shared-
+      nodes verification), subscript-in-concat `a[i] b`,
+      subscript-in-arith `a[i] + b[j]`, plain-assign with
+      subscript LHS `a[i] = 5`, nested subscripts `a[b[c]]`,
+      and subscript-below-exponent `a[i] ^ 2`.  Runner
+      `scripts/test_smoke_snocone_parse_d.sh` matches the
+      parse-c shape.
+
+      **Bison build** — zero shift/reduce conflicts.
+      `expr15` left-recursion is the only choice point and Bison
+      resolves it cleanly because the LR(1) lookahead at
+      `T_LBRACK` is unambiguous after any `expr17`.
+
+      All gates green: parse-a 35/35, parse-b 119/119, parse-c
+      66/66, **parse-d 79/79**, smoke snocone 5/5, beauty
+      42/0/3, broker 49/0.  Combined parse gates **299/299**
+      (was 220/220 before this rung).  Side-channel — the
+      LS-4.d parser is not yet wired into scrip's production
+      driver; that happens at LS-4.j.  Production driver still
+      uses the legacy `archive/snocone_parse.c` shunting-yard
+      parser, hence the smoke/beauty/broker gates remain
+      green even though they don't exercise `expr15`.
+
+      **Forward note re: LS-4.f** — when `if`/`else` lands, use
+      the balanced `matched_stmt` / `unmatched_stmt` clause-
+      phrase split (Pascal/Algol style, zero conflicts) rather
+      than C's default-shift conflict acceptance.  Goal file's
+      meticulousness about hierarchy points to the balanced
+      grammar being the right fit for Snocone, even though the
+      shift-default would compile.
 - [ ] LS-4.e — Add unary operators: `T_1PLUS` `T_1MINUS`
       `T_1STAR` `T_1DOLLAR` `T_1DOT` `T_1AT`
       `T_1TILDE` `T_1QUEST` `T_1AMP` (and the
