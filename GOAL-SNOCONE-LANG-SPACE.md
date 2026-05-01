@@ -2078,6 +2078,119 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
 - [ ] LS-4.i — `switch`/`case`/`default`, `break`/`continue`, `goto`,
       `struct`, alt-eval `(a, b, c)` → `E_VLIST`.  beauty.sc-class
       programs reachable.
+
+      LS-4.i broken into sub-steps for clean incremental commits:
+
+- [x] LS-4.i.1 — **LANDED session 2026-05-01 #1.**  `goto LABEL;`
+      and `LABEL: stmt` prefix parse and lower to flat SNOBOL4 idiom.
+
+      **Grammar shape** — two tiny additions:
+
+          simple_stmt : ...
+                      | T_GOTO T_IDENT T_SEMICOLON
+                              { sc_append_goto_label(st, $2); free($2); }
+                      ;
+
+          label_decl  : T_IDENT T_COLON
+                              { sc_emit_label_pad(st, $1); free($1); }
+                      ;
+
+          matched_stmt   : ... | label_decl matched_stmt   ;
+          unmatched_stmt : ... | label_decl unmatched_stmt ;
+
+      The `label_decl` non-terminal fires its semantic action eagerly
+      at the colon — emits a label-only pad stmt into `st->code`
+      before the trailing stmt parses.  In SNOBOL4 a label on a
+      label-only pad chains forward to the next non-empty stmt, so
+      `top: x = 1;` produces `[label-pad "top"] [x = 1]` and a goto
+      to `top` lands semantically on the assignment.  No mid-rule
+      actions, no snapshots, no splice — the label-eager-emit
+      pattern is the cleanest fit.
+
+      **Lowering shapes** (verified by tests):
+
+          goto NAME ;       ->   stmt: subject=NULL, go.uncond="NAME"
+          NAME : stmt       ->   stmt: label="NAME", subject=NULL, go=NULL
+                                 followed by inner stmt's stmts.
+
+      **Disambiguation note** — at stmt-start, on T_IDENT with
+      lookahead T_COLON, Bison's LR(1) resolves cleanly: T_COLON does
+      not appear in any expression rule's FOLLOW set, so the only
+      viable parse is to shift T_COLON into label_decl rather than
+      reduce T_IDENT to expr17.  Bison emits zero shift/reduce or
+      reduce/reduce conflicts.
+
+      **Helpers added** (epilogue):
+        sc_emit_label_pad(st, name)   — append label-only no-op stmt
+        sc_append_goto_label(st, tgt) — append :(tgt) bare goto stmt
+
+      Both reuse the existing sc_make_label_stmt /
+      sc_make_goto_uncond_stmt / sc_append_chain machinery.
+
+      **Test gate** `scripts/test_smoke_snocone_parse_i.sh` runs
+      `test/frontend/snocone/test_snocone_parse_i.c` — 15 test
+      functions / **108/108 PASS**.  Coverage: bare goto, goto in
+      sequence, label before assign, label+goto loop, label before
+      block, label before if (synthetic `_Lend` follows user label),
+      label before while (user label sits before synthetic `_Ltop`
+      pad — chain semantics preserved), multiple goto targets,
+      stacked labels (`first: second: x = 1;` — recursive label_decl
+      rule), label before empty stmt, label inside function body
+      (between function entry-point label and body stmts), label
+      with preceding stmts (splice integrity), label whitespace
+      variants (`L:`, `L :`, `L  :  `, `L :x` all OK), goto
+      whitespace variants, label inside while body (correct
+      placement after synthetic cond stmt).  Combined parse gates
+      **776/776** (was 668/668).
+
+      All production gates green: smoke snocone 5/5, beauty 3-mode
+      42/0/3, unified broker 49/0.  Bison emitted zero shift/reduce
+      and zero reduce/reduce conflicts.
+
+      Side-channel only — LS-4.j wires the new parser into scrip's
+      production driver.
+
+- [ ] LS-4.i.2 — `break;` / `break LABEL;` / `continue;` /
+      `continue LABEL;`.  Per Q13 default placeholder: Option A
+      (both plain and labeled forms accepted), pending Lon's pick.
+      Plain `break;` exits innermost enclosing loop or switch;
+      `break LABEL;` exits the loop/switch tagged by user label.
+      Same for continue (innermost loop only — switch/case has no
+      continue target).  Lowering uses a "loop stack" in
+      ScParseState that is pushed at each while/do/for/switch head
+      and popped at finalize; each entry carries the synthetic
+      end-label (for break) and top-label (for continue), plus the
+      user label (if any) attached just before the loop.  `break`
+      without an enclosing loop or switch is a parse-time error;
+      `continue` without an enclosing loop is also an error.
+
+- [ ] LS-4.i.3 — `switch (e) { case v1: S1; case v2: S2; default: SD; }`.
+      Lowers to:
+          tmp = e
+          IDENT(tmp, v1)  :S(c1)
+          IDENT(tmp, v2)  :S(c2)
+                          :(cd)
+        c1  S1  :(after)
+        c2  S2  :(after)
+        cd  SD
+        after
+      Each case body falls through to the next case implicitly;
+      explicit `break;` is needed for non-fall-through (Q6).
+
+- [ ] LS-4.i.4 — Alt-eval `(a, b, c)` → `E_VLIST`.  Pure expression-
+      tier change at expr0 / paren-grouping.  When a comma-separated
+      list of expressions appears inside parens at top level,
+      construct an n-ary `E_VLIST` node.  The SPITBOL backend can
+      pass it through verbatim; non-SPITBOL backends lower to a
+      chain of `:S(after)` branches.
+
+- [ ] LS-4.i.5 — `struct NAME { field, field, ... };`.  Andrew's
+      `.sc` line 162 has this — a struct keyword that defines a
+      named record with a list of fields.  Lowers to per-field
+      accessor function definitions following SPITBOL's TABLE
+      idiom, or directly to PROTOTYPE/DATA.  Smallest scope —
+      defer to last so the four control-flow sub-steps land first.
+
 - [ ] LS-4.j — Wire-in only.  Add `snocone_parse.tab.c` to
       `src/Makefile` `FRONTEND_SNOCONE` (matching `FRONTEND_SNO`'s
       shape).  Collapse `snocone_compile()` to a thin wrapper
