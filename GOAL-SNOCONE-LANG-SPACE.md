@@ -1681,6 +1681,67 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       grammar requires `1 + 2` for binary T_ADDITION; this is
       SNOBOL4 surface convention, not a parser bug, and was
       caught/documented during the LS-4.c test write-up).
+- [x] LS-4.cn — **LANDED session 2026-04-30 #7.**  Cosmetic /
+      naming-symmetry rung between LS-4.c and LS-4.d.  Three
+      coordinated changes:
+
+      **1. File rename** — `snocone.y` →
+      `snocone_parse.y`; generated artifacts `snocone.tab.{c,h}`
+      → `snocone_parse.tab.{c,h}`.  Now matches the
+      `snocone_lex.{c,h}` companion: a Snocone reader sees the
+      pair (lex, parse) at a glance rather than a `.y` whose
+      relationship to `_lex.{c,h}` requires reading the regen
+      script.  Performed via `git mv` to preserve history.
+
+      **2. CODE_t typedef** — `typedef Program CODE_t;` added
+      in `src/frontend/snobol4/scrip_cc.h`.  Symmetric with
+      `EXPR_t`: `EXPR_t` is the IR for one expression (the type
+      EVAL operates on, per `eval_code.c:6-9`); `CODE_t` is the
+      IR for a list of statements (the type CODE operates on,
+      per `eval_code.c:11-14`).  `CODE_t` is a typedef *alias* of
+      `Program` — every existing call site that uses
+      `Program *` continues to work.  New code may use either
+      name.  Snocone parser migrated as the first user:
+      `ScParseState.prog` → `.code`, public entry signature
+      changed from `Program *snocone_parse_program(...)` to
+      `CODE_t *snocone_parse_program(...)`.
+
+      **3. Legacy parser moved to archive/** — The session-#7
+      file rename created an unintended interaction: with
+      `snocone_parse.y` next to the legacy hand-written
+      `snocone_parse.c` in the same directory, GNU Make's
+      built-in `.y.c` suffix rule clobbered the legacy parser
+      during the next build.  Initially worked around with
+      `.SUFFIXES:` in `src/Makefile`; permanent fix is to
+      relocate the legacy parser to `archive/`.  Both legacy
+      files (`snocone_parse.c` Sprint-SC1 shunting-yard parser
+      + `snocone_parse.h` API header) moved via `git mv` to
+      `archive/snocone_parse.c` and `archive/snocone_parse.h`.
+      Two `#include "snocone_parse.h"` callsites updated to
+      `#include "../../../archive/snocone_parse.h"`
+      (`snocone_lower.h` and `snocone_control.c`).  Makefile
+      `FRONTEND_SNOCONE` updated to reference
+      `../archive/snocone_parse.c` alongside the
+      already-archived `../archive/snocone_lex.c`.  The
+      `.SUFFIXES:` workaround removed — no longer needed since
+      the `.y` and `.c` are now in different directories.
+
+      **Archive cleanup invariant** updated: the four
+      `archive/snocone_lex.*` references from LS-4.a become
+      **six** after LS-4.cn (the two new
+      `archive/snocone_parse.h` includer-side mentions in
+      `snocone_lower.h` and `snocone_control.c`, plus the
+      Makefile entry for `archive/snocone_parse.c`).  LS-4.j
+      must end with zero such references — verify with
+      `grep -rn 'archive/snocone' src/ scripts/ test/` returning
+      empty, plus confirming `archive/snocone_parse.c` and
+      `archive/snocone_parse.h` are deletable.
+
+      All gates green throughout: smoke snobol4 7/7, smoke
+      snocone 5/5, beauty 42/0/3, broker 49/0, parse-a 35/35,
+      parse-b 119/119, parse-c 66/66, FSM lex 31/31.  Combined
+      frontend tests **251/251**.  Pure rename-and-typedef
+      change; semantics unchanged.
 - [ ] LS-4.d — Add subscripting `a[i,j]` → `E_IDX`.  (Call-form
       `f(a,b,c)` → `E_FNC` already landed in LS-4.b — it was the
       headline gate vehicle.)  Parses `a[i, j]`.
