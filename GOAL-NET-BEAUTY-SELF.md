@@ -2417,3 +2417,150 @@ buggy code.
     `.orig`, restored, `.orig` files removed).
   - Tree clean.
   - PLAN.md row 135 updated with this session's strategic pivot summary.
+
+---
+
+## Session #74 — 2026-05-01 (Sonnet 4.7 / Lon)
+
+**Outcome:** No commit. Diagnostic-only session. Tree unchanged at `a629a15`.
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+   `x64`. Installed `dotnet-sdk-10.0` (10.0.107). snobol4dotnet HEAD
+   `a629a15` build clean. Beauty self-host baseline confirmed: 47 stderr
+   lines, Parse Error at line 48 (`snoDQ = '"' BREAK('"' nl) '"'`).
+
+2. **IPC sync-step monitor with documented workarounds**
+   (`MONITOR_NAME_WILDCARD=spl`, `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`).
+   First DIVERGE confirmed at step **#2839** — same as session #73
+   (`spl: RETURN match (NRETURN)` vs `dot: CALL upr`). Wire-divergence
+   point unchanged.
+
+3. **Re-applied per-session #71 the diagnostic instrumentation
+   (`.orig`-backed, NEVER committed):**
+   - `MonitorIpc.cs`: `_emitCount` ticks at the entry of every
+     `EmitValue`/`EmitCall`/`EmitReturn`/`EmitLabel` regardless of IPC
+     pipe state, so `MONITOR_TRACE_FROM_EVENT`/`TO_EVENT` and
+     `MONITOR_BREAK_AT_EVENT` work standalone (no controller). `Init()`
+     reads the trace/break env vars even when no IPC pipes are
+     configured.
+   - `PatternMatch (Question Mark).cs`: `[QPM]` traces at MR.Outcome
+     report, BetaStack iteration entry/exit, EXIT Failure state.
+     Output to `Console.Out` (dot's SNOBOL4 OUTPUT goes to stderr,
+     so stdout is the clean trace channel).
+   - Build clean, all patches reverted before session end.
+
+4. **Standalone QPM trace, full beauty self-host**
+   (`MONITOR_TRACE_FROM_EVENT=1 MONITOR_TRACE_TO_EVENT=99999999`):
+   1112 QPM events captured. Key findings:
+
+   - **Line 47** `snoInteger = SPAN(digits)` parses **SUCCESS** at
+     ec=12113, BetaStack.Count=22.
+   - **Line 48** `snoDQ = '"' BREAK('"' nl) '"'` **FAILS** repeatedly:
+     first at ec=11265 (Count=0), again at ec=12499 (Count=0), final
+     at ec=37775 (Count=31). Approximately 25,000 emit-events of
+     **catastrophic backtracking** between ec=12113 SUCCESS and
+     ec=37775 final FAILURE.
+   - The repeating signature in the trace is a triplet:
+     `snoFunctions FAIL → snoBuiltinVars FAIL → snoSpecialNms FAIL`
+     repeated dozens of times at increasing event-count offsets —
+     dot tries the same three keyword-list matches at successive
+     cursor positions. `snoProtKwds` and `snoUnprotKwds` are NOT
+     in the failure set (no `&` keyword in the line).
+   - **Outcome shape is FAILURE, not session #71's Failure-leak.**
+     The match itself returns FAILURE; no `EXIT Failure=True` after
+     a SUCCESS. So this is not the same shape as session #71's
+     BetaStack-Failure-leak bug.
+
+5. **Minimum reproducer isolated.** Single-line stdin
+   `        x = '"' BREAK('"' nl) '"'\n        END\n` fed to
+   `beauty.sno` reproduces the Parse Error in dot but parses cleanly
+   in spl. Even simpler: any RHS expression beginning with a string
+   literal (`x = 'a'`, `x = '"'`, `x = 'a' BREAK(b)`) triggers the
+   structural failure shape when fed through beauty's grammar in
+   the right context.
+
+### Why this session did NOT close progress on the gating bug
+
+The user's strategy — *"after using the IPC sync step monitor tracing
+to find a bug, use automatic C# function tracing from last agreed sync
+step code position through to first diverged sync step code position;
+that C# trace should immediately reveal the bug"* — depends on the
+wire's last-agreed/first-diverged pair being **adjacent to** the
+structural divergence. Step #2838 / #2839 sit ~25,000 emit-events
+upstream of the actual line-48 PatternMatch FAILURE. C# function
+tracing across that 25k-event gap shows mechanically-correct
+keyword-list iteration; the trace bracket needs to land **on** the
+structural event for the strategy to deliver immediate isolation.
+
+That requires the structural event to be on the wire, which is
+session #73's pivot (S-2-bridge-coverage-pattern-traversal) and
+which has not yet landed. Session #74 confirmed empirically what
+session #73 predicted: with the current wire kinds (CALL/RETURN/
+VALUE/LABEL only), the harness cannot localize this bug class.
+
+### Confirmation of session #73's diagnosis
+
+Both line 26's bug (session #71 fix) and line 48's bug have the same
+**alternation-graph shape**: dot's snoExpr14/snoExpr17 alternation
+falls through to a downstream arm (`*snoFunction` / numeric / etc.)
+without trying the correct earlier arm (`*snoUnprotKwd` for line 26;
+`*snoString` for line 48 — at snoExpr17@line 187). The root cause is
+structural in the AST construction or alternation-arm linking — most
+likely in `PatternAlternation (Pipe).cs` or `AbstractSyntaxTree.Build`,
+NOT in the pattern-match scanner itself.
+
+### Hand-off state
+
+  - snobol4dotnet HEAD: `a629a15` unchanged.
+  - All diagnostic patches reverted; `.orig` backups removed.
+  - Tree clean across all repos: `.github`, `corpus`, `one4all`,
+    `snobol4dotnet`, `x64`.
+  - Beauty self-host gate: still 47 stderr lines, Parse Error at
+    line 48.
+  - Goal-file edits only this session.
+
+### Next session — two viable paths
+
+**Path A — land S-2-bridge-coverage-pattern-traversal**
+(session #73's chosen direction). New `MWK_*` kinds defined in
+`monitor_wire.h` for pattern-AST navigation: `MWK_PM_ENTER`,
+`MWK_PM_EXIT`, `MWK_PM_NODE`, `MWK_PM_BACKTRACK`, `MWK_PM_MARK`,
+`MWK_PM_SEAL`, plus runtime housekeeping `MWK_BETA_PUSH`,
+`MWK_BETA_COMMIT`, `MWK_FAILURE_FLIP`. Implement in dot first
+(smallest blast radius, single-repo), then spl (`x64/osint/...c`
++ `sbl.min` fire-points + regenerate `bootstrap/sbl.asm`), then
+controller-side recognition in `monitor_sync_bin.py`.
+
+After that lands, the harness's first DIVERGE row will name the
+specific snoExpr17 alternation arm where dot skips `*snoString`,
+and a C# trace bracketed by the structural events will fingerprint
+the bug in `PatternAlternation (Pipe).cs` or
+`AbstractSyntaxTree.Build` directly.
+
+**Path B — direct AST dump (cheaper, narrower).** Dump dot's AST
+for snoExpr17 at runtime under a `DOT_DUMP_AST=1` env var. Compare
+the alternation-arm chain (`Alternate` links from the snoExpr17
+start node) against beauty.sno's grammar at lines 167–189. The
+node whose `Alternate` link points to the wrong arm IS the bug.
+This bypasses the wire entirely. Faster, but doesn't restore
+harness trust for the next bug.
+
+Path A closes session #73's pivot and makes the harness honest;
+Path B closes the immediate symptom. Recommend Path B first to
+unblock the goal, then Path A as a separate rung once line 48
+is past — that way each rung has its own focused commit and
+test gate.
+
+### Status updates
+
+  S-2-bridge-7-fullscan                  [~] partial — line 48
+                                              gating bug confirmed
+                                              structural per session
+                                              #73 diagnosis; reproducer
+                                              isolated to one stdin
+                                              line.
+  S-2-bridge-coverage-pattern-traversal  [ ] open — needed for harness
+                                              trust; not implemented
+                                              this session.
