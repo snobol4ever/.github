@@ -1950,7 +1950,9 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       cond-semantics decision Lon makes here gates that
       milestone.
 - [x] LS-4.g — **LANDED session 2026-04-30 #11** (one4all `4cef1dc6`). `do/while` and `for` parse and lower correctly. (`do/until` initially added, then **removed per Lon directive session 2026-04-30 #12** — Snocone follows C's loop forms exactly: `while` and `do/while` only.) `do_body` non-terminal (brace-block only) resolves the grammar ambiguity where T_KW_WHILE after a matched_stmt body would be indistinguishable from a new while_head. `sc_finalize_do_while` (onsuccess loops back), `sc_finalize_for` (init→Ltop→cond:F→body→step→:(Ltop)→Lend). New gate `test_smoke_snocone_parse_g.sh`: **95/95 PASS** (3 tests verify do/until is now a syntax error). Combined parse gates **583/583** (488+95).
-- [x] LS-4.h — **LANDED session 2026-04-30 #13** (one4all `1c72f7f6`).
+- [x] LS-4.h — **LANDED session 2026-04-30 #13** (one4all `ddc44b59`,
+      preceded by `1c72f7f6` for the LS-4.h grammar additions and the
+      first `T_KW_*` → `T_*` rename pass).
       `function`/`return`/`freturn`/`nreturn` parse and lower to the
       SPITBOL idiom.
 
@@ -1965,14 +1967,14 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       yielding `"a"`, `"a,b"`, `"a,b,c"`, etc., as a single
       malloc'd string handed to `sc_func_head_new`.
 
-          func_head : T_FUNCTION_KW T_FUNCTION T_LPAREN func_arglist opt_head_sep
+          func_head : T_FUNCTION T_CALL T_LPAREN func_arglist opt_head_sep
                           { sc_func_head_new(st, $2, $4); }
 
-      The `T_FUNCTION` token is the FSM's IDENT-followed-by-zero-
-      space-`(` call-form token (already used at `expr17` for call-
-      style expressions); it carries the function name string.
+      The `T_CALL` token is the FSM's IDENT-followed-by-zero-
+      space-`(` call-form token (also used at `expr17` for
+      call-style expressions); it carries the function name string.
       The `T_LPAREN` is consumed separately because the FSM emits
-      `T_FUNCTION` and `T_LPAREN` as **two adjacent tokens** even
+      `T_CALL` and `T_LPAREN` as **two adjacent tokens** even
       though the source text has no whitespace between them — same
       pattern as `expr17`'s call-form rule.
 
@@ -2027,10 +2029,21 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       `T_IF`, `T_ELSE`, `T_WHILE`, `T_DO`, `T_UNTIL`, `T_FOR`,
       `T_SWITCH`, `T_CASE`, `T_DEFAULT`, `T_BREAK`, `T_CONTINUE`,
       `T_GOTO`, `T_RETURN`, `T_FRETURN`, `T_NRETURN`, `T_STRUCT`,
-      and `T_FUNCTION_KW` (the `function` keyword — `_KW` suffix
-      retained to avoid colliding with `T_FUNCTION`, the
-      IDENT-followed-by-zero-space-`(` call-form token).  Pure
-      cosmetic rename; semantics unchanged.  Generated
+      and `T_FUNCTION_KW` for the `function` keyword (placeholder
+      while `T_FUNCTION` was still occupied by the call-form
+      token).  Pure cosmetic rename; semantics unchanged.
+
+      **Second rename pass** (Lon directive, same session #13):
+      `T_FUNCTION` → `T_CALL` (the IDENT-followed-by-zero-space-`(`
+      call-form token from the FSM); `T_FUNCTION_KW` → `T_FUNCTION`
+      (the `function` keyword now takes the cleaner name).  Done as
+      a three-step swap via a `T_FUNCTION_TEMPSWAP` holding name to
+      avoid aliasing during the rename.  FSM internal action label
+      `E_FUNCTION` → `E_CALL` for symmetry with the new token name
+      (the `E_` prefix in `snocone_lex.c`'s threaded FSM means
+      "emit-then-return", and the suffix mirrors the token name).
+      Stale "_KW suffix to avoid colliding" rationale comment
+      removed from `snocone_parse.y`.  Generated
       `snocone_parse.tab.c`/`.tab.h` regenerated from source.
 
       **Smoke-test rename** — `scripts/test_smoke_snocone.sh`
