@@ -1703,3 +1703,208 @@ the same way.
 - one stray `foo.baz` (empty file) in one4all/ at session start —
   removed before commit per RULES.md "Diagnostic patches are
   diagnostic — never commit them".
+
+---
+
+## Session #25 (2026-05-01) — IC-9 advance: record subscript + Icon scan-state writes + parser permissiveness
+
+IC-9 IN PROGRESS.  One closed test (+1 PASS), three previously-unparseable
+tests now parse and run, foundational scan-state writes landed.  Six files
+changed across `one4all/src` (99 insertions, 12 deletions).  Gates:
+smoke 5/0, broker 49/0, crosscheck 4/0/0, rung_36 PASS=11→**12**,
+rung01-36 PASS=199→**200** FAIL=34→**33** XFAIL=30 unchanged.
+
+### Headline: rung36_jcon_record CLOSED — empty diff vs `.expected`
+
+Session #24's named "natural next pivot" landed.  Single-site fix in
+`subscript_get` (`src/runtime/x86/snobol4_pattern.c`): added a SPITBOL-
+DATA-record arm between the icnlist arm and the legacy tree-child-access
+arm.  Recognized via session-#24's record-shape contract
+(`arr.u && arr.u->type && arr.u->type->nfields > 0 && arr.u->fields`),
+dispatches by `IS_INT_fn(idx)` (returns `fields[i-1]` with 1-based bounds)
+or `idx.v == DT_S/DT_SNUL` (linear scan over `type->fields[]` field-name
+strings via plain `strcmp`).  No header dependency — `DATBLK_t` and
+`DATINST_t` are both already in `snobol4.h`.  Field-name lookup was
+inlined rather than calling out to `data_field_ptr` (which is `static` in
+`interp.c`); zero new API surface, mirrors the icnlist arm's inline style.
+
+The 4 missing diff lines from session #24 (`every write(b[1 to 3])` and
+`every write(b["f" || (1 to 3)])` on `rec(3, 7)`) are now present
+byte-identical.  Verified by empty `diff -q rung36_jcon_record.expected
+out`.
+
+### Foundation: Icon `&pos` / `&subject` writes + `:=:` swap + scan-state init
+
+Three coordinated edits in `src/driver/interp.c` and one in
+`src/runtime/interp/icn_runtime.c` and one in `src/driver/polyglot.c`,
+landing the runtime contract for Icon scan-state mutation.  Reads of
+`&pos` and `&subject` already worked (at line ~1147 of interp.c via the
+icon-frame E_VAR dispatch); writes were missing — `&pos := N` parses to
+E_ASSIGN(E_VAR("&pos"), N) but the icon-frame E_ASSIGN's E_VAR branch
+explicitly skipped `&`-prefixed names ("for parity with the pattern-match
+path", line 1158-original).
+
+  1. **`icn_kw_assign` helper** (new, just before `interp_eval` in
+     interp.c).  Encapsulates the spec semantics: `&pos := N` accepts
+     N in `[-L, L+1]` where L=strlen(subj); N=0 → L+1 (after-last);
+     N<0 → L+1+N; OOB → return 0 (FAIL).  `&subject := s` accepts any
+     value, stringifies via VARVAL_fn, GC_strdup, **resets `&pos` to 1**
+     (Icon spec).  Other keywords: silent no-op (return 1) — read-only
+     keywords like &letters, &lcase, &digits already have read paths
+     and writing them would be a semantics-mismatch error to surface
+     elsewhere.
+
+  2. **E_ASSIGN E_VAR `&` branch** wired in icon-frame E_ASSIGN at
+     line ~1150.  Detected by `lhs->sval[0] == '&'`; routes to
+     `icn_kw_assign(lhs->sval+1, val)`.  On FAIL, returns FAILDESCR
+     (the whole assign fails, like any other Icon assign).
+
+  3. **E_SWAP keyword sides** at line ~4622.  Both LHS and RHS branches
+     check `sval[0] == '&'` and route to `icn_kw_assign` instead of
+     `NV_SET_fn`.  Critical detail: keyword-write FAIL is **silent** —
+     left-to-right execution continues with the other side getting the
+     `lv`/`rv` it would have gotten.  This matches Icon's `:=:` spec
+     and is byte-confirmed against `subjpos.expected` lines 56-58
+     (`&pos := 3; x := 9; &pos :=: x` → `pos=3 x=3` because the
+     `&pos := 9` half OOBs silently and x still gets the old pos).
+
+  4. **Scan-state init defaults** (`icn_runtime.c` lines 75-76 +
+     `polyglot.c` line 86).  Per Icon spec, before the first `?` block
+     `&pos = 1` and `&subject = ""`.  Pre-fix defaults were
+     `icn_scan_subj = NULL; icn_scan_pos = 0` — yielded `&subject=&null`
+     instead of `&subject=""` and `&pos=0` instead of `&pos=1` at program
+     start.  Fixed in two places (the static initializer in
+     icn_runtime.c AND the polyglot reset in polyglot.c which fires per
+     run).  Downstream gates of the form `icn_scan_pos > 0` in
+     `any/many/upto/move/tab/match` (interp.c lines 1372-1407) all
+     remain safe — the empty subject correctly fails any operation
+     requiring position movement via the existing length check.
+
+### Parser permissiveness: optional `;` after `}`-terminated statement and after procedure header
+
+Two distinct issues in `src/frontend/icon/icon_parse.c` (+ one new field
+in `icon_parse.h`).  Real Icon is more permissive than our parser was
+documented as "explicit-semicolon Icon (no auto-insertion)" (header line
+4).  Three rung36 JCON tests rely on this permissiveness and previously
+failed at parse time with garbled error messages — fixing them unlocks
+them as runtime work, not parser work.
+
+  1. **`prev_kind` field** added to `IcnParser` struct.  Tracks the
+     kind of the last token consumed by `advance()` — enables
+     `parse_stmt` to know whether the just-parsed expression ended on
+     a `}`.  Header change → required clean rebuild of the icon
+     frontend `.o` files; see "Build hazard" below.
+
+  2. **`parse_stmt` expression-stmt terminator rule** (line ~765)
+     extended: `;` is optional when the just-parsed expression ended
+     on `}`, in addition to the existing exempt lookaheads (`}`, EOF,
+     `end`, `else`, `then`, `return`, `suspend`).  Closes the JCON
+     idiom of nested `?` blocks where the inner block's `}` is the
+     last token of an expression statement and the next statement
+     starts on a fresh line without explicit `;`.
+
+  3. **`parse_proc` optional `;` after `()`** (line ~833).  JCON style
+     allows `procedure ws();` followed by body — current parser
+     required body to start immediately after `)`.  Fixed by adding
+     `match(p, TK_SEMICOL)` after the existing `expect(TK_RPAREN)`
+     call.  Idempotent (the `;` is optional, not required).
+
+These two fixes are independent but compound: with both in place,
+`rung36_jcon_subjpos`, `rung36_jcon_scan1`, `rung36_jcon_var` go from
+"parse fails on line N with garbled error" to "parses; runs to
+completion; produces partial output".
+
+### Build hazard hit (already documented in session #16 but worth re-noting)
+
+`build_scrip.sh` does NOT track header dependencies.  After modifying
+`icon_parse.h`, only the `.c` file directly being edited was recompiled;
+`icon_driver.o` and `icn_main.o` retained the pre-change `IcnParser`
+layout.  Symptom: the parser silently corrupted `had_error` (which sat
+at a different offset in the new layout) and `errmsg` showed up empty
+at print time.  The DBG print I added to `parser_error` confirmed
+`parser_error` itself was never being called — meaning `had_error` was
+being clobbered by ABI mismatch, not set legitimately.
+
+Fix: `rm src/frontend/icon/*.o && bash scripts/build_scrip.sh`.
+Cost: ~10 minutes of confused investigation.  Following sessions: when
+editing any `.h` in src/frontend/, do clean rebuild of that frontend's
+`.o` first.  This may belong in RULES.md if not already there.
+
+### Subjpos final state — 56/62 lines byte-identical
+
+After all fixes, `rung36_jcon_subjpos` parses, runs, and produces
+output that matches `.expected` for 56 of 62 lines (90%).  Remaining
+diff is exactly the `every &pos <-> x do …` reversible-swap cases
+(source lines 42, 46) — Icon's `<->` is supposed to revert both
+writes on backtrack.  Currently we route `<->` to E_SWAP with the
+same scalar implementation as `:=:`; correct implementation needs an
+icn_bb_swap box with revert-on-exhaust.  Tracked as IC-9 followup.
+This is sufficient byte-overlap that I'm confident the underlying
+runtime contract for `&pos`/`&subject` is correct — the failing
+lines all involve the *separate* feature of reversible-swap revert,
+not a flaw in the keyword-assign mechanism itself.
+
+### Other tests unblocked (now parsing, not yet PASSing)
+
+- **`rung36_jcon_scan1`** — parses now; OOM at runtime (heap allocator
+  asks for 2^54 KiB).  Some downstream feature exposed by the longer
+  parse path runs into either an unbounded recursion or a length
+  miscalculation.  Worth investigating; likely a single bad cast.
+
+- **`rung36_jcon_var`** — parses now; diff = 79 lines.  Tests
+  procedure-value introspection (`image`, `args`), Icon `&main`,
+  many keyword reads.  Multi-feature, deferred.
+
+- **`rung36_jcon_scan`** — was parsing already; remains parsing with
+  large (143-line) diff.  Tests the full scan subsystem
+  (`tab/move/upto/match/any` interactions, `=`-string-match,
+  `?:=` scanned-assign, etc.).  Multi-feature, deferred.
+
+- **`rung36_jcon_scan2`** — different parse error (line 25 "function
+  call"), not unblocked by these changes.  Cset literal or
+  immediate-cast issue, not the same family.
+
+### Why no PASS bump beyond +1
+
+The headline number (rung_36: 11→12, ladder: 199→200) reflects only
+the record-subscript closure.  The parser permissiveness and scan-state
+fixes are **infrastructure work** — they remove blockers that were
+hiding feature gaps further downstream.  Now-parsable tests reveal
+those gaps as clean diffs that future sessions can attack one at a
+time.  Without these fixes, work on `every <->`, on Icon procedure
+values, on the rest of the scan subsystem would have been gated by
+"can't even run the test" rather than "can run, here's the actual
+diff to close".
+
+### Followup candidates ranked by surface area
+
+1. **`every <-> x` reversible swap box** — 1 file, ~1 box.  Closes
+   `subjpos`.  Mechanical: model on existing `icn_bb_revassign` for
+   E_REVASSIGN; save both old values, on exhaust restore.
+
+2. **`scan1` OOM diagnosis** — likely a single bad-cast bug; fix
+   could be tiny if the cause is simple.  Run with limited heap +
+   gdb to catch the runaway allocation site.
+
+3. **Procedure values + `image(p)`** — affects `mathfunc`,
+   `numeric`, `lists` (via `args`), `var`.  Single new descriptor
+   type (DT_PROC tag on DT_DATA, or a fresh DT_FN), plus image
+   formatting.  ~3 files.
+
+4. **`100 -- 4` cset-difference on integers** — single site in
+   the `--` operator handler; closes one diff line on
+   `rung36_jcon_radix` per session #24's catalog.
+
+### Working-tree state at handoff
+
+- one4all dirty (6 files): `src/runtime/x86/snobol4_pattern.c` (+22),
+  `src/driver/interp.c` (+~50), `src/frontend/icon/icon_parse.c`
+  (+10), `src/frontend/icon/icon_parse.h` (+4 — new prev_kind field),
+  `src/runtime/interp/icn_runtime.c` (+5 — init defaults & comment),
+  `src/driver/polyglot.c` (+1, -1 — init defaults).  Total 99
+  insertions, 12 deletions.
+- .github dirty (this update + PLAN.md state row)
+- corpus clean, csnobol4 clean, x64 clean
+- one stray `foo.baz` (empty file) at one4all/ root at session start —
+  removed before commit per RULES.md "Diagnostic patches are
+  diagnostic — never commit them".
