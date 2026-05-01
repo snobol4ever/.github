@@ -1836,15 +1836,116 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       meticulousness about hierarchy points to the balanced
       grammar being the right fit for Snocone, even though the
       shift-default would compile.
-- [ ] LS-4.e — Add unary operators: `T_1PLUS` `T_1MINUS`
-      `T_1STAR` `T_1DOLLAR` `T_1DOT` `T_1AT`
-      `T_1TILDE` `T_1QUEST` `T_1AMP` (and the
-      OPSYN-slot `T_1PERCENT` `T_1SLASH` `T_1POUND`
-      `T_1PIPE` `T_1EQUAL`).  Parses `*expr`, `.var`, `$x`.
-- [ ] LS-4.f — Control flow `if`/`else`/`while`.  Snocone smoke gate
-      `if_eq` and `while` PASS.  Use multiple back-to-back mid-rule
-      actions (one value per MRA via `$<str>$`) — Bison rejects
-      writes to *prior* MRAs (`$<str>2 = le` is an error).
+- [x] LS-4.e — **LANDED session 2026-04-30 #9** (one4all `a929d72b`).
+      All remaining SPITBOL unary operators added to the Snocone Bison
+      grammar at `expr17` (atoms tier, highest priority): `*expr` →
+      E_DEFER, `.expr` → E_NAME, `$expr` → E_INDIRECT, `@expr` →
+      E_CAPT_CURSOR, `~expr` → E_NOT, `?expr` → E_INTERROGATE,
+      `&expr` → E_OPSYN("&"), and OPSYN-slot unaries `%expr` `/expr`
+      `#expr` `|expr` `=expr` → E_OPSYN(op).  Chains nest right-to-
+      left: `~.x` → E_NOT(E_NAME(x)).  Binary context preserved:
+      `a + *b` → E_ADD(a, E_DEFER(b)).  Zero new Bison conflicts.
+      Gate `test_smoke_snocone_parse_e.sh` runs
+      `test_snocone_parse_e.c` (19 functions / **71/71 PASS**).
+      Combined parse gates 370/370 (was 299/299).  Production gates
+      unchanged (smoke 5/5, beauty 42/0/3, broker 49/0).
+- [ ] LS-4.f — **IN PROGRESS** session 2026-04-30 #10 (one4all
+      `c4337189`).  Control flow `if`/`else`/`while` parses, lowers
+      to flat SPITBOL :F/:(uncond)-style stmts, and passes 118/118
+      side-channel assertions across 15 test cases.  **Held open
+      pending Lon's resolution of an open semantic question
+      surfaced at handoff:**
+
+      > Does `if (c) {…}` (bare bound name as cond) lower to the
+      > same shape as `if (DIFFER(c)) {…}` (real backtracking expr)?
+
+      Current behaviour: `if (c)` accepts a bare expression and
+      emits `cond :F(Lend)`.  When `cond` is a bare bound name,
+      that statement always succeeds (the SNOBOL4 default for an
+      assigned variable reference is succeed-with-value), so the
+      `:F(Lend)` branch can never fire — runtime-correct but
+      IR-misleading.  Three resolutions on the table:
+
+      1. **Accept as-is**, document the gotcha — bare-name conds
+         always-succeed, programs that want failure need DIFFER /
+         EQ / `?match` / etc.
+      2. **Restrict to operator-yielding expressions** at parse
+         time — `if (c)` is a syntax error; `if (DIFFER(c))` /
+         `if (GT(x, 0))` / `if (s ? pat)` etc. are accepted.
+      3. **Auto-wrap bare names** — `if (c)` lowers identically to
+         `if (DIFFER(c))`.  Most "what the C programmer probably
+         meant" semantics, but most surprising in a SPITBOL world.
+
+      All three are mechanical changes from this checkpoint.  Lon
+      picks; the rung re-opens to land it.
+
+      **Implementation choices made this session (all working in
+      `c4337189`):**
+      - Pascal/Algol balanced grammar `matched_stmt` /
+        `unmatched_stmt` for dangling-else.  Zero shift/reduce
+        and zero reduce/reduce conflicts.
+      - **Emit-and-splice architecture.**  `if_head` /
+        `while_head` reduce on `T_RPAREN` of the head, snapshot
+        `st->code->tail`, emit nothing.  Body parses normally.
+        Parent rule's final action calls `sc_finalize_if_no_else`
+        / `sc_finalize_if_else` / `sc_finalize_while` to splice
+        cond-stmt and label-stmts into the linked list at the
+        correct positions.  The eager-emit-via-MRA approach was
+        attempted first and produced 96 reduce/reduce conflicts
+        (Bison was killed running `-Wcounterexamples`); snapshot
+        + final-action splice keeps emissions out of the contended
+        region.
+      - `else_keyword` non-terminal snapshots tail at
+        `T_KW_ELSE` so the else-body splice point is known.  One
+        non-terminal shared between matched-else and unmatched-else
+        rules — distinct anonymous MRAs at the same parser state
+        would have been a conflict.
+      - `opt_head_sep` non-terminal absorbs the spurious `T_CONCAT`
+        that the LS-3 W{OP}W lexer synthesizes between `)` of an
+        if/while head and a value-starting body token (e.g.
+        `if (c) y = 1` — between `)` and `y`).  Inside an
+        expression that CONCAT is meaningful concat; after a head
+        it must be discarded.  Empty-production keeps brace-block
+        bodies (`if (c) {…}`) working with no changes.
+      - Lowering shapes (verified by tests):
+          `if (C) S`         → `cond:F(Lend); <S>; Lend`
+          `if (C) S1 else S2`→ `cond:F(Lelse); <S1>; :(Lend); Lelse; <S2>; Lend`
+          `while (C) S`      → `Ltop; cond:F(Lend); <S>; :(Ltop); Lend`
+      - Synthetic labels `_Lend_NNNN`, `_Lelse_NNNN`,
+        `_Ltop_NNNN` (4-digit per-parse counter, underscore prefix
+        avoids collision with user labels).
+      - `IfHead` / `WhileHead` heap structs added to `%union`
+        (forward-declared in the prologue, full layout in the
+        epilogue).
+      - **Empty-then-S1 splice ordering bug fixed:** when
+        `before_else == h->before_body`, after step (1) splices
+        `cond_stmt`, the correct anchor for the goto+Lelse chain
+        is `cond_stmt` itself, not the original `before_else`
+        (which would re-prepend before cond).
+
+      **Test gate** `scripts/test_smoke_snocone_parse_f.sh` runs
+      `test/frontend/snocone/test_snocone_parse_f.c` — 15 functions
+      / **118/118 PASS**.  Coverage: if-no-else, if-else, while,
+      block bodies, empty blocks, dangling-else (else binds to
+      inner-if), while-inside-if, if-inside-while, pre-existing
+      stmts (splice integrity), post-existing stmts, unique labels
+      across adjacent constructs, if-else with both branches
+      block-wrapped, empty then-branch with else (the splice-
+      ordering edge case), chained `else if`.
+
+      All production gates green: `test_smoke_snocone.sh` 5/5,
+      `test_smoke_unified_broker.sh` 49/0,
+      `test_beauty_snocone_all_modes.sh` 42/0/3.  Combined parse
+      gates **488/488** (was 370/370).  Side-channel only — LS-4.j
+      wires the new parser into scrip's production driver.
+
+      Smoke gate `if_eq`/`while` from the original LS-4.f goal-file
+      step description still PASSes via the legacy
+      `archive/snocone_parse.c` shunting-yard parser (production
+      driver still uses that until LS-4.j).  When LS-4.j lands, the
+      smoke gate will exercise the new Bison parser and any
+      cond-semantics decision Lon makes here gates that
+      milestone.
 - [ ] LS-4.g — `do/while`, `do/until`, `for`.  Test_smoke_snocone full.
 - [ ] LS-4.h — `function`/`return`/`freturn`/`nreturn`.  Smoke
       `procedure` test renamed to `function` (per session #7
