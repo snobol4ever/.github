@@ -1554,10 +1554,37 @@ whitespace gap is consumed before the `+` decision.
 Lon directive (session 2026-04-30 #1): "Split out steps into smaller
 chunks if needed."  Original LS-4.a–e replaced with finer-grained:
 
-- [ ] LS-4.a — Skeleton `snocone.y`: atoms (T_INT, T_REAL, T_STR,
-      T_IDENT, T_KEYWORD) + arithmetic (`+`, `-`, `*`, `/`, `^`)
-      + paren-grouping.  Public entry `snocone_parse_program()`
-      replaces `snocone_compile()`.  Parses and runs `OUTPUT = 2 + 3`.
+- [x] LS-4.a — **LANDED session 2026-04-30 #3.**  Skeleton `snocone.y`:
+      atoms (T_INT, T_REAL, T_STR, T_IDENT, T_KEYWORD) + arithmetic
+      (`+`, `-`, `*`, `/`, `^` — right-associative exponent) +
+      paren-grouping + signed unary `+`/`-` + `;`-terminated
+      statements + top-level `T_ASSIGNMENT` splitting into
+      subject/replacement matching snobol4.y's `stmt_commit_go`
+      pattern.  Public entry `Program *snocone_parse_program(const
+      char *src, const char *filename)` at `src/frontend/snocone/
+      snocone.y` (~600 lines incl. doc comments, generated
+      `snocone.tab.c`/`.tab.h` committed alongside).  yylex thunk
+      calls `sc_lex_next(ctx)` directly — single-pass per LS-4.j
+      convention.  Token-namespace decoupling resolved cleanly via
+      `%code top` block: aliases the FSM's `T_*` enum names to
+      `SC_T_*` via `#define`/`#undef` around the
+      `#include "snocone_lex.h"`, so a single translation table
+      `sc_kind_to_tok()` is the only boundary between the FSM
+      enum (1..N) and Bison's `enum sc_tokentype` (258+M).  File
+      reorganisation: `snocone_fsm.c`/`.h` renamed to
+      `snocone_lex.c`/`.h` (the standard frontend lexer name);
+      old hand-written `snocone_lex.c`/`.h` moved to
+      `one4all/archive/`; Makefile and 2 callsite includes
+      (`snocone_control.c`, `snocone_parse.h`) redirected to the
+      archive path; production path unchanged.
+      `test_snocone_fsm.c` renamed to `test_snocone_lex.c`.
+      New gate `test_smoke_snocone_parse_a.sh` runs
+      `test_snocone_parse_a.c` (9 cases covering assignment IR
+      shape, precedence, parens override, exponent right-assoc,
+      unary minus, bare-expression statement subject-only,
+      multiple statements, string and real literals — **35/35
+      PASS**).  Production gates remain green: smoke 5/5,
+      beauty 42/0/3, broker 49/0; FSM lex test 31/31.
 - [ ] LS-4.b — Add comparison/identity operators:  `EQ`, `NE`, `LT`,
       `GT`, `LE`, `GE`, `LEQ`, `LNE`, `LLT`, `LGT`, `LLE`, `LGE`,
       `IDENT`, `DIFFER` — all lower to `E_FNC` named calls.
@@ -1585,13 +1612,26 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       `struct`, alt-eval `(a, b, c)` → `E_VLIST`.  beauty.sc-class
       programs reachable.
 - [ ] LS-4.j — Wire-in: add `snocone.tab.c` to `src/Makefile`
-      `FRONTEND_SNOCONE` (matching `FRONTEND_SNO`'s shape), add
-      snocone block to `regenerate_parser_and_lexer_from_sources.sh`,
-      remove `snocone_lex.c` (old hand-rolled, LS-3.d trigger),
-      remove `snocone_parse.c`, `snocone_lower.c`,
-      `snocone_control.c`.  `snocone_compile()` collapses to a
-      thin wrapper around `snocone_parse_program()` (~5 lines —
-      mirror `sno_parse_string()` at `snobol4.y:316`).
+      `FRONTEND_SNOCONE` (matching `FRONTEND_SNO`'s shape).
+      Snocone block in `regenerate_parser_and_lexer_from_sources.sh`
+      already added in LS-4.a (session 2026-04-30 #3 — cosmetic
+      pull-forward, only generates `.tab.c`/`.tab.h` since the
+      lexer is the hand-written FSM, not Flex).  Remove the
+      archived legacy lexer (`one4all/archive/snocone_lex.c`/`.h`,
+      placed there during LS-4.a's rename), remove
+      `snocone_parse.c`, `snocone_lower.c`, `snocone_control.c`.
+      `snocone_compile()` collapses to a thin wrapper around
+      `snocone_parse_program()` (~5 lines — mirror
+      `sno_parse_string()` at `snobol4.y:316`).
+      **Invariant at end of LS-4.j:** zero active-code references
+      to `archive/snocone_lex.*` from `src/`, `scripts/`, or
+      `test/`.  Verify with
+      `grep -rn 'archive/snocone' src/ scripts/ test/` — must
+      return empty.  Four references exist after LS-4.a (Makefile
+      line 27, `snocone_control.c:53`, `snocone_parse.h:41`,
+      a doc-comment in `snocone_lex.h:15`); LS-4.j removes the
+      first three by deleting the consuming files and rewriting
+      the Makefile, and the fourth by editing the comment.
 - [ ] LS-4.k — `test_smoke_snocone.sh` PASS=5 again.
       `test_smoke_unified_broker.sh` PASS=49+ FAIL=0.
 
