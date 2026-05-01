@@ -1145,3 +1145,161 @@ Separately: `delete()` arity bug (`delete(x)` 1-arg and `delete(x,3,6)`
 Visible as `delete : 4` (vs expected `delete : 2`) on rung36_jcon_table
 lines 10, 14.
 
+## Current state (2026-04-30 session 21, one4all HEAD `8ddcbc89`)
+
+IC-9 IN PROGRESS / IC-8 ADVANCE.  Six fixes landed; **rung36_jcon_table
+PASS** (empty diff against expected) — first PASS-count advance in IC-8
+since session #17.  test_icon_ir_all_rungs PASS=188 → 189.
+test_icon_ir_rung_36 PASS=5 → 6, FAIL=40 → 39.  All other gates unchanged.
+
+### Lvalue-generator family (closes session #20 next-pivot list)
+
+1. **`every !x := V` — bang-iterate as lvalue**.  E_ASSIGN with E_ITERATE
+   LHS, icon-frame `case E_ASSIGN` in `src/driver/interp.c`.  Walks every
+   cell of the container in one `interp_eval` pass:
+   - `DT_T` table — bucket walk over `TBPAIR_t`, `p->val = val` for each
+   - `DT_DATA` icnlist — `icn_elems[i] = val` over the array
+   - `DT_S` string — silently no-op (immutable)
+   Single-pass under `every`: the box exhausts after one tick, but the
+   pass already wrote every cell.  ~30 lines.
+
+2. **`every x[key(x)] := V` — generator key in subscript lvalue**.
+   E_ASSIGN with E_IDX LHS, in the same icon-frame handler.  When
+   `icn_is_gen(lhs->children[1])` is true, drives the index gen via
+   `icn_eval_gen` (already imported at this site since session #16) and
+   `subscript_set(base, k, val)` per yielded key.  Mirrors the gen-RHS
+   pump but on the LHS index.  ~12 lines.
+
+3. **`every !x OP:= V` — augmented-assign over bang-iterate**.  E_AUGOP
+   with E_ITERATE LHS, in `case E_AUGOP`.  RHS evaluated once; cell-walk
+   identical to (1); per-cell `AUGOP_CELL` macro mirrors the existing
+   `AUGOP_APPLY` macro but writes through the cell pointer instead of
+   the `lhs` slot.  All five augops + `||:=` covered.  ~37 lines.
+
+### Builtin-arity / value-semantics fixes
+
+4. **`copy()` — proper shallow copy** (was a no-op alias).  Allocates a
+   fresh `TBBLK_t` and walks `src.tbl->buckets` calling
+   `table_set_descr(nt, p->key, p->key_descr, p->val)` for each entry,
+   preserving the original key descriptors (so SORT() ordering still
+   works).  For DT_DATA icnlist, `GC_malloc` a fresh `DESCR_t[]`,
+   `memcpy` from src elems, and rebuild via `DATCON_fn("icnlist",
+   eptr, INTVAL(n), STRVAL("list"))` — the same shape `E_MAKELIST`
+   produces.  Strings/ints/reals fall through to direct return (value
+   semantics already satisfy copy).  Fixes the `every !y +:= 40`
+   mutating x bug visible at the `30s/50s` lines.  ~35 lines.
+
+5. **`delete()` and `member()` arity** — both extended from `nargs == 2`
+   to `nargs >= 1`.  1-arg form (`delete(T)` / `member(T)`) treats the
+   missing key as `&null` (Icon's null-arg padding); extra args
+   ignored.  Fixes the spurious "NULL IS MEMBER" line and the
+   `delete : 4` vs expected `delete : 2` bug.  ~6 lines combined.
+
+### `<-` reversible assignment (E_REVASSIGN, new IR kind)
+
+6. **Parser-layer separation**.  Was previously routed to `E_ASSIGN`,
+   making `<-` and `:=` indistinguishable in IR — wrong since `<-`
+   needs revert-on-backtrack semantics.  Added `E_REVASSIGN` to
+   `EKind` enum in `src/ir/ir.h` (before `E_KIND_COUNT`) and to the
+   `ekind_name[]` table.  `src/frontend/icon/icon_parse.c` line 503
+   now emits `e_binary(E_REVASSIGN, n, parse_assign(p))`.
+
+   **Standalone path** (icon-frame `case E_REVASSIGN` in interp.c):
+   acts like `:=` since there's no driver to backtrack against — this
+   is what the test needs for any `<-` outside an `every`.  Mirrors
+   E_ASSIGN's E_VAR / E_IDX / E_FIELD branches.
+
+   **Generator path** (`icn_runtime.c`): `icn_is_gen(E_REVASSIGN) → 1`
+   unconditionally, so `every` routes through `icn_eval_gen`.  New
+   `icn_bb_revassign` Byrd box:
+   - **α**: snapshot prior value via `subscript_get` (this is the key
+     ordering — `subscript_get` returns `tbl->dflt` for missing keys,
+     so `every x[3] <- 19` on `table(7)` correctly snapshots 7).  Then
+     write the new value: cell-pointer fast path via `table_ptr` /
+     `array_ptr` for tables and arrays; `subscript_set` fallback for
+     other containers (lists, records, strings).  Returns `rv`.
+   - **β/ω**: restore the snapshot via the cell pointer when we have
+     one, or `subscript_set(base_d, idx_d, saved)` otherwise.  Returns
+     FAILDESCR — `every` exits cleanly.
+
+   Net effect: under `every x[3] <- 19`, the loop runs once with x[3]=19
+   (visible to the body if there were one), then on β the value reverts
+   to the snapshot.  The table entry **is** created (subscript-set path
+   creates and revert writes the saved value back into the now-existing
+   slot), so `key(x)` finds 3 and `x[3]` reads 7 — exactly as expected.
+
+   Cell-resolution lives in the box rather than relying on
+   `interp_eval_ref` (which is `static` to interp.c and not exported).
+   Box state tracks both a direct cell pointer and a (base, idx)
+   subscript-set pair so revert works regardless of container shape.
+   E_VAR slot/NV paths included for `var <- expr` standalone forms.
+   E_FIELD path is in the standalone (interp_eval) handler but not
+   yet in the box — no test exercises it under `every`.
+
+   Verified per-shape:
+   - empty key on table with default → entry created, value reverts to default ✓
+   - existing key → value reverts to original ✓
+   - standalone `x <- v; x <- w` outside `every` → final value w (no revert) ✓
+   - rung36_jcon_table → empty diff ✓
+
+### Files touched (no header struct changes — clean rebuild not required)
+
+- `src/ir/ir.h` (+2 lines — enum + name table)
+- `src/frontend/icon/icon_parse.c` (1-line change: E_ASSIGN → E_REVASSIGN)
+- `src/driver/interp.c` (+~150 lines — 6 fixes above)
+- `src/runtime/interp/icn_runtime.c` (+~110 lines — icn_bb_revassign + state typedef + icn_is_gen entry + icn_eval_gen wire)
+
+### Gates
+
+- `test_smoke_icon.sh`             PASS=5/0    (unchanged)
+- `test_smoke_unified_broker.sh`   PASS=49/0   (unchanged)
+- `test_crosscheck_icon.sh`        PASS=4/0    SKIP=0 (unchanged)
+- `test_icon_ir_all_rungs.sh`      **PASS=189** FAIL=44 XFAIL=30 TOTAL=263 (+1)
+- `test_icon_ir_rung_36.sh`        **PASS=6**  FAIL=39 XFAIL=30 TOTAL=75  (+1)
+
+### Remaining IC-8 / IC-9 candidates (next-session pivot)
+
+The lvalue family is closed for the JCON table test.  Other rung36
+tests remain in the same shape as session #20 noted — multi-feature
+.xfail tests where one or two features are missing.  Notable open items
+visible in the rung36 FAIL list:
+
+- **`!s := "."`** — bang-iterate as lvalue on a string.  Currently a
+  no-op (strings are immutable; my E_ITERATE LHS branch silently
+  short-circuits).  Standard Icon allows this and rebuilds the string;
+  would need a special path that walks chars and accumulates a new
+  string into the source variable.  Visible in `rung36_jcon_string`.
+
+- **`(...)(args)` invocation form** — paren-list as procedure value,
+  then call.  Parser-level work plus dispatch.  Visible in
+  `rung36_jcon_args`, `_fncs`, `_fncs1`.
+
+- **`proc()` builtin** — returns the current procedure as a value.
+  Would unblock several tests but needs procedure-value first-class
+  representation.
+
+- **co-expressions, &error, &fail, &trace** — already correctly
+  xfailed; not high-leverage.
+
+- **scan/scan1/scan2** — `?` scan with goal-directed subexpressions.
+  Builds on existing E_SCAN oneshot fallback.
+
+- **string1, substring** — `s[i+:n]` chained `:=` and `:=:` swap not
+  fully working.
+
+The simplest single-test pivot would be **`!s := "."`** — it's the
+mirror of work just landed and the same shape as the table/list
+branches.  String-rebuild semantics (concatenate prefix + new char +
+suffix per tick, write back to source var) would close
+`rung36_jcon_string` if combined with whatever else that test needs.
+
+### Pollution check
+
+Working tree at session end: clean.  One stray `foo.baz` (empty file —
+same scratch shape sessions #19 and #20 cleaned) was removed before
+commit per RULES.md "Diagnostic patches are diagnostic — never commit
+them".  Per-repo dirty sets at handoff: one4all (4 files in this
+session's diff), .github (this update), corpus clean, csnobol4 clean,
+x64 clean.
+
+
