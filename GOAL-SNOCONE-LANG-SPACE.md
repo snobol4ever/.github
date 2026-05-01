@@ -1950,9 +1950,118 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       cond-semantics decision Lon makes here gates that
       milestone.
 - [x] LS-4.g — **LANDED session 2026-04-30 #11** (one4all `4cef1dc6`). `do/while` and `for` parse and lower correctly. (`do/until` initially added, then **removed per Lon directive session 2026-04-30 #12** — Snocone follows C's loop forms exactly: `while` and `do/while` only.) `do_body` non-terminal (brace-block only) resolves the grammar ambiguity where T_KW_WHILE after a matched_stmt body would be indistinguishable from a new while_head. `sc_finalize_do_while` (onsuccess loops back), `sc_finalize_for` (init→Ltop→cond:F→body→step→:(Ltop)→Lend). New gate `test_smoke_snocone_parse_g.sh`: **95/95 PASS** (3 tests verify do/until is now a syntax error). Combined parse gates **583/583** (488+95).
-- [ ] LS-4.h — `function`/`return`/`freturn`/`nreturn`.  Smoke
-      `procedure` test renamed to `function` (per session #7
-      keyword rename).
+- [x] LS-4.h — **LANDED session 2026-04-30 #13** (one4all `1c72f7f6`).
+      `function`/`return`/`freturn`/`nreturn` parse and lower to the
+      SPITBOL idiom.
+
+      **Grammar shape** — `func_head` non-terminal at the
+      `matched_stmt` level (no dangling-else risk; a function
+      definition is a self-contained block).  Two body shapes —
+      brace-block with stmts and brace-block-empty.  Helper
+      non-terminals `func_arglist` (3 productions: empty `)`,
+      single-IDENT `)`, `func_arglist_ne )`) and `func_arglist_ne`
+      (2 productions: 2-IDENT base case, left-recursive
+      append) build the comma-separated arg string left-to-right,
+      yielding `"a"`, `"a,b"`, `"a,b,c"`, etc., as a single
+      malloc'd string handed to `sc_func_head_new`.
+
+          func_head : T_FUNCTION_KW T_FUNCTION T_LPAREN func_arglist opt_head_sep
+                          { sc_func_head_new(st, $2, $4); }
+
+      The `T_FUNCTION` token is the FSM's IDENT-followed-by-zero-
+      space-`(` call-form token (already used at `expr17` for call-
+      style expressions); it carries the function name string.
+      The `T_LPAREN` is consumed separately because the FSM emits
+      `T_FUNCTION` and `T_LPAREN` as **two adjacent tokens** even
+      though the source text has no whitespace between them — same
+      pattern as `expr17`'s call-form rule.
+
+      `simple_stmt` gets four new alternates for the return forms:
+
+          | T_RETURN expr0 T_SEMICOLON  { sc_append_return(st, $2); }
+          | T_RETURN T_SEMICOLON        { sc_append_return(st, NULL); }
+          | T_FRETURN T_SEMICOLON       { sc_append_freturn(st); }
+          | T_NRETURN T_SEMICOLON       { sc_append_nreturn(st); }
+
+      **Lowering shapes** (verified by tests):
+
+          function NAME(args) { body }
+              DEFINE('NAME(args)')   (bare-expr E_FNC)
+              :(NAME_end)            (skip-the-body uncond goto)
+              NAME    <body>         (entry-point label, body stmts)
+              NAME_end               (label pad, skip target)
+
+          return E ;     ->   <fn> = E :(RETURN)   (assignment+goto)
+          return ;       ->   :(RETURN)
+          freturn ;      ->   :(FRETURN)
+          nreturn ;      ->   :(NRETURN)
+
+      **Implementation notes:**
+      - `ScParseState` gets a `cur_func_name` field; saved on the
+        `FuncHead` struct's `prev_func` slot when a function head
+        fires, restored at finalize.  Defends against nested
+        function definitions even though Andrew's `.sc` doesn't
+        have them.
+      - `sc_func_head_new` does the work eagerly: emits
+        `DEFINE('NAME(args)')` (E_FNC subject, no goto) and
+        `:(NAME_end)` (bare goto, no subject) immediately, then
+        snapshots `st->code->tail` as the entry-point splice
+        anchor.  No body has been parsed yet at this point —
+        Bison runs head's action at the close-paren reduction.
+      - Body stmts append normally to `st->code` via
+        `sc_append_stmt` / `sc_append_chain`.
+      - `sc_finalize_function` splices the entry-point label
+        `NAME` after the goto stmt (so the body's first stmt
+        carries the label by SNOBOL4's "labels attach to next
+        non-empty stmt" rule), appends `NAME_end` at the tail,
+        restores `cur_func_name`.
+      - `sc_append_return` checks `cur_func_name` for the
+        return-with-value case: if inside a function and a value
+        is present, lowers to `fn = E :(RETURN)`; otherwise
+        lowers to a bare goto.
+
+      **Token rename — `T_KW_*` → `T_*`** (Lon directive,
+      session 2026-04-30 #13).  All Snocone keyword tokens drop
+      the `KW_` infix.  17 tokens renamed across `snocone_lex.h`,
+      `snocone_lex.c`, `snocone_parse.y`, `test_snocone_lex.c`:
+      `T_IF`, `T_ELSE`, `T_WHILE`, `T_DO`, `T_UNTIL`, `T_FOR`,
+      `T_SWITCH`, `T_CASE`, `T_DEFAULT`, `T_BREAK`, `T_CONTINUE`,
+      `T_GOTO`, `T_RETURN`, `T_FRETURN`, `T_NRETURN`, `T_STRUCT`,
+      and `T_FUNCTION_KW` (the `function` keyword — `_KW` suffix
+      retained to avoid colliding with `T_FUNCTION`, the
+      IDENT-followed-by-zero-space-`(` call-form token).  Pure
+      cosmetic rename; semantics unchanged.  Generated
+      `snocone_parse.tab.c`/`.tab.h` regenerated from source.
+
+      **Smoke-test rename** — `scripts/test_smoke_snocone.sh`
+      changed `procedure Double(n)` → `function Double(n)` in the
+      `procedure` smoke case.  The legacy `archive/snocone_lex.c`
+      keyword table picks up `"function"` as a synonym for
+      `"procedure"` (same `SNOCONE_KW_PROCEDURE` enum value), so
+      the production driver — still using the legacy
+      shunting-yard parser until LS-4.j — accepts the new
+      keyword without further change.  When LS-4.j removes the
+      legacy parser, this synonym entry can go too.
+
+      **Test gate** `scripts/test_smoke_snocone_parse_h.sh` runs
+      `test/frontend/snocone/test_snocone_parse_h.c` — 15 test
+      functions / **85/85 PASS**.  Coverage: empty-body function,
+      single-arg + return-bare, return-with-value, freturn,
+      nreturn, two-arg, three-arg, surrounding-stmts splice
+      integrity, multi-body-stmt function, return-uses-correct-
+      enclosing-name, function-with-if-inside, two-functions-in-
+      sequence, top-level-bare-return, function-with-while-
+      inside, DEFINE call shape verification.  Combined parse
+      gates **668/668** (was 583/583).
+
+      **All gates green:** FSM lex 31/31, parse a/b/c/d/e/f/g/h
+      35+119+66+79+71+118+95+85 = 668/668, smoke snocone 5/5
+      (using `function` keyword via legacy synonym), beauty
+      3-mode 42/0/3, unified broker 49/0.  Bison emitted zero
+      shift/reduce and zero reduce/reduce conflicts.
+
+      Side-channel only — the LS-4.h grammar additions are not
+      wired into scrip's production driver path until LS-4.j.
 - [ ] LS-4.i — `switch`/`case`/`default`, `break`/`continue`, `goto`,
       `struct`, alt-eval `(a, b, c)` → `E_VLIST`.  beauty.sc-class
       programs reachable.
