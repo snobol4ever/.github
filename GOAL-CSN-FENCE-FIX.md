@@ -730,11 +730,11 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #59 (working tree CLEAN at HEAD `1b59147`; sessions #56/#57/#58 patches + #58/#59 findings in docs/)
+- csnobol4 @ session #64 (working tree CLEAN at HEAD `723ac19`; TXSP fix at L_SALT2 committed; gate-neutral)
 - one4all @ `06433f90`
 - corpus @ session #53 `6955503` (32 tests at IDs 100–131; .ref corrections for 127, 130) + session #55 untracked Tier F (132–147, 32 files)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#59; session #58 paired-sentinel design eliminates ALL fence_suite CRASHes (6 → 0); session #59 traced test 119 to identify the **PATBCL-relative-offset architectural issue** — leaked inner SCIN3 entries get mis-interpreted under outer PATBCL when walker descends past bottom-sentinel. Two structural fix candidates documented: (a) PDLHED-bound SALT2 walker (mirrors SPITBOL pmhbs and BAL's existing v311.sil:3975 bound), (b) truncate-on-success with deferred-alts array. **Session #60 should implement (a).** Beauty 42 lines (s58 patch).)** but tests 119/129 give wrong-answer FAIL — `unexpected match` instead of `triple-indirect FENCE sealed`. Bug class shifted from memory corruption to FENCE-seal-honoring semantics. Beauty advanced 35→42 lines. Session #59 should trace test 119 to identify how the bottom-STREXCCL routing bypasses the FENCE seal, possibly refining with fail-mid-iteration vs. fail-after-iteration-success distinction.)
+- active step → **F-2 Step 3a** (sessions #49–#64; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral, eliminates a latent FNC-trap-cursor-corruption mode session #63 traced. Refuted FNCDCL-at-P2 placement attempt with trace evidence. Named architectural mechanism: STARP2 abandons FENCE seal AND re-routes walker through abandoned leaks. **Session #65** should implement leaked-alt zeroing at FNCA-success per session #57 (d), with placement that distinguishes from session #54's rejected STAR-success zeroing. Beauty 42 lines (unchanged since #58).)
 
 **Gates as of session #58 end (working tree CLEAN, no code changes committed):**
 - fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58)
@@ -1991,3 +1991,268 @@ a precise handle: "between SALT2 #5 and SALT2 #6, TXSP gets PATBCL's
 value." Session #64 should be able to instrument every TXSP write
 site and pinpoint the line.
 
+---
+
+## Session #64 update — TXSP write-site identified and fixed (gate-neutral); FNCDCL-at-P2 refuted; architectural mechanism named
+
+Session #64 followed session #63's plan exactly: instrumented every
+`S_L(TXSP) = ...` site in `isnobol4.c` and pinpointed the corruption
+to a single line.
+
+### Genuine new contribution: the bug line
+
+**`isnobol4.c:11498`** — `S_L(TXSP) = D_A(YCL)` in `L_SALT2` fires for
+**all** non-zero PATICL entries, including FNC-flagged traps.
+
+For SCIN3-pushed (non-FNC) traps, `slot[2]` is a saved cursor (TXSP) —
+restoring it makes sense.  For FNC traps (STREXCCL, FNCDCL, NMECL,
+DNMECL, etc.), `slot[2]` is **handler-specific data** — for STREXCCL
+specifically, it's a heap-pointer-shaped PATBCL value.  Writing that
+into TXSP corrupts the scan cursor with a wild value, which session
+#63 traced as `TXSP = 140702518392224 = cmd's PATBCL`.
+
+### Fix (committed)
+
+```c
+L_SALT2:
+    D(XCL) = D(D_A(PDLPTR) + DESCR);
+    D(YCL) = D(D_A(PDLPTR) + 2*DESCR);
+    D_A(PDLPTR) -= 3*DESCR;
+    D(PATICL) = D(XCL);
+    if (D_A(PATICL) == 0)
+        goto L_SALT3;
+    /* session #64: only restore scan cursor (TXSP) from slot[2] for non-FNC
+     * traps.  For FNC traps (STREXCCL, FNCDCL, etc.), slot[2] holds handler-
+     * specific data (e.g. a PATBCL heap pointer), NOT a cursor offset.
+     * Writing it into TXSP corrupts the cursor, causing spurious matches. */
+    if (!(D_F(PATICL) & FNC)) {
+        S_L(TXSP) = D_A(YCL);
+        goto L_SCIN3;
+    }
+    D(PTBRCL) = D(D_A(PATICL));
+L_PATBRA:
+    ...
+```
+
+### Gates (with TXSP-only fix committed)
+
+| Gate | Baseline | s64 |
+|------|----------|-----|
+| fence_function | 10/10 | **10/10** ✓ |
+| fence_suite | 44/4/0 | **44/4/0** ✓ |
+| guard5 | OK | **OK** ✓ |
+| beauty self-host | 42 lines | **42 lines** ✓ |
+
+**No regression.  No gate-count improvement.**  Fix is correctness-
+improving and committable per RULES.md (eliminates a latent
+corruption mode).  In the current bug class, the corruption happened
+to not affect the wrong-match outcome because the walker dispatched
+the leaked alt via PATBRA (FNC=1) which doesn't run line 11498's
+write — but session #63's gdb evidence showed the corruption WAS
+happening on a parallel walker path.
+
+### What TXSP fix alone doesn't repair (still 4 wrong-answer FAILs)
+
+Re-traced repro5 with TXSP fix applied.  TXSP correctly stays at 0
+throughout walker descent (was 140702518392224 in s63).  But output
+is still `unexpected match`:
+
+The 6th SALT2 event has `slot1=0x60` (non-FNC, valid offset under
+cmd PATBCL), `PATBCL=cmd` (set by STREXCCL at event #5), and the
+walker takes SCIN3 fall-through.  SCIN3 reads
+`D(PATBCL + PATICL + DESCR) = D(cmd + 0x68)` — a valid pattern node
+inside cmd, specifically the `'ab'` alternative of `'a' | 'ab'`.
+The walker dispatches that alternative, matches `'ab'` from cursor
+0, advances to cursor 2.  RPOS(0) succeeds → "unexpected match".
+
+The walker is dispatching a leaked inner-FENCE alt-cont under
+restored inner PATBCL.  FENCE seal should have prevented this.
+
+### FNCDCL-at-P2 attempt (not committed; refuted)
+
+Hypothesis: place FNCDCL at P2 (top of leaked region) instead of P1
+(clean base) so walker hits seal before any leaked alts.
+
+Implemented as a single-block edit in FNCA's success path:
+
+```c
+{
+    int_t p2_save = D_A(PDLPTR);   /* P2 = top of leaks */
+    POP(NHEDCL); POP(NAMICL); POP(PDLHED);
+    POP(PDLPTR);                    /* PDLPTR = SCFLCL slot */
+    D_A(PDLPTR) -= 3*DESCR;         /* discard SCFLCL → P1 */
+    POP(YCL); POP(XCL); POP(PATICL); POP(PATBCL); POP(MAXLEN);
+    D_A(TMVAL) = D_A(PDLPTR);       /* TMVAL.a = P1 */
+    D_F(TMVAL) = D_V(TMVAL) = 0;
+    D_A(PDLPTR) = p2_save + 3*DESCR;
+    if (D_A(PDLPTR) > D_A(PDLEND)) BRANCH(INTR31)
+    D(D_A(PDLPTR) + DESCR) = D(FNCDCL);     /* seal at P2 */
+    D(D_A(PDLPTR) + 2*DESCR) = D(TMVAL);    /* slot[2] = P1 */
+    D(D_A(PDLPTR) + 3*DESCR) = D(LENFCL);
+}
+goto L_SCOK;
+```
+
+**Result**: still `unexpected match`.  Trace evidence shows FNCDCL
+**is** placed at P2 (e.g. PDLPTR=0x...a30) but **never fires** —
+the walker never reaches it.
+
+### Architectural finding — why FNCDCL placement is moot
+
+After FNCA returns success via SCOK, control returns up the call
+stack to the enclosing `*outer` scan dispatched via DSAR/STARP6.
+That scan continues (more ARBNO iterations of `*cmd`).  Eventually
+`*outer` returns and **its STARP2 success path runs**.
+
+STARP2 does:
+
+1. `POP(PDLPTR)` from cstack — restores PDLPTR to its
+   `*outer`-entry value, **far below the FNCDCL I placed at P2**.
+2. Installs its own STREXCCL sentinels (top + bottom) bracketing
+   the entire `*outer` leak region.
+
+After STARP2, **FNCDCL is in abandoned memory** — physically still
+present, but above PDLPTR.  When RPOS(0) eventually fails and the
+walker descends from current PDLPTR, it walks through STARP2's
+STREXCCL bracketed region.  The walker hits STARP2's top STREXCCL
+(PATBCL → cmd routing), then descends into the leak region — which
+contains the still-physically-present leaked inner-FENCE alt-conts
+from cmd's original matching.  Walker dispatches them under
+PATBCL=cmd, finds valid pattern nodes, matches.
+
+**Mechanism named**: FENCE's leaked alt-conts and `*outer`'s
+STARP2 leak region OVERLAP in physical memory.  STARP2's PDLPTR-
+restore abandons FENCE's seal but cannot remove the leaks (which
+were pushed during cmd's matching, before STARP6's PDLPTR snapshot
+existed in this nesting level — actually they're above PDLPTR after
+STARP2 restore so they're "abandoned" too, but still in physical
+memory and still dispatchable when walker descends from a higher
+PDLPTR).  STARP2 then re-routes the walker through the abandoned
+region under inner PATBCL=cmd.  FENCE seal is bypassed.
+
+This is a refinement over session #57's hypothesis (which named
+"multi-iteration ARBNO leaks unprotected because their STREXCCL
+was consumed").  Session #57 located the bug class correctly but
+explained the failure path imprecisely.  Session #64 names the
+exact failure mechanism: STARP2 abandons the seal AND re-routes
+the walker through the abandoned leaks.
+
+### Implications for fix design
+
+Re-evaluating session #57's candidates:
+
+- **(a) PDLHED-bound SALT2 walker** — would prevent walker from
+  descending below PDLHED, but PDLHED is the ENCLOSING scan's
+  base, not FENCE's seal-base.  Doesn't help.
+- **(b refined) Paired bottom STREXCCL** — session #58's fix.
+  Eliminated all 6 CRASHes.  Doesn't help with semantic FENCE-seal
+  violations because STARP2 abandons the seal.
+- **(c) Persistent STREXCCL across iterations** — doesn't help;
+  by the time walker reaches the relevant region, it's under
+  STARP2's outer routing, not FNCA's.
+- **(d) Truncate-on-success with deferred-alts array, OR
+  zero-leaks at FNCA-success** — **architecturally correct**.
+  FNCA's success path must PHYSICALLY zero the leaked alt-conts
+  (slot[1] = 0 makes them benign — walker takes SALT3 path) so
+  even after STARP2 abandons the region and re-routes through it,
+  the leaks are no longer dispatchable.
+
+Session #54's "targeted slot-zeroing" was right in spirit but
+**wrong in placement**.  Session #54 zeroed at L_STARP2/L_DSARP2
+(STAR's success path), which is too late — by then the leaks have
+already been "blessed" by STARP2's STREXCCL routing for legitimate
+ARBNO redo purposes.  And session #54's zeroing also nuked
+legitimate inner-backtrack continuations (guard5).
+
+Session #65's zeroing should be **at FNCA's success path** — walk
+PDL from P1+3*DESCR to P2, zero slot[1] of any non-FNC trap.
+Important distinction:
+
+| Session | Where | What gets zeroed |
+|---------|-------|------------------|
+| s54 (rejected) | STAR/DSAR success | All inner-pattern leaks below STAR's snapshot — including legitimate ARBNO redo conts and FENCE leaks indistinguishably |
+| s65 (proposed) | FENCE success | Only leaks from inner-P matching (between FNCA-entry-PDLPTR and post-SCIN PDLPTR).  STAR/DSAR's own redo conts are NOT in this region. |
+
+The s65 placement is narrow and surgical: only zeros what FNCA
+itself "owns" as inner-P leakage.
+
+### Why s65 should preserve guard5
+
+Guard5 is `cmd=(LEN(1)|LEN(2)); outer=(*cmd 'X'); s='ABX'` — **no
+FENCE involved**.  FNCA never runs.  s65 zeroing at FNCA-success
+never fires.  guard5's inner-backtrack continues to work via the
+existing UNSC/DSAR-redo machinery.
+
+### Why s65 should fix tests 119/124/127/129
+
+All four use FENCE — that's the bug-class boundary established
+by session #55's Tier F (16/16 PASS without FENCE).  At FENCE
+success, zeroing leaked alt-conts ensures STARP2's later STREXCCL
+routing has nothing dispatchable to land on.  Walker takes SALT3
+path through zeroed slots, descends to STARP2's bottom STREXCCL,
+restores PATBCL=outer, continues correctly.
+
+### Recommended session #65 plan
+
+1. Apply s64 TXSP fix (already committed at `<HASH>`).
+
+2. Implement FNCA-success leaked-alt zeroing.  Pseudocode:
+   ```c
+   /* In FNCA success path, after POPs but before placing FNCDCL: */
+   {
+       int_t p1 = D_A(PDLPTR);  /* clean base after POP+sub */
+       int_t p2 = p2_save;       /* top of leaks (saved before POPs) */
+       int_t p;
+       for (p = p1 + 3*DESCR; p <= p2; p += 3*DESCR) {
+           if (!(D_F(p + DESCR) & FNC)) {
+               D_A(p + DESCR) = 0;       /* zero slot[1] */
+               D_F(p + DESCR) = 0;
+               D_V(p + DESCR) = 0;
+           }
+       }
+   }
+   ```
+
+3. Test gate stack:
+   - guard5 must produce `inner backtrack worked`
+   - Tier F all 16 must remain PASS
+   - fence_function 10/10
+   - fence_suite **target ≥45/48** (119/124/127/129 → OK)
+   - beauty ≥500 lines
+
+4. If beauty advances ≥500 lines: commit + close F-2 Step 3a.
+5. If beauty stalls at intermediate count but fence_suite improves:
+   commit gate-improving fix and document next bug class.
+6. If guard5 breaks or any prior-OK test regresses: revert,
+   document in s65 findings.
+
+### Files this session
+
+- `csnobol4/isnobol4.c` — TXSP fix at L_SALT2 (committable, +8/-2 lines)
+- `csnobol4/docs/F-2-Step3a-session64-findings.md` — full investigation
+- `.github/PLAN.md` — state-cell update
+- `.github/GOAL-CSN-FENCE-FIX.md` — this update
+
+### Honest checkpoint
+
+Sessions #44–#64 = 20 sessions on F-2 Step 3a.  fence_function preserved
+10/10.  Tier F preserved 16/16 since #55.  fence_suite at 44/4/0
+since #58 (7 sessions).  Beauty at 42 lines since #58.
+
+Session #64's contributions:
+
+1. **Pinpointed the exact line** (`isnobol4.c:11498`) for the
+   TXSP corruption session #63 traced.  Fix is committable and
+   gate-neutral — locks in correctness improvement.
+2. **Refuted FNCDCL-at-P2** as a sufficient fix via direct trace
+   evidence.
+3. **Named the architectural mechanism**: STARP2's PDLPTR-restore
+   abandons FENCE's seal AND re-routes the walker through the
+   abandoned region.  Refines session #57's framing.
+4. **Refined fix recommendation**: zero leaked alts at FNCA-success
+   (NOT at STARP2 like session #54 tried).  The placement
+   distinction is the key insight session #65 needs.
+
+The pattern of "land an analytic step forward, hit deeper bug"
+continues, but session #65 has a specific surgical fix to attempt
+with clear test predictions.
