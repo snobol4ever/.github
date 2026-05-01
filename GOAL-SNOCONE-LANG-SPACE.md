@@ -1585,16 +1585,43 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       multiple statements, string and real literals — **35/35
       PASS**).  Production gates remain green: smoke 5/5,
       beauty 42/0/3, broker 49/0; FSM lex test 31/31.
-- [ ] LS-4.b — Add comparison/identity operators:  `EQ`, `NE`, `LT`,
-      `GT`, `LE`, `GE`, `LEQ`, `LNE`, `LLT`, `LGT`, `LLE`, `LGE`,
-      `IDENT`, `DIFFER` — all lower to `E_FNC` named calls.
-      Parses `OUTPUT = EQ(2+2, 4)`.
+- [x] LS-4.b — **LANDED session 2026-04-30 #4.**  Comparison/identity
+      tier `expr5` added between `expr0` (assignment) and `expr6`
+      (add/sub).  All 14 operators (`T_EQ`/`T_NE`/`T_LT`/`T_GT`/
+      `T_LE`/`T_GE` numeric, `T_LEQ`/`T_LNE`/`T_LLT`/`T_LGT`/`T_LLE`/
+      `T_LGE` lexical, `T_IDENT_OP`/`T_DIFFER` identity) lower to
+      `E_FNC` named calls — `a == b` → `E_FNC("EQ", a, b)`,
+      `a :: b` → `E_FNC("IDENT", a, b)`, `a :!: b` →
+      `E_FNC("DIFFER", a, b)`.  Left-associative chaining via Bison
+      left-recursion; `a == b == c` parses as
+      `EQ(EQ(a,b), c)`.  Per Andrew's `bconv[]` (snocone.sc lines
+      32–60) all comparisons sit at one priority BELOW arithmetic
+      add/sub: `a + b == c + d` correctly parses as
+      `EQ(a+b, c+d)`.  Plus T_FUNCTION call-form `EQ(2+2, 4)` →
+      `E_FNC("EQ", E_ADD(2,2), E_ILIT(4))` via `expr17`'s new
+      `T_FUNCTION T_LPAREN exprlist T_RPAREN` rule, mirroring
+      `snobol4.y:197`.  T_FUNCTION elevated from no-value catch-all
+      to `%token <str> T_FUNCTION`; new helper non-terminals
+      `exprlist`/`exprlist_ne` mirror `snobol4.y:187-193`.  Ten
+      additional comparison-tier `%token` declarations moved out of
+      the catch-all "all other tokens" block into their own dedicated
+      block.  T_COMMA promoted to its own `%token` line for visibility
+      (was buried in catch-all).  No bison conflicts.  Headline gate
+      from goal file met: parses `OUTPUT = EQ(2+2, 4)`.  New gate
+      `test_smoke_snocone_parse_b.sh` runs `test_snocone_parse_b.c`
+      (10 cases / **119/119 PASS** — every comparison op shape, the
+      EQ(2+2,4) headline, precedence below `+`, zero-arg call,
+      three-arg call, nested call, left-assoc chaining, mixed
+      var/literal args).  Production gates remain green: smoke 5/5,
+      beauty 42/0/3, broker 49/0; FSM lex test 31/31; LS-4.a
+      parse-a 35/35.  This means LS-4.b shipped 154/154 (35+119)
+      across both side-channel parser tests.
 - [ ] LS-4.c — Add concat / alternation / match / assignment +
       compound-assigns (`+=`, `-=`, `*=`, `/=`, `^=`).
       Parses `s = 'hello' ' world'`.
-- [ ] LS-4.d — Add subscripting `a[i,j]` → `E_IDX` and call-form
-      `f(a,b,c)` → `E_FNC` (uses `T_FUNCTION` token from lexer).
-      Parses `OUTPUT = LEN(s, 3)`.
+- [ ] LS-4.d — Add subscripting `a[i,j]` → `E_IDX`.  (Call-form
+      `f(a,b,c)` → `E_FNC` already landed in LS-4.b — it was the
+      headline gate vehicle.)  Parses `a[i, j]`.
 - [ ] LS-4.e — Add unary operators: `T_UN_PLUS` `T_UN_MINUS`
       `T_UN_ASTERISK` `T_UN_DOLLAR_SIGN` `T_UN_PERIOD` `T_UN_AT_SIGN`
       `T_UN_TILDE` `T_UN_QUESTION_MARK` `T_UN_AMPERSAND` (and the
