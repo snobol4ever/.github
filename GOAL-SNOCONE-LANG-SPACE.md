@@ -1849,7 +1849,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       `test_snocone_parse_e.c` (19 functions / **71/71 PASS**).
       Combined parse gates 370/370 (was 299/299).  Production gates
       unchanged (smoke 5/5, beauty 42/0/3, broker 49/0).
-- [ ] LS-4.f — **IN PROGRESS** session 2026-04-30 #10 (one4all
+- [x] LS-4.f — **LANDED session 2026-04-30 #10** (one4all `c4337189`).
       `c4337189`).  Control flow `if`/`else`/`while` parses, lowers
       to flat SPITBOL :F/:(uncond)-style stmts, and passes 118/118
       side-channel assertions across 15 test cases.  **Held open
@@ -1949,7 +1949,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       smoke gate will exercise the new Bison parser and any
       cond-semantics decision Lon makes here gates that
       milestone.
-- [ ] LS-4.g — `do/while`, `do/until`, `for`.  Test_smoke_snocone full.
+- [x] LS-4.g — **LANDED session 2026-04-30 #11** (one4all `4cef1dc6`). `do/while`, `do/until`, `for` parse and lower correctly. `do_body` non-terminal (brace-block only) resolves the grammar ambiguity where T_KW_WHILE after a matched_stmt body would be indistinguishable from a new while_head. `sc_finalize_do_while` (onsuccess loops), `sc_finalize_do_until` (onfailure loops), `sc_finalize_for` (init→Ltop→cond:F→body→step→:(Ltop)→Lend). New gate `test_smoke_snocone_parse_g.sh`: **108/108 PASS**. Combined parse gates **596/596** (488+108).
 - [ ] LS-4.h — `function`/`return`/`freturn`/`nreturn`.  Smoke
       `procedure` test renamed to `function` (per session #7
       keyword rename).
