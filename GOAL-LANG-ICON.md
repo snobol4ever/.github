@@ -1430,3 +1430,140 @@ x64 clean.  No diagnostic instrumentation left in code (three
 `fprintf(stderr, "DBG ...")` lines added during section-assign debugging
 were removed before commit per RULES.md).
 
+
+---
+
+## Session #23 (2026-05-01) — IC-9 advance: +11 PASS via 8 fixes
+
+IC-9 IN PROGRESS. **PASS=188 → 199**, FAIL=45 → 34, XFAIL=30 unchanged.
+test_icon_ir_rung_36 PASS=6 → 9 (FAIL=39 → 36). All other gates clean
+(smoke 5/5, broker 49/0, crosscheck 4/0, smoke_snobol4 7/0).
+
+### Fixes (in order of leverage)
+
+1. **`icn_bb_cat_gen` re-pumps on per-tick failure** (`src/runtime/interp/
+   icn_runtime.c`, ~line 660). Was returning FAILDESCR when the per-tick
+   re-eval failed (e.g. `s[0]` OOB when generator yielded 0). Per Icon
+   GDE semantics, per-tick failure should advance the generator, not
+   exhaust the box. Now loops on β until either non-fail result or leaf
+   gen exhausts. Unblocks the `s[N to M]` shape across many tests —
+   `every writes(s[0 to 7])` now correctly yields `abcde` (skipping OOB
+   indices) instead of producing nothing.
+
+2. **E_SECTION_PLUS, E_SECTION_MINUS read handlers** (`src/driver/
+   interp.c`, after E_SECTION case ~4486). These IR kinds existed only
+   in lvalue-assignment context (since session #21 IC-9). The read side
+   fell through to default → NULVCL, so `s[1+:5]` and `s[1-:-5]`
+   returned `&null`. Added handlers mirroring E_SECTION's normalization
+   logic with `+:` going right and `-:` going left, supporting negative
+   span values (extending the other direction). Closes 4 lines in
+   `rung36_jcon_string1`.
+
+3. **E_CAT empty-string concat in Icon mode** (`src/driver/interp.c`,
+   ~3148). The SPITBOL rule "DT_SNUL operand → return the other
+   unchanged" was firing in Icon context. In Icon, `""` is a real empty
+   string, not `&null`. Gated SPITBOL passthrough on `g_lang != 1`, AND
+   post-coerced any DT_SNUL/null result back to a real DT_S empty
+   string in Icon mode. `image("" || "")` now → `""` instead of
+   `&null`. Closes the last `rung36_jcon_string1` diff line — **+1 PASS**.
+
+4. **E_POW Icon mode always returns real** (`src/driver/interp.c`,
+   ~3069). The session-#12 note said this was already done, but the
+   integer fast-path was unguarded. Icon's `^` is a real-producing
+   operator regardless of operand types. Gated the integer-fast-path
+   on `g_lang != 1`. **+5 PASS** — rung19 and four rung26 pow tests.
+
+5. **left/right/center rewritten** (`src/driver/interp.c`, ~2400).
+   Multiple bugs:
+   - `nargs >= 2` would never match 1-arg call `left("abc")`
+   - default n was `*s` but Icon spec says **n=1**
+   - `&null` / elided arg should re-default
+   - pad-fill cycling was broken — only used fill[0]
+   Verified correct cycling rules against JCON test corpus:
+   - **left-pads** (right's left, center's left): `fill[i % fl]`
+     (left-aligned cycle starting at fill[0])
+   - **right-pads** (left's right, center's right): pad ENDS at
+     fill[fl-1]: `fill[((k + fl - padlen) % fl + fl) % fl]`
+   - center truncation `srcoff` rounds UP: `(sl - n + 1) / 2`
+   **+3 PASS** — center, left, right.
+
+6. **`integer()` / `numeric()` parse `BASErDIGITS` radix prefix**
+   (`src/driver/interp.c`, ~2278/~2308). Icon syntax: `16rff`, `36rcat`,
+   `2r0`. Base 2..36, case-insensitive 'r'/'R', digits 0-9 + a-z (10..35).
+   Optional sign. Closes the radix-parse lines in `numeric` and `radix`
+   tests; the tests stay FAIL because of unrelated issues (`integer :=
+   abs` function-as-value, `--` cset operator on ints, etc).
+
+7. **New `list(n, x)` constructor** (`src/driver/interp.c`, ~2364, before
+   push/put block). Was missing entirely. `list()` returned 0-length,
+   `list(2)` returned 0-length, `list(3, 99)` returned 0-length. Now:
+   `list()` → empty, `list(n)` → n × `&null`, `list(n, x)` → n × x.
+   Skips `&null` n (treats as 0). Doesn't close any rung36 test by
+   itself (lists test has many other issues) but is foundational.
+
+8. **`static` declarations persist across calls** (`src/runtime/interp/
+   icn_runtime.c` + `src/frontend/icon/icon_parse.c`).
+   - Parser: distinguish `local` vs `static` at `parse_stmt` LOCAL/STATIC
+     branch — set `e->ival = 1` on E_GLOBAL when keyword was `static`.
+   - Runtime: new per-(proc EXPR_t*, var-name) static table
+     (`icn_static_tab[256]`) with `icn_static_get/set` helpers near
+     `icn_global_register`. At proc entry: walk body for E_GLOBAL with
+     `ival==1`, lookup each child's value in static table, copy into
+     frame slot. At proc exit (just before pop): write each static
+     var's slot value back to the table. Statics with the same name in
+     different procs do not share storage (keyed on proc node identity).
+   **+1 PASS** — rung36_jcon_statics.
+
+### Wrong-site lesson recurrence
+
+Session #16's "two interp_eval switches" lesson did not bite this time
+— the icon-frame switch and shared switch's E_CAT both flow through
+the same line-3085 case (the icon-frame block falls through to it),
+and the E_POW Icon-mode guard at line 3075 likewise covers both code
+paths. New cases (E_SECTION_PLUS / E_SECTION_MINUS read) only matter in
+the shared switch since sections are never reached from the icon-frame
+return-direct dispatch (E_SECTION isn't in icon-frame block at line
+~2591). Verified by running gates after each fix.
+
+### Static-var storage design note
+
+The chosen approach (per-(proc, var-name) table) is simpler than the
+mangled-name-into-NV alternative: no name rewriting in the body, no
+collision risk between same-named statics in different procs, no
+coordination with `icn_is_global` / NV bridge path. Cost: a small
+linear-scan table (capacity 256, plenty for most programs). If it
+ever needs to scale, replace with a hash table indexed by `proc XOR
+hash(name)`. The `icn_init_tab` mechanism for `initial` blocks already
+follows the same pattern, so this stays in family with existing code.
+
+### Still open after this session (next-session candidates, ranked by leverage)
+
+- **Records as iterables** (`!a` field iteration, `every !a := V` field
+  assignment) — closes `rung36_jcon_record` and contributes to 3+
+  other tests that build records. Same shape as table-lvalue work in
+  session #21 — extend the `E_ITERATE` and `E_ASSIGN` lvalue handlers
+  with a DT_DATA/record branch that walks `data->fields`.
+- **`integer := abs` function-as-value** — Icon supports first-class
+  procedure values. `image(abs)` should return `"function abs"`. Needs
+  procedure-value descriptor type. Affects `numeric` and 4+ others.
+- **`100 -- 4` cset-difference on integers** — Icon's `--` between
+  numbers does cset coercion: `integer → cset of digit chars`, then
+  cset minus cset. Probably one site in `--` operator handler.
+- **`&random` keyword seeding** — `rung36_jcon_random` needs deterministic
+  RNG state visible to `&random := N` and `&random` reads.
+- **`&pos`, `&subject` Icon scan state** — `subjpos`, `scan`, `scan1`,
+  `scan2` all need this. Builds on existing E_SCAN oneshot fallback.
+- **`(...)(args)` indirect-call syntax + `proc()` builtin** — affects
+  `args`, `fncs1`. Major Icon feature.
+- **co-expressions, `&error`, `&fail`, `&trace`** — already correctly
+  xfailed; not high-leverage to close.
+
+### Working-tree state at handoff
+
+- one4all dirty (3 files): `src/driver/interp.c`, `src/runtime/interp/
+  icn_runtime.c`, `src/frontend/icon/icon_parse.c`
+- .github dirty (this update + PLAN.md state row)
+- corpus clean, csnobol4 clean, x64 clean
+- one stray `foo.baz` (empty file) in .github/ at session start —
+  removed before commit per RULES.md "Diagnostic patches are
+  diagnostic — never commit them".
