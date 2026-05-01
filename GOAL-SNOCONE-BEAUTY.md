@@ -3014,3 +3014,154 @@ RULES.md.
 `csnobol4`, `x64`: clean. Plan: commit corpus + .github, push
 corpus first then .github.
 
+## Session #82 progress (2026-05-01)
+
+**SB-6.D LANDED — root cause was in the corpus, not the runtime.**
+
+### Root cause: faulty Snocone port of `:F(NRETURN)`
+
+Sessions #80 and #81 framed SB-6.D as a runtime "double-wrap" bug
+where `EVAL(EXPRESSION)` returned the same EXPRESSION descriptor
+unchanged, supposedly requiring two EVAL calls to fully evaluate.
+That diagnostic was misleading. The runtime is correct.
+
+The bug is in `corpus/programs/snocone/demo/beauty/ShiftReduce.sc`
+lines 45-52. The original Snocone code:
+
+```snocone
+n = EVAL(n);
+if (~DIFFER(n)) { nreturn; }   // intended: catch EVAL failure
+```
+
+Per SPITBOL Manual Ch.2 p.33 (verified by reading): "If the
+statement fails, the assignment is not performed, and execution
+continues with the next statement in line." So when `EVAL(n)`
+fails — which it must, because `*(GT(nTop(),1) nTop())` evaluates
+to a failing expression when `nTop=1` — the assignment fails
+silently. `n` keeps its prior EXPRESSION value. Then `DIFFER(n)`
+succeeds (n is non-null), `~DIFFER(n)` fails, the nreturn does
+not fire, and execution falls through to `GE(n, 1)` with `n` still
+being an EXPRESSION descriptor. **Error 1 / Error 109 — first
+argument is not numeric.**
+
+The session #81 observation that "post-EVAL n-DT=EXPRESSION" wasn't
+double-wrapping. It was the prior value of `n` showing through after
+a silently-failed assignment.
+
+### Smoking-gun cross-check
+
+Ported the broken if-form back to SNOBOL4:
+
+```snobol4
+        IDENT(REPLACE(DATATYPE(n), &LCASE, &UCASE), 'EXPRESSION') :F(skip)
+        n  =  EVAL(n)             ; <-- no :F handler (matches Snocone if-form)
+        ~DIFFER(n)                                               :S(NRETURN)
+skip    GE(n, 1) ...
+```
+
+**Both SPITBOL and scrip's SNOBOL4 frontend fail with the same
+"GE first argument is not numeric" error.** The bug is in the
+program logic, not in any runtime.
+
+### Fix
+
+```snocone
+if (~(t = EVAL(t))) { nreturn; }   // direct port of t = EVAL(t) :F(NRETURN)
+if (~(n = EVAL(n))) { nreturn; }   // direct port of n = EVAL(n) :F(NRETURN)
+```
+
+The embedded `t = EVAL(t)` is itself an expression that fails iff
+EVAL fails (statement-level RHS-fails-statement-fails generalized
+to embedded assignment per Manual Ch.9 p.128 multiple-`=`). `~`
+negates: `~(EVAL fails)` → succeeds → `if`-body fires `nreturn`.
+On EVAL success, `~(...)` fails → `if`-body skipped → execution
+proceeds with `n` holding the new evaluated value.
+
+Tested against three cases via `/tmp/repro_fix.sc`:
+- c=1 (failing expr): EVAL fails → nreturn fires. ✓
+- c=3 (succeeding expr): EVAL returns INTEGER 3 → GE(3,1) succeeds. ✓
+- preserved-LHS verified: `x = EVAL(failing_expr)` leaves x at prior
+  value, exactly per SPITBOL semantics. ✓
+
+Stale comment block at ShiftReduce.sc lines 23-32 (claimed Snocone
+`if (assignment)` does not propagate inner EVAL failure) corrected
+— that claim was either pre-LS-4.l grammar state or a flawed earlier
+probe. Current Snocone with LS-4.l's `sc_split_subject_pattern`
+correctly propagates embedded-assignment failure. Verified with
+`/tmp/repro_eval_detect.sc`: `if (n = EVAL(failing))` fires the
+fail-arm cleanly; `if (~(n = EVAL(failing)))` fires the success-
+arm. Both expected behaviors.
+
+### Two further grammar gaps surfaced while validating end-to-end
+
+Tried compiling beauty.sc multi-file via `scrip` to verify the fix
+end-to-end. `case.sc:22` failed to parse on `str ? (POS(0) ANY(&UCASE
+&LCASE) . letter) = ;`. Bisected into two independent issues:
+
+**Gap #1 (LANDED — `snocone_parse.y`): empty replacement RHS.**
+Statement-form `subj ? pat = ;` and bare `x = ;` (assign null to x)
+are both faithful SPITBOL constructs. SPITBOL handles them via
+`opt_repl` (snobol4.y:77). Snocone grammar required a non-empty RHS
+for the binary `=` operator. Fix: added a second production
+`expr0 : expr1 T_2EQUAL` (no RHS) lowering to `E_ASSIGN(lhs, '')`.
+Bison reports zero conflicts — single-token lookahead distinguishes:
+if next can start expr0 → shift (binary form); else (T_SEMICOLON,
+T_RPAREN) → reduce to empty-RHS form. Empty RHS = NULL = SPITBOL
+zero-length string per Lon's session-#8 directive.
+
+**Gap #2 (LANDED — `snocone_lex.c`): keyword-concat-keyword.**
+`ANY(&UCASE &LCASE)` (two keyword refs concat'd) failed to inject
+T_CONCAT because the lexer's `is_value_starter()` predicate at
+S_DISPATCH didn't include `&`. The `&IDENT` keyword dispatch at
+line 252 fired before any concat injection check, so two adjacent
+keyword references with whitespace between them produced
+T_KEYWORD T_KEYWORD with no T_CONCAT. Fix: added explicit CONCAT
+trigger for `&` followed by alpha when `had_ws && last_value`.
+
+**Gap #3 (OPEN — handed off to GOAL-SNOCONE-LANG-SPACE LS-6.c).**
+Dense one-liner `if (cond) { stmts; } else { stmts; }` produces a
+parse error regardless of whitespace between `}` and `else`.
+Pre-existing — reproduces against baseline without any of session
+#8's fixes. Beauty.sc:284 onward uses this dense form. Likely a
+matched/unmatched-stmt grammar gap in `snocone_parse.y` (LS-4.f
+territory). Not blocking SB-6.D close.
+
+### Verification
+
+All gates green at session-end with all session #8 fixes applied:
+
+| Gate | Result |
+|------|--------|
+| `test_smoke_snocone.sh` | PASS=5 FAIL=0 |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 FAIL=0 SKIP=3 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 |
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 |
+| `test_gate_sn7_beauty_self_host.sh` | PASS=51 FAIL=0 |
+| `test_interp_broad_corpus_and_beauty.sh` | PASS=222 FAIL=52 (baseline) |
+
+**SB-6.D closes here.** LS-6.c's outstanding work moves entirely
+into `GOAL-SNOCONE-LANG-SPACE.md` — see that goal file's LS-6.c
+session-#8 narrative for next-session pickup pointers (gap #3 +
+beauty.sc end-to-end + .ref generation).
+
+### Files touched this session
+
+- `corpus/programs/snocone/demo/beauty/ShiftReduce.sc` — Reduce
+  EVAL failure detection: two if-forms changed to `~(assign)`
+  embedded form; comment block lines 23-32 corrected.
+- `one4all/src/frontend/snocone/snocone_parse.y` — empty-RHS
+  assignment production added at expr0.
+- `one4all/src/frontend/snocone/snocone_parse.tab.c`,
+  `snocone_parse.tab.h` — regenerated.
+- `one4all/src/frontend/snocone/snocone_lex.c` — CONCAT trigger
+  for `&IDENT` keyword reference at S_DISPATCH.
+- `.github/GOAL-SNOCONE-BEAUTY.md` — this session block.
+- `.github/GOAL-SNOCONE-LANG-SPACE.md` — LS-6.c session #8 narrative.
+- `.github/PLAN.md` — LS-6.c step pointer updated.
+
+### Repos state
+
+`corpus`: dirty (1 .sc). `one4all`: dirty (3 files: .y, .tab.c,
+.lex.c). `.github`: dirty (3 .md). `csnobol4`, `x64`: clean.
+Plan: commit corpus + one4all + .github per RULES.md handoff
+order — code repos first, .github last.

@@ -1531,16 +1531,118 @@ All sub-rungs LANDED across sessions 2026-04-30 #3 through 2026-05-01 #6. Closed
       Bonus: `test_smoke_snobol4.sh` **PASS=7/0** (no regression
       on the shared SNOBOL4 frontend from the Snocone landing).
 - [ ] LS-6.c — `beauty.sc` produces output byte-identical to its
-      pre-migration `.ref` in all three Snocone modes. **GATED on
-      GOAL-SNOCONE-BEAUTY SB-6.D** (the active `EVAL(EXPRESSION)`
-      double-wrap investigation at the Reduce call site of
-      `beauty.sc`). No `.ref` file currently exists at
-      `corpus/programs/snocone/demo/beauty/beauty.ref` because
-      `beauty.sc` self-host output is still under SB-6.D
-      investigation. The all-modes harness's `SKIP beauty` rows
-      are this dependency surfacing through the gate; closing
-      LS-6.c requires SB-6.D to land first. Coordinate with
-      that goal's session per the cross-goal block below.
+      pre-migration `.ref` in all three Snocone modes. **Progress
+      session 2026-05-01 #8: SB-6.D root cause identified and fixed
+      (corpus only); two further grammar gaps in Snocone uncovered
+      and one fixed. Third still open.**
+
+      **SB-6.D — corpus fix.** Sessions #80/#81 framed this as a
+      runtime "double-wrap" bug. It is not. The Snocone `Reduce` in
+      `corpus/programs/snocone/demo/beauty/ShiftReduce.sc` had a
+      faulty translation of SPITBOL's `:F(NRETURN)`:
+      ```snocone
+      n = EVAL(n);
+      if (~DIFFER(n)) { nreturn; }   // doesn't catch EVAL failure
+      ```
+      Per SPITBOL Manual Ch.2 p.33, when EVAL fails the assignment
+      is silently skipped and `n` keeps its prior EXPRESSION value;
+      `DIFFER(EXPRESSION)` succeeds, `~DIFFER` fails, no nreturn,
+      and `GE(n,1)` errors with "first arg not numeric". Verified
+      runtime is innocent: ported the same broken if-form back to
+      SNOBOL4 — **SPITBOL also errors with Error 109**. Fix:
+      ```snocone
+      if (~(t = EVAL(t))) { nreturn; }   // direct port of :F(NRETURN)
+      ```
+      `~` negates failure (Manual Ch.9 p.130); embedded `t = EVAL(t)`
+      fails iff EVAL fails (RHS-fails-statement-fails rule). Tested
+      against three cases (failing-expr / succeeding-expr / preserved-
+      LHS) — matches SPITBOL `:F(NRETURN)` exactly. Same fix applied
+      to both `t` and `n` parameters in `Reduce`. Stale comment block
+      at lines 23-32 of ShiftReduce.sc that claimed "Snocone's
+      `if (assignment)` does not propagate inner EVAL failure"
+      corrected — that claim was either pre-LS-4.l grammar state or
+      a flawed earlier probe; current Snocone correctly propagates
+      embedded-assignment failure.
+
+      **Grammar gap #1 (LANDED) — empty replacement RHS.**
+      `beauty.sc::case.sc:22` uses statement-form `subj ? pat = ;`
+      (match-replace with empty replacement) — also bare `x = ;`
+      (assign null to x). Both are valid SPITBOL idioms; SPITBOL's
+      `opt_repl` rule (snobol4.y:77) handles them via a dedicated
+      `T_2EQUAL` no-RHS production yielding empty E_QLIT. Snocone's
+      Bison grammar had only the binary `expr1 T_2EQUAL expr0` form,
+      requiring a non-empty RHS, so `case.sc` failed to parse.
+      Fix in `src/frontend/snocone/snocone_parse.y`: added second
+      production
+      ```
+      expr0 : expr1 T_2EQUAL          { $$ = E_ASSIGN(lhs, '');  }
+            | expr1 T_2EQUAL expr0    /* existing */
+            | expr1                   /* fallback */
+            ;
+      ```
+      Bison single-token lookahead distinguishes: if next token can
+      start expr0 → shift (use binary form); else (T_SEMICOLON,
+      T_RPAREN, etc.) → reduce to empty-RHS form. **Bison reports
+      0 shift/reduce, 0 reduce/reduce conflicts.** This rule is
+      faithful to SPITBOL's `opt_repl` semantics — empty RHS lowers
+      to NULL (zero-length string) per Lon's session-#8 directive.
+
+      **Grammar gap #2 (LANDED) — keyword-concat-keyword.**
+      `case.sc:22` also uses `ANY(&UCASE   &LCASE)` — two keyword
+      references concat'd via whitespace. The hand-written threaded-
+      code lexer's `is_value_starter()` predicate (used by the
+      CONCAT-injection trigger at S_DISPATCH) did not include `&`,
+      so `KEYWORD_NAME` after a value-token with intervening
+      whitespace failed to inject T_CONCAT and the parser saw two
+      adjacent value tokens → syntax error. Fix in
+      `src/frontend/snocone/snocone_lex.c`: added explicit CONCAT
+      trigger for `&` followed by alpha (i.e. the start of a
+      `&IDENT` keyword reference) when `had_ws && last_value`. The
+      existing `S_OP_AMP` already had the same pattern for unary
+      `&` operator; this just extends it to the `&IDENT` keyword
+      dispatch path (line 252 of `snocone_lex.c`).
+
+      **Grammar gap #3 (OPEN) — dense `if/else` with no whitespace
+      separation between block-builders.** Discovered while running
+      full beauty.sc end-to-end: `beauty.sc:284` and following lines
+      use the dense one-liner form
+      ```snocone
+      if (DIFFER(x)) { OUTPUT='a'; } else { OUTPUT='b'; }
+      ```
+      which produces `snocone parse error: syntax error` regardless
+      of whether `}` and `else` are space-separated. Confirmed
+      pre-existing (reproduces against baseline `07d58f55` without
+      any of session #8's fixes applied). Minimal repro:
+      ```snocone
+      ss_leaf = 'foo';
+      if (DIFFER(ss_leaf)) { OUTPUT='a'; } else { OUTPUT='b'; }
+      ```
+      Probably an interaction between `T_RBRACE` followed by
+      `T_ELSE` and the matched/unmatched `if` grammar in
+      `snocone_parse.y` (LS-4.f territory — Pascal/Algol balanced
+      grammar with `matched_stmt`/`unmatched_stmt`). NEXT SESSION:
+      bisect to find the exact production that fails to fire and
+      whether the fix is grammar-level (extra `opt_head_sep`-style
+      consumer for stray T_CONCAT between `}` and `else`) or
+      lexer-level (T_CONCAT erroneously injected between the two).
+
+      **Verified green session 2026-05-01 #8** with all three
+      session #8 fixes + SB-6.D corpus fix applied:
+      `test_smoke_snocone.sh` 5/0, `test_beauty_snocone_all_modes.sh`
+      42/0/3, `test_smoke_unified_broker.sh` 49/0,
+      `test_smoke_snobol4.sh` 7/0, `test_gate_sn7_beauty_self_host.sh`
+      51/0, `test_interp_broad_corpus_and_beauty.sh` 222/52
+      (baseline unchanged — broad suite isn't sensitive to these
+      fixes). **No regressions.** Beauty.sc end-to-end now compiles
+      past `case.sc` (previously blocked at line 22) and is now
+      blocked at `beauty.sc:284` on grammar gap #3 above. After #3
+      lands, byte-identical comparison vs SPITBOL oracle on a small
+      input is the next milestone for closing LS-6.c.
+
+      **No `.ref` file** exists at `corpus/programs/snocone/demo/
+      beauty/beauty.ref` yet — once gap #3 lands and beauty.sc runs
+      end-to-end, generate via SPITBOL oracle on a representative
+      input set and add to corpus.
 
 ### LS-7 — Documentation pass — LANDED session 2026-05-01 #7
 
