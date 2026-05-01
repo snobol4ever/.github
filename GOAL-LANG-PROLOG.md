@@ -1035,3 +1035,109 @@ destination.
 - `one4all/.github/GOAL-LANG-PROLOG.md` — this section.
 - `.github/PLAN.md` — PL-12 step text refreshed for session #5.
 
+---
+
+## Current state (2026-04-30 session #6, one4all HEAD 641b912c, corpus HEAD 2a69e92)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
+Smoke 5/5, broker 49/49. **Fix #2 v3 implemented and proven mechanically
+correct, but NOT COMMITTED** because exposing real var-goal dispatch
+breaks 36 plunit suites that were previously passing on silent-success
+default arm. Per RULES.md regression-in-error-class. Findings + diff
+saved as committed docs.
+
+### Session work — Fix #2 v3 attempt: bridge correct, exposes corpus stdlib gaps
+
+This session implemented Fix #2 v3 per session #5's plan: a Term→synth-EXPR
+bridge dispatching via direct `interp_exec_pl_builtin` recursion (NOT
+`pl_box_goal_from_ir + bb_broker` like session #4). The bridge is +211
+lines in `pl_runtime.c`, wired into catch/3 at line 1721. All three
+session #4 primary repros pass:
+
+| Repro | Baseline | After v3 |
+|---|---|---|
+| 1: `G=fail, (catch(G,_,write(caught)) -> succ ; failed)` | succeeded ❌ | failed ✅ |
+| 2: `G=(X=5), catch(G,_,fail), [ok,X]` | failed ❌ | [ok,5] ✅ |
+| 3: `G=(A is 3+4), catch(G,_,fail), [ok,A]` | failed ❌ | [ok,7] ✅ |
+
+**Decisive bridge-correctness repro** (with stdlib defined locally):
+
+```prolog
+member(X,[X|_]).
+member(X,[_|T]) :- member(X,T).
+memberchk(X, L) :- member(X, L), !.
+main :- G = memberchk(f(X,a), [f(x,b), f(y,a)]),
+        ( catch(G, _, fail) -> write([ok,X]) ; write(failed) ), nl.
+```
+
+Output: `[ok,y]`. **Session #4's hypothesised "asserted-clause TT_VAR
+not visible to caller's source-level vars" lifecycle bug DOES NOT
+EXIST.** When the predicate is defined, the bridge's tenv-by-Term*-identity
+correctly threads bindings end-to-end through TT_REF chains.
+
+### Why the suite collapsed 43→5 anyway
+
+The bridge correctly dispatches `catch(Goal,_,_)` to actually invoke the
+goal. The previous default-arm silent-success made plunit's `pj_do_succeed`
+register a PASS for any test whose goal didn't trip a recognised
+control-flow path. With the bridge, the test goal really runs — and many
+of them error with `undefined predicate <name>/<arity>` because the
+corpus's `plunit.pl` doesn't define them.
+
+Per-suite gap inventory (collected by running each test with the bridge
+active and grepping stderr):
+
+| Suite | Undefined predicates surfaced |
+|-------|-------------------------------|
+| test_arith | format/3 |
+| test_bips | atom_to_term/3, is_most_general_term/1, length/2, stream_property/2, term_variables/2 |
+| test_call | apply/2, call/0..3, clause/2, false/0, op/3, setup_call_cleanup/3, user/0 |
+| test_dcg | \+/3, expand_goal/2, expand_term/2, setof/3 |
+| test_list | memberchk/2 |
+| test_misc | $current_prolog_flag/5 |
+| test_string | number_string/2, split_string/4, string_*/N (5 variants) |
+| test_term | between/3, clause/2, compound_name_arguments/3, compound_name_arity/3, numbervars/4 |
+
+~25 predicates total. The baseline 43/57 was a **false-positive ceiling**:
+many "PASS" rows were not really running the test goal at all.
+
+### Path to PL-12 ≥80% gate is now 2-step (NEW INSIGHT)
+
+**Step A — corpus stdlib enrichment** (corpus repo, ~25 predicates):
+add to `corpus/programs/prolog/plunit.pl` or a separate
+`stdlib_swi.pl` concatenated by the suite script. Most are 2-3 line
+naive Prolog implementations (memberchk, length, between, false, etc.).
+
+After Step A, baseline (without bridge) should already rise — silent-success
+will produce real PASS for tests where the goal genuinely succeeds when
+the predicate exists.
+
+**Step B — re-land Fix #2 v3** (this session's diff at
+`docs/PL-12-session-2026-04-30-6-attempt.diff`, 211 lines):
+re-apply, rebuild, re-run. With Step A's stdlib in place, expected pass
+count clears 80%.
+
+Step A MUST precede Step B. The bridge's correctness is gated on the
+corpus actually defining the predicates the tests call. This is the
+opposite ordering from session #4's plan and supersedes it.
+
+### Why this finding is more useful than session #4's
+
+Session #4 left the next session with: "the bridge shape is right; the
+dispatch lifecycle is wrong... investigate first... trace pl_box_choice_call
+head-unify exit." This was a wild goose chase: there is no lifecycle bug.
+
+Session #6 leaves the next session with: "the bridge IS correct, here's
+the proof, here's the 25-predicate stdlib gap that needs filling first,
+then the same diff applies cleanly." The plan is concrete and the
+expected outcome is calculable.
+
+### Files committed this session
+
+- `one4all/docs/PL-12-session-2026-04-30-6-attempt.diff` — full v3 bridge
+  diff (211 lines).
+- `one4all/docs/PL-12-session-2026-04-30-6-findings.md` — full narrative,
+  per-suite gap inventory, mechanical-correctness proof, 2-step plan.
+- `one4all/src/runtime/interp/pl_runtime.c` — REVERTED to session #5
+  HEAD (84e72705). No commit.
+
