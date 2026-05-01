@@ -641,12 +641,12 @@ Koenig's original Snocone used `,` between the three parts of
 **Decision:** `for (init; test; step) { … }`.  Matches C and
 matches the C++ programmer's muscle memory.
 
-### Q5. `do { … } while (cond);` vs `do { … } until (cond);`
+### Q5. `do { … } while (cond);` — C-aligned (do/until removed)
 
-Both supported.  `until` is the failure-repeats variant — the
-loop body re-runs while `cond` *fails*.  This maps cleanly onto
-SPITBOL's `:F(top)` branch and gives Snocone a natural
-"failure-driven loop" that idiomatic SNOBOL4 already uses.
+`do/while` supported.  **`do/until` removed per Lon directive session
+2026-04-30 #12** — Snocone follows C's loop forms exactly: `while` and
+`do/while` only.  The `until` keyword is no longer in the lexer's
+KW_TABLE; `do { … } until (…)` is a syntax error.
 
 ### Q6. `switch (e) { case v1: … case v2: … default: … }`
 
@@ -1949,7 +1949,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       smoke gate will exercise the new Bison parser and any
       cond-semantics decision Lon makes here gates that
       milestone.
-- [x] LS-4.g — **LANDED session 2026-04-30 #11** (one4all `4cef1dc6`). `do/while`, `do/until`, `for` parse and lower correctly. `do_body` non-terminal (brace-block only) resolves the grammar ambiguity where T_KW_WHILE after a matched_stmt body would be indistinguishable from a new while_head. `sc_finalize_do_while` (onsuccess loops), `sc_finalize_do_until` (onfailure loops), `sc_finalize_for` (init→Ltop→cond:F→body→step→:(Ltop)→Lend). New gate `test_smoke_snocone_parse_g.sh`: **108/108 PASS**. Combined parse gates **596/596** (488+108).
+- [x] LS-4.g — **LANDED session 2026-04-30 #11** (one4all `4cef1dc6`). `do/while` and `for` parse and lower correctly. (`do/until` initially added, then **removed per Lon directive session 2026-04-30 #12** — Snocone follows C's loop forms exactly: `while` and `do/while` only.) `do_body` non-terminal (brace-block only) resolves the grammar ambiguity where T_KW_WHILE after a matched_stmt body would be indistinguishable from a new while_head. `sc_finalize_do_while` (onsuccess loops back), `sc_finalize_for` (init→Ltop→cond:F→body→step→:(Ltop)→Lend). New gate `test_smoke_snocone_parse_g.sh`: **95/95 PASS** (3 tests verify do/until is now a syntax error). Combined parse gates **583/583** (488+95).
 - [ ] LS-4.h — `function`/`return`/`freturn`/`nreturn`.  Smoke
       `procedure` test renamed to `function` (per session #7
       keyword rename).
