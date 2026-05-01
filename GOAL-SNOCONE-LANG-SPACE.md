@@ -2150,7 +2150,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       Side-channel only — LS-4.j wires the new parser into scrip's
       production driver.
 
-- [ ] LS-4.i.2 — `break;` / `break LABEL;` / `continue;` /
+- [x] LS-4.i.2 — `break;` / `break LABEL;` / `continue;` /
       `continue LABEL;`.  Per Q13 default placeholder: Option A
       (both plain and labeled forms accepted), pending Lon's pick.
       Plain `break;` exits innermost enclosing loop or switch;
@@ -2319,6 +2319,96 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       ```
 
       one4all working tree CLEAN at HEAD `10a7bf03`.
+
+      **Session 2026-05-01 #3 — LANDED, closes LS-4.i.2.**  Wrote 16
+      ASSERT-based test functions (tests 16–31) in
+      `test/frontend/snocone/test_snocone_parse_i.c`, bringing parse-i
+      from 108 to **158 assertions**.  No source touched — pure
+      side-channel test extension.  Approach was: (1) confirm session
+      #2's smoke driver builds and prints "ALL SMOKE CHECKS PASSED"
+      on `10a7bf03` (it does); (2) write a probe that dumps the
+      observed IR shape (label, uncond, onfailure, onsuccess, subj,
+      has_eq) for each scenario so assertions can be written against
+      ground truth rather than guessed; (3) splice the 16 functions
+      and their `main()` calls into `test_snocone_parse_i.c`; (4)
+      verify all gates green; (5) delete the probe.
+
+      **Three small helpers added** at the top of the LS-4.i.2 test
+      block, mirroring the existing `is_label_pad` / `is_goto_uncond`
+      style: `count_gotos_to(stmts, n, target)`,
+      `count_labels_with_prefix(stmts, n, prefix)`,
+      `find_label_with_prefix(stmts, n, prefix)`.  These let
+      assertions key off semantic invariants (e.g. "exactly one goto
+      to outer's _Lend") rather than fragile stmt-index lookups.
+
+      **Coverage map** (test name → scenario):
+      - 16 `test_break_bare_in_while` — bare `break;` in `while {}`
+      - 17 `test_continue_bare_in_while` — bare `continue;` in
+            `while {}`; verifies `continue` reuses _Ltop (no _Lcont
+            pad emitted for while)
+      - 18 `test_break_continue_in_dowhile` — both in `do/while`;
+            verifies _Lcont pad emitted (lazy-emit triggered)
+      - 19 `test_break_continue_in_for` — both in `for(;;)`; same
+            lazy-emit assertion
+      - 20 `test_for_no_continue_lazy_suppressed` — for without
+            continue: zero _Lcont pads (LS-4.g IR shape preserved)
+      - 21 `test_dowhile_no_continue_lazy_suppressed` — same for
+            do/while
+      - 22 `test_for_with_continue_lazy_emitted` — single continue
+            in for body: exactly one _Lcont pad
+      - 23 `test_dowhile_with_continue_lazy_emitted` — same for
+            do/while
+      - 24 `test_labeled_break_nested_loops` — `outer: while
+            { while { break outer; } }`; verifies break targets
+            outer's _Lend not inner's, by counting gotos to
+            `_Lend_0002` (outer) and confirming exactly two _Lend
+            pads exist
+      - 25 `test_labeled_continue_nested_loops` — same shape with
+            `continue outer`; verifies outer's _Ltop_0001 has TWO
+            gotos pointing at it (back-edge + continue) while
+            inner's _Ltop_0003 has only ONE (back-edge alone)
+      - 26 `test_stacked_labels_break_first` — `a: b: while { break
+            a; }`; both labels stay attached as label-pad stmts
+            and `break a` resolves the same loop frame as `break b`
+      - 27 `test_stacked_labels_break_second` — same, `break b`,
+            same _Lend target
+      - 28 `test_label_on_non_loop_stmt_disambiguation` — `a: x = 1;
+            while {...}`; verifies `a` is on the assignment-pad,
+            NOT on the loop frame (sc_append_stmt clears pending
+            before head fires)
+      - 29 `test_break_label_attached_to_non_loop_error` — same
+            shape with `break a;` inside the loop body — must fail
+            to parse (a is not on a loop frame)
+      - 30 `test_break_outside_loop_error` — bare `break;` at top
+            level: parse must return NULL
+      - 31 `test_continue_outside_loop_error` — bare `continue;`
+            at top level: parse must return NULL
+
+      Tests 29–31 trigger sc_error to fprintf to stderr; that noise
+      is expected (matches parse-g's `do/until` error tests which
+      do the same).
+
+      **All gates green at session-end:**
+      ```
+      smoke snocone:               5/5
+      beauty 3-mode:               42/0/3
+      unified broker:              49/0
+      parse-a..i (side-channel):   826/826  (35+119+66+79+71+118+95+85+158)
+      Bison conflicts:             0 shift/reduce, 0 reduce/reduce
+      ```
+      LS-4.i.1 unchanged at 108 assertions; LS-4.i.2 grew the parse-i
+      gate by exactly 50 (108 → 158).  Net combined parse-a..i delta
+      from LS-4.i.2 close: 776 → 826.
+
+      Build also clean under `-Wall -Wextra -Wno-unused-parameter`
+      (no warnings from the new test code; existing warnings under
+      `-Wextra` come from snocone_parse.tab.c's prologue and lex
+      paths and are out of scope).
+
+      one4all advances to the LS-4.i.2-close commit; .github advances
+      to the matching goal/PLAN-table update.  Next active step:
+      LS-4.i.3 — `switch (e) { case v1: ... case v2: ... default:
+      ... }`.
 
 - [ ] LS-4.i.3 — `switch (e) { case v1: S1; case v2: S2; default: SD; }`.
       Lowers to:
