@@ -2762,7 +2762,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       but still compiled).  Smoke gate green at end of LS-4.j
       using the new parser.
 
-- [ ] LS-4.k — **Junk cleanup — by moving to archive, not deleting.**
+- [x] LS-4.k — **Junk cleanup — by moving to archive, not deleting.**
       Now that LS-4.j has the new Bison parser wired into
       `snocone_compile()`, the legacy shunting-yard parser path is
       dead code in the live tree.  Move it out of `src/` into
