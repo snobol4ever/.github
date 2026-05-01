@@ -2527,12 +2527,102 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       production driver.  one4all advances to `c3a56a6a`.  Next active
       step: LS-4.i.4 — alt-eval `(a, b, c)` → `E_VLIST`.
 
-- [ ] LS-4.i.4 — Alt-eval `(a, b, c)` → `E_VLIST`.  Pure expression-
+- [x] LS-4.i.4 — Alt-eval `(a, b, c)` → `E_VLIST`.  Pure expression-
       tier change at expr0 / paren-grouping.  When a comma-separated
       list of expressions appears inside parens at top level,
       construct an n-ary `E_VLIST` node.  The SPITBOL backend can
       pass it through verbatim; non-SPITBOL backends lower to a
       chain of `:S(after)` branches.
+
+      **Session 2026-05-01 #5 — LANDED LS-4.i.4** (one4all `441731f3`).
+      Three rule additions in `expr17` atoms tier of `snocone_parse.y`,
+      mirroring `snobol4.y:194-196` byte-for-byte:
+
+          | T_LPAREN expr0 T_COMMA exprlist_ne T_RPAREN
+                  { EXPR_t *a = expr_new(E_VLIST);
+                    expr_add_child(a, $2);
+                    for (int i = 0; i < $4->nchildren; i++)
+                        expr_add_child(a, $4->children[i]);
+                    free($4->children); free($4);
+                    $$ = a; }
+          | T_LPAREN T_RPAREN
+                  { $$ = expr_new(E_NUL); }
+
+      The pre-existing `T_LPAREN expr0 T_RPAREN` → `$2` (single-expr
+      grouping) stays intact — Bison's LR(1) lookahead at the token
+      after `expr0` (either T_RPAREN for grouping or T_COMMA for
+      VLIST) disambiguates without conflict.
+
+      **Zero IR / runtime / lowering changes** — `E_VLIST` was
+      already defined at `src/ir/ir.h:83-87` with the precise
+      semantics ("Goal-directed value-context disjunction.  N-ary.
+      Try children left-to-right; return first non-failing value;
+      fail if all fail.  SPITBOL `(a, b, c)` paren-list and Snocone
+      `||`.  Distinct from E_ALT (pattern alternation, lazy at
+      match time)") and three downstream consumers
+      (`src/runtime/x86/sm_lower.c:631`, `src/driver/interp.c:3454`,
+      `src/driver/interp.c:4531`) already handle it.  This rung
+      was purely a grammar-surface addition.
+
+      **No new tokens** — `snocone_parse.tab.h` is byte-identical
+      pre/post regen.  Only `.tab.c` changed (table sizes shifted
+      due to the two new rules).  Per `RULES.md ## Editing .y or .l
+      files` step 1, regen happened via
+      `scripts/regenerate_parser_and_lexer_from_sources.sh` before
+      commit.
+
+      **Tests added** (46–58, +56 assertions) in
+      `test/frontend/snocone/test_snocone_parse_i.c`:
+      - 46 `test_vlist_three_args` — headline `(a, b, c)` → E_VLIST(3)
+      - 47 `test_vlist_two_args` — minimum 2-arity
+      - 48 `test_paren_grouping_unchanged` — regression guard:
+            `(a)` is bare VAR a, NOT 1-arity E_VLIST
+      - 49 `test_empty_parens` — `()` → E_NUL
+      - 50 `test_vlist_spitbol_manual_example` — Manual Ch.15
+            footnote `(LT(I,J) I, GT(I,J) J, "Same")` with concat
+            sub-expressions verified through to E_SEQ child shape
+      - 51 `test_vlist_nested` — `((a, b), c)` outer is E_VLIST(2)
+            with inner E_VLIST(2) as child[0]; demonstrates VLIST
+            is NOT a left-recursive fold like E_SEQ/E_ALT
+      - 52 `test_vlist_as_if_condition` — `if ((a, b)) y = 1;` —
+            cond stmt's subject is E_VLIST(2); LS-4.f's
+            emit-and-splice lowering carries through
+      - 53 `test_vlist_in_arithmetic` — VLIST as binop operand:
+            `(a, b) + 1` → E_ADD(E_VLIST(2), ILIT 1)
+      - 54 `test_vlist_distinct_from_ealt` — `(a | b, c)` outer is
+            E_VLIST(2) with E_ALT(2) as child[0]; proves the IR
+            distinction documented at ir.h:82-87
+      - 55 `test_call_not_vlist` — regression guard: `f(a, b)` is
+            E_FNC (zero-space T_CALL path wins), NOT E_VLIST
+      - 56 `test_vlist_bare_statement` — `(a, b);` parses as bare
+            expression stmt with E_VLIST subject
+      - 57 `test_vlist_as_while_condition` — `while ((a, b)) y = 1;`
+            same shape as if-cond test, drives loop's :F-on-fail exit
+      - 58 `test_vlist_literals` — all-literal VLIST shape
+
+      **All gates green at session-end:**
+      ```
+      smoke snocone:               5/5
+      beauty 3-mode:               42/0/3
+      unified broker:              49/0
+      parse-a..i (side-channel):   927/927  (35+119+66+79+71+118+95+85+259)
+      Bison conflicts:             0 shift/reduce, 0 reduce/reduce
+      ```
+      Combined parse-a..i delta from LS-4.i.4 close: 871 → 927 (+56).
+
+      End-to-end smoke verified through 7 realistic shapes
+      (Andrew's `if ((DIFFER(x), DIFFER(y))) z = 1;` Q2-canonical
+      or-cond replacement, the SPITBOL footnote example, plain
+      grouping regression, nested-in-arithmetic, alt-eval-in-while,
+      three-way comparison-chain — all parsed cleanly with
+      expected statement counts).  Smoke driver discarded (not
+      committed) — the 13 ASSERT-based tests in
+      `test_snocone_parse_i.c` cover the same shapes more
+      precisely.
+
+      Side-channel only — LS-4.j wires the new parser into scrip's
+      production driver.  Next active step: LS-4.i.5 — `struct
+      NAME { field, field, ... };`.
 
 - [ ] LS-4.i.5 — `struct NAME { field, field, ... };`.  Andrew's
       `.sc` line 162 has this — a struct keyword that defines a
