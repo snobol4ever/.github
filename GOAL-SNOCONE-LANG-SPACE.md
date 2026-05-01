@@ -1438,17 +1438,40 @@ helper) against the expected.  Test corpus lives at
 
 ### LS-3 — Lexer implementation (Flex)
 
-- [ ] LS-3.a — Create `src/frontend/snocone/snocone.l` (new Flex source).
-- [ ] LS-3.b — Update `scripts/regenerate_parser_and_lexer_from_sources.sh`
-      to handle Snocone's `.l` (the script may already be generic;
-      if not, extend).
-- [ ] LS-3.c — Run the LS-1.b test corpus through the new lexer;
-      every token stream matches.
+- [x] LS-3.a — Created `src/frontend/snocone/snocone.l` (new Flex source).
+      one4all `02db637d` (W{OP}W envelope pattern, replacing the
+      prev-token state machine of the first attempt `57b9d9e0`).
+- [x] LS-3.b — `scripts/regenerate_parser_and_lexer_from_sources.sh`
+      generates `snocone.lex.c` from `snocone.l`.
+- [x] LS-3.c — Ran the LS-1.b test corpus through the new lexer via
+      `test_snocone_lex2.c`; **31/31 token streams match**.
+      one4all `02db637d`.
 - [ ] LS-3.d — Existing hand-written `snocone_lex.c` removed in
-      same commit as the new generated `snocone.lex.c` lands.
+      same commit as LS-4 Bison grammar lands.
 - [ ] LS-3.e — Smoke test — `test_smoke_snocone.sh` MAY regress
-      here because the parser hasn't caught up; that's expected
-      and OK as long as LS-4 closes the gate again.
+      here because the parser hasn't caught up; that's expected.
+
+**Design alignment (one4all `02db637d`):**
+
+The new lexer follows snobol4.l lines 235-315 line-for-line:
+space envelops every binary operator via `{W}OP{W}` patterns.
+Whitespace alone between two atoms lexes as `T_CONCAT`.  Unary
+versions of dual-role operators arrive bare (no leading W) and
+return `T_UN_*` tokens.  Token names match snobol4.tab.h for every
+concept equivalence: `T_IDENT`, `T_FUNCTION`, `T_INT`, `T_REAL`,
+`T_STR`, `T_KEYWORD`, `T_CONCAT`, `T_ASSIGNMENT`, `T_MATCH`,
+`T_ALTERNATION`, `T_ADDITION`, `T_SUBTRACTION`, `T_MULTIPLICATION`,
+`T_DIVISION`, `T_EXPONENTIATION`, `T_IMMEDIATE_ASSIGN` (`$`),
+`T_COND_ASSIGN` (`.`), `T_AMPERSAND`, `T_AT_SIGN`, `T_POUND`,
+`T_PERCENT`, `T_TILDE`, `T_LPAREN`, `T_RPAREN`, `T_LBRACK`,
+`T_RBRACK`, `T_COMMA`, plus all `T_UN_*` unaries.  Snocone-only
+additions follow the same convention: `T_LEQ`/`T_LNE`/`T_LLT`/
+`T_LGT`/`T_LLE`/`T_LGE`/`T_IDENT_OP`/`T_DIFFER` for Andrew's `:==:`
+etc., `T_LBRACE`/`T_RBRACE`/`T_SEMICOLON`/`T_COLON`, `T_KW_*`.
+
+When LS-4 lands the Bison grammar, every operator token will be the
+same identifier on both sides of the lex/parse boundary AND match
+the SNOBOL4 grammar's name for the same concept.
 
 ### LS-4 — Grammar implementation (Bison)
 
