@@ -1543,3 +1543,117 @@ Working trees clean at handoff. SWI baseline 43/57 preserved.
 - `/tmp/test_quoted_op.pl`, `/tmp/test_unq_semi.pl`, `/tmp/test_unq_comma.pl`,
   `/tmp/test_arity1_semi.pl` — F.1.a verification
 
+---
+
+## Current state (2026-05-01 session #4, one4all HEAD `86aee891`, corpus HEAD `92f3179`)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
+on the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
+**Two commits landed this session, both gate-neutral and bisectable.**
+
+### Two landings (session 2026-05-01 #4)
+
+| # | Repo    | Commit     | Effect                                                            |
+|---|---------|------------|-------------------------------------------------------------------|
+| 1 | one4all | `86aee891` | Step F.1.b: `:` as `xfy 200` in BIN_OPS — module-qualifier parsing |
+| 2 | corpus  | `92f3179`  | Step F.3: `split_string/4` + `string_bytes/3` stubs in plunit.pl   |
+
+### Step F.1.b — module-qualified `:` operator
+
+Single-line addition to `BIN_OPS` in `prolog_parse.c`. The lexer already
+emitted `:` as `TK_OP` via the graphic-char set (`prolog_lex.c::is_graphic`);
+`:-` lexes greedily so neck syntax is unaffected. The parser's
+operator-climbing loop in `parse_term` consumes the binary form
+automatically once the OpEntry exists.
+
+Repros (`/tmp/test_colon_op.pl`):
+```prolog
+:- X = call8:does_not_exist, write([colon_atom_atom, X]), nl.
+:- Y = call8:does_not_exist/8, write([colon_with_slash, Y]), nl.
+:- Z = (_:does_not_exist/8), write([anon_colon, Z]), nl.
+```
+Output:
+```
+[colon_atom_atom,:(call8,does_not_exist)]
+[colon_with_slash,:(call8,does_not_exist)/8]
+[anon_colon,:(_G-1,does_not_exist)/8]
+```
+
+test_call.pl bridge-off parse errors: **111 → 47** (lines 103-110 region
+is now clean; lines 186+ remaining errors are the `@` operator
+"call-at-context" — separate gap, not in F.1.b's scope).
+test_call suite-line: 8/9 unchanged (the previously-failing test bodies
+were already silent-PASSing on the false-positive ceiling).
+
+### Step F.3 — split_string/4 + string_bytes/3 stubs
+
+48 lines added to `corpus/programs/prolog/plunit.pl` next to the
+existing string predicates section. Both predicates were completely
+undefined, so any bridge-on dispatch through them tripped
+`existence_error` cascades.
+
+`split_string(+S, +SepChars, +PadChars, -Parts)`: splits `S` on any
+char in `SepChars`, then strips any char in `PadChars` from the left
+and right of each part. Verified against test_string.pl's four shapes.
+
+`string_bytes(+S, ?Bytes, +Enc)`: utf8 → atom_codes; utf16be → interleave
+0-bytes before each char; utf16le → interleave 0-bytes after. ASCII-only
+is sufficient (non-ASCII test bodies on lines 113-123 are already
+commented out via prior session's UTF-8 lex patch). Bidirectional
+verified for all six ASCII-mode tests.
+
+### Bridge-on probes (session #4)
+
+| Configuration                                | SWI suite-line | Notes                |
+|----------------------------------------------|----------------|----------------------|
+| Bridge-neutral baseline (post F.1.b + F.3)   | 43/57          | Unchanged from #3    |
+| Bridge alone (no F.1.b, no F.3)              | 15/57          | (session #2 number)  |
+| Bridge + E.1 + E.2 (session #3 close)        | 16/57          | E.2 = no direct gain |
+| Bridge + E.1 + E.2 + F.1.b + F.3 (session #4)| **17/57**      | +1 from F.3 unblocking test_string `string_bytes` |
+
+F.1.b was bridge-on-net-zero on the suite-line metric — its value is
+foundational (prevents parse-error cascades the bridge would surface).
+F.3 produced a real +1 on the bridge-on metric by defining predicates
+that had been existence_error sinks.
+
+Path-to-gate status: bridge-on at 17/57 vs 43/57 baseline; bridge still
+not landable. Need ~26 more bridge-on suite-lines via remaining work.
+
+### NEXT SESSION PL-12 — revised ordered task list:
+
+1. **F.2 — investigate why bridge is still 17/57 despite stubs.**
+   Per-test diagnostic on the bridge-on FAIL blocks. Likely culprits:
+   (a) `\+/1`, `once/1`, `not/1` still dispatch through the
+   pre-bridge default-arm path (the bridge currently only wires into
+   `catch/3` per the v3 diff — extending it to these three should be
+   straightforward); (b) `call/N` in plunit relies on `=..` reconstruction
+   then tail-call into the rebuilt goal, which the bridge may not handle
+   when the inner G is itself a Term-not-Expr; (c) `setof/3` /
+   `setup_call_cleanup/3` — already stubbed but stub bodies use `catch`
+   which currently runs through the bridge correctly only when invoked
+   from a non-bridged context. Trace one MISS suite at a time with
+   `util_diagnose_prolog_swi.sh` bridge-on; isolate first failing
+   sub-test; fix the dispatcher gap; iterate.
+
+2. **F.4 — `@` operator (call-at-context, yfx 200) for test_call lines
+   186+.** Same shape as F.1.b — one-line BIN_OPS addition. Will close
+   test_call lines 186-200 region's parse errors. Bridge-neutral.
+
+3. **E (re-attempt land bridge)** once F.2 closes enough of the 17→43
+   gap that bridge-on >= 43/57.
+
+4. **G — runtime semantic fixes**: numbervars/3 negative start, `=@=`,
+   compound/1 edge cases. Each small and bisectable.
+
+### Files committed this session
+
+- `one4all/src/frontend/prolog/prolog_parse.c` — F.1.b (+1).
+- `corpus/programs/prolog/plunit.pl` — F.3 (+48).
+
+Working trees clean at handoff. SWI baseline 43/57 preserved.
+
+### Working repros saved (in /tmp, not committed)
+
+- `/tmp/test_colon_op.pl` — F.1.b verification (3 colon shapes)
+- `/tmp/test_string_combined.pl` — F.3 verification (split_string ×4 +
+  string_bytes ×6 modes)
