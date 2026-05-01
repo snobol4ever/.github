@@ -1746,3 +1746,128 @@ is architectural (PATBCL-relative offsets), not just sentinel-routing.**
 The fix shape (PDLHED-bound walker) is well-defined and has BAL as an
 existing precedent in CSNOBOL4.  Session #60 has a concrete patch path.
 
+
+---
+
+## Session #62 update — full PDL dump diagnostic; bug locus narrowed (no code change)
+
+Session #62 followed the session #60-final-handoff plan exactly: instrumented
+`isnobol4.c` with an env-gated PDL-dump diagnostic at three checkpoints
+(FNCA-success, STARP2-after-sentinels, every SALT2 entry).  Reverted before
+commit per RULES.md.  Full findings in
+`csnobol4/docs/F-2-Step3a-session62-findings.md`.
+
+### Genuine new contribution
+
+**Bug-class boundary sharpened to 5-line repro:**
+
+```snobol
+        cmd = FENCE('a' | 'ab')
+        outer = ARBNO(*cmd)
+        s = 'ab'
+        s POS(0) *outer RPOS(0)                               :S(BAD)F(GOOD)
+BAD     OUTPUT = 'unexpected match'                            :(END)
+GOOD    OUTPUT = 'sealed'
+END
+```
+
+Empirical bisection — bug requires the **conjunction of ALL FOUR**:
+
+1. `*var` outer indirection (DSAR dispatch path)
+2. ARBNO inside that var
+3. `*var` inside the ARBNO body (second DSAR dispatch)
+4. FENCE dispatched from that inner var
+
+Drop any one of (1)-(4) → bug disappears.  This is sharper than session #55's
+Tier F characterization.
+
+### What the dump revealed
+
+- The seal at FNCA-success is correctly placed (`aa20`, top of PDL after
+  rewind+push).  Seal-base mechanics work.
+- Inner FENCE's `'a'|'ab'` alts ARE properly truncated by FNCA's
+  POP+rewind.  Those leaks aren't the issue.
+- STREXCCL paired sentinels (top + bottom) correctly bracket the leak
+  region.  PATBCL routing through them works.
+- **The leaked alt-cont at `a960` (slot[1]=0x90) was previously assumed
+  to be inner-FENCE leak.  It is NOT.**  It's an outer-DSARP2-era alt
+  (offset into outer ARBNO body, not into FENCE-inner P).  Its
+  consumption is part of legitimate ARBNO redo machinery — clearing it
+  would break ARBNO backtrack.
+
+### What the trace silence tells us
+
+**No SALT2 events appear between DUMP #3 (STARP2-after-sentinels) and the
+"unexpected match" output.**  This means the wrong-match path does NOT
+go through the failure walker.  The match SUCCEEDS DIRECTLY via
+SCOK/SCIN2/RTN2 propagation upward.
+
+This is decisive evidence that the bug is NOT in:
+- FNCA arithmetic
+- STARP2 sentinel placement
+- Seal propagation through the failure walker
+- PATBCL routing in STREXCCL
+
+The bug is in the SUCCESS path AFTER STARP2 of `*cmd` returns — somewhere
+between DUMP #3 and the final "unexpected match" output.  Possibilities:
+
+- ARBNO redo machinery dispatches `*cmd` again under a wrong PATBCL,
+  finding 'ab' as a longer match.
+- `*outer`'s STARP2 doesn't properly handle the case where its inner
+  matched fewer characters than required by RPOS(0).
+- The top-level pattern's MAXLEN/cursor bookkeeping is off by some
+  amount specific to this 4-level nesting.
+
+### Recommended session #63 plan
+
+The diagnostic ladder needs to extend INTO the success path.  Candidates:
+
+1. **Instrument L_SCOK / L_SCIN2 entry/exit.**  Log PATBCL, PATICL, cursor
+   each time L_SCOK fires.  Trace the chain of RTN2 propagations after
+   FNCA-success.
+2. **Instrument SCNR's success-completion path** (L_SCNR3, L_SCNR4-6).
+3. **Instrument every PATBRA case dispatch in SALT2.**  Log the case number
+   when walker dispatches an FNC-flagged trap.
+4. **Use the simpler `s='ab'` repro** for diagnostic runs.
+5. **Find where 'ab' actually matches.**  The wrong match has to come from
+   `'ab'` being committed somewhere.  Add a one-shot trap at every place
+   the matcher commits a 2-char-or-longer match; log cursor and pattern.
+6. Once located, fix candidates depend on the discovery — likely either
+   ARBNO redo dispatch, *cmd's STARP2 success-handoff to outer, or
+   *outer's STARP2/STARP5 pop-and-continue.
+
+### What session #62 did NOT do
+
+- Did NOT modify production code (diagnostic reverted).
+- Did NOT advance beauty self-host.
+- Did NOT improve fence_suite (still 44/4/0).
+- Did NOT identify the exact wrong-match path (only narrowed the bug
+  region from "anywhere in FENCE/STAR/STREXCCL machinery" to "in the
+  SCOK success-propagation path between *cmd's STARP2 and SCAN exit").
+
+### Files this session
+
+- `csnobol4/docs/F-2-Step3a-session62-findings.md` — full findings,
+  trace excerpts, bug-class bisection, session #63 plan.
+- This goal-file update + PLAN.md state-cell.
+- No production source changes.  csnobol4 working tree clean at
+  HEAD `e723517`.
+
+### Honest checkpoint
+
+Sessions #44–#62 = 18 sessions on F-2 Step 3a.  fence_function preserved
+10/10.  Tier F preserved 16/16 since #55.  fence_suite stuck at 44/4/0
+since #58 (5 sessions).  Beauty stuck at 42 lines since #58 (5 sessions).
+
+Session #62 is exclusively diagnostic — no fix attempted, no code change
+committed, no gate movement.  Per RULES.md investigation-rung guidance,
+this is acceptable.  But the strategic question from session #60's final
+handoff stands: **is closing this bug worth more sessions, or should the
+goal pivot?**  Possible pivots:
+- Remove FENCE(P) from beauty.sno entirely (Plan B route)
+- Use SPITBOL exclusively for beauty self-host
+- Accept 44/4/0 and document the remaining 4 FAILs as known limitation
+
+The bug now has the smallest known repro (5 lines, `s='ab'`) and a clear
+narrowed locus (SCOK success path).  Session #63 can attempt a focused
+fix.  But Lon's input on whether to continue is welcome.
