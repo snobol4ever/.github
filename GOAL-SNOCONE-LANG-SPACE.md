@@ -1457,17 +1457,35 @@ The new lexer follows snobol4.l lines 235-315 line-for-line:
 space envelops every binary operator via `{W}OP{W}` patterns.
 Whitespace alone between two atoms lexes as `T_CONCAT`.  Unary
 versions of dual-role operators arrive bare (no leading W) and
-return `T_UN_*` tokens.  Token names match snobol4.tab.h for every
-concept equivalence: `T_IDENT`, `T_FUNCTION`, `T_INT`, `T_REAL`,
-`T_STR`, `T_KEYWORD`, `T_CONCAT`, `T_ASSIGNMENT`, `T_MATCH`,
-`T_ALTERNATION`, `T_ADDITION`, `T_SUBTRACTION`, `T_MULTIPLICATION`,
-`T_DIVISION`, `T_EXPONENTIATION`, `T_IMMEDIATE_ASSIGN` (`$`),
-`T_COND_ASSIGN` (`.`), `T_AMPERSAND`, `T_AT_SIGN`, `T_POUND`,
-`T_PERCENT`, `T_TILDE`, `T_LPAREN`, `T_RPAREN`, `T_LBRACK`,
-`T_RBRACK`, `T_COMMA`, plus all `T_UN_*` unaries.  Snocone-only
-additions follow the same convention: `T_LEQ`/`T_LNE`/`T_LLT`/
-`T_LGT`/`T_LLE`/`T_LGE`/`T_IDENT_OP`/`T_DIFFER` for Andrew's `:==:`
-etc., `T_LBRACE`/`T_RBRACE`/`T_SEMICOLON`/`T_COLON`, `T_KW_*`.
+return `T_1*` tokens (arity-1 form — the "1" prefix marks unary).
+Token names match snobol4.tab.h for every concept equivalence,
+under the post-session-#6 `T_<arity><charname>` scheme:
+`T_IDENT`, `T_FUNCTION`, `T_INT`, `T_REAL`, `T_STR`, `T_KEYWORD`,
+`T_CONCAT`, `T_2EQUAL` (`=`), `T_2QUEST` (`?`), `T_2PIPE` (`|`),
+`T_2PLUS` (`+`), `T_2MINUS` (`-`), `T_2STAR` (`*`), `T_2SLASH` (`/`),
+`T_2CARET` (`^`), `T_2DOLLAR` (`$`), `T_2DOT` (`.`),
+`T_2AMP` (`&`), `T_2AT` (`@`), `T_2POUND` (`#`),
+`T_2PERCENT` (`%`), `T_2TILDE` (`~`),
+`T_LPAREN`, `T_RPAREN`, `T_LBRACK`, `T_RBRACK`, `T_COMMA`, plus
+the matching `T_1*` unaries (`T_1PLUS`, `T_1MINUS`, `T_1STAR`,
+`T_1SLASH`, `T_1PERCENT`, `T_1AT`, `T_1TILDE`, `T_1DOLLAR`,
+`T_1DOT`, `T_1POUND`, `T_1PIPE`, `T_1EQUAL`, `T_1QUEST`,
+`T_1AMP`, `T_1BANG`).  Multi-character ops keep their existing
+character-name tokens (no arity ambiguity): `T_EQ`/`T_NE`/`T_LT`/
+`T_GT`/`T_LE`/`T_GE` numeric, `T_LEQ`/`T_LNE`/`T_LLT`/`T_LGT`/
+`T_LLE`/`T_LGE` lexical, `T_IDENT_OP`/`T_DIFFER` identity,
+`T_PLUS_ASSIGN`/`T_MINUS_ASSIGN`/`T_STAR_ASSIGN`/`T_SLASH_ASSIGN`/
+`T_CARET_ASSIGN` compound-assigns, `T_LBRACE`/`T_RBRACE`/
+`T_SEMICOLON`/`T_COLON` punctuation, `T_KW_*` keywords.
+
+The session-#6 rename (Lon directive: "I do not like the T_UN_*
+names implying undo. Name things from the characters since this
+tokens.") replaced the prior English-named binary tokens
+(`T_ADDITION`, `T_SUBTRACTION`, `T_AMPERSAND`, ...) and `T_UN_*`
+unary tokens with the symmetric arity-prefixed scheme.  Both
+SNOBOL4 and Snocone moved in lockstep so the snobol4↔snocone
+name-equivalence invariant is preserved; the rename is purely
+cosmetic, semantics unchanged.
 
 When LS-4 lands the Bison grammar, every operator token will be the
 same identifier on both sides of the lex/parse boundary AND match
@@ -1666,11 +1684,11 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
 - [ ] LS-4.d — Add subscripting `a[i,j]` → `E_IDX`.  (Call-form
       `f(a,b,c)` → `E_FNC` already landed in LS-4.b — it was the
       headline gate vehicle.)  Parses `a[i, j]`.
-- [ ] LS-4.e — Add unary operators: `T_UN_PLUS` `T_UN_MINUS`
-      `T_UN_ASTERISK` `T_UN_DOLLAR_SIGN` `T_UN_PERIOD` `T_UN_AT_SIGN`
-      `T_UN_TILDE` `T_UN_QUESTION_MARK` `T_UN_AMPERSAND` (and the
-      OPSYN-slot `T_UN_PERCENT` `T_UN_SLASH` `T_UN_POUND`
-      `T_UN_VERTICAL_BAR` `T_UN_EQUAL`).  Parses `*expr`, `.var`, `$x`.
+- [ ] LS-4.e — Add unary operators: `T_1PLUS` `T_1MINUS`
+      `T_1STAR` `T_1DOLLAR` `T_1DOT` `T_1AT`
+      `T_1TILDE` `T_1QUEST` `T_1AMP` (and the
+      OPSYN-slot `T_1PERCENT` `T_1SLASH` `T_1POUND`
+      `T_1PIPE` `T_1EQUAL`).  Parses `*expr`, `.var`, `$x`.
 - [ ] LS-4.f — Control flow `if`/`else`/`while`.  Snocone smoke gate
       `if_eq` and `while` PASS.  Use multiple back-to-back mid-rule
       actions (one value per MRA via `$<str>$`) — Bison rejects
