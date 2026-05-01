@@ -129,6 +129,136 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   (snobol4dotnet `8e5ff9e`, one4all `21eac9a5`). Streaming intern
   + MWK_LABEL.
 
+- [ ] **S-2-bridge-7-byrd-pattern** — *Byrd-box pattern match wire
+  events: CALL / EXIT / REDO / FAIL on every AST node match.*
+  Opened session #75 (2026-05-01).  Increases sync-step granularity
+  from program-visible-events (~3000 for beauty self-host) to AST-
+  node-match-events (~25000+ for the same run) so the wire's first
+  divergence lands ON the structural bug rather than ~25k events
+  downstream.
+
+  **Why Byrd-box ports.** The Prolog tracing model — CALL, EXIT,
+  REDO, FAIL — maps cleanly onto SNOBOL4 pattern-AST navigation
+  even though SNOBOL4 isn't implemented as backtracking goals.
+  Each terminal AST node is a "predicate" whose match/backtrack
+  lifecycle has the four ports:
+    - **CALL** — Match() entered for this node at this cursor.
+    - **EXIT** — Node's Scan returned SUCCESS; cursor advanced;
+      control flowing forward to Subsequent.
+    - **REDO** — Backtracked to this node via RestoreAlternate
+      (popped from alt-stack); about to retry from saved cursor.
+    - **FAIL** — Node FAILED and there is no live alternate to
+      restore; FAILURE/ABORT propagates outward.
+
+  The four ports together describe the full match traversal.
+  Adjacent ports' wire events bracket exactly one AST node's
+  scan attempt — making the C# trace between adjacent sync-step
+  events land on a single Scan call.  When dot's wire shows
+  `FAIL *snoSpecialNm` followed by `CALL *snoFunction` while spl
+  shows `FAIL *snoSpecialNm` followed by `CALL *snoString`, the
+  divergence is the Alternate link out of `*snoSpecialNm` — the
+  bug is in `AbstractSyntaxTree.ComputeAlternate` or
+  `PatternAlternation (Pipe).cs` directly, with zero noise.
+
+  **Wire format additions (`monitor_wire.h`):**
+
+  ```c
+  #define MWK_PM_CALL   7u   /* enter Match() for AST node          */
+  #define MWK_PM_EXIT   8u   /* node Scan returned SUCCESS          */
+  #define MWK_PM_REDO   9u   /* RestoreAlternate popped this node   */
+  #define MWK_PM_FAIL  10u   /* node FAILED, no alternate restored  */
+  ```
+
+  Each carries: name_id = node-tag id (e.g. `*snoString`,
+  `'BREAK'`, `LITERAL`, `MATCH_ANY`), type = MWT_INTEGER, value =
+  8-byte LE cursor position.  For literals/short tags the
+  name-id can also encode the alt index; for now the tag string
+  suffices since name interning is streaming.
+
+  **Implementation order — dot first, spl second.**
+
+  1. **dot side** — `Snobol4.Common/Runtime/Monitor/MonitorIpc.cs`:
+     add `EmitPmCall(string nodeTag, long cursor)`,
+     `EmitPmExit(string nodeTag, long cursor)`,
+     `EmitPmRedo(string nodeTag, long cursor)`,
+     `EmitPmFail(string nodeTag, long cursor)`.  All four
+     increment `_emitCount`.  Same wire encoding as
+     `EmitValue(name, INTEGER, cursor)`.
+
+  2. **dot fire-points** — `Scanner.cs Match()`:
+     - At top of while-loop body, before `Scan()`:
+       `EmitPmCall(node.Self.Tag, _state.CursorPosition)`.
+     - On SUCCESS: `EmitPmExit(node.Self.Tag, _state.CursorPosition)`
+       just before `node = node.GetSubsequent()` (or before
+       `return Success` if no subsequent).
+     - On FAILURE branch, after `RestoreAlternate()` returns the
+       new node: `EmitPmRedo(_ast[alternateIndex].Self.Tag,
+       savedCursor)` (the cursor stored in the alt-stack entry).
+     - On FAILURE branch when `!HasAlternates()`:
+       `EmitPmFail(node.Self.Tag, _state.CursorPosition)` before
+       `return mr`.
+     - On seal-skip ABORT (no live alts after `-2` pops):
+       `EmitPmFail(node.Self.Tag, _state.CursorPosition)` before
+       `return MatchResult.Abort(_state)`.
+
+     Each terminal pattern type (LiteralPattern, SpanPattern,
+     UnevaluatedPattern, etc.) needs a `Tag` property — string
+     describing what it is.  For UnevaluatedPattern, Tag should
+     include the function name (`*snoString`).
+
+  3. **spl side** — `x64/osint/monitor_ipc_runtime.c`:
+     add `zysmpc/zysmpe/zysmpr/zysmpf` C entry points; declare
+     in `osint.h` and `int.dcl`.  In `sbl.min` the fire-points
+     are at SPITBOL's match-graph traversal: `mtchcd`'s node
+     dispatch, `bktrk`'s pop, `snofal`/`snosuc`.  Cross-
+     reference SN-26-spl-bridge-coverage notes for SIL fire-
+     point conventions.  Regenerate `bootstrap/sbl.asm` per
+     RULES.md.
+
+  4. **controller** — `monitor_sync_bin.py`: recognize MWK_PM_*
+     records.  Compare by (kind, name, cursor).  No new wildcards
+     needed.
+
+  **Bring-up validation.**
+
+  - **Smoke 1 (dot solo):** run `dotnet Snobol4.dll -bf` against
+    a 5-line program with a single pattern match, dump the
+    PM_* event stream, eyeball that CALL/EXIT/FAIL ports match
+    the obvious traversal of the AST.
+
+  - **Smoke 2 (dot vs spl with workarounds):** run beauty self-
+    host harness with `MONITOR_PM_TRACE=1`.  First DIVERGE row
+    should be in the snoExpr17 alternation, far closer to the
+    actual line-48 gating site than #2839.
+
+  - **Validation gate:** harness's first divergence in beauty
+    self-host points within 50 wire events of the structural
+    bug.  C# trace between last-agreed PM event and first-
+    diverged PM event reveals which Alternate link or Scan
+    outcome is wrong.
+
+  **Done when:**
+    1. Four `MWK_PM_*` kinds defined in `monitor_wire.h`.
+    2. dot emits all four ports correctly (smoke 1).
+    3. spl emits all four ports correctly (smoke 2).
+    4. Controller compares PM events without false positives.
+    5. Beauty self-host harness's first DIVERGE row sits inside
+       snoExpr17 traversal, with adjacent CALL/EXIT/REDO/FAIL
+       events naming the exact alternate-link bug.
+    6. Bug fix lands in `PatternAlternation (Pipe).cs` or
+       `AbstractSyntaxTree.cs ComputeAlternate`.
+
+  **Why this rung is preferred over S-2-bridge-coverage-pattern-
+  traversal (kept open below).**  That rung scopes 12+ MWK kinds
+  covering AST navigation, BetaStack, FENCE mark/seal/restore,
+  graft lifecycle, and keyword reads — broad coverage but a much
+  larger surface to bring up.  This rung scopes exactly four
+  kinds in a Byrd-box shape, sufficient to surface the line-48
+  bug.  The broader coverage rung remains valuable for future
+  bug classes (BetaStack-state-dependent, FENCE-state-dependent)
+  but is deferred until this rung's narrower bridge ships and
+  closes line 48.
+
 - [ ] **S-2-bridge-coverage-pattern-traversal** — Fine-grained wire
   events for pattern-AST traversal and runtime housekeeping, per
   Silly SNOBOL4's monitor precedent. Opened session #73 (2026-05-01)
@@ -2564,3 +2694,155 @@ test gate.
   S-2-bridge-coverage-pattern-traversal  [ ] open — needed for harness
                                               trust; not implemented
                                               this session.
+
+---
+
+## Session #75 — 2026-05-01 (Sonnet 4.7 / Lon)
+
+**Outcome:** S-2-bridge-7-byrd-pattern step opened and partially landed
+(dot-side wire emit + controller recognition).  Beauty self-host
+unchanged at 47 stderr lines (no semantic change — wire-emit only,
+gated default-off via `MONITOR_PM_TRACE=1`).
+
+### What landed
+
+New step **S-2-bridge-7-byrd-pattern** above the older
+S-2-bridge-coverage-pattern-traversal rung.  Where that rung scopes
+12+ MWK kinds, this rung scopes exactly four — Byrd-box-shaped — to
+surface the line-48 structural bug directly on the wire:
+
+  - `MWK_PM_CALL` — entering a Match() for an AST node
+  - `MWK_PM_EXIT` — node Scan returned SUCCESS
+  - `MWK_PM_REDO` — RestoreAlternate popped a node (long-jump to saved
+    alternate; not a frame unwind, but observable as a port on the wire)
+  - `MWK_PM_FAIL` — node FAILED with no live alternate (FAILURE/ABORT
+    propagates outward)
+
+Wire encoding: `name_id` = node-tag, `type` = MWT_INTEGER, `value` =
+8-byte LE cursor position.  Comparison key: (kind, name, cursor).
+
+### Files changed (uncommitted at start; commit after handoff edits)
+
+  - `one4all/scripts/monitor/monitor_wire.h` — defined MWK_PM_CALL=7,
+    MWK_PM_EXIT=8, MWK_PM_REDO=9, MWK_PM_FAIL=10.
+  - `one4all/scripts/monitor/monitor_sync_bin.py` — added kinds to
+    `KIND_NAMES`; added PM-formatting case in `fmt_event` (shows
+    `kind name cursor=N`).  PM events flow through the same comparison
+    + ack path as VALUE/CALL/RETURN/LABEL — no special-casing.
+  - `one4all/scripts/monitor/read_one_wire.py` — added PM kinds to
+    KIND_NAMES; added a NAME_DEF print line for diagnostic visibility.
+  - `snobol4dotnet/Snobol4.Common/Runtime/Monitor/MonitorIpc.cs` —
+    added `EmitPmCall`/`Exit`/`Redo`/`Fail` plus private
+    `EmitPmRecord`.  All four go through the same `EmitRecordRaw`
+    (wait-for-ack on GO pipe) used by VALUE/CALL/etc — full IPC
+    sync-step.  Gated by `MONITOR_PM_TRACE=1` (default-off keeps
+    wire format compatible with spl/csn).  `_emitCount` ticks.
+  - `snobol4dotnet/Snobol4.Common/Runtime/Pattern/UnevaluatedPattern.cs`
+    — added internal `MethodName` accessor that reads the deferred-code
+    delegate's Method.Name (e.g. for `*snoString` returns the
+    SNOBOL4 function name interned by the lexer).
+  - `snobol4dotnet/Snobol4.Common/Runtime/PatternMatching/Scanner.cs`
+    — added `NodeTag(node)` helper and emit-port calls in `Match()`:
+      • PM_CALL at top of while-body (just before TerminalPattern.Scan)
+      • PM_EXIT on SUCCESS branch (after cursor advanced)
+      • PM_FAIL on FAILURE branch when `!HasAlternates()` and on the
+        seal-only-stack ABORT path; also on explicit ABORT case
+      • PM_REDO after `RestoreAlternate()` returns the next live alt
+        (after seal-skip while-loop)
+
+### IPC validation (proves the rung's IPC claim)
+
+  1. **Solo smoke** (`read_one_wire.py`, dot, `('h'|'g'|'e')` against
+     `'hello'`): single CALL/EXIT pair — first arm matches at cursor 0,
+     no backtracking.  Correct.
+  2. **Solo backtrack smoke** (`('g'|'e')` against `'hello'`): textbook
+     four-port trace —
+     `CALL 'g' c=0 → REDO 'e' c=0 → CALL 'e' c=0 → FAIL 'e' c=0`
+     then unanchored cursor advance →
+     `CALL 'g' c=1 → REDO 'e' c=1 → CALL 'e' c=1 → EXIT 'e' c=2`.
+     All four ports observable.
+  3. **2-way IPC smoke** (full `monitor_sync_bin.py`, dotA + dotB
+     both with PM_TRACE=1, same input):  17 sync-stepped events,
+     controller reports `all reached END` cleanly. *PM events
+     traverse the IPC ack handshake correctly.*
+  4. **2-way IPC divergence test** (dotA PM_TRACE=1 vs dotB without):
+     controller correctly diverges at step 8 with formatted PM_CALL
+     row vs LABEL row.  PM kinds first-class on the wire.
+
+### Default-off baseline (regression check)
+
+  - Build: clean (`dotnet build ... -c Release`).
+  - Beauty 17/17 drivers: **17 pass / 0 fail** (unchanged).
+  - Beauty self-host (no PM_TRACE): **exit 0, 47 stderr lines**
+    (byte-identical to a629a15 baseline; same Parse Error at line 48).
+
+### Beauty-self-host PM trace finding (dot solo, 18.7M wire events)
+
+Snapshot just after the line-48 `snoDQ` value is computed (event
+~10,069,315 — `VALUE snoSrc = '                  snoDQ          =  '"' BREAK('"' nl) '"'\n'`):
+
+  ```
+  #10069319 PM_CALL  PosPattern   cursor=0
+  #10069320 PM_EXIT  PosPattern   cursor=0
+  #10069321 PM_CALL  AnyPattern   cursor=0
+  #10069322 PM_FAIL  AnyPattern   cursor=0
+  #10069323 PM_CALL  PosPattern   cursor=1   ← unanchored cursor-retry
+  #10069324 PM_FAIL  PosPattern   cursor=1
+  #10069325 PM_CALL  PosPattern   cursor=2
+  #10069326 PM_FAIL  PosPattern   cursor=2
+  ... PosPattern fails at every cursor 1..38 (anchored POS(0))
+  ```
+
+The `POS(0) ANY(...)` is the snoId/snoFunction-head common prefix
+(beauty.sno's snoExpr17 line 173 onward).  After AnyPattern fails at
+cursor 0, traversal should fall through to the NEXT snoExpr17
+alternation arm — but the AST `Alternate` link out of AnyPattern's arm
+doesn't chain to `*snoString`/`*snoReal`/`*snoInteger`.  Instead the
+scanner sees an empty alt stack at the snoExpr17 root, returns FAILURE
+to the outer PatternMatch, which retries cursor-by-cursor (unanchored)
+— PosPattern then fails at every cursor > 0 (POS(0) by definition
+only matches at start), spinning ~38 events of dead retry before the
+match overall fails and beauty's user code prints `Parse Error`.
+
+The structural bug is now visible *on the wire*: the Alternate link
+out of the `*snoFunction`-or-`*snoId` arm of snoExpr17 needs to point
+to the leftmost terminal of `*snoString`'s arm (or earlier, depending
+on how `ComputeAlternate` walks the parent chain through the
+ConcatenatePattern wrapping each FENCE'd arm).
+
+### Concrete next-session tasks
+
+1. **Spl-side fire-points** — `x64/osint/monitor_ipc_runtime.c` adds
+   four entry points; `sbl.min` adds `jsr` calls in mtchcd's node
+   dispatch + bktrk's alt-stack pop + snofal/snosuc; regenerate
+   `bootstrap/sbl.asm` per RULES.md "Source-of-truth".  Gate via a new
+   `SPL_PM_TRACE=1` env var (no-op default).
+2. **Harness wiring** — `test_monitor_3way_sync_step_auto.sh` passes
+   `MONITOR_PM_TRACE=1` and `SPL_PM_TRACE=1` through to dot/spl when
+   a new `MONITOR_PM=1` is set (default off).
+3. **Two-way harness gate** — `PARTICIPANTS="spl dot"` on line-48
+   minimal repro (single stdin line: `        x = '"' BREAK('"' nl) '"'`).
+   Expected: clean DIVERGE row pointing at the snoExpr17 Alternate
+   link mis-wiring inside the first ~50 PM events.
+4. **Bug fix** — the Alternate link bug.  Likely in
+   `AbstractSyntaxTree.ComputeAlternate` (`ComputeNext` walking the
+   wrong way through the parent chain when an arm is itself a
+   ConcatenatePattern subtree, missing the alternation parent above
+   it).  Confirm against beauty.sno's snoExpr17 grammar lines 173-189.
+
+### Status updates
+
+  S-2-bridge-7-byrd-pattern              [~] partial — dot-side wire
+                                              emit + controller
+                                              recognition landed; spl
+                                              side and harness env-var
+                                              wiring still TODO.
+  S-2-bridge-7-fullscan                  [~] partial — line-48 struct-
+                                              ural bug now visible on
+                                              the wire under PM_TRACE,
+                                              awaiting spl bridge to
+                                              compare across runtimes.
+  S-2-bridge-coverage-pattern-traversal  [ ] open — broader scope rung
+                                              kept; this session's
+                                              narrower rung is the
+                                              preferred path forward.
