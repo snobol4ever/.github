@@ -2875,6 +2875,47 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       ≥668/668.  This is the rung that closes "LS-4 the new
       Snocone front-end is the only Snocone front-end."
 
+      **Session 2026-05-01 #1 (LS-4.l partial verification +
+      LS-4.k cleanup-fix):** the LS-4.k emergency handoff
+      `eec7fd0f` archived `snocone_control.h` and
+      `snocone_lower.h` but missed one stale `#include
+      "frontend/snocone/snocone_control.h"` in
+      `src/driver/interp.c:26` (no symbol from that header
+      was actually used in interp.c — the include was purely
+      vestigial).  Build broke at `driver/interp.o` with
+      "fatal error: frontend/snocone/snocone_control.h: No
+      such file or directory."  Fix: removed the single
+      stale include line.  Build clean after fix; only
+      pre-existing warnings remain.
+
+      Gates with the fix in place:
+      - `test_smoke_snocone.sh`        **PASS=5  FAIL=0**  ✅
+        (using new Bison parser, no legacy fallback — LS-4.j
+        wire-in confirmed working end-to-end)
+      - `test_smoke_unified_broker.sh` **PASS=49 FAIL=0**  ✅
+      - `test_beauty_snocone_all_modes.sh`
+                                        **PASS=6  FAIL=36 SKIP=3**
+        ⚠ EXPECTED — corpus `.sc` files use `&&` (old
+        Snocone concat-and) which the new Bison parser
+        rejects.  Per LS-4.k handoff narrative this is the
+        known breakage gated on LS-5 corpus migration.
+
+      LS-4.l therefore advances to **partial-verified**:
+      smoke and broker green confirm the Bison parser is the
+      production parser (no legacy fallback path active),
+      which closes the structural milestone of LS-4.  The
+      beauty 42/0/3 acceptance criterion remains blocked
+      pending LS-5.a (`util_migrate_snocone_to_lang_space.py`).
+      LS-4.l will close fully when beauty regains green
+      after LS-5 corpus migration applies.
+
+      Net of this session: **one4all** advances by one commit
+      (LS-4.k cleanup-fix on interp.c).  No corpus or
+      .github source touched beyond this goal-file note.
+      Side-channel parse-a..i gates not re-run this session
+      (no parser changes; last known good 965/965 from
+      LS-4.i.5 holds).
+
 - [ ] LS-4.w — Condition-never-fails warning pass (deferred, low priority).
       At lowering time, inspect the condition expression of every `if`,
       `while`, `do/while`, `do/until`, `for`-test, and `case` tag.
