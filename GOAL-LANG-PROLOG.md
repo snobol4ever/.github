@@ -940,3 +940,98 @@ source-level vars after pl_box_choice_call returns. Investigate first:
 - `one4all/docs/PL-12-session-2026-04-30-4-findings.md` — full narrative,
   per-step diagnosis, decisive repros, recommendation for next session.
 
+---
+
+## Current state (2026-04-30 session #5, one4all HEAD 84e72705, corpus HEAD 2a69e92)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
+Smoke 5/5, broker 49/49. Change B landed; sharper diagnosis of fix #2
+lifecycle bug recorded for next session.
+
+### Session work — Change B landed standalone; fix #2 lifecycle bug located precisely
+
+Per session #4's task list item 2 ("Land Change B as a standalone commit").
+Single-purpose +13/-0 commit to `pl_runtime.c::pl_unified_term_from_expr`,
+adding the missing `E_UNIFY`, `E_CUT`, `E_NUL` switch arms. Latent bug
+eliminated. Smoke 5/5, broker 49/49, SWI 43/57 unchanged. Verified
+rung_23 power.pl (4/5) and corpus prolog parser failures are pre-existing
+not related to Change B (compared baseline via `git stash` round-trip).
+
+Change B repro (`:- G = (X = 5), write([before,G]), nl.`):
+- Before: `[before,?]` — G silently became atom `?` via default arm
+- After:  `[before,_G1=5]` — G correctly is the `=/2` compound
+
+### Fix #2 lifecycle bug — sharper diagnosis than session #4
+
+Did session #4's task item 1 ("Trace the asserted-clause TT_REF chain")
+in part. Located the **exact** file/line of the Var-goal-dispatch defect
+that gates ~3-4 plunit suites:
+
+**Defect:** `src/runtime/interp/pl_runtime.c:1559` (catch/3 else branch).
+When `goal_e->kind == E_VAR`, the code dispatches
+`interp_exec_pl_builtin(goal_e, env)`. The switch at line 515 has cases
+for E_UNIFY, E_CUT, E_TRAIL_*, E_FNC — and falls through `default:
+return 1;` (line 1583) for E_VAR. The Var-bound goal **never runs**;
+catch silently reports success.
+
+Decisive repro:
+```prolog
+main :- G = fail, ( catch(G,_,write(caught)) -> write(succeeded) ; write(failed) ), nl.
+```
+Prints `succeeded`. Should print `failed` (catch should run `fail`,
+no throw, catch fails, → branch fails, `;` takes failed).
+
+This matches session #4's repro 2 exactly and confirms the exact
+silent-success path. The asserted-clause TT_REF chain investigation
+session #4 recommended is **downstream** of this bug — the chain never
+matters because the Var-goal isn't even invoked.
+
+### Key design insight for next session's Fix #2 v3
+
+Session #4's bridge (Change A) was right in shape but wrong in lifecycle:
+the synth EXPR's TT_VARs lived in a **separate** tenv decoupled from
+the caller's env. The fix Lon's own next-session note hinted at:
+*the synth dispatch should share g_pl_env with the caller, or bind
+through the caller's cenv directly rather than the asserted cenv's
+TT_VARs.*
+
+Concretely: when walking the Term, an E_VAR's slot index in the synth
+EXPR should map to the **same Term* the caller already holds** — not
+a fresh tenv slot. For an asserted Goal Term, the bridge should route
+TT_VAR → caller's `env[k]` slot, treating the asserted-clause's
+TT_VAR Term as a forwarder (TT_REF) to the caller's slot, not as a
+destination.
+
+### NEXT SESSION PL-12 — revised ordered task list:
+
+1. **Re-attempt Fix #2 v3 with env-sharing bridge.** The defect is
+   isolated: catch/3 else branch at line 1559 dispatches E_VAR-shaped
+   goal to a switch that has no E_VAR case. Build a small dispatcher
+   `pl_invoke_var_goal(EXPR_t *var_goal, Term **env)` that:
+   - Derefs `env[var_goal->ival]` to get the Goal Term
+   - If TT_ATOM and atom matches `true`/`fail`/`!` → dispatch directly
+   - If TT_COMPOUND, walk recursively via env-sharing Term→EXPR bridge
+     where TT_VARs map back to caller's env slot indices (not fresh tenv)
+   - Then dispatch via existing `interp_exec_pl_builtin` or user-call paths
+   Wire into catch/3 line 1559 (and any other Var-goal dispatch sites
+   identified by greping `interp_exec_pl_builtin\(goal_e\|interp_exec_pl_builtin\(goal->`)
+   Expected: +3-4 suites → 46-47/57 = 81-82% ≥ 80% gate.
+
+2. **(After Fix #2 v3 lands)** plunit v4 throw vs. succeed (session #3
+   plan). Expected: `string` +1.
+
+3. **Other independent MISS suites** — rem, float_zero, float_special,
+   snip, steadfastness, context, variant. One at a time.
+
+4. Change C from session #4 (findall snapshot `pl_unified_deep_copy →
+   pl_copy_term`) — currently NOT in working tree this session.
+   Session #4 saved its diff in `docs/PL-12-session-2026-04-30-4-attempt.diff`
+   (lines 228-239 of that diff). Re-evaluate independently in next session.
+
+### Files committed this session
+
+- `one4all/src/runtime/interp/pl_runtime.c` — +13/-0:
+  E_UNIFY/E_CUT/E_NUL cases added to `pl_unified_term_from_expr`.
+- `one4all/.github/GOAL-LANG-PROLOG.md` — this section.
+- `.github/PLAN.md` — PL-12 step text refreshed for session #5.
+
