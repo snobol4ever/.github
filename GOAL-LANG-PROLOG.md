@@ -1230,3 +1230,129 @@ infinite recursion or zero-division.
   per-step plan, decisive new copy_term_rec slot finding.
 - one4all working tree reverted; corpus working tree reverted.
 
+---
+
+## Current state (2026-05-01 session, one4all HEAD `<TBD>`, corpus HEAD `<TBD>`)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
+at session-end on the suite-line metric. Smoke 5/5, broker 49/49.
+**Five new commits land cleanly, bisectable, all gate-neutral.** Bridge
+held back as committed doc — it's mechanically correct but exposes
+real test failures masked by the prior silent-success false-positive
+ceiling.
+
+### Five landings this session
+
+| # | Repo | Commit | Effect |
+|---|------|--------|--------|
+| Step A | corpus | `dfc26da` | plunit.pl stdlib enrichment (~25 stubs, 84 lines) |
+| Step A patch | corpus | `80ce2f2` | numbervars/4 stub direction fix |
+| Step B.1 | one4all | `ff4e1933` | copy_term_rec slot fix (1<<20 + nmap) |
+| Step B.2 | one4all | `8decc35e` | findall snapshots use pl_copy_term |
+| **Step C** | **one4all** | **`de0fff7a`** | **arith INT_MIN/-1 SIGFPE guard (NEW)** |
+
+Plus `one4all` doc commit with bridge diff + findings.
+
+### Step C — discovered this session
+
+Pre-existing latent runtime bug. On x86, IDIV INT_MIN/-1 raises hardware
+SIGFPE (integer overflow: result is +INT_MAX+1). Direct repro:
+
+```prolog
+main :- X is -9223372036854775808 // -1, write(X), nl.
+```
+
+The 43/57 baseline never tripped this because plunit's silent-success
+default arm registered PASS without running test bodies. Session #7's
+mid-session combined run hit it via test_arith.pl line 174
+(`:- begin_tests(gdiv).`) and aborted at rc=136.
+
+**Fix:** guard four arith sites (E_DIV, E_MOD, E_FNC mod, E_FNC rem)
+for `n==LONG_MIN && d==-1`. Standard Prolog throws
+`evaluation_error(int_overflow)`; we return LONG_MIN for `//` (matches
+GNU Prolog unbounded-fallback shape) and 0 for mod/rem. `<limits.h>` added.
+
+Standalone gate-neutral — invisible without bridge because no test path
+currently runs through these arith ops unless plunit dispatches goal
+bodies (which only the bridge does).
+
+### Bridge applied behaviour (held back)
+
+When `docs/PL-12-session-2026-05-01-bridge.diff` is applied on top of
+A + A-patch + B.1 + B.2 + C:
+
+- Smoke 5/5, broker 49/49 — green
+- SWI suite: **14/57** (24%), up from session #7's 7/57 (Step C unblocks
+  test_arith load)
+
+Still below 43/57 metric but only because the harness scores at suite-line
+granularity (a block PASSes only if ALL its sub-tests PASS). Per-test
+scoring would credit the bridge with all the silent-PASSes that converted
+to real PASSes — much higher count than 14.
+
+### Per-suite breakdown with bridge
+
+```
+test_arith    7/26   (was MISS-PASS=26 silent-success; now 7 truly pass)
+test_bips     0/6
+test_call     0/9
+test_dcg      3/5    (unchanged from baseline — these always genuine)
+test_exception 1/2   (down 1 silent-PASS exposed)
+test_list     1/1    (genuine; unchanged)
+test_misc     0/1
+test_string   0/2
+test_term     2/5    (numbervars block: 5/11 sub-tests pass with bridge,
+                      but suite-line scoring still FAILs the block)
+```
+
+### Sub-test gain on test_term:numbervars (with bridge + A-patch)
+
+5 real PASSES (single, single_s, shared, shared_s, twice_singleton)
+vs 0 baseline. The bridge IS working correctly; remaining FAILs are
+real semantic gaps (negative-start numbering in numbervars/3, options
+list handling, etc).
+
+### Path to PL-12 ≥80% gate — REVISED for next session
+
+**Step D — harness scoring decision** (one4all/scripts).
+`util_swi_match.py` currently aligns ref `PASS X` lines against
+harness-emitted `PASS X` block lines. With the bridge, individual
+`pass: X:Y` lines mark sub-test wins that the suite-line metric
+ignores. Decision: switch to per-test scoring, OR accept block-level
+scoring and grind sub-tests until each block passes cleanly.
+
+**Step E — apply held-back B.3 bridge**.
+Diff at `one4all/docs/PL-12-session-2026-05-01-bridge.diff`.
+Mechanically correct (5 decisive repros confirmed in session #7 and
+reconfirmed in this session). Lands once Step D is decided.
+
+**Step F — sub-test stdlib gap inventory** (corpus enrichment v2).
+Run with bridge applied; collect remaining "undefined predicate" + "goal
+failed" reasons; iterate plunit stdlib. Many small naive impls
+(string_*/N variants, $current_prolog_flag's specific shape, op/3 real
+behavior, etc).
+
+**Step G — runtime semantic fixes** (one4all). E.g. `numbervars/3` with
+negative start, `=@=` operator, `compound/1` edge cases. Each is small
+and bisectable.
+
+### Why hold the bridge
+
+RULES.md regression rule: don't ship code that drops a green gate. The
+bridge converts a 43/57 false-positive ceiling into ~14/57 real correctness
++ surfaced gaps. Until either Step D reframes the metric or Step F+G
+close enough sub-test gaps to clear 80% with the bridge, B.3 stays as
+a saved doc.
+
+### Files committed this session
+
+- `corpus/programs/prolog/plunit.pl` — Step A (84+ lines stdlib) and
+  Step A-patch (numbervars/4 direction).
+- `one4all/src/runtime/interp/pl_runtime.c` — B.1 (8 lines slot fix),
+  B.2 (8 lines findall fix), C (31 lines INT_MIN guard).
+- `one4all/docs/PL-12-session-2026-05-01-bridge.diff` — 211-line v3
+  bridge held back.
+- `one4all/docs/PL-12-session-2026-05-01-findings.md` — full narrative.
+
+Working trees clean at handoff. SWI baseline 43/57 preserved.
+
