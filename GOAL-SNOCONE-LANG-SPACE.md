@@ -2867,7 +2867,7 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       git history.  That's the whole point of having an
       `archive/` directory.
 
-- [ ] LS-4.l — Final gate confirmation after LS-4.j + LS-4.k.
+- [x] LS-4.l — Final gate confirmation after LS-4.j + LS-4.k.
       `test_smoke_snocone.sh` PASS=5 (using the new Bison
       parser, no legacy fallback).  `test_smoke_unified_broker.sh`
       PASS=49+ FAIL=0.  `test_beauty_snocone_all_modes.sh`
@@ -2888,33 +2888,129 @@ chunks if needed."  Original LS-4.a–e replaced with finer-grained:
       stale include line.  Build clean after fix; only
       pre-existing warnings remain.
 
-      Gates with the fix in place:
+      Gates with the fix in place (mid-session):
       - `test_smoke_snocone.sh`        **PASS=5  FAIL=0**  ✅
-        (using new Bison parser, no legacy fallback — LS-4.j
-        wire-in confirmed working end-to-end)
       - `test_smoke_unified_broker.sh` **PASS=49 FAIL=0**  ✅
       - `test_beauty_snocone_all_modes.sh`
-                                        **PASS=6  FAIL=36 SKIP=3**
-        ⚠ EXPECTED — corpus `.sc` files use `&&` (old
-        Snocone concat-and) which the new Bison parser
-        rejects.  Per LS-4.k handoff narrative this is the
-        known breakage gated on LS-5 corpus migration.
+                                        **PASS=30 FAIL=12 SKIP=3**
+        (post-LS-5 migration; 4 distinct test programs ×
+        3 modes still failing — fence/match/semantic/trace.)
 
-      LS-4.l therefore advances to **partial-verified**:
-      smoke and broker green confirm the Bison parser is the
-      production parser (no legacy fallback path active),
-      which closes the structural milestone of LS-4.  The
-      beauty 42/0/3 acceptance criterion remains blocked
-      pending LS-5.a (`util_migrate_snocone_to_lang_space.py`).
-      LS-4.l will close fully when beauty regains green
-      after LS-5 corpus migration applies.
+      **Session 2026-05-01 #6 — LANDS LS-4.l with two fixes:**
 
-      Net of this session: **one4all** advances by one commit
-      (LS-4.k cleanup-fix on interp.c).  No corpus or
-      .github source touched beyond this goal-file note.
-      Side-channel parse-a..i gates not re-run this session
-      (no parser changes; last known good 965/965 from
-      LS-4.i.5 holds).
+      Two independent bugs in the new Bison frontend caused the
+      remaining 12 FAILs.  Each manifested in all 3 modes
+      identically — frontend-only, not backend issues.
+
+      **Bug A — missing binary `.` and `$` operators** (parse
+      errors in `fence`, `semantic`).  The grammar declared
+      `T_2DOT` / `T_2DOLLAR` as `%token` but had no production
+      using them; only the unary forms `T_1DOT` / `T_1DOLLAR`
+      at expr17 were wired.  Mirror snobol4.y:159-161 by adding
+      a new `expr12` tier between `expr11` (exponent) and
+      `expr15` (subscript):
+
+          expr12 : expr12 T_2DOLLAR expr15  { E_CAPT_IMMED_ASGN }
+                 | expr12 T_2DOT    expr15  { E_CAPT_COND_ASGN  }
+                 | expr15
+
+      Left-associative chain.  `expr11`'s right-hand side
+      changed from `expr15 T_2CARET expr11 | expr15` to
+      `expr12 T_2CARET expr11 | expr12` so the new tier sits
+      in the precedence chain.  Zero new Bison conflicts.
+
+      **Bug B — missing E_SCAN/E_SEQ split when committing a
+      stmt** (runtime FAILs in `match`, `semantic`, `trace`).
+      `sno4_stmt_commit_go` (snobol4.y:248-270) splits
+      `E_SCAN(subj, pat)` and `E_SEQ(name, rest...)` out of
+      `s->subject` into separate `s->subject` and `s->pattern`
+      slots so the runtime's pattern-match engine fires.
+      Snocone's `sc_append_stmt` and the cond builders skipped
+      this split — they put the whole E_SCAN/E_SEQ node into
+      `s->subject`.  The runtime then evaluated E_SCAN as a
+      *value* (always succeeding for any expression with a
+      bound name on the left), which made `if (subj ? pat)`
+      always take the success arm regardless of whether the
+      pattern actually matched.
+
+      Decisive isolated repro before the fix:
+
+          subject = 'xyz';
+          pattern = ANY('aeiou');
+          if (subject ? pattern) { OUTPUT = 'matched (WRONG)'; }
+          else                   { OUTPUT = 'failed (CORRECT)'; }
+
+      Snocone said "matched"; SPITBOL oracle said "failed";
+      the equivalent SNOBOL4 stmt under snobol4 mode in scrip
+      also said "failed" because snobol4.y has the split.
+
+      Fix: extracted the snobol4.y split logic into a helper
+      `sc_split_subject_pattern(EXPR_t **subj_io,
+      EXPR_t **pat_io)` and called it from three sites:
+
+      1. `sc_append_stmt` — runs AFTER the existing E_ASSIGN
+         split, so `subj ? pat = repl` (lowers to
+         `E_ASSIGN(E_SCAN(subj,pat), repl)`) correctly ends up
+         as `s->subject=subj, s->pattern=pat,
+         s->replacement=repl, has_eq=1`.
+      2. `sc_make_cond_fail_stmt` — for if/while.  The cond
+         stmt's go.onfailure points at the synthesized end
+         label; the split makes the runtime properly fail
+         the cond when the pattern doesn't match.
+      3. `sc_make_cond_succ_stmt` — for do/while.  The cond
+         stmt's go.onsuccess loops back to top.
+
+      **Two split forms** (mirror snobol4.y:248-270):
+      - `E_SCAN(subj, pat)` →  subject=subj, pattern=pat
+      - `E_SEQ(name, rest...)` where first child is name-like
+        (E_VAR / E_KEYWORD / E_QLIT / E_INDIRECT) →
+        subject=name, pattern=rest (rest aggregated as E_SEQ
+        if multiple, or as the single child otherwise).
+
+      Replacement is left unchanged — `result = subj ? pat`
+      keeps E_SCAN inside the replacement slot where it
+      evaluates as a value (the matched substring).  Verified
+      by `test_assign_match_rhs_no_split` in parse-j.
+
+      **All gates green at session-end:**
+      ```
+      smoke snocone:               5/5
+      smoke snobol4:               7/7   (no regression)
+      unified broker:              49/0
+      beauty 3-mode:               42/0/3   ← LS-4.l acceptance MET
+      parse-a..i:                  965/965  (no regression)
+      parse-j (NEW):               90/90    (LS-4.l-specific tests)
+      Combined parse-a..j:         1055/1055
+      Bison conflicts:             0 shift/reduce, 0 reduce/reduce
+      ```
+
+      **Files touched:**
+      - `src/frontend/snocone/snocone_parse.y` — expr12 tier
+        added (~50 lines), sc_split_subject_pattern helper
+        (~50 lines), three callsites threaded.  Forward decl
+        added.
+      - `src/frontend/snocone/snocone_parse.tab.{c,h}` —
+        regenerated from .y per RULES.md.
+      - `test/frontend/snocone/test_snocone_parse_j.c` — NEW,
+        22 test functions / 90 assertions covering binary
+        `.`/`$` shapes, the SCAN-split for bare stmt and
+        replace form, the SEQ-split for juxtaposition, the
+        non-split regression guards (replacement-side SCAN,
+        non-name first child, non-pattern cond), and the
+        cond-stmt splits for if/while/do-while including the
+        fence headline `if ('ab' ? (LEN(1) . X | FENCE))`.
+      - `scripts/test_smoke_snocone_parse_j.sh` — NEW runner.
+
+      LS-4.l closes.  LS-4 closes — **the new Snocone front-end
+      is the only Snocone front-end**, byte-equivalent to
+      SPITBOL on the full 14-subsystem beauty suite across
+      `--ir-run`, `--sm-run`, and `--jit-run` modes.
+
+      Next active step: **LS-6.a** — atomic landing has
+      effectively already happened across LS-4.j → LS-5.c →
+      LS-4.l (Bison parser is production, corpus migrated, all
+      gates green).  LS-6.a/b/c are largely confirmation steps;
+      LS-7 is documentation.
 
 - [ ] LS-4.w — Condition-never-fails warning pass (deferred, low priority).
       At lowering time, inspect the condition expression of every `if`,
