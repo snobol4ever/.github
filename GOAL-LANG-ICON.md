@@ -1567,3 +1567,139 @@ follows the same pattern, so this stays in family with existing code.
 - one stray `foo.baz` (empty file) in .github/ at session start —
   removed before commit per RULES.md "Diagnostic patches are
   diagnostic — never commit them".
+
+---
+
+## Session #24 (2026-05-01) — IC-9 advance: records as iterables
+
+IC-9 IN PROGRESS.  Five fixes landed in `src/driver/interp.c`,
+`src/runtime/interp/icn_runtime.c`, `src/frontend/icon/icon_gen.c`,
+`src/frontend/icon/icon_gen.h`.  Gates clean across the board (smoke 5/0,
+broker 49/0, crosscheck 4/0/0, rung01-36 PASS=199/FAIL=34/XFAIL=30,
+rung_36 PASS=11/FAIL=34/XFAIL=30).  PASS counts unchanged because
+`rung36_jcon_record` is `.xfail`-listed and the four remaining diff
+lines (record subscript by integer + by string, both under `every`)
+keep it just shy of PASS — but the test went from **10+ lines of
+garbled raw-bytes output to 4 lines of clean missing data**, and
+five distinct record-shape root causes are now fixed.
+
+### Records as iterables — the missing third container shape
+
+Sessions #21 / session #20 added lvalue and `?` paths for tables
+(DT_T) and lists (DT_DATA with `icn_type=="list"`).  Records are
+the third container shape — also DT_DATA, but **without** the
+icnlist tag.  They use the underlying SPITBOL DATA mechanism:
+`inst.u->type` is a `DATBLK_t*` carrying `nfields` and field-name
+strings; `inst.u->fields[i]` is the value cell array.  Pre-fix, the
+`!record` / `?record` / `every !record := V` / `every !record OP:= V`
+paths all fell through to char-iterate (treating the descriptor's
+bytes as a string) or to FAILDESCR.  The fix is consistently shaped
+across the five sites: `cv.v == DT_DATA && cv.u && cv.u->type &&
+cv.u->type->nfields > 0 && cv.u->fields` recognizes a record, then
+the loop walks `cv.u->fields[0..nfields-1]`.
+
+### Fixes (in order)
+
+1. **`!record` generator** — new `icn_bb_record_iterate` Byrd box in
+   `icon_gen.c` walks fields 0..n-1 yielding each.  State struct
+   `icn_record_iterate_state_t {DESCR_t inst; int pos}` in `icon_gen.h`.
+   Wired into `icn_eval_gen` E_ITERATE in `icn_runtime.c` after the
+   icnlist branch — only routes to record path when the DT_DATA has
+   a real `inst.u->type` (icnlist's DT_DATA at `icn_elems` doesn't),
+   so the historical char-iterate fallback for any other DT_DATA
+   shape is preserved.
+
+2. **`!record` scalar** — `interp_eval` E_ITERATE returns
+   `cv.u->fields[0]` for DT_DATA records.  Mirrors the icnlist
+   first-element branch directly above it.
+
+3. **`every !record := V`** — E_ASSIGN icon-frame, E_ITERATE LHS
+   branch.  Mirrors the existing list/table branches: walk all
+   fields, write `val` into each cell.  Single pass per box-α tick;
+   `every` exhausts after one tick because the box's own α exhausts
+   one iteration over the fields.
+
+4. **`every !record OP:= V`** — E_AUGOP, E_ITERATE LHS branch, same
+   `AUGOP_CELL` macro from session #21.  All five augops + `||:=`
+   covered automatically since macro is shape-agnostic.
+
+5. **`?record` and `?record := V`** — E_RANDOM gets a record arm
+   (returns `fields[rnd % nfields]`).  E_ASSIGN icon-frame gets a
+   new E_RANDOM-LHS branch (writes val into a random field).
+   Two separate static LCG seeds (read seed at line ~4313, write
+   seed in the new branch) — sharing one would make read-after-write
+   correlation visible to programs that interleave `?b` and
+   `?b := X`, which would be incorrect since each is independently
+   selecting.
+
+### Verified on rung36_jcon_record
+
+```
+Before:  1 2|3 4|5 6|7 8|9 10|<garbled bytes>|<more garbage>|
+After:   1 2|3 4|5 6|7 8|9 10|11|12|13|14|15|<missing 4 subscript lines>|11 22 73 74
+```
+
+Lines 1–10 of expected (16 lines total) now match byte-for-byte.
+Lines 11–14 are `every write(b[1 to 3])` and `every write(b["f" ||
+(1 to 3)])` — record subscript by integer N (returns Nth field) and
+by string "fN" (returns field named "fN"), each driven by an `every`
+generator.  Both need `subscript_get(record, idx)` to recognize
+DT_DATA records and dispatch by IS_INT (lookup field N) or IS_STR
+(lookup field name).  Single function, low-risk — natural next pivot.
+
+### Build hazard avoided
+
+Header change was localized: `icon_gen.h` got the new state typedef
+and box decl, and `icon_gen.c` / `icn_runtime.c` are the only
+consumers.  No `IcnFrame` layout change (per session-#16's lesson on
+clean rebuilds).  Did one full clean rebuild anyway as belt-and-suspenders;
+inner-loop edits compiled incrementally clean.
+
+### Wrong-site lesson — caught in flight
+
+Mid-session brace mistake: when adding the E_RANDOM LHS branch to the
+icon-frame E_ASSIGN, I wrote `}` to close the new `else if` body but
+not the outer `if (e->nchildren < 2 ... ) {` opening — `return val;`
+moved one level shallower than intended.  Compiler caught it as a
+cascade of "invalid storage class for function" errors (unbalanced
+brace promoted later top-level functions to nested status).  Fix was
+one missing `}` before `return val;`.  Session-#16's "two switches"
+caveat doesn't bite this work (no E_FOO that exists in both icon-frame
+and shared switches changed), but the brace-balance discipline matters
+the same way.
+
+### Remaining IC-9 candidates for next session
+
+- **Record subscript** (`b[N]` integer, `b["fN"]` string, both under
+  `every`).  Closes `rung36_jcon_record` (4 remaining diff lines).
+  Single site: `subscript_get` in interp.c, add DT_DATA-record arm
+  before the DT_DATA-icnlist arm.  Field-name lookup uses `data_field_ptr`
+  (already exists); field-by-index uses `inst.u->fields[i-1]` with
+  1-based bounds check.
+
+- **Procedure values** — `image(abs)` returning `"function abs"`.
+  Needs new descriptor type (DT_PROC?) or reuse DT_DATA with a tag.
+  Affects `numeric`, `args`, `fncs1`.  Larger change, real new
+  feature work.
+
+- **`100 -- 4` cset-difference on integers** — Icon coerces ints to
+  csets-of-digit-chars before `--`.  One site in the `--` operator
+  handler.
+
+- **`&random` keyword seeding** — RNG state for `&random := N`.
+  Independent of session-#20's `?` random LCG; needs a global
+  `&random` slot wired to both read and write.
+
+- **`&pos` / `&subject` Icon scan state** — needed for
+  `scan/scan1/scan2`.  Builds on existing E_SCAN oneshot fallback.
+
+### Working-tree state at handoff
+
+- one4all dirty (4 files): `src/driver/interp.c`,
+  `src/runtime/interp/icn_runtime.c`, `src/frontend/icon/icon_gen.c`,
+  `src/frontend/icon/icon_gen.h`
+- .github dirty (this update + PLAN.md state row)
+- corpus clean, csnobol4 clean, x64 clean
+- one stray `foo.baz` (empty file) in one4all/ at session start —
+  removed before commit per RULES.md "Diagnostic patches are
+  diagnostic — never commit them".
