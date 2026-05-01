@@ -1303,3 +1303,130 @@ session's diff), .github (this update), corpus clean, csnobol4 clean,
 x64 clean.
 
 
+
+---
+
+## Session #22 (2026-05-01) — IC-9 advance: string-section assignment + augop write-back + comparison-augops
+
+IC-9 IN PROGRESS.  Five correctness fixes landed in `src/driver/interp.c`.
+PASS counts unchanged; the gains show as **massive diff convergence** on
+`rung36_jcon_string` (got 31 → 205 of 231 expected lines), `rung36_jcon_string1`
+(got produces all 37 expected lines, 5 still mismatched), and
+`rung36_jcon_substring` (got 340 / 368).  No regressions.
+
+### Fixes (all in `src/driver/interp.c`)
+
+1. **E_AUGOP write-back to globals / E_IDX / E_FIELD (AUGOP_APPLY macro,
+   line ~4115)** — the macro previously only wrote back to local Icon-frame
+   slots (`slot >= 0` in `ICN_CUR.env`).  Globals (`slot < 0`, looked up
+   by `lhs->sval` in NV) were silently dropped — `s ||:= "x"` returned
+   `"xx"` correctly but never wrote `s`.  Added the `set_and_trace` branch
+   mirroring `E_ASSIGN`'s pattern (line 1031–1039) plus E_IDX (subscript_set)
+   and E_FIELD (data_field_ptr) LHS branches.
+
+2. **`image()` with no args (line ~2404)** — Icon spec: missing args default
+   to `&null`, so `image()` returns `"&null"`.  Handler only matched
+   `nargs == 1`; added an `nargs == 0` branch.
+
+3. **Comparison-augops (AUGOP_APPLY switch)** — `s ==:= "x"` was returning
+   `INTVAL(0)` (default branch).  Added cases for TK_AUGEQ, TK_AUGNE,
+   TK_AUGLT, TK_AUGLE, TK_AUGGT, TK_AUGGE (numeric) and TK_AUGSEQ,
+   TK_AUGSNE, TK_AUGSLT, TK_AUGSLE, TK_AUGSGT, TK_AUGSGE (string).
+   On comparison success → `_res = _rv` (which then writes back via the
+   AUGOP_APPLY write-back path); on failure → `_res = FAILDESCR`.
+
+4. **E_SECTION read-side normalization (case E_SECTION, line ~4348)** —
+   pre-existing off-by-one for negative positions and missing handling
+   for position 0.  Correct Icon rule:
+   - `p >= 1` → position p (1-based)
+   - `p == 0` → position past last char (= `slen+1`)
+   - `p <  0` → position `slen+1+p`   (e.g. `-1` → `slen`)
+   The previous code did `i = slen + 1 + i + 1` (off by one) and never
+   handled `i == 0` or `j == 0`, so `s[2:0]` and `s[-1:0]` etc. were
+   wrong.  Verified `s = "abcd"; s[1:2]="a", s[-1:0]="d", s[2:0]="bcd",
+   s[1:-1]="abc"` after fix.
+
+5. **String-section / string-index assignment** — new helper
+   `icn_string_section_assign(lhs, val)` near line 437, wired into
+   both icon-frame E_ASSIGN (line ~1126) and main E_ASSIGN (line ~3158).
+   Handles E_SECTION, E_SECTION_PLUS, E_SECTION_MINUS, and E_IDX whose
+   base is a string.  Strategy: get cell pointer (prefer icon-frame
+   local slot for E_VAR; fall back to `interp_eval_ref`), compute
+   1-based `[lo, hi)` from the section spec, build new string
+   `s[1..lo) + val + s[hi..slen+1)`, write back to the cell.  Uses
+   `set_and_trace` for global E_VAR base so VALUE traces fire.
+   Returns 1 on success, 0 on FAIL (OOB) or non-string base.  The
+   E_ASSIGN wiring tries this helper first for the section LHS kinds;
+   for E_IDX it tries the helper first and falls through to
+   `subscript_set` (the existing list/table path) if the base isn't
+   a string.  OOB string assigns return FAILDESCR (matches the Icon
+   spec: `s[6] := "t"` where `*s == 3` fails).
+
+### Verified locally (sec_assign.icn smoke)
+
+```
+s := "x"; s[1:2] := "xx"     → s = "xx"      ✓
+s := "x"; s[1] := "abc"      → s = "abc"     ✓
+s := "abc"; s[1+:2] := "y"   → s = "yc"      ✓
+s := "abcdef"; s[2:4] := "XX"→ s = "aXXdef"  ✓
+s := "abc"; s[6] := "t"      → s unchanged   ✓ (OOB → FAIL)
+```
+
+### Gates
+
+- test_smoke_icon: PASS=5/0 (unchanged)
+- test_smoke_unified_broker: PASS=49/0 (unchanged)
+- test_crosscheck_icon: PASS=4/0/SKIP=0 (unchanged)
+- test_icon_ir_rung_36: PASS=6/FAIL=39/XFAIL=30/TOTAL=75 (unchanged count;
+  diffs on `string`, `string1`, `substring` shrunk dramatically)
+- test_icon_ir_all_rungs: PASS=189/FAIL=44/XFAIL=30/TOTAL=263 (unchanged)
+
+(`rung31_sort_sort_already_sorted` flapped FAIL → PASS across re-runs in
+this session — flaky harness behaviour at the harness's `$()` boundary,
+not a real change.  Last run was PASS.)
+
+### Why no PASS-count advance despite five fixes
+
+`rung36_jcon_string` is blocked from PASS by **two** unrelated issues
+beyond what I fixed:
+
+1. **`** Error 3 in statement 0` printed at p3 entry** — fires once,
+   before p3's first `write` runs, only when p3 is actually called
+   (calling p1+p2 alone is silent).  Bisecting individual lines of p3
+   in isolation does not reproduce.  Suspect: an eager evaluation in
+   the alternation `expr | "none"` or a write-arg pre-pass that walks
+   into a subscript before `s` has been assigned in p3's local view.
+   Not localised this session.
+
+2. **A handful of edge cases in section/index reads** still off — see
+   `string1` diff: `s[0]` is returning empty when expected `abcde`
+   (the read side's "position 0 = past-end" plus zero-width slice
+   convention may need another look for some forms).
+
+### Remaining IC-9 candidates (next-session pivot)
+
+- **Investigate Error 3 at p3 entry** — needs `--ir-print` of the IR,
+  or a printf at `subscript_get`'s Error 3 callsite to see the actual
+  call stack.  Once located, this likely closes `rung36_jcon_string`
+  and a couple of the other rung36 failures whose got-output starts
+  with the same `** Error 3 in statement 0` artifact.
+
+- **`s[0]` whole-string convention** — Icon's `s[i+:0]`, `s[i:i]`, and
+  `s[i]` semantics may need a second read of the spec; current
+  helper rejects `i == 0` for E_IDX which loses one expected case
+  in `string1`.
+
+- **`!s := "."`** — bang-iterate as lvalue on a string (IC-9 pivot
+  named in session #21, not done this session).  With
+  `icn_string_section_assign` now in place, the implementation is
+  short: walk char positions 1..slen, for each one call the helper
+  with a synthetic `s[i:i+1] := val`.
+
+### Pollution check
+
+Working tree at session end: one4all dirty (1 file: `src/driver/interp.c`,
++185 / -10), .github dirty (this entry), corpus clean, csnobol4 clean,
+x64 clean.  No diagnostic instrumentation left in code (three
+`fprintf(stderr, "DBG ...")` lines added during section-assign debugging
+were removed before commit per RULES.md).
+
