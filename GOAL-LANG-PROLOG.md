@@ -1,14 +1,76 @@
 # GOAL-LANG-PROLOG.md — Prolog Frontend Ladder
 
 **Repo:** one4all
-**Done when:** SWI-Prolog conformance suite and GNU Prolog test suite pass
-under all three modes (--ir-run, --sm-run, --jit-run). Dynamic predicates,
-exceptions, DCG, and arithmetic extensions complete.
+**Done when:** SCRIP implements ISO/IEC 13211-1 (Prolog: Part 1, General Core)
+across all sections, verified by per-section capability rungs (PR-13 through
+PR-24) AND by ≥80% pass on at least two upstream conformance suites
+(SWI-Prolog `Tests/core`, GNU Prolog `TestsPl`, or equivalent), under all
+three modes (--ir-run, --sm-run, --jit-run).
 
 **Cross-pollination:** pl_runtime.c fixes (trail, unify, pred table) benefit
 interp.c's E_CHOICE/E_CLAUSE/E_UNIFY handling shared with all frontends.
 BB broker improvements (BB_ONCE, pl_box_choice) benefit SNOBOL4 alternation.
 Share fixes via main — no branches.
+
+---
+
+## ⚡ Strategy — capability rungs drive development; conformance suites are gates
+
+**Pre-pivot strategy (PL-12, deprecated 2026-05-01 session #5 followup):**
+PL-12 pointed at the SWI conformance suite as one monolithic gate (≥80% of 57
+suite-lines). The bridge work needed to clear it accumulated for ~2 weeks at
+43/57 with the bridge held back as a committed `.diff`. Suite-line scoring
+masked silent-success bugs (the false-positive ceiling) and made each session's
+progress hard to measure.
+
+**Post-pivot strategy (PR-13 onward):**
+Each ISO/IEC 13211-1 capability section gets its own driving rung folder
+under `corpus/programs/prolog/rungNN_<section>/` — 5-10 small focused tests,
+each with a paired `.ref` file. The rung is the gate: PR-NN lands when
+`test_prolog_rungNN_<section>.sh` reports `PASS=N FAIL=0`. SWI/GNU conformance
+suites become *downstream* gates (PR-30, PR-31) — they verify the capability
+work but do not drive it.
+
+The driving rungs are small (10-50 line tests), focused (one capability per
+test), and bisectable (each rung is independently shippable). This is the
+pattern PL-1 through PL-11 used successfully — the strategy returns to it.
+
+| Rung | ISO § | Capability | Driver | Closes downstream |
+|------|-------|-----------|--------|-------------------|
+| PR-13 | 8 | Arithmetic edge cases | `rung33_arith_edge/` | test_arith |
+| PR-14 | 7.6 | Term-clause ops (`=..`, `functor`, `arg`, `copy_term`) | `rung34_term_ops/` | test_term, test_bips |
+| PR-15 | 7.10, 7.11 | Flags + ISO error terms | `rung35_iso_errors/` | test_exception, test_misc |
+| PR-16 | 7.8 atoms | Atom builtins (full ISO) | `rung36_atom_iso/` | test_bips strings |
+| PR-17 | 7.8 strings | String builtins | `rung37_string/` | test_string |
+| PR-18 | 7.8 lists | List builtins | `rung38_list/` | test_list |
+| **PR-19** | **7.7 control** | **Goal-as-variable dispatch (the bridge)** | **`rung31_bridge_catch/` + 32 + …** | **test_call, plunit harness** |
+| PR-20 | 7.8 meta | Meta-predicates (`apply`, `forall`, `aggregate_all`) | `rung39_meta/` | — |
+| PR-21 | 7.9 | Stream I/O | `rung40_streams/` | — |
+| PR-22 | 7.5 | Format / output | `rung41_format/` | — |
+| PR-23 | DCG | DCG `phrase/2,3` + grammar expansion | `rung42_dcg/` | test_dcg |
+| PR-24 | exceptions | Cross-clause catch/throw, ISO error propagation | `rung43_exception/` | test_exception |
+
+| Conformance gate | Suite | Threshold |
+|------------------|-------|-----------|
+| PR-30 | SWI-Prolog `Tests/core` (the old PL-12 metric) | ≥80% suite-lines |
+| PR-31 | GNU Prolog `TestsPl` | ≥80% files |
+| PR-32 | Logtalk `lgtunit` ISO subset | ≥80% (optional) |
+
+**PR-19 (the bridge) is broken into sub-rungs**, each independently shippable:
+
+| Sub-rung | Driver folder | Capability |
+|----------|---------------|------------|
+| PR-19a | `rung31_bridge_catch/` | `catch(Var, _, _)` — goal-as-var in catch |
+| PR-19b | `rung32_bridge_negation/` | `\+ Var`, `not(Var)`, `once(Var)` |
+| PR-19c | `rung33_bridge_callN/` | `call(Var)`, `call(Var, Args...)` |
+| PR-19d | `rung34_bridge_setof/` | `setof/3`, `bagof/3`, `findall/3` with goal-Var |
+| PR-19e | `rung35_bridge_setup/` | `setup_call_cleanup/3` |
+
+When all five sub-rungs pass, the v3 bridge from
+`one4all/docs/PL-12-session-2026-05-01-bridge.diff` (or its successor) is
+fully integrated. SWI conformance suite (PR-30) automatically advances as a
+downstream consequence; the bridge-on number from PL-12 history (5→17 across
+2 weeks) is no longer the metric Claude tracks.
 
 ---
 
@@ -21,11 +83,16 @@ bash /home/claude/one4all/scripts/install_swi_prolog_tests.sh
 bash /home/claude/one4all/scripts/install_gnu_prolog_tests.sh
 ```
 
-Gate after setup:
+Active-rung gate (the small tight loop — what every session runs):
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_prolog.sh                # PASS=5
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh        # PASS=43 FAIL=0
-bash /home/claude/one4all/scripts/test_prolog_swi_suite.sh            # coverage report
+bash /home/claude/one4all/scripts/test_smoke_prolog.sh                  # PASS=5
+bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh          # PASS=49 FAIL=0
+bash /home/claude/one4all/scripts/test_prolog_rung31_bridge_catch.sh    # PR-19a — bridge driver
+```
+
+Downstream conformance gate (run on milestone commits, not every session):
+```bash
+bash /home/claude/one4all/scripts/test_prolog_swi_suite.sh              # PR-30 — coverage report
 ```
 
 SWI suite script options:
@@ -87,10 +154,11 @@ Pred table: g_pl_pred_table (global in pl_runtime.c).
 
 ## Rung ladder — all modes, x86
 
-Current baseline: rung01–11 14/14 PASS --ir-run.
-rung12 and beyond are the ladder for this goal.
+Current baseline: rung01–30 PASS --ir-run (PL-1 through PL-11). PL-12 is
+deprecated as a single monolithic gate; superseded by Phase 2 ISO ladder
+(PR-13 onward) and downstream conformance gates (PR-30+).
 
-### Phase 1 — IR-run builtin ladder (rung 12–30)
+### Phase 1 — IR-run builtin ladder (rung 12–30) — DONE
 
 - [x] **PL-1** — rung01–11: 14/14 PASS --ir-run. (done)
 
@@ -131,37 +199,137 @@ rung12 and beyond are the ladder for this goal.
 - [x] **PL-11** — S-10t/u: float ops, DCG `-->` expansion, `phrase/2,3`.
   Gate: rung29 5/5, rung30 5/5.
 
-- [ ] **PL-12** — SWI conformance suite run.
-  Script: `scripts/test_prolog_swi_suite.sh`.
-  Run each SWI test file under --ir-run. Compare to pre-baked .ref.
-  Gate: PASS ≥ 80% of tests in suite.
+- [DEPRECATED] **PL-12** — SWI conformance suite run as monolithic gate.
+  Strategy abandoned 2026-05-01 session #5 followup. Two weeks of
+  bridge-neutral work stalled at 43/57 suite-lines (75%) against a
+  ≥80% gate. Diagnosis: the 43/57 number is a false-positive ceiling
+  — many "PASS" rows scored on plunit's silent-success behavior when
+  `catch(Var, _, _)` was handed a goal-as-variable the runtime
+  couldn't dispatch. Replaced by Phase 2 capability ladder
+  (PR-13 onward) with conformance suite run as downstream gate
+  (PR-30). Bridge work folds into PR-19 sub-rungs.
 
-- [ ] **PL-13** — GNU Prolog suite run.
-  Script: `scripts/test_prolog_gnu_suite.sh`.
-  Gate: PASS ≥ 80% of tests in t_arith + t_atom + t_control + t_list.
+### Phase 2 — IR-run ISO capability ladder (PR-13 onward) — IN PROGRESS
 
-### Phase 2 — SM-run (BB_ONCE via Byrd boxes, x86)
+Each rung lands when its driver folder reports `PASS=N FAIL=0`. Rungs
+are independently shippable; no rung's gate depends on a later rung.
+ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
 
-- [ ] **PL-14** — rung01–11 under --sm-run.
+- [ ] **PR-19a** — `rung31_bridge_catch/` — `catch(Var, _, _)` goal-as-var dispatch.
+  Driver: `scripts/test_prolog_rung31_bridge_catch.sh`.
+  Tests: 01_var_goal_fails (silent-success bug primary), 02_var_goal_unify
+  (caller-var binding through env-share), 03_var_goal_arith (Term→EXPR
+  walker recurses through arith compounds), 04_var_goal_userpred (user-pred
+  dispatch via pl_box_choice), 05_var_goal_throw (throw propagates through
+  synth-EXPR boundary).
+  Gate: 5/5 PASS. Foundation work: integrate v3 bridge from
+  `one4all/docs/PL-12-session-2026-05-01-bridge.diff` (or successor).
+
+- [ ] **PR-19b** — `rung32_bridge_negation/` — `\+ Var`, `not(Var)`, `once(Var)`.
+  Same pattern: 5 tests, each exercising one of the three control-flow
+  builtins with a goal-as-variable. Extends the bridge from `catch/3`
+  to these three sites. Driver: `scripts/test_prolog_rung32_bridge_negation.sh`.
+
+- [ ] **PR-19c** — `rung33_bridge_callN/` — `call/1..7` with goal-as-Var.
+  Tests `call(G)`, `call(G, X)`, `call(G, X, Y)`, ..., where G is a Var
+  bound at runtime. Bridge must rebuild the goal via `=..` semantics and
+  thread additional args correctly.
+
+- [ ] **PR-19d** — `rung34_bridge_setof/` — `setof/3`, `bagof/3`, `findall/3`.
+  Goal-as-Var inside generator builtins. The hardest sub-rung — generators
+  drive enumeration through bb_broker BB_NTH/BB_ALL boxes; bridge must
+  preserve the choicepoint stack across each solution.
+
+- [ ] **PR-19e** — `rung35_bridge_setup/` — `setup_call_cleanup/3`.
+  All three positional args may be goal-Vars. Edge case: cleanup fires
+  on cut, fail, or throw — three distinct continuation paths.
+
+- [ ] **PR-13** — `rung36_arith_edge/` — ISO §8 arithmetic edge cases.
+  IEEE specials (NaN, Inf), INT_MIN/-1 overflow (already guarded by Step C),
+  integer/float coercion, `mod` vs `rem` ISO semantics, `**` vs `^`,
+  `truncate`/`round`/`ceiling`/`floor`. Closes test_arith naturally.
+
+- [ ] **PR-14** — `rung37_term_ops/` — ISO §7.6 term-clause conversion.
+  `=..` (univ), `functor/3`, `arg/3`, `copy_term/2` full ISO semantics
+  including atomic `Term =.. [F]`, vars, edge cases. Closes test_term,
+  test_bips arg.
+
+- [ ] **PR-15** — `rung38_iso_errors/` — ISO §7.10, 7.11.
+  Canonical error terms (`type_error(Type, Culprit)`,
+  `existence_error(ObjectType, Culprit)`, etc.). Verify thrown errors
+  match ISO format under `catch/3`. Closes test_exception, test_misc.
+
+- [ ] **PR-16** — `rung39_atom_iso/` — ISO §7.8 atom builtins (full).
+  Beyond PL-4's basics: `sub_atom/5`, `atom_to_term/3`, `atom_number/2`,
+  `upcase_atom/2`, `downcase_atom/2`. Closes test_bips strings.
+
+- [ ] **PR-17** — `rung40_string/` — SWI string type (if dialect supports).
+  `string_chars/2`, `string_concat/3`, `split_string/4` (already stubbed in
+  plunit.pl, needs proper runtime), `number_string/2`, `string_to_atom/2`.
+  Closes test_string.
+
+- [ ] **PR-18** — `rung41_list_iso/` — ISO/SWI list builtins.
+  Full ISO semantics: `length/2` (mode -1 generates length, +1 verifies),
+  `append/3` (all 8 modes), `member/2`, `memberchk/2`, `nth0/3`, `nth1/3`,
+  `msort/2`, `sort/2`, `last/2`, `reverse/2`. Closes test_list.
+
+- [ ] **PR-20** — `rung42_meta/` — Meta-predicates.
+  `apply/2`, `forall/2`, `aggregate_all/3`, `maplist/2..5`. Bridge must
+  already work (depends on PR-19c).
+
+- [ ] **PR-21** — `rung43_streams/` — ISO §7.9 stream I/O.
+  `open/3`, `open/4`, `close/1`, `read_term/2`, `read_term/3`,
+  `write_term/2`, `peek_char/1`, `get_char/1`, `put_char/1`. Five focused
+  tests; large surface but well-bounded.
+
+- [ ] **PR-22** — `rung44_format/` — ISO §7.5 format directives.
+  `format/2`, `format/3`, full `~w ~d ~a ~s ~e ~f ~g ~p ~t ~|` directive
+  set. Closes format-related test failures across multiple suites.
+
+- [ ] **PR-23** — `rung45_dcg_iso/` — DCG full semantics.
+  Beyond PL-11's basics: pushback, embedded `{...}` Prolog calls,
+  `call//N` meta-DCG, `phrase/2,3` with goal-as-Var. Closes test_dcg
+  steadfastness, context.
+
+- [ ] **PR-24** — `rung46_exception_iso/` — Cross-clause catch/throw.
+  Recovery from exceptions thrown deep in user-pred dispatch; ISO error
+  propagation through `setof/3`; `catch/3` nesting; `throw/1` of arbitrary
+  terms. Closes test_exception fully.
+
+### Phase 3 — Downstream conformance gates (PR-30+)
+
+- [ ] **PR-30** — SWI-Prolog `Tests/core` suite ≥80% under --ir-run.
+  Script: `scripts/test_prolog_swi_suite.sh`. This is the old PL-12
+  metric, demoted to a downstream consequence of Phase 2. Expected to
+  cross the 80% threshold somewhere around PR-19c/PR-14/PR-16 landing.
+
+- [ ] **PR-31** — GNU Prolog `TestsPl` suite ≥80% under --ir-run.
+  Script: `scripts/test_prolog_gnu_suite.sh` (write at PR-31 if not yet).
+
+- [ ] **PR-32** — Logtalk `lgtunit` ISO subset (optional, defers).
+
+### Phase 4 — SM-run (BB_ONCE via Byrd boxes, x86)
+
+- [ ] **PR-40** — rung01–30 under --sm-run.
   Each stmt routes via SM_BB_ONCE → icn_eval_gen (PL path) → bb_broker(BB_ONCE).
   Gate: 14/14 PASS.
 
-- [ ] **PL-15** — rung12–20 under --sm-run.
+- [ ] **PR-41** — rung31–46 under --sm-run.
   Fix sm_lower.c gaps for Prolog EKinds as needed.
   Gate: all rungs passing under --ir-run also pass under --sm-run.
 
-- [ ] **PL-16** — SWI + GNU suites under --sm-run.
+- [ ] **PR-42** — Conformance suites (PR-30, PR-31) under --sm-run.
   Gate: PASS count matches --ir-run baseline.
 
-### Phase 3 — JIT-run (x86 in-memory code gen)
+### Phase 5 — JIT-run (x86 in-memory code gen)
 
-- [ ] **PL-17** — rung01–11 under --jit-run.
+- [ ] **PR-50** — rung01–30 under --jit-run.
   Gate: 14/14 PASS.
 
-- [ ] **PL-18** — rung12–20 under --jit-run.
+- [ ] **PR-51** — rung31–46 under --jit-run.
   Gate: all diffs vs --sm-run empty.
 
-- [ ] **PL-19** — SWI + GNU suites under --jit-run.
+- [ ] **PR-52** — Conformance suites under --jit-run.
   Gate: PASS count matches --sm-run baseline.
 
 ---
@@ -1784,3 +1952,111 @@ Working trees clean at handoff. SWI baseline 43/57 preserved.
 
 - `/tmp/test_at_op4.pl` — F.4 verification (write @ compound, T = @ compound)
 - `/tmp/test_softcut.pl` — F.4.b verification (parse + then/else branches)
+
+---
+
+## Current state (2026-05-01 session #5 followup — STRATEGY PIVOT, one4all HEAD `2eee5387`, corpus HEAD `5d29703`)
+
+**This session converted PL-12 from a single monolithic gate to an
+ISO-aligned capability ladder.** The pivot is documented in this file's
+new **Strategy** section (lines 17-75). The bridge work that stalled
+across sessions #1-#7 of 2026-04-30 and sessions #1-#4 of 2026-05-01 is
+not abandoned — it is reorganized into PR-19a through PR-19e, each
+sub-rung independently shippable.
+
+### Why the pivot
+
+Two weeks of bridge-neutral work (sessions 2026-04-30 #1 through
+2026-05-01 #4) showed the SWI-suite-line metric was a false-positive
+ceiling: 43/57 PASS rows scored on plunit's silent-success behavior
+when `catch(Var, _, _)` was handed a goal-as-variable the runtime
+silently treated as success. The bridge that fixes this regresses
+the metric (43→17 because previously-fake passes become honest fails)
+and was held back as a committed `.diff` rather than landed.
+
+The fundamental issue: the gate measured a lie, and the strategy bet
+on landing the bridge as one big jump after enough scaffolding closed
+the surrounding gaps. Two weeks of scaffolding moved bridge-on from
+5→17 but bridge-neutral stayed at 43/57. The strategy was working
+slowly enough that a different strategy needed evaluating.
+
+### What changed
+
+The Phase 2 rung ladder (lines 207-303) replaces PL-12. Each rung
+has:
+- A driver folder under `corpus/programs/prolog/rungNN_<section>/`
+- A test runner script `scripts/test_prolog_rungNN_<section>.sh`
+- 5-10 small focused tests, each ≤ 30 lines
+- Paired `.ref` files (oracle: SPITBOL where applicable, hand-derived
+  ISO-spec output otherwise)
+- An independent gate: rung lands when all tests PASS
+
+The bridge becomes PR-19, broken into five sub-rungs (PR-19a-e), each
+covering one builtin's worth of goal-as-Var dispatch. PR-19a (catch/3)
+has been written this session and is the first active rung of the
+new ladder.
+
+### Work landed this session (followup)
+
+| # | Repo    | Action                                                        |
+|---|---------|---------------------------------------------------------------|
+| 1 | corpus  | New folder `programs/prolog/rung31_bridge_catch/` with 5 tests |
+| 2 | one4all | New script `scripts/test_prolog_rung31_bridge_catch.sh`       |
+| 3 | .github | This file restructured: Strategy section + ISO ladder + pivot narrative |
+| 4 | .github | PLAN.md PL-12 line updated to PR-19a                          |
+
+### rung31_bridge_catch driver — confirmed FAIL 5/5 against current scrip
+
+Each test fails with the exact symptom the bridge mechanic is designed
+to fix:
+
+| Test | Expected | Current actual | Fix mechanism |
+|------|----------|----------------|---------------|
+| 01_var_goal_fails | failed | succeeded | catch/3 E_VAR case (silent-success) |
+| 02_var_goal_unify | 5 | _G1 | env-share (caller var binding) |
+| 03_var_goal_arith | 7 | _G1 | Term→EXPR walker recurses through arith |
+| 04_var_goal_userpred | 42 | _G1 | user-pred dispatch via pl_box_choice |
+| 05_var_goal_throw | caught 99 | (empty) | throw propagates through synth-EXPR |
+
+All five would PASS once the v3 bridge in
+`one4all/docs/PL-12-session-2026-05-01-bridge.diff` integrates. Session
+#6 of 2026-04-30 already proved each repro of this shape works
+standalone — the bridge mechanism is correct, just held back from
+landing because it regressed the old PL-12 metric.
+
+### NEXT SESSION — PR-19a is the active rung
+
+1. **Land the v3 bridge against rung31_bridge_catch as the gate.**
+   Apply `docs/PL-12-session-2026-05-01-bridge.diff` (or session
+   #6's saved attempt diff). Verify all five rung31_bridge_catch
+   tests PASS. Smoke 5/5, broker 49/49, rung31_bridge_catch 5/5.
+   Commit with message `PR-19a LANDED: catch/3 goal-as-variable
+   dispatch via Term→EXPR bridge`. The SWI suite (PR-30) will likely
+   regress — that's expected and acceptable; PR-30 is no longer the
+   gate for this work.
+
+2. **Document the bridge-on SWI count after PR-19a lands.**
+   This is the new honest baseline. Future PR-19 sub-rungs should
+   monotonically improve it.
+
+3. **Write PR-19b — `rung32_bridge_negation/`.** Same pattern, 5 tests
+   each exercising `\+ Var` / `not(Var)` / `once(Var)` with goal-Var.
+   Extend the bridge from `catch/3` to these three sites in
+   `pl_runtime.c`. Each is ~10 lines of dispatch, mirroring the
+   `catch/3` arm.
+
+### Files this session (post-pivot)
+
+- `corpus/programs/prolog/rung31_bridge_catch/01_var_goal_fails.{pl,ref}` — silent-success bug
+- `corpus/programs/prolog/rung31_bridge_catch/02_var_goal_unify.{pl,ref}` — env-share
+- `corpus/programs/prolog/rung31_bridge_catch/03_var_goal_arith.{pl,ref}` — arith recursion
+- `corpus/programs/prolog/rung31_bridge_catch/04_var_goal_userpred.{pl,ref}` — user-pred dispatch
+- `corpus/programs/prolog/rung31_bridge_catch/05_var_goal_throw.{pl,ref}` — throw propagation
+- `one4all/scripts/test_prolog_rung31_bridge_catch.sh` — driver
+- `.github/GOAL-LANG-PROLOG.md` — strategy pivot, ISO ladder, session narrative
+- `.github/PLAN.md` — PL-12 → PR-19a step pointer
+
+Working trees: corpus and .github clean after this commit; one4all has the
+new script. Smoke 5/5, broker 49/49, SWI baseline 43/57 (last bridge-off
+measurement) preserved at session-end. PR-19a (rung31_bridge_catch) at 0/5
+PASS — the new active gate, will go to 5/5 next session when bridge lands.
