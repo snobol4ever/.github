@@ -129,6 +129,73 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   (snobol4dotnet `8e5ff9e`, one4all `21eac9a5`). Streaming intern
   + MWK_LABEL.
 
+- [ ] **S-2-bridge-coverage-pattern-traversal** — Fine-grained wire
+  events for pattern-AST traversal and runtime housekeeping, per
+  Silly SNOBOL4's monitor precedent. Opened session #73 (2026-05-01)
+  after empirical confirmation that the line-48 gating bug is
+  structural in the snoExpr14 alternation graph (dot reaches
+  `*snoFunction` before `*snoUnprotKwd`) but invisible to the
+  current wire (which emits only program-visible CALL/RETURN/
+  VALUE/LABEL — pattern-AST navigation is silent). The user's
+  "C# trace between adjacent sync-step events reveals the bug"
+  strategy assumes the wire's divergence point IS the structural
+  divergence; that's true only when both runtimes' AST traversal
+  is itself on the wire.
+
+  New `MWK_*` record kinds to add (or reuse where appropriate):
+
+    1. **Pattern-AST navigation:**
+       - `MWK_PM_ENTER` / `MWK_PM_EXIT` — PatternMatch entry/exit
+         (subject-hash, anchor flag, cursor)
+       - `MWK_PM_NODE` — per-node Match step (node index, type tag,
+         alt index, cursor in/out, outcome)
+       - `MWK_PM_BACKTRACK` — alt-stack pop (alt index restored,
+         cursor restored)
+       - `MWK_PM_SEAL` / `MWK_PM_MARK` / `MWK_PM_RESTORE` — FENCE
+         mark/seal/restore lifecycle
+       - `MWK_PM_GRAFT` — UnevaluatedPattern graft (target node,
+         successor edge)
+
+    2. **Runtime housekeeping (pattern-match scope):**
+       - `MWK_BETA_PUSH` / `MWK_BETA_POP` / `MWK_BETA_COMMIT` —
+         BetaStack lifecycle
+       - `MWK_FAILURE_FLIP` — Exec.Failure transitions
+       - `MWK_KW_READ` — `&FULLSCAN`/`&ANCHOR`/etc reads on the
+         pattern-match path (lvalue + value)
+
+  Each kind needs:
+    - a definition in `one4all/scripts/monitor/monitor_wire.h`
+    - participant-side emit calls:
+        - dot:  `Snobol4.Common/Runtime/Monitor/MonitorIpc.cs`
+          (smallest blast radius — ship first, smoke-test alone)
+        - spl:  `x64/osint/monitor_ipc_runtime.c` and the relevant
+          `sbl.min` fire-points (precedent: SN-26-spl-bridge-coverage-e)
+        - csn:  `csnobol4/monitor_ipc_runtime.c` (later — only if
+          beauty self-host triages don't isolate against just spl+dot)
+    - controller-side recognition in
+      `one4all/scripts/monitor/monitor_sync_bin.py`
+      (compare-or-skip per-kind, with documented per-kind wildcards)
+
+  Smoke gate:
+    - Standalone smoke: `(POS(0) | ' ') *upr(tx) (' ' | RPOS(0))`
+      matched against `'FULLSCAN'` against snoUnprotKwds, two-way
+      `PARTICIPANTS="spl dot"`. New events surface; no spurious
+      divergence.
+    - Beauty 17/17 corpus: PASS unchanged (the new emits are wire-
+      only — no runtime semantic change).
+    - Beauty self-host: re-run with the enhanced bridges. The
+      first DIVERGE row should now name the structural site
+      directly (likely an alt-stack save/restore or alternation
+      node-graph step) inside `snoExpr14`, not the downstream
+      symptom at #2839. C# tracing at THAT site should immediately
+      reveal the bug — likely in `PatternAlternation (Pipe).cs`
+      or `AbstractSyntaxTree.Build`.
+
+  Pre-existing bridge gaps (e.g. spl's `MONITOR_SKIP_EXTRA_KEYWORD_VALUES`
+  workaround for VALUE-on-keyword-store) need not be closed by this
+  rung. They are acknowledged via controller env-vars; this rung
+  adds *visibility*, not *parity-of-existing-events*.
+
 - [x] **S-2-bridge-7-encoding** — StringVar UTF-8 → Latin-1
   (snobol4dotnet `28625e1`). Smoke PASS=3.
 
