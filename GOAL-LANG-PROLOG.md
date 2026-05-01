@@ -1657,3 +1657,130 @@ Working trees clean at handoff. SWI baseline 43/57 preserved.
 - `/tmp/test_colon_op.pl` — F.1.b verification (3 colon shapes)
 - `/tmp/test_string_combined.pl` — F.3 verification (split_string ×4 +
   string_bytes ×6 modes)
+
+---
+
+## Current state (2026-05-01 session #5, one4all HEAD `6c0ca929`, corpus HEAD `92f3179`)
+
+PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
+on the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
+**Two commits landed this session, both gate-neutral and bisectable.**
+
+### Two landings (session 2026-05-01 #5)
+
+| # | Repo    | Commit     | Effect                                                            |
+|---|---------|------------|-------------------------------------------------------------------|
+| 1 | one4all | `23d459bd` | Step F.4: `@` call-at-context operator parsing (xfx 900)          |
+| 2 | one4all | `6c0ca929` | Step F.4.b: `*->` soft-cut operator parsing (xfy 1050)            |
+
+### Step F.4 — `@` call-at-context operator (xfx 900)
+
+Single-line addition to `BIN_OPS` mirroring F.1.b's shape. The lexer
+already emits `@` as TK_ATOM via the graphic-char set (`is_graphic`
+in `prolog_lex.c` includes `@`); the multi-char operators `@<`, `@>`,
+`@=<`, `@>=` lex greedily so a bare `@` between two terms reaches
+the operator-climb path with the binop entry present.
+
+Per `test_call.pl` line 180: `:- op(900, xfx, @).` — call-at-context
+with Module on the right (`Goal@Module` invokes Goal in the named
+module). xfx maps to ASSOC_NONE in the local enum; precedence 900
+sits below `,` (1000) and `;` (1100), above `:` (200) — so
+`at2_m1:p1(C)@at_m2` parses as `@(:(at2_m1, p1(C)), at_m2)` ✓.
+
+Repros (`/tmp/test_at_op4.pl`):
+```prolog
+:- write(at2_m1:p1(c)@at_m2), nl.
+  -> @(:(at2_m1,p1(c)),at_m2)
+:- T = (at2_m1:p1(c)@at_m2), write([t, T]), nl.
+  -> [t,@(:(at2_m1,p1(c)),at_m2)]
+```
+
+test_call.pl bridge-off parse errors: **47 → 22** (lines 186-200
+region clean — all six `@`-bearing test bodies in the at2 block
+now parse).
+
+### Step F.4.b — `*->` soft-cut operator (xfy 1050)
+
+One-line addition to `BIN_OPS`, matching SWI's standard op
+declaration `op(1050, xfy, *->)` — same precedence as `->`,
+right-associative.
+
+The lexer's `is_graphic` includes `*`, `-`, `>` so `*->` is
+consumed by `scan_graphic` as a single 3-char TK_ATOM; with the
+binop entry in place, the operator-climb path picks it up
+automatically.
+
+Repro (`/tmp/test_softcut.pl`):
+```prolog
+:- T = (true *-> X = scio ; X = nescio), write([t, T]), nl.
+  -> [t,*->(true,_G1=scio);_G1=nescio]
+```
+
+test_call.pl bridge-off parse errors: **22 → 0** — the entire
+`snip` test block (lines 202-242) now parses cleanly. Cumulative
+across F.1.b + F.4 + F.4.b: **127 → 0** parse errors in test_call.pl.
+
+The runtime still reports `undefined predicate *->/2` when invoking
+the operator directly — runtime support is a separate gap. Would
+need a dispatch arm in `pl_runtime.c` modeled on `->/2`'s soft
+semantics: condition succeeds at least once → commit to then-branch
+with remaining solutions; condition fails → else-branch.
+
+### Bridge-on probes — not measured this session
+
+The bridge diff (`docs/PL-12-session-2026-05-01-bridge.diff`) was
+not applied or run this session. Both F.4 and F.4.b are
+foundational parser-level fixes — they prevent parse-error
+cascades the bridge would surface, but no bridge-on suite-line
+gain is expected from them alone since test_call's `at2` and `snip`
+bodies that newly parse contain their own runtime gaps (`@/2`
+needs runtime dispatch, `*->/2` needs runtime dispatch).
+
+### NEXT SESSION PL-12 — revised ordered task list:
+
+The path-to-gate plan from session #4 is unchanged in shape but with
+all four parser-level grammar gaps now closed (`:` F.1.b, comma/semi
+functor F.1.a, `@` F.4, `*->` F.4.b), the next session should focus
+on dispatch-layer gaps:
+
+1. **F.2 — investigate why bridge-on is still 17/57.** Per session #4
+   note: bridge currently only wires into `catch/3`. Likely culprits
+   for the 17→43 gap:
+   - (a) `\+/1`, `once/1`, `not/1` still dispatch through the
+     pre-bridge default-arm path. Each needs the same `goal_e->kind
+     == E_VAR` check the bridge added to `catch/3`, with
+     `pl_invoke_term` dispatch for the deref'd Term.
+   - (b) `call/N` rebuilds the goal via `=..` and tail-calls; bridge
+     may not handle when inner G is itself a Term-not-Expr. Check
+     the call dispatch path in `pl_runtime.c::interp_exec_pl_builtin`'s
+     E_FNC sval="call" arm.
+   - (c) `setof/3` / `setup_call_cleanup/3` stub bodies in
+     `corpus/plunit.pl` use `catch` which currently runs through the
+     bridge correctly only when invoked from a non-bridged context.
+   Trace one MISS suite at a time bridge-on with
+   `util_diagnose_prolog_swi.sh`, isolate first failing sub-test,
+   fix the dispatcher gap, iterate.
+
+2. **F.4.c — `*->/2` runtime dispatch.** Now that `*->` parses,
+   add the dispatch arm to `pl_runtime.c`. Soft semantics: try the
+   condition; if it succeeds at least once, commit to the then-branch
+   with all solutions of the condition; if it fails, take the
+   else-branch. Models on existing `->/2` arm but with first-solution-
+   commit-and-continue rather than first-solution-only.
+
+3. **E (re-attempt landing the bridge)** once F.2 closes enough of
+   the 17→43 gap that bridge-on >= 43/57.
+
+4. **G — runtime semantic fixes**: numbervars/3 negative start, `=@=`,
+   compound/1 edge cases. Each small and bisectable.
+
+### Files committed this session
+
+- `one4all/src/frontend/prolog/prolog_parse.c` — F.4 (+1) and F.4.b (+1).
+
+Working trees clean at handoff. SWI baseline 43/57 preserved.
+
+### Working repros saved (in /tmp, not committed)
+
+- `/tmp/test_at_op4.pl` — F.4 verification (write @ compound, T = @ compound)
+- `/tmp/test_softcut.pl` — F.4.b verification (parse + then/else branches)
