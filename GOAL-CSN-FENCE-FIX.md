@@ -734,7 +734,7 @@ F-1 lands.
 - one4all @ `06433f90`
 - corpus @ session #65 `6f00145` (53 tests at IDs 100–152; Tier G additions + 118/127/140/141 corrections)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#65; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral; **session #65 verifies test suite against SPITBOL oracle, expands suite to 53 tests with Tier G (148–152), corrects three corpus errors, sharpens bug-class characterization — no runtime change**. The new gate is 7 csnobol4 FAILs to flip + 2 negative discriminators to preserve. **Session #66** should re-run session #62's PDL-dump diagnostic on test 148 (simpler than 119) to resolve the unreconciled tension between session #62 (no-SALT2-events → bug on success path) and session #64 (failure-walker through abandoned-seal region). Trace decides whether session #57(d) FNCA-success zeroing is the right fix or whether investigation must redirect to STARP2's redo-dispatch path. Beauty 42 lines (unchanged since #58).)
+- active step → **F-2 Step 3a** (sessions #49–#65; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral; **session #65 verifies test suite against SPITBOL oracle, expands suite to 53 tests with Tier G (148–152), corrects three corpus errors, sharpens bug-class characterization** (commit `5fbf2ce`); **session #65 (cont) isolates the bug to a single line: `L_FNCD: BRANCH(FAIL)` at isnobol4.c:12437 should be `goto L_TSALT`** (commit `b2764cf` — docs+diff only; runtime change saved as patch artifact, NOT committed because it regresses test 150). Resolves session #62/#64 narrative tension: both partially right — #64's failure-walker path is real but #62's success-path leak observation is also real; together they describe one bug requiring composed fix. **Session #66** should `git apply docs/F-2-Step3a-session65-L_FNCD-attempt.diff` AND implement session #64's proposed FNCA-success leaked-alt zeroing — together they should resolve both clusters without regressing 150. Beauty 42 lines (unchanged since #58).)
 
 **Gates as of session #65 end (working tree CLEAN, no runtime code changed since session #64):**
 - fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58 / s64 / s65)
@@ -2464,3 +2464,176 @@ in two ways: (a) it includes tests 148/149 which are harder for any
 "accidentally passes" fix to satisfy than 119/129 alone (different input
 strings, different output messages), and (b) the negative discriminators
 150/151 reject overly-broad fixes that the prior gate would have allowed.
+
+---
+
+## Session #65 (continued) — L_FNCD bug isolated by attribute-grid analysis
+
+### What was done
+
+Built attribute grid for all 53 fence_suite tests (FENCE present, *var
+indirection, ARBNO, RPOS(0), conditional capture, *var-to-FENCE chain,
+ARBNO-of-*var-to-FENCE chain, match via *var, nested *var to FENCE).
+Sorted by csnobol4 result.  Looked for the column or column-combination
+that's uniformly true across all 7 FAILs and uniformly false across
+all 46 OKs.
+
+The two failure clusters became visible immediately:
+
+- **Cluster A** (119, 129, 148, 149) — Y across `FENCE`, `*var`, `ARBNO`,
+  `RPOS(0)`, `*var-to-FENCE`, `ARBNO-of-*var`, `ARBNO-of-*var-to-FENCE`,
+  `match-via-*var`, `nested-*var-to-FENCE`.
+- **Cluster B** (124, 127, 152) — Y across `FENCE`, `RPOS(0)`,
+  `dot-capture`; N across the *var/ARBNO columns.
+
+No single column unifies them.  But the *behavioral* attribute does:
+in both clusters, FENCE matches successfully, then something post-FENCE
+in the same SCIN frame fails, and there exists a backtrackable
+alternative outside the FENCE that should be tried.  Reading L_FNCD's
+body revealed the bug.
+
+### The bug — one line
+
+`isnobol4.c:12437`:
+
+```c
+L_FNCD:
+    D(PDLPTR) = D(YCL);            /* restore to inner base */
+    D_A(PDLPTR) -= 3*DESCR;        /* flpop: consume SCFLCL trap */
+    D(NAMICL) = D(NHEDCL);
+    BRANCH(FAIL)                   /* <- THIS IS WRONG */
+```
+
+`BRANCH(FAIL)` is `return 1` from SCIN.  It exits the entire scan.
+
+SPITBOL's analog `p_fnd` (sbl.min:12044):
+
+```
+p_fnd  ent  bl_p0
+       mov  xs,wb            pop stack to fence() history base
+       brn  flpop            pop base entry and fail
+```
+
+`flpop` (sbl.min:16242):
+```
+flpop  rtn
+       add  xs,*num02        pop two entries off stack
+       ejc                   (drops into failp)
+```
+
+`failp` (sbl.min:16256):
+```
+failp  rtn
+       mov  xr,(xs)+         load alternative node pointer
+       mov  wb,(xs)+         restore old cursor
+       mov  xl,(xr)          load pcode entry pointer
+       bri  xl               jump to execute code for node
+```
+
+So SPITBOL's seal handler does NOT exit the scan.  It pops to inner-base,
+pops two more entries, then `failp` POPS THE NEXT ALT FROM THE STACK
+AND DISPATCHES IT.  csnobol4's L_TSALT is the analog of `failp`.
+
+The fix is one line: `BRANCH(FAIL)` → `goto L_TSALT`.
+
+### Two opposite symptoms from one bug
+
+- **Cluster B** (124/127/152): walker fails too early.  FENCE matches,
+  RPOS(0) (or successor) fails, walker hits FNCDCL, BRANCH(FAIL) exits
+  scan.  Outer alts are still on PDL but never tried.
+- **Cluster A** (119/129/148/149) + **150**: BRANCH(FAIL) was OVER-
+  correcting.  It blocked all alts including LEAKED inner-FENCE alts
+  physically still on PDL above PDLPTR-after-rewind.  Removing
+  BRANCH(FAIL) lets walker reach those leaks.
+
+The two symptoms are the two sides of the same overcorrection.
+
+### Why the attempt regressed 150
+
+Tested `BRANCH(FAIL)` → `goto L_TSALT`:
+
+| Test | Baseline | s65-L_FNCD attempt |
+|------|----------|-------------------|
+| 124 (cluster B)                    | FAIL | **OK** ✓ |
+| 119, 129, 148, 149 (cluster A)     | FAIL | FAIL (unchanged) |
+| 127, 152 (cluster B variants)      | FAIL | FAIL (unchanged) |
+| **150 (negative discriminator)**   | **OK** | **FAIL** ✗ |
+| guard5                             | OK | OK |
+| fence_function                     | 10/10 | 10/10 |
+
+Net 46/7/0 unchanged but with one previously-passing test now wrong-
+answer.  Per RULES.md regression-in-error-class, NOT committed.
+
+### The composed fix shape
+
+Session #66 must combine:
+
+1. **L_FNCD: `goto L_TSALT`** (this attempt's diff) — necessary.
+2. **One of:**
+   - (a) Physical leak removal at FNCA-success.  Walk PDL from
+     inner-base+3*DESCR to old_PDLPTR; zero slot[1] of non-FNC entries.
+     (Session #64's proposed runtime work.)
+   - (b) Persistent STREXCCL bottom-sentinel across multi-iteration
+     ARBNO contexts.  (Session #58 implemented top-and-bottom; this
+     would extend.)
+
+(1) lets the walker reach legitimate alts; (2) prevents it from reaching
+leaked ones.  Together they should:
+- flip 119, 124, 127, 129, 148, 149, 152 → OK
+- keep 150 OK (negative discriminator)
+- keep 151 OK (negative discriminator)
+- preserve fence_function 10/10
+- preserve Tier F 16/16
+- preserve guard5
+
+### Resolution of session #62/#64 narrative tension
+
+Session #62: "no SALT2 events between post-STARP2 dump and wrong-match
+output → bug on success path."  Session #64: "failure-walker dispatches
+abandoned-seal region → bug on failure-walker path."  These looked
+contradictory.
+
+Both were partially right:
+- The leaks are formed on the success path (FNCA's success leaves them
+  on PDL above PDLPTR-after-rewind).  Session #62 was right about
+  WHERE the leaks come from.
+- The walker dispatches them on the failure path (BRANCH(FAIL)'s
+  removal exposes them).  Session #64 was right about HOW they cause
+  wrong matches.
+
+The composed fix addresses both: leak removal at the success-path
+formation site (per #62) + correct walker continuation (per #64).
+
+### Files this session-continuation
+
+- `csnobol4/docs/F-2-Step3a-session65-L_FNCD-attempt.diff` — 1-line
+  patch, applies clean to HEAD `5fbf2ce`.
+- `csnobol4/docs/F-2-Step3a-session65-L_FNCD-findings.md` — 175-line
+  writeup with full SPITBOL comparison and minimal repro.
+- This goal-file update + PLAN.md state-cell update.
+- csnobol4 advanced from `5fbf2ce` to `b2764cf` (docs+diff only).
+- No source changes committed.
+
+### Concrete plan for session #66
+
+```bash
+# 1. Apply the L_FNCD fix
+cd /home/claude/csnobol4
+git apply docs/F-2-Step3a-session65-L_FNCD-attempt.diff
+
+# 2. Implement option (a): leaked-alt zeroing at FNCA-success.
+#    See csnobol4/docs/F-2-Step3a-session64-findings.md "session #65 fix
+#    recommendation" section for the pseudocode.  Insert the loop in
+#    isnobol4.c L_FNCA's success path, between the POPs that restore
+#    outer state and the FNCDCL push (around line 12381-12388).
+
+# 3. Build and gate
+make -f Makefile2 xsnobol4 && cp xsnobol4 snobol4
+cd test/fence_suite && make csnobol4 | tail -2
+cd ../fence_function && make | tail -1
+
+# 4. Expected: 51/2/0 of 53 (only 127, 152 = bug 2 remain)
+#    OR 53/0/0 if the composed fix also resolves bug 2.
+
+# 5. If 150 still regresses, try option (b) instead of (a).
+```
