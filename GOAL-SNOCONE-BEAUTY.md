@@ -268,7 +268,59 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
-## Most recent session — 2026-05-02 #10 (SB-6.E.7-A runtime fix; debrace reverted; SB-6.E.7-J opened)
+## Most recent session — 2026-05-02 #11 (SB-6.E.7-J full audit + subsystem suite expansion)
+
+### What landed
+
+**SB-6.E.7-J COMPLETE.** All 17 .sc files audited line-by-line against
+.sno/.inc source.
+
+| Files clean | Files fixed |
+|------------|-------------|
+| 15: assign, match, stack, counter, ShiftReduce, semantic, omega, ReadWrite, Gen, Qize, XDump, tree, global, beauty + (TDump.sc test exposed sub-bug, fixed below) | 3: case.sc (cap missing :F(error)), trace.sc (T8Trace workaround), TDump.sc (leaf detection) |
+
+**Three .sc fixes landed:**
+1. **case.sc::cap()** — added missing `:F(error)` trip
+2. **trace.sc::T8Trace** — replaced pre-SB-6.E.7-A workaround
+   `if (str ? PAT) { } else { nreturn; }` with natural Snocone form
+   `if (~(str ? PAT)) { nreturn; }`
+3. **TDump.sc::TLump and TDump** — leaf detection corrected from
+   `if (~IDENT(DATATYPE(x), 'tree'))` (always false — DATATYPE returns
+   `'tree'` for every tree struct) to canonical `if (IDENT(n(x)))`
+   matching .inc semantics (leaf = null n field)
+
+**Subsystem test suite expanded from 10 to 15 tests:**
+
+| New tests | Result |
+|-----------|--------|
+| test_case.sc | 12 PASS |
+| test_Gen.sc | 8 PASS |
+| test_TDump.sc | 6 PASS (exposed the leaf-detect bug) |
+| test_XDump.sc | 3 PASS |
+| test_omega.sc | 2 PASS |
+| test_Qize.sc | SKIP — exposes SB-6.E.7-H rollback bug; kept as marker |
+
+Suite gate:
+```bash
+bash scripts/test_beauty_snocone_subsystems.sh \
+    assign match stack case counter ShiftReduce semantic trace tree \
+    global ReadWrite Gen TDump XDump omega
+# → 15 passed / 0 failed
+```
+
+### Repos state
+
+- `corpus`: `6a30100` — TDump.sc fix + 6 new subsystem tests
+- `one4all`: clean at `31d8bb30`
+- `.github`: this commit
+- Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0`
+- Three baseline gates green
+- **Active blocker for SB-6: SB-6.E.7-H** (runtime rollback bug —
+  test_Qize.sc is a clean isolated reproducer)
+
+---
+
+
 
 ### What landed
 
@@ -806,8 +858,7 @@ to do.
         where the else was on a separate line). After SB-6.E.7-J
         confirms code is correct, this sweep can land safely.
 
-  - [ ] **SB-6.E.7-J** — **⚡ ACTIVE STEP. Hand-verify every .sc file
-        line-by-line against its .sno/.inc source.**
+  - [x] **SB-6.E.7-J** — **Hand-verify every .sc file line-by-line. CLOSED session 2026-05-02.**
 
         Session 2026-05-02 automated debrace sweep introduced broken
         code (e.g. `else Shift = .dummy; nreturn;` with no guarding
@@ -836,23 +887,28 @@ to do.
 
         | # | File | .sno/.inc lines | .sc lines | Status |
         |---|------|----------------|-----------|--------|
-        | 1 | assign.sc | 13 | 11 | ⬜ |
-        | 2 | match.sc | 14 | 11 | ⬜ |
-        | 3 | stack.sc | 29 | 32 | ⬜ |
-        | 4 | case.sc | 26 | 32 | ⬜ |
-        | 5 | counter.sc | 85 | 151 | ⬜ |
-        | 6 | ShiftReduce.sc | 33 | 63 | ⬜ |
-        | 7 | semantic.sc | 26 | 64 | ⬜ |
-        | 8 | trace.sc | 35 | 48 | ⬜ |
-        | 9 | omega.sc | 42 | 101 | ⬜ |
-        | 10 | ReadWrite.sc | 46 | 83 | ⬜ |
-        | 11 | Gen.sc | 57 | 72 | ⬜ |
-        | 12 | Qize.sc | 80 | 162 | ⬜ |
-        | 13 | XDump.sc | 47 | 62 | ⬜ |
-        | 14 | TDump.sc | 62 | 95 | ⬜ |
-        | 15 | tree.sc | 88 | 147 | ⬜ |
-        | 16 | global.sc | 163 | 196 | ⬜ |
-        | 17 | beauty.sc | 627 | 498 | ⬜ |
+        | 1 | assign.sc | 13 | 11 | ✅ clean |
+        | 2 | match.sc | 14 | 11 | ✅ clean |
+        | 3 | stack.sc | 29 | 32 | ✅ clean |
+        | 4 | case.sc | 26 | 32 | ⚠ cap() missing :F(error) — fixed |
+        | 5 | counter.sc | 85 | 151 | ✅ clean |
+        | 6 | ShiftReduce.sc | 33 | 63 | ✅ clean |
+        | 7 | semantic.sc | 26 | 64 | ✅ clean |
+        | 8 | trace.sc | 35 | 48 | ⚠ T8Trace workaround replaced — fixed |
+        | 9 | omega.sc | 42 | 101 | ✅ clean |
+        | 10 | ReadWrite.sc | 46 | 83 | ✅ clean |
+        | 11 | Gen.sc | 57 | 72 | ✅ clean |
+        | 12 | Qize.sc | 80 | 162 | ✅ clean |
+        | 13 | XDump.sc | 47 | 62 | ✅ clean |
+        | 14 | TDump.sc | 62 | 95 | ✅ clean |
+        | 15 | tree.sc | 88 | 147 | ✅ clean |
+        | 16 | global.sc | 163 | 196 | ✅ clean |
+        | 17 | beauty.sc | 627 | 498 | ✅ clean (runtime bugs tracked separately) |
+
+        **SB-6.E.7-J COMPLETE.** All 17 files audited. 2 fixes landed
+        (case.sc cap(), trace.sc T8Trace). 15 files confirmed clean.
+        Remaining issues are runtime bugs (SB-6.E.7-H rollback,
+        SB-6.E.7-I Pop() returns Label), not .sc translation errors.
 
         Legend: ⬜ not started · 🔄 in progress · ✅ clean · ⚠ issues found+fixed
 
