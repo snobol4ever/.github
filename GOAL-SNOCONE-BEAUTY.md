@@ -2578,7 +2578,7 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
       back into "what the code does" rather than "what the code
       should do."
 
-- [ ] **SB-6.F** — Unary `!` (T_1BANG) coverage for SPITBOL operator
+- [x] **SB-6.F** — Unary `!` (T_1BANG) coverage for SPITBOL operator
   parity.  Discovered session 2026-05-02 while cross-checking the
   Snocone token inventory against the SPITBOL Manual Chapter 15
   canonical operator list (p. 181–183).  Of the six undefined unary
@@ -2613,17 +2613,17 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
   By the time the parser sees a `!`-derived token, that token
   must already declare which role it plays.
 
-  - [ ] **SB-6.F.1** — Add `T_1BANG` to `snocone_lex.h` ScKind
+  - [x] **SB-6.F.1** — Add `T_1BANG` to `snocone_lex.h` ScKind
     enum.  Follow the existing pattern: place it next to the
     other T_1* tokens (lines 38–40 today).  No other header
     changes — `sc_kind_is_value()` and `sc_kind_has_payload()`
     use the kind only as an integer index, no code change
     needed there.
-  - [ ] **SB-6.F.2** — Add `E_UN_BANG: EMIT(T_1BANG);` emit
+  - [x] **SB-6.F.2** — Add `E_UN_BANG: EMIT(T_1BANG);` emit
     label in `snocone_lex.c` next to the other `E_UN_*` labels
     (around line 583 today).  Add corresponding name-table
     entry `sc_name_table[T_1BANG] = "T_1BANG";`.
-  - [ ] **SB-6.F.3** — Fix `S_OP_BANG` unary fallback in
+  - [x] **SB-6.F.3** — Fix `S_OP_BANG` unary fallback in
     `snocone_lex.c` line 383: replace
     ```c
     {  ADV(1);                                              goto E_EXP;       }
@@ -2640,7 +2640,7 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
     unary-position `!x` should emit `T_1BANG` (currently undefined
     semantic, available for OPSYN at the grammar layer when
     Snocone gains OPSYN support).
-  - [ ] **SB-6.F.4** — Verify with the SPITBOL `-bf` oracle that
+  - [x] **SB-6.F.4** — Verify with the SPITBOL `-bf` oracle that
     `!` follows the manual's two-role contract.  Concretely:
     - `OUTPUT = 2 ! 3`  → SPITBOL prints `8` (binary exponent,
       same as `2 ^ 3` and `2 ** 3`).  Verify scrip matches.
@@ -2658,7 +2658,7 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
       a clean parse error referencing the unary-bang token
       rather than confusing the user with a binary-exponent
       complaint.
-  - [ ] **SB-6.F.5** — Run the full gate suite and confirm no
+  - [x] **SB-6.F.5** — Run the full gate suite and confirm no
     regressions.  Floor invariants: smoke snocone PASS=5,
     smoke snobol4 PASS=7, beauty all-modes PASS=42 SKIP=3,
     broker PASS=49, crosscheck snobol4 PASS=6, crosscheck
@@ -3494,3 +3494,182 @@ are spec-compliance + stale-doc cleanup.
 beauty.sc).  `.github`: dirty (ARCH-SNOCONE.md, GOAL-SNOCONE-BEAUTY.md).
 `csnobol4`, `x64`: clean.  Plan: commit corpus first, then
 one4all, then `.github` per RULES.md handoff order.
+
+---
+
+## Session 2026-05-01 progress (SB-6.F LANDED)
+
+**SB-6.F.1, .2, .3, .4, .5 all LANDED.**  Unary `!` (T_1BANG) lexer
+parity with SPITBOL operator inventory.  All six baseline gates green;
+no regressions; zero existing corpus uses of tight `!` forms.
+
+### Why this rung
+
+SB-6.E.5's session 2026-05-02 close noted that SPITBOL Manual Ch.15
+read-through identified one gap in the Snocone token inventory:
+unary `!` (T_1BANG) was the only undefined OPSYN-reserved unary
+without a token.  The lexer's `S_OP_BANG` unary fallback fired
+`goto E_EXP` (emitting `T_2CARET`, the binary-exponent token) — so
+unary-position `!x` produced a binary token with no LHS, and tight
+binary `2!3` accidentally parsed as `2 T_2CARET 3` (binary exponent),
+diverging from SPITBOL's parse-rejection.
+
+### Fixes
+
+1. **`snocone_lex.h`** — added `T_1BANG` to the `ScKind` enum,
+   placed at the end of the T_1* family next to `T_1AMP`.
+
+2. **`snocone_lex.c`** — added `E_UN_BANG: EMIT(T_1BANG);` emit
+   label after `E_UN_AMP`; added `sc_name_table[T_1BANG] = "T_1BANG";`
+   name-table entry.
+
+3. **`snocone_lex.c`** — fixed `S_OP_BANG` unary fallback (line 383):
+   `goto E_EXP` → `goto E_UN_BANG`.  The strict `{W}!{W}` binary
+   cascade (line 381) and concat fall-through (line 382) stay
+   unchanged — that part of S_OP_BANG was already correct from
+   SB-6.E.
+
+4. **`snocone_parse.y`** — added matching `#define T_1BANG SC_T_1BANG`
+   alias in `%code top` (line 145), matching `#undef T_1BANG` in the
+   `#undef` block (line 244), `T_1BANG` to the `%token` list
+   (line 668), and grammar production wiring `T_1BANG` to the
+   existing OPSYN-slot unary family (E_OPSYN with sval `"!"`,
+   matching the `&` `%` `/` `#` `|` `=` pattern):
+   ```yacc
+   | T_1BANG    expr17 { EXPR_t *_e = expr_unary(E_OPSYN, $2);
+                         _e->sval = strdup("!"); $$ = _e; }
+   ```
+   Also added `case SC_T_1BANG: return T_1BANG;` to `sc_kind_to_tok`.
+
+5. **Regenerated `snocone_parse.tab.c` / `.tab.h`** via
+   `scripts/regenerate_parser_and_lexer_from_sources.sh`.
+
+### Process lesson — record this in the rung directives
+
+The original SB-6.F.1 directive ("Add T_1BANG to ScKind enum") is
+under-specified.  Adding ONLY the enum entry (without coordinated
+.y file changes + parser regen) silently shifts every subsequent
+`ScKind` value by one.  The lexer↔parser bridge in `sc_kind_to_tok`
+is integer-keyed: `case SC_T_1AMP: return T_1AMP;` is decided by
+the integer value of `SC_T_1AMP` at compile time of the .tab.c.
+When the compiled .tab.c thinks SC_T_1AMP==X but the new lexer
+emits Y for that same name, every token after the insertion point
+arrives at the parser under the wrong identity — `OUTPUT = 1+1;`
+becomes a parse error because T_LPAREN has shifted etc.
+
+Recovery requires the full coordinated change: enum + .y aliases
++ %token + thunk case + parser regen + clean rebuild.  This was
+hit and recovered from cleanly this session, but the rung
+directive was misleading on what "minimal" means.
+
+### F.4 cross-check vs SPITBOL `-bf`
+
+| Test | SPITBOL `-bf` | Snocone (post-fix) | Match |
+|------|---------------|--------------------|-------|
+| `OUTPUT = 2 ! 3` | `8` (binary exponent) | `8` | ✓ |
+| `OUTPUT = 2!3`   | parse rejected (segfault) | `snocone parse error: syntax error` | ✓ |
+| `x = 5; OUTPUT = !x` | parses; ERROR 029 "undefined operator" at runtime | parses to E_OPSYN; runtime "Error 5 / Undefined operation" | ✓ same shape |
+| `OUTPUT = 2 ^ 3` | `8` | `8` | ✓ no regression |
+| `OUTPUT = 2 ** 3` | `8` | `8` | ✓ no regression |
+| `if (1 != 2) ...` | true | `NE_OK` | ✓ != carve-out preserved |
+
+Unary `!x` now parses to `E_OPSYN($2)` with sval `"!"`, matching
+the existing handling for `&` `%` `/` `#` `|` `=` undefined-but-
+reserved unaries.  Snocone has no OPSYN dispatch yet (per the
+goal-file scope discipline), so the runtime error is the
+expected behavior: a clean parse followed by a runtime
+"undefined operation".  This matches SPITBOL's contract for
+unary `!`: the operator is reserved for OPSYN, evaluation
+without an OPSYN binding raises an undefined-operator error.
+
+### Verification — gates
+
+| Gate | Result | Baseline |
+|------|--------|----------|
+| `test_smoke_snocone.sh` | PASS=5 FAIL=0 | ✓ unchanged |
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | ✓ unchanged |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 FAIL=0 SKIP=3 | ✓ unchanged |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | ✓ unchanged |
+| `test_crosscheck_snobol4.sh` | PASS=6 FAIL=0 | ✓ unchanged |
+| `test_crosscheck_snocone.sh` | PASS=8 FAIL=0 | ✓ unchanged |
+
+### Corpus scan — zero tight-`!` uses
+
+`grep -rEn '\![a-zA-Z0-9_(]'` across `corpus/programs/**/*.sc`
+(excluding `!=` and `#!` shebangs) returns no matches.  The
+strict cascade introduces no corpus regressions, consistent
+with SB-6.E.4's `+ - * / ^` cleanup pattern.
+
+### Two structural follow-ons surfaced (not in scope of SB-6.F)
+
+Lon flagged two redundancies during the session that are worth
+recording as separate follow-on rungs:
+
+1. **The `E_UN_*` family in `snocone_lex.c` is redundant** —
+   each of the 15 labels (`E_UN_PLUS`..`E_UN_BANG`) is a
+   one-line trampoline `EMIT(T_1xxx);` doing nothing except
+   naming itself by the operator character.  The cascade arms
+   could goto-emit directly via a shared `E_UN(k)` macro or
+   collapse to direct `return emit_kind(ctx, p, T_1xxx);` calls.
+   ~14 lines of pure boilerplate.  **Suggested rung:** SB-6.G
+   (Snocone lexer label cleanup).
+
+2. **The `SC_T_*` ↔ `T_*` per-token dispatch in
+   `sc_kind_to_tok` is partly redundant.**  The renaming
+   (`#define T_X SC_T_X`) IS structurally required — the lexer
+   header's `ScKind` enum and Bison's generated `sc_tokentype`
+   enum collide on names in one translation unit, so the
+   FSM-side enum needs a namespace prefix.  But the
+   case-by-case dispatch could collapse to a one-line cast
+   `return (sc_tokentype) sc_kind;` if every `SC_T_X` integer
+   value equals the corresponding `T_X` integer value.  This
+   would also eliminate the bug class hit this session
+   (forgetting the thunk case shifts all downstream values).
+   **Suggested rung:** SB-6.H (collapse SC_T_/T_ bridge to a
+   cast).  Larger surface than SB-6.G; would need an integer-
+   value alignment audit but no functional change.
+
+Neither is on the SB-6 self-host critical path; both are
+hygiene/maintainability work.
+
+### Files touched this session
+
+- `one4all/src/frontend/snocone/snocone_lex.h` — `+1/-1`
+  (T_1BANG appended to T_1* family in ScKind enum).
+- `one4all/src/frontend/snocone/snocone_lex.c` — `+3/-1`
+  (E_UN_BANG label, T_1BANG name-table entry, S_OP_BANG
+  unary fallback target).
+- `one4all/src/frontend/snocone/snocone_parse.y` — `+5/-1`
+  (#define alias, #undef, %token list, OPSYN production,
+  thunk case).
+- `one4all/src/frontend/snocone/snocone_parse.tab.c` /
+  `.tab.h` — regenerated via Bison.
+- `.github/GOAL-SNOCONE-BEAUTY.md` — SB-6.F.1..5 marked done;
+  this session block.
+
+No corpus changes (no .sc uses tight `!` today).  No runtime
+or IR changes outside the single OPSYN production lowering
+that was already wired for the other six undefined unaries.
+No diagnostic instrumentation; no workarounds.  Spec-compliance
+addition only.
+
+### Next session — recommended pickup
+
+1. **SB-6.E.6** — Confirm-with-Lon anti-rationalization pass
+   (still open; required only when Lon is available).
+2. **SB-6.G / SB-6.H** — the two structural follow-ons named
+   above, if Lon wants to land them.  Both narrow.
+3. **SB-6 self-host proper** — beauty.sc still produces no
+   output on `beauty_oracle.sno`.  The downstream blockers are
+   grammar/runtime, not lexer.  SB-6.F closes the lexer-side
+   spec-compliance work; SB-6 itself remains open on its
+   grammar/runtime axis.
+
+### Repos state
+
+`one4all`: dirty (5 files: lex.h, lex.c, parse.y, parse.tab.c,
+parse.tab.h).  `corpus`: clean.  `.github`: dirty
+(GOAL-SNOCONE-BEAUTY.md only).  `csnobol4`, `x64`: clean.
+Plan: commit one4all first, then `.github` per RULES.md
+handoff order.
+
