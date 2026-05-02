@@ -69,7 +69,7 @@
   interp_eval_pat where they belong; removed dead E_FNC("ARBNO")/("FENCE") guards.
   one4all @ `344e5440`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-  **Scope:** `src/runtime/x86/sm_lower.c`, `sm_interp.c`, `sm_prog.c`,
+- [ ] **RS-6** — Implement unification candidates from RS-5 findings: D-1 int-to-str coerce helper,
   `src/runtime/interp/icn_runtime.c`, `src/runtime/interp/pl_runtime.c`,
   `src/ir/ir.h`, and the dyn/ Byrd-box implementations.
 
@@ -98,3 +98,12 @@
   risk.  No code changes in this rung — findings only.  Code changes go in RS-6+.
 
   **Session setup:** interp/compiler goals (build_scrip.sh only — no oracle needed).
+
+- [x] **RS-5c** — Fix dual-use E_* IR nodes (session 2026-05-02).
+  E_BREAK: removed dead `case E_BREAK` in interp_eval.c Icon frame guard — Icon parser
+  has always emitted E_LOOP_BREAK; the case was unreachable.
+  E_FAIL: Icon parser was emitting E_FAIL for Icon `fail` (procedure fail-return),
+  colliding with E_FAIL = SNOBOL4 FAIL pattern primitive.
+  Added E_PROC_FAIL to ir.h; icon_parse.c emits E_PROC_FAIL; interp_eval.c and
+  sm_lower.c handle E_PROC_FAIL beside E_RETURN.
+  one4all @ `ea93b22b`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
