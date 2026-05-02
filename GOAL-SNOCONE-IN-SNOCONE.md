@@ -40,24 +40,45 @@ scrip --ir-run /home/claude/corpus/programs/snocone/corpus/sc1_literals.sc
 ```
 corpus/programs/snocone/interpreter/
     snocone.sc      ← main driver: reads source, calls lex→parse→interp
-    value.sc        ← DESCR value representation: val_int/val_str/val_fail/is_fail/val_to_str
-    ir.sc           ← IR node constructors + S-expr pretty-printer
-    lex.sc          ← tokenizer: returns token-list table
-    parse.sc        ← recursive-descent parser → IR tree (tables)
-    interp.sc       ← tree-walk evaluator: eval(node) → value
+    value.sc        ← Val struct: val_int/val_str/val_real/val_fail/val_null/is_fail/val_to_str
+    ir.sc           ← Node struct: ir_node/ir_set_sval/ir_set_ival/ir_add_child/ir_print
+    lex.sc          ← Tok struct: tokenizer returns array of Tok structs
+    parse.sc        ← recursive-descent parser → IR Node tree
+    interp.sc       ← tree-walk evaluator: sc_eval(node) → Val
     runtime.sc      ← builtins: OUTPUT/INPUT/SIZE/IDENT/DIFFER/etc.
 ```
 
-### IR representation in Snocone
+### Representation: Snocone struct (DATA)
 
-Each IR node is a Snocone table:
+Snocone `struct` lowers to SNOBOL4 `DATA()` — gives named-field constructors
+and field accessor functions. This is the idiomatic representation.
+
+**Values** (`value.sc`):
 ```
-node = TABLE();
-node['kind'] = 'E_ILIT';
-node['ival'] = 42;
-node['nchildren'] = 0;
+struct Val { type, v }
+// type: 'INT' | 'STR' | 'REAL' | 'FAIL' | 'NULL'
+// v:    the payload (integer, string, real, or '')
+// Constructor: Val(type, v)   Field accessors: type(x)  v(x)
 ```
-Children stored as `node['child0']`, `node['child1']`, etc.
+
+**IR nodes** (`ir.sc`):
+```
+struct Node { kind, sval, ival, dval, nc, c }
+// kind: 'E_ILIT' | 'E_ADD' | 'E_VAR' | ...
+// sval: string payload (var name, function name, quoted literal)
+// ival: integer payload
+// dval: real payload
+// nc:   number of children (integer)
+// c:    ARRAY('1:N') of child Node structs  ('' when nc=0)
+// Constructor: Node(kind,sval,ival,dval,nc,c)
+```
+
+**Tokens** (`lex.sc`):
+```
+struct Tok { kind, sval, ival, dval }
+// kind: 'T_INT' | 'T_STR' | 'T_IDENT' | 'T_PLUS' | 'T_SEMI' | ...
+// Constructor: Tok(kind,sval,ival,dval)
+```
 
 ---
 
@@ -65,55 +86,92 @@ Children stored as `node['child0']`, `node['child1']`, etc.
 
 - [x] **SS-1** — Write the step plan. Architecture decided: Stage 0 = scrip C host,
   Stage 1 = snocone.sc compiles itself. File layout above. TDD rung ladder below.
+  Representation corrected to Snocone `struct` (DATA) — Val/Node/Tok structs.
   (Session 2026-05-02)
 
-- [ ] **SS-2** — `value.sc`: DESCR value representation.
-  Implement `val_int(n)`, `val_str(s)`, `val_real(r)`, `val_fail()`, `val_null()`,
-  `is_fail(v)`, `val_to_str(v)`. Values encoded as Snocone tables with `['type']`
-  and `['val']` fields. Gate: inline test at bottom of file prints 5 lines,
-  matches `.ref`. Run: `scrip --ir-run value.sc`.
+- [ ] **SS-2** — `value.sc`: Val struct + value helpers.
+  ```
+  struct Val { type, v }
+  function val_int(n)    { val_int  = Val('INT',  n);  return; }
+  function val_str(s)    { val_str  = Val('STR',  s);  return; }
+  function val_real(r)   { val_real = Val('REAL', r);  return; }
+  function val_fail()    { val_fail = Val('FAIL', ''); return; }
+  function val_null()    { val_null = Val('NULL', ''); return; }
+  function is_fail(x)    { is_fail  = IDENT(type(x), 'FAIL'); return; }
+  function val_to_str(x) { ... coerce Val to string for OUTPUT ... }
+  ```
+  Gate: inline test prints 5 lines matching `value.ref`.
+  Run: `scrip --ir-run value.sc | diff - value.ref`.
 
-- [ ] **SS-3** — `ir.sc`: IR node constructors + S-expr printer.
-  `ir_node(kind)`, `ir_set_sval(n,s)`, `ir_set_ival(n,i)`, `ir_add_child(n,c)`,
-  `ir_print(n)` → S-expr matching C `ir_print_node` format exactly.
-  Gate: hand-build `(E_ADD (E_ILIT 3) (E_VAR x))` and dump it; diff vs expected `.ref`.
+- [ ] **SS-3** — `ir.sc`: Node struct + S-expr printer.
+  ```
+  struct Node { kind, sval, ival, dval, nc, c }
+  function ir_node(kind)       { ... Node(kind,'',0,0.0,0,'') ... }
+  function ir_set_sval(n, s)   { sval(n) = s; }
+  function ir_set_ival(n, i)   { ival(n) = i; }
+  function ir_add_child(n, ch) { ... grow c array, bump nc(n) ... }
+  function ir_print(n)         { ... S-expr format matching C ir_print_node ... }
+  ```
+  S-expr format: `(E_ILIT 42)`  `(E_VAR x)`
+  `(E_ADD\n  (E_ILIT 3)\n  (E_VAR x))` (2-space indent per depth, multi-child on newlines).
+  Gate: hand-build `(E_ADD (E_ILIT 3) (E_VAR x))` tree, print it; diff vs `ir.ref`.
 
 - [ ] **SS-4** — `lex.sc`: tokenizer.
-  Input: source string. Output: array of token tables, each `['kind','sval','ival','dval']`.
-  Token kinds as strings: `'T_INT'`, `'T_STR'`, `'T_IDENT'`, `'T_PLUS'`, `'T_SEMI'`, etc.
-  Gate: tokenize `'42 + x;'` → 4 tokens; match `.ref`.
+  ```
+  struct Tok { kind, sval, ival, dval }
+  function lex(src) { ... returns ARRAY of Tok structs ... }
+  ```
+  Token kinds: `T_INT T_REAL T_STR T_IDENT T_KEYWORD`
+  `T_PLUS T_MINUS T_STAR T_SLASH T_CARET T_EQ T_2EQ T_NEQ`
+  `T_LT T_GT T_LE T_GE T_SEMI T_LPAREN T_RPAREN T_LBRACE T_RBRACE`
+  `T_COMMA T_QMARK T_PIPE T_CONCAT T_EOF`
+  Gate: lex `'42 + x;'` → 4 tokens printed 1-per-line; diff vs `lex.ref`.
 
-- [ ] **SS-5** — `parse.sc`: recursive-descent parser for literals + arithmetic.
-  Pratt/recursive-descent: expr → term → factor → atom.
-  Produces IR tree tables. Gate: `parse('3 + 4 * 2')` → `(E_ADD (E_ILIT 3) (E_MUL (E_ILIT 4) (E_ILIT 2)))`.
+- [ ] **SS-5** — `parse.sc`: recursive-descent parser, literals + arithmetic.
+  Precedence: `^` (right) > unary `-` > `* /` > `+ -` > concat (space) > `|`.
+  Produces Node tree. Uses token array from `lex()` with a cursor index.
+  Gate: `parse('3 + 4 * 2')` → ir_print → `(E_ADD\n  (E_ILIT 3)\n  (E_MUL\n    (E_ILIT 4)\n    (E_ILIT 2)))` diff vs `parse.ref`.
 
-- [ ] **SS-6** — `interp.sc`: evaluator for E_ILIT, E_FLIT, E_QLIT, E_ADD/SUB/MUL/DIV/POW.
-  `eval(node)` → value table. Gate: `eval(parse('3 + 4'))` = `7`.
+- [ ] **SS-6** — `interp.sc`: evaluator, arithmetic core.
+  ```
+  function sc_eval(n) { ... dispatch on kind(n) ... returns Val }
+  ```
+  Handles: `E_ILIT E_FLIT E_QLIT E_NUL E_ADD E_SUB E_MUL E_DIV E_POW E_MNS E_PLS`.
+  Gate: eval `parse('3 + 4')` → `val_to_str` → `7`; diff vs `interp.ref`.
 
-- [ ] **SS-7** — `runtime.sc` + `snocone.sc` driver: `OUTPUT = expr;` assignment + print.
-  Wire lex → parse → interp → output. Gate: `sc1_literals.sc` passes (hello/world/42).
+- [ ] **SS-7** — `snocone.sc` driver + `runtime.sc`: wire lex→parse→interp, `OUTPUT =`.
+  Statement loop: for each stmt, eval subject; if `OUTPUT` assign, print val_to_str.
+  Gate: run `sc1_literals.sc` through `snocone.sc`; diff vs `sc1_literals.ref`.
 
-- [ ] **SS-8** — Variables, `E_VAR`, `E_ASSIGN`. Symbol table: global array of name→value pairs.
-  Gate: `sc2_assign.sc` passes.
+- [ ] **SS-8** — Variables (`E_VAR`, `E_ASSIGN`), symbol table.
+  Symbol table: global ARRAY or chain of name→Val pairs.
+  `E_VAR` lookup; `E_ASSIGN` store.
+  Gate: `sc2_assign.sc` passes; `sc3_arith.sc` passes.
 
-- [ ] **SS-9** — `if/else`, `E_IF`. Gate: `sc4_control.sc` passes.
+- [ ] **SS-9** — `if/else` (`E_IF`). Gate: `sc4_control.sc` passes.
 
-- [ ] **SS-10** — `while`, `E_WHILE`. Gate: `sc5_while.sc` passes.
+- [ ] **SS-10** — `while` (`E_WHILE`). Gate: `sc5_while.sc` passes.
 
-- [ ] **SS-11** — `function`, call, `E_RETURN`. Gate: `sc7_procedure.sc` passes.
+- [ ] **SS-11** — `function` def + call + `return`/`freturn` (`E_FNC`, `E_RETURN`).
+  Call stack: push/pop local symbol frames.
+  Gate: `sc7_procedure.sc` passes.
 
-- [ ] **SS-12** — String concat (space), `E_CAT`, `SIZE()` builtin. Gate: `sc8_strings.sc` passes.
+- [ ] **SS-12** — String concat (space, `E_CAT`), `SIZE()` builtin.
+  Gate: `sc8_strings.sc` passes.
 
-- [ ] **SS-13** — `for`, `INPUT`. Gate: `sc6_for.sc` + `sc10_wordcount.sc` pass.
+- [ ] **SS-13** — `for`, `INPUT` keyword.
+  Gate: `sc6_for.sc` passes; `sc10_wordcount.sc` passes.
 
-- [ ] **SS-14** — Pattern match `?`, `E_SCAN`, pattern builtins (SPAN, LEN, ANY, etc.).
-  BB broker call-out via scrip's existing pattern machinery.
+- [ ] **SS-14** — Pattern match `?` (`E_SCAN`), pattern builtins.
+  Call out to scrip's BB broker for actual matching.
   Gate: basic pattern corpus tests pass.
 
 - [ ] **SS-15** — Self-host gate.
-  `scrip --ir-run snocone.sc < snocone.sc > /tmp/stage1.out`
-  `scrip --ir-run snocone.sc < /tmp/stage1.out > /tmp/stage2.out`
-  `diff /tmp/stage1.out /tmp/stage2.out` → empty.
+  ```bash
+  SNO_LIB=. scrip --ir-run snocone.sc < snocone.sc > /tmp/stage1.out
+  SNO_LIB=. scrip --ir-run snocone.sc < /tmp/stage1.out > /tmp/stage2.out
+  diff /tmp/stage1.out /tmp/stage2.out   # → empty
+  ```
 
 ---
 
@@ -121,19 +179,19 @@ Children stored as `node['child0']`, `node['child1']`, etc.
 
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 - All `.sc` files live in `corpus/programs/snocone/interpreter/`.
-- Main entry point: `snocone.sc`. Supporting files: `value.sc`, `ir.sc`, `lex.sc`,
-  `parse.sc`, `interp.sc`, `runtime.sc`.
-- No C glue — pure Snocone end-to-end under `scrip --ir-run`.
+- Main entry point: `snocone.sc`. Supporting files in same folder.
+- Representation: Snocone `struct` (DATA) for Val, Node, Tok — no tables, no C glue.
 - No patching the runtime to make corpus files work (RULES.md).
-- Each rung has a `.ref` file; gate = zero diff vs ref.
-- TDD: write the `.ref` first, then the `.sc`, then verify.
+- Each rung has a `.ref` file in same folder; gate = `diff` zero.
+- TDD: write `.ref` first, then `.sc`, then verify.
 
 ---
 
 ## Notes
 
 - The current C Snocone compiler stays as Stage 0 bootstrap host (unchanged).
+- `struct` in Snocone lowers to SNOBOL4 `DATA()` — constructor + field accessors.
+  `struct Val { type, v }` → `Val(type,v)` constructor, `type(x)` / `v(x)` accessors.
+  Field on LHS = assignment: `type(x) = 'INT'`.
 - Andrew Koenig's SNOCONE (1981) compiled Snocone → SNOBOL4. We go further:
-  Snocone → Snocone's own IR tables → tree-walk eval under scrip.
-- IR nodes as Snocone tables is the key representation choice: no C structs,
-  no external data types — pure Snocone values all the way down.
+  Snocone → Snocone's own Node IR → tree-walk eval under scrip.
