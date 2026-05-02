@@ -43,7 +43,7 @@ corpus/programs/snocone/interpreter/
     value.sc        ← Val struct: val_int/val_str/val_real/val_fail/val_null/is_fail/val_to_str
     ir.sc           ← Node struct: ir_node/ir_set_sval/ir_set_ival/ir_add_child/ir_print
     lex.sc          ← Tok struct: tokenizer returns array of Tok structs
-    parse.sc        ← recursive-descent parser → IR Node tree
+    parse.sc        ← compiland-pattern parser → IR Node tree (beauty.sno style)
     interp.sc       ← tree-walk evaluator: sc_eval(node) → Val
     runtime.sc      ← builtins: OUTPUT/INPUT/SIZE/IDENT/DIFFER/etc.
 ```
@@ -70,15 +70,62 @@ struct Node { kind, sval, ival, dval, nc, c }
 // dval: real payload
 // nc:   number of children (integer)
 // c:    ARRAY('1:N') of child Node structs  ('' when nc=0)
-// Constructor: Node(kind,sval,ival,dval,nc,c)
 ```
 
 **Tokens** (`lex.sc`):
 ```
 struct Tok { kind, sval, ival, dval }
 // kind: 'T_INT' | 'T_STR' | 'T_IDENT' | 'T_PLUS' | 'T_SEMI' | ...
-// Constructor: Tok(kind,sval,ival,dval)
 ```
+
+---
+
+## IR Interpreter Rewrite Proposal
+### (SS-0 — analysis pass, Session 2026-05-02)
+
+The C `interp.c` is **not a clean model** for `interp.sc`. Audit findings:
+
+- **6,201 lines**, single file, one function (`interp_eval`) spanning lines 1147–5114 (~3,967 lines)
+- **253 references** to Icon-specific state (`ICN_CUR`, `icn_frame_depth`, `icn_scan_*`, `icn_drive_*`)
+- **98 patch-tag comments** (`SN-`, `OE-`, `DYN-`, `BUG-`, `BP-`) — accumulated fixes, not clean design
+- **Control-flow nodes appear twice**: `E_IF`/`E_WHILE`/`E_RETURN` at ~line 3106 (Icon guard) and again at ~line 4409 (shared switch)
+- **Builtins** dispatch through `APPLY_fn` into the binary `snobol4.c` (SPITBOL-generated data file) — not readable source
+- **`execute_program()`** entangled with monitor/bridge sync events, `setjmp`/`longjmp`, polyglot dispatch, step-limit machinery
+- **`call_user_function()`** (~400 lines) handles SNOBOL4 OPSYN aliases, shadow tables, bridge coverage events — Snocone needs none of this
+
+**What Snocone actually needs from interp.c** — maybe 200 clean lines:
+
+```
+sc_eval(node):
+  kind = kind(node)
+  if kind == 'E_ILIT'  → val_int(ival(node))
+  if kind == 'E_FLIT'  → val_real(dval(node))
+  if kind == 'E_QLIT'  → val_str(sval(node))
+  if kind == 'E_NUL'   → val_null()
+  if kind == 'E_VAR'   → env_get(sval(node))
+  if kind == 'E_ASSIGN'→ env_set(child(node,0), sc_eval(child(node,1)))
+  if kind == 'E_ADD'   → val_int(val_num(sc_eval(c0)) + val_num(sc_eval(c1)))
+  ... SUB MUL DIV POW MNS ...
+  if kind == 'E_CAT'   → val_str(val_to_str(sc_eval(c0)) val_to_str(sc_eval(c1)))
+  if kind == 'E_IF'    → if ~is_fail(sc_eval(c0)) { sc_eval(c1) } else { sc_eval(c2) }
+  if kind == 'E_WHILE' → while ~is_fail(sc_eval(c0)) { sc_eval(c1) }
+  if kind == 'E_FNC'   → sc_call(sval(node), args...)
+  if kind == 'E_RETURN'→ set return-val, signal return
+  if kind == 'E_SCAN'  → sc_scan(sc_eval(c0), sc_eval(c1))
+  ...
+```
+
+**Parser decision:** The bison `.y` grammar is not a portable model.
+The right shape for `parse.sc` is beauty.sno's compiland pattern:
+read source line by line, apply patterns to classify tokens, build
+Node structs bottom-up with a shift-reduce or Pratt approach.
+**Dependency:** beauty.sc (GOAL-SNOCONE-BEAUTY) is ON HOLD. For now,
+`parse.sc` will use recursive-descent (hand-written in Snocone),
+treating it as replaceable when beauty.sc lands.
+
+**Plan:** Write `interp.sc` fresh from the conceptual algorithm above —
+do NOT port from `interp.c`. Use the C code only to verify which node
+kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
 
 ---
 
@@ -88,6 +135,12 @@ struct Tok { kind, sval, ival, dval }
   Stage 1 = snocone.sc compiles itself. File layout above. TDD rung ladder below.
   Representation corrected to Snocone `struct` (DATA) — Val/Node/Tok structs.
   (Session 2026-05-02)
+
+- [x] **SS-0** — Audit C source. Confirm interp.c is not a clean model; write
+  rewrite proposal above. Confirm lex is good model; parser needs compiland-pattern
+  shape (beauty.sno style) but proceed with recursive-descent until beauty.sc lands.
+  Confirm Snocone needs ~20 of 90 EKind values. Confirm struct (DATA) is the right
+  representation. (Session 2026-05-02)
 
 - [ ] **SS-2** — `value.sc`: Val struct + value helpers.
   ```
@@ -121,31 +174,30 @@ struct Tok { kind, sval, ival, dval }
   struct Tok { kind, sval, ival, dval }
   function lex(src) { ... returns ARRAY of Tok structs ... }
   ```
-  Token kinds: `T_INT T_REAL T_STR T_IDENT T_KEYWORD`
-  `T_PLUS T_MINUS T_STAR T_SLASH T_CARET T_EQ T_2EQ T_NEQ`
-  `T_LT T_GT T_LE T_GE T_SEMI T_LPAREN T_RPAREN T_LBRACE T_RBRACE`
+  Token kinds: `T_INT T_REAL T_STR T_IDENT`
+  `T_PLUS T_MINUS T_STAR T_SLASH T_CARET`
+  `T_EQ T_2EQ T_NEQ T_LT T_GT T_LE T_GE`
+  `T_SEMI T_LPAREN T_RPAREN T_LBRACE T_RBRACE T_LBRACK T_RBRACK`
   `T_COMMA T_QMARK T_PIPE T_CONCAT T_EOF`
+  Implemented as pattern matching on source string (SPAN/BREAK/LEN/ANY).
   Gate: lex `'42 + x;'` → 4 tokens printed 1-per-line; diff vs `lex.ref`.
 
 - [ ] **SS-5** — `parse.sc`: recursive-descent parser, literals + arithmetic.
   Precedence: `^` (right) > unary `-` > `* /` > `+ -` > concat (space) > `|`.
-  Produces Node tree. Uses token array from `lex()` with a cursor index.
-  Gate: `parse('3 + 4 * 2')` → ir_print → `(E_ADD\n  (E_ILIT 3)\n  (E_MUL\n    (E_ILIT 4)\n    (E_ILIT 2)))` diff vs `parse.ref`.
+  Produces Node tree. Token cursor via global index into Tok array.
+  Gate: `parse('3 + 4 * 2')` ir_print → correct S-expr; diff vs `parse.ref`.
 
 - [ ] **SS-6** — `interp.sc`: evaluator, arithmetic core.
-  ```
-  function sc_eval(n) { ... dispatch on kind(n) ... returns Val }
-  ```
+  Written fresh (NOT ported from interp.c). Clean dispatch on kind(node).
   Handles: `E_ILIT E_FLIT E_QLIT E_NUL E_ADD E_SUB E_MUL E_DIV E_POW E_MNS E_PLS`.
-  Gate: eval `parse('3 + 4')` → `val_to_str` → `7`; diff vs `interp.ref`.
+  Gate: eval `parse('3 + 4')` → val_to_str → `7`; diff vs `interp.ref`.
 
 - [ ] **SS-7** — `snocone.sc` driver + `runtime.sc`: wire lex→parse→interp, `OUTPUT =`.
-  Statement loop: for each stmt, eval subject; if `OUTPUT` assign, print val_to_str.
+  Statement loop: for each stmt node, eval subject; if OUTPUT assign, print val_to_str.
   Gate: run `sc1_literals.sc` through `snocone.sc`; diff vs `sc1_literals.ref`.
 
 - [ ] **SS-8** — Variables (`E_VAR`, `E_ASSIGN`), symbol table.
-  Symbol table: global ARRAY or chain of name→Val pairs.
-  `E_VAR` lookup; `E_ASSIGN` store.
+  Symbol table: ARRAY of name→Val pairs (or linked list of `struct Binding { name, val }`).
   Gate: `sc2_assign.sc` passes; `sc3_arith.sc` passes.
 
 - [ ] **SS-9** — `if/else` (`E_IF`). Gate: `sc4_control.sc` passes.
@@ -163,7 +215,7 @@ struct Tok { kind, sval, ival, dval }
   Gate: `sc6_for.sc` passes; `sc10_wordcount.sc` passes.
 
 - [ ] **SS-14** — Pattern match `?` (`E_SCAN`), pattern builtins.
-  Call out to scrip's BB broker for actual matching.
+  Call through to scrip's BB broker for actual matching.
   Gate: basic pattern corpus tests pass.
 
 - [ ] **SS-15** — Self-host gate.
@@ -184,6 +236,7 @@ struct Tok { kind, sval, ival, dval }
 - No patching the runtime to make corpus files work (RULES.md).
 - Each rung has a `.ref` file in same folder; gate = `diff` zero.
 - TDD: write `.ref` first, then `.sc`, then verify.
+- `interp.sc` written fresh from algorithm — do NOT port from interp.c.
 
 ---
 
@@ -193,5 +246,11 @@ struct Tok { kind, sval, ival, dval }
 - `struct` in Snocone lowers to SNOBOL4 `DATA()` — constructor + field accessors.
   `struct Val { type, v }` → `Val(type,v)` constructor, `type(x)` / `v(x)` accessors.
   Field on LHS = assignment: `type(x) = 'INT'`.
-- Andrew Koenig's SNOCONE (1981) compiled Snocone → SNOBOL4. We go further:
-  Snocone → Snocone's own Node IR → tree-walk eval under scrip.
+- beauty.sc (GOAL-SNOCONE-BEAUTY, ON HOLD) is the eventual model for parse.sc.
+  Until it lands, parse.sc uses recursive-descent.
+- Snocone emits ~20 of the 90 EKind values. Full list:
+  `E_QLIT E_ILIT E_FLIT E_NUL E_VAR E_FNC E_ASSIGN`
+  `E_ADD E_SUB E_MUL E_DIV E_POW E_MNS E_PLS E_MOD`
+  `E_CAT E_ALT E_SEQ E_SCAN`
+  `E_IF E_WHILE E_RETURN E_LOOP_BREAK E_LOOP_NEXT`
+  `E_IDX` (array subscript)
