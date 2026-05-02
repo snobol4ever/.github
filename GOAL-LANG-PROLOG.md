@@ -2296,3 +2296,62 @@ arity-1 "goal-as-arg" shape.
   under Strategy; PR-19b row checked off; this session-state entry
 
 Working trees: corpus, one4all, .github changes ready for handoff commits.
+
+---
+
+## Current state (2026-05-02 session — PR-19c LANDED, one4all `22fbe617`, corpus `f7c47bc`)
+
+### Progress report
+
+```
+[PR-19c.1] write rung33_bridge_callN tests + .ref   STATUS: DONE
+[PR-19c.2] write driver script                      STATUS: DONE
+[GATE]  rung33 (pre-fix)                — PASS=0 FAIL=5  (expected; arm not reached)
+[PR-19c.3] add call/N arm (two files)               STATUS: DONE
+[GATE]  rung33_bridge_callN             — PASS=5 FAIL=0  ✓
+[GATE]  smoke_prolog                    — PASS=5 FAIL=0  ✓ preserved
+[GATE]  smoke_unified_broker            — PASS=49 FAIL=0 ✓ preserved
+[GATE]  rung31 (PR-19a)                 — PASS=5 FAIL=0  ✓ preserved
+[GATE]  rung32 (PR-19b)                 — PASS=5 FAIL=0  ✓ preserved
+[PR-19c]                                            STATUS: DONE
+```
+
+### Key finding: two parallel builtin lists out of sync
+
+`pl_runtime.c::is_pl_user_call` and `pl_broker.c::pl_is_builtin_goal` are
+parallel lists that must be kept in sync. `call` was in `is_pl_user_call`
+(so `interp_exec_pl_builtin` would handle it) but missing from
+`pl_is_builtin_goal` (so the broker routed `call` to `pl_box_choice_call`
+before `interp_exec_pl_builtin` was ever reached). Fix: add `"call"` to
+`pl_is_builtin_goal`. Lesson: any new builtin added to `pl_runtime.c` must
+also be added to `pl_broker.c::pl_is_builtin_goal`.
+
+### NEXT SESSION — PR-19d is the active rung
+
+1. **Write `corpus/programs/prolog/rung34_bridge_setof/01-05`.**
+   `setof/3`, `bagof/3`, `findall/3` with goal-as-Var. The hard sub-rung:
+   generators drive enumeration through BB_NTH/BB_ALL boxes; bridge must
+   preserve the choicepoint stack across each solution.
+   Suggested tests:
+   - `01_findall_var_goal.pl` — `G=member(X,[1,2,3]), findall(X, G, Xs)` → `[1,2,3]`
+   - `02_findall_var_goal_arith.pl` — `G=(Y is X*2), findall(Y, (member(X,[1,2,3]),G), Ys)` → `[2,4,6]`
+   - `03_bagof_var_goal.pl` — `bagof` equivalent
+   - `04_setof_var_goal.pl` — `setof` with sorted result
+   - `05_findall_empty.pl` — `G=fail, findall(X, G, Xs)` → `Xs=[]`
+
+2. **Extend the bridge** — `findall/3`'s `goal_expr` child: if `E_VAR`,
+   build synth EXPR via bridge, then feed to `pl_box_goal_from_ir`-equivalent.
+   Check whether the existing findall loop (pl_runtime.c ~line 1563) needs
+   the E_VAR case added to its goal_box construction call.
+
+3. **Gate**: smoke 5/5, broker 49/49, rung31-34 all 5/5.
+
+### PR-19 bridge completion status
+
+| Sub-rung | Status |
+|----------|--------|
+| PR-19a catch/3       | ✅ LANDED one4all `a4d03638` |
+| PR-19b \+/not/once   | ✅ LANDED one4all `4b581efa` |
+| PR-19c call/N        | ✅ LANDED one4all `22fbe617` |
+| PR-19d setof/bagof/findall | ⏳ next |
+| PR-19e setup_call_cleanup  | ⏳ |
