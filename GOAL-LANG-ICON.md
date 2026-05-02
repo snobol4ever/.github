@@ -2389,3 +2389,46 @@ yet implemented.
   scan-keyword read/write guards).  Committed this session.
 - .github dirty (this update + PLAN.md state row)
 - corpus clean, x64 clean
+
+---
+
+## Session #30 (2026-05-02) — IC-9: & precedence + E_SEQ frame + find/upto gen-subj
+
+IC-9 IN PROGRESS. **rung36 PASS=14** (from 13), **ladder PASS=202** (from 201).
+Gates: smoke 5/0, broker 49/0, crosscheck 4/0/0. one4all HEAD `1e515891`.
+
+Three fixes landed across two commits (`3f436ceb`, `1e515891`):
+
+**Fix 1 — parser: `&` had higher precedence than `:=` (wrong)**
+`parse_and` called `parse_rel`, making `x := 5 & write(x)` parse as
+`x := (5 & write(x))`. Correct Icon: `&` lower than `:=`, so `(x:=5)&write(x)`.
+Fix: `parse_and` now calls `parse_assign`; `parse_expr` calls `parse_and`.
+
+**Fix 2 — runtime: `case E_SEQ` missing from icon-frame switch**
+E_SEQ fell through to shared switch, whose Icon path gates on `g_lang==1`.
+In legacy dispatch `g_lang=0`, so E_SEQ took the SNOBOL4 concat path.
+Fix: added `case E_SEQ` to icon-frame switch. Also resolves `scan1` OOM
+(was caused by wrong parse of `&pos := 6 & write(any('ab') | "fail")`).
+
+**Fix 3 — find/upto with generative subject**
+`find(needle,gen_subj)` and `upto(cset,gen_subj)` only got the first
+alternation arm. Two new Byrd boxes `icn_bb_find_gen_subj` /
+`icn_bb_upto_gen_subj` drive the subject generator and exhaust positions
+per subject. `upto` box uses byte-scan (8-bit safe, no `strchr`).
+
+### Next-session pivot (ranked)
+
+1. **`="string"` scan-match** — `"12345" ? { write(="123" | "fail") }`.
+   Icon `=expr` in scan context = `match(expr)`. Parser emits wrong node.
+2. **`move`/`tab` multi-step in scan block** — scan-pos may reset between
+   calls inside `{ }` body; cumulative advance broken.
+3. **8-bit cset scalar `upto`** — `interp.c` scalar `upto` still uses
+   `strchr` (not 8-bit safe). Replace with byte-scan loop.
+4. **`upto` in implicit scan context** — `&ascii ? every upto(skips)` needs
+   scan-frame Byrd box path (no explicit subject arg).
+
+### Working-tree state at handoff
+
+- one4all: HEAD `1e515891`, clean.
+- .github dirty (this update + PLAN.md)
+- corpus clean, x64 clean
