@@ -148,69 +148,10 @@ Silly exception: CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY
 
 ## Snocone front-end
 
-**Status (LS-6 in `GOAL-SNOCONE-LANG-SPACE.md`):** the post-LS-4
-Flex+Bison front-end is the only Snocone front-end. It is byte-
-equivalent to SPITBOL on the full 14-subsystem beauty suite
-across all three scrip modes (`--ir-run` / `--sm-run` / `--jit-run`)
-— PASS=42 FAIL=0 SKIP=3 on `test_beauty_snocone_all_modes.sh`.
-
-**Goal:** Snocone is Andrew Koenig's `.sc` self-host operator set,
-minus `&&` / `||` / `%`, plus C-style structured control flow,
-plus SPITBOL space-as-concat. **A SPITBOL program that does not
-itself use `&&` / `||` / `%` as binary operators, and that uses `;`
-statement terminators with `name:` label syntax, runs unchanged
-under Snocone.** This functional-superset guarantee is a hard
-invariant. See `RULES.md` "Snocone language facts" for the binding
-working rules.
-
-| Path | What |
-|------|------|
-| `src/frontend/snocone/snocone.y` | Bison grammar — current name `snocone_parse.y` after LS-4.cn rename |
-| `src/frontend/snocone/snocone_parse.tab.{c,h}` | Generated parser tables |
-| `src/frontend/snocone/snocone_lex.c` | Threaded-code FSM lexer (LS-3.f.1 — replaced flex output after `{W}OP{W}` envelope hangs) |
-| `src/frontend/snocone/snocone_lex.h` | Public FSM API |
-| `src/frontend/snocone/snocone_driver.{c,h}` | scrip-side entry point — calls `snocone_parse_program()` |
-| `archive/snocone_lower.{c,h}` | Legacy lowering (archived in LS-4.k) |
-| `archive/snocone_control.{c,h}` | Legacy control-flow lowering (archived in LS-4.k) |
-
-**Lexer.** Single-pass threaded-code FSM in `snocone_lex.c` — one
-C function `sc_lex_next(LexCtx *ctx)` whose body is a graph of
-labelled `Label: action; goto NEXT;` blocks. No `switch` / `for` /
-`while` / `do-while` in the FSM body (per Lon directive — clean
-emission technique mirroring `snobol4.l`'s `{W}OP{W}` envelope
-pattern). The FSM maintains a previous-token state and emits a
-synthetic `T_CONCAT` token when a value-yielding token is followed
-by another with whitespace between — that is the space-as-concat
-implementation. Comments fold into whitespace via `S_LCOMMENT` /
-`S_BCOMMENT` sub-FSMs. Token names follow the `T_<arity><charname>`
-scheme matching `snobol4.tab.h` — `T_2EQUAL` (`=`), `T_2DOT` (`.`),
-`T_2DOLLAR` (`$`) for binary; `T_1*` for unary.
-
-**Grammar.** Bison parser in `snocone_parse.y`, generated to
-`snocone_parse.tab.{c,h}`. Bison reports 0 shift/reduce and 0
-reduce/reduce conflicts at every rung. Precedence declarations
-match SPITBOL Manual Ch.15 priorities 0–13. Conditions of `if`,
-`while`, `do/while`, `for`-test, `case` tag are SPITBOL backtracking
-expressions — success/failure of the expression drives the branch.
-Public entry: `CODE_t *snocone_parse_program(const char *src,
-const char *filename)`.
-
-**Build path.** `.l` and `.y` source edits require regeneration:
-
-```bash
-bash scripts/regenerate_parser_and_lexer_from_sources.sh
-```
-
-This regenerates `snocone_parse.tab.{c,h}` (also any other front-
-end's `.tab.{c,h}` and `.lex.c`). Per `RULES.md` "Editing `.y` or
-`.l` files," the `.y`/`.l` source AND the updated generated files
-go in the **same commit** — never edit the generated files directly
-for grammar or lexer logic. Generated files are checked in so
-normal builds do not require bison/flex on the build machine; flex
-and bison are installed via `scripts/install_system_packages.sh`
-when a regeneration is needed.
-
-**Smoke gate** (per-session, before every commit touching Snocone):
+See `ARCH-SNOCONE.md` for the Snocone language spec, lexer/grammar
+implementation map, and full smoke gate. Below is just the per-
+session smoke gate (the minimum a Snocone session runs before
+committing):
 
 ```bash
 bash scripts/test_smoke_snocone.sh                 # PASS=5 FAIL=0
@@ -220,7 +161,7 @@ bash scripts/test_smoke_unified_broker.sh          # PASS=49 FAIL=0
 
 The 3 SKIP rows in `test_beauty_snocone_all_modes.sh` are
 `beauty.sc` self-host across the three modes — gated on
-GOAL-SNOCONE-BEAUTY SB-6.D until that goal closes.
+GOAL-SNOCONE-BEAUTY SB-6 until that goal closes.
 
 ---
 
