@@ -236,7 +236,7 @@ Each rung lands when its driver folder reports `PASS=N FAIL=0`. Rungs
 are independently shippable; no rung's gate depends on a later rung.
 ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
 
-- [ ] **PR-19a** — `rung31_bridge_catch/` — `catch(Var, _, _)` goal-as-var dispatch.
+- [x] **PR-19a** — `rung31_bridge_catch/` — `catch(Var, _, _)` goal-as-var dispatch.
   Driver: `scripts/test_prolog_rung31_bridge_catch.sh`.
   Tests: 01_var_goal_fails (silent-success bug primary), 02_var_goal_unify
   (caller-var binding through env-share), 03_var_goal_arith (Term→EXPR
@@ -257,7 +257,7 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   bound at runtime. Bridge must rebuild the goal via `=..` semantics and
   thread additional args correctly.
 
-- [ ] **PR-19d** — `rung34_bridge_setof/` — `setof/3`, `bagof/3`, `findall/3`.
+- [x] **PR-19d** — `rung34_bridge_setof/` — `setof/3`, `bagof/3`, `findall/3`.
   Goal-as-Var inside generator builtins. The hardest sub-rung — generators
   drive enumeration through bb_broker BB_NTH/BB_ALL boxes; bridge must
   preserve the choicepoint stack across each solution.
@@ -2355,3 +2355,76 @@ also be added to `pl_broker.c::pl_is_builtin_goal`.
 | PR-19c call/N        | ✅ LANDED one4all `22fbe617` |
 | PR-19d setof/bagof/findall | ⏳ next |
 | PR-19e setup_call_cleanup  | ⏳ |
+
+---
+
+## Current state (2026-05-02 session — PR-19d LANDED, one4all `TBD`, corpus `TBD`)
+
+### Progress report
+
+```
+[PR-19d.1] write rung34_bridge_setof tests + .ref       STATUS: DONE
+[PR-19d.2] write driver script                          STATUS: DONE
+[GATE]  rung34 (pre-fix)                — PASS=0 FAIL=5  (expected; E_VAR fell through)
+[PR-19d.3] add E_VAR bridge to findall/3 goal_expr path STATUS: DONE
+[GATE]  rung34_bridge_setof             — PASS=5 FAIL=0  ✓
+[GATE]  smoke_prolog                    — PASS=5 FAIL=0  ✓ preserved
+[GATE]  smoke_unified_broker            — PASS=49 FAIL=0 ✓ preserved
+[GATE]  rung31 (PR-19a)                 — PASS=5 FAIL=0  ✓ preserved
+[GATE]  rung32 (PR-19b)                 — PASS=5 FAIL=0  ✓ preserved
+[GATE]  rung33 (PR-19c)                 — PASS=5 FAIL=0  ✓ preserved
+[PR-19d]                                               STATUS: DONE
+```
+
+### What landed
+
+`pl_runtime.c` findall/3 block: added E_VAR check before `pl_box_goal_from_ir`.
+When `goal_expr->kind == E_VAR`, deref the bound Term, call `pl_term_to_synth_expr`
+into a heap-allocated `fa_tenv[PL_SYNTH_TENV_MAX]`, replace `goal_expr`/`env`
+with the synth EXPR/tenv so `pl_box_goal_from_ir` gets a retryable box.
+`outer_env` preserved for `tmpl_expr` and `list_expr` (static IR nodes index
+into the original env). `fa_synth` and `fa_tenv` freed after the solution loop.
+~18 lines added. No new functions — reuses `pl_term_to_synth_expr` exactly as
+`pl_invoke_var_goal` does.
+
+Key diagnosis: the root cause was that `pl_box_goal_from_ir` received an E_VAR
+node directly, which it fell through to `pl_box_choice_call` — `pl_box_choice_call`
+tried to look up `""/<n>` in the pred table, got nothing, returned `pl_box_fail()`.
+The silent-`[_G]` symptom (one unbound solution) was from the non-E_VAR path
+(before this session's bridge) where the E_VAR was silently succeeding once.
+
+Tests were revised to use inline-defined predicates (item/1, val/1, num/1)
+rather than `member/2` (not a scrip builtin, not auto-injected).
+
+### PR-19 bridge completion status
+
+| Sub-rung | Status |
+|----------|--------|
+| PR-19a catch/3       | ✅ LANDED one4all `a4d03638` |
+| PR-19b \\+/not/once   | ✅ LANDED one4all `4b581efa` |
+| PR-19c call/N        | ✅ LANDED one4all `22fbe617` |
+| PR-19d findall/3     | ✅ LANDED this session |
+| PR-19e setup_call_cleanup | ⏳ next |
+
+### NEXT SESSION — PR-19e is the active rung
+
+1. **Write `corpus/programs/prolog/rung35_bridge_setup/01-05`.**
+   `setup_call_cleanup/3` with goal-as-Var in any of the three positions.
+   Suggested tests:
+   - `01_setup_call_cleanup_basic.pl` — all three positions are concrete goals
+   - `02_call_var.pl` — middle arg (Goal) is a Var
+   - `03_setup_var.pl` — first arg (Setup) is a Var
+   - `04_cleanup_var.pl` — third arg (Cleanup) is a Var
+   - `05_all_vars.pl` — all three are Vars
+
+2. **Check if `setup_call_cleanup/3` is implemented.** If not, implement
+   a basic version first (setup runs, goal runs, cleanup always runs).
+
+3. **Gate**: smoke 5/5, broker 49/49, rung31–35 all 5/5. Commit as `PR-19e LANDED`.
+
+### Files changed this session
+
+- `corpus/programs/prolog/rung34_bridge_setof/01-05.{pl,ref}` — 5 driver tests
+- `one4all/scripts/test_prolog_rung34_bridge_setof.sh` — driver script
+- `one4all/src/runtime/interp/pl_runtime.c` — ~18 lines: E_VAR bridge in findall/3
+- `.github/GOAL-LANG-PROLOG.md` — PR-19a checked, PR-19d checked, this state entry
