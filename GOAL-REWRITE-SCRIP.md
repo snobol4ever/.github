@@ -38,7 +38,20 @@
   SM_Program (the stack machine flat array) left unchanged — correct name. PLAN.md architecture paragraph
   uses SM_Program correctly — no change needed.
 
-- [ ] **RS-3** — Modularization: split `interp.c` (6,201 lines) per language and function.
-  Proposed split documented in session 2026-05-02 analysis:
-  `sno_program.c`, `sno_builtins.c`, `ir_eval_sno.c`, `ir_eval_icn.c`, `ir_eval_pl.c`,
-  `ir_exec.c`, `ir_datatype.c`.
+- [x] **RS-3** — Split `interp.c` (6,201 lines) by concern, not by language (session 2026-05-02).
+  Deleted monolithic `interp.c`. Produced 9 focused units + 1 private header:
+  `interp_private.h` (shared includes/externs/struct typedefs/inline helpers),
+  `interp_globals.c` (global state, Raku file-handle table),
+  `interp_label.c` (label table + DEFINE prescan),
+  `interp_call.c` (call frame, shadow table, icn_init persistence, call_user_function),
+  `interp_eval.c` (interp_eval() + all E_* cases + pattern/data helpers),
+  `interp_ref.c` (lvalue evaluator interp_eval_ref() → DESCR_t*, SIL NAME semantics),
+  `interp_pat.c` (pattern-context evaluator interp_eval_pat()),
+  `interp_exec.c` (execute_program() + execute_program_steps()),
+  `interp_hooks.c` (_eval_str/pat_impl_fn, _usercall_hook, ir_print_stmt, IDENT/DIFFER/EVAL/CODE wrappers),
+  `interp_data.c` (DATA registry sc_dat_*, _builtin_print, _builtin_DATA).
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [ ] **RS-4** — Audit interp_eval.c (~4300 lines): extract E_FNC builtin dispatch into
+  `interp_builtins.c`, leaving interp_eval.c as pure structural evaluator
+  (literals, variables, operators, control flow, pattern primitives).
