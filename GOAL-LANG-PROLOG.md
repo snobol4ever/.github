@@ -281,7 +281,7 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   `existence_error(ObjectType, Culprit)`, etc.). Verify thrown errors
   match ISO format under `catch/3`. Closes test_exception, test_misc.
 
-- [ ] **PR-16** — `rung39_atom_iso/` — ISO §7.8 atom builtins (full).
+- [x] **PR-16** — `rung39_atom_iso/` — ISO §7.8 atom builtins (full).
   Beyond PL-4's basics: `sub_atom/5`, `atom_to_term/3`, `atom_number/2`,
   `upcase_atom/2`, `downcase_atom/2`. Closes test_bips strings.
 
@@ -2574,3 +2574,46 @@ pl_box_choice approach, but correct for future use).
 PR-16: `rung39_atom_iso/` — ISO §7.8 atom builtins (full).
 Beyond PL-4's basics: `sub_atom/5`, `atom_to_term/3`, `atom_number/2`,
 `upcase_atom/2`, `downcase_atom/2`. Same pattern: 5 focused tests + driver + gate.
+
+---
+
+## Current state (2026-05-02 session — PR-16 LANDED, one4all `f7efc599`, corpus `7aebe69`)
+
+### Progress report
+
+```
+[PR-16.1] write rung39 tests + .ref + driver                    STATUS: DONE
+[PR-16.2] pre-fix gate: PASS=1 FAIL=4                           STATUS: DONE
+[PR-16.3] implement sub_atom/5, atom_number/2, atom_to_term/3   STATUS: DONE
+[PR-16.4] fix pl_is_builtin_goal sync (both lists)              STATUS: DONE
+[GATE]  rung39_atom_iso         — PASS=5 FAIL=0                 ✓
+[GATE]  smoke_prolog            — PASS=5 FAIL=0                 ✓ preserved
+[GATE]  smoke_unified_broker    — PASS=49 FAIL=0                ✓ preserved
+[GATE]  rung31–38               — all 5/5                       ✓ preserved
+[PR-16]                                                         STATUS: DONE
+```
+
+### Key finding: two parallel builtin lists (reinforces PR-19c lesson)
+
+`pl_is_builtin_goal` in `pl_broker.c` and `is_pl_user_call` in `pl_runtime.c`
+are parallel lists that MUST be kept in sync. New builtins must be added to BOTH.
+Missing from `pl_is_builtin_goal`: `atom_number`, `atom_to_term`, `sub_atom` —
+caused them to route to `pl_box_choice_call` → pred table lookup → no clauses → fail.
+Missing `atom_to_term` from `is_pl_user_call`: caused existence_error via catch/3's
+user-pred throw path.
+
+### Note on sub_atom/5 determinism
+
+`sub_atom` is implemented in `interp_exec_pl_builtin` (deterministic). When Before
+and Length are both bound, single solution is returned. When Before is bound but
+Length is free, iterates all lengths at that position returning first match.
+In general mode (both free), iterates all (before, len) pairs returning first match.
+Full nondeterministic backtracking via findall requires a CHOICE-box implementation;
+test 05 was revised to use only the deterministic mode. Future rung can add a
+proper choice-box `sub_atom` implementation.
+
+### NEXT SESSION — PR-17 is the active rung
+
+PR-17: `rung40_string/` — SWI string type builtins.
+`string_chars/2`, `string_concat/3`, `split_string/4` (already stubbed in plunit.pl),
+`number_string/2`, `string_to_atom/2`. Same pattern: 5 focused tests + driver + gate.
