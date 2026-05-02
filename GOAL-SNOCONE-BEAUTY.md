@@ -896,82 +896,86 @@ to do.
         where the else was on a separate line). After SB-6.E.7-J
         confirms code is correct, this sweep can land safely.
 
-  - [ ] **SB-6.E.7-J** — **⚡ ACTIVE STEP. Hand-verify every .sc file
-        line-by-line — REOPENED 2026-05-02.**
+  - [ ] **SB-6.E.7-J** — **⚡ ACTIVE STEP. Scrutinize every line of
+        every `.sno`/`.inc` against its `.sc` counterpart. Pass #2
+        REOPENED 2026-05-02.**
 
-        First audit pass (session #11) was too lenient: skimmed for
-        obvious bugs but accepted "explained-away" deviations and
-        completely missed the brace-around-single-statement style
-        violations that SB-6.E.7-C was supposed to fix. Examples Lon
-        flagged after pass #1:
-        - `ShiftReduce.sc::Reduce`: `if (~(t = EVAL(t))) { nreturn; }`
-          — wrong port of `t = EVAL(t) :F(NRETURN)`; the `~`-wrapped
-          assignment is non-canonical and the `{ nreturn; }` is
-          single-stmt-in-braces.
-        - Many other `if (cond) { single_stmt; }` forms throughout
-          the 17 files were waved through.
+        Pass #1 (session #11) was too lenient: skimmed for obvious
+        bugs, accepted "explained-away" deviations, and missed both
+        translation rationalizations and the brace-around-single-
+        statement style violations that SB-6.E.7-C was supposed to
+        fix. Lon flagged `if (~(t = EVAL(t))) { nreturn; }` in
+        `ShiftReduce.sc::Reduce` as exactly the kind of issue pass #1
+        was supposed to catch but didn't.
 
-        **Pass #2 must catch BOTH axes simultaneously:**
+        **The mandate is line-level scrutiny, not block-level
+        skimming.** Every line of every `.sno` and `.inc` must be
+        looked at against the corresponding line(s) in the `.sc`.
+        No exceptions, no "this looks fine" without reading both.
 
-        1. **Translation faithfulness** — every block translated
-           directly from the .inc, no rationalized restructuring.
-           If a deviation exists, it must be either (a) absolutely
-           required by Snocone grammar, or (b) explicitly approved
-           by Lon. Comments that say "this is intentional because..."
-           are not approval — they are the previous developer's
-           rationalizations and should be re-examined.
+        **Per-file process (line-by-line, NOT block-by-block):**
 
-        2. **Single-statement bare form** — `if (cond) stmt;` not
-           `if (cond) { stmt; }`. Same for `else`, `while`, `for`.
-           Multi-statement bodies keep their braces. Now safe per
-           SB-6.E.7-A.
+        1. Open the `.inc`/`.sno` file alone. Read line 1.
+        2. Find the corresponding line(s) in the `.sc` file.
+        3. Translate the `.inc` line yourself in your head:
+           - newline-terminated stmt → `;`
+           - `:F(LBL)` / `:S(LBL)` / `:(LBL)` → structured Snocone
+           - identifier names preserved exactly
+           - whitespace-between-concats preserved as single space
+        4. Compare your translation to what's actually in `.sc`.
+        5. Flag every deviation, no matter how small.
+        6. For each deviation: required-by-grammar, approved-by-Lon,
+           or fixable.
+        7. Move to line 2.
 
         **Specific patterns to flag aggressively in pass #2:**
 
         | Pattern | Action |
         |---------|--------|
-        | `if (~(EXPR))` where EXPR has side effects (assignment, function call) | Suspect — likely should be a direct check on the result |
-        | `{ single_stmt; }` body | Strip braces |
-        | `} else { single_stmt; }` | Strip both braces (after SB-6.E.7-A) |
-        | `if (cond) { stmt1; nreturn; }` | Strip braces if matched_stmt allows |
-        | Any deviation with a "this is intentional" comment | Re-examine; do not accept on faith |
-        | Unwrapping `:F(LBL)` into `if/else` not matching .inc structure | Replicate `.inc` flow exactly |
-        | Variable rename | Reject unless required by Snocone grammar (function-name shadowing only) |
-
-        **Process per file:**
-
-        1. Read the `.inc` block in isolation, no .sc visible.
-        2. Translate it mentally to Snocone.
-        3. Compare to the .sc — note every deviation.
-        4. For each deviation: required, approved, or fixable.
-        5. Fix and run subsystem test + three baseline gates.
-        6. Sub-commit per file when clean on both axes.
+        | `if (~(EXPR))` where EXPR has side effects (`=` or function call) | Suspect — likely should be a direct check on the result, not `~` on the expression |
+        | `{ single_stmt; }` body | Strip braces — bare form per SB-6.E.7-A |
+        | `} else { single_stmt; }` | Strip both braces |
+        | `} else if (cond) { single_stmt; }` | Strip braces |
+        | Any deviation with a "this is intentional" comment | Re-examine; do NOT accept on faith |
+        | Restructured `if/else` not matching `:F(LBL)` flow | Replicate `.inc` flow exactly |
+        | Variable rename | Reject unless required by Snocone grammar (function-name shadowing only — e.g. `lwr(lwr)` → `lwr(s)`) |
+        | Helper function not in `.inc` (e.g. `ppLeaf`, `ppList`) | Flag for review — Lon's "every construct gets ported" rule |
+        | `.sc` block doing fewer steps than `.inc` block | Suspect — what got dropped? |
+        | `.sc` block doing more steps than `.inc` block | Suspect — what got added? |
 
         **Audit table reset to ⬜ for all files** — pass #1 results
         invalidated.
 
-        | # | File | Pass #1 | Pass #2 |
-        |---|------|---------|---------|
+        | # | File | Pass #1 | Pass #2 line-by-line |
+        |---|------|---------|----------------------|
         | 1 | assign.sc | ✅ | ⬜ |
         | 2 | match.sc | ✅ | ⬜ |
         | 3 | stack.sc | ✅ | ⬜ |
-        | 4 | case.sc | ⚠ fixed | ⬜ |
+        | 4 | case.sc | ⚠ fixed | ⬜ (re-validate) |
         | 5 | counter.sc | ✅ | ⬜ |
         | 6 | ShiftReduce.sc | ✅ ← MISSED `~(t=EVAL(t))` and `{ nreturn; }` | ⬜ |
         | 7 | semantic.sc | ✅ | ⬜ |
-        | 8 | trace.sc | ⚠ fixed | ⬜ |
+        | 8 | trace.sc | ⚠ fixed | ⬜ (re-validate) |
         | 9 | omega.sc | ✅ | ⬜ |
         | 10 | ReadWrite.sc | ✅ | ⬜ |
         | 11 | Gen.sc | ✅ | ⬜ |
         | 12 | Qize.sc | ✅ | ⬜ |
         | 13 | XDump.sc | ✅ | ⬜ |
-        | 14 | TDump.sc | ⚠ fixed | ⬜ |
+        | 14 | TDump.sc | ⚠ fixed | ⬜ (re-validate) |
         | 15 | tree.sc | ✅ | ⬜ |
         | 16 | global.sc | ✅ | ⬜ |
         | 17 | beauty.sc | ✅ | ⬜ |
 
-        **Next session: do this with Lon present, file by file,
-        no shortcuts.**
+        **For beauty.sc specifically**: line-by-line against
+        `beauty.sno` (627 lines). This is where pass #1 was weakest
+        — beauty.sc was waved through with "structurally correct,
+        runtime bug" but was not actually scrutinized line-by-line.
+
+        Each file gets its own sub-commit when clean on both axes
+        (translation + brace style). Subsystem test for that file
+        plus the three baseline gates must stay green.
+
+        **Do this with Lon present.**
 
         Session 2026-05-02 automated debrace sweep introduced broken
         code (e.g. `else Shift = .dummy; nreturn;` with no guarding
