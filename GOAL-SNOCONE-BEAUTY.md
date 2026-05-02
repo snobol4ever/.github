@@ -3673,3 +3673,149 @@ parse.tab.h).  `corpus`: clean.  `.github`: dirty
 Plan: commit one4all first, then `.github` per RULES.md
 handoff order.
 
+
+---
+
+## Session 2026-05-01 progress (SB-6.H LANDED — SC_T_/T_ collapse)
+
+**SB-6.H LANDED.**  Per Lon's directive "do not use two sets of names
+from lexer and parser; one thing must not be kept in sync with another;
+remove redundancy."  The Snocone frontend now has exactly one token
+enum (Bison-owned, in `snocone_parse.tab.h`).  No alias dance, no
+per-token translation table, no parallel `ScKind` enum.  Net -629
+lines (-280 hand-written, rest is regenerated tab.c/tab.h shrinkage).
+All six baseline gates green; SB-6.F's `!` semantics preserved.
+
+### What was redundant
+
+Before this session:
+- `snocone_lex.h` declared `enum ScKind { T_INT = 1, T_REAL, ... }`
+  with members T_INT, T_LPAREN, T_1AMP, ..., values 1..N.
+- `snocone_parse.y` `%code top` had 92 lines of
+  `#define T_INT SC_T_INT` aliases (so the FSM enum could be pulled
+  in without colliding with Bison's later T_* generation), then
+  `#include "snocone_lex.h"`, then 92 lines of `#undef T_INT` etc.
+- Bison generated `enum sc_tokentype { T_INT = 258, ... }` in
+  `snocone_parse.tab.h` — same names, different values.
+- A `sc_kind_to_tok(int sc_kind)` function in the .y epilogue did
+  per-token dispatch (`case SC_T_INT: return T_INT; ...` × 70+).
+- The yylex thunk called `sc_kind_to_tok` to translate.
+
+Two enums with identical member names but different integer values,
+kept manually in sync.  Adding a token (SB-6.F.1's T_1BANG) required
+five coordinated edits across both files plus a parser regen — and
+forgetting any one of them shifted enum values silently and broke
+ALL parsing.
+
+### What landed
+
+1. **`snocone_lex.h`** — deleted the entire `ScKind` enum (lines
+   22-49 of the old header).  Public API now returns kinds as plain
+   `int`.  The header does NOT include `snocone_parse.tab.h` — that
+   would create an include cycle and would also drag the parser's
+   enum into every caller.  35 lines (was 63).
+
+2. **`snocone_lex.c`** — added `#include "snocone_parse.tab.h"`
+   right after `#include "snocone_lex.h"`.  This is the SINGLE
+   place where the lexer pulls in Bison's enum; the lexer's emit
+   code (`E_LPAREN: EMIT(T_LPAREN);` etc.) now binds T_* directly
+   to Bison's values.  Bumped `sc_value_table`, `sc_payload_table`,
+   `sc_name_table` from `[256]` to `[512]` since Bison's enum runs
+   258..340+.
+
+3. **`snocone_parse.y` `%code top`** — replaced the 200-line alias
+   dance (92 #defines + #include + 92 #undefs) with a 9-line
+   documentation stub explaining the new design.
+
+4. **`snocone_parse.y` `%code` (regular)** — added
+   `#include "snocone_lex.h"` so tab.c sees the full LexCtx struct
+   (the yylex thunk and `snocone_parse_program()` need it).
+
+5. **`snocone_parse.y` epilogue** — deleted the entire
+   `sc_kind_to_tok` function (the per-token switch + its forward
+   decl + its comment block, ~110 lines).  Simplified the yylex
+   thunk: was `return sc_kind_to_tok(sc_kind);`, now `return kind;`
+   with a one-line `if (kind == T_EOF) return 0;` for Bison's
+   end-of-input sentinel.
+
+6. **File-header comment in `snocone_parse.y`** — replaced the
+   obsolete "Token-kind decoupling note" (LS-4.a session
+   2026-04-30 #3) with a new "Token-kind ownership" note
+   describing the simpler design.  Updated the `%code requires`
+   comment near `struct LexCtx` forward-decl to match.
+
+7. **Regenerated `snocone_parse.tab.{c,h}`** via
+   `scripts/regenerate_parser_and_lexer_from_sources.sh`.  Bison
+   processed the simpler .y cleanly with zero conflicts.
+
+### Verification
+
+| Gate | Result | Baseline |
+|------|--------|----------|
+| `test_smoke_snocone.sh` | PASS=5 FAIL=0 | ✓ unchanged |
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | ✓ unchanged |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 FAIL=0 SKIP=3 | ✓ unchanged |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | ✓ unchanged |
+| `test_crosscheck_snobol4.sh` | PASS=6 FAIL=0 | ✓ unchanged |
+| `test_crosscheck_snocone.sh` | PASS=8 FAIL=0 | ✓ unchanged |
+
+SB-6.F semantics preserved across the cleanup:
+- `2 ! 3` → 8 (binary exponent)
+- `2!3` → snocone parse error (matches SPITBOL parse-reject)
+- `!x` → parses to E_OPSYN, runtime "Error 5 / Undefined operation"
+- `1 != 2` → true (NE carve-out preserved)
+
+### Diffstat
+
+```
+ src/frontend/snocone/snocone_lex.c       |  12 +-
+ src/frontend/snocone/snocone_lex.h       |  47 +-
+ src/frontend/snocone/snocone_parse.tab.c | 836 +++-------
+ src/frontend/snocone/snocone_parse.tab.h |  17 +-
+ src/frontend/snocone/snocone_parse.y     | 373 +-----
+ 5 files changed, 328 insertions(+), 957 deletions(-)
+```
+
+Net -629 lines.  Hand-written sources lose ~280 lines; the rest
+is generated table shrinkage.
+
+### Why this is a real improvement
+
+**One name, one place.**  Adding a new token now takes ONE
+coordinated edit — add to `%token` in .y, optionally a grammar
+production, and emit it from the lexer cascade.  No enum to
+update separately, no `#define`/`#undef` to add, no
+`sc_kind_to_tok` case to add, no integer-value-shift bug class
+to worry about.
+
+The bug Lon and I hit yesterday in SB-6.F.1 (where adding T_1BANG
+to ScKind shifted T_LPAREN's integer value and broke ALL parsing
+until I added the matching `case SC_T_1BANG:` line in
+sc_kind_to_tok) is now structurally impossible: there is only
+one source of integer values, and the lexer reads it directly.
+
+### Other follow-on still open
+
+**SB-6.G** (E_UN_* trampoline cleanup — 15 redundant goto labels
+in `snocone_lex.c` that each do nothing but `EMIT(T_1xxx);`)
+remains open.  Narrow, ~14-line cleanup; not blocking.
+
+### Files touched this session
+
+- `one4all/src/frontend/snocone/snocone_lex.h` — `+8/-36`
+- `one4all/src/frontend/snocone/snocone_lex.c` — `+9/-3`
+  (tab.h include, table-size bumps, bound check)
+- `one4all/src/frontend/snocone/snocone_parse.y` — `+27/-340`
+- `one4all/src/frontend/snocone/snocone_parse.tab.{c,h}` —
+  regenerated
+- `.github/GOAL-SNOCONE-BEAUTY.md` — this session block
+
+No corpus changes; no runtime/IR changes; no scripts changes.
+Pure cleanup of frontend boilerplate.
+
+### Repos state
+
+`one4all`: dirty (5 files).  `corpus`: clean.  `.github`: dirty
+(this update).  `csnobol4`, `x64`: clean.  Plan: commit one4all
+first, then `.github` per RULES.md handoff order.
+
