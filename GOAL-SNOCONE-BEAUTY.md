@@ -201,17 +201,62 @@ Full landing details are in commit history. Listed here only as a checkpoint.
     callers never pass extras, so the bug has not bitten. Closed when grammar
     extension lands and all `.sc` files convert.
 
-  - [ ] **SB-6.E.7-M** — **Drop `sno` prefix in `.sno` source too.** Per Lon
-    (session 2026-05-02 #15): the `sno` prefix on parser pattern names in
-    `beauty.sno` (snoExpr, snoStmt, snoFunction, etc., 60 names) is noise.
-    The `.sc` port already strips it intentionally; pass #2 was going to
-    restore it for name-parity, but Lon's call is the opposite — drop it
-    in `.sno` too. Update `beauty.sno` in-place: rename all 60 `sno`-prefixed
-    grammar identifiers to their unprefixed forms. Verify SPITBOL oracle
-    output is unchanged (md5 `abfd19a7a834484a96e824851caee159`). Re-baseline
-    `beauty.ref` if needed. After this rung, `.sc` and `.sno` agree on
-    naming and SB-6.E.7-J pass #2 name-parity becomes trivial for the
-    grammar names.
+  - [x] **SB-6.E.7-M** — **Drop `sno` prefix in `.sno` source too.**
+    LANDED session 2026-05-02 #16. Per Lon (session 2026-05-02 #15):
+    the `sno` prefix on parser pattern names in `beauty.sno` was noise.
+    The `.sc` port already strips it intentionally. Update `beauty.sno`
+    in-place: rename all `sno`-prefixed identifiers to their unprefixed
+    forms.
+
+    **Actual count:** 67 unique sno-prefixed names (not the rough
+    "60" estimate in pass #3 notes), 319 occurrences. All confined to
+    `beauty.sno` — no `.inc` file references any of them. Mechanical
+    sed rename `sno([A-Z][A-Za-z0-9_]*)` → `\1`.
+
+    **Finding (ONE name collision required a separate rename first).**
+    `snoSorF` was a parser pattern (line 194: `snoSorF = *snoSGoto |
+    *snoFGoto`) AND `SorF` was a runtime variable holding `'S'` or
+    `'F'` (lines 192/193: `*assign(.SorF, *'S')`; lines 201/202 EVAL
+    strings: `"*(':' SorF snoBrackets)"`). Stripping the prefix from
+    `snoSorF` collapsed it onto the runtime variable, the assignments
+    clobbered the pattern, and SPITBOL self-host emitted "Parse Error"
+    after 252 lines. Fix: pre-rename the runtime variable `.SorF` →
+    `.sf` (4 occurrences: 2 in `*assign` calls, 2 inside the EVAL
+    strings on lines 201/202) before stripping the prefix. The other
+    66 sno-prefixed names had no collisions. Of the 21 LHS-assigned
+    identifiers without sno-prefix in OLD beauty.sno, only `SorF`
+    collided with a renamed pattern — verified by exhaustive
+    enumeration `comm -12 runtime_vars.txt new_pattern_names.txt`.
+    Note that `snoBrackets` is NOT a parser pattern — only a runtime
+    variable; no collision there.
+
+    **New oracle md5:** `9cddff2534472b822438801d8db58a99`, 622 lines
+    (down from 646 — shorter identifiers fit on single lines without
+    `+` continuation wraps). Empty stderr, no Parse Error in output
+    (the only "Parse Error" string in the new output is the literal
+    in the source code's `mainErr1` label). Cross-check: OLD and NEW
+    `beauty.sno` produce byte-identical pretty-printed output on a
+    non-self-host test input, confirming the rename is semantically
+    transparent.
+
+    **What did NOT change in the canonical baseline.** PLAN.md's
+    Milestone 1 record retains the old md5 `abfd19a7...` as the
+    historical proof bytes — that is a record of what landed at
+    Session #57, 2026-04-28, and stays. Other goal files
+    (GOAL-NET-BEAUTY-SELF, GOAL-SCRIP-BOOTSTRAP, GOAL-LANG-SNOBOL4,
+    GOAL-CORPUS-LAYOUT) still reference the old md5 in their gate
+    spec; those goals will rebaseline against the new md5 the next
+    time they are exercised. This goal file's Invariants section
+    (above) and Naming distinction (below) are updated to the new
+    md5 because they are SB-6's live forward gate.
+
+    **Three baseline gates green** after the rename:
+    smoke_snocone PASS=5, beauty_snocone_all_modes PASS=42 SKIP=3,
+    smoke_unified_broker PASS=49. SB-6 fingerprint:
+    `lines=603 stderr=4389 parse_err=170 internal_err=4 rc=124`,
+    91 diff hunks vs new oracle (essentially unchanged from session
+    #15's `lines=600 ... 88 hunks` — within noise; the `.sc` port
+    was already using unprefixed names so SB-6 doesn't shift much).
 
   - [ ] **SB-6.E.6** — **Confirm-with-Lon anti-rationalization pass.**
     Enumerate the handful of Snocone invariants Lon holds in his head most
@@ -245,7 +290,13 @@ architecture. That file is the single source of truth for Snocone.
   PASS=42 SKIP=3, smoke_unified_broker PASS=49.
 - Crosscheck floors: snobol4 PASS=6, snocone PASS=8.
 - Oracle: `corpus/programs/snobol4/demo/beauty/beauty.sno` (md5
-  `abfd19a7a834484a96e824851caee159`, 646 lines).
+  `9cddff2534472b822438801d8db58a99`, 622 lines, post-SB-6.E.7-M
+  rebaseline 2026-05-02 #16). Pre-SB-6.E.7-M baseline was md5
+  `abfd19a7a834484a96e824851caee159`, 646 lines — that md5 remains
+  the historical Milestone 1 proof bytes (PLAN.md), and other goal
+  files (GOAL-NET-BEAUTY-SELF, GOAL-SCRIP-BOOTSTRAP, GOAL-LANG-SNOBOL4)
+  still reference the old md5 in their gate spec; those goals will
+  rebaseline against the new md5 the next time they are exercised.
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
 **Per Lon (session #66):** *every* construct in canonical `.sno`/`.inc`
@@ -279,9 +330,9 @@ This is the permanent home.
   Snocone code (yet — that would be a future BEAUTIFY-extended).
 
 The BEAUTIFY self-host gate produces output matching the BEAUTY md5
-`abfd19a7a834484a96e824851caee159` because both pretty-print the same
-SNOBOL4 source. This auto-cross-checks the Snocone implementation
-against the SNOBOL4 implementation.
+`9cddff2534472b822438801d8db58a99` (post-SB-6.E.7-M, 622 lines)
+because both pretty-print the same SNOBOL4 source. This auto-cross-checks
+the Snocone implementation against the SNOBOL4 implementation.
 
 **Move plan (when SB-6 is green):**
 
@@ -316,6 +367,74 @@ Outputs land at `/tmp/sb6_scr.{out,err}` and (with --diff) `/tmp/sb6_spl.out`.
 Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
+
+## Most recent session — 2026-05-02 #16 (SB-6.E.7-M LANDED — strip sno prefix from beauty.sno)
+
+### What landed (corpus, 1 file modified — three baseline gates green)
+
+`corpus/programs/snobol4/demo/beauty/beauty.sno` had its `sno`
+prefix stripped from all 67 unique identifier names (319 occurrences)
+per Lon's directive in session #15. The rename is mechanical
+(`sno([A-Z][A-Za-z0-9_]*)` → `\1`) but required one pre-step to avoid
+a name collision: `snoSorF` (parser pattern) would have collapsed
+onto runtime variable `SorF`. Renamed `.SorF` → `.sf` first
+(4 occurrences total), then stripped the sno prefix from everything
+else.
+
+**New oracle md5:** `9cddff2534472b822438801d8db58a99`, 622 lines
+(down from 646 — shorter identifiers fit on single lines without
+`+` continuation wraps). The Invariants section and Naming
+distinction in this goal file are updated to the new md5; PLAN.md
+Milestone 1 historical record retains the old md5 unchanged.
+
+**Cross-check (semantic transparency):** OLD beauty.sno and NEW
+beauty.sno produce byte-identical pretty-printed output on a
+non-self-host test input, confirming the rename is purely cosmetic
+at the program-behavior level.
+
+**Gates after the rename — all green:**
+- smoke_snocone PASS=5
+- beauty_snocone_all_modes PASS=42 SKIP=3
+- smoke_unified_broker PASS=49
+- SB-6 self-host fingerprint: `lines=603 stderr=4389 parse_err=170 internal_err=4 rc=124`, 91 diff hunks vs new oracle (vs session #15's 600/88 — essentially unchanged).
+
+**Detailed finding documented in SB-6.E.7-M's rung definition above.**
+The collision-discovery is the genuinely new contribution of this
+session: a naive sed rename broke the program subtly, and exhaustive
+enumeration (`comm -12` of LHS-assigned-identifiers vs renamed-patterns)
+identified `SorF` as the unique collision.
+
+### Repos state
+
+- `corpus`: 1 file modified (`programs/snobol4/demo/beauty/beauty.sno`).
+  Will commit in this session as the SB-6.E.7-M closure.
+- `one4all`: clean — no runtime/compiler edits this session.
+- `.github`: this commit (SB-6.E.7-M closed; Invariants md5 updated;
+  Naming distinction md5 updated; this session record added).
+- Three baseline gates green throughout.
+
+### Active blocker for SB-6 going forward
+
+**SB-6.E.7-J pass #3 — beauty.sc full body-part rewrite**
+remains the active blocker, exactly as session #15 left it. Now
+that `beauty.sno` is in canonical no-sno-prefix form, the .sc port
+matches the .sno on parser-pattern names without further work —
+removing the largest of the four naming-discrepancy categories
+that the pass #3 deferred work would have had to wrestle with.
+Three further structural items remain in the deferred beauty.sc
+work: un-collapse `pp_TYPE/ss_TYPE` dispatch from giant if-cascades
+back to per-type body parts, remove invented helpers
+(`ppLeaf`/`ppList`/`ppStmt`), restore canonical `main00..main05`
+body parts in the main loop.
+
+### Other notes
+
+The PLAN.md table state for SB-6.E.7-J (active step) is unchanged
+by this session — SB-6.E.7-M was a separate rung in the open list,
+not the active step. PLAN.md's Goal table row keeps the same step
+ID `SB-6.E.7-J pass #3 — 16 of 17 files done, beauty.sc deferred`.
+
+---
 
 ## Most recent session — 2026-05-02 #15 (SB-6.E.7-J pass #3 — body-part faithful redo of all 17 files)
 
