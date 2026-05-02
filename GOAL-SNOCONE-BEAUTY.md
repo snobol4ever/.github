@@ -219,151 +219,73 @@ reorg executes (CL-1..CL-8), `demo/beautify/` becomes
 
 ---
 
-## Most recent session — 2026-05-01 #3 (EMERGENCY HANDOFF, investigation only)
-
-**No source changes. All repos at HEAD `3a0ebe97` (one4all) / `6f00145`
-(corpus). Investigation interrupted by context-window exhaustion;
-findings recorded for next session to continue.**
-
-### Setup verified
-
-Three baseline gates green from clean clone + clean build:
-- `test_smoke_snocone.sh` PASS=5 FAIL=0
-- `test_beauty_snocone_all_modes.sh` PASS=42 FAIL=0 SKIP=3
-- `test_smoke_unified_broker.sh` PASS=49 FAIL=0
-
-SPITBOL oracle on `beauty.sno < beauty.sno`: 646 lines, md5
-`abfd19a7a834484a96e824851caee159` — Milestone 1 baseline preserved.
-
-### End-to-end state
+## Reproducer — `test_snocone_beauty_self_host.sh`
 
 ```bash
-./scrip --ir-run $LIBS beauty.sc < beauty.sno
-# rc=0, stdout: 1495 lines, stderr: 0 lines
-# 17 'Internal Error' lines, 417 'Parse Error' lines
+bash scripts/test_snocone_beauty_self_host.sh                      # default summary
+bash scripts/test_snocone_beauty_self_host.sh --diff --quiet       # vs SPITBOL oracle
+bash scripts/test_snocone_beauty_self_host.sh --mode --sm-run      # also --jit-run
+bash scripts/test_snocone_beauty_self_host.sh --input <file>       # custom input
 ```
 
-The output INTERLEAVES real input lines with error messages:
-- Header lines (`*...`, `-INCLUDE 'X'`) pass through correctly via the
-  `if (Line ? POS(0) ANY('*-')) { OUTPUT = Line; }` arm
-- Blank lines yield "Internal Error" — the parse trivially succeeds
-  but `Pop()` returns null, hitting the Internal Error branch
-- Real statements like `\tA = 1` yield "Parse Error" — outer
-  `POS(0) *Parse *Space RPOS(0)` match fails
+Outputs land at `/tmp/sb6_scr.{out,err}` and (with --diff) `/tmp/sb6_spl.out`.
+Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
+This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
+or invocation by hand. Read the script if you need the 16-file lib order.
 
-### Tightest reproducers
+## Most recent session — 2026-05-01 #4
+
+**Current end-to-end fingerprint** (all three modes identical):
 
 ```
-echo START | ./scrip --ir-run $LIBS beauty.sc
-# Output: 'Internal Error\nSTART\n\n'
-# Oracle: 'START\n'
-
-printf '\tA = 1\n' | ./scrip --ir-run $LIBS beauty.sc
-# Output: 'Parse Error\n\tA = 1\n\n'
-# Oracle: '                  A              =  1\n'
+lines=89 stderr=0 parse_err=3 internal_err=0 rc=0
+diff: 1 hunk vs SPITBOL oracle (646 lines)
 ```
 
-### Concrete signal
+scrip emits the comment-banner block (32 lines), then drops `START`,
+`-INCLUDE 'global.inc'`, `&FULLSCAN = 1`, `&MAXLNGTH = 524288`, and the
+`ppStop[N] = ...` array assigns; emits 3 `Parse Error` lines on the
+continuation lines (lines starting with `+`) of the multi-line pattern
+statements `snoFunction`, `snoSpecialNm`, and the big `snoExpr`/`snoXList`
+reduction; then truncates at line 89 of its 646-line target.
 
-Built a stripped beauty.sc test (lines 1-411 only — pattern definitions
-and procedures — not the main while-loop) and added explicit
-`Src ? POS(0) *Parse *Space RPOS(0)` test cases:
-- `\tA = 1\n` → outer match FAILS (else branch)
-- `START\n` → outer match SUCCEEDS, but `Pop()` returns a value with
-  `DATATYPE = 'PATTERN'`, not a tree datatype.
+**Three modes (`--ir-run`, `--sm-run`, `--jit-run`) all produce the same
+89/0/3/0 fingerprint** — the bug is in the IR/parser layer, not the
+backend dispatch.
 
-The `'PATTERN'` datatype is the smoking gun. After a successful parse,
-Pop should return a tree node (the SHIFTed/REDUCEd result). Instead
-it's returning a pattern object — strongly suggests the
-`epsilon . *Reduce(...)` or `*Shift(...)` deferred call is leaving the
-*pattern itself* on the stack rather than firing the deferred call and
-pushing the resulting tree.
+**Session #3's smoking gun has shifted.** `echo START | scrip ... beauty.sc`
+now produces 0 lines, not `Internal Error\nSTART\n\n`. The
+DATATYPE='PATTERN' Pop()-result symptom from session #3 may no longer be
+the active problem; the failure shape is now "first non-banner line drops
+silently, multi-line continuation patterns Parse Error". Whether H1
+(`epsilon . *Reduce(...)` deferred-call) is still in play needs re-testing
+against this new shape.
 
-### Two hypotheses for next session to discriminate
+**Suggested entry points for next session** (in suggested order):
 
-**H1 — `epsilon . *Reduce(...)` deferred call not firing.** In
-`semantic.sc::reduce`, the EVAL'd pattern is `epsilon . *Reduce(t, n)`.
-The `*Reduce(...)` is a deferred function call meant to fire AT MATCH
-TIME inside the `.` capture-cond-asgn. If the runtime is treating the
-`*Reduce(...)` as a static value rather than firing it during the match,
-the pattern would match (because `epsilon` always succeeds) but no
-Reduce side-effect would happen — and the pattern object itself would
-propagate up.
+1. **Drop diagnosis** — Why does `&FULLSCAN = 1` (a single-line `KW =
+   value` statement) drop silently instead of pretty-printing? Add a
+   debug `OUTPUT = 'TOP: ' Line` at the top of beauty.sc's main loop and
+   confirm the Read returns it; then trace the `Parser` outer match for
+   keyword-assignment rules.
 
-**H2 — `*Pat` deferred-pattern-reference issue.** The Parser pattern
-chain uses `*Stmt`, `*Comment`, `*Control` — deferred references to
-patterns built in earlier statements. If one of those references is
-being captured-by-value rather than captured-by-deferred-name, the
-pattern might match against an early skeleton state rather than the
-fully-built grammar.
+2. **Continuation-line diagnosis** — The 3 Parse Errors are all on `+`
+   continuation lines. `beauty.sno`'s reader joins continuation lines
+   into a single logical statement before the parser sees them. Check
+   whether scrip's INPUT loop (in `ReadWrite.sc::Read` or beauty.sc's
+   Read call site) does the SNOBOL4 continuation-line gluing.
 
-H1 is more likely given the PATTERN-as-Pop-result observation, but
-both deserve a trace.
+3. **H1 revisit** — once a real parse succeeds, re-check whether `Pop()`
+   returns a tree or a pattern; H1 may still be live but masked by the
+   earlier-stage drops.
 
-### Concrete diagnostic for next session
+**Side issue SC-MERGE-RESTART** still tracked from session #3 (prefix-of-
+beauty.sc + custom test → infinite-output loop). Not blocking.
 
-1. **Verify what Pop is actually returning on `START`:**
+## Repos state
 
-   ```snocone
-   xTrace = 5;  // turn on Push/Pop trace
-   Src = 'START\n';
-   if (Src ? (POS(0)   *Parse   *Space   RPOS(0))) {
-       sno = Pop();
-       OUTPUT = 'sno DATATYPE=' . DATATYPE(sno);
-       if (DATATYPE(sno) :==: 'PATTERN') {
-           OUTPUT = '  matches epsilon? '   (IDENT(sno, epsilon));
-       }
-   }
-   ```
-
-   Expected if H1: sno is the unfired `epsilon . *Reduce(...)` pattern.
-   Expected if H2: sno is a different unrelated pattern (Stmt? *X14?).
-
-2. **Trace Reduce calls during the START parse:** in
-   `ShiftReduce.sc::Reduce`, add `OUTPUT = 'Reduce(' t ',' n ')'` at
-   function entry. If Reduce is never called for `START` parse →
-   confirms H1 mechanism.
-
-3. **Check `tree(t, '', n, c)` behavior on n=1 reduction:** run a
-   standalone `t = tree('Label', 'START', '', '')` and verify DATATYPE
-   is 'tree'.
-
-4. **Cross-check session #2's "no output" claim:** if rerun produces
-   1495 lines, session #2's measurement was wrong-input or stale-build.
-   Check `git status` and `find src -name '*.o' -newer scrip` before
-   trusting any gate.
-
-### Files investigated, not modified
-
-- `corpus/programs/snocone/demo/beauty/beauty.sc` (read main loop)
-- `corpus/programs/snocone/demo/beauty/semantic.sc` (read shift/reduce)
-- `corpus/programs/snocone/demo/beauty/ShiftReduce.sc` (read Reduce/Shift)
-- `corpus/programs/snocone/demo/beauty/stack.sc` (read Push/Pop)
-- `corpus/programs/snobol4/demo/beauty/beauty.sno` (oracle source)
-- Diagnostic test files in `/tmp/` only (not committed)
-
-### Side issue: SC-MERGE-RESTART
-
-Built `/tmp/beauty_test.sc` = first 411 lines of beauty.sc + custom
-test code. When run via `scrip --ir-run $LIBS /tmp/beauty_test.sc`, the
-output REPEATED several thousand times (`Test 1 / Parse FAILED / Test
-2 / PATTERN / sno is null` over and over until 30s timeout). Cause not
-investigated — could be:
-- A `:S(loop_label)` in beauty.sc lib chain that re-enters the program
-- Shared label name collision in scrip's IR-merge despite session #71's
-  per-process `g_snocone_label_ctr` fix
-- An `END` handler somehow re-dispatching to start
-
-Tracked as follow-on rung **SC-MERGE-RESTART**. Reproducer: take any
-prefix of beauty.sc that contains pattern definitions plus any
-non-trivial test appended, and run with the lib chain.
-
-### Repos state
-
-- `one4all`: clean
+- `one4all`: clean at `9c9de2f4` (canonical SB-6 reproducer landed)
 - `corpus`: clean
-- `.github`: dirty (this update only)
+- `.github`: this commit (PLAN.md table-bloat shrink + goal-file slim
+  + script pointer)
 - `csnobol4`, `x64`: clean
-
-Active rung remains **SB-6** (proper). H1/H2 investigation is the path
-forward.
