@@ -268,6 +268,80 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
+## Most recent session — 2026-05-02 #7 (cosmetic spacing sweep)
+
+**Multi-space concat collapsed to single-space across all 17 .sc files.**
+Per Lon (this session): "the code looks terrible, so many spaces between
+concats." Whitespace runs of 2+ spaces between non-string, non-comment
+tokens were pure visual noise — Snocone treats single-space and
+multi-space identically as `T_CONCAT` (ARCH-SNOCONE.md "Concatenation
+— whitespace IS the concat operator"). Beauty.sno itself uses
+single-space throughout; the .sc port had drifted into 3-space
+column-alignment mode during initial port.
+
+### What landed
+
+A comment/string-aware Python beautifier (`beautify_sc.py`, retained
+locally in /home/claude — not committed) walks each `.sc` file and:
+- Preserves leading whitespace (indentation) verbatim.
+- Preserves single-quoted, double-quoted strings verbatim.
+- Preserves `// ...` line comments and `/* ... */` block comments
+  (multi-line aware) verbatim.
+- Strips trailing whitespace.
+- Collapses interior runs of 2+ spaces to a single space.
+
+Bytes shed per file (all 17, line counts unchanged):
+
+| File | bytes saved |
+|------|------------:|
+| beauty.sc | 1160 |
+| global.sc | 588 |
+| Qize.sc | 256 |
+| TDump.sc | 145 |
+| XDump.sc | 143 |
+| tree.sc | 131 |
+| ReadWrite.sc | 66 |
+| omega.sc | 56 |
+| ShiftReduce.sc | 50 |
+| trace.sc | 47 |
+| Gen.sc | 41 |
+| stack.sc | 18 |
+| semantic.sc | 16 |
+| case.sc | 14 |
+| **total** | **2731** |
+
+(`assign.sc`, `match.sc`, `counter.sc` — unchanged, already clean.)
+
+### Gates after sweep — all green, fingerprint identical
+
+```
+test_smoke_snocone.sh             PASS=5  FAIL=0
+test_beauty_snocone_all_modes.sh  PASS=42 SKIP=3 FAIL=0
+test_smoke_unified_broker.sh      PASS=49 FAIL=0
+test_snocone_beauty_self_host.sh  lines=89 stderr=0 parse_err=3 internal_err=0 rc=0
+```
+
+Semantic equivalence preserved. The pre-existing audit findings
+from session #6 (pp/ss_leaf identical-condition dispatch bugs at
+beauty.sc:233/236/241 and 277/278) are now visually unmissable.
+
+### SB-6.E.7-C status
+
+This session **partially advances SB-6.E.7-C** (style sweep) — the
+multi-space-concat dimension is now done. The unrelated
+brace-around-single-statement-bodies dimension of SB-6.E.7-C remains
+open and is still gated on SB-6.E.7-A (bare-if runtime bug).
+
+### Repos state
+
+- `corpus`: this commit (15 .sc files reflowed)
+- `one4all`: clean
+- `.github`: this commit (session entry)
+- `csnobol4`, `x64`: clean
+- Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
+
+---
+
 ## Most recent session — 2026-05-02 #6 (audit pass, in progress)
 
 **SB-6.E.7 translation audit — first 6 of 17 file pairs walked.**
@@ -481,7 +555,8 @@ beauty.sc beyond pp/ss/ss_leaf still pending).
 
 ### Repos state
 
-- `corpus`: ShiftReduce.sc Pop fix uncommitted
+- `corpus`: ShiftReduce.sc Pop fix uncommitted (resolved in #7 — the
+  fix was already at HEAD; the note was stale)
 - `one4all`: clean at `f95817cd`
 - `.github`: this commit (audit findings recorded)
 - Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
