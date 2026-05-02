@@ -3415,3 +3415,117 @@ resolves to `snoFunctions`' slot. This is a slot-index assignment bug in
   S-2-bridge-7-fullscan      [~] Root cause located (wrong slot in
                                   *match(snoUnprotKwds,...) closure).
                                   Fix is next session's first move.
+
+---
+
+## Session #81 — 2026-05-02 (Sonnet / Lon)
+
+**Outcome:** Two commits landed. snobol4dotnet `fcb9187`. Beauty self-host
+unchanged at 47 stderr lines — both bugs are real fixes but a third bug
+remains gating line 48 (`DQ = '"' BREAK('"' nl) '"'`).
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+   `x64`. Installed `dotnet-sdk-10.0` (10.0.203) and `nasm`.
+   snobol4dotnet HEAD `12bd3fa` build clean. Beauty self-host baseline:
+   exit 0, 47 stderr lines, Parse Error at line 48 (`DQ = '"'...`).
+
+2. **PM wire solo capture.** Ran dot solo with `MONITOR_PM_TRACE=1` via
+   `read_one_wire.py` on the line-48 minimal repro. 2M+ PM events captured.
+   Key name mapping: `id=255` = `*<CompileStarFunctions>b__0` (all `*X`
+   UnevaluatedPatterns share the same lambda name); `id=169` = `ProtKwd`;
+   `id=170` = `UnprotKwd`.
+
+3. **PM_CALL for `*ProtKwd`/`*UnprotKwd` never fires (id=169/170: 0 events).**
+   The alternation fires `id=265` (`'@'`), `id=266` (`'~'`), `id=267` (`'?'`),
+   then `id=1` (`''`) — empty literal, NOT `*ProtKwd`. Then all the single-char
+   literal arms (`'&'`, `'+'` ... `'|'`), then `id=255` (`*Expr15`). The
+   `*ProtKwd` and `*UnprotKwd` arms are absent from the chain.
+
+4. **Compile-time slot diagnostic** (`DOT_SLOT_DIAG=1`): slots are correct
+   — `Functions`=318, `UnprotKwds`=317, `ProtKwds`=316, `BuiltinVars`=315,
+   `SpecialNms`=314, `TxInList`=313. Runtime `VarSlotArray` correct too.
+   Session #80's "wrong slot" diagnosis was wrong; the slot values are fine.
+
+5. **Runtime PushVar diagnostic**: slot 317 (`UnprotKwds`) **never pushed**.
+   The pattern cycles 314/318/315 (SpecialNms/Functions/BuiltinVars) only.
+   Confirmed: `*ProtKwd` and `*UnprotKwd` arms never entered.
+
+6. **`shift(*ProtKwd, 'ProtKwd')` crash isolated.** Built a minimal test in
+   the full beauty context — `InvalidOperationException: Stack empty` at
+   `ConditionalVariableAssociationBackup1.Scan` line 61. Stack trace:
+   CVABackup1.Scan → Scanner.Match → scanner.PatternMatch → PatternMatch(?)
+   → OperatorFast → Snobol4_Expr.
+
+7. **Bug 1 found — AlphaStack not isolated per PatternMatch.**
+   `CVA1` (`.1`) pushes to `AlphaStack` at each `.` capture node entry.
+   `CVABackup1` (`.2`) pops on backtrack. In unanchored PatternMatch,
+   the cursor-retry loop causes CVA1 to push at every cursor position.
+   Without save/restore of AlphaStack, entries accumulate; when CVABackup1
+   fires it eventually calls `.Pop()` on an empty stack → crash.
+   `BetaStack` was already isolated (session #71, `92b79be`). AlphaStack
+   was not.
+
+   **Fix:** save/restore `AlphaStack` in `PatternMatch (Question Mark).cs`
+   (mirrors BetaStack); add empty-check guard in `CVABackup1.Scan`.
+
+8. **Bug 2 found — `_reusableArgList` clobbered by inner Function() calls.**
+   After fixing the crash, `*mypat()` patterns still fail. Diagnostic:
+   `[PM] calling PatternMatch subject=5 anchor=0 pattern=LenPattern` —
+   subject is `5` (IntegerVar coerced), not `'hello'`.
+   `arguments` is an alias for `_reusableArgList`. When evaluating
+   `ExpressionVar` (e.g. `*mypat()`) via `expressionVar1.FunctionName(this)`,
+   the inner `RunExpressionThread` calls `Function()` which calls
+   `_reusableArgList.Clear()` — destroying `arguments[0]` (the subject).
+   `arguments[0]` becomes `IntegerVar(5)` (LEN's arg from the inner call).
+
+   **Fix:** save `arguments[0]` as `savedSubject` before the ExpressionVar
+   loop; restore after each eval.
+
+9. **Test gate:** 2074p/14f unit suite (baseline), beauty 17/17 PASS.
+   Beauty self-host: still 47 lines / Parse Error at line 48 — the two
+   fixes are real and correct but a THIRD bug gates line 48.
+
+10. **Third bug located but not fixed.** `shift(*ProtKwd, 'ProtKwd')` builds
+    the arm pattern correctly (no crash, correct type). But `'&FENCE' ? arm`
+    fails. Isolated to: `*match(ProtKwds, TxInList)` (inside ProtKwd pattern,
+    called as `$ *match(...)` during matching) FRETURNs even though:
+    - `match(ProtKwds, TxInList)` called DIRECTLY succeeds
+    - `'ABORT ALPHABET ARB BAL FAIL FENCE' ? TxInList` with `tx='FENCE'`
+      succeeds directly
+    - `TxInList` contains `*upr(tx)` UnevaluatedPattern
+    The failure is specific to `*match()` being called from WITHIN a
+    pattern match context (via `$ *match(...)` inside ProtKwd). The
+    FRETURN from `match()` in that context doesn't propagate correctly —
+    or TxInList inside the nested match context sees wrong `tx` value.
+
+### Commits
+
+| Repo | HEAD | What |
+|------|------|------|
+| `snobol4dotnet` | `fcb9187` | AlphaStack isolation + `_reusableArgList` savedSubject fix |
+
+### Next session's first move
+
+The third bug: `$ *match(ProtKwds, TxInList)` inside ProtKwd during a
+nested pattern match context. Specifically:
+
+1. Confirm `tx` is correctly set when `*match` fires: add `OUTPUT = tx`
+   inside `match.inc` temporarily to verify `tx` has the right value.
+2. If `tx` is correct, the issue is in how `match()` calls `subject pattern`
+   (a subject-pattern statement) when called from within an outer pattern
+   match. The `$ *match(...)` is an ImmediateVariableAssociation that
+   defers a function call inside an active Scanner. The function call enters
+   a nested statement that may interfere with the outer Scanner's state.
+3. Check `Executive.ImmediateVariableAssociation` / `AssignReplace (=).cs`
+   `ReplaceMatch` path for whether the `match()` FRETURN is being eaten.
+4. After fix: re-run beauty self-host gate. Expected: Parse Error advances
+   past line 48.
+
+### Status updates
+
+  S-2-bridge-7-fullscan   [~] partial — line 48 `*match()` in nested
+                               pattern context FRETURNs incorrectly.
+                               Third bug located; fix is next session.
+  S-2-bridge-7-alphastack [x] LANDED — fcb9187.
