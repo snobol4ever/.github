@@ -2294,3 +2294,98 @@ Total: 5 files, 196+/9-.
 - one stray `foo.baz` (empty file) at one4all/ root at session start —
   same scratch shape sessions #19–#25 cleaned.  Removed before commit
   per RULES.md "Diagnostic patches are diagnostic — never commit them".
+
+---
+
+## Session #29 (2026-05-02) — IC-9 diagnosis: E_SCAN dispatch bug + E_SEQ assign root cause found
+
+IC-9 IN PROGRESS.  No PASS-count advance (PASS=201/FAIL=32/XFAIL=30 unchanged),
+but two bugs diagnosed and one partially fixed.  Gates all preserved:
+smoke 5/0, broker 49/0, crosscheck 4/0/0.
+
+### Bug 1 — E_SCAN SNOBOL4/Icon dispatch guard (FIXED)
+
+**Site:** `src/driver/interp.c` E_SCAN shared-switch handler, dispatch guard.
+
+**Root cause:** Guard was `if (!icn_scan_depth && !g_pl_active)` — this fired
+the SNOBOL4 `exec_stmt` path for the *outermost* scan, even inside an Icon
+proc where `icn_frame_depth > 0`.  Inside `main()`, `icn_scan_depth` starts
+at 0, so `"1234ab" ? { ... }` at the top level of main() took the SNOBOL4
+path: `exec_stmt` ran, set up NO `icn_scan_subj`/`icn_scan_pos`, the body
+executed with `icn_scan_subj = NULL`, and `icn_kw_assign("pos", 6)` OOB-failed
+silently (slen=0, norm=6 > slen+1=1).
+
+**Fix:** `!icn_scan_depth` → `!icn_frame_depth`.  Inside any Icon proc,
+`icn_frame_depth > 0`, so the guard is false and the Icon scan setup path
+(save stack, set `icn_scan_subj = subj_s`, `icn_scan_pos = 1`) runs correctly.
+
+**Also added (defense-in-depth):** In the shared-switch `case E_VAR` and
+`case E_ASSIGN`, handle Icon scan-state keywords (`&pos`, `&subject`) when
+`icn_scan_depth > 0 && !icn_frame_depth` — for the edge case where a scan
+body runs completely outside any Icon proc frame (e.g. top-level polyglot
+scripts).  These guards are correct but unreachable in practice once Bug 1
+is fixed (inside a proc, `icn_frame_depth > 0` and the icon-frame switch
+handles E_VAR/E_ASSIGN directly).
+
+### Bug 2 — E_SEQ assigns don't persist (ROOT CAUSE FOUND, NOT YET FIXED)
+
+**Repro:** `(x := 5 & write(x))` prints `0`, not `5`.  Also: `x := 0;
+(x := 5 & write(x))` prints `0`.  The conjunction evaluate's `x := 5`
+(first child) before `write(x)` (second child) per the parser, but `x`
+reads back `0`.
+
+**Diagnostic trace** (E_ASSIGN slot-print + E_VAR env-print):
+
+```
+E_ASSIGN x slot=0 env_n=2 depth=1          ← x := 0 (statement 1)
+E_VAR read x slot=0 env[slot].v=6 i=0      ← write(x) reads DT_SNUL=6, not DT_I
+E_ASSIGN x slot=0 env_n=2 depth=1          ← x := 5 (statement 2, child[0] of E_SEQ)
+```
+
+**Root cause:** `env[slot].v=6=DT_SNUL` after `x := 0`.  `INTVAL(0)` produces
+`{.v=DT_I, .i=0}` — if the slot showed DT_SNUL after the assign, the
+**icon-frame E_ASSIGN is not actually writing to the slot for statement 1**.
+The icon-frame E_ASSIGN falls through to `set_and_trace(lhs->sval, val)`
+(the NV/global path) when `slot < 0` — meaning `lhs->ival == -1` for `x`
+in statement 1.
+
+**Why `ival == -1` for statement 1 but `ival == 0` for statement 2:**
+`icn_scope_patch` walks the proc body and assigns slot indices to E_VAR nodes
+in AST order.  If `x` first appears in the E_SEQ body (statement 2) and
+`icn_scope_patch` assigns slot 0 there, the `x` E_VAR node in statement 1
+(`x := 0`) may be a **different EXPR_t node** that `icn_scope_patch` visited
+earlier (before it encountered `x` and added it to the scope) — or the scope
+walk order means statement 1's node was visited before `x` was registered.
+
+**Session #30 fix plan:** In `icn_scope_patch`, ensure it walks ALL body
+statements before patching (or patches in two passes — first collect all
+declared names via E_GLOBAL, then walk again to stamp slots).  Alternative:
+examine the AST walk order in `icn_scope_patch` for `x := 0; (x := 5 & ...)` —
+if statement 1 is processed before `x` appears in statement 2's subtree, the
+scope entry isn't there yet when statement 1's E_VAR is patched.  The fix
+is to pre-populate the scope from all E_GLOBAL (local/static) declarations
+first, THEN do the naming walk — ensuring any `x` that appears as a plain
+assignment before an explicit local-decl still gets a valid slot.
+
+### What was NOT committed
+
+Per RULES.md: diagnostic `fprintf` instrumentation removed before commit.
+The E_SCAN guard fix (`!icn_scan_depth` → `!icn_frame_depth`) and the
+shared-switch scan-keyword read/write guards ARE committed (correct, no
+floors broken).  Bug 2 is NOT committed — the fix is understood but not
+yet implemented.
+
+### Gates at handoff
+
+- test_smoke_icon: PASS=5/0
+- test_smoke_unified_broker: PASS=49/0
+- test_crosscheck_icon: PASS=4/0/0
+- test_icon_ir_all_rungs: PASS=201 FAIL=32 XFAIL=30 TOTAL=263 (unchanged)
+- test_icon_ir_rung_36: PASS=13 FAIL=32 XFAIL=30 TOTAL=75 (unchanged)
+
+### Working-tree state at handoff
+
+- one4all: 1 file changed (`src/driver/interp.c`, E_SCAN guard + shared-switch
+  scan-keyword read/write guards).  Committed this session.
+- .github dirty (this update + PLAN.md state row)
+- corpus clean, x64 clean
