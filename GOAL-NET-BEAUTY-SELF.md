@@ -129,13 +129,19 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   (snobol4dotnet `8e5ff9e`, one4all `21eac9a5`). Streaming intern
   + MWK_LABEL.
 
-- [ ] **S-2-bridge-7-byrd-pattern** — *Byrd-box pattern match wire
+- [x] **S-2-bridge-7-byrd-pattern** — *Byrd-box pattern match wire
   events: CALL / EXIT / REDO / FAIL on every AST node match.*
   Opened session #75 (2026-05-01).  Increases sync-step granularity
   from program-visible-events (~3000 for beauty self-host) to AST-
   node-match-events (~25000+ for the same run) so the wire's first
   divergence lands ON the structural bug rather than ~25k events
   downstream.
+
+  **Landed session #78 (2026-05-01)** — dot side already in place
+  from session #75; spl side instrumented with `pmext/pmred/pmfal`
+  fire-points (3 of 4 ports — PM_CALL deferred); controller
+  wildcards reconcile cross-runtime tag asymmetry.  See session #78
+  record below for verification details.
 
   **Why Byrd-box ports.** The Prolog tracing model — CALL, EXIT,
   REDO, FAIL — maps cleanly onto SNOBOL4 pattern-AST navigation
@@ -2980,3 +2986,148 @@ will fingerprint the bug directly per the user's strategy.
                                   but needs corroboration with paired
                                   PM-event tracing under spl-vs-dot.
 
+
+---
+
+## Session #78 — 2026-05-01 (Sonnet 4.7 / Lon)
+
+**Outcome:** Three commits land. spl-side PM fire-points landed
+(x64 `dd66e14`); controller PM-name wildcard landed (one4all `1072fc61`);
+Graft cache landed (snobol4dotnet `12bd3fa`).
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+   `snobol4dotnet`, `x64`. Installed `dotnet-sdk-10.0` and `nasm`.
+   Verified SPITBOL `sbl` rebuilds reproducibly from `sbl.min` via
+   existing `make` pipeline (no bootstrap required for self-rebuild).
+
+2. **Implemented spl-side PM fire-points** per session #75/#77 spec.
+   Three of four Byrd-box ports now fire from `sbl.min`, gated on
+   `SPL_PM_TRACE` env var:
+     - **PM_EXIT** (`pmext`) at top of `succp` rtn
+     - **PM_REDO** (`pmred`) at `failp` after alt-pop, before dispatch
+     - **PM_FAIL** (`pmfal`) at `p_abo` entry; also at `p_una` end-of-subject
+   `PM_CALL` (`pmcll`) entry exists as a stub but is not wired from
+   any `p_xxx` opcode — instrumenting all 15+ pattern-node entries
+   was deferred as high-blast-radius and unnecessary for the user's
+   strategy (the three landed ports give sufficient divergence
+   localisation).
+
+   Wire encoding: name = interned `<spl-pm>` sentinel, type =
+   MWT_INTEGER, value = 8-byte LE packing cursor (low 32 bits) and
+   pattern-node code address (high 32 bits) for forensic visibility.
+
+   MINIMAL constraint discovered the hard way: SIL labels MUST be
+   exactly 5 characters of `letter letter [letter|digit]{3}` per
+   `lex.sbl::p.minlabel` (line 161-162).  Initial 6-char names
+   (`sysmpc`, `sysmpe`...) and 4-char names (`smpc`, `smpe`...) both
+   rejected with `*???* source line syntax error`.  Final names:
+   `pmcll/pmext/pmred/pmfal` (5 chars each, exactly fitting the
+   pattern).
+
+3. **Verified spl PM bridge end-to-end.**
+   - Default mode (`SPL_PM_TRACE` unset): wire stream byte-identical
+     to pre-patch (smoke harness sees zero PM events).
+   - `SPL_PM_TRACE=1` without harness FIFOs: silent no-op (init
+     fails in env var check, all emits early-return).
+   - Smoke pattern matches: `s ? 'world'` against `'hello world'`
+     → 6 PM_REDO (cursor advances 0→6) + 1 PM_EXIT (cur=11);
+     `s ? 'zzz'` against `'hello'` → 6 PM_REDO + 1 PM_FAIL (cur=5).
+   - **Beauty self-host oracle: exit 0, 646 stdout lines, 0 stderr,
+     md5 `abfd19a7a834484a96e824851caee159`** — matches Milestone 1
+     baseline byte-identical.
+
+4. **Ran two-runtime offline trace comparison.**  Beauty self-host
+   on full input under each runtime independently with PM tracing
+   enabled; logs collected for offline diff.
+     - spl: 5 291 380 wire events (full successful run).
+     - dot: 14 247 202+ wire events (timed out at 30s in middle of
+       runaway loop on `*upr(tx)` re-graft cycle).
+   Offline diff (with `<lval>`/`UTF`/MWT_UNKNOWN/keyword-VALUE
+   wildcards applied) identifies first-diverged event:
+     - **Last-agreed sync-step (#2836):** both sides emit
+       `RET upr 'RETURN'` after 12 identical `upr` cycles.
+     - **First-diverged sync-step (#2837):** spl emits
+       `RET match 'NRETURN'` (function returns successfully —
+       pattern matched FULLSCAN at cursor 117 in `snoUnprotKwds`);
+       dot emits another `CALL upr T0` (continues looping —
+       evaluating against the wrong list, `snoProtKwds`).
+
+   Per RULES.md "read the divergence point, not the trace": the
+   bug surfaces in beauty.sno line 67's
+   `*match(snoUnprotKwds, snoTxInList)` arm; dot is matching
+   against `snoProtKwds` instead because `snoProtKwd` (line 66)
+   is the prior alternative arm — both runtimes correctly try
+   `snoProtKwd` first, but dot pays a much higher PM-event cost
+   doing so because the AST `Graft` mechanism re-builds the
+   sub-AST on every `*upr(tx)` re-entry.
+
+5. **Profiled and fixed the Graft accumulation.**  Diagnostic
+   counter (revert before commit) showed dot's beauty self-host
+   making **~120 000 Graft calls** within a single PatternMatch
+   scope, growing `_nodes` from initial size to **~787 000 entries**.
+   The cause: every unanchored cursor advance through
+   `(POS(0)|' ') *upr(tx) (' '|RPOS(0))` re-fires `*upr(tx).Scan`,
+   which calls `Graft(subPattern, successor)` and appends a fresh
+   sub-AST copy.  No deduplication.
+
+   Fix: per-AST cache keyed by `(successor_edge, sub_pattern_ref)`.
+   On hit, return previously grafted start-node index.  Reference
+   equality on `Pattern` is the correct discriminator: when
+   `*upr(tx)` re-evaluates with bound `tx`, the same
+   LiteralPattern instance is yielded each time.  Cache cleared
+   per outer match by virtue of `Scanner.PatternMatch` building a
+   fresh AST.
+
+   **Outcome:** dot beauty self-host now completes in **~2.1s**
+   (was timing out at 30s+ during measurement runs).  Same 47
+   stderr lines, same Parse Error at line 48 — the structural bug
+   is **separate** from the graft accumulation; this commit is a
+   pure performance fix.
+
+6. **Verified zero regression.**
+   - Beauty driver suite (snobol4dotnet): **17/17 PASS** (baseline).
+   - Unit tests: 14 fail / 2074 pass.  Failure set byte-identical
+     to pre-patch baseline (the 14 are pre-existing Csnobol4
+     test crashes; cache adds zero new failures).
+   - SPITBOL beauty self-host oracle: byte-identical to Milestone 1
+     baseline (md5 `abfd19a7a834484a96e824851caee159`).
+
+### Commits
+
+| Repo | HEAD | What |
+|------|------|------|
+| `x64` | `dd66e14` | spl-side PM fire-points (PM_EXIT/PM_REDO/PM_FAIL) + 4 syscall thunks + sbl.min decl/jsr + bootstrap regen |
+| `one4all` | `1072fc61` | controller `MONITOR_PM_NAME_WILDCARD` for cross-runtime PM compare |
+| `snobol4dotnet` | `12bd3fa` | Graft cache — dictionary keyed by `(successor, sub_pattern)` |
+
+### Status updates
+
+  S-2-bridge-7-byrd-pattern   [x] LANDED — both sides instrumented;
+                                  controller wildcards reconcile the
+                                  per-side tag asymmetry; offline
+                                  trace diff identifies first-diverged
+                                  sync-step at index #2837 (dot
+                                  loops on `*upr(tx)` instead of
+                                  returning from `match()`).
+  S-2-bridge-7-graft-cache    [x] LANDED — dot Graft cache; ~120k
+                                  graft calls reduced to bounded
+                                  cache hits; beauty self-host
+                                  completes in ~2.1s.
+  S-2-bridge-7-fullscan       [~] partial — line 48 still gating
+                                  with same 47 stderr lines.  Bug
+                                  is structural, not a perf cliff.
+                                  Next investigation: the `match()`
+                                  call against `snoProtKwds` returns
+                                  FRETURN on dot but the alternation
+                                  `snoProtKwd | snoUnprotKwd` does
+                                  not advance to the second arm —
+                                  the alt-stack save/restore around
+                                  `*match(...)` is the suspect.
+                                  Use C# `Scanner.Match` tracing
+                                  with `LITERAL_TRACE` style gate
+                                  on the specific cursor positions
+                                  identified in this session
+                                  (cursor 117 in subject `snoProtKwds`,
+                                  literal `'FULLSCAN'`).
