@@ -2066,3 +2066,209 @@ diff to close".
 - one stray `foo.baz` (empty file) at one4all/ root at session start —
   removed before commit per RULES.md "Diagnostic patches are
   diagnostic — never commit them".
+
+---
+
+## Session #26 (2026-05-01) — IC-9 advance: `<->` reversible value swap (E_REVSWAP)
+
+IC-9 IN PROGRESS / IC-8 ADVANCE.  **rung36_jcon_subjpos CLOSED** byte-identical
+to expected — first session-#25 followup pivot landed.  Five files changed in
+one4all (196 insertions, 9 deletions).  Gates clean across the board:
+smoke 5/0, broker 49/0, crosscheck 4/0/0, snobol4-smoke 7/0.
+
+**rung_36 PASS=12 → 13** (FAIL=33 → 32, XFAIL=30 unchanged).
+**Full ladder PASS=200 → 201** (FAIL=33 → 32, XFAIL=30 unchanged).
+
+### What landed
+
+Session #25 named `every <->` reversible swap as the highest-leverage next
+pivot — `subjpos` was at 56/62 byte-identical lines, the only remaining diff
+being `<->` revert behaviour, with the `icn_bb_revassign` (session #21)
+pattern as the explicit model.  This session implemented the box and
+discovered along the way a separate latent bug in scalar `:=:` keyword-OOB
+semantics that the same fix path resolved.
+
+#### 1. `E_REVSWAP` — new IR kind (was conflated with `E_SWAP`)
+
+Pre-fix: parser routed both `:=:` (TK_SWAP) and `<->` (TK_VALSWAP) to the
+same `E_SWAP` IR node, making them indistinguishable downstream.  `<->`'s
+revert-on-backtrack semantics had nowhere to live.
+
+Fix: added `E_REVSWAP` to `EKind` enum + `ekind_name[]` table in `src/ir/ir.h`
+(2 lines, before `E_KIND_COUNT`).  Updated parser at
+`src/frontend/icon/icon_parse.c:512`:
+`TK_VALSWAP` now emits `E_REVSWAP` (was `E_SWAP`).  `:=:` continues to emit
+`E_SWAP`.
+
+#### 2. Scalar `:=:` / `<->` semantics — left-to-right halt-on-keyword-OOB
+
+Discovered during subjpos diff-tracing.  Pre-fix `E_SWAP` performed both
+writes unconditionally, calling `icn_kw_assign` for keyword sides and
+silently ignoring its return value.  When `&pos := N` OOB-failed silently,
+the *other* side still wrote, leaving state half-swapped.
+
+Subjpos.expected lines 57/58 give the actual contract:
+
+  ```
+  &pos := 3; x := 9; &pos :=: x   →  &pos=3, x=9   (lhs OOB-fails → halt; x untouched)
+  &pos := 3; x := 9; x :=: &pos   →  &pos=3, x=3   (lhs writes; rhs OOB-fails → halt)
+  ```
+
+The semantics is **not atomic all-or-nothing** (my first analysis was wrong)
+but **left-to-right halt-on-fail**: write `rv → lhs`; if it OOB-fails, stop
+immediately; else write `lv → rhs`; if it OOB-fails, stop.  Partial writes
+are kept.  The whole expression returns FAILDESCR on partial-OOB so the
+enclosing statement no-ops (which is fine — `x :=: y` as an expression
+statement just terminates that statement on fail; subsequent statements
+run normally).
+
+Fix in `src/driver/interp.c` E_SWAP case (~line 4660): rewrote to halt-on-fail
+order with proper `icn_kw_assign` return-value gating.  Added an exact-mirror
+`E_REVSWAP` case below it for the standalone path (outside `every`, `<->`
+behaves like `:=:` — no driver to backtrack against).
+
+This fixes a latent bug session #25 introduced (silent-keyword-OOB on
+`:=:`) but didn't surface as a PASS-count regression because no rung_36
+PASS depended on the broken behaviour — only subjpos's still-FAIL state
+made the wrong outputs visible.
+
+#### 3. `icn_bb_revswap` Byrd box — α swap, β revert
+
+New box in `src/runtime/interp/icn_runtime.c` modeled directly on
+`icn_bb_revassign` (session #21).  State struct carries `lhs_expr`,
+`rhs_expr`, both saved values, and `lhs_written` / `rhs_written` flags
+that record which writes α actually committed.
+
+  α: `interp_eval(lhs)` and `interp_eval(rhs)` for read; snapshot both;
+     write `rv → lhs` (halt-on-fail, return FAILDESCR if so); else
+     `lhs_written=1`; write `lv → rhs` (halt-on-fail); else
+     `rhs_written=1`; return rv.
+
+     When `every` sees FAILDESCR from α, the body never runs and β is
+     never called — so partial writes (lhs committed, rhs OOB) are left
+     in place.  Subjpos.expected line 60 confirms this is correct:
+     `&pos:=3; x:=9; every x <-> &pos do write` produces no body output
+     and post-loop `&pos=3 x=3` (lhs `x` got 3 from the partial α; β
+     never fires).
+
+  β: revert in same left-to-right order with short-circuit on failure.
+     Try saved-lhs → lhs.  If it OOB-fails, stop — do NOT try rhs revert.
+     Else try saved-rhs → rhs.  Return FAILDESCR (every exits).
+
+     The asymmetric short-circuit produces the JCON-confirmed pattern in
+     subjpos.expected lines 61/62:
+     ```
+     every &pos <-> x do &subject := "A"   →  &pos=1 x=3   (lhs revert OOB → neither reverted)
+     every x <-> &pos do &subject := "A"   →  &pos=1 x=2   (lhs reverts; rhs OOB → only lhs)
+     ```
+     In line 61, body sets &subject="A" so subj-len becomes 1, then β tries
+     `&pos := saved=3` — OOB on len-1 → halt → x's revert also skipped.
+     In line 62, β reverts `x := saved=2` cleanly, then `&pos := saved=3`
+     OOBs → x's revert stays committed.
+
+Wired into `icn_eval_gen` (after `E_REVASSIGN` block, before scalar-literal
+fallback) and `icn_is_gen` (always true, like `E_REVASSIGN`).
+
+#### 4. `icn_kw_assign` un-staticed; `icn_kw_can_assign` probe added
+
+The Byrd box lives in `icn_runtime.c` (different translation unit from
+`interp.c`).  `icn_kw_assign` was `static` — un-staticed and declared in
+`src/runtime/interp/icn_runtime.h` so the box can call it for keyword writes.
+
+Also added `icn_kw_can_assign` probe variant (returns 1 if write would
+succeed without writing).  Currently unused — was used during the wrong
+"atomic" first attempt; kept as a building block since it's small and
+may be useful for future contexts where probe-then-commit is the right
+shape.  `-Wno-unused-function` is set in the build flags so this doesn't
+warn.
+
+### Build hazard re-encountered (header change)
+
+`src/runtime/interp/icn_runtime.h` got two new function decls.  Per session
+#16 / session #25 lessons, ran `find src -name '*.o' -delete && bash
+scripts/build_scrip.sh` to ensure all consumers picked up the new header.
+Adding function decls (vs. struct field reorderings) is technically safe
+without clean rebuild, but doing it anyway is cheap insurance.  No symptoms
+of stale-object hazard observed — gates passed first run after rebuild.
+
+### Wrong-analysis lesson — keep this for future sessions
+
+I burned ~2 rounds on the wrong semantic model before tracing
+subjpos.expected line by line.  My first model was "atomic all-or-nothing"
+(probe both keyword writes; abort whole α if either OOBs).  That fits some
+of the expected lines but not all.
+
+The rule that fits ALL eight subjpos.expected lines (55-62) is **left-to-right
+halt-on-fail at α, left-to-right short-circuit-on-fail at β**.  Specifically:
+
+- α success path: both writes commit.
+- α partial-fail (lhs writes, rhs OOBs): lhs stays committed, body never
+  runs, β never called.  Net: half-swap visible after the every.
+- α full-fail (lhs OOBs immediately): nothing written, body never runs.
+- β path: try lhs revert first; on success try rhs revert; on either
+  OOB, stop.  Body's effects on subj/pos state can mutate the keyword's
+  valid range mid-flight, so revert-OOB is a real failure mode.
+
+The lesson: when the test suite gives you 8 expected output lines and 4
+distinct combinations of LHS/RHS keyword/non-keyword shapes, **trace each
+one through your model before committing to a refactor**.  My intuition
+"surely it's atomic" cost more time than 5 minutes of paper tracing would
+have saved.
+
+### Tests that exercise this path going forward
+
+- **rung36_jcon_subjpos** — primary gate for `<->` and `:=:` semantics.
+  Closed this session.
+- **rung36_jcon_evalx** — has both `<->` and `:=:` in image() expression
+  contexts; XFAIL today (multi-feature, includes co-expressions and
+  &fail).  My change to E_SWAP scalar semantics may shift its diff but
+  not its FAIL status.
+- **rung15_real_swap_swap_str** — non-keyword `a :=: b`; pre-existing
+  trailing-newline FAIL unchanged.  Verified by stash-test that the FAIL
+  pre-dates my edits.
+- **ipl/gprogs/proto.icn** (rung36_jcon_proto) — uses `x <-> y` with
+  non-keyword vars; remains PASS.
+
+### Files
+
+- `src/ir/ir.h` (+2 lines: enum entry + name table)
+- `src/frontend/icon/icon_parse.c` (1-line change: TK_VALSWAP routes to E_REVSWAP)
+- `src/driver/interp.c` (+~62 lines: icn_kw_can_assign, E_SWAP rewrite,
+  E_REVSWAP standalone case; un-static icn_kw_assign)
+- `src/runtime/interp/icn_runtime.h` (+7 lines: icn_kw_assign + icn_kw_can_assign decls)
+- `src/runtime/interp/icn_runtime.c` (+~124 lines: icn_revswap_state_t,
+  icn_revswap_write, icn_revswap_read, icn_bb_revswap, E_REVSWAP entry
+  in icn_is_gen, E_REVSWAP wire in icn_eval_gen)
+
+Total: 5 files, 196+/9-.
+
+### Followup candidates ranked by surface area (from session #25's list,
+### updated)
+
+1. **`scan1` OOM diagnosis** — likely single bad-cast bug; fix could be
+   tiny if the cause is simple.  Run with limited heap + gdb to catch
+   the runaway allocation site.
+
+2. **Procedure values + `image(p)`** — affects `mathfunc`, `numeric`,
+   `lists` (via `args`), `var`.  Single new descriptor type
+   (DT_PROC tag on DT_DATA, or a fresh DT_FN), plus image formatting.
+   ~3 files.
+
+3. **`100 -- 4` cset-difference on integers** — single site in the `--`
+   operator handler; closes one diff line on `rung36_jcon_radix` per
+   session #24's catalog.
+
+4. **`&random` keyword seeding** — RNG state for `&random := N`.
+   Independent of session #20's `?` random LCG; needs a global `&random`
+   slot wired to both read and write.
+
+### Working-tree state at handoff
+
+- one4all advanced to `634d9701` (5 files: `src/ir/ir.h`, `src/frontend/icon/icon_parse.c`,
+  `src/driver/interp.c`, `src/runtime/interp/icn_runtime.h`,
+  `src/runtime/interp/icn_runtime.c`).  Total 196+/9-.
+- .github dirty (this update + PLAN.md state row update)
+- corpus clean, csnobol4 clean, x64 clean
+- one stray `foo.baz` (empty file) at one4all/ root at session start —
+  same scratch shape sessions #19–#25 cleaned.  Removed before commit
+  per RULES.md "Diagnostic patches are diagnostic — never commit them".
