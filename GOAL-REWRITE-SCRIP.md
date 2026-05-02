@@ -15,15 +15,20 @@
   (2) `EKind` → `EXPR_e`, `ekind_name` → `expr_e_name` — 15 files, one4all @ `169c9de3`
   Build clean, smoke_snobol4 7/7, unified_broker 49/0 after both.
 
-## Open rungs
+- [x] **RS-1** — Eliminate `SnoGoto` struct; flatten its 6 fields directly into `STMT_t` (session 2026-05-02).
+  Deleted `SnoGoto` typedef and `sgoto_new()` from `scrip_cc.h`. Added 6 flat fields to `STMT_t`:
+  `goto_s`, `goto_f`, `goto_u` (char*); `goto_s_expr`, `goto_f_expr`, `goto_u_expr` (EXPR_t*).
+  Parser rewritten: `snobol4.y` `stmt` rules enumerate all 6 goto combinations (none, :(L), :S(L),
+  :F(L), :S(L)F(M), :F(M)S(L)) explicitly; `goto_label_expr` returns `EXPR_t*` (E_QLIT for plain
+  label, computed expr otherwise); `commit_go` takes 3 EXPR_t* scalars (gu, gs, gf), no struct.
+  Updated all consumers: `interp.c`, `sm_lower.c`, `eval_code.c`, `snocone_parse.y`,
+  `rebus_lower.c`, `net/IrNode.cs`, `net/Snobol4Parser.cs`, `net/Executor.cs`,
+  `jvm/Parser.java`, `jvm/Interpreter.java`.
+  Bonus: `Program→CODE_t` and `EKind→EXPR_e` completed in `snobol4.y`, `snobol4.l`,
+  `snocone_parse.y`, `raku.y` (missed by RS-0).
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-- [ ] **RS-1** — Eliminate `SnoGoto` struct; flatten its 6 fields directly into `STMT_t`.
-  Fields to add to STMT_t: `goto_s`, `goto_f`, `goto_u` (char*); `goto_s_expr`, `goto_f_expr`, `goto_u_expr` (EXPR_t*).
-  Delete: `SnoGoto` typedef, `sgoto_new()`, `SnoGoto *go` field from STMT_t.
-  Update: `snobol4.y` parser actions (source, not .tab.c); consumers in `interp.c` (~12 sites),
-  `sm_lower.c` (~4 sites), `eval_code.c` (~6 sites), `ir_print_stmt` (3 sites).
-  Search token: `->go->` and `s->go` catches all ~180 references.
-  Non-SNOBOL4 frontends already leave go=NULL; after flatten they just leave all 6 fields NULL.
+## Open rungs
 
 - [ ] **RS-2** — Complete `CODE_t` migration in PLAN.md goals table and any remaining doc references.
 
