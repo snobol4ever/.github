@@ -2754,3 +2754,184 @@ continues, but session #67 has the smallest precise target yet:
 "zero entries in this specific PDL range at this specific point, gated
 on FNCDCL presence."  Not a structural redesign, just an additional
 small surgery at L_STARP2.
+
+---
+
+## Session #67 update — A2 zeroing landed for Cluster B; refutes session #66 framing for Cluster A (NO runtime change committed)
+
+Session #67 implemented session #66's recommended option (A2): apply the
+L_FNCD goto-L_TSALT patch + add zeroing of non-FNC slot[1]s in the leak
+region at L_STARP2 success, gated on FNCDCL presence.
+
+### Gates after composed s67 fix
+
+| Gate | s64/s65/s66 baseline | **s67 (composed)** |
+|------|--------------|-------------------|
+| guard5 | OK | **OK** ✓ |
+| fence_function | 10/10 | **10/10** ✓ |
+| Tier F (132–147) | 16/16 | **16/16** ✓ |
+| fence_suite total | 46/7/0 | **47/6/0** (gained test 124) |
+| beauty self-host | 42 lines | (not measured) |
+
+Three gate variants for A2 tested:
+
+| Variant | Cluster A | guard5 |
+|---------|-----------|--------|
+| A2 + FNCDCL-in-current-region (s66 plan) | unchanged | OK |
+| A2 + FNCDCL-anywhere-PDLHED..PDLPTR (committed shape) | unchanged | OK |
+| A2 + unconditional zero | **FIXED 51/2/0** | **BROKEN** |
+
+### Genuinely-new finding: refutes session #66 framing
+
+Trace evidence on test 148 (env-gated `A2_TRACE=1`) shows that **STARP2 #1
+fires BEFORE FNCA runs anywhere on PDL**. The bug entry `{a=0x60}` lives
+in STARP2 #1's leak region, but at that moment FNCDCL doesn't exist
+ANYWHERE on PDL. Session #66 hypothesized the bug entry was a "leaked
+inner-FENCE alt-cont" between STREXCCL sentinels — that framing requires
+FENCE to have run, but FENCE hasn't run at STARP2 #1 time.
+
+The leak source is therefore NOT FENCE's inner alt-conts. Some pattern
+matching activity inside STARP6 #1's SCIN call pushes the `{a=0x60}` entry
+and never cleans it up. The walker later mis-routes through it because
+STARP2 #1's STREXCCL pair switches PATBCL=cmd, and 0x60 happens to be a
+valid offset inside cmd's compiled pattern (the 'ab' alt of `'a'|'ab'`).
+
+### Five fix candidates documented for session #68
+
+1. Side-channel `fence_active` flag (timing wrong — see findings).
+2. Tag SCIN3 pushes with FENCE-context metadata (invasive).
+3. Validate slot[1].a range against PATBCL pattern size at L_STREXC time.
+4. Walk PDL deeper than STREX_entrypdl (to PDLHED) — risky.
+5. **Investigate STARP6 #1's identity** to find the source primitive.
+
+### Recommended session #68 plan
+
+1. Apply `docs/F-2-Step3a-session67-A2-attempt.diff` (composed fix; gains
+   test 124, all floors preserved).
+2. Apply `docs/F-2-Step3a-session67-diagnostic.diff` for trace
+   instrumentation.
+3. Tag every SCIN3 push with the PATBRA case that dispatched into it. Run
+   test 148. Find which case pushed the `{a=0x60}` entry. The entry was
+   pushed during STARP6 #1's SCIN call.
+4. Examine that primitive's success-path cleanup. Likely missing a PDLPTR
+   rewind step.
+5. Test gates: guard5, fence_function 10/10, Tier F 16/16, fence_suite
+   ≥51/53 (target 53/53 minus bug-2 = 127/152).
+6. If beauty advances ≥500 lines: commit + close F-2 Step 3a.
+
+### Files this session
+
+- `csnobol4/docs/F-2-Step3a-session67-A2-attempt.diff` — composed patch
+  (54 lines): L_FNCD goto-L_TSALT + A2 zeroing with PDLHED gate.
+- `csnobol4/docs/F-2-Step3a-session67-diagnostic.diff` — instrumentation
+  (96 lines): STARP6/DSARP2 entry counters, A2 STARP2 PDL dump with FNC-
+  case identification, FNCA-success FNCDCL placement log. Env-gated
+  `A2_TRACE=1`.
+- `csnobol4/docs/F-2-Step3a-session67-findings.md` — full investigation
+  with trace excerpts and five fix candidates.
+- This goal-file update + PLAN.md state cell.
+- No runtime source changes committed. Working tree: only the three new
+  docs files untracked. Build verified at baseline (46/7/0).
+
+### Honest checkpoint
+
+Sessions #44–#67 = 24 sessions on F-2 Step 3a. fence_function preserved
+10/10. Tier F preserved 16/16 since #55. fence_suite at 46/7/0 since #65;
+session #67 bumps to 47/6/0 with composed fix (Cluster B closed, NOT
+committed because Cluster A unchanged).
+
+Session #67's contribution: empirical refutation of session #66 framing,
+plus a clean composed patch that closes Cluster B and a clear next-session
+diagnostic target (the STARP6 #1 source primitive identity).
+
+---
+
+## Session #67 update — Byrd Box FENCE per user direction (NO runtime committed)
+
+After A2 attempts and the empirical refutation of session #66's framing,
+user requested a structurally different approach: implement FENCE as a
+proper Byrd Box (4 ports: alpha/beta/gamma/omega) with per-instance local
+storage on C-stack, replacing the cstack PUSH/POP save/restore scheme.
+
+### BB Implementation
+
+`csnobol4/docs/F-2-Step3a-session67-BB-FENCE.diff` (202 lines).
+
+Key design:
+- **C-stack-local storage** via `struct fnc_bb` at top of `SCIN1` — each
+  SCIN1 frame owns its own. Nested FENCEs get their own SCIN1 frame.
+  Immune to RSTSTK and nested-SCIN cstack manipulation.
+- **Two-trap protocol:** alpha pushes SCFLCL (inner-base sentinel); beta
+  replaces it in-place with FNCDCL (the seal).
+- **PDL truncation at beta:** `D_A(PDLPTR) = fence_trap_pos` drops any
+  leaks P pushed. Makes the seal physical rather than relying on walker
+  cooperation.
+- **No cstack PUSH/POP** — entire save/restore is C-locals.
+
+### Gate results — BB FENCE
+
+| Gate | s64 baseline | **s67 BB** | s67 A2 |
+|------|--------------|------------|--------|
+| guard5 | OK | **OK** ✓ | OK |
+| fence_function | 10/10 | **10/10** ✓ | 10/10 |
+| Tier F (132–147) | 16/16 | **16/16** ✓ | 16/16 |
+| fence_suite | 46/7/0 | **46/7/0** | 47/6/0 |
+
+BB closes Cluster B (test 124) like A2 but regresses 150 — same trade-off
+the L_FNCD-only attempt session #65 hit. **Net suite count unchanged from
+baseline.** A2 is gate-incrementally better; BB is architecturally better.
+
+### Why BB doesn't close Cluster A
+
+Cluster A's bug entry is pushed by ARBNO/STAR machinery **before** any
+FENCE machinery runs (session #67 earlier finding via trace). BB truncation
+only drops leaks inside P's matching scope. Leaks from outer ARBNO are
+below the FENCE trap and shouldn't be touched (they belong to outer scope).
+
+The bug is **structurally outside FENCE**. No FENCE rewrite — clean BB or
+otherwise — can close Cluster A.
+
+### Architectural verdict
+
+BB FENCE is strictly cleaner than the previous cstack-PUSH/POP scheme:
+- 9-PUSH/9-POP per call → 9 C-local assignments per call
+- No RSTSTK hazard
+- No SAVSTK/cstack interaction with nested SCIN
+- 4 ports clearly labeled
+- Physical seal via truncation
+
+**A2 zeroing on top of BB FENCE would close 150** without disturbing the
+BB structure (orthogonal concerns: BB cleans inner-scope PDL at FENCE
+boundaries, A2 cleans outer-scope PDL leaks at L_STARP2).
+
+### Recommended session #68 plan
+
+1. Apply `docs/F-2-Step3a-session67-BB-FENCE.diff` (architectural foundation).
+2. Apply A2 zeroing on top (L_STARP2 hook with FNCDCL-anywhere gate) to
+   recover test 150 and gain test 124. Expected: 47/6/0 with cleaner code.
+3. Pivot Cluster A diagnosis to STARP6 #1's source primitive — find
+   which PATBRA case dispatched the SCIN3 push that left `{a=0x60}` on
+   PDL during STARP6 #1's inner SCIN. That primitive's success path is
+   missing a PDLPTR rewind step.
+4. If fix lands and beauty advances ≥500 lines: commit + close F-2 Step 3a.
+
+### Files this session (final)
+
+- `csnobol4/docs/F-2-Step3a-session67-A2-attempt.diff` — 54 lines
+  (composed L_FNCD goto-L_TSALT + A2 zeroing with PDLHED gate; gives 47/6/0).
+- `csnobol4/docs/F-2-Step3a-session67-BB-FENCE.diff` — 202 lines
+  (Byrd Box FENCE; gives 46/7/0, architecturally cleaner).
+- `csnobol4/docs/F-2-Step3a-session67-diagnostic.diff` — 96 lines
+  (env-gated `A2_TRACE=1` instrumentation).
+- `csnobol4/docs/F-2-Step3a-session67-findings.md` — full findings.
+- This goal-file update + PLAN.md state cell.
+- No runtime committed. csnobol4 working tree at HEAD `451ccae`.
+
+### Two competing patches, neither closes F-2
+
+A2: gate-incremental gain (47/6/0), uses zeroing as workaround.
+BB: architectural cleanup (46/7/0), structural foundation for future work.
+
+Session #68 should compose BB + A2 (orthogonal — BB is FENCE-internal, A2
+is L_STARP2-external) and pivot to STARP6 #1 source-primitive diagnosis
+for the remaining Cluster A tests.
