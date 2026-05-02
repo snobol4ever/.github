@@ -27,6 +27,10 @@ scrip --ir-run /home/claude/corpus/programs/snocone/corpus/sc1_literals.sc
 # → hello / world / 42
 ```
 
+**⚠️ DO NOT run `find` or `ls -R` on the repos.** The file listings are enormous
+and consume most of the context window before any work is done. Navigate directly
+to the files named in this goal file.
+
 ---
 
 ## Architecture
@@ -141,6 +145,8 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   shape (beauty.sno style) but proceed with recursive-descent until beauty.sc lands.
   Confirm Snocone needs ~20 of 90 EKind values. Confirm struct (DATA) is the right
   representation. (Session 2026-05-02)
+
+- [ ] **SS-2a** — Analyze SCRIP C interp code: read `one4all/src/driver/interp.c` and identify exactly which EKind values the Snocone frontend emits, what the eval dispatch looks like for those ~20 kinds, and what `val_to_str` needs to handle. Write findings here before writing any `.sc` files.
 
 - [ ] **SS-2** — `value.sc`: Val struct + value helpers.
   ```
