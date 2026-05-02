@@ -3131,3 +3131,205 @@ Graft cache landed (snobol4dotnet `12bd3fa`).
                                   identified in this session
                                   (cursor 117 in subject `snoProtKwds`,
                                   literal `'FULLSCAN'`).
+
+---
+
+## Session #79 — 2026-05-02 (Sonnet / Lon)
+
+**Outcome:** No commit. Honest meta-session. Tree clean across all repos.
+HEADs unchanged: snobol4dotnet `12bd3fa`, x64 `dd66e14`, one4all `f95817cd`.
+
+### What ran
+
+1. Set up clean.  Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+   `x64`.  Installed `dotnet-sdk-10.0` (10.0.107) and `nasm`.
+   snobol4dotnet build clean.  Beauty self-host baseline confirmed: exit 0,
+   47 stderr lines, Parse Error at line 48 (`snoDQ = '"' BREAK('"' nl) '"'`).
+
+2. Re-applied per-session-#71/#74 the diagnostic instrumentation
+   (`.orig`-backed, reverted before end):
+   - `MonitorIpc.cs`: made `_emitCount` increment standalone (without IPC
+     pipes) so `MONITOR_TRACE_FROM_EVENT` / `MONITOR_TRACE_TO_EVENT` /
+     `MONITOR_BREAK_AT_EVENT` work without a controller.
+   - `Scanner.cs Match()`: `[M]` traces at every CALL/EXIT/FAIL/REDO/
+     RESTORE/GOTO, gated on `MonitorIpc.TraceEnabled`.
+   - `ScannerState.cs`: `AltDepth` and `AltStackDump()` diagnostic helpers.
+   - `PatternMatch (Question Mark).cs`: `[QPM]` traces at PatternMatch
+     entry/exit and BetaStack assignment loop iteration.
+
+3. Ran beauty self-host with full standalone trace.  Findings:
+   - Final `_emitCount` reached ~6391 by Parse Error time (vs session
+     #78's #2839, because line-26 was closed in #71 — different baseline).
+   - The OUTER (whitespace-leading) `PatternMatch` calls stop at ec=5826
+     (line 37 `ppStop[3]` FAILURE).  No outer PatternMatch with line-48
+     content ever returns successfully — and from ec=6079 onward, only
+     INNER `*match(snoFunctions, snoTxInList)` /
+     `*match(snoBuiltinVars, …)` / `*match(snoSpecialNms, …)` events fire.
+   - Tracing from ec=6390 onward, the same triple repeats every ~310
+     emit-events for 90+ cycles before the program is killed by a 90s
+     timeout.  Untraced clean run completes in ~9.5s.  Cursor pinned at
+     `cur=26` while the alt stack restores grafted-sub-AST nodes
+     repeatedly (`[..., 2247, 2227, 2222, 2182, 2177, 2176, ...]`).
+
+4. **Catastrophic backtracking confirmed.**  This corroborates session
+   #74's diagnosis that line 48 is the same alt-link bug shape as line
+   26: an `Alternate` link in the snoExpr17 sub-AST should chain through
+   `*snoString` / `*snoReal` / `*snoInteger` (arms 7–9) but instead
+   loops back to the keyword-list arms (2–5), so the `'"'` literal is
+   never tried via `*snoString`.
+
+### Honest assessment of the strategy across sessions #56–#79
+
+- **Bug count closed via the wire-monitor strategy across all sessions: 1.**
+  Session #71's BetaStack-failure-leak was found by `[QPM]` C# tracing
+  between adjacent IPC events and committed as `92b79be`.  Beauty
+  self-host advanced 28 → 47 stderr lines.
+- **Sessions #73, #74, #75, #76, #77, #79 — diagnostic-only, no commit
+  for the structural bug.**  Each session named `AbstractSyntaxTree.
+  ComputeAlternate` / `Graft` / `PatternAlternation (Pipe).cs` as the
+  suspect site and declined to read those files end-to-end in favour of
+  more wire instrumentation.
+- **The wire instrumentation IS the deliverable, however** — every
+  session has moved S-2-bridge-7-byrd-pattern forward.  Session #75
+  landed dot-side PM emits.  Session #78 landed three of four spl-side
+  ports (PM_EXIT, PM_REDO, PM_FAIL) plus the Graft cache (~120k Graft
+  calls collapsed to bounded cache hits, beauty self-host 30s+ timeout
+  → 2.1s).  Controller wildcards reconcile cross-runtime tag asymmetry.
+- **The fourth port — PM_CALL — was deferred at session #78** as
+  "would need every `p_xxx` opcode instrumented; not needed for
+  divergence localisation."  This session re-examined that decision
+  and identified a NARROWER placement that closes the gap with one
+  line of `sbl.min`: `jsr pmcll` immediately before the `bri xl` in
+  `succp` at line ~16839.
+
+### Why the narrow PM_CALL placement is correct
+
+`succp` is the SPITBOL match-graph's universal successor-dispatch
+landing pad.  Every time a node Scan returns SUCCESS, control passes
+through `succp`'s three-instruction sequence:
+
+    mov  xr,pthen(xr)     load successor node
+    mov  xl,(xr)          load node code entry address
+    bri  xl               jump to match successor node
+
+`pmext` already fires at the top of `succp` (PM_EXIT for the predecessor
+node).  Adding `jsr pmcll` between `mov xl,(xr)` and `bri xl` fires
+PM_CALL for the SUCCESSOR node BEFORE control transfers, with `xr` =
+node, `xl` = code-entry address — exactly the convention the C
+`zpmcll` already expects (line 635 of `monitor_ipc_runtime.c`).
+
+This single placement does NOT cover the very first node entered at
+the start of a match — only successor dispatches.  That is acceptable
+because PatternMatch entry is already on the wire as the `?` operator
+invocation (CALL `match` etc.).  Per-`p_xxx`-opcode instrumentation
+(the broader-coverage approach session #78 deferred) remains available
+as a future refinement if a bug ever requires it.
+
+### Open work — exact 14-step plan for next session
+
+The next session opens this goal file, finds this list, and executes
+it in one window with no diagnostic detours:
+
+1. **`x64/sbl.min` line ~16839** — between `mov  xl,(xr)` and
+   `bri  xl` in `succp`, insert one line:
+   ```
+          jsr  pmcll           S-2-bridge-7-byrd-pattern: emit PM_CALL (xr=node,xl=code)
+   ```
+
+2. **Verify nasm installed.**  `apt-get install -y nasm` if missing.
+
+3. **`make bootsbl`** (in `/home/claude/x64`) — produces the
+   bootstrap `sbl` from the committed `bootstrap/sbl.asm`.  Place
+   the result as `bin/sbl` (`cp bootsbl bin/sbl`).
+
+4. **`make sbl`** (in `/home/claude/x64`) — uses bootsbl to
+   regenerate `sbl.asm` and `err.asm` from our edited `sbl.min`.
+   Final `sbl` binary ends up at `bin/sbl`.
+
+5. **Copy regenerated artifacts to `bootstrap/`** per RULES.md
+   "Source-of-truth — patch source, regenerate; never edit a
+   generated file":
+   ```
+   cp sbl.asm bootstrap/sbl.asm
+   cp err.asm bootstrap/err.asm
+   ```
+
+6. **PM trace smoke (standalone, dot side already validated session
+   #75).**  Run a tiny pattern test under `SPL_PM_TRACE=1`:
+   ```
+   SPL_PM_TRACE=1 /home/claude/x64/bin/sbl -b - <<'EOS'
+       &ANCHOR = 0; &FULLSCAN = 1
+       OUTPUT = 'hi' ? ('h' | 'g') 'i'
+   EOS
+   ```
+   Expect PM_CALL events bracketing each PM_EXIT/REDO/FAIL — eyeball
+   to confirm CALL events now appear on the wire from spl.
+
+7. **SPL beauty self-host oracle gate** — Milestone 1 invariant:
+   ```
+   cd /home/claude/corpus/programs/snobol4/demo/beauty
+   /home/claude/x64/bin/sbl -bf beauty.sno < beauty.sno > /tmp/spl.out
+   md5sum /tmp/spl.out  # MUST equal abfd19a7a834484a96e824851caee159
+   ```
+   If md5 differs, the `pmcll` insertion has corrupted SPITBOL
+   semantics — revert and rethink placement.
+
+8. **Beauty 17/17 corpus drivers** — zero regression required.
+
+9. **Two-way harness on line-48 minimal repro.**  Run
+   `PARTICIPANTS="spl dot"` with `SPL_PM_TRACE=1 MONITOR_PM_TRACE=1`
+   on a single-line input that exercises the line-48 failure.
+   Expect: first DIVERGE row now names a specific PM_CALL event
+   inside snoExpr17 alternation traversal — adjacent to the
+   structural Alternate-link bug.  This is the test that the
+   wire-monitor closes the diagnosis gap.
+
+10. **Commit `x64`** as `LCherryholmes`:
+    ```
+    git -C /home/claude/x64 add sbl.min bootstrap/sbl.asm bootstrap/err.asm
+    git -C /home/claude/x64 commit -m "S-2-bridge-7-byrd-pattern: spl PM_CALL fire-point at succp dispatch — fourth Byrd port now on wire"
+    ```
+
+11. **Push x64**:
+    ```
+    git -C /home/claude/x64 pull --rebase
+    git -C /home/claude/x64 push
+    ```
+
+12. **Update `GOAL-NET-BEAUTY-SELF.md`** — mark S-2-bridge-7-byrd-
+    pattern as `[x] LANDED — all four Byrd-box ports`, add a session
+    #80 narrative recording the harness validation at step 9,
+    update S-2-bridge-7-fullscan with whatever the new first-DIVERGE
+    row reveals.
+
+13. **Update `PLAN.md` row 135** watermark to S-2-bridge-7-byrd-
+    pattern-LANDED with new step ID for the next active rung.
+
+14. **Push `.github` last** per RULES.md handoff:
+    ```
+    git -C /home/claude/.github add -A
+    git -C /home/claude/.github commit -m "GOAL-NET-BEAUTY-SELF: S-2-bridge-7-byrd-pattern LANDED; PLAN.md watermark"
+    git -C /home/claude/.github pull --rebase
+    git -C /home/claude/.github push
+    ```
+
+### Hand-off state — session #79
+
+- **All five repos clean.**  No `.orig` files.  No diagnostic patches.
+- **HEADs unchanged from session #78:** snobol4dotnet `12bd3fa`, x64
+  `dd66e14`, one4all `f95817cd`, corpus and `.github` from clones.
+- **Beauty self-host gate unchanged:** exit 0, 47 stderr lines, Parse
+  Error at line 48.  SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159`
+  (Milestone 1 invariant intact).
+- **Goal-file edits this session:** this narrative only.
+
+### Status updates
+
+  S-2-bridge-7-byrd-pattern   [~] partial — PM_CALL placement decided
+                                  (succp pre-dispatch).  14-step
+                                  execution plan above.
+  S-2-bridge-7-fullscan       [~] partial — line-48 catastrophic
+                                  backtrack confirmed empirically;
+                                  same alt-link bug class as line 26.
+                                  Awaiting PM_CALL on wire to localise.
+
