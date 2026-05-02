@@ -1,5 +1,40 @@
 # GOAL-SNOCONE-BEAUTY — beauty.sc Self-Beautifies via scrip
 
+## ⏸ ON HOLD — session 2026-05-02 #19
+
+Per Lon (this session): "you will never find it then. You have no
+methodology to find it. So the end of that. Put this goal on hold."
+
+**Why on hold.** Three sessions (#9, #65/#66, #67/#18) attempted to
+localise SB-6.E.7-H — the runtime bug that is now the sole lever
+moving the SB-6 fingerprint forward. Each session produced a different
+framing (rollback / leak / failure-walker / abandoned-seal) without
+the framings converging or a fix landing. The bug only triggers under
+the full beauty.sc + 16-lib configuration; minimal reproducers in
+isolation do not surface it. Without a way to bisect from the full
+configuration down to a small diagnostic harness, the bug is unreachable
+by the standard methodology this project uses elsewhere.
+
+**State at hold.** Three baseline gates green throughout
+(smoke_snocone PASS=5, beauty_snocone_all_modes PASS=42 SKIP=3,
+smoke_unified_broker PASS=49). SB-6 fingerprint: `lines=98 stderr=4488
+parse_err=12 internal_err=0 rc=124, 19 hunks vs oracle`.
+SB-6.E.7-J COMPLETE on .sc side (session #18 main-loop goto port).
+All 16 lib .sc files body-part-faithful to their .inc counterparts.
+
+**Resumption criterion.** Reopen this goal when a new diagnostic
+angle on SB-6.E.7-H surfaces — e.g. a way to bisect *Parse's grammar
+in-place, an instrumented trace harness that captures last-agree /
+first-disagree records between scrip and SPITBOL across the full
+match, or a compiler/runtime change elsewhere that incidentally
+exposes the bug in a smaller form.
+
+The goal text below is preserved as-is for the resumption session.
+
+---
+
+# (original goal — on hold) beauty.sc Self-Beautifies via scrip
+
 **Repo:** one4all
 **Done when:** `./scrip --ir-run test/beauty-sc/beauty/beauty.sc < input.sno`
 produces output byte-for-byte identical to SPITBOL running `beauty.sno` on
