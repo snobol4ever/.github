@@ -172,7 +172,13 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   **`E_CAT`/`E_SEQ`:** In Snocone (non-Icon) mode, `E_CAT` and `E_SEQ` are both
   string concatenation. Null string identity rule applies (null cat x = x).
 
-  **`E_SCAN`:** In SNOBOL4/Snocone mode (non-Icon, `icn_frame_depth==0`),
+  **Pattern primitives (SPAN, BREAK, ANY, LEN, POS, TAB, ARB, REM, FENCE, ARBNO, NOTANY):**
+  These have dedicated `E_SPAN`, `E_BREAK` etc. IR nodes, but the Snocone frontend
+  does **not** emit them — all pattern primitives go through `E_FNC` with the name
+  as sval (e.g. `E_FNC("SPAN", arg)`). They are dispatched at runtime via `APPLY_fn`
+  into the SNOBOL4 runtime. So `interp.sc` does not need dedicated cases for them.
+
+
   evaluates subject as string, evaluates pattern in pat context, calls `exec_stmt`,
   returns NULVCL on success or FAILDESCR on failure.
 
