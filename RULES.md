@@ -691,25 +691,3 @@ diff between the two paths must come back empty.
 Makefiles, or CI. Symlinks break silently when targets move or are deleted
 (see corpus fbab26b incident). Use real files, copies, or path variables
 instead.
-
----
-
-## Session start protocol — every session, no exceptions
-
-Lon names a goal. You:
-
-1. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
-2. Read `PLAN.md`. Find the named goal in the Active Goals table.
-3. Read `RULES.md` in full (this file).
-4. Open that Goal file. It names the repo. Open that repo's REPO file.
-5. Run the scripts listed in the Goal file's `## Session Setup` section.
-6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
-
-## Session trigger phrases
-
-| Lon says | Meaning |
-|----------|---------|
-| "here we go" | Session starting — proceed with session start protocol above |
-| "perform hand off" | End of session — update goal state, commit, push per handoff rules above |
-| "perform emergency hand off" | Same, but note breakage explicitly in commit message |
-| "grand master reorg" | HQ system work — the goal is improving the HQ itself |
