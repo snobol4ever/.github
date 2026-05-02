@@ -76,7 +76,7 @@ regexes, type system, `use` module imports.
   can drive via BB_PUMP.
 
 - [x] **RK-4** — `src/frontend/raku/raku_driver.c` + `raku_driver.h`.
-  `raku_compile(src, filename) → Program*`.
+  `raku_compile(src, filename) → CODE_t*`.
   Sets `st->lang = LANG_RAKU` on each STMT_t.
   Gate: `scrip --ir-run file.raku` runs a hello-world snippet.
 
@@ -360,7 +360,7 @@ RK-3 (raku_lower.c): 28/28 PASS. HEAD 77ef905d
     with icon_lower layout (ival=nparams=0, children[0]=name-node)
 
 RK-4 (raku_compile, --ir-run): DONE. HEAD e43b8dcc
-  - raku_compile(src,filename)→Program* added to raku_driver.c/h
+  - raku_compile(src,filename)→CODE_t* added to raku_driver.c/h
   - scrip.c: .raku files now use raku_compile() → full --ir-run path
   - LANG_RAKU shares icn_proc_table with LANG_ICN (same E_FNC shape)
   - polyglot_init, execute loop, post-loop dispatch all handle LANG_RAKU

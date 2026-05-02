@@ -161,7 +161,7 @@ Both scripts are idempotent. If corpus already present, skip clone. Print SKIP.
 ## Architecture reminder
 
 ```
-.pl → prolog_compile() → Program* [LANG_PL]
+.pl → prolog_compile() → CODE_t* [LANG_PL]
     --ir-run  → execute_program() → interp_eval() E_CHOICE/E_CLAUSE/E_UNIFY
     --sm-run  → sm_lower() → SM_BB_ONCE per stmt → bb_broker(BB_ONCE)
     --jit-run → sm_lower() → SM_BB_ONCE → sm_codegen() → sm_jit_run()

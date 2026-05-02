@@ -45,7 +45,7 @@ corpus/programs/snobol4/demo/CLAWS5inTASA.dat — full corpus (989 lines, needs 
 ## Architecture reminder
 
 ```
-claws5.sc → snocone_compile() → Program* [LANG_SNO]
+claws5.sc → snocone_compile() → CODE_t* [LANG_SNO]
     --ir-run  → execute_program() → interp_eval()
     --sm-run  → sm_lower() → SM_Program → sm_interp_run()
     --jit-run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()

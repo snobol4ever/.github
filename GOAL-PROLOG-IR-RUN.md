@@ -280,7 +280,7 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
 |------|------|
 | `src/ir/ir.h` | Canonical IR node kinds — 6 Prolog nodes already defined |
 | `src/driver/scrip.c` | `execute_program()` — THE one IR interpreter; Prolog goes here |
-| `src/frontend/prolog/prolog_lower.c` | `prolog_lower()` → `Program*` (frontend, keep) |
+| `src/frontend/prolog/prolog_lower.c` | `prolog_lower()` → `CODE_t*` (frontend, keep) |
 | `src/frontend/prolog/prolog_lower.h` | E_CLAUSE layout documentation (keep) |
 | `src/frontend/prolog/prolog_unify.c` | `unify()`, `trail_*` — runtime support, keep |
 | `src/frontend/prolog/prolog_runtime.h` | `Trail`, `EnvLayout` types — keep |

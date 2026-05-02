@@ -30,7 +30,13 @@
 
 ## Open rungs
 
-- [ ] **RS-2** — Complete `CODE_t` migration in PLAN.md goals table and any remaining doc references.
+- [x] **RS-2** — Complete `CODE_t` migration in PLAN.md goals table and any remaining doc references.
+  Replaced all 44 `Program*`/`Program *` type references in 18 `.github` doc files with `CODE_t*`/`CODE_t *`.
+  Files updated: ARCH-IR.md, GOAL-FULL-INTEGRATION.md, GOAL-INPROC-MONITOR.md, GOAL-LANG-{ICON,PROLOG,RAKU,REBUS,SNOBOL4,SNOCONE}.md,
+  GOAL-ONE-EVAL.md, GOAL-PROLOG-IR-RUN.md, GOAL-RAKU-FRONTEND.md, GOAL-REMOVE-CMPILE.md,
+  GOAL-SCRIP-BOOTSTRAP.md, GOAL-SNOBOL4-PAT-IR.md, GOAL-SNOCONE-{CLAWS5,TREEBANK-LIST}.md, GOAL-UNIFIED-BROKER.md.
+  SM_Program (the stack machine flat array) left unchanged — correct name. PLAN.md architecture paragraph
+  uses SM_Program correctly — no change needed.
 
 - [ ] **RS-3** — Modularization: split `interp.c` (6,201 lines) per language and function.
   Proposed split documented in session 2026-05-02 analysis:

@@ -47,7 +47,7 @@ Rules:
 ## Architecture reminder
 
 ```
-.raku → raku_compile() → Program* [LANG_RAKU]  (no AST layer — FI-3 done)
+.raku → raku_compile() → CODE_t* [LANG_RAKU]  (no AST layer — FI-3 done)
     --ir-run  → execute_program() → interp_eval() with ICN_CUR frame stack
                 (Raku shares icn_proc_table + icn_call_proc with Icon)
     --sm-run  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)

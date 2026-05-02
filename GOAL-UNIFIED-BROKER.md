@@ -126,11 +126,11 @@ The steps below build toward that incrementally — always green, always runnabl
   icon_driver.c: `st->lang = LANG_ICN`. prolog_lower.c: `s->lang = LANG_PL` (both sites).
   Gate: `make scrip` clean; smoke PASS=2.
 
-- [x] **U-13** — Polyglot parser: `.scrip` fenced file → one `Program*`. DONE.
-  Add `parse_scrip_polyglot(src, filename) → Program*` in `scrip.c`.
+- [x] **U-13** — Polyglot parser: `.scrip` fenced file → one `CODE_t*`. DONE.
+  Add `parse_scrip_polyglot(src, filename) → CODE_t*` in `scrip.c`.
   Scans ` ```SNOBOL4 ` / ` ```Icon ` / ` ```Prolog ` fenced blocks; compiles each with
   its frontend; sets `st->lang`; appends all `STMT_t` chains in source order into one
-  `Program*`. Wire `main()`: `.scrip` or `.md` extension → `parse_scrip_polyglot`.
+  `CODE_t*`. Wire `main()`: `.scrip` or `.md` extension → `parse_scrip_polyglot`.
   Execution dispatch: `lang_polyglot` → `execute_program` (SNO path for now; U-15 fixes).
   Gate: `make scrip` clean; smoke PASS=2.
 
@@ -190,7 +190,7 @@ The steps below build toward that incrementally — always green, always runnabl
   Also: demo/scrip/*.md → *.scrip rename (git mv all 10); scripts/test_scrip_demos.sh added.
 
 - [x] **U-20** — Documentation. DONE.
-  `ARCH-IR.md`: document polyglot `Program*`, `STMT_t.lang`, `polyglot_init`,
+  `ARCH-IR.md`: document polyglot `CODE_t*`, `STMT_t.lang`, `polyglot_init`,
   `SM_BB_PUMP`/`SM_BB_ONCE` as the three broker modes in one SM.
   Update PLAN.md. Gate: none.
 

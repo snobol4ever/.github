@@ -77,7 +77,7 @@ clean first.
   `ARB→E_ARB  ARBNO→E_ARBNO  REM→E_REM  FAIL→E_FAIL  SUCCEED→E_SUCCEED`
   `FENCE→E_FENCE  ABORT→E_ABORT  BAL→E_BAL`
   Call this pass from `prolog_compile()` equivalent in `snobol4_driver.c` /
-  `CMPILE.c` after the parse returns a `Program*`.
+  `CMPILE.c` after the parse returns a `CODE_t*`.
   Gate: `make scrip` clean.
 
 - [ ] **S-3** — Update `scrip.c` `interp_eval_pat()`: remove the `E_FNC`

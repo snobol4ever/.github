@@ -5,7 +5,7 @@
 (SNOBOL4, Icon, Prolog, Snocone, Rebus) are evaluated by a single
 `interp_eval(EXPR_t *e)` switch. `SM_BB_PUMP` and `SM_BB_ONCE` have real
 handlers in `sm_interp.c`. `sm_lower` is language-aware. There is one top-level
-entry point: `polyglot_execute(Program*)`. All existing test gates pass.
+entry point: `polyglot_execute(CODE_t*)`. All existing test gates pass.
 
 ---
 
@@ -132,7 +132,7 @@ parse_scrip_polyglot()
 
 ### Phase 3 — One top-level entry point
 
-- [x] **OE-7** — Add `polyglot_execute(Program *prog)` to `scrip.c`.
+- [x] **OE-7** — Add `polyglot_execute(CODE_t *prog)` to `scrip.c`.
   Replaces the post-loop registry walk currently at the bottom of
   `execute_program`. Dispatches all modules in registry order:
     SNO: run statement loop (existing path).
@@ -146,8 +146,8 @@ parse_scrip_polyglot()
 - [x] **OE-8** — Retire `icn_execute_program_unified` and
   `pl_execute_program_unified`. Each becomes a one-line wrapper:
   ```c
-  static void icn_execute_program_unified(Program *p) { polyglot_execute(p); }
-  static void pl_execute_program_unified(Program *p)  { polyglot_execute(p); }
+  static void icn_execute_program_unified(CODE_t *p) { polyglot_execute(p); }
+  static void pl_execute_program_unified(CODE_t *p)  { polyglot_execute(p); }
   ```
   Or remove them entirely and update call sites in `main()` to call
   `polyglot_execute` directly for all modes.

@@ -41,7 +41,7 @@ bash /home/claude/one4all/scripts/test_icon_ir_rung_36.sh        # JCON suite (x
 ## Architecture reminder
 
 ```
-.icn → icon_parse() → Program* [LANG_ICN]   (no AST layer — FI-2 done)
+.icn → icon_parse() → CODE_t* [LANG_ICN]   (no AST layer — FI-2 done)
     --ir-run  → execute_program() → interp_eval() with ICN_CUR frame stack
     --sm-run  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
     --jit-run → sm_lower() → SM_BB_PUMP → sm_codegen() → sm_jit_run()
