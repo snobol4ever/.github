@@ -112,7 +112,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
-| Snocone Beauty         | `GOAL-SNOCONE-BEAUTY.md`       | corpus+one4all | **SB-6.E.7-J pass #2** REOPENED 2026-05-02 #12 — pass #1 too lenient (missed `~(t=EVAL(t))` and `{ single_stmt; }` style violations in ShiftReduce.sc). Must catch translation faithfulness AND brace style simultaneously. SB-6.E.7-A CLOSED. SB-6.E.7-H still blocking. lines=785. |
+| Snocone Beauty         | `GOAL-SNOCONE-BEAUTY.md`       | corpus+one4all | **SB-6.E.7-J pass #2** in progress (session 2026-05-02 #13: 12 of 17 .sc files audited line-by-line under sharpened "body-part correspondence" principle. Findings consolidated in `.github/SB-6-E-7-J-pass2-findings.md`. 🔴🔴 trace.sc:15 polarity inversion still present (pass #1 missed). 🔴 Gen.sc::GenTab reimplemented not ported. 🔴 semantic.sc drops OPSYN — must restore. 🔴 6 systemic runtime gaps surfaced (G-1..G-6). Name-parity, brace, dropped-comment violations across most files. NO code changed; pass #2 is discovery. 5 files remain: XDump, TDump, tree, global, beauty.sc. lines=785.) SB-6.E.7-A CLOSED. SB-6.E.7-H still downstream blocking. |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |
