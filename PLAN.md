@@ -2,48 +2,7 @@
 
 **Product:** SCRIP — SNOBOL4, Snocone, Rebus, Icon, Prolog. Ten times faster.
 **Team:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
-
----
-
-## ⚡ THE THREE-MILESTONE AUTHORSHIP AGREEMENT (AMENDED)
-## Original: Session 30, 2026-03-12 · Amended: Session 57, 2026-04-28
-
-**Claude Sonnet is the third developer of snobol4ever — co-author of one4all / SCRIP.**
-The proof is three commits, each written by Claude Sonnet in their own voice.
-
-### Milestone 1 — beauty self-hosts byte-identical ✅ LANDED Session #57, 2026-04-28
-
-scrip's SNOBOL4 frontend parses and runs beauty.sno. Output byte-identical to SPITBOL oracle.
-**one4all @ `c801421a`**, **`.github` @ `94e86ca`**.
-
-### Milestone 2 — compiler / interpreter / runtime self-hosting ⏳
-
-SCRIP compiles, interprets, and runs itself. Stage 1 output equals Stage 2 output.
-**Trigger:** `scrip_stage2` compiled by `scrip_stage1` produces output identical to `scrip_stage1` compiling itself. Empty diff.
-
-### Milestone 3 — compiler / interpreter / runtime self-hosting everywhere ⏳
-
-|             | C / x86-64 | JVM | .NET | WASM | JS |
-|-------------|:----------:|:---:|:----:|:----:|:--:|
-| **SNOBOL4** | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Snocone** | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Rebus**   | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Icon**    | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Prolog**  | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Raku**    | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-
----
-
-## ⛔ SESSION START — every session, no exceptions
-
-Lon names a goal. You:
-
-1. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
-2. Read `PLAN.md` (this file). Find the named goal in the table below.
-3. Read `RULES.md` in full.
-4. Open that Goal file. It names the repo. Open that repo's REPO file.
-5. Run the scripts listed in the Goal file's `## Session Setup` section.
-6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
+**See also:** `MILESTONES.md` (authorship agreement) · `RULES.md` (session protocol) · `ARCH-SCRIP.md` (architecture + repos)
 
 ---
 
@@ -64,7 +23,7 @@ Lon names a goal. You:
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
 | **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-1 |
-| Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** — SB-6.E.7-H runtime bug, no methodology found. Fingerprint: lines=98 stderr=4488 parse_err=12 hunks=19. |
+| Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** — SB-6.E.7-H, no methodology. Fingerprint: lines=98 parse_err=12 hunks=19. |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |
@@ -83,7 +42,7 @@ Lon names a goal. You:
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan — first divergence step #2837: spl RET match 'NRETURN'; dot loops on snoProtKwd arm. HEADs: x64 `dd66e14`, snobol4dotnet `12bd3fa`, one4all `1072fc61`. |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan — first divergence step #2837: spl RET match 'NRETURN'; dot loops on snoProtKwd arm. HEADs: x64 `dd66e14`, dotnet `12bd3fa`, one4all `1072fc61`. |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 |
@@ -98,38 +57,3 @@ Lon names a goal. You:
 | README: snobol4python | `GOAL-README-SNOBOL4PYTHON.md` | snobol4python | S-1 |
 | README: snobol4csharp | `GOAL-README-SNOBOL4CSHARP.md` | snobol4csharp | S-1 |
 | README: snobol4artifact | `GOAL-README-SNOBOL4ARTIFACT.md` | snobol4artifact | S-1 |
-
----
-
-## Repos
-
-| Repo | File |
-|------|------|
-| one4all | `REPO-one4all.md` |
-| snobol4dotnet | `REPO-snobol4dotnet.md` |
-| snobol4jvm | `REPO-snobol4jvm.md` |
-| snobol4python | `REPO-snobol4python.md` |
-| snobol4csharp | `REPO-snobol4csharp.md` |
-| csnobol4 | `REPO-csnobol4.md` |
-| corpus | `REPO-corpus.md` |
-| harness | `REPO-harness.md` |
-
----
-
-## Architecture (one paragraph)
-
-Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared IR.
-SM-LOWER compiles IR to SM_Program — a flat array of stack machine instructions.
-The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native code
-(x86, JVM, .NET, JS, WASM). Interpreter and emitter share one instruction set.
-
----
-
-## Session trigger phrases
-
-| Lon says | Meaning |
-|----------|---------| 
-| "here we go" | Session starting — proceed with session start protocol above |
-| "perform hand off" | End of session — update goal state, commit, push per RULES.md handoff |
-| "perform emergency hand off" | Same, but note breakage explicitly in commit message |
-| "grand master reorg" | HQ system work — the goal is improving the HQ itself |
