@@ -268,7 +268,122 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
-## Most recent session — 2026-05-02 #13 (SB-6.E.7-J pass #2, 12 of 17 files audited)
+## Most recent session — 2026-05-02 #14 (SB-6.E.7-J pass #2 — 15 of 17 .sc files rewritten faithfully) — EMERGENCY HANDOFF
+
+### What landed (corpus only — 15 files rewritten under sharpened body-part-correspondence principle)
+
+**EMERGENCY HANDOFF: global.sc rewrite started but incomplete; restored from HEAD.
+beauty.sc untouched. 15/17 files actually rewritten. Gates NOT run this session.**
+
+Per Lon (this session): "Ensure SC is a faithful but also nice version of the SNO and INC code.
+We want the IR to be identical for expressions and only different for control flow. Ensure
+also the names of variables and functions are the same between SC and SNO/INC. Think of it
+like stripping away the control flow from SNO/INC and leaving all the code body parts
+floating. Then wrapping those code parts with new shiny if/for/do/while control."
+
+Pass #2 fresh-start audit applied to all 17 files; 15 actually rewritten before context
+exhaustion. The principle was applied uniformly:
+- erase `:F()/:S()/:(label)` plumbing → body parts go into .sc unchanged in name and content
+- wrap with structured `if/while/for/break/return/freturn/nreturn`
+- forbidden: rename identifiers, invent intermediates (`_t`, `_lump`, `_child`, `omega`,
+  `_indent`, `_rest`, `_alphabet_run`, `_utf_n`, `_nm`), add branches not in .inc, drop
+  OPSYN, drop comments, patch .sc to work around runtime bugs
+- permitted: control restructure, strip braces around single-stmt bodies, function-name-
+  shadow renames (`lwr(lwr)` → `lwr(s)` only), section-divider comment headers restored
+
+Per-file fixes summary:
+
+| # | File | Key changes |
+|---|------|-------------|
+| 1 | assign.sc | G-1 `REPLACE(DATATYPE,&LCASE,&UCASE)` wrapper stripped; comment header restored |
+| 2 | match.sc | Braces stripped; comment header restored |
+| 3 | stack.sc | `xTrace = 0;` init removed (not in .inc); `~DIFFER`→`IDENT`; bare `= ;` for null |
+| 4 | case.sc | `cap` `:S(RETURN)F(error)` semantics restored via `if (~(cap = ...)) error()`; loop simplified |
+| 5 | counter.sc | Alt-eval `(cond v1, v2)` form preserved; assignment-as-test `if (~(x = DIFFER(y) ...))`; bare `= ;` |
+| 6 | ShiftReduce.sc | G-1 stripped; tree(t,'',n,c) with TODO SB-6.E.7-K marker (empty-positional grammar gap) |
+| 7 | semantic.sc | **OPSYN('~','shift',2) and OPSYN('&','reduce',2) RESTORED** (per Lon); `omega` intermediate dropped |
+| 8 | trace.sc | **F-1 polarity inversion FIXED** — `if (str ? (POS(0) '?')) nreturn;` now matches `.inc :S(NRETURN)`; loops use assignment-as-test |
+| 9 | omega.sc | **`omega` intermediate dropped from TV/TW/TX/TY/TZ**; conditional-assign body parts `omega = EQ(doParseTree, FALSE) "pat"` restored faithfully; assignment-as-test for fail-on-EVAL |
+| 10 | ReadWrite.sc | `_t`/`_lump`/`_child`-style renames absent (good); bare `= ;` for null; faithful loops with assignment-as-test |
+| 11 | Gen.sc | **F-2 GenTab reimplementation FIXED** — now has the canonical 2-body-part form `if (~($'$B' = ... DUPL(...))) $'$B' = $'$B' ' ';`; `_indent`/`_rest` invented locals removed; 4 spurious globals init lines dropped |
+| 12 | Qize.sc | **G-3 deferred-`*assign` inside pattern alternation RESTORED** to faithful `.inc` form (was dispatched-in-code workaround); LEQ/Ucvt helpers kept (G-4/G-5 justified) |
+| 13 | XDump.sc | `objKeyNm` 3-conditional dispatch restored faithfully via assignment-as-test cascade matching .inc |
+| 14 | TDump.sc | `_t`/`_lump`/`_child` renames removed (back to canonical `t`); `(DIFFER(x) '.', '')` SPITBOL alt-eval form restored; assignment-as-test for TValue typed branches |
+| 15 | tree.sc | for-loops → faithful `while (i = LT(i, n) i + 1)` body-part form; `epsilon *IDENT(x) *IDENT(y)` patterns restored verbatim; `(DIFFER(c(y)) c(y)[i])` conditional-indexing form restored |
+| 16 | global.sc | **RESTORED to HEAD — rewrite incomplete this session.** Still has `_alphabet_run`/`_utf_n`/`_nm` invented intermediates, CHAR-based bindings instead of `&ALPHABET POS(p) LEN(1) . name` body parts |
+| 17 | beauty.sc | **NOT TOUCHED this session.** Largest file (498 lines), needs full pass #2. |
+
+### New rung surfaced
+
+**SB-6.E.7-K — Empty-positional func args grammar extension.** Snocone `exprlist_ne`
+at `snocone_parse.y:1089` does NOT accept `f(a, , c)` (empty positional null). SNOBOL4
+does (e.g. `tree(t,,n,c)` in ShiftReduce.inc:30). Faithful body-part correspondence
+requires this. Fix shape (no SR/RR conflicts, same single-token-lookahead trick as
+LS-6.c empty-RHS-assignment):
+
+```yacc
+exprlist_ne : exprlist_ne T_COMMA expr0   { existing }
+            | exprlist_ne T_COMMA         { reduce: add E_QLIT '' filler }
+            | expr0                        { existing }
+            | T_COMMA expr0                { leading empty positional }
+            ;
+```
+
+After T_COMMA: expr0-starter → shift; T_COMMA/T_RPAREN → reduce. Workaround in .sc
+until landed: pass `''` explicitly with `// TODO SB-6.E.7-K` marker. Currently used
+once: ShiftReduce.sc::Reduce.
+
+### Empty-RHS assignment confirmed already supported
+
+LS-6.c already lands `expr0 : expr1 T_2EQUAL` empty-RHS form (lowers to E_ASSIGN(lhs, '')).
+Single-token lookahead distinguishes from binary form. So `$'@S' = ;`, `$'#N' = ;`,
+`UTF_Array = ;`, etc. all parse cleanly. Used throughout the rewritten files in place
+of the previous `''` empty-string substitution.
+
+### What did NOT change
+
+- **No runtime/compiler edits this session.** All work in `corpus`.
+- **No gates run this session** — context exhausted before verification. Three baseline
+  gates (smoke_snocone PASS=5, beauty_snocone_all_modes PASS=42 SKIP=3,
+  smoke_unified_broker PASS=49) and SB-6 fingerprint script must run before commit
+  is gate-verified. Pushing as emergency handoff per RULES.md so work isn't lost.
+- **`global.sc` restored to HEAD** — partial rewrite in progress was deleted; restore
+  prevents broken state.
+- **`beauty.sc` untouched** — pass #2 audit of beauty.sc is the active blocker.
+
+### Repos state
+
+- `corpus`: 15 .sc files modified (1-15 above). HEAD before this commit: `6a30100`.
+- `one4all`: clean at `31d8bb30`.
+- `.github`: this commit (session entry).
+- Fingerprint: NOT MEASURED this session (gates not run).
+- Three baseline gates: NOT VERIFIED this session.
+- **Active blocker: SB-6.E.7-J pass #2 — global.sc rewrite + beauty.sc full audit, then
+  gate verification.** Faithful body-part corpus is the goal; this session got 15/17
+  files most of the way there.
+
+### Next session entry points
+
+1. Build scrip (`bash /home/claude/one4all/scripts/build_scrip.sh`).
+2. Run three baseline gates and SB-6 fingerprint script. **Likely the gates regress**
+   because (a) faithful translations exercise runtime gaps that the previous
+   workaround-laden ports avoided (G-1/G-2/G-3 surface), and (b) some idioms used in
+   the rewrite (e.g. `if (Gen(TLump(...)))` relying on function-arg-failure propagation,
+   `epsilon *IDENT(x) *IDENT(y)` patterns) may not behave identically in scrip's
+   Snocone runtime as in SPITBOL.
+3. For each gate regression: identify whether the cause is a runtime gap (fix in runtime
+   per RULES.md) or an actual translation bug (fix in .sc). Do NOT revert to the
+   workaround forms — those were the "rationalization" Lon flagged as the reason pass #2
+   was needed.
+4. Rewrite `global.sc`: preserve all UTF[...] byte-for-byte; replace CHAR-based char
+   bindings with faithful `&ALPHABET ? (POS(p) LEN(1) . name)` body parts (or whatever
+   Snocone form is closest); drop `_alphabet_run`/`_utf_n`/`_nm`; faithful tail loop
+   `while (1) { i = i + 1; if (~($UTF_Array[i, 2] = UTF_Array[i, 1])) break; }`.
+5. Audit `beauty.sc` (498 lines) line-by-line against `beauty.sno` (627 lines).
+6. Implement SB-6.E.7-K (empty-positional grammar extension) — small narrow patch.
+7. Re-run gates. Commit per-file or in groups, with `LCherryholmes / lcherryh@yahoo.com`.
+
+
 
 ### Translation principle — sharpened by Lon (this session)
 
