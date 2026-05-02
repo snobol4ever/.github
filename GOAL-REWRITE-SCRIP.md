@@ -52,6 +52,9 @@
   `interp_data.c` (DATA registry sc_dat_*, _builtin_print, _builtin_DATA).
   Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-- [ ] **RS-4** — Audit interp_eval.c (~4300 lines): extract E_FNC builtin dispatch into
-  `interp_builtins.c`, leaving interp_eval.c as pure structural evaluator
-  (literals, variables, operators, control flow, pattern primitives).
+- [ ] **RS-4** — Further reduction of interp_eval.c (~4300 lines).
+  The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
+  are the remaining concentrations. Both are tightly coupled to the switch via `return`
+  and inline arg-eval — extraction requires a sentinel-value ABI or out-param, adding
+  complexity that outweighs the gain at this size. Defer until a concrete motivating
+  bug or new frontend work makes a split natural.
