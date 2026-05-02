@@ -188,7 +188,7 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   Representation corrected to Snocone `struct` (DATA) — Val/Node/Tok structs.
   (Session 2026-05-02)
 
-- [ ] **SS-2** — `value.sc`: Val struct + value helpers.
+- [ ] **SS-2** ⏸ ON HOLD — `value.sc`: Val struct + value helpers.
   ```
   struct Val { type, v }
   function val_int(n)    { val_int  = Val('INT',  n);  return; }
@@ -202,7 +202,7 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   Gate: inline test prints 5 lines matching `value.ref`.
   Run: `scrip --ir-run value.sc | diff - value.ref`.
 
-- [ ] **SS-3** — `ir.sc`: Node struct + S-expr printer.
+- [ ] **SS-3** ⏸ ON HOLD — `ir.sc`: Node struct + S-expr printer.
   ```
   struct Node { kind, sval, ival, dval, nc, c }
   function ir_node(kind)       { ... Node(kind,'',0,0.0,0,'') ... }
@@ -215,7 +215,7 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   `(E_ADD\n  (E_ILIT 3)\n  (E_VAR x))` (2-space indent per depth, multi-child on newlines).
   Gate: hand-build `(E_ADD (E_ILIT 3) (E_VAR x))` tree, print it; diff vs `ir.ref`.
 
-- [ ] **SS-4** — `lex.sc`: tokenizer.
+- [ ] **SS-4** ⏸ ON HOLD — `lex.sc`: tokenizer.
   ```
   struct Tok { kind, sval, ival, dval }
   function lex(src) { ... returns ARRAY of Tok structs ... }
@@ -228,43 +228,43 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   Implemented as pattern matching on source string (SPAN/BREAK/LEN/ANY).
   Gate: lex `'42 + x;'` → 4 tokens printed 1-per-line; diff vs `lex.ref`.
 
-- [ ] **SS-5** — `parse.sc`: recursive-descent parser, literals + arithmetic.
+- [ ] **SS-5** ⏸ ON HOLD — `parse.sc`: recursive-descent parser, literals + arithmetic.
   Precedence: `^` (right) > unary `-` > `* /` > `+ -` > concat (space) > `|`.
   Produces Node tree. Token cursor via global index into Tok array.
   Gate: `parse('3 + 4 * 2')` ir_print → correct S-expr; diff vs `parse.ref`.
 
-- [ ] **SS-6** — `interp.sc`: evaluator, arithmetic core.
+- [ ] **SS-6** ⏸ ON HOLD — `interp.sc`: evaluator, arithmetic core.
   Written fresh (NOT ported from interp.c). Clean dispatch on kind(node).
   Handles: `E_ILIT E_FLIT E_QLIT E_NUL E_ADD E_SUB E_MUL E_DIV E_POW E_MNS E_PLS`.
   Gate: eval `parse('3 + 4')` → val_to_str → `7`; diff vs `interp.ref`.
 
-- [ ] **SS-7** — `snocone.sc` driver + `runtime.sc`: wire lex→parse→interp, `OUTPUT =`.
+- [ ] **SS-7** ⏸ ON HOLD — `snocone.sc` driver + `runtime.sc`: wire lex→parse→interp, `OUTPUT =`.
   Statement loop: for each stmt node, eval subject; if OUTPUT assign, print val_to_str.
   Gate: run `sc1_literals.sc` through `snocone.sc`; diff vs `sc1_literals.ref`.
 
-- [ ] **SS-8** — Variables (`E_VAR`, `E_ASSIGN`), symbol table.
+- [ ] **SS-8** ⏸ ON HOLD — Variables (`E_VAR`, `E_ASSIGN`), symbol table.
   Symbol table: ARRAY of name→Val pairs (or linked list of `struct Binding { name, val }`).
   Gate: `sc2_assign.sc` passes; `sc3_arith.sc` passes.
 
-- [ ] **SS-9** — `if/else` support. Note: Snocone lowers `if` to conditional-fail gotos at parse time — no `E_IF` node reaches the interpreter. The statement loop must handle label and goto STMT_t nodes. Gate: `sc4_control.sc` passes.
+- [ ] **SS-9** ⏸ ON HOLD — `if/else` support. Note: Snocone lowers `if` to conditional-fail gotos at parse time — no `E_IF` node reaches the interpreter. The statement loop must handle label and goto STMT_t nodes. Gate: `sc4_control.sc` passes.
 
-- [ ] **SS-10** — `while` support. Note: same as SS-9 — `while` lowers to goto/label STMT_t nodes, no `E_WHILE` node. Gate: `sc5_while.sc` passes.
+- [ ] **SS-10** ⏸ ON HOLD — `while` support. Note: same as SS-9 — `while` lowers to goto/label STMT_t nodes, no `E_WHILE` node. Gate: `sc5_while.sc` passes.
 
-- [ ] **SS-11** — `function` def + call + `return`/`freturn` (`E_FNC`, `E_RETURN`).
+- [ ] **SS-11** ⏸ ON HOLD — `function` def + call + `return`/`freturn` (`E_FNC`, `E_RETURN`).
   Call stack: push/pop local symbol frames.
   Gate: `sc7_procedure.sc` passes.
 
-- [ ] **SS-12** — String concat (space, `E_CAT`), `SIZE()` builtin.
+- [ ] **SS-12** ⏸ ON HOLD — String concat (space, `E_CAT`), `SIZE()` builtin.
   Gate: `sc8_strings.sc` passes.
 
-- [ ] **SS-13** — `for`, `INPUT` keyword.
+- [ ] **SS-13** ⏸ ON HOLD — `for`, `INPUT` keyword.
   Gate: `sc6_for.sc` passes; `sc10_wordcount.sc` passes.
 
-- [ ] **SS-14** — Pattern match `?` (`E_SCAN`), pattern builtins.
+- [ ] **SS-14** ⏸ ON HOLD — Pattern match `?` (`E_SCAN`), pattern builtins.
   Call through to scrip's BB broker for actual matching.
   Gate: basic pattern corpus tests pass.
 
-- [ ] **SS-15** — Self-host gate.
+- [ ] **SS-15** ⏸ ON HOLD — Self-host gate.
   ```bash
   SNO_LIB=. scrip --ir-run snocone.sc < snocone.sc > /tmp/stage1.out
   SNO_LIB=. scrip --ir-run snocone.sc < /tmp/stage1.out > /tmp/stage2.out
