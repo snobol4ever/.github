@@ -247,9 +247,9 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   Symbol table: ARRAY of name→Val pairs (or linked list of `struct Binding { name, val }`).
   Gate: `sc2_assign.sc` passes; `sc3_arith.sc` passes.
 
-- [ ] **SS-9** — `if/else` (`E_IF`). Gate: `sc4_control.sc` passes.
+- [ ] **SS-9** — `if/else` support. Note: Snocone lowers `if` to conditional-fail gotos at parse time — no `E_IF` node reaches the interpreter. The statement loop must handle label and goto STMT_t nodes. Gate: `sc4_control.sc` passes.
 
-- [ ] **SS-10** — `while` (`E_WHILE`). Gate: `sc5_while.sc` passes.
+- [ ] **SS-10** — `while` support. Note: same as SS-9 — `while` lowers to goto/label STMT_t nodes, no `E_WHILE` node. Gate: `sc5_while.sc` passes.
 
 - [ ] **SS-11** — `function` def + call + `return`/`freturn` (`E_FNC`, `E_RETURN`).
   Call stack: push/pop local symbol frames.
