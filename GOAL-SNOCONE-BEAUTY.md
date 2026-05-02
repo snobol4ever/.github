@@ -39,7 +39,7 @@ scrip handles mixed-extension multi-file linkage natively. Pass subsystem
     test/beauty-sc/beauty/beauty.sc < input.sno
 ```
 
-Oracle: `smoke/beauty_oracle.sno` (NOT `demo/beauty.sno` — crashes error 021).
+Oracle: `corpus/programs/snobol4/demo/beauty/beauty.sno`.
 
 **Step 2 — Replace .sno subsystem files with .sc equivalents:**
 Substitute from `corpus/programs/include-sc/` one by one, gate stays green.
@@ -2694,7 +2694,7 @@ architecture. That file is the single source of truth for Snocone.
 ## Invariants
 
 - Gate = PASS=36 FAIL=0 on test_smoke_unified_broker.sh after every commit.
-- Oracle: corpus/programs/snobol4/smoke/beauty_oracle.sno
+- Oracle: corpus/programs/snobol4/demo/beauty/beauty.sno
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.
 
 **Per Lon (session #66):** *every* construct in canonical `.sno`/`.inc`
@@ -3818,4 +3818,178 @@ Pure cleanup of frontend boilerplate.
 `one4all`: dirty (5 files).  `corpus`: clean.  `.github`: dirty
 (this update).  `csnobol4`, `x64`: clean.  Plan: commit one4all
 first, then `.github` per RULES.md handoff order.
+
+---
+
+## Session 2026-05-01 #2 progress (build hygiene; gates restored)
+
+**Three problems found in the post-SB-6.H state.  All three fixed.
+All six baseline gates green at session end.  No goal-rung step
+landed (no SB-6.* directly advanced); this session's work is
+infrastructure that the prior several sessions' commit messages
+were claiming as already-done.**
+
+### Discovery
+
+After clean-cloning at HEAD `baa49d4d` (SB-6.H), the `scrip` build
+errored on undefined `T_UNTIL` and `T_EOF` referenced in
+`snocone_lex.c`.  Even after working around that, `OUTPUT = "hello";`
+under `--ir-run` produced `snocone parse error: syntax error`.  The
+prior three commits' session notes had all claimed "PASS=5 / PASS=42
+SKIP=3 / PASS=49" green — that was untrue.  The breakage traces
+back to emergency-handoff commit `eec7fd0f` ("LS-4.k: archive
+snocone_lower/control") which was supposed to be followed by a
+recovery commit; SB-6.E.1+.2, SB-6.F, and SB-6.H all landed without
+running gates against actually-fresh builds.
+
+### Fix #1 — `sc_kind_is_value` / `sc_kind_has_payload` bound check
+
+SB-6.H bumped `sc_value_table[]` and `sc_payload_table[]` from
+`[256]` to `[512]` because Bison's enum starts at 258.  The bound
+check at the lookup site stayed `kind < 256`.  Result: every Bison
+token returned 0 from `sc_kind_is_value`, so `last_value` was
+permanently false, so the lexer never recognized `=`/`+`/`-` etc
+as binary operators after a value-ender.  Trace evidence:
+`OUTPUT` (T_IDENT=258) followed by `=` lexed as T_1EQUAL (unary)
+instead of T_2EQUAL (binary).  Fix: bound check `< 256` → `< 512`
+in `snocone_lex.c::sc_kind_is_value` and `sc_kind_has_payload`.
+
+### Fix #2 — yylex thunk removed (per Lon directive)
+
+Lon: "I'm fairly sure we do not need any thunks. Do we?"  Correct.
+The thunk in `snocone_parse.y` did three things: call
+`sc_lex_next(ctx)`, strdup `ctx->text` into `yylval->str` for
+payload tokens, and map T_EOF to 0.  All three move into the FSM
+itself.
+
+- Renamed `sc_lex_next(LexCtx *ctx)` → `sc_lex(SC_STYPE *yylval,
+  ScParseState *st)` matching Bison's yylex contract directly.
+- `emit_value` now writes `yylval->str = strdup(ctx->text)` itself.
+- `emit_kind` clears `yylval->str = NULL` so non-payload tokens
+  don't leak Bison's stack-allocated yylval garbage to action code.
+- Inline `return T_CONCAT;` sites (18 of them across the operator
+  cascades) refactored to `EMIT(T_CONCAT)` so they too clear
+  `yylval->str`.
+- E_CALL, E_IDENT, E_KEYWORD, E_STR each had their own bespoke
+  payload-copy + return; each now writes `yylval->str` before
+  returning.
+- `E_EOF` returns 0 directly (Bison's end-of-input sentinel).
+- Thunk block in `snocone_parse.y` deleted; file-header docblock
+  updated.
+
+### Fix #3 — duplicate Makefile collapsed
+
+There were two Makefiles: `Makefile` (top-level, with all the
+`run`/`test`/`clean`/`scrip-monitor` targets) and `src/Makefile`
+(post-archive subset, just three .c files for the snocone
+frontend).  The `eec7fd0f` emergency commit updated `src/Makefile`
+to drop deleted `snocone_lower/control.c` references but missed
+the top-level `Makefile`.  `build_scrip.sh` happened to use
+`src/Makefile` so the old daily-build path worked; anyone typing
+`make` from the repo root saw the broken target.
+
+Per Lon directive: "use the Makefile that has all targets" — i.e.
+keep top-level.  Fixed top-level `Makefile`'s `scrip:` target
+(removed deleted `snocone_lower.c`/`snocone_control.c`/
+`snocone_parse.c` references; uses the live
+`snocone_parse.tab.c`).  `build_scrip.sh` now `cd "$ONE4ALL" &&
+make -j4 scrip`.  `src/Makefile` deleted via `git rm`.
+
+### Side cleanup — corpus
+
+`corpus/programs/snobol4/smoke/beauty_oracle.sno` deleted per Lon
+directive ("no such thing").  Goal file's two live references
+(line 42 architecture, line 2697 invariant) updated to point to
+`corpus/programs/snobol4/demo/beauty/beauty.sno` instead.
+Session-history mentions of `beauty_oracle.sno` left intact (they
+describe past state).  `one4all/scripts/util_run_beauty_oracle.sh`
+is a script *named* "beauty oracle" but doesn't reference the
+deleted file; left as-is.  `test_smoke_self_beautify.sh` uses
+`/tmp/beauty_oracle.sno` as a per-run temp file; left as-is.
+
+### Lexer dead-code drop
+
+`snocone_lex.c` listed `"until" → T_UNTIL` in its keyword table
+and `T_UNTIL` in its name-table init.  Snocone has no `until`
+construct (file header comment line 19: "No switch, for, while,
+or do/until appears anywhere in the FSM"), the grammar has no
+production for `T_UNTIL`, and Bison's tab.h doesn't define it.
+Deleted both rows.  Same treatment for `T_EOF` name-table entry —
+the lexer now returns 0 directly at EOF, never emits T_EOF.
+
+### Verification — six gates green
+
+| Gate | Result |
+|------|--------|
+| `test_smoke_snocone.sh` | PASS=5 FAIL=0 |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 FAIL=0 SKIP=3 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 |
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 |
+| `test_crosscheck_snobol4.sh` | PASS=6 FAIL=0 |
+| `test_crosscheck_snocone.sh` | PASS=8 FAIL=0 |
+
+`OUTPUT = "hello";` → `hello` in all three modes (was crashing /
+parse-erroring at session start).
+
+### Process lesson
+
+The SB-6.E/F/H session notes all claimed gate verification.  None
+of them actually ran the gate against a clean build — they ran
+against stale `.o` files from before the emergency archive of
+`snocone_lower/control.c`.  The Makefile referenced files that
+didn't exist; partial parallel builds happened to succeed because
+the link line picked up old `.o`s.  The session-end snapshots that
+got committed claimed gates green when in fact `OUTPUT = "hello"`
+crashed.
+
+**RULES.md addition candidate:** before claiming a gate result,
+verify with `find src -name '*.o' -delete; bash scripts/build_scrip.sh`
+or equivalent clean-rebuild.  Stale-`.o` masking is a recurring
+hazard — IC-8 #18 already documents this for header changes; it
+applies just as strongly to source-file deletions.
+
+### Active rung remains SB-6.E.6
+
+Confirm-with-Lon anti-rationalization pass.  Lon-required.  Not
+unblocked by this session's work but not blocked by it either.
+SB-6 self-host proper is still the larger work; with the runtime
+now demonstrably-correct, downstream blockers are grammar/runtime
+in beauty.sc itself (last documented at session 2026-05-02 +
+session 2026-05-01 #11: parses end-to-end with no syntax errors,
+produces no output for SB-6 self-host).
+
+### Files touched this session
+
+- `one4all/Makefile` — `+3/-5` in `scrip:` target (snocone deleted-
+  file references replaced with live `snocone_parse.tab.c`)
+- `one4all/src/Makefile` — DELETED (was the duplicate)
+- `one4all/scripts/build_scrip.sh` — `+1/-1` (cd to top-level, not
+  `src/`)
+- `one4all/src/frontend/snocone/snocone_lex.c` — bound check fix
+  (`< 256` → `< 512`), thunk merger (sc_lex_next → sc_lex with
+  Bison signature, payload writes via emit_value), inline
+  T_CONCAT returns refactored to EMIT, E_CALL/E_IDENT/E_KEYWORD/
+  E_STR write yylval->str, E_EOF returns 0, dead T_UNTIL keyword
+  row deleted, dead T_EOF/T_UNTIL name-table rows deleted
+- `one4all/src/frontend/snocone/snocone_lex.h` — public API
+  reflects sc_lex (was sc_lex_next); docblock updated
+- `one4all/src/frontend/snocone/snocone_parse.y` — yylex thunk
+  block deleted; file-header docblock updated to reflect the
+  no-thunk architecture
+- `one4all/src/frontend/snocone/snocone_parse.tab.c` /
+  `snocone_parse.tab.h` — regenerated
+- `corpus/programs/snobol4/smoke/beauty_oracle.sno` — DELETED
+  (per Lon: "no such thing")
+- `.github/GOAL-SNOCONE-BEAUTY.md` — line 42 + line 2697 oracle
+  reference updated to `demo/beauty/beauty.sno`; this session
+  block
+
+### Repos state
+
+`one4all`: dirty (Makefile, build_scrip.sh, src/Makefile (D),
+snocone_lex.{c,h}, snocone_parse.{y,tab.c,tab.h}).  `corpus`:
+dirty (beauty_oracle.sno (D)).  `.github`: this update.
+`csnobol4`, `x64`: clean.  Plan: commit corpus first, then one4all,
+then `.github` per RULES.md handoff order.
+
 
