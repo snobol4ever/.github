@@ -112,7 +112,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
-| Snocone Beauty         | `GOAL-SNOCONE-BEAUTY.md`       | corpus+one4all | **SB-6.E.7-H** (runtime rollback bug — active blocker for SB-6 self-host). SB-6.E.7-J CLOSED: all 17 .sc files audited, 2 fixes (case.sc cap(), trace.sc T8Trace). SB-6.E.7-A CLOSED. Fingerprint lines=785 (was 89). |
+| Snocone Beauty         | `GOAL-SNOCONE-BEAUTY.md`       | corpus+one4all | **SB-6.E.7-J pass #2** REOPENED 2026-05-02 #12 — pass #1 too lenient (missed `~(t=EVAL(t))` and `{ single_stmt; }` style violations in ShiftReduce.sc). Must catch translation faithfulness AND brace style simultaneously. SB-6.E.7-A CLOSED. SB-6.E.7-H still blocking. lines=785. |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |

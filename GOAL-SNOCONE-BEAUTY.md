@@ -268,6 +268,44 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
+## Most recent session — 2026-05-02 #12 (SB-6.E.7-J REOPENED)
+
+### What happened
+
+Lon reviewed pass #1 of SB-6.E.7-J and flagged it as too lenient.
+Pass #1 missed `if (~(t = EVAL(t))) { nreturn; }` in
+`ShiftReduce.sc::Reduce` — both the suspect `~`-wrapped-assignment
+form AND the single-stmt-in-braces violation that SB-6.E.7-C was
+supposed to clean up.
+
+The audit needs to catch translation faithfulness AND the brace
+style violations simultaneously. Pass #1 results invalidated.
+
+**SB-6.E.7-J reopened as the active step** for next session, with
+expanded process rules in the rung definition above. Specific
+patterns now called out aggressively (e.g. `~(side-effect-EXPR)`,
+`{ single_stmt; }`, accepting "this is intentional" comments).
+
+### What did NOT change
+
+No code touched this session beyond reopening the goal step. The
+fixes from session #11 (case.sc cap(), trace.sc T8Trace, TDump.sc
+leaf detect) are preserved on disk because they ARE faithful
+translations — but they will be re-validated under pass #2 along
+with everything else.
+
+### Repos state
+
+- `corpus`: clean at `6a30100`
+- `one4all`: clean at `31d8bb30`
+- `.github`: this commit
+- Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0`
+- Three baseline gates green
+- **Active blocker for SB-6: SB-6.E.7-J pass #2** — must complete
+  before SB-6.E.7-H runtime work resumes
+
+---
+
 ## Most recent session — 2026-05-02 #11 (SB-6.E.7-J full audit + subsystem suite expansion)
 
 ### What landed
@@ -858,7 +896,82 @@ to do.
         where the else was on a separate line). After SB-6.E.7-J
         confirms code is correct, this sweep can land safely.
 
-  - [x] **SB-6.E.7-J** — **Hand-verify every .sc file line-by-line. CLOSED session 2026-05-02.**
+  - [ ] **SB-6.E.7-J** — **⚡ ACTIVE STEP. Hand-verify every .sc file
+        line-by-line — REOPENED 2026-05-02.**
+
+        First audit pass (session #11) was too lenient: skimmed for
+        obvious bugs but accepted "explained-away" deviations and
+        completely missed the brace-around-single-statement style
+        violations that SB-6.E.7-C was supposed to fix. Examples Lon
+        flagged after pass #1:
+        - `ShiftReduce.sc::Reduce`: `if (~(t = EVAL(t))) { nreturn; }`
+          — wrong port of `t = EVAL(t) :F(NRETURN)`; the `~`-wrapped
+          assignment is non-canonical and the `{ nreturn; }` is
+          single-stmt-in-braces.
+        - Many other `if (cond) { single_stmt; }` forms throughout
+          the 17 files were waved through.
+
+        **Pass #2 must catch BOTH axes simultaneously:**
+
+        1. **Translation faithfulness** — every block translated
+           directly from the .inc, no rationalized restructuring.
+           If a deviation exists, it must be either (a) absolutely
+           required by Snocone grammar, or (b) explicitly approved
+           by Lon. Comments that say "this is intentional because..."
+           are not approval — they are the previous developer's
+           rationalizations and should be re-examined.
+
+        2. **Single-statement bare form** — `if (cond) stmt;` not
+           `if (cond) { stmt; }`. Same for `else`, `while`, `for`.
+           Multi-statement bodies keep their braces. Now safe per
+           SB-6.E.7-A.
+
+        **Specific patterns to flag aggressively in pass #2:**
+
+        | Pattern | Action |
+        |---------|--------|
+        | `if (~(EXPR))` where EXPR has side effects (assignment, function call) | Suspect — likely should be a direct check on the result |
+        | `{ single_stmt; }` body | Strip braces |
+        | `} else { single_stmt; }` | Strip both braces (after SB-6.E.7-A) |
+        | `if (cond) { stmt1; nreturn; }` | Strip braces if matched_stmt allows |
+        | Any deviation with a "this is intentional" comment | Re-examine; do not accept on faith |
+        | Unwrapping `:F(LBL)` into `if/else` not matching .inc structure | Replicate `.inc` flow exactly |
+        | Variable rename | Reject unless required by Snocone grammar (function-name shadowing only) |
+
+        **Process per file:**
+
+        1. Read the `.inc` block in isolation, no .sc visible.
+        2. Translate it mentally to Snocone.
+        3. Compare to the .sc — note every deviation.
+        4. For each deviation: required, approved, or fixable.
+        5. Fix and run subsystem test + three baseline gates.
+        6. Sub-commit per file when clean on both axes.
+
+        **Audit table reset to ⬜ for all files** — pass #1 results
+        invalidated.
+
+        | # | File | Pass #1 | Pass #2 |
+        |---|------|---------|---------|
+        | 1 | assign.sc | ✅ | ⬜ |
+        | 2 | match.sc | ✅ | ⬜ |
+        | 3 | stack.sc | ✅ | ⬜ |
+        | 4 | case.sc | ⚠ fixed | ⬜ |
+        | 5 | counter.sc | ✅ | ⬜ |
+        | 6 | ShiftReduce.sc | ✅ ← MISSED `~(t=EVAL(t))` and `{ nreturn; }` | ⬜ |
+        | 7 | semantic.sc | ✅ | ⬜ |
+        | 8 | trace.sc | ⚠ fixed | ⬜ |
+        | 9 | omega.sc | ✅ | ⬜ |
+        | 10 | ReadWrite.sc | ✅ | ⬜ |
+        | 11 | Gen.sc | ✅ | ⬜ |
+        | 12 | Qize.sc | ✅ | ⬜ |
+        | 13 | XDump.sc | ✅ | ⬜ |
+        | 14 | TDump.sc | ⚠ fixed | ⬜ |
+        | 15 | tree.sc | ✅ | ⬜ |
+        | 16 | global.sc | ✅ | ⬜ |
+        | 17 | beauty.sc | ✅ | ⬜ |
+
+        **Next session: do this with Lon present, file by file,
+        no shortcuts.**
 
         Session 2026-05-02 automated debrace sweep introduced broken
         code (e.g. `else Shift = .dummy; nreturn;` with no guarding
