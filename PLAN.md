@@ -112,7 +112,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
-| Snocone Beauty         | `GOAL-SNOCONE-BEAUTY.md`       | corpus+one4all | SB-6 — does beauty.sc run end-to-end byte-identical to SPITBOL on `beauty.sno`? beauty.sc parses end-to-end (one4all `f89dacad`); session 2026-05-01 #10 fixed dual-role `*` lex bug — pattern construction now error-free, runs cleanly through init. Remaining work is grammar/semantic mismatch in beauty.sc itself. Snocone language spec: see `ARCH-SNOCONE.md`. |
+| Snocone Beauty         | `GOAL-SNOCONE-BEAUTY.md`       | corpus+one4all | SB-6.E — lexer strictness fix.  5 dual-role binary operators (`* + - / ^`) currently accept tight forms (`1+2`, `1*2`, etc.) that SPITBOL rejects with Error 231, violating the SPITBOL functional-superset hard invariant.  Six sub-rungs: tighten `*`, rewrite `+`/`-`/`/`/`^` to strict 3-line cascade, remove false "tolerance" sentence from ARCH-SNOCONE.md, gate, re-run beauty.sc, anti-rationalization confirm-with-Lon pass.  beauty.sc parses end-to-end after session #10's lex fix; pattern-construction error cascade gone. |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |

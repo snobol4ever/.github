@@ -2443,38 +2443,117 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
     IR, zero new node, exactly per session #78 design.  Verified
     truth table: ?'hello' → succeed; **?'' → succeed (was FAIL —
     the regression-fix)**; ?(EQ(2,3)) → FAIL; ?(EQ(2,2)) → succeed.
-  - [ ] **SB-6.D** Beauty.sc tiny-fixture still emits "Parse Error".
-    With SB-6.A/B/C landed and verified at unit level, the
-    session-#78 tiny fixture
-    `printf '\tA = 1\n\tOUTPUT = A\nEND\n' | scrip --ir-run $LIBS beauty.sc`
-    still produces:
+  - [x] **SB-6.D** LANDED session #82.  Beauty.sc tiny-fixture root
+    cause turned out to be a faulty corpus port of SPITBOL's
+    `:F(NRETURN)` in `ShiftReduce.sc::Reduce`, not a runtime bug.
+    The Snocone form `n = EVAL(n); if (~DIFFER(n)) { nreturn; }`
+    does not catch EVAL failure (per SPITBOL Manual Ch.2 p.33: when
+    EVAL fails the assignment is silently skipped, n keeps its prior
+    EXPRESSION value, ~DIFFER fails to fire nreturn, and GE(n,1)
+    errors).  Cross-check confirmed: ported the broken if-form back
+    to SNOBOL4 — SPITBOL also errors with Error 109.  Fix:
+    `if (~(t = EVAL(t))) { nreturn; }` — direct port of `:F(NRETURN)`.
+    Two further grammar gaps surfaced and landed (`expr0 : expr1
+    T_2EQUAL` empty-RHS rule for `subj ? pat = ;` and `x = ;`; and
+    CONCAT trigger for `&IDENT` keyword reference at S_DISPATCH).
+    Third gap (dense `if (cond){...}else{...}` parse error) landed
+    in session #9 of the post-LS-6 work via three lexer/grammar
+    fixes (S_OP_EQ no-`had_ws`, E_CALL→E_IDENT for keywords,
+    E_CALL→E_IDENT after T_DEFINE).  After these fixes beauty.sc
+    parses end-to-end with no syntax errors.
+  - [ ] **SB-6.E** — Lexer strictness: dual-role binary operators
+    must require `{W}OP{W}` (whitespace both sides) per the Snocone
+    spec.  See `ARCH-SNOCONE.md` "Dual-role operator disambiguation
+    rule" and the SPITBOL functional-superset hard invariant.
+
+    **Bug discovered session 2026-05-01 #11:** five dual-role
+    operators in `snocone_lex.c` accept tight binary forms (no
+    whitespace either side) that SPITBOL itself rejects with Error
+    231.  This violates the functional-superset hard invariant — a
+    Snocone program can pass tight forms that the equivalent SPITBOL
+    program would reject.  Verified divergence:
+
     ```
-    Parse Error
-    \tA = 1
-    Parse Error
-    \tOUTPUT = A
+    Snocone now: 1+2 → 3, 1-2 → -1, 1*2 → 2, 1/2 → 0, 1^2 → 1
+    SPITBOL    : all five fire ERROR 231 'syntax error: invalid numeric item'
     ```
-    plus 3 stderr errors (`** Error 1 ... GE first argument is not
-    numeric` ×2, `** Error 5 ... Undefined function or operation`
-    ×1).  Session #78 noted these as "three startup errors during
-    pattern construction" that "fire BEFORE @T0 in real time".
-    Session #79 confirms: the operator bugs were not the only
-    upstream defects — there is at least one more, distinct from
-    A/B/C.  Suggested next step: bisect the pattern-construction
-    section of beauty.sc (Integer/DQ/SQ/String/Real/Id/Function/
-    BuiltinVar definitions, top-of-file ppStop/ppSmBump/ppLgBump
-    arithmetic, &FULLSCAN/&MAXLNGTH setup) until the first error
-    fires; the trigger statement is the next gating defect.  The
-    `GE first argument is not numeric` error is a strong hint —
-    something passes a non-numeric value to a `GE()` call during
-    pattern construction.  Likely candidate: `Real` pattern's
-    nested expression or the `ppStop` array setup interacting
-    with the new E_VLIST semantics.  Recommend confirming the
-    error is NOT introduced by SB-6.A/B/C by checking out
-    `41c9a50a` and re-running the tiny fixture — if the same 3
-    errors fire there, the bugs are pre-existing and merely
-    unmasked when the operator fixes let beauty.sc proceed
-    further.
+
+    Audit table (against the strict 3-line `{W}OP{W}` cascade that
+    `| ? $ . & ! @ ~ %` already use correctly):
+
+    | Op  | S_OP_* block   | Status                                                  |
+    |-----|----------------|---------------------------------------------------------|
+    | `\|` | S_OP_PIPE     | ✅ correct — strict {W}OP{W}                            |
+    | `?` | S_OP_QUEST     | ✅ correct                                              |
+    | `$` | S_OP_DOLLAR    | ✅ correct                                              |
+    | `.` | S_OP_DOT       | ✅ correct                                              |
+    | `&` | S_OP_AMP       | ✅ correct                                              |
+    | `@` | S_OP_AT        | ✅ correct                                              |
+    | `~` | S_OP_TILDE     | ✅ correct                                              |
+    | `%` | S_OP_PERCENT   | ✅ correct                                              |
+    | `!` | S_OP_BANG      | ✅ correct (after `!=` carve-out)                       |
+    | `*` | S_OP_STAR      | ⚠️ half-fixed (session #10) — tight `{V}*{V}` fall-through still allows `1*2`; **remove the `if (last_value && !is_rws_at(p, 1))` line** |
+    | `+` | S_OP_PLUS      | 🐞 lenient `if (last_value)` — `1+2` accepted as binary |
+    | `-` | S_OP_MINUS     | 🐞 lenient — `1-2` accepted as binary                   |
+    | `/` | S_OP_SLASH     | 🐞 lenient — `1/2` accepted as binary                   |
+    | `^` | S_OP_CARET     | 🐞 lenient AND code-shape sloppy (both arms goto E_EXP) |
+
+    Note also: the false "Snocone tolerance over strict SPITBOL"
+    sentence in ARCH-SNOCONE.md describing `2*3` as accepted is
+    wrong and must be removed — it contradicts the hard invariant
+    declared in the same document.
+
+    - [ ] **SB-6.E.1** — Bring `*` to fully strict.  Remove the
+      `if (last_value && !is_rws_at(p, 1)) { ADV(1); goto E_MUL; }`
+      fall-through added in session #10.  Verify `1*2` fires syntax
+      error matching SPITBOL.  Verify `2 * 3` still binary multiply.
+      Verify `*W '=' *W` still concat-with-unary-defer.
+    - [ ] **SB-6.E.2** — Rewrite `S_OP_PLUS` to the strict 3-line
+      cascade matching `S_OP_PIPE` shape:
+      ```c
+      if (PEEK(1) == '=') { ADV(2); goto E_PLUS_ASSIGN; }
+      if (had_ws && last_value && is_rws_at(p, 1)) { ADV(1); goto E_ADD; }
+      if (had_ws && last_value)                    { return T_CONCAT; }
+                                                   { ADV(1); goto E_UN_PLUS; }
+      ```
+      Same shape for `S_OP_MINUS` (E_SUB / E_UN_MINUS), `S_OP_SLASH`
+      (E_DIV / E_UN_SLASH), `S_OP_CARET` (E_EXP / decide whether
+      unary `^` is meaningful — per Andrew's `.sc` line 78 the
+      unary-op set is `+ - * & @ ~ ? . $`, no `^`, so the unary
+      branch should `goto E_UNK` or otherwise reject — confirm
+      design intent before landing).
+    - [ ] **SB-6.E.3** — Remove the false sentence from
+      `ARCH-SNOCONE.md`:
+      > A Snocone tolerance over strict SPITBOL: `2*3` (no
+      > whitespace either side) is also accepted as binary multiply
+      > where SPITBOL itself would reject as a syntax error.
+      Replace with: nothing — the strict {W}OP{W} rule already
+      stated in the same section covers this case correctly.
+    - [ ] **SB-6.E.4** — Run gates (smoke snocone, beauty all-modes,
+      broker, smoke snobol4).  Find any `.sc` corpus file that
+      breaks (it would be using a tight binary form that SPITBOL
+      would also reject).  Per the SPITBOL functional-superset
+      invariant, those are corpus bugs — fix them in corpus.  Per
+      RULES.md "Never patch corpus source to work around runtime
+      bugs": fixing the corpus to use strict-spec-compliant forms
+      is the correct direction; do NOT walk back the lexer
+      strictness to accommodate a corpus tight form.
+    - [ ] **SB-6.E.5** — Re-run beauty.sc end-to-end with all libs.
+      Document any change in error pattern.  This may unmask a
+      different bug or may show the strict-lexer-correct behavior
+      already.
+    - [ ] **SB-6.E.6** — Confirm-with-Lon pass: enumerate the
+      handful of Snocone invariants Lon holds in his head most
+      strongly, write minimal behavioral test cases for each,
+      run under both scrip and SPITBOL, report any divergence
+      (between spec and implementation, or between spec and Lon's
+      truth).  The point is to anchor the spec on Lon's actual
+      design intent rather than on what I, Claude, observed in
+      the implementation and rationalized.  **This is the
+      anti-rationalization step** — without it, the spec drifts
+      back into "what the code does" rather than "what the code
+      should do."
+
 - [ ] **SB-7** — Gate script. Commit. Push.
 
 ---

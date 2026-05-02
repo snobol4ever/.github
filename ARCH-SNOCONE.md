@@ -93,10 +93,12 @@ This is the SPITBOL/SNOBOL4 rule. Concretely:
 - `2 * 3` (whitespace both sides) → binary multiply
 - `A *B` (whitespace left only) → concat A with unary defer of B
 - `*W` (no whitespace, expression start) → unary defer
+- `1*2` (no whitespace either side) → **syntax error**, matching SPITBOL Error 231
 
-A Snocone tolerance over strict SPITBOL: `2*3` (no whitespace either
-side) is also accepted as binary multiply where SPITBOL itself would
-reject as a syntax error.
+The implementation does not currently enforce this rule consistently
+for all five `+` `-` `*` `/` `^` operators — see GOAL-SNOCONE-BEAUTY
+SB-6.E for the open work bringing the lexer into compliance with this
+spec.
 
 ---
 
