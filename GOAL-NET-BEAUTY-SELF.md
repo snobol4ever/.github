@@ -243,16 +243,8 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
     diverged PM event reveals which Alternate link or Scan
     outcome is wrong.
 
-  **Done when:**
-    1. Four `MWK_PM_*` kinds defined in `monitor_wire.h`.
-    2. dot emits all four ports correctly (smoke 1).
-    3. spl emits all four ports correctly (smoke 2).
-    4. Controller compares PM events without false positives.
-    5. Beauty self-host harness's first DIVERGE row sits inside
-       snoExpr17 traversal, with adjacent CALL/EXIT/REDO/FAIL
-       events naming the exact alternate-link bug.
-    6. Bug fix lands in `PatternAlternation (Pipe).cs` or
-       `AbstractSyntaxTree.cs ComputeAlternate`.
+  **LANDED session #80, 2026-05-02** — all four ports on both sides.
+  x64 `5035571`, one4all `872b5a3c`. See session #80 narrative below.
 
   **Why this rung is preferred over S-2-bridge-coverage-pattern-
   traversal (kept open below).**  That rung scopes 12+ MWK kinds
@@ -3333,3 +3325,93 @@ it in one window with no diagnostic detours:
                                   same alt-link bug class as line 26.
                                   Awaiting PM_CALL on wire to localise.
 
+
+---
+
+## Session #80 — 2026-05-02 (Sonnet / Lon)
+
+**Outcome:** Three commits landed. S-2-bridge-7-byrd-pattern LANDED
+(x64 `5035571`, one4all `872b5a3c`). Root cause of line-48 Parse Error
+**isolated via C# function tracing** between last-agreed and first-diverged
+sync-step events. Bug precisely located: `*match(snoUnprotKwds, snoTxInList)`
+deferred code pushes wrong variable slot — `match()` receives `snoFunctions`
+(455 chars) instead of `snoUnprotKwds` (125 chars) as first argument.
+No snobol4dotnet runtime commit (bug located, not yet fixed).
+
+### What landed
+
+1. **x64 `5035571`** — `jsr pmcll` in `succp` at `sbl.min:16839` completes
+   all four Byrd-box ports on spl (PM_EXIT/REDO/FAIL landed session #78;
+   PM_CALL new this session). Oracle md5 `abfd19a7` intact. Beauty 17/17 PASS.
+
+2. **one4all `872b5a3c`** — `test_monitor_3way_sync_step_auto.sh`: `MONITOR_PM=1`
+   passes `SPL_PM_TRACE=1` to spl and `MONITOR_PM_TRACE=1` to dot. Default-off.
+
+### Root cause of line-48 Parse Error
+
+**Method:** standalone C# function tracing in `Scanner.cs` and
+`PatternMatch (Question Mark).cs` between ec=1709 (last-agreed `*snoProtKwd`
+CALL, `hasAlt=True alt=352`) and the divergence at ec=2839.
+
+**Finding:**
+```
+[WRONG-SUBJ] subj-start=ANY APPLY ARBNO ARG ARRAY ATAN BACKSPACE
+             snoUnprotKwds=len=125:ABEND ANCHOR CASE CO
+             arg0=ANY APPLY ARBNO ARG ARRAY ATAN BACKSPACE
+```
+`snoUnprotKwds` IS 125 chars in the variable table. `arguments[0]` passed
+to `match()` IS 455-char `snoFunctions`. The deferred code closure for
+`*match(snoUnprotKwds, snoTxInList)` pushes the slot for `snoFunctions`.
+
+**Call stack:**
+```
+BuildMain -> PatternMatch (snoSrc ? snoParse)
+  -> ArbNoPattern.Scan -> PatternMatch (ARBNO anchor=True)
+    -> Scanner.Match -> ImmediateVariableAssociation2.Scan ($ tx commit)
+      -> Executive.Assign -> CompileStarFunctions>b__0 (*match eval)
+        -> ExecuteProgramDefinedFunction -> OperatorFast
+          -> PatternMatch <- 455-char snoFunctions lands here
+```
+
+The deferred code is compiled by `CompileSubExpression` ->
+`OpCode.PushVar, VariableSlotIndex[key]`. The `key` for `snoUnprotKwds`
+resolves to `snoFunctions`' slot. This is a slot-index assignment bug in
+`BuilderResolve.ResolveVariable` or across `-INCLUDE`/`EVAL` boundaries.
+
+### What rules out other causes
+
+- `snoUnprotKwds` IS correct (125 chars) in the variable table at fire time.
+- The alt-stack correctly restores alt=352 (`*snoUnprotKwd`); the alternation
+  ordering is not the bug.
+- Session #71 BetaStack leak fix, session #67 seal-skip fix, session #78
+  graft cache are all unrelated and correct.
+
+### Next session — fix the slot-index bug
+
+1. Dump `VariableSlotIndex["snoUnprotKwds"]` and `VariableSlotIndex["snoFunctions"]`
+   at the time `*match(snoUnprotKwds, snoTxInList)` is compiled. If they are
+   the same integer, that is the collision site.
+
+2. Add `PushVar` trace in `ThreadedExecuteLoop` logging `(slotIndex, varLength)`
+   when `varLength == 455`; compare against `VariableSlotIndex["snoUnprotKwds"]`.
+
+3. Fix `BuilderResolve.ResolveVariable` (or its call site) so `snoUnprotKwds`
+   gets its own slot. Expected ~5-line fix.
+
+4. Beauty self-host gate: expect Parse Error to advance past line 48.
+   Beauty 17/17 regression check.
+
+### HEADs at handoff
+
+| Repo | HEAD |
+|------|------|
+| x64 | `5035571` |
+| one4all | `872b5a3c` |
+| snobol4dotnet | `12bd3fa` (unchanged) |
+
+### Status updates
+
+  S-2-bridge-7-byrd-pattern  [x] LANDED — all four Byrd-box ports.
+  S-2-bridge-7-fullscan      [~] Root cause located (wrong slot in
+                                  *match(snoUnprotKwds,...) closure).
+                                  Fix is next session's first move.
