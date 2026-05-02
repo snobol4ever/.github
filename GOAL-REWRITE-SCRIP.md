@@ -59,7 +59,15 @@
   complexity that outweighs the gain at this size. Defer until a concrete motivating
   bug or new frontend work makes a split natural.
 
-- [ ] **RS-5** — Middle-tier and backend scan: shared helpers, opcode convergence (session TBD).
+- [x] **RS-5** — Middle-tier and backend scan: shared helpers, opcode convergence (session 2026-05-02).
+  Scanned sm_lower.c, sm_interp.c, sm_prog.c, icn_runtime.c, pl_runtime.c, ir.h, bb_broker.c (+bb_*.c).
+  Findings in `docs/RS-5-scan-findings.md`: 3 duplicate-helper candidates (D-1 int-to-str coercion,
+  D-2 real formatting divergence in icon_gen.c, D-3 ICN_BINOP_CONCAT reimplements CONCAT_fn),
+  1 opcode convergence candidate (OC-1: add SM_MOD), BB broker confirmed clean.
+  Also fixed interp_eval_pat / interp_eval E_* placement gap found during scan (RS-5b):
+  moved all 17 pattern primitive cases from interp_eval.c (DYN-55 workaround) into
+  interp_eval_pat where they belong; removed dead E_FNC("ARBNO")/("FENCE") guards.
+  one4all @ `344e5440`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
   **Scope:** `src/runtime/x86/sm_lower.c`, `sm_interp.c`, `sm_prog.c`,
   `src/runtime/interp/icn_runtime.c`, `src/runtime/interp/pl_runtime.c`,
