@@ -730,11 +730,11 @@ F-1 lands.
 ## Current state
 
 **HEADs:**
-- csnobol4 @ session #65 (working tree CLEAN at HEAD `5fbf2ce`; fence_suite expanded to 53 tests; no runtime change)
+- csnobol4 @ session #66 (working tree CLEAN at HEAD `451ccae`; session #66 docs commit landed; no runtime change since #64)
 - one4all @ `06433f90`
 - corpus @ session #65 `6f00145` (53 tests at IDs 100–152; Tier G additions + 118/127/140/141 corrections)
 - x64 @ `71ff275`
-- active step → **F-2 Step 3a** (sessions #49–#65; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral; **session #65 verifies test suite against SPITBOL oracle, expands suite to 53 tests with Tier G (148–152), corrects three corpus errors, sharpens bug-class characterization** (commit `5fbf2ce`); **session #65 (cont) isolates the bug to a single line: `L_FNCD: BRANCH(FAIL)` at isnobol4.c:12437 should be `goto L_TSALT`** (commit `b2764cf` — docs+diff only; runtime change saved as patch artifact, NOT committed because it regresses test 150). Resolves session #62/#64 narrative tension: both partially right — #64's failure-walker path is real but #62's success-path leak observation is also real; together they describe one bug requiring composed fix. **Session #66** should `git apply docs/F-2-Step3a-session65-L_FNCD-attempt.diff` AND implement session #64's proposed FNCA-success leaked-alt zeroing — together they should resolve both clusters without regressing 150. Beauty 42 lines (unchanged since #58).)
+- active step → **F-2 Step 3a** (sessions #49–#66; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral; session #65 verifies test suite against SPITBOL oracle, expands to 53 tests with Tier G; session #65 (cont) isolates L_FNCD discriminator (`BRANCH(FAIL)` → `goto L_TSALT`); **session #66** applies + falsifies the composed fix (L_FNCD goto-L_TSALT + FNCA-success zeroing): zeroing fired correctly but had no effect; trace evidence on test 148 pinpoints bug to **a SCIN3-pushed entry inside the protected leak region** at PDLPTR=e910 with slot[1]={a=0x60,f=0}, dispatched under switched PATBCL=cmd via session #64's SCIN3 fall-through path. Resolves the session #62 vs #64 tension definitively: bug is on failure-walker path (#64) but inside the protected region, NOT in an "abandoned" region. Refutes FNCA-success zeroing (the entry lives in the OUTER scan's frame, not FNCA's). Recommends **option (A2)**: at L_STARP2 success, conditionally zero non-FNC entries in [STREX_entrypdl+3*DESCR..PDLPTR] IF an FNCDCL exists in the region. Should preserve guard5 (no FENCE → no FNCDCL → no zeroing) and fix all 7 cluster A/B FAILs. Findings in `csnobol4/docs/F-2-Step3a-session66-findings.md`. Diagnostic patch saved as `csnobol4/docs/F-2-Step3a-session66-diagnostic.diff`. csnobol4 advanced to `451ccae`. Beauty 42 lines unchanged.)
 
 **Gates as of session #65 end (working tree CLEAN, no runtime code changed since session #64):**
 - fence_function/ suite: **10/10 PASS** (preserved across baseline / s52 / s56 / s58 / s64 / s65)
@@ -2637,3 +2637,120 @@ cd ../fence_function && make | tail -1
 
 # 5. If 150 still regresses, try option (b) instead of (a).
 ```
+
+---
+
+## Session #66 update — bug location identified definitively (NO runtime change)
+
+Session #66 followed session #65 (continued)'s plan: applied the L_FNCD
+`goto L_TSALT` patch + implemented session #64's proposed FNCA-success
+leaked-alt zeroing.  Result: identical to L_FNCD-only baseline (46/7/0,
+124↔150 swap).  The zeroing **fired correctly** (verified via trace) but
+**had no effect** on cluster A.
+
+Reverted both attempts, kept only env-gated trace instrumentation, ran
+on test 148 (smallest cluster A repro: input `'ab'`).
+
+### The decisive trace evidence
+
+Test 148 wrong-match path produces 5 SALT2 events before "leak: seal
+failed" output (refines session #62's "no SALT2 events" claim).  The
+critical sequence:
+
+```
+[12] SALT2 PDLPTR=e940 slot1={a=...a560,f=1,v=2} slot2={a=cmd}     <- top STREXCCL
+[13] STREXC-FIRE  old_PATBCL=outer  new_PATBCL=cmd
+[14] SALT2 PDLPTR=e910 slot1={a=0x60, f=0, v=0}                    <- *** the bug ***
+[15] SCOK  PDLPTR=e910 PATBCL=cmd PATICL=0x90  TXSP=0
+[16] FNCA-ENTRY  <- FENCE re-entered (matches 'ab' alt)
+```
+
+The entry at PDLPTR=e910 with `slot[1]={a=0x60, f=0}` is BETWEEN
+top-STREXCCL (e940) and bottom-STREXCCL (e8e0) — INSIDE the protected
+leak region.  After top STREXCCL switches PATBCL to cmd, walker reads
+this non-FNC entry, session #64's fix routes it to SCIN3 fall-through,
+SCIN3 dispatches `D(cmd + 0x60 + DESCR)` = a real cmd-pattern node
+(the 'ab' alt of `'a'|'ab'`), match succeeds.
+
+### What this resolves
+
+The session #62 vs #64 narrative tension is resolved by this trace:
+- Session #62 was wrong about the SALT2 count (test 119 has more events
+  than 148 because of longer input, but the bug shape is the same:
+  walker dispatches a SCIN3-pushed entry INSIDE the protected leak
+  region).
+- Session #64's "abandoned-seal region above STARP2" framing was right
+  about the path (failure walker) but wrong about the region (entry is
+  IN the protected region, not above PDLPTR-after-STARP2).
+
+### Why the FNCA-success zeroing didn't fix it
+
+FNCA's frame is [P1..P2] where P1 = PDLPTR before SCFLCL push.  The
+problematic entry at e910 sits at PDL position pushed by SCIN3 during
+**cmd's outer pattern walk** (not during FENCE's inner P matching).
+That position is in the OUTER scan's PDL region — specifically, inside
+[STREX_entrypdl..PDLPTR_at_STARP2_entry] — which is OUTSIDE FNCA's
+frame.  FNCA-success zeroing literally cannot reach it.
+
+### The correct fix shape — option (A2)
+
+At L_STARP2 success, walk the leak region [STREX_entrypdl+3*DESCR ..
+PDLPTR_at_STARP2_entry].  If ANY entry is FNCDCL (PATBRA case 40),
+zero slot[1] of all non-FNC entries in the region.  Else leave alone.
+
+This conditional design:
+- Preserves guard5 (no FENCE → no FNCDCL → no zeroing → DSAR-redo
+  machinery intact).
+- Should fix all 7 cluster A/B FAILs (FENCE → FNCDCL present →
+  zeroing kills the SCIN3 leak before walker can dispatch it).
+- Is gate-targeted and testable: ≥51/53 expected.
+
+### Recommended session #67 plan
+
+```bash
+cd /home/claude/csnobol4
+
+# 1. Apply L_FNCD patch (necessary for cluster B).
+git apply docs/F-2-Step3a-session65-L_FNCD-attempt.diff
+
+# 2. Optionally apply diagnostic patch for re-trace ability.
+git apply docs/F-2-Step3a-session66-diagnostic.diff
+
+# 3. Implement option (A2) at L_STARP2 success path
+#    (isnobol4.c around line 12247, after the sentinel-install block).
+
+# 4. Build and gate
+make -f Makefile2 xsnobol4 && cp xsnobol4 snobol4
+# 4a. guard5  (expect: inner backtrack worked)
+# 4b. fence_function (expect: 10/10)
+# 4c. fence_suite (expect: 51+ OK)
+
+# 5. Commit only if all gates pass.
+```
+
+### Files this session
+
+- `csnobol4/docs/F-2-Step3a-session66-findings.md` — full investigation.
+- `csnobol4/docs/F-2-Step3a-session66-diagnostic.diff` — reusable
+  trace patch (env-gated `S148_TRACE=1`).
+- This goal-file update + PLAN.md state cell.
+- No runtime source changes.
+- csnobol4 advanced to `451ccae` (docs only).
+
+### Honest checkpoint
+
+Sessions #44–#66 = 22 sessions on F-2 Step 3a.  fence_function preserved
+10/10.  Tier F preserved 16/16 since #55.  fence_suite at 46/7/0 since
+#65.  Beauty at 42 lines since #58.
+
+Session #66's genuine new contribution: **direct trace evidence
+pinpointing the bug** (slot[1].a=0x60 at PDLPTR=e910 on test 148) and
+the session #64 fall-through mechanism (`if !FNC: TXSP = D_A(YCL); goto
+L_SCIN3`) that dispatches it under switched PATBCL.  Plus a falsifiable
+fix candidate (A2) with gate predictions.
+
+The pattern of "narrow the bug, hit deeper structural question"
+continues, but session #67 has the smallest precise target yet:
+"zero entries in this specific PDL range at this specific point, gated
+on FNCDCL presence."  Not a structural redesign, just an additional
+small surgery at L_STARP2.
