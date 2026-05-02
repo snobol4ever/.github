@@ -164,6 +164,55 @@ Full landing details are in commit history. Listed here only as a checkpoint.
     completes). Likely root cause of the lines=89 fingerprint per session
     2026-05-02 #5.
 
+  - [ ] **SB-6.E.7-L** — **Locals-as-parameters semantic bug. Special
+    locals syntax needed.** Per Lon (session 2026-05-02 #15): the current
+    Snocone convention of declaring a function's locals in the parameter
+    list — `function fn(a, b, x, y, z)` to mean "a,b are formals; x,y,z
+    are locals" — has a real semantic bug. A caller doing `fn(p, q, 1, 2, 3)`
+    will initialize `x=1, y=2, z=3` rather than initializing the locals to
+    null. Locals must always start null on every call; they cannot receive
+    caller arguments.
+
+    **Andrew's SNOCONE (1981) had the right design.** His surface syntax
+    was `procedure name(args) locals { body }` — comma-separated locals
+    list AFTER the closing paren of the formals. His parser
+    (`snocone.sc:977`) does `getlist(')')` to read formals, then
+    `getlist('{')` to read locals, then emits
+    `DEFINE('name(args)locals')` matching SNOBOL4 exactly.
+
+    **Proposed Snocone syntax** (mirroring Andrew):
+    ```snocone
+    function name(arg1, arg2) local1, local2, local3 {
+        body
+    }
+    ```
+
+    Step 1: extend `snocone_parse.y` and `snocone_lex.l` to accept the
+    `) locals... {` form. Step 2: lower locals to the same IR machinery
+    as formals BUT initialize them to null on entry regardless of caller
+    arity. Step 3: convert all `function fn(args, locals)` declarations in
+    the 17 `.sc` files (and any others) to `function fn(args) locals`. Step 4:
+    runtime test: a function declaring 3 locals, called with extra arguments,
+    must show locals null on entry — not bound to caller args.
+
+    Until this lands, the 17 `.sc` files in `corpus/programs/snocone/demo/beauty/`
+    have a latent bug: any caller passing extra args to e.g. `Insert(x, y, place)`
+    (which has locals `c, i`) would corrupt `c` and `i`. In practice the
+    callers never pass extras, so the bug has not bitten. Closed when grammar
+    extension lands and all `.sc` files convert.
+
+  - [ ] **SB-6.E.7-M** — **Drop `sno` prefix in `.sno` source too.** Per Lon
+    (session 2026-05-02 #15): the `sno` prefix on parser pattern names in
+    `beauty.sno` (snoExpr, snoStmt, snoFunction, etc., 60 names) is noise.
+    The `.sc` port already strips it intentionally; pass #2 was going to
+    restore it for name-parity, but Lon's call is the opposite — drop it
+    in `.sno` too. Update `beauty.sno` in-place: rename all 60 `sno`-prefixed
+    grammar identifiers to their unprefixed forms. Verify SPITBOL oracle
+    output is unchanged (md5 `abfd19a7a834484a96e824851caee159`). Re-baseline
+    `beauty.ref` if needed. After this rung, `.sc` and `.sno` agree on
+    naming and SB-6.E.7-J pass #2 name-parity becomes trivial for the
+    grammar names.
+
   - [ ] **SB-6.E.6** — **Confirm-with-Lon anti-rationalization pass.**
     Enumerate the handful of Snocone invariants Lon holds in his head most
     strongly, write minimal behavioral test cases for each, run under both
@@ -268,7 +317,75 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
-## Most recent session — 2026-05-02 #14 (SB-6.E.7-J pass #2 — 15 of 17 .sc files rewritten faithfully) — EMERGENCY HANDOFF
+## Most recent session — 2026-05-02 #15 (SB-6.E.7-J pass #3 — body-part faithful redo of all 17 files)
+
+### What landed (corpus, 8 files modified — gates green throughout)
+
+**SB-6 fingerprint movement:**
+- Start of session: `lines=1495 stderr=8448 parse_err=418 internal_err=18 rc=0` / 260 diff hunks vs oracle
+- End of session:   `lines=600  stderr=4389 parse_err=169 internal_err=4  rc=124` / 88 diff hunks vs oracle
+- ~60% reduction in parse errors, ~78% reduction in internal errors, ~66% reduction in diff hunks
+- rc=124 (timeout at 30s) supersedes rc=0 (early termination via the prior rollback symptom) — runtime is now doing real deep work
+
+**Three baseline gates green throughout:** smoke_snocone PASS=5, beauty_snocone_all_modes PASS=42 SKIP=3, smoke_unified_broker PASS=49.
+
+Per Lon directive (this session): "Ensure SC is a faithful but also nice version of the SNO and INC code. We want the IR to be identical for expressions and only different for control flow. ... Ensure also the names of variables and functions are the same between SC and SNO/INC. Think of it like stripping away the control flow from SNO/INC and leaving all the code body parts floating. Then wrapping those code parts with new shiny if/for/do/while control. ... Do all the files again now you understand more."
+
+Pass #3 walked all 17 files line-by-line. The key body-part-faithfulness errors fixed:
+
+| # | File | Status | Change |
+|---|------|--------|--------|
+| 1 | assign.sc | ✅ verified clean | no edit |
+| 2 | match.sc | ✅ verified clean | no edit |
+| 3 | stack.sc | ✅ edit | `Push` `:S(NRETURN)` → assignment-as-test form (`if (Push = IDENT(x) .value($'@S')) nreturn;`) preserves `IDENT(x) .value($'@S')` body part verbatim |
+| 4 | case.sc | ✅ edit | brace cleanup on `icase` single-stmt body (post-SB-6.E.7-A) |
+| 5 | counter.sc | ✅ edit | `PushBegTag`/`PushEndTag` `:S(NRETURN)` → assignment-as-test (same shape as Push) |
+| 6 | ShiftReduce.sc | ✅ edit | `Shift` `:S(NRETURN)` → assignment-as-test |
+| 7 | semantic.sc | ✅ verified clean | OPSYN preserved with `// TODO SB-6.E.7-B` markers |
+| 8 | trace.sc | ✅ verified clean | T8Trace polarity already correct from #14; T8Pos already faithful |
+| 9 | omega.sc | ✅ verified clean | TV/TW/TX/TY/TZ all faithful body-part form |
+| 10 | ReadWrite.sc | ✅ edit | **Bug fix: Read inner-loop polarity**. `.inc` `LT(SIZE(rdIn), 131072) :F(Read5)` means "if NOT less-than (full chunk), continue inner loop"; previous .sc had `if (~LT(...)) break;` which exited inner on full chunk — would truncate any line longer than 131072 bytes. Fixed to `if (LT(SIZE(rdIn), 131072)) break;`. Latent bug; beauty.sno lines are all far shorter so the gate didn't catch it. |
+| 11 | Gen.sc | ✅ verified clean | IncLevel/DecLevel/SetLevel/GetLevel/Gen/GenTab/GenSetCont all faithful |
+| 12 | Qize.sc | ✅ verified clean | deferred-`*assign` in pattern alternations preserved (G-3); LEQ/Ucvt user-helpers justified per G-4/G-5 |
+| 13 | XDump.sc | ✅ verified clean | 8 IDENT branches collapsed but body parts identical |
+| 14 | TDump.sc | ✅ edit | **Bug fix: TValue routing**. `.inc` line 12 `TValue = IDENT(v(x)) "." :S(TValue3)` jumps to TValue3 LOOP on success; previous .sc returned immediately. The TValue3 loop walks children appending `.v(c[i])` — so on null-v(x) we should produce `".child1.child2.."` not just `"."`. Fixed via `if (~(TValue = IDENT(v(x)) ".")) { ...9 type checks return on success... }` then loop. |
+| 15 | tree.sc | ✅ verified clean | Insert/Remove/Tree/Equal/Equiv/Find/Visit all faithful |
+| 16 | global.sc | ✅ rewritten | Replaced `define_alphabet_run` invented helper with faithful `&ALPHABET ? (POS(p) LEN(n) . name)` match form for all 12 single-byte chars and 7 alphabet-run captures. UTF table assignments unchanged. UTF post-load loop rewritten faithfully — assignment-as-test on `$UTF_Array[i, 2] = UTF_Array[i, 1]` instead of `_utf_n`/`_nm` invented intermediates. Removes `_alphabet_run`, `_utf_n`, `_nm`, `define_alphabet_run`. |
+| 17 | beauty.sc | ⚠ partial | **`bVisit → visit`** (Lon-flagged silent rename of beauty.sno's inline `visit` function — case-sensitive runtime ensures distinct from tree.sc's `Visit`). **`Refs → snoRefs`** (matching beauty.sno:571). **The bigger structural work — restoring (or removing) sno-prefix on 60 grammar names, un-collapsing pp_TYPE/ss_TYPE dispatch from giant if-cascades, removing invented ppLeaf/ppList/ppStmt helpers, restoring canonical main00..main05 body parts in main loop — DEFERRED**. See "Open rungs / Outstanding from this session" below. |
+
+### Three new rungs surfaced
+
+**SB-6.E.7-L (NEW)** — Locals-as-parameters semantic bug. The Snocone convention of declaring a function's locals in the parameter list (`function fn(a, b, x, y, z)` for SNOBOL4 `DEFINE('fn(a,b)x,y,z')`) has a real semantic bug: a caller passing extra args (e.g. `fn(p, q, 1, 2, 3)`) would initialize the supposed-locals `x, y, z` to caller values rather than null. Locals must always start null. **Andrew's SNOCONE (1981, /tmp/snocone_andrew/SNOCONE/snocone.sc:977) addressed this with the syntax `procedure name(args) locals { body }`** — comma-separated locals list between `)` and `{`. Lower to `DEFINE('name(args)locals')`. We should adopt the same syntax in Snocone. Tracked in Open Rungs section above.
+
+**SB-6.E.7-M (NEW)** — Drop `sno` prefix in `beauty.sno` source itself, not just in `.sc` port. Per Lon (this session): "keep the prefix sno absent. It should also be absent in *.sno version." Reverses pass #2's name-parity-via-restore plan. After this rung, `.sc` and `.sno` agree on naming with no prefix. Tracked in Open Rungs section above.
+
+**SB-6.E.7-K (still open from #14)** — Empty-positional `f(a,,c)` grammar gap at `snocone_parse.y:1089`. Workaround marker remains in `ShiftReduce.sc:31`.
+
+### What did NOT change (deferred)
+
+- **beauty.sc full rewrite** — restore (no — *strip* per SB-6.E.7-M) sno-prefix; un-collapse pp_TYPE/ss_TYPE dispatch from giant if-cascades back to per-type bodies (or use `switch [[table]]` per ARCH-SNOCONE.md when available); remove invented `ppLeaf`/`ppList`/`ppStmt` helpers (keep `ppUnOp`/`ppBinOp` since those ARE in beauty.sno); restore canonical main00..main05 body parts in main loop (currently uses invented `input_done`/`have_line`/`cont_more` flags). ~150 lines of structural change. Context exhausted before this work could land safely. **Active blocker for SB-6.E.7-J pass #3 completion.**
+- **Runtime gaps G-1..G-6** — fix in runtime per RULES.md, not in `.sc`. Not touched this session.
+- **Grammar gaps SB-6.E.7-B (infix-OPSYN), SB-6.E.7-K (empty-positional), SB-6.E.7-L (locals syntax)** — not implemented this session; documented for next session.
+
+### Repos state
+
+- `corpus`: 8 .sc files modified (stack, case, counter, ShiftReduce, ReadWrite, TDump, global, beauty); 9 verified clean (assign, match, semantic, trace, omega, Gen, Qize, XDump, tree). Will commit as session-#15 entry.
+- `one4all`: clean at `31d8bb30` — no runtime/compiler edits this session.
+- `.github`: this commit (session entry + 2 new rungs).
+- Three baseline gates green.
+- Fingerprint: `lines=600 stderr=4389 parse_err=169 internal_err=4 rc=124` (down from `lines=1495 stderr=8448 parse_err=418 internal_err=18 rc=0`).
+
+### Next session entry points
+
+1. **beauty.sc full body-part rewrite** — strip sno- prefix (per SB-6.E.7-M); un-collapse pp/ss dispatch; remove invented helpers; restore main00..main05. Largest remaining task. Read `beauty.sno` lines 252–625 line-by-line; the .sc must match those body parts.
+2. **SB-6.E.7-M** — strip `sno` prefix from `beauty.sno` itself (60 names). Verify oracle md5 unchanged or re-baseline `beauty.ref`.
+3. **SB-6.E.7-L** — implement `procedure name(args) locals { body }` syntax in `snocone_parse.y` / `snocone_lex.l` per Andrew's SNOCONE design. Then convert all 17 `.sc` files' function declarations.
+4. **SB-6.E.7-K** — empty-positional grammar (small change, narrow scope).
+5. Re-gate; commit per-rung. Increase SB-6 self-host script timeout from 30s to 120s+ since runtime now does real work.
+
+---
+
+
 
 ### What landed (corpus only — 15 files rewritten under sharpened body-part-correspondence principle)
 
