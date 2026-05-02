@@ -135,8 +135,48 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
 
 ## Open rungs
 
-- [ ] **SS-0** — Analyze `one4all/src/driver/interp.c` and `one4all/src/frontend/snocone/`. Identify exactly which EKind values the Snocone frontend emits. Confirm the sc_eval dispatch shape for those ~20 kinds. Confirm what `val_to_str` needs to handle. Write findings in this file before writing any `.sc` files.
+- [x] **SS-0** — Analyze `one4all/src/driver/interp.c` and `one4all/src/frontend/snocone/`. Identify exactly which EKind values the Snocone frontend emits. Confirm the sc_eval dispatch shape for those ~20 kinds. Confirm what `val_to_str` needs to handle. Write findings in this file before writing any `.sc` files.
   **⚠️ THIS IS THE CURRENT STEP. Start here. Do not skip to SS-2.**
+
+  **Findings (Session 2026-05-02):**
+
+  The Snocone frontend (`snocone_parse.y`) does **not** emit `E_IF`, `E_WHILE`,
+  `E_FOR`, `E_RETURN`, `E_LOOP_BREAK`, `E_LOOP_NEXT` as IR nodes. Control flow
+  is **lowered to labels and gotos at parse time** — `if`/`while`/`for`/`break`/
+  `return` all become `STMT_t` sequences (conditional-fail gotos, unconditional
+  gotos, label pads) via `sc_make_cond_fail_stmt`, `sc_make_goto_uncond_stmt`,
+  `sc_make_label_stmt`.
+
+  **EKind values the Snocone frontend actually emits:**
+  - Literals: `E_ILIT` `E_FLIT` `E_QLIT` `E_NUL`
+  - Variables: `E_VAR`
+  - Arithmetic: `E_ADD` `E_SUB` `E_MUL` `E_DIV` `E_POW` `E_MNS` `E_PLS`
+  - String/pattern: `E_CAT`/`E_SEQ` (concat) `E_ALT` (alternation) `E_SCAN` (pattern match `?`)
+  - Assignment: `E_ASSIGN`
+  - Subscript: `E_IDX`
+  - Function call: `E_FNC` (also used for builtins EQ/NE/LT/GT/LE/GE/LEQ/LNE/LLT/LGT/LLE/LGE/IDENT/DIFFER)
+
+  **NOT emitted by Snocone frontend:** `E_IF` `E_WHILE` `E_FOR` `E_RETURN`
+  `E_LOOP_BREAK` `E_LOOP_NEXT` `E_MOD` (no `%` operator in Snocone syntax).
+
+  **Implication for `interp.sc`:** The interpreter only needs to handle the ~15
+  EKind values above. Control flow (`if`/`while`/`for`) is already gone by the
+  time the IR reaches the interpreter — it's gotos and labels at the STMT level,
+  executed by the statement loop, not by `sc_eval`. This makes `interp.sc`
+  significantly simpler than the goal file's original algorithm sketch implied.
+
+  **`val_to_str` needs to handle:** INT (format as decimal integer), REAL (format
+  as decimal real), STR (return as-is), NULL (return ''), FAIL (should not be
+  asked to convert — caller must check `is_fail` first).
+
+  **`E_CAT`/`E_SEQ`:** In Snocone (non-Icon) mode, `E_CAT` and `E_SEQ` are both
+  string concatenation. Null string identity rule applies (null cat x = x).
+
+  **`E_SCAN`:** In SNOBOL4/Snocone mode (non-Icon, `icn_frame_depth==0`),
+  evaluates subject as string, evaluates pattern in pat context, calls `exec_stmt`,
+  returns NULVCL on success or FAILDESCR on failure.
+
+
 
 - [x] **SS-1** — Write the step plan. Architecture decided: Stage 0 = scrip C host,
   Stage 1 = snocone.sc compiles itself. File layout above. TDD rung ladder below.
