@@ -814,28 +814,51 @@ to do.
         `if`). Reverted. Root cause: scripts cannot safely transform
         .sc code without human-verified understanding of each block.
 
-        **The work:** walk every .sc file block-by-block against its
-        .sno/.inc source. For each function/block: read the .sno,
-        read the .sc, verify the translation is faithful. Report and
-        fix any discrepancy found. The translation rules are tight:
+        **Purpose:** beauty.sc is the new compiler. It must be
+        correct. Walk every function/block in every .sc file against
+        its .sno/.inc counterpart. Report discrepancies as we go.
+        Fix in runtime if runtime is wrong; fix in .sc if port is
+        wrong. Progress displayed block-by-block with Lon reviewing.
+
+        **Translation rules (tight):**
         - newline-terminated stmts → `;`
         - `:F(LBL)` / `:S(LBL)` / `:(LBL)` → structured Snocone
           (`if`/`else`/`while`/`for`/`break`/`return`/`freturn`/`nreturn`)
-        - everything else preserved, including identifier names
-        - `{ }` braces around multi-statement bodies only; single
-          statements may use bare form `if (cond) stmt;`
+        - `{ }` braces around multi-statement bodies; bare `stmt;`
+          for single-statement bodies (SB-6.E.7-A landed — safe now)
+        - identifier names preserved exactly — no renames
+        - `sno`-prefix stripped from parser-pattern names (convention)
 
-        **Audit order** (smallest → largest):
-        `assign.sc, match.sc, stack.sc, case.sc, counter.sc,
-        ShiftReduce.sc, semantic.sc, trace.sc, omega.sc, ReadWrite.sc,
-        Gen.sc, Qize.sc, XDump.sc, TDump.sc, tree.sc, global.sc,
-        beauty.sc`
+        Per RULES.md: never patch corpus source to work around
+        runtime bugs. Fix the runtime, not the .sc.
 
-        Per RULES.md: never patch corpus source to work around runtime
-        bugs. If audit finds a .sc construct the runtime mishandles,
-        fix the runtime.
+        **Audit order and progress** (~1000 logical blocks total):
 
-        **Do this with Lon present, reviewing each file pair.**
+        | # | File | .sno/.inc lines | .sc lines | Status |
+        |---|------|----------------|-----------|--------|
+        | 1 | assign.sc | 13 | 11 | ⬜ |
+        | 2 | match.sc | 14 | 11 | ⬜ |
+        | 3 | stack.sc | 29 | 32 | ⬜ |
+        | 4 | case.sc | 26 | 32 | ⬜ |
+        | 5 | counter.sc | 85 | 151 | ⬜ |
+        | 6 | ShiftReduce.sc | 33 | 63 | ⬜ |
+        | 7 | semantic.sc | 26 | 64 | ⬜ |
+        | 8 | trace.sc | 35 | 48 | ⬜ |
+        | 9 | omega.sc | 42 | 101 | ⬜ |
+        | 10 | ReadWrite.sc | 46 | 83 | ⬜ |
+        | 11 | Gen.sc | 57 | 72 | ⬜ |
+        | 12 | Qize.sc | 80 | 162 | ⬜ |
+        | 13 | XDump.sc | 47 | 62 | ⬜ |
+        | 14 | TDump.sc | 62 | 95 | ⬜ |
+        | 15 | tree.sc | 88 | 147 | ⬜ |
+        | 16 | global.sc | 163 | 196 | ⬜ |
+        | 17 | beauty.sc | 627 | 498 | ⬜ |
+
+        Legend: ⬜ not started · 🔄 in progress · ✅ clean · ⚠ issues found+fixed
+
+        Each file gets its own sub-commit when clean.
+        Gate after each file: all three baseline gates green.
+
 
   - [x] **SB-6.E.7-D** — **Style sweep: normalize `~DIFFER(x)`
         to `IDENT(x)`.** Closed
