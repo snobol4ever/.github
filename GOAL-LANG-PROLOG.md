@@ -266,7 +266,7 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   All three positional args may be goal-Vars. Edge case: cleanup fires
   on cut, fail, or throw — three distinct continuation paths.
 
-- [ ] **PR-13** — `rung36_arith_edge/` — ISO §8 arithmetic edge cases.
+- [x] **PR-13** — `rung36_arith_edge/` — ISO §8 arithmetic edge cases.
   IEEE specials (NaN, Inf), INT_MIN/-1 overflow (already guarded by Step C),
   integer/float coercion, `mod` vs `rem` ISO semantics, `**` vs `^`,
   `truncate`/`round`/`ceiling`/`floor`. Closes test_arith naturally.
@@ -2482,3 +2482,41 @@ Same pattern: 5 focused tests, driver script, gate.
 - `one4all/src/runtime/interp/pl_runtime.c` — setup_call_cleanup/3 (~40 lines) + is_pl_user_call entry
 - `one4all/src/frontend/prolog/pl_broker.c` — pl_is_builtin_goal entry
 - `.github/GOAL-LANG-PROLOG.md` — PR-19e checked, PR-19 bridge status, this state
+
+---
+
+## Current state (2026-05-02 session — PR-13 LANDED, one4all `c7c71cd0`, corpus `e921a61`)
+
+### Progress report
+
+```
+[PR-13.1] write rung36_arith_edge tests + .ref    STATUS: DONE
+[PR-13.2] write driver script                      STATUS: DONE
+[GATE]  rung36 (pre-fix)    — PASS=3 FAIL=2  (mod/rem wrong; ^ unhandled)
+[PR-13.3] fix mod/rem + add ^ integer power        STATUS: DONE
+[GATE]  rung36_arith_edge   — PASS=5 FAIL=0  ✓
+[GATE]  smoke_prolog        — PASS=5 FAIL=0  ✓ preserved
+[GATE]  smoke_unified_broker— PASS=49 FAIL=0 ✓ preserved
+[GATE]  rung31–35           — all 5/5        ✓ preserved
+[PR-13]                                      STATUS: DONE
+```
+
+### What landed
+
+`pl_runtime.c`:
+- `E_MOD` and `"mod"` E_FNC: fixed to ISO floor-division remainder (sign of
+  divisor). Was using C `%` (truncating). Fix: `if (r != 0 && (r<0) != (d<0)) r += d`.
+- `"rem"`: now correctly documented/implemented as truncating (sign of dividend).
+  Was previously identical to the wrong `mod` — now both are correct and distinct.
+- `"^"`: new handler. Returns integer for non-negative integer exponents
+  (`2^10 = 1024`), falls back to `pow()` for float args or negative exponent.
+- `"**"` was already correct (always float). `3**0 = 1.0` is correct SWI behavior.
+
+Three pre-existing tests passed without any fix: `//` truncation, float funcs
+(truncate/round/ceiling/floor), and abs/sign/max/min.
+
+### NEXT SESSION — PR-14 is the active rung
+
+PR-14: `rung37_term_ops/` — ISO §7.6 term-clause conversion.
+`=..` (univ), `functor/3`, `arg/3`, `copy_term/2` full ISO semantics.
+Same pattern: 5 focused tests + driver script + gate = PASS=5 FAIL=0.
