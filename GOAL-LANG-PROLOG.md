@@ -35,6 +35,27 @@ The driving rungs are small (10-50 line tests), focused (one capability per
 test), and bisectable (each rung is independently shippable). This is the
 pattern PL-1 through PL-11 used successfully — the strategy returns to it.
 
+### Progress reporting (per PLAN.md ⛔ section)
+
+Every PR-19* sub-rung session reports progress as it goes. The expected
+shape:
+
+```
+[PR-19b.1] write rung32 tests + .ref files       STATUS: IN FLIGHT
+[PR-19b.1] write rung32 tests + .ref files       STATUS: DONE
+[PR-19b.2] write driver script                   STATUS: DONE
+[PR-19b.3] extend bridge to \+/1, once/1, not/1  STATUS: IN FLIGHT
+[GATE] rung32_bridge_negation — PASS=5 FAIL=0    ✓
+[GATE] smoke_prolog — 5/5                        ✓
+[GATE] smoke_unified_broker — 41/49              ✓ (pre-existing 8 Icon)
+[PR-19b]                                         STATUS: DONE
+```
+
+Sub-step IDs (.1, .2, .3, …) are session-scoped — pick whatever reads
+clearly. The point is that **the active step and its status are always
+visible**, never inferred. Build commands, gate runs, file edits each
+get a one-line status. No silent work.
+
 | Rung | ISO § | Capability | Driver | Closes downstream |
 |------|-------|-----------|--------|-------------------|
 | PR-13 | 8 | Arithmetic edge cases | `rung33_arith_edge/` | test_arith |
@@ -225,10 +246,11 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   Gate: 5/5 PASS. Foundation work: integrate v3 bridge from
   `one4all/docs/PL-12-session-2026-05-01-bridge.diff` (or successor).
 
-- [ ] **PR-19b** — `rung32_bridge_negation/` — `\+ Var`, `not(Var)`, `once(Var)`.
+- [x] **PR-19b** — `rung32_bridge_negation/` — `\+ Var`, `not(Var)`, `once(Var)`.
   Same pattern: 5 tests, each exercising one of the three control-flow
   builtins with a goal-as-variable. Extends the bridge from `catch/3`
   to these three sites. Driver: `scripts/test_prolog_rung32_bridge_negation.sh`.
+  **LANDED 2026-05-02 session #N (one4all HEAD updated). 5/5 PASS.**
 
 - [ ] **PR-19c** — `rung33_bridge_callN/` — `call/1..7` with goal-as-Var.
   Tests `call(G)`, `call(G, X)`, `call(G, X, Y)`, ..., where G is a Var
@@ -2181,3 +2203,96 @@ as a downstream consequence.
 
 Working trees clean at handoff. Next session writes rung32 + extends
 bridge to negation builtins.
+
+---
+
+## Current state (2026-05-02 session #N — PR-19b LANDED, one4all `4b581efa`, corpus `6a407c6`)
+
+PR-19a was the foundation; PR-19b extends the same Term→EXPR bridge to
+the three negation/control builtins that exhibit the same silent-success
+defect. Same pattern, ~20 lines each.
+
+### Progress reporting (this session, in the new ⛔ format)
+
+```
+[PR-19b.0]  session setup — install + build              STATUS: DONE
+[PR-19b.0a] verify baseline gates                        STATUS: DONE
+[GATE]      smoke_prolog          — PASS=5  FAIL=0       ✓
+[GATE]      smoke_unified_broker  — PASS=49 FAIL=0       ✓
+[GATE]      rung31_bridge_catch   — PASS=5  FAIL=0       ✓
+[PR-19b.1]  write rung32 tests + .ref files              STATUS: DONE
+[PR-19b.2]  write driver script                          STATUS: DONE
+[GATE]      rung32_bridge_negation (pre-bridge) — 1/5    (expected; FAIL signature confirms silent-success defect)
+[PR-19b.3]  extend bridge in pl_runtime.c                STATUS: DONE
+[GATE]      rung32_bridge_negation — PASS=5  FAIL=0      ✓
+[PR-19b.4]  verify no regressions                        STATUS: DONE
+[GATE]      smoke_prolog          — PASS=5  FAIL=0       ✓ preserved
+[GATE]      smoke_unified_broker  — PASS=49 FAIL=0       ✓ preserved
+[GATE]      rung31_bridge_catch   — PASS=5  FAIL=0       ✓ preserved
+[GATE]      SWI suite (informational) — 17/57 (29%)      unchanged from PR-19a
+[PR-19b]                                                 STATUS: DONE
+```
+
+### What landed
+
+`src/runtime/interp/pl_runtime.c` — the existing `\+/not` and `once/1`
+arms in `interp_exec_pl_builtin` now check `goal->children[0]->kind ==
+E_VAR` first and route through `pl_unified_term_from_expr` →
+`pl_invoke_var_goal` (the same bridge used by catch/3 in PR-19a).
+~20 lines added across two arms, no new functions — the bridge's
+existing dispatcher handles all three builtins because they share the
+arity-1 "goal-as-arg" shape.
+
+### rung32_bridge_negation 5/5 verification
+
+- `01_var_goal_neg_succeeds` — `G=fail, \+ G` → succeeds ✓
+- `02_var_goal_neg_fails`    — `G=true, \+ G` → fails ✓ (silent-success
+  also gives the right boolean here for the wrong reason; non-discriminating
+  but confirms no regression)
+- `03_var_goal_once`         — `G=(X=7), once(G), write(X)` → `7` ✓
+  (silent-success gave `_G1`)
+- `04_var_goal_not`          — `G=(write(side),nl), not(G)` → side effect
+  fires under `not` (inner succeeds, not fails) → "side\nafter" ✓
+  (silent-success gave only "after")
+- `05_var_goal_once_arith`   — `G=(A is 6*7), once(G), write(A)` → `42` ✓
+  (silent-success gave `_G1`)
+
+### NEXT SESSION — PR-19c is now the active rung
+
+1. **Write `corpus/programs/prolog/rung33_bridge_callN/01-05`.**
+   `call(Var)`, `call(Var, X)`, `call(Var, X, Y)`, with V bound at
+   runtime. The bridge must rebuild the goal via `=..` semantics and
+   thread additional args. Likely tests:
+   - `01_call1.pl` — `G=write, call(G, hello)` → "hello"
+   - `02_call2.pl` — `G=plus, call(G, 3, 4, R)` (if plus/3 exists; else
+     `G=succ, call(G, 5, R)`) → numeric result
+   - `03_call_user.pl` — user pred + call(G, ...) with several args
+   - `04_call_compound.pl` — `G=write(prefix), call(G)` (zero extra args)
+   - `05_call_arith.pl` — `G=(_X is _+_), call(G, A, 3, 4)` → A=7
+     (most demanding shape — call/N reconstruction with arith inside)
+
+2. **Write `scripts/test_prolog_rung33_bridge_callN.sh`** — copy shape
+   from rung32 driver.
+
+3. **Extend the bridge in `pl_runtime.c`.** Locate `call/1` and `call/N`
+   arms in `interp_exec_pl_builtin` (or add them if absent). For
+   `call(G)` with G an E_VAR, dispatch via `pl_invoke_var_goal`. For
+   `call(G, A1, A2, …)`, the bridge needs to rebuild the goal Term:
+   if G is bound to TT_COMPOUND f/n, the called goal is f(args(G) ++ [A1,A2,…])/n+k.
+   May require a small helper `pl_extend_goal_term(Term *base, EXPR_t **extras, int n_extras, Term **env)`.
+
+4. **Gate**: smoke 5/5, broker 49/49 preserved, rung31 5/5, rung32 5/5,
+   rung33_bridge_callN 5/5. Commit as `PR-19c LANDED`.
+
+### Files changed this session
+
+- `corpus/programs/prolog/rung32_bridge_negation/01-05.{pl,ref}` — 5 driver tests
+- `one4all/scripts/test_prolog_rung32_bridge_negation.sh` — driver script
+- `one4all/src/runtime/interp/pl_runtime.c` — ~20 lines extending the
+  bridge to `\+`, `not`, `once` arms
+- `.github/PLAN.md` — Progress reporting ⛔ section added; PL goal step
+  pointer updated to PR-19c
+- `.github/GOAL-LANG-PROLOG.md` — Progress reporting subsection added
+  under Strategy; PR-19b row checked off; this session-state entry
+
+Working trees: corpus, one4all, .github changes ready for handoff commits.
