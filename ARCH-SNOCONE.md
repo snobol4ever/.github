@@ -313,10 +313,87 @@ control flow is discouraged.
 | `while (cond) S`          | `top  cond  :F(after)` `S  :(top)` `after  ...`   |
 | `do S while (cond);`      | `top  S` `cond  :S(top)`                          |
 | `for (init; cond; step) S`| `init` `top  cond  :F(after)` `S` `step  :(top)` `after  ...` |
-| `switch(e){case v: S; ..}`| chain of `IDENT(e, v)  :S(caseN)` plus a default fallthrough |
+| `switch(e){case v: S; ..}`| see "switch backends" below — chain or table |
 | `break;` / `break LABEL;` | `:(after-of-innermost-or-labeled-loop-or-switch)` |
 | `continue;` / `continue LABEL;` | `:(top-of-innermost-or-labeled-loop)`       |
 | `(e1, e2, e3)` (alt-eval) | SPITBOL extension — emit as-is to SPITBOL backend; for non-SPITBOL backends, lower to a chain of `:S(after)` branches |
+
+### Switch backends — chain vs label-table (compile-time selectable)
+
+**Status:** open design idea (Lon, session 2026-05-02 #6). Not yet
+implemented. See `GOAL-SNOCONE-SWITCH-BACKENDS.md` for the working
+goal and milestones.
+
+**Motivation.** `switch` over a string discriminator is the natural
+target for SNOBOL4-style polymorphic dispatch — `:S($('pp_' t))F(...)`
+in `beauty.sno` is a 30+ way string switch. Today's lowering is a
+single shape: an if/else-if chain (per the `IDENT(e, v) :S(caseN)`
+row in the lowering map). That's the right answer for small case
+counts and the wrong answer for a 30-way dispatch in a hot loop.
+
+**Two backends, one source language.**
+
+1. **`chain`** — current behavior. Lowers to a sequence of
+   `IDENT(e, vK)  :S(caseK)` followed by a default fallthrough. O(n)
+   compares per dispatch. Wins for ≤ ~4 cases, smallest code, best
+   branch-predictor behavior when one case dominates, and for cases
+   over heterogeneous types or non-literal values.
+
+2. **`table`** — perfect-hash jump table on the case literals.
+   Compiler builds the hash at compile time (gperf-style) keyed on
+   the literal case strings. Dispatch is one hash + one compare +
+   one indirect branch. O(1). Wins for dense or large case sets,
+   especially the polymorphic-AST-dispatch idiom. Requires every
+   case label to be a compile-time literal of the same scalar type
+   (string or integer); falls back to `chain` when any case violates
+   that.
+
+**Compile-time selection — three layers, narrowest wins:**
+
+| Layer | Form | Scope |
+|-------|------|-------|
+| Per-site | `switch [[table]] (e) { ... }` / `switch [[chain]] (e) { ... }` | one switch only |
+| File-level | `#pragma snocone switch=table` near top of file | rest of file |
+| Driver flag | `--switch-style=chain\|table\|auto` on `scrip` | whole compile |
+
+`auto` is the recommended default: choose `table` when (a) ≥ N cases
+(N=5 is a sensible starting threshold) and (b) every case is a
+compile-time string-or-integer literal of the same type. Otherwise
+`chain`. The threshold lives in one place in the lowering pass and
+is tunable.
+
+**IR considerations.** The shared IR (`ir.h`) doesn't need a new
+EKind — both backends lower to existing primitives. `chain` emits
+the same sequence it does today. `table` emits a new lowering shape
+in `sm_lower.c` (and per-backend equivalents in JVM/.NET/JS/WASM):
+a constant table holding `(hash_key, label)` pairs plus a small
+preamble computing `hash(e)` and indexing the table. The hash table
+itself is data, not IR. No frontend changes beyond the optional
+`[[chain|table]]` attribute parse.
+
+**Why this matters for SNOBOL4-style dispatch.** `beauty.sno::pp`
+and `beauty.sno::ss` each dispatch on tree-node-type strings (30+
+distinct values). Today's `if/else-if` Snocone port (which is what
+the chain lowering produces) is both slow and a fertile source of
+copy-paste bugs (see SB-6.E.7 audit findings — beauty.sc had three
+identical broken `if` conditions in `pp()`). A `table`-lowered
+`switch` is faster and removes the entire class of "I copy-pasted
+case 7 from case 6 and forgot to change the constant" bugs. The
+source becomes:
+
+```snocone
+switch [[table]] (t) {
+    case 'snoBuiltinVar': ppLeaf(x, t); break;
+    case 'snoFunction':   ppLeaf(x, t); break;
+    ...
+    case 'snoComment':    SetLevel(0); GenSetCont(); Gen(v(c[1]) nl); break;
+    default: error();
+}
+```
+
+That **is** the original `:S($('pp_' t))` idiom expressed in
+structured Snocone. The compiler then chooses chain or table based
+on the heuristic.
 
 ---
 

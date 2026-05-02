@@ -129,6 +129,41 @@ Full landing details are in commit history. Listed here only as a checkpoint.
 
 - [ ] **SB-6** — Self-beautify. Gate: diff empty.
 
+  - [ ] **SB-6.E.7** — **Translation audit pass — code + name parity.**
+    Per Lon (session 2026-05-02 #5): the program already works as
+    `beauty.sno` + `*.inc`; `beauty.sc` is just a port. Drop the symptom
+    chase (likely Gen.sc buffering anyway) and instead walk every `.sc`
+    file block-by-block against its `.sno`/`.inc` source, eyeballing for
+    bad translations. The translation rules are tight:
+    - newline-terminated stmts → `;`
+    - `:F(LBL)` / `:S(LBL)` / `:(LBL)` flow → structured Snocone
+      (`if`/`else`/`while`/`for`/`break`/`return`/`freturn`/`nreturn`)
+    - everything else preserved, including identifier names
+
+    **Two parts:**
+    1. **Code audit** — for each pair, walk `.sc` against `.sno`/`.inc`.
+       Report deltas as we go. Fix typos, control-flow mistranslations,
+       missing branches, unintended semantic shifts.
+    2. **Name parity** — every identifier in `beauty.sc` and the 16 lib
+       `.sc` files must match the corresponding name in `beauty.sno` /
+       `*.inc`. No renames, no case shifts, no cosmetic cleanups.
+
+    Audit order (smallest → largest, simple → complex):
+    `assign.sc, match.sc, stack.sc, case.sc, counter.sc, ShiftReduce.sc,
+    semantic.sc, trace.sc, omega.sc, ReadWrite.sc, Gen.sc, Qize.sc,
+    XDump.sc, TDump.sc, tree.sc, global.sc, beauty.sc`.
+
+    Per RULES.md: **never patch corpus source to work around runtime
+    bugs.** If audit finds a `.sc` construct the runtime mishandles, the
+    fix is in the runtime, not in `.sc`.
+
+    **NOT** the `START` / continuation-line drop bug — that's likely a
+    Gen.sc output-buffering issue and is a separate rung (SB-6.E.8 below).
+
+  - [ ] **SB-6.E.8** — Gen.sc output-buffering bug (deferred until SB-6.E.7
+    completes). Likely root cause of the lines=89 fingerprint per session
+    2026-05-02 #5.
+
   - [ ] **SB-6.E.6** — **Confirm-with-Lon anti-rationalization pass.**
     Enumerate the handful of Snocone invariants Lon holds in his head most
     strongly, write minimal behavioral test cases for each, run under both
@@ -232,6 +267,224 @@ Outputs land at `/tmp/sb6_scr.{out,err}` and (with --diff) `/tmp/sb6_spl.out`.
 Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
+
+## Most recent session — 2026-05-02 #6 (audit pass, in progress)
+
+**SB-6.E.7 translation audit — first 6 of 17 file pairs walked.**
+**Pivot:** stop chasing the lines=89 symptom; eyeball block-by-block.
+Per Lon: the `error` label is the canonical SNOBOL4 "trip a runtime
+error" idiom — undefined-on-purpose. Faithful ports must preserve the
+trip behavior (the .sc port uses `error()` calls to the same end).
+
+### Audit results so far
+
+| File | Status | Notes |
+|------|--------|-------|
+| assign.sc | ✅ clean | Faithful |
+| match.sc  | ✅ clean | Faithful |
+| stack.sc  | ✅ clean | Minor: `xTrace = 0;` init not in .inc (cosmetic; default is null/zero anyway) |
+| case.sc   | ⚠ 1 issue | `cap` dropped `:F(error)` trip — should call `error()` if either REPLACE fails. Param renames (lwr/upr/cap → s) are cosmetic |
+| counter.sc| ✅ clean | Faithful |
+| ShiftReduce.sc | 🟢 1 fix | `Pop('')` → `Pop()` to match .inc and beauty.sc:464 convention |
+
+### 🔴 Major findings — `beauty.sc::pp()` and `beauty.sc::ss_leaf()` dispatch broken
+
+These are the most serious findings of the audit; together they likely
+explain why every assignment statement drops silently in the lines=89
+fingerprint (separately from any Gen.sc buffering issue).
+
+**1. `beauty.sc::pp()` lines 233/236/241** — three back-to-back `if`
+statements with **literally identical conditions**:
+```
+if ((IDENT(t(c(c[n])[2]), 'Id'), IDENT(t(c(c[n])[2]), '$'))) { ppLeaf(x, t); return; }
+if ((IDENT(t(c(c[n])[2]), 'Id'), IDENT(t(c(c[n])[2]), '$'))) { ppWidth = ...; for ... pp(c[i]); return; }
+if ((IDENT(t(c(c[n])[2]), 'Id'), IDENT(t(c(c[n])[2]), '$'))) { SetLevel(0); GenSetCont(); Gen(v(c[1]) nl); return; }
+```
+Only the first ever fires; the other two are dead. The .sno dispatch
+they replace is `:S($('pp_' t))F(RETURN)` with explicit labels for 10
+leaf types (`pp_snoBuiltinVar..pp_snoUnprotKwd`), `pp_snoParse`, and
+`pp_snoComment`. Correct port:
+```
+if (IDENT(t, 'snoBuiltinVar')) { ppLeaf(x, t); return; }
+if (IDENT(t, 'snoFunction'))   { ppLeaf(x, t); return; }
+... 10 leaf names total ...
+if (IDENT(t, 'snoParse'))      { ppWidth = ppStop[4]; for(...) pp(c[i]); return; }
+if (IDENT(t, 'snoComment'))    { SetLevel(0); GenSetCont(); Gen(v(c[1]) nl); return; }
+```
+
+**2. `beauty.sc::ss_leaf()` lines 277/278** — same pattern, two
+adjacent `if/else if` branches with **identical conditions**:
+```
+if      ((IDENT(t(c(c[n])[2]), 'Id'), IDENT(t(c(c[n])[2]), '$'))) { ss_leaf = upr(v); }
+else if ((IDENT(t(c(c[n])[2]), 'Id'), IDENT(t(c(c[n])[2]), '$'))) { ss_leaf = v;      }
+```
+Plus the conditions reference `n` which is **not a parameter of
+`ss_leaf`** (params: `t, v, c, len`); `n` is global there, undefined
+behavior. The `.sno` dispatch they replace is 11 explicit leaf-type
+labels (`ss_snoBuiltinVar..ss_snoUnprotKwd`) routing to either
+`ss = upr(v)` or `ss = v`. Correct port:
+```
+if (IDENT(t, 'snoBuiltinVar')) { ss_leaf = upr(v);      }
+else if (IDENT(t, 'snoFunction')) { ss_leaf = upr(v);   }
+else if (IDENT(t, 'snoId'))       { ss_leaf = v;        }
+... etc ...
+```
+
+**3. `beauty.sc::pp()` line 247** — `ppList(x, '', '', '')` for `'..'`
+is wrong. .sno `pp_..` (lines 423-427) has special non-list logic
+emitting children with conditional `nl` separators, not an empty-string
+separator. Same for `'[]'` (line 248) — .sno `pp_[]` (lines 429-440)
+has its own structure that `ppList` doesn't reproduce.
+
+**4. Helper-collapse fidelity** — beauty.sc introduced 6 helpers not
+present in beauty.sno: `ppBinOp`, `ppLeaf`, `ppList`, `ppStmt`,
+`ppUnOp`, `ss_leaf`. Per Lon's "every construct gets ported, no dead
+code pruning" rule, these collapses lose 1:1 fidelity even where they
+don't lose behavior. Flag for review; not auto-rejecting.
+
+**5. Future direction — switch-as-dispatch (Lon, this session).**
+The `pp` and `ss` polymorphic-dispatch idiom in beauty.sno
+(`:S($('pp_' t))F(RETURN)`) is a string-keyed `switch`. The
+audit-fix lands as an explicit if/else-if chain *now*; a follow-on
+goal `GOAL-SNOCONE-SWITCH-BACKENDS.md` (session 2026-05-02 #6)
+replaces those chains with `switch [[table]] (t) { ... }` once the
+table-lowering backend exists. See ARCH-SNOCONE.md `## Switch
+backends` for the spec. Not a SB-6 dependency — SB-6.E.7 ships
+chains; SW-* makes them fast later.
+
+**6. trace.sc — `T8Trace` doDebug==1 branch is semantically
+inverted from `.inc` (suppresses non-`?` lines, should suppress
+`?` lines).**
+
+The audit found the inversion. Fixing it the natural way —
+`if (str ? (POS(0) '?')) { nreturn; }` — produces a far worse
+fingerprint:
+```
+lines=785 stderr=0 parse_err=3 internal_err=232 rc=0
+```
+vs the expected lines=89 baseline. The original .sc port worked
+around this by writing `if (...) { } else { nreturn; }` (an
+empty-then with negative-else), which **inverts the logic** to
+preserve baseline output.
+
+This points to a deeper Snocone runtime bug, **SB-6.E.7-A** below:
+the form `if (cond) { nreturn; }` (bare if with no else) appears
+to behave differently from `if (cond) { nreturn; } else { }`.
+Even though `T8Trace`'s first guard `if (~GT(doDebug, 0))
+{ nreturn; }` should bail with doDebug=0 before doDebug==1 logic
+ever runs, editing that branch changes the whole-program
+fingerprint. Adding an explicit `else { }` to the doDebug==1 path
+restores baseline. This is a per-file lowering effect, not a
+runtime semantic of `nreturn` itself (verified: a tiny standalone
+function with the same shape works correctly).
+
+**Status:** trace.sc reverted to its original (inverted-but-
+working-around-the-runtime-bug) form. The runtime bug is the work
+to do.
+
+  - [ ] **SB-6.E.7-A** — **Bare-if Snocone runtime bug.** Reproducer:
+        edit `corpus/programs/snocone/demo/beauty/trace.sc::T8Trace`
+        doDebug==1 branch from
+        ```
+        if (str ? (POS(0)   '?')) { } else { nreturn; }
+        ```
+        to either
+        ```
+        if (str ? (POS(0)   '?')) { nreturn; }                  ← bare-if
+        ```
+        or
+        ```
+        if (str ? (POS(0)   '?')) { nreturn; } else { }         ← empty-else
+        ```
+        Run `bash scripts/test_snocone_beauty_self_host.sh --diff --quiet`.
+        Expected: lines=89 in all three cases. Observed: bare-if
+        produces lines=785 internal_err=232; empty-else produces
+        lines=89. The bare-if and empty-else forms should be
+        semantically identical at the Snocone language level.
+        Tracker for this is currently scoped to the SB-6 audit; if
+        the bug widens it should split into its own goal.
+
+  - [ ] **SB-6.E.7-B** — **Implement infix-operator OPSYN in Snocone
+        grammar.** Per Lon (this session): the function-form
+        `OPSYN('alias', 'fn')` works in scrip's runtime today
+        (verified — it aliases the function name). What does NOT work
+        is the **infix-operator** form: `OPSYN('~', 'shift', 2)`
+        followed by `a ~ b` triggers a parse error because Snocone's
+        grammar fixes `~` as the unary negate. Beauty.sno relies on
+        this for `(p ~ 'tag')` (shift) and `("'tag'" & 2)` (reduce);
+        the .sc port works around it by calling `shift(p, 'tag')` and
+        `reduce('tag', n)` as plain functions. Implementing
+        infix-operator OPSYN would let the .sc port match the .sno
+        surface syntax exactly.
+
+        Repro of the gap:
+        ```snocone
+        function f(x, y) { f = x ' ~ ' y; return; }
+        OPSYN('~', 'f', 2);
+        OUTPUT = ('a' ~ 'b');   // → snocone parse error: syntax error
+        ```
+        Scope: snocone_lex.l + snocone_parse.y to recognize the
+        OPSYN-installed binding at parse time. Likely a runtime
+        OPSYN registry that the lexer consults when tokenizing `~`,
+        `&`, `%`, `/`, `#`, `|`, `=`, `!` (the OPSYN-slot operators
+        already reserved at parser.y:812). Not a SB-6 dependency —
+        the .sc port already has the function-call workaround.
+
+  - [ ] **SB-6.E.7-C** — **Style sweep: drop braces around single-
+        statement if/else/while/for bodies.** Per Lon (this session):
+        unneeded braces around single-line bodies are a code-style
+        regression — Snocone is line-oriented and the .sno/.inc form
+        being ported uses single-line clauses. The current .sc port
+        wraps every body in `{ ... }` even when one stmt would
+        suffice. Mechanical sweep across all 17 .sc files in
+        `corpus/programs/snocone/demo/beauty/`. Snocone grammar
+        already supports bare semicolon-terminated bodies via
+        `matched_stmt : simple_stmt | block_stmt | ...` (LS-4.f
+        in snocone_parse.y line 524). Verify gate stays at lines=89
+        after the sweep. **Caveat:** SB-6.E.7-A (bare-if runtime
+        bug) means certain bare-if forms break the gate today even
+        though they parse. Hold this rung until SB-6.E.7-A is fixed.
+        After SB-6.E.7-A, sweep all 17 files.
+
+  - [ ] **SB-6.E.7-D** — **Style sweep: normalize `~DIFFER(x)`
+        and `~DIFFER(x, '')` to `IDENT(x, '')`.** Per Lon (this
+        session): `if (~DIFFER(x))` reads as double-negation and
+        is a less-clear synonym of `if (IDENT(x, ''))`. The .sc
+        port mixes the two styles inconsistently. Pick one
+        (`IDENT(x, '')` matches .inc convention) and apply
+        uniformly. Mechanical, lib-by-lib. Gate stays at lines=89.
+
+### Name parity findings (project-wide grep)
+
+Per Lon (this session): the .sc port **deliberately** strips the `sno`
+prefix from beauty.sno's parser-pattern names (`snoExpr` → `Expr`,
+`snoStmt` → `Stmt`, etc., 60 names). That's the intended convention
+for .sc. Either accept the prefix-difference between .sno and .sc,
+or fix .sno to drop the prefix too. **Do NOT rename .sc back to
+sno-prefixed form.** The earlier audit listing of 60 "renamed"
+parser-pattern names is **not a bug list** — it's a documented
+convention difference. The audit-fix work to rename .sc back is
+abandoned.
+
+| Status | Issue |
+|--------|-------|
+| 🔴 | `beauty.sc::bVisit` is a silent rename of `beauty.sno::visit`. **Bug** — `visit` is not in the sno-prefix family being stripped on purpose. Trivially fixable (rename `bVisit` → `visit`). |
+| ⚠ | `Qize.sc::Ucvt` — not in Qize.inc; unicode hex2 → char helper. Justified. |
+| ⚠ | `global.sc::define_alphabet_run` — not in global.inc; needed because Snocone has no `&ALPHABET POS(p) LEN(n) . name`. Justified. |
+| ⚠ | `LEQ` (in beauty.sc, Qize.sc, omega.sc) — possibly justified runtime helper |
+
+### Remaining audit (in committed order)
+
+`semantic.sc, trace.sc, omega.sc, ReadWrite.sc, Gen.sc, Qize.sc,
+XDump.sc, TDump.sc, tree.sc, global.sc, beauty.sc` (full audit of
+beauty.sc beyond pp/ss/ss_leaf still pending).
+
+### Repos state
+
+- `corpus`: ShiftReduce.sc Pop fix uncommitted
+- `one4all`: clean at `f95817cd`
+- `.github`: this commit (audit findings recorded)
+- Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
 
 ## Most recent session — 2026-05-01 #4
 

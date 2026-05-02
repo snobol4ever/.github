@@ -113,6 +113,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **SB-6 self-host proper** (see goal file — session 2026-05-01 #4 added canonical reproducer `scripts/test_snocone_beauty_self_host.sh`; current fingerprint `lines=89 parse_err=3` (oracle 646); all three modes identical → bug in IR/parser layer; three baseline gates green) |
+| Snocone Switch Backends | `GOAL-SNOCONE-SWITCH-BACKENDS.md` | one4all+corpus | SW-1 (design recorded session 2026-05-02 #6 — chain vs label-table switch lowering, three-layer selection per-site/pragma/driver flag, ARCH-SNOCONE.md ## Switch backends has spec) |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |
