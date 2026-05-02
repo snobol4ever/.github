@@ -135,8 +135,7 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
 
 ## Open rungs
 
-- [ ] **SS-0** — Analyze `one4all/src/driver/interp.c` and `one4all/src/frontend/snocone/`. Identify exactly which EKind values the Snocone frontend emits. Confirm the sc_eval dispatch shape for those ~20 kinds. Confirm what `val_to_str` needs to handle. Write findings in this file before writing any `.sc` files.
-  **⚠️ THIS IS THE CURRENT STEP. Start here. Do not skip to SS-2.**
+- [ ] **SS-0** — Analyze `one4all/src/driver/interp.c` and `one4all/src/frontend/snocone/snocone_parse.y`. Read the EKind dispatch in `interp_eval`. Identify which EKind values the Snocone frontend actually emits. Report findings in the conversation. **Stop after reporting. Do not proceed to SS-2.**
 
   **Findings (Session 2026-05-02):**
 
