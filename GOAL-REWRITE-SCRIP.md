@@ -58,3 +58,35 @@
   and inline arg-eval — extraction requires a sentinel-value ABI or out-param, adding
   complexity that outweighs the gain at this size. Defer until a concrete motivating
   bug or new frontend work makes a split natural.
+
+- [ ] **RS-5** — Middle-tier and backend scan: shared helpers, opcode convergence (session TBD).
+
+  **Scope:** `src/runtime/x86/sm_lower.c`, `sm_interp.c`, `sm_prog.c`,
+  `src/runtime/interp/icn_runtime.c`, `src/runtime/interp/pl_runtime.c`,
+  `src/ir/ir.h`, and the dyn/ Byrd-box implementations.
+
+  **Questions to answer per file:**
+
+  1. **Duplicate helper routines** — string coercion, integer coercion, numeric
+     promotion, fail-propagation patterns: are identical or near-identical helpers
+     defined independently per-language in icn_runtime.c vs pl_runtime.c vs
+     the snobol4 runtime?  Candidates for a shared `runtime/common/coerce.c`.
+
+  2. **Opcode convergence** — where two languages lower the same semantic operation
+     (e.g. integer add, string concatenation, list/array index, type test) to
+     *different* SM opcodes or BB node kinds when one opcode would serve both.
+     List each divergence: `(lang-A opcode, lang-B opcode, unified candidate)`.
+
+  3. **sm_lower.c per-language branches** — are there `if (lang == LANG_ICN)`
+     blocks that duplicate `if (lang == LANG_SNO)` blocks differing only in
+     a constant or a helper name?  These are candidates for a shared lowering
+     path parameterised on a language descriptor struct.
+
+  4. **BB broker duplication** — do any `src/runtime/dyn/bb_*.c` box
+     implementations replicate logic already in another box or in sm_interp.c?
+
+  **Deliverable:** a findings doc `docs/RS-5-scan-findings.md` in one4all listing
+  each duplicate/divergence with file+line, proposed unification, and estimated
+  risk.  No code changes in this rung — findings only.  Code changes go in RS-6+.
+
+  **Session setup:** interp/compiler goals (build_scrip.sh only — no oracle needed).
