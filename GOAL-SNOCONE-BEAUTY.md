@@ -268,6 +268,100 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
+## Most recent session — 2026-05-02 #8 (pp/ss_leaf dispatch fix + bottleneck recharacterized)
+
+**What landed:** The two pp/ss_leaf identical-condition dispatch
+bugs that the session #6 audit identified are now fixed
+(`beauty.sc:233/236/241` and `277/278`). Replaced with the correct
+type-tag dispatch chains using the .sc stripped-prefix convention
+(`'BuiltinVar'` not `'snoBuiltinVar'`, etc.). Also opened new
+rungs: SB-6.E.7-E (multi-space concat sweep — partial landing
+session #7), SB-6.E.7-F (this session's pp/ss_leaf fix),
+SB-6.E.7-G (zero-space jamming sweep — six lines fixed in
+beauty.sc:284-289 this session).
+
+### pp() dispatch — corrected
+
+10 leaf types route to `ppLeaf(x, t)` (BuiltinVar, Function, Id,
+Integer, Label, ProtKwd, Real, SpecialNm, String, UnprotKwd).
+`'Parse'` recurses over children with `ppWidth = ppStop[4]`.
+`'Comment'` and `'Control'` emit `v(c[1]) nl` verbatim. `'Stmt'`
+delegates to `ppStmt(x)`. `'ExprList'`, `','`, `'..'`, `'[]'`,
+`'()'`, `'Call'`, `'|'` dispatch to `ppList` or inline. Unary/
+binary operators fall through to `ppUnOp`/`ppBinOp` by EQ(n,1)/
+EQ(n,2).
+
+### ss_leaf() dispatch — corrected
+
+5 types stringize to `upr(v)`: BuiltinVar, Function, ProtKwd,
+SpecialNm, UnprotKwd. 4 stringize to `v` verbatim: Id, Integer,
+Real, String. `'Label'` is special — `upr(v)` if matches
+SpecialNm, else `v`. The 6 `:()`/`:<>`/`:S()`/`:S<>`/`:F()`/`:F<>`
+goto-clause branches were already correct.
+
+### Fingerprint: still lines=89
+
+**These dispatch fixes do NOT move the gate.** Diagnostic session
+revealed the actual bottleneck is upstream of pp/ss_leaf:
+
+- `echo START | scrip ... beauty.sc` → no output, but parse
+  succeeds with `rc=0`.
+- Debug-instrumented main loop showed `Pop()` returns `t='Label'
+  n=''` for `START` input — **NOT** `t='Parse'` as the grammar
+  would suggest. The Stmt reduction (`reduce('Stmt', 7)`) is not
+  firing on label-only input, leaving Label on the stack.
+- pp(Label) calls ppLeaf, which calls Gen(ss(x)) = Gen('START').
+  Gen buffers but doesn't flush (no nl in the call). The Stmt
+  reduction never fires → no `Gen(nl)` from pp_snoStmt9 → buffer
+  never flushes → no output. This is the **Gen.sc output-buffering
+  bug from SB-6.E.8** but seeded by an upstream parse-reduction
+  failure on label-only Stmt.
+- Same shape applies to single-statement input
+  `                  X = 1`: rc=0, parse succeeds, zero output.
+  Buffer never flushes.
+
+### Suggested next focus
+
+The downstream pieces (pp dispatch, ss_leaf dispatch) are now
+clean. The remaining lines=89 work is upstream:
+
+1. **Stmt reduction failure on label-only input.** Why does
+   `reduce('Stmt', 7)` not fire when Stmt's body is empty (just
+   a Label)? Inspect the Stmt grammar (beauty.sc:115-124) — the
+   alternation branches push different counts of trees. The
+   "epsilon . '' epsilon . '' epsilon . '' epsilon . ''" branch
+   (line 123) pushes 4; `*Goto | epsilon . '' epsilon . ''`
+   (line 124) pushes 1 or 2. Total is 7 for the no-Goto path.
+   If the count is off, reduce('Stmt', 7) silently leaves the
+   stack in a bad state and *Parse continues, ultimately popping
+   the wrong tree.
+
+2. **Continuation-line gluing.** Multi-line patterns
+   (`snoFunction = SPAN(...)` followed by `+ $ tx $ ...`) are
+   being read as separate Src logical units instead of glued
+   into one. The .sc main loop's continuation handler at
+   beauty.sc:472-487 does check `Line ? (POS(0) ANY('.+'))` and
+   appends — but the order of operations may be wrong (the
+   `have_line` flag handling).
+
+3. **Gen buffer never-flushes for label-only Stmt.** Even with
+   correct reduction, Gen leaves START in the buffer if no
+   pp_snoStmt body fires Gen(nl). beauty.sno's pp_snoStmt always
+   ends with Gen(nl) at pp_snoStmt9 (line 381). Verify ppStmt in
+   the .sc port does the same on the label-only path.
+
+### Repos state
+
+- `corpus`: this commit (beauty.sc pp/ss_leaf dispatch fix,
+  41 insertions / 15 deletions; six zero-space jammed lines
+  in ss_leaf goto-clause branches restored to canonical style)
+- `one4all`: clean
+- `.github`: this commit (4 new rungs, session entry)
+- Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
+- Three baseline gates green
+
+---
+
 ## Most recent session — 2026-05-02 #7 (cosmetic spacing sweep)
 
 **Multi-space concat collapsed to single-space across all 17 .sc files.**
@@ -527,6 +621,69 @@ to do.
         port mixes the two styles inconsistently. Pick one
         (`IDENT(x, '')` matches .inc convention) and apply
         uniformly. Mechanical, lib-by-lib. Gate stays at lines=89.
+
+  - [ ] **SB-6.E.7-E** — **Style sweep: collapse multi-space
+        concat runs to single-space.** Snocone treats single- and
+        multi-space identically as `T_CONCAT` (per ARCH-SNOCONE.md
+        "Concatenation — whitespace IS the concat operator"). The
+        .sc port had drifted into 3-space column-alignment style
+        that obscured rather than aided readability; beauty.sno
+        itself uses single-space throughout. **First half landed
+        session 2026-05-02 #7** — 15 of 17 .sc files reflowed,
+        ~2731 bytes shed, line counts unchanged. Gate fingerprint
+        unchanged. (`assign.sc`, `match.sc`, `counter.sc` were
+        already clean.) Remaining work: catch any new mis-styled
+        files added later; re-run beautifier as a CI step.
+
+  - [ ] **SB-6.E.7-F** — **Fix `pp()` and `ss_leaf()` identical-
+        condition dispatch in `beauty.sc`.** Audit (session
+        2026-05-02 #6) found three back-to-back `if` statements
+        in `pp()` (lines 233/236/241) with **literally identical
+        conditions** `(IDENT(t(c(c[n])[2]), 'Id'), IDENT(t(c(c[n])[2]),
+        '$'))` — only the first ever fires; the other two are
+        dead. Same pattern in `ss_leaf()` lines 277/278. The .sno
+        dispatch they replace is `:S($('pp_' t))F(RETURN)` /
+        `:S($('ss_' t))F(RETURN)` — string-keyed dispatch on the
+        tree-node type tag.
+
+        Correct .sc port (using stripped-prefix convention —
+        `pp_snoBuiltinVar` → `IDENT(t, 'BuiltinVar')`):
+
+        For `pp()`:
+        - 10 leaf types (`BuiltinVar`, `Function`, `Id`, `Integer`,
+          `Label`, `ProtKwd`, `Real`, `SpecialNm`, `String`,
+          `UnprotKwd`) → `ppLeaf(x, t); return;`
+        - `'Parse'` → `ppWidth = ppStop[4]; for(...) pp(c[i]); return;`
+        - `'Comment'`, `'Control'` → `SetLevel(0); GenSetCont();
+          Gen(v(c[1]) nl); return;`
+
+        For `ss_leaf()`:
+        - `BuiltinVar`, `Function`, `ProtKwd`, `SpecialNm`,
+          `UnprotKwd` → `ss_leaf = upr(v);`
+        - `Id`, `Integer`, `Real`, `String` → `ss_leaf = v;`
+        - `Label` → `upr(v)` if matches SpecialNm, else `v`
+          (already has correct logic at line 282).
+        - The 6 `:()`/`:<>`/`:S()`/`:S<>`/`:F()`/`:F<>` branches
+          are already correct.
+
+        These bugs likely explain the bulk of the lines=89 drop —
+        nearly every leaf node falls through to `error()` instead
+        of being stringized. **Do this first**, before the helper-
+        collapse audit (point 4 in session #6 findings) — the
+        helpers may be unnecessary once dispatch works.
+
+  - [ ] **SB-6.E.7-G** — **Sweep zero-space jamming across .sc files.**
+        Lon flagged (session 2026-05-02 #8) that lines like
+        `if(DIFFER(ss_leaf)){return;}else{freturn;}` are hostile to
+        read. The `f(x)` zero-space rule from ARCH-SNOCONE.md is
+        **strict for function calls**, not for keywords like
+        `if`/`while`/`for` — the lexer recognizes `if` as a
+        keyword regardless of trailing space. Cosmetic-only fix:
+        ensure `keyword (cond) { body }`, `var = value`,
+        `} else {` style throughout. Six lines in `beauty.sc` lines
+        284-289 partially addressed in session 2026-05-02 #8 (the
+        ss_leaf goto-clause branches). Full sweep across all 17
+        files still pending.
 
 ### Name parity findings (project-wide grep)
 
