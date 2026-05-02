@@ -95,10 +95,11 @@ This is the SPITBOL/SNOBOL4 rule. Concretely:
 - `*W` (no whitespace, expression start) → unary defer
 - `1*2` (no whitespace either side) → **syntax error**, matching SPITBOL Error 231
 
-The implementation does not currently enforce this rule consistently
-for all five `+` `-` `*` `/` `^` operators — see GOAL-SNOCONE-BEAUTY
-SB-6.E for the open work bringing the lexer into compliance with this
-spec.
+The implementation enforces this rule consistently for all dual-role
+operators including `+` `-` `*` `/` `^` — see GOAL-SNOCONE-BEAUTY
+SB-6.E for the rung that landed this. `^` has no unary form (the
+unary operator set is `+ - * & @ ~ ? . $`), so a tight or
+unary-position `^` is a syntax error.
 
 ---
 

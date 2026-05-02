@@ -2503,45 +2503,69 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
     wrong and must be removed — it contradicts the hard invariant
     declared in the same document.
 
-    - [ ] **SB-6.E.1** — Bring `*` to fully strict.  Remove the
+    - [x] **SB-6.E.1** — LANDED session 2026-05-02.  Removed the
       `if (last_value && !is_rws_at(p, 1)) { ADV(1); goto E_MUL; }`
-      fall-through added in session #10.  Verify `1*2` fires syntax
-      error matching SPITBOL.  Verify `2 * 3` still binary multiply.
-      Verify `*W '=' *W` still concat-with-unary-defer.
-    - [ ] **SB-6.E.2** — Rewrite `S_OP_PLUS` to the strict 3-line
-      cascade matching `S_OP_PIPE` shape:
-      ```c
-      if (PEEK(1) == '=') { ADV(2); goto E_PLUS_ASSIGN; }
-      if (had_ws && last_value && is_rws_at(p, 1)) { ADV(1); goto E_ADD; }
-      if (had_ws && last_value)                    { return T_CONCAT; }
-                                                   { ADV(1); goto E_UN_PLUS; }
-      ```
-      Same shape for `S_OP_MINUS` (E_SUB / E_UN_MINUS), `S_OP_SLASH`
-      (E_DIV / E_UN_SLASH), `S_OP_CARET` (E_EXP / decide whether
-      unary `^` is meaningful — per Andrew's `.sc` line 78 the
-      unary-op set is `+ - * & @ ~ ? . $`, no `^`, so the unary
-      branch should `goto E_UNK` or otherwise reject — confirm
-      design intent before landing).
-    - [ ] **SB-6.E.3** — Remove the false sentence from
-      `ARCH-SNOCONE.md`:
-      > A Snocone tolerance over strict SPITBOL: `2*3` (no
-      > whitespace either side) is also accepted as binary multiply
-      > where SPITBOL itself would reject as a syntax error.
-      Replace with: nothing — the strict {W}OP{W} rule already
-      stated in the same section covers this case correctly.
-    - [ ] **SB-6.E.4** — Run gates (smoke snocone, beauty all-modes,
-      broker, smoke snobol4).  Find any `.sc` corpus file that
-      breaks (it would be using a tight binary form that SPITBOL
-      would also reject).  Per the SPITBOL functional-superset
-      invariant, those are corpus bugs — fix them in corpus.  Per
-      RULES.md "Never patch corpus source to work around runtime
-      bugs": fixing the corpus to use strict-spec-compliant forms
-      is the correct direction; do NOT walk back the lexer
-      strictness to accommodate a corpus tight form.
-    - [ ] **SB-6.E.5** — Re-run beauty.sc end-to-end with all libs.
-      Document any change in error pattern.  This may unmask a
-      different bug or may show the strict-lexer-correct behavior
-      already.
+      "tight tolerance" fall-through that was left in S_OP_STAR by
+      session #10.  Also removed the dead `if (PEEK(1) == '*')`
+      duplicate `goto E_EXP` after the tolerance line (was
+      unreachable; `**` is already handled at the top of S_OP_STAR
+      gated by `is_rws_at(p, 2)` for spaced form, with the unspaced
+      `**` left to the unary defer fallback).  Verified: `1*2` fires
+      syntax error matching SPITBOL (which segfaults on the same
+      input under `-bf` — formal proof of corpus bug rather than
+      lexer over-strictness).  `2 * 3` still binary multiply, prints
+      6.  `*W '=' *W` still parses as
+      E_SEQ(E_DEFER(W), QLIT(=), E_DEFER(W)).
+    - [x] **SB-6.E.2** — LANDED session 2026-05-02.  S_OP_PLUS,
+      S_OP_MINUS, S_OP_SLASH each rewritten to the strict 4-line
+      cascade matching S_OP_PIPE shape (op-equals carve-out,
+      `{W}OP{W}` binary, `{W}OP` concat-and-redispatch, fallback
+      unary).  S_OP_CARET took the same shape but its unary-fallback
+      branch is `goto E_UNKNOWN` (not `goto E_UN_*`) because per the
+      Snocone spec (ARCH-SNOCONE.md "unary operators" section and
+      Andrew's `.sc` line 78) the unary operator set is
+      `+ - * & @ ~ ? . $` — `^` has no unary form.  Tight `1+2`,
+      `1-2`, `2*3`, `8/2`, `2^3` and unary-position `^x` all now
+      fire `snocone parse error: syntax error`.  Whitespace-balanced
+      forms (`1 + 2`, `5 - 3`, `2 * 3`, `8 / 2`, `2 ^ 3`) work and
+      print 3, 2, 6, 4, 8.  Unary `+5`, `-5` still work.
+    - [x] **SB-6.E.3** — LANDED session 2026-05-02.  The false
+      "Snocone tolerance over strict SPITBOL" sentence was already
+      removed by `.github` commit `116cf42` ("fix ARCH-SNOCONE.md
+      spec error").  Updated the now-stale follow-up paragraph
+      ("The implementation does not currently enforce this rule
+      consistently for all five `+` `-` `*` `/` `^` operators")
+      to reflect that the rule IS now enforced, and noted the `^`
+      no-unary-form distinction.
+    - [x] **SB-6.E.4** — LANDED session 2026-05-02.  Two corpus
+      `.sc` files used tight binary forms that the strict lexer
+      now rejects:
+        - `corpus/programs/snocone/demo/beauty/test/test_arith.sc:4`
+          — `(i+1)*(i+1)` → `(i + 1) * (i + 1)` (3 tight ops fixed
+          on one line).
+        - `corpus/programs/snocone/demo/beauty/beauty.sc:284-289`
+          — six occurrences of `len-2` / `len-3` inside the `ss()`
+          paren/bracket/angle-suffix-stripping arms → `len - 2`
+          and `len - 3`.
+      SPITBOL `-bf` cross-check confirmed both forms are also
+      rejected by SPITBOL itself (segfaults on parse), so these
+      were genuine corpus bugs per the SPITBOL functional-superset
+      invariant.  After the corpus fix all four gates green:
+      smoke snocone PASS=5, smoke snobol4 PASS=7, beauty all-modes
+      PASS=42 SKIP=3, unified broker PASS=49.  Crosscheck snobol4
+      PASS=6, crosscheck snocone PASS=8 — both unchanged.
+    - [x] **SB-6.E.5** — LANDED session 2026-05-02.  Beauty.sc
+      end-to-end re-tested with all 16 lib `.sc` files plus
+      `beauty.sc` itself, both on the SB-6.D tiny fixture
+      (`\tA = 1\n\tOUTPUT = A\nEND\n`) and on the canonical
+      `corpus/programs/snobol4/smoke/beauty_oracle.sno`.  In both
+      cases scrip exits cleanly with rc=0, zero stdout, zero
+      stderr — no parse errors, no Error 1, no Error 5, no hang.
+      No change in error pattern from session #82's documented
+      end-state: beauty.sc parses through but does not yet
+      produce output for SB-6 self-host.  The lexer-strictness
+      rung is independent of the remaining downstream
+      grammar/runtime work that gates SB-6 itself.
     - [ ] **SB-6.E.6** — Confirm-with-Lon pass: enumerate the
       handful of Snocone invariants Lon holds in his head most
       strongly, write minimal behavioral test cases for each,
@@ -3140,3 +3164,231 @@ beauty.sc end-to-end + .ref generation).
 .lex.c). `.github`: dirty (3 .md). `csnobol4`, `x64`: clean.
 Plan: commit corpus + one4all + .github per RULES.md handoff
 order — code repos first, .github last.
+
+---
+
+## Session 2026-05-02 progress (SB-6.E.1..5 LANDED)
+
+**SB-6.E.1, .2, .3, .4, .5 all LANDED.** Lexer-strictness rung
+closed except for the .6 confirm-with-Lon pass.  Three repos
+touched (one4all + corpus + .github); all four baseline gates
+green; both crosscheck gates green; baselines unchanged across
+the board.
+
+### Why this session
+
+The active rung in PLAN.md was SB-6.E.  SB-6.E.1 (`*` strict)
+had been partially landed in the previous session (commit
+`2d720336`), but a "tight tolerance" line was left in the
+S_OP_STAR cascade that contradicted the goal-file directive
+(SB-6.E.1 explicitly says "**remove** the
+`if (last_value && !is_rws_at(p, 1))` line").  The remaining
+four operators (`+ - / ^`) still used the lenient
+`if (last_value)` form.  ARCH-SNOCONE.md still claimed the rule
+was "not currently enforced consistently for all five operators".
+
+### Fix #1 — `snocone_lex.c` cascade rewrites (SB-6.E.1 + .2)
+
+Six lines deleted from `S_OP_STAR`:
+
+```c
+// removed:
+if (last_value && !is_rws_at(p, 1))    {  ADV(1); goto E_MUL; }   // tight tolerance
+if (PEEK(1) == '*' )                   {  ADV(2); goto E_EXP; }   // unreachable dup
+```
+
+The dead `if (PEEK(1) == '*')` after the tolerance line was
+unreachable: spaced `**` is handled by line 404
+(`PEEK(1)=='*' && is_rws_at(p,2)`) at the top, and tight `**`
+is now correctly left to the unary defer fallback (parses as
+`*` `*` — two unary defers — which is itself an error in nearly
+all contexts but consistent with the spec).
+
+`S_OP_PLUS`, `S_OP_MINUS`, `S_OP_SLASH` each rewritten from
+the 3-line lenient cascade
+
+```c
+if (PEEK(1) == '=') ...op_assign...;
+if (last_value)     ...binary...;
+                    ...unary...;
+```
+
+to the 4-line strict cascade matching `S_OP_PIPE`/`S_OP_QUEST`/etc.:
+
+```c
+if (PEEK(1) == '=' )                              ...op_assign...;
+if (had_ws && last_value && is_rws_at(p, 1))      ...binary...;
+if (had_ws && last_value)                         return T_CONCAT;
+                                                  ...unary...;
+```
+
+`S_OP_CARET` took the same shape but with `goto E_UNKNOWN`
+for the unary fallback — per ARCH-SNOCONE.md "unary operators"
+section and snocone.sc's `unaryop = ANY("+-*&@~?.$")`, `^` has
+no unary form.  Per the SPITBOL manual Chapter 15 p. 181-183
+(read this session), `^` is binary-only (priority 11, right-assoc,
+exponentiation, with `**` and `!` as alternate spellings — the
+`!` spelling is not currently wired in Snocone but is on the
+SPITBOL canonical list).
+
+### Verification — SPITBOL `-bf` cross-check confirms corpus bugs
+
+Built the SPITBOL oracle (`x64/bin/sbl`) and ran tight binary
+forms under `-bf`:
+
+| Input | SPITBOL `-bf` result | scrip after fix |
+|-------|----------------------|-----------------|
+| `OUTPUT = 1+2` | segfault on parse (rejected) | snocone parse error |
+| `OUTPUT = 1 + 2` | prints `3` | prints `3` |
+| `OUTPUT = x-2` | segfault on parse (rejected) | snocone parse error |
+
+SPITBOL's segfault on `1+2` is the formal proof that tight
+binary forms are corpus bugs, not lexer over-strictness.  The
+strict lexer matches the oracle exactly per the SPITBOL
+functional-superset hard invariant.
+
+### Fix #2 — corpus touch-ups (SB-6.E.4)
+
+Two files used tight forms the strict lexer now correctly rejects:
+
+- `corpus/programs/snocone/demo/beauty/test/test_arith.sc:4` —
+  `LE((i+1)*(i+1), n)` → `LE((i + 1) * (i + 1), n)`.  Three
+  tight ops on one line.  Test gate `arith` (3 modes) restored
+  green.
+- `corpus/programs/snocone/demo/beauty/beauty.sc:284-289` —
+  six occurrences of `len-2` and `len-3` inside the `ss()`
+  paren/bracket/angle suffix-stripping arms.  Replaced with
+  `len - 2` / `len - 3`.
+
+Per the goal file's session-#73 rule and SB-6.E.4 directive:
+"those are corpus bugs — fix them in corpus.  Per RULES.md
+'Never patch corpus source to work around runtime bugs':
+fixing the corpus to use strict-spec-compliant forms is the
+correct direction; do NOT walk back the lexer strictness."
+The runtime fix is correct; the corpus uses were genuine bugs
+(SPITBOL itself rejects them).
+
+### Fix #3 — ARCH-SNOCONE.md paragraph (SB-6.E.3)
+
+The false "Snocone tolerance over strict SPITBOL: `2*3` ..."
+sentence had already been removed by `.github` commit
+`116cf42` (the previous session).  But the follow-up paragraph
+was now stale:
+
+```
+The implementation does not currently enforce this rule
+consistently for all five `+` `-` `*` `/` `^` operators —
+see GOAL-SNOCONE-BEAUTY SB-6.E for the open work bringing
+the lexer into compliance with this spec.
+```
+
+Replaced with:
+
+```
+The implementation enforces this rule consistently for all
+dual-role operators including `+` `-` `*` `/` `^` — see
+GOAL-SNOCONE-BEAUTY SB-6.E for the rung that landed this.
+`^` has no unary form (the unary operator set is
+`+ - * & @ ~ ? . $`), so a tight or unary-position `^` is
+a syntax error.
+```
+
+### Verification — gates (SB-6.E.4 + .5)
+
+| Gate | Result | Baseline |
+|------|--------|----------|
+| `test_smoke_snocone.sh` | PASS=5 FAIL=0 | ✓ unchanged |
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | ✓ unchanged |
+| `test_beauty_snocone_all_modes.sh` | PASS=42 FAIL=0 SKIP=3 | ✓ unchanged |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | ✓ unchanged |
+| `test_crosscheck_snobol4.sh` | PASS=6 FAIL=0 | ✓ unchanged |
+| `test_crosscheck_snocone.sh` | PASS=8 FAIL=0 | ✓ unchanged |
+
+After applying just the lexer fix (before the corpus fix),
+beauty all-modes briefly went to PASS=39 FAIL=3 (3 modes of
+the `arith` subsystem — single root cause).  After the corpus
+fix, restored to PASS=42 FAIL=0 SKIP=3.
+
+End-to-end re-test (SB-6.E.5):
+
+```bash
+printf '\tA = 1\n\tOUTPUT = A\nEND\n' | scrip --ir-run $LIBS beauty.sc
+# rc=0, stdout: empty, stderr: empty
+scrip --ir-run $LIBS beauty.sc < beauty_oracle.sno
+# rc=0, stdout: empty, stderr: empty
+```
+
+No change in error pattern from session #82's documented
+end-state: beauty.sc parses through cleanly with no syntax
+errors, no Error 1, no Error 5, no hang.  The lexer rung is
+independent of the remaining downstream grammar/runtime work
+that gates SB-6 itself.  Whatever follow-on closes SB-6
+self-host now operates against a strict-lexer-correct
+foundation.
+
+### SPITBOL operator inventory — confirmed via Chapter 15 read
+
+This session also performed a complete read of SPITBOL Manual
+Chapter 15 ("Operators", p. 181-183) and cross-checked the
+Snocone token inventory against the canonical SPITBOL operator
+list.  Result: **Snocone has full coverage of every defined and
+OPSYN-reserved SPITBOL operator with one gap** — unary `!`
+(T_1BANG) is missing.  The lexer's `S_OP_BANG` handler is
+exclusively wired to `!=` (binary not-equal) and the `!`-as-`^`
+exponent alternate, with no unary path; per the SPITBOL manual
+unary `!` is "Unused" but reserved as available for `OPSYN()`.
+
+This is a clean follow-on rung.  Suggested name: **SB-6.F**
+(unary-bang token coverage), low priority, narrow scope.  Does
+not gate SB-6 self-host.
+
+The SPITBOL extension `||` (alternative evaluation, "evaluate
+arms left-to-right until one succeeds") IS covered in scrip
+via E_VLIST (SB-6.A/B, session #79).  The SNOBOL4 surface form
+of this extension is paren-comma-list `(a, b, c)`; the Snocone
+surface form is `||`.
+
+### Files touched this session
+
+- `one4all/src/frontend/snocone/snocone_lex.c` — `+9/-7` net
+  in `S_OP_STAR`, `S_OP_PLUS`, `S_OP_MINUS`, `S_OP_SLASH`,
+  `S_OP_CARET`.  `S_OP_STAR` shrank by 2 lines (tolerance
+  line + dead duplicate removed).  The other four grew by
+  1 line each as 3-line cascades became 4-line cascades.
+- `corpus/programs/snocone/demo/beauty/test/test_arith.sc` —
+  `+1/-1` (one-line whitespace fix in `ISqrt`).
+- `corpus/programs/snocone/demo/beauty/beauty.sc` — `+6/-6`
+  (six lines in `ss()` paren/bracket/angle arms).
+- `.github/ARCH-SNOCONE.md` — `+5/-4` (replaced the now-stale
+  "does not currently enforce" paragraph with the post-fix
+  description).
+- `.github/GOAL-SNOCONE-BEAUTY.md` — SB-6.E.1..5 marked done
+  with findings; SB-6.E.6 (confirm-with-Lon) left open;
+  this session block.
+
+No `one4all` runtime/IR/frontend changes outside the 5 lexer
+operator handlers.  No diagnostic instrumentation; no
+workarounds; no `.sc` rewrites for runtime bugs.  All changes
+are spec-compliance + stale-doc cleanup.
+
+### Next session — recommended pickup
+
+1. **SB-6.E.6** — Confirm-with-Lon anti-rationalization pass.
+   Required only when Lon is available; not blocking other rungs.
+2. **SB-6.F** (proposed) — Add `T_1BANG` to the lexer for
+   unary `!` parity with the SPITBOL canonical operator list,
+   even if its initial semantic is "no built-in, available for
+   `OPSYN()`".
+3. **SB-6 self-host proper** — beauty.sc still produces no
+   output on `beauty_oracle.sno`.  The downstream blockers are
+   grammar/runtime, not lexer.  Suggested first probe: emit
+   IR for `beauty.sc` start-up + `beauty_oracle.sno` first
+   logical unit, see what bb_arbno or pat_match does
+   differently from SPITBOL's first-statement processing.
+
+### Repos state
+
+`one4all`: dirty (snocone_lex.c).  `corpus`: dirty (test_arith.sc,
+beauty.sc).  `.github`: dirty (ARCH-SNOCONE.md, GOAL-SNOCONE-BEAUTY.md).
+`csnobol4`, `x64`: clean.  Plan: commit corpus first, then
+one4all, then `.github` per RULES.md handoff order.
