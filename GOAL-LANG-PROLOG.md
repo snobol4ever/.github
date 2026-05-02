@@ -262,7 +262,7 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   drive enumeration through bb_broker BB_NTH/BB_ALL boxes; bridge must
   preserve the choicepoint stack across each solution.
 
-- [ ] **PR-19e** — `rung35_bridge_setup/` — `setup_call_cleanup/3`.
+- [x] **PR-19e** — `rung35_bridge_setup/` — `setup_call_cleanup/3`.
   All three positional args may be goal-Vars. Edge case: cleanup fires
   on cut, fail, or throw — three distinct continuation paths.
 
@@ -2428,3 +2428,57 @@ rather than `member/2` (not a scrip builtin, not auto-injected).
 - `one4all/scripts/test_prolog_rung34_bridge_setof.sh` — driver script
 - `one4all/src/runtime/interp/pl_runtime.c` — ~18 lines: E_VAR bridge in findall/3
 - `.github/GOAL-LANG-PROLOG.md` — PR-19a checked, PR-19d checked, this state entry
+
+---
+
+## Current state (2026-05-02 session — PR-19e LANDED, one4all `TBD`, corpus `TBD`)
+
+### Progress report
+
+```
+[PR-19e.1] write rung35_bridge_setup tests + .ref       STATUS: DONE
+[PR-19e.2] write driver script                          STATUS: DONE
+[PR-19e.3] implement setup_call_cleanup/3 + E_VAR bridge STATUS: DONE
+[GATE]  rung35_bridge_setup             — PASS=5 FAIL=0  ✓
+[GATE]  smoke_prolog                    — PASS=5 FAIL=0  ✓ preserved
+[GATE]  smoke_unified_broker            — PASS=49 FAIL=0 ✓ preserved
+[GATE]  rung31–34                       — all 5/5        ✓ preserved
+[PR-19e]                                               STATUS: DONE
+```
+
+### What landed
+
+`pl_runtime.c`: new `setup_call_cleanup/3` block (~40 lines). E_VAR bridge
+applied to all three positions (Setup, Goal, Cleanup) using the same
+`pl_term_to_synth_expr` pattern. Also added `"setup_call_cleanup"` to
+`is_pl_user_call` exclusion list so it routes to `interp_exec_pl_builtin`
+instead of pred-table lookup.
+
+`pl_broker.c`: added `"setup_call_cleanup"` to `pl_is_builtin_goal` list.
+
+### PR-19 bridge completion status
+
+| Sub-rung | Status |
+|----------|--------|
+| PR-19a catch/3                    | ✅ LANDED one4all `a4d03638` |
+| PR-19b \\+/not/once               | ✅ LANDED one4all `4b581efa` |
+| PR-19c call/N                     | ✅ LANDED one4all `22fbe617` |
+| PR-19d findall/3                  | ✅ LANDED one4all `3e02e667` |
+| PR-19e setup_call_cleanup/3       | ✅ LANDED this session |
+
+**PR-19 is fully closed.** All five sub-rungs landed.
+
+### NEXT SESSION — PR-13 is the active rung
+
+The bridge is complete. Next capability rung per the ladder:
+PR-13: `rung36_arith_edge/` — ISO §8 arithmetic edge cases.
+IEEE specials (NaN, Inf), INT_MIN/-1 overflow, integer division truncation.
+Same pattern: 5 focused tests, driver script, gate.
+
+### Files changed this session
+
+- `corpus/programs/prolog/rung35_bridge_setup/01-05.{pl,ref}` — 5 driver tests
+- `one4all/scripts/test_prolog_rung35_bridge_setup.sh` — driver script
+- `one4all/src/runtime/interp/pl_runtime.c` — setup_call_cleanup/3 (~40 lines) + is_pl_user_call entry
+- `one4all/src/frontend/prolog/pl_broker.c` — pl_is_builtin_goal entry
+- `.github/GOAL-LANG-PROLOG.md` — PR-19e checked, PR-19 bridge status, this state
