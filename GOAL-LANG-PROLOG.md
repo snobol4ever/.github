@@ -276,7 +276,7 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   including atomic `Term =.. [F]`, vars, edge cases. Closes test_term,
   test_bips arg.
 
-- [ ] **PR-15** — `rung38_iso_errors/` — ISO §7.10, 7.11.
+- [x] **PR-15** — `rung38_iso_errors/` — ISO §7.10, 7.11.
   Canonical error terms (`type_error(Type, Culprit)`,
   `existence_error(ObjectType, Culprit)`, etc.). Verify thrown errors
   match ISO format under `catch/3`. Closes test_exception, test_misc.
@@ -2520,3 +2520,57 @@ Three pre-existing tests passed without any fix: `//` truncation, float funcs
 PR-14: `rung37_term_ops/` — ISO §7.6 term-clause conversion.
 `=..` (univ), `functor/3`, `arg/3`, `copy_term/2` full ISO semantics.
 Same pattern: 5 focused tests + driver script + gate = PASS=5 FAIL=0.
+
+---
+
+## Current state (2026-05-02 session — PR-15 LANDED, one4all `TBD`, corpus unchanged)
+
+### Progress report
+
+```
+[PR-15.0]  verify baseline gates                                          STATUS: DONE
+[GATE]     smoke_prolog              — PASS=5  FAIL=0                     ✓
+[GATE]     smoke_unified_broker      — PASS=49 FAIL=0                     ✓
+[GATE]     rung31–37                 — all 5/5                            ✓
+[PR-15.1]  apply attempt diff from prior session                          STATUS: DONE
+[PR-15.2]  fix test 03 (existence_error for undefined user predicates)    STATUS: DONE
+[PR-15.3]  fix fallthrough regression (initialization/1 → return 1)      STATUS: DONE
+[GATE]     rung38_iso_errors         — PASS=5 FAIL=0                      ✓
+[GATE]     smoke_prolog              — PASS=5 FAIL=0                      ✓ preserved
+[GATE]     smoke_unified_broker      — PASS=49 FAIL=0                     ✓ preserved
+[PR-15]                                                                   STATUS: DONE
+```
+
+### What landed
+
+Three targeted changes to `src/runtime/interp/pl_runtime.c`:
+
+1. **ISO throw helpers** (from prior session's attempt diff): `pl_throw_iso_error`,
+   `pl_throw_instantiation_error`, `pl_throw_type_error_evaluable`,
+   `pl_throw_existence_error_procedure` (made non-static for pl_broker.c visibility).
+   Wired into: E_VAR in `pl_unified_eval_arith_term` (instantiation_error),
+   E_FNC fallthrough in arith eval (type_error evaluable), is/2 for unbound arg.
+
+2. **existence_error for undefined user predicates in catch/3** (new this session):
+   In catch/3's `else if (is_pl_user_call(goal_e))` block, when `uch == NULL`
+   OR `uch->nchildren == 0` (pred defined but has no clauses), throw
+   `existence_error(procedure, Name/Arity)` instead of silently returning 0.
+   This makes `catch(no_such_pred(42), error(existence_error(...), _), Recovery)`
+   correctly invoke the recovery goal.
+
+3. **Fallthrough fix** (regression discovered this session): The prior session's
+   attempt diff had added `fprintf + pl_throw_existence_error_procedure` at the
+   bottom of the E_FNC handler in `interp_exec_pl_builtin` (line ~2054), which fired
+   for directive no-ops like `initialization/1` that have no explicit handler.
+   Replaced with `return 1` (the original fallthrough). Genuine user predicates are
+   correctly caught by `is_pl_user_call` earlier in the same function.
+
+`pl_interp.h`: declaration of `pl_throw_existence_error_procedure` added so
+pl_broker.c can include it (not yet used from pl_broker.c after reverting the
+pl_box_choice approach, but correct for future use).
+
+### NEXT SESSION — PR-16 is the active rung
+
+PR-16: `rung39_atom_iso/` — ISO §7.8 atom builtins (full).
+Beyond PL-4's basics: `sub_atom/5`, `atom_to_term/3`, `atom_number/2`,
+`upcase_atom/2`, `downcase_atom/2`. Same pattern: 5 focused tests + driver + gate.
