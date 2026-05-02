@@ -23,7 +23,7 @@ into execution state — only observable output.
 
 ## The Eureka
 
-All three executors already share the same `Program*` (same `STMT_t` list).
+All three executors already share the same `CODE_t*` (same `STMT_t` list).
 `SM_STNO` fires at every statement boundary in `sm_interp_run()`.
 `execute_program()` already has a per-statement loop.
 The NV store (name-value) is global and readable at any point.
@@ -50,7 +50,7 @@ In monitor mode: hook = comparator.
 
 ## The Shared State Problem
 
-Running IR → SM → JIT sequentially over the same `Program*` is not trivially
+Running IR → SM → JIT sequentially over the same `CODE_t*` is not trivially
 correct because all three executors share global mutable state. After IR runs
 N statements, the NV store is mutated, `kw_stcount` is incremented, and the
 ICN frame stack may have residue. SM starts in a corrupted world.
@@ -160,7 +160,7 @@ This is a significant refactor — after the monitor works with snapshot/restore
 
 ### Phase 3 — Sync comparator
 
-- [x] **IM-6** — Write `sync_monitor_run(Program *prog, int verbose)`.
+- [x] **IM-6** — Write `sync_monitor_run(CODE_t *prog, int verbose)`.
   For each statement N = 1..nstmts:
     1. `exec_snapshot_restore(&baseline)` — reset to clean state
     2. `execute_program_steps(prog, N)` → take `ir_snap`

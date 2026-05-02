@@ -32,7 +32,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_rebus.sh       # 3-mode diverg
 ## Architecture reminder
 
 ```
-.reb → rebus_compile() → Program* [LANG_REB]   (FI-1 wired)
+.reb → rebus_compile() → CODE_t* [LANG_REB]   (FI-1 wired)
     --ir-run  → execute_program() → polyglot_execute() → execute_program()
                 (Rebus lowers to SNO-style label/goto chains — FI-1B)
     --sm-run  → sm_lower() LANG_SNO path (Rebus shares LANG_SNO lowering)

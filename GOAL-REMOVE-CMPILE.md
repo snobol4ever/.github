@@ -36,7 +36,7 @@ into `s->subject` (not `s->pattern`) when parsed as a statement.
 
 | Entry | Input | Current (CMPILE) | Replacement (bison) |
 |-------|-------|-----------------|---------------------|
-| **Program** | FILE* or path | `cmpile_file()` → `cmpile_lower()` | `sno_parse(FILE*, name)` — already exists |
+| **CODE_t** | FILE* or path | `cmpile_file()` → `cmpile_lower()` | `sno_parse(FILE*, name)` — already exists |
 | **Expression** | bare expr string | `cmpile_eval_expr()` → `cmpnd_to_expr()` | `parse_expr_pat_from_str(src)` — new in snobol4.tab.c |
 | **Statement block** | multi-stmt string | `cmpile_string()` → `cmpile_lower()` | `sno_parse_string(src)` — new in snobol4.tab.c |
 
@@ -68,10 +68,10 @@ parse_expr_pat_from_str("(pat ~ 'id') $ tx")  → non-null, no BINGFN leak
 ## Key Design: sno_parse_string
 
 ```c
-Program *sno_parse_string(const char *src) {
+CODE_t *sno_parse_string(const char *src) {
     Lex lx = {0};
     lex_open_str(&lx, src, strlen(src), 0);
-    Program *prog = calloc(1, sizeof *prog);
+    CODE_t *prog = calloc(1, sizeof *prog);
     PP p = {prog, NULL};
     g_lx = &lx;
     snobol4_parse(&p);

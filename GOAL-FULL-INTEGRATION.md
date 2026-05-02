@@ -16,14 +16,14 @@ source file
     │
     ▼  (per-language: lex + parse → EXPR_t/STMT_t direct, no intermediate AST)
  frontend/
-    snobol4/   .sno  → sno_parse()       → Program*   [LANG_SNO]  ✅ direct
-    snocone/   .sc   → snocone_compile() → Program*   [LANG_SNO]  ✅ direct
-    rebus/     .reb  → rebus_compile()   → Program*   [LANG_REB]  🔴 unwired, needs wrapper
-    icon/      .icn  → icon_compile()    → Program*   [LANG_ICN]  ⚠️  has IcnNode AST layer
-    prolog/    .pl   → prolog_compile()  → Program*   [LANG_PL]   ✅ thin AST, acceptable
-    raku/      .raku → raku_compile()    → Program*   [LANG_RAKU] ⚠️  has RakuNode AST layer
+    snobol4/   .sno  → sno_parse()       → CODE_t*   [LANG_SNO]  ✅ direct
+    snocone/   .sc   → snocone_compile() → CODE_t*   [LANG_SNO]  ✅ direct
+    rebus/     .reb  → rebus_compile()   → CODE_t*   [LANG_REB]  🔴 unwired, needs wrapper
+    icon/      .icn  → icon_compile()    → CODE_t*   [LANG_ICN]  ⚠️  has IcnNode AST layer
+    prolog/    .pl   → prolog_compile()  → CODE_t*   [LANG_PL]   ✅ thin AST, acceptable
+    raku/      .raku → raku_compile()    → CODE_t*   [LANG_RAKU] ⚠️  has RakuNode AST layer
     │
-    ▼  Program* = linked list of STMT_t, each holding one EXPR_t tree in ir/ir.h EKind
+    ▼  CODE_t* = linked list of STMT_t, each holding one EXPR_t tree in ir/ir.h EKind
  ir/ir.h  — one EXPR_t struct, one EKind enum, ALL languages, ALL backends
     │
     ├──▶  --ir-run:   interp_eval()  tree-walk in driver/interp.c   [correctness ref]
@@ -80,8 +80,8 @@ Do NOT change this.
 - [x] **FI-1A** — Write `rebus_compile()` wrapper.
   In `rebus_lower.c`, add function `rebus_compile(const char *src, const char *filename)`:
   call `rebus_parse()` then `rebus_lower()`, set `st->lang = LANG_REB` on each STMT_t,
-  return `Program*`. Mirror the pattern of `icon_compile()` exactly.
-  Expose in `rebus_lower.h`: `Program *rebus_compile(const char *src, const char *filename);`
+  return `CODE_t*`. Mirror the pattern of `icon_compile()` exactly.
+  Expose in `rebus_lower.h`: `CODE_t *rebus_compile(const char *src, const char *filename);`
   Gate: `make scrip` clean (Rebus not yet callable from main but must link cleanly).
 
 - [x] **FI-1B** — Wire Rebus into `scrip.c` `main()` and `polyglot_execute()`.
@@ -108,14 +108,14 @@ The IcnKind→EKind and RakuKind→EKind tables are 1-to-1 renames — move them
   The `IcnKind → EKind` mapping in `icon_lower.c` is the translation guide; move it
   inline into the new parser actions. `icon_runtime.c` (frame/generator state) is untouched.
   Delete: `icon_ast.c`, `icon_ast.h`, `icon_lower.c`, `icon_lower.h`.
-  `icon_driver.c` calls `icon_parse()` → `Program*` directly; lower step disappears.
+  `icon_driver.c` calls `icon_parse()` → `CODE_t*` directly; lower step disappears.
   Gate: `make scrip` clean; Icon rung01-11 59/59; smoke PASS=31 FAIL=0.
 
 - [x] **FI-3** — Eliminate `RakuNode` / `raku_ast.c` from Raku frontend.
   Rewrite `raku.y` grammar actions to build `EXPR_t`/`STMT_t` directly.
   The `RakuKind → EKind` table in `raku_lower.c` is the translation guide.
   Delete: `raku_ast.c`, `raku_ast.h`, `raku_lower.c`, `raku_lower.h`.
-  `raku_driver.c` calls Bison parse → `Program*` directly.
+  `raku_driver.c` calls Bison parse → `CODE_t*` directly.
   Gate: `make scrip` clean; Raku smoke PASS=12 FAIL=0; smoke_unified_broker PASS=31 FAIL=0.
 
 ---
@@ -170,7 +170,7 @@ src/runtime/interp/
 ## Phase 4 — Lazy runtime init
 
 - [x] **FI-8** — Make `polyglot_init` language-selective.
-  Signature: `polyglot_init(Program *prog, uint32_t lang_mask)`.
+  Signature: `polyglot_init(CODE_t *prog, uint32_t lang_mask)`.
   `lang_mask` computed from actual `STMT_t.lang` values present in `prog`.
   Icon frame stack only reset if `lang_mask & (1u << LANG_ICN)`.
   Prolog pred table only built if `lang_mask & (1u << LANG_PL)`. Etc.

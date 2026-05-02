@@ -50,7 +50,7 @@ corpus/programs/snobol4/demo/VBGinTASA.dat       — full treebank corpus (1977 
 ## Architecture reminder
 
 ```
-treebank-list.sc → snocone_compile() → Program* [LANG_SNO]
+treebank-list.sc → snocone_compile() → CODE_t* [LANG_SNO]
     --ir-run  → execute_program() → interp_eval()
     --sm-run  → sm_lower() → SM_Program → sm_interp_run()
     --jit-run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()

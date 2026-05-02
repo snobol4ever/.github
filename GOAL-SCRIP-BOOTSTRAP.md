@@ -967,7 +967,7 @@ Other risks tracked but not blocking:
 - **GOAL-FULL-INTEGRATION.md** — the parallel-frontend integration
   work. CB-1's mapping audit refines its module boundaries.
 - **ARCH-IR.md** — EXPR_t / STMT_t / EKind / five-phase statement
-  / polyglot Program* / three broker modes (BB_SCAN/BB_PUMP/
+  / polyglot CODE_t* / three broker modes (BB_SCAN/BB_PUMP/
   BB_ONCE).  CB-6 and CB-8 inherit the SM_Program definition
   from here.
 - **ARCH-x86.md** — x86-64 backend ABI (rdi/esi entry, r10/r11

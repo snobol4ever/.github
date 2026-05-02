@@ -53,7 +53,7 @@ bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
 ## Architecture reminder
 
 ```
-.sno -> sno_parse() -> Program* [LANG_SNO]
+.sno -> sno_parse() -> CODE_t* [LANG_SNO]
     --ir-run  -> execute_program() -> interp_eval()   tree-walk
     --sm-run  -> sm_lower() -> SM_Program -> sm_interp_run()
     --jit-run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()
@@ -1631,7 +1631,7 @@ pattern build) — to be addressed under SN-32b.
 
 **Architecture reminder.**
 ```
-.sno -> sno_parse() -> Program* [LANG_SNO]
+.sno -> sno_parse() -> CODE_t* [LANG_SNO]
     --ir-run  -> execute_program() -> interp_eval()        ← session #57 byte-identical
     --sm-run  -> sm_lower() -> SM_Program -> sm_interp_run() ← SN-32 ladder
     --jit-run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()

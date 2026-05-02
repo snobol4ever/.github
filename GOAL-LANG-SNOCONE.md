@@ -35,7 +35,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_snocone.sh       # 3-mode dive
 ## Architecture reminder
 
 ```
-.sc → snocone_compile() → Program* [LANG_SNO]
+.sc → snocone_compile() → CODE_t* [LANG_SNO]
     (Snocone lowers to LANG_SNO — same IR as SNOBOL4)
     --ir-run  → execute_program() → interp_eval()
     --sm-run  → sm_lower() → SM_Program → sm_interp_run()

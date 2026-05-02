@@ -61,12 +61,12 @@ Phases 1,2,4,5: straight-line stack machine. Phase 3: Byrd box graph.
 
 ---
 
-## Polyglot Program* (U-12 through U-19)
+## Polyglot CODE_t* (U-12 through U-19)
 
-A single `Program*` may contain statements from multiple source languages.
+A single `CODE_t*` may contain statements from multiple source languages.
 `parse_scrip_polyglot()` in `scrip.c` parses a `.scrip` fenced-block file,
 compiling each block with its own frontend, and appends all `STMT_t` chains
-in source order into one `Program*`.
+in source order into one `CODE_t*`.
 
 Fence syntax:
 
@@ -107,7 +107,7 @@ The `lang` field is the sole discriminator used by `execute_program` and
 ### polyglot_init — unified initialisation (U-14)
 
 ```c
-static void polyglot_init(Program *prog);
+static void polyglot_init(CODE_t *prog);
 ```
 
 Single walk over `prog->head`. Populates all three runtime tables at once:
