@@ -232,11 +232,33 @@ Rung 12–36 are the ladder for this goal.
    - **string1, substring** — string subscript/section forms `s[i+:n]`
      with chained `:=` and `:=:` swap not fully working.
 
-  **Next session pivot**: implement `!N` integer iteration. Add a case to
-  E_ITERATE (in `icn_runtime.c::icn_eval_gen` or interp.c oneshot path)
-  that detects `IS_INT_fn(av)`, walks `abs(N)` left-to-right one decimal
-  digit at a time, yielding each digit as a 1-character string descriptor.
-  Should be ~20 lines and unblock the three xfails listed.
+  **Session #27 (2026-05-02):** scan builtin infrastructure landed.  Fixes
+  in `src/driver/interp.c`:
+  - `move(n)` OOM fix: `(size_t)(-4)` was ~2^64 → GC_malloc death.  Now
+    uses `abs(n)` for length and `min(old,newp)` for start.
+  - `tab(n)` negative/zero normalization: `n=0 → slen+1`, `n<0 → slen+1+n`.
+  - `pos(n)` and `rpos(n)`: new builtins; test `&pos == normalized(n)`.
+  - `any/many/upto`: extended to accept explicit `(c, s, i1, i2)` args;
+    `nargs==2` uses `icn_scan_pos` as default `i1` (scan-context position in
+    explicit string).
+  - `bal(c1, c2, c3, ...)`: new scalar path in `interp.c`; Byrd box
+    `icn_bb_bal` in `icon_gen.c` wired through `icn_eval_gen` for `every`
+    generator use.  State struct `icn_bal_state_t` in `icon_gen.h`.
+  Gates: smoke 5/0, broker 49/0, crosscheck 4/0/0.  PASS=13 unchanged —
+  `rung36_jcon_scan1` still FAILs due to remaining issues:
+  - `E_SEQ` (`A & B`) conjunction short-circuits when `&pos := 6` assign
+    returns wrong value (FAILDESCR instead of success).
+  - `many/upto` cset operations with high-bit chars fail because `strchr`
+    is not 8-bit-safe; needs a cset-bitmap lookup instead.
+  - `find(needle, "s1"|"s2"|...)` with alternation-as-generator needs the
+    `icn_bb_find` box to be driven by `icn_eval_gen`, not the oneshot
+    scalar path.
+  one4all HEAD after commit from this session.
+
+  **Next session pivot**: fix `E_SEQ` (`&` conjunction) return value so
+  `&pos := 6 & write(...)` doesn't short-circuit.  Then fix `strchr`→cset
+  bitmap for 8-bit-safe `any/many/upto`.  These two fixes likely close
+  `rung36_jcon_scan1` (+1 PASS).
 
   Gate: `bash scripts/test_icon_ir_rung_36.sh` — current PASS=5/40/30/75.
   Goal: reduce FAIL toward 0; XFAIL is acceptable but should ideally
