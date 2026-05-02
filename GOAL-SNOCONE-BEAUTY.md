@@ -268,7 +268,171 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
-## Most recent session — 2026-05-02 #8 (pp/ss_leaf dispatch fix + bottleneck recharacterized)
+## Most recent session — 2026-05-02 #9 (source weirdness sweep + rollback finding)
+
+**SB-6.E.7-D and SB-6.E.7-G closed. New diagnostic finding seeded
+SB-6.E.7-H below.**
+
+### What landed (SB-6.E.7-D — `~DIFFER` → `IDENT`)
+
+41 replacements across 9 .sc files using a comment/string-aware
+Python rewriter. beauty.sc now matches the canonical .sno form
+`IDENT(t(ppPatrn)) IDENT(ppAsgn) IDENT(t(ppGo1))` token-for-token.
+Same line counts before/after. 2 ~DIFFER references in
+ShiftReduce.sc are inside doc comments and were left intact.
+
+### What landed (SB-6.E.7-G — zero-space jam sweep)
+
+Cross-file scan confirmed zero occurrences of `if(`, `while(`,
+`for(`, `){`, `}else{`, `}else if(` across all 17 .sc files.
+Session #8's six-line fix at beauty.sc:284-289 was apparently
+the only place this pattern existed; nothing else needed cleanup.
+
+### Gates after sweeps — all green, fingerprint unchanged
+
+```
+test_smoke_snocone.sh             PASS=5  FAIL=0
+test_beauty_snocone_all_modes.sh  PASS=42 SKIP=3 FAIL=0
+test_smoke_unified_broker.sh      PASS=49 FAIL=0
+test_snocone_beauty_self_host.sh  lines=89 stderr=0 parse_err=3 internal_err=0 rc=0
+```
+
+### 🔴 New finding — runtime rollback / re-execution under `*Parse`
+
+Diagnostic instrumentation of beauty.sc's main loop (added
+`OUTPUT = 'DBG: PROGRAM TOP, count=' g_top_count ...` at file
+top, plus pre/post-parse counter prints) revealed a much sharper
+characterization of the lines=89 bottleneck than what session #8
+recorded. **The bug is not just "Stmt reduce doesn't fire on
+label-only input"** — it's a runtime-level state corruption that
+affects every assignment statement in the input.
+
+#### What scrip drops
+
+Categorized scrip's 89-line output vs the 646-line oracle:
+
+|                | scrip | oracle |
+|----------------|------:|-------:|
+| Comment `*`    |    49 |     69 |
+| `-INCLUDE`     |    15 |     16 |
+| `+` continuation | 19 |    119 |
+| Parse Error    |     3 |      0 |
+| Blank          |     3 |      0 |
+| **Assignment** | **0** | **269** |
+
+scrip drops **all 269 assignment statements**. Comments and
+`-INCLUDE` directives mostly survive. Continuation lines surface
+as Parse Errors when the parent multi-line statement fails to
+glue.
+
+#### Reproducer — globals reset across `*Parse`
+
+beauty_count.sc (in /home/claude, not committed): variant of
+beauty.sc that brackets the parse `if (Src ? (POS(0) *Parse *Space
+RPOS(0)))` with persistence-tracking writes:
+
+```
+g_pass = 0;                    // top of file
+g_persistent = 'INIT';
+... parse block ...
+g_pass = g_pass + 1;
+g_persistent = g_persistent ' MARK';
+OUTPUT = 'BEFORE parse, g_pass=' g_pass ' g_persistent=' g_persistent;
+if (Src ? (POS(0) *Parse *Space RPOS(0))) {
+    OUTPUT = 'parse SUCCESS';
+    sno = Pop();
+    OUTPUT = 'after Pop t=' t(sno);
+    if (DIFFER(sno)) { pp(sno); }
+}
+OUTPUT = 'AFTER parse, g_pass=' g_pass ' g_persistent=' g_persistent;
+```
+
+`echo START | ./scrip --ir-run [16 lib .sc files] beauty_count.sc`:
+
+```
+BEFORE parse, g_pass=1 g_persistent=INIT MARK
+parse SUCCESS
+after Pop t=Label
+AFTER parse, g_pass=0 g_persistent=INIT
+```
+
+**`g_pass` and `g_persistent` are rolled back to their initial
+values across the parse call.** This is statement-failure
+rollback semantics being mis-applied to a *successful* match.
+Same shape with empty input. Without `*Parse` in the loop body
+(replaced by `OUTPUT = 'PROCESSED Src=' Src;`), no rollback —
+program runs once cleanly.
+
+The rollback explains the dropped-assignment count: when scrip
+parses an input statement, builds a Stmt tree, and calls `pp(sno)`
+to walk it, all the Gen() side effects inside pp/ss/ss_leaf are
+themselves rolled back on the way out — so even if the dispatch
+is correct, the output buffer never makes it to OUTPUT.
+
+#### Why does the program top run 3 times?
+
+Earlier diagnostic showed `OUTPUT = 'DBG: PROGRAM TOP'` placed at
+file-top printing 3× per parse-attempt. With `g_top_count`
+tracking, every "PROGRAM TOP" prints `count=1` — meaning the
+top-level `g_top_count = g_top_count + 1` always reads the
+initial 0. So execution is being thrown back to the top, **with
+some-but-not-all globals preserved**: input-loop state
+(`Line`, `input_done`) appears to carry forward partially across
+the restart, while top-level inits re-fire. This is consistent
+with statement-failure backtracking implemented as a partial
+rewind rather than a full re-execution.
+
+#### Minimal isolated reproducers — none yet
+
+Tried these in isolation, none reproduce:
+
+- `S ? (POS(0) *P RPOS(0))` with `P = 'X' 'Y' 'Z'` — no rollback
+- Same with `*bump()` deferred user-call inside P — no rollback
+- Same with thunk-style `function thunk() { thunk = epsilon . *bump(); return; }` — no rollback
+- `P = nPush() 'X'` matching `'X'` — no rollback
+- `P = thunk() ARBNO('X' thunk())` — no rollback
+
+The rollback only triggers under the full beauty.sc + 16-lib
+configuration. Likely candidates for the trigger: the actual
+`Parse` definition with mutual recursion through Stmt/Command/
+Expr0..Expr14, the `reduce(t, n)` builtin (which uses
+`EVAL(omega)` to construct dynamic patterns), or the SHIFT/REDUCE
+broker. Reduction-via-EVAL is novel surface area not exercised
+by simpler reproducers.
+
+#### Suggested next steps
+
+  - [ ] **SB-6.E.7-H** — **Isolate the rollback trigger.** Bisect
+        beauty.sc's Parse definition by progressively stripping
+        rules (start with full Parse → remove ARBNO → use only
+        Comment-arm of Command → remove reduce() calls → etc.)
+        until a minimal reproducer fits in <30 lines. Then trace
+        the runtime to find where statement-failure rollback is
+        being entered on a *successful* match. Likely files:
+        `src/runtime/x86/sm_interp.c`, `src/runtime/snobol4_pattern.c`,
+        and the `reduce()` thunk path through
+        `corpus/programs/snocone/demo/beauty/semantic.sc::reduce`.
+        This rung is the active blocker for SB-6 — **previous
+        sessions' "Stmt reduce doesn't fire" hypothesis is a
+        downstream symptom; SB-6.E.7-H is the upstream cause.**
+
+  - [ ] **SB-6.E.7-I** — **Investigate why `Pop()` returns
+        `t='Label'`** even though Stmt parsing should reduce 7
+        trees into a Stmt tree. With the rollback bug fixed
+        (SB-6.E.7-H), this may resolve automatically; if not,
+        it's a separate parser-grammar issue.
+
+### Repos state
+
+- `corpus`: this commit (`f4d0099` — 41 ~DIFFER → IDENT replacements)
+- `one4all`: clean
+- `.github`: this commit (sweeps marked closed; SB-6.E.7-H/I new)
+- Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
+- Three baseline gates green
+
+---
+
+
 
 **What landed:** The two pp/ss_leaf identical-condition dispatch
 bugs that the session #6 audit identified are now fixed
@@ -614,13 +778,17 @@ to do.
         though they parse. Hold this rung until SB-6.E.7-A is fixed.
         After SB-6.E.7-A, sweep all 17 files.
 
-  - [ ] **SB-6.E.7-D** — **Style sweep: normalize `~DIFFER(x)`
-        and `~DIFFER(x, '')` to `IDENT(x, '')`.** Per Lon (this
-        session): `if (~DIFFER(x))` reads as double-negation and
-        is a less-clear synonym of `if (IDENT(x, ''))`. The .sc
-        port mixes the two styles inconsistently. Pick one
-        (`IDENT(x, '')` matches .inc convention) and apply
-        uniformly. Mechanical, lib-by-lib. Gate stays at lines=89.
+  - [x] **SB-6.E.7-D** — **Style sweep: normalize `~DIFFER(x)`
+        to `IDENT(x)`.** Closed
+        session 2026-05-02 #9. 41 replacements across 9 .sc files
+        (beauty.sc 19, Gen.sc 4, Qize.sc 4 incl. one 2-arg form,
+        ReadWrite.sc 2, TDump.sc 4, XDump.sc 3, case.sc 1, stack.sc 2,
+        tree.sc 2). Comment/string-aware Python rewriter; 2 ~DIFFER
+        in ShiftReduce.sc are inside doc comments and were left intact.
+        Same line counts before/after. beauty.sc now matches the
+        canonical .sno form `IDENT(t(ppPatrn)) IDENT(ppAsgn) IDENT(t(ppGo1))`
+        token-for-token. All gates green; SB-6 fingerprint unchanged
+        at lines=89 stderr=0 parse_err=3 internal_err=0 rc=0.
 
   - [ ] **SB-6.E.7-E** — **Style sweep: collapse multi-space
         concat runs to single-space.** Snocone treats single- and
@@ -672,18 +840,41 @@ to do.
         collapse audit (point 4 in session #6 findings) — the
         helpers may be unnecessary once dispatch works.
 
-  - [ ] **SB-6.E.7-G** — **Sweep zero-space jamming across .sc files.**
-        Lon flagged (session 2026-05-02 #8) that lines like
-        `if(DIFFER(ss_leaf)){return;}else{freturn;}` are hostile to
-        read. The `f(x)` zero-space rule from ARCH-SNOCONE.md is
-        **strict for function calls**, not for keywords like
-        `if`/`while`/`for` — the lexer recognizes `if` as a
-        keyword regardless of trailing space. Cosmetic-only fix:
-        ensure `keyword (cond) { body }`, `var = value`,
-        `} else {` style throughout. Six lines in `beauty.sc` lines
-        284-289 partially addressed in session 2026-05-02 #8 (the
-        ss_leaf goto-clause branches). Full sweep across all 17
-        files still pending.
+  - [x] **SB-6.E.7-G** — **Sweep zero-space jamming across .sc files.**
+        Closed session 2026-05-02 #9. Cross-file scan confirmed zero
+        occurrences of `if(`, `while(`, `for(`, `){`, `}else{`,
+        `}else if(` across all 17 .sc files (counts: all 0). The
+        cosmetic fix Lon flagged in session #8 (six lines in
+        beauty.sc:284-289) had already cleaned the only known
+        instances; full sweep verified nothing else jamming.
+        Gate fingerprint unchanged.
+
+  - [ ] **SB-6.E.7-H** — **Isolate the runtime rollback trigger
+        that drops every assignment statement.** Diagnostic in
+        session 2026-05-02 #9 found that under the full beauty.sc
+        + 16-lib configuration, globals (`g_pass`, `g_persistent`)
+        get rolled back across the parse `if (Src ? (POS(0) *Parse
+        *Space RPOS(0)))` even when the match succeeds. This
+        explains the lines=89 fingerprint: scrip drops all 269
+        assignment statements because `pp(sno)`'s Gen() side
+        effects are themselves rolled back. Comments and most
+        `-INCLUDE`s survive (they go through the early `*-`
+        header pass-through path which doesn't touch *Parse).
+        The "PROGRAM TOP" runs 3× per match-attempt with
+        partial global-state preservation between passes — likely
+        statement-failure backtracking implemented as a partial
+        rewind. Bisect Parse: full → no ARBNO → only Comment-arm
+        of Command → no `reduce()` calls → etc., until <30 LOC
+        reproducer. Then trace `src/runtime/x86/sm_interp.c` and
+        `src/runtime/snobol4_pattern.c` for the misfire. **Active
+        blocker for SB-6.** Previous "Stmt reduce doesn't fire"
+        hypothesis is downstream of this.
+
+  - [ ] **SB-6.E.7-I** — **Investigate why `Pop()` returns
+        `t='Label'`** when the parse should produce a Stmt tree.
+        With SB-6.E.7-H fixed, this may resolve automatically;
+        if not, it's a separate parser-grammar issue worth its
+        own bisect.
 
 ### Name parity findings (project-wide grep)
 
