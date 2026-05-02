@@ -69,35 +69,24 @@
   interp_eval_pat where they belong; removed dead E_FNC("ARBNO")/("FENCE") guards.
   one4all @ `344e5440`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-- [ ] **RS-6** — Implement unification candidates from RS-5 findings: D-1 int-to-str coerce helper,
-  `src/runtime/interp/icn_runtime.c`, `src/runtime/interp/pl_runtime.c`,
-  `src/ir/ir.h`, and the dyn/ Byrd-box implementations.
+- [x] **RS-6** — Implement unification candidates from RS-5 findings (session 2026-05-02).
+  D-1: `descr_to_str_icn()` in `src/runtime/common/coerce.c`; both icn_runtime.c IC-8
+  iterate sites replaced (8 lines → 1 line each). one4all @ `7dc37476`.
+  D-2: `icon_gen.c` real formatting fixed (%.15g → icn_real_str via descr_to_str_icn).
+  D-3: `ICN_BINOP_CONCAT` body replaced with descr_to_str_icn calls (~20 → 8 lines).
+  OC-1: `SM_MOD` opcode added to sm_prog.h/sm_interp.c/sm_lower.c/sm_codegen.c.
+  RS-6b: SM_MOD omission in sm_codegen.c jit_arith + dispatch table fixed. one4all @ `aed5f333`.
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-  **Questions to answer per file:**
-
-  1. **Duplicate helper routines** — string coercion, integer coercion, numeric
-     promotion, fail-propagation patterns: are identical or near-identical helpers
-     defined independently per-language in icn_runtime.c vs pl_runtime.c vs
-     the snobol4 runtime?  Candidates for a shared `runtime/common/coerce.c`.
-
-  2. **Opcode convergence** — where two languages lower the same semantic operation
-     (e.g. integer add, string concatenation, list/array index, type test) to
-     *different* SM opcodes or BB node kinds when one opcode would serve both.
-     List each divergence: `(lang-A opcode, lang-B opcode, unified candidate)`.
-
-  3. **sm_lower.c per-language branches** — are there `if (lang == LANG_ICN)`
-     blocks that duplicate `if (lang == LANG_SNO)` blocks differing only in
-     a constant or a helper name?  These are candidates for a shared lowering
-     path parameterised on a language descriptor struct.
-
-  4. **BB broker duplication** — do any `src/runtime/dyn/bb_*.c` box
-     implementations replicate logic already in another box or in sm_interp.c?
-
-  **Deliverable:** a findings doc `docs/RS-5-scan-findings.md` in one4all listing
-  each duplicate/divergence with file+line, proposed unification, and estimated
-  risk.  No code changes in this rung — findings only.  Code changes go in RS-6+.
-
-  **Session setup:** interp/compiler goals (build_scrip.sh only — no oracle needed).
+- [x] **RS-7** — Middle/backend scan + 5 targeted refactors (session 2026-05-02).
+  Scanned sm_interp.c, sm_lower.c, sm_codegen.c, icn_runtime.c, pl_runtime.c, bb_*.c.
+  F-1: shared_arith() in coerce.c replaces sm_arith()+jit_arith() (-43 lines, eliminates RS-6b class of bug).
+  F-2: CH0/CH1/LOWER2/LOWER1_VAL/LOWER1_PAT macros in sm_lower.c (-40 lines).
+  F-3: pl_iso_mod() static inline in pl_runtime.c (-8 lines).
+  F-4: icn_ss_alloc() factory in icn_runtime.c, ICN_CORO_STACK_SZ constant (-4 lines).
+  F-5: nv_fold_get()/nv_fold_set() helpers in sm_interp.c (-6 lines).
+  Net: +147 -248 = -101 lines. one4all @ `6bbb0541`.
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
 - [x] **RS-5c** — Fix dual-use E_* IR nodes (session 2026-05-02).
   E_BREAK: removed dead `case E_BREAK` in interp_eval.c Icon frame guard — Icon parser
