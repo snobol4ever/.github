@@ -67,7 +67,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **SCRIP Bootstrap (Milestones 2+3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | Corpus Layout Formula | `GOAL-CORPUS-LAYOUT.md` | corpus+.github+one4all | design state |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 DONE (session #61) |
-| **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a — session #68: compose BB-FENCE + A2. Patches: `session67-BB-FENCE.diff` + `session67-A2-attempt.diff`. Suite: csnobol4 46/7/0 of 53; SPITBOL 53/0/0. HEAD `451ccae`. |
+| **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | Icon Frontend Ladder | `GOAL-LANG-ICON.md` | one4all | IC-9 (one4all HEAD `1e515891`) |
 | **Prolog Frontend Ladder** | `GOAL-LANG-PROLOG.md` | one4all+corpus | PR-17 — next: string builtins rung40 |
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
@@ -77,7 +77,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
 | **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-1 |
-| Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** — SB-6.E.7-H runtime bug, no methodology. Fingerprint: lines=98 parse_err=12 hunks=19. |
+| Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
 | &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |
@@ -96,7 +96,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 |
 | Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 |
 | NET Beauty 18/18 | `GOAL-NET-BEAUTY-19.md` | snobol4dotnet | S-8B |
-| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan — first divergence step #2837: spl RET match 'NRETURN'; dot loops on snoProtKwd arm. HEADs: x64 `dd66e14`, dotnet `12bd3fa`, one4all `1072fc61`. |
+| NET Beauty Self-Host | `GOAL-NET-BEAUTY-SELF.md` | snobol4dotnet | S-2-bridge-7-fullscan |
 | NET Snippets | `GOAL-NET-SNIPPETS.md` | snobol4dotnet | S-1 |
 | NET Optimize | `GOAL-NET-OPTIMIZE.md` | snobol4dotnet | S-1 |
 | NET DATATYPE Lowercase | `GOAL-NET-DATATYPE-LOWERCASE.md` | snobol4dotnet | S-1 |
