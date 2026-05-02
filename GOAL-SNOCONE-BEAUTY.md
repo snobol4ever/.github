@@ -268,7 +268,37 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
-## Most recent session — 2026-05-02 #9 (source weirdness sweep + rollback finding)
+## Most recent session — 2026-05-02 #10 (SB-6.E.7-A runtime fix; debrace reverted; SB-6.E.7-J opened)
+
+### What landed
+
+**SB-6.E.7-A CLOSED** (`one4all @ 31d8bb30`): `~(scan)` negation bug fixed.
+Three interrelated fixes: (1) IR tree-walker E_SCAN in SNOBOL4 context now
+calls `exec_stmt()` instead of Icon generator path; (2) SM E_NOT lowering
+added `SM_POP` before each push to fix stack imbalance; (3) new
+`SM_PUSH_NULL_NOFLIP` opcode preserves `last_ok` after `SM_EXEC_STMT`.
+Fingerprint jumped from `lines=89` to `lines=553` during this session.
+
+**SB-6.E.7-C ATTEMPTED AND REVERTED**: Automated debrace script ran, was
+committed to corpus, then immediately reverted after Lon found broken code
+(`else Shift = .dummy; nreturn;` — braces stripped from if/else pairs where
+the else was on a separate line). corpus reverted at `2fbe29d`. Fingerprint
+back to `lines=89`. **Lesson: no automated mass-transforms on .sc code.**
+
+**SB-6.E.7-J opened** as active step: hand-verify every .sc file against
+its .sno/.inc source before any further style sweeps.
+
+### Repos state
+
+- `one4all`: `31d8bb30` (SB-6.E.7-A runtime fix, pushed)
+- `corpus`: `2fbe29d` (revert of broken debrace, pushed)
+- `.github`: this commit
+- Fingerprint: `lines=89 stderr=0 parse_err=3 internal_err=0 rc=0`
+- Three baseline gates green: smoke_snocone PASS=5, beauty_snocone_all_modes PASS=42 SKIP=3, smoke_unified_broker PASS=49
+
+---
+
+
 
 **SB-6.E.7-D and SB-6.E.7-G closed. New diagnostic finding seeded
 SB-6.E.7-H below.**
@@ -714,7 +744,12 @@ function with the same shape works correctly).
 working-around-the-runtime-bug) form. The runtime bug is the work
 to do.
 
-  - [ ] **SB-6.E.7-A** — **Bare-if Snocone runtime bug.** Reproducer:
+  - [x] **SB-6.E.7-A** — **Bare-if Snocone runtime bug. CLOSED session 2026-05-02.**
+        Root cause: IR tree-walker's E_SCAN used Icon generator path (returned DT_P,
+        always non-fail) instead of calling exec_stmt. Also SM E_NOT lowering had
+        stack imbalance (no SM_POP before push). Fixed in one4all `31d8bb30`:
+        interp.c E_SCAN SNOBOL4-context branch; sm_lower.c E_NOT SM_POP fix;
+        SM_PUSH_NULL_NOFLIP opcode. lines=89→553. Reproducer:
         edit `corpus/programs/snocone/demo/beauty/trace.sc::T8Trace`
         doDebug==1 branch from
         ```
@@ -765,18 +800,42 @@ to do.
   - [ ] **SB-6.E.7-C** — **Style sweep: drop braces around single-
         statement if/else/while/for bodies.** Per Lon (this session):
         unneeded braces around single-line bodies are a code-style
-        regression — Snocone is line-oriented and the .sno/.inc form
-        being ported uses single-line clauses. The current .sc port
-        wraps every body in `{ ... }` even when one stmt would
-        suffice. Mechanical sweep across all 17 .sc files in
-        `corpus/programs/snocone/demo/beauty/`. Snocone grammar
-        already supports bare semicolon-terminated bodies via
-        `matched_stmt : simple_stmt | block_stmt | ...` (LS-4.f
-        in snocone_parse.y line 524). Verify gate stays at lines=89
-        after the sweep. **Caveat:** SB-6.E.7-A (bare-if runtime
-        bug) means certain bare-if forms break the gate today even
-        though they parse. Hold this rung until SB-6.E.7-A is fixed.
-        After SB-6.E.7-A, sweep all 17 files.
+        regression. **Gated on SB-6.E.7-J** (hand-verification pass
+        must complete first — automated sweeps broke .sc code in
+        session 2026-05-02 by stripping braces from if/else pairs
+        where the else was on a separate line). After SB-6.E.7-J
+        confirms code is correct, this sweep can land safely.
+
+  - [ ] **SB-6.E.7-J** — **⚡ ACTIVE STEP. Hand-verify every .sc file
+        line-by-line against its .sno/.inc source.**
+
+        Session 2026-05-02 automated debrace sweep introduced broken
+        code (e.g. `else Shift = .dummy; nreturn;` with no guarding
+        `if`). Reverted. Root cause: scripts cannot safely transform
+        .sc code without human-verified understanding of each block.
+
+        **The work:** walk every .sc file block-by-block against its
+        .sno/.inc source. For each function/block: read the .sno,
+        read the .sc, verify the translation is faithful. Report and
+        fix any discrepancy found. The translation rules are tight:
+        - newline-terminated stmts → `;`
+        - `:F(LBL)` / `:S(LBL)` / `:(LBL)` → structured Snocone
+          (`if`/`else`/`while`/`for`/`break`/`return`/`freturn`/`nreturn`)
+        - everything else preserved, including identifier names
+        - `{ }` braces around multi-statement bodies only; single
+          statements may use bare form `if (cond) stmt;`
+
+        **Audit order** (smallest → largest):
+        `assign.sc, match.sc, stack.sc, case.sc, counter.sc,
+        ShiftReduce.sc, semantic.sc, trace.sc, omega.sc, ReadWrite.sc,
+        Gen.sc, Qize.sc, XDump.sc, TDump.sc, tree.sc, global.sc,
+        beauty.sc`
+
+        Per RULES.md: never patch corpus source to work around runtime
+        bugs. If audit finds a .sc construct the runtime mishandles,
+        fix the runtime.
+
+        **Do this with Lon present, reviewing each file pair.**
 
   - [x] **SB-6.E.7-D** — **Style sweep: normalize `~DIFFER(x)`
         to `IDENT(x)`.** Closed
