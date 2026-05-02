@@ -268,7 +268,128 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
-## Most recent session — 2026-05-02 #12 (SB-6.E.7-J REOPENED)
+## Most recent session — 2026-05-02 #13 (SB-6.E.7-J pass #2, 12 of 17 files audited)
+
+### Translation principle — sharpened by Lon (this session)
+
+The mental model for SB-6.E.7-J: take the .sno/.inc source, **mentally erase
+`:F()`/`:S()`/`:(label)` and goto-targets**, what remains is a stream of
+**body parts** (assignments, expressions, pattern matches, calls). Those
+body parts go into the .sc port unchanged in **name and content**. Then
+wrap them with structured control (`if/else`, `while`, `for`, `break`,
+`return`, `freturn`, `nreturn`).
+
+It is practically a **one-to-one body-part correspondence**. The control
+envelope is new and shiny; the body parts are identical. Drop SNOBOL4's
+stupid `:F()/:S()` statement-based branching; use modern structured control.
+
+**IR consequence:** expression-IR should be byte-identical between .sc and
+.inc; control-flow IR may differ (different envelope). Sync-step tracing
+is not required for SB-6 to land.
+
+**OPSYN:** Per Lon (this session), **keep all OPSYN processing**. Do not
+drop OPSYN calls just because Snocone has no infix-OPSYN runtime support
+yet (SB-6.E.7-B tracks). Carry them so they survive to the day SB-6.E.7-B
+lands.
+
+### What landed (this session)
+
+Pass #2 audited 12 of 17 .sc files line-by-line against their .inc/.sno
+counterparts. Findings documented in `.github/SB-6-E-7-J-pass2-findings.md`
+(the full deliverable for this session — read it before resuming).
+
+**Files audited:** assign, match, stack, case, counter, ShiftReduce,
+semantic, trace, omega, ReadWrite, Gen, Qize.
+
+**Files remaining for next session:** XDump, TDump, tree, global, beauty.
+
+### Headline findings
+
+🔴🔴 **trace.sc:15 polarity inversion** — pass #1 (session #11) thought it
+fixed this; it did not. Both `if (str ? PAT) {} else { nreturn; }` (old)
+and `if (~(str ? PAT)) { nreturn; }` (pass #1 "fix") have the same wrong
+polarity. Faithful form: `if (str ? (POS(0) '?')) nreturn;` per .inc
+`:S(NRETURN)` semantic. Wrong-polarity comment on line 14 corroborates.
+
+🔴 **`semantic.sc` drops OPSYN calls** — `OPSYN('~', 'shift', 2)` and
+`OPSYN('&', 'reduce', 2)` from .inc are entirely omitted. Per Lon: restore
+them. Function-form workaround is caller-side only; OPSYN definitions must
+survive.
+
+🔴 **`Gen.sc::GenTab` is a reimplementation, not a port** — invents an
+`IDENT($'$B')` first-time branch and a `LE(SIZE($'$B'), pos - 1)` guard
+not in .inc. The .inc has 2 body parts (try-extend statement + fallback);
+the .sc has 3 branches with invented `$'$X'` substitution.
+
+🔴 **Name-parity violations:**
+- `Gen.sc::indent` renamed `_indent` (no Snocone reserved-word reason)
+- `semantic.sc::shift,reduce` add `omega` intermediate not in .inc
+- `Gen.sc::Gen` adds `_rest` local (bound to runtime gap G-2)
+- `Gen.sc` adds 4 redundant globals inits (`$'#L' = 0;` etc.)
+- `stack.sc` adds redundant `xTrace = 0;` init
+
+🔴 **Systemic runtime gaps surfaced** (NOT .sc bugs — runtime work):
+- **G-1** `REPLACE(DATATYPE(x), &LCASE, &UCASE)` wrapper at 3 sites —
+  scrip's `datatype()` already returns uppercase; needs lex-layer
+  verification. Fix runtime, drop wrappers.
+- **G-2** Predicate-form `?` discards captures — drives 2-step
+  capture-then-consume idiom in ReadWrite.sc, Gen.sc, Qize.sc. Documented
+  as "Snocone emitter property"; needs Lon's call (intentional or bug?).
+- **G-3** Deferred-`*assign(.var, *value)` inside pattern alternations
+  not supported — drives Qize.sc::Qize branch 1 dispatch-in-code workaround.
+- **G-4** `LEQ` SPITBOL builtin not in scrip — provided as user-helper in
+  Qize.sc. Justified.
+- **G-5** `Ucvt` referenced in canonical Qize.inc, never defined — provided
+  in Qize.sc. Justified.
+- **G-6** Snocone has no infix-operator OPSYN — SB-6.E.7-B already tracks.
+
+🔴 **Translation infidelities** (per-file fixes):
+- **F-1** trace.sc:15 polarity (above)
+- **F-2** Gen.sc::GenTab reimplementation (above)
+- **F-3** ShiftReduce.sc::Reduce added `else { c = ''; }` not in .inc
+
+🟡 **Style violations:** ~80+ single-statement brace bodies across the 12
+audited files (SB-6.E.7-C work, mechanical fix per file with hand-verify).
+
+⚠ **Dropped `.inc` commented-out lines:** ShiftReduce×2, omega×3, Gen×?
+(per "no dead code pruning" rule).
+
+### What did NOT change
+
+No code touched in `corpus`, no runtime edits in `one4all`. This session
+is **all audit, no fixes** — pass #2 is a discovery pass; fixes execute
+in subsequent session(s) per the recommended fix order in the findings doc.
+
+### Repos state
+
+- `corpus`: clean at `6a30100`
+- `one4all`: clean at `31d8bb30`
+- `.github`: this commit (findings doc + GOAL update)
+- Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0` (unchanged)
+- Three baseline gates green
+- **Active blocker for SB-6: SB-6.E.7-J pass #2 — 5 files remaining + fix
+  execution.** Findings doc is the deliverable; next session reads it and
+  proceeds with fix order recommended therein.
+
+### Next session entry points
+
+Read `.github/SB-6-E-7-J-pass2-findings.md` first. Recommended order:
+
+1. Verify G-1 by building scrip + observing whether string literal
+   `'EXPRESSION'` survives lex case-preservation. Drop or fix accordingly.
+2. Get Lon's call on G-2 (predicate-`?`-discards-captures: intentional or
+   bug?) to determine whether ReadWrite.sc 2-step idiom stays or goes.
+3. Fix F-1, F-2, F-3 (translation infidelities). Mechanical.
+4. Restore OPSYN calls in semantic.sc (G-6 / Lon directive).
+5. Restore name parity (N-2, N-3, N-4, N-7, N-8).
+6. Audit remaining 5 files under the corrected body-part principle.
+7. Strip braces (S-1) per-file, hand-verified.
+8. Restore dropped comments (S-2).
+9. Re-gate; commit per-rung as fixes land.
+
+---
+
+
 
 ### What happened
 
@@ -310,7 +431,16 @@ with everything else.
 
 ### What landed
 
-**SB-6.E.7-J COMPLETE.** All 17 .sc files audited line-by-line against
+**SB-6.E.7-J pass #1 — SUPERSEDED 2026-05-02 #12, REOPENED as pass #2.**
+This session's "complete" claim turned out to be too lenient — pass #1
+skimmed for obvious bugs and accepted "explained-away" deviations. The
+trace.sc T8Trace "fix" (#2 below) syntactically replaced the workaround
+but preserved the polarity inversion — pass #2 confirmed the bug is still
+present (the doDebug==1 branch suppresses non-`?` lines instead of
+`?` lines, opposite of .inc). Kept here for history. See "Most recent
+session — 2026-05-02 #13" at top of file for active pass #2 status.
+
+All 17 .sc files audited line-by-line against
 .sno/.inc source.
 
 | Files clean | Files fixed |
@@ -913,6 +1043,37 @@ to do.
         looked at against the corresponding line(s) in the `.sc`.
         No exceptions, no "this looks fine" without reading both.
 
+        **The body-part correspondence principle (Lon, 2026-05-02 #13).**
+        Take the .sno/.inc source. Mentally erase `:F()`/`:S()`/`:(label)`
+        plumbing and goto-label targets — what remains is a stream of
+        **body parts**: assignments, expressions, pattern matches,
+        function calls, conditional-RHS forms. Those body parts go into
+        the .sc port **unchanged in name and content**. Then wrap them
+        with structured control: `if/else`, `while`, `for`, `break`,
+        `return`, `freturn`, `nreturn`. It is a **one-to-one body-part
+        correspondence** — the control envelope is new and shiny; the
+        bodies are identical.
+
+        Forbidden moves: renaming variables (except function-name-shadow
+        case `lwr(lwr) → lwr(s)`), adding intermediates not in .inc
+        (`omega`, `_rest`, `_indent`), adding branches not in .inc
+        (`else { c = ''; }`), reasoning about WHEN .inc statements fail
+        and reimplementing the logic, dropping comments or OPSYN calls,
+        patching .sc to work around runtime bugs.
+
+        Permitted moves: control-flow restructure (`if/while/for/break`
+        instead of `:F:S/labels`), strip `{ single_stmt; }` braces
+        (post-SB-6.E.7-A), function-name-shadow renames, multi-line concat
+        fragment regrouping when EVAL output is identical.
+
+        IR consequence: expression-IR byte-identical between .sc and .inc;
+        control-flow IR may differ (different envelope). Sync-step tracing
+        between the two is not required for SB-6 to land.
+
+        OPSYN: keep all OPSYN processing. Function-form fallback is
+        caller-side workaround until SB-6.E.7-B (infix-OPSYN runtime
+        support) lands; the OPSYN definitions themselves must survive.
+
         **Per-file process (line-by-line, NOT block-by-block):**
 
         1. Open the `.inc`/`.sno` file alone. Read line 1.
@@ -932,7 +1093,7 @@ to do.
 
         | Pattern | Action |
         |---------|--------|
-        | `if (~(EXPR))` where EXPR has side effects (`=` or function call) | Suspect — likely should be a direct check on the result, not `~` on the expression |
+        | `if (~(EXPR))` where EXPR has side effects (`=` or function call) | **NOT a flag** — this is the natural Snocone idiom for `:F(NRETURN)` on a side-effecting RHS. e.g. `if (~(t = EVAL(t))) nreturn;` is the faithful translation of `t = EVAL(t) :F(NRETURN)`. Per Lon (session 2026-05-02 #13). |
         | `{ single_stmt; }` body | Strip braces — bare form per SB-6.E.7-A |
         | `} else { single_stmt; }` | Strip both braces |
         | `} else if (cond) { single_stmt; }` | Strip braces |
@@ -1022,10 +1183,16 @@ to do.
         | 16 | global.sc | 163 | 196 | ✅ clean |
         | 17 | beauty.sc | 627 | 498 | ✅ clean (runtime bugs tracked separately) |
 
-        **SB-6.E.7-J COMPLETE.** All 17 files audited. 2 fixes landed
-        (case.sc cap(), trace.sc T8Trace). 15 files confirmed clean.
-        Remaining issues are runtime bugs (SB-6.E.7-H rollback,
-        SB-6.E.7-I Pop() returns Label), not .sc translation errors.
+        **SB-6.E.7-J pass #1 (this paragraph) was SUPERSEDED 2026-05-02 #12
+        and #13.** Pass #1 was too lenient — missed translation faithfulness
+        violations (e.g. `~(t = EVAL(t))` was correctly faithful but the
+        surrounding `{ nreturn; }` brace style was missed; pass #1 also
+        reported trace.sc T8Trace "fixed" but the polarity inversion was
+        actually preserved in the new syntactic form). Pass #2 is the
+        active line-by-line audit under the sharpened body-part-correspondence
+        principle (see "Most recent session — 2026-05-02 #13" above).
+        The 17-file ✅-table immediately above is **the pass #1 record** — kept
+        for history; superseded by pass #2.
 
         Legend: ⬜ not started · 🔄 in progress · ✅ clean · ⚠ issues found+fixed
 
