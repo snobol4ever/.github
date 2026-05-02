@@ -368,6 +368,146 @@ Summary line: `lines=N stderr=M parse_err=P internal_err=I rc=R`.
 This is the canonical SB-6 entry point — do NOT reconstruct the lib chain
 or invocation by hand. Read the script if you need the 16-file lib order.
 
+## Most recent session — 2026-05-02 #17 (SB-6.E.7-J pass #3 — beauty.sc invented-helper removal + per-type body-part dispatch LANDED)
+
+### What landed (corpus, 1 file modified — three baseline gates green throughout)
+
+`corpus/programs/snocone/demo/beauty/beauty.sc` rewritten to remove the
+four invented helpers (`ppLeaf`, `ppList`, `ppStmt`, `ss_leaf`) and
+restore body-part-faithful per-type dispatch in `pp()` and `ss()`.
+Three of the four pieces of session #15's deferred work landed:
+
+1. **Invented helpers removed.** `ppLeaf`/`ss_leaf` collapsed beauty.sno's
+   `:S($('pp_' t))F(RETURN)` and `:S($('ss_' t))F(RETURN)` string-keyed
+   dispatch into single helper calls; `ppList(x, sep, open, close)`
+   collapsed four very-different per-type body shapes (`pp_,`, `pp_|`,
+   `pp_..`, `pp_[]`) into one parameterized helper that mis-mapped two
+   of them; `ppStmt(x)` was a 30-line helper not in beauty.sno (its
+   body lives directly inside `pp_Stmt` at .sno lines 333-381).
+2. **Per-type body-part dispatch restored** in both pp() and ss():
+   - `pp_Parse`, `pp_Comment`, `pp_Control` — bodies inlined per .sno
+     261-264, 325-331.
+   - `pp_Stmt` — full 7-component columnar layout inlined per .sno
+     333-381; `ppLbl`/`ppSubj`/`ppPatrn`/`ppAsgn`/`ppRepl`/`ppGo1`/`ppGo2`
+     are globals (matching `DEFINE('pp(x)c,i,n,s,t,v')` — locals list
+     does NOT include them).
+   - `pp_ExprList`, `pp_,`, `pp_|`, `pp_..`, `pp_[]`, `pp_()`, `pp_Call`
+     — explicit per-type body parts per .sno 383-459, fixing former
+     `ppList(x, '..', '', '')` (no separator — must use conditional
+     `(LT(i,n) Gen(nl))` between children) and `ppList(x, ']', '[', ']')`
+     (per-child brackets, not start/end).
+   - **15 explicit `pp_OP` cases** (`! # $ % & * + - . / = ? @ ^ ~`) per
+     .sno 296-323, each `EQ(n,1) :S(ppUnOp); EQ(n,2) :S(ppBinOp)F(error)`.
+   - **15 explicit `ss_OP` cases** per .sno 502-529, each routing
+     through ssUnOp/ssBinOp with explicit error on n∉{1,2}.
+   - 10 leaf types + 6 goto-clause types inlined directly in `ss()` per
+     .sno 477-496, each with the `ss_atomic` `LE(SIZE(ss),len)` gate
+     inlined after the assignment.
+3. **`ssUnOp`/`ssBinOp` added** as functions matching beauty.sno's inline
+   labels at lines 498-500, symmetric to existing `ppUnOp`/`ppBinOp`.
+   Per goal-file rule "keep `ppUnOp`/`ppBinOp` since those ARE in
+   beauty.sno" — same applies to `ssUnOp`/`ssBinOp` by symmetry.
+
+Functions remaining in beauty.sc: `ppUnOp ppBinOp pp ssUnOp ssBinOp ss
+visit findRefs refs`.  All nine present in beauty.sno (ppUnOp/ppBinOp/
+ssUnOp/ssBinOp as inline labels in pp/ss; rest as top-level DEFINEs).
+
+### What did NOT change (deferred)
+
+**Main loop body-part rewrite (main00..main05).**  Earlier in this
+session a faithful main-loop rewrite using `main_done`/`unit_done`
+flags (replacing invented `input_done`/`have_line`/`cont_more`)
+collapsed the SB-6 fingerprint from `lines=603` to `lines=0
+stderr=33 rc=0`.  Restored from baseline.  Per RULES.md
+regression-in-error-class, NOT committed.  This is the remaining
+piece of SB-6.E.7-J pass #3 deferred work.
+
+The collapse-to-zero shape (with persistent 33 stderr `snobol4:0:
+error: parse error: syntax error` lines that appear regardless of
+.sc state — they originate in scrip's SNOBOL4 frontend processing
+the input on stdin, NOT from .sc parsing) suggests the new control
+shape exercises a runtime path the old `input_done`/`have_line`
+shape did not.  Likely candidates:
+- `if (~(Line = INPUT))` may not lower the same way `if (Line =
+  INPUT)` does — `~` over assignment-as-test interacts differently
+  with the failure-rollback machinery (cf. SB-6.E.7-H).
+- `else if (...) { /* empty body */ }` for the continuation-loop
+  re-run arm — exactly the SB-6.E.7-A pattern (closed in #57
+  per goal table) but a corner case may remain.
+- The .sno's `main02` does `Src = Src Line nl` BEFORE checking EOF
+  on the next INPUT; the structured rewrite must preserve that
+  ordering exactly, and a near-miss may cause an off-by-one Src
+  state on the EOF path.
+
+Recommended next-session approach: try one of these structural
+forms instead of the flag-based shape:
+(a) `while (Line = INPUT)` outer + tagged-`break` inner loops
+    using `break LABEL` (per ARCH-SNOCONE.md line 291).
+(b) Wrap entire main into `function main()` so `return;` works,
+    eliminating need for both flags.
+(c) Bisect by changing one body part at a time vs. the working
+    baseline.
+
+### What did NOT change (other deferred items, unchanged from session #15)
+
+- **SB-6.E.7-L** (locals-as-parameters semantic bug, Andrew's
+  `procedure name(args) locals { body }` syntax extension) —
+  parser/lexer change still pending.
+- **SB-6.E.7-K** (empty-positional `f(a,,c)` grammar gap at
+  `snocone_parse.y:1089`) — workaround marker remains in
+  ShiftReduce.sc.
+- **SB-6.E.7-B** (infix-operator OPSYN runtime support) —
+  function-form workaround in semantic.sc still in place.
+- **SB-6.E.7-H** (runtime rollback bug — drops every assignment
+  statement under full beauty.sc + 16-lib) — the upstream cause
+  of the 91-hunks-vs-oracle gap.
+
+### Bisect record
+
+The session walked four discrete edits and gate-tested each:
+
+| Edit | SB-6 fingerprint | 3 gates |
+|------|-----------------|---------|
+| Inline `ppLeaf` (10 sites in pp leaf branches) | 603/4389/170/4 | green |
+| Inline `ss_leaf` (16 sites in ss: 10 leaf + 6 goto) | 603/4389/170/4 | green |
+| Remove `ppList`, restore per-type pp body parts | 603/4389/170/4 | green |
+| Inline `ppStmt`, add 15+15 explicit op cases, add ssUnOp/ssBinOp | 603/4389/170/4 | green |
+| (attempted) main00..main05 body-part rewrite | 0/33/0/0 | green |
+
+Commit landed only the first four; main-loop rewrite reverted.
+
+### Repos state
+
+- `corpus`: `5c468a3` pushed (1 file modified).  Was `5cc1baa` at
+  session start; rebased onto `a438ec1` from a concurrent push.
+- `one4all`: clean — no runtime/compiler edits this session.
+- `.github`: this commit (session entry + Open rungs update + PLAN.md
+  goal table step ID).
+- Three baseline gates green throughout.
+- SB-6 fingerprint UNCHANGED: `lines=603 stderr=4389 parse_err=170
+  internal_err=4 rc=124`, 91 diff hunks vs oracle.
+
+### Why fingerprint didn't move
+
+This commit is **structural (source faithfulness)**, not behavioral.
+The 91-hunk gap to oracle is downstream — driven by SB-6.E.7-H's
+runtime rollback bug and the deferred main-loop rewrite — neither
+of which this session touched.  The structural rewrite is observably
+identical on the SB-6 input; that's the right outcome for a
+body-part-correspondence audit closure.  The remaining gap closes
+when (a) the main-loop rewrite lands faithfully and (b) SB-6.E.7-H
+or its downstream symptom (Stmt reduce / continuation-line gluing)
+is fixed.
+
+### Active blocker for SB-6 going forward
+
+**SB-6.E.7-J pass #3 — main00..main05 body-part rewrite of
+beauty.sc's main loop** is now the SOLE remaining piece of pass #3
+deferred work.  The pp/ss invented-helper removal and per-type
+body-part dispatch landed clean.
+
+---
+
 ## Most recent session — 2026-05-02 #16 (SB-6.E.7-M LANDED — strip sno prefix from beauty.sno)
 
 ### What landed (corpus, 1 file modified — three baseline gates green)
