@@ -3993,3 +3993,179 @@ dirty (beauty_oracle.sno (D)).  `.github`: this update.
 then `.github` per RULES.md handoff order.
 
 
+
+## Session 2026-05-01 #3 progress (EMERGENCY HANDOFF — investigation only)
+
+**No source changes. All repos at HEAD `3a0ebe97` (one4all) / `6f00145`
+(corpus).  Investigation interrupted by context-window exhaustion;
+findings recorded for next session to continue.**
+
+### Setup verified
+
+Three baseline gates green from clean clone + clean build:
+- `test_smoke_snocone.sh` PASS=5 FAIL=0
+- `test_beauty_snocone_all_modes.sh` PASS=42 FAIL=0 SKIP=3
+- `test_smoke_unified_broker.sh` PASS=49 FAIL=0
+
+SPITBOL oracle on `beauty.sno < beauty.sno`: 646 lines, md5
+`abfd19a7a834484a96e824851caee159` — Milestone 1 baseline preserved.
+
+### Concrete observation: end-to-end state DIFFERS from session 2026-05-01 #2
+
+Session 2026-05-01 #2 documented end-to-end as "rc=0, stdout: empty,
+stderr: empty" on `beauty.sno`.  This session measured something
+different at the same HEAD:
+
+```bash
+./scrip --ir-run $LIBS beauty.sc < beauty.sno
+# rc=0, stdout: 1495 lines, stderr: 0 lines
+# 17 'Internal Error' lines, 417 'Parse Error' lines
+```
+
+The output INTERLEAVES real input lines with error messages:
+- Header lines (`*...`, `-INCLUDE 'X'`) pass through correctly via the
+  `if (Line ? POS(0) ANY('*-')) { OUTPUT = Line; }` arm
+- Blank lines yield "Internal Error" — the parse trivially succeeds
+  but `Pop()` returns null, hitting the Internal Error branch
+- Real statements like `\tA = 1` yield "Parse Error" — outer
+  `POS(0) *Parse *Space RPOS(0)` match fails
+
+Possible explanation for the discrepancy with session #2: that session
+ran `beauty_oracle.sno` (the deleted file) as input — different bytes
+than `beauty.sno`.  Or session #2's measurement used different LIBS
+ordering.  Either way, the current behavior on the canonical oracle
+input is meaningful forward motion vs. "no output."
+
+### Tightest reproducers
+
+```
+echo START | ./scrip --ir-run $LIBS beauty.sc
+# Output: 'Internal Error\nSTART\n\n'
+# Oracle: 'START\n'
+
+printf '\tA = 1\n' | ./scrip --ir-run $LIBS beauty.sc
+# Output: 'Parse Error\n\tA = 1\n\n'
+# Oracle: '                  A              =  1\n'
+```
+
+### Diagnostic in progress (incomplete due to context exhaustion)
+
+Built a stripped beauty.sc test (lines 1-411 only — pattern definitions
+and procedures — not the main while-loop) and added explicit
+`Src ? POS(0) *Parse *Space RPOS(0)` test cases.
+
+Concrete signal observed:
+- `\tA = 1\n` → outer match FAILS (else branch)
+- `START\n` → outer match SUCCEEDS, but `Pop()` returns a value with
+  `DATATYPE = 'PATTERN'`, not a tree datatype.
+
+The `'PATTERN'` datatype is the smoking gun.  After a successful parse,
+Pop should return a tree node (the SHIFTed/REDUCEd result).  Instead
+it's returning a pattern object — strongly suggests the
+`epsilon . *Reduce(...)` or `*Shift(...)` deferred call is leaving the
+*pattern itself* on the stack rather than firing the deferred call and
+pushing the resulting tree.
+
+### Two hypotheses for next session to discriminate
+
+**H1 — `epsilon . *Reduce(...)` deferred call not firing.**  In
+`semantic.sc::reduce`, the EVAL'd pattern is
+`epsilon . *Reduce(t, n)`.  The `*Reduce(...)` is a deferred function
+call meant to fire AT MATCH TIME inside the `.` capture-cond-asgn.
+If the runtime is treating the `*Reduce(...)` as a static value rather
+than firing it during the match, the pattern would match (because
+`epsilon` always succeeds) but no Reduce side-effect would happen —
+and the pattern object itself would propagate up.
+
+**H2 — `*Pat` deferred-pattern-reference issue.**  The Parser pattern
+chain uses `*Stmt`, `*Comment`, `*Control` — deferred references to
+patterns built in earlier statements.  If one of those references is
+being captured-by-value rather than captured-by-deferred-name, the
+pattern might match against an early skeleton state rather than the
+fully-built grammar.
+
+H1 is more likely given the PATTERN-as-Pop-result observation, but
+both deserve a trace.
+
+### Concrete diagnostic for session #N+1
+
+1. **Verify what Pop is actually returning on `START`:**
+
+   ```snocone
+   xTrace = 5;  // turn on Push/Pop trace
+   Src = 'START\n';
+   if (Src ? (POS(0)   *Parse   *Space   RPOS(0))) {
+       sno = Pop();
+       OUTPUT = 'sno DATATYPE=' . DATATYPE(sno);
+       if (DATATYPE(sno) :==: 'PATTERN') {
+           // It's a pattern - dump it via TDump or by IDENT to known patterns
+           OUTPUT = '  matches epsilon? '   (IDENT(sno, epsilon));
+       }
+   }
+   ```
+
+   Expected if H1: sno is the unfired `epsilon . *Reduce(...)` pattern.
+   Expected if H2: sno is a different unrelated pattern (Stmt? *X14?).
+
+2. **Trace Reduce calls during the START parse:**
+
+   In `ShiftReduce.sc::Reduce`, add an `OUTPUT = 'Reduce(' t ',' n ')'`
+   at function entry, gated on something other than xTrace>3 (since
+   xTrace=5 already enables the existing trace, but it might be that
+   the trace IS firing and we just need to capture it).  If Reduce is
+   never called for `START` parse → confirms H1 mechanism.
+
+3. **Check `tree(t, '', n, c)` behavior on n=1 reduction:**
+
+   Even if Reduce IS called, it might be building a tree-with-wrong-
+   structure.  Run a standalone `t = tree('Label', 'START', '', '')`
+   and verify DATATYPE is 'tree' (the struct kind).
+
+4. **Cross-check against session 2026-05-01 #2's claimed state:**
+
+   Re-run `./scrip --ir-run $LIBS beauty.sc < beauty.sno`.  If it
+   produces 1495 lines (as session #3 saw), session #2's "no output"
+   claim was wrong-input-file or stale-build.  If it produces 0 lines,
+   something between sessions changed without a commit landing — check
+   `git status` and `find src -name '*.o' -newer scrip` before
+   trusting any gate.
+
+### Files investigated, not modified
+
+- `corpus/programs/snocone/demo/beauty/beauty.sc` (read main loop)
+- `corpus/programs/snocone/demo/beauty/semantic.sc` (read shift/reduce)
+- `corpus/programs/snocone/demo/beauty/ShiftReduce.sc` (read Reduce/Shift)
+- `corpus/programs/snocone/demo/beauty/stack.sc` (read Push/Pop)
+- `corpus/programs/snobol4/demo/beauty/beauty.sno` (oracle source)
+- Diagnostic test files in `/tmp/` only (not committed)
+
+### Failed diagnostic that ate context
+
+Built `/tmp/beauty_test.sc` = first 411 lines of beauty.sc + custom
+test code.  When run via `scrip --ir-run $LIBS /tmp/beauty_test.sc`,
+the output REPEATED several thousand times (`Test 1 / Parse FAILED /
+Test 2 / PATTERN / sno is null` over and over until 30s timeout).
+Cause not investigated — could be:
+- A `:S(loop_label)` in beauty.sc lib chain that re-enters the program
+- Shared label name collision in scrip's IR-merge despite session #71's
+  per-process `g_snocone_label_ctr` fix (label names from headlines
+  1-411 of beauty.sc colliding with library labels under merged-IR
+  name resolution)
+- An `END` handler somehow re-dispatching to start
+
+This is itself a follow-on rung worth tracking.  Suggested name:
+**SC-MERGE-RESTART**.  Reproducer: take any prefix of beauty.sc that
+contains pattern definitions (line 1-411) plus any non-trivial test
+appended, and run with the lib chain.  Output is repeated.  Cannot
+yet pinpoint without surface-level investigation.
+
+### Active rung remains SB-6 (proper)
+
+SB-6.E.6 (confirm-with-Lon) still requires Lon.  SB-6.G (E_UN_*
+trampoline cleanup) still open, narrow.  SB-6 self-host proper —
+the H1/H2 investigation above is the path forward.
+
+### Repos state
+
+`one4all`: clean.  `corpus`: clean.  `.github`: dirty (this update
+only).  `csnobol4`, `x64`: clean.  Plan: commit `.github` only, push.
