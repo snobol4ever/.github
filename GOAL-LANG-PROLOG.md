@@ -271,7 +271,7 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   integer/float coercion, `mod` vs `rem` ISO semantics, `**` vs `^`,
   `truncate`/`round`/`ceiling`/`floor`. Closes test_arith naturally.
 
-- [ ] **PR-14** — `rung37_term_ops/` — ISO §7.6 term-clause conversion.
+- [x] **PR-14** — `rung37_term_ops/` — ISO §7.6 term-clause conversion.
   `=..` (univ), `functor/3`, `arg/3`, `copy_term/2` full ISO semantics
   including atomic `Term =.. [F]`, vars, edge cases. Closes test_term,
   test_bips arg.
