@@ -107,3 +107,7 @@
   icn_real_str→real_str. ICN_BINOP_* and icon_lex/parse/emit kept (Icon-frontend only).
   26 files changed. one4all @ `1ab3574e`.
   Build clean. smoke_snobol4 7/7, unified_broker 49/0.
+
+- [ ] **RS-9** — Next rung: TBD. Session ended after RS-8 (rename). Candidates:
+  RS-4 (interp_eval.c reduction, deferred), or a new structural improvement
+  identified from the RS-7 scan. Lon to name direction at session start.
