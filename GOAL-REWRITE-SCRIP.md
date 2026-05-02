@@ -96,3 +96,14 @@
   Added E_PROC_FAIL to ir.h; icon_parse.c emits E_PROC_FAIL; interp_eval.c and
   sm_lower.c handle E_PROC_FAIL beside E_RETURN.
   one4all @ `ea93b22b`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [x] **RS-8** — Rename icn_*/ICN_* to language-theory names (session 2026-05-02).
+  The shared generator/coroutine runtime was named icn_* (Icon-specific) but serves
+  Icon, Prolog, and Raku. Two-stage rename: icn_→gen_ then gen_→proper names.
+  Final mapping: icn_eval_gen→coro_eval, icn_suspend_state_t→coro_t,
+  icn_runtime.c/h→coro_runtime.c/h, icn_call_proc→coro_call, icn_drive→coro_drive,
+  icn_is_gen→is_suspendable, ICN_CUR→FRAME, icn_proc_table→proc_table,
+  icn_scan_*→scan_*, icn_scope_*→scope_*, icn_gen_push/pop→frame_push/frame_pop,
+  icn_real_str→real_str. ICN_BINOP_* and icon_lex/parse/emit kept (Icon-frontend only).
+  26 files changed. one4all @ `1ab3574e`.
+  Build clean. smoke_snobol4 7/7, unified_broker 49/0.
