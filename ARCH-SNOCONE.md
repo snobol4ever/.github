@@ -101,6 +101,14 @@ SB-6.E for the rung that landed this. `^` has no unary form (the
 unary operator set is `+ - * & @ ~ ? . $`), so a tight or
 unary-position `^` is a syntax error.
 
+`!` is dual-role in a different way: defined-binary
+(exponentiation, alternate spelling for `^` and `**`, priority 11)
+AND undefined-unary (OPSYN-available, like `% / # = |`). The lexer's
+binary cascade for `!` already follows the strict `{W}!{W}` rule;
+the unary-position emit is tracked under SB-6.F (currently the
+fallback collapses to `T_2CARET` instead of the correct `T_1BANG` —
+narrow lexer-only fix, does not gate SB-6 self-host).
+
 ---
 
 ## Concatenation — whitespace IS the concat operator

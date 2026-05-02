@@ -2578,6 +2578,108 @@ commit `one4all` + `.github`, push `one4all` first then `.github`.
       back into "what the code does" rather than "what the code
       should do."
 
+- [ ] **SB-6.F** — Unary `!` (T_1BANG) coverage for SPITBOL operator
+  parity.  Discovered session 2026-05-02 while cross-checking the
+  Snocone token inventory against the SPITBOL Manual Chapter 15
+  canonical operator list (p. 181–183).  Of the six undefined unary
+  symbols SPITBOL reserves for `OPSYN()` (`! % / # = |`), Snocone
+  has token coverage for five (`T_1PERCENT, T_1SLASH, T_1POUND,
+  T_1EQUAL, T_1PIPE`) but is missing `T_1BANG`.  Two concrete
+  defects:
+
+  1. `snocone_lex.h` does not declare `T_1BANG` in the `ScKind`
+     enum.  Every other unary symbol — defined or undefined — has
+     a token; `!` is the lone exception.
+
+  2. `snocone_lex.c::S_OP_BANG` line 383 unary fallback is
+     `goto E_EXP` (which emits `T_2CARET`, the binary-exponent
+     token).  This is wrong on two counts:
+     - A unary-position `!x` in Snocone source today emits a
+       binary operator token with no left operand.  The grammar
+       sees `T_2CARET T_IDENT`, which is a parse error, but for
+       the wrong reason — the token is structurally lying about
+       what it is.
+     - It collapses two distinct SPITBOL operator roles into one
+       token.  Per the SPITBOL Manual Chapter 15: `!` is binary
+       exponentiation (alternate spelling for `^` / `**`,
+       priority 11, right-assoc, defined) AND unary undefined
+       (available for `OPSYN()`).  These are separate operators
+       that happen to share a glyph, exactly like `+` (binary
+       add + unary plus) or `*` (binary multiply + unary defer).
+       The lexer must produce distinct tokens for them.
+
+  Per RULES.md "Casing belongs at the ingress layer, not at
+  lookup": the lexer is the right place to make this distinction.
+  By the time the parser sees a `!`-derived token, that token
+  must already declare which role it plays.
+
+  - [ ] **SB-6.F.1** — Add `T_1BANG` to `snocone_lex.h` ScKind
+    enum.  Follow the existing pattern: place it next to the
+    other T_1* tokens (lines 38–40 today).  No other header
+    changes — `sc_kind_is_value()` and `sc_kind_has_payload()`
+    use the kind only as an integer index, no code change
+    needed there.
+  - [ ] **SB-6.F.2** — Add `E_UN_BANG: EMIT(T_1BANG);` emit
+    label in `snocone_lex.c` next to the other `E_UN_*` labels
+    (around line 583 today).  Add corresponding name-table
+    entry `sc_name_table[T_1BANG] = "T_1BANG";`.
+  - [ ] **SB-6.F.3** — Fix `S_OP_BANG` unary fallback in
+    `snocone_lex.c` line 383: replace
+    ```c
+    {  ADV(1);                                              goto E_EXP;       }
+    ```
+    with
+    ```c
+    {  ADV(1);                                              goto E_UN_BANG;   }
+    ```
+    The strict `{W}!{W}` binary cascade (lines 381–382) stays
+    unchanged — that's already correct and matches the cascade
+    shape SB-6.E.2 just installed for the other operators.
+    Same correctness rule: tight `1!2` should be a syntax error;
+    `1 ! 2` should be binary exponent (priority 11);
+    unary-position `!x` should emit `T_1BANG` (currently undefined
+    semantic, available for OPSYN at the grammar layer when
+    Snocone gains OPSYN support).
+  - [ ] **SB-6.F.4** — Verify with the SPITBOL `-bf` oracle that
+    `!` follows the manual's two-role contract.  Concretely:
+    - `OUTPUT = 2 ! 3`  → SPITBOL prints `8` (binary exponent,
+      same as `2 ^ 3` and `2 ** 3`).  Verify scrip matches.
+    - `OUTPUT = 2!3`    → SPITBOL rejects (matches `2*3` /
+      `2+3` family).  Verify scrip emits a snocone parse
+      error (consistent with SB-6.E.4 corpus-cleanup family).
+    - `OUTPUT = !x`     → SPITBOL accepts as unary (undefined
+      OPSYN-pending; the return value depends on whether OPSYN
+      has wired `!` to a function — by default, evaluating the
+      operator on `x` raises Error 18 "undefined operator" at
+      runtime, but it parses).  Verify scrip's lexer emits
+      `T_1BANG` for the `!` and then either parses to a node
+      that runtime-fails consistently, or — if Snocone's
+      grammar has no OPSYN-style unary dispatch yet — produces
+      a clean parse error referencing the unary-bang token
+      rather than confusing the user with a binary-exponent
+      complaint.
+  - [ ] **SB-6.F.5** — Run the full gate suite and confirm no
+    regressions.  Floor invariants: smoke snocone PASS=5,
+    smoke snobol4 PASS=7, beauty all-modes PASS=42 SKIP=3,
+    broker PASS=49, crosscheck snobol4 PASS=6, crosscheck
+    snocone PASS=8.  Scan the corpus for any existing `!`
+    use that the strict cascade newly rejects (if any tight
+    `1!2` form exists in `.sc` corpus today, fix per the
+    SB-6.E.4 directive — it's a corpus bug, not lexer
+    over-strictness).
+
+  **Scope discipline.**  This rung is narrow.  It does NOT
+  include implementing OPSYN dispatch in Snocone's grammar
+  (that's a much larger architectural decision, separate goal
+  if pursued).  This rung only ensures the lexer's token
+  inventory matches the SPITBOL canonical operator list, so
+  that future OPSYN work (or any future grammar extension that
+  wants to use `!`) has a clean unary token to dispatch on.
+
+  **Does not gate SB-6 self-host.**  Beauty.sc and beauty.sno
+  do not use unary `!` anywhere.  This is hygiene / spec-
+  compliance work, not blocking work.  Land it when convenient.
+
 - [ ] **SB-7** — Gate script. Commit. Push.
 
 ---
