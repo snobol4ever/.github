@@ -135,18 +135,13 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
 
 ## Open rungs
 
+- [ ] **SS-0** — Analyze `one4all/src/driver/interp.c` and `one4all/src/frontend/snocone/`. Identify exactly which EKind values the Snocone frontend emits. Confirm the sc_eval dispatch shape for those ~20 kinds. Confirm what `val_to_str` needs to handle. Write findings in this file before writing any `.sc` files.
+  **⚠️ THIS IS THE CURRENT STEP. Start here. Do not skip to SS-2.**
+
 - [x] **SS-1** — Write the step plan. Architecture decided: Stage 0 = scrip C host,
   Stage 1 = snocone.sc compiles itself. File layout above. TDD rung ladder below.
   Representation corrected to Snocone `struct` (DATA) — Val/Node/Tok structs.
   (Session 2026-05-02)
-
-- [x] **SS-0** — Audit C source. Confirm interp.c is not a clean model; write
-  rewrite proposal above. Confirm lex is good model; parser needs compiland-pattern
-  shape (beauty.sno style) but proceed with recursive-descent until beauty.sc lands.
-  Confirm Snocone needs ~20 of 90 EKind values. Confirm struct (DATA) is the right
-  representation. (Session 2026-05-02)
-
-- [ ] **SS-2a** — Analyze SCRIP C interp code: read `one4all/src/driver/interp.c` and identify exactly which EKind values the Snocone frontend emits, what the eval dispatch looks like for those ~20 kinds, and what `val_to_str` needs to handle. Write findings here before writing any `.sc` files.
 
 - [ ] **SS-2** — `value.sc`: Val struct + value helpers.
   ```
