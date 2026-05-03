@@ -4716,3 +4716,224 @@ makes Subsequent computation trivial (next sibling).
                                       bug AND simplify the entire
                                       pattern-match-engine
                                       Subsequent/Alternate computation.
+
+---
+
+## Session #87 — 2026-05-03 (Sonnet / Lon)
+
+**Outcome:** No commit. Diagnostic-only session. Tree clean across all
+repos. HEADs unchanged: snobol4dotnet `80c828a`, x64 `5035571`, one4all
+`872b5a3c`. Beauty self-host gate unchanged at 47 stderr lines / Parse
+Error at line 48.
+
+**Key result: Session #85 and #86's "13 of 18 Expr14 arms missing"
+diagnosis is FALSIFIED.** The Expr14 alternation tree is structurally
+complete — all 18 arms are present in the grafted AST. The session #85
+literal-arm chain that started with `'&'` at node 597 was not a
+truncated 13-of-18 chain; it was arms 6-17 (12 arms) of Expr14, with
+arms 1-3 and 4-5 sitting EARLIER in the AST at nodes 517-588, and arm
+18 (`*Expr15`) sitting later. Sessions #85 and #86 both built their
+hypotheses on a misreading of the AST dump.
+
+### What this session ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+   `x64`. Installed `dotnet-sdk-10.0` (10.0.203). snobol4dotnet HEAD
+   `80c828a` build clean. Beauty self-host baseline confirmed: exit 0,
+   47 stderr lines, Parse Error at line 48.
+
+2. **Instrumented `CreateAlternatePattern`** (`PatternAlternation (Pipe).cs`,
+   `.orig`-backed, REVERTED before session end per RULES.md) — log every
+   `|` operator call with operand types and resulting alt-tree arm
+   count. Gated on `MonitorIpc.TraceEnabled`.
+
+3. **Ran with `MONITOR_TRACE_FROM_EVENT=1 TO=9999999`.** Found:
+     - **92 `|` operator calls** during beauty.sno startup, **ZERO
+       failures** (no `LogRuntimeException(5/6)`, no silent drops).
+     - **PIPE #43→#55 progressively grow a right-skewed alt-tree from 6
+       arms to 18 arms** — exactly Expr14's 18 alternative arms. The
+       tree is built correctly with all 18 arms.
+     - The `|` operator is NOT dropping arms.
+
+4. **Instrumented `AbstractSyntaxTree.Graft`** to dump the structural
+   AST (terminals AND non-terminals, with subclass discrimination for
+   ConditionalVariableAssociation*/ImmediateVariableAssociation*) when
+   the grafted sub-pattern is a 10+-arm AlternatePattern. Found:
+     - **Expr14 is grafted 87+ times during beauty self-host**, each
+       time with `subAst.Count=267` nodes.
+     - Full arm-by-arm structural inspection of arm 1 (`'@' *Expr14
+       ("'@'" & 1)`) at nodes 517-528:
+       ```
+       N node[516] Cat L=517 R=518            arm 1 root
+       T node[517] L'@' sub=519 alt=531       arm 1 leftmost
+       N node[518] Cat L=519 R=520            tail of arm 1
+       T node[519] **<lambda>                  *Expr14 unevaluated
+       N node[520] Cat L=521 R=524            tail = reduce result
+       N node[521] Alt L=522 R=523            va = Alt(CVA1, CVABackup1)
+       T node[522] ConditionalVariableAssociation1
+       T node[523] ConditionalVariableAssociationBackup1
+       N node[524] Cat L=525 R=526            Cat(epsilon, vb)
+       T node[525] L''                         epsilon (LiteralPattern(""))
+       N node[526] Alt L=527 R=528            vb = Alt(CVA2, CVABackup2)
+       T node[527] ConditionalVariableAssociation2
+       T node[528] ConditionalVariableAssociationBackup2
+       ```
+       This is the textbook structure for `'@' *Expr14 (epsilon . *Reduce(...))`.
+
+     - **Arms 1, 2, 3 are structurally identical** (just different
+       literals at 517, 531, 545). All have `*<lambda>` UnevaluatedPattern
+       (= `*Expr14`) directly after the literal, plus the `.thx . *Reduce`
+       capture chain.
+
+5. **Why arms 4 and 5 look different in the AST.** Arms 4-5 =
+   `*ProtKwd ~ 'ProtKwd'` and `*UnprotKwd ~ 'UnprotKwd'`. The `~`
+   operator is OPSYN'd to `shift(p,t)`, which calls
+   `EVAL("p . thx . *Shift('" t "', thx)")` at PATTERN BUILD TIME.
+   Inside the EVAL, the local variable `p` resolves to an ExpressionVar
+   `*ProtKwd`. When that ExpressionVar is dereferenced, it returns the
+   ACTUAL pattern of `ProtKwd`, which is
+   `'&' SPAN(&UCASE &LCASE) $ tx $ *match(ProtKwds, TxInList)` (from
+   beauty.sno line 66). So arm 4's structural realization is the entire
+   ProtKwd pattern INLINED, then wrapped in two `.` captures. The `'&'`
+   that session #85 saw at node 569 was NOT the `'&'` literal of arm 6
+   — it was the `'&'` literal INSIDE ProtKwd, inlined into arm 4.
+
+6. **Confirmed via direct semantic test:** ran a 5-line standalone
+   program that calls `shift(*ProtKwd, 'ProtKwd')` directly AND
+   `*ProtKwd ~ 'ProtKwd'` via OPSYN, with internal traces. Both
+   produce `pattern` datatype, both see `p` as `expression` and `t` as
+   `'ProtKwd'`, both build the same EVAL string
+   `p . thx . *Shift('ProtKwd', thx)`. The OPSYN dispatch is correct.
+
+### What this means for the real bug
+
+The line-48 Parse Error is NOT caused by missing arms in Expr14. The
+Expr14 AST is structurally complete and contains all 18 arms (with
+arms 4-5 inlined to be quite large — each ~25-30 nodes due to inlining
+the full ProtKwd/UnprotKwd patterns). Sessions #85 and #86 spent their
+time on a misdiagnosis.
+
+The real bug is somewhere else — most likely:
+- (a) **Match-time alt-stack handling** for deeply-nested inlined
+  sub-patterns. Arms 4-5 contain nested `.` captures (from `shift`'s
+  EVAL'd `p . thx . *Shift(...)` outer capture) wrapping nested `$`
+  captures (from ProtKwd's own `$ tx $ *match(...)`). The combined
+  alt-stack save/restore behaviour during deep backtrack across these
+  layers is the suspect.
+- (b) **Subsequent-link wiring** through the inlined ProtKwd subtree.
+  The inlined ProtKwd has its own `*match()` UnevaluatedPattern at the
+  end, which when match() FRETURNs needs to propagate failure out
+  through arm 4's wrapping `. *Shift(...)` capture nodes to the alt
+  stack. This propagation path crosses several `.` capture commit
+  points and may be losing the failure signal.
+- (c) **The seal-skip fix from session #67** (`c578fb5`) — which on
+  `-2` seal pop continues popping until a real alternate is found —
+  may be too aggressive when arm 4's deep nested FENCE-equivalent
+  saves are below the seal. If a save belonging to arm 4's `.thx . *Shift`
+  capture is popped past, the outer alternation never reaches arms 5,
+  6, etc.
+
+### What is now known to NOT be the line-48 bug
+
+Adding to the existing list (sessions #67–#86):
+- **Pattern construction does not drop arms.** The `|` operator
+  invocation count and structural correctness rule out
+  `CreateAlternatePattern` as the culprit.
+- **The 18-arm Expr14 alt tree is built correctly** as a right-skewed
+  binary chain (PIPE #55 final state).
+- **The Expr14 graft into the runtime AST contains all 18 arms.**
+- **OPSYN dispatch for binary `~` correctly invokes `shift`** with the
+  expected operand types.
+- **Session #85's "node 781 has alt=-1" was likely the LAST arm of
+  Expr14's alt chain** — i.e. arm 17 `'|' *Expr14` having no successor
+  arm in the alt direction (because arm 18 `*Expr15` is reached via
+  Subsequent, not Alternate). That alt=-1 may be CORRECT for the
+  rightmost arm.
+
+### Concrete next-session execution plan
+
+1. **Do not chase "missing arms" any further.** They are not missing.
+   This rung's hypothesis was wrong.
+
+2. **Trace the actual line-48 failing match path with arm-visit
+   instrumentation.** Add a `[ARM-VISITED]` trace inside `Scanner.Match`
+   (gated on `MonitorIpc.TraceEnabled`) that fires whenever a node is
+   entered whose ParentIndex's Self is the Expr14 root AlternatePattern.
+   Run beauty self-host on the line-48 minimal repro. Confirm whether
+   arms 1-5 are entered at all when matching against
+   `'                  DQ          =  '"' BREAK('"' nl) '"''`. Either:
+
+   - **Arms 4-5 ARE entered but fail without advancing cursor**:
+     bug is in arm 4's inlined ProtKwd subtree's failure propagation.
+   - **Arms 4-5 are NEVER entered** (control passes from arm 3's failure
+     directly to arm 6 or later): bug is in alt-stack restore order
+     or in seal-skip popping past arm 4-5's saves.
+
+3. **If arms 4-5 are entered**, follow with focused tracing inside the
+   inlined ProtKwd subtree at the point where `*match(ProtKwds, TxInList)`
+   FRETURNs on the `'DQ'` token. The FRETURN needs to propagate up
+   through TWO levels of `.` captures (inner from ProtKwd's `$ tx $`,
+   outer from arm 4's `. thx . *Shift`) before reaching the Expr14
+   alt-stack. Each level of capture's commit/rollback must clear
+   Failure correctly to allow arm 5 to be tried.
+
+4. **If arms 4-5 are not entered**, examine `Scanner.cs` lines 100-106
+   (the seal-skip Match() loop from `c578fb5`). When the seal-skip
+   pops past arm 4-5's saves, the bug is there. Likely needs a
+   "stop-at-mark" rather than "stop-at-real-alt" semantic — see the
+   FENCE mark/seal mechanism from `bb28a8d` for precedent.
+
+5. **The Mechanism-B trace coverage rung
+   (`S-2-bridge-event-bombs-coverage`)** is the right tool for this:
+   wire `MonitorIpc.TraceEnabled` into `Scanner.Match`'s alt-stack
+   pop path so the trace captures every `RestoreAlternate` and
+   `SealAlternates` call between adjacent wire events. Productionize
+   that tracing per the rung's "Done when" gate (i-iv) — this is the
+   ONE infrastructure investment that pays off across every
+   remaining match-time bug in the goal.
+
+### Hand-off state
+
+- snobol4dotnet HEAD: `80c828a` unchanged.
+- one4all HEAD: `872b5a3c` unchanged.
+- x64 HEAD: `5035571` unchanged.
+- corpus HEAD: `4d4dea39` unchanged.
+- All repos clean. No `.orig` files. No diagnostic patches.
+- Beauty self-host gate: exit 0, 47 stderr lines, Parse Error at line 48.
+- SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99` (the new
+  post-corpus-rename Milestone 1 invariant per session #84's addendum).
+- Goal-file edits this session: this narrative only.
+
+### Status updates
+
+  S-2-bridge-7-fullscan          [~] partial — sessions #85/#86's
+                                      "missing arms" hypothesis
+                                      FALSIFIED. The Expr14 18-arm
+                                      alternation tree IS structurally
+                                      complete in the grafted AST.
+                                      The real bug is in match-time
+                                      alt-stack / failure-propagation
+                                      handling for arms 4-5's deeply
+                                      nested inlined ProtKwd/UnprotKwd
+                                      subtrees, OR in seal-skip
+                                      popping past those arms' saves.
+                                      Three concrete next-session
+                                      hypotheses (a/b/c above).
+
+  S-2-bridge-7-flatten           [ ] open — still valid as a future
+                                      simplification, but not gating
+                                      line 48. Sessions #85-#86's
+                                      framing of this rung as the
+                                      missing-arms-fix is wrong;
+                                      restated as "AST simplification"
+                                      for future Milestone 2+ work.
+
+  S-2-bridge-event-bombs-coverage [ ] open — promoted to PRIORITY for
+                                      next session. The arm-visit
+                                      instrumentation needed to
+                                      execute step 2 above is exactly
+                                      what this rung productionizes.
+                                      Wire `TraceEnabled` into
+                                      `Scanner.Match`'s alt-stack
+                                      pop path; productionize per the
+                                      rung's done-when gate.
