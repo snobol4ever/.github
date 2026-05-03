@@ -48,7 +48,11 @@ The IR-only entry points must never be called from SM-mode code paths.
 
 **Invariant:** Modes 2, 3, 4 must not call any of the above for SNOBOL4-frontend code paths. Where a function is structurally callable from a shared path (e.g. `_usercall_hook`, `_eval_str_impl_fn`), an internal guard on `g_current_sm_prog` MUST short-circuit before reaching the IR-only path.
 
-**Exception — Icon and Prolog generators:** `coro_runtime.c` and `pl_runtime.c` legitimately call `interp_eval` and `interp_eval_pat` to evaluate value-context subexpressions during Byrd-box drive. The Icon and Prolog frontends do not have SM lowerings of their own — `sm_lower` emits `SM_BB_PUMP` / `SM_BB_ONCE` opcodes that pass the raw `EXPR_t*` to `coro_eval`, which builds a drivable box that recursively evaluates IR subtrees. Modes 2, 3, 4 reach `interp_eval` only through this Icon/Prolog path, never for SNOBOL4 statement bodies. This is by design: the drive-loop semantics of Icon's `every` / `while` and Prolog's choice points are most naturally expressed by walking the IR tree, and the value subexpressions inside those drive loops are pure (no SM-frame-related state).
+**Exception (TEMPORARY, unfinished migration) — Icon and Prolog generators:** `coro_runtime.c` and `pl_runtime.c` currently call `interp_eval` and `interp_eval_pat` to evaluate value-context subexpressions during Byrd-box drive. This is **not** by design — it is an unfinished migration. Icon and Prolog statements lower to a single trampoline opcode (`SM_BB_PUMP` / `SM_BB_ONCE`) that hands the raw `EXPR_t*` to `coro_eval`, which then walks the IR tree via dozens of `interp_eval` calls. In SM mode, an Icon program spends most of its time inside the IR tree-walker, defeating SM's purpose.
+
+Tracked rungs to close this gap: **RS-17** (replace `interp_eval` calls in `coro_runtime.c` with a pure-BB `bb_eval_value` helper), **RS-18** (same for `pl_runtime.c`), **RS-19** (promote both files into the isolation grep gate, delete this exception). After those rungs land, this exception goes away and the SM/IR isolation is complete for the SNOBOL4 + Icon + Prolog set.
+
+**RS-20** decides whether to also remove the BB-drive layer for Icon/Prolog by adding SM opcodes for generator suspend/resume and Prolog choice points — making everything full SM. Independent of RS-17/18/19.
 
 **State markers:**
 

@@ -144,7 +144,93 @@
   architectural exception). Currently green: zero leaks in scope.
   Doc commit + grep gate green.
 
+- [x] **RS-16** — Move `interp_eval_pat` route out of SM `EVAL(string)` path (session 2026-05-03).
+  `_eval_str_impl_fn` (called by `g_eval_str_hook` from `EVAL_fn`) called
+  `interp_eval_pat` after parsing. `interp_eval_pat` lived in `src/driver/interp_pat.c`
+  — the IR-mode driver — and recursively called `interp_eval`. This is a mode-1
+  module being called from modes 2 and 3 in violation of the four-mode isolation.
+  The reason the call worked in SM mode was `label_table_clear_stmts()` made
+  user-function dispatch fall through to APPLY_fn → RS-11 — i.e. safe by
+  side-effect, not by design. Same shape as the original RS-10 problem.
+  Fix landed:
+  (1) Replaced every `interp_eval(child)` call inside `interp_eval_pat` (~14 sites)
+      with `eval_node(child)` — `eval_node` is the IR-free evaluator already
+      shared by all three modes via `EVAL_fn`/`CODE_fn`.
+  (2) Lifted the file out of `src/driver/interp_pat.c` into shared runtime
+      `src/runtime/x86/eval_pat.c`. Narrowed includes to `snobol4.h` +
+      `sil_macros.h` + `ir.h`; added a local `static inline NAME_DEREF` copy
+      (the original lived in driver-only `interp_private.h`).
+  (3) Updated Makefile — `interp_pat.o` → `eval_pat.o`, source path moved
+      from `$(SRC)/driver/` to `$(SRC)/runtime/x86/`.
+  After RS-16, no `src/driver/` file is reachable from a shared-runtime call
+  graph. The RS-15 isolation grep gate remains green.
+  one4all @ (pending commit). Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [ ] **RS-17** — Eliminate IR walker from Icon Byrd boxes (`coro_runtime.c`).
+  Icon's "SM lowering" today is a single-instruction trampoline: `SM_BB_PUMP` pops
+  the raw EXPR_t* pushed by `emit_push_expr`, calls `coro_eval(expr)`, drives via
+  `bb_broker(BB_PUMP)`. The Byrd-box bodies in `coro_runtime.c` then walk the IR
+  tree via dozens of `interp_eval(child)` calls during drive. This means
+  `--sm-run`/`--jit-run` for Icon programs spend most of their time inside the IR
+  tree-walker — defeating the purpose of SM mode.
+  Two-stage fix:
+  (a) Replace every `interp_eval(child)` site in `coro_runtime.c` with a call to
+      a new pure-BB evaluator `bb_eval_value(child)` in
+      `src/runtime/interp/coro_value.c` that delegates to `eval_node` for
+      value-context kinds and falls through to APPLY_fn / NV_GET_fn / etc. for
+      everything else. Zero `interp_eval` / `interp_eval_pat` calls remain in
+      `coro_runtime.c`.
+  (b) Update `extern DESCR_t interp_eval(EXPR_t *e);` declaration in
+      `coro_runtime.c` to be removed.
+  After RS-17, the RS-15 grep gate can include `coro_runtime.c` (and the
+  ARCH-SCRIP "Icon/Prolog exception" can be deleted).
+  Gate: smoke_icon green, unified_broker 49/0, isolation grep gate green for
+  coro_runtime.c.
+
+- [ ] **RS-18** — Eliminate IR walker from Prolog Byrd boxes (`pl_runtime.c`).
+  Same structural issue as RS-17 but smaller (only ~4 `interp_eval` call sites in
+  `pl_runtime.c`). Replace each with `bb_eval_value` (the helper introduced in
+  RS-17, which is shared between Icon and Prolog). Remove the
+  `extern DESCR_t interp_eval(EXPR_t *e);` and
+  `extern DESCR_t interp_eval_pat(EXPR_t *e);` declarations.
+  After RS-18, no shared runtime file calls any IR-only entry point.
+  Gate: smoke_prolog green, unified_broker 49/0, isolation grep gate green for
+  pl_runtime.c.
+
+- [ ] **RS-19** — Promote `coro_runtime.c` and `pl_runtime.c` into the isolation gate.
+  After RS-17/RS-18, both files contain zero IR-only calls. Add them back to
+  `scripts/test_isolation_ir_sm.sh` SM_FILES list. Update `ARCH-SCRIP.md`: delete
+  the "Exception — Icon and Prolog generators" section (no longer an exception).
+  Update PLAN.md if needed.
+  Gate: isolation grep gate green with full file list; all smoke gates pass.
+
+- [ ] **RS-20** — Decide direction for full Icon/Prolog SM lowering.
+  After RS-17/18/19, Icon and Prolog programs in `--sm-run`/`--jit-run` execute
+  through pure-BB drive (no IR walker). The remaining question is whether to
+  also eliminate the BB-drive layer for Icon/Prolog — i.e. fully lower their
+  expression trees into SM opcodes the same way SNOBOL4 does. Two architectural
+  options:
+  Option A — keep the BB layer. Icon and Prolog stay BB-driven; SM_BB_PUMP /
+    SM_BB_ONCE remain. This is consistent with the design where Byrd-box drive
+    is the natural form for goal-directed evaluation. SM is a thin wrapper.
+  Option B — full SM lowering. Add SM opcodes for generator suspend/resume
+    (SM_GEN_SUSPEND, SM_GEN_RESUME, SM_GEN_FAIL), Prolog choice points
+    (SM_CHOICE_PUSH, SM_CHOICE_TRY, SM_CHOICE_FAIL), and Icon's ! / to / by /
+    every / suspend. Lower the full Icon and Prolog ASTs into these. Removes
+    the BB drive layer for these languages; everything is SM.
+  The decision is orthogonal to RS-16/17/18/19 and depends on the polyglot
+  goals (cross-language calls, JIT inlining, asm emission for mode 4).
+  This rung records the decision (with rationale) and opens the next ladder if
+  Option B is chosen.
+
 - [ ] **RS-4** — Further reduction of interp_eval.c (~4300 lines).
+  The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
+  are the remaining concentrations. Both are tightly coupled to the switch via `return`
+  and inline arg-eval — extraction requires a sentinel-value ABI or out-param, adding
+  complexity that outweighs the gain at this size. Defer until a concrete motivating
+  bug or new frontend work makes a split natural.
+
+
   The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
   are the remaining concentrations. Both are tightly coupled to the switch via `return`
   and inline arg-eval — extraction requires a sentinel-value ABI or out-param, adding
