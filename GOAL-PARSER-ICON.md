@@ -205,12 +205,45 @@ divergence is in how trees are interpreted, not how they are shaped.
       in those goal files' Cross-pollination notice.
 - **Gate:** PAT-IC PASS=14, smoke PASS=5. ✅
 
-### PARSER-IC-3 — control flow (`if/then/else`, `while/do`)
+### PARSER-IC-3 — control flow (`if/then/else`, `while/do`) — **DONE** (this commit)
 
-- [ ] `Command` handles Icon's conditionals and loops.
-- [ ] Test corpus: existing + **NEW**.
+- [x] `Command` handles Icon's conditionals and loops.  Added `Expr4`
+      (comparison ops `=` `~=` `<` `<=` `>` `>=`) between `Expr2` and
+      `Expr6` per the canonical EBNF tower; restructured `Expr1` to
+      commit on `id_pat ws_opt ':='` lookahead instead of `Expr2 ws_opt
+      ':='` (the latter ate the entire if-expression as Expr2 and
+      polluted `_expr_node` via deferred actions before backtracking).
+      Added `If` (with optional `else` branch via inline `(else_branch
+      | epsilon)` to avoid double-parse) and `While` patterns inside
+      `Expr11`, tried before bare-IDENT to avoid greedy capture of
+      reserved words.  New helpers `expr_assign_id`, `expr_if2`,
+      `expr_if3`, `expr_while2`.
+- [x] Test corpus: existing 14 + **6 NEW** (cmp_eq, cmp_lt, if_then,
+      if_else, if_cmp, while_do).
+- [x] **Bug fix in `corpus/programs/scrip/tdump.sc` (cross-pollination
+      benefit to all six PARSER-* parsers):** TDump's multi-line
+      fallback was guarded by `if (~(NULL *IDENT(n(x))))`, which is a
+      no-op — `NULL *IDENT(...)` is a pattern-construction expression
+      that cannot fail at construction time, so `~(pattern_value)` is
+      always FAIL and the multi-line branch was **never** entered.
+      The bug never triggered before IC-3 because every prior PARSER-*
+      tree fit inside TLump's 140-char one-line budget; IC-3's
+      if/then/else trees (~152 chars) are the first to exceed it.
+      Replaced with `if (DIFFER(n(x)))`.  Also extended the multi-line
+      branch to mirror TLump's role-slot (`:`-prefix tag) handling and
+      its internal-node `v(x)` sval emission, otherwise wide trees
+      came out as `(STMT (":subj" (E_FNC (E_VAR main) ...)))` instead
+      of `(STMT :subj (E_FNC main (E_VAR main) ...))`.  This is a
+      **fix to the corpus shared library**, not a workaround in
+      `parser_icon.sc` — the fix is in the file and benefits Snocone,
+      SNOBOL4, Prolog, Rebus, Raku as soon as they hit a tree wider
+      than 140 chars.  Note inherited from beauty source
+      (`corpus/programs/snocone/demo/beauty/TDump.sc`) — that file
+      should get the same treatment under whichever goal owns it.
 - **Sibling LANG rungs:** IC-7..IC-8.
-- **Gate:** PASS≥20.
+- **Gate:** PASS=20, FAIL=0.  smoke=5/0.  parser_snobol4=16/0,
+      parser_prolog=18/0, parser_rebus=8/0 (no regression — same
+      pre-existing parser_snocone 8/5 failure unrelated). ✅
 
 ### PARSER-IC-4 — procedure definition
 
@@ -395,4 +428,4 @@ that is already obsolete.
 
 ## Watermark
 
-PARSER-IC-3 (PARSER-IC-INFRA-2 landed: parser_icon.sc refactored to canonical names + Compiland-driven loop, PASS=14, smoke=5; one4all parser branch HEAD `ac93b50a`, corpus HEAD `513905c`).
+PARSER-IC-4 (PARSER-IC-3 landed: control flow `if/then/else` + `while/do`, comparison ops via Expr4, Expr1 restructured to id-prefix-committed assign branch, TDump multi-line fallback bug fixed in corpus shared library, PASS=20, smoke=5; one4all parser branch HEAD `ac93b50a`, corpus HEAD `15617a8`).
