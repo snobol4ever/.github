@@ -73,8 +73,8 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-5 — patterns (LEN/BREAK/SPAN/ANY/NOTANY/alternation/cond-assign) |
-| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-INFRA-2 |
+| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-FW-3 DONE → PARSER-SN-3 |
+| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-INFRA-2 (broken — see session #63 note) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-0 |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-3 (INFRA-2 landed; parser_icon.sc canonical) |

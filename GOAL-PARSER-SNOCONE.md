@@ -352,6 +352,26 @@ parser_snocone.sc covers: bare atom-as-statement (id/int/str),
 assignment `name = atom_expr`. Driver: per-line, `(Assign | AtomStmt)`.
 TDump upgraded to Gen-based multi-line fallback (gen.sc now in blob).
 
+**Session #63 (2026-05-03):** INFRA-2 rewrite attempt — BROKEN, pushed to
+corpus `170a52c` / one4all parser `b9075835`. Key findings:
+- shift(p, t): t must be BARE type name (e.g. `'E_VAR'`); semantic.sc
+  shift() adds its own quotes in the EVAL string. Using sq-concat type
+  names like `sq 'E_VAR' sq` produces `''E_VAR''` double-escaped → snobol4:0
+  parse error from sno_parse_string. Fix: s_* bare, r_* quoted split.
+- reduce(t, n): t must carry its own quotes (e.g. `"'E_ASSIGN'"`).
+  Built via sq concat: `r_ASSIGN = sq 'E_ASSIGN' sq`.
+- semantic.sc OPSYN('~','shift',2) fires at runtime not parse time; ~ and &
+  infix forms are SNOBOL4-only. Snocone parser rejects `pat ~ type` syntax
+  at parse time (before OPSYN fires). Must use shift()/reduce() function
+  calls in .sc source.
+- semantic.sc must load BEFORE parser_snocone.sc in blob (functions needed
+  at pattern-build execution time) and BEFORE ShiftReduce.sc.
+- Remaining bug: Error 5 at stmt 69 (close of Expr6) in full blob but not
+  in isolation. Likely: r_nTop = '*(GT(nTop(), 1) nTop())' as n-arg to
+  reduce() in Expr4/Expr3 — GT/nTop not in scope at pattern-build time.
+  Next session: fix r_nTop and reach PASS=13.
+- BNF (D3 / snocone.ebnf): skipped per Lon — not needed.
+
 **Session #62 (2026-05-03):** SC-2 attempt with hand-rolled `RhsExpr`
 + `build_assign_dispatch()` rolled back due to silent label collision
 in full blob. Five SC-2 fixtures committed to corpus and staged as
