@@ -118,12 +118,13 @@ divergence is in how trees are interpreted, not how they are shaped.
 - **Sibling LANG rungs:** IC-4.
 - **Gate:** PASS=8. ✅
 
-### PARSER-IC-2 — write / arith — **next**
+### PARSER-IC-2 — write / arith — **DONE** (this commit)
 
-- [ ] `Command` handles `write(expr)` calls and `+ - * /` operators.
-- [ ] Test corpus: existing + **NEW**.
+- [x] `Command` handles `write(expr)` calls and `+ - * /` operators.
+- [x] Test corpus: existing 8 + **6 NEW** (write_str, write_int, write_var,
+      arith_add, arith_sub, write_arith).
 - **Sibling LANG rungs:** IC-5..IC-6.
-- **Gate:** PASS≥14.
+- **Gate:** PASS=14. ✅
 
 ### PARSER-IC-3 — control flow (`if/then/else`, `while/do`)
 
@@ -164,4 +165,4 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ## Watermark
 
-PARSER-IC-2 (PARSER-IC-1 landed: PASS=8, atom + `:=` assignment, multi-statement procedure body).
+PARSER-IC-3 (PARSER-IC-2 landed: PASS=14, write(expr) + arithmetic +-*/, one4all HEAD TBD).
