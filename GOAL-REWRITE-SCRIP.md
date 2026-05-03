@@ -372,17 +372,67 @@
   smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0,
   RS-15 isolation gate green.
 
+- [x] **RS-25-investigation** — SM-program shape verification for Icon/Prolog
+  (session 2026-05-03).
+  Verification revealed that the four-mode architecture in ARCH-SCRIP.md is
+  partially aspirational: mode 2 (`--sm-run`) and mode 3 (`--jit-run`) are
+  SNOBOL4-only paths today.  In `scrip.c` lines 456-457:
+  ```
+  } else if (has_non_sno) {
+      polyglot_execute(prog);   /* OE-7: polyglot takes priority */
+  } else if (mode_sm_run) { ... }
+  ```
+  Any input file with extension `.pl`, `.icn`, `.raku`, `.reb`, `.sc`, `.scrip`,
+  or `.md` sets `has_non_sno = 1` and short-circuits to `polyglot_execute()`,
+  bypassing `sm_preamble` / `sm_run_with_recovery` entirely.  Consequence:
+  RS-15 isolation grep gate is currently *vacuously* satisfied for Icon and
+  Prolog — the SM files don't call `interp_eval` for those frontends because
+  the SM files never execute their programs at all.  RS-17/18/19's BB-adapter
+  work (and RS-21's lifting) makes the call graphs IR-free when reached from
+  a BB-engine call site, which is reachable from `polyglot_execute` too — so
+  the work isn't wasted — but the four-mode promise (every language flows
+  through every mode) is not yet observable for Icon/Prolog.
+  Reframes the remaining ladder: RS-22 (lift more kinds) is no longer the
+  next priority.  RS-26 (route Icon/Prolog through `sm_preamble`) is now the
+  prerequisite that makes the rest observable, and RS-22 follows naturally
+  once the path is exercised.
+
+- [ ] **RS-26** — Route Icon and Prolog through the SM pipeline.  The first
+  step of the RS-20 thesis becoming observable.  Concretely:
+  (a) When `has_non_sno` is set and the language has a frontend that produces
+      IR, do not short-circuit to `polyglot_execute`.  Instead, run the same
+      `sm_preamble` + `sm_run_with_recovery` sequence as SNOBOL4.  The IR
+      produced by Icon's parser is already a `CODE_t*`; `sm_lower` already
+      handles whatever kinds it currently emits for SNOBOL4 — Icon's kinds
+      (E_TO, E_TO_BY, E_EVERY, E_FNC user-procs, etc.) need at minimum a
+      `SM_BB_PUMP` lowering.
+  (b) Audit `sm_lower.c` for the Icon-relevant kinds.  Where lowering is
+      missing for a kind that Icon emits, add a `SM_BB_PUMP` case that wraps
+      the entire statement (or expression) into a one-instruction SM body
+      that, when executed, hands off to `coro_drive(root)` over the original
+      IR statement.  The SM is the carrier; BB does the work.
+  (c) Same for Prolog — pl frontend produces IR with E_FNC for goals,
+      E_CHOICE / E_UNIFY / etc.  `sm_lower` either has these or needs a
+      `SM_BB_PUMP` shim case.
+  (d) For polyglot files (`.scrip` mixing languages), `polyglot_execute`
+      stays — it is mode-1 multi-frontend dispatch.  The mode-2 / mode-3
+      paths work for *single-language non-SNOBOL4* inputs after this rung.
+  Gate: the existing smoke tests pass via the new SM path.  Once they do,
+  remove the `has_non_sno` short-circuit for single-language non-SNOBOL4
+  inputs and let `--sm-run` actually run Icon/Prolog programs.
+
 - [ ] **RS-22** — Lift Icon expression-level / value-context kinds into
   `coro_value.c`. Scope: kinds that `bb_eval_value` currently delegates to
   `interp_eval` because `eval_node` does not cover them — at minimum
   E_FNC (Icon-frame builtins and user-proc calls), E_ASSIGN (slot stores
-  into FRAME.env), E_BLOCK (sequence in expression context),
-  E_BANG_UNARY/E_BANG_BINARY, E_LIMIT, plus any kind RS-21 surfaces. Each
-  case body's `interp_eval(child)` recurses are replaced with
-  `bb_eval_value` / `bb_exec_stmt`. Some E_FNC builtins call into icn_runtime
-  helpers that themselves take `EXPR_t*` and need re-pointing through the
-  BB adapter — touch with care.
-  Gate: as RS-21.
+  into FRAME.env), plus any kind RS-21 surfaces. Each case body's
+  `interp_eval(child)` recurses are replaced with `bb_eval_value` /
+  `bb_exec_stmt`. Some E_FNC builtins call into icn_runtime helpers that
+  themselves take `EXPR_t*` and need re-pointing through the BB adapter —
+  touch with care.
+  Now correctly sequenced after RS-26: once Icon/Prolog actually run
+  through SM, the kinds reaching the BB adapters are observable, the
+  RS-22 scope is concrete, and the work has a real isolation-gate effect.
 
 - [ ] **RS-23** — Remove the `extern DESCR_t interp_eval(EXPR_t *e);`
   declarations from `coro_value.c` and `coro_stmt.c`. Replace remaining
@@ -407,21 +457,13 @@
   Icon path may regress here; if so, restore the minimum needed and note
   what was reachable from mode 1 that the BB adapters did not cover.
 
-- [ ] **RS-25** — Decide whether SM_BB_PUMP / SM_BB_ONCE should be the
-  Icon and Prolog program-level SM lowering target. Today, Icon and Prolog
-  programs lower into SM through normal `sm_lower` paths that emit
-  SM_BB_PUMP and SM_BB_ONCE for the relevant kinds (E_FNC for procs,
-  generator producers in expressions). This rung verifies that for a
-  pure-Icon or pure-Prolog program the resulting SM_Program is essentially
-  one bb-pump opcode wrapping the whole program — i.e. that the SM form
-  for these languages really is "thin SM, all BB underneath". If it isn't
-  (i.e. the lowering currently emits a richer SM stream that doesn't make
-  sense for these languages), open a sub-rung to thin the lowering. This
-  rung is the one that binds the RS-20 decision into observable SM output.
-  Gate: dump SM for `factorial.icn` and a small Prolog program; verify the
-  shape. Counts of SM opcodes by category should show Icon/Prolog
-  dominated by SM_BB_PUMP / SM_CALL / SM_RETURN with very few arithmetic
-  SM ops, and SNOBOL4 showing the inverse profile.
+- [ ] **RS-25** — Once RS-26 lands and Icon/Prolog actually execute through
+  the SM pipeline, dump SM for `factorial.icn` and a small Prolog program
+  and verify the shape: SM_Program dominated by `SM_BB_PUMP` / `SM_CALL` /
+  `SM_RETURN`, very few arithmetic SM ops.  SNOBOL4 should show the inverse
+  profile (rich SM, few BB pumps).  This is the observable-form check that
+  binds the RS-20 decision.  No code change here unless the lowering is
+  shaped wrong; if so, open a sub-rung to thin it.
 
 - [ ] **RS-4** — Further reduction of interp_eval.c (~4300 lines).
   The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
