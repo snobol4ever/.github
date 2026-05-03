@@ -79,6 +79,71 @@
   --sm-run, --jit-run.
   one4all @ (pending commit). Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
+- [x] **RS-12** — Investigate IR tree-walk in `EVAL(string)` SM-mode path (session 2026-05-03).
+  `_eval_str_impl_fn` calls `interp_eval_pat` after parsing — examined whether this is
+  a real IR leak in SM modes. Conclusion: NOT a leak. `interp_eval_pat` is SM-safe by
+  construction: every user-function dispatch in its E_FNC handlers (and in the recursive
+  `interp_eval` calls it makes) hits `label_lookup` first, which returns NULL after
+  `label_table_clear_stmts()` in SM mode → falls through to `APPLY_fn` → `_usercall_hook`
+  → RS-11 nested-SM dispatch. Tested routing through `eval_node` instead (which has no
+  IR dependency); reverted because `eval_node` lacks coverage of pattern-primitive
+  node kinds (E_LEN, E_TAB, E_BREAK, E_SPAN, E_ANY, E_NOTANY, E_ARB, E_ARBNO, E_REM,
+  E_FAIL, E_SUCCEED, E_FENCE, E_POS, etc.) that `EVAL('LEN(2)')` etc. produce. The
+  `interp_eval_pat` route handles these via dedicated `pat_*()` helpers. Documented
+  the rationale in `interp_hooks.c` source comment.
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [x] **RS-13** — Sever IR label table from SM mode (session 2026-05-03).
+  `_label_exists_fn` (wired into `sno_set_label_exists_hook`, called by the `LABEL()`
+  builtin) called `label_lookup` — the IR label table — which returns NULL after
+  `label_table_clear_stmts()` runs in SM mode. Every `LABEL('name')` thus returned
+  false regardless of whether the label exists in the SM program. Three additional
+  `label_lookup` calls in `_usercall_hook` body resolution were also wasteful (always
+  NULL in SM mode).
+  Fix: in SM mode (`g_current_sm_prog` set), `_label_exists_fn` now checks
+  `sm_label_pc_lookup(g_current_sm_prog, name)` instead. The body-lookup block in
+  `_usercall_hook` skips the IR label calls entirely when `g_current_sm_prog` is
+  set — `_body` stays NULL and the function falls through to the RS-11 SM dispatch.
+  Verified: `LABEL('myfunc')` returns the label name in --ir-run, --sm-run, --jit-run;
+  `LABEL('nope')` correctly fails in all three.
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [x] **RS-14** — Extract shared SM-mode preamble + run-with-recovery helpers (session 2026-05-03).
+  `--sm-run` and `--jit-run` paths in `scrip.c` duplicated two structures: (1) the
+  preamble (`label_table_build` / `prescan_defines` / `g_sno_err_active = 1` /
+  `sm_lower` / `code_free` / `label_table_clear_stmts` / `g_current_sm_prog = sm`),
+  and (2) the run loop (identical `setjmp`/error-recovery `while(1)` blocks differing
+  only in the runner function).
+  New file `src/driver/scrip_sm.{c,h}` with two helpers:
+  `SM_Program *sm_preamble(void *prog)` — runs the preamble, returns the SM_Program
+  or NULL on `sm_lower` failure. Takes `void*` to avoid coupling driver-orchestration
+  to frontend `CODE_t` internals; the implementation casts.
+  `void sm_run_with_recovery(SM_Program *sm, sm_runner_fn runner)` — initialises
+  SM_State, drives the setjmp/error-recovery loop calling `runner(sm, &st)` until
+  halt or fatal. `sm_runner_fn` typedef matches both `sm_interp_run` and `sm_jit_run`.
+  `scrip.c` `--sm-run` and `--jit-run` blocks now: `sm_preamble(prog)` →
+  `sm_run_with_recovery(sm, sm_interp_run)` (or `sm_jit_run`). Net: ~95 → ~30 lines.
+  Mode 4 (asm/link/exec) will use both helpers verbatim — only the runner step changes.
+  Makefile updated to build `scrip_sm.o`.
+  Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [x] **RS-15** — Document four-mode architecture + isolation gate (session 2026-05-03).
+  Replaced 3-line `ARCH-SCRIP.md` stub with full architecture doc:
+  (1) Four execution modes table (IR interp, SM gen/interp, SM gen/exec, SM gen/asm/link/exec)
+  (2) Shared substrate inventory (INVOKE_fn, NV table, exec_stmt/bb_*, coro_*, sm_lower, etc.)
+  (3) IR-only entry point list (execute_program, interp_eval, interp_eval_pat, interp_eval_ref, call_user_function, label_lookup)
+  (4) State markers (g_current_sm_prog, label_table_clear_stmts) and how shared paths use them
+  (5) Mode-specific notes for each of the four modes
+  (6) Driver helpers (sm_preamble / sm_run_with_recovery from RS-14)
+  (7) **Exception** documenting that coro_runtime.c and pl_runtime.c legitimately call
+      `interp_eval` for Icon/Prolog generator value subexpressions during Byrd-box drive —
+      the Icon and Prolog frontends do not have SM lowerings of their own; their work
+      flows through SM_BB_PUMP/SM_BB_ONCE → coro_eval which walks the IR tree.
+  New script `scripts/test_isolation_ir_sm.sh`: greps the SM-mode runtime files for
+  any IR-only symbol calls (excluding coro_runtime.c and pl_runtime.c per the
+  architectural exception). Currently green: zero leaks in scope.
+  Doc commit + grep gate green.
+
 - [ ] **RS-4** — Further reduction of interp_eval.c (~4300 lines).
   The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
   are the remaining concentrations. Both are tightly coupled to the switch via `return`
