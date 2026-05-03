@@ -187,6 +187,69 @@
   Gate: smoke_icon green, unified_broker 49/0, isolation grep gate green for
   coro_runtime.c.
 
+  Split into sub-rungs RS-17a (value-context, done) and RS-17b
+  (statement-context, open) once analysis revealed two distinct site classes:
+  expression children evaluated for a single DESCR_t result vs. proc-body /
+  every-body / do-clause executions of arbitrary Icon control flow.
+
+- [x] **RS-17a** — Value-context interp_eval routing through bb_eval_value
+  (session 2026-05-03).
+  73 actual `interp_eval(...)` call sites in `coro_runtime.c` were classified
+  into two buckets: value-context (60 sites) producing a single DESCR_t from
+  an expression child, and statement-context (13 sites) executing arbitrary
+  Icon body / do-clause / every-body code. RS-17a routes the 60 value-context
+  sites through a new helper.
+  New file `src/runtime/interp/coro_value.{c,h}`:
+  `DESCR_t bb_eval_value(EXPR_t *e)` is the value-context analog of
+  `coro_eval` (which builds a generator). Today it directly handles:
+  (i) Icon-frame-aware E_VAR — when `frame_depth > 0`, reads slot-indexed
+      locals from `FRAME.env[ival]` and Icon scan keywords (&pos, &subject,
+      &letters, &ucase, &lcase, &digits, &null, &fail), mirroring the
+      Icon-frame switch in `interp_eval.c:353-372`.
+  (ii) E_ILIT / E_FLIT / E_QLIT / E_NUL / E_KEYWORD — delegate to `eval_node`.
+  (iii) E_VAR outside an Icon frame — delegate to `eval_node`'s NV_GET_fn path.
+  (iv) Everything else — fall through to `interp_eval` as a temporary
+       migration scaffold (each kind moves into the switch as RS-17a-cont
+       rungs identify it).
+  Migrated 60 `interp_eval(...)` sites in `coro_runtime.c` to `bb_eval_value`:
+  the two `coro_drive` E_TO scalar-bound paths (lines 159–160, 175, 183–184,
+  193, 197–198, 220–222, 236, 294–295), the `coro_eval` E_TO/E_TO_BY/E_ITERATE
+  builders (1027, 1035, 1044–1045, 1054–1056, 1093), the find/bal/key/upto/seq
+  builtin arg evaluators (1273, 1285, 1301, 1304–1305, 1308, 1310–1311, 1330,
+  1383, 1473, 1476), the three fnc_gen pre-eval loops (1363, 1370, 1411, 1505),
+  the limit/identical_gen/cat_gen/lazy/revassign/revswap state evaluators
+  (585, 750, 815, 833–834, 950–951, 999, 1422), the proc arg-bind in
+  `coro_drive_fnc` (1614), the `coro_eval` fallback one-shot (1560), the
+  proc_expr drive-passthrough (1734), and the seq_expr discard loop (1750).
+  13 statement-context sites remain for RS-17b: `interp_eval(FRAME.body_root)`
+  (lines 166, 210, 225, 226, 271, 284, 307), `interp_eval(st)` proc-body
+  loop (422), `interp_eval(doclause)` (432, 1650), `interp_eval(every_body)`
+  (1644), `coro_drive_fnc` body stmt loop (1624), `coro_call` generator body
+  (1710). These execute arbitrary Icon control flow (E_WHILE/E_IF/E_FOR/
+  E_RETURN/etc.) which `eval_node` does not cover.
+  Makefile updated: `coro_value.o` builds alongside `coro_runtime.o`.
+  one4all @ `eddee173`. Build clean. smoke_snobol4 7/7, smoke_icon 5/5,
+  smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0.
+
+- [ ] **RS-17b** — Statement-context interp_eval routing in coro_runtime.c.
+  After RS-17a, 13 `interp_eval(...)` sites remain in `coro_runtime.c`, all
+  executing Icon body / do-clause / every-body statements rather than
+  evaluating expressions for a single DESCR_t. These execute arbitrary Icon
+  control flow — E_WHILE, E_IF, E_FOR, E_EVERY, E_RETURN, E_BREAK, E_BLOCK,
+  E_ASSIGN as statement, E_FNC for write()/etc. as statement — kinds
+  `eval_node` does not cover.
+  Approach: introduce a parallel `bb_exec_stmt(EXPR_t *)` helper in
+  `coro_value.c` (or a new `coro_stmt.c`) that dispatches Icon
+  statement-level kinds. For each kind it either lowers to a sequence of
+  bb_eval_value / bb_broker calls (E_WHILE, E_IF, E_BLOCK, E_EVERY) or
+  defers to a small set of frame-state primitives (E_RETURN sets
+  FRAME.returning, E_PROC_FAIL similarly, E_BREAK sets loop_break).
+  The fall-through to `interp_eval` stays as scaffold during sub-rungs;
+  the rung closes when zero statement-context sites remain.
+  Gate: smoke_icon green, unified_broker 49/0, ready for RS-19 to add
+  `coro_runtime.c` to the isolation grep gate (after RS-18 also closes
+  for `pl_runtime.c`).
+
 - [ ] **RS-18** — Eliminate IR walker from Prolog Byrd boxes (`pl_runtime.c`).
   Same structural issue as RS-17 but smaller (only ~4 `interp_eval` call sites in
   `pl_runtime.c`). Replace each with `bb_eval_value` (the helper introduced in
