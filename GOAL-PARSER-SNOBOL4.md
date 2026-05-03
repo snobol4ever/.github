@@ -617,7 +617,7 @@ happens.
 - **Gate:** the canonical shape works without staging; root cause
   documented in the rung close-out.
 
-### PARSER-SN-3 — concat / arith — ⏳ IN PROGRESS (fixtures staged, parser awaits FW-6 decision)
+### PARSER-SN-3 — concat / arith — ✅ DONE (session #63, 2026-05-03)
 
 **Naming policy (PARSER-SN-3 onward):** the canonical BNF source of
 truth is **`beauty.sno`** (`corpus/programs/snobol4/demo/beauty/beauty.sno`),
@@ -920,8 +920,7 @@ Same wart in `shift`'s tag arg for non-string-literal inputs.
 ## Watermark
 
 **INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1/2/3 LANDED.
-PARSER-SN-3 IN PROGRESS (fixtures staged, parser awaits FW-6 decision).
-PARSER-SN-FW-6 OPEN DESIGN QUESTION (whitespace-normalize gate vs always-multi-line TLump).**
+PARSER-SN-3 LANDED (PASS=16 FAIL=0). FW-6 RESOLVED (variant B — whitespace-normalize gate).**
 
 Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
 - PARSER-SN-2: role-slot/flag wrapper convention (`:`-prefixed type tags),
@@ -1041,7 +1040,7 @@ FW ladder status:
 - FW-1 ✅ generalize TValue for non-scrip-IR leaf kinds (unblocks all 5)
 - FW-2 ✅ multi-child role-slot wrapper (unblocks IC/PR/RK)
 - FW-3 ✅ Compiland-spine driver loop — landed via inline-Command-body workaround
-- FW-6 ⏳ multi-line TDump — OPEN DESIGN QUESTION (variant B recommended)
+- FW-6 ✅ multi-line TDump — RESOLVED (variant B: whitespace-normalize gate)
 - FW-4 ⏳ scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have)
 - FW-5 ⏳ root-cause TLump function-name slot wart (defensive)
 
