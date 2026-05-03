@@ -140,8 +140,8 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ### PARSER-RK-1 — declaration + assignment
 
-- [ ] `Command` handles `my $x = expr;` and bare `$x = expr;`.
-- [ ] Test corpus: existing thin RK assignment tests + **NEW**.
+- [x] `Command` handles `my $x = expr;` and bare `$x = expr;`.
+- [x] Test corpus: existing thin RK assignment tests + **NEW**.
 - **Sibling LANG rungs:** RK-4..RK-6.
 - **Gate:** PASS≥10.
 
@@ -187,4 +187,4 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ## Watermark
 
-PARSER-RK-0 LANDED (session #62, 2026-05-03) — PASS=5. Next: PARSER-RK-1.
+PARSER-RK-1 LANDED (session #62, 2026-05-03) — PASS=10. Next: PARSER-RK-2.
