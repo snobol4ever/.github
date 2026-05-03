@@ -454,23 +454,44 @@
 - [x] **RS-26** — (was: route Icon/Prolog through SM pipeline) split into
   RS-26a (landed) and RS-26b (landed 2026-05-03).
 
-- [ ] **RS-22** — Lift Icon expression-level / value-context kinds into
-  `coro_value.c`. Scope: kinds that `bb_eval_value` currently delegates to
-  `interp_eval` because `eval_node` does not cover them — at minimum
-  E_FNC (Icon-frame builtins and user-proc calls), E_ASSIGN (slot stores
-  into FRAME.env), plus any kind RS-21 surfaces. Each case body's
-  `interp_eval(child)` recurses are replaced with `bb_eval_value` /
-  `bb_exec_stmt`. Some E_FNC builtins call into icn_runtime helpers that
-  themselves take `EXPR_t*` and need re-pointing through the BB adapter —
-  touch with care.
-  Now correctly sequenced after RS-26: once Icon/Prolog actually run
-  through SM, the kinds reaching the BB adapters are observable, the
-  RS-22 scope is concrete, and the work has a real isolation-gate effect.
-  **RS-22a landed (2026-05-03):** E_ASSIGN (full lvalue set) and E_FNC
-  (user-proc via coro_call + builtins via icn_call_builtin with
-  bb_eval_value arg-eval) ported into coro_value.c. Remaining fallthrough
-  covers scattered expression kinds (E_ADD, E_SUB, E_IDX, E_FIELD read,
-  E_NOT, E_NEG, E_CONCAT, E_RANDOM, etc.) — next sub-rung RS-22b.
+- [x] **RS-22a** — E_ASSIGN + E_FNC lifted into `coro_value.c` (session 2026-05-03).
+  E_ASSIGN: full lvalue set — E_VAR slot, E_IDX subscript, E_FIELD record field,
+  E_ITERATE bang-lvalue, string-section via icn_string_section_assign.
+  E_FNC: user-proc via proc_table → coro_call; builtins via icn_call_builtin
+  with bb_eval_value arg-eval loop (replaces interp_eval arg loop).
+  Added #include interp_private.h and <gc/gc.h>.
+  Gates: smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5,
+  unified_broker 49/0, isolation gate green. Icon corpus 18/18.
+  one4all @ `f3daa24e`.
+
+- [ ] **RS-22b** — Arithmetic + comparison binops into `bb_eval_value`.
+  Add cases for E_ADD, E_SUB, E_MUL, E_DIV, E_MOD, E_POW,
+  E_LT, E_LE, E_GT, E_GE, E_EQ, E_NE, E_IDENTICAL, E_NOT_IDENTICAL.
+  Each: evaluate children through bb_eval_value, call the matching
+  shared_arith / comparison helper already in coerce.c.
+  Gate: smoke_icon 5/5, unified_broker 49/0, isolation gate green.
+
+- [ ] **RS-22c** — String + subscript read into `bb_eval_value`.
+  Add cases for E_LCONCAT, E_CAT (string concat), E_IDX (subscript read
+  — table/list/record/string index), E_FIELD (record field read),
+  E_SECTION, E_SECTION_PLUS, E_SECTION_MINUS (string slice).
+  Each recurse: bb_eval_value. Use existing helpers (subscript_get,
+  data_field_ptr). Gate: same as RS-22b.
+
+- [ ] **RS-22d** — Unary + misc kinds into `bb_eval_value`.
+  Add cases for E_NEG, E_NOT (unary minus / boolean not), E_NONNULL
+  (\\e — fail if null), E_RANDOM (?e — random element), E_SIZE (*e —
+  string/list/table size), E_AUGASSIGN variants.
+  Gate: same as RS-22b.
+
+- [ ] **RS-22e** — Verify fallthrough is empty; harden.
+  After RS-22b/c/d: grep `interp_eval` calls reachable from
+  bb_eval_value's fallthrough in real Icon smoke programs — confirm
+  zero for the smoke suite.  Replace the `interp_eval(e)` fallthrough
+  with `fprintf(stderr, "bb_eval_value: unhandled kind %d\n", e->kind);
+  return FAILDESCR;` and run smoke_icon — any FAIL names a missing kind
+  to add in a follow-up.  Revert the abort if any smoke FAILs; note
+  remaining kinds. Gate: smoke_icon 5/5 with hardened fallthrough.
 
 - [ ] **RS-23** — Remove the `extern DESCR_t interp_eval(EXPR_t *e);`
   declarations from `coro_value.c` and `coro_stmt.c`. Replace remaining
