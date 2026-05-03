@@ -667,6 +667,165 @@ and that both forms (function-call and OPSYN-alias) produce equal trees.
 
 ---
 
+## Workarounds discovered while building the runtime — open items
+
+The following sub-rungs capture each place a smoke or runtime file
+deviates from canonical Snocone/SNOBOL4 form because scrip's Snocone
+runtime or parser differs from the canonical semantics. Each is an
+open item — fix in scrip C source when prioritised, then revert the
+workaround in the corresponding `.sc` runtime / smoke file.
+
+### PARSER-SN-INFRA-11a — fix scrip Snocone bug: `subj ? pat` returns NULSTR on success instead of matched substring
+
+**Discovered during INFRA-7a smoke + INFRA-9 smoke.** Canonical SNOBOL4
+value-context scan `subj ? pat` returns the matched substring on
+success (and fails on no match). scrip's Snocone returns NULSTR on
+success — the matched text is consumed for side effects but never
+surfaces as the expression value. As a result, neither `DIFFER(subj
+? pat)` nor `IDENT(subj ? pat, expected)` is a usable success
+indicator in smoke checks.
+
+**Concrete probe (any `.sc` blob will do):**
+```
+r = ('hi' ? 'hi');
+OUTPUT = '|' r '| len=' SIZE(r);     // observed: || len=0
+                                     // canonical: |hi| len=2
+```
+
+**Workarounds in current smoke:**
+- INFRA-7a smoke: bound `_smoke_infra7a_r = (...)` as a no-op
+  receiver and tested only the `_smoke_infra7a_cap` side effect.
+- INFRA-9 smoke: appended `@smoke_omega_cur` cursor capture to the
+  TZ result and tested `EQ(smoke_omega_cur, 2)` to confirm the match
+  reached the end of subject.
+- INFRA-10 smoke: discarded scan results entirely (`('foo' ?
+  _smoke_o10_a);`) and tested the side effect (Pop'd tree).
+
+- [ ] Reduce to a 4-line `.sc` repro (above probe is enough).
+- [ ] Bisect: `--dump-ir` on the scan expression; identify whether
+      the runtime-side `eval_code.c E_SCAN` returns NULSTR on success
+      where it should return the matched range, or whether some other
+      lowering step strips the value.
+- [ ] Compare against beauty's actual SNOBOL4 dialect to confirm the
+      Snocone semantic is intentional: in some Snocone dialects
+      `subj ? pat` returns success/failure only and the matched text
+      is reached via cursor-capture or named-capture. Verify by
+      reading SPITBOL/CSNOBOL4 oracle behaviour through scrip's
+      `--ir-run` mode against `corpus/programs/snobol4/feat/` smokes.
+- [ ] If the canonical answer is "should return matched substring",
+      fix in scrip C source. If the canonical answer is "should
+      return success token / NULSTR by design", document explicitly
+      in `REPO-one4all.md` Snocone semantics section.
+- [ ] Once resolved, revert smoke workarounds:
+      - INFRA-7a: replace the no-op `_smoke_infra7a_r =` bind with a
+        direct value test if scan returns matched text.
+      - INFRA-9: drop the `@smoke_omega_cur` and use the scan value.
+      - INFRA-10: tighten the four `('foo' ? ...)` lines to test the
+        scan value in addition to the popped tree.
+- **Gate:** `r = ('hi' ? 'hi'); SIZE(r) = 2;` succeeds, OR Snocone
+  scan-return semantic is documented as intentional and the smokes
+  retain their current shape with a `// scan-returns-NULSTR by design`
+  comment block.
+
+### PARSER-SN-INFRA-11b — implement OPSYN infix-grammar integration in scrip's Snocone parser
+
+**Discovered during INFRA-10.** `OPSYN('~', 'shift', 2)` declares `~`
+as a 2-arg synonym for `shift`, and beauty's parser-construction
+grammar reads `pat ~ 'Tag'` as nice infix sugar for `shift(pat,
+'Tag')`. scrip's `runtime/x86/snobol4_pattern.c::opsyn` accepts the
+`type` arg but explicitly ignores it (`(void)type; ... runtime
+dispatch is name-based`). The Snocone parser binds `~` as the unary
+"not" operator at parse time, before runtime OPSYN can take effect,
+so source-level `'foo' ~ 'Word'` parses as `~ ('foo'; 'Word')` or
+similar — not as `shift('foo', 'Word')`.
+
+**Concrete probe:**
+```
+P = ('foo' ~ 'Word');                  // scrip: parse error / wrong tree
+                                       // canonical: P = pattern that shifts
+```
+
+**Workaround in current smoke:**
+- INFRA-10 smoke uses `APPLY('~', 'foo', 'Word')` — name-based
+  dispatch through the OPSYN alias table. This works because APPLY
+  is a function call resolved at runtime, sidestepping the static
+  parser binding of `~`.
+
+- [ ] Decide scope. Three increasingly invasive options:
+      1. Document scrip's Snocone as not-supporting OPSYN-as-infix;
+         all six PARSER frontends use `shift(p,t)` / `reduce(t,n)`
+         directly.
+      2. Honour the `type=2` arg in `opsyn`: at OPSYN-execute time,
+         re-classify the operator token in a runtime alias table that
+         the lexer/parser consults on subsequent EVAL calls.
+      3. Rewrite the Snocone grammar to accept `~` and `&` as binary
+         operators that resolve their operator name through the
+         OPSYN alias table at expression-build time.
+- [ ] Whichever option Lon picks, verify against beauty.sno's actual
+      use of `~` and `&` — does beauty's parser-construction code
+      exercise the static-infix forms or the function-call forms?
+      The answer informs which option is needed.
+- [ ] If option 2 or 3 lands, revert INFRA-10 smoke from APPLY-form
+      to direct infix `('foo' ~ 'Word')` and `("'P'" & 1)`.
+- **Gate:** `P = ('foo' ~ 'Word'); ('foo' ? P);` produces a tree
+  identical to `shift('foo', 'Word')`'s tree, OR option 1 is selected
+  and documented in `REPO-one4all.md` and `GOAL-PARSER-SNOBOL4.md`.
+
+### PARSER-SN-INFRA-11c — quoting wart in `reduce(t, n)` callers
+
+**Discovered during INFRA-10.** `semantic.sc::reduce(t, n)` returns
+`EVAL("epsilon . *Reduce(" t ", " n ")")`. Because `t` is interpolated
+into the EVAL string as bare text, callers must pass `t` already-
+quoted to keep the quotes inside the EVAL'd pattern: `reduce("'P'",
+1)` works but `reduce('P', 1)` resolves `P` as a NULSTR variable
+inside the EVAL and silently produces a tree with empty type.
+
+This is a beauty-conventional API rather than a strict bug — beauty's
+own parser passes pre-quoted tags — but it is a footgun for any
+PARSER frontend that builds `t` from a captured substring. The same
+issue affects `shift(p, t)`'s `t` arg (interpolated into the EVAL
+string) for any non-string-literal `t`.
+
+**Concrete probe:**
+```
+R1 = reduce('P', 1);                   // resolves P as NULSTR
+('' ? R1); t = Pop();                  // tree t='' (silent failure)
+R2 = reduce("'P'", 1);                 // works
+('' ? R2); t = Pop();                  // tree t='P'
+```
+
+**Workaround in current smoke:**
+- INFRA-10 smoke uses `reduce("'P'", 1)` and `APPLY('&', "'P'", 1)`.
+
+- [ ] Decide whether to harden `reduce` (and `shift`) to accept either
+      pre-quoted strings OR bare strings, by detecting in the function
+      body whether `t` is already a quoted-string-literal and only
+      adding outer quotes when it isn't:
+      ```
+      function reduce(t, n) {
+          // pre-quote t if it isn't already
+          if (~(t ? (POS(0) ("'" | '"')))) t = "'" t "'";
+          reduce = EVAL("epsilon . *Reduce(" t ", " n ")");
+          return;
+      }
+      ```
+      This is a `.sc` runtime change in `corpus/programs/scrip/semantic.sc`
+      AND mirrored back into `beauty/semantic.sc` per the
+      source-of-truth rule.
+- [ ] Or: change `semantic.sc::reduce` to use `Qize(t)` instead of
+      `t` directly, so the call site can pass any string and Qize
+      handles quoting. This generalises to control characters, embedded
+      quotes, etc.
+- [ ] Bisect first: does `Qize(t)` work in this position? Qize emits
+      a SNOBOL4-source-form quoted string, which is exactly what EVAL
+      needs. Try in a 4-line probe.
+- [ ] Update INFRA-10 smoke to use bare `'P'` once the runtime is
+      hardened, dropping the inner-quotes wart.
+- **Gate:** `reduce('P', 1)` produces a tree with t='P' (not '').
+  `shift(p, 'Tag')` accepts a bare tag with no inner quotes.
+
+---
+
 ### PARSER-SN-0 — atom (literal | identifier) — **next**
 
 - [ ] Write `corpus/programs/scrip/parser_snobol4.sc` with `Compiland`
@@ -785,3 +944,21 @@ runtime toolkit.  Write `corpus/programs/scrip/parser_snobol4.sc`
 with `Compiland` handling the smallest atom slice, wire the
 two-frontend in-process crosscheck, and write
 `scripts/test_parser_snobol4.sh`.
+
+Open workaround items (INFRA-11a/b/c) — each captures a place a smoke
+or runtime file deviates from canonical Snocone/SNOBOL4 form because
+of a scrip Snocone semantic gap:
+- **11a**: `subj ? pat` returns NULSTR on success instead of the
+  matched substring. Worked around in INFRA-7a/9/10 smokes via
+  cursor-capture or side-effect-only tests.
+- **11b**: scrip's Snocone parser does not honour OPSYN in static
+  infix position. Worked around in INFRA-10 via `APPLY('~', ...)` /
+  `APPLY('&', ...)` instead of `pat ~ 'Tag'` / `n & 'Tag'`.
+- **11c**: `reduce(t, n)` callers must pre-quote `t` (e.g.
+  `reduce("'P'", 1)`) because the implementation interpolates `t`
+  into an EVAL string without re-quoting. Same wart in `shift`'s
+  tag arg.
+
+These do not block PARSER-SN-0; they are surface bumps to revisit
+once the frontend ladder reveals which (if any) actually obstruct
+real PARSER work.
