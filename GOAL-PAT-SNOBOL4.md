@@ -94,7 +94,7 @@ scrip --pat-crosscheck \
   corpus/programs/snocone/lib/counter.sc \
   corpus/programs/snocone/lib/ShiftReduce.sc \
   corpus/programs/snocone/lib/semantic.sc \
-  corpus/programs/snobol4/pat/pat_snobol4.sc \
+  corpus/programs/snocone/pat/pat_snobol4.sc \
   tiny.sno
 ```
 
@@ -171,7 +171,7 @@ are passed as a blob on the command line by the test script.
 
 ### PAT-SN-0 — atom (literal | identifier) — blocked on INFRA-0 + INFRA-1
 
-- [ ] Write `corpus/programs/snobol4/pat/pat_snobol4.sc` with `Compiland`
+- [ ] Write `corpus/programs/snocone/pat/pat_snobol4.sc` with `Compiland`
       handling exactly: a single line that is one identifier or one
       integer or one string literal, optionally surrounded by whitespace.
 - [ ] Wire two-frontend in-process crosscheck inside the .sc driver:
