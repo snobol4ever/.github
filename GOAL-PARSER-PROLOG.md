@@ -41,6 +41,26 @@ behind, never racing.
 
 ---
 
+## Naming & Design Principles  (canonical writeup in GOAL-PARSER-SNOCONE.md)
+
+PARSER-* parsers must use names from:
+1. The official BNF for the language being parsed (e.g. `snocone_parse.y`,
+   `snobol4.y`, `rebus.y`, `raku.y`, `icon.y`, `prolog.y`).
+   Tier names like `expr0`/`expr6`/`expr17` carry meaning across the
+   ladder; hand-rolled aliases like `RhsExpr`/`ArithOp` do not.
+2. The canonical Snocone self-host `beauty.sc` when the concept matches
+   (`Integer`, `String`, `Id`, `Gray`, `White`, `$'='`, etc.).
+3. `shift()`/`reduce()` from `ShiftReduce.sc` rather than manual
+   `Push(Tree(...))` inside pattern escapes — the latter generates new
+   Snocone synthetic labels per call, which can collide silently with
+   labels in other `.sc` files in the same blob.
+4. No new labels and goto unless absolutely necessary for readability.
+
+See GOAL-PARSER-SNOCONE.md "Naming & Design Principles" for the full
+writeup and the Session #62 lesson that motivated it.
+
+---
+
 ## Session Setup
 
 ```bash

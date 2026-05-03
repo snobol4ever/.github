@@ -102,6 +102,92 @@ which is in scope.
 
 ---
 
+## Naming & Design Principles  (added Session #62, 2026-05-03)
+
+Three principles discovered the hard way during the SC-2 attempt below.
+All future PARSER-SC rungs follow these.
+
+### 1. Names come from the official BNF, not hand-rolled
+
+The official Snocone grammar is `src/frontend/snocone/snocone_parse.y`.
+Its expression-tier ladder is the canonical names — pattern variables
+in the parser MUST use these tier names, not hand-rolled aliases like
+`RhsExpr`, `RhsAtom`, `ArithOp`, `LhsAtom`.
+
+```
+expr0   — assignment        (= += -= *= /= ^=)         → E_ASSIGN
+expr1   — pattern match     (?)                         → E_SCAN
+expr3   — pattern alt       (|, n-ary fold)             → E_ALT
+expr4   — concat            (juxtaposition, n-ary fold) → E_SEQ
+expr5   — comparison        (EQ NE LT GT LE GE LEQ ...) → E_FNC "EQ"...
+expr6   — additive          (+ -)                       → E_ADD / E_SUB
+expr9   — multiplicative    (* /)                       → E_MUL / E_DIV
+expr11  — exponent          (^, right-assoc)            → E_POW
+expr12  — pattern-bind      (binary . and $)            → E_CAPT_*
+expr15  — subscript         ([ ])                       → E_INDEX
+expr17  — atoms             (id, int, str, real, call)
+```
+
+`simple_stmt : expr0 T_SEMICOLON` — assignment is just an `expr0`-level
+operator, NOT a statement-level construct. `sc_append_stmt` decomposes
+the top `E_ASSIGN(lhs, rhs)` into `STMT { :eq=true, :subj=lhs, :repl=rhs }`
+post-parse (see `snocone_parse.y` line 1283).
+
+### 2. Names from beauty.sc when concept matches
+
+`corpus/programs/snocone/demo/beauty/beauty.sc` is the canonical Snocone
+self-host pretty-printer. It already implements `Expr0..Expr17` for the
+SNOBOL4 surface syntax using `shift()`/`reduce()` from `ShiftReduce.sc`.
+PARSER-SC reuses these names exactly. Reading list:
+
+```
+Expr0 = *Expr1 FENCE($'=' *Expr0 reduce('=', 2) | epsilon);
+Expr4 = nPush() *X4 reduce('..', '*(GT(nTop(), 1) nTop())') nPop();
+X4    = nInc() *Expr5 FENCE(*White *X4 | epsilon);
+Expr6 = *Expr7 FENCE($'+' *Expr6 reduce('+', 2) | $'-' *Expr6 reduce('-', 2) | epsilon);
+Expr17 = ... shift(*Id, 'Id') | shift(*Integer, 'Integer') | shift(*String, 'String') ...
+```
+
+Atom recognizers: `Integer`, `String`, `Real`, `Id`, `Function`,
+`BuiltinVar`, `SpecialNm`, `ProtKwd`, `UnprotKwd`. Whitespace patterns:
+`Gray`, `White`. Operator wrappers: `$'='`, `$'+'`, `$'?'`, etc.
+
+The `$'op'` form is a Snocone idiom: `$'='` accesses the variable named
+`=` (which holds a pattern that matches `=` surrounded by optional
+whitespace). This is what makes `Expr0 = *Expr1 FENCE($'=' *Expr0 ...)`
+read like the BNF.
+
+### 3. Use shift/reduce primitives, not manual Push(Tree(...))
+
+`ShiftReduce.sc` provides `shift(*pat, type)` and `reduce(type, n)`.
+`shift` matches `*pat` and pushes a leaf with given type. `reduce` pops
+N children, builds a parent tree with given type, pushes it back.
+
+Hand-rolled `Push(Tree('STMT', '', 3, ...))` calls inside pattern escapes
+(`*build_stmt_assign(...)`) are how PARSER-SN got started, but they
+**generate Snocone synthetic labels** (`_L0001`, `_L0002`, etc.) inside
+the helper functions' if/else and while bodies. When loaded in the same
+session as `tree.sc`, `stack.sc`, `qize.sc`, etc., these labels can
+**collide silently** with labels in other files — see `INFRA-5a` in
+`GOAL-PARSER-SNOBOL4.md`. The fix landed there is `g_sc_label_seq`
+monotonic in `snocone_parse.y`. PARSER-SC must NOT regress this by
+re-introducing manual control flow inside pattern-helper functions.
+
+`reduce()` does its work entirely inside `ShiftReduce.sc` (one file,
+labels resolved once); pattern code calls it as a primitive. No new
+labels generated per-rung.
+
+### 4. No labels and goto unless absolutely necessary
+
+The driver loop in PARSER-SC-0/1 uses `main00:` / `goto main00` /
+`mainErr:` — that is the only label-and-goto idiom in the file, and it
+mirrors `parser_snobol4.sc`'s structure. New code should prefer
+Snocone's structured forms (`if`/`while`/`function`) and avoid adding
+new labels. When forced to use labels (driver loop control), the names
+must be unique within the file and start with a distinctive prefix.
+
+---
+
 ## Rung ladder
 
 ### PARSER-SC-0 — atom — ✅ DONE
@@ -132,32 +218,112 @@ which is in scope.
 - **Sibling LANG rungs:** SC-2.
 - **Gate (cleared):** PASS=8 FAIL=0. ✅
 
-### PARSER-SC-2 — arith / concat
+### PARSER-SC-2 — arith / concat  ⏳ NEXT
 
-- [ ] `Command` handles `+ - * /` and Snocone's concat operator.
-- [ ] Test corpus: 5 NEW.
+**Pivot from SC-0/SC-1 hand-rolled approach to BNF-aligned tier ladder.**
+SC-0/SC-1 succeeded with a flat `(Assign | AtomStmt)` driver and manual
+`Push(Tree(...))` builds. That approach does NOT scale to `expr6` /
+`expr9` precedence — the SC-2 attempt in Session #62 hit silent label
+collisions when adding `if/else` dispatch inside pattern-helper functions
+loaded into the same blob as `tree.sc`, `stack.sc`, etc.
+
+#### Design (per Naming & Design Principles above)
+
+Replace the hand-rolled patterns in `parser_snocone.sc` with the
+canonical tier ladder, using `shift()`/`reduce()` from `ShiftReduce.sc`:
+
+```
+//  Atom recognizers (names from beauty.sc)
+Integer = SPAN(digits);
+DQ      = '"' BREAK('"' nl) '"';
+SQ      = "'" BREAK("'" nl) "'";
+String  = *SQ | *DQ;
+Id      = ANY(&UCASE &LCASE '_') FENCE(SPAN(digits &UCASE &LCASE '_.') | epsilon);
+
+//  Operator wrappers
+$'=' = *White '=' *White; $'+' = *White '+' *White;
+$'-' = *White '-' *White; $'*' = *White '*' *White;
+$'/' = *White '/' *White;
+
+//  Tier ladder — each tier names exactly the BNF rule.
+//  reduce(kind, 2) pops 2 children and builds the IR node.
+//  Atom-leaf names ('Id'/'Integer'/'String') get mapped to E_VAR/E_ILIT/E_QLIT
+//  by sc_lower (or by an INFRA-2 mapping table in tdump.sc).
+Expr0  = *Expr1  FENCE($'=' *Expr0 reduce('E_ASSIGN', 2) | epsilon);
+Expr1  = *Expr4;                              // SC-2 stops at concat/arith
+Expr4  = nPush() *X4 reduce('E_SEQ', '*(GT(nTop(), 1) nTop())') nPop();
+X4     = nInc() *Expr6 FENCE(*White *X4 | epsilon);
+Expr6  = *Expr9 FENCE(  $'+' *Expr6 reduce('E_ADD', 2)
+                      | $'-' *Expr6 reduce('E_SUB', 2)
+                      | epsilon);
+Expr9  = *Expr17 FENCE( $'*' *Expr9 reduce('E_MUL', 2)
+                      | $'/' *Expr9 reduce('E_DIV', 2)
+                      | epsilon);
+Expr17 = shift(*Id, 'E_VAR') | shift(*Integer, 'E_ILIT') | shift(*String, 'E_QLIT');
+
+simple_stmt = *Expr0 ws_opt semi_opt;
+```
+
+Driver matches `simple_stmt`, pops the result, hands to `sc_append_stmt`-
+equivalent decomposition (when top is `E_ASSIGN`, split into `STMT :eq
+:subj :repl`), TDumps. No `(Assign | AtomStmt)` alternation needed —
+both forms pass through `Expr0` naturally.
+
+#### Steps
+
+- [ ] Rewrite `parser_snocone.sc` using `Expr0`/`Expr4`/`Expr6`/`Expr9`/
+      `Expr17` tier names with `shift()`/`reduce()`. Drop `BareAtom`,
+      `RhsAtom`, `LhsAtom`, `AtomStmt`, `Assign` (SC-0/SC-1 names).
+- [ ] Add `sc_decompose_stmt` (Snocone function): when top tree is
+      `E_ASSIGN`, build `(STMT :eq :subj L :repl R)`; else build
+      `(STMT :subj top)`. Mirrors `sc_append_stmt` in `snocone_parse.y`.
+- [ ] Verify all 13 fixtures (8 SC-0/1 + 5 SC-2) pass against `--dump-ir`.
+- [ ] Test corpus already added under SC-2 attempt:
+      `arith_add.sc`, `arith_sub.sc`, `arith_mul.sc`, `arith_div.sc`,
+      `concat_seq.sc` (corpus `8d6bd82` and after).
 - **Sibling LANG rungs:** SC-3.
-- **Gate:** PASS≥13.
+- **Gate:** PASS=13 FAIL=0.
+
+#### Session #62 attempt — rolled back
+
+Tried hand-rolled `RhsExpr = (RhsAtom ws_opt ArithOp ws_opt RhsAtom2 | ...)`
+plus `build_assign_dispatch()` with `if (DIFFER(_binop_kind))` dispatch.
+Patterns worked in isolation (see `/tmp/test_rhsexpr_ctx.sc` reproduction)
+but failed silently in the full blob. Symptom: even SC-1 fixtures regressed
+to "Parse Error" once the new code was loaded. Root cause likely a label
+collision between the new helper's synthetic labels and labels in
+`tree.sc`/`stack.sc`/`qize.sc`. The shift/reduce approach above sidesteps
+this entirely — no new helper functions, no synthetic labels.
 
 ### PARSER-SC-3 — control flow
 
-- [ ] `Command` handles `if (c) { ... }`, `if/else`, `while (c) { ... }`.
+- [ ] Driver loop matches `stmt` (BNF rule), which alternates between
+      `simple_stmt` (already in SC-2), `if_head`, `while_head`, `do_head`.
+      `if_head : T_IF T_LPAREN expr0 T_RPAREN opt_head_sep` (BNF line 583).
+      `while_head : T_WHILE T_LPAREN expr0 T_RPAREN opt_head_sep` (line 587).
+- [ ] Multi-line input handling: control-flow constructs span multiple
+      lines, so the driver must accumulate input until a balanced
+      `{ ... }` body is seen, not match line-by-line.
 - [ ] Test corpus: existing snocone control programs + **NEW** edge cases.
 - **Sibling LANG rungs:** SC-3, SC-4.
 - **Gate:** PASS≥20.
 
 ### PARSER-SC-4 — function def + call
 
-- [ ] `Command` handles `function name(params) { body }` and call sites.
+- [ ] `func_head : T_DEFINE T_IDENT T_LPAREN func_arglist opt_head_sep`
+      (BNF line 701). Lowers to `(STMT :subj (E_FNC name (...args)))`.
+      Call sites already covered in `Expr17` via `shift(*Function, 'Call')`.
 - **Sibling LANG rungs:** SC-5..SC-7.
 - **Gate:** PASS≥30.
 
 ### PARSER-SC-5 — pattern match `expr ? pat`
 
-- [ ] `Command` accepts SNOBOL4-style pattern subexpressions on the
-      right of `?`. This is where Snocone borrows SNOBOL4's pattern
-      syntax. PARSER-SN-4's pattern handling can be lifted; the embedding
-      is what's new.
+- [ ] `Expr1 = *Expr3 FENCE($'?' *Expr1 reduce('E_SCAN', 2) | epsilon)` —
+      this tier was deferred in SC-2. Pattern subexpressions on the rhs
+      use SNOBOL4-style `Expr3 (alternation)` and below.
+      `sc_split_subject_pattern` in `snocone_parse.y` (line 1306) shows
+      how `E_ASSIGN(E_SCAN(s, p), r)` decomposes into
+      `STMT { :subj=s, :pat=p, :repl=r }`.
 - **Sibling LANG rungs:** SC-8, SC-9 (pattern match).
 - **Gate:** PASS≥40.
 
@@ -188,7 +354,10 @@ which is in scope.
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅**
 
 corpus `8d6bd82` (main), one4all `347d2472` (parser branch).
-Gate: PASS=8 FAIL=0 (test_parser_snocone.sh).
+Gate: PASS=8 FAIL=0 on SC-0/SC-1 fixtures (atom_*, assign_*).
+Five SC-2 fixtures staged in corpus as failing tests:
+`arith_add.sc`, `arith_sub.sc`, `arith_mul.sc`, `arith_div.sc`,
+`concat_seq.sc` — currently FAIL because parser_snocone.sc still at SC-1.
 Smoke: PASS=5 FAIL=0 (test_smoke_snocone.sh).
 test_scrip.sh: PASS (unchanged).
 
@@ -196,7 +365,21 @@ parser_snocone.sc covers: bare atom-as-statement (id/int/str),
 assignment `name = atom_expr`. Driver: per-line, `(Assign | AtomStmt)`.
 TDump upgraded to Gen-based multi-line fallback (gen.sc now in blob).
 
-Next: **PARSER-SC-2** — arith / concat.
+**Session #62 (2026-05-03):** SC-2 attempt with hand-rolled `RhsExpr`
++ `build_assign_dispatch()` rolled back due to silent label collision
+in full blob. Five SC-2 fixtures committed to corpus and staged as
+failing tests for the next session. Naming & Design Principles section
+added: tier names from `snocone_parse.y` BNF (`Expr0..Expr17`),
+operator wrappers from `beauty.sc` (`$'='`, `$'+'`, `Gray`, `White`),
+shift/reduce from `ShiftReduce.sc` instead of manual `Push(Tree(...))`,
+no new labels and goto. SC-2 is now scoped as a tier-ladder rewrite,
+not an incremental extension.
+
+Next: **PARSER-SC-2** — rewrite parser_snocone.sc with `Expr0`/`Expr4`/
+`Expr6`/`Expr9`/`Expr17` tier ladder using `shift()`/`reduce()` from
+`ShiftReduce.sc`. Atom recognizer names from `beauty.sc` (`Integer`,
+`String`, `Id`). Decompose `E_ASSIGN(lhs,rhs)` → `(STMT :eq :subj :repl)`
+in `sc_decompose_stmt` mirroring `sc_append_stmt` in `snocone_parse.y`.
 
 ---
 
