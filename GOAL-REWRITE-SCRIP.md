@@ -603,9 +603,20 @@
   longer reached for any of these six kinds).  Isolation gate green.
   one4all @ `f206dadf`.
 
-- [ ] **RS-22f-cset**: E_CSET (literal), E_CSET_COMPL, E_CSET_DIFF,
-    E_CSET_INTER, E_CSET_UNION.  Set arithmetic on DT_S strings
-    representing csets; literal is `e->sval ? STRVAL : NULVCL`.
+- [x] **RS-22f-cset** (session 2026-05-03) — E_CSET (literal), E_CSET_COMPL, E_CSET_DIFF,
+    E_CSET_INTER, E_CSET_UNION lifted into `bb_eval_value`.
+  E_CSET literal: `e->sval ? STRVAL(e->sval) : NULVCL` (mirrors interp_eval.c:3466).
+  Binary ops (UNION/DIFF/INTER): bb_eval_value both operands, NULL-coerce to `""`,
+  delegate to `icn_cset_complement` / `icn_cset_union` / `icn_cset_diff` /
+  `icn_cset_inter` (defined in icon_runtime.c, now declared in coro_runtime.h).
+  +45 lines (5 case arms, 4 locals, survey block updated to mark cset closed).
+  Build clean. smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5,
+  unified_broker 49/0, isolation gate green.
+  Corpus fallthrough count for cset kinds drops from 14 to 0 (10× E_CSET,
+  2× E_CSET_DIFF, 1× E_CSET_INTER, 1× E_CSET_COMPL).  Remaining survey
+  categories: generators (E_TO ×8, E_ALTERNATE ×6, E_ITERATE ×3, E_LIMIT ×1,
+  E_SEQ ×6) and mid-size (E_SCAN ×5, E_CASE ×1) — 30 fallthroughs left.
+  one4all @ (pending commit).
 
 - [x] **RS-22f-makelist** (session 2026-05-03) — E_MAKELIST lifted in.
   Mirrors interp_eval.c:4051-4062 verbatim: first-sighting DEFDAT_fn
