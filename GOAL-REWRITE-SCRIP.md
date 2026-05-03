@@ -418,7 +418,7 @@
   Build clean, smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5,
   smoke_raku 5/5, unified_broker 49/0, RS-15 isolation gate green.
 
-- [ ] **RS-26b** — Driver routing for single-language Icon/Prolog through SM.
+- [x] **RS-26b** — Driver routing for single-language Icon/Prolog through SM (session 2026-05-03).
   Split out from RS-26 after a first attempt revealed a semantic mismatch:
   `polyglot_execute` for single-language Icon does NOT iterate statements;
   it picks up `proc_table[main]` and calls `coro_call(main, NULL, 0)`
@@ -451,8 +451,8 @@
   Inventory and exact diff cost are in
   `docs/RS-26-session-2026-05-03-inventory-findings.md`.
 
-- [ ] **RS-26** — (was: route Icon/Prolog through SM pipeline) split into
-  RS-26a (landed) and RS-26b (open).
+- [x] **RS-26** — (was: route Icon/Prolog through SM pipeline) split into
+  RS-26a (landed) and RS-26b (landed 2026-05-03).
 
 - [ ] **RS-22** — Lift Icon expression-level / value-context kinds into
   `coro_value.c`. Scope: kinds that `bb_eval_value` currently delegates to
