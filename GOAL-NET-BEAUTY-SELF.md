@@ -957,8 +957,9 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   `UnevaluatedPattern.Scan` / scanner alt-stack on dot during the
   failing parse — without depending on the harness for localization.
 
-- [~] **S-2-bridge-event-bombs** — *General-strategy mechanisms baked
-  into MonitorIpc so future sessions never re-invent them.*  Once a
+- [x] **S-2-bridge-event-bombs** — *General-strategy mechanisms baked
+  into MonitorIpc so future sessions never re-invent them.*
+  **Landed session #83 (2026-05-03), snobol4dotnet `9fc75d6`.**  Once a
   DIVERGE row exposes the (last-agreed N, first-diverge N+1) pair, the
   hard part of any bug is "where in the dot runtime did execution go
   between event N and event N+1?"  Two mechanisms close that gap:
@@ -3725,3 +3726,193 @@ or `Pattern.Subsequent` propagates.
                                       with appropriate granularity.
                                       Reverted before commit per
                                       RULES.md.
+
+---
+
+## Session #83 — 2026-05-03 (Sonnet / Lon)
+
+**Outcome:** snobol4dotnet `9fc75d6` LANDED — `S-2-bridge-event-bombs`
+productionized.  Beauty 17/17 PASS; beauty self-host unchanged at 47
+stderr lines.  Major hypothesis update for `S-2-bridge-7-fullscan`:
+the session #79 "malformed AST" line is **falsified** by direct
+inspection — both PatternMatch calls on beauty.sno line 48 produce
+correct ASTs.  The bug is one layer down, inside `*Command`'s match
+against the line-48 subject.
+
+### What landed
+
+Per session #82's recipe, the standalone-trace patches in
+`MonitorIpc.cs` are now committed:
+
+  1. `Init()` reads `MONITOR_BREAK_AT_EVENT` /
+     `MONITOR_TRACE_FROM_EVENT` / `MONITOR_TRACE_TO_EVENT` BEFORE the
+     pipe early-return, so the env vars take effect when pipes are
+     unset.
+  2. New public `TickStandalone()` helper — when the wire is off but
+     trace bounds are set, it `Interlocked.Increment`s `_emitCount`,
+     keeping `TraceEnabled` aligned with the prior live-wire run's
+     event numbering.
+  3. The four public emit methods (`EmitValue`, `EmitCall`,
+     `EmitReturn`, `EmitLabel`) now do
+     `if (!Enabled) { TickStandalone(); return; }` instead of a bare
+     return.
+
+This unblocks Mechanism A and B from `S-2-bridge-event-bombs` —
+`MONITOR_TRACE_FROM_EVENT=N MONITOR_TRACE_TO_EVENT=M dotnet
+Snobol4.dll ...` now works without a controller, and any
+`TraceEnabled`-gated diagnostic in any source file scopes its output
+to `[N, M)` automatically.
+
+### Critical empirical finding — session #79's hypothesis is falsified
+
+The session #79 record claimed the failing PatternMatch sees a
+malformed 1-node AST containing only `PosPattern` where the full
+`*snoParse *snoSpace RPOS(0)` subtree should be.  Direct inspection
+this session — using a `TraceEnabled`-gated `_ast.Count` + per-node
+dump in `Scanner.PatternMatch`, plus a per-step trace inside
+`Match()` — refutes that.
+
+Two PatternMatch calls fire on the 55-char line-48 subject:
+
+**Call 1 — outer parse** (`anchor=False, astCount=7`):
+```
+node[0] ConcatenatePattern         sub=-1 alt=-1   (non-terminal)
+node[1] PosPattern                  sub= 3 alt=-1   POS(0)
+node[2] ConcatenatePattern         sub=-1 alt=-1
+node[3] UnevaluatedPattern         sub= 5 alt=-1   *Parse
+node[4] ConcatenatePattern         sub=-1 alt=-1
+node[5] UnevaluatedPattern         sub= 6 alt=-1   *Space
+node[6] RPosPattern                 sub=-1 alt=-1   RPOS(0)
+```
+Pattern chain: `Concat(POS(0), Concat(*Parse, Concat(*Space, RPOS(0))))`.
+This is **byte-identical** to beauty.sno line 619's source pattern
+`Src POS(0) *Parse *Space RPOS(0)`.  The AST is correct.
+
+**Call 2 — `ArbNoPattern.Scan` inner reScan** (`anchor=True,
+astCount=1`):
+```
+node[0] UnevaluatedPattern         sub=-1 alt=-1   *Command
+```
+This is **also correct**: `ArbNoPattern.cs:48` calls
+`reScan.PatternMatch(scan.Subject[..], _arbPattern, 0, true)` with
+`_arbPattern` = the inner pattern of `ARBNO(*Command)`, which is the
+single `*Command` UnevaluatedPattern.  A 1-node anchored AST is
+exactly right.
+
+So the outer's 7-node AST is fine; the inner's 1-node AST is fine;
+neither AST is "malformed" in the session-#79 sense.
+
+### Where the failure actually lives
+
+With per-node `Match()` tracing through the cur=0 outer attempt:
+
+  1. node=1 PosPattern cur=0 → SUCCESS  (POS(0) matches at cur=0).
+  2. node=3 *Parse → GOTO graft.  Match descends through `*Parse`'s
+     evaluated body (`nPush() ARBNO(*Command) ("'Parse'" & 'nTop()')
+     nPop()`).  Inside, `ARBNO(*Command)` fires the inner reScan.
+  3. **Inner reScan: `*Command` anchored against the 55-char
+     subject FAILS.**  Trace ends at `node=1145 LiteralPattern
+     cur=20 FAILURE sub=1147 alt=-1` — no remaining alternates,
+     FAILURE propagates outward.
+  4. ARBNO returns FAILURE; the `NULL | NULL ARBNO(...)` structure's
+     empty-arm fires (node=21 NullPattern cur=0 SUCCESS), so
+     `*Parse` succeeds **consuming zero chars**.
+  5. node=5 *Space → SpanPattern at cur=0 matches the 18 leading
+     spaces, advances to cur=18.
+  6. node=6 RPosPattern cur=18 → FAILURE.  RPOS(0) wants cur=55.
+  7. Backtracks all exhaust.  Outer cur=0 attempt returns FAILURE.
+  8. Unanchored cur-retry loop tries cur=1..55, every iteration
+     PosPattern fails (only valid at cur=0).
+  9. Outer `Src POS(0) *Parse *Space RPOS(0)` returns FAILURE →
+     `:F(mainErr1)` fires → `OUTPUT = 'Parse Error'`.
+
+The bug surface is **(3)**: `*Command` cannot match
+`"                  DQ          =  '\"' BREAK('\"' nl) '\"'"`
+anchored from cur=0.  In SPITBOL the same input matches cleanly.
+Beauty.sno line 48 is a label-less assignment of a pattern — the
+parser must descend `Stmt → Label → epsilon → Expr ladder → ...`
+and eventually match the RHS as a concatenation of literals and
+function calls.  That descent dies at node=1145.
+
+### Recommended next-session execution plan
+
+1. **Bound the bug to a single node.** Re-apply the `Match()` per-step
+   diagnostic gated on `subject.Length == 55 && subject.Contains("DQ")`
+   (the recipe is in this session's reverted patches; ~10 lines in
+   `Scanner.cs::Match`).  Run beauty self-host with
+   `MONITOR_TRACE_FROM_EVENT=1 MONITOR_TRACE_TO_EVENT=10000000` and
+   capture the inner reScan's AST-STEP trace.  The interesting region
+   is the last ~30 steps before `node=1145 LiteralPattern cur=20
+   FAILURE`.
+
+2. **Identify the SNOBOL4 source construct at node 1145.** The inner
+   AST has 1145+ nodes after grafting `*Command`'s evaluated body,
+   which is `*Comment | *Control | *Stmt`.  At cur=20 (just past
+   "DQ "), the failing literal is likely an alternation arm in
+   `Expr14`'s assignment-RHS path or a keyword test
+   (e.g. `'TRACE'`, `'STOPTR'`, etc.).  Either:
+     - dump the failing node's `Self.GetType().Name` and (for
+       LiteralPattern) `Literal` value at the FAILURE step;
+     - or wire a `TraceEnabled`-gated `Console.Error.WriteLine` into
+       `LiteralPattern.Scan` printing `Literal` and the subject slice
+       being compared.  One line, gated, reverted before commit.
+
+3. **Cross-check against SPITBOL.**  Run the 2-way harness
+   (`monitor_sync_bin.py` PARTICIPANTS="spl dot") with PM-trace
+   enabled, breakpoint just before the inner reScan begins; the first
+   diverged PM_CALL/PM_FAIL pair on the same `*Command` subject
+   pinpoints which arm of the SNOBOL4 statement pattern is wired
+   wrong on dot.
+
+4. **Likely fix surface** (revised from session #82's list).  Now
+   that we know the AST is well-formed and graftCache is not the
+   culprit, suspect:
+     - **Alternate-link wiring on a deep nested Pipe inside
+       `Stmt`/`Expr` AST.**  `ComputeAlternate` in
+       `AbstractSyntaxTree.cs` walks up via `IsLeftChild() &&
+       parentNode.Self is AlternatePattern`.  If a particular
+       construct (perhaps `(A | B) C` where `A`'s alternate-bubble
+       reaches over `(...)` boundaries differently than spl) gives
+       the wrong alt index, an arm fails when it should succeed.
+     - **A pattern-builder bug** during compilation of beauty.sno's
+       Stmt/Expr ladder: a constructor in `PatternFactories` /
+       `BuilderPattern.cs` may be wiring `Concat(A, Alt(B, C))`
+       where SPITBOL produces `Alt(Concat(A,B), Concat(A,C))`, or
+       similar associativity drift.
+     - **Mutable terminal state** — `LiteralPattern.Literal` is
+       readonly so safe; `SpanPattern` / `BreakPattern` need a quick
+       audit for any assignable field that survives across matches
+       on a shared pattern instance.
+
+### Status updates
+
+  S-2-bridge-event-bombs         [x] LANDED — 9fc75d6.  Standalone
+                                      trace + TickStandalone now in
+                                      MonitorIpc.cs; pipes-off
+                                      tracing works.
+  S-2-bridge-event-bombs-coverage [~] partial — recipe still requires
+                                      gated diagnostics in
+                                      Scanner.PatternMatch / Match,
+                                      LiteralPattern.Scan, etc.
+                                      Reverted again this session per
+                                      RULES.md.  Productionizing the
+                                      gated traces themselves (so
+                                      they can ship as opt-in
+                                      dot-side instrumentation) is
+                                      the next coverage task.
+  S-2-bridge-7-fullscan          [~] partial — session #79 hypothesis
+                                      (malformed AST) FALSIFIED.
+                                      Bug bounded to
+                                      `ArbNoPattern.Scan`'s inner
+                                      reScan of `*Command` against
+                                      the 55-char line-48 subject;
+                                      fails at one specific
+                                      LiteralPattern terminal in the
+                                      SNOBOL4-statement subtree
+                                      around node-index ~1145, no
+                                      remaining alternate.
+                                      Next-session item is to
+                                      identify which terminal and
+                                      whether its alternate-link or
+                                      surrounding subtree is wired
+                                      differently from spl.
