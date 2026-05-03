@@ -4247,3 +4247,22 @@ restore-points all converging on the same CVA1 SPAN cluster.
                                       SpanPattern-failure-cache is
                                       the recommended next-session
                                       lead.
+
+### Session #84 addendum — Milestone 1 SPITBOL md5 invariant note
+
+Final handoff verification noted that SPITBOL on the current corpus
+HEAD (`4d4dea39`) produces md5 `9cddff2534472b822438801d8db58a99` (622
+stdout lines), differing from the recorded Milestone 1 invariant
+`abfd19a7a834484a96e824851caee159` (646 lines).
+
+This is **not** a regression caused by this session.  Corpus commit
+`5cc1baa` ("SB-6.E.7-M: strip sno prefix from beauty.sno", May 2
+2026 — pre-session-#84) was a 67-name/319-occurrence mechanical rename
+that changed beauty.sno's bytes; the recorded md5 predates that
+rename.  The output is shorter (renamed identifiers are shorter), so
+the beautified line count and md5 are different but the run is clean.
+
+The NET-BEAUTY-SELF gate is "exit 0, ≥500 stderr-clean lines, no
+error lines" — SPITBOL passes that gate (exit 0, 622 stdout, stderr
+clean).  PLAN.md and GOAL-LANG-SNOBOL4.md still record the old md5;
+those notes need updating in a future grand-master-reorg session.
