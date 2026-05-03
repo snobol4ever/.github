@@ -4515,3 +4515,204 @@ But node 781 has alt=-1.  Either:
                                      ComputeAlternate — narrow
                                      candidate set; next session
                                      dumps the AST and isolates.
+
+---
+
+## Session #86 — 2026-05-03 (Sonnet / Lon)
+
+**Outcome:** No commit. Diagnostic-only session, but **the structural
+bug is now precisely characterized at the AST construction level**:
+the snoExpr14 alternation pattern, when built, is **missing 6 of its
+18 arms** in the static AST.  The `*ProtKwd ~ 'ProtKwd'` and
+`*UnprotKwd ~ 'UnprotKwd'` arms (positions 4 and 5 of the source
+grammar), as well as `'@'`, `'~'`, `'?'`, and `*Expr15` arms (positions
+1, 2, 3, and 18) — they are NOT present in the AST that gets matched
+at runtime against `&FULLSCAN`/`&MAXLNGTH` subjects.
+
+User's "flatter the trees for Alternation and Subsequentation" hint
+was the strategic redirect — the deeply nested right-skewed
+`Alt(arm1, Alt(arm2, Alt(arm3, ...)))` representation is hiding
+arm-construction bugs.  A flat alternation `Alt[arm1, arm2, arm3, ...arm_n]`
+with N direct children would make missing arms visible at construction.
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+   `snobol4dotnet`, `x64`. snobol4dotnet HEAD `80c828a` (session #85's
+   memoization fix).  Beauty self-host baseline: exit 0, 47 stderr
+   lines, ~2.7s wall clock.
+
+2. **AST dump diagnostic patch** (REVERTED before commit per RULES.md)
+   in `Scanner.PatternMatch`:
+   - On every PatternMatch return (success OR fail) where `_ast.Count > 600`,
+     dump nodes 590-829 with full structural info: SelfIndex, type name,
+     tag (UnevaluatedPattern.MethodName, LiteralPattern.Literal, or class
+     name), ParentIndex, ChildType, LeftChild, RightChild, Subsequent,
+     Alternate.
+   - Output gated on `MonitorIpc.TraceEnabled` (works standalone after
+     session #83's `9fc75d6` productionized it).
+   - Run with `MONITOR_TRACE_FROM_EVENT=1 MONITOR_TRACE_TO_EVENT=99999999`.
+
+3. **Captured 13 PatternMatch returns** with nodeCount > 600, including
+   FULLSCAN and MAXLNGTH parses (both reported `RETURN-success` by
+   PatternMatch — meaning the outer parse succeeded; the Parse Error
+   fires from the inner reScan failing on a downstream construct).
+
+### Critical finding — the snoExpr14 alternation chain in the static AST has 13 *X UnevaluatedPattern arms instead of the expected 16
+
+Source grammar `Expr14` (beauty.sno lines 150-167) has 18 arms:
+
+```
+Expr14 = '@' *Expr14 ("'@'" & 1)            arm 1
+       | '~' *Expr14 ("'~'" & 1)            arm 2
+       | '?' *Expr14 ("'?'" & 1)            arm 3
+       | *ProtKwd ~ 'ProtKwd'               arm 4   <-- ABSENT in AST
+       | *UnprotKwd ~ 'UnprotKwd'           arm 5   <-- ABSENT in AST
+       | '&' *Expr14 ("'&'" & 1)            arm 6
+       | '+' *Expr14 ("'+'" & 1)            arm 7
+       | '-' *Expr14 ("'-'" & 1)            arm 8
+       | '*' *Expr14 ("'*'" & 1)            arm 9
+       | '$' *Expr14 ("'$'" & 1)            arm 10
+       | '.' *Expr14 ("'.'" & 1)            arm 11
+       | '!' *Expr14 ("'!'" & 1)            arm 12
+       | '%' *Expr14 ("'%'" & 1)            arm 13
+       | '/' *Expr14 ("'/'" & 1)            arm 14
+       | '#' *Expr14 ("'#'" & 1)            arm 15
+       | '=' *Expr14 ("'='" & 1)            arm 16
+       | '|' *Expr14 ("'|'" & 1)            arm 17
+       | *Expr15                            arm 18  <-- ABSENT in AST
+```
+
+In the dumped static AST for the `&FULLSCAN = 1` parse (PatternMatch
+returned success at ec=2394, nodeCount large enough for the full
+grammar):
+
+  - **13 UnevaluatedPattern (`*X`) nodes appear** in the alternation
+    chain at indices: 617, 631, 645, 659, 673, 687, 701, 715, 729,
+    743, 757, 771, 781.  Their alt-links: 629, 643, 657, 671, 685,
+    699, 713, 727, 741, 755, 769, 781, **-1** respectively.
+  - **13 corresponding literal-prefix arms** at indices 615, 629, 643,
+    ..., 769 (`'&', '+', '-', '*', '$', '.', '!', '%', '/', '#', '=', '|'`).
+  - **Node 597 = `'&'` (NOT `'@'`)** — the FIRST literal arm in the
+    AST chain is `'&'`, not the source's first arm `'@'`.
+
+So the AST chain has 13 literal-prefixed arms = arms 6-17 of the source
+(twelve `'&'..'|'`) plus an extra `'&'` at the head.  Arms 1-5
+(`'@'`, `'~'`, `'?'`, `*ProtKwd`, `*UnprotKwd`) and arm 18 (`*Expr15`)
+are MISSING.  6 of 18 arms absent.
+
+### Where the missing arms went
+
+Two hypotheses, both consistent with evidence:
+
+  - **(H1) Compile-time evaluation discarded them.**  Arms 4-5
+    (`*ProtKwd ~ 'ProtKwd'`, `*UnprotKwd ~ 'UnprotKwd'`) are
+    OPSYN-bound `~ → shift`.  semantic.inc:7 binds `OPSYN('~', 'shift', 2)`,
+    and `shift(p, t) = EVAL("p . thx . *Shift('" t "', thx)")` (line 16)
+    returns a pattern via `EVAL`.  If the `EVAL` runs at AST-build time
+    AND its return value is dropped on the floor (e.g. because the
+    result is `Failure`-state when the alternation construction sees
+    it), the arm doesn't make it into the final pattern object.
+
+  - **(H2) Alternation operator `|` has a tree-shape bug.**  When 18
+    arms are chained left-to-right, the `|` operator builds them
+    incrementally as `Alt(prev, new_arm)`.  If at any iteration the
+    `new_arm` is missing or the structure is incorrect, the resulting
+    pattern's tree is incomplete.  18 source arms → 12 visible-as-arms
+    → consistent with the alternation chain being TRUNCATED at some
+    construction step.
+
+### Why right-associative alt construction (vs left-associative) matters here
+
+The current AST shows right-associative shape: `Alt(arm1, Alt(arm2, ..., Alt(arm_n-1, arm_n)))`.
+Each arm except the last is LEFT-child-of-Alt, so its Alternate
+(via ComputeAlternate) correctly points to leftmost-of-next-arm.
+The last arm has Alternate=-1 (correct: no further arms).
+
+Node 781 has Alternate=-1.  Node 781 IS the rightmost arm of its
+Alt-chain — but it's NOT supposed to be the last arm of snoExpr14.
+That tells us the AST's Alt-tree LITERALLY ends at node 781.  The
+remaining grammar arms `*Expr15` etc. were never wired into this tree.
+
+### Why the user's flattening hint matters
+
+A **flat alternation node** `FlatAlt[arm1, arm2, ..., arm_n]` with N
+direct children would:
+
+  1. Make missing arms IMMEDIATELY visible at construction time
+     (the Children list has exactly N entries; if 6 arms are silently
+     dropped, the list is short by 6 — easy to assert at build).
+  2. Eliminate all the parent-walking complexity in ComputeAlternate
+     for alternations.  Each child's Alternate is just the next sibling.
+  3. Provide a single point of testing for the grammar-arm count
+     against beauty's known 18-arm Expr14.
+
+Same for ConcatenatePattern: a flat `FlatConcat[op1, op2, ..., op_n]`
+with N children replaces nested `Concat(Concat(Concat(...)))` and
+makes Subsequent computation trivial (next sibling).
+
+### Concrete next-session execution plan
+
+1. **Reproduce the missing-arms finding under controlled conditions.**
+   Re-apply the AST-dump diagnostic patch from this session.
+   Run beauty self-host with full trace.  Confirm the FULLSCAN parse's
+   AST has exactly 13 `*X` arms (not 16) in the snoExpr14 chain.
+
+2. **Bisect WHEN the arms get lost.**  Add a print in
+   `PatternAlternation (Pipe).cs` `CreateAlternatePattern` that logs
+   each invocation: argument types (PATTERN, EXPRESSION), counts of
+   nodes in left-pattern and right-pattern, and the resulting tree
+   shape.  Run beauty self-host.  The trace will show the 17 invocations
+   building the snoExpr14 alternation; identify which iteration drops
+   an arm.
+
+3. **Verify shift() is producing patterns at compile time.**  Insert
+   a temporary `OUTPUT = 'shift returned: ' p2` before the
+   `:(RETURN)` in `semantic.inc:16`'s `shift` body.  Re-run beauty
+   self-host and check whether shift fires for `*ProtKwd ~ 'ProtKwd'`
+   and `*UnprotKwd ~ 'UnprotKwd'` and what it returns.
+
+4. **Implement flat alternation/concatenation patterns.**  This is
+   the user's strategic guidance.  Two-phase:
+     - Phase A: introduce `FlatAlt` / `FlatConcat` non-terminal classes
+       that hold `List<Pattern> Children` directly.  Modify `BuildNodeList`
+       to recognize them and emit one node per child + one parent node
+       (instead of N-1 binary-tree nodes).  Modify ComputeNext to
+       look at sibling list directly.
+     - Phase B: rewrite operator constructors `|` and `<concat>` to
+       coalesce chains: `(A | B) | C` builds `FlatAlt(A, B, C)` rather
+       than `Alt(Alt(A, B), C)`.  Same for concat.
+
+5. **Acceptance gate:** after Phase A+B, the static AST for snoExpr14
+   has exactly 18 arms in a single FlatAlt node.  Beauty self-host
+   gate: `match(UnprotKwds, ...)` is now invoked at least once
+   (confirmed via the trace from session #85), and the line-26 / line-48
+   Parse Errors clear.
+
+### Hand-off state
+
+  - snobol4dotnet HEAD: `80c828a` unchanged.
+  - All five repos clean.  No `.orig` files, no diagnostic patches.
+  - Beauty self-host gate unchanged: 47 stderr lines.
+  - SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99` unchanged.
+  - Goal-file edits this session: this narrative only.
+
+### Status updates
+
+  S-2-bridge-7-fullscan          [~] partial — bug ROOT CAUSE now
+                                      precisely characterized at AST
+                                      construction level: 6 of 18
+                                      snoExpr14 arms missing
+                                      (`'@', '~', '?', *ProtKwd,
+                                      *UnprotKwd, *Expr15`).
+                                      Construction or evaluation of
+                                      these arms during pattern build
+                                      is dropping them on the floor.
+
+  S-2-bridge-7-flatten           [ ] open — user's strategic guidance:
+                                      replace nested Alt/Concat trees
+                                      with flat N-ary node types.
+                                      Will surface this missing-arms
+                                      bug AND simplify the entire
+                                      pattern-match-engine
+                                      Subsequent/Alternate computation.
