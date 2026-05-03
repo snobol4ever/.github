@@ -166,14 +166,27 @@ must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
   anonymous variables `_`. PR-1 fixtures avoid these to keep the gate
   byte-exact against the oracle.
 
-### PARSER-PR-2 — rules (`head :- body.`) — **next**
+### PARSER-PR-2 — rules (`head :- body.`) — **LANDED**
 
-- [ ] `Command` handles rules with a single goal in the body.
-- [ ] Test corpus: existing + **NEW**.
+- [x] `Command` handles rules with a single goal in the body.
+- [x] Test corpus: existing + **NEW**.
 - **Sibling LANG rungs:** PR-7..PR-9.
-- **Gate:** PASS≥17.
+- **Gate:** PASS=18. ✅ (PR-0 4 + PR-1 7 + PR-2 7 = 18.)
+- **Refactor note:** introduced two-phase build (`snapshot_head` +
+  `mark_body` + `build_clause`) so the E_CHOICE/E_CLAUSE key is
+  derived from head arity alone — `foo :- bar.` keys `foo/0`, body
+  goal becomes an additional E_CLAUSE child. Matches prolog_lower.c
+  exactly.
+- **Body grammar:** new `goal` non-terminal — bare-atom or compound
+  with flat args. Goal pushes one `(E_FNC name [args...])` tree which
+  `build_clause` Pops as the trailing E_CLAUSE child. Reuses the PR-1
+  `arg`/`args` patterns and per-clause `var_table` (head and body
+  vars share the same scope, matching prolog_lower.c::VarScope).
+- **Deferred (still):** conjunction/disjunction in body (PR-3),
+  nested compound args (PR-3+), same-functor E_CHOICE merging,
+  anonymous variables, directives (PR-6), `is`/arithmetic (PR-5).
 
-### PARSER-PR-3 — conjunction / disjunction (`,` / `;`)
+### PARSER-PR-3 — conjunction / disjunction (`,` / `;`) — **next**
 
 - [ ] `Command` handles `a, b, c` and `a ; b` in goal position.
 - [ ] Test corpus: existing + **NEW**.
@@ -230,4 +243,4 @@ must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
 
 ## Watermark
 
-PARSER-PR-1 LANDED (PASS=11). Next: PARSER-PR-2 — rules (`head :- body.`).
+PARSER-PR-2 LANDED (PASS=18). Next: PARSER-PR-3 — conjunction/disjunction.
