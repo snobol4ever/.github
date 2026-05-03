@@ -3916,3 +3916,125 @@ function calls.  That descent dies at node=1145.
                                       whether its alternate-link or
                                       surrounding subtree is wired
                                       differently from spl.
+
+---
+
+## Session #83 follow-up — runaway-backtracking finding (not committed; goal-file-only update)
+
+After committing `9fc75d6`, used the new standalone-trace facility plus
+a per-PatternMatch hot-node counter (Scanner.cs, REVERTED before commit
+per RULES.md) to measure the inner reScan's behavior on the line-48
+subject.  Result: bug is much sharper than session #83's main record
+suggested.
+
+### Numbers
+
+  - Inner reScan (`*Command` anchored, 55-char subject, 463 unique AST
+    nodes after grafting): **4,253,958 node visits** before final
+    FAILURE.  Cursor never advances past 18 — only ever 0 or 18.
+
+  - Hot-spot is a tight cluster at node-indices 1128..1138, each
+    visited ~518,000 times:
+    ```
+    node=1128 ConditionalVariableAssociation1     sub=1133 alt=1129  ×518319
+    node=1129 ConditionalVariableAssociationBackup1 sub=1133 alt=-1  ×518319
+    node=1133 ConditionalVariableAssociation1     sub=1136 alt=1134  ×518319
+    node=1134 ConditionalVariableAssociationBackup1 sub=1136 alt=-1  ×518319
+    node=1136 SpanPattern                          sub=1138 alt=-1   ×518319
+    ```
+    Two nested `.`-captures (likely `$ tx $` from
+    `Function`/`BuiltinVar`/`SpecialNm` definitions in beauty.sno
+    lines 60-65) wrap a SPAN.
+
+  - Secondary cluster (~172,773 each) at nodes 1075-1110 — another
+    `.`-capture/Span pair feeding into the hot cluster.
+
+  - Tertiary cluster (~57,591 each) at nodes 1055-1150 includes the
+    *previously-suspected* node=1145 (`LiteralPattern Literal="'"` —
+    single-quote, the SQ string opener).  The 1145 node is **not** the
+    bug; it is downstream of the runaway.
+
+### Likely cause
+
+In beauty.sno, three patterns share an identical shape:
+```
+Function    = SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(Functions, TxInList)
+BuiltinVar  = SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(BuiltinVars, TxInList)
+SpecialNm   = SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(SpecialNms, TxInList)
+```
+And `match` is:
+```
+DEFINE('match(subject,pattern)')                                      :(match_end)
+match          match          =  .dummy
+               subject        pattern                                                :S(NRETURN)F(FRETURN)
+```
+`match` runs a 3-element statement-level pattern match (`subject pattern :S/F`),
+which the lexer lowers to the same `?` operator as explicit `?` matches.
+
+The hypothesis: **`SPAN(...)` at node 1136, when it fails to match all
+its alternates and a re-entry happens via the surrounding `.`-capture
+`Backup1`, produces an exponentially-growing alt-stack OR re-fires its
+prefix-length backtracking each time the `.`-capture rolls back.**
+Combined with the three identical `Function|BuiltinVar|SpecialNm` arms
+each running their own `*match(...)`, the matcher explores an
+exponential number of (length, list, capture-state) combinations
+without making cursor progress.
+
+In SPITBOL the same input completes quickly because SPAN with no
+remaining cursor-advance option returns FAILURE once and the alt-stack
+cannot re-fire it without a new cursor base.  Our SpanPattern.Scan
+likely either:
+  (a) restores its internal length counter to a non-final value on
+      Backup, allowing a different shorter span to be tried;
+  (b) does not propagate ABORT/seal correctly through the
+      ConditionalVariableAssociationBackup1 wrapping, so the alt-stack
+      keeps a live alternate that cycles;
+  (c) the Backup1 itself sees cursor unchanged after restore and
+      treats SPAN's previous FAILURE as a fresh state.
+
+### Recommended next-session targets
+
+1. **Inspect SpanPattern.Scan and its alt-stack interactions.**  How
+   does SpanPattern handle backtrack after success?  Does it produce
+   multiple alternates (one per matched length), or does it commit
+   maximal-munch and offer no alternates?  SPITBOL's behavior is
+   maximal-munch with NO retry-shorter-on-backtrack.
+
+2. **Audit `.`-capture entry/exit pair (ConditionalVariableAssociation1
+   / Backup1) when the inner pattern is SPAN.**  The SPAN-capture-inside
+   pattern needs to commit cursor on success and rollback cursor on
+   backtrack — but the SPAN itself should not get a second chance to
+   match.  If our SPAN's Scan restores its internal state on Backup1,
+   that's the bug.
+
+3. **Single-line repro.**  Construct a minimal `.sno` like:
+   ```
+       OUTPUT = (' DQ ' ? SPAN('A-Z') $ x $ *match('XX YY', TxInList)) 'OK'
+       END
+   ```
+   If this hangs or produces 100k+ Span steps on dot but completes
+   instantly on spl, we have the repro.
+
+4. **Cross-check with spl via `MonitorIpc.TraceEnabled` window.**  Set
+   `MONITOR_TRACE_FROM_EVENT=N MONITOR_TRACE_TO_EVENT=N+10` for some N
+   right before line-48 enters PatternMatch on both runtimes.  Compare
+   the wire's PM_CALL/PM_REDO/PM_FAIL counts: spl should show ~50,
+   dot ~518k.
+
+### Status update
+
+  S-2-bridge-7-fullscan          [~] partial — bug isolated to a tight
+                                      AST cluster at node-indices
+                                      1128-1138 inside the
+                                      Function/BuiltinVar/SpecialNm
+                                      `SPAN $ tx $ *match(List, ...)`
+                                      pattern shape from beauty.sno
+                                      lines 60-65.  4.25M node visits
+                                      where spl probably does ≤100;
+                                      cursor never advances past 18.
+                                      Suspect: SpanPattern alt-stack
+                                      behavior on backtrack-after-
+                                      success when wrapped in
+                                      `.`-capture.  Ready for fix
+                                      next session — see "Recommended
+                                      next-session targets" above.
