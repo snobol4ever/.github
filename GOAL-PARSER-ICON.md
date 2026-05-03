@@ -155,18 +155,29 @@ divergence is in how trees are interpreted, not how they are shaped.
 - [x] Add `corpus/programs/ebnf/icon-no.ebnf` — vertical-ellipsis
       variant for symmetry with `s4-no.ebnf`.
 - [x] Add `corpus/programs/ebnf/README.md` — dialect + provenance.
+- [x] Add `corpus/programs/ebnf/icon-references/` — JCON `parse.icn`
+      + COPYRIGHT + `NOTES.md` for cross-corroboration of canonical
+      names and LL(1) decomposition guidance.
 - [x] D2 nonterminal-name table updated to use the canonical
       `program/decls/proc/expr/expr1a/expr1.../expr11/literal/...`
       hierarchy from `grammar.h` instead of the wrong
       `icon_parse.c`-derived names.
-- **Deliverable:** four files committed, no parser_icon.sc change yet.
-- **Gate:** files exist, license-clean (public domain). ✅
+- **Deliverable:** five files + one subdirectory committed, no
+      parser_icon.sc change yet.
+- **Gate:** files exist, license-clean (icon: public domain;
+      jcon: ABoR redistribution license, notice preserved). ✅
 
 ### PARSER-IC-INFRA-2 — refactor parser_icon.sc to canonical names + Compiland-driven loop — **next**
 
 - [ ] Rename invented pattern names per D2 table (the canonical
       `Program/Decls/Proc/Expr/Expr1a/Expr1.../Expr11/Literal/...`
       names sourced from `corpus/programs/ebnf/icon-sp.ebnf`).
+- [ ] Apply the LL(1) decomposition documented in
+      `corpus/programs/ebnf/icon-references/NOTES.md` — every
+      left-recursive `Exprn` becomes
+      `Exprn = Exprn_plus_one ARBNO(op Exprn_plus_one)`. `Expr11`
+      splits into `Expr11a` + `Expr11suffix` per JCON's
+      `parse_expr11a` / `parse_expr11suffix(lhs)` example.
 - [ ] Replace goto/label main loop with `Compiland` PATTERN driving
       `ARBNO(*Command)` per D1.
 - [ ] Cross-pollinate: parser_snobol4.sc, parser_snocone.sc,
@@ -310,6 +321,17 @@ grammar verbatim rather than re-deriving anything from
 `icon_parse.c`. The C parser is itself a translation of this BNF;
 using it as the shape source was one indirection too many.
 
+**Provenance confirmed (session #62, Lon-supplied uploads):**
+`icon-master.zip` and `jcon-master.zip` were checked against the
+in-corpus copy. `icon-master/src/h/grammar.h` is byte-identical to
+`corpus/programs/ebnf/icon-grammar.h`. JCON's independent LL(1)
+recursive-descent parser (`jcon-master/tran/parse.icn`) uses the
+exact same nonterminal hierarchy — its 43 `parse_*` procedures map
+1-to-1 to the productions in `grammar.h`. Two independent
+implementations (one yacc, one hand-rolled in Icon) converge on
+the same names. `parse.icn` is now in
+`corpus/programs/ebnf/icon-references/` for cross-reference.
+
 **Landed under PARSER-IC-INFRA-1:**
 
 - `corpus/programs/ebnf/icon-grammar.h` — verbatim upstream copy
@@ -317,7 +339,22 @@ using it as the shape source was one indirection too many.
 - `corpus/programs/ebnf/icon-sp.ebnf` — pipe-alternation EBNF in
   the project dialect (1-to-1 with `icon-grammar.h`).
 - `corpus/programs/ebnf/icon-no.ebnf` — vertical-ellipsis variant.
+- `corpus/programs/ebnf/icon-references/` — JCON `parse.icn` +
+  COPYRIGHT, `NOTES.md` documenting cross-corroboration and the
+  LL(1) decomposition that INFRA-2 will need.
 - `corpus/programs/ebnf/README.md` — provenance + dialect notes.
+
+### LL(1) decomposition note for INFRA-2
+
+Snocone patterns cannot left-recurse. `grammar.h` is left-recursive
+throughout — `expr2 TO expr3`, `expr5 CONCAT expr6`, `expr6 PLUS
+expr7`, `expr7 STAR expr8`, `expr11 LBRACK exprlist RBRACK`, etc.
+INFRA-2 must decompose each left-recursive production the way JCON
+does it: `Exprn = Exprn_plus_one (op Exprn_plus_one)*` via
+`ARBNO(...)`. JCON also splits `expr11` into `parse_expr11a`
+(literals + control structures + parenthesized expressions) plus
+`parse_expr11suffix(lhs)` (postfix `[...]`, `{...}`, `(...)`, `.id`).
+PAT-IC INFRA-2 mirrors that split: `Expr11 = Expr11a Expr11suffix`.
 
 Same treatment is owed to the other five PARSER-* frontends:
 `snobol4-*.ebnf` already exists; add `snocone-*.ebnf`,
@@ -341,4 +378,4 @@ that is already obsolete.
 
 ## Watermark
 
-PARSER-IC-INFRA-2 (PARSER-IC-INFRA-1 landed: canonical Icon BNF in corpus/programs/ebnf/, public-domain provenance preserved; D2 name table corrected to use upstream grammar.h precedence-numbered nonterminals).
+PARSER-IC-INFRA-2 (PARSER-IC-INFRA-1 landed: canonical Icon BNF in corpus/programs/ebnf/, public-domain provenance preserved + JCON cross-corroboration in icon-references/; D2 names confirmed correct by two independent upstream parsers; LL(1) decomposition guidance recorded for INFRA-2).
