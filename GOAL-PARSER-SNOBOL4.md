@@ -172,16 +172,14 @@ files are passed as a blob on the command line by the test script.
 - [x] Write `counter.sc` — counter stack only (tag stacks belong to beauty).
 - [x] Write `ShiftReduce.sc` — with EVAL/EXPRESSION handling for parser flexibility.
 - [x] Write `semantic.sc` — `shift`/`reduce`/`pop` plus `nPush`/`nInc`/`nDec`/`nTop`/`nPop`.
-      OPSYN `~`/`&` declarations live here too but are commented-out until INFRA-10.
+      OPSYN `~` and `&` declarations are **active** at top of file (faithful
+      port of beauty/semantic.inc). INFRA-10 verifies they work at runtime.
 - [x] Write `README.md` — names the host-by-extension convention, the five `.sc` runtime files, and all six `parser_<lang>.sc` slots.
-- [x] Smoke test `smoke.sc` calls `Shift('foo','bar')` then `Pop('')` and prints `v(r)`.
-- [x] `one4all/scripts/test_scrip.sh` runs the smoke test as the gate.
-- [x] Bug discovered: one-arg `IDENT(x)` is unreliable when an Insert-shaped
-      function with `c[i] = c(x)[i]` is parsed in another loaded file in the
-      same session — root-cause analysis tracked in INFRA-5a below. Mitigation:
-      `.sc` runtime uses include-sc-style two-arg `IDENT(x, '')` throughout.
-- **Gate:** `bash scripts/test_scrip.sh` reports
-  `PASS scrip(.sc) smoke: Shift/Pop round-trip = 'bar'`. ✅
+- [x] Smoke test `smoke.sc` calls `Shift('foo','bar')` then `Pop()` and prints `v(sno)` (faithful per beauty.sno line 617).
+- [x] `one4all/scripts/test_scrip.sh` runs the smoke and distinguishes PASS / BLOCKED / FAIL.
+- [x] **Faithful ports installed** — `tree.sc`, `stack.sc`, `counter.sc`, `ShiftReduce.sc`, `semantic.sc` are now mechanical Snocone translations of the corresponding `.inc` source-of-truth files: same control flow, same xTrace-gated tracing, same `Pop()` no-arg signature, full BegTag/EndTag tag stacks in counter.sc, OPSYN active in semantic.sc.
+- [x] Bug surfaced: faithful `Pop()` + `tree.sc::Insert` co-loaded triggers PARSER-SN-INFRA-5a (one-arg `IDENT(var)` returns wrong branch). `test_scrip.sh` reports **BLOCKED** with explicit pointer to INFRA-5a.
+- **Gate (current):** `bash scripts/test_scrip.sh` reports BLOCKED with the INFRA-5a citation. **Not** a regression — the faithfulness exposes the runtime bug whose fix is INFRA-5a. ⚠️
 
 ---
 
@@ -335,25 +333,23 @@ hits OUTPUT. Depends on INFRA-4 (`*assign`), INFRA-7 (`Qize`), INFRA-8
       emit nothing (xTrace = 0) but the match must succeed.
 - **Gate:** `omega-silent-OK` plus all earlier OKs.
 
-### PARSER-SN-INFRA-10 — OPSYN `~` and `&` (the dessert)
+### PARSER-SN-INFRA-10 — verify OPSYN `~` and `&` work at runtime (the dessert)
 
-Last in the ladder per Lon's direction. Beauty uses `OPSYN('~', 'shift', 2)`
-and `OPSYN('&', 'reduce', 2)` so the parser-construction grammar can read
-as nice infix `pat ~ 'Tag'` and `n & 'Reducer'` instead of `shift(pat,
-'Tag')` and `reduce('Tag', n)`. Until OPSYN works, drivers spell out
-`shift(...)` and `reduce(...)` calls (which they already do in beauty.sc
-lines 81–99 — OPSYN is sugar over the same underlying calls).
+Last in the ladder per Lon's direction. Beauty's semantic.inc declares
+`OPSYN('~', 'shift', 2)` and `OPSYN('&', 'reduce', 2)` at parse time so
+the parser-construction grammar can read as nice infix `pat ~ 'Tag'` and
+`n & 'Reducer'` instead of `shift(pat, 'Tag')` / `reduce('Tag', n)`.
+The OPSYN declarations are already in `scrip/semantic.sc` (faithful port
+under INFRA-1); this rung verifies they are honoured at runtime by scrip
+and that both forms (function-call and infix) produce byte-identical IR.
 
-- [ ] Write a probe that calls `shift(*Id, 'Id')` directly via the
-      `semantic.sc::shift(p, t)` function. Confirm it builds a pattern
-      that, when matched, performs the Shift via `EVAL` of
-      `"p . thx . *Shift('Id', thx)"`. Smoke verifies the EVAL plumbing.
-- [ ] Uncomment the two `OPSYN(...)` declarations at the top of
-      `scrip/semantic.sc` (commented under INFRA-1).
-- [ ] Add to `smoke.sc`: build the same pattern via the infix form
-      `(*Id ~ 'Id')`; match against `'foo'`; confirm Shift fired.
-- [ ] Confirm both forms (function-call and infix) produce
-      byte-identical IR when the smoke pattern matches `'foo'`.
+- [ ] Probe: build a pattern via `shift(*Id, 'Id')` directly. Confirm it
+      builds a pattern that, when matched, performs the Shift via `EVAL`
+      of `"p . thx . *Shift('Id', thx)"`. Smoke verifies the EVAL plumbing.
+- [ ] Probe: build the same pattern via the infix form `(*Id ~ 'Id')`.
+      Confirm scrip honours the OPSYN.
+- [ ] Add to `smoke.sc`: build the pattern both ways; match against
+      `'foo'`; confirm Shift fired and the resulting tree is identical.
 - **Gate:** `opsyn-OK` plus all earlier OKs. Both forms of the same
   pattern produce equal trees.
 
@@ -445,9 +441,15 @@ lines 81–99 — OPSYN is sugar over the same underlying calls).
 
 ## Watermark
 
-PARSER-SN-INFRA-2 — INFRA-1 landed. `corpus/programs/scrip/` contains
-the six runtime files (tree.sc, stack.sc, counter.sc, ShiftReduce.sc,
-semantic.sc with OPSYN deferred, smoke.sc) plus README.md. Smoke test
-`scripts/test_scrip.sh` PASS. Next: INFRA-2 (`global.sc`). The full
-INFRA ladder runs INFRA-2..INFRA-10 with bug-fix rungs INFRA-5a/5b
-interleaved before `case.sc` can land. PARSER-SN-0 starts after INFRA-10.
+PARSER-SN-INFRA-5a — the .sc files in `corpus/programs/scrip/` are now
+faithful Snocone ports of their `.inc` source-of-truth counterparts
+(beauty/tree.inc, stack.inc, counter.inc, ShiftReduce.inc, semantic.inc).
+`smoke.sc` uses the canonical `Pop()` no-arg form per beauty.sno line 617.
+`test_scrip.sh` reports **BLOCKED** on PARSER-SN-INFRA-5a — the runtime
+bug surfaces the moment a faithful Pop() is used alongside tree.sc::Insert.
+INFRA-2/3/4 can run in parallel; they don't unblock INFRA-5a but they
+also don't depend on it.
+
+Next session: pick INFRA-5a (root-cause + fix in scrip C runtime — the
+fix is the gate that turns smoke from BLOCKED to PASS) OR continue
+the dependency chain with INFRA-2 (`global.sc`, no runtime needed).
