@@ -4266,3 +4266,252 @@ The NET-BEAUTY-SELF gate is "exit 0, ≥500 stderr-clean lines, no
 error lines" — SPITBOL passes that gate (exit 0, 622 stdout, stderr
 clean).  PLAN.md and GOAL-LANG-SNOBOL4.md still record the old md5;
 those notes need updating in a future grand-master-reorg session.
+
+---
+
+## Session #85 — 2026-05-03 (Sonnet / Lon)
+
+**Outcome:** snobol4dotnet `80c828a` LANDED — terminal-failure
+memoization eliminates session #84's catastrophic backtracking
+(4.25M node visits → bounded by AST node count × subject length).
+Beauty 17/17 PASS, 2074p/14f baseline matched, beauty self-host
+exit 0 / 47 stderr lines unchanged at the SAME line-48 Parse Error.
+**Diagnostic C# function tracing in the [#2630, #2700) wire-event
+window pinpointed the actual structural bug**: in dot's snoExpr14
+alternation, the *X UnevaluatedPattern at AST node-index 781
+(presumed `*snoProtKwd` based on context) has `Alternate=-1`,
+meaning its alt-link to `*snoUnprotKwd` (node ~783) is missing.
+
+### What landed (commit `80c828a`)
+
+Per session #84's recommendation: per-PatternMatch
+`HashSet<(int node, int cursor)> _terminalFailCache` in
+`Scanner.cs`.  When `IsPureTerminal(node.Self)` and the cache
+contains `(SelfIndex, CursorPosition)`, return Failure immediately
+without re-invoking Scan.  After Scan returns FAILURE on a pure
+terminal, the (node, cursor) is recorded.  Cleared at the start
+of every PatternMatch.
+
+Pure terminals (memoized): SpanPattern (static char list only —
+new `IsStaticCharList` accessor), LiteralPattern (exact
+GetType() — to avoid memoizing CVA*/IVA* subclasses), NullPattern
+(exact GetType()), AnyPattern, BreakPattern (static char list
+only), LenPattern, FailPattern, AbortPattern, PosPattern,
+RPosPattern, TabPattern, RTabPattern.
+
+Test gates clean:
+  - Unit suite: 2074p/14f (baseline match).
+  - Beauty 17/17 corpus drivers: 17/17 PASS.
+  - Beauty self-host: exit 0, 47 stderr lines, ~2.7s wall clock
+    (was 30s+ timing out before graft cache; ~2.1s with graft
+    cache alone; this fix is on top of graft cache).
+  - SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99` unchanged.
+
+### Diagnostic C# function tracing — the user's strategy applied
+
+Per the user's explicit guidance — *"use automatic C# function
+tracing from last agreed sync step code position through to first
+diverged sync step code position"* — the IPC sync-step monitor
+DIVERGE was reproduced at step #2839 (same as session #80).
+Diagnostic patches (REVERTED before commit per RULES.md) were
+applied to `Scanner.PatternMatch`, `Scanner.Match`, and
+`Define.cs ExecuteProgramDefinedFunction`'s `EmitCall` site:
+
+  - `Scanner.PatternMatch` entry: log subject + length + anchor
+  - `Scanner.Match` per-node entry: log node index, NodeTag,
+    cursor, Subsequent, Alternate
+  - `Define.cs` per-call entry to user-defined `match()`: log
+    arg0 length and contents (was hypothesized in session #80 to
+    contain the wrong list slot)
+
+All gated on `MonitorIpc.TraceEnabled`.
+
+Trace results across the full beauty self-host run with
+`MONITOR_TRACE_FROM_EVENT=1 MONITOR_TRACE_TO_EVENT=99999999`:
+
+#### Finding 1 — `match(snoUnprotKwds, ...)` is NEVER called
+
+Across 317 calls to user-defined `match()`, arg0 lengths
+distribute as:
+  - `122` (snoProtKwds): **2 calls** total
+  - `455` (snoFunctions): 106 calls
+  - `50`  (snoSpecialNm): 104 calls
+  - `57`  (snoControl): 105 calls
+  - `125` (snoUnprotKwds): **0 calls** ← MISSING
+
+This **falsifies session #80's "wrong slot" hypothesis** (which
+session #81 already partially refuted): arg0 to match() is always
+the correct list — slots are not confused.  But the
+`*match(snoUnprotKwds, snoTxInList)` arm is never reached because
+the alternation never dispatches it.
+
+#### Finding 2 — node 781's Alternate is -1, not 783
+
+Trace at `MONITOR_TRACE_FROM_EVENT=2630 TO=2900` (window covering
+the second snoProtKwds match call at ec=2635 and the next match
+at ec=2696 = snoFunctions):
+
+```
+[FN match ec=2635] arg0.len=122 arg0='ABORT ALPHABET ARB BAL FAIL FENCE FILE FNCLEVEL...'   ← snoProtKwds
+[PM ec=2637] anchor=False subjLen=122 subj='ABORT ALPHABET...'
+... (60 wire events of inner snoProtKwds matching) ...
+[FN match ec=2696] arg0.len=455 arg0='ANY APPLY ARBNO ARG ARRAY ATAN...'                    ← snoFunctions (SHOULD BE snoUnprotKwds!)
+```
+
+Between event 2635 (snoProtKwds match starts) and 2696
+(snoFunctions match starts), the trace inside the outer parser
+runs the snoExpr14 alternation backbone:
+
+```
+[M] node=597  '&'   cur=27 sub=599  alt=615
+[M] node=615  '&'   cur=27 sub=617  alt=629
+[M] node=629  '+'   cur=27 sub=631  alt=643
+... (literal-arm chain) ...
+[M] node=755  '='   cur=27 sub=757  alt=769
+[M] node=769  '|'   cur=27 sub=771  alt=781
+[M] node=781  *<lambda>  cur=27 sub=105  alt=-1   ← THE BUG
+[M] node=783  *<lambda>  cur=27 sub=785  alt=-1
+[M] node=822  MarkPattern cur=27 sub=828 alt=-1   ← FENCE Mark
+... (snoExpr15+ subtree) ...
+```
+
+Node 781 IS `*snoProtKwd` (its body's evaluation is what feeds
+snoProtKwds into match() at ec=2635 followed by ec=2696's call
+to match(snoFunctions)).  Per beauty.sno's grammar:
+
+```
+snoExpr14 = ... '|' | *snoProtKwd | *snoUnprotKwd | '&' SPAN(...)
+```
+
+Node 781 (*snoProtKwd) should have `Alternate = leftmost(*snoUnprotKwd's-arm)`,
+which would be node 783.  Instead, node 781 has `Alternate = -1`.
+
+When 781's body returns FRETURN (snoProtKwds doesn't contain
+FULLSCAN/MAXLNGTH), the Match() loop has no live alternate to
+restore for THIS node.  Control falls back to the alt stack —
+which contains 769.alt=781 (already consumed), 755.alt=769
+(would re-cycle), and earlier saves.
+
+#### Finding 3 — the chain saved alts are all forward-pointing within the same chain
+
+The alternation backbone `597 → 615 → 629 → 643 → ... → 769 →
+781` is built as a Subsequent chain (each `sub=` points to the
+next).  Each save during entry is `alt = next-sibling-of-myself`:
+615 saves alt=629, 629 saves alt=643, etc.  Restoring the
+alt-stack post-781 cycles back through nodes already failed.
+
+THIS IS WHY THE PARSE FAILS: there is no Alternate link out of
+the literal/UnevaluatedPattern alternation chain that points to
+the next OUTER alternation arm (the `&` arm at node ~822 or its
+predecessors), AND there is no live OUTER alternate saved on
+the stack that points down into snoUnprotKwd's arm.  After the
+chain exhausts, control falls through to whatever was most
+recently saved on the alt-stack (a high-numbered alt from
+deeper-graft territory), eventually landing in the snoVar/snoAtom
+subtree (node ~822+) where `*snoFunction` lives.  That's how
+session #74 saw `*snoFunction` reached "before" `*snoUnprotKwd`.
+
+### What the bug is structurally
+
+The grammar `A | B | C | D | ...` (left-associative) builds the
+AST as `Alt(Alt(Alt(A, B), C), D)`.  `ComputeAlternate` walks
+the parent chain looking for first ancestor where currentNode is
+LEFT-CHILD of an `AlternatePattern`, then descends right-child
+left-spine to the leftmost terminal.  This algorithm IS correct
+for left-associative alts — every arm except the rightmost
+should have a forward Alternate.
+
+For a 16-arm alternation like beauty's snoExpr14, the AST should
+have all 16 arms reachable.  The wire shows the chain
+`597 → 615 → ... → 781` with each arm having alt = next-arm.
+But node 781 has alt=-1.  Either:
+
+  (a) The PatternFactories construction for `'|' | *snoProtKwd
+      | ...` produces a different shape — perhaps a
+      ConcatenatePattern where it should be an AlternatePattern
+      (the lexer/builder may have a bug with mixing literal arms
+      and `*X` arms).
+
+  (b) `ComputeAlternate` has an early-termination bug for
+      UnevaluatedPattern terminals that fires before reaching the
+      grandparent Alt.  The current algorithm (lines 112-141 of
+      AbstractSyntaxTree.cs) uses
+      `parentNode.SelfIndex == 0` to detect root — but if the
+      tree has Concatenate intermediates that alter parent
+      structure for `*X` nodes vs literal nodes, the walk could
+      bail prematurely.
+
+  (c) The Subsequent chain `597 → ... → 781` is itself wrong
+      — these arms should not be subsequent-chained in the first
+      place (they should each be at different alternation
+      depths).  If the construction collapses alternation into
+      concatenation somewhere, both Subsequent and Alternate
+      links would be skewed.
+
+### Recommended next-session execution plan
+
+1. **AST shape dump for snoExpr14** — instrument
+   `AbstractSyntaxTree.Build` to dump the full `_nodes` array
+   when the pattern object passed in is the `snoExpr14` pattern
+   (identifiable by being the pattern argument to a PatternMatch
+   whose subject contains `&FULLSCAN` or `&MAXLNGTH`).  Print
+   each node's `(SelfIndex, Self.GetType().Name,
+   Self.DebugPattern() if terminal, ParentIndex, LeftChildIndex,
+   RightChildIndex, Subsequent, Alternate)`.
+
+2. **Locate node 781 and its parent chain** in the dump.  Walk
+   `ParentIndex` until you reach the root (index 0).  At each
+   level, log whether the current node is left or right child
+   and what kind of NonTerminalPattern its parent is
+   (AlternatePattern, ConcatenatePattern).
+
+3. **Compare to grammar expectation.**  beauty.sno snoExpr14
+   has roughly 16 arms.  The leftmost terminals of each arm
+   should each appear as a separate path-from-root.  If only a
+   linear chain shows up, the build has flattened the
+   alternation into a concat (case (a) or (c)).  If a proper
+   tree shows up but `*snoProtKwd`'s parent is not an Alt with
+   `*snoUnprotKwd` on the right, the issue is (a) too.  If
+   parent IS Alt with `*snoUnprotKwd` on right but
+   ComputeAlternate returns -1, the issue is (b).
+
+4. **Likely fix surface:**
+   - Most probable: a precedence bug in
+     `PatternFactories.cs` / `BuilderPattern.cs` (or wherever
+     `'|' | *X | *Y` is parsed/lowered) that mishandles
+     low-precedence operators around `*X` UnevaluatedPattern
+     arms when adjacent literal arms exist.
+   - Less likely: ComputeAlternate's `parentNode.SelfIndex == 0`
+     early-exit firing too soon for `*X`-arm nodes.
+
+5. **Test gate:** post-fix, the 317-call match() distribution
+   should show ≥1 call with arg0.len=125 (snoUnprotKwds) when
+   beauty self-host parses lines 26 (`&FULLSCAN = 1`) and 27
+   (`&MAXLNGTH = 524288`).  Beauty self-host stderr line count
+   should advance past 47 (current Parse Error at line 48).
+
+### Hand-off state
+
+- snobol4dotnet HEAD: `80c828a` (this session's commit, pushed).
+- one4all, x64, corpus: unchanged.
+- Working trees clean across all repos.
+- Diagnostic patches reverted before commit per RULES.md.
+
+### Status updates
+
+  S-2-bridge-7-fullscan-memoize  [x] LANDED — `80c828a`.
+                                     Catastrophic backtracking
+                                     eliminated; structural bug
+                                     surfaces directly.
+  S-2-bridge-7-fullscan          [~] partial — structural bug
+                                     pinpointed: snoExpr14 AST has
+                                     `*snoProtKwd` (node 781) with
+                                     `Alternate=-1` instead of
+                                     pointing to leftmost-of-
+                                     `*snoUnprotKwd`-arm (likely
+                                     node 783).  Bug is in
+                                     PatternFactories /
+                                     AbstractSyntaxTree.Build /
+                                     ComputeAlternate — narrow
+                                     candidate set; next session
+                                     dumps the AST and isolates.
