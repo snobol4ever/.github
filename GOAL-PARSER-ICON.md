@@ -97,18 +97,18 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ## Rung ladder
 
-### PARSER-IC-0 — atom — **next**
+### PARSER-IC-0 — atom — **DONE** (session, this commit)
 
-- [ ] Write `corpus/programs/scrip/parser_icon.sc` with `Compiland`
+- [x] Write `corpus/programs/scrip/parser_icon.sc` with `Compiland`
       handling one identifier or one integer or one quoted string.
-- [ ] In-process two-frontend crosscheck.
-- [ ] Write `scripts/test_parser_icon.sh`.
-- [ ] Test corpus (3 NEW programs): `atom_id.icn`, `atom_int.icn`,
+- [x] In-process two-frontend crosscheck.
+- [x] Write `scripts/test_parser_icon.sh`.
+- [x] Test corpus (3 NEW programs): `atom_id.icn`, `atom_int.icn`,
       `atom_str.icn`. `.ref` empty.
 - **Sibling LANG rungs:** IC-1..IC-3 (lexer, atom).
-- **Gate:** PASS=3.
+- **Gate:** PASS=3. ✅
 
-### PARSER-IC-1 — assignment (`x := expr`)
+### PARSER-IC-1 — assignment (`x := expr`) — **next**
 
 - [ ] `Command` handles Icon's `:=` assignment.
 - [ ] Test corpus: existing 2 + **3 NEW**.
@@ -161,4 +161,4 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ## Watermark
 
-PARSER-IC-0 (initial — no .sc parser exists yet).
+PARSER-IC-1 (PARSER-IC-0 landed: PASS=3, atom support — `procedure main() <atom> end` shape).
