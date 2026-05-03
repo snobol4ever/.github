@@ -397,29 +397,62 @@
   prerequisite that makes the rest observable, and RS-22 follows naturally
   once the path is exercised.
 
-- [ ] **RS-26** — Route Icon and Prolog through the SM pipeline.  The first
-  step of the RS-20 thesis becoming observable.  Concretely:
-  (a) When `has_non_sno` is set and the language has a frontend that produces
-      IR, do not short-circuit to `polyglot_execute`.  Instead, run the same
-      `sm_preamble` + `sm_run_with_recovery` sequence as SNOBOL4.  The IR
-      produced by Icon's parser is already a `CODE_t*`; `sm_lower` already
-      handles whatever kinds it currently emits for SNOBOL4 — Icon's kinds
-      (E_TO, E_TO_BY, E_EVERY, E_FNC user-procs, etc.) need at minimum a
-      `SM_BB_PUMP` lowering.
-  (b) Audit `sm_lower.c` for the Icon-relevant kinds.  Where lowering is
-      missing for a kind that Icon emits, add a `SM_BB_PUMP` case that wraps
-      the entire statement (or expression) into a one-instruction SM body
-      that, when executed, hands off to `coro_drive(root)` over the original
-      IR statement.  The SM is the carrier; BB does the work.
-  (c) Same for Prolog — pl frontend produces IR with E_FNC for goals,
-      E_CHOICE / E_UNIFY / etc.  `sm_lower` either has these or needs a
-      `SM_BB_PUMP` shim case.
-  (d) For polyglot files (`.scrip` mixing languages), `polyglot_execute`
-      stays — it is mode-1 multi-frontend dispatch.  The mode-2 / mode-3
-      paths work for *single-language non-SNOBOL4* inputs after this rung.
-  Gate: the existing smoke tests pass via the new SM path.  Once they do,
-  remove the `has_non_sno` short-circuit for single-language non-SNOBOL4
-  inputs and let `--sm-run` actually run Icon/Prolog programs.
+- [x] **RS-26a** — Symmetric SM preamble + IR retention for non-SNO programs
+  (session 2026-05-03).
+  Two changes to `sm_preamble` (`scrip_sm.c`):
+  (1) Added `polyglot_init(prog, polyglot_lang_mask(prog))` after
+      `prescan_defines`.  For pure-SNO programs the lang_mask is just
+      `(1<<LANG_SNO)` and `polyglot_init`'s per-language branches are
+      no-ops — adds no observable behaviour for SNOBOL4.  For Icon/Raku
+      this populates `proc_table[]`; for Prolog this populates
+      `g_pl_pred_table` and seeds `prolog_atom`.
+  (2) Gated `code_free(prog)` and `label_table_clear_stmts()` on
+      `lang_mask == (1<<LANG_SNO)`.  Pure-SNO retains RS-9b's IR-free
+      behaviour (SM_Program is self-contained); mixed or non-SNO programs
+      keep the IR alive because `proc_table[*].proc` and pred-table
+      choice pointers reference EXPR_t* into prog that the BB engine
+      walks at runtime.
+  No driver routing change — `has_non_sno` short-circuit at scrip.c:456
+  remains.  RS-26a is forward-compatible groundwork; the live behaviour
+  for Icon/Prolog still flows through `polyglot_execute` (mode-1).
+  Build clean, smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5,
+  smoke_raku 5/5, unified_broker 49/0, RS-15 isolation gate green.
+
+- [ ] **RS-26b** — Driver routing for single-language Icon/Prolog through SM.
+  Split out from RS-26 after a first attempt revealed a semantic mismatch:
+  `polyglot_execute` for single-language Icon does NOT iterate statements;
+  it picks up `proc_table[main]` and calls `coro_call(main, NULL, 0)`
+  directly.  The SM path *does* iterate statements via `sm_interp_run`
+  walking the SM_Program — for Icon that means each top-level `procedure`
+  definition lowers to `SM_PUSH_EXPR + SM_BB_PUMP + SM_STNO`, and the
+  BB engine drives the proc def *as if it were a generator expression*
+  rather than treating it as a definition with `main()` as the implied
+  entry point.  Test case: `corpus/programs/icon/rung01_paper_mult.icn`
+  produced `1 1 2 2 4 3 6` (extra leading `1`) under the experimental
+  `g_polyglot` short-circuit; the correct output is `1 2 2 4 3 6`.
+  Plan for RS-26b:
+  (a) Either change `sm_lower` so Icon proc definitions emit nothing
+      (proc_table registration already happened in `polyglot_init`) and
+      a synthetic top-level statement emits the call to `main()` —
+      lowering to `SM_PUSH_EXPR(main_call_expr) + SM_BB_PUMP`.  This
+      gives a single `SM_BB_PUMP` for an Icon program, the thinnest
+      possible SM consistent with RS-20.
+  (b) Or add a new `sm_lower` mode that, when `proc_table[main]` exists,
+      synthesises a single SM_BB_PUMP for the main call and skips
+      iterating statements.
+  Same shape applies to Prolog: today Prolog `polyglot_execute` runs
+  directives via `interp_exec_pl_builtin` then dispatches `main/0`.
+  An SM equivalent emits SM_BB_ONCE for each directive, plus a final
+  SM_BB_ONCE for `main/0`.
+  Once RS-26b lands, scrip.c gates the polyglot short-circuit on
+  `g_polyglot` (multi-fence files only); single-language `.icn`/`.pl`
+  flow through `sm_preamble` + `sm_run_with_recovery` and the
+  RS-15 isolation gate becomes substantive for non-SNO frontends.
+  Inventory and exact diff cost are in
+  `docs/RS-26-session-2026-05-03-inventory-findings.md`.
+
+- [ ] **RS-26** — (was: route Icon/Prolog through SM pipeline) split into
+  RS-26a (landed) and RS-26b (open).
 
 - [ ] **RS-22** — Lift Icon expression-level / value-context kinds into
   `coro_value.c`. Scope: kinds that `bb_eval_value` currently delegates to
