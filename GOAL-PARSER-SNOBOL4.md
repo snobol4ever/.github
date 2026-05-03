@@ -438,7 +438,7 @@ expression-position form generates `E_ASSIGN(E_SCAN, repl)`.
   `bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK\nlwr-OK\nupr-OK\ncap-OK\nicase-OK`.
   `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh` PASS=5. ✅
 
-### PARSER-SN-INFRA-7 — `qize.sc` (Qize / SQize / DQize / SqlSQize / Intize / Extize + LEQ + Ucvt) — ⚠️ PARTIAL (INFRA-7a blocks full smoke)
+### PARSER-SN-INFRA-7 — `qize.sc` (Qize / SQize / DQize / SqlSQize / Intize / Extize + LEQ + Ucvt) — ✅ DONE
 
 `Qize` from beauty uses `REM . part` in its final fall-through branch.
 Scrip's `REM` may match zero-length even mid-string, causing infinite
@@ -465,20 +465,17 @@ Depends on INFRA-2 (character constants), INFRA-4 (`*assign`).
       `qize-empty-OK`, `qize-plain-OK`, `sqize-OK`, `dqize-OK`,
       `sqlsqize-OK`, `tdump-quote-OK` (the last verifies the SqlSQize
       integration into `tdump.sc::TValue`).
-- [ ] **BLOCKED on INFRA-7a:** the deferred-`*assign` arm of Qize
-      (control chars `bSlash | bs | ff | nl | cr | tab`) cannot be smoke-tested
-      until inline `*assign(...)` fires correctly inside
-      `(str ? (POS(0) ... . *assign(...)))`.  Without that, Qize on inputs
-      containing control characters silently degrades — the BREAK(QizeWierd)
-      arm catches everything before the control-char arm because the alternation
-      arms with deferred actions never set `part`. Round-trip output is wrong
-      but doesn't crash.
-- **Gate (partial):** `test_scrip.sh` PASS=16 lines (`bar` through
-  `tdump-quote-OK`). `test_smoke_snobol4.sh` PASS=7,
-  `test_smoke_snocone.sh` PASS=5. Full deferred-`*assign` smoke awaits
-  INFRA-7a fix.
+- [x] **Unblocked by INFRA-7a (Session 68):** the deferred-`*assign` arm of
+      Qize (control chars `bSlash | bs | ff | nl | cr | tab`) is now
+      smoke-tested. The INFRA-7a fix added the missing `E_CAPT_COND_ASGN`
+      / `E_CAPT_IMMED_ASGN` cases to `interp_eval_pat` so inline
+      `*assign(...)` registers its callcap correctly, and Qize's
+      control-char arm fires as designed.
+- **Gate (cleared):** `test_scrip.sh` PASS=18 lines (`bar` through
+  `infra7a-qize-tab-OK`). `test_smoke_snobol4.sh` PASS=7,
+  `test_smoke_snocone.sh` PASS=5. ✅
 
-### PARSER-SN-INFRA-7a — fix scrip Snocone bug: inline `*assign(...)` in pattern body does not fire
+### PARSER-SN-INFRA-7a — fix scrip Snocone bug: inline `*assign(...)` in pattern body does not fire — ✅ DONE
 
 **Discovered during INFRA-7 implementation.** When the deferred-call form
 `PAT . *assign(.var, value)` is built **inline** inside a match expression
@@ -504,39 +501,63 @@ result = (str ? (POS(0) PAT . *assign(.var, value)));   // *assign never fires
 E_DEFER(E_FNC assign ...))` — yet only one fires.
 
 **Not a regression from INFRA-5b:** the bug reproduces with no `=` clause
-(so my INFRA-5b path is not on the call stack). It is a pre-existing gap
+(so the INFRA-5b path is not on the call stack). It was a pre-existing gap
 in scrip's Snocone runtime.
 
-**Hypothesis:** during Phase 2 (`bb_build` walking PATND_t to live boxes),
-the assigned-form goes through the path that registers the `E_DEFER(E_FNC)`
-as a callcap entry on the NAM ctx; the inline-form goes through a different
-path (likely `interp_eval_pat` invoked from inside `E_SCAN` / `E_ASSIGN`)
-that produces a structurally-equal `PATND_t` but doesn't register the
-callcap. Phase 4's `NAME_commit()` then has no entry to fire.
-
 **Concrete blocker:** Qize's first alternation arm is six inline
-`*assign(.part, *'<name>')` arms; all six fail. SQize/DQize/SqlSQize have
-no inline `*assign` and work correctly.
+`*assign(.part, *'<name>')` arms; all six failed. SQize/DQize/SqlSQize have
+no inline `*assign` and worked correctly.
 
-- [ ] Reduce to a 4-line `.sc` repro (already drafted in session 67):
-      `str = tab; part='unset'; result = (str ? (POS(0) tab . *assign(.part, *'tab')) = );`
-      pre-fix: `part='unset'`; expected: `part='tab'`.
-- [ ] Bisect: confirm via `--dump-ir` that the inline and assigned IRs
-      have identical `PATND_t` tree shape; then trace `bb_build` /
-      `interp_eval_pat` for the divergent code path that fails to register
-      the callcap.
-- [ ] Root-cause in scrip C runtime (likely `interp_eval_pat` /
-      `bb_build_pat` callcap registration around `E_DEFER(E_FNC)` inside
-      `E_CAPT_COND_ASGN`).
-- [ ] Fix in C source.
-- [ ] Confirm `test_scrip.sh` PASS, `test_smoke_snobol4.sh` PASS=7,
-      `test_smoke_snocone.sh` PASS=5.
-- [ ] Add to `smoke.sc` an inline-`*assign` round-trip plus a Qize round-trip
-      on input containing control chars (the previously-blocked deferred arm).
-- **Gate:** Qize on `'a' tab 'b'` produces `'a' tab 'b'` (currently
-  produces `'a' a 'b'` — `a` literal incorrectly substituted for `tab`).
-  Inline `*assign` fires from inside `(str ? PAT)` matching the assigned-form
-  semantics.
+**Actual root cause (Session 68):** the bug was **not** in `bb_build` or
+`NAME_commit`. The runtime-side pattern-context evaluator
+`runtime/x86/eval_pat.c::interp_eval_pat` had no `case E_CAPT_COND_ASGN`
+(or `E_CAPT_IMMED_ASGN`). When `E_CAPT_COND_ASGN(pat, E_DEFER(E_FNC ...))`
+appeared as a child of an `E_SEQ` inside an `E_SCAN`'s pattern, it fell
+through `interp_eval_pat`'s `default:` branch to `eval_node(e)` — which
+routes to `eval_code.c::E_CAPT_COND_ASGN` (the runtime-side handler).
+That handler only routes E_VAR / E_INDIRECT(E_QLIT) targets — it has **no**
+`E_DEFER(E_FNC)` branch, so the deferred-call target was `eval_node`'d
+to a frozen DT_E and passed to `pat_assign_cond` (XNME) instead of
+`pat_assign_callcap` (XCALLCAP). Result: no callcap registered on the
+NAM ctx, so Phase-4 `NAME_commit` had nothing to fire.
+
+Why probe (assigned-form) worked: when the pattern was bound to `P` first,
+the `E_CAPT_COND_ASGN` was the RHS of `E_ASSIGN` and went through the
+**driver-side** evaluator `interp_eval` (`src/driver/interp_eval.c`
+lines 3209–3306), which has the correct `E_DEFER(E_FNC)` and
+`E_INDIRECT(E_FNC)` routing to `pat_assign_callcap{,_named,_named_imm}`.
+Both evaluators must handle this case symmetrically.
+
+- [x] Reproduce: 4-line `.sc` showing inline form leaves `part='unset'`
+      while assigned form yields `part='fired'`.
+- [x] Bisect: confirmed via `scrip --dump-ir` that the IR is structurally
+      identical in both cases (`E_CAPT_COND_ASGN(E_FNC LEN, E_DEFER(E_FNC
+      assign ...))`); the only difference is whether the node sits directly
+      under `E_ASSIGN` (driver-side `interp_eval`) or inside an `E_SCAN`
+      pattern subexpression (runtime-side `interp_eval_pat`).
+- [x] Root-cause: `interp_eval_pat` in `eval_pat.c` had no `E_CAPT_COND_ASGN`
+      / `E_CAPT_IMMED_ASGN` case — fell through to `default:` →
+      `eval_node` → `eval_code.c E_CAPT_COND_ASGN`, which has no
+      `E_DEFER(E_FNC)` routing.
+- [x] Fix: added `case E_CAPT_COND_ASGN:` and `case E_CAPT_IMMED_ASGN:`
+      to `interp_eval_pat` in `src/runtime/x86/eval_pat.c`. The cases
+      detect E_DEFER(E_FNC) and E_INDIRECT(E_FNC) targets and route to
+      `pat_assign_callcap_named{,_imm}` (TL-2 fast path when all args are
+      plain E_VAR) or `pat_assign_callcap{,_imm}` (mixed args with
+      DT_E-deferred non-E_QLIT args). Non-deferred targets fall through
+      to `eval_node(e)` so the existing eval_code.c logic still handles
+      E_VAR / E_INDIRECT(E_QLIT) targets unchanged. Mirrors driver-side
+      routing in `interp_eval.c` lines 3209–3306.
+- [x] Confirmed `test_scrip.sh` PASS, `test_smoke_snobol4.sh` PASS=7,
+      `test_smoke_snocone.sh` PASS=5. No regressions.
+- [x] Added to `smoke.sc`: inline-`*assign` round-trip
+      (`infra7a-inline-assign-OK`) and Qize-on-control-char round-trip
+      (`infra7a-qize-tab-OK`, verifying `Qize('a' tab 'b')` → `'a' tab 'b'`).
+- **Gate (cleared):** `Qize('a' tab 'b')` produces `'a' tab 'b'` (pre-fix
+  produced `'a' a 'b'` — `a` literal incorrectly substituted for `tab` because
+  the BREAK arm caught everything before the control-char arm). Inline
+  `*assign` now fires from inside `(str ? PAT)` matching the assigned-form
+  semantics. ✅
 
 ### PARSER-SN-INFRA-8 — `trace.sc` (T8Trace, T8Pos — runtime trace emitter)
 
@@ -676,13 +697,14 @@ and that both forms (function-call and infix) produce byte-identical IR.
 INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
 (`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), INFRA-5c (`E_KEYWORD`
 dropped from `E_FNC` arg `E_SEQ`), INFRA-5b (`if (str ? PAT = )` in
-expression position), INFRA-6 (`case.sc`), and INFRA-7 partial
-(`qize.sc` + `tdump.sc::TValue` SqlSQize swap; deferred-`*assign`
-arms blocked) cleared in sessions 62 / 63 / 64 / 65 / 65 / 66 / 66 / 67.
+expression position), INFRA-6 (`case.sc`), INFRA-7 (`qize.sc` +
+`tdump.sc::TValue` SqlSQize swap), and INFRA-7a (inline `*assign(...)`
+in pattern body) cleared in sessions
+62 / 63 / 64 / 65 / 65 / 66 / 66 / 67 / 68.
 Eleven runtime files now in `corpus/programs/scrip/`: `global.sc`
 `tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`
 `tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc`.
-`test_scrip.sh` PASS — 16-line output through `tdump-quote-OK`.
+`test_scrip.sh` PASS — 18-line output through `infra7a-qize-tab-OK`.
 Regressions clean (`test_smoke_snobol4.sh` PASS=7,
 `test_smoke_snocone.sh` PASS=5).
 
@@ -696,17 +718,20 @@ INFRA-7 also swapped the `tdump.sc::TValue` placeholder `"'" v(x) "'"`
 for `SqlSQize(v(x))`. Verified by a string leaf containing `o'clock`
 that renders as `'o''clock'` in the tree dump.
 
-INFRA-7a is the new blocker. Inline `*assign(...)` deferred call inside
-`(str ? (POS(0) PAT . *assign(.var, value)))` does NOT fire when the
-pattern is built inline; works correctly when the pattern is
-pre-assigned to a variable first. Pre-existing scrip Snocone bug
-(reproduces without `=` clause, so unrelated to my INFRA-5b fix).
-Hypothesis: `interp_eval_pat` path for inline patterns fails to
-register `E_DEFER(E_FNC)` callcaps onto the NAM ctx, so Phase 4
-`NAME_commit()` has nothing to fire. Concrete repro and bisect
-plan in the INFRA-7a entry.
+INFRA-7a (Session 68) added the missing `case E_CAPT_COND_ASGN` /
+`case E_CAPT_IMMED_ASGN` to `runtime/x86/eval_pat.c::interp_eval_pat`.
+Root cause was an asymmetry between the driver-side evaluator
+(`src/driver/interp_eval.c E_CAPT_COND_ASGN`, lines 3209–3306, which
+correctly routes `E_DEFER(E_FNC)` and `E_INDIRECT(E_FNC)` targets to
+`pat_assign_callcap{,_named,_named_imm}`) and the runtime-side
+pattern evaluator (which had no case at all for E_CAPT_COND_ASGN —
+fell through `default:` to `eval_node` → `eval_code.c E_CAPT_COND_ASGN`,
+which has no `E_DEFER(E_FNC)` routing and silently built an XNME
+node via `pat_assign_cond`). Fix mirrors the driver-side routing
+into the runtime-side pattern evaluator. Inline-form
+`(str ? (POS(0) LEN(1) . *assign(.part, 'fired')))` now writes
+`part='fired'` matching the assigned-form semantics; `Qize('a' tab 'b')`
+now produces `'a' tab 'b'` (pre-fix produced `'a' a 'b'`).
 
-Next session: **INFRA-7a** (fix inline `*assign` in pattern body).
-Once cleared, complete INFRA-7 smoke surface (Qize on control-char
-inputs, inline-`*assign` round-trip), then continue to **INFRA-8**
-(`trace.sc`).
+Next session: **INFRA-8** (`trace.sc` — T8Trace, T8Pos runtime trace
+emitter, no-op when `doDebug = 0`).
