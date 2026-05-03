@@ -1,14 +1,14 @@
-# GOAL-PAT-ICON.md — PAT-ICON pattern-based frontend in Snocone
+# GOAL-PARSER-ICON.md — PARSER-ICON pattern-based frontend in Snocone
 
 **Repo:** corpus+one4all
 **Branch:** `pat` (one4all only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-ICON.md`. The existing Icon frontend
 (`src/frontend/icon/`) is the in-process oracle.
 
-**Done when:** A Snocone program `pat_icon.sc` reads Icon source, runs
+**Done when:** A Snocone program `parser_icon.sc` reads Icon source, runs
 one `Compiland` PATTERN that builds the canonical IR tree, and for every
 test program in the rung corpus
-`tree_equal(existing_frontend_tree, pat_icon_tree)` returns true. Where
+`tree_equal(existing_frontend_tree, parser_icon_tree)` returns true. Where
 a `.ref` file exists, executing both trees through the IR interpreter
 produces byte-identical output.
 
@@ -16,7 +16,7 @@ produces byte-identical output.
 
 ## Cross-pollination
 
-All six PAT-* parsers share `Compiland`/`Shift`/`Reduce`/`Push`/`Pop`/`Top`/
+All six PARSER-* parsers share `Compiland`/`Shift`/`Reduce`/`Push`/`Pop`/`Top`/
 `tree`/`TDump`/`stack` from `corpus/programs/snocone/demo/beauty/`. Bug
 fixes there benefit all six.
 
@@ -31,8 +31,8 @@ mature features upstream.
 ## Session Setup
 
 ```bash
-# Switch one4all to the shared PAT branch. corpus and .github stay on main.
-( cd /home/claude/one4all && git fetch origin pat 2>/dev/null; git checkout pat 2>/dev/null || git checkout -b pat origin/pat 2>/dev/null || git checkout -b pat )
+# Switch one4all to the shared parser branch. corpus and .github stay on main.
+( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
 
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
@@ -41,7 +41,7 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_icon.sh           # existing frontend baseline
-bash /home/claude/one4all/scripts/test_pat_icon.sh             # NEW — written under PAT-IC-0
+bash /home/claude/one4all/scripts/test_parser_icon.sh             # NEW — written under PARSER-IC-0
 ```
 
 ---
@@ -49,16 +49,16 @@ bash /home/claude/one4all/scripts/test_pat_icon.sh             # NEW — written
 ## Architecture reminder
 
 ```
-scrip --pat-crosscheck pat_icon.sc tiny.icn
+scrip --parser-crosscheck parser_icon.sc tiny.icn
 ```
 
-SCRIP runs `pat_icon.sc` (which `-include`s the shared SC library from
+SCRIP runs `parser_icon.sc` (which `-include`s the shared SC library from
 `corpus/programs/snocone/lib/`) against `tiny.icn` — PAT produces IR tree t2
 via `Compiland`; the existing frontend produces t1. Both compared in memory
 (`tree_equal`), both executed in memory. No subprocesses, no temp files, no
 on-disk diffs.
 
-**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PAT-SN-INFRA-1):
+**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PARSER-SN-INFRA-1):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
@@ -97,52 +97,52 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ## Rung ladder
 
-### PAT-IC-0 — atom — **next**
+### PARSER-IC-0 — atom — **next**
 
-- [ ] Write `corpus/programs/icon/pat/pat_icon.sc` with `Compiland`
+- [ ] Write `corpus/programs/icon/parser/parser_icon.sc` with `Compiland`
       handling one identifier or one integer or one quoted string.
 - [ ] In-process two-frontend crosscheck.
-- [ ] Write `scripts/test_pat_icon.sh`.
+- [ ] Write `scripts/test_parser_icon.sh`.
 - [ ] Test corpus (3 NEW programs): `atom_id.icn`, `atom_int.icn`,
       `atom_str.icn`. `.ref` empty.
 - **Sibling LANG rungs:** IC-1..IC-3 (lexer, atom).
 - **Gate:** PASS=3.
 
-### PAT-IC-1 — assignment (`x := expr`)
+### PARSER-IC-1 — assignment (`x := expr`)
 
 - [ ] `Command` handles Icon's `:=` assignment.
 - [ ] Test corpus: existing 2 + **3 NEW**.
 - **Sibling LANG rungs:** IC-4.
 - **Gate:** PASS=8.
 
-### PAT-IC-2 — write / arith
+### PARSER-IC-2 — write / arith
 
 - [ ] `Command` handles `write(expr)` calls and `+ - * /` operators.
 - [ ] Test corpus: existing + **NEW**.
 - **Sibling LANG rungs:** IC-5..IC-6.
 - **Gate:** PASS≥14.
 
-### PAT-IC-3 — control flow (`if/then/else`, `while/do`)
+### PARSER-IC-3 — control flow (`if/then/else`, `while/do`)
 
 - [ ] `Command` handles Icon's conditionals and loops.
 - [ ] Test corpus: existing + **NEW**.
 - **Sibling LANG rungs:** IC-7..IC-8.
 - **Gate:** PASS≥20.
 
-### PAT-IC-4 — procedure definition
+### PARSER-IC-4 — procedure definition
 
 - [ ] `Command` handles `procedure f(args) ... end`.
 - **Sibling LANG rungs:** IC-9 (current active).
 - **Gate:** PASS≥27.
 
-### PAT-IC-5 — alternation generators (`expr1 | expr2`)
+### PARSER-IC-5 — alternation generators (`expr1 | expr2`)
 
 - [ ] `Command` handles `|` between expressions in generator context.
       Same lowering shape as Rebus; cross-pollinate.
 - **Sibling LANG rungs:** IC-10 (when it lands).
 - **Gate:** PASS≥33.
 
-### PAT-IC-6 — `every/do` and `expr ? scan` (string scanning)
+### PARSER-IC-6 — `every/do` and `expr ? scan` (string scanning)
 
 - [ ] `Command` handles `every expr do s` (generator-driven loop) and
       `expr ? scan_body` (string scanning context — BB_SCAN).
@@ -154,11 +154,11 @@ divergence is in how trees are interpreted, not how they are shaped.
 ## Invariants
 
 - Icon's LANG ladder is at IC-9 active; PAT-IC does not race ahead.
-- Test programs in `corpus/programs/icon/pat/` are owned by PAT-IC.
+- Test programs in `corpus/programs/icon/parser/` are owned by PAT-IC.
 - `.ref` files captured at rung-land time.
 
 ---
 
 ## Watermark
 
-PAT-IC-0 (initial — no .sc parser exists yet).
+PARSER-IC-0 (initial — no .sc parser exists yet).
