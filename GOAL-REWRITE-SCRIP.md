@@ -466,6 +466,11 @@
   Now correctly sequenced after RS-26: once Icon/Prolog actually run
   through SM, the kinds reaching the BB adapters are observable, the
   RS-22 scope is concrete, and the work has a real isolation-gate effect.
+  **RS-22a landed (2026-05-03):** E_ASSIGN (full lvalue set) and E_FNC
+  (user-proc via coro_call + builtins via icn_call_builtin with
+  bb_eval_value arg-eval) ported into coro_value.c. Remaining fallthrough
+  covers scattered expression kinds (E_ADD, E_SUB, E_IDX, E_FIELD read,
+  E_NOT, E_NEG, E_CONCAT, E_RANDOM, etc.) — next sub-rung RS-22b.
 
 - [ ] **RS-23** — Remove the `extern DESCR_t interp_eval(EXPR_t *e);`
   declarations from `coro_value.c` and `coro_stmt.c`. Replace remaining
