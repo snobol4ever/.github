@@ -491,12 +491,31 @@
   isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
   to f3daa24e baseline.
 
-- [ ] **RS-22c** — String + subscript read into `bb_eval_value`.
-  Add cases for E_LCONCAT, E_CAT (string concat), E_IDX (subscript read
-  — table/list/record/string index), E_FIELD (record field read),
-  E_SECTION, E_SECTION_PLUS, E_SECTION_MINUS (string slice).
-  Each recurse: bb_eval_value. Use existing helpers (subscript_get,
-  data_field_ptr). Gate: same as RS-22b.
+- [x] **RS-22c** — String concat + subscript + section + field read into
+  `bb_eval_value` (session 2026-05-03).
+  Three helpers + 7 case arms added to coro_value.c.
+  `bb_str_concat` handles E_CAT (Icon `||`) and E_LCONCAT (Icon `|||`).
+  Numeric operands coerce via `descr_to_str_icn` (round-trip-correct real
+  formatting); GC_malloc'd concat.  Mirrors interp_eval.c:4037 E_LCONCAT
+  case but recurses through bb_eval_value so operand evaluation stays in
+  the BB adapter.  Pattern operands do not occur in BB-engine call sites
+  today (Icon never produces them; SNOBOL4 pattern-context paths never
+  reach bb_eval_value), so the simple coerce-and-concat path is correct.
+  E_IDX dispatches via `subscript_get` / `subscript_get2` (already exposed
+  in snobol4.h).  Three-arg form uses `subscript_get2`.
+  E_FIELD uses `data_field_ptr` (already used by RS-22a's E_ASSIGN E_FIELD
+  lvalue path; not on the isolation gate's IR_SYMS list — small helper,
+  not an IR walker).
+  `bb_section` handles E_SECTION/E_SECTION_PLUS/E_SECTION_MINUS with Icon
+  position normalization (0 → slen+1, negative → slen+1+p).  Three minor
+  variants of bound computation share one helper.
+  Probes pass: `"hello" || " " || "world"` → `hello world`, `1 || 2 || 3`
+  → `123`, `L[1..3]` for L=[10,20,30] → 10/20/30, `"hello"[2:4]` → `el`,
+  `"hello"[1+:3]` → `hel`.
+  one4all @ `aff699b7`.  Build clean.  Gates: smoke_snobol4 7/7,
+  smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0,
+  isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
+  to f3daa24e baseline.
 
 - [ ] **RS-22d** — Unary + misc kinds into `bb_eval_value`.
   Add cases for E_NEG, E_NOT (unary minus / boolean not), E_NONNULL
