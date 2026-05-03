@@ -364,7 +364,7 @@ overlaps Pop's would have produced an equivalent crash.
       workarounds had been introduced. Revert step is a no-op.
 - **Gate (cleared):** `bash scripts/test_scrip.sh` reports PASS. ✅
 
-### PARSER-SN-INFRA-5b — fix scrip Snocone bug: `if (str ? PAT = )` inside while-loop body
+### PARSER-SN-INFRA-5b — fix scrip Snocone bug: `if (str ? PAT = )` inside while-loop body — ✅ DONE
 
 **Discovered during INFRA-2 attempt at `case.sc`.** A statement of the form:
 
@@ -378,21 +378,65 @@ while (~IDENT(str, '')) {
 
 — a conditional that combines a pattern match and replacement-clear (`= `) inside an `if` head, inside a while loop, in some function — corrupts later runtime state in a way that breaks `Pop()` (returns STRING instead of tree). Workaround: split into `if (str ? (POS(0) LEN(1) . character)) { str ? (POS(0) LEN(1)) = ; ... }` (test, then mutate) — two statements instead of one. Probably the same family as INFRA-5a (capture-with-clear pattern bug). Likely in `eval_code.c` `E_PAT_MATCH_REPL` or similar.
 
-- [ ] Reduce to a 6-line `.sc` repro — function with one while loop and one `if (str ? PAT = ) { acc = acc x; }` body.
-- [ ] Bisect: confirm the `=` in the `if` head is the trigger (split form works).
-- [ ] Root-cause in scrip C runtime.
-- [ ] Fix in C source.
-- [ ] Confirm `test_scrip.sh` PASS, `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5.
-- **Gate:** the canonical beauty `icase` from `beauty/case.sc` (using `if (str ? (POS(0) ANY(...) . letter) = )`) loads cleanly alongside `tree.sc`/`stack.sc` and PARSER's Pop still returns a tree. INFRA-6 unblocks.
+**Actual root cause (Session 66):** the bug is **not** state corruption from a
+later call. The Snocone frontend emits `E_ASSIGN(E_SCAN(subj, pat), repl)`
+when a pattern-match-with-replacement appears in expression / condition
+position (if/while head). The `E_ASSIGN` handler in `interp_eval.c` evaluated
+`children[1]` as the replacement value, then examined `children[0]` as a
+lvalue — but `E_SCAN` matched none of the existing lvalue branches
+(`E_VAR`, `E_IDX`, `E_FNC`, `E_SECTION`, `E_INDIRECT`). It fell through every
+branch silently, so the replacement was never applied. Worse, `E_SCAN`'s own
+handler — when entered to evaluate the condition's truth-value — called
+`exec_stmt` with `repl=NULL, has_repl=0`, so the capture's `. var` side-effect
+on the subject was also lost.
 
-### PARSER-SN-INFRA-6 — `case.sc` (lwr / upr / cap / icase)
+The visible symptoms: `ch` empty after the match, `str` unchanged, while-loop
+never terminating (because `str` never gets shorter). The "later state
+corruption" behaviour observed earlier was in fact the test harness reaching
+a timeout / hang, not a memory corruption.
 
-- [ ] **Blocked on INFRA-5b.** Once unblocked: write `scrip/case.sc`
-      verbatim from beauty/case.sc (one-arg `IDENT` allowed if INFRA-5a
-      also landed; otherwise two-arg).
-- [ ] Add to `smoke.sc`: round-trip through `lwr`/`upr`/`cap` and a
-      basic `icase('END')` followed by `'eNd' ? P` membership test.
-- **Gate:** `case-OK` plus all earlier OKs.
+Why probe (`stmt form`: `str ? PAT = ;`) worked: that path IR is
+`(STMT :eq :subj str :pat PAT :repl "")` — handled by the top-level STMT
+executor that already routes `:repl` into `exec_stmt`. Only the
+expression-position form generates `E_ASSIGN(E_SCAN, repl)`.
+
+- [x] Reproduce: 4-line `.sc` (`str = 'AB'; if (str ? (POS(0) LEN(1) . ch) = ) ...`).
+      Pre-fix: `ch=||`, `str=|AB|` (neither capture nor replacement applied).
+- [x] Bisect: confirmed via IR dump (`scrip --dump-ir`) that the if-head form
+      generates `(E_ASSIGN (E_SCAN ...) (E_QLIT ""))` whereas the standalone
+      stmt form generates `(STMT :pat ... :repl "")`.  Statement form works,
+      expression form does not.
+- [x] Root-cause: `interp_eval.c::E_ASSIGN` had no branch for
+      `lv->kind == E_SCAN`; fell through every lvalue branch silently.
+- [x] Fix: added an early `E_SCAN`-as-lvalue branch in `E_ASSIGN` (gated on
+      `!frame_depth && !g_pl_active` to scope to SNOBOL4 / Snocone mode).
+      Extracts subject name and pattern child from the `E_SCAN` node, then
+      calls `exec_stmt(sname, sname?NULL:&subj_d, pat_d, &val, 1)` with the
+      already-evaluated replacement `val`. Returns `val` on success,
+      `FAILDESCR` on failure.
+- [x] Confirmed: `if (str ? (POS(0) LEN(1) . ch) = )` now consumes `str` and
+      captures `ch` correctly. Canonical beauty `icase` (next rung's load test)
+      runs the while loop to termination.
+- [x] `test_scrip.sh` PASS, `test_smoke_snobol4.sh` PASS=7,
+      `test_smoke_snocone.sh` PASS=5. No regressions.
+- **Gate (cleared):** the canonical beauty `icase` from `beauty/case.sc`
+  (using `if (str ? (POS(0) ANY(...) . letter) = )`) loads cleanly alongside
+  `tree.sc`/`stack.sc` and the while loop terminates after consuming `str`.
+  INFRA-6 unblocked. ✅
+
+### PARSER-SN-INFRA-6 — `case.sc` (lwr / upr / cap / icase) — ✅ DONE
+
+- [x] Wrote `scrip/case.sc` verbatim from beauty/case.sc — `lwr`, `upr`, `cap`,
+      `icase`. One-arg `IDENT(str)` form retained (INFRA-5a-safe). Beauty-
+      canonical `if (str ? PAT = )` form retained (INFRA-5b-safe).
+- [x] Added to `smoke.sc`: round-trips through `lwr('AbC')`, `upr('AbC')`,
+      `cap('aBc')`, plus an `icase('End')` followed by `'eNd' ? P` membership test.
+      Four new OK/FAIL lines: `lwr-OK`, `upr-OK`, `cap-OK`, `icase-OK`.
+- [x] `test_scrip.sh` updated to load `case.sc` in the blob and expect the
+      ten-line output.
+- **Gate (cleared):** `test_scrip.sh` PASS — output is
+  `bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK\nlwr-OK\nupr-OK\ncap-OK\nicase-OK`.
+  `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh` PASS=5. ✅
 
 ### PARSER-SN-INFRA-7 — `qize.sc` (Qize / SQize / DQize / SqlSQize / Intize / Extize + LEQ + Ucvt)
 
@@ -549,13 +593,14 @@ and that both forms (function-call and infix) produce byte-identical IR.
 ## Watermark
 
 INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
-(`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), and INFRA-5c
-(`E_KEYWORD` dropped from `E_FNC` arg `E_SEQ`) cleared in sessions
-62 / 63 / 64 / 65 / 65. Nine runtime files now in
+(`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), INFRA-5c (`E_KEYWORD`
+dropped from `E_FNC` arg `E_SEQ`), INFRA-5b (`if (str ? PAT = )` in
+expression position), and INFRA-6 (`case.sc`) cleared in sessions
+62 / 63 / 64 / 65 / 65 / 66 / 66. Ten runtime files now in
 `corpus/programs/scrip/`: `global.sc` `tree.sc` `stack.sc` `counter.sc`
-`ShiftReduce.sc` `semantic.sc` `tdump.sc` `assign.sc` `match.sc`.
+`ShiftReduce.sc` `semantic.sc` `tdump.sc` `assign.sc` `match.sc` `case.sc`.
 `test_scrip.sh` PASS — output
-`bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK`.
+`bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK\nlwr-OK\nupr-OK\ncap-OK\nicase-OK`.
 Regressions clean (`test_smoke_snobol4.sh` PASS=7,
 `test_smoke_snocone.sh` PASS=5).
 
@@ -564,6 +609,16 @@ into module locals to dodge it). With INFRA-5c fixed, tdump.sc was
 reverted to beauty-source-style inlined `ANY(&UCASE &LCASE)` and
 `SPAN(digits &UCASE '_' &LCASE)` patterns.
 
-Next session: **INFRA-5b** (`if (str ? PAT = )` inside while-loop body
-corrupts later runtime state). Independent C-runtime bug; gates
-INFRA-6 (`case.sc`). INFRA-5b does not depend on INFRA-7/INFRA-8.
+INFRA-5b root cause: `interp_eval.c::E_ASSIGN` had no branch for
+`lv->kind == E_SCAN`. Snocone frontend emits `E_ASSIGN(E_SCAN(subj, pat),
+repl)` for if/while-head pattern-match-with-replacement; the old path
+fell through every lvalue branch silently. Fix: added an early E_SCAN
+branch that calls `exec_stmt` with the replacement value, gated on
+SNOBOL4 / Snocone mode (`!frame_depth && !g_pl_active`).
+
+Next session: **INFRA-7** (`qize.sc` — Qize / SQize / DQize / SqlSQize /
+Intize / Extize + LEQ + Ucvt). Verify `REM` semantics first via 3-line
+probe; if `REM . part` infinite-loops at end-of-string, patch to
+`RTAB(0) . part` and mirror the fix back into `beauty/Qize.sc` per the
+source-of-truth rule. Then swap the placeholder `"'" v(x) "'"` in
+`scrip/tdump.sc::TValue` for proper `SqlSQize(v(x))` calls.
