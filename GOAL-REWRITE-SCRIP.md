@@ -108,6 +108,40 @@
   26 files changed. one4all @ `1ab3574e`.
   Build clean. smoke_snobol4 7/7, unified_broker 49/0.
 
-- [ ] **RS-9** — Next rung: TBD. Session ended after RS-8 (rename). Candidates:
-  RS-4 (interp_eval.c reduction, deferred), or a new structural improvement
-  identified from the RS-7 scan. Lon to name direction at session start.
+- [ ] **RS-9** — IR-free SM execution: build SM call frame infrastructure so user
+  function bodies execute via SM opcodes, not IR tree walk. Sub-rungs:
+
+- [x] **RS-9a** — SM-native call frames for user-defined functions (session 2026-05-02).
+  Added `SmCallFrame` (256-deep stack, 64 NV-save slots) to `SM_State` in `sm_interp.h`.
+  `sm_label_named()` stores label names in `SM_LABEL` instr `a[0].s`; `sm_label_pc_lookup()`
+  scans SM_Program for named labels at runtime. `sm_lower` now calls `sm_label_named()`
+  for all labeled statements so function bodies are addressable by name.
+  `SM_CALL` user-function path: resolves name → SM body PC, pushes frame, binds
+  params/locals into NV, jumps. `SM_RETURN`/`SM_FRETURN`/`SM_NRETURN`: restore NV,
+  pop frame, push retval, resume caller PC. Recursive calls (FACT(6)=720) verified.
+  `g_user_call_hook` / `call_user_function` / IR tree walk still active for --ir-run;
+  --sm-run now uses SM frames instead.
+  one4all @ `(pending commit)`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [x] **RS-9b** — Free CODE_t after sm_lower; eliminate remaining EXPR_t* raw pointers in SM
+  (session 2026-05-02).
+  **expr_gc_clone / code_free** (`runtime/common/ir_clone.c/.h`): deep-copies EXPR_t
+  subtrees into GC memory; walks and frees calloc-based STMT_t/EXPR_t trees.
+  **emit_push_expr** helper in `sm_lower.c`: all 7 `SM_PUSH_EXPR` emission sites now
+  call `emit_push_expr(p, e)` which GC-clones the EXPR_t before storing as `a[0].ptr`.
+  **prescan_defines** (`interp_label.c`): `strdup` spec and entry strings before
+  passing to `DEFINE_fn`/`DEFINE_fn_entry` so func registry survives `code_free`.
+  **label_table_build** (`interp_label.c`): `strdup` label name strings.
+  **label_table_clear_stmts** (`interp_label.c`): nulls `stmt` pointers after `code_free`
+  so any residual `label_lookup` returns NULL (no dangling STMT_t* dereference).
+  **g_current_sm_prog** (`sm_prog.c`): global set after `sm_lower` so `_usercall_hook`
+  can detect SM-bodied functions and avoid the APPLY_fn→g_user_call_hook infinite loop.
+  **_usercall_hook** (`interp_hooks.c`): checks `g_current_sm_prog` before calling
+  `APPLY_fn` — if an SM body exists, returns FAILDESCR instead of recursing.
+  `code_free(prog)` inserted in scrip.c after `sm_lower()` in both `--sm-run` and
+  `--jit-run` paths. FACT(6)=720 recursive, DOUBLE(21)=42, multi-fn all verified.
+  one4all @ `(pending commit)`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
+- [ ] **RS-9c** *(future)* — Same SM-frame treatment for --jit-run (sm_codegen path).
+  sm_codegen h_call mirrors sm_interp SM_CALL logic; extend with SmCallFrame push/pop
+  so JIT-compiled code runs function bodies via emitted x86.
