@@ -464,12 +464,32 @@
   unified_broker 49/0, isolation gate green. Icon corpus 18/18.
   one4all @ `f3daa24e`.
 
-- [ ] **RS-22b** — Arithmetic + comparison binops into `bb_eval_value`.
-  Add cases for E_ADD, E_SUB, E_MUL, E_DIV, E_MOD, E_POW,
-  E_LT, E_LE, E_GT, E_GE, E_EQ, E_NE, E_IDENTICAL, E_NOT_IDENTICAL.
-  Each: evaluate children through bb_eval_value, call the matching
-  shared_arith / comparison helper already in coerce.c.
-  Gate: smoke_icon 5/5, unified_broker 49/0, isolation gate green.
+- [x] **RS-22b** — Arithmetic + numeric-comparison binops into `bb_eval_value`
+  (session 2026-05-03).
+  Six arithmetic kinds (E_ADD/E_SUB/E_MUL/E_DIV/E_MOD/E_POW) dispatch through
+  a new static helper `bb_arith` → `shared_arith` (runtime/common/coerce.c).
+  Mirrors sm_interp's SM_ADD..SM_EXP path verbatim: FAIL propagation, DT_S →
+  INT via to_int, DT_SNUL → INT(0), then shared_arith.  One helper instead
+  of six near-identical cases — and the same code path SM mode uses,
+  eliminating any risk of arithmetic divergence between IR-mode and the BB
+  adapter.
+  Six relop kinds (E_LT/E_LE/E_GT/E_GE/E_EQ/E_NE) dispatch through a new
+  static helper `bb_numrel`.  Mirrors NUMREL macro in interp_eval.c —
+  operands coerce to double, compare, succeed → return RIGHT operand (Icon
+  goal-directed convention, lets `2 < (1 to 4)` filter generators), fail
+  → FAILDESCR.  E_IDENTICAL routes through `icn_descr_identical` (already
+  declared in coro_runtime.h).
+  **Discovery during implementation:** there is no E_NOT_IDENTICAL kind.
+  The Icon parser at `icon_parse.c:524` lowers `~===` as
+  `E_NOT(E_IDENTICAL(a, b))`.  So `~===` becomes fully IR-free only after
+  RS-22d lifts E_NOT — until then the E_NOT wrapper still falls through
+  to interp_eval and walks back here for its E_IDENTICAL child.
+  Internal recursion uses `bb_eval_value(child)` throughout — no
+  `interp_eval` calls in any of the new cases.
+  one4all @ `31237376`.  Build clean.  Gates: smoke_snobol4 7/7,
+  smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0,
+  isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
+  to f3daa24e baseline.
 
 - [ ] **RS-22c** — String + subscript read into `bb_eval_value`.
   Add cases for E_LCONCAT, E_CAT (string concat), E_IDX (subscript read
