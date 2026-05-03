@@ -438,7 +438,7 @@ expression-position form generates `E_ASSIGN(E_SCAN, repl)`.
   `bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK\nlwr-OK\nupr-OK\ncap-OK\nicase-OK`.
   `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh` PASS=5. ✅
 
-### PARSER-SN-INFRA-7 — `qize.sc` (Qize / SQize / DQize / SqlSQize / Intize / Extize + LEQ + Ucvt)
+### PARSER-SN-INFRA-7 — `qize.sc` (Qize / SQize / DQize / SqlSQize / Intize / Extize + LEQ + Ucvt) — ⚠️ PARTIAL (INFRA-7a blocks full smoke)
 
 `Qize` from beauty uses `REM . part` in its final fall-through branch.
 Scrip's `REM` may match zero-length even mid-string, causing infinite
@@ -446,16 +446,97 @@ loop. Verify behavior, patch if needed (likely `RTAB(0) . part`), then
 mirror that fix back into beauty/Qize.sc per the source-of-truth rule.
 Depends on INFRA-2 (character constants), INFRA-4 (`*assign`).
 
-- [ ] Verify `REM` semantics in scrip Snocone with a 3-line probe.
-- [ ] If broken, patch `scrip/qize.sc` to use `RTAB(0) . part` in the
-      affected branch. Same patch goes into beauty/Qize.sc per the
-      "source of truth" rule.
-- [ ] Once Qize works, swap the placeholder `"'" v(x) "'"` in
+- [x] Verify `REM` semantics in scrip Snocone with a 3-line probe.
+      `str ? (POS(0) REM . part) = ` correctly clears `str` and captures `part`.
+      On empty `str`, `REM` matches zero-length (part=''), but the `if (IDENT(str)) return;`
+      guard at the top of every Qize-style while body short-circuits *before* REM
+      can re-fire — so the loop terminates correctly. **No patch needed.**
+      `beauty/Qize.sc` is untouched.
+- [x] **No-op:** `RTAB(0)` patch not required (REM works as expected here).
+- [x] Once Qize works, swap the placeholder `"'" v(x) "'"` in
       `scrip/tdump.sc::TValue` (added under INFRA-3) for the proper
-      `SqlSQize(v(x))` calls per beauty.
-- [ ] Add to `smoke.sc`: `Qize('hi')` round-trip and `Qize` of a string
-      containing a backslash.
-- **Gate:** `qize-OK` plus all earlier OKs.
+      `SqlSQize(v(x))` calls per beauty. **Done** — strings, characters,
+      and datetimes now SQL-escape via `SqlSQize`.
+- [x] Wrote `scrip/qize.sc` verbatim from `beauty/Qize.sc`. All five
+      functions (Qize, SQize, DQize, SqlSQize, Intize, Extize) plus
+      LEQ and Ucvt helpers ported. QizeWierd top-level binding lifted
+      to module scope.
+- [x] Added six smoke lines exercising the **non-deferred-`*assign`** surface:
+      `qize-empty-OK`, `qize-plain-OK`, `sqize-OK`, `dqize-OK`,
+      `sqlsqize-OK`, `tdump-quote-OK` (the last verifies the SqlSQize
+      integration into `tdump.sc::TValue`).
+- [ ] **BLOCKED on INFRA-7a:** the deferred-`*assign` arm of Qize
+      (control chars `bSlash | bs | ff | nl | cr | tab`) cannot be smoke-tested
+      until inline `*assign(...)` fires correctly inside
+      `(str ? (POS(0) ... . *assign(...)))`.  Without that, Qize on inputs
+      containing control characters silently degrades — the BREAK(QizeWierd)
+      arm catches everything before the control-char arm because the alternation
+      arms with deferred actions never set `part`. Round-trip output is wrong
+      but doesn't crash.
+- **Gate (partial):** `test_scrip.sh` PASS=16 lines (`bar` through
+  `tdump-quote-OK`). `test_smoke_snobol4.sh` PASS=7,
+  `test_smoke_snocone.sh` PASS=5. Full deferred-`*assign` smoke awaits
+  INFRA-7a fix.
+
+### PARSER-SN-INFRA-7a — fix scrip Snocone bug: inline `*assign(...)` in pattern body does not fire
+
+**Discovered during INFRA-7 implementation.** When the deferred-call form
+`PAT . *assign(.var, value)` is built **inline** inside a match expression
+`(str ? (POS(0) PAT . *assign(.var, value)))`, the pattern matches and the
+subject is consumed correctly, but the deferred call is **never invoked** —
+`var` retains its prior value.
+
+The same pattern, **assigned to a variable first** and then matched, fires
+correctly:
+
+```
+P = PAT . *assign(.var, value);   // works
+result = (str ? (POS(0) P));      // *assign fires during Phase 4 commit
+```
+
+vs. the broken inline form:
+
+```
+result = (str ? (POS(0) PAT . *assign(.var, value)));   // *assign never fires
+```
+
+**IR is structurally identical** in both cases — `E_CAPT_COND_ASGN(PAT,
+E_DEFER(E_FNC assign ...))` — yet only one fires.
+
+**Not a regression from INFRA-5b:** the bug reproduces with no `=` clause
+(so my INFRA-5b path is not on the call stack). It is a pre-existing gap
+in scrip's Snocone runtime.
+
+**Hypothesis:** during Phase 2 (`bb_build` walking PATND_t to live boxes),
+the assigned-form goes through the path that registers the `E_DEFER(E_FNC)`
+as a callcap entry on the NAM ctx; the inline-form goes through a different
+path (likely `interp_eval_pat` invoked from inside `E_SCAN` / `E_ASSIGN`)
+that produces a structurally-equal `PATND_t` but doesn't register the
+callcap. Phase 4's `NAME_commit()` then has no entry to fire.
+
+**Concrete blocker:** Qize's first alternation arm is six inline
+`*assign(.part, *'<name>')` arms; all six fail. SQize/DQize/SqlSQize have
+no inline `*assign` and work correctly.
+
+- [ ] Reduce to a 4-line `.sc` repro (already drafted in session 67):
+      `str = tab; part='unset'; result = (str ? (POS(0) tab . *assign(.part, *'tab')) = );`
+      pre-fix: `part='unset'`; expected: `part='tab'`.
+- [ ] Bisect: confirm via `--dump-ir` that the inline and assigned IRs
+      have identical `PATND_t` tree shape; then trace `bb_build` /
+      `interp_eval_pat` for the divergent code path that fails to register
+      the callcap.
+- [ ] Root-cause in scrip C runtime (likely `interp_eval_pat` /
+      `bb_build_pat` callcap registration around `E_DEFER(E_FNC)` inside
+      `E_CAPT_COND_ASGN`).
+- [ ] Fix in C source.
+- [ ] Confirm `test_scrip.sh` PASS, `test_smoke_snobol4.sh` PASS=7,
+      `test_smoke_snocone.sh` PASS=5.
+- [ ] Add to `smoke.sc` an inline-`*assign` round-trip plus a Qize round-trip
+      on input containing control chars (the previously-blocked deferred arm).
+- **Gate:** Qize on `'a' tab 'b'` produces `'a' tab 'b'` (currently
+  produces `'a' a 'b'` — `a` literal incorrectly substituted for `tab`).
+  Inline `*assign` fires from inside `(str ? PAT)` matching the assigned-form
+  semantics.
 
 ### PARSER-SN-INFRA-8 — `trace.sc` (T8Trace, T8Pos — runtime trace emitter)
 
@@ -595,30 +676,37 @@ and that both forms (function-call and infix) produce byte-identical IR.
 INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
 (`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), INFRA-5c (`E_KEYWORD`
 dropped from `E_FNC` arg `E_SEQ`), INFRA-5b (`if (str ? PAT = )` in
-expression position), and INFRA-6 (`case.sc`) cleared in sessions
-62 / 63 / 64 / 65 / 65 / 66 / 66. Ten runtime files now in
-`corpus/programs/scrip/`: `global.sc` `tree.sc` `stack.sc` `counter.sc`
-`ShiftReduce.sc` `semantic.sc` `tdump.sc` `assign.sc` `match.sc` `case.sc`.
-`test_scrip.sh` PASS — output
-`bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK\nlwr-OK\nupr-OK\ncap-OK\nicase-OK`.
+expression position), INFRA-6 (`case.sc`), and INFRA-7 partial
+(`qize.sc` + `tdump.sc::TValue` SqlSQize swap; deferred-`*assign`
+arms blocked) cleared in sessions 62 / 63 / 64 / 65 / 65 / 66 / 66 / 67.
+Eleven runtime files now in `corpus/programs/scrip/`: `global.sc`
+`tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`
+`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc`.
+`test_scrip.sh` PASS — 16-line output through `tdump-quote-OK`.
 Regressions clean (`test_smoke_snobol4.sh` PASS=7,
 `test_smoke_snocone.sh` PASS=5).
 
-INFRA-5c surfaced via INFRA-3 (tdump.sc precomputed identifier classes
-into module locals to dodge it). With INFRA-5c fixed, tdump.sc was
-reverted to beauty-source-style inlined `ANY(&UCASE &LCASE)` and
-`SPAN(digits &UCASE '_' &LCASE)` patterns.
+INFRA-7 verified `REM` semantics with a 3-line probe and a Qize-shape
+loop probe: `REM . part` matches zero-length on empty subject (part=''),
+but the `if (IDENT(str)) return;` guard at the top of every Qize while
+body terminates the loop before REM can re-fire. **No `RTAB(0)` patch
+needed** — `beauty/Qize.sc` is untouched.
 
-INFRA-5b root cause: `interp_eval.c::E_ASSIGN` had no branch for
-`lv->kind == E_SCAN`. Snocone frontend emits `E_ASSIGN(E_SCAN(subj, pat),
-repl)` for if/while-head pattern-match-with-replacement; the old path
-fell through every lvalue branch silently. Fix: added an early E_SCAN
-branch that calls `exec_stmt` with the replacement value, gated on
-SNOBOL4 / Snocone mode (`!frame_depth && !g_pl_active`).
+INFRA-7 also swapped the `tdump.sc::TValue` placeholder `"'" v(x) "'"`
+for `SqlSQize(v(x))`. Verified by a string leaf containing `o'clock`
+that renders as `'o''clock'` in the tree dump.
 
-Next session: **INFRA-7** (`qize.sc` — Qize / SQize / DQize / SqlSQize /
-Intize / Extize + LEQ + Ucvt). Verify `REM` semantics first via 3-line
-probe; if `REM . part` infinite-loops at end-of-string, patch to
-`RTAB(0) . part` and mirror the fix back into `beauty/Qize.sc` per the
-source-of-truth rule. Then swap the placeholder `"'" v(x) "'"` in
-`scrip/tdump.sc::TValue` for proper `SqlSQize(v(x))` calls.
+INFRA-7a is the new blocker. Inline `*assign(...)` deferred call inside
+`(str ? (POS(0) PAT . *assign(.var, value)))` does NOT fire when the
+pattern is built inline; works correctly when the pattern is
+pre-assigned to a variable first. Pre-existing scrip Snocone bug
+(reproduces without `=` clause, so unrelated to my INFRA-5b fix).
+Hypothesis: `interp_eval_pat` path for inline patterns fails to
+register `E_DEFER(E_FNC)` callcaps onto the NAM ctx, so Phase 4
+`NAME_commit()` has nothing to fire. Concrete repro and bisect
+plan in the INFRA-7a entry.
+
+Next session: **INFRA-7a** (fix inline `*assign` in pattern body).
+Once cleared, complete INFRA-7 smoke surface (Qize on control-char
+inputs, inline-`*assign` round-trip), then continue to **INFRA-8**
+(`trace.sc`).
