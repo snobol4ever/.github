@@ -559,19 +559,31 @@ Both evaluators must handle this case symmetrically.
   `*assign` now fires from inside `(str ? PAT)` matching the assigned-form
   semantics. ✅
 
-### PARSER-SN-INFRA-8 — `trace.sc` (T8Trace, T8Pos — runtime trace emitter)
+### PARSER-SN-INFRA-8 — `trace.sc` (T8Trace, T8Pos — runtime trace emitter) — ✅ DONE
 
 Verbatim from beauty/trace.sc. Reads `doDebug`, `xTrace`, `t8Map`,
 `strOfs`, `t8Max`, `t8MaxLast`, `t8MaxLine` — all are caller-set
 globals; the trace functions are no-ops when `doDebug = 0` (default).
 
-- [ ] Write `scrip/trace.sc` verbatim from beauty/trace.sc.
-- [ ] Initialize `doDebug = 0`, `xTrace = 0`, `t8Max = 0`, `t8MaxLast = 0`,
+- [x] Wrote `scrip/trace.sc` verbatim from beauty/trace.sc — `T8Trace`
+      and `T8Pos`, including the top-level `t8MaxLast = 0;` reset that
+      beauty performs at module load.
+- [x] Initialized `doDebug = 0`, `xTrace = 0`, `t8Max = 0`, `t8MaxLast = 0`,
       `t8Map = TABLE()`, `strOfs = 0` in `scrip/global.sc` so a runtime
       with trace.sc loaded but no driver-set values is silent.
-- [ ] Add to `smoke.sc`: a call to `T8Trace(0, 'unused', 0)` — must
-      return `.dummy` and emit nothing because `doDebug = 0`.
-- **Gate:** `trace-silent-OK` plus all earlier OKs.
+- [x] Added to `smoke.sc`: three calls to `T8Trace` covering the three
+      doDebug-guarded branches (`doDebug = 0` short-circuit; `'?'`-prefix
+      input; plain input).  All three must produce no OUTPUT lines.
+      A bare `OUTPUT = 'trace-silent-OK';` follows; the EXPECTED-vs-actual
+      string match in `test_scrip.sh` would fail if T8Trace emitted any
+      stray line between earlier OKs and `trace-silent-OK`.
+- [x] Negative-control verified: with `doDebug = 2`, `t8Map[100] = 700`,
+      `T8Trace(1, 'hello', 150)` correctly emits
+      `(  700,  51,   700,  51)  hello`.  Confirms silent default is
+      genuine silence, not a load failure.
+- **Gate (cleared):** `test_scrip.sh` PASS=19 lines through
+  `trace-silent-OK`. `test_smoke_snobol4.sh` PASS=7,
+  `test_smoke_snocone.sh` PASS=5. ✅
 
 ### PARSER-SN-INFRA-9 — `omega.sc` (TZ / TY / TW / TX / TV — pattern-construction tracing)
 
@@ -698,13 +710,13 @@ INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
 (`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), INFRA-5c (`E_KEYWORD`
 dropped from `E_FNC` arg `E_SEQ`), INFRA-5b (`if (str ? PAT = )` in
 expression position), INFRA-6 (`case.sc`), INFRA-7 (`qize.sc` +
-`tdump.sc::TValue` SqlSQize swap), and INFRA-7a (inline `*assign(...)`
-in pattern body) cleared in sessions
-62 / 63 / 64 / 65 / 65 / 66 / 66 / 67 / 68.
-Eleven runtime files now in `corpus/programs/scrip/`: `global.sc`
+`tdump.sc::TValue` SqlSQize swap), INFRA-7a (inline `*assign(...)`
+in pattern body), and INFRA-8 (`trace.sc`) cleared in sessions
+62 / 63 / 64 / 65 / 65 / 66 / 66 / 67 / 68 / 68.
+Twelve runtime files now in `corpus/programs/scrip/`: `global.sc`
 `tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`
-`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc`.
-`test_scrip.sh` PASS — 18-line output through `infra7a-qize-tab-OK`.
+`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc` `trace.sc`.
+`test_scrip.sh` PASS — 19-line output through `trace-silent-OK`.
 Regressions clean (`test_smoke_snobol4.sh` PASS=7,
 `test_smoke_snocone.sh` PASS=5).
 
@@ -733,5 +745,14 @@ into the runtime-side pattern evaluator. Inline-form
 `part='fired'` matching the assigned-form semantics; `Qize('a' tab 'b')`
 now produces `'a' tab 'b'` (pre-fix produced `'a' a 'b'`).
 
-Next session: **INFRA-8** (`trace.sc` — T8Trace, T8Pos runtime trace
-emitter, no-op when `doDebug = 0`).
+INFRA-8 (Session 68) ported `trace.sc` verbatim from beauty/trace.sc
+and added the trace globals (`doDebug`, `xTrace`, `t8Max`, `t8MaxLast`,
+`t8Map`, `strOfs`) to `global.sc`. Default `doDebug = 0` makes T8Trace
+silent. Negative control with `doDebug = 2`, `t8Map[100] = 700`
+correctly emits `(  700,  51,   700,  51)  hello` — confirming the
+function is wired and the silent default is real silence, not a
+load failure.
+
+Next session: **INFRA-9** (`omega.sc` — TZ/TY/TW/TX/TV pattern-
+construction tracing wrappers; depends on INFRA-4, INFRA-7, INFRA-8;
+all dependencies green).
