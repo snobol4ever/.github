@@ -357,18 +357,19 @@ through to the normal bracketed render, producing `(args x y z)` —
 wrong for languages whose canonical dump form is `:args x y z` or
 `:args (x y z)`.
 
-- [ ] Probe: capture `--dump-parse` output for a SNOBOL4 program
+- [x] Probe: capture `--dump-parse` output for a SNOBOL4 program
       with multi-arg construct (e.g. `DEFINE('f(a,b,c)')`) — see
       whether scrip emits `:args (a b c)` or `:args a b c` or some
-      other shape.  Pick the convention that matches the most
-      languages.
-- [ ] Extend the `:`-prefix branch in TLump for n>=2 children.
-      Probable shape: render as `:role (child1 child2 ...)` — the
-      child list parenthesized, matching --dump-parse style.  If a
-      sibling session's language wants un-parenthesized, that becomes
-      a sibling FW rung.
-- [ ] Add a smoke line to `test_scrip.sh` exercising
-      `tree(':args', '', 3, ...)` round-trip.
+      other shape. Result: scrip uses plain `E_FNC`/`E_SEQ` nodes
+      for multi-arg, not `:role` wrappers. Convention picked:
+      `:role (child1 child2 ...)` — parenthesized child list.
+      Also discovered: `tree()` lowercase stores c-arg raw (not in
+      array); `Tree()` uppercase wraps in ARRAY. TLump requires `Tree()`.
+- [x] Extend the `:`-prefix branch in TLump for n>=2 children.
+      Renders as `:role (child1 child2 ...)`. Each child staged in
+      `sub` local to avoid function-name-slot wart (FW-5 pattern).
+- [x] Add a smoke line to `test_scrip.sh` exercising
+      `Tree(':args', '', 3, ...)` round-trip → `fw2-multichild-role-OK`.
 - **Sibling LANG sessions blocked by this gap:** PARSER-IC (Icon
   procedure args), PARSER-PR (Prolog goal args), PARSER-RK (Raku
   signature args).  Surfaces in PARSER-SN-6 (function definition).
@@ -641,11 +642,11 @@ Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
 `assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
 `assign_mixed.sno`.
 
-Next step: **PARSER-SN-FW-2** (multi-child role-slot wrapper — blocks IC/PR/RK).
+Next step: **PARSER-SN-FW-3** (Compiland-spine whole-program driver loop — blocks SC/RK/PR).
 
 FW ladder status:
 - FW-1 ✅ generalize TValue for non-scrip-IR leaf kinds (unblocks all 5)
-- FW-2 ⏳ multi-child role-slot wrapper (blocks IC/PR/RK)
+- FW-2 ✅ multi-child role-slot wrapper (unblocks IC/PR/RK)
 - FW-3 ⏳ Compiland-spine driver loop (blocks SC/RK/PR)
 - FW-4 ⏳ scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have)
 - FW-5 ⏳ root-cause TLump function-name slot wart (defensive)
