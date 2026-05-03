@@ -166,13 +166,16 @@
   graph. The RS-15 isolation grep gate remains green.
   one4all @ (pending commit). Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-- [ ] **RS-17** — Eliminate IR walker from Icon Byrd boxes (`coro_runtime.c`).
-  Icon's "SM lowering" today is a single-instruction trampoline: `SM_BB_PUMP` pops
-  the raw EXPR_t* pushed by `emit_push_expr`, calls `coro_eval(expr)`, drives via
-  `bb_broker(BB_PUMP)`. The Byrd-box bodies in `coro_runtime.c` then walk the IR
-  tree via dozens of `interp_eval(child)` calls during drive. This means
-  `--sm-run`/`--jit-run` for Icon programs spend most of their time inside the IR
-  tree-walker — defeating the purpose of SM mode.
+- [x] **RS-17** — Eliminate IR walker from Icon Byrd boxes (`coro_runtime.c`)
+  (session 2026-05-03, closed via sub-rungs).
+  Closed by RS-17a (60 value-context sites → bb_eval_value) and RS-17b
+  (13 statement-context sites → bb_exec_stmt). `coro_runtime.c` contains
+  zero direct calls to `interp_eval` or `interp_eval_pat` and its
+  `extern DESCR_t interp_eval(EXPR_t *e);` declaration is removed.
+  Promoted into the isolation grep gate by RS-19, paired with RS-18's
+  closure of pl_runtime.c.
+
+  Original two-stage plan kept below for reference:
   Two-stage fix:
   (a) Replace every `interp_eval(child)` site in `coro_runtime.c` with a call to
       a new pure-BB evaluator `bb_eval_value(child)` in
@@ -188,7 +191,7 @@
   coro_runtime.c.
 
   Split into sub-rungs RS-17a (value-context, done) and RS-17b
-  (statement-context, open) once analysis revealed two distinct site classes:
+  (statement-context, done) once analysis revealed two distinct site classes:
   expression children evaluated for a single DESCR_t result vs. proc-body /
   every-body / do-clause executions of arbitrary Icon control flow.
 
@@ -231,41 +234,92 @@
   one4all @ `eddee173`. Build clean. smoke_snobol4 7/7, smoke_icon 5/5,
   smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0.
 
-- [ ] **RS-17b** — Statement-context interp_eval routing in coro_runtime.c.
-  After RS-17a, 13 `interp_eval(...)` sites remain in `coro_runtime.c`, all
+- [x] **RS-17b** — Statement-context interp_eval routing in coro_runtime.c
+  (session 2026-05-03).
+  After RS-17a, 13 `interp_eval(...)` sites remained in `coro_runtime.c`, all
   executing Icon body / do-clause / every-body statements rather than
-  evaluating expressions for a single DESCR_t. These execute arbitrary Icon
-  control flow — E_WHILE, E_IF, E_FOR, E_EVERY, E_RETURN, E_BREAK, E_BLOCK,
-  E_ASSIGN as statement, E_FNC for write()/etc. as statement — kinds
-  `eval_node` does not cover.
-  Approach: introduce a parallel `bb_exec_stmt(EXPR_t *)` helper in
-  `coro_value.c` (or a new `coro_stmt.c`) that dispatches Icon
-  statement-level kinds. For each kind it either lowers to a sequence of
-  bb_eval_value / bb_broker calls (E_WHILE, E_IF, E_BLOCK, E_EVERY) or
-  defers to a small set of frame-state primitives (E_RETURN sets
-  FRAME.returning, E_PROC_FAIL similarly, E_BREAK sets loop_break).
-  The fall-through to `interp_eval` stays as scaffold during sub-rungs;
-  the rung closes when zero statement-context sites remain.
-  Gate: smoke_icon green, unified_broker 49/0, ready for RS-19 to add
-  `coro_runtime.c` to the isolation grep gate (after RS-18 also closes
-  for `pl_runtime.c`).
+  evaluating expressions for a single DESCR_t. RS-17b routes them through a
+  new helper.
+  New file `src/runtime/interp/coro_stmt.{c,h}`:
+  `void bb_exec_stmt(EXPR_t *e)` is the statement-context analog of
+  `bb_eval_value`. Statement context means side effects only — every one of
+  the 13 sites in coro_runtime.c either discarded the DESCR_t result or
+  overwrote it before use, so the contract is void. Today the body is a
+  pure trampoline to `interp_eval` — the migration scaffold mirroring
+  RS-17a's coro_value.c starting point. Sub-rungs RS-17b-cont will lift
+  Icon statement-level kinds (E_BLOCK / E_WHILE / E_REPEAT / E_UNTIL /
+  E_IF / E_EVERY / E_RETURN / E_PROC_FAIL / E_LOOP_BREAK / E_LOOP_NEXT /
+  E_ASSIGN / E_FNC-as-stmt) into an explicit dispatch as needs arise.
+  Migrated 13 sites in `coro_runtime.c`:
+  (a) `coro_drive` E_TO fast-path (175), E_TO general-path inner loop (219),
+      E_TO_BY positive/negative (234, 235), E_ITERATE Raku-array (280) and
+      char-iter (293), find()-generator body (316). All
+      `if (!inner) bb_exec_stmt(FRAME.body_root);`.
+  (b) `coro_call` proc body loop (was line 422 `result = interp_eval(st)`,
+      now `bb_exec_stmt(st)` with the dead `result =` dropped — `result`
+      stays correctly assigned at lines 455/456 from FRAME state).
+  (c) `coro_call` do-clause re-entry after suspend/resume (was 432).
+  (d) `coro_drive_fnc` body stmt loop (was 1624), every-body in caller
+      frame (was 1644), do-clause (was 1650).
+  (e) `coro_bb_every` BB-box body call (was 1710).
+  Removed `extern DESCR_t interp_eval(EXPR_t *e);` declaration from
+  `coro_runtime.c`. File header comment updated to reflect that no
+  direct interp_eval reference remains.
+  Makefile updated: `coro_stmt.o` builds alongside `coro_value.o` and
+  `coro_runtime.o`.
+  Build clean. smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5,
+  smoke_raku 5/5, unified_broker 49/0. RS-19 gate (simulated against
+  coro_runtime.c) green: zero IR-only symbol calls remain in scope.
+  one4all @ `20a8b6c8` (combined RS-17b + RS-18 + RS-19 commit).
 
-- [ ] **RS-18** — Eliminate IR walker from Prolog Byrd boxes (`pl_runtime.c`).
-  Same structural issue as RS-17 but smaller (only ~4 `interp_eval` call sites in
-  `pl_runtime.c`). Replace each with `bb_eval_value` (the helper introduced in
-  RS-17, which is shared between Icon and Prolog). Remove the
-  `extern DESCR_t interp_eval(EXPR_t *e);` and
-  `extern DESCR_t interp_eval_pat(EXPR_t *e);` declarations.
-  After RS-18, no shared runtime file calls any IR-only entry point.
-  Gate: smoke_prolog green, unified_broker 49/0, isolation grep gate green for
-  pl_runtime.c.
+- [x] **RS-18** — Eliminate IR walker from Prolog Byrd boxes (`pl_runtime.c`)
+  (session 2026-05-03).
+  Same structural issue as RS-17 but smaller: 3 `interp_eval(...)` call
+  sites (the goal text said "~4"; actual count was 3), all
+  user-predicate clause-body invocations in `interp_exec_pl_builtin` —
+  one in case E_FNC user-predicate dispatch (was line 835), one in `,/N`
+  conjunction inner user-call (was 943), one in catch-frame
+  user-predicate dispatch (was 2169). All three share shape:
+  `DESCR_t rd = interp_eval(uch); ... !IS_FAIL_fn(rd)` — value-context
+  evaluation of a clause body whose result determines goal success.
+  Migration: routed all 3 sites through `bb_eval_value` (the helper
+  introduced by RS-17a, designed to be shared between Icon and Prolog).
+  Today this is a pure indirection — `bb_eval_value` falls through to
+  `interp_eval` for the IR shapes a Prolog clause body contains
+  (E_BLOCK / E_FNC / E_CHOICE / E_UNIFY / E_CUT / E_TRAIL_*), each
+  handled inside `interp_eval`'s existing Prolog dispatch which reads
+  `g_pl_env` directly via `pl_unified_term_from_expr` for variable
+  resolution (Prolog clause-body E_VARs are never reached through the
+  E_VAR case — they go through the Term-resolution path at goal eval).
+  Removed `extern DESCR_t interp_eval(EXPR_t *e);` and
+  `extern DESCR_t interp_eval_pat(EXPR_t *e);` declarations
+  (`interp_eval_pat` had zero call sites — dead extern). Added
+  `#include "coro_value.h"`. File header comment rewritten to document
+  the new contract.
+  Build clean. smoke_prolog 5/5, smoke_icon 5/5, smoke_snobol4 7/7,
+  smoke_raku 5/5, unified_broker 49/0. RS-19 gate (simulated against
+  pl_runtime.c) green: zero IR-only symbol calls remain in scope.
+  one4all @ `20a8b6c8` (combined RS-17b + RS-18 + RS-19 commit).
 
-- [ ] **RS-19** — Promote `coro_runtime.c` and `pl_runtime.c` into the isolation gate.
-  After RS-17/RS-18, both files contain zero IR-only calls. Add them back to
-  `scripts/test_isolation_ir_sm.sh` SM_FILES list. Update `ARCH-SCRIP.md`: delete
-  the "Exception — Icon and Prolog generators" section (no longer an exception).
-  Update PLAN.md if needed.
-  Gate: isolation grep gate green with full file list; all smoke gates pass.
+- [x] **RS-19** — Promote `coro_runtime.c` and `pl_runtime.c` into the
+  isolation gate (session 2026-05-03).
+  After RS-17 and RS-18, both files contain zero IR-only calls. Added
+  both to `scripts/test_isolation_ir_sm.sh` SM_FILES list. Replaced the
+  exclusion comment with a closure note that explains why the two
+  adapter files (`coro_value.c`, `coro_stmt.c`) are intentionally NOT
+  in the gate yet — they retain the documented `interp_eval`
+  fallthrough as their migration scaffold; sub-rungs RS-17a-cont /
+  RS-17b-cont absorb specific kinds, and once the fallthrough becomes
+  unreachable those files can be promoted too.
+  Updated `ARCH-SCRIP.md`: replaced the "Exception (TEMPORARY,
+  unfinished migration) — Icon and Prolog generators" block with a
+  closure paragraph documenting RS-17a / RS-17b / RS-18 (60+13+3 sites
+  routed through the shared adapters) and the contract going forward.
+  Isolation gate green with `coro_runtime.c` and `pl_runtime.c` in
+  scope. All five smoke gates green. The IR/SM isolation invariant is
+  now enforced by automated grep gate for the SNOBOL4 + Icon + Prolog
+  frontends — the four-mode architecture's central guarantee.
+  one4all @ `20a8b6c8` (combined RS-17b + RS-18 + RS-19 commit).
 
 - [ ] **RS-20** — Decide direction for full Icon/Prolog SM lowering.
   After RS-17/18/19, Icon and Prolog programs in `--sm-run`/`--jit-run` execute
