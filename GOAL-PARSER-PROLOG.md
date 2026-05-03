@@ -193,6 +193,53 @@ must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
 - **Sibling LANG rungs:** PR-10..PR-12.
 - **Gate:** PASS≥24.
 
+#### PR-3 attempt notes (session ending 2026-05-03 — emergency handoff)
+
+A PR-3 attempt was started in this session but did NOT land. Notes
+recorded here so the next session does not re-derive everything.
+
+**Oracle IR shapes verified** (probed with `--dump-ir`):
+
+| Source | IR shape |
+|---|---|
+| `foo :- a, b.` | `(E_CLAUSE foo/0 (E_FNC a) (E_FNC b))` — top-level `,` flattened, each conjunct is a separate E_CLAUSE child |
+| `foo :- a ; b.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC a) (E_FNC b)))` — `;` is a single E_CLAUSE child wrapping a flat n-ary `(E_FNC ;)` |
+| `foo :- a, b ; c.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC , (E_FNC a) (E_FNC b)) (E_FNC c)))` — `,` binds tighter; nested `,` is preserved as `(E_FNC ,)` wrapper |
+| `foo :- a ; b ; c.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC a) (E_FNC b) (E_FNC c)))` — flat n-ary `;` (right-spine flattened) |
+| `foo :- a, b, c, d.` | `(E_CLAUSE foo/0 (E_FNC a) (E_FNC b) (E_FNC c) (E_FNC d))` — top-level `,` flattens to N children |
+
+**Three flattening rules** all match the existing C frontend:
+1. **Top-level `,` in body**: flattened away. Mirrors `prolog_parse.c::flatten_conj` storing `cl->body[]` as a flat array.
+2. **Inner `,` (nested inside `;` or in non-top position)**: preserved as flat n-ary `(E_FNC ,)`. Mirrors `prolog_lower.c` lines 175ff right-spine flattening of `,`/2 chains.
+3. **`;` always**: preserved as flat n-ary `(E_FNC ;)`. Mirrors `prolog_lower.c` lines 208ff right-spine flattening of `;`/2 chains.
+
+**Precedence**: `,` (1000) binds tighter than `;` (1100). Grammar:
+```
+body := disj
+disj := conj (';' ws_opt conj)*
+conj := simple_goal (',' ws_opt simple_goal)*
+simple_goal := tk_atom '(' args ')'  |  tk_atom
+```
+
+**Snocone gotcha discovered**: boolean AND in `if (...)` is **juxtaposition**, NOT `&` or `&&`. Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))` not `if (IDENT(...) & IDENT(...))`.
+
+**Out-of-scope** (defer to PR-3.5 or later):
+- Parenthesized body subterms `(a, b) ; c` — explicit grouping.
+- Nested compound args `foo(bar(a)).`
+- Same-functor multi-clause `E_CHOICE` merging.
+- Anonymous `_` variables.
+- `is`/arithmetic, directives, cut, negation.
+
+**What went wrong in this session's attempt**: I tried to refactor `build_clause` AND add the new conj/disj non-terminals in one big change. Result was a corrupted `parser_prolog.sc` (orphaned function-tail code from overlapping `str_replace` edits) that broke PR-1 fixtures by duplicating the last head argument. Diagnostic OUTPUTs showed the in-memory `clause_node` was correct just before the final `Push(...)` but the rendered tree had a duplicated child — root cause not isolated before context exhausted. **The corrupted file was reverted** (`git checkout programs/scrip/parser_prolog.sc`) — PR-2 PASS=18 baseline restored. No commits made for PR-3.
+
+**Recommended PR-3 strategy for next session**:
+1. **Validate after each `str_replace`** with `bash test_parser_prolog.sh | tail -3` — catch regressions immediately.
+2. **Make the smallest possible body-handling change in `build_clause`**: only add the post-pop check that detects `(E_FNC ,)` at the body slot and Append-flattens its children. Do NOT restructure the pop loop.
+3. **Add new non-terminals additively**: `simple_goal` (rename of PR-2 `goal`), then `conj`, then `disj`, then `body = disj`. Update `clause` to use `body` only at the very end.
+4. **Use juxtaposition for boolean AND** in any new `if` conditions.
+5. **Reset state globals at clause start, not at non-terminal entry**, to avoid backtracking surprises. (Hypothesis: the duplication might involve Snocone re-running deferred actions on backtrack; keep state changes idempotent or move them to a single clause-start reset.)
+6. **Defer the goto/labels question** — `parser_prolog.sc` has zero goto today; keep it that way.
+
 ### PARSER-PR-4 — lists (`[H|T]` / `[a,b,c]`)
 
 - [ ] `Command` handles list syntax including head/tail bar.
@@ -243,4 +290,9 @@ must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
 
 ## Watermark
 
-PARSER-PR-2 LANDED (PASS=18). Next: PARSER-PR-3 — conjunction/disjunction.
+PARSER-PR-2 LANDED (PASS=18). PARSER-PR-3 attempted in session ending
+2026-05-03 (emergency handoff — see PR-3 entry above for oracle probe
+results, grammar design, Snocone juxtaposition gotcha, and what went
+wrong). On-disk and remote state is clean PR-2; nothing partial pushed.
+Next session: re-attempt PARSER-PR-3 with the smaller-incremental
+strategy in the PR-3 entry's "Recommended PR-3 strategy" list.
