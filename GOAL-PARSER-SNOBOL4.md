@@ -250,34 +250,54 @@ crosscheck PASS/FAIL output.
 - **Gate (cleared):** `test_scrip.sh` PASS — output is `bar\nglobal-OK\ntdump-OK`.
   `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh` PASS=5. ✅
 
-### PARSER-SN-INFRA-5c — fix scrip Snocone bug: `E_KEYWORD` dropped from `E_FNC` arg `E_SEQ`
+### PARSER-SN-INFRA-5c — fix scrip Snocone bug: `E_KEYWORD` dropped from `E_FNC` arg `E_SEQ` — ✅ DONE
 
 **Discovered during INFRA-3 implementation.** When a function-call
 argument is an `E_SEQ` whose children mix `E_KEYWORD` and `E_QLIT`
 nodes (e.g. `ANY(&UCASE &LCASE)` or `ANY(&UCASE 'xyz')`), the runtime
-silently drops the keyword's contribution: `ANY(&UCASE 'xyz')` matches
+silently dropped the keyword's contribution: `ANY(&UCASE 'xyz')` matched
 `'x'` but not `'A'`, even though `&UCASE` evaluates to the full
 upper-case alphabet. The same expression on the RHS of an assignment
-(`v = &UCASE 'xyz'; SIZE(v) → 29`) yields the correct concatenation.
+(`v = &UCASE 'xyz'; SIZE(v) → 29`) yielded the correct concatenation.
 
-The IR is built correctly (`(E_FNC ANY (E_SEQ (E_KEYWORD UCASE) (E_QLIT "xyz")))`)
-so the bug is in evaluation — likely in `interp_eval.c` around how
-`E_FNC` evaluates its `E_SEQ` arg when one child is `E_KEYWORD`.
+**Root cause (Session 65):** The shared runtime evaluator
+`runtime/x86/eval_code.c::E_KEYWORD` (the one that fires when an E_FNC
+argument needs evaluation in pattern context) was prepending `&` to the
+keyword name before calling `NV_GET_fn` — but keywords are stored in NV
+under their **bare** uppercase name (`UCASE`, `LCASE`, etc., per
+`snobol4.c::SNO_INIT_fn` lines 2164–2165). `NV_GET_fn` does not strip
+the `&` prefix, so `NV_GET_fn("&UCASE")` returned `NULVCL`, then
+`CONCAT_fn(NULVCL, "xyz")` short-circuited to just `"xyz"` — the
+keyword's contribution silently vanished.
 
-- [ ] Reproduce: 5-line `.sc` that asserts `SIZE(ANY(&UCASE 'xyz'))` style
-      probe (or a length-of-result test) producing FAIL today.
-- [ ] Bisect: confirm whether the bug is `E_KEYWORD`-specific or applies
-      to any `E_VAR` child whose value resolves to `&UCASE`'s string.
-- [ ] Root-cause in scrip C runtime — most likely `eval_code.c` /
-      `interp_eval.c` mishandling argument evaluation for `E_SEQ`
-      containing `E_KEYWORD`.
-- [ ] Fix in C source.
-- [ ] Confirm `test_scrip.sh` PASS, regressions PASS=7 / PASS=5.
-- [ ] Once fix lands: revert tdump.sc — drop `_Tdump_id_first` /
-      `_Tdump_id_rest` module locals and inline `ANY(&UCASE &LCASE)`
-      and `SPAN(digits &UCASE '_' &LCASE)` per beauty source style.
-- **Gate:** `ANY(&UCASE 'xyz')` matches `'A'`; tdump.sc reverts to
-  beauty-source-style inlined patterns; `test_scrip.sh` stays green.
+Why probe A (`v = &UCASE 'xyz'`) worked despite the bug: that path
+goes through the **driver-side** `interp_eval.c::E_KEYWORD` (line 2461),
+which uppercases the name and looks up the bare key correctly. The
+runtime-side `eval_code.c::E_KEYWORD` only fires when an E_FNC in
+pattern context falls through `interp_eval_pat`'s default branch into
+`eval_node(E_FNC)` → `eval_node(E_SEQ)` → `eval_node(E_KEYWORD)`. Both
+evaluators must agree.
+
+- [x] Reproduce: 4-line `.sc` showing `ANY(&UCASE 'xyz')` matched `'x'`
+      but not `'A'` while RHS assignment yielded SIZE=29.
+- [x] Bisect: confirmed the bug fires for `E_KEYWORD` inside `E_SEQ` in
+      function-arg position. Going through an intermediate variable
+      (`v = &UCASE 'xyz'; ANY(v)`) worked, isolating the bug to inline
+      keyword evaluation in the runtime evaluator.
+- [x] Root-cause: `eval_code.c::E_KEYWORD` snprintf'd `&%s` into the NV
+      lookup key while `NV_GET_fn` does not strip `&`. Asymmetric with
+      `interp_eval.c::E_KEYWORD` which uppercases and looks up bare.
+- [x] Fix: replaced the `snprintf("&%s", ...)` with the same uppercase-
+      and-lookup-bare logic used in `interp_eval.c::E_KEYWORD`. Added
+      `#include <ctype.h>` for `toupper`.
+- [x] Confirmed `test_scrip.sh` PASS, `test_smoke_snobol4.sh` PASS=7,
+      `test_smoke_snocone.sh` PASS=5. No regressions.
+- [x] Reverted tdump.sc workaround: dropped `_Tdump_id_first` and
+      `_Tdump_id_rest` module locals, restored beauty-source-style
+      inlined `ANY(&UCASE &LCASE)` and `SPAN(digits &UCASE '_' &LCASE)`
+      patterns at the identifier-recognition site.
+- **Gate (cleared):** `ANY(&UCASE 'xyz')` matches `'A'`; tdump.sc uses
+  beauty-source-style inlined patterns; `test_scrip.sh` stays green. ✅
 
 ### PARSER-SN-INFRA-4 — `assign.sc` + `match.sc` (pattern-time actions) — ✅ DONE
 
@@ -529,21 +549,21 @@ and that both forms (function-call and infix) produce byte-identical IR.
 ## Watermark
 
 INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
-(`tdump.sc`), and INFRA-4 (`assign.sc` + `match.sc`) cleared in sessions
-62 / 63 / 64 / 65. Nine runtime files now in `corpus/programs/scrip/`:
-`global.sc` `tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc`
-`semantic.sc` `tdump.sc` `assign.sc` `match.sc`. `test_scrip.sh`
-PASS — output `bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK`.
-Regressions clean.
+(`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), and INFRA-5c
+(`E_KEYWORD` dropped from `E_FNC` arg `E_SEQ`) cleared in sessions
+62 / 63 / 64 / 65 / 65. Nine runtime files now in
+`corpus/programs/scrip/`: `global.sc` `tree.sc` `stack.sc` `counter.sc`
+`ShiftReduce.sc` `semantic.sc` `tdump.sc` `assign.sc` `match.sc`.
+`test_scrip.sh` PASS — output
+`bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK`.
+Regressions clean (`test_smoke_snobol4.sh` PASS=7,
+`test_smoke_snocone.sh` PASS=5).
 
-INFRA-3 surfaced **INFRA-5c**: scrip's Snocone runtime drops `E_KEYWORD`
-contributions from a function-arg `E_SEQ` (so `ANY(&UCASE &LCASE)` and
-`SPAN(digits &UCASE '_' &LCASE)` evaluate as if the keywords weren't
-there). tdump.sc carries a documented workaround (precompute the class
-strings into module-scope locals); INFRA-5c is the goal that lets us
-revert to beauty-source-style inlined patterns.
+INFRA-5c surfaced via INFRA-3 (tdump.sc precomputed identifier classes
+into module locals to dodge it). With INFRA-5c fixed, tdump.sc was
+reverted to beauty-source-style inlined `ANY(&UCASE &LCASE)` and
+`SPAN(digits &UCASE '_' &LCASE)` patterns.
 
-Next session: **INFRA-5c** (fix `E_KEYWORD` dropped from `E_FNC` arg
-`E_SEQ`) OR **INFRA-5b** (`if (str ? PAT = )` inside while-loop body).
-Both are runtime C bugs. INFRA-5c unblocks tdump.sc cleanup; INFRA-5b
-unblocks INFRA-6 (`case.sc`). Neither blocks INFRA-7 through INFRA-10.
+Next session: **INFRA-5b** (`if (str ? PAT = )` inside while-loop body
+corrupts later runtime state). Independent C-runtime bug; gates
+INFRA-6 (`case.sc`). INFRA-5b does not depend on INFRA-7/INFRA-8.
