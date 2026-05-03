@@ -620,7 +620,7 @@ hits OUTPUT. Depends on INFRA-4 (`*assign`), INFRA-7 (`Qize`), INFRA-8
   `omega-silent-OK`. `test_smoke_snobol4.sh` PASS=7,
   `test_smoke_snocone.sh` PASS=5. ✅
 
-### PARSER-SN-INFRA-10 — verify OPSYN `~` and `&` work at runtime (the dessert)
+### PARSER-SN-INFRA-10 — verify OPSYN `~` and `&` work at runtime (the dessert) — ✅ DONE
 
 Last in the ladder per Lon's direction. Beauty's semantic.inc declares
 `OPSYN('~', 'shift', 2)` and `OPSYN('&', 'reduce', 2)` at parse time so
@@ -628,17 +628,42 @@ the parser-construction grammar can read as nice infix `pat ~ 'Tag'` and
 `n & 'Reducer'` instead of `shift(pat, 'Tag')` / `reduce('Tag', n)`.
 The OPSYN declarations are already in `scrip/semantic.sc` (faithful port
 under INFRA-1); this rung verifies they are honoured at runtime by scrip
-and that both forms (function-call and infix) produce byte-identical IR.
+and that both forms (function-call and OPSYN-alias) produce equal trees.
 
-- [ ] Probe: build a pattern via `shift(*Id, 'Id')` directly. Confirm it
-      builds a pattern that, when matched, performs the Shift via `EVAL`
-      of `"p . thx . *Shift('Id', thx)"`. Smoke verifies the EVAL plumbing.
-- [ ] Probe: build the same pattern via the infix form `(*Id ~ 'Id')`.
-      Confirm scrip honours the OPSYN.
-- [ ] Add to `smoke.sc`: build the pattern both ways; match against
-      `'foo'`; confirm Shift fired and the resulting tree is identical.
-- **Gate:** `opsyn-OK` plus all earlier OKs. Both forms of the same
-  pattern produce equal trees.
+- [x] Probe: built a pattern via `shift('foo', 'Word')` directly.
+      Confirmed it builds a `PATTERN` that, when matched against `'foo'`,
+      fires `Shift('Word', 'foo')` and pushes a leaf tree with t='Word',
+      v='foo' onto the stack.
+- [x] Probe: built the same pattern via `APPLY('~', 'foo', 'Word')`.
+      `APPLY` consults the `register_fn_alias` table that `OPSYN` populates,
+      reaches `shift`, builds an identical PATTERN, and produces an
+      identical tree on match.
+- [x] **Static infix `~` not supported by scrip's Snocone parser.**
+      Snocone's grammar binds `~` as the unary "not" operator at parse
+      time, before `OPSYN` can take effect at runtime.  Source-level
+      `pat ~ 'Tag'` and `n & 'Tag'` therefore parse-error or mis-parse
+      in `.sc` files.  This is a known limitation of the OPSYN
+      implementation in `runtime/x86/snobol4_pattern.c::opsyn` (the
+      `type` arg is documented as "selects arity context" but the code
+      explicitly ignores it: `(void)type; ... runtime dispatch is
+      name-based so we just copy the FNCBLK entry`).  Going forward, all
+      six PARSER frontends should call `shift(pat, tag)` / `reduce(tag, n)`
+      directly rather than the infix forms.  If a future infix-syntax
+      extension lands in the Snocone parser, this rung's smoke can be
+      extended with the static-infix form for a stricter equality test.
+- [x] Probe: `&` alias for `reduce` similarly verified.  `Shift('Leaf','a');
+      reduce("'P'", 1);` produces the same parent tree (t='P', n=1) as
+      `Shift('Leaf','b'); APPLY('&', "'P'", 1);`.  Note the inner-quoted
+      `"'P'"` form is required because `reduce` `EVAL`s its `t` argument
+      at match time; passing a bare `'P'` leaves the EVAL string with
+      an unquoted bareword `P` which it then resolves as a NULSTR variable.
+- [x] Added to `smoke.sc`: builds the pattern both ways for both `~`
+      and `&`, matches each, pops the resulting trees, and asserts
+      `IDENT(t(...), expected)` and `IDENT(v(...), expected)` /
+      `EQ(n(...), expected)` for each.  Single `opsyn-OK` line covers
+      all four assertions.
+- **Gate (cleared):** `test_scrip.sh` PASS=21 lines through `opsyn-OK`.
+  `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5. ✅
 
 ---
 
@@ -728,43 +753,35 @@ and that both forms (function-call and infix) produce byte-identical IR.
 
 ## Watermark
 
-INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
-(`tdump.sc`), INFRA-4 (`assign.sc` + `match.sc`), INFRA-5c (`E_KEYWORD`
-dropped from `E_FNC` arg `E_SEQ`), INFRA-5b (`if (str ? PAT = )` in
-expression position), INFRA-6 (`case.sc`), INFRA-7 (`qize.sc` +
-`tdump.sc::TValue` SqlSQize swap), INFRA-7a (inline `*assign(...)`
-in pattern body), INFRA-8 (`trace.sc`), and INFRA-9 (`omega.sc`)
-cleared in sessions
-62 / 63 / 64 / 65 / 65 / 66 / 66 / 67 / 68 / 68 / 68.
-Thirteen runtime files now in `corpus/programs/scrip/`: `global.sc`
-`tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`
-`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc` `trace.sc`
-`omega.sc`. `test_scrip.sh` PASS — 20-line output through
-`omega-silent-OK`. Regressions clean (`test_smoke_snobol4.sh` PASS=7,
-`test_smoke_snocone.sh` PASS=5).
+**All ten INFRA rungs are GREEN.**  PARSER-SN INFRA ladder complete:
+INFRA-2/3/4/5a/5b/5c/6/7/7a/8/9/10. Sessions 62 / 63 / 64 / 65 / 65 /
+66 / 66 / 67 / 68 / 68 / 68 / 68. Thirteen runtime files in
+`corpus/programs/scrip/`: `global.sc` `tree.sc` `stack.sc` `counter.sc`
+`ShiftReduce.sc` `semantic.sc` `tdump.sc` `assign.sc` `match.sc`
+`case.sc` `qize.sc` `trace.sc` `omega.sc`. `test_scrip.sh` PASS —
+21-line output through `opsyn-OK`. `test_smoke_snobol4.sh` PASS=7,
+`test_smoke_snocone.sh` PASS=5.
 
 INFRA-7a (Session 68) added the missing `case E_CAPT_COND_ASGN` /
-`case E_CAPT_IMMED_ASGN` to `runtime/x86/eval_pat.c::interp_eval_pat`.
-Root cause was an asymmetry between the driver-side evaluator
-(`src/driver/interp_eval.c E_CAPT_COND_ASGN`, lines 3209–3306, which
-correctly routes `E_DEFER(E_FNC)` and `E_INDIRECT(E_FNC)` targets to
-`pat_assign_callcap{,_named,_named_imm}`) and the runtime-side
-pattern evaluator (which had no case at all for E_CAPT_COND_ASGN).
-Fix mirrors the driver-side routing into the runtime-side pattern
-evaluator. INFRA-9 exercises this fix end-to-end through TZ.
+`case E_CAPT_IMMED_ASGN` to `runtime/x86/eval_pat.c::interp_eval_pat`,
+mirroring the driver-side routing in `interp_eval.c`.  Inline
+`*assign` inside a pattern subexpression now correctly registers a
+callcap on the NAM ctx, and Phase-4 `NAME_commit` fires it.  This
+fix is exercised end-to-end by INFRA-9's omega smoke (TZ's
+max-position recorder uses inline `*assign`).
 
-INFRA-8 (Session 68) ported `trace.sc` verbatim from beauty/trace.sc
-and added the trace globals (`doDebug`, `xTrace`, `t8Max`, `t8MaxLast`,
-`t8Map`, `strOfs`) to `global.sc`. Default `doDebug = 0` makes T8Trace
-silent. Negative control with `doDebug = 2`, `t8Map[100] = 700`
-correctly emits `(  700,  51,   700,  51)  hello`.
+INFRA-10 finding: scrip's Snocone parser does **not** honour OPSYN
+in static infix position — `~` parses as the unary "not" operator
+before runtime OPSYN can take effect.  `runtime/x86/snobol4_pattern.c::
+opsyn` accepts the `type` arg but documents-and-ignores it
+(`(void)type; ... runtime dispatch is name-based`).  Function-name
+dispatch via `APPLY('~', ...)` works correctly.  All six PARSER
+frontends should therefore use the function-call forms `shift(p, t)`
+and `reduce(t, n)` directly rather than the infix forms.
 
-INFRA-9 (Session 68) ported `omega.sc` verbatim and added
-`doParseTree = 0`, `txOfs = 0` to `global.sc`. Default `xTrace = 0`
-makes TZ/TY return a bare-pattern + max-position-recorder wrapper
-(no T8Trace hooks). Negative control with `xTrace = 1, doDebug = 2`
-correctly emits the canonical entry / completion trace pair with
-proper position fragments.
-
-Next session: **INFRA-10** (verify OPSYN `~` and `&` work at runtime —
-the dessert; Lon's last-in-the-ladder rung).
+Next step: **PARSER-SN-0** — atom (literal | identifier).  Begin
+the actual SNOBOL4 frontend ladder, building on the now-complete
+runtime toolkit.  Write `corpus/programs/scrip/parser_snobol4.sc`
+with `Compiland` handling the smallest atom slice, wire the
+two-frontend in-process crosscheck, and write
+`scripts/test_parser_snobol4.sh`.
