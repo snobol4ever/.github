@@ -79,27 +79,33 @@ scrip --parser-crosscheck parser_snobol4.sc tiny.sno
    memory and outputs compared. All sync is live, in-process — no
    subprocess, no temp files, no on-disk diffs.
 
-**Current rung's wiring** (PARSER-SN-0/1 as landed): the
-`--parser-crosscheck` C flag does not exist yet, AND `parser_snobol4.sc`
-does not build trees on the stack via `Shift`/`Reduce`. Instead it
-emits canonical IR-tree-lines directly via `emit_*` functions in
-match-time deferred actions; the gate script diffs that stdout
-against `scrip --dump-parse <file>` from the existing frontend. Same
-two-frontends-must-agree property, lighter wiring.
+**Current rung's wiring** (PARSER-SN-0/1 as landed, with PARSER-SN-2
+architectural pivot): the `--parser-crosscheck` C flag does not exist
+yet. The driver `parser_snobol4.sc` builds Snocone trees on the
+shared stack via `Push`/`Pop` from `stack.sc` and `Tree(...)` from
+`tree.sc`; the main loop pops each STMT tree and dumps it via `TDump`
+from the now-extended `tdump.sc`. The gate script diffs that stdout
+against `scrip --dump-parse <file>` from the existing frontend.
 
-**Why not tree-on-stack from rung 0:** TDump's natural output for
-`tree('STMT', ...)` with `tree('E_VAR', 'x')` children is
-`(STMT E_VAR E_ILIT)` — type tags only, children unlabeled, no `:subj` /
-`:repl` / `:eq` role keywords. Scrip's `--dump-parse` emits
-`(STMT :eq :subj (E_VAR x) :repl (E_ILIT 5))` — type tags AND values on
-leaves, role-labeled children, positional flags. Bridging Snocone's
-tree-shape to scrip's IR-dump-shape requires either extending
-`tdump.sc::TValue` to recognize the IR leaf types and emit role
-keywords, or writing a PARSER-SN-specific dumper. Either is reasonable
-work for a future rung; the natural inflection point is PARSER-SN-4
-(patterns), where pattern-object leaves don't print uniformly through
-any text-only dumper. Until then, print-canonical-lines is the smaller
-move that keeps the gate green.
+**Shared-spine commitment:** PARSER-SN is the template all six PARSER-*
+sessions copy. The driver loop, Compiland body shape, role-slot/flag
+wrapper convention, and `tdump.sc` extensions are language-agnostic.
+PARSER-SC, PARSER-RB, PARSER-RK, PARSER-IC, PARSER-PR replace only the
+language-specific atom recognizers and Command body — every other
+file in `corpus/programs/scrip/` is shared verbatim.
+
+**Role-slot / flag wrapper convention** (new in PARSER-SN-2): scrip's
+`--dump-parse` emits role-keyword children like `:subj`, `:repl`,
+`:lbl` and positional flags like `:eq`, `:end`. The Snocone
+`tree(t, v, n, c)` shape doesn't natively carry per-child role labels.
+Convention: encode roles as wrapper nodes with `:`-prefixed type
+tags. A 1-child wrapper `tree(':subj', '', 1, child)` renders as
+`:subj <TLump-of-child>`. A 0-child wrapper `tree(':eq', '')`
+renders as the bare `:eq` flag. The shared `tdump.sc::TLump`
+recognizes the `:` prefix and dispatches accordingly. IR-leaf kinds
+(`E_VAR`, `E_ILIT`, `E_QLIT`) self-paren in `TValue`, so a slot
+wrapping an IR leaf renders as `:subj (E_VAR x)`. This is why
+PARSER-SN's TDump output is byte-identical to scrip's `--dump-parse`.
 
 **Shared SCRIP runtime, Snocone-hosted (`.sc` files)** — all six PARSER
 sessions use these. The runtime AND all six per-language parser
@@ -249,7 +255,50 @@ the existing frontend's `--ir-run` output where applicable.
   No regressions: `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh`
   PASS=5, `test_scrip.sh` PASS through `opsyn-OK`.
 
-### PARSER-SN-2 — concat / arith — **next**
+### PARSER-SN-2 — tree-on-stack architectural pivot — ✅ DONE
+
+This rung is a refactor, not a grammar extension. The cross-pollination
+mandate (all six PARSER-* sessions share machinery) made it priority:
+the print-direct shortcut from PARSER-SN-0/1 had no shared parts for
+the other five sessions to copy. PARSER-SN-2 rewrites the driver to
+build genuine Snocone trees on the stack (`Push`/`Pop`/`Tree`) and dump
+them via a now-extended `tdump.sc`. All five sibling sessions can copy
+the exact same runtime files unchanged.
+
+- [x] Extended `corpus/programs/scrip/tdump.sc::TValue` to recognize
+      scrip IR leaf kinds (`E_VAR`, `E_ILIT`, `E_QLIT`) and self-paren
+      them in their printed form (`(E_VAR x)`, `(E_ILIT 5)`,
+      `(E_QLIT "hi")` — double-quoted strings to match `--dump-parse`).
+- [x] Extended `tdump.sc::TLump` with the role-slot / flag wrapper
+      convention: type tags starting with `:` are not normal tree types
+      but role/flag markers. `tree(':subj', '', 1, child)` → renders
+      as `:subj <child>`. `tree(':eq', '')` → renders as bare `:eq`.
+      Bracketed multi-child rendering falls through to the original
+      code path unchanged. Encountered a Snocone scoping wart on
+      `TLump = TLump TLump(...)` (the function-name slot got confused
+      across the recursive frame boundary) — staged the recursive call
+      in a separate `sub` local. Documented in code comments.
+- [x] Rewrote `parser_snobol4.sc` to use `Tree(...)` / `Push` /
+      `Pop` from the shared runtime instead of bespoke `emit_*`
+      print functions. `build_stmt_atom`, `build_stmt_assign`,
+      `build_end` build STMT trees with role-slot wrappers. Driver
+      loop pops one tree per matched line and `TDump`s it.
+- [x] Updated `test_parser_snobol4.sh` runtime blob to load the full
+      shared toolkit: `global.sc`, `tree.sc`, `stack.sc`,
+      `ShiftReduce.sc`, `qize.sc`, `tdump.sc`, `assign.sc`,
+      `parser_snobol4.sc`. This is the canonical blob shape every
+      sibling PARSER-* session uses (only the last file changes).
+- [x] Verified shared `tdump.sc` extensions don't regress INFRA-3 or
+      INFRA-7 smoke (`test_scrip.sh` PASS through `opsyn-OK`).
+- **Cross-pollination delivered:** PARSER-SC, PARSER-RB, PARSER-RK,
+  PARSER-IC, PARSER-PR can now copy `parser_snobol4.sc` as their
+  template, replace the language-specific atom recognizers and
+  Command body, and inherit the entire driver loop, tree-build helper
+  pattern, and dumper unchanged.
+- **Gate (cleared):** `test_parser_snobol4.sh` PASS=8 FAIL=0
+  (same 8 programs as PARSER-SN-1, now via tree-on-stack). ✅
+
+### PARSER-SN-3 — concat / arith — **next**
 
 - [ ] Extend `Stmt` for `expr1 expr2` (concat) and `+ - * /` operators.
 - [ ] Test corpus: existing concat/arith programs + **5 NEW** for
@@ -257,7 +306,7 @@ the existing frontend's `--ir-run` output where applicable.
 - **Sibling LANG rungs:** SN-5, SN-6.
 - **Gate:** PASS≥13.
 
-### PARSER-SN-3 — control flow (`:S` / `:F` / labels)
+### PARSER-SN-4 — control flow (`:S` / `:F` / labels)
 
 - [ ] Recognize label-prefixed lines and trailing `:S(target)` /
       `:F(target)` / `:(target)` goto suffixes.
@@ -265,7 +314,7 @@ the existing frontend's `--ir-run` output where applicable.
 - **Sibling LANG rungs:** SN-7, SN-8.
 - **Gate:** PASS≥20.
 
-### PARSER-SN-4 — patterns (the SNOBOL4 jewel)
+### PARSER-SN-5 — patterns (the SNOBOL4 jewel)
 
 - [ ] Pattern-match statements `subject pattern = repl` and pattern
       primitives `LEN(n)`, `BREAK(s)`, `SPAN(s)`, `ANY(s)`, `NOTANY(s)`,
@@ -275,13 +324,13 @@ the existing frontend's `--ir-run` output where applicable.
 - **Sibling LANG rungs:** SN-9..SN-15.
 - **Gate:** PASS≥35.
 
-### PARSER-SN-5 — function definition / call
+### PARSER-SN-6 — function definition / call
 
 - [ ] `DEFINE('f(args)label')` and call sites.
 - **Sibling LANG rungs:** SN-16..SN-20.
 - **Gate:** PASS≥50.
 
-### PARSER-SN-6 — beauty.sno crosscheck
+### PARSER-SN-7 — beauty.sno crosscheck
 
 - [ ] PARSER-SN parses `beauty.sno` end-to-end. `tree_equal` against the
       existing frontend's tree returns true. Running PARSER's tree
@@ -381,26 +430,42 @@ Same wart in `shift`'s tag arg for non-string-literal inputs.
 
 ## Watermark
 
-**INFRA ladder COMPLETE (all 13 sub-rungs GREEN). PARSER-SN-0 LANDED.
-PARSER-SN-1 LANDED.**
+**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED with shared tree-on-stack
+template. ALL FIVE SIBLING SESSIONS UNBLOCKED.**
 
-Thirteen runtime files in `corpus/programs/scrip/`: `global.sc`
-`tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`
-`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc` `trace.sc`
-`omega.sc`. Plus the per-language driver: `parser_snobol4.sc`
-(now handling atoms + assignment).
+Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended
+in PARSER-SN-2 to recognize scrip IR leaf kinds (E_VAR/E_ILIT/E_QLIT)
+and the role-slot/flag wrapper convention (`:`-prefixed type tags).
+Plus the per-language driver: `parser_snobol4.sc` (now built on shared
+Tree/Push/Pop/TDump machinery).
 
 Gate state:
 - `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5
 - `test_scrip.sh` PASS — 21-line output through `opsyn-OK` (INFRA-10)
-- `test_parser_snobol4.sh` PASS=8 FAIL=0 (PARSER-SN-0 + PARSER-SN-1)
+- `test_parser_snobol4.sh` PASS=8 FAIL=0 (PARSER-SN-0/1/2)
+
+**For the five sibling sessions** (PARSER-SC, PARSER-RB, PARSER-RK,
+PARSER-IC, PARSER-PR): copy `corpus/programs/scrip/parser_snobol4.sc`
+as your template. Replace the language-specific atom recognizers and
+Command body. Inherit the driver loop, role-slot/flag wrapper
+convention, build-helper pattern, and TDump machinery unchanged. Use
+the same canonical runtime blob in your gate script:
+```
+global.sc tree.sc stack.sc ShiftReduce.sc qize.sc tdump.sc assign.sc parser_<lang>.sc
+```
+TDump's role-slot convention: `tree(':role', '', 1, child)` for
+labeled children (`:subj`, `:repl`, `:lbl`, ...), `tree(':flag', '')`
+for positional flags (`:eq`, `:end`, ...). Your language's IR leaf
+types may need adding to `tdump.sc::TValue` if they aren't already
+covered by the existing `E_VAR`/`E_ILIT`/`E_QLIT`/`Name` cases —
+coordinate via a `.github` issue before extending.
 
 Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
 `atom_id.sno`, `atom_int.sno`, `atom_str.sno`, `assign_int.sno`,
 `assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
 `assign_mixed.sno`.
 
-Next step: **PARSER-SN-2** — concat / arith. Extend `parser_snobol4.sc`
+Next step: **PARSER-SN-3** — concat / arith. Extend `parser_snobol4.sc`
 to handle `expr1 expr2` (concat) and `+ - * /` operators. Capture
 canonical lines from `--dump-parse` for these constructs first; the
 operator nodes wrap atoms / sub-expressions and the dumped form will
@@ -409,5 +474,5 @@ Add 5 NEW programs covering operator precedence corners. Gate
 target: PASS≥13 cumulative.
 
 Open workaround items INFRA-11a/b/c remain — surface bumps that don't
-block PARSER-SN-2+. Revisit when frontend ladder reveals real
+block PARSER-SN-3+. Revisit when frontend ladder reveals real
 obstruction.
