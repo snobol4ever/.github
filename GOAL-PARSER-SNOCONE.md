@@ -175,16 +175,18 @@ which is in scope.
 
 ## Watermark
 
-**PARSER-SC-0 ✅ PARSER-SC-1 ✅**
+**PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅**
 
-corpus `ed13900` (main), one4all `8115952b` (parser branch).
+corpus `8d6bd82` (main), one4all `347d2472` (parser branch).
 Gate: PASS=8 FAIL=0 (test_parser_snocone.sh).
 Smoke: PASS=5 FAIL=0 (test_smoke_snocone.sh).
+test_scrip.sh: PASS (unchanged).
 
 parser_snocone.sc covers: bare atom-as-statement (id/int/str),
 assignment `name = atom_expr`. Driver: per-line, `(Assign | AtomStmt)`.
+TDump upgraded to Gen-based multi-line fallback (gen.sc now in blob).
 
-Next: **PARSER-SC-INFRA-1** — upgrade tdump.sc to Gen-based TDump (prerequisite for SC-2+).
+Next: **PARSER-SC-2** — arith / concat.
 
 ---
 
@@ -202,21 +204,22 @@ for n>1 children but the current `TDump` does not.
 `corpus/programs/snocone/demo/beauty/TDump.sc` has the canonical Snocone
 port of the full TDump with Gen-based multi-line fallback.
 
-### PARSER-SC-INFRA-1 — upgrade tdump.sc to Gen-based TDump  **next**
+### PARSER-SC-INFRA-1 — upgrade tdump.sc to Gen-based TDump  ✅ DONE
 
-- [ ] Replace `TDump` in `corpus/programs/scrip/tdump.sc` with the
+- [x] Replace `TDump` in `corpus/programs/scrip/tdump.sc` with the
       canonical Gen-based version from `corpus/programs/snocone/demo/beauty/TDump.sc`:
       `Gen(TLump(x, 140 - GetLevel()) nl, outNm)` try-inline first;
       multi-line fallback with `IncLevel`/`DecLevel`/recursive `TDump`.
       Carry over all PARSER-SN extensions (role-slot FW-1/FW-2, generic
       IR-leaf, E_QLIT double-quote branch).
-- [ ] Add `gen.sc` to the canonical runtime blob in `test_parser_snocone.sh`
-      (before `tdump.sc`). Update `test_parser_snobol4.sh` the same way.
-- [ ] Verify `test_scrip.sh` still PASS — existing TDump smoke lines must
+- [x] Add `gen.sc` to the canonical runtime blob in `test_parser_snocone.sh`
+      (before `tdump.sc`). Update `test_parser_snobol4.sh` and `test_scrip.sh`
+      the same way.
+- [x] Verify `test_scrip.sh` still PASS — existing TDump smoke lines must
       produce identical output (Gen flushes on `nl`, same as current OUTPUT).
-- [ ] Verify `test_parser_snocone.sh` PASS=8 — atom/assign fixtures are
+- [x] Verify `test_parser_snocone.sh` PASS=8 — atom/assign fixtures are
       simple enough that TLump inline succeeds; output unchanged.
-- **Gate:** PASS=8 FAIL=0; `test_scrip.sh` unchanged.
+- **Gate (cleared):** PASS=8 FAIL=0; `test_scrip.sh` PASS unchanged.
 
 ### PARSER-SC-2 — arith / concat  (after INFRA-1)
 
