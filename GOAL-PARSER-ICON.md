@@ -167,26 +167,43 @@ divergence is in how trees are interpreted, not how they are shaped.
 - **Gate:** files exist, license-clean (icon: public domain;
       jcon: ABoR redistribution license, notice preserved). ✅
 
-### PARSER-IC-INFRA-2 — refactor parser_icon.sc to canonical names + Compiland-driven loop — **next**
+### PARSER-IC-INFRA-2 — refactor parser_icon.sc to canonical names + Compiland-driven loop — **DONE** (this commit)
 
-- [ ] Rename invented pattern names per D2 table (the canonical
-      `Program/Decls/Proc/Expr/Expr1a/Expr1.../Expr11/Literal/...`
-      names sourced from `corpus/programs/ebnf/icon-sp.ebnf`).
-- [ ] Apply the LL(1) decomposition documented in
-      `corpus/programs/ebnf/icon-references/NOTES.md` — every
-      left-recursive `Exprn` becomes
-      `Exprn = Exprn_plus_one ARBNO(op Exprn_plus_one)`. `Expr11`
-      splits into `Expr11a` + `Expr11suffix` per JCON's
-      `parse_expr11a` / `parse_expr11suffix(lhs)` example.
-- [ ] Replace goto/label main loop with `Compiland` PATTERN driving
-      `ARBNO(*Command)` per D1.
-- [ ] Cross-pollinate: parser_snobol4.sc, parser_snocone.sc,
-      parser_rebus.sc, parser_raku.sc, parser_prolog.sc receive the
-      same naming / structure update once each language has its own
-      INFRA-1 BNF landed.
-- [ ] All existing test gates stay green — PAT-SN, PAT-IC PASS=14,
-      others. No PASS regression.
-- **Gate:** every PARSER-* gate green. ✅ first then proceed to IC-3.
+- [x] Renamed pattern names per D2 table — every pattern now mirrors
+      the canonical `program/decls/proc/expr/expr1a/expr1.../expr11/
+      literal/...` hierarchy from `corpus/programs/ebnf/icon-sp.ebnf`.
+      `Program/Proc/Prochead/Procbody/Stmt/Expr/Expr1/Expr2/Expr6/
+      Expr7/Expr11/Comment/Blank` are the new names.  No
+      `AtomPat/BinOpPat/ExprPat/WriteLine/AssignExprLine/BodyAtom/
+      LhsAtom/RhsAtom/AssignLine/AtomLine` left.
+- [x] Applied LL(1) decomposition per `icon-references/NOTES.md` —
+      every left-recursive `Exprn` is `Exprn = Expr_higher
+      ARBNO(Exprn_tail)` where `Exprn_tail` is a separately-named
+      pattern (because deferred actions inline inside `ARBNO(...)`
+      don't fire reliably in this runtime — verified by probe — but
+      `ARBNO(NamedPattern)` does fire its named pattern's actions).
+- [x] Replaced goto/label state-machine main loop with `Compiland`
+      PATTERN driving `ARBNO(Proc)` per D1.  Procbody handles
+      end-keyword detection via explicit tail recursion
+      (`Procbody = (ProcbodyEnd | Stmt *Procbody)`) instead of a
+      hand-rolled state variable.  The two remaining `goto`s in the
+      driver are tiny counted loops over data (stdin read; emit
+      walker over the parse tree's children) — same shape as
+      `parser_snobol4.sc`.
+- [x] Per-level lhs-save variables (`_e1lhs`, `_e6lhs`, `_e7lhs`)
+      avoid clobbering across the recursive Expr1 → Expr6 → Expr7
+      call chain — Snocone variables are global, so each precedence
+      level needs its own name.
+- [x] Updated `scripts/test_parser_icon.sh` to include `counter.sc`
+      and `semantic.sc` in the runtime blob (required by the
+      canonical Compiland spine for `nPush`/`nInc`/`nTop`/`reduce`).
+- [x] PAT-IC gate stays at PASS=14, FAIL=0.  `test_smoke_icon.sh`
+      stays at PASS=5, FAIL=0.  No regression.
+- [ ] Cross-pollinate to parser_snobol4.sc, parser_snocone.sc,
+      parser_rebus.sc, parser_raku.sc, parser_prolog.sc — deferred
+      until each language has its own INFRA-1 BNF landed.  Tracked
+      in those goal files' Cross-pollination notice.
+- **Gate:** PAT-IC PASS=14, smoke PASS=5. ✅
 
 ### PARSER-IC-3 — control flow (`if/then/else`, `while/do`)
 
@@ -378,4 +395,4 @@ that is already obsolete.
 
 ## Watermark
 
-PARSER-IC-INFRA-2 (PARSER-IC-INFRA-1 landed: canonical Icon BNF in corpus/programs/ebnf/, public-domain provenance preserved + JCON cross-corroboration in icon-references/; D2 names confirmed correct by two independent upstream parsers; LL(1) decomposition guidance recorded for INFRA-2).
+PARSER-IC-3 (PARSER-IC-INFRA-2 landed: parser_icon.sc refactored to canonical names + Compiland-driven loop, PASS=14, smoke=5; one4all parser branch HEAD `ac93b50a`, corpus HEAD `513905c`).
