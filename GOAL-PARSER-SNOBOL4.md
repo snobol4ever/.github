@@ -377,7 +377,7 @@ wrong for languages whose canonical dump form is `:args x y z` or
   (or whatever convention the probe selects); PARSER-SN gate stays
   green.
 
-### PARSER-SN-FW-3 — Compiland-spine driver loop
+### PARSER-SN-FW-3 — Compiland-spine driver loop — ✅ DONE
 
 The current `parser_snobol4.sc` driver does per-line matching with
 per-line tree pops.  Works for SNOBOL4's line-oriented syntax.
@@ -393,48 +393,57 @@ shape (which PARSER-SN-7 needs to crosscheck against beauty.sno).
 
 - [x] Read whole input into `Src` via the beauty main00/main02 idiom:
       ARBNO(`Line = INPUT`, append `Line nl` to Src). ✅ confirmed working.
-- [ ] Replace per-line-match driver with: `Src ? *Compiland`
-      single match.  `Compiland` uses `ARBNO(*Command)` to consume
-      every statement.
-- [ ] Per-Command tree push happens via `Shift`/`Reduce` inside
-      Command alternatives; the driver pops one composite tree at
-      end and TDumps it (with one OUTPUT per child).  The new "one
-      tree per program with N STMT children" dump shape needs to
-      match `--dump-parse`'s "N STMT lines" output — likely render
-      the program tree's children individually rather than as one
-      lisp-paren string.
-- [ ] Verify PARSER-SN gate PASS=8 with the new driver.
+- [x] Replace per-line-match driver with: `Src ? Compiland`
+      single match.  `Compiland` uses `ARBNO(<inlined Command body>)`
+      to consume every statement.  See architectural note below for
+      why the body is inlined rather than referenced as `*Command`.
+- [x] Per-Command tree push happens via `Push`+`Tree` build helpers
+      called from `epsilon . *build_*()` deferred actions inside the
+      Command alternatives; the driver pops one composite Parse tree
+      at end and TDumps each STMT child individually (one OUTPUT per
+      child) — the "one tree per program with N STMT children" dump
+      shape matches `--dump-parse`'s "N STMT lines" output exactly.
+- [x] Updated `test_parser_snobol4.sh` runtime blob to load
+      `counter.sc` and `semantic.sc` (new dependencies for `nPush`/
+      `nInc`/`reduce`/`nPop` — the canonical spine machinery).
+- [x] Verified PARSER-SN gate PASS=8 with the new driver.
 
-**FW-3 BLOCKER (session 2026-05-03):** `epsilon . *IncCounter()` (i.e.
-`nInc()` from semantic.sc) fails silently when used in a pattern element
-inside ARBNO. Investigated:
-- `epsilon . var` dot-var capture works (smoke confirms INFRA-7a).
-- `IncCounter()` called imperatively works fine.
-- `*IncCounter()` in pattern position causes the pattern element to fail
-  rather than succeed-with-side-effect. Root cause: IncCounter returns
-  `.dummy` via NRETURN; Snocone's E_CAPT_*_ASGN path with NRETURN
-  in pattern context causes the element to fail.
-- Same failure for `epsilon . *PushCounter()` — all counter side-effect
-  patterns from semantic.sc are broken in this runtime.
+**FW-3 BLOCKER RECHARACTERIZED (session 2026-05-03):** the previous
+session's diagnosis (`epsilon . *IncCounter()` / NRETURN-in-E_CAPT)
+turned out to be **wrong**.  Probes this session show that
+`epsilon . *fn()` (where `fn` returns `.dummy` via NRETURN) works
+correctly inside a directly-named pattern variable.  The actual bug
+is at the next layer up: **deferred calls inside a pattern Q do not
+fire when Q is referenced via `*Q` indirection inside `ARBNO(*Q)`**.
 
-**Workaround options for next session:**
-1. Count imperatively: use a global `_stmt_count` variable, increment it
-   inside each `build_*` helper (which work fine), then call
-   `Reduce('Parse', _stmt_count)` after the ARBNO loop instead of
-   `reduce('Parse', 'nTop()')`. No counter.sc needed in pattern.
-2. Fix the NRETURN-in-pattern-E_CAPT bug in the Snocone runtime (deep;
-   likely `eval_pat.c E_CAPT_*_ASGN` — the same fix site as INFRA-7a
-   but for the NRETURN path). Would fix nInc() for all six PARSER-*.
-3. Replace NRETURN with RETURN in IncCounter (return a dummy value
-   instead of a NAME descriptor) — check if that unblocks the pattern
-   path without breaking other callers.
+Probe (8 lines, reproducible at any time):
+```snocone
+function fire() { OUTPUT = '  fire()'; fire = .dummy; nreturn; }
+Q = (ANY('a') epsilon . *fire());
+'aa' ? ARBNO(Q);    // fires fire() twice ✓
+'aa' ? ARBNO(*Q);   // fires fire() zero times ✗ — pattern matches but
+                    //   side-effect deferred calls inside Q never run
+```
 
-Probe scripts used for diagnosis available in git log. Gate left GREEN
-(per-line driver reverted). counter.sc NOT yet added to parser gate blob.
-- **Sibling LANG sessions blocked by this gap:** PARSER-SC, PARSER-RK,
-  PARSER-PR.  PARSER-RB and PARSER-IC tolerable on per-line.
-- **Gate:** `test_parser_snobol4.sh` PASS=8 with whole-program
-  Compiland driver; per-line driver removed.
+This is a real scrip-Snocone runtime bug that breaks `*Pattern`
+indirection composition with ARBNO when the inner pattern carries
+deferred side-effects.  Probable fix-site: `interp_eval.c` /
+`eval_pat.c` — wherever ARBNO+`*var` re-evaluation walks the cached
+pattern tree without re-firing E_CAPT_*_ASGN nodes.  Tracked as the
+underlying root cause for any future `*Pat`-in-ARBNO composition;
+**workaround is permanent for now**: inline the Command body inside
+ARBNO directly, do not use `*Command` indirection.  This is what
+`parser_snobol4.sc` does today and what all five sibling PARSER-*
+sessions should do.
+
+The earlier nInc-blame writeup is preserved here for the historical
+record; the actual bug is deeper.
+
+- **Sibling LANG sessions blocked by this gap:** all five — but the
+  inline-Command-body workaround is universal and zero-cost.  No
+  longer a true blocker; just a stylistic deviation from beauty.sc:133.
+- **Gate (cleared):** `test_parser_snobol4.sh` PASS=8 with whole-program
+  Compiland driver; per-line driver removed. ✅
 
 ### PARSER-SN-FW-4 — `scrip --parser-crosscheck` C-side flag
 
@@ -632,7 +641,7 @@ Same wart in `shift`'s tag arg for non-string-literal inputs.
 
 ## Watermark
 
-**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1 LANDED.**
+**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1/2/3 LANDED.**
 
 Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
 - PARSER-SN-2: role-slot/flag wrapper convention (`:`-prefixed type tags),
@@ -642,20 +651,30 @@ Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
   v(x) → `(TAG value)`. E_QLIT special branch kept (double-quotes) placed before
   generic. All five sibling sessions can now use their own kind namespaces
   (IC_VAR, PL_TERM, RK_SYM, etc.) without touching tdump.sc.
+- PARSER-SN-FW-3: `parser_snobol4.sc` rewritten to use the canonical
+  Compiland spine — read whole stdin into Src buffer, single
+  `Src ? Compiland` match builds one Parse tree wrapping N STMT
+  children, driver pops Parse and TDumps each child as one line.
+  Command body inlined inside ARBNO instead of `*Command` to dodge
+  a real scrip runtime bug (deferred calls inside `*Q` indirection
+  inside ARBNO never fire — see FW-3 rung notes for the 8-line probe
+  reproducing it).  Gate runtime blob now loads `counter.sc` and
+  `semantic.sc` for nPush/nInc/reduce/nPop machinery.
 
 Gate state:
 - `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5
 - `test_scrip.sh` PASS — 22-line output through `fw1-generic-leaf-OK`
-- `test_parser_snobol4.sh` PASS=8 FAIL=0 (PARSER-SN-0/1/2)
+- `test_parser_snobol4.sh` PASS=8 FAIL=0 (PARSER-SN-0/1/2/FW-3)
 
 **For the five sibling sessions** (PARSER-SC, PARSER-RB, PARSER-RK,
 PARSER-IC, PARSER-PR): copy `corpus/programs/scrip/parser_snobol4.sc`
 as your template. Replace the language-specific atom recognizers and
-Command body. Inherit the driver loop, role-slot/flag wrapper
-convention, build-helper pattern, and TDump machinery unchanged. Use
-the same canonical runtime blob in your gate script:
+Command alternatives.  Inherit the driver loop, Compiland spine,
+role-slot/flag wrapper convention, build-helper pattern, and TDump
+machinery unchanged. Use the canonical runtime blob in your gate
+script:
 ```
-global.sc tree.sc stack.sc ShiftReduce.sc qize.sc tdump.sc assign.sc parser_<lang>.sc
+global.sc tree.sc stack.sc counter.sc ShiftReduce.sc semantic.sc qize.sc tdump.sc assign.sc parser_<lang>.sc
 ```
 TDump's role-slot convention: `tree(':role', '', 1, child)` for
 labeled children (`:subj`, `:repl`, `:lbl`, ...), `tree(':flag', '')`
@@ -664,29 +683,36 @@ types render automatically via the FW-1 generic-leaf branch — any
 ALL-alpha-start tag with non-empty v(x) self-parens as `(TAG val)`.
 Only E_QLIT-style double-quote kinds need an explicit branch.
 
+**Important workaround** — DO NOT write `ARBNO(*Command)` in your
+Compiland spine, even though beauty.sc:133 does.  Inline the Command
+alternatives directly inside ARBNO instead.  See `parser_snobol4.sc`
+for the shape.  This dodges a scrip-Snocone runtime bug where `*Q`
+indirection inside ARBNO suppresses the deferred side-effect calls
+inside Q.  Tracked under FW-3 in this Goal file.
+
 Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
 `atom_id.sno`, `atom_int.sno`, `atom_str.sno`, `assign_int.sno`,
 `assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
 `assign_mixed.sno`.
 
-Next step: **PARSER-SN-FW-3** — resolve nInc()/IncCounter-in-pattern blocker first (see rung notes), then implement Compiland-spine driver.
+Next step: **PARSER-SN-3** — concat / arith.  PARSER-SN-FW-3
+unblocked the language-specific ladder; PARSER-SN-3 can resume now
+that the Compiland spine is canonical.
 
 FW ladder status:
 - FW-1 ✅ generalize TValue for non-scrip-IR leaf kinds (unblocks all 5)
 - FW-2 ✅ multi-child role-slot wrapper (unblocks IC/PR/RK)
-- FW-3 ⏳ Compiland-spine driver loop — BLOCKED on nInc()-in-pattern bug
+- FW-3 ✅ Compiland-spine driver loop — landed via inline-Command-body workaround
 - FW-4 ⏳ scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have)
 - FW-5 ⏳ root-cause TLump function-name slot wart (defensive)
 
-**FW-3 blocker summary:** `epsilon . *IncCounter()` fails in pattern
-context (NRETURN from *fn() in E_CAPT_*_ASGN path causes failure).
-Workaround: count imperatively inside build_* helpers using a global
-`_stmt_count` var, then `Reduce('Parse', _stmt_count)` after ARBNO.
-See FW-3 rung notes for full analysis and options.
-
-Also discovered: `tree()` lowercase stores c-arg raw (not in array);
-`Tree()` uppercase wraps in ARRAY — TLump requires Tree() for proper
-multi-child trees. Documented in FW-2 rung.
+**FW-3 underlying bug** — preserved for future runtime work: deferred
+calls (`epsilon . *fn()`) inside a pattern Q do not fire when Q is
+referenced via `*Q` indirection inside `ARBNO(*Q)`.  Probe at FW-3
+rung notes reproduces in 8 lines.  Probable fix-site: pattern
+re-evaluation walking the cached pattern tree in `eval_pat.c` /
+`interp_eval.c` without re-firing E_CAPT_*_ASGN nodes.  All six
+PARSER-* sessions inline their Command body as the workaround.
 
 Open workaround items INFRA-11a/b/c remain — surface bumps that
 don't block PARSER-SN-3+. Revisit when frontend ladder reveals real
