@@ -585,18 +585,40 @@ globals; the trace functions are no-ops when `doDebug = 0` (default).
   `trace-silent-OK`. `test_smoke_snobol4.sh` PASS=7,
   `test_smoke_snocone.sh` PASS=5. ✅
 
-### PARSER-SN-INFRA-9 — `omega.sc` (TZ / TY / TW / TX / TV — pattern-construction tracing)
+### PARSER-SN-INFRA-9 — `omega.sc` (TZ / TY / TW / TX / TV — pattern-construction tracing) — ✅ DONE
 
 Wraps a pattern in match-time trace hooks (`@txOfs $ *T8Trace(...)`)
 and a max-position recorder. When `xTrace = 0` (default), `TZ` and `TY`
 return the bare pattern with just the max-position recorder; nothing
 hits OUTPUT. Depends on INFRA-4 (`*assign`), INFRA-7 (`Qize`), INFRA-8
-(`T8Trace`).
+(`T8Trace`), and crucially INFRA-7a (inline `*assign` in pattern body).
 
-- [ ] Write `scrip/omega.sc` verbatim from beauty/omega.sc.
-- [ ] Add to `smoke.sc`: `P = TZ(0, 'probe', 'hi'); 'hi' ? P;` must
-      emit nothing (xTrace = 0) but the match must succeed.
-- **Gate:** `omega-silent-OK` plus all earlier OKs.
+- [x] Wrote `scrip/omega.sc` verbatim from beauty/omega.sc — five
+      functions: TV, TW, TX, TY, TZ.  TV/TW/TX always EVAL their
+      constructed strings (case-folding identifier checks against
+      `name`) and so always go through TZ for the trace-hook layer.
+- [x] Initialized `doParseTree = 0` and `txOfs = 0` in `scrip/global.sc`
+      so the runtime loads silently with well-defined defaults.  All
+      other globals (`xTrace`, `t8Max`, `t8Map`, `strOfs`, `doDebug`)
+      were already initialized under INFRA-8.
+- [x] Added to `smoke.sc`: `P = TZ(0, 'probe', 'hi') @cur; ('hi' ? P);`
+      with success indicator `EQ(cur, 2) GT(t8Max, 0)`.  The cursor
+      check confirms the wrapped pattern matched the literal 'hi'
+      to completion; the t8Max check confirms the inline `*assign`
+      max-position recorder fired (which exercises the INFRA-7a fix
+      end-to-end through the TZ wrapper).  Snocone's `subj ? pat`
+      returns NULSTR on success, so a value-on-success test was
+      not appropriate here.
+- [x] Negative-control verified: with `xTrace = 1`, `doDebug = 2`,
+      `t8Map[0] = 700`, the TZ-built pattern correctly emits
+      `(  700,   1,   700,   1)? probe` followed by
+      `(  700,   3,   700,   3)  probe: hi` — the canonical `?`-prefix
+      on entry plus the `name: matched-text` on completion, with
+      proper position fragments from T8Pos.  Silent default is
+      genuine silence, not load failure.
+- **Gate (cleared):** `test_scrip.sh` PASS=20 lines through
+  `omega-silent-OK`. `test_smoke_snobol4.sh` PASS=7,
+  `test_smoke_snocone.sh` PASS=5. ✅
 
 ### PARSER-SN-INFRA-10 — verify OPSYN `~` and `&` work at runtime (the dessert)
 
@@ -711,24 +733,15 @@ INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
 dropped from `E_FNC` arg `E_SEQ`), INFRA-5b (`if (str ? PAT = )` in
 expression position), INFRA-6 (`case.sc`), INFRA-7 (`qize.sc` +
 `tdump.sc::TValue` SqlSQize swap), INFRA-7a (inline `*assign(...)`
-in pattern body), and INFRA-8 (`trace.sc`) cleared in sessions
-62 / 63 / 64 / 65 / 65 / 66 / 66 / 67 / 68 / 68.
-Twelve runtime files now in `corpus/programs/scrip/`: `global.sc`
+in pattern body), INFRA-8 (`trace.sc`), and INFRA-9 (`omega.sc`)
+cleared in sessions
+62 / 63 / 64 / 65 / 65 / 66 / 66 / 67 / 68 / 68 / 68.
+Thirteen runtime files now in `corpus/programs/scrip/`: `global.sc`
 `tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`
-`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc` `trace.sc`.
-`test_scrip.sh` PASS — 19-line output through `trace-silent-OK`.
-Regressions clean (`test_smoke_snobol4.sh` PASS=7,
+`tdump.sc` `assign.sc` `match.sc` `case.sc` `qize.sc` `trace.sc`
+`omega.sc`. `test_scrip.sh` PASS — 20-line output through
+`omega-silent-OK`. Regressions clean (`test_smoke_snobol4.sh` PASS=7,
 `test_smoke_snocone.sh` PASS=5).
-
-INFRA-7 verified `REM` semantics with a 3-line probe and a Qize-shape
-loop probe: `REM . part` matches zero-length on empty subject (part=''),
-but the `if (IDENT(str)) return;` guard at the top of every Qize while
-body terminates the loop before REM can re-fire. **No `RTAB(0)` patch
-needed** — `beauty/Qize.sc` is untouched.
-
-INFRA-7 also swapped the `tdump.sc::TValue` placeholder `"'" v(x) "'"`
-for `SqlSQize(v(x))`. Verified by a string leaf containing `o'clock`
-that renders as `'o''clock'` in the tree dump.
 
 INFRA-7a (Session 68) added the missing `case E_CAPT_COND_ASGN` /
 `case E_CAPT_IMMED_ASGN` to `runtime/x86/eval_pat.c::interp_eval_pat`.
@@ -736,23 +749,22 @@ Root cause was an asymmetry between the driver-side evaluator
 (`src/driver/interp_eval.c E_CAPT_COND_ASGN`, lines 3209–3306, which
 correctly routes `E_DEFER(E_FNC)` and `E_INDIRECT(E_FNC)` targets to
 `pat_assign_callcap{,_named,_named_imm}`) and the runtime-side
-pattern evaluator (which had no case at all for E_CAPT_COND_ASGN —
-fell through `default:` to `eval_node` → `eval_code.c E_CAPT_COND_ASGN`,
-which has no `E_DEFER(E_FNC)` routing and silently built an XNME
-node via `pat_assign_cond`). Fix mirrors the driver-side routing
-into the runtime-side pattern evaluator. Inline-form
-`(str ? (POS(0) LEN(1) . *assign(.part, 'fired')))` now writes
-`part='fired'` matching the assigned-form semantics; `Qize('a' tab 'b')`
-now produces `'a' tab 'b'` (pre-fix produced `'a' a 'b'`).
+pattern evaluator (which had no case at all for E_CAPT_COND_ASGN).
+Fix mirrors the driver-side routing into the runtime-side pattern
+evaluator. INFRA-9 exercises this fix end-to-end through TZ.
 
 INFRA-8 (Session 68) ported `trace.sc` verbatim from beauty/trace.sc
 and added the trace globals (`doDebug`, `xTrace`, `t8Max`, `t8MaxLast`,
 `t8Map`, `strOfs`) to `global.sc`. Default `doDebug = 0` makes T8Trace
 silent. Negative control with `doDebug = 2`, `t8Map[100] = 700`
-correctly emits `(  700,  51,   700,  51)  hello` — confirming the
-function is wired and the silent default is real silence, not a
-load failure.
+correctly emits `(  700,  51,   700,  51)  hello`.
 
-Next session: **INFRA-9** (`omega.sc` — TZ/TY/TW/TX/TV pattern-
-construction tracing wrappers; depends on INFRA-4, INFRA-7, INFRA-8;
-all dependencies green).
+INFRA-9 (Session 68) ported `omega.sc` verbatim and added
+`doParseTree = 0`, `txOfs = 0` to `global.sc`. Default `xTrace = 0`
+makes TZ/TY return a bare-pattern + max-position-recorder wrapper
+(no T8Trace hooks). Negative control with `xTrace = 1, doDebug = 2`
+correctly emits the canonical entry / completion trace pair with
+proper position fragments.
+
+Next session: **INFRA-10** (verify OPSYN `~` and `&` work at runtime —
+the dessert; Lon's last-in-the-ladder rung).
