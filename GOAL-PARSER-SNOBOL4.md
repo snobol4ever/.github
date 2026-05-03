@@ -391,8 +391,8 @@ this exact form.  PARSER-SN should adopt it too, both to converge
 with sibling sessions and to align with beauty.sc's parser-build
 shape (which PARSER-SN-7 needs to crosscheck against beauty.sno).
 
-- [ ] Read whole input into `Src` via the beauty main00/main02 idiom:
-      ARBNO(`Line = INPUT`, append `Line nl` to Src).
+- [x] Read whole input into `Src` via the beauty main00/main02 idiom:
+      ARBNO(`Line = INPUT`, append `Line nl` to Src). ✅ confirmed working.
 - [ ] Replace per-line-match driver with: `Src ? *Compiland`
       single match.  `Compiland` uses `ARBNO(*Command)` to consume
       every statement.
@@ -404,6 +404,33 @@ shape (which PARSER-SN-7 needs to crosscheck against beauty.sno).
       the program tree's children individually rather than as one
       lisp-paren string.
 - [ ] Verify PARSER-SN gate PASS=8 with the new driver.
+
+**FW-3 BLOCKER (session 2026-05-03):** `epsilon . *IncCounter()` (i.e.
+`nInc()` from semantic.sc) fails silently when used in a pattern element
+inside ARBNO. Investigated:
+- `epsilon . var` dot-var capture works (smoke confirms INFRA-7a).
+- `IncCounter()` called imperatively works fine.
+- `*IncCounter()` in pattern position causes the pattern element to fail
+  rather than succeed-with-side-effect. Root cause: IncCounter returns
+  `.dummy` via NRETURN; Snocone's E_CAPT_*_ASGN path with NRETURN
+  in pattern context causes the element to fail.
+- Same failure for `epsilon . *PushCounter()` — all counter side-effect
+  patterns from semantic.sc are broken in this runtime.
+
+**Workaround options for next session:**
+1. Count imperatively: use a global `_stmt_count` variable, increment it
+   inside each `build_*` helper (which work fine), then call
+   `Reduce('Parse', _stmt_count)` after the ARBNO loop instead of
+   `reduce('Parse', 'nTop()')`. No counter.sc needed in pattern.
+2. Fix the NRETURN-in-pattern-E_CAPT bug in the Snocone runtime (deep;
+   likely `eval_pat.c E_CAPT_*_ASGN` — the same fix site as INFRA-7a
+   but for the NRETURN path). Would fix nInc() for all six PARSER-*.
+3. Replace NRETURN with RETURN in IncCounter (return a dummy value
+   instead of a NAME descriptor) — check if that unblocks the pattern
+   path without breaking other callers.
+
+Probe scripts used for diagnosis available in git log. Gate left GREEN
+(per-line driver reverted). counter.sc NOT yet added to parser gate blob.
 - **Sibling LANG sessions blocked by this gap:** PARSER-SC, PARSER-RK,
   PARSER-PR.  PARSER-RB and PARSER-IC tolerable on per-line.
 - **Gate:** `test_parser_snobol4.sh` PASS=8 with whole-program
@@ -642,14 +669,24 @@ Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
 `assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
 `assign_mixed.sno`.
 
-Next step: **PARSER-SN-FW-3** (Compiland-spine whole-program driver loop — blocks SC/RK/PR).
+Next step: **PARSER-SN-FW-3** — resolve nInc()/IncCounter-in-pattern blocker first (see rung notes), then implement Compiland-spine driver.
 
 FW ladder status:
 - FW-1 ✅ generalize TValue for non-scrip-IR leaf kinds (unblocks all 5)
 - FW-2 ✅ multi-child role-slot wrapper (unblocks IC/PR/RK)
-- FW-3 ⏳ Compiland-spine driver loop (blocks SC/RK/PR)
+- FW-3 ⏳ Compiland-spine driver loop — BLOCKED on nInc()-in-pattern bug
 - FW-4 ⏳ scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have)
 - FW-5 ⏳ root-cause TLump function-name slot wart (defensive)
+
+**FW-3 blocker summary:** `epsilon . *IncCounter()` fails in pattern
+context (NRETURN from *fn() in E_CAPT_*_ASGN path causes failure).
+Workaround: count imperatively inside build_* helpers using a global
+`_stmt_count` var, then `Reduce('Parse', _stmt_count)` after ARBNO.
+See FW-3 rung notes for full analysis and options.
+
+Also discovered: `tree()` lowercase stores c-arg raw (not in array);
+`Tree()` uppercase wraps in ARRAY — TLump requires Tree() for proper
+multi-child trees. Documented in FW-2 rung.
 
 Open workaround items INFRA-11a/b/c remain — surface bumps that
 don't block PARSER-SN-3+. Revisit when frontend ladder reveals real
