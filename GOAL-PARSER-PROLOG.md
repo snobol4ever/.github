@@ -152,15 +152,21 @@ must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
 - **Sibling LANG rungs:** PR-1..PR-3 (lexer, atom/var distinction).
 - **Gate:** PASS=4. ✅
 
-### PARSER-PR-1 — facts (`name.` or `name(args).`) — **next**
+### PARSER-PR-1 — facts (`name.` or `name(args).`) — **LANDED**
 
-- [ ] `Command` handles bare facts (zero-arg compound) and compound
+- [x] `Command` handles bare facts (zero-arg compound) and compound
       facts `f(a, b, c).`.
-- [ ] Test corpus: existing thin Prolog fact tests + **NEW**.
+- [x] Test corpus: existing thin Prolog fact tests + **NEW**.
 - **Sibling LANG rungs:** PR-4..PR-6.
-- **Gate:** PASS≥10.
+- **Gate:** PASS=11. ✅ (PR-0: 4 atom fixtures + PR-1: 6 compound +
+  1 multi-clause-distinct-functor = 11.)
+- **Deferred to later rungs (noted in parser_prolog.sc top-of-file):**
+  nested compound args (`foo(bar(a)).`), same-functor multi-clause
+  E_CHOICE merging (`foo(a). foo(b).` → one E_CHOICE / two E_CLAUSE),
+  anonymous variables `_`. PR-1 fixtures avoid these to keep the gate
+  byte-exact against the oracle.
 
-### PARSER-PR-2 — rules (`head :- body.`)
+### PARSER-PR-2 — rules (`head :- body.`) — **next**
 
 - [ ] `Command` handles rules with a single goal in the body.
 - [ ] Test corpus: existing + **NEW**.
@@ -224,4 +230,4 @@ must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
 
 ## Watermark
 
-PARSER-PR-0 LANDED (PASS=4). Next: PARSER-PR-1 — compound facts.
+PARSER-PR-1 LANDED (PASS=11). Next: PARSER-PR-2 — rules (`head :- body.`).
