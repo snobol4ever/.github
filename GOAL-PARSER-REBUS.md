@@ -196,4 +196,9 @@ PARSER-RB-0 DONE (2026-05-03, session #62).
   one4all parser: scrip.c --dump-ir wired for .reb, test_parser_rebus.sh
   Gate: PASS=3 FAIL=0
 
-PARSER-RB-1 — next.
+PARSER-RB-1 DONE (2026-05-03, session #62).
+  corpus: assign_int, assign_str, assign_var, assign_output, assign_seq
+  AssignLine + emit_assign() added to parser_rebus.sc
+  Gate: PASS=8 FAIL=0
+
+PARSER-RB-2 — next.
