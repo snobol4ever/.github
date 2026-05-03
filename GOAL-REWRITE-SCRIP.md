@@ -670,24 +670,86 @@
   Remaining survey kinds: E_SCAN ×5, E_CASE ×1 (RS-22f-stmt closes).
   one4all @ (pending commit).
 
-- [ ] **RS-22f-stmt**: E_SCAN, E_CASE.  E_SCAN drives a generator chain
-    via coro/exec_stmt; needs first-value contract decision (Icon-mode
-    vs SNOBOL4-mode dispatch — interp_eval.c:3877 has both branches).
-    E_CASE is statement-shaped; case-as-expression returns matching
-    clause's value.
+- [x] **RS-22f-stmt** (session 2026-05-03) — E_SCAN, E_CASE lifted into
+    `bb_eval_value`.
+  E_SCAN: bb_eval_value is only reached from BB-engine call sites
+  (Icon every-bodies, Prolog clause-bodies), so the SNOBOL4-mode
+  exec_stmt branch in interp_eval.c:3887 is unreachable here — the
+  Icon/Prolog branch (line 3899) is what we mirror.  Push current scan
+  state, evaluate subject as string, install with pos=1, evaluate body,
+  restore.
+  E_CASE: case-expression in value context.  Evaluate topic; walk
+  pairs (Icon) or triples (Raku, detected by (nchildren-1)%3==0 with
+  child[1] being E_ILIT/E_NUL); return matching body's value, default
+  body, or NULVCL.  Mirrors interp_eval.c:3569 verbatim with
+  interp_eval recursion replaced by bb_eval_value.
+  +90 lines (2 case arms with full Icon+Raku layout dispatch).
+  Build clean.  smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5,
+  smoke_raku 5/5, unified_broker 49/0, isolation gate green.
+  Icon IR-all-rungs 191/263 — byte-identical to f3daa24e baseline.
+
+  RS-22f closure verification: an in-source probe (per-kind
+  one-shot fprintf logger at the bb_eval_value fallthrough, replicated
+  for bb_exec_stmt) was run across:
+    - smoke_snobol4 / smoke_icon / smoke_prolog / smoke_raku
+    - test_smoke_unified_broker (49 tests)
+    - test_icon_ir_all_rungs (271 programs)
+  Result: zero RS22F_FALLTHROUGH and zero RS22STMT_FALLTHROUGH events
+  in scope.  All 16 surveyed kinds (and any unsurveyed kinds reachable
+  from these gates) now have native handling in the BB adapters.
+  Probe code removed before commit.
+  one4all @ (pending commit).
 
   After all five sub-rungs land, the merge gate's hardened-fallthrough
   variant should pass — that is the gate for closing RS-22f.
 
 - [ ] **RS-23** — Remove the `extern DESCR_t interp_eval(EXPR_t *e);`
-  declarations from `coro_value.c` and `coro_stmt.c`. Replace remaining
-  fallthroughs (if any) with explicit error messages naming the kind, since
-  by this point an unhandled kind reaching the BB adapters is a real bug
-  (some frontend produced a kind the adapters don't know about). Promote
-  `coro_value.c` and `coro_stmt.c` into `scripts/test_isolation_ir_sm.sh`
-  SM_FILES list. Update `ARCH-SCRIP.md` to describe the BB adapters as
-  full members of the isolation gate.
-  Gate: as RS-21, plus isolation gate green with the two new files in scope.
+  declarations from `coro_value.c` and `coro_stmt.c`, harden
+  fallthroughs, promote both files into the isolation gate.
+
+  **First attempt (session 2026-05-03) regressed gates and was reverted.**
+  After RS-22f-stmt left zero direct-fallthrough events on the probe gate
+  (smoke + unified_broker + 271-program Icon corpus), the natural next
+  step looked obvious: drop the externs, replace fallthrough with
+  `fprintf(stderr, "unhandled kind"); return FAILDESCR/void`, add both
+  files to test_isolation_ir_sm.sh.  Build was clean; isolation gate was
+  green; smoke_snobol4 7/7 stayed green; smoke_prolog 5/5 stayed green.
+  But:
+    smoke_icon       5/5 → 0/5
+    smoke_raku       5/5 → 0/5
+    unified_broker  49/0 → 8/41
+  The probe methodology is the gap.  The probe only fires when control
+  reaches the **direct** `return interp_eval(e)` line at the bottom of
+  `bb_eval_value` — kinds that flow through the switch and into helpers
+  like `icn_call_builtin`, `coro_eval`, the E_AUGOP generator-RHS path,
+  etc., never see the probe even when those helpers themselves end up
+  re-entering `interp_eval`.  Specifically: builtins like `write` and
+  string ops on non-trivial argument expressions appear to reach
+  `interp_eval` through `icn_call_builtin`'s argument re-evaluation, or
+  through `coro_eval` paths that themselves call `interp_eval` for kinds
+  the BB engine doesn't natively pump.  Smoke probes (where a direct
+  hit would have logged something) were run on simple programs that
+  happen NOT to trigger those indirect paths; the regression appeared
+  on broader smoke fixtures that do.
+
+  RS-23 needs a different gate methodology before it can land:
+  (a) Compile-time: temporarily redefine `interp_eval` to a wrapper
+      that logs every call (with stack trace via backtrace(3)) and run
+      the full smoke + unified_broker + Icon corpus.  Every call path
+      that reaches `interp_eval` from a BB-adapter ancestor frame is
+      a target — it must be lifted to bb_eval_value/bb_exec_stmt or
+      routed through eval_node before RS-23 can land.
+  (b) Link-time: use `--wrap=interp_eval` to count call sites by
+      caller and identify the unsurveyed indirect paths.
+  (c) Once paths (a)/(b) yield empty under the BB-driver call tree,
+      RS-23 lands; until then, the extern stays.
+
+  Reverting the failed attempt restored all gates to:
+    smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5,
+    unified_broker 49/0, isolation gate green.
+  Files reverted: coro_value.c (extern + fallthrough), coro_stmt.c
+  (extern + fallthrough), scripts/test_isolation_ir_sm.sh
+  (SM_FILES list and comment).
 
 - [ ] **RS-24** — Strip the now-dead Icon-frame switch from `interp_eval.c`.
   After RS-21/22/23, every Icon kind that was reachable from a BB-engine
