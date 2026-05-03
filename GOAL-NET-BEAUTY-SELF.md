@@ -4038,3 +4038,212 @@ likely either:
                                       `.`-capture.  Ready for fix
                                       next session — see "Recommended
                                       next-session targets" above.
+
+---
+
+## Session #84 — 2026-05-03 (Sonnet / Lon)
+
+**Outcome:** No commit. Diagnostic-only session. Tree clean across all repos.
+HEADs unchanged: snobol4dotnet `9fc75d6`, x64 `5035571`, one4all `872b5a3c`.
+Beauty self-host unchanged at 47 stderr lines / Parse Error at line 48.
+
+### What ran
+
+1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+   `x64`. Installed `dotnet-sdk-10.0` (10.0.107). snobol4dotnet HEAD
+   `9fc75d6` build clean. Beauty self-host baseline confirmed.
+
+2. **Applied per-node visit-count + cursor-histogram + via-mechanism +
+   predecessor diagnostic** to `Scanner.cs Match()` and `ScannerState.cs`
+   (`.orig`-backed, REVERTED before session end per RULES.md).
+   Diagnostic fires when `Subject.Length == 55 && Subject.Contains("DQ")` —
+   the line-48 failing-PatternMatch invocation. At 1000 visits to any
+   single node, dump the alt-stack, top-visited nodes, cursor distribution,
+   via-mechanism (SUB/RESTORE/GOTO), predecessor histogram, and AST
+   context.
+
+### Critical empirical findings
+
+**Falsifies session #83's "performance issue, not semantic" hypothesis.**
+The runaway IS structural — the alt-stack accumulates redundant
+restore-points all converging on the same CVA1 SPAN cluster.
+
+**Per-node visit data:**
+
+  - Node 1128 (CVA1 of arm A): 1000 visits at **cur=20×1000** via
+    **RESTORE×1000**, predecessors **{1110×334, 1081×333, 1076×333}**.
+  - Node 1075 (CVA1 of arm B): 334 visits at cur=20 via RESTORE×334,
+    predecessors {1150×112, 1061×111, 1056×111}.
+  - Node 1055 (CVA1 of arm C): 112 visits at cur=20 via RESTORE×112.
+  - Node 1029 (some outer driver): 38 visits.
+
+  Visit-count cascade: 38 → 112 → 334 → 1000. Ratios all ≈ 3.
+  This is a **4-level cascade with 3-way alternation at each level**:
+  outer driver retried 38× → nests into 3 arms × 3 arms × 3 arms ×
+  arm reaches CVA1 → 38 × 27 = 1026 ≈ 1000.
+
+  **All 1000 visits at cur=20** (the position immediately AFTER SPAN
+  matched 'DQ' at cur=18→20). SPAN at cur=20 fails immediately
+  (space char not in SPAN charset). So every retry of the SPAN
+  cluster does ~5 wasted node visits (CVA1 → CVA1 → SPAN-FAIL →
+  CVABackup → CVABackup) and pops back to the next outer alt.
+
+**The alt-stack at runaway-detection (depth 42):**
+
+  ```
+  Top-20 entries: 1081, 1076, 1061, 1056, 1035, 1030, 1009, 1004,
+                  983, 978, 933, 932, 932, 932, 932, 892, 887,
+                  834, 886, 829
+  Frequency:  node=932×4 (ARBNO empty arm, alt=933 sub=937).
+  ```
+
+  Five distinct (CVA1-pair-like) saved-node clusters at indices
+  978/983, 1004/1009, 1030/1035, 1056/1061, 1076/1081 — each pair
+  ~26 nodes apart. These are different `SPAN $ tx $ *match` cluster
+  instances, all saved to the alt-stack, all leading back to a
+  CVA1 node when restored.
+
+**AST analysis — nodes with `Alternate=1128`:**
+
+  Nine different nodes have `Alternate=1128`:
+  ```
+  node=1076 ''            alt=1128 sub=1080
+  node=1081 ''            alt=1128 sub=1085
+  node=1110 SpanPattern   alt=1128 sub=1112
+  node=1112 '.'           alt=1128 sub=1114
+  node=1114 MarkPattern   alt=1128 sub=1117
+  node=1118 ''            alt=1128 sub=1119
+  node=1119 SealPattern   alt=1128 sub=1121
+  node=1122 ''            alt=1128 sub=1124
+  node=1125 ''            alt=1128 sub=1143
+  ```
+
+  These are all in the BuiltinVar/SpecialNm graft regions (indices
+  1075-1125). Their `Alternate=1128` correctly means "if I fail,
+  try arm Function (which starts at 1128)" — a valid forward-pointing
+  alternation link.
+
+**The actual bug — interpretation:**
+
+  The pattern is structurally CORRECT but produces exponential
+  backtracking. The grammar has 3-way alternation arms (Function |
+  BuiltinVar | SpecialNm) embedded in deeper nesting (4 levels),
+  giving 3^4 = 81 backtrack paths. Each path's SPAN-cluster try
+  at cur=20 fails immediately (space char). The cumulative ~1000
+  retries at cur=20 are all redundant — each tries the same
+  pattern at the same cursor against the same subject, producing
+  the same FAIL.
+
+  **SPITBOL avoids this catastrophic backtracking via** one or
+  more of:
+  (a) cursor-position memoization: same `(pattern, cursor)` failure
+      cached, second try short-circuits.
+  (b) FENCE seal commits more aggressively, suppressing back-pops
+      into already-failed-arm regions.
+  (c) different alt-stack management around `*X` graft+fail: SPITBOL
+      may pop a wider span on `*X`-fail than dot does.
+
+  Beauty parses correctly on SPITBOL. Beauty's grammar is the same
+  on both runtimes. The semantic bug must be in dot's pattern-match
+  engine — most likely in (a) or (b).
+
+### Concrete next-session targets
+
+1. **Inspect SPITBOL's bktrk implementation**
+   (`x64/sbl.min`) — find how it handles the *X-graft + arm-fail
+   sequence. Specifically: when an arm ending in *X fails (after
+   *X grafted and was followed by a failure), what does SPITBOL
+   pop from the saved-state stack? Look at `bktrk`, `xkalt`,
+   and the dispatch around `mtchcd` for unevaluated patterns.
+
+2. **Verify the FENCE seal placement** in `Expr17 = FENCE(...)`.
+   The structure built is `Concat(Mark, Concat(P, Seal))` where
+   P is the 9-arm alternation. Currently when an EARLY arm
+   (e.g. *Function) succeeds-then-fails, backtrack pops ITS
+   internal alternates AND the *Function arm itself, then tries
+   the next arm. But a deeper failure that should re-trigger the
+   FENCE's outer arms isn't covered — and may be why the alt-stack
+   accumulates many CVA1 saves all at cur=20.
+
+3. **Position-based memoization candidate fix**: in
+   `Scanner.PatternMatch` or `Scanner.Match`, add a per-pattern-
+   match cache `Set<(node_index, cursor)> _failedAttempts`.
+   When `Match()` is about to enter a node at a cursor, check
+   if `(node, cursor)` was already in the failed-set; if yes,
+   return FAILURE immediately without firing Scan.
+   
+   **Risk:** this changes semantics if a pattern's outcome at
+   `(node, cursor)` depends on hidden state (like AlphaStack
+   contents from outer captures, or BetaStack contents). The
+   pattern-match engine relies on side effects from CVA captures
+   that change the AlphaStack between attempts. So same
+   `(node, cursor)` could legitimately produce different outcomes
+   on different attempts. **The cache must include the relevant
+   side-effect state in its key**, or it will break captures.
+   
+   For terminal patterns (LiteralPattern, SpanPattern, BreakPattern,
+   etc.) that ONLY consume cursor (no side effects), the
+   `(node, cursor)` cache IS safe and would prevent the redundant
+   1000 retries at cur=20.
+
+4. **Targeted optimization: short-circuit failed-SPAN cache.**
+   In `SpanPattern.Scan`, cache the cursor positions where the
+   span failed. On second entry at the same cursor, return
+   FAILURE immediately. This is safe (SpanPattern has no side
+   effects) and would eliminate 1000 redundant `_charList.Contains`
+   probes.
+
+   **Implementation sketch** in `SpanPattern.cs`:
+   ```csharp
+   // Cache failed-cursor results per Scanner instance.
+   // Cleared per PatternMatch (since Subject can change).
+   internal override MatchResult Scan(int node, Scanner scan)
+   {
+       // Side-effect-free fast path: if SPAN failed here last time, fail again.
+       if (scan.SpanFailedAt(node, scan.CursorPosition))
+           return MatchResult.Failure(scan);
+       ...
+       // After computing match outcome:
+       if (!match) scan.RecordSpanFail(node, scan.CursorPosition);
+       return ...;
+   }
+   ```
+   With `Scanner.SpanFailedAt(node, cur)` and `Scanner.RecordSpanFail`
+   maintaining a per-PatternMatch dictionary of `(node, cursor) → ()`.
+   Cleared in `PatternMatch()` when a new match starts.
+
+   This is a **performance** optimization that does not change
+   semantics. It would not by itself fix line 48 if the bug is
+   elsewhere — but it would let the runaway terminate quickly
+   enough to see what the match's actual outcome is.
+
+5. **Run beauty self-host with the failed-SPAN cache.** If the
+   match actually SUCCEEDS at cursor advance, then the gating
+   bug is performance (never reaches the success path due to
+   timeout/effort). If it still FAILS at the same Parse Error,
+   then there's a real semantic bug elsewhere.
+
+### Hand-off state — session #84
+
+  - All five repos clean. No `.orig` files. No diagnostic patches.
+  - HEADs unchanged from session #83.
+  - Beauty self-host gate unchanged: exit 0, 47 stderr lines, Parse
+    Error at line 48. SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159`
+    (Milestone 1 invariant intact).
+  - Goal-file edits this session: this narrative only.
+
+### Status updates
+
+  S-2-bridge-7-fullscan          [~] partial — line-48 runaway
+                                      precisely characterized:
+                                      4-level nested 3-way
+                                      alternation backtracking,
+                                      ~1000 redundant SPAN retries
+                                      at cur=20 (where SPAN always
+                                      fails). All visits at the
+                                      same cursor against the same
+                                      pattern produce the same FAIL.
+                                      Position-memoization or
+                                      SpanPattern-failure-cache is
+                                      the recommended next-session
+                                      lead.
