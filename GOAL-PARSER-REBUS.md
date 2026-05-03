@@ -57,12 +57,12 @@ scrip --parser-crosscheck parser_rebus.sc tiny.reb
 ```
 
 SCRIP runs `parser_rebus.sc` (which `-include`s the shared SC library from
-`corpus/programs/snocone/lib/`) against `tiny.reb` — PAT produces IR tree t2
+`corpus/programs/scrip/`) against `tiny.reb` — PAT produces IR tree t2
 via `Compiland`; the existing frontend produces t1. Both compared in memory
 (`tree_equal`), both executed in memory. No subprocesses, no temp files, no
 on-disk diffs.
 
-**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PARSER-SN-INFRA-1):
+**Shared SC library** (`corpus/programs/scrip/` — tracked under PARSER-SN-INFRA-1):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
@@ -97,7 +97,7 @@ Compiland = nPush() ARBNO(*Command) reduce('Parse', 'nTop()') nPop();
 
 ### PARSER-RB-0 — atom — **next**
 
-- [ ] Write `corpus/programs/rebus/parser/parser_rebus.sc` with `Compiland`
+- [ ] Write `corpus/programs/scrip/parser_rebus.sc` with `Compiland`
       handling one identifier or one integer or one quoted string.
 - [ ] In-process two-frontend crosscheck.
 - [ ] Write `scripts/test_parser_rebus.sh`.
