@@ -279,7 +279,7 @@ so the bug is in evaluation — likely in `interp_eval.c` around how
 - **Gate:** `ANY(&UCASE 'xyz')` matches `'A'`; tdump.sc reverts to
   beauty-source-style inlined patterns; `test_scrip.sh` stays green.
 
-### PARSER-SN-INFRA-4 — `assign.sc` + `match.sc` (pattern-time actions)
+### PARSER-SN-INFRA-4 — `assign.sc` + `match.sc` (pattern-time actions) — ✅ DONE
 
 Two tiny files, both no-deps, both well-tested in beauty: the `*assign`
 deferred assignment and the `*match`/`*notmatch` nested-pattern checks.
@@ -287,14 +287,17 @@ These are the canonical hooks all six PARSER drivers rely on for token
 list-membership tests (`Function`, `BuiltinVar`, `SpecialNm`, `ProtKwd`,
 `UnprotKwd` in beauty.sc lines 24–28).
 
-- [ ] Write `scrip/assign.sc` with the single `assign(name, expression)`
+- [x] Write `scrip/assign.sc` with the single `assign(name, expression)`
       function — verbatim from beauty/assign.sc.
-- [ ] Write `scrip/match.sc` with `match(subject, pattern)` and
+- [x] Write `scrip/match.sc` with `match(subject, pattern)` and
       `notmatch(subject, pattern)` — verbatim from beauty/match.sc.
-- [ ] Add to `smoke.sc`: a 2-line block that captures via `*assign` then
-      a 2-line block that does a `*match` membership test against a
-      space-delimited list. Each block ends with an OK/FAIL OUTPUT.
-- **Gate:** `assign-OK` and `match-OK` plus all earlier OKs.
+- [x] Add to `smoke.sc`: `assign('_smoke_cap', 'hel')` call verifies the
+      function stores its second arg into the named variable and returns
+      `.dummy`; `match('foo bar baz', 'bar')` and `notmatch('foo bar baz',
+      'qux')` verify both membership directions. Three new OK/FAIL lines.
+- **Gate (cleared):** `test_scrip.sh` PASS — output is
+  `bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK`.
+  `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh` PASS=5. ✅
 
 ### PARSER-SN-INFRA-5a — fix scrip Snocone bug: synthetic-label collision across .sc files — ✅ DONE
 
@@ -525,11 +528,13 @@ and that both forms (function-call and infix) produce byte-identical IR.
 
 ## Watermark
 
-INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), and
-INFRA-3 (`tdump.sc`) cleared in sessions 62 / 63 / 64. Seven runtime
-files now in `corpus/programs/scrip/`: `global.sc` `tree.sc` `stack.sc`
-`counter.sc` `ShiftReduce.sc` `semantic.sc` `tdump.sc`. `test_scrip.sh`
-PASS — output `bar\nglobal-OK\ntdump-OK`. Regressions clean.
+INFRA-5a (synthetic-label collision), INFRA-2 (`global.sc`), INFRA-3
+(`tdump.sc`), and INFRA-4 (`assign.sc` + `match.sc`) cleared in sessions
+62 / 63 / 64 / 65. Nine runtime files now in `corpus/programs/scrip/`:
+`global.sc` `tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc`
+`semantic.sc` `tdump.sc` `assign.sc` `match.sc`. `test_scrip.sh`
+PASS — output `bar\nglobal-OK\ntdump-OK\nassign-OK\nmatch-OK\nnotmatch-OK`.
+Regressions clean.
 
 INFRA-3 surfaced **INFRA-5c**: scrip's Snocone runtime drops `E_KEYWORD`
 contributions from a function-arg `E_SEQ` (so `ANY(&UCASE &LCASE)` and
@@ -538,8 +543,7 @@ there). tdump.sc carries a documented workaround (precompute the class
 strings into module-scope locals); INFRA-5c is the goal that lets us
 revert to beauty-source-style inlined patterns.
 
-Next session: **INFRA-4** (`assign.sc` + `match.sc` — pattern-time
-actions: `*assign` deferred assignment and `*match`/`*notmatch`
-nested-pattern checks). Both files are tiny no-deps verbatim ports
-from beauty. INFRA-4 does not depend on INFRA-5c. INFRA-5b still
-gates INFRA-6.
+Next session: **INFRA-5c** (fix `E_KEYWORD` dropped from `E_FNC` arg
+`E_SEQ`) OR **INFRA-5b** (`if (str ? PAT = )` inside while-loop body).
+Both are runtime C bugs. INFRA-5c unblocks tdump.sc cleanup; INFRA-5b
+unblocks INFRA-6 (`case.sc`). Neither blocks INFRA-7 through INFRA-10.
