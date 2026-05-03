@@ -142,6 +142,21 @@
   `--jit-run` paths. FACT(6)=720 recursive, DOUBLE(21)=42, multi-fn all verified.
   one4all @ `(pending commit)`. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
-- [ ] **RS-9c** *(future)* — Same SM-frame treatment for --jit-run (sm_codegen path).
-  sm_codegen h_call mirrors sm_interp SM_CALL logic; extend with SmCallFrame push/pop
-  so JIT-compiled code runs function bodies via emitted x86.
+- [x] **RS-9c** — SM call frames for --jit-run (sm_codegen path) (session 2026-05-03).
+  h_call in sm_codegen now looks up SM bodies and pushes SmCallFrame before jumping,
+  mirroring sm_interp RS-9a. h_return/h_freturn/h_nreturn pop frames and restore caller.
+  Also fixed 6 foundational bugs discovered during implementation:
+  (1) sm_label_named union aliasing: a[0].i and a[0].s in same union slot — PC clobbered
+      by name pointer. Fixed: PC in a[1].i, name in a[0].s. sm_label_pc_lookup reads a[1].i.
+  (2) !FNCEX_fn guard blocked DEFINE'd user functions from SM body lookup. Removed guard.
+  (3) Conditional return opcodes missing: :F(RETURN) / :S(RETURN) both emitted unconditional
+      SM_RETURN. Added SM_RETURN_S/F, SM_FRETURN_S/F, SM_NRETURN_S/F; fixed emit_goto.
+  (4) break vs goto sm_call_done: after SM body dispatch, inner break fell through to
+      sm_push(FAILDESCR) — spurious FAIL pushed on every user call. Fixed: goto sm_call_done.
+  (5) Caller value stack wiped by SM_STNO: st->sp=0 at each stmt boundary destroyed
+      expression operands across recursive call boundaries (e.g. outer 'n' in n*FACT(n-1)).
+      Fixed: SmCallFrame saves/restores full caller value stack on push/pop.
+  (6) SM_MOD missing from opnames table: shifted all names from SM_CONCAT onward.
+  g_current_sm_prog set in --jit-run path so _usercall_hook guard fires correctly.
+  Verified: FACT(6)=720 recursive, DOUBLE+SQUARE nested, all 3 modes.
+  one4all @ 771fb3e8. Build clean, smoke_snobol4 7/7, unified_broker 49/0.
