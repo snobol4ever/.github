@@ -52,6 +52,32 @@
   `interp_data.c` (DATA registry sc_dat_*, _builtin_print, _builtin_DATA).
   Build clean, smoke_snobol4 7/7, unified_broker 49/0.
 
+- [x] **RS-10** — Sever IR-interp from SM execution paths: null `g_user_call_hook` in SM mode.
+  `_usercall_hook` in `interp_hooks.c` previously fell through to `call_user_function`
+  (IR tree-walk) for any name with no SM body and no registered builtin. After RS-9b
+  `code_free` nulled the stmt pointers so `call_user_function` returned FAILDESCR in
+  practice, but the path was plugged by side-effect, not by design. Also, nulling
+  `g_user_call_hook` entirely was not safe — pattern-context `.*func()` calls
+  (`name_t.c` NM_CALL, `stmt_exec.c` XCALLCAP) still need the hook in SM mode.
+  Fix: one guard at the `call_user_function` fallthrough in `_usercall_hook`:
+  `if (g_current_sm_prog) return FAILDESCR;`
+  In SM mode (`g_current_sm_prog` set after `sm_lower`), the hook now returns FAILDESCR
+  immediately for any name not already dispatched as a builtin, DATA field, SM body,
+  Icon proc, or Prolog pred — never entering `call_user_function` or `interp_eval`.
+  In IR mode (`g_current_sm_prog == NULL`), behaviour is unchanged.
+  one4all @ (pending commit). Build clean, smoke_snobol4 7/7, unified_broker 49/0.
+  In `--sm-run` and `--jit-run`, `SM_CALL` falls through to `INVOKE_fn` → `APPLY_fn` →
+  `g_user_call_hook` → `_usercall_hook` → `call_user_function` → `label_lookup` +
+  `interp_eval` tree-walk when no SM body is found. After RS-9b `code_free` nulls the
+  stmt pointers so `call_user_function` returns FAILDESCR rather than tree-walking, but
+  the path is plugged by side-effect, not by design. Fix: in `scrip.c`, set
+  `g_user_call_hook = NULL` after `sm_lower()` in both `--sm-run` and `--jit-run` paths.
+  `APPLY_fn` checks `g_user_call_hook` before calling it; NULL means unknown user
+  functions return FAILDESCR immediately without touching `call_user_function` or
+  `interp_eval`. Also add a guard at the top of `_usercall_hook` that asserts
+  `!g_current_sm_prog` so any future regression is caught at call time, not silently.
+  Gate: build clean, smoke_snobol4 7/7, unified_broker 49/0.
+
 - [ ] **RS-4** — Further reduction of interp_eval.c (~4300 lines).
   The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
   are the remaining concentrations. Both are tightly coupled to the switch via `return`
