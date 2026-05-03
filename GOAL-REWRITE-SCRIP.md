@@ -589,24 +589,49 @@
 
 - [ ] **RS-22f** — Close the 16 fallthrough kinds inventoried by RS-22e.
   Five sub-rungs by category:
-  - **RS-22f-strrel**: E_LEQ, E_LNE, E_LGT, E_LGE, E_LLT, E_LLE.  Mirror
-    of RS-22b's `bb_numrel`: copy to `bb_strrel` in coro_value.c, use
-    `strcmp(VARVAL_fn(l), VARVAL_fn(r))`, return rhs on success.  ~25
-    lines.  Gate: smoke_icon 5/5, unified_broker 49+/0 (palindrome.icn
-    will go from FAIL → PASS once E_LNE lifts).
-  - **RS-22f-cset**: E_CSET (literal), E_CSET_COMPL, E_CSET_DIFF,
+
+- [x] **RS-22f-strrel** (session 2026-05-03) — E_LEQ, E_LNE, E_LGT, E_LGE,
+  E_LLT, E_LLE.  Mirror of RS-22b's `bb_numrel` copied to `bb_strrel`
+  in `coro_value.c`: VARVAL_fn → strcmp → return rhs on success per
+  Icon goal-directed convention.  +44 lines (1 helper, 1 enum, 6 case
+  arms; survey block updated).  Diagnostic verified all six ops route
+  through `bb_strrel` (probe `/tmp/strrel_probe.icn`); palindrome.icn
+  exercises E_LNE 6× through `bb_strrel` (was reaching `interp_eval`
+  fallthrough).  Build clean.  smoke_snobol4 7/7, smoke_icon 5/5,
+  smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0 (palindrome
+  was already PASS via fallthrough; the win is the IR walker is no
+  longer reached for any of these six kinds).  Isolation gate green.
+  one4all @ `f206dadf`.
+
+- [ ] **RS-22f-cset**: E_CSET (literal), E_CSET_COMPL, E_CSET_DIFF,
     E_CSET_INTER, E_CSET_UNION.  Set arithmetic on DT_S strings
     representing csets; literal is `e->sval ? STRVAL : NULVCL`.
-  - **RS-22f-makelist**: E_MAKELIST.  ~12 lines via DEFDAT_fn / DATCON_fn.
-  - **RS-22f-generators**: E_TO, E_ALTERNATE, E_ITERATE, E_LIMIT, E_SEQ.
+
+- [x] **RS-22f-makelist** (session 2026-05-03) — E_MAKELIST lifted in.
+  Mirrors interp_eval.c:4051-4062 verbatim: first-sighting DEFDAT_fn
+  registration of `icnlist` (process-static flag), GC_malloc'd elem
+  array, bb_eval_value over each child (was interp_eval in IR mode),
+  DATCON_fn returns the DT_DATA descriptor.  +13 lines (single case
+  arm; survey block updated).  Verified bb_eval_value path is
+  exercised by `rung36_jcon_every.icn` in the corpus (n=2 and n=1
+  makelists, each printed by diagnostic probe).  Most E_MAKELIST
+  sightings in pure-Icon programs flow through sm_lower (assignment
+  rhs) — those were never the BB-adapter's concern.  Build clean.
+  smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5,
+  unified_broker 49/0, isolation grep gate green.
+  one4all @ `744754ff`.
+
+- [ ] **RS-22f-generators**: E_TO, E_ALTERNATE, E_ITERATE, E_LIMIT, E_SEQ.
     These are not direct kinds to evaluate — they should route through
     `coro_eval` and consume a single tick (first-value semantics).
     Add a small `bb_first_tick(e)` helper or dispatch table.
-  - **RS-22f-stmt**: E_SCAN, E_CASE.  E_SCAN drives a generator chain
+
+- [ ] **RS-22f-stmt**: E_SCAN, E_CASE.  E_SCAN drives a generator chain
     via coro/exec_stmt; needs first-value contract decision (Icon-mode
     vs SNOBOL4-mode dispatch — interp_eval.c:3877 has both branches).
     E_CASE is statement-shaped; case-as-expression returns matching
     clause's value.
+
   After all five sub-rungs land, the merge gate's hardened-fallthrough
   variant should pass — that is the gate for closing RS-22f.
 
