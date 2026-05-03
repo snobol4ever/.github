@@ -3529,3 +3529,199 @@ nested pattern match context. Specifically:
                                pattern context FRETURNs incorrectly.
                                Third bug located; fix is next session.
   S-2-bridge-7-alphastack [x] LANDED — fcb9187.
+
+---
+
+## Session #82 — 2026-05-03 (Sonnet / Lon)
+
+**Outcome:** No commit. Diagnostic-only session. Tree clean across all
+repos. HEADs unchanged: snobol4dotnet `fcb9187`, x64 `5035571`. Beauty
+self-host gate unchanged at 47 stderr lines / Parse Error at line 48.
+
+### What this session got right and wrong
+
+**Wrong start:** First attempt was direct C# diagnostics via a
+hand-crafted `.sno` minimal repro. Got an `ArgumentOutOfRangeException`
+in `FinalizeStatementMsil` (empty `SystemStack`, no `StatementSeparator`).
+Started instrumenting `FinalizeStatementMsil` and
+`ExecuteProgramDefinedFunction` with `Console.Error.WriteLine` to
+chase stack residue. **This was the wrong direction.** Lon explicitly
+redirected: "use sync step monitoring." Reverted all C# diagnostic
+patches.
+
+**Right pivot:** Per Lon's explicit guidance — *"more sync sites
+narrows the bug"* — productionized standalone tracing in
+`MonitorIpc.cs` and wired `TraceEnabled`-gated traces into:
+`Scanner.PatternMatch`/`Match`, `UnevaluatedPattern.Scan`,
+`ThreadedExecuteLoop` (TEL) opcode dispatch, and
+`ExecuteProgramDefinedFunction` (FN entry/exit). All
+diagnostic-only — reverted before session end.
+
+### Standalone trace mechanism — proven approach
+
+Per session #74's "Re-applied per-session-#71/#74 the diagnostic
+instrumentation": the patch pattern is small and reproducible:
+
+  1. **`MonitorIpc.cs`** — move `MONITOR_BREAK_AT_EVENT` /
+     `_TRACE_FROM_EVENT` / `_TRACE_TO_EVENT` env-var reads to the
+     top of `Init()` so they fire even when the FIFO pipes are
+     unset. Add `TickStandalone()` that increments `_emitCount`
+     when called — invoke from each `Emit*` early-return on
+     `!Enabled`. Now `MONITOR_TRACE_FROM_EVENT=N TO_EVENT=M
+     dotnet Snobol4.dll ...` works without a controller.
+
+  2. **Scanner / UnevaluatedPattern / ThreadedExecuteLoop /
+     Define** — gate every diagnostic `Console.Error.WriteLine`
+     on `if (MonitorIpc.TraceEnabled)`. Zero overhead when
+     monitoring is off.
+
+  3. **ScannerState** — expose `internal int AltStackCount` for
+     visibility into alt-stack depth.
+
+This recipe should be productionized properly per
+S-2-bridge-event-bombs-coverage.
+
+### Critical empirical finding — line 48 has a malformed AST
+
+Beauty self-host trace from event 1 to Parse Error (1.4 GB,
+20.5M lines). Filtered for last events before "Parse Error"
+appears in the program output:
+
+```
+[PM ec=37643] ENTER subj_len=55 start=0 anchor=False
+[PM ec=37643] retry cur=0
+[M  ec=37643] ENTER node=1 cur=0 subj_len=55
+[M  ec=37643] step node=1 PosPattern cur=0 hasAlt=False alt=-1 altCount=1
+[M  ec=37643] result node=1 PosPattern outcome=FAILURE cur->0
+[PM ec=37643] retry cur=1
+[M  ec=37643] ENTER node=1 cur=1 subj_len=55
+[M  ec=37643] step node=1 PosPattern cur=1 hasAlt=False alt=-1 altCount=1
+[M  ec=37643] result node=1 PosPattern outcome=FAILURE cur->1
+... 53 more cursor advances, all PosPattern outcome=FAILURE ...
+[PM ec=37643] EXIT failure (exhausted retries)
+[TEL ec=37643] ip=1147 op=CallMsil i1=1073 i2=0 stno=159 ssCount=2
+Parse Error            ← user code prints this
+```
+
+**The AST being matched against the 55-char subject (which is
+beauty.sno line 48 `'                  DQ          =  '"' BREAK('"' nl) '"''`)
+contains exactly ONE node — a `PosPattern` (POS(0))**.  No
+alternates, no subsequents, no `*snoParse` /  `*snoSpace` /
+`RPOS(0)` arms.  POS(0) only matches at cursor=0; the pattern is
+unanchored, so the unanchored cursor-retry loop in
+`Scanner.PatternMatch` walks PosPattern through cur=0..55, all
+failing, then returns FAILURE.  The user's `:F(mainErr1)` fires.
+
+This corroborates session #74's diagnosis (*"line 48 still gating;
+session #76 hypothesis re CVABackup Alternate anomalies"*) but
+sharpens it: the bug is NOT that an Alternate link points to the
+wrong arm — it is that the entire `*snoParse *snoSpace RPOS(0)`
+subtree is **missing from the AST** at this PatternMatch
+invocation. Either:
+
+  - (a) `AbstractSyntaxTree.Build(pattern)` returns a malformed
+    tree for this specific pattern object — possible if the
+    pattern was constructed with corrupted internal references
+    (e.g. an Alternate or Subsequent pointer was zeroed during
+    a graft, BetaStack commit, or scope-stack manipulation in
+    a prior PatternMatch call).
+  - (b) `Build()` returns the right tree, but a subsequent
+    `Graft()` or other mutation removes the trailing nodes
+    before the failing PatternMatch invocation reaches them.
+  - (c) The pattern object passed to PatternMatch IS the
+    corrupted one — a `Concat(POS(0), Concat(*snoParse,
+    Concat(*snoSpace, RPOS(0))))` chain has had its
+    inner-Concat reference replaced with `null` or
+    `EmptyPattern` somewhere, so `Build` walks only the POS(0)
+    arm.
+
+Hypothesis (c) is most likely given the `_graftCache` bug class
+already known from session #78 — pattern objects ARE shared
+across invocations, and any mutation to a shared `Pattern.Self`
+or `Pattern.Subsequent` propagates.
+
+### Two harness bugs noted (not goal-blocking)
+
+1. `test_monitor_3way_sync_step_auto.sh` lines 167 and 206 use
+   `${MONITOR_PM:+SPL_PM_TRACE=1}` — bash treats the expansion
+   as a command, not an env-var prefix. Workaround: `export`
+   the env vars from the calling shell instead of using
+   `MONITOR_PM=1`. Cleanup: rewrite as
+   `${MONITOR_PM:+SPL_PM_TRACE=1 }` (with trailing space) or use
+   `if [[ -n "${MONITOR_PM:-}" ]]; then export SPL_PM_TRACE=1; fi`
+   above the launch.
+
+2. `MonitorIpc.cs` `Init()` only reads
+   `MONITOR_TRACE_FROM_EVENT` / `_TO_EVENT` / `_BREAK_AT_EVENT`
+   AFTER opening pipes. When pipes unset, env vars are
+   ignored. Standalone tracing (very useful for diagnostic
+   sessions) requires moving env-var reads above the
+   pipe-setup early-return. ~6 lines of code.
+
+### Test gates (NOT run this session)
+
+- Unit suite: not run.
+- Beauty 17/17: not run.
+- Beauty self-host: confirmed unchanged at 47 stderr lines
+  with restored baseline.
+- SPITBOL oracle: confirmed Milestone 1 invariant byte-identical
+  (md5 `abfd19a7a834484a96e824851caee159`) at session start.
+
+### Recommended next-session execution plan
+
+1. **Productionize standalone trace patches in MonitorIpc.cs**
+   per the recipe above. This is a small, safe, isolated change
+   that earns a commit and unblocks every future bug-hunt
+   session — Mechanism A and B from S-2-bridge-event-bombs
+   become workable without a controller.
+
+2. **Verify the malformed-AST hypothesis directly.** Apply the
+   targeted AST-dump diagnostic in `Scanner.PatternMatch` gated
+   on `subject.Length == 55 && subject.Contains("DQ")`. Dump
+   `_ast.Count` and each `_ast[i]` to stderr at PatternMatch
+   entry. Confirm the AST really is a single PosPattern node.
+   If yes, walk back to find which `Pattern` object was passed
+   in and what its `Self/Subsequent/Alternate` chain looks like
+   at THAT call site.
+
+3. **Bisect the corruption point.** If the AST IS malformed at
+   line-48 invocation but normal at the earlier-line invocations
+   (lines 27, 47, etc. parsed OK), then somewhere between the
+   line-47 PatternMatch's exit and the line-48 PatternMatch's
+   entry, the snoParse pattern's internal references were
+   mutated. Add a Pattern-tree dump before AND after each
+   PatternMatch (in `Executive.PatternMatch`) and diff the
+   tree shape.
+
+4. **Likely fix surface.** Pattern object sharing — `*X`
+   UnevaluatedPattern's `_functionName` delegate captures the
+   surrounding scope. If multiple PatternMatch invocations
+   share Pattern objects whose internal `Subsequent` /
+   `Alternate` are mutated by the scanner, that's the bug.
+   Look at `PatternConcatenation.cs`,
+   `PatternAlternation (Pipe).cs`, and the BuildNodeList /
+   LinkParentChildren pipeline. Also relevant: session #78's
+   `_graftCache` keyed on Pattern reference — if the cache
+   stores nodes whose state is later mutated, returning a
+   cached `graftedStart` gives back stale/broken nodes.
+
+### Status updates
+
+  S-2-bridge-7-fullscan          [~] partial — line 48 narrowed to
+                                      malformed-AST at the failing
+                                      PatternMatch invocation.
+                                      Single PosPattern node where
+                                      multi-node snoParse subtree
+                                      should be. Three candidate
+                                      causes (a/b/c above).
+  S-2-bridge-event-bombs         [~] partial — TickStandalone +
+                                      env-var-read-before-pipes
+                                      patch pattern validated again
+                                      this session; recipe captured
+                                      above; ready to productionize.
+  S-2-bridge-event-bombs-coverage [~] partial — TEL/FN/UEP/M/PM
+                                      traces wired correctly this
+                                      session, validated to fire
+                                      with appropriate granularity.
+                                      Reverted before commit per
+                                      RULES.md.
