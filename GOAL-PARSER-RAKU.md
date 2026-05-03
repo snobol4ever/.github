@@ -128,12 +128,12 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ### PARSER-RK-0 — atom — **next**
 
-- [ ] Write `corpus/programs/scrip/parser_raku.sc` with `Compiland`
+- [x] Write `corpus/programs/scrip/parser_raku.sc` with `Compiland`
       handling one sigiled identifier (`$x`/`@a`/`%h`/`&f`) or one
       integer or one quoted string.
-- [ ] In-process two-frontend crosscheck.
-- [ ] Write `scripts/test_parser_raku.sh`.
-- [ ] Test corpus (5 NEW programs): `atom_scalar.raku`, `atom_array.raku`,
+- [x] In-process two-frontend crosscheck.
+- [x] Write `scripts/test_parser_raku.sh`.
+- [x] Test corpus (5 NEW programs): `atom_scalar.raku`, `atom_array.raku`,
       `atom_hash.raku`, `atom_int.raku`, `atom_str.raku`. `.ref` empty.
 - **Sibling LANG rungs:** RK-1..RK-3 (lexer, sigils).
 - **Gate:** PASS=5.
@@ -187,4 +187,4 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ## Watermark
 
-PARSER-RK-0 (initial — no .sc parser exists yet).
+PARSER-RK-0 LANDED (session #62, 2026-05-03) — PASS=5. Next: PARSER-RK-1.
