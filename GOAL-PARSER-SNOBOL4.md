@@ -475,6 +475,84 @@ record; the actual bug is deeper.
 - **Gate (cleared):** `test_parser_snobol4.sh` PASS=8 with whole-program
   Compiland driver; per-line driver removed. ✅
 
+### PARSER-SN-FW-6 — multi-line TLump / TDump for >=2-child expr nodes — ⏳ OPEN DESIGN QUESTION
+
+scrip's `--dump-parse` emits multi-line indented form for any
+EXPR-level node with ≥2 children (per `ir_print.c::print_node`):
+
+```
+(E_ADD\n  (E_ILIT 1)\n  (E_ILIT 2)\n)
+```
+
+Indent is 2 × depth spaces; STMT-level role-slot wrappers (`:eq`,
+`:subj`, `:repl`, ...) stay on one line.  `TLump` previously
+rendered every node single-line, so the gate held only as long as
+no parser test produced an ≥2-child expr node — true for
+PARSER-SN-0/1/2 atoms and assignment-of-atom, false from
+PARSER-SN-3 (concat/arith) onward.
+
+**Two competing solutions exist for this gap:**
+
+**A. Always-multi-line TLump** (this session's first attempt,
+2026-05-03): extend `TLump(x, len, depth)` with a depth parameter;
+non-`:` nodes with ≥2 children render multi-line with embedded `nl`
+and 2*depth-space indentation.  STMT-style nodes (first-child tag
+starts with `:`) stay inline.  Output matches `--dump-parse`
+byte-identically; gate compares with no normalization.  Implemented,
+tested PASS=16, then ABANDONED at handoff because it collided with
+the merged sibling work below.
+
+**B. Gen-based TDump + gate-side whitespace normalization** (sibling
+sessions PARSER-SC-INFRA-1 and PARSER-IC-0, also landed 2026-05-03):
+`tdump.sc::TDump` upgraded to beauty/TDump.sc-form using `gen.sc`
+buffered output with `IncLevel`/`DecLevel`; tries `TLump(x, 140 -
+GetLevel())` for inline single-line form first, falls back to
+multi-line indented form via `Gen` recursion when the inline form
+exceeds the width budget.  TLump itself stays single-line.  The
+sibling gate scripts (`test_parser_icon.sh`, `test_parser_prolog.sh`)
+**normalize whitespace on both sides** before byte-comparing — runs
+of whitespace collapse to single space, `' )'` artefact stripped —
+so single-line TDump output and multi-line `--dump-parse` output
+canonicalize to the same form.
+
+**Trade-offs:**
+
+| Aspect | A (always-multi-line TLump) | B (Gen + whitespace-normalize) |
+|---|---|---|
+| Canonicality vs beauty.sc | New code path; not in beauty.sc | Identical to beauty/TDump.sc |
+| Output matches `--dump-parse` | Byte-identical | Canonical-form-identical |
+| Gate strength | Tighter (any whitespace divergence caught) | Looser (whitespace differences masked) |
+| Cross-pollination cost | Sibling gates must be rewritten to remove their normalization, OR stay forked | Already adopted by 4 of 6 sibling sessions |
+| Width-budget semantics | None (always multi-line) | 140-char budget → inline-or-fallback |
+| Smoke-test invariants | `sn3-multiline-expr-OK` asserts TLump multi-line directly | Smoke must assert via TDump output, not TLump return value |
+
+**Recommendation for next session:** adopt **B** for the unified
+PARSER-* gate strategy.  Rationale: (1) beauty.sc is the canonical
+naming reference per RULES.md, so beauty.sc's TDump shape is
+canonical too; (2) four of the six sibling sessions already landed
+on B; reverting them to A would be expensive; (3) whitespace
+divergence between scrip's `--dump-parse` and the parser is not the
+class of bug PARSER-SN cares about — structural divergence is what
+matters, and normalization keeps that signal clean.
+
+**Action required to land B for PARSER-SN:**
+- [ ] Add `normalize()` helper to `test_parser_snobol4.sh` mirroring
+      `test_parser_icon.sh`'s implementation.  Apply to both
+      `parser_out` and `oracle_out` before comparison.
+- [ ] Verify the existing PASS=8 corpus still passes after
+      normalization (atoms and atom-RHS assigns produce no whitespace
+      ambiguity, but worth confirming).
+- [ ] No changes to `tdump.sc` — sibling-merged Gen-based form stays.
+- [ ] No changes to `parser_snobol4.sc` for this rung — the change
+      is gate-side only.
+
+If the next session prefers A instead (e.g. because byte-identical
+gate semantics outweigh cross-pollination cost), the implementation
+work is preserved in this session's reflog at corpus@aae2f89 (commit
+"PARSER-SN-3 + FW-6: concat / arith expression parser + multi-line
+TDump") — pluck the TLump multi-line branch from there, and remove
+the gen.sc dependency from TDump.
+
 ### PARSER-SN-FW-4 — `scrip --parser-crosscheck` C-side flag
 
 The Goal file's "Architecture reminder" describes
@@ -539,13 +617,183 @@ happens.
 - **Gate:** the canonical shape works without staging; root cause
   documented in the rung close-out.
 
-### PARSER-SN-3 — concat / arith — **next after FW ladder**
+### PARSER-SN-3 — concat / arith — ⏳ IN PROGRESS (fixtures staged, parser awaits FW-6 decision)
 
-- [ ] Extend `Stmt` for `expr1 expr2` (concat) and `+ - * /` operators.
-- [ ] Test corpus: existing concat/arith programs + **5 NEW** for
-      operator precedence corners.
+**Naming policy (PARSER-SN-3 onward):** the canonical BNF source of
+truth is **`beauty.sno`** (`corpus/programs/snobol4/demo/beauty/beauty.sno`),
+which expresses the SNOBOL4 expression grammar as Snocone PATTERN rules
+named `Expr`, `Expr0`, `Expr1`, ..., `Expr14`, `Expr15`, `Expr16`,
+`Expr17`, plus `Atom`-level rules `Id`, `Integer`, `Real`, `String`,
+`BuiltinVar`, `SpecialNm`, `Function`, plus whitespace primitives
+`White` and `Gray`.  These names align 1:1 with `snobol4.y` levels
+`expr0`..`expr17` (the existing-frontend yacc grammar) and with the
+SPITBOL manual's priority table.  The yacc grammar's comment at
+`snobol4.y:125` makes this explicit:
+
+    "Expression grammar — levels match beauty.sno Expr0–Expr17 and
+     SPITBOL manual priorities"
+
+⛔ **PARSER-SN must use these exact names** for any pattern, function,
+or helper that corresponds to a beauty.sno rule.  Do not invent
+synonyms (`ep_add`, `parse_concat`, `arith_expr` etc.).  Token-stripping
+operator forms are `$'+'`, `$'-'`, `$'*'`, `$'**'`, `$'^'`, etc., per
+beauty.sno lines 94–110.  Snocone identifiers cannot contain `$` or
+quotes, so the actual variable names in `parser_snobol4.sc` are
+`Op_Plus`, `Op_Minus`, `Op_Star`, `Op_StarStar`, `Op_Caret` — each
+defined as `Gray opchar Gray` to match beauty's `$'+' = *White '+'
+*White` shape exactly.
+
+Tree-construction is *aspirationally* `Shift(t, v)` (push leaf) and
+`Reduce(t, n)` (pop n, push parent) per `ShiftReduce.sc` — but
+because PARSER-SN-3 uses recursive functions instead of `*Pattern`
+patterns, and Shift/Reduce push/pop on the parser stack rather than
+return values, the function form uses `Tree(...)` constructors and
+returns trees via the function-result name.  The driver still calls
+`Push(stmt_tree)` at statement-level so the Compiland's outer
+`reduce("'Parse'", 'nTop()')` finds the per-statement trees on the
+stack.  This is a documented deviation from beauty's idiom; if FW-3
+and `*Pattern` recursion are ever fixed and parser_snobol4.sc moves
+to pure pattern form, the bodies would naturally use
+`("'tag'" & arity)` reductions per beauty's idiom.
+
+This naming policy is binding on every PARSER-SN rung from this point
+forward, and it cross-pollinates: PARSER-SC, PARSER-RB, PARSER-RK,
+PARSER-IC, PARSER-PR all use their respective BNF source of truth
+where one exists.  For the five non-SNOBOL4 PARSER sessions, the
+Snocone BNF sibling of `beauty.sno` is the reference — or, if no
+Snocone-form BNF exists yet for that language, the canonical yacc
+grammar in the existing scrip frontend.
+
+**Associativity discrepancy between beauty.sno and snobol4.y** —
+beauty.sno's arith rules are written right-recursively:
+
+    Expr6 = *Expr7 FENCE($'+' *Expr6 ("'+'" & 2) | ... | epsilon)
+
+which produces right-associative trees: `1 + 2 + 3` →
+`E_ADD(1, E_ADD(2, 3))`.  The yacc grammar `snobol4.y:142` is
+left-recursive:
+
+    expr6 : expr6 T_2PLUS expr7
+
+producing left-associative `E_ADD(E_ADD(1, 2), 3)` — and `--dump-parse`
+emits the left-associative form (verified 2026-05-03 with `y = 1+2+3`).
+
+PARSER-SN's gate compares against `--dump-parse`, so PARSER-SN's tree
+shape must be **left-associative** — i.e. follow `snobol4.y`, not
+beauty.sno literally.  The rule **names** still come from beauty.sno
+(per the naming policy above), but the body of each Expr-N function
+implements left-associative folding (loop accumulator), not
+right-recursive descent.
+
+For the n-ary concat E_SEQ, beauty.sno already uses an iterative
+nPush/nInc/nTop pattern (`X4 = nInc() *Expr5 FENCE(*White *X4 |
+epsilon)`) which is naturally left-leaning and produces flat n-ary
+nodes — matching `snobol4.y`'s `expr_add_child` mutate-in-place
+behavior.  PARSER-SN can follow beauty's iterative form here without
+divergence.
+
+This discrepancy is **not** a bug in beauty.sno per se — beauty's own
+Milestone 1 self-host gate uses byte-comparison against SPITBOL on
+beauty.sno's output, not against scrip's `--dump-parse`, so
+right-associativity is internally consistent for beauty.  But it
+creates a divergence point any PARSER-SC / PARSER-RB / etc. session
+will hit: their canonical BNFs may also diverge from their existing
+frontends.  Cross-pollination guidance: **the language's existing
+frontend is the operational oracle**; the canonical BNF is the
+naming reference and the structural template, but where they
+disagree on associativity or operator-folding, the existing-frontend
+shape wins because that's what the gate compares against.
+
+The active Compiland body should be inlined (not `*Command`) per
+FW-3.  Within the inlined body, individual sub-patterns *can* still
+use `*Expr` / `*Expr0` / ... indirection where the recursion is
+needed and the FW-3 bug does not bite — beauty's whole-program
+`*Pattern` mesh works in SPITBOL and may work in scrip-Snocone for
+sub-rule references that are not themselves wrapped in ARBNO.  The
+FW-3 probe specifically reproduces only with `ARBNO(*Q)` where Q
+carries deferred side-effects; non-ARBNO `*Pattern` references with
+deferred actions remain to be tested.
+
+If `*Pattern` indirection still fails for individual `Expr` rules
+(not just the outer Compiland), the workaround is **recursive Snocone
+functions named after the BNF rule** — e.g. `Expr0(src)` → tree —
+operating on a global cursor `_ep` and a captured RHS string slice.
+This is the form parser_snobol4.sc uses for PARSER-SN-3.  It preserves
+the BNF naming while sidestepping the runtime bug; if FW-3 is ever
+fixed, the function bodies can be replaced by `Expr0 = *Expr1 ...`
+pattern definitions one-for-one without renaming anything else.
+
+**Rung work (this session, 2026-05-03):**
+
+- [x] **8 NEW corpus programs** added to `corpus/programs/snobol4/parser/`:
+      `concat_two.sno`, `concat_str.sno`, `concat_paren.sno`,
+      `arith_add_mul.sno`, `arith_paren.sno`, `arith_unary.sno`,
+      `arith_lassoc.sno`, `arith_lassoc_div.sno`.  Cover atom-only
+      RHS, n-ary concat (E_SEQ), simple binary arith, mixed
+      precedence (1+2*3), parenthesized grouping ((1+2)*3), unary
+      +/-, exponent (2**3), and explicit left-associativity
+      (1-2-3, 12/4/3).  These were captured against `--dump-parse`
+      so the oracle output is byte-identical to scrip's existing
+      frontend.
+- [x] **Naming policy formalized** (this rung's section above):
+      beauty.sno is the canonical BNF reference; rule names Expr,
+      Expr0..Expr17, White, Gray, Id_pat, Integer_pat, String_pat
+      are binding.  Operator-strip pattern variables Op_Plus,
+      Op_Minus, Op_Star, Op_StarStar etc. correspond to beauty's
+      `$'+'` form.
+- [x] **Associativity discrepancy** between beauty.sno (right-recursive)
+      and snobol4.y (left-recursive) documented above with cross-
+      pollination guidance: existing-frontend shape wins where the
+      canonical BNF and the oracle disagree.
+- [x] **Concat root-cause analysis**: the abandoned ad-hoc form's
+      pre-emptive `_skip_Gray` before operator probing consumed
+      whitespace that should have signaled a concat boundary.  Fix
+      pattern: atomic operator-strip patterns (Op_Plus = Gray '+'
+      Gray) — beauty's `$'+'` shape exactly.
+- [x] **Implementation written and tested** (PASS=16 FAIL=0 in
+      isolation), then **abandoned at handoff** because of merge
+      collision with sibling PARSER-SC-INFRA-1 + PARSER-IC-0 work
+      that landed in parallel and reshaped `tdump.sc`.  See FW-6
+      open design question above for the two competing solutions
+      and the recommendation.  Implementation is preserved in the
+      session reflog at corpus@aae2f89; the parser_snobol4.sc body
+      and test_parser_snobol4.sh blob there are correct but pre-
+      date the sibling-merged Gen-based TDump.
+- [ ] **Resolve FW-6 design question** (whitespace-normalize gate
+      vs. always-multi-line TLump) — see FW-6 above.
+- [ ] **Reimplement parser_snobol4.sc** with beauty.sno-named
+      Expr-N functions atop the merged tdump.sc.  Atomic
+      operator-strip patterns Op_Plus etc.  Left-associative iterative
+      loops for binary arith.  E_POW right-recursive.
+- [ ] **Land** with PASS=16 FAIL=0 once parser body is rewritten.
 - **Sibling LANG rungs:** SN-5, SN-6.
-- **Gate:** PASS≥13.
+- **Gate target:** PASS=16 FAIL=0 with parser_snobol4.sc using
+  beauty.sno-aligned rule names + sibling-compatible TDump.
+
+**Current state at handoff:** corpus has 8 fixture files staged
+(`git status` shows them as new files) but `test_parser_snobol4.sh`
+PASS=8 FAIL=8 because parser_snobol4.sc on origin/parser is the
+PARSER-SN-FW-3 version (atoms + atom-RHS assigns only — no
+arith/concat support yet).  The 8 failing fixtures are intentional
+staging per the same convention used by sibling PARSER-SC-2 commit
+3c3153d ("stage 5 arith/concat fixtures (currently FAIL)") — they
+let the next session see the gap and the oracle output via
+`--dump-parse` without re-deriving the corpus from scratch.
+
+### PARSER-SN-3a — first attempt: ad-hoc names + recursive descent — ⏳ SUPERSEDED
+
+First-attempt implementation (this session, 2026-05-03) used ad-hoc
+names (`ep_primary`, `ep_unary`, `ep_pow`, `ep_mul`, `ep_add`,
+`ep_concat`, `ep_expr`) and built trees via direct `Tree(...)` /
+`Push(...)` rather than `Shift`/`Reduce`.  Reached PASS=11 FAIL=2 on
+the rung corpus before the naming-policy decision (above) was made.
+The arith / unary / parens cases passed; the concat cases failed.
+
+The implementation is being rewritten under PARSER-SN-3 proper using
+beauty.sno's canonical names.  No commit was made for the abandoned
+form.  TDump/TLump multi-line extension (which IS canonical and
+reusable) was committed separately as PARSER-SN-3 prep work — see
+Watermark below.
 
 ### PARSER-SN-4 — control flow (`:S` / `:F` / labels)
 
@@ -671,7 +919,9 @@ Same wart in `shift`'s tag arg for non-string-literal inputs.
 
 ## Watermark
 
-**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1/2/3 LANDED.**
+**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1/2/3 LANDED.
+PARSER-SN-3 IN PROGRESS (fixtures staged, parser awaits FW-6 decision).
+PARSER-SN-FW-6 OPEN DESIGN QUESTION (whitespace-normalize gate vs always-multi-line TLump).**
 
 Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
 - PARSER-SN-2: role-slot/flag wrapper convention (`:`-prefixed type tags),
@@ -691,20 +941,54 @@ Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
   reproducing it).  Gate runtime blob now loads `counter.sc` and
   `semantic.sc` for nPush/nInc/reduce/nPop machinery.
 
-Gate state:
+`tdump.sc` further extended by sibling sessions (landed in parallel
+during this session, 2026-05-03):
+- PARSER-IC-0: when an internal node carries a non-empty v(x), emit it
+  as a label after the type tag — supports Icon's E_FNC sval-label form.
+  See `tdump.sc` TLump comments under PARSER-IC-0.  Cross-pollinates to
+  any kind that uses sval as a label rather than a leaf value.
+- PARSER-SC-INFRA-1: TDump upgraded from the INFRA-3 thin wrapper to the
+  full beauty/TDump.sc form using `gen.sc` (newly added) — buffered
+  output with IncLevel/DecLevel/Gen/GetLevel.  Tries TLump width-budget
+  inline form first, falls back to multi-line indented form via Gen
+  recursion when the inline form exceeds 140 chars.  Sibling gates
+  (`test_parser_icon.sh`, `test_parser_prolog.sh`) compensate for the
+  inline-vs-multiline divergence with stdout whitespace normalization
+  (collapse runs of WS to single space; strip ' )' artefact).
+
+`parser_snobol4.sc` extension for arith/concat — **NOT YET LANDED**.
+The PARSER-SN-3 implementation work (this session) reached PASS=16
+FAIL=0 in isolation but was abandoned at handoff because of the
+collision with PARSER-SC-INFRA-1's TDump rewrite.  See FW-6 above
+for the open design question (whitespace-normalize vs always-
+multi-line) and the recommended resolution.
+
+Gate state at handoff (origin/parser HEAD = 631cab69):
 - `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5
-- `test_scrip.sh` PASS — 22-line output through `fw1-generic-leaf-OK`
-- `test_parser_snobol4.sh` PASS=8 FAIL=0 (PARSER-SN-0/1/2/FW-3)
+- `test_scrip.sh` PASS through `fw2-multichild-role-OK`
+- `test_parser_snobol4.sh` PASS=8 FAIL=8 — 8 staged fixtures
+  (concat_*, arith_*) FAIL because parser_snobol4.sc on parser
+  branch is the FW-3 version and doesn't handle arith/concat yet.
+  Failing fixtures are intentional staging per sibling
+  PARSER-SC-2 precedent (corpus@3c3153d) — they expose the gap
+  for the next session and provide oracle outputs against
+  --dump-parse.
+- `test_parser_icon.sh` PASS=14 (sibling work)
+- `test_parser_snocone.sh` PASS≥8 (sibling work)
+- `test_parser_prolog.sh` PASS=4 (sibling work)
 
 **For the five sibling sessions** (PARSER-SC, PARSER-RB, PARSER-RK,
 PARSER-IC, PARSER-PR): copy `corpus/programs/scrip/parser_snobol4.sc`
-as your template. Replace the language-specific atom recognizers and
-Command alternatives.  Inherit the driver loop, Compiland spine,
-role-slot/flag wrapper convention, build-helper pattern, and TDump
-machinery unchanged. Use the canonical runtime blob in your gate
-script:
+as your template once the FW-6 design question is resolved and
+PARSER-SN-3 lands.  In the meantime, the FW-3 / FW-2 / FW-1 / IC-0 /
+SC-INFRA-1 machinery is already shared across all six sessions —
+inherit the driver loop, Compiland spine, role-slot/flag wrapper
+convention, TDump Gen-based multi-line, and the gen.sc dependency
+unchanged.
+
+Use the canonical runtime blob in your gate script:
 ```
-global.sc tree.sc stack.sc counter.sc ShiftReduce.sc semantic.sc qize.sc tdump.sc assign.sc parser_<lang>.sc
+global.sc tree.sc stack.sc counter.sc ShiftReduce.sc semantic.sc qize.sc gen.sc tdump.sc assign.sc parser_<lang>.sc
 ```
 TDump's role-slot convention: `tree(':role', '', 1, child)` for
 labeled children (`:subj`, `:repl`, `:lbl`, ...), `tree(':flag', '')`
@@ -713,6 +997,15 @@ types render automatically via the FW-1 generic-leaf branch — any
 ALL-alpha-start tag with non-empty v(x) self-parens as `(TAG val)`.
 Only E_QLIT-style double-quote kinds need an explicit branch.
 
+**Gate normalization** (sibling pattern, recommended for PARSER-SN
+once FW-6 lands as variant B): if your language's `--dump-parse` /
+`--dump-ir` produces multi-line indented output for ≥2-child expr
+nodes but TDump produces inline output (Gen-based with width budget),
+normalize whitespace on both sides of the comparison: collapse runs
+of whitespace to single space, strip the ' )' artefact.  See
+`test_parser_icon.sh` and `test_parser_prolog.sh` for the canonical
+`normalize()` function.
+
 **Important workaround** — DO NOT write `ARBNO(*Command)` in your
 Compiland spine, even though beauty.sc:133 does.  Inline the Command
 alternatives directly inside ARBNO instead.  See `parser_snobol4.sc`
@@ -720,19 +1013,35 @@ for the shape.  This dodges a scrip-Snocone runtime bug where `*Q`
 indirection inside ARBNO suppresses the deferred side-effect calls
 inside Q.  Tracked under FW-3 in this Goal file.
 
-Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
-`atom_id.sno`, `atom_int.sno`, `atom_str.sno`, `assign_int.sno`,
-`assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
-`assign_mixed.sno`.
+**Atomic operator-strip patterns** — the key correctness pattern
+identified by PARSER-SN-3 (preserved for the rewrite).  Define each
+binary operator as `Op_Foo = (Gray opchar Gray)` (matching
+beauty.sno's `$'+'` form) and probe it atomically:
+`if (src ? (POS(_ep) Op_Foo @_ep)) {...}`.  Do NOT call
+`_skip_Gray(src)` before probing for an operator — that consumes
+whitespace that may belong to a later concat element if no operator
+is present.  The atomic Op_* pattern either consumes `Gray op Gray`
+together or consumes nothing.
 
-Next step: **PARSER-SN-3** — concat / arith.  PARSER-SN-FW-3
-unblocked the language-specific ladder; PARSER-SN-3 can resume now
-that the Compiland spine is canonical.
+Test corpus in `corpus/programs/snobol4/parser/` (16 programs):
+- atoms (3): `atom_id.sno`, `atom_int.sno`, `atom_str.sno`
+- assigns (5): `assign_int.sno`, `assign_str.sno`, `assign_var.sno`,
+  `assign_seq.sno`, `assign_mixed.sno`
+- concat (3, currently FAIL): `concat_two.sno`, `concat_str.sno`,
+  `concat_paren.sno`
+- arith (5, currently FAIL): `arith_add_mul.sno`, `arith_paren.sno`,
+  `arith_unary.sno`, `arith_lassoc.sno`, `arith_lassoc_div.sno`
+
+Next step: **PARSER-SN-3 reimplementation** — resolve the FW-6 design
+question first, then rewrite parser_snobol4.sc body using
+beauty.sno-named Expr-N functions atop the merged tdump.sc.  After
+SN-3 lands: PARSER-SN-4 — control flow (`:S` / `:F` / labels).
 
 FW ladder status:
 - FW-1 ✅ generalize TValue for non-scrip-IR leaf kinds (unblocks all 5)
 - FW-2 ✅ multi-child role-slot wrapper (unblocks IC/PR/RK)
 - FW-3 ✅ Compiland-spine driver loop — landed via inline-Command-body workaround
+- FW-6 ⏳ multi-line TDump — OPEN DESIGN QUESTION (variant B recommended)
 - FW-4 ⏳ scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have)
 - FW-5 ⏳ root-cause TLump function-name slot wart (defensive)
 
@@ -745,5 +1054,5 @@ re-evaluation walking the cached pattern tree in `eval_pat.c` /
 PARSER-* sessions inline their Command body as the workaround.
 
 Open workaround items INFRA-11a/b/c remain — surface bumps that
-don't block PARSER-SN-3+. Revisit when frontend ladder reveals real
+don't block PARSER-SN-4+. Revisit when frontend ladder reveals real
 obstruction.
