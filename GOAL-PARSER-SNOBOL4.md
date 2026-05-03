@@ -330,20 +330,21 @@ leaf whose type tag is *purely* a recognizable language kind name
 kinds (Name with v rendering bare; string with SqlSQize quoting;
 etc.) keep their special treatment via the early-return cascade.
 
-- [ ] Probe: build a `tree('FOO_kind', 'val')` and verify TLump
+- [x] Probe: build a `tree('FOO_kind', 'val')` and verify TLump
       currently renders it as `FOO_kind` (TValue's fall-through path).
-- [ ] Add a generic-leaf branch to TValue: when t(x) matches
-      `(POS(0) ANY(&UCASE) (SPAN(&UCASE digits '_') | epsilon) RPOS(0))`
+      Confirmed: v(x) was silently dropped — `FOO_KIND:[FOO_KIND]`.
+- [x] Add a generic-leaf branch to TValue: when t(x) matches
+      `(POS(0) ANY(&UCASE &LCASE) (SPAN(&UCASE &LCASE digits '_') | epsilon) RPOS(0))`
       AND v(x) is non-empty, return `'(' t(x) ' ' v(x) ')'`.
       This catches E_VAR-style ALL_UPPER kinds AND any sibling-session
       kind in the same shape (e.g. Icon's `IC_VAR`, Prolog's `PL_TERM`).
-- [ ] Remove the now-redundant explicit E_VAR / E_ILIT / E_QLIT
-      branches from TValue (E_QLIT keeps its special branch — double
-      quotes vs Sqlized-single distinguishes it).
-- [ ] Verify `test_scrip.sh` PASS (existing INFRA-3/INFRA-7 smokes
+      Note: E_QLIT special branch placed BEFORE generic (double-quote preservation).
+- [x] Remove the now-redundant explicit E_VAR / E_ILIT branches from TValue
+      (E_QLIT keeps its special branch — double-quotes vs Sqlized-single).
+- [x] Verify `test_scrip.sh` PASS (existing INFRA-3/INFRA-7 smokes
       use `string` and `integer`-typed leaves which take their special
-      branches before the generic).
-- [ ] Verify `test_parser_snobol4.sh` PASS=8 unchanged.
+      branches before the generic). Added `fw1-generic-leaf-OK` to smoke.sc.
+- [x] Verify `test_parser_snobol4.sh` PASS=8 unchanged.
 - **Sibling LANG sessions blocked by this gap:** all five.
 - **Gate:** `tree('FOO_KIND', 'bar')` TLumps as `(FOO_KIND bar)` with
   no per-kind code; PARSER-SN gate stays green.
@@ -603,18 +604,20 @@ Same wart in `shift`'s tag arg for non-string-literal inputs.
 
 ## Watermark
 
-**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED with shared tree-on-stack
-template. ALL FIVE SIBLING SESSIONS UNBLOCKED.**
+**INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1 LANDED.**
 
-Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended
-in PARSER-SN-2 to recognize scrip IR leaf kinds (E_VAR/E_ILIT/E_QLIT)
-and the role-slot/flag wrapper convention (`:`-prefixed type tags).
-Plus the per-language driver: `parser_snobol4.sc` (now built on shared
-Tree/Push/Pop/TDump machinery).
+Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
+- PARSER-SN-2: role-slot/flag wrapper convention (`:`-prefixed type tags),
+  explicit E_VAR/E_ILIT/E_QLIT leaf forms.
+- PARSER-SN-FW-1: replaced explicit E_VAR/E_ILIT with a generic-leaf branch —
+  any kind tag starting with a letter + only letters/digits/underscore + non-empty
+  v(x) → `(TAG value)`. E_QLIT special branch kept (double-quotes) placed before
+  generic. All five sibling sessions can now use their own kind namespaces
+  (IC_VAR, PL_TERM, RK_SYM, etc.) without touching tdump.sc.
 
 Gate state:
 - `test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5
-- `test_scrip.sh` PASS — 21-line output through `opsyn-OK` (INFRA-10)
+- `test_scrip.sh` PASS — 22-line output through `fw1-generic-leaf-OK`
 - `test_parser_snobol4.sh` PASS=8 FAIL=0 (PARSER-SN-0/1/2)
 
 **For the five sibling sessions** (PARSER-SC, PARSER-RB, PARSER-RK,
@@ -629,35 +632,23 @@ global.sc tree.sc stack.sc ShiftReduce.sc qize.sc tdump.sc assign.sc parser_<lan
 TDump's role-slot convention: `tree(':role', '', 1, child)` for
 labeled children (`:subj`, `:repl`, `:lbl`, ...), `tree(':flag', '')`
 for positional flags (`:eq`, `:end`, ...). Your language's IR leaf
-types may need adding to `tdump.sc::TValue` if they aren't already
-covered by the existing `E_VAR`/`E_ILIT`/`E_QLIT`/`Name` cases —
-coordinate via a `.github` issue before extending.
+types render automatically via the FW-1 generic-leaf branch — any
+ALL-alpha-start tag with non-empty v(x) self-parens as `(TAG val)`.
+Only E_QLIT-style double-quote kinds need an explicit branch.
 
 Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
 `atom_id.sno`, `atom_int.sno`, `atom_str.sno`, `assign_int.sno`,
 `assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
 `assign_mixed.sno`.
 
-Next step: **PARSER-SN-FW ladder** (5 cross-cutting framework rungs)
-before resuming language-specific work at PARSER-SN-3. The FW ladder
-closes five known framework gaps that all five sibling sessions
-(PARSER-SC/RB/RK/IC/PR) will independently hit:
+Next step: **PARSER-SN-FW-2** (multi-child role-slot wrapper — blocks IC/PR/RK).
 
-- FW-1: generalize TValue for non-scrip-IR leaf kinds (blocks all 5)
-- FW-2: multi-child role-slot wrapper (blocks IC/PR/RK)
-- FW-3: Compiland-spine driver loop (blocks SC/RK/PR)
-- FW-4: scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have for others)
-- FW-5: root-cause TLump function-name slot wart (defensive — blocks none today)
-
-Lon's call: land the FW ladder before sibling sessions start
-(cleanest), or run them in parallel as sibling sessions surface the
-gaps in their own work (faster iteration, more redundant convergence
-work). Either is defensible.
-
-After FW ladder closes: PARSER-SN-3 (concat / arith). Capture
-canonical lines from `--dump-parse` for `+ - * /` and concat, extend
-`Stmt` accordingly, add 5 NEW programs covering operator precedence
-corners. Gate target: PASS≥13 cumulative.
+FW ladder status:
+- FW-1 ✅ generalize TValue for non-scrip-IR leaf kinds (unblocks all 5)
+- FW-2 ⏳ multi-child role-slot wrapper (blocks IC/PR/RK)
+- FW-3 ⏳ Compiland-spine driver loop (blocks SC/RK/PR)
+- FW-4 ⏳ scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have)
+- FW-5 ⏳ root-cause TLump function-name slot wart (defensive)
 
 Open workaround items INFRA-11a/b/c remain — surface bumps that
 don't block PARSER-SN-3+. Revisit when frontend ladder reveals real
