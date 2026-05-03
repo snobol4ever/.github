@@ -321,24 +321,107 @@
   frontends — the four-mode architecture's central guarantee.
   one4all @ `20a8b6c8` (combined RS-17b + RS-18 + RS-19 commit).
 
-- [ ] **RS-20** — Decide direction for full Icon/Prolog SM lowering.
-  After RS-17/18/19, Icon and Prolog programs in `--sm-run`/`--jit-run` execute
-  through pure-BB drive (no IR walker). The remaining question is whether to
-  also eliminate the BB-drive layer for Icon/Prolog — i.e. fully lower their
-  expression trees into SM opcodes the same way SNOBOL4 does. Two architectural
-  options:
-  Option A — keep the BB layer. Icon and Prolog stay BB-driven; SM_BB_PUMP /
-    SM_BB_ONCE remain. This is consistent with the design where Byrd-box drive
-    is the natural form for goal-directed evaluation. SM is a thin wrapper.
-  Option B — full SM lowering. Add SM opcodes for generator suspend/resume
-    (SM_GEN_SUSPEND, SM_GEN_RESUME, SM_GEN_FAIL), Prolog choice points
-    (SM_CHOICE_PUSH, SM_CHOICE_TRY, SM_CHOICE_FAIL), and Icon's ! / to / by /
-    every / suspend. Lower the full Icon and Prolog ASTs into these. Removes
-    the BB drive layer for these languages; everything is SM.
-  The decision is orthogonal to RS-16/17/18/19 and depends on the polyglot
-  goals (cross-language calls, JIT inlining, asm emission for mode 4).
-  This rung records the decision (with rationale) and opens the next ladder if
-  Option B is chosen.
+- [x] **RS-20** — Decision recorded: BB stays; SM is the carrier; isolation absolute (session 2026-05-03).
+  The architectural answer is neither "keep BB layer untouched" nor "lower
+  everything to fine-grained SM generator opcodes". It is:
+  (1) **BB stays everywhere it makes sense.** Byrd-box drive is the natural
+      form for goal-directed evaluation in Icon, Prolog (and pattern matching
+      in SNOBOL4). We do not invent SM_GEN_SUSPEND / SM_CHOICE_PUSH / etc. just
+      to flatten Icon and Prolog into SNOBOL4-shaped SM opcode streams. The
+      BB engine is the executor for these languages.
+  (2) **SM is the carrier for the four-mode pipeline.** Every program — Icon,
+      Prolog, SNOBOL4, etc. — must be representable as an SM_Program so the
+      generate / assemble / link / execute pipeline (mode 4) has a single
+      uniform input. For Icon and Prolog the SM may be as small as one
+      instruction: a `SM_BB_PUMP` (or `SM_BB_ONCE`) that hands the whole
+      program off to the BB engine. The SM is the **form**, not necessarily
+      the **executor**. SNOBOL4 lowers richly into many SM opcodes because
+      that fits its semantics; Icon/Prolog lower thinly into one because
+      their semantics live in BB. Both are valid SM programs.
+  (3) **Four-mode isolation is the gate.** No mode 2/3/4 path may reach an
+      IR walker. Currently the BB adapters `coro_value.c` and `coro_stmt.c`
+      retain a documented `interp_eval` fallthrough as a migration scaffold
+      (RS-17/18/19 footnote). That fallthrough must die. Every Icon/Prolog
+      kind that can flow into `bb_exec_stmt` or `bb_eval_value` from a
+      BB-engine call site must be handled in the adapter itself, recursing
+      back into `bb_exec_stmt`/`bb_eval_value` rather than `interp_eval`.
+  Consequence: the next ladder closes the IR/SM isolation completely by
+  lifting the Icon control-flow handlers (E_WHILE, E_UNTIL, E_REPEAT, E_IF,
+  E_SUSPEND, E_SEQ, E_SEQ_EXPR, E_LOOP_NEXT, E_RETURN, E_PROC_FAIL, E_EVERY,
+  E_BLOCK, etc.) and the supporting expression kinds out of `interp_eval.c`'s
+  icon-frame switch and into `coro_stmt.c` / `coro_value.c`. After that, the
+  adapter `interp_eval` extern goes away, and the isolation gate promotes
+  `coro_value.c` and `coro_stmt.c` into its file list. Mode-4 emission for
+  Icon/Prolog then becomes: emit `SM_BB_PUMP` + serialize the BB tree.
+  Rationale honors Lon's directive verbatim: "BB everywhere it makes sense.
+  If Icon and Prolog do not need the traditional stack then the SM is one
+  instruction. But we will have isolation of the 4 modes. No crossover. No
+  IR walking inside SM."
+
+- [x] **RS-21** — Lift Icon statement-level kinds out of `interp_eval.c`
+  icon-frame switch into `coro_stmt.c` (session 2026-05-03).
+  Eleven kinds now natively dispatched in `coro_stmt.c`: E_WHILE, E_UNTIL,
+  E_REPEAT, E_IF (with goal-directed test via coro_eval for suspendable
+  conditions), E_SEQ, E_SEQ_EXPR, E_LOOP_NEXT, E_LOOP_BREAK, E_RETURN,
+  E_PROC_FAIL, E_SUSPEND.  Internal value-context children call
+  `bb_eval_value`; statement-context body children recurse through
+  `bb_exec_stmt`.  No calls to `interp_eval` for any of these kinds.
+  Transitional fallthrough to `interp_eval` retained for the kinds that
+  RS-22 absorbs (E_FNC, E_ASSIGN, scattered expression kinds in stmt
+  context).  one4all @ `d59e301a`.  Build clean, smoke_snobol4 7/7,
+  smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0,
+  RS-15 isolation gate green.
+
+- [ ] **RS-22** — Lift Icon expression-level / value-context kinds into
+  `coro_value.c`. Scope: kinds that `bb_eval_value` currently delegates to
+  `interp_eval` because `eval_node` does not cover them — at minimum
+  E_FNC (Icon-frame builtins and user-proc calls), E_ASSIGN (slot stores
+  into FRAME.env), E_BLOCK (sequence in expression context),
+  E_BANG_UNARY/E_BANG_BINARY, E_LIMIT, plus any kind RS-21 surfaces. Each
+  case body's `interp_eval(child)` recurses are replaced with
+  `bb_eval_value` / `bb_exec_stmt`. Some E_FNC builtins call into icn_runtime
+  helpers that themselves take `EXPR_t*` and need re-pointing through the
+  BB adapter — touch with care.
+  Gate: as RS-21.
+
+- [ ] **RS-23** — Remove the `extern DESCR_t interp_eval(EXPR_t *e);`
+  declarations from `coro_value.c` and `coro_stmt.c`. Replace remaining
+  fallthroughs (if any) with explicit error messages naming the kind, since
+  by this point an unhandled kind reaching the BB adapters is a real bug
+  (some frontend produced a kind the adapters don't know about). Promote
+  `coro_value.c` and `coro_stmt.c` into `scripts/test_isolation_ir_sm.sh`
+  SM_FILES list. Update `ARCH-SCRIP.md` to describe the BB adapters as
+  full members of the isolation gate.
+  Gate: as RS-21, plus isolation gate green with the two new files in scope.
+
+- [ ] **RS-24** — Strip the now-dead Icon-frame switch from `interp_eval.c`.
+  After RS-21/22/23, every Icon kind that was reachable from a BB-engine
+  call site has been migrated. The icon-frame switch in `interp_eval.c`
+  (currently around lines 2200-2420) can shrink dramatically — only kinds
+  that are reachable from mode 1 (`--ir-run`) need to remain, and the
+  shared switch already handles literals/keywords. Verify by grep: which
+  case labels in the icon-frame switch are still actually reachable from
+  mode 1's call graph? Delete the rest. The IR walker stays as the mode-1
+  reference but loses Icon-specific complexity that has moved to BB.
+  Gate: smoke_icon 5/5 in `--ir-run`, `--sm-run`, `--jit-run`. The mode-1
+  Icon path may regress here; if so, restore the minimum needed and note
+  what was reachable from mode 1 that the BB adapters did not cover.
+
+- [ ] **RS-25** — Decide whether SM_BB_PUMP / SM_BB_ONCE should be the
+  Icon and Prolog program-level SM lowering target. Today, Icon and Prolog
+  programs lower into SM through normal `sm_lower` paths that emit
+  SM_BB_PUMP and SM_BB_ONCE for the relevant kinds (E_FNC for procs,
+  generator producers in expressions). This rung verifies that for a
+  pure-Icon or pure-Prolog program the resulting SM_Program is essentially
+  one bb-pump opcode wrapping the whole program — i.e. that the SM form
+  for these languages really is "thin SM, all BB underneath". If it isn't
+  (i.e. the lowering currently emits a richer SM stream that doesn't make
+  sense for these languages), open a sub-rung to thin the lowering. This
+  rung is the one that binds the RS-20 decision into observable SM output.
+  Gate: dump SM for `factorial.icn` and a small Prolog program; verify the
+  shape. Counts of SM opcodes by category should show Icon/Prolog
+  dominated by SM_BB_PUMP / SM_CALL / SM_RETURN with very few arithmetic
+  SM ops, and SNOBOL4 showing the inverse profile.
 
 - [ ] **RS-4** — Further reduction of interp_eval.c (~4300 lines).
   The icn-frame E_FNC builtin block (~1700 lines) and the main E_FNC case (~250 lines)
