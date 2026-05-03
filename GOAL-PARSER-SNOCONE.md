@@ -94,24 +94,33 @@ which is in scope.
 
 ## Rung ladder
 
-### PARSER-SC-0 — atom — **next**
+### PARSER-SC-0 — atom — ✅ DONE
 
-- [ ] Write `corpus/programs/scrip/parser_snocone.sc` with `Compiland`
-      handling: a single line that is one identifier, one integer, or
-      one quoted string. Optional trailing `;`.
-- [ ] In-process two-frontend crosscheck inside the .sc driver.
-- [ ] Write `scripts/test_parser_snocone.sh`.
-- [ ] Test corpus (3 NEW programs): `atom_id.sc`, `atom_int.sc`, `atom_str.sc`.
-      `.ref` is empty.
+- [x] Wrote `corpus/programs/scrip/parser_snocone.sc` — recognizes one
+      identifier, integer, or string per line via `id_pat` / `int_pat` /
+      `str_pat`; `build_stmt_atom` pushes `(STMT :subj (kind txt))` via
+      shared Tree/Push; driver reads stdin line-by-line, pops and TDumps.
+- [x] Two-frontend crosscheck at gate-script level: `parser_snocone.sc`
+      driver vs `scrip --dump-ir`. Byte-identical.
+- [x] Wrote `scripts/test_parser_snocone.sh` — canonical blob shape
+      (global/tree/stack/ShiftReduce/qize/tdump/assign/parser_snocone);
+      per-fixture `--dump-ir` oracle; self-contained per RULES.md.
+- [x] Test corpus (3 NEW): `atom_id.sc`, `atom_int.sc`, `atom_str.sc`.
 - **Sibling LANG rungs:** SC-0 (lexer), SC-1 (atom).
-- **Gate:** PASS=3.
+- **Gate (cleared):** PASS=3 FAIL=0. ✅
 
-### PARSER-SC-1 — assignment
+### PARSER-SC-1 — assignment — ✅ DONE
 
-- [ ] `Command` handles `name = expr;` for atom expr.
-- [ ] Test corpus: 5 (existing 2 + **3 NEW**).
+- [x] `Assign` rule handles `name = expr;` for atom rhs (id/int/str).
+      `LhsAtom` captures id into `_lhs_id`; `RhsAtom` captures kind+text
+      into `rhs_kind`/`rhs_text`; `build_stmt_assign` pushes
+      `(STMT :eq :subj (E_VAR lhs) :repl (kind rhs))`.
+      Driver tries `(Assign | AtomStmt)` — Assign first.
+- [x] Test corpus: 8 cumulative (3 atom + **5 NEW**):
+      `assign_int.sc`, `assign_str.sc`, `assign_var.sc`,
+      `assign_seq.sc`, `assign_mixed.sc`.
 - **Sibling LANG rungs:** SC-2.
-- **Gate:** PASS=8 cumulative.
+- **Gate (cleared):** PASS=8 FAIL=0. ✅
 
 ### PARSER-SC-2 — arith / concat
 
@@ -166,4 +175,13 @@ which is in scope.
 
 ## Watermark
 
-PARSER-SC-0 (initial — no .sc parser exists yet).
+**PARSER-SC-0 ✅ PARSER-SC-1 ✅**
+
+corpus `ed13900` (main), one4all `8115952b` (parser branch).
+Gate: PASS=8 FAIL=0 (test_parser_snocone.sh).
+Smoke: PASS=5 FAIL=0 (test_smoke_snocone.sh).
+
+parser_snocone.sc covers: bare atom-as-statement (id/int/str),
+assignment `name = atom_expr`. Driver: per-line, `(Assign | AtomStmt)`.
+
+Next: **PARSER-SC-2** — arith / concat operators.
