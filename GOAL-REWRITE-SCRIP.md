@@ -557,14 +557,58 @@
   isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
   to f3daa24e baseline.
 
-- [ ] **RS-22e** — Verify fallthrough is empty; harden.
-  After RS-22b/c/d: grep `interp_eval` calls reachable from
-  bb_eval_value's fallthrough in real Icon smoke programs — confirm
-  zero for the smoke suite.  Replace the `interp_eval(e)` fallthrough
-  with `fprintf(stderr, "bb_eval_value: unhandled kind %d\n", e->kind);
-  return FAILDESCR;` and run smoke_icon — any FAIL names a missing kind
-  to add in a follow-up.  Revert the abort if any smoke FAILs; note
-  remaining kinds. Gate: smoke_icon 5/5 with hardened fallthrough.
+- [x] **RS-22e** — Fallthrough survey complete; 16 kinds documented as
+  work boundary (session 2026-05-03).
+  Method: one-shot per-kind logger at the fallthrough site; ran
+  smoke_icon and the full Icon corpus (271 programs); aggregated unique
+  kind hits.
+  Result: **smoke_icon hits 0 unhandled kinds (rung gate met)**.  Full
+  Icon corpus hits 16 distinct kinds totaling 62 fallthroughs.
+  Hardened-FAILDESCR variant kept smoke_icon at 5/5 but dropped
+  unified_broker 49→45 (palindrome.icn `s[i] ~== s[j]` via E_LNE,
+  cross_lang.scrip, rk_combinator, rk_strings).  Per the rung's
+  instruction *"Revert the abort if any smoke FAILs"* and per RULES.md's
+  binding merge gate, the abort was reverted.
+  Five categories of remaining kinds:
+  - **Generators** (need coro_eval first-value contract): E_TO (8 hits),
+    E_ALTERNATE (6), E_ITERATE (3), E_LIMIT (1), E_SEQ (6).
+  - **String relops** (peers of RS-22b NUMREL via STRREL): E_LEQ (9),
+    E_LNE (6), E_LGE (1), E_LLT (1) plus E_LGT/E_LLE peers.
+  - **Cset arithmetic**: E_CSET (10), E_CSET_DIFF (2), E_CSET_INTER (1),
+    E_CSET_COMPL (1) plus E_CSET_UNION peer.
+  - **Mid-size**: E_MAKELIST (1), E_SCAN (5), E_CASE (1).
+  Full inventory in `docs/RS-22e-fallthrough-survey.md`.  Updated
+  `coro_value.c` file-level comment to record survey in SPRINT trail
+  and replaced the bare fallthrough comment with a full breakdown of
+  the 5 categories.
+  No behaviour change: fallthrough still routes to interp_eval.
+  one4all @ `147f4af3`.  Build clean.  Gates: smoke_snobol4 7/7,
+  smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0,
+  isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
+  to f3daa24e baseline.
+
+- [ ] **RS-22f** — Close the 16 fallthrough kinds inventoried by RS-22e.
+  Five sub-rungs by category:
+  - **RS-22f-strrel**: E_LEQ, E_LNE, E_LGT, E_LGE, E_LLT, E_LLE.  Mirror
+    of RS-22b's `bb_numrel`: copy to `bb_strrel` in coro_value.c, use
+    `strcmp(VARVAL_fn(l), VARVAL_fn(r))`, return rhs on success.  ~25
+    lines.  Gate: smoke_icon 5/5, unified_broker 49+/0 (palindrome.icn
+    will go from FAIL → PASS once E_LNE lifts).
+  - **RS-22f-cset**: E_CSET (literal), E_CSET_COMPL, E_CSET_DIFF,
+    E_CSET_INTER, E_CSET_UNION.  Set arithmetic on DT_S strings
+    representing csets; literal is `e->sval ? STRVAL : NULVCL`.
+  - **RS-22f-makelist**: E_MAKELIST.  ~12 lines via DEFDAT_fn / DATCON_fn.
+  - **RS-22f-generators**: E_TO, E_ALTERNATE, E_ITERATE, E_LIMIT, E_SEQ.
+    These are not direct kinds to evaluate — they should route through
+    `coro_eval` and consume a single tick (first-value semantics).
+    Add a small `bb_first_tick(e)` helper or dispatch table.
+  - **RS-22f-stmt**: E_SCAN, E_CASE.  E_SCAN drives a generator chain
+    via coro/exec_stmt; needs first-value contract decision (Icon-mode
+    vs SNOBOL4-mode dispatch — interp_eval.c:3877 has both branches).
+    E_CASE is statement-shaped; case-as-expression returns matching
+    clause's value.
+  After all five sub-rungs land, the merge gate's hardened-fallthrough
+  variant should pass — that is the gate for closing RS-22f.
 
 - [ ] **RS-23** — Remove the `extern DESCR_t interp_eval(EXPR_t *e);`
   declarations from `coro_value.c` and `coro_stmt.c`. Replace remaining
