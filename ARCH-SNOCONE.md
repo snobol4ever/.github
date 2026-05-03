@@ -178,6 +178,13 @@ semantics. The LS-4.w warning pass is a deferred TODO that would
 flag this as "condition can never fail," but the construct is not an
 error.
 
+**Boolean AND is juxtaposition, not `&` or `&&`.** Inside `if (...)`,
+`while (...)`, etc., write `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`
+to mean "both predicates succeed" — they are concatenated in
+backtracking-expression context. Using `&` is a syntax error
+(documented session 2026-05-03 PARSER-PR-3 attempt). Boolean OR is
+the alternation operator `|`.
+
 ---
 
 ## Statement boundary is `;` only — newlines are whitespace
