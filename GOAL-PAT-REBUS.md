@@ -1,6 +1,7 @@
 # GOAL-PAT-REBUS.md — PAT-REBUS pattern-based frontend in Snocone
 
 **Repo:** corpus+one4all
+**Branch:** `pat` (one4all only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-REBUS.md`. The existing Rebus frontend
 (`src/frontend/rebus/`) is the in-process oracle.
 
@@ -34,6 +35,9 @@ divergences. Report divergences upstream; do not silently match.
 ## Session Setup
 
 ```bash
+# Switch one4all to the shared PAT branch. corpus and .github stay on main.
+( cd /home/claude/one4all && git fetch origin pat 2>/dev/null; git checkout pat 2>/dev/null || git checkout -b pat origin/pat 2>/dev/null || git checkout -b pat )
+
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```

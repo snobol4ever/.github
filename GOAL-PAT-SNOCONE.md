@@ -1,6 +1,7 @@
 # GOAL-PAT-SNOCONE.md — PAT-SNOCONE pattern-based frontend in Snocone
 
 **Repo:** corpus+one4all
+**Branch:** `pat` (one4all only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-SNOCONE.md` (and the closely related
 `GOAL-SNOCONE-IN-SNOCONE.md`). The existing Snocone frontend
 (`src/frontend/snocone/`) is the in-process oracle.
@@ -29,6 +30,9 @@ cycle closes.
 ## Session Setup
 
 ```bash
+# Switch one4all to the shared PAT branch. corpus and .github stay on main.
+( cd /home/claude/one4all && git fetch origin pat 2>/dev/null; git checkout pat 2>/dev/null || git checkout -b pat origin/pat 2>/dev/null || git checkout -b pat )
+
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```
