@@ -652,6 +652,38 @@ Never CamelCase. Never ALL_CAPS for new C types (exception: `RESULT_t`).
 
 ---
 
+## Snocone parser style — names track the existing frontend; no goto unless required
+
+⛔ When writing a Snocone `parser_<lang>.sc` (any of the six PARSER-*),
+non-terminal pattern names MUST mirror the existing C frontend's
+parse-function names (and ISO BNF non-terminal names where they
+overlap). Token-classifier names MUST mirror the existing lexer's
+`TK_*` enum (lowercased where Snocone identifier rules require). IR
+node tags MUST be the exact strings `expr_dump` (or equivalent
+frontend dumper) emits.
+
+Sources of truth, in order:
+1. The frontend's `.l` / lex header (token enum) and `.y` / parse module.
+2. The lowering module's IR-tag enum and dumper.
+3. The official BNF (ISO/IEC 13211-1 for Prolog; analogous standard
+   for Icon, Raku, etc.) — only as a tiebreaker when (1) and (2)
+   leave a name unspecified.
+
+Invented names are reserved for the cross-PARSER spine (`Compiland`,
+`Command`, `Push`/`Pop`/`Top` helpers, `tree`/`Tree`/`TDump`/`stack`).
+Per-language non-terminals are not invented.
+
+⛔ No `goto`/labels in `parser_<lang>.sc` driver loops or anywhere else
+unless absolutely necessary for readability. Use Snocone structured
+flow (`while ((Line = INPUT)) { ... }`, `if/else`, etc.). The legacy
+`goto read_loop`/`goto read_done`/`goto mainErr`/`goto mainEnd` shape
+in `parser_snobol4.sc` is grandfathered; new `parser_<lang>.sc` files
+do not copy it. When touching one of the legacy parsers for an
+unrelated reason, leave its goto-shape alone — replacing it is its
+own task.
+
+---
+
 ## No duplicate corpus source files
 
 ⛔ Do **not** have two copies of the same source file anywhere in corpus.

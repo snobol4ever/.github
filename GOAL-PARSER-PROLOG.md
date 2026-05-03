@@ -110,43 +110,49 @@ the other five languages.
 
 ---
 
-## Prolog language reference (atom slice)
+## Naming policy — anchor on ISO Prolog BNF + existing frontend
 
-| Construct | Tree shape |
-|-----------|------------|
-| atom `foo` (lowercase) | `Atom foo` |
-| variable `X` (uppercase) | `Var X` |
-| variable `_x` | `Var _x` |
-| integer `42` | `integer 42` |
-| string `"hi"` | `string 'hi'` |
-| compound `f(a, b)` | `(Compound f (Args ...))` |
-| list `[a, b, c]` | `(List ...)` |
-| fact `fact.` | `(Clause head=fact body=true)` |
-| rule `head :- body.` | `(Clause head body)` |
-| conjunction `a, b` | `(And a b)` |
-| disjunction `a ; b` | `(Or a b)` |
-| query `?- goal.` | `(Query goal)` |
+⛔ Non-terminal and token names in `parser_prolog.sc` MUST match the
+existing Prolog frontend's vocabulary, not be invented. The cross-PARSER
+spine names (`Compiland`, the helper functions `Push`/`Pop`/`Top`, etc.)
+are the only invented names — those are shared across all six PARSER-*.
 
-(Full feature surface lives in `GOAL-LANG-PROLOG.md`.)
+**Token names** — directly from `src/frontend/prolog/prolog_lex.h`:
+`TK_ATOM`, `TK_VAR`, `TK_ANON`, `TK_INT`, `TK_FLOAT`, `TK_STRING`,
+`TK_LPAREN`, `TK_RPAREN`, `TK_LBRACKET`, `TK_RBRACKET`, `TK_PIPE`,
+`TK_COMMA`, `TK_DOT`, `TK_LBRACE`, `TK_RBRACE`, `TK_OP`, `TK_NECK`,
+`TK_QUERY`, `TK_CUT`, `TK_SEMI`.
+
+**Non-terminal names** — from `src/frontend/prolog/prolog_parse.c`:
+`clause`, `term`, `primary`, `args`, `list`. These align with ISO/IEC
+13211-1 BNF (ISO uses `clause`, `term`, `arg_list`, `list`).
+
+**IR node names (oracle output)** — from `prolog_lower.c::expr_dump`:
+`E_CHOICE`, `E_CLAUSE`, `E_UNIFY`, `E_CUT`, `E_FNC`, `E_QLIT`, `E_ILIT`,
+`E_FLIT`, `E_VAR`, `E_ADD`, `E_SUB`, `E_MUL`, `E_DIV`. Parser-built trees
+must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
+
+(Full feature surface and the ISO BNF reference live in
+`GOAL-LANG-PROLOG.md`.)
 
 ---
 
 ## Rung ladder
 
-### PARSER-PR-0 — atom — **next**
+### PARSER-PR-0 — atom — **LANDED**
 
-- [ ] Write `corpus/programs/scrip/parser_prolog.sc` with `Compiland`
+- [x] Write `corpus/programs/scrip/parser_prolog.sc` with `Compiland`
       handling one Prolog atom (lowercase identifier), one variable
       (uppercase or `_`-prefixed), one integer, or one quoted string,
       followed by `.`.
-- [ ] In-process two-frontend crosscheck.
-- [ ] Write `scripts/test_parser_prolog.sh`.
-- [ ] Test corpus (4 NEW programs): `atom_lower.pl`, `atom_var.pl`,
+- [x] In-process two-frontend crosscheck.
+- [x] Write `scripts/test_parser_prolog.sh`.
+- [x] Test corpus (4 NEW programs): `atom_lower.pl`, `atom_var.pl`,
       `atom_int.pl`, `atom_str.pl`. `.ref` empty.
 - **Sibling LANG rungs:** PR-1..PR-3 (lexer, atom/var distinction).
-- **Gate:** PASS=4.
+- **Gate:** PASS=4. ✅
 
-### PARSER-PR-1 — facts (`name.` or `name(args).`)
+### PARSER-PR-1 — facts (`name.` or `name(args).`) — **next**
 
 - [ ] `Command` handles bare facts (zero-arg compound) and compound
       facts `f(a, b, c).`.
@@ -197,8 +203,25 @@ the other five languages.
 - Variables vs atoms distinction is first-class in the token classifier;
   do not collapse them and rebuild later — get it right at PARSER-PR-0.
 
+## Style invariants (parser_prolog.sc)
+
+- **No `goto`/labels** in the driver loop or anywhere else in
+  `parser_prolog.sc` unless absolutely necessary for readability.
+  `parser_snobol4.sc`'s `goto read_loop` / `goto read_done` style is
+  legacy — use `while`-style structured flow (`while ((Line = INPUT))
+  { Src = Src Line nl; }`) for the source-accumulator and result loop.
+- **Names match the existing frontend.** Non-terminal names in the
+  Snocone grammar mirror `prolog_parse.c`'s `parse_clause`/`parse_term`/
+  `parse_primary`/`parse_args`/`parse_list`. Token-classifier names
+  mirror `prolog_lex.h`'s `TK_*` (lowercased where Snocone identifier
+  rules require). IR tags mirror `prolog_lower.c::expr_dump`'s
+  `E_CLAUSE`/`E_CHOICE`/`E_VAR`/`E_ILIT`/`E_QLIT`/`E_FNC` etc.
+- **Anchor on the BNF.** Where the existing frontend's names diverge
+  from ISO/IEC 13211-1, prefer the ISO name only when ISO is also the
+  name used in `GOAL-LANG-PROLOG.md`. Do not invent.
+
 ---
 
 ## Watermark
 
-PARSER-PR-0 (initial — no .sc parser exists yet).
+PARSER-PR-0 LANDED (PASS=4). Next: PARSER-PR-1 — compound facts.
