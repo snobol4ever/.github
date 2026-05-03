@@ -76,7 +76,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
-| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-10 DONE (RS-4 deferred) |
+| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-11 DONE (RS-4 deferred) |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
