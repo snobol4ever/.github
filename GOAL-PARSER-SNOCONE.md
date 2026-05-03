@@ -13,6 +13,16 @@ shape SM-LOWER consumes), and for every test program in the rung corpus
 Where a `.ref` file exists, executing both trees through the IR
 interpreter produces byte-identical output.
 
+
+> **Cross-pollination notice (session #62, 2026-05-03):** three design
+> issues raised against PAT-IC apply to all six PARSER-* frontends.
+> See `GOAL-PARSER-ICON.md ## Design issues` (D1: drop goto/label
+> driver loops; D2: nonterminal names must mirror the existing
+> frontend, not invent new ones; D3: drive from a checked-in BNF in
+> `corpus/programs/ebnf/`). Tracked under PARSER-IC-INFRA-1 and
+> PARSER-IC-INFRA-2 — when those rungs land, the same refactor lands
+> on this parser too.
+
 ---
 
 ## Cross-pollination
