@@ -795,13 +795,19 @@ form.  TDump/TLump multi-line extension (which IS canonical and
 reusable) was committed separately as PARSER-SN-3 prep work — see
 Watermark below.
 
-### PARSER-SN-4 — control flow (`:S` / `:F` / labels)
+### PARSER-SN-4 — control flow (`:S` / `:F` / labels) — ✅ DONE (session #63, 2026-05-03)
 
-- [ ] Recognize label-prefixed lines and trailing `:S(target)` /
-      `:F(target)` / `:(target)` goto suffixes.
-- [ ] Test corpus: existing label/goto programs + **NEW** loops/branches.
+- [x] Recognized label-prefixed lines (identifier at column 0 + whitespace)
+      and trailing `:S(target)` / `:F(target)` / `:(target)` goto suffixes.
+      Parser rebuilt around _parse_line_cmd() + _parse_body_goto() +
+      _parse_goto() pipeline; LineCmd named-pattern trick makes deferred
+      calls fire inside ARBNO (dodges FW-3 at one more level).
+      tdump.sc extended: 0-child ':' nodes with non-empty v(x) render as
+      ':tag value' (needed for :goS LOOP etc.).
+- [x] Test corpus: 7 NEW programs cf_label_assign, cf_goto_f, cf_goto_u,
+      cf_goto_sf, cf_bare_goto, cf_label_only, cf_loop.
 - **Sibling LANG rungs:** SN-7, SN-8.
-- **Gate:** PASS≥20.
+- **Gate (cleared):** PASS=23 FAIL=0. ✅
 
 ### PARSER-SN-5 — patterns (the SNOBOL4 jewel)
 
@@ -920,7 +926,7 @@ Same wart in `shift`'s tag arg for non-string-literal inputs.
 ## Watermark
 
 **INFRA ladder COMPLETE. PARSER-SN-0/1/2 LANDED. PARSER-SN-FW-1/2/3 LANDED.
-PARSER-SN-3 LANDED (PASS=16 FAIL=0). FW-6 RESOLVED (variant B — whitespace-normalize gate).**
+PARSER-SN-3 LANDED (PASS=16). PARSER-SN-4 LANDED (PASS=23). FW-6 RESOLVED (variant B).**
 
 Thirteen runtime files in `corpus/programs/scrip/`. `tdump.sc` extended:
 - PARSER-SN-2: role-slot/flag wrapper convention (`:`-prefixed type tags),
