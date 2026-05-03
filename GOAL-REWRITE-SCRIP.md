@@ -632,10 +632,43 @@
   unified_broker 49/0, isolation grep gate green.
   one4all @ `744754ff`.
 
-- [ ] **RS-22f-generators**: E_TO, E_ALTERNATE, E_ITERATE, E_LIMIT, E_SEQ.
-    These are not direct kinds to evaluate — they should route through
-    `coro_eval` and consume a single tick (first-value semantics).
-    Add a small `bb_first_tick(e)` helper or dispatch table.
+- [x] **RS-22f-generators** (session 2026-05-03) — E_TO, E_TO_BY,
+    E_ALTERNATE, E_ITERATE, E_LIMIT, E_SEQ_EXPR, E_SEQ lifted into
+    `bb_eval_value`.
+  Inline dispatch (no helper — pattern is too varied across the kinds).
+  The contract has **three cases** for E_TO/E_TO_BY/E_ITERATE that must be
+  distinguished, discovered when first-pass naïve `coro_eval+α` regressed
+  cross_lang.scrip from 49/0 → 48/1 (Icon section produced `1, 1, 1`
+  instead of `1, 2, 3`):
+  (1) `coro_drive_node` injection — outer driver staged a value for this
+      exact node; return `coro_drive_val` directly.  Mirrors
+      interp_eval.c:348.
+  (2) `icn_frame_lookup` — outer pump (every-loop) is iterating this node
+      and pushed it onto FRAME's gen stack; return INTVAL(cur) for E_TO/
+      E_TO_BY or the appropriate slot for E_ITERATE (numeric vs char-iter
+      via `icn_frame_lookup_sv`).  Mirrors interp_eval.c:3470 (E_TO) and
+      the icon-frame E_ITERATE case.
+  (3) Fresh value-context: `coro_eval(e).fn(ζ, α)` — first-value
+      semantics.  Used for stand-alone first-value contexts like
+      `if (1 to n) > k`.
+  E_LIMIT/E_ALTERNATE/E_SEQ_EXPR don't carry per-tick scalar state on
+  FRAME.gen the way E_TO/E_ITERATE do; they are pure generator
+  combinators whose state lives in the bb_node_t.  Outer-pump retries
+  reach them through the bb_node_t's β path, not through re-entry of
+  bb_eval_value.  So injection-check + fresh α-once is correct for those.
+  E_SEQ is `&` conjunction in value context: left-to-right evaluation,
+  FAILDESCR on first child fail, return last child on full success.
+  Mirrors interp_eval.c:2348.
+  +90 lines (7 case arms + comments documenting the three-case contract).
+  SPRINT trail updated; survey block updated to mark generators closed.
+  Build clean.  smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5,
+  smoke_raku 5/5, unified_broker 49/0, isolation gate green.
+  Icon IR-all-rungs 191 PASS / 42 FAIL / 30 XFAIL / 263 TOTAL —
+  byte-identical to f3daa24e baseline.
+  Corpus generator fallthrough: E_TO ×8, E_ALTERNATE ×6, E_ITERATE ×3,
+  E_LIMIT ×1, E_SEQ ×6 → 0 (24 sites closed).
+  Remaining survey kinds: E_SCAN ×5, E_CASE ×1 (RS-22f-stmt closes).
+  one4all @ (pending commit).
 
 - [ ] **RS-22f-stmt**: E_SCAN, E_CASE.  E_SCAN drives a generator chain
     via coro/exec_stmt; needs first-value contract decision (Icon-mode
