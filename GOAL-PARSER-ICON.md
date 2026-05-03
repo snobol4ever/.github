@@ -108,14 +108,17 @@ divergence is in how trees are interpreted, not how they are shaped.
 - **Sibling LANG rungs:** IC-1..IC-3 (lexer, atom).
 - **Gate:** PASS=3. ✅
 
-### PARSER-IC-1 — assignment (`x := expr`) — **next**
+### PARSER-IC-1 — assignment (`x := expr`) — **DONE** (this commit)
 
-- [ ] `Command` handles Icon's `:=` assignment.
-- [ ] Test corpus: existing 2 + **3 NEW**.
+- [x] `Command` handles Icon's `:=` assignment.
+- [x] Test corpus: existing 3 atoms + **5 NEW** (assign_int, assign_str,
+      assign_var, assign_mixed, assign_seq).  Note: spec said "existing
+      2 + 3 NEW" — verified via PARSER-SC-1 reference: actual landed
+      pattern is 3 + 5 = 8, matching the gate target.
 - **Sibling LANG rungs:** IC-4.
-- **Gate:** PASS=8.
+- **Gate:** PASS=8. ✅
 
-### PARSER-IC-2 — write / arith
+### PARSER-IC-2 — write / arith — **next**
 
 - [ ] `Command` handles `write(expr)` calls and `+ - * /` operators.
 - [ ] Test corpus: existing + **NEW**.
@@ -161,4 +164,4 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ## Watermark
 
-PARSER-IC-1 (PARSER-IC-0 landed: PASS=3, atom support — `procedure main() <atom> end` shape).
+PARSER-IC-2 (PARSER-IC-1 landed: PASS=8, atom + `:=` assignment, multi-statement procedure body).
