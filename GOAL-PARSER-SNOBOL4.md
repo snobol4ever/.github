@@ -298,7 +298,180 @@ the exact same runtime files unchanged.
 - **Gate (cleared):** `test_parser_snobol4.sh` PASS=8 FAIL=0
   (same 8 programs as PARSER-SN-1, now via tree-on-stack). ✅
 
-### PARSER-SN-3 — concat / arith — **next**
+### PARSER-SN-FW — framework-completion rungs (cross-cutting, benefits all six PARSER-*)
+
+PARSER-SN-2 delivered a working tree-on-stack template and a partially
+shared dumper.  Five known gaps remain that sibling sessions
+(PARSER-SC/RB/RK/IC/PR) will all hit independently if not addressed
+first.  These rungs close those gaps before PARSER-SN's own
+language-specific ladder (concat/arith → control flow → patterns →
+functions → beauty crosscheck) resumes.  Same role as the closed
+INFRA ladder: cross-cutting infrastructure work that all six
+sessions inherit.
+
+Lon's call on sequencing — these can land before PARSER-SN-3 (clean
+framework, all five sessions start on solid ground) or in parallel
+with PARSER-SN-3+ as sibling sessions surface the gaps in their own
+work.  Each rung's "Sibling LANG sessions blocked" line names which
+of the five other sessions hits this gap first.
+
+### PARSER-SN-FW-1 — generalize TValue for non-scrip-IR leaf kinds
+
+`tdump.sc::TValue` currently knows only scrip-IR leaf kinds
+(`E_VAR`, `E_ILIT`, `E_QLIT`) plus the legacy `Name` / `string` /
+`integer` / etc. Each sibling session will likely have its own kind
+namespace.  Coordinating a kind-by-kind extension on every sibling
+push is costly and fragile.
+
+**Approach:** introduce a "generic IR leaf" convention in TValue.  A
+leaf whose type tag is *purely* a recognizable language kind name
+(letters, digits, underscore) AND whose v(x) is non-empty renders as
+`(t v)` automatically — no per-kind list.  Existing recognized
+kinds (Name with v rendering bare; string with SqlSQize quoting;
+etc.) keep their special treatment via the early-return cascade.
+
+- [ ] Probe: build a `tree('FOO_kind', 'val')` and verify TLump
+      currently renders it as `FOO_kind` (TValue's fall-through path).
+- [ ] Add a generic-leaf branch to TValue: when t(x) matches
+      `(POS(0) ANY(&UCASE) (SPAN(&UCASE digits '_') | epsilon) RPOS(0))`
+      AND v(x) is non-empty, return `'(' t(x) ' ' v(x) ')'`.
+      This catches E_VAR-style ALL_UPPER kinds AND any sibling-session
+      kind in the same shape (e.g. Icon's `IC_VAR`, Prolog's `PL_TERM`).
+- [ ] Remove the now-redundant explicit E_VAR / E_ILIT / E_QLIT
+      branches from TValue (E_QLIT keeps its special branch — double
+      quotes vs Sqlized-single distinguishes it).
+- [ ] Verify `test_scrip.sh` PASS (existing INFRA-3/INFRA-7 smokes
+      use `string` and `integer`-typed leaves which take their special
+      branches before the generic).
+- [ ] Verify `test_parser_snobol4.sh` PASS=8 unchanged.
+- **Sibling LANG sessions blocked by this gap:** all five.
+- **Gate:** `tree('FOO_KIND', 'bar')` TLumps as `(FOO_KIND bar)` with
+  no per-kind code; PARSER-SN gate stays green.
+
+### PARSER-SN-FW-2 — multi-child role-slot wrapper
+
+`tdump.sc::TLump`'s `:`-prefix branch handles 0 children (bare flag)
+and 1 child (`:role <child>`).  Multi-child role wrappers fall
+through to the normal bracketed render, producing `(args x y z)` —
+wrong for languages whose canonical dump form is `:args x y z` or
+`:args (x y z)`.
+
+- [ ] Probe: capture `--dump-parse` output for a SNOBOL4 program
+      with multi-arg construct (e.g. `DEFINE('f(a,b,c)')`) — see
+      whether scrip emits `:args (a b c)` or `:args a b c` or some
+      other shape.  Pick the convention that matches the most
+      languages.
+- [ ] Extend the `:`-prefix branch in TLump for n>=2 children.
+      Probable shape: render as `:role (child1 child2 ...)` — the
+      child list parenthesized, matching --dump-parse style.  If a
+      sibling session's language wants un-parenthesized, that becomes
+      a sibling FW rung.
+- [ ] Add a smoke line to `test_scrip.sh` exercising
+      `tree(':args', '', 3, ...)` round-trip.
+- **Sibling LANG sessions blocked by this gap:** PARSER-IC (Icon
+  procedure args), PARSER-PR (Prolog goal args), PARSER-RK (Raku
+  signature args).  Surfaces in PARSER-SN-6 (function definition).
+- **Gate:** `tree(':args', '', 3, x, y, z)` TLumps as `:args (x y z)`
+  (or whatever convention the probe selects); PARSER-SN gate stays
+  green.
+
+### PARSER-SN-FW-3 — Compiland-spine driver loop
+
+The current `parser_snobol4.sc` driver does per-line matching with
+per-line tree pops.  Works for SNOBOL4's line-oriented syntax.
+Breaks for Snocone (brace-delimited blocks), Raku (multi-line
+expressions), Prolog (multi-line clauses).
+
+The Goal file's "Architecture reminder" names the canonical spine:
+`Compiland = nPush() ARBNO(*Command) reduce('Parse', 'nTop()') nPop()`
+— one whole-program match producing one tree.  beauty.sc:133 uses
+this exact form.  PARSER-SN should adopt it too, both to converge
+with sibling sessions and to align with beauty.sc's parser-build
+shape (which PARSER-SN-7 needs to crosscheck against beauty.sno).
+
+- [ ] Read whole input into `Src` via the beauty main00/main02 idiom:
+      ARBNO(`Line = INPUT`, append `Line nl` to Src).
+- [ ] Replace per-line-match driver with: `Src ? *Compiland`
+      single match.  `Compiland` uses `ARBNO(*Command)` to consume
+      every statement.
+- [ ] Per-Command tree push happens via `Shift`/`Reduce` inside
+      Command alternatives; the driver pops one composite tree at
+      end and TDumps it (with one OUTPUT per child).  The new "one
+      tree per program with N STMT children" dump shape needs to
+      match `--dump-parse`'s "N STMT lines" output — likely render
+      the program tree's children individually rather than as one
+      lisp-paren string.
+- [ ] Verify PARSER-SN gate PASS=8 with the new driver.
+- **Sibling LANG sessions blocked by this gap:** PARSER-SC, PARSER-RK,
+  PARSER-PR.  PARSER-RB and PARSER-IC tolerable on per-line.
+- **Gate:** `test_parser_snobol4.sh` PASS=8 with whole-program
+  Compiland driver; per-line driver removed.
+
+### PARSER-SN-FW-4 — `scrip --parser-crosscheck` C-side flag
+
+The Goal file's "Architecture reminder" describes
+`scrip --parser-crosscheck parser_snobol4.sc tiny.sno` running both
+frontends in-process and comparing `CODE_t*` pointers via
+`tree_equal`.  Currently the crosscheck is shell-level byte-diff
+against `--dump-parse`.  Byte-diff is fine for languages whose dump
+form is whitespace-stable (SNOBOL4 is); brittle for languages with
+optional formatting (Raku at minimum, possibly others).
+
+- [ ] Add `--parser-crosscheck` flag to `scrip.c`.  Mode reads two
+      input files: a `.sc` PARSER driver (loaded into the Snocone
+      runtime) and a per-language source (passed as the driver's
+      INPUT).  Runs the existing-frontend on the same source for
+      comparison.
+- [ ] Expose a C-callable `tree_equal(CODE_t* a, CODE_t* b)` in the
+      driver.  Walks structurally, compares kind tags and leaf
+      values.
+- [ ] Add a Snocone `cross_emit_tree(t)` builtin that hands a
+      Snocone-built tree across the FFI boundary as a CODE_t*.
+      (This is the meaty step — bridging Snocone's
+      `struct tree { t, v, n, c }` into the C-side IR shape.)
+- [ ] PARSER-SN gate uses --parser-crosscheck mode by default; the
+      print-and-diff path stays as a fallback for debugging.
+- **Sibling LANG sessions blocked by this gap:** PARSER-RK
+  (whitespace-tolerant dump form).  Others can use byte-diff.
+- **Gate:** `scrip --parser-crosscheck parser_snobol4.sc tiny.sno`
+  emits `OK` for matching trees; PARSER-SN gate refactored to use it.
+
+### PARSER-SN-FW-5 — root-cause the TLump function-name slot wart
+
+PARSER-SN-2 hit a Snocone runtime issue: `TLump = TLump TLump(...)`
+on one line confused the function-result variable across the
+recursive frame boundary, even though the original TLump bracket
+branch (line 63 of pre-PARSER-SN-2 `tdump.sc`) does the same shape
+and works.  Worked around by staging the recursive call in a `sub`
+local.  Workaround documented in code; root cause not understood.
+
+A sibling session that triggers the same wart in a different code
+path is blocked without a known fix.  Worth bisecting before that
+happens.
+
+- [ ] Reduce to a 4-line `.sc` repro: a function `f(x)` whose body
+      ends with `f = literal f(child); return;` and verify whether
+      the `f = literal f(...)` shape clobbers the parent frame's `f`
+      variable on any recursive call site (not just TLump's
+      `:`-prefix branch).
+- [ ] Bisect: compare with the working line-63 form (`TLump = TLump
+      ' ' TLump(c(x)[i], ...)`) — what's structurally different
+      about the `:`-prefix branch (no space literal between?
+      different child index?  pre-bound `len` arithmetic?).
+- [ ] Root-cause the divergence in scrip's Snocone runtime.  Likely
+      a peephole-optimization edge case or an NV-slot reuse bug in
+      the call/return path.  Probable site: `interp_eval.c E_FNC`
+      or `eval_code.c E_ASSIGN` interaction with E_FNC RHS.
+- [ ] Once fixed, revert the `sub`-local staging in `tdump.sc` and
+      restore the canonical `TLump = TLump TLump(...)` shape.
+      Verify PARSER-SN gate PASS=8.
+- **Sibling LANG sessions blocked by this gap:** none today, but any
+  could trip on it tomorrow.  Defensive priority — better to fix
+  before it surfaces in a session that doesn't know the workaround.
+- **Gate:** the canonical shape works without staging; root cause
+  documented in the rung close-out.
+
+### PARSER-SN-3 — concat / arith — **next after FW ladder**
 
 - [ ] Extend `Stmt` for `expr1 expr2` (concat) and `+ - * /` operators.
 - [ ] Test corpus: existing concat/arith programs + **5 NEW** for
@@ -465,14 +638,27 @@ Test corpus in `corpus/programs/snobol4/parser/` (8 programs):
 `assign_str.sno`, `assign_var.sno`, `assign_seq.sno`,
 `assign_mixed.sno`.
 
-Next step: **PARSER-SN-3** — concat / arith. Extend `parser_snobol4.sc`
-to handle `expr1 expr2` (concat) and `+ - * /` operators. Capture
-canonical lines from `--dump-parse` for these constructs first; the
-operator nodes wrap atoms / sub-expressions and the dumped form will
-reveal the precedence-handling shape the existing frontend expects.
-Add 5 NEW programs covering operator precedence corners. Gate
-target: PASS≥13 cumulative.
+Next step: **PARSER-SN-FW ladder** (5 cross-cutting framework rungs)
+before resuming language-specific work at PARSER-SN-3. The FW ladder
+closes five known framework gaps that all five sibling sessions
+(PARSER-SC/RB/RK/IC/PR) will independently hit:
 
-Open workaround items INFRA-11a/b/c remain — surface bumps that don't
-block PARSER-SN-3+. Revisit when frontend ladder reveals real
+- FW-1: generalize TValue for non-scrip-IR leaf kinds (blocks all 5)
+- FW-2: multi-child role-slot wrapper (blocks IC/PR/RK)
+- FW-3: Compiland-spine driver loop (blocks SC/RK/PR)
+- FW-4: scrip --parser-crosscheck C-side flag (blocks RK; nice-to-have for others)
+- FW-5: root-cause TLump function-name slot wart (defensive — blocks none today)
+
+Lon's call: land the FW ladder before sibling sessions start
+(cleanest), or run them in parallel as sibling sessions surface the
+gaps in their own work (faster iteration, more redundant convergence
+work). Either is defensible.
+
+After FW ladder closes: PARSER-SN-3 (concat / arith). Capture
+canonical lines from `--dump-parse` for `+ - * /` and concat, extend
+`Stmt` accordingly, add 5 NEW programs covering operator precedence
+corners. Gate target: PASS≥13 cumulative.
+
+Open workaround items INFRA-11a/b/c remain — surface bumps that
+don't block PARSER-SN-3+. Revisit when frontend ladder reveals real
 obstruction.
