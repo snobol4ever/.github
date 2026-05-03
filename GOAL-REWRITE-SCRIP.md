@@ -517,11 +517,45 @@
   isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
   to f3daa24e baseline.
 
-- [ ] **RS-22d** — Unary + misc kinds into `bb_eval_value`.
-  Add cases for E_NEG, E_NOT (unary minus / boolean not), E_NONNULL
-  (\\e — fail if null), E_RANDOM (?e — random element), E_SIZE (*e —
-  string/list/table size), E_AUGASSIGN variants.
-  Gate: same as RS-22b.
+- [x] **RS-22d** — Unary + augmented-assign kinds into `bb_eval_value`
+  (session 2026-05-03).
+  Two helpers + 8 case arms added to coro_value.c.  This is the largest
+  RS-22 sub-rung; with this landed, RS-22e (verify fallthrough empty),
+  RS-23 (drop the interp_eval extern), and RS-24 (strip the dead
+  Icon-frame switch from interp_eval.c) become the path to closing the
+  IR/SM isolation entirely for Icon.
+  **Naming clarification:** rung text said "E_NEG" and "E_AUGASSIGN".
+  Icon parser emits **E_MNS** for unary `-` (icon_parse.c:314); the
+  actual IR kind is **E_AUGOP** (ir.h:189).  Both names used in code per
+  existing IR convention, with the rung-text alias explained in the
+  file-level comment.
+  Unary kinds (mirror IR-mode interp_eval.c sites 2501-2540, 3124-3160,
+  3629-3727): **E_MNS** via `neg()` (snobol4.h), **E_PLS** with elaborate
+  int-then-real-then-zero string parse, **E_NOT**, **E_NULL**,
+  **E_NONNULL**, **E_SIZE** (string/list/table/SOH-array), **E_RANDOM**
+  (LCG with Knuth MMIX constants — local static seed).
+  **E_AUGOP** handles all three IR-mode paths through two shared helpers:
+  `bb_augop_compute(lv, rv, op_token)` — pure op dispatch covers
+  TK_AUGPLUS/MINUS/STAR/SLASH/MOD/CONCAT and the numeric + string
+  comparison-augops; unsupported tokens (TK_AUGPOW, TK_AUGCSET_*,
+  TK_AUGSCAN) fall through to integer-add default — same coverage as
+  IR-mode.  `bb_augop_writeback(lhs, res)` — writes to E_VAR slot,
+  E_IDX via `subscript_set`, or E_FIELD via `data_field_ptr`.
+  Three execution paths:
+  (1) `!container OP:= rhs` — walks T/list/record cells via BB_AUGOP_CELL
+      macro.
+  (2) Suspendable RHS — `coro_eval` + `bb_node_t.fn(zeta, α/β)` ticks;
+      re-reads lhs each tick.  Implements `every sum +:= (1 to n)`.
+  (3) Plain — single bb_eval_value pair, compute, writeback.
+  New include: `bb_broker.h` (transitively `bb_box.h`) for α/β constants
+  and `bb_node_t` — the BB-engine primitives the generator-RHS path needs.
+  Probes pass: `every sum +:= (1 to 5)` → sum=15 (generator-RHS path live),
+  -5/+`"42"`/`*"hello"`/`*[1,2,3,4]` give -5/42/5/4, `s ||:= "def"` for
+  s="abc" → "abcdef", null/non-null chains correct.
+  one4all @ `88594869`.  Build clean.  Gates: smoke_snobol4 7/7,
+  smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, unified_broker 49/0,
+  isolation grep gate green.  Icon IR-all-rungs 191/263 — byte-identical
+  to f3daa24e baseline.
 
 - [ ] **RS-22e** — Verify fallthrough is empty; harden.
   After RS-22b/c/d: grep `interp_eval` calls reachable from
