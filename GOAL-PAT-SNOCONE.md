@@ -48,14 +48,18 @@ bash /home/claude/one4all/scripts/test_pat_snocone.sh          # NEW — written
 ## Architecture reminder
 
 ```
-source.sc
-   │
-   ├─→ snocone_compile() → CODE_t* t1   (existing frontend)
-   │
-   └─→ pat_snocone.sc Compiland → CODE_t* t2
+scrip --pat-crosscheck pat_snocone.sc tiny.sc
+```
 
-tree_equal(t1, t2) → primary gate
-execute(t1) vs execute(t2) → secondary gate (where .ref exists)
+SCRIP runs `pat_snocone.sc` (which `-include`s the shared SC library from
+`corpus/programs/snocone/lib/`) against `tiny.sc` — PAT produces IR tree t2
+via `Compiland`; the existing Snocone frontend produces t1. Both compared in
+memory (`tree_equal`), both executed in memory. No subprocesses, no temp
+files, no on-disk diffs.
+
+**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PAT-SN-INFRA-1):
+```
+tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
 
 Compiland spine (identical across all six):

@@ -52,14 +52,50 @@ bash /home/claude/one4all/scripts/test_pat_snobol4.sh          # NEW — written
 ## Architecture reminder
 
 ```
-source.sno
-   │
-   ├─→ snobol4_compile()  → CODE_t* t1   (existing frontend)
-   │
-   └─→ pat_snobol4.sc Compiland → CODE_t* t2
+scrip --pat-snobol4 tiny.sno
+         │
+         ├─→ existing SNOBOL4 frontend  → CODE_t* t1   (in-process)
+         │
+         └─→ pat_snobol4.sc Compiland  → CODE_t* t2   (in-process, Snocone)
 
-tree_equal(t1, t2) → primary gate
-execute(t1) vs execute(t2) → secondary gate (where .ref exists)
+tree_equal(t1, t2) → primary gate          (in memory, no files, no diff)
+execute(t1) vs execute(t2) → secondary gate (in memory, where .ref exists)
+```
+
+**Invocation:** `scrip` gets a new mode `--pat-crosscheck`. When invoked:
+
+```
+scrip --pat-crosscheck pat_snobol4.sc tiny.sno
+```
+
+1. SCRIP runs the Snocone PAT driver `pat_snobol4.sc` (which `-include`s
+   the shared SC library from `corpus/programs/snocone/lib/`) against
+   `tiny.sno` as its input — producing IR tree t2 via the `Compiland` PATTERN.
+2. SCRIP simultaneously runs the existing SNOBOL4 frontend on `tiny.sno`
+   producing IR tree t1.
+3. Both trees are compared in memory (`tree_equal`). Both are executed
+   in memory and outputs compared. All sync is live, in-process — no
+   subprocess, no temp files, no on-disk diffs.
+
+**Shared SC library** (all six PAT sessions use these — separate files on the command line, no `-include`):
+```
+corpus/programs/snocone/lib/tree.sc
+corpus/programs/snocone/lib/stack.sc
+corpus/programs/snocone/lib/counter.sc
+corpus/programs/snocone/lib/ShiftReduce.sc
+corpus/programs/snocone/lib/semantic.sc
+```
+
+Each session invokes scrip with the full blob:
+```
+scrip --pat-crosscheck \
+  corpus/programs/snocone/lib/tree.sc \
+  corpus/programs/snocone/lib/stack.sc \
+  corpus/programs/snocone/lib/counter.sc \
+  corpus/programs/snocone/lib/ShiftReduce.sc \
+  corpus/programs/snocone/lib/semantic.sc \
+  corpus/programs/snobol4/pat/pat_snobol4.sc \
+  tiny.sno
 ```
 
 The `Compiland` pattern, copied verbatim from `beauty.sc:133`:
@@ -98,7 +134,42 @@ the gate after the rung lands. New programs (marked **NEW**) get
 written under that rung along with their `.ref` files captured from
 the existing frontend's `--ir-run` output.
 
-### PAT-SN-0 — atom (literal | identifier) — **next**
+### PAT-SN-INFRA-0 — Snocone conditional-assignment capture bug — ✅ DONE
+
+Discovered during PAT-SN-0 setup. In the Snocone `--ir-run` and `--sm-run`
+interpreter, `. var` (conditional assignment) inside a pattern returned the
+**value** of the variable instead of its **lvalue** (NAME descriptor), so
+captures silently wrote to an anonymous slot and the variable stayed empty.
+Same bug in `$ var` (immediate assignment).
+
+- [x] Reproduce: `s = 'hello'; s ? (LEN(3) . cap); OUTPUT = cap;` → printed empty.
+- [x] Root cause: `eval_code.c` `E_CAPT_COND_ASGN` / `E_CAPT_IMMED_ASGN` — plain
+      `E_VAR` target fell into `eval_node(tgt)` → `NV_GET_fn()` (value) instead
+      of `NAME_fn()` (lvalue). `E_INDIRECT` branch was already correct.
+- [x] Fix: added `else if (tgt->kind == E_VAR)` branch returning `NAME_fn(tgt->sval)`
+      in both handlers in `eval_code.c`.
+- [x] `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh` PASS=5. No regressions.
+- [x] Gate: `scrip --ir-run` on reproduce case prints `hel`. ✅
+
+### PAT-SN-INFRA-1 — Shared SC library for all six PAT sessions — **next**
+
+All six PAT parsers share the same Snocone runtime library. Extract and
+clean the relevant files from `corpus/programs/snocone/demo/beauty/` into
+`corpus/programs/snocone/lib/`. No `-include` inside Snocone — all files
+are passed as a blob on the command line by the test script.
+
+- [ ] Create `corpus/programs/snocone/lib/` directory.
+- [ ] Copy and clean `tree.sc` → `lib/tree.sc` (no `xTrace` deps, self-contained).
+- [ ] Copy and clean `stack.sc` → `lib/stack.sc`.
+- [ ] Copy and clean `counter.sc` → `lib/counter.sc`.
+- [ ] Copy and clean `ShiftReduce.sc` → `lib/ShiftReduce.sc`.
+- [ ] Copy and clean `semantic.sc` → `lib/semantic.sc`.
+- [ ] Write `lib/README.md` naming purpose and each file.
+- [ ] Smoke-test: `scrip --ir-run lib/tree.sc lib/stack.sc lib/counter.sc lib/ShiftReduce.sc lib/semantic.sc smoke_lib.sc`
+      where `smoke_lib.sc` calls `Shift('foo','bar')` then `Pop()` → prints `bar`.
+- **Gate:** smoke test prints `bar`. No xTrace output.
+
+### PAT-SN-0 — atom (literal | identifier) — blocked on INFRA-0 + INFRA-1
 
 - [ ] Write `corpus/programs/snobol4/pat/pat_snobol4.sc` with `Compiland`
       handling exactly: a single line that is one identifier or one
@@ -184,4 +255,4 @@ the existing frontend's `--ir-run` output.
 
 ## Watermark
 
-PAT-SN-0 (initial — no .sc parser exists yet).
+PAT-SN-INFRA-1 (INFRA-0 capture bug fixed; next: create corpus/programs/snocone/lib/).

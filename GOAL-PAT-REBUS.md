@@ -53,14 +53,18 @@ bash /home/claude/one4all/scripts/test_pat_rebus.sh            # NEW — written
 ## Architecture reminder
 
 ```
-source.reb
-   │
-   ├─→ rebus_compile() → CODE_t* t1   (existing frontend)
-   │
-   └─→ pat_rebus.sc Compiland → CODE_t* t2
+scrip --pat-crosscheck pat_rebus.sc tiny.reb
+```
 
-tree_equal(t1, t2) → primary gate
-execute(t1) vs execute(t2) → secondary gate (where .ref exists)
+SCRIP runs `pat_rebus.sc` (which `-include`s the shared SC library from
+`corpus/programs/snocone/lib/`) against `tiny.reb` — PAT produces IR tree t2
+via `Compiland`; the existing frontend produces t1. Both compared in memory
+(`tree_equal`), both executed in memory. No subprocesses, no temp files, no
+on-disk diffs.
+
+**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PAT-SN-INFRA-1):
+```
+tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
 
 Compiland spine:
