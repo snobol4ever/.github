@@ -201,4 +201,10 @@ PARSER-RB-1 DONE (2026-05-03, session #62).
   AssignLine + emit_assign() added to parser_rebus.sc
   Gate: PASS=8 FAIL=0
 
-PARSER-RB-2 — next.
+PARSER-RB-2 DONE (2026-05-03, session #62).
+  corpus: if_id, if_output, while_id, while_output
+  IfLine/WhileLine + emit_dispatch() + E_NUL in TDump
+  Note: while body dropped by existing frontend (PAT-RB matches oracle)
+  Gate: PASS=12 FAIL=0
+
+PARSER-RB-3 — next.
