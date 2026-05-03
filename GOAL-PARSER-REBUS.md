@@ -190,4 +190,10 @@ Compiland = nPush() ARBNO(*Command) reduce('Parse', 'nTop()') nPop();
 
 ## Watermark
 
-PARSER-RB-0 (initial — no .sc parser exists yet).
+PARSER-RB-0 DONE (2026-05-03, session #62).
+  corpus: atom_id.reb, atom_int.reb, atom_str.reb
+  corpus/programs/scrip/parser_rebus.sc: atom frontend (178 lines)
+  one4all parser: scrip.c --dump-ir wired for .reb, test_parser_rebus.sh
+  Gate: PASS=3 FAIL=0
+
+PARSER-RB-1 — next.
