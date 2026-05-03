@@ -1,6 +1,7 @@
 # GOAL-PAT-SNOBOL4.md — PAT-SNOBOL4 pattern-based frontend in Snocone
 
 **Repo:** corpus+one4all
+**Branch:** `pat` (one4all only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-SNOBOL4.md` — every PAT-SN-N rung names its
 sibling SN-K rung(s). The existing SNOBOL4 frontend (`src/frontend/snobol4/`)
 is the oracle; PAT-SN is a second frontend that must agree with it.
@@ -32,6 +33,9 @@ already uses. PAT-SN is therefore the safest place to start the family.
 ## Session Setup
 
 ```bash
+# Switch one4all to the shared PAT branch. corpus and .github stay on main.
+( cd /home/claude/one4all && git fetch origin pat 2>/dev/null; git checkout pat 2>/dev/null || git checkout -b pat origin/pat 2>/dev/null || git checkout -b pat )
+
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 bash /home/claude/one4all/scripts/build_spitbol_oracle.sh

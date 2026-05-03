@@ -1,6 +1,7 @@
 # GOAL-PAT-PROLOG.md — PAT-PROLOG pattern-based frontend in Snocone
 
 **Repo:** corpus+one4all
+**Branch:** `pat` (one4all only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-PROLOG.md` and `GOAL-PROLOG-IR-RUN.md`. The
 existing Prolog frontend (`src/frontend/prolog/`) is the in-process oracle.
 
@@ -33,6 +34,9 @@ behind, never racing.
 ## Session Setup
 
 ```bash
+# Switch one4all to the shared PAT branch. corpus and .github stay on main.
+( cd /home/claude/one4all && git fetch origin pat 2>/dev/null; git checkout pat 2>/dev/null || git checkout -b pat origin/pat 2>/dev/null || git checkout -b pat )
+
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```
