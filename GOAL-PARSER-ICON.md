@@ -53,12 +53,12 @@ scrip --parser-crosscheck parser_icon.sc tiny.icn
 ```
 
 SCRIP runs `parser_icon.sc` (which `-include`s the shared SC library from
-`corpus/programs/snocone/lib/`) against `tiny.icn` — PAT produces IR tree t2
+`corpus/programs/scrip/`) against `tiny.icn` — PAT produces IR tree t2
 via `Compiland`; the existing frontend produces t1. Both compared in memory
 (`tree_equal`), both executed in memory. No subprocesses, no temp files, no
 on-disk diffs.
 
-**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PARSER-SN-INFRA-1):
+**Shared SC library** (`corpus/programs/scrip/` — tracked under PARSER-SN-INFRA-1):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
@@ -99,7 +99,7 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ### PARSER-IC-0 — atom — **next**
 
-- [ ] Write `corpus/programs/icon/parser/parser_icon.sc` with `Compiland`
+- [ ] Write `corpus/programs/scrip/parser_icon.sc` with `Compiland`
       handling one identifier or one integer or one quoted string.
 - [ ] In-process two-frontend crosscheck.
 - [ ] Write `scripts/test_parser_icon.sh`.

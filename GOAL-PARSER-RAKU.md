@@ -52,12 +52,12 @@ scrip --parser-crosscheck parser_raku.sc tiny.raku
 ```
 
 SCRIP runs `parser_raku.sc` (which `-include`s the shared SC library from
-`corpus/programs/snocone/lib/`) against `tiny.raku` — PAT produces IR tree t2
+`corpus/programs/scrip/`) against `tiny.raku` — PAT produces IR tree t2
 via `Compiland`; the existing frontend produces t1. Both compared in memory
 (`tree_equal`), both executed in memory. No subprocesses, no temp files, no
 on-disk diffs.
 
-**Shared SC library** (`corpus/programs/snocone/lib/` — tracked under PARSER-SN-INFRA-1):
+**Shared SC library** (`corpus/programs/scrip/` — tracked under PARSER-SN-INFRA-1):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
@@ -98,7 +98,7 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ### PARSER-RK-0 — atom — **next**
 
-- [ ] Write `corpus/programs/raku/parser/parser_raku.sc` with `Compiland`
+- [ ] Write `corpus/programs/scrip/parser_raku.sc` with `Compiland`
       handling one sigiled identifier (`$x`/`@a`/`%h`/`&f`) or one
       integer or one quoted string.
 - [ ] In-process two-frontend crosscheck.
