@@ -146,29 +146,36 @@ divergence is in how trees are interpreted, not how they are shaped.
 - **Sibling LANG rungs:** IC-5..IC-6.
 - **Gate:** PASS=14. ✅
 
-### PARSER-IC-INFRA-1 — check in canonical Icon BNF — **next (highest priority)**
+### PARSER-IC-INFRA-1 — check in canonical Icon BNF — **DONE** (this commit)
 
-- [ ] Add `corpus/programs/ebnf/icon.ebnf` — Griswold & Griswold
-      Appendix B BNF in the dialect already used for SNOBOL4.
-- [ ] Cross-link from goal file: every active rung from PARSER-IC-3
-      onward must cite the BNF production it implements.
-- **Deliverable:** one file checked in, no code changes.
-- **Gate:** file exists, parses with the existing EBNF tool
-      (`corpus/programs/lon/sno/ebnf.exe`).
+- [x] Add `corpus/programs/ebnf/icon-grammar.h` — verbatim upstream
+      copy (gtownsend/icon `src/h/grammar.h`, public domain).
+- [x] Add `corpus/programs/ebnf/icon-sp.ebnf` — 1-to-1 translation
+      into the project dialect (pipe-alternation form).
+- [x] Add `corpus/programs/ebnf/icon-no.ebnf` — vertical-ellipsis
+      variant for symmetry with `s4-no.ebnf`.
+- [x] Add `corpus/programs/ebnf/README.md` — dialect + provenance.
+- [x] D2 nonterminal-name table updated to use the canonical
+      `program/decls/proc/expr/expr1a/expr1.../expr11/literal/...`
+      hierarchy from `grammar.h` instead of the wrong
+      `icon_parse.c`-derived names.
+- **Deliverable:** four files committed, no parser_icon.sc change yet.
+- **Gate:** files exist, license-clean (public domain). ✅
 
-### PARSER-IC-INFRA-2 — refactor parser_icon.sc to canonical names + Compiland-driven loop
+### PARSER-IC-INFRA-2 — refactor parser_icon.sc to canonical names + Compiland-driven loop — **next**
 
-- [ ] Rename invented pattern names per D2 table (table in Design
-      issues section above).
+- [ ] Rename invented pattern names per D2 table (the canonical
+      `Program/Decls/Proc/Expr/Expr1a/Expr1.../Expr11/Literal/...`
+      names sourced from `corpus/programs/ebnf/icon-sp.ebnf`).
 - [ ] Replace goto/label main loop with `Compiland` PATTERN driving
       `ARBNO(*Command)` per D1.
 - [ ] Cross-pollinate: parser_snobol4.sc, parser_snocone.sc,
       parser_rebus.sc, parser_raku.sc, parser_prolog.sc receive the
-      same naming / structure update.
+      same naming / structure update once each language has its own
+      INFRA-1 BNF landed.
 - [ ] All existing test gates stay green — PAT-SN, PAT-IC PASS=14,
-      others.
-- **Gate:** every PARSER-* gate green, no PASS regression. ✅ first
-      then proceed to IC-3.
+      others. No PASS regression.
+- **Gate:** every PARSER-* gate green. ✅ first then proceed to IC-3.
 
 ### PARSER-IC-3 — control flow (`if/then/else`, `while/do`)
 
@@ -238,60 +245,85 @@ from deeply nested loops); the current loop does not require it.
 
 PAT-IC currently invents pattern names (`AtomPat`, `BinOpPat`,
 `ExprPat`, `WriteLine`, `AssignExprLine`, `BodyAtom`, `LhsAtom`,
-`RhsAtom`, `AssignLine`, `AtomLine`). The existing Icon frontend
-(`src/frontend/icon/icon_parse.c`) is a recursive-descent parser
-whose function names already define the canonical nonterminal
-hierarchy:
+`RhsAtom`, `AssignLine`, `AtomLine`).
 
-```
-parse_primary, parse_postfix, parse_unary, parse_limit,
-parse_pow, parse_mul, parse_add, parse_cset, parse_concat,
-parse_rel, parse_and, parse_to, parse_alt, parse_assign,
-parse_expr, parse_block_or_expr, parse_do_clause, parse_stmt,
-parse_record, parse_proc
-```
+The canonical Icon grammar — `corpus/programs/ebnf/icon-sp.ebnf`,
+landed under PARSER-IC-INFRA-1, which is a 1-to-1 translation of
+upstream gtownsend/icon `src/h/grammar.h` (public domain) — defines
+every nonterminal name PAT-IC must use. Production names are
+**numbered by precedence** (`expr1` through `expr11`), not named
+after operator class. This is intentional — the upstream grammar
+intentionally separates structural precedence from operator
+semantics.
 
-PAT-IC patterns must use these names (dropping the `parse_` prefix
-since PAT-IC's nonterminals **are** patterns, not procedures).
-Canonical Snocone nonterminal names for IC-3+:
+Canonical Snocone nonterminal names (CamelCase pattern, lowercase
+in the EBNF):
 
-| C function       | PAT-IC pattern  |
-|------------------|-----------------|
-| `parse_primary`  | `Primary`       |
-| `parse_postfix`  | `Postfix`       |
-| `parse_unary`    | `Unary`         |
-| `parse_limit`    | `Limit`         |
-| `parse_pow`      | `Pow`           |
-| `parse_mul`      | `Mul`           |
-| `parse_add`      | `Add`           |
-| `parse_concat`   | `Concat`        |
-| `parse_rel`      | `Rel`           |
-| `parse_and`      | `And`           |
-| `parse_to`       | `To`            |
-| `parse_alt`      | `Alt`           |
-| `parse_assign`   | `Assign`        |
-| `parse_expr`     | `Expr`          |
-| `parse_stmt`     | `Stmt`          |
-| `parse_proc`     | `Proc`          |
+| EBNF nonterminal | PAT-IC pattern  | Notes |
+|------------------|-----------------|-------|
+| `program`        | `Program`       | Top of grammar. |
+| `decls` / `decl` | `Decls` / `Decl`| Declarations list. |
+| `proc`           | `Proc`          | `procedure ... end`. |
+| `prochead`       | `Prochead`      | Procedure header. |
+| `procbody`       | `Procbody`      | Procedure body. |
+| `record`         | `Record`        | `record ID(...)`. |
+| `global`         | `Global`        | `global ID, ID, ...`. |
+| `link`           | `Link`          | `link "..."`. |
+| `invocable`      | `Invocable`     | `invocable ...`. |
+| `expr`           | `Expr`          | Conjunction (top of expr tower). |
+| `expr1a`         | `Expr1a`        | Scan (`?`). |
+| `expr1`          | `Expr1`         | Assignment + augmented assigns. |
+| `expr2`          | `Expr2`         | `to ... by ...`. |
+| `expr3`          | `Expr3`         | Alternation `\|`. |
+| `expr4`          | `Expr4`         | Comparison (numeric, string, equiv). |
+| `expr5`          | `Expr5`         | Concat (`\|\|`, `\|\|\|`). |
+| `expr6`          | `Expr6`         | Additive (`+`, `-`, `++`, `--`). |
+| `expr7`          | `Expr7`         | Multiplicative (`*`, `/`, `%`, `**`). |
+| `expr8`          | `Expr8`         | Power (`^`). |
+| `expr9`          | `Expr9`         | Limit / activation / apply (`\\`, `@`, `!`). |
+| `expr10`         | `Expr10`        | Unary prefix. |
+| `expr11`         | `Expr11`        | Primary (literals, control structures, postfix). |
+| `nexpr`          | `Nexpr`         | Possibly-empty expression. |
+| `literal`        | `Literal`       | INTLIT / REALLIT / STRINGLIT / CSETLIT. |
+| `if`             | `If`            | `if .. then .. else ..`. |
+| `while`/`until`/`every`/`repeat` | `While`/`Until`/`Every`/`Repeat` | Loops. |
+| `case` / `caselist` / `cclause`  | `Case` / `Caselist` / `Cclause`   | Case. |
+| `section` / `sectop`             | `Section` / `Sectop`              | String section. |
+| `exprlist` / `pdcolist`          | `Exprlist` / `Pdcolist`           | Argument lists. |
+| `compound`                       | `Compound`                        | `{ nexpr; nexpr; ... }`. |
+| `arglist` / `idlist` / `fldlist` | `Arglist` / `Idlist` / `Fldlist`  | Identifier lists. |
+| `locals` / `retention` / `initial`| `Locals` / `Retention` / `Initial`| Procedure preambles. |
 
-The IC-2 `AssignLine` / `AssignExprLine` pair collapses into one
-`Assign` pattern that uses `Expr` on the rhs.
+The PAT-IC convention: take the EBNF nonterminal name, capitalize
+the first letter. Multi-word names stay solid (`Prochead` not
+`ProcHead`) because the upstream is solid. The IC-2 `AssignLine` /
+`AssignExprLine` pair collapses into part of `Expr1` per the
+canonical grammar.
 
-### D3 — Should be driven by an official BNF
+### D3 — Should be driven by an official BNF — **landed via INFRA-1**
 
-The canonical Icon BNF lives in *The Icon Programming Language*,
-3rd ed., Griswold & Griswold, Appendix B. PAT-IC should mirror
-that grammar verbatim rather than re-deriving the precedence tower
-from `icon_parse.c`. The C parser is itself a translation of that
-BNF; using it as the shape source is one indirection too many.
+The canonical Icon BNF is the yacc grammar in upstream
+gtownsend/icon, file `src/h/grammar.h` — explicitly public domain
+("This material is in the public domain. You may use and copy this
+material freely." — gtownsend/icon README). PAT-IC mirrors this
+grammar verbatim rather than re-deriving anything from
+`icon_parse.c`. The C parser is itself a translation of this BNF;
+using it as the shape source was one indirection too many.
 
-**Action item:** check in `corpus/programs/ebnf/icon.ebnf` (the
-canonical Icon BNF in the same EBNF dialect already used for
-`s4-sp.ebnf` / `s4-no.ebnf`). Every PAT-IC nonterminal name then
-maps 1-to-1 to a production in that BNF file. Same treatment for
-the other five PARSER-* frontends — `snobol4.ebnf` already exists;
-add `snocone.ebnf`, `rebus.ebnf`, `prolog.ebnf`, `raku.ebnf`. Track
-this under PARSER-IC-INFRA-1 (new sub-rung, not an active IC-N).
+**Landed under PARSER-IC-INFRA-1:**
+
+- `corpus/programs/ebnf/icon-grammar.h` — verbatim upstream copy
+  (provenance preserved, never edit).
+- `corpus/programs/ebnf/icon-sp.ebnf` — pipe-alternation EBNF in
+  the project dialect (1-to-1 with `icon-grammar.h`).
+- `corpus/programs/ebnf/icon-no.ebnf` — vertical-ellipsis variant.
+- `corpus/programs/ebnf/README.md` — provenance + dialect notes.
+
+Same treatment is owed to the other five PARSER-* frontends:
+`snobol4-*.ebnf` already exists; add `snocone-*.ebnf`,
+`rebus-*.ebnf`, `prolog-*.ebnf`, `raku-*.ebnf` from their
+respective canonical upstream grammars. Tracked under each
+PARSER-*'s own INFRA-1 sub-rung (cross-pollination).
 
 These three issues compose: D3 supplies the names, D2 enforces the
 discipline of using them, D1 removes the dispatch-loop scaffolding
@@ -309,4 +341,4 @@ that is already obsolete.
 
 ## Watermark
 
-PARSER-IC-INFRA-1 (PARSER-IC-2 landed: PASS=14; design issues D1/D2/D3 raised — INFRA-1 + INFRA-2 must land before IC-3).
+PARSER-IC-INFRA-2 (PARSER-IC-INFRA-1 landed: canonical Icon BNF in corpus/programs/ebnf/, public-domain provenance preserved; D2 name table corrected to use upstream grammar.h precedence-numbered nonterminals).
