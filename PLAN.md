@@ -73,6 +73,12 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
+| **PAT-SNOBOL4 (pattern frontend)** | `GOAL-PAT-SNOBOL4.md` | corpus+one4all | PAT-SN-0 |
+| **PAT-SNOCONE (pattern frontend)** | `GOAL-PAT-SNOCONE.md` | corpus+one4all | PAT-SC-0 |
+| **PAT-REBUS (pattern frontend)** | `GOAL-PAT-REBUS.md` | corpus+one4all | PAT-RB-0 |
+| **PAT-RAKU (pattern frontend)** | `GOAL-PAT-RAKU.md` | corpus+one4all | PAT-RK-0 |
+| **PAT-ICON (pattern frontend)** | `GOAL-PAT-ICON.md` | corpus+one4all | PAT-IC-0 |
+| **PAT-PROLOG (pattern frontend)** | `GOAL-PAT-PROLOG.md` | corpus+one4all | PAT-PR-0 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
