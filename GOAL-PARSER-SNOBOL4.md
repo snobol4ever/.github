@@ -194,18 +194,25 @@ Each rung adds **one file** (or one bug-fix) and **one new line** to
 `smoke.sc`. The `test_scrip.sh` gate grows incrementally — every rung
 must keep all earlier `*-OK` lines green plus add its own.
 
-### PARSER-SN-INFRA-2 — `global.sc` (character constants and parser flags)
+### PARSER-SN-INFRA-2 — `global.sc` (character constants and parser flags) — ✅ DONE
 
-Add the prelude beauty assumes is in scope before any pattern compiles.
+Added the prelude beauty assumes is in scope before any pattern compiles.
 The beauty UTF lookup table is **not** imported (beauty-specific bulk).
 
-- [ ] Write `scrip/global.sc` with `&FULLSCAN`, `&MAXLNGTH`, named
-      character constants (`nul`, `bs`, `tab`, `nl`, `cr`, `ff`, etc.
-      via `&ALPHABET ? (POS(n) LEN(1) . name)`), `digits`, `TRUE`,
-      `FALSE`. No UTF table.
-- [ ] Add a single line to `smoke.sc` after the existing one:
+- [x] Wrote `scrip/global.sc` with `&FULLSCAN`, `&MAXLNGTH`, named
+      character constants (`nul`, `bs`, `ht`, `tab`, `nl`, `lf`, `vt`,
+      `ff`, `cr`, `fSlash`, `semicolon`, `bSlash`) via the canonical
+      `&ALPHABET ? (POS(n) LEN(1) . name)` idiom, the bit-prefix slices
+      `X0xxxxxxx` … `X11111xxx`, and `digits`, `TRUE`, `FALSE`. No UTF
+      table.
+- [x] Added the canonical alternation line to `smoke.sc`:
       `OUTPUT = (IDENT(digits, '0123456789') 'global-OK', 'global-FAIL');`
-- **Gate:** `test_scrip.sh` shows the existing `bar` output line PLUS `global-OK`. Old gate text remains green.
+- [x] Updated `test_scrip.sh` to load `global.sc` first in the blob and
+      to expect the two-line output `bar\nglobal-OK`. The INFRA-5a
+      Error-3 recognizer is retained as a defensive probe.
+- **Gate (cleared):** `test_scrip.sh` PASS — Shift/Pop round-trip plus
+  `global-OK`. `test_smoke_snobol4.sh` PASS=7. `test_smoke_snocone.sh`
+  PASS=5. ✅
 
 ### PARSER-SN-INFRA-3 — `tdump.sc` (tree printing only — no Gen deps)
 
@@ -474,17 +481,13 @@ and that both forms (function-call and infix) produce byte-identical IR.
 
 ## Watermark
 
-PARSER-SN-INFRA-5a — **CLEARED** in session 62. Root cause was synthetic
-label collision in the Snocone frontend, not a runtime evaluator bug:
-`snocone_parse_program()` reset `label_seq` to 0 per file, so multiple
-.sc files generated colliding `_Lend_NNNN` / `_Ltop_NNNN` labels;
-`label_lookup`'s linear scan returned the first match, and Pop's goto
-silently resolved into Insert's body. Fix is a static `g_sc_label_seq`
-in `snocone_parse.y` keeping the counter monotonic across the whole
-scrip invocation. Regenerated `.tab.c`/`.tab.h`. `test_scrip.sh` PASS,
-`test_smoke_snobol4.sh` PASS=7, `test_smoke_snocone.sh` PASS=5.
+INFRA-5a (synthetic-label collision) and INFRA-2 (`global.sc`) cleared
+in session 62 / 63. Six runtime files now in `corpus/programs/scrip/`:
+`global.sc` `tree.sc` `stack.sc` `counter.sc` `ShiftReduce.sc` `semantic.sc`.
+`test_scrip.sh` PASS — output `bar\nglobal-OK`. `test_smoke_snobol4.sh`
+PASS=7, `test_smoke_snocone.sh` PASS=5.
 
-Next session: continue the INFRA chain with **INFRA-2** (`global.sc`:
-character constants, `&FULLSCAN`, `&MAXLNGTH`, `digits`, `TRUE`, `FALSE`).
-INFRA-5b (the `if (str ? PAT = )` bug) is independently tracked and
-unblocks INFRA-6 (`case.sc`).
+Next session: **INFRA-3** (`tdump.sc` — slim port of beauty's `TDump.inc`
+covering `TLump` and `TValue` only; the recursive `Gen()`-wrapping
+`TDump` is out of scope for the crosscheck output). INFRA-5b (the
+`if (str ? PAT = )` bug) remains the gate that unblocks INFRA-6.
