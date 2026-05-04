@@ -406,7 +406,16 @@ rung lands a slice of the grammar, shaped per the invariants above.
 These are real runtime bugs we route around. All six PARSER-* sessions
 inherit the workarounds.
 
-### FW-3 — `ARBNO(*Q)` suppresses deferred calls inside Q
+### FW-3 — inline `epsilon . *fn()` inside ARBNO/FENCE does not fire
+
+Investigated session 2026-05-03: deferred calls written INLINE inside
+ARBNO or FENCE bodies do not fire. Assigned to a NAMED pattern first,
+they fire correctly — including inside ARBNO(*Q) and FENCE.
+
+**Workaround:** assign every pattern containing `epsilon . *fn()` to a
+named variable before use in ARBNO/FENCE. The original note about
+ARBNO(*Q) suppressing deferred calls is incorrect — the issue is
+inline vs named, not deferred-ref vs inlined body.
 
 8-line repro:
 
