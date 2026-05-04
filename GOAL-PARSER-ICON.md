@@ -341,26 +341,18 @@ gate.
       blank line between definitions removed; visual structure is now
       carried by the dividers alone.  50 dividers in file; 0 blank
       lines; 0 old-style dividers.  Gate PASS=51.
-- [ ] **Step 4 — `Gray` / `White` naming alignment.**  ATTEMPTED and
-      REVERTED this session — broke gate PASS=0/FAIL=51, restored to
-      post-Step-3 state.  **Lesson learned (next session must read
-      this before retry):** the rename can't keep the `$' '` / `$'  '`
-      indirection layer.  The reference is **parser_snocone.sc**, not
-      beauty.sc — beauty does NOT define `$' '` / `$'  '` at all.
-      parser_snocone uses inline `*Gray` / `*White` directly inside
-      every operator-token RHS: `$'+' = *Gray '+' *Gray;`.  Correct
-      Step-4 sequence: (a) rename `ws_opt` → `Gray` (use form
-      `Gray = (*White | epsilon);` with parens), `ws_run` → `White`
-      (form `White = SPAN(' ' tab);`); (b) DELETE `$' '` and `$'  '`
-      definitions entirely; (c) sweep the file: every `$' '` reference
-      becomes `*Gray`, every `$'  '` reference becomes `*White`,
-      including inside operator-token definitions (so `$'+' =
-      ($' ' '+' $' ');` becomes `$'+' = *Gray '+' *Gray;`).  Don't
-      attempt as a partial rename — the indirection through `$' '`
-      after the rename does NOT semantically equal the eager
-      `$' ' = ws_opt;` — verified this session by isolated probe.
-      All-or-nothing.  Gate must be PASS=51 after.  ~59 occurrences
-      of `$' '` and ~5 of `$'  '` to convert; mechanical sweep.
+- [x] **Step 4 — `Gray` / `White` naming alignment.**  DONE.
+      Renamed `ws_opt` → `White` (form `White = SPAN(' ' tab);`),
+      `ws_run` → `Gray` wait — correct: `White = SPAN(' ' tab);`,
+      `Gray = (*White | epsilon);`.  Deleted `$' '` and `$'  '`
+      definitions and their comment block entirely.  Swept all
+      ~64 occurrences: every `$' '` → `*Gray`, every `$'  '` →
+      `*White` — including inside all operator-token and keyword-token
+      RHSs (so `$'+' = ($' ' '+' $' ');` became `$'+' = (*Gray '+'
+      *Gray);`).  Two-space `$'  '` replaced before one-space `$' '`
+      to avoid partial match.  Note: `While` (the procedure construct)
+      and `White` (the whitespace def) are distinct Snocone identifiers
+      — no collision.  Gate PASS=51 FAIL=0 preserved.
 - [ ] **Step 5 — pseudo-token names → literal source forms.**  Two
       passes:
       (5a) Drop `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/
@@ -435,6 +427,6 @@ patterns and refactor scope.
 
 ## Watermark
 
-PARSER-IC-10-style Step 4 (Steps 1-3 LANDED PASS=51 preserved corpus@fa61e95: Step 1 — `_ic_strbody` → `ic_strbody`, deleted no-op `_parser_ic_done` sentinel; Step 2 — single-statement `while (Line = INPUT) { ... }` braces dropped; Step 3 — every `// -----` 71-char divider replaced with 120-char `/*===*/` major or `/*---*/` minor, every blank line between definitions removed, 50 dividers in file, 0 blank lines, 0 old-style dividers.  Step 4 — `Gray`/`White` rename — ATTEMPTED and REVERTED this session due to broken gate; lesson: parser_snocone.sc not beauty.sc is the reference; beauty does not define `$' '`/`$'  '`; the Step-4 rename must DELETE the `$' '`/`$'  '` indirection layer and inline `*Gray`/`*White` directly in every operator-token RHS and grammar use site, all-or-nothing.  See Step 4 entry under IC-10-style for the corrected sequence.
+PARSER-IC-10-style Step 5 (Steps 1-4 LANDED PASS=51 corpus@NEW: Step 4 — `Gray`/`White` rename LANDED: `ws_opt`→`White=SPAN(' ' tab)`, `ws_run`→`Gray=(*White|epsilon)`; deleted `$' '`/`$'  '` definitions and their comment block; swept ~64 occurrences: `$' '`→`*Gray`, `$'  '`→`*White` throughout — operator-token RHSs, keyword-token RHSs, all grammar use sites.  All-or-nothing sweep in one pass (two-space first to avoid partial match).  Gate PASS=51 FAIL=0 preserved.  Steps 1-3 per prior watermark.
 
 PARSER-IC-9-prior (LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`).
