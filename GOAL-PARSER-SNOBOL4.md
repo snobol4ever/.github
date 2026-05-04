@@ -36,24 +36,223 @@ It is the safest place to start the family.
 
 ---
 
-## Naming & Design Principles  (canonical writeup in GOAL-PARSER-SNOCONE.md)
+## Style Guidelines for `parser_*.sc` — canonical (binding on all six PARSER-*)
 
-PARSER-* parsers must use names from:
+These guidelines apply to **every** `parser_<lang>.sc` in the family
+(SNOBOL4, Snocone, Icon, Prolog, Raku, Rebus).  Sibling goal files
+(`GOAL-PARSER-SNOCONE.md`, `GOAL-PARSER-ICON.md`, ...) cross-reference
+this section.  The canonical model is `beauty.sno` /
+`corpus/programs/snocone/demo/beauty/beauty.sc` — read both before
+authoring or modifying any `parser_*.sc`.
 
-1. The official BNF for the language being parsed. For SNOBOL4 this is
-   `corpus/programs/ebnf/s4-no.ebnf` (and beauty.sno's Expr-N tier names
-   `Expr`, `Expr0..Expr17`, plus atom rules `Id`, `Integer`, `Real`,
-   `String`, etc.).
-2. The canonical Snocone self-host `beauty.sc` when the concept matches
-   (`Integer`, `String`, `Id`, `Gray`, `White`, `$'='`, etc.).
-3. `shift()`/`reduce()` from `ShiftReduce.sc` rather than manual
-   `Push(Tree(...))` inside pattern escapes.
-4. No new labels and goto unless absolutely necessary for readability.
+### 1. Names match the official language specification
+
+Pattern-variable names mirror the language's official BNF and the
+existing frontend's parser/lexer.  Sources of truth, in priority order:
+
+1. The frontend's own `.l` / `.y` (token enum, parse non-terminals)
+   and lowering module's IR-tag enum (`expr_dump` or equivalent).
+2. The official language standard (e.g. `corpus/programs/ebnf/s4-no.ebnf`
+   for SNOBOL4; ISO/IEC 13211-1 for Prolog; analogous for the others).
+3. `beauty.sno` / `beauty.sc` for self-host concepts (`Integer`,
+   `String`, `Id`, `Real`, `Gray`, `White`, `Expr0..Expr17`, ...).
+
+The cross-PARSER spine names (`Compiland`, `Command`, `shift`, `reduce`,
+`Push`/`Pop`/`Top`, `nPush`/`nInc`/`nTop`/`nPop`, `tree`/`Tree`/`TDump`,
+`stack`) are the only invented names; per-language non-terminals and
+token classes are not invented.
 
 **Operational oracle wins where canonical BNF and existing frontend
-disagree.** beauty.sno's arith rules are right-recursive; `snobol4.y` and
-`--dump-parse` are left-associative. PARSER-SN follows the oracle (left-
-associative iterative folding) but keeps beauty.sno's tier names.
+disagree.**  beauty.sno's arith rules are right-recursive; `snobol4.y`
+and `--dump-parse` are left-associative.  PARSER-SN follows the oracle
+(left-associative iterative folding) but keeps beauty.sno's tier names.
+
+### 2. `White` and `Gray` are attached, never referenced in the main grammar
+
+`White` matches required whitespace (including `+`/`.` continuation
+across nl); `Gray` matches optional whitespace.  Per beauty.sno:
+
+```
+Gray  = *White | epsilon;
+White = ( SPAN(' ' tab) FENCE(nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon) | epsilon)
+        | nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon)
+        );
+```
+
+Whitespace is **never** sprinkled into grammar rules directly.  It is
+attached at the boundaries of operator and special-character tokens,
+and it disappears from the visible grammar.  Inside the per-token
+build-up (see §3), `*White`/`*Gray` decorate the token; outside, the
+main grammar reads as if whitespace did not exist.
+
+### 3. Reserved-word and special-character tokens use `$'name'` form
+
+Tokens whose names would collide with Snocone reserved words, or that
+are non-identifier punctuation, use Snocone's `$'...'` indirection:
+
+```
+$'='    = *White '='  *White;     // operator: optional whitespace each side
+$'**'   = *White '**' *White;
+$','    = *Gray  ','  *Gray;
+$'('    = '('   *Gray;            // open-bracket: ws after only
+$')'    = *Gray ')';              // close-bracket: ws before only
+$'if'   = *White 'if' *White;     // (Snocone keyword example)
+```
+
+For tokens whose names are **not** Snocone reserved words, use a plain
+identifier — the assignment LHS is just the name:
+
+```
+S = $' ' 'S';                     // optional-leading-space S goto-letter
+F = $' ' 'F';
+```
+
+Two whitespace conventions to memorize:
+
+| Form        | Meaning                              |
+|-------------|--------------------------------------|
+| `$' '`      | OPTIONAL whitespace (zero or more spaces/tabs) |
+| `$'  '`     | REQUIRED whitespace (one or more)    |
+
+The single-space and two-space `$' '`/`$'  '` token names are the
+beauty.sno-legible convention — use them rather than spelling out
+`*Gray`/`*White` at every grammar reference.
+
+### 4. Tree-build decorations use shift/reduce, not bare deferred calls
+
+The pre-OPSYN form is:
+
+```
+primitive . tx epsilon . *Func(literal, tx)
+```
+
+This collapses to the function-call form:
+
+```
+primitive . tx Func(literal, "tx")
+```
+
+Where `Func` is `shift` (consume token, push leaf) or `reduce` (pop N
+children off the n-counter stack, push N-ary node with given tag).
+With the OPSYN'd infix shortcuts (`semantic.sc`):
+
+```
+primitive ~ "tx"             // shift:  primitive consumed, leaf pushed under tag "tx"
+("tx" & "expression")        // reduce: EVAL("expression") gives N; pop N, push N-ary tag "tx"
+```
+
+(The reduce form's expression is evaluated at match time via internal
+`EVAL`; the most common values are an integer literal `2`, `1`, or
+`'nTop()'` for n-ary collections.)
+
+⚠ **Today PARSER-* parsers MUST use the function-call form**
+`shift(p, t)` / `reduce(t, n)` rather than `~`/`&` infix.  Snocone's
+parser binds `~` as a unary operator at parse time, so OPSYN at runtime
+does not retro-rebind the infix form.  See `INFRA-11b` below — if/when
+that is resolved, sibling parsers may revert to the verbatim
+beauty.sno `~`/`&` infix.
+
+### 5. n-ary trees use `nPush() ... nInc() ... nTop() / nPop()`
+
+The same pattern-producing-function technique scales to variable-arity
+children.  `nPush()` opens a counter frame, every contributing child
+fires `nInc()` (embedded as a pattern, not as a deferred call — see
+LESSON 1 in the Watermark), `nTop()` reads the count, `nPop()` closes
+the frame:
+
+```
+ExprList  = nPush() *XList ("'ExprList'" & '*(GT(nTop(), 1) nTop())') nPop();
+XList     = nInc() (*Expr | epsilon ~ '') FENCE($',' *XList | epsilon);
+```
+
+⚠ `nInc()`/`nPush()`/`nPop()`/`nTop()` are PATTERN-PRODUCING functions
+— they return patterns that fire `IncCounter()`/`PushCounter()`/etc.
+at MATCH time.  Embed them as patterns inside grammar rules, not as
+side-effect calls inside escapes.  Inside escape-helper functions,
+call the BARE runtime: `IncCounter()`, `Push()`, `Pop()`.  See LESSON 1
+in the Watermark for the textbook error.
+
+### 6. AST/IR tag names use `E_*` from `EXPR_t`
+
+Tag strings inside `shift()` and `reduce()` calls must match the IR
+tags emitted by the existing frontend's dumper — for SNOBOL4 these
+are `E_VAR`, `E_ILIT`, `E_QLIT`, `E_RLIT`, `E_FNC`, `E_SEQ`, `E_ALT`,
+`E_LEN`, `E_BREAK`, `E_SPAN`, `E_ANY`, `E_NOTANY`, `E_CAPT_COND_ASGN`,
+`E_CAPT_IMMED_ASGN`, `E_KEYWORD`, `E_DEFER`, `E_IDX`, plus role-slot
+wrappers `:lbl`, `:subj`, `:pat`, `:repl`, `:goS`, `:goF`, `:goU`,
+`:eq`, `:end` (see "SNOBOL4 → existing-frontend tree shapes" below).
+The beauty.sno-native tag names (`Stmt`, `Id`, `String`, `Call`,
+`..`, `|`, ...) are the wrong shape for the `--dump-parse` oracle and
+must be rewritten — see `GOAL-PARSER-PROLOG.md` and
+`GOAL-PARSER-ICON.md` for the per-language tag tables.
+
+### 7. Identifier conventions
+
+| Kind             | Convention            | Examples                                  |
+|------------------|-----------------------|-------------------------------------------|
+| Variable         | lowercase snake_case  | `tx`, `sf`, `n_kids`, `cur_line`          |
+| Function         | UpperCamelSnake       | `Push`, `Pop`, `TDump`, `IncCounter`, `nPush` |
+| Pattern (rule)   | UpperCamel            | `Id`, `Integer`, `Expr0`, `ExprList`, `Stmt`, `Compiland` |
+| Token (special)  | `$'...'`              | `$'='`, `$'**'`, `$','`, `$'('`, `$' '`   |
+| AST tag          | `E_*` (per language)  | `E_VAR`, `E_ILIT`, `E_QLIT`, `E_FNC`      |
+| Role-slot tag    | `:`-prefixed          | `:subj`, `:pat`, `:repl`, `:lbl`          |
+
+⛔ **No identifier starts with `_`.**  Underscore-prefix is reserved
+for compiler-generated names (synthetic labels, anonymous bindings,
+internal scaffolds).  User code in `parser_*.sc` never spells one.
+
+The goto-letter token names `S` (success) and `F` (failure) are the
+exception that proves the rule — they are single uppercase letters,
+neither pattern-rule nor function, defined per beauty.sno as
+`S = $' ' 'S'` and `F = $' ' 'F'`.
+
+### 8. Layout and formatting
+
+These rules come from `RULES.md ## C code style` extended for
+Snocone source:
+
+- **120-character line maximum.**
+- **Single-statement bodies live on one line, no braces:**
+  ```
+  if (x) statement ;            // YES
+  if (x) { statement; }         // NO — gratuitous braces
+  while (cond) IncCounter() ;   // YES
+  ```
+  Braces are only for multi-statement bodies.
+- **Section dividers, never blank lines:**
+  - Major sections: `/*====================...====================*/` (120 chars)
+  - Minor sections: `/*--------------------...--------------------*/` (120 chars)
+  - Blank lines as separators are forbidden — use comment dividers.
+- **Maximize horizontal space.**  Pack related rules onto the same
+  line where they fit within 120 cols.  beauty.sno's
+  `$'=' = *White '=' *White; $'?' = *White '?' *White;` per line
+  packing of the operator-token block is the model.
+- **Multi-line wrapping uses constant 2-space nested indent with
+  vertical balancing of parens and binary operators:**
+  ```
+  Real = ( SPAN(digits)
+            ('.' FENCE(SPAN(digits) | epsilon) | epsilon)
+            ('E' | 'e') ('+' | '-' | epsilon) SPAN(digits)
+         | SPAN(digits) '.' FENCE(SPAN(digits) | epsilon)
+         );
+  ```
+  The opening `(` aligns the first alternative's first token; each
+  continuation line indents by 2 more; the matching `|` and `)` align
+  vertically with the opener.
+
+### 9. Read beauty.sno and beauty.sc end-to-end before authoring
+
+The model is internalized, not consulted line-by-line.  Before opening
+or modifying any `parser_*.sc`, read both source files in full:
+
+- `corpus/programs/snobol4/demo/beauty/beauty.sno` — original SNOBOL4
+  self-host beautifier.  Lines 47–245 are the grammar block; the rest
+  is the pretty-printer.  This is the canonical manifestation of every
+  rule above.
+- `corpus/programs/snocone/demo/beauty/beauty.sc` — the Snocone port,
+  same grammar shape, demonstrates how the SNOBOL4 patterns translate
+  to `.sc` syntax (`shift()`/`reduce()` function-call form,
+  `function ... { ... }` block syntax, structured `if`/`while`).
 
 ---
 
@@ -773,3 +972,30 @@ the FW-2 role-slot wrappers + IR-tag rewrites (`Stmt`→`STMT`,
     runtime deref.  Repro: `*Id FENCE('=' *Id | epsilon)` against
     `'x=y'` captures `[x]` instead of `[x=y]`; without FENCE same
     pattern captures `[x=y]`.
+
+**Watermark (session 2026-05-04, doc-only):** Style Guidelines for
+`parser_*.sc` promoted to canonical home in this goal file (§ Style
+Guidelines for parser_*.sc — binding on all six PARSER-*).  Nine
+sub-sections cover: (1) names match official language spec, (2)
+`White`/`Gray` attached not referenced, (3) `$'name'` token form
+including `$' '`/`$'  '` for optional/required whitespace and the
+`S = $' ' 'S'` simple-identifier exception, (4) shift/reduce three
+forms (`. tx . *Func` → function-call → `~`/`&` infix) with the
+INFRA-11b function-call mandate, (5) n-ary counters with the LESSON 1
+pattern-producing-function reminder, (6) `E_*` IR tags with role-slot
+wrappers, (7) identifier conventions table + `_`-prefix prohibition,
+(8) 120-col layout / single-statement-no-braces / `/*===*/` dividers /
+horizontal packing / multi-line wrapping, (9) read beauty.sno and
+beauty.sc end-to-end before authoring.  Sibling goal files
+(`GOAL-PARSER-SNOCONE.md`, `GOAL-PARSER-PROLOG.md`,
+`GOAL-PARSER-RAKU.md`, `GOAL-PARSER-ICON.md`,
+`GOAL-PARSER-REBUS.md`) cross-reference this section as canonical.
+No code changes; gates unchanged (PARSER-SN PASS=0 FAIL=59 — same as
+session start, expected).
+
+**Next milestone (unchanged):** PARSER-SN-7-1 — labels + assignment +
+tree-shape rewrite.  parser_snobol4.sc grammar matches today; emits
+beauty.sno-native shape (`Stmt`/`Id`/`String`/`Call`/`..`) and needs
+the FW-2 role-slot wrappers + IR-tag rewrites (`Stmt`→`STMT`,
+`Id`→`E_VAR`, `String`→`E_QLIT`, `Integer`→`E_ILIT`, `Call`→`E_FNC`,
+`..`→`E_SEQ`, `|`→`E_ALT`) to match scrip `--dump-parse` oracle.

@@ -18,8 +18,10 @@ produces byte-identical output.
 
 All six PARSER-* parsers share `Compiland`/`Shift`/`Reduce`/`Push`/`Pop`/`Top`/
 `tree`/`TDump`/`stack` from `corpus/programs/scrip/`. Bug fixes there
-benefit all six.  Naming & design principles canonical in
-GOAL-PARSER-SNOCONE.md.
+benefit all six.  Cross-PARSER style (naming, `White`/`Gray`, `$'name'`
+tokens, shift/reduce, n-ary counters, identifier rules, 120-col layout)
+is canonical in `GOAL-PARSER-SNOBOL4.md ## Style Guidelines for
+parser_*.sc` — read it before authoring or modifying any `parser_*.sc`.
 
 Icon shares broker mechanics with SNOBOL4 (BB_SCAN for pattern-match,
 BB_PUMP for generators) per `GOAL-LANG-ICON`. Tree shape for Icon's
