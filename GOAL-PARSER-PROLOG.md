@@ -263,6 +263,17 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
 ## Watermark
 
 PARSER-PR-6 LANDED (PASS=48).  All ladder rungs PR-0..PR-6 landed.
+
+**Beauty pass (post-PR-6):** 14 `PR_*` pattern-builder fns added
+following beauty.sno semantic.inc::shift / reduce convention; 56
+inline `[. *]xxx(...)` callsites in the grammar replaced with
+`PR_xxx(...)` builder calls.  Capture vars renamed from `_pName`
+style to camelCase (pText, qBody, leText, sBody, pNegi, pName, hText)
+because scrip-Snocone EVAL cannot lex underscore-leading identifiers
+inside the EVAL'd pattern body.  Direct `.name` calling convention is
+documented inline as an alternative for cases where the runtime fn
+wants a NAME (none of ours do).  Gate unchanged: PASS=48 FAIL=0.
+
 Next: PARSER-PR-7+ rung (TBD by Lon — ladder is open-ended; candidates
 include same-functor multi-clause E_CHOICE merging, anonymous variables
 `_`, parenthesized body subterms, DCG sugar).
