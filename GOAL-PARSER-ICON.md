@@ -70,6 +70,175 @@ divergence is in how trees are interpreted, not how they are shaped.
 
 ---
 
+## Style guidelines — derived from beauty.sno / beauty.sc
+
+The reference for `parser_<lang>.sc` style is the beauty pair:
+`corpus/programs/snobol4/demo/beauty/beauty.sno` and
+`corpus/programs/snocone/demo/beauty/beauty.sc`.  Read both
+end-to-end before authoring or refactoring a PARSER-* file.  Every
+guideline below is in active use there — they are not prescriptive
+in the abstract, they are descriptive of the working artifact.
+
+### Whitespace tokens — define once, never reference Gray/White directly
+
+```snocone
+Gray  = *White | epsilon;
+White = SPAN(' ' tab) FENCE(...) | nl ('+' | '.') FENCE(...);
+```
+
+After these are defined, **the main grammar never names `Gray` or
+`White` directly**.  All whitespace handling rides inside the
+operator/bracket/keyword tokens below.  If the grammar mentions
+`*White` or `*Gray` outside these token definitions, that's a smell
+— factor it into a `$'op'` token or use `$' '` / `$'  '`.
+
+### Operator and special-character tokens — `$'op'` form
+
+```snocone
+$'='  = *White '=' *White;       // binary operators: White on both sides
+$'**' = *White '**' *White;
+$',' = *Gray ',' *Gray;          // comma uses Gray (allows nl-continuation)
+$'(' = '(' *Gray;                // open bracket: Gray after only
+$')' = *Gray ')';                // close bracket: Gray before only
+```
+
+Operator tokens use `*White` symmetric.  Comma uses `*Gray` symmetric.
+Open brackets get `*Gray` after; close brackets get `*Gray` before.
+The pattern of which side gets what is fixed — copy it.
+
+### Reserved-word tokens — `$'kw'` form
+
+Snocone reserved words and language keywords use the same `$'name'`
+syntax: `$'if'`, `$'then'`, `$'procedure'`, `$'end'`.  Define each
+keyword token with leading optional whitespace baked in; trailing
+required-whitespace stays explicit at each call site (varies by use).
+
+### Identifier-shaped tokens that aren't Snocone reserved words
+
+Use a plain identifier and prefix with `$' '` (optional whitespace):
+
+```snocone
+S = $' ' 'S';       // not Snocone-reserved, normal identifier
+F = $' ' 'F';
+```
+
+### Invisible-whitespace shortcuts — `$' '` and `$'  '`
+
+```snocone
+$' '  = ws_opt;     // ONE space identifier  → optional whitespace
+$'  ' = ws_run;     // TWO space identifier  → required whitespace
+```
+
+These let keyword and operator definitions read as the literal
+source they match.  `$'if' $'  ' Cond` reads correctly: `if` then
+required space then condition.
+
+### Tree-builder shortcuts — OPSYN'd `~` and `&`
+
+beauty's tree-build form is:
+
+```snocone
+primitive . tx . *Func(literal, tx)         // raw form
+primitive . tx Func(literal, "tx")          // EVAL-friendly form
+```
+
+After OPSYN registers `~` (Shift) and `&` (Reduce) as binary
+operators, the `parser_*.sc` files use the short forms exclusively:
+
+```snocone
+*Integer ~ 'Integer'              // shift: dot-capture into stack as 'Integer'
+("'+'" & 2)                       // reduce: pop 2, push tree('+', _, 2, kids)
+("'Parse'" & 'nTop()')            // reduce with frame-counted children
+```
+
+`EVAL` is used internally by the OPSYN'd reduce to evaluate the
+count expression.  This is what makes `'nTop()'` and
+`'*(GT(nTop(),1) nTop())'` work as the right-hand operand.
+
+`r_nTop = '*(GT(nTop(),1) nTop())'` is the canonical "n-ary collector
+with single-child unwrap" reduce-count expression.  When only one
+item is on the frame, the EVAL fails and reduce silently leaves the
+lone tree alone — verified with isolated probe.  This IS the
+unwrap for E_SEQ_EXPR (`(expr)` and `{expr}`).
+
+### Counter machinery — `nPush()`/`nInc()`/`nPop()`
+
+Sub-repetition counts for n-ary tree children ride on a counter
+stack.  `nPush()` opens a frame, `nInc()` bumps the current frame's
+count by one (called inside the repetition body), `nPop()` closes.
+The reduce uses `'nTop()'` to read the current frame's count as
+the child count.  This is how `Parse`, alternation `|`, comma list,
+and concat list all collect a variable number of children.
+
+### IR / AST node names — `E_*` from `EXPR_t`
+
+Every reduce-tag string is the corresponding `E_*` enumerator name
+from `src/ir/ir.h:EXPR_t`.  Examples: `E_VAR`, `E_ILIT`, `E_QLIT`,
+`E_ASSIGN`, `E_AUGOP`, `E_FNC`, `E_SEQ_EXPR`, `E_MNS`, `E_POW`.
+The PARSER-IC convention defines `r_TAG = sq 'E_TAG' sq;` constants
+once at the top of `parser_icon.sc` and uses `r_TAG` everywhere —
+the EVAL-quoted form `'E_TAG'` is what `&` expects on the right.
+
+### No identifiers starting with underscore
+
+`_name` is reserved for generated code.  All hand-written
+identifiers in `parser_*.sc` start with a letter.
+
+### Variable / function naming
+
+- **Variables** start with lowercase, snake_case: `id_pat`, `ws_opt`,
+  `nl_one`, `cond_tree`.
+- **Functions** start with uppercase, then snake_case (or mixed):
+  `Push_list`, `Compiland`, `nPush`, `TDump`.
+- **Reduce-tag constants** start with `r_`: `r_FNC`, `r_POW`.
+- **Shift-tag constants** start with `s_`: `s_QLIT`, `s_ILIT`, `s_VAR`.
+
+### One-statement bodies — no curly braces
+
+```snocone
+if (cond) statement;              // YES
+if (cond) { statement; }          // NO
+```
+
+Reserve `{ ... }` for multi-statement bodies only.
+
+### Comment dividers, not blank lines
+
+Use 120-character `/*===*/` for major section breaks and `/*---*/`
+for minor.  Do not use blank lines for visual separation.
+
+```snocone
+/*=====================================================================*/
+//  Major section
+/*=====================================================================*/
+/*---------------------------------------------------------------------*/
+//  Minor subsection
+/*---------------------------------------------------------------------*/
+```
+
+### Horizontal density; balanced multi-line wrap
+
+Pack each line up to 120 columns.  When a sequence does not fit,
+wrap with constant 2-space indention, vertically aligning binary
+operators and parentheses:
+
+```snocone
+Expr10  = (   $' ' '-' *Expr10 (r_MNS         & 1)
+          |   $' ' '+' *Expr10 (r_PLS         & 1)
+          |   $' ' '~' *Expr10 (r_CSET_COMPL  & 1)
+          |   *Expr11
+          );
+```
+
+### Token names track the official language specification
+
+Keyword names, operator spellings, and grammar production names
+mirror the upstream reference grammar — for Icon, `icon-sp.ebnf`
+(1-to-1 with public-domain `gtownsend/icon` `src/h/grammar.h`).
+Do not invent names where the upstream provides one.
+
+---
+
 ## Canonical Snocone nonterminal names
 
 Source of truth: `corpus/programs/ebnf/icon-sp.ebnf` (1-to-1 with
@@ -137,30 +306,118 @@ shape PAT-IC mirrors.
 | **PARSER-IC-8a**      — SCRIP grammar fix: binary `~` `&` `#` `%` OPSYN slots | PASS=40 preserved | New `expr5a` tier in `src/frontend/snocone/snocone_parse.y` between comparison (expr5) and additive (expr6).  Each binary OPSYN slot lowers to `E_FNC` with `sval` = operator literal, paralleling how comparison ops (T_EQ→"EQ", T_NE→"NE", etc.) lower today; runtime E_FNC dispatch consults the OPSYN table to find the registered handler.  Lexer already emitted T_2AMP/T_2TILDE/T_2POUND/T_2PERCENT (snocone_lex.c:543, 551, 547, 549) — only the parser needed the rule.  `%type <expr> expr5a` added (line 467).  After regeneration via `regenerate_parser_and_lexer_from_sources.sh` and `build_scrip.sh` rebuild, `'a' ~ 'b'` (after `OPSYN('~','f',2)`) invokes `f('a','b')` correctly.  Compiland in parser_icon.sc converted from `reduce("'Parse'", 'nTop()')` to `("'Parse'" & 'nTop()')` operator form as smoke test of the unblocked path; PASS=40 preserved.  Snocone test suite shows no new regressions (test_smoke_snocone, test_parser_snocone PASS=13, plus all language smoke tests PASS).  Pre-existing C-test breakage in `test/frontend/snocone/test_snocone_parse_a..j.c` (references stale `Program *`/`head` API) is unrelated to this change — verified by stash/repro before commit. |
 | **PARSER-IC-7**       — paren `(expr)`/`(e1;e2)` + compound `{...}` primaries + beauty-style `$'op'` pattern-builder refactor | PASS=45 | Two changes in one session.  (a) Style refactor: every `epsilon . *fn(args)` replaced by a named `$'...'` pattern variable per beauty.sc / parser_snocone.sc idiom — `$'|'`/`$':='`/`$'?'`/`$','` op tokens, `$'invoke_arg'`/`$'append_stmt'`/`$'finish_proc'`/etc. side-effect builders, `$'atom_QLIT'`/`$'atom_ILIT'`/`$'atom_VAR'` atom builders, `$'save_eNlhs'`/`$'op_TAG'`/`$'binop_*'` per-tier savers and folds, `$'if2'`/`$'if3'`/`$'while2'`/`$'every1'`/`$'every2'`/`$'assign_id'` control-flow builders, `$'scan_push'`/`$'scan_finish'` scan builders.  PASS=40 preserved through refactor.  (b) IC-7 features: `Paren` and `Compound` primaries via dedicated `$'@SQ'` link()-stack (struct `ic_sqlink`), `ic_seq_push/append/finish` helpers, single-child unwrap matches existing-frontend `parse_block_or_expr`.  5 NEW fixtures: paren_expr/paren_seq/compound_one/compound_two/scan_paren.  corpus@c6e4c2b. |
 | **PARSER-IC-8b**      — parser_icon.sc canonical-spine rewrite | PASS=45 preserved | Trees flow through the shared shift/reduce stack.  Binary tiers use `*L $'op' *R (r_TAG & 2)`.  N-ary collectors (alternation Expr3, function call Call, paren-seq Paren, compound Compound) use `nPush() ARBNO(nInc() *X) (r_TAG & 'nTop()' or r_nTop) nPop()` — the `r_nTop = '*(GT(nTop(),1) nTop())'` idiom is what makes single-child unwrap work for E_SEQ_EXPR (when only one item is on the frame, the EVAL fails and reduce silently leaves the lone tree alone — verified with isolated probe).  Atoms use `*P ~ T` operator form, except QLIT (which keeps the `dot-capture + ic_push_qlit()` exception so the string body excludes its quotes — same exception parser_snocone.sc keeps for `sc_push_qlit`).  Statement decomposition collapsed to ONE helper `ic_decompose_proc`: pops the proc-frame's nTop() children, reads pname from `v(child[1])` (the (E_VAR pname) callee shifted by Prochead), rebuilds (E_FNC pname kids), wraps in (STMT :subj ...).  Removed: every `expr_*` parsing-state helper, every `_expr_node` global slot, every `$'@II'`/`$'@AL'`/`$'@SC'`/`$'@SQ'` link()-stack, every `ic_inv_*`/`ic_alt_*`/`ic_scan_*`/`ic_seq_*` parsing-state helper, every `Tree(tag,'',2,L,R)` direct construction outside the one helper.  Net: 871 → 366 lines (−505).  Cross-pollination opportunity: parser_rebus.sc / parser_snobol4.sc owe the same retrofit.  corpus@ef1acd2. |
+| **PARSER-IC-9**       — augmented assigns + unary prefix + power | PASS=51 | Three new operator tiers added in canonical-spine style.  (a) **Augmented assigns** at `Expr1`: tokens `$'+:='` `$'-:='` `$'*:='` `$'/:='` defined plus an alternation token `$'augop'` covering them; Expr1 gains a second branch `$'augop' *Expr1 (r_AUGOP & 2)` parallel to the `$':=' *Expr1 (r_ASSIGN & 2)` branch.  Operator literal is intentionally discarded — `--dump-ir` output is `(E_AUGOP lhs rhs)` regardless of which augop appeared in source.  (b) **Unary prefix** at new `Expr10` tier between `Expr11` and `Expr7`: per-op tokens `$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'` (only leading `$' '`, no required whitespace before operand); each branch is `$'unary-op' *Expr10 (r_TAG & 1)` recursing for stacked unaries; falls through to `*Expr11`.  Reduce tags: `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`.  (c) **Power** at new `Expr8` tier (right-assoc): `*Expr10 ($'^' *Expr8 (r_POW & 2) | epsilon)`.  `Expr7` retargeted from `*Expr11` to `*Expr8` so the multiplicative tier sits above the new power tier.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`.  Style: this rung was authored under the new "Style guidelines — derived from beauty.sno / beauty.sc" section added to this Goal file in the same commit (re-reads beauty.sno/beauty.sc, distills naming + horizontal-density + `Gray`/`White`/`$' '`/`$'  '`/`$'op'`/`$'kw'` token conventions). |
 
 ---
 
 ## Open rungs
 
-### PARSER-IC-9 — augmented assigns + unary prefix + power  ← **next**
+### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat  ← **next**
 
-With the canonical spine in place (IC-8b), adding new operators is
-mechanical: each new tier follows the `*L $'op' *R (r_TAG & N)` recipe
-already established by Expr4/Expr6/Expr7.  Likely components, in
-upstream pacer order:
+IC-9 landed the *shapes* of augmented assigns, unary prefix, and power.
+The plumbing now exists; remaining work is fixture-driven coverage and
+two new tiers above:
 
-- [ ] Augmented assigns at `Expr1`: `+:=` `-:=` `*:=` `/:=` `:=:` etc.
-      Each lowers to its dedicated tag (E_AUGADD, E_AUGSUB, ...) per
-      the existing frontend's --dump-ir output.  Add fixture per op.
-- [ ] Unary prefix at `Expr10`: `-` `+` `~` `!` `*` `?` `@` `^` `\`.
-      Each `'op' *Expr10 (r_TAG & 1)` chain into a new Expr10 tier.
-      Add fixtures.
-- [ ] Power `^` at `Expr8` (right-associative): `*Expr10 ($'^' *Expr8 (r_POW & 2) | epsilon)`.
-- **Gate:** PASS≥50 (5+ NEW fixtures across the new operators).
+- [ ] More augmented-assign tokens at `Expr1`: `%:=` `^:=` `||:=` `++:=`
+      `--:=` `**:=` `?:=` `=:=` `==:=` `~=:=` `<:=` `<=:=` `>:=` `>=:=`
+      `<<:=` `<<=:=` `>>:=` `>>=:=` `===:=` `~===:=`.  Each gets one
+      fixture; all dump as `(E_AUGOP lhs rhs)`.  Add the literal token
+      to the `$'augop'` alternation.
+- [ ] Remaining unary fixtures: `unary_plus`, `unary_nonnull` (`\`),
+      `unary_iterate` (`!`), `unary_random` (`?`).  Already-wired
+      branches; just need fixtures.
+- [ ] Stacked unary: `--y`, `~~y` etc.  Already supported by the
+      recursive `*Expr10`; needs fixtures.
+- [ ] Special assignment forms at `Expr1`: `<-` (`E_REVASSIGN`),
+      `:=:` (`E_SWAP`), `<->` (`E_REVSWAP`), `===` (`E_IDENTICAL`),
+      `~===` (`E_NOT (E_IDENTICAL ...)`).  Each their own branch
+      analogous to `:=`.
+- [ ] **Expr2** — `to ... by ...` generation.  Currently
+      `Expr2 = ( *Expr3 );` collapses through; needs `*Expr3 $'to'
+      $'  ' *Expr3 ($'by' $'  ' *Expr3 (r_TOBY & 3) | (r_TO & 2) |
+      epsilon)`.
+- [ ] **Expr5** — concat `||` and `|||`.  New tier between Expr4 and
+      Expr6: `*Expr6 ARBNO($'|||' *Expr6 (r_LCONCAT & 2) | $'||'
+      *Expr6 (r_CONCAT & 2))`.
+- **Gate:** PASS≥58 (≥7 NEW fixtures across the new operators).
+
+### PARSER-IC-10-style — clean up guideline violations in `parser_icon.sc`
+
+The new "Style guidelines" section is descriptive of beauty.sno /
+beauty.sc, not yet fully applied to `parser_icon.sc`.  The audit below
+lists every guideline currently violated.  These are guidelines, not
+laws — Lon may decline any item.  Each is an independently landable
+sub-rung; pick what fits the session's capacity.
+
+- [ ] **Underscore-prefixed identifiers** — three offenders today:
+      `_ic_strbody` (str_pat dot-capture target, ~line 91 + line 177
+      inside `ic_push_qlit`); `_parser_ic_done = '';` sentinel at file
+      end (~line 444).  Rename `_ic_strbody` → `ic_strbody`; delete the
+      `_parser_ic_done` sentinel (it's a no-op leftover from an earlier
+      goto-driver shape) or rename to `ic_done`.  Verify gate stays
+      PASS=51.
+- [ ] **Section dividers** — convert all `//---...---` dividers (~71
+      chars, C++-comment style) to the canonical pair: `/*===...===*/`
+      120-char major divider, `/*---...---*/` 120-char minor divider.
+      Every section header in the file (Reduce-tag constants /
+      Whitespace / Invisible-whitespace / Keyword tokens / Operator
+      tokens / Helpers / Statement-procedure-program / Compiland /
+      Driver) needs the conversion.
+- [ ] **Curly-brace single-statement bodies** — at least one offender:
+      `while (Line = INPUT) { Src = Src Line nl; }` (~line 426).
+      Convert to `while (Line = INPUT) Src = Src Line nl;`.  Audit the
+      whole file for any other single-statement `{ ... }` and convert.
+- [ ] **Blank lines as block separators** — replace every blank line
+      between definitions with the appropriate `/*===*/` major or
+      `/*---*/` minor divider.  This is the same rule beauty.sno follows
+      (`*================` and `*----------------` runs).  Done in
+      conjunction with the divider conversion above.
+- [ ] **`Gray` / `White` naming alignment** — Icon's whitespace model
+      is simpler than SNOBOL4's (no `nl ('+' | '.')` line-continuation),
+      but the *names* should still track beauty: rename `ws_opt` →
+      `Gray`, `ws_run` → `White`, and define them with the beauty
+      shape `Gray = *White | epsilon;` `White = SPAN(' ' tab);` (no
+      continuation clause needed for Icon).  Then `$' ' = *Gray;`
+      `$'  ' = *White;`.  Confirm no direct `*Gray`/`*White` references
+      escape into the main grammar after the rename.
+- [ ] **Pseudo-token names** (`$'augop'`, `$'unary-'`, `$'unary+'`,
+      `$'unary~'`, `$'unary\\'`, `$'unary!'`, `$'unary*'`, `$'unary?'`,
+      `$'qlit'`, `$'proc_wrap'`) — these aren't literal Icon source
+      forms but dispatch tokens.  beauty's parallel cases (`$'(' = '('
+      *Gray;` keeps the literal char in the name) suggest the same:
+      keep operator-token names as their literal source spelling
+      where possible.  For unary vs binary disambiguation, beauty uses
+      one token per operator and disambiguates *positionally* in the
+      grammar (`'-' *Expr14 ("'-'" & 1)` for unary at Expr14 vs `$'-'`
+      at Expr6 for binary).  Refactor parser_icon.sc to drop the
+      `$'unary-...'` family and use raw `'-' *Expr10 (r_MNS & 1)`
+      etc. inside Expr10 (no whitespace-bracketed token needed in
+      prefix position — leading whitespace is already consumed by the
+      higher tier's exit).  Same treatment for `$'qlit'`/`$'proc_wrap'`:
+      these are pure side-effect dispatch points; replace with the
+      `epsilon . *fn()` shorthand or fold the side-effect into a
+      uniquely-named pattern that captures intent in source-language
+      terms (e.g. `qlit_done = (epsilon . *ic_push_qlit());`).
+- [ ] **Audit horizontal density** — sweep the file for lines that
+      could pack tighter without exceeding 120 columns; for lines that
+      already exceed or are close, confirm the multi-line wrap uses
+      constant 2-space indention with vertical-balanced parens and
+      binary operators (the IC-9 `Expr10` definition is a fresh good
+      example).
+- **Gate:** PASS=51 preserved through all style edits; no new fixtures.
 
 Cross-pollination: same retrofit pattern applies to parser_rebus.sc
-and parser_snobol4.sc — separate goal, see GOAL-PARSER-SNOBOL4.md and
-GOAL-PARSER-REBUS.md.
+and parser_snobol4.sc — separate goals.
+
+---
+
+## Closed rungs (continued — new style guideline section)
+
+The "Style guidelines — derived from beauty.sno / beauty.sc" section
+above this rung table is part of the IC-9 commit.  It distills, for
+all PARSER-* authors, the working idioms found in beauty.  Future
+PARSER-* sessions should treat that section as binding for new
+patterns and refactor scope.
 
 ---
 
@@ -174,4 +431,6 @@ GOAL-PARSER-REBUS.md.
 
 ## Watermark
 
-PARSER-IC-9 (PARSER-IC-8b LANDED PASS=45 preserved: parser_icon.sc rewritten to canonical shift/reduce spine — `*L $'op' *R (r_TAG & 2)` binary tiers, `nPush() ARBNO(nInc() *X) (r_TAG & r_nTop) nPop()` n-ary collectors, `r_nTop = '*(GT(nTop(),1) nTop())'` for E_SEQ_EXPR single-child unwrap, ONE helper `ic_decompose_proc` for `(STMT :subj E_FNC pname kids)` re-wrap; zero `_expr_node`/`@II`/`@AL`/`@SC`/`@SQ` parsing-state; 871 → 366 lines (−505).  Subsequent style cleanup at corpus@de9ff24: invisible-whitespace tokens `$' ' = ws_opt` and `$'  ' = ws_run`, plus nine `$'kw'` keyword tokens (`$'if' $'then' $'else' $'while' $'do' $'every' $'return' $'end' $'procedure`); operator-token RHS uniformly `($' ' 'op' $' ')`; PASS=45 preserved.  PARSER-IC-7 ALSO LANDED: paren / compound primaries + beauty-style `$'op'` refactor, corpus@c6e4c2b).
+PARSER-IC-10 (PARSER-IC-9 LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`.  Existing 45 preserved; smoke tests for Icon, Snocone, and parser_snocone all clean.  Style-guidelines section codifies beauty.sc conventions for *all* PARSER-* authors — Gray/White defined once and never referenced directly in main grammar; `$'op'` form for binary/special chars (`*White` symmetric); `$','` uses `*Gray`; `$'('`/`$')'` get one-sided `*Gray`; `$'kw'` form for keywords (and Snocone reserved words); plain identifier prefixed with `$' '` for non-reserved word-shape tokens (e.g. `S = $' ' 'S'`); `$' '` and `$'  '` as one-/two-space invisible tokens; OPSYN'd `~` (Shift) and `&` (Reduce) shorthand for `primitive ~ 'tag'` and `(literal & N)`; counter machinery `nPush()`/`nInc()`/`nPop()`; reduce-tag constants `r_TAG = sq 'E_TAG' sq;`; no leading underscore in hand-written identifiers; one-statement bodies without curly braces; 120-char `/*===*/` and `/*---*/` dividers instead of blank lines; horizontal-density wrap with constant 2-space indention and vertical-balanced parens / binary operators; token & production names track the upstream language specification.  one4all@d2547945, corpus pending IC-9 commit).
+
+PARSER-IC-9-prior (PARSER-IC-8b LANDED PASS=45 preserved: parser_icon.sc rewritten to canonical shift/reduce spine — `*L $'op' *R (r_TAG & 2)` binary tiers, `nPush() ARBNO(nInc() *X) (r_TAG & r_nTop) nPop()` n-ary collectors, `r_nTop = '*(GT(nTop(),1) nTop())'` for E_SEQ_EXPR single-child unwrap, ONE helper `ic_decompose_proc` for `(STMT :subj E_FNC pname kids)` re-wrap; zero `_expr_node`/`@II`/`@AL`/`@SC`/`@SQ` parsing-state; 871 → 366 lines (−505).  Subsequent style cleanup at corpus@de9ff24: invisible-whitespace tokens `$' ' = ws_opt` and `$'  ' = ws_run`, plus nine `$'kw'` keyword tokens (`$'if' $'then' $'else' $'while' $'do' $'every' $'return' $'end' $'procedure`); operator-token RHS uniformly `($' ' 'op' $' ')`; PASS=45 preserved.  PARSER-IC-7 ALSO LANDED: paren / compound primaries + beauty-style `$'op'` refactor, corpus@c6e4c2b).
