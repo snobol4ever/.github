@@ -90,11 +90,173 @@ rule); program tree is `(Parse (Clause ...) (Clause ...) ...)`.
 
 ---
 
-## Style invariants (parser_prolog.sc)
+## Style guide for parser_*.sc — derived from beauty.sno / beauty.sc
 
-- **No `goto`/labels** in the driver loop. Use `while`-style structured flow.
-- **Names match the existing frontend** (see Naming policy above).
-- **No invented non-terminals** — invented names reserved for cross-PARSER spine.
+These rules apply to every `parser_<lang>.sc` file.  They are derived by
+reading `corpus/programs/snobol4/demo/beauty/beauty.sno` and its Snocone
+translation `corpus/programs/snocone/demo/beauty/beauty.sc` as the canonical
+style reference.  When a rule below is silent on a point, defer to beauty.
+
+### Whitespace tokens — Gray / White, $'x' idiom
+
+Define `Gray` (optional whitespace) and `White` (required whitespace) near the
+top of the pattern section, exactly as beauty does.  Every token pattern that
+can be preceded or followed by whitespace uses `Gray` or `White` rather than
+inline `SPAN(' ' tab)`.  The token patterns themselves are *pure character
+class matchers*; whitespace attachment is a caller-level concern.
+
+Token patterns named with the `$'x'` idiom carry their own surrounding
+whitespace.  Operators and punctuation are given `$'...'` names:
+
+```snocon
+$'='  = *White '='  *White;    // binary operator — required ws both sides
+$':'  = *Gray  ':'  *Gray;     // punctuation — optional ws both sides
+$'('  = '(' *Gray;             // open bracket — optional ws after only
+$')'  = *Gray ')';             // close bracket — optional ws before only
+```
+
+The grammar body references `$'='`, `$':-'`, `$'('`, `$','`, etc. directly.
+It never repeats `ws_opt` or `SPAN(' ' tab)` inline inside the grammar; all
+whitespace absorption is hidden inside the `$'x'` tokens and `Gray`/`White`.
+
+Word-token names that are not Snocone reserved words use plain identifiers:
+`Atom`, `Var`, `Int`, `Str`, `F` (float), etc.  Snocone reserved words that
+happen to be token names are escaped with the `$'word'` idiom: `$'is'`,
+`$'not'`, `$'if'` — exactly as beauty uses `$'='`, `$'**'`.
+
+Optional-whitespace shorthand: `$' '` = `*Gray` (a single space in the name
+signals "optional").  Required-whitespace shorthand: `$'  '` = `*White` (two
+spaces signal "required").  These two patterns need not be defined unless the
+style is copied from beauty exactly; what matters is that all whitespace is
+named and named consistently.
+
+### Shift / Reduce calling convention
+
+The primitive pattern + capture + action idiom has two equivalent spellings;
+always use the **short form**:
+
+```snocone
+// Long form (beauty.sno SNOBOL4 only):
+primitive . tx  epsilon . *Shift(tag, tx)
+
+// Short form (beauty.sc and all parser_*.sc):
+primitive ~ "tx"          // shift — binds matched text, emits leaf node
+(tag & n)                 // reduce — pops n trees, builds parent node
+```
+
+`shift(pat, tag)` and `reduce(tag, n)` are the OPSYN-bound names from
+`semantic.sc`.  The grammar body uses these directly; never spell out the
+underlying `epsilon . *` boilerplate.  The beauty.sc grammar section is the
+reference for what the calling-convention looks like in practice:
+
+```snocone
+Expr0 = *Expr1 FENCE($'=' *Expr0 reduce('=', 2) | epsilon);
+Expr17 = FENCE(
+             shift(*Function, 'Function') $'(' *ExprList $')' reduce('Call', 2)
+           | shift(*Id, 'Id')
+           | shift(*Integer, 'Integer')
+           | ...
+         );
+```
+
+The `nPush()` / `nInc()` / `nTop()` / `nPop()` counter helpers delineate
+sub-repetition counts for n-ary tree children.  `nInc()` is embedded *inside*
+the repeated arm, not as a trailing side-effect:
+
+```snocone
+ExprList = nPush() *XList reduce('ExprList', '*(GT(nTop(), 1) nTop())') nPop();
+XList    = nInc() (*Expr | epsilon . '') FENCE($',' *XList | epsilon);
+```
+
+`reduce(tag, expr)` where `expr` is a quoted Snocone expression (not a plain
+integer) is evaluated at reduce time via `EVAL`; this is how `nTop()` is read
+as the arity of an n-ary node.
+
+### Names — tokens, productions, functions, variables
+
+| Kind | Rule | Example |
+|------|------|---------|
+| Token patterns | Mirror the official language spec and the existing frontend's `TK_*` enum, lowercased, no leading underscore | `Atom`, `Var`, `Int`, `Neck`, `Dot` |
+| Operator / punctuation tokens | `$'symbol'` idiom | `$':-'`, `$','`, `$'('`, `$'|'` |
+| Grammar productions | Mirror the official BNF non-terminal names and the existing frontend's parse-function names | `clause`, `term`, `primary`, `args`, `list` |
+| Semantic / tree-builder functions | Upper_Snake_Case (first letter upper, rest snake) | `Shift`, `Reduce`, `Build_clause`, `Reduce_list` |
+| Local variables inside functions | lower_snake_case | `head_name`, `body_tree`, `kids`, `i` |
+| Cross-PARSER spine names | As specified: `Compiland`, `Push`/`Pop`/`Top`, `nPush`/`nInc`/`nTop`/`nPop` | — |
+
+⛔ No identifier begins with `_`; that prefix is reserved for generated code.
+⛔ No CamelCase (neither `headName` nor `HeadName`); use `head_name` /
+   `Head_name` depending on kind.
+
+### Section separators — `/*===*/` and `/*---*/` at column 120
+
+Separate major sections with a `/*====...*/` banner (120 chars).
+Separate sub-sections with a `/*----...*/` banner (120 chars).
+Do *not* use blank lines between logical blocks; use the banner lines.
+
+```snocone
+/*========================================... (120 chars) ...=====*/
+// Token classifiers
+/*----------------------------------------... (120 chars) ...-----*/
+```
+
+### Horizontal space — 120-column maximum, 2-space indent for wraps
+
+- Use horizontal space maximally; pack related assignments on one line where
+  they fit: `$'=' = *White '=' *White;  $'|' = *White '|' *White;`
+- When a pattern definition or expression exceeds 120 columns, wrap with
+  **2-space continuation indent**, aligning open parens/brackets vertically:
+
+```snocone
+Expr6 = *Expr7
+          FENCE(
+            $'+' *Expr6 reduce('+', 2)
+          | $'-' *Expr6 reduce('-', 2)
+          | epsilon
+          );
+```
+
+Binary operators (`|`, concatenation) go at the *start* of the continued line,
+not the end.
+
+### Control flow — structured only, no goto except where beauty uses goto
+
+⛔ No `goto` / labels in driver loops or grammar helper code.  Use `while`,
+`if`/`else`, `for`.  The legacy `goto` shape in `parser_snobol4.sc` is
+grandfathered; new files do not copy it.
+
+⛔ No single-statement curly-brace blocks.  Write `statement ;` instead of
+`{ statement }`:
+
+```snocone
+// Wrong:
+if (IDENT(x)) { return; }
+// Correct (one statement):
+if (IDENT(x)) return;
+// Correct (multi-statement — braces OK):
+if (DIFFER(t)) {
+  kids[i] = Pop();
+  i = i - 1;
+}
+```
+
+### Grammar body — no inline whitespace, all whitespace in named tokens
+
+The grammar pattern body reads like a clean BNF: only non-terminal references,
+`$'x'` operator tokens, `shift(...)`, `reduce(...)`, `nPush`/`nInc`/`nPop`,
+and `FENCE`/`ARBNO`/`epsilon`.  Whitespace handling is 100% encapsulated in
+the `$'x'` token definitions and `Gray`/`White`; it does not appear inline in
+grammar rules.
+
+### No PR_* builder-function layer
+
+The `PR_xxx()` pattern-builder indirection layer used in `parser_prolog.sc`
+(rung PR-0..PR-6) is superseded by the direct `shift(...)` / `reduce(...)`
+calling convention shown in beauty.  When rewriting or extending parser files,
+remove `PR_*` builders and replace call sites with the direct `shift`/`reduce`
+form.  Tree-builder functions that cannot be expressed as a plain `reduce(tag,
+n)` (e.g. `Build_clause`, `Reduce_list`) are called via the `epsilon . *fn()`
+mechanism — but that mechanism is still hidden inside the named function call
+form `Fn_name()` placed inline in the grammar, not via a factory wrapper.
 
 ---
 
