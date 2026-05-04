@@ -236,25 +236,69 @@ Not violations (canonical guide explicitly permits or prefers):
   all 63 blank separator lines removed (0 remaining). Gate PASS=21 FAIL=0.
   **DONE session #66 (2026-05-04): corpus @ `b52cfa2`.**
 
-- [ ] **Step 3d — convert longhand `shift`/`reduce` to `~`/`&` OPSYN
-  (§4).** Convert `shift(p, 't')` → `p ~ 't'` and `reduce('t', n)` →
-  `('t' & n)` at all 15 call sites. Verify `semantic.sc` is in the
-  runtime blob (it is — `test_parser_snocone.sh` loads it). The
-  shift/reduce *functions* stay (still called by the OPSYN-installed
-  `~`/`&`); only the *call form at the grammar* sites changes.  Re-run
-  gate; expect PASS=21 unchanged.
+- [x] **Step 3d — convert longhand `shift`/`reduce` to `~`/`&` OPSYN
+  (§4).** All 15 call sites converted: `shift(p, t)` → `p ~ t` (2 sites),
+  `reduce(t, n)` → `(t & n)` (13 sites). INFRA-11b probe re-confirmed
+  this session — `~`/`&` infix dispatch works correctly via OPSYN since
+  INFRA-11a/11c landed (`'foo' ~ 'Word'` fires `shift`; `('Tag' & 2)`
+  fires `reduce`).  Gate PASS=21 FAIL=0.
+  **DONE session #66 (2026-05-04): corpus @ `a82b43c`.**
+
+- [ ] **Step 3d-bug — scrip pattern engine: `$'  ' = *White` alias does not behave
+  identically to `*White` when used in recursive grammar rules.** ⚠ BLOCKING Step 3e.
+
+  Discovered session #66 (2026-05-04) while attempting Step 3e.  Per the canonical
+  style guide §3, `$' '` / `$'  '` aliases for optional/required whitespace should
+  be defined once and used at all grammar composition sites.  Definition order:
+
+  ```
+  White    = SPAN(' ' tab);
+  Gray     = (*White | epsilon);
+  $' '     = *Gray;          // optional whitespace alias
+  $'  '    = *White;          // required whitespace alias
+  ```
+
+  Replacing `*White` with `$'  '` in the X4 recursive sequencer
+  `X4 = nInc() *Expr6 ($'  ' *X4 | epsilon)` (was: `(*White *X4 | epsilon)`)
+  causes the `concat_seq` fixture to regress: input `x = "hello" name;` is parsed
+  as **two** statements (`E_QLIT` then `E_VAR`) instead of one `(STMT :eq :subj
+  (E_VAR x) :repl (E_SEQ (E_QLIT "hello") (E_VAR name)))`.  The X4 chain stops
+  after the first element instead of continuing through subsequent juxtaposed atoms.
+
+  Sweeping the rest of the grammar (`*Gray` → `$' '` at stmt_body, if_cmd,
+  while_cmd, do_cmd composition sites — 13+ sites) compounds the failure into
+  PASS=0 FAIL=21 with empty parser output (no `Parse Error` either; Compiland
+  silently fails to consume input).  `--dump-parse` reveals "Error 5: Undefined
+  function or operation" at high statement numbers during pattern build.
+
+  Isolated probes do **not** reproduce the X4 chain failure — `$'  '` matches
+  required whitespace correctly in standalone tests, including recursive rules
+  built outside the parser_snocone.sc context.  The bug surfaces only with the
+  full parser_snocone.sc combination of `nInc()`, `*Expr6`, and `$'  '` inside
+  the recursive `X4` rule.
+
+  Diagnosis hypothesis: `$'  ' = *White` evaluates `*White` at assignment time
+  and stores the resulting deferred-pattern object as the value of variable
+  `'  '`.  Direct `*White` at a grammar composition site re-resolves `White`
+  by name at pattern-build time (and possibly at match time); the cached
+  `$'  '` value may carry different binding semantics — particularly under
+  recursion combined with side-effect patterns like `nInc()`.  Engine-level
+  C investigation needed; not a Snocone-source workaround.
+
+  Repro recipe:
+  1. Apply Step 3e edits (add `$' '` / `$'  '` defs after `Gray`, sweep grammar).
+  2. `bash scripts/test_parser_snocone.sh` → PASS=0 FAIL=21.
+  3. Revert just the X4 line (`$'  '` → `*White`); other sweep stays.
+     Result: PASS=20 FAIL=1 with `concat_seq` still failing — confirms the
+     X4 recursive site is one trigger; the others compound it.
+
+  Fix path: characterize the difference between deferred-name-lookup
+  (`*White`) and stored-deferred-value (`$'  '`) inside `runtime/x86/snobol4_pattern.c`
+  for the dollar-indirect-variable case, then make the engine treat both forms
+  equivalently.  Until fixed, Step 3e cannot land cleanly.
 
 - [ ] **Step 3e — define `$' '` / `$'  '` once; sweep grammar (§3).**
-  Add at the top of the token-defs block:
-  ```
-  $' '  = *Gray;       // optional whitespace
-  $'  ' = *White;      // required whitespace
-  ```
-  Then sweep the grammar replacing inline `*Gray` and `*White` with
-  `$' '` and `$'  '` at composition sites. Token definitions themselves
-  still use `*Gray` / `*White` directly (the `$' '` definition is itself
-  `*Gray`, so re-using it inside `$'='` would be a self-reference).
-  Re-run gate.
+  ⛔ BLOCKED on Step 3d-bug above.
 
 - **Sibling LANG rungs:** none — pure style.
 - **Gate:** PASS=21 FAIL=0 unchanged after every step.
@@ -310,7 +354,32 @@ if_else, if_seq, if_multi_body, while_simple, while_seq, do_simple,
 do_with_stmt). Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.
 Sibling parsers unaffected.
 
-**Session #66 (2026-05-04) — INFRA-3 Step 3c landed: 120-char //=== dividers throughout; 63 blank separator lines removed. Gate PASS=21 FAIL=0. corpus @ `b52cfa2`.**
+**Session #66 (2026-05-04) — INFRA-3 Steps 3c + 3d landed; Step 3e blocked
+on newly-filed Step 3d-bug.**
+
+Step 3c (corpus @ `b52cfa2`): replaced 26 occurrences of 71-char `//---`
+dividers with canonical 120-char `//===` dividers throughout
+parser_snocone.sc; removed all 63 blank separator lines.  Gate PASS=21
+FAIL=0; smoke PASS=5 FAIL=0.  File 391 → 328 lines.
+
+Step 3d (corpus @ `a82b43c`): converted all 15 longhand `shift(p, t)` /
+`reduce(t, n)` call sites in the grammar to `~` / `&` OPSYN infix form
+(2 `shift` → `~`, 13 `reduce` → `&`).  INFRA-11b probe re-confirmed
+this session: `'foo' ~ 'Word'` dispatches to `shift`, `('Tag' & 2)`
+dispatches to `reduce` — both via OPSYN — since INFRA-11a/11c landed
+2026-05-03.  Header comment "Constants for reduce()/shift()" updated to
+"Constants for ~ / & OPSYN tags".  Gate PASS=21 FAIL=0.
+
+Step 3e attempted and reverted: replacing grammar composition `*Gray` /
+`*White` with `$' '` / `$'  '` aliases regresses the gate to PASS=0
+FAIL=21 (empty parser output, no Parse Error message).  Bisected: the
+X4 recursive sequencer alone — `X4 = nInc() *Expr6 ($'  ' *X4 |
+epsilon)` — loses the chain after the first atom, dropping `concat_seq`
+to FAIL.  Sweeping the rest of the grammar compounds the failure.
+Isolated `$'  '` probes work; the bug surfaces only in the full
+parser_snocone.sc combination of `nInc()` + `*Expr6` + `$'  '` recursion.
+Filed as Step 3d-bug above; engine-level fix in `snobol4_pattern.c`
+needed before Step 3e can land.
 
 **Session #65 (2026-05-04) — PARSER-SC-3 watermark bump; cross-PARSER
 style guidelines integrated; INFRA-3 Steps 3a + 3b banked.**
@@ -373,6 +442,6 @@ INFRA-3 progress this session:
   instead of `[x=y]`; without FENCE the same pattern captures `[x=y]`.
 - D3 BNF (`corpus/programs/ebnf/snocone.ebnf`) check-in skipped per Lon.
 
-**Next rung:** PARSER-SC-INFRA-3 Step 3c — replace 71-char `//---`
-dividers with 120-char `/*===*/` / `/*---*/` rules; drop blank lines as
-separators.
+**Next rung:** PARSER-SC-INFRA-3 Step 3d-bug — characterize and fix
+the scrip pattern-engine `$'  ' = *White` recursive-rule divergence in
+`snobol4_pattern.c` so that Step 3e can land cleanly.
