@@ -113,6 +113,13 @@ Full feature surface in `GOAL-LANG-SNOCONE.md`.
 > Snocone-specific D1/D2/D3 detail below extends it; read
 > the canonical writeup first.
 
+> **Canonical style guide:** `GOAL-PARSER-PROLOG.md § Style guide for parser_*.sc`.
+> The full beauty.sno / beauty.sc–derived style rules (whitespace tokens,
+> Gray/White/$'x' idiom, shift/reduce calling convention, naming, section
+> separators, horizontal layout, structured control flow, no PR_* layer) live
+> there and apply to all six `parser_<lang>.sc` files.  The sections below
+> supplement with Snocone-specific design decisions (D1/D2/D3).
+
 ### 1. Names from the official BNF (D2/D3)
 
 `src/frontend/snocone/snocone_parse.y` is the canonical grammar. Pattern-variable
