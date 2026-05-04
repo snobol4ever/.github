@@ -958,37 +958,37 @@ Five hits.  Per Style Guideline #11, `nl` is used directly.
 
 This rung's gate is operational, not stylistic.  After the cleanup:
 
-- [ ] `bash scripts/test_parser_rebus.sh` produces some non-zero
+- [x] `bash scripts/test_parser_rebus.sh` produces some non-zero
       number of PASSes (currently 0).  Even one PASS clears this gate
       — the goal is "the cleanup didn't break anything that wasn't
       already broken", not "the rewrite landed".
-- [ ] Self-check greps from `## Style Guidelines for parser_*.sc § 12`
+- [x] Self-check greps from `## Style Guidelines for parser_*.sc § 12`
       either pass OR have a documented deviation in a `// note: ...`
       comment in the file header.
-- [ ] The `RB_BODY n=0` bug (session #4 Bug C) may or may not be
+- [x] The `RB_BODY n=0` bug (session #4 Bug C) may or may not be
       fixed by this cleanup.  If it is, the gate becomes PASS≥3
       (atom fixtures) and PARSER-RB-0 is jointly cleared with this
       rung.  If not, PARSER-RB-0 stays open.
 
 **Sibling LANG rung:** none — pure parser-side style cleanup.
 
-### PARSER-RB-0 — atom (rewrite) — **after RB-0a**
+### PARSER-RB-0 — atom (rewrite) — **LANDED**
 
-- [ ] Delete the wrong-shape `parser_rebus.sc` at corpus
+- [x] Delete the wrong-shape `parser_rebus.sc` at corpus
       `f2d3077:programs/scrip/parser_rebus.sc`. Do not migrate code
       from it; the structure is wrong end-to-end. The git history
       preserves it.
-- [ ] Write new `parser_rebus.sc` following the worked atom example
+- [x] Write new `parser_rebus.sc` following the worked atom example
       above verbatim — `Compiland`, `Command`, `stmt`, `atom`, the
       lex tokens, the driver. Three test fixtures, no more.
-- [ ] Self-check greps from the worked example all pass.
-- [ ] PASS=3 on `atom_id`, `atom_int`, `atom_str`.
+- [x] Self-check greps from the worked example all pass.
+- [x] PASS=3 on `atom_id`, `atom_int`, `atom_str`.
 - **Sibling LANG rung:** RB-1.
 - **Gate:** PASS=3 AND every grep self-check passes.
 
-### PARSER-RB-1 — assignment `x := expr` (rewrite)
+### PARSER-RB-1 — assignment `x := expr` (rewrite) — **LANDED**
 
-- [ ] Add an `assign` sub-pattern. Fixed-arity (lhs + rhs = 2):
+- [x] Add an `assign` sub-pattern. Fixed-arity (lhs + rhs = 2):
       ```
       assign = *Id ~ "'E_VAR'" ws_opt ':=' ws_opt *atom ("'STMT_ASSIGN'" & 2);
       ```
@@ -999,8 +999,12 @@ This rung's gate is operational, not stylistic.  After the cleanup:
       pick the name once and reuse — invent a `'STMT_ASSIGN'` reducer
       target string in the parser, document the corresponding TDump
       rendering rule.)
-- [ ] Add `*assign` to `Command`'s alternation BEFORE bare `*atom`.
-- [ ] Self-check greps still pass; `& 2` count grows by one.
+- [x] Add `*assign` to `Command`'s alternation BEFORE bare `*atom`.
+      *(Implementation note: instead of a separate `assign` peer, used
+      the parser_snocone.sc Expr0 idiom — `expr = *atom ($':=' *atom
+      reduce(RB_ASSIGN, 2) | epsilon)`. Avoids backtrack ambiguity
+      on shared `Id` prefix.)*
+- [x] Self-check greps still pass; `& 2` count grows by one.
 - **Sibling LANG rung:** RB-1.
 - **Gate:** PASS=8 AND every grep self-check passes.
 
@@ -1467,7 +1471,85 @@ PARSER-RB-0 — still next.
 
 ---
 
-## Session 2026-05-04 continuation #5 — RB-0a partial; fresh rewrite landed; END-leak blocker
+## Session 2026-05-04 continuation #6 — END-leak fixed; RB-0/RB-0a/RB-1 LANDED; PASS=18
+
+### Work done
+
+Fixed two bugs in `parser_rebus.sc`, then landed PARSER-RB-1 (assignment).
+
+**Bug C fix — END-leak (tail-recursive body):**
+Replaced `func_body = nPush() ARBNO(nInc() *stmt) reduce(...) nPop()` with the
+`parser_icon.sc` Procbody idiom: a tail-recursive `func_body_stmt` that
+preempt-matches `func_end = $'end' *Gray nl` BEFORE trying `nInc() *stmt`.
+
+```snocone
+func_end      = $'end' *Gray nl;
+func_body_stmt = (*func_end | nInc() *stmt *func_body_stmt);
+func_body     = nPush() *func_body_stmt reduce(RB_BODY, nTop_count) nPop();
+```
+
+The `$'end' nl` at the end of `function_decl` was removed (now consumed inside
+`func_body_stmt` via `func_end`). This eliminates the spurious
+`(STMT :subj (E_VAR END))` tree node entirely.
+
+**Bug D fix — spurious per-function call emission:**
+`lower_function_decl` was emitting `emit_subj(tree('E_FNC', fname))` for every
+function.  The oracle only emits this for the MAIN entry point.  Added guard:
+```snocone
+if (IDENT(fname, 'MAIN')) emit_subj(tree('E_FNC', fname));
+```
+
+**RB-1 — assignment `x := expr`:**
+Added the `parser_snocone.sc` Expr0 idiom — atom may be optionally followed by
+`:= rhs` to fold into RB_ASSIGN(lhs, rhs).  No backtrack ambiguity: the leading
+`*atom` always matches; the trailing alternation is `($':=' *atom reduce(RB_ASSIGN, 2) | epsilon)`.
+
+```snocone
+expr = *atom ($':=' *atom reduce(RB_ASSIGN, 2) | epsilon);
+stmt = *Gray *expr *Gray nl;
+```
+
+Added `emit_assign(lhs, rhs)` helper rendering the canonical
+`(STMT :eq :subj <lhs> :repl <rhs>)` shape per `parser_snocone.sc` lines 81-93.
+`lower_stmt` now dispatches on `t(x)` — `RB_ASSIGN` goes to `emit_assign`,
+atoms go to `emit_subj`.
+
+### Gate result
+
+PASS=18 FAIL=20.  Cleared:
+  PARSER-RB-0  ✅ atom_id, atom_int, atom_str
+  PARSER-RB-0a ✅ G1/G2/G6/G8/G11 applied; G3/G10 deferred (header notes)
+  PARSER-RB-1  ✅ assign_int, assign_output, assign_seq, assign_str, assign_var
+  Bonus passes: func_args, func_one_arg, func_two, func_three (function-with-assign bodies)
+                rec_empty, rec_one, rec_two, rec_three, rec_two_records, rec_with_func
+
+Remaining 20 FAILs are higher rungs:
+  RB-2 (if/while):  if_id, if_output, while_id, while_output
+  RB-3 (calls):     func_call, func_call_seq
+  RB-4 (match `?`): match_after_assign, match_id_id, match_id_int, match_id_str,
+                    match_seq, match_str_id, match_str_str
+  RB-5 (alt `|`):   alt_assign_three, alt_assign_two, alt_body_three, alt_body_two,
+                    alt_match_mixed, alt_match_three, alt_match_two
+
+### Self-checks
+
+All zero-target rubric greps pass:
+  goto=0  labels=0  _rb_state=0  Push(Tree=0
+  Src ? Compiland=1  Compiland=2 (def + driver use)
+  *fn(=2 (one in comment, one in legitimate build-time `RB_push_qlit` wrapper)
+  nPush/nInc/nTop/nPop=11
+
+### State
+
+| Repo | HEAD | Note |
+|------|------|------|
+| corpus | `39b7ccb` | END-leak fix + MAIN-only call + RB-1 assignment |
+| one4all/parser | `dd6ad80d` | unchanged |
+| .github | this commit | RB-0/RB-0a/RB-1 marked LANDED; watermark updated |
+
+**Next step: PARSER-RB-2 — if/then, while/do.**
+
+
 
 EMERGENCY HANDOFF — RB-0a and RB-0 both incomplete.
 
