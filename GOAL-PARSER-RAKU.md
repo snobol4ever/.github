@@ -51,11 +51,14 @@ Closed rungs collapsed to one line; the active rung carries the spec.
 - **Sibling LANG rungs:** RK-11..RK-18.
 - **Gate:** PASS=25 (was target ≥25).
 
-### PARSER-RK-4 — `sub` definition
+### PARSER-RK-4 — `sub` definition — LANDED session #65, PASS=32.
 
-- [ ] `stmt` handles `sub name(params) { body }`.
+- [x] `stmt` handles `sub name(params) { body }`.
+- [x] Function call expressions: `name(args...)` → E_FNC in Expr11.
+- [x] `return Expr ;` → E_RETURN. Sub-only programs suppress empty main.
+- [x] Test corpus: 7 new RK-4 fixtures (sub_noparams, sub_params, sub_multi_stmt, sub_call, call_expr, sub_multi_params, sub_and_main).
 - **Sibling LANG rungs:** RK-19..RK-25.
-- **Gate:** PASS≥32.
+- **Gate:** PASS=32 (target ≥32). ✓
 
 ### PARSER-RK-5 — regex / grammar primitives
 
@@ -91,69 +94,50 @@ Closed rungs collapsed to one line; the active rung carries the spec.
 
 ## Watermark
 
-PARSER-RK-2 LANDED (session #62, 2026-05-03) — PASS=17. Next: PARSER-RK-3.
+PARSER-RK-4 LANDED (session #65, 2026-05-03) — PASS=32. Next: PARSER-RK-5.
 
-### PARSER-RK-3 — emergency handoff (session #63, 2026-05-03) — WIP, broken
+### PARSER-RK-4 — handoff (session #65, 2026-05-03)
 
-`parser_raku.sc` has been extended with control-flow scaffolding but
-**control-flow stmts are not matching**. Gate is **PASS=17 / FAIL=8**:
-all RK-2 fixtures still pass, all 8 new RK-3 fixtures fail with the
-parser emitting an empty `(STMT :subj (E_FNC main (E_VAR main) ...))`
-that omits the if/while/for entirely.
+RK-4 LANDED PASS=32 FAIL=0.  `parser_raku.sc` extended with sub
+definition (`SubStmt` / `SubBlock` / `SubBlockStmt`), function call
+expressions (`CallName` / `CallArgTail` in `Expr11`), and `return`
+statement.  7 new corpus fixtures: `sub_noparams`, `sub_params`,
+`sub_multi_stmt`, `sub_call`, `call_expr`, `sub_multi_params`,
+`sub_and_main`.
 
-What landed (uncommitted in code, committed in this push):
-- 8 new corpus fixtures in `corpus/programs/raku/parser/`:
-  `if_basic`, `if_else`, `if_cmp_eq`, `while_basic`, `while_incr`,
-  `for_basic`, `for_named`, `nested_if_while` — all oracle-clean,
-  byte-checked against `--dump-ir`.
-- `parser_raku.sc` extensions:
-  - `wsnl_opt = (SPAN(' ' tab nl) | epsilon)` for cross-line whitespace
-  - Comparison-operator tokens (`op_eq/ne/le/ge/lt/gt`)
-  - Control-flow keyword tokens (`kw_if/else/while/for`, `op_arrow`,
-    `raku_lbrace/rbrace/lparen/rparen`)
-  - `cmp_expr` level above `add_expr` with E_LT/GT/EQ/NE/LE/GE
-    builders via `build_binop`
-  - `expr = cmp_expr` (top of expression tower)
-  - Six new builder fns: `build_block_enter`, `build_block_exit`
-    (using `PushCounter/TopCounter/PopCounter` from counter.sc to
-    save/restore outer body_count across nested blocks),
-    `build_if_else`, `build_if_no_else`, `build_while`, `build_for`
-    (uses `for_iter_name` global to carry loopvar name into E_ITERATE)
-  - `block` pattern: `'{' wsnl_opt ARBNO(*stmt) wsnl_opt '}'`
-    with deferred `*stmt` to break the `stmt → block → stmt` cycle
-  - `if_stmt`/`while_stmt`/`for_stmt` patterns
-  - `stmt` reordered: control-flow first, then assign/say, then bare expr
-  - `Compiland` final `wsnl_opt` to consume trailing newlines
+Following RK-4 LANDED, three stylistic refactor passes landed in
+`parser_raku.sc` to align with the beauty.sno / parser_icon.sc
+cross-PARSER convention:
 
-Things that DEFINITELY work:
-- All 17 RK-2 fixtures still pass. Comparison operators in expression
-  context work (verified: `my $x = 1 < 2;` → `(E_ASSIGN $x (E_LT 1 2))`).
-- The bare-expr `stmt` alternative still matches atoms.
+1. `corpus@f0b3257` — Inline `epsilon . *fn(args)` action sites
+   refactored into named `$'name'` pattern definitions.  Convention:
+   `$'do_X'` (zero-arg side-effect), `$'save_X'` (stash slot),
+   `$'atom_X'` (leaf builder), `$'op_X'` (operator-tag saver),
+   `$'binop_X'` (LHS/op/RHS fold).
+2. `corpus@c8f3a16` — `$' '` / `$'  '` invisible-whitespace tokens.
+   `$' ' = ws_opt`, `$'  ' = ws_run`.  Keyword tokens carry leading
+   `$' '`: `$'if' = ($' ' 'if')`.  Operator tokens carry both sides:
+   `$'+' = ($' ' '+' $' ')`.  Trailing `$'  '` only at sites needing
+   lexical separation (`$'sub' $'  '`, `$'for' $'  '`, etc.).
+3. `corpus@b5a8590` — `$' '` baked into atom classifiers themselves
+   (`var_scalar`, `int_pat`, `dstr_pat`, `CallName`, `SubName`,
+   `ForLoopvar`, `AssignTarget`, `SubParam`).  Grammar reads bare:
+   `Expr11 = ( var_scalar $'atom_VAR' | int_pat . _rk_itext $'atom_ILIT' | ... )`.
+   `nl_opt = (nl_one | epsilon)` named helper replaces inline
+   `(nl_one | epsilon) $' '` in Block / SubBlock / Compiland.
+   Zero `ws_opt` references in any grammar pattern definition.
 
-Things that DON'T work — debug starting points for next session:
-- Standalone `if ($x) { say($x); }` produces empty body. Same for
-  `while`/`for`. The control-flow patterns are constructed but never
-  fire on input. Last finding before handoff: even a stripped-down
-  test `('if' SPAN(' ') 'hello') ? 'if hello'` returns "no match",
-  which is unexpected. Likely root cause is a Snocone PATTERN quirk
-  with `'if'` as a literal followed by a SPAN, OR with the `kw_if =
-  ('if' ws_one)` named-pattern reference inside an alternation. Worth
-  testing: replace `kw_if`/`kw_while`/`kw_for` with inline literals
-  in `if_stmt`/`while_stmt`/`for_stmt` to isolate.
-- The other suspect is `wsnl_opt` itself — if `nl` isn't a recognized
-  Snocone built-in symbol in `SPAN`, the pattern would silently fail.
-  Sibling parsers use `ANY(nl)` in `nl_one = ANY(nl)`; `SPAN(' ' tab nl)`
-  may need `SPAN(' ' tab Char(10))` or similar.
+### Cross-PARSER finding (logged for sibling parsers)
 
-### Design issue to address — block-body counting via nPush/nInc/nTop/nPop
+`ARBNO(X)` captures `X`'s pattern value at definition time.  When `X`
+is rebound after the `ARBNO(X)` site (e.g. `CallArgTail = epsilon` early,
+`CallArgTail = (...)` later), the ARBNO sees stale `epsilon` and matches
+zero times.  Fix: write `ARBNO(*X)` for deferred lookup.  Discovered
+during RK-4 with `ARBNO(*CallArgTail)` for comma-separated function call
+args.
 
-The current implementation uses `PushCounter`/`TopCounter`/`PopCounter`
-from counter.sc to save/restore outer body_count across blocks, plus
-the `body_count` global. The sibling cross-PARSER spine
-(`parser_prolog.sc`, `parser_icon.sc`) uses `nPush/nInc/nTop/nPop`
-for stack-frame child counting — that's the canonical idiom. The
-RK-3 builders should be refactored to use `nPush/nInc/nTop/nPop`
-for block body counting too, removing the `body_count` global entirely
-and aligning with the cross-PARSER convention. This is independent
-of the FAIL=8 bug above (the bug is in pattern matching, not in
-counting), but the refactor should land before RK-3 is declared LANDED.
+### Next session — PARSER-RK-5
+
+Regex / grammar primitives starter slice: literal, character class,
+quantifier, alternation.  Not full grammar/rule DSL.  Sibling LANG
+rungs RK-26..RK-34 active.  Gate target ≥40.
