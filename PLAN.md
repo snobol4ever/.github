@@ -79,7 +79,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — primary cleanup landed corpus 707bd5d: byte-identical to parser_snocone Expr17 shape; bare tags via semantic.sc _qtag auto-quote. Parser still hangs; next session ports parser_snocone tier-ladder shape to mul/add_expr.) |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-5 (RK-4 LANDED PASS=32 session #65; style refactor: $'name' builders + $' '/$'  ' tokens + classifier-baked $' ') |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-9 (IC-8b LANDED PASS=45 preserved — canonical-spine rewrite + $'kw' keyword tokenization cleanup; corpus@de9ff24) |
-| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-6 LANDED PASS=48; awaiting next-rung decision |
+| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-6 LANDED PASS=48; PR-7 active (style conformance to beauty.sno/beauty.sc — 8 micro-rungs PR-7-6, PR-7-1..PR-7-5b documented in goal file) |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
