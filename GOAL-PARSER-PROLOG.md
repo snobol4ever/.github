@@ -210,8 +210,28 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
   alternation copy of arg's body) — dodges the FW-3 scrip-Snocone bug
   where `*Q` indirection inside ARBNO suppresses deferred calls in Q.
 
-### PARSER-PR-5 — arithmetic (`is`, builtin operators)
-Gate: PASS≥38.
+### PARSER-PR-5 — arithmetic (`is`, builtin operators) — **LANDED** (PASS=42)
+
+- [x] `+ - * /` left-associative arith ladder.
+- [x] `is` body operator → `(E_FNC is L R)` named compound.
+- [x] `=` unification → `(E_UNIFY L R)` kind-only.
+- [x] Parens for precedence override.
+- [x] Negative integer literals (`-N` folds into `(E_ILIT -N)`).
+- **Bonus:** nested compound args (`foo(bar(a))`) handled by primary
+  recursion (`primary` absorbed both `arg` and `simple_goal`).
+- **Gate:** PASS≥38. ✅ (PASS=42, exceeded by 4)
+- **Fixtures:** arith_is_int, arith_is_add, arith_is_chain, arith_is_paren,
+  arith_is_subleft, arith_is_var, arith_unify, arith_unify_expr,
+  arith_neg_int, plus bonus compound_nested, compound_nested_two.
+- **Notes:** Expression ladder `primary < mul_expr < add_expr < is_expr <
+  unify_expr` mirrors prolog_parse.c precedence.  `=` and arith use the
+  OPSYN-bound `reduce(r_KIND, 2)` directly (kind-only n-ary trees).
+  `is` uses `*reduce_is()` semantic helper because it builds a named
+  E_FNC compound (`Reduce()` forces empty value).  Args (compound calls
+  + list elements) use TAIL-RECURSION via `*args_tail` instead of
+  ARBNO, because `*unify_expr` (forward ref into the ladder) cannot
+  appear inside ARBNO without triggering FW-3 (deferred actions inside
+  the deferred Q get suppressed).
 
 ### PARSER-PR-6 — queries / directives
 Gate: PASS≥45.
@@ -229,7 +249,6 @@ Gate: PASS≥45.
 
 ## Watermark
 
-PARSER-PR-4 LANDED (PASS=31). Next: PARSER-PR-5 — arithmetic (`is`,
-builtin operators).
+PARSER-PR-5 LANDED (PASS=42). Next: PARSER-PR-6 — queries / directives.
 
-**Next session:** implement PR-5 arithmetic.
+**Next session:** implement PR-6 directives (`:- goal.`).
