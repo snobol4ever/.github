@@ -788,3 +788,37 @@ No outer FENCE; flat alternation.  Likely the immediate fix.
 corpus HEAD: `9f6b32f`
 one4all/parser branch: `dd6ad80d` (unchanged)
 .github: this update follows
+
+---
+
+## Session 2026-05-03 continuation #3 — primary cleanup, bare tags
+
+Lon's correction: the over-parameterized RB_qlit_emit('_rb_strbody') /
+RB_call_emit('_rb_callname') helpers were noise — single-use globals
+don't need parameter passing.  Renamed to match parser_snocone.sc:
+  RB_qlit_emit(...) → RB_push_qlit()
+  RB_call_emit(...) → RB_push_call()
+
+primary now reads byte-identical to parser_snocone Expr17:
+  primary = FENCE(  *String  RB_push_qlit()
+                  | shift(*Integer, E_ILIT)
+                  | shift(*Id,      E_VAR)
+                 );
+
+ALSO: dropped quote-embedding on all reduce() tags.  semantic.sc INFRA-11c
+(commit c8ee2a6) added _qtag() which auto-quotes both shift and reduce
+tag args.  All tags now bare:
+  E_VAR        = 'E_VAR';
+  E_ALT        = 'E_ALT';
+  RB_ASSIGN    = 'RB_ASSIGN';
+  Parse        = 'Parse';
+  ... etc.
+Call sites unchanged: shift(*Id, E_VAR), reduce(E_MUL, 2),
+reduce(E_ALT, nTop_gt1), reduce(Parse, 'nTop()').
+
+Hang remains unresolved.  Next session task unchanged:
+- Strip mul_expr/add_expr doubled-FENCE chains.
+- Port parser_snocone.sc's flat-alternation tier shape exactly.
+
+corpus HEAD: 707bd5d
+one4all/parser: dd6ad80d (unchanged)
