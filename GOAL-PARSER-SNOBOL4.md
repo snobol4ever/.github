@@ -139,7 +139,7 @@ Captured from `scrip --dump-parse` on the rung corpus.
 | `S 'a' :S(L1)`              | `(STMT :subj (E_VAR S) :pat ... :goS L1)` |
 | `LEN(3)` etc.               | `(E_LEN (E_ILIT 3))` — also E_BREAK, E_SPAN, E_ANY, E_NOTANY |
 | `F(X)` etc.                 | `(E_FNC F (E_VAR X))` — generic call; name in v, args as children |
-| `DEFINE('F(X)')`            | `(E_FNC DEFINE (E_QLIT "F(X)"))` — DEFINE spec is opaque to --dump-parse |
+| `DEFINE('F(X)')`            | `(E_FNC DEFINE (E_QLIT "F(X)"))` — DEFINE spec is opaque to --dump-parse (DEFINE-as-distinct-IR-kind tracked under `GOAL-IR-DEFINE-KIND.md`) |
 | `NOARG()`                   | `(E_FNC NOARG)` — zero-arg call, no children |
 
 **The `:subj` / `:pat` split rule:** parse the body as one expression. If
