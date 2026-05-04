@@ -79,7 +79,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RUNGS COMPLETE — RB-0..RB-6 landed PASS=38; nPush/nTop spine refactor deferred to PARSER-IC-INFRA |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-3 |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-6 (IC-5 landed PASS=33 — alternation generators) |
-| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PARSER-PR-3 (PARSER-PR-2 landed PASS=18) |
+| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PARSER-PR-3 — use nPush/nInc/nTop/nPop (PR-2 landed PASS=18) |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
