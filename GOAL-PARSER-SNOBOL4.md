@@ -138,6 +138,9 @@ Captured from `scrip --dump-parse` on the rung corpus.
 | `S = `  (empty repl)        | `(STMT :eq :subj (E_VAR S) :repl (E_QLIT ""))` |
 | `S 'a' :S(L1)`              | `(STMT :subj (E_VAR S) :pat ... :goS L1)` |
 | `LEN(3)` etc.               | `(E_LEN (E_ILIT 3))` — also E_BREAK, E_SPAN, E_ANY, E_NOTANY |
+| `F(X)` etc.                 | `(E_FNC F (E_VAR X))` — generic call; name in v, args as children |
+| `DEFINE('F(X)')`            | `(E_FNC DEFINE (E_QLIT "F(X)"))` — DEFINE spec is opaque to --dump-parse |
+| `NOARG()`                   | `(E_FNC NOARG)` — zero-arg call, no children |
 
 **The `:subj` / `:pat` split rule:** parse the body as one expression. If
 the top is `E_SEQ` with N≥2 children → child 1 is `:subj`, rest is `:pat`
@@ -194,17 +197,12 @@ history under the listed commits. This table is the load-bearing summary.
 | SN-2 | tree-on-stack architectural pivot | PASS=8 (refactor; same corpus) |
 | SN-3 | concat / arith — beauty.sno-named Expr-N tiers | PASS=16 |
 | SN-4 | control flow (`:S` / `:F` / labels) | PASS=23 |
-| SN-5 | patterns (LEN/BREAK/SPAN/ANY/NOTANY, `\|`, `.`, `$`, replacement) | **PASS=43** ✅ this session |
+| SN-5 | patterns (LEN/BREAK/SPAN/ANY/NOTANY, `\|`, `.`, `$`, replacement) | PASS=43 |
+| SN-6 | function definition / call (generic `Id LPAREN args RPAREN` → E_FNC) | **PASS=58** ✅ this session |
 
 ---
 
 ## Active rung ladder
-
-### PARSER-SN-6 — function definition / call
-
-- [ ] `DEFINE('f(args)label')` and call sites.
-- **Sibling LANG rungs:** SN-16..SN-20.
-- **Gate:** PASS≥50.
 
 ### PARSER-SN-7 — beauty.sno crosscheck
 
@@ -322,40 +320,54 @@ in `shift`'s tag arg for non-string-literal inputs.
 
 ## Watermark
 
-**INFRA + FW + SN-0..SN-5 LANDED. Gate PASS=43, FAIL=0** (this session,
+**INFRA + FW + SN-0..SN-6 LANDED. Gate PASS=58, FAIL=0** (this session,
 2026-05-03).
 
-SN-5 added pattern-matching to the parser. Three changes to
+SN-6 added function definition / call to the parser. One change to
 `parser_snobol4.sc`:
 
-- Pattern primitive recognizers (`LEN`, `BREAK`, `SPAN`, `ANY`, `NOTANY`)
-  added to `Expr17` via shared `_pat_prim_call(name, kind)` helper.
-  NOTANY before ANY (longer match wins).
-- New `Expr12` tier (capture: `.` / `$`) inserted between `Expr11` (pow)
-  and `Expr14` (unary). Left-associative per the oracle.
-- New `Expr3` tier (alternation: `|`) inserted at top of ladder above
-  `Expr4` (concat). N-ary flat per the oracle.
-- `_parse_body_goto` rewritten: parses the body as one expression, then
-  splits on top-level `E_SEQ` into `:subj`/`:pat`. Replaces the earlier
-  separate Assign / AtomStmt branches with one expression-driven path.
-- `_split_subj_pat(lhs)` helper encodes the split rule.
+- New `_call_args(fname)` helper parses `( args )` into an `E_FNC` tree
+  with `v=fname` and one child per arg.  Empty arg list → 0-child tree.
+  Supports up to 7 args via `Tree(...)` positional + overflow via
+  `Append`.
+- `Expr17`'s identifier branch now checks for an immediately adjacent
+  `(` and dispatches to `_call_args` for generic calls, otherwise falls
+  back to bare `E_VAR`.  Whitespace between `Id` and `(` is NOT a call
+  — `F (X)` is concat, matching the oracle.
+- The five pattern primitives (LEN/BREAK/SPAN/ANY/NOTANY) keep their
+  distinct E_LEN/E_BREAK/E_SPAN/E_ANY/E_NOTANY type tags via the
+  `_pat_prim_call` cascade, which runs before the generic-call path.
+- DEFINE is intentionally treated as just another generic call —
+  `--dump-parse` itself does not crack open the spec string at parse
+  time, so `DEFINE('F(X)')` becomes `(E_FNC DEFINE (E_QLIT "F(X)"))`.
 
-`tdump.sc::TValue` fix: E_QLIT branch moved before the empty-value `"."`
-placeholder so `(E_QLIT "")` renders correctly (oracle always emits the
-typed quoted form for empty replacements).
+15 new test programs in `corpus/programs/snobol4/parser/fn_*.sno`
+covering one/two/three-arg / zero-arg / nested calls, calls in stmt
+position, calls in pattern, calls in arith, calls with string args,
+and DEFINE in four forms (one-arg / multi-arg / with locals/labels /
+no args / labeled line).
 
-20 new test programs in `corpus/programs/snobol4/parser/pat_*.sno`
-covering all five primitives, alternation (2/3-arm/parenthesized),
-conditional/immediate capture (single/chained), pattern-replacement
-(simple/complex/empty), pattern-with-goto, and label+pattern.
+Sibling parser gates re-checked: `parser_snobol4.sc` is the only file
+touched, no shared file changed; siblings unaffected (Icon 33/33,
+Prolog 18/18, Raku 17/17, Rebus 25/25 — all green).
 
-Sibling parser gates re-run after the `tdump.sc` change: Icon 14/14,
-Prolog 18/18, Raku 5/5, Rebus 12/12 — all unchanged. Snocone parser
-gate (0/13) was already broken at PARSER-SC-INFRA-2 before this session;
-unrelated.
+SN-5 history (preserved for reference): added pattern-matching to the
+parser via three new tiers.  Pattern primitive recognizers (LEN/BREAK/
+SPAN/ANY/NOTANY) added to `Expr17` via shared `_pat_prim_call(name, kind)`
+helper.  New `Expr12` tier (capture: `.` / `$`) inserted between
+`Expr11` (pow) and `Expr14` (unary), left-associative per the oracle.
+New `Expr3` tier (alternation: `|`) inserted at top of ladder above
+`Expr4` (concat), n-ary flat per the oracle.  `_parse_body_goto`
+rewritten as expression-driven with `_split_subj_pat(lhs)` helper
+encoding the subj/pat split rule.  `tdump.sc::TValue` E_QLIT branch
+moved before the empty-value `"."` placeholder so `(E_QLIT "")` renders
+correctly.
 
-**Next milestone:** PARSER-SN-6 — function definition / call. Will need
-`DEFINE` parsing and call-site recognition (probably extending Expr17's
-function-call shape from SN-5's restricted primitive form into a general
-`Id LPAREN args RPAREN` form). FW-2's multi-child role-slot wrapper is
-already landed and waiting.
+**Next milestone:** PARSER-SN-7 — beauty.sno crosscheck.  This is the
+big one — parse the full `beauty.sno` self-host through PARSER-SN and
+gate against the existing frontend's tree (and against SPITBOL byte-
+identical output).  Will surface any remaining grammar gaps (DEFINE
+spec parsing into structured args if the gate needs it, SNOBOL4
+keywords like `&UCASE` / `&STLIMIT` if the parser doesn't already
+handle them as plain Id, real number literals, multi-statement-per-line
+forms if any, comment-line handling).
