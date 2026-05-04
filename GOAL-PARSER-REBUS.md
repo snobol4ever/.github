@@ -199,6 +199,358 @@ grep -c 'Compiland'     parser_rebus.sc         # → exactly 2 (def + driver us
 
 ---
 
+## Style Guidelines for parser_*.sc — canonical, derived from beauty.sno / beauty.sc
+
+These guidelines are normative for every `parser_<lang>.sc` (PARSER-RB,
+PARSER-SC, PARSER-SN, PARSER-IC, PARSER-PL, PARSER-RK).  They derive
+directly from `corpus/programs/snobol4/demo/beauty/beauty.sno` and its
+Snocone port `corpus/programs/snocone/demo/beauty/beauty.sc` — the
+reference pattern parsers in the canon.  Read both end-to-end before
+writing any parser.  Where this section and the per-language goal file
+disagree, this section wins.
+
+### 1. White / Gray attached at token definitions, not at use sites
+
+`White` matches a contiguous run of horizontal whitespace (space, tab,
+and per-language continuation conventions).  `Gray` is `*White |
+epsilon` — optional whitespace.  Both are defined ONCE, near the top of
+the parser file, beside the lex-token definitions:
+
+```snocone
+White = SPAN(' ' tab) FENCE(nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon) | epsilon)
+      | nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon);
+Gray  = *White | epsilon;
+```
+
+(Per-language continuation handling — beauty.sno's `+`/`.` glyphs in
+column 1 — adapts per the host language; the Rebus continuation rule is
+just `White = SPAN(' ' tab)` if the language has no continuation
+syntax.)
+
+**White / Gray are absorbed into the `$'kw'` and atomic-token
+definitions, never written into grammar productions.**  Look at
+`Expr0..Expr17` in beauty.sc lines 64-100: there is no `*Gray` or
+`*White` in the operator-tier ladder.  All whitespace is already
+inside the `$'op'` wrappers.
+
+### 2. `$'kw'` for operator and keyword tokens; identifier names for word tokens
+
+Operator and punctuation tokens get `$'op'` syntactic wrappers that
+bake in the surrounding whitespace policy:
+
+```snocone
+// Binary operators — symmetric whitespace.
+$'='  = *White '='  *White;   $'?'  = *White '?'  *White;
+$'|'  = *White '|'  *White;   $'+'  = *White '+'  *White;
+$'**' = *White '**' *White;   $'~'  = *White '~'  *White;
+// Comma is gray-flanked (optional whitespace each side).
+$','  = *Gray  ','  *Gray;
+// Brackets are asymmetric: open paren absorbs trailing gray,
+// close paren absorbs leading gray.
+$'('  = '('  *Gray;   $')'  = *Gray ')';
+$'['  = '['  *Gray;   $']'  = *Gray ']';
+```
+
+Snocone-reserved word tokens (`if`, `then`, `else`, `while`, `do`,
+`function`, `record`, `end`) also get `$'kw'` wrappers — required
+whitespace flanks where the language demands word boundaries:
+
+```snocone
+$'if'       = *Gray 'if'       *White;   // 'if' must be followed by whitespace
+$'then'     = *White 'then'    *White;
+$'function' = 'function' *White;          // at column-anchor positions
+$'end'      = *White 'end'     *Gray;
+```
+
+Word tokens that are NOT Snocone-reserved get plain identifier names
+with the optional-/required-space prefix folded in.  Beauty.sno's
+`SGoto`/`FGoto` (lines 192-193) is the model:
+
+```snocone
+S = $' ' 'S';     // optional leading whitespace, literal 'S'
+F = $' ' 'F';
+SGoto = ('S' | 's') . *assign(.sf, *'S');   // case-tolerant variant
+```
+
+**Convention:** `$' '` (single space) is optional whitespace; `$'  '`
+(two spaces) is required whitespace.  This carries directly from
+beauty.sno.
+
+**The grammar productions read clean.**  No `*White` / `*Gray` strewn
+through `Expr0..Expr17` or `Stmt` or `Compiland`.  Whitespace lives in
+the token wrappers, period.
+
+### 3. AST decoration — beauty.sno's two equivalent forms
+
+Beauty.sno presents two surface forms for stack-machine annotation,
+related by OPSYN:
+
+**Form A — explicit dot-conditional + function call:**
+```
+primitive . tx                                      // capture into global tx
+epsilon . func(literal, tx)                         // perform action with tx
+```
+
+**Form B — function-call shorthand (after OPSYN):**
+```
+primitive . tx Func(literal, "tx")                  // single helper call
+```
+
+**Form C — infix operator shorthand (after OPSYN ~ / &):**
+```
+*primitive ~ 'TAG'                                  // shift  (= Shift(*primitive, 'TAG'))
+("'TAG'" & 2)                                       // reduce 2 children into TAG
+("'TAG'" & 'nTop()')                                // reduce nTop() children into TAG
+("'TAG'" & '*(GT(nTop(), 1) nTop())')               // reduce only if >1 (else passthrough)
+```
+
+The OPSYN bindings live in `semantic.sc`:
+```
+OPSYN('~', 'shift',  2);     // *p ~ 'TAG'      ≡  shift(*p, 'TAG')
+OPSYN('&', 'reduce', 2);     // ("'TAG'" & N)   ≡  reduce("'TAG'", N)
+```
+
+**Use the infix operators (Form C) wherever supported.**  beauty.sno
+uses them throughout `Expr14..Expr17`, `Command`, `Goto`.  beauty.sc
+also uses `~` and `&` inline (lines 80-100, 132).  When the host's
+Snocone runtime does not yet parse infix `~`/`&`, fall back to the
+function-call forms `shift(...)` / `reduce(...)` — both compile to the
+same `Shift`/`Reduce` engine calls.
+
+### 4. n-ary tree counters via `nPush()` / `nInc()` / `nTop()` / `nPop()`
+
+For variable-length list folds (alternation, concatenation,
+parameter/argument lists, statement sequences), use the n-ary spine.
+beauty.sno line 119 / beauty.sc line 61:
+
+```snocone
+ExprList = nPush() *XList ("'ExprList'" & '*(GT(nTop(), 1) nTop())') nPop();
+XList    = nInc()  (*Expr | epsilon ~ '') FENCE($',' *XList | epsilon);
+```
+
+`nPush()` opens a counter scope; `nInc()` bumps it for each list
+element; `nTop()` reads the count at reduce time; `nPop()` closes the
+scope.  These are pattern fragments returned by build-time helpers in
+`semantic.sc`:
+
+```
+function nPush() { nPush = epsilon . *PushCounter(); return; }
+function nInc()  { nInc  = epsilon . *IncCounter();  return; }
+function nTop()  { nTop  = TopCounter();             return; }
+function nPop()  { nPop  = epsilon . *PopCounter();  return; }
+```
+
+Decorate the AST construction with these counter operations; they are
+the *only* match-time function-effects allowed inside a parsing
+pattern besides Shift/Reduce.
+
+### 5. AST tree-tag names — match the IR `EXPR_t` enum
+
+Tree tags emitted by `~` and `&` MUST match the language's IR kind
+names — the `E_*` strings from `src/ir/ir.h`'s `EXPR_t` /
+`STMT_kind_t`.  Examples per language:
+
+| Construct | Tag string |
+|-----------|------------|
+| Variable reference | `E_VAR` |
+| Integer literal | `E_ILIT` |
+| String literal | `E_QLIT` |
+| Function call | `E_FNC` |
+| Binary `+` | `E_ADD` |
+| Binary `*` | `E_MUL` |
+| Pattern alternation (n-ary) | `E_ALT` |
+| Assignment | `E_ASSIGN` |
+| Pattern match | `E_SCAN` |
+
+For language-specific surface-syntax constructs that are lowered to
+canonical IR by a post-parse pass (see Rubric item 5 above), use the
+language-prefixed tag form: `RB_FUNC_DECL`, `RB_REC_DECL`, `IC_PROC`,
+`PL_CLAUSE`, etc.  These tags live ONLY in the surface parse tree;
+post-parse lowering rewrites them into the canonical `E_*` /
+`STMT_*` shape that `tree_equal()` compares against.
+
+### 6. Identifier naming — case discipline
+
+| Kind | Convention | Examples |
+|------|------------|----------|
+| Pattern non-terminal (grammar production) | UpperCamelCase or matching BNF | `Expr`, `Stmt`, `Command`, `Compiland`, `function_decl`, `record_decl` |
+| Token classifier | UpperCamelCase | `Id`, `Integer`, `Real`, `String`, `Function`, `BuiltinVar`, `ProtKwd` |
+| Helper function (build-time, returns pattern fragment) | UpperCamelCase | `Shift`, `Reduce`, `RB_push_qlit` |
+| Helper function (match-time effect) | snake_case or lowerCamel | `assign`, `match`, `rb_push_qlit`, `nInc` |
+| Local pattern variable (intermediate) | lowerCamel or snake_case | `tx`, `sf`, `_kw_rest` (with caveat below) |
+| Tag string constant | UpperCamelCase / `E_*` IR form | `E_VAR`, `RB_FUNC_DECL`, `Parse` |
+
+**No symbols starting with underscore in source code.**  Underscore
+prefixes are reserved for compiler-generated identifiers (the IR
+lowering pipeline emits `_g42`, `_lbl_3`, etc.).  Existing
+`parser_*.sc` files that use names like `_sc_lbl_n` or `_kw_rest` are
+grandfathered but new code does not introduce them — replace with
+`scLblN` or `kwRest`.
+
+**Variables start with a lowercase letter, snake_case for compounds.**
+Functions usually start with an uppercase letter, then snake_case
+afterwards.  This matches beauty.sno conventions.
+
+### 7. Names track the official language specification
+
+Non-terminal pattern names MUST mirror the host language's official
+BNF.  For Rebus that is `src/frontend/rebus/rebus.y` (Bison grammar
+based on Griswold TR 84-9): `function_decl`, `record_decl`,
+`expr_stmt`, `if_stmt`, `while_stmt`, `case_stmt`, `match_stmt`,
+`primary`, `postfix_expr`, `expr`, `pat_expr`, `cat_expr`, `alt_expr`,
+`assign_expr`.
+
+For Icon: per `src/frontend/icon/icon.y` and the Icon Programming
+Language reference.  For Prolog: per ISO/IEC 13211-1.  Etc.
+
+**Sources of truth, in order:**
+1. The frontend's `.l` / lex header (token enum) and `.y` / parse module.
+2. The lowering module's IR-tag enum and dumper.
+3. The official BNF / language specification — only as a tiebreaker
+   when (1) and (2) leave a name unspecified.
+
+Invented names are reserved for the cross-PARSER spine (`Compiland`,
+`Command`, helpers like `Push`/`Pop`/`Top`, `tree`/`Tree`/`TDump`/`stack`).
+Per-language non-terminals are not invented.
+
+### 8. Code layout — horizontal-first, 120 columns, no blank lines
+
+| Rule | Style |
+|------|-------|
+| Maximum line length | 120 characters |
+| Single-statement bodies | inline with semicolon: `if (x) action;` not `if (x) { action; }` |
+| Multi-statement bodies | brace block `{ ... }` |
+| Block separation | `//===` 120-char major divider, `//---` 120-char minor divider — NEVER a blank line |
+| Multi-line wrapping | constant 2-space nested indentation |
+| Vertical alignment | balance parentheses and binary operators vertically |
+| Use of horizontal space | maximize — pack tokens onto one line where readable |
+
+Single-statement `if`/`while`/`for` bodies always use the inline
+semicolon form:
+
+```snocone
+// Correct:
+if (DIFFER(line)) line = line ' ';
+while (i = LT(i, n) i + 1) sum = sum + a[i];
+
+// Incorrect:
+if (DIFFER(line)) {
+    line = line ' ';
+}
+```
+
+When a long pattern definition exceeds 120 columns, wrap with
+balanced parentheses and 2-space nested indent, lining up alternation
+bars with the opening paren:
+
+```snocone
+Expr14 = '@' *Expr14 ("'@'" & 1)
+       | '~' *Expr14 ("'~'" & 1)
+       | '?' *Expr14 ("'?'" & 1)
+       | *ProtKwd ~ 'ProtKwd'
+       | *UnprotKwd ~ 'UnprotKwd'
+       | *Expr15;
+```
+
+Section dividers replace blank lines:
+
+```snocone
+//===================================================================================================================
+//  Atomic tokens
+//===================================================================================================================
+
+Integer = SPAN(digits);
+Id      = ANY(&UCASE &LCASE) FENCE(SPAN('.' digits &UCASE '_' &LCASE) | epsilon);
+
+//-------------------------------------------------------------------------------------------------------------------
+//  Operator wrappers
+//-------------------------------------------------------------------------------------------------------------------
+
+$'='  = *White '='  *White;
+$'|'  = *White '|'  *White;
+```
+
+The exact divider widths are 120 characters of `=` (major) or `-`
+(minor), terminated by a comment line with the section title.
+
+### 9. No goto, no labels
+
+Snocone has structured `if`/`else`, `while`, `for`, structured pattern
+alternation, and pattern `FENCE`.  That is enough for any
+`parser_*.sc`.  **Zero `goto`.  Zero labels.**
+
+The driver reads stdin into a single `Src` string, runs ONE
+`Src ? Compiland`, then walks the resulting tree.  No
+`read_loop:`/`mainErr:`/`mainEnd:` labels.  beauty.sc has them only
+because it is a *mechanical* port from beauty.sno's SNOBOL4 goto-flow
+— that is grandfathered, not a model to copy.
+
+### 10. Driver shape — stdin slurp, one match, walk
+
+```snocone
+&FULLSCAN  = 1;
+
+InitCounter();
+InitStack();
+
+src = '';
+while (line = INPUT) src = src line nl;
+
+if (src ? Compiland) {
+    parseRoot = Pop();
+    if (DIFFER(parseRoot)) {
+        i = 0;
+        while (i = LT(i, n(parseRoot)) i + 1) lower(c(parseRoot)[i]);
+    }
+} else {
+    OUTPUT = 'Parse Error';
+}
+```
+
+`lower()` is the post-parse tree-walk that emits canonical STMT TDump
+lines.  Match-time helpers it calls (`Tree`, `TDump`, etc.) live in
+`tree.sc`/`tdump.sc` and are not parsing functions.
+
+### 11. The `nl` token — used directly, not wrapped
+
+Snocone exposes `nl` as a single-character pattern primitive.  Use it
+directly in patterns; do NOT define `nl_one = ANY(nl)` — that wrapping
+both costs a function-call indirection AND can introduce backtracking
+hazards under `ARBNO`.
+
+```snocone
+// Correct (beauty.sc style):
+Comment = '*' BREAK(nl);
+Command = nInc() FENCE(*Stmt reduce('Stmt', 7) (nl | ';'));
+
+// Incorrect:
+nl_one = ANY(nl);
+stmt_line = ... *nl_one;
+```
+
+### 12. Self-check greps
+
+A grep that should produce zero hits in any compliant `parser_*.sc`:
+
+```
+grep -nE 'goto |^[a-z_]+:|^_[A-Za-z]'      parser_*.sc   # → 0 (no goto/label/leading-underscore source ids)
+grep -cE 'shift\(|reduce\('                 parser_*.sc   # → 0 IF runtime supports infix ~/&; otherwise OK
+grep -cE 'Push\(Tree'                       parser_*.sc   # → 0 (no escape-hatch tree pushes from patterns)
+grep -nE '^[A-Za-z_]+ *= *.*\*White'        parser_*.sc   # → only $'op' / token defs / White itself
+grep -c '^(if|while)[^(]' -r parser_*.sc   # → 0 (always Snocone keyword usage with parens)
+```
+
+A grep that should match exactly:
+
+```
+grep -c 'src ? Compiland'  parser_*.sc      # → 1 (the ONE pattern match in driver)
+grep -c '^Compiland '      parser_*.sc      # → 1 (the definition)
+grep -cE ' ~ | & '          parser_*.sc      # → many (per construct)
+grep -cE 'nPush|nInc|nTop|nPop' parser_*.sc # → ≥ counter-helper hits / parser table above
+```
+
+---
+
 ## Divergence-driven rungs — n-ary vs the existing frontend's binary
 
 PAT-RB produces n-ary trees. The existing Rebus frontend
@@ -824,3 +1176,124 @@ Hang remains unresolved.  Next session task unchanged:
 
 corpus HEAD: 707bd5d
 one4all/parser: dd6ad80d (unchanged)
+
+---
+
+## Session 2026-05-04 continuation #4 — style guidelines codified, two bug fixes
+
+This session was opened by Lon to "play with the Rebus language grammar
+PATTERN" and codify the canonical style for `parser_*.sc` parsers.
+
+### 1. `## Style Guidelines for parser_*.sc` — new section above
+
+Comprehensive 12-rule section added above the "Divergence-driven rungs"
+heading.  Derived directly from beauty.sno (the SNOBOL4 reference) and
+beauty.sc (its Snocone port) in `corpus/programs/snobol4/demo/beauty/`
+and `corpus/programs/snocone/demo/beauty/`.  Covers:
+
+  1. White / Gray defined once, attached at token sites (never strewn
+     through grammar).
+  2. `$'kw'` wrappers for Snocone-reserved words and operators;
+     identifier names (with `$' '`/`$'  '` whitespace prefix) for
+     non-reserved word tokens.
+  3. The three equivalent surface forms for AST decoration (explicit
+     dot-conditional, function-call shorthand, infix `~`/`&`) with
+     OPSYN bindings from semantic.sc.
+  4. n-ary tree counters (`nPush`/`nInc`/`nTop`/`nPop`).
+  5. Tree-tag names matching the IR `EXPR_t` enum (`E_VAR`, `E_ADD`,
+     etc.) plus language-prefix tags (`RB_*`) for surface-only
+     constructs.
+  6. Identifier naming case discipline (no leading-underscore source
+     ids; functions UpperCamel, variables lowerCamel/snake).
+  7. Non-terminal names mirror the official language BNF.
+  8. Code layout — 120-col, single-stmt inline `if (x) action;`,
+     `//===` and `//---` dividers replacing blank lines.
+  9. Zero goto, zero labels.
+  10. Driver shape: stdin slurp → `src ? Compiland` → tree walk.
+  11. `nl` used directly as a pattern primitive — do NOT define
+      `nl_one = ANY(nl)`.
+  12. Self-check grep targets.
+
+This section is normative for all six `parser_*.sc` (PARSER-RB,
+PARSER-SC, PARSER-SN, PARSER-IC, PARSER-PL, PARSER-RK).  Sibling
+PARSER-* goal files cross-reference here; future style-related changes
+land in this single canonical section, then flow to siblings via
+cross-reference.
+
+### 2. SCRIP build environment — `libgc-dev` required
+
+`scripts/build_scrip.sh` failed at session start with:
+```
+src/runtime/x86/snobol4.h:21:10: fatal error: gc/gc.h: No such file or directory
+```
+Resolved by `apt-get install -y libgc-dev`.  Suggests
+`scripts/install_system_packages.sh` should ensure libgc-dev is in its
+package list (the install script may already do so but timed out
+during this session — verify next session).  No source changes; this
+is a diagnostic note for the next session that hits the same.
+
+### 3. Two bug fixes applied to `parser_rebus.sc` (incremental, not landed)
+
+The current parser hangs on every fixture (PASS=0 FAIL=38, all exit
+124 timeout).  Two confirmed bugs identified and patched, but a third
+hang remains:
+
+**Bug A — doubled-FENCE chains in mul_expr/add_expr (FIXED):**
+The previous session's `mul_expr` used:
+```
+FENCE($'*' *postfix_expr reduce(...) FENCE($'*' *postfix_expr reduce(...) | epsilon) | ... | epsilon)
+```
+which causes infinite spin in the ARBNO/FENCE interaction.  Replaced
+with parser_snocone.sc's flat-alternation tier shape (no outer FENCE):
+```
+mul_expr = *postfix_expr
+           ( $'*' *postfix_expr reduce(E_MUL, 2) ($'*' *postfix_expr reduce(E_MUL, 2) | epsilon)
+           | $'/' *postfix_expr reduce(E_DIV, 2) ($'/' *postfix_expr reduce(E_DIV, 2) | epsilon)
+           | epsilon
+           );
+```
+Same for `add_expr`.
+
+**Bug B — `*stmt` referenced but `stmt` undefined (FIXED):**
+`if_stmt` and `while_stmt` referenced `*stmt` which was never defined.
+The actual statement-line non-terminal is `stmt_line`.  Replaced.
+
+**Bug C — stmt_list captures n=0 (UNRESOLVED):**
+After A and B, isolated bisection shows `stmt_list` with
+`ARBNO(body_one)` where `body_one = (*stmt_item | *blank_body)` matches
+the input but the resulting RB_BODY tree has 0 children — `stmt_item`
+fails to capture the body line, falling through to `blank_body` which
+just consumes a newline.  Suspected cause: the order of nInc / shift
+inside the `stmt_item` chain causes the counter increment to commit
+before the actual shift, so on FENCE backtrack the count is correct
+but no tree was pushed.  Bisection trace:
+```
+&FULLSCAN = 1; ... stmt_list = nPush() ARBNO(body_one) reduce(RB_BODY, 'nTop()') nPop();
+Src = '  x' nl 'end' nl;     // 8 chars
+Src ? stmt_list  →  MATCH t=RB_BODY n=0
+```
+
+Next-session task is to bisect further — instrument `stmt_item` /
+`stmt_line` directly, confirm whether Shift fires, then either fix the
+ordering or, more likely, REWRITE parser_rebus.sc from scratch
+following the new Style Guidelines section (1-12) above.  The current
+file accumulates four sessions of incremental-fix scar tissue and is
+no longer the cleanest path forward.  Per Rubric and per goal "Status"
+section: the rewrite is the task; this session's bug-fix patches are
+diagnostic, not the deliverable.
+
+### 4. State at session end
+
+| Repo | HEAD | Note |
+|------|------|------|
+| corpus | 707bd5d (unchanged on remote) | local has Bug A and Bug B patches uncommitted |
+| one4all/parser | dd6ad80d (unchanged) | |
+| .github | this commit | adds Style Guidelines section + this watermark |
+
+The uncommitted local patches in corpus are diagnostic, not the
+deliverable.  Next session should either (a) commit them as
+intermediate progress and continue bisecting, or (b) discard them and
+rewrite parser_rebus.sc fresh per the new Style Guidelines.  Lon
+chooses; the goal-rubric position is that rewrite is the cleaner path.
+
+PARSER-RB-0 — still next.
