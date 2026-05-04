@@ -129,26 +129,34 @@ each is independently revertable.  A session may do one and stop.
       that asymmetry alone.
 - **Gate:** PASS=32 FAIL=0.
 
-#### 4.5-e — eliminate the function-plumbing scaffold (the big one)
+#### 4.5-e — eliminate the function-plumbing scaffold (the big one) — LANDED session 2026-05-04
 
-- [ ] Drop the helper-pattern scaffold (`$'do_assign'`, `$'save_lhs'`,
+- [x] Drop the helper-pattern scaffold (`$'do_assign'`, `$'save_lhs'`,
       `$'op_ADD'`, `$'binop_add'`, `$'do_say'`, `$'do_if2'`,
       `$'do_while'`, `$'start_call'`, `$'add_call_arg'`,
       `$'finish_call'`, …) and the matching `Build_*` / `Expr_Binop`
       / `Stash_*` / `Start_*` / `Finish_*` Snocone functions.
-- [ ] Replace with inline `shift(…)` / `reduce(…)` calls in the
+- [x] Replace with inline `shift(…)` / `reduce(…)` calls in the
       grammar pattern itself, exactly the way `beauty.sc` builds its
       tree.  The binop tower compresses to roughly the shape of
       `beauty.sc` lines 64–88; the n-ary call/sub/block machinery to
       `beauty.sc` lines 61–62 (`ExprList` / `XList`) and 91–100
       (`Expr17`).
-- [ ] Where a Snocone runtime quirk forces a small helper to remain
+- [x] Where a Snocone runtime quirk forces a small helper to remain
       (the `ARBNO(*func())` first-iteration bug noted in PR-7),
       keep the minimal helper and add a one-line `// retained for
       <reason>` comment.  Maps to §4 + §4a + the "guidelines not
       laws" caveat above.
-- **Gate:** PASS=32 FAIL=0.  This is the rung most likely to
-      destabilize the gate; expect to bisect.
+- **Gate:** PASS=32 FAIL=0 ✓ (752 → 555 lines, 27 → 9 functions, 110+
+      `$'name'` action wrappers eliminated, all per-tier `_e4lhs` /
+      `_e6lhs` / `_e7lhs` / `_e4op` / `_e6op` / `_e7op` and the
+      `_expr_node` / `_main_node` / `_rk_asgn_target` /
+      `_rk_block_stk` / `_rk_sub_node` / `_rk_call_node` /
+      `_rk_arg_stk` globals removed; binop towers `Expr4tail` /
+      `Expr6tail` / `Expr7tail` collapsed to inline `(r_OP & 2)`;
+      `IfStmt` / `WhileStmt` / `ReturnStmt` / `AssignStmt` use
+      inline `reduce(...)` calls; nine helpers retained each with
+      `// Retained: <reason>` comment per §4a).
 
 #### 4.5-f — drop `_`-prefixed user globals (conditional on 4.5-e)
 
@@ -209,11 +217,51 @@ each is independently revertable.  A session may do one and stop.
 
 ## Watermark
 
-PARSER-RK-4.5-a / 4.5-b / 4.5-c LANDED (session 2026-05-04 cont.) —
-PASS=32 throughout.  Next session picks 4.5-d (runtime helper rename)
-or jumps to 4.5-e (the big function-plumbing teardown — 4.5-d is best
-done **after** 4.5-e since most of the 27 helpers will be deleted
-there; pre-renaming 20+ functions just to delete them is churn).
+PARSER-RK-4.5-e LANDED (session 2026-05-04 cont.) — PASS=32 FAIL=0.
+Function-plumbing scaffold eliminated: 752 → 555 lines, 27 → 9
+functions, all `$'do_X'` / `$'binop_X'` / `$'op_X'` / `$'save_lhs'`
+action wrappers and per-tier LHS/op globals removed.  Inline
+`shift()` / `reduce()` calls now decorate the grammar directly,
+matching `beauty.sc` and `parser_icon.sc` shape.  Nine helpers
+retained each with `// Retained: <reason>` comment per §4a:
+`rk_push_var` / `rk_push_param` / `rk_push_qlit` (sigil/quote
+strip), `rk_say_done` (say→write remap), `rk_stash_for` /
+`rk_finish_for` (E_ITERATE name + E_EVERY build), `rk_finish_sub` /
+`rk_finish_call` / `rk_finish_main` (E_FNC value-field name from
+captures; reduce() can't supply non-empty value).  Next session:
+4.5-d (UpperSnake rename) on the 9 survivors, or 4.5-f (drop
+remaining `_`-prefixed user globals — most already gone with the
+scaffold), or jump to PARSER-RK-5 (regex / grammar primitives).
+
+### PARSER-RK-4.5-e — handoff (session 2026-05-04 cont.)
+
+The teardown landed cleanly with one tricky restructure: the
+original Compiland used `_main_node` as a global accumulator
+patched by `$'append_stmt'` actions; the new Compiland uses a
+nested counter frame (inner frame counts main-body stmts, outer
+frame holds the resulting STMT for `reduce('Parse', 1)`).
+`SubStmt` does NOT increment the inner main frame because subs
+go to `_rk_sub_list` and don't leave anything on the stack —
+only `Stmt` calls `nInc()` inside the ARBNO body.  Pattern:
+
+    Compiland = nPush() nPush()
+                ARBNO( (SubStmt | (Stmt nInc())) nl_opt )
+                main_done nPop() nInc()
+                (r_Parse & 1) nPop();
+
+Two mistakes worth recording for sibling parsers:
+
+1. `LitInt shift(LitInt, s_ILIT)` matches LitInt TWICE.  `shift(p, t)`
+   is itself a complete pattern (`p . thx . *Shift(t, thx)`); writing
+   the bare pattern in front duplicates the match.  Correct form:
+   just `shift(LitInt, s_ILIT)` alone.
+2. For function calls where the IR node carries the callee name as
+   value (`(E_FNC double (E_VAR double) ...)`), `reduce(r_FNC, 'nTop()')`
+   produces `(E_FNC '' (E_VAR double) ...)` — value field is always
+   empty.  A small `rk_finish_call()` helper (read `_rk_fnf`/`_rk_fnr`
+   captures, build E_FNC with name in value, append children from
+   counter frame) is required.  Same pattern repeats for
+   `rk_finish_sub` and `rk_finish_main`.
 
 ### PARSER-RK-4.5-a / 4.5-b / 4.5-c — handoff (session 2026-05-04 cont.)
 
