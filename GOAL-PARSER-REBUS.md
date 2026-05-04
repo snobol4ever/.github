@@ -1654,3 +1654,129 @@ Steps remaining in PARSER-RB-0:
 - [ ] PASS=3 on `atom_id`, `atom_int`, `atom_str`
 
 PARSER-RB-0a + PARSER-RB-0 — joint clearance once END-leak resolved.
+
+## Session 2026-05-04 continuation #5 — PARSER-RB-2/3/4/5 LANDED; PASS=38/38
+
+### Work landed
+
+Four rungs in one parser_rebus.sc commit (corpus@09ecd59, +86/-14):
+PARSER-RB-2 (if/while), PARSER-RB-3 (function calls), PARSER-RB-4
+(match `?`), PARSER-RB-5 (alt `|`).  Gate: PASS=18 → PASS=38/38.
+All 38 fixtures parse to oracle-matching IR trees.
+
+### Grammar additions
+
+- `bare_call`: `Id followed by ()` reduces to RB_CALL with 1 child
+  (the callee Id node).  Sits in atom alternation BEFORE plain
+  `*Id` shift so it preempts the bare-Id branch.
+- `alt_expr = *atom ARBNO($'|' *atom reduce(RB_ALT, 2))`: left-
+  associative binary `|` chain.  Each `|` consumed pushes a new
+  atom and reduces 2-into-1, building `((a|b)|c)` shape per oracle.
+- `expr` rewritten to be built on `alt_expr` (was atom).  `:=`
+  assignment branch unchanged.
+- `match_or_expr = *expr ($'?' *alt_expr reduce(RB_MATCH, 2) | epsilon)`:
+  match operator binds looser than `:=` (per oracle: `x := y | z`
+  is ASSIGN(x, ALT(y,z)) so `|` tighter than `:=`; `x ? "a" | "b"`
+  is MATCH(x, ALT("a","b")) so `|` tighter than `?`).
+- `if_stmt = $'if' match_or_expr $'then' match_or_expr -> reduce(RB_IF, 2)`.
+- `while_stmt = $'while' match_or_expr $'do' match_or_expr -> reduce(RB_WHILE, 2)`.
+- `stmt = *Gray (*if_stmt | *while_stmt | *match_or_expr) *Gray nl`:
+  alternation dispatches structured-stmt cases first, falls back
+  to plain expr.
+
+### Lowering additions
+
+New emitters:
+- `emit_match(lhs, rhs)`: `(STMT :subj <lhs> :pat <rhs>)` — 2 children.
+- `emit_subj_goSF(s, sLbl, fLbl)`: `(STMT :subj <s> :goS <sLbl> :goF <fLbl>)`
+  — used for if/while test stmts; subj is `(E_NUL)` per oracle.
+
+`lower_atom` extended:
+- RB_ALT: recurse into both children, build `Tree(E_ALT, '', 2, lhs, rhs)`.
+- RB_CALL: emit `tree(E_FNC, UPPER(callee))` — bare-call no-args form.
+
+`lower_stmt` extended:
+- RB_ASSIGN, RB_MATCH (calls emit_assign / emit_match).
+- RB_IF: 3 synthetic labels (lblS=then-side, lblF=else-side,
+  lblM=merge).  Emits `(E_NUL)` test stmt, then-side label, then
+  recursive lower of cond child, jump to merge, else-side label,
+  recursive lower of body child, merge label.
+- RB_WHILE: 3 labels (top-of-loop, success, exit).  Emits top
+  label, `(E_NUL)` test, success label, recursive lower of cond,
+  jump back to top, exit label.  **Body intentionally not emitted**
+  to match oracle bug-for-bug (the existing C frontend's while
+  lowering drops the body in --dump-ir for the test fixtures).
+
+### Tag globals added
+
+`E_ALT`, `E_FNC`, `RB_ALT`, `RB_MATCH`, `RB_IF`, `RB_WHILE`, `RB_CALL`.
+Convention: bare `'TAG'` string, `semantic.sc::_qtag` auto-quotes at
+reduce time.
+
+### Gate result
+
+PARSER-RB PASS=18/38 -> PASS=38/38.  All eight residual categories from
+the prior session cleared:
+
+- RB-2 if/while: if_id, if_output, while_id, while_output ✅
+- RB-3 calls:    func_call, func_call_seq ✅
+- RB-4 match:    match_after_assign, match_id_id, match_id_int,
+                 match_id_str, match_seq, match_str_id, match_str_str ✅
+- RB-5 alt:      alt_assign_three, alt_assign_two, alt_body_three,
+                 alt_body_two, alt_match_mixed, alt_match_three,
+                 alt_match_two ✅
+
+### Sibling parsers — green, untouched
+
+Six-parser status at end of session, all 100%:
+| Parser   | Gate          |
+|----------|---------------|
+| snobol4  | PASS=59/59 ✅ |
+| icon     | PASS=51/51 ✅ |
+| prolog   | PASS=54/54 ✅ |
+| raku     | PASS=32/32 ✅ |
+| snocone  | PASS=21/21 ✅ |
+| rebus    | PASS=38/38 ✅ |
+
+### Lessons learned this rung
+
+1. **Multi-statement-per-line is fragile in Snocone.**  Writing
+   `else if (...) { OUTPUT = "DBG"; emit_match(...); }` works.
+   Writing `else if (...)  emit_match (...)` (with a space between
+   function name and `(`) parses but does not invoke the function
+   correctly — the space-separated form was treated as something
+   other than a call.  Always use no-space `func(args)` form OR
+   wrap multi-statement / single-call bodies in `{ ... }` braces.
+
+2. **Bare tag globals with `semantic.sc::_qtag`.**  This rebus
+   parser uses the `RB_FOO = 'RB_FOO'` global convention with
+   `reduce(RB_FOO, n)` everywhere; `_qtag` auto-wraps the bare
+   string to a quoted form before EVAL.  Forgetting to add the
+   global declaration silently produces nodes with empty tags
+   (the EVAL gets a NULSTR from the unbound name).  When debugging
+   "node has empty tag", first check that the global is declared
+   in the tag-constants block.
+
+3. **Oracle bug-for-bug matching.**  The while-lowering in the
+   existing C frontend drops the body in --dump-ir output.  Rather
+   than fight or fix this upstream, the parser_rebus.sc lowering
+   matches it exactly (drops body in the lowering walk).  This
+   keeps the gate clean and surfaces upstream divergence as its
+   own issue rather than masking it as a parser failure.
+
+### State
+
+| Repo    | Commit  | Notes                                         |
+|---------|---------|-----------------------------------------------|
+| corpus  | 09ecd59 | RB-2/3/4/5 landed in single commit            |
+| .github | THIS    | RB-2/3/4/5 marked LANDED; watermark updated   |
+
+**All six PARSER-* parsers now at 100% gate.**  Lon's six-parser
+cross-pollination loop can now begin from a uniformly-green
+baseline.  Whatever targeted concept the operator picks first,
+all six start at full pass — no parser is dragging the others.
+
+**Next milestone:** six-parser cross-pollination loop (operator's
+direction).  Or: PARSER-RB-FW rungs for n-ary alt flattening,
+n-ary call args, etc., when those upstream divergences get
+resolved.

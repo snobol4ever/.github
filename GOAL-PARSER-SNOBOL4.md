@@ -1485,19 +1485,13 @@ prior `parser_snobol4.sc` rewrite.  Fixed entirely in the `.sc`
 file.
 
 **Open carry-over for next session:**
-  - **PARSER-RB regression (RB=18/38).**  Pre-existing situation;
-    rebus parser was at PASS=38/38 per the watermark in this goal
-    file (and `GOAL-PARSER-REBUS.md`'s own land-watermark) but
-    today's gate run shows PASS=18/38.  Not investigated this
-    session — Lon directed focus to SN-7-1.  Likely a shared-file
-    change (e.g. `tdump.sc`/`semantic.sc`) since the last RB
-    landing introduced behavior the RB parser depends on but
-    didn't get updated for.  The 20 failures are all `tree
-    divergence` with empty parser output, suggesting a parse-time
-    or driver-loop issue rather than an IR-shape mismatch.  First
-    diagnostic step: check whether `parser_rebus.sc` references
-    any helpers that semantic.sc / tdump.sc / etc. recently
-    renamed or removed.
+  - **PARSER-RB cleared.**  Initially flagged this session as a
+    regression (RB=18/38 vs prior watermark's RB=38/38), but the
+    18/38 was the actual rung state — the RB-2/3/4/5 rungs had
+    not yet landed.  Per Lon's directive "fix rebus before we
+    begin looping", session 2026-05-04 cont. #5 also landed
+    PARSER-RB-2/3/4/5 in a single commit (corpus@09ecd59).
+    Final gate: RB=38/38.  All six parsers now at 100%.
   - **INFRA-11b re-investigation.**  Carries from prior session.
     Quick probe shows `~`/`&` infix DOES dispatch to OPSYN target;
     if confirmed working, the family can drop the
