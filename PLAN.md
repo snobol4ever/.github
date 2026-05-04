@@ -75,7 +75,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-5 — patterns (LEN/BREAK/SPAN/ANY/NOTANY/alternation/cond-assign) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-INFRA-2 (broken — session #63) |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 (RB-4 landed PASS=25) |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-3 |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-5 (IC-4 landed PASS=27 — procedure definitions, variadic invocation, return) |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PARSER-PR-3 (PARSER-PR-2 landed PASS=18) |
