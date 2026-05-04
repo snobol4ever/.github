@@ -133,64 +133,32 @@ shape PAT-IC mirrors.
 | **PARSER-IC-5**       — alternation generators (`expr1 \| expr2`) | PASS=33 | New `Expr3` slot between Expr2 and Expr4 per canonical EBNF.  Existing frontend flattens nested alternations into a single `(E_ALTERNATE a b c d)` — PAT-IC matches via dedicated `$'@AL'` alt-construction stack (struct `ic_alink`).  Single `expr_alt_step(savedLHS)` helper handles both first-`\|` (push fresh E_ALTERNATE) and subsequent `\|`s (append onto top-of-stack) via a `_e3built` flag; `expr_alt_enter`/`expr_alt_finish` save/restore the flag at Expr3 boundaries to support nested alternations.  6 NEW fixtures (alt_two/three/var/str/in_call/arith). |
 | **PARSER-IC-6**       — `every [do body]` and `subj ? body` scan | PASS=40 | New `Every` branch in `Expr11` handles both `every gen` (1-child `E_EVERY`) and `every gen do body` (2-child `E_EVERY`) via two helpers `expr_every1`/`expr_every2`; saved generator in `_ic_evgen` to survive body parse.  New `Expr1a` slot between `Expr` and `Expr1` per canonical EBNF handles `subj ? body` building `(E_SCAN subj body)`; subjects saved on dedicated `$'@SC'` link()-stack (struct `ic_sclink`) so nested scans (`a ? b ? c`) don't clobber.  Critical fix: scan body uses `*Expr` (deferred reference) since `Expr` is defined below `Expr1a`; non-deferred reference produced a malformed pattern that silently bailed.  Driver loops rewritten from `goto` to `while` per RULES.md control-flow guidance.  7 NEW fixtures (every_simple/do/alt/novar, scan_simple/var/assign). |
 | **PARSER-IC-8a**      — SCRIP grammar fix: binary `~` `&` `#` `%` OPSYN slots | PASS=40 preserved | New `expr5a` tier in `src/frontend/snocone/snocone_parse.y` between comparison (expr5) and additive (expr6).  Each binary OPSYN slot lowers to `E_FNC` with `sval` = operator literal, paralleling how comparison ops (T_EQ→"EQ", T_NE→"NE", etc.) lower today; runtime E_FNC dispatch consults the OPSYN table to find the registered handler.  Lexer already emitted T_2AMP/T_2TILDE/T_2POUND/T_2PERCENT (snocone_lex.c:543, 551, 547, 549) — only the parser needed the rule.  `%type <expr> expr5a` added (line 467).  After regeneration via `regenerate_parser_and_lexer_from_sources.sh` and `build_scrip.sh` rebuild, `'a' ~ 'b'` (after `OPSYN('~','f',2)`) invokes `f('a','b')` correctly.  Compiland in parser_icon.sc converted from `reduce("'Parse'", 'nTop()')` to `("'Parse'" & 'nTop()')` operator form as smoke test of the unblocked path; PASS=40 preserved.  Snocone test suite shows no new regressions (test_smoke_snocone, test_parser_snocone PASS=13, plus all language smoke tests PASS).  Pre-existing C-test breakage in `test/frontend/snocone/test_snocone_parse_a..j.c` (references stale `Program *`/`head` API) is unrelated to this change — verified by stash/repro before commit. |
+| **PARSER-IC-7**       — paren `(expr)`/`(e1;e2)` + compound `{...}` primaries + beauty-style `$'op'` pattern-builder refactor | PASS=45 | Two changes in one session.  (a) Style refactor: every `epsilon . *fn(args)` replaced by a named `$'...'` pattern variable per beauty.sc / parser_snocone.sc idiom — `$'|'`/`$':='`/`$'?'`/`$','` op tokens, `$'invoke_arg'`/`$'append_stmt'`/`$'finish_proc'`/etc. side-effect builders, `$'atom_QLIT'`/`$'atom_ILIT'`/`$'atom_VAR'` atom builders, `$'save_eNlhs'`/`$'op_TAG'`/`$'binop_*'` per-tier savers and folds, `$'if2'`/`$'if3'`/`$'while2'`/`$'every1'`/`$'every2'`/`$'assign_id'` control-flow builders, `$'scan_push'`/`$'scan_finish'` scan builders.  PASS=40 preserved through refactor.  (b) IC-7 features: `Paren` and `Compound` primaries via dedicated `$'@SQ'` link()-stack (struct `ic_sqlink`), `ic_seq_push/append/finish` helpers, single-child unwrap matches existing-frontend `parse_block_or_expr`.  5 NEW fixtures: paren_expr/paren_seq/compound_one/compound_two/scan_paren.  corpus@c6e4c2b. |
+| **PARSER-IC-8b**      — parser_icon.sc canonical-spine rewrite | PASS=45 preserved | Trees flow through the shared shift/reduce stack.  Binary tiers use `*L $'op' *R (r_TAG & 2)`.  N-ary collectors (alternation Expr3, function call Call, paren-seq Paren, compound Compound) use `nPush() ARBNO(nInc() *X) (r_TAG & 'nTop()' or r_nTop) nPop()` — the `r_nTop = '*(GT(nTop(),1) nTop())'` idiom is what makes single-child unwrap work for E_SEQ_EXPR (when only one item is on the frame, the EVAL fails and reduce silently leaves the lone tree alone — verified with isolated probe).  Atoms use `*P ~ T` operator form, except QLIT (which keeps the `dot-capture + ic_push_qlit()` exception so the string body excludes its quotes — same exception parser_snocone.sc keeps for `sc_push_qlit`).  Statement decomposition collapsed to ONE helper `ic_decompose_proc`: pops the proc-frame's nTop() children, reads pname from `v(child[1])` (the (E_VAR pname) callee shifted by Prochead), rebuilds (E_FNC pname kids), wraps in (STMT :subj ...).  Removed: every `expr_*` parsing-state helper, every `_expr_node` global slot, every `$'@II'`/`$'@AL'`/`$'@SC'`/`$'@SQ'` link()-stack, every `ic_inv_*`/`ic_alt_*`/`ic_scan_*`/`ic_seq_*` parsing-state helper, every `Tree(tag,'',2,L,R)` direct construction outside the one helper.  Net: 871 → 366 lines (−505).  Cross-pollination opportunity: parser_rebus.sc / parser_snobol4.sc owe the same retrofit.  corpus@ef1acd2. |
 
 ---
 
 ## Open rungs
 
-### PARSER-IC-7 — parenthesized primary `( expr )` and compound `{ ... }`  ← **LANDED**
+### PARSER-IC-9 — augmented assigns + unary prefix + power  ← **next**
 
-- [x] `Expr11` gains `'(' Expr ')'` and `'{' (Stmt)* '}'` primaries.
-      Compound block produces `(E_SEQ_EXPR ...)` (or unwraps to single child
-      per the existing-frontend rule in `parse_block_or_expr`).  Without
-      these, `subj ? (r := "ok")` and `every gen do { s1; s2 }` cannot be
-      written in fixtures even though the underlying parsers handle the
-      pieces.
-- **Sibling LANG rungs:** none required — both forms exist in the LANG
-      ladder upstream.
-- **Gate:** PASS≥45.  **ACTUAL: PASS=45 FAIL=0** (corpus @ `c6e4c2b`).
+With the canonical spine in place (IC-8b), adding new operators is
+mechanical: each new tier follows the `*L $'op' *R (r_TAG & N)` recipe
+already established by Expr4/Expr6/Expr7.  Likely components, in
+upstream pacer order:
 
-Also landed in same session: full beauty-style `$'op'` pattern-builder refactor
-of parser_icon.sc.  Every `epsilon . *fn(args)` replaced by a named `$'...'`
-pattern variable.  Operator tokens use `$'|'` `$':='` `$'?'` etc.  PASS=40
-preserved through refactor before IC-7 fixtures added.
+- [ ] Augmented assigns at `Expr1`: `+:=` `-:=` `*:=` `/:=` `:=:` etc.
+      Each lowers to its dedicated tag (E_AUGADD, E_AUGSUB, ...) per
+      the existing frontend's --dump-ir output.  Add fixture per op.
+- [ ] Unary prefix at `Expr10`: `-` `+` `~` `!` `*` `?` `@` `^` `\`.
+      Each `'op' *Expr10 (r_TAG & 1)` chain into a new Expr10 tier.
+      Add fixtures.
+- [ ] Power `^` at `Expr8` (right-associative): `*Expr10 ($'^' *Expr8 (r_POW & 2) | epsilon)`.
+- **Gate:** PASS≥50 (5+ NEW fixtures across the new operators).
 
-### PARSER-IC-8b parser_icon.sc rewrite to canonical spine  ← **next after IC-7**
-
-With IC-8a landed, binary `~` and `&` are usable in pattern definitions
-across all six PARSER-* parsers.  IC-8b retrofits parser_icon.sc's
-inner tier patterns to the canonical shape exemplified by
-parser_snocone.sc:
-
-- [ ] Atom branches in `Expr11` use `(*Atom ~ s_TYPE)` (operator form)
-      or `shift(*Atom, s_TYPE)` (functional form, equivalent post-IC-8a).
-      No more `epsilon . *expr_from_atom('E_ILIT', _atom_text)`.
-- [ ] Binary tier patterns (`Expr4tail`, `Expr6tail`, `Expr7tail`) use
-      `*L *op *R (r_TAG & 2)` instead of `Tree(tag, '', 2, L, R)` direct
-      construction.
-- [ ] N-ary collectors (alternation E_ALTERNATE, function invocation
-      E_FNC arglist) use the canonical
-      `nPush() ARBNO(nInc() *X) (r_TAG & 'nTop()') nPop()` recipe — no
-      more `$'@II'`/`$'@AL'` helper stacks.
-- [ ] Statement decomposition (`(STMT :subj ...)` wrapping) follows
-      parser_snocone.sc's `sc_decompose_stmt` shape: a single helper
-      that pops the top tree and re-wraps; called via deferred action
-      at the Stmt boundary.  This is the ONE remaining function — and
-      it is tree-building/semantic, not parsing.
-- [ ] All `_expr_node` global slot references removed.  All
-      `Tree(tag, '', 2, L, R)` direct constructions removed.  All
-      `expr_*` parsing-state helpers removed (the `$'@II'`,
-      `$'@AL'`, `$'@SC'` stacks become redundant once trees flow on
-      the shared shift/reduce stack).
-- **Sibling cross-pollination:** parser_rebus.sc and parser_snobol4.sc
-      owe the same retrofit; the canonical helpers (sq, s_*, r_*,
-      sc_decompose_stmt-equivalent) should be lifted into a shared
-      file in `corpus/programs/scrip/` so all six PARSER-* parsers
-      share one source of truth.
-- **Gate:** PASS=40 preserved (same fixtures, same trees); zero
-      `Tree(tag, '', 2, L, R)` calls remain in parser_icon.sc; zero
-      parsing-state global slots remain; driver remains structured
-      (no goto, already done in IC-6).
+Cross-pollination: same retrofit pattern applies to parser_rebus.sc
+and parser_snobol4.sc — separate goal, see GOAL-PARSER-SNOBOL4.md and
+GOAL-PARSER-REBUS.md.
 
 ---
 
@@ -204,4 +172,4 @@ parser_snocone.sc:
 
 ## Watermark
 
-PARSER-IC-8b (IC-7 LANDED PASS=45: paren `(expr)` / paren-seq `(e1;e2)` / compound `{s1;s2}` primaries in Expr11; ic_sqlink stack; single-child unwrap matches frontend; 5 NEW fixtures paren_expr/paren_seq/compound_one/compound_two/scan_paren; corpus @ c6e4c2b.  ALSO: full beauty-style refactor — every `epsilon . *fn()` replaced by $'name' pattern-builder variable; $'op' token patterns; PASS=40 preserved through refactor).
+PARSER-IC-9 (PARSER-IC-8b LANDED PASS=45 preserved: parser_icon.sc rewritten to canonical shift/reduce spine — `*L $'op' *R (r_TAG & 2)` binary tiers, `nPush() ARBNO(nInc() *X) (r_TAG & r_nTop) nPop()` n-ary collectors, `r_nTop = '*(GT(nTop(),1) nTop())'` for E_SEQ_EXPR single-child unwrap, ONE helper `ic_decompose_proc` for `(STMT :subj E_FNC pname kids)` re-wrap; zero `_expr_node`/`@II`/`@AL`/`@SC`/`@SQ` parsing-state; 871 → 366 lines (−505); corpus@ef1acd2.  PARSER-IC-7 ALSO LANDED: paren / compound primaries + beauty-style `$'op'` refactor, corpus@c6e4c2b).

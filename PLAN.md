@@ -78,7 +78,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-3 (INFRA-2 landed PASS=13 session #64) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — new pattern-spine parser written corpus bc52be1; hangs; 3 blocking issues: blank-line ARBNO loop, qlit user-fn-in-pattern, ~/& runtime gap. See GOAL watermark.) |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-4 (RK-3 LANDED PASS=25 session #64) |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-8b (IC-7 LANDED PASS=45 — paren/compound primaries + beauty-style $'op' builder refactor; corpus@c6e4c2b) |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-9 (IC-8b LANDED PASS=45 preserved — parser_icon.sc canonical-spine rewrite, 871→366 lines, ONE helper ic_decompose_proc; corpus@ef1acd2) |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-6 LANDED PASS=48; awaiting next-rung decision |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
