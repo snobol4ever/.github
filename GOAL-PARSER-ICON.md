@@ -312,17 +312,86 @@ shape PAT-IC mirrors.
 
 ## Open rungs
 
-### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat  ← **next**
+### PARSER-IC-10-style — clean up guideline violations in `parser_icon.sc`  ← **next**
 
-IC-9 landed the *shapes* of augmented assigns, unary prefix, and power.
-The plumbing now exists; remaining work is fixture-driven coverage and
-two new tiers above:
+The new "Style guidelines" section is descriptive of beauty.sno /
+beauty.sc, not yet fully applied to `parser_icon.sc`.  The audit below
+lists every guideline currently violated, in the order to attack them.
+These are guidelines, not laws — Lon may decline any item.  Each is
+an independently landable sub-rung; do them one at a time, gate after
+each (`bash /home/claude/one4all/scripts/test_parser_icon.sh` →
+PASS=51 preserved).  Land in this order so each step rests on a clean
+gate.
+
+- [x] **Step 1 — underscore-prefixed identifiers.**  DONE this session.
+      Renamed `_ic_strbody` → `ic_strbody` (str_pat dot-capture target +
+      `ic_push_qlit` reference); deleted the no-op `_parser_ic_done = '';`
+      sentinel at file end.  Gate PASS=51 preserved.
+- [x] **Step 2 — curly-brace single-statement bodies.**  DONE this
+      session.  Converted `while (Line = INPUT) { Src = Src Line nl; }`
+      to `while (Line = INPUT) Src = Src Line nl;`.  Full file swept
+      for other single-statement `{ ... }` — the remaining brace blocks
+      (function bodies, the `if (Src ? Compiland) { ... }` driver
+      conditional with else branch, and the proc-frame `while` loops)
+      are all multi-statement and correctly keep braces.  Gate PASS=51.
+- [x] **Step 3 — section dividers + blank lines combined sweep.**
+      DONE this session.  Every `// -----` 71-char divider replaced
+      with `/*===...===*/` 120-char major (top-level sections) or
+      `/*---...---*/` 120-char minor (sub-sections within).  Every
+      blank line between definitions removed; visual structure is now
+      carried by the dividers alone.  50 dividers in file; 0 blank
+      lines; 0 old-style dividers.  Gate PASS=51.
+- [ ] **Step 4 — `Gray` / `White` naming alignment.**  ATTEMPTED and
+      REVERTED this session — broke gate PASS=0/FAIL=51, restored to
+      post-Step-3 state.  **Lesson learned (next session must read
+      this before retry):** the rename can't keep the `$' '` / `$'  '`
+      indirection layer.  The reference is **parser_snocone.sc**, not
+      beauty.sc — beauty does NOT define `$' '` / `$'  '` at all.
+      parser_snocone uses inline `*Gray` / `*White` directly inside
+      every operator-token RHS: `$'+' = *Gray '+' *Gray;`.  Correct
+      Step-4 sequence: (a) rename `ws_opt` → `Gray` (use form
+      `Gray = (*White | epsilon);` with parens), `ws_run` → `White`
+      (form `White = SPAN(' ' tab);`); (b) DELETE `$' '` and `$'  '`
+      definitions entirely; (c) sweep the file: every `$' '` reference
+      becomes `*Gray`, every `$'  '` reference becomes `*White`,
+      including inside operator-token definitions (so `$'+' =
+      ($' ' '+' $' ');` becomes `$'+' = *Gray '+' *Gray;`).  Don't
+      attempt as a partial rename — the indirection through `$' '`
+      after the rename does NOT semantically equal the eager
+      `$' ' = ws_opt;` — verified this session by isolated probe.
+      All-or-nothing.  Gate must be PASS=51 after.  ~59 occurrences
+      of `$' '` and ~5 of `$'  '` to convert; mechanical sweep.
+- [ ] **Step 5 — pseudo-token names → literal source forms.**  Two
+      passes:
+      (5a) Drop `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/
+           `$'unary!'`/`$'unary*'`/`$'unary?'` family.  Inline each
+           Expr10 branch as `*Gray '-' *Expr10 (r_MNS & 1)` etc.
+           PASS=51.
+      (5b) Drop `$'augop'` alternation token; inline the four
+           `$'+:='`/`$'-:='`/`$'*:='`/`$'/:='` branches directly in
+           Expr1 parallel to the `$':='` branch.  PASS=51.
+      (5c) `$'qlit'` and `$'proc_wrap'` are side-effect dispatch
+           points without literal source spellings.  Rename to
+           capture intent in language terms — e.g. `qlit_done =
+           (epsilon . *ic_push_qlit());` and `proc_done = (epsilon
+           . *ic_decompose_proc());`.  PASS=51.
+- [ ] **Step 6 — horizontal-density audit.**  Sweep for tighter
+      packing within 120 columns; confirm multi-line wraps use
+      constant 2-space indention with vertical-balanced parens and
+      binary operators.  PASS=51.
+
+- **Gate (overall):** PASS=51 preserved through every step; no new
+  fixtures added under this rung.
+
+### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat
+
+After the style cleanup lands, this is the feature-coverage rung:
 
 - [ ] More augmented-assign tokens at `Expr1`: `%:=` `^:=` `||:=` `++:=`
       `--:=` `**:=` `?:=` `=:=` `==:=` `~=:=` `<:=` `<=:=` `>:=` `>=:=`
       `<<:=` `<<=:=` `>>:=` `>>=:=` `===:=` `~===:=`.  Each gets one
       fixture; all dump as `(E_AUGOP lhs rhs)`.  Add the literal token
-      to the `$'augop'` alternation.
+      branch in Expr1 (per IC-10-style Step 5b, no `$'augop'` umbrella).
 - [ ] Remaining unary fixtures: `unary_plus`, `unary_nonnull` (`\`),
       `unary_iterate` (`!`), `unary_random` (`?`).  Already-wired
       branches; just need fixtures.
@@ -340,71 +409,6 @@ two new tiers above:
       Expr6: `*Expr6 ARBNO($'|||' *Expr6 (r_LCONCAT & 2) | $'||'
       *Expr6 (r_CONCAT & 2))`.
 - **Gate:** PASS≥58 (≥7 NEW fixtures across the new operators).
-
-### PARSER-IC-10-style — clean up guideline violations in `parser_icon.sc`
-
-The new "Style guidelines" section is descriptive of beauty.sno /
-beauty.sc, not yet fully applied to `parser_icon.sc`.  The audit below
-lists every guideline currently violated.  These are guidelines, not
-laws — Lon may decline any item.  Each is an independently landable
-sub-rung; pick what fits the session's capacity.
-
-- [ ] **Underscore-prefixed identifiers** — three offenders today:
-      `_ic_strbody` (str_pat dot-capture target, ~line 91 + line 177
-      inside `ic_push_qlit`); `_parser_ic_done = '';` sentinel at file
-      end (~line 444).  Rename `_ic_strbody` → `ic_strbody`; delete the
-      `_parser_ic_done` sentinel (it's a no-op leftover from an earlier
-      goto-driver shape) or rename to `ic_done`.  Verify gate stays
-      PASS=51.
-- [ ] **Section dividers** — convert all `//---...---` dividers (~71
-      chars, C++-comment style) to the canonical pair: `/*===...===*/`
-      120-char major divider, `/*---...---*/` 120-char minor divider.
-      Every section header in the file (Reduce-tag constants /
-      Whitespace / Invisible-whitespace / Keyword tokens / Operator
-      tokens / Helpers / Statement-procedure-program / Compiland /
-      Driver) needs the conversion.
-- [ ] **Curly-brace single-statement bodies** — at least one offender:
-      `while (Line = INPUT) { Src = Src Line nl; }` (~line 426).
-      Convert to `while (Line = INPUT) Src = Src Line nl;`.  Audit the
-      whole file for any other single-statement `{ ... }` and convert.
-- [ ] **Blank lines as block separators** — replace every blank line
-      between definitions with the appropriate `/*===*/` major or
-      `/*---*/` minor divider.  This is the same rule beauty.sno follows
-      (`*================` and `*----------------` runs).  Done in
-      conjunction with the divider conversion above.
-- [ ] **`Gray` / `White` naming alignment** — Icon's whitespace model
-      is simpler than SNOBOL4's (no `nl ('+' | '.')` line-continuation),
-      but the *names* should still track beauty: rename `ws_opt` →
-      `Gray`, `ws_run` → `White`, and define them with the beauty
-      shape `Gray = *White | epsilon;` `White = SPAN(' ' tab);` (no
-      continuation clause needed for Icon).  Then `$' ' = *Gray;`
-      `$'  ' = *White;`.  Confirm no direct `*Gray`/`*White` references
-      escape into the main grammar after the rename.
-- [ ] **Pseudo-token names** (`$'augop'`, `$'unary-'`, `$'unary+'`,
-      `$'unary~'`, `$'unary\\'`, `$'unary!'`, `$'unary*'`, `$'unary?'`,
-      `$'qlit'`, `$'proc_wrap'`) — these aren't literal Icon source
-      forms but dispatch tokens.  beauty's parallel cases (`$'(' = '('
-      *Gray;` keeps the literal char in the name) suggest the same:
-      keep operator-token names as their literal source spelling
-      where possible.  For unary vs binary disambiguation, beauty uses
-      one token per operator and disambiguates *positionally* in the
-      grammar (`'-' *Expr14 ("'-'" & 1)` for unary at Expr14 vs `$'-'`
-      at Expr6 for binary).  Refactor parser_icon.sc to drop the
-      `$'unary-...'` family and use raw `'-' *Expr10 (r_MNS & 1)`
-      etc. inside Expr10 (no whitespace-bracketed token needed in
-      prefix position — leading whitespace is already consumed by the
-      higher tier's exit).  Same treatment for `$'qlit'`/`$'proc_wrap'`:
-      these are pure side-effect dispatch points; replace with the
-      `epsilon . *fn()` shorthand or fold the side-effect into a
-      uniquely-named pattern that captures intent in source-language
-      terms (e.g. `qlit_done = (epsilon . *ic_push_qlit());`).
-- [ ] **Audit horizontal density** — sweep the file for lines that
-      could pack tighter without exceeding 120 columns; for lines that
-      already exceed or are close, confirm the multi-line wrap uses
-      constant 2-space indention with vertical-balanced parens and
-      binary operators (the IC-9 `Expr10` definition is a fresh good
-      example).
-- **Gate:** PASS=51 preserved through all style edits; no new fixtures.
 
 Cross-pollination: same retrofit pattern applies to parser_rebus.sc
 and parser_snobol4.sc — separate goals.
@@ -431,6 +435,6 @@ patterns and refactor scope.
 
 ## Watermark
 
-PARSER-IC-10 (PARSER-IC-9 LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`.  Existing 45 preserved; smoke tests for Icon, Snocone, and parser_snocone all clean.  Style-guidelines section codifies beauty.sc conventions for *all* PARSER-* authors — Gray/White defined once and never referenced directly in main grammar; `$'op'` form for binary/special chars (`*White` symmetric); `$','` uses `*Gray`; `$'('`/`$')'` get one-sided `*Gray`; `$'kw'` form for keywords (and Snocone reserved words); plain identifier prefixed with `$' '` for non-reserved word-shape tokens (e.g. `S = $' ' 'S'`); `$' '` and `$'  '` as one-/two-space invisible tokens; OPSYN'd `~` (Shift) and `&` (Reduce) shorthand for `primitive ~ 'tag'` and `(literal & N)`; counter machinery `nPush()`/`nInc()`/`nPop()`; reduce-tag constants `r_TAG = sq 'E_TAG' sq;`; no leading underscore in hand-written identifiers; one-statement bodies without curly braces; 120-char `/*===*/` and `/*---*/` dividers instead of blank lines; horizontal-density wrap with constant 2-space indention and vertical-balanced parens / binary operators; token & production names track the upstream language specification.  one4all@d2547945, corpus pending IC-9 commit).
+PARSER-IC-10-style Step 4 (Steps 1-3 LANDED PASS=51 preserved corpus@fa61e95: Step 1 — `_ic_strbody` → `ic_strbody`, deleted no-op `_parser_ic_done` sentinel; Step 2 — single-statement `while (Line = INPUT) { ... }` braces dropped; Step 3 — every `// -----` 71-char divider replaced with 120-char `/*===*/` major or `/*---*/` minor, every blank line between definitions removed, 50 dividers in file, 0 blank lines, 0 old-style dividers.  Step 4 — `Gray`/`White` rename — ATTEMPTED and REVERTED this session due to broken gate; lesson: parser_snocone.sc not beauty.sc is the reference; beauty does not define `$' '`/`$'  '`; the Step-4 rename must DELETE the `$' '`/`$'  '` indirection layer and inline `*Gray`/`*White` directly in every operator-token RHS and grammar use site, all-or-nothing.  See Step 4 entry under IC-10-style for the corrected sequence.
 
-PARSER-IC-9-prior (PARSER-IC-8b LANDED PASS=45 preserved: parser_icon.sc rewritten to canonical shift/reduce spine — `*L $'op' *R (r_TAG & 2)` binary tiers, `nPush() ARBNO(nInc() *X) (r_TAG & r_nTop) nPop()` n-ary collectors, `r_nTop = '*(GT(nTop(),1) nTop())'` for E_SEQ_EXPR single-child unwrap, ONE helper `ic_decompose_proc` for `(STMT :subj E_FNC pname kids)` re-wrap; zero `_expr_node`/`@II`/`@AL`/`@SC`/`@SQ` parsing-state; 871 → 366 lines (−505).  Subsequent style cleanup at corpus@de9ff24: invisible-whitespace tokens `$' ' = ws_opt` and `$'  ' = ws_run`, plus nine `$'kw'` keyword tokens (`$'if' $'then' $'else' $'while' $'do' $'every' $'return' $'end' $'procedure`); operator-token RHS uniformly `($' ' 'op' $' ')`; PASS=45 preserved.  PARSER-IC-7 ALSO LANDED: paren / compound primaries + beauty-style `$'op'` refactor, corpus@c6e4c2b).
+PARSER-IC-9-prior (LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`).
