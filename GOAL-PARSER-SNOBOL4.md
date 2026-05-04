@@ -453,7 +453,9 @@ history under the listed commits. This table is the load-bearing summary.
 | SN-3 | concat / arith — beauty.sno-named Expr-N tiers | PASS=16 |
 | SN-4 | control flow (`:S` / `:F` / labels) | PASS=23 |
 | SN-5 | patterns (LEN/BREAK/SPAN/ANY/NOTANY, `\|`, `.`, `$`, replacement) | PASS=43 |
-| SN-6 | function definition / call (generic `Id LPAREN args RPAREN` → E_FNC) | **PASS=58** ✅ this session |
+| SN-6 | function definition / call (generic `Id LPAREN args RPAREN` → E_FNC) | **PASS=58** |
+| SN-7-0a | style audit remediation (mechanical fixes + decisions) | PASS=0/59 (style work; no tree change) |
+| SN-7-1 | labels + assignment + tree-shape rewrite (IR tags + role-slot wrappers + alt-eats-LHS + arith-lassoc + paren-strip + 1-arg-Call + goto-direction-in-tag) | **PASS=59/59** ✅ session 2026-05-04 cont. #5 |
 
 ---
 
@@ -694,12 +696,85 @@ is for the file to either honor the guideline or carry a one-line
 comment explaining why it cannot).  PASS count unchanged (style work
 does not change tree shapes).
 
-#### PARSER-SN-7-1 — bare label-only line
+#### PARSER-SN-7-1 — bare label-only line + assignment + tree-shape rewrite — ✅ LANDED 2026-05-04
 
 - [x] Fixture `cf_label_bare.sno` added (session 2026-05-03 — open
       against existing parser, will pass automatically once SN-7-0
       lands the canonical Stmt pattern with `Label = BREAK(' ' tab nl ';') ~ 'Label'`).
-- [ ] Confirm PASS=59 after SN-7-0.
+- [x] Confirm PASS=59 after SN-7-0.  **DONE session 2026-05-04 cont. #5
+      at corpus@85bdd30.  Gate: PASS=59 FAIL=0 — full corpus parity.**
+
+Six targeted fixes landed in this rung (all in `parser_snobol4.sc`,
+zero shared-file changes; sibling parsers untouched):
+
+  1. **Goto direction in node tag.**  Replaced `SorF` + single
+     reduce tag `("*(':' sf Brackets)" & 1)` (which produces an
+     identical tag for both S and F gotos and required reading the
+     stale `sf` global at pp_stmt time) with named `Sgo`/`Fgo`/`Ugo`
+     helper patterns.  Each helper bakes the direction directly into
+     the goto node tag via `reduce(E_goS, 1)`/`reduce(E_goF, 1)`/
+     `reduce(E_goU, 1)`.  Three new globals at top of file:
+     `E_goU = "':go'"`, `E_goS = "':goS'"`, `E_goF = "':goF'"`.
+     `rw_goto_slot` simplified to `tree(t(g), v(c(g)[1]))` — no
+     more cross-statement `sf` staleness (the bug behind the
+     `cf_goto_sf` SIGSEGV-then-:goF-on-S-goto failures).
+
+  2. **Optional second `:` between two gotos.**  beauty.sno's
+     grammar didn't allow `:S(L1):F(L2)` (only `:S(L1)F(L2)`); the
+     existing scrip frontend accepts both.  Added `(':' *Gray | epsilon)`
+     between the two gotos in `Goto`'s SorF / FrS alternatives.
+
+  3. **Unconditional goto tag.**  Oracle uses `:go` (not `:goU`)
+     for unconditional gotos.  Now matches.
+
+  4. **`rw_call` 1-arg / 0-arg branching.**  beauty.sno's
+     `ExprList = nPush() *XList ("'ExprList'" & '*(GT(nTop(), 1) nTop())')`
+     only fires the reduce when `nTop() > 1` (i.e. 2+ args).  With
+     1 arg, `c(call)[2]` is the bare arg node, not an ExprList
+     wrapper.  With 0 args, ExprList reduces with `nTop()=0`
+     producing a 0-child ExprList.  `rw_call` now branches on
+     `IDENT(t(args), 'ExprList')` to compute `na` correctly and
+     iterate / append the right way.  This was the root cause of
+     all `fn_call_*` and `pat_LEN/BREAK/SPAN/ANY/NOTANY` failures.
+
+  5. **`rw_expr` left-rotation.**  beauty.sno builds `a + b + c`
+     as `(a (b c))` (right-recursive); oracle wants `((a b) c)`
+     (left-associative).  Added a left-rotation step: when a node
+     is binary (n=2) and its right child has the same IR tag,
+     iteratively flatten into a left chain.  Applies uniformly to
+     `E_ADD`/`E_SUB`/`E_MUL`/`E_DIV`/`E_POW`/`E_SEQ`.
+
+  6. **`rw_expr` paren strip.**  beauty.sno's `Target` and
+     parenthesized expressions create a transparent `'()'` node
+     wrapper; oracle drops it.  `rw_expr` now treats `t='()'` as
+     an unwrap operator (return `rw_expr(c(x)[1])`).
+
+Plus two `pp_stmt` fixes for STMT shape:
+
+  7. **Alt-eats-LHS rule** — when `ppPatrn` is non-empty and parses
+     to a top-level `E_ALT` (and was NOT paren-wrapped), fold
+     `subj_ir` into the first arm of `E_ALT` to build
+     `(E_ALT (E_SEQ subj 'a') 'b' 'c')` and emit only `:subj`
+     (no `:pat`).  Paren-wrap defeats the fold per oracle:
+     `S ('a' | 'b')` keeps the split as `:subj S :pat (E_ALT ...)`.
+     Detection: `t(ppPatrn) ? '()'` distinguishes the two cases.
+
+  8. **Empty replacement** — `S 'a' = ` (with `=` but no RHS) emits
+     `:repl (E_QLIT "")` per oracle.  Previously dropped the empty
+     repl entirely.
+
+  9. **Unary `E_MNS` / `E_PLS`** — `rw_tag` now maps `'-'`/`'+'`
+     with `n=1` to `E_MNS`/`E_PLS` (previously kept literal tags).
+
+Net diff: `parser_snobol4.sc` 374 → 410 lines (+93/-38).  Verbatim
+PATTERN block invariant relaxed in the `Goto` block only — the
+deviation is minimal (named helper patterns + direction baked into
+tag) and documented inline.  All other PATTERN-block lines unchanged
+from beauty.sno.
+
+Sibling gate state at land: IC=51/51, PR=54/54, RK=32/32, SC=21/21
+(all green; untouched).  RB=18/38 (pre-existing situation,
+unrelated to this rung — see Open carry-over).
 
 #### PARSER-SN-7-2 — &KEYWORD recognition
 
@@ -1378,3 +1453,83 @@ landing already at corpus@7d5a85a / .github@eebd8d8.  Gates green:
 SN PASS=0 FAIL=59 (unchanged; flips on SN-7-1), SNOBOL4 smoke 7/7,
 scrip(.sc) smoke OK.  Sibling parsers untouched (IC=40/40 PR=48/48
 RK=25/25 RB=38/38 SC=13/13 per prior session record).
+
+**Watermark (session 2026-05-04 cont. #5, corpus@85bdd30):**
+**PARSER-SN-7-1 LANDED.  Gate flipped PASS=27 → PASS=59 (full
+parity).**  Single commit, single file changed (`parser_snobol4.sc`,
++93/-38).  Sibling parsers untouched and verified green: IC=51/51,
+PR=54/54, RK=32/32, SC=21/21.  Six targeted fixes + three pp_stmt
+shape fixes — see SN-7-1 entry above for the per-fix breakdown.
+
+Session opened on PASS=27/59 baseline (the partial SN-7-1 attempt
+recorded in the prior watermark).  Pivoted from the sibling-style
+unification work to a focused SN-7-1 landing per Lon's direction:
+"loop toward perfection on parser_snobol4.sc first, then we loop
+on six-parser concept-identical changes."  Six categories of bug
+identified up-front and fixed in order:
+
+  1. `rw_call` 1-arg / 0-arg branching — biggest impact (10+ FAILs).
+  2. `rw_expr` paren-strip — fixed `concat_paren`, `arith_paren`.
+  3. `rw_tag` unary `E_MNS`/`E_PLS` — fixed `arith_unary`.
+  4. `rw_expr` left-rotation — fixed `arith_lassoc*`.
+  5. Goto direction in tag — fixed `cf_goto_sf` SIGSEGV + `:goU`/`:go`
+     mismatch.  Required deviating from beauty.sno's verbatim PATTERN
+     block (named `Sgo`/`Fgo`/`Ugo` helpers in place of `SorF` +
+     single tag); deviation documented inline.
+  6. `pp_stmt` alt-eats-LHS + paren-defeat-fold + empty-replacement.
+
+The "no SCRIP bug to fix" path was clean: no C-side changes needed
+this session.  The `cf_goto_sf` SIGSEGV-then-:goF-on-S-goto bug was
+NOT a SCRIP bug — it was a stale-`sf`-global design issue in the
+prior `parser_snobol4.sc` rewrite.  Fixed entirely in the `.sc`
+file.
+
+**Open carry-over for next session:**
+  - **PARSER-RB regression (RB=18/38).**  Pre-existing situation;
+    rebus parser was at PASS=38/38 per the watermark in this goal
+    file (and `GOAL-PARSER-REBUS.md`'s own land-watermark) but
+    today's gate run shows PASS=18/38.  Not investigated this
+    session — Lon directed focus to SN-7-1.  Likely a shared-file
+    change (e.g. `tdump.sc`/`semantic.sc`) since the last RB
+    landing introduced behavior the RB parser depends on but
+    didn't get updated for.  The 20 failures are all `tree
+    divergence` with empty parser output, suggesting a parse-time
+    or driver-loop issue rather than an IR-shape mismatch.  First
+    diagnostic step: check whether `parser_rebus.sc` references
+    any helpers that semantic.sc / tdump.sc / etc. recently
+    renamed or removed.
+  - **INFRA-11b re-investigation.**  Carries from prior session.
+    Quick probe shows `~`/`&` infix DOES dispatch to OPSYN target;
+    if confirmed working, the family can drop the
+    `shift(p,t)`/`reduce(t,n)` direct-call workaround.
+  - **PARSER-SC FENCE/`*deref` silent-fail bug.**  Documented in
+    `GOAL-PARSER-SNOCONE.md`.  Not addressed this session.
+  - **SN-7-2 onward.**  Now that SN-7-1's PASS=59/59 parity is
+    achieved on the existing fixture corpus, SN-7-2..7-7 add new
+    fixture clusters (keywords, brackets, continuation lines,
+    `;` separator, comments/control, `*Id` deferred-pattern ref)
+    that extend beyond what the SN-0..SN-6 corpus exercised.
+    SN-7-8 is the beauty.sno full crosscheck — the milestone gate.
+  - **Six-parser cross-pollination.**  Lon's stated next-step
+    workflow: "in a loop, take my direction for a targeted fix to
+    all six parser_*.sc files, make the change, make that concept
+    appear identical in all six, then run the test."  This session
+    did NOT enter that loop — it landed SN-7-1 first to bring
+    parser_snobol4.sc up to PASS=59/59 parity.  Next session opens
+    in the loop; first targeted concept is operator's choice.
+    Candidates the operator may pick from:
+      * Promote the goto-direction-in-tag pattern across siblings
+        (only relevant if any sibling parser has analogous
+        cross-statement-stale-global issues — likely not, since
+        SNOBOL4's `:S`/`:F` is a SNOBOL4-specific syntax).
+      * Style guideline §7: `_`-prefix prohibition — none of the
+        six parsers comply yet; this is a pure mechanical sweep.
+      * Style guideline §4a: function-based action plumbing
+        anti-pattern — flagged on at least PARSER-RK historically.
+      * `rw_call` n-ary handling pattern — the 1-arg / 0-arg
+        ExprList branching may have analogues in PARSER-PR
+        (Prolog's compound terms) or PARSER-IC (Icon's argument
+        lists) where a similar nTop()-conditional reduce is used.
+
+**Next milestone:** PARSER-SN-7-2 (keyword recognition) when SN
+work resumes; six-parser fix loop when Lon directs.
