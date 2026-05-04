@@ -207,4 +207,10 @@ PARSER-RB-2 DONE (2026-05-03, session #62).
   Note: while body dropped by existing frontend (PAT-RB matches oracle)
   Gate: PASS=12 FAIL=0
 
-PARSER-RB-3 — next.
+PARSER-RB-3 DONE (2026-05-03, session #62).
+  corpus: func_two, func_args, func_one_arg, func_call, func_three, func_call_seq
+  FuncHeader captures arglist; format_arglist + strip_ws helpers
+  CallLine pattern for no-arg call sites; rb_N counter persists across funcs
+  Gate: PASS=18 FAIL=0
+
+PARSER-RB-4 — next.
