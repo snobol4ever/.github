@@ -182,7 +182,7 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
     rk_try_catch25 both PASS), isolation gate green, full Icon corpus
     191/42/30/263 (no delta from baseline).
 
-  - [ ] **RS-23a-route** — After RS-23a-raku, add the
+  - [x] **RS-23a-route** — After RS-23a-raku, add the
     `case E_FNC: case E_ASSIGN: case E_AUGOP: { (void)bb_eval_value(e);
     return; }` block to `bb_exec_stmt`.
     Gate: same as above + rerun `test_rs23_diag_capture.sh` and
