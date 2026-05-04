@@ -644,3 +644,59 @@ keep them. The whole rewrite gates against the same 38 (with
 divergence-pending markings as needed).
 
 PARSER-RB-0 — next.
+
+---
+
+## Session 2026-05-03 continuation — PARSER-RB-0 rewrite INCOMPLETE
+
+Session rewrote `parser_rebus.sc` from scratch with correct shape:
+- One `Compiland` pattern, beauty.sc spine
+- `nPush`/`nInc`/`nTop`/`nPop` n-ary folds
+- `shift()`/`reduce()` function-call forms
+- No goto, no labels in driver; structured `while`/`if` only
+- Post-parse `lower_*` functions walk surface tree → emit STMT TDump lines
+- No user functions called from inside patterns
+
+**Three blocking issues — not yet resolved:**
+
+### Issue 1 — HANG: blank_line in ARBNO does not guarantee cursor advance
+`blank_line = ws_opt nl_one` — `ws_opt` can match empty; if `nl_one` also
+fails, ARBNO spins. Fix: ensure `blank_line` always consumes at least one
+newline. Replace with `(ANY(' ' tab nl) | epsilon)` or require `nl_one`
+before `ws_opt`. Alternative: remove `blank_line` from `Command` entirely
+and consume leading/trailing whitespace+newlines in `function_decl` and
+`record_decl` preambles.
+
+### Issue 2 — RUBRIC VIOLATION / HANG: user function called from qlit pattern
+`qlit_dq = '"' DQ_body . _rb_strbody '"' epsilon . *Shift(s_QLIT, _rb_strbody)`
+— `*Shift(...)` is a user function called from inside a pattern. Violates
+rubric item 5. Also may cause the hang.
+Fix: use the dot-conditional capture idiom WITHOUT calling Shift from the
+pattern. Look at how `parser_snobol4.sc` handles String capture — it uses
+`BREAK(.) . _strbody` global then calls `shift()` in the outer context, or
+restructures so the body lands in a global that is then shifted in `primary`.
+
+### Issue 3 — RUNTIME GAP: ~ and & binary OPSYN not supported
+`T_2TILDE` and `T_2AMP` are declared in `snocone_parse.y` as tokens but
+have **zero grammar productions** — the Snocone parser rejects them with
+a syntax error. All six existing sibling parsers use `shift()`/`reduce()`
+function-call forms. The rubric's `~`/`&` forms require a Snocone frontend
+extension. Keep `shift()`/`reduce()` for now; open a separate goal to add
+binary OPSYN support to snocone_parse.y if desired.
+
+**Next session action:**
+1. Fix Issue 1: restructure `Command` blank-line handling.
+2. Fix Issue 2: restructure string capture to not call Shift from inside pattern.
+   Model: `String = (SQ_open *SQ_body . _rb_s SQ_close | ...)` then in
+   `primary` use `shift(*String, s_QLIT)` — but Shift captures the full
+   match span including quotes. Better: follow `parser_snobol4.sc:44` which
+   uses `. _strbody` dot-conditional to capture body into a global, then
+   calls `shift()` from `primary` using a helper that reads `_strbody`.
+   Allowed: dot-conditional assignment `pat . global` is NOT a function call —
+   it is built-in pattern assignment. `*Shift(...)` IS a function call — banned.
+3. Note Issue 3 in watermark; keep `shift()`/`reduce()` forms.
+4. Gate: PASS=3 on atom_id, atom_int, atom_str.
+
+corpus HEAD at emergency handoff: `bc52be1`
+one4all/parser branch: `dd6ad80d` (unchanged)
+.github: this update

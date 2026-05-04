@@ -76,7 +76,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN: ARBNO deferred-call bug fixed (one4all@228bc06b). Parser now produces non-empty tree output for all 59 fixtures. Remaining FAILs are tree-shape mismatches (beauty.sno native shape vs scrip --dump-parse shape) — next session does the IR-tag rewrite. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-3 (INFRA-2 landed PASS=13 session #64) |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 ( — one Compiland matched once against entire source, OPSYN ~/&, n-ary trees via nPush/nInc/nTop/nPop, no user-defined functions inside patterns, no goto. See GOAL ## Rubric.) |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — new pattern-spine parser written corpus bc52be1; hangs; 3 blocking issues: blank-line ARBNO loop, qlit user-fn-in-pattern, ~/& runtime gap. See GOAL watermark.) |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-4 (RK-3 LANDED PASS=25 session #64) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-7 (IC-6 landed PASS=40 — every/do + scan; IC-8a landed — SCRIP grammar binary `~` `&` `#` `%` OPSYN slots) |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-6 LANDED PASS=48; awaiting next-rung decision |
