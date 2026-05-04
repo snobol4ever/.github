@@ -518,5 +518,117 @@ throughout.
 
 Gate held PASS=48 FAIL=0 throughout.
 
-**Next:** Feature rungs — same-functor E_CHOICE merging, anonymous variables
-`_`, parenthesized body subterms, DCG sugar.  Open a new PR-8 rung.
+### PARSER-PR-8a — anonymous variables `_` — **LANDED** (PASS=54)
+
+- [x] Bare `_` allocates a fresh slot per occurrence (each `_` is distinct).
+- [x] Named-anonymous `_x`, `_foo` continue to behave like ordinary named vars
+      (same name = same slot — confirmed against oracle).
+- [x] Slot allocation order matches `prolog_lower.c::assign_clause_anon_slots`
+      Pass-2: walks each root (head, then each body element separately) using
+      a stack-based traversal that visits children in REVERSE order, so the
+      LEFTMOST anon in each arg list gets the HIGHEST slot.
+- **Gate:** PASS≥54. ✅ (PASS=54, +6 over PR-7)
+- **Fixtures:** anon_single, anon_two, anon_mixed, anon_named, anon_named_two,
+  anon_in_body in `corpus/programs/prolog/parser/`.
+- **Implementation:** `Push_var('_')` pushes placeholder `(E_VAR _ANON)`;
+  `Build_clause` and `Build_directive` call `Assign_anon_slots` which walks
+  each head arg (in reverse) then each body element (in source order) and
+  rewrites `_ANON` to fresh `_Vk` slots picking up after named vars'
+  `var_next`.  Recursive walk visits children right-to-left to match the
+  C stack-based pop order.
+
+### PARSER-PR-8b — same-functor E_CHOICE merging — ⏳ NEXT
+
+When multiple top-level clauses share the same functor/arity, the existing
+frontend merges them into ONE STMT containing one E_CHOICE node with
+multiple E_CLAUSE children — and reorders so directives come first (in
+source order) and clause-groups come after (in first-encounter order).
+
+#### Oracle behavior (verified via `--dump-ir`)
+
+| Source | Output |
+|---|---|
+| `foo(a). foo(b). foo(c).` | one STMT with three E_CLAUSE under foo/1's E_CHOICE |
+| `foo(a). bar(b). foo(c).` | STMT for foo/1 (a, c merged), then STMT for bar/1(b) — bar reorders after foo despite source position |
+| `foo(X) :- bar(X). foo(X) :- baz(X).` | one STMT with two E_CLAUSE under foo/1 |
+
+#### C reference: `prolog_lower.c::lower_program`
+
+Three-pass algorithm:
+1. **Pass 1 (clauses):** for each clause find/create entry in `keys[]` by
+   functor/arity; append E_CLAUSE to that entry's E_CHOICE.  First-encounter
+   key order preserved.
+2. **Pass 2 (directives):** emit each directive as its own STMT in source
+   order.
+3. **Pass 3:** emit one STMT per E_CHOICE, in `keys[]` first-encounter order.
+
+Final STMT order: directives first (source order) THEN clause-groups
+(first-encounter order).
+
+#### Implementation strategy for PR-8b
+
+Add a post-Compiland `Merge_choices(parse_root)` driver-level helper that
+walks `parse_root`'s STMT children once and rebuilds the children array:
+- Distinguish clause STMT from directive STMT by inspecting
+  `t(c(c(stmt)[1])[1])` — if it's `E_CHOICE`, clause; otherwise directive.
+- Maintain two parallel arrays during the walk:
+  - `directives[]` — in source order.
+  - `(choice_keys[], choice_stmts[])` — keyed by functor/arity, in
+    first-encounter order.  Same-key clause: pull this STMT's E_CLAUSE
+    children (children of the inner E_CHOICE) and `Append` them into
+    the kept STMT's E_CHOICE.
+- Rebuild `parse_root.c[] = directives[] ++ choice_stmts[]`, set new `n()`.
+- Call `Merge_choices(ptree)` in driver between `Pop()` and the TDump loop.
+
+#### Fixtures to add
+
+`merge_two_facts.pl` (foo a, foo b), `merge_three_facts.pl` (a/b/c),
+`merge_with_other.pl` (foo, bar interleaved — tests reordering),
+`merge_rules.pl` (two rules same head), `merge_rule_and_fact.pl`
+(rule + fact same head merged into 2-clause E_CHOICE),
+`merge_dir_and_clauses.pl` (directive between clauses — directive stays in
+source order, clauses group separately).
+
+#### Notes
+
+- Existing `compound_multi.pl` (foo/bar/baz, all distinct functors) and
+  `rule_with_fact.pl` (foo/1 plus bar/1, distinct functors) already pass
+  PR-7 — no ordering change needed in those cases because each key has
+  one entry.  Both remain green after merging is added.
+- The existing `Merge_choices` partial implementation was attempted in
+  the 2026-05-04 session but reverted — file landed at PR-8a only.  Next
+  session: re-implement from clean baseline.
+
+### PARSER-PR-8c — parenthesized body subterms — deferred (after PR-8b)
+
+`(a, b) ; c` — parens currently only work inside expression ladder via
+`primary`'s `$'(' *unify_expr $')'` arm, but body-level conj/disj sit
+ABOVE unify_expr in the precedence stack.  Need a parenthesized-body
+form at the conj level.
+
+### PARSER-PR-8d — DCG sugar — deferred
+
+The `head --> body` syntactic sugar transforms into a 2-extra-arg clause.
+Tracked but not yet started.
+
+---
+
+## Watermark
+
+PARSER-PR-8a LANDED (PASS=54).  All ladder rungs PR-0..PR-8a landed.
+
+**PR-8a anonymous variables landed 2026-05-04 session #2:**
+- ✅ Bare `_` per-occurrence fresh slot allocation
+- ✅ Named-anon `_x` retained named-var semantics
+- ✅ Slot order matches oracle (head args reverse, body in order, RHS-first
+     within each subtree)
+- ✅ 6 new fixtures: anon_single, anon_two, anon_mixed, anon_named,
+     anon_named_two, anon_in_body
+
+Gate PASS=54 FAIL=0.
+
+**PR-8b same-functor E_CHOICE merging — ⏳ NEXT.**  Implementation
+strategy documented above.  Oracle behavior verified.  Partial
+`Merge_choices` work attempted in this session was reverted; file is
+clean at PR-8a end state.  Resume by adding `Merge_choices` helper and
+calling it in driver between `Pop()` and the TDump loop.
