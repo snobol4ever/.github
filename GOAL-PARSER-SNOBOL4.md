@@ -596,7 +596,13 @@ encoding the subj/pat split rule.  `tdump.sc::TValue` E_QLIT branch
 moved before the empty-value `"."` placeholder so `(E_QLIT "")` renders
 correctly.
 
-**Next milestone:** PARSER-SN-7-REWRITE-0 — scaffold
+**Next milestone:** PARSER-SN-7-REWRITE-1 — labels + assignment
+
+**Watermark (session 2026-05-03 REWRITE-0 scaffold):**
+parser_snobol4.sc rewritten from scratch on canonical shape (corpus@d34b23c).
+PASS=3 (atom_id, atom_int, atom_str). Shape invariants: ONE Compiland, shift/reduce
+function calls, nPush/nInc/nTop/nPop as patterns, no goto, no parse functions.
+Next: labels, assignment, full expression ladder. — scaffold
 `parser_snobol4_v2.sc` on a `parser-sn-rewrite` branch, on the
 parser_prolog.sc / parser_icon.sc / beauty.sno model, hit PASS=58
 parity on existing fixtures, then move through REWRITE-1..7 grammar
