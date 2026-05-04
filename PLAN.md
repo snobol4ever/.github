@@ -77,7 +77,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-INFRA-3 (SC-3 landed PASS=21 session #65; D4 style guidelines added — see goal `### 5. beauty.sno style (D4)`) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — primary cleanup landed corpus 707bd5d: byte-identical to parser_snocone Expr17 shape; bare tags via semantic.sc _qtag auto-quote. Parser still hangs; next session ports parser_snocone tier-ladder shape to mul/add_expr.) |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-5 (RK-4 LANDED PASS=32 session #65; style refactor: $'name' builders + $' '/$'  ' tokens + classifier-baked $' ') |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-4.5 (style refactor to beauty.sc shape — required before RK-5; doc sharpened session 2026-05-04 in GOAL-PARSER-SNOBOL4.md §4/§4a/§7/§8) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-9 (IC-8b LANDED PASS=45 preserved — canonical-spine rewrite + $'kw' keyword tokenization cleanup; corpus@de9ff24) |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-6 LANDED PASS=48; PR-7 active (style conformance to beauty.sno/beauty.sc — 8 micro-rungs PR-7-6, PR-7-1..PR-7-5b documented in goal file) |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |

@@ -62,6 +62,58 @@ Closed rungs collapsed to one line; the active rung carries the spec.
 - **Sibling LANG rungs:** RK-19..RK-25.
 - **Gate:** PASS=32 (target ≥32). ✓
 
+### PARSER-RK-4.5 — style refactor to beauty.sc shape — required before RK-5
+
+The current `parser_raku.sc` violates several canonical guidelines
+documented in `GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`
+(authoritative across all six PARSER-* parsers).  Sharpened in
+session 2026-05-04 after re-reading `beauty.sno` /
+`corpus/programs/snocone/demo/beauty/beauty.sc` end-to-end.  The
+file must be reshaped before any new rungs land on top of it.
+
+Concrete violations to fix (each item maps to a §-numbered guideline):
+
+- [ ] **§7 / §4a — eliminate `_`-prefixed user globals.**  Drop
+      `_expr_node`, `_main_node`, `_rk_asgn_target`, `_rk_for_iter`,
+      `_rk_block_stk`, `_rk_sub_node`, `_rk_sub_list`, `_rk_call_node`,
+      `_rk_arg_stk`, `_rk_vf` / `_rk_vr` / `_rk_strbody` /
+      `_rk_itext` / `_rk_atf` / `_rk_atr` / `_rk_ff` / `_rk_fr` /
+      `_rk_snf` / `_rk_snr` / `_rk_pf` / `_rk_pr` / `_rk_fnf` /
+      `_rk_fnr`, `_e4lhs` / `_e4op` / `_e6lhs` / `_e6op` /
+      `_e7lhs` / `_e7op`, `_rk_sub_rev` / `_rk_sl`.
+      Underscore prefix is reserved for compiler-generated names.
+- [ ] **§4 / §4a — replace function-plumbing with inline shift/reduce.**
+      Drop the helper-pattern scaffold (`$'do_assign'`, `$'save_lhs'`,
+      `$'op_ADD'`, `$'binop_add'`, `$'do_say'`, `$'do_if2'`,
+      `$'do_while'`, `$'start_call'`, `$'add_call_arg'`,
+      `$'finish_call'`, ...) and the matching
+      `build_*` / `expr_binop` / `stash_*` / `start_*` / `finish_*`
+      Snocone functions.  Replace with inline `shift(...)` /
+      `reduce(...)` calls in the grammar pattern itself, exactly the
+      way `beauty.sc` builds its tree (see §4 example
+      `Expr0 = *Expr1 FENCE($'=' *Expr0 reduce('=', 2) | epsilon);`
+      for the binary-op shape, and `ExprList` /
+      `XList` lines 61–62 of `beauty.sc` for the n-ary shape).
+- [ ] **§8 — single-statement bodies, no braces.**  Drop the
+      gratuitous `{ ... }` wrappers around one-statement function
+      bodies and `if`/`while` heads — write `if (x) statement ;` and
+      `while (cond) statement ;` directly.
+- [ ] **§8 — section dividers, no blank lines.**  Replace blank-line
+      separators with `//===...===` (major) or `//---...---` (minor)
+      120-char dividers.  Model: `parser_snobol4.sc`.
+- [ ] **§3 — keep `$' '` / `$'  '` whitespace tokens already in place.**
+      The three stylistic passes from session #65 (RK-4 handoff
+      below) for `$' '` / `$'  '` / classifier-baked whitespace are
+      correct and stay.  This rung only removes the `_`-globals and
+      the function-plumbing layer.
+
+The refactor preserves PASS=32 (gate must stay green: zero new
+features land in this rung).  After the refactor, the file should
+be visibly closer in size and shape to `beauty.sc` and
+`parser_snobol4.sc` — ideally the binop expression tower
+collapses onto roughly the same line count as `beauty.sc` lines
+64–88, with no parallel helper-globals block.
+
 ### PARSER-RK-5 — regex / grammar primitives
 
 - [ ] Starter slice: literal, character class, quantifier, alternation.
@@ -96,7 +148,41 @@ Closed rungs collapsed to one line; the active rung carries the spec.
 
 ## Watermark
 
-PARSER-RK-4 LANDED (session #65, 2026-05-03) — PASS=32. Next: PARSER-RK-5.
+PARSER-RK-4 LANDED (session #65, 2026-05-03) — PASS=32. Next: PARSER-RK-4.5
+(style refactor to beauty.sc shape — see rung detail above), then PARSER-RK-5.
+
+### Style guidelines sharpened (session 2026-05-04, doc-only)
+
+Re-read `beauty.sno` and `corpus/programs/snocone/demo/beauty/beauty.sc`
+end-to-end and updated the canonical style guidelines in
+`GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`:
+
+- §4 reframed around "decorate the grammar, do not plumb actions
+  through it" — `shift` / `reduce` operate directly inside the
+  grammar pattern, not via `epsilon . *fn()` action wrappers
+  with parallel `_foo` helper globals.
+- §4a added — anti-pattern callout: the function-based action
+  plumbing layer (`$'do_X'` patterns, `_xxx` globals,
+  `build_X` / `stash_X` / `expr_binop` helpers) is identified
+  as a code smell.  beauty.sno does not do this.  Helper
+  functions are appropriate only for genuinely non-stack
+  semantics (classifier-list match, lower-time name remaps).
+- §7 sharpened — `_`-prefix prohibition explicitly flags the
+  `_expr_node` / `_rk_*` / `_eN*` globals in current
+  `parser_raku.sc` as violations to be cleaned up, not as
+  established style worth copying.
+- §8 corrected — section divider syntax is `//===...===` /
+  `//---...---` (Snocone line-comment, 120 chars), as actually
+  used in `parser_snobol4.sc`, not `/*===*/` C-block-comment.
+- New rung **PARSER-RK-4.5** inserted before RK-5: refactor
+  `parser_raku.sc` to beauty.sc shape (drop `_`-globals, drop
+  function-plumbing scaffold, switch to inline shift/reduce,
+  preserve PASS=32).  RK-5 work resumes on the cleaned base.
+
+The two beauty files remain the canonical model.  Any tension
+between local convenience and the canonical model is resolved
+in favour of the model — that is what makes the six
+`parser_*.sc` family legible to all six sessions.
 
 ### PARSER-RK-4 — handoff (session #65, 2026-05-03)
 
