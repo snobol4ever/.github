@@ -73,7 +73,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN: Style Guidelines for parser_*.sc now canonical in this goal file (binding on all six PARSER-*); sibling goal files cross-reference here.  INFRA-11a + INFRA-11c FIXED (one4all@d2547945, corpus@c8ee2a6).  Next session: PARSER-SN-7-1 IR-tag rewrite + role-slot wrappers. |
+| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-7-0a (style audit remediation — guidelines not laws; lands upstream of SN-7-1..7-7 grammar churn).  Style Guidelines canonical in this goal file (binding on all six PARSER-*).  INFRA-11a + INFRA-11c FIXED (one4all@d2547945, corpus@c8ee2a6). |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-INFRA-3 (SC-3 landed PASS=21 session #65; D4 style guidelines added — see goal `### 5. beauty.sno style (D4)`) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — primary cleanup landed corpus 707bd5d: byte-identical to parser_snocone Expr17 shape; bare tags via semantic.sc _qtag auto-quote. Parser still hangs; next session ports parser_snocone tier-ladder shape to mul/add_expr.) |

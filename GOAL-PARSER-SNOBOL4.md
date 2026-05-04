@@ -553,83 +553,18 @@ rung lands a slice of the grammar, shaped per the invariants above.
       delete the old, merge `parser-sn-rewrite` → `parser`.
 - **Gate:** PASS=58 FAIL=0 on the new shape, byte-identical output.
 
-#### PARSER-SN-7-1 — bare label-only line
+#### PARSER-SN-7-0a — style audit remediation (guidelines, not laws) — **DO BEFORE SN-7-1**
 
-- [x] Fixture `cf_label_bare.sno` added (session 2026-05-03 — open
-      against existing parser, will pass automatically once SN-7-0
-      lands the canonical Stmt pattern with `Label = BREAK(' ' tab nl ';') ~ 'Label'`).
-- [ ] Confirm PASS=59 after SN-7-0.
+**Why this is next.**  The style guidelines were promoted to canonical
+home in `## Style Guidelines for parser_*.sc` (session 2026-05-04
+commit 34c2aa8).  This rung captures the audit of `parser_snobol4.sc`
+(200 lines) against those nine guidelines and lands the small fixes
+**before** the grammar-slice rungs SN-7-1..7-7 begin churning the
+file.  Ordering rationale: the file is small now; tag-rewrite work in
+SN-7-1..7-7 is going to triple the diff surface; landing style fixes
+upstream of that churn means the grammar-slice diffs stay clean and
+reviewable.
 
-#### PARSER-SN-7-2 — &KEYWORD recognition
-
-- [ ] Fixtures `kw_fullscan.sno`, `kw_maxlngth.sno`, `kw_ucase.sno`,
-      `kw_lcase.sno` — assignment LHS, RHS, and pattern-arg uses of
-      protected and unprotected keywords.
-- [ ] Per beauty.sno: `ProtKwd = '&' SPAN(&UCASE &LCASE) ~ 'ProtKwd'`,
-      `UnprotKwd = '&' SPAN(&UCASE &LCASE) ~ 'UnprotKwd'`.  These
-      become alternatives in `Expr14`.
-- **Gate:** keywords emit `(E_KEYWORD <NAME>)` matching the oracle.
-
-#### PARSER-SN-7-3 — bracket index `x[i]`, `x[i, j]`
-
-- [ ] Fixtures `idx_simple.sno`, `idx_multi.sno`, `idx_nested.sno`,
-      `idx_in_assign_lhs.sno`.
-- [ ] Add `Expr15` / `Expr16` per beauty.sno: `Expr15 = Expr17 FENCE( nPush() Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon )`.
-- **Gate:** `(E_IDX <obj> <i> ...)` matches the oracle.
-
-#### PARSER-SN-7-4 — `+` / `.` continuation lines
-
-- [ ] Fixtures `cont_plus.sno`, `cont_dot.sno`, `cont_chain.sno`.
-- [ ] Per beauty.sno's `White` definition: continuation is part of
-      the whitespace token class, swallowed by `White` between every
-      two adjacent grammar units.  Specifically: `White = SPAN(' ' tab) FENCE( nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon ) | epsilon ) | nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon )`.
-- **Gate:** multi-line continued statements emit a single STMT.
-
-#### PARSER-SN-7-5 — comment & control lines
-
-- [ ] Fixture `mixed_comment_control.sno`.
-- [ ] Per beauty.sno: `Comment = '*' BREAK(nl)`, `Control = '-' BREAK(nl ';')`.
-      Both alternatives of `Command` shift their captured text via
-      `*Comment ~ 'comment' ("'Comment'" & 1) nl`.  At TDump time these
-      contribute STMT children — but the existing scrip frontend's
-      `--dump-parse` drops comments and processes control lines via
-      preprocessor-include semantics.  PARSER-SN-7-5 must
-      either drop these STMT children at emit-time OR (cleaner)
-      have `Command` not emit them — match whichever the oracle does.
-- **Gate:** comment/control lines do not produce extra STMTs in dump.
-
-#### PARSER-SN-7-6 — `*Id` deferred-pattern reference
-
-- [ ] Fixtures `defer_simple.sno` (`P = *Q`), `defer_alt.sno` (`P = *Q | *R`),
-      `defer_in_pat.sno` (`x ? *P`).
-- [ ] `Expr14`'s prefix-`*` branch: `'*' Expr14 & "'*' 1"` — the
-      unary `*` in beauty.sno's Expr14 alternation list.  Must render
-      as `(E_DEFER <child>)` in the oracle's tree shape.
-- **Gate:** `*Id` constructs emit `(E_DEFER (E_VAR Id))`.
-
-#### PARSER-SN-7-7 — `;` mid-line statement separator
-
-- [ ] Fixture `semi_separator.sno` (`x = 1 ;* comment` and `x = 1; y = 2`).
-- [ ] Per beauty.sno's `Command`: alternation tail is `(nl | ';')`.
-      Each Command consumes either a newline or a semicolon; multiple
-      Commands per source line are supported.
-- **Gate:** semi-separated statements emit two STMTs.
-
-#### PARSER-SN-7-8 — beauty.sno full crosscheck
-
-- [ ] `parser_snobol4_v2.sc` parses `beauty.sno` (627-line `corpus/programs/snobol4/demo/beauty/beauty.sno`).
-- [ ] `tree_equal` against `--dump-parse`'s tree returns true (use
-      whitespace-normalized byte-diff until PARSER-SN-FW-4 lands).
-- [ ] Running the parser-built tree through `--ir-run` produces output
-      byte-identical to the SPITBOL oracle (Milestone 1 gate).
-- **Gate:** beauty.sno PASSES under both oracles.
-
-#### PARSER-SN-7-9 — style audit remediation (guidelines, not laws)
-
-**Context.**  Audit of `parser_snobol4.sc` (200 lines, session
-2026-05-04) against the nine § Style Guidelines for parser_*.sc.
-Most guidelines are already honored; a few are genuine deviations,
-and a few are guideline-vs-pragma tensions inherited from beauty.sno.
 Each step below is a guideline, not a law — the intent is to record
 the deviation and let the operator decide rather than silently leave
 it.  Mixed checkboxes signal which are mechanical fixes vs decision
@@ -732,8 +667,79 @@ points.
 **Gate:** the two mechanical-fix checkboxes flip to `[x]`; the two
 decision-points are resolved (decided either way is fine — the goal
 is for the file to either honor the guideline or carry a one-line
-comment explaining why it cannot).  PASS count unchanged from
-PARSER-SN-7-8 (style work does not change tree shapes).
+comment explaining why it cannot).  PASS count unchanged (style work
+does not change tree shapes).
+
+#### PARSER-SN-7-1 — bare label-only line
+
+- [x] Fixture `cf_label_bare.sno` added (session 2026-05-03 — open
+      against existing parser, will pass automatically once SN-7-0
+      lands the canonical Stmt pattern with `Label = BREAK(' ' tab nl ';') ~ 'Label'`).
+- [ ] Confirm PASS=59 after SN-7-0.
+
+#### PARSER-SN-7-2 — &KEYWORD recognition
+
+- [ ] Fixtures `kw_fullscan.sno`, `kw_maxlngth.sno`, `kw_ucase.sno`,
+      `kw_lcase.sno` — assignment LHS, RHS, and pattern-arg uses of
+      protected and unprotected keywords.
+- [ ] Per beauty.sno: `ProtKwd = '&' SPAN(&UCASE &LCASE) ~ 'ProtKwd'`,
+      `UnprotKwd = '&' SPAN(&UCASE &LCASE) ~ 'UnprotKwd'`.  These
+      become alternatives in `Expr14`.
+- **Gate:** keywords emit `(E_KEYWORD <NAME>)` matching the oracle.
+
+#### PARSER-SN-7-3 — bracket index `x[i]`, `x[i, j]`
+
+- [ ] Fixtures `idx_simple.sno`, `idx_multi.sno`, `idx_nested.sno`,
+      `idx_in_assign_lhs.sno`.
+- [ ] Add `Expr15` / `Expr16` per beauty.sno: `Expr15 = Expr17 FENCE( nPush() Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon )`.
+- **Gate:** `(E_IDX <obj> <i> ...)` matches the oracle.
+
+#### PARSER-SN-7-4 — `+` / `.` continuation lines
+
+- [ ] Fixtures `cont_plus.sno`, `cont_dot.sno`, `cont_chain.sno`.
+- [ ] Per beauty.sno's `White` definition: continuation is part of
+      the whitespace token class, swallowed by `White` between every
+      two adjacent grammar units.  Specifically: `White = SPAN(' ' tab) FENCE( nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon ) | epsilon ) | nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon )`.
+- **Gate:** multi-line continued statements emit a single STMT.
+
+#### PARSER-SN-7-5 — comment & control lines
+
+- [ ] Fixture `mixed_comment_control.sno`.
+- [ ] Per beauty.sno: `Comment = '*' BREAK(nl)`, `Control = '-' BREAK(nl ';')`.
+      Both alternatives of `Command` shift their captured text via
+      `*Comment ~ 'comment' ("'Comment'" & 1) nl`.  At TDump time these
+      contribute STMT children — but the existing scrip frontend's
+      `--dump-parse` drops comments and processes control lines via
+      preprocessor-include semantics.  PARSER-SN-7-5 must
+      either drop these STMT children at emit-time OR (cleaner)
+      have `Command` not emit them — match whichever the oracle does.
+- **Gate:** comment/control lines do not produce extra STMTs in dump.
+
+#### PARSER-SN-7-6 — `*Id` deferred-pattern reference
+
+- [ ] Fixtures `defer_simple.sno` (`P = *Q`), `defer_alt.sno` (`P = *Q | *R`),
+      `defer_in_pat.sno` (`x ? *P`).
+- [ ] `Expr14`'s prefix-`*` branch: `'*' Expr14 & "'*' 1"` — the
+      unary `*` in beauty.sno's Expr14 alternation list.  Must render
+      as `(E_DEFER <child>)` in the oracle's tree shape.
+- **Gate:** `*Id` constructs emit `(E_DEFER (E_VAR Id))`.
+
+#### PARSER-SN-7-7 — `;` mid-line statement separator
+
+- [ ] Fixture `semi_separator.sno` (`x = 1 ;* comment` and `x = 1; y = 2`).
+- [ ] Per beauty.sno's `Command`: alternation tail is `(nl | ';')`.
+      Each Command consumes either a newline or a semicolon; multiple
+      Commands per source line are supported.
+- **Gate:** semi-separated statements emit two STMTs.
+
+#### PARSER-SN-7-8 — beauty.sno full crosscheck
+
+- [ ] `parser_snobol4_v2.sc` parses `beauty.sno` (627-line `corpus/programs/snobol4/demo/beauty/beauty.sno`).
+- [ ] `tree_equal` against `--dump-parse`'s tree returns true (use
+      whitespace-normalized byte-diff until PARSER-SN-FW-4 lands).
+- [ ] Running the parser-built tree through `--ir-run` produces output
+      byte-identical to the SPITBOL oracle (Milestone 1 gate).
+- **Gate:** beauty.sno PASSES under both oracles.
 
 ### PARSER-SN-FW-4 — `scrip --parser-crosscheck` C-side flag (deferred)
 
@@ -1151,9 +1157,23 @@ beauty.sc end-to-end before authoring.  Sibling goal files
 No code changes; gates unchanged (PARSER-SN PASS=0 FAIL=59 — same as
 session start, expected).
 
-**Next milestone (unchanged):** PARSER-SN-7-1 — labels + assignment +
-tree-shape rewrite.  parser_snobol4.sc grammar matches today; emits
-beauty.sno-native shape (`Stmt`/`Id`/`String`/`Call`/`..`) and needs
-the FW-2 role-slot wrappers + IR-tag rewrites (`Stmt`→`STMT`,
-`Id`→`E_VAR`, `String`→`E_QLIT`, `Integer`→`E_ILIT`, `Call`→`E_FNC`,
-`..`→`E_SEQ`, `|`→`E_ALT`) to match scrip `--dump-parse` oracle.
+**Next milestone:** PARSER-SN-7-0a — style audit remediation
+(guidelines, not laws).  Two mechanical fixes (drop blank line, drop
+single-stmt braces) + two decision points (`$' '`/`S`/`F` tokens;
+`White`/`Gray` rationale comments).  PASS count unchanged; lands
+upstream of SN-7-1..7-7 grammar churn so style fixes don't tangle
+with tag-rewrite diffs.  After SN-7-0a: PARSER-SN-7-1 — labels +
+assignment + tree-shape rewrite (FW-2 role-slot wrappers + IR-tag
+rewrites `Stmt`→`STMT`, `Id`→`E_VAR`, `String`→`E_QLIT`,
+`Integer`→`E_ILIT`, `Call`→`E_FNC`, `..`→`E_SEQ`, `|`→`E_ALT`) to
+match scrip `--dump-parse` oracle.
+
+**Watermark (session 2026-05-04 cont.):** SN-7-9 (the style-audit
+remediation rung added earlier this session) renamed to **SN-7-0a**
+and relocated from the ladder tail to its proper position **between
+SN-7-0 and SN-7-1** — i.e. the immediate next-up rung.  Rationale:
+file is small now (200 lines), tag-rewrite work in SN-7-1..7-7 will
+triple the diff surface, landing style fixes upstream keeps the
+grammar-slice diffs reviewable.  Step content unchanged from the
+prior commit; only position and numbering changed.  PLAN.md
+goals-table entry updated to point at SN-7-0a as the active step.
