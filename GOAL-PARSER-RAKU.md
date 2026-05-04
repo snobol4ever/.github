@@ -116,9 +116,9 @@ each is independently revertable.  A session may do one and stop.
       `LitInt`, `LitStrDQ`, `LitStrSQ`, `Ident` landed; internal
       helpers `ident_first` / `ident_rest` lowered).
 
-#### 4.5-d — runtime helper functions to UpperSnake
+#### 4.5-d — runtime helper functions to UpperSnake — LANDED session 2026-05-04
 
-- [ ] Rename the 27 helper functions to UpperSnake to match the
+- [x] Rename the 27 helper functions to UpperSnake to match the
       cross-PARSER convention (`Push`, `Pop`, `TDump`, `IncCounter`,
       `nPush`).  e.g. `start_main` → `Start_Main`, `build_assign` →
       `Build_Assign`, `expr_binop` → `Expr_Binop`.  Maps to §7.
@@ -127,7 +127,13 @@ each is independently revertable.  A session may do one and stop.
       producing) are lowercase-`n` UpperSnake, callees `PushCounter`
       / `IncCounter` / `PopCounter` are pure UpperSnake.  Leave
       that asymmetry alone.
-- **Gate:** PASS=32 FAIL=0.
+- **Gate:** PASS=32 FAIL=0 ✓ (done after 4.5-e on the 9 survivors;
+      most of the original 27 were deleted by 4.5-e, so only 9
+      renames needed: `Rk_Push_Var`, `Rk_Push_Param`, `Rk_Push_Qlit`,
+      `Rk_Say_Done`, `Rk_Stash_For`, `Rk_Finish_For`, `Rk_Finish_Sub`,
+      `Rk_Finish_Call`, `Rk_Finish_Main`.  Action-pattern helper
+      names (`var_done`, `qlit_done`, `say_done`, etc.) stay
+      lower_snake per §5 pattern-producing convention).
 
 #### 4.5-e — eliminate the function-plumbing scaffold (the big one) — LANDED session 2026-05-04
 
@@ -158,9 +164,9 @@ each is independently revertable.  A session may do one and stop.
       inline `reduce(...)` calls; nine helpers retained each with
       `// Retained: <reason>` comment per §4a).
 
-#### 4.5-f — drop `_`-prefixed user globals (conditional on 4.5-e)
+#### 4.5-f — drop `_`-prefixed user globals (conditional on 4.5-e) — LANDED session 2026-05-04
 
-- [ ] Once the function-plumbing scaffold is gone, the
+- [x] Once the function-plumbing scaffold is gone, the
       `_`-prefixed user globals it referenced (`_expr_node`,
       `_main_node`, `_rk_asgn_target`, `_rk_for_iter`,
       `_rk_block_stk`, `_rk_sub_node`, `_rk_sub_list`,
@@ -173,7 +179,20 @@ each is independently revertable.  A session may do one and stop.
       removable — the stack and the n-counter cover the same
       ground.  Any survivor renames to lower_snake without the
       prefix.  Maps to §7.
-- **Gate:** PASS=32 FAIL=0.
+- **Gate:** PASS=32 FAIL=0 ✓ (most globals from the original list
+      were deleted by 4.5-e — `_expr_node`, `_main_node`,
+      `_rk_asgn_target`, `_rk_block_stk`, `_rk_sub_node`,
+      `_rk_call_node`, `_rk_arg_stk`, `_rk_itext`, `_rk_atf`,
+      `_rk_atr`, all per-tier slots `_e4lhs`/`_e4op`/`_e6lhs`/
+      `_e6op`/`_e7lhs`/`_e7op` are gone.  Survivors renamed to
+      drop the underscore: dot-capture targets `rk_capvf`/`rk_capvr`/
+      `rk_capstr`/`rk_capff`/`rk_capfr`/`rk_capsnf`/`rk_capsnr`/
+      `rk_cappf`/`rk_cappr`/`rk_capfnf`/`rk_capfnr` (renamed to
+      `rk_cap*` to make their parsing-state role explicit), plus
+      `rk_for_iter` (loopvar stash) and `rk_sub_list` (cons-list
+      of completed sub STMTs).  Driver locals `rk_sub_rev`/`rk_sl`/
+      `parser_rk_done` also de-underscored.  Zero `_`-prefixed user
+      identifiers remain).
 
 #### 4.5-g — preserve the parts already aligned
 
@@ -217,21 +236,49 @@ each is independently revertable.  A session may do one and stop.
 
 ## Watermark
 
-PARSER-RK-4.5-e LANDED (session 2026-05-04 cont.) — PASS=32 FAIL=0.
-Function-plumbing scaffold eliminated: 752 → 555 lines, 27 → 9
-functions, all `$'do_X'` / `$'binop_X'` / `$'op_X'` / `$'save_lhs'`
-action wrappers and per-tier LHS/op globals removed.  Inline
-`shift()` / `reduce()` calls now decorate the grammar directly,
-matching `beauty.sc` and `parser_icon.sc` shape.  Nine helpers
-retained each with `// Retained: <reason>` comment per §4a:
-`rk_push_var` / `rk_push_param` / `rk_push_qlit` (sigil/quote
-strip), `rk_say_done` (say→write remap), `rk_stash_for` /
-`rk_finish_for` (E_ITERATE name + E_EVERY build), `rk_finish_sub` /
-`rk_finish_call` / `rk_finish_main` (E_FNC value-field name from
-captures; reduce() can't supply non-empty value).  Next session:
-4.5-d (UpperSnake rename) on the 9 survivors, or 4.5-f (drop
-remaining `_`-prefixed user globals — most already gone with the
-scaffold), or jump to PARSER-RK-5 (regex / grammar primitives).
+PARSER-RK-4.5-d / 4.5-e / 4.5-f LANDED (session 2026-05-04 cont.) —
+PASS=32 FAIL=0.  All seven sub-steps of PARSER-RK-4.5 are now done
+(4.5-a/b/c earlier in the session, 4.5-d/e/f later, 4.5-g was a
+no-op preservation note).  `parser_raku.sc` is fully aligned with
+the beauty.sc / parser_icon.sc cross-PARSER style.
+
+Final state: 752 → 555 lines, 27 → 9 functions (UpperSnake'd),
+zero `_`-prefixed user identifiers, function-plumbing scaffold
+gone.  Inline `shift()` / `reduce()` decorate the grammar
+directly.  Nine helpers retained each with `// Retained: <reason>`
+comment per §4a:
+  Rk_Push_Var / Rk_Push_Param / Rk_Push_Qlit (sigil/quote strip),
+  Rk_Say_Done (say→write remap),
+  Rk_Stash_For / Rk_Finish_For (E_ITERATE name + E_EVERY build),
+  Rk_Finish_Sub / Rk_Finish_Call / Rk_Finish_Main (E_FNC value-
+    field name from captures; reduce() can't supply non-empty value).
+
+Next session: PARSER-RK-5 (regex / grammar primitives starter
+slice — literal, character class, quantifier, alternation; sibling
+LANG rungs RK-26..RK-34 active; gate target ≥40).
+
+### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
+
+The 4.5 ladder landed in three commits, each on a green gate
+PASS=32 FAIL=0:
+
+- **4.5-e first** (corpus@c478e13) — function-plumbing scaffold
+  eliminated.  752 → 555 lines, 27 → 9 functions.  The big rung.
+- **4.5-d on survivors** — the 9 retained helpers renamed to
+  UpperSnake with `Rk_` prefix (`Rk_Push_Var`, `Rk_Finish_Main`,
+  etc.).  Action-pattern names (`var_done`, `qlit_done`, `say_done`,
+  `stash_for`, `for_done`, `sub_done`, `call_done`, `main_done`,
+  `param_done`) stay lower_snake per §5 pattern-producing rule.
+- **4.5-f after 4.5-d** — leading underscore dropped on all user
+  globals.  Most originals were already gone with 4.5-e; survivors
+  renamed: dot-capture targets `_rk_vf` → `rk_capvf` etc. (the
+  `cap` infix makes their dot-capture role explicit), `_rk_for_iter`
+  → `rk_for_iter`, `_rk_sub_list` → `rk_sub_list`, plus driver
+  locals.  Zero `_`-prefixed user identifiers remain.
+
+Three commits make 4.5-d and 4.5-f independently revertable from
+4.5-e if needed; in practice they are pure renames over a
+working gate so revert risk is low.
 
 ### PARSER-RK-4.5-e — handoff (session 2026-05-04 cont.)
 
@@ -241,7 +288,7 @@ patched by `$'append_stmt'` actions; the new Compiland uses a
 nested counter frame (inner frame counts main-body stmts, outer
 frame holds the resulting STMT for `reduce('Parse', 1)`).
 `SubStmt` does NOT increment the inner main frame because subs
-go to `_rk_sub_list` and don't leave anything on the stack —
+go to `rk_sub_list` and don't leave anything on the stack —
 only `Stmt` calls `nInc()` inside the ARBNO body.  Pattern:
 
     Compiland = nPush() nPush()
@@ -258,10 +305,10 @@ Two mistakes worth recording for sibling parsers:
 2. For function calls where the IR node carries the callee name as
    value (`(E_FNC double (E_VAR double) ...)`), `reduce(r_FNC, 'nTop()')`
    produces `(E_FNC '' (E_VAR double) ...)` — value field is always
-   empty.  A small `rk_finish_call()` helper (read `_rk_fnf`/`_rk_fnr`
+   empty.  A small `Rk_Finish_Call()` helper (read `rk_capfnf`/`rk_capfnr`
    captures, build E_FNC with name in value, append children from
    counter frame) is required.  Same pattern repeats for
-   `rk_finish_sub` and `rk_finish_main`.
+   `Rk_Finish_Sub` and `Rk_Finish_Main`.
 
 ### PARSER-RK-4.5-a / 4.5-b / 4.5-c — handoff (session 2026-05-04 cont.)
 
