@@ -1229,7 +1229,10 @@ Setup notes for the next session: `libgc-dev` was not pre-installed
 in the container — `install_system_packages.sh` did install it after
 the apt lock cleared.  No bug; one-time install.
 
-**Watermark (session 2026-05-04 cont. style+SN-7-1):**
+**Watermark (session 2026-05-04 cont. #4, partial — handoff):**
+
+⚠ TASK INCOMPLETE.  Original task: apply unified style guidelines to
+all six parser_*.sc files.  Completed five; parser_snobol4.sc not done.
 
 Five sibling parsers unified to canonical style (corpus@9ab0f4f):
 - E_FOO = "'E_FOO'" tag naming (self-quoting, name matches IR spec)
@@ -1239,10 +1242,18 @@ Five sibling parsers unified to canonical style (corpus@9ab0f4f):
 - Gates all held: prolog PASS=54, icon PASS=51, snocone PASS=21,
   raku PASS=32, rebus PASS=18.
 
-parser_snobol4.sc: pattern block is verbatim beauty.sno (zero chars changed).
-pp_stmt() helper reads the 7-slot Stmt tree by fixed index exactly as
-beauty.sno's pp_Stmt does, builds role-slot STMT tree, calls TDump.
-PASS=27 FAIL=32 (up from PASS=0 at session start).
+parser_snobol4.sc: STYLE PASS NOT DONE.  The file received a partial
+SN-7-1 attempt (pp_stmt + rw_expr + rw_call + rw_goto_slot helpers)
+that lifts gate to PASS=27 FAIL=32 but does NOT apply the unified
+style guidelines that the other five received.  The pattern block is
+verbatim beauty.sno (zero chars changed) — that part is correct.
+
+⚠ Open question for next session: is the partial SN-7-1 work worth
+keeping as a starting point, or should it be reverted to the clean
+beauty.sno-verbatim baseline (PASS=0 FAIL=59) and the style pass
+applied first as a separate clean commit?  The intent stated by Lon
+was: do the style pass on all six FIRST, then SN-7-1 work happens
+on top.  This session inverted that order for parser_snobol4.sc.
 
 Passing: atom/{id,int,str}, assign/{int,str,var,mixed,seq}, cf/{label_bare,
 label_only,label_assign,loop,goto_f,goto_u,repl_{empty,with_goto}},
