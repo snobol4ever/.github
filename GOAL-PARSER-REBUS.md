@@ -47,13 +47,16 @@ clears its fixture subset using the shift-reduce idiom.
 Before writing any `.sc` code, confirm every item below. If any
 answer is "no", stop and rework.
 
-1. **One root pattern.** The driver does at most: read stdin into
-   `Src`, then `Src ? Compiland`. **That single match performs the
-   entire parse.** Sub-patterns (`Command`, `expr`, `atom`, etc.)
-   are referenced from inside `Compiland` via `*Sub`; they are
-   never matched separately by the driver. After the match, the
-   driver walks the tree on the stack to call `TDump` per top-level
-   child — that is emission, not parsing, and is allowed.
+1. **One root pattern, matched once against the entire source.** The
+   driver reads stdin into a single string `Src` (concatenating all
+   lines with newlines), then runs `Src ? Compiland`. **Exactly one
+   `?` operator appears in the driver, ever.** Sub-patterns
+   (`Command`, `expr`, `atom`, etc.) are referenced from inside
+   `Compiland` via `*Sub`; they are never matched separately by the
+   driver. There is no per-line slurp loop matching individual lines
+   against patterns. After the single match, the driver walks the
+   tree on the stack to call `TDump` per top-level child — that is
+   emission, not parsing, and is allowed.
 
 2. **`Compiland` has the canonical beauty.sc spine.** Literally:
    ```
@@ -86,13 +89,61 @@ answer is "no", stop and rework.
    `Push(Tree(...))` from a pattern escape — that is the procedural
    shortcut the OPSYN forms exist to replace.
 
-5. **No per-line state machine.** No `_rb_state = 0/1` toggle. No
+5. **No user-defined functions called from inside parsing patterns.**
+   A pattern match is pure pattern composition. The only functions
+   that may be invoked from inside `Compiland` or any of its
+   sub-patterns are the OPSYN-bound parsing operators and their
+   counter companions:
+   - `Shift` / `Reduce` (called by the `~` and `&` operators)
+   - `PushCounter` / `IncCounter` / `DecCounter` / `PopCounter`
+     (called by `nPush()` / `nInc()` / `nDec()` / `nPop()`)
+   - `TopCounter` (read inside reduce-target expressions)
+
+   That is the entire allowed surface for *user code* called from
+   inside patterns. **No** `*assign('_x', ...)`, **no**
+   `*push_qlit_from_strbody()`, **no** `*next_label()`, **no**
+   `*format_arglist()` — none of those from inside a pattern.
+
+   Snocone's built-in pattern primitives (LEN, SPAN, BREAK, ANY,
+   NOTANY, FENCE, ARBNO, POS, RPOS, TAB, RTAB, REM, etc.) remain
+   fully available — they are part of the pattern grammar, not
+   user functions. So is the structural-test family (IDENT, DIFFER,
+   GT, LT, etc.) when used inside patterns as `*IDENT(x, y)`
+   guards. The line is: built-ins that ship with Snocone = OK;
+   functions defined by the parser author = NOT OK from inside a
+   pattern.
+
+   If you need to transform a captured value before it lands on the
+   stack, structure the grammar so that the pattern alone produces
+   the desired match-span (see "String body capture idiom" below);
+   if you need post-parse transformation, do it in a function that
+   walks the tree AFTER `Src ? Compiland` returns.
+
+   **String body capture idiom.** To shift `(E_QLIT "hi")` from
+   source `"hi"`, the body must reach Shift without the surrounding
+   quotes. Achieve this structurally — the opening and closing
+   quotes are matched by sibling sub-patterns; only the body goes
+   through `~`:
+   ```snocone
+   DQ_open = '"';   DQ_close = '"';   DQ_body = BREAK('"');
+   SQ_open = "'";   SQ_close = "'";   SQ_body = BREAK("'");
+   qlit_dq = DQ_open *DQ_body ~ "'E_QLIT'" DQ_close;
+   qlit_sq = SQ_open *SQ_body ~ "'E_QLIT'" SQ_close;
+   String  = (*qlit_dq | *qlit_sq);
+   ```
+   Match for `"hi"`: `DQ_open` consumes `"`; `*DQ_body` matches `hi`
+   (BREAK stops at the closing quote); `~` shifts `tree('E_QLIT',
+   'hi')`; `DQ_close` consumes the closing `"`. Pure pattern
+   composition. Same idiom applies to any "matched span minus
+   delimiters" capture. **No function calls.**
+
+6. **No per-line state machine.** No `_rb_state = 0/1` toggle. No
    per-construct `_rb_*_kind` / `_rb_*_txt` global slots feeding hand-
    built `Tree(...)` calls in helper functions. Per-construct binding
    happens via the `~` operator's right operand (the tag) and the `&`
    operator's right operand (the child count, usually `nTop()`).
 
-6. **All trees are n-ary. No left, no right.** Every fold of a
+7. **All trees are n-ary. No left, no right.** Every fold of a
    variable-length list — alternation, concatenation, statement
    sequences, argument lists, parameter lists, body statements —
    uses the n-ary spine:
@@ -110,32 +161,41 @@ answer is "no", stop and rework.
    binary E_ALT; that is a divergence to surface, not a constraint
    to conform to.** See `## Divergence-driven rungs` below.
 
-7. **Counter helpers (`nPush`/`nInc`/`nTop`/`nPop`) appear at every
+8. **Counter helpers (`nPush`/`nInc`/`nTop`/`nPop`) appear at every
    n-ary fold site.** This is how the parser knows how many items
    to fold. The pair `nPush() ... reduce(t, 'nTop()') nPop()` opens
    a counter scope; `nInc()` inside the iteration body bumps it
    each pass.
 
-8. **Sub-pattern names mirror `rebus.y`.** Use `function_decl`,
+9. **Sub-pattern names mirror `rebus.y`.** Use `function_decl`,
    `record_decl`, `pat_expr`, `expr`, `alt_expr`, etc. — the
    non-terminal names from `src/frontend/rebus/rebus.y`. Where a name
    conflicts with Snocone reserved syntax, suffix with `_pat`. Do not
    invent names like `MatchLine` / `BodyAltLine` / `IfLine` — those
    are line-fragments, not grammar non-terminals.
 
-9. **One alternation in `Command` covers all top-level constructs.**
-   In Rebus that is `function_decl | record_decl`. Statement-level
-   forms (assign, match, alt, if, while, call, atom) live under a
-   `stmt`-rooted sub-tree fired by `function_decl`'s body, not as
-   peers of `function_decl`.
+10. **One alternation in `Command` covers all top-level constructs.**
+    In Rebus that is `function_decl | record_decl`. Statement-level
+    forms (assign, match, alt, if, while, call, atom) live under a
+    `stmt`-rooted sub-tree fired by `function_decl`'s body, not as
+    peers of `function_decl`.
 
 A grep that should produce zero hits in the rewritten parser:
 ```
-grep -nE 'goto |^[a-z_]+:|_rb_state|_rb_atom_kind|emit_[a-z]|shift\(|reduce\(|Push\(Tree' parser_rebus.sc
+grep -nE 'goto |^[a-z_]+:|_rb_state|_rb_atom_kind|emit_[a-z]|shift\(|reduce\(|Push\(Tree|\*[a-z_]+\(' parser_rebus.sc
 ```
-(`shift(`/`reduce(` hits in `semantic.sc` itself are fine — that
-file *defines* them. Hits in `parser_rebus.sc` mean the OPSYN
-operators were not used.)
+The new `\*[a-z_]+\(` term catches function-call-from-pattern
+escapes (`*assign(...)`, `*push_*()`, etc.). Pattern references
+like `*Gray` or `*Compiland` use no parens and do not match.
+
+A grep that should match exactly:
+```
+grep -c 'Src ? Compiland' parser_rebus.sc       # → 1
+grep -c '?' parser_rebus.sc | <discounting ?'s in patterns>  # → 1 in driver
+grep -c '^Compiland '   parser_rebus.sc         # → 1 (the definition)
+grep -c '\*Compiland'   parser_rebus.sc         # → 0 (Compiland is the root, never referenced)
+grep -c 'Compiland'     parser_rebus.sc         # → exactly 2 (def + driver use)
+```
 
 ---
 
@@ -280,31 +340,29 @@ above; oracle outputs are stable.)
 ## Worked atom example — the smallest correct rung
 
 This is the shape RB-0 must take in the rewrite. Read it, follow it.
+**No functions are called from inside any pattern.** The grammar is
+pure pattern composition.
 
 ```snocone
 // Lex tokens — drop into the file once, used by every rung.
 ws_run = SPAN(' ' tab);
 ws_opt = (ws_run | epsilon);
-nl_one = LEN(1) . _nl *IDENT(_nl, nl);
+nl_one = ANY(nl);   // matches exactly one newline char, pure primitive
 
-Id      = ((ANY(&UCASE &LCASE '_'))
+Id      = (ANY(&UCASE &LCASE '_')
            (SPAN(&UCASE &LCASE digits '_') | epsilon));
 
 Integer = SPAN(digits);
 
-String  = ('"' BREAK('"') . _str_body '"' | "'" BREAK("'") . _str_body "'")
-          epsilon . *push_qlit_from_strbody();
-
-// String capture goes through a one-line helper because the body
-// content (between quotes) is what we shift, not the matched span
-// (which includes the quotes).  This is the single legitimate
-// pattern-escape into a Snocone function in the whole parser; every
-// other tree node is built via `~` or `&`.
-function push_qlit_from_strbody() {
-    Push(tree('E_QLIT', _str_body));
-    push_qlit_from_strbody = .dummy;
-    nreturn;
-}
+// String body capture idiom — quotes matched by sibling sub-patterns;
+// only the body goes through `~`. No function calls. The match span
+// of `*DQ_body` is the body text (BREAK stops at the closing quote);
+// `~ "'E_QLIT'"` shifts tree('E_QLIT', body) onto the stack.
+DQ_open  = '"';   DQ_close = '"';   DQ_body = BREAK('"');
+SQ_open  = "'";   SQ_close = "'";   SQ_body = BREAK("'");
+qlit_dq  = DQ_open *DQ_body ~ "'E_QLIT'" DQ_close;
+qlit_sq  = SQ_open *SQ_body ~ "'E_QLIT'" SQ_close;
+String   = (*qlit_dq | *qlit_sq);
 
 // atom — Rebus's expr17 slice (id | integer | string).
 // `~` is OPSYN'd to shift; rhs is the tree-tag string.
@@ -314,7 +372,7 @@ atom = FENCE(  *String
             );
 
 // stmt — for RB-0, a statement is just an atom in :subj position.
-// Ovrall STMT shape: (STMT :subj <atom>).
+// Overall STMT shape: (STMT :subj <atom>).
 // `&` is OPSYN'd to reduce; rhs is the child count (1 here, fixed-arity).
 stmt = ws_opt *atom ws_opt nl_one ("'STMT_SUBJ'" & 1);
 
@@ -326,8 +384,8 @@ Command = nInc() *stmt;
 // that many children fold into the Parse node.
 Compiland = nPush() ARBNO(*Command) ("'Parse'" & 'nTop()') nPop();
 
-// Driver — read stdin, fire the one match, walk the result.
-// No goto. No labels.
+// Driver — read whole stdin into Src, ONE pattern match, walk the result.
+// No goto. No labels. No per-line matching.
 InitCounter();
 InitStack();
 
@@ -351,19 +409,34 @@ if (Src ? Compiland) {
 **Self-check before committing RB-0:**
 
 ```
-grep -c 'goto '       parser_rebus.sc  # → 0
-grep -cE '^[a-z_]+:'  parser_rebus.sc  # → 0
-grep -c '_rb_state'   parser_rebus.sc  # → 0
-grep -cE 'shift\(|reduce\(' parser_rebus.sc  # → 0
-grep -cE 'Push\(Tree' parser_rebus.sc  # → 0
-grep -cE 'nPush|nInc|nTop|nPop' parser_rebus.sc  # → ≥2
-grep -cE ' ~ | & '    parser_rebus.sc  # → ≥3 (two ~ in atom, one & in stmt;
-                                       #     plus one & in Compiland = 4)
-grep -c 'Compiland'   parser_rebus.sc  # → exactly 2 (definition + driver use)
+grep -c 'goto '              parser_rebus.sc  # → 0
+grep -cE '^[a-z_]+:'         parser_rebus.sc  # → 0
+grep -c '_rb_state'          parser_rebus.sc  # → 0
+grep -cE 'shift\(|reduce\('  parser_rebus.sc  # → 0
+grep -cE 'Push\(Tree'        parser_rebus.sc  # → 0
+grep -cE '\*[a-z_]+\('       parser_rebus.sc  # → 0  (no fn-call-from-pattern;
+                                              #      *Sub references take no parens)
+grep -cE 'nPush|nInc|nTop|nPop' parser_rebus.sc  # → ≥2  (1 nPush, 1 nPop in
+                                                  #       Compiland; ≥1 nInc in
+                                                  #       Command; ≥1 nTop in
+                                                  #       Compiland's reduce)
+grep -cE ' ~ | & '           parser_rebus.sc  # → ≥4  (3 ~ in atom; 1 & in stmt;
+                                              #      1 & in Compiland)
+grep -c 'Src ? Compiland'    parser_rebus.sc  # → 1  (the ONE pattern match)
+grep -c 'Compiland'          parser_rebus.sc  # → exactly 2 (def + driver use)
+grep -cE '^function '        parser_rebus.sc  # → 0  (no helper functions for
+                                              #      RB-0; later rungs may add
+                                              #      lowering passes that consume
+                                              #      the parse tree, but never
+                                              #      functions called from
+                                              #      inside patterns)
 ```
 
-The "exactly 2 Compiland mentions" is the structural test for "one
-root pattern": one definition, one use site.
+The structural tests:
+- "exactly 2 Compiland mentions" → one root pattern.
+- "exactly 1 `Src ? Compiland`" → the entire source is matched once.
+- "0 hits on `\*[a-z_]+\(`" → no function calls from patterns.
+- "0 hits on `^function`" at RB-0 → grammar is patterns end-to-end.
 
 ---
 
@@ -536,13 +609,21 @@ escapes from a pattern.** No left, no right.
 PARSER-RB-0..RB-6 wrong-shape attempt landed sessions #62 (Claude
 Sonnet 4.7, 2026-05-03) — PASS=38 FAIL=0 against 38 fixtures, but
 the parser is a goto-driven line-at-a-time state machine, not a
-Snocone pattern. **Every rubric item from #1 through #9 is
+Snocone pattern. **Every rubric item from #1 through #10 is
 violated.** Rungs reopened for rewrite.
 
 Reopened with explicit pattern architecture (session continuation,
 2026-05-03):
-  - One `Compiland` pattern, beauty.sc spine.
-  - OPSYN binary `~` (shift) and `&` (reduce) operators.
+  - One `Compiland` pattern, beauty.sc spine, matched ONCE against
+    the entire concatenated source via a single `Src ? Compiland`.
+  - No user-defined functions called from inside parsing patterns;
+    only `Shift`/`Reduce` (via `~`/`&`) and counter primitives
+    (`nPush`/`nInc`/`nTop`/`nPop`). Built-in pattern primitives
+    (LEN, SPAN, BREAK, ANY, FENCE, ARBNO, etc.) remain available.
+  - Body-capture idiom for delimited tokens: opening and closing
+    delimiters matched by sibling sub-patterns; only the body
+    goes through `~`. Demonstrated for E_QLIT in worked example.
+  - OPSYN binary `~` (shift) and `&` (reduce) operators throughout.
   - `nPush()`/`nInc()`/`nTop()`/`nPop()` for every list-fold.
   - All trees n-ary; no left, no right.
   - Zero goto, zero labels.
