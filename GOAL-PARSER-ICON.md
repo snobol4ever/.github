@@ -138,9 +138,9 @@ shape PAT-IC mirrors.
 
 ## Open rungs
 
-### PARSER-IC-7 — parenthesized primary `( expr )` and compound `{ ... }`  ← **active**
+### PARSER-IC-7 — parenthesized primary `( expr )` and compound `{ ... }`  ← **LANDED**
 
-- [ ] `Expr11` gains `'(' Expr ')'` and `'{' (Stmt)* '}'` primaries.
+- [x] `Expr11` gains `'(' Expr ')'` and `'{' (Stmt)* '}'` primaries.
       Compound block produces `(E_SEQ_EXPR ...)` (or unwraps to single child
       per the existing-frontend rule in `parse_block_or_expr`).  Without
       these, `subj ? (r := "ok")` and `every gen do { s1; s2 }` cannot be
@@ -148,7 +148,12 @@ shape PAT-IC mirrors.
       pieces.
 - **Sibling LANG rungs:** none required — both forms exist in the LANG
       ladder upstream.
-- **Gate:** PASS≥45.
+- **Gate:** PASS≥45.  **ACTUAL: PASS=45 FAIL=0** (corpus @ `c6e4c2b`).
+
+Also landed in same session: full beauty-style `$'op'` pattern-builder refactor
+of parser_icon.sc.  Every `epsilon . *fn(args)` replaced by a named `$'...'`
+pattern variable.  Operator tokens use `$'|'` `$':='` `$'?'` etc.  PASS=40
+preserved through refactor before IC-7 fixtures added.
 
 ### PARSER-IC-8b parser_icon.sc rewrite to canonical spine  ← **next after IC-7**
 
@@ -199,4 +204,4 @@ parser_snocone.sc:
 
 ## Watermark
 
-PARSER-IC-7 (PARSER-IC-8a landed: SCRIP snocone_parse.y gains expr5a tier for binary `~` `&` `#` `%` OPSYN slots, lowering to `E_FNC` with operator literal as sval; Compiland in parser_icon.sc converted from `reduce("'Parse'", 'nTop()')` to `("'Parse'" & 'nTop()')` operator form; PASS=40, smoke=5; no Snocone test suite regressions.  PARSER-IC-6 also landed: every/do + scan).
+PARSER-IC-8b (IC-7 LANDED PASS=45: paren `(expr)` / paren-seq `(e1;e2)` / compound `{s1;s2}` primaries in Expr11; ic_sqlink stack; single-child unwrap matches frontend; 5 NEW fixtures paren_expr/paren_seq/compound_one/compound_two/scan_paren; corpus @ c6e4c2b.  ALSO: full beauty-style refactor — every `epsilon . *fn()` replaced by $'name' pattern-builder variable; $'op' token patterns; PASS=40 preserved through refactor).
