@@ -1,136 +1,137 @@
-# HANDOFF — session 2026-05-01 #9 → next session
+# HANDOFF — session 2026-05-04 (RS-23a-route + RS-23b) → next session
 
 ## Context-window saturation
 
-This session ended at ~80% context after landing T_CALL atomic
-consumption + T_FUNCTION→T_DEFINE rename + the three gap-#3 lexer
-fixes (one4all `f89dacad`, .github `c4564a7`).  All gates green;
-beauty.sc now parses end-to-end (runtime errors only, no parse
-errors).
+This session ended at ~52% context after landing RS-23a-route then
+RS-23b on the GOAL-REWRITE-SCRIP track.  All gates green; Icon corpus
+held at baseline 186/47/30 throughout.  Two clean one4all commits and
+two .github commits, all pushed.
+
+  * one4all `7d8ed6ed` — RS-23a-route (E_FNC, E_ASSIGN, E_AUGOP)
+  * one4all `edd0c894` — RS-23b (E_SCAN, E_CASE, E_NOT, E_ALTERNATE,
+    E_ILIT, E_NUL) + companion lazy-box fix for E_PROC_FAIL
+  * .github  `90a2d7d`  — RS-23a-route LANDED notes
+  * .github  `db87586`  — RS-23b LANDED notes
 
 ## Where this session left things
 
-**LS-6.c grammar gap #3 LANDED.**  Three lexer/grammar fixes
-unblocked dense `if(){…}else{…}` one-liners and proper
-`function name(args)` definitions:
+**RS-23a-route LANDED.**  Added `case E_FNC: case E_ASSIGN: case E_AUGOP:
+{ (void)bb_eval_value(e); return; }` to `bb_exec_stmt` in
+`src/runtime/interp/coro_stmt.c`.  These three kinds were the
+high-volume fallthrough cases — 436/570 raw events in the RS-23
+diagnostic.  `bb_eval_value` handles all three natively after RS-23a-raku
+(prior session) lifted Raku builtins into `raku_try_call_builtin`.
 
-1.  **S_OP_EQ no longer requires `had_ws`.**  `OUTPUT='a'` (no
-    spaces) now correctly emits `T_ASSIGN` instead of unary
-    `E_UN_EQUAL`.  Sole condition is `last_value` being true.
-2.  **E_CALL keyword redirect.**  When the matched IDENT range
-    classifies as a keyword (`if`, `while`, `for`, etc.), E_CALL
-    falls through to E_IDENT so the keyword token wins.  The `(`
-    is left in the stream for the next call.
-3.  **E_CALL T_DEFINE redirect.**  When `last_kind == T_DEFINE`,
-    E_CALL falls through to E_IDENT so `function name(args)`
-    lexes as `T_DEFINE T_IDENT T_LPAREN ...`, not
-    `T_DEFINE T_CALL ...`.
+**RS-23b LANDED.**  Two-part landing:
 
-**Structural cleanup landed in the same commit:**
+1.  In `coro_stmt.c`: added `case E_ILIT: case E_NUL: return;` (no-ops)
+    plus `case E_NOT: case E_ALTERNATE: case E_SCAN: case E_CASE:
+    { (void)bb_eval_value(e); return; }`.  `bb_eval_value` already had
+    native handlers for all four non-trivial kinds (RS-22d, RS-22f-stmt).
 
--   **T_CALL is now atomic** — it consumes IDENT + `(` as a
-    single token.  Grammar form is `T_CALL exprlist T_RPAREN`
-    (was `T_CALL T_LPAREN exprlist T_RPAREN`).  No more wasteful
-    split where T_CALL carried only the name and a separate
-    T_LPAREN followed.
--   **T_FUNCTION renamed to T_DEFINE** throughout the source
-    files (`snocone_lex.h`, `snocone_lex.c`, `snocone_parse.y`).
-    The keyword string `function` is unchanged; only the token
-    enum name moved.  T_DEFINE marks function definitions and
-    is distinct from T_CALL (the call-form token).
--   **func_head reads** `T_DEFINE T_IDENT T_LPAREN func_arglist
-    opt_head_sep` (was `T_DEFINE T_CALL T_LPAREN func_arglist`).
-    Definitions don't piggy-back on the call-form token.
--   **T_CALL removed from sc_value_table.**  Semantically
-    post-T_CALL is post-LPAREN (we're inside the arg list), so
-    `*` after `f(` correctly lexes as unary defer rather than
-    binary multiplication.  This was the fix for line 70 of
-    `beauty.sc`: `X4 = nInc() *Expr5 FENCE(*White *X4 | epsilon);`
--   **New `sc_payload_table` + `sc_kind_has_payload()` predicate.**
-    Distinguishes "value-ender for CONCAT/binary decisions"
-    (`sc_value_table`, used inside the lexer) from "carries text
-    payload to parser thunk" (`sc_payload_table`, used by the
-    `sc_lex` thunk for the `strdup` into `yylval->str`).  T_CALL
-    is in the payload table (carries identifier name) but not
-    the value table.  Parser thunk now uses `sc_kind_has_payload()`
-    for the strdup decision.
+2.  In `coro_runtime.c`: added `E_PROC_FAIL` to the lazy-box list in
+    `coro_eval`.  This was a **hard-won bug fix** — first attempt at
+    RS-23b regressed `rung36_jcon_roman` (PASS → FAIL).  The failing
+    line was the canonical Icon idiom `integer(n) > 0 | fail`.
 
-**Result.**  beauty.sc now parses end-to-end with no syntax errors
-(previously blocked at line 22, then 284, then 70).  Remaining
-failures are runtime-level — undefined functions because library
-.sc files (Gen.sc, Qize.sc, ReadWrite.sc, ShiftReduce.sc, TDump.sc)
-aren't loaded by the driver.  That's a layer above the parser.
+    Root cause: `coro_eval`'s trailing oneshot fallback evaluates each
+    child via `bb_eval_value(e)` at *box-build* time (line 1571).  For
+    `E_PROC_FAIL`, that calls `interp_eval(E_PROC_FAIL)` which sets
+    `FRAME.returning = 1; FRAME.return_val = FAILDESCR` as a side
+    effect — corrupting the procedure even when arm 0 of the alternation
+    succeeds.  `interp_eval(E_ALTERNATE)` is eager-or lazy: it never
+    touches arm 1 unless arm 0 fails.
 
-**Gates green at commit f89dacad (no regressions):**
+    Fix: route `E_PROC_FAIL` through `icn_lazy_box` so the side effect
+    fires only if/when arm 1 is actually pumped.  Matches `interp_eval`
+    semantics exactly.
 
--   `test_smoke_snocone.sh`               PASS=5  FAIL=0
--   `test_beauty_snocone_all_modes.sh`    PASS=42 FAIL=0 SKIP=3
--   `test_smoke_unified_broker.sh`        PASS=49 FAIL=0
--   `test_smoke_snobol4.sh`               PASS=7  FAIL=0
--   `test_gate_sn7_beauty_self_host.sh`   PASS=51 FAIL=0
+**Diagnostic story.**  `RS23DIAG: ` lines were used to confirm each
+RS-23 step lifts the right kinds out of the `interp_eval` fallthrough.
+Before this session: 570 raw events / 17 unique tuples.  After
+RS-23a-route: 117 raw / 14 unique.  After RS-23b: 118 raw / 14 unique
+(one new entry from the lazy box itself when arm 1 actually fires —
+that's correct, replacing the eager box-build event).
+
+## Gates green at session end (one4all `edd0c894`, no regressions)
+
+  * `test_smoke_snobol4.sh`         PASS=7  FAIL=0
+  * `test_smoke_icon.sh`            PASS=5  FAIL=0
+  * `test_smoke_prolog.sh`          PASS=5  FAIL=0
+  * `test_smoke_raku.sh`            PASS=5  FAIL=0
+  * `test_smoke_rebus.sh`           PASS=4  FAIL=0
+  * `test_smoke_snocone.sh`         PASS=5  FAIL=0
+  * `test_smoke_unified_broker.sh`  PASS=49 FAIL=0
+  * `test_isolation_ir_sm.sh`       PASS  (no IR-only leaks in SM files)
+  * `test_icon_ir_all_rungs.sh`     PASS=186 FAIL=47 XFAIL=30  (baseline)
 
 ## Decisions Lon made this session
 
-1.  **"T_FUNCTION T_CALL T_LPAREN is just wrong."**  T_CALL is
-    the call-form token; definitions should not use it.  Solution
-    landed: T_DEFINE for the keyword token, T_IDENT for the
-    function name in `func_head`, `T_LPAREN` separately.
-2.  **"T_CALL T_LPAREN is unnecessary."**  T_CALL should consume
-    the `(` atomically.  Landed.
-3.  **"T_DEFINE is for function definitions."**  Confirmed name
-    over T_FUNCTION.  Keyword string is still "function".
+1.  **"Continue."** twice — green light to do RS-23a-route
+    end-to-end, then RS-23b end-to-end, and to debug the
+    RS-23b regression rather than commit a partial.
+2.  Implicit: prefer the deeper fix over a partial landing
+    (RS-23b option 2 over option 1 from the earlier prompt).
 
 ## Pending / open
 
-### Immediate next milestone — LS-6.c byte-identical proof
+### Immediate next milestone — RS-23c
 
-beauty.sc parses; now it needs to *run*.  Two paths:
+`GOAL-REWRITE-SCRIP.md` line 197:
+> RS-23c — Add `E_EVERY`, `E_INITIAL`, `E_SWAP` to **both** adapters.
+> RS-21 enumerated 11 Icon statement kinds but missed these three;
+> verify the coverage list against icon_parse.c and complete it.
 
-1.  **Library loading.**  beauty.sc has implicit dependencies on
-    `Gen.sc`, `Qize.sc`, `ReadWrite.sc`, `ShiftReduce.sc`,
-    `TDump.sc` (all in
-    `corpus/programs/snocone/demo/beauty/`).  In SPITBOL these
-    are pulled in via `-INCLUDE` or concatenation.  Snocone
-    driver path is unclear — needs investigation.  Look at:
+These three are the highest-volume remaining tuples (107 raw events
+combined out of 118 total).  All three appear in the diag at
+`caller=coro_call`, `caller=bb_exec_stmt`, AND `caller=bb_eval_value`
+or `caller=coro_bb_seq_expr` — meaning they need handlers in **both**
+`bb_exec_stmt` (statement context) AND `bb_eval_value` (value context).
 
-    -   `one4all/src/frontend/snocone/snocone_driver.c` —
-        does it support `INCLUDE` directives or multi-file?
-    -   `corpus/programs/snocone/demo/beauty/Makefile` (if
-        present) — how SPITBOL is invoked.
-    -   `scripts/test_beauty_snocone_all_modes.sh` — the
-        currently-passing 12 small beauty programs all run
-        standalone, so this script doesn't exercise multi-file
-        loading.
+Look at the existing `bb_eval_value` for `E_INITIAL` and `E_SWAP` —
+they may already be present from earlier rungs and only the stmt
+handler is missing.  Verify before duplicating logic.
 
-2.  **SPITBOL oracle.**  Per PLAN.md milestone 1, byte-identical
-    proof uses the SPITBOL oracle (`/home/claude/x64/bin/sbl`).
-    The build script `scripts/build_spitbol_oracle.sh` reported
-    "FAIL clone snobol4ever/x64 to /home/claude/x64 first" last
-    session — the oracle isn't built yet.  Either:
+### After RS-23c
 
-    -   Clone snobol4ever/x64, build the oracle, then run
-        `SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -bf
-        $BEAUTY/beauty.sno < <input> > /tmp/spl.out` to
-        generate the reference output, save as `beauty.ref`,
-        and add to corpus.
-    -   Or pick a smaller representative input first.
-        beauty.sc reads a `.sno` source on stdin and emits a
-        beautified version — pick a tiny `.sno` (e.g.
-        `programs/snobol4/corpus/sno0_concat.sno`) for the
-        first byte-identical test.
+  * **RS-23d** — `E_WHILE` value-context handler in `bb_eval_value`.
+    Diag shows `E_WHILE` at `caller=bb_eval_value` and
+    `caller=coro_bb_seq_expr` — both via `bb_eval_value`.
+    Statement-context `E_WHILE` is already handled in `bb_exec_stmt`.
+  * **RS-23e** — Re-run diag, expect zero unique tuples, harden the
+    direct fallthroughs in `coro_value.c:1075` and `coro_stmt.c:203`
+    to abort with a clear diagnostic, remove the
+    `extern DESCR_t interp_eval(...)` declarations, and add
+    `coro_value.c` and `coro_stmt.c` to `SM_FILES` in
+    `test_isolation_ir_sm.sh`.  Also revert `src/driver/rs23_diag.c`
+    and remove the diag scripts (or keep dormant — Lon's call).
 
-### Lower-priority cleanup
+### Separate concern — `coro_eval` oneshot fallback
 
--   **`test_crosscheck_sc_corpus_rung.sh`** has a stale `-sc
-    -x86` flag that scrip no longer accepts ("scrip: cannot
-    open '-sc'").  Pre-existing, not caused by this session.
-    Manual `for f in *.sc; do diff <(./scrip --ir-run $f) $f.ref;
-    done` shows 10/10 PASS in `corpus/programs/snocone/corpus`.
-    Script needs updating to current scrip CLI.
+The remaining diag entries for `E_IF (3, 2 tuples)`, `E_RETURN (1)`,
+`E_PROC_FAIL (1, lazy)`, `E_BANG_BINARY (1)` are all reached via
+`coro_eval`'s oneshot fallback, **not** through `bb_exec_stmt`.  These
+won't be cleared by RS-23c/d work directly.  Strategy options:
 
--   **Bison parser regenerate baseline.**  The parser regenerate
-    script reports 0 conflicts on the new grammar; verified
-    cleanly twice this session.
+  * **Add native cases in `coro_eval`** for these kinds (returning
+    appropriate Byrd boxes).  Largest payoff and the cleanest path.
+  * **Add `bb_eval_value` cases** for them so the oneshot fallback's
+    `z->val = bb_eval_value(e)` no longer falls through to
+    `interp_eval`.  Cheaper but transitive.
+
+This isn't called out in the goal file as its own rung — would be a
+natural addition to RS-23e or a new RS-23f.  The lazy-box fix for
+`E_PROC_FAIL` landed this session is a pattern that may apply to
+`E_RETURN` too if Lon ever encounters `expr | return foo` style code.
+
+### Lower-priority
+
+  * The previous session's HANDOFF (now overwritten) noted
+    `test_crosscheck_sc_corpus_rung.sh` has a stale `-sc -x86` flag.
+    Pre-existing, unrelated to this track.
+  * The previous session's beauty.sc / LS-6.c work is on the
+    GOAL-SNOCONE-LANG-SPACE track.  If Lon switches back to that
+    goal, the prior HANDOFF is in `.github` commit `c4564a7`.
 
 ## Recommended next-session opening sequence
 
@@ -141,37 +142,64 @@ beauty.sc parses; now it needs to *run*.  Two paths:
     cd /home/claude/.github && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
     ```
 
-2.  Re-read `GOAL-SNOCONE-LANG-SPACE.md` LS-6.c section
-    (line ~1533 onward, especially the session-#9 notes
-    appended at line ~1647).
+2.  Read `PLAN.md`.  Step for GOAL-REWRITE-SCRIP is `RS-23c
+    (RS-23b LANDED session 2026-05-03 cont.)`.
 
-3.  Investigate snocone_driver.c for include / multi-file
-    support.  If absent, a prerequisite rung needs to be added
-    before LS-6.c byte-identical can land.  Possible quick
-    win: a tiny test that concatenates Gen.sc + Qize.sc + ... +
-    beauty.sc into one file and runs it — if the result matches
-    SPITBOL's output on a sample `.sno`, LS-6.c is done.
+3.  Read `GOAL-REWRITE-SCRIP.md` lines 197–200 for the RS-23c
+    description.  Read this HANDOFF.md (you're in it) for the
+    diagnostic context and the strategy notes about value-context
+    vs statement-context coverage.
 
-4.  If multi-file loading is in scope: add the include
-    mechanism, then generate `beauty.ref`, then update LS-6.c
-    checkbox to `[x]` in `GOAL-SNOCONE-LANG-SPACE.md`.
+4.  Build scrip + run all smoke gates first to confirm green
+    starting state:
 
-5.  After LS-6.c closes, the LS-track moves to LS-7
-    (documentation) which is already largely landed, then
-    LS-8+ (whatever the goal doc lists next — read the file).
+    ```
+    cd /home/claude/one4all
+    bash scripts/install_system_packages.sh
+    bash scripts/build_scrip.sh
+    bash scripts/test_smoke_snobol4.sh
+    bash scripts/test_smoke_icon.sh
+    bash scripts/test_smoke_unified_broker.sh
+    bash scripts/test_isolation_ir_sm.sh
+    ```
+
+5.  For RS-23c, before writing any code:
+
+    *   Read `coro_value.c` to find what's already handled for
+        `E_EVERY`, `E_INITIAL`, `E_SWAP`.  Don't duplicate.
+    *   Read `interp_eval.c` cases for the same three kinds to
+        understand the contract you must mirror.
+    *   Build `scrip-rs23-diag` and run `test_rs23_diag_capture.sh`
+        first to confirm the current 14-tuple list (118 raw events).
+    *   Add stmt + value handlers, build, run all gates + diag,
+        confirm the three kinds drop out and Icon corpus stays at
+        186/47/30.
+
+6.  Watch for the same eager-evaluation hazard that bit RS-23b.
+    `E_INITIAL` runs once per proc on first call — there's a `static`
+    gate flag.  Make sure box-build vs box-pump timing doesn't
+    accidentally fire it twice or skip the static gate.  `E_SWAP`
+    may have lvalue plumbing that needs careful frame-state
+    handling.  When in doubt, bisect — the same `git stash`/build/
+    diff workflow used this session worked cleanly.
 
 ## Files touched this session
 
 ```
-one4all f89dacad:
-  src/frontend/snocone/snocone_lex.c       (+58 lines net)
-  src/frontend/snocone/snocone_lex.h       (+2 lines)
-  src/frontend/snocone/snocone_parse.y     (+25 lines net)
-  src/frontend/snocone/snocone_parse.tab.c (regenerated)
-  src/frontend/snocone/snocone_parse.tab.h (regenerated)
+one4all 7d8ed6ed:
+  src/runtime/interp/coro_stmt.c       (+12 lines, -5 lines)
 
-.github c4564a7:
-  GOAL-SNOCONE-LANG-SPACE.md  (+43 lines, session #9 notes)
+one4all edd0c894:
+  src/runtime/interp/coro_stmt.c       (+34 lines, -3 lines)
+  src/runtime/interp/coro_runtime.c    (+13 lines)
+
+.github 90a2d7d:
+  GOAL-REWRITE-SCRIP.md                (RS-23a-route → [x], LANDED note)
+  PLAN.md                              (step → RS-23b)
+
+.github db87586:
+  GOAL-REWRITE-SCRIP.md                (RS-23b → [x], LANDED note)
+  PLAN.md                              (step → RS-23c)
 ```
 
-Both repos pushed clean to `origin/main`.
+Both repos pushed clean to `origin/main`.  No stash, no untracked files.
