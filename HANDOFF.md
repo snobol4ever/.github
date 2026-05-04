@@ -200,6 +200,58 @@ one4all edd0c894:
 .github db87586:
   GOAL-REWRITE-SCRIP.md                (RS-23b → [x], LANDED note)
   PLAN.md                              (step → RS-23c)
+
+.github 7cb4a1e:
+  PLAN.md                              (repair truncated Rewrite SCRIP row;
+                                        damage inherited from upstream
+                                        emergency-handoff commit 522ea69)
+
+corpus 6c08e2b (parallel session, identical output to this one):
+  editor/sublime/SNOBOL4.sublime-syntax    (refined: identifier regex
+                                            tightened to SPITBOL §3 spec,
+                                            float regex extended to cover
+                                            1E+7 / 2E7 / 8.4E-7 forms)
+  editor/sublime/Snocone.sublime-syntax    (new — drops column-1 model,
+                                            adds C-style comments + braces
+                                            + Snocone keywords + d/D real
+                                            exponent, keeps DEFINE/DATA/
+                                            ARRAY proto-string contexts)
+  editor/sublime/README.md                 (install + scope vocabulary)
 ```
+
+## Sublime work — context for next session
+
+After the RS-23 work landed, Lon shared `SNOBOL4.sublime-syntax` plus
+the SPITBOL v3.7 manual and asked for a Snocone companion file.  Two
+sessions worked the task in parallel and converged on byte-identical
+output (md5sum confirmed).  Both files are at corpus@6c08e2b.
+
+Key decisions encoded in those files (read the README + commit message
+for full context):
+
+  * **`FENCE` is intentionally listed in BOTH `pattern_function` and
+    `pattern_variable`.**  Confirmed by SPITBOL Ch. 19: there is a
+    `FENCE(pattern)` function distinct from the `FENCE` primitive
+    pattern variable.  A previous version briefly thought this was
+    dead code — it isn't.
+  * **Snocone keeps DEFINE / DATA / ARRAY prototype-string contexts**
+    even though `function NAME(args) { … }` is the preferred Snocone
+    form.  Per Lon's directive ("Snocone still supports all of
+    SNOBOL4 functions") and verified in corpus (`DEFINE('TValue(x)i')`
+    appears in legacy code).
+  * **SPITBOL spec disagreement noted**: SPITBOL §3 says identifiers
+    cannot start with `_`, but `snocone_lex.c is_alpha` allows `_` as
+    leading char.  Snocone file follows the lexer (more permissive),
+    SNOBOL4 file follows the spec (`[A-Za-z][0-9A-Z_a-z\.]*`).
+  * **Snocone real-number regex** accepts `d/D` exponent letter as
+    well as `e/E`, mirroring `snocone_lex.c` lines 328–329, 334–335.
+    SPITBOL itself only accepts `e/E`.
+
+If Lon wants to refine these further (more keywords, different scope
+choices for color-scheme contrast, tests in `corpus/editor/sublime/`
+to lock the highlighting behavior), the validation harness from this
+session was a Python `re` pass that compiled every regex and traced
+first-match-wins position-by-position against sample lines.  Easy
+to reproduce.
 
 Both repos pushed clean to `origin/main`.  No stash, no untracked files.
