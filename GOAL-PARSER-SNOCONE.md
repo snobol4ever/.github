@@ -231,11 +231,10 @@ Not violations (canonical guide explicitly permits or prefers):
   gate. **DONE session #65: only one violation found (the driver's
   input-reader loop); fixed; gate PASS=21 FAIL=0.**
 
-- [ ] **Step 3c — replace 71-char dividers with 120-char comment rules
-  (§8).** Major boundaries (token defs, helpers, builders, grammar tier,
-  driver) get `/*===*/`; minor sub-boundaries get `/*---*/`. Drop the
-  blank lines that currently separate sections — the rule now adjoins
-  the next code block directly.  Re-run gate.
+- [x] **Step 3c — replace 71-char dividers with 120-char comment rules
+  (§8).** All `//---` (71-char) dividers replaced with `//===` (120-char);
+  all 63 blank separator lines removed (0 remaining). Gate PASS=21 FAIL=0.
+  **DONE session #66 (2026-05-04): corpus @ `b52cfa2`.**
 
 - [ ] **Step 3d — convert longhand `shift`/`reduce` to `~`/`&` OPSYN
   (§4).** Convert `shift(p, 't')` → `p ~ 't'` and `reduce('t', n)` →
@@ -310,6 +309,8 @@ Gate: PASS=21 FAIL=0 (atom_*, assign_*, arith_*, concat_seq, if_simple,
 if_else, if_seq, if_multi_body, while_simple, while_seq, do_simple,
 do_with_stmt). Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.
 Sibling parsers unaffected.
+
+**Session #66 (2026-05-04) — INFRA-3 Step 3c landed: 120-char //=== dividers throughout; 63 blank separator lines removed. Gate PASS=21 FAIL=0. corpus @ `b52cfa2`.**
 
 **Session #65 (2026-05-04) — PARSER-SC-3 watermark bump; cross-PARSER
 style guidelines integrated; INFRA-3 Steps 3a + 3b banked.**
