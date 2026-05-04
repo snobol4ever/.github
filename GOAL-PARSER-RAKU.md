@@ -147,8 +147,8 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ### PARSER-RK-2 — `say` and arith
 
-- [ ] `Command` handles `say expr;` calls and `+ - * /` operators.
-- [ ] Test corpus: existing + **NEW**.
+- [x] `Command` handles `say expr;` calls and `+ - * /` operators.
+- [x] Test corpus: existing + **NEW**.
 - **Sibling LANG rungs:** RK-7..RK-10.
 - **Gate:** PASS≥17.
 
@@ -187,4 +187,4 @@ as a single token; the tree carries sigil in the tag (`(ScalarVar a)`,
 
 ## Watermark
 
-PARSER-RK-1 LANDED (session #62, 2026-05-03) — PASS=10. Next: PARSER-RK-2.
+PARSER-RK-2 LANDED (session #62, 2026-05-03) — PASS=17. Next: PARSER-RK-3.
