@@ -152,7 +152,7 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
 
   **RS-23a is therefore split into two sub-rungs:**
 
-  - [ ] **RS-23a-raku** — Lift the Raku built-ins (`raku_try`,
+  - [x] **RS-23a-raku** — Lift the Raku built-ins (`raku_try`,
     `raku_die`, `raku_map`, `raku_grep`, `raku_sort`, plus the
     `chars`/`length` family at interp_eval.c:1257) out of
     `interp_eval` and into `icn_call_builtin` (or a new
@@ -163,6 +163,24 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
     pass without regression.
     Gate: smoke + unified_broker green BEFORE wiring up the
     bb_exec_stmt routing.
+
+    **LANDED (session 2026-05-03 cont.):** New
+    `src/runtime/interp/raku_builtins.{c,h}` exposes
+    `raku_try_call_builtin(EXPR_t *call, DESCR_t *out) → int`.  All ~30
+    Raku-specific names are dispatched there; the lifted body uses
+    `bb_eval_value` for child evaluation.  The function is invoked from
+    three places: (1) `interp_eval`'s icn-frame `E_FNC` case (replaces
+    the old ~593-line block at lines 955–1547), (2) `bb_eval_value`'s
+    `E_FNC` case at the top, before user-proc lookup and before the
+    generic builtin pre-eval loop (so block-receiving builtins don't
+    suffer FAIL-prop on their body argument), and (3) `icn_call_builtin`
+    top, as defensive coverage for the `coro_bb_fnc` path.  Declaration
+    added to `interp_private.h` next to `icn_call_builtin`.  Build line
+    added to Makefile.
+    Gates: smoke_raku 5/5, smoke_icon 5/5, smoke_snobol4 7/7,
+    smoke_prolog 5/5, unified_broker 49/0 (rk_map_grep_sort24 and
+    rk_try_catch25 both PASS), isolation gate green, full Icon corpus
+    191/42/30/263 (no delta from baseline).
 
   - [ ] **RS-23a-route** — After RS-23a-raku, add the
     `case E_FNC: case E_ASSIGN: case E_AUGOP: { (void)bb_eval_value(e);
