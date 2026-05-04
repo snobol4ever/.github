@@ -577,6 +577,117 @@ rung lands a slice of the grammar, shaped per the invariants above.
       byte-identical to the SPITBOL oracle (Milestone 1 gate).
 - **Gate:** beauty.sno PASSES under both oracles.
 
+#### PARSER-SN-7-9 — style audit remediation (guidelines, not laws)
+
+**Context.**  Audit of `parser_snobol4.sc` (200 lines, session
+2026-05-04) against the nine § Style Guidelines for parser_*.sc.
+Most guidelines are already honored; a few are genuine deviations,
+and a few are guideline-vs-pragma tensions inherited from beauty.sno.
+Each step below is a guideline, not a law — the intent is to record
+the deviation and let the operator decide rather than silently leave
+it.  Mixed checkboxes signal which are mechanical fixes vs decision
+points.
+
+**Already tracked elsewhere — not duplicated as steps here:**
+
+  - § 6 (`E_*` IR tags) — every `shift()`/`reduce()` tag string today
+    is the beauty.sno-native form (`'Stmt'`, `'Id'`, `'String'`,
+    `'Real'`, `'Integer'`, `'Call'`, `'Comment'`, `'Control'`,
+    `'Parse'`, `'ExprList'`, `'='`, `'?'`, `'|'`, `'..'`, `'@'`,
+    `'+'`, `'-'`, `'/'`, `'*'`, `'%'`, `'^'`, `'$'`, `'.'`, `'~'`,
+    `'&'`, `'#'`, `'!'`, `'[]'`, `'()'`, `'Label'`,
+    `*(':' Brackets)`, `*(':' sf Brackets)`).  The wholesale rewrite
+    to `STMT`/`E_VAR`/`E_QLIT`/`E_FNC`/`E_SEQ`/`E_ALT`/role-slot tags
+    is **the centerpiece of PARSER-SN-7-1..7-7**, not a separate
+    style step.
+
+##### Mechanical fixes
+
+- [ ] Drop the lone blank line at the boundary between `Command`
+      and `Compiland` (currently around line 177 of
+      `parser_snobol4.sc`).  Replace with a `/*---*/` minor divider or
+      simply tighten — the `/*===*/` major divider above already
+      separates the section.  § 8.
+- [ ] Rewrite the input-reader loop to drop the single-statement
+      braces:
+      ```snocone
+      while ((Line = INPUT)) Src = Src Line nl ;
+      ```
+      Currently:
+      ```snocone
+      while ((Line = INPUT)) {
+          Src = Src Line nl;
+      }
+      ```
+      The two-statement TDump loop below keeps its braces — that one
+      is correct as-is.  § 8.
+
+##### Optional polish — `$' '`/`$'  '` and `S`/`F` simple-letter tokens
+
+- [ ] Decide whether to introduce the beauty.sno simple-identifier
+      whitespace tokens (`$' ' = SPAN(' ' tab) | epsilon;` and
+      `$'  ' = SPAN(' ' tab);`) and the goto-letter token rules
+      (`S = $' ' 'S';` `F = $' ' 'F';`).  Today the parser uses
+      `'S' | 's'` and `'F' | 'f'` literals inline at lines 134–135 —
+      mechanically equivalent, but doesn't match the beauty.sno
+      reading.  Bringing them in would also let `Goto`'s `*Gray`
+      references collapse to bare `$' '` reads.  § 3 + § 2.
+      Decision: keep parser concise (status quo) OR refactor for
+      beauty.sno isomorphism.
+
+##### Guideline-vs-pragma tension — `White`/`Gray` referenced in main grammar
+
+- [ ] § 2 says "`White`/`Gray` are attached, never referenced in the
+      main grammar".  Today `parser_snobol4.sc` references them in
+      five places, all inherited verbatim from beauty.sno:
+      * `X4 = nInc() *Expr5 FENCE(*White *X4 | epsilon);` (line 76)
+        — required, this is how concat-juxtaposition (`E_SEQ`) detects
+        the inter-token whitespace that *is* the `..` operator.
+      * `Goto = *Gray ':' *Gray FENCE(...);` (lines 139–140) — the
+        bracket-token `$' '`/`$'  '` rules don't carry the `:`
+        delimiter, so `*Gray` is required around it explicitly.
+      * `Stmt = *Label ( *White *Expr14 ... ($'?' | *White) *Expr1
+        ... )` (lines 149–168) — column-sensitive whitespace before
+        the body expression (`*White`) and as the implicit pattern
+        delimiter (`($'?' | *White)`); both required by SNOBOL4's
+        column-aware grammar.
+      The guideline expresses an *intent* — keep whitespace out of
+      sight when the grammar permits.  beauty.sno's own grammar
+      cannot honor it in these five places because SNOBOL4
+      column-sensitive parsing requires explicit `*White` reads at
+      Stmt boundaries.  Decision: leave the five sites annotated
+      with a one-line `// ws-here-is-required:<reason>` comment and
+      mark the guideline as "honored except where grammar forbids".
+      The author should not feel embarrassed about these references;
+      they are correct.  § 2.
+
+##### Audit-clean (no action — recorded for completeness)
+
+- § 1 names match — pattern names `Id`, `Integer`, `Real`, `String`,
+  `Expr0..Expr17`, `ExprList`, `XList`, `Label`, `Stmt`, `Comment`,
+  `Control`, `Command`, `Compiland`, `Goto`, `Target`, `SGoto`,
+  `FGoto`, `SorF` all match beauty.sno verbatim.  ✅
+- § 3 `$'name'` form — all 24 special-char tokens carry the
+  `$'...'` form (`$'='`, `$'?'`, `$'|'`, `$'+'`, ...).  ✅
+- § 4 shift/reduce — every action site uses `~` (shift) and `&`
+  (reduce) infix per beauty.sno.  ✅
+- § 5 n-ary counters — `nPush()` / `nInc()` / `nTop()` / `nPop()`
+  used as patterns inside grammar rules at every n-ary site
+  (`ExprList`, `Expr3`, `Expr4`, `Expr15`, `Compiland`).  ✅
+- § 7 identifier conventions — no `_`-prefixed identifiers; variables
+  lowercase (`tx`, `sf`, `Brackets`, `Src`, `Line`, `ptree`, `i`,
+  `nk`); pattern names PascalCase.  ✅
+- § 8 layout — 120-col max respected (longest line is the divider
+  comment at exactly 120); single-statement-no-braces honored
+  outside the two cases above.  ✅ (with the two mechanical fixes)
+- § 9 read beauty.sno — process guideline, honored.  ✅
+
+**Gate:** the two mechanical-fix checkboxes flip to `[x]`; the two
+decision-points are resolved (decided either way is fine — the goal
+is for the file to either honor the guideline or carry a one-line
+comment explaining why it cannot).  PASS count unchanged from
+PARSER-SN-7-8 (style work does not change tree shapes).
+
 ### PARSER-SN-FW-4 — `scrip --parser-crosscheck` C-side flag (deferred)
 
 - [ ] Add `--parser-crosscheck` flag to `scrip.c`. Reads two inputs:
