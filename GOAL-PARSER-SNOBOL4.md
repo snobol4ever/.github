@@ -406,31 +406,46 @@ rung lands a slice of the grammar, shaped per the invariants above.
 These are real runtime bugs we route around. All six PARSER-* sessions
 inherit the workarounds.
 
-### FW-3 — inline `epsilon . *fn()` inside ARBNO/FENCE does not fire
+### FW-3 — ARBNO(...) deferred-call firing under Snocone — ✅ FIXED 2026-05-03
 
-Investigated session 2026-05-03: deferred calls written INLINE inside
-ARBNO or FENCE bodies do not fire. Assigned to a NAMED pattern first,
-they fire correctly — including inside ARBNO(*Q) and FENCE.
+**Resolved at one4all@228bc06b.**  `interp_eval_pat E_FNC` now restores
+the ARBNO/FENCE guards that had been removed in RS-5 (with the comment
+"no frontend produces those").  Snocone's parser HAS no ARBNO/FENCE
+keywords, so `ARBNO(p)` reaches `interp_eval_pat` as `E_FNC("ARBNO",
+child)` — exactly what the removed guards were catching.  Without the
+guards, `eval_node(e)` evaluated the inner pattern in value context,
+freezing `E_DEFER(E_FNC)` children as DT_E literals and `pat_arbno`
+iterated over a baked pattern with no live deferred refs.
 
-**Workaround:** assign every pattern containing `epsilon . *fn()` to a
-named variable before use in ARBNO/FENCE. The original note about
-ARBNO(*Q) suppressing deferred calls is incorrect — the issue is
-inline vs named, not deferred-ref vs inlined body.
+The fix mirrors the existing pair in `interp_eval` (`interp_eval.c`
+~line 2951).  Sibling fix to `one4all@d5623f26` (eval_expr →
+interp_eval_pat).  Same class of Snocone-vs-SNOBOL4 context-evaluation
+difference.
 
-8-line repro:
+After fix: deferred calls fire correctly inside `ARBNO(...)` whether
+inlined or referenced via `*Q`.  PARSER-SN parser now produces non-empty
+tree output for all 59 fixtures (up from 0).  Remaining FAILs are tree-
+shape mismatches (beauty.sno native shape vs `--dump-parse` shape) —
+the next rung's work, not a runtime bug.
+
+Historical note (the old FW-3 workaround text — preserved for context):
+
+> Investigated session 2026-05-03: deferred calls written INLINE inside
+> ARBNO or FENCE bodies do not fire. Assigned to a NAMED pattern first,
+> they fire correctly — including inside ARBNO(*Q) and FENCE. The
+> diagnosis was incomplete: the real issue was that interp_eval_pat
+> E_FNC fell through to eval_node, dropping pattern context for both
+> inline and *Q forms. The 'named pattern' workaround happened to route
+> through E_VAR resolution that re-entered pattern context, masking the
+> bug for non-pattern children.
+
+8-line repro that flipped from broken to fixed:
 
 ```snocone
-function fire() { OUTPUT = '  fire()'; fire = .dummy; nreturn; }
-Q = (ANY('a') epsilon . *fire());
-'aa' ? ARBNO(Q);    // fires fire() twice ✓
-'aa' ? ARBNO(*Q);   // fires fire() zero times ✗ — pattern matches but
-                    //   side-effect deferred calls inside Q never run
+function fire(d) { OUTPUT = '  fire()'; fire = .dummy; nreturn; }
+'aa' ? ARBNO(ANY('a') epsilon . *fire());
+// Before: zero output.  After: 'fire()' twice.
 ```
-
-**Workaround (universal, zero-cost):** inline the Command body inside
-ARBNO directly. Do not write `ARBNO(*Command)`. Probable fix-site:
-`interp_eval.c` / `eval_pat.c` — pattern re-evaluation walking the cached
-pattern tree without re-firing E_CAPT_*_ASGN nodes.
 
 ### INFRA-11a — `subj ? pat` returns NULSTR on success
 
@@ -622,3 +637,35 @@ Next: labels, assignment, full expression ladder. — scaffold
 parser_prolog.sc / parser_icon.sc / beauty.sno model, hit PASS=58
 parity on existing fixtures, then move through SN-7-1..7 grammar
 slices, finishing at SN-7-8 (beauty.sno full crosscheck).
+
+**Watermark (session 2026-05-03 PM cont., one4all@228bc06b):**
+ARBNO(...) deferred-call bug FIXED in `interp_eval_pat` E_FNC case.
+This was the bug blocking PARSER-SN-7 since the eval_expr fix landed
+at `d5623f26`.  Sibling fix — same Snocone-vs-SNOBOL4 pattern-context
+class.  Snocone has no ARBNO/FENCE keywords, so `ARBNO(p)` is
+`E_FNC("ARBNO", p)` — and the E_FNC pat-context guards had been
+removed in RS-5 with the (Snocone-incorrect) comment "no frontend
+produces those".
+
+Restoring those guards mirrors `interp_eval`'s pair at
+`interp_eval.c:2951` and resolves the documented FW-3 workaround
+(now marked ✅ FIXED above).
+
+Gate state: PARSER-SN now produces non-empty tree output for ALL 59
+fixtures (was: empty for all 59).  PASS=0/59 because the parser
+emits beauty.sno's native tree shape (`Stmt`/`Id`/`String`/`Call`/
+`..`) instead of scrip `--dump-parse`'s shape (`STMT`/`E_VAR`/
+`E_QLIT`/`E_FNC`/`E_SEQ`).  This is the IR-tag-rewriting work the
+goal file already describes (FW-1, FW-2, role-slot wrappers).
+
+Sibling parsers all green: IC=40/40, PR=48/48, RK=25/25, RB=38/38,
+SC=13/13.  SNOBOL4 smoke 7/7, scrip(.sc) smoke all OK.
+
+**Next milestone:** PARSER-SN-7-1 — labels + assignment, *and* tree-shape
+rewrite to match scrip `--dump-parse` oracle.  The grammar matches
+beauty.sno verbatim today; the parser_snobol4.sc needs role-slot
+wrappers (`:lbl`, `:subj`, `:pat`, `:repl`) and IR-tag rewrites
+(`Stmt`→`STMT`, `Id`→`E_VAR`, `String`→`E_QLIT`, `Integer`→`E_ILIT`,
+`Call`→`E_FNC`, `..`→`E_SEQ`, `|`→`E_ALT`) before any fixture passes.
+This is essentially the FW-2 multi-child role-slot wrapper convention
+applied across the grammar.

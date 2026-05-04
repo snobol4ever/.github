@@ -73,7 +73,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN: eval_expr bug fixed (one4all@d5623f26, corpus@f59a84c). ARBNO(*Command) fires 0 iterations — next session fixes that runtime bug. |
+| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN: ARBNO deferred-call bug fixed (one4all@228bc06b). Parser now produces non-empty tree output for all 59 fixtures. Remaining FAILs are tree-shape mismatches (beauty.sno native shape vs scrip --dump-parse shape) — next session does the IR-tag rewrite. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-3 (INFRA-2 landed PASS=13 session #64) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 ( — one Compiland matched once against entire source, OPSYN ~/&, n-ary trees via nPush/nInc/nTop/nPop, no user-defined functions inside patterns, no goto. See GOAL ## Rubric.) |
