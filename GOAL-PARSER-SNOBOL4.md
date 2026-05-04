@@ -120,7 +120,14 @@ beauty.sno-legible convention — use them rather than spelling out
 
 ### 4. Tree-build decorations use shift/reduce, not bare deferred calls
 
-The pre-OPSYN form is:
+**Philosophy — decorate the grammar, do not plumb actions through it.**
+The grammar pattern itself carries the tree-building decorations:
+`shift(p, t)` consumes a token and pushes a leaf, `reduce(t, n)` pops
+N stacked children and pushes an N-ary node.  The grammar reads
+top-to-bottom as the language plus tree-shape annotations, with no
+parallel scaffold of helper globals or `$'do_X'` action wrappers.
+
+Per beauty.sno / beauty.sc, the pre-OPSYN form is:
 
 ```
 primitive . tx epsilon . *Func(literal, tx)
@@ -132,9 +139,8 @@ This collapses to the function-call form:
 primitive . tx Func(literal, "tx")
 ```
 
-Where `Func` is `shift` (consume token, push leaf) or `reduce` (pop N
-children off the n-counter stack, push N-ary node with given tag).
-With the OPSYN'd infix shortcuts (`semantic.sc`):
+Where `Func` is `shift` or `reduce`.  With the OPSYN'd infix shortcuts
+(`semantic.sc`):
 
 ```
 primitive ~ "tx"             // shift:  primitive consumed, leaf pushed under tag "tx"
@@ -151,6 +157,33 @@ parser binds `~` as a unary operator at parse time, so OPSYN at runtime
 does not retro-rebind the infix form.  See `INFRA-11b` below — if/when
 that is resolved, sibling parsers may revert to the verbatim
 beauty.sno `~`/`&` infix.
+
+#### 4a. Anti-pattern — function-based action plumbing
+
+⛔ **Do not** build a parallel plumbing layer of helper globals
+(`_foo_node`, `_lhs`, `_op_tag`, ...), per-action wrapper patterns
+(`$'save_lhs'`, `$'op_ADD'`, `$'do_assign'`, `$'binop_add'`, ...), and
+companion functions (`stash_assign_target`, `build_assign`,
+`expr_binop`, ...) just to assemble what `shift`/`reduce` already
+build with a stack and a counter.  beauty.sno does not do this and
+neither should any `parser_*.sc`.
+
+The stack and the n-counter are the only persistent state required.
+`shift(P, 'E_VAR')` pushes the leaf when `P` matches; one or more
+nested rules `reduce('E_ASSIGN', 2)`, `reduce('E_ADD', 2)`,
+`reduce('E_FNC', 'nTop()')` fold them into the IR tree — n-ary
+collections via `nPush()` ... `ARBNO(... nInc() *Child)` ... `nPop()`.
+Anything that reads naturally as "push this leaf" or "pop these N and
+make this kind of node" belongs in the pattern.  Helper functions are
+appropriate only for genuinely non-stack semantics (e.g. matching a
+classifier list via `match(Functions, TxInList)`, lower-time name
+remaps such as `say` → `write`).
+
+The presence of `_xxx`-prefixed globals or a long block of
+`$'do_xxx'` / `$'save_xxx'` patterns in a `parser_*.sc` is a code
+smell — it usually means stack-and-counter primitives were not
+sufficiently used, and the file should be rewritten in beauty.sc
+shape before further rungs land on top of it.
 
 ### 5. n-ary trees use `nPush() ... nInc() ... nTop() / nPop()`
 
@@ -199,7 +232,15 @@ must be rewritten — see `GOAL-PARSER-PROLOG.md` and
 
 ⛔ **No identifier starts with `_`.**  Underscore-prefix is reserved
 for compiler-generated names (synthetic labels, anonymous bindings,
-internal scaffolds).  User code in `parser_*.sc` never spells one.
+internal scaffolds).  User code in `parser_*.sc` never spells one —
+not as a variable, not as a global, not as a struct field, not as a
+helper function.
+
+Existing `parser_*.sc` files that carry `_foo`-prefixed globals
+(`_expr_node`, `_main_node`, `_rk_*`, `_e4lhs`, ...) are in
+violation of this rule and must be cleaned up to match the beauty.sc
+stack-and-counter shape (see §4 and §4a).  Treat any such occurrence
+as work-to-do, not as established style worth copying into new code.
 
 The goto-letter token names `S` (success) and `F` (failure) are the
 exception that proves the rule — they are single uppercase letters,
@@ -217,12 +258,18 @@ Snocone source:
   if (x) statement ;            // YES
   if (x) { statement; }         // NO — gratuitous braces
   while (cond) IncCounter() ;   // YES
+  if (DIFFER(t)) return ;       // YES — single-line guard
   ```
-  Braces are only for multi-statement bodies.
+  Braces are only for multi-statement bodies.  This applies to every
+  control-flow head: `if`, `else`, `while`, `for`, `function` with
+  a one-line body.
 - **Section dividers, never blank lines:**
-  - Major sections: `/*====================...====================*/` (120 chars)
-  - Minor sections: `/*--------------------...--------------------*/` (120 chars)
-  - Blank lines as separators are forbidden — use comment dividers.
+  - Major sections: `//============================...===============` (120 chars, `//=` prefix)
+  - Minor sections: `//----------------------------...---------------` (120 chars, `//-` prefix)
+  - Blank lines as separators are forbidden.  Use a divider comment.
+  - The actual canon is `parser_snobol4.sc` — its `//===` 120-char
+    bars are the literal model.  beauty.sc uses 80-char bars, which
+    is grandfathered in that file but not for new `parser_*.sc`.
 - **Maximize horizontal space.**  Pack related rules onto the same
   line where they fit within 120 cols.  beauty.sno's
   `$'=' = *White '=' *White; $'?' = *White '?' *White;` per line
