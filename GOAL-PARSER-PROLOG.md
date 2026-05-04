@@ -110,11 +110,11 @@ Rules `head :- goal.` with single goal in body. Two-phase build
 (`snapshot_head` + `mark_body` + `build_clause`); E_CHOICE/E_CLAUSE key
 is head arity alone.
 
-### PARSER-PR-3 — conjunction / disjunction (`,` / `;`) — **next**
+### PARSER-PR-3 — conjunction / disjunction (`,` / `;`) — **LANDED** (PASS=24)
 
-- [ ] `Command` handles `a, b, c` and `a ; b` in goal position.
+- [x] `Command` handles `a, b, c` and `a ; b` in goal position.
 - **Sibling LANG rungs:** PR-10..PR-12.
-- **Gate:** PASS≥24.
+- **Gate:** PASS≥24. ✅
 
 #### Oracle IR shapes (verified via `--dump-ir`)
 
@@ -220,10 +220,6 @@ Gate: PASS≥45.
 
 ## Watermark
 
-PARSER-PR-2 LANDED (PASS=18). PARSER-PR-3 attempted twice (sessions
-ending 2026-05-03 — two emergency handoffs). On-disk and remote state
-is clean PR-2; nothing partial pushed. Six PR-3 fixtures committed with
-verified oracle output.
+PARSER-PR-3 LANDED (PASS=24). Next: PARSER-PR-4 — lists (`[H|T]` / `[a,b,c]`).
 
-**Next session:** re-attempt PARSER-PR-3 using the `nPush`/`nInc`/`nTop`/
-`nPop` counter helpers (the canonical spine mechanism for this pattern).
+**Next session:** implement PR-4 list syntax.
