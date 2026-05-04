@@ -233,8 +233,21 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
   appear inside ARBNO without triggering FW-3 (deferred actions inside
   the deferred Q get suppressed).
 
-### PARSER-PR-6 — queries / directives
-Gate: PASS≥45.
+### PARSER-PR-6 — queries / directives — **LANDED** (PASS=48)
+
+- [x] Top-level directive `:- Goal.` produces `(STMT :subj <body>)`
+      directly — no `E_CHOICE`/`E_CLAUSE` wrap, no top-level `,`
+      flattening, body raw under `:subj`.
+- [x] Per-directive variable scope reset (matches per-clause behavior).
+- [x] Mixed directive + clause files produce one STMT per top-level form.
+- **Gate:** PASS≥45. ✅ (PASS=48, exceeded by 3)
+- **Fixtures:** dir_atom, dir_compound, dir_conj, dir_disj, dir_arith,
+  dir_with_clause.
+- **Notes:** No separate `?-` query syntax — the existing Prolog
+  frontend rejects it, so PARSER-PR mirrors that.  New tree-builder
+  semantic `build_directive` pops one body tree and pushes the
+  `(STMT :subj <body>)` envelope.  Compiland's ARBNO body widened from
+  `clause` to `top_form = (directive | clause)`.
 
 ---
 
@@ -249,6 +262,10 @@ Gate: PASS≥45.
 
 ## Watermark
 
-PARSER-PR-5 LANDED (PASS=42). Next: PARSER-PR-6 — queries / directives.
+PARSER-PR-6 LANDED (PASS=48).  All ladder rungs PR-0..PR-6 landed.
+Next: PARSER-PR-7+ rung (TBD by Lon — ladder is open-ended; candidates
+include same-functor multi-clause E_CHOICE merging, anonymous variables
+`_`, parenthesized body subterms, DCG sugar).
 
-**Next session:** implement PR-6 directives (`:- goal.`).
+**Next session:** confirm with Lon what PARSER-PR-7+ should cover, or
+move to a sibling parser ladder.
