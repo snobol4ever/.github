@@ -805,7 +805,174 @@ Every step below uses the OPSYN binary operators `~` (shift) and `&`
 spine for n-ary trees. **No `goto`. No labels. No `Push(Tree(...))`
 escapes from a pattern.** No left, no right.
 
-### PARSER-RB-0 — atom (rewrite) — **next**
+### PARSER-RB-0a — Style Guidelines audit & cleanup — **next**
+
+⚠ **These are guidelines, not laws.**  Each item below is a recommended
+cleanup against the canonical style codified in
+`## Style Guidelines for parser_*.sc`.  Strict conformance is the
+default; deviate only with a brief inline `// note: ...` justifying why
+the deviation is the better engineering choice in this spot.  The gate
+is "every deviation is either fixed OR documented in a comment", not
+"zero greps match".
+
+Audit performed 2026-05-04 against
+`corpus/programs/scrip/parser_rebus.sc` (current corpus HEAD `707bd5d`
+plus two diagnostic patches from session #4 — A: flat mul/add tier
+shape, B: `*stmt`→`*stmt_line`).  Violations enumerated below.
+
+#### G1 — White / Gray strewn through grammar productions (HIGH)
+
+19 hits on `*White`/`*Gray` in productions that are not `$'op'`/token
+definitions.  Concentrated in: `if_stmt`, `while_stmt`, `stmt_line`,
+`function_decl`, `record_decl`.
+
+- [ ] Define `$'if'`, `$'then'`, `$'while'`, `$'do'`, `$'function'`,
+      `$'end'`, `$'record'` keyword wrappers absorbing the surrounding
+      whitespace.  Required-space-after pattern for keywords that must
+      be followed by an identifier or another keyword (`'function' *White`
+      becomes `$'function' = 'function' *White;`).
+- [ ] Rewrite `if_stmt`, `while_stmt` to use the new `$'if'`/`$'then'`/
+      `$'while'`/`$'do'` wrappers; remove all `*White` from their RHS.
+- [ ] Rewrite `function_decl`, `record_decl` to use `$'function'`,
+      `$'end'`, `$'record'` and remove all `*White`/`*Gray` from their
+      RHS except inside the `$'op'` wrappers themselves.
+- [ ] Same for `stmt_line` — the leading/trailing `*Gray` should fold
+      into a single $'stmt' or be removed if redundant after the `$'kw'`
+      wrappers absorb whitespace at decl boundaries.
+
+#### G2 — Missing `$'kw'` wrappers for keyword tokens (HIGH)
+
+Currently only operator/punctuation tokens have `$'kw'` wrappers.
+Every Snocone-reserved word and every Rebus keyword should have one.
+
+- [ ] Add `$'if'`, `$'then'`, `$'else'`, `$'while'`, `$'do'`,
+      `$'function'`, `$'end'`, `$'record'` per beauty.sno line
+      192-196 model.
+
+#### G3 — Use of `shift(...)`/`reduce(...)` instead of infix `~`/`&` (DEFERRED)
+
+8 `shift(` calls, 18 `reduce(` calls, 0 infix `~`/`&` uses.  Per the
+session #3 watermark Issue 3, the Snocone parser declares `T_2TILDE`
+and `T_2AMP` tokens but has zero grammar productions for them — the
+infix forms are not yet implemented in the runtime.
+
+- [ ] **DO NOTHING here yet** — keep `shift(...)`/`reduce(...)`.
+      Document the deviation in the file header with a one-line note:
+      `// note: Snocone runtime does not yet parse infix ~/&; using`
+      `// function-call forms shift()/reduce() instead.  See`
+      `// GOAL-PARSER-REBUS.md session #3 watermark Issue 3.`
+- [ ] Open a sibling rung in `GOAL-LANG-SNOCONE.md` (or a new
+      `GOAL-SNOCONE-INFIX-OPSYN.md` if Lon prefers) to add grammar
+      productions for `T_2TILDE` / `T_2AMP` to `snocone_parse.y`.
+      Once that lands, every `parser_*.sc` flips in one pass.
+- **Judgment note:** the `~`/`&` forms in beauty.sno are sugar.  The
+      function-call forms compile to identical engine calls.  This is
+      a readability cleanup, not a correctness gate — defer until the
+      runtime supports it.
+
+#### G6 — Leading-underscore source identifiers (MEDIUM)
+
+Four hits: `_qtag` (in `semantic.sc`, not in this file), `_rb_callname`,
+`_rb_n`, `_rb_strbody` (locals to this file).
+
+- [ ] Rename `_rb_callname` → `rbCallname` (or `rbCallName`).
+- [ ] Rename `_rb_n` → `rbLabelN` (the label counter — name should
+      describe the role).
+- [ ] Rename `_rb_strbody` → `rbStrBody`.
+- **Judgment note:** `_qtag` lives in `semantic.sc` and is grandfathered
+      per Style Guideline #6.  Do not touch it here.
+
+#### G8 — Blank lines instead of `//===` / `//---` dividers (MEDIUM)
+
+70 blank lines in a 455-line file.  Style says zero; replace each with
+a divider comment, OR collapse adjacent declarations that are
+conceptually one block.
+
+- [ ] Sweep blank lines: between section headers and bodies, replace
+      blank with appropriate `//===` (major) or `//---` (minor)
+      divider at 120 chars.
+- [ ] Inside a single conceptual block (e.g. several `$'op'` defs in
+      a row), collapse blank lines without adding dividers.
+- **Judgment note:** strict zero-blank-lines gets ugly fast in a 600+
+      line file.  The intent is "structure shown by dividers, not by
+      whitespace".  One blank line between major sections is fine if
+      a `//===` header follows — but never two consecutive blanks.
+
+#### G8 — Brace blocks for single-statement bodies (LOW)
+
+Five hits in the post-parse lowering functions (`lower_function_decl`,
+`lower_record_decl`, the driver):
+
+```
+while (i = LT(i, n(pm)) i + 1) {
+    pstr = pstr (GT(i, 1) ',', '') REPLACE(v(c(pm)[i]), &LCASE, &UCASE);
+}
+```
+should become:
+```
+while (i = LT(i, n(pm)) i + 1)
+    pstr = pstr (GT(i, 1) ',', '') REPLACE(v(c(pm)[i]), &LCASE, &UCASE);
+```
+or, if it fits:
+```
+while (i = LT(i, n(pm)) i + 1) pstr = pstr (GT(i, 1) ',', '') REPLACE(v(c(pm)[i]), &LCASE, &UCASE);
+```
+
+- [ ] Convert the 5 single-statement brace blocks to inline form.
+- **Judgment note:** Snocone's parser may or may not accept the
+      brace-less form; verify with a 3-line test before sweeping.  If
+      braces are required syntactically, leave them and document the
+      deviation in the file header.
+
+#### G10 — Driver local variable case (LOW)
+
+Driver uses `Src`, `Line`, `parse_root` (mixed conventions).  Per
+Guideline #6, variables are lowerCamel/snake_case.
+
+- [ ] Rename driver locals: `Src`→`src`, `Line`→`line`,
+      `parse_root`→`parseRoot`.
+- **Judgment note:** beauty.sc itself uses `Src` and `Line` as driver
+      locals (lines 547-557).  This is a cross-PARSER convention
+      drift; either accept the inherited beauty.sc style here, OR
+      open a sibling cleanup against beauty.sc and parser_snocone.sc
+      to flip them in one pass.  **Recommend defer** until the larger
+      cross-PARSER convention is decided.
+
+#### G11 — `nl_one = ANY(nl)` wrapping (HIGH)
+
+Five hits.  Per Style Guideline #11, `nl` is used directly.
+
+- [ ] Delete `nl_one = ANY(nl);` definition (line 93).
+- [ ] Replace every `nl_one` reference with bare `nl`:
+      `stmt_line` (line 198), `blank_body` (line 206),
+      `function_decl` body (lines 230, 232),
+      `record_decl` body (line 241).
+- **Judgment note:** `ANY(nl)` matches a single newline character;
+      bare `nl` IS a single newline character.  These should be
+      semantically identical; the wrapping just adds indirection.
+      If a smoke test reveals a Snocone runtime quirk where bare `nl`
+      behaves differently in some pattern context, document and
+      revert — but the default is to use bare `nl`.
+
+#### Gate
+
+This rung's gate is operational, not stylistic.  After the cleanup:
+
+- [ ] `bash scripts/test_parser_rebus.sh` produces some non-zero
+      number of PASSes (currently 0).  Even one PASS clears this gate
+      — the goal is "the cleanup didn't break anything that wasn't
+      already broken", not "the rewrite landed".
+- [ ] Self-check greps from `## Style Guidelines for parser_*.sc § 12`
+      either pass OR have a documented deviation in a `// note: ...`
+      comment in the file header.
+- [ ] The `RB_BODY n=0` bug (session #4 Bug C) may or may not be
+      fixed by this cleanup.  If it is, the gate becomes PASS≥3
+      (atom fixtures) and PARSER-RB-0 is jointly cleared with this
+      rung.  If not, PARSER-RB-0 stays open.
+
+**Sibling LANG rung:** none — pure parser-side style cleanup.
+
+### PARSER-RB-0 — atom (rewrite) — **after RB-0a**
 
 - [ ] Delete the wrong-shape `parser_rebus.sc` at corpus
       `f2d3077:programs/scrip/parser_rebus.sc`. Do not migrate code
