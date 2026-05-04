@@ -188,11 +188,39 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
     Gate: same as above + rerun `test_rs23_diag_capture.sh` and
     confirm these three kinds drop out of the unique tuple list.
 
-- [ ] **RS-23b** — Add stmt handlers in `bb_exec_stmt` for `E_SCAN`,
+- [x] **RS-23b** — Add stmt handlers in `bb_exec_stmt` for `E_SCAN`,
   `E_CASE`, `E_NOT`, `E_ALTERNATE`, `E_ILIT`, `E_NUL`.  `E_ILIT`/`E_NUL`
   are trivial no-ops in stmt context.  `E_NOT` succeeds iff child
   fails — discard the value.  `E_ALTERNATE` runs first that succeeds.
   Same gates as RS-23a.
+
+  **LANDED (session 2026-05-03 cont.):** Added cases in `coro_stmt.c`:
+  `E_ILIT`/`E_NUL` as bare `return;` (zero side effects); `E_NOT`,
+  `E_ALTERNATE`, `E_SCAN`, `E_CASE` as `(void)bb_eval_value(e); return;`.
+  All four non-trivial kinds reuse `bb_eval_value`'s existing native
+  handlers (added in RS-22d, RS-22f-stmt).
+
+  **Companion fix in `coro_runtime.c`:** Initial `E_ALTERNATE` routing
+  regressed `rung36_jcon_roman` — `integer(n) > 0 | fail`.  Root cause:
+  `coro_eval(E_PROC_FAIL)` fell through to the trailing oneshot fallback,
+  which eagerly calls `bb_eval_value(E_PROC_FAIL)` at *box build* time.
+  That sets `FRAME.returning=1; FRAME.return_val=FAILDESCR` even when
+  arm 0 succeeds, corrupting the procedure.  Fix: added an `E_PROC_FAIL`
+  case in `coro_eval` returning an `icn_lazy_box` so the side effects
+  fire only if/when arm 1 is actually pumped.  This matches
+  `interp_eval(E_ALTERNATE)`'s eager-or laziness.
+
+  Diag confirms E_SCAN, E_CASE, E_NOT, E_ALTERNATE, E_ILIT, E_NUL all
+  gone from the unique tuple list.  Down to 14 unique tuples / 118 raw
+  events for RS-23c/d work: E_EVERY(91, 3 tuples), E_INITIAL(11, 1),
+  E_WHILE(5, 2), E_SWAP(5, 3), E_IF(3, 2), E_RETURN, E_PROC_FAIL,
+  E_BANG_BINARY (the latter three via `coro_eval` oneshot — separate
+  RS-23 work).
+
+  Gates: smoke_snobol4 7/7, smoke_icon 5/5, smoke_prolog 5/5,
+  smoke_raku 5/5, smoke_rebus 4/4, smoke_snocone 5/5,
+  unified_broker 49/0, isolation gate PASS, Icon corpus 186/47/30
+  (no delta from baseline).
 
 - [ ] **RS-23c** — Add `E_EVERY`, `E_INITIAL`, `E_SWAP` to **both**
   adapters.  RS-21 enumerated 11 Icon statement kinds but missed these
