@@ -94,3 +94,68 @@ Closed rungs collapsed to one line; the active rung carries the spec.
 ## Watermark
 
 PARSER-RK-2 LANDED (session #62, 2026-05-03) — PASS=17. Next: PARSER-RK-3.
+
+### PARSER-RK-3 — emergency handoff (session #63, 2026-05-03) — WIP, broken
+
+`parser_raku.sc` has been extended with control-flow scaffolding but
+**control-flow stmts are not matching**. Gate is **PASS=17 / FAIL=8**:
+all RK-2 fixtures still pass, all 8 new RK-3 fixtures fail with the
+parser emitting an empty `(STMT :subj (E_FNC main (E_VAR main) ...))`
+that omits the if/while/for entirely.
+
+What landed (uncommitted in code, committed in this push):
+- 8 new corpus fixtures in `corpus/programs/raku/parser/`:
+  `if_basic`, `if_else`, `if_cmp_eq`, `while_basic`, `while_incr`,
+  `for_basic`, `for_named`, `nested_if_while` — all oracle-clean,
+  byte-checked against `--dump-ir`.
+- `parser_raku.sc` extensions:
+  - `wsnl_opt = (SPAN(' ' tab nl) | epsilon)` for cross-line whitespace
+  - Comparison-operator tokens (`op_eq/ne/le/ge/lt/gt`)
+  - Control-flow keyword tokens (`kw_if/else/while/for`, `op_arrow`,
+    `raku_lbrace/rbrace/lparen/rparen`)
+  - `cmp_expr` level above `add_expr` with E_LT/GT/EQ/NE/LE/GE
+    builders via `build_binop`
+  - `expr = cmp_expr` (top of expression tower)
+  - Six new builder fns: `build_block_enter`, `build_block_exit`
+    (using `PushCounter/TopCounter/PopCounter` from counter.sc to
+    save/restore outer body_count across nested blocks),
+    `build_if_else`, `build_if_no_else`, `build_while`, `build_for`
+    (uses `for_iter_name` global to carry loopvar name into E_ITERATE)
+  - `block` pattern: `'{' wsnl_opt ARBNO(*stmt) wsnl_opt '}'`
+    with deferred `*stmt` to break the `stmt → block → stmt` cycle
+  - `if_stmt`/`while_stmt`/`for_stmt` patterns
+  - `stmt` reordered: control-flow first, then assign/say, then bare expr
+  - `Compiland` final `wsnl_opt` to consume trailing newlines
+
+Things that DEFINITELY work:
+- All 17 RK-2 fixtures still pass. Comparison operators in expression
+  context work (verified: `my $x = 1 < 2;` → `(E_ASSIGN $x (E_LT 1 2))`).
+- The bare-expr `stmt` alternative still matches atoms.
+
+Things that DON'T work — debug starting points for next session:
+- Standalone `if ($x) { say($x); }` produces empty body. Same for
+  `while`/`for`. The control-flow patterns are constructed but never
+  fire on input. Last finding before handoff: even a stripped-down
+  test `('if' SPAN(' ') 'hello') ? 'if hello'` returns "no match",
+  which is unexpected. Likely root cause is a Snocone PATTERN quirk
+  with `'if'` as a literal followed by a SPAN, OR with the `kw_if =
+  ('if' ws_one)` named-pattern reference inside an alternation. Worth
+  testing: replace `kw_if`/`kw_while`/`kw_for` with inline literals
+  in `if_stmt`/`while_stmt`/`for_stmt` to isolate.
+- The other suspect is `wsnl_opt` itself — if `nl` isn't a recognized
+  Snocone built-in symbol in `SPAN`, the pattern would silently fail.
+  Sibling parsers use `ANY(nl)` in `nl_one = ANY(nl)`; `SPAN(' ' tab nl)`
+  may need `SPAN(' ' tab Char(10))` or similar.
+
+### Design issue to address — block-body counting via nPush/nInc/nTop/nPop
+
+The current implementation uses `PushCounter`/`TopCounter`/`PopCounter`
+from counter.sc to save/restore outer body_count across blocks, plus
+the `body_count` global. The sibling cross-PARSER spine
+(`parser_prolog.sc`, `parser_icon.sc`) uses `nPush/nInc/nTop/nPop`
+for stack-frame child counting — that's the canonical idiom. The
+RK-3 builders should be refactored to use `nPush/nInc/nTop/nPop`
+for block body counting too, removing the `body_count` global entirely
+and aligning with the cross-PARSER convention. This is independent
+of the FAIL=8 bug above (the bug is in pattern matching, not in
+counting), but the refactor should land before RK-3 is declared LANDED.
