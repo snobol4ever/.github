@@ -73,7 +73,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-6 LANDED (PASS=58); next PARSER-SN-7 — beauty.sno crosscheck |
+| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-6 LANDED (PASS=58); PARSER-SN-7 PIVOTED to REWRITE-0..8 (canonical Compiland-PATTERN shape per beauty.sno + sibling parsers) |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-3 (INFRA-2 landed PASS=13 session #64) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — one Compiland, OPSYN ~/&, n-ary trees via nPush/nInc/nTop/nPop, no goto. See GOAL ## Rubric.) |

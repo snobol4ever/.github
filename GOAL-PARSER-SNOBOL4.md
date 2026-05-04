@@ -204,13 +204,178 @@ history under the listed commits. This table is the load-bearing summary.
 
 ## Active rung ladder
 
-### PARSER-SN-7 — beauty.sno crosscheck
+### ⚠ PARSER-SN-7 — REWRITE: align with canonical PARSER-* shape (session 2026-05-03 PIVOT)
 
-- [ ] PARSER-SN parses `beauty.sno` end-to-end. `tree_equal` against the
-      existing frontend's tree returns true. Running PARSER's tree
-      through `--ir-run` produces output byte-identical to the SPITBOL
-      oracle (the same gate Milestone 1 uses).
-- **Sibling LANG rung:** SN-32 (beauty self-host).
+**Context.** Session 2026-05-03 attempted to land the beauty.sno
+crosscheck on top of the existing `parser_snobol4.sc` (876 lines,
+SN-0..SN-6 PASS=58).  Diagnostic crosscheck revealed ~1084 oracle
+stmts vs ~502 parser stmts on beauty.sno — the parser silently
+collapses or drops most constructs (bracket-index, &keyword,
+continuation lines, deferred `*Id`, comment/control lines, `;`
+separator).  More importantly, the underlying shape is wrong
+relative to beauty.sno's own self-host grammar AND relative to the
+sibling parsers (PARSER-IC, PARSER-PR, PARSER-RK, PARSER-RB) that
+have all landed since SN-6.
+
+**The wrong shape.**  `parser_snobol4.sc` today drives parsing through
+25 Snocone *functions* (`Expr0..Expr17`, `_try_label`,
+`_parse_body_goto`, `_parse_line_cmd`, `_call_args`, ...) called
+imperatively per line — `Compiland` is `ARBNO( ... LineCmd nl_one )`
+where `LineCmd` captures one line into `_cur_line` and fires
+`*_parse_line_cmd()`, which then calls `_try_label`, then
+`_parse_body_goto`, which calls `Expr`, which dispatches through
+the Expr-N tower.  This is a hand-coded recursive-descent parser
+hosted on Snocone, not a Snocone PATTERN parser.
+
+**The right shape (canonical, set by beauty.sno itself).**  beauty.sno's
+own grammar — the model PARSER-SN must mirror — is one chained
+PATTERN, all `~`/`&` infix (semantically Shift/Reduce), with
+`Comment | Control | Stmt` as alternation children of `Command`,
+and a single `Compiland` PATTERN that ARBNOs over `*Command`
+against the entire source.  Functions exist only for `nPush/nInc/
+nTop/nPop`, `Tree`, `Push`/`Pop`, `Shift`/`Reduce`, `pp`, `ss` —
+tree-building and semantics — never for parsing dispatch.
+
+The siblings PARSER-IC (672 lines), PARSER-PR (429 lines), PARSER-RK
+(755 lines), PARSER-RB (547 lines) all land this shape today.
+PARSER-SN at 876 lines is the largest and the only outlier.
+
+**Invariants for the rewrite (all binding):**
+
+1. **One `Compiland` PATTERN, one match against the entire `Src`.**
+   The shape is: `Compiland = nPush() ARBNO( nInc() <inlined Command body> ) reduce("'Parse'", 'nTop()') nPop();`
+   where the Command body is the alternation `Comment | Control | Stmt`.
+   `Src ? Compiland` runs once at the bottom of the driver.  No
+   per-line dispatch.
+
+2. **`shift(p, t)` / `reduce(t, n)` from `semantic.sc` for tree
+   construction inside patterns.**  These are the OPSYN'd binary
+   `~` / `&` of beauty.sno — same semantics, called as functions
+   because of INFRA-11b (the Snocone parser binds `~` as unary
+   `not` at parse time, before runtime OPSYN takes effect).  Use
+   `shift(P, "'identifier'")` everywhere beauty.sno writes
+   `(P ~ 'identifier')`, and `reduce("'TAG'", N)` everywhere
+   beauty.sno writes `("'TAG'" & N)`.
+
+3. **`nPush()` / `nInc()` / `nTop()` / `nPop()` for n-ary trees.**
+   Every grammar rule that produces a variable-arity child list
+   (alternation, sequence, expression list, statement body) wraps
+   the body in `nPush() ... reduce("'TAG'", 'nTop()') nPop()` and
+   each contributing child fires `nInc()` immediately before its
+   shift/reduce.  This matches the sibling parsers and beauty.sno
+   exactly.
+
+4. **No Snocone `goto` when structured control would do.**  The driver
+   uses `while ((Line = INPUT)) { ... }` to accumulate `Src`,
+   `if (Src ? Compiland) { ... }` for the single top-level match,
+   and `while (LE(i, n_kids)) { ... }` to walk the Parse tree's
+   children for `TDump`.  No labels, no `goto` anywhere.  This
+   tracks the PARSER-PR style invariant ("no goto/labels in this
+   file").
+
+5. **Functions only for tree building and semantics.**  Allowed: the
+   shared `tree.sc` / `stack.sc` / `counter.sc` / `ShiftReduce.sc`
+   helpers; `Tree(...)` constructors; `assign(name, expr)` /
+   `match(s, p)` / `icase(s)` / `lwr` / `upr` from beauty's reuse;
+   small `*deferred()` escapes that capture text into a global
+   slot or shape a node before pushing.  Forbidden: any function
+   that drives parse dispatch (no `Expr0..Expr17`, no `_try_label`,
+   no `_parse_body_goto`, no `_parse_line_cmd`).  The Expr-N tower
+   becomes Expr-N PATTERNS with the same names (`Expr`, `Expr0`,
+   ..., `Expr17`) — beauty.sno's own names — chained by FENCE'd
+   alternation per the precedence ladder.
+
+**The rewrite proceeds in narrow rungs, each gated by a focused
+fixture in `corpus/programs/snobol4/parser/`.**  This re-uses the
+existing 58 fixtures as regression coverage AND extends them.  Each
+rung lands a slice of the grammar, shaped per the invariants above.
+
+#### PARSER-SN-7-REWRITE-0 — scaffolding
+
+- [ ] Open a feature branch `parser-sn-rewrite` off `parser`.  Keep
+      the existing `parser_snobol4.sc` reachable on `parser` until
+      the rewrite hits PASS=58 parity.
+- [ ] Write `parser_snobol4_v2.sc` from scratch on the parser_prolog.sc
+      / parser_icon.sc model.  Body: token-class atom recognizers
+      (`Id`, `Integer`, `String`, `Real`, `White`, `Gray`), the
+      Expr-N tower as PATTERNS (not functions), `Goto`, `Stmt`,
+      `Comment`, `Control`, `Command`, `Compiland`, and the driver.
+- [ ] Land the gate-script update: `test_parser_snobol4.sh` loads
+      `parser_snobol4_v2.sc`.  Gate goal: ALL 58 existing fixtures
+      pass under the new shape, no regressions.
+- [ ] On parity → swap `parser_snobol4_v2.sc` → `parser_snobol4.sc`,
+      delete the old, merge `parser-sn-rewrite` → `parser`.
+- **Gate:** PASS=58 FAIL=0 on the new shape, byte-identical output.
+
+#### PARSER-SN-7-REWRITE-1 — bare label-only line
+
+- [x] Fixture `cf_label_bare.sno` added (session 2026-05-03 — open
+      against existing parser, will pass automatically once REWRITE-0
+      lands the canonical Stmt pattern with `Label = BREAK(' ' tab nl ';') ~ 'Label'`).
+- [ ] Confirm PASS=59 after REWRITE-0.
+
+#### PARSER-SN-7-REWRITE-2 — &KEYWORD recognition
+
+- [ ] Fixtures `kw_fullscan.sno`, `kw_maxlngth.sno`, `kw_ucase.sno`,
+      `kw_lcase.sno` — assignment LHS, RHS, and pattern-arg uses of
+      protected and unprotected keywords.
+- [ ] Per beauty.sno: `ProtKwd = '&' SPAN(&UCASE &LCASE) ~ 'ProtKwd'`,
+      `UnprotKwd = '&' SPAN(&UCASE &LCASE) ~ 'UnprotKwd'`.  These
+      become alternatives in `Expr14`.
+- **Gate:** keywords emit `(E_KEYWORD <NAME>)` matching the oracle.
+
+#### PARSER-SN-7-REWRITE-3 — bracket index `x[i]`, `x[i, j]`
+
+- [ ] Fixtures `idx_simple.sno`, `idx_multi.sno`, `idx_nested.sno`,
+      `idx_in_assign_lhs.sno`.
+- [ ] Add `Expr15` / `Expr16` per beauty.sno: `Expr15 = Expr17 FENCE( nPush() Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon )`.
+- **Gate:** `(E_IDX <obj> <i> ...)` matches the oracle.
+
+#### PARSER-SN-7-REWRITE-4 — `+` / `.` continuation lines
+
+- [ ] Fixtures `cont_plus.sno`, `cont_dot.sno`, `cont_chain.sno`.
+- [ ] Per beauty.sno's `White` definition: continuation is part of
+      the whitespace token class, swallowed by `White` between every
+      two adjacent grammar units.  Specifically: `White = SPAN(' ' tab) FENCE( nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon ) | epsilon ) | nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon )`.
+- **Gate:** multi-line continued statements emit a single STMT.
+
+#### PARSER-SN-7-REWRITE-5 — comment & control lines
+
+- [ ] Fixture `mixed_comment_control.sno`.
+- [ ] Per beauty.sno: `Comment = '*' BREAK(nl)`, `Control = '-' BREAK(nl ';')`.
+      Both alternatives of `Command` shift their captured text via
+      `*Comment ~ 'comment' ("'Comment'" & 1) nl`.  At TDump time these
+      contribute STMT children — but the existing scrip frontend's
+      `--dump-parse` drops comments and processes control lines via
+      preprocessor-include semantics.  PARSER-SN-7-REWRITE-5 must
+      either drop these STMT children at emit-time OR (cleaner)
+      have `Command` not emit them — match whichever the oracle does.
+- **Gate:** comment/control lines do not produce extra STMTs in dump.
+
+#### PARSER-SN-7-REWRITE-6 — `*Id` deferred-pattern reference
+
+- [ ] Fixtures `defer_simple.sno` (`P = *Q`), `defer_alt.sno` (`P = *Q | *R`),
+      `defer_in_pat.sno` (`x ? *P`).
+- [ ] `Expr14`'s prefix-`*` branch: `'*' Expr14 & "'*' 1"` — the
+      unary `*` in beauty.sno's Expr14 alternation list.  Must render
+      as `(E_DEFER <child>)` in the oracle's tree shape.
+- **Gate:** `*Id` constructs emit `(E_DEFER (E_VAR Id))`.
+
+#### PARSER-SN-7-REWRITE-7 — `;` mid-line statement separator
+
+- [ ] Fixture `semi_separator.sno` (`x = 1 ;* comment` and `x = 1; y = 2`).
+- [ ] Per beauty.sno's `Command`: alternation tail is `(nl | ';')`.
+      Each Command consumes either a newline or a semicolon; multiple
+      Commands per source line are supported.
+- **Gate:** semi-separated statements emit two STMTs.
+
+#### PARSER-SN-7-REWRITE-8 — beauty.sno full crosscheck
+
+- [ ] `parser_snobol4_v2.sc` parses `beauty.sno` (627-line `corpus/programs/snobol4/demo/beauty/beauty.sno`).
+- [ ] `tree_equal` against `--dump-parse`'s tree returns true (use
+      whitespace-normalized byte-diff until PARSER-SN-FW-4 lands).
+- [ ] Running the parser-built tree through `--ir-run` produces output
+      byte-identical to the SPITBOL oracle (Milestone 1 gate).
 - **Gate:** beauty.sno PASSES under both oracles.
 
 ### PARSER-SN-FW-4 — `scrip --parser-crosscheck` C-side flag (deferred)
@@ -320,11 +485,50 @@ in `shift`'s tag arg for non-string-literal inputs.
 
 ## Watermark
 
-**INFRA + FW + SN-0..SN-6 LANDED. Gate PASS=58, FAIL=0** (this session,
-2026-05-03).
+**INFRA + FW + SN-0..SN-6 LANDED. Gate PASS=58, FAIL=0**
+(SN-6 landed session 2026-05-03 morning, 2026-04-28 evening AOE.)
 
-SN-6 added function definition / call to the parser. One change to
-`parser_snobol4.sc`:
+**⚠ PARSER-SN-7 PIVOTED, session 2026-05-03 PM.**  Diagnostic
+crosscheck of the existing `parser_snobol4.sc` against `beauty.sno`
+revealed ~1084 oracle stmts vs ~502 parser stmts.  Root cause is
+not a finite list of grammar gaps — the parser is the wrong shape.
+It hand-rolls 25 Snocone *functions* that drive parsing imperatively
+per source line (Expr0..Expr17 tower called as functions, _try_label
++ _parse_body_goto + _parse_line_cmd as the per-line dispatcher).
+That is a recursive-descent parser hosted on Snocone, not a Snocone
+PATTERN parser.
+
+The right shape is set by beauty.sno itself: one `Compiland` PATTERN
+matched once over the entire source, all `~`/`&` infix shift/reduce
+(routed through `shift(p, t)` / `reduce(t, n)` per INFRA-11b),
+n-ary trees built via `nPush/nInc/nTop/nPop`, `Comment | Control |
+Stmt` as alternation children of `Command`, no Snocone goto, no
+parsing-driver functions.  Sibling parsers (PARSER-IC, PARSER-PR,
+PARSER-RK, PARSER-RB) all land this shape today.  PARSER-SN at 876
+lines is the largest and the only outlier — by a wide margin.
+
+PARSER-SN-7 is therefore re-scoped from "land beauty.sno gate on top
+of existing parser" to "rewrite parser_snobol4.sc to canonical
+shape, then land beauty.sno gate".  Eight narrow rungs: REWRITE-0
+scaffolding, REWRITE-1..7 grammar slices each gated by a focused
+fixture, REWRITE-8 beauty.sno crosscheck.  See "Active rung ladder"
+above for full ladder.
+
+Session 2026-05-03 PM artifacts:
+- `corpus/programs/snobol4/parser/cf_label_bare.sno` added — fixture
+  for bare-label-only line (`START\n` form), pre-stage REWRITE-1.
+  Currently FAILs against existing parser, will PASS automatically
+  once REWRITE-0 lands the canonical Stmt pattern with
+  `Label = BREAK(' ' tab nl ';') ~ 'Label'`.
+- This GOAL file rewritten: PARSER-SN-7 expanded into 9 rungs.
+- `parser_snobol4.sc` left UNTOUCHED on `parser` branch.  The
+  rewrite work happens on a new `parser-sn-rewrite` branch off
+  `parser` per REWRITE-0.
+- Sibling parsers untouched.  Gate state: SN PASS=58 FAIL=1 (the
+  one FAIL is `cf_label_bare` — pre-staged for REWRITE-1).
+
+SN-6 history (preserved for reference): added function definition /
+call to the parser. One change to `parser_snobol4.sc`:
 
 - New `_call_args(fname)` helper parses `( args )` into an `E_FNC` tree
   with `v=fname` and one child per arg.  Empty arg list → 0-child tree.
@@ -363,11 +567,8 @@ encoding the subj/pat split rule.  `tdump.sc::TValue` E_QLIT branch
 moved before the empty-value `"."` placeholder so `(E_QLIT "")` renders
 correctly.
 
-**Next milestone:** PARSER-SN-7 — beauty.sno crosscheck.  This is the
-big one — parse the full `beauty.sno` self-host through PARSER-SN and
-gate against the existing frontend's tree (and against SPITBOL byte-
-identical output).  Will surface any remaining grammar gaps (DEFINE
-spec parsing into structured args if the gate needs it, SNOBOL4
-keywords like `&UCASE` / `&STLIMIT` if the parser doesn't already
-handle them as plain Id, real number literals, multi-statement-per-line
-forms if any, comment-line handling).
+**Next milestone:** PARSER-SN-7-REWRITE-0 — scaffold
+`parser_snobol4_v2.sc` on a `parser-sn-rewrite` branch, on the
+parser_prolog.sc / parser_icon.sc / beauty.sno model, hit PASS=58
+parity on existing fixtures, then move through REWRITE-1..7 grammar
+slices, finishing at REWRITE-8 (beauty.sno full crosscheck).
