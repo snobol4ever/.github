@@ -131,17 +131,61 @@ shape PAT-IC mirrors.
 | **PARSER-IC-3**       — control flow + comparison ops | PASS=20 | Added `Expr4`/`Expr4tail` (`= ~= < <= > >=`); `If`/`While` in `Expr11` (else inline-optional to dodge double-parse); `Expr1` restructured to `id_pat ws_opt ':='`-committed assign branch.  6 NEW fixtures.  **Cross-pollination bug fix in `corpus/programs/scrip/tdump.sc`**: multi-line fallback was guarded by `~(NULL *IDENT(n(x)))` — a no-op (pattern construction can't fail) — so wide trees fell through to `.` leaf branch.  Replaced with `DIFFER(n(x))`; extended branch to mirror TLump's role-slot (`:`-prefix) and internal-node `v(x)` sval emission.  Beauty source `programs/snocone/demo/beauty/TDump.sc` has the same bug; treatment owed under whichever goal owns beauty. |
 | **PARSER-IC-4**       — procedure definition + return + variadic invocation | PASS=27 | Generalized `Prochead` to `'procedure' ws_run id_pat ws_opt '(' Arglist ')'`; new `ProcParam`/`ParamRest`/`Arglist` patterns; helpers renamed `start_proc_main`→`start_proc`, `finish_proc_main`→`finish_proc`; new `append_proc_param`.  New `ReturnStmt` at the Stmt level: with-value `'return' ws_run *Expr` first, bare `'return' ws_opt semi_opt` fallback; builds `(E_RETURN [expr])`.  **Variadic invocation** via dedicated `$'@II'` invocation-construction stack (struct `ic_ilink`), parallel to Compiland's stack — required (not a single-slot global) because invocations nest (`write(double(5))`).  7 NEW fixtures (proc_simple/oneparam/twoparam, proc_call_noargs/onearg/twoargs, proc_return). |
 | **PARSER-IC-5**       — alternation generators (`expr1 \| expr2`) | PASS=33 | New `Expr3` slot between Expr2 and Expr4 per canonical EBNF.  Existing frontend flattens nested alternations into a single `(E_ALTERNATE a b c d)` — PAT-IC matches via dedicated `$'@AL'` alt-construction stack (struct `ic_alink`).  Single `expr_alt_step(savedLHS)` helper handles both first-`\|` (push fresh E_ALTERNATE) and subsequent `\|`s (append onto top-of-stack) via a `_e3built` flag; `expr_alt_enter`/`expr_alt_finish` save/restore the flag at Expr3 boundaries to support nested alternations.  6 NEW fixtures (alt_two/three/var/str/in_call/arith). |
+| **PARSER-IC-6**       — `every [do body]` and `subj ? body` scan | PASS=40 | New `Every` branch in `Expr11` handles both `every gen` (1-child `E_EVERY`) and `every gen do body` (2-child `E_EVERY`) via two helpers `expr_every1`/`expr_every2`; saved generator in `_ic_evgen` to survive body parse.  New `Expr1a` slot between `Expr` and `Expr1` per canonical EBNF handles `subj ? body` building `(E_SCAN subj body)`; subjects saved on dedicated `$'@SC'` link()-stack (struct `ic_sclink`) so nested scans (`a ? b ? c`) don't clobber.  Critical fix: scan body uses `*Expr` (deferred reference) since `Expr` is defined below `Expr1a`; non-deferred reference produced a malformed pattern that silently bailed.  Driver loops rewritten from `goto` to `while` per RULES.md control-flow guidance.  7 NEW fixtures (every_simple/do/alt/novar, scan_simple/var/assign). |
+| **PARSER-IC-8a**      — SCRIP grammar fix: binary `~` `&` `#` `%` OPSYN slots | PASS=40 preserved | New `expr5a` tier in `src/frontend/snocone/snocone_parse.y` between comparison (expr5) and additive (expr6).  Each binary OPSYN slot lowers to `E_FNC` with `sval` = operator literal, paralleling how comparison ops (T_EQ→"EQ", T_NE→"NE", etc.) lower today; runtime E_FNC dispatch consults the OPSYN table to find the registered handler.  Lexer already emitted T_2AMP/T_2TILDE/T_2POUND/T_2PERCENT (snocone_lex.c:543, 551, 547, 549) — only the parser needed the rule.  `%type <expr> expr5a` added (line 467).  After regeneration via `regenerate_parser_and_lexer_from_sources.sh` and `build_scrip.sh` rebuild, `'a' ~ 'b'` (after `OPSYN('~','f',2)`) invokes `f('a','b')` correctly.  Compiland in parser_icon.sc converted from `reduce("'Parse'", 'nTop()')` to `("'Parse'" & 'nTop()')` operator form as smoke test of the unblocked path; PASS=40 preserved.  Snocone test suite shows no new regressions (test_smoke_snocone, test_parser_snocone PASS=13, plus all language smoke tests PASS).  Pre-existing C-test breakage in `test/frontend/snocone/test_snocone_parse_a..j.c` (references stale `Program *`/`head` API) is unrelated to this change — verified by stash/repro before commit. |
 
 ---
 
 ## Open rungs
 
-### PARSER-IC-6 — `every/do` and `expr ? scan` (string scanning)  ← **active**
+### PARSER-IC-7 — parenthesized primary `( expr )` and compound `{ ... }`  ← **active**
 
-- [ ] `Command` handles `every expr do s` (generator-driven loop) and
-      `expr ? scan_body` (string scanning context — BB_SCAN).
-- **Sibling LANG rungs:** IC-11..IC-13 (when they land).
-- **Gate:** PASS≥40.
+- [ ] `Expr11` gains `'(' Expr ')'` and `'{' (Stmt)* '}'` primaries.
+      Compound block produces `(E_SEQ_EXPR ...)` (or unwraps to single child
+      per the existing-frontend rule in `parse_block_or_expr`).  Without
+      these, `subj ? (r := "ok")` and `every gen do { s1; s2 }` cannot be
+      written in fixtures even though the underlying parsers handle the
+      pieces.
+- **Sibling LANG rungs:** none required — both forms exist in the LANG
+      ladder upstream.
+- **Gate:** PASS≥45.
+
+### PARSER-IC-8b parser_icon.sc rewrite to canonical spine  ← **next after IC-7**
+
+With IC-8a landed, binary `~` and `&` are usable in pattern definitions
+across all six PARSER-* parsers.  IC-8b retrofits parser_icon.sc's
+inner tier patterns to the canonical shape exemplified by
+parser_snocone.sc:
+
+- [ ] Atom branches in `Expr11` use `(*Atom ~ s_TYPE)` (operator form)
+      or `shift(*Atom, s_TYPE)` (functional form, equivalent post-IC-8a).
+      No more `epsilon . *expr_from_atom('E_ILIT', _atom_text)`.
+- [ ] Binary tier patterns (`Expr4tail`, `Expr6tail`, `Expr7tail`) use
+      `*L *op *R (r_TAG & 2)` instead of `Tree(tag, '', 2, L, R)` direct
+      construction.
+- [ ] N-ary collectors (alternation E_ALTERNATE, function invocation
+      E_FNC arglist) use the canonical
+      `nPush() ARBNO(nInc() *X) (r_TAG & 'nTop()') nPop()` recipe — no
+      more `$'@II'`/`$'@AL'` helper stacks.
+- [ ] Statement decomposition (`(STMT :subj ...)` wrapping) follows
+      parser_snocone.sc's `sc_decompose_stmt` shape: a single helper
+      that pops the top tree and re-wraps; called via deferred action
+      at the Stmt boundary.  This is the ONE remaining function — and
+      it is tree-building/semantic, not parsing.
+- [ ] All `_expr_node` global slot references removed.  All
+      `Tree(tag, '', 2, L, R)` direct constructions removed.  All
+      `expr_*` parsing-state helpers removed (the `$'@II'`,
+      `$'@AL'`, `$'@SC'` stacks become redundant once trees flow on
+      the shared shift/reduce stack).
+- **Sibling cross-pollination:** parser_rebus.sc and parser_snobol4.sc
+      owe the same retrofit; the canonical helpers (sq, s_*, r_*,
+      sc_decompose_stmt-equivalent) should be lifted into a shared
+      file in `corpus/programs/scrip/` so all six PARSER-* parsers
+      share one source of truth.
+- **Gate:** PASS=40 preserved (same fixtures, same trees); zero
+      `Tree(tag, '', 2, L, R)` calls remain in parser_icon.sc; zero
+      parsing-state global slots remain; driver remains structured
+      (no goto, already done in IC-6).
 
 ---
 
@@ -155,4 +199,4 @@ shape PAT-IC mirrors.
 
 ## Watermark
 
-PARSER-IC-6 (PARSER-IC-5 landed: alternation `e1 | e2 | ...` flattened into single `(E_ALTERNATE a b c d)` via dedicated `$'@AL'` stack; PASS=33, smoke=5; one4all parser branch HEAD `ac93b50a`, corpus HEAD `7fdc1f1`).
+PARSER-IC-7 (PARSER-IC-8a landed: SCRIP snocone_parse.y gains expr5a tier for binary `~` `&` `#` `%` OPSYN slots, lowering to `E_FNC` with operator literal as sval; Compiland in parser_icon.sc converted from `reduce("'Parse'", 'nTop()')` to `("'Parse'" & 'nTop()')` operator form; PASS=40, smoke=5; no Snocone test suite regressions.  PARSER-IC-6 also landed: every/do + scan).
