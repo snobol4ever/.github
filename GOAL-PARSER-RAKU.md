@@ -44,14 +44,12 @@ Closed rungs collapsed to one line; the active rung carries the spec.
 - **PARSER-RK-1** (decl + assign) — LANDED session #62, PASS=10.
 - **PARSER-RK-2** (`say` + arith `+ - * /`) — LANDED session #62, PASS=17.
 
-### PARSER-RK-3 — control flow (`if`, `while`, `for`) — **next**
+### PARSER-RK-3 — control flow (`if`, `while`, `for`) — LANDED session #64, PASS=25.
 
-- [ ] `stmt` handles Raku conditionals and loops with brace bodies.
-      Probe oracle for the IR shapes first: `if $c { say 1; }`,
-      `while $c { ... }`, `for @a -> $x { ... }`.
-- [ ] Test corpus: existing + **NEW** (target ≥8 new programs).
+- [x] `stmt` handles Raku conditionals and loops with brace bodies.
+- [x] Test corpus: 8 new RK-3 fixtures (if_basic, if_else, if_cmp_eq, while_basic, while_incr, for_basic, for_named, nested_if_while).
 - **Sibling LANG rungs:** RK-11..RK-18.
-- **Gate:** PASS≥25.
+- **Gate:** PASS=25 (was target ≥25).
 
 ### PARSER-RK-4 — `sub` definition
 
