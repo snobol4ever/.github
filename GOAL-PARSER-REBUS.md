@@ -112,10 +112,32 @@ and arrives in PAT-RB only when the existing frontend grows it first.
 
 ## Watermark
 
-**Ladder complete.** RB-0..RB-6 landed 2026-05-03. Cumulative PASS=38 FAIL=0.
+**Rung ladder complete.** RB-0..RB-6 landed 2026-05-03. Cumulative PASS=38 FAIL=0.
 
-Note: test_parser_rebus.sh adopted the `normalize()` whitespace-collapse
-comparison used by all other PARSER-* gate scripts. Required because
-`E_ALT` always has 2 children → oracle (`ir_print_node`) emits multi-line
-unconditionally, while TLump emits single-line whenever the budget fits.
-Both forms collapse to the same canonical token stream.
+### Architectural debt — NOT addressed by this ladder
+
+`parser_rebus.sc` does **not** use the canonical `Compiland`/`nPush`/
+`nInc`/`nTop`/`nPop`/`reduce` spine that the top of this goal file
+specifies. It is a line-at-a-time goto-driven state machine instead.
+This is the same D1/D2/D3 design issue cross-pollinated to all six
+PARSER-* parsers (originally raised against PAT-IC, see
+`GOAL-PARSER-ICON.md ## Design issues`). Refactor work is tracked
+under PARSER-IC-INFRA-1 / PARSER-IC-INFRA-2; when those rungs land
+the same refactor lands here.
+
+For comparison (counter-helper hits per parser):
+  parser_snobol4.sc: 8   parser_icon.sc: 5   parser_prolog.sc: 4
+  parser_raku.sc:    4   parser_snocone.sc: 9   parser_rebus.sc: 0
+
+The PASS=38 gate confirms tree-equivalence with the existing Rebus
+frontend — the deliverable's "Done when" criterion at the top of this
+file is met. The architectural unification with the other PARSER-*
+files is a separate concern, deferred to the cross-cutting INFRA work.
+
+### `test_parser_rebus.sh` normalize() addition
+
+Adopted the `normalize()` whitespace-collapse comparison used by all
+other PARSER-* gate scripts. Required because `E_ALT` always has 2
+children → oracle (`ir_print_node`) emits multi-line unconditionally,
+while TLump emits single-line whenever the budget fits. Both forms
+collapse to the same canonical token stream.
