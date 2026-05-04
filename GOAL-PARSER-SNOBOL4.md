@@ -1229,6 +1229,48 @@ Setup notes for the next session: `libgc-dev` was not pre-installed
 in the container — `install_system_packages.sh` did install it after
 the apt lock cleared.  No bug; one-time install.
 
+**Watermark (session 2026-05-04 cont. style+SN-7-1):**
+
+Five sibling parsers unified to canonical style (corpus@9ab0f4f):
+- E_FOO = "'E_FOO'" tag naming (self-quoting, name matches IR spec)
+- /*===*/ /*---*/ section dividers (120 chars)
+- \$'  '/\$' ' whitespace tokens (beauty.sno convention)
+- Unified driver bottom across all six
+- Gates all held: prolog PASS=54, icon PASS=51, snocone PASS=21,
+  raku PASS=32, rebus PASS=18.
+
+parser_snobol4.sc: pattern block is verbatim beauty.sno (zero chars changed).
+pp_stmt() helper reads the 7-slot Stmt tree by fixed index exactly as
+beauty.sno's pp_Stmt does, builds role-slot STMT tree, calls TDump.
+PASS=27 FAIL=32 (up from PASS=0 at session start).
+
+Passing: atom/{id,int,str}, assign/{int,str,var,mixed,seq}, cf/{label_bare,
+label_only,label_assign,loop,goto_f,goto_u,repl_{empty,with_goto}},
+concat/{str,two}, fn_call_{zero,two,three,str,nested,expr_arg}, fn_define,
+pat_{cond,immed,label_pat,repl,seq_two,seq_three,alt_paren}.
+
+Key insight discovered: single-line `if (flag) stmt;` in Snocone does NOT
+behave as expected — the statement always executes. Must use `if (flag) { stmt; }`.
+Also: `DIFFER(x)` returns '' (empty string) as VALUE; the success/failure
+is only meaningful directly in an `if()` condition, not via assignment.
+
+Remaining failures fall into four categories:
+1. Goto direction: sf global stale across multi-stmt tree walk. The goto
+   direction (S/F/unconditional) must come from the tree node itself, not
+   the global sf. The tag string is always the literal "*(':' sf Brackets)"
+   or "*(':' Brackets)"; direction must be stored in the child node or
+   inferred differently.
+2. ExprList arg passing: rw_call iterates c(args)[i] but the ExprList
+   node from beauty.sno wraps args differently than expected.
+3. Arith left-assoc: beauty.sno builds right-recursive arith trees;
+   oracle is left-associative. Needs tree rotation in rw_expr.
+4. Alt/seq split: E_ALT top-level body should not be split; only E_SEQ
+   with n>=2 triggers :subj/:pat split.
+
+Rule for next session: DO NOT TOUCH any pattern that Compiland references
+downstream. The pattern block is golden. Only the helper functions
+(pp_stmt, rw_expr, rw_call, rw_goto_slot, rw_tag) may be edited.
+
 **Next milestone:** PARSER-SN-7-1 — bare label-only line confirm +
 labels + assignment + tree-shape rewrite (FW-2 role-slot wrappers +
 IR-tag rewrites `Stmt`→`STMT`, `Id`→`E_VAR`, `String`→`E_QLIT`,
