@@ -461,6 +461,96 @@ history under the listed commits. This table is the load-bearing summary.
 
 ## Active rung ladder
 
+### ⚠ CURRENT STEP — PARSER-FAMILY-LOOP — six-parser cross-pollination
+
+**Status:** ACTIVE.  All six parsers at 100% gate as of session
+2026-05-04 cont. #5 (corpus@09ecd59).  Loop opens from a uniformly-
+green baseline:
+
+| Parser   | Gate          |
+|----------|---------------|
+| snobol4  | PASS=59/59 ✅ |
+| icon     | PASS=51/51 ✅ |
+| prolog   | PASS=54/54 ✅ |
+| raku     | PASS=32/32 ✅ |
+| snocone  | PASS=21/21 ✅ |
+| rebus    | PASS=38/38 ✅ |
+
+**Loop directives (binding on every iteration):**
+
+1. **Operator picks one targeted concept per iteration.**  Examples:
+   "rename `_foo` globals to bare names" (style §7), "promote
+   goto-direction-baking-into-tag" (cross-language pattern),
+   "convert `$'do_X'` action wrappers to inline `shift`/`reduce`"
+   (style §4a), "tighten n-ary handling in arg lists" (RB/IC/PR
+   share this idiom), etc.  The concept is named in one phrase the
+   operator can repeat.
+
+2. **Make the concept appear identical in all six `parser_*.sc`
+   files.**  The literal goal: a `diff` of the six files, restricted
+   to the targeted region, should show identical (or near-identical
+   modulo language-specific names) shape.  Cross-pollination is the
+   point — the family becomes more legible when the same concept
+   reads the same way everywhere.
+
+3. **Run all six gates after each change.**  No parser may drop
+   below 100% during a loop iteration.  If a change breaks a gate,
+   either fix the breakage in the same iteration or revert the
+   iteration entirely.  The 100% baseline is the contract.
+
+4. **One commit per iteration.**  Commit message names the concept
+   and lists the per-parser before/after gate counts (all 100% on
+   both sides per rule 3, but verbose for the audit trail).
+
+5. **Do parser_snobol4.sc first when the concept might affect it.**
+   Per Lon's standing instruction: "I know you must spend some time
+   getting parser_snobol4.sc running, so do it first" (session
+   2026-05-04 cont. #5).  The SN parser is the most complex and the
+   most informative oracle for catching latent bugs in the shared
+   `tdump.sc`/`semantic.sc`/`ShiftReduce.sc` infrastructure.
+
+6. **If a SCRIP executable bug is found mid-iteration**, add a step
+   to the relevant `GOAL-*` file capturing the bug + fix, then
+   land the fix BEFORE continuing the iteration.  Do not work
+   around SCRIP bugs in the `.sc` files when a small C-side fix
+   would let all six parsers (and any future parser) use the
+   correct syntax/semantics.
+
+7. **Update this rung's gate-state table** at the bottom of every
+   iteration with the post-iteration gate counts.  Append a new
+   row per iteration; do not overwrite history.
+
+**Candidate first iterations** (operator picks; ordered roughly by
+tractability):
+
+  - **§7 `_`-prefix prohibition sweep.**  Style guideline §7
+    forbids `_foo` identifiers; existing parsers carry many
+    (`_e4lhs`, `_main_node`, `_rk_*`, `_expr_node`).  Pure
+    mechanical rename + verify gates stay green.  Lowest risk,
+    highest cross-pollination payoff.
+  - **§4a function-based action plumbing teardown.**  Replace
+    `$'do_X'` action wrappers + per-action helper functions with
+    inline `shift`/`reduce`.  Bigger diffs but produces the
+    cleanest cross-parser shape.
+  - **n-ary arg-list idiom unification.**  RB's `bare_call` /
+    `X_params` / `X_fields`, IC's argument lists, PR's compound
+    terms — all use the same `nPush() ... ARBNO(nInc() ...) reduce(TAG, nTop()) nPop()`
+    pattern with minor variations.  Pick one canonical shape;
+    bring all six to it.
+  - **Goto-direction-in-tag pattern (SN-only today).**  Only
+    relevant if other languages have analogous cross-statement-
+    stale-global issues.  Probably not — `:S`/`:F` is SNOBOL4-
+    specific syntax — but worth a survey.
+  - **Driver-loop stdin slurp idiom.**  All six parsers have
+    `while ((Line = INPUT)) Src = Src Line nl;` with minor
+    variations (some keep braces, some don't; some use `=` some
+    `:=`).  Trivial unification.
+
+**Iteration log:** (none yet — loop opens this session's handoff)
+
+| #  | Concept | SN | IC | PR | RK | SC | RB | Commit | Notes |
+|----|---------|----|----|----|----|----|----|----|----|
+
 ### ⚠ PARSER-SN-7 — canonical shape (session 2026-05-03 PIVOT)
 
 **Context.** Session 2026-05-03 attempted to land the beauty.sno
