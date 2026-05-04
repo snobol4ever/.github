@@ -245,11 +245,46 @@ divergence is in how trees are interpreted, not how they are shaped.
       parser_prolog=18/0, parser_rebus=8/0 (no regression — same
       pre-existing parser_snocone 8/5 failure unrelated). ✅
 
-### PARSER-IC-4 — procedure definition
+### PARSER-IC-4 — procedure definition — **DONE** (this commit)
 
-- [ ] `Command` handles `procedure f(args) ... end`.
+- [x] `Command` handles `procedure NAME(args) ... end`.  Generalized
+      `Prochead` from the IC-2/IC-3-hardcoded `'procedure' ws_run 'main'
+      ws_opt '(' ws_opt ')'` shape to `'procedure' ws_run id_pat
+      ws_opt '(' ws_opt Arglist ws_opt ')'` — any procedure name, any
+      arity.  New patterns: `ProcParam` (single param identifier),
+      `ParamRest` (the `, IDENT` tail under ARBNO), `Arglist` (head +
+      tail or empty).  The procedure's name is captured via
+      `id_pat . _ic_pname` and seeded onto `_proc_node` by
+      `*start_proc(_ic_pname)` (renamed from `start_proc_main()`).
+      Each parameter appends an `(E_VAR <name>)` child onto _proc_node
+      via `*append_proc_param(...)`, matching the existing frontend's
+      tree shape: `(E_FNC f (E_VAR f) (E_VAR a) (E_VAR b) <body...>)`.
+- [x] `return [expr];` recognized at the Stmt level (not Expr).  New
+      `ReturnStmt` pattern alternation: with-value tried first
+      (`'return' ws_run *Expr`), bare-return fallback second
+      (`'return' ws_opt semi_opt`).  Builds `(E_RETURN expr)` or bare
+      `(E_RETURN)`.  Tried before generic Expr-as-stmt so `return` is
+      not consumed as a bare identifier.
+- [x] **Variadic function invocation** in `Expr11`.  IC-2/IC-3 had
+      single-arg `IDENT '(' Expr ')'`; IC-4 needs `IDENT '(' (Expr (','
+      Expr)*)? ')'` — including the no-arg form `f()`.  Implemented
+      via a dedicated invocation-construction stack `$'@II'` (cons-list
+      via `struct ic_ilink { next, ival }`), parallel to the shared
+      Compiland stack.  Push at `(`, append-on-top at each comma-
+      separated arg, pop at `)`.  The stack is REQUIRED (not a
+      single-slot global) because invocations nest: `write(double(5))`
+      enters `double(5)`'s build phase while `write(...)` is still in
+      progress, and a single global slot would clobber.
+- [x] Test corpus: existing 20 + **7 NEW** (proc_simple, proc_oneparam,
+      proc_twoparam, proc_call_noargs, proc_call_onearg,
+      proc_call_twoargs, proc_return).
 - **Sibling LANG rungs:** IC-9 (current active).
-- **Gate:** PASS≥27.
+- **Gate:** PASS=27, FAIL=0.  smoke=5/0.  Cross-pollination: no
+      regression in parser_snobol4=23/0, parser_prolog=18/0,
+      parser_rebus=12/0 (those advanced via concurrent sessions; my
+      changes are isolated to parser_icon.sc).  Pre-existing
+      parser_snocone=0/13 is upstream-broken (session #63) —
+      unaffected by IC-4. ✅
 
 ### PARSER-IC-5 — alternation generators (`expr1 | expr2`)
 
@@ -428,4 +463,4 @@ that is already obsolete.
 
 ## Watermark
 
-PARSER-IC-4 (PARSER-IC-3 landed: control flow `if/then/else` + `while/do`, comparison ops via Expr4, Expr1 restructured to id-prefix-committed assign branch, TDump multi-line fallback bug fixed in corpus shared library, PASS=20, smoke=5; one4all parser branch HEAD `ac93b50a`, corpus HEAD `15617a8`).
+PARSER-IC-5 (PARSER-IC-4 landed: `procedure NAME(args) ... end` with arbitrary names + variadic params, `return [expr]`, variadic invocation via dedicated `$'@II'` stack supporting nested calls; PASS=27, smoke=5; one4all parser branch HEAD `ac93b50a`, corpus HEAD `e7a0866`).
