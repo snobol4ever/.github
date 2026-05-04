@@ -48,51 +48,82 @@ Before writing any `.sc` code, confirm every item below. If any
 answer is "no", stop and rework.
 
 1. **One root pattern.** The driver does at most: read stdin into
-   `Src`, then `Src ? Compiland`. That single match performs the
-   entire parse. (The driver may then walk the tree on the stack
-   to call `TDump` per top-level child — that is emission, not
-   parsing, and is allowed.)
+   `Src`, then `Src ? Compiland`. **That single match performs the
+   entire parse.** Sub-patterns (`Command`, `expr`, `atom`, etc.)
+   are referenced from inside `Compiland` via `*Sub`; they are
+   never matched separately by the driver. After the match, the
+   driver walks the tree on the stack to call `TDump` per top-level
+   child — that is emission, not parsing, and is allowed.
 
-2. **`Compiland` has the canonical spine.** Literally:
+2. **`Compiland` has the canonical beauty.sc spine.** Literally:
    ```
    Compiland = nPush() ARBNO(*Command) reduce("'Parse'", 'nTop()') nPop();
    ```
    `Command` is one big alternation of sub-patterns, one per
-   recognized construct.
+   recognized construct. **One `Compiland`, period.** No
+   `Compiland_v1` / `Compiland_v2`. No alternative spines. No
+   per-rung Compilands.
 
-3. **No goto/label inside parsing patterns or their helpers.**
-   Snocone control flow is via patterns and structured
-   if/while only. The single legacy exception (the `read_loop`/
-   `read_done` stdin-slurp at the top of the driver) is the only
-   place `goto` may appear, and it must come AFTER the parse, not
-   inside it. (Note: even SN's driver uses while-loop form for
-   stdin slurp; new code should too.)
+3. **No goto, no labels — Snocone control flow only.** Snocone has
+   `if`/`else`, `while`, structured patterns, and pattern alternation.
+   That is enough for everything in this parser. **Zero goto. Zero
+   labels.** This applies to the driver's stdin slurp too: write it
+   as a `while ((Line = INPUT)) { Src = Src Line nl; }`, not as
+   `read_loop:` / `goto read_loop`. The only legacy goto-style code
+   in any current `parser_*.sc` is grandfathered for unrelated reasons
+   (FW-3 deferred-call workaround); new code does not copy it.
 
-4. **Tree construction is via `shift()` and `reduce()` only.** Never
-   call `Push(Tree(...))` from a pattern escape. `shift(p, t)` pushes
-   a leaf of type `t` from what `p` matched; `reduce(t, n)` folds the
-   top `n` stack entries into a t-node.
+4. **Tree construction uses the OPSYN binary operators `~` and `&`.**
+   `semantic.sc` defines:
+   ```
+   OPSYN('~', 'shift', 2);
+   OPSYN('&', 'reduce', 2);
+   ```
+   Write `*Integer ~ "'E_ILIT'"` not `shift(*Integer, "'E_ILIT'")`.
+   Write `"'E_ALT'" & 'nTop()'` not `reduce("'E_ALT'", 'nTop()')`.
+   The infix forms are the canonical surface; the function-call forms
+   are the implementation. **Use the operators.** Never call
+   `Push(Tree(...))` from a pattern escape — that is the procedural
+   shortcut the OPSYN forms exist to replace.
 
 5. **No per-line state machine.** No `_rb_state = 0/1` toggle. No
    per-construct `_rb_*_kind` / `_rb_*_txt` global slots feeding hand-
    built `Tree(...)` calls in helper functions. Per-construct binding
-   happens via shift's third parameter and reduce's child-count.
+   happens via the `~` operator's right operand (the tag) and the `&`
+   operator's right operand (the child count, usually `nTop()`).
 
-6. **Counter helpers (`nPush`/`nInc`/`nTop`/`nPop`) appear at every
-   variadic-fold site.** `ARBNO(*X)` rungs that build a list use
-   `nPush()` before, `nInc()` inside the body, `reduce(t, 'nTop()')`
-   after, then `nPop()`. This is how the parser knows how many items
-   to fold. Hard-coded child counts (e.g. `reduce(r_ALT, 2)`) are fine
-   only for fixed-arity productions.
+6. **All trees are n-ary. No left, no right.** Every fold of a
+   variable-length list — alternation, concatenation, statement
+   sequences, argument lists, parameter lists, body statements —
+   uses the n-ary spine:
+   ```
+   X = nPush() *XList ("'X'" & 'nTop()') nPop();
+   XList = nInc() *Item FENCE(<sep> *XList | epsilon);
+   ```
+   `a | b | c` becomes a flat `(E_ALT a b c)` with three children,
+   NOT `(E_ALT (E_ALT a b) c)`. `f(a, b, c)` becomes a flat
+   `(E_FNC f a b c)` with four children, NOT a nested chain.
+   Hard-coded child counts in `&` (e.g. `"'E_ASSIGN'" & 2`) are
+   reserved for genuinely fixed-arity productions like `lhs := rhs`
+   — and even then, prefer the n-ary spine if the construction
+   could plausibly grow. **The existing Rebus frontend produces
+   binary E_ALT; that is a divergence to surface, not a constraint
+   to conform to.** See `## Divergence-driven rungs` below.
 
-7. **Sub-pattern names mirror `rebus.y`.** Use `function_decl`,
+7. **Counter helpers (`nPush`/`nInc`/`nTop`/`nPop`) appear at every
+   n-ary fold site.** This is how the parser knows how many items
+   to fold. The pair `nPush() ... reduce(t, 'nTop()') nPop()` opens
+   a counter scope; `nInc()` inside the iteration body bumps it
+   each pass.
+
+8. **Sub-pattern names mirror `rebus.y`.** Use `function_decl`,
    `record_decl`, `pat_expr`, `expr`, `alt_expr`, etc. — the
    non-terminal names from `src/frontend/rebus/rebus.y`. Where a name
    conflicts with Snocone reserved syntax, suffix with `_pat`. Do not
    invent names like `MatchLine` / `BodyAltLine` / `IfLine` — those
    are line-fragments, not grammar non-terminals.
 
-8. **One alternation in `Command` covers all top-level constructs.**
+9. **One alternation in `Command` covers all top-level constructs.**
    In Rebus that is `function_decl | record_decl`. Statement-level
    forms (assign, match, alt, if, while, call, atom) live under a
    `stmt`-rooted sub-tree fired by `function_decl`'s body, not as
@@ -100,10 +131,50 @@ answer is "no", stop and rework.
 
 A grep that should produce zero hits in the rewritten parser:
 ```
-grep -nE 'goto |^[a-z_]+:|_rb_state|_rb_atom_kind|emit_[a-z]' parser_rebus.sc
+grep -nE 'goto |^[a-z_]+:|_rb_state|_rb_atom_kind|emit_[a-z]|shift\(|reduce\(|Push\(Tree' parser_rebus.sc
 ```
-(Hits in commented-out scaffolding are fine; hits in active code are
-the wrong shape.)
+(`shift(`/`reduce(` hits in `semantic.sc` itself are fine — that
+file *defines* them. Hits in `parser_rebus.sc` mean the OPSYN
+operators were not used.)
+
+---
+
+## Divergence-driven rungs — n-ary vs the existing frontend's binary
+
+PAT-RB produces n-ary trees. The existing Rebus frontend
+(`src/frontend/rebus/rebus_lower.c`) uses `expr_binary(E_ALT, ...)`
+for `RE_ALT` — that is, every `|` is a binary node. So `a | b | c`
+in the existing frontend is `(E_ALT (E_ALT a b) c)`, while PAT-RB
+will produce `(E_ALT a b c)`. Same for `f(a, b, c)` arglist (the
+existing frontend may or may not be n-ary there — re-verify per
+rung), statement sequences, parameter lists, etc.
+
+**This is intentional divergence, not a bug in PAT-RB.** Per the
+"Done when" criterion at the top of this file, `tree_equal(t1, t2)`
+must hold; for any rung where the existing frontend's tree is
+binary-folded but PAT-RB's is n-ary, that gate will fail. That
+failure is the rung's *output*: PAT-RB has discovered that the
+existing frontend should be flattened.
+
+**Rung procedure when n-ary divergence is found:**
+
+1. PAT-RB produces n-ary tree per the canonical spine. Don't fold
+   to binary "to make the gate pass."
+2. The rung's commit message names the divergence explicitly:
+   "PAT-RB-5: existing frontend produces binary E_ALT; PAT-RB
+   produces n-ary E_ALT. Divergence reported — track upstream fix
+   in GOAL-LANG-REBUS RB-5."
+3. Open / update the upstream LANG rung to flatten the existing
+   frontend's lowering. Until that lands, `tree_equal` failure on
+   alt-bearing fixtures is *expected*; mark those fixtures as
+   "divergence-pending" in the rung's gate description rather than
+   counting them as FAIL.
+4. When upstream lands, the divergence-pending fixtures become
+   gating PASS without any change to PAT-RB.
+
+The 38 fixtures in `corpus/programs/rebus/parser/` will not all
+clear with one push under this regime. That is correct. PAT-RB's
+job is not to mirror the existing frontend's bugs.
 
 ---
 
@@ -214,63 +285,85 @@ This is the shape RB-0 must take in the rewrite. Read it, follow it.
 // Lex tokens — drop into the file once, used by every rung.
 ws_run = SPAN(' ' tab);
 ws_opt = (ws_run | epsilon);
-nl_one = (LEN(1) . _nl *IDENT(_nl, nl));
+nl_one = LEN(1) . _nl *IDENT(_nl, nl);
 
 Id      = ((ANY(&UCASE &LCASE '_'))
-           (SPAN(&UCASE &LCASE digits '_') | epsilon))
-          . _id_raw
-          epsilon . *assign('_id', uc(_id_raw));
+           (SPAN(&UCASE &LCASE digits '_') | epsilon));
 
-Integer = SPAN(digits)               . _int_lit;
-String  = ('"' BREAK('"') . _str_body '"' | "'" BREAK("'") . _str_body "'");
+Integer = SPAN(digits);
 
-s_VAR   = "'E_VAR'";   r_VAR   = "'E_VAR'";    // shift wants bare, reduce wants quoted
-s_ILIT  = "'E_ILIT'";  r_ILIT  = "'E_ILIT'";
-r_QLIT  = "'E_QLIT'";  // QLIT goes through a custom shift helper for sval
+String  = ('"' BREAK('"') . _str_body '"' | "'" BREAK("'") . _str_body "'")
+          epsilon . *push_qlit_from_strbody();
 
-// Atom — Rebus's `expr17` slice (id | integer | string).
-function rb_push_qlit() {
+// String capture goes through a one-line helper because the body
+// content (between quotes) is what we shift, not the matched span
+// (which includes the quotes).  This is the single legitimate
+// pattern-escape into a Snocone function in the whole parser; every
+// other tree node is built via `~` or `&`.
+function push_qlit_from_strbody() {
     Push(tree('E_QLIT', _str_body));
-    rb_push_qlit = .dummy;
+    push_qlit_from_strbody = .dummy;
     nreturn;
 }
 
-atom = FENCE(
-           *String epsilon . *rb_push_qlit()
-         | shift(*Integer, s_ILIT)
-         | shift(*Id,      s_VAR)
-       );
+// atom — Rebus's expr17 slice (id | integer | string).
+// `~` is OPSYN'd to shift; rhs is the tree-tag string.
+atom = FENCE(  *String
+             | *Integer ~ "'E_ILIT'"
+             | *Id      ~ "'E_VAR'"
+            );
 
-// At RB-0, a "command" is just an atom-as-statement: wrap it in STMT.
-// reduce('STMT', 1) folds the one atom on the stack into (STMT atom).
-// (Real STMT shape uses a :subj wrapper — see RB-0 step below for the
-// exact reduce target string. Add it once, reuse across rungs.)
+// stmt — for RB-0, a statement is just an atom in :subj position.
+// Ovrall STMT shape: (STMT :subj <atom>).
+// `&` is OPSYN'd to reduce; rhs is the child count (1 here, fixed-arity).
+stmt = ws_opt *atom ws_opt nl_one ("'STMT_SUBJ'" & 1);
 
-Command = ws_opt *atom ws_opt nl_one reduce("'STMT'", 1);
+// Command — single top-level alternation. At RB-0, only `stmt`.
+Command = nInc() *stmt;
 
-Compiland = nPush() ARBNO(*Command) reduce("'Parse'", 'nTop()') nPop();
+// Compiland — the canonical beauty.sc spine. ONE root pattern.
+// `'nTop()'` is the n-ary count: however many Commands matched,
+// that many children fold into the Parse node.
+Compiland = nPush() ARBNO(*Command) ("'Parse'" & 'nTop()') nPop();
 
-// Driver: slurp stdin, fire the one match, walk the result.
-InitCounter();  InitStack();
+// Driver — read stdin, fire the one match, walk the result.
+// No goto. No labels.
+InitCounter();
+InitStack();
+
 Src = '';
 Line = INPUT;
-while (DIFFER(Line)) {  Src = Src Line nl;  Line = INPUT;  }
+while (DIFFER(Line)) {
+    Src = Src Line nl;
+    Line = INPUT;
+}
 
-if (~(Src ? Compiland)) {  OUTPUT = 'PARSER-RB: parse failed';  goto die;  }
-
-// Emission: walk Top(), TDump each child STMT.
-parse_root = Top();
-i = 0;
-while (i = LT(i, n(parse_root)) i + 1)  TDump(c(parse_root)[i]);
-die:
+if (Src ? Compiland) {
+    parse_root = Top();
+    i = 0;
+    while (i = LT(i, n(parse_root)) i + 1)
+        TDump(c(parse_root)[i]);
+} else {
+    OUTPUT = 'PARSER-RB: parse failed';
+}
 ```
 
 **Self-check before committing RB-0:**
-- `grep -c 'goto ' parser_rebus.sc` → 1 (only the `die:` label, used to skip emission on parse failure; remove it if you can).
-- `grep -cE 'nPush|nInc|nTop|nPop' parser_rebus.sc` → at least 2 (one `nPush`, one `nTop`, one `nPop`).
-- `grep -cE 'shift\(|reduce\(' parser_rebus.sc` → at least 3 (two shifts in atom, one reduce in Command).
-- `grep -c '_rb_state' parser_rebus.sc` → 0.
-- `grep -c '^[a-z_]\+:' parser_rebus.sc` → ≤1 (only `die:` if kept; ideally 0).
+
+```
+grep -c 'goto '       parser_rebus.sc  # → 0
+grep -cE '^[a-z_]+:'  parser_rebus.sc  # → 0
+grep -c '_rb_state'   parser_rebus.sc  # → 0
+grep -cE 'shift\(|reduce\(' parser_rebus.sc  # → 0
+grep -cE 'Push\(Tree' parser_rebus.sc  # → 0
+grep -cE 'nPush|nInc|nTop|nPop' parser_rebus.sc  # → ≥2
+grep -cE ' ~ | & '    parser_rebus.sc  # → ≥3 (two ~ in atom, one & in stmt;
+                                       #     plus one & in Compiland = 4)
+grep -c 'Compiland'   parser_rebus.sc  # → exactly 2 (definition + driver use)
+```
+
+The "exactly 2 Compiland mentions" is the structural test for "one
+root pattern": one definition, one use site.
 
 ---
 
@@ -280,126 +373,193 @@ The 38 fixtures in `corpus/programs/rebus/parser/` already exist and are
 correct. Each rung's job is to bring `parser_rebus.sc`'s **shape** up to
 spec for that fixture subset.
 
+Every step below uses the OPSYN binary operators `~` (shift) and `&`
+(reduce). Every list-fold uses the `nPush()`/`nInc()`/`nTop()`/`nPop()`
+spine for n-ary trees. **No `goto`. No labels. No `Push(Tree(...))`
+escapes from a pattern.** No left, no right.
+
 ### PARSER-RB-0 — atom (rewrite) — **next**
 
-- [ ] Delete current `parser_rebus.sc` (or move to `parser_rebus.sc.gotoboard`
-      backup at top of branch, then delete after RB-3 lands).
-- [ ] Write new `parser_rebus.sc` following the worked example above.
-      `Compiland = nPush() ARBNO(*Command) reduce("'Parse'", 'nTop()') nPop();`,
-      `Command = ws_opt *atom ws_opt nl_one reduce(<STMT shape>, 1);`,
-      `atom = FENCE(*String ... | shift(*Integer, s_ILIT) | shift(*Id, s_VAR));`.
-- [ ] Driver slurps stdin into `Src`, runs `Src ? Compiland`, walks the
-      tree on the stack, calls `TDump` per top-level STMT.
+- [ ] Delete the wrong-shape `parser_rebus.sc` at corpus
+      `f2d3077:programs/scrip/parser_rebus.sc`. Do not migrate code
+      from it; the structure is wrong end-to-end. The git history
+      preserves it.
+- [ ] Write new `parser_rebus.sc` following the worked atom example
+      above verbatim — `Compiland`, `Command`, `stmt`, `atom`, the
+      lex tokens, the driver. Three test fixtures, no more.
 - [ ] Self-check greps from the worked example all pass.
-- [ ] PASS=3 on `atom_id`, `atom_int`, `atom_str` fixtures.
+- [ ] PASS=3 on `atom_id`, `atom_int`, `atom_str`.
 - **Sibling LANG rung:** RB-1.
-- **Gate:** PASS=3 AND rubric self-checks all pass.
+- **Gate:** PASS=3 AND every grep self-check passes.
 
 ### PARSER-RB-1 — assignment `x := expr` (rewrite)
 
-- [ ] Add `assign_stmt` sub-pattern:
-      `assign_stmt = *Id . _lhs ws_opt ':=' ws_opt *atom reduce("'STMT_ASSIGN'", 2);`
-      where reduce target is the STMT shape that lowers to
-      `(STMT :eq :subj (E_VAR X) :repl <atom>)` — see `semantic.sc`
-      for the canonical reduce-target string.
-- [ ] Add `assign_stmt` to `Command`'s alternation BEFORE bare `*atom`.
-- [ ] PASS=8 on the assignment fixtures.
-- **Sibling LANG rungs:** RB-1.
-- **Gate:** PASS=8 AND rubric self-checks all pass.
+- [ ] Add an `assign` sub-pattern. Fixed-arity (lhs + rhs = 2):
+      ```
+      assign = *Id ~ "'E_VAR'" ws_opt ':=' ws_opt *atom ("'STMT_ASSIGN'" & 2);
+      ```
+      The lhs id is shifted as `E_VAR` so it lands on the stack as a
+      tree node, not a raw string. The reduce folds `(lhs, rhs)` into
+      a `STMT_ASSIGN` 2-child tree. (Reduce-target name is whatever
+      maps cleanly to the canonical `(STMT :eq :subj :repl)` shape;
+      pick the name once and reuse — invent a `'STMT_ASSIGN'` reducer
+      target string in the parser, document the corresponding TDump
+      rendering rule.)
+- [ ] Add `*assign` to `Command`'s alternation BEFORE bare `*atom`.
+- [ ] Self-check greps still pass; `& 2` count grows by one.
+- **Sibling LANG rung:** RB-1.
+- **Gate:** PASS=8 AND every grep self-check passes.
 
 ### PARSER-RB-2 — control flow `if/then`, `while/do` (rewrite)
 
-- [ ] Add `if_stmt` and `while_stmt` sub-patterns. The :goS/:goF/merge
-      label generation that the existing frontend does at lower-time
-      should be deferred to a `lower_if`/`lower_while` step that walks
-      the parsed tree post-Compiland. The PATTERN itself just produces
-      `(IF cond body)` / `(WHILE cond body)` — closer to the
-      surface-syntax shape — and the lowering pass adds the labels.
-      (This matches how `rebus_lower.c` separates concerns; mirror it.)
-- [ ] Alternative if scope-creep: keep label generation in the parser
-      via a counter helper `next_rb_label()` called from a pattern
-      escape, but build the label-bearing STMTs via shift/reduce, not
-      via hand-built Tree(...) calls.
-- [ ] PASS=12.
-- **Sibling LANG rungs:** RB-2.
-- **Gate:** PASS=12 AND rubric self-checks.
+- [ ] Add `if_stmt` and `while_stmt`. Surface-shape trees:
+      `if_stmt = 'if' ws_run *expr ws_run 'then' ws_run *stmt ("'IF'" & 2);`
+      `while_stmt = 'while' ws_run *expr ws_run 'do' ws_run *stmt ("'WHILE'" & 2);`
+- [ ] **Defer label generation** (`:goS`/`:goF`/merge labels) to a
+      separate `lower_*` walk applied to the parsed tree AFTER
+      `Compiland` matches. The pattern produces the surface shape;
+      the lowering walks the tree and emits the label-bearing STMTs
+      via `TDump`. This mirrors how `rebus_lower.c` separates parse
+      from lower in the existing C frontend.
+- [ ] Lowering walk uses Snocone `function`s with `if/while/for`,
+      not goto.
+- **Sibling LANG rung:** RB-2.
+- **Gate:** PASS=12 AND every grep self-check passes.
 
 ### PARSER-RB-3 — function decls + call sites (rewrite)
 
-- [ ] Add `function_decl` sub-pattern matching `'function' Id '(' arglist ')'
-      ARBNO(*body_stmt) 'end'`. Use `nPush()`/`nInc()`/`nTop()`/`nPop()`
-      around the ARBNO of body statements so the function STMT folds the
-      correct child count.
-- [ ] Add `call_stmt` for bare `f()` no-arg calls.
-- [ ] PASS=18.
-- **Sibling LANG rungs:** RB-3.
-- **Gate:** PASS=18 AND rubric self-checks.
+- [ ] Add `function_decl` to `Command`'s top-level alternation:
+      ```
+      function_decl = 'function' ws_run *Id ~ "'E_VAR'" ws_opt
+                      '(' nPush() *params nPop() ')' ws_opt nl_one
+                      nPush() ARBNO(*stmt) ('"E_FNC_DEFINE"' & 'nTop()') nPop()
+                      ws_opt 'end' ws_opt nl_one;
+      ```
+      (Sketch — refine names against `rebus.y`. The two `nPush()/nPop()`
+      pairs scope two independent counters: one for the params list,
+      one for the body-stmt list.)
+- [ ] `params = *params_inner;
+      params_inner = nInc() *Id ~ "'E_VAR'" FENCE(ws_opt ',' ws_opt *params_inner | epsilon);`
+      The params reduce folds into an `E_PARAMS` (or whatever sval
+      the existing frontend uses for the parameter list — re-verify
+      from oracle output).
+- [ ] Add `call` for bare `f()` no-arg calls — fixed-arity `& 1`
+      since arg count is zero, name-only.
+- **Sibling LANG rung:** RB-3.
+- **Gate:** PASS=18 AND every grep self-check passes.
 
 ### PARSER-RB-4 — pattern match `expr ? pat` (rewrite)
 
-- [ ] Add `match_stmt = *expr ws_opt '?' ws_opt *pat_expr reduce("'STMT_MATCH'", 2);`.
-      `pat_expr` is `expr` per `rebus.y` line 678 (no distinction yet).
-- [ ] Lift directly from `parser_snobol4.sc`'s pattern handling once
-      PARSER-SN-4 lands (currently in flight).
-- [ ] PASS=25.
+- [ ] Add `match_stmt`:
+      ```
+      match_stmt = *expr ws_opt '?' ws_opt *pat_expr ("'STMT_MATCH'" & 2);
+      ```
+      `pat_expr` is `expr` per `rebus.y` line 678 (no distinction at
+      the syntax level; the `?` operator distinguishes context).
+- [ ] Lift the `expr` ladder (precedence layers) directly from
+      `parser_snobol4.sc`'s `Expr*` chain or `parser_snocone.sc`'s —
+      whichever is closer to Rebus's `rebus.y` precedence tower.
+      Re-verify per-tier names against `rebus.y`.
 - **Sibling LANG rung:** RB-4.
-- **Gate:** PASS=25 AND rubric self-checks.
+- **Gate:** PASS=25 AND every grep self-check passes.
 
-### PARSER-RB-5 — alternation generators `a | b | c` (rewrite)
+### PARSER-RB-5 — alternation generators `a | b | c` (rewrite, n-ary)
 
-- [ ] Add `alt_expr` sub-pattern using `nPush()`/`*X3`/`reduce(r_ALT,
-      'nTop()')`/`nPop()` for n-ary alt — the canonical idiom from
-      `parser_snocone.sc:175 Expr3 = nPush() *X3 reduce(r_ALT, r_nTop) nPop();`.
-- [ ] Verify left-associativity matches `rebus.y` `alt_expr`. (n-ary
-      reduce produces a flat E_ALT with n children; if oracle expects
-      strict left-fold `(E_ALT (E_ALT a b) c)` instead, switch to the
-      explicit binary fold pattern from `parser_snocone.sc:155-162`.)
-- [ ] PASS=32.
-- **Sibling LANG rung:** RB-5.
-- **Gate:** PASS=32 AND rubric self-checks.
+- [ ] Add `alt_expr` per the canonical n-ary spine from
+      `corpus/programs/snocone/demo/beauty/beauty.sc:67-68`:
+      ```
+      alt_expr = nPush() *alt_list ("'E_ALT'" & '*(GT(nTop(), 1) nTop())') nPop();
+      alt_list = nInc() *cat_expr FENCE(ws_opt '|' ws_opt *alt_list | epsilon);
+      ```
+      Note the reduce-count `'*(GT(nTop(), 1) nTop())'` — only emit
+      an `E_ALT` reduce if there is more than one operand. A bare
+      `a` (no `|`) leaves a single atom on the stack with no E_ALT
+      wrapper. This matches beauty.sc's classic idiom and is the
+      whole point of n-ary: `a | b | c` becomes `(E_ALT a b c)`,
+      `a` stays as-is.
+- [ ] `cat_expr` is whatever Rebus's next-tighter precedence layer
+      is per `rebus.y` `cat_expr` (concat operator). At RB-5 if
+      concat hasn't been added yet, `cat_expr` aliases to `atom`.
+- [ ] **Divergence-driven gate.** The existing Rebus frontend
+      produces binary E_ALT (see `## Divergence-driven rungs`).
+      Alt-bearing fixtures (`alt_*.reb` — 7 of them) will FAIL the
+      `tree_equal` gate in PAT-RB-5 until upstream LANG-RB-5 lands
+      a flatten step in `rebus_lower.c`. Mark them
+      "divergence-pending" in the rung commit, do NOT count as FAIL.
+      Non-alt fixtures still gate normally.
+- **Sibling LANG rung:** RB-5 (must be opened with a flatten task).
+- **Gate:** PASS=25 (RB-4 baseline; alt fixtures divergence-pending)
+      AND every grep self-check passes AND the divergence is reported
+      upstream.
+- **Final gate** (after upstream flatten lands): PASS=32.
 
 ### PARSER-RB-6 — record decls (rewrite)
 
-- [ ] Add `record_decl` to `Command`'s top-level alternation alongside
-      `function_decl`. Shape:
-      `record_decl = 'record' ws_run *Id '(' opt_idlist ')' reduce("'STMT_RECORD'", k);`
-      where k is the field count via `nPush()`/`nInc()`/`nTop()`/`nPop()`.
-- [ ] Field-list joining (raw text → `"NAME(F1,F2)"` E_QLIT) lives in a
-      named reduce-target string, not in a hand-rolled helper.
-- [ ] PASS=38.
+- [ ] Add `record_decl` to `Command`'s top-level alternation:
+      ```
+      record_decl = 'record' ws_run *Id ~ "'E_VAR'" ws_opt
+                    '(' nPush() *fields nPop() ')' ws_opt nl_one
+                    ("'E_FNC_DATA'" & 'nTop() + 1');  // +1 for the name
+      ```
+      Same n-ary fold as `function_decl`'s params. The `+1` accounts
+      for the leading record-name on the stack.
+- [ ] `fields` mirrors `params_inner` from RB-3.
+- [ ] Field-list joining into the existing-frontend's
+      `"NAME(F1,F2)"` E_QLIT shape lives in a TDump rendering rule
+      keyed on the reduce target, not in a hand-rolled emit
+      function. (If the n-ary divergence applies here too —
+      existing frontend folds fields into a single quoted string,
+      PAT-RB keeps them as separate tree children — handle per
+      `## Divergence-driven rungs`.)
 - **Sibling LANG rung:** RB-6.
-- **Gate:** PASS=38 AND rubric self-checks.
+- **Gate:** PASS=38 (or PASS=N+divergence-pending) AND every grep
+      self-check passes.
 
 ---
 
 ## Invariants
 
-- Rebus's existing frontend is younger; tree divergences may surface bugs in
-  EITHER frontend. PAT-RB does not silently conform.
+- Rebus's existing frontend is younger; tree divergences may surface
+  bugs in EITHER frontend. PAT-RB does not silently conform.
 - Test programs in `corpus/programs/rebus/parser/` are owned by PAT-RB.
 - `.ref` files captured at rung-land time.
-- **A rung is not landed until the rubric self-checks pass AND the
-  fixture gate passes.** Tree equivalence alone is not sufficient.
+- **A rung is not landed until every rubric self-check passes AND
+  the fixture gate passes (or the failing fixtures are documented
+  as divergence-pending with an upstream LANG ticket).** Tree
+  equivalence alone is not sufficient. Pattern shape is part of
+  the deliverable.
 
 ---
 
 ## Watermark
 
 PARSER-RB-0..RB-6 wrong-shape attempt landed sessions #62 (Claude
-Sonnet 4.7, 2026-05-03) — PASS=38 FAIL=0 against 38 fixtures, but the
-parser is a goto-driven line-at-a-time state machine, not a Snocone
-pattern. Rungs reopened for rewrite.
+Sonnet 4.7, 2026-05-03) — PASS=38 FAIL=0 against 38 fixtures, but
+the parser is a goto-driven line-at-a-time state machine, not a
+Snocone pattern. **Every rubric item from #1 through #9 is
+violated.** Rungs reopened for rewrite.
+
+Reopened with explicit pattern architecture (session continuation,
+2026-05-03):
+  - One `Compiland` pattern, beauty.sc spine.
+  - OPSYN binary `~` (shift) and `&` (reduce) operators.
+  - `nPush()`/`nInc()`/`nTop()`/`nPop()` for every list-fold.
+  - All trees n-ary; no left, no right.
+  - Zero goto, zero labels.
+  - Divergence-driven rungs handling for cases where the existing
+    frontend produces binary trees that PAT-RB folds n-ary.
 
 Current-tree heads: corpus `f2d3077`, one4all/parser `dd6ad80d`,
-.github (this commit) — all on remote. The wrong-shape
-`parser_rebus.sc` is in corpus at `f2d3077`; the rewrite starts by
-deleting it and writing a fresh one following the worked atom
+`.github` (this commit) — all on remote. The wrong-shape
+`parser_rebus.sc` is in corpus at `f2d3077`; the rewrite starts
+by deleting it and writing a fresh one following the worked atom
 example above.
 
 `test_parser_rebus.sh` carries the `normalize()` whitespace-collapse
 upgrade from session #62 — keep that, it is correct.
 
-The 38 fixtures in `corpus/programs/rebus/parser/` are correct — keep
-them. The whole rewrite gates against the same 38.
+The 38 fixtures in `corpus/programs/rebus/parser/` are correct —
+keep them. The whole rewrite gates against the same 38 (with
+divergence-pending markings as needed).
 
 PARSER-RB-0 — next.

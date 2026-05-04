@@ -76,7 +76,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PARSER-SN-6 LANDED (PASS=58); next PARSER-SN-7 — beauty.sno crosscheck |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-3 (INFRA-2 landed PASS=13 session #64) |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — sessions #62 attempt was wrong shape: goto state machine, not pattern. All rungs reopened. See GOAL ## Rubric.) |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-0 (REWRITE — one Compiland, OPSYN ~/&, n-ary trees via nPush/nInc/nTop/nPop, no goto. See GOAL ## Rubric.) |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-3 |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-6 (IC-5 landed PASS=33 — alternation generators) |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PARSER-PR-4 — lists (PR-3 landed PASS=24) |
