@@ -187,23 +187,35 @@ as the arity of an n-ary node.
 ⛔ No CamelCase (neither `headName` nor `HeadName`); use `head_name` /
    `Head_name` depending on kind.
 
-### Section separators — `/*===*/` and `/*---*/` at column 120
+### Section separators — `//===` 79-col uniformly (beauty.sc style)
 
-Separate major sections with a `/*====...*/` banner (120 chars).
-Separate sub-sections with a `/*----...*/` banner (120 chars).
-Do *not* use blank lines between logical blocks; use the banner lines.
+Match beauty.sc's actual usage exactly: separators use the `//`-comment form
+(not `/*...*/`), uniformly `//===` to **79 columns** total — no minor variant.
+beauty.sc uses 14 `//===` separators and zero `//---`.  beauty.sno uses
+108-col `*===` / `*---` mixed (column-aligned to its tab stops); parser_*.sc
+follows beauty.sc, not beauty.sno.
 
 ```snocone
-/*========================================... (120 chars) ...=====*/
-// Token classifiers
-/*----------------------------------------... (120 chars) ...-----*/
+//=============================================================================
+//  Token classifiers
+//=============================================================================
 ```
 
-### Horizontal space — 120-column maximum, 2-space indent for wraps
+(79 chars total, including the leading `//`.  Construct as `//` + 77 `=` chars.)
+A blank line is permitted *before* a `//===` separator (paragraph break), but
+not *between* the separator and the section content.  Beauty.sc shows this
+pattern: end-of-prev-section blank line, separator, header comment, separator,
+function body — no blank line inside the separator-header-separator triple.
 
-- Use horizontal space maximally; pack related assignments on one line where
-  they fit: `$'=' = *White '=' *White;  $'|' = *White '|' *White;`
-- When a pattern definition or expression exceeds 120 columns, wrap with
+### Horizontal space — pack tight, 2-space indent for wraps
+
+Beauty.sc targets ~120 columns but is not strict (longest line is 142 cols
+in a packed dispatch table; many 122-col `if` chains).  Treat 120 as a soft
+target, not a hard limit — pack horizontally where readable, wrap where not.
+
+- Use horizontal space; pack related assignments on one line where they fit:
+  `$'=' = *White '=' *White;  $'|' = *White '|' *White;`
+- When a pattern definition or expression spills uncomfortably wide, wrap with
   **2-space continuation indent**, aligning open parens/brackets vertically:
 
 ```snocone
@@ -440,7 +452,7 @@ at PASS=48 throughout.  PASS may rise as rules become more uniform.
 | 3 | No inline `ws_opt` / `SPAN` in grammar body | Grammar arms repeat `ws_opt tk_comma ws_opt`, `ws_opt tk_rbracket`, `ws_opt tk_pipe ws_opt`, etc. | After (2) lands, all whitespace is inside the `$'x'` tokens; grammar reads as clean BNF with zero inline `ws_opt`. |
 | 4 | Names mirror the existing frontend's `TK_*` enum | `tk_atom`, `tk_var`, `tk_int`, `tk_string`, `tk_qatom` — closer to `TK_*` than to BNF, but inconsistent (lowercased + `tk_` prefix invented) | Rename token classifiers per the style-guide names table: `Atom`, `Var`, `Int`, `Str`, `Qatom` (or `Qstr`).  Mirror `prolog_lex.h` `TK_ATOM`/`TK_VAR`/`TK_INT`/`TK_STRING` semantically but drop the `tk_` prefix per "plain identifiers for non-reserved word tokens". |
 | 5 | Builder functions = `Upper_Snake_Case`; locals = `lower_snake_case`; no `_` prefix | All 14 runtime fns are correct (`push_var`, `reduce_compound`, `build_clause`).  All 14 PR_* builders use `PR_` prefix (`PR_push_var`, `PR_reduce_compound`).  Capture vars use camelCase (`pText`, `qBody`, `leText`, `pNegi`, `pName`, `hText`) to dodge the EVAL underscore-lex bug | Two changes: (a) Rename runtime fns to `Upper_Snake` per style guide (`push_var` → `Push_var`, `reduce_compound` → `Reduce_compound`).  (b) Eliminate the `PR_*` layer entirely (item 7 below) — once gone, capture vars no longer flow through EVAL and can revert to plain `lower_snake_case` (`p_text`, `q_body`, `le_text`, `p_negi`, `p_name`, `h_text`). |
-| 6 | Section separators `/*===*/` and `/*---*/` at column 120 | File uses `//-----...---` (78-col, double-slash form) and blank lines between blocks | Rewrite separators as 120-col `/*======...=====*/` for major sections and `/*------...-----*/` for sub-sections; remove blank lines that the separators replace. |
+| 6 | Section separators `//===` at 79 cols uniformly | File uses 71-col `//---` form only | Rewrite all separators as 79-col `//===` per beauty.sc; remove blank lines that the separators replace. |
 | 7 | No `PR_*` pattern-builder layer | 14 `PR_xxx()` builders with EVAL-spliced capture-var names (the entire post-PR-6 "beauty pass") | Remove all `PR_*` builders.  Replace each call site with the direct equivalent.  Two cases: (a) Side-effect builders that just wrap `epsilon . *fn()` with no args (e.g. `PR_push_nil()`, `PR_reduce_conj()`, `PR_mark_body()`) → callsite becomes `epsilon . *Push_nil()`.  (b) Side-effect builders that EVAL-splice a capture name (`PR_push_var('pText')`) → callsite becomes `. *Push_var(p_text)` using the standard SNOBOL4 capture+action idiom (since the capture var name is now lexically present at the action site, not splice-substituted). |
 
 #### Strategy
@@ -474,10 +486,10 @@ at PASS=48 throughout.  PASS may rise as rules become more uniform.
 
 #### Steps
 
-- [ ] **PR-7-6**  Rewrite section separators to 120-col `/*===*/` / `/*---*/`; remove blank-line spacers.  Gate: PASS=48 FAIL=0.
-- [ ] **PR-7-1**  Define `Gray` and `White`; retire `ws_one` / `ws_run` / `ws_opt`.  Gate: PASS=48 FAIL=0.
-- [ ] **PR-7-2**  Convert `tk_*` punctuation + `op_*` operators to `$'x'` form, embedding `*Gray` / `*White` per style guide.  Gate: PASS=48 FAIL=0.
-- [ ] **PR-7-3**  Remove all inline `ws_opt` / `ws_run` from grammar body (should follow naturally from PR-7-2).  Gate: PASS=48 FAIL=0.
+- [x] **PR-7-6**  Rewrite section separators uniformly to 79-col `//===` per beauty.sc; remove blank-line spacers around them.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (18 separators converted; 9 trailing blank lines removed; matches beauty.sc separator-then-content-no-blank pattern).
+- [x] **PR-7-1**  Define `Gray` and `White`; retire `ws_one` / `ws_run` / `ws_opt`.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (with PR-7-2+3).
+- [x] **PR-7-2**  Convert `tk_*` punctuation + `op_*` operators to `$'x'` form, embedding `*Gray` / `*White` per style guide.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (with PR-7-1+3).  15 `$'x'` tokens defined: `$'(', $')', $'[', $']', $',', $';', $'|', $'.', $':-', $'=', $'+', $'-', $'*', $'/', $'is'`.
+- [x] **PR-7-3**  Remove all inline `ws_opt` / `ws_run` from grammar body (should follow naturally from PR-7-2).  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (with PR-7-1+2).  Zero `ws_opt`/`ws_run`/`ws_one` references remain anywhere in the file.
 - [ ] **PR-7-4**  Rename `tk_atom` → `Atom`, `tk_var` → `Var`, `tk_int` → `Int`, `tk_string` → `Str`, `tk_qatom` → `Qatom`.  Gate: PASS=48 FAIL=0.
 - [ ] **PR-7-5a** Rename runtime fns to `Upper_Snake_Case` (`push_var` → `Push_var`, etc.).  Gate: PASS=48 FAIL=0.
 - [ ] **PR-7-7**  Remove all `PR_*` pattern-builder fns; replace call sites with direct `epsilon . *Fn()` / `. *Fn(var)` forms.  Watch for the ARBNO `*func()` bug — if a callsite breaks, restore that one builder and note inline.  Gate: PASS=48 FAIL=0.
@@ -489,6 +501,19 @@ at PASS=48 throughout.  PASS may rise as rules become more uniform.
 
 PARSER-PR-6 LANDED (PASS=48).  All ladder rungs PR-0..PR-6 landed.
 
+**PR-7 partial (4 of 8 micro-rungs landed 2026-05-04 session):**
+- ✅ PR-7-6 separators 79-col `//===`
+- ✅ PR-7-1 `Gray`/`White` named whitespace
+- ✅ PR-7-2 `$'x'` operator/punctuation idiom (15 tokens)
+- ✅ PR-7-3 zero inline `ws_opt`/`ws_run` in grammar body
+- ⏳ PR-7-4 rename `tk_atom`→`Atom` etc.
+- ⏳ PR-7-5a runtime fns `Upper_Snake_Case`
+- ⏳ PR-7-7 remove `PR_*` builder layer
+- ⏳ PR-7-5b capture vars camelCase→snake_case (conditional on 7)
+
+Gate held PASS=48 FAIL=0 throughout.  Grammar now reads as clean BNF with
+`$'x'` operators and `tk_*` tokens; whitespace is fully encapsulated.
+
 **Beauty pass (post-PR-6):** 14 `PR_*` pattern-builder fns added
 following beauty.sno semantic.inc::shift / reduce convention; 56
 inline `[. *]xxx(...)` callsites in the grammar replaced with
@@ -499,12 +524,14 @@ inside the EVAL'd pattern body.  Direct `.name` calling convention is
 documented inline as an alternative for cases where the runtime fn
 wants a NAME (none of ours do).  Gate unchanged: PASS=48 FAIL=0.
 
-Next: PARSER-PR-7 rung — style conformance to the canonical
-`parser_*.sc` style guide (added 2026-05-04 from beauty.sno / beauty.sc).
-Eight micro-rungs PR-7-1..PR-7-7-5b documented above.  Feature rungs
-(same-functor E_CHOICE merging, anonymous variables `_`, parenthesized
-body subterms, DCG sugar) deferred until PR-7 lands.
+Next: PR-7-4 (token classifier renames `tk_atom`→`Atom`, `tk_var`→`Var`,
+etc.).  Then PR-7-5a (runtime fn casing).  Then PR-7-7 (the big one —
+remove the `PR_*` builder layer; watch for the ARBNO `*func()` bug).
+Then conditionally PR-7-5b (capture-var renames).
 
-**Next session:** start with PR-7-6 (cosmetic separators, low risk) as warm-up,
-then proceed in the documented order.  Hold PASS=48 FAIL=0 after every
-micro-rung.
+Feature rungs (same-functor E_CHOICE merging, anonymous variables `_`,
+parenthesized body subterms, DCG sugar) deferred until PR-7 lands fully.
+
+**Next session:** start with PR-7-4.  Hold PASS=48 FAIL=0 after every
+micro-rung.  Style guide is now self-consistent (corrected this session
+to match beauty.sc actual usage: 79-col `//===` separators, no `/*===*/`).
