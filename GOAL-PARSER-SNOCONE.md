@@ -246,6 +246,7 @@ Not violations (canonical guide explicitly permits or prefers):
 
 - [ ] **Step 3d-bug — scrip pattern engine: `$'  ' = *White` alias does not behave
   identically to `*White` when used in recursive grammar rules.** ⚠ BLOCKING Step 3e.
+  Diagnosis complete session #66; SM-side fix coded; IR-side companion still pending.
 
   Discovered session #66 (2026-05-04) while attempting Step 3e.  Per the canonical
   style guide §3, `$' '` / `$'  '` aliases for optional/required whitespace should
@@ -262,40 +263,97 @@ Not violations (canonical guide explicitly permits or prefers):
   `X4 = nInc() *Expr6 ($'  ' *X4 | epsilon)` (was: `(*White *X4 | epsilon)`)
   causes the `concat_seq` fixture to regress: input `x = "hello" name;` is parsed
   as **two** statements (`E_QLIT` then `E_VAR`) instead of one `(STMT :eq :subj
-  (E_VAR x) :repl (E_SEQ (E_QLIT "hello") (E_VAR name)))`.  The X4 chain stops
-  after the first element instead of continuing through subsequent juxtaposed atoms.
+  (E_VAR x) :repl (E_SEQ (E_QLIT "hello") (E_VAR name)))`.  Sweeping the rest of
+  the grammar compounds the failure into PASS=0 FAIL=21.  Minimal repro
+  (instrumented with side-effect counter, no parser_snocone.sc dependency):
 
-  Sweeping the rest of the grammar (`*Gray` → `$' '` at stmt_body, if_cmd,
-  while_cmd, do_cmd composition sites — 13+ sites) compounds the failure into
-  PASS=0 FAIL=21 with empty parser output (no `Parse Error` either; Compiland
-  silently fails to consume input).  `--dump-parse` reveals "Error 5: Undefined
-  function or operation" at high statement numbers during pattern build.
+  ```snocone
+  &FULLSCAN = 1;  &ANCHOR = 1;
+  function nInc() { nInc = epsilon . *_inc(); return; }
+  function _inc() { _n = _n + 1; _inc = .dummy; nreturn; }
+  White = SPAN(' ' tab);   $'  ' = *White;   Atom = SPAN(&LCASE);
+  XA = nInc() *Atom (*White *XA | epsilon);    // bare *White
+  XB = nInc() *Atom ($'  ' *XB | epsilon);     // $'  ' alias
+  _n = 0;  if ('a b c' ? XA RPOS(0)) OUTPUT = 'A: count=' _n;
+  _n = 0;  if ('a b c' ? XB RPOS(0)) OUTPUT = 'B: count=' _n;
+  // Pre-fix output: A: count=3   (XB silently fails RPOS(0), prints nothing)
+  ```
 
-  Isolated probes do **not** reproduce the X4 chain failure — `$'  '` matches
-  required whitespace correctly in standalone tests, including recursive rules
-  built outside the parser_snocone.sc context.  The bug surfaces only with the
-  full parser_snocone.sc combination of `nInc()`, `*Expr6`, and `$'  '` inside
-  the recursive `X4` rule.
+  ### Root cause (full IR walk, session #66)
 
-  Diagnosis hypothesis: `$'  ' = *White` evaluates `*White` at assignment time
-  and stores the resulting deferred-pattern object as the value of variable
-  `'  '`.  Direct `*White` at a grammar composition site re-resolves `White`
-  by name at pattern-build time (and possibly at match time); the cached
-  `$'  '` value may carry different binding semantics — particularly under
-  recursion combined with side-effect patterns like `nInc()`.  Engine-level
-  C investigation needed; not a Snocone-source workaround.
+  `$'  ' = *White` lowers to: evaluate `*White` in value context → `E_DEFER` at
+  `sm_lower.c:570-574` → `SM_PUSH_EXPR` baking a frozen `EXPR_t*` for `White`
+  into a `DT_E` descriptor → assigned to variable `"  "` via `ASGN_INDIR`.
 
-  Repro recipe:
-  1. Apply Step 3e edits (add `$' '` / `$'  '` defs after `Gray`, sweep grammar).
-  2. `bash scripts/test_parser_snocone.sh` → PASS=0 FAIL=21.
-  3. Revert just the X4 line (`$'  '` → `*White`); other sweep stays.
-     Result: PASS=20 FAIL=1 with `concat_seq` still failing — confirms the
-     X4 recursive site is one trigger; the others compound it.
+  When `$'  '` is later referenced in pattern context, the IR is
+  `E_INDIRECT(E_QLIT "  ")` (verified via `--dump-ir`).  In `lower_pat_expr`
+  (`sm_lower.c:240`), `E_INDIRECT` has no dedicated case — it falls through
+  the `default:` (line 500-504) which calls `lower_expr` (value-context →
+  `INDIR_GET` retrieves the DT_E) followed by `SM_PAT_DEREF`.
 
-  Fix path: characterize the difference between deferred-name-lookup
-  (`*White`) and stored-deferred-value (`$'  '`) inside `runtime/x86/snobol4_pattern.c`
-  for the dollar-indirect-variable case, then make the engine treat both forms
-  equivalently.  Until fixed, Step 3e cannot land cleanly.
+  At `sm_interp.c:473`, the original `SM_PAT_DEREF` handler:
+
+  ```c
+  case SM_PAT_DEREF: {
+      DESCR_t v = sm_pop(st);
+      if (v.v == DT_P)         pat_push(v);
+      else if (v.v == DT_S)    pat_push(pat_lit(v.s));
+      else                     pat_push(pat_ref(VARVAL_fn(v) ?: ""));   // ← bug
+  }
+  ```
+
+  has **no `DT_E` branch**.  The DT_E descriptor falls through to the `else` —
+  `VARVAL_fn` returns garbage (DT_E has no string-side meaning), `pat_ref("")`
+  produces a degenerate empty-name deferred reference that matches epsilon at
+  first invocation and binds the recursive expansion to a dead pattern node.
+
+  Contrast: bare `*White` is `E_DEFER(E_VAR "White")` and lowers via the
+  `SN-6` branch at `sm_lower.c:485-488` → `SM_PAT_REFNAME "White"` → match-time
+  deferred-name lookup that re-resolves cleanly through recursion.
+
+  ### SM-side fix LANDED (one4all @ HEAD-+1, session #66)
+
+  Added DT_E branch to `SM_PAT_DEREF` mirroring `eval_pat.c::interp_eval_pat`'s
+  `case E_VAR` (line 82-99) DT_E handling — calls `PATVAL_fn(d)` (the SIL
+  PATVAL coercion in `snobol4_argval.c:104`), which routes DT_E through
+  `EVAL_fn` to thaw the EXPR_t and coerces the result to DT_P.  Build green;
+  parser gate PASS=21 FAIL=0 unchanged (no regression on currently-exercised
+  paths since gate uses `--ir-run`, not `--sm-run`).
+
+  ### IR-side fix STILL PENDING
+
+  The parser gate (`test_parser_snocone.sh`) runs with `--ir-run`, so the
+  binding regression repros under the IR tree-walk path too — the SM fix
+  alone does not unblock Step 3e.  Companion fix needed:
+
+  In `eval_pat.c::interp_eval_pat` (around line 82, where `E_VAR` is handled),
+  add an analogous `case E_INDIRECT:` branch:
+
+  ```c
+  case E_INDIRECT: {
+      /* $expr in pattern context — eval value, then PATVAL coerce.
+       * Mirrors case E_VAR's DT_E thaw at line 95-96.  Fixes recursive-rule
+       * binding regression from $'  ' = *White alias (Step 3d-bug). */
+      DESCR_t v = eval_node(e);   /* INDIR_GET equivalent */
+      if (v.v == DT_E && !v.ptr) return NULVCL;
+      if (v.v == DT_E || v.v == DT_I || v.v == DT_R) return PATVAL_fn(v);
+      return v;   /* DT_S / DT_P / etc. */
+  }
+  ```
+
+  Place this BEFORE the `default:` at line 382, so `E_INDIRECT` no longer
+  falls through to plain `eval_node(e)` (which leaves DT_E as-is, never
+  coerces to DT_P).
+
+  ### Verification plan after IR-side fix lands
+
+  1. Run repro snippet above — XB should report `count=3` (matches XA).
+  2. Re-attempt Step 3e in parser_snocone.sc — apply the divider-region defs
+     (`$' ' = *Gray; $'  ' = *White;`) and sweep `*Gray`/`*White` →
+     `$' '`/`$'  '` at the 13+ grammar composition sites.
+  3. Gate must hold PASS=21 FAIL=0; smoke PASS=5 FAIL=0.
+  4. If green, mark Step 3d-bug ✅ and Step 3e ✅ together and bump
+     PARSER-SC-INFRA-3 to closed.
 
 - [ ] **Step 3e — define `$' '` / `$'  '` once; sweep grammar (§3).**
   ⛔ BLOCKED on Step 3d-bug above.
@@ -353,6 +411,34 @@ Gate: PASS=21 FAIL=0 (atom_*, assign_*, arith_*, concat_seq, if_simple,
 if_else, if_seq, if_multi_body, while_simple, while_seq, do_simple,
 do_with_stmt). Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.
 Sibling parsers unaffected.
+
+**Session #66 cont. (2026-05-04) — Step 3d-bug diagnosis complete; SM-side
+partial fix landed; IR-side companion still pending.**
+
+Root cause traced: `$'  ' = *White` stores a `DT_E` (frozen-EXPR) descriptor
+as the variable's value; when later referenced in pattern context via
+`E_INDIRECT`, the lowering falls through `lower_pat_expr`'s `default:` →
+`lower_expr` (value path: `INDIR_GET` retrieves the DT_E) → `SM_PAT_DEREF`.
+The original `SM_PAT_DEREF` handler at `sm_interp.c:473` had no DT_E branch
+— it fell through to `VARVAL_fn` + `pat_ref("")`, producing a degenerate
+empty-name deferred reference that broke recursive-rule binding.
+
+Contrast: bare `*White` is `E_DEFER(E_VAR "White")` and lowers via the
+SN-6 branch at `sm_lower.c:485-488` → `SM_PAT_REFNAME "White"` → match-time
+deferred-name lookup that re-resolves cleanly through recursion.
+
+SM-side fix landed in `sm_interp.c::SM_PAT_DEREF`: added DT_E branch that
+calls `PATVAL_fn(d)` (SIL PATVAL coercion in `snobol4_argval.c:104`) to
+thaw the frozen EXPR_t through `EVAL_fn` and coerce to DT_P.  Mirrors
+the IR-side `case E_VAR` DT_E thaw at `eval_pat.c:82-99`.  Build green;
+parser gate PASS=21 FAIL=0 unchanged.
+
+IR-side companion fix STILL PENDING — the gate uses `--ir-run`, so the
+binding regression also reproduces under the IR tree-walk path. Companion
+fix is an analogous `case E_INDIRECT:` branch in `eval_pat.c::interp_eval_pat`
+(insertion point and code skeleton recorded in the Step 3d-bug entry above).
+
+Until the IR-side lands, Step 3e remains blocked.
 
 **Session #66 (2026-05-04) — INFRA-3 Steps 3c + 3d landed; Step 3e blocked
 on newly-filed Step 3d-bug.**
@@ -442,6 +528,7 @@ INFRA-3 progress this session:
   instead of `[x=y]`; without FENCE the same pattern captures `[x=y]`.
 - D3 BNF (`corpus/programs/ebnf/snocone.ebnf`) check-in skipped per Lon.
 
-**Next rung:** PARSER-SC-INFRA-3 Step 3d-bug — characterize and fix
-the scrip pattern-engine `$'  ' = *White` recursive-rule divergence in
-`snobol4_pattern.c` so that Step 3e can land cleanly.
+**Next rung:** PARSER-SC-INFRA-3 Step 3d-bug (continued) — apply the IR-side
+companion fix in `eval_pat.c::interp_eval_pat case E_INDIRECT:` (skeleton
+recorded in the Step 3d-bug entry above), verify against the repro and
+parser gate, then proceed to Step 3e.
