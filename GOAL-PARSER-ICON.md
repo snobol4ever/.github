@@ -312,7 +312,7 @@ shape PAT-IC mirrors.
 
 ## Open rungs
 
-### PARSER-IC-10-style — clean up guideline violations in `parser_icon.sc`  ← **next**
+### PARSER-IC-10-style — clean up guideline violations in `parser_icon.sc`  COMPLETE
 
 The new "Style guidelines" section is descriptive of beauty.sno /
 beauty.sc, not yet fully applied to `parser_icon.sc`.  The audit below
@@ -353,29 +353,31 @@ gate.
       to avoid partial match.  Note: `While` (the procedure construct)
       and `White` (the whitespace def) are distinct Snocone identifiers
       — no collision.  Gate PASS=51 FAIL=0 preserved.
-- [ ] **Step 5 — pseudo-token names → literal source forms.**  Two
-      passes:
-      (5a) Drop `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/
-           `$'unary!'`/`$'unary*'`/`$'unary?'` family.  Inline each
+- [x] **Step 5 — pseudo-token names → literal source forms.**  DONE.
+      (5a) Dropped `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/
+           `$'unary!'`/`$'unary*'`/`$'unary?'` family.  Inlined each
            Expr10 branch as `*Gray '-' *Expr10 (r_MNS & 1)` etc.
-           PASS=51.
-      (5b) Drop `$'augop'` alternation token; inline the four
+           PASS=51 preserved.
+      (5b) Dropped `$'augop'` alternation token; inlined the four
            `$'+:='`/`$'-:='`/`$'*:='`/`$'/:='` branches directly in
-           Expr1 parallel to the `$':='` branch.  PASS=51.
-      (5c) `$'qlit'` and `$'proc_wrap'` are side-effect dispatch
-           points without literal source spellings.  Rename to
-           capture intent in language terms — e.g. `qlit_done =
-           (epsilon . *ic_push_qlit());` and `proc_done = (epsilon
-           . *ic_decompose_proc());`.  PASS=51.
-- [ ] **Step 6 — horizontal-density audit.**  Sweep for tighter
-      packing within 120 columns; confirm multi-line wraps use
-      constant 2-space indention with vertical-balanced parens and
-      binary operators.  PASS=51.
+           Expr1 parallel to the `$':='` branch (4 separate
+           alternatives all with `(r_AUGOP & 2)`).  PASS=51 preserved.
+      (5c) Renamed `$'qlit'` → `qlit_done = (epsilon . *ic_push_qlit());`
+           and `$'proc_wrap'` → `proc_done = (epsilon
+           . *ic_decompose_proc());` to capture intent in language
+           terms.  Updated reference sites in Expr11 (`qlit_done`)
+           and Proc (`proc_done`).  PASS=51 preserved.
+- [x] **Step 6 — horizontal-density audit.**  DONE.  Packed three
+      blocks two-per-line per parser_snocone.sc convention: keyword
+      tokens (`$'if'`/`$'then'`/etc.), operator tokens (`$'|'`/`$':='`/
+      etc.), augop tokens (`$'+:='`/`$'-:='`/etc.), and reduce-tag
+      constants (`r_ASSIGN`/`r_SCAN`/etc.).  No lines exceed 120 cols.
+      File length 419 → 371 lines (−48).  PASS=51 preserved.
 
 - **Gate (overall):** PASS=51 preserved through every step; no new
   fixtures added under this rung.
 
-### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat
+### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat  ← **next**
 
 After the style cleanup lands, this is the feature-coverage rung:
 
@@ -427,6 +429,6 @@ patterns and refactor scope.
 
 ## Watermark
 
-PARSER-IC-10-style Step 5 (Steps 1-4 LANDED PASS=51 corpus@NEW: Step 4 — `Gray`/`White` rename LANDED: `ws_opt`→`White=SPAN(' ' tab)`, `ws_run`→`Gray=(*White|epsilon)`; deleted `$' '`/`$'  '` definitions and their comment block; swept ~64 occurrences: `$' '`→`*Gray`, `$'  '`→`*White` throughout — operator-token RHSs, keyword-token RHSs, all grammar use sites.  All-or-nothing sweep in one pass (two-space first to avoid partial match).  Gate PASS=51 FAIL=0 preserved.  Steps 1-3 per prior watermark.
+PARSER-IC-10 (Steps 1-6 of IC-10-style ALL LANDED PASS=51 corpus@1734c42: Step 5 — pseudo-token name cleanup: 5a inlined `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/`$'unary!'`/`$'unary*'`/`$'unary?'` family directly into Expr10 as `*Gray 'op' *Expr10 (r_TAG & 1)`; 5b dropped `$'augop'` umbrella, inlined four augop literal branches into Expr1 each with `(r_AUGOP & 2)`; 5c renamed `$'qlit'` → `qlit_done` and `$'proc_wrap'` → `proc_done` to capture intent in language terms.  Step 6 — horizontal density: packed keyword tokens, operator tokens, augop tokens, and reduce-tag constants two-per-line per parser_snocone.sc convention.  File 419 → 371 lines (−48).  Gate PASS=51 FAIL=0 preserved through every sub-step.  IC-10-style COMPLETE; next is IC-10 feature coverage rung — augop expansion, more unary fixtures, special assignment forms, Expr2 to..by, Expr5 concat.
 
 PARSER-IC-9-prior (LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`).
