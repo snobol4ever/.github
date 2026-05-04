@@ -10,9 +10,11 @@ one `Compiland` PATTERN that builds the canonical IR tree, and for every
 test program in the rung corpus the parser tree matches the existing
 frontend's `--dump-ir` output (after whitespace normalization).
 
-Naming, BNF discipline, and Snocone-style invariants are the
-cross-PARSER ones — see `GOAL-PARSER-SNOCONE.md ## Naming & Design
-Principles`. Token classifiers in `parser_raku.sc` mirror `raku.l`
+Naming, BNF discipline, layout, `White`/`Gray`, `$'name'` tokens,
+shift/reduce, n-ary counters, identifier rules — these are the
+cross-PARSER style invariants.  Canonical writeup:
+`GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`.
+Token classifiers in `parser_raku.sc` mirror `raku.l`
 (`var_scalar`, `var_array`, `kw_my`, `kw_say`, `op_add`, …); IR tags
 mirror `ir.h` (`E_VAR`, `E_ILIT`, `E_QLIT`, `E_FNC`, `E_ASSIGN`,
 `E_ADD`/`E_SUB`/`E_MUL`/`E_DIV`).

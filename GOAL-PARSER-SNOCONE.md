@@ -94,6 +94,14 @@ Full feature surface in `GOAL-LANG-SNOCONE.md`.
 
 ## Naming & Design Principles (D1/D2/D3)
 
+> **Cross-PARSER-* style is canonical in
+> `GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`.**
+> That section covers naming, `White`/`Gray`, `$'name'` tokens,
+> shift/reduce, n-ary counters, `E_*` IR tags, identifier rules,
+> and 120-col layout — binding on every PARSER-*.  The
+> Snocone-specific D1/D2/D3 detail below extends it; read
+> the canonical writeup first.
+
 ### 1. Names from the official BNF (D2/D3)
 
 `src/frontend/snocone/snocone_parse.y` is the canonical grammar. Pattern-variable

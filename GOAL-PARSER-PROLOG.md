@@ -42,7 +42,8 @@ existing Prolog frontend's vocabulary, not be invented.
 Cross-PARSER spine names (`Compiland`, `Push`/`Pop`/`Top`, `nPush`/`nInc`/
 `nTop`/`nPop`) are the only invented names — shared across all six PARSER-*.
 
-See GOAL-PARSER-SNOCONE.md "Naming & Design Principles" for the full writeup.
+See GOAL-PARSER-SNOBOL4.md "Style Guidelines for parser_*.sc" for the full
+canonical writeup (binding on all six PARSER-*).
 
 ---
 

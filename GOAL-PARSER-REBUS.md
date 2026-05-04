@@ -272,9 +272,11 @@ fixes there benefit all six. Rebus shares lowering with SNOBOL4, so PAT-RB's
 Rebus frontend is younger than SNOBOL4's; PAT-RB does not silently match
 divergences — report upstream.
 
-Naming follows the canonical writeup in `GOAL-PARSER-SNOCONE.md` (use BNF
-names, `beauty.sc` names, `shift()`/`reduce()` over manual `Push(Tree(...))`,
-no new labels/goto).
+Naming, layout, `White`/`Gray`, `$'name'` tokens, shift/reduce, n-ary
+counters, identifier rules — canonical writeup in
+`GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`.  Use BNF
+names, `beauty.sc` names, `shift()`/`reduce()` over manual
+`Push(Tree(...))`, no new labels/goto.
 
 ---
 
