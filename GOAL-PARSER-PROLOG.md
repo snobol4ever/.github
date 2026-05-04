@@ -423,6 +423,68 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
 
 ---
 
+### PARSER-PR-7 — style conformance to beauty.sno / beauty.sc — ⏳ NEXT
+
+`parser_prolog.sc` was written before the canonical style guide was written
+down (PR-0..PR-6 predate the guide).  Audit performed 2026-05-04 against
+`## Style guide for parser_*.sc` finds the following gaps.  These are
+guidelines, not laws — land each as its own micro-rung with the gate held
+at PASS=48 throughout.  PASS may rise as rules become more uniform.
+
+#### Audit findings — 7 violations to address
+
+| # | Guideline | Current state in `parser_prolog.sc` | Target |
+|---|-----------|-------------------------------------|--------|
+| 1 | `Gray` / `White` named whitespace | `ws_one` / `ws_run` / `ws_opt` invented locally; no `Gray` / `White` defined | Define `Gray = *White \| epsilon;` and `White = SPAN(' ' tab nl);` (Prolog has no continuation lines, so no nl-`+` glue).  Retire `ws_*`. |
+| 2 | `$'x'` idiom for operator / punctuation tokens | `tk_lparen`, `tk_rparen`, `tk_comma`, `tk_semi`, `tk_dot`, `tk_neck`, `tk_pipe`, `tk_lbracket`, `tk_rbracket`, `op_eq`, `op_pls`, `op_mns`, `op_mul`, `op_div`, `op_is` — all use `tk_*` / `op_*` invented prefixes; whitespace is glued inline at use sites | Rename to `$'('`, `$')'`, `$','`, `$';'`, `$'.'`, `$':-'`, `$'\|'`, `$'['`, `$']'`, `$'='`, `$'+'`, `$'-'`, `$'*'`, `$'/'`, `$'is'`.  Each carries its own `*Gray` / `*White` per the Gray/White rules in the style guide. |
+| 3 | No inline `ws_opt` / `SPAN` in grammar body | Grammar arms repeat `ws_opt tk_comma ws_opt`, `ws_opt tk_rbracket`, `ws_opt tk_pipe ws_opt`, etc. | After (2) lands, all whitespace is inside the `$'x'` tokens; grammar reads as clean BNF with zero inline `ws_opt`. |
+| 4 | Names mirror the existing frontend's `TK_*` enum | `tk_atom`, `tk_var`, `tk_int`, `tk_string`, `tk_qatom` — closer to `TK_*` than to BNF, but inconsistent (lowercased + `tk_` prefix invented) | Rename token classifiers per the style-guide names table: `Atom`, `Var`, `Int`, `Str`, `Qatom` (or `Qstr`).  Mirror `prolog_lex.h` `TK_ATOM`/`TK_VAR`/`TK_INT`/`TK_STRING` semantically but drop the `tk_` prefix per "plain identifiers for non-reserved word tokens". |
+| 5 | Builder functions = `Upper_Snake_Case`; locals = `lower_snake_case`; no `_` prefix | All 14 runtime fns are correct (`push_var`, `reduce_compound`, `build_clause`).  All 14 PR_* builders use `PR_` prefix (`PR_push_var`, `PR_reduce_compound`).  Capture vars use camelCase (`pText`, `qBody`, `leText`, `pNegi`, `pName`, `hText`) to dodge the EVAL underscore-lex bug | Two changes: (a) Rename runtime fns to `Upper_Snake` per style guide (`push_var` → `Push_var`, `reduce_compound` → `Reduce_compound`).  (b) Eliminate the `PR_*` layer entirely (item 7 below) — once gone, capture vars no longer flow through EVAL and can revert to plain `lower_snake_case` (`p_text`, `q_body`, `le_text`, `p_negi`, `p_name`, `h_text`). |
+| 6 | Section separators `/*===*/` and `/*---*/` at column 120 | File uses `//-----...---` (78-col, double-slash form) and blank lines between blocks | Rewrite separators as 120-col `/*======...=====*/` for major sections and `/*------...-----*/` for sub-sections; remove blank lines that the separators replace. |
+| 7 | No `PR_*` pattern-builder layer | 14 `PR_xxx()` builders with EVAL-spliced capture-var names (the entire post-PR-6 "beauty pass") | Remove all `PR_*` builders.  Replace each call site with the direct equivalent.  Two cases: (a) Side-effect builders that just wrap `epsilon . *fn()` with no args (e.g. `PR_push_nil()`, `PR_reduce_conj()`, `PR_mark_body()`) → callsite becomes `epsilon . *Push_nil()`.  (b) Side-effect builders that EVAL-splice a capture name (`PR_push_var('pText')`) → callsite becomes `. *Push_var(p_text)` using the standard SNOBOL4 capture+action idiom (since the capture var name is now lexically present at the action site, not splice-substituted). |
+
+#### Strategy
+
+- **Land items in order 6 → 1 → 2 → 3 → 4 → 5 → 7.**  Order matters:
+  separators (6) is cosmetic-only and can land first as a warm-up; (1)+(2)
+  are token-layer changes that must land together to avoid an intermediate
+  grammar-half-uses-Gray state; (7) is the biggest rewrite and goes last.
+- **Hold PASS=48 FAIL=0 after every micro-rung.**  Run
+  `bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3` after
+  every `str_replace`.
+- **No semantic change.**  Output IR trees must be byte-identical to current
+  for every fixture.  This is pure refactoring.
+- **Use git diff to verify diff size per micro-rung.**  Items 6, 4, 5a, 7
+  should be search-and-replace style diffs.  Items 1, 2, 3 land together
+  and are the largest single diff.
+
+#### Caveats — guidelines, not laws
+
+- The PR-3 watermark documents an empirical bug: `*func()` immediate
+  evaluations inside `ARBNO` arms only fire on the first iteration.  If
+  removing the `PR_*` layer (item 7) re-exposes that bug — i.e. a callsite
+  that worked through a `PR_*` builder breaks when written direct — leave a
+  `PR_*` builder in place for that one callsite and document it inline.
+  The bug is the binding constraint, not the style.
+- The capture-var rename (item 5b) depends on item 7 landing first.  If
+  item 7 stalls on the ARBNO bug above, leave the camelCase capture-var
+  names alone — they exist for a real reason.
+- `Compiland`, `Push`/`Pop`/`Top`, `nPush`/`nInc`/`nTop`/`nPop` are
+  cross-PARSER spine names and stay as-is.
+
+#### Steps
+
+- [ ] **PR-7-6**  Rewrite section separators to 120-col `/*===*/` / `/*---*/`; remove blank-line spacers.  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-1**  Define `Gray` and `White`; retire `ws_one` / `ws_run` / `ws_opt`.  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-2**  Convert `tk_*` punctuation + `op_*` operators to `$'x'` form, embedding `*Gray` / `*White` per style guide.  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-3**  Remove all inline `ws_opt` / `ws_run` from grammar body (should follow naturally from PR-7-2).  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-4**  Rename `tk_atom` → `Atom`, `tk_var` → `Var`, `tk_int` → `Int`, `tk_string` → `Str`, `tk_qatom` → `Qatom`.  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-5a** Rename runtime fns to `Upper_Snake_Case` (`push_var` → `Push_var`, etc.).  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-7**  Remove all `PR_*` pattern-builder fns; replace call sites with direct `epsilon . *Fn()` / `. *Fn(var)` forms.  Watch for the ARBNO `*func()` bug — if a callsite breaks, restore that one builder and note inline.  Gate: PASS=48 FAIL=0.
+- [ ] **PR-7-5b** (Conditional on PR-7-7 success.) Rename camelCase capture vars (`pText`, `qBody`, `leText`, `pNegi`, `pName`, `hText`) to `lower_snake_case` (`p_text`, `q_body`, `le_text`, `p_negi`, `p_name`, `h_text`).  Gate: PASS=48 FAIL=0.
+
+---
+
 ## Watermark
 
 PARSER-PR-6 LANDED (PASS=48).  All ladder rungs PR-0..PR-6 landed.
@@ -437,9 +499,12 @@ inside the EVAL'd pattern body.  Direct `.name` calling convention is
 documented inline as an alternative for cases where the runtime fn
 wants a NAME (none of ours do).  Gate unchanged: PASS=48 FAIL=0.
 
-Next: PARSER-PR-7+ rung (TBD by Lon — ladder is open-ended; candidates
-include same-functor multi-clause E_CHOICE merging, anonymous variables
-`_`, parenthesized body subterms, DCG sugar).
+Next: PARSER-PR-7 rung — style conformance to the canonical
+`parser_*.sc` style guide (added 2026-05-04 from beauty.sno / beauty.sc).
+Eight micro-rungs PR-7-1..PR-7-7-5b documented above.  Feature rungs
+(same-functor E_CHOICE merging, anonymous variables `_`, parenthesized
+body subterms, DCG sugar) deferred until PR-7 lands.
 
-**Next session:** confirm with Lon what PARSER-PR-7+ should cover, or
-move to a sibling parser ladder.
+**Next session:** start with PR-7-6 (cosmetic separators, low risk) as warm-up,
+then proceed in the documented order.  Hold PASS=48 FAIL=0 after every
+micro-rung.
