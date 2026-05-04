@@ -447,47 +447,105 @@ function fire(d) { OUTPUT = '  fire()'; fire = .dummy; nreturn; }
 // Before: zero output.  After: 'fire()' twice.
 ```
 
-### INFRA-11a — `subj ? pat` returns NULSTR on success
+### INFRA-11a — `subj ? pat` value context — ✅ FIXED 2026-05-03
 
-Canonical SNOBOL4 value-context scan returns the matched substring on
-success; scrip's Snocone returns NULSTR. `DIFFER(subj ? pat)` and
-`IDENT(subj ? pat, expected)` are not usable as success indicators.
+**Resolved at one4all@d2547945, corpus@c8ee2a6.**  SNOBOL4 spec says
+`subj ? pat` in expression context returns the matched substring on
+success, NULSTR on failure.  scrip returned NULSTR on success in BOTH
+runtime paths (--ir-run via `interp_eval`, default --sm-run via
+`SM_PUSH_NULL_NOFLIP`).
 
-**Probe:** `r = ('hi' ? 'hi'); SIZE(r) == 0` (canonical: 2).
+Three coordinated edits in one4all:
 
-**Workaround:** bound the result as no-op receiver, test side-effect only;
-or append `@cur` cursor capture and test cursor reached end; or discard
-result and test stack shape.
+  - `stmt_exec.c`: added globals `g_last_match_subj` /
+    `g_last_match_start` / `g_last_match_end`.  Populated at Phase4
+    entry on every successful `exec_stmt`.  These let downstream code
+    recover the matched span without changing `exec_stmt`'s signature
+    (3 callers).
 
-- [ ] Reduce probe → bisect → root-cause. Determine intentional success-
-      token return vs bug. Fix or document in `REPO-one4all.md`.
-- [ ] On fix, revert smoke workarounds.
+  - `interp_eval.c` E_SCAN value-context branch: after `exec_stmt`
+    returns ok=1, read the globals and return `BSTRVAL(span_buf,
+    span_len)` instead of `NULVCL`.  Uses `GC_malloc` so the buffer
+    outlives the call frame.  span_len==0 returns `NULVCL` (correct
+    empty-match behavior).
 
-### INFRA-11b — OPSYN infix-grammar integration
+  - `sm_prog.h`/`sm_prog.c`/`sm_interp.c`/`sm_codegen.c`/`sm_lower.c`:
+    new SM opcode `SM_PUSH_LAST_MATCH`.  `sm_lower.c` E_SCAN now emits
+    `SM_EXEC_STMT` followed by `SM_PUSH_LAST_MATCH` instead of
+    `SM_PUSH_NULL_NOFLIP`.  Both `sm_interp` (default `--sm-run`) and
+    `sm_codegen` (`--jit-run`) gained handlers that mirror
+    `interp_eval`'s logic.  Fail path pushes `NULVCL` — preserves the
+    SCAN-fail-as-NULSTR convention used inside boolean tests like
+    `~(s ? p)` and `if (s ? p) {...}`.
 
-`OPSYN('~', 'shift', 2)` declares `~` as a 2-arg synonym for `shift`, but
-scrip's Snocone parser binds `~` as the unary "not" operator at parse time,
-before runtime OPSYN takes effect. `'foo' ~ 'Word'` parses wrong;
-`APPLY('~', 'foo', 'Word')` works. `runtime/x86/snobol4_pattern.c::opsyn`
-accepts the `type` arg but ignores it (`(void)type;`).
+corpus side:
 
-**Workaround:** all six PARSER frontends use `shift(p, t)` / `reduce(t, n)`
-direct calls instead of static-infix `~` / `&`.
+  - `programs/scrip/smoke.sc`: the `icase` smoke test was relying on
+    the old NULSTR return value to make its concat with `'icase-OK'`
+    come through unchanged.  Rewritten to use the proper success-check
+    idiom: `IDENT('eNd' ? _smoke_icp, 'eNd') 'icase-OK'`.  Per the
+    goal-file note "On fix, revert smoke workarounds".
 
-- [ ] Decide scope: (1) document not-supported; (2) honour `type=2` via
-      runtime alias table consulted by lexer; (3) rewrite Snocone grammar
-      for `~`/`&` as binary operators resolved through OPSYN at expression-
-      build time.
+Verification: all three paths now byte-identical to SPITBOL oracle.
 
-### INFRA-11c — quoting wart in `reduce(t, n)` callers
+```snocone
+r  = ('hi' ? 'hi');             // r=[hi]    sz=2
+r2 = ('hello world' ? 'hello'); // r2=[hello] sz=5
+```
 
-`semantic.sc::reduce(t, n)` interpolates `t` into an EVAL string without
-re-quoting, so callers must pre-quote: `reduce("'P'", 1)` works,
-`reduce('P', 1)` resolves `P` as NULSTR variable inside EVAL. Same wart
-in `shift`'s tag arg for non-string-literal inputs.
+Sibling fix to `one4all@d5623f26` (eval_expr) and `one4all@228bc06b`
+(eval_pat E_FNC ARBNO/FENCE).  Same family of Snocone-vs-SNOBOL4
+context-evaluation differences exposed by the PARSER-* sessions.
 
-- [ ] Harden `reduce` and `shift` to detect already-quoted strings, or
-      route through `Qize(t)`. Mirror change in `beauty/semantic.sc`.
+### INFRA-11b — OPSYN infix-grammar integration — ⚠ NEEDS REINVESTIGATION
+
+The original diagnosis claimed `OPSYN('~', 'shift', 2)` doesn't work
+because `~` binds as unary at parse time before runtime OPSYN takes
+effect.  Quick probe at session 2026-05-03 PM **after** INFRA-11a/11c
+landed shows `'foo' ~ 'Word'` DOES dispatch to `shift` correctly via
+both inline and named-pattern forms.  The "INFRA-11b is broken"
+observation may have been a downstream symptom of INFRA-11a/11c —
+when SCAN returned NULSTR and `_qtag` lost the tag string, the
+*result* of OPSYN dispatch looked wrong even though the dispatch
+itself worked.
+
+8-line probe (run after INFRA-11a/11c fixes — all three forms fire shift):
+
+```snocone
+function shift(p, t) { OUTPUT='shift t='t; shift=p; return; }
+OPSYN('~', 'shift', 2);
+'foo' ? ('foo' ~ 'Word');               // OK — dispatches to shift
+'foo' ? shift('foo', 'Word2');          // OK — direct
+'foo' ? APPLY('~', 'foo', 'Word3');     // OK — APPLY route
+```
+
+- [ ] Re-probe after INFRA-11a/11c: confirm whether INFRA-11b is real
+      and, if so, characterize the actual failure mode (the original
+      diagnosis is now suspect).  If it's truly working, retire this
+      entry — the PARSER-* sessions could move from `shift(p, t)` /
+      `reduce(t, n)` direct calls back to `~` / `&` infix per
+      beauty.sno's verbatim grammar.
+- [ ] Even if `~` works, `runtime/x86/snobol4_pattern.c::opsyn` ignores
+      the `type` arg (`(void)type;`).  Document or honour.
+
+### INFRA-11c — quoting wart in `reduce(t, n)` / `shift(p, t)` callers — ✅ FIXED 2026-05-03
+
+**Resolved at corpus@c8ee2a6.**  `semantic.sc::reduce(t, n)` interpolated
+`t` into an EVAL string without re-quoting, so callers had to pre-quote:
+`reduce("'P'", 1)` worked, `reduce('P', 1)` resolved `P` as a NULSTR
+variable inside EVAL.  Same wart in `shift`'s tag arg.
+
+Fix (corpus): new `_qtag(t)` helper in `semantic.sc` detects pre-quoted
+forms (first char `'` or `"`) and passes through; bare strings get
+wrapped via `SQize` (qize.sc), which produces a complete quoted literal.
+Both call patterns now work uniformly:
+
+```snocone
+shift(p, 'tag')      // bare       — works
+shift(p, "'tag'")    // pre-quoted — works
+reduce('P', 1)       // bare       — works
+reduce("'P'", 1)     // pre-quoted — works
+```
 
 ---
 
@@ -669,3 +727,49 @@ wrappers (`:lbl`, `:subj`, `:pat`, `:repl`) and IR-tag rewrites
 `Call`→`E_FNC`, `..`→`E_SEQ`, `|`→`E_ALT`) before any fixture passes.
 This is essentially the FW-2 multi-child role-slot wrapper convention
 applied across the grammar.
+
+**Watermark (session 2026-05-03 PM cont. #2, one4all@d2547945, corpus@c8ee2a6):**
+INFRA-11a + INFRA-11c FIXED.  Both Snocone-runtime route-around bugs that
+were blocking the PARSER-* family are cleared.  All six PARSER-* sessions
+inherit the fix.
+
+  - **INFRA-11a** — `subj ? pat` value context now returns matched
+    substring per SNOBOL4 spec.  Three coordinated edits across
+    interp_eval, sm_interp, sm_codegen, plus new SM opcode
+    `SM_PUSH_LAST_MATCH` and supporting globals in stmt_exec.  Both
+    `--ir-run` (Snocone) and default `--sm-run` (SNOBOL4) paths
+    fixed.  smoke.sc icase test rewritten per the goal-file
+    "revert smoke workarounds" note.
+
+  - **INFRA-11c** — `_qtag(t)` helper in semantic.sc auto-quotes bare
+    tag args.  Both `reduce('P', 1)` and `reduce("'P'", 1)` now work;
+    same for `shift`.
+
+  - **INFRA-11b** — REOPENED for re-investigation.  Quick probe after
+    INFRA-11a/11c landed shows `~` infix DOES dispatch to OPSYN
+    target.  Original diagnosis may have been a downstream symptom
+    of 11a/11c.  If 11b is truly working, the PARSER-* sessions can
+    drop the `shift(p,t)`/`reduce(t,n)` direct-call workaround and
+    use `~`/`&` infix per beauty.sno's verbatim grammar.
+
+Gate state unchanged at fix:
+  - SNOBOL4 smoke 7/7, scrip(.sc) smoke all OK
+  - PARSER-IC=40/40, PR=48/48, RK=25/25, RB=38/38, SC=13/13
+  - PARSER-SN=0/59 (tree-shape mismatch — SN-7-1 grammar work)
+
+**Next milestone (unchanged):** PARSER-SN-7-1 — labels + assignment +
+tree-shape rewrite.  parser_snobol4.sc grammar matches today; emits
+beauty.sno-native shape (`Stmt`/`Id`/`String`/`Call`/`..`) and needs
+the FW-2 role-slot wrappers + IR-tag rewrites (`Stmt`→`STMT`,
+`Id`→`E_VAR`, `String`→`E_QLIT`, `Integer`→`E_ILIT`, `Call`→`E_FNC`,
+`..`→`E_SEQ`, `|`→`E_ALT`) to match scrip `--dump-parse` oracle.
+
+**Open carry-over for future sessions:**
+  - INFRA-11b re-investigation per probe above
+  - PARSER-SC FENCE/`*deref` silent-fail bug (separate from INFRA-11b;
+    documented in GOAL-PARSER-SNOCONE.md ~line 215, item 4 of the
+    PARSER-SC-2 landed list).  Probable fix-site: eval_pat.c E_FENCE
+    handling around how its inner is evaluated when first alt has a
+    runtime deref.  Repro: `*Id FENCE('=' *Id | epsilon)` against
+    `'x=y'` captures `[x]` instead of `[x=y]`; without FENCE same
+    pattern captures `[x=y]`.
