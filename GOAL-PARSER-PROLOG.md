@@ -1,7 +1,7 @@
 # GOAL-PARSER-PROLOG.md — PARSER-PROLOG pattern-based frontend in Snocone
 
 **Repo:** corpus+one4all
-**Branch:** `pat` (one4all only — `corpus` and `.github` stay on `main`)
+**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-PROLOG.md` and `GOAL-PROLOG-IR-RUN.md`. The
 existing Prolog frontend (`src/frontend/prolog/`) is the in-process oracle.
 
@@ -9,64 +9,47 @@ existing Prolog frontend (`src/frontend/prolog/`) is the in-process oracle.
 runs one `Compiland` PATTERN that builds the canonical IR tree, and for
 every test program in the rung corpus
 `tree_equal(existing_frontend_tree, parser_prolog_tree)` returns true.
-Where a `.ref` file exists, executing both trees through the IR
-interpreter produces byte-identical output.
-
-
-> **Cross-pollination notice (session #62, 2026-05-03):** three design
-> issues raised against PAT-IC apply to all six PARSER-* frontends.
-> See `GOAL-PARSER-ICON.md ## Design issues` (D1: drop goto/label
-> driver loops; D2: nonterminal names must mirror the existing
-> frontend, not invent new ones; D3: drive from a checked-in BNF in
-> `corpus/programs/ebnf/`). Tracked under PARSER-IC-INFRA-1 and
-> PARSER-IC-INFRA-2 — when those rungs land, the same refactor lands
-> on this parser too.
 
 ---
 
 ## Cross-pollination
 
 All six PARSER-* parsers share `Compiland`/`Shift`/`Reduce`/`Push`/`Pop`/`Top`/
-`tree`/`TDump`/`stack` from `corpus/programs/snocone/demo/beauty/`. Bug
-fixes there benefit all six.
+`tree`/`TDump`/`stack` plus the `nPush`/`nInc`/`nTop`/`nPop` counter helpers
+from `corpus/programs/scrip/`. Bug fixes there benefit all six.
 
 Prolog is the most syntactically distinct of the six — clauses (`head :-
-body.`), facts (`fact.`), terms with arity (`f(a, b)`), variables (uppercase
-or `_`-prefixed), atoms (lowercase). The token model and clause shape
-differ enough from the imperative five that PAT-PR's `Command` body has
-the least overlap with the others. The Compiland spine is still identical.
-
-LANG-PROLOG is at PR-17 active (string builtins rung40); PAT-PR follows
-behind, never racing.
+body.`), facts (`fact.`), terms with arity. The Compiland spine is identical
+across all PARSER-*.
 
 ---
 
-## Naming & Design Principles  (canonical writeup in GOAL-PARSER-SNOCONE.md)
+## Naming policy — anchor on existing frontend
 
-PARSER-* parsers must use names from:
-1. The official BNF for the language being parsed (e.g. `snocone_parse.y`,
-   `snobol4.y`, `rebus.y`, `raku.y`, `icon.y`, `prolog.y`).
-   Tier names like `expr0`/`expr6`/`expr17` carry meaning across the
-   ladder; hand-rolled aliases like `RhsExpr`/`ArithOp` do not.
-2. The canonical Snocone self-host `beauty.sc` when the concept matches
-   (`Integer`, `String`, `Id`, `Gray`, `White`, `$'='`, etc.).
-3. `shift()`/`reduce()` from `ShiftReduce.sc` rather than manual
-   `Push(Tree(...))` inside pattern escapes — the latter generates new
-   Snocone synthetic labels per call, which can collide silently with
-   labels in other `.sc` files in the same blob.
-4. No new labels and goto unless absolutely necessary for readability.
+⛔ Non-terminal and token names in `parser_prolog.sc` MUST match the
+existing Prolog frontend's vocabulary, not be invented.
 
-See GOAL-PARSER-SNOCONE.md "Naming & Design Principles" for the full
-writeup and the Session #62 lesson that motivated it.
+- **Tokens** — from `src/frontend/prolog/prolog_lex.h`: `TK_ATOM`, `TK_VAR`,
+  `TK_ANON`, `TK_INT`, `TK_FLOAT`, `TK_STRING`, `TK_LPAREN`, `TK_RPAREN`,
+  `TK_LBRACKET`, `TK_RBRACKET`, `TK_PIPE`, `TK_COMMA`, `TK_DOT`, `TK_LBRACE`,
+  `TK_RBRACE`, `TK_OP`, `TK_NECK`, `TK_QUERY`, `TK_CUT`, `TK_SEMI`.
+- **Non-terminals** — from `src/frontend/prolog/prolog_parse.c`: `clause`,
+  `term`, `primary`, `args`, `list`.
+- **IR node tags** — from `prolog_lower.c::expr_dump`: `E_CHOICE`, `E_CLAUSE`,
+  `E_UNIFY`, `E_CUT`, `E_FNC`, `E_QLIT`, `E_ILIT`, `E_FLIT`, `E_VAR`, `E_ADD`,
+  `E_SUB`, `E_MUL`, `E_DIV`.
+
+Cross-PARSER spine names (`Compiland`, `Push`/`Pop`/`Top`, `nPush`/`nInc`/
+`nTop`/`nPop`) are the only invented names — shared across all six PARSER-*.
+
+See GOAL-PARSER-SNOCONE.md "Naming & Design Principles" for the full writeup.
 
 ---
 
 ## Session Setup
 
 ```bash
-# Switch one4all to the shared parser branch. corpus and .github stay on main.
 ( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
-
 bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```
@@ -74,146 +57,82 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 Gate after setup:
 ```bash
 bash /home/claude/one4all/scripts/test_smoke_prolog.sh         # existing frontend baseline
-bash /home/claude/one4all/scripts/test_parser_prolog.sh           # NEW — written under PARSER-PR-0
+bash /home/claude/one4all/scripts/test_parser_prolog.sh        # parser gate
 ```
 
 ---
 
-## Architecture reminder
+## Architecture
 
 ```
 scrip --parser-crosscheck parser_prolog.sc tiny.pl
 ```
 
 SCRIP runs `parser_prolog.sc` (which `-include`s the shared SC library from
-`corpus/programs/scrip/`) against `tiny.pl` — PAT produces IR tree t2
-via `Compiland`; the existing frontend produces t1. Both compared in memory
-(`tree_equal`), both executed in memory. No subprocesses, no temp files, no
-on-disk diffs.
+`corpus/programs/scrip/`) against `tiny.pl`. PAT produces IR tree t2 via
+`Compiland`; the existing frontend produces t1. Compared in memory
+(`tree_equal`), executed in memory.
 
-**Shared SC library** (`corpus/programs/scrip/` — tracked under PARSER-SN-INFRA-1):
+**Shared SC library** (`corpus/programs/scrip/`):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
 
-Compiland spine:
+Compiland spine (uses the counter helpers — `nPush` opens a counter frame,
+`nInc` bumps the count, `nTop` reads it, `nPop` closes the frame):
 ```
 Compiland = nPush() ARBNO(*Command) reduce('Parse', 'nTop()') nPop();
 ```
 
-Prolog-specific note: in PROLOG the unit of work is the clause, not the
-statement. So PAT-PR's `Command` reduces to a `Clause` node (fact or
-rule), and the program tree is `(Parse (Clause ...) (Clause ...) ...)`.
-Variables (capitalized or `_`-prefixed) are distinct lexical class from
-atoms (lowercase) — token classification matters earlier here than in
-the other five languages.
+Prolog-specific: PAT-PR's `Command` reduces to a `Clause` node (fact or
+rule); program tree is `(Parse (Clause ...) (Clause ...) ...)`.
 
 ---
 
-## Naming policy — anchor on ISO Prolog BNF + existing frontend
+## Style invariants (parser_prolog.sc)
 
-⛔ Non-terminal and token names in `parser_prolog.sc` MUST match the
-existing Prolog frontend's vocabulary, not be invented. The cross-PARSER
-spine names (`Compiland`, the helper functions `Push`/`Pop`/`Top`, etc.)
-are the only invented names — those are shared across all six PARSER-*.
-
-**Token names** — directly from `src/frontend/prolog/prolog_lex.h`:
-`TK_ATOM`, `TK_VAR`, `TK_ANON`, `TK_INT`, `TK_FLOAT`, `TK_STRING`,
-`TK_LPAREN`, `TK_RPAREN`, `TK_LBRACKET`, `TK_RBRACKET`, `TK_PIPE`,
-`TK_COMMA`, `TK_DOT`, `TK_LBRACE`, `TK_RBRACE`, `TK_OP`, `TK_NECK`,
-`TK_QUERY`, `TK_CUT`, `TK_SEMI`.
-
-**Non-terminal names** — from `src/frontend/prolog/prolog_parse.c`:
-`clause`, `term`, `primary`, `args`, `list`. These align with ISO/IEC
-13211-1 BNF (ISO uses `clause`, `term`, `arg_list`, `list`).
-
-**IR node names (oracle output)** — from `prolog_lower.c::expr_dump`:
-`E_CHOICE`, `E_CLAUSE`, `E_UNIFY`, `E_CUT`, `E_FNC`, `E_QLIT`, `E_ILIT`,
-`E_FLIT`, `E_VAR`, `E_ADD`, `E_SUB`, `E_MUL`, `E_DIV`. Parser-built trees
-must use these exact tags so `tree_equal` / `--dump-ir` crosscheck holds.
-
-(Full feature surface and the ISO BNF reference live in
-`GOAL-LANG-PROLOG.md`.)
+- **No `goto`/labels** in the driver loop. Use `while`-style structured flow.
+- **Names match the existing frontend** (see Naming policy above).
+- **No invented non-terminals** — invented names reserved for cross-PARSER spine.
 
 ---
 
 ## Rung ladder
 
-### PARSER-PR-0 — atom — **LANDED**
+### PARSER-PR-0 — atom — **LANDED** (PASS=4)
+Atoms, vars, ints, quoted strings followed by `.`.
 
-- [x] Write `corpus/programs/scrip/parser_prolog.sc` with `Compiland`
-      handling one Prolog atom (lowercase identifier), one variable
-      (uppercase or `_`-prefixed), one integer, or one quoted string,
-      followed by `.`.
-- [x] In-process two-frontend crosscheck.
-- [x] Write `scripts/test_parser_prolog.sh`.
-- [x] Test corpus (4 NEW programs): `atom_lower.pl`, `atom_var.pl`,
-      `atom_int.pl`, `atom_str.pl`. `.ref` empty.
-- **Sibling LANG rungs:** PR-1..PR-3 (lexer, atom/var distinction).
-- **Gate:** PASS=4. ✅
+### PARSER-PR-1 — facts — **LANDED** (PASS=11)
+Bare facts and compound facts `f(a, b, c).`.
 
-### PARSER-PR-1 — facts (`name.` or `name(args).`) — **LANDED**
-
-- [x] `Command` handles bare facts (zero-arg compound) and compound
-      facts `f(a, b, c).`.
-- [x] Test corpus: existing thin Prolog fact tests + **NEW**.
-- **Sibling LANG rungs:** PR-4..PR-6.
-- **Gate:** PASS=11. ✅ (PR-0: 4 atom fixtures + PR-1: 6 compound +
-  1 multi-clause-distinct-functor = 11.)
-- **Deferred to later rungs (noted in parser_prolog.sc top-of-file):**
-  nested compound args (`foo(bar(a)).`), same-functor multi-clause
-  E_CHOICE merging (`foo(a). foo(b).` → one E_CHOICE / two E_CLAUSE),
-  anonymous variables `_`. PR-1 fixtures avoid these to keep the gate
-  byte-exact against the oracle.
-
-### PARSER-PR-2 — rules (`head :- body.`) — **LANDED**
-
-- [x] `Command` handles rules with a single goal in the body.
-- [x] Test corpus: existing + **NEW**.
-- **Sibling LANG rungs:** PR-7..PR-9.
-- **Gate:** PASS=18. ✅ (PR-0 4 + PR-1 7 + PR-2 7 = 18.)
-- **Refactor note:** introduced two-phase build (`snapshot_head` +
-  `mark_body` + `build_clause`) so the E_CHOICE/E_CLAUSE key is
-  derived from head arity alone — `foo :- bar.` keys `foo/0`, body
-  goal becomes an additional E_CLAUSE child. Matches prolog_lower.c
-  exactly.
-- **Body grammar:** new `goal` non-terminal — bare-atom or compound
-  with flat args. Goal pushes one `(E_FNC name [args...])` tree which
-  `build_clause` Pops as the trailing E_CLAUSE child. Reuses the PR-1
-  `arg`/`args` patterns and per-clause `var_table` (head and body
-  vars share the same scope, matching prolog_lower.c::VarScope).
-- **Deferred (still):** conjunction/disjunction in body (PR-3),
-  nested compound args (PR-3+), same-functor E_CHOICE merging,
-  anonymous variables, directives (PR-6), `is`/arithmetic (PR-5).
+### PARSER-PR-2 — rules — **LANDED** (PASS=18)
+Rules `head :- goal.` with single goal in body. Two-phase build
+(`snapshot_head` + `mark_body` + `build_clause`); E_CHOICE/E_CLAUSE key
+is head arity alone.
 
 ### PARSER-PR-3 — conjunction / disjunction (`,` / `;`) — **next**
 
 - [ ] `Command` handles `a, b, c` and `a ; b` in goal position.
-- [ ] Test corpus: existing + **NEW**.
 - **Sibling LANG rungs:** PR-10..PR-12.
 - **Gate:** PASS≥24.
 
-#### PR-3 attempt notes (session ending 2026-05-03 — emergency handoff)
-
-A PR-3 attempt was started in this session but did NOT land. Notes
-recorded here so the next session does not re-derive everything.
-
-**Oracle IR shapes verified** (probed with `--dump-ir`):
+#### Oracle IR shapes (verified via `--dump-ir`)
 
 | Source | IR shape |
 |---|---|
-| `foo :- a, b.` | `(E_CLAUSE foo/0 (E_FNC a) (E_FNC b))` — top-level `,` flattened, each conjunct is a separate E_CLAUSE child |
-| `foo :- a ; b.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC a) (E_FNC b)))` — `;` is a single E_CLAUSE child wrapping a flat n-ary `(E_FNC ;)` |
-| `foo :- a, b ; c.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC , (E_FNC a) (E_FNC b)) (E_FNC c)))` — `,` binds tighter; nested `,` is preserved as `(E_FNC ,)` wrapper |
-| `foo :- a ; b ; c.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC a) (E_FNC b) (E_FNC c)))` — flat n-ary `;` (right-spine flattened) |
-| `foo :- a, b, c, d.` | `(E_CLAUSE foo/0 (E_FNC a) (E_FNC b) (E_FNC c) (E_FNC d))` — top-level `,` flattens to N children |
+| `foo :- a, b.` | `(E_CLAUSE foo/0 (E_FNC a) (E_FNC b))` — top-level `,` flattened |
+| `foo :- a ; b.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC a) (E_FNC b)))` — `;` wrapped, flat n-ary |
+| `foo :- a, b ; c.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC , (E_FNC a) (E_FNC b)) (E_FNC c)))` — nested `,` preserved |
+| `foo :- a ; b ; c.` | `(E_CLAUSE foo/0 (E_FNC ; (E_FNC a) (E_FNC b) (E_FNC c)))` — flat n-ary `;` |
+| `foo :- a, b, c, d.` | `(E_CLAUSE foo/0 (E_FNC a) (E_FNC b) (E_FNC c) (E_FNC d))` |
 
-**Three flattening rules** all match the existing C frontend:
-1. **Top-level `,` in body**: flattened away. Mirrors `prolog_parse.c::flatten_conj` storing `cl->body[]` as a flat array.
-2. **Inner `,` (nested inside `;` or in non-top position)**: preserved as flat n-ary `(E_FNC ,)`. Mirrors `prolog_lower.c` lines 175ff right-spine flattening of `,`/2 chains.
-3. **`;` always**: preserved as flat n-ary `(E_FNC ;)`. Mirrors `prolog_lower.c` lines 208ff right-spine flattening of `;`/2 chains.
+Three flattening rules (match prolog_parse.c::flatten_conj and
+prolog_lower.c right-spine flattening):
+1. **Top-level `,` in body**: flattened away into separate E_CLAUSE children.
+2. **Inner `,` (nested in `;` or non-top)**: preserved as flat n-ary `(E_FNC ,)`.
+3. **`;` always**: preserved as flat n-ary `(E_FNC ;)`.
 
-**Precedence**: `,` (1000) binds tighter than `;` (1100). Grammar:
+Precedence: `,` (1000) tighter than `;` (1100). Grammar:
 ```
 body := disj
 disj := conj (';' ws_opt conj)*
@@ -221,43 +140,72 @@ conj := simple_goal (',' ws_opt simple_goal)*
 simple_goal := tk_atom '(' args ')'  |  tk_atom
 ```
 
-**Snocone gotcha discovered**: boolean AND in `if (...)` is **juxtaposition**, NOT `&` or `&&`. Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))` not `if (IDENT(...) & IDENT(...))`.
+#### Test fixtures committed
 
-**Out-of-scope** (defer to PR-3.5 or later):
-- Parenthesized body subterms `(a, b) ; c` — explicit grouping.
-- Nested compound args `foo(bar(a)).`
-- Same-functor multi-clause `E_CHOICE` merging.
-- Anonymous `_` variables.
-- `is`/arithmetic, directives, cut, negation.
+`conj_two.pl`, `conj_three.pl`, `disj_two.pl`, `disj_three.pl`,
+`conj_in_disj.pl`, `disj_compound.pl` in `corpus/programs/prolog/parser/`.
+All have verified oracle output.
 
-**What went wrong in this session's attempt**: I tried to refactor `build_clause` AND add the new conj/disj non-terminals in one big change. Result was a corrupted `parser_prolog.sc` (orphaned function-tail code from overlapping `str_replace` edits) that broke PR-1 fixtures by duplicating the last head argument. Diagnostic OUTPUTs showed the in-memory `clause_node` was correct just before the final `Push(...)` but the rendered tree had a duplicated child — root cause not isolated before context exhausted. **The corrupted file was reverted** (`git checkout programs/scrip/parser_prolog.sc`) — PR-2 PASS=18 baseline restored. No commits made for PR-3.
+#### Critical Snocone gotchas (sessions ending 2026-05-03)
 
-**Recommended PR-3 strategy for next session**:
-1. **Validate after each `str_replace`** with `bash test_parser_prolog.sh | tail -3` — catch regressions immediately.
-2. **Make the smallest possible body-handling change in `build_clause`**: only add the post-pop check that detects `(E_FNC ,)` at the body slot and Append-flattens its children. Do NOT restructure the pop loop.
-3. **Add new non-terminals additively**: `simple_goal` (rename of PR-2 `goal`), then `conj`, then `disj`, then `body = disj`. Update `clause` to use `body` only at the very end.
-4. **Use juxtaposition for boolean AND** in any new `if` conditions.
-5. **Reset state globals at clause start, not at non-terminal entry**, to avoid backtracking surprises. (Hypothesis: the duplication might involve Snocone re-running deferred actions on backtrack; keep state changes idempotent or move them to a single clause-start reset.)
-6. **Defer the goto/labels question** — `parser_prolog.sc` has zero goto today; keep it that way.
+⚠️ **`*func()` immediate evaluations inside ARBNO arms only fire on the
+FIRST iteration in `--ir-run` mode.** Verified empirically:
+`ARBNO( ws_opt tk_comma ws_opt simple_goal . *inc_body_count() )` — the
+ARBNO correctly iterates and `simple_goal` pushes goals to the stack on
+every iteration, but `*inc_body_count()` only fires once. The cursor
+advances correctly (so the ARBNO loops), but the standalone post-match
+side effect is skipped.
+
+This rules out the accumulator-counter pattern that works fine outside
+ARBNO. **The fix is to use the cross-PARSER spine's `nPush`/`nInc`/`nTop`/
+`nPop` counter helpers** — these are designed specifically for "count what
+I just pushed" inside ARBNO, used in `Compiland` itself. The mechanism is
+already available; PR-3 just needs to use it. See how `Compiland` uses
+`nPush()` / `ARBNO(nInc() ...)` / `reduce('...', 'nTop()')` / `nPop()`:
+that is the canonical "count goals in ARBNO and read the count after"
+pattern, and the answer for PR-3 conj/disj building.
+
+⚠️ **`if (var)` where `var = 0` is TRUTHY in Snocone** — integer `0`
+converts to string `"0"` which is non-null. Use `if (GT(var, 0))` or
+`if (IDENT(var, 1))` for explicit comparisons. The `body_present`
+flag used `if (body_present)` which silently appended a phantom child
+on facts. Fixed via `if (GT(body_present, 0))` in `build_clause`.
+
+⚠️ **Snocone boolean AND in `if (...)` is juxtaposition**, NOT `&` or `&&`.
+Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
+
+⚠️ **Pop() with no parameter** returns the popped value (function return).
+`g = Pop()` works as expected. But calling `Pop()` from inside a
+`*func()` immediate evaluation in an ARBNO arm runs into the same
+"only fires once" problem above.
+
+#### Recommended PR-3 strategy for next session
+
+1. **Use `nPush`/`nInc`/`nTop`/`nPop` counter helpers** — same mechanism
+   as `Compiland`. Open a frame for the body before the first `simple_goal`,
+   `nInc()` per goal (placed where `simple_goal` is in the spine, NOT as
+   a `*func()` after it), `nTop()` to read the count, `nPop()` to close.
+   This is the documented spine pattern and avoids the ARBNO-`*func()` bug.
+2. **Validate after each `str_replace`** with
+   `bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3` —
+   PR-2 baseline must remain PASS=18 throughout.
+3. **`build_clause` already has correct flatten logic** for top-level
+   `(E_FNC ,)` — the upgrade landed cleanly during the 2026-05-03 session.
+   Re-apply it (was reverted with rest of file). The `if (GT(body_present,
+   0))` fix needs re-applying too.
+4. **Add `disj` after `conj` works** — same nPush/nInc/nTop/nPop pattern,
+   building `(E_FNC ;)` instead of `(E_FNC ,)`.
+5. **Defer parenthesized body subterms** (`(a, b) ; c`), nested compound
+   args, anon vars, arithmetic to later rungs.
 
 ### PARSER-PR-4 — lists (`[H|T]` / `[a,b,c]`)
-
-- [ ] `Command` handles list syntax including head/tail bar.
-- **Sibling LANG rungs:** PR-13..PR-15.
-- **Gate:** PASS≥30.
+Gate: PASS≥30.
 
 ### PARSER-PR-5 — arithmetic (`is`, builtin operators)
-
-- [ ] `Command` handles `X is Expr` and the arithmetic operators.
-- **Sibling LANG rungs:** PR-16..PR-17 (current active includes string
-      builtins rung40).
-- **Gate:** PASS≥38.
+Gate: PASS≥38.
 
 ### PARSER-PR-6 — queries / directives
-
-- [ ] `Command` handles `?- goal.` queries.
-- **Sibling LANG rungs:** PR-18 (when it lands).
-- **Gate:** PASS≥45.
+Gate: PASS≥45.
 
 ---
 
@@ -266,33 +214,16 @@ simple_goal := tk_atom '(' args ')'  |  tk_atom
 - Prolog's LANG ladder is at PR-17 active; PAT-PR does not race ahead.
 - Test programs in `corpus/programs/prolog/parser/` are owned by PAT-PR.
 - `.ref` files captured at rung-land time.
-- Variables vs atoms distinction is first-class in the token classifier;
-  do not collapse them and rebuild later — get it right at PARSER-PR-0.
-
-## Style invariants (parser_prolog.sc)
-
-- **No `goto`/labels** in the driver loop or anywhere else in
-  `parser_prolog.sc` unless absolutely necessary for readability.
-  `parser_snobol4.sc`'s `goto read_loop` / `goto read_done` style is
-  legacy — use `while`-style structured flow (`while ((Line = INPUT))
-  { Src = Src Line nl; }`) for the source-accumulator and result loop.
-- **Names match the existing frontend.** Non-terminal names in the
-  Snocone grammar mirror `prolog_parse.c`'s `parse_clause`/`parse_term`/
-  `parse_primary`/`parse_args`/`parse_list`. Token-classifier names
-  mirror `prolog_lex.h`'s `TK_*` (lowercased where Snocone identifier
-  rules require). IR tags mirror `prolog_lower.c::expr_dump`'s
-  `E_CLAUSE`/`E_CHOICE`/`E_VAR`/`E_ILIT`/`E_QLIT`/`E_FNC` etc.
-- **Anchor on the BNF.** Where the existing frontend's names diverge
-  from ISO/IEC 13211-1, prefer the ISO name only when ISO is also the
-  name used in `GOAL-LANG-PROLOG.md`. Do not invent.
+- Variables vs atoms distinction is first-class in the token classifier.
 
 ---
 
 ## Watermark
 
-PARSER-PR-2 LANDED (PASS=18). PARSER-PR-3 attempted in session ending
-2026-05-03 (emergency handoff — see PR-3 entry above for oracle probe
-results, grammar design, Snocone juxtaposition gotcha, and what went
-wrong). On-disk and remote state is clean PR-2; nothing partial pushed.
-Next session: re-attempt PARSER-PR-3 with the smaller-incremental
-strategy in the PR-3 entry's "Recommended PR-3 strategy" list.
+PARSER-PR-2 LANDED (PASS=18). PARSER-PR-3 attempted twice (sessions
+ending 2026-05-03 — two emergency handoffs). On-disk and remote state
+is clean PR-2; nothing partial pushed. Six PR-3 fixtures committed with
+verified oracle output.
+
+**Next session:** re-attempt PARSER-PR-3 using the `nPush`/`nInc`/`nTop`/
+`nPop` counter helpers (the canonical spine mechanism for this pattern).
