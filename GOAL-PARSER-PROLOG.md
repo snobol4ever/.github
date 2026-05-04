@@ -435,7 +435,7 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
 
 ---
 
-### PARSER-PR-7 — style conformance to beauty.sno / beauty.sc — ⏳ NEXT
+### PARSER-PR-7 — style conformance to beauty.sno / beauty.sc — **LANDED** (PASS=48)
 
 `parser_prolog.sc` was written before the canonical style guide was written
 down (PR-0..PR-6 predate the guide).  Audit performed 2026-05-04 against
@@ -490,48 +490,33 @@ at PASS=48 throughout.  PASS may rise as rules become more uniform.
 - [x] **PR-7-1**  Define `Gray` and `White`; retire `ws_one` / `ws_run` / `ws_opt`.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (with PR-7-2+3).
 - [x] **PR-7-2**  Convert `tk_*` punctuation + `op_*` operators to `$'x'` form, embedding `*Gray` / `*White` per style guide.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (with PR-7-1+3).  15 `$'x'` tokens defined: `$'(', $')', $'[', $']', $',', $';', $'|', $'.', $':-', $'=', $'+', $'-', $'*', $'/', $'is'`.
 - [x] **PR-7-3**  Remove all inline `ws_opt` / `ws_run` from grammar body (should follow naturally from PR-7-2).  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04 (with PR-7-1+2).  Zero `ws_opt`/`ws_run`/`ws_one` references remain anywhere in the file.
-- [ ] **PR-7-4**  Rename `tk_atom` → `Atom`, `tk_var` → `Var`, `tk_int` → `Int`, `tk_string` → `Str`, `tk_qatom` → `Qatom`.  Gate: PASS=48 FAIL=0.
-- [ ] **PR-7-5a** Rename runtime fns to `Upper_Snake_Case` (`push_var` → `Push_var`, etc.).  Gate: PASS=48 FAIL=0.
-- [ ] **PR-7-7**  Remove all `PR_*` pattern-builder fns; replace call sites with direct `epsilon . *Fn()` / `. *Fn(var)` forms.  Watch for the ARBNO `*func()` bug — if a callsite breaks, restore that one builder and note inline.  Gate: PASS=48 FAIL=0.
-- [ ] **PR-7-5b** (Conditional on PR-7-7 success.) Rename camelCase capture vars (`pText`, `qBody`, `leText`, `pNegi`, `pName`, `hText`) to `lower_snake_case` (`p_text`, `q_body`, `le_text`, `p_negi`, `p_name`, `h_text`).  Gate: PASS=48 FAIL=0.
+- [x] **PR-7-4**  Rename `tk_atom` → `Atom`, `tk_var` → `Var`, `tk_int` → `Int`, `tk_string` → `Str`, `tk_qatom` → `Qatom`.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04.
+- [x] **PR-7-5a** Rename runtime fns to `Upper_Snake_Case` (`push_var` → `Push_var`, etc.).  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04.
+- [x] **PR-7-7**  Remove all `PR_*` pattern-builder fns; replace call sites with direct `epsilon . *Fn()` / `epsilon . *Fn(var)` forms.  No ARBNO `*func()` breakage — all PR_* callsites were inside named sub-patterns, not bare ARBNO arms; deferred refs inside named patterns fire correctly.  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04.
+- [x] **PR-7-5b** Rename camelCase capture vars (`pText`, `qBody`, `leText`, `pNegi`, `pName`, `hText`, `sBody`) to `lower_snake_case` (`p_text`, `q_body`, `le_text`, `p_negi`, `p_name`, `h_text`, `s_body`).  Gate: PASS=48 FAIL=0. ✅ LANDED 2026-05-04.
 
 ---
 
 ## Watermark
 
-PARSER-PR-6 LANDED (PASS=48).  All ladder rungs PR-0..PR-6 landed.
+PARSER-PR-7 LANDED (PASS=48).  All ladder rungs PR-0..PR-7 landed.  Full
+style-conformance pass complete: 79-col `//===` separators, `Gray`/`White`
+whitespace, `$'x'` operator tokens, zero inline ws in grammar body, `Atom`/
+`Var`/`Int`/`Str`/`Qatom` token names, `Upper_Snake_Case` runtime fns, PR_*
+builder layer removed, `lower_snake_case` capture vars.  Gate PASS=48 FAIL=0
+throughout.
 
-**PR-7 partial (4 of 8 micro-rungs landed 2026-05-04 session):**
+**PR-7 all 8 micro-rungs landed 2026-05-04:**
 - ✅ PR-7-6 separators 79-col `//===`
 - ✅ PR-7-1 `Gray`/`White` named whitespace
 - ✅ PR-7-2 `$'x'` operator/punctuation idiom (15 tokens)
 - ✅ PR-7-3 zero inline `ws_opt`/`ws_run` in grammar body
-- ⏳ PR-7-4 rename `tk_atom`→`Atom` etc.
-- ⏳ PR-7-5a runtime fns `Upper_Snake_Case`
-- ⏳ PR-7-7 remove `PR_*` builder layer
-- ⏳ PR-7-5b capture vars camelCase→snake_case (conditional on 7)
+- ✅ PR-7-4 `tk_atom`→`Atom`, `tk_var`→`Var`, `tk_int`→`Int`, `tk_string`→`Str`, `tk_qatom`→`Qatom`
+- ✅ PR-7-5a runtime fns `Upper_Snake_Case`
+- ✅ PR-7-7 PR_* builder layer removed; direct `epsilon . *Fn()` at call sites; no ARBNO bug triggered (all PR_* were in named sub-patterns, not bare ARBNO arms)
+- ✅ PR-7-5b capture vars `lower_snake_case` (`p_text`, `q_body`, `le_text`, `p_negi`, `p_name`, `h_text`, `s_body`)
 
-Gate held PASS=48 FAIL=0 throughout.  Grammar now reads as clean BNF with
-`$'x'` operators and `tk_*` tokens; whitespace is fully encapsulated.
+Gate held PASS=48 FAIL=0 throughout.
 
-**Beauty pass (post-PR-6):** 14 `PR_*` pattern-builder fns added
-following beauty.sno semantic.inc::shift / reduce convention; 56
-inline `[. *]xxx(...)` callsites in the grammar replaced with
-`PR_xxx(...)` builder calls.  Capture vars renamed from `_pName`
-style to camelCase (pText, qBody, leText, sBody, pNegi, pName, hText)
-because scrip-Snocone EVAL cannot lex underscore-leading identifiers
-inside the EVAL'd pattern body.  Direct `.name` calling convention is
-documented inline as an alternative for cases where the runtime fn
-wants a NAME (none of ours do).  Gate unchanged: PASS=48 FAIL=0.
-
-Next: PR-7-4 (token classifier renames `tk_atom`→`Atom`, `tk_var`→`Var`,
-etc.).  Then PR-7-5a (runtime fn casing).  Then PR-7-7 (the big one —
-remove the `PR_*` builder layer; watch for the ARBNO `*func()` bug).
-Then conditionally PR-7-5b (capture-var renames).
-
-Feature rungs (same-functor E_CHOICE merging, anonymous variables `_`,
-parenthesized body subterms, DCG sugar) deferred until PR-7 lands fully.
-
-**Next session:** start with PR-7-4.  Hold PASS=48 FAIL=0 after every
-micro-rung.  Style guide is now self-consistent (corrected this session
-to match beauty.sc actual usage: 79-col `//===` separators, no `/*===*/`).
+**Next:** Feature rungs — same-functor E_CHOICE merging, anonymous variables
+`_`, parenthesized body subterms, DCG sugar.  Open a new PR-8 rung.
