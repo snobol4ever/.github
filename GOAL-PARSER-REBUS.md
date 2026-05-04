@@ -91,12 +91,13 @@ Compiland spine: `Compiland = nPush() ARBNO(*Command) reduce('Parse', 'nTop()') 
 - **PARSER-RB-3** functions `function f(args) ... end` — DONE (PASS=18)
 - **PARSER-RB-4** pattern match `expr ? pat` (atom subj, atom pat) — DONE (PASS=25)
 - **PARSER-RB-5** alternation generators `a | b | c` (atom operands; left-assoc E_ALT) — DONE (PASS=32)
+- **PARSER-RB-6** record decls `record NAME(f1, f2)` — DONE (PASS=38)
 
-### PARSER-RB-6 — records — **next**
-
-- [ ] `Command` handles `record R(f1,f2)`.
-- **Sibling LANG rung:** RB-6.
-- **Gate:** PASS≥38.
+**Ladder complete.** All six rungs landed. Future Rebus surface
+(records used in match patterns, expression-level alternation in
+arbitrary positions, nested function bodies with control-flow
+sequences, etc.) is tracked via the LANG-REBUS ladder (`GOAL-LANG-REBUS.md`)
+and arrives in PAT-RB only when the existing frontend grows it first.
 
 ---
 
@@ -111,8 +112,7 @@ Compiland spine: `Compiland = nPush() ARBNO(*Command) reduce('Parse', 'nTop()') 
 
 ## Watermark
 
-RB-0..RB-5 landed 2026-05-03. Cumulative PASS=32 FAIL=0.
-RB-6 — next.
+**Ladder complete.** RB-0..RB-6 landed 2026-05-03. Cumulative PASS=38 FAIL=0.
 
 Note: test_parser_rebus.sh adopted the `normalize()` whitespace-collapse
 comparison used by all other PARSER-* gate scripts. Required because
