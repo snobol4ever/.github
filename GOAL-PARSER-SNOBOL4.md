@@ -598,6 +598,11 @@ correctly.
 
 **Next milestone:** PARSER-SN-7-REWRITE-1 — labels + assignment
 
+**Watermark (session 2026-05-03 REWRITE-0 final):** corpus@a3f65b6
+PASS=3. Proven: ~ (OPSYN shift) and & (OPSYN reduce) work inside ARBNO.
+nInc() works inside ARBNO body. ARBNO body must be INLINED (FW-3).
+Four-step proof: pure-pattern → raw-calls → wrapper-layer → OPSYN.
+
 **Watermark (session 2026-05-03 REWRITE-0 scaffold):**
 parser_snobol4.sc rewritten from scratch on canonical shape (corpus@d34b23c).
 PASS=3 (atom_id, atom_int, atom_str). Shape invariants: ONE Compiland, shift/reduce
