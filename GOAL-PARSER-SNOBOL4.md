@@ -492,11 +492,40 @@ in `shift`'s tag arg for non-string-literal inputs.
 crosscheck of the existing `parser_snobol4.sc` against `beauty.sno`
 revealed ~1084 oracle stmts vs ~502 parser stmts.  Root cause is
 not a finite list of grammar gaps — the parser is the wrong shape.
-It hand-rolls 25 Snocone *functions* that drive parsing imperatively
-per source line (Expr0..Expr17 tower called as functions, _try_label
-+ _parse_body_goto + _parse_line_cmd as the per-line dispatcher).
-That is a recursive-descent parser hosted on Snocone, not a Snocone
-PATTERN parser.
+
+REWRITE-0 partial-landed session 2026-05-03 PM (corpus@8083c20):
+`parser_snobol4_v2.sc` scaffold (239 lines) on the parser_prolog.sc
+/ parser_icon.sc / beauty.sno model.  All 5 invariants honored.
+Living alongside the wrong-shape `parser_snobol4.sc` (876 lines)
+until REWRITE-1..7 reach PASS=58 parity.  MVP scope:
+atom STMTs, label-only line, labeled+atom-body line, END marker.
+MVP gate state: PASS=4 FAIL=1 on 5 targeted fixtures (atom_id,
+atom_int, atom_str, cf_label_only PASS; cf_label_bare FAIL because
+its `x = 1` body needs assign — lands in REWRITE-1).
+
+**Two architectural lessons surfaced during REWRITE-0**, captured
+in commit message at corpus@8083c20 and reproduced here so future
+sessions opening to this watermark see them immediately:
+
+  LESSON 1 — `nInc()` / `nPush()` / `nPop()` / `nTop()` are
+  PATTERN-PRODUCING FUNCTIONS, not side-effect functions.  They
+  return patterns that fire IncCounter() / PushCounter() / etc.
+  at MATCH time.  Embed them as patterns inside grammar rules
+  (`ARBNO( nInc() ws_opt clause ws_opt ... )`); inside escape-helper
+  functions, call the BARE runtime: `IncCounter()`, `Push()`,
+  `Pop()`.  The first draft of `parser_snobol4_v2.sc` made the
+  textbook error of writing `Stmt . *nInc()`, which evaluates
+  `nInc()` to a pattern and silently discards it — `IncCounter`
+  never runs.
+
+  LESSON 2 — `POS(0)` matches only at ABSOLUTE position 0 of the
+  subject, not at start-of-line.  Once the cursor advances past
+  the first char of Src, `POS(0)` NEVER matches again.  EndMarker,
+  Comment, Control therefore CANNOT use `POS(0)` to mean "column
+  0 of this line".  The fix relies on linear cursor advance: each
+  Stmt / Comment / Control consumes its own trailing `nl_one`, so
+  the cursor lands exactly at start-of-next-line for the next
+  Command iteration.
 
 The right shape is set by beauty.sno itself: one `Compiland` PATTERN
 matched once over the entire source, all `~`/`&` infix shift/reduce
@@ -510,9 +539,9 @@ lines is the largest and the only outlier — by a wide margin.
 PARSER-SN-7 is therefore re-scoped from "land beauty.sno gate on top
 of existing parser" to "rewrite parser_snobol4.sc to canonical
 shape, then land beauty.sno gate".  Eight narrow rungs: REWRITE-0
-scaffolding, REWRITE-1..7 grammar slices each gated by a focused
-fixture, REWRITE-8 beauty.sno crosscheck.  See "Active rung ladder"
-above for full ladder.
+scaffolding (PARTIAL-LANDED 2026-05-03), REWRITE-1..7 grammar slices
+each gated by a focused fixture, REWRITE-8 beauty.sno crosscheck.
+See "Active rung ladder" above for full ladder.
 
 Session 2026-05-03 PM artifacts:
 - `corpus/programs/snobol4/parser/cf_label_bare.sno` added — fixture
