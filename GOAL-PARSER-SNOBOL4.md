@@ -1235,3 +1235,93 @@ IR-tag rewrites `Stmt`→`STMT`, `Id`→`E_VAR`, `String`→`E_QLIT`,
 `Integer`→`E_ILIT`, `Call`→`E_FNC`, `..`→`E_SEQ`, `|`→`E_ALT`) to
 match scrip `--dump-parse` oracle.  This is the first rung where the
 gate flips from PASS=0 to a positive number.
+
+**SN-7-1 prep notes (session 2026-05-04 cont. #2, end-of-session):**
+captured oracle shapes for the six simplest fixtures so the next
+session opens with target-vs-current side-by-side already known:
+
+| Fixture        | Oracle (--dump-parse)                                            | Parser today                                       |
+|----------------|------------------------------------------------------------------|----------------------------------------------------|
+| atom_id        | `(STMT :subj (E_VAR x))` `(STMT :lbl END :end)`                  | `(Stmt . (Id x) . . . . .)` `(Stmt (Label END) . . . . . .)` |
+| atom_int       | `(STMT :subj (E_ILIT 42))`                                       | `(Stmt . (Integer 42) . . . . .)`                  |
+| atom_str       | `(STMT :subj (E_QLIT "hi"))`                                     | `(Stmt . (String 'hi') . . . . .)`                 |
+| cf_label_only  | `(STMT :lbl LOOP :subj (E_VAR x))`                               | `(Stmt (Label LOOP) (Id x) . . . . .)`             |
+| cf_label_bare  | `(STMT :lbl START)` then `(STMT :eq :subj (E_VAR x) :repl (E_ILIT 1))` | (depends on Label/empty-body rewrite)        |
+| assign_int     | `(STMT :eq :subj (E_VAR x) :repl (E_ILIT 5))`                    | `(Stmt . (Id x) (Integer 5) ('=' '=') . . .)`      |
+
+Two structural shifts needed in `parser_snobol4.sc`:
+
+1. **Tag string rewrites in shift()/reduce() calls** — these are
+   straightforward find-and-replace at the leaf level:
+   - `Id` shift → `E_VAR`
+   - `Integer` shift → `E_ILIT`
+   - `String` shift → `E_QLIT` (note: oracle double-quotes; current
+     parser single-quotes — TValue branch in tdump.sc may need a check)
+   - `Real` shift → `E_RLIT`
+   - `Call` reduce → `E_FNC`
+   - `..` reduce → `E_SEQ`
+   - `|` reduce → `E_ALT`
+   - `'.'` reduce → `E_CAPT_COND_ASGN`
+   - `'$'` reduce → `E_CAPT_IMMED_ASGN`
+   - `ProtKwd`/`UnprotKwd` shift → `E_KEYWORD` (SN-7-2 territory but
+     the leaf rewrite lands here)
+   - `LEN`/`BREAK`/`SPAN`/`ANY`/`NOTANY` reduce → `E_LEN`/`E_BREAK`/
+     `E_SPAN`/`E_ANY`/`E_NOTANY` (currently routed via _pat_prim_call)
+
+2. **`Stmt` reduce shape change — the harder part.**  Today
+   `Command` reduces with `("'Stmt'" & 7)`, building a 7-positional
+   tuple `(Stmt label expr14 expr1 sf goto extras...)`.  The
+   `--dump-parse` oracle uses **role-slot wrappers** with `:`-prefixed
+   tags — N varies per statement (label-only is 1 child, atom-stmt is
+   1 child wrapped as `:subj`, assignment is 3 children `:eq :subj
+   :repl`, full pat-match is 4-5 children, end-marker is 2 children
+   `:lbl :end`).  The 7-tuple-with-`.`-placeholders shape has to be
+   replaced by per-arm conditional pushes that emit only the role-slot
+   children that actually fired.  Per the goal-file FW-2 description
+   (above): `Tree(':subj', '', 1, child)` renders as `:subj <TLump>`,
+   bare `:eq` is `tree(':eq', '')`.
+
+The cleanest path is probably a **rewrite of the `Stmt` rule** — split
+it into named alternatives (`StmtLabelOnly`, `StmtAtom`, `StmtAssign`,
+`StmtPatMatch`, `StmtPatReplace`, `StmtEnd`) that each push their own
+role-slot children + final `STMT` reduce with `nTop()` (variable
+arity).  That trades the `& 7` fixed-arity for `& 'nTop()'` n-ary
+collection per the canonical n-ary pattern (§5).  The `END` line is
+its own alternative (oracle: `(STMT :lbl END :end)` — needs a `:end`
+flag-wrapper child).
+
+**Shared file impact:** none expected.  Tag strings are local to
+`parser_snobol4.sc`; `tdump.sc`'s `TValue` already handles `E_QLIT`
+double-quoting (per SN-5 history note), `E_VAR`/`E_ILIT` self-paren,
+and the FW-1 generic-leaf branch.  The `:`-prefix branch in `TLump`
+(FW-2) renders role-slot wrappers correctly today — verified by
+sibling parsers IC=40/40, PR=48/48, RK=25/25, RB=38/38 all using
+this convention.
+
+**Order of work for SN-7-1 (suggested):**
+  1. Leaf tag rewrites first (`Id`→`E_VAR`, etc.) — small diff,
+     individual fixtures will still FAIL because Stmt shape is
+     wrong, but the leaf-level tags will be right and visible in
+     the diff output.
+  2. Rewrite `Command`/`Stmt` to emit role-slot wrappers + n-ary
+     `STMT` reduce.  Start with the three simplest cases —
+     atom-only, label-only, label+atom — and confirm 3-5 fixtures
+     PASS.
+  3. Add `:eq` flag and `:repl` slot for assignment — confirm
+     `assign_*` fixtures PASS.
+  4. END-line alternative with `:end` flag — confirm all label-bare
+     and END-handling fixtures PASS.
+  5. Sweep remaining fixtures; categorize residual FAILs for
+     SN-7-2..7-7.
+
+PASS target for SN-7-1: at minimum the cf_label_bare fixture
+(PARSER-SN-7-1's own gate per the rung table), realistically 10-20
+of the 59 fixtures (the atom/label/assign cluster).  Pattern-match
+fixtures (`pat_*`) likely defer to SN-7-2..7-6.
+
+**Watermark (session 2026-05-04 cont. #3):** SN-7-1 is the next
+session's work.  No code changes this session beyond the SN-7-0a
+landing already at corpus@7d5a85a / .github@eebd8d8.  Gates green:
+SN PASS=0 FAIL=59 (unchanged; flips on SN-7-1), SNOBOL4 smoke 7/7,
+scrip(.sc) smoke OK.  Sibling parsers untouched (IC=40/40 PR=48/48
+RK=25/25 RB=38/38 SC=13/13 per prior session record).
