@@ -160,30 +160,37 @@ beauty.sno `~`/`&` infix.
 
 #### 4a. Anti-pattern — function-based action plumbing
 
-⛔ **Do not** build a parallel plumbing layer of helper globals
+**Prefer to avoid** building a parallel plumbing layer of helper globals
 (`_foo_node`, `_lhs`, `_op_tag`, ...), per-action wrapper patterns
 (`$'save_lhs'`, `$'op_ADD'`, `$'do_assign'`, `$'binop_add'`, ...), and
 companion functions (`stash_assign_target`, `build_assign`,
-`expr_binop`, ...) just to assemble what `shift`/`reduce` already
-build with a stack and a counter.  beauty.sno does not do this and
-neither should any `parser_*.sc`.
+`expr_binop`, ...) when `shift`/`reduce` plus a stack and a counter
+would build the same tree.  beauty.sno does not do this and the family
+is more legible when individual `parser_*.sc` files don't either.
 
-The stack and the n-counter are the only persistent state required.
+The stack and the n-counter are the persistent state most rules need.
 `shift(P, 'E_VAR')` pushes the leaf when `P` matches; one or more
 nested rules `reduce('E_ASSIGN', 2)`, `reduce('E_ADD', 2)`,
 `reduce('E_FNC', 'nTop()')` fold them into the IR tree — n-ary
 collections via `nPush()` ... `ARBNO(... nInc() *Child)` ... `nPop()`.
 Anything that reads naturally as "push this leaf" or "pop these N and
 make this kind of node" belongs in the pattern.  Helper functions are
-appropriate only for genuinely non-stack semantics (e.g. matching a
+appropriate for genuinely non-stack semantics (e.g. matching a
 classifier list via `match(Functions, TxInList)`, lower-time name
 remaps such as `say` → `write`).
 
-The presence of `_xxx`-prefixed globals or a long block of
-`$'do_xxx'` / `$'save_xxx'` patterns in a `parser_*.sc` is a code
-smell — it usually means stack-and-counter primitives were not
-sufficiently used, and the file should be rewritten in beauty.sc
-shape before further rungs land on top of it.
+These are guidelines, not laws.  When a Snocone runtime quirk forces
+a workaround — the empirical `ARBNO(*func())`-fires-only-once bug
+discovered in PARSER-PR is the textbook case — restore the minimal
+helper needed and document the reason inline.  Don't fight a runtime
+bug for the sake of style purity; fix the bug or note it and move
+on.  See `GOAL-PARSER-PROLOG.md ## PR-7` for one such audit and the
+caveats noted there.
+
+A long block of `_xxx`-prefixed globals or `$'do_xxx'` /
+`$'save_xxx'` patterns in a `parser_*.sc` is usually a sign that
+stack-and-counter primitives were not exercised — worth a refactor
+pass before further rungs land on top, but not an emergency.
 
 ### 5. n-ary trees use `nPush() ... nInc() ... nTop() / nPop()`
 
@@ -230,17 +237,19 @@ must be rewritten — see `GOAL-PARSER-PROLOG.md` and
 | AST tag          | `E_*` (per language)  | `E_VAR`, `E_ILIT`, `E_QLIT`, `E_FNC`      |
 | Role-slot tag    | `:`-prefixed          | `:subj`, `:pat`, `:repl`, `:lbl`          |
 
-⛔ **No identifier starts with `_`.**  Underscore-prefix is reserved
-for compiler-generated names (synthetic labels, anonymous bindings,
-internal scaffolds).  User code in `parser_*.sc` never spells one —
-not as a variable, not as a global, not as a struct field, not as a
-helper function.
+**Avoid identifiers that start with `_`.**  Underscore-prefix is
+reserved for compiler-generated names (synthetic labels, anonymous
+bindings, internal scaffolds).  User code in `parser_*.sc` should
+not spell one — not as a variable, not as a global, not as a struct
+field, not as a helper function — except where Snocone itself
+introduces the underscore at the language layer.
 
 Existing `parser_*.sc` files that carry `_foo`-prefixed globals
-(`_expr_node`, `_main_node`, `_rk_*`, `_e4lhs`, ...) are in
-violation of this rule and must be cleaned up to match the beauty.sc
-stack-and-counter shape (see §4 and §4a).  Treat any such occurrence
-as work-to-do, not as established style worth copying into new code.
+(`_expr_node`, `_main_node`, `_rk_*`, `_e4lhs`, ...) predate this
+guideline.  They are work-to-do, not established style worth copying
+into new code.  Refactor opportunistically when you're already in
+the file for other reasons; don't open a dedicated rung just to
+rename them unless §4a's bigger refactor would also land.
 
 The goto-letter token names `S` (success) and `F` (failure) are the
 exception that proves the rule — they are single uppercase letters,
