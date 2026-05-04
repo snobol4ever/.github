@@ -546,10 +546,11 @@ tractability):
     variations (some keep braces, some don't; some use `=` some
     `:=`).  Trivial unification.
 
-**Iteration log:** (none yet — loop opens this session's handoff)
+**Iteration log:** loop opened session 2026-05-04 cont. #6.
 
 | #  | Concept | SN | IC | PR | RK | SC | RB | Commit | Notes |
 |----|---------|----|----|----|----|----|----|----|----|
+| 1  | White-encodes-comments + canonical `$' '`/`$'  '` everywhere | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | (this session) | All six rewritten to canonical form: `White` first (per-language continuation/comment rules), `Gray = White \| epsilon`, `$' ' = Gray`, `$'  ' = White`. All `*White`/`*Gray` references in grammar replaced by `$'  '`/`$' '`. Per-language `White` bodies: SNOBOL4 keeps `+`/`.` continuation + adds `;*` inline trailing-comment; Icon/Rebus/Raku fold `'#' BREAK(nl)`; Prolog folds `'%' BREAK(nl)` + `Block = '/*' ARBNO(BREAK('*') ANY('*')) '/'`; Snocone folds `'//' BREAK(nl)` + same `Block`. Snocone gained `empty_cmd = $' ' $';' $' ' nl_opt` + Command alternative for C-style `;;/* hello */;;` empty-stmt semantics (Lon directive). Dead code removed: parser_icon.sc `Comment` rule (duplicate of `Blank` after `#` moved into White); parser_raku.sc `# REM` pre-filter at input loop (now native via White); parser_prolog.sc `comment`/old `trivia` collapsed (`trivia = ARBNO(White \| nl)`). Smoke verified: SNOBOL4 `;;` `;*` work; Snocone `;;/* hello */;;` matches oracle; Icon/Rebus/Raku/Prolog `#`/`%`/`//` line comments handled. Smoke-tested SNOBOL4 7/7, scrip(.sc) all OK. |
 
 ### ⚠ PARSER-SN-7 — canonical shape (session 2026-05-03 PIVOT)
 
@@ -1617,3 +1618,43 @@ file.
 
 **Next milestone:** PARSER-SN-7-2 (keyword recognition) when SN
 work resumes; six-parser fix loop when Lon directs.
+
+**Watermark (session 2026-05-04 cont. #6):** PARSER-FAMILY-LOOP
+iteration #1 LANDED — White-encodes-comments cross-pollination.
+All six `parser_*.sc` brought to a single canonical whitespace-token
+shape:
+
+  - `White` defined first per language (continuation/comment rules
+    folded in: SNOBOL4 `+`/`.` continuation + `;*` inline trailing
+    comment; Icon/Rebus/Raku `'#' BREAK(nl)`; Prolog `'%' BREAK(nl)`
+    + `Block = '/*' ARBNO(BREAK('*') ANY('*')) '/'`; Snocone
+    `'//' BREAK(nl)` + same `Block`).
+  - `Gray = White | epsilon;` — bare reference, no `*` deferral
+    (order makes deferral unnecessary).
+  - `$' '  = Gray;` and `$'  ' = White;` — invisible-whitespace
+    aliases with the beauty.sno `$' '` (optional) / `$'  '`
+    (required) convention.
+  - All grammar rules use `$' '`/`$'  '` only — no remaining
+    `*White` or `*Gray` references anywhere.
+
+Snocone gained C-style empty-statement semantics (Lon directive):
+new `empty_cmd = $' ' $';' $' ' nl_opt;` plus Command alternative.
+`x = 1;;/* hello */;;` and longer chains parse cleanly, output
+matching the oracle byte-for-byte.
+
+Dead code removed:
+  - `parser_icon.sc` `Comment` rule (duplicate of `Blank` after
+    `#` moved into White) and its `| Comment` alternative in
+    `StmtBody`.
+  - `parser_raku.sc` per-line `# REM` pre-filter at the input
+    accumulation loop (now native via White).
+  - `parser_prolog.sc` `comment` definition collapsed into White;
+    `trivia` rewritten as `ARBNO(White | nl)`.
+
+Gates (all unchanged at 100%): SN=59 IC=51 PR=54 RK=32 SC=21 RB=38.
+Smoke: SNOBOL4 7/7 green; scrip(.sc) all OK.  Smoke-tested per
+language: SNOBOL4 `;;`/`;*`, Icon `#` line + trailing, Rebus `#`,
+Raku `#`, Prolog `%` + `/* */` + leading comment line, Snocone
+`//` + `/* */` + `;;/* hello */;;` (oracle-matched).
+
+**Next:** operator picks iteration #2 concept.
