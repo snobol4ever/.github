@@ -700,3 +700,91 @@ binary OPSYN support to snocone_parse.y if desired.
 corpus HEAD at emergency handoff: `bc52be1`
 one4all/parser branch: `dd6ad80d` (unchanged)
 .github: this update
+
+---
+
+## Session 2026-05-03 continuation #2 — beauty.sc-style refactor (INCOMPLETE)
+
+Three architectural directions from Lon were applied to parser_rebus.sc:
+
+### 1. Build-time pattern-builder helpers (RB_*)
+Replaced raw `epsilon . *fn(args)` literals in pattern definitions with
+build-time helpers that return pattern fragments via EVAL:
+- `RB_save(.var, expr)` returns `epsilon . *assign('var', expr)`
+- `RB_qlit_emit('_rb_strbody')` returns the push-E_QLIT fragment
+- `RB_call_emit('_rb_callname')` returns the push-RB_CALL fragment
+
+Pattern grammar now reads cleanly — no `*fn(...)` literal anywhere outside
+the helper bodies themselves.  Same idiom as semantic.sc's nPush/nInc/nTop.
+
+### 2. $'op' operator wrappers (beauty.sc lines 50-58 style)
+```
+$'(' = '(' *Gray;       $')' = *Gray ')';
+$',' = *Gray ',' *Gray;
+$':=' = *Gray ':=' *Gray;
+$'?' = *Gray '?' *Gray;
+$'|' = *Gray '|' *Gray;
+$'+' = *Gray '+' *Gray;     // and -, *, /
+```
+Used throughout the expression ladder.
+
+### 3. Direct quoted-form tag constants (no sq indirection, no s_/r_ prefixes)
+```
+// shift() tags (bare).
+E_VAR  = 'E_VAR';
+E_ILIT = 'E_ILIT';
+E_QLIT = 'E_QLIT';
+
+// reduce() tags (quote-embedded).
+Parse        = "'Parse'";
+RB_FUNC_DECL = "'RB_FUNC_DECL'";
+RB_ASSIGN    = "'RB_ASSIGN'";
+E_ALT        = "'E_ALT'";
+... etc
+nTop_gt1     = '*(GT(nTop(), 1) nTop())';
+```
+Each tag appears in exactly one context (shift OR reduce), so no _R suffix.
+Call sites: `shift(*Id, E_VAR)`, `reduce(E_MUL, 2)`, `reduce(E_ALT, nTop_gt1)`.
+
+### Architecture also corrected
+- Command/Compiland use parser_snocone.sc idiom: `Command = (*func_cmd | *rec_cmd | *blank)` with nInc inside each decl alternative; `ARBNO(Command)` (no `*`).
+- stmt_list uses the same shape.
+- postfix_expr restructured: `id_call_pat = (Id . _rb_callname '(' *Gray ')')` captures the call-form atomically so the `(call | primary)` alternation has no shared prefix that traps FENCE.
+- String body capture uses canonical dot-conditional `BREAK('"') . _rb_strbody` (built-in primitive, not a function call).
+
+### One blocking issue — hangs on atom fixtures
+
+Minimal-grammar bisection tests (`/tmp/test_g4.sc` with body; `/tmp/test_g5.sc`
+with alt_expr nPush/X_alt/nPop) all parse correctly.  The full parser hangs.
+
+**Suspected cause:** the doubled-FENCE chains in mul_expr / add_expr:
+```
+mul_expr = *postfix_expr
+           FENCE(  $'*' *postfix_expr reduce(E_MUL, 2) FENCE($'*' *postfix_expr reduce(E_MUL, 2) | epsilon)
+                 | $'/' *postfix_expr reduce(E_DIV, 2) FENCE($'/' *postfix_expr reduce(E_DIV, 2) | epsilon)
+                 | epsilon
+                );
+```
+This shape is non-canonical — parser_snocone.sc uses a flatter form.  Port
+that shape exactly:
+```
+Expr9 = *Expr17
+        ( *op_mul *Expr17 reduce(r_MUL, 2)
+              (*op_mul *Expr17 reduce(r_MUL, 2) | epsilon)
+        | *op_div *Expr17 reduce(r_DIV, 2)
+              (*op_div *Expr17 reduce(r_DIV, 2) | epsilon)
+        | epsilon
+        );
+```
+No outer FENCE; flat alternation.  Likely the immediate fix.
+
+**Next-session bisection plan:**
+1. Strip mul_expr to `mul_expr = *postfix_expr`. Verify atom_id passes.
+2. Restore add_expr identically. Verify.
+3. Reintroduce mul_expr `*` chain in the parser_snocone.sc shape (no FENCE).
+4. Reintroduce `/`, `+`, `-` similarly.
+5. Once atoms pass, run full PASS=38 gate.
+
+corpus HEAD: `9f6b32f`
+one4all/parser branch: `dd6ad80d` (unchanged)
+.github: this update follows
