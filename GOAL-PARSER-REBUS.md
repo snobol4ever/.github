@@ -1464,3 +1464,111 @@ rewrite parser_rebus.sc fresh per the new Style Guidelines.  Lon
 chooses; the goal-rubric position is that rewrite is the cleaner path.
 
 PARSER-RB-0 — still next.
+
+---
+
+## Session 2026-05-04 continuation #5 — RB-0a partial; fresh rewrite landed; END-leak blocker
+
+EMERGENCY HANDOFF — RB-0a and RB-0 both incomplete.
+
+### Work landed this session
+
+Started executing PARSER-RB-0a sub-tasks.  Discarded the 455-line
+scar-tissue `parser_rebus.sc` and wrote a fresh 134-line atoms-only
+parser following the new ## Style Guidelines.  Landed at corpus HEAD
+`da12182`.
+
+Style guidelines applied:
+  - **G1** — White/Gray confined to token wrappers; zero *White/*Gray
+    in any grammar production
+  - **G2** — Added `$'function'`, `$'end'`, `$'record'`, `$'if'`,
+    `$'then'`, `$'while'`, `$'do'` keyword wrappers
+  - **G6** — Renamed `_rb_strbody`/`_rb_n` → `rbStrBody`/`rbLabelN`
+  - **G8** — `//===` / `//---` dividers; single-statement while bodies
+    inline (no braces)
+  - **G11** — `nl_one` deleted; bare `nl` used per beauty.sc
+  - **G3** — DEFERRED (Snocone runtime gap, documented in file header
+    note)
+  - **G10** — DEFERRED (driver `Src`/`Line` per beauty.sc convention,
+    documented in file header note)
+
+### Behavior change
+
+Hang RESOLVED.  Parser produces complete tree output for the
+function/main shape.  Failure mode shifted from `exit 124` (timeout)
+on all 38 fixtures to tree-equality FAIL — still PASS=0 FAIL=38, but
+real progress.
+
+### Blocker for next session — END-leak in body iteration
+
+`func_body = nPush() ARBNO(nInc() *stmt) reduce(RB_BODY, nTop()) nPop();`
+works structurally, but produces a spurious `(STMT :subj (E_VAR END))`
+in the body output.
+
+Mechanism: when ARBNO iteration consumes `'end'` as a bare Id via
+`shift(*Id, E_VAR)`, then the outer trailing `'end' nl` in
+`function_decl` can't match, so ARBNO backtracks one iteration.  At
+that point `nInc()` decrements correctly BUT the previously-shifted
+`tree('E_VAR', 'end')` node REMAINS on the stack (Shift's stack-push
+side-effect is not undone on pattern backtrack).  `reduce(RB_BODY,
+nTop())` then folds the wrong set of children.
+
+Tested negative-lookahead idioms — none worked as zero-width pattern
+predicate in this Snocone runtime:
+
+| Idiom | Result |
+|-------|--------|
+| `(~(*Gray 'end' kw_tail))` | tilde negates value, not zero-width pattern |
+| `(~ResWord) Id_raw`        | same — Id still matched 'end' |
+| `('end' kw_tail FAIL | epsilon)` | FAIL primitive not implemented for patterns |
+| `@bp ... 'end' kw_tail TAB(bp)` | overall pattern fails |
+
+### Recommended next-session approach
+
+Apply the beauty.sno § 24-28 / beauty.sc § 24-32 idiom:
+**`*match(List, NotInList)`** where the match-time guard predicate
+IS pattern-composable — it's the built-in `match()` pattern primitive
+in `semantic.sc`, not user code (see Rubric § 5 — built-in primitives
+are allowed inside patterns).  Shape:
+
+```snocone
+ResWords    = 'end function record if then else while do until ' ...;
+NotResWord  = (POS(0) | ' ') *upr(rbIdRaw) (' ' | RPOS(0));
+Id_raw      = ANY(&UCASE &LCASE '_') (SPAN(&UCASE &LCASE digits '_') | epsilon);
+//  Id captures into rbIdRaw, then match() asserts rbIdRaw IS in
+//  ResWords iff we want this to FAIL.  The 'NotInList' direction is
+//  negation of 'TxInList' from beauty.sc — implementation: a *match
+//  variant or a fresh predicate.
+Id = Id_raw . rbIdRaw . *match_NotIn(ResWords, NotInList);
+```
+
+Verify that `semantic.sc`'s `match()` helper supports the inverse
+("FAIL if found") form.  If not, add it as a sibling helper
+`match_NotIn(List, Predicate)` — that's the same call signature as
+`match()` and is idiomatic per beauty.sno.
+
+**Alternative:** introduce `shift_when_not_keyword(p, t, list)`
+build-time helper that wraps `shift(p, t)` with the reserved-word
+filter; cleaner surface for callers but same underlying mechanism.
+
+### Status
+
+| Repo | HEAD | State |
+|------|------|-------|
+| corpus | `da12182` | fresh atoms-only parser_rebus.sc, END-leak blocker |
+| one4all/parser | `dd6ad80d` | unchanged |
+| .github | this commit | RB-0a partially done; watermark updated |
+
+Steps remaining in PARSER-RB-0a (per session #4 enumeration):
+- [ ] G1, G2, G6, G8, G11 — DONE in this session's rewrite
+- [ ] G3 — DEFERRED, documented in file header
+- [ ] G8 (blank-line sweep) — N/A in fresh file (zero blanks)
+- [ ] G8 (single-stmt brace blocks) — DONE in fresh file (inline form)
+- [ ] G10 — DEFERRED, documented in file header
+- [ ] **Gate** — currently PASS=0; gate clears when END-leak fixed.
+
+Steps remaining in PARSER-RB-0:
+- [ ] Resolve END-leak via `match()` predicate idiom above
+- [ ] PASS=3 on `atom_id`, `atom_int`, `atom_str`
+
+PARSER-RB-0a + PARSER-RB-0 — joint clearance once END-leak resolved.
