@@ -198,8 +198,17 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
 5. **Defer parenthesized body subterms** (`(a, b) ; c`), nested compound
    args, anon vars, arithmetic to later rungs.
 
-### PARSER-PR-4 — lists (`[H|T]` / `[a,b,c]`)
-Gate: PASS≥30.
+### PARSER-PR-4 — lists (`[H|T]` / `[a,b,c]`) — **LANDED** (PASS=31)
+
+- [x] `[]` empty list, `[a, b, c]` flat list, `[H|T]` head/tail, nested lists.
+- **Gate:** PASS≥30. ✅
+- **Fixtures:** list_empty, list_one, list_three, list_var, list_pipe,
+  list_pipe_two, list_nested.
+- **Notes:** Lists are right-spined cons cells using functor `.` (the
+  Prolog list-cell convention) terminated by `(E_FNC [])`. Mutual
+  recursion list ↔ arg via the `list_elem` indirection (literal
+  alternation copy of arg's body) — dodges the FW-3 scrip-Snocone bug
+  where `*Q` indirection inside ARBNO suppresses deferred calls in Q.
 
 ### PARSER-PR-5 — arithmetic (`is`, builtin operators)
 Gate: PASS≥38.
@@ -220,6 +229,7 @@ Gate: PASS≥45.
 
 ## Watermark
 
-PARSER-PR-3 LANDED (PASS=24). Next: PARSER-PR-4 — lists (`[H|T]` / `[a,b,c]`).
+PARSER-PR-4 LANDED (PASS=31). Next: PARSER-PR-5 — arithmetic (`is`,
+builtin operators).
 
-**Next session:** implement PR-4 list syntax.
+**Next session:** implement PR-5 arithmetic.
