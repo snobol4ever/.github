@@ -607,10 +607,11 @@ correctly.
 
 **Next milestone:** PARSER-SN-7-1 — labels + assignment
 
-**Watermark (session 2026-05-03 SN-7-0 final):** corpus@a3f65b6
-PASS=3. Proven: ~ (OPSYN shift) and & (OPSYN reduce) work inside ARBNO.
-nInc() works inside ARBNO body. ARBNO body must be INLINED (FW-3).
-Four-step proof: pure-pattern → raw-calls → wrapper-layer → OPSYN.
+**Watermark (session 2026-05-03 SN-7-0 final):** corpus@afbc6be
+PASS=3. $'op' whitespace operators added per beauty.sno.
+Uppercase=build-time pattern-returner. lowercase=match-time nreturn.
+OPEN: ARBNO(*Command) with Command=nInc() FENCE(...) gives n=0 in scrip.
+Test shown to Lon for diagnosis. Next: resolve then SN-7-1 labels+assign.
 
 **Watermark (session 2026-05-03 SN-7-0 scaffold):**
 parser_snobol4.sc rewritten from scratch on canonical shape (corpus@d34b23c).
