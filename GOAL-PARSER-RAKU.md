@@ -82,35 +82,39 @@ arbiter.
 The sub-steps below are ordered so each lands on a green gate and
 each is independently revertable.  A session may do one and stop.
 
-#### 4.5-a — section dividers and blank lines (cosmetic warm-up)
+#### 4.5-a — section dividers and blank lines (cosmetic warm-up) — LANDED corpus@4d2a3d0
 
-- [ ] Replace blank-line-paragraph-separators with `//===…===` (major)
+- [x] Replace blank-line-paragraph-separators with `//===…===` (major)
       or `//---…---` (minor) 120-char comment dividers.  Model:
       `corpus/programs/scrip/parser_snobol4.sc`.  Maps to §8.
-- [ ] Audit existing comment dividers — any that aren't 120 chars
+- [x] Audit existing comment dividers — any that aren't 120 chars
       get retrimmed or extended.  beauty.sc's 80-char bars are
       grandfathered there but new files standardize on 120.
-- **Gate:** PASS=32 FAIL=0 (no semantic change).
+- **Gate:** PASS=32 FAIL=0 ✓ (52 minor 101-char → 51 major 120-char,
+      one back-to-back pair collapsed; blank lines 114 → 64 with the
+      remainder all in beauty.sc-canonical positions between `}` and
+      next divider).
 
-#### 4.5-b — single-statement bodies, no braces
+#### 4.5-b — single-statement bodies, no braces — LANDED corpus@b318fff
 
-- [ ] Walk the file's `function … { … }` blocks; any function whose
+- [x] Walk the file's `function … { … }` blocks; any function whose
       body is a single statement followed by `nreturn;` collapses to
       `function name(args) statement ;` (or stays multi-statement
       where it actually has multiple statements).  Maps to §8.
-- [ ] Same audit on `if (x) { single ; }` / `while (cond) { single ; }`
+- [x] Same audit on `if (x) { single ; }` / `while (cond) { single ; }`
       heads in the driver.
-- **Gate:** PASS=32 FAIL=0.
+- **Gate:** PASS=32 FAIL=0 ✓ (zero functions qualified — every helper
+      has 3+ statements; 2 if-heads in the driver collapsed).
 
-#### 4.5-c — token-classifier rename to spec-name shape
+#### 4.5-c — token-classifier rename to spec-name shape — LANDED corpus@3212b56
 
-- [ ] Audit `var_scalar`, `var_array`, `var_hash`, `int_pat`,
-      `dstr_pat`, `sstr_pat`, `id_pat`, `re_pat` against `raku.l`
-      `TK_*` enum names.  raku.l uses `VAR_SCALAR`, `LIT_INT`,
-      `LIT_STR`, `LIT_REGEX`, etc. — Snocone identifier rules allow
-      these directly (uppercase or lowercase).  Pick one casing and
-      land it consistently.  Maps to §1.
-- **Gate:** PASS=32 FAIL=0.
+- [x] Audit `var_scalar`, `var_array`, `var_hash`, `int_pat`,
+      `dstr_pat`, `sstr_pat`, `id_pat` against `raku.l` `TK_*`
+      enum names.  Picked UpperCamel (matches `parser_snobol4.sc`'s
+      `Integer` / `String` / `Id`).  Maps to §1.
+- **Gate:** PASS=32 FAIL=0 ✓ (`VarScalar`, `VarArray`, `VarHash`,
+      `LitInt`, `LitStrDQ`, `LitStrSQ`, `Ident` landed; internal
+      helpers `ident_first` / `ident_rest` lowered).
 
 #### 4.5-d — runtime helper functions to UpperSnake
 
@@ -205,11 +209,51 @@ each is independently revertable.  A session may do one and stop.
 
 ## Watermark
 
-PARSER-RK-4 LANDED (session #65, 2026-05-03) — PASS=32. Next session
-picks any sub-step from PARSER-RK-4.5 (4.5-a..4.5-g, ordered for
-green-gate landings) — or skips the refactor and goes to PARSER-RK-5
-if the regex feature is the priority.  The refactor is recommended,
-not gating.
+PARSER-RK-4.5-a / 4.5-b / 4.5-c LANDED (session 2026-05-04 cont.) —
+PASS=32 throughout.  Next session picks 4.5-d (runtime helper rename)
+or jumps to 4.5-e (the big function-plumbing teardown — 4.5-d is best
+done **after** 4.5-e since most of the 27 helpers will be deleted
+there; pre-renaming 20+ functions just to delete them is churn).
+
+### PARSER-RK-4.5-a / 4.5-b / 4.5-c — handoff (session 2026-05-04 cont.)
+
+Three sub-steps landed in three commits, each on a green gate:
+
+- **4.5-a** `corpus@4d2a3d0` — 52 minor 101-char `//---` dividers
+  promoted to 51 major 120-char `//===` dividers (one back-to-back
+  pair collapsed); blank lines reduced 114 → 64.  Remaining blanks
+  all sit between `}` and next divider — beauty.sc's lived shape.
+- **4.5-b** `corpus@b318fff` — 2 single-statement `if (cond) { stmt; }`
+  bodies in the driver collapsed to `if (cond) stmt;`.  Zero helper
+  functions qualified (each has 3+ statements: body + `name = .dummy`
+  + `nreturn`).
+- **4.5-c** `corpus@3212b56` — token classifiers renamed to
+  UpperCamel: `var_scalar` → `VarScalar`, `int_pat` → `LitInt`,
+  `id_pat` → `Ident`, etc.  Now matches `parser_snobol4.sc`'s
+  `Integer` / `String` / `Id` cross-PARSER convention.  The internal
+  classifier helpers (`ident_first`, `ident_rest`) stay lower_snake
+  since they are not grammar-visible tokens.
+
+### Recommendation for next session — reorder 4.5-d after 4.5-e
+
+The original sub-step order put 4.5-d (rename 27 helpers to
+UpperSnake) before 4.5-e (delete the function-plumbing scaffold).
+On reflection, that's churn: 4.5-e will delete most of those 27
+functions, so renaming first means doing the work twice.  Better
+order:
+
+1. **4.5-e first** — delete the action-plumbing layer; identify
+   which (if any) helpers genuinely survive (non-stack semantics,
+   classifier-list match, lower-time name remap).
+2. **4.5-d next, on the survivors only** — rename the small set
+   that remain to UpperSnake.
+3. **4.5-f** — drop `_`-prefixed user globals (already conditional
+   on 4.5-e in the rung text).
+
+The rung order in this goal file is left as 4.5-d → 4.5-e → 4.5-f
+for documentation continuity, but the next session is invited to
+do them in order 4.5-e → 4.5-d → 4.5-f if it agrees with the
+reasoning above.
 
 ### Style guidelines sharpened (session 2026-05-04, doc-only)
 
