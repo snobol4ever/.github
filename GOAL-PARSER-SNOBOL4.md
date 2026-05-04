@@ -594,12 +594,14 @@ points.
 
 ##### Mechanical fixes
 
-- [ ] Drop the lone blank line at the boundary between `Command`
+- [x] Drop the lone blank line at the boundary between `Command`
       and `Compiland` (currently around line 177 of
       `parser_snobol4.sc`).  Replace with a `/*---*/` minor divider or
       simply tighten — the `/*===*/` major divider above already
-      separates the section.  § 8.
-- [ ] Rewrite the input-reader loop to drop the single-statement
+      separates the section.  § 8.  **DONE session 2026-05-04**:
+      replaced with a 120-char `//----` minor divider matching the
+      `//====` major-divider style used elsewhere in the file.
+- [x] Rewrite the input-reader loop to drop the single-statement
       braces:
       ```snocone
       while ((Line = INPUT)) Src = Src Line nl ;
@@ -611,11 +613,12 @@ points.
       }
       ```
       The two-statement TDump loop below keeps its braces — that one
-      is correct as-is.  § 8.
+      is correct as-is.  § 8.  **DONE session 2026-05-04**: braces
+      removed; TDump's two-statement loop kept as-is.
 
 ##### Optional polish — `$' '`/`$'  '` and `S`/`F` simple-letter tokens
 
-- [ ] Decide whether to introduce the beauty.sno simple-identifier
+- [x] Decide whether to introduce the beauty.sno simple-identifier
       whitespace tokens (`$' ' = SPAN(' ' tab) | epsilon;` and
       `$'  ' = SPAN(' ' tab);`) and the goto-letter token rules
       (`S = $' ' 'S';` `F = $' ' 'F';`).  Today the parser uses
@@ -624,11 +627,16 @@ points.
       reading.  Bringing them in would also let `Goto`'s `*Gray`
       references collapse to bare `$' '` reads.  § 3 + § 2.
       Decision: keep parser concise (status quo) OR refactor for
-      beauty.sno isomorphism.
+      beauty.sno isomorphism.  **DECIDED session 2026-05-04**: keep
+      status quo (inline `'S'|'s'` / `'F'|'f'` literals).  Decision
+      comment landed inline above `SGoto`: "conciseness over
+      isomorphism."  Refactor to beauty.sno simple-identifier form
+      remains available later if a sibling parser's audit finds the
+      isomorphism worthwhile.
 
 ##### Guideline-vs-pragma tension — `White`/`Gray` referenced in main grammar
 
-- [ ] § 2 says "`White`/`Gray` are attached, never referenced in the
+- [x] § 2 says "`White`/`Gray` are attached, never referenced in the
       main grammar".  Today `parser_snobol4.sc` references them in
       five places, all inherited verbatim from beauty.sno:
       * `X4 = nInc() *Expr5 FENCE(*White *X4 | epsilon);` (line 76)
@@ -650,7 +658,14 @@ points.
       with a one-line `// ws-here-is-required:<reason>` comment and
       mark the guideline as "honored except where grammar forbids".
       The author should not feel embarrassed about these references;
-      they are correct.  § 2.
+      they are correct.  § 2.  **DONE session 2026-05-04**: all five
+      sites annotated inline with `// ws-here-is-required:<reason>`
+      comments (X4 juxtaposition-concat; Goto's two `*Gray` reads
+      around `':'`; Stmt's `*White` body-prefix and `*White` before
+      `'='` replacement; Stmt's `($'?' | *White)` subj/pat
+      delimiter).  Guideline §2 status: "honored except where
+      grammar forbids" — recorded as canonical interpretation for
+      the family.
 
 ##### Audit-clean (no action — recorded for completeness)
 
@@ -1186,3 +1201,37 @@ triple the diff surface, landing style fixes upstream keeps the
 grammar-slice diffs reviewable.  Step content unchanged from the
 prior commit; only position and numbering changed.  PLAN.md
 goals-table entry updated to point at SN-7-0a as the active step.
+
+**Watermark (session 2026-05-04 cont. #2): PARSER-SN-7-0a LANDED.**
+All four checkboxes flipped to `[x]`:
+  - Mechanical fix 1: blank line between `Command` and `Compiland`
+    replaced with a 120-char `//----` minor divider.
+  - Mechanical fix 2: input-reader loop `while ((Line = INPUT))` had
+    its single-statement braces removed; now reads
+    `while ((Line = INPUT)) Src = Src Line nl ;`.  TDump's
+    two-statement loop kept braced (correct as-is).
+  - Decision point §3 (`$' '`/`S`/`F` tokens): **status quo kept**;
+    inline `'S'|'s'` / `'F'|'f'` literals retained.  Decision recorded
+    as inline comment above `SGoto`: "conciseness over isomorphism."
+  - Decision point §2 (`White`/`Gray` in main grammar): **all five
+    sites annotated** with `// ws-here-is-required:<reason>` inline
+    comments — X4 juxtaposition-concat, two `*Gray` reads around `':'`
+    in `Goto`, two `*White` reads in `Stmt` (body prefix, before `=`),
+    and `($'?' | *White)` subj/pat delimiter in `Stmt`.  Guideline §2
+    canonical interpretation now: "honored except where grammar
+    forbids" — binding on the family.
+
+Gate state after SN-7-0a: **PASS=0 FAIL=59 — unchanged**, as expected
+(style work does not change tree shapes).  Sibling parsers untouched;
+no shared file changed.  120-col limit honored everywhere.
+
+Setup notes for the next session: `libgc-dev` was not pre-installed
+in the container — `install_system_packages.sh` did install it after
+the apt lock cleared.  No bug; one-time install.
+
+**Next milestone:** PARSER-SN-7-1 — bare label-only line confirm +
+labels + assignment + tree-shape rewrite (FW-2 role-slot wrappers +
+IR-tag rewrites `Stmt`→`STMT`, `Id`→`E_VAR`, `String`→`E_QLIT`,
+`Integer`→`E_ILIT`, `Call`→`E_FNC`, `..`→`E_SEQ`, `|`→`E_ALT`) to
+match scrip `--dump-parse` oracle.  This is the first rung where the
+gate flips from PASS=0 to a positive number.
