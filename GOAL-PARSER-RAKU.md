@@ -304,6 +304,22 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
+### PARSER-RK-11 — `unless`/`until` stmts + `push`/`pop` call verification — LANDED session 2026-05-05
+
+- [x] `unless (cond) block` → `(E_IF (E_NOT cond) then)`.
+      `finish_not` helper wraps top-of-stack expr in `E_NOT` node.
+      `UnlessStmt` mirrors raku.y `unless_stmt` with optional `else` arm.
+- [x] `unless (cond) block else block` → `(E_IF (E_NOT cond) then else)` (3 children).
+- [x] `until (cond) block` → `(E_UNTIL cond body)`.
+      `UntilStmt` mirrors raku.y `until_stmt`; `(E_UNTIL & 2)` reduce.
+- [x] `push(@a, v)` / `pop(@a)` verified — already handled by `finish_call` as plain
+      call expressions; no grammar additions needed (not keywords in raku.l).
+- [x] Test corpus: 5 new fixtures (unless_basic, unless_else, until_basic,
+      push_arr, pop_arr).
+- **Gate:** PASS=60 FAIL=0 ✓  corpus@f663327.
+
+---
+
 ## Invariants
 
 - Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
@@ -329,20 +345,18 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-10 LANDED (session 2026-05-05) — PASS=55 FAIL=0.
+PARSER-RK-11 LANDED (session 2026-05-05) — PASS=60 FAIL=0.
 RK-7: $*STDIN/$*STDOUT/$*STDERR standard handles (corpus@5da7d87).
 RK-8: m:g/body/ global match + s/pat/repl/[g] substitution + CQize \xNN fix (corpus@dcba3b5).
 RK-9: @arr[$expr] arr_get, %h<ident> hash_get (angle), %h{$expr} hash_get (brace),
   exists %h<ident> hash_exists, exists %h{$expr} hash_exists.  corpus@e605b01.
-  New [ ] operator tokens; ArrIdxVar/HashIdxVar with separate colnmf/colnmr captures
-  prevent index Expr from clobbering collection var name.
-RK-10: delete %h<ident>/%h{$expr} → hash_delete E_FNC; range a..b/a..^b → E_TO;
-  for lo..hi -> $v { body } → make_for_range while-loop lowering.
-  Expr5 range tier between Expr4 (cmp) and Expr6 (add); ForRangeStmt before ForStmt.
-  corpus@2cdfcec.
+RK-10: delete %h<ident>/%h{$expr} → hash_delete; range a..b/a..^b → E_TO;
+  for lo..hi -> $v { body } → make_for_range while-loop lowering.  corpus@c7c2d14.
+RK-11: unless (cond) [else] → E_IF(E_NOT cond); until (cond) → E_UNTIL;
+  push(@a,v)/pop(@a) already handled as plain call_expr.  corpus@f663327.
 
-Next session: PARSER-RK-11 — arr_push / push(@arr, val) and pop(@arr),
-  or string repetition x operator, or unless/until stmts.
+Next session: PARSER-RK-12 — string ops (index, substr, length/chars, lc/uc),
+  or logical ops (&& || !), or arr_push builtin form push(@arr, val) with multiple values.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
