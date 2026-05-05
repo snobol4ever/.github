@@ -569,12 +569,49 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6f ✅ SC-6g ✅ SC-6h ✅ SC-6i ✅ landed; SC-6b next — Expr14 gap + stmt_body trailing-ws fix)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc blocked)**
 
-Gate: PASS=46 FAIL=0. corpus @ `f79c025`. SC-6f/g/h/i landed: style edits,
-kw_X=(Id$tx*IDENT), correct Id/Ident/sc_reserved structure: sc_reserved=POS(0)(...)RPOS(0),
-notmatch(s,pat) helper, Ident=Id$tx*notmatch(tx,sc_reserved) rejects reserved words,
-Expr17 E_VAR uses Ident. SC-6b next: Expr5/5a missing tiers + beauty.sc crosscheck.
+Gate: PASS=46 FAIL=0. corpus @ SC-6b-session-2026-05-05.
+
+### SC-6b session 2026-05-05 — structural work landed, beauty.sc crosscheck blocked
+
+Changes landed this session (gate PASS=46 FAIL=0 throughout):
+
+**Expression tier ladder restructured to match beauty.sno exactly (Expr0–Expr17):**
+- Added `Expr2` (binary `&`, right-assoc), wired `Expr1 → Expr2 → Expr3`.
+- Added `Expr7` (binary `#`), `Expr8` (binary `/`), `Expr10` (binary `%`) — split out of old `Expr5a`/`Expr6`.
+- Added `Expr13` (binary `~`, right-assoc) between Expr12 and Expr14.
+- Added full `Expr14` unary-prefix tier (from beauty.sno): `@ ~ + - * $ . ! % / #`.
+- **Snocone-specific Expr14 restriction:** Removed `= | & ?` from Expr14 unary prefix.
+  These are binary-only operators in Snocone. Their presence caused `x = (expr)` to parse
+  as `x` concatenated with `=(expr)` at the X4 level (unary `=` grabbed the binary `=`).
+  This is a language difference from SNOBOL4 that beauty.sno cannot encode.
+- `Expr12` now uses `$'$' *Expr12` / `$'.' *Expr12` right-recursive per beauty.sno.
+- `Expr11` now accepts `$'^' | $'!' | $'**'` per beauty.sno.
+- Removed custom `Expr5a` tier; `Expr5` now has `$'@'` cursor + comparison operators per beauty.sno.
+- `Expr6` now wired to `Expr7` (was `Expr9`), FENCE-based per beauty.sno (was ARBNO).
+- `Expr15/Expr16` restructured per beauty.sno: `Expr16 = nInc() $'[' *ExprList $']' FENCE(*Expr16|epsilon)`.
+- Added `ExprList`/`XList` patterns (used by Expr16 and Expr17 call args).
+- Added `E_INDEX` constant alias for `E_IDX`; added `r_nTopP1` constant.
+- **Bug fix:** `$'['` was `$' ' '[' $' '` (whitespace on both sides) — subscript `a[i]`
+  failed because no space before `[`. Fixed to `'[' $' '` (no leading ws) per beauty.sno.
+
+**beauty.sc crosscheck blocker:**
+The `White = SPAN(' ' tab nl)` definition (newline is whitespace, per Lon) means that
+`+` continuation markers at the start of continuation lines in beauty.sc are parsed as
+the unary `+` operator (Expr14), not as whitespace continuation markers. This causes
+multi-line expressions in beauty.sc (e.g. `Real = ( SPAN(digits)\n+  ...\n )`) to parse
+differently from the oracle. The oracle (C frontend) handles `+` continuation at the
+lexer level; our pattern parser sees `+` as an operator.
+
+**Next session options:**
+(a) Accept that beauty.sc is not a valid crosscheck target due to `+` continuation markers,
+    and use a different Snocone program (without continuation markers) for SC-6b crosscheck.
+(b) Pre-process the input to strip `+`/`.` continuation markers before parsing.
+(c) Add a special `start-of-line +` recognition that treats line-leading `+`/`.` as
+    whitespace continuation (not operators) — but this requires cursor position awareness.
+
+Lon decides. Gate remains PASS=46 FAIL=0.
 
 **Session #67 cont. (2026-05-04) — PARSER-SC-5 landed (pattern-match scan stmt).**
 
