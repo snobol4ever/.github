@@ -1226,13 +1226,17 @@ unrelated to this rung — see Open carry-over).
 
 #### PARSER-SN-7-2 — &KEYWORD recognition
 
-- [ ] Fixtures `kw_fullscan.sno`, `kw_maxlngth.sno`, `kw_ucase.sno`,
+- [x] Fixtures `kw_fullscan.sno`, `kw_maxlngth.sno`, `kw_ucase.sno`,
       `kw_lcase.sno` — assignment LHS, RHS, and pattern-arg uses of
       protected and unprotected keywords.
-- [ ] Per beauty.sno: `ProtKwd = '&' SPAN(&UCASE &LCASE) ~ 'ProtKwd'`,
+- [x] Per beauty.sno: `ProtKwd = '&' SPAN(&UCASE &LCASE) ~ 'ProtKwd'`,
       `UnprotKwd = '&' SPAN(&UCASE &LCASE) ~ 'UnprotKwd'`.  These
-      become alternatives in `Expr14`.
-- **Gate:** keywords emit `(E_KEYWORD <NAME>)` matching the oracle.
+      become alternatives in `Expr14`.  Fix: `~ E_KEYWORD` was capturing
+      the full `&NAME` text (including `&`) but oracle emits name-only.
+      Rewrote both alternatives as `'&' shift(SPAN(&UCASE &LCASE), E_KEYWORD)`
+      — consume `&` before capture, shift just the name.  ProtKwd and
+      UnprotKwd produce identical trees so collapsed to one alternative.
+- **Gate:** keywords emit `(E_KEYWORD <NAME>)` matching the oracle. ✅ PASS=66/66
 
 #### PARSER-SN-7-3 — bracket index `x[i]`, `x[i, j]`
 
@@ -2204,5 +2208,14 @@ are exhausted, so the candidates broaden):
     byte-diff with C-callable `tree_equal` and Snocone-bridge
     `cross_emit_tree`.
 
-The clearest next-natural-step is **PARSER-SN-7-2** (keywords).  Pure
-ladder-extension work; no infrastructure changes.
+**Watermark (session 2026-05-05):** **PARSER-SN-7-2 LANDED** — &KEYWORD
+recognition.  Four fixtures: `kw_fullscan.sno`, `kw_maxlngth.sno`,
+`kw_ucase.sno`, `kw_lcase.sno`.  Bug fixed: `*ProtKwd ~ E_KEYWORD` and
+`*UnprotKwd ~ E_KEYWORD` were shifting the full `&NAME` text (including
+`&`), but oracle emits name-only `(E_KEYWORD FULLSCAN)`.  Fix: expanded
+both alternatives to `'&' shift(SPAN(&UCASE &LCASE), E_KEYWORD)` — consume
+`&` before the capture so `shift` sees only the name portion.  ProtKwd and
+UnprotKwd are identical structurally (both `'&' SPAN(&UCASE &LCASE)`) so
+collapsed to one alternative.  PASS=66/66 ✅.
+
+**Next:** PARSER-SN-7-3 — bracket index `x[i]`, `x[i, j]`.
