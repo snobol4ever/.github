@@ -94,6 +94,11 @@ Detail for each rung lives in its commit message.  Open the hash in
 | RS-22f-makelist  | 744754ff | Lift `E_MAKELIST`. |
 | RS-22f-generators| c811d4a6 | Lift `E_TO`/`TO_BY`/`ITERATE`/`LIMIT`/`ALTERNATE`/`SEQ_EXPR`/`SEQ`. |
 | RS-22f-stmt      | fa348610 | Lift `E_SCAN` + `E_CASE`. |
+| RS-23a-raku      | bdca3bbb | Lift Raku built-ins out of `interp_eval` into `raku_builtins.c`. |
+| RS-23a-route     | 7d8ed6ed | Add `E_FNC`/`E_ASSIGN`/`E_AUGOP` stmt handlers to `bb_exec_stmt`. |
+| RS-23b           | edd0c894 | Add stmt handlers for `E_SCAN`/`E_CASE`/`E_NOT`/`E_ALTERNATE`/`E_ILIT`/`E_NUL`. |
+| RS-23c           | 0de9a2cf | Lift `E_EVERY`, `E_INITIAL`, `E_SWAP` into both adapters; share `find_leaf_suspendable`. |
+| RS-23d           | 0de9a2cf | `E_WHILE` value-context handler in `bb_eval_value`. |
 | RS-25-investig.  | (folded) | SM shape verification — Icon/Prolog short-circuit through `polyglot_execute`. |
 | RS-26a | ec558491   | Symmetric SM preamble + IR retention for non-SNO programs. |
 | RS-26b | 813d3224   | Route single-language Icon through SM pipeline. |
@@ -222,15 +227,78 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
   unified_broker 49/0, isolation gate PASS, Icon corpus 186/47/30
   (no delta from baseline).
 
-- [ ] **RS-23c** — Add `E_EVERY`, `E_INITIAL`, `E_SWAP` to **both**
+- [x] **RS-23c** — Add `E_EVERY`, `E_INITIAL`, `E_SWAP` to **both**
   adapters.  RS-21 enumerated 11 Icon statement kinds but missed these
   three; verify the coverage list against icon_parse.c and complete it.
   Same gates.
 
-- [ ] **RS-23d** — Add value-context handler for `E_WHILE` in
+  **LANDED (session 2026-05-04):** Added native value-context handlers
+  in `coro_value.c` (`E_EVERY` mirrors interp_eval.c:1639-1727 with all
+  three sub-cases — E_ASSIGN-with-generative-RHS, E_SEQ-conjunction,
+  generic gen-then-body — `interp_eval(child)` → `bb_eval_value(child)`
+  for value contexts and `bb_exec_stmt(body)` for body contexts;
+  `E_INITIAL` mirrors :3558-3601 verbatim with the same substitution;
+  `E_SWAP` mirrors :3408-3437).  Stmt-context dispatch in `coro_stmt.c`
+  delegates to `bb_eval_value` (all three return NULVCL anyway).
+  `find_leaf_suspendable` lifted from two static copies (coro_runtime.c
+  and interp_eval.c) into a single exported function declared in
+  `coro_runtime.h`; the interp_eval.c duplicate was deleted and the
+  header included.
+  Gates: smoke {snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5,
+  rebus 4/4}, unified_broker 49/0, isolation gate PASS, Icon corpus
+  186/47/30 (no delta).  Diag: E_EVERY/E_INITIAL/E_SWAP all gone from
+  unique tuple list, dropped from 14 unique/118 raw to 8 unique/12 raw.
+
+- [x] **RS-23d** — Add value-context handler for `E_WHILE` in
   `bb_eval_value`.  Icon's `while E1 do E2` is a statement form but
   can appear in value context (returns last successful E2 or fails).
   Same gates.
+
+  **LANDED (session 2026-05-04):** Added `case E_WHILE` in
+  `coro_value.c` mirroring interp_eval.c:1719-1730 with the standard
+  substitution.  Same gates green; diag dropped 8 unique/12 raw to
+  6 unique/7 raw.  E_WHILE eliminated from unique tuple list.
+
+  Remaining 6 tuples after RS-23c+RS-23d:
+  ```
+  E_BANG_BINARY    caller=bb_eval_value     via=bb_eval_value
+  E_IF             caller=bb_eval_value     via=bb_eval_value
+  E_IF             caller=coro_bb_seq_expr  via=bb_eval_value
+  E_PROC_FAIL      caller=(direct)          via=bb_eval_value
+  E_RETURN         caller=coro_eval         via=coro_eval
+  E_REVASSIGN      caller=bb_exec_stmt      via=bb_exec_stmt
+  ```
+  The `via=coro_eval` E_RETURN is the oneshot path the goal mentions.
+  The other five are simple asymmetric-coverage gaps in the same shape
+  as RS-23c — they are addressable by adding handlers in the missing
+  context, with one architectural precondition documented in RS-23e.
+
+- [ ] **RS-23-extra** — Add value-context handlers for `E_IF`,
+  `E_PROC_FAIL`, `E_BANG_BINARY`; add stmt-context handler for
+  `E_REVASSIGN`.  These are the 5 of 6 remaining tuples that don't
+  go through `coro_eval` oneshot.  Same gates.
+
+  **Architectural precondition discovered (session 2026-05-04):**
+  Attempting to add `E_IF` value-context with the obvious port of
+  `interp_eval.c:1789-1817` regresses `rung36_jcon_meander.icn` (Icon
+  corpus 186→185).  Root cause: when `bb_eval_value(E_IF)` recurses
+  into `bb_eval_value(test)` and the test contains SCAN-context
+  builtin calls (`tab`, `move`, `upto`), `bb_eval_value`'s E_FNC
+  handler dispatches via `proc_table` then `icn_call_builtin` —
+  but `tab`/`move`/`upto` are defined ONLY in `interp_eval.c:617-660`,
+  NOT in `icn_call_builtin`.  Mode-1 worked before this change because
+  bb_eval_value fell through to interp_eval, which has the SCAN-builtin
+  code in its E_FNC case.
+
+  This is the exact same shape as the RS-23a-raku precondition (Raku
+  built-ins lifted into `raku_try_call_builtin`).  The fix is to lift
+  `tab`/`move`/`upto` (and any other SCAN builtins co-located in
+  interp_eval.c's E_FNC case) into `icn_call_builtin` (or a dedicated
+  `scan_try_call_builtin`).  Once that lift lands, RS-23-extra can
+  follow the same pattern.
+
+  Reverted (session 2026-05-04): all four RS-23-extra handlers
+  removed pending the SCAN-builtin lift.
 
 - [ ] **RS-23e** — Re-run `test_rs23_diag_capture.sh`; expect zero
   unique tuples.  Then harden the direct fallthroughs in
