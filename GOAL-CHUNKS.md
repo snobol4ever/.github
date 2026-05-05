@@ -630,3 +630,122 @@ proceed to the Phase 1 SNOBOL4 lowering work.
 End of session #62 handoff note.  Apply revisions before any code
 changes; do not start CH-0a until the goal file reads as the
 revised plan describes.
+
+---
+
+## ⚠️ Session #62 ADDENDUM — milestone restructure
+
+Late in session #62, after Revisions 1–6 above were committed, Lon
+clarified the milestone structure further.  The next session must
+apply this addendum together with Revisions 1–6.
+
+### A. The Phase 1 milestone is "SNOBOL4 + Snocone isolated end-to-end through mode 3"
+
+Restate Phase 1's done-when more precisely:
+
+  Phase 1 is complete when SNOBOL4 and Snocone programs:
+   - Lower to SM with NO SM_PUSH_EXPR sites (the five sites at
+     sm_lower.c lines 326, 345, 386, 470, 573 emit chunks instead).
+   - Execute correctly under `--sm-run` (mode 2, in-memory SM dispatch).
+   - Execute correctly under `--jit-run` (mode 3, in-memory JIT slab).
+   - Have NO EXPR_t reachable from any SM-mode runtime code path
+     during mode 2/3 execution (verified by an instrumented build,
+     not just by the symbol-call grep gate).
+   - Pass the existing ×6 smoke + isolation + csnobol4 Budne + Icon
+     corpus + unified_broker + scrip_all_modes gates with no
+     regression.
+
+That is the exact precondition for starting mode 4.  No mode-4 work
+begins until Phase 1 is signed off in this strong sense.
+
+### B. Mode 4 development begins after Phase 1, x86 backend first
+
+When Phase 1 closes, file `GOAL-MODE4-EMIT.md` and begin x86
+implementation.  Initial scope:
+   - `--jit-emit --x64 file.sno` produces a standalone asm/binary
+     for SNOBOL4.
+   - `--jit-emit --x64 file.sc` does the same for Snocone (rides
+     SNOBOL4's path).
+   - The emitted executable links against `libscrip_rt.so` (or
+     equivalent) — the C runtime support library carrying the
+     pattern matcher, NV table, builtins, etc.
+   - Other backends (JVM, .NET, WASM, JS) come AFTER the x86
+     backend works, as separate goals.
+
+### C. Native-host interpreters (JS, .NET, JVM) need their own goals
+       to support Snocone
+
+Each of the SNOBOL4 native-host interpreters
+(`snobol4python` — wait, that's Python; clarify: `snobol4dotnet`,
+`snobol4jvm`, and the JS/browser variant — see PLAN.md README rows
+for the exact set) needs a goal to extend it from SNOBOL4-only to
+**SNOBOL4 + Snocone**.  These interpreters serve as **bootstrap
+helpers** for `scrip.sc` itself — the plan is that scrip's
+self-hosted Snocone source can run on the native-host interpreters
+to bootstrap before scrip-on-scrip self-hosting closes.
+
+Files to create (next session, AFTER Revisions 1–6 + this addendum
+land in GOAL-CHUNKS.md):
+
+  - `GOAL-NATIVE-SNOCONE-DOTNET.md`  — extend snobol4dotnet to run
+    Snocone source.  Done when scrip.sc runs end-to-end on the .NET
+    interpreter.
+  - `GOAL-NATIVE-SNOCONE-JVM.md`     — same for snobol4jvm.
+  - `GOAL-NATIVE-SNOCONE-JS.md`      — same for the JS/browser
+    interpreter.
+
+These are independent of GOAL-CHUNKS.  They can land in any order
+relative to GOAL-CHUNKS phases 2–8.  Their role is to give us
+multiple bootstrap paths for `scrip.sc`:
+
+  - Path A: scrip-on-scrip — `scrip` (in-memory SM) compiles and
+    runs `scrip.sc` directly.  Available once Phase 1 of
+    GOAL-CHUNKS closes (because Snocone is fully lowered to SM).
+  - Path B: scrip-on-.NET — `snobol4dotnet`-extended-with-Snocone
+    runs `scrip.sc`.  Available when GOAL-NATIVE-SNOCONE-DOTNET
+    closes.
+  - Path C: scrip-on-JVM — same with snobol4jvm.
+  - Path D: scrip-on-JS — same with the JS interpreter.
+
+Multiple bootstrap paths protect against regressions in any single
+path and let development proceed on any platform.
+
+### D. Updated milestone roadmap (high-level)
+
+To make the order explicit for future sessions:
+
+   M1.  GOAL-CHUNKS Phase 1 closes → SNOBOL4 + Snocone fully
+        isolated through modes 2/3.
+   M2.  GOAL-MODE4-EMIT (x86) opens → mode-4 x86 emitter for
+        SNOBOL4 + Snocone.
+   M3.  GOAL-NATIVE-SNOCONE-{DOTNET,JVM,JS} land independently —
+        each gives a bootstrap path for `scrip.sc`.
+   M4.  GOAL-CHUNKS Phases 2–8 close → Icon, Raku, Prolog, Rebus
+        each reach the same isolation property; SM_PUSH_EXPR is
+        deleted from the codebase entirely.
+   M5.  GOAL-MODE4-EMIT extends to all six frontends.
+   M6.  GOAL-MODE4-EMIT extends to JVM/.NET/WASM/JS backends —
+        the full Milestone-3 matrix in PLAN.md.
+
+M1 is the immediate next-multi-session goal.  M2–M3 can run in
+parallel by different sessions once M1 closes (the work is in
+disjoint repos).  M4 is a long arc.  M5–M6 are far-future.
+
+### E. Net effect on PLAN.md
+
+After applying Revisions 1–6 + this addendum:
+
+   - `GOAL-CHUNKS.md` is the priority active goal.
+   - `GOAL-REWRITE-SCRIP.md` continues with RS-24b' / RS-24c /
+     RS-25 / RS-26 (BUG-SCRIP-EQ) but is no longer the headline.
+   - New goal files to create: `GOAL-MODE4-EMIT.md` (queued for
+     after Phase 1), `GOAL-NATIVE-SNOCONE-DOTNET.md`,
+     `GOAL-NATIVE-SNOCONE-JVM.md`, `GOAL-NATIVE-SNOCONE-JS.md`.
+   - PLAN.md table gets four new rows (or three if mode 4 is
+     deferred to file later).
+
+---
+
+End of session #62 addendum.  Lon and Claude agreed on this
+structure; record it permanently here so the milestone path is not
+re-litigated next session.
