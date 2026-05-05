@@ -244,8 +244,8 @@ Not violations (canonical guide explicitly permits or prefers):
   fires `reduce`).  Gate PASS=21 FAIL=0.
   **DONE session #66 (2026-05-04): corpus @ `a82b43c`.**
 
-- [ ] **Step 3d-bug — scrip pattern engine: `$'  ' = *White` alias does not behave
-  identically to `*White` when used in recursive grammar rules.** ⚠ BLOCKING Step 3e.
+- [x] **Step 3d-bug — scrip pattern engine: `$'  ' = *White` alias does not behave
+  identically to `*White` when used in recursive grammar rules.** ✅ FIXED session #67.
   Diagnosis complete session #66; SM-side fix coded; IR-side companion still pending.
 
   Discovered session #66 (2026-05-04) while attempting Step 3e.  Per the canonical
@@ -355,8 +355,9 @@ Not violations (canonical guide explicitly permits or prefers):
   4. If green, mark Step 3d-bug ✅ and Step 3e ✅ together and bump
      PARSER-SC-INFRA-3 to closed.
 
-- [ ] **Step 3e — define `$' '` / `$'  '` once; sweep grammar (§3).**
-  ⛔ BLOCKED on Step 3d-bug above.
+- [x] **Step 3e — define `$' '` / `$'  '` once; sweep grammar (§3).** ✅ DONE (grammar
+  already used these aliases; Step 3d-bug fix in eval_pat.c unblocked the full gate
+  PASS=21 FAIL=0 including concat_seq). session #67.
 
 - [x] **Step 3f — full Snocone operator-token table.**  PARSER-SC currently
   defines only the operator subset exercised by the SC-0..SC-3 rung corpus
@@ -466,15 +467,30 @@ statement bodies; 120-char dividers.
 ## Watermark
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
-PARSER-SC-3 ✅**
+PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅**
 
 Gate: PASS=21 FAIL=0 (atom_*, assign_*, arith_*, concat_seq, if_simple,
 if_else, if_seq, if_multi_body, while_simple, while_seq, do_simple,
 do_with_stmt). Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.
 Sibling parsers unaffected.
 
-**Session #66 cont. (2026-05-04) — Step 3d-bug diagnosis complete; SM-side
-partial fix landed; IR-side companion still pending.**
+**Session #67 (2026-05-04) — Step 3d-bug IR-side fix landed; INFRA-3 closed.**
+
+IR-side companion fix landed in `eval_pat.c::interp_eval_pat`: added
+`case E_INDIRECT:` branch before `default:` (mirroring `case E_VAR`'s
+DT_E thaw at lines 95-96). When `$'  '` is referenced in pattern context,
+`interp_eval_pat` now calls `eval_node(e)` (INDIR_GET) then coerces via
+`PATVAL_fn` if DT_E/DT_I/DT_R — instead of falling through to `default:`
+which returned DT_E as-is without pattern coercion.
+
+Repro verification: `XA` (bare `*White`) and `XB` (`$'  '` alias) both
+report `count=3` on `'a b c'`. Previously XB printed nothing (RPOS(0) fail).
+
+Step 3e: grammar already used `$' '`/`$'  '` from a prior session. With
+the engine fix in place, `concat_seq` and all 21 fixtures pass cleanly.
+INFRA-3 is complete.
+
+**Next rung:** PARSER-SC-4 — function def + call.
 
 Root cause traced: `$'  ' = *White` stores a `DT_E` (frozen-EXPR) descriptor
 as the variable's value; when later referenced in pattern context via
