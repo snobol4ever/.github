@@ -490,7 +490,7 @@ PARSER-IC-9-prior (LANDED PASS=51 corpus@85c14d0: augmented assigns + unary pref
 
 **Bug:** `*EQ(pos_a, pos_b)` in the pattern `@pos_a (ANY('...') | epsilon) @pos_b *EQ(pos_a, pos_b)` does NOT fail when `pos_a ≠ pos_b`. The deferred EQ call silently succeeds regardless of cursor delta. All existing `$'<'`/`$'>'` negative-lookahead tokens in IC-10 are no-ops; the grammar works only because of alternation ordering.
 
-- [ ] **BUG-SCRIP-EQ** — File step in GOAL-REWRITE-SCRIP.md: investigate why `*EQ(cursor_a, cursor_b)` in a pattern context does not propagate failure when integer args differ. Repro: `src = '++ 2'; src '+' @a (ANY('+') | epsilon) @b *EQ(a,b)` — should fail (b > a) but succeeds.
+- [x] **BUG-SCRIP-EQ** — File step in GOAL-REWRITE-SCRIP.md: investigate why `*EQ(cursor_a, cursor_b)` in a pattern context does not propagate failure when integer args differ. Repro: `src = '++ 2'; src '+' @a (ANY('+') | epsilon) @b *EQ(a,b)` — should fail (b > a) but succeeds.
 
 #### Fixtures added (16 new, corpus@fee8778)
 
@@ -503,6 +503,18 @@ str_eq_op, str_ne_op, str_lt_op, str_le_op, str_gt_op, str_ge_op, mod_op, limit_
 - `case` expression (E_CASE)
 - `create` expression  
 - Global/local/static/initial declarations
-- Multi-line compound bodies (Gray = spaces only; newlines inside `{...}` not skipped)
+- Multi-line compound bodies (oracle `--dump-ir` also rejects them — not fixable at parser_icon.sc level alone)
 
-**Watermark — Next session:** Open IC-12. Priority order: (1) cset literal support, (2) augop wiring for new ops, (3) case expression, (4) multi-line compound fix.
+**Watermark — Next session:** Open IC-13. Priority order: (1) `create` expression (E_CREATE), (2) global/local/static/initial declarations, (3) cross-pollinate negative-lookahead idiom to other PARSER-* parsers.
+
+---
+
+### PARSER-IC-12 LANDED PASS=108 corpus@TBD
+
+Cset literal, case expression, BUG-SCRIP-EQ filed.  4 NEW fixtures over IC-11 baseline of 104.
+
+- **Cset literal** `'abc'` → `(E_CSET "aeiou")`: added `cset_pat = ("'" BREAK("'") . csetbody "'");`, `push_cset()` helper, `Push_cset` side-effect builder; wired as `$' ' cset_pat Push_cset` in `Expr11` (before `str_pat` — single-quote before double-quote); added `E_CSET = "'E_CSET'";` tag constant.  Fixed `tdump.sc` `TValue` to render `E_CSET` with double-quoted body (same as `E_QLIT` via `CQize`) — without this fix the generic IR-leaf branch rendered `(E_CSET aeiou)` without quotes, diverging from oracle.  Cross-pollination: any PARSER-* needing cset should add the same `TValue` branch to `tdump.sc`.
+- **Case expression** `case E of { v:r; default:r }` → `(E_CASE dispatch v1 r1 ... default_result)`: added `$'case'`, `$'of'` keyword tokens; `CaseClause` and `CaseDefault` patterns; `Case` production using `nPush()/nInc()/nPop()` — dispatch expr counted as first nInc, each clause pair counted as two nInc (one for value, one for result), default result as one nInc.  `DGray` used around `of` keyword and inside `{ }` so inline case (all on one line) parses via `$' '` within tokens, outer layout via `DGray` in `Case`.  Wired `Case` into `Expr11` before other primaries.
+- **Multi-line compound fix** — deferred: oracle (`--dump-ir`) also rejects multi-line `{ ... }` bodies (the existing C frontend only handles semicolon-separated single-line form).  No fixture can be added until both sides support it.  `DGray` definition kept in `parser_icon.sc` for future use by `Case` — not applied to `Compound`.
+- **BUG-SCRIP-EQ** filed: `GOAL-REWRITE-SCRIP.md` RS-26 (steps RS-26a/b/c).  Marked `[x]` in IC-11 open-rung checkbox.
+- New fixtures: `cset_lit`, `cset_compl_expr`, `case_simple`, `case_nodefault`.

@@ -77,7 +77,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6 ⏳ (SC-6a next: White+NL fix so beauty.sc multi-line exprs parse) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-10 LANDED PASS=88 corpus@1744d3e — augops + unary + special-assign + to..by + concat; next: cross-pollinate negative-lookahead idiom to other PARSER-* parsers |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-12 LANDED PASS=108 corpus@TBD — cset lit + case expr + BUG-SCRIP-EQ filed; next: IC-13 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-8b LANDED PASS=60; PR-8c (parenthesized body subterms) NEXT |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-6 LANDED PASS=40 FAIL=0 corpus@6a772b3 — captures \$0/\$N and \$<name>. Next: RK-7 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |

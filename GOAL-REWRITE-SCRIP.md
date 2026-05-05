@@ -382,6 +382,36 @@ requires a sentinel-value ABI, complexity outweighs the gain at this
 size.  Defer until a concrete motivating bug or new frontend work makes
 a split natural.
 
+### RS-26 (BUG-SCRIP-EQ) — Investigate `*EQ(cursor_a, cursor_b)` no-op in pattern context
+
+**Filed from PARSER-IC-11** (session 2026-05-05).
+
+**Symptom:** The idiom `@pos_a (ANY('reject_set') | epsilon) @pos_b *EQ(pos_a, pos_b)`
+does NOT fail when `pos_a ≠ pos_b`.  The deferred `EQ` call silently succeeds regardless
+of cursor delta — the negative-lookahead is a no-op.
+
+**Repro:**
+```snocone
+src = '++ 2';
+src '+' @a (ANY('+') | epsilon) @b *EQ(a, b)
+```
+Should fail (b > a, cursor advanced into `+`), but succeeds.  All `$'<'` / `$'>'`
+negative-lookahead tokens in `parser_icon.sc` IC-10 were no-ops; the grammar
+worked only because of alternation ordering (longer-prefix-first).
+
+**Impact:** No current fixture fails because alternation ordering is sufficient
+disambiguation.  The idiom was removed from `parser_icon.sc` in IC-11g.
+But true negative-lookahead via `*EQ` would be cleaner and is relied upon
+in documentation.
+
+- [ ] **RS-26a** — Write a minimal standalone Snocone repro that demonstrates
+  `*EQ(pos_a, pos_b)` pattern-context failure: set `@a`, advance cursor
+  (via `ANY('x')`), set `@b`, then `*EQ(a,b)` — should fail, probably succeeds.
+- [ ] **RS-26b** — Identify root cause: is `EQ` never called (pattern-match short-
+  circuits), called with wrong args, or called but its failure not propagated?
+  Trace through `src/runtime/x86/sm_interp.c` / `interp_eval.c` EQ path.
+- [ ] **RS-26c** — Fix and add regression fixture to test_smoke_snocone.sh.
+
 ---
 
 ## Tooling (RS-23 diagnostic — dormant unless re-running)
