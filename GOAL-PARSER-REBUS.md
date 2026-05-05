@@ -1780,3 +1780,45 @@ all six start at full pass — no parser is dragging the others.
 direction).  Or: PARSER-RB-FW rungs for n-ary alt flattening,
 n-ary call args, etc., when those upstream divergences get
 resolved.
+
+---
+
+## Session 2026-05-04 continuation #7 — alt_expr n-ary fix; PASS=38/38 restored
+
+### Context
+
+At session start the gate was PASS=35 FAIL=3 (alt_assign_three,
+alt_body_three, alt_match_three).  Upstream corpus had advanced to
+`61d825d` which changed the existing Rebus frontend's --dump-ir to
+emit n-ary flat `(E_ALT a b c)` for three-way alternation.
+parser_rebus.sc's `alt_expr` used binary left-fold
+`ARBNO(FENCE($'|' *atom reduce(ALT, 2)))` producing nested
+`(E_ALT (E_ALT a b) c)` — divergent from oracle.
+
+### Fix
+
+Two changes to `parser_rebus.sc`:
+
+1. `alt_expr` rewritten to n-ary spine per beauty.sc idiom:
+   ```
+   X_alt    = nInc() *atom FENCE($'|' *X_alt | epsilon);
+   alt_expr = nPush() *X_alt reduce(ALT, nTop_count) nPop();
+   ```
+   Single-atom case: nTop()=1, ALT wrapper is peeled in lower_atom.
+
+2. `lower_atom` ALT case: replace fixed lhs/rhs binary decomposition
+   with Append loop over `n(x)` children.  Single-child case passes
+   the child through directly (no E_ALT wrapper emitted).
+
+### Gate
+
+PASS=38 FAIL=0 restored.  Smoke also green (PASS=4 FAIL=0).
+
+### State
+
+| Repo   | Commit  | Notes |
+|--------|---------|-------|
+| corpus | `09d7f80` | alt_expr n-ary fold |
+| .github | this commit | watermark |
+
+**PARSER-RB-5 complete.  All six parsers at 100% gate.**
