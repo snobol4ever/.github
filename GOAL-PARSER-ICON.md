@@ -560,3 +560,20 @@ Real literal + keyword expression. 2 NEW fixtures.
 - New fixtures: `real_lit`, `kw_expr`.
 
 **Next session (IC-16):** Exponent-form real literal normalization (parse `1.5e2` → store `150` by evaluating via `REAL()` or `integer()`); `not expr` → `(E_NOT expr)`; `E_FAIL` (bare `fail` as expression rather than statement).
+
+---
+
+### PARSER-IC-16 LANDED PASS=121 corpus@TBD
+
+`not expr`, `fail` as expression, exponent real normalization. 3 NEW fixtures.
+
+- **`not expr`** → `(E_NOT expr)`: added `$'not' = $' ' 'not';` keyword token; wired `$'not' $'  ' *Expr10 (E_NOT & 1)` in `Expr10` before the `*Expr11` fallthrough (parallel to other unary-prefix branches).
+- **`fail` as expression** → `(E_PROC_FAIL)`: wired `$'fail' $' ' (E_PROC_FAIL & 0)` in `Expr11` alongside `$'break'`/`$'next'` zero-child primaries. `FailStmt` in `StmtBody` still matches `fail;` as a statement; the `Expr11` form covers `fail` in any expression context.
+- **Exponent real normalization**: `push_flit()` already calls `REAL(rval)` giving `100.` for `1.0e2`. Normalization (`100.` → `100`) done in `tdump.sc` `TValue`/`TLump0` E_FLIT renderer. Two bugs encountered and resolved:
+  1. **Positional anchors (`RPOS`, `LEN`) fail in pipeline function context (RS-27)**: when called from the full parser pipeline, `RPOS(0)` and `LEN(n)` inside a function resolve against the outer pattern subject (`Src`) rather than the local variable. Avoided by using SIZE arithmetic instead.
+  2. **`v(x)` type mismatch**: `tree('E_FLIT', REAL(rval))` stores a real-typed descriptor; `v(x)` returns a real, not a string — `IDENT(pre '.', v(x))` fails on type mismatch even when the string representations are identical. Fixed by forcing string coercion: `fval = '' v(x)`.
+  3. **Working fix** in `TValue` and `TLump0`: `fval = '' v(x); fval SPAN(digits) . pre; if (DIFFER(pre) IDENT(SIZE(pre)+1, SIZE(fval))) fval = pre;` — avoids both issues entirely.
+- SCRIP bug RS-27 filed in `GOAL-REWRITE-SCRIP.md` with full root-cause analysis.
+- New fixtures: `not_expr`, `fail_expr`, `real_exp`.
+
+**Next session (IC-17):** `=E` match-expression rewrite as `match(E)` call (already in C frontend's `parse_unary`); `string@integer` activation expression (`E_ACTIVATE`); cross-pollinate DGray Compiland fix and IC-16 `not`/`fail` tokens to other PARSER-* parsers.

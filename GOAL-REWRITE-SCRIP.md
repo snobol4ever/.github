@@ -550,6 +550,45 @@ in documentation.
 
 ---
 
+### RS-27 (BUG-SCRIP-NRETURN-PAT) — Positional pattern predicates fail inside NRETURN functions
+
+**Discovered:** PARSER-IC-16 session, 2026-05-05.
+
+**Symptom:** Inside a function (both `nreturn` and regular `return`), pattern
+positional predicates (`RPOS(0)`, `LEN(n)`) applied to a local string variable
+fail when called from the full parser pipeline.  Specifically, `fval SPAN(digits)
+. pre '.' RPOS(0)` fails even when `fval = '100.'` and the same pattern succeeds
+at top level in a standalone script.
+
+Additionally, `IDENT(pre '.', fval)` returns false even when both appear to be
+`'100.'` SIZE=4 — because `fval = v(x)` where the tree node was built with
+`REAL(rval)`, so `v(x)` returns a **real-typed descriptor** internally, not a
+plain string.  `IDENT` compares types as well as values and fails on the
+real-vs-string mismatch.  Forcing string coercion via `fval = '' v(x)` resolves
+the IDENT issue.
+
+The positional predicate failure (`RPOS`, `LEN`) is a separate issue: in the
+`--ir-run` context with an active outer pattern subject (`Src`), positional
+anchors inside a function resolve against `Src` rather than the local variable
+being matched.
+
+**Working workaround (in use in tdump.sc TValue + TLump):**
+```snocone
+fval = '' v(x);                                    // force string coercion
+fval SPAN(digits) . pre;                           // capture digit prefix
+if (DIFFER(pre) IDENT(SIZE(pre) + 1, SIZE(fval))) fval = pre;  // strip trailing '.'
+```
+This avoids both RPOS/LEN and IDENT type mismatch entirely.
+
+- [ ] **RS-27a** — Confirm repro: run the minimal script above with
+  `scrip --ir-run`, verify `NO_MATCH` (bad) vs `MATCHED` (good).
+- [ ] **RS-27b** — Identify root cause in `sm_interp.c` / `interp_eval.c`:
+  trace how pattern cursor / subject are set up when entering a dot-star
+  function call; find where `LEN(k)` resolves its anchor.
+- [ ] **RS-27c** — Fix and add regression fixture to `test_smoke_snocone.sh`.
+
+---
+
 ## Tooling (RS-23 diagnostic — dormant unless re-running)
 
 - `src/driver/rs23_diag.c` — link-time `__wrap_interp_eval`.  Active
