@@ -320,6 +320,23 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
+### PARSER-RK-12 — logical `&&`/`||`/`!` ops — LANDED session 2026-05-05
+
+- [x] `!expr` (prefix logical NOT) → `(E_NOT expr)`.
+      `$'!' *Expr11 Finish_not` arm at top of `Expr11`; reuses `Finish_not` from RK-11.
+- [x] `a && b` → `(E_SEQ a b)`.  `Expr3tail` with `$'&&' *Expr4 (E_SEQ & 2)`.
+      Mirrors raku.y `cmp_expr OP_AND add_expr → E_SEQ`.
+- [x] `a || b` → `(E_ALT a b)`.  `Expr3tail` with `$'||' *Expr4 (E_ALT & 2)`.
+      Mirrors raku.y `cmp_expr OP_OR add_expr → E_ALT`.
+- [x] Chains `a && b && c` → nested left-associative binary `(E_SEQ (E_SEQ a b) c)`.
+      Oracle uses `expr_binary` (not flatten) for `&&`/`||`; ARBNO left-assoc matches.
+- [x] `Expr3` tier inserted above `Expr4`; `Expr` updated from `Expr4` to `Expr3`.
+- [x] Test corpus: 5 new fixtures (logic_and, logic_or, logic_not, logic_chain,
+      logic_or_chain).
+- **Gate:** PASS=65 FAIL=0 ✓  corpus@15666e9.
+
+---
+
 ## Invariants
 
 - Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
@@ -345,18 +362,15 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-11 LANDED (session 2026-05-05) — PASS=60 FAIL=0.
-RK-7: $*STDIN/$*STDOUT/$*STDERR standard handles (corpus@5da7d87).
-RK-8: m:g/body/ global match + s/pat/repl/[g] substitution + CQize \xNN fix (corpus@dcba3b5).
-RK-9: @arr[$expr] arr_get, %h<ident> hash_get (angle), %h{$expr} hash_get (brace),
-  exists %h<ident> hash_exists, exists %h{$expr} hash_exists.  corpus@e605b01.
-RK-10: delete %h<ident>/%h{$expr} → hash_delete; range a..b/a..^b → E_TO;
-  for lo..hi -> $v { body } → make_for_range while-loop lowering.  corpus@c7c2d14.
-RK-11: unless (cond) [else] → E_IF(E_NOT cond); until (cond) → E_UNTIL;
-  push(@a,v)/pop(@a) already handled as plain call_expr.  corpus@f663327.
+PARSER-RK-12 LANDED (session 2026-05-05) — PASS=65 FAIL=0.
+RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
+RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
+RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
+RK-12: logical && → E_SEQ, || → E_ALT, ! → E_NOT (prefix).
+  Expr3 tier above Expr4; E_SEQ/E_ALT left-assoc nested binary.  corpus@15666e9.
 
-Next session: PARSER-RK-12 — string ops (index, substr, length/chars, lc/uc),
-  or logical ops (&& || !), or arr_push builtin form push(@arr, val) with multiple values.
+Next session: PARSER-RK-13 — string ops (index/substr/chars/lc/uc/uc),
+  or string concat ~ operator, or assignment ops +=/-=/*=/etc.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
