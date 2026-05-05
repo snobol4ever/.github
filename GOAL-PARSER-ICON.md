@@ -518,3 +518,19 @@ Cset literal, case expression, BUG-SCRIP-EQ filed.  4 NEW fixtures over IC-11 ba
 - **Multi-line compound fix** — deferred: oracle (`--dump-ir`) also rejects multi-line `{ ... }` bodies (the existing C frontend only handles semicolon-separated single-line form).  No fixture can be added until both sides support it.  `DGray` definition kept in `parser_icon.sc` for future use by `Case` — not applied to `Compound`.
 - **BUG-SCRIP-EQ** filed: `GOAL-REWRITE-SCRIP.md` RS-26 (steps RS-26a/b/c).  Marked `[x]` in IC-11 open-rung checkbox.
 - New fixtures: `cset_lit`, `cset_compl_expr`, `case_simple`, `case_nodefault`.
+
+---
+
+### PARSER-IC-13 LANDED PASS=113 corpus@3a8f465
+
+Global/local/static/initial/record declarations. 5 NEW fixtures over IC-12 baseline of 108.
+
+- **`global id, id`** at top level → `(STMT :subj (E_GLOBAL (E_VAR id) ...))`: `push_global_top()`, `GlobalDecl` production wired into `Compiland` ARBNO alongside `Record` and `Proc`. `Compiland` ARBNO now uses `*DGray` (includes newlines) so blank lines between top-level items don't stall the loop.
+- **`local id, id`** in proc body → `E_GLOBAL` stmt child inside `E_FNC`: `push_local_stmt()`, `LocalDecl` production wired into `StmtBody`.
+- **`static id`** in proc body → also `E_GLOBAL` (same tag as local per oracle; ival differs in C but not in dump): `StaticDecl` shares `push_local_stmt`.
+- **`initial { expr }`** in proc body → `(E_INITIAL child)`: `InitialStmt` production using `nPush/nInc/nPop` with `*DGray` inside braces. Bug during development: forgot `nInc()` after `*Expr` so `nTop()=0` → `(E_INITIAL)` with no children; fixed.
+- **`record Name(f1, f2)`** at top level → `(STMT :subj (E_RECORD Name (E_VAR f1) ...))`: `push_record()`, `Record` production. Name shifted as `(E_VAR Name)` first child; `push_record` reads `v(kids[1])` for sval.
+- **`DGray`** definition added (deep gray = `SPAN(' ' tab nl)`); used in `InitialStmt` body and `Compiland` ARBNO. Not applied to `Compound` (oracle C frontend also rejects multi-line `{ }`).
+- Shared patterns: `DeclFirst`/`DeclRest`/`DeclIds` for comma-separated identifier lists.
+
+**Next session (IC-14):** `create` expression (`E_CREATE` if it exists), `suspend`/`fail` statement forms, `link`/`invocable` top-level declarations, and cross-pollinating `DGray` Compiland fix to other PARSER-* parsers.
