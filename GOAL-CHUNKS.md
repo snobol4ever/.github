@@ -209,7 +209,7 @@ milestones:
 
 ### M1 — SNOBOL4 + Snocone isolated through modes 2 and 3
 
-- [ ] **Step 1 — Survey + scaffolding.**
+- [x] **Step 1 — Survey + scaffolding.**
   Audit all 10 `emit_push_expr` call sites in `sm_lower.c`
   (lines 326, 345, 386, 470, 573, 975, 986, 993, 1232 — the
   10th is the helper definition at line 39).  For each site,
@@ -229,7 +229,7 @@ milestones:
   emits them yet.  This step is pure addition — no behaviour
   change.  Gates: standard set, all green.
 
-- [ ] **Step 2 — Migrate sm_lower.c:573 (E_DEFER / `*expr`).**
+- [x] **Step 2 — Migrate sm_lower.c:573 (E_DEFER / `*expr`).**
   Single-site warm-up.  The simplest emit_push_expr site —
   `*expr` in value context.  Change the lowering: emit
   forward-jump + chunk body (`lower_expr` of the child) +
@@ -445,7 +445,17 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 
 ## Closed steps
 
-(none yet — this goal is brand new in session #62, 2026-05-05)
+**Step 1** — Survey + scaffolding. `SmChunk_t`, `SM_PUSH_CHUNK`, `SM_CALL_CHUNK` added to
+`sm_prog.h`; FATAL stubs in `sm_interp.c` and `sm_codegen.c`; `docs/CHUNKS-step01-audit.md`
+produced. one4all @ `a79b09f0`. Session #63, 2026-05-05.
+
+**Step 2** — Migrate `sm_lower.c:573` (E_DEFER / `*expr`). `SM_PUSH_CHUNK` emitted for
+E_DEFER in value context. `SM_CALL_CHUNK` implemented in `sm_interp.c` and `sm_codegen.c`
+with minimal SmCallFrame (retval_name=NULL). `EVAL(*expr)` special-cased in E_FNC
+lowering to emit chunk inline + `SM_CALL_CHUNK` — same SM stack, no nested run.
+Scope boundary: stored-chunk `E=*expr; EVAL(E)` deferred (EXPVAL_fn returns FAILDESCR
+for slen==1 DT_E until NV integer-carry infrastructure lands).
+one4all @ `1b42498f`. Session #63, 2026-05-05.
 
 **Prep work, session #62 (no rungs closed):** sub-goal files
 written for Steps 8/9/10/11 + 19 (rungs deferred until prereqs
