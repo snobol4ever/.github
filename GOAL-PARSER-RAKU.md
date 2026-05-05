@@ -337,6 +337,21 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
+### PARSER-RK-13 — string `~` concat → `E_CAT` n-ary — LANDED session 2026-05-05
+
+- [x] `a ~ b` → `(E_CAT a b)`.  `$'~' *Expr7 Flatten_cat` arm in `Expr6tail`.
+      Mirrors raku.y `add_expr '~' mul_expr → expr_binary_flatten(E_CAT)`.
+- [x] `a ~ b ~ c` → `(E_CAT a b c)` — n-ary flatten, same pattern as `flatten_add`.
+      `flatten_cat` helper: pop rhs, pop lhs; if `t(lhs)==E_CAT` append rhs in-place;
+      else build fresh 2-child node.
+- [x] `$'~'` one-char token; no conflict with `$'~~'` two-char in Expr4tail
+      (different expression tier level).
+- [x] Test corpus: 5 new fixtures (str_cat, str_cat_chain, str_cat_lit, str_cat_say,
+      str_cat_mixed).
+- **Gate:** PASS=70 FAIL=0 ✓  corpus@591f91b.
+
+---
+
 ## Invariants
 
 - Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
@@ -362,15 +377,15 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-12 LANDED (session 2026-05-05) — PASS=65 FAIL=0.
+PARSER-RK-13 LANDED (session 2026-05-05) — PASS=70 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
-RK-12: logical && → E_SEQ, || → E_ALT, ! → E_NOT (prefix).
-  Expr3 tier above Expr4; E_SEQ/E_ALT left-assoc nested binary.  corpus@15666e9.
+RK-12: logical && → E_SEQ, || → E_ALT, ! → E_NOT.  corpus@15666e9.
+RK-13: string ~ concat → E_CAT n-ary flatten.  corpus@591f91b.
 
-Next session: PARSER-RK-13 — string ops (index/substr/chars/lc/uc/uc),
-  or string concat ~ operator, or assignment ops +=/-=/*=/etc.
+Next session: PARSER-RK-14 — compound assign += -= *= /= ~=,
+  or interpolated strings \"hello \$var\", or string comparison eq ne lt gt.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
