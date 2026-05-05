@@ -678,3 +678,129 @@ Gate PASS=60 FAIL=0.
 Gate PASS=65 FAIL=0.
 
 **PR-8d DCG sugar — ⏳ NEXT.**
+
+### PARSER-PR-8d debugging handoff note (2026-05-05 session)
+
+**Gate entering this session:** PASS=65 FAIL=0.
+**Gate leaving this session:** PASS=65 FAIL=10 (10 new DCG fixtures added, all diverging).
+
+All 65 pre-existing tests remain green throughout.
+
+#### What was added
+
+- `E_DCG_IL = "'E_DCG_IL'"` constant — marks `{Goals}` inline goal trees so
+  `expand_dcg_body` can distinguish them from non-terminals.
+- Tokens: `$'-->'`, `$'{'`, `$'}'`, `Tk_cut` (`'!'`).
+- Parallel DCG grammar ladder:
+  `dcg_goal` → `dcg_conj` → `dcg_disj` → `dcg_body` (mirrors
+  `body_goal`/`conj`/`disj`/`body` but handles terminal lists, `{}`, `!`).
+- `dcg_rule = ( head $'-->' Mark_body dcg_body $'.' Build_dcg )` added to
+  `top_form = (directive | dcg_rule | clause)`.
+- Semantic functions: `dcg_fresh_var`, `dcg_append_tail`, `dcg_make_unify`,
+  `dcg_var_tree`, `dcg_call_nt`, `dcg_build_conj`, `expand_dcg_body`,
+  `build_dcg`, `push_dcg_inline`, `push_cut`, `Mark_dcg_body`.
+- 10 fixtures in `corpus/programs/prolog/parser/`: `dcg_empty_list`,
+  `dcg_single_atom`, `dcg_nt_simple`, `dcg_nt_args`, `dcg_conj3`,
+  `dcg_disj`, `dcg_terminal_two`, `dcg_mixed`, `dcg_inline`, `dcg_cut`.
+
+#### Known symptom
+
+All 10 DCG fixtures produce **tree divergence: parser output is empty**.
+No parse error, no crash — `dcg_rule` matches (the grammar parses `a --> [].`
+correctly per manual trace) but `Build_dcg` either fails silently or the
+resulting STMT is not reaching the TDump walk.
+
+#### Suspected root causes (in order of likelihood)
+
+1. **`build_dcg` calls `Pop()` for body_tree, but the stack discipline is
+   wrong.** `dcg_rule` calls `Mark_body` (which sets `body_present = 1`) then
+   `dcg_body` which pushes a tree, then `Build_dcg`. But `build_dcg` does
+   `body_tree = Pop()` then pops `head_arity` args, then calls
+   `expand_dcg_body`. Check: is the stack correctly ordered? The `head`
+   pattern pushes head args and calls `snapshot_head`; then `dcg_body` pushes
+   the body tree on top. So `Pop()` should get body_tree, then the head args.
+   **Verify by adding `OUTPUT 'body_tree: ' t(body_tree)` right after the
+   `Pop()` in `build_dcg`.**
+
+2. **`~DIFFER(t(body), E_FNC)` check in `expand_dcg_body` is wrong.**
+   The fall-through catch-all for non-E_FNC nodes (`~DIFFER(t(body), E_FNC)`)
+   should use `DIFFER(t(body), E_FNC)` (without `~`) to match anything that
+   is NOT an `E_FNC`. Snocone: `~DIFFER(a, b)` means `a == b` (succeed when
+   identical). So `~DIFFER(t(body), E_FNC)` catches nodes where tag IS
+   `E_FNC` — exactly wrong. **Fix: change to `if (DIFFER(t(body), E_FNC))`.**
+   This is the most likely bug; it would cause `expand_dcg_body` to misroute
+   `E_FNC` nodes (non-terminals, lists) into the pass-through arm instead of
+   the `dcg_call_nt` arm, producing a malformed goals array.
+
+3. **`build_dcg` uses `body_present` flag but `Mark_body` is called via
+   `Mark_dcg_body = epsilon . *mark_body()` before body parsing.** The
+   `build_dcg` function does NOT check `body_present` — it unconditionally
+   pops body_tree. That is correct and intentional (DCG rules always have a
+   body). `body_present` is irrelevant for DCG; ignore it.
+
+4. **`dcg_var_tree(slot_name)` uses `tree()` (lowercase) but the rest of the
+   file uses `Tree()` (uppercase).** In Snocone, `tree()` is the IR leaf
+   constructor (value node), `Tree()` is the parent-node constructor. `E_VAR`
+   nodes are leaves (value = slot name, no children). So `tree('E_VAR',
+   slot_name)` is correct — BUT verify `tree` vs `Tree` semantics in this
+   runtime: look at how `Push_var` / `push_var` constructs `(E_VAR _Vk)`.
+   Line 83: `Push(tree('E_VAR', '_ANON'))` — confirmed lowercase `tree()` for
+   leaf nodes. `dcg_var_tree` is correct.
+
+5. **`dcg_fresh_var` uses `dcg_svar_count` but `dcg_svar_count = 0` is reset
+   inside `build_dcg` AFTER `Pop()` / head-arg pops.** The reset to 0 happens
+   before `dcg_fresh_var()` is called for `s0`/`s1`. But `dcg_fresh_var`
+   also increments `var_next` which is shared with the clause var scope.
+   Verify that `var_next` at the time `build_dcg` runs is 0 for a no-arg
+   head (since `Reset_var_scope` was called inside `head`, setting
+   `var_next = 0`). This is correct.
+
+6. **`expand_dcg_body` is a recursive Snocone function that returns integer
+   `n` (goal count).** In Snocone, functions return via `fn_name = value;
+   return;`. Check that all return paths in `expand_dcg_body` set
+   `expand_dcg_body = n` before `return`. The comma-conjunction arm:
+   `expand_dcg_body = n; return;` — correct. The empty-list arm:
+   `expand_dcg_body = n; return;` — correct. **But the `E_DCG_IL` arm
+   uses `nreturn` instead of `return` — this is wrong if `expand_dcg_body`
+   is not a pattern-function but a regular function.** Check all `nreturn`
+   vs `return` usage: `nreturn` is for pattern-functions that set `self =
+   .dummy`; regular functions with a return value use `return`. In
+   `expand_dcg_body`, all exits should use `return`, not `nreturn`. **Fix:
+   change any `nreturn` in `expand_dcg_body` to `return`.**
+
+#### Recommended debugging sequence for next session
+
+```bash
+# 1. Setup
+( cd /home/claude/one4all && git checkout parser )
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
+# expected: PASS=65 FAIL=10
+
+# 2. Fix the two most-likely bugs first (items 2 and 6 above):
+#    a) ~DIFFER -> DIFFER in expand_dcg_body fall-through
+#    b) any nreturn -> return in expand_dcg_body
+# Then re-run gate. If still empty output:
+
+# 3. Add debug OUTPUT to build_dcg:
+#    OUTPUT 'build_dcg fired, head_name=' head_name ' head_arity=' head_arity
+#    OUTPUT 'body_tree tag=' t(body_tree) ' val=' v(body_tree)
+# Run: echo "a --> []." | scrip --ir-run [all sc files] 2>/dev/null
+# If no debug output: build_dcg is not firing — problem is in grammar / match
+# If debug output appears: problem is in expand_dcg_body or Tree construction
+```
+
+#### Oracle IR shapes verified (all 10 fixtures)
+
+All 10 oracle outputs were captured during this session. The `--dump-ir`
+output for each fixture is the ground truth. The DCG transformation algorithm
+in `expand_dcg_body` mirrors `prolog_parse.c::dcg_expand_body` exactly.
+
+**Var naming in oracle:** hidden DCG vars in oracle use `_Sk` names internally
+but appear as `_Vk` in `--dump-ir` output (after `assign_clause_vars` renaming).
+Our `dcg_fresh_var()` allocates through `var_next` and names them `_Vk` directly
+— matching the oracle output slot numbering, since DCG hidden vars follow
+explicitly-named vars in allocation order (and for 0-arg head, named vars = 0,
+so `_V0` = `s0`, `_V1` = `s1`).
+
+**Gate to achieve:** PASS≥75 FAIL=0 (all 10 DCG fixtures + all 65 existing).
