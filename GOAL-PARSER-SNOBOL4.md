@@ -647,6 +647,69 @@ tractability):
 | 6  | Use `$'X'` token variables in productions (binary form canonical, `$' '` sprinkled at unary site) + full Snocone operator-token table | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | (this session) | Session 2026-05-05. Every place a grammar production used inline `$' ' 'X'` for a punctuation/operator that already had a `$'X'` token defined is now using the variable. **Rule for dual-use operators (`-`, `+`, `*`, etc.)**: the variable `$'X'` is the **binary** form (`$' ' 'X' $' '`); at **unary** sites the production uses literal `$' ' 'X'` (single leading `$' '` + raw `'X'`). Per-parser changes: **Icon** added `$'~'`, `$'!'`, `$'\\'` to operator block (only-unary in Icon — defined in binary shape for consistency though only used unary); replaced `$' ' '(' ... $' ' ')'` with `$'(' ... $')'` in `Call` and `Prochead`; in `Expr10` unary tower, `~`/`\\`/`!` use `$'X'` variables, dual-use `-`/`+`/`*`/`?` keep `$' ' 'X'` literal form. **SNOBOL4** added `$':'` token; replaced `$' ' ':' ... ':' $' '` with `$':'` in `Goto`. **Prolog** added leading `$' '` to unary minus (`'-' Int . p_negi` → `$' ' '-' Int . p_negi`). **Snocone** added 24 missing operator tokens (Step 3f from `GOAL-PARSER-SNOCONE.md`): `[ ] , : ^ ** ! $ . & @ # % ~ == != < > <= >= ==: !=: <: >: <=: >=: :: :!: += -= *= /= ^=` — full set per `snocone_parse.y` token enum (`T_2*` binary, comparisons, identity, augmented assign).  Snocone block reorganized with named subsections (bracketing, pri-0/1/3, arith binary, pattern-build, cursor/position, numeric comparison, lexical comparison, identity, augmented assign).  No production references the new snocone tokens yet — they will be wired in as SC-4..SC-6 land. **No SCRIP C-side bugs encountered.** |
 | 7  | parser_snobol4.sc only — remove rw_tag rewrite layer; grammar emits canonical IR (E_*) tags directly | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | (this session) | Session 2026-05-05. **Lon directive: scope is parser_snobol4.sc only**, the layer that previously parsed beauty.sno-native tag names ("'+'", "'..'", "'\|'", "'Id'", "'String'", etc.) into the parse tree, then walked the tree with `rw_tag` mapping each native tag to its canonical IR tag (`E_ADD`, `E_SEQ`, `E_ALT`, `E_VAR`, `E_QLIT`, etc.) is now removed. Grammar emits the canonical IR tag directly via the OPSYN'd `&` reduce shorthand: `("'+'" & 2)` → `(E_ADD & 2)`, `("'\|'" & '...')` → `(E_ALT & '...')`, `("'..'" & '...')` → `(E_SEQ & '...')`, `*Id ~ 'Id'` → `*Id ~ E_VAR`, `*Integer ~ 'Integer'` → `*Integer ~ E_ILIT`, `*Real ~ 'Real'` → `*Real ~ E_RLIT`, `*ProtKwd ~ 'ProtKwd'` and `*UnprotKwd ~ 'UnprotKwd'` → `~ E_KEYWORD`, capture operators `'$'`/`'.'` binary → `E_CAPT_IMMED_ASGN`/`E_CAPT_COND_ASGN`, unary `'+'`/`'-'` → `E_PLS`/`E_MNS`. **String capture switched to inner-body capture + Push_qlit worker** (canonical pair-shape from iter#5): `DQ`/`SQ` patterns now BREAK-capture into `str_body`; grammar uses `*String Push_qlit` to push `(E_QLIT body)` with quotes already stripped — replaces the old `rw_expr` String quote-strip branch. IR-tag string constants added at the top of the file (`E_VAR`, `E_ILIT`, `E_QLIT`, `E_RLIT`, `E_KEYWORD`, `E_SEQ`, `E_ALT`, `E_ADD`, `E_SUB`, `E_MUL`, `E_DIV`, `E_POW`, `E_PLS`, `E_MNS`, `E_CAPT_IMMED_ASGN`, `E_CAPT_COND_ASGN`). `rw_tag` function deleted. `rw_expr` simplified: dropped tag-rename calls, dropped String quote-strip branch (now done at parse time). Left-rotation predicate `DIFFER(new_t, t)` replaced by explicit `is_rotatable(t)` test against the seven binary-arith / capt-asgn IR tags that beauty.sno builds right-recursively. `rw_call`, `pp_stmt` unchanged in shape. Tags that beauty.sno used and `rw_tag` left untouched (`'='`, `'?'`, `'@'`, `'#'`, `'%'`, `'~'`, `'&'`, `'!'`, `'/'`, `'\|'` unary, `'[]'`, `','`, `'()'`, `'Call'`, `'ExprList'`, `'Stmt'`, `'Comment'`, `'Control'`, `'Label'`) stay as literal-byte tags — they're either internal wrappers stripped before TDump or unary forms not exercised by the SN gate corpus. Net effect on parser_snobol4.sc: 27-line `rw_tag` dispatch table removed; replaced by 14-line `is_rotatable` + IR-tag constants block; grammar reads more directly with no rename-table indirection. **No SCRIP C-side bugs encountered.** Other five parsers untouched. |
 | 8  | FENCE around all the right levels — prevent useless backtracking thrashing using SNOBOL4 Expr gauntlet as the model | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | (this session) | Session 2026-05-05. SNOBOL4's `Expr0..Expr14` tower already used the canonical `*Expr_n FENCE($'op' *Expr_n (... & 2) \| epsilon)` form (model parser); the other five parsers had bare `( ... \| epsilon )` alternations that allow backtracking across already-committed operator branches. Wrapping each tail in `FENCE(...)` makes the grammar fail fast on the unique committed branch — once `$'+'` matches, the matcher does not retry the `epsilon` arm if the right-hand expression fails to parse. Per-parser changes: **Snocone** Expr9, Expr6 (FENCE outer alt + inner second-iteration FENCE preserved); X4, X3, Expr1, Expr0 (FENCE bare alt). **Icon** Expr8, Expr7tail, Expr6tail, Expr4tail, X3, Expr1, Expr1a (FENCE all). **Prolog** args, args_tail, list, mul_expr, add_expr, is_expr, unify_expr (FENCE all). **Raku** Expr7tail, Expr6tail, Expr4tail (FENCE around the bare alternation). **Rebus** alt_expr ARBNO body, expr, match_or_expr, stmt, func_body_stmt, X_params, opt_params, X_fields, opt_fields (FENCE all). SNOBOL4 itself unchanged — was already canonical. **No SCRIP C-side bugs encountered.** All six gates 100% throughout. |
+| 9  | ⏳ IN PROGRESS — n-ary trees everywhere with children in source order; flatten arith/concat/alt chains in C frontends; runtime n-ary lowering; flatten/rotate split in parser_*.sc | 57→? | 51→? | 54→? | 31→? | 21→? | 35→? | (in flight) | Session 2026-05-06. **Lon directive:** "n-ary everywhere. unary is c[0] and binary has c[0] and c[1] and some binary spread out like SEQ ALT." Reverses the iter#9 prep-note plan (left-recursive `ARBNO(tail)` Icon-style) — destination is right-recursive grammar everywhere with n-ary collection at parse time. **Phase A (C frontends — DONE):** new `expr_binary_flatten(k, l, r)` in `scrip_cc.h` returns `l` with `r` appended when `l->kind==k`, else builds fresh binary; sibling `expr_binary_flatten_right(k, l, r)` for right-associative ops (E_POW) — prepends `l` into `r`'s children when `r->kind==k`. Applied in `snobol4.y` (E_ADD/E_SUB/E_MUL/E_DIV left-flat; E_POW right-flat), `snocone_parse.y` (same set), `raku.y` (E_ADD/E_SUB/E_MUL/E_DIV/E_CAT left-flat — no POW in Raku), `icon_parse.c` (recursive-descent — `parse_add`/`parse_mul`/`parse_pow` updated; E_MOD stays binary), `rebus_lower.c` (RE_ADD/RE_SUB/RE_MUL/RE_DIV/RE_STRCAT/RE_PATCAT/RE_ALT left-flat; RE_POW right-flat). **Phase B (runtime n-ary — DONE):** `sm_lower.c` adds `LOWER_NARY_LFOLD(op)` (lower c[0], then for each i≥1: lower c[i] and emit op — produces left-fold `((a OP b) OP c)`) and `LOWER_NARY_RFOLD(op)` (lower all then emit op n-1 times — produces right-fold `(a OP (b OP c))`). E_ADD/E_SUB/E_MUL/E_DIV use LFOLD; E_POW uses RFOLD; E_MOD stays binary LOWER2. Same fold patterns landed in `interp_eval.c` and `eval_code.c` arith handlers. `pl_runtime.c::pl_unified_term_from_expr` updated to fold n-ary E_ADD/etc. back to right-recursive nested binary `+(a,+(b,c))` compounds (Prolog convention). **Phase C (verify execution — DONE):** `--ir-run`, `--sm-run`, and SPITBOL oracle all produce identical correct output on a 7-line chain test (`1+2+3+4=10`, `1-2-3=-4`, `2**3**2=512` right-fold, `1+2*3=7`, `1-2+3-4=-2` mixed-op). **Phase D (parser_*.sc — IN PROGRESS):** `parser_snobol4.sc` rewritten — `is_rotatable` split into `is_flatten_op` (E_ADD/E_SUB/E_MUL/E_DIV/E_POW) and `is_rotate_op` (E_CAPT_IMMED_ASGN/E_CAPT_COND_ASGN — these stay binary because the runtime E_CAPT_*_ASGN handlers are strictly binary; rotation flips parser-built right-recursive to left-recursive binary matching oracle). Flatten path post-recurses children, splices any same-tag rewritten child's children into the parent in source order. NOT YET TESTED on the SN gate. **parser_raku.sc and parser_rebus.sc need the same flatten treatment** — RK at PASS=31 (1 fail: `arith_chain` — oracle now `(E_ADD 1 2 3)` flat, parser still emits `(E_ADD (E_ADD 1 2) 3)`); RB at PASS=35 (3 fails: `alt_assign_three`/`alt_body_three`/`alt_match_three` — same shape mismatch on E_ALT now that `rebus_lower.c::RE_ALT` flattens at C side). PARSER-IC, PARSER-PR, PARSER-SC stayed at 100% — their corpora don't exercise 3+ same-op chains. **Phase E (FENCE sweep, second pass — NOT STARTED):** every `(P \| epsilon)` alternation across the six parsers; keep where backtracking is provably useless (audit per Lon directive "everywhere it is possible for FENCE not to break and helps performance"). Resume here. **Open SCRIP-side cleanup (next session):** see "Cleanup — Rebus RExpr → EXPR_t double layer" step below. |
+
+#### Cleanup — Rebus RExpr → EXPR_t double layer (next session, BEFORE finishing iter#9)
+
+**Lon directive (session 2026-05-06):** "Get rid of two layers regarding Rebus
+RExpr AST versus EXPR_t.  Go direct."  Five frontends (SNOBOL4 .y, Snocone .y,
+Raku .y, Icon recursive-descent, Prolog driver) build `EXPR_t` directly in
+their reduce actions / parse functions.  Rebus is the lone outlier — its
+bison reduce actions build `RExpr` (a separate AST type with its own
+`REKind` enum, its own `rexpr_new`/`rbinop` allocators, and a `left`/`right`
+binary-only structure), then a second pass in `rebus_lower.c` walks the
+RExpr tree and produces `EXPR_t`.
+
+There is no good reason for the indirection.  Two AST types, two enum sets,
+two allocators, two visitor walks — all to produce the same final IR every
+other frontend produces directly.  The RExpr layer doubles the code surface,
+forces every flatten / rotate / canonicalization decision to happen twice
+(or pick a layer, as iter#9 had to in `rebus_lower.c::RE_ADD`), and hides
+the IR shape from the bison actions.  This is friction, not architecture.
+
+**Steps:**
+
+- [ ] **Step CR-1 — Inventory the Rebus AST surface.**  List every `RExpr`
+      / `RStmt` / `REKind` / `RSKind` use site.  Sources: `frontend/rebus/
+      rebus.h` (struct + enum defs), `rebus.y` (every reduce action),
+      `rebus.l` (likely RExpr-free but verify), `rebus_lower.c` (the
+      walker), `rebus_emit.c` (Rebus-AST pretty-printer — keep or drop?
+      decide in CR-2), and any other file that names RExpr.
+
+- [ ] **Step CR-2 — Decide rebus_emit.c fate.**  This file contains the
+      `RE_ADD: emit_expr_atom(e->left,out); fprintf(out,"+");` style
+      pretty-printer for Rebus syntax.  Three options: (a) port to walk
+      `EXPR_t` directly (Snocone-style `expr_dump`), (b) delete entirely
+      if no live caller, (c) keep as a debug-only path on EXPR_t.
+      Decision drives CR-3 / CR-4 scope.
+
+- [ ] **Step CR-3 — Rewrite reduce actions to build EXPR_t directly.**
+      Every `rbinop(RE_ADD, $1, $3, yylineno)` becomes
+      `expr_binary_flatten(E_ADD, $1, $3)` (mirroring Snocone's `.y`).
+      Every `rexpr_new(RE_..., lineno)` becomes the appropriate `expr_new`
+      / `expr_unary` / `expr_binary` / `make_fnc(...)` call.  Keep the
+      lineno carried via `EXPR_t::lineno` (or wherever it lives — verify
+      against current snobol4.y reduce actions).  Same shapes that
+      `rebus_lower.c::lower_expr` produces today, just produced inline at
+      reduce time instead of via a second walk.  Token-class shapes
+      (`RE_ADDASSIGN` → `E_ASSIGN(lhs, E_ADD(clone(lhs), rhs))` per
+      snocone_parse.y model) move into the .y action too.
+
+- [ ] **Step CR-4 — Delete rebus_lower.c (or the parts CR-3 absorbs).**
+      Whatever logic doesn't move into reduce actions stays — but the
+      layer's purpose (RExpr → EXPR_t conversion) is gone.  Update
+      `Makefile` if needed.  Delete `RExpr` / `RStmt` / `REKind` / `RSKind`
+      from `rebus.h` once they have no live users.
+
+- [ ] **Step CR-5 — Verify Rebus smoke + PARSER-RB gates still pass.**
+      `bash scripts/test_smoke_rebus.sh` and
+      `bash scripts/test_parser_rebus.sh`.  This cleanup is a refactor —
+      no behavioral change expected, just fewer files / less indirection.
+
+**This step lands BEFORE iter#9 finishes** — once the Rebus layer is gone,
+the iter#9 Phase A change in `rebus_lower.c::RE_ADD` (currently using
+`expr_binary_flatten`) moves naturally into `rebus.y`'s reduce action, and
+the iter#9 Phase D parser_rebus.sc work proceeds with one less moving part.
 
 ### ⚠ SUPERSEDED — PARSER-FAMILY-LOOP iter#5 (one-letter prefix scheme)
 
