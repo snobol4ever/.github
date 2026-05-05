@@ -679,7 +679,18 @@ Gate PASS=65 FAIL=0.
 
 **PR-8d DCG sugar — ✅ LANDED (PASS=75 FAIL=0, 2026-05-05 session).**
 
-**PR-8e — ⏳ NEXT: clause-body cut (`foo :- !.`) + next ladder rung.**
+**PR-8e clause-body cut — ✅ LANDED (PASS=77 FAIL=0, 2026-05-05 session).**
+- Moved `Tk_cut` / `$'-->'` / `$'{'` / `$'}'` to early token section (before `primary`).
+- Added `Tk_cut Push_cut` arm to `primary`.
+- Fixtures: `clause_cut.pl`, `clause_cut_conj.pl`.
+
+**PR-9 comparison operators — ✅ LANDED (PASS=86 FAIL=0, 2026-05-05 session).**
+- Token definitions: `$'>='`, `$'=<'`, `$'>'`, `$'<'`, `$'=:='`, `$'=='`, `$'\='`, `$'\=='`, `$'=\='`.
+- `cmp_expr` layer between `is_expr` and `unify_expr`.
+- Pre-built `do_cmp_*` functions (no EVAL — SCRIP EVAL bug: `>` and `<` inside EVAL string literals cause Snocone parse errors).
+- 9 new fixtures: `cmp_{ge,gt,le,lt,eq,id,ne,nid,neq}.pl`.
+
+**PR-10 — ⏳ NEXT: `not(X)` / `\+(X)` negation-as-failure; `functor/3`, `arg/3`, `=..` univ; or next natural rung.**
 
 ### PARSER-PR-8d landed (2026-05-05 session)
 
