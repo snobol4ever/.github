@@ -99,6 +99,7 @@ Detail for each rung lives in its commit message.  Open the hash in
 | RS-23b           | edd0c894 | Add stmt handlers for `E_SCAN`/`E_CASE`/`E_NOT`/`E_ALTERNATE`/`E_ILIT`/`E_NUL`. |
 | RS-23c           | 0de9a2cf | Lift `E_EVERY`, `E_INITIAL`, `E_SWAP` into both adapters; share `find_leaf_suspendable`. |
 | RS-23d           | 0de9a2cf | `E_WHILE` value-context handler in `bb_eval_value`. |
+| RS-23-extra-prep | 5053e80b | Lift SCAN-context builtins (`any`/`bal`/`find`/`many`/`match`/`move`/`pos`/`rpos`/`tab`/`upto`) into `scan_builtins.c`. |
 | RS-25-investig.  | (folded) | SM shape verification — Icon/Prolog short-circuit through `polyglot_execute`. |
 | RS-26a | ec558491   | Symmetric SM preamble + IR retention for non-SNO programs. |
 | RS-26b | 813d3224   | Route single-language Icon through SM pipeline. |
@@ -278,27 +279,67 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
   `E_REVASSIGN`.  These are the 5 of 6 remaining tuples that don't
   go through `coro_eval` oneshot.  Same gates.
 
-  **Architectural precondition discovered (session 2026-05-04):**
-  Attempting to add `E_IF` value-context with the obvious port of
-  `interp_eval.c:1789-1817` regresses `rung36_jcon_meander.icn` (Icon
-  corpus 186→185).  Root cause: when `bb_eval_value(E_IF)` recurses
-  into `bb_eval_value(test)` and the test contains SCAN-context
-  builtin calls (`tab`, `move`, `upto`), `bb_eval_value`'s E_FNC
-  handler dispatches via `proc_table` then `icn_call_builtin` —
-  but `tab`/`move`/`upto` are defined ONLY in `interp_eval.c:617-660`,
-  NOT in `icn_call_builtin`.  Mode-1 worked before this change because
-  bb_eval_value fell through to interp_eval, which has the SCAN-builtin
-  code in its E_FNC case.
+  **First precondition LANDED (session 2026-05-04 @ one4all 5053e80b):**
+  Lift SCAN-context builtins (`any`, `bal`, `find`, `many`, `match`,
+  `move`, `pos`, `rpos`, `tab`, `upto`) out of `interp_eval.c`'s E_FNC
+  switch into `scan_builtins.c` mirroring the RS-23a-raku pattern.
+  Single entry-point `scan_try_call_builtin(call, args, nargs, *out)`
+  uses pre-evaluated `args[]` (not lazy eval like Raku), wired into
+  `icn_call_builtin` after the Raku check.  All gates green at
+  baseline.
 
-  This is the exact same shape as the RS-23a-raku precondition (Raku
-  built-ins lifted into `raku_try_call_builtin`).  The fix is to lift
-  `tab`/`move`/`upto` (and any other SCAN builtins co-located in
-  interp_eval.c's E_FNC case) into `icn_call_builtin` (or a dedicated
-  `scan_try_call_builtin`).  Once that lift lands, RS-23-extra can
-  follow the same pattern.
+  **Deeper architectural gap discovered (session 2026-05-04):**
+  Re-attempting RS-23-extra after the SCAN lift STILL regresses
+  `rung36_jcon_meander.icn`.  Root cause is broader than SCAN
+  builtins: `bb_eval_value`'s E_FNC handler pre-evaluates args, then
+  calls `icn_call_builtin`.  For builtins NOT in raku/scan/write/user-
+  proc dispatch, `icn_call_builtin` falls back to `interp_eval(call)`.
+  That fallback re-evaluates `call->children[]` from scratch — and if
+  any child has a side effect (e.g. `tab(0)` advancing `scan_pos`),
+  it executes twice.
+
+  Concretely for meander: the if-test contains `n := integer(tab(0))`.
+  `bb_eval_value` pre-evaluates `tab(0)`, advancing `scan_pos` to
+  end-of-subject and returning the trailing substring.  Then it calls
+  `icn_call_builtin(integer, [STRVAL("2")])`.  `integer` is not in
+  the SCAN/Raku/write dispatchers, so the fallback re-runs
+  `interp_eval(integer(tab(0)))`, which evaluates `tab(0)` AGAIN.
+  But `scan_pos` is already past end, so the second `tab(0)` returns
+  `""`, `integer("")` fails, the conjunction fails, the if-test
+  fails, the else branch fires `stop()`, and the program exits silent.
+
+  ~40 other Icon builtins live in `interp_eval.c`'s E_FNC case
+  (`integer`, `string`, `real`, `numeric`, `image`, `type`, `char`,
+  `ord`, `repl`, `left`, `right`, `center`, `trim`, `reverse`, `map`,
+  `read`, `reads`, `member`, `copy`, `key`, `delete`, `insert`,
+  `list`, `table`, `get`, `pull`, `push`, `pop`, `put`, `elems`,
+  `arr_get`, `arr_set`, `hash_*`).  All can trigger the same
+  double-eval if their args have side effects.
+
+  **Two paths forward — Lon's call:**
+
+  1. **Bulk lift (option A)** — port all ~40 builtins to
+     `icn_call_builtin` using `args[]` (or to a new
+     `pure_builtins.c`).  Largest scope, clean architecturally,
+     parallel to RS-23a-raku and the SCAN lift.  ~2-3 sessions of
+     careful porting.
+
+  2. **Smart fallback (option B, recommended)** — change
+     `icn_call_builtin`'s fallback so it doesn't re-evaluate
+     children.  Approach: clone `call` with synthesized literal
+     children (E_ILIT/E_QLIT/E_FLIT) representing the pre-evaluated
+     `args[]`; call `interp_eval(clone)`.  `interp_eval`'s child
+     recursion on literal nodes is idempotent.  Smaller change, one
+     focused commit.  Requires care: handle DT_S/DT_I/DT_R/SNUL/FAIL
+     descriptor types correctly when synthesizing literal nodes;
+     ensure NV/Icon-frame state for non-literal arg shapes (e.g.
+     hash-typed args) is preserved.  After this lands, RS-23-extra
+     can be retried without further preconditions.
 
   Reverted (session 2026-05-04): all four RS-23-extra handlers
-  removed pending the SCAN-builtin lift.
+  removed pending option A or B.  SCAN-builtin lift kept (it's a
+  clean improvement on its own and is required preparation for
+  either path).
 
 - [ ] **RS-23e** — Re-run `test_rs23_diag_capture.sh`; expect zero
   unique tuples.  Then harden the direct fallthroughs in
