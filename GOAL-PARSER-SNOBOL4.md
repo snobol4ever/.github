@@ -2,7 +2,7 @@
 
 **Repo:** corpus+one4all  
 **Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)  
-**Status:** PASS=89/89 ✅ corpus@ac0663c — **SN-7-8 LANDED.**
+**Status:** PASS=89/89 ✅ corpus@5f065e4 — **SN-7-9 LANDED.**
 
 ---
 
@@ -153,16 +153,16 @@ function FnArgList() { FnArgList = nInc() *Expr FENCE($',' *FnArgList | epsilon)
 ```
 
 **Steps:**
-- [ ] Add `ReduceCall`, `ReducePrim`, `ReduceOpsyn` to `ShiftReduce.sc`
-- [ ] Add `reduce_opsyn` to `semantic.sc`
-- [ ] Add `FnArgList` as a **function** (nreturn) — not a global pattern variable — to `parser_snobol4.sc` (before Expr rules)
-- [ ] Rewrite `Expr12` with foldop left-assoc for `E_CAPT_IMMED_ASGN`/`E_CAPT_COND_ASGN`
-- [ ] Rewrite `Expr16` to use `*XList` directly (no ExprList wrapper)  
-- [ ] Rewrite `Expr17`: paren pass-through `$'(' *Expr $')'`; 12 primitive arms with `*ReducePrim`; combined call/no-call single arms with optional `FENCE`
-- [ ] Delete `rw_call` and `rw_expr`; rename `rw_goto_slot` → `make_goto_slot`
-- [ ] Fix `pp_stmt`: 3 `rw_expr()` sites → direct node use
-- [ ] Gate: PASS=89 FAIL=0 throughout; beauty crosscheck still passes
-- [ ] Commit: `PARSER-SN-7-9: eliminate all rw_ functions — grammar builds correct tree directly (PASS=N/N)`
+- [x] Add `ReduceCall`, `ReducePrim` to `ShiftReduce.sc`
+- [x] Add `reduce_call`, `reduce_prim` to `semantic.sc`
+- [x] Add `FnArgList`/`FnArgTail` as global pattern variables (args/args_tail idiom) to `parser_snobol4.sc`
+- [x] Rewrite `Expr12` with binary `(tag & 2)` left-assoc tail for `E_CAPT_IMMED_ASGN`/`E_CAPT_COND_ASGN`
+- [x] Restore `Expr16` with `*ExprList`; flatten ExprList in `strip_parens`
+- [x] Rewrite `Expr17`: paren wrapper `('()' & 1)`; 12 PrimXXX arms with `reduce_prim`; call/no-call FENCE arms
+- [x] Delete `rw_call` and `rw_expr`; rename `rw_goto_slot` → `make_goto_slot`
+- [x] Add `strip_parens` (recursive `'()'`-strip + E_IDX/ExprList flatten); use in `pp_stmt` for all slots
+- [x] Gate: PASS=89 FAIL=0; beauty crosscheck 433/433 passes
+- [x] Commit: `PARSER-SN SN-7-9: eliminate rw_call/rw_expr; grammar emits E_* directly at parse time`
 
 ---
 
@@ -184,11 +184,11 @@ All six parsers green at close: SN=89 IC=88 PR=60 RK=37 SC=46 RB=38 corpus@ac066
 
 ## Closed rungs
 
-INFRA-0..10, FW-1..3/6, SN-0..7-8 all ✅.
+INFRA-0..10, FW-1..3/6, SN-0..7-9 all ✅.
 
 ---
 
 ## Watermark
 
-**SN-7-8 LANDED corpus@ac0663c one4all@104f270d PASS=89/89.**  
-beauty.sno crosscheck: 433/433 STMTs, 0 mismatches. PARSER-FAMILY-LOOP closed by owner. SN-7-9 step written: eliminate rw_call, inline 12 primitive call tags in Expr17.
+**SN-7-9 LANDED corpus@5f065e4 PASS=89/89.**  
+rw_call/rw_expr deleted. Grammar emits correct E_* trees at parse time. strip_parens handles '()'-unwrap and ExprList-flatten. FnArgList/FnArgTail global pattern variables (args/args_tail idiom). 12 PrimXXX classifiers + reduce_prim/reduce_call. beauty.sno crosscheck: 433/433 STMTs, 0 mismatches.
