@@ -461,7 +461,7 @@ history under the listed commits. This table is the load-bearing summary.
 
 ## Active rung ladder
 
-### PARSER-FAMILY-LOOP — six-parser cross-pollination
+### ✅ PARSER-FAMILY-LOOP — six-parser cross-pollination — COMPLETE
 
 **Status:** ACTIVE.  All six parsers at 100% gate as of session
 2026-05-04 cont. #5 (corpus@09ecd59).  Loop opens from a uniformly-
