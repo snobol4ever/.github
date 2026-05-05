@@ -523,6 +523,95 @@ green baseline:
 **Candidate first iterations** (operator picks; ordered roughly by
 tractability):
 
+  - **iter#9 — SNOBOL4 left-associative arith assumption: re-examine
+    and possibly remove.**  Right now `parser_snobol4.sc` builds
+    arithmetic right-recursively (because beauty.sno's `Expr6`/`Expr8`/
+    `Expr9` etc. are `*Expr_n FENCE($'op' *Expr_n (... & 2) | epsilon)`
+    — right recursion), and then `rw_expr` walks the result and rotates
+    each right-recursive arith chain into left-associative form because
+    the `--dump-parse` oracle emits left-associative trees.  This
+    rotation is the **only reason `is_rotatable` and the rotation block
+    exist in `rw_expr` after iter#7**.  Lon's question: is the
+    "oracle wants left-associative" claim right?  If `(a + b) + c` and
+    `a + (b + c)` evaluate to the same value (commutativity for `+`,
+    `*`; not for `-`, `/`, `^`, `$`, `.`), and if SM-LOWER lowers the
+    same regardless of associativity shape, then **right-associative IR
+    is fine for `+` and `*`** and the rotation can be skipped.  For
+    `-`/`/` (non-commutative), associativity matters semantically:
+    `a - b - c` must mean `(a - b) - c`, not `a - (b - c)`.  But that
+    semantic could be captured by changing the GRAMMAR to be left-
+    recursive (iterative, à la Icon's `*Expr8 ARBNO(Expr7tail)` shape),
+    not by post-parse rotation.  Steps:
+
+    1. Read `parser_snobol4.sc` `is_rotatable` + the rotation block in
+       `rw_expr` to confirm scope (today: 7 binary tags — `E_ADD E_SUB
+       E_MUL E_DIV E_POW E_CAPT_IMMED_ASGN E_CAPT_COND_ASGN`).
+    2. Pick a sample: `a - b - c`.  Does the oracle (`scrip --dump-parse`)
+       emit `(E_SUB (E_SUB a b) c)` (left-assoc)?  Check the SN-3 fixture
+       output to confirm.
+    3. If left-assoc IS what the oracle emits, then the legitimate
+       options are:
+       (a) **Rewrite the grammar to be left-recursive** (Icon-style:
+           `Expr_n = *Expr_{n+1} ARBNO(Expr_n_tail)` where the tail
+           pattern fires the reduce after each match).  Then the
+           parse-time tree is already left-assoc and rotation is
+           unnecessary.
+       (b) **Change the oracle** (the existing C frontend's
+           `expr_dump` / lower path) to emit right-assoc — only
+           justified if SM-LOWER does not actually care about the
+           tree shape, OR if the change is one-time and pays off
+           elsewhere.  Probably not the right call (the existing
+           frontend is the "in-process oracle" PARSER-SN must agree
+           with; touching it is a different goal).
+       (c) **Keep the rotation** (status quo).
+    4. The right answer is almost certainly **(a)**.  beauty.sno
+       chose right-recursion because SNOBOL4 PATTERN can't trivially
+       express left-recursion (the recursion would left-eat without
+       progress).  But the iterative `ARBNO(tail)` idiom is fine —
+       Icon, Raku, and Rebus already use it; PARSER-SN can too.
+    5. Land the grammar rewrite for the seven tiers; remove
+       `is_rotatable`; remove the rotation block in `rw_expr`.
+       Verify the gate holds at PASS=59/59.
+
+    The win: less code; the grammar reads as the language's actual
+    associativity; `rw_expr` becomes pure structural rewrite (paren
+    strip + ExprList unwrap + Call dispatch) with no associativity
+    knowledge.
+
+  - **iter#10 — FENCE sweep, second pass: low-level lexical and
+    other `(P | epsilon)` sites.**  iter#8 fenced the high-level
+    Expr-tier alternations.  Other places where backtracking is
+    pre-known useless and a `FENCE(...)` would prevent thrashing:
+
+    - **Lexical token classifiers** of the form
+      `(first (rest | epsilon))` — once `first` matches, `rest`
+      either matches or it doesn't, and the matcher should not
+      backtrack into `epsilon` if `rest` half-matches and then
+      fails downstream.  Audit candidates:
+      * Snocone `Id`, `kw_tail`
+      * Icon `id_pat`, `Comment`, etc.
+      * Prolog `Atom`, `Var`, `Atom_first/Atom_rest` composition
+      * Raku token classifiers (`Ident`, `vro`, `fro`, `snro`,
+        `pro`, `fnro`, etc.)
+      * Rebus `Id`
+      * SNOBOL4's already-FENCE'd token classifiers (e.g. `Real`)
+        as the model.
+    - **Driver-level `nl_opt = (nl_one | epsilon)`** and similar.
+    - **`semi_opt = (';' | epsilon)`** in Icon.
+    - **Anywhere a grammar rule has `(P | epsilon)` and `P` does
+      not start with whitespace-only`** — once any non-empty
+      substring of `P` matches, you've committed; failure should
+      propagate, not retry as epsilon.
+
+    Verification: each FENCE addition either preserves the gate at
+    100% (if the case truly was useless backtracking) or causes
+    a regression (if there was a real failure-recovery path being
+    relied on).  In the latter case, back out that specific FENCE
+    and document why.
+
+    Scope: all six parsers; sweep the same kind of site in each
+    file to keep the iteration concept-identical per loop rule 2.
+
   - **§7 `_`-prefix prohibition sweep.**  Style guideline §7
     forbids `_foo` identifiers; existing parsers carry many
     (`_e4lhs`, `_main_node`, `_rk_*`, `_expr_node`).  Pure
