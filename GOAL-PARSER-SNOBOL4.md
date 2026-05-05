@@ -553,6 +553,157 @@ tractability):
 | 1  | White-encodes-comments + canonical `$' '`/`$'  '` everywhere | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | (this session) | All six rewritten to canonical form: `White` first (per-language continuation/comment rules), `Gray = White \| epsilon`, `$' ' = Gray`, `$'  ' = White`. All `*White`/`*Gray` references in grammar replaced by `$'  '`/`$' '`. Per-language `White` bodies: SNOBOL4 keeps `+`/`.` continuation + adds `;*` inline trailing-comment; Icon/Rebus/Raku fold `'#' BREAK(nl)`; Prolog folds `'%' BREAK(nl)` + `Block = '/*' ARBNO(BREAK('*') ANY('*')) '/'`; Snocone folds `'//' BREAK(nl)` + same `Block`. Snocone gained `empty_cmd = $' ' $';' $' ' nl_opt` + Command alternative for C-style `;;/* hello */;;` empty-stmt semantics (Lon directive). Dead code removed: parser_icon.sc `Comment` rule (duplicate of `Blank` after `#` moved into White); parser_raku.sc `# REM` pre-filter at input loop (now native via White); parser_prolog.sc `comment`/old `trivia` collapsed (`trivia = ARBNO(White \| nl)`). Smoke verified: SNOBOL4 `;;` `;*` work; Snocone `;;/* hello */;;` matches oracle; Icon/Rebus/Raku/Prolog `#`/`%`/`//` line comments handled. Smoke-tested SNOBOL4 7/7, scrip(.sc) all OK. |
 | 2  | Aligned token blocks with `$' '`/`$'  '` whitespace surrogates | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | corpus@d41add5 | All operator and keyword token definitions: LHS and `=` column-aligned within each block; whitespace embedded as `$' '` (optional) or `$'  '` (required) — no raw `' '` strings in token bodies; outer parens removed from Icon and Raku definitions. Per-language whitespace direction: Icon keywords `$' '` before only; operators `$' '` both sides; Prolog `$'is'` uses `$'  '` both sides (required lexical separation); `$'.'` before only; Rebus stmt-start keywords `$' '` before + `$'  '` after; mid-expr keywords (`then`/`do`) `$'  '` both sides; `$'('` fixed from bare `'('` to `$' ' '(' $' '`. Snocone operators alignment-only; keywords remain `kw_tail`-guarded (identifier-boundary guard required). |
 | 3  | Correct bracket/keyword whitespace per SNOBOL4 model | 59→59 | 51→51 | 54→54 | 32→32 | 21→21 | 38→38 | corpus@3e58061 | Open brackets: no left ws, `$' '` right. Close brackets: `$' '` left, no right. Keywords: `$' '` left only (next token's left-ws is effective suffix). Binary ops unchanged. Snocone `(`/`{` kept `$' '` both sides — whitespace-sensitive like SNOBOL4; `if`/`while`/`do` grammar requires left-ws on `(` to absorb space between keyword and paren. Rebus `$'end'` ws before only; `$'then'`/`$'do'` left-ws only. Fixed Icon typo `'+:='$' '` (missing space) that caused .sc parse failure. |
+| 4  | ⚠ SUPERSEDED IN-SESSION → iter#5 — three-/four-letter prefix on every helper + pair-named pattern builders | 59→59 | 51→51 | 54→54 (no change) | 32→32 (no change) | 21→21 | 38→38 | (not committed) | Session 2026-05-04 cont. #7. Started landing `sno_*`/`SNO_*`, `sc_*`/`SC_*`, `reb_*`/`REB_*`, `icon_*`/`ICON_*`, `pl_*`/`PL_*`, `raku_*`/`RAKU_*` per pair-name convention from `parser_snocone.sc`'s `sc_save_cond`/`SC_save_cond` model. Four parsers landed locally (SN, SC, IC, RB) — gates green. **Mid-session pivot**: Lon decided the prefix should be one letter, not 3-4. Renames done so far need to roll forward to one-letter scheme; PR and RK never landed. Iter#4 is therefore aborted as a commit — superseded by iter#5 below before any `git push` happened. Local edits to `parser_{snobol4,icon,rebus}.sc` will be redone under the one-letter scheme in iter#5; `parser_snocone.sc` was untouched. |
+
+### ⚠ CURRENT STEP — PARSER-FAMILY-LOOP iter#5 — one-letter language prefix on every parser-private identifier
+
+**Status:** PENDING (next session opens here).  Iter#4 (3–4-letter prefix) is
+aborted before any commit; this iter#5 supersedes it and reuses the `parser_*.sc`
+local edits that already exist on disk for SN/IC/RB/SC.  PR and RK have not been
+touched since session start.
+
+**Concept (Lon directive, session 2026-05-04 cont. #7):** All six `parser_*.sc`
+files plus `scrip.sc` will be loaded into one SCRIP process simultaneously when
+SCRIP becomes self-hosting (Milestone 2).  SNOBOL4 and Snocone have a single
+flat global symbol table — function names, top-level globals, and tag-name
+constants all share one namespace.  Snocone's `function NAME(args, locals)`
+lowers to a SPITBOL `DEFINE('NAME(args,locals)')` whose args/locals are
+auto-saved/restored slots in the global table — the function NAME itself lives
+in the global table.  Two parsers defining `function rw_tag` would collide;
+two parsers defining a global `head_name` would collide.  No module / import /
+export concept exists today, and we are not adding one.
+
+**Resolution:** every parser-private identifier — function name, global
+variable, tag-string constant, pattern-builder companion — gets a one-letter
+prefix denoting the language subsystem:
+
+| Letter | Worker prefix | Pattern-builder prefix | Language subsystem |
+|--------|---------------|------------------------|--------------------|
+| `S`    | `s_`          | `S_`                   | SNOBOL4            |
+| `C`    | `c_`          | `C_`                   | Snocone            |
+| `R`    | `r_`          | `R_`                   | Raku               |
+| `I`    | `i_`          | `I_`                   | Icon               |
+| `P`    | `p_`          | `P_`                   | Prolog             |
+| `B`    | `b_`          | `B_`                   | Rebus              |
+
+Pair-name shape (canonical model: `parser_snocone.sc`):
+```
+function c_save_cond() { c_saved_cond = Pop(); c_save_cond = .dummy; nreturn; }
+function C_save_cond() { C_save_cond = EVAL("epsilon . thx . *c_save_cond()"); return; }
+```
+Or simple pattern variable for no-param case:
+```
+function s_push_qlit() { Push(tree('E_QLIT', s_strbody)); s_push_qlit = .dummy; nreturn; }
+function S_push_qlit() { S_push_qlit = epsilon . *s_push_qlit(); return; }
+```
+Grammar reads as language-token + Capitalized-letter verb:
+```
+atom = *String S_push_qlit() | shift(*Integer, E_ILIT) | ...
+```
+
+**Names should announce action.**  Lon's directive: avoid placeholder
+suffixes like `_done`.  Use verbs (`push`, `pop`, `store`, `save`, `make`,
+`build`, `finish`, `decompose`, `emit`, `lower`).
+
+**Steps (binding):**
+
+- [ ] **Step 0 — Verify Snocone uses only the global variable dictionary
+      and not function-level slots** beyond SPITBOL's auto-save/restore
+      mechanism.  Confirmed in this session via `snocone_parse.y` — the
+      `function NAME(args) { body }` form lowers to `DEFINE('NAME(args,locals)')`
+      where args+locals are auto-saved global slots, and the function name
+      itself goes into the same global symbol table as variables.  No
+      separate function-local namespace exists.  Two parsers defining the
+      same function name would overwrite each other when loaded into one
+      process.  Step 0 is "read this paragraph and confirm — no code work".
+
+- [ ] **Step 1 — `parser_snobol4.sc`** to `s_*` workers, `S_*` pattern-builders.
+      Existing local edits (worker names `sno_*`) need rolling back to one-letter
+      `s_*`.  Since these are post-parse helpers (called from driver, not
+      embedded in PATTERN), no `S_*` companions are needed; just `s_pp_stmt`,
+      `s_rw_expr`, `s_rw_call`, `s_rw_tag`, `s_rw_goto_slot`.  Pattern-block
+      verbatim from beauty.sno; do not touch it.
+
+- [ ] **Step 2 — `parser_snocone.sc`** to `c_*` / `C_*`.  Existing helpers
+      already prefixed `sc_*`/`SC_*` — bulk rename to `c_*`/`C_*`.  Globals
+      `sc_lbl_n`, `sc_strbody`, `sc_saved_cond`, `sc_while_ltop`, `sc_while_lend`,
+      `sc_do_lcont`, `sc_do_lend`, EVAL-string param values (`'sc_if_nthen'` etc.)
+      all become `c_*`.  `r_nTop` → `c_n_top`.
+
+- [ ] **Step 3 — `parser_rebus.sc`** to `b_*` / `B_*`.  Existing local edits
+      (worker names `reb_*`, builder `REB_*`, surface tags `REB_*`) roll forward
+      to `b_*`/`B_*`.  Surface tag string values: `'REB_FUNC_DECL'` → `'B_FUNC_DECL'`
+      etc.  Wire-protocol label prefix `'rb_'` (in `reb_new_label` →
+      `b_new_label`) **stays** `'rb_'` because the existing C oracle emits
+      `rb_else_N`/`rb_end_N` — that string is a wire-protocol identity, not a
+      private identifier, and renaming it would break the gate.  Document this
+      exception inline.
+
+- [ ] **Step 4 — `parser_icon.sc`** to `i_*` / `I_*`.  Existing local edits
+      (worker names `icon_*`, builders `ICON_*`) roll forward to `i_*`/`I_*`.
+      `icon_n_top` → `i_n_top`.
+
+- [ ] **Step 5 — `parser_raku.sc`** to `r_*` / `R_*`.  Today: mixed-case
+      `Rk_Push_Var`, `Rk_Push_Param`, `Rk_Push_Qlit`, `Rk_Say_Done`,
+      `Rk_Stash_For`, `Rk_Finish_For`, `Rk_Finish_Sub`, `Rk_Finish_Call`,
+      `Rk_Finish_Main`; pattern names `var_done`, `param_done`, `qlit_done`,
+      `say_done`, `stash_for`, `for_done`, `sub_done`, `call_done`, `main_done`;
+      capture-slot globals `rk_capvf`, `rk_capvr`, `rk_cappf`, `rk_cappr`,
+      `rk_capstr`, `rk_capff`, `rk_capfr`, `rk_capsnf`, `rk_capsnr`, `rk_capfnf`,
+      `rk_capfnr`; helper globals `rk_for_iter`, `rk_sub_list`; helper functions
+      `rk_slink`.  All become `r_*` workers + `R_*` pattern-builders, named
+      action-verbs not `*_done`.  Suggested final names: `R_push_var`,
+      `R_push_param`, `R_push_qlit`, `R_finish_say`, `R_store_for_iter`,
+      `R_finish_for`, `R_finish_sub`, `R_finish_call`, `R_finish_main`.
+      Capture slots: `r_capvf`, `r_capvr`, `r_cappf`, ... (drop the `rk_` →
+      `r_` swap).  Apply consistent `*_done` → action-verb rewrites.
+
+- [ ] **Step 6 — `parser_prolog.sc`** to `p_*` / `P_*`.  Today: globals
+      `var_table`, `var_next`, `head_name`, `head_arity`, `body_present`,
+      capture slots `q_body`, `s_body`, `p_text`, `p_name`, `le_text`, `p_negi`,
+      `h_text`; helpers `Reset_var_scope`, `Resolve_var`, `Push_var`,
+      `Assign_anon_slots`, `Push_atom_body`, `Push_nil`, `Push_neg_int`,
+      `Reduce_is`, `Reduce_list`, `Reduce_compound`, `Reduce_conj`,
+      `Reduce_disj`, `Snapshot_head`, `Mark_body`, `Build_clause`,
+      `Build_directive`.  All become `p_*` workers.  Inline-pattern call sites
+      `epsilon . *Push_atom_body(q_body)` etc. wrap into named pattern-builders
+      `P_push_atom_body(p_q_body)` (function returning EVAL'd pattern), then
+      grammar reads `Qatom P_push_atom_body('p_q_body')`.  `q_body`/`s_body`/
+      etc. capture slots become `p_q_body`/`p_s_body`/etc.
+
+      ⚠ **Conflict alert:** `p_text` / `p_name` / `p_negi` already collide with
+      the new `p_*` worker prefix shape — they're capture slots, not helpers,
+      so they take the `p_` prefix anyway, but the bare-letter post-prefix
+      names are now `p_p_text` (capture slot named "p_text" with the prefix).
+      Resolution: rename capture slots to remove the legacy single-letter `p_`
+      prefix from their suffix — `p_text` (head-clause) → `p_h_text` (already
+      `h_text`); `p_name` → `p_a_name` (compound name); `p_negi` → `p_neg_int`.
+      Pick whatever reads cleanest while staying within the `p_*` namespace.
+
+- [ ] **Step 7 — `scrip.sc`** Snocone-hosted SCRIP runtime (when it lands).
+      Same one-letter scheme: a yet-to-be-assigned letter for SCRIP itself.
+      Suggested: `T` for TARGET (the meta-language being implemented), or
+      reserve and decide when scrip.sc work begins.  Not part of iter#5; flagged
+      here so the next prefix-collision reasoning has the full picture.
+
+- [ ] **Step 8 — Verify all six gates 100% after each per-parser landing.**
+      Per loop rule 3: no parser may drop below 100% during a loop iteration.
+      Gates: SN=59, IC=51, PR=54, RK=32, SC=21, RB=38.  Run after each step.
+
+- [ ] **Step 9 — One commit for the whole iteration** per loop rule 4.
+      Commit message names the concept ("PARSER-FAMILY-LOOP iter#5: one-letter
+      language prefix on every parser-private identifier") and lists per-parser
+      before/after gate counts.
+
+- [ ] **Step 10 — Update this iteration log table** with iter#5 row;
+      append, do not overwrite history.
+
+**Open question for Step 7 (SCRIP itself):**  When `scrip.sc` lands as
+co-equal seventh `.sc` file, what letter does it get?  `T` (target),
+`X` (executable), or other?  Not blocking iter#5; record decision before
+scrip.sc work begins.
+
+
 
 ### ⚠ PARSER-SN-7 — canonical shape (session 2026-05-03 PIVOT)
 
@@ -1660,3 +1811,59 @@ Raku `#`, Prolog `%` + `/* */` + leading comment line, Snocone
 `//` + `/* */` + `;;/* hello */;;` (oracle-matched).
 
 **Next:** operator picks iteration #2 concept.
+
+**Watermark (session 2026-05-04 cont. #7):** PARSER-FAMILY-LOOP iter#4
+ABORTED IN-SESSION before any commit; superseded by iter#5 (one-letter
+language prefix scheme).
+
+Iter#4 concept (3-4-letter prefix `sno_`/`SNO_`, `sc_`/`SC_`,
+`reb_`/`REB_`, `icon_`/`ICON_`, `pl_`/`PL_`, `raku_`/`RAKU_`) was
+discussed and partial-landed locally on `parser_snobol4.sc`,
+`parser_icon.sc`, and `parser_rebus.sc` (gates green at SN=59, IC=51,
+RB=38).  Mid-session Lon directed a pivot to **one-letter** prefix
+(`s_`/`S_`, `c_`/`C_`, `r_`/`R_`, `i_`/`I_`, `p_`/`P_`, `b_`/`B_`)
+since the six `parser_*.sc` will load simultaneously into one SCRIP
+process at Milestone 2 — and SCRIP/SNOBOL4/Snocone use a single flat
+global symbol table (function names, top-level globals, and tag-string
+constants all share one namespace; SPITBOL DEFINE auto-saves args/locals
+but the function NAME itself lives in the global table).  Local
+`parser_*.sc` edits reverted to iter#3 baseline (corpus@3e58061);
+iter#4 row in iteration log marked SUPERSEDED.
+
+**Iter#5 specifics** (next session opens here):
+
+  - Worker prefix is lowercase letter + underscore: `s_pp_stmt`,
+    `c_save_cond`, `b_lower_decl`, etc.
+  - Pattern-builder companion prefix is uppercase letter + underscore:
+    `S_push_qlit`, `C_save_cond`, `B_push_qlit`, etc.
+  - Tag-string constants for parser-private surface tags also take the
+    prefix: `B_FUNC_DECL`, `B_REC_DECL`, `B_ASSIGN`, `B_ALT`, etc.
+  - Cross-parser shared IR-tag constants (`E_VAR`, `E_QLIT`, `E_ILIT`,
+    `E_FNC`, `E_SEQ`, `E_ALT`, `E_Parse`, `E_ASSIGN`, ...) stay
+    unprefixed — they are language-neutral final-IR identifiers.
+  - Capture-slot globals (e.g. `q_body`, `s_body`, `p_text`,
+    `rk_capvf`, `ic_strbody`, `rbStrBody`, `sc_strbody`) take the
+    prefix.  Where the existing slot name already has a single-letter
+    prefix that collides with the new scheme (Prolog's `p_text`,
+    `p_name`, `p_negi`), rename to `p_h_text`, `p_a_name`, `p_neg_int`
+    or similar — pick the cleanest reading that stays in `p_*`.
+  - Wire-protocol identities — string values that the C oracle also
+    emits, e.g. Rebus's `'rb_else_N'` / `'rb_end_N'` label format —
+    are NOT renamed.  The Snocone parser's label-prefix string
+    `'rb_'` (in `b_new_label`'s output) stays `'rb_'` and the
+    function-side identifier renames around it.  Document inline at
+    each such site.
+  - Names should announce action.  Lon's directive: avoid placeholder
+    suffixes like `_done` (current Raku has many).  Use verbs:
+    `push`, `pop`, `store`, `save`, `make`, `build`, `finish`,
+    `decompose`, `emit`, `lower`.
+
+**Open question for next session — Step 7:** when `scrip.sc` (the
+Snocone-hosted SCRIP runtime) lands, what one-letter prefix does it
+get?  `T` for TARGET, `X` for executable, or other?  Not blocking
+iter#5; record decision before scrip.sc work begins.
+
+**Next milestone (iter#5):** ten-step landing per the bullet list in
+"⚠ CURRENT STEP — PARSER-FAMILY-LOOP iter#5" above.  Steps 1-6 are
+the per-parser renames; Steps 8-10 are gate verification + commit +
+log update.  All six gates must hold at 100% at the end.
