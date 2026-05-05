@@ -1240,10 +1240,14 @@ unrelated to this rung — see Open carry-over).
 
 #### PARSER-SN-7-3 — bracket index `x[i]`, `x[i, j]`
 
-- [ ] Fixtures `idx_simple.sno`, `idx_multi.sno`, `idx_nested.sno`,
+- [x] Fixtures `idx_simple.sno`, `idx_multi.sno`, `idx_nested.sno`,
       `idx_in_assign_lhs.sno`.
-- [ ] Add `Expr15` / `Expr16` per beauty.sno: `Expr15 = Expr17 FENCE( nPush() Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon )`.
-- **Gate:** `(E_IDX <obj> <i> ...)` matches the oracle.
+- [x] Add `Expr15` / `Expr16` per beauty.sno: `Expr15 = Expr17 FENCE( nPush() Expr16 ("'[]'" & 'nTop() + 1') nPop() | epsilon )`.
+      Two fixes needed: (1) `"'[]'"` → `E_IDX` constant (add `E_IDX = "'E_IDX'"` to
+      constants block); (2) `rw_expr` E_IDX case: flatten ExprList bracket-group
+      children directly into E_IDX (oracle emits flat children; default walk
+      produced E_SEQ wrapper via ExprList→E_SEQ path).
+- **Gate:** `(E_IDX <obj> <i> ...)` matches the oracle. ✅ PASS=70/70
 
 #### PARSER-SN-7-4 — `+` / `.` continuation lines
 
@@ -2218,4 +2222,12 @@ both alternatives to `'&' shift(SPAN(&UCASE &LCASE), E_KEYWORD)` — consume
 UnprotKwd are identical structurally (both `'&' SPAN(&UCASE &LCASE)`) so
 collapsed to one alternative.  PASS=66/66 ✅.
 
-**Next:** PARSER-SN-7-3 — bracket index `x[i]`, `x[i, j]`.
+**PARSER-SN-7-3 LANDED** — bracket index `x[i]`, `x[i,j]`.  Four
+fixtures: `idx_simple.sno`, `idx_multi.sno`, `idx_nested.sno`,
+`idx_in_assign_lhs.sno`.  Two fixes: (1) `E_IDX = "'E_IDX'"` constant
+added (Expr15 was using hardcoded `"'[]'"`); (2) `rw_expr` E_IDX case
+added — flattens ExprList bracket-group children directly into E_IDX
+(default walk produced E_SEQ wrapper; oracle emits flat children).
+PASS=70/70 ✅.
+
+**Next:** PARSER-SN-7-4 — `+`/`.` continuation lines.
