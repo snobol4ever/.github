@@ -155,4 +155,4 @@ INFRA-0..10, FW-1..3/6, SN-0..7-8 all ✅.
 ## Watermark
 
 **SN-7-8 LANDED corpus@ac0663c one4all@104f270d PASS=89/89.**  
-beauty.sno crosscheck: 433/433 STMTs, 0 mismatches. New ops: E_INDIRECT E_NAME E_ASSIGN E_NOT E_CAPT_CURSOR E_INTERROGATE E_OPSYN. reduce_opsyn()/ReduceOpsyn() added. subj/pat split guarded by E_VAR. goto ordering fixed. beauty_crosscheck in gate. 10 new fixtures. PARSER-FAMILY-LOOP closed by owner.
+beauty.sno crosscheck: 433/433 STMTs, 0 mismatches. PARSER-FAMILY-LOOP closed by owner. SN-7-9 step written: eliminate rw_call, inline 12 primitive call tags in Expr17.
