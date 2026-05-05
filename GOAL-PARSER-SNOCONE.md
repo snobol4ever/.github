@@ -453,12 +453,28 @@ Fixtures landed: `call_simple`, `call_noarg`, `call_one_arg`,
 `func_three_args`, `func_two_funcs`, `func_one_assign`, `func_body`,
 `func_freturn`, `func_nreturn`, `func_def_call` (15 new fixtures).
 
-### PARSER-SC-5 — pattern match `expr ? pat` ⏳ NEXT
+### PARSER-SC-5 — pattern match `expr ? pat` ✅ DONE (PASS=46, session #67 cont.)
 
-- [ ] `Expr1 = *Expr3 FENCE($'?' *Expr1 reduce('E_SCAN', 2) | epsilon)`.
-      `sc_split_subject_pattern` (`snocone_parse.y` 1306) shows
-      `E_ASSIGN(E_SCAN(s, p), r)` → `STMT { :subj=s, :pat=p, :repl=r }`.
-- **Sibling LANG rungs:** SC-8, SC-9. **Gate:** PASS≥40.
+- [x] `Expr1 = *Expr3 FENCE($'?' *Expr1 reduce('E_SCAN', 2) | epsilon)` —
+      already wired pre-SC-5 since Expr1 has had `(E_SCAN & 2)` since
+      INFRA-2.  This rung's work was in `decompose_stmt`:
+- [x] `decompose_stmt` extended to handle three Snocone scan-stmt
+      lowerings (mirrors `sc_split_subject_pattern` +
+      `sc_append_stmt` in `snocone_parse.y` lines 1287–1352):
+      Form A — `E_ASSIGN(SCAN(s,p), r)` → `(STMT :eq :subj s :pat p :repl r)`;
+      Form B — bare `E_SCAN(s,p)` → `(STMT :subj s :pat p)`;
+      Form B′ — bare `E_SEQ(name-like, rest…)` → `(STMT :subj first :pat rest)`
+      where rest is collapsed via `build_seq_or_single` (single child
+      passes through; multiple wrap as E_SEQ).
+- [x] Helpers added: `is_name_like` (succeeds on E_VAR / E_QLIT — extend
+      to E_KEYWORD / E_INDIRECT when grammar produces them);
+      `build_seq_or_single`; `split_subj_pat` (sets globals
+      `split_subj` / `split_pat`).
+- **Sibling LANG rungs:** SC-8, SC-9. **Gate:** PASS=46 (was 36).
+
+Fixtures landed (10 new): `scan_simple`, `scan_replace`, `scan_in_expr`,
+`scan_juxta`, `scan_juxta_replace`, `scan_juxta_three`, `scan_multi_pat`,
+`scan_pat_var`, `scan_alt`, `scan_alt_replace`.
 
 ### PARSER-SC-6 — full beauty.sc crosscheck
 
@@ -485,16 +501,37 @@ Fixtures landed: `call_simple`, `call_noarg`, `call_one_arg`,
 ## Watermark
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
-PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅**
+PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅**
 
-Gate: PASS=36 FAIL=0 (was 21).  Atom + assign + arith + concat + if +
-while + do (21) plus 15 new function-handling fixtures: call_simple,
-call_noarg, call_one_arg, call_three, call_stmt, func_empty,
-func_simple, func_args, func_three_args, func_two_funcs,
-func_one_assign, func_body, func_freturn, func_nreturn, func_def_call.
-Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.  Sibling parsers
-unaffected (icon=51, prolog=54, raku=31/32 same as pre, rebus=35/38
-same as pre, snobol4=0/59 — pre-existing iter#9-in-progress state).
+Gate: PASS=46 FAIL=0 (was 36).  Atom + assign + arith + concat + if +
+while + do (21) + 15 function-handling fixtures + 10 scan-pattern
+fixtures (scan_simple, scan_replace, scan_in_expr, scan_juxta,
+scan_juxta_replace, scan_juxta_three, scan_multi_pat, scan_pat_var,
+scan_alt, scan_alt_replace).  Smoke (`test_smoke_snocone.sh`):
+PASS=5 FAIL=0.  Sibling parsers unaffected (icon=88, prolog=54,
+raku=31/32, rebus=35/38).
+
+**Session #67 cont. (2026-05-04) — PARSER-SC-5 landed (pattern-match scan stmt).**
+
+`Expr1` already had `(E_SCAN & 2)` reduction since INFRA-2 — the rung's
+work was entirely in `decompose_stmt`.  Mirrored the
+`sc_split_subject_pattern` + `sc_append_stmt` two-step from
+`snocone_parse.y` lines 1287-1352:
+
+1. If TOP is `E_ASSIGN(lhs, rhs)`: try splitting lhs into subj+pat.
+   If lhs splits → emit 4-part stmt `:eq :subj :pat :repl`.
+   Else → standard 3-part `:eq :subj :repl`.
+2. Else if TOP itself splits → emit 2-part `:subj :pat`.
+3. Else → bare-expression `:subj`-only stmt.
+
+`split_subj_pat` succeeds on either `E_SCAN(s,p)` or
+`E_SEQ(name-like, rest…)` (Form 2: SNOBOL4 traditional juxtaposition
+scan, e.g. `x  'foo'` with double-space).  `build_seq_or_single`
+collapses a 1-element rest into a bare child, otherwise wraps as
+E_SEQ.  `is_name_like` matches E_VAR / E_QLIT today; extend to
+E_KEYWORD / E_INDIRECT when those frontend kinds reach the parser.
+
+**Next rung:** PARSER-SC-6 — full beauty.sc crosscheck.
 
 **Session #67 cont. (2026-05-04) — PARSER-SC-4 landed (function def + call).**
 
