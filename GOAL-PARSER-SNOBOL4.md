@@ -2,7 +2,7 @@
 
 **Repo:** corpus+one4all  
 **Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)  
-**Status:** PASS=78/78 ✅ corpus@0fba291 — SN-7-7c LANDED. **Next: SN-7-8** beauty.sno full crosscheck.
+**Status:** PASS=78/78 ✅ corpus@634d2bb — SN-7-8 in progress.
 
 ---
 
@@ -31,6 +31,18 @@ $SCRIP --ir-run $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
   $RT/tdump.sc $RT/assign.sc $RT/parser_snobol4.sc < input.sno
 ```
 
+Crosscheck script (for beauty.sno):
+```bash
+SCRIP=/home/claude/one4all/scrip; RT=/home/claude/corpus/programs/scrip
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty/beauty.sno
+grep -v '^-INCLUDE' $BEAUTY > /tmp/beauty_noinc.sno
+$SCRIP --ir-run $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
+  $RT/ShiftReduce.sc $RT/semantic.sc $RT/qize.sc $RT/gen.sc \
+  $RT/tdump.sc $RT/assign.sc $RT/parser_snobol4.sc < $BEAUTY > /tmp/p.txt 2>/dev/null
+$SCRIP --dump-parse /tmp/beauty_noinc.sno > /tmp/o.txt 2>/dev/null
+# normalize and compare with python3 STMT-block split (see session notes)
+```
+
 ---
 
 ## Architecture
@@ -40,59 +52,43 @@ scrip --ir-run [blob] parser_snobol4.sc < input.sno   →  TDump tree lines
 scrip --dump-parse input.sno                           →  oracle tree lines
 ```
 
-Whitespace-normalized byte-diff of both = gate. Shared blob:
+Gate normalizes: collapse whitespace, strip ` )` → `)`. Shared blob:
 `global.sc tree.sc stack.sc counter.sc ShiftReduce.sc semantic.sc qize.sc gen.sc tdump.sc assign.sc`
 
 ---
 
-## Style guidelines (binding — canonical home for all PARSER-* family)
+## Style guidelines (canonical home for all PARSER-* family)
 
 ### §1 Names match language spec
-Pattern names mirror BNF + existing frontend's token enum and IR-tag enum. Operational oracle wins over spec where they disagree.
+Pattern names mirror BNF + existing frontend's token/IR-tag enums. Operational oracle wins over spec.
 
 ### §2 White/Gray attached, never in main grammar
 ```
-Gray  = White | epsilon;
+Gray  = White | epsilon;   $' '  = Gray;   $'  ' = White;
 White = ( SPAN(' ' tab) FENCE(nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon) | epsilon)
-        | nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon)
-        );
-$' '  = Gray;   // optional ws
-$'  ' = White;  // required ws
+        | nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon) );
 ```
-Exception: `*White` appears in 5 places in parser_snobol4.sc where SNOBOL4 column-sensitive grammar requires it (annotated inline with `// ws-here-is-required:<reason>`).
+Exception: `*White` at 5 annotated sites in parser_snobol4.sc where column-sensitive grammar requires it.
 
 ### §3 `$'name'` tokens; `$' '`/`$'  '` for optional/required ws
-Non-identifier punctuation uses `$'...'`. Binary ops: `$' ' 'op' $' '`. Open bracket: `'(' $' '`. Close bracket: `$' ' ')'`. Keywords: `$' ' 'kw' $' '`.
+Binary ops: `$' ' 'op' $' '`. Open bracket: `'(' $' '`. Close bracket: `$' ' ')'`.
 
-### §4 shift/reduce for tree building
-Use `shift(p, t)` / `reduce(t, n)` (function-call form — INFRA-11b means `~`/`&` infix not yet usable). Anti-pattern: `$'do_X'` action wrappers + parallel helper globals. Use the stack instead.
-
-Pair-shape for in-pattern semantic actions (iter#5 canonical):
+### §4 shift/reduce for tree building; pair-shape for in-pattern actions
 ```
 function push_foo() { Push(tree(E_FOO, val)); push_foo = .dummy; nreturn; }
-function Push_foo() { Push_foo = epsilon . *push_foo(); return; }   // Form 1 (no args)
-function Push_bar(a) { Push_bar = EVAL("epsilon . thx . *push_bar_w()"); return; }  // Form 2 (args)
+function Push_foo() { Push_foo = epsilon . *push_foo(); return; }
 ```
 
-### §5 n-ary trees: `nPush() ... nInc() ... reduce(TAG, 'nTop()') ... nPop()`
-`nPush/nInc/nTop/nPop` are pattern-producing functions — embed as patterns, not side-effect calls.
+### §5 n-ary: `nPush() ... nInc() ... reduce(TAG, 'nTop()') ... nPop()`
+Pattern-producing functions — embed as patterns, not side-effect calls.
 
-### §6 AST tags use `E_*` from `EXPR_t`
-SNOBOL4 tags: `E_VAR E_ILIT E_QLIT E_RLIT E_FNC E_SEQ E_ALT E_LEN E_BREAK E_SPAN E_ANY E_NOTANY E_CAPT_COND_ASGN E_CAPT_IMMED_ASGN E_KEYWORD E_DEFER E_IDX E_ADD E_SUB E_MUL E_DIV E_POW E_PLS E_MNS E_POS E_RPOS`.  
-Role-slot tags: `:lbl :subj :pat :repl :goS :goF :goU :eq :end`.
+### §6 AST tags: `E_*` pre-quoted constants
+SNOBOL4: `E_VAR E_ILIT E_QLIT E_RLIT E_FNC E_SEQ E_ALT E_LEN E_BREAK E_SPAN E_ANY E_NOTANY E_CAPT_COND_ASGN E_CAPT_IMMED_ASGN E_KEYWORD E_DEFER E_IDX E_ADD E_SUB E_MUL E_DIV E_POW E_PLS E_MNS E_FENCE E_ARBNO E_POS E_RPOS E_TAB E_RTAB E_BREAKX`  
+Role-slots: `:lbl :subj :pat :repl :goS :goF :goU :eq :end`
 
-### §7 Identifier conventions
-| Kind | Convention | Examples |
-|------|-----------|---------|
-| Variable | lowercase_snake | `tx`, `str_body`, `cur_line` |
-| Function | UpperCamelCase | `Push`, `TDump`, `FoldOp`, `Push_qlit` |
-| Pattern rule | UpperCamel | `Id`, `Expr0`, `Compiland` |
-| Token (special) | `$'...'` | `$'='`, `$','`, `$' '` |
-| AST tag constant | `E_*` pre-quoted | `E_VAR = "'E_VAR'"` |
-No `_`-prefix identifiers in user code.
+### §7 Identifiers: lowercase_snake vars, UpperCamel patterns/functions, `$'...'` tokens, no `_`-prefix
 
-### §8 Layout
-120-char max. Single-statement bodies: no braces (`if (x) stmt ;`). Section dividers: `//====` (120 chars, major) and `//----` (120 chars, minor). No blank lines — use dividers. Horizontal packing of related short rules.
+### §8 Layout: 120-char max, no-brace single-stmt bodies, `//====`/`//----` dividers, no blank lines
 
 ### §9 Read beauty.sno and beauty.sc before authoring
 
@@ -100,145 +96,83 @@ No `_`-prefix identifiers in user code.
 
 ## SNOBOL4 oracle tree shapes
 
-| Construct | Oracle shape |
-|-----------|-------------|
+| Construct | Oracle |
+|-----------|--------|
 | `x` | `(STMT :subj (E_VAR x))` |
 | `42` | `(STMT :subj (E_ILIT 42))` |
 | `'hi'` | `(STMT :subj (E_QLIT "hi"))` |
-| `END` at col 0 | `(STMT :lbl END :end)` |
+| `END` col 0 | `(STMT :lbl END :end)` |
 | `x = 5` | `(STMT :eq :subj (E_VAR x) :repl (E_ILIT 5))` |
-| `S 'a' 'b'` | `(STMT :subj (E_VAR S) :pat (E_SEQ ...))` |
-| `S 'a' \| 'b'` | `(STMT :subj (E_ALT (E_SEQ ...) ...))` (alt eats LHS) |
-| `S 'a' = 'b'` | `(STMT :eq :subj ... :pat ... :repl ...)` |
-| `S = ` (empty) | `(STMT :eq :subj (E_VAR S) :repl (E_QLIT ""))` |
-| `S 'a' :S(L1)` | `(STMT :subj ... :pat ... :goS L1)` |
-| `LEN(3)` | `(E_LEN (E_ILIT 3))` |
-| `F(X)` | `(E_FNC F (E_VAR X))` |
+| `S 'a'\|'b'` | `(STMT :subj (E_ALT (E_SEQ ...) ...))` (alt eats LHS) |
 | `*Id` | `(E_DEFER (E_VAR Id))` |
 | `&KW` | `(E_KEYWORD KW)` |
-| `x[i]` | `(E_IDX (E_VAR x) (E_ILIT i))` |
+| `LEN(3)` | `(E_LEN (E_ILIT 3))` |
+| `FENCE(p)` | `(E_FENCE ...)` |
+| `ARBNO(p)` | `(E_ARBNO ...)` |
 | `POS(n)` | `(E_POS (E_ILIT n))` |
 | `RPOS(n)` | `(E_RPOS (E_ILIT n))` |
-| blank line | *(nothing emitted)* |
+| blank line | `(STMT)` |
 
-**`:subj`/`:pat` split rule:** parse body as one expr. If top is `E_SEQ` with N≥2 → child 1 is `:subj`, rest is `:pat`. Anything else → whole expr is `:subj`, no `:pat`.
-
-**Operator precedence** (loose→tight): `|` < concat < `.$` < `^!**` < `*` < `/` < `+-` < unary `+-` < atom. `.` and `$` left-associative.
+**`:subj`/`:pat` split:** if top is `E_SEQ` N≥2 → child 1 is `:subj`, rest is `:pat`. Else whole expr is `:subj`.  
+**Precedence** (loose→tight): `|` < concat < `.$` < `^!**` < `*` < `/` < `+-` < unary < atom.
 
 ---
 
 ## Active rung: SN-7-8 — beauty.sno full crosscheck
 
-**Goal:** parser output on `beauty.sno` matches `--dump-parse` oracle (whitespace-normalized).
+**Goal:** `parser(beauty.sno)` ≡ `oracle(beauty_noinc.sno)` whitespace-normalized.
 
-**Current state (session 2026-05-05):**
-- Oracle (no-include): 433 STMTs. Parser: 424 STMTs. Gap: 9 missing.
-- Blank-line bug: **FIXED this session** — driver now skips TDump when `pp_stmt` returns 0-child STMT.
-- Parser invocation reads stdin; oracle expands `-INCLUDE`. Gate should compare parser vs `--dump-parse /tmp/beauty_no_inc.sno` (beauty.sno with `-INCLUDE` lines stripped).
+**This session landed (corpus@634d2bb):**
+- `rw_call`: FENCE/ARBNO/POS/RPOS/TAB/RTAB/BREAKX → E_* primitives (was E_FNC)
+- `tdump.sc` TLump_normal: 0-child typed nodes now bracket as `(STMT)` not bare `STMT`
 
-**Known missing constructs** (9 STMTs gap after blank-line fix):
-`POS`, `RPOS` used as pattern primitives in beauty.sno (in `TxInList`, `Compiland`). The classifier tables `Functions`/`BuiltinVars`/etc. already list them as Functions so they parse via `E_FNC` path — but oracle emits `E_POS`/`E_RPOS`. Need dedicated Expr14/Expr17 alternatives or `rw_call` dispatch for these.
+**Current crosscheck state:**
+- `parser(beauty.sno)`: 434 STMTs, 10 bare `(STMT)`  
+- `oracle(beauty_noinc.sno)`: 433 STMTs, 9 bare `(STMT)`  
+- Gap: **1 extra `(STMT)` in parser.** Root cause: beauty.sno line 25 is blank (between the 13 `-INCLUDE` Control lines and `&FULLSCAN`). Oracle with `-INCLUDE` expansion never sees that blank line as a visible STMT (the included file content occupies the slot). Our stdin parser sees it as a blank Control → blank Stmt → `(STMT)`. Fix: strip blank lines that immediately follow a run of Control lines, OR use `beauty_noinc.sno` as the stdin input (which has the `-INCLUDE` lines removed, so the blank line at line 25 of the original is now at a different position relative to Content).
+- **Remaining structural mismatches after the 1-STMT realignment:** unknown — need to rerun with aligned inputs.
 
-**Steps:**
-- [x] Fix blank-line: skip TDump on 0-child STMT — `if (DIFFER(n(result))) TDump(result);`
-- [ ] Add `beauty_crosscheck` test script comparing parser vs oracle on beauty.sno (no-include)
-- [ ] Identify all 9 missing/wrong STMTs by diffing normalized outputs
-- [ ] Add `E_POS`/`E_RPOS` (and any other missing primitives) to `rw_call` dispatch in `parser_snobol4.sc`
-- [ ] Add fixtures for the new constructs to `corpus/programs/snobol4/parser/`
-- [ ] Gate: `test_parser_snobol4.sh` PASS increases + beauty crosscheck passes
-- [ ] Commit: `PARSER-SN-7-8: beauty.sno full crosscheck (PASS=N/N)`
+**Next steps:**
+- [ ] Determine the right stdin input: feed `beauty_noinc.sno` to the parser instead of `beauty.sno` so that `-INCLUDE` Control lines (and their trailing blank) are absent. Gate oracle also uses `beauty_noinc.sno`.
+- [ ] Run normalized STMT-block diff on aligned inputs; find remaining mismatches.
+- [ ] Fix any remaining structural differences (check E_ASSIGN in pattern context, `:(ppEnd)` goto targets in beauty.sno main body — 9 STMTs in oracle come from pp* / main* section that parser currently doesn't reach because it stops at END).
+- [ ] Add beauty crosscheck to `test_parser_snobol4.sh` or a new `test_parser_snobol4_beauty.sh`.
+- [ ] Commit: `PARSER-SN-7-8: beauty.sno full crosscheck passes (PASS=N/N)`
 
-**Gate:** beauty.sno parser output ≡ oracle output (whitespace-normalized).
+**Key insight on the 9 missing STMTs:** oracle has 9 extra at the tail — these are `pp*`/`main*` function bodies and the final `END`. The parser currently stops when Compiland's END-consumer fires. beauty.sno's `:(ppEnd)` label causes the SNOBOL4 parser to skip to `ppEnd` — but our Compiland doesn't have that skip logic. The parser probably just runs off the end of the grammar section and stops early. Check: does `beauty_noinc.sno` have the same 9 extra at the tail in oracle?
+
+**Gate:** `test_parser_snobol4.sh` PASS=78 (current) + beauty crosscheck 0 diff.
 
 ---
 
-## PARSER-FAMILY-LOOP — six-parser cross-pollination
+## PARSER-FAMILY-LOOP
 
-All six parsers at 100% as of corpus@0fba291 (session 2026-05-05):
+All six parsers at 100%: SN=78 IC=88 PR=60 RK=37 SC=46 RB=38 corpus@634d2bb.
 
-| Parser | Gate |
-|--------|------|
-| snobol4 | PASS=78/78 ✅ |
-| icon | PASS=88/88 ✅ |
-| prolog | PASS=60/60 ✅ |
-| raku | PASS=37/37 ✅ |
-| snocone | PASS=46/46 ✅ |
-| rebus | PASS=38/38 ✅ |
-
-Loop rules: (1) one concept per iteration, (2) identical shape in all six files, (3) all gates 100% throughout, (4) one commit per iteration, (5) SN first, (6) fix SCRIP bugs before working around them, (7) update table below each iteration.
-
-**Next loop iteration candidates:**
-- iter#11: cross-pollinate `foldop()`/`FoldOp()` to IC/PR/SC (same-tier mixed-op bug; RK already closed)
-- iter#10b: remove `is_rotate_op` from SN `rw_expr` once runtime `E_CAPT_*_ASGN` goes n-ary
-- Cleanup CR-3..CR-5: Rebus RExpr→EXPR_t (CR-1/CR-2 done; CR-3/CR-4/CR-5 pending)
-- FENCE sweep second pass (iter#10 Phase E) across remaining five parsers
-
-**Iteration log:**
+Next iteration candidates: iter#11 foldop cross-pollination (IC/PR/SC); FENCE sweep Phase E; CR-3..CR-5 Rebus RExpr cleanup.
 
 | # | Concept | SN | IC | PR | RK | SC | RB | Commit |
 |---|---------|----|----|----|----|----|----|--------|
-| 1 | White-encodes-comments + `$' '`/`$'  '` canonical | 59 | 51 | 54 | 32 | 21 | 38 | session 2026-05-04 cont.#6 |
-| 2 | Aligned token blocks | 59 | 51 | 54 | 32 | 21 | 38 | corpus@d41add5 |
-| 3 | Correct bracket/keyword ws per SN model | 59 | 51 | 54 | 32 | 21 | 38 | corpus@3e58061 |
-| 4 | SUPERSEDED → iter#5 | — | — | — | — | — | — | — |
-| 5 | Pair-shape semantic instrumentation + bare names | 59 | 51 | 54 | 32 | 21 | 38 | session 2026-05-05 |
-| 6 | `$'X'` token variables in productions | 59 | 51 | 54 | 32 | 21 | 38 | session 2026-05-05 |
-| 7 | SN only: grammar emits E_* directly; delete rw_tag | 59 | 51 | 54 | 32 | 21 | 38 | session 2026-05-05 |
-| 8 | FENCE around all right levels | 59 | 51 | 54 | 32 | 21 | 38 | session 2026-05-05 |
-| 9 | n-ary trees everywhere; flatten arith/concat/alt in C frontends | 62 | 88 | 54 | 31 | 46 | 38 | one4all@4393ce1e + corpus@61d825d |
-| 10 | SN: iterative left-recursive arith with foldop() | 62 | 88 | 54 | 31 | 46 | 38 | corpus@408fbe0 |
-| 11 | (pending — foldop cross-pollination to IC/PR/SC/RK) | | | | | | | |
+| 1–10 | (see prior sessions) | 78 | 88 | 60 | 37 | 46 | 38 | corpus@634d2bb |
 
 ---
 
 ## Known runtime workarounds
 
-### FW-3 — ARBNO deferred-call firing ✅ FIXED one4all@228bc06b
-`interp_eval_pat E_FNC` guards restored for ARBNO/FENCE (removed in RS-5).
-
-### INFRA-11a — `subj ? pat` value context ✅ FIXED one4all@d2547945
-Returns matched substring per spec. New SM opcode `SM_PUSH_LAST_MATCH`.
-
-### INFRA-11b — OPSYN `~`/`&` infix — ⚠ NEEDS RE-PROBE
-Quick probe after 11a/11c shows `~` may work. If confirmed, PARSER-* can use `~`/`&` verbatim from beauty.sno.
-
-### INFRA-11c — `_qtag(t)` auto-quoting in shift/reduce ✅ FIXED corpus@c8ee2a6
-
-### PARSER-SC FENCE/`*deref` silent-fail bug — ⚠ OPEN
-`*Id FENCE('=' *Id | epsilon)` against `'x=y'` captures `[x]` not `[x=y]`. Probable fix: `eval_pat.c E_FENCE`. Documented in GOAL-PARSER-SNOCONE.md.
+- **FW-3** ARBNO deferred-call ✅ one4all@228bc06b  
+- **INFRA-11a** `subj?pat` value context ✅ one4all@d2547945  
+- **INFRA-11b** OPSYN `~`/`&` infix ⚠ needs re-probe  
+- **INFRA-11c** `_qtag` auto-quoting ✅ corpus@c8ee2a6  
+- **PARSER-SC FENCE/`*deref`** silent-fail ⚠ open (eval_pat.c E_FENCE)
 
 ---
 
-## Closed rungs (summary only)
+## Closed rungs
 
-| Rung | Title | Gate |
-|------|-------|------|
-| INFRA-0..10 | Runtime infrastructure | all ✅ |
-| FW-1..3,6 | Framework: TValue, role-slots, Compiland spine, multi-line TDump | all ✅ |
-| SN-0..6 | atom, assign, tree pivot, concat/arith, control, patterns, functions | PASS=58 |
-| SN-7-0..7-0a | Scaffold rewrite + style audit | PASS=0→0 (style) |
-| SN-7-1 | Labels + assignment + full tree-shape rewrite (role-slots, IR tags, alt-eats-LHS, left-assoc, paren-strip, 1-arg-call, goto-direction-in-tag) | PASS=59/59 |
-| SN-7-2 | &KEYWORD recognition (consume `&`, shift name-only) | PASS=66/66 |
-| SN-7-3 | Bracket index `x[i]`, `x[i,j]` | PASS=70/70 |
-| SN-7-4 | `+`/`.` continuation lines | PASS=73/73 |
-| SN-7-5 | Comment/control lines | PASS=74/74 |
-| SN-7-6 | `*Id` deferred-pattern reference | PASS=77/77 |
-| SN-7-7 | `;` mid-line separator | PASS=78/78 |
-| SN-7-7b | Grammar emits E_* directly; rw_tag deleted | PASS=78/78 corpus@0390853 |
-| SN-7-7c | Full keyword/function/builtin inventory + classifier patterns | PASS=78/78 corpus@0fba291 |
-
----
-
-## Deferred
-
-- **PARSER-SN-FW-4** — `scrip --parser-crosscheck` C-side flag (tree_equal + Snocone bridge)
-- **PARSER-SN-FW-5** — TLump function-name-slot wart root-cause (defensive)
-- **Cleanup CR-3..CR-5** — Rebus RExpr→EXPR_t (CR-1/CR-2 done; low priority since RB green)
+INFRA-0..10, FW-1..3/6, SN-0..7-7c all ✅. See git history for detail.
 
 ---
 
 ## Watermark
 
-**SN-7-7c LANDED PASS=78/78 corpus@0fba291.** Cross-runtime symbol inventory complete (SPITBOL x64/x32 + csnobol4 union). Functions(123) UnprotKwds(21) ProtKwds(28) BuiltinVars(7) SpecialNms(8). SN-7-7b: E_* tags direct, rw_tag deleted.
-
-**Session 2026-05-05 (this session):** Blank-line fix landed in driver (`if (DIFFER(n(result))) TDump(result)`). SN-7-8 investigation started: oracle(no-inc)=433 STMTs, parser=424. Gap=9. Known missing: POS/RPOS as pattern primitives. Next: add beauty crosscheck script, identify all 9 gaps, fix rw_call dispatch.
+**corpus@634d2bb** SN-7-8 partial. E_FENCE/ARBNO/POS/RPOS/TAB/RTAB/BREAKX primitives landed. tdump.sc 0-child bracket fix. Parser 434 vs oracle 433 — 1 extra (STMT) from blank line after -INCLUDE block. Next: feed beauty_noinc.sno to align inputs, diff, fix remaining gaps, land full crosscheck.
