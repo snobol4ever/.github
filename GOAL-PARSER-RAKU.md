@@ -282,6 +282,28 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
+### PARSER-RK-10 — delete, range `..`/`..^`, for-range — LANDED session 2026-05-05
+
+- [x] `delete %h<ident>` stmt → `(E_FNC hash_delete (E_VAR hash_delete) (E_VAR h) (E_QLIT key))`.
+      `finish_hash_delete_angle` helper; mirrors raku.y `KW_DELETE VAR_HASH '<' IDENT '>'` action.
+- [x] `delete %h{$expr}` stmt → `(E_FNC hash_delete (E_VAR hash_delete) (E_VAR h) key_expr)`.
+      `finish_hash_delete_brace` helper; key_expr on top of stack.
+- [x] Range expression `a..b` / `a..^b` → `(E_TO lo hi)`.
+      New `Expr5` tier between `Expr4` (cmp) and `Expr6` (add) — matches raku.y precedence
+      table (`OP_RANGE` between cmp and `+`).  Both `..` and `..^` map to `E_TO` (oracle does same).
+      `$'..'` and `$'..^'` operator tokens; `..^` tried first (longer).
+- [x] `for lo..hi -> $v { body }` range for → while-loop lowering.
+      `ForRangeStmt` matches `Expr6 $'..'|$'..^' Expr6` explicitly.
+      `finish_for_range` mirrors `raku.y make_for_range()`: appends incr to body,
+      builds `(E_SEQ_EXPR (E_ASSIGN v lo) (E_WHILE (E_LE v hi) body_with_incr))`.
+      `ForRangeStmt` appears before `ForStmt` in all Stmt/BlockStmt/SubBlockStmt so
+      range input is caught before the general `E_EVERY`/`E_ITERATE` path.
+- [x] Test corpus: 5 new fixtures (delete_hash_angle, delete_hash_brace, range_expr,
+      for_range, for_range_ex).
+- **Gate:** PASS=55 FAIL=0 ✓  corpus@2cdfcec.
+
+---
+
 ## Invariants
 
 - Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
@@ -307,16 +329,20 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-9 LANDED (session 2026-05-05) — PASS=50 FAIL=0.
+PARSER-RK-10 LANDED (session 2026-05-05) — PASS=55 FAIL=0.
 RK-7: $*STDIN/$*STDOUT/$*STDERR standard handles (corpus@5da7d87).
 RK-8: m:g/body/ global match + s/pat/repl/[g] substitution + CQize \xNN fix (corpus@dcba3b5).
 RK-9: @arr[$expr] arr_get, %h<ident> hash_get (angle), %h{$expr} hash_get (brace),
   exists %h<ident> hash_exists, exists %h{$expr} hash_exists.  corpus@e605b01.
   New [ ] operator tokens; ArrIdxVar/HashIdxVar with separate colnmf/colnmr captures
   prevent index Expr from clobbering collection var name.
+RK-10: delete %h<ident>/%h{$expr} → hash_delete E_FNC; range a..b/a..^b → E_TO;
+  for lo..hi -> $v { body } → make_for_range while-loop lowering.
+  Expr5 range tier between Expr4 (cmp) and Expr6 (add); ForRangeStmt before ForStmt.
+  corpus@2cdfcec.
 
-Next session: PARSER-RK-10 — arr_push / push(@arr, val), delete %h<key>,
-  or range expressions (1..5, 1..^5).
+Next session: PARSER-RK-11 — arr_push / push(@arr, val) and pop(@arr),
+  or string repetition x operator, or unless/until stmts.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
