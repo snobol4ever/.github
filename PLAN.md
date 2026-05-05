@@ -73,11 +73,11 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | **EMERGENCY REVERT to SN-7-1 base** — iter#10 ARBNO broke beauty.sno full parse; reverted parser_snobol4.sc to working 85bdd30; PASS=62 (16 SN-7-2/3/6 fixtures need targeted fixes on new base). **Next: bisect iter#7 diff to find breaking change, fix it, re-apply downstream.** |
+| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | **PARSER-SN-7-4..7-7 LANDED** PASS=78/78 ✅ — cont lines, comments, `*Id` defer (E_DEFER fix), `;` sep.  **Next: PARSER-SN-7-8 (beauty.sno full crosscheck).** |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
-| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6 ⏳ (SC-6a ✅ landed PASS=46; SC-6b blocked on naming collision — Lon decision needed) |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | ALL RUNGS COMPLETE (RB-0..RB-5 LANDED, PASS=38 FAIL=0, corpus@a5c3fe9). Stale open steps closed 2026-05-05. No next step — operator-directed. |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-13 LANDED PASS=113 corpus@3a8f465 — global/local/static/initial/record; next: IC-14 |
+| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6 ⏳ (SC-6a next: White+NL fix so beauty.sc multi-line exprs parse) |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-14 LANDED PASS=116 corpus@b934eb5 — suspend/fail + DGray fix; next: IC-15 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-8b LANDED PASS=60; PR-8c (parenthesized body subterms) NEXT |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-8 LANDED PASS=45 FAIL=0 corpus@dcba3b5 — m:g// subst s/// CQize \xNN. Next: RK-9 array/hash index — captures \$0/\$N and \$<name>. Next: RK-7 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |

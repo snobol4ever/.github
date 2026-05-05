@@ -534,3 +534,17 @@ Global/local/static/initial/record declarations. 5 NEW fixtures over IC-12 basel
 - Shared patterns: `DeclFirst`/`DeclRest`/`DeclIds` for comma-separated identifier lists.
 
 **Next session (IC-14):** `create` expression (`E_CREATE` if it exists), `suspend`/`fail` statement forms, `link`/`invocable` top-level declarations, and cross-pollinating `DGray` Compiland fix to other PARSER-* parsers.
+
+---
+
+### PARSER-IC-14 LANDED PASS=116 corpus@b934eb5
+
+`suspend [do body]` + `fail` statements + DGray fix. 3 NEW fixtures.
+
+- **`suspend expr;`** → `(E_SUSPEND expr)`: `SuspendStmt` with nPush/nInc/nPop spine; optional `do body` branch via FENCE adds second child → 2-child `(E_SUSPEND expr body)`.
+- **`fail;`** → `(E_PROC_FAIL)`: `FailStmt` = `$'fail' semi_opt nl_one (E_PROC_FAIL & 0)`. Zero children.
+- **`DGray` redefined** to `ARBNO(SPAN(' ' tab nl) | '#' BREAK(nl) nl_one)` — properly consumes any number of consecutive blank lines and comment lines. Previous definition only handled one SPAN+comment sequence, so files with leading comment blocks produced no Compiland output. Used in Compiland ARBNO and Case/Initial bodies.
+- New fixtures: `suspend_simple`, `suspend_do`, `fail_stmt`.
+- `link`/`invocable`/`create` deferred: oracle C frontend doesn't support them.
+
+**Next session (IC-15):** Real literal `E_FLIT` support (needed for rung15+); keyword expressions (`&pos`, `&subject`, etc.); cross-pollinate DGray Compiland fix to other PARSER-* parsers.
