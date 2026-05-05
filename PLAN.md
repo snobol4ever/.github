@@ -73,17 +73,17 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Raku Frontend Ladder | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
 | Snocone Frontend Ladder | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PASS=78/78 ✅ corpus@0390853 — SN-7-7b + PARSER-FAMILY-LOOP ✅ complete. Next: **SN-7-7c** full keyword/function/builtin inventory + classifiers. |
+| **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PASS=78/78 ✅ corpus@efcbf2d — SN-7-2/7-3/7-6 + arith left-assoc (FENCE+foldop). Next: SN-7-8 beauty.sno crosscheck or PARSER-FAMILY-LOOP next iteration. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
-| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=46 FAIL=0 corpus@d6c874d. White/Gray corrected: SPAN(sp tab nl)+comments, ARBNO, no continuation lines, no Gray_h/nl_opt. Next: resume beauty.sc content diff |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-1 LANDED 2026-05-05 (PASS=48 FAIL=0): arith+call-with-args+cmp+strcat+unary+paren. BUG-RB-1 fixed (rebus_lower.c unary ops). corpus@3f7f470, one4all/parser@deeae350. Next: return/exit/stop/fail/next stmts; exponentiation; modulo; string-cmp; local/initial. |
+| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=46 FAIL=0 corpus@9d87724. SC-6f landed: Lon's style edits (White/Gray/$'  '/$' ' canonical, ops $'  ', DQ_lit). Next: SC-6b Expr14 gap + stmt_body trailing-ws fix | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=46 FAIL=0 corpus@9d87724. SC-6f landed: Lon's style edits (White/Gray/$'  '/$' ' canonical, ops $'  ', DQ_lit). Next: SC-6b Expr14 gap + stmt_body trailing-ws fix |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-13 LANDED PASS=113 corpus@3a8f465 — global/local/static/initial/record; next: IC-14 |
-| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-9 LANDED PASS=86 FAIL=0 corpus@83cf1ae — comparison ops complete; next: PR-10 negation/meta |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-15 LANDED PASS=80 FAIL=0 corpus@5b42940 — % modulo E_MOD + div E_DIV. Next: RK-16 — given/when or interp strings |
+| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-8d LANDED PASS=75 FAIL=0 corpus@HEAD — DCG sugar complete; next: PR-8e clause-body cut (`!` in primary) |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-10 LANDED PASS=55 FAIL=0 corpus@c7c2d14 — delete %h<k>/%h{e}, range a..b/a..^b, for-range. Next: RK-11 — push(@arr,val)/pop(@arr) or unless/until |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
-| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-24b (RS-23e LANDED 2026-05-05 @ `dd661851`; **RS-24a LANDED 2026-05-05 @ `5dc188ac`** — diag complete, 14 dead icon-frame cases hardened with abort(); next: delete dead bodies and remove diag tooling) |
+| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-23-extra (RS-23c/d LANDED 2026-05-04 @ `0de9a2cf`; RS-23-extra-prep SCAN-builtin lift LANDED 2026-05-04 @ `5053e80b`; RS-23-extra blocked on `icn_call_builtin` double-eval gap — see goal file for option A/B paths) |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |

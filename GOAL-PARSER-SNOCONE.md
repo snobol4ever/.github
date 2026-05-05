@@ -569,13 +569,15 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ landed; SC-6b next — Expr14 gap + stmt_body trailing-ws fix)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6f ✅ landed; SC-6b next — Expr14 gap + stmt_body trailing-ws fix)**
 
-Gate: PASS=46 FAIL=0. corpus @ `14495ca`. SC-6a landed: White_h/White_expr/White NL
-split; $'(g' grouping paren; Call restructured (nPush after '(' confirmed); Expr11
-(^/E_POW) + Expr12 (binary ./$/E_CAPT_*); Expr9 wired to Expr11. SC-6b: beauty.sc
-parses correctly to line 114; Stmt (*Expr14) and stmt_body trailing-ws issue block
-further progress — next session adds missing Expr tiers and fixes stmt_body.
+Gate: PASS=46 FAIL=0. corpus @ `9d87724`. SC-6f landed: Lon's style edits applied —
+White rewritten (SPAN|line-comment|block-comment), Gray = White | epsilon, $'  '/$' '
+aliases per parser_snobol4.sc canonical style, all binary ops use $'  ' '=' $'  ' form,
+punctuation uses $' ', E_* constants one-per-line, DQ→DQ_lit, file header removed,
+kw_else/kw_for/kw_freturn/kw_goto added, kw_rest initialized explicitly.
+SC-6b: beauty.sc parses correctly to line 114; Stmt (*Expr14) and stmt_body
+trailing-ws issue block further progress — next session adds missing Expr tiers.
 
 **Session #67 cont. (2026-05-04) — PARSER-SC-5 landed (pattern-match scan stmt).**
 
