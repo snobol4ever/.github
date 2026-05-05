@@ -104,6 +104,7 @@ Detail for each rung lives in its commit message.  Open the hash in
 | RS-23-extra      | b0b5863a | Lift `E_IF`/`E_PROC_FAIL`/`E_BANG_BINARY`/`E_REVASSIGN`/`E_LOOP_BREAK`/`E_RETURN` into BB adapters; diag drops to zero unique tuples. |
 | RS-23e           | dd661851 | Harden the two physical fallthroughs to `abort()`; remove `extern interp_eval`; promote `coro_value.c`/`coro_stmt.c` into the isolation gate. |
 | RS-24a           | 5dc188ac | Add RS-24 diag tooling to `interp_eval.c` (env-gated `RS24_DIAG=1` per-kind hit counter for the icon-frame switch); harden 14 dead case bodies with `fprintf+abort()`.  Two cases survive: `E_VAR`, `E_FNC`. |
+| RS-24b           | 296ef139 | Delete dead bodies from icon-frame switch; conservative variant retains case labels and named-FATAL guards. `interp_eval.c` 3860→3517 lines. RS-24b' (label deletion + sub-switch collapse) split out for Lon decision. |
 | RS-25-investig.  | (folded) | SM shape verification — Icon/Prolog short-circuit through `polyglot_execute`. |
 | RS-26a | ec558491   | Symmetric SM preamble + IR retention for non-SNO programs. |
 | RS-26b | 813d3224   | Route single-language Icon through SM pipeline. |
@@ -480,17 +481,60 @@ have native handlers as of RS-23.
   `--ir-run`/`--sm-run`/`--jit-run` = 5/5/5 = 15/15.  Zero hardening
   guards fire.
 
-- [ ] **RS-24b** — Delete the now-unreachable case bodies.  Each of the
-  14 hardened cases retains its original logic below the abort() guard
-  as dead code.  The bodies range from ~10 lines (E_LOOP_NEXT,
-  E_REPEAT) to ~110 lines (E_ASSIGN with all its lvalue branches).
-  Total deletion candidate: ~1100 lines.  After deletion the icon-frame
-  switch is just two cases — `E_VAR` and `E_FNC` — plus a `default:
-  break;`.  At that size the `if (frame_depth > 0)` guard with two
-  cases inside should probably collapse into two if-statements at the
-  top of `interp_eval`'s shared switch instead, but that restructuring
-  is part of RS-24b (or a follow-on RS-24b' if blast radius warrants).
-  Gates: same as RS-24a.
+- [x] **RS-24b — LANDED (session 2026-05-05 cont., conservative variant) @ `296ef139`:**
+  Deleted the dead case bodies for all 14 hardened kinds in the
+  icon-frame switch in `interp_eval.c`.  Each dead case retains its
+  case label and a single-line `fprintf+abort()` named-FATAL guard
+  (RS-24a's hardening collapses from a guard-then-dead-body shape to
+  a guard-only shape).  E_VAR and E_FNC are the only live cases.
+  File shrinks 3860 → 3517 lines (343 lines deleted; the goal-file
+  estimate of "~1100 lines" was a rough overcount — actual dead-body
+  span across the 14 cases summed to ~370 lines minus the 28 retained
+  for the one-line guards).  The bodies and the verbose RS-24a-era
+  comments inside them are gone.
+
+  **Conservative variant rationale:** the goal-file phrasing ("just
+  two cases — E_VAR and E_FNC — plus a default: break;") would also
+  remove the dead case labels, letting unanticipated reach fall
+  through `default: break;` into the shared switch below.  But the
+  shared switch handles those kinds with SNOBOL4-flavor semantics
+  (NV-routed, no FRAME.env, no coro pump) — wrong for Icon.  Keeping
+  the named-FATAL guards is a stronger safety posture than silent
+  fallthrough: any future regression that breaches RS-23 isolation
+  still gets a labeled abort identifying the offending kind, instead
+  of silently misbehaving.  The aggressive form (label deletion +
+  collapse to two if-statements in the shared switch) is split out
+  to **RS-24b'** below for separate decision.
+
+  Gates after RS-24b (no `RS24_DIAG` set):
+  smoke {snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5,
+  rebus 4/4} = 31/31, isolation gate PASS, csnobol4 Budne PASS=36
+  (floor 34), Icon corpus 186/47/30 (no delta from baseline),
+  test_smoke_scrip_all_modes PASS.  Zero hardening guards fire.
+
+- [ ] **RS-24b'** — Aggressive variant of RS-24b (deferred for Lon's
+  call).  Two parts:
+    1. **Label deletion.**  Remove the 14 dead case labels entirely.
+       Net change: ~28 more lines deleted; if any of these kinds are
+       reached in mode 1 with frame_depth>0, they fall through
+       `default: break;` to the shared switch below and get
+       SNOBOL4-flavor handling (silent semantic mismatch, not abort).
+       Trade-off: smaller code, weaker safety net.  Diagnostic value
+       lost — RS-24a's empirical zero-hit table is the only remaining
+       evidence that these kinds are unreachable.
+    2. **Sub-switch collapse.**  After (1), the icon-frame
+       `if (frame_depth > 0) { switch { E_VAR; E_FNC; default; } }`
+       has just two live cases.  It could collapse into two
+       if-statements at the top of `interp_eval`'s shared switch
+       (or two cases in the shared switch with `frame_depth > 0`
+       guards).  Blast radius: every interp_eval entry now does an
+       extra branch on `frame_depth` for non-E_VAR/E_FNC kinds.
+       Possibly cheap; possibly worth measuring.
+
+  Recommend (1) and (2) be done together if at all — they share the
+  same architectural argument and should fail or land together.
+  Until then, the conservative RS-24b shape (labeled FATALs) is the
+  resting state.
 
 - [ ] **RS-24c** — Remove the RS-24 diag tooling from `interp_eval.c`
   (the static counter init block, the `rs24_diag_dump`/

@@ -84,7 +84,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
-| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-23-extra (RS-23c/d LANDED 2026-05-04 @ `0de9a2cf`; RS-23-extra-prep SCAN-builtin lift LANDED 2026-05-04 @ `5053e80b`; RS-23-extra blocked on `icn_call_builtin` double-eval gap — see goal file for option A/B paths) |
+| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-24b LANDED 2026-05-05 @ `296ef139` (conservative variant: dead bodies deleted, named-FATAL guards retained; 3860→3517 lines). Next: RS-24b' (aggressive label-deletion + sub-switch collapse — awaiting Lon decision) or RS-24c (remove/keep diag tooling). |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
