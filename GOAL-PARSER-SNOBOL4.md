@@ -2347,3 +2347,37 @@ All 16 previously-failing fixtures now pass. Changes all in `parser_snobol4.sc` 
 beauty.sno parse fidelity preserved: 434 STMTs (same as SN-7-1 baseline). All smoke gates green. Other five parsers untouched.
 
 **Next milestone:** SN-7-8 — beauty.sno full crosscheck (parser vs `--dump-parse` oracle, whitespace-normalized). 434/1084 STMTs currently match shape; many constructs in beauty.sno not yet handled by the parser (missing: POS, RPOS, CURSOR, TAB, RTAB, ARBNO, FENCE, LGT, LEQ etc. as pattern primitives; `E_IDX` on complex exprs; multi-bracket chains). Or: PARSER-FAMILY-LOOP next iteration (operator picks).
+
+**Watermark (session 2026-05-05, corpus@0390853): PASS=78 FAIL=0 ✅ — SN-7-7b landed: E_* direct + rw_tag deleted.**
+
+Three changes landed this session, all in `parser_snobol4.sc` only:
+
+**iter#2/3 catch-up (corpus@ebb9b72):** Whitespace-token canonicalization —
+`$'  '`/`$' '` form applied to parser_snobol4.sc to match the other five
+parsers. `Gray = *White | epsilon` → `Gray = White | epsilon`; all operator
+tokens `*White 'op' *White` → `$'  ' 'op' $'  '`; all bracket tokens updated;
+X4, Sgo/Fgo, Goto, Stmt all use `$'  '`/`$' '` throughout. PASS=78 FAIL=0.
+
+**SN-7-7b (corpus@0390853):** Grammar now emits canonical E_* IR tags directly
+at every shift/reduce site. `rw_tag` dispatch table deleted entirely (27 lines
+gone). `rw_expr` is now a pure structural rewrite: paren-strip, ExprList-unwrap,
+E_IDX-flatten, E_CAPT_*_ASGN left-rotation — no tag knowledge. String quotes
+stripped at parse time via dot-capture + `Push_qlit` pair-shape worker. Net:
+−91 lines. PASS=78 FAIL=0.
+
+Key implementation notes for next session:
+- `E_*` string constants are pre-quoted (`E_VAR = "'E_VAR'"`) for use in
+  reduce()/shift() pattern calls. BUT in `rw_expr`/`rw_call`/`pp_stmt` helper
+  functions, all `IDENT(t, ...)` and `Tree(...)` calls use bare string literals
+  (`'E_VAR'` not `E_VAR`) — because `t(x)` returns the bare tag string, not
+  the pre-quoted form. This distinction is critical.
+- `ExprList` internal tag kept as `'ExprList'` (not changed to E_SEQ) to
+  disambiguate from grammar-built E_SEQ concat nodes. `rw_expr` and `rw_call`
+  both test `IDENT(t, 'ExprList')` for arg-list nodes.
+- `Push_qlit` uses `tree('E_QLIT', str_body)` with bare `'E_QLIT'` string
+  (not the `E_QLIT` constant) for the same reason.
+- E_CAPT_*_ASGN left-rotation in `rw_expr` still needed — grammar is right-
+  recursive for `.`/`$` capture operators; oracle is left-associative.
+
+**Next milestone:** SN-7-8 — beauty.sno full crosscheck. Or PARSER-FAMILY-LOOP
+next iteration (operator picks). context window was ~90% at handoff.
