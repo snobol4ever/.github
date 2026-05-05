@@ -690,7 +690,19 @@ Gate PASS=65 FAIL=0.
 - Pre-built `do_cmp_*` functions (no EVAL — SCRIP EVAL bug: `>` and `<` inside EVAL string literals cause Snocone parse errors).
 - 9 new fixtures: `cmp_{ge,gt,le,lt,eq,id,ne,nid,neq}.pl`.
 
-**PR-10 — ⏳ NEXT: `not(X)` / `\+(X)` negation-as-failure; `functor/3`, `arg/3`, `=..` univ; or next natural rung.**
+**PR-10 — ✅ LANDED (PASS=93 FAIL=0, 2026-05-05 session): float literals + negation-as-failure.**
+
+### PARSER-PR-10 — float literals + negation-as-failure — LANDED (PASS=93)
+
+- [x] Float literals (`3.14`, `1.5`, `1.0e2`): `E_FLIT` constant + `Float` token + `shift(Float,'E_FLIT')` in `primary` and `list_elem`. Float before Int to avoid prefix greed.
+- [x] Negative float (`-3.14`): `push_neg_float`/`Push_neg_float` helpers; arm in `primary`.
+- [x] `not(X)` negation-as-failure: already worked via existing Atom compound path.
+- [x] `\+(Goal)` negation-as-failure: `Graphic_atom` token (`Graphic_first = ANY('\\@#^~?')` + graphic-char `Graphic_rest` span); dedicated `g_name` capture var — avoids clobbering `p_name` on recursive `primary` calls inside `args`.
+- **Gate:** PASS≥93. ✅ (PASS=93, +7 over PR-9)
+- **Fixtures:** `float_simple`, `float_neg`, `float_int_val`, `float_arith`, `naf_not`, `naf_backslash`, `naf_compound_arg`.
+- **tdump.sc bug fixed (shared):** E_FLIT normalization now calls `REAL()` + strips trailing zeros + strips trailing `.` to match oracle C `%g`. Before fix: `(E_FLIT 1.0)` instead of `(E_FLIT 1)`. All other PARSER-* confirmed green after fix.
+
+**PR-11 — ⏳ NEXT: char-code literals `0'a`; `functor/3`/`arg/3`/`=..` univ; more graphic functor atoms.**
 
 ### PARSER-PR-8e + PR-9 handoff note (2026-05-05 session)
 
