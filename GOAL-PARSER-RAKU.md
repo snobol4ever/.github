@@ -368,6 +368,19 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
+### PARSER-RK-15 — `%` modulo + `div` integer division — LANDED session 2026-05-05
+
+- [x] `$x % $y` → `(E_MOD x y)`.  `$'%' *Expr11 (E_MOD & 2)` in `Expr7tail`.
+      Mirrors raku.y `mul_expr '%' unary_expr → expr_binary(E_MOD)` (non-flatten).
+- [x] `$x div $y` → `(E_DIV x y)` via `Flatten_div`.  `$'div' *Expr11 Flatten_div`.
+      Mirrors raku.y `mul_expr OP_DIV unary_expr → expr_binary_flatten(E_DIV)`.
+- [x] `$'%'` token: `$' ' '%' $' '`.  No ambiguity with `VarHash` (`%letter`) —
+      `%` appears in `Expr7tail` only after an expression is already on stack.
+- [x] Test corpus: 5 new fixtures (modulo, div_kw, modulo_chain, div_expr, mod_div).
+- **Gate:** PASS=80 FAIL=0 ✓  corpus@5b42940.
+
+---
+
 ## Invariants
 
 - Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
@@ -393,16 +406,17 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-14 LANDED (session 2026-05-05) — PASS=75 FAIL=0.
+PARSER-RK-15 LANDED (session 2026-05-05) — PASS=80 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
 RK-12: logical && → E_SEQ, || → E_ALT, ! → E_NOT.  corpus@15666e9.
 RK-13: string ~ concat → E_CAT n-ary flatten.  corpus@591f91b.
 RK-14: eq/ne string cmp → E_LEQ/E_LNE; unary minus → E_MNS.  corpus@d2f4584.
+RK-15: % modulo → E_MOD (binary); div integer division → E_DIV (flatten).  corpus@5b42940.
 
-Next session: PARSER-RK-15 — modulo % op, integer division (div keyword),
-  or ternary ?: operator, or hash/array slice.
+Next session: PARSER-RK-16 — given/when construct, or interpolated \"$var\" strings,
+  or array/hash assignment (\@a = (1,2,3) / %h = (a=>1)).
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
