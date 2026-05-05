@@ -65,6 +65,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | CH-0a (audit not yet started) — supersedes the carrier-fiction in RS-20; mode-4 prerequisite |
 | **SCRIP Bootstrap (Milestones 2+3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | Corpus Layout Formula | `GOAL-CORPUS-LAYOUT.md` | corpus+.github+one4all | design state |
 | SNOBOL4 Frontend Ladder | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 DONE (session #61) |
