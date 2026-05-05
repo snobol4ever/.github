@@ -83,7 +83,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
-| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-24 (RS-23-extra-prep2 LANDED 2026-05-05 @ `dfa7eda4`; RS-23-extra LANDED 2026-05-05 @ `b0b5863a`; **RS-23e LANDED 2026-05-05 @ `dd661851`** — RS-23 arc closed, BB adapters in isolation gate, fallthroughs abort, diag at zero) |
+| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-24b (RS-23e LANDED 2026-05-05 @ `dd661851`; **RS-24a LANDED 2026-05-05 @ `5dc188ac`** — diag complete, 14 dead icon-frame cases hardened with abort(); next: delete dead bodies and remove diag tooling) |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |

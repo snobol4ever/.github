@@ -103,6 +103,7 @@ Detail for each rung lives in its commit message.  Open the hash in
 | RS-23-extra-prep2| dfa7eda4 | Smart fallback in `icn_call_builtin` (Option B′) — synthesize literal-leaf clone for non-mutator scalar-arg builtins; preserves writeback for the 5-name mutator denylist. |
 | RS-23-extra      | b0b5863a | Lift `E_IF`/`E_PROC_FAIL`/`E_BANG_BINARY`/`E_REVASSIGN`/`E_LOOP_BREAK`/`E_RETURN` into BB adapters; diag drops to zero unique tuples. |
 | RS-23e           | dd661851 | Harden the two physical fallthroughs to `abort()`; remove `extern interp_eval`; promote `coro_value.c`/`coro_stmt.c` into the isolation gate. |
+| RS-24a           | 5dc188ac | Add RS-24 diag tooling to `interp_eval.c` (env-gated `RS24_DIAG=1` per-kind hit counter for the icon-frame switch); harden 14 dead case bodies with `fprintf+abort()`.  Two cases survive: `E_VAR`, `E_FNC`. |
 | RS-25-investig.  | (folded) | SM shape verification — Icon/Prolog short-circuit through `polyglot_execute`. |
 | RS-26a | ec558491   | Symmetric SM preamble + IR retention for non-SNO programs. |
 | RS-26b | 813d3224   | Route single-language Icon through SM pipeline. |
@@ -424,12 +425,81 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
 
 After RS-23, every Icon kind reachable from a BB-engine call site is
 handled in `bb_eval_value` / `bb_exec_stmt`.  The Icon-frame switch in
-`interp_eval.c` (~lines 2200-2420) can shrink dramatically — only kinds
-reachable from mode 1's call graph remain.  Verify by grep: which case
-labels are still reachable from `interp_eval` direct callers in mode 1?
-Delete the rest.  IR walker stays as mode-1 reference but loses
-Icon-specific complexity.
-Gate: smoke_icon 5/5 in `--ir-run`, `--sm-run`, `--jit-run`.
+`interp_eval.c` (lines 526–2038, ~1500 lines) can shrink dramatically —
+only kinds reachable from mode 1's call graph remain.  RS-24 follows
+the RS-23 arc's pattern: harden first (RS-24a), delete second (RS-24b),
+remove diag tooling third (RS-24c).
+
+**Diag findings (RS-24a, session 2026-05-05 cont.):**  Built an
+env-gated per-kind hit counter inside the `if (frame_depth > 0)` block
+(toggled with `RS24_DIAG=1`, dumps to `/tmp/rs24_diag_hits.log` via
+atexit).  Ran across all six smoke gates + unified_broker + Icon corpus
+263.  Aggregated hit table:
+
+| Case label    | Hits | Status |
+|---------------|------|--------|
+| `E_FNC`       | 3171 | reachable — kept |
+| `E_VAR`       | 1108 | reachable — kept |
+| `E_ASSIGN`    | 0    | dead — hardened |
+| `E_REVASSIGN` | 0    | dead — hardened |
+| `E_ALT`/`E_ALTERNATE` | 0 | dead — hardened |
+| `E_EVERY`     | 0    | dead — hardened |
+| `E_WHILE`     | 0    | dead — hardened |
+| `E_UNTIL`     | 0    | dead — hardened |
+| `E_REPEAT`    | 0    | dead — hardened |
+| `E_SUSPEND`   | 0    | dead — hardened |
+| `E_SEQ`       | 0    | dead — hardened |
+| `E_SEQ_EXPR`  | 0    | dead — hardened |
+| `E_IF`        | 0    | dead — hardened |
+| `E_LOOP_NEXT` | 0    | dead — hardened |
+| `E_RETURN`    | 0    | dead — hardened |
+| `E_PROC_FAIL` | 0    | dead — hardened |
+
+The "?" entries in the diag log (kinds 0/1/2/4/11/13/83/103) are kinds
+that traverse the `frame_depth > 0` block but hit `default: break;`
+and fall through to the shared switch below — they are not handled by
+the icon-frame switch.
+
+This confirms: in mode 1, the only kinds the icon-frame switch
+*handles* are `E_VAR` (with `&keyword` resolution and slot lookup via
+`FRAME.env`) and `E_FNC` (the giant builtin block).  Every other case
+body is dead.  Mode 1 Icon programs reach `interp_eval` for these kinds
+only through `coro_call → bb_eval_value/bb_exec_stmt`, both of which
+have native handlers as of RS-23.
+
+- [x] **RS-24a — LANDED (session 2026-05-05 cont.):** Added the RS-24
+  diag tooling to `interp_eval.c` (kept dormant — only fires when
+  `RS24_DIAG=1` is set in the environment) and hardened 14 dead case
+  bodies in the icon-frame switch with `fprintf+abort()` guards naming
+  the offending kind.  Two cases retained: `E_VAR` and `E_FNC`.
+
+  Gates after RS-24a (no `RS24_DIAG` set, normal execution):
+  smoke {snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5,
+  rebus 4/4} = 31/31, unified_broker 49/0, Icon corpus 186/47/30
+  (no delta), isolation gate PASS, smoke_icon in
+  `--ir-run`/`--sm-run`/`--jit-run` = 5/5/5 = 15/15.  Zero hardening
+  guards fire.
+
+- [ ] **RS-24b** — Delete the now-unreachable case bodies.  Each of the
+  14 hardened cases retains its original logic below the abort() guard
+  as dead code.  The bodies range from ~10 lines (E_LOOP_NEXT,
+  E_REPEAT) to ~110 lines (E_ASSIGN with all its lvalue branches).
+  Total deletion candidate: ~1100 lines.  After deletion the icon-frame
+  switch is just two cases — `E_VAR` and `E_FNC` — plus a `default:
+  break;`.  At that size the `if (frame_depth > 0)` guard with two
+  cases inside should probably collapse into two if-statements at the
+  top of `interp_eval`'s shared switch instead, but that restructuring
+  is part of RS-24b (or a follow-on RS-24b' if blast radius warrants).
+  Gates: same as RS-24a.
+
+- [ ] **RS-24c** — Remove the RS-24 diag tooling from `interp_eval.c`
+  (the static counter init block, the `rs24_diag_dump`/
+  `rs24_diag_kind_name` helpers, the `rs24_diag_hits_ptr` global, the
+  three new `#include` lines if no longer needed elsewhere).  Or keep
+  as dormant per Lon's call (parallel to RS-23's `rs23_diag.c`).  The
+  diag is reusable: any future rung enumerating reachability of any
+  call surface inside `interp_eval` can re-enable it by re-introducing
+  a guarded counter against any chosen predicate.
 
 ### RS-25 — Verify SM shape for Icon/Prolog
 
