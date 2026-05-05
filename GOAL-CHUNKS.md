@@ -281,8 +281,10 @@ milestones:
 
 ### M2 — Mode 4 x86 emitter for SNOBOL4 + Snocone
 
-- [ ] **Step 8 — File `GOAL-MODE4-EMIT-X64-SNO.md` and execute it
-  to completion.**  This is itself a multi-rung sub-goal.
+- [ ] **Step 8 — File `GOAL-MODE4-EMIT.md` and execute it
+  to completion.**  (See file — owns both M2 and M5 phases of
+  the x86 mode-4 emitter, rungs EM-1 through EM-9 cover this
+  step.)  This is itself a multi-rung sub-goal.
   Initial scope: `--jit-emit --x64 file.sno` and `--jit-emit
   --x64 file.sc` produce a standalone asm/binary.  The emitted
   executable links against `libscrip_rt.so` — a runtime support
@@ -301,19 +303,22 @@ These three steps are independent of each other and of M2.
 Order them however convenient based on platform availability.
 
 - [ ] **Step 9 — File `GOAL-NATIVE-SNOCONE-DOTNET.md` and execute
-  it.**  Extend `snobol4dotnet` to parse and run Snocone source.
-  Done when `scrip.sc` runs end-to-end on the .NET interpreter.
-  Provides bootstrap path B for `scrip.sc`.
+  it.**  Extend the in-tree .NET host at `one4all/src/driver/net/`
+  (NOT the standalone `snobol4dotnet` org repo) to parse and run
+  Snocone source. Done when `scrip.sc` runs end-to-end on the
+  .NET interpreter. Provides bootstrap path B for `scrip.sc`.
 
 - [ ] **Step 10 — File `GOAL-NATIVE-SNOCONE-JVM.md` and execute it.**
-  Extend `snobol4jvm` to parse and run Snocone source.  Done
-  when `scrip.sc` runs end-to-end on the JVM interpreter.
-  Provides bootstrap path C.
+  Extend the in-tree JVM host at `one4all/src/driver/jvm/` (Java;
+  NOT the standalone `snobol4jvm` org repo, which is Clojure) to
+  parse and run Snocone source. Done when `scrip.sc` runs
+  end-to-end on the JVM interpreter. Provides bootstrap path C.
 
 - [ ] **Step 11 — File `GOAL-NATIVE-SNOCONE-JS.md` and execute it.**
-  Extend the JS/browser SNOBOL4 interpreter to parse and run
-  Snocone source.  Done when `scrip.sc` runs end-to-end in
-  browser/Node.  Provides bootstrap path D.
+  Extend the in-tree JS host at `one4all/src/driver/js/sno-interp.js`
+  (Node) to parse and run Snocone source. Done when `scrip.sc`
+  runs end-to-end on Node. Browser support is out of scope for
+  this step. Provides bootstrap path D.
 
 ### M4 — Icon, Raku, Prolog, Rebus migrate; SM_PUSH_EXPR deleted
 
@@ -402,8 +407,8 @@ Order them however convenient based on platform availability.
 
 ### M5 — Mode 4 x86 emitter extends to all six frontends
 
-- [ ] **Step 19 — Extend `GOAL-MODE4-EMIT-X64-SNO.md` (or file
-  `GOAL-MODE4-EMIT-X64-FULL.md`) to cover Icon, Raku, Prolog,
+- [ ] **Step 19 — Extend `GOAL-MODE4-EMIT.md` (rungs EM-10
+  through EM-16, the M5 phase) to cover Icon, Raku, Prolog,
   Rebus.**  At this point the lowerer produces pure SM for all
   frontends; mode-4 codegen extends to handle the full opcode
   set including SM_SUSPEND/SM_RESUME and SM_CALL_CHUNK.
@@ -441,6 +446,18 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 ## Closed steps
 
 (none yet — this goal is brand new in session #62, 2026-05-05)
+
+**Prep work, session #62 (no rungs closed):** sub-goal files
+written for Steps 8/9/10/11 + 19 (rungs deferred until prereqs
+land):
+
+- `GOAL-MODE4-EMIT.md` — owns Steps 8 (M2) and 19 (M5)
+- `GOAL-NATIVE-SNOCONE-DOTNET.md` — owns Step 9; targets
+  `one4all/src/driver/net/`
+- `GOAL-NATIVE-SNOCONE-JVM.md` — owns Step 10; targets
+  `one4all/src/driver/jvm/` (Java)
+- `GOAL-NATIVE-SNOCONE-JS.md` — owns Step 11; targets
+  `one4all/src/driver/js/sno-interp.js` (Node)
 
 ---
 
