@@ -2245,3 +2245,19 @@ Root cause found: iter#7 changed X4 from `FENCE(*White *X4 | epsilon)` to `FENCE
 SN-7-1 grammar uses `*White` (deferred) everywhere — backtracking safe. beauty.sno parses fully: 434 STMTs, reaches END. PASS=62 (16 fails are SN-7-2/7-3/7-6 fixtures that postdate SN-7-1 and need targeted grammar fixes on top).
 
 **Next session:** starting from this SN-7-1 base, apply changes one at a time from iter#7 diff and find exact commit that breaks beauty.sno parsing. Then fix that change before re-applying downstream improvements.
+
+**Watermark (session 2026-05-05, corpus@efcbf2d): PASS=78 FAIL=0 ✅ — SN-7-2/7-3/7-6 + arith left-assoc landed.**
+
+All 16 previously-failing fixtures now pass. Changes all in `parser_snobol4.sc` only; no shared file touched.
+
+**SN-7-2** (&KEYWORD): `Expr14` `*ProtKwd ~ 'ProtKwd'` / `*UnprotKwd ~ 'UnprotKwd'` → `'&' shift(SPAN(&UCASE &LCASE), E_KEYWORD)`. Consume `&` before capture; shift name-only. Both alts identical so collapsed to one. `E_KEYWORD = "'E_KEYWORD'"` constant added.
+
+**SN-7-6** (defer): `Expr14` `'*' *Expr14 ("'*'" & 1)` → `'*' *Expr14 reduce(E_DEFER, 1)`. `E_DEFER = "'E_DEFER'"` constant added. Dead `'&' *Expr14` unary removed (& now consumed by keyword prefix).
+
+**SN-7-3** (bracket index): `E_IDX = "'E_IDX'"` constant added; `Expr15` uses it. `rw_expr` E_IDX case: when child is ExprList, its children are individually `rw_expr`'d and appended to E_IDX — producing `(E_IDX A 1 2)` not `(E_IDX A (E_SEQ 1 2))`.
+
+**Arith left-assoc (iter#10 re-applied safely)**: Replaced right-recursive `Expr6`/`Expr8`/`Expr9`/`Expr11` with FENCE-based iterative left-recursive form using `foldop()`/`FoldOp()` from shared infra. Each tier: `Expr6 = *Expr7 FENCE($'+' *Expr7 foldop(E_ADD) *Expr6cont | $'-' ... | epsilon); Expr6cont = FENCE(...)`. FENCE preserved (unlike iter#10's ARBNO) to prevent backtracking from unwinding `nInc()` side-effects inside `Compiland`'s `ARBNO(*Command)` — the root cause of the emergency revert. `FoldOp`: pop rhs+lhs; if `t(lhs)==t` append rhs (flat n-ary same-op chain); else fresh binary (mixed-op left-assoc). Removed left-rotation from `rw_expr` for arith. `E_CAPT_*_ASGN` rotation kept (runtime still strictly binary).
+
+beauty.sno parse fidelity preserved: 434 STMTs (same as SN-7-1 baseline). All smoke gates green. Other five parsers untouched.
+
+**Next milestone:** SN-7-8 — beauty.sno full crosscheck (parser vs `--dump-parse` oracle, whitespace-normalized). 434/1084 STMTs currently match shape; many constructs in beauty.sno not yet handled by the parser (missing: POS, RPOS, CURSOR, TAB, RTAB, ARBNO, FENCE, LGT, LEQ etc. as pattern primitives; `E_IDX` on complex exprs; multi-bracket chains). Or: PARSER-FAMILY-LOOP next iteration (operator picks).
