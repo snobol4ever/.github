@@ -478,31 +478,74 @@ Fixtures landed (10 new): `scan_simple`, `scan_replace`, `scan_in_expr`,
 
 ### PARSER-SC-6 — full beauty.sc crosscheck
 
-**Session #68 (2026-05-05) — SC-6 infrastructure landed; blocked on White/NL.**
+**Session (2026-05-05) — SC-6a landed PASS=46; SC-6b in progress; naming collision blocker found.**
 
-New constructs implemented and working (gate still PASS=46 FAIL=0):
+New constructs implemented and working (gate PASS=46 FAIL=0):
 - `E_KEYWORD` (`&kw` atom), `E_IDX` (subscript `a[i]`), `E_FLIT` (real literal),
   `E_MNS` (unary minus), `E_DEFER`/`E_NOT`/`E_NAME`/`E_INDIRECT` (unary prefix ops),
   `Real` / `Keyword` token classifiers, `Expr15` subscript tier,
   parenthesized expression `(expr)` in Expr17, `goto_cmd`, `label_prefix`, `for_cmd`.
-- All individually verified against oracle (whitespace-normalized match).
 
-**Blocker:** beauty.sc uses multi-line expressions (e.g. `Real = (\n  SPAN(digits) ...\n);`).
-`White` must include `nl` for these to parse. Correct form per Lon / lexer S_WS:
-`White1 = (SPAN(' ' tab '\r\f') | nl | '//' BREAK(nl) | '/*' BREAKX('*') '*/')`.
-`White = White1 ARBNO(White1)`. However adding `nl` to White causes deep recursion
-(segfault) because `$'(' *Expr0 $')'` in Expr17 recurses through the full tower and
-`$'('` can now eat newlines, pushing C stack depth past safe limit on long inputs.
-Root fix: the `$'(' *Expr0 $')'` grouping paren in Expr17 must use a non-recursive
-formulation, OR `Call` must be restructured so `nPush/nInc` side effects only fire
-AFTER `$'('` is confirmed present (preventing orphaned counter state on Id-not-call).
+**SC-6a LANDED (2026-05-05) — White+NL fix + Expr11/Expr12 + Call restructure.**
+Changes to `corpus/programs/scrip/parser_snocone.sc`:
+- `White_h`/`Gray_h` — horizontal-only ws (no nl); used by `$'(g'` and Call opener.
+- `White_expr` — continuation-only ws (nl only with `+`/`.` marker per S_CONT).
+- `White = *White_expr | nl FENCE(SPAN(' ' tab)|epsilon)` — full ws including bare nl
+  plus following indent (cursor lands at token after eating a continuation newline).
+- `Gray = ARBNO(*White)`, `$' ' = Gray`, `$'  ' = White`.
+- `$'(g' = Gray_h '(' $' '` — horizontal-only grouping-open paren (no NL before `(`).
+- `Expr17` grouping paren: `$'(g' *Expr0 $')'` (was `$'(' *Expr0 $')'`).
+- `Call` restructured: `(*Id . captured_call_name) FENCE(Gray_h '(' $' ' nPush()
+  Push_call_name_var() CallArgs $')' Decompose_call() nPop())` — nPush/nInc only
+  after `(` confirmed; `Push_call_name_var()` helper + build-time companion added.
+- `E_CAPT_COND_ASGN`/`E_CAPT_IMMED_ASGN`/`E_CAPT_CURSOR`/`E_POW` E_* constants.
+- `Expr12` — binary `.` (E_CAPT_COND_ASGN, left-assoc) and `$` (E_CAPT_IMMED_ASGN).
+- `Expr11` — exponent `^` (E_POW, right-assoc); `Expr9` wired to `Expr11`.
 
-- [ ] **Step SC-6a:** Fix `Expr17` grouping paren and `Call` so that NL-inclusive
+**SC-6b blocker (2026-05-05) — naming collision with beauty.sc's own runtime.**
+beauty.sc uses `nInc()`, `nPush()`, `nPop()`, `Push()`, `Pop()` as ITS OWN
+internal variable/function names (it is itself a parser using the ShiftReduce
+library). When parser_snocone.sc parses beauty.sc's source text and encounters
+`nInc()` as a Call expression, `Push_call_name_var()` fires `IncCounter()` — the
+SHARED counter.sc runtime — incrementing the Compiland-level n-ary counter as a
+side effect. After all Call-level nPush/nPop pairs balance, the Compiland counter
+ends with wrong values → 1-child ptree instead of full N-child tree.
+
+Parsing advances to ~line 128 (`Command = nInc() FENCE(...)`) before the counter
+corruption causes Compiland to emit a 1-child degenerate tree.
+
+Possible fixes (Lon to decide):
+(a) Rename parser_snocone.sc's counter/stack API to a distinct namespace
+    (e.g. `sc_nInc`, `sc_nPush`, etc.) that doesn't collide with beauty.sc's names.
+(b) Accept that beauty.sc is not a valid crosscheck target for SC-6b due to the
+    reflexive naming collision, and use a different Snocone program for the crosscheck.
+(c) Isolate counter/stack state so CALL-time side effects from parsing `nInc()` in
+    beauty.sc's source don't leak into Compiland's outer counter frame.
+
+The naming collision hypothesis was **incorrect** — `push_call_name_var()` calls
+`IncCounter()` inside a `nPush()`/`nPop()` frame, so it is balanced. The actual
+failure source is `Stmt` (beauty.sc lines 115-124): a 10-line multi-line statement
+containing `*Expr14` (a tier not yet in parser_snocone.sc). The Stmt parse stops
+short, and the trailing `$' '` in `stmt_body` then consumes the newline that should
+feed X4's concat for the next line — causing Compiland to emit wrong output from
+line 128 onward.
+
+**Additional SC-6b gaps found (2026-05-05):**
+- `*Expr14` at beauty.sc line 116: a tier between Expr12 and Expr15 not yet in
+  parser_snocone.sc. Audit `snocone_parse.y` for all skipped levels.
+- Fix the trailing-`$' '`-eats-continuation-newline issue in `stmt_body` so
+  multi-line statements that don't end with `;` on their last line work correctly.
+
+**Next session:** (1) Lon decides SC-6b crosscheck target (beauty.sc vs simpler
+program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) Re-run.
+
+- [x] **Step SC-6a:** Fix `Expr17` grouping paren and `Call` so that NL-inclusive
       White does not cause infinite recursion. Restructure `Call` so `nPush/nInc`
       side effects fire only after `$'('` succeeds. Then update `White` to include
-      `nl`. Verify gate PASS=46.
+      `nl`. Verify gate PASS=46. **DONE 2026-05-05: White/NL fix landed; gate PASS=46.**
 - [ ] **Step SC-6b:** Run parser against `beauty.sc`. Fix any remaining parse failures
       iteratively until parser output matches oracle (whitespace-normalized).
+      **BLOCKED on naming collision above — awaiting Lon decision on fix approach.**
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
       execute identically under `--ir-run`.
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
@@ -526,11 +569,13 @@ AFTER `$'('` is confirmed present (preventing orphaned counter state on Id-not-c
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a next)**
+PARSER-SC-6 ⏳ (SC-6a ✅ landed; SC-6b next — Expr14 gap + stmt_body trailing-ws fix)**
 
-Gate: PASS=46 FAIL=0. SC-6 constructs landed (E_KEYWORD/IDX/FLIT/MNS/DEFER/NOT/NAME/
-INDIRECT, Real, Keyword, Expr15 subscript, paren grouping, unary prefix, goto_cmd,
-label_prefix, for_cmd). beauty.sc blocked on White+NL fix (SC-6a).
+Gate: PASS=46 FAIL=0. corpus @ `14495ca`. SC-6a landed: White_h/White_expr/White NL
+split; $'(g' grouping paren; Call restructured (nPush after '(' confirmed); Expr11
+(^/E_POW) + Expr12 (binary ./$/E_CAPT_*); Expr9 wired to Expr11. SC-6b: beauty.sc
+parses correctly to line 114; Stmt (*Expr14) and stmt_body trailing-ws issue block
+further progress — next session adds missing Expr tiers and fixes stmt_body.
 
 **Session #67 cont. (2026-05-04) — PARSER-SC-5 landed (pattern-match scan stmt).**
 
