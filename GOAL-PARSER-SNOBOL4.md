@@ -1282,7 +1282,7 @@ unrelated to this rung — see Open carry-over).
       Already implemented. No parser_snobol4.sc changes needed.
 - **Gate:** semi-separated statements emit two STMTs. ✅ PASS=78/78
 
-#### ⚠ PARSER-SN-7-7b — emit E_* tags directly from grammar; delete rw_tag and all beauty.sno-native tag strings — **CURRENT STEP**
+#### PARSER-SN-7-7b — emit E_* tags directly from grammar; delete rw_tag and all beauty.sno-native tag strings — ✅ LANDED corpus@0390853
 
 **Goal:** The grammar PATTERN block shifts and reduces using canonical IR tags
 (`E_VAR`, `E_ILIT`, `E_QLIT`, `E_RLIT`, `E_FNC`, `E_SEQ`, `E_ALT`,
@@ -1297,7 +1297,7 @@ and constructs the right E_* node directly.
 
 **What changes:**
 
-- [ ] **Step 1 — Grammar: replace beauty.sno-native shift/reduce tags with E_*.**
+- [x] **Step 1 — Grammar: replace beauty.sno-native shift/reduce tags with E_*.**
       Every `shift(P, 'Id')` → `shift(P, E_VAR)`.  Every `reduce(\"'..'\", N)` →
       `reduce(E_SEQ, N)`.  Full rename table (grammar sites only):
       | Old tag | New tag | Site |
@@ -1327,7 +1327,7 @@ and constructs the right E_* node directly.
       `E_ADD`, `E_SUB`, `E_MUL`, `E_DIV`, `E_POW`.
       (E_KEYWORD, E_DEFER, E_IDX, E_Parse, E_goU/S/F already present.)
 
-- [ ] **Step 2 — String: capture inner text at parse time via Push_qlit worker.**
+- [x] **Step 2 — String: capture inner text at parse time via Push_qlit worker.**
       `Expr17` String branch: instead of `*String ~ E_QLIT` (which shifts
       the full `'...'`/`"..."` including delimiters), capture the inner body
       with a `Push_qlit` pair-shape worker (canonical iter#5 pattern):
@@ -1340,12 +1340,12 @@ and constructs the right E_* node directly.
       `*String ~ E_QLIT`.  Quotes are stripped at match time; `rw_expr`
       String-quote-strip branch is deleted.
 
-- [ ] **Step 3 — rw_tag: delete entirely.**  Once grammar emits E_* directly,
+- [x] **Step 3 — rw_tag: delete entirely.**  Once grammar emits E_* directly,
       the tag-rename dispatch table is dead.  Remove `function rw_tag(...)`.
       Remove all call sites in `rw_expr` (`new_t = rw_tag(t, n(x))`; the
       `DIFFER(new_t, t)` rotation guard; the `result = Tree(new_t, ...)` path).
 
-- [ ] **Step 4 — rw_expr: simplify to pure structural.**  After Step 3,
+- [x] **Step 4 — rw_expr: simplify to pure structural.**  After Step 3,
       `rw_expr` only needs:
       - `'()'` paren unwrap (unchanged)
       - `E_QLIT` String-quote-strip **deleted** (handled at parse time in Step 2)
@@ -1358,11 +1358,11 @@ and constructs the right E_* node directly.
       `fname = v(c(x)[1])` stays; dispatch on `fname` for LEN/BREAK/SPAN/ANY/NOTANY
       stays; generic E_FNC path stays.  (rw_call shape barely changes.)
 
-- [ ] **Step 5 — Verify and run gate.**  `bash scripts/test_parser_snobol4.sh`
+- [x] **Step 5 — Verify and run gate.**  `bash scripts/test_parser_snobol4.sh`
       must report PASS=78 FAIL=0.  No fixture output should change (tags
       were already correct in the oracle; grammar now produces them directly).
 
-- [ ] **Step 6 — Commit.**  One commit, `parser_snobol4.sc` only (shared
+- [x] **Step 6 — Commit.**  One commit, `parser_snobol4.sc` only (shared
       infra files unchanged).  Message: `PARSER-SN-7-7b: grammar emits E_* tags
       directly; delete rw_tag (PASS=78/78)`.
 
