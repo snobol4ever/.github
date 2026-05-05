@@ -79,7 +79,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-10 LANDED PASS=88 corpus@1744d3e — augops + unary + special-assign + to..by + concat; next: cross-pollinate negative-lookahead idiom to other PARSER-* parsers |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-8b LANDED PASS=60; PR-8c (parenthesized body subterms) NEXT |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-5 LANDED session 2026-05-04 cont. PASS=37 FAIL=0 — regex starter slice (`/body/` LitRegex + `~~` smartmatch → `(E_FNC raku_match …)`), n-ary arith flatten helpers (`Flatten_add`/`_sub`/`_mul`/`_div`) closing iter#9 Phase A's `arith_chain` regression, CQize C-string escape in qize.sc + tdump.sc routing E_QLIT through it (cross-PARSER infra fix). Next: PARSER-RK-6 — regex captures `(...)`, `$0`, `$1`. |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-6 LANDED PASS=40 FAIL=0 corpus@6a772b3 — captures \$0/\$N and \$<name>. Next: RK-7 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |

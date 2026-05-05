@@ -218,7 +218,22 @@ each is independently revertable.  A session may do one and stop.
   the existing frontend handles via `(E_QLIT body)` is now routed
   end-to-end through PARSER-RK).
 
-#### RK-5 — handoff (session 2026-05-04 cont.)
+### PARSER-RK-6 — regex captures `(...)`, `$0`, `$1`, named `$<name>` — LANDED session 2026-05-04
+
+- [x] `VarCapture` classifier — `$[0-9]+` → captures digit string into `capidx`.
+- [x] `VarNamedCapture` classifier — `$<name>` → captures bare name into `capncname`.
+- [x] `finish_capture()` helper — builds `(E_FNC raku_capture (E_VAR raku_capture) (E_ILIT N))`.
+      Retained: `reduce()` sets value=''; E_FNC requires value='raku_capture'.
+- [x] `finish_named_capture()` helper — builds `(E_FNC raku_named_capture (E_VAR raku_named_capture) (E_QLIT name))`.
+      Retained: same reason as `finish_capture`.
+- [x] Both added to `Expr11` before `LitInt` (after `VarHash`) so sigiled patterns are tried
+      before bare identifier fallback.
+- [x] Test corpus: 3 new fixtures — `capture_pos.raku` (`$0`), `capture_idx.raku` (`$1`),
+      `capture_named.raku` (`$<word>`).
+- **Sibling LANG rungs:** RK-34 already supports these.
+- **Gate:** PASS=40 FAIL=0 ✓ (corpus@6a772b3)
+
+
 
 The starter slice is one token classifier + one operator + one helper:
 
@@ -292,7 +307,16 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-5 LANDED (session 2026-05-04 cont.) — PASS=37 FAIL=0.
+PARSER-RK-6 LANDED (session 2026-05-04) — PASS=40 FAIL=0.
+Regex positional captures (`$0`, `$N`) and named captures (`$<name>`) land in
+`parser_raku.sc` via two new classifiers (`VarCapture`, `VarNamedCapture`) and
+two retained helpers (`finish_capture`, `finish_named_capture`).  Both mirror
+the C frontend `raku.y` RK-34 IR shapes.  Three new fixtures:
+`capture_pos.raku`, `capture_idx.raku`, `capture_named.raku`.  corpus@6a772b3.
+
+Next session: PARSER-RK-7 — `$*STDIN`/`$*STDOUT`/`$*STDERR` standard handles
+(lexer maps these to `VAR_CAPTURE` with ival 0/1/2); or extend LitRegex starter
+slice to handle embedded `/` inside `[...]` or after `\` if a fixture exercises it.
 Regex starter slice landed: `/body/` LitRegex classifier + `~~`
 smartmatch operator at Expr4, lowering to
 `(E_FNC raku_match (E_VAR raku_match) subj pat)`.  Five new fixtures
