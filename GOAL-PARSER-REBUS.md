@@ -1908,3 +1908,63 @@ one4all/parser: aad8cbe8 (unchanged)
 
 All PARSER-REBUS rungs complete. Gate: PASS=38 FAIL=0. No next step
 within this goal — operator-directed next milestone.
+
+---
+
+## Session 2026-05-05 continuation #2 — RB-FW-1 LANDED; PASS=48 FAIL=0
+
+**Handoff watermark** (context ~90%, new session required).
+
+### What was done this session
+
+**BUG-RB-1 fixed** in `one4all/src/frontend/rebus/rebus_lower.c`:
+All 7 unary operator cases (`RE_NEG/POS/NOT/VALUE/BANG/DEREF/PATOPT`) read
+`e->left` but `rebus.y` stores unary operands in `e->right` via
+`rbinop(kind, NULL, operand, ...)`. Fixed all 7 to `e->right`.
+Committed `one4all/parser` @ `deeae350`.
+
+**PARSER-RB-FW-1 landed** in `corpus/programs/scrip/parser_rebus.sc`:
+- Full expression precedence tower above `alt_expr`:
+  `unary_expr (-) → mul_expr (* /) → add_expr (+ -) → cmp_expr (= ~= < <= > >=) → cat_expr (|| &) → alt_expr → expr`
+- `call_or_id` + `decompose_call`: parses `f(a, b, ...)` → `(E_FNC F (E_VAR A) (E_VAR B))`
+- Paren grouping `(expr)` in `primary`
+- `lower_atom` extended for `E_FNC` (with args), `E_MNS`, `E_ADD/SUB/MUL/DIV`, `E_CAT`, `CMP_EQ/NE/LT/LE/GT/GE`
+- 10 new fixtures: `arith_add`, `arith_mul`, `arith_mixed`, `call_with_args`, `call_expr`, `cmp_eq`, `cmp_ord`, `strcat`, `unary_neg`, `paren`
+- Three bugs found and fixed in new code during development:
+  1. `decompose_call`: `LE` → `LT` off-by-one in pop loop (popped one past the callee E_VAR)
+  2. Tag constants (`E_MNS`, `E_MUL`, etc.) defined **after** grammar patterns → `reduce()` at build-time saw `''`; moved all tag constants **before** grammar section
+  3. Paren branch and `X_args` used `*assign_expr` (undefined name); corrected to `*expr`
+
+**Committed** `corpus` @ `3f7f470`. Smoke PASS=4. Parser **PASS=48 FAIL=0**.
+
+### Gate state at handoff
+
+| Gate | Result |
+|------|--------|
+| smoke | PASS=4 FAIL=0 |
+| parser | PASS=48 FAIL=0 |
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | 3f7f470 |
+| one4all | parser | deeae350 |
+
+### Next session — immediate first steps
+
+1. `bash scripts/install_system_packages.sh` + `bash scripts/build_scrip.sh`
+2. `bash scripts/test_smoke_rebus.sh` → PASS=4 FAIL=0 ✓
+3. `bash scripts/test_parser_rebus.sh` → PASS=48 FAIL=0 ✓
+4. Proceed with **RB-FW-2**: `return`/`exit`/`fail`/`stop`/`next` statements,
+   exponentiation (`^` → `E_POW`), modulo (`%` → `E_FNC REMDR`), string comparisons
+   (`==`, `~==`, `<<`, `>>`, `<<=`, `>>=` → `E_FNC LGT`/`LIDENTICAL`/etc.),
+   `local`/`initial` in function decls.
+
+### File locations
+
+- Parser: `corpus/programs/scrip/parser_rebus.sc`
+- Fixtures: `corpus/programs/rebus/parser/*.reb` and `.ref`
+- Test script: `one4all/scripts/test_parser_rebus.sh`
+- Oracle: `one4all/scrip --dump-ir <file.reb>`
+- Bug fix: `one4all/src/frontend/rebus/rebus_lower.c` (BUG-RB-1 already committed)
+
+Context at handoff: ~90%.
