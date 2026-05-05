@@ -106,13 +106,61 @@ Role-slots: `:lbl :subj :pat :repl :goS :goF :goU :eq :end`
 
 `rw_goto_slot` — formats goto target as string for the slot value. This is pp_stmt bookkeeping, not a tree rewrite. **Inline** its logic directly into pp_stmt's goto-appending code (3 call sites); delete the function.
 
+**Research findings (sessions 2026-05-05 through present):**
+
+Key discoveries from multiple sessions of investigation:
+
+1. **SNOBOL4 `|` always backtracks** — unlike PEG parsers. `FENCE(a|b)` backtracks to start for each alternative. So the call arm `*Id ~ E_VAR $'(' ...` and no-call arm `*Id ~ E_VAR` being in the same `FENCE` is correct semantics: after call arm fails, FENCE restarts from before the identifier for the no-call arm.
+
+2. **Double-push is real but manageable** — when the call arm (`*Id ~ E_VAR $'('`) fails after shifting `E_VAR_ID`, the no-call arm re-shifts `E_VAR_ID`. This puts two `E_VAR_ID` on the stack. In the old grammar this was harmless because the Compiland reduce consumed the right count. The fix: **combine call and no-call into a single arm** using `FENCE($'(' *FnArgs $')' | epsilon)` after the single `*Id ~ E_VAR` shift. Only one shift ever happens.
+
+3. **`ReduceCall()` must read `TopCounter()` internally** — cannot pass `nTop()` as an argument because the argument is evaluated at pattern-construction time (definition time), not match time. Confirmed working: `ReduceCall()` with no args calls `TopCounter()` at fire time. ✓
+
+4. **`ReducePrim(tag)` needed** — for primitives (LEN, BREAK, etc.) the arms need `*ReducePrim(E_TAG)` not `(E_TAG & 'nTop()')` because the `&` operator calls `reduce()` at definition time, which calls `EVAL("epsilon . *Reduce(tag, nTop())")` immediately — `nTop()` runs at definition time when counter is uninitialized → hangs.
+
+5. **Mutual recursion hang** — `FnArgList = nInc() *Expr FENCE($',' *FnArgList | epsilon)` defined as a global pattern causes hang because `Expr17` includes `FENCE(*FnArgList | epsilon)` in primitive arms, and when `Expr17` is being defined, `FnArgList` construction triggers `Expr17` construction — mutual recursion at definition time. **Fix: make `FnArgList` a function** (using `nreturn`) so it's only instantiated at match time.
+
+6. **rw_expr/rw_call become dead code** once grammar produces correct E_* trees directly. After deletion, `pp_stmt` uses parse tree nodes directly (`subj_ir = ppSubj` instead of `subj_ir = rw_expr(ppSubj)`).
+
+**Exact implementation plan (next session):**
+
+```
+// In ShiftReduce.sc — ADD:
+function ReduceCall(n, args, i, fname, r) {   // reads TopCounter() internally
+    n = TopCounter(); args = ARRAY('1:'n); ...pop n args...fname=v(Pop());
+    Push(tree('E_FNC', fname, n, args)); nreturn; }
+function ReducePrim(tag, n, args, i, r) {     // reads TopCounter() internally  
+    tag = EVAL(tag) if EXPRESSION; n = TopCounter(); ...pop n args...
+    Push(tree(tag, '', n, args)); nreturn; }
+function ReduceOpsyn(op, n, c, i, r) { ... }  // already in last session
+
+// In semantic.sc — ADD:
+function reduce_opsyn(op, n) { reduce_opsyn = EVAL("epsilon.*ReduceOpsyn('"op"',"n")"); return; }
+
+// In parser_snobol4.sc — CHANGES:
+// 1. After XList, ADD:
+function FnArgList() { FnArgList = nInc() *Expr FENCE($',' *FnArgList | epsilon); nreturn; }
+// 2. Expr12: change to foldop left-assoc
+// 3. Expr16: change ExprList → XList
+// 4. Expr17: new arms (paren pass-through, 12 primitives with *ReducePrim, single-arm calls)
+//    CRITICAL: combine *Function~E_VAR and *Id~E_VAR with optional-call FENCE:
+//    |  *Function ~ E_VAR FENCE(nPush() $'(' *FnArgList *ReduceCall nPop() $')' | epsilon)
+//    |  *Id       ~ E_VAR FENCE(nPush() $'(' *FnArgList *ReduceCall nPop() $')' | epsilon)
+//    Note: *ReduceCall (no parens) — Snocone syntax for deferred zero-arg call
+//    Actually: use *FnArgs pattern variable (not function) to wrap the call arm internals
+// 5. Delete rw_call, rw_expr; rename rw_goto_slot → make_goto_slot
+// 6. pp_stmt: subj_ir = ppSubj (not rw_expr(ppSubj)), same for pat/repl
+```
+
 **Steps:**
-- [ ] Fix Expr17: add 12 primitive call arms (LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX), each `'NAME' nPush() $'(' *XList (E_TAG & 'nTop()') nPop()` — no name stored, args as children
-- [ ] Fix paren group in Expr17: emit no wrapper node — the `'()' & 1` arm currently tags the group; change to pass-through (the paren just groups, Expr handles the value)
-- [ ] Fix E_IDX in Expr15/16: use nPush/nInc/nPop so bracket-group children are direct children of E_IDX, no ExprList wrapper
-- [ ] Fix Expr12 E_CAPT_*_ASGN: use iterative foldop shape so tree is already left-associative at parse time
-- [ ] Delete `rw_call`, `rw_expr`, `rw_goto_slot` functions
-- [ ] In pp_stmt: inline the 3 `rw_goto_slot` call sites; inline the 3 `rw_expr` call sites (now just use the stack-popped tree directly)
+- [ ] Add `ReduceCall`, `ReducePrim`, `ReduceOpsyn` to `ShiftReduce.sc`
+- [ ] Add `reduce_opsyn` to `semantic.sc`
+- [ ] Add `FnArgList` as a **function** (nreturn) — not a global pattern variable — to `parser_snobol4.sc` (before Expr rules)
+- [ ] Rewrite `Expr12` with foldop left-assoc for `E_CAPT_IMMED_ASGN`/`E_CAPT_COND_ASGN`
+- [ ] Rewrite `Expr16` to use `*XList` directly (no ExprList wrapper)  
+- [ ] Rewrite `Expr17`: paren pass-through `$'(' *Expr $')'`; 12 primitive arms with `*ReducePrim`; combined call/no-call single arms with optional `FENCE`
+- [ ] Delete `rw_call` and `rw_expr`; rename `rw_goto_slot` → `make_goto_slot`
+- [ ] Fix `pp_stmt`: 3 `rw_expr()` sites → direct node use
 - [ ] Gate: PASS=89 FAIL=0 throughout; beauty crosscheck still passes
 - [ ] Commit: `PARSER-SN-7-9: eliminate all rw_ functions — grammar builds correct tree directly (PASS=N/N)`
 
