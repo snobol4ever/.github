@@ -78,7 +78,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=46 FAIL=0 corpus@d6c874d. White/Gray corrected: SPAN(sp tab nl)+comments, ARBNO, no continuation lines, no Gray_h/nl_opt. Next: resume beauty.sc content diff |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-1 LANDED 2026-05-05 (PASS=48 FAIL=0): arith+call-with-args+cmp+strcat+unary+paren. BUG-RB-1 fixed (rebus_lower.c unary ops). corpus@3f7f470, one4all/parser@deeae350. Next: return/exit/stop/fail/next stmts; exponentiation; modulo; string-cmp; local/initial. |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-13 LANDED PASS=113 corpus@3a8f465 — global/local/static/initial/record; next: IC-14 |
-| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-8d LANDED PASS=75 FAIL=0 corpus@HEAD — DCG sugar complete; next: PR-8e clause-body cut (`!` in primary) |
+| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-9 LANDED PASS=86 FAIL=0 corpus@83cf1ae — comparison ops complete; next: PR-10 negation/meta |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-13 LANDED PASS=70 FAIL=0 corpus@591f91b — string ~ concat E_CAT. Next: RK-14 — compound assign += -= or interp strings |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
