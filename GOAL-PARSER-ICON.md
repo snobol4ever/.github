@@ -548,3 +548,15 @@ Global/local/static/initial/record declarations. 5 NEW fixtures over IC-12 basel
 - `link`/`invocable`/`create` deferred: oracle C frontend doesn't support them.
 
 **Next session (IC-15):** Real literal `E_FLIT` support (needed for rung15+); keyword expressions (`&pos`, `&subject`, etc.); cross-pollinate DGray Compiland fix to other PARSER-* parsers.
+
+---
+
+### PARSER-IC-15 LANDED PASS=118 corpus@e6e8cf7
+
+Real literal + keyword expression. 2 NEW fixtures.
+
+- **Real literal** `3.14` → `(E_FLIT 3.14)`: `exp_part` + `real_pat` patterns (handles `d.d`, `.d`, `d.de±N` forms); dot-capture into `rval`; `push_flit()` builds `tree('E_FLIT', rval)`. Wired in `Expr11` before `int_pat` (longer-prefix first: `3.14` would otherwise match `int_pat` as `3`). Caveat: exponent forms store source text, but oracle normalises via `%g` (e.g. `1.5e2` → `150`); fixtures use simple decimal forms where source = oracle.
+- **Keyword expression** `&pos` → `(E_VAR &pos)`: `kw_prefix = '&'`; Expr11 branch `$' ' kw_prefix id_pat . kwname Push_kw`; `push_kw()` builds `tree('E_VAR', '&' kwname)` matching C frontend `sprintf("&%s", kwname)` → `e_leaf_sval(E_VAR, ...)`.
+- New fixtures: `real_lit`, `kw_expr`.
+
+**Next session (IC-16):** Exponent-form real literal normalization (parse `1.5e2` → store `150` by evaluating via `REAL()` or `integer()`); `not expr` → `(E_NOT expr)`; `E_FAIL` (bare `fail` as expression rather than statement).
