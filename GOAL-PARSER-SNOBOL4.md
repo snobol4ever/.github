@@ -585,6 +585,7 @@ prefix denoting the language subsystem:
 | `I`    | `i_`          | `I_`                   | Icon               |
 | `P`    | `p_`          | `P_`                   | Prolog             |
 | `B`    | `b_`          | `B_`                   | Rebus              |
+| `X`    | `x_`          | `X_`                   | SCRIP (scrip.sc)   |
 
 Pair-name shape (canonical model: `parser_snocone.sc`):
 ```
@@ -681,10 +682,12 @@ suffixes like `_done`.  Use verbs (`push`, `pop`, `store`, `save`, `make`,
       Pick whatever reads cleanest while staying within the `p_*` namespace.
 
 - [ ] **Step 7 — `scrip.sc`** Snocone-hosted SCRIP runtime (when it lands).
-      Same one-letter scheme: a yet-to-be-assigned letter for SCRIP itself.
-      Suggested: `T` for TARGET (the meta-language being implemented), or
-      reserve and decide when scrip.sc work begins.  Not part of iter#5; flagged
-      here so the next prefix-collision reasoning has the full picture.
+      Same one-letter scheme: **`X` / `x_*` / `X_*` for SCRIP itself**
+      (decided session 2026-05-04 cont. #7).  Mnemonic: X for executable /
+      cross-cutting / the SCRIP target itself.  Letter is now reserved across
+      all six parsers — no parser-private identifier may begin `x_` or `X_`.
+      Not part of iter#5; flagged here so the next prefix-collision reasoning
+      has the full picture.
 
 - [ ] **Step 8 — Verify all six gates 100% after each per-parser landing.**
       Per loop rule 3: no parser may drop below 100% during a loop iteration.
@@ -1858,10 +1861,11 @@ iter#4 row in iteration log marked SUPERSEDED.
     `push`, `pop`, `store`, `save`, `make`, `build`, `finish`,
     `decompose`, `emit`, `lower`.
 
-**Open question for next session — Step 7:** when `scrip.sc` (the
-Snocone-hosted SCRIP runtime) lands, what one-letter prefix does it
-get?  `T` for TARGET, `X` for executable, or other?  Not blocking
-iter#5; record decision before scrip.sc work begins.
+**Open question for next session — Step 7:** RESOLVED session 2026-05-04
+cont. #7 — **`X` / `x_*` / `X_*` reserved for SCRIP** (scrip.sc) when
+Milestone 2's Snocone-hosted runtime lands.  Mnemonic: X for executable /
+cross-cutting.  Letter is reserved across all six parsers — no
+parser-private identifier may begin `x_` or `X_`.
 
 **Next milestone (iter#5):** ten-step landing per the bullet list in
 "⚠ CURRENT STEP — PARSER-FAMILY-LOOP iter#5" above.  Steps 1-6 are
