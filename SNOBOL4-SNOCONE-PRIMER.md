@@ -684,3 +684,25 @@ inventing a new one in another `parser_*.sc`.
 
 When you discover a new failure mode or pattern idiom, **add it here**.
 Do not let the next session repeat your mistakes.
+
+---
+
+## Handoff note — session #69 (2026-05-05) end state
+
+Gates: smoke PASS=5 FAIL=0, parser PASS=46 FAIL=0. All repos pushed.
+
+**Exact commits:**
+- corpus @ `4a140fb` — Lon rewrite + 3 fixes landed
+- .github @ `09926ed` — PRIMER + GOAL + PLAN updated
+
+**SC-6b status:** PASS=46 FAIL=0, rewrite is clean and working. The next
+step per GOAL-PARSER-SNOCONE.md is the beauty.sc crosscheck. The previous
+"continuation marker" confusion was a false alarm (Lon confirmed Snocone has
+no continuation). beauty.sc is valid Snocone and should parse cleanly —
+attempt the crosscheck as the first act of the next session.
+
+**Critical things the next Claude must know cold (all in this PRIMER):**
+- `.` fires post-match in linear sequence; `$` fires immediately during match
+- `*Ident . captured_X` includes whitespace — always use `$' ' (*Id . captured_X)`
+- Missing `;` on a pattern definition causes silent line-merge misparse
+- `notmatch(s, pat)` — `pat` is passed as a pattern value, use `s ? pat` not `s ? *pat`
