@@ -7,6 +7,66 @@ Update this file every time you discover something you wished you knew.
 
 ---
 
+## THE most important thing — `.` vs `$` execution model
+
+**This is the #1 source of bugs. Read it before anything else.**
+
+There are two fundamentally different times when things run inside a pattern:
+
+### `.` (conditional assignment) — fires AFTER the whole statement-level match succeeds
+
+`PAT . VAR` captures the text matched by PAT into VAR, but only **after the whole
+`if (Src ? Compiland)` match succeeds**. All the `.` actions across the entire
+Compiland match fire at the end, **in the linear order they were encountered
+during the successful match path**. They are a straight-line sequence of variable
+assignments and code-gen calls. They do NOT fire on failed alternatives.
+
+This is how `nPush()`, `nInc()`, `nPop()`, `Shift(...)`, `Reduce(...)` all work —
+they are all `.`-based patterns. The whole pattern match is **pure cursor movement**.
+The semantic actions are a **post-match linear sequence**.
+
+**Consequence:** if you need a value (like a function name or label) that was captured
+mid-match to survive later uses in that same linear sequence, you must capture it into a
+NAMED variable via `.` at the right point, **not** rely on shared scratch variables like
+`tx` — because those get overwritten by subsequent match elements before the sequence runs.
+
+### `$` (immediate assignment) — fires DURING matching, not undone on backtrack
+
+`PAT $ VAR` captures the text matched by PAT into VAR **immediately at match time**,
+even if the overall match later fails and backtracks. This is how mid-match state
+is fed forward:
+
+```snocone
+P $ tx $ *assert_can_fail(tx)   // capture tx NOW, immediately call assert on it
+```
+
+The second `$` is the idiomatic "fire a predicate and throw away the result" form.
+`*assert_can_fail(tx)` is called immediately with the current value of `tx`. If it
+returns failure, the match fails here. This is **not** a post-match sequence.
+
+**Consequence:** `tx` is a shared scratch variable. Any `$ tx` anywhere in the
+successful match path overwrites it. By the time `.`-based semantic helpers fire
+at end-of-match, `tx` holds whatever the **last** `$ tx` set it to — not the first.
+
+### The capture-naming rule
+
+To preserve a name from mid-match for later semantic use, capture it into a
+**dedicated named variable** using `.`:
+
+```snocone
+// CORRECT: captures just the Id text into captured_name (no leading whitespace)
+$' ' (*Id . captured_name) $ *notmatch(captured_name, reserved)
+
+// WRONG: captures the full Ident match including its internal $' ' whitespace
+*Ident . captured_name    // captured_name = ' f', not 'f'
+```
+
+The critical pattern: eat whitespace BEFORE the `(...)` capture group, so the `.`
+only sees the identifier text itself. The `$' '` outside the parens consumes
+whitespace; the `(*Id . captured_name)` captures just the Id.
+
+---
+
 ## Mental model — read this first or you will fail
 
 Pattern matching has **two intertwined namespaces**, and every primitive
@@ -551,6 +611,35 @@ Empty output = `Parse Error`. Each line of output is one IR statement.
    (around page 56–87 for tutorial, ~page 124 for FENCE/FAIL/SUCCEED).
    Read the manual section before writing more probes.
 
+9. **Using `*Ident . captured_name` to capture a bare identifier.** `*Ident`
+   includes the internal `$' '` whitespace consumer, so `. captured_name` captures
+   `' f'` not `'f'`. Always use `$' ' (*Id . captured_name)` — eat the whitespace
+   OUTSIDE the capture group, then capture just the Id text.
+
+10. **Using `tx` in EVAL-based post-match helpers to get a mid-match value.**
+    `tx` is a shared scratch variable set by `$ tx` (immediate). By the time
+    post-match `.`-based helpers fire (end of whole Compiland match), `tx` holds
+    whatever the **last** `$ tx` in the whole match set it to — not what was
+    current at the capture site. Use a dedicated `captured_name` / `captured_param`
+    etc. variable set via `.` at the right point in the grammar.
+
+11. **Missing semicolons on pattern definitions.** Snocone's frontend may silently
+    misparse a definition missing its trailing `;`, merging it with the next line
+    into a wrong pattern. Example: `White = white ARBNO(white)` without `;` caused
+    `White` to become `white ARBNO(white) Gray` (merged with the next line `Gray = ...`),
+    making `White` fail for all multi-statement inputs. Always check the definition
+    line ends with `;`.
+
+12. **Confusing a SCRIP engine bug with a parser logic bug (and vice versa).**
+    If ARBNO stops after one iteration and you cannot explain why from first principles,
+    check for a missing `;` or a stale variable reference (`*kw_else` when `kw_else`
+    no longer exists) before assuming the engine is broken.
+
+13. **`notmatch(s, pat)` vs old `notmatch(s, pat, r)` with `*pat`.** The new
+    signature passes `pat` as a pattern value directly. In the body, `if (s ? pat)`
+    works because `pat` IS the pattern. Do NOT write `if (s ? *pat)` — that would
+    dereference `pat` as a variable name, not use it as the pattern itself.
+
 ---
 
 ## Reference file map
@@ -582,6 +671,16 @@ inventing a new one in another `parser_*.sc`.
   zero-width lookahead, conflating `$'kw'` definition with parser bug
   that was actually unbraced `if/else`. Lon spent an entire session
   walking me through fundamentals; this primer is the artifact.
+
+- **Updated** session #69 (2026-05-05). Lon rewrote `parser_snocone.sc`
+  and corrected two deep misconceptions: (a) the `.` vs `$` execution model
+  (`.` fires post-match in linear sequence; `$` fires immediately during match);
+  (b) `*Ident . captured_name` captures whitespace — use `$' ' (*Id . captured_name)`
+  instead. Additional bugs found and fixed: missing `;` on `White` definition caused
+  silent misparse and multi-statement ARBNO failure; `*Ident . captured_X` throughout
+  Call/func/goto/label/param patterns all needed the `$' ' (*Id . captured_X)` fix.
+  The new `White = white ARBNO(white)` / `Gray = ARBNO(white)` design and token-baked
+  `$' '` design are now confirmed correct and working. PASS=46 FAIL=0.
 
 When you discover a new failure mode or pattern idiom, **add it here**.
 Do not let the next session repeat your mistakes.
