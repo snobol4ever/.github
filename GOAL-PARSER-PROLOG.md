@@ -615,12 +615,24 @@ source order, clauses group separately).
   `/*===*/`.  Not in scope to fix in PR-8b — flagging for a future
   watermark-correction or a separate sweep across all six parsers.
 
-### PARSER-PR-8c — parenthesized body subterms — deferred (after PR-8b)
+### PARSER-PR-8c — parenthesized body subterms — **LANDED** (PASS=65)
 
-`(a, b) ; c` — parens currently only work inside expression ladder via
-`primary`'s `$'(' *unify_expr $')'` arm, but body-level conj/disj sit
-ABOVE unify_expr in the precedence stack.  Need a parenthesized-body
-form at the conj level.
+- [x] `(a, b) ; c` — paren wrapping conj inside disj
+- [x] `a ; (b, c)` — paren wrapping conj on right of disj
+- [x] `(a ; b), c` — paren wrapping disj as conjunct
+- [x] `(a, b), (c, d)` — both conjuncts paren-wrapped; flat 4-goal body
+- [x] `(a ; (b, c)), d` — nested parens
+- **Gate:** PASS≥65. ✅ (PASS=65, +5 over PR-8b)
+- **Fixtures:** paren_disj_left, paren_disj_right, paren_conj_disj,
+  paren_both_conj, paren_nested.
+- **Implementation:** Two changes:
+  1. `body_goal = ( $'(' *body $')' | unify_expr )` — parenthesized form
+     defers to full `body` (disj→conj→body_goal mutual recursion); transparent
+     on the stack (leaves body result as-is).
+  2. `flatten_conj_into(clause_node, x)` helper added — recursive comma-
+     flatten replaces the old single-level flatten in `build_clause`.  Mirrors
+     `prolog_parse.c::flatten_conj` depth-first traversal: each `(E_FNC ,)`
+     child is recursed, non-comma children appended directly.
 
 ### PARSER-PR-8d — DCG sugar — deferred
 
@@ -631,7 +643,7 @@ Tracked but not yet started.
 
 ## Watermark
 
-PARSER-PR-8b LANDED (PASS=60).  All ladder rungs PR-0..PR-8b landed.
+PARSER-PR-8c LANDED (PASS=65).  All ladder rungs PR-0..PR-8c landed.
 
 **PR-8a anonymous variables landed 2026-05-04 session #2:**
 - ✅ Bare `_` per-occurrence fresh slot allocation
@@ -656,8 +668,13 @@ Gate PASS=54 FAIL=0 at PR-8a close.
 
 Gate PASS=60 FAIL=0.
 
-**PR-8c parenthesized body subterms — ⏳ NEXT.**  `(a, b) ; c` —
-parens currently work inside expression ladder via `primary`'s
-`$'(' *unify_expr $')'` arm, but body-level conj/disj sit ABOVE
-unify_expr in the precedence stack.  Need a parenthesized-body form
-at the conj level.
+**PR-8c parenthesized body subterms landed 2026-05-04 session:**
+- ✅ `body_goal = ( $'(' *body $')' | unify_expr )` — paren form added
+- ✅ `flatten_conj_into` recursive helper replaces one-level flatten in
+     `build_clause` — handles `(a,b),(c,d)` → 4 flat goals correctly
+- ✅ 5 new fixtures: paren_disj_left, paren_disj_right, paren_conj_disj,
+     paren_both_conj, paren_nested
+
+Gate PASS=65 FAIL=0.
+
+**PR-8d DCG sugar — ⏳ NEXT.**
