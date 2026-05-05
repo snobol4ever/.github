@@ -83,7 +83,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
-| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-23c (RS-23b LANDED session 2026-05-03 cont.) |
+| **Rewrite SCRIP** | `GOAL-REWRITE-SCRIP.md` | one4all | RS-23-extra (RS-23c+RS-23d LANDED session 2026-05-04 @ `0de9a2cf`; diag 6 unique/7 raw; RS-23-extra blocked on SCAN-builtin lift — see goal file) |
 | Snocone Beauty | `GOAL-SNOCONE-BEAUTY.md` | corpus+one4all | **ON HOLD** |
 | Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
 | Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
