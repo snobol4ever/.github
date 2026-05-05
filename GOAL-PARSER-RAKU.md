@@ -307,45 +307,15 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-6 LANDED (session 2026-05-04) — PASS=40 FAIL=0.
-Regex positional captures (`$0`, `$N`) and named captures (`$<name>`) land in
-`parser_raku.sc` via two new classifiers (`VarCapture`, `VarNamedCapture`) and
-two retained helpers (`finish_capture`, `finish_named_capture`).  Both mirror
-the C frontend `raku.y` RK-34 IR shapes.  Three new fixtures:
-`capture_pos.raku`, `capture_idx.raku`, `capture_named.raku`.  corpus@6a772b3.
+PARSER-RK-8 LANDED (session 2026-05-05) — PASS=45 FAIL=0.
+RK-7: `$*STDIN`/`$*STDOUT`/`$*STDERR` standard handles (corpus@5da7d87).
+RK-8: global match `m:g/body/` + substitution `s/pat/repl/[g]`, both via `~~` Expr4tail.
+  CQize bug fixed in qize.sc: control bytes < 0x20 (other than nl/cr/tab) now escape as `\xNN`
+  via `CQize_ctrl32`/`CQize_nibble`/`CQize_xNN`.  corpus@dcba3b5.
+  Three scrip runtime facts: `DIV()` not available (use `/`); `CHAR(0)` dropped in concat;
+  `ANY(ctrl32)` used for membership test.
 
-Next session: PARSER-RK-7 — `$*STDIN`/`$*STDOUT`/`$*STDERR` standard handles
-(lexer maps these to `VAR_CAPTURE` with ival 0/1/2); or extend LitRegex starter
-slice to handle embedded `/` inside `[...]` or after `\` if a fixture exercises it.
-Regex starter slice landed: `/body/` LitRegex classifier + `~~`
-smartmatch operator at Expr4, lowering to
-`(E_FNC raku_match (E_VAR raku_match) subj pat)`.  Five new fixtures
-in `corpus/programs/raku/parser/regex_*.raku` exercising literal,
-metacharacters (`\d+`, `[a-z]+`, `a|b`), anchors (`^x$`), `.*`, and
-backslash escapes (`\s+`).  Two prerequisite fixes landed in the
-same session:
-
-  1. **n-ary arith flattening** in `parser_raku.sc` — four
-     `flatten_*` helpers fold same-tag rhs into existing same-tag
-     lhs on the stack, matching iter#9 Phase A's C-frontend
-     `expr_binary_flatten()` shape.  Closes the `arith_chain` fail
-     that landed when iter#9 Phase A flipped the oracle to n-ary.
-  2. **CQize C-string escaping** in `qize.sc` + tdump.sc routing
-     E_QLIT values through it — matches the C oracle's
-     `ir_print.c::print_escaped` for `\` / `"` / `\n` / `\r` / `\t`.
-     Cross-PARSER infra fix; no sibling regression.
-
-`parser_raku.sc` is now 633 lines (was 555) — the +78 net is four
-flatten helpers (~70 lines), `LitRegex` classifier, `caprx` global,
-`push_rxlit` + `Finish_smartmatch` helpers, `$'~~'` token, and the
-new Expr4tail alternative.  All retained helpers carry `// Retained:
-<reason>` comments per §4a.
-
-Next session: PARSER-RK-6 (regex captures `(...)`, `$0`, `$1` —
-sibling LANG RK-34 already supports them; the parser produces the
-right E_FNC-with-extra-args shape for `raku_capture(n)`).  Or:
-extend RK-5 starter slice to handle embedded `/` inside `[...]` /
-after `\` if/when a fixture exercises it.
+Next session: PARSER-RK-9 — array/hash indexing `@a[$i]`, `%h{key}`, `%h<key>`, hash_exists.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
