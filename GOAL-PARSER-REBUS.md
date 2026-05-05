@@ -1842,3 +1842,42 @@ explicitly authorized but had not been recorded in the file:
 Comment-only change.  Gate unchanged at PASS=38 FAIL=0.
 
 corpus HEAD: 4a6390b
+
+---
+
+## Session 2026-05-05 — REBUS gate stable; session pivot note
+
+### Work done this session
+
+Three commits landed on corpus (all on `parser_rebus.sc`):
+
+| Commit | Description |
+|--------|-------------|
+| `09d7f80` | alt_expr n-ary fold — clears alt_assign/body/match_three (PASS 35→38) |
+| `4a6390b` | File header cleanup: current rung status + G3/G10 deviation notes |
+| `a5c3fe9` | lower_atom audit: `i` declared local; `acc` accumulator; stale comments |
+
+Gate: **PASS=38 FAIL=0**. Smoke: **PASS=4 FAIL=0**. All rubric self-checks pass.
+
+### Session deviation note
+
+Session wandered into PARSER-PROLOG (PR-8d DCG investigation) and
+PARSER-SNOBOL4 (CR-1/CR-2 inventory) before operator redirected back
+to REBUS.  CR-1/CR-2 findings are recorded in GOAL-PARSER-SNOBOL4.md
+(.github@1f205e5).  The PR-8d investigation was redundant — a parallel
+session had already documented the same root-cause suspects in
+GOAL-PARSER-PROLOG.md (commit 5b0238b).
+
+### State
+
+**corpus HEAD:** `a5c3fe9`
+**one4all branch:** `parser` (upstream `origin/parser`)
+
+### Next milestone
+
+Operator-directed.  Options per goal file:
+- Six-parser cross-pollination loop (pick a concept)
+- PARSER-RB-FW: n-ary call args (needs new fixtures — none of the
+  `func_call*.reb` fixtures have arguments)
+- CR-3..CR-5: rebus.y → EXPR_t direct (cleanup, no gate urgency now
+  that iter#9+10 landed without it)
