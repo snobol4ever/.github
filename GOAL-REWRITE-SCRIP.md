@@ -274,81 +274,119 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
   as RS-23c — they are addressable by adding handlers in the missing
   context, with one architectural precondition documented in RS-23e.
 
-- [ ] **RS-23-extra** — Add value-context handlers for `E_IF`,
-  `E_PROC_FAIL`, `E_BANG_BINARY`; add stmt-context handler for
-  `E_REVASSIGN`.  These are the 5 of 6 remaining tuples that don't
-  go through `coro_eval` oneshot.  Same gates.
+- [x] **RS-23-extra-prep2 (Option B′) — LANDED (session 2026-05-05):**
+  Smart fallback in `icn_call_builtin` with mutator-aware denylist.  The
+  fallback path (when neither user-proc lookup nor any of the lifted
+  dispatchers — Raku/SCAN/write — claims the builtin) used to call
+  `interp_eval(call)`, which re-walks `call->children[]` and double-
+  evaluates side-effectful generators.  This blocked RS-23-extra
+  (meander.icn regressed: `n := integer(tab(0))` advanced `scan_pos`
+  twice, leaving the second `tab(0)` returning `""`).
 
-  **First precondition LANDED (session 2026-05-04 @ one4all 5053e80b):**
-  Lift SCAN-context builtins (`any`, `bal`, `find`, `many`, `match`,
-  `move`, `pos`, `rpos`, `tab`, `upto`) out of `interp_eval.c`'s E_FNC
-  switch into `scan_builtins.c` mirroring the RS-23a-raku pattern.
-  Single entry-point `scan_try_call_builtin(call, args, nargs, *out)`
-  uses pre-evaluated `args[]` (not lazy eval like Raku), wired into
-  `icn_call_builtin` after the Raku check.  All gates green at
-  baseline.
+  Implementation: when nargs are all in the four scalar descriptor types
+  (`DT_S`/`DT_SNUL`/`DT_I`/`DT_R`) and the function name is not in the
+  five-name mutator denylist, synthesize a stack-allocated shallow clone
+  of `call` whose `children[1..nargs]` are literal leaf `EXPR_t`s
+  (`E_QLIT`/`E_NUL`/`E_ILIT`/`E_FLIT`) carrying the pre-evaluated
+  descriptors, then `interp_eval(&clone)`.  The recursive walk over
+  literal leaves is idempotent — no scan_pos advance, no read consumption.
 
-  **Deeper architectural gap discovered (session 2026-05-04):**
-  Re-attempting RS-23-extra after the SCAN lift STILL regresses
-  `rung36_jcon_meander.icn`.  Root cause is broader than SCAN
-  builtins: `bb_eval_value`'s E_FNC handler pre-evaluates args, then
-  calls `icn_call_builtin`.  For builtins NOT in raku/scan/write/user-
-  proc dispatch, `icn_call_builtin` falls back to `interp_eval(call)`.
-  That fallback re-evaluates `call->children[]` from scratch — and if
-  any child has a side effect (e.g. `tab(0)` advancing `scan_pos`),
-  it executes twice.
+  Mutator denylist (5 names): `push`, `pop`, `arr_set`, `hash_set`,
+  `hash_delete`.  These write back through `FRAME.env[children[1]->ival]`
+  and rely on `children[1]->kind == E_VAR` to identify the lvalue slot.
+  Substituting an `E_QLIT` literal there destroys the lvalue identity
+  and silently drops the writeback (the original Option-B prototype
+  regressed Raku rk_arrays / rk_hashes / 6 corpus programs total before
+  the denylist was added).  For these names we keep the original
+  `interp_eval(call)` fallback, which preserves the E_VAR child.
 
-  Concretely for meander: the if-test contains `n := integer(tab(0))`.
-  `bb_eval_value` pre-evaluates `tab(0)`, advancing `scan_pos` to
-  end-of-subject and returning the trailing substring.  Then it calls
-  `icn_call_builtin(integer, [STRVAL("2")])`.  `integer` is not in
-  the SCAN/Raku/write dispatchers, so the fallback re-runs
-  `interp_eval(integer(tab(0)))`, which evaluates `tab(0)` AGAIN.
-  But `scan_pos` is already past end, so the second `tab(0)` returns
-  `""`, `integer("")` fails, the conjunction fails, the if-test
-  fails, the else branch fires `stop()`, and the program exits silent.
+  Out-of-scope cases that fall through to original re-eval: heap-typed
+  args (`DT_A`/`DT_T`/`DT_P`/`DT_DATA`/`DT_K`/`DT_E`/`DT_C`/`DT_N`) for
+  which there is no scalar literal kind to carry them.  These args are
+  rarely produced by side-effectful generator children in the corpus.
 
-  ~40 other Icon builtins live in `interp_eval.c`'s E_FNC case
-  (`integer`, `string`, `real`, `numeric`, `image`, `type`, `char`,
-  `ord`, `repl`, `left`, `right`, `center`, `trim`, `reverse`, `map`,
-  `read`, `reads`, `member`, `copy`, `key`, `delete`, `insert`,
-  `list`, `table`, `get`, `pull`, `push`, `pop`, `put`, `elems`,
-  `arr_get`, `arr_set`, `hash_*`).  All can trigger the same
-  double-eval if their args have side effects.
+  Residual gap: a denylist mutator called with a side-effectful value-arg
+  (e.g. `push(@arr, tab(0))`) still double-evals that value-arg.  None
+  observed in the corpus.  Lift to Option A for those names if a real
+  bug appears.
 
-  **Two paths forward — Lon's call:**
+  Audit method (which produced the denylist): grep every builtin in
+  `interp_eval.c`'s E_FNC switch for `FRAME.env[children[N]->ival] = `
+  writeback patterns.  Icon-list cluster (push/put/get/pull at line
+  1180) and Icon-table mutators (insert/delete) operate on heap objects
+  via `DT_DATA`/`DT_T` and mutate through the descriptor — not via
+  children[]-writeback — so they are safe to synthesize, but their first
+  arg is non-scalar and falls through the filter anyway.  Net: exactly
+  five builtins write back through children[]+slot, all Raku-style
+  string-as-array mutators.
 
-  1. **Bulk lift (option A)** — port all ~40 builtins to
-     `icn_call_builtin` using `args[]` (or to a new
-     `pure_builtins.c`).  Largest scope, clean architecturally,
-     parallel to RS-23a-raku and the SCAN lift.  ~2-3 sessions of
-     careful porting.
+  Patch: `src/driver/interp_eval.c`, ~115 lines added in
+  `icn_call_builtin`.  No changes elsewhere.
 
-  2. **Smart fallback (option B, recommended)** — change
-     `icn_call_builtin`'s fallback so it doesn't re-evaluate
-     children.  Approach: clone `call` with synthesized literal
-     children (E_ILIT/E_QLIT/E_FLIT) representing the pre-evaluated
-     `args[]`; call `interp_eval(clone)`.  `interp_eval`'s child
-     recursion on literal nodes is idempotent.  Smaller change, one
-     focused commit.  Requires care: handle DT_S/DT_I/DT_R/SNUL/FAIL
-     descriptor types correctly when synthesizing literal nodes;
-     ensure NV/Icon-frame state for non-literal arg shapes (e.g.
-     hash-typed args) is preserved.  After this lands, RS-23-extra
-     can be retried without further preconditions.
+  Gates after this rung: smoke_{snobol4 7/7, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4, snocone 5/5}, unified_broker 49/0, isolation
+  gate PASS, Icon corpus 186/47/30 (no delta), meander.icn green.
 
-  Reverted (session 2026-05-04): all four RS-23-extra handlers
-  removed pending option A or B.  SCAN-builtin lift kept (it's a
-  clean improvement on its own and is required preparation for
-  either path).
+- [x] **RS-23-extra — LANDED (session 2026-05-05, on top of -prep2):**
+  Added value-context handlers in `coro_value.c` for `E_IF`,
+  `E_PROC_FAIL`, `E_BANG_BINARY`, `E_REVASSIGN`; added stmt-context
+  handler for `E_REVASSIGN` in `coro_stmt.c`.  Each mirrors the
+  corresponding case in `interp_eval.c` with `interp_eval(child)`
+  recursions replaced by `bb_eval_value(child)` and `bb_exec_stmt(body)`.
 
-- [ ] **RS-23e** — Re-run `test_rs23_diag_capture.sh`; expect zero
-  unique tuples.  Then harden the direct fallthroughs in
-  `coro_value.c:1075` and `coro_stmt.c:203` to abort with a clear
-  diagnostic.  Remove the `extern DESCR_t interp_eval(...)`
-  declarations from both files.  Add `coro_value.c` and `coro_stmt.c`
-  to `SM_FILES` in `test_isolation_ir_sm.sh`.  Revert
-  `src/driver/rs23_diag.c` (delete) and remove the diag scripts from
-  `scripts/` (or keep as dormant tooling — Lon's call).
+  E_IF: mirrors interp_eval.c:3108-3114, with `is_suspendable(test)`
+  branch driving via `coro_eval+α` for generator-shaped conditions
+  (mirrors the existing stmt-context handler at coro_stmt.c:106).
+
+  E_PROC_FAIL: eager form mirroring interp_eval.c:2064-2070.  Sets
+  `FRAME.returning=1`, `FRAME.return_val=FAILDESCR`, returns FAILDESCR.
+  The lazy form for `expr | fail` alternation lives in `coro_eval`
+  (RS-23b's `icn_lazy_box` wrapping at coro_runtime.c:1576) and is
+  unaffected — the lazy box triggers this same eager case only when
+  the alternation arm is actually pumped.
+
+  E_BANG_BINARY: pure generator combinator, state lives in the
+  bb_node_t built by coro_eval.  Mirrors the existing
+  E_LIMIT/E_ALTERNATE/E_SEQ_EXPR pattern at coro_value.c:888-901
+  (injection check + fresh-α via `coro_eval(e); box.fn(box.ζ, α)`).
+
+  E_REVASSIGN: mirrors interp_eval.c:606-637 (standalone path).  Three
+  lvalue shapes: E_VAR (slot or NV name), E_IDX (subscript_set),
+  E_FIELD (data_field_ptr).  The revert semantics for every/alt-driven
+  contexts live in `coro_bb_revassign` and are unaffected — those reach
+  through `coro_eval`, not via this path.  Stmt-context handler is a
+  thin `(void)bb_eval_value(e); return;` delegation.
+
+  Diag dropped from 6 unique tuples → 3 after this rung.
+
+  **Residual fold-in (same session):** the 3 surviving tuples
+  (`E_LOOP_BREAK via=bb_eval_value`, `E_RETURN via=bb_eval_value`,
+  `E_RETURN via=coro_eval`) all surfaced *because* RS-23-extra absorbed
+  kinds that previously masked them in the call graph.  Added value-
+  context handlers in `coro_value.c` for `E_LOOP_BREAK` (mirrors
+  interp_eval.c:3419-3422) and `E_RETURN` (mirrors interp_eval.c:2053-
+  2061).  The third tuple (E_RETURN via coro_eval, the oneshot path)
+  reaches `interp_eval` via `coro_oneshot`'s `bb_eval_value(e)` call
+  with `e->kind == E_RETURN` — same handler now catches it.
+
+  **Diag after fold-in: 0 raw lines, 0 unique tuples.**  Zero
+  `interp_eval` calls reach from any BB-adapter ancestor across smoke
+  + unified_broker + Icon corpus 263.  The two physical
+  `interp_eval(e)` lines remaining at `coro_value.c:1257` and
+  `coro_stmt.c:258` are now provably unreachable on the test surface.
+
+  Gates after both fold-ins: identical to -prep2 (all six smokes green,
+  unified_broker 49/0, isolation gate PASS, Icon corpus 186/47/30,
+  meander.icn green) plus diag at zero.  RS-23e is now unblocked.
+
+- [ ] **RS-23e** — Diag is empirically at zero (verified end of session
+  2026-05-05).  Harden the direct fallthroughs in `coro_value.c:1257`
+  and `coro_stmt.c:258` to abort with a clear diagnostic.  Remove the
+  `extern DESCR_t interp_eval(...)` declarations from both files.  Add
+  `coro_value.c` and `coro_stmt.c` to `SM_FILES` in
+  `test_isolation_ir_sm.sh`.  Revert `src/driver/rs23_diag.c` (delete)
+  and remove the diag scripts from `scripts/` (or keep as dormant
+  tooling — Lon's call).
   Gate: all smoke + unified_broker + isolation gate green WITHOUT the
   diag binary; the new isolation grep gate green with the BB adapters
   in scope.  This closes the IR/SM isolation invariant for Icon and
