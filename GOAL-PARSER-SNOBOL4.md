@@ -689,19 +689,37 @@ the IR shape from the bison actions.  This is friction, not architecture.
 
 **Steps:**
 
-- [ ] **Step CR-1 — Inventory the Rebus AST surface.**  List every `RExpr`
+- [x] **Step CR-1 — Inventory the Rebus AST surface.**  List every `RExpr`
       / `RStmt` / `REKind` / `RSKind` use site.  Sources: `frontend/rebus/
       rebus.h` (struct + enum defs), `rebus.y` (every reduce action),
       `rebus.l` (likely RExpr-free but verify), `rebus_lower.c` (the
       walker), `rebus_emit.c` (Rebus-AST pretty-printer — keep or drop?
       decide in CR-2), and any other file that names RExpr.
+      **DONE (session 2026-05-04 cont.#8):** RExpr/RStmt used in: `rebus.h`
+      (struct + enum defs + allocators), `rebus.y` (all reduce actions build
+      RExpr*/RStmt*/RDecl*), `rebus_lower.c` (walker: RProgram→CODE_t),
+      `rebus_lower.h` (public API — this is the only API scrip calls),
+      `rebus_emit.c` (pretty-printer), `rebus_print.c` (AST printer),
+      `rebus_main.c` (standalone driver).  `rebus.l` is RExpr-free (confirmed).
+      Nothing outside `src/frontend/rebus/` uses RExpr/RStmt directly.
+      The scrip driver calls only `rebus_compile()` from `rebus_lower.h`.
 
-- [ ] **Step CR-2 — Decide rebus_emit.c fate.**  This file contains the
+- [x] **Step CR-2 — Decide rebus_emit.c fate.**  This file contains the
       `RE_ADD: emit_expr_atom(e->left,out); fprintf(out,"+");` style
       pretty-printer for Rebus syntax.  Three options: (a) port to walk
       `EXPR_t` directly (Snocone-style `expr_dump`), (b) delete entirely
       if no live caller, (c) keep as a debug-only path on EXPR_t.
       Decision drives CR-3 / CR-4 scope.
+      **DECIDED (session 2026-05-04 cont.#8):** Option (b) — delete.
+      `rebus_emit.c` and `rebus_print.c` have no live callers in the scrip
+      build.  Their only caller is `rebus_main.c`, a standalone driver not
+      in the scrip Makefile.  All three files (`rebus_emit.c`,
+      `rebus_print.c`, `rebus_main.c`) and the standalone
+      `src/frontend/rebus/Makefile` will be deleted in CR-4.
+      The two compile lines for `rebus_emit.o` and `rebus_print.o` in the
+      top-level `Makefile` (lines 106-107) will also be removed — they
+      compile to dead-code objects that are linked into scrip but have no
+      reachable callers from scrip's live path.
 
 - [ ] **Step CR-3 — Rewrite reduce actions to build EXPR_t directly.**
       Every `rbinop(RE_ADD, $1, $3, yylineno)` becomes
