@@ -577,3 +577,19 @@ Real literal + keyword expression. 2 NEW fixtures.
 - New fixtures: `not_expr`, `fail_expr`, `real_exp`.
 
 **Next session (IC-17):** `=E` match-expression rewrite as `match(E)` call (already in C frontend's `parse_unary`); `string@integer` activation expression (`E_ACTIVATE`); cross-pollinate DGray Compiland fix and IC-16 `not`/`fail` tokens to other PARSER-* parsers.
+
+---
+
+### PARSER-IC-17 LANDED PASS=124 corpus@c03df28
+
+`=E` match rewrite, `/E` null test, `E1 ! E2` bang-binary. 3 NEW fixtures.
+
+- **`=E` match rewrite** → `(E_FNC (E_VAR match) E)`: wired `$' ' '=' *Expr10 Push_match` in `Expr10`. `push_match()` pops the inner expr and builds `Tree('E_FNC','',2,tree('E_VAR','match'),inner)` — mirrors C frontend `parse_unary` TK_EQ branch.
+- **`/E` null test** → `(E_NULL E)`: wired `$' ' '/' *Expr10 (E_NULL & 1)` in `Expr10`. Tag constant `E_NULL` added.
+- **`E1 ! E2` bang-binary** → `(E_BANG_BINARY E1 E2)`: added `$'!' *Expr10 (E_BANG_BINARY & 2)` branch in `Expr9tail` alongside the existing limit `$'\\'` branch. Tag constant `E_BANG_BINARY` added.
+- **Disambiguation bug fixed**: `$'==='` / `$'~==='` moved from `Expr1` into `Expr4tail` (before `$'=='` / `$'~=='`). Root cause: `Expr4tail`'s `$'=='` was consuming the first two `=` of `===`, leaving unary `=` (match) to consume the third → `(E_LEQ x (E_FNC match y))` instead of `(E_IDENTICAL x y)`. Fix: longer-prefix-first ordering in `Expr4tail` (canonical structural idiom). Regressions `special_identical` and `special_notident` resolved.
+- New helper: `push_match()` / `Push_match`.
+- New fixtures: `match_expr`, `null_expr`, `bang_binary` (+3).
+
+**Next session (IC-18):** `@` activation binary `E1 @ E2` → `(E_AT E1 E2)` once oracle C frontend supports it (currently rejects `@` as parse error); cross-pollinate `/E` null + `=E` match + `E1!E2` bang-binary to other PARSER-* parsers; additional unary forms from `icon-sp.ebnf` expr10 list not yet covered (`BAR`, `CONCAT`, `LCONCAT`, `DOT`, `CARET`, `INTER`, `UNION`, `NMEQ`, `NMNE`, `SEQ`, `SNE`, `EQUIV`, `NEQUIV` unary forms — verify which the oracle actually accepts).
+
