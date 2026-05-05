@@ -352,6 +352,22 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
+### PARSER-RK-14 — `eq`/`ne` string cmp + unary minus — LANDED session 2026-05-05
+
+- [x] `$a eq $b` → `(E_LEQ a b)`.  `$'eq' *Expr5 (E_LEQ & 2)` arm in `Expr4tail`.
+      Mirrors raku.y `add_expr OP_SEQ add_expr → E_LEQ`.
+- [x] `$a ne $b` → `(E_LNE a b)`.  `$'ne' *Expr5 (E_LNE & 2)` arm in `Expr4tail`.
+      Mirrors raku.y `add_expr OP_SNE add_expr → E_LNE`.
+- [x] `-expr` → `(E_MNS expr)`.  `($' ' '-') *Expr11 Finish_mns` arm at top of
+      `Expr11` (after `!` arm).  Uses raw `$' ' '-'` (leading ws only) to avoid
+      trailing-ws ambiguity with binary `$'-'` token.
+      `finish_mns` helper: pop inner, build `(E_MNS inner)`, push.
+- [x] Test corpus: 5 new fixtures (str_eq, str_ne, unary_minus, unary_minus_var,
+      str_eq_ne).
+- **Gate:** PASS=75 FAIL=0 ✓  corpus@d2f4584.
+
+---
+
 ## Invariants
 
 - Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
@@ -377,15 +393,16 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-13 LANDED (session 2026-05-05) — PASS=70 FAIL=0.
+PARSER-RK-14 LANDED (session 2026-05-05) — PASS=75 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
 RK-12: logical && → E_SEQ, || → E_ALT, ! → E_NOT.  corpus@15666e9.
 RK-13: string ~ concat → E_CAT n-ary flatten.  corpus@591f91b.
+RK-14: eq/ne string cmp → E_LEQ/E_LNE; unary minus → E_MNS.  corpus@d2f4584.
 
-Next session: PARSER-RK-14 — compound assign += -= *= /= ~=,
-  or interpolated strings \"hello \$var\", or string comparison eq ne lt gt.
+Next session: PARSER-RK-15 — modulo % op, integer division (div keyword),
+  or ternary ?: operator, or hash/array slice.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
