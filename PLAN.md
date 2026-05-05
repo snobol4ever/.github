@@ -79,7 +79,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-1 LANDED 2026-05-05 (PASS=48 FAIL=0): arith+call-with-args+cmp+strcat+unary+paren. BUG-RB-1 fixed (rebus_lower.c unary ops). corpus@3f7f470, one4all/parser@deeae350. Next: return/exit/stop/fail/next stmts; exponentiation; modulo; string-cmp; local/initial. |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-13 LANDED PASS=113 corpus@3a8f465 — global/local/static/initial/record; next: IC-14 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-9 LANDED PASS=86 FAIL=0 corpus@83cf1ae — comparison ops complete; next: PR-10 negation/meta |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-14 LANDED PASS=75 FAIL=0 corpus@d2f4584 — eq/ne E_LEQ/E_LNE + unary minus E_MNS. Next: RK-15 — % modulo or ternary ?: |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-15 LANDED PASS=80 FAIL=0 corpus@5b42940 — % modulo E_MOD + div E_DIV. Next: RK-16 — given/when or interp strings |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
