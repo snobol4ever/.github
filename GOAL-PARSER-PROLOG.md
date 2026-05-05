@@ -537,7 +537,7 @@ Gate held PASS=48 FAIL=0 throughout.
   `var_next`.  Recursive walk visits children right-to-left to match the
   C stack-based pop order.
 
-### PARSER-PR-8b — same-functor E_CHOICE merging — ⏳ NEXT
+### PARSER-PR-8b — same-functor E_CHOICE merging — **LANDED** (PASS=60)
 
 When multiple top-level clauses share the same functor/arity, the existing
 frontend merges them into ONE STMT containing one E_CHOICE node with
@@ -595,9 +595,25 @@ source order, clauses group separately).
   `rule_with_fact.pl` (foo/1 plus bar/1, distinct functors) already pass
   PR-7 — no ordering change needed in those cases because each key has
   one entry.  Both remain green after merging is added.
-- The existing `Merge_choices` partial implementation was attempted in
-  the 2026-05-04 session but reverted — file landed at PR-8a only.  Next
-  session: re-implement from clean baseline.
+- LANDED: `merge_choices(parse_root)` helper added between `build_directive`
+  and the grammar section in `parser_prolog.sc` (~77 LOC).  Driver calls
+  `merge_choices(ptree)` between `ptree = Pop()` and the TDump walk.
+  Algorithm: single pass over `parse_root`'s STMT children; clause STMT vs
+  directive discriminated by `IDENT(t(c(c(stmt)[1])[1]), 'E_CHOICE')`;
+  same-key match uses linear search of `choice_keys[]` (n_choice ≤ number
+  of distinct functors, fine at this scale); donor's E_CLAUSE children
+  spliced into kept STMT's E_CHOICE via `Append`; `parse_root.c[]`
+  rebuilt as `directives ++ choice_stmts`.  Gate PASS=60 FAIL=0.
+
+#### Caveats discovered during PR-8b
+
+- **Separator-style watermark drift.** PR-7-6 watermark says "79-col
+  `//===` per beauty.sc", but the landed file uses `/*===*/` 116-col form
+  (10 major + 30 minor) — and so do all five other `parser_*.sc` files
+  (zero `//===` separators across the parser corpus).  The watermark
+  describes intent that didn't ship; the cross-PARSER convention is
+  `/*===*/`.  Not in scope to fix in PR-8b — flagging for a future
+  watermark-correction or a separate sweep across all six parsers.
 
 ### PARSER-PR-8c — parenthesized body subterms — deferred (after PR-8b)
 
@@ -615,7 +631,7 @@ Tracked but not yet started.
 
 ## Watermark
 
-PARSER-PR-8a LANDED (PASS=54).  All ladder rungs PR-0..PR-8a landed.
+PARSER-PR-8b LANDED (PASS=60).  All ladder rungs PR-0..PR-8b landed.
 
 **PR-8a anonymous variables landed 2026-05-04 session #2:**
 - ✅ Bare `_` per-occurrence fresh slot allocation
@@ -625,10 +641,23 @@ PARSER-PR-8a LANDED (PASS=54).  All ladder rungs PR-0..PR-8a landed.
 - ✅ 6 new fixtures: anon_single, anon_two, anon_mixed, anon_named,
      anon_named_two, anon_in_body
 
-Gate PASS=54 FAIL=0.
+Gate PASS=54 FAIL=0 at PR-8a close.
 
-**PR-8b same-functor E_CHOICE merging — ⏳ NEXT.**  Implementation
-strategy documented above.  Oracle behavior verified.  Partial
-`Merge_choices` work attempted in this session was reverted; file is
-clean at PR-8a end state.  Resume by adding `Merge_choices` helper and
-calling it in driver between `Pop()` and the TDump loop.
+**PR-8b same-functor E_CHOICE merging landed 2026-05-04 session #N:**
+- ✅ `merge_choices(parse_root)` post-Compiland pass added between
+     `build_directive` and the grammar section in `parser_prolog.sc`
+- ✅ Driver calls `merge_choices(ptree)` between `Pop()` and TDump walk
+- ✅ Same-functor/arity clauses fold into one STMT's E_CHOICE
+- ✅ Directives stay grouped at front (in source order); clause-groups
+     follow in first-encounter order
+- ✅ Distinct-functor inputs unchanged (no spurious reordering)
+- ✅ 6 new fixtures: merge_two_facts, merge_three_facts, merge_with_other,
+     merge_rules, merge_rule_and_fact, merge_dir_and_clauses
+
+Gate PASS=60 FAIL=0.
+
+**PR-8c parenthesized body subterms — ⏳ NEXT.**  `(a, b) ; c` —
+parens currently work inside expression ladder via `primary`'s
+`$'(' *unify_expr $')'` arm, but body-level conj/disj sit ABOVE
+unify_expr in the precedence stack.  Need a parenthesized-body form
+at the conj level.

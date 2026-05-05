@@ -78,7 +78,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6 (SC-5 ✅ session #67 cont.: scan stmt landed; PASS=46 FAIL=0; 10 new fixtures) |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold; all six parsers at 100% gate. corpus@09d7f80) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-10 LANDED PASS=88 corpus@1744d3e — augops + unary + special-assign + to..by + concat; next: cross-pollinate negative-lookahead idiom to other PARSER-* parsers |
-| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-6 LANDED PASS=48; PR-7 in progress (4/8 micro-rungs landed: PR-7-6 separators, PR-7-1 Gray/White, PR-7-2 $'x' idiom, PR-7-3 inline-ws cleanup; next: PR-7-4 token classifier renames) |
+| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-0..PR-8b LANDED PASS=60; PR-8c (parenthesized body subterms) NEXT |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
