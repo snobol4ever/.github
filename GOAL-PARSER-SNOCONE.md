@@ -569,15 +569,12 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6f ✅ SC-6g ✅ SC-6h ✅ landed; SC-6b next — Expr14 gap + stmt_body trailing-ws fix)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6f ✅ SC-6g ✅ SC-6h ✅ SC-6i ✅ landed; SC-6b next — Expr14 gap + stmt_body trailing-ws fix)**
 
-Gate: PASS=46 FAIL=0. corpus @ `6c13cb1`. SC-6f/6g/6h landed: Lon's style edits —
-White/Gray/$'  '/$' ' canonical, binary ops $'  ' form, E_* one-per-line, DQ_lit,
-kw_tail eliminated: kw_X = (Id $ tx *IDENT(tx,'kw')) — correct word-boundary by
-construction. Id rejects Snocone reserved words (if/else/while/do/for) via
-sc_reserved + ~IDENT guard.
-SC-6b: beauty.sc parses correctly to line 114; Stmt (*Expr14) and stmt_body
-trailing-ws issue block further progress — next session adds missing Expr tiers.
+Gate: PASS=46 FAIL=0. corpus @ `f79c025`. SC-6f/g/h/i landed: style edits,
+kw_X=(Id$tx*IDENT), correct Id/Ident/sc_reserved structure: sc_reserved=POS(0)(...)RPOS(0),
+notmatch(s,pat) helper, Ident=Id$tx*notmatch(tx,sc_reserved) rejects reserved words,
+Expr17 E_VAR uses Ident. SC-6b next: Expr5/5a missing tiers + beauty.sc crosscheck.
 
 **Session #67 cont. (2026-05-04) — PARSER-SC-5 landed (pattern-match scan stmt).**
 
