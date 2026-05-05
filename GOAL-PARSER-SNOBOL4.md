@@ -89,44 +89,32 @@ Role-slots: `:lbl :subj :pat :repl :goS :goF :goU :eq :end`
 
 ---
 
-## Next rung: SN-7-9 — eliminate rw_call; all call tags E_* at parse time
+## Next rung: SN-7-9 — eliminate all rw_ functions; grammar builds correct tree directly
 
-**Goal:** delete `rw_call` and the `E_FNC` dispatch branch in `rw_expr`. Every function-call node must carry its correct `E_*` tag directly out of the grammar — no post-parse rename pass.
+**Goal:** delete `rw_call`, `rw_expr`, and `rw_goto_slot` entirely. The grammar must emit the correct `E_*`-tagged tree directly at parse time — no post-parse rewrite pass. This is the beauty.sno model: `pp_*` walks the parse tree and pretty-prints; it never renames nodes because the grammar already built the right shape.
 
-**Approach (no helpers):**
+**What each rw_ function currently does and how to eliminate it:**
 
-The grammar's Expr17 currently has two call arms:
-```
-*Function ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)
-*Id       ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)
-```
-Both emit `E_FNC` with the callee name in `v` of the `E_VAR` child. `rw_call` then renames the ~13 known pattern primitives (LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX) to their `E_*` tags.
+`rw_call` — renames `E_FNC` nodes for 12 known primitives (LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX) to their `E_*` tags. **Fix:** split Expr17's call arms — add one arm per primitive before the generic `*Function` arm. Each arm matches the literal name, consumes it (not stored as value), then parses the arg list and reduces with the correct tag. Generic calls fall through to the existing `(E_FNC & 2)` arm which stores fname in `v`.
 
-Fix: split the call arms in Expr17. Add one arm per primitive **before** the generic arm, each using `shift` to consume the name and emit the correct tag directly:
-```
-'LEN'    ~ E_LEN    $'(' *ExprList $')' reduce(E_LEN,    'nTop()') nPop()
-'BREAK'  ~ E_BREAK  $'(' *ExprList $')' reduce(E_BREAK,  'nTop()') nPop()
-... (one per primitive)
-*Function ~ E_VAR    $'(' *ExprList $')' (E_FNC & 2)   // generic fallthrough
-*Id       ~ E_VAR    $'(' *ExprList $')' (E_FNC & 2)
-```
-Actually simpler using the existing nPush/nInc/nPop n-ary shape already used for ExprList — the primitive arms just use `reduce(E_TAG, na)` after the arg list. The name is consumed by the literal match and NOT stored (oracle: `(E_LEN (E_ILIT 3))` has no name value).
+`rw_expr` — does five things, all fixable in grammar:
+- strips `()` paren wrappers → Expr17 already has `'()' & 1` shape; change paren group to just `*Expr` (no wrapper node at all, since parens are structural only)
+- unwraps `ExprList` single-child → if ExprList already uses `nPush/nInc/nPop`, the reduce fires the right count and no unwrap is needed
+- flattens `E_IDX` ExprList children → fix E_IDX grammar arm to use nPush/nInc/nPop directly so children are inline, no ExprList wrapper
+- left-rotates `E_CAPT_*_ASGN` chains → fix Expr12 to iterate left-to-right (use foldop or iterative shape) instead of right-recursive
+- generic tree copy (base case) → not needed once above are fixed; grammar produces correct tree
 
-After this change:
-- `rw_call` function: **delete entirely**
-- `rw_expr` `E_FNC` branch: **delete** (no more post-parse dispatch needed)
-- All `E_FNC` nodes in output now carry the function name as `v` (correct — oracle: `(E_FNC ARRAY ...)`)
-- All primitive nodes carry the right `E_*` tag with no `v` (correct — oracle: `(E_LEN ...)`)
+`rw_goto_slot` — formats goto target as string for the slot value. This is pp_stmt bookkeeping, not a tree rewrite. **Inline** its logic directly into pp_stmt's goto-appending code (3 call sites); delete the function.
 
 **Steps:**
-- [ ] In Expr17, add 12 primitive-specific call arms before the generic `*Function` arm; each arm: `'NAME' ~ E_TAG $'(' *ExprList $')' (E_TAG & 'nTop()') nPop()` (use nPush/nInc shape from ExprList)
-- [ ] Delete `rw_call` function from `parser_snobol4.sc`
-- [ ] Delete `E_FNC` dispatch branch from `rw_expr`
+- [ ] Fix Expr17: add 12 primitive call arms (LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX), each `'NAME' nPush() $'(' *XList (E_TAG & 'nTop()') nPop()` — no name stored, args as children
+- [ ] Fix paren group in Expr17: emit no wrapper node — the `'()' & 1` arm currently tags the group; change to pass-through (the paren just groups, Expr handles the value)
+- [ ] Fix E_IDX in Expr15/16: use nPush/nInc/nPop so bracket-group children are direct children of E_IDX, no ExprList wrapper
+- [ ] Fix Expr12 E_CAPT_*_ASGN: use iterative foldop shape so tree is already left-associative at parse time
+- [ ] Delete `rw_call`, `rw_expr`, `rw_goto_slot` functions
+- [ ] In pp_stmt: inline the 3 `rw_goto_slot` call sites; inline the 3 `rw_expr` call sites (now just use the stack-popped tree directly)
 - [ ] Gate: PASS=89 FAIL=0 throughout; beauty crosscheck still passes
-- [ ] Commit: `PARSER-SN-7-9: eliminate rw_call — all call tags E_* at parse time (PASS=N/N)`
-
-**Primitives to inline (12):** LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX  
-(CURSOR stays generic `E_FNC` — oracle confirmed.)
+- [ ] Commit: `PARSER-SN-7-9: eliminate all rw_ functions — grammar builds correct tree directly (PASS=N/N)`
 
 ---
 
