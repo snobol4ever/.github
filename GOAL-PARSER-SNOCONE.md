@@ -423,19 +423,37 @@ Not violations (canonical guide explicitly permits or prefers):
 - **Sibling LANG rungs:** none — pure style.
 - **Gate:** PASS=21 FAIL=0 unchanged after every step.
 
-### PARSER-SC-4 — function def + call
+### PARSER-SC-4 — function def + call ✅ DONE (PASS=36, session #67 cont.)
 
-Canonical Style Guidelines apply (see top of file) — write this rung
-clean from the start.  Use `~`/`&` for all new shift/reduce sites; use
+Canonical Style Guidelines apply (see top of file) — written clean from
+the start.  Used `~`/`&` for all new shift/reduce sites; used
 `$'function'`/`$'return'`/`$'freturn'`/`$'nreturn'` keyword tokens; no
 leading underscores in any new identifiers; no `{ stmt; }` single-
 statement bodies; 120-char dividers.
 
-- [ ] `func_head : T_DEFINE T_IDENT T_LPAREN func_arglist opt_head_sep`
-      (BNF line 701). Lowers to `(STMT :subj (E_FNC name (...args)))`.
-- **Sibling LANG rungs:** SC-5..SC-7. **Gate:** PASS≥30.
+- [x] `func_head : T_DEFINE T_IDENT T_LPAREN func_arglist opt_head_sep`
+      (BNF line 701). Lowers to 4+N stmts: DEFINE call, skip-goto,
+      entry-label, body, end-label — mirrors snocone_parse.y
+      sc_func_head_new + sc_finalize_function.
+- [x] Function call form `f(args)` at Expr17 level — added `Call`,
+      `ArgFirst`, `ArgRest`, `CallArgs` patterns plus `decompose_call`
+      helper that lifts the function name from the first child's value
+      slot into the E_FNC's value slot.
+- [x] `return E;` lowers to `(STMT :eq :subj (E_VAR fname) :repl E :go RETURN)`;
+      `return;`/`freturn;`/`nreturn;` lower to bare goto stmts via
+      `make_goto_stmt`.
+- [x] `BodyFn(var)` — function-body variant supporting return/freturn/
+      nreturn statements, distinct from the plain `Body(var)` used by
+      if/while/do.  Uses `*body_fn_cmd` deferred lookup so forward-
+      reference to return_cmd etc. works.
+- **Sibling LANG rungs:** SC-5..SC-7. **Gate:** PASS=36 (was 21).
 
-### PARSER-SC-5 — pattern match `expr ? pat`
+Fixtures landed: `call_simple`, `call_noarg`, `call_one_arg`,
+`call_three`, `call_stmt`, `func_empty`, `func_simple`, `func_args`,
+`func_three_args`, `func_two_funcs`, `func_one_assign`, `func_body`,
+`func_freturn`, `func_nreturn`, `func_def_call` (15 new fixtures).
+
+### PARSER-SC-5 — pattern match `expr ? pat` ⏳ NEXT
 
 - [ ] `Expr1 = *Expr3 FENCE($'?' *Expr1 reduce('E_SCAN', 2) | epsilon)`.
       `sc_split_subject_pattern` (`snocone_parse.y` 1306) shows
@@ -467,12 +485,45 @@ statement bodies; 120-char dividers.
 ## Watermark
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
-PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅**
+PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅**
 
-Gate: PASS=21 FAIL=0 (atom_*, assign_*, arith_*, concat_seq, if_simple,
-if_else, if_seq, if_multi_body, while_simple, while_seq, do_simple,
-do_with_stmt). Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.
-Sibling parsers unaffected.
+Gate: PASS=36 FAIL=0 (was 21).  Atom + assign + arith + concat + if +
+while + do (21) plus 15 new function-handling fixtures: call_simple,
+call_noarg, call_one_arg, call_three, call_stmt, func_empty,
+func_simple, func_args, func_three_args, func_two_funcs,
+func_one_assign, func_body, func_freturn, func_nreturn, func_def_call.
+Smoke (`test_smoke_snocone.sh`): PASS=5 FAIL=0.  Sibling parsers
+unaffected (icon=51, prolog=54, raku=31/32 same as pre, rebus=35/38
+same as pre, snobol4=0/59 — pre-existing iter#9-in-progress state).
+
+**Session #67 cont. (2026-05-04) — PARSER-SC-4 landed (function def + call).**
+
+Added 4 keyword guards (`function`, `return`, `freturn`, `nreturn`),
+9 match-time helpers (`decompose_call`, `func_head_save_name`,
+`save_param_first`, `save_param_rest`, `make_define_stmt`,
+`finalize_function`, `emit_return_value`, `emit_return_void`,
+`emit_freturn`, `emit_nreturn`), 9 build-time companions, `Call` /
+`ArgFirst` / `ArgRest` / `CallArgs` patterns at Expr17 level, `BodyFn`
+variant for function bodies (uses `*body_fn_cmd` deferred lookup to
+break the forward-reference cycle to return_cmd), and `func_cmd` /
+`return_cmd` / `freturn_cmd` / `nreturn_cmd` grammar productions
+wired into `Command`.
+
+Two pattern-engine subtleties caught during write:
+1. Dot-binding `*Id . captured_name` has lower precedence than
+   concatenation in SNOBOL4 — `*kw_function $'  ' *Id . cn` parses as
+   `(*kw_function $'  ' *Id) . cn`.  Fixed with explicit parens at
+   each capture site: `(*Id . captured_name)`, `(*Id . captured_param)`.
+2. `ARBNO(a | b | c | d)` does not reliably try alternatives in order
+   when the alternation contains forward-referenced patterns.  The
+   working pattern is `ARBNO(*body_fn_cmd)` with `body_fn_cmd =
+   (return_cmd | freturn_cmd | nreturn_cmd | stmt_cmd)` defined later.
+
+`finalize_function` push-count: emits N+4 stmts (DEFINE, goto, entry-
+label, N body, end-label) but only N+3 IncCounter calls — the outer
+`nInc()` in func_cmd already counts 1 for the whole construct.
+
+**Next rung:** PARSER-SC-5 — pattern match `expr ? pat`.
 
 **Session #67 (2026-05-04) — Step 3d-bug IR-side fix landed; INFRA-3 closed.**
 
