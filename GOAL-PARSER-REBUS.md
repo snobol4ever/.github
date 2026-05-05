@@ -1822,3 +1822,23 @@ PASS=38 FAIL=0 restored.  Smoke also green (PASS=4 FAIL=0).
 | .github | this commit | watermark |
 
 **PARSER-RB-5 complete.  All six parsers at 100% gate.**
+
+### Followup commit — file-header cleanup (corpus@4a6390b)
+
+Trailing follow-up to the alt_expr n-ary fix.  The file header in
+parser_rebus.sc still said "Rung RB-1: atoms, assignment, functions,
+records.  Gate: PASS=18 FAIL=20" — three rungs and 20 fixtures stale.
+Updated to "Rungs RB-0..RB-5 LANDED.  Gate: PASS=38 FAIL=0" and added
+the two deviations from the Style Guidelines that PARSER-RB-0a
+explicitly authorized but had not been recorded in the file:
+
+  G3 — function-call shift()/reduce() forms instead of infix ~/&
+       (Snocone runtime declares T_2TILDE/T_2AMP tokens but has no
+       grammar productions for them; deviation deferred until
+       runtime catches up)
+  G10 — driver locals Src/Line in UpperCamel rather than lowerCamel
+        (matches beauty.sc convention; cross-PARSER decision pending)
+
+Comment-only change.  Gate unchanged at PASS=38 FAIL=0.
+
+corpus HEAD: 4a6390b
