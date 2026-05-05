@@ -307,15 +307,16 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-8 LANDED (session 2026-05-05) — PASS=45 FAIL=0.
-RK-7: `$*STDIN`/`$*STDOUT`/`$*STDERR` standard handles (corpus@5da7d87).
-RK-8: global match `m:g/body/` + substitution `s/pat/repl/[g]`, both via `~~` Expr4tail.
-  CQize bug fixed in qize.sc: control bytes < 0x20 (other than nl/cr/tab) now escape as `\xNN`
-  via `CQize_ctrl32`/`CQize_nibble`/`CQize_xNN`.  corpus@dcba3b5.
-  Three scrip runtime facts: `DIV()` not available (use `/`); `CHAR(0)` dropped in concat;
-  `ANY(ctrl32)` used for membership test.
+PARSER-RK-9 LANDED (session 2026-05-05) — PASS=50 FAIL=0.
+RK-7: $*STDIN/$*STDOUT/$*STDERR standard handles (corpus@5da7d87).
+RK-8: m:g/body/ global match + s/pat/repl/[g] substitution + CQize \xNN fix (corpus@dcba3b5).
+RK-9: @arr[$expr] arr_get, %h<ident> hash_get (angle), %h{$expr} hash_get (brace),
+  exists %h<ident> hash_exists, exists %h{$expr} hash_exists.  corpus@e605b01.
+  New [ ] operator tokens; ArrIdxVar/HashIdxVar with separate colnmf/colnmr captures
+  prevent index Expr from clobbering collection var name.
 
-Next session: PARSER-RK-9 — array/hash indexing `@a[$i]`, `%h{key}`, `%h<key>`, hash_exists.
+Next session: PARSER-RK-10 — arr_push / push(@arr, val), delete %h<key>,
+  or range expressions (1..5, 1..^5).
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
