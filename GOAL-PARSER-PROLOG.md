@@ -677,7 +677,78 @@ Gate PASS=60 FAIL=0.
 
 Gate PASS=65 FAIL=0.
 
-**PR-8d DCG sugar — ⏳ NEXT.**
+**PR-8d DCG sugar — ✅ LANDED (PASS=75 FAIL=0, 2026-05-05 session).**
+
+**PR-8e — ⏳ NEXT: clause-body cut (`foo :- !.`) + next ladder rung.**
+
+### PARSER-PR-8d landed (2026-05-05 session)
+
+**Gate entering this session:** PASS=65 FAIL=10 (10 DCG fixtures failing, all empty output).
+**Gate leaving this session:** PASS=75 FAIL=0.
+
+#### Root causes found and fixed
+
+1. **Definition-ordering bug (primary root cause):** `dcg_rule` was defined at
+   line 742 BEFORE `head` (line 765) and `body` (line 763). In Snocone/SNOBOL4,
+   `dcg_rule = (head $'-->' ...)` captures the CURRENT value of `head` at
+   assignment time — which was `''` (empty string). So `dcg_rule` matched the
+   empty head pattern and then failed to find `-->` at the right cursor position.
+   **Fix:** moved entire DCG grammar block (`$'-->'`, `$'{'`, `$'}'`, `Tk_cut`,
+   `dcg_goal`..`dcg_rule`) to AFTER `head` is defined.
+
+2. **`E_FNC` variable vs literal mismatch:** `E_FNC = "'E_FNC'"` holds the
+   7-char string `'E_FNC'` (with embedded quotes). All existing `Tree('E_FNC',
+   ...)` / `tree('E_FNC', ...)` calls used the 5-char plain string `E_FNC`.
+   The new DCG functions used `Tree(E_FNC, ...)` (variable form) — so tag
+   comparisons `IDENT(t(body), E_FNC)` compared against the 7-char form while
+   nodes had the 5-char form. Never matched.
+   **Fix:** replaced all `E_FNC`, `E_UNIFY`, `E_DCG_IL` variable references in
+   DCG functions with plain string literals `'E_FNC'`, `'E_UNIFY'`, `'E_DCG_IL'`.
+
+3. **`~DIFFER` inversion:** `if (~DIFFER(t(body), E_FNC))` matched when tag IS
+   E_FNC (wrong). **Fix:** changed to `DIFFER(t(body), 'E_FNC')`.
+
+4. **Stack pollution / `top_form` ordering:** With real `head` now matching,
+   `dcg_rule` in `(directive | dcg_rule | clause)` would try `head` for
+   non-DCG inputs (e.g. `foo([a,b|T]).`), push arg trees, then fail at `-->`.
+   Stack was polluted for the subsequent `clause` attempt.
+   **Fix:** reordered to `(directive | clause | dcg_rule)` — clause succeeds
+   for non-DCG inputs without `dcg_rule` ever trying. For DCG inputs, `clause`
+   fails cleanly (bare atom head pushes nothing; arg-head leaves a stale tree
+   below the eventual STMT, which is harmless since reduce pops by count).
+
+5. **N-ary conjunction:** `expand_dcg_body` conjunction arm used binary
+   `c(body)[1]` and `c(body)[2]`. `Reduce_conj` builds n-ary trees. For `b,
+   !, c` (3 goals), only `b` and `!` were expanded, `c` dropped.
+   **Fix:** loop over all `n(body)` children, threading intermediate vars.
+
+6. **E_CUT TDump rendering:** `Tree('E_CUT', '', 0)` has empty `v` field.
+   TValue's `IDENT(v(x)) "."` fallthrough rendered it as `.` instead of
+   `(E_CUT)`.
+   **Fix:** added `if (TValue = IDENT(t(x), 'E_CUT') '(E_CUT)')` in `tdump.sc`
+   before the empty-v check (mirrors E_NUL handling).
+
+#### SCRIP bug discovered and documented
+
+**`OUTPUT 'literal'` silently fails in Snocone `--ir-run` mode.**
+In Snocone, `OUTPUT 'string'` is parsed as a pattern-match statement
+(subject=OUTPUT, pattern='string') — it fails when the current OUTPUT buffer
+doesn't contain that literal. Only `OUTPUT = 'string'` (assignment form)
+actually prints. This caused all debug OUTPUT statements in the previous session
+to be invisible, making `build_dcg`-not-firing look like a runtime failure
+rather than a grammar/ordering bug. **This is a SCRIP correctness bug:**
+`OUTPUT expr` should print in Snocone, matching SNOBOL4 semantics where OUTPUT
+is a writable special variable. No fix attempted this session (filed below).
+
+**File to fix:** `src/frontend/snocone/snocone_parse.y` — the statement form
+`OUTPUT expr` should lower to an assignment (`:eq` with subject=OUTPUT), not
+a pattern match.
+
+#### Known remaining gap (PR-8e)
+
+`foo :- !.` (cut in regular clause body, not DCG) produces empty output —
+`!` is not handled in `primary` / `body_goal`. This was pre-existing before
+PR-8d. Next rung should add `!` support to `body_goal` so clause-body cut works.
 
 ### PARSER-PR-8d debugging handoff note (2026-05-05 session)
 
