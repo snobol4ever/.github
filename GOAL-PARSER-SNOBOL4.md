@@ -89,34 +89,15 @@ Role-slots: `:lbl :subj :pat :repl :goS :goF :goU :eq :end`
 
 ---
 
-## Next rung: SN-7-9 — PARSER-FAMILY-LOOP iter#11
+## Next rung: (open — see Deferred)
 
-SN-7-8 is LANDED. Next work is **PARSER-FAMILY-LOOP iter#11**: cross-pollinate new operators and constructs from SN to the other five parsers.
-
-**Candidates for iter#11:**
-- `reduce_opsyn()` / `ReduceOpsyn()` — currently only in SN; IC/PR/SC/RK/RB may need it
-- Unary prefix operator tags (`E_INDIRECT`, `E_NAME`, `E_ASSIGN`, `E_NOT` etc.) — probe each parser's oracle for their equivalents
-- subj/pat split guard (E_VAR first-child) — verify in other parsers
-
-**Steps for iter#11:**
-- [ ] Probe IC/PR/SC/RK/RB oracles for binary opsyn operators and unary prefix equivalents
-- [ ] Add `reduce_opsyn`/`ReduceOpsyn` to `semantic.sc`/`ShiftReduce.sc` (already done for SN)
-- [ ] Apply parallel fixes to each parser that needs them
-- [ ] All six gates green throughout
-- [ ] Single commit per iteration per FAMILY-LOOP rules
-
-**Alternative next:** Any deferred items below that became more urgent.
+SN-7-8 LANDED. PARSER-FAMILY-LOOP closed by owner — no further cross-pollination iterations planned.
 
 ---
 
-## PARSER-FAMILY-LOOP
+## PARSER-FAMILY-LOOP — ✅ CLOSED by owner
 
-All six parsers: SN=89 IC=88 PR=60 RK=37 SC=46 RB=38.
-
-| # | Concept | SN | IC | PR | RK | SC | RB |
-|---|---------|----|----|----|----|----|----|
-| 1–10 | (prior) | 78→89 | 88 | 60 | 37 | 46 | 38 |
-| 11 | (pending — opsyn cross-pollination) | | | | | | |
+All six parsers green at close: SN=89 IC=88 PR=60 RK=37 SC=46 RB=38 corpus@ac0663c. No further iterations planned.
 
 ---
 
@@ -139,4 +120,4 @@ INFRA-0..10, FW-1..3/6, SN-0..7-8 all ✅.
 ## Watermark
 
 **SN-7-8 LANDED corpus@ac0663c one4all@104f270d PASS=89/89.**  
-beauty.sno crosscheck: 433/433 STMTs, 0 mismatches. New ops: E_INDIRECT E_NAME E_ASSIGN E_NOT E_CAPT_CURSOR E_INTERROGATE E_OPSYN. reduce_opsyn()/ReduceOpsyn() added. subj/pat split guarded by E_VAR. goto ordering fixed. beauty_crosscheck in gate. 10 new fixtures.
+beauty.sno crosscheck: 433/433 STMTs, 0 mismatches. New ops: E_INDIRECT E_NAME E_ASSIGN E_NOT E_CAPT_CURSOR E_INTERROGATE E_OPSYN. reduce_opsyn()/ReduceOpsyn() added. subj/pat split guarded by E_VAR. goto ordering fixed. beauty_crosscheck in gate. 10 new fixtures. PARSER-FAMILY-LOOP closed by owner.
