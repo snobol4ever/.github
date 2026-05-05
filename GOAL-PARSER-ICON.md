@@ -469,3 +469,40 @@ PARSER-IC-10 LANDED PASS=88 corpus@1744d3e: feature-coverage rung complete.  37 
 PARSER-IC-10-style (Steps 1-6 of IC-10-style ALL LANDED PASS=51 corpus@1734c42: Step 5 — pseudo-token name cleanup: 5a inlined `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/`$'unary!'`/`$'unary*'`/`$'unary?'` family directly into Expr10 as `*Gray 'op' *Expr10 (r_TAG & 1)`; 5b dropped `$'augop'` umbrella, inlined four augop literal branches into Expr1 each with `(r_AUGOP & 2)`; 5c renamed `$'qlit'` → `qlit_done` and `$'proc_wrap'` → `proc_done` to capture intent in language terms.  Step 6 — horizontal density: packed keyword tokens, operator tokens, augop tokens, and reduce-tag constants two-per-line per parser_snocone.sc convention.  File 419 → 371 lines (−48).  Gate PASS=51 FAIL=0 preserved through every sub-step.  IC-10-style COMPLETE; next is IC-10 feature coverage rung — augop expansion, more unary fixtures, special assignment forms, Expr2 to..by, Expr5 concat.
 
 PARSER-IC-9-prior (LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`).
+
+---
+
+### PARSER-IC-11 — Expr tier expansion: str_cmp + mod + limit + subscript + section + field + repeat + until + list_ctor + break + next
+
+**Status: LANDED PASS=104 corpus@fee8778**
+
+#### Rungs completed this session
+
+- [x] **IC-11-a** Expr6tail: `++` (E_CSET_UNION), `--` (E_CSET_DIFF) — longer-prefix-first before `+`/`-`
+- [x] **IC-11-b** Expr7tail: `**` (E_CSET_INTER), `%` (E_MOD) — longer-prefix-first before `*`
+- [x] **IC-11-c** Expr4tail: string comparisons `<<=`, `<<`, `>>=`, `>>`, `~==`, `==` (E_LLE/LLT/LGE/LGT/LNE/LEQ)
+- [x] **IC-11-d** Expr9 tier: postfix `expr \ N` limit (E_LIMIT), left-assoc ARBNO
+- [x] **IC-11-e** Expr11tail: postfix `x[i]` subscript (E_IDX), `x[i:j]` section (E_SECTION), `x.f` field (E_FIELD) via helpers push_subscript/push_section/push_field
+- [x] **IC-11-f** Expr11 additions: `repeat` (E_REPEAT), `until` (E_UNTIL), `break` (E_LOOP_BREAK), `next` (E_LOOP_NEXT), `[list]` constructor (E_MAKELIST)
+- [x] **IC-11-g** Token simplification: removed broken `*EQ` negative-lookahead from all new tokens — grammar alternation ordering (longer-prefix-first in each tail) is the correct disambiguation mechanism
+
+#### SCRIP bug discovered — *EQ lookahead is a no-op (MUST FILE)
+
+**Bug:** `*EQ(pos_a, pos_b)` in the pattern `@pos_a (ANY('...') | epsilon) @pos_b *EQ(pos_a, pos_b)` does NOT fail when `pos_a ≠ pos_b`. The deferred EQ call silently succeeds regardless of cursor delta. All existing `$'<'`/`$'>'` negative-lookahead tokens in IC-10 are no-ops; the grammar works only because of alternation ordering.
+
+- [ ] **BUG-SCRIP-EQ** — File step in GOAL-REWRITE-SCRIP.md: investigate why `*EQ(cursor_a, cursor_b)` in a pattern context does not propagate failure when integer args differ. Repro: `src = '++ 2'; src '+' @a (ANY('+') | epsilon) @b *EQ(a,b)` — should fail (b > a) but succeeds.
+
+#### Fixtures added (16 new, corpus@fee8778)
+
+str_eq_op, str_ne_op, str_lt_op, str_le_op, str_gt_op, str_ge_op, mod_op, limit_op, field_access, subscript_op, section_op, repeat_op, until_op, list_ctor, break_op, next_op
+
+#### Known gaps deferred to IC-12
+
+- Cset literal `'abc'` (E_CSET) — parser_icon.sc `str_pat` only handles `"..."` (E_QLIT); single-quote form needs a `cset_pat` alternative
+- Augop forms of new ops: `++:=`, `--:=`, `**:=`, `%:=`, `<<=:=`, etc. (tokens defined, grammar not wired to Expr1 augop list)
+- `case` expression (E_CASE)
+- `create` expression  
+- Global/local/static/initial declarations
+- Multi-line compound bodies (Gray = spaces only; newlines inside `{...}` not skipped)
+
+**Watermark — Next session:** Open IC-12. Priority order: (1) cset literal support, (2) augop wiring for new ops, (3) case expression, (4) multi-line compound fix.
