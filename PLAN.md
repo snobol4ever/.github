@@ -79,7 +79,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-13 LANDED PASS=113 corpus@3a8f465 — global/local/static/initial/record; next: IC-14 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-8d LANDED PASS=75 FAIL=0 corpus@HEAD — DCG sugar complete; next: PR-8e clause-body cut (`!` in primary) |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-10 LANDED PASS=55 FAIL=0 corpus@c7c2d14 — delete %h<k>/%h{e}, range a..b/a..^b, for-range. Next: RK-11 — push(@arr,val)/pop(@arr) or unless/until |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | PARSER-RK-11 LANDED PASS=60 FAIL=0 corpus@f663327 — unless/until + push/pop. Next: RK-12 — string ops or logical && \|\| ! |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
