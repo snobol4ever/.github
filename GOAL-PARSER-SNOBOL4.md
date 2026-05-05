@@ -1251,41 +1251,36 @@ unrelated to this rung — see Open carry-over).
 
 #### PARSER-SN-7-4 — `+` / `.` continuation lines
 
-- [ ] Fixtures `cont_plus.sno`, `cont_dot.sno`, `cont_chain.sno`.
-- [ ] Per beauty.sno's `White` definition: continuation is part of
+- [x] Fixtures `cont_plus.sno`, `cont_dot.sno`, `cont_chain.sno`.
+- [x] Per beauty.sno's `White` definition: continuation is part of
       the whitespace token class, swallowed by `White` between every
-      two adjacent grammar units.  Specifically: `White = SPAN(' ' tab) FENCE( nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon ) | epsilon ) | nl ('+' | '.') FENCE( SPAN(' ' tab) | epsilon )`.
-- **Gate:** multi-line continued statements emit a single STMT.
+      two adjacent grammar units.  Already implemented — `White` already
+      contained `nl ('+' | '.') FENCE(SPAN(' ' tab) | epsilon)`. No
+      parser_snobol4.sc changes needed; all three fixtures passed immediately.
+- **Gate:** multi-line continued statements emit a single STMT. ✅ PASS=73/73
 
 #### PARSER-SN-7-5 — comment & control lines
 
-- [ ] Fixture `mixed_comment_control.sno`.
-- [ ] Per beauty.sno: `Comment = '*' BREAK(nl)`, `Control = '-' BREAK(nl ';')`.
-      Both alternatives of `Command` shift their captured text via
-      `*Comment ~ 'comment' ("'Comment'" & 1) nl`.  At TDump time these
-      contribute STMT children — but the existing scrip frontend's
-      `--dump-parse` drops comments and processes control lines via
-      preprocessor-include semantics.  PARSER-SN-7-5 must
-      either drop these STMT children at emit-time OR (cleaner)
-      have `Command` not emit them — match whichever the oracle does.
-- **Gate:** comment/control lines do not produce extra STMTs in dump.
+- [x] Fixture `mixed_comment_control.sno`.
+- [x] Per beauty.sno: `Comment = '*' BREAK(nl)`, `Control = '-' BREAK(nl ';')`.
+      Already implemented — `Command` alternative for `*Comment` fires without
+      emitting a STMT; comments silently consumed. No parser_snobol4.sc changes.
+- **Gate:** comment/control lines do not produce extra STMTs in dump. ✅ PASS=74/74
 
 #### PARSER-SN-7-6 — `*Id` deferred-pattern reference
 
-- [ ] Fixtures `defer_simple.sno` (`P = *Q`), `defer_alt.sno` (`P = *Q | *R`),
+- [x] Fixtures `defer_simple.sno` (`P = *Q`), `defer_alt.sno` (`P = *Q | *R`),
       `defer_in_pat.sno` (`x ? *P`).
-- [ ] `Expr14`'s prefix-`*` branch: `'*' Expr14 & "'*' 1"` — the
-      unary `*` in beauty.sno's Expr14 alternation list.  Must render
-      as `(E_DEFER <child>)` in the oracle's tree shape.
-- **Gate:** `*Id` constructs emit `(E_DEFER (E_VAR Id))`.
+- [x] `Expr14`'s prefix-`*` branch: was `"'*'" & 1` — hardcoded tag `*` instead of
+      `E_DEFER`. Added `E_DEFER = "'E_DEFER'"` constant; fixed `Expr14` to use it.
+- **Gate:** `*Id` constructs emit `(E_DEFER (E_VAR Id))`. ✅ PASS=77/77
 
 #### PARSER-SN-7-7 — `;` mid-line statement separator
 
-- [ ] Fixture `semi_separator.sno` (`x = 1 ;* comment` and `x = 1; y = 2`).
-- [ ] Per beauty.sno's `Command`: alternation tail is `(nl | ';')`.
-      Each Command consumes either a newline or a semicolon; multiple
-      Commands per source line are supported.
-- **Gate:** semi-separated statements emit two STMTs.
+- [x] Fixture `semi_separator.sno` (`x = 1 ;* comment` and `x = 1; y = 2`).
+- [x] Per beauty.sno's `Command`: alternation tail is `(nl | ';')`.
+      Already implemented. No parser_snobol4.sc changes needed.
+- **Gate:** semi-separated statements emit two STMTs. ✅ PASS=78/78
 
 #### PARSER-SN-7-8 — beauty.sno full crosscheck
 
@@ -2230,4 +2225,17 @@ added — flattens ExprList bracket-group children directly into E_IDX
 (default walk produced E_SEQ wrapper; oracle emits flat children).
 PASS=70/70 ✅.
 
-**Next:** PARSER-SN-7-4 — `+`/`.` continuation lines.
+**Watermark (session 2026-05-05 cont.):** **PARSER-SN-7-4 through SN-7-7
+LANDED** — continuation lines, comment/control lines, `*Id` defer,
+`;` separator.
+
+- SN-7-4 (cont_plus, cont_dot, cont_chain): no changes needed — White
+  already handled `nl '+'/'.` continuation. PASS=73/73.
+- SN-7-5 (mixed_comment_control): no changes needed — Command already
+  silently consumed comment lines. PASS=74/74.
+- SN-7-6 (defer_simple, defer_alt, defer_in_pat): added `E_DEFER =
+  "'E_DEFER'"` constant; fixed Expr14 `'*' *Expr14 ("'*'" & 1)` →
+  `(E_DEFER & 1)`. PASS=77/77.
+- SN-7-7 (semi_separator): no changes needed. PASS=78/78.
+
+**Next:** PARSER-SN-7-8 — beauty.sno full crosscheck.
