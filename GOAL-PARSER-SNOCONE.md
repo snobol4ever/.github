@@ -569,9 +569,9 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc blocked)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc crosscheck next)**
 
-Gate: PASS=46 FAIL=0. corpus @ SC-6b-session-2026-05-05.
+Gate: PASS=46 FAIL=0. corpus @ 4a140fb (2026-05-05).
 
 ### SC-6b session 2026-05-05 — structural work landed, beauty.sc crosscheck blocked
 
