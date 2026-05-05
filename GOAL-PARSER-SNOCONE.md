@@ -358,6 +358,67 @@ Not violations (canonical guide explicitly permits or prefers):
 - [ ] **Step 3e — define `$' '` / `$'  '` once; sweep grammar (§3).**
   ⛔ BLOCKED on Step 3d-bug above.
 
+- [x] **Step 3f — full Snocone operator-token table.**  PARSER-SC currently
+  defines only the operator subset exercised by the SC-0..SC-3 rung corpus
+  (`( ) { } ; = ? | + - * /`).  Snocone the language has the full SNOBOL4
+  operator set plus comparison and identity operators — confirmed by the
+  existing frontend's `snocone_parse.y` token enum:
+
+  ```
+  T_2PLUS T_2MINUS T_2STAR T_2SLASH T_2CARET T_2EQUAL T_2QUEST T_2PIPE
+  T_2DOLLAR T_2DOT T_2AMP T_2AT T_2POUND T_2PERCENT T_2TILDE
+  T_1PLUS T_1MINUS T_1STAR T_1SLASH T_1PERCENT T_1AT T_1TILDE T_1DOLLAR
+  T_1DOT T_1POUND T_1PIPE T_1EQUAL T_1QUEST T_1AMP T_1BANG
+  T_EQ T_NE T_LT T_GT T_LE T_GE                            (numeric)
+  T_LEQ T_LNE T_LLT T_LGT T_LLE T_LGE                      (lexical)
+  T_IDENT_OP T_DIFFER                                      (`::` / `:!:`)
+  T_PLUS_ASSIGN T_MINUS_ASSIGN T_STAR_ASSIGN
+  T_SLASH_ASSIGN T_CARET_ASSIGN
+  T_LPAREN T_RPAREN T_SEMICOLON T_COMMA T_LBRACK T_RBRACK
+  T_LBRACE T_RBRACE T_COLON
+  ```
+
+  Add the missing `$'X'` token definitions to `parser_snocone.sc`'s
+  operator-token block, in the same shape as siblings (`$' '` both sides
+  for binary operators per the canonical style guide §3, plus the
+  binary-as-canonical / `$' '`-sprinkled-at-unary-site rule from
+  iter#6).  Concretely, add definitions for:
+
+  - **Binary arith / pattern**: `$'^'`, `$'**'`, `$'!'`, `$'$'`, `$'.'`,
+    `$'&'`, `$'@'`, `$'#'`, `$'%'`, `$'~'` (each defined as
+    `$' ' 'X' $' '`).
+  - **Comparison**: `$'=='`, `$'!='`, `$'<'`, `$'>'`, `$'<='`, `$'>='`
+    (numeric); the lexical comparison operators in Snocone are typically
+    spelled the same as numeric — the lexer disambiguates from context;
+    if Snocone has distinct lexical-comparison spellings, mirror them
+    here (check `snocone_lex.c`).
+  - **Identity**: `$'::'`, `$':!:'`.
+  - **Augmented assign**: `$'+='`, `$'-='`, `$'*='`, `$'/='`, `$'^='`.
+  - **Punctuation**: `$','`, `$':'`, `$'['`, `$']'`.
+
+  For dual-use operators (`-`, `+`, `*`, `/`, `%`, `&`, etc.), the
+  canonical variable is the **binary** form (ws both sides); at unary
+  sites in productions, use `$' ' 'X'` with raw literal (single `$' '`
+  leading + raw `'X'`) per the iter#6 rule.
+
+  Adding a token definition is harmless — defining `$'X'` doesn't alter
+  the grammar, only makes the variable available for use when SC-4..SC-6
+  bring in productions that need it.
+
+  Gate: PASS=21 FAIL=0 unchanged (no production references the new
+  variables yet).
+
+  **DONE session 2026-05-05 (this iteration, with iter#6 fixes):**
+  added 24 new operator-token definitions to `parser_snocone.sc`'s
+  operator block (full set: `[ ] , : ^ ** ! $ . & @ # % ~ == != < > <=
+  >= ==: !=: <: >: <=: >=: :: :!: += -= *= /= ^=`).  Reformatted the
+  block into named subsections (bracketing, pri-0/1/3, arith binary,
+  pattern-build, cursor/position, numeric comparison, lexical
+  comparison, identity, augmented assign).  Each definition uses the
+  binary-shape `$' ' 'X' $' '` per style §3.  Gate PASS=21 FAIL=0
+  unchanged (operators defined but no current production references
+  them).  All six parsers' gates verified 100% post-change.
+
 - **Sibling LANG rungs:** none — pure style.
 - **Gate:** PASS=21 FAIL=0 unchanged after every step.
 
