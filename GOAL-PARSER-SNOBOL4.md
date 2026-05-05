@@ -1368,6 +1368,136 @@ and constructs the right E_* node directly.
 
 - **Gate:** PASS=78 FAIL=0.
 
+#### ⚠ PARSER-SN-7-7c — full keyword/function/builtin inventory + classifier patterns — **CURRENT STEP**
+
+**Goal:** parser_snobol4.sc is missing the complete identifier-classification
+machinery that beauty.sno carries. Add it so the grammar can distinguish
+`Function`, `BuiltinVar`, `SpecialNm`, `ProtKwd`, `UnprotKwd` from plain `Id`
+at parse time — matching beauty.sno's structure exactly.
+
+**What beauty.sno has that we lack:**
+
+Classifier string tables (word-list membership strings):
+```
+SpecialNms  =  'ABORT CONTINUE END FRETURN NRETURN RETURN SCONTINUE START'
+BuiltinVars =  'ABORT ARB BAL FAIL FENCE INPUT OUTPUT REM TERMINAL'
+ProtKwds    =  'ABORT ALPHABET ARB BAL FAIL FENCE FILE FNCLEVEL '
+               'LASTFILE LASTLINE LASTNO LCASE LINE REM RTNTYPE '
+               'STCOUNT STNO SUCCEED UCASE'
+UnprotKwds  =  'ABEND ANCHOR CASE CODE COMPARE DUMP ERRLIMIT '
+               'ERRTEXT ERRTYPE FTRACE INPUT MAXLNGTH OUTPUT '
+               'PROFILE STLIMIT TRACE TRIM FULLSCAN'
+Functions   =  'ANY APPLY ARBNO ARG ARRAY ATAN BACKSPACE BREAK BREAKX '
+               'CHAR CHOP CLEAR CODE COLLECT CONVERT COPY COS DATA '
+               'DATATYPE DATE DEFINE DETACH DIFFER DUMP DUPL EJECT '
+               'ENDFILE EQ EVAL EXIT EXP FENCE FIELD GE GT HOST '
+               'IDENT INPUT INTEGER ITEM LE LEN LEQ LGE LGT LLE '
+               'LLT LN LNE LOAD LOCAL LPAD LT NE NOTANY OPSYN OUTPUT '
+               'POS PROTOTYPE REMDR REPLACE REVERSE REWIND RPAD RPOS '
+               'RSORT RTAB SET SETEXIT SIN SIZE SORT SPAN SQRT STOPTR '
+               'SUBSTR TAB TABLE TAN TIME TRACE TRIM UNLOAD'
+```
+
+Membership test machinery:
+```
+TxInList  =  (POS(0) | ' ') *upr(tx) (' ' | RPOS(0))
+```
+(`match(List, TxInList)` from assign.sc tests whether `tx` (uppercased) appears
+as a whole word in `List`.)
+
+Classifier patterns in Expr17:
+```
+Function   =  SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(Functions, TxInList)
+BuiltinVar =  SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(BuiltinVars, TxInList)
+SpecialNm  =  SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(SpecialNms, TxInList)
+ProtKwd    =  '&' SPAN(&UCASE &LCASE) $ tx $ *match(ProtKwds, TxInList)
+UnprotKwd  =  '&' SPAN(&UCASE &LCASE) $ tx $ *match(UnprotKwds, TxInList)
+```
+
+Expr17 call branch uses `*Function` not `*Id` for classified calls:
+```
+|  *Function ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)
+|  *Function ~ E_VAR
+|  *BuiltinVar ~ E_VAR
+|  *SpecialNm  ~ E_VAR
+|  *Id ~ E_VAR   (plain unclassified identifier — fallback)
+```
+
+Expr14 keyword branches already work syntactically (`'&' shift(..., E_KEYWORD)`)
+but do not validate membership. ProtKwd/UnprotKwd patterns can replace the
+bare `SPAN` to add validation. Tree output is identical either way (both emit
+`E_KEYWORD`) but the grammar becomes more faithful to beauty.sno.
+
+**Steps:**
+
+- [ ] **Step 1 — Compile the definitive keyword/function inventory.**
+      Consult (clone if needed):
+      - `corpus/programs/snobol4/demo/beauty/beauty.sno` lines 60–92
+      - `snobol4ever/x64` repo — check snobol4.h / keyword tables
+      - `snobol4ever/x32` repo — check s.min / keyword tables
+      - `snobol4ever/csnobol4` repo — check v311.sil / keyword tables
+      Cross-reference all four. The union is the complete list. Note any
+      discrepancies. beauty.sno's lists are the primary model; extend with
+      any names found in the runtime repos that beauty.sno omits.
+
+- [ ] **Step 2 — Add classifier string tables to parser_snobol4.sc.**
+      After the E_* constants block, add:
+      ```
+      SpecialNms  = '...';
+      BuiltinVars = '...';
+      ProtKwds    = '...';
+      UnprotKwds  = '...';
+      Functions   = '...';
+      ```
+      Use the complete verified list from Step 1. Multi-line strings use
+      Snocone string concatenation.
+
+- [ ] **Step 3 — Add TxInList pattern and classifier patterns.**
+      ```
+      TxInList  =  (POS(0) | ' ') *upr(tx) (' ' | RPOS(0));
+      Function  =  SPAN('.' digits &UCASE '_' &LCASE) $'$' tx $'$' *match(Functions, TxInList);
+      BuiltinVar = SPAN('.' digits &UCASE '_' &LCASE) $'$' tx $'$' *match(BuiltinVars, TxInList);
+      SpecialNm  = SPAN('.' digits &UCASE '_' &LCASE) $'$' tx $'$' *match(SpecialNms, TxInList);
+      ProtKwd    = '&' SPAN(&UCASE &LCASE) $'$' tx $'$' *match(ProtKwds, TxInList);
+      UnprotKwd  = '&' SPAN(&UCASE &LCASE) $'$' tx $'$' *match(UnprotKwds, TxInList);
+      ```
+      Note: beauty.sno uses `$ tx $` (immediate-assign capture into tx).
+      In Snocone pattern syntax this is `$'$' tx $'$'` (using the token
+      variables). Verify the exact Snocone form against parser_icon.sc or
+      parser_prolog.sc which use similar capture patterns.
+
+- [ ] **Step 4 — Update Expr14 to use ProtKwd/UnprotKwd classifiers.**
+      Replace the bare `'&' shift(SPAN(&UCASE &LCASE), E_KEYWORD)` with:
+      ```
+      |  *ProtKwd   shift(tx, E_KEYWORD)
+      |  *UnprotKwd shift(tx, E_KEYWORD)
+      ```
+      Both emit `E_KEYWORD` with the name (without `&`) as value — same as
+      before, but now validated against the membership lists.
+
+- [ ] **Step 5 — Update Expr17 to use classifier patterns.**
+      Replace the current `*Id ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)` /
+      `*Id ~ E_VAR` alternatives with the full beauty.sno ordering:
+      ```
+      |  *Function  ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)
+      |  *Function  ~ E_VAR
+      |  *BuiltinVar ~ E_VAR
+      |  *SpecialNm  ~ E_VAR
+      |  *Id         ~ E_VAR
+      ```
+      Order matters: Function tried first (has membership test), plain Id last.
+
+- [ ] **Step 6 — Verify gate PASS=78 FAIL=0.**
+      `bash scripts/test_parser_snobol4.sh` — no fixture output should change
+      (oracle tree shapes are unaffected by classifier membership; all these
+      identifiers still emit `E_VAR` or `E_FNC` or `E_KEYWORD`).
+
+- [ ] **Step 7 — Commit.**
+      `parser_snobol4.sc` only. Message:
+      `PARSER-SN-7-7c: full keyword/function/builtin inventory + classifier patterns (PASS=78/78)`
+
+- **Gate:** PASS=78 FAIL=0.
+
 #### PARSER-SN-7-8 — beauty.sno full crosscheck
 
 - [ ] `parser_snobol4_v2.sc` parses `beauty.sno` (627-line `corpus/programs/snobol4/demo/beauty/beauty.sno`).
@@ -2381,3 +2511,19 @@ Key implementation notes for next session:
 
 **Next milestone:** SN-7-8 — beauty.sno full crosscheck. Or PARSER-FAMILY-LOOP
 next iteration (operator picks). context window was ~90% at handoff.
+
+**Watermark (session 2026-05-05 cont., corpus@0390853): SN-7-7c added as current step.**
+
+Session observation: parser_snobol4.sc is missing beauty.sno's complete
+identifier-classification machinery — the `Functions`, `BuiltinVars`,
+`SpecialNms`, `ProtKwds`, `UnprotKwds` word-list tables, the `TxInList`
+membership-test pattern, the `match()` helper, and the `Function`/`BuiltinVar`/
+`SpecialNm`/`ProtKwd`/`UnprotKwd` classifier patterns in Expr14/Expr17.
+Currently `Expr17` uses bare `*Id` for all identifiers and `Expr14` uses
+a bare `SPAN` for keywords — syntactically correct but unfaithful to
+beauty.sno's structure and incomplete for SN-7-8 crosscheck.
+
+SN-7-7c is inserted before SN-7-8 to add this inventory. Step 1 requires
+consulting x64, x32, csnobol4 repos for definitive lists; beauty.sno's
+lists are the primary model. Context window was ~96% at handoff — next
+session opens fresh to execute SN-7-7c steps 1-7.
