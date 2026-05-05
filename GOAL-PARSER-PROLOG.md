@@ -692,6 +692,101 @@ Gate PASS=65 FAIL=0.
 
 **PR-10 — ⏳ NEXT: `not(X)` / `\+(X)` negation-as-failure; `functor/3`, `arg/3`, `=..` univ; or next natural rung.**
 
+### PARSER-PR-8e + PR-9 handoff note (2026-05-05 session)
+
+**Gate entering session:** PASS=75 FAIL=0.
+**Gate leaving session:** PASS=86 FAIL=0.
+
+#### What was built
+
+**PR-8e (PASS=77):**
+- `Tk_cut`, `$'-->'`, `$'{'`, `$'}'` moved from DCG section to early token
+  section (line 54, before `primary`) — same ordering fix as PR-8d.
+- `Tk_cut Push_cut` arm added to `primary`.
+- Fixtures: `clause_cut.pl` (`foo :- !.`), `clause_cut_conj.pl` (`foo :- a, !, b.`).
+
+**PR-9 (PASS=86):**
+- 9 comparison operator tokens in early token section, longer prefix first:
+  `$'>='`, `$'=<'`, `$'>'`, `$'<'`, `$'=:='`, `$'=='`, `$'\='`, `$'\=='`, `$'=\='`.
+- `cmp_expr` layer inserted between `is_expr` and `unify_expr`:
+  `primary → mul_expr → add_expr → is_expr → cmp_expr → unify_expr → body_goal → conj → disj`.
+- Pre-built `do_cmp_{ge,le,gt,lt,eqq,id,ne1,ne2,ne3}` functions (no EVAL).
+  Operator strings in `cmp_op_{ge,le,gt,lt,eqq,id,ne1,ne2,ne3}` globals.
+- 9 fixtures: `cmp_{ge,gt,le,lt,eq,id,ne,nid,neq}.pl`.
+
+#### Bug fixed mid-session
+
+`reduce_list` was missing `n = nTop()` as its first line — accidentally
+stripped by a `str_replace` that lost the function header. Caused all list
+fixtures to produce `(E_FNC [])` (empty list) regardless of content.
+Fixed at line 192.
+
+#### SCRIP EVAL bugs now fully characterised
+
+Two EVAL bugs affect pattern-builder functions:
+
+1. **`OUTPUT 'literal'` silently fails** (discovered PR-8d session):
+   `OUTPUT expr` is a pattern-match statement (subject=OUTPUT, pattern=expr),
+   not a print. Only `OUTPUT = expr` prints. Filed in PR-8d note.
+
+2. **`>` and `<` in EVAL strings cause Snocone parse errors** (discovered PR-9):
+   `EVAL("... *fn('>=') ...")` fails with `snobol4:0: syntax error` because
+   Snocone's parser treats `>` inside the evaled expression as an operator,
+   not as part of a string literal. Affects any EVAL-based pattern builder
+   whose argument contains `>`, `<`, `>=`, `=<`. Backslash `\` inside EVAL
+   strings is also problematic (causes SNOBOL4 escape interpretation).
+   **Workaround:** store operator strings in named globals; use direct
+   `epsilon . *fn()` patterns instead of EVAL. The existing `Push_atom_body`,
+   `Push_var`, `Reduce_compound`, `Snapshot_head` builders pass string
+   identifiers (no special chars) so they are unaffected.
+
+#### Recommended next session setup
+
+```bash
+cd /home/claude/one4all && git checkout parser
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
+# expected: PASS=86 FAIL=0
+```
+
+#### PR-10 candidate rungs (pick one or combine)
+
+**Option A — negation-as-failure:**
+- `\+(Goal)` and `not(Goal)` — in Prolog these are parsed as compound terms.
+  Oracle: `\+(foo(X))` → `(E_FNC \+ (E_FNC foo (E_VAR _V0)))`.
+  Implementation: `\+` is already parseable as a compound via `Atom $'(' args $')'`
+  (since `\+` is a valid atom in the oracle). But `Atom` currently matches only
+  lowercase letters via `ANY(&LCASE) SPAN(alnum_)`. The `\` character is NOT in
+  `&LCASE`. So `\+` needs either a special token or `Atom` extended.
+  **Check first:** does `echo "foo :- \+(bar)." | scrip --dump-ir` work?
+  If oracle parses `\+` as a functor, its atom lexing accepts `\+`.
+  Our `Atom` pattern would need to match `\+` — extend or add special case.
+
+**Option B — float literals:**
+- `3.14`, `1.0e-3` — the oracle emits `(E_FLIT 3.14)`. Our lexer has no float.
+  Add `Float` token to the lexer section and `shift(Float, 'E_FLIT')` to primary.
+
+**Option C — string / char code atoms:**
+- `0'a` (char code), `"hello"` (char list) — oracle handles these.
+
+**Option D — more arithmetic:**
+- `mod`, `rem`, `abs`, `max`, `min`, `//` (integer div) — all infix/prefix functors.
+  These parse as compound terms once `Atom` covers the keywords.
+
+**Recommended:** Start with Option B (floats) — clean isolated change, 
+adds `E_FLIT` output, ~5 lines of code, 3–4 fixtures. Then Option A.
+
+#### Current expression ladder (for reference)
+
+```
+primary → mul_expr → add_expr → is_expr → cmp_expr → unify_expr
+       ↘ list, compound, var, atom, int, qatom, str, neg_int, cut
+```
+
+Tokens defined (early section, lines 46–63):
+`$'(' $')' $'[' $']' $',' $';' $'|' $'.' $':-' $'=' $'+' $'-' $'*' $'/'
+ $'is' $'-->' $'{' $'}' Tk_cut $'>=' $'=<' $'>' $'<' $'=:=' $'==' $'\=' $'\==' $'=\='`
+
 ### PARSER-PR-8d landed (2026-05-05 session)
 
 **Gate entering this session:** PASS=65 FAIL=10 (10 DCG fixtures failing, all empty output).
