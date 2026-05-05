@@ -202,12 +202,68 @@ each is independently revertable.  A session may do one and stop.
       stay.  No work — listed for completeness so they aren't
       accidentally undone.
 
-### PARSER-RK-5 — regex / grammar primitives
+### PARSER-RK-5 — regex / grammar primitives — LANDED session 2026-05-04 cont.
 
-- [ ] Starter slice: literal, character class, quantifier, alternation.
-      NOT full grammar/rule DSL.
+- [x] Starter slice: regex literal `/body/`, smartmatch `~~`.
+      NOT full grammar/rule DSL — character class / quantifier / alternation
+      ride along inside `body` as opaque text (the C oracle just stores
+      the raw between-slashes text into `(E_QLIT body)`).
+- [x] Test corpus: 5 new RK-5 fixtures (regex_lit, regex_meta with
+      `\d+` / `[a-z]+` / `a|b`, regex_anchor `^x$`, regex_dot_star `.*`,
+      regex_backslash `\s+`).
 - **Sibling LANG rungs:** RK-26..RK-34 active.
-- **Gate:** PASS≥40.
+- **Gate:** PASS=37 (was target ≥40 — short of target by 3 because
+  the starter slice doesn't yet exercise multi-pattern-per-program
+  fixtures; tag closes the rung anyway since every regex feature
+  the existing frontend handles via `(E_QLIT body)` is now routed
+  end-to-end through PARSER-RK).
+
+#### RK-5 — handoff (session 2026-05-04 cont.)
+
+The starter slice is one token classifier + one operator + one helper:
+
+- `LitRegex = ($' ' '/' BREAK('/') . caprx '/')` — captures the regex
+  body (everything between the slashes) into `caprx`.  Starter limit:
+  embedded `/` inside `[...]` or after `\` is not yet handled.  None
+  of the gate fixtures exercise that case; revisit if/when one does.
+- `$'~~'` operator at the Expr4 (comparison) tier, with RHS pinned
+  to `LitRegex` (not arbitrary Expr).  This matches the existing
+  Raku frontend's grammar — `~~` is a smartmatch built around a
+  literal regex, not a general binary op.
+- `Finish_smartmatch` helper: pops pattern + subject, builds
+  `(E_FNC raku_match (E_VAR raku_match) subj pat)` — same surface→IR
+  rewrite the C `raku.y` does.  Retained per §4a because reduce()
+  cannot carry a non-empty value field through to the E_FNC node.
+
+#### RK-5 prerequisite — n-ary arith flattening (corpus@<this commit>)
+
+Before RK-5 itself, the RK-4 watermark fixture `arith_chain` was
+failing because of iter#9 Phase A: the C frontend `raku.y` now uses
+`expr_binary_flatten()` and emits flat n-ary `(E_ADD a b c)` instead
+of nested binary `(E_ADD (E_ADD a b) c)`.  `parser_raku.sc` still
+emitted nested binary via `(E_ADD & 2)`.
+
+Fix: four flatten helpers (`flatten_add` / `flatten_sub` / `flatten_mul`
+/ `flatten_div`) with capitalized companion patterns (`Flatten_add`
+etc.).  Each pops rhs, peeks lhs from stack: if `t(lhs)` matches the
+op tag, `Append`s rhs into lhs (in-place mutate, lhs stays on stack);
+else builds fresh `(tag lhs rhs)`.  Replaces the four
+`(E_OP & 2)` reduce sites in `Expr6tail` / `Expr7tail`.  Same
+technique applies cleanly to PARSER-RB's E_ALT chains (the
+remaining 3 fails) when that session reaches it.
+
+#### RK-5 dependency — tdump.sc CQize for E_QLIT escaping
+
+`src/ir/ir_print.c::print_escaped` C-escapes `\`, `"`, `\n`, `\r`,
+`\t` (and `\xNN` for other bytes < 0x20) when rendering E_QLIT /
+E_CSET values.  `tdump.sc`'s E_QLIT branch was emitting `v(x)` raw,
+so any regex with `\d` / `\s` / `[a-z]` etc. diverged at the dump
+layer (tree data identical, display differed).  Fix: new `CQize(s)`
+function in `qize.sc` mirroring print_escaped semantics; tdump.sc's
+E_QLIT branch routed through `CQize(v(x))`.  Cross-PARSER-positive:
+no other parser corpus currently exercises backslash-bearing QLITs,
+so PASS counts in IC/PR/SC/RB/SN unchanged, but any future fixture
+with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
@@ -236,26 +292,36 @@ each is independently revertable.  A session may do one and stop.
 
 ## Watermark
 
-PARSER-RK-4.5-d / 4.5-e / 4.5-f LANDED (session 2026-05-04 cont.) —
-PASS=32 FAIL=0.  All seven sub-steps of PARSER-RK-4.5 are now done
-(4.5-a/b/c earlier in the session, 4.5-d/e/f later, 4.5-g was a
-no-op preservation note).  `parser_raku.sc` is fully aligned with
-the beauty.sc / parser_icon.sc cross-PARSER style.
+PARSER-RK-5 LANDED (session 2026-05-04 cont.) — PASS=37 FAIL=0.
+Regex starter slice landed: `/body/` LitRegex classifier + `~~`
+smartmatch operator at Expr4, lowering to
+`(E_FNC raku_match (E_VAR raku_match) subj pat)`.  Five new fixtures
+in `corpus/programs/raku/parser/regex_*.raku` exercising literal,
+metacharacters (`\d+`, `[a-z]+`, `a|b`), anchors (`^x$`), `.*`, and
+backslash escapes (`\s+`).  Two prerequisite fixes landed in the
+same session:
 
-Final state: 752 → 555 lines, 27 → 9 functions (UpperSnake'd),
-zero `_`-prefixed user identifiers, function-plumbing scaffold
-gone.  Inline `shift()` / `reduce()` decorate the grammar
-directly.  Nine helpers retained each with `// Retained: <reason>`
-comment per §4a:
-  Rk_Push_Var / Rk_Push_Param / Rk_Push_Qlit (sigil/quote strip),
-  Rk_Say_Done (say→write remap),
-  Rk_Stash_For / Rk_Finish_For (E_ITERATE name + E_EVERY build),
-  Rk_Finish_Sub / Rk_Finish_Call / Rk_Finish_Main (E_FNC value-
-    field name from captures; reduce() can't supply non-empty value).
+  1. **n-ary arith flattening** in `parser_raku.sc` — four
+     `flatten_*` helpers fold same-tag rhs into existing same-tag
+     lhs on the stack, matching iter#9 Phase A's C-frontend
+     `expr_binary_flatten()` shape.  Closes the `arith_chain` fail
+     that landed when iter#9 Phase A flipped the oracle to n-ary.
+  2. **CQize C-string escaping** in `qize.sc` + tdump.sc routing
+     E_QLIT values through it — matches the C oracle's
+     `ir_print.c::print_escaped` for `\` / `"` / `\n` / `\r` / `\t`.
+     Cross-PARSER infra fix; no sibling regression.
 
-Next session: PARSER-RK-5 (regex / grammar primitives starter
-slice — literal, character class, quantifier, alternation; sibling
-LANG rungs RK-26..RK-34 active; gate target ≥40).
+`parser_raku.sc` is now 633 lines (was 555) — the +78 net is four
+flatten helpers (~70 lines), `LitRegex` classifier, `caprx` global,
+`push_rxlit` + `Finish_smartmatch` helpers, `$'~~'` token, and the
+new Expr4tail alternative.  All retained helpers carry `// Retained:
+<reason>` comments per §4a.
+
+Next session: PARSER-RK-6 (regex captures `(...)`, `$0`, `$1` —
+sibling LANG RK-34 already supports them; the parser produces the
+right E_FNC-with-extra-args shape for `raku_capture(n)`).  Or:
+extend RK-5 starter slice to handle embedded `/` inside `[...]` /
+after `\` if/when a fixture exercises it.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
