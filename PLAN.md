@@ -52,9 +52,10 @@ Lon names a goal. You:
 1. Clone `.github`: `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github.git /home/claude/.github`
 2. Read `PLAN.md` (this file). Find the named goal in the table below.
 3. Read `RULES.md` in full — commit rules, push rules, oracle, naming. No exceptions.
-4. Open that Goal file. It names the repo. Open that repo's REPO file.
-5. Run the scripts listed in the Goal file's `## Session Setup` section. If the Goal file has no `## Session Setup` yet, fall back to the matching category in `REPO-one4all.md ## Session Setup`.
-6. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
+4. **If the goal is a `PARSER-*` or other Snocone work — read `SNOBOL4-SNOCONE-PRIMER.md` first.** It's the cheat sheet for SNOBOL4/Snocone pattern matching idioms. Skipping it costs entire sessions.
+5. Open that Goal file. It names the repo. Open that repo's REPO file.
+6. Run the scripts listed in the Goal file's `## Session Setup` section. If the Goal file has no `## Session Setup` yet, fall back to the matching category in `REPO-one4all.md ## Session Setup`.
+7. Find the first incomplete Step (`- [ ]`) in the Goal file. Do it.
 
 ---
 
