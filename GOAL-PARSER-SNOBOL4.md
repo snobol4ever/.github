@@ -1430,7 +1430,7 @@ bare `SPAN` to add validation. Tree output is identical either way (both emit
 
 **Steps:**
 
-- [ ] **Step 1 — Compile the definitive keyword/function inventory.**
+- [x] **Step 1 — Compile the definitive keyword/function inventory.**
       Consult (clone if needed):
       - `corpus/programs/snobol4/demo/beauty/beauty.sno` lines 60–92
       - `snobol4ever/x64` repo — check snobol4.h / keyword tables
@@ -1440,7 +1440,7 @@ bare `SPAN` to add validation. Tree output is identical either way (both emit
       discrepancies. beauty.sno's lists are the primary model; extend with
       any names found in the runtime repos that beauty.sno omits.
 
-- [ ] **Step 2 — Add classifier string tables to parser_snobol4.sc.**
+- [x] **Step 2 — Add classifier string tables to parser_snobol4.sc.**
       After the E_* constants block, add:
       ```
       SpecialNms  = '...';
@@ -1452,7 +1452,7 @@ bare `SPAN` to add validation. Tree output is identical either way (both emit
       Use the complete verified list from Step 1. Multi-line strings use
       Snocone string concatenation.
 
-- [ ] **Step 3 — Add TxInList pattern and classifier patterns.**
+- [x] **Step 3 — Add TxInList pattern and classifier patterns.**
       ```
       TxInList  =  (POS(0) | ' ') *upr(tx) (' ' | RPOS(0));
       Function  =  SPAN('.' digits &UCASE '_' &LCASE) $'$' tx $'$' *match(Functions, TxInList);
@@ -1466,7 +1466,7 @@ bare `SPAN` to add validation. Tree output is identical either way (both emit
       variables). Verify the exact Snocone form against parser_icon.sc or
       parser_prolog.sc which use similar capture patterns.
 
-- [ ] **Step 4 — Update Expr14 to use ProtKwd/UnprotKwd classifiers.**
+- [x] **Step 4 — Update Expr14 to use ProtKwd/UnprotKwd classifiers.**
       Replace the bare `'&' shift(SPAN(&UCASE &LCASE), E_KEYWORD)` with:
       ```
       |  *ProtKwd   shift(tx, E_KEYWORD)
@@ -1475,7 +1475,7 @@ bare `SPAN` to add validation. Tree output is identical either way (both emit
       Both emit `E_KEYWORD` with the name (without `&`) as value — same as
       before, but now validated against the membership lists.
 
-- [ ] **Step 5 — Update Expr17 to use classifier patterns.**
+- [x] **Step 5 — Update Expr17 to use classifier patterns.**
       Replace the current `*Id ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)` /
       `*Id ~ E_VAR` alternatives with the full beauty.sno ordering:
       ```
@@ -1487,12 +1487,12 @@ bare `SPAN` to add validation. Tree output is identical either way (both emit
       ```
       Order matters: Function tried first (has membership test), plain Id last.
 
-- [ ] **Step 6 — Verify gate PASS=78 FAIL=0.**
+- [x] **Step 6 — Verify gate PASS=78 FAIL=0.**
       `bash scripts/test_parser_snobol4.sh` — no fixture output should change
       (oracle tree shapes are unaffected by classifier membership; all these
       identifiers still emit `E_VAR` or `E_FNC` or `E_KEYWORD`).
 
-- [ ] **Step 7 — Commit.**
+- [x] **Step 7 — Commit.**
       `parser_snobol4.sc` only. Message:
       `PARSER-SN-7-7c: full keyword/function/builtin inventory + classifier patterns (PASS=78/78)`
 
@@ -2527,3 +2527,59 @@ SN-7-7c is inserted before SN-7-8 to add this inventory. Step 1 requires
 consulting x64, x32, csnobol4 repos for definitive lists; beauty.sno's
 lists are the primary model. Context window was ~96% at handoff — next
 session opens fresh to execute SN-7-7c steps 1-7.
+**Watermark (session 2026-05-05 cont., corpus@0fba291): SN-7-7c LANDED PASS=78 FAIL=0 ✅.**
+
+Cross-runtime symbol inventory complete. Sources scanned: SPITBOL x64 `sbl.min`
+sv-classes (svfnf/svfnn/svfnp/svfpr/svfnk/svfpk/svknm/svkvc/svkvl/svkwc/svlbl
++ class-0 TERMINAL); SPITBOL x32 `s.min` (verified ≡ x64 byte-identical
+inventory); csnobol4 `v311.sil` KNLIST (unprot kw), KVLIST (prot kw), FNLIST
+(user functions). Final lists are the union with one resolved conflict:
+ERRTEXT/ERRTYPE classify as **UnprotKwds** per SPITBOL+beauty.sno (settable
+keywords), not ProtKwds (csnobol4 quirk).
+
+**Final inventory** (counts in parens):
+- Functions   (123) — full SPITBOL+csnobol4 union, including BLOCKS extensions
+                      (BCHAR, DEPTH, FREEZE, FUNCTION, HEIGHT, HOR, LABEL,
+                      MERGE, NODE, NORM_REG, OVY, PAR, PRINT, REP, SER, SLAB,
+                      THAW, VALUE, VDIFFER, VER, WIDTH, ...)
+- UnprotKwds  (21)  — incl. csnobol4 extras FATALLIMIT, FILL, GTRACE
+- ProtKwds    (28)  — incl. csnobol4 extras COMPNO, DIGITS, FATAL, GCTIME,
+                      MAXINT, PARM, PI, STEXEC, STFCOUNT
+- BuiltinVars (7)   — ABORT ARB BAL FAIL REM SUCCEED TERMINAL (per beauty.sno)
+- SpecialNms  (8)   — ABORT CONTINUE END FRETURN NRETURN RETURN SCONTINUE START
+
+**Implementation deviations from goal-file Step 3/4 prescription** (all required
+to make membership-test work in the Snocone runtime; intent and gate unchanged):
+
+1. **Step 3 form** — used bare-operator `pat $ tx $ *sn_match(L, TxInList)` not
+   `pat $'$' tx $'$' *match(L, TxInList)`. Verified against omega.sc usage
+   and snocone_parse.y T_2DOLLAR (binary E_CAPT_IMMED_ASGN at expr12).
+   Inlined helpers `sn_match`/`sn_upr` to avoid expanding the shared parser
+   blob (other five PARSER-* parsers don't need them; zero blast radius).
+
+2. **Step 4 form** — used `'&' shift(*ProtKwd, E_KEYWORD)` not
+   `*ProtKwd shift(tx, E_KEYWORD)`. The goal-file form treats `tx` as the
+   pattern arg to `shift(p, t)` — but `shift` expects a pattern. More
+   importantly, the alternative `*ProtKwd Push_kwd` (with `Push_kwd =
+   epsilon . *push_kwd()` reading `tx`) FAILS because the dot-capture
+   deferred call fires only when the enclosing match completes — by that
+   time later patterns have rebound `tx`. The fix: `shift(p, t)` expands to
+   `p . thx . *Shift(t, thx)` where `thx` is the runtime's scratch global
+   that gets read AT the moment the sub-pattern's capture completes (the
+   canonical thx-relay idiom used throughout semantic.sc). So consume `&`
+   outside, classifier is bare (just the membership-test SPAN+match), and
+   `shift(*ProtKwd, E_KEYWORD)` does the rest correctly.
+
+3. **Step 5 fallback retained** — kept `*Id ~ E_VAR $'(' *ExprList $')'
+   (E_FNC & 2)` and `*Id ~ E_VAR` AFTER the classifier alternatives, so
+   user-defined functions/variables (not in any list) still parse.
+
+**No SCRIP runtime bug encountered.** All edits in `parser_snobol4.sc` only;
+shared blob and other parsers untouched. Net diff: +79/-2 lines.
+
+**Next milestone:** SN-7-8 — beauty.sno full crosscheck. Many constructs in
+beauty.sno still not handled by the parser (missing pattern primitives POS,
+RPOS, CURSOR, TAB, RTAB, ARBNO, FENCE, LGT, LEQ, etc., though these are now
+recognized as Functions in classification — the grammar still needs to accept
+them where they appear as pattern primitives in Expr-positions). Or:
+PARSER-FAMILY-LOOP next iteration (operator picks).
