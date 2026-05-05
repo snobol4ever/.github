@@ -377,32 +377,67 @@ gate.
 - **Gate (overall):** PASS=51 preserved through every step; no new
   fixtures added under this rung.
 
-### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat  ← **next**
+### PARSER-IC-10 — fill out unary / augop coverage + introduce `to..by` and concat  COMPLETE
 
-After the style cleanup lands, this is the feature-coverage rung:
+The feature-coverage rung is complete.  All checkbox items closed; gate
+PASS=88 FAIL=0 (+37 over IC-9 baseline of 51).  Single corpus commit
+(see Watermark for hash).
 
-- [ ] More augmented-assign tokens at `Expr1`: `%:=` `^:=` `||:=` `++:=`
+- [x] More augmented-assign tokens at `Expr1`: `%:=` `^:=` `||:=` `++:=`
       `--:=` `**:=` `?:=` `=:=` `==:=` `~=:=` `<:=` `<=:=` `>:=` `>=:=`
-      `<<:=` `<<=:=` `>>:=` `>>=:=` `===:=` `~===:=`.  Each gets one
-      fixture; all dump as `(E_AUGOP lhs rhs)`.  Add the literal token
-      branch in Expr1 (per IC-10-style Step 5b, no `$'augop'` umbrella).
-- [ ] Remaining unary fixtures: `unary_plus`, `unary_nonnull` (`\`),
-      `unary_iterate` (`!`), `unary_random` (`?`).  Already-wired
-      branches; just need fixtures.
-- [ ] Stacked unary: `--y`, `~~y` etc.  Already supported by the
-      recursive `*Expr10`; needs fixtures.
-- [ ] Special assignment forms at `Expr1`: `<-` (`E_REVASSIGN`),
+      `<<:=` `<<=:=` `>>:=` `>>=:=` `~==:=`.  All dump as
+      `(E_AUGOP lhs rhs)`.  Each got its own literal token branch in
+      Expr1 (no `$'augop'` umbrella per IC-10-style Step 5b).  Note:
+      the prior goal text named `===:=` and `~===:=` — the actual Icon
+      lexer uses `==:=` (string-eq augop) and `~==:=` (string-ne
+      augop); the canonical spellings are taken from
+      `src/frontend/icon/icon_lex.c:657-675`.  19 NEW fixtures.
+- [x] Remaining unary fixtures: `unary_plus`, `unary_nonnull` (`\`),
+      `unary_iterate` (`!`), `unary_random` (`?`).  4 NEW fixtures.
+- [x] Stacked unary: `~~y`.  1 NEW fixture (note: `--y` would be
+      ambiguous with cset-difference operator and the oracle rejects
+      it — used `~~y` instead which the oracle parses as nested
+      `(E_CSET_COMPL (E_CSET_COMPL (E_VAR y)))`).
+- [x] Special assignment forms at `Expr1`: `<-` (`E_REVASSIGN`),
       `:=:` (`E_SWAP`), `<->` (`E_REVSWAP`), `===` (`E_IDENTICAL`),
-      `~===` (`E_NOT (E_IDENTICAL ...)`).  Each their own branch
-      analogous to `:=`.
-- [ ] **Expr2** — `to ... by ...` generation.  Currently
-      `Expr2 = ( *Expr3 );` collapses through; needs `*Expr3 $'to'
-      $'  ' *Expr3 ($'by' $'  ' *Expr3 (r_TOBY & 3) | (r_TO & 2) |
-      epsilon)`.
-- [ ] **Expr5** — concat `||` and `|||`.  New tier between Expr4 and
-      Expr6: `*Expr6 ARBNO($'|||' *Expr6 (r_LCONCAT & 2) | $'||'
-      *Expr6 (r_CONCAT & 2))`.
-- **Gate:** PASS≥58 (≥7 NEW fixtures across the new operators).
+      `~===` (`(E_NOT (E_IDENTICAL ...))` — built via two-step reduce
+      `(E_IDENTICAL & 2) (E_NOT & 1)`).  5 NEW fixtures.
+- [x] **Expr2** — `to ... by ...` generation.  Implemented as
+      `*Expr3 FENCE($'to' $'  ' *Expr3 FENCE($'by' $'  ' *Expr3
+      (E_TO_BY & 3) | (E_TO & 2)) | epsilon)`.  Tag is `E_TO_BY` (with
+      underscore — confirmed against oracle), not `r_TOBY`.  3 NEW
+      fixtures (range_to, range_to_by, range_paren).
+- [x] **Expr5** — concat `||` and `|||`.  New tier between `Expr4`
+      and `Expr6`: `*Expr6 ARBNO($'|||' *Expr6 (E_LCONCAT & 2) | $'||'
+      *Expr6 (E_CAT & 2))`.  Tag for `||` is `E_CAT` (not
+      `E_CONCAT`).  Expr4tail rewired from `*Expr6` to `*Expr5`.
+      5 NEW fixtures (concat_two, concat_three, lconcat_two,
+      concat_alt, concat_cmp).
+- [x] **Negative-lookahead idiom** added for prefix-conflicting ops:
+      `$'<'`, `$'>'`, `$'|'`, `$'||'`, `$'|||'` use the new
+      `X @posA (ANY('reject_set') | epsilon) @posB *EQ(posA, posB)`
+      idiom.  Required because Expr4tail's `$'<'` was greedily
+      consuming `<` before Expr1's `$'<-'`/`$'<->'` could see it
+      (parsed `x <- 1` as `x < (-1)`).  The deferred-eval
+      `*EQ(posA, posB)` predicate succeeds iff the alternation took
+      the epsilon branch (cursor didn't advance), giving true negative
+      lookahead — neither FENCE+FAIL nor `(p FAIL | epsilon)` work
+      (alternation backtracking restores cursor and epsilon
+      succeeds).  Worth adding to the cross-PARSER style guidelines
+      once verified across parser_snobol4.sc/parser_snocone.sc/etc.
+- [x] **Snocone string-literal byte-fix in `parser_icon.sc`**: the
+      previous `$'\\' = $' ' '\\' $' ';` token had RHS pattern
+      `'\\'` which is **2 bytes** in Snocone (per
+      `src/frontend/snocone/snocone_lex.c:348-351` — the lexer
+      specializes only `''` (doubled quote) and `\n` (newline);
+      every other byte is copied verbatim).  Changed to `'\'` (one
+      byte) so the token actually matches a single-backslash unary
+      operator.  This is **not a SCRIP bug** — it's correct Snocone
+      semantics — but the parser_icon.sc had been wrong since IC-9
+      and the unary `\` branch was unreachable.  The previous gate
+      was PASS=51 because no unary_nonnull fixture existed.
+
+- **Gate:** PASS=88 FAIL=0 (+37 NEW fixtures over IC-9's 51).
 
 Cross-pollination: same retrofit pattern applies to parser_rebus.sc
 and parser_snobol4.sc — separate goals.
@@ -429,6 +464,8 @@ patterns and refactor scope.
 
 ## Watermark
 
-PARSER-IC-10 (Steps 1-6 of IC-10-style ALL LANDED PASS=51 corpus@1734c42: Step 5 — pseudo-token name cleanup: 5a inlined `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/`$'unary!'`/`$'unary*'`/`$'unary?'` family directly into Expr10 as `*Gray 'op' *Expr10 (r_TAG & 1)`; 5b dropped `$'augop'` umbrella, inlined four augop literal branches into Expr1 each with `(r_AUGOP & 2)`; 5c renamed `$'qlit'` → `qlit_done` and `$'proc_wrap'` → `proc_done` to capture intent in language terms.  Step 6 — horizontal density: packed keyword tokens, operator tokens, augop tokens, and reduce-tag constants two-per-line per parser_snocone.sc convention.  File 419 → 371 lines (−48).  Gate PASS=51 FAIL=0 preserved through every sub-step.  IC-10-style COMPLETE; next is IC-10 feature coverage rung — augop expansion, more unary fixtures, special assignment forms, Expr2 to..by, Expr5 concat.
+PARSER-IC-10 LANDED PASS=88 corpus@1744d3e: feature-coverage rung complete.  37 NEW fixtures over IC-9 baseline of 51.  Tokens added: 19 augops (`%:=` `^:=` `||:=` `++:=` `--:=` `**:=` `?:=` `=:=` `==:=` `~=:=` `<:=` `<=:=` `>:=` `>=:=` `<<:=` `<<=:=` `>>:=` `>>=:=` `~==:=`); 5 special-form ops (`<-` `<->` `:=:` `===` `~===`); 2 keywords (`to`, `by`); 2 concat (`||` `|||`).  9 new tag constants: `E_REVASSIGN` `E_SWAP` `E_REVSWAP` `E_IDENTICAL` `E_NOT` `E_TO` `E_TO_BY` `E_CAT` `E_LCONCAT`.  Grammar: Expr1 expanded with 19 augop branches + 5 special-form branches (longer-prefix-first ordering); Expr2 implements `to..by` via nested FENCE; Expr5 added between Expr4 and Expr6 (left-associative ARBNO over `|||` and `||`); Expr4tail rewired `*Expr6` -> `*Expr5`.  ~=== uses two-step reduce `(E_IDENTICAL & 2) (E_NOT & 1)` for `(E_NOT (E_IDENTICAL ...))`.  Negative-lookahead idiom introduced for `$'<'` `$'>'` `$'|'` `$'||'` `$'|||'`: `X @posA (ANY('reject_set') | epsilon) @posB *EQ(posA, posB)` — succeeds iff alternation took epsilon (cursor didn't advance), giving true negative lookahead; required because Expr4tail's `<` was greedily consuming before Expr1's `<-` could fire.  Fixed Snocone string-literal byte-bug: `$'\\\\' = $' ' '\\\\' $' ';` had RHS pattern `'\\\\'` = 2 bytes (per snocone_lex.c:348-351 only `''` and `\\n` specialized) so unary `\\` branch was unreachable since IC-9; corrected RHS to `'\\'` (1 byte).  Tag spelling corrections from goal text: oracle uses `==:=` (string-eq augop) and `~==:=` (string-ne augop) — not `===:=`/`~===:=`; tag for `||` is `E_CAT` not `E_CONCAT`; tag for `to..by` is `E_TO_BY` (with underscore) not `E_TOBY`.  Gate PASS=88 FAIL=0; smoke PASS=5 FAIL=0 preserved.  Next session: cross-pollinate negative-lookahead idiom and IC-10 feature retrofit to parser_rebus.sc / parser_snobol4.sc / parser_snocone.sc / parser_prolog.sc / parser_raku.sc per their own goals.
+
+PARSER-IC-10-style (Steps 1-6 of IC-10-style ALL LANDED PASS=51 corpus@1734c42: Step 5 — pseudo-token name cleanup: 5a inlined `$'unary-'`/`$'unary+'`/`$'unary~'`/`$'unary\\'`/`$'unary!'`/`$'unary*'`/`$'unary?'` family directly into Expr10 as `*Gray 'op' *Expr10 (r_TAG & 1)`; 5b dropped `$'augop'` umbrella, inlined four augop literal branches into Expr1 each with `(r_AUGOP & 2)`; 5c renamed `$'qlit'` → `qlit_done` and `$'proc_wrap'` → `proc_done` to capture intent in language terms.  Step 6 — horizontal density: packed keyword tokens, operator tokens, augop tokens, and reduce-tag constants two-per-line per parser_snocone.sc convention.  File 419 → 371 lines (−48).  Gate PASS=51 FAIL=0 preserved through every sub-step.  IC-10-style COMPLETE; next is IC-10 feature coverage rung — augop expansion, more unary fixtures, special assignment forms, Expr2 to..by, Expr5 concat.
 
 PARSER-IC-9-prior (LANDED PASS=51 corpus@85c14d0: augmented assigns + unary prefix + power, plus a new "Style guidelines — derived from beauty.sno / beauty.sc" section in this Goal file.  IC-9 changes in `parser_icon.sc`: nine new reduce-tag constants (`r_AUGOP` `r_POW` `r_MNS` `r_PLS` `r_CSET_COMPL` `r_NONNULL` `r_ITERATE` `r_SIZE` `r_RANDOM`); four augop literal tokens (`$'+:='` `$'-:='` `$'*:='` `$'/:='`) plus alternation token `$'augop'`; seven unary-prefix tokens (`$'unary-'` `$'unary+'` `$'unary~'` `$'unary\\'` `$'unary!'` `$'unary*'` `$'unary?'`); new `Expr10` (unary, recursive on itself, falls through to `*Expr11`); new `Expr8` (right-assoc power); `Expr7` retargeted from `*Expr11` to `*Expr8`; `Expr1` gains `$'augop' *Expr1 (r_AUGOP & 2)` branch alongside the existing `:=` branch.  6 NEW fixtures: `augop_add` `augop_sub` `unary_minus` `unary_cset_compl` `unary_size` `pow_expr`).
