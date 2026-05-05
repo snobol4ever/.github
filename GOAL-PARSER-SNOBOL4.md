@@ -2238,4 +2238,10 @@ LANDED** — continuation lines, comment/control lines, `*Id` defer,
   `(E_DEFER & 1)`. PASS=77/77.
 - SN-7-7 (semi_separator): no changes needed. PASS=78/78.
 
-**Next:** PARSER-SN-7-8 — beauty.sno full crosscheck.
+**Watermark (session 2026-05-05 cont.):** **EMERGENCY REVERT** — parser_snobol4.sc restored to SN-7-1 base (corpus@85bdd30).
+
+Root cause found: iter#7 changed X4 from `FENCE(*White *X4 | epsilon)` to `FENCE($'  ' *X4 | epsilon)`, and iter#10 introduced ARBNO(Expr6tail) etc. These changes broke ARBNO(*Command) inside Compiland — when Expr6's ARBNO(Expr6tail) tries `$'+'` (White '+' White), White consumes a space then '+' fails; SNOBOL4 backtracking restores the nam-assignment stack, which undoes nInc() side effects from Command's counter. Result: Compiland ARBNO gets 0 matches for any statement with a concat RHS containing a deferred call (`A *f`, `(A|B) *upr(tx)` etc.).
+
+SN-7-1 grammar uses `*White` (deferred) everywhere — backtracking safe. beauty.sno parses fully: 434 STMTs, reaches END. PASS=62 (16 fails are SN-7-2/7-3/7-6 fixtures that postdate SN-7-1 and need targeted grammar fixes on top).
+
+**Next session:** starting from this SN-7-1 base, apply changes one at a time from iter#7 diff and find exact commit that breaks beauty.sno parsing. Then fix that change before re-applying downstream improvements.
