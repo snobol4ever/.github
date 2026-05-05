@@ -72,6 +72,19 @@ The cursor does not advance during the test. Combine with the fact that
 `Id` already consumed the full identifier, and you have a **correct
 word-boundary keyword matcher**.
 
+**Chaining `$` with a deferred function call** is the canonical way to
+test the captured value against a set-classifier:
+
+```snocone
+SpecialNm = SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(SpecialNms, TxInList);
+```
+
+The second `$` looks like an assignment but the right side is a
+deferred function call returning `.dummy` (a name). The `$` "assigns
+into" the throwaway name; the **side effect is the success/failure
+of the embedded `match()`**. This is the beauty.sno idiom for
+"capture-and-classify". See "Set-membership" below.
+
 ### `*` — deferred evaluation / unevaluated expression
 
 `*expr` is **NOT** "match anything" (regex `*`). It's "evaluate `expr` in
@@ -206,6 +219,92 @@ match-time pattern. This keeps the grammar readable.
 The `.dummy` / `nreturn` shape on the worker is required because
 `*func()` in pattern context needs the function to return a name (not a
 value), and `nreturn` does that — see RULES.md "NRETURN functions".
+
+### Set-membership via space-separated word list (beauty.sno idiom)
+
+When you need to classify a token as one of a small fixed set
+(reserved words, builtin function names, keyword names), beauty.sno
+uses a **space-separated string as the set** and a **boundary pattern**
+to test membership. No arrays, no tables, no hash maps:
+
+```snocone
+SpecialNms  =  'ABORT CONTINUE END FRETURN NRETURN RETURN SCONTINUE START';
+TxInList    =  (POS(0) | ' ') *upr(tx) (' ' | RPOS(0));
+SpecialNm   =  SPAN('.' digits &UCASE '_' &LCASE) $ tx $ *match(SpecialNms, TxInList);
+```
+
+How `TxInList` works as a membership test against `SpecialNms`:
+- `(POS(0) | ' ')` — left boundary: at start of string OR preceded by space
+- `*upr(tx)` — the captured token, uppercased, used as a literal pattern
+- `(' ' | RPOS(0))` — right boundary: followed by space OR at end of string
+
+Applied to `'ABORT CONTINUE END ... START'` with `tx = 'CONTINUE'`,
+this matches the bounded substring `'CONTINUE'` in the list. With `tx
+= 'CONT'`, it fails because `CONT` is not whole-word-bounded in the
+list. Same idiom for `BuiltinVars`, `ProtKwds`, `UnprotKwds`,
+`Functions`.
+
+### The double-`$` set-membership idiom — `pat $ tx $ *match(set, classifier)`
+
+Reading right-to-left:
+
+1. `pat` — a pattern that consumes the token from the **subject**
+2. `$ tx` — immediate-capture the matched token into variable `tx`
+3. `$ *match(set, classifier)` — the second `$` looks like another
+   capture, but `*match(set, classifier)` is a deferred call to the
+   function `match`. `match` returns `.dummy` (a name) on success and
+   `freturn`s on failure. The `$` immediate-assigns the matched
+   substring into the **name** that `match` returned (`.dummy` — a
+   throwaway). The whole `$ *match(...)` construction succeeds iff
+   `match` succeeds; its **purpose is the success/failure outcome**,
+   not the assignment.
+
+So this fragment "consumes a token from the subject, then asserts that
+the token belongs to the named set." The cursor in the main subject
+is already past the token (because `pat` consumed it); the membership
+test runs in **value space** against `set`.
+
+`match` and `notmatch` are defined in `beauty/match.inc` (and ported
+to `parser_*.sc` as needed):
+
+```snocone
+function match(subject, pattern) {
+    match = .dummy;
+    if (subject ? *pattern) { nreturn; }
+    freturn;
+}
+function notmatch(subject, pattern) {
+    notmatch = .dummy;
+    if (subject ? *pattern) { freturn; }
+    nreturn;
+}
+```
+
+The first arg is the **subject string**, the second is the **pattern**.
+`match` runs `subject ? *pattern` (a fresh pattern match in a separate
+namespace), returns name `.dummy` on success or freturns on failure.
+Both forms return `.dummy` so they can appear after `$` in a pattern.
+
+This idiom is **the canonical SNOBOL4 way to classify a token by
+set membership**. Use it instead of inventing one-off patterns.
+
+### `*upr(tx)` — value computation as deferred pattern
+
+`*func(args)` makes the function call deferred — at match time, evaluate
+`func(args)` in value space and use the returned value as a **pattern**
+in subject space. Because strings auto-coerce to literal-match patterns,
+`*upr(tx)` becomes "a pattern that matches the literal string equal to
+the uppercase of `tx`'s current value."
+
+```snocone
+omega = omega " $ tx *LEQ(upr(tx), '" upr(name) "')";
+```
+
+This is from `omega.inc` — building a classifier dynamically by
+embedding `*LEQ(upr(tx), 'NAME')` into a generated EVAL string. The
+inner `*LEQ(...)` does a lexical-comparison value test (succeeds iff
+upr(tx) ≤ 'NAME'); the outer `$ tx` captured the token first.
+Pure value-space classification, embedded in a pattern via `*`.
 
 ### shift/reduce via OPSYN
 
