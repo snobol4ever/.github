@@ -100,6 +100,9 @@ Detail for each rung lives in its commit message.  Open the hash in
 | RS-23c           | 0de9a2cf | Lift `E_EVERY`, `E_INITIAL`, `E_SWAP` into both adapters; share `find_leaf_suspendable`. |
 | RS-23d           | 0de9a2cf | `E_WHILE` value-context handler in `bb_eval_value`. |
 | RS-23-extra-prep | 5053e80b | Lift SCAN-context builtins (`any`/`bal`/`find`/`many`/`match`/`move`/`pos`/`rpos`/`tab`/`upto`) into `scan_builtins.c`. |
+| RS-23-extra-prep2| dfa7eda4 | Smart fallback in `icn_call_builtin` (Option B′) — synthesize literal-leaf clone for non-mutator scalar-arg builtins; preserves writeback for the 5-name mutator denylist. |
+| RS-23-extra      | b0b5863a | Lift `E_IF`/`E_PROC_FAIL`/`E_BANG_BINARY`/`E_REVASSIGN`/`E_LOOP_BREAK`/`E_RETURN` into BB adapters; diag drops to zero unique tuples. |
+| RS-23e           | dd661851 | Harden the two physical fallthroughs to `abort()`; remove `extern interp_eval`; promote `coro_value.c`/`coro_stmt.c` into the isolation gate. |
 | RS-25-investig.  | (folded) | SM shape verification — Icon/Prolog short-circuit through `polyglot_execute`. |
 | RS-26a | ec558491   | Symmetric SM preamble + IR retention for non-SNO programs. |
 | RS-26b | 813d3224   | Route single-language Icon through SM pipeline. |
@@ -379,18 +382,43 @@ when arriving in the missing context.  Three kinds (`E_EVERY`,
   unified_broker 49/0, isolation gate PASS, Icon corpus 186/47/30,
   meander.icn green) plus diag at zero.  RS-23e is now unblocked.
 
-- [ ] **RS-23e** — Diag is empirically at zero (verified end of session
-  2026-05-05).  Harden the direct fallthroughs in `coro_value.c:1257`
-  and `coro_stmt.c:258` to abort with a clear diagnostic.  Remove the
-  `extern DESCR_t interp_eval(...)` declarations from both files.  Add
-  `coro_value.c` and `coro_stmt.c` to `SM_FILES` in
-  `test_isolation_ir_sm.sh`.  Revert `src/driver/rs23_diag.c` (delete)
-  and remove the diag scripts from `scripts/` (or keep as dormant
-  tooling — Lon's call).
-  Gate: all smoke + unified_broker + isolation gate green WITHOUT the
-  diag binary; the new isolation grep gate green with the BB adapters
-  in scope.  This closes the IR/SM isolation invariant for Icon and
-  Prolog frontends.
+- [x] **RS-23e — LANDED (session 2026-05-05 cont.):** Hardened the two
+  direct fallthroughs in `coro_value.c` and `coro_stmt.c` to abort with
+  a diagnostic naming the offending kind:
+
+  ```c
+  fprintf(stderr,
+          "FATAL bb_eval_value: unhandled kind %d (RS-23e isolation breach)\n",
+          (int)e->kind);
+  abort();
+  ```
+
+  (and the symmetric form in `bb_exec_stmt`).  Removed the
+  `extern DESCR_t interp_eval(EXPR_t *e);` declarations from both files
+  and replaced their accompanying RS-21/RS-22e/RS-23 historical comment
+  blocks with single-paragraph closure notes.  Added
+  `src/runtime/interp/coro_value.c` and `src/runtime/interp/coro_stmt.c`
+  to `SM_FILES` in `scripts/test_isolation_ir_sm.sh`; replaced the long
+  RS-17a/b carve-out comment with a closure note that records the
+  promotion and references the diag tooling that empirically enabled it.
+
+  Diag tooling kept as dormant tooling per "Lon's call" — `rs23_diag.c`,
+  `build_scrip_rs23_diag.sh`, `test_rs23_diag_capture.sh` retained
+  unchanged; they activate only when compiled with `-DRS23_DIAG` and
+  linked with `-Wl,--wrap=interp_eval`, so the normal `scrip` binary is
+  unaffected.  Future rungs that need to enumerate `interp_eval`
+  reachability from any specific call surface can rebuild the diag
+  binary on demand.
+
+  Gates after RS-23e: smoke {snobol4 7/7, icon 5/5, prolog 5/5,
+  raku 5/5, snocone 5/5, rebus 4/4} = 31/31, unified_broker 49/0,
+  Icon corpus 186/47/30 (no delta), isolation gate PASS **with the BB
+  adapters in scope**.  The four-mode isolation invariant is now
+  enforced by the grep gate for Icon and Prolog frontends — any future
+  regression that calls `interp_eval` from a BB-adapter file will be
+  caught on the gate before the commit lands.
+
+  This closes the RS-23 arc.  RS-24 is now unblocked.
 
 ### RS-24 — Strip the dead Icon-frame switch from `interp_eval.c`
 
