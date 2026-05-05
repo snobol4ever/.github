@@ -478,9 +478,33 @@ Fixtures landed (10 new): `scan_simple`, `scan_replace`, `scan_in_expr`,
 
 ### PARSER-SC-6 — full beauty.sc crosscheck
 
-- [ ] PARSER-SC parses `beauty.sc` end-to-end. `tree_equal` against the
-      existing frontend returns true. Both trees run identically under
-      `--ir-run`.
+**Session #68 (2026-05-05) — SC-6 infrastructure landed; blocked on White/NL.**
+
+New constructs implemented and working (gate still PASS=46 FAIL=0):
+- `E_KEYWORD` (`&kw` atom), `E_IDX` (subscript `a[i]`), `E_FLIT` (real literal),
+  `E_MNS` (unary minus), `E_DEFER`/`E_NOT`/`E_NAME`/`E_INDIRECT` (unary prefix ops),
+  `Real` / `Keyword` token classifiers, `Expr15` subscript tier,
+  parenthesized expression `(expr)` in Expr17, `goto_cmd`, `label_prefix`, `for_cmd`.
+- All individually verified against oracle (whitespace-normalized match).
+
+**Blocker:** beauty.sc uses multi-line expressions (e.g. `Real = (\n  SPAN(digits) ...\n);`).
+`White` must include `nl` for these to parse. Correct form per Lon / lexer S_WS:
+`White1 = (SPAN(' ' tab '\r\f') | nl | '//' BREAK(nl) | '/*' BREAKX('*') '*/')`.
+`White = White1 ARBNO(White1)`. However adding `nl` to White causes deep recursion
+(segfault) because `$'(' *Expr0 $')'` in Expr17 recurses through the full tower and
+`$'('` can now eat newlines, pushing C stack depth past safe limit on long inputs.
+Root fix: the `$'(' *Expr0 $')'` grouping paren in Expr17 must use a non-recursive
+formulation, OR `Call` must be restructured so `nPush/nInc` side effects only fire
+AFTER `$'('` is confirmed present (preventing orphaned counter state on Id-not-call).
+
+- [ ] **Step SC-6a:** Fix `Expr17` grouping paren and `Call` so that NL-inclusive
+      White does not cause infinite recursion. Restructure `Call` so `nPush/nInc`
+      side effects fire only after `$'('` succeeds. Then update `White` to include
+      `nl`. Verify gate PASS=46.
+- [ ] **Step SC-6b:** Run parser against `beauty.sc`. Fix any remaining parse failures
+      iteratively until parser output matches oracle (whitespace-normalized).
+- [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
+      execute identically under `--ir-run`.
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
@@ -501,15 +525,12 @@ Fixtures landed (10 new): `scan_simple`, `scan_replace`, `scan_in_expr`,
 ## Watermark
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
-PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅**
+PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
+PARSER-SC-6 ⏳ (SC-6a next)**
 
-Gate: PASS=46 FAIL=0 (was 36).  Atom + assign + arith + concat + if +
-while + do (21) + 15 function-handling fixtures + 10 scan-pattern
-fixtures (scan_simple, scan_replace, scan_in_expr, scan_juxta,
-scan_juxta_replace, scan_juxta_three, scan_multi_pat, scan_pat_var,
-scan_alt, scan_alt_replace).  Smoke (`test_smoke_snocone.sh`):
-PASS=5 FAIL=0.  Sibling parsers unaffected (icon=88, prolog=54,
-raku=31/32, rebus=35/38).
+Gate: PASS=46 FAIL=0. SC-6 constructs landed (E_KEYWORD/IDX/FLIT/MNS/DEFER/NOT/NAME/
+INDIRECT, Real, Keyword, Expr15 subscript, paren grouping, unary prefix, goto_cmd,
+label_prefix, for_cmd). beauty.sc blocked on White+NL fix (SC-6a).
 
 **Session #67 cont. (2026-05-04) — PARSER-SC-5 landed (pattern-match scan stmt).**
 
