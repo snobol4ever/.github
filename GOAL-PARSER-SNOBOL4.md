@@ -461,7 +461,7 @@ history under the listed commits. This table is the load-bearing summary.
 
 ## Active rung ladder
 
-### ⚠ CURRENT STEP — PARSER-FAMILY-LOOP — six-parser cross-pollination
+### PARSER-FAMILY-LOOP — six-parser cross-pollination
 
 **Status:** ACTIVE.  All six parsers at 100% gate as of session
 2026-05-04 cont. #5 (corpus@09ecd59).  Loop opens from a uniformly-
@@ -1281,6 +1281,92 @@ unrelated to this rung — see Open carry-over).
 - [x] Per beauty.sno's `Command`: alternation tail is `(nl | ';')`.
       Already implemented. No parser_snobol4.sc changes needed.
 - **Gate:** semi-separated statements emit two STMTs. ✅ PASS=78/78
+
+#### ⚠ PARSER-SN-7-7b — emit E_* tags directly from grammar; delete rw_tag and all beauty.sno-native tag strings — **CURRENT STEP**
+
+**Goal:** The grammar PATTERN block shifts and reduces using canonical IR tags
+(`E_VAR`, `E_ILIT`, `E_QLIT`, `E_RLIT`, `E_FNC`, `E_SEQ`, `E_ALT`,
+`E_ADD`, `E_SUB`, `E_MUL`, `E_DIV`, `E_POW`, `E_PLS`, `E_MNS`,
+`E_CAPT_IMMED_ASGN`, `E_CAPT_COND_ASGN`, `E_KEYWORD`, `E_DEFER`,
+`E_IDX`, `E_LEN`, `E_BREAK`, `E_SPAN`, `E_ANY`, `E_NOTANY`) directly.
+No post-parse tag-rename walk.  `rw_tag` is deleted entirely.  `rw_expr`
+becomes a pure structural rewrite (paren-strip, ExprList-unwrap,
+E_IDX-flatten, E_CAPT_*-rotation, String-quote-strip) with no tag
+knowledge.  `rw_call` dispatches on the already-canonical `fname` value
+and constructs the right E_* node directly.
+
+**What changes:**
+
+- [ ] **Step 1 — Grammar: replace beauty.sno-native shift/reduce tags with E_*.**
+      Every `shift(P, 'Id')` → `shift(P, E_VAR)`.  Every `reduce(\"'..'\", N)` →
+      `reduce(E_SEQ, N)`.  Full rename table (grammar sites only):
+      | Old tag | New tag | Site |
+      |---------|---------|------|
+      | `'Id'`         | `E_VAR`              | `Expr17` Id shift |
+      | `'Integer'`    | `E_ILIT`             | `Expr17` Integer shift |
+      | `'String'`     | `E_QLIT`             | `Expr17` String shift (see Step 2) |
+      | `'Real'`       | `E_RLIT`             | `Expr17` Real shift |
+      | `'Call'`       | `E_FNC`              | `Expr17` Call reduce |
+      | `'..'`         | `E_SEQ`              | `Expr4`/`X4` reduce |
+      | `'|'`          | `E_ALT`              | `Expr3`/`X3` reduce |
+      | `'$'` (binary) | `E_CAPT_IMMED_ASGN` | `Expr12` reduce |
+      | `'.'` (binary) | `E_CAPT_COND_ASGN`  | `Expr12` reduce |
+      | `'+'` (binary) | `E_ADD`              | already `foldop(E_ADD)` ✅ |
+      | `'-'` (binary) | `E_SUB`              | already `foldop(E_SUB)` ✅ |
+      | `'*'` (binary) | `E_MUL`              | already `foldop(E_MUL)` ✅ |
+      | `'/'` (binary) | `E_DIV`              | already `foldop(E_DIV)` ✅ |
+      | `'^'`/`'!'`/`'**'` | `E_POW`         | already `foldop(E_POW)` ✅ |
+      | `'-'` (unary)  | `E_MNS`              | `Expr14` reduce |
+      | `'+'` (unary)  | `E_PLS`              | `Expr14` reduce |
+      | `'*'` (unary/defer) | `E_DEFER`       | already `reduce(E_DEFER, 1)` ✅ |
+      | `'&'` keyword  | `E_KEYWORD`          | already `shift(..., E_KEYWORD)` ✅ |
+      Add IR-tag string constants at top of file for every tag not already there:
+      `E_VAR`, `E_ILIT`, `E_RLIT`, `E_FNC`, `E_SEQ`, `E_ALT`,
+      `E_CAPT_IMMED_ASGN`, `E_CAPT_COND_ASGN`, `E_MNS`, `E_PLS`,
+      `E_LEN`, `E_BREAK`, `E_SPAN`, `E_ANY`, `E_NOTANY`,
+      `E_ADD`, `E_SUB`, `E_MUL`, `E_DIV`, `E_POW`.
+      (E_KEYWORD, E_DEFER, E_IDX, E_Parse, E_goU/S/F already present.)
+
+- [ ] **Step 2 — String: capture inner text at parse time via Push_qlit worker.**
+      `Expr17` String branch: instead of `*String ~ E_QLIT` (which shifts
+      the full `'...'`/`"..."` including delimiters), capture the inner body
+      with a `Push_qlit` pair-shape worker (canonical iter#5 pattern):
+      ```
+      function push_qlit() { Push(tree(E_QLIT, str_body)); push_qlit = .dummy; nreturn; }
+      function Push_qlit() { Push_qlit = epsilon . *push_qlit(); return; }
+      ```
+      `SQ`/`DQ` patterns already BREAK-capture into a slot; re-use that
+      capture slot as `str_body`.  Grammar: `*String Push_qlit()` replaces
+      `*String ~ E_QLIT`.  Quotes are stripped at match time; `rw_expr`
+      String-quote-strip branch is deleted.
+
+- [ ] **Step 3 — rw_tag: delete entirely.**  Once grammar emits E_* directly,
+      the tag-rename dispatch table is dead.  Remove `function rw_tag(...)`.
+      Remove all call sites in `rw_expr` (`new_t = rw_tag(t, n(x))`; the
+      `DIFFER(new_t, t)` rotation guard; the `result = Tree(new_t, ...)` path).
+
+- [ ] **Step 4 — rw_expr: simplify to pure structural.**  After Step 3,
+      `rw_expr` only needs:
+      - `'()'` paren unwrap (unchanged)
+      - `E_QLIT` String-quote-strip **deleted** (handled at parse time in Step 2)
+      - `E_FNC` / Call dispatch → `rw_call` (tag is now `E_FNC` not `'Call'`)
+      - `ExprList` transparent unwrap (unchanged)
+      - `E_IDX` flatten (tag is already `E_IDX`) (unchanged)
+      - `E_CAPT_*_ASGN` left-rotation (tags are now canonical) — check
+        guard changes from `DIFFER(new_t, t)` to direct `IDENT(t, E_CAPT_IMMED_ASGN)` etc.
+      Update `rw_call`: `IDENT(t(x), 'Call')` guard → `IDENT(t(x), E_FNC)`;
+      `fname = v(c(x)[1])` stays; dispatch on `fname` for LEN/BREAK/SPAN/ANY/NOTANY
+      stays; generic E_FNC path stays.  (rw_call shape barely changes.)
+
+- [ ] **Step 5 — Verify and run gate.**  `bash scripts/test_parser_snobol4.sh`
+      must report PASS=78 FAIL=0.  No fixture output should change (tags
+      were already correct in the oracle; grammar now produces them directly).
+
+- [ ] **Step 6 — Commit.**  One commit, `parser_snobol4.sc` only (shared
+      infra files unchanged).  Message: `PARSER-SN-7-7b: grammar emits E_* tags
+      directly; delete rw_tag (PASS=78/78)`.
+
+- **Gate:** PASS=78 FAIL=0.
 
 #### PARSER-SN-7-8 — beauty.sno full crosscheck
 
