@@ -89,9 +89,44 @@ Role-slots: `:lbl :subj :pat :repl :goS :goF :goU :eq :end`
 
 ---
 
-## Next rung: (open — see Deferred)
+## Next rung: SN-7-9 — eliminate rw_call; all call tags E_* at parse time
 
-SN-7-8 LANDED. PARSER-FAMILY-LOOP closed by owner — no further cross-pollination iterations planned.
+**Goal:** delete `rw_call` and the `E_FNC` dispatch branch in `rw_expr`. Every function-call node must carry its correct `E_*` tag directly out of the grammar — no post-parse rename pass.
+
+**Approach (no helpers):**
+
+The grammar's Expr17 currently has two call arms:
+```
+*Function ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)
+*Id       ~ E_VAR $'(' *ExprList $')' (E_FNC & 2)
+```
+Both emit `E_FNC` with the callee name in `v` of the `E_VAR` child. `rw_call` then renames the ~13 known pattern primitives (LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX) to their `E_*` tags.
+
+Fix: split the call arms in Expr17. Add one arm per primitive **before** the generic arm, each using `shift` to consume the name and emit the correct tag directly:
+```
+'LEN'    ~ E_LEN    $'(' *ExprList $')' reduce(E_LEN,    'nTop()') nPop()
+'BREAK'  ~ E_BREAK  $'(' *ExprList $')' reduce(E_BREAK,  'nTop()') nPop()
+... (one per primitive)
+*Function ~ E_VAR    $'(' *ExprList $')' (E_FNC & 2)   // generic fallthrough
+*Id       ~ E_VAR    $'(' *ExprList $')' (E_FNC & 2)
+```
+Actually simpler using the existing nPush/nInc/nPop n-ary shape already used for ExprList — the primitive arms just use `reduce(E_TAG, na)` after the arg list. The name is consumed by the literal match and NOT stored (oracle: `(E_LEN (E_ILIT 3))` has no name value).
+
+After this change:
+- `rw_call` function: **delete entirely**
+- `rw_expr` `E_FNC` branch: **delete** (no more post-parse dispatch needed)
+- All `E_FNC` nodes in output now carry the function name as `v` (correct — oracle: `(E_FNC ARRAY ...)`)
+- All primitive nodes carry the right `E_*` tag with no `v` (correct — oracle: `(E_LEN ...)`)
+
+**Steps:**
+- [ ] In Expr17, add 12 primitive-specific call arms before the generic `*Function` arm; each arm: `'NAME' ~ E_TAG $'(' *ExprList $')' (E_TAG & 'nTop()') nPop()` (use nPush/nInc shape from ExprList)
+- [ ] Delete `rw_call` function from `parser_snobol4.sc`
+- [ ] Delete `E_FNC` dispatch branch from `rw_expr`
+- [ ] Gate: PASS=89 FAIL=0 throughout; beauty crosscheck still passes
+- [ ] Commit: `PARSER-SN-7-9: eliminate rw_call — all call tags E_* at parse time (PASS=N/N)`
+
+**Primitives to inline (12):** LEN BREAK SPAN ANY NOTANY FENCE ARBNO POS RPOS TAB RTAB BREAKX  
+(CURSOR stays generic `E_FNC` — oracle confirmed.)
 
 ---
 
