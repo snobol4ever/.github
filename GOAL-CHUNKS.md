@@ -499,3 +499,134 @@ EXPR_t appears in zero gated runtime file signatures (verify by grep)
 - **isolation gate** — `scripts/test_isolation_ir_sm.sh`. Will be
   strengthened by CH-9e to forbid EXPR_t in gated file signatures
   in addition to its current symbol-call rules.
+
+---
+
+## ⚠️ Session #62 handoff note — REVISIONS REQUIRED at next session start
+
+The plan above was drafted late in session #62 with context near 95%.
+Lon and Claude continued discussing it after the file was committed
+and agreed on revisions that the next session must apply BEFORE
+starting CH-0a.  Recorded here so the revisions are not lost.
+
+### Revision 1 — pure sequential, drop the parallel-tracks framing
+
+Sessions are serial, not parallel.  Replace the "Parallel-work plan"
+section (the seven-track list A–G) with a single linear sequence.
+Side effects:
+  - Collapse some of CH-1 / CH-2 into a single rung where practical
+    (consumer + producer flip + delete legacy branch in one commit)
+    since no parallel session will be holding the legacy branch open.
+  - The feature flag (`--chunks` / `-DCHUNKS_ENABLED`) becomes
+    transient within a single rung instead of long-lived.  Probably
+    fold CH-0f into CH-0d.
+  - Phase 0's audit rungs (CH-0a, CH-0b, CH-0c) can collapse into the
+    preamble of the first execution rung instead of landing as
+    separate commits.
+  - Net: roughly 6 fewer rungs in the goal file, same destination,
+    cleaner linear history.
+
+### Revision 2 — SNOBOL4 (and Snocone) FIRST, declare done at end of Phase 1
+
+Restructure the phase ordering around a SNOBOL4-first milestone.
+
+  - **Phase 1: SNOBOL4 lowered completely.**  After Phase 1, pure-SNO
+    programs in modes 2/3 are structurally isolated from EXPR_t —
+    the SM-side pattern matcher walks chunks, not IR.  SM_PUSH_EXPR
+    still exists in the codebase (kept alive temporarily for
+    Icon/Prolog/Raku/Rebus) but has zero SNOBOL4 emission sites.
+    `code_free` for pure-SNO already works and is unchanged.
+    **Mode-4 emission becomes implementable for pure-SNOBOL4 at this
+    point** — that's a shippable milestone before the Icon/Prolog
+    work begins.
+  - **Snocone is covered by Phase 1 automatically.**  The Snocone
+    frontend produces SNOBOL4-shape IR and rides the LANG_SNO
+    lowering path (verified session #62: `polyglot.c` fence parser
+    has no LANG_SC tag; Snocone statements are tagged LANG_SNO; the
+    sm_lower entry for LANG_SNO is the SNOBOL4 entry).  Migrating
+    the five SNOBOL4 emit_push_expr sites in `sm_lower.c` (lines
+    326, 345, 386, 470, 573) migrates Snocone with no additional
+    rungs.  Phase 1's gate set should explicitly include
+    smoke_snocone (already in the standard ×6 set) AND a Snocone
+    corpus subset to confirm zero regression.
+  - **Phase 2: Icon main() synthesis** (current CH-3).  Single
+    trivial site, lands quickly, gives Icon a partial improvement
+    before the big generator work.
+  - **Phase 3: Raku CASE** (current CH-4).
+  - **Phase 4: Generator infrastructure** (SM_SUSPEND/SM_RESUME,
+    new BB driver entry).
+  - **Phase 5: Per-kind Icon generator migrations** (E_TO, E_TO_BY,
+    E_EVERY, E_BANG_BINARY, E_SUSPEND, E_LCONCAT, E_LIMIT, E_RANDOM,
+    E_SECTION* — current CH-6a–e).
+  - **Phase 6: Prolog clauses and backtracking kinds** (current
+    CH-7a–d).
+  - **Phase 7: Proc table → entry-pcs** (current CH-8a–c).
+  - **Phase 8: Cleanup** — unconditional code_free, delete
+    SM_PUSH_EXPR, isolation-gate strengthening (current CH-9a–e).
+  - **Phase 9: File `GOAL-MODE4-EMIT.md`** (current CH-10).
+
+The intermediate "mode-4 ready for pure-SNOBOL4 (and Snocone)"
+milestone after Phase 1 is the natural checkpoint to stop, reflect,
+and possibly ship a pure-SNO mode-4 emitter as a demo before
+committing to the Icon/Prolog work which is the bulk.
+
+### Revision 3 — strengthen the truth-telling preamble
+
+The current preamble (items 1–6) emphasizes the non-SNO leaks (proc/
+pred-table side channel, BB engine walking IR) and underplays the
+**SNOBOL4 DT_E-as-cloned-IR leak**: even for pure-SNO programs in
+modes 2/3, the SM-side pattern matcher reads `EXPR_t *frozen =
+(EXPR_t *)v.ptr;` at `snobol4_pattern.c:222` and walks
+`frozen->kind`, `frozen->nchildren`, `frozen->children[i]`.  RS-9b
+made the storage GC-safe, but it's still IR walking inside an
+SM-mode runtime file that's IN the isolation gate's file set.  The
+gate doesn't catch this because it greps for the five named symbols
+(`interp_eval` etc.), not for EXPR_t field accesses.
+
+Add a new item to the preamble making this leak explicit, and
+phrase the win after Phase 1 in terms of closing it.  Until Phase 1
+lands, do NOT claim SNOBOL4 mode 2/3 is fully isolated from IR —
+it's the closest of the six languages but the DT_E leak is real.
+
+### Revision 4 — runtime support library implication for mode 4
+
+The mode-4 destination is "separately emitted asm executable, no
+EXPR_t walker in the executable."  That's true.  But the goal file
+should also state explicitly that mode-4 executables WILL link
+against a runtime support library (`libscrip_rt.so` or equivalent)
+that contains C implementations of language-level builtins —
+iterator advance, cset membership, string concat, regex/pattern
+helpers, etc.  This is a normal language-runtime model (parallels C
+runtime, Java runtime, etc.) and isn't a lie — but the current
+goal-file framing could read as "fully self-contained executable
+with zero runtime deps" which is unrealistic.  Mode-4 emit
+generates calls into this support library; the support library is
+the home for the per-language semantics that the chunks invoke.
+
+Add a paragraph stating this near the architectural-target section
+or in the Phase 9 description.
+
+### Revision 5 — two-system swap cost (smaller now that work is serial)
+
+Original draft said the swap pattern is "old and new co-exist behind
+a flag, validated under both, old deleted in final rung."  With
+serial sessions, each consumer's `if (is_chunk) { ... } else {
+/* legacy IR-pointer path */ ... }` branch can be deleted within the
+same rung that flipped its producer.  The dead-code maintenance
+window is one rung, not many.  Update the migration-strategy
+section to reflect this.
+
+### Revision 6 — first concrete next-session task
+
+After applying Revisions 1–5 to this file (and committing them as a
+clean follow-up), the next-after-that session opens CH-0a.  CH-0a
+itself stays scoped as written: audit all 10 emit_push_expr call
+sites (or just the five SNOBOL4 ones if the audit-rung collapses
+per Revision 1), produce `docs/CH-0a-push-expr-audit.md`, and then
+proceed to the Phase 1 SNOBOL4 lowering work.
+
+---
+
+End of session #62 handoff note.  Apply revisions before any code
+changes; do not start CH-0a until the goal file reads as the
+revised plan describes.
