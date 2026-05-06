@@ -545,7 +545,27 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       `nl`. Verify gate PASS=46. **DONE 2026-05-05: White/NL fix landed; gate PASS=46.**
 - [ ] **Step SC-6b:** Run parser against `beauty.sc`. Fix any remaining parse failures
       iteratively until parser output matches oracle (whitespace-normalized).
-      **BLOCKED on naming collision above — awaiting Lon decision on fix approach.**
+      **IN PROGRESS (2026-05-06 session 2):** Diff (A) FIXED via flatten_arith. Diff (B) diagnosed.
+
+      **Diff (A) FIXED — `flatten_arith` post-parse step (corpus @ 05a1bea):**
+      Added `flatten_arith(x)` + `sc_flatten_ops` to `parser_snocone.sc`.
+      Called from `decompose_stmt` after `top = Pop()`. Converts right-recursive binary
+      arithmetic chains to n-ary: E_SUB(a,E_SUB(b,c)) → E_SUB(a,b,c). E_ADD/E_SUB/E_MUL/E_DIV
+      flattened; E_POW right-associative (not flattened). Fixture `arith_sub_nary` added.
+      Gate PASS=47 FAIL=0.
+
+      **Diff (B) DIAGNOSED — extra label in if-else-if (still open):**
+      When else branch is inline `if_cmd`, `finalize_if_else` emits outer `Lend` label
+      BEFORE the inline else-if body instead of after. Outer labels get lower numbers than inner.
+      Root cause: in the grammar `( $'else' (nPush() if_cmd ...) Finalize_if_else | Finalize_if )`,
+      the post-match DOT firing order places outer `Finalize_if_else` before inner `Finalize_if`
+      in some circumstances. Minimal repro:
+        `if (x==1) { y=2; } else if (x==3) { y=4; }`
+      Oracle: goF_Lelse_0002, goto_Lend_0003, lbl_Lelse_0002, inner_goF_Lend_0001, lbl_Lend_0001, lbl_Lend_0003
+      Ours:   goF_Lelse_0001, goto_Lend_0002, lbl_Lelse_0001, lbl_Lend_0002, inner_goF_Lend_0003, lbl_Lend_0003
+      **Next session: trace finalize_if/finalize_if_else firing order, fix label allocation timing.**
+
+      beauty.sc: 1148/1148 stmts. 1 structural diff (2 if-else-if instances). Gate PASS=47 FAIL=0.
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
       execute identically under `--ir-run`.
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
@@ -569,9 +589,27 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc crosscheck next)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=47 FAIL=0, beauty.sc 1148/1148 stmts,
+1 diff remains: if-else-if label ordering)**
 
-Gate: PASS=46 FAIL=0. corpus @ 2f1c1e0 (2026-05-06).
+Gate: PASS=47 FAIL=0. corpus @ 05a1bea (2026-05-06 session 2).
+
+### SC-6b session 2026-05-06 (session 2) — flatten_arith DONE; if-else-if label ordering diagnosed
+
+**Diff (A) FIXED: `flatten_arith` post-parse step.** Added to `parser_snocone.sc` (corpus @ 05a1bea):
+- `sc_flatten_ops = ' E_ADD  E_SUB  E_MUL  E_DIV '`
+- `flatten_arith(x)`: bottom-up recursive. Merges binary node into n-ary when child[2].tag == self.tag.
+  Mirrors C-frontend `expr_binary_flatten` from PARSER-FAMILY-LOOP iter#9.
+- Called from `decompose_stmt` immediately after `top = Pop()`.
+- New fixture `arith_sub_nary.sc`: `x = a - b - c;` → `E_SUB(a,b,c)`. PASS.
+- Gate: PASS=47 FAIL=0 (was 46).
+
+**Diff (B) DIAGNOSED — if-else-if label ordering, NOT YET FIXED.** See Step SC-6b above.
+Post-match DOT action ordering: outer `Finalize_if_else` fires before inner `Finalize_if`
+in if-else-if chains, causing outer Lend label to appear before else body instead of after.
+Two instances in beauty.sc. `if_else_if` fixture withheld from gate until fixed.
+
+**beauty.sc status:** 1148/1148 stmts, oracle count matches exactly. 1 structural diff remains.
 
 ### SC-6b session 2026-05-06 — Lon whitespace refactor landed; PASS=46 FAIL=0
 
