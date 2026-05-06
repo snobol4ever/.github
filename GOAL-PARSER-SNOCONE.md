@@ -571,7 +571,37 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc crosscheck next)**
 
-Gate: PASS=46 FAIL=0. corpus @ 4a140fb (2026-05-05).
+Gate: PASS=46 FAIL=0. corpus @ 2f1c1e0 (2026-05-06).
+
+### SC-6b session 2026-05-06 — Lon whitespace refactor landed; PASS=46 FAIL=0
+
+Lon uploaded a major rewrite of `parser_snocone.sc` with a new unified
+whitespace/token design. Six bugs found and fixed during gate recovery
+(PASS=0 → PASS=46 FAIL=0):
+
+1. **Missing E_* constants** — `E_PLS`, `E_BANG`, `E_PCT`, `E_SLASH`,
+   `E_POUND` added. `E_PLUS` ref fixed to `E_PLS`; four `E_XXX` placeholders
+   replaced with proper names.
+2. **`push_qlit` stale capture var** — used old `strbody`; changed to `token`
+   to match Lon's new uniform-capture design.
+3. **`push_ilit` self-assign typo** — body assigned to `push_flit` instead of
+   `push_ilit`.
+4. **Missing `Push_ilit()` build-time wrapper** — `Push_flit` existed but
+   `Push_ilit` was absent. This was the proximate cause of Error 5 /
+   PASS=0: every fixture hit an undefined-function call at match time.
+5. **Bracket/brace whitespace policy settled** with Lon:
+   - `(` and `[` — no leading ws (preserves `f(a)` vs `f (a)`, `a[i]` vs `a [i]`).
+   - `)` `}` `]` `{` — Gray on both sides.
+6. **Keyword tokens bake trailing Gray** — all 10 keywords now defined as
+   `$' ' Id $ tx *IDENT(tx, 'kw') $' '`. This absorbed the gap between
+   keywords and following expressions/identifiers (e.g. `return a;` now
+   matches `return_cmd` without an explicit `$'  '` at the call site).
+   All 6 redundant `$'  '` after keyword tokens in productions removed.
+
+No SCRIP executable bugs found this session.
+
+**Next:** SC-6b beauty.sc crosscheck — Lon to decide crosscheck target
+(beauty.sc direct, or a simpler program without continuation markers).
 
 ### SC-6b session 2026-05-05 — structural work landed, beauty.sc crosscheck blocked
 
