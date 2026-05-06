@@ -725,7 +725,58 @@ Gate PASS=65 FAIL=0.
 - **Gate:** PASS=103 FAIL=0 (+5 over PR-11). ✅
 - **Fixtures:** `nested_arg`, `nested_functor`, `nested_head_arg`, `univ_lhs`, `univ_rhs`.
 
-**PR-13 — ⏳ NEXT: `assert`/`retract`/`abolish`; string builtins (`atom_chars`, `atom_codes`, `number_codes`); or `copy_term`.**
+**PR-13 — ⏳ NEXT: arithmetic/bitwise/comparison operators + `->` if-then.**
+
+### PARSER-PR-13 handoff note (2026-05-05 session)
+
+**Gate entering session:** PASS=103 FAIL=0.
+
+#### Coverage probe result
+46/55 representative constructs pass (∼84%). Remaining gaps:
+- Arith: `mod`, `**`, `//`, `/\`, `\/`, `xor`, `>>`, `<<`, unary `\` (bitwise-not), unary `-Var`
+- Cmp: `@>=`, `@>`, `@=<`, `@<` (term-order operators)
+- Control: `->` (if-then)
+- Directives: `:-` directives (`:- op(...)` etc.)
+
+#### What was attempted
+
+**Approach 1 (failed — 16× slowdown):** Added 25 separate `function do_X()` + `Reduce_X = epsilon . *do_X()` patterns for each operator. Root cause: SCRIP IR interpreter compiles each `function` definition at load time; 25 new functions × ~100ms each = ~2.5s overhead on top of the 290ms PR-12 baseline.
+
+**Approach 2 (correct approach, partially implemented):**
+- Only 2 new functions: `reduce_binop(rhs, lhs, f)` and `reduce_unop(operand, f)`, both reading `_op_name` global.
+- Token definitions modified to capture the matched operator text into `_op_name` via `.` assignment: e.g. `$'mod' = $'  ' 'mod' . _op_name $'  '`
+- This yields **221ms** (near 290ms PR-12 baseline) — fast enough.
+- Grammar arms use `$'op' primary Reduce_binop` (token already set `_op_name`).
+- `//` stays as `reduce(E_DIV, 2)` (oracle emits `E_DIV`, not `E_FNC //`).
+
+#### Why PR-13 is NOT committed
+
+Correctness failures remain for all new operators. The `->` handling also needs special treatment (Reduce_ifthen_in_disj pops 2 items and calls DecCounter, not Reduce_binop). Work in progress is stashed in corpus working directory.
+
+#### Exact stash state
+`git stash list` on corpus shows `stash@{0}` with all PR-13 changes.
+
+#### What next session must do
+
+1. `cd /home/claude/corpus && git stash pop` to restore PR-13 work-in-progress.
+2. Debug why `Reduce_binop` fails for `mod`, `**` etc. — likely the `_op_name` capture is not reaching the function (the `.` capture in the token definition fires at token-match time but `_op_name` may be overwritten before `Reduce_binop` fires in the FENCE).
+3. Fix the `/\ ` token ordering vs `/` in mul_expr (already done: `/\` comes before `//` and `/`).
+4. Re-add `->` with `Reduce_ifthen_in_disj` (not `Reduce_binop`) in the `disj` FENCE.
+5. Fix unary `\` (bitwise-not) primary arm — use `Reduce_unop` with `_op_name = '\\'`.
+6. Fix unary `-Var` via `Push_uminus_var`.
+7. Once all operators correct, add 13+ fixtures and confirm PASS ≥ 116.
+8. Add `->` fixture (PASS ≥ 117).
+9. Commit, push corpus + .github with PR-13 landed note.
+
+#### Key technical gotchas found this session
+
+- **Gotcha-22 (SCRIP perf):** Each `function f() { ... }` definition costs ~100ms at IR load time. Keep new function count minimal. Use global variables (`_op_name`) + shared functions instead of per-operator functions.
+- **Gotcha-23 (backslash in Snocone):** Snocone strings do NOT use backslash escaping. `'\\'` in a Snocone .sc string literal is 4 backslashes, NOT 2. The correct literal for the 2-char sequence `/\` (slash-backslash) in a Snocone .sc file is `'/\'` (3 chars: `/`, `\`, `\` = slash + 2 backslashes). Wait — actually confirmed via `od -c`: `'/\\'` in the file = slash + backslash + backslash (3 chars). For the Prolog `/\` (bitwise-AND, slash+one-backslash), the correct Snocone string is `'/\'` but Python writes it as `'/\\'`. Use binary writes or raw strings.
+- **Gotcha-24 (token capture timing):** When `$'mod' = $'  ' 'mod' . _op_name $'  '` is defined, the `.` capture sets `_op_name` at TOKEN MATCH TIME. By the time `Reduce_binop` fires (as the next pattern in the FENCE sequence), `_op_name` should still hold `'mod'`. Verify this is true — if not, the FENCE may be reordering things.
+- **`//` produces `E_DIV`:** Oracle emits `(E_DIV a b)` for `a // b`, same as `/`. Keep `$'//' primary reduce(E_DIV, 2)` rather than `Reduce_binop`.
+- **`->` special handling:** `(X -> Y ; Z)` — oracle emits `(E_FNC ; (E_FNC -> X Y) Z)`. The `->` must combine two items from stack into one `E_FNC ->` node before `Reduce_disj` sees them. Use `Reduce_ifthen_in_disj` which calls `DecCounter()` after combining. The `disj` FENCE pattern: after parsing first `conj`, try `$'->' nInc() conj Reduce_ifthen_in_disj` (one branch = cond+then combined into single -> node).
+
+**PR-14 candidates (after PR-13):** `:-` directives, `use_module`, `:-` goals, operator declarations.
 
 ### PARSER-PR-8e + PR-9 handoff note (2026-05-05 session)
 
