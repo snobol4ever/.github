@@ -431,8 +431,38 @@ RK-14: eq/ne string cmp → E_LEQ/E_LNE; unary minus → E_MNS.  corpus@d2f4584.
 RK-15: % modulo → E_MOD (binary); div integer division → E_DIV (flatten).  corpus@5b42940.
 RK-16: interpolated DQ strings "hello $var" → left-assoc E_CAT chain.  corpus@0e5ad3d.
 
-Next session: PARSER-RK-17 — `given`/`when` construct, or array/hash assignment
-  (`@a = (1,2,3)` / `%h = (a=>1)`).  Check LANG-RAKU ladder for what RK-34 covers.
+### PARSER-RK-17 — `given`/`when`/`default` construct — LANDED session 2026-05-05
+
+- [x] `GivenStmt` / `WhenClause` / `DefaultClause` grammar rules.
+- [x] `finish_given()` helper: builds `(E_CASE topic [E_ILIT(cmp) val body]* [(E_NUL)(E_NUL) def]?)`
+      mirroring `raku.y given_stmt`.  cmp kind: `E_QLIT` val → 73 (`E_LEQ`), else → 67 (`E_EQ`).
+- [x] `E_CASE` / `E_NUL` tag constants; `$'given'` / `$'when'` / `$'default'` keyword tokens.
+- [x] `given_has_def` global flag; `set_has_def()` / `Set_has_def` action.
+- [x] `WhenClause` and `DefaultClause` have leading `nl_opt` to consume newlines inside `{ }`.
+- [x] Style note (cross-PARSER): `if (expr)` in Snocone always succeeds — variable dereference
+      always succeeds regardless of value.  Use `EQ`/`IDENT` predicates for integer flags:
+      `if (EQ(flag, 1))` not `if (flag)`.
+- [x] Test corpus: 5 new fixtures — `given_single`, `given_basic`, `given_nodefault`,
+      `given_str`, `given_default`.
+- **Gate:** PASS=90 FAIL=0 ✓  corpus@a29276e.
+
+---
+
+## Watermark
+
+PARSER-RK-17 LANDED (session 2026-05-05) — PASS=90 FAIL=0.
+RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
+RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
+RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
+RK-12: logical && → E_SEQ, || → E_ALT, ! → E_NOT.  corpus@15666e9.
+RK-13: string ~ concat → E_CAT n-ary flatten.  corpus@591f91b.
+RK-14: eq/ne string cmp → E_LEQ/E_LNE; unary minus → E_MNS.  corpus@d2f4584.
+RK-15: % modulo → E_MOD (binary); div integer division → E_DIV (flatten).  corpus@5b42940.
+RK-16: interpolated DQ strings "hello \$var" → left-assoc E_CAT chain.  corpus@0e5ad3d.
+RK-17: given/when/default → E_CASE node.  corpus@a29276e.
+
+Next session: PARSER-RK-18 — `elsif` chain in if-stmt, or `repeat`/`until` loop,
+  or ternary `?? !!`.  Probe oracle for each before picking.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
