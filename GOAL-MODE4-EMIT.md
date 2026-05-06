@@ -454,7 +454,7 @@ to read, complex enough to be meaningful:
   Gate: SM program with two chunks calling each other returns
   the right value.
 
-- [ ] **Step EM-6 — Pattern matcher integration.**  The pattern
+- [x] **Step EM-6 — Pattern matcher integration.**  The pattern
   matcher in `libscrip_rt.so` (lifted from
   `src/runtime/interp/scan_builtins.c` and
   `src/frontend/snobol4/snobol4_pattern.c`) is invoked via
@@ -756,6 +756,39 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-6 LANDED 2026-05-06 (session #70) -- pattern matcher integration.
+
+ScripRtVal/ScripRtTag removed; DESCR_t is the one type throughout.
+libscrip_rt.so now links the full SNOBOL4 runtime (16 objects + parser,
+-fPIC): bb_pool_init() + SNO_INIT_fn() in scrip_rt_init(); real
+nv_get/nv_set via NV_GET_fn/NV_SET_fn; scrip_rt_arith with string
+coercion; scrip_rt_halt_tos (safe-pop TOS as rc else 0).
+
+New EM-6 ABI surface: 26 scrip_rt_pat_*() functions mirroring the
+SM_PAT_* dispatcher in sm_interp.c, plus scrip_rt_exec_stmt().
+Pat-stack (g_pat_stack[], g_pat_sp) in libscrip_rt.so.
+
+String table (strtab_*) in sm_codegen_x64_emit.c: first pass collects
+unique strings; .section .rodata emitted before .text; all string
+references use RIP-relative LEA not process-pointer movabs. emit_bb_box()
+fully implemented (PLT calls per SM_PAT_*). SM_EXEC_STMT baked.
+SM_STNO is a true no-op. SM_HALT uses scrip_rt_halt_tos.
+
+Honest deviations: (1) SM_RETURN_S/F, SM_FRETURN[_S/_F],
+SM_NRETURN[_S/_F] still trap via emit_sm_unhandled. (2) SM_PAT_CAPTURE_FN
+and SM_PAT_USERCALL unhandled -- trap. (3) DT_E chunk dispatch in eval
+path stubs out (sm_call_chunk aborts -- not exercised by EM-6 gate).
+
+Gate: PASS=10 FAIL=0 (new test 10: LEN(3).W on "abcdef", output
+matches --sm-run oracle: start/abc/end). Smoke x6 PASS
+(7/7,5/5,5/5,5/5,5/5,4/4). Isolation gate PASS.
+Five tracked .s artifacts regen'd and assemble cleanly.
+
+one4all @ 5452a9a6. corpus @ cfe5886. Session #70, 2026-05-06.
+
+Next rung: EM-7 (--jit-emit --x64 beauty.sno passes SPITBOL oracle,
+md5 abfd19a7a834484a96e824851caee159, 646 lines).
 
 EM-5 LANDED 2026-05-06 (session #69) -- chunk discipline. Three SM opcodes
 baked: SM_PUSH_CHUNK (call scrip_rt_push_chunk_descr@PLT), SM_CALL_CHUNK
