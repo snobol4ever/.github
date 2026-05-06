@@ -661,12 +661,32 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       stack state.  File separately as `SC-6b-bug-segfault` after `SC-6b-bug`
       lands and we can re-test cleanly.
 
-- [ ] **Step SC-6b-bug-segfault:** SIGSEGV/heap-corruption at intermediate input
-      sizes (`head -198..-300 beauty.sc`).  Distinct from the first-stmt drop —
-      these break the parse entirely (no output) rather than producing a
-      short-by-one tree.  Filed after SC-6b-bug landed.  May be a real scrip
-      runtime memory-safety bug or a downstream effect of complex stack state
-      on partial input.  Investigate after SC-6c baseline is established.
+- [x] **Step SC-6b-bug-segfault:** SIGSEGV/heap-corruption at intermediate input
+      sizes (`head -198..-300 beauty.sc`).  **FIXED session 5 (2026-05-06).**
+
+      **Root cause:** `cache_get_fresh` in `stmt_exec.c` shallow-copied the
+      `arbno_t` struct via `memcpy`.  `arbno_t` contains a heap-allocated
+      `stack` pointer that `bb_arbno` may `realloc()` as iteration depth
+      exceeds the initial capacity (`ARBNO_INIT_CAP = 8`).  The shallow copy
+      shared the `stack` pointer between the cache template and the fresh copy.
+      When the fresh copy's `bb_arbno` grew past cap and `realloc`'d its stack,
+      the cache template's `stack` became a dangling pointer.  The next
+      `cache_get_fresh` call for the same node copied that dangling pointer into
+      another fresh copy → writes to freed memory → heap corruption → SIGABRT /
+      SIGSEGV.  Valgrind confirmed: "Invalid write at bb_arbno:148" and
+      "Invalid free / realloc" from the inner arbno called via `bb_deferred_var`
+      nested inside the outer `ARBNO(*Command)`.
+
+      **Fix:** `cache_get_fresh` now deep-copies `arbno_t`'s `stack` array when
+      the node is an ARBNO (`n.fn == bb_arbno`), so each fresh copy owns its
+      own allocation.  Additionally unified the `arbno_frame_t` / `arbno_t`
+      definitions into `bb_box.h` (canonical), replacing the two inconsistent
+      local definitions in `bb_boxes.c` (no `nam_mark`) and `stmt_exec.c`
+      (with `nam_mark`) — the size mismatch made the deep copy incorrect even
+      after the initial fix attempt.
+
+      **Verification:** `head -198`, `-220`, `-250`, `-300` of beauty.sc all
+      exit rc=0 (was SIGSEGV/SIGABRT).  Gate PASS=50 FAIL=0 unchanged.
 
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
       execute identically under `--ir-run`.  SC-6b-bug fixed — no longer blocked
@@ -694,11 +714,10 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ — PASS=50 FAIL=0;
-SC-6b-bug-segfault open: SIGSEGV at intermediate beauty.sc sizes (head -198..-300);
-SC-6c in progress: beauty.sc parse times out at 60s on complex input)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ SC-6b-bug-segfault ✅ — PASS=50 FAIL=0;
+SC-6c next: full beauty.sc crosscheck)**
 
-Gate: PASS=50 FAIL=0. corpus @ HEAD (2026-05-06 session 5).
+Gate: PASS=50 FAIL=0. corpus @ 5fbb458, one4all @ HEAD (2026-05-06 session 5).
 
 ### SC-6b-bug session 2026-05-06 (session 5) — reduce_prim fix LANDED; PASS=50 FAIL=0
 
