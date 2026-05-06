@@ -169,6 +169,137 @@ libscrip_rt.so unit tests PASS
 
 ---
 
+
+---
+
+## Architecture — Two Separate Emitters (settled session #67, 2026-05-06)
+
+Archaeology of `.github/archive/` (BB-GEN-X86-TEXT.md, BB-GRAPH.md,
+EMITTER-COMMON.md, EMITTER-X86.md, EMITTER-X86-DEEP.md, BB-GEN-LANG.md,
+SESSION-snobol4-x64.md, SCRIP-SM.md) established two completely
+separate concerns that must NOT be conflated:
+
+### 1. SM opcodes -> straight-line x86 (the SM emitter)
+
+The SM instruction set is the universal IR. Every backend (x86, JVM,
+.NET, JS, WASM) walks the same SM_Program array with one switch, one
+case per opcode. For text-asm output, each opcode group maps to ONE
+named GNU-as macro. The macro expands to actual inline x86 -- NOT a
+PLT call into libscrip_rt for every tiny op. Context: a growing text
+buffer for the current statement proc body. Three-column SNOBOL4 layout
+throughout:
+
+  .LpcN:    SM_MACRO_NAME arg1, arg2    ; goto comment or jmp label
+
+One macro file `sm_macros.s` (parallel to the proven `snobol4_asm.mac`,
+151 macros) defines one macro per SM opcode group. `sm_codegen_x64_emit.c`
+calls into it. `libscrip_rt.so` is still the right boundary for things
+that truly need runtime support: NV table, pattern matcher, GC. Inline
+arithmetic, push/pop, and control flow bake directly.
+
+### 2. BB boxes -> one proc per box (the BB box emitter)
+
+The BB graph is NOT a sequence of SM opcodes. It is a directed graph
+of box nodes. Each box has exactly four ports:
+
+  alpha (a) -- try (entry: forward attempt)
+  beta  (b) -- retry (entry: backtrack)
+  gamma (g) -- success exit (drives next box's alpha)
+  omega (o) -- failure exit (drives enclosing beta)
+
+**The Law (from BB-GEN-X86-TEXT.md):** One NASM/GNU-as proc per box.
+Each named pattern or primitive box = one labeled proc with local labels
+`.alpha`, `.beta`, `.gamma`, `.omega`. Sub-box ports become local labels
+within the enclosing proc. Emitted ONE BOX AT A TIME.
+
+Three-column law inside every box proc:
+
+  LABEL:              ACTION (macro + params)          GOTO (jmp target)
+
+The proven precedent: `bb_emit.c` TEXT mode + `snobol4_asm.mac` 151 macros,
+106/106 vs SPITBOL oracle. The new mode-4 emitter inherits this model
+directly. `emit_bb_box()` is a clearly separate function from the SM
+straight-line emitter.
+
+### Separation in sm_codegen_x64_emit.c
+
+  emit_sm_instr()    -- straight-line SM opcodes (push/pop/arith/control)
+                        one emit_sm_* fn per opcode group
+                        writes macro calls in three-column format
+                        inline x86 via sm_macros.s, not PLT calls
+
+  emit_bb_box()      -- called once per SM_PAT_* instruction
+                        emits one proc with .alpha/.beta/.gamma/.omega
+                        macro call per port body
+                        jmp gotos connect ports across boxes
+
+### Multi-backend portability
+
+For JVM: SM opcodes -> iload/iadd/etc; BB boxes -> method-per-box.
+For .NET: SM opcodes -> ldc/add/etc; BB boxes -> delegate-per-box.
+For JS: SM opcodes -> function calls; BB boxes -> closure-per-box.
+For WASM: SM opcodes -> i64.add/etc; BB boxes -> function-per-box.
+All share the same alpha/beta/gamma/omega four-port protocol.
+
+---
+
+---
+
+## Demo Programs and Tracked Artifacts (settled session #67, 2026-05-06)
+
+Every session that changes the mode-4 emitter regenerates and commits
+the x64 artifact set. Git history is the archive -- no session-numbered
+copies. `git log -p artifacts/x64/samples/roman.s` shows full evolution.
+
+### Source programs (demo/snobol4/)
+
+These four SNOBOL4 programs are the tracked artifact generators. They
+were in one4all before M-G0-CORPUS-AUDIT (commit f9fbf15f) deleted all
+source programs. Restored to demo/snobol4/ in session #67.
+
+| File | Purpose | Why tracked |
+|------|---------|-------------|
+| roman.sno | ROMAN(N) recursive numeral converter | Exercises recursive DEFINE, REPLACE, BREAK, pattern match |
+| wordcount.sno | Word tokenizer via BREAK/SPAN | Exercises BREAK/SPAN pattern primitives, INPUT loop |
+| claws5.sno | CLAWS5 POS-tag corpus tokenizer | Corpus-scale: exercises ARBNO, complex patterns |
+| treebank.sno | Penn Treebank S-expression parser | Exercises nested patterns, stack operations |
+
+Primary artifact: `beauty.sno` from corpus (4700+ SM instructions,
+oracle gate at EM-7).
+
+### Artifact locations (artifacts/x64/)
+
+    artifacts/x64/beauty_prog.s     PRIMARY -- changes most; visual overview
+    artifacts/x64/samples/roman.s   demo programs -- easy to inspect
+    artifacts/x64/samples/wordcount.s
+    artifacts/x64/samples/claws5.s
+    artifacts/x64/samples/treebank.s
+    artifacts/x64/README.md         regen commands + milestone checks
+
+### Regen protocol (run end of every session touching the emitter)
+
+```bash
+cd /home/claude/one4all
+BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty.sno
+./scrip --jit-emit --x64 $BEAUTY > artifacts/x64/beauty_prog.s
+./scrip --jit-emit --x64 demo/snobol4/roman.sno    > artifacts/x64/samples/roman.s
+./scrip --jit-emit --x64 demo/snobol4/wordcount.sno > artifacts/x64/samples/wordcount.s
+./scrip --jit-emit --x64 demo/snobol4/claws5.sno   > artifacts/x64/samples/claws5.s
+./scrip --jit-emit --x64 demo/snobol4/treebank.sno > artifacts/x64/samples/treebank.s
+git diff --stat artifacts/x64/
+# Commit if changed
+git add artifacts/x64/ demo/snobol4/ && git commit -m "x64 artifacts: regen <rung>"
+```
+
+### What to look for in the artifacts
+
+Scan `roman.s` after each rung to see emitter progress:
+- UNHANDLED_OP lines = opcodes not yet baked
+- SM_ADD / SM_MUL macro calls = arithmetic baked (EM-3+)
+- BB box proc labels (.alpha/.beta/.gamma/.omega) = pattern boxes baked (EM-6+)
+- Zero UNHANDLED_OP = EM-7 gate (beauty oracle)
+
+---
 ## Steps (in order — execute one per session, sequentially)
 
 ### M2 phase — SNOBOL4 + Snocone only
@@ -197,7 +328,7 @@ libscrip_rt.so unit tests PASS
   convention (which regs hold the SM stack pointer / pc / state
   ptr; how stack frames are laid out for `scrip_rt_*` calls).
 
-- [ ] **Step EM-3 — SM stack ops (PUSH/POP/DUP/SWAP) + arithmetic.**
+- [x] **Step EM-3 — SM stack ops (PUSH/POP/DUP/SWAP) + arithmetic.**
   Cover `SM_PUSH_STR`, `SM_PUSH_VAR`, `SM_POP`, `SM_DUP`,
   `SM_SWAP`, `SM_ADD` / `SM_SUB` / `SM_MUL` / `SM_DIV` /
   `SM_MOD`. `libscrip_rt.so` v0.3 gains the NV table + numeric
@@ -408,20 +539,46 @@ libscrip_rt.so unit tests PASS
 
 ## Watermark
 
-EM-2 LANDED 2026-05-06 (session #66) — SM_HALT and SM_PUSH_LIT_I
-baked. Synthetic `PUSH_LIT_I 42 + HALT` round-trip emit→link→run
-verified end-to-end (rc=42). libscrip_rt ABI at 6 symbols. Per-PC
-labels (`.LpcN`) emitted for future EM-4 jump targets. Honest
-deviations: `SM_NOP` skipped (not in opcode enum); `scrip_rt_pop_int`
-pulled forward from EM-3 ABI to make EM-2's gate distinguishable
-from EM-1's. Next rung: **EM-3** — full SM stack ops
-(`SM_PUSH_LIT_S`, `SM_PUSH_VAR`, `SM_POP`, `SM_DUP`, `SM_SWAP`) and
-arithmetic (`SM_ADD`/`SUB`/`MUL`/`DIV`/`MOD`). libscrip_rt v0.3 gains
-NV table + numeric builtins. Gate program: `(2 + 3) * 4` returns 20.
+EM-3 LANDED 2026-05-06 (session #67) -- typed ScripRtVal stack; SM_PUSH_LIT_S,
+SM_PUSH_VAR, SM_STORE_VAR, SM_POP, SM_ADD/SUB/MUL/DIV/MOD emitters; (2+3)*4=20
+gate PASS. ARCH: sm_macros.s (one GNU-as macro per SM opcode group, three-column
+format); emit_bb_box() scaffold (one-proc-per-box, alpha/beta/gamma/omega).
+Honest deviations: SM_DUP/SM_SWAP not in opcode enum; nv_get/set stubs; arith
+integer-only; SM_JUMP_S/F declared for EM-4. Gate: PASS=5 FAIL=0.
+Artifact tracking: corpus/programs/snobol4/demo/*.s side-by-side (roman,
+wordcount, claws5, expression, porter, treebank-array, treebank-list, beauty --
+all assemble cleanly). one4all artifacts/x64/ mirrors with beauty_prog.s.
+one4all @ 64b409a9. corpus @ ac5392f. Next rung: EM-4 (SM_JUMP/SM_JUMP_S/SM_JUMP_F
+control flow; gate: forward jump + conditional backward loop).
 
-EM-1 LANDED 2026-05-06 (session #66) — driver wiring + `libscrip_rt.so`
-skeleton in place. End-to-end pipeline proven: `scrip --jit-emit --x64
-file.sno` → asm → `gcc -no-pie + -lscrip_rt` → ELF binary → loads and
+ARCH PIVOT settled 2026-05-06 (session #67)
+
+ARCH PIVOT settled 2026-05-06 (session #67) -- Two-emitter architecture
+documented above. SM straight-line opcodes use one GNU-as macro per opcode
+group (sm_macros.s), inline x86, three-column format. BB boxes emitted one
+proc at a time via emit_bb_box(), four ports alpha/beta/gamma/omega, from
+the proven bb_emit.c / snobol4_asm.mac precedent (106/106 SPITBOL oracle).
+libscrip_rt.so is the boundary only for NV table, pattern matcher, GC.
+
+EM-3 IN PROGRESS 2026-05-06 (session #67) -- SM typed value stack
+(ScripRtVal) implemented in libscrip_rt.so; emitters for SM_PUSH_LIT_S,
+SM_PUSH_VAR, SM_STORE_VAR, SM_POP, SM_ADD/SUB/MUL/DIV/MOD added.
+Gate program (2+3)*4=20 ready. Architecture pivot means EM-3 will be
+restructured around sm_macros.s before gate is run against final form.
+SM_DUP/SM_SWAP not in sm_opcode_t enum (honest deviation). scrip_rt_nv_get/
+nv_set are stubs (NV table requires GC+snobol4 runtime linkage). Arithmetic
+is integer-only in EM-3 gate (string coercion deferred).
+
+EM-2 LANDED 2026-05-06 (session #66) -- SM_HALT and SM_PUSH_LIT_I
+baked. Synthetic PUSH_LIT_I 42 + HALT round-trip emit->link->run
+verified end-to-end (rc=42). libscrip_rt ABI at 6 symbols. Per-PC
+labels (.LpcN) emitted for future EM-4 jump targets. Honest
+deviations: SM_NOP skipped (not in opcode enum); scrip_rt_pop_int
+pulled forward from EM-3 ABI to make EM-2 gate distinguishable.
+
+EM-1 LANDED 2026-05-06 (session #66) -- driver wiring + libscrip_rt.so
+skeleton in place. End-to-end pipeline proven: scrip --jit-emit --x64
+file.sno -> asm -> gcc -no-pie + -lscrip_rt -> ELF binary -> loads and
 exits 0.
 
 Goal stub written 2026-05-05 in session #62, lifted from
