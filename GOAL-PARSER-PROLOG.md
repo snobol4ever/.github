@@ -1146,3 +1146,66 @@ Key differences from current `parser_prolog.sc`:
 8. `trivia` variable (`ARBNO(White | nl)`) eliminated; top-level whitespace
    handled by Gray/White in token definitions
 
+
+---
+
+## Handoff note — session 2026-05-06
+
+**Gate entering session:** PASS=0 FAIL=103 (corrupt file from previous aborted session)
+**Gate leaving session:** PASS=103 FAIL=0
+
+### What was fixed (blocking bugs)
+
+**SCRIP-BUG-NONASCII-COMMENT (SCRIP bug):** 40 UTF-8 em-dashes (`\xe2\x80\x94`) in `//` comments caused `snocone parse error: syntax error`. SCRIP's comment lexer chokes on non-ASCII bytes. Fixed by replacing all em-dashes with `--`. All `.sc` files must use ASCII-only. Root fix: `snocone_lex.l` `//` rule should consume `[^\n]*` without byte-class checks.
+
+**Corrupt `reduce_univ` declaration:** Previous aborted PR-13 session deleted the function declaration line, leaving orphaned function body. Restored.
+
+### What was accomplished (PR-WS whitespace cleanup)
+
+Replaced the bespoke whitespace definition with the `parser_snocone.sc`-style form per the user's specification:
+```
+white   =   ( SPAN(' ' tab nl) | '%' BREAK(nl) nl | '/*' BREAKX('*') '*/' );
+White   =   white;
+Gray    =   white | epsilon;
+$' '    =   Gray;
+$'  '   =   White;
+```
+
+**SCRIP-BUG-NESTED-ARBNO discovered:** The user's target definition `White = white ARBNO(white)` causes `is_expr` to stop parsing (produces no output for `foo(X) :- X is 1.`). Root cause: `ARBNO(white)` inside `White`, used inside `$'  '` (required whitespace in `$'is'`), used inside FENCE, used inside mul_expr's ARBNO — the nested ARBNOs at IR-run level conflict in the Snocone IR interpreter. This manifests as a silent parse failure (not an infinite loop). Workaround: `White = white` (single occurrence only). Filed; root fix is in SCRIP's IR ARBNO implementation.
+
+Also removed `trivia` variable; Compiland now uses `$' '` directly.
+
+### What was accomplished (PR-13 infrastructure)
+
+Tokens, functions, and grammar layers added (gate PASS=103 throughout):
+
+**New tokens:** `$'**'` `$'//'` `$'/\'` `$'\/'` `$'>>'` `$'<<'` `$'mod'` `$'rem'` `$'xor'` `$'\'` `$'->'` `$'@>='` `$'@>'` `$'@=<'` `$'@<'` — all with `_op_name` capture where applicable.
+
+**New functions:** `reduce_binop` / `reduce_unop` / `reduce_ifthen` (shared, read `_op_name` global); `do_uminus` (unary minus on non-literal primary).
+
+**Grammar:** `pow_expr` layer (`**`); `mul_expr` extended with `mod rem >> <<`; `add_expr` extended with `/\ \/ xor` (all 500 yfx, folded into same ARBNO as `+`/`-` to avoid nesting overhead); unary `\X` (bitnot) and unary `-primary` arms in `primary`.
+
+### What remains for PR-13
+
+**All grammar changes are in place** except:
+1. `cmp_expr` needs `@>= @> @=< @<` arms (term-order operators) — just add 4 arms to existing FENCE, each using `Reduce_binop`
+2. `disj` needs `->` if-then — add `FENCE($'->' conj Reduce_ifthen | epsilon)` after first `conj` match
+3. 13+ test fixtures in `corpus/programs/prolog/parser/` need to be created
+4. Verify `_op_name` captures correctly at FENCE execution time (Gotcha-24)
+
+### Next session setup
+
+```bash
+cd /home/claude/one4all && git checkout parser
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
+# expected: PASS=103 FAIL=0
+```
+
+### Key gotchas for next session
+
+- **SCRIP-BUG-NESTED-ARBNO:** `White = white ARBNO(white)` breaks nested patterns. Use `White = white` only.
+- **Gotcha-24 (_op_name timing):** Token `$'op' = $' ' 'op' . _op_name $' '` sets `_op_name` at token-match time. Verify it's still set when `Reduce_binop` fires. Test: `echo 'foo(X,Y) :- Z is X mod Y.' | scrip --ir-run *.sc` — should give `(E_FNC mod ...)`.
+- **Performance:** each extra ARBNO+FENCE nesting level adds ~2s load time. Keep bit-ops folded into add_expr, not as separate layers.
+- **`//` vs `/\`:** `$'//'` is defined before `$'/\'`; the FENCE in mul_expr tries `$'//'` first. This is correct — `//` is integer div (E_DIV), `/\` is bitand (E_FNC).
+
