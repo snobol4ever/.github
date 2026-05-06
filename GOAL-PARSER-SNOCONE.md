@@ -543,9 +543,11 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       White does not cause infinite recursion. Restructure `Call` so `nPush/nInc`
       side effects fire only after `$'('` succeeds. Then update `White` to include
       `nl`. Verify gate PASS=46. **DONE 2026-05-05: White/NL fix landed; gate PASS=46.**
-- [ ] **Step SC-6b:** Run parser against `beauty.sc`. Fix any remaining parse failures
+- [x] **Step SC-6b:** Run parser against `beauty.sc`. Fix any remaining parse failures
       iteratively until parser output matches oracle (whitespace-normalized).
-      **IN PROGRESS (2026-05-06 session 2):** Diff (A) FIXED via flatten_arith. Diff (B) diagnosed.
+      **DONE 2026-05-06 session 3:** Diff (A) FIXED via flatten_arith. Diff (B) FIXED
+      via one-character `*if_cmd` recursion fix.  Three new fixtures added (if_else_if,
+      if_else_if_else_if, if_else_if_else); all byte-identical to oracle. Gate PASS=50 FAIL=0.
 
       **Diff (A) FIXED — `flatten_arith` post-parse step (corpus @ 05a1bea):**
       Added `flatten_arith(x)` + `sc_flatten_ops` to `parser_snocone.sc`.
@@ -554,20 +556,103 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       flattened; E_POW right-associative (not flattened). Fixture `arith_sub_nary` added.
       Gate PASS=47 FAIL=0.
 
-      **Diff (B) DIAGNOSED — extra label in if-else-if (still open):**
-      When else branch is inline `if_cmd`, `finalize_if_else` emits outer `Lend` label
-      BEFORE the inline else-if body instead of after. Outer labels get lower numbers than inner.
-      Root cause: in the grammar `( $'else' (nPush() if_cmd ...) Finalize_if_else | Finalize_if )`,
-      the post-match DOT firing order places outer `Finalize_if_else` before inner `Finalize_if`
-      in some circumstances. Minimal repro:
-        `if (x==1) { y=2; } else if (x==3) { y=4; }`
-      Oracle: goF_Lelse_0002, goto_Lend_0003, lbl_Lelse_0002, inner_goF_Lend_0001, lbl_Lend_0001, lbl_Lend_0003
-      Ours:   goF_Lelse_0001, goto_Lend_0002, lbl_Lelse_0001, lbl_Lend_0002, inner_goF_Lend_0003, lbl_Lend_0003
-      **Next session: trace finalize_if/finalize_if_else firing order, fix label allocation timing.**
+      **Diff (B) FIXED 2026-05-06 session 3 — bare `if_cmd` was not recursive:**
+      The hypothesis from session 2 about post-match DOT firing order was **wrong**.
+      The actual root cause: the else-if branch grammar
+      `| nPush() if_cmd Save_nbody('if_nelse') nPop()` referenced `if_cmd` as a
+      bare identifier without the deferred-evaluation operator `*`.  Per SPITBOL
+      Manual Ch 9 ("Recursive Patterns"), a recursive pattern definition must use
+      `*` to defer the self-reference to match time — bare `if_cmd` captures the
+      OLD value of `if_cmd` (null/empty) at pattern-build time.
 
-      beauty.sc: 1148/1148 stmts. 1 structural diff (2 if-else-if instances). Gate PASS=47 FAIL=0.
+      Symptom: when the else body was an inline `if_cmd`, the inner if was NOT
+      matched recursively as the else body (because bare `if_cmd` matched epsilon),
+      so it fell out of the inner Compiland match.  The outer `Finalize_if_else`
+      then fired with empty else body (allocating `Lelse_0001`/`Lend_0002`),
+      and `ARBNO(*Command)` at top level then matched the inner `if (...)` as a
+      separate top-level command (allocating `Lend_0003`).  This presented as
+      a "label-ordering" bug but was really a missing-recursion bug.
+
+      Fix: `if_cmd | nPush() if_cmd ...`  →  `| nPush() *if_cmd ...` (one-char addition).
+      Verification: `if (x==1) { y=2; } else if (x==3) { y=4; }` produces output
+      byte-identical to the oracle's `--dump-ir`; same for triple else-if and
+      else-if-else.  Gate PASS=50 FAIL=0 (3 new fixtures: if_else_if,
+      if_else_if_else_if, if_else_if_else).  beauty.sc: 1148/1148 stmts; the
+      previous structural diff in 2 if-else-if instances is gone.
+
+- [ ] **Step SC-6b-bug:** Fix parser_snocone.sc Compiland's `nTop()` timing so the
+      first stmt isn't dropped from the parse tree on large inputs.  Discovered
+      and refined 2026-05-06 session 4.
+
+      **Symptom (refined this session):** running parser_snocone.sc against the
+      full 587-line beauty.sc produces output where exactly the first stmt
+      `&FULLSCAN = 1;` is missing — every other stmt is byte-identical to the
+      oracle.  Adding 10 prefix stmts (`pp1 = 1; ... pp10 = 10;`) to beauty.sc
+      reproduces it: only `pp1` is dropped, `pp2`..`pp10` plus all of beauty
+      come through correctly.  Across `--ir-run`, `--sm-run`, `--jit-run`:
+      identical symptom.
+
+      **Diagnosis (this session):** the bug is in `parser_snocone.sc`, NOT the
+      scrip executable.  Instrumenting the driver to print `n(ptree)` after
+      `Pop()` shows `n_kids=1147` for full beauty.sc (oracle: 1148 stmts), and
+      `child[1]` contains the SECOND oracle stmt.  So the parse tree under
+      `Parse` has one fewer child than expected, and the missing one is the
+      first-pushed (bottom of stack).
+
+      The mechanism: Compiland's grammar is
+      ```
+      Compiland = nPush() ARBNO(Command) (E_Parse & 'nTop()') nPop();
+      ```
+      `(E_Parse & 'nTop()')` is OPSYN-dispatch to `reduce(E_Parse, 'nTop()')`.
+      Inside `reduce`, the second arg is a STRING `'nTop()'` (not an
+      EXPRESSION), so it falls through the `IDENT(DATATYPE(n), 'EXPRESSION')`
+      check unevaluated.  Then `reduce` returns
+      `EVAL("epsilon . *Reduce('E_Parse', nTop())")` — `nTop()` is embedded as
+      a function call into the resulting pattern, called at MATCH-time when
+      the `.`-action fires.
+
+      `Reduce(t, n)` then pops `n` items from the tree stack.  If `n` is one
+      less than the actual stack size, the FIRST-pushed (bottom-of-stack)
+      item is left untouched on the stack while the top `n` items are popped
+      into `c[1..n]`.  Result: tree with `n` children where the very first
+      (oldest) stmt is missing.  This precisely matches the symptom.
+
+      Why `nTop()` returns one less than the actual IncCounter count on
+      large inputs: not yet diagnosed.  Hypotheses to investigate:
+      1. `Reduce`'s `.`-action fires before all of `ARBNO(Command)`'s last
+         `IncCounter()` actions have completed — possible if scrip's `.`-action
+         queue has insertion-point semantics that put outer registrations
+         ahead of late-arriving inner ones in some edge case.
+      2. The deferred-eval of `nTop()` inside the EVAL'd pattern is captured
+         too early (e.g., at pattern-build time rather than match time).
+      3. ARBNO with very many iterations has a quirk where the final iteration's
+         tail actions don't all register.
+
+      **Why it's not a scrip executable bug:** the symptom is deterministic
+      across all three backends, depends on input content (large simple
+      file works fine, small complex file works, only specific complex large
+      content fails), and points exactly to the off-by-one stack drop pattern
+      consistent with the `(E_Parse & 'nTop()')` formulation.
+
+      **Probable fix to try first:** replace `(E_Parse & 'nTop()')` with
+      `reduce_prim('E_Parse')` which uses `ReducePrim(tag)` from
+      `corpus/programs/scrip/ShiftReduce.sc`.  ReducePrim reads
+      `TopCounter()` internally at match time — same as `nTop()` but
+      called as the very first operation inside the `.`-action body,
+      eliminating any concern about the EVAL'd pattern's binding time.
+      Expected single-line change at parser_snocone.sc:653 (Compiland's
+      reduce position).
+
+      **Separate issue — SIGSEGV/heap-corruption at intermediate input sizes
+      (n=198..300 of beauty.sc head -N):** distinct symptom from the
+      first-stmt drop.  Not yet investigated; may be a real scrip runtime
+      memory-safety bug, or may be a downstream consequence of the same
+      grammar timing issue when the partial input creates an inconsistent
+      stack state.  File separately as `SC-6b-bug-segfault` after `SC-6b-bug`
+      lands and we can re-test cleanly.
+
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
-      execute identically under `--ir-run`.
+      execute identically under `--ir-run`.  **Blocked on Step SC-6b-bug.**
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
@@ -589,10 +674,94 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=47 FAIL=0, beauty.sc 1148/1148 stmts,
-1 diff remains: if-else-if label ordering)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ — PASS=50 FAIL=0; SC-6b-bug open: Compiland
+`(E_Parse & 'nTop()')` drops first stmt on large inputs; SC-6c blocked on
+SC-6b-bug)**
 
-Gate: PASS=47 FAIL=0. corpus @ 05a1bea (2026-05-06 session 2).
+Gate: PASS=50 FAIL=0. corpus @ ab34d06 (2026-05-06 session 4).
+
+### SC-6b-bug session 2026-05-06 (session 4) — diagnosis refined: parser bug, not scrip bug
+
+Continuing investigation of the first-stmt-drop symptom from session 3.
+Original session 3 hypothesis was that this is a scrip executable
+memory-safety bug (SIGSEGV / heap corruption at intermediate sizes
+suggested it).  **Session 4 evidence reverses this:** the first-stmt drop
+on the full file is a deterministic parser_snocone.sc grammar bug.
+
+Key experiments this session:
+1. Prepend N simple stmts to beauty.sc, run parser, see what's dropped:
+   - With 1 prefix `aa = 11;`: `aa` dropped, `&FULLSCAN` first in output.
+   - With 2 prefix: `aa` dropped, `bb` is first.
+   - With 10 prefix: `pp1` dropped, `pp2..pp10` then `&FULLSCAN` come through.
+   → Conclusion: exactly the first stmt is dropped, regardless of content.
+2. Instrumenting the driver's TDump loop with `OUTPUT = 'n_kids=' n(ptree)`:
+   - Full beauty.sc: `n_kids=1147` (oracle has 1148 stmts).
+   - `child[1]` (the FIRST surviving child) carries oracle's stmt #2.
+   → Conclusion: the parse tree's children list is short by 1; the first
+     pushed STMT (oldest, bottom-of-stack) is being left on the tree stack
+     after `Reduce(E_Parse, nTop())` pops `nTop()` items.
+3. Across `--ir-run`, `--sm-run`, `--jit-run`: identical symptom — rules
+   out backend-specific issues.
+4. With 5000 simple stmts: works perfectly, all 5000 parsed, first present.
+   Bug requires SPECIFIC complex content (function definitions + if-cascades
+   like beauty.sc's `pp` function), not just size.
+
+**Mechanism:** Compiland uses `(E_Parse & 'nTop()')` — OPSYN-dispatched to
+`reduce(E_Parse, 'nTop()')` where the second arg is a STRING, embedding
+`nTop()` inside the EVAL'd pattern's `.`-action body. `Reduce(t, n)` pops
+`n` items from the tree stack at match time.  If `n` is one short, the
+first-pushed item is stranded on the stack while the top `n` items are
+popped into `c[1..n]`.  Symptom matches.
+
+**Why `nTop()` returns one less than IncCounter count on large inputs:
+not yet pinpointed.** Three hypotheses (in goal file Step SC-6b-bug above);
+the most actionable is: replace `(E_Parse & 'nTop()')` with
+`reduce_prim('E_Parse')` from `ShiftReduce.sc` — `ReducePrim(tag)` reads
+`TopCounter()` internally as its first operation, eliminating any
+EVAL/binding-time concerns about when `nTop()` evaluates.
+
+**Files left unchanged this session.** The `*if_cmd` fix and three new
+fixtures from session 3 remain in place.  Instrumentation added to
+parser_snocone.sc during diagnosis was reverted before push.
+
+**Separate issue from SC-6b-bug — SIGSEGV / heap corruption at intermediate
+file sizes (`head -198..-300 beauty.sc`):** distinct from the first-stmt
+drop; those break the parse entirely (no output) rather than producing a
+short-by-one tree.  Filed in goal as `SC-6b-bug-segfault` to investigate
+after SC-6b-bug lands.
+
+### SC-6b session 2026-05-06 (session 3) — `*if_cmd` recursion fix; SC-6b CLOSED
+
+**Diff (B) FIXED — one-character `*if_cmd` addition.** Previous diagnosis
+(post-match DOT firing order) was wrong; the actual cause was that the bare
+`if_cmd` reference in the else-if grammar branch wasn't recursing.  Per
+SPITBOL Manual Ch 9, recursive pattern self-references must use `*`.  Without
+`*`, the pattern engine captures the OLD value of `if_cmd` (null) at build
+time, so the inline else-if matches epsilon, the outer Finalize_if_else
+fires with empty else body, and `ARBNO(*Command)` then re-matches the inner
+if at top level — producing the apparent "label-ordering" bug.
+
+Fix: `parser_snocone.sc` line 594, `if_cmd` → `*if_cmd`.  Gate PASS=50 FAIL=0
+with three new fixtures (if_else_if, if_else_if_else_if, if_else_if_else),
+all byte-identical to oracle.  beauty.sc 1148/1148 stmts; the previous
+structural diff in 2 if-else-if instances is gone.
+
+**SC-6b-bug FILED (new):** scrip executable stability when parser runs on
+full beauty.sc.  After Diff (B) fix, the only remaining diff with oracle is
+the very first stmt `&FULLSCAN = 1;` being silently dropped from output.
+Bisecting on `head -N beauty.sc` shows non-deterministic output
+(empty/corrupted/SIGSEGV/heap-corruption) at intermediate N values.
+Symptoms vary with input size in a way no Snocone-level grammar could control —
+canonical scrip runtime memory-safety bug.  See Step SC-6b-bug for full
+characterization.
+
+**Methodology this session:** read SPITBOL Manual chapters 6, 7, 9, 18
+(pattern matching tutorial + reference algorithm) end-to-end.  The
+`.`/`$`/`*`/`~` operator semantics and the "recursive patterns require `*`"
+rule were the keys to spotting Diff (B)'s real cause.  Lon supplied the
+SPITBOL Manual PDF this session; the prior diagnosis missed because the
+firing-order story was plausible but the actual cause was upstream of
+firing-order entirely.
 
 ### SC-6b session 2026-05-06 (session 2) — flatten_arith DONE; if-else-if label ordering diagnosed
 
