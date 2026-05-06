@@ -179,25 +179,24 @@ EMITTER-COMMON.md, EMITTER-X86.md, EMITTER-X86-DEEP.md, BB-GEN-LANG.md,
 SESSION-snobol4-x64.md, SCRIP-SM.md) established two completely
 separate concerns that must NOT be conflated:
 
-### 1. SM opcodes -> straight-line x86 (the SM emitter)
+### 1. SM opcodes -> macros (the SM emitter)
 
 The SM instruction set is the universal IR. Every backend (x86, JVM,
 .NET, JS, WASM) walks the same SM_Program array with one switch, one
 case per opcode. For text-asm output, each opcode group maps to ONE
-named GNU-as macro. The macro expands to actual inline x86 -- NOT a
-PLT call into libscrip_rt for every tiny op. Context: a growing text
-buffer for the current statement proc body. Three-column SNOBOL4 layout
-throughout:
+named GNU-as macro in `sm_macros.s`. The macro expands to actual inline
+x86 -- NOT a PLT call for every tiny op. Flat macro call per opcode,
+NO three-column formatting:
 
-  .LpcN:    SM_MACRO_NAME arg1, arg2    ; goto comment or jmp label
+  SM_PUSH_INT 42
+  SM_ADD
+  SM_JUMP_F  .Lpc17
 
 One macro file `sm_macros.s` (parallel to the proven `snobol4_asm.mac`,
-151 macros) defines one macro per SM opcode group. `sm_codegen_x64_emit.c`
-calls into it. `libscrip_rt.so` is still the right boundary for things
-that truly need runtime support: NV table, pattern matcher, GC. Inline
-arithmetic, push/pop, and control flow bake directly.
+151 macros) defines one macro per SM opcode group. `libscrip_rt.so` is
+the boundary for: NV table, pattern matcher, GC only.
 
-### 2. BB boxes -> one proc per box (the BB box emitter)
+### 2. BB boxes -> three-column layout (the BB box emitter)
 
 The BB graph is NOT a sequence of SM opcodes. It is a directed graph
 of box nodes. Each box has exactly four ports:
@@ -207,12 +206,11 @@ of box nodes. Each box has exactly four ports:
   gamma (g) -- success exit (drives next box's alpha)
   omega (o) -- failure exit (drives enclosing beta)
 
-**The Law (from BB-GEN-X86-TEXT.md):** One NASM/GNU-as proc per box.
+**The Law (from BB-GEN-X86-TEXT.md):** One GNU-as proc per box.
 Each named pattern or primitive box = one labeled proc with local labels
-`.alpha`, `.beta`, `.gamma`, `.omega`. Sub-box ports become local labels
-within the enclosing proc. Emitted ONE BOX AT A TIME.
+`.alpha`, `.beta`, `.gamma`, `.omega`. Emitted ONE BOX AT A TIME.
 
-Three-column law inside every box proc:
+**THREE-COLUMN LAW** applies here (BB boxes only, not SM opcodes):
 
   LABEL:              ACTION (macro + params)          GOTO (jmp target)
 
@@ -223,14 +221,14 @@ straight-line emitter.
 
 ### Separation in sm_codegen_x64_emit.c
 
-  emit_sm_instr()    -- straight-line SM opcodes (push/pop/arith/control)
+  emit_sm_instr()    -- SM opcodes (push/pop/arith/control flow)
                         one emit_sm_* fn per opcode group
-                        writes macro calls in three-column format
+                        flat macro call per opcode -- NO three-column
                         inline x86 via sm_macros.s, not PLT calls
 
   emit_bb_box()      -- called once per SM_PAT_* instruction
                         emits one proc with .alpha/.beta/.gamma/.omega
-                        macro call per port body
+                        THREE-COLUMN layout: label / macro+params / jmp
                         jmp gotos connect ports across boxes
 
 ### Multi-backend portability
