@@ -688,9 +688,9 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       **Verification:** `head -198`, `-220`, `-250`, `-300` of beauty.sc all
       exit rc=0 (was SIGSEGV/SIGABRT).  Gate PASS=50 FAIL=0 unchanged.
 
-- [ ] **Step SC-6c-bug:** Off-by-one in Compiland counter — first STMT stranded
-      on tree stack. **Session 7 (2026-05-06): diagnosis refined; bug isolated to
-      ~20-line repro; root cause narrowed but exact mechanism still pending.**
+- [x] **Step SC-6c-bug:** Off-by-one in Compiland counter — first STMT stranded
+      on tree stack. **FIXED session 8 (2026-05-06): root cause was global variable
+      clobber, not counter timing. See fix note below.**
 
       **Symptom (unchanged):** parser_snocone.sc on full beauty.sc (587 lines)
       produces 1147 stmts instead of oracle's 1148. The missing stmt is always
@@ -808,11 +808,10 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       /tmp/wraptest.sc    # ~38 lines, diff=1 — single off-by-one
       ```
 
-- [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
-      execute identically under `--ir-run`.  Blocked on SC-6c-bug (off-by-one
-      counter strands first stmt on tree stack).  After SC-6c-bug fix:
-      run parser against full beauty.sc, confirm stmt count = 1148, verify
-      normalized output matches oracle byte-for-byte.
+- [x] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
+      execute identically under `--ir-run`.  **DONE session 8 (2026-05-06): beauty.sc
+      produces 1148/1148 stmts, byte-identical to oracle after normalization.
+      corpus @ 7a17ff0. Gate PASS=50 FAIL=0.**
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
@@ -834,11 +833,34 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ SC-6b-bug-segfault ✅ — PASS=50 FAIL=0;
-SC-6c-bug ⏳ refined sess 7 — bug isolated to ~20-line repro, root cause architectural
-in else-if-recursion branch line 625; SC-6c blocked on SC-6c-bug)**
+PARSER-SC-6 ✅ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ SC-6b-bug-segfault ✅
+SC-6c-bug ✅ SC-6c ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 stmts, byte-identical)**
 
-Gate: PASS=50 FAIL=0. corpus @ HEAD, one4all @ HEAD (2026-05-06 session 7).
+Gate: PASS=50 FAIL=0. corpus @ 7a17ff0, one4all @ HEAD (2026-05-06 session 8).
+
+### SC-6c-bug + SC-6c session 2026-05-06 (session 8) — LANDED; PARSER-SC-6 CLOSED
+
+**Root cause (confirmed by instrumentation):** `if_nthen` and `if_nelse` are global
+variables. When the outer `if_cmd`'s else-if branch uses `nPush() *if_cmd ... nPop()`,
+the recursive `*if_cmd` also calls `Body('if_nthen')` — overwriting the `if_nthen` value
+saved by the outer then-body. The outer `finalize_if_else` then reads the clobbered
+`if_nthen` (e.g. 1 instead of 8), so `pop_body` under-pops the then-body stmts,
+stranding them on the data stack.
+
+Previous hypothesis (previous sessions) was counter-frame depth error. Actual cause
+is simpler: shared global name collision under recursion.
+
+**Fix:** `save_if_nthen()` / `restore_if_nthen()` push/pop `if_nthen` onto a
+front-push colon-separated string stack `sc_if_nthen_stk` (no ARB — uses
+`SPAN('0123456789') . top (':' REM . rest | '')` for O(1) pop). The else-if branch:
+```
+| Save_if_nthen() nPush() *if_cmd Save_nbody('if_nelse') nPop() Restore_if_nthen()
+```
+Encounter order ensures save fires before inner `*if_cmd` dot-actions (which clobber
+`if_nthen`) and restore fires before `Finalize_if_else` reads `$if_nthen`. Correct for
+arbitrary nesting depth.
+
+**corpus @ 7a17ff0.** Smoke PASS=5, parser PASS=50. beauty.sc: 1148/1148, byte-identical.
 
 ### SC-6c-bug session 2026-05-06 (session 7) — bug isolated to 20-line repro; two-stack instrumentation refines diagnosis
 

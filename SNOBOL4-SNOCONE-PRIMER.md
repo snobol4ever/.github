@@ -685,24 +685,35 @@ inventing a new one in another `parser_*.sc`.
 When you discover a new failure mode or pattern idiom, **add it here**.
 Do not let the next session repeat your mistakes.
 
+14. **Global scratch variables clobbered by `*pat` recursion.** When a pattern
+    calls itself recursively (e.g. `*if_cmd` inside the else-if branch of `if_cmd`),
+    any global variable set by a dot-action inside the recursive call will OVERWRITE
+    the value set by the outer call — even if the outer call set it correctly before
+    the recursion. This is the `if_nthen` bug (SC-6c-bug): the outer then-body saved
+    `if_nthen=8` correctly, but the recursive `*if_cmd` (for the else-if body) also
+    called `Body('if_nthen')` and saved `if_nthen=1`, clobbering the outer value.
+    Fix: use a push/pop stack (string-encoded, e.g. colon-separated front-push) to
+    save and restore any global variable that a recursive pattern also writes.
+    Pattern: `Save_X() nPush() *recursive_pat ... nPop() Restore_X()`
+    where `save_x` pushes the current value and `restore_x` pops it back.
+    Stack pop without ARB: `SPAN(digits) . top (':' REM . rest | '')`.
+
 ---
 
-## Handoff note — session #69 (2026-05-05) end state
+## Handoff note — session 8 (2026-05-06) end state
 
-Gates: smoke PASS=5 FAIL=0, parser PASS=46 FAIL=0. All repos pushed.
+Gates: smoke PASS=5 FAIL=0, parser PASS=50 FAIL=0. All repos pushed.
 
 **Exact commits:**
-- corpus @ `4a140fb` — Lon rewrite + 3 fixes landed
-- .github @ `09926ed` — PRIMER + GOAL + PLAN updated
+- corpus @ `7a17ff0` — SC-6c-bug fix: save_if_nthen/restore_if_nthen
+- .github @ (see below) — PRIMER + GOAL + PLAN updated
 
-**SC-6b status:** PASS=46 FAIL=0, rewrite is clean and working. The next
-step per GOAL-PARSER-SNOCONE.md is the beauty.sc crosscheck. The previous
-"continuation marker" confusion was a false alarm (Lon confirmed Snocone has
-no continuation). beauty.sc is valid Snocone and should parse cleanly —
-attempt the crosscheck as the first act of the next session.
+**SC-6c-bug / SC-6c status:** BOTH CLOSED. PARSER-SC-6 fully done.
+beauty.sc: 1148/1148 stmts, byte-identical to oracle. The bug was a global variable
+clobber (not a counter-frame depth issue as previous sessions suspected).
 
-**Critical things the next Claude must know cold (all in this PRIMER):**
-- `.` fires post-match in linear sequence; `$` fires immediately during match
-- `*Ident . captured_X` includes whitespace — always use `$' ' (*Id . captured_X)`
-- Missing `;` on a pattern definition causes silent line-merge misparse
-- `notmatch(s, pat)` — `pat` is passed as a pattern value, use `s ? pat` not `s ? *pat`
+**Critical things the next Claude must know (in addition to earlier entries):**
+- Global variables set by dot-actions are clobbered when a pattern recurses into itself.
+  `if_nthen` was overwritten by nested `*if_cmd`. Fix pattern: `Save_X() nPush() *rec nPop() Restore_X()`.
+- Stack pop without ARB: `SPAN(digits) . top (':' REM . rest | '')` — O(1), no ARB.
+- **Never use ARB** — Lon's rule. Use BREAKX, BREAK, SPAN, or REM instead.
