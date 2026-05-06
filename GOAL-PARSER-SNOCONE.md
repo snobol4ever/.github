@@ -815,6 +815,57 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
+### PARSER-SC-7 — augmented assign (`+=` `-=` `*=` `/=` `^=`) ⏳
+
+Token definitions already exist (`$'+='` etc. in the operator block). Need productions.
+`snocone_parse.y`: `expr1 T_PLUS_ASSIGN expr0` etc. — all lower to `E_ASSIGN` with
+the corresponding arithmetic op wrapping lhs. Mirror `sc_augmented_assign` in
+`snocone_lower.c`.
+
+- [ ] Add `Expr0` FENCE branches for each augmented-assign token: `$'+=' *Expr0 Reduce_augmented(E_ADD)` etc.
+- [ ] Add `reduce_augmented(op)` / `Reduce_augmented(op)` helpers that build `E_ASSIGN(lhs, E_op(lhs_copy, rhs))`.
+- [ ] Fixtures: `augmented_add`, `augmented_sub`, `augmented_mul`, `augmented_div`, `augmented_pow`.
+- **Gate:** PASS increases by 5.
+
+### PARSER-SC-8 — `break` and `continue` ⏳
+
+`snocone_parse.y`: `T_BREAK T_SEMICOLON` / `T_BREAK T_IDENT T_SEMICOLON` and same for
+`T_CONTINUE`. Lower to goto stmts targeting the enclosing loop's end/top label.
+Parser needs break-target and continue-target stacks (same front-push colon pattern
+as `sc_if_nthen_stk`) pushed/popped around each loop body.
+
+- [ ] Add `sc_break_stk` / `sc_continue_stk` string stacks; push targets in `while_cmd`, `do_cmd`, `for_cmd` after label alloc; pop after finalize.
+- [ ] Add `break_cmd` / `continue_cmd` productions emitting goto to top of respective stacks.
+- [ ] Labeled forms: `break label;` / `continue label;` emit goto named label directly.
+- [ ] Fixtures: `break_while`, `continue_while`, `break_for`, `continue_for`, `break_labeled`.
+- **Gate:** PASS increases by 5.
+
+### PARSER-SC-9 — `struct` definition ⏳
+
+`snocone_parse.y`: `T_STRUCT T_IDENT T_LBRACE struct_field_list T_RBRACE` lowers to
+a `DATA(...)` call (program-defined data type). Fields are comma-separated identifiers
+inside braces.
+
+- [ ] Add `struct_cmd` production: `$'struct' *Ident . captured_name $'{' field_list $'}'`.
+- [ ] `field_list`: ARBNO of `*Ident` separated by `$','` — collect into comma-joined string for the DATA qlit.
+- [ ] Emit `(STMT :subj (E_FNC DATA (E_QLIT "name(f1,f2,...)")))`.
+- [ ] Handle empty body `struct T {}`.
+- [ ] Fixtures: `struct_simple`, `struct_fields`, `struct_empty`.
+- **Gate:** PASS increases by 3.
+
+### PARSER-SC-10 — `switch` / `case` / `default` ⏳
+
+`snocone_parse.y`: `T_SWITCH T_LPAREN expr0 T_RPAREN` followed by case clauses.
+Each `case val:` lowers to a conditional branch; `default:` is unconditional.
+Allocate `Lswitch_end` as break target (SC-8's break stack).
+
+- [ ] Add `switch_cmd` with `switch_body` collecting `case_cmd` / `default_cmd` clauses.
+- [ ] `Lswitch_end` pushed as break target for SC-8; popped after switch body.
+- [ ] `case_cmd`: `$'case' *Expr0 $':'` — conditional branch on equality with switch subject.
+- [ ] `default_cmd`: `$'default' $':'` — unconditional fallthrough label.
+- [ ] Fixtures: `switch_simple`, `switch_default`, `switch_fallthrough`, `switch_break`.
+- **Gate:** PASS increases by 4.
+
 ---
 
 ## Invariants
@@ -833,8 +884,8 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ✅ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ SC-6b-bug-segfault ✅
-SC-6c-bug ✅ SC-6c ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 stmts, byte-identical)**
+PARSER-SC-6 ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 byte-identical.
+SC-7 ⏳ (augmented assign) SC-8 ⏳ (break/continue) SC-9 ⏳ (struct) SC-10 ⏳ (switch/case/default)**
 
 Gate: PASS=50 FAIL=0. corpus @ 7a17ff0, one4all @ HEAD (2026-05-06 session 8).
 
