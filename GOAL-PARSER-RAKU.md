@@ -472,9 +472,7 @@ readability win (`$' '`/`$'  '` everywhere).
 - [ ] FUTURE: canonical `white ARBNO(white)` form — blocked on
       BUG-SCRIP-VAL-SCAN engine fix.
 
-### PARSER-RK-21 — `gather`/`take` coroutine construct — scaffold landed, matching broken
-
-All scaffolding committed at corpus@436e667, PASS=105 FAIL=5.
+### PARSER-RK-21 — `gather`/`take` coroutine construct — LANDED session 2026-05-07 cont.
 
 - [x] `E_SUSPEND = "'E_SUSPEND'"` tag constant added.
 - [x] `$'gather'` / `$'take'` keyword tokens added.
@@ -485,22 +483,37 @@ All scaffolding committed at corpus@436e667, PASS=105 FAIL=5.
 - [x] `TakeStmt = ( $'take' $'  ' Expr $';' (E_SUSPEND & 1) )` — verified
       working standalone: `take 1;` → `(E_SUSPEND (E_ILIT 1))` ✓
 - [x] `TakeStmt` added to `Stmt` / `BlockStmt` / `SubBlockStmt`.
-- [x] `GatherExpr` arm `| $'gather' nPush() SubBlock Finish_gather nPop()`
-      added to `Expr11` after `$'sort'` arms.
-- [x] Test corpus: 5 fixtures landed at corpus@db2517f.
-- [ ] **BUG:** `GatherExpr` arm fails silently — all 5 fixtures produce
-      empty output.  `$'gather'` token fires (probe confirmed), but
-      `SubBlock` inside `Expr11`'s ARBNO context does not match the body.
-      Likely cause: `nPush()` / `nPop()` inside `Expr11`'s ARBNO interferes
-      with the surrounding counter frame, or `SubBlock_body`'s `nInc()` is
-      incrementing the WRONG frame (the Compiland inner frame rather than
-      the fresh gather frame).  **Next session: compare `SubStmt` (which
-      wraps `SubBlock` from OUTSIDE Expr11) with the `GatherExpr` arm
-      (which puts `nPush() SubBlock` INSIDE Expr11 ARBNO).  Likely fix:
-      move gather body parsing to a dedicated `GatherBlock` pattern that
-      has its own `nPush()` / `nPop()` bracketing, or use a helper function
-      rather than inline `nPush() SubBlock` in the ARBNO body.**
-- **Gate target:** PASS≥110.
+- [x] **`GatherBlock` pattern** added — self-contained `nPush()/nPop()`
+      bracketing around `$'{' ARBNO(*SubBlock_body) $'}' Finish_gather`,
+      mirroring `Block`'s self-contained counter shape.
+- [x] `Expr11` arm rewritten: `| $'gather' *GatherBlock` (deferred lookup).
+- [x] Test corpus: 5 fixtures (gather_take_lit, gather_take_var,
+      gather_multi_take, gather_in_assign, take_in_loop) all PASS.
+- **Gate:** PASS=110 FAIL=0 ✓
+
+#### Root-cause finding (cross-PARSER, important)
+
+Two compounded `ARBNO(X)` / forward-reference quirks made the original
+`$'gather' nPush() SubBlock Finish_gather nPop()` arm fail silently:
+
+1. **`Expr11` is defined BEFORE `SubBlock_body` and `GatherBlock` in source
+   order.**  Bare `ARBNO(SubBlock_body)` and bare `GatherBlock` reference
+   capture the *current* (i.e. undefined / empty) value of those names at
+   the moment `Expr11` is being built.  This is the same `ARBNO(X)`-
+   captures-at-definition-time quirk the RK-4 cross-PARSER note already
+   documented for `*CallArgTail`.  Fix: use deferred lookup `*GatherBlock`
+   in `Expr11`, and `ARBNO(*SubBlock_body)` inside `GatherBlock`.
+
+2. **`SubBlock` (used by `SubStmt`) survived this quirk by accident** —
+   `SubBlock_body` is defined right before `SubBlock`, so `SubBlock`
+   captured the correct value.  But any *other* pattern referencing
+   `SubBlock_body` from before its definition site needs `*SubBlock_body`.
+
+This is a usage-level forward-reference rule, not an engine bug.  Anyone
+adding a new arm to `Expr11` (or any other early-defined non-terminal)
+that needs to reference a later-defined helper must use `*Helper`.  The
+PRIMER at `SNOBOL4-SNOCONE-PRIMER.md ## Big four operators / *` already
+covers the principle; this rung supplies the cautionary example.
 
 ### BUG-SCRIP-WS-1 — RESOLVED (engine-side, session 2026-05-07 verification)
 
@@ -603,28 +616,32 @@ reconstructing via pointer + offsets.
 
 ## Watermark
 
-Session 2026-05-07 (continued) — two rungs landed:
+Session 2026-05-07 (continuation, RK-21 closure) — **PARSER-RK-21 LANDED**:
+
+- **PARSER-RK-21 LANDED** — PASS=110 FAIL=0.
+  GatherBlock pattern added with self-contained nPush/nPop bracketing
+  around `$'{' ARBNO(*SubBlock_body) $'}' Finish_gather`.  Expr11 arm
+  rewritten to `| $'gather' *GatherBlock` (deferred lookup).  Both
+  `*GatherBlock` and `*SubBlock_body` are required because Expr11 is
+  defined in source order *before* GatherBlock and SubBlock_body — bare
+  `ARBNO(X)` captures X's value at the enclosing pattern's definition
+  time (same quirk as RK-4's `*CallArgTail` finding).  All 5 RK-21
+  fixtures (gather_take_lit, gather_take_var, gather_multi_take,
+  gather_in_assign, take_in_loop) now produce trees byte-identical to
+  the C oracle.
+
+Earlier session 2026-05-07 watermarks (still valid):
 
 - **PARSER-RK-WS2 LANDED** corpus@c2ade5a — PASS=105 FAIL=5.
   DGray + nl_one eliminated.  `$' '` / `$'  '` everywhere.
   FENCE-based White (extended to absorb nl + # comments).
   canonical `ARBNO(white)` form blocked on BUG-SCRIP-VAL-SCAN.
 
-- **PARSER-RK-21 scaffold** corpus@436e667 — PASS=105 FAIL=5.
-  E_SUSPEND constant, $'gather'/$'take' tokens, gather_seq global,
-  finish_gather helper, TakeStmt (works), GatherExpr arm (fails silently).
-  TakeStmt verified: `take 1;` → `(E_SUSPEND (E_ILIT 1))` ✓.
-  GatherExpr: $'gather' token fires but SubBlock doesn't match inside
-  Expr11 ARBNO.  Likely: nPush/nPop inside Expr11 ARBNO increments the
-  wrong counter frame.  See RK-21 bug note above.
+- **PARSER-RK-21 scaffold** corpus@436e667 (now superseded by this
+  session's LANDED — see above).
 
-**Next session:** Fix GatherExpr — compare SubStmt (wraps SubBlock from
-outside Expr11) with GatherExpr (SubBlock inside Expr11 ARBNO).  Likely
-fix: dedicated GatherBlock helper that isolates nPush/nPop from the
-surrounding Expr counter context.
-
+PARSER-RK-21 LANDED — PASS=110 FAIL=0 (this session).
 PARSER-RK-WS2 LANDED corpus@c2ade5a — PASS=105 FAIL=5.
-PARSER-RK-21 scaffold corpus@436e667 — PASS=105 FAIL=5.
 PARSER-RK-WS LANDED (session 2026-05-06) — PASS=105 FAIL=0. corpus@9ed9e99.
 PARSER-RK-20 LANDED (session 2026-05-06) — PASS=105 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.

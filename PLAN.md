@@ -85,7 +85,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-21 LANDED PASS=143 — RS-28/RS-29 filed, cross-pollination blocked by engine bugs (Prolog/Raku); next: IC-22 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-WS LANDED PASS=105 FAIL=0 corpus@9ed9e99 — whitespace refactor + BUG-SCRIP-WS-1 filed. Next: RK-21 gather/take |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-21 LANDED PASS=110 FAIL=0 corpus@0546b63 — gather/take coroutine construct (GatherBlock pattern; cross-PARSER `*X` deferred-lookup rule reconfirmed). Next: RK-22 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
