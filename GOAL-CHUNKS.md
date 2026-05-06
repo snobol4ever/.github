@@ -371,7 +371,7 @@ Order them however convenient based on platform availability.
   generator-free main bodies and finish it after step 14.
   Decide in the rung.  Gates: standard set + smoke_icon.
 
-- [ ] **Step 13 — Migrate sm_lower.c:993 (Raku CASE).**  CASE
+- [x] **Step 13 — Migrate sm_lower.c:993 (Raku CASE).**  CASE
   body is a small bounded set of arms.  Lower each arm as a
   chunk; emit a dispatch chain (SM_PEEK / SM_EQ /
   SM_CALL_CHUNK per arm).  Doesn't need BB at all — CASE is
@@ -482,6 +482,50 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 ---
 
 ## Closed steps
+
+**Step 13** — Migrate `sm_lower.c:1062` (Raku CASE / given-when) to chunk-based
+dispatch. Replaces the legacy `emit_push_expr + SM_BB_PUMP` wrapper with a new
+`SM_BB_PUMP_CASE` opcode (`a[0].i = ncases`, `a[1].i = has_default`).  The
+producer lowers each piece — topic, per-arm value and body, optional default
+body — as its own forward-jump-around chunk, pushes them in canonical order
+(topic, then `cmp_kind / val / body` triples, then optional default), and
+emits the dispatch opcode.  The runtime helper (in both `sm_interp.c` and
+`sm_codegen.c` as lockstep mirrors) reverse-pops, evaluates topic via
+`sm_call_chunk`, walks arms with the same string-vs-int comparison logic as
+`coro_value.c:947` (E_LEQ → string equality, else integer-or-string), runs
+the matching body chunk, leaves result on the stack.
+
+Wrapper-level synthesis is now EXPR_t-free for the Raku CASE path —
+empirically: `SCRIP_CHUNKS_AUDIT=1 ./scrip --sm-run test/raku/rk_given.raku`
+reports `SM_PUSH_CHUNK=20 SM_PUSH_EXPR=0 out_of_range=0` (20 = 2 CASEs ×
+(1 topic + 4 arms × 2 chunks-per-arm + 1 default)).
+
+Scope boundary (honest): the value-context `bb_eval_value(E_CASE)` path in
+`coro_value.c:947` still walks E_CASE's children via EXPR_e cmp-kind
+dispatch.  That path is unreachable from the SM-mode Raku given-stmt route
+after CH-13 but lives on for future value-context CASE use and for any
+future Icon E_CASE.  Cleaning the IR walk inside `coro_value.c:947` is
+M4-cleanup territory (mirrors how CH-12 deferred the `coro_call` proc_table
+walk to Step 17).
+
+Pre/post execution on `rk_given.raku`: `--sm-run` and `--jit-run` previously
+stack-underflowed and aborted; post-CH-13 they reach the dispatch and run
+the default branch.  Full Raku --sm-run/--jit-run remains broken at the
+surrounding `say`/sub-call infrastructure level, consistent with the
+Raku full-suite baseline (29/0/0 across IR/SM/JIT) — fixing that is not
+CH-13's scope.
+
+Gates: build clean; smoke ×6 PASS (SNOBOL4 7/7, Icon 5/5, Prolog 5/5,
+Raku 5/5, Snocone 5/5, Rebus 4/4); isolation gate PASS; csnobol4 Budne
+PASS=36 (≥34, exact baseline match); full Icon corpus PASS=186 FAIL=47
+XFAIL=30 (TOTAL=263, byte-identical to baseline); unified_broker PASS=49.
+Raku full suite 29/0/0 unchanged (no regression on the broken-already
+modes; no CASE-specific test in the suite to regress).
+Documented in `docs/CHUNKS-step13-validation.md`.
+
+After CH-13, surviving `emit_push_expr` call sites in `sm_lower.c` are
+lines 1046 and 1057 (the Prolog backtracking cluster — Step 16 territory),
+plus the helper definition at line 39.  Two real producer sites remain.
 
 **Step 12** — Migrate `sm_lower.c:1292–1308` (Icon main() synthesis). The
 synthesised `E_FNC("main")` + `emit_push_expr` + `SM_BB_PUMP` wrapper is
