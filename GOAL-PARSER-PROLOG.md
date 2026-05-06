@@ -1067,3 +1067,82 @@ explicitly-named vars in allocation order (and for 0-arg head, named vars = 0,
 so `_V0` = `s0`, `_V1` = `s1`).
 
 **Gate to achieve:** PASS≥75 FAIL=0 (all 10 DCG fixtures + all 65 existing).
+
+---
+
+## SCRIP Bug: Non-ASCII bytes in `//` comments cause parse error — FIXED
+
+**Bug ID:** SCRIP-BUG-NONASCII-COMMENT
+**Discovered:** 2026-05-06 session (whitespace-cleanup rung)
+**Status:** Workaround applied in `parser_prolog.sc`; root fix needed in SCRIP lexer.
+
+### Symptom
+
+`scrip --ir-run parser_prolog.sc` exits with `snocone parse error: syntax error`
+at the line where a `//` comment contains a non-ASCII byte (e.g. UTF-8 em-dash
+`\xe2\x80\x94` = U+2014 `—`).  The parser stops at the *first non-ASCII byte*
+encountered, even inside a comment, making the file un-parseable.
+
+### Root cause
+
+SCRIP's Snocone lexer reads `//`-comment content as raw bytes.  When it
+encounters a byte >127, its character-class table lookup hits an uninitialized
+entry and triggers a parse error rather than treating the byte as comment content.
+
+### Fix applied (corpus `parser_prolog.sc`)
+
+Replaced all 40 UTF-8 em-dashes (`\xe2\x80\x94`) with ASCII double-hyphen `--`
+using a one-time Python `str.replace`.  All `.sc` files must henceforth use
+ASCII-only characters; em-dashes and other Unicode punctuation are banned.
+
+### Root fix location (SCRIP source)
+
+File: `one4all/src/frontend/snocone/snocone_lex.l` (or equivalent flex/lex file).
+The `//` comment rule should consume bytes until newline without any character-class
+validation:
+
+```lex
+"//"[^\n]*\n   { /* skip line comment */ }
+```
+
+Until fixed in SCRIP, enforce ASCII-only in all `.sc` source files.
+
+### Also fixed: corrupt `reduce_univ` function declaration
+
+The previous incomplete PR-13 session left a partially-applied `str_replace`
+that deleted the `function reduce_univ(rhs, lhs, fnc_node) {` declaration line,
+replacing it with a dangling comment fragment.  Restored manually.
+
+---
+
+## PARSER-PR-WS — whitespace definition cleanup — IN PROGRESS
+
+**Gate:** PASS=103 FAIL=0 throughout (no semantic change).
+
+### Task
+
+Replace `parser_prolog.sc`'s bespoke whitespace definition with the canonical
+form used by `parser_snocone.sc` (and all other PARSER-* files):
+
+```snocone
+white   =   (  SPAN(' ' tab nl)
+            |  '%'  BREAK(nl) nl
+            |  '/*' BREAKX('*') '*/'
+            );
+White   =   white ARBNO(white);
+Gray    =   ARBNO(white);
+$'  '   =   White;
+$' '    =   Gray;
+```
+
+Key differences from current `parser_prolog.sc`:
+1. Lowercase `white` = ONE atomic whitespace token (factored out as helper)
+2. `White` = `white ARBNO(white)` — one or more (required), handles sequences
+3. `Gray` = `ARBNO(white)` — zero or more (optional), pure ARBNO
+4. Newlines (`nl`) are included in `SPAN(' ' tab nl)` — Prolog source spans lines
+5. Prolog line comments: `'%' BREAK(nl) nl` (not `'//' BREAK(nl) nl`)
+6. Block comments: `'/*' BREAKX('*') '*/'` (BREAKX instead of ARBNO(BREAK('*') ANY('*')))
+7. `Block` helper variable eliminated; `white` is the single source of truth
+8. `trivia` variable (`ARBNO(White | nl)`) eliminated; top-level whitespace
+   handled by Gray/White in token definitions
+
