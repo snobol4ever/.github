@@ -65,8 +65,8 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED. **Next inline: CH-12** (Icon main() synthesis — first rung of M4 isolation work). Step 8 (mode-4 x86 emitter) carved to `GOAL-MODE4-EMIT.md` — runs in PARALLEL with M4, file-disjoint. Don't confuse them: a session "doing GOAL-CHUNKS" defaults to its inline next rung (CH-12), NOT the carved sub-goal. |
-| Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | EM-2 LANDED sess #66 (SM_HALT + SM_PUSH_LIT_I codegen; synthetic prog rc=42 e2e; libscrip_rt ABI at 6 symbols; honest deviations on SM_NOP + scrip_rt_pop_int pulled from EM-3). Next: EM-3 (stack ops + arithmetic; gate `(2+3)*4=20`). |
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED (Steps 1–7 complete; honest deferrals on Step 6 partial + broad-corpus 38-program SM/IR gap pre-existing). Next: CH-8 (M2 — Mode 4 x86 emitter, see GOAL-MODE4-EMIT.md rung EM-1) |
+| Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | stub written sess #62; rung EM-1 awaits CHUNKS M1 close |
 | Native Snocone — .NET (CHUNKS Step 9) | `GOAL-NATIVE-SNOCONE-DOTNET.md` | one4all (`src/driver/net/`) | stub written sess #62; rung DN-1 awaits PARSER-SC-6b |
 | Native Snocone — JVM (CHUNKS Step 10) | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all (`src/driver/jvm/`) | stub written sess #62; rung JV-1 awaits PARSER-SC-6b |
 | Native Snocone — JS (CHUNKS Step 11) | `GOAL-NATIVE-SNOCONE-JS.md` | one4all (`src/driver/js/`) | stub written sess #62; rung JS-1 awaits PARSER-SC-6b |
@@ -81,10 +81,11 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PASS=78/78 ✅ corpus@0fba291 — SN-7-7c LANDED (full keyword/function/builtin inventory + classifier patterns; cross-runtime SPITBOL x64/x32 + csnobol4 union). Next: **SN-7-8** beauty.sno full crosscheck. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
-| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | SC-6b-bug ✅ SC-6b-bug-segfault ✅ PASS=50 FAIL=0 (sess 5). Next: **SC-6c** full beauty.sc crosscheck. |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-20 LANDED PASS=143 corpus@961fa58 — whitespace canonical + newline=whitespace + semicolon terminates; next: IC-21 |
+| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=47 FAIL=0. beauty.sc 1148/1148 stmts parsed; 1 diff remains: if-else-if label ordering (outer Lend emitted before else body). Diff (A) subtraction n-ary fold FIXED via flatten_arith. |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-21 LANDED PASS=143 — RS-28/RS-29 filed, cross-pollination blocked by engine bugs (Prolog/Raku); next: IC-22 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-WS2 LANDED corpus@c2ade5a (DGray/nl_one gone, $' '/$'  ' everywhere). RK-21 scaffold corpus@436e667 (TakeStmt works; GatherExpr fires $'gather' but SubBlock fails inside Expr11 ARBNO — likely wrong counter frame). Next: fix GatherExpr, target PASS≥110. |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-WS LANDED PASS=105 FAIL=0 corpus@9ed9e99 — whitespace refactor + BUG-SCRIP-WS-1 filed. Next: RK-21 gather/take |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |

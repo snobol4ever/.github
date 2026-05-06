@@ -633,6 +633,74 @@ This avoids both RPOS/LEN and IDENT type mismatch entirely.
 
 ---
 
+### RS-28 (BUG-SCRIP-ALT-IN-FENCE) — ALT-in-FENCE bb_alt null-pointer crash
+
+**Filed from PARSER-IC-20 session, 2026-05-06.**
+
+**Symptom:** When `Gray = White | epsilon` (an ALT node) is used inside a
+`FENCE(CaseDefault | CaseClause)` construction, SCRIP crashes with a
+null-pointer dereference inside `bb_alt`.  The crash is reproducible in the
+`Case` production of `parser_icon.sc` when the grammar body contains:
+
+```snocone
+ARBNO( FENCE(CaseDefault | CaseClause) )
+```
+
+where `CaseDefault` and `CaseClause` both reference `*Gray` and `Gray = White | epsilon`.
+
+**Root cause hypothesis:** When FENCE encounters an ALT node on a backtrack
+path, `bb_alt` is invoked to pop the alternative.  The FENCE machinery has
+already consumed or modified the stack frame that `bb_alt` expects, leaving
+a stale or null pointer in the alternative slot.  The crash occurs because
+FENCE's backtrack handler does not account for an ALT node as a sub-pattern.
+
+**Workaround in use:** `CaseGray = ARBNO(white)` replaces `Gray = White | epsilon`
+inside all `Case`-related productions.  `ARBNO(white)` has no ALT node at
+its top level, so the `bb_alt`/FENCE interaction is avoided entirely.
+
+**Impact:** Any production that uses `*Gray` (or any ALT-rooted pattern)
+as a sub-component of a `FENCE(...)` argument may trigger this crash.
+Practically this means `White | epsilon` cannot be used inline inside FENCE;
+always replace with `ARBNO(white)` at those sites.
+
+- [ ] **RS-28a** — Write a minimal standalone Snocone repro: define
+  `G = 'x' | epsilon`, then `'abc' ? FENCE(G 'b')`.  Confirm crash vs.
+  success.  If no crash, narrow to ARBNO(FENCE(...)) nesting.
+- [ ] **RS-28b** — Trace through `bb_broker.c` / `sm_interp.c` FENCE
+  backtrack path: identify where `bb_alt` is invoked and what pointer it
+  dereferences when the sub-pattern is an ALT node.
+- [ ] **RS-28c** — Fix and add regression fixture to `test_smoke_snocone.sh`.
+
+---
+
+### RS-29 (BUG-SCRIP-ARBNO-IN-FENCE) — ARBNO-in-FENCE cursor restoration on retry
+
+**Filed from PARSER-IC-20 session, 2026-05-06.**
+
+**Symptom:** When an `ARBNO(P)` appears inside a `FENCE(...)` and the FENCE's
+subsequent pattern fails, forcing the scanner to retry via the ARBNO, cursor
+restoration is incorrect on some inputs.  Specifically, the ARBNO inside FENCE
+does not properly restore the cursor to the position where the FENCE began when
+expanding to the next repetition count.
+
+**Context:** In `parser_icon.sc`, `ARBNO( FENCE(CaseDefault | CaseClause) )`
+is the case-clause loop.  The outer ARBNO drives repetition; each repetition
+wraps a FENCE so that once a clause alternative is chosen it cannot backtrack
+within it.  The interaction between the outer ARBNO's retry mechanism and the
+inner FENCE's cursor save/restore is the suspected failure site.
+
+**Relationship to RS-28:** RS-28 (ALT-in-FENCE crash) may be the same
+underlying interaction seen at a lower level.  Investigate RS-28 first;
+RS-29 may be resolved as a consequence.
+
+- [ ] **RS-29a** — Write a minimal repro: `ARBNO( FENCE('a' | 'b') )` applied
+  to `'aba'` — verify all three characters are consumed.
+- [ ] **RS-29b** — If repro confirmed, trace ARBNO retry path through
+  `sm_interp.c` and identify where the FENCE cursor save is not restored.
+- [ ] **RS-29c** — Fix and add regression fixture.
+
+---
+
 ## Tooling (RS-23 diagnostic — dormant unless re-running)
 
 - `src/driver/rs23_diag.c` — link-time `__wrap_interp_eval`.  Active
