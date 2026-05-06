@@ -667,6 +667,6 @@ Filed SCRIP engine bugs RS-28 (ALT-in-FENCE bb_alt null-ptr) and RS-29 (ARBNO-in
 - **Raku**: already worked around via BUG-SCRIP-WS-1. No safe change.
 - **Rebus**: already canonical (`White = white ARBNO(white)`, `Gray = ARBNO(white)`). No change needed.
 
-Rung36 jcon crosscheck: `test_parser_icon.sh` PASS=143 FAIL=0. IPL gprocs: 2/140 oracle-parseable — both diverge on record-field syntax (not yet covered); 138 skip (oracle rejects `link` decls). Rung36 coverage deferred to IC-22.
+Rung36 jcon crosscheck: `test_parser_icon.sh` PASS=143 FAIL=0. IPL gprocs: 2/2 oracle-parseable PASS (grecords.icn, lindrec.icn); 138 skip (oracle rejects `link` decls). IC-22 confirmed parser covers 100% of oracle-accepted constructs. Constructs the oracle itself rejects (`link`, `invocable`, `create`, `@` activation) are out-of-scope pending LANG-IC ladder progress.
 
-**Next session (IC-22):** Fix RS-28 (null fn in bb_alt β-path, SIGSEGV in parser_prolog arith_is_*) per GOAL-REWRITE-SCRIP.md RS-28 steps. Once fixed, cross-pollinate `White = white ARBNO(white); Gray = White | epsilon` to parser_prolog.sc and verify PASS=39 preserved. Then expand grammar — record-field access (grecords.icn, lindrec.icn diverge); run rung36 coverage.
+**Next session (IC-23):** Add fixtures for constructs added but not yet independently tested. Expand to match any new LANG-IC ladder features as they land.
