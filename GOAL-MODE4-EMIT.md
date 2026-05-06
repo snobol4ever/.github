@@ -187,7 +187,7 @@ libscrip_rt.so unit tests PASS
   asm against it; verify the resulting binary loads and exits
   0. Standard gates green.
 
-- [ ] **Step EM-2 — SM_NOP + SM_HALT + SM_PUSH_INT codegen.**
+- [x] **Step EM-2 — SM_NOP + SM_HALT + SM_PUSH_INT codegen.**
   Smallest non-trivial program (`OUTPUT = 42` in SNOBOL4 is too
   big — pick `&OUTPUT = 0` or a synthetic SM program with three
   ops). Emit x86-64 asm for `SM_PUSH_INT`, `SM_HALT`, `SM_NOP`.
@@ -305,6 +305,52 @@ libscrip_rt.so unit tests PASS
 
 ## Closed steps
 
+**Step EM-2** — SM_NOP + SM_HALT + SM_PUSH_INT codegen.
+- Per-instruction dispatch loop in `sm_codegen_x64_emit.c`. Each
+  emitted block carries a `.LpcN:` label for future control-flow
+  rungs (EM-4) to target. Two opcodes baked: `SM_HALT` (pops int
+  from SM stack via `scrip_rt_pop_int`, passes to `scrip_rt_halt`)
+  and `SM_PUSH_LIT_I` (movabs literal, calls `scrip_rt_push_int`).
+  Every other opcode emits `UNHANDLED_OP` markers + a runtime call
+  to `scrip_rt_unhandled_op` — fail-fast rather than silently-wrong.
+- Calling-convention block in the emitter file header documents the
+  SysV AMD64 contract and reserves `r12` (SM value-stack ptr) and
+  `r13` (SM_State ptr) as callee-saved for future baked-direct
+  opcodes (EM-3+).  Until EM-3 lands these regs are unused; the
+  prologue does not yet save/restore them.
+- libscrip_rt.so ABI grew from 2 → 6 symbols: added `scrip_rt_push_int`,
+  `scrip_rt_pop_int`, `scrip_rt_halt`, `scrip_rt_unhandled_op`. EM-1's
+  `scrip_rt_finalize` extended (backward-compatible) to surface the
+  rc most recently passed to halt (or 0 if halt never called).
+  Internal SM value stack is fixed-capacity int64 (256 entries; EM-3
+  may grow / become typed).
+- Two **honest deviations** from the rung text, documented in code:
+  - `SM_NOP` is not in the `sm_opcode_t` enum. The rung text was
+    aspirational. EM-2 covers `SM_HALT` and `SM_PUSH_LIT_I` only;
+    no enum extensions made. Documented in
+    `sm_codegen_x64_emit.c` opcode-coverage block.
+  - `scrip_rt_pop_int` was originally an EM-3 ABI symbol (full
+    PUSH/POP/DUP/SWAP). Pulled forward by one rung because
+    `SM_HALT`'s codegen needs it: mode 2's `SM_HALT` returns 0
+    unconditionally, so without a stack-pop the EM-2 gate could
+    not distinguish a successful run from EM-1's literal-zero
+    scaffold. Documented in `scrip_rt.h` and `emit_op_halt()`.
+- Test harness `out/sm_codegen_x64_emit_test` (new): C standalone
+  that builds an in-memory 3-op SM_Program (`PUSH_LIT_I 42` +
+  `HALT`) and emits asm. Used by the gate.
+- Gate `scripts/test_smoke_jit_emit_x64.sh` consolidated (EM-1's
+  separate gate dropped — its "binary exits 0" check was an
+  artifact of the literal-zero scaffold). Four sub-tests:
+  PUSH_LIT_I+HALT (rc=42 verified end-to-end),
+  UNHANDLED_OP trap (rc=134 + diagnostic on stderr),
+  real-frontend emit (`OUTPUT = "hi"` emit ok, asm assembles),
+  EM-1 flag-validation (regression guard). PASS=4/4.
+- New files warning-clean under `-Wall -Wextra` (verified outside
+  the project's `-w` setting).
+- Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4); isolation
+  gate PASS; csnobol4 Budne PASS=36 (≥34); EM-1+EM-2 gate 4/4.
+- one4all @ `b5f8b42a`. Session #66, 2026-05-06.
+
 **Step EM-1** — Driver wiring + `libscrip_rt.so` skeleton.
 - `scrip.c` accepts `--jit-emit --x64` as a fourth, mutually-exclusive
   execution mode (alongside `--ir-run`/`--sm-run`/`--jit-run`/`--monitor`).
@@ -362,13 +408,21 @@ libscrip_rt.so unit tests PASS
 
 ## Watermark
 
+EM-2 LANDED 2026-05-06 (session #66) — SM_HALT and SM_PUSH_LIT_I
+baked. Synthetic `PUSH_LIT_I 42 + HALT` round-trip emit→link→run
+verified end-to-end (rc=42). libscrip_rt ABI at 6 symbols. Per-PC
+labels (`.LpcN`) emitted for future EM-4 jump targets. Honest
+deviations: `SM_NOP` skipped (not in opcode enum); `scrip_rt_pop_int`
+pulled forward from EM-3 ABI to make EM-2's gate distinguishable
+from EM-1's. Next rung: **EM-3** — full SM stack ops
+(`SM_PUSH_LIT_S`, `SM_PUSH_VAR`, `SM_POP`, `SM_DUP`, `SM_SWAP`) and
+arithmetic (`SM_ADD`/`SUB`/`MUL`/`DIV`/`MOD`). libscrip_rt v0.3 gains
+NV table + numeric builtins. Gate program: `(2 + 3) * 4` returns 20.
+
 EM-1 LANDED 2026-05-06 (session #66) — driver wiring + `libscrip_rt.so`
 skeleton in place. End-to-end pipeline proven: `scrip --jit-emit --x64
 file.sno` → asm → `gcc -no-pie + -lscrip_rt` → ELF binary → loads and
-exits 0. Next rung: **EM-2** — SM_NOP + SM_HALT + SM_PUSH_INT codegen
-(establishes the calling convention for SM-stack-pointer / pc / state-ptr
-register allocation; `scrip_rt_push_int` and `scrip_rt_halt` extend the
-ABI).
+exits 0.
 
 Goal stub written 2026-05-05 in session #62, lifted from
 GOAL-CHUNKS.md Steps 8 and 19.

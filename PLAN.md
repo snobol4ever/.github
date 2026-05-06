@@ -65,8 +65,8 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED (Steps 1–7 complete; honest deferrals on Step 6 partial + broad-corpus 38-program SM/IR gap pre-existing). Next: CH-8 (M2 — Mode 4 x86 emitter, see GOAL-MODE4-EMIT.md rung EM-2; EM-1 LANDED sess #66) |
-| Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | EM-1 LANDED sess #66 (driver wiring + libscrip_rt.so skeleton; standard gates green; emitted binary loads + exits 0). Next: EM-2 (SM_NOP + SM_HALT + SM_PUSH_INT codegen). |
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED. **Next inline: CH-12** (Icon main() synthesis — first rung of M4 isolation work). Step 8 (mode-4 x86 emitter) carved to `GOAL-MODE4-EMIT.md` — runs in PARALLEL with M4, file-disjoint. Don't confuse them: a session "doing GOAL-CHUNKS" defaults to its inline next rung (CH-12), NOT the carved sub-goal. |
+| Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | EM-2 LANDED sess #66 (SM_HALT + SM_PUSH_LIT_I codegen; synthetic prog rc=42 e2e; libscrip_rt ABI at 6 symbols; honest deviations on SM_NOP + scrip_rt_pop_int pulled from EM-3). Next: EM-3 (stack ops + arithmetic; gate `(2+3)*4=20`). |
 | Native Snocone — .NET (CHUNKS Step 9) | `GOAL-NATIVE-SNOCONE-DOTNET.md` | one4all (`src/driver/net/`) | stub written sess #62; rung DN-1 awaits PARSER-SC-6b |
 | Native Snocone — JVM (CHUNKS Step 10) | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all (`src/driver/jvm/`) | stub written sess #62; rung JV-1 awaits PARSER-SC-6b |
 | Native Snocone — JS (CHUNKS Step 11) | `GOAL-NATIVE-SNOCONE-JS.md` | one4all (`src/driver/js/`) | stub written sess #62; rung JS-1 awaits PARSER-SC-6b |
