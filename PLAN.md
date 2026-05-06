@@ -66,7 +66,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Goal | File | Repo | Step |
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED. **Next inline: CH-12** (Icon main() synthesis — first rung of M4 isolation work). Step 8 (mode-4 x86 emitter) carved to `GOAL-MODE4-EMIT.md` — runs in PARALLEL with M4, file-disjoint. Don't confuse them: a session "doing GOAL-CHUNKS" defaults to its inline next rung (CH-12), NOT the carved sub-goal. |
-| Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | EM-3 LANDED sess #67 (typed stack; SM_ADD/SUB/MUL/DIV/MOD; (2+3)*4=20; PASS=5). ARCH: sm_macros.s + emit_bb_box(). Artifacts: corpus/programs/snobol4/demo/*.s + artifacts/x64/ (roman,wordcount,claws5,treebank,beauty). Next: EM-4 (SM_JUMP/S/F control flow). |
+| Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | EM-3 LANDED sess #67 (typed stack; SM_ADD/SUB/MUL/DIV/MOD; (2+3)*4=20; PASS=5). ARCH: sm_macros.s + emit_bb_box(). 5 tracked .s artifacts in corpus/programs/snobol4/demo/. Next: EM-4 (SM_JUMP/S/F control flow; gate: forward jump + conditional backward loop). |
 | Native Snocone — .NET (CHUNKS Step 9) | `GOAL-NATIVE-SNOCONE-DOTNET.md` | one4all (`src/driver/net/`) | stub written sess #62; rung DN-1 awaits PARSER-SC-6b |
 | Native Snocone — JVM (CHUNKS Step 10) | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all (`src/driver/jvm/`) | stub written sess #62; rung JV-1 awaits PARSER-SC-6b |
 | Native Snocone — JS (CHUNKS Step 11) | `GOAL-NATIVE-SNOCONE-JS.md` | one4all (`src/driver/js/`) | stub written sess #62; rung JS-1 awaits PARSER-SC-6b |

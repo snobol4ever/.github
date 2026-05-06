@@ -571,8 +571,15 @@ integer-only; SM_JUMP_S/F declared for EM-4. Gate: PASS=5 FAIL=0.
 Artifact tracking: corpus/programs/snobol4/demo/*.s side-by-side (roman,
 wordcount, claws5, expression, porter, treebank-array, treebank-list, beauty --
 all assemble cleanly). one4all artifacts/x64/ mirrors with beauty_prog.s.
-one4all @ 64b409a9. corpus @ ac5392f. Next rung: EM-4 (SM_JUMP/SM_JUMP_S/SM_JUMP_F
-control flow; gate: forward jump + conditional backward loop).
+one4all @ 64b409a9. corpus @ ac5392f. Next rung: EM-4 (SM_JUMP/SM_JUMP_S/SM_JUMP_F control flow;
+gate: forward jump + conditional backward loop).
+
+Artifact tracking settled session #67 (handoff session):
+  Five tracked .s files in corpus/programs/snobol4/demo/:
+    roman.s (7KB) wordcount.s (10KB) claws5.s (90KB)
+    treebank-list.s (101KB) treebank-array.s (120KB)
+  Protocol: regen each session; commit if assembles AND changed.
+  corpus @ 006a437. .github @ 8918c23. one4all @ 204321ae.
 
 ARCH PIVOT settled 2026-05-06 (session #67)
 
