@@ -688,11 +688,61 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       **Verification:** `head -198`, `-220`, `-250`, `-300` of beauty.sc all
       exit rc=0 (was SIGSEGV/SIGABRT).  Gate PASS=50 FAIL=0 unchanged.
 
+- [ ] **Step SC-6c-bug:** Off-by-one in Compiland counter — first STMT stranded
+      on tree stack. **Session 2026-05-06 (session 6): diagnosis complete, fix pending.**
+
+      **Symptom:** parser_snocone.sc on full beauty.sc (587 lines) produces 1147 stmts
+      instead of oracle's 1148. The missing stmt is always `&FULLSCAN = 1` (the very
+      first stmt). A patched driver confirms: after `Pop()` returns the `Parse` node
+      (1147 children), a second `Pop()` returns a `STMT :eq :subj (E_KEYWORD FULLSCAN)`
+      node — it is stranded at the bottom of the tree stack.
+
+      **Performance non-issue:** parser now runs in under 1 second on full beauty.sc
+      (the SC-6b-bug-segfault fix eliminated the 60s timeout entirely).
+
+      **Root cause narrowed by instrumentation:**
+      - `reduce_prim(E_Parse)` calls `ReducePrim` which reads `TopCounter()` = 1147,
+        pops 1147 items into the `Parse` tree — leaving 1 item (FULLSCAN) stranded.
+      - Compiland-level `IncCounter` calls are monotonically 1→1147 with no gaps,
+        no skips, no double-increments.
+      - ALL `Push(STMT)` calls happen at counter frame depth=1 (Compiland frame).
+      - Total `Push(STMT)` calls = 1148; total depth=1 `IncCounter` calls = 1147.
+      - Therefore: exactly ONE `Push(STMT)` fires without a paired `IncCounter`
+        at the Compiland frame level.
+      - The FULLSCAN stmt's own `nInc()` DOES fire (first `IncCounter` call is
+        depth=1, val=1) — so the FULLSCAN Push and its nInc are correctly paired.
+      - The unpaired Push is a DIFFERENT stmt — one that is pushed later but
+        occupies the bottom slot FULLSCAN vacated when ReducePrim pops 1147 items
+        from the top.  Wait — FULLSCAN is the BOTTOM of the stack (pushed first),
+        so ReducePrim pops the TOP 1147 leaving FULLSCAN below.  This means
+        FULLSCAN's Push is paired with an IncCounter that incremented a NESTED
+        frame rather than the Compiland frame. Yet instrumentation shows all
+        depth=1 calls go 1→1147 in order.  Contradiction not yet resolved.
+
+      **Remaining investigation:** the exact stmt whose IncCounter fires into a
+      nested frame (or is missing) has not been isolated. Two hypotheses:
+      1. `finalize_function` or another `Finalize_*` has an off-by-one in its
+         `IncCounter` loop that over-counts by 1 for some beauty.sc function,
+         consuming the counter slot that FULLSCAN's nInc() should own — causing
+         FULLSCAN to increment a NOT-YET-PUSHED outer frame (before `nPush()`
+         fires).  Possible if the very first stmt in ARBNO's first iteration
+         overlaps with a late-firing finalize from a prior parse artifact.
+      2. One `Finalize_*` function pushes one extra STMT that has no
+         corresponding `IncCounter` call (under-counts by 1 in its loop).
+
+      **Next session fix plan:**
+      1. Add `OUTPUT = 'PUSH_COUNT=' push_count` and `OUTPUT = 'INC_COUNT=' inc_count`
+         trackers to each `finalize_*` function individually.
+      2. Run on beauty.sc and check which finalize has push_count ≠ inc_count.
+      3. Fix the off-by-one in that finalize's `IncCounter` loop.
+      4. Verify: `Extra Pop()` returns empty (no extra on tree stack).
+      5. Gate PASS=50 FAIL=0, then proceed to SC-6c proper.
+
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
-      execute identically under `--ir-run`.  SC-6b-bug fixed — no longer blocked
-      on first-stmt drop.  Next work: full beauty.sc parse still times out at
-      60s (parser is slow on complex real-world input); investigate performance
-      and remaining tree-shape diffs against oracle.
+      execute identically under `--ir-run`.  Blocked on SC-6c-bug (off-by-one
+      counter strands first stmt on tree stack).  After SC-6c-bug fix:
+      run parser against full beauty.sc, confirm stmt count = 1148, verify
+      normalized output matches oracle byte-for-byte.
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
@@ -715,9 +765,10 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ SC-6b-bug-segfault ✅ — PASS=50 FAIL=0;
-SC-6c next: full beauty.sc crosscheck)**
+SC-6c-bug ⏳ filed sess 6 — off-by-one counter strands first STMT on tree stack;
+SC-6c blocked on SC-6c-bug)**
 
-Gate: PASS=50 FAIL=0. corpus @ 5fbb458, one4all @ HEAD (2026-05-06 session 5).
+Gate: PASS=50 FAIL=0. corpus @ 5fbb458, one4all @ HEAD (2026-05-06 session 6).
 
 ### SC-6b-bug session 2026-05-06 (session 5) — reduce_prim fix LANDED; PASS=50 FAIL=0
 
