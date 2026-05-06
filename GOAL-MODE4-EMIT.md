@@ -260,23 +260,26 @@ At the end of every session that touches the mode-4 emitter:
 
 ### Tracked demo programs (canonical location: corpus/programs/snobol4/demo/)
 
-Two programs. Chosen for size (inspectable), coverage (distinct features),
-and stability (will not be deleted again).
+Five programs. Chosen for coverage (distinct features) and stability (will not be deleted again).
 
-| File | Lines | Features exercised | Ref |
-|------|-------|--------------------|-----|
-| `roman.sno` | 36 | Recursive DEFINE, REPLACE, BREAK, pattern match | `roman.ref` (345 lines) |
-| `wordcount.sno` | 13 | BREAK/SPAN, INPUT loop, arithmetic | — |
+| File | Lines | Size | Features exercised |
+|------|-------|------|--------------------|
+| `roman.sno` | 36 | 7 KB | Recursive DEFINE, REPLACE, BREAK, pattern match |
+| `wordcount.sno` | 13 | 10 KB | BREAK/SPAN, INPUT loop, arithmetic |
+| `claws5.sno` | 213 | 90 KB | ARBNO, complex patterns, corpus-scale |
+| `treebank-list.sno` | 207 | 101 KB | Nested patterns, stack operations |
+| `treebank-array.sno` | 243 | 120 KB | Array operations, nested patterns |
 
 The `.s` files live side-by-side with the `.sno` files in corpus:
 
-    corpus/programs/snobol4/demo/roman.sno      (source — do not edit)
-    corpus/programs/snobol4/demo/roman.s        (generated — commit when changed)
-    corpus/programs/snobol4/demo/wordcount.sno  (source — do not edit)
-    corpus/programs/snobol4/demo/wordcount.s    (generated — commit when changed)
+    corpus/programs/snobol4/demo/roman.sno           roman.s          (7 KB)
+    corpus/programs/snobol4/demo/wordcount.sno        wordcount.s     (10 KB)
+    corpus/programs/snobol4/demo/claws5.sno           claws5.s        (90 KB)
+    corpus/programs/snobol4/demo/treebank-list.sno    treebank-list.s (101 KB)
+    corpus/programs/snobol4/demo/treebank-array.sno   treebank-array.s (120 KB)
 
 Programs NOT tracked here (too large to inspect):
-expression.sno, porter.sno, beauty.sno, claws5.sno, treebank-*.sno.
+Programs NOT tracked (too large): expression.sno, porter.sno, beauty.sno.
 
 ### Regen + commit protocol
 
@@ -288,19 +291,25 @@ cd /home/claude/one4all
 DEMO=/home/claude/corpus/programs/snobol4/demo
 
 # Regenerate
-./scrip --jit-emit --x64 $DEMO/roman.sno    > $DEMO/roman.s    2>/dev/null
-./scrip --jit-emit --x64 $DEMO/wordcount.sno > $DEMO/wordcount.s 2>/dev/null
+./scrip --jit-emit --x64 $DEMO/roman.sno          > $DEMO/roman.s          2>/dev/null
+./scrip --jit-emit --x64 $DEMO/wordcount.sno       > $DEMO/wordcount.s      2>/dev/null
+./scrip --jit-emit --x64 $DEMO/claws5.sno          > $DEMO/claws5.s         2>/dev/null
+./scrip --jit-emit --x64 $DEMO/treebank-list.sno   > $DEMO/treebank-list.s  2>/dev/null
+./scrip --jit-emit --x64 $DEMO/treebank-array.sno  > $DEMO/treebank-array.s 2>/dev/null
 
-# Verify both assemble (do not commit if either fails)
-for s in $DEMO/roman.s $DEMO/wordcount.s; do
+# Verify all assemble (do not commit if any fail)
+for s in $DEMO/roman.s $DEMO/wordcount.s $DEMO/claws5.s \
+          $DEMO/treebank-list.s $DEMO/treebank-array.s; do
     gcc -c "$s" -o /dev/null 2>/tmp/as_err.txt         && echo "OK   $(basename $s)"         || { echo "FAIL $(basename $s) -- NOT committing"; cat /tmp/as_err.txt; exit 1; }
 done
 
 # Commit corpus if changed
 cd /home/claude/corpus
 git diff --stat programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s
-git add programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s
-git diff --cached --quiet || git commit -m "x64 artifacts: regen roman.s wordcount.s (<rung>)"
+git add programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s \
+        programs/snobol4/demo/claws5.s programs/snobol4/demo/treebank-list.s \
+        programs/snobol4/demo/treebank-array.s
+git diff --cached --quiet || git commit -m "x64 artifacts: regen demo/*.s (<rung>)"
 ```
 
 ### What to look for

@@ -169,8 +169,11 @@ BAKED INLINE via macros (does NOT go through libscrip_rt):
 
 Tracked files (canonical location -- corpus repo):
 
-    corpus/programs/snobol4/demo/roman.s      side-by-side with roman.sno
-    corpus/programs/snobol4/demo/wordcount.s  side-by-side with wordcount.sno
+    corpus/programs/snobol4/demo/roman.s           (7 KB)  side-by-side with roman.sno
+    corpus/programs/snobol4/demo/wordcount.s       (10 KB)  side-by-side with wordcount.sno
+    corpus/programs/snobol4/demo/claws5.s          (90 KB)  side-by-side with claws5.sno
+    corpus/programs/snobol4/demo/treebank-list.s  (101 KB)  side-by-side with treebank-list.sno
+    corpus/programs/snobol4/demo/treebank-array.s (120 KB)  side-by-side with treebank-array.sno
 
 Rule: after every session touching the emitter --
   1. Regen both .s files.
@@ -178,12 +181,13 @@ Rule: after every session touching the emitter --
   3. If does not assemble -> do NOT commit. Leave repo copy unchanged.
   4. Git history is the archive. No session-numbered copies.
 
-roman.s is the primary inspection target: small (36-line source),
-recursive DEFINE, REPLACE, BREAK, pattern match -- covers the key
-emitter paths at a readable scale.
+roman.s is the primary reading artifact: small (36-line source),
+recursive DEFINE, REPLACE, BREAK, pattern match -- covers key emitter
+paths at readable scale. The larger three (claws5, treebank-list,
+treebank-array) are tracked for assembly health, not line reading.
 
-Programs deliberately excluded from tracking (too large):
-beauty.sno, expression.sno, porter.sno, claws5.sno, treebank-*.sno.
+Programs deliberately excluded (too large for any use):
+beauty.sno, expression.sno, porter.sno.
 
 beauty_prog.s lives in one4all/artifacts/x64/ as the EM-7 gate artifact
 (assembly check + zero UNHANDLED_OP count) but is not a reading artifact.
