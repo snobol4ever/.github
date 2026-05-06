@@ -417,11 +417,82 @@ with `\` or embedded `"` in a string now renders correctly.
       `shift`/`reduce` cannot iterate over string bytes.
 - **Gate:** PASS=85 FAIL=0 ✓  corpus@0e5ad3d.
 
+### PARSER-RK-20 — `map`/`grep`/`sort` higher-order list ops — LANDED session 2026-05-06
+
+- [x] `ClosureExpr = ( $'{' *Expr $'}' )` — one-expression closure body for map/grep/sort.
+- [x] `map { closure } list` → `(E_FNC raku_map (E_VAR raku_map) closure list)`.
+      `Finish_map` helper; mirrors raku.y KW_MAP closure expr RK-24 action.
+- [x] `grep { closure } list` → `(E_FNC raku_grep (E_VAR raku_grep) closure list)`.
+      `Finish_grep` helper; mirrors raku.y KW_GREP closure expr RK-24 action.
+- [x] `sort list` → `(E_FNC raku_sort (E_VAR raku_sort) list)`.
+      `Finish_sort_nc` helper; mirrors raku.y KW_SORT expr (no closure) RK-24 action.
+- [x] All three added to `Expr11` after the `die` arm (matching oracle grammar position).
+- [x] `$'map'` / `$'grep'` / `$'sort'` keyword tokens added to token table.
+- [x] Test corpus: 5 new fixtures (map_basic, grep_basic, sort_nc, map_say, grep_str).
+- **Gate:** PASS=105 FAIL=0 ✓  corpus@eefec55.
+
+### PARSER-RK-21 — `gather`/`take` coroutine construct — next
+
+- [ ] `take expr ;` stmt → `(E_SUSPEND expr)`.  `SubBlockStmt` arm: `$'take' $'  ' *Expr $';' (E_SUSPEND & 1)`.
+      Mirrors raku.y KW_TAKE expr ';' → expr_unary(E_SUSPEND, expr).
+- [ ] `gather { block }` expr → two STMTs emitted: def STMT `(E_FNC __gather_N ...)` then
+      call STMT with main wrapper `(E_FNC main ... (E_ASSIGN var (E_FNC __gather_N (E_VAR __gather_N))))`.
+      Requires a gather-sequence counter global (`gather_seq`) incremented per gather site.
+      `Finish_gather` helper: pop block children from stack, build def + call nodes, emit def
+      via sub_list (same mechanism as SubStmt), push call onto stack.
+      Mirrors raku.y KW_GATHER block RK-21 action.
+- [ ] Test corpus: 5 new fixtures — gather_take_lit, gather_take_var, gather_multi_take,
+      gather_in_assign, take_in_loop.
+- **Gate target:** PASS≥110.
+
+### BUG-SCRIP-WS-1 — SCRIP engine crash: `White = white ARBNO(white)` nested in expr ARBNO under &FULLSCAN=1
+
+Discovered during RK-WS (whitespace refactor, session 2026-05-06).
+
+**Symptom:** SIGSEGV (exit 139) on certain Raku programs when `White` is defined as
+`white ARBNO(white)` (canonical `parser_snocone.sc` form) and `$'  '` (= White) appears
+inside expression-tier ARBNO loops (`Expr7tail`, `Expr6tail`, etc.) with `&FULLSCAN=1`.
+Affected fixtures: `delete_hash_brace`, `hash_exists_brace`, `match_global`, `subst_single`.
+
+**Root cause (diagnosed, not yet fixed in engine):** Under `&FULLSCAN=1`, nested `ARBNO`
+patterns cause the SCRIP pattern-match engine to overflow its internal stack. `White =
+white ARBNO(white)` introduces an ARBNO inside `$'  '`; when this is used inside an
+expression-tier ARBNO (`ARBNO(Expr7tail)` etc.), the engine must manage two levels of
+ARBNO backtrack state simultaneously with FULLSCAN enabled — exceeding the stack limit on
+inputs requiring deep alternation search.
+
+**Workaround applied in parser_raku.sc (RK-WS):** Keep `White` in the original
+FENCE-based form `SPAN(' ' tab) FENCE('#' BREAK(nl)|epsilon) | '#' BREAK(nl)` which does
+not nest ARBNO. `Gray = White | epsilon` kept as alternation (not `ARBNO(white)`) for the
+same reason. `DGray` (new — absorbs newlines) is safe because it is only used at fixed
+block-boundary sites, not inside expression ARBNO loops.
+
+**Fix needed in SCRIP engine:** `sm_interp.c` or `bb_broker.c` — increase the ARBNO
+backtrack stack depth, or fix the stack management so nested ARBNOs under FULLSCAN don't
+overflow. The bug is reproducible with this minimal test:
+
+```snocone
+&FULLSCAN = 1;
+white = ( SPAN(' ' tab) | '#' BREAK(nl) );
+White = white ARBNO(white);   // ← nested ARBNO
+$'  ' = White;
+Tail = FENCE( $'  ' 'div' $'  ' epsilon );
+Pat = ('X' ARBNO(Tail));      // ← outer ARBNO containing nested ARBNO via $'  '
+Pat ? 'X $x div $y';          // crashes on certain inputs
+```
+
+- [ ] BUG-SCRIP-WS-1: Fix SCRIP engine to handle `White = white ARBNO(white)` inside
+      expression-tier `ARBNO` loops under `&FULLSCAN=1` without SIGSEGV.
+      File: `src/runtime/x86/sm_interp.c` (ARBNO backtrack frame depth) or equivalent.
+      Gate: all 105 parser-raku fixtures pass with `White = white ARBNO(white)`.
+
 ---
 
 ## Watermark
 
-PARSER-RK-16 LANDED (session 2026-05-05) — PASS=85 FAIL=0.
+PARSER-RK-WS LANDED (session 2026-05-06) — PASS=105 FAIL=0. Whitespace refactor:
+canonical White/Gray/DGray/nl_one model; nl_opt eliminated; BUG-SCRIP-WS-1 filed.  corpus@9ed9e99.
+PARSER-RK-20 LANDED (session 2026-05-06) — PASS=105 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
@@ -430,9 +501,17 @@ RK-13: string ~ concat → E_CAT n-ary flatten.  corpus@591f91b.
 RK-14: eq/ne string cmp → E_LEQ/E_LNE; unary minus → E_MNS.  corpus@d2f4584.
 RK-15: % modulo → E_MOD (binary); div integer division → E_DIV (flatten).  corpus@5b42940.
 RK-16: interpolated DQ strings "hello $var" → left-assoc E_CAT chain.  corpus@0e5ad3d.
+RK-17: given/when/default → E_CASE node.  corpus@a29276e.
+RK-18: print stmt + die expr + DQ escape fix (BREAK+REM pattern).  corpus@85c4a88.
+RK-19: try/CATCH exception handling.  corpus@ca930a1.
+RK-20: map/grep/sort higher-order list ops.  corpus@eefec55.
 
-Next session: PARSER-RK-17 — `given`/`when` construct, or array/hash assignment
-  (`@a = (1,2,3)` / `%h = (a=>1)`).  Check LANG-RAKU ladder for what RK-34 covers.
+Cross-PARSER notes added RK-17/18:
+- Snocone if(expr) always succeeds; use EQ/IDENT predicates for integer flags.
+- BREAK(x) fails when no char from x appears in remaining subject; pair with REM.
+- WhenClause/DefaultClause need leading nl_opt for newlines inside { }.
+
+Next session: PARSER-RK-21 — `gather`/`take` coroutine construct.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
