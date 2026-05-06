@@ -834,3 +834,34 @@ args.
 Regex / grammar primitives starter slice: literal, character class,
 quantifier, alternation.  Not full grammar/rule DSL.  Sibling LANG
 rungs RK-26..RK-34 active.  Gate target ≥40.
+
+---
+
+### PARSER-RK-22 — method call / field access — LANDED session 2026-05-06
+
+- [x] `$obj.meth()` / `$obj.meth(arg, ...)` → `(E_FNC raku_mcall (E_VAR raku_mcall) obj (E_QLIT "meth") args...)`.
+      `finish_mcall()` helper: pops counter-frame args + obj off stack, builds raku_mcall node.
+      Retained (§4a): reduce() sets value=''; raku_mcall name required in E_FNC value field.
+- [x] `$obj.field` (no parens) → `(E_FIELD fieldname obj)`.
+      `finish_field()` helper: pops obj, builds E_FIELD node with capmf/capmr name.
+      Retained (§4a): reduce() cannot set E_FIELD's sval field.
+- [x] `McallArgTail` / `MethodName` / `MethodTail` patterns added before `Expr11` (forward-ref
+      rule: all three are referenced via `*` because Expr11 is defined in source order first).
+- [x] `Expr11` extended: wrapped with `ARBNO(*MethodTail)` postfix — deferred lookup required.
+- [x] `capmf` / `capmr` globals added for method name capture.
+- [x] Test corpus: 5 new fixtures (str_uc, str_lc, str_trim, str_chars, str_substr).
+- **Gate:** PASS=115 FAIL=0 ✓  corpus@675cc40
+
+## Watermark
+
+Session 2026-05-06 — **PARSER-RK-22 LANDED** PASS=115 FAIL=0 corpus@675cc40.
+
+Method call / field access support complete.  `MethodTail` postfix works cleanly
+because it is positioned after the full primary (all Expr11 arms), and `ARBNO(*MethodTail)`
+uses deferred lookup via `*` because Expr11 is defined before MethodTail in source order
+(same `*X` forward-reference rule as RK-4's `*CallArgTail` and RK-21's `*GatherBlock`).
+
+### Next: PARSER-RK-23
+
+`$s ~~ /regex/` smartmatch (already supported at RK-5) extended to cover named-capture
+groups `(<name> ...)` and verify against the LANG RK-23 oracle output.  Gate target ≥120.

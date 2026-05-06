@@ -85,7 +85,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-6 LANDED (2026-05-06, PASS=80 FAIL=0: unary ~!\/\\, deref $, @cursor, range [i+:n], augmented assign. corpus@5d4b829) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-21 LANDED PASS=143 — RS-28/RS-29 filed, cross-pollination blocked by engine bugs (Prolog/Raku); next: IC-22 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-21 LANDED PASS=110 FAIL=0 corpus@0546b63 — gather/take coroutine construct (GatherBlock pattern; cross-PARSER `*X` deferred-lookup rule reconfirmed). Next: RK-22 |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-22 LANDED PASS=115 FAIL=0 corpus@675cc40 — method call/field access (MethodTail + ARBNO postfix; finish_mcall/finish_field). Next: RK-23 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
