@@ -285,7 +285,7 @@ milestones:
   The "modes 2/3 structurally isolated" claim is therefore NOT yet
   true — it remains aspirational until the deferred work lands.
 
-- [ ] **Step 7 — M1 milestone close.**  Run the full gate set in
+- [x] **Step 7 — M1 milestone close.**  Run the full gate set in
   all three modes (`--ir-run`, `--sm-run`, `--jit-run`) on a
   curated subset: smoke_snobol4, smoke_snocone, csnobol4 Budne
   full, Snocone corpus.  Document that SNOBOL4 + Snocone are
@@ -470,6 +470,21 @@ lowering to emit chunk inline + `SM_CALL_CHUNK` — same SM stack, no nested run
 Scope boundary: stored-chunk `E=*expr; EVAL(E)` deferred (EXPVAL_fn returns FAILDESCR
 for slen==1 DT_E until NV integer-carry infrastructure lands).
 one4all @ `1b42498f`. Session #63, 2026-05-05.
+
+**Step 7** — M1 milestone close. Three-mode sweep + curated subset gates
+documented in `docs/CHUNKS-M1-close.md`. Findings:
+- Producer-side migration complete: smoke ×6 PASS, isolation gate (with new
+  structural rule) PASS, Budne PASS=36, Step 5 audit clean.
+- HONEST: `test_smoke_snobol4_jit.sh` shows 38-program gap between `--ir-run`
+  (139 PASS) and `--sm-run` / `--jit-run` (101 PASS each). Verified
+  pre-existing: same gap at pre-Step-4 commit c6862096. CHUNKS Steps 2–6 are
+  net-flat on this gate — independent of CHUNKS scope.
+- HONEST: Snocone all-modes 28/14 — same pre-existing pattern.
+M1 is shippable as "producer-side chunk migration complete + chunk
+infrastructure in place"; it is NOT "modes 2/3 bug-for-bug compatible with
+mode 1 on real programs". Broad-corpus parity is a separate (SN-*) ladder.
+M2 (mode-4 x86 emitter) is now unblocked.
+one4all @ `28020a0a`. Session #65, 2026-05-06.
 
 **Step 6** — Structural rule added to `test_isolation_ir_sm.sh` forbidding
 EXPR_t* casts and `->kind`/`->children`/`->nchildren`/`->sval`/`->ival`

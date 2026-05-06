@@ -65,7 +65,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | CH-7 (Step 7 next — M1 milestone close: full gate set in --ir-run/--sm-run/--jit-run on smoke_snobol4, smoke_snocone, csnobol4 Budne, Snocone corpus) |
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED (Steps 1–7 complete; honest deferrals on Step 6 partial + broad-corpus 38-program SM/IR gap pre-existing). Next: CH-8 (M2 — Mode 4 x86 emitter, see GOAL-MODE4-EMIT.md rung EM-1) |
 | Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | stub written sess #62; rung EM-1 awaits CHUNKS M1 close |
 | Native Snocone — .NET (CHUNKS Step 9) | `GOAL-NATIVE-SNOCONE-DOTNET.md` | one4all (`src/driver/net/`) | stub written sess #62; rung DN-1 awaits PARSER-SC-6b |
 | Native Snocone — JVM (CHUNKS Step 10) | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all (`src/driver/jvm/`) | stub written sess #62; rung JV-1 awaits PARSER-SC-6b |
