@@ -689,54 +689,124 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       exit rc=0 (was SIGSEGV/SIGABRT).  Gate PASS=50 FAIL=0 unchanged.
 
 - [ ] **Step SC-6c-bug:** Off-by-one in Compiland counter — first STMT stranded
-      on tree stack. **Session 2026-05-06 (session 6): diagnosis complete, fix pending.**
+      on tree stack. **Session 7 (2026-05-06): diagnosis refined; bug isolated to
+      ~20-line repro; root cause narrowed but exact mechanism still pending.**
 
-      **Symptom:** parser_snocone.sc on full beauty.sc (587 lines) produces 1147 stmts
-      instead of oracle's 1148. The missing stmt is always `&FULLSCAN = 1` (the very
-      first stmt). A patched driver confirms: after `Pop()` returns the `Parse` node
-      (1147 children), a second `Pop()` returns a `STMT :eq :subj (E_KEYWORD FULLSCAN)`
-      node — it is stranded at the bottom of the tree stack.
+      **Symptom (unchanged):** parser_snocone.sc on full beauty.sc (587 lines)
+      produces 1147 stmts instead of oracle's 1148. The missing stmt is always
+      `&FULLSCAN = 1` (the very first stmt) — it remains stranded at the bottom
+      of the tree stack after `reduce_prim(E_Parse)` pops 1147 items.
 
-      **Performance non-issue:** parser now runs in under 1 second on full beauty.sc
-      (the SC-6b-bug-segfault fix eliminated the 60s timeout entirely).
+      **Smaller reproduction (NEW this session):**
 
-      **Root cause narrowed by instrumentation:**
-      - `reduce_prim(E_Parse)` calls `ReducePrim` which reads `TopCounter()` = 1147,
-        pops 1147 items into the `Parse` tree — leaving 1 item (FULLSCAN) stranded.
-      - Compiland-level `IncCounter` calls are monotonically 1→1147 with no gaps,
-        no skips, no double-increments.
-      - ALL `Push(STMT)` calls happen at counter frame depth=1 (Compiland frame).
-      - Total `Push(STMT)` calls = 1148; total depth=1 `IncCounter` calls = 1147.
-      - Therefore: exactly ONE `Push(STMT)` fires without a paired `IncCounter`
-        at the Compiland frame level.
-      - The FULLSCAN stmt's own `nInc()` DOES fire (first `IncCounter` call is
-        depth=1, val=1) — so the FULLSCAN Push and its nInc are correctly paired.
-      - The unpaired Push is a DIFFERENT stmt — one that is pushed later but
-        occupies the bottom slot FULLSCAN vacated when ReducePrim pops 1147 items
-        from the top.  Wait — FULLSCAN is the BOTTOM of the stack (pushed first),
-        so ReducePrim pops the TOP 1147 leaving FULLSCAN below.  This means
-        FULLSCAN's Push is paired with an IncCounter that incremented a NESTED
-        frame rather than the Compiland frame. Yet instrumentation shows all
-        depth=1 calls go 1→1147 in order.  Contradiction not yet resolved.
+      Minimal trigger isolated to `/tmp/wraptest.sc` (~38 lines, diff=1) and
+      `/tmp/redux.sc` (~20 lines, diff=3 — multiple off-by-ones).  Both extracted
+      from beauty.sc lines 200-237 (`pp` function's `Stmt` branch).
 
-      **Remaining investigation:** the exact stmt whose IncCounter fires into a
-      nested frame (or is missing) has not been isolated. Two hypotheses:
-      1. `finalize_function` or another `Finalize_*` has an off-by-one in its
-         `IncCounter` loop that over-counts by 1 for some beauty.sc function,
-         consuming the counter slot that FULLSCAN's nInc() should own — causing
-         FULLSCAN to increment a NOT-YET-PUSHED outer frame (before `nPush()`
-         fires).  Possible if the very first stmt in ARBNO's first iteration
-         overlaps with a late-firing finalize from a prior parse artifact.
-      2. One `Finalize_*` function pushes one extra STMT that has no
-         corresponding `IncCounter` call (under-counts by 1 in its loop).
+      Bisection on `head -N beauty.sc` (closing functions manually to keep
+      oracle-parseable):
 
-      **Next session fix plan:**
-      1. Add `OUTPUT = 'PUSH_COUNT=' push_count` and `OUTPUT = 'INC_COUNT=' inc_count`
-         trackers to each `finalize_*` function individually.
-      2. Run on beauty.sc and check which finalize has push_count ≠ inc_count.
-      3. Fix the off-by-one in that finalize's `IncCounter` loop.
-      4. Verify: `Extra Pop()` returns empty (no extra on tree stack).
-      5. Gate PASS=50 FAIL=0, then proceed to SC-6c proper.
+      | h156 + lines 163-N | oracle | parser | diff |
+      |--------------------|-------:|-------:|-----:|
+      | h156 + 163-200     | 210    | 210    | 0    |
+      | h156 + 163-215     | 0(✗)   | 1      | -    |
+      | h156 + 163-335     | 500    | 499    | **1**|
+
+      Bug appears between input lines 200-237 of beauty.sc — within the `Stmt`
+      branch of `pp(x)`, which contains nested if + `else if (DIFFER(ppAsgn))`
+      + nested ifs with assignment statements. Removing the else-if structure
+      reduces diff to 0; reproducing gives diff≥1.  This strongly suggests the
+      bug is in the **else-if-recursion branch** at line 625 of
+      parser_snocone.sc:
+
+      ```
+      | nPush() *if_cmd Save_nbody('if_nelse') nPop()
+      ```
+
+      when the inner `*if_cmd` itself contains nested ifs with body statements.
+
+      **Two-stack instrumentation results (NEW this session):**
+
+      Instrumented `Push`/`Pop` in `stack.sc` and `PushCounter`/`PopCounter`/
+      `IncCounter` in `counter.sc` with frame-depth tracking, plus per-finalize
+      push/inc trackers in `parser_snocone.sc`.  Findings:
+
+      - **STMT-tagged Push at depth=1: 1147** (one short of expected 1148)
+      - **IncCounter at depth=1: 1147** (matches what `reduce_prim` reads via
+        `TopCounter`)
+      - STMT pushes at depths 2-7 occur normally (983 + 737 + 272 + 39 + 22 + 11),
+        all expected to be popped by their enclosing `pop_body` and re-pushed at
+        the outer frame as part of the if/while/for/func flattening.
+      - First STMT push at depth 1 happens at counter=1 (FULLSCAN's nInc fired
+        correctly).  All depth-1 STMT pushes line up with monotonic
+        IncCounter(N+1)→Push(N+1) ordering.  No corruption mid-stream.
+      - Per-finalize push/inc deltas (counts of pushes within each finalize_X
+        and IncCounters in its tail loop) add up to a CONSISTENT TOTAL with
+        the expected `outer_nInc + finalize_inc == finalize_pushes` formula
+        for every construct: `if`, `if-else`, `while`, `do`, `for`, `function`,
+        `for_head_alloc`.  Paper math is balanced.
+
+      **Where the missing stmt goes:**
+
+      The data is consistent with **one Push(STMT) happening at depth ≥ 2 that
+      should have happened at depth = 1**, OR equivalently, **one IncCounter()
+      that should fire at depth = 1 fires at depth ≥ 2 instead**.  Frame-depth
+      counting at every Push/Inc confirms the former for the full-beauty case:
+      total STMT pushes summed across all depths is 3211, but only 1147 land
+      at depth 1 — exactly one fewer than 1148.
+
+      **Architectural suspicion (next session start here):**
+
+      The bug is structural in the if-else-if recursion path.  The pattern at
+      line 625, `| nPush() *if_cmd Save_nbody('if_nelse') nPop()`, opens a fresh
+      counter frame, runs the inner `*if_cmd` inside it, captures its top into
+      `if_nelse`, then pops the frame.  After `nPop`, control returns to outer
+      `Finalize_if_else` which calls `pop_body(if_nelse)` to drain the inner if's
+      generated STMTs from the data stack.
+
+      Hypothesis: when the inner `*if_cmd`'s body contains another nested
+      if-else-if (multi-level cascade), some `IncCounter` call inside an inner
+      finalize lands in the OUTER `nPush()` frame from line 625 instead of the
+      INNERMOST frame opened by the inner if's Body — because pattern action
+      timing (the dot-action `*finalize_X` firing on a particular cursor pass
+      through the pattern) interacts subtly with how SNOBOL4 evaluates
+      `nPush()`/`nPop()` actions during recursion.  Not yet confirmed.
+
+      **Files touched this session (ALL REVERTED before push):**
+      - `corpus/programs/scrip/parser_snocone.sc` — instrumentation in every
+        `finalize_*`, `emit_*`, `decompose_stmt`, plus dump output at end of
+        driver
+      - `corpus/programs/scrip/counter.sc` — `dbg_frame_depth` /
+        `dbg_inc_compiland` tracking in `PushCounter`/`PopCounter`/`IncCounter`
+      - `corpus/programs/scrip/stack.sc` — `dbg_push_compiland` /
+        `dbg_push_stmt_d1` tracking in `Push`/`Pop`
+
+      Per RULES.md "Diagnostic patches are diagnostic — never commit them",
+      all three files reverted to corpus@HEAD before handoff.  Gates remain
+      smoke PASS=5 / parser PASS=50.
+
+      **Next session fix plan (refined):**
+
+      1. Re-apply the depth-tracking instrumentation (kept as a one-shot diff
+         in this session's notes — see mechanism above).
+      2. Run on `/tmp/redux.sc` (diff=3, ~20 lines, fastest iteration loop).
+      3. Add per-construct firing trace: log `(construct, depth_at_firing,
+         frame_id)` for every `*_cmd`'s outer `nInc()` firing.  Cross-reference
+         with depth-1 stmt pushes — find the firing whose nInc landed at the
+         wrong depth.
+      4. Likely fix: either restructure the `nPush() *if_cmd ... nPop()` branch
+         at line 625 to correctly account for inner finalize timing, or change
+         the inner if's `Finalize_if`/`Finalize_if_else` action timing so its
+         IncCounter loop fires inside the right frame.
+      5. Verify on /tmp/redux.sc (expect diff=0), then /tmp/wraptest.sc, then
+         full beauty.sc.  Gate PASS=50 FAIL=0.
+
+      **Reproducible repros saved (paths only, contents in commit history):**
+
+      ```
+      /tmp/redux.sc       # ~20 lines, diff=3 — fastest repro
+      /tmp/wraptest.sc    # ~38 lines, diff=1 — single off-by-one
+      ```
 
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
       execute identically under `--ir-run`.  Blocked on SC-6c-bug (off-by-one
@@ -765,10 +835,74 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ SC-6b-bug-segfault ✅ — PASS=50 FAIL=0;
-SC-6c-bug ⏳ filed sess 6 — off-by-one counter strands first STMT on tree stack;
-SC-6c blocked on SC-6c-bug)**
+SC-6c-bug ⏳ refined sess 7 — bug isolated to ~20-line repro, root cause architectural
+in else-if-recursion branch line 625; SC-6c blocked on SC-6c-bug)**
 
-Gate: PASS=50 FAIL=0. corpus @ 5fbb458, one4all @ HEAD (2026-05-06 session 6).
+Gate: PASS=50 FAIL=0. corpus @ HEAD, one4all @ HEAD (2026-05-06 session 7).
+
+### SC-6c-bug session 2026-05-06 (session 7) — bug isolated to 20-line repro; two-stack instrumentation refines diagnosis
+
+**Approach this session — two-stack audit per Lon's hint:** instrumented BOTH
+the data stack (`Push`/`Pop` in `stack.sc`) AND the counter stack
+(`PushCounter`/`PopCounter`/`IncCounter` in `counter.sc`) with frame-depth
+tracking, plus per-finalize push/inc trackers in `parser_snocone.sc`.
+
+**Key new evidence:**
+
+1. **STMT-tagged Push at depth=1: 1147** (one short of expected 1148).
+2. **IncCounter at depth=1: 1147** (matches what `reduce_prim` reads via
+   `TopCounter`).
+3. STMT pushes at depths 2-7 occur normally (983 + 737 + 272 + 39 + 22 + 11)
+   — these are body STMTs popped by `pop_body` and re-pushed at outer frames.
+4. **First STMT push at depth 1 happens at counter=1** (FULLSCAN's nInc fires
+   correctly).  Every depth-1 STMT push lines up with monotonic
+   IncCounter(N+1)→Push(N+1) ordering.  **No corruption mid-stream.**
+5. Per-finalize push/inc deltas all balance on paper:
+   `outer_nInc + finalize_inc == finalize_pushes` for every construct.
+
+**The missing stmt is being pushed at depth ≥ 2 instead of depth 1**, OR
+equivalently, **one IncCounter that should fire at depth = 1 fires at depth
+≥ 2 instead**.  Frame-depth counting confirms: 3211 total STMT pushes across
+all depths, but only 1147 land at depth 1.
+
+**Bug isolation:**
+
+Bisection on synthetic `head -156 + lines 163-N + close` shows the bug
+appears only when the `pp` function's `Stmt` branch (beauty.sc lines 200-237)
+is included.  That branch contains a deeply-nested if + `else if (DIFFER(ppAsgn))`
++ inner ifs with assignment statements.
+
+Two repros saved (paths only, see commit history for content):
+- `/tmp/wraptest.sc` — 38 lines, diff=1
+- `/tmp/redux.sc` — 20 lines, diff=3 (multi off-by-ones)
+
+**Architectural suspicion (next session start point):**
+
+Bug is structural in the if-else-if recursion path at line 625 of
+`parser_snocone.sc`:
+
+```
+| nPush() *if_cmd Save_nbody('if_nelse') nPop()
+```
+
+When the inner `*if_cmd`'s body contains another nested if-else-if (multi-
+level cascade), some `IncCounter` call inside an inner finalize lands in the
+OUTER `nPush()` frame instead of the INNERMOST frame.  Pattern action timing
+(when each `*finalize_X` dot-action fires during recursion) interacts with
+how `nPush()`/`nPop()` boundaries are crossed.  Not yet confirmed — needs
+re-instrumented per-construct firing trace logging
+`(construct, depth_at_firing, frame_id)`.
+
+**Files touched this session — ALL REVERTED before push** per RULES.md
+"Diagnostic patches are diagnostic — never commit them":
+- `corpus/programs/scrip/parser_snocone.sc` — instrumented every
+  `finalize_*`, `emit_*`, `decompose_stmt`; dump output at end of driver
+- `corpus/programs/scrip/counter.sc` — `dbg_frame_depth` + per-frame
+  IncCounter tracking
+- `corpus/programs/scrip/stack.sc` — depth-1 Push/Pop counters + STMT-tag
+  filtering
+
+Gates remain smoke PASS=5 / parser PASS=50.
 
 ### SC-6b-bug session 2026-05-06 (session 5) — reduce_prim fix LANDED; PASS=50 FAIL=0
 
