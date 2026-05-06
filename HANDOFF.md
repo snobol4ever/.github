@@ -1,316 +1,233 @@
-# HANDOFF — session 2026-05-04 (RS-23a-route + RS-23b + Sublime syntax) → next session
+# HANDOFF — session 2026-05-05 (CHUNKS Steps 1, 2, 3-prep) → next session
 
 ## Context-window saturation
 
-This session ended at ~88% context after three pieces of work:
+This session ended at ~85% context after landing three commits on the
+GOAL-CHUNKS axis:
 
-  1. **GOAL-REWRITE-SCRIP RS-23a-route LANDED** — one4all `7d8ed6ed`.
-  2. **GOAL-REWRITE-SCRIP RS-23b LANDED** — one4all `edd0c894`,
-     including a hard-won companion lazy-box fix in `coro_eval` for
-     E_PROC_FAIL.
-  3. **Sublime syntax review + Snocone.sublime-syntax** — corpus
-     `6c08e2b`.  Reviewed Lon's SNOBOL4.sublime-syntax against the
-     SPITBOL Manual v3.7 (368-page PDF read carefully) and the
-     snobol4.l flex lexer, fixed two regex defects, then created a
-     sibling Snocone.sublime-syntax that retains all SNOBOL4 features
-     (DEFINE/DATA/ARRAY prototype-string highlighting, &KEYWORD form,
-     pattern primitives) and adds Snocone-native constructs
-     (function/struct keywords, // and /* */ comments, augmented
-     assignments, lexical/identity colon-form operators, both e/E and
-     d/D real exponents).
+  1. **CHUNKS Step 1 LANDED** — one4all `a79b09f0`.  Scaffolding:
+     `SmChunk_t` struct, `SM_PUSH_CHUNK` and `SM_CALL_CHUNK` opcodes,
+     FATAL stubs, full 7-site audit in `docs/CHUNKS-step01-audit.md`.
 
-**Important note about this session's parallelism:** A second session
-of Claude was running concurrently and pushed corpus `6c08e2b` at
-19:22 UTC while I was still validating my local copies.  The two
-sessions converged on **byte-identical** SNOBOL4 + Snocone files plus
-LAYOUT.md update plus a 102-line README.md — so there is no
-duplication or merge to perform.  The work is whole and pushed.
+  2. **CHUNKS Step 2 LANDED** — one4all `1b42498f`.  Migrated
+     `sm_lower.c:573` (E_DEFER `*expr`).  `SM_CALL_CHUNK` opcode
+     implemented in interp + codegen with minimal SmCallFrame
+     (`retval_name=NULL`).  `SM_RETURN` patched in both runners to read
+     top-of-stack when `retval_name == NULL`.  `EVAL(*expr)`
+     special-cased in E_FNC lowering — emits chunk body inline +
+     `SM_CALL_CHUNK` directly, bypassing `SM_CALL "EVAL"` and keeping
+     execution on the same SM stack (per Lon's principle: "code is
+     code; one push and pop is as good as another").
 
-All gates green at session end.  Two clean one4all commits, three
-.github commits, and one corpus commit, all pushed.
+  3. **CHUNKS Step 3 prep LANDED** — one4all `55eb4e03`.  Fix for
+     pre-existing latent bug in `sm_label_pc_lookup` exposed by chunk
+     emission.  Stored-chunk path now works: `E = *X; OUTPUT = EVAL(E)`
+     prints `WORLD` on `--sm-run` and `--jit-run`.  Step 3 producer
+     migration (`sm_lower.c:470`) NOT yet done — consumer infra ready.
 
-  * one4all `7d8ed6ed` — RS-23a-route (E_FNC, E_ASSIGN, E_AUGOP)
-  * one4all `edd0c894` — RS-23b (E_SCAN, E_CASE, E_NOT, E_ALTERNATE,
-    E_ILIT, E_NUL) + companion lazy-box fix for E_PROC_FAIL
-  * .github  `90a2d7d`  — RS-23a-route LANDED notes
-  * .github  `db87586`  — RS-23b LANDED notes
-  * .github  `7cb4a1e`  — PLAN.md repair (truncation fix from rebase)
-  * corpus   `6c08e2b`  — editor/sublime: SNOBOL4 + Snocone syntaxes
-                          (pushed by parallel session, content
-                          identical to my local)
+All gates green at every commit.  Three one4all commits, one .github
+commit, all pushed.
 
-## Where this session left things
+  * one4all `a79b09f0` — CHUNKS Step 1 (scaffolding + audit)
+  * one4all `1b42498f` — CHUNKS Step 2 (E_DEFER `*expr`; SM_CALL_CHUNK)
+  * one4all `55eb4e03` — CHUNKS Step 3 prep (sm_label layout fix +
+                         consumer infra: sm_call_chunk, EXPVAL_fn, pat_to_patnd)
+  * .github  `d0a5bae`  — Steps 1+2 marked closed; PLAN updated to CH-3
 
-### RS-23a-route (one4all `7d8ed6ed`)
+---
 
-Added `case E_FNC: case E_ASSIGN: case E_AUGOP:
-{ (void)bb_eval_value(e); return; }` to `bb_exec_stmt` in
-`src/runtime/interp/coro_stmt.c`.  These three kinds were the
-high-volume fallthrough cases — 436/570 raw events in the RS-23
-diagnostic.  `bb_eval_value` handles all three natively after
-RS-23a-raku (prior session) lifted Raku builtins into
-`raku_try_call_builtin`.
+## What was done
 
-### RS-23b (one4all `edd0c894`)
+### Step 1 — scaffolding (commit `a79b09f0`)
 
-Two-part landing:
+Pure addition.  No behavior change.
 
-1.  In `coro_stmt.c`: added `case E_ILIT: case E_NUL: return;`
-    (no-ops) plus `case E_NOT: case E_ALTERNATE: case E_SCAN:
-    case E_CASE: { (void)bb_eval_value(e); return; }`.
+- `sm_prog.h` — `SmChunk_t` struct (`entry_pc`, `arity`); `SM_PUSH_CHUNK`
+  and `SM_CALL_CHUNK` opcodes added after `SM_PUSH_EXPR`.
+- `sm_interp.c` / `sm_codegen.c` — `fprintf+abort` stubs.
+- `sm_prog.c` — opcode names in name table.
+- `docs/CHUNKS-step01-audit.md` — 7 sites classified by E_kind +
+  consumer + migration step.  Lon's optimization observation noted:
+  for `*P` where P is already a compiled pattern/BB chunk,
+  `SM_PUSH_CHUNK` could bake in the existing `entry_pc` with no fresh
+  body — recorded for a later optimization pass; Step 2 emits the
+  general form for correctness first.
 
-2.  In `coro_runtime.c`: added `E_PROC_FAIL` to the lazy-box list
-    in `coro_eval`.  This was a hard-won bug fix.  First attempt at
-    RS-23b regressed `rung36_jcon_roman` (PASS → FAIL).  The failing
-    line was the canonical Icon idiom `integer(n) > 0 | fail`.
+### Step 2 — E_DEFER `*expr` in value context (commit `1b42498f`)
 
-    Root cause: `coro_eval`'s trailing oneshot fallback evaluates each
-    child via `bb_eval_value(e)` at *box-build* time (line 1571).  For
-    `E_PROC_FAIL`, that calls `interp_eval(E_PROC_FAIL)` which sets
-    `FRAME.returning = 1; FRAME.return_val = FAILDESCR` as a side
-    effect — corrupting the procedure even when arm 0 of the
-    alternation succeeds.  `interp_eval(E_ALTERNATE)` is eager-or
-    lazy: it never touches arm 1 unless arm 0 fails.
+The E_DEFER lowering at sm_lower.c:573 now emits:
 
-    Fix: route `E_PROC_FAIL` through `icn_lazy_box` so the side effect
-    fires only if/when arm 1 is actually pumped.
+    SM_JUMP skip
+    SM_LABEL entry_pc        <- chunk entry
+    lower_expr(child)
+    SM_RETURN
+    SM_LABEL skip
+    SM_PUSH_CHUNK entry_pc, 0
 
-### Diag instrumentation story
+The DT_E descriptor carries `slen=1, i=entry_pc` (slen=0 = legacy
+EXPR_t* path; both paths coexist while migration completes).
 
-`RS23DIAG: ` lines used to confirm each RS-23 step lifts the right
-kinds out of the `interp_eval` fallthrough.  Before this session: 570
-raw events / 17 unique tuples.  After RS-23a-route: 117 raw / 14
-unique.  After RS-23b: 118 raw / 14 unique (one new entry from the
-lazy box itself when arm 1 actually fires — that's correct, replacing
-the eager box-build event).
+`SM_CALL_CHUNK` handler in `sm_interp.c` and `sm_codegen.c`: pushes a
+minimal `SmCallFrame` (caller's stack saved, `ret_pc=st->pc`,
+`retval_name=NULL`, `nsaved=0`), sets `pc=entry_pc`, lets `SM_RETURN`
+unwind naturally.
 
-### Sublime syntax work (corpus `6c08e2b`)
+`SM_RETURN` and `h_return_impl` patched: when `fr->retval_name == NULL`
+(chunk thunk), read result from top of chunk's value stack instead of
+`NV_GET_fn(retval_name)`.  Same patch applied to the `is_nret` branch
+(NAMEVAL push).
 
-**Read SPITBOL Manual v3.7 in full** — 368-page PDF, extracted via
-pdftotext, then targeted reads of Ch. 3 (Variable Names §1190–1300),
-Ch. 4 (Built-in Functions §1482–1620), Ch. 15 (Operators §7694–7800),
-Ch. 16 (Keywords §7820–8060), Ch. 19 (SPITBOL Functions §8760–8920,
-including the FENCE function entry §9325–9345).
+`EVAL(*expr)` in E_FNC case at sm_lower.c — when sole arg is E_DEFER,
+emit chunk body inline + `SM_CALL_CHUNK` directly.  No `SM_CALL "EVAL"`,
+no `EXPVAL_fn` C dispatch.  Lon's inline case: code is code; running it
+via SM_CALL_CHUNK is no different than any other call.
 
-**Lon's SNOBOL4.sublime-syntax review — two real defects found:**
+### Step 3 prep — `sm_label` layout fix + stored-chunk path (commit `55eb4e03`)
 
-  * **Identifier regex** was `[A-Z_a-z][-0-9\.A-Z_a-z]*` which (a)
-    allowed leading `_` (SPITBOL §3 says first char must be a
-    letter, and snobol4.l ALPHA = `[A-Za-z]` confirms) and (b)
-    allowed `-` in continuation (SPITBOL forbids hyphens; snobol4.l
-    IDCONT = `[A-Za-z0-9_.\x80-\xFF]` confirms).  Now
-    `[A-Za-z][0-9A-Z_a-z\.]*`.
+Stored-chunk crash root cause (latent for years, exposed by Step 2):
 
-  * **Float regex** was `\b[0-9]+\.[0-9]+\b` which missed `1E+7`,
-    `2E7`, `8.4E-7`, `1.0E+7` — all valid SPITBOL real-number forms
-    per the manual's examples.  Now covers all forms with optional
-    exponent (`12.9543`, `1.0E+7`, `1E+7`, `2E7`, `8.4E-7`, `12.5e-3`).
+`sm_label_pc_lookup` (sm_prog.c:126) walks all `SM_LABEL` instructions
+calling `strcmp(p->instrs[i].a[0].s, name)` for named-function dispatch.
+Two emitters use SM_LABEL with **incompatible operand layouts**:
 
-**FENCE retained in BOTH `pattern_function` AND `pattern_variable`**
-— Lon was right; the SPITBOL manual confirms FENCE is BOTH a
-primitive pattern (variable form, equivalent to `&FENCE`, aborts the
-match on backtrack) AND a function `FENCE(pattern)` (Ch. 19 §9325 —
-different semantics: blocks alternatives within the wrapped pattern
-from being retried but does NOT abort).  The `(`-trailing match
-decides which fires.
+    sm_label():        a[0].i = target_pc           /* unnamed */
+    sm_label_named():  a[0].s = name; a[1].i = pc   /* named */
 
-**Snocone.sublime-syntax — created from scratch** with Lon's directive
-to keep ALL SNOBOL4 features:
+The lookup's `a[0].s &&` guard didn't help: when `sm_label()` set
+`a[0].i = 5` (entry_pc), the union aliased `a[0].s` to
+`(const char *)5` — non-null garbage, segfault on `strcmp`.
 
-  * Kept DEFINE/DATA/ARRAY/CODE/EVAL prototype-string contexts —
-    Snocone still supports legacy SNOBOL4 functions.
-  * Kept all SNOBOL4 builtin/pattern/library function tables.
-  * Kept FENCE in both pattern tables.
-  * Kept &KEYWORD recognition for protected and unprotected.
-  * Kept `$'name'` and `$"name"` indirect-variable highlighting.
-  * Added Snocone-native `function NAME(args) { body }` and
-    `struct NAME { fields }` with own contexts that fire BEFORE the
-    SNOBOL4 DEFINE() path so the modern form wins.
-  * Added if/else/while/do/for/switch/case/default/break/continue/
-    goto/return/freturn/nreturn keywords (KW_TABLE in snocone_lex.c).
-  * Added `+= -= *= /= ^=` augmented-assignment operators.
-  * Added `== != <= >=` numeric and `:==: :!=: :<: :>: :<=: :>=:
-    :: :!:` colon-form lexical/identity operators.
-  * Added `//` line comments and `/* */` block comments.
-  * Identifier regex `[A-Za-z_][0-9A-Z_a-z]*` per snocone_lex.c
-    `is_alpha` (allows leading `_`, no period).
-  * Float regex covers `1.5`, `1.5e-3`, `1d3`, `1E+7` etc. — both
-    `e/E` AND `d/D` exponent letters per snocone_lex.c (Snocone
-    extension over SPITBOL).
+Pre-CHUNKS, unnamed labels never sat between an `SM_CALL` and the
+lookup walk — they were always behind forward jumps for if/while.
+Step 2's chunk bodies put unnamed labels right in program flow,
+scanned on every named-fn dispatch.
 
-Both files validated: 82 and 86 regexes respectively, all compile,
-no tabs.  Spot-traced against real Snocone source — every key token
-gets a sensible scope.
+**Fix:** `sm_label()` now stores PC in `a[1].i` (matching named-label
+layout) and leaves `a[0]` zeroed (via `_grow`'s memset).  Verified by
+grep: no other reader of unnamed-label `a[0].i` exists; only
+`sm_patch_jump` touches the JUMP's `a[0].i`, not the LABEL's.
 
-## Gates green at session end (one4all `edd0c894`, no regressions)
+Consumer infrastructure for stored chunks now works:
 
-  * `test_smoke_snobol4.sh`         PASS=7  FAIL=0
-  * `test_smoke_icon.sh`            PASS=5  FAIL=0
-  * `test_smoke_prolog.sh`          PASS=5  FAIL=0
-  * `test_smoke_raku.sh`            PASS=5  FAIL=0
-  * `test_smoke_rebus.sh`           PASS=4  FAIL=0
-  * `test_smoke_snocone.sh`         PASS=5  FAIL=0
-  * `test_smoke_unified_broker.sh`  PASS=49 FAIL=0
-  * `test_isolation_ir_sm.sh`       PASS  (no IR-only leaks in SM)
-  * `test_icon_ir_all_rungs.sh`     PASS=186 FAIL=47 XFAIL=30  (baseline)
+- `sm_call_chunk(int entry_pc)` — runs a chunk on a heap-allocated
+  nested `SM_State` (own value stack, shared NV table — `SM_State` is
+  ~512KB due to embedded 256-frame call array; can't go on the C
+  stack).  `setjmp`/`memcpy` of `g_sno_err_jmp` gives local error
+  isolation so chunk errors don't longjmp into outer dispatch's
+  jmp_buf.
+- `EXPVAL_fn` for chunk DT_E (slen==1) — routes via `sm_call_chunk`.
+- `pat_to_patnd` for chunk DT_E — dispatches via `EXPVAL_fn` through a
+  new `coerce:` label (skips the EXPR_t IR walk).
 
-## Decisions Lon made this session
+Inline case (Step 2): `EVAL(*X)` → `WORLD` ✓ (`sm-run`, `jit-run`).
+Stored case (Step 3 prep): `E=*X; OUTPUT=EVAL(E)` → `WORLD` ✓
+(`sm-run`, `jit-run`, `ir-run` all match).
 
-1.  **"Continue."** twice on RS-23 — green light to do RS-23a-route
-    end-to-end, then RS-23b end-to-end, and to debug the RS-23b
-    regression rather than commit a partial.
-2.  **"FENCE is both var and func"** — corrected my earlier claim that
-    its dual presence in pattern_function and pattern_variable was
-    dead code; the SPITBOL manual confirms Lon's correct reading.
-3.  **"Keep DEFINE and prototype and related type RE coloring."** —
-    Snocone retains all SNOBOL4 prototype-string contexts.
-4.  **"Snocone still supports all of SNOBOL4 functions."** — kept
-    every builtin/pattern/library table verbatim from SNOBOL4.
-5.  **"Let's put these sublime files in the corpus repo."** — the
-    parallel session executed this with `editor/sublime/`,
-    `LAYOUT.md` updated, and a 102-line README.md.
+---
 
-## Pending / open
+## Where this leaves the goal
 
-### Immediate next milestone — RS-23c
+GOAL-CHUNKS — Eliminate SM_PUSH_EXPR
 
-`GOAL-REWRITE-SCRIP.md` line 197:
-> RS-23c — Add `E_EVERY`, `E_INITIAL`, `E_SWAP` to **both** adapters.
-> RS-21 enumerated 11 Icon statement kinds but missed these three;
-> verify the coverage list against icon_parse.c and complete it.
+  - [x] Step 1 — Survey + scaffolding
+  - [x] Step 2 — Migrate sm_lower.c:573 (E_DEFER `*expr`)
+  - [ ] **Step 3** — Migrate sm_lower.c:470 (pattern non-QLIT arg, SM_PAT_USERCALL_ARGS)
+  - [ ] Step 4 — Migrate sm_lower.c:326/345/386 (E_FNC sub-args, SM_PAT_CAPTURE_FN_ARGS)
+  - [ ] Step 5 — DT_E carrier validation (instrumented build + assertions)
+  - [ ] Step 6 — SNOBOL4 isolation gate strengthening
+  - [ ] Step 7 — M1 milestone close
 
-These three are the highest-volume remaining tuples (107 raw events
-combined out of 118 total).  All three appear in the diag at
-`caller=coro_call`, `caller=bb_exec_stmt`, AND `caller=bb_eval_value`
-or `caller=coro_bb_seq_expr` — meaning they need handlers in **both**
-`bb_exec_stmt` (statement context) AND `bb_eval_value` (value
-context).  Look at the existing `bb_eval_value` for `E_INITIAL` and
-`E_SWAP` — they may already be present from earlier rungs and only
-the stmt handler is missing.  Verify before duplicating logic.
+Step 3 is now a small lowerer edit at sm_lower.c:470:
 
-### After RS-23c
+    /* before */
+    emit_push_expr(p, arg);
+    /* after */
+    {
+        int skip = sm_emit_i(p, SM_JUMP, 0);
+        int entry = sm_label(p);
+        lower_expr(p, lt, arg);
+        sm_emit(p, SM_RETURN);
+        int after = sm_label(p);
+        sm_patch_jump(p, skip, after);
+        sm_emit_ii(p, SM_PUSH_CHUNK, (int64_t)entry, 0);
+    }
 
-  * **RS-23d** — `E_WHILE` value-context handler in `bb_eval_value`.
-    Diag shows `E_WHILE` at `caller=bb_eval_value` and
-    `caller=coro_bb_seq_expr` — both via `bb_eval_value`.  Statement
-    context already handled in `bb_exec_stmt`.
-  * **RS-23e** — Re-run diag, expect zero unique tuples, harden
-    direct fallthroughs in `coro_value.c:1075` and `coro_stmt.c:203`
-    to abort with a clear diagnostic, remove the
-    `extern DESCR_t interp_eval(...)` declarations, and add
-    `coro_value.c` and `coro_stmt.c` to `SM_FILES` in
-    `test_isolation_ir_sm.sh`.  Also revert `src/driver/rs23_diag.c`
-    and remove the diag scripts (or keep dormant — Lon's call).
+The consumer (`bb_usercall` thawing each DT_E via `EVAL_fn` → `EXPVAL_fn`)
+already routes chunks via `sm_call_chunk`.  Verify no regression in
+Snocone pattern smoke (`*upr(tx)` user-pattern call arg deferral) and
+in the `beauty.sno` 2-way harness if you want maximal coverage.
 
-### Separate concern — `coro_eval` oneshot fallback
+Step 4 is the same pattern at three sites (326/345/386) — all use the
+SM_PAT_CAPTURE_FN_ARGS consumer which similarly thaws each DT_E via
+EVAL_fn.
 
-The remaining diag entries for `E_IF (3, 2 tuples)`, `E_RETURN (1)`,
-`E_PROC_FAIL (1, lazy)`, `E_BANG_BINARY (1)` are all reached via
-`coro_eval`'s oneshot fallback, **not** through `bb_exec_stmt`.
-These won't be cleared by RS-23c/d work directly.  Strategy options:
+---
 
-  * **Add native cases in `coro_eval`** for these kinds (returning
-    appropriate Byrd boxes).  Largest payoff and the cleanest path.
-  * **Add `bb_eval_value` cases** for them so the oneshot fallback's
-    `z->val = bb_eval_value(e)` no longer falls through to
-    `interp_eval`.  Cheaper but transitive.
+## Architectural decisions worth carrying forward
 
-Not called out in the goal file as its own rung — would be a natural
-addition to RS-23e or a new RS-23f.  The lazy-box fix for
-`E_PROC_FAIL` landed this session is a pattern that may apply to
-`E_RETURN` too if Lon ever encounters `expr | return foo` style code.
+1. **Code is code.**  A chunk is just instructions in `prog->instrs[]`.
+   No special "lazy IR" storage, no carrier-fiction, no parallel
+   evaluator.  When you need to evaluate a chunk, you point `pc` at it
+   and run the dispatcher.
 
-### PLAN.md observation worth flagging
+2. **Same stack vs nested stack:** Lon's correction.  For inline cases
+   (`EVAL(*expr)` lowered all in one place), use `SM_CALL_CHUNK` and the
+   live SM stack — one push and pop is as good as another.  For C-call
+   dispatch (`EXPVAL_fn` from `EVAL_fn` thaw), heap-allocated nested
+   `SM_State` is fine *because*: the value stack is a heap buffer,
+   not a "stack" in any meaningful sense; running the dispatcher on a
+   different DESCR_t array is the same operation.  Don't conflate
+   "nested SM_State" with "wrong" — the original crash was a label
+   layout collision, not a state-isolation problem.
 
-The emergency-handoff session (corpus session for PARSER-RB-0a) at
-.github commit `522ea69` removed the **PARSER-RAKU** row from
-PLAN.md.  The `GOAL-PARSER-RAKU.md` file still exists.  I left this
-alone because it appeared intentional, but if it was an accidental
-deletion it's worth checking.
+3. **DT_E discriminator: `slen` field.**  `slen == 0` ⇒ legacy
+   `EXPR_t* ptr`.  `slen == 1` ⇒ chunk descriptor with `i = entry_pc`.
+   This lets old and new paths coexist during migration.  Once Steps
+   3–5 land and no producer emits `SM_PUSH_EXPR` anymore, the legacy
+   branches in `EXPVAL_fn` and `pat_to_patnd` can be deleted.
 
-### Lower-priority
+4. **`SM_LABEL` operand layout is now uniform.**  Both `sm_label()` and
+   `sm_label_named()` store PC in `a[1].i` and use `a[0].s` for name (or
+   NULL).  This cleanup is general, not CHUNKS-specific.
 
-  * `test_crosscheck_sc_corpus_rung.sh` has a stale `-sc -x86` flag.
-    Pre-existing, unrelated to current track.
+---
 
-## Recommended next-session opening sequence
+## Open question for next session
 
-1.  Set commit identity in all three repos:
+The optimization Lon raised in the first message: when `*P` and P is
+already a bound pattern variable (DT_P holding a compiled BB), the
+chunk descriptor could just reference the existing BB's entry point
+with no fresh body emitted.  This requires:
 
-    ```
-    cd /home/claude/one4all && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
-    cd /home/claude/.github && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
-    cd /home/claude/corpus  && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
-    ```
+- Tracking which DT_P values have stable entry_pcs (do they?).
+- Detecting at lower time when E_DEFER's child is provably an existing
+  pattern (E_VAR resolving to a DT_P).
 
-2.  Read `PLAN.md`.  Step for GOAL-REWRITE-SCRIP is `RS-23c
-    (RS-23b LANDED session 2026-05-03 cont.)`.
+A clean optimization but not a correctness requirement.  Worth a
+sketch session before diving in — the BB system's relationship to
+SM `entry_pc`s isn't immediately obvious from the code alone.
 
-3.  Read this HANDOFF.md (you're in it) for diagnostic context and
-    the strategy notes about value-context vs statement-context
-    coverage.  Read `GOAL-REWRITE-SCRIP.md` lines 197–200 for the
-    RS-23c description.
+---
 
-4.  Build scrip + run all smoke gates first to confirm green
-    starting state:
+## What's NOT done
 
-    ```
-    cd /home/claude/one4all
-    bash scripts/install_system_packages.sh
-    bash scripts/build_scrip.sh
-    bash scripts/test_smoke_snobol4.sh
-    bash scripts/test_smoke_icon.sh
-    bash scripts/test_smoke_unified_broker.sh
-    bash scripts/test_isolation_ir_sm.sh
-    ```
+- Step 3 producer migration (the actual `sm_lower.c:470` edit).
+  Consumer infra ready; should be ~10 lines of code + a smoke run.
+- Steps 4–7 (rest of M1).
+- M2–M6 entirely.
 
-5.  For RS-23c, before writing any code:
+---
 
-    *   Read `coro_value.c` to find what's already handled for
-        `E_EVERY`, `E_INITIAL`, `E_SWAP`.  Don't duplicate.
-    *   Read `interp_eval.c` cases for the same three kinds to
-        understand the contract you must mirror.
-    *   Build `scrip-rs23-diag` and run `test_rs23_diag_capture.sh`
-        first to confirm the current 14-tuple list (118 raw events).
-    *   Add stmt + value handlers, build, run all gates + diag,
-        confirm the three kinds drop out and Icon corpus stays at
-        186/47/30.
+## Repos / commits at session end
 
-6.  Watch for the same eager-evaluation hazard that bit RS-23b.
-    `E_INITIAL` runs once per proc on first call — there's a `static`
-    gate flag.  Make sure box-build vs box-pump timing doesn't
-    accidentally fire it twice or skip the static gate.  `E_SWAP` may
-    have lvalue plumbing that needs careful frame-state handling.
-    When in doubt, bisect — the same `git stash`/build/diff workflow
-    used this session worked cleanly.
+- one4all `55eb4e03` (main, pushed)
+- .github  `d0a5bae`  (main, pushed)
+- corpus   unchanged this session
 
-## Files touched this session
+All gates green at session end:
+- smoke ×6: snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4
+- isolation gate (test_isolation_ir_sm.sh): PASS
+- `scrip_all_modes`: PASS=2, SKIP=3
+- Build: green at -O0 with all warnings.
 
-```
-one4all 7d8ed6ed:
-  src/runtime/interp/coro_stmt.c       (+12 lines, -5 lines)
-
-one4all edd0c894:
-  src/runtime/interp/coro_stmt.c       (+34 lines, -3 lines)
-  src/runtime/interp/coro_runtime.c    (+13 lines)
-
-.github 90a2d7d:
-  GOAL-REWRITE-SCRIP.md                (RS-23a-route → [x], LANDED)
-  PLAN.md                              (step → RS-23b)
-
-.github db87586:
-  GOAL-REWRITE-SCRIP.md                (RS-23b → [x], LANDED note)
-  PLAN.md                              (step → RS-23c)
-
-.github 7cb4a1e:
-  PLAN.md                              (repair Rewrite SCRIP row truncation)
-
-corpus 6c08e2b (pushed by parallel session, content identical):
-  LAYOUT.md                            (+3 lines, editor/sublime entry)
-  editor/sublime/README.md             (new, 102 lines)
-  editor/sublime/SNOBOL4.sublime-syntax (refined, 474 lines)
-  editor/sublime/Snocone.sublime-syntax (new, 582 lines)
-```
-
-All four repos pushed clean to `origin/main`.  No stash, no untracked
-files in the working trees that matter.
+End of handoff.
