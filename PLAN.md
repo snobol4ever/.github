@@ -65,7 +65,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | M1 CLOSED (Steps 1–7 complete; honest deferrals on Step 6 partial + broad-corpus 38-program SM/IR gap pre-existing). Next: CH-8 (M2 — Mode 4 x86 emitter, see GOAL-MODE4-EMIT.md rung EM-1) |
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | CH-7 (Step 7 next — M1 milestone close: full gate set in --ir-run/--sm-run/--jit-run on smoke_snobol4, smoke_snocone, csnobol4 Budne, Snocone corpus) |
 | Mode-4 x86 Emitter (CHUNKS Steps 8 + 19) | `GOAL-MODE4-EMIT.md` | one4all | stub written sess #62; rung EM-1 awaits CHUNKS M1 close |
 | Native Snocone — .NET (CHUNKS Step 9) | `GOAL-NATIVE-SNOCONE-DOTNET.md` | one4all (`src/driver/net/`) | stub written sess #62; rung DN-1 awaits PARSER-SC-6b |
 | Native Snocone — JVM (CHUNKS Step 10) | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all (`src/driver/jvm/`) | stub written sess #62; rung JV-1 awaits PARSER-SC-6b |
@@ -82,8 +82,8 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PASS=78/78 ✅ corpus@0fba291 — SN-7-7c LANDED (full keyword/function/builtin inventory + classifier patterns; cross-runtime SPITBOL x64/x32 + csnobol4 union). Next: **SN-7-8** beauty.sno full crosscheck. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=47 FAIL=0. beauty.sc 1148/1148 stmts parsed; 1 diff remains: if-else-if label ordering (outer Lend emitted before else body). Diff (A) subtraction n-ary fold FIXED via flatten_arith. |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-20.1 LANDED PASS=143 corpus@4f4658b — token list reorganized, grammar body uses token aliases (snocone style); next: IC-21 |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-4 LANDED (sess 2026-05-06, PASS=71 FAIL=0: replace/repln/case. corpus@d83ff80) |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-20 LANDED PASS=143 corpus@961fa58 — whitespace canonical + newline=whitespace + semicolon terminates; next: IC-21 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-WS LANDED PASS=105 FAIL=0 corpus@9ed9e99 — whitespace refactor + BUG-SCRIP-WS-1 filed. Next: RK-21 gather/take |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
