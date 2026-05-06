@@ -1318,3 +1318,53 @@ All ladder rungs PR-0..PR-13 landed.
 - ✅ SCRIP-BUG-FENCE-EPSILON-HANG: debunked — not reproducible in current SCRIP build.
 
 **Next rung: PR-14** — `:-` directives / operator declarations.
+
+---
+
+## PARSER-PR-14 — targeted gap fixes — LANDED (PASS=125 FAIL=0, 2026-05-06 session #3)
+
+**Gate entering:** PASS=122 FAIL=0  
+**Gate leaving:** PASS=125 FAIL=0  
+**+3 new fixtures:** `arith_bitnot_var`, `list_slash`, `op_graphic`
+
+### Also added (this session)
+
+- `corpus/programs/ebnf/pl-sp.ebnf` + `pl-no.ebnf` — official SWI-Prolog grammar extracted from `swipl-devel` master source (`pl-read.c`, `pl-op.c`, `pl-ctype.h`, `man/overview.doc`). Covers tokeniser, full operator table (40+ operators with type/priority), character classes, all number literal forms, escape sequences, DCG, dict extension.
+
+### Fixes landed
+
+**Fix 1 — bitnot `\ Var` (space between `\` and operand):**
+- Root: `$'\'` token has no trailing whitespace; the primary arm `$'\' *primary` left the space before `Var` unconsumed.
+- Fix: arm is now `$'\' $' ' *primary` (Gray after the token absorbs optional whitespace before operand).
+- Fixture: `arith_bitnot_var.pl` (`foo(X,Y) :- X is \ Y.`). Also generated missing `arith_bitnot.ref`.
+
+**Fix 2 — `foo/1` expressions in list position:**
+- Root: `list_elem` was a fixed set of alternatives (atom/var/int/float) using `ARBNO` — no expression path, no `/`. FW-3 prevented `*unify_expr` inside `ARBNO`.
+- Fix: replaced the ARBNO-based list body with tail-recursive `list_body` / `list_body_tail` (mirrors `args` / `args_tail`), using `*unify_expr` as the element matcher. Same technique proven working in `args`.
+- Fixture: `list_slash.pl` (`foo([member/2, append/3]).`).
+
+**Fix 3 — `/\` (bitand) misread as `/` + `\` (bitnot):**
+- Root: `$'/'` in `mul_expr`'s FENCE was tried before `$'/\'`, so `/\Y` was split as `/` then `\` (bitnot of Y).
+- Fix: moved `$'/\'` arm before `$'/'` in `mul_expr`'s FENCE; removed `$'/\'` from `add_expr` (it now lives only in `mul_expr` at the correct precedence ordering position).
+
+**Fix 4 — graphic atom arguments (`===`, `\+`, etc.):**
+- Root: `Graphic_first = ANY('\\@#^~?')` was too narrow; `=`, `<`, `>`, `+`, `-` etc. (all ISO SY chars) were not first chars.
+- Extended `Graphic_first` to all SY chars: `ANY('\\@#^~?=<>+\-*/:.$&\`')`.
+- Added `Graphic_atom2 = (Graphic_first Graphic_first (Graphic_rest | epsilon))` — 2+ char graphic sequence.
+- Added `shift(Graphic_atom2, 'E_FNC')` arm to `primary` (after the compound Graphic_atom arm). Requires 2+ chars to avoid single-char operators (`-`, `+`, `>`, `=`) being greedily consumed as atoms.
+- Fixture: `op_graphic.pl` (`:- op(700, xfx, ===).`).
+
+### Known remaining gaps (not fixed this session)
+
+- **Single-char SY atoms as arguments** (e.g., `:- op(200, fy, -)` — `-` as atom): `Graphic_atom2` requires 2+ chars. Single-char operator atoms in arg position remain unhandled. Low priority — rarely appears in corpus.
+- **`:-` as op/3 third arg**: oracle stops after 2 args because `:-` is the clause terminator at the top level. Parser gives 3 args. Edge case; oracle behavior takes priority.
+
+### Gotcha-26 — `Graphic_atom` in primary requires 2+ chars
+
+Single-char SY atoms (`-`, `+`, `>`, `=`) in primary would conflict with the expression ladder: e.g., `add_expr` tries `$'-'` which matches `-`, then `primary` would see `>` and match it as a 1-char graphic atom, producing `(E_SUB a >)` instead of routing through `->` at the `conj_arrow` level. `Graphic_atom2` (2+ chars) avoids this: single chars fall through to FAIL in primary, and the expression ladder handles them correctly as operators.
+
+## Watermark
+
+**PR-14 LANDED (PASS=125 FAIL=0, 2026-05-06 session #3).**
+
+**Next rung: PR-15** — single-char SY atoms in arg position; or further coverage expansion based on corpus tests.
