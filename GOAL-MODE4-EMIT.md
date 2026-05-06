@@ -581,8 +581,8 @@ to read, complex enough to be meaningful:
 - Gates: smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog
   5/5, raku 5/5, rebus 4/4); isolation gate PASS; EM-1..EM-5 gate
   PASS=9 FAIL=0.
-- one4all @ TBD-after-commit. corpus @ TBD-after-commit.
-  .github @ TBD-after-commit. Session #69, 2026-05-06.
+- one4all @ d5800b58. corpus @ 9ef362e. .github @ b033d1c.
+  Session #69, 2026-05-06.
 
 **Step EM-4** — Control flow + generated-code readability standard.
 - Three SM control-flow opcodes baked direct in
