@@ -2123,3 +2123,172 @@ Next milestone: operator-directed. Options:
 - RB-FW-3: additional Rebus features needing new fixtures
 - Six-parser cross-pollination loop
 - CR-3..CR-5: rebus.y → EXPR_t direct cleanup
+
+---
+
+## Session 2026-05-06 continuation #2 — RB-FW-3 (4 sub-rungs) + RB-WS — PASS=52→67 FAIL=0
+
+**Context window at session pivot: ~85%.**
+
+This continuation session added 4 RB-FW sub-rungs and one whitespace-policy
+cleanup (RB-WS).  All on top of the prior session's RB-FW-2 base of PASS=57.
+
+### RB-FW-3a — unless / until / repeat / if-else (PASS=57→61)
+
+Added 4 control-flow surface forms with bug-for-bug oracle-matching lowering:
+  - `unless cond then body`  → UNLESS 2-child; goS/goF swapped vs if
+  - `until cond do body`     → UNTIL 2-child; complement of while
+  - `repeat body`            → REPEAT 1-child; infinite loop
+  - `if cond then t else e`  → IFELSE 3-child; else body dropped per oracle
+
+Keyword wrappers `$'unless'`, `$'until'`, `$'repeat'`, `$'else'` added.
+Tag constants UNLESS / UNTIL / REPEAT / IFELSE.  Lowering label generation
+order calibrated to match oracle's label-counter sequence.
+
+Fixtures: unless_id, until_id, repeat_id, if_else.
+Commit: corpus@d1653d9.
+
+### RB-FW-3b — postfix_expr: subscript + field access (PASS=61→63)
+
+Added `postfix_expr` tier between `primary` and `unary_expr`:
+  - `a[i]`     → E_IDX(A, I)        — subscript
+  - `r.field`  → E_VAR R.FIELD      — uppercase dot-join
+
+New: `$'['`, `$']'`, `$'.'` wrappers.  E_IDX tag.  `Push_field_access()`
+helper pops base E_VAR and combines with rbFieldName as BASE.FIELD.
+E_IDX case in lower_atom.
+
+Fixtures: subscript, field_access.
+Commit: corpus@b488696.
+
+### RB-FW-3c — for loop + E_ASSIGN constant (PASS=63→65)
+
+Added `for var from f to t [by s] do body` with bug-for-bug lowering.
+RB_FOR is 3-child (no by) or 4-child (with by).  Body consumed via
+BREAK(nl) (no stack effect) since oracle drops the body.
+
+Lowering emits the canonical induction-variable pattern:
+  - assign(i, from)
+  - lbl top
+  - GT(i, to) :goS exit
+  - assign(i, i + step)   ← step defaults to E_ILIT(1)
+  - go top
+  - lbl exit
+
+`E_ASSIGN` tag constant added (had been missing — used in for init/step
+emit and in the existing opt_initial guard code; previously emitted
+empty-tag nodes there).  `emit_subj_goS()` helper added for the
+GT-test-with-single-goS pattern.
+
+Fixtures: for_basic, for_by.
+Commit: corpus@713bf6a.
+
+### RB-WS — whitespace cleanup per parser_snocone.sc style (PASS=65→67)
+
+Operator-directed pivot.  Refactored whitespace primitives to the
+parser_snocone.sc canonical pattern:
+
+```snocone
+white       =   (  SPAN(' ' tab)
+                |  '#'  BREAK(nl)
+                |  '//' BREAK(nl)
+                |  '/*' BREAKX('*') '*/'
+                );
+White       =   white ARBNO(white);
+Gray        =   ARBNO(white);
+$'  '       =   White;
+$' '        =   Gray;
+```
+
+Key points:
+  1. `white` is the atomic whitespace class — one space/tab, OR one
+     line-comment, OR one block-comment.  Never used directly outside
+     of `White`/`Gray`.
+  2. `White` (one or more) and `Gray` (zero or more) are pure ARBNO
+     compositions of `white` — no `epsilon` alternatives needed because
+     `ARBNO(...)` already permits zero matches.
+  3. `White`/`Gray` are accessed exclusively through `$'  '`/`$' '`
+     aliases.  No grammar production references them directly.
+  4. Operator and keyword wrappers attach `$' '` (Gray) or `$'  '`
+     (White) on left/right to encode each token's whitespace policy
+     once, at the token definition site.
+
+**Rebus-specific deviation:** `nl` is NOT in `white`, because Rebus
+uses newline as the implicit statement terminator.  Comments end
+*at* nl but do *not* consume it — the statement boundary survives.
+
+This pivot also enabled three previously-broken comment forms:
+  - `# ...`   Griswold-canonical Rebus line comment
+  - `// ...`  family-wide line comment (matches parser_snocone)
+  - `/* ... */` family-wide block comment (may span newlines)
+
+**Other fixes folded in during this rung:**
+
+  - `cmp_expr` alternation reordered: longest operators first
+    (`==`, `~==`, `<<=`, `>>=`, `<<`, `>>`, `<=`, `>=`, `~=`, `=`,
+    `<`, `>`).  Previously `$'='` came first and consumed only the
+    first `=` of `==`, breaking string-equality parsing.  This was
+    surfaced by the whitespace change but was a latent bug.
+
+  - `func_body_stmt` extended with `*blank_line` branch:
+    `FENCE(*blank_line *func_body_stmt | *func_end | nInc() *stmt *func_body_stmt)`.
+    Previously `stmt` would fail on a leading newline inside the
+    function body, so blank lines between statements broke parsing.
+
+Fixtures: comment_hash.reb, blank_lines.reb.
+Commit: corpus@a0de122.
+
+### Gate state at session end
+
+| Gate | Result |
+|------|--------|
+| smoke | PASS=4 FAIL=0 |
+| parser | PASS=67 FAIL=0 |
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `a0de122` |
+| one4all | parser | `104f270d` (unchanged) |
+
+### Coverage added during this session (15 new fixtures, all green)
+
+| Construct | Fixture(s) |
+|-----------|------------|
+| unless / then | unless_id |
+| until / do | until_id |
+| repeat | repeat_id |
+| if / then / else | if_else |
+| subscript a[i] | subscript |
+| field r.field | field_access |
+| for / from / to / do | for_basic |
+| for / from / to / by / do | for_by |
+| arithmetic add | arith_add |
+| exponent ^ | exponent |
+| modulo % | modulo |
+| return value | return_val |
+| local declarations | local_vars |
+| `#` line comments | comment_hash |
+| blank lines in body | blank_lines |
+
+### Context window at session end: ~95%.
+
+### Next milestone — operator-directed.  Options:
+
+  - **case_stmt** — `case EXPR of { k1: b1; k2: b2; ... }`.  Started
+    in this session but two issues remained: (1) temp-var name was
+    `rb_case_rb_2` instead of `rb_case_2` (used `lblM` string instead
+    of `label_n` counter); (2) clause indexing showed wrong key
+    values.  Reverted and not committed.  Would land at PASS=69.
+
+  - **compound_stmt `{ stmt; stmt }`** — adds block-statement support;
+    needed for if-else with multiple body stmts.
+
+  - **pattern replace `expr ? pat -> repl`** — currently parser only
+    supports `expr ? pat` (match without replace).
+
+  - **Six-parser cross-pollination loop** — pick a concept and apply
+    across all six PARSER-* parsers.
+
+  - **Reserved-word filter for Id** — currently `for`/`from`/`to`
+    etc. could be matched by `*Id` in expression contexts.  Add a
+    `*notmatch(tx, reserved)` guard like parser_snocone.sc's `Ident`.
