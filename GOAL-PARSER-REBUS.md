@@ -2243,3 +2243,76 @@ substring operator (`a[i +: n]` → `RE_RANGE`/`RE_SUB_IDX`), augmented
 assignment operators (`+:=`, `-:=`, `||:=`), pattern-prefix `~pat` and
 `!pat` (PATOPT/BANG) unary forms, the cursor-capture `@var` postfix.
 None gating; all surface coverage extension.
+
+---
+
+## Session 2026-05-06 — RB-FW-6 LANDED; PASS=80 FAIL=0
+
+### Context
+
+Operator opened: "play with the Rebus language grammar PATTERN in SCRIP
+focusing on GOAL-PARSER-REBUS."  Read PLAN/RULES/GOAL trail, confirmed
+PASS=75/75 baseline (smoke PASS=4 FAIL=0).
+
+SPITBOL manual (v3.7, uploaded PDF) studied in full for pattern semantics.
+Key internalisations:
+- **Two-phase model**: Pass 1 = pure cursor movement (SPAN, BREAK, FENCE,
+  ARBNO, alternation, string literals — no user code); Pass 2 = linear
+  sequence of `.`-actions firing in encounter order along the winning path.
+  `$` (immediate assign) fires during Pass 1; `.` fires in Pass 2.
+- **`*` (deferred eval)**: bridges value space → subject space at match time.
+  Makes recursive patterns possible; `*fn(a,b)` calls and uses return as pattern.
+- **ARBNO** is shy (shortest first); must make cursor progress before recursion.
+- **FENCE** commits the current alternative — prevents backtracking past it.
+- **`&FULLSCAN` must be nonzero** (SPITBOL operates Fullscan-only).
+
+### Work done
+
+**5 new fixtures with oracle .ref files** (corpus `a674301`):
+
+| Fixture | Construct | Oracle IR shape |
+|---------|-----------|-----------------|
+| `unary_pat` | `~y` `!w` `/b` `\d` | E_FNC DIFFER / E_ITERATE / E_FNC IDENT / E_FNC DIFFER |
+| `deref_basic` | `$y` `$"name"` | E_INDIRECT |
+| `cursor_basic` | `x ? @pos` | E_CAPT_CURSOR |
+| `range_sub` | `a[i +: n]` | E_IDX(E_IDX(i, n)) |
+| `augmented_assign` | `+:=` `-:=` `||:=` `:=:` | expand+assign / E_FNC EXCHG |
+
+**Grammar additions to parser_rebus.sc** (corpus `5d4b829`):
+- `unary_expr`: `'~'` (E_NOTPAT→DIFFER), `'!'` (E_BANGPAT→E_ITERATE),
+  `'/'` (E_VALUEPAT→IDENT), `'\'` (E_NOTPAT→DIFFER), `'$'` (E_INDIRECT)
+- `primary`: `'@' (*Id . rbCursorName) Push_cursor()` for E_CAPT_CURSOR
+- `postfix_expr`: range `[i +: n]` → `reduce(E_IDX, 2) reduce(E_IDX, 2)` **before** plain `[i]`
+- `expr`: augmented assign `||:=` `+:=` `-:=` `:=:` `:=` (longest-first)
+- New operator wrappers: `$'||:='`, `$'+:='`, `$'-:='`, `$':=:'`, `$'+:'`
+- New tag constants: E_NOTPAT, E_BANGPAT, E_VALUEPAT, E_INDIRECT, E_ITERATE,
+  E_CAPT_CURSOR, EXCHG, ADDASSIGN, SUBASSIGN, CATASSIGN
+- `Push_cursor()` build-time wrapper + `push_cursor()` match-time helper
+- `lower_atom`: cases for all 5 new unary-type tags + E_CAPT_CURSOR passthrough
+- `lower_stmt`: ADDASSIGN/SUBASSIGN/CATASSIGN (expand lhs op rhs), EXCHG (E_FNC EXCHG)
+
+**Bug found and fixed**: `'\\'` in Snocone is a 2-character string `\\`.
+The 1-character backslash literal is `'\'`. Fixed in `unary_expr` backslash branch.
+
+### Gate
+
+PASS=75 → **PASS=80 FAIL=0**. Smoke: PASS=4 FAIL=0.
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `5d4b829` (pushed) |
+| one4all | parser | `e1e4fefb` (unchanged) |
+| .github | main | this commit |
+
+### Next milestone
+
+Operator-directed. Open territory from goal file watermark:
+- `compound_stmt` — `{ s1; s2; }` block (RS_COMPOUND) — the oracle rejects
+  `{ }` in body position (parse error); needs investigation whether
+  compound_stmt is valid at stmt-level in current runtime or only inside
+  `initial`.
+- `unary_pos` — `+x` (RE_POS unary plus) if oracle emits it distinctly
+- `nested_case` — case inside function body with multi-clause
+- Cross-pollination loop: share any pattern idiom improvements to sibling parsers
