@@ -545,7 +545,16 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       `nl`. Verify gate PASS=46. **DONE 2026-05-05: White/NL fix landed; gate PASS=46.**
 - [ ] **Step SC-6b:** Run parser against `beauty.sc`. Fix any remaining parse failures
       iteratively until parser output matches oracle (whitespace-normalized).
-      **BLOCKED on naming collision above — awaiting Lon decision on fix approach.**
+      **IN PROGRESS (2026-05-05 session 2):** 3 bugs fixed this session; beauty.sc now parses
+      completely (1147 stmts, same count as oracle). 2 remaining diffs:
+      (A) Subtraction right-assoc vs oracle's n-ary fold: `a - b - c` → `E_SUB(a,E_SUB(b,c))`
+          ours vs `E_SUB(a,b,c)` oracle. Affects 8 stmts (all multi-operand SUB chains in beauty.sc).
+          Fix: restructure `Expr6` to use n-ary fold for same-operator runs (like Expr4/Expr3).
+          Same issue applies to Expr7(`#`), Expr8(`/`), Expr9(`*`), Expr10(`%`).
+      (B) One extra label in wrong position in an if-else-if chain. `finalize_if_else` emits
+          outer `Lend` before else body when else branch is an inline `if_cmd`. Investigation
+          needed: check counter frame state at `Save_nbody('if_nelse')` time.
+      Gate remains PASS=46 FAIL=0 throughout.
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
       execute identically under `--ir-run`.
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
@@ -569,9 +578,45 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc crosscheck next)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b in progress — PASS=46 FAIL=0, beauty.sc 1147/1147 stmts, 2 diffs remain)**
 
-Gate: PASS=46 FAIL=0. corpus @ 2f1c1e0 (2026-05-06).
+Gate: PASS=46 FAIL=0. corpus @ HEAD (2026-05-05 session 2).
+
+### SC-6b session 2026-05-05 (session 2) — 3 bugs fixed; beauty.sc 1147 stmts, 2 diffs remain
+
+Three bugs found and fixed running beauty.sc through parser_snocone.sc:
+
+**Bug 1 — closing brackets baked trailing Gray (corpus fix).**
+`$']'`, `$')'`, `$'}'` were defined as `$' ' 'X' $' '` (Gray both sides).
+Binary operators (defined as `$'  ' 'X' $'  '` — required White both sides) consume leading
+required-White before the operator. When a closing bracket ate the trailing whitespace, the next
+binary operator's leading required-White found nothing and failed. Symptom: `ppStop[1] = 18`
+parsed as bare scan (`:subj (E_IDX ppStop 1)`) instead of assignment.
+Fix: changed `$')'`/`$'}'`/`$']'` to `$' ' 'X'` (Gray leading only, no trailing).
+Added leading `$' '` to `Command` to consume inter-command whitespace (newlines after `}`).
+Gate: PASS=46 FAIL=0 throughout.
+
+**Bug 2 — `saved_cond` global clobbered by nested if/while (corpus fix).**
+`save_cond()` stored the condition in a single global variable `saved_cond`. When an `if`
+or `while` body contained a nested `if`/`while`, the inner condition overwrote the outer one.
+`finalize_if`/`finalize_while`/`finalize_do` then used the inner condition for the outer construct.
+Symptom: `if (IDENT(t,'BuiltinVar')) { if (Gen(ss(x))) { return; } error(); }` — outer condition
+was `Gen(ss(x))` instead of `IDENT(t,'BuiltinVar')`.
+Fix: replaced `saved_cond` global with a LIFO array stack `sc_cond[sc_cond_top]`. Added
+`pop_cond()` function. All four finalizers (`finalize_if`, `finalize_if_else`, `finalize_while`,
+`finalize_do`) now call `pop_cond()` instead of `$cond_v`. Wrappers updated to remove
+`cond_v` parameter. Initialized `sc_cond = ARRAY('1:64')` and `sc_cond_top = 0`.
+Gate: PASS=46 FAIL=0 throughout.
+
+**Bug 3 — `make_cond_stmt` didn't decompose E_SCAN into :subj/:pat (corpus fix).**
+When an if/while condition was a scan expression `v ? pat`, `make_cond_stmt` wrapped the
+whole `E_SCAN(v, pat)` in `:subj`. Oracle emits `:subj v :pat pat` separately.
+Fix: added `E_SCAN` detection in `make_cond_stmt` — if condition is `E_SCAN`, emit
+3-child STMT (`:subj`, `:pat`, goto) instead of 2-child.
+Gate: PASS=46 FAIL=0 throughout.
+
+**Remaining diffs in beauty.sc (2 issues, 20 diff lines total):**
+See Step SC-6b above for details.
 
 ### SC-6b session 2026-05-06 — Lon whitespace refactor landed; PASS=46 FAIL=0
 
