@@ -83,7 +83,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=46 FAIL=0. beauty.sc 1147/1147 stmts parsed; 2 diffs remain: (A) Expr6 subtraction right-assoc vs oracle n-ary fold (8 stmts); (B) extra label in if-else-if chain (1 case). 3 bugs fixed this session (closing-bracket Gray, saved_cond global→stack, make_cond_stmt E_SCAN decomposition). |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | PARSER-IC-17 LANDED PASS=124 corpus@c03df28 — match/null/bang-binary; next: IC-18 |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-19 LANDED PASS=143 corpus@9509eac — multi-line compound + return/suspend expr-level + control DGray; next: IC-20 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0 — name-stack fix (BUG-SR-PNAME-1) + =.. univ; next: PR-13 |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-19 LANDED PASS=100 FAIL=0 corpus@ca930a1 — try/CATCH. Next: RK-20 gather/take or map/grep |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
