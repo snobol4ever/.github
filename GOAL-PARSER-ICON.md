@@ -629,3 +629,30 @@ Whitespace cleanup (canonical snocone style) + newline=whitespace + semicolon te
 **SCRIP engine bug worked around:** `Gray = White | epsilon` (ALT node) causes `bb_alt` null-pointer crash inside `Case` production when used inside ARBNO+FENCE. Fix: `CaseGray = ARBNO(white)` used inside case productions. Filed as part of the `BUG-SCRIP-EQ` family.
 
 **Next session (IC-21):** File CaseGray bug in GOAL-REWRITE-SCRIP.md. Cross-pollinate `white/White/Gray` canonical style to other PARSER-* files. Run rung36 jcon crosscheck to measure parsing coverage improvement.
+
+---
+
+### PARSER-IC-20.1 LANDED PASS=143 corpus@4f4658b
+
+Token list reorganized snocone-style; grammar body uses token aliases throughout.
+
+**Token list categories (parser_snocone.sc style):**
+- **Brackets** (asymmetric Gray): `$'(' = '(' $' '`, `$')' = $' ' ')'`, etc.
+- **Punctuation** (Gray both sides): `$','`, `$';'`, `$':'`, `$'.'`
+- **Operators** (Gray both sides for unary/binary dual-use): `$'+'`, `$'-'`, `$'*'`, etc.
+- **Comparisons** (longer-prefix first): `$'~==='`, `$'~=='`, ... `$'='`, `$'<'`, `$'>'`
+- **Assignment/swap**: `$':=:'`, `$':='`, `$'<->'`, `$'<-'`
+- **Augmented assignment**: `$'~==:='` ... `$'=:='`
+
+**Grammar body cleanup — no more raw whitespace + literal punct:**
+- `Expr10` uses `$'-'`, `$'+'`, `$'*'`, `$'?'`, `$'/'`, `$'='` directly (not `$' ' '-'`)
+- `Compound` uses `$'{'` / `$'}'` tokens
+- `Case` uses `$'{'` / `$'}'` tokens
+- `Expr11tail` uses `$'['` / `$']'` / `$':'` tokens
+- `Paren` / `ListCtor` add explicit leading `$' '` (since open brackets have no leading Gray)
+- `Params` uses `($'[' $']' | epsilon)` instead of raw brackets
+- `InitialStmt` uses `$'{'` / `$'}'` tokens
+
+The grammar body now contains **zero raw `(`/`)`/`[`/`]`/`{`/`}`/`,`/`;`/`:` literals adjacent to whitespace patterns** — all whitespace is encoded in the token aliases.
+
+**Next session (IC-21):** Cross-pollinate canonical style to `parser_prolog.sc`, `parser_raku.sc`, `parser_rebus.sc`. File the SCRIP engine bugs (ARBNO-in-FENCE cursor restoration, ALT-in-FENCE bb_alt null-ptr) in `GOAL-REWRITE-SCRIP.md` as `BUG-SCRIP-EQ` family. Run rung36 jcon crosscheck.
