@@ -2033,3 +2033,93 @@ Committed `one4all/parser` @ `deeae350`.
 - Bug fix: `one4all/src/frontend/rebus/rebus_lower.c` (BUG-RB-1 already committed)
 
 Context at handoff: ~90%.
+
+---
+
+## Session 2026-05-06 — RB-FW-2 LANDED; PASS=52→57 FAIL=0; 3 parser bugs fixed
+
+**Context window at session start: ~15% (fresh start, repos already cloned).**
+
+### Work done
+
+Three bugs found in `parser_rebus.sc` (all in the RB-FW-2 additions from
+the previous session). Each was a correctness bug in the grammar definitions,
+not a SCRIP runtime bug. Fixed in corpus @ `b2b955a`.
+
+**BUG-RB-FW2-A — Operator wrappers defined after grammar productions (FIXED)**
+
+`$'^'`, `$'**'`, `$'%'` (used by `pow_expr`, `mul_expr`) were defined at
+line 225, after those grammar productions at lines 193–205. Similarly
+`$'='`/`$'~='`/etc. (used by `cmp_expr`) and `$'||'`/`$'&'` (used by
+`cat_expr`) were defined inline with their grammar productions rather than
+in the wrappers block.
+
+In Snocone, `$'op'` names are values evaluated at the point of assignment.
+At grammar build time, `$'^'` was unbound (empty string = epsilon),
+causing `$'^' *pow_expr reduce(E_POW, 2)` to always match vacuously —
+`'a - b'` was parsed as `E_POW(A, E_MNS(B))` instead of `E_SUB(A, B)`.
+
+Fix: moved ALL operator wrappers into the single wrappers block before
+any grammar production. Removed the scattered late-definitions.
+
+Also: replaced `ANY('^')` with plain `'^'` literal — both work, plain
+literal is clearer.
+
+**BUG-RB-FW2-B — Flow-control keyword wrappers missing trailing Gray (FIXED)**
+
+`$'return'`, `$'exit'`, `$'fail'`, `$'stop'`, `$'next'` were defined as
+`$' ' 'keyword'` with no trailing `$' '`. The space between the keyword
+and its argument (e.g. `'return x'`) was not consumed by the wrapper,
+leaving `' x'` unmatched — `stmt`'s trailing `$' ' nl` then failed.
+
+Fix: added trailing `$' '` (Gray) to all five keyword wrappers.
+
+**BUG-RB-FW2-C — opt_locals did not consume newline after semicolon (FIXED)**
+
+`opt_locals = nPush() FENCE($'local' *X_locals $';' | epsilon) ...`
+After matching `'local x, y;'`, the trailing `'\n'` remained unconsumed.
+`func_body` then saw a leading `nl` that `stmt` could not parse (stmt
+expects optional horizontal whitespace, not a newline).
+
+Fix: added `$' ' nl` inside the FENCE branch:
+`FENCE($'local' *X_locals $';' $' ' nl | epsilon)`.
+
+**MAIN entry-point call emission (FIXED)**
+
+`lower_function_decl` emitted `(STMT :subj (E_FNC MAIN))` only when
+`IDENT(fname, 'MAIN')`. But the oracle always emits this final call
+regardless of whether a `main` function is defined. Fixed by moving the
+unconditional `emit_subj(tree('E_FNC', 'MAIN'))` to the driver, after
+all decls are lowered, and removing the conditional from
+`lower_function_decl`.
+
+### Fixtures cleared by these fixes
+
+| Fixture | Failure mode | Fixed by |
+|---------|-------------|---------|
+| `arith_add` | `a-b` parsed as `E_POW(A,E_MNS(B))` | BUG-A (operator ordering) |
+| `exponent` | parse failure (empty output) | BUG-A (`$'^'` was epsilon) |
+| `modulo` | parse failure (empty output) | BUG-A (`$'%'` was epsilon) |
+| `return_val` | missing `(STMT :subj (E_FNC MAIN))` + parse failure | BUG-B + MAIN fix |
+| `local_vars` | parse failure (newline not consumed) | BUG-C |
+
+### Gate state
+
+| Gate | Before | After |
+|------|--------|-------|
+| smoke | PASS=4 FAIL=0 | PASS=4 FAIL=0 |
+| parser | PASS=52 FAIL=5 | PASS=57 FAIL=0 |
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `b2b955a` |
+| one4all | parser | `104f270d` (unchanged) |
+
+**All 57 fixtures pass. RB-FW-2 is LANDED.**
+
+**Context window at session end: ~40%.**
+
+Next milestone: operator-directed. Options:
+- RB-FW-3: additional Rebus features needing new fixtures
+- Six-parser cross-pollination loop
+- CR-3..CR-5: rebus.y → EXPR_t direct cleanup
