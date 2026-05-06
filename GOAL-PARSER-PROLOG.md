@@ -702,7 +702,18 @@ Gate PASS=65 FAIL=0.
 - **Fixtures:** `float_simple`, `float_neg`, `float_int_val`, `float_arith`, `naf_not`, `naf_backslash`, `naf_compound_arg`.
 - **tdump.sc bug fixed (shared):** E_FLIT normalization now calls `REAL()` + strips trailing zeros + strips trailing `.` to match oracle C `%g`. Before fix: `(E_FLIT 1.0)` instead of `(E_FLIT 1)`. All other PARSER-* confirmed green after fix.
 
-**PR-11 — ⏳ NEXT: char-code literals `0'a`; `functor/3`/`arg/3`/`=..` univ; more graphic functor atoms.**
+**PR-11 — ✅ LANDED (PASS=98 FAIL=0, 2026-05-05 session): char-code literals `0'X`.**
+
+### PARSER-PR-11 — char-code literals — LANDED (PASS=98)
+
+- [x] `ascii_table = TABLE()` built at module load; `CHAR(i)→i` for i=0..127.
+- [x] Grammar arms in `primary` and `list_elem`: `"0'" NOTANY(nl) . p_cc Push_char_code('p_cc')` — captures JUST the char, not the full `0'X` token.
+- [x] `push_char_code`: `ch=$varname; val=ascii_table[ch]; Push(tree('E_ILIT',val))`.
+- [x] Fixtures: `charcode_lower` (97), `charcode_upper` (65), `charcode_space` (32), `charcode_arith` (`0'a+1`), `charcode_digit` (`0'0`=48).
+- **Gate:** PASS=98 FAIL=0 (+5 over PR-10). ✅
+- **Gotcha-21 (SCRIP/Snocone):** `REPLACE(raw, "0'", '')` inside a Snocone function returns `''` when `raw="0'a"` in full `--ir-run` pipeline. Fix: capture just the char so no REPLACE is needed.
+
+**PR-12 — ⏳ NEXT: `functor/3`, `arg/3`, `=..` (univ); or `assert`/`retract`; or more builtins.**
 
 ### PARSER-PR-8e + PR-9 handoff note (2026-05-05 session)
 
