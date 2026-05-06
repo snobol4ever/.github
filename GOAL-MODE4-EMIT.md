@@ -173,7 +173,7 @@ libscrip_rt.so unit tests PASS
 
 ### M2 phase — SNOBOL4 + Snocone only
 
-- [ ] **Step EM-1 — Driver wiring + `libscrip_rt.so` skeleton.**
+- [x] **Step EM-1 — Driver wiring + `libscrip_rt.so` skeleton.**
   In `scrip.c`, add `--jit-emit --x64` to the mode parser
   (currently lines ~145–148 parse three modes plus
   `--monitor`). New mode: walks IR → SM_Program as in `--sm-run`,
@@ -305,7 +305,34 @@ libscrip_rt.so unit tests PASS
 
 ## Closed steps
 
-(none yet — this goal is brand new)
+**Step EM-1** — Driver wiring + `libscrip_rt.so` skeleton.
+- `scrip.c` accepts `--jit-emit --x64` as a fourth, mutually-exclusive
+  execution mode (alongside `--ir-run`/`--sm-run`/`--jit-run`/`--monitor`).
+  The two flags are required together; bare `--jit-emit` and bare `--x64`
+  each emit a clear error. Mutex with the other modes is enforced.
+- New emit entry `sm_codegen_x64_emit(SM_Program*, FILE*)` in
+  `src/runtime/x86/sm_codegen_x64_emit.{c,h}`. EM-1 implementation is a
+  literal-zero scaffold: the SM_Program is asserted non-null but unused;
+  the function writes a System V AMD64 `main` that calls
+  `scrip_rt_init(argc, argv)` then `scrip_rt_finalize()` and returns its
+  rc. GNU-as / Intel-syntax dialect, PLT-relative calls, PIC-friendly.
+- New runtime support library skeleton at `src/runtime/rt/scrip_rt.{c,h}`.
+  Exports `scrip_rt_init` (no-op) and `scrip_rt_finalize` (returns 0).
+  Public ABI documented in the header; subsequent EM-N rungs extend
+  monotonically. Built via Makefile target `make libscrip_rt` →
+  `out/libscrip_rt.so` (gcc -fPIC -shared).
+- New gate script `scripts/test_smoke_jit_emit_x64.sh`. Four sub-tests:
+  emit (asm produced; main + ABI calls present), link (gcc -no-pie against
+  libscrip_rt.so with -rpath), run (binary exits 0), errors (all three
+  flag-validation paths fire). PASS=4/4.
+- Both new files warning-clean even under `-Wall -Wextra` (verified
+  outside the project's `-w` setting).
+- Gates: smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4); isolation gate PASS; csnobol4 Budne PASS=36
+  (≥34); EM-1 gate PASS=4/4.
+- one4all @ `2dda60cc`. Session #66, 2026-05-06.
+
+(no other rungs closed yet)
 
 ---
 
@@ -335,6 +362,13 @@ libscrip_rt.so unit tests PASS
 
 ## Watermark
 
+EM-1 LANDED 2026-05-06 (session #66) — driver wiring + `libscrip_rt.so`
+skeleton in place. End-to-end pipeline proven: `scrip --jit-emit --x64
+file.sno` → asm → `gcc -no-pie + -lscrip_rt` → ELF binary → loads and
+exits 0. Next rung: **EM-2** — SM_NOP + SM_HALT + SM_PUSH_INT codegen
+(establishes the calling convention for SM-stack-pointer / pc / state-ptr
+register allocation; `scrip_rt_push_int` and `scrip_rt_halt` extend the
+ABI).
+
 Goal stub written 2026-05-05 in session #62, lifted from
-GOAL-CHUNKS.md Steps 8 and 19. No rungs started yet. Awaiting
-GOAL-CHUNKS M1 close before EM-1 may begin.
+GOAL-CHUNKS.md Steps 8 and 19.
