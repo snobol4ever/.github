@@ -245,59 +245,73 @@ All share the same alpha/beta/gamma/omega four-port protocol.
 
 ---
 
-## Demo Programs and Tracked Artifacts (settled session #67, 2026-05-06)
+## Tracked Artifacts — Protocol (settled session #67, 2026-05-06)
 
-Every session that changes the mode-4 emitter regenerates and commits
-the x64 artifact set. Git history is the archive -- no session-numbered
-copies. `git log -p artifacts/x64/samples/roman.s` shows full evolution.
+### The rule
 
-### Source programs (demo/snobol4/)
+At the end of every session that touches the mode-4 emitter:
 
-These four SNOBOL4 programs are the tracked artifact generators. They
-were in one4all before M-G0-CORPUS-AUDIT (commit f9fbf15f) deleted all
-source programs. Restored to demo/snobol4/ in session #67.
+1. Regenerate all tracked `.s` files.
+2. If a `.s` file assembles cleanly AND differs from the repo copy, commit it.
+3. If it does not assemble, do NOT commit it — leave repo copy unchanged.
+4. Git history is the archive. No session-numbered copies. Ever.
 
-| File | Purpose | Why tracked |
-|------|---------|-------------|
-| roman.sno | ROMAN(N) recursive numeral converter | Exercises recursive DEFINE, REPLACE, BREAK, pattern match |
-| wordcount.sno | Word tokenizer via BREAK/SPAN | Exercises BREAK/SPAN pattern primitives, INPUT loop |
-| claws5.sno | CLAWS5 POS-tag corpus tokenizer | Corpus-scale: exercises ARBNO, complex patterns |
-| treebank.sno | Penn Treebank S-expression parser | Exercises nested patterns, stack operations |
+`git log -p corpus/programs/snobol4/demo/roman.s` shows full emitter evolution.
 
-Primary artifact: `beauty.sno` from corpus (4700+ SM instructions,
-oracle gate at EM-7).
+### Tracked demo programs (canonical location: corpus/programs/snobol4/demo/)
 
-### Artifact locations (artifacts/x64/)
+Two programs. Chosen for size (inspectable), coverage (distinct features),
+and stability (will not be deleted again).
 
-    artifacts/x64/beauty_prog.s     PRIMARY -- changes most; visual overview
-    artifacts/x64/samples/roman.s   demo programs -- easy to inspect
-    artifacts/x64/samples/wordcount.s
-    artifacts/x64/samples/claws5.s
-    artifacts/x64/samples/treebank.s
-    artifacts/x64/README.md         regen commands + milestone checks
+| File | Lines | Features exercised | Ref |
+|------|-------|--------------------|-----|
+| `roman.sno` | 36 | Recursive DEFINE, REPLACE, BREAK, pattern match | `roman.ref` (345 lines) |
+| `wordcount.sno` | 13 | BREAK/SPAN, INPUT loop, arithmetic | — |
 
-### Regen protocol (run end of every session touching the emitter)
+The `.s` files live side-by-side with the `.sno` files in corpus:
+
+    corpus/programs/snobol4/demo/roman.sno      (source — do not edit)
+    corpus/programs/snobol4/demo/roman.s        (generated — commit when changed)
+    corpus/programs/snobol4/demo/wordcount.sno  (source — do not edit)
+    corpus/programs/snobol4/demo/wordcount.s    (generated — commit when changed)
+
+Programs NOT tracked here (too large to inspect):
+expression.sno, porter.sno, beauty.sno, claws5.sno, treebank-*.sno.
+
+### Regen + commit protocol
+
+Run this at the end of every session that touches sm_codegen_x64_emit.c,
+sm_macros.s, or scrip_rt.c:
 
 ```bash
 cd /home/claude/one4all
-BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty.sno
-./scrip --jit-emit --x64 $BEAUTY > artifacts/x64/beauty_prog.s
-./scrip --jit-emit --x64 demo/snobol4/roman.sno    > artifacts/x64/samples/roman.s
-./scrip --jit-emit --x64 demo/snobol4/wordcount.sno > artifacts/x64/samples/wordcount.s
-./scrip --jit-emit --x64 demo/snobol4/claws5.sno   > artifacts/x64/samples/claws5.s
-./scrip --jit-emit --x64 demo/snobol4/treebank.sno > artifacts/x64/samples/treebank.s
-git diff --stat artifacts/x64/
-# Commit if changed
-git add artifacts/x64/ demo/snobol4/ && git commit -m "x64 artifacts: regen <rung>"
+DEMO=/home/claude/corpus/programs/snobol4/demo
+
+# Regenerate
+./scrip --jit-emit --x64 $DEMO/roman.sno    > $DEMO/roman.s    2>/dev/null
+./scrip --jit-emit --x64 $DEMO/wordcount.sno > $DEMO/wordcount.s 2>/dev/null
+
+# Verify both assemble (do not commit if either fails)
+for s in $DEMO/roman.s $DEMO/wordcount.s; do
+    gcc -c "$s" -o /dev/null 2>/tmp/as_err.txt         && echo "OK   $(basename $s)"         || { echo "FAIL $(basename $s) -- NOT committing"; cat /tmp/as_err.txt; exit 1; }
+done
+
+# Commit corpus if changed
+cd /home/claude/corpus
+git diff --stat programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s
+git add programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s
+git diff --cached --quiet || git commit -m "x64 artifacts: regen roman.s wordcount.s (<rung>)"
 ```
 
-### What to look for in the artifacts
+### What to look for
 
-Scan `roman.s` after each rung to see emitter progress:
-- UNHANDLED_OP lines = opcodes not yet baked
-- SM_ADD / SM_MUL macro calls = arithmetic baked (EM-3+)
-- BB box proc labels (.alpha/.beta/.gamma/.omega) = pattern boxes baked (EM-6+)
-- Zero UNHANDLED_OP = EM-7 gate (beauty oracle)
+`roman.s` is the primary inspection target after each rung — small enough
+to read, complex enough to be meaningful:
+
+- `# UNHANDLED_OP` comment lines = opcodes not yet baked (shrinks each rung)
+- `scrip_rt_arith@PLT` calls = arithmetic baked (EM-3+)
+- `.box_N_alpha` / `.box_N_gamma` labels = BB boxes baked (EM-6+)
+- Zero UNHANDLED_OP = EM-7 beauty oracle gate
 
 ---
 ## Steps (in order — execute one per session, sequentially)

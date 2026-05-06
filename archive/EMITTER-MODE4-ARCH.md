@@ -162,3 +162,28 @@ BAKED INLINE via macros (does NOT go through libscrip_rt):
 - EMITTER-COMMON.md -- universal SM_Program walk contract
 - EMITTER-X86.md -- x86 emitter status + Technique 2
 - GOAL-MODE4-EMIT.md -- session state + rungs
+
+---
+
+## Artifact Tracking Protocol (settled session #67, 2026-05-06)
+
+Tracked files (canonical location -- corpus repo):
+
+    corpus/programs/snobol4/demo/roman.s      side-by-side with roman.sno
+    corpus/programs/snobol4/demo/wordcount.s  side-by-side with wordcount.sno
+
+Rule: after every session touching the emitter --
+  1. Regen both .s files.
+  2. If assembles cleanly AND changed from repo copy -> commit.
+  3. If does not assemble -> do NOT commit. Leave repo copy unchanged.
+  4. Git history is the archive. No session-numbered copies.
+
+roman.s is the primary inspection target: small (36-line source),
+recursive DEFINE, REPLACE, BREAK, pattern match -- covers the key
+emitter paths at a readable scale.
+
+Programs deliberately excluded from tracking (too large):
+beauty.sno, expression.sno, porter.sno, claws5.sno, treebank-*.sno.
+
+beauty_prog.s lives in one4all/artifacts/x64/ as the EM-7 gate artifact
+(assembly check + zero UNHANDLED_OP count) but is not a reading artifact.
