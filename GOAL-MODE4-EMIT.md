@@ -443,7 +443,7 @@ to read, complex enough to be meaningful:
   Gate: SM program with a forward jump and a conditional
   backward jump runs correctly.
 
-- [ ] **Step EM-5 — SM_PUSH_CHUNK / SM_CALL_CHUNK / SM_RETURN.**
+- [x] **Step EM-5 — SM_PUSH_CHUNK / SM_CALL_CHUNK / SM_RETURN.**
   This is the core of the chunks design. `SM_PUSH_CHUNK` emits
   a constant push of `(entry_pc, arity)`. `SM_CALL_CHUNK` is a
   baked direct call to the chunk's emit-time address (no
@@ -536,6 +536,53 @@ to read, complex enough to be meaningful:
 ---
 
 ## Closed steps
+
+**Step EM-5** — SM_PUSH_CHUNK / SM_CALL_CHUNK / SM_RETURN.
+- Three SM chunk-discipline opcodes baked in `sm_codegen_x64_emit.c`.
+  `SM_RETURN` → native `ret`; `SM_CALL_CHUNK` → baked direct
+  `call .Lpc<entry_pc>` against the per-PC labels EM-2 already plants;
+  `SM_PUSH_CHUNK` → `scrip_rt_push_chunk_descr(entry_pc, arity)` —
+  pushes a `ScripRtVal{tag=SCRIP_RT_CHUNK=11, slen=arity, i=entry_pc}`
+  whose tag/layout mirrors `DT_E` in `descr.h` (chunk-flag carried in
+  `slen`, entry_pc in `.i`).
+- libscrip_rt.so ABI grew by one symbol: `scrip_rt_push_chunk_descr`
+  plus the `SCRIP_RT_CHUNK = 11` enum addition. `SM_CALL_CHUNK` and
+  `SM_RETURN` need no ABI symbols — both are pure inline x86.
+- **Honest deviation from interpreter (documented in emitter source):**
+  `sm_interp.c`'s `SM_CALL_CHUNK` snapshots the caller's value stack
+  to a heap buffer, runs the chunk on an empty stack, then restores
+  + appends the result. The mode-4 emitter does NOT snapshot — it
+  uses shared-stack `call`/`ret` over the global value stack inside
+  `libscrip_rt.so`. Rationale: (1) byte-correct for clean chunk
+  bodies; (2) stack-discipline violations would be lowerer bugs, not
+  emitter responsibility; (3) the snapshot machinery is needed for
+  `SM_SUSPEND/SM_RESUME` in EM-10 anyway and belongs there. If a
+  future rung surfaces a real test case that needs snapshot-and-
+  restore, we revisit.
+- **Honest deviation 2:** Conditional return variants
+  (`SM_RETURN_S/F`, `SM_FRETURN[_S/_F]`, `SM_NRETURN[_S/_F]`) still
+  trap via `emit_sm_unhandled`. The tracked `.s` files for the demo
+  programs assemble cleanly (the unhandled stub is a real call
+  instruction); they will not RUN correctly until a near-future rung
+  adds the conditional-return shapes. EM-5's gate doesn't exercise
+  them. Filed as inline next-rung scope.
+- **Honest deviation 3:** `SM_PUSH_CHUNK`'s descriptor sits on the
+  value stack but is not yet routed to a downstream `EVAL` /
+  `sm_call_chunk` consumer; that path activates when EM-6+ links the
+  pattern matcher. EM-5b proves the descriptor-push call path round-
+  trips without corrupting the SM stack.
+- Test harness extended: `argv[5]=em5.s` (two chunks calling each
+  other; chunk_A calls chunk_B which returns 7, A adds 6, returns 13;
+  rc=13), `argv[6]=em5b.s` (PUSH_CHUNK 99,2 + POP + PUSH 21 + HALT;
+  rc=21). Gate adds two sub-tests (PASS=7 → PASS=9). Argc range
+  extended (max 7 args).
+- Five tracked artifacts regenerated and assemble cleanly: `roman.s`,
+  `wordcount.s`, `claws5.s`, `treebank-list.s`, `treebank-array.s`.
+- Gates: smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog
+  5/5, raku 5/5, rebus 4/4); isolation gate PASS; EM-1..EM-5 gate
+  PASS=9 FAIL=0.
+- one4all @ TBD-after-commit. corpus @ TBD-after-commit.
+  .github @ TBD-after-commit. Session #69, 2026-05-06.
 
 **Step EM-4** — Control flow + generated-code readability standard.
 - Three SM control-flow opcodes baked direct in
@@ -709,6 +756,34 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-5 LANDED 2026-05-06 (session #69) -- chunk discipline. Three SM opcodes
+baked: SM_PUSH_CHUNK (call scrip_rt_push_chunk_descr@PLT), SM_CALL_CHUNK
+(baked direct `call .Lpc<entry_pc>`, no PLT, no dispatch loop), SM_RETURN
+(native `ret`). libscrip_rt.so ABI grew by one symbol
+(scrip_rt_push_chunk_descr) and one enum (SCRIP_RT_CHUNK=11, mirrors DT_E).
+EM-5 gate PASS=9 FAIL=0 (was 7 -- added 7a two-chunks-calling-each-other
+rc=13, 7b PUSH_CHUNK descriptor round-trip rc=21).
+
+Honest deviations: (1) emitter uses shared-stack call/ret instead of the
+interpreter's snapshot-and-restore -- byte-correct for clean chunk bodies;
+snapshot moves to EM-10 with SUSPEND/RESUME. (2) Conditional return
+variants (SM_RETURN_S/F, SM_FRETURN[_S/_F], SM_NRETURN[_S/_F]) still trap
+via emit_sm_unhandled -- tracked .s files assemble but won't run end-to-
+end on real frontends until a near-future rung. (3) PUSH_CHUNK descriptor
+sits on stack but isn't yet consumed by EVAL/sm_call_chunk -- that path
+activates when EM-6+ links the pattern matcher.
+
+Tracked artifacts regenerated and assemble cleanly:
+roman.s, wordcount.s, claws5.s, treebank-list.s, treebank-array.s.
+
+Gates: smoke x6 PASS (7/7,5/5,5/5,5/5,5/5,4/4); isolation gate PASS;
+EM-1..EM-5 gate PASS=9 FAIL=0.
+
+Next rung: EM-6 (pattern matcher integration -- libscrip_rt.so v1
+gains the matcher lifted from snobol4_pattern.c + scan_builtins.c;
+emit_bb_box() flips on for SM_PAT_* opcodes; gate: a SNOBOL4 program
+using SPAN/BREAK/LEN/*expr/$ capture compiles and runs).
 
 EM-4 LANDED 2026-05-06 (session #68) -- control flow + readability standard.
 Three SM opcodes baked: SM_JUMP (direct jmp .LpcN), SM_JUMP_S (call last_ok +
