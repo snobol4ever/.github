@@ -2033,3 +2033,64 @@ Committed `one4all/parser` @ `deeae350`.
 - Bug fix: `one4all/src/frontend/rebus/rebus_lower.c` (BUG-RB-1 already committed)
 
 Context at handoff: ~90%.
+
+---
+
+## Session 2026-05-06 — RB-FW-4 LANDED; PASS=67→71 FAIL=0
+
+Three new Rebus constructs implemented and gated (corpus@d83ff80):
+
+| Construct | Syntax | Surface tag | Fixtures |
+|-----------|--------|-------------|---------|
+| Pattern replace | `x ? pat <- repl` | `REPLACE` | replace_basic |
+| Pattern repln (replace with null) | `x ?- pat` | `REPLN` | repln_basic |
+| Case statement | `case expr of { k: body; default: body }` | `RB_CASE` | case_basic, case_default |
+
+### Bugs found and fixed in parser_rebus.sc
+
+**BUG-FW4-A** — `$'<'` wrapper used trailing `$' '` (Gray = zero or more spaces), which
+matched the `<` in `<-` (replace arrow has no space after `<`).  Fix: change trailing `$' '`
+to `$'  '` (White = one or more spaces required).
+
+**BUG-FW4-B** — `CASE` is a Snocone predefined global (value `1`, the `&CASE` case-folding
+flag).  Using `CASE = 'CASE'` as a tree-tag constant is immediately shadowed.  Also `$'case'`
+indirect-assigns via the reserved keyword `T_CASE`, not a free variable.  Fix: renamed tree-tag
+constant to `RB_CASE`; Rebus keyword wrapper to `rb_case_kw` (no `$'...'` indirection needed).
+`CASE_CLAUSE` and `CASE_DEFAULT` are unaffected (not predefined).
+
+**BUG-FW4-C (SCRIP/Snocone limitation documented)** — `@pos` saves cursor position, but
+`TAB(pos)` does NOT rewind.  Per the SPITBOL manual: *TAB(I) fails if cursor is already past I*.
+Zero-width lookahead via `@pos / TAB(pos)` idiom does not work.  Use structural grammar ordering
+(longest-match first, or `NOTANY` with consumed-char restructuring) instead.
+
+**BUG-FW4-D** — `FENCE(A | B)` in Snocone does not commit when A and B share the same first
+token (both branches starting with `$'?'`).  FENCE allowed backtracking to the second `$'?'`
+branch when the first failed.  Fix: merged same-prefix alternatives into one branch with an
+inner `FENCE` for the post-`?` disambiguation.
+
+### Grammar additions (parser_rebus.sc summary)
+
+- `$'?-match'`, `$'<-arrow'`, `rb_case_kw`, `rb_default_kw`, `$'of'`, `$'{'`, `$'}'`, `$':'`
+- `$'<'` trailing whitespace: `$' '` → `$'  '` (required White, not Gray)
+- `match_or_expr` extended with `?- pat → REPLN` and `? pat <- repl → REPLACE` branches
+- `stmt_inline` — stmt without trailing newline (for case-clause bodies inside `{ }`)
+- `caseclause_guard`, `caseclause_default`, `caseclause`, `caselist`, `caselist_tail`, `case_stmt`
+
+### Lowering additions
+
+- `emit_replace(s, p, r)` — emits `(STMT :subj :pat :repl)`
+- `lower_case(x)` — allocates end label first so temp-var name matches oracle numbering
+  (`rb_case_N`), then chains `IDENT` comparisons per clause, handles `CASE_DEFAULT`
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `d83ff80` (pushed) |
+| one4all | parser | `104f270d` (unchanged) |
+| .github | main | this commit |
+
+Gate: **PASS=71 FAIL=0**. Smoke: PASS=4 FAIL=0.
+
+Next milestone: operator-directed.  Options: string replace operators, nested case,
+six-parser cross-pollination loop, or reserved-word filter for `Id`.
