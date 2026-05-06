@@ -2390,3 +2390,29 @@ Operator-directed.  Open territory:
 - `unary_pos` — `+x` (RE_POS unary plus); check oracle shape
 - `nested_case` — case inside compound; compound inside case
 - Cross-pollination: share `stmt_body` and `compound_stmt` idiom to sibling parsers
+
+---
+
+## Session 2026-05-06 continuation — RB-FW-8 LANDED; PASS=83 FAIL=0
+
+### RB-FW-8 — unary_pos (+x identity)
+
+`+x` (RE_POS) added to `unary_expr` → `E_POS` tag.
+`lower_atom` E_POS case: identity — returns `lower_atom(child)`.
+Oracle lowers `+y` to just `y`.
+
+New fixture: `unary_pos.reb` with `.ref`. corpus HEAD: `dd86344`.
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `dd86344` (pushed) |
+| one4all | parser | `b9b31884` (unchanged) |
+| .github | main | this commit |
+
+### Next milestone
+
+- `nested_case` — case inside compound; compound inside case
+- Multi-construct stress fixtures
+- Cross-pollination: `stmt_body` idiom to sibling parsers (if/while now accept compound body)
