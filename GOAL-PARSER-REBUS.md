@@ -1911,6 +1911,71 @@ within this goal — operator-directed next milestone.
 
 ---
 
+## Session 2026-05-05 continuation #3 — RB-FW-2 INCOMPLETE; PASS=52/57; BUG-SR-1 fixed
+
+### BUG-SR-1 — Reduce(t, 0) crash — FIXED (corpus@8d86e2f)
+
+`ShiftReduce.sc::Reduce(t, n)` called `GE(n, 1) ARRAY('1:' n)` — when `n=0`,
+`GE(0,1)` fails so `c` is unbound; `tree(t, empty, 0, c)` then crashes with
+Error 5 "Undefined function or operation".  Fix: explicit `if (IDENT(n, 0))`
+branch calls `tree(t, empty, 0)` (no children arg) and early-returns.
+This bug affects any `reduce(tag, 0)` call site — needed for `return` bare,
+`fail`, `stop`, `exit`, `next` zero-child stmt nodes.  Step added to GOAL:
+
+- [x] BUG-SR-1: fix `Reduce(t, 0)` in `ShiftReduce.sc` — DONE corpus@8d86e2f
+
+### RB-FW-2 grammar additions — IN PROGRESS (PASS=52 FAIL=5)
+
+9 new fixtures created with oracle .ref files:
+  return_bare, return_val, flow_stop, flow_fail, exponent,
+  modulo, scmp_eq, scmp_ne, local_vars
+
+Grammar added to parser_rebus.sc (all in corpus@8d86e2f):
+- `pow_expr` tier: `ANY('^')` and `**` → E_POW (right-associative)
+  NOTE: `'^'` is Snocone unevaluated-expr syntax — must use `ANY('^')`
+- `mul_expr` extended with `%` → reduce(REMDR, 2)
+- `cmp_expr` extended: `==` `~==` `<<` `>>` `<<=` `>>=` string comparisons
+- `$'return'`/`$'exit'`/`$'fail'`/`$'stop'`/`$'next'`/`$'local'`/`$'initial'`/`$';'` keyword wrappers
+- `return_stmt`/`fail_stmt`/`stop_stmt`/`exit_stmt`/`next_stmt` in stmt alternation
+- `opt_locals`/`opt_initial` grammar; `function_decl` → 5 children
+- `lower_atom`: E_POW, REMDR, all string-cmp cases
+- `lower_stmt`: RB_RETURN, RB_RETURN_VAL, RB_FAIL, RB_STOP, RB_EXIT, RB_NEXT
+- `lower_function_decl`: locals string (`/X,Y`), initial clause emission
+- `curFname` global tracks current function name for `return val` lowering
+
+### 5 remaining FAILures — next session diagnosis
+
+FAIL: arith_add — parser produces `(E_POW A (E_MNS B))` for `a - b`.
+  Cause not fully resolved. `pow_expr` fix (match lhs once, then FENCE op)
+  was applied this session. May be resolved — needs retest next session.
+
+FAIL: exponent — empty output (parse failure).
+  Suspected: `ANY('^')` fix was applied; needs retest.
+
+FAIL: modulo — empty output.
+  May be parse failure related to `%` op or function_decl 5-child change.
+
+FAIL: return_val — empty output.
+  function_decl now 5-child; lower_function_decl updated to match.
+  Needs retest with BUG-SR-1 fix confirming `reduce(RB_RETURN_VAL, 1)` works.
+
+FAIL: local_vars — empty output.
+  opt_locals grammar uses `$'local'` wrapper + X_locals tail-recursive pattern.
+  Needs retest.
+
+### Next session — first steps
+
+1. Setup: `git checkout parser` in one4all; install packages; build scrip.
+2. Gate: `bash scripts/test_parser_rebus.sh` — expect PASS=52 baseline.
+3. Run each failing fixture individually to get actual error/output.
+4. Fix remaining 5 failures; target PASS=57 FAIL=0.
+5. If clean, commit as RB-FW-2 LANDED and update goal checkboxes.
+
+corpus HEAD: 8d86e2f
+one4all/parser: deeae350 (unchanged)
+
+---
+
 ## Session 2026-05-05 continuation #2 — RB-FW-1 LANDED; PASS=48 FAIL=0
 
 **Handoff watermark** (context ~90%, new session required).
