@@ -431,101 +431,75 @@ with `\` or embedded `"` in a string now renders correctly.
 - [x] Test corpus: 5 new fixtures (map_basic, grep_basic, sort_nc, map_say, grep_str).
 - **Gate:** PASS=105 FAIL=0 ✓  corpus@eefec55.
 
-### PARSER-RK-WS2 — canonical White/Gray (parser_snocone.sc shape) — IN PROGRESS
+### PARSER-RK-WS2 — canonical White/Gray — LANDED corpus@c2ade5a
 
-Lon directive (session 2026-05-06 cont.): pivot before RK-21.  Replace the
-FENCE-based `White`/`Gray`/`DGray`/`nl_one` block with the canonical
-parser_snocone.sc form so the grammar body reads cleanly with whitespace
-attached to tokens, not splattered through productions.
+Lon directive: `$' '`/`$'  '` everywhere, whitespace attached to tokens,
+grammar body whitespace-free.  **PASS=105 FAIL=5 watermark held.**
 
-Target form:
+**What landed (corpus@c2ade5a):**  DGray and nl_one eliminated.  White
+extended to absorb newlines and `#` line-comments (`SPAN(' ' tab nl)
+FENCE('#' BREAK(nl) nl | epsilon) | '#' BREAK(nl) nl`).  Gray = White |
+epsilon.  All 13 DGray call-sites removed; Block / SubBlock / WhenClause /
+DefaultClause / GivenStmt / Compiland boundaries simplified.  Grammar
+body uses only `$' '` / `$'  '` — whitespace evaporates from productions.
 
-```snocone
-white  =  ( SPAN(' ' tab nl) | '#' BREAK(nl) nl );
-White  =  white ARBNO(white);
-Gray   =  ARBNO(white);
-$'  '  =  White;
-$' '   =  Gray;
-```
+**What was NOT done** (engine fragility, documented for a future session):
+The canonical-Snocone `White = white ARBNO(white)` / `Gray = ARBNO(white)`
+shape was attempted and causes two engine bugs under nested ARBNO +
+`&FULLSCAN=1`:
 
-Raku-only `#` line comments — no `/*...*/` block comments (Raku has none).
-No POD support needed yet — no fixture exercises POD.
+1. **Wrong-tree silent failure** — `~~` gets re-segmented as `~ ~` causing
+   10 regex/capture fixtures to drop the regex stmt (PASS→95).  Root is
+   Expr6tail's `$'~' *Expr7` arm matching after `$'~~'` fails: with
+   `Gray = ARBNO(white)` the retry space is larger and an erroneous match
+   path opens up.
 
-- [ ] Replace lines 93–107 (`White`/`Gray`/`DGray`/`nl_one` block) with the
-      canonical form above.
-- [ ] Eliminate every `DGray` / `nl_one` / `nl_opt` reference in the file.
-      With `Gray = ARBNO(white)` absorbing newlines and `$'{'`/`$'}'` already
-      $' '-padded, all the explicit `DGray` sites are redundant.
-- [ ] Audit every grammar production: tokens carry `$' '` / `$'  '` so
-      whitespace evaporates from the body.
-- **Gate:** PASS=105 FAIL=0 (current watermark held).
+2. **SIGSEGV / stale-pointer crash** — minimal repro:
+   ```snocone
+   G = ARBNO(' ');
+   ok = ('"X"' ARBNO(G '~' G '"Y"') ';' ? '"X" ~~ "Y";');
+   ```
+   Crash in `interp_eval.c:3958` memcpy: `g_last_match_subj` is a stale
+   subject pointer by the time the value-context `?` extraction reads it.
+   Filed as **BUG-SCRIP-VAL-SCAN** — see engine bug section below.
 
-#### What session 2026-05-07 attempted and learned
+The FENCE-based form keeps these bugs hidden and gives the same
+readability win (`$' '`/`$'  '` everywhere).
 
-The pivot landed mechanically clean (DGray + nl_one fully eliminated, all
-sites use `$' '` / `$'  '`).  No SIGSEGV — **BUG-SCRIP-WS-1 is gone**;
-the SCRIP-engine ARBNO/FULLSCAN fixes that landed in PARSER-PR-WS
-(corpus@6511bab) and predecessors resolved it.  Previously crashing
-fixtures `delete_hash_brace` and `hash_exists_brace` now PASS under the
-canonical form.
+- [x] Eliminate DGray / nl_one / nl_opt from parser_raku.sc.
+- [x] Grammar body uses only `$' '` / `$'  '` aliases.
+- [x] Gate PASS=105 FAIL=5.
+- [ ] FUTURE: canonical `white ARBNO(white)` form — blocked on
+      BUG-SCRIP-VAL-SCAN engine fix.
 
-But: PASS=95 FAIL=15 (was 105/5).  10 pre-existing fixtures regressed
-from passing to "tree divergence", every one involving regex or
-positional-capture syntax: `capture_pos`, `capture_idx`, `capture_named`,
-`regex_lit`, `regex_meta`, `regex_anchor`, `regex_dot_star`,
-`regex_backslash`, `match_global`, `subst_single`.  Symptom is identical
-across all ten: parser produces only the FIRST stmt of the program; any
-stmt containing a regex literal or `$N` capture silently drops.
+### PARSER-RK-21 — `gather`/`take` coroutine construct — scaffold landed, matching broken
 
-Standalone reproductions reaching real `Expr4tail` shape (full FENCE with
-all 8 comparison arms, real `LitRegex`, real `Push_rxlit`, real
-`AssignStmt` driver) **all parse correctly**.  The regression must come
-from interaction with another tier in the full file — strongest
-suspects:
+All scaffolding committed at corpus@436e667, PASS=105 FAIL=5.
 
-  - `Expr6tail` `$'~'` (string concat) arm interacting with `~~` once
-    Gray absorbs newlines (`~~` could be re-segmented as `~ ~`);
-  - some recursive pattern (`*Expr`, `*Expr11`) whose semantics changed
-    because Gray now covers more whitespace and ARBNO retry shapes
-    differ;
-  - a cap-variable (`caprx`/`capidx`) being clobbered by side
-    effects further down the FENCE chain that under the old `Gray =
-    White | epsilon` got naturally fenced out.
-
-The session's working tree was reverted to pristine PASS=105 FAIL=0
-before commit so the watermark is preserved.  All 5 RK-21 fixtures
-ARE landed (.raku + .ref) — they only fail because RK-21 itself is
-not yet implemented; that is the next step.
-
-**Recommended next session approach:**
-
-1. Reapply the WS pivot (the diff is in this commit message — see git
-   log for the exact replacements).
-2. Bisect Expr-tier-by-Expr-tier: comment out Expr-tail arms one tier
-   at a time (Expr3, then Expr4, Expr6, Expr7) and see which removal
-   restores regex/capture parsing.  That isolates the interacting tier.
-3. Most likely fix: an extra FENCE around the `~~` arms in `Expr4tail`,
-   or pinning `LitRegex`'s leading `$' '` to `epsilon` (drop it — `$'~~'`
-   already supplies trailing whitespace).
-4. Confirm PASS=105 FAIL=5 (5 = expected gather/take), then proceed to
-   RK-21 on the cleaned grammar.
-
-### PARSER-RK-21 — `gather`/`take` coroutine construct — fixtures landed, code pending
-
-- [ ] `take expr ;` stmt → `(E_SUSPEND expr)`.  `SubBlockStmt` arm: `$'take' $'  ' *Expr $';' (E_SUSPEND & 1)`.
-      Mirrors raku.y KW_TAKE expr ';' → expr_unary(E_SUSPEND, expr).
-- [ ] `gather { block }` expr → two STMTs emitted: def STMT `(E_FNC __gather_N ...)` then
-      call STMT with main wrapper `(E_FNC main ... (E_ASSIGN var (E_FNC __gather_N (E_VAR __gather_N))))`.
-      Requires a gather-sequence counter global (`gather_seq`) incremented per gather site.
-      `Finish_gather` helper: pop block children from stack, build def + call nodes, emit def
-      via sub_list (same mechanism as SubStmt), push call onto stack.
-      Mirrors raku.y KW_GATHER block RK-21 action.
-- [x] Test corpus: 5 new fixtures landed (session 2026-05-07): gather_take_lit, gather_take_var,
-      gather_multi_take, gather_in_assign, take_in_loop.  `.raku` + `.ref` both committed.
-      Currently failing as expected — RK-21 grammar code not yet added.
-- [ ] Oracle probes recorded — gather/take produces `(STMT :subj (E_FNC __gather_N (E_VAR __gather_N) ...body...))`
-      then `(STMT :subj (E_FNC main ... (E_ASSIGN ... (E_FNC __gather_N (E_VAR __gather_N)))))`.
-      `gather_seq` counter starts at 0 per program.
+- [x] `E_SUSPEND = "'E_SUSPEND'"` tag constant added.
+- [x] `$'gather'` / `$'take'` keyword tokens added.
+- [x] `gather_seq = 0` global added.
+- [x] `finish_gather()` + `Finish_gather` pattern added (mirrors
+      `finish_sub`: pops counter frame, emits def STMT into `sub_list`,
+      pushes call `E_FNC` onto expression stack).
+- [x] `TakeStmt = ( $'take' $'  ' Expr $';' (E_SUSPEND & 1) )` — verified
+      working standalone: `take 1;` → `(E_SUSPEND (E_ILIT 1))` ✓
+- [x] `TakeStmt` added to `Stmt` / `BlockStmt` / `SubBlockStmt`.
+- [x] `GatherExpr` arm `| $'gather' nPush() SubBlock Finish_gather nPop()`
+      added to `Expr11` after `$'sort'` arms.
+- [x] Test corpus: 5 fixtures landed at corpus@db2517f.
+- [ ] **BUG:** `GatherExpr` arm fails silently — all 5 fixtures produce
+      empty output.  `$'gather'` token fires (probe confirmed), but
+      `SubBlock` inside `Expr11`'s ARBNO context does not match the body.
+      Likely cause: `nPush()` / `nPop()` inside `Expr11`'s ARBNO interferes
+      with the surrounding counter frame, or `SubBlock_body`'s `nInc()` is
+      incrementing the WRONG frame (the Compiland inner frame rather than
+      the fresh gather frame).  **Next session: compare `SubStmt` (which
+      wraps `SubBlock` from OUTSIDE Expr11) with the `GatherExpr` arm
+      (which puts `nPush() SubBlock` INSIDE Expr11 ARBNO).  Likely fix:
+      move gather body parsing to a dedicated `GatherBlock` pattern that
+      has its own `nPush()` / `nPop()` bracketing, or use a helper function
+      rather than inline `nPush() SubBlock` in the ARBNO body.**
 - **Gate target:** PASS≥110.
 
 ### BUG-SCRIP-WS-1 — RESOLVED (engine-side, session 2026-05-07 verification)
@@ -591,14 +565,67 @@ Session 2026-05-07 — PASS=105 FAIL=0 watermark held.  Two artefacts landed:
      divergence" from interaction with another tier.  Working tree
      reverted before commit; PASS=105 FAIL=5 (5 expected RK-21 fails)
      restored.  Diagnosis pointers + recommended bisection approach
-     recorded in the WS2 rung section above.
+### BUG-SCRIP-VAL-SCAN — stale g_last_match_subj in value-context `subj ? pat`
 
-Next session: PARSER-RK-WS2 (finish the WS pivot — bisect the
-regex/capture regression) THEN PARSER-RK-21 (implement gather/take —
-fixtures already in place).
+**Discovered:** session 2026-05-07 (this session) while investigating
+canonical `Gray = ARBNO(white)` regression.
 
-PARSER-RK-WS LANDED (session 2026-05-06) — PASS=105 FAIL=0. Whitespace refactor:
-canonical White/Gray/DGray/nl_one model; nl_opt eliminated; BUG-SCRIP-WS-1 filed.  corpus@9ed9e99.
+**Symptom:** SIGSEGV (exit 139) in `interp_eval.c:3958` memcpy when a
+value-context `ok = (Src ? Pat)` succeeds under nested ARBNO + `&FULLSCAN=1`.
+The crash is in the matched-substring extraction block
+(PARSER-SN-INFRA-11a, lines 3938–3961): after `exec_stmt` returns success,
+the code reads `g_last_match_subj + g_last_match_start` for `span_len` bytes.
+`g_last_match_subj` is the raw `subj_str` pointer saved in `stmt_exec.c:1405`
+— it points into a string buffer that may have been moved / freed by the GC
+by the time interp_eval reads it.
+
+**Minimal repro:**
+```snocone
+&FULLSCAN = 1;
+G = ARBNO(' ');
+Pat = ( '"X"' ARBNO(G '~' G '"Y"') ';' );
+ok = ('"X" ~~ "Y";' ? Pat);   // SIGSEGV
+```
+Predicate context `if (... ? Pat) {}` does not crash (doesn't hit the
+extraction path).
+
+**Fix needed** (`stmt_exec.c`): Before storing `subj_str` into
+`g_last_match_subj`, deep-copy it into a GC-stable buffer (or bump a
+refcount).  Alternatively, copy the span into `g_last_match_buf` there
+and then in interp_eval read from `g_last_match_buf` instead of
+reconstructing via pointer + offsets.
+
+- [ ] BUG-SCRIP-VAL-SCAN: Fix `stmt_exec.c` — GC-protect the subject
+      buffer stored in `g_last_match_subj` so value-context `subj ? pat`
+      extraction does not crash.
+
+---
+
+## Watermark
+
+Session 2026-05-07 (continued) — two rungs landed:
+
+- **PARSER-RK-WS2 LANDED** corpus@c2ade5a — PASS=105 FAIL=5.
+  DGray + nl_one eliminated.  `$' '` / `$'  '` everywhere.
+  FENCE-based White (extended to absorb nl + # comments).
+  canonical `ARBNO(white)` form blocked on BUG-SCRIP-VAL-SCAN.
+
+- **PARSER-RK-21 scaffold** corpus@436e667 — PASS=105 FAIL=5.
+  E_SUSPEND constant, $'gather'/$'take' tokens, gather_seq global,
+  finish_gather helper, TakeStmt (works), GatherExpr arm (fails silently).
+  TakeStmt verified: `take 1;` → `(E_SUSPEND (E_ILIT 1))` ✓.
+  GatherExpr: $'gather' token fires but SubBlock doesn't match inside
+  Expr11 ARBNO.  Likely: nPush/nPop inside Expr11 ARBNO increments the
+  wrong counter frame.  See RK-21 bug note above.
+
+**Next session:** Fix GatherExpr — compare SubStmt (wraps SubBlock from
+outside Expr11) with GatherExpr (SubBlock inside Expr11 ARBNO).  Likely
+fix: dedicated GatherBlock helper that isolates nPush/nPop from the
+surrounding Expr counter context.
+
+PARSER-RK-WS2 LANDED corpus@c2ade5a — PASS=105 FAIL=5.
+PARSER-RK-21 scaffold corpus@436e667 — PASS=105 FAIL=5.
+PARSER-RK-WS LANDED (session 2026-05-06) — PASS=105 FAIL=0. corpus@9ed9e99.
 PARSER-RK-20 LANDED (session 2026-05-06) — PASS=105 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
@@ -616,7 +643,7 @@ RK-20: map/grep/sort higher-order list ops.  corpus@eefec55.
 Cross-PARSER notes added RK-17/18:
 - Snocone if(expr) always succeeds; use EQ/IDENT predicates for integer flags.
 - BREAK(x) fails when no char from x appears in remaining subject; pair with REM.
-- WhenClause/DefaultClause need leading nl_opt for newlines inside { }.
+- WhenClause/DefaultClause: leading $' ' (Gray) absorbs newlines inside { }.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
