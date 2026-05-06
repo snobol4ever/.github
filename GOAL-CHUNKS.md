@@ -137,11 +137,23 @@ iterator advance, cset membership, etc.).
 
 ## Migration strategy
 
-**Sequential, not parallel.**  One session at a time.  Each rung
-lands fully — the legacy `if (is_chunk) { ... } else { /* old
-EXPR_t path */ }` branch in consumers is deleted within the same
-rung that flipped its producer.  No long-lived feature flag, no
-parallel branches, no merge collisions.
+**Sequential within a consumer/producer pair, not across the whole
+goal.**  Each rung lands fully — the legacy
+`if (is_chunk) { ... } else { /* old EXPR_t path */ }` branch in
+consumers is deleted within the same rung that flipped its producer.
+No long-lived feature flag, no parallel branches inside one rung's
+file set, no merge collisions on shared C sources.
+
+This rule does **not** preclude two sessions working on different
+rungs simultaneously when those rungs are file-disjoint.  Specifically:
+the carved sub-goal `GOAL-MODE4-EMIT.md` (Step 8 / EM-1..EM-9 / Step 19
+/ EM-10..EM-16) modifies a different file set than M4 (Steps 12–18) —
+emitter rungs add new files and one dispatch path in `scrip.c`; M4
+rungs modify `sm_lower.c`, the BB engine, `polyglot.c`, the proc/pred
+tables.  These can be driven by parallel sessions; they re-converge
+naturally because the emitter consumes the SM_Program produced by
+sm_lower's chunk-style output, regardless of which rung enriched the
+chunk coverage last.
 
 **Two-system swap is short-lived.**  The new opcodes
 (SM_PUSH_CHUNK, SM_CALL_CHUNK, later SM_SUSPEND/SM_RESUME)
@@ -295,10 +307,22 @@ milestones:
 
 ### M2 — Mode 4 x86 emitter for SNOBOL4 + Snocone
 
+> **PARALLEL TRACK.**  Step 8 is fully carved out to
+> `GOAL-MODE4-EMIT.md`.  A session that says "I'm doing GOAL-CHUNKS"
+> does **not** by default work on Step 8 — it works on the next open
+> inline step (currently Step 12, Icon main() synthesis).  The carved
+> sub-goal is file-disjoint from M4 (Steps 12–18): the emitter adds
+> new files (`sm_codegen_x64_emit.c`, `scrip_rt.{c,h}`) and one new
+> dispatch path in `scrip.c`; M4 modifies `sm_lower.c`, the BB
+> engine, `polyglot.c`, and the proc/pred tables.  Two sessions can
+> work both tracks simultaneously without merge collisions.
+
 - [ ] **Step 8 — File `GOAL-MODE4-EMIT.md` and execute it
   to completion.**  (See file — owns both M2 and M5 phases of
   the x86 mode-4 emitter, rungs EM-1 through EM-9 cover this
-  step.)  This is itself a multi-rung sub-goal.
+  step.)  This is itself a multi-rung sub-goal **executed in a
+  separate session track**; it does not gate Steps 12–18 of this
+  file and is not gated by them.
   Initial scope: `--jit-emit --x64 file.sno` and `--jit-emit
   --x64 file.sc` produce a standalone asm/binary.  The emitted
   executable links against `libscrip_rt.so` — a runtime support
