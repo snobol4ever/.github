@@ -776,7 +776,39 @@ Correctness failures remain for all new operators. The `->` handling also needs 
 - **`//` produces `E_DIV`:** Oracle emits `(E_DIV a b)` for `a // b`, same as `/`. Keep `$'//' primary reduce(E_DIV, 2)` rather than `Reduce_binop`.
 - **`->` special handling:** `(X -> Y ; Z)` — oracle emits `(E_FNC ; (E_FNC -> X Y) Z)`. The `->` must combine two items from stack into one `E_FNC ->` node before `Reduce_disj` sees them. Use `Reduce_ifthen_in_disj` which calls `DecCounter()` after combining. The `disj` FENCE pattern: after parsing first `conj`, try `$'->' nInc() conj Reduce_ifthen_in_disj` (one branch = cond+then combined into single -> node).
 
-**PR-14 candidates (after PR-13):** `:-` directives, `use_module`, `:-` goals, operator declarations.
+**PR-13 `->` if-then — LANDED (PASS=122 FAIL=0, 2026-05-06 session #2).**
+
+### PARSER-PR-13 `->` if-then landing note
+
+**Gate entering:** PASS=117 FAIL=0 (from PR-13 partial session).
+**Gate leaving:** PASS=122 FAIL=0.
+
+#### What was done
+
+1. **SCRIP-BUG-FENCE-EPSILON-HANG debunked:** The reported hang was NOT reproducible in the current SCRIP build. `FENCE(token | epsilon)` and `FENCE($'->' P | epsilon)` both work correctly. The previous hang was likely caused by a circular pattern object (see bug below), not by FENCE itself.
+
+2. **SCRIP-BUG-DEFERRED-PATTERN-CIRCULAR (new, documented):** When a pattern variable `A` is assigned a pattern that directly references another pattern variable `B` (by value), and `B` itself was built from patterns that contain deferred refs (`*X`) that ultimately resolve to patterns containing `A`, the pattern object graph is FINITE but the deferred resolution at match time creates a non-terminating call chain. Fix: use deferred ref (`*A`) instead of value ref wherever a pattern references itself (directly or transitively). Example: `conj_arrow = conj FENCE($'->' conj ...)` -- the second `conj` references `body_goal -> *body -> disj -> conj_arrow` at match time, looping. Fix: `conj_arrow = conj FENCE($'->' *conj_arrow ...)`.
+
+3. **`conj_arrow` added between `conj` and `disj`:**
+   ```snocone
+   conj_arrow = ( conj FENCE( $'->' *conj_arrow Reduce_ifthen | epsilon ) );
+   ```
+   Uses `*conj_arrow` (deferred) for right-associativity (`a -> b -> c = a -> (b -> c)`) and to break the circular pattern chain.
+
+4. **`reduce_ifthen` updated to flatten then-conj:** When then_tree is `(E_FNC ,)`, its children are spread directly into the `->` node. Mirrors oracle: `a -> b, c` gives `(E_FNC -> a b c)`, not `(E_FNC -> a (E_FNC , b c))`.
+
+5. **5 new fixtures:** `ifthen_simple`, `ifthen_disj_left`, `ifthen_disj_right`, `ifthen_else`, `ifthen_chain` — all verified against oracle.
+
+#### Key gotcha (Gotcha-25)
+
+**SCRIP-BUG-DEFERRED-PATTERN-CIRCULAR:** In `--ir-run` mode, pattern variable assignment captures the current VALUE of referenced variables. If the captured pattern (transitively via deferred `*X` refs) calls back into the variable being defined, the match-time call stack loops infinitely (SIGKILL). Fix: use `*VarName` (deferred ref) for any arm that creates a recursive or mutually-recursive pattern path. The pattern object itself stays finite; the recursion is bounded at match time by the input.
+
+**PR-13 FULLY LANDED (PASS=122 FAIL=0, 2026-05-06 session #2).**
+All ladder rungs PR-0..PR-13 landed.
+- ✅ PR-13: `->` if-then: `conj_arrow` non-terminal; `*conj_arrow` deferred right-recursion; `reduce_ifthen` flatten then-conj; 5 new fixtures (ifthen_simple, ifthen_disj_left, ifthen_disj_right, ifthen_else, ifthen_chain).
+- ✅ Gotcha-25: SCRIP-BUG-DEFERRED-PATTERN-CIRCULAR documented and avoided via `*conj_arrow`.
+
+**Next rung: PR-14** — `:-` directives / operator declarations.
 
 ### PARSER-PR-8e + PR-9 handoff note (2026-05-05 session)
 
@@ -1274,3 +1306,15 @@ The semantic for `Reduce_ifthen` is correct (`reduce_ifthen()` function pops the
 3. Investigate SCRIP-BUG-FENCE-EPSILON-HANG root cause OR implement `->` via lookahead semantic function
 4. Add `->` fixtures once it works
 5. Continue with remaining PR-13 items: precedence-correct unary minus, multiline atom/quoted edge cases
+
+---
+
+## Watermark
+
+**PR-13 FULLY LANDED (PASS=122 FAIL=0, 2026-05-06 session #2).**
+All ladder rungs PR-0..PR-13 landed.
+- ✅ PR-13 `->` if-then: `conj_arrow` non-terminal with `*conj_arrow` deferred right-recursion; `reduce_ifthen` flatten then-conj children; 5 new fixtures (ifthen_simple, ifthen_disj_left, ifthen_disj_right, ifthen_else, ifthen_chain). Gate PASS=122 FAIL=0.
+- ✅ Gotcha-25: SCRIP-BUG-DEFERRED-PATTERN-CIRCULAR documented and avoided via deferred `*conj_arrow` ref.
+- ✅ SCRIP-BUG-FENCE-EPSILON-HANG: debunked — not reproducible in current SCRIP build.
+
+**Next rung: PR-14** — `:-` directives / operator declarations.
