@@ -713,7 +713,19 @@ Gate PASS=65 FAIL=0.
 - **Gate:** PASS=98 FAIL=0 (+5 over PR-10). ✅
 - **Gotcha-21 (SCRIP/Snocone):** `REPLACE(raw, "0'", '')` inside a Snocone function returns `''` when `raw="0'a"` in full `--ir-run` pipeline. Fix: capture just the char so no REPLACE is needed.
 
-**PR-12 — ⏳ NEXT: `functor/3`, `arg/3`, `=..` (univ); or `assert`/`retract`; or more builtins.**
+**PR-12 — ✅ LANDED (PASS=103 FAIL=0, 2026-05-05 session): name-stack fix + `=..` univ.**
+
+### PARSER-PR-12 — name-stack fix + `=..` — LANDED (PASS=103)
+
+- [x] **BUG-SR-PNAME-1 fixed:** `p_name` clobbering when nested compounds appear in args (e.g. `arg(1, foo(a,b), X)` was emitting `(E_FNC foo ...)` instead of `(E_FNC arg ...)`).
+  - `counter.sc`: `PushName`/`TopName`/`PopName` linked-list stack (`$'#PN'`).
+  - `semantic.sc`: `PushNameFrom` + `nPushName(varname)` helpers.
+  - `parser_prolog.sc`: `primary` Atom+Graphic_atom arms use `nPushName` + `Reduce_compound_ns` (reads `TopName()`/`PopName()`).
+- [x] `=..` (univ) binary operator: `$'=..'` token + `Reduce_univ` + arm in `unify_expr` FENCE before `$'='`.
+- **Gate:** PASS=103 FAIL=0 (+5 over PR-11). ✅
+- **Fixtures:** `nested_arg`, `nested_functor`, `nested_head_arg`, `univ_lhs`, `univ_rhs`.
+
+**PR-13 — ⏳ NEXT: `assert`/`retract`/`abolish`; string builtins (`atom_chars`, `atom_codes`, `number_codes`); or `copy_term`.**
 
 ### PARSER-PR-8e + PR-9 handoff note (2026-05-05 session)
 

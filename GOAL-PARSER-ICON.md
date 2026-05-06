@@ -593,17 +593,3 @@ Real literal + keyword expression. 2 NEW fixtures.
 
 **Next session (IC-18):** `@` activation binary `E1 @ E2` → `(E_AT E1 E2)` once oracle C frontend supports it (currently rejects `@` as parse error); cross-pollinate `/E` null + `=E` match + `E1!E2` bang-binary to other PARSER-* parsers; additional unary forms from `icon-sp.ebnf` expr10 list not yet covered (`BAR`, `CONCAT`, `LCONCAT`, `DOT`, `CARET`, `INTER`, `UNION`, `NMEQ`, `NMNE`, `SEQ`, `SNE`, `EQUIV`, `NEQUIV` unary forms — verify which the oracle actually accepts).
 
----
-
-### PARSER-IC-18 LANDED PASS=136 corpus@2dcd475
-
-Conjunction (`&`), varargs params, section variants, multi-proc. +12 fixtures over IC-17 baseline of 124.
-
-- **Conjunction `&`** → n-ary `(E_SEQ e1 e2 ...)`: added `ExprSeqRest = ($'&' *Expr1a nInc())` and restructured `Expr = (nPush() *Expr1a nInc() ARBNO(ExprSeqRest) (E_SEQ & r_nTop) nPop())`. Single-child case uses `r_nTop` unwrap so bare `Expr1a` produces no `E_SEQ` wrapper. Token `$'&' = $' ' '&' $' '` added. Tag `E_SEQ` added. Mirrors C `parse_and` exactly.
-- **Varargs proc params `args[]`**: `Params` gains optional `($' ' '[' $' ' ']' | epsilon)` suffix — oracle strips `[]` producing plain `(E_VAR args)`, so brackets are consumed and discarded.
-- **12 new fixtures**: `conj_two/three/assign/scan/stmts`, `bang_invoke`, `kw_fail/null`, `section_pcolon/mcolon`, `multi_proc`, `proc_varargs`.
-- **Oracle probes**: unary `@ | || ||| . ++ -- ** ^` all rejected by oracle C frontend; only `- + ~ \ ! * ? not = /` are oracle-supported unary ops (all already implemented). The `&` conjunction was the last major oracle-supported operator gap.
-
-**Next session (IC-19):** Probe what remains unmatched against real Icon programs (e.g. `beauty.icn` or similar from corpus); cross-pollinate `/E`/`=E`/`E1!E2`/conjunction to other PARSER-* parsers per their goals; investigate `break expr` (value form — C frontend supports it but oracle rejects at statement level); `return` without semicolon in non-statement context.
-
-
