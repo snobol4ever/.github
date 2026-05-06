@@ -2316,3 +2316,77 @@ Operator-directed. Open territory from goal file watermark:
 - `unary_pos` — `+x` (RE_POS unary plus) if oracle emits it distinctly
 - `nested_case` — case inside function body with multi-clause
 - Cross-pollination loop: share any pattern idiom improvements to sibling parsers
+
+---
+
+## Session 2026-05-06 — RB-FW-7 LANDED; PASS=82 FAIL=0
+
+### Bug fixed: BUG-COMPOUND — RS_COMPOUND duplicate-emit in rebus_lower.c
+
+`lower_stmt` always follows `->next` at its tail.  The `stmts[]` array in
+`RS_COMPOUND` held items with live `->next` pointers (linked list from parser),
+so `lower_stmt(stmts[i])` also traversed `stmts[i+1..]` again, producing
+triangular duplication (`a; b; c;` → `a b c b c c`).
+
+Fix: temporarily null each `stmts[i]->next` before calling `lower_stmt`,
+restore after.  The for-loop owns the iteration; the `->next` walk is suppressed.
+Committed `one4all/parser` @ `b9b31884`.
+
+### RB-FW-7 — compound_stmt { s; s; } LANDED
+
+**Grammar additions to `parser_rebus.sc`** (corpus `6267a27`):
+- `compound_stmt`: `$'{' nl compound_body_tail reduce(COMPOUND, nTop_count)` —
+  tail-recursive body; `compound_end = $' ' '}'` tried first (no BREAK).
+- `stmt_body = FENCE(*compound_stmt | *match_or_expr)` — used as body in
+  `if_stmt`, `while_stmt`, `unless_stmt`, `until_stmt`, `repeat_stmt` so
+  `if x then { ... }` is valid.
+- `COMPOUND` tag constant; `lower_stmt` COMPOUND case loops over children.
+- `*compound_stmt` added to `stmt` and `stmt_inline` alternations.
+
+**New fixtures** (with `.ref`):
+- `compound_basic.reb` — standalone `{ ... }` block in function body
+- `compound_if.reb` — compound as `if then { ... }` body
+
+### Gate: PASS=80 → PASS=82 FAIL=0
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `6267a27` (pushed) |
+| one4all | parser | `b9b31884` (pushed) |
+| .github | main | this commit |
+
+### SPITBOL manual study — pattern semantics internalised this session
+
+Read chapters 6, 9, 15, 18 of the SPITBOL v3.7 manual (uploaded PDF):
+- **Two-phase model**: Pass 1 = pure cursor movement (SPAN, BREAK, FENCE, ARBNO,
+  alternation, string literals); Pass 2 = linear sequence of `.`-actions firing
+  in encounter order along the winning path.  `$` fires during Pass 1; `.` fires
+  in Pass 2.
+- **ARBNO**: shy (shortest first); always tries empty first; extended on backtrack.
+  Must guarantee cursor progress before recursion.
+- **FENCE**: commits the current alternative — prevents backtracking past it.
+  `FENCE(P)` also shields alternatives within P from being seen when backtracking.
+- **`*` (deferred eval)**: bridges value space → subject space at match time.
+  Makes recursive patterns possible.
+- **`BREAK` hazard**: `BREAK(c)` matches everything up to `c` — if `c` never
+  appears, it consumes the entire remaining source.  Never use `BREAK` as a loop
+  terminator in a parser pattern; use a direct character check instead.
+
+### Lesson: `BREAK` as terminator is wrong — use direct character match
+
+The first `compound_body_tail` used `FENCE(BREAK('}') '}' | ...)`.  `BREAK('}')`
+matches everything up to `}` — when no `}` exists (every function body without
+compound stmts), it ate the entire remaining source, causing mass FAIL=76.
+
+Fix: `compound_end = $' ' '}'` — matches Gray then literal `}`.  The
+tail-recursive body tries `compound_end` first; if it matches, the loop stops;
+otherwise `compound_item` is tried.  No BREAK anywhere in the compound grammar.
+
+### Next milestone
+
+Operator-directed.  Open territory:
+- `unary_pos` — `+x` (RE_POS unary plus); check oracle shape
+- `nested_case` — case inside compound; compound inside case
+- Cross-pollination: share `stmt_body` and `compound_stmt` idiom to sibling parsers
