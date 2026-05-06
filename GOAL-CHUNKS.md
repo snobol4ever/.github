@@ -360,7 +360,7 @@ Order them however convenient based on platform availability.
 
 ### M4 — Icon, Raku, Prolog, Rebus migrate; SM_PUSH_EXPR deleted
 
-- [ ] **Step 12 — Migrate sm_lower.c:1232 (Icon main() synthesis).**
+- [x] **Step 12 — Migrate sm_lower.c:1232 (Icon main() synthesis).**
   Single trivial site — synthesised E_FNC for `call_main`.
   Change shape: lower main's body as a chunk during
   polyglot_init's pre-lower pass; emit `SM_CALL_CHUNK
@@ -482,6 +482,40 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 ---
 
 ## Closed steps
+
+**Step 12** — Migrate `sm_lower.c:1292–1308` (Icon main() synthesis). The
+synthesised `E_FNC("main")` + `emit_push_expr` + `SM_BB_PUMP` wrapper is
+replaced by a single `sm_emit_si(p, SM_BB_PUMP_PROC, "main", 0)`. New
+opcode `SM_BB_PUMP_PROC` added to `sm_prog.h` (name + nargs operands);
+handler in `sm_interp.c` and `sm_codegen.c` (`h_bb_pump_proc`); helper
+`coro_pump_proc_by_name(name, args, nargs) → bb_node_t` factored out of
+the E_FNC user-proc branch of `coro_eval` and exposed in
+`coro_runtime.h`. The handler does the proc_table lookup + coroutine
+staging without constructing or walking any EXPR_t at the wrapper layer.
+Generator-orthogonal: works whether or not main's body uses generators,
+because main's body execution path (`coro_call` → IR walk inside
+`proc_table[i].proc`) is unchanged — that IR walk is Step 17's territory
+(proc_table → entry_pcs).
+
+Scope boundary (honest): this rung migrates the wrapper-level synthesis
+only. The three remaining `emit_push_expr` call sites in `sm_lower.c`
+(lines 1046, 1057, 1064 — `SM_PUSH_EXPR + SM_BB_PUMP` and
+`SM_PUSH_EXPR + SM_BB_ONCE` for per-statement Icon/Prolog statement
+walks) are owned by Steps 15 (Icon generators per-kind) and 16 (Prolog
+clauses).
+
+Audit-counter sweep with `SCRIP_CHUNKS_AUDIT=1` across all Icon test
+programs in `test/icon/*.icn` (skipping `meander.icn` which hangs on
+baseline pre-existing) under both `--sm-run` and `--jit-run`: every
+program reports `SM_PUSH_CHUNK=0  SM_PUSH_EXPR=0  out_of_range=0`.
+Empirical proof that the wrapper-level synthesis is now genuinely
+EXPR_t-free for the Icon path.
+
+Gates: build clean; smoke ×6 PASS (SNOBOL4 7/7, Icon 5/5, Prolog 5/5,
+Raku 5/5, Snocone 5/5, Rebus 4/4); isolation gate PASS; csnobol4 Budne
+PASS=36 (≥34, exact baseline match); full Icon corpus PASS=186 FAIL=47
+XFAIL=30 (TOTAL=263, byte-identical to baseline 186/47/30 — zero
+regression). one4all @ `0a38d055`. Session #66, 2026-05-06.
 
 **Step 1** — Survey + scaffolding. `SmChunk_t`, `SM_PUSH_CHUNK`, `SM_CALL_CHUNK` added to
 `sm_prog.h`; FATAL stubs in `sm_interp.c` and `sm_codegen.c`; `docs/CHUNKS-step01-audit.md`
