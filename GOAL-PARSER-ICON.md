@@ -628,7 +628,7 @@ Whitespace cleanup (canonical snocone style) + newline=whitespace + semicolon te
 
 **SCRIP engine bug worked around:** `Gray = White | epsilon` (ALT node) causes `bb_alt` null-pointer crash inside `Case` production when used inside ARBNO+FENCE. Fix: `CaseGray = ARBNO(white)` used inside case productions. Filed as part of the `BUG-SCRIP-EQ` family.
 
-**Next session (IC-21):** File CaseGray bug in GOAL-REWRITE-SCRIP.md. Cross-pollinate `white/White/Gray` canonical style to other PARSER-* files. Run rung36 jcon crosscheck to measure parsing coverage improvement.
+**~~Next session (IC-21) [BOGUS — cross-pollination step removed]:~~** File CaseGray bug in GOAL-REWRITE-SCRIP.md. ~~Cross-pollinate `white/White/Gray` canonical style to other PARSER-* files.~~ Run rung36 jcon crosscheck. COMPLETE.
 
 ---
 
@@ -655,7 +655,7 @@ Token list reorganized snocone-style; grammar body uses token aliases throughout
 
 The grammar body now contains **zero raw `(`/`)`/`[`/`]`/`{`/`}`/`,`/`;`/`:` literals adjacent to whitespace patterns** — all whitespace is encoded in the token aliases.
 
-**Next session (IC-21):** Cross-pollinate canonical style to `parser_prolog.sc`, `parser_raku.sc`, `parser_rebus.sc`. File the SCRIP engine bugs (ARBNO-in-FENCE cursor restoration, ALT-in-FENCE bb_alt null-ptr) in `GOAL-REWRITE-SCRIP.md` as `BUG-SCRIP-EQ` family. Run rung36 jcon crosscheck.
+**~~Next session (IC-21) [BOGUS — cross-pollination not a PARSER-ICON task]:~~** ~~Cross-pollinate canonical style to `parser_prolog.sc`, `parser_raku.sc`, `parser_rebus.sc`.~~ File the SCRIP engine bugs (ARBNO-in-FENCE cursor restoration, ALT-in-FENCE bb_alt null-ptr) in `GOAL-REWRITE-SCRIP.md` as `BUG-SCRIP-EQ` family. Run rung36 jcon crosscheck. COMPLETE.
 
 ---
 
@@ -669,4 +669,4 @@ Filed SCRIP engine bugs RS-28 (ALT-in-FENCE bb_alt null-ptr) and RS-29 (ARBNO-in
 
 Rung36 jcon crosscheck: `test_parser_icon.sh` PASS=143 FAIL=0. IPL gprocs: 2/140 oracle-parseable — both diverge on record-field syntax (not yet covered); 138 skip (oracle rejects `link` decls). Rung36 coverage deferred to IC-22.
 
-**Next session (IC-22):** Expand grammar — record-field access in IPL programs; `create` expression; Raku/Prolog whitespace cross-pollination after RS-28/RS-29 are fixed.
+**Next session (IC-22):** Expand grammar — record-field access in IPL programs (grecords.icn, lindrec.icn diverge); `create` expression; run rung36 IPL coverage once grammar gaps closed.
