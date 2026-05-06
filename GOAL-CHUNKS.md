@@ -240,12 +240,12 @@ milestones:
   delete the legacy branch in the consumer.  Same rung.  Gates:
   standard set + a focused test for `*expr`.
 
-- [ ] **Step 3 — Migrate sm_lower.c:470 (pattern non-QLIT arg).**
+- [x] **Step 3 — Migrate sm_lower.c:470 (pattern non-QLIT arg).**
   Same shape as step 2 but for the non-QLIT pattern argument
   case.  Two-system swap inside the rung; legacy branch deleted
   at rung end.  Gates: standard set.
 
-- [ ] **Step 4 — Migrate sm_lower.c:326 / 345 / 386 (E_FNC sub-args
+- [x] **Step 4 — Migrate sm_lower.c:326 / 345 / 386 (E_FNC sub-args
   in pattern context — three sites with the same shape).**
   Bundle into one rung since they share the consumer
   (SM_PAT_CAPTURE_FN_ARGS).  Migrate consumer to call chunks;
@@ -253,7 +253,7 @@ milestones:
   standard set + Snocone corpus subset (Snocone hits these via
   pattern-using code).
 
-- [ ] **Step 5 — Verify SNOBOL4 + Snocone DT_E carriers no longer
+- [x] **Step 5 — Verify SNOBOL4 + Snocone DT_E carriers no longer
   carry EXPR_t.**  Instrumented build that asserts every DT_E
   pushed by sm_lower at runtime has a chunk shape (arity ≥ 0,
   entry_pc within prog->count).  Run smoke + Snocone corpus +
@@ -456,6 +456,38 @@ lowering to emit chunk inline + `SM_CALL_CHUNK` — same SM stack, no nested run
 Scope boundary: stored-chunk `E=*expr; EVAL(E)` deferred (EXPVAL_fn returns FAILDESCR
 for slen==1 DT_E until NV integer-carry infrastructure lands).
 one4all @ `1b42498f`. Session #63, 2026-05-05.
+
+**Step 5** — Verify SNOBOL4 + Snocone DT_E carriers no longer carry EXPR_t.
+`sm_interp.c` instrumented with three audit counters (`g_chunks_audit_push_expr`,
+`g_chunks_audit_push_chunk`, `g_chunks_audit_chunk_oor`) gated on
+`SCRIP_CHUNKS_AUDIT` env var; atexit summary line. SM_PUSH_CHUNK validates
+entry_pc within prog->count. Sweep results: smoke ×6, Budne 112 progs, SNOBOL4
+patterns/control/coverage/functions/capture (17 progs), targeted probe — zero
+SM_PUSH_EXPR fires, zero out-of-range, across all SNOBOL4/Snocone programs.
+M1 invariant holds for the producer side. Documented in
+`docs/CHUNKS-step05-validation.md`.
+Gates: smoke ×6 PASS; isolation gate PASS; csnobol4 Budne PASS=36 (≥34).
+one4all @ `2e0777d0`. Session #65, 2026-05-06.
+
+**Step 4** — Migrate `sm_lower.c:326 / 345 / 386` (E_CAPT_COND_ASGN `. *fn(args)` and
+E_CAPT_IMMED_ASGN `$ *fn(args)` — two sites, same SM_PAT_CAPTURE_FN_ARGS consumer).
+Both for-loops that called `emit_push_expr(p, arg)` for non-E_QLIT args now emit the
+canonical chunk pattern (SM_JUMP skip + `lower_expr` body + SM_RETURN + SM_PUSH_CHUNK).
+Consumer SM_PAT_CAPTURE_FN_ARGS unchanged — at match time EVAL_fn → EXPVAL_fn dispatches
+the slen==1 DT_E path via `sm_call_chunk(entry_pc)` (in place since Step 2).
+Gates: smoke ×6 PASS (SNOBOL4 7/7, Snocone 5/5, Icon 5/5, Prolog 5/5, Raku 5/5,
+Rebus 4/4); isolation gate PASS; csnobol4 Budne PASS=36 (≥34).
+one4all @ `3be281e8`. Session #65, 2026-05-06.
+
+**Step 3** — Migrate `sm_lower.c:470` (pattern non-QLIT arg of `SM_PAT_USERCALL_ARGS`).
+Producer migrated to canonical chunk shape (jump-around + entry_pc + body + SM_RETURN +
+SM_PUSH_CHUNK), mirroring Step 2's E_DEFER lowering. Consumer chain unchanged: bb_usercall
+in stmt_exec.c thaws each DT_E arg via EVAL_fn → EXPVAL_fn, which since Step 2 already
+dispatches slen==1 DT_E through sm_call_chunk(entry_pc). Legacy `EXPR_t*` branch in
+EXPVAL_fn remains to serve the still-unmigrated emit_push_expr sites owned by Step 4
+and later rungs. Gates green: build clean; smoke ×6 (SNOBOL4 7/7, Snocone 5/5, Icon 5/5,
+Prolog 5/5, Raku 5/5, Rebus 4/4); isolation gate PASS; csnobol4 Budne PASS=36 (≥34).
+one4all @ `c6862096`. Session #64, 2026-05-06.
 
 **Prep work, session #62 (no rungs closed):** sub-goal files
 written for Steps 8/9/10/11 + 19 (rungs deferred until prereqs
