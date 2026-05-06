@@ -421,7 +421,7 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-16 LANDED (session 2026-05-05) — PASS=85 FAIL=0.
+PARSER-RK-18 LANDED (session 2026-05-05) — PASS=95 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
@@ -430,9 +430,16 @@ RK-13: string ~ concat → E_CAT n-ary flatten.  corpus@591f91b.
 RK-14: eq/ne string cmp → E_LEQ/E_LNE; unary minus → E_MNS.  corpus@d2f4584.
 RK-15: % modulo → E_MOD (binary); div integer division → E_DIV (flatten).  corpus@5b42940.
 RK-16: interpolated DQ strings "hello $var" → left-assoc E_CAT chain.  corpus@0e5ad3d.
+RK-17: given/when/default → E_CASE node.  corpus@a29276e.
+RK-18: print stmt + die expr + DQ escape fix (BREAK+REM pattern).  corpus@85c4a88.
 
-Next session: PARSER-RK-17 — `given`/`when` construct, or array/hash assignment
-  (`@a = (1,2,3)` / `%h = (a=>1)`).  Check LANG-RAKU ladder for what RK-34 covers.
+Cross-PARSER notes added this session:
+- Snocone if(expr) always succeeds; use EQ/IDENT predicates for integer flags.
+- BREAK(x) fails when no char from x appears in remaining subject; pair with REM.
+- WhenClause/DefaultClause need leading nl_opt for newlines inside { }.
+
+Next session: PARSER-RK-19 — `gather`/`take`, or `map`/`grep`/`sort`, or
+  `try`/`CATCH`.  Probe oracle before picking.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
