@@ -608,3 +608,24 @@ WIP stashed in corpus (`git stash`). Baseline: PASS=143 FAIL=0 @ corpus `9509eac
 2. Binary-search grammar body to isolate which production breaks augop FENCE matching
 3. Fix; verify PASS=143 FAIL=0; add new fixtures
 4. Commit and push
+
+---
+
+### PARSER-IC-20 LANDED PASS=143 corpus@961fa58
+
+Whitespace cleanup (canonical snocone style) + newline=whitespace + semicolon terminates statements.
+
+**Whitespace changes:**
+- `white = SPAN(' ' tab nl) | '#' BREAK(nl) nl` — newlines now part of whitespace
+- `White = white ARBNO(white); Gray = White | epsilon`
+- `$' '` = Gray (optional), `$'  '` = White (required). DGray eliminated.
+
+**Keyword tokens:** identifier boundary check via `Id $ tx *IDENT(tx, 'kw')` — prevents matching prefix of longer identifier (e.g., `do` in `done`).
+
+**Structural keywords excluded from `id_pat`:** `stmt_kw = POS(0) ('end' | 'procedure' | 'record' | 'global') RPOS(0)` — prevents `end` being parsed as `(E_VAR end)`.
+
+**Newlines as whitespace:** All `nl_one` anchors removed; `Blank` production removed. Statements terminate with `;`. Expressions can span lines freely. Verified: `x := 1\n    + 2\n    + 3;` parses as `(E_ASSIGN x (E_ADD (E_ADD 1 2) 3))`.
+
+**SCRIP engine bug worked around:** `Gray = White | epsilon` (ALT node) causes `bb_alt` null-pointer crash inside `Case` production when used inside ARBNO+FENCE. Fix: `CaseGray = ARBNO(white)` used inside case productions. Filed as part of the `BUG-SCRIP-EQ` family.
+
+**Next session (IC-21):** File CaseGray bug in GOAL-REWRITE-SCRIP.md. Cross-pollinate `white/White/Gray` canonical style to other PARSER-* files. Run rung36 jcon crosscheck to measure parsing coverage improvement.
