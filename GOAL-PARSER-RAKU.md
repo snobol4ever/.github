@@ -421,7 +421,7 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ## Watermark
 
-PARSER-RK-18 LANDED (session 2026-05-05) — PASS=95 FAIL=0.
+PARSER-RK-19 LANDED (session 2026-05-06) — PASS=100 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
@@ -432,14 +432,15 @@ RK-15: % modulo → E_MOD (binary); div integer division → E_DIV (flatten).  c
 RK-16: interpolated DQ strings "hello $var" → left-assoc E_CAT chain.  corpus@0e5ad3d.
 RK-17: given/when/default → E_CASE node.  corpus@a29276e.
 RK-18: print stmt + die expr + DQ escape fix (BREAK+REM pattern).  corpus@85c4a88.
+RK-19: try/CATCH exception handling.  corpus@ca930a1.
 
-Cross-PARSER notes added this session:
+Cross-PARSER notes added RK-17/18:
 - Snocone if(expr) always succeeds; use EQ/IDENT predicates for integer flags.
 - BREAK(x) fails when no char from x appears in remaining subject; pair with REM.
 - WhenClause/DefaultClause need leading nl_opt for newlines inside { }.
 
-Next session: PARSER-RK-19 — `gather`/`take`, or `map`/`grep`/`sort`, or
-  `try`/`CATCH`.  Probe oracle before picking.
+Next session: PARSER-RK-20 — `gather`/`take` coroutine construct, or `map`/`grep` higher-order ops.
+  Probe oracle before picking.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
