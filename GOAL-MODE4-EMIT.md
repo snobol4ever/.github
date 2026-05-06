@@ -241,6 +241,86 @@ All share the same alpha/beta/gamma/omega four-port protocol.
 
 ---
 
+## Generated-code readability standard (settled session #68, 2026-05-06)
+
+⛔ The mode-4 emitter does NOT spit. Other compilers spit. Ours
+documents.
+
+The emitted `.s` file is a deliverable in its own right: it must
+read top-to-bottom as an annotated disassembly so a human can audit
+the codegen without consulting `--dump-sm` or the SM_Program. This
+is binding on every backend (x86, JVM, .NET, JS, WASM) and every
+frontend. New rungs that touch emit paths inherit the standard.
+
+### Page-break hierarchy
+
+Major banner — emitted at every statement boundary (`SM_STNO`):
+
+```
+# ============================================================================
+# stmt N  (line L):  <verbatim source line>
+# ============================================================================
+```
+
+Minor banner — emitted between conceptual blocks within a statement
+(value build vs. store vs. goto), used sparingly:
+
+```
+# ----------------------------------------------------------------------------
+# <caption>
+# ----------------------------------------------------------------------------
+```
+
+The comment introducer is `#` (GNU-as line-comment); `;` is the
+statement separator on x86 GAS and must NOT be used for comments.
+JVM / .NET / JS / WASM textual outputs use their respective
+line-comment introducers but the visual shape (== major, -- minor)
+is invariant across backends.
+
+### Source-text preservation
+
+The emitter receives the source-file path and slurps it once into
+a 1-based `lineno → text` cache. `SM_STNO` carries `stno` in
+`a[0].i` and `lineno` in `a[1].i` — the latter is purely
+informational and the interpreter ignores it. When `lineno` is
+0 (parser-recorded only on labeled statements today) or out of
+range, the emitter falls back to `lineno = stno` because the
+SNOBOL4 / Snocone / Icon / Prolog / Raku / Rebus convention is
+one statement per line. A future rung — one-line .y change in each
+frontend — will record `lineno` on every statement and the
+fallback can be removed.
+
+### Inline annotations (third column, `# ...`)
+
+Every line whose asm alone does not reveal the source-level
+referent MUST carry a third-column annotation naming what the
+referent is:
+
+| Asm | Annotation |
+|---|---|
+| `movabs rdi, <ptr>` for SM_PUSH_LIT_S | `# str="..."` (escape-and-truncate preview) |
+| `movabs rdi, <ptr>` for SM_PUSH_VAR | `# var=NAME` |
+| `movabs rdi, <ptr>` for SM_STORE_VAR | `# store -> NAME` |
+| `mov edi, <op>` for SM_ADD/SUB/MUL/DIV/MOD | `# SM_ADD` etc. (opcode mnemonic) |
+| `jmp .LpcN` | `# SM_JUMP -> pc=N` |
+| `jz .LpcN` | `# SM_JUMP_F -> pc=N` |
+| `jnz .LpcN` | `# SM_JUMP_S -> pc=N` |
+| Literal-immediate opcodes (e.g. `movabs rdi, 42`) | no annotation needed; the literal IS the source |
+
+The escape-and-truncate convention for string previews: backslash
+quote and backslash; replace bytes < 0x20 and 0x7f with `.`; cap
+at 40 chars with trailing `...` if truncated.
+
+### Why this is binding
+
+The output `.s` files (and equivalents on other backends) are
+checked in to corpus as tracked artifacts. Each session's
+regeneration commit is a diff a human can read. If the readability
+properties degrade, the diff makes it visible immediately and the
+commit is rejected on review. There is no path to "we'll add the
+banners later" — once the standard is in, every emitter touch
+preserves it.
+
 ---
 
 ## Tracked Artifacts — Protocol (settled session #67, 2026-05-06)
@@ -357,7 +437,7 @@ to read, complex enough to be meaningful:
   `(2 + 3) * 4` and exits with that as rc, run via the
   emitter, returns 20.
 
-- [ ] **Step EM-4 — Control flow: SM_JUMP, SM_JUMPF, SM_JUMPT,
+- [x] **Step EM-4 — Control flow: SM_JUMP, SM_JUMPF, SM_JUMPT,
   SM_LABEL.**  Direct x86 jumps to baked-at-emit-time pc values.
   Labels resolve at emit time — no runtime branch table needed.
   Gate: SM program with a forward jump and a conditional
@@ -456,6 +536,76 @@ to read, complex enough to be meaningful:
 ---
 
 ## Closed steps
+
+**Step EM-4** — Control flow + generated-code readability standard.
+- Three SM control-flow opcodes baked direct in
+  `sm_codegen_x64_emit.c`. `SM_JUMP` → `jmp .Lpc<target>`;
+  `SM_JUMP_S` → `call scrip_rt_last_ok / test eax,eax / jnz
+  .Lpc<target>`; `SM_JUMP_F` → same shape with `jz`. Targets
+  resolve at emit time against the per-PC `.LpcN:` labels EM-2
+  already plants. `SM_LABEL` is a no-op emitter-side because the
+  per-PC label already serves as the jump target — kept as a
+  documented switch case so it never falls through to
+  `emit_sm_unhandled`.
+- libscrip_rt.so ABI grew by one symbol: `scrip_rt_set_last_ok(int)`.
+  Backs a real `g_last_ok` flag (was a hard-coded `return 1` stub
+  in EM-3). Default is 1 at process start; future rungs (EM-6
+  pattern matcher) will toggle it implicitly. EM-4b gate
+  demonstrates an external override pattern that drives a backward
+  loop — proving the JUMP_F shape executes correctly when the
+  flag is 0.
+- **Generated-code readability standard** landed in this rung —
+  see the `## Generated-code readability standard` section above
+  for the binding spec. Concretely: `SM_STNO` now emits a major
+  page-break banner showing `# stmt N (line L): <verbatim source>`
+  above each statement's asm block; `SM_PUSH_LIT_S` annotates the
+  string-pointer immediate with `# str="..."`; `SM_PUSH_VAR` /
+  `SM_STORE_VAR` annotate with `# var=NAME` / `# store -> NAME`.
+  The emitter signature changed to
+  `sm_codegen_x64_emit(SM_Program*, FILE*, const char *src_path)` —
+  pass `NULL` for synthetic test programs; pass the input path for
+  real-frontend emit (scrip.c does this). The source file is slurped
+  once and indexed 1-based.
+- **`sm_lower.c` change (one line):** `SM_STNO` now uses
+  `sm_emit_ii(p, SM_STNO, stno, lineno)` so the emitter has the
+  source-line number on every statement boundary. Safe for
+  `sm_interp.c` because it reads only `a[0].i` for STNO. Visible in
+  `--dump-sm` output as `stmt=N line=L`.
+- **Honest deviations from the rung text, documented in code:**
+  - The rung names "SM_JUMPT" but the enum is `SM_JUMP_S` (success).
+    Same opcode under a different name. Ditto JUMPF / JUMP_F.
+  - Parser records `s->lineno` only on labeled statements today
+    (`commit_go: s->lineno=lbl.lineno`). Unlabeled statements arrive
+    with `lineno=0`. Emitter handles this with a
+    `lineno==0 → fallback to stno` rule, valid because SNOBOL4 source
+    convention is one statement per line. A one-line .y change in
+    each frontend will make the fallback unnecessary; deferred.
+  - END statement's recorded `lineno` is sometimes past EOF (lexer
+    advanced after parsing END). Emitter detects out-of-range and
+    falls back identically.
+- **Backward-compatible `scrip_rt_last_ok` ABI:** the old EM-3 stub
+  always returned 1; EM-4 makes it back a real flag with a
+  default-1 initializer. Programs that linked against the EM-3
+  library and never called `set_last_ok` continue to work
+  identically.
+- Test harness extended: `argv[3]=em4a.s` (forward jump + JUMP_F
+  not-taken + JUMP_S taken; rc=42), `argv[4]=em4b.s` (backward
+  loop body driven by override; rc=0). Gate adds two sub-tests
+  (PASS=5 → PASS=7).
+- Five tracked artifacts regenerated and assemble cleanly:
+  `roman.s` (177 lines, was 164), `wordcount.s` (242, was 211),
+  `claws5.s` (2024, was 1786), `treebank-list.s` (2318),
+  `treebank-array.s` (2748). Line growth is the readability work
+  — page-break banners + verbatim source + inline annotations.
+- Gates: smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog
+  5/5, raku 5/5, rebus 4/4); isolation gate PASS; EM-1..EM-4 gate
+  PASS=7 FAIL=0; csnobol4 Budne PASS=36 (≥34, run pre-readability
+  edits — no runtime change since).
+- one4all @ 86d9c707. corpus @ 7ba9eea. .github @ HEAD. Session #68, 2026-05-06.
+
+**Step EM-3** — SM stack ops + arithmetic.
+(See watermark below — EM-3 was watermark-only; promoted to a
+formal closed entry in a future cleanup pass.)
 
 **Step EM-2** — SM_NOP + SM_HALT + SM_PUSH_INT codegen.
 - Per-instruction dispatch loop in `sm_codegen_x64_emit.c`. Each
@@ -559,6 +709,41 @@ to read, complex enough to be meaningful:
 ---
 
 ## Watermark
+
+EM-4 LANDED 2026-05-06 (session #68) -- control flow + readability standard.
+Three SM opcodes baked: SM_JUMP (direct jmp .LpcN), SM_JUMP_S (call last_ok +
+test + jnz), SM_JUMP_F (same shape, jz). SM_LABEL is a no-op (per-PC label
+suffices). libscrip_rt.so ABI grew by one symbol: scrip_rt_set_last_ok backs
+a real g_last_ok flag (was a return-1 stub). EM-4 gate PASS=7 FAIL=0
+(was 5 -- added 6a forward-jump+conditional-shapes rc=42, 6b backward-loop
+override rc=0).
+
+GENERATED-CODE READABILITY STANDARD landed this rung -- now binding on every
+backend. Major page-break banner ('====') over each statement showing
+verbatim source text + stno + lineno. Inline annotations on the right column
+(# str="...", # var=NAME, # store -> NAME, # SM_JUMP -> pc=N, etc.).
+Emitter signature is now sm_codegen_x64_emit(SM_Program*, FILE*, const char
+*src_path). sm_lower.c emits SM_STNO via sm_emit_ii so a[1].i carries
+lineno; visible in --dump-sm as "stmt=N line=L". sm_interp.c reads only
+a[0].i so the change is interp-safe.
+
+Tracked artifacts regenerated and assemble cleanly: roman.s 177 (was 164),
+wordcount.s 242 (was 211), claws5.s 2024 (was 1786), treebank-list.s 2318,
+treebank-array.s 2748. Line growth = readability work (banners + verbatim
+source + inline annotations).
+
+Honest deviations: parser records s->lineno only on labeled statements
+today; emitter falls back to lineno=stno when lineno is 0 or out of range
+(SNOBOL4 convention is one stmt per line so this hits in practice). One-line
+.y change in each frontend will remove the fallback; deferred.
+
+Gates: smoke x6 PASS (7/7,5/5,5/5,5/5,5/5,4/4); isolation gate PASS;
+EM-1..EM-4 gate PASS=7 FAIL=0; csnobol4 Budne PASS=36 (run pre-readability
+edits; no runtime change since).
+
+one4all @ 86d9c707. corpus @ 7ba9eea. Next rung: EM-5
+(SM_PUSH_CHUNK / SM_CALL_CHUNK / SM_RETURN; gate: two chunks calling
+each other).
 
 EM-3 LANDED 2026-05-06 (session #67) -- typed ScripRtVal stack; SM_PUSH_LIT_S,
 SM_PUSH_VAR, SM_STORE_VAR, SM_POP, SM_ADD/SUB/MUL/DIV/MOD emitters; (2+3)*4=20
