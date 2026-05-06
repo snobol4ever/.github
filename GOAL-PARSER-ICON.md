@@ -593,3 +593,18 @@ Real literal + keyword expression. 2 NEW fixtures.
 
 **Next session (IC-18):** `@` activation binary `E1 @ E2` → `(E_AT E1 E2)` once oracle C frontend supports it (currently rejects `@` as parse error); cross-pollinate `/E` null + `=E` match + `E1!E2` bang-binary to other PARSER-* parsers; additional unary forms from `icon-sp.ebnf` expr10 list not yet covered (`BAR`, `CONCAT`, `LCONCAT`, `DOT`, `CARET`, `INTER`, `UNION`, `NMEQ`, `NMNE`, `SEQ`, `SNE`, `EQUIV`, `NEQUIV` unary forms — verify which the oracle actually accepts).
 
+
+---
+
+### PARSER-IC-20 IN PROGRESS — whitespace pivot (session #70, 2026-05-06)
+
+**Pivot:** Lon directed whitespace cleanup to match `parser_snocone.sc` canonical style.
+WIP stashed in corpus (`git stash`). Baseline: PASS=143 FAIL=0 @ corpus `9509eac`.
+
+**Bug found:** 4 augop regressions (`augop_concat`, `augop_mod`, `augop_numeq`, `augop_sub`) after grammar-body changes. Token defs correct in isolation. Root cause is in grammar body after `// push_qlit` — narrowed by binary search.
+
+**Next session:**
+1. `cd /home/claude/corpus && git stash pop` — restore WIP
+2. Binary-search grammar body to isolate which production breaks augop FENCE matching
+3. Fix; verify PASS=143 FAIL=0; add new fixtures
+4. Commit and push
