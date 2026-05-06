@@ -417,11 +417,39 @@ with `\` or embedded `"` in a string now renders correctly.
       `shift`/`reduce` cannot iterate over string bytes.
 - **Gate:** PASS=85 FAIL=0 ✓  corpus@0e5ad3d.
 
+### PARSER-RK-20 — `map`/`grep`/`sort` higher-order list ops — LANDED session 2026-05-06
+
+- [x] `ClosureExpr = ( $'{' *Expr $'}' )` — one-expression closure body for map/grep/sort.
+- [x] `map { closure } list` → `(E_FNC raku_map (E_VAR raku_map) closure list)`.
+      `Finish_map` helper; mirrors raku.y KW_MAP closure expr RK-24 action.
+- [x] `grep { closure } list` → `(E_FNC raku_grep (E_VAR raku_grep) closure list)`.
+      `Finish_grep` helper; mirrors raku.y KW_GREP closure expr RK-24 action.
+- [x] `sort list` → `(E_FNC raku_sort (E_VAR raku_sort) list)`.
+      `Finish_sort_nc` helper; mirrors raku.y KW_SORT expr (no closure) RK-24 action.
+- [x] All three added to `Expr11` after the `die` arm (matching oracle grammar position).
+- [x] `$'map'` / `$'grep'` / `$'sort'` keyword tokens added to token table.
+- [x] Test corpus: 5 new fixtures (map_basic, grep_basic, sort_nc, map_say, grep_str).
+- **Gate:** PASS=105 FAIL=0 ✓  corpus@eefec55.
+
+### PARSER-RK-21 — `gather`/`take` coroutine construct — next
+
+- [ ] `take expr ;` stmt → `(E_SUSPEND expr)`.  `SubBlockStmt` arm: `$'take' $'  ' *Expr $';' (E_SUSPEND & 1)`.
+      Mirrors raku.y KW_TAKE expr ';' → expr_unary(E_SUSPEND, expr).
+- [ ] `gather { block }` expr → two STMTs emitted: def STMT `(E_FNC __gather_N ...)` then
+      call STMT with main wrapper `(E_FNC main ... (E_ASSIGN var (E_FNC __gather_N (E_VAR __gather_N))))`.
+      Requires a gather-sequence counter global (`gather_seq`) incremented per gather site.
+      `Finish_gather` helper: pop block children from stack, build def + call nodes, emit def
+      via sub_list (same mechanism as SubStmt), push call onto stack.
+      Mirrors raku.y KW_GATHER block RK-21 action.
+- [ ] Test corpus: 5 new fixtures — gather_take_lit, gather_take_var, gather_multi_take,
+      gather_in_assign, take_in_loop.
+- **Gate target:** PASS≥110.
+
 ---
 
 ## Watermark
 
-PARSER-RK-19 LANDED (session 2026-05-06) — PASS=100 FAIL=0.
+PARSER-RK-20 LANDED (session 2026-05-06) — PASS=105 FAIL=0.
 RK-7..RK-9: handles, global match/subst, arr/hash index+exists.  corpus@e605b01.
 RK-10: delete %h<k>/%h{e}, range a..b/a..^b, for-range.  corpus@c7c2d14.
 RK-11: unless/until stmts + push/pop verified.  corpus@f663327.
@@ -433,14 +461,14 @@ RK-16: interpolated DQ strings "hello $var" → left-assoc E_CAT chain.  corpus@
 RK-17: given/when/default → E_CASE node.  corpus@a29276e.
 RK-18: print stmt + die expr + DQ escape fix (BREAK+REM pattern).  corpus@85c4a88.
 RK-19: try/CATCH exception handling.  corpus@ca930a1.
+RK-20: map/grep/sort higher-order list ops.  corpus@eefec55.
 
 Cross-PARSER notes added RK-17/18:
 - Snocone if(expr) always succeeds; use EQ/IDENT predicates for integer flags.
 - BREAK(x) fails when no char from x appears in remaining subject; pair with REM.
 - WhenClause/DefaultClause need leading nl_opt for newlines inside { }.
 
-Next session: PARSER-RK-20 — `gather`/`take` coroutine construct, or `map`/`grep` higher-order ops.
-  Probe oracle before picking.
+Next session: PARSER-RK-21 — `gather`/`take` coroutine construct.
 
 ### PARSER-RK-4.5-d / 4.5-e / 4.5-f — handoff (session 2026-05-04 cont.)
 
