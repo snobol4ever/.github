@@ -669,4 +669,4 @@ Filed SCRIP engine bugs RS-28 (ALT-in-FENCE bb_alt null-ptr) and RS-29 (ARBNO-in
 
 Rung36 jcon crosscheck: `test_parser_icon.sh` PASS=143 FAIL=0. IPL gprocs: 2/140 oracle-parseable — both diverge on record-field syntax (not yet covered); 138 skip (oracle rejects `link` decls). Rung36 coverage deferred to IC-22.
 
-**Next session (IC-22):** Expand grammar — record-field access in IPL programs (grecords.icn, lindrec.icn diverge); `create` expression; run rung36 IPL coverage once grammar gaps closed.
+**Next session (IC-22):** Fix RS-28 (null fn in bb_alt β-path, SIGSEGV in parser_prolog arith_is_*) per GOAL-REWRITE-SCRIP.md RS-28 steps. Once fixed, cross-pollinate `White = white ARBNO(white); Gray = White | epsilon` to parser_prolog.sc and verify PASS=39 preserved. Then expand grammar — record-field access (grecords.icn, lindrec.icn diverge); run rung36 coverage.
