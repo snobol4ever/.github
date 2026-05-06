@@ -2094,3 +2094,152 @@ Gate: **PASS=71 FAIL=0**. Smoke: PASS=4 FAIL=0.
 
 Next milestone: operator-directed.  Options: string replace operators, nested case,
 six-parser cross-pollination loop, or reserved-word filter for `Id`.
+
+---
+
+## Session 2026-05-06 — RB-FW-5 LANDED; PASS=75/75
+
+Operator opened the session: "play with the Rebus language grammar PATTERN
+in SCRIP focusing on GOAL-PARSER-REBUS." After reading the PLAN/RULES/GOAL
+trail and confirming PASS=71/71 baseline, picked the next gap: surface
+constructs in `rebus.y` that have no fixture coverage yet.  Operator also
+provided the SPITBOL manual; this session studied Chapter 6 (Pattern
+Matching tutorial), Chapter 9 (Advanced Topics — ARBNO/recursive patterns/
+&FULLSCAN), Chapter 18 (the canonical pattern-match algorithm flowchart),
+Chapters 15 and 7 (operators incl. the `.`/`$`/`*` distinctions).  The
+two-phase model — pure cursor-movement first pass, then `.`-actions firing
+in linear order along the winning path — is now firmly internalized and
+underlies the rung's design choices.
+
+### New constructs covered (4 fixtures)
+
+| Construct | Syntax | IR tag | Fixture |
+|-----------|--------|--------|---------|
+| Keyword reference | `&FULLSCAN := 1` | `E_KEYWORD` | keyword_assign |
+| Real literal | `3.14` | `E_FLIT` | real_lit |
+| Pattern conditional capture | `pat . var` | `E_CAPT_COND_ASGN` | capture_cond |
+| Pattern immediate capture | `pat $ var` | `E_CAPT_IMMED_ASGN` | capture_imm |
+
+### Grammar additions (parser_rebus.sc)
+
+- `Real = SPAN(digits) '.' SPAN(digits)` — placed before `Integer` in
+  `primary` alternation so `3.14` is one Real token, not `Integer '.' Integer`.
+- Keyword body-capture idiom (mirrors DQ_str / SQ_str): `KW_open = '&'`,
+  `KW_body = (Id-shape)`, `primary` has branch
+  `KW_open (*KW_body . rbKwName) Push_keyword()`.  The opening `'&'` is
+  matched by a sibling sub-pattern; only the Id body goes through the
+  capture so the shifted E_KEYWORD node holds 'FULLSCAN', not '&FULLSCAN'.
+  Pure pattern composition; the only function called is the build-time
+  wrapper `Push_keyword()` whose body is `epsilon . *push_keyword()`.
+- `Id` extended to permit embedded `.`:
+  `Id = ANY(&UCASE &LCASE '_') (SPAN(&UCASE &LCASE digits '_' '.') | epsilon)`.
+  This matches the `rebus.l` IDENT regex `{ALPHA}([A-Za-z0-9_.\x80-\xff])*`.
+  Tight `r.field` is now one Id token that lower_atom uppercases to
+  `R.FIELD` — same effective output as the previous Push_field_access
+  chain but no helper indirection, no decomposition, no
+  recompose-in-uppercase loop.
+- `dot_capt` and `dollar_capt` operator wrappers REQUIRE leading whitespace
+  (`$'  '`) so tight forms (now folded into Id) don't reach them.  In
+  `postfix_expr` chain: `*dot_capt *primary reduce(E_CAPT_COND, 2)` and
+  `*dollar_capt *primary reduce(E_CAPT_IMM, 2)`, each with a tail-FENCE
+  for left-associative chaining (matching the existing `[...]` subscript
+  chain shape in the same `postfix_expr` rule).
+
+### Removals
+
+- `Push_field_access` / `push_field_access` / `rbFieldName` — dead code
+  now that `Id` absorbs `r.field` directly.  Field-access postfix chain
+  in `postfix_expr` replaced with the capture chains.
+
+### Lowering additions
+
+- `lower_atom` cases for `E_KEYWORD` (uppercase via REPLACE), `E_FLIT`
+  (pass-through), `E_CAPT_COND_ASGN` (recurse children, build 2-child),
+  `E_CAPT_IMMED_ASGN` (same shape, different tag).  No new helpers.
+
+### Bugs found and fixed (in this rung's own new code)
+
+**BUG-FW5-A** — Initial `Keyword = '&' *Id` shifted the entire match span
+including `'&'`, producing `(E_KEYWORD &FULLSCAN)` instead of `(E_KEYWORD
+FULLSCAN)`.  Fix: applied the body-capture idiom (rubric § 5 "String body
+capture idiom") — match `&` as a sibling, capture only the Id body via
+`. rbKwName`, push via build-time wrapper.  Same shape as DQ_str/SQ_str.
+
+### Discovery: tight vs spaced `.` in Rebus
+
+Confirmed by direct oracle probing that the disambiguation between tight
+field-access (`r.field` → `(E_VAR R.FIELD)`) and spaced pattern-capture
+(`r . field` → `(E_CAPT_COND_ASGN (E_VAR R) (E_VAR FIELD))`) happens at
+the **lexer** layer in the existing C frontend.  `rebus.l` line 114:
+`IDENT {ALPHA}([A-Za-z0-9_.\x80-\xff])*` — once an alphabetic character
+starts an identifier, '.' is part of the identifier as long as no
+whitespace breaks it.  The `rebus.y` grammar has only ONE production
+for both forms (`postfix_expr '.' primary` → RE_COND), and both lower
+to E_CAPT_COND_ASGN; the tight-form distinction is purely lexical.
+
+The parser_rebus.sc analog: extend `Id` to mirror the lexer regex.
+With the SPITBOL/Snocone scanner's left-to-right greedy matching of
+`SPAN`, `r.field` is consumed as one Id (the SPAN never finds a
+non-Id-character to stop on); whitespace before `.` ends the SPAN
+and exposes `.` to the postfix-expr chain.
+
+### Sibling parsers — green, untouched
+
+| Parser   | Gate |
+|----------|------|
+| snobol4  | unchanged |
+| icon     | unchanged |
+| prolog   | unchanged |
+| raku     | unchanged |
+| snocone  | unchanged |
+| **rebus**    | **PASS=75/75 ✅** (was 71/71) |
+
+### Lessons learned
+
+1. **The two-phase pattern-match model from the SPITBOL manual is the
+   right mental model for parser_*.sc design.** Pass 1 (cursor movement)
+   uses only built-in primitives — `LEN`, `SPAN`, `BREAK`, `ARBNO`,
+   `FENCE`, alternation, etc. — which never run user code. Pass 2
+   (post-success linear sequence of `.`-actions) is where `Shift`,
+   `Reduce`, `nPush`/`nInc`/`nTop`/`nPop` fire, in exactly the order
+   they were encountered along the winning match path.  The rubric's
+   bans on `*helper(...)` and `Push(Tree(...))` from inside patterns
+   are precisely a codification of this two-phase boundary — anything
+   that would run during Pass 1 would observe partial state and could
+   be undone by backtrack.
+2. **Body-capture idiom generalizes.**  Whenever the surface form is
+   `PREFIX body` and the IR tag should hold only `body` (delimited
+   strings, keyword references, possibly other ANY-prefix constructs
+   in future), use `PREFIX_open (*body_pat . capturedName) Push_X()`.
+   No reduce, no shift — just `.` capture and a build-time wrapper.
+3. **Required-vs-optional whitespace (`$'  '` vs `$' '`) is the
+   workhorse for distinguishing tight-vs-spaced operator forms.**
+   Same idiom that BUG-FW4-A used for `<` vs `<-arrow` solved the
+   tight-`.`-vs-spaced-`.` disambiguation here.  When extending the
+   parser to handle a new operator that has a tight-form variant
+   absorbed by a different rule, the trailing `$' '` of one and the
+   leading `$'  '` of the other are the two knobs.
+4. **Mirroring the lexer often beats inventing grammar.**  The
+   field-access decomposition chain (Push_field_access etc.) was 14
+   lines of helper functions plus a postfix-expr chain.  Replacing
+   it with one extra character in Id's SPAN and removing all of that
+   gave identical output and shrunk the file.  When the oracle's C
+   frontend uses a lexer rule, the Snocone parser should ask: can
+   `Id`/`Integer`/`Real` mirror that rule directly?  Often yes.
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `9d80577` (pushed) |
+| one4all | parser | `104f270d` (unchanged) |
+| .github | main | this commit |
+
+Gate: **PASS=75 FAIL=0**.  Smoke: PASS=4 FAIL=0.
+
+Next milestone: operator-directed.  Open territory: compound statements
+(`{ s; s; }` blocks per `rebus.y` `compound_stmt`), the `[+:]` range-
+substring operator (`a[i +: n]` → `RE_RANGE`/`RE_SUB_IDX`), augmented
+assignment operators (`+:=`, `-:=`, `||:=`), pattern-prefix `~pat` and
+`!pat` (PATOPT/BANG) unary forms, the cursor-capture `@var` postfix.
+None gating; all surface coverage extension.
