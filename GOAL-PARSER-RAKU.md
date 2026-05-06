@@ -865,3 +865,45 @@ uses deferred lookup via `*` because Expr11 is defined before MethodTail in sour
 
 `$s ~~ /regex/` smartmatch (already supported at RK-5) extended to cover named-capture
 groups `(<name> ...)` and verify against the LANG RK-23 oracle output.  Gate target ≥120.
+
+---
+
+### PARSER-RK-23 — close raku.y gap (all missing features) — LANDED session 2026-05-06
+
+- [x] **BUG-FIX in `raku.y`** — `KW_ELSIF` declared but had zero grammar rules; fixed with
+      three `if_stmt` arms mirroring the existing `KW_ELSE if_stmt` recursive shape.
+      one4all @ `d96d4ef7`.
+- [x] `LitFloat` → `(E_FLIT n)` — positioned before `LitInt` in `Expr11` to avoid `.`
+      being consumed as MethodTail dot before the decimal.
+- [x] `repeat { }` → `(E_REPEAT body)` — `E_REPEAT` constant added; `RepeatStmt`.
+- [x] `for expr { }` (no arrow) → `(E_EVERY (E_ITERATE expr) body)` — `ForNoArrowStmt`
+      + `finish_for_noarrow` helper.
+- [x] `my Type $var = expr;` / `my Type $var;` → typed decl with type discarded — `TypedDeclStmt`
+      + `Push_empty` helper for uninitialised form.
+- [x] `return;` (bare) → `(E_RETURN)` with no children — `ReturnBareStmt`.
+- [x] `@a[i] = expr` → `arr_set` — `ArrSetStmt` + `finish_arr_set`.
+- [x] `%h<key> = val` → `hash_set` — `HashSetAngleStmt` + `finish_hash_set_angle`.
+- [x] `%h{expr} = val` → `hash_set` — `HashSetBraceStmt` + `finish_hash_set_brace`.
+- [x] `$obj.field = expr` → `(E_ASSIGN (E_FIELD name obj) rhs)` — `FieldWriteStmt`
+      + `finish_field_write`.
+- [x] `ClassName.new(k=>v,...)` → `(E_FNC raku_new ...)` — `NewCallName` / `NamedArgTail`
+      / `finish_raku_new` / `Push_named_key`. Key capture fix: `((ident_first (ident_rest|epsilon)) . capnamedkey)`.
+- [x] `say($fh, str)` / `print($fh, str)` → `raku_say_fh` / `raku_print_fh` — `SayFhStmt`
+      / `PrintFhStmt` + `finish_say_fh` / `finish_print_fh`.
+- [x] `if/elsif/else` chain → nested `E_IF` — uses `raku.y` bug fix.
+- [x] 11 new corpus fixtures with oracle `.ref` files.
+- **Gate:** PASS=126 FAIL=0 ✓  corpus@838304e  one4all@d96d4ef7
+
+## Watermark
+
+Session 2026-05-06 — **PARSER-RK-23 LANDED** PASS=126 FAIL=0.
+
+All features present in `raku.y` now covered by `parser_raku.sc`.
+`parser_raku.sc` is at full parity with the C oracle for all constructs
+the C frontend supports.
+
+### Next: PARSER-RK-24
+
+Class/method/has/new OO construct — `class Dog { has $.name; method speak() { } }`
+→ `(E_RECORD Dog (E_VAR name))` + method defs. Mirrors `raku.y` `class_decl` action.
+Gate target ≥132.
