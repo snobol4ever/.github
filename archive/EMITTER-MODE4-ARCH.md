@@ -13,7 +13,7 @@ SESSION-snobol4-x64.md, SCRIP-SM.md.
 
 ## The Two Separate Concerns
 
-### 1. SM opcodes -> straight-line x86 (the SM emitter)
+### 1. SM opcodes -> macros (the SM emitter)
 
 The SM instruction set is the universal IR. All backends walk the same
 SM_Program array. One switch, one case per opcode.
@@ -21,16 +21,16 @@ SM_Program array. One switch, one case per opcode.
 For text-asm output (--jit-emit --x64):
 - Each opcode group maps to ONE named GNU-as macro in sm_macros.s
 - The macro expands to actual inline x86 (not a PLT call per tiny op)
-- Three-column SNOBOL4 layout throughout:
+- Flat macro call per opcode -- NO three-column formatting:
 
-    .LpcN:    SM_PUSH_INT 42             ; push literal 42
-              SM_ADD                    ; pop r,l -> push l+r
-    .LpcN:    SM_JUMP_F  .Lpc17        ; branch on failure
+    SM_PUSH_INT 42
+    SM_ADD
+    SM_JUMP_F  .Lpc17
 
 - One emit_sm_* C function per opcode group in sm_codegen_x64_emit.c
 - libscrip_rt.so is the boundary for: NV table, pattern matcher, GC only
 
-### 2. BB boxes -> one proc per box (the BB box emitter)
+### 2. BB boxes -> three-column layout (the BB box emitter)
 
 The BB graph is NOT a linear sequence of SM opcodes. It is a directed
 graph of box nodes. Each box has exactly four ports:
@@ -44,7 +44,7 @@ THE LAW (from BB-GEN-X86-TEXT.md, proven 106/106 SPITBOL oracle):
   One GNU-as proc per box. Each box = one labeled proc with local
   labels .alpha, .beta, .gamma, .omega. Emitted ONE BOX AT A TIME.
 
-Three-column law inside every box proc:
+THREE-COLUMN LAW inside every box proc (this is where it applies):
 
   LABEL:              ACTION (macro name + params)     GOTO (jmp)
 
