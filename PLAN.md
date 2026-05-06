@@ -83,7 +83,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-6b ⏳ PASS=47 FAIL=0. beauty.sc 1148/1148 stmts parsed; 1 diff remains: if-else-if label ordering (outer Lend emitted before else body). Diff (A) subtraction n-ary fold FIXED via flatten_arith. |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | PARSER-RB-5 COMPLETE (cont.#7 2026-05-04, PASS=38 FAIL=0: alt_expr n-ary fold + file-header style cleanup. corpus@4a6390b) |
-| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-21 LANDED PASS=143 — RS-28/RS-29 filed, cross-pollination blocked by engine bugs (Prolog/Raku); next: IC-22 |
+| **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-21 LANDED — RS-28 investigated (SIGSEGV null-fn in bb_alt β, root cause TBD, fix reverted); next: IC-22 fix RS-28 first |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-21 LANDED PASS=110 FAIL=0 corpus@0546b63 — gather/take coroutine construct (GatherBlock pattern; cross-PARSER `*X` deferred-lookup rule reconfirmed). Next: RK-22 |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |

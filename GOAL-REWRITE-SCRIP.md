@@ -663,13 +663,32 @@ as a sub-component of a `FENCE(...)` argument may trigger this crash.
 Practically this means `White | epsilon` cannot be used inline inside FENCE;
 always replace with `ARBNO(white)` at those sites.
 
-- [ ] **RS-28a** — Write a minimal standalone Snocone repro: define
-  `G = 'x' | epsilon`, then `'abc' ? FENCE(G 'b')`.  Confirm crash vs.
-  success.  If no crash, narrow to ARBNO(FENCE(...)) nesting.
-- [ ] **RS-28b** — Trace through `bb_broker.c` / `sm_interp.c` FENCE
-  backtrack path: identify where `bb_alt` is invoked and what pointer it
-  dereferences when the sub-pattern is an ALT node.
+**Investigation findings (session 2026-05-06):**
+Crash confirmed SIGSEGV (exit 139) on `parser_prolog.sc` arith_is_* fixtures
+when `Gray = White | epsilon` with `White = white ARBNO(white)`.
+GDB backtrace: `bb_alt(zeta=0x982fa0, entry=1)` at `bb_boxes.c:87` —
+`ζ->children[ζ->current-1].fn == NULL` (null function pointer call at 0x0).
+`bb_alt` β-path calls `children[current-1].fn` which is null.
+
+Attempted fix: deep-copy `alt_t.children` array in `cache_get_fresh`
+(stmt_exec.c). Fix compiled clean but caused arith_is regressions (tree
+divergence), meaning the null-fn issue is not from cache shallow-copy.
+Fix reverted. Root cause not yet pinned — `ζ->current` is out of range
+or a child fn was never set for a specific XOR subtree shape.
+
+`Gray = ARBNO(white)` (Rebus workaround) avoids the crash but causes
+exponential backtracking timeout under `&FULLSCAN=1` with nested ARBNO
+loops — this is the BUG-SCRIP-WS-1 interaction. Neither fix works yet.
+
+- [ ] **RS-28a** — Narrow repro: which XOR subtree shape produces null fn.
+  Instrument `bb_build` XOR case to assert `arm.fn != NULL` for each child
+  before storing. Find which child kind produces null arm.fn.
+- [ ] **RS-28b** — With null-fn child identified, trace back through
+  `eval_pat.c` E_ALT → `pat_alt` → `bb_build` XOR to find the gap.
+  Hypothesis: a deferred-eval (`XDSAR`) child whose fn is set lazily
+  arrives as null when the PATND is first built before the variable is bound.
 - [ ] **RS-28c** — Fix and add regression fixture to `test_smoke_snocone.sh`.
+  Gate: `parser_prolog.sc` with `Gray = White | epsilon` passes PASS=39.
 
 ---
 
