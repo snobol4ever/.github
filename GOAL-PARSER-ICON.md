@@ -593,3 +593,34 @@ Real literal + keyword expression. 2 NEW fixtures.
 
 **Next session (IC-18):** `@` activation binary `E1 @ E2` → `(E_AT E1 E2)` once oracle C frontend supports it (currently rejects `@` as parse error); cross-pollinate `/E` null + `=E` match + `E1!E2` bang-binary to other PARSER-* parsers; additional unary forms from `icon-sp.ebnf` expr10 list not yet covered (`BAR`, `CONCAT`, `LCONCAT`, `DOT`, `CARET`, `INTER`, `UNION`, `NMEQ`, `NMNE`, `SEQ`, `SNE`, `EQUIV`, `NEQUIV` unary forms — verify which the oracle actually accepts).
 
+---
+
+### PARSER-IC-18 LANDED PASS=136 corpus@2dcd475
+
+Conjunction (&), varargs params, section variants (:+/:−), multi-proc. +12 fixtures over IC-17 baseline of 124.
+
+- **Conjunction** `E1 & E2 & E3` → n-ary `(E_SEQ E1 E2 E3)`: `ExprSeqRest = ($'&' *Expr1a nInc())`. Single-child case unwraps (no `E_SEQ` wrapper) via `r_nTop`. Mirrors C frontend `parse_and`. `E_SEQ` tag constant added. Token `$'&' = $' ' '&' $' '` added.
+- **Varargs `proc(args[])`**: `Params` gains optional `($' ' '[' $' ' ']' | epsilon)` suffix — oracle strips `[]` and produces plain `(E_VAR args)`, so brackets are consumed and discarded.
+- **Section ops `x[:+i]` and `x[:-i]`**: already worked via `Expr11tail`; verified with new fixtures.
+- **Multi-proc files**: already worked; verified with `multi_proc` fixture.
+- New fixtures (+12): `conj_two`, `conj_three`, `conj_assign`, `conj_scan`, `conj_stmts`, `bang_invoke`, `kw_fail`, `kw_null`, `section_pcolon`, `section_mcolon`, `multi_proc`, `proc_varargs`.
+
+**Next session (IC-19):** Multi-line compound bodies, `return`/`suspend` as expression-level forms (inside `{ }`, as `do`-body). See IC-19 below.
+
+---
+
+### PARSER-IC-19 LANDED PASS=143 corpus@9509eac
+
+Multi-line compound bodies + `return`/`suspend` as expression-level forms. +7 fixtures over IC-18 baseline of 136.
+
+**Bugs fixed:**
+
+- **Multi-line `{ }` compound body**: `Compound` used `$'{'` (only allows White, no newline) and `CompoundFirst`/`CompoundRest` could not cross newlines inside braces. Fix: `Compound` changed to `$' ' '{' *DGray ... *DGray '}'`. Now `every x := 1 to n do { write(x); write(x+1); }` spanning multiple lines parses correctly. (IC-13 note "oracle rejects multi-line `{ }`" was wrong — oracle C frontend accepts it fine.)
+- **`return`/`suspend` as expressions**: C frontend handles `return`/`fail`/`suspend` at the top of `parse_expr` (not just `parse_primary`), so they are valid in any expression context — inside `{ }`, as `do`-body, etc. `ReturnStmt`/`SuspendStmt` were only reachable via `StmtBody`, so `return` inside a compound became `(E_VAR return)`. Fix: added `ReturnExpr` and `SuspendExpr` productions, wired them into `Expr` as alternatives before `*Expr1a`. `queens.icn` `if c > n then { show(); return; }` now parses correctly.
+- **Control structures across newlines** (`if/then/else`, `while/do`, `until/do`, `every/do`, `repeat` body): all used `$'  '` (White, no newlines) after the keyword/`do`, blocking patterns like `every i := lo to hi do\n    suspend i;`. Fix: changed all five to use `*DGray` after `$'then'`, `$'else'`, `$'do'` (and Repeat's body), allowing the body to start on the next line.
+
+**Real programs now parse:** `queens.icn`, `palindrome.icn`, `roman.icn` — all MATCH oracle after normalization. `generators.icn` fails at oracle level (line 54 grouped-expr with comma — oracle C frontend parse error; not a parser_icon.sc issue).
+
+New fixtures (+7): `compound_multi`, `return_in_compound`, `return_with_value`, `suspend_every`, `compound_every_multi`, `return_suspended`, `if_multiline`.
+
+**Next session (IC-20):** Cross-pollinate `*DGray` control-structure fix to `parser_snocone.sc` / other PARSER-* parsers that have the same `$'  '`-after-`do` issue. Investigate `@` activation binary once oracle C frontend supports it. Attempt parsing of full jcon test suite `.icn` files (rung36) and add any failing fixtures as regressions.
