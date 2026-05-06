@@ -262,7 +262,7 @@ milestones:
   SNOBOL4-shape programs.  Document outcome in
   `docs/CHUNKS-step05-validation.md`.
 
-- [ ] **Step 6 — Strengthen the isolation gate for SNOBOL4 files.**
+- [x] **Step 6 — Strengthen the isolation gate for SNOBOL4 files.**
   Add a structural rule to `test_isolation_ir_sm.sh`: in
   `snobol4_pattern.c`, `snobol4_invoke.c`, `snobol4_argval.c`,
   `eval_code.c`, forbid `EXPR_t *` casts and `->kind` /
@@ -270,6 +270,20 @@ milestones:
   accesses on EXPR_t-typed expressions.  These four files
   should now read pure SM, no IR walking.  After this step
   passes, SNOBOL4 modes 2/3 are structurally isolated from IR.
+
+  **Session #65 status — partial close, two files deferred.**  Of
+  the four files listed, only `snobol4_invoke.c` and `snobol4_argval.c`
+  are zero-hit today; the structural rule in the gate covers those two.
+  `snobol4_pattern.c` still contains the legacy DT_E thaw block at
+  lines 229–253 (reachable via `CONVERT(s,"EXPRESSION")`) plus
+  `compile_to_expression` itself at line 990 — both produce or consume
+  raw `EXPR_t*`.  `eval_code.c` is `eval_node`, the IR walker itself.
+  Bringing those two under the structural rule requires migrating
+  CONVERT EXPRESSION to emit a chunk (own rung) and then unwinding
+  the legacy `eval_node` consumer chain (M4 cleanup territory).
+  Documented in CHUNKS-step06 deferral note inside the gate script.
+  The "modes 2/3 structurally isolated" claim is therefore NOT yet
+  true — it remains aspirational until the deferred work lands.
 
 - [ ] **Step 7 — M1 milestone close.**  Run the full gate set in
   all three modes (`--ir-run`, `--sm-run`, `--jit-run`) on a
@@ -456,6 +470,20 @@ lowering to emit chunk inline + `SM_CALL_CHUNK` — same SM stack, no nested run
 Scope boundary: stored-chunk `E=*expr; EVAL(E)` deferred (EXPVAL_fn returns FAILDESCR
 for slen==1 DT_E until NV integer-carry infrastructure lands).
 one4all @ `1b42498f`. Session #63, 2026-05-05.
+
+**Step 6** — Structural rule added to `test_isolation_ir_sm.sh` forbidding
+EXPR_t* casts and `->kind`/`->children`/`->nchildren`/`->sval`/`->ival`
+field accesses. Initial scope: `snobol4_invoke.c`, `snobol4_argval.c` —
+both zero-hit today, the gate now enforces this post-Step-4 reality.
+**Honest deferral**: `snobol4_pattern.c` (legacy DT_E thaw at lines 229–253
+reachable via CONVERT EXPRESSION; `compile_to_expression` at line 990) and
+`eval_code.c` (contains `eval_node` itself) remain outside the structural
+rule until CONVERT EXPRESSION migrates to chunk emission and the legacy
+`eval_node` consumer chain unwinds. Negative-test verified the new rule
+fires on injected `(EXPR_t *)` casts.
+Gates: smoke ×6 PASS; isolation gate (with new structural rule) PASS;
+csnobol4 Budne PASS=36 (≥34).
+one4all @ `27b0a102`. Session #65, 2026-05-06.
 
 **Step 5** — Verify SNOBOL4 + Snocone DT_E carriers no longer carry EXPR_t.
 `sm_interp.c` instrumented with three audit counters (`g_chunks_audit_push_expr`,
