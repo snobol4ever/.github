@@ -580,9 +580,19 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       if_else_if_else_if, if_else_if_else).  beauty.sc: 1148/1148 stmts; the
       previous structural diff in 2 if-else-if instances is gone.
 
-- [ ] **Step SC-6b-bug:** Fix parser_snocone.sc Compiland's `nTop()` timing so the
+- [x] **Step SC-6b-bug:** Fix parser_snocone.sc Compiland's `nTop()` timing so the
       first stmt isn't dropped from the parse tree on large inputs.  Discovered
-      and refined 2026-05-06 session 4.
+      and refined 2026-05-06 session 4.  **FIXED session 5 (2026-05-06).**
+
+      **Fix:** replaced `(E_Parse & 'nTop()')` with `reduce_prim(E_Parse)` at
+      Compiland line 654 (`corpus/programs/scrip/parser_snocone.sc`).
+      `reduce_prim(tag)` (defined in `semantic.sc`) produces
+      `epsilon . *ReducePrim(tag)` — fires `ReducePrim` at match time, which
+      calls `TopCounter()` as its very first operation before popping any args.
+      This eliminates all concern about the EVAL'd pattern's `nTop()` binding
+      time.  Verified: 5-stmt test and head-10 beauty.sc test both produce
+      byte-identical output to oracle; `&FULLSCAN = 1` correctly appears as
+      first stmt in all tests.  Gate PASS=50 FAIL=0.
 
       **Symptom (refined this session):** running parser_snocone.sc against the
       full 587-line beauty.sc produces output where exactly the first stmt
@@ -651,8 +661,18 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       stack state.  File separately as `SC-6b-bug-segfault` after `SC-6b-bug`
       lands and we can re-test cleanly.
 
+- [ ] **Step SC-6b-bug-segfault:** SIGSEGV/heap-corruption at intermediate input
+      sizes (`head -198..-300 beauty.sc`).  Distinct from the first-stmt drop —
+      these break the parse entirely (no output) rather than producing a
+      short-by-one tree.  Filed after SC-6b-bug landed.  May be a real scrip
+      runtime memory-safety bug or a downstream effect of complex stack state
+      on partial input.  Investigate after SC-6c baseline is established.
+
 - [ ] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
-      execute identically under `--ir-run`.  **Blocked on Step SC-6b-bug.**
+      execute identically under `--ir-run`.  SC-6b-bug fixed — no longer blocked
+      on first-stmt drop.  Next work: full beauty.sc parse still times out at
+      60s (parser is slow on complex real-world input); investigate performance
+      and remaining tree-shape diffs against oracle.
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
@@ -674,11 +694,30 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
-PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ — PASS=50 FAIL=0; SC-6b-bug open: Compiland
-`(E_Parse & 'nTop()')` drops first stmt on large inputs; SC-6c blocked on
-SC-6b-bug)**
+PARSER-SC-6 ⏳ (SC-6a ✅ SC-6b ✅ SC-6b-bug ✅ — PASS=50 FAIL=0;
+SC-6b-bug-segfault open: SIGSEGV at intermediate beauty.sc sizes (head -198..-300);
+SC-6c in progress: beauty.sc parse times out at 60s on complex input)**
 
-Gate: PASS=50 FAIL=0. corpus @ ab34d06 (2026-05-06 session 4).
+Gate: PASS=50 FAIL=0. corpus @ HEAD (2026-05-06 session 5).
+
+### SC-6b-bug session 2026-05-06 (session 5) — reduce_prim fix LANDED; PASS=50 FAIL=0
+
+**Fix:** one-line change at `parser_snocone.sc:654`:
+```
+(E_Parse & 'nTop()')  →  reduce_prim(E_Parse)
+```
+`reduce_prim(tag)` is defined in `semantic.sc` as
+`EVAL("epsilon . *ReducePrim(" tag ")")`.  At match time `ReducePrim(tag)`
+calls `TopCounter()` as its very first substantive operation — before any
+stack pops — guaranteeing it reads the fully-incremented count.
+
+**Verification:** 5-stmt simple input: byte-identical to oracle, all 5 stmts
+present.  `head -10 beauty.sc`: byte-identical to oracle, `&FULLSCAN = 1`
+correctly first.  Gate PASS=50 FAIL=0, smoke PASS=5 FAIL=0.
+
+**Remaining:** SC-6b-bug-segfault (SIGSEGV at intermediate beauty.sc sizes)
+and SC-6c (full beauty.sc parse still times out at 60s — performance issue,
+not correctness).
 
 ### SC-6b-bug session 2026-05-06 (session 4) — diagnosis refined: parser bug, not scrip bug
 
