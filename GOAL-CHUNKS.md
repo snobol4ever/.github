@@ -378,7 +378,7 @@ Order them however convenient based on platform availability.
   not goal-directed.  Gates: standard set + smoke_raku CASE
   tests.
 
-- [ ] **Step 14 — Generator infrastructure.**  Add `SM_SUSPEND`
+- [x] **Step 14 — Generator infrastructure.**  Add `SM_SUSPEND`
   and `SM_RESUME` opcodes.  Add `bb_broker_drive_sm(int
   entry_pc)` alongside the existing `bb_broker_drive_expr`.
   Both coexist during the migration of individual generator
@@ -482,6 +482,19 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 ---
 
 ## Closed steps
+
+**Step 14 (CH-14)** — Generator infrastructure. `SM_SUSPEND` and `SM_RESUME` opcodes added
+to `sm_prog.h`; `SM_INTERP_SUSPENDED = 1` return-code constant; forward typedef `SmGenState`.
+`struct SmGenState` defined in `sm_interp.h` (resume_pc, stack snapshot, last_ok, started).
+`g_current_gen_state` pointer in `sm_interp.c`; SM_SUSPEND handler snapshots pc+stack into
+SmGenState and returns SM_INTERP_SUSPENDED; SM_RESUME is a no-op documentation marker.
+`sm_gen_state_new(entry_pc)` and `bb_broker_drive_sm(gs, body_fn, arg)` implemented —
+drive an SM generator chunk through all its ticks (BB_PUMP semantics for SM chunks).
+`sm_codegen.c`: named-FATAL stubs for SM_SUSPEND/SM_RESUME (JIT gen is M5/EM-10 territory).
+Gate: hand-written SM program yields 10/20/30 via SM_SUSPEND; re-drive of exhausted gen
+returns 0; 17/17 tests PASS including 7 new generator tests. Smoke ×6 PASS. Isolation PASS.
+`scripts/test_sm_generator_ch14.sh` added.
+Documented in `docs/CHUNKS-step14-validation.md`. one4all @ HEAD. Session #70, 2026-05-06.
 
 **Step 13** — Migrate `sm_lower.c:1062` (Raku CASE / given-when) to chunk-based
 dispatch. Replaces the legacy `emit_push_expr + SM_BB_PUMP` wrapper with a new
