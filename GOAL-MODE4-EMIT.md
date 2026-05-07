@@ -1022,6 +1022,82 @@ to read, complex enough to be meaningful:
   prefix+id for later look-up by the variant-node runtime
   emitter (EM-7c).
 
+- [x] **Step EM-7b'' — Instruction-description layer: `emit_insn` + named SCRIP-ISA helpers.**
+  EM-7b' moved the TEXT/BINARY boundary to one vtable, but `bb_flat.c`'s
+  `ev_*` helpers still speak raw bytes (`ev_byte2(e, 0x48, 0xB9, ...)`) — the
+  TEXT backend renders `.byte 0x48, 0xB9` walls instead of readable mnemonics.
+  This rung replaces the byte-level helpers with a semantic instruction layer
+  shared between both backends.
+
+  **Shape:** Add a `bb_insn_desc_t` struct (instruction kind + typed args) and
+  `emit_insn(emitter_v *e, const bb_insn_desc_t *d)` vtable method.  Move all
+  `ev_*` helpers from `bb_flat.c` into `emitter_v.h` as named inline functions
+  that call `emit_insn`.  TEXT renders real mnemonics; BINARY renders bytes.
+  Walker (`bb_flat.c`) has zero byte knowledge — only named helpers.
+
+  **Instruction kinds needed by `bb_flat.c`** (full inventory):
+  - `BB_INSN_MOV_R10_IMM64(addr)`  — `mov r10, imm64`  (load &Δ)
+  - `BB_INSN_MOV_RAX_IMM64(imm)`   — `mov rax, imm64`
+  - `BB_INSN_MOV_RDI_IMM64(imm)`   — `mov rdi, imm64`
+  - `BB_INSN_MOV_RSI_IMM64(imm)`   — `mov rsi, imm64`   (rdx for len)
+  - `BB_INSN_MOV_RDX_IMM64(imm)`   — `mov rdx, imm64`
+  - `BB_INSN_MOV_ECX_IMM32(imm)`   — `mov ecx, imm32`
+  - `BB_INSN_MOV_EAX_IMM32(imm)`   — `mov eax, imm32`
+  - `BB_INSN_MOV_ESI_IMM32(imm)`   — `mov esi, imm32`
+  - `BB_INSN_MOV_R10_MEM(addr)`    — `mov r10, [mem64]` (load Σ ptr)
+  - `BB_INSN_MOV_EAX_R10MEM`       — `mov eax, [r10]`   (load Δ)
+  - `BB_INSN_MOV_R10MEM_EAX`       — `mov [r10], eax`   (store Δ)
+  - `BB_INSN_MOV_ECX_EAX`          — `mov ecx, eax`
+  - `BB_INSN_MOV_RDX_RAX`          — `mov rdx, rax`
+  - `BB_INSN_ADD_EAX_IMM32(imm)`   — `add eax, imm32`
+  - `BB_INSN_SUB_EAX_IMM32(imm)`   — `sub eax, imm32`
+  - `BB_INSN_CMP_EAX_IMM32(imm)`   — `cmp eax, imm32`
+  - `BB_INSN_CMP_EAX_ECX`          — `cmp eax, ecx`
+  - `BB_INSN_CMP_ESI_IMM8(imm)`    — `cmp esi, imm8`
+  - `BB_INSN_CMP_EAX_MEM32(addr)`  — `cmp eax, [mem]`   (vs Σlen)
+  - `BB_INSN_MOVSXD_RCX_R10MEM`    — `movsxd rcx, dword [r10]`
+  - `BB_INSN_LEA_RAX_RAXRCX`       — `lea rax, [rax+rcx]`
+  - `BB_INSN_MOV_RAX_MEM64(addr)`  — `mov rax, [mem64]` (load Σ)
+  - `BB_INSN_MOV_RDI_RAX`          — `mov rdi, rax`
+  - `BB_INSN_TEST_EAX_EAX`         — `test eax, eax`
+  - `BB_INSN_TEST_RAX_RAX`         — `test rax, rax`
+  - `BB_INSN_XOR_EDX_EDX`          — `xor edx, edx`
+  - `BB_INSN_RET`                  — `ret`
+  - `BB_INSN_CALL_RAX`             — `call rax`
+
+  TEXT renders each as a single readable GAS line.  BINARY renders the
+  corresponding bytes — same logic as the current `ev_*` bodies, now in
+  `emitter_binary.c` instead of `bb_flat.c`.
+
+  **Named helper functions** (in `emitter_v.h`, call `emit_insn`):
+  ```c
+  /* These replace the ev_* statics in bb_flat.c */
+  static inline void ev_load_delta(emitter_v *e);        /* mov eax,[r10] */
+  static inline void ev_store_delta(emitter_v *e);       /* mov [r10],eax */
+  static inline void ev_load_r10_delta_ptr(emitter_v *e, uint64_t addr);
+  static inline void ev_load_sigma(emitter_v *e, uint64_t sigma_addr);
+  static inline void ev_load_omega(emitter_v *e, uint64_t siglen_addr);
+  static inline void ev_sigma_plus_delta(emitter_v *e, uint64_t sigma_addr,
+                                         uint64_t delta_addr);
+  static inline void ev_add_delta_imm(emitter_v *e, int32_t v);
+  static inline void ev_sub_delta_imm(emitter_v *e, int32_t v);
+  /* ... etc for every named operation bb_flat.c needs */
+  ```
+
+  **bb_flat.c after this rung:** zero `ev_byte*` calls.  Every emission is a
+  named helper call.  The file reads as a description of what the pattern
+  matcher does, not how it encodes it.
+
+  **Done when:**
+  - `bb_flat.c` has zero `ev_byte*` / raw-byte calls.
+  - `emitter_text.c`'s `emit_insn` renders each kind as a single readable GAS
+    line (e.g. `mov     r10, 0x<addr>` not `.byte 0x49, 0xBA, ...`).
+  - `emitter_binary.c`'s `emit_insn` renders the same bytes as before.
+  - TEXT output of `bb_build_flat_text` on `pat_lit("hello")` shows real
+    mnemonics (verified in `bb_flat_text_test.c` — add a `strstr` check for
+    `"mov"` in the output and absence of `".byte"` in the BB-box sections).
+  - All gates green: smoke ×6, EM PASS=11, isolation, bb_flat_text PASS≥15.
+
 - [ ] **Step EM-7c — Wire partition + stitching into mode-4 emitter.**
   In `sm_codegen_x64_emit.c`, when the SM walk enters a Phase-2
   sub-sequence:
@@ -1329,6 +1405,49 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7b'' LANDED 2026-05-07 (session #76)
+Instruction-description layer: `bb_insn_desc_t` + `emit_insn` vtable method.
+bb_flat.c has zero byte knowledge — every emission is a named helper call.
+TEXT renders real GAS mnemonics; BINARY renders bytes. Both share one walker.
+
+New `bb_insn_desc_t` enum covers 27 instruction kinds (all used by bb_flat.c):
+MOV_R10_IMM64, MOV_RAX_IMM64, MOV_RDI_IMM64, MOV_RSI_IMM64, MOV_RDX_IMM64,
+MOV_RCX_IMM64, MOV_ESI_IMM32, MOV_EAX_IMM32, ADD_EAX_IMM32, SUB_EAX_IMM32,
+CMP_EAX_IMM32, CMP_ESI_IMM8, MOV_EAX_RCXMEM, MOV_RAX_RCXMEM, CMP_EAX_RCXMEM,
+MOV_EAX_R10MEM, MOV_R10MEM_EAX, MOV_ECX_EAX, MOV_RDI_RAX, MOV_RDX_RAX,
+MOVSXD_RCX_R10MEM, LEA_RAX_RAXRCX, CMP_EAX_ECX, TEST_EAX_EAX, TEST_RAX_RAX,
+XOR_EDX_EDX, RET, CALL_RAX.
+
+Named inline helpers in emitter_v.h (ev_load_delta, ev_store_delta,
+ev_sigma_plus_delta, ev_add_delta_imm, ev_sub_delta_imm, ev_cmp_eax_siglen,
+ev_load_r10_delta_ptr, ev_load_siglen, ev_mov_rax_imm64, ev_mov_rdi_imm64,
+ev_mov_rdx_imm64, ev_mov_esi_imm32, ev_mov_eax_imm32, ev_cmp_eax_imm32,
+ev_sub_eax_imm32, ev_cmp_esi_imm8, ev_mov_ecx_eax, ev_mov_rdi_rax,
+ev_mov_rdx_rax, ev_cmp_eax_ecx, ev_test_eax_eax, ev_test_rax_rax,
+ev_xor_edx_edx, ev_ret, ev_call_rax) — each builds bb_insn_desc_t + calls
+e->emit_insn. bb_flat.c calls these; never touches a byte value.
+
+TEXT output for pat_lit("hello") now shows:
+  mov r10, 0x<addr>   cmp esi, 0   je alpha   jmp beta
+  mov eax, [r10]   add eax, 5   mov rcx, 0x<siglen>   cmp eax, [rcx]
+  jg omega   ... movsxd rcx, dword ptr [r10]   lea rax, [rax+rcx] ...
+No .byte directives. Human-readable.
+
+bb_flat_text_test.c: updated test 5 — now checks for "mov r10," present AND
+".byte" absent. PASS=16 FAIL=0 (was 15; added the no-.byte assertion).
+
+Files changed: emitter_v.h (rewritten with insn layer + 25 inline helpers),
+emitter_text.c (emit_insn → one fprintf per kind), emitter_binary.c
+(emit_insn → bytes-per-kind), bb_flat.c (471→361 lines, zero ev_byte* calls),
+bb_flat_text_test.c (test 5 updated), scripts/test_smoke_jit_emit_x64.sh
+(PASS=15→16 check).
+
+Gates: smoke ×6 PASS, EM PASS=11, isolation PASS, bb_flat_text PASS=16.
+Tracked artifacts unchanged (SM emitter not yet wired to bb_build_flat_text).
+
+one4all pre-commit parent: 5d240d10. Session #76, 2026-05-07.
+Next: EM-7c (wire partition + stitching into sm_codegen_x64_emit.c).
 
 EM-7b' LANDED 2026-05-07 (session #76)
 `emitter_v *` vtable refactor — TEXT/BINARY discrimination moved from every
