@@ -350,3 +350,35 @@ season@5, main@9).  Empty bodies; chunks forward-jumped over.
 Scope-reduced from "skeleton + body" mid-session — body lowering
 split into CH-17b' to keep this rung small and risk-free.  one4all
 @ HEAD (post `0cb31ca4`).
+
+**CH-17b' LANDED sess #78, 2026-05-07** — proc-body lowering.  The
+per-proc emission loop in sm_lower.c (CH-17b's skeleton site) now
+walks `proc->children[1+nparams..nchildren-1]` and calls `lower_expr`
+on each body child, followed by `SM_POP`, then a trailing `SM_RETURN`.
+Chunks now contain real lowered SM ops.  Verified via `--dump-sm` on
+`test/icon/palindrome.icn`: chunk 1–52 holds the full palindrome
+proc body (map call, while loop with E_LCOMP, SM_AUGOP, etc.); chunk
+55–74 holds main's three write+palindrome calls.  Raku rk_given:
+three procs with substantial chunk bodies (day_type@1, season@81,
+main@161).  Chunks remain unreachable — coro_call still walks IR,
+forward-jumps skip every chunk.  Soft addition: a file-static
+`g_chunk_body_lowering` flag set/cleared around the loop suppresses
+lower_expr's "unhandled expr kind" stderr warning during proc-body
+emission only — kinds without explicit cases (E_ALTERNATE, E_ITERATE,
+E_CSET_*, E_REVASSIGN, E_REVSWAP) emit harmless SM_PUSH_NULL inside
+the dead chunk; warning still fires for executable code via
+lower_stmt.  Frame-slot resolution stays at runtime (`icn_scope_patch`
+unchanged); E_VAR lowers to `SM_PUSH_VAR <name>` name-keyed via
+NV_GET_fn — no scope-patch needed at lower-time.  Static-variable
+persistence in coro_call unchanged.  Generator kinds (E_EVERY,
+E_SUSPEND, E_BANG_BINARY, E_LCONCAT, E_LIMIT, E_RANDOM, E_SECTION*)
+emit legacy `SM_PUSH_EXPR + SM_BB_PUMP` inside chunks — the gating
+note in the spec; CH-17h reactivates CH-15b once CH-17c flips
+consumers.  Gates byte-identical to baseline: smoke ×6 PASS
+(7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation gate PASS, csnobol4 Budne
+PASS=61, Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263,
+unified_broker PASS=49, scrip_all_modes PASS=2.  Documented in
+`docs/CHUNKS-step17b-prime-validation.md`.  Files touched:
+`src/runtime/x86/sm_lower.c` only.  Next rung: **CH-17c** —
+flip `coro_call` consumer sites to dispatch via entry_pc when
+non-(-1); add companion `sm_call_proc(int entry_pc, ...)`.
