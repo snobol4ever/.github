@@ -2635,3 +2635,34 @@ exits 0.
 
 Goal stub written 2026-05-05 in session #62, lifted from
 GOAL-CHUNKS.md Steps 8 and 19.
+
+EM-7d --sm-run beauty regression root-caused 2026-05-07 (session #82)
+======================================================================
+Bisect result: SN-32c (commit 52251653) is the first commit where
+`--sm-run beauty.sno < beauty.sno` drops from 646 to 622 lines.
+After that, corpus reorganization (f4730afc) moved include files from
+`demo/beauty/` — beauty.sno references `-INCLUDE 'global.sno'` etc.
+but the corpus files are named `global.inc`, `case.inc` etc. (not .sno).
+This causes the parser to fail the -INCLUDE lookups and beauty outputs
+"Parse Error" (10 lines) instead of running.
+
+ROOT CAUSE: corpus beauty directory has .inc files but beauty.sno
+expects .sno extensions. This is a corpus maintenance issue (not scrip).
+
+The 622-line gap (SN-32c giving 622 not 646) is a separate pre-existing
+bug — likely related to the `error` label being referenced but undefined
+in beauty.sno (sm_lower warning: "undefined label 'error' treated as
+Error 24"). Some code paths that should reach the error handler instead
+halt early.
+
+CONSEQUENCE FOR EM-7d: The `--sm-run` path cannot be used as the
+comparison oracle for EM-7d. Use `--ir-run` (which does give 646 lines
+per the SN-7 gate script) or SPITBOL directly. EM-7d's gate is:
+`--jit-emit --x64 beauty.sno` (linked binary) output md5 matches
+`abfd19a7a834484a96e824851caee159`. The oracle should be run via
+`bash scripts/util_run_beauty_oracle.sh --input beauty.sno` (requires
+SPITBOL at /home/claude/x64/bin/sbl) or compared against the pre-baked
+oracle file if available.
+
+NEXT SESSION: proceed directly to EM-7d gate attempt. Do not spend time
+on --sm-run regression — it is a corpus issue, not a blocker for EM-7d.
