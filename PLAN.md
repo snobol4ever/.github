@@ -84,7 +84,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-10 ✅ LANDED (sess 11, 2026-05-07) — switch/case/default. PASS=67 FAIL=0. Next: **SC-11** (define next rung with Lon). |
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | GOAL PIVOTED 2026-05-07 — new goal: full Rebus program parsing with simplified trees. RB-FULL-1 next. corpus@dac6db3 |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-22 LANDED PASS=143 — rung36 gprocs 2/2 PASS, 100% oracle coverage confirmed; RS-28 cross-pollination deferred; next: IC-23 |
-| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | **GOAL PIVOTED 2026-05-07** -- no longer exact IR match; new goal = full corpus parse, pragmatic trees, no abort. PR-16 LANDED (PASS=136 est). Next: PR-17-smoke (write test_smoke_parser_prolog_full.sh + recovery arm + triage). |
+| **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | **GOAL PIVOTED 2026-05-07** -- 100% parse coverage on 677 .pl files (SWI+GNU+corpus). PR-17 PARTIAL: recovery+\+prefix+div/rdiv landed corpus@2a9d6a0. Next: single-char SY atoms in op/3, *-> soft cut, coverage measurement. |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-27 LANDED PASS=147 FAIL=0 — nested call fname fix (v(kids[1])); NewCallName→capclsf/capclsr. Next: RK-28. |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |

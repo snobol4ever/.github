@@ -1635,3 +1635,34 @@ produce output for the clauses that DO parse.
 3. `div` keyword -- arithmetic files
 4. Single-char SY atom args -- op/3 declarations
 5. `*->` soft cut -- rare
+
+---
+
+## Watermark
+
+**PR-17 PARTIAL LANDING (corpus@2a9d6a0, .github@b52339c, 2026-05-07).**
+
+Landed this session:
+- [x] Gap analysis: grepped all 677 .pl files, 9 gaps ranked by impact
+- [x] SWI-Prolog test suite added to corpus (249 .pl, corpus@41d4425)
+- [x] GNU Prolog source added to corpus (62 .pl, corpus@c6c5f33)
+- [x] Parse recovery: `skip_to_dot` + `top_form_safe` -- file-level abort prevention
+- [x] `\+` prefix without parens (FY 900) -- `reduce_naf()` in `body_goal`
+- [x] `div` / `rdiv` operators (YFX 400) -- token + mul_expr arm
+
+Total corpus .pl files: **677**
+Goal: 100% parse (at least one STMT per file, no abort)
+
+### Next session setup
+```bash
+cd /home/claude/one4all && git checkout parser
+bash /home/claude/one4all/scripts/build_scrip.sh
+```
+
+### Next rung: PR-17 continued
+Remaining gaps in priority order:
+1. Verify `module(Name, Exports)` and `use_module(library(X))` directives parse
+2. Single-char SY atoms in arg position (`op(200, fy, -)`) -- Gotcha-26 fix
+3. `*->` soft cut -- `$'*->'` token + arm in `conj_arrow`
+4. Run smoke on a sample of swi_tests/core/ files to measure coverage progress
+   (run locally -- scrip is ~4s/file so do 10-20 files max per session)
