@@ -1228,7 +1228,7 @@ Gates final state:
 - EM gate PASS=10 FAIL=0 (was 9; EM-7a Phase-2 sim added)
 - isolation gate PASS
 
-one4all @ TBD. .github @ TBD. Session #74, 2026-05-07.
+one4all @ 3e788e71. .github @ 9d67af7. Session #74, 2026-05-07.
 
 Next rung: EM-7b (add EMIT_TEXT mode parity to bb_flat.c with externally-
 visible α/β/γ/ω labels for invariant sub-tree chunks).
