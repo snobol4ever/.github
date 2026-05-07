@@ -702,19 +702,36 @@ Do not let the next session repeat your mistakes.
 
 ## Handoff note — session 9 (2026-05-07) end state
 
-Gates: smoke PASS=5 FAIL=0, parser PASS=55 FAIL=0. corpus @ `10e7c0c`.
+Gates: smoke PASS=5 FAIL=0, parser PASS=60 FAIL=0. corpus @ `3420666`.
 
 **SC-7 landed:** augmented assign (`+=` `-=` `*=` `/=` `^=`). Key implementation note:
+- `E_*` constants like `E_ADD = "'E_ADD'"` hold strings WITH surrounding single quotes — designed for EVAL embedding only. In direct Snocone code use string literals: `Tree('E_ASSIGN', ...)`.
+- `Reduce_augmented(op)` uses `EVAL("epsilon . thx . *reduce_augmented(" op ")")` — NO extra quotes around `op` because `op` already IS `'E_ADD'`.
+- Tree nodes are immutable value semantics — sharing lhs in two child positions is safe.
 
-- `E_*` constants like `E_ADD = "'E_ADD'"` hold strings WITH surrounding single quotes.
-  They are designed for embedding inside EVAL strings only.
-  In direct Snocone code, use string literals: `Tree('E_ASSIGN', ...)` not `Tree(E_ASSIGN, ...)`.
-- `Reduce_augmented(op)` uses `EVAL("epsilon . thx . *reduce_augmented(" op ")")` — note:
-  NO extra quotes around `op` because `op` already IS `'E_ADD'` (a quoted string literal).
-- Tree nodes are immutable value semantics in Snocone — sharing lhs in two child positions
-  (as both the assign target and the first arg of the arithmetic op) is safe.
+**SC-8 landed:** break/continue with loop-label stacks. Key lessons:
 
-**Next:** SC-8 (break/continue). See GOAL-PARSER-SNOCONE.md for full spec.
+15. **Global loop-label variables (while_ltop/while_lend) are clobbered by nested loops.**
+    Same root cause as SC-6c's `if_nthen` clobber. Fix: `finalize_while` reads the
+    labels from the break/continue stacks (via `top_break_label()`/`top_continue_label()`)
+    instead of the globals `while_ltop`/`while_lend`. The stacks hold the right value
+    for the current (innermost) loop throughout finalize.
+
+16. **Label allocation order must match oracle exactly — no normalization in gate.**
+    The gate compares label names byte-for-byte. `_Lcont_0001, _Lend_0002, _Ltop_0003`
+    means `_Lcont` must be allocated first in `for_head_alloc`. Verify oracle allocation
+    order before implementing any new label allocations.
+
+17. **`BREAK(':')` fails when the stack has only one element (no `:` in string).**
+    Use `SPAN('_' digits &LCASE &UCASE) . top (':' REM . rest | '')` to parse both
+    single-element (`_Lend_0002`) and multi-element (`_Lend_0004:_Lend_0002`) stacks.
+
+18. **Function name collision in pattern capture.** `BREAK(':') . top_break_label`
+    captures into the function's OWN name variable (Snocone convention), clobbering
+    the return value slot. Always use a distinct local variable name for captures:
+    `SPAN(...) . top` then `top_break_label = top`.
+
+**Next:** SC-9 (struct). See GOAL-PARSER-SNOCONE.md for full spec.
 
 **Exact commits:**
 - corpus @ `7a17ff0` — SC-6c-bug fix: save_if_nthen/restore_if_nthen
