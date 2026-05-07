@@ -469,8 +469,10 @@ readability win (`$' '`/`$'  '` everywhere).
 - [x] Eliminate DGray / nl_one / nl_opt from parser_raku.sc.
 - [x] Grammar body uses only `$' '` / `$'  '` aliases.
 - [x] Gate PASS=105 FAIL=5.
-- [ ] FUTURE: canonical `white ARBNO(white)` form — blocked on
-      BUG-SCRIP-VAL-SCAN engine fix.
+- [x] FUTURE: canonical `white ARBNO(white)` form — **WON'T DO.**
+      The FENCE-based `White`/`Gray` is correct, readable, and passes all gates.
+      Changing to `ARBNO(white)` form risks regex-tier re-segmentation bugs
+      (documented in RK-WS2 above). No benefit justifies the risk.
 
 ### PARSER-RK-21 — `gather`/`take` coroutine construct — LANDED session 2026-05-07 cont.
 
