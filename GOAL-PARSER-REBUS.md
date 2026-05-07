@@ -2416,3 +2416,79 @@ New fixture: `unary_pos.reb` with `.ref`. corpus HEAD: `dd86344`.
 - `nested_case` — case inside compound; compound inside case
 - Multi-construct stress fixtures
 - Cross-pollination: `stmt_body` idiom to sibling parsers (if/while now accept compound body)
+
+---
+
+## Session 2026-05-07 — RB-FW-9: stmt_body/stmt_inline fixes + stress fixtures; PASS=90 FAIL=0
+
+### Context
+
+Operator: "play with the Rebus language grammar PATTERN in SCRIP focusing on
+GOAL-PARSER-REBUS."  SPITBOL manual v3.7 uploaded (PDF).  Read PLAN/RULES/GOAL
+trail + SNOBOL4-SNOCONE-PRIMER; confirmed PASS=83/83 baseline.
+
+SPITBOL manual studied: Chapters 6 (pattern matching tutorial), 9 (ARBNO,
+recursive patterns, FENCE, FAIL/SUCCEED/ABORT, Quickscan/Fullscan), 15/18
+(pattern algorithm, cursor model, two-phase `.`/`$` execution model,
+BREAK/SPAN/ANY/NOTANY, TAB/RTAB/POS/RPOS).  All fully internalized.
+
+Key reinforcement from the manual:
+- Two-phase model: Pass 1 = pure cursor movement (no user code); Pass 2 =
+  linear sequence of `.`-actions along the winning match path.  `$` fires
+  in Pass 1; `.` fires in Pass 2.
+- `*` (deferred eval) bridges value space → subject space at match time —
+  this is why `stmt_body` can forward-reference `if_stmt` before it is
+  defined: the `*` deferral resolves at match-time, not at build-time.
+- ARBNO is shy (shortest first); FENCE commits the current alternative;
+  BREAK hazard: never use as a loop terminator (eats entire source if char
+  never appears).
+
+### Three bugs fixed
+
+**Bug RB-FW-9-A — `stmt_inline` missing `*case_stmt`** (corpus@af1a750):
+`stmt_inline` (used as body of each `caseclause`) lacked `*case_stmt`.
+Nested case — `case x of { 1: case y of { 2: z := 3 } }` — was silently
+not parsed.  Fix: added `*case_stmt` after `*compound_stmt` in `stmt_inline`.
+
+**Bug RB-FW-9-B — `stmt_body` too restrictive** (corpus@dc18e9c):
+`stmt_body` (body of `if/while/unless/until/repeat`) accepted only
+`compound_stmt | case_stmt | match_or_expr`.  Any structured control-flow
+stmt as a single-line body — `if n = 0 then return n`, `while x do if y
+then z`, `if a then for i from 1 to 10 do body` — was silently skipped.
+Expanded `stmt_body` to the full alternation matching `stmt_inline`.
+Forward references via `*` work because resolution is deferred to match-time.
+
+**Coverage gap confirmed for `else`-on-new-line**: `if x then y\nelse if ...`
+is parsed by the oracle as two statements (`if x then y`, then `else if` is
+a parse error / dropped).  Not a parser_rebus.sc bug — the Rebus lexer
+handles `else` only on the same logical line.
+
+### 7 new fixtures (PASS=83→90)
+
+| Fixture | Construct |
+|---------|-----------|
+| `nested_case.reb` | case inside case clause |
+| `if_return.reb` | `if cond then return val` (single-line body) |
+| `nested_if.reb` | `if x then if y then z` |
+| `while_if.reb` | `while x do if y then z` |
+| `fib.reb` | two-function recursive fib with if-then-return |
+| `multi_func.reb` | abs+max+main; diverse expr forms |
+| `record_func.reb` | record decl + field-access + multi-function |
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `8277b51` |
+| one4all | parser | `b9b31884` (unchanged) |
+| .github | main | this commit |
+
+Gate: **PASS=90 FAIL=0**.  Smoke: PASS=4 FAIL=0.
+
+**Next milestone:** operator-directed.  Open territory:
+- More stress fixtures (complex match/pattern expressions, augmented-assign
+  chains, full program with all constructs)
+- Cross-pollination: `stmt_body` / `stmt_inline` pattern to sibling parsers
+  (parser_snocone.sc, parser_icon.sc etc.) — check if they have the same gap
+- Reserved-word filter for `Id` (prevent `end`/`function`/`record` from
+  matching as bare identifiers in expr position)
