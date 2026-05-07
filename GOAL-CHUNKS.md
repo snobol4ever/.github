@@ -490,8 +490,18 @@ Order them however convenient based on platform availability.
   Diagnostic env var `SCRIP_PROC_ENTRY_PCS=1` shows the
   scaffold's reach: Icon hello.icn registers 1 proc (`main`),
   test/prolog `main + fact` registers 2 predicates, all -1.
-  Next rung: **CH-17b** — sm_lower emits named proc-body
-  chunks for Icon/Raku procs.
+
+  **CH-17b LANDED sess #75, 2026-05-07** —
+  `docs/CHUNKS-step17b-validation.md` documents the next half:
+  sm_lower emits named-chunk SKELETONS (SM_JUMP + SM_LABEL +
+  SM_RETURN + SM_LABEL) for every entry in proc_table.  CH-17a's
+  resolver now finds non-(-1) entry_pcs end-to-end (Icon hello.icn:
+  main@1; Raku rk_given: day_type@1, season@5, main@9).  Empty
+  bodies; chunks forward-jumped over.  Body lowering split into
+  separate rung CH-17b' because Icon proc bodies are EXPR_t chains
+  (not STMT_t) and frame-slot resolution via `icn_scope_patch` at
+  runtime is its own architectural decision.  Next rung: **CH-17b'**
+  — lower Icon/Raku proc bodies into the chunks.
 
 - [ ] **Step 18 — Final cleanup: delete SM_PUSH_EXPR; lift
   code_free gate; strengthen isolation gate.**

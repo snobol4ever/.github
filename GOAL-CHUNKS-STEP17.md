@@ -141,25 +141,49 @@ or consumer flips, all gates are byte-identical to baseline.
 entry_pc field to populate.  Splitting the scaffolding from the
 real lowering work keeps each rung small enough to gate cleanly.
 
-### CH-17b — sm_lower emits named chunks for Icon/Raku procs
+### CH-17b — sm_lower emits named-chunk SKELETONS for Icon/Raku procs
 
 **Scope:** sm_lower.c only.  Pre-loop pass over `prog`'s
 statements: for each `LANG_ICN`/`LANG_RAKU` stmt whose subject is
-an `E_FNC` proc-def, emit:
+an `E_FNC` proc-def, emit a chunk SKELETON (no body):
 
   `SM_JUMP skip_proc_<name>`
   `SM_LABEL "<name>"`            (named, via sm_label_named)
-  `<lowered SM ops for the proc body>`
   `SM_RETURN`
   `SM_LABEL skip_proc_<name>`    (anonymous skip target)
 
-Body lowering re-uses the existing `lower_expr` and `lower_stmt`
+**Skeleton-only deliberate choice (sess #75):** body lowering is
+non-trivial — Icon proc bodies are EXPR_t chains, not STMT_t,
+and frame-slot resolution via `icn_scope_patch` happens at
+runtime inside `coro_call` today.  Migrating that to lower-time
+is its own architectural decision that deserves its own rung
+(CH-17b').  The skeleton-only rung lands first because it is the
+minimal change that lets `sm_resolve_proc_entry_pcs` (CH-17a)
+populate non-(-1) entry_pcs, validating the resolver end-to-end
+on real corpora.
+
+**Producer fires; body is empty; consumer is dormant.**  CH-17a's
+resolver now finds entry_pcs for every Icon/Raku proc.  Verify
+via `SCRIP_PROC_ENTRY_PCS=1`.  But nothing yet calls those
+chunks — `coro_call` still walks IR.  And even if a future
+consumer called them today, they'd return immediately (empty
+body), which is fine because no consumer flip has happened yet.
+
+**Gates:** standard set + Icon corpus baseline (must be
+byte-identical: 186/47/30 of 263).  Skeleton chunks are
+forward-jumped over so execution falls through them.
+
+### CH-17b' — Lower Icon/Raku proc bodies into the chunks
+
+**Scope:** the actual body work.  For each chunk emitted by
+CH-17b, replace the immediate `SM_RETURN` with the lowered body
+SM ops (then `SM_RETURN`).  Body lowering re-uses `lower_expr`
 machinery, but wrapped in a per-proc context that pre-builds the
-scope (so frame-slot indices are baked in instead of resolved at
-runtime by `icn_scope_patch`).
+scope so frame-slot indices are baked in instead of resolved at
+runtime by `icn_scope_patch`.
 
 **Gating note:** the body lowering hits `E_EVERY`, `E_SUSPEND`,
-etc. — kinds CH-15b will later migrate.  For CH-17b, those still
+etc. — kinds CH-15b will later migrate.  For CH-17b', those still
 emit the legacy `SM_PUSH_EXPR + SM_BB_PUMP` shape.  That's
 acceptable here because (a) consumer-side proc dispatch isn't
 flipped yet — these chunks won't be executed; (b) once they are
@@ -167,14 +191,7 @@ flipped (CH-17c), the `SM_PUSH_EXPR + SM_BB_PUMP` paths inside
 proc bodies will start firing on real corpora, which is exactly
 what unblocks CH-15b's validation (per CH-15-SURVEY).
 
-**Producer fires; consumer is dormant.**  CH-17a's
-`sm_resolve_proc_entry_pcs` now finds entry_pcs for every Icon/Raku
-proc.  Verify via `SCRIP_PROC_ENTRY_PCS=1` env-gated dump.  But
-nothing yet calls `coro_call` with `entry_pc` — `coro_call` still
-takes `EXPR_t*` and walks IR.
-
-**Gates:** standard set + Icon corpus baseline (must be
-byte-identical: 186/47/30 of 263).
+**Gates:** standard set + Icon corpus baseline byte-identical.
 
 ### CH-17c — Flip Icon/Raku consumers: coro_call(entry_pc)
 
@@ -291,7 +308,8 @@ This is CH-15b's reactivation point.
 | Rung    | Adds gate                                            |
 |---------|------------------------------------------------------|
 | CH-17a  | `SCRIP_PROC_ENTRY_PCS=1` shows -1 for every proc     |
-| CH-17b  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for ICN/Raku |
+| CH-17b  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for ICN/Raku (chunks are skeletons) |
+| CH-17b' | proc-body chunks contain the actual lowered ops      |
 | CH-17c  | Icon corpus 186/47/30 byte-identical                 |
 | CH-17d  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for PL       |
 | CH-17e  | Prolog smoke extended to `--sm-run`                  |
@@ -316,4 +334,19 @@ of CH-17e (Step 16) and CH-17h (CH-15b).
 
 ## Closed rungs
 
-(none yet)
+**CH-17a LANDED sess #75, 2026-05-07** — Scaffolding.  `IcnProcEntry`
+and `Pl_PredEntry` gain `int entry_pc` (init -1).  New
+`sm_resolve_proc_entry_pcs(SM_Program*)` in scrip_sm.c walks both
+tables after sm_lower returns and populates entry_pcs via
+`sm_label_pc_lookup`.  Today every entry resolves to -1 (no chunks
+yet).  Pure addition; byte-identical gates.  Diagnostic env
+`SCRIP_PROC_ENTRY_PCS=1`.  one4all @ `0cb31ca4`.
+
+**CH-17b LANDED sess #75, 2026-05-07** — sm_lower emits named-chunk
+skeletons (SM_JUMP + SM_LABEL + SM_RETURN + SM_LABEL) for every
+entry in proc_table.  CH-17a's resolver now finds non-(-1) entry_pcs
+end-to-end (Icon hello.icn: main@1; Raku rk_given: day_type@1,
+season@5, main@9).  Empty bodies; chunks forward-jumped over.
+Scope-reduced from "skeleton + body" mid-session — body lowering
+split into CH-17b' to keep this rung small and risk-free.  one4all
+@ HEAD (post `0cb31ca4`).
