@@ -193,6 +193,87 @@ what unblocks CH-15b's validation (per CH-15-SURVEY).
 
 **Gates:** standard set + Icon corpus baseline byte-identical.
 
+### CH-17b'' — Bake frame-slot resolution into chunks at lower-time
+
+**Scope:** the second half of CH-17b's original "scope built when
+the proc body's chunk is emitted; SM ops carry slot indices already"
+goal text — split out into its own rung when CH-17b' (sess #78)
+deferred frame-slot baking and left chunks emitting `SM_PUSH_VAR
+<name>` for params and locals.  That deferred shape would have
+broken CH-17c on consumer flip: `SM_PUSH_VAR` reads the global NV
+table, missing the IcnFrame.env values that `coro_call` populates
+with arguments.
+
+**Why a separate rung was carved (sess #80, 2026-05-07):** CH-17b'
+landed with the closing note "Frame-slot resolution stays at runtime
+(`icn_scope_patch` unchanged); E_VAR lowers to `SM_PUSH_VAR <name>`
+name-keyed via NV_GET_fn — no scope-patch needed at lower-time."
+That deferral, while letting CH-17b' land cleanly, leaves the
+chunks semantically wrong for SM dispatch — the params/locals point
+at NV instead of FRAME.env.  CH-17c was about to inherit a broken
+chunk shape.  Carving CH-17b'' into its own rung (per the sub-goal
+file's precedent of CH-17a / CH-17b / CH-17b' splits) keeps each
+step small and gateable while honouring the original Step 17 spec.
+
+**Implementation:**
+
+- Two new opcodes in `sm_prog.h`: `SM_LOAD_FRAME` / `SM_STORE_FRAME`
+  with `a[0].i = slot index`.  Handlers in `sm_interp.c` route
+  through three pure-DESCR_t forwarders defined in `coro_runtime.c`
+  (`icn_frame_env_active`, `icn_frame_env_load`, `icn_frame_env_store`)
+  — no EXPR_t leakage across the SM/IR boundary.  Outside an Icon
+  frame (frame_depth == 0), both opcodes push FAILDESCR / clear
+  last_ok, mirroring SM_LOAD_GLOCAL's outside-of-generator
+  semantics.  JIT codegen stubs are named-FATAL (M5 territory).
+
+- `sm_lower.c` chunk-body emission loop builds a per-proc
+  `IcnScope` mirroring `icn_scope_patch` but without IR mutation:
+  params first (slots 0..nparams-1), then E_GLOBAL-decl names,
+  then body E_VAR walk.  Globals (registered via `global_register`
+  at polyglot_init) are excluded from the scope — they bridge to
+  the SNO NV store, matching the IR walker's slot=-1 → NV_GET_fn
+  fallback.  Keywords (`&`-prefixed names) are also excluded.
+  Stored in file-static `g_chunk_scope`, gated on
+  `g_chunk_body_lowering`.
+
+- `lower_expr`'s E_VAR and E_ASSIGN(LHS=E_VAR) cases consult
+  `g_chunk_scope`.  In-scope names emit `SM_LOAD_FRAME slot` /
+  `SM_STORE_FRAME slot`; out-of-scope names (globals, keywords,
+  unscoped) fall through to `SM_PUSH_VAR` / `SM_STORE_VAR` —
+  unchanged emission for stmt-level lowering and for true globals
+  inside chunks.
+
+**Producer-side empirical proof:** `--dump-sm --sm-run
+test/icon/palindrome.icn` shows the chunk for `palindrome` (pc 1–52)
+now emits `SM_LOAD_FRAME` / `SM_STORE_FRAME` for `s`, `i`, `j` —
+was `SM_PUSH_VAR "s"` / `SM_STORE_VAR "i"` etc. in CH-17b'.
+Builtin / proc-name function references inside E_FNC argument
+position (e.g. `write`, `palindrome`) also currently get slot
+indices — this mirrors how `icn_scope_patch` adds them at runtime;
+the slot is dead because the IR walker dispatches E_FNC by
+`children[0]->sval` string before evaluating the function-name
+child as a value.  CH-17c's E_FNC-shape rework will fix this in
+the lowering (don't lower children[0] as a value when the call
+target is name-resolvable).
+
+**Pre-existing E_FNC malform note (uncovered by this rung,
+inherited from CH-17b'):** the `case E_FNC` lowering at
+sm_lower.c:832–834 does `lower_expr(children[0..nargs-1])` then
+`SM_CALL s=e->sval nargs` — pushing `nargs+1` values but popping
+only `nargs`.  Result: chunks containing E_FNC have a stack-leak
+shape that would corrupt execution if reached.  Pre-existing in
+CH-17b'; not introduced here.  CH-17c must fix.
+
+**Chunks remain dead code.**  `coro_call` still walks IR
+(`coro_value.c:495–501`); chunks are forward-jumped over by
+SM_JUMP.  Gates byte-identical because the chunks are unreachable
+from any real program path until CH-17c flips the consumer.
+
+**Gates:** standard set byte-identical to baseline.  Smoke ×6
+PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4); isolation gate PASS;
+csnobol4 Budne PASS=61; unified_broker PASS=49; full Icon corpus
+PASS=186 FAIL=47 XFAIL=30 TOTAL=263.
+
 ### CH-17c — Flip Icon/Raku consumers: coro_call(entry_pc)
 
 **Scope:** the consumer-side migration.  `coro_call` gains a
@@ -310,6 +391,7 @@ This is CH-15b's reactivation point.
 | CH-17a  | `SCRIP_PROC_ENTRY_PCS=1` shows -1 for every proc     |
 | CH-17b  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for ICN/Raku (chunks are skeletons) |
 | CH-17b' | proc-body chunks contain the actual lowered ops      |
+| CH-17b''| chunk E_VARs emit SM_LOAD_FRAME / SM_STORE_FRAME for params+locals; gates byte-identical (chunks still dead code) |
 | CH-17c  | Icon corpus 186/47/30 byte-identical                 |
 | CH-17d  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for PL       |
 | CH-17e  | Prolog smoke extended to `--sm-run`                  |
@@ -382,3 +464,54 @@ unified_broker PASS=49, scrip_all_modes PASS=2.  Documented in
 `src/runtime/x86/sm_lower.c` only.  Next rung: **CH-17c** —
 flip `coro_call` consumer sites to dispatch via entry_pc when
 non-(-1); add companion `sm_call_proc(int entry_pc, ...)`.
+
+**CH-17b'' LANDED sess #80, 2026-05-07** — frame-slot baking at
+lower-time.  Carved as a separate rung when CH-17b' deferred
+frame-slot resolution and left chunks emitting `SM_PUSH_VAR <name>`
+for params/locals — a shape that would have broken CH-17c on
+consumer flip (NV table reads instead of FRAME.env reads).  Two
+new opcodes `SM_LOAD_FRAME` / `SM_STORE_FRAME` (a[0].i = slot)
+added to `sm_prog.h`; handlers in `sm_interp.c` route through
+three pure-DESCR_t forwarders in `coro_runtime.c`
+(`icn_frame_env_active`, `icn_frame_env_load`, `icn_frame_env_store`)
+— no EXPR_t leakage across the SM/IR boundary.  Outside an Icon
+frame, both opcodes push FAILDESCR (mirrors SM_LOAD_GLOCAL).  JIT
+codegen named-FATAL stubs (M5 territory).
+
+In `sm_lower.c`, chunk-body emission loop builds a per-proc
+IcnScope mirroring `icn_scope_patch` without IR mutation (params
+0..nparams-1, then E_GLOBAL-decl names, then body E_VAR walk;
+globals via `global_register` are excluded from scope so they
+bridge to NV).  `lower_expr`'s E_VAR / E_ASSIGN(LHS=E_VAR) cases
+consult the scope under `g_chunk_body_lowering`; in-scope names
+emit SM_LOAD_FRAME / SM_STORE_FRAME, out-of-scope names fall
+through to SM_PUSH_VAR / SM_STORE_VAR (unchanged at stmt-level).
+
+Empirical proof: `--dump-sm --sm-run test/icon/palindrome.icn`
+shows the palindrome chunk now emits SM_LOAD_FRAME / SM_STORE_FRAME
+for `s`, `i`, `j` (was SM_PUSH_VAR / SM_STORE_VAR in CH-17b').
+
+Pre-existing E_FNC malform note (inherited from CH-17b', NOT
+introduced here): the `case E_FNC` lowering at sm_lower.c:832–834
+does `lower_expr(children[0..nargs-1])` then `SM_CALL s=e->sval
+nargs` — pushing nargs+1 values but popping only nargs.  Result:
+chunks containing E_FNC have a stack-leak shape that would
+corrupt execution if reached.  Chunks remain dead code today so
+this is unreachable; CH-17c must fix it when wiring the consumer.
+
+Chunks remain unreachable — `coro_call` still walks IR; chunks
+forward-jumped over by SM_JUMP.  Gates byte-identical to baseline:
+smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation gate PASS,
+csnobol4 Budne PASS=61, unified_broker PASS=49, full Icon corpus
+PASS=186 FAIL=47 XFAIL=30 TOTAL=263.
+
+Files touched:
+`src/runtime/x86/sm_prog.h`, `src/runtime/x86/sm_prog.c`,
+`src/runtime/x86/sm_interp.c`, `src/runtime/x86/sm_codegen.c`,
+`src/runtime/x86/sm_lower.c`, `src/runtime/x86/sm_interp_test.c`,
+`src/runtime/interp/coro_runtime.c`.
+
+Next rung: **CH-17c** — flip `coro_call` consumer sites to
+dispatch via entry_pc when non-(-1); add companion
+`sm_call_proc(int entry_pc, ...)`; fix the E_FNC stack-leak shape
+inherited from CH-17b'.
