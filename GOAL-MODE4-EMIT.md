@@ -843,7 +843,7 @@ to read, complex enough to be meaningful:
   that masks real changes.  Until this lands, the protocol's
   "commit if changed" step is unsafe.
 
-- [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 + sub-tree partition.**
+- [x] **Step EM-7a — PATND_t bridge from SM Phase-2 + sub-tree partition.**
   Decide path 1 (reconstruct PATND_t at emit time via SM simulator)
   or path 2 (skip PATND_t and walk SM directly).  Implement.
   Also: extend `flat_is_eligible` from whole-tree to recursive
@@ -1175,6 +1175,63 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7a LANDED 2026-05-07 (session #74)
+Phase-2 SM simulator: `sm_phase2_to_patnd()` reconstructs a `PATND_t *`
+tree from a window of SM_PAT_* opcodes by simulating the interpreter's
+pat-stack at emit time, using the same `pat_*` constructors the runtime
+uses. Path 1 from the goal file (chosen for max reuse of bb_build_flat /
+bb_build_binary_node).
+
+The simulator tracks invariant vs variant per node via a `SimVal` sim-stack:
+- `SM_PUSH_LIT_S` / `SM_PUSH_LIT_I` push compile-time-constant values
+- `SM_PUSH_VAR` pushes a runtime placeholder marked `is_variant`
+- `SM_PAT_*` constructors propagate variance from inputs to result
+- mutable-ζ kinds (XSPNC/XBRKC/XANYC/XNNYC/XLNTH/XTB/XRTB/XFNCE) are
+  always-variant per `flat_is_eligible_node()`
+- always-variant kinds (XDSAR/XCALLCAP/XATP) propagate variance regardless
+
+Two helpers: `flat_is_eligible_node(p)` is the per-node check (no recursion);
+`patnd_is_fully_invariant(p)` is the recursive whole-tree check (replaces
+`bb_flat.c:flat_is_eligible` for emitter-side use).
+
+Files touched:
+- `src/runtime/x86/sm_codegen_x64_emit.c`: +330 lines (new section before
+  `emit_sm_unhandled`); add `#include "snobol4.h"`
+- `src/runtime/x86/sm_codegen_x64_emit.h`: 3 declarations
+- `src/runtime/x86/sm_phase2_sim_test.c`: NEW (133 lines, 25 sub-tests)
+- `Makefile`: `out/sm_phase2_sim_test` target (links libscrip_rt.so)
+- `scripts/test_smoke_jit_emit_x64.sh`: +Test 11 (sim PASS=25 check);
+  unhandled-op test compile gains `-lscrip_rt -lgc -lm` because the
+  emitter now references pat_* symbols
+
+Tests cover four pattern shapes:
+- A: `BREAK("=") . LHS` — root XNME, child XBRKC, has_variant=1, !fully_invar
+- B: `'hello' 'world'` — root XCAT, two XCHR, has_variant=0, fully_invar
+- C: `*VAR` — root XDSAR, has_variant=1
+- D: empty window → root XEPS, has_variant=0
+- E: per-kind `flat_is_eligible_node` spot-checks (XCHR/XCAT/XEPS/XPOSI
+  invariant; XDSAR/XBRKC variant)
+
+Wiring to mode-4 emit path is EM-7c's job; EM-7a only delivers the bridge
+and partition primitives. The simulator is callable but not yet called
+from the dispatch switch — `SM_PAT_*` and `SM_EXEC_STMT` still fall
+through to `emit_sm_unhandled`. EM-7b adds EMIT_TEXT mode to bb_flat.c,
+EM-7c wires the partition into the emitter, EM-7d is the beauty oracle gate.
+
+Tracked artifacts UNCHANGED — EM-7a adds infrastructure but does not
+change emitted output. Regen protocol: nothing to commit.
+
+Gates final state:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=10 FAIL=0 (was 9; EM-7a Phase-2 sim added)
+- isolation gate PASS
+
+one4all @ TBD. .github @ TBD. Session #74, 2026-05-07.
+
+Next rung: EM-7b (add EMIT_TEXT mode parity to bb_flat.c with externally-
+visible α/β/γ/ω labels for invariant sub-tree chunks).
 
 EM-7-emit-determinism LANDED 2026-05-07 (session #74)
 Root cause: `sm_lower.c` line 1287 stored `s->subject->sval` (a pointer
