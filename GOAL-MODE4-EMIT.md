@@ -1542,7 +1542,7 @@ Gates:
 - 5 tracked .s artifacts: empty diff vs repo (variant patterns — blobs not emitted
   for demo programs)
 
-one4all HEAD: TBD. corpus: unchanged. .github: TBD. Session #79, 2026-05-07.
+one4all HEAD: af8bbc1b. corpus: unchanged (397c5ecd). .github: 9abf041. Session #79, 2026-05-07.
 
 Next rung: EM-7c-variant (wire variant pattern nodes through Phase-2 SM ops + bb_pool).
 Then EM-7d (beauty oracle gate).
