@@ -829,18 +829,28 @@ corpus @ `10e7c0c`. Gate: PASS=55 FAIL=0 (was 50).
 - [x] Fixtures: `augmented_add`, `augmented_sub`, `augmented_mul`, `augmented_div`, `augmented_pow`.
 - **Gate:** PASS=55 FAIL=0 (+5 from SC-6).
 
-### PARSER-SC-8 — `break` and `continue` ⏳
+### PARSER-SC-8 — `break` and `continue` ✅ DONE (PASS=60)
 
-`snocone_parse.y`: `T_BREAK T_SEMICOLON` / `T_BREAK T_IDENT T_SEMICOLON` and same for
-`T_CONTINUE`. Lower to goto stmts targeting the enclosing loop's end/top label.
-Parser needs break-target and continue-target stacks (same front-push colon pattern
-as `sc_if_nthen_stk`) pushed/popped around each loop body.
+Added `sc_break_stk` / `sc_continue_stk` front-push colon-separated stacks (same pattern
+as `sc_if_nthen_stk`). `push_break/pop_break/top_break_label` and continue counterparts.
+`emit_break` / `emit_break_label` / `emit_continue` / `emit_continue_label` helpers.
 
-- [ ] Add `sc_break_stk` / `sc_continue_stk` string stacks; push targets in `while_cmd`, `do_cmd`, `for_cmd` after label alloc; pop after finalize.
-- [ ] Add `break_cmd` / `continue_cmd` productions emitting goto to top of respective stacks.
-- [ ] Labeled forms: `break label;` / `continue label;` emit goto named label directly.
-- [ ] Fixtures: `break_while`, `continue_while`, `break_for`, `continue_for`, `break_labeled`.
-- **Gate:** PASS increases by 5.
+Key fix: `finalize_while` reads `Ltop`/`Lend` from the stacks (via `top_break_label` /
+`top_continue_label`) rather than from the `while_ltop`/`while_lend` globals — this fixes
+nested-loop label reuse (same root cause as SC-6c's `if_nthen` global clobber).
+
+`for_head_alloc` allocates `_Lcont` first then `_Lend` (matching oracle order); sets
+`sc_for_cont_used=0`. `finalize_for` emits `_Lcont` label before step only when
+`sc_for_cont_used != 0`.
+
+Added `$'break'` / `$'continue'` keyword tokens; `break_cmd` / `continue_cmd` productions
+wired into `Command`. corpus @ `3420666`. Gate: PASS=60 FAIL=0 (was 55).
+
+- [x] Add `sc_break_stk` / `sc_continue_stk` string stacks; push targets in `while_cmd`, `do_cmd`, `for_cmd` after label alloc; pop after finalize.
+- [x] Add `break_cmd` / `continue_cmd` productions emitting goto to top of respective stacks.
+- [x] Labeled forms: `break label;` / `continue label;` emit goto named label directly.
+- [x] Fixtures: `break_while`, `continue_while`, `break_for`, `continue_for`, `break_nested`.
+- **Gate:** PASS=60 FAIL=0 (+5 from SC-7).
 
 ### PARSER-SC-9 — `struct` definition ⏳
 
@@ -888,9 +898,10 @@ Allocate `Lswitch_end` as break target (SC-8's break stack).
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 byte-identical.
 PARSER-SC-7 ✅ — PASS=55 FAIL=0; augmented assign (+= -= *= /= ^=).
-SC-8 ⏳ (break/continue) SC-9 ⏳ (struct) SC-10 ⏳ (switch/case/default)**
+PARSER-SC-8 ✅ — PASS=60 FAIL=0; break/continue with loop-label stacks.
+SC-9 ⏳ (struct) SC-10 ⏳ (switch/case/default)**
 
-Gate: PASS=55 FAIL=0. corpus @ `10e7c0c` (2026-05-07).
+Gate: PASS=60 FAIL=0. corpus @ `3420666` (2026-05-07).
 
 ### SC-6c-bug + SC-6c session 2026-05-06 (session 8) — LANDED; PARSER-SC-6 CLOSED
 
