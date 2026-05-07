@@ -1368,3 +1368,40 @@ Single-char SY atoms (`-`, `+`, `>`, `=`) in primary would conflict with the exp
 **PR-14 LANDED (PASS=125 FAIL=0, 2026-05-06 session #3).**
 
 **Next rung: PR-15** — single-char SY atoms in arg position; or further coverage expansion based on corpus tests.
+
+---
+
+## PARSER-PR-15 — ^ caret, : module colon, 0b/0x/0o radix — LANDED (PASS=132 FAIL=0)
+
+**Gate entering:** PASS=125 FAIL=0  
+**Gate leaving:** PASS=132 FAIL=0  
+**+7 new fixtures:** arith_caret, arith_caret_rhs, module_colon, colon_term, radix_hex, radix_bin, radix_oct
+
+### Fixes
+
+**`^` caret (xfy 200 right-assoc):** Added `$'^'` token. Extended `pow_expr` FENCE with `$'^' *pow_expr Reduce_binop` before `$'**'`. The `*pow_expr` deferred ref gives right-associativity (`2^3^4 = 2^(3^4)`).
+
+**`:` module qualifier (xfy 600):** Added `$':'` token (with `_op_name` capture). Inserted new `colon_expr` layer between `add_expr` and `is_expr`. `is_expr` now uses `colon_expr` on both sides. Handles `lists:member(X,L)`, `X = a:b`, `M:call(X)`.
+
+**`0x`/`0b`/`0o` radix literals:** Three push functions (push_radix_hex/bin/oct) using `EVAL("epsilon . thx . *fn('varname')")` idiom (same as Push_char_code). Added `hex_digits`/`bin_digits`/`oct_digits` to global.sc. Primary arms before `shift(Int,'E_ILIT')`.
+
+### Gotcha-27 — epsilon.*fn() pattern must be EVAL-built
+
+`Push_foo = epsilon . *fn()` defined at module level does NOT fire when used inside FENCE arms reached via deep deferred-ref chains (e.g., primary called from `*unify_expr`). Fix: build via `EVAL("epsilon . thx . *fn('varname')")` — the same idiom used by `Push_char_code`, `shift()`, and all working reducers. The `thx` dummy var is a bridge: EVAL-built patterns fire correctly at match time through any depth of `*deferred` chains.
+
+### Gotcha-28 — SNOBOL4 SUBSTR third arg is LENGTH not END
+
+`SUBSTR(s, i, j)` in SNOBOL4/Snocone: third arg is **length**, not end position. `SUBSTR("1010", 2, 2)` returns `"01"` (2 chars starting at pos 2), not `"0"`. Use `SUBSTR(s, i, 1)` to get a single char at position i.
+
+### Known remaining gaps (PR-16 candidates)
+
+- **Single-char SY atoms as args** (`:- op(200, fy, -).`): needs zero-width negative lookahead not available in SNOBOL4 without FENCE/FAIL tricks. Low priority.
+- **Prefix keyword operators** (`dynamic foo/1`, `discontiguous foo/1`, `meta_predicate maplist(2,?)`): `fx 1150` operators parsed as atom+arg without parens. Need a prefix_op layer above `is_expr` but below `conj`.
+- **Quoted atom doubled-quote escape** (`'it''s fine'`): `Qatom = "'" BREAK("'")` stops at first quote. Need BREAKX or iterative matching.
+- **`|` pipe in non-list context** (e.g., DCG `A --> B | C`): `|` is xfy 1105; currently only handled in list tail position.
+- **Large hex literals** (`0xdeadbeef`): EVAL overflow; SPAN strips first digit of scientific notation. Low priority.
+
+## Watermark
+
+**PR-15 LANDED (PASS=132 FAIL=0, 2026-05-07).**
+Next rung: PR-16 — prefix keyword ops + quoted atom escape.
