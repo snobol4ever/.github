@@ -966,3 +966,36 @@ Key cross-PARSER rule: use FENCE before any `*fn()` helper in a context that mig
 corpus@78bdcb9.
 
 Next: **RK-25** (next rung — see GOAL-LANG-RAKU.md for what RK-25 covers).
+
+---
+
+### PARSER-RK-25 — file I/O + standard handles — LANDED session 2026-05-07
+
+- [x] **Bug fix: `SayFhStmt`/`PrintFhStmt` extended to accept `$*STDIN`/`$*STDOUT`/`$*STDERR`**
+      as filehandle arg. Original forms only accepted `VarScalar`; standard handles
+      lex as `VAR_CAPTURE` (raku.l lines 131-133) and were routed to the generic call
+      path, producing `say(raku_capture(1), "hello")` instead of
+      `raku_say_fh(raku_capture(1), "hello")`. Fix: inner alternation
+      `( VarScalar FENCE $',' Push_var | VarStdIn FENCE $,' Finish_stdin | VarStdOut
+      FENCE $,' Finish_stdout | VarStdErr FENCE $,' Finish_stderr )`.
+      `VarStdIn/Out/Err` are pure string matches (no side effects), safe before FENCE.
+      `Finish_stdin/stdout/stderr` push after FENCE+comma, preserving the RK-24
+      FENCE-guard invariant for match-time side effects.
+- [x] Test corpus: 5 new fixtures (slurp_file, lines_file, spurt_file, say_stdout,
+      print_stderr). `slurp`/`lines`/`spurt` route through the generic Expr11 call path
+      and already worked; `say_stdout`/`print_stderr` required the bug fix above.
+- **Gate:** PASS=137 FAIL=0. corpus@(this commit). ✓
+
+## Watermark
+
+Session 2026-05-07 — **PARSER-RK-25 LANDED** PASS=137 FAIL=0.
+
+Bug fix: `SayFhStmt`/`PrintFhStmt` inner alternation extended to accept
+`VarStdIn/Out/Err` with FENCE guard — `say($*STDOUT, str)` / `print($*STDERR, str)`
+now produce `raku_say_fh` / `raku_print_fh` matching the C oracle.
+5 new file-I/O fixtures: slurp_file, lines_file, spurt_file, say_stdout, print_stderr.
+
+PARSER-RK-24 LANDED PASS=132 FAIL=0 corpus@78bdcb9.
+PARSER-RK-23 LANDED PASS=126 FAIL=0 corpus@838304e.
+
+Next: **RK-26**.
