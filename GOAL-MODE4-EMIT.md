@@ -791,7 +791,7 @@ to read, complex enough to be meaningful:
   execution mode).  ⛔ Blocked on `EM-7-default-bb-live` and its
   investigation rung (sess #72 regression).
 
-- [ ] **Step EM-7-emit-determinism — Make `--jit-emit --x64 *.s` byte-stable across runs.**
+- [x] **Step EM-7-emit-determinism — Make `--jit-emit --x64 *.s` byte-stable across runs.**
   ⛔ Discovered session #72 (2026-05-07) while running the regen +
   commit protocol post EM-7-default-bb-live + EM-7-default-jit-run:
   back-to-back regens of the same `.sno` produce different `.string`
@@ -1175,6 +1175,23 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7-emit-determinism LANDED 2026-05-07 (session #74)
+Root cause: `sm_lower.c` line 1287 stored `s->subject->sval` (a pointer
+into the parser IR) directly into `SM_Instr.a[0].s` without `strdup`.
+Pure-SNO programs call `code_free(prog)` in `scrip_sm.c:60` immediately
+after `sm_lower` returns, dangling the pointer. Emitter read `a[0].s` at
+strtab-collect time → garbage `.string` bytes, different each run.
+Fix (option A): replace bare `sm_emit(SM_EXEC_STMT)` + field-assign with
+`sm_emit_si(p, SM_EXEC_STMT, sname, (int64_t)s->has_eq)` — strdups `a[0].s`
+and sets `a[1].i` atomically, matching the owner-string discipline used
+everywhere else in `sm_lower.c`.
+All 5 demo programs now produce identical `.s` output across back-to-back runs.
+Smoke ×6 PASS, EM gate PASS=9, isolation gate PASS. Five tracked artifacts
+regen'd and assemble cleanly.
+one4all @ ca69a24e. corpus @ df1922f. Session #74, 2026-05-07.
+Next rung: EM-7a (PATND_t bridge from SM Phase-2 + sub-tree partition;
+extend `flat_is_eligible` to recursive; decide path 1 vs path 2).
 
 EM-7-default-bb-live + EM-7-default-jit-run LANDED 2026-05-07 (session #73)
 -- both default flips done, all gates green; EM-7-default-bb-live-investigate
