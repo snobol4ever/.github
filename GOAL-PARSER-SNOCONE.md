@@ -175,7 +175,7 @@ Command   = simple_stmt | if_head | while_head | ... ;
 
 (Closed rungs — see git history for landed state.)
 
-### PARSER-SC-INFRA-3 — style cleanup against canonical guide ⏳ NEXT
+### PARSER-SC-INFRA-3 — style cleanup against canonical guide ✅ DONE (session #67)
 
 The canonical Style Guidelines for `parser_*.sc`
 (`GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`) were
@@ -898,14 +898,14 @@ Allocate `Lswitch_end` as break target (SC-8's break stack).
 ## Watermark
 
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
-PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
+PARSER-SC-INFRA-3 ✅ PARSER-SC-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 byte-identical.
 PARSER-SC-7 ✅ — PASS=55 FAIL=0; augmented assign (+= -= *= /= ^=).
 PARSER-SC-8 ✅ — PASS=60 FAIL=0; break/continue with loop-label stacks.
 PARSER-SC-9 ✅ — PASS=63 FAIL=0; struct definition → DATA() call.
-PARSER-SC-10 ✅ — PASS=67 FAIL=0; switch/case/default.**
+PARSER-SC-10 ✅ — PASS=67 FAIL=0; switch/case/default.
 
-Gate: PASS=67 FAIL=0. corpus @ HEAD (2026-05-07, session 11).
+🏁 GOAL COMPLETE. All rungs done. Gate: PASS=67 FAIL=0. corpus @ 860c823.**
 
 ### SC-6c-bug + SC-6c session 2026-05-06 (session 8) — LANDED; PARSER-SC-6 CLOSED
 
