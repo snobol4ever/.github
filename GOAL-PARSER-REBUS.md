@@ -2492,3 +2492,67 @@ Gate: **PASS=90 FAIL=0**.  Smoke: PASS=4 FAIL=0.
   (parser_snocone.sc, parser_icon.sc etc.) — check if they have the same gap
 - Reserved-word filter for `Id` (prevent `end`/`function`/`record` from
   matching as bare identifiers in expr position)
+
+---
+
+## Session 2026-05-07 continuation — RB-FW-10: multi-arg subscript; PASS=91 FAIL=0
+
+### Context
+
+Continuation of same session (context ~75%).  PASS=90 baseline from prior
+commits.
+
+### Work done
+
+**RB-FW-10: multi-arg subscript `a[i, j, ...]`**
+
+`postfix_expr` only handled single-arg subscript `a[i]`.  The Rebus grammar
+allows `a[i, j]` (n-ary, maps to `E_IDX(a, i, j)` per `--dump-ir`).
+
+Three bugs found and fixed:
+
+1. **Grammar**: replaced `$'[' *alt_expr $']' reduce(E_IDX, 2)` with
+   `$'[' nPush() *X_sub $']' Decompose_sub() nPop()`.  `X_sub` is a
+   tail-recursive arg counter (mirrors `X_args` for function calls).
+   `Decompose_sub()` (mirrors `Decompose_call()`) reads `nTop()` directly
+   to get arg count, then pops n+1 items and builds E_IDX(base, arg1, ...).
+
+2. **`lower_atom(E_IDX)`: global variable clobbering** — `idxN`, `idxBase`,
+   `idxI` were not in `lower_atom`'s function signature, making them globals
+   clobbered by recursive `lower_atom` calls.  Fixed: added to signature.
+
+3. **`lower_atom(E_IDX)` loop bug** — `while (idxI = LE(idxI, idxN) idxI + 1)`
+   uses the SNOBOL4 pre-increment idiom: LE returns its first arg on success,
+   the result concatenates with `idxI + 1`... actually the issue is that
+   `idxI` is assigned `LE(idxI, idxN)` (which is `idxI`) then concatenated
+   with `+ 1`... the canonical SNOBOL4 idiom `i = LT(i, n) i + 1` pre-
+   increments `i` before the body executes.  Starting at `idxI=2`, the first
+   body execution sees `idxI=3` (skipping arg at c(x)[2]).  Rewritten as
+   `while (GE(idxI, 0) LT(idxI, idxN + 1)) { ...; idxI = idxI + 1; }` —
+   explicit post-increment, runs for idxI=2..idxN correctly.
+
+### Key lesson — SNOBOL4 while idiom
+
+`while (i = LT(i, n) i + 1)` PRE-increments i before the loop body.  To
+iterate i=2..n, initialize `i=1` (not `i=2`) before the loop, or use the
+explicit post-increment form.  All new loop code in parser_rebus.sc uses the
+`while (GE(i, 0) LT(i, n+1)) { body; i = i + 1; }` form to avoid confusion.
+
+### New fixture
+
+`subscript_multi.reb`: `a[1]` (single, regression test) and `a[2, 3]` (n-ary).
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `e532680` |
+| one4all | parser | `b9b31884` (unchanged) |
+| .github | main | this commit |
+
+Gate: **PASS=91 FAIL=0**.  Smoke: PASS=4 FAIL=0.
+
+**Next milestone:** operator-directed.  Open territory:
+- More n-ary subscript stress (3+ args, subscript in complex expr)
+- `for` loop body parsing (currently `for_body = $'do' BREAK(nl)` drops body)
+- Cross-pollination: the SNOBOL4 while-idiom lesson to SNOBOL4-SNOCONE-PRIMER
