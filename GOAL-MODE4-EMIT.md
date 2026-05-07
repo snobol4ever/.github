@@ -241,7 +241,170 @@ All share the same alpha/beta/gamma/omega four-port protocol.
 
 ---
 
-## Generated-code readability standard (settled session #68, 2026-05-06)
+## Design Discoveries — five-phase model + reuse of proven BB infrastructure (session #71, 2026-05-07)
+
+⛔ Lon's correction: brokered/driven BB inside `libscrip_rt.so` is NOT
+the model for mode-4.  EM-7-pre (session #71) wrongly took that path
+(scrip_rt_pat_*@PLT building a runtime descriptor tree, then handing
+it to bb_broker via scrip_rt_exec_stmt → exec_stmt → bb_broker).  The
+correct model has the BB graph as flat executable code — either
+inlined into the `.s` at emit time (invariant subtrees) or built into
+bb_pool RX memory at runtime via the existing dual-mode bb_emit (variant
+subtrees).  The brokered path is dead for emitted code.
+
+### The five phases of statement execution
+
+Every SNOBOL4 / Snocone / Icon / Prolog / Raku / Rebus pattern statement
+executes in five phases.  This is the contract every backend honors:
+
+| Phase | What | Failure mode |
+|-------|------|--------------|
+| 1 | Build subject | can fail → `:F` |
+| 2 | Build pattern (an SM that produces a PATTERN = BB graph) | can fail → `:F` |
+| 3 | Pattern match against subject (with backtracking) | can fail → `:F` |
+| 4 | Build replacement | can fail → `:F` |
+| 5 | Perform replacement | — |
+
+Phases 1, 4, 5 are straight-line SM bytecode.  Phase 2 is straight-line
+SM bytecode whose **output** is a graph of BB nodes.  Phase 3 walks
+that graph using the four-port α/β/γ/ω protocol with backtracking.
+
+### Phase 2 produces a BB graph — emit shape decided per-pattern
+
+For mode-4, each pattern's BB graph appears in the `.s` file in one of
+two shapes — the emitter chooses per-pattern at emit time:
+
+**Invariant pattern** — every leaf is constant, structure is fully
+known at emit time (e.g., `BREAK("=") . LHS  ARB . RHS  REM`):
+- Inline the entire BB graph as x86 asm directly in the `.s` file
+- The Phase-2 SM that *would* build it is REDUNDANT and disappears —
+  the graph is baked
+- Flat, `jmp`-wired between sub-boxes, no `call/ret`, no descriptor
+  tree built at runtime
+- This is the readable case — pattern structure is visible in the asm
+
+**Variant / dynamic pattern** — has live values (`*var`, `*func()`,
+captures, conditionals depending on runtime state):
+- Structure depends on runtime state — cannot be baked at emit time
+- The `.s` file emits the **Phase-2 SM ops** that build the BB graph
+  at runtime
+- Each `SM_PAT_*` op calls into bb_pool / bb_emit BINARY mode helpers
+  in `libscrip_rt.so` to allocate executable memory and emit x86 bytes
+  into it (NOT a descriptor tree — actual code into RX memory)
+- Phase 3 then jumps into the freshly-built RX buffer
+
+### A generated `.s` file is heterogeneous
+
+For a single statement with one pattern, the `.s` file shows:
+
+  - Phase 1 SM ops (build subject) — straight-line emit
+  - **Either** an inlined BB graph in asm (invariant case)
+  - **Or** Phase 2 SM ops that allocate+emit into bb_pool memory at
+    runtime, then jump into that buffer (variant case)
+  - Phase 4 SM ops (build replacement) — straight-line emit
+  - Phase 5 store
+
+### The infrastructure already exists — reuse, do not rewrite
+
+⛔ Everything mode-4 needs has been written and proven before. The
+mode-4 emitter must REUSE these components, not write parallel code.
+
+| Component | Status | Source of truth |
+|-----------|--------|-----------------|
+| `bb_emit.c` dual-mode emitter | ✅ proven (TEXT 106/106 vs SPITBOL) | `src/runtime/x86/bb_emit.c` |
+| `snobol4_asm.mac` — 151 NASM macros, three-column shape | ✅ archived but extant | `archive/backend/snobol4_asm.mac` |
+| 25 box kinds × 5 backends as per-folder source files | ✅ existed pre-660339cd; now consolidated | git: `git show 660339cd^:src/runtime/boxes/` |
+| `bb_boxes.c` (consolidated 25 kinds, x86) | ✅ live | `src/runtime/x86/bb_boxes.c` (794 lines, 26 fns) |
+| `bb_boxes.j` (JVM), `bb_boxes.il` (.NET), `bb_boxes.js` (JS), `bb_boxes.wat` (WASM) | ✅ live | `src/runtime/{jvm,net,js,wasm}/bb_boxes.*` |
+| `bb_lit_emit_binary` + `bb_build_binary_node` (per-node binary emit) | ✅ proven, M-DYN-B10 100% coverage | `src/runtime/x86/bb_build.c` |
+| `bb_flat.c` (M-DYN-FLAT) — flat-glob invariant pattern emit | ✅ live in JIT-run path (mode 3) | `src/runtime/x86/bb_flat.c` (599 lines) |
+| `flat_is_eligible(p)` invariance detector | ✅ written | `bb_flat.c:510` |
+| `bb_pool.c` — RW slab → mprotect to RX | ✅ proven | `src/runtime/x86/bb_pool.c` |
+| `stmt_exec.c` Phase-3 driver — already calls flat→binary→C fallback chain | ✅ live | `src/runtime/x86/stmt_exec.c:1296+` |
+
+The 660339cd commit (2026-04-17 era) consolidated 27 per-box subfolders
+into `bb_boxes.{c,j,il,js,wat}` files.  The 298-file delete in that
+commit did NOT remove the boxes — it consolidated them.  The
+per-folder boxes (`src/runtime/boxes/lit/bb_lit.c`, etc.) are
+recoverable from git history (`git show 660339cd^:path`).
+
+### Mode-3 (JIT-run) already does this correctly
+
+`stmt_exec.c` line ~1296 in BB_MODE_LIVE:
+
+```c
+bb_box_fn bfn = bb_build_flat(pp);              /* invariant case */
+if (!bfn) bfn = bb_build_binary(pp);            /* per-node fallback */
+if (bfn) { root.fn = bfn; ... }                 /* RX function ptr */
+```
+
+Mode-3 is mode-4's existence proof.  The pattern's BB graph already
+lives in bb_pool RX memory in mode-3 and executes directly via
+`root.fn(root.ζ, α/β)`.  Mode-4 takes the same code path but writes
+the bytes (or the equivalent text) to a `.s` file at compile time
+instead of bb_pool at runtime.  `bb_emit.c`'s mode switch
+(`EMIT_TEXT` / `EMIT_BINARY`) is already the bridge.
+
+### What stays in `libscrip_rt.so` for mode-4
+
+  - NV table (`scrip_rt_nv_get`, `scrip_rt_nv_set`) — needs GC + SNOBOL4 runtime
+  - GC / memory management
+  - Builtin function shims (`scrip_rt_builtin_*`) for SM_CALL fallback
+  - `bb_pool` allocate/seal/free entries (for variant-pattern runtime emit)
+  - `bb_emit` BINARY-mode helpers (for variant-pattern runtime emit)
+  - `bb_build_flat` / `bb_build_binary` (entries called by Phase-2 SM in variant case)
+
+### What is OUT of `libscrip_rt.so` for mode-4
+
+  - `scrip_rt_pat_*` family (the descriptor-tree builders) — DEAD for emitted code
+  - `scrip_rt_exec_stmt` → `exec_stmt` → `bb_broker(...)` chain — DEAD for emitted code
+  - `g_pat_stack[]` runtime descriptor-tree state — DEAD for emitted code
+
+These were EM-6/EM-7-pre's path.  They served as a working bring-up
+but they are NOT the architecture.  EM-7-final removes them from the
+emitted-code path.  (They may stay linked into the `.so` if other
+non-mode-4 callers need them; verify before deletion.)
+
+### The PATND_t gap
+
+⛔ **Open question.** PATND_t pre-dates the stack machine.  The proven
+bb_build chain (`bb_build_flat`, `bb_build_binary_node`, `flat_is_eligible`)
+operates on a `PATND_t *` tree.  Mode-4's emitter walks `SM_Program`
+arrays, where Phase-2 appears as a sub-sequence of `SM_PAT_*` opcodes
+that, when executed, would build the PATND_t (or the BB graph
+directly).
+
+Two paths to bridge this gap:
+
+1. **Reconstruct PATND_t at emit time.**  The emitter walks the
+   Phase-2 SM sub-sequence, simulates each `SM_PAT_*` op against an
+   emit-time pat-stack of `PATND_t *`, and ends with the root
+   `PATND_t *`.  Then call `bb_build_flat(root)` in EMIT_TEXT mode to
+   produce the inline asm.  Reuses everything; only needs the
+   simulator.
+
+2. **Skip PATND_t entirely.**  Walk the SM sub-sequence directly and
+   emit BB-graph code from each opcode in turn (the SM is already
+   post-order; the emitter can build the BB structure as it goes).
+   No PATND_t.  Loses some bb_build_flat reuse but avoids the
+   simulator.
+
+Path (1) is more conservative — closer to the proven mode-3 pipeline.
+Path (2) is more direct — closer to the SM model.  Decision deferred;
+either way, the existing 25-box vocabulary in `bb_boxes.c` and the
+flat-emit logic in `bb_flat.c` are the substrate.
+
+### EMIT_TEXT mode in `bb_flat.c` — open
+
+`bb_flat.c` was written for `EMIT_BINARY` (writes bytes into bb_pool).
+A faithful `EMIT_TEXT` counterpart — same call sites, mode flag flips
+output to NASM/GAS lines — is the unit of work for mode-4.
+`bb_emit.c` already supports both modes for primitive instructions
+(mov, jmp, ret, etc.); the question is whether the box-level helpers
+in `bb_flat.c` route through `bb_emit_byte` (binary-only) or through
+the dual-mode primitives.  Audit before EM-7-final implementation.
+
+---
 
 ⛔ The mode-4 emitter does NOT spit. Other compilers spit. Ours
 documents.
@@ -467,7 +630,52 @@ to read, complex enough to be meaningful:
   program that uses `SPAN`, `BREAK`, `LEN`, `*expr`, and a
   pattern with `$` capture compiles and runs.
 
-- [ ] **Step EM-7 — `--jit-emit --x64 beauty.sno` passes oracle.**
+- [ ] **Step EM-7-revert — Remove brokered Phase-3 from emitted-code path.**
+  EM-7-pre (session #71) wrongly built Phase 2 as `scrip_rt_pat_*@PLT`
+  calls and Phase 3 as `scrip_rt_exec_stmt → exec_stmt → bb_broker`.
+  That descriptor-tree-then-broker model is the JIT-run path's old
+  shape, not what mode-4 wants.  Tear out:
+  - The `emit_bb_box` PLT-call shape that emits one PLT call per SM_PAT_*
+  - `SM_PAT_CAPTURE_FN_ARGS` / `SM_PAT_USERCALL_ARGS` PLT-call emitters
+  - The `scrip_rt_pat_*` family from the emitted-code path (may stay
+    in `.so` if non-mode-4 callers need them — verify before deletion)
+  - The `g_pat_stack[]` runtime descriptor-tree state in libscrip_rt.so
+  Keep: SM_CALL, SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM, conditional
+  return variants, STRTAB/VSTACK capacity bumps — these are Phase
+  1/4/5 concerns, orthogonal to BB.  Gate: existing PASS=10 EM gate
+  remains green minus the EM-6 pattern-matcher test (which is now
+  the wrong shape and will be retired/replaced by EM-7c).
+
+- [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 sub-sequence.**
+  Decide path 1 (reconstruct PATND_t at emit time via SM simulator)
+  or path 2 (skip PATND_t and emit BB structure directly from the SM
+  walk).  Implement.  Test: a Phase-2 sub-sequence for
+  `SPAN("abc") . W` round-trips through the bridge to a structure
+  bb_build_flat / bb_build_binary can consume.
+
+- [ ] **Step EM-7b — `bb_flat.c` EMIT_TEXT mode parity.**
+  `bb_flat.c` currently emits binary into bb_pool.  Add EMIT_TEXT
+  parity: same call sites, mode flag flips output to NASM/GAS lines.
+  Audit which `bb_emit_byte` / `bb_emit_u32` call sites need
+  EMIT_TEXT counterparts; route box-level helpers through the
+  dual-mode primitives in `bb_emit.c` where possible.  Test: a
+  small invariant pattern produces equivalent NASM and binary.
+
+- [ ] **Step EM-7c — Wire flat-or-runtime-build into mode-4 emitter.**
+  In `sm_codegen_x64_emit.c`, when the SM walk enters a Phase-2
+  sub-sequence:
+  - Bridge to PATND_t (or equivalent) via EM-7a
+  - Call `flat_is_eligible(p)`
+  - If eligible: emit the flat blob inline via `bb_build_flat` in
+    EMIT_TEXT mode (EM-7b)
+  - If not eligible: emit Phase-2 SM ops that, at runtime, call
+    `bb_build_flat` / `bb_build_binary` against the freshly-built
+    PATND_t and store the resulting `bb_box_fn` (a pointer to RX
+    memory in `bb_pool`)
+  - Phase 3: direct call to `root.fn(root.ζ, α)` in either case.
+    No broker.  No pat-stack.
+
+- [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
   The full Beauty crosscheck (md5
   `abfd19a7a834484a96e824851caee159`, 646 lines) on the emitted
   binary. This is the M2-SNOBOL4 milestone gate: emitted binary
@@ -483,7 +691,8 @@ to read, complex enough to be meaningful:
   Document the `libscrip_rt.so` ABI (every exported symbol, its
   C signature, what it does, what it can fail with). Document
   the emit-time invariants (which SM opcodes are baked-direct
-  vs `scrip_rt_*` calls). Add a Makefile target
+  vs `scrip_rt_*` calls, which patterns inline-flat vs
+  runtime-build). Add a Makefile target
   `make jit-emit-test` that runs the M2 gate. Update
   GOAL-CHUNKS.md Step 8 to `[x]`. Update PLAN.md current step.
   This is a natural pause: M2 ships before M3 begins (M3 is
@@ -756,6 +965,23 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+⛔ COURSE CORRECTION (session #71, 2026-05-07, post-handoff): EM-7-pre
+landed the WRONG architecture for the emitted-code Phase-3 path
+(`scrip_rt_pat_*@PLT` PLT-call descriptor builder + `bb_broker`
+runtime drive).  See "Design Discoveries" section above for the
+corrected model.  EM-7-pre's keepers (SM_CALL, SM_CONCAT,
+SM_PUSH_NULL, SM_COERCE_NUM, conditional return variants, capacity
+bumps) survive; the pattern-side work needs EM-7-revert + EM-7a/b/c
+sub-rungs before EM-7d (the beauty oracle gate) is attempted.
+
+The brokered-BB path was a deviation Claude (sess #70-71) inferred
+from the existing libscrip_rt.so SNOBOL4-runtime linkage; it was
+never the design.  The proven dual-mode infrastructure
+(`bb_emit.c` EMIT_TEXT/EMIT_BINARY, `bb_flat.c` for invariant
+patterns, `bb_build_binary_node` per-node fallback, 25-box
+`bb_boxes.{c,j,il,js,wat}`) is what mode-4 must wire into the `.s`
+output — not a parallel runtime matcher.
 
 EM-7-pre LANDED 2026-05-07 (session #71) -- beauty.sno emits, assembles, links;
 runs until SM_PAT_CAPTURE_FN trap. Substantial groundwork for EM-7 closure.
