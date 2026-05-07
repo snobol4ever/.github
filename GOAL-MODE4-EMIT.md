@@ -272,37 +272,108 @@ that graph using the four-port α/β/γ/ω protocol with backtracking.
 ### Phase 2 produces a BB graph — emit shape decided per-pattern
 
 For mode-4, each pattern's BB graph appears in the `.s` file in one of
-two shapes — the emitter chooses per-pattern at emit time:
+two shapes per **maximal invariant sub-tree** — the choice is recursive,
+not whole-pattern.  A pattern is a directed graph of x86 asm chunks
+sewn together at runtime via direct `jmp`s on the four ports
+(α/β/γ/ω).  Some chunks are pre-baked in `.text`; some are emitted
+into `bb_pool` RX memory at runtime; both kinds are stitched into one
+graph that Phase 3 walks.
 
-**Invariant pattern** — every leaf is constant, structure is fully
-known at emit time (e.g., `BREAK("=") . LHS  ARB . RHS  REM`):
-- Inline the entire BB graph as x86 asm directly in the `.s` file
+⛔ This is the FINAL OPTIMIZATION FORM — the goal end-state, not an
+incremental polish.  Lon's intent (sess #71): "if it is easy to do up
+front and do it right the first time, do it."  The walker, the
+partition, and the stitching protocol are designed in once.  Bringing
+up a simpler whole-tree form first and retrofitting later means
+re-doing the SM Phase-2 walker, the bridge, the runtime emitter
+contract, and the relocation/stitching protocol — work that lands
+correctly in one pass if planned together.
+
+**Maximal invariant sub-tree** — every leaf is constant, structure
+is fully known at emit time (e.g., `BREAK("=") . LHS` taken alone):
+- Inlined as flat x86 asm directly in the `.s` file as a labeled
+  `.text` chunk with externally-visible α/β/γ/ω entry labels
+  (e.g., `_pat_inv_<pattern_id>_<subtree_id>_alpha`)
 - The Phase-2 SM that *would* build it is REDUNDANT and disappears —
-  the graph is baked
+  the chunk is baked
 - Flat, `jmp`-wired between sub-boxes, no `call/ret`, no descriptor
   tree built at runtime
-- This is the readable case — pattern structure is visible in the asm
+- This is the readable case — pattern structure visible in the asm
 
-**Variant / dynamic pattern** — has live values (`*var`, `*func()`,
-captures, conditionals depending on runtime state):
-- Structure depends on runtime state — cannot be baked at emit time
-- The `.s` file emits the **Phase-2 SM ops** that build the BB graph
-  at runtime
-- Each `SM_PAT_*` op calls into bb_pool / bb_emit BINARY mode helpers
-  in `libscrip_rt.so` to allocate executable memory and emit x86 bytes
-  into it (NOT a descriptor tree — actual code into RX memory)
-- Phase 3 then jumps into the freshly-built RX buffer
+**Variant node** — has a live value (`*var`, `*func()`, capture
+target depending on runtime state, dynamic conditional):
+- Cannot be baked at emit time
+- The `.s` file emits a small Phase-2 SM sub-sequence that, at
+  runtime, allocates a `bb_pool` RX slot, emits x86 bytes via
+  `bb_emit.c` BINARY mode for *only this node's* logic, and patches
+  its γ/ω jmp targets to the addresses of its children's α
+  entries — which are already known at runtime (invariant children
+  resolve via linker-fixed `.text` labels; variant children resolve
+  via the `bb_pool` slot they were allocated into during the same
+  Phase-2 walk)
+- The bytes emitted at runtime are tiny — just this node's port
+  logic plus the patched jmps to children
+
+**Stitching contract** (the four-port protocol applied across chunk
+boundaries):
+- `α`: enter forward.  Wired to either next-chunk-α (success cont.)
+  or this-chunk-β (backtrack into self) by the producer.
+- `β`: re-entry from a downstream `ω`.  Wired the same way.
+- `γ`: forward exit.  Producer patches to consumer's α.
+- `ω`: backtrack exit.  Producer patches to enclosing β.
+
+Same protocol whether the chunk is in `.text` or in `bb_pool`.  The
+patching site is the producing emitter — invariant chunks have their
+γ/ω as relocatable references resolved at link time; variant chunks
+patch their γ/ω after their children's addresses are known (which is
+during the same runtime walk, child-first).
 
 ### A generated `.s` file is heterogeneous
 
 For a single statement with one pattern, the `.s` file shows:
 
   - Phase 1 SM ops (build subject) — straight-line emit
-  - **Either** an inlined BB graph in asm (invariant case)
-  - **Or** Phase 2 SM ops that allocate+emit into bb_pool memory at
-    runtime, then jump into that buffer (variant case)
+  - One labeled `.text` chunk per maximal invariant sub-tree of the
+    pattern, with externally-visible α/β/γ/ω labels — the chunk's
+    γ/ω may reference linker-resolved labels for invariant siblings
+    or `bb_pool`-slot variables for variant siblings
+  - Phase-2 SM ops for the variant nodes — these run at exec time,
+    allocate `bb_pool` RX slots, emit per-node x86 bytes into them,
+    patch jmps to wire the graph together
   - Phase 4 SM ops (build replacement) — straight-line emit
   - Phase 5 store
+
+A pure-invariant pattern (90% of beauty.sno's patterns, likely):
+zero Phase-2 SM ops emitted — the graph is fully baked in `.text`,
+Phase 3 calls the root chunk's α directly.
+
+A pure-variant pattern (rare): all Phase-2 SM ops, all chunks built
+at runtime, no `.text` baking.
+
+A 90/10 mix (the realistic case): one or more `.text` chunks for the
+invariant sub-trees plus a small handful of Phase-2 SM ops for the
+variant glue.  The `bb_pool` allocations at runtime are bounded by
+the variant-node count, not the pattern size.
+
+### `flat_is_eligible` extension
+
+`bb_flat.c`'s current `flat_is_eligible(p)` is whole-tree: returns 0
+if any node anywhere in the tree is variant.  EM-7a extends this to
+a recursive partition:
+
+  - `flat_is_eligible_node(p)` — local check (this single node's
+    kind is bakeable: not XDSAR, XVAR, XFNME, XCALLCAP, etc.)
+  - Walker partitions the tree into maximal invariant sub-trees,
+    rooted at variant boundaries
+  - Each maximal sub-tree gets one flat blob in `.s` via
+    `bb_build_flat` in EMIT_TEXT mode (EM-7b)
+  - Each variant node gets a Phase-2 SM emitter call that, at
+    runtime, builds *only that node's* bytes into `bb_pool` and
+    patches its γ/ω to its children's known addresses
+
+The leaf emit per box kind reuses `bb_flat.c`'s existing
+`flat_emit_lit`, `flat_emit_eps`, `flat_emit_charset_call`,
+`flat_emit_xcat`, `flat_emit_alt`, etc.  Only the partition logic
+and the variant runtime-emitter call sites are new.
 
 ### The infrastructure already exists — reuse, do not rewrite
 
@@ -646,34 +717,47 @@ to read, complex enough to be meaningful:
   remains green minus the EM-6 pattern-matcher test (which is now
   the wrong shape and will be retired/replaced by EM-7c).
 
-- [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 sub-sequence.**
+- [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 + sub-tree partition.**
   Decide path 1 (reconstruct PATND_t at emit time via SM simulator)
-  or path 2 (skip PATND_t and emit BB structure directly from the SM
-  walk).  Implement.  Test: a Phase-2 sub-sequence for
-  `SPAN("abc") . W` round-trips through the bridge to a structure
-  bb_build_flat / bb_build_binary can consume.
+  or path 2 (skip PATND_t and walk SM directly).  Implement.
+  Also: extend `flat_is_eligible` from whole-tree to recursive
+  partition — produce a tree annotated with maximal invariant
+  sub-trees, with variant nodes at their boundaries.  Each
+  invariant sub-tree gets a unique ID for its `.text` label;
+  each variant node carries refs to its children's IDs (or to
+  runtime `bb_pool` slot variables).  Test: a 90/10 mixed pattern
+  (e.g., `BREAK("=") . LHS  *VAR  REM`) partitions into two
+  invariant sub-trees plus one variant node, with correct
+  child-id wiring.
 
-- [ ] **Step EM-7b — `bb_flat.c` EMIT_TEXT mode parity.**
-  `bb_flat.c` currently emits binary into bb_pool.  Add EMIT_TEXT
-  parity: same call sites, mode flag flips output to NASM/GAS lines.
-  Audit which `bb_emit_byte` / `bb_emit_u32` call sites need
-  EMIT_TEXT counterparts; route box-level helpers through the
-  dual-mode primitives in `bb_emit.c` where possible.  Test: a
-  small invariant pattern produces equivalent NASM and binary.
+- [ ] **Step EM-7b — `bb_flat.c` EMIT_TEXT mode parity + external labels.**
+  Add EMIT_TEXT parity to `bb_flat.c`: same call sites, mode flag
+  flips output to NASM/GAS lines.  Audit which `bb_emit_byte` /
+  `bb_emit_u32` call sites need EMIT_TEXT counterparts; route
+  box-level helpers through the dual-mode primitives in
+  `bb_emit.c` where possible.  Add **externally-visible
+  α/β/γ/ω entry labels** for each invariant sub-tree chunk
+  (`_pat_inv_<pid>_<sid>_alpha` etc.) so variant nodes' runtime
+  emitters can patch jmps to them.  Test: a small invariant
+  pattern produces equivalent NASM and binary output, both
+  reachable via external label.
 
-- [ ] **Step EM-7c — Wire flat-or-runtime-build into mode-4 emitter.**
+- [ ] **Step EM-7c — Wire partition + stitching into mode-4 emitter.**
   In `sm_codegen_x64_emit.c`, when the SM walk enters a Phase-2
   sub-sequence:
-  - Bridge to PATND_t (or equivalent) via EM-7a
-  - Call `flat_is_eligible(p)`
-  - If eligible: emit the flat blob inline via `bb_build_flat` in
-    EMIT_TEXT mode (EM-7b)
-  - If not eligible: emit Phase-2 SM ops that, at runtime, call
-    `bb_build_flat` / `bb_build_binary` against the freshly-built
-    PATND_t and store the resulting `bb_box_fn` (a pointer to RX
-    memory in `bb_pool`)
-  - Phase 3: direct call to `root.fn(root.ζ, α)` in either case.
-    No broker.  No pat-stack.
+  - Bridge to PATND_t (or equivalent) via EM-7a, with partition
+    annotation
+  - For each maximal invariant sub-tree: emit the flat blob inline
+    via `bb_build_flat` in EMIT_TEXT mode (EM-7b), with external
+    α/β/γ/ω labels
+  - For each variant node: emit a Phase-2 SM op (or sequence) that,
+    at runtime, allocates a `bb_pool` slot, emits this node's
+    bytes via `bb_emit.c` BINARY mode, and patches its γ/ω to its
+    children's addresses (linker-resolved for invariant children;
+    `bb_pool`-slot for variant children)
+  - Phase 3: direct call to the root chunk's α — whether that root
+    is an invariant `.text` chunk or a variant `bb_pool` chunk
+  - No broker.  No pat-stack.  No descriptor tree.
 
 - [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
   The full Beauty crosscheck (md5
