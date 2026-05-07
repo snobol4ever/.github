@@ -2660,3 +2660,45 @@ Open territory:
   oracle also drops it, so this is a divergence-tracking item, not a correctness bug)
 - Cross-pollination: `stmt_body`/`stmt_inline` sync pattern to sibling parsers
 - Any new Rebus construct the operator wants to explore
+
+---
+
+## Session 2026-05-07 continuation — RB-FW-12: unary dot + trailing/empty comma arglist; PASS=96 FAIL=0
+
+### Context
+
+Operator: "play with the Rebus language grammar PATTERN in SCRIP focusing on
+GOAL-PARSER-REBUS." Context ~84% at session start.  SPITBOL manual studied
+(Chapters 6, 7, 9, 15, 18 rasterized).  Baseline confirmed PASS=94.
+
+### Two constructs added
+
+**Unary dot prefix (`.y` → `E_CAPT_COND_ASGN(E_NUL, E_VAR Y)`):**
+- `rebus.y: '.' unary_expr %prec UDOT → rbinop(RE_COND, NULL, $2)` — the
+  left operand is NULL, so `rebus_lower` produces `E_CAPT_COND_ASGN(E_NUL, rhs)`.
+- Fix: added `'.' *unary_expr reduce(E_CAPT_COND, 1)` to `unary_expr` alternation.
+- `lower_atom(E_CAPT_COND_ASGN)` extended: 1-child case (unary dot) produces
+  `Tree(E_CAPT_COND, '', 2, tree(E_NUL,''), lower_atom(child))`; 2-child case
+  (binary `a . b`) unchanged.
+
+**Trailing/empty comma arglist (`foo(1,2,)` or `foo(1,,3)` → E_NUL slots):**
+- `rebus.y arglist_ne` supports trailing comma and empty slots via
+  `arglist_ne ','` (trailing) rule and NULL expr push.
+- Added `push_nul()` / `Push_nul()` match-time/build-time helper pair.
+- Added `nInc_then_nul` pattern fragment: `nInc() Push_nul()`.
+- `X_args` restructured: first arg always real `*alt_expr`; after a comma
+  tries `*X_args` (real) or `*nInc_then_nul FENCE(...)` (empty slot).
+- Empty first arg (foo()) handled by `FENCE(*X_args | epsilon)` in `call_or_id`
+  — `X_args` only fires when there is at least one real first arg.
+
+### Gate: PASS=94 → PASS=96 FAIL=0
+
+corpus HEAD: `dac6db3`
+one4all/parser: `b9b31884` (unchanged)
+
+### Next milestone (operator-directed)
+
+Open territory:
+- More arglist coverage: `foo(a, b)(c)` complex callee (oracle: parse error)
+- `else if` on same line: `if x then y else if z then w`
+- Cross-pollination: `stmt_body`/`stmt_inline` sync to sibling parsers
