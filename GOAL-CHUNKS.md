@@ -427,13 +427,36 @@ Order them however convenient based on platform availability.
   self-contained) or **Step 17** (proc/pred table → entry_pcs —
   the architectural unblock).  Lon's call.
 
-- [ ] **Step 16 — Migrate Prolog clauses (sm_lower.c:986).**
-  Six kinds: `E_CHOICE`, `E_CLAUSE`, `E_CUT`, `E_UNIFY`,
-  `E_TRAIL_MARK`, `E_TRAIL_UNWIND`.  Same shape as step 15 but
-  smaller in volume.  Each kind gets a per-kind SM lowering
-  with backtracking-aware SUSPEND/RESUME.  At end, delete
-  `bb_broker_drive_expr` for Prolog (combined with step 15's
-  Icon delete).
+- [ ] **Step 16 — Migrate Prolog clauses (sm_lower.c:1213,
+  formerly :986).**  Six kinds: `E_CHOICE`, `E_CLAUSE`, `E_CUT`,
+  `E_UNIFY`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`.  Same shape as
+  step 15 but smaller in volume.  Each kind gets a per-kind SM
+  lowering with backtracking-aware SUSPEND/RESUME.  At end,
+  delete `bb_broker_drive_expr` for Prolog (combined with step
+  15's Icon delete).
+
+  **CH-16-SURVEY LANDED sess #75, 2026-05-07** —
+  `docs/CHUNKS-step16-survey.md` documents two findings:
+  (A) the line-1213 producer DOES fire for every Prolog
+  statement on real programs (unlike CH-15-SURVEY's dead Icon
+  arm), and (B) the consumer (`SM_BB_ONCE` → `coro_eval` →
+  `bb_eval_value`) FATALs on every Prolog kind today —
+  every program in `test/prolog/*.pl` aborts under `--sm-run`
+  with "kind 59 unhandled" (where 59 = E_CHOICE in the runtime
+  enum, NOT E_DEFER as ir.h's SIL-reference comments would
+  suggest).  Prolog smoke gate hides this because it only
+  exercises `--ir-run`.  Migration without consumer-side fix
+  is no-op-or-worse; consumer fix needs the chunk-shaped
+  Prolog runtime entry points that Step 17's `entry_pc`
+  infrastructure unblocks.  Also documents a second
+  SM_BB_ONCE producer at sm_lower.c:1402 (statement-level
+  wrapper) that emits stacked SM_BB_ONCE on Prolog clauses —
+  pre-existing bug in `--sm-run` Prolog, Step 16-adjacent.
+  **Recommendation: defer Step 16 until Step 17 lands**, then
+  migrate with full Prolog corpus validation under an extended
+  smoke gate that includes `--sm-run`.  Next inline:
+  **Step 17** (proc/pred table → entry_pcs — architectural
+  unblock for both Step 15 remaining kinds and Step 16).
 
 - [ ] **Step 17 — Migrate proc_table and g_pl_pred_table to
   entry-pcs.**  In `polyglot_init`, replace `proc_table[i].proc
