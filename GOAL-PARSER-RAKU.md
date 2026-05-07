@@ -908,7 +908,7 @@ Class/method/has/new OO construct — `class Dog { has $.name; method speak() { 
 → `(E_RECORD Dog (E_VAR name))` + method defs. Mirrors `raku.y` `class_decl` action.
 Gate target ≥132.
 
-### PARSER-RK-24 — class/OO construct — IN PROGRESS (session 2026-05-07)
+### PARSER-RK-24 — class/OO construct — LANDED (session 2026-05-07 cont.)
 
 - [x] `VarTwigil` classifier: `$.field` / `$!field` → `(E_FIELD fieldname (E_VAR self))`.
       `captwf`/`captwr` capture bare name; `Push_twigil` builds E_FIELD.
@@ -920,12 +920,49 @@ Gate target ≥132.
 - [x] `HasDecl` / `MethodDef` / `ClassBodyItem` / `ClassDecl` grammar patterns added.
 - [x] `ClassDecl` in Compiland ARBNO as `(*ClassDecl Push_nul nInc())`.
 - [x] 6 RK-24 corpus fixtures created with oracle `.ref` files.
-- [ ] **FAIL: `class_and_main`** — stray `(E_VAR d)` child in main E_FNC when class
-      has a method AND main body uses `$d.name` MethodTail.
-      **Next step:** run bisect `/tmp/debug1.raku` (class+method + `my $d = Dog.new()` only,
-      no `say($d.name)`) to isolate whether stray comes from AssignStmt or MethodTail.
-      Pattern to investigate: `my $d = Dog.new(name => "Rex")` — `NewCallName` captures
-      `Dog` into `capfnf/capfnr`; check if `ClassName` capture `capclsf/capclsr` is being
-      clobbered at parse time and whether the `$d` VarScalar push is escaping the call frame.
-- **Gate:** PASS=131 FAIL=1. corpus@2511524
+- [x] **`class_and_main` FIXED** — root cause was `SayFhStmt`/`PrintFhStmt` firing
+      `push_var()` as a match-time side effect (via `epsilon . *push_var()`) inside a
+      failed alternation. With `&FULLSCAN=1`, `SayFhStmt = $'say' $'(' *Expr $',' ...`
+      tried `*Expr` against `$d.name` — `push_var()` fired and pushed `(E_VAR d)` before
+      the comma check failed. The push was NOT rolled back (match-time side effects are
+      permanent). Fix: `VarScalar FENCE $',' Push_var` — FENCE commits after comma is
+      confirmed, so `Push_var` only fires in the genuine 2-arg `say($fh, str)` form.
+      Same fix applied to `PrintFhStmt`. corpus@78bdcb9.
+- **Gate:** PASS=132 FAIL=0. corpus@78bdcb9.
 
+#### Cross-PARSER finding — match-time side effects in failed alternations (IMPORTANT)
+
+`push_var()` (and all helpers using `epsilon . *fn()`) fire at MATCH TIME via the
+deferred `*` operator.  With `&FULLSCAN=1`, failed alternations are tried and their
+match-time side effects (Push, Pop, nPush, nPop) ARE NOT ROLLED BACK.  This means:
+
+**Any grammar alternative that uses `Push_var` (or any `*fn()` helper) inside a
+pattern that might fail must use `FENCE` or structural disambiguation BEFORE the
+helper fires.**
+
+The correct idiom for a 2-arg statement that could be confused with a 1-arg form:
+
+```snocone
+// WRONG — push_var fires before comma check; stray push on failure:
+FooFhStmt = ( $'foo' $'(' *Expr $',' *Expr $')' $';' Finish_foo_fh );
+
+// RIGHT — VarScalar sets capvf/capvr; FENCE commits; Push_var fires safely:
+FooFhStmt = ( $'foo' $'(' VarScalar FENCE $',' Push_var *Expr $')' $';' Finish_foo_fh );
+```
+
+This is a STRONGER constraint than the existing cross-PARSER note about `ARBNO(X)`
+capturing at definition time — it applies to ANY alternation, not just ARBNO.
+
+
+## Watermark
+
+Session 2026-05-07 (continuation, RK-24 closure) — **PARSER-RK-24 LANDED** PASS=132 FAIL=0.
+
+`class_and_main` fix: `SayFhStmt`/`PrintFhStmt` restructured with `VarScalar FENCE $','
+Push_var` to prevent match-time push_var side effects in failed alternations.
+Root cause: `epsilon . *push_var()` fires push_var() at match time (not post-match);
+with &FULLSCAN=1 failed alternatives' match-time side effects are not rolled back.
+Key cross-PARSER rule: use FENCE before any `*fn()` helper in a context that might fail.
+corpus@78bdcb9.
+
+Next: **RK-25** (next rung — see GOAL-LANG-RAKU.md for what RK-25 covers).
