@@ -2556,3 +2556,46 @@ Gate: **PASS=91 FAIL=0**.  Smoke: PASS=4 FAIL=0.
 - More n-ary subscript stress (3+ args, subscript in complex expr)
 - `for` loop body parsing (currently `for_body = $'do' BREAK(nl)` drops body)
 - Cross-pollination: the SNOBOL4 while-idiom lesson to SNOBOL4-SNOCONE-PRIMER
+
+---
+
+## Session 2026-05-07 continuation 2 — RB-FW-11: aug-assign-in-subscript; PASS=94 FAIL=0
+
+### Context
+
+Continuation (~87% context window).  PASS=92 baseline at session start.
+
+### Work done
+
+**RB-FW-11: augmented assignment inside subscript args**
+
+Two bugs fixed in `parser_rebus.sc` (corpus@0d39195):
+
+1. `X_sub` used `*alt_expr` for subscript args — expr-level operators
+   (augmented assignments `+:=` etc.) were unrecognized inside `[...]`.
+   Changed to `*expr`.
+
+2. `lower_atom` lacked `ADDASSIGN`/`SUBASSIGN`/`CATASSIGN`/`EXCHG` cases.
+   When these appear in expression position (e.g. `a[i +:= 1]`), they
+   must lower to `E_ASSIGN(lhs, lhs op rhs)` inline.  Added all 4 cases.
+
+**Also this session (not separately committed):**
+- `local_initial.reb` fixture: `local` + `initial` combined in one function
+- SNOBOL4-SNOCONE-PRIMER gotcha #20: while pre-increment idiom
+- `local_initial` fixture PASS added to gate
+
+**2 new fixtures:**
+- `sub_assign.reb`: `s.data[s.top +:= 1] := v`
+- `comprehensive.reb`: record Stack + push/pop/main using local+initial+subscript
+
+### State
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `0d39195` |
+| one4all | parser | `b9b31884` (unchanged) |
+| .github | main | this commit |
+
+Gate: **PASS=94 FAIL=0**.  Smoke: PASS=4 FAIL=0.
+
+**Next milestone:** operator-directed.
