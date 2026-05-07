@@ -718,7 +718,7 @@ to read, complex enough to be meaningful:
   the wrong shape and will be retired/replaced by EM-7c).
   **LANDED session #72, 2026-05-07.** See watermark for hash and details.
 
-- [ ] **Step EM-7-default-bb-live-investigate — How does `g_bb_mode` reach the `--ir-run` path?**
+- [x] **Step EM-7-default-bb-live-investigate — How does `g_bb_mode` reach the `--ir-run` path?**
   ⛔ Discovered session #72 (2026-05-07) while attempting EM-7-default-bb-live:
   flipping `g_bb_mode` default from `BB_MODE_DRIVER` to `BB_MODE_LIVE`
   causes the snobol4 smoke `pattern` sub-test to regress (PASS=7 → PASS=6).
@@ -753,7 +753,7 @@ to read, complex enough to be meaningful:
   are wrong, in different ways, and only the smoke's expected `aXc` is
   right.  Fix or root-cause first; only then attempt the bb-live flip.
 
-- [ ] **Step EM-7-default-bb-live — Flip BB-mode default to `--bb-live`.**
+- [x] **Step EM-7-default-bb-live — Flip BB-mode default to `--bb-live`.**
   Today `scrip.c` defaults BB pattern mode to `--bb-driver` (line ~210:
   `if (!bb_driver && !bb_live) bb_driver = 1;`).  Flip to `--bb-live`
   default; `--bb-driver` becomes opt-in fall-back for testing.  Rationale:
@@ -773,7 +773,7 @@ to read, complex enough to be meaningful:
   `EM-7-default-bb-live-investigate` (above).  Do not retry this rung
   until that investigation closes.
 
-- [ ] **Step EM-7-default-jit-run — Flip execution-mode default to `--jit-run`.**
+- [x] **Step EM-7-default-jit-run — Flip execution-mode default to `--jit-run`.**
   Today `scrip.c` defaults execution mode to `--sm-run` (line ~207:
   `if (!mode_ir_run && !mode_sm_run && !mode_jit_run && !mode_monitor &&
   !mode_jit_emit_x64) mode_sm_run = 1;`).  Flip to `--jit-run` default;
@@ -790,6 +790,58 @@ to read, complex enough to be meaningful:
   radius — only the BB pattern code path), then the jit-run flip (whole
   execution mode).  ⛔ Blocked on `EM-7-default-bb-live` and its
   investigation rung (sess #72 regression).
+
+- [ ] **Step EM-7-emit-determinism — Make `--jit-emit --x64 *.s` byte-stable across runs.**
+  ⛔ Discovered session #72 (2026-05-07) while running the regen +
+  commit protocol post EM-7-default-bb-live + EM-7-default-jit-run:
+  back-to-back regens of the same `.sno` produce different `.string`
+  bytes inside `.section .rodata`.  Reproducer:
+  ```bash
+  cd /home/claude/one4all
+  ./scrip --jit-emit --x64 /home/claude/corpus/programs/snobol4/demo/roman.sno > /tmp/r1.s
+  ./scrip --jit-emit --x64 /home/claude/corpus/programs/snobol4/demo/roman.sno > /tmp/r2.s
+  diff /tmp/r1.s /tmp/r2.s   # 4 lines: one .Lstr_N differs
+  ```
+  Confirmed pre-existing (independent of session #72 work — present at
+  HEAD before EM-7-revert too).
+  Root cause: in `sm_lower.c` line 1287
+  (`p->instrs[p->count - 1].a[0].s = sname;`), `sname = s->subject->sval`
+  is a **pointer into the parser's IR (`CODE_t *prog`)**, not a `strdup`.
+  In `scrip_sm.c` `sm_preamble` (line 60), pure-SNO programs do
+  `code_free(prog)` immediately after `sm_lower` — freeing the IR while
+  the SM_Program still holds dangling pointers into it.
+  `sm_emit_s` correctly does `strdup(s)` so its strings are owned;
+  `sm_emit(p, SM_EXEC_STMT)` followed by direct `a[0].s = sname`
+  assignment does NOT.  Empirical trace (debug print added to
+  `strtab_intern` then removed): for roman.sno the first `SM_EXEC_STMT`
+  (pc=15) interns a different pointer with garbage content each run, even
+  though `--dump-sm` (a separate run, before the free) shows the field
+  as `subj="N"` correctly.
+  Fix sketch (any one of the three is sufficient — pick whichever serves
+  the broader plan best):
+  - (A) In `sm_lower.c` line 1281–1289, replace the bare `sm_emit` +
+    field-assign with `sm_emit_s(p, SM_EXEC_STMT, sname)` so the SM
+    owner-string discipline applies.  Smallest fix; same pattern in any
+    other site that does `sm_emit(...)` then field-assigns a pointer
+    into the IR — find them by `git grep -n 'instrs\[.*\.a\[.*\]\.s ='`.
+  - (B) In `scrip_sm.c` `sm_preamble`, defer `code_free(prog)` until
+    after the program is consumed (interp run / emitter call).  Larger
+    blast radius — RS-9b notes the IR-free is intentional for
+    self-contained SM, so this would walk back that property.
+  - (C) Add an `sm_lower_finalize` pass that walks SM_Program and calls
+    `strdup` on every `a[*].s` field that could point into the IR.
+    Mechanical but covers any future site that forgets the discipline.
+  Done when:
+  - `diff <($SCRIP --jit-emit --x64 X.sno) <($SCRIP --jit-emit --x64 X.sno)`
+    is empty for every X in `corpus/programs/snobol4/demo/*.sno`.
+  - All five tracked artifacts assemble clean.
+  - Smoke ×6 PASS unchanged; EM gate PASS=9 unchanged; isolation
+    gate PASS unchanged.
+  Rationale for tracking this here: a deterministic emitter is a
+  prerequisite for the regen+commit protocol to be meaningful — without
+  it every session that runs the protocol produces a noise-only diff
+  that masks real changes.  Until this lands, the protocol's
+  "commit if changed" step is unsafe.
 
 - [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 + sub-tree partition.**
   Decide path 1 (reconstruct PATND_t at emit time via SM simulator)
@@ -1123,6 +1175,78 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7-default-bb-live + EM-7-default-jit-run LANDED 2026-05-07 (session #73)
+-- both default flips done, all gates green; EM-7-default-bb-live-investigate
+ROOT-CAUSED + FIXED in the same rung.
+
+Root cause of the bb-live regression: ABI mismatch between `spec_t` and
+`DESCR_t` returns from binary-emitted boxes.  The bb_broker (post-U-5)
+casts boxes to `univ_box_fn` returning `DESCR_t {v(4), slen(4), s(8)}`, but
+`bb_lit_emit_binary`, `bb_eps_emit_binary`, `bb_pos_emit_binary`,
+`bb_rpos_emit_binary`, and `bb_build_flat`'s top-level epilogue all
+returned the old `spec_t {const char *, int}` layout (rax=σ, rdx=δ).
+On x86-64 SysV ABI, returning a 16-byte struct goes rax=first8,
+rdx=second8.  spec_empty `{NULL, 0}` → rax=0,rdx=0 was misread as
+`DESCR_t{v=DT_SNUL=0}` — `IS_FAIL_fn` returned **false** for every failed
+match.  Broker thus saw every spec_empty as success-at-position-0,
+producing "Xabc" for `S 'b' = 'X'` instead of "aXc" (empty match prepends
+'X' instead of replacing 'b').
+
+Investigation answered the four questions from the investigate rung:
+(1) smoke harness does NOT read `g_bb_mode`; (2) no hidden consumer
+outside `stmt_exec.c:1296,1328`; (3) no startup-ordering effect; (4) the
+Xabc vs aXc divergence was the BUG itself, not pre-existing wrong-but-
+stable output -- the SM dump path (`--sm-run`/`--jit-run`) has a separate
+pre-existing pattern bug producing "abc" that's documented but distinct.
+
+Fix: introduce `emit_descr_success_from_stack()` and `emit_descr_fail()`
+helpers in `bb_build.c`, replace the four (LIT/EPS/POS/RPOS) γ/ω return
+sequences, and inline-fix `bb_flat.c`'s top-level lbl_succ / lbl_fail.
+Each γ now emits `rax = DT_S(=1) | (δ<<32)`, `rdx = σ`; each ω emits
+`rax = DT_FAIL(=99)`, `rdx = 0`.
+
+Files touched:
+- `src/runtime/x86/bb_build.c`: add helpers + 4 emitter sites
+- `src/runtime/x86/bb_flat.c`: top-level epilogue
+- `src/driver/scrip.c`: flip both defaults (bb_live=1, mode_jit_run=1) +
+  reword the now-stale comments
+
+Gates final state:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4) under both bb-driver and bb-live defaults
+- EM gate PASS=9 FAIL=0
+- isolation gate PASS
+- pattern test (`S 'b' = 'X'`) under `--bb-live` produces "aXc" matching
+  SPITBOL oracle (was "Xabc" pre-fix)
+
+Followups filed:
+- EM-7-emit-determinism (NEW): `--jit-emit --x64 *.s` produces
+  nondeterministic `.string` bytes across runs.  Root cause investigated
+  to ground truth this session: `sm_lower.c:1287` direct field-assigns
+  `s->subject->sval` (a pointer into the IR) into `SM_Instr.a[0].s`
+  without strdup; pure-SNO programs free the IR via `code_free(prog)` in
+  `scrip_sm.c:60`, leaving a dangling pointer the emitter later reads at
+  strtab-collect time.  Three candidate fixes documented in the step.
+  Pre-existing — present at HEAD before EM-7-revert too.
+
+Beauty self-host gate `test_gate_sn7_beauty_self_host.sh` PASS=16
+FAIL=35 — confirmed identical pre/post-fix (compared by reverting
+defaults via stash + rebuild).  Pre-existing failures, not introduced
+this session.
+
+Tracked artifacts NOT regenerated this session — the regen protocol
+applies to sessions touching `sm_codegen_x64_emit.c` / `sm_macros.s` /
+`scrip_rt.c`, none of which were modified this session.  The new
+EM-7-emit-determinism rung will need to ship deterministic output before
+the next regen commit is meaningful.
+
+one4all @ d5b2756f (parent).  .github @ 3798fb2 (parent).
+Session #73, 2026-05-07.
+
+Next rung after the three default-flips: EM-7-emit-determinism (the
+new rung), then EM-7a (PATND_t bridge from SM Phase-2 + sub-tree
+partition; extend `flat_is_eligible` to recursive).
 
 EM-7-revert LANDED 2026-05-07 (session #72) -- brokered Phase-3 torn out
 of the emitted-code path per Lon's correction.
