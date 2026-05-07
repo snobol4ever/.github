@@ -1405,3 +1405,46 @@ Single-char SY atoms (`-`, `+`, `>`, `=`) in primary would conflict with the exp
 
 **PR-15 LANDED (PASS=132 FAIL=0, 2026-05-07).**
 Next rung: PR-16 — prefix keyword ops + quoted atom escape.
+
+---
+
+## PARSER-PR-16 — quoted atom + prefix keywords — PARTIAL LANDING
+
+**Gate entering:** PASS=132 FAIL=0  
+**Gate leaving:** PASS=136 FAIL=0 (estimated; full gate not run due to context limit)
+
+### PR-16a — empty atom + unescape_q (corpus commit bfbfc13)
+
+**`''` empty atom:** `Qatom = "'" BREAK("'") . q_body "'"` — `BREAK("'")` already matches zero chars when the first char is `'`, so `''` works without changes to the pattern. The fix was in `push_atom_body` which now calls `unescape_q()`.
+
+**`unescape_q()` function:** Character-by-character scan that replaces doubled `''` with `'`. Called by `push_atom_body` for all quoted atoms. Works for: `''` (empty), `'hello'`, `'it''s fine'` (partial — see Gotcha-29).
+
+**Gotcha-29 — SCRIP BREAKX bug: no empty-prefix match**  
+`BREAKX("'")` fails when the first char at the current position IS `'`. Standard SNOBOL4 says BREAKX should match zero chars in this case (same as BREAK). SCRIP's implementation does not — it fails immediately. Workaround: keep `BREAK` (not BREAKX) for the main Qatom. This means `'it''s fine'` still fails (BREAK stops at first `'`). The empty atom `''` works because `BREAK("'")` correctly matches zero chars and the second `'` closes the atom. Doubled-quote WITHIN an atom (e.g., `'it''s'`) remains a known limitation.
+
+### PR-16b — prefix keyword operators (corpus commit 1f12e13)
+
+**SWI-Prolog fx 1150 prefix ops without parens:** `dynamic foo/1`, `discontiguous bar/2`, `multifile foo/1`, and related keywords now parse correctly. Added `pfx_kw_name` alternation pattern and a new arm in `body_goal`:
+
+```snocone
+body_goal = ( $'(' *body $')' 
+            | $' ' pfx_kw_name . pfx_kw $'  ' *unify_expr Reduce_pfx 
+            | unify_expr );
+```
+
+`$'  '` (mandatory White) after the keyword prevents firing on `dynamic(foo/1)` (compound call, handled by `primary`'s compound arm). `Reduce_pfx` reads `pfx_kw` (global capture var) and wraps it: `(E_FNC kw arg)`.
+
+**3 new fixtures:** `dir_pfx_dynamic`, `dir_pfx_discontig`, `dir_pfx_multifile`.
+
+### Known remaining gaps (PR-17 candidates)
+
+- **`'it''s fine'` doubled-quote escape in atom body:** Needs BREAKX to work with empty-prefix, which SCRIP doesn't support. Alternative: multi-pass scan using `unescape_q()` already in place, but the PATTERN itself stops at first `'`. Would need a function-based scan of `&SUBJECT`/`&CURSOR` — not easily accessible in Snocone.
+- **Single-char SY atoms as args** (`:- op(200, fy, -).`): Gotcha-26 still applies.
+- **`|` pipe in non-list context** (e.g., `:- X = (a | b).`): `|` is xfy 1105, above `;` (1100). Not handled in body expression context.
+- **`meta_predicate maplist(2,?)`:** `?` is a single-char SY atom argument — Gotcha-26.
+- **`not/1` without backslash:** `not(X)` works (parsed as compound); `\+(X)` works.
+
+## Watermark
+
+**PR-16 PARTIAL LANDING (PASS=136 FAIL=0 estimated, 2026-05-07).**  
+Next rung: PR-17 — `|` pipe in non-list/non-DCG context; single-char SY atoms; or focus on real corpus coverage.
