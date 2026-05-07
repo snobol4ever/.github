@@ -1528,3 +1528,110 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 ```
 
 Run `test_smoke_parser_prolog_full.sh` (once landed), NOT `test_parser_prolog.sh`.
+
+---
+
+## SWI-Prolog operator table -- authoritative source (pl-op.c from swipl-devel-master)
+
+Extracted from official SWI-Prolog source. Sorted by priority descending.
+This is the ground truth for the expression ladder in `parser_prolog.sc`.
+
+```
+Pri  Type    Symbol  Notes
+1200 XFX     -->     DCG (handled)
+1200 XFX     :-      clause neck (handled)
+1200 XFX     =>      SSU commit (not in corpus -- skip)
+1200 XFX     ==>     SSU DCG (not in corpus -- skip)
+1200 FX      :-      directive (handled)
+1200 FX      ?-      query (not handled -- rare in corpus)
+1150 FX      dynamic discontiguous multifile meta_predicate module_transparent
+             multifile public table thread_local volatile initialization
+             thread_initialization  (handled via pfx_kw_name)
+1105 XFY     |       bar -- disjunction alternative to ; (NOT HANDLED -- GAP)
+1100 XFY     ;       semicolon (handled)
+1050 XFY     ->      if-then (handled)
+1050 XFY     *->     soft-cut (NOT HANDLED -- rare)
+1000 XFY     ,       conjunction (handled)
+ 900 FY      \+      not-provable (NOT HANDLED as prefix -- only as compound \+(X))
+ 700 XFX     is = =.. =:= =\= == \= \== < > =< >= @< @> @=< @>= (all handled)
+ 700 XFX     as      (NOT HANDLED -- rare in corpus)
+ 700 XFX     =@= \=@= >:< :<   (NOT HANDLED -- rare/dict extension)
+ 600 XFY     :       module colon (handled)
+ 500 YFX     + - /\  \/   (handled)
+ 400 YFX     * / // mod rem xor >> << /\  (handled)
+ 400 YFX     div     integer division keyword (NOT HANDLED)
+ 400 YFX     rdiv    rational division (NOT HANDLED -- rare)
+ 200 XFY     ^       (handled)
+ 200 XFX     **      (handled)
+ 200 FY      + - \   unary (handled)
+```
+
+### Gap summary for PR-17
+
+| Gap | Impact | Fix |
+|-----|--------|-----|
+| `\|` (1105 XFY) | HIGH -- appears in some SWI programs as body disjunction | Add `bar_expr` layer between `disj` and top; or treat `\|` as alias for `;` in body |
+| `\+` prefix (900 FY) | HIGH -- `\+ foo` without parens very common | Add `\+` arm to `body_goal` or above `unify_expr` |
+| `div` (400 YFX) | MEDIUM -- arithmetic programs use it | Add `$'div'` token + arm in `mul_expr` |
+| `*->` (1050 XFY) | LOW -- rarely in corpus | Skip for now |
+| `?-` (1200 FX) | LOW -- interactive toplevel, not in corpus files | Skip |
+| `as` (700 XFX) | LOW | Skip |
+
+---
+
+## PR-17 Gap Analysis -- corpus audit 2026-05-07
+
+Grepped all 677 .pl files. Gaps ranked by frequency/impact:
+
+### GAP-1: `\+` as prefix WITHOUT parens (HIGH -- very common)
+`\+ unify_with_occurs_check(A, list(A))` -- bare prefix, no parens.
+Current parser only handles `\+(X)` as a compound via the Atom+args path.
+Fix: add `\+` arm to `body_goal` before `unify_expr`:
+`$' ' '\\+' $' ' *body_goal Reduce_unop_naf` or treat as FY 900 prefix.
+
+### GAP-2: `:- module(Name, Exports).` (HIGH -- 213 files)
+Already handled as a directive (`:- body .`) since `module(Name, Exports)`
+parses as a compound. Likely already works -- verify.
+
+### GAP-3: `:- use_module(library(lists)).` (HIGH -- 204 files)
+`library(lists)` is a compound arg inside a directive -- should parse.
+Likely already works.
+
+### GAP-4: `:- begin_tests(name). ... :- end_tests(name).` (HIGH -- 170 files)
+plunit macro directives -- just directives with atom/compound args.
+Likely already works.
+
+### GAP-5: `:- op(Pri, Type, Op).` where Op is an atom/graphic (MEDIUM)
+`op(100, xf, xf100)` -- third arg is an atom. Should parse via Atom path.
+Tricky case: `op(200, fy, -)` -- third arg is `-` (single-char SY atom).
+Known Gotcha-26: single-char SY atoms in arg position fail.
+Fix: add single-char SY atoms to `primary` for arg use.
+
+### GAP-6: `*->` soft cut (LOW -- rare in corpus)
+`( true *-> Gnosc = scio ; Gnosc = nescio )` -- appears in ~5 files.
+Fix: add `$'*->'` token + arm in `conj_arrow`.
+
+### GAP-7: `div` keyword operator (MEDIUM -- arithmetic-heavy files)
+`A is X div Y` -- 400 YFX, same precedence as `mod`/`rem`.
+Fix: add `$'div'` token + arm in `mul_expr` (already have mod/rem there).
+
+### GAP-8: `\U0001F600` unicode escapes in quoted atoms (LOW)
+SWI-specific extension. Can ignore -- recovery handles it.
+
+### GAP-9: Single-char SY operator atoms in arg position (MEDIUM)
+`:- op(200, fy, -)` -- `-` as third arg. Gotcha-26.
+Fix: in `primary`, before the expression ladder arms, try matching
+a single SY char ONLY when followed by `)` or `,` or `]` (i.e. in arg position).
+Tricky -- may need a special `primary_in_arg` variant or extend Graphic_atom.
+
+### Parse recovery (ALL files)
+The most impactful single change: add `skip_to_dot` recovery so one bad
+clause doesn't abort the whole file. Then even files with unknown constructs
+produce output for the clauses that DO parse.
+
+### Priority order for PR-17 work:
+1. Parse recovery (`skip_to_dot`) -- affects ALL 677 files immediately
+2. `\+` prefix without parens -- affects most core/library files
+3. `div` keyword -- arithmetic files
+4. Single-char SY atom args -- op/3 declarations
+5. `*->` soft cut -- rare
