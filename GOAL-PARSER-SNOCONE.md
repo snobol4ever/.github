@@ -815,17 +815,19 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
 - **Gate:** beauty.sc round-trips.
 
-### PARSER-SC-7 — augmented assign (`+=` `-=` `*=` `/=` `^=`) ⏳
+### PARSER-SC-7 — augmented assign (`+=` `-=` `*=` `/=` `^=`) ✅ DONE (PASS=55)
 
-Token definitions already exist (`$'+='` etc. in the operator block). Need productions.
-`snocone_parse.y`: `expr1 T_PLUS_ASSIGN expr0` etc. — all lower to `E_ASSIGN` with
-the corresponding arithmetic op wrapping lhs. Mirror `sc_augmented_assign` in
-`snocone_lower.c`.
+Token definitions already existed. Added `reduce_augmented(op)` / `Reduce_augmented(op)`
+helpers and five new FENCE branches in `Expr0`. `reduce_augmented` pops rhs and lhs,
+pushes `E_ASSIGN(lhs, Tree(op, lhs, rhs))`. Tree nodes are immutable value semantics;
+sharing lhs in two child positions is safe (mirrors `sc_clone_expr_simple` in C frontend).
+`Reduce_augmented` uses EVAL to embed the op string into the deferred-call pattern.
+corpus @ `10e7c0c`. Gate: PASS=55 FAIL=0 (was 50).
 
-- [ ] Add `Expr0` FENCE branches for each augmented-assign token: `$'+=' *Expr0 Reduce_augmented(E_ADD)` etc.
-- [ ] Add `reduce_augmented(op)` / `Reduce_augmented(op)` helpers that build `E_ASSIGN(lhs, E_op(lhs_copy, rhs))`.
-- [ ] Fixtures: `augmented_add`, `augmented_sub`, `augmented_mul`, `augmented_div`, `augmented_pow`.
-- **Gate:** PASS increases by 5.
+- [x] Add `Expr0` FENCE branches for each augmented-assign token: `$'+=' *Expr0 Reduce_augmented(E_ADD)` etc.
+- [x] Add `reduce_augmented(op)` / `Reduce_augmented(op)` helpers that build `E_ASSIGN(lhs, E_op(lhs, rhs))`.
+- [x] Fixtures: `augmented_add`, `augmented_sub`, `augmented_mul`, `augmented_div`, `augmented_pow`.
+- **Gate:** PASS=55 FAIL=0 (+5 from SC-6).
 
 ### PARSER-SC-8 — `break` and `continue` ⏳
 
@@ -885,9 +887,10 @@ Allocate `Lswitch_end` as break target (SC-8's break stack).
 **PARSER-SC-0 ✅ PARSER-SC-1 ✅ PARSER-SC-INFRA-1 ✅ PARSER-SC-INFRA-2 ✅
 PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 byte-identical.
-SC-7 ⏳ (augmented assign) SC-8 ⏳ (break/continue) SC-9 ⏳ (struct) SC-10 ⏳ (switch/case/default)**
+PARSER-SC-7 ✅ — PASS=55 FAIL=0; augmented assign (+= -= *= /= ^=).
+SC-8 ⏳ (break/continue) SC-9 ⏳ (struct) SC-10 ⏳ (switch/case/default)**
 
-Gate: PASS=50 FAIL=0. corpus @ 7a17ff0, one4all @ HEAD (2026-05-06 session 8).
+Gate: PASS=55 FAIL=0. corpus @ `10e7c0c` (2026-05-07).
 
 ### SC-6c-bug + SC-6c session 2026-05-06 (session 8) — LANDED; PARSER-SC-6 CLOSED
 
