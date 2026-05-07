@@ -402,6 +402,13 @@ Order them however convenient based on platform availability.
   last kind lands, delete `bb_broker_drive_expr` for Icon —
   the EXPR_t-driving entry point becomes unreferenced for
   Icon.
+  **CH-15a LANDED sess #73, 2026-05-07** — E_TO + E_TO_BY migrated
+  (SM_ICMP_GT + SM_ICMP_LT opcodes added; gen-locals 0=lo, 1=hi,
+  2=cur, 3=step; E_TO_BY dispatches on step-sign each iteration).
+  Remaining kinds in this step: E_EVERY, E_SUSPEND, E_BANG_BINARY,
+  E_LCONCAT, E_LIMIT, E_RANDOM, E_SECTION, E_SECTION_PLUS,
+  E_SECTION_MINUS.  Next sub-rung: CH-15b (likely E_EVERY +
+  E_SUSPEND bundle — both have minimal internal state).
 
 - [ ] **Step 16 — Migrate Prolog clauses (sm_lower.c:986).**
   Six kinds: `E_CHOICE`, `E_CLAUSE`, `E_CUT`, `E_UNIFY`,
@@ -482,6 +489,50 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 ---
 
 ## Closed steps
+
+**Step 15a (CH-15a)** — E_TO + E_TO_BY producer migration.  First producer
+for `SM_BB_PUMP_SM` and the gen-local opcodes.  Two new comparison opcodes
+added to support generator loop-exit tests:
+
+```
+SM_ICMP_GT   ; pop r,l ; last_ok = (l.i > r.i) ; push nothing
+SM_ICMP_LT   ; pop r,l ; last_ok = (l.i < r.i) ; push nothing  (E_TO_BY neg-step)
+```
+
+`SM_ACOMP` was considered but rejected: it pushes -1/0/1 (extra cleanup),
+has no SM-interp handler today (JIT-only by design), and includes string-
+coerce paths unnecessary at this site.  `SM_ICMP_*` are minimal,
+`last_ok`-only, named after operand kind.
+
+In `sm_lower.c`, `case E_TO:` and `case E_TO_BY:` carved out of the shared
+generator block at line 1033 (was: 10 kinds fall-through to
+`emit_push_expr + SM_BB_PUMP`; now: 8 kinds remain).  Per-kind chunk
+emission uses the canonical jump-around shape with `SM_PUSH_CHUNK +
+SM_BB_PUMP_SM` as consumer.  Gen-local slots: 0=lo, 1=hi, 2=cur, 3=step
+(E_TO_BY only); see `docs/CHUNKS-step15a-validation.md` for full chunk
+listings.  E_TO_BY dispatches on step-sign each iteration via SM_ICMP_LT
+against 0 — mirrors `coro_bb_to_by` semantics (`step>0: cur>hi → ω;
+step<0: cur<hi → ω`).
+
+Empirical proof: a Raku range expression `say 1..3` audits as
+`SM_PUSH_CHUNK=1, SM_PUSH_EXPR=0` under `--sm-run` with `SCRIP_CHUNKS_AUDIT=1`;
+the chunk yields 1, 2, 3 in both `--sm-run` and `--jit-run`.  Icon
+`every i := 1 to 5 do …` does NOT audit a chunk emission — that path
+runs through `coro_pump_proc_by_name(\"main\", …)` → `coro_eval(main_body)`,
+pure IR walking inside the proc body.  Once Step 17 lowers Icon proc
+bodies through sm_lower, every-bodies containing `1 to n` will hit
+the new chunk emission automatically; the Raku-side firing today
+proves the producer wiring is end-to-end.
+
+Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4); isolation gate
+PASS; csnobol4 Budne PASS=36 (≥34, exact baseline); unified_broker
+PASS=49; full Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263
+(byte-identical to baseline 186/47/30); Raku full suite ir 29/0,
+sm 0/29, jit 0/29 (unchanged baseline per CH-13 note); SNOBOL4 jit
+smoke ir 139, sm 101, jit 101 (unchanged baseline per Step 7 close);
+`scrip_all_modes` PASS=2 FAIL=0.
+Documented in `docs/CHUNKS-step15a-validation.md`.
+one4all @ `dd673da1`.  Session #73, 2026-05-07.
 
 **Step 14b (CH-14b)** — Gen-local slot infrastructure. Added `SM_LOAD_GLOCAL` and
 `SM_STORE_GLOCAL` opcodes (a[0].i = slot 0..7); added `locals[SM_GEN_LOCAL_MAX]`
