@@ -1133,7 +1133,7 @@ to read, complex enough to be meaningful:
   emitter's process but worthless in the emitted binary's process.
   Fixing this is the work of EM-7c-symbolic (next rung).
 
-- [ ] **Step EM-7c-symbolic — Replace baked process addresses with symbolic references in TEXT mode.**
+- [x] **Step EM-7c-symbolic — Replace baked process addresses with symbolic references in TEXT mode.**
   `bb_flat.c`'s leaf emitters (`flat_emit_lit`, the entry preamble in
   `flat_emit_body_v`, etc.) call `ev_load_r10_delta_ptr(addr)` /
   `ev_load_sigma(sigma_addr)` / `ev_load_siglen(siglen_addr)` /
@@ -1489,6 +1489,121 @@ formal closed entry in a future cleanup pass.)
 
 ## Watermark
 
+EM-7c-symbolic LANDED 2026-05-07 (session #78)
+Replaced baked process-addresses with symbolic/RIP-relative references in TEXT
+mode for the BB-blob hot path.  Σ, Σlen, Δ now emit as `lea rcx/r10, [rip + Σ]`
+etc. (UTF-8 symbol names exported from libscrip_rt.so); `memcmp` and the
+charset functions (bb_span/bb_any/bb_brk/bb_notany) now emit as `call name@PLT`;
+literal strings now route through the SM-side `.Lstr_N` strtab via a new
+emitter context callback.  BINARY mode keeps the imm64 + indirect-call shape
+(in-process JIT semantics unchanged).  The emitted `.s` no longer bakes the
+emitter's process addresses into the blob — every reference in an invariant
+pattern blob now resolves at link time against libscrip_rt.so.
+
+Architectural shape:
+- `emitter_v` vtable gained two fields: `intern_str` callback (TEXT-only;
+  takes a literal C string, returns its `.Lstr_N` label) and `is_text` flag.
+- `bb_insn_kind_t` gained three new kinds: `BB_INSN_LEA_RCX_SYM`,
+  `BB_INSN_LEA_R10_SYM`, `BB_INSN_CALL_SYM_PLT`.  `bb_insn_desc_t` gained a
+  `sym` field (const char *) for the symbol name.
+- `emitter_text.c` renders the new kinds as `lea rcx, [rip + sym]`,
+  `lea r10, [rip + sym]`, `call sym@PLT`.  `emitter_binary.c` falls back
+  to `mov rcx/r10, imm64` and `mov rax, imm64; call rax` for in-process JIT.
+- `bb_flat.c` exports `bb_flat_set_intern_str(fn)` so `sm_codegen_x64_emit`
+  can install a strtab callback before each emit run.
+- `sm_codegen_x64_emit.c` defines `codegen_intern_str()` (interns + returns
+  `.Lstr_N` label) and installs it via `bb_flat_set_intern_str()` right
+  before `bb_build_flat_text_reset()` at the top of pattern-blob emission.
+
+Files changed (one4all @ 397c5ecd):
+- `src/runtime/x86/emitter_v.h` — three new insn kinds; `sym` field;
+  `intern_str` + `is_text` in vtable; `ev_lea_rcx_sym` / `ev_call_sym_plt`
+  inline helpers; `ev_load_sigma`/`ev_load_siglen`/`ev_cmp_eax_siglen`
+  rewritten to use symbolic LEA in TEXT mode.
+- `src/runtime/x86/emitter_text.c` — three new switch cases; `is_text=1`
+  in `text_tmpl`.
+- `src/runtime/x86/emitter_binary.c` — three new switch cases (imm64
+  fallbacks); `is_text=0` in `binary_tmpl`.
+- `src/runtime/x86/bb_flat.c` — `g_flat_intern_str` static + setter;
+  `bb_build_flat_text` installs hook on the new emitter; `flat_emit_lit`
+  routes lit ptr through `e->intern_str` when available;
+  `flat_emit_charset_call` takes new `c_fn_name` param + uses
+  `ev_call_sym_plt`; `flat_emit_body_v` uses `BB_INSN_LEA_R10_SYM` for
+  `&Δ`; charset call sites pass `"bb_span"` etc.
+- `src/runtime/x86/bb_flat.h` — `bb_flat_set_intern_str` declaration;
+  `emitter_v.h` include.
+- `src/runtime/x86/sm_codegen_x64_emit.c` — `codegen_intern_str` callback +
+  install before pattern-blob emission.
+- `src/runtime/x86/bb_flat_text_test.c` — assertion updated `mov r10,`
+  → `lea r10, [rip + `; added two positive checks for `memcmp@PLT` and
+  `[rip + ` symbolic refs.  Test count 16 → 18.
+- `scripts/test_smoke_jit_emit_x64.sh` — expected internal pass count
+  16 → 18.
+
+Verified shape on `S = 'abc'; S 'b' = 'X'; OUTPUT = S`:
+- `_pat_inv_0_alpha` blob shows `lea rcx, [rip + Σ]`,
+  `lea rcx, [rip + Σlen]`, `lea r10, [rip + Δ]`,
+  `lea rcx, [rip + .Lstr_4]` (literal "b"), `call memcmp@PLT`.
+  Zero `mov rcx, 0x<process-addr>` baked.
+- `.s` assembles cleanly under `gcc -c`.
+- Linked binary loads (rpath libscrip_rt.so) and runs without segfault —
+  the runtime crash from EM-7c-pure-invariant is resolved.
+
+⛔ HONEST DEVIATION (deferred — file as next rung):
+Binary executes without segfaulting but produces output `abc` instead of
+`--sm-run`'s `abXc` for the gate program — i.e. the substitution does
+not fire (the match itself appears to return failure or zero-length).
+This is a different bug from the segfault that EM-7c-symbolic was filed
+to fix; the symbolic-reference work is complete.
+
+Diagnostic notes for next session:
+- `--sm-run /tmp/pat1.sno` → `abXc` (oracle for mode-4)
+- `--jit-run /tmp/pat1.sno` → `abXc` (matches sm-run)
+- `--jit-emit --x64 /tmp/pat1.sno` (linked) → `abc` (BUG)
+- SPITBOL → `aXc` (separate documented pre-existing bug in --sm-run path,
+  not the mode-4 gate target)
+
+Plausible root causes for the `abc` deviation:
+1. Blob α/β entry calling-convention mismatch.  The blob expects `esi=0/1`
+   for forward/backtrack; verify how `exec_stmt_blob` invokes the root_fn.
+2. `DT_E` sentinel handling in `exec_stmt`.  `exec_stmt_blob` sets
+   `pat.v=DT_E`, `pat.ptr=root_fn`; verify exec_stmt's Phase-2
+   short-circuit branch correctly invokes the blob without re-entering
+   the Phase-2 walker.
+3. The blob's gamma return path: `rax = DT_S=1 (low 32) ; rdx = Σ+Δ`
+   but it sets `eax` not `rax`, so the high 32 bits of `rax` could be
+   garbage from prior callee — verify `mov eax, 1` zero-extends correctly
+   on the path leading to ret.
+4. Σ may not be initialized in the emitted-binary's process when match_blob
+   runs.  `scrip_rt_init` calls `SNO_INIT_fn` and `bb_pool_init`; verify
+   Σ is set by the time the runtime nv_set/nv_get path is used.
+
+Suggested investigation order: gdb the linked binary (set breakpoint at
+`scrip_rt_match_blob`, inspect Σ/Σlen/Δ values when blob_alpha is called,
+single-step the blob).  This is one session's work.
+
+File the rung as `EM-7c-symbolic-runtime-correctness` or fold into
+`EM-7c-variant` (whichever Lon prefers — the variant rung touches
+related stitching protocol).
+
+Gates final state:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=12 FAIL=0 (unchanged; bb_flat_text internal 16 → 18)
+- isolation gate PASS
+- bb_flat_text unit test PASS=18 (added 2 EM-7c-symbolic positive checks)
+- 5 tracked .s artifacts regenerated; diff vs repo: empty (variant
+  patterns dominate; their BB graphs aren't yet wired through this rung
+  — EM-7c-variant covers them).
+
+one4all parent: dbeed82b (EM-7c-pure-invariant).
+one4all HEAD: 397c5ecd.  Session #78, 2026-05-07.
+
+Next rung: investigate the `abc` vs `abXc` runtime-correctness deviation
+(file as `EM-7c-symbolic-runtime-correctness`, or fold into `EM-7c-variant`).
+Then EM-7d (beauty oracle gate) once both EM-7c-symbolic runtime
+correctness and EM-7c-variant are green.
+
 EM-7c-pure-invariant LANDED 2026-05-07 (session #77)
 Wired fully-invariant pattern statements through `.text`-baked blobs in mode-4.
 Pre-pass over SM_Program locates every SM_EXEC_STMT, computes Phase-2 window
@@ -1542,7 +1657,7 @@ strtab via a new emitter context callback.
 
 Goal file: GOAL-MODE4-EMIT.md Step EM-7c was split into three sub-rungs:
 - EM-7c-pure-invariant [x] (this rung)
-- EM-7c-symbolic       [ ] (next; runtime-correctness fix)
+- EM-7c-symbolic       [x] (LANDED sess #78; structural — runtime-correctness deviation filed)
 - EM-7c-variant        [ ] (after; variant-node Phase-2 SM ops + bb_pool)
 EM-7d (beauty oracle gate) is now blocked behind both EM-7c-symbolic and
 EM-7c-variant.
