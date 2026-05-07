@@ -999,3 +999,23 @@ PARSER-RK-24 LANDED PASS=132 FAIL=0 corpus@78bdcb9.
 PARSER-RK-23 LANDED PASS=126 FAIL=0 corpus@838304e.
 
 Next: **RK-26**.
+
+---
+
+### PARSER-RK-26 — bare identifier atoms + typed array/hash decls — LANDED session 2026-05-07
+
+- [x] **Bug fix: `BareIdent` atom arm added to `Expr11`.**
+      `say(x)` where `x` has no sigil produced empty output — `Expr11` had no arm
+      for unsigiled identifier atoms.  The C oracle maps `IDENT` → `var_node($1)` →
+      `(E_VAR x)` (raku.y atom rule).  Fix: added `BareIdent = ($' ' vf . capvf vro
+      . capvr)` classifier (captures into `capvf`/`capvr` like `VarScalar`) and
+      `| BareIdent Push_var` as the last atom arm in `Expr11` (after the `CallName`
+      function-call arm, so `foo(args)` is still caught as a call; bare `foo` with
+      no `(` falls through to `BareIdent Push_var`).
+- [x] Test corpus: 5 new fixtures:
+      `bare_ident_arg` (`say(x)` bare ident argument),
+      `bare_ident_expr` (`my $r = foo + 1` bare ident in arithmetic),
+      `typed_arr_decl` (`my Int @nums = sort @data` typed array with init),
+      `typed_hash_decl` (`my Str %h = raku_new_hash()` typed hash with init),
+      `typed_arr_bare` (`my Int @nums` typed array uninitialized → `(E_ASSIGN (E_VAR nums) (E_QLIT ""))`).
+- **Gate:** PASS=142 FAIL=0. corpus@(this commit). ✓
