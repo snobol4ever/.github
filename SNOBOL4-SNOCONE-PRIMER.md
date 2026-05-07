@@ -802,3 +802,38 @@ clobber (not a counter-frame depth issue as previous sessions suspected).
     it applies to ANY alternation point where a helper with side effects is used.
     Scan all grammar alternatives for this pattern when adding new statement forms.
 
+
+20. **SNOBOL4/Snocone `while` loop idiom pre-increments before the body.**
+
+    The canonical SNOBOL4 loop `while (i = LT(i, n) i + 1) { body }` assigns
+    `i = LT(i,n)` (which returns `i` on success), then concatenates `i + 1`...
+    
+    Actually in Snocone, `while (i = LT(i, n) i + 1)` means: evaluate `LT(i, n)`
+    (returns `i` if `i < n`, else fails); then evaluate `i + 1` (arithmetic, giving
+    `i+1`); assign that value to `i`. So the condition ADVANCES `i` before the body.
+    
+    **Consequence:** to iterate `i` from 2 to N, you must initialize `i = 1` (not `i = 2`),
+    because the first condition evaluation gives `i = LT(1, N) 2 = 2` and then the body
+    runs with `i = 2`. Starting at `i = 2` causes the body to first run with `i = 3`.
+    
+    **Safer pattern — explicit post-increment (no ambiguity):**
+    ```snocone
+    i = 2;
+    while (GE(i, 0) LT(i, idxN + 1)) {
+        // body uses i = 2, 3, ..., idxN
+        i = i + 1;
+    }
+    ```
+    
+    Or simply count DOWN (as in `decompose_call`/`decompose_sub`):
+    ```snocone
+    i = nargs;
+    while (GE(i, 1)) { ... use kids[i] ...; i = i - 1; }
+    ```
+    
+    Both forms are unambiguous and avoid the pre-increment trap.
+    
+    **Discovered:** parser_rebus.sc RB-FW-10 (2026-05-07) — `lower_atom(E_IDX)`
+    else-branch started `idxI=2` but the first body iteration saw `idxI=3`, skipping
+    the second arg of `a[2, 3]`.
+

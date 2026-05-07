@@ -81,8 +81,8 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | Rebus Frontend Ladder | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PASS=78/78 ✅ corpus@0fba291 — SN-7-7c LANDED (full keyword/function/builtin inventory + classifier patterns; cross-runtime SPITBOL x64/x32 + csnobol4 union). Next: **SN-7-8** beauty.sno full crosscheck. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
-| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | 🏁 COMPLETE — SC-10 ✅ PASS=67 FAIL=0 (sess 11, 2026-05-07). All rungs done. |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-10 LANDED (2026-05-07, PASS=91 FAIL=0: multi-arg subscript a[i,j]; global var fix; loop idiom fix. corpus@e532680) |
+| **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-10 ✅ LANDED (sess 11, 2026-05-07) — switch/case/default. PASS=67 FAIL=0. Next: **SC-11** (define next rung with Lon). |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-10 LANDED (2026-05-07, PASS=91 FAIL=0: multi-arg subscript a[i,j]; global var fix; loop idiom fix. corpus@fadab42) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-22 LANDED PASS=143 — rung36 gprocs 2/2 PASS, 100% oracle coverage confirmed; RS-28 cross-pollination deferred; next: IC-23 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-24 LANDED PASS=132 FAIL=0 corpus@78bdcb9 — class_and_main fixed (SayFhStmt stray push_var; FENCE guard). Next: RK-25. |
