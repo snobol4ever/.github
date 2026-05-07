@@ -542,3 +542,14 @@ Files: `src/runtime/interp/coro_runtime.h`, `src/runtime/interp/coro_runtime.c`,
 `src/driver/polyglot.c`, `src/frontend/icon/icon_gen.h`,
 `src/runtime/x86/sm_lower.c`.  Next rung: **CH-17d** (sm_lower emits
 named chunks for Prolog predicates).
+**CH-17d LANDED sess #83, 2026-05-07** — producer-side: `sm_lower.c` now
+emits named-chunk skeletons (SM_JUMP+SM_LABEL+SM_RETURN+SM_LABEL) for every
+entry in `g_pl_pred_table`; loop added immediately after the Icon/Raku
+proc-chunk loop.  `sm_resolve_proc_entry_pcs` (CH-17a) now finds non-(-1)
+entry_pcs for all Prolog predicates: `palindrome/2@1`, `main/0@5` confirmed
+via `SCRIP_PROC_ENTRY_PCS=1`.  Consumer dormant (chunks forward-jumped over).
+Gates byte-identical: smoke ×5 PASS, isolation PASS, unified_broker PASS=49,
+Budne PASS=61, Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263.
+Documented in `docs/CHUNKS-step17d-validation.md`.
+Files: `src/runtime/x86/sm_lower.c`.  Next rung: **CH-17e** (flip Prolog
+consumers: pl_box_choice_pc and friends; --sm-run Prolog end-to-end).
