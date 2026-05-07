@@ -718,6 +718,41 @@ to read, complex enough to be meaningful:
   the wrong shape and will be retired/replaced by EM-7c).
   **LANDED session #72, 2026-05-07.** See watermark for hash and details.
 
+- [ ] **Step EM-7-default-bb-live-investigate — How does `g_bb_mode` reach the `--ir-run` path?**
+  ⛔ Discovered session #72 (2026-05-07) while attempting EM-7-default-bb-live:
+  flipping `g_bb_mode` default from `BB_MODE_DRIVER` to `BB_MODE_LIVE`
+  causes the snobol4 smoke `pattern` sub-test to regress (PASS=7 → PASS=6).
+  The failing sub-test invokes `--ir-run` (the smoke's harness default).
+  Apparent paradox: `git grep g_bb_mode` shows it consulted **only** in
+  `src/runtime/x86/stmt_exec.c:1296` and `:1328` (the JIT-run BB pattern-
+  build site).  `--ir-run` should not touch those call sites.
+  Empirical reproducer (one4all @ HEAD post-EM-7-revert):
+  ```
+  cat > /tmp/pat.sno <<'EOF'
+          S = 'abc'
+          S 'b' = 'X'
+          OUTPUT = S
+  END
+  EOF
+  ./scrip --ir-run /tmp/pat.sno         # bb_driver default: prints "Xabc"
+  # flip default: scrip.c line ~210  bb_driver=1  →  bb_live=1
+  # rebuild
+  ./scrip --ir-run /tmp/pat.sno         # bb_live default: still prints "Xabc"
+  ```
+  But the harness (`scripts/test_smoke_snobol4.sh`) reports `Xabc` as a
+  PASS under `bb_driver` default and as a FAIL under `bb_live` default
+  for the same expected `aXc`.  Investigate: (1) does the smoke harness
+  itself read `g_bb_mode` somewhere transitive? (2) is there a hidden
+  consumer of `g_bb_mode` outside `stmt_exec.c`? (3) is there a process-
+  startup ordering effect (pat-stack init? GC init?) that depends on the
+  default value?  (4) is `Xabc` vs `aXc` actually a different bug entirely
+  and the smoke output is already wrong-but-stable under `bb_driver`?
+  Note: SPITBOL oracle produces `aXc` for both `pat.sno` and the version
+  with explicit `&ANCHOR=0; &FULLSCAN=1` — so neither `Xabc` nor `abc`
+  (the `--sm-run`/`--jit-run` answer) is the right answer; both modes
+  are wrong, in different ways, and only the smoke's expected `aXc` is
+  right.  Fix or root-cause first; only then attempt the bb-live flip.
+
 - [ ] **Step EM-7-default-bb-live — Flip BB-mode default to `--bb-live`.**
   Today `scrip.c` defaults BB pattern mode to `--bb-driver` (line ~210:
   `if (!bb_driver && !bb_live) bb_driver = 1;`).  Flip to `--bb-live`
@@ -733,6 +768,10 @@ to read, complex enough to be meaningful:
   `--bb-live`); EM gate PASS=9 unchanged; isolation gate PASS.  If smoke
   ×6 regresses, file the regressions as their own pre-flip work — DO NOT
   bundle bug fixes into this rung.
+  ⛔ Attempted session #72; regression detected on snobol4 `pattern`
+  smoke sub-test (PASS=7 → PASS=6).  Investigation deferred to
+  `EM-7-default-bb-live-investigate` (above).  Do not retry this rung
+  until that investigation closes.
 
 - [ ] **Step EM-7-default-jit-run — Flip execution-mode default to `--jit-run`.**
   Today `scrip.c` defaults execution mode to `--sm-run` (line ~207:
@@ -749,7 +788,8 @@ to read, complex enough to be meaningful:
   re-run) holds.  Same regression discipline as the bb-live flip — file
   bugs separately.  Sequencing: do the bb-live flip first (smaller blast
   radius — only the BB pattern code path), then the jit-run flip (whole
-  execution mode).
+  execution mode).  ⛔ Blocked on `EM-7-default-bb-live` and its
+  investigation rung (sess #72 regression).
 
 - [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 + sub-tree partition.**
   Decide path 1 (reconstruct PATND_t at emit time via SM simulator)
