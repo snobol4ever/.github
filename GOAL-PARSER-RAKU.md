@@ -545,7 +545,15 @@ under coverage gate only). `test_parser_raku_coverage.sh` reports
       against an empty directory (script wired and working).
       `test_smoke_raku.sh` PASS=5 unchanged.
 
-### RK-29 — `statement_prefix:sym<...>` (the 16 phasers + adverb prefixes)
+### RK-29 — `statement_prefix:sym<...>` (the 16 phasers + adverb prefixes) — LANDED session 2026-05-07
+
+- [x] 15 block-only phasers (all-caps): BEGIN END INIT CHECK ENTER LEAVE KEEP UNDO FIRST NEXT LAST PRE POST CLOSE TEMP — `PHASER { block }` → `(E_FNC raku_phaser_<name> body)`.
+- [x] 6 lowercase block-value phasers: do once start supply react quietly — `keyword { block }` → `(E_FNC raku_<name> body)`.
+- [x] 5 list adverbs: race hyper lazy eager sink — `keyword EXPR ;` → `(E_FNC raku_<name> expr)`.
+- [x] 26 keyword tokens, 26 finish_*/Finish_* pairs, 21 grammar productions, Stmt/BlockStmt/SubBlockStmt updated.
+- [x] 26 fixtures in `parser-coverage/stmt_pfx_*.raku`.
+- [x] `try` already covered (RK-19); `gather` already covered (RK-21).
+- **Gate:** smoke PASS=5 FAIL=0, oracle PASS=147 FAIL=0, COV_PASS=39 FAIL=0. corpus@58a0be4.
 
 Spec source: `Grammar.nqp` lines 1394–1432.
 
@@ -1588,6 +1596,12 @@ Next: **RK-26**.
 ---
 
 ## Watermark
+
+Session 2026-05-07 (RK-29 LANDED, continuation) — **PARSER-RK-29 LANDED**
+
+- smoke PASS=5, oracle PASS=147, COV_PASS=39 FAIL=0. corpus@58a0be4.
+- 26 statement_prefix arms: 15 block-only phasers (BEGIN..TEMP), 6 block-value (do/once/start/supply/react/quietly), 5 list adverbs (race/hyper/lazy/eager/sink).
+- Next: **RK-30** (`package_declarator:sym<...>` — the 10 package/class kinds).
 
 Session 2026-05-07 (PIVOT + RK-28-A + RK-28 LANDED) — **PARSER-RK PIVOTED to
 official-grammar coverage**, **RK-28-A coverage gate infra LANDED**,
