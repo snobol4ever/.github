@@ -1625,10 +1625,40 @@ corpus parent: 58a0be43.  corpus HEAD: <new>.
 .github parent: <unchanged-this-session>.  .github HEAD: <new>.
 Session #80, 2026-05-07.
 
-Next rung: EM-7c-variant-wordcount-correctness (investigate the
-output discrepancy via SPITBOL oracle), then EM-7d (beauty oracle
-gate).  EM-7c-variant-bb-pool-emit is the architectural ideal but
-not blocking on the M2 milestone path.
+Next rung: EM-7d (beauty oracle gate).
+EM-7c-variant-bb-pool-emit is the architectural ideal but not blocking on the M2 milestone path.
+
+EM-7c-variant-wordcount-correctness LANDED 2026-05-07 (session #81)
+Root cause: `scrip_rt_nv_set` did not check for DT_FAIL before calling
+NV_SET_fn, and did not update `g_last_ok`.  In the SM interpreter,
+`SM_STORE_VAR` checks `if (val.v == DT_FAIL)` → pushes FAILDESCR back,
+sets `last_ok=0`, and skips the assignment.  Without this check, the
+`LINE = INPUT :F(DONE)` statement in wordcount.sno never triggered the
+`:F` branch in mode-4: `scrip_rt_nv_get("INPUT")` pushed DT_FAIL at
+EOF but `scrip_rt_nv_set("LINE")` silently stored it and left `g_last_ok`
+at 1 (from the previous `match_variant` success), so the `jz .LpcDONE`
+never fired.  Result: second and subsequent lines' words all missed.
+
+Fix (`src/runtime/rt/scrip_rt.c`, `scrip_rt_nv_set`):
+- Pop val; if `val.v == DT_FAIL`: push val back (balanced stack), set
+  `g_last_ok = 0`, return without calling NV_SET_fn.
+- Otherwise: call NV_SET_fn, set `g_last_ok = 1` (mirrors SM_STORE_VAR).
+
+Verification:
+- `printf "hello world\nfoo bar\nbaz\n" | mode-4 wordcount_prog` → `5 words` (was `2 words`)
+- SPITBOL oracle → `5 words` ✓
+- `printf "it's well-known\nhello-world\n" | mode-4` → `3 words` ✓ (matches SPITBOL)
+- Single-line `"hello world foo bar baz qux"` → `6 words` ✓ (unchanged)
+
+Gates:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=12 FAIL=0 (unchanged)
+- isolation gate PASS=49
+- 5 tracked .s artifacts: empty diff (fix is in libscrip_rt.so, not emitter)
+
+one4all parent: c8b5223c.  corpus: unchanged.  .github: <new>.
+Session #81, 2026-05-07.
 
 EM-7c-symbolic-runtime-correctness LANDED 2026-05-07 (session #79)
 Root cause of the `abc` deviation from EM-7c-symbolic honest deviation:
