@@ -757,6 +757,75 @@ formal closed entry in a future cleanup pass.)
 
 ## Watermark
 
+EM-7-pre LANDED 2026-05-07 (session #71) -- beauty.sno emits, assembles, links;
+runs until SM_PAT_CAPTURE_FN trap. Substantial groundwork for EM-7 closure.
+
+Five SM opcode groups baked in sm_codegen_x64_emit.c:
+(1) SM_CALL -- general function dispatch via scrip_rt_call(name, nargs).
+    Pseudo-calls (INDIR_GET, NAME_PUSH, ASGN_INDIR, IDX, IDX_SET) handled
+    inline in libscrip_rt.so mirroring sm_interp.c's SM_CALL switch.
+    Builtin/user-fn fall-through to INVOKE_fn -> APPLY_fn -> g_user_call_hook.
+    SN-6 FAIL-arg short-circuit preserved.
+(2) SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM -- thin PLT calls.
+(3) Conditional return variants: SM_RETURN_S/F, SM_FRETURN[_S/_F],
+    SM_NRETURN[_S/_F] -- emit_sm_return_variant emits a kind/cond pair,
+    calls scrip_rt_do_return; if fires, native ret; else jz to .Lretskip_<pc>.
+    Plain unconditional SM_RETURN unchanged (still pure native ret).
+(4) SM_PAT_CAPTURE_FN_ARGS, SM_PAT_USERCALL_ARGS -- args-on-stack pattern
+    capture variants (.fn(args) / $fn(args) / *fn(args)).
+(5) Test 2 in test_smoke_jit_emit_x64.sh changed from SM_CONCAT (now baked)
+    to SM_INCR (still unhandled) to keep the unhandled-op trap test live.
+
+libscrip_rt.so capacity bumps:
+- STRTAB_CAP   512 -> 8192   (beauty.sno has 749 unique strings)
+- VSTACK_CAP   256 -> 65536  (beauty.sno self-hosting needs deep stack)
+
+New libscrip_rt.so ABI (7 entries):
+- scrip_rt_concat() / scrip_rt_push_null() / scrip_rt_coerce_num()
+- scrip_rt_call(const char *name, int nargs)
+- scrip_rt_do_return(int kind, int cond) -> int
+- scrip_rt_pat_capture_fn_args(const char *fname, int is_imm, int nargs)
+- scrip_rt_pat_usercall_args(const char *fname, int nargs)
+
+Tracked .s artifacts: zero UNHANDLED_OP markers across all five demo
+programs (roman/wordcount/claws5/treebank-list/treebank-array) -- a
+visible diff-review marker that EM-7's emit-side coverage is essentially
+complete.  Line counts shrank as PLT calls replaced UNHANDLED stubs:
+roman 177->146, wordcount 242->222, claws5 2024->1815, treebank-list
+2318->2190, treebank-array 2748->2610.
+
+beauty.sno end-to-end status:
+- emit:    34102 lines of asm, exit 0
+- assemble: 415 KB .o, no errors
+- link:    128 KB ELF binary, no errors
+- run:     starts; halts at first SM_PAT_CAPTURE_FN (opcode 51)
+           via scrip_rt_unhandled_op trap.
+
+Honest deviations remaining for EM-7 closure (deferred to EM-7-final):
+(1) SM_PAT_CAPTURE_FN and SM_PAT_USERCALL (no-args forms) still trap.
+    emit_bb_box's switch needs cases for these; the libscrip_rt.so
+    helpers (pat_assign_callcap_named_imm, pat_user_call) already exist.
+(2) User-defined SNOBOL4 function dispatch in mode-4 not yet wired:
+    scrip_rt_call falls through to INVOKE_fn for unknown names, which
+    misses user functions whose bodies are emitted as native chunks at
+    .Lpc<N>.  Needs name->entry_pc table emitted in .s + a hook into
+    g_user_call_hook that invokes scrip_rt_call_chunk.  Sketch in
+    session #71 chat history.
+(3) NRETURN's name-tracking is approximate: scrip_rt_do_return reads TOS
+    and synthesizes a NAMEVAL from a string value; doesn't track the
+    body's retval-slot name.  Sufficient for the dot-star idiom
+    (push_list = .dummy) where the body explicitly NAMEVAL'd.
+
+Gate: PASS=10 FAIL=0 (test 2 updated SM_CONCAT->SM_INCR).
+Smoke x6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4).  Isolation gate PASS.
+Five tracked .s artifacts regen'd, assemble cleanly, zero UNHANDLED_OP.
+
+Next rung: EM-7-final (close the EM-7 milestone).
+- EM-7a: Bake SM_PAT_CAPTURE_FN + SM_PAT_USERCALL in emit_bb_box.
+- EM-7b: User-defined function dispatch table (name -> entry_pc).
+- EM-7c: --jit-emit --x64 beauty.sno passes SPITBOL oracle gate
+         (md5 abfd19a7a834484a96e824851caee159, 646 lines).
+
 EM-6 LANDED 2026-05-06 (session #70) -- pattern matcher integration.
 
 ScripRtVal/ScripRtTag removed; DESCR_t is the one type throughout.
