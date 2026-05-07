@@ -472,6 +472,27 @@ Order them however convenient based on platform availability.
   standard set + full Icon corpus + Prolog smoke.  After this
   step, `polyglot.c` stores no IR pointers.
 
+  **CARVED to `GOAL-CHUNKS-STEP17.md` sess #75, 2026-05-07.**
+  Step 17 is a multi-rung subsystem migration; the sub-goal
+  file names rungs CH-17a..CH-17h with per-rung gates.  This
+  pointer line stays as the navigational anchor; the destination
+  is owned by the sub-goal file.
+
+  **CH-17a LANDED sess #75, 2026-05-07** —
+  `docs/CHUNKS-step17a-validation.md` documents the scaffolding:
+  `IcnProcEntry` and `Pl_PredEntry` gain `int entry_pc` fields
+  (initialised -1); new `sm_resolve_proc_entry_pcs(SM_Program*)`
+  in scrip_sm.c walks both tables after sm_lower returns and
+  populates entry_pcs via `sm_label_pc_lookup`.  Today every
+  lookup returns -1 because sm_lower does not yet emit named
+  proc-body chunks (CH-17b/d territory).  Pure addition: zero
+  observable behaviour change; gates byte-identical to baseline.
+  Diagnostic env var `SCRIP_PROC_ENTRY_PCS=1` shows the
+  scaffold's reach: Icon hello.icn registers 1 proc (`main`),
+  test/prolog `main + fact` registers 2 predicates, all -1.
+  Next rung: **CH-17b** — sm_lower emits named proc-body
+  chunks for Icon/Raku procs.
+
 - [ ] **Step 18 — Final cleanup: delete SM_PUSH_EXPR; lift
   code_free gate; strengthen isolation gate.**
   - Lift the `lang_mask == (1u << LANG_SNO)` gate on
