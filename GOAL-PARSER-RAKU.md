@@ -1019,3 +1019,22 @@ Next: **RK-26**.
       `typed_hash_decl` (`my Str %h = raku_new_hash()` typed hash with init),
       `typed_arr_bare` (`my Int @nums` typed array uninitialized → `(E_ASSIGN (E_VAR nums) (E_QLIT ""))`).
 - **Gate:** PASS=142 FAIL=0. corpus@(this commit). ✓
+
+---
+
+### PARSER-RK-27 — nested function calls + .new() with call args — LANDED session 2026-05-07
+
+- [x] **Bug fix 1: `finish_call` read `capfnf/capfnr` for fname — clobbered by nested calls.**
+      `length(trim($s))` produced `(E_FNC trim (E_VAR length) ...)` — the outer call's
+      fname was overwritten when `*Expr` recursed into `trim(...)`.  Fix: `finish_call`
+      now reads `fname = v(kids[1])` from the already-pushed `E_VAR` node (pushed by
+      `shift(CallName, 'E_VAR')` before args), which is stable on the stack regardless
+      of inner recursion.  `capfnf/capfnr` no longer read in `finish_call`.
+- [x] **Bug fix 2: `NewCallName` captured into `capfnf/capfnr` — clobbered by named-arg call values.**
+      `Dog.new(name => get_name())` produced `(E_QLIT "get_name")` as ClassName.
+      Fix: `NewCallName` now captures into `capclsf/capclsr` (the dedicated class-name
+      slots); `finish_raku_new` reads `capclsf capclsr`.  These are not touched by
+      any `*Expr` sub-match.
+- [x] Test corpus: 5 new fixtures (nested_calls, triple_nested_call, new_with_call_arg,
+      nested_call_in_method, nested_call_arith).
+- **Gate:** PASS=147 FAIL=0. corpus@(this commit). ✓
