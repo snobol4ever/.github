@@ -1676,3 +1676,84 @@ Remaining gaps in priority order:
 3. `*->` soft cut -- `$'*->'` token + arm in `conj_arrow`
 4. Run smoke on a sample of swi_tests/core/ files to measure coverage progress
    (run locally -- scrip is ~4s/file so do 10-20 files max per session)
+
+---
+
+## Handoff note — session 2026-05-07 (coverage investigation)
+
+**No corpus or one4all changes landed this session.** Investigation only.
+
+### Correct invocation (CRITICAL for next session)
+
+```bash
+SCRIP=/home/claude/one4all/scrip
+SRC=/home/claude/corpus/programs/scrip
+SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc \
+    $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc \
+    $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
+
+# Pipe .pl file as stdin -- do NOT pass .pl as a file argument:
+timeout 7 $SCRIP --ir-run $SC < file.pl 2>/dev/null
+```
+
+**⛔ Do NOT omit `gen.sc` or `assign.sc`.** Without `gen.sc`, TDump silently
+produces zero output (Gen() undefined). Without `assign.sc`, some patterns
+that use `assign()` fail when they should not, causing incorrect parse results.
+
+**⛔ Do NOT pass the `.pl` file as a positional arg.** `scrip --ir-run *.sc file.pl`
+routes `file.pl` through the C Prolog frontend, not `parser_prolog.sc`. Always
+pipe via stdin.
+
+**⛔ Do NOT run batches of 20+ files in a shell loop** — sequential scrip
+invocations each load all SC files and exhaust memory, causing SIGKILL on later
+files. Run at most 5-10 files per batch, or write a proper smoke script.
+
+### Coverage state (sampled, 2026-05-07)
+
+Correct invocation (with gen.sc + assign.sc, stdin pipe):
+- rung01, rung02, rung03, rung11: **PASS** (simple facts, directives)
+- rung04: **FAIL** — inline if-then `(3 < 5 -> ...)` in body (needs investigation)
+- rung05: **FAIL/SIGKILL** — `:- initialization(main).` + member clauses + main with inline list causes SIGKILL (OOM or infinite loop; root cause not found this session)
+- rung13: **FAIL** — `:- assertz(...)` directives (assertz not in pfx_kw_name)
+- rung28: **FAIL** — `catch/3` in body
+- rung30: **FAIL** — DCG
+
+Rough estimate from 10-file sample: **~40% PASS** on rung* files.
+Coverage on swi_tests/ and gnu_prolog/ unknown — individual files test showed
+many parse correctly but batch measurement kept hitting OOM.
+
+### Key findings
+
+1. **assign.sc is required** — it defines `assign()` used by pattern builders.
+   Omitting it causes silent failures that look like parse failures.
+
+2. **SIGKILL on multi-clause files with inline lists** — rung05 (`member` +
+   `main :- member(X,[a,b,c]),...`) causes SIGKILL. The same clauses in
+   isolation all parse correctly. The combination triggers OOM or infinite
+   loop in the SCRIP IR interpreter (not in `parser_prolog.sc` logic).
+   This is likely a SCRIP bug in `merge_choices` or TDump's Gen loop with
+   large merged E_CHOICE trees. **Do not spend session time on this —**
+   it manifests as a SCRIP runtime issue, not a parser SC issue.
+
+3. **"Error 5 in statement N" on stderr is normal** — fires on every
+   clause match (SCRIP IR interpreter undefined-operation warnings from
+   table lookups returning null). Goes to stderr only; does not block output.
+
+4. **The SPITBOL manual** was read (chapters 6, 7, 9) — pattern matching
+   primitives, `$`/`.`/`*` operators, FENCE/ARBNO/BREAK/SPAN all understood.
+
+### Next session setup (revised)
+
+```bash
+cd /home/claude/one4all && git checkout parser
+bash /home/claude/one4all/scripts/build_scrip.sh
+
+# Quick sanity check (should produce 3 STMT lines):
+SCRIP=/home/claude/one4all/scrip
+SRC=/home/claude/corpus/programs/scrip
+SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
+timeout 7 $SCRIP --ir-run $SC < /home/claude/corpus/programs/prolog/rung11_findall_findall_basic.pl 2>/dev/null | grep -c "^(STMT"
+# expected: 3
+```
+
+Then proceed with PR-17 gap fixes (single-char SY atoms, `*->`, assertz directive).
