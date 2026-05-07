@@ -700,7 +700,21 @@ Do not let the next session repeat your mistakes.
 
 ---
 
-## Handoff note — session 10 (2026-05-07) end state
+## Handoff note — session 11 (2026-05-07) end state
+
+Gates: smoke PASS=5 FAIL=0, parser PASS=67 FAIL=0. corpus @ HEAD.
+
+**SC-10 landed:** switch/case/default. Key lessons:
+
+19. **Pop case value BEFORE implicit-break push.** `switch_case_label` pops the case value expr from the tree stack. If implicit-break push happens first, it lands on top and `Pop()` grabs the goto instead of the value. Always pop the expression you need before pushing anything new.
+
+20. **tmp=disc stmt lives on the OUTER frame, not inside Body.** `switch_head_alloc` fires before `Body('sw_nbody')` opens its inner `nPush`. So the tmp-assign goes to the Compiland frame directly (via `nInc()` in `switch_cmd`). `finalize_switch`'s `pop_body(n)` only sees body stmts (case labels + bodies). Push dispatch chain and remaining body AFTER `pop_body`, not including `body[1]` as tmp.
+
+21. **Implicit-break tracking: use null-string sentinel for "first case".** `sc_sw_last_body_n = ''` (null) means no previous case yet. `DIFFER(sc_sw_last_body_n)` fails on null, so first case never gets a spurious implicit break. After each case label, set `sc_sw_last_body_n = nTop()` (inner frame counter). At next case, if `nTop() != sc_sw_last_body_n`, the body was non-empty → emit implicit break.
+
+22. **`$'case'` consumed in Command, so `case_cmd` starts at the value.** `Command = ... | $'case' case_cmd | ...` — the `$'case'` token is part of the Command alternation, NOT part of `case_cmd`. `case_cmd = *Expr0 Switch_case_label() $':'`.
+
+**Next:** SC-11 to be defined by Lon. The GOAL file's rung ladder is now complete through SC-10. Possible next rungs: alt-eval `(e1, e2, e3)`, multi-file `-include`, or the `tree_equal` crosscheck gate.
 
 Gates: smoke PASS=5 FAIL=0, parser PASS=63 FAIL=0. corpus @ HEAD.
 

@@ -865,18 +865,21 @@ inside braces.
 - [x] Fixtures: `struct_simple`, `struct_fields`, `struct_empty`. corpus @ (see commit).
 - **Gate:** PASS=63 FAIL=0 (+3 from SC-8).
 
-### PARSER-SC-10 — `switch` / `case` / `default` ⏳
+### PARSER-SC-10 — `switch` / `case` / `default` ✅ DONE (PASS=67, session 11, 2026-05-07)
 
 `snocone_parse.y`: `T_SWITCH T_LPAREN expr0 T_RPAREN` followed by case clauses.
 Each `case val:` lowers to a conditional branch; `default:` is unconditional.
 Allocate `Lswitch_end` as break target (SC-8's break stack).
 
-- [ ] Add `switch_cmd` with `switch_body` collecting `case_cmd` / `default_cmd` clauses.
-- [ ] `Lswitch_end` pushed as break target for SC-8; popped after switch body.
-- [ ] `case_cmd`: `$'case' *Expr0 $':'` — conditional branch on equality with switch subject.
-- [ ] `default_cmd`: `$'default' $':'` — unconditional fallthrough label.
-- [ ] Fixtures: `switch_simple`, `switch_default`, `switch_fallthrough`, `switch_break`.
-- **Gate:** PASS increases by 4.
+- [x] Add `$'switch'`/`$'case'`/`$'default'` keyword tokens.
+- [x] `switch_head_alloc()`: allocates `_Lswitch_t`, `_Lend`, `_Ldefault` labels (in that order), emits `tmp=disc` stmt to outer frame, pushes `_Lend` to break stack.
+- [x] `switch_case_label()`: pops case value FIRST (before implicit-break push), stores `(label, value)` in `sc_sw_cases[]` array, emits case label pad, tracks `sc_sw_last_body_n` for implicit-break detection.
+- [x] `switch_default_label()`: emits `_Ldefault` label pad, records default entry with null value.
+- [x] `finalize_switch()`: builds dispatch chain (IDENT probes + catchall goto), pushes dispatch then body then `_Lend` — `tmp=disc` already on outer frame from `switch_head_alloc`.
+- [x] Implicit break: emitted by `switch_case_label`/`switch_default_label` when previous case body was non-empty (`nTop() != sc_sw_last_body_n`).
+- [x] Explicit `break;` reuses SC-8's break_cmd — produces double goto (matches oracle).
+- [x] Fixtures: `switch_simple`, `switch_default`, `switch_fallthrough`, `switch_break`.
+- **Gate:** PASS=67 FAIL=0 (+4 from SC-9).
 
 ---
 
@@ -900,9 +903,9 @@ PARSER-SC-6 ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 byte-identical.
 PARSER-SC-7 ✅ — PASS=55 FAIL=0; augmented assign (+= -= *= /= ^=).
 PARSER-SC-8 ✅ — PASS=60 FAIL=0; break/continue with loop-label stacks.
 PARSER-SC-9 ✅ — PASS=63 FAIL=0; struct definition → DATA() call.
-SC-10 ⏳ (switch/case/default)**
+PARSER-SC-10 ✅ — PASS=67 FAIL=0; switch/case/default.**
 
-Gate: PASS=63 FAIL=0. corpus @ HEAD (2026-05-07, session 10).
+Gate: PASS=67 FAIL=0. corpus @ HEAD (2026-05-07, session 11).
 
 ### SC-6c-bug + SC-6c session 2026-05-06 (session 8) — LANDED; PARSER-SC-6 CLOSED
 
