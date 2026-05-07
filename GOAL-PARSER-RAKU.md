@@ -2,22 +2,48 @@
 
 **Repo:** corpus+one4all
 **Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
-**Sibling ladder:** `GOAL-LANG-RAKU.md` and `GOAL-RAKU-FRONTEND.md`. The
-existing Raku frontend (`src/frontend/raku/`) is the in-process oracle.
+**Sibling ladder:** `GOAL-LANG-RAKU.md` and `GOAL-RAKU-FRONTEND.md`.
 
-**Done when:** A Snocone program `parser_raku.sc` reads Raku source, runs
-one `Compiland` PATTERN that builds the canonical IR tree, and for every
-test program in the rung corpus the parser tree matches the existing
-frontend's `--dump-ir` output (after whitespace normalization).
+## ⚡ PIVOT — session 2026-05-07 (post-RK-27)
+
+**Old goal (RK-0 .. RK-27):** match the existing C frontend (`src/frontend/raku/`)
+`--dump-ir` output byte-for-byte. That goal is **CLOSED at PASS=147 FAIL=0**;
+~95% of `raku.y` productions are covered. The remaining 5% (sort-with-closure,
+`:=` bind operator, etc.) is no longer the priority.
+
+**New goal (RK-28 onward):** flush out the **entire Raku grammar** into
+`parser_raku.sc`. We are no longer constrained by what SCRIP's C frontend
+supports. Real-world Raku programs use features the C oracle has never seen
+(string methods, regex DSL, junctions, meta-operators, signature literals,
+`given`/`when` smartmatch chains, slurpy/optional params, twigils outside
+classes, `loop {init;cond;step}`, hyper/zip operators, ...). We want the
+**entire suite of reasonable Raku programs** to at least *parse without
+aborting* and produce *some* IR tree.
+
+**Tree shape:** stripped-down is fine. When a Raku construct has no clean
+mapping to existing IR kinds, lower it to a generic `(E_FNC raku_<name> args...)`
+call node — same convention `raku_match` / `raku_subst` / `raku_mcall` already
+use. The tree must be a valid IR tree (well-formed, dumpable, no garbage
+text); it does **not** need to round-trip through the rest of the runtime.
+Goal is *parse coverage*, not *execution semantics*.
+
+**Done when:** every program in a curated "real Raku" corpus parses to
+completion without `Parse Error`, and the dumped tree is structurally
+sane (every node has a known E_* kind; no orphan whitespace; no dangling
+captures). Cross-check with `--dump-ir` is **best-effort**: where the C
+oracle accepts a program, our tree should still match it (regression
+guard); where the C oracle rejects, we accept and emit a placeholder.
 
 Naming, BNF discipline, layout, `White`/`Gray`, `$'name'` tokens,
 shift/reduce, n-ary counters, identifier rules — these are the
 cross-PARSER style invariants.  Canonical writeup:
 `GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc`.
-Token classifiers in `parser_raku.sc` mirror `raku.l`
+Token classifiers in `parser_raku.sc` mirror `raku.l` where overlap exists
 (`var_scalar`, `var_array`, `kw_my`, `kw_say`, `op_add`, …); IR tags
 mirror `ir.h` (`E_VAR`, `E_ILIT`, `E_QLIT`, `E_FNC`, `E_ASSIGN`,
-`E_ADD`/`E_SUB`/`E_MUL`/`E_DIV`).
+`E_ADD`/`E_SUB`/`E_MUL`/`E_DIV`). For Raku features that have no `raku.l`
+or `ir.h` precedent, invent token classifier names following the same
+UpperCamel convention and lower to generic `E_FNC raku_<name>` nodes.
 
 ---
 
@@ -381,12 +407,22 @@ with `\` or embedded `"` in a string now renders correctly.
 
 ---
 
-## Invariants
+## Invariants (post-PIVOT, session 2026-05-07)
 
-- Raku's LANG ladder is at RK-34 active; PAT-RK does not race ahead.
-  If the existing frontend can't yet handle a feature, neither does
-  PAT-RK — the rung waits.
-- Test programs in `corpus/programs/raku/parser/` are owned by PAT-RK.
+- **Coverage over conformance.** A parsed-and-trees program is a win,
+  even if the tree differs from `--dump-ir`. A Parse Error is a loss.
+- **No more LANG-ladder gating.** Pre-pivot, "PAT-RK does not race ahead
+  of the LANG ladder" was the rule. Post-pivot, PAT-RK leads: when we
+  parse a Raku construct the C frontend doesn't, we emit a placeholder
+  tree (`(E_FNC raku_<name> args...)`) and move on. The C frontend may
+  catch up later or never; that's a LANG-ladder problem, not ours.
+- **Best-effort oracle parity.** Where `--dump-ir` succeeds, our tree
+  should still match it (regression guard — the existing 147 fixtures
+  stay green). Where `--dump-ir` fails, we accept and emit a tree;
+  the gate just checks "did it parse and produce a non-empty tree".
+- Test programs in `corpus/programs/raku/parser/` (oracle-matching) are
+  owned by PAT-RK; new programs in `corpus/programs/raku/parser-coverage/`
+  (no-abort-only) are also owned by PAT-RK.
 - The implicit-`main`-wrapper insight is permanent: Raku's `program`
   rule synthesizes `(E_FNC main (E_VAR main) stmt…)` around all
   top-level body stmts. `parser_raku.sc` replicates this via
@@ -400,7 +436,515 @@ with `\` or embedded `"` in a string now renders correctly.
   it for arith chains).
 - `say` lowers to `(E_FNC write (E_VAR write) <arg>)` in the IR —
   raku.y rewrites the name at lower-time. Future call-style stmts
-  may have similar surface→IR name remappings; probe the oracle first.
+  may have similar surface→IR name remappings; probe the oracle first
+  when one exists, otherwise pick a `raku_<name>` placeholder.
+
+---
+
+## Rung ladder — POST-PIVOT (RK-28 onward)
+
+**Anchored to the official Raku grammar**, `rakudo/src/Perl6/Grammar.nqp`
+(5933 lines, 759 production rules, 495 unique non-terminals). This is
+the *spec* — every rung below names the exact `proto`/`token`/`rule`
+non-terminals it covers, drawn verbatim from `Grammar.nqp`. When in
+doubt, the grammar file wins; this ladder paraphrases it.
+
+### Discipline (NEVER BREAKS)
+
+Every rung lands on a **green gate** before the next begins. The gate
+is the existing `test_parser_raku.sh` (PASS=147 starting; rung deltas
+add to it) **plus** the new `test_parser_raku_coverage.sh` (parse-only,
+no oracle compare, see RK-28-A). Both must show no regression. Any
+rung that breaks an earlier rung's fixture is reverted on the spot;
+the rung's spec is then split smaller and retried. We do **not** push
+forward through breakage — a half-landed rung is a stop-the-line.
+
+The rung size discipline:
+
+- One **proto** category per rung (e.g. RK-28 covers exactly
+  `statement_control:sym<...>` arms; RK-29 covers
+  `package_declarator:sym<...>` arms; …). Each rung is a single
+  semantic surface.
+- Inside a rung, **one `:sym<X>` arm at a time**. `if` first, gate;
+  then `unless`, gate; then `while`, gate. Each arm = an internal
+  micro-step. The rung is "landed" when every arm of its proto is
+  passing the gate (or explicitly deferred to a later rung with a
+  one-line note).
+- Coverage fixtures are added **one per arm**. Tiny, named after the
+  arm: `stmt_ctrl_if.raku`, `stmt_ctrl_unless.raku`, etc.
+- After every arm, run **both gates**. Commit only when both green.
+
+Where a rung's arm overlaps work already done by RK-3..RK-27 (e.g.
+`statement_control:sym<if>` is already covered), the arm is marked
+`✓ already covered` and the rung moves on. The gate still runs to
+prove the existing coverage hasn't drifted.
+
+### RK-28 — `statement_control:sym<...>` (the 19 statement-level keywords) — LANDED session 2026-05-07
+
+Spec source: `Grammar.nqp` lines 1134–1391.  All 19 arms covered.
+
+The full alternation set, in spec order:
+- `if` ✓ already covered (RK-3, RK-23)
+- `unless` ✓ already covered (RK-11)
+- **`without`** ✓ LANDED — `(E_FNC raku_without cond block)`. Token + `Finish_without` + `WithoutStmt` + 3 anchors + 1 fixture.
+- `while` ✓ already covered (RK-3)
+- `repeat` ✓ already covered (RK-19, RK-23)
+- `for` ✓ already covered (RK-3, RK-10, RK-23)
+- **`whenever`** ✓ LANDED — `(E_FNC raku_whenever expr block)`. xblock shape (no parens).
+- **`foreach`** ✓ LANDED — Perl-5 alias; reuses the existing `Finish_for` machinery for `(E_EVERY (E_ITERATE name expr) block)`. Note: official spec rejects `foreach` with `obs` panic; we accept for parse-coverage.
+- **`loop`** ✓ LANDED (two arms) — `loop { block }` infinite → `(E_WHILE (E_ILIT 1) block)` (clean E_* reuse, no placeholder); `loop (init; cond; step) { block }` C-style → `(E_FNC raku_loop init cond step block)` placeholder.  Required new `LoopSubExpr` non-terminal that accepts assignment-as-expression (Raku's `Expr` includes `=` at the top tier; ours did not).
+- **`need`** ✓ LANDED — `(E_FNC raku_need (E_QLIT "Module::Path"))`.
+- **`import`** ✓ LANDED — `(E_FNC raku_import (E_QLIT modname))`.
+- **`no`** ✓ LANDED — `(E_FNC raku_no (E_QLIT "strict"))`.
+- **`use`** ✓ LANDED — `(E_FNC raku_use (E_QLIT "v6"))`.
+- **`require`** ✓ LANDED — `(E_FNC raku_require (E_QLIT modname))`.
+- `given` ✓ already covered (RK-17, RK-23)
+- `when` ✓ already covered (RK-17)
+- `default` ✓ already covered (RK-17)
+- **`CATCH`** ✓ LANDED for free form (CATCH outside try) — `(E_FNC raku_catch_block block)` placeholder. CATCH inside try unchanged from RK-19/RK-23.
+- **`CONTROL`** ✓ LANDED — `(E_FNC raku_control_block block)`.
+- **`QUIT`** ✓ LANDED — `(E_FNC raku_quit_block block)`.
+
+**Gate at RK-28 close (verified):** smoke PASS=5, oracle parity PASS=147 (unchanged
+throughout — full regression protection held), coverage COV_PASS=13.
+
+**Discovery during RK-28**: bare `my $i;` (no type annotation, no `=` initializer)
+does not currently parse via either `TypedDeclStmt` (requires type) or `AssignStmt`
+(requires `=`).  This is a pre-existing gap, surfaced when writing the loop_three
+fixture.  **Filed for cleanup**: RK-28-cleanup or similar — add a `BareDeclStmt`
+arm matching `$'my' $'  ' (VarScalar | VarArray | VarHash) $';' Push_empty (E_ASSIGN & 2)`
+mirroring `KW_MY VAR_SCALAR ';'` → `(E_ASSIGN var (E_QLIT ""))` from raku.y line 267-271.
+
+Per-arm micro-step pattern:
+- [ ] Add token classifier (`KwWithout`, `KwWhenever`, `KwLoop`, …)
+      mirroring `Grammar.nqp` keyword list.
+- [ ] Add grammar arm to `Stmt` (or wherever the proto lands).
+- [ ] Add coverage fixture in `parser-coverage/`.
+- [ ] Run **both gates**. Commit if green; revert and split if not.
+
+**Gate at RK-28 close:** `test_parser_raku.sh` PASS=147 (unchanged —
+spec parity is regression-protected; new placeholder lowerings live
+under coverage gate only). `test_parser_raku_coverage.sh` reports
+13 new placeholder arms × 1 fixture = COV_PASS=13.
+
+### RK-28-A — coverage gate infrastructure (lands FIRST, before any RK-28 arm) — LANDED session 2026-05-07
+
+- [x] New script `scripts/test_parser_raku_coverage.sh`. Walks
+      `corpus/programs/raku/parser-coverage/`. For each `.raku`,
+      runs `parser_raku.sc` on stdin, captures stdout. PASSes iff:
+      exit 0, stdout non-empty, no `Parse Error` in stdout, first
+      line of trimmed stdout starts with `(STMT`. No oracle compare.
+      Reports `COV_PASS=N COV_FAIL=M`.
+- [x] New empty directory `corpus/programs/raku/parser-coverage/`
+      (with a `README.md` explaining the parse-only contract).
+- [x] Verify `test_parser_raku.sh` (oracle parity gate) reads
+      ONLY from `parser/`, not `parser-coverage/`. The two are
+      strictly separate.
+- **Gate (verified):** `test_parser_raku.sh` PASS=147 unchanged.
+      `test_parser_raku_coverage.sh` reports `COV_PASS=0 COV_FAIL=0`
+      against an empty directory (script wired and working).
+      `test_smoke_raku.sh` PASS=5 unchanged.
+
+### RK-29 — `statement_prefix:sym<...>` (the 16 phasers + adverb prefixes)
+
+Spec source: `Grammar.nqp` lines 1394–1432.
+
+- **`BEGIN`** / **`CHECK`** / **`INIT`** / **`END`** — compile-time / run-time phasers.
+- **`ENTER`** / **`LEAVE`** / **`KEEP`** / **`UNDO`** — block-scoped phasers.
+- **`FIRST`** / **`NEXT`** / **`LAST`** — loop phasers.
+- **`PRE`** / **`POST`** — assertion phasers.
+- **`CLOSE`** — file-scope phaser.
+- **`TEMP`** — dynamic-temporary phaser.
+- **`race`** / **`hyper`** / **`lazy`** / **`eager`** / **`sink`** — list adverbs.
+- **`try`** ✓ already covered (RK-19) as stmt; spec has it here too.
+- **`do`** — `do { block }` value-from-block.
+- **`gather`** ✓ already covered (RK-21).
+- **`once`** — once-per-program block.
+- **`start`** — promise/concurrency block.
+- **`supply`** / **`react`** — concurrency block.
+- **`quietly`** — warning-suppression block.
+
+Lowering: each prefix takes a block/expr; emit
+`(E_FNC raku_phaser_<name> body)` placeholder. One arm at a time, gate
+after each.
+
+**Gate at RK-29 close:** `test_parser_raku.sh` PASS=147 unchanged.
+`test_parser_raku_coverage.sh` cumulative ≥ 13+18 = 31.
+
+### RK-30 — `package_declarator:sym<...>` (the 10 package-class kinds)
+
+Spec source: `Grammar.nqp` lines 1875–1934.
+
+- **`package`** — generic package; `(E_FNC raku_package name body)`.
+- **`module`** — module declaration.
+- **`class`** ✓ already covered (RK-24).
+- **`grammar`** — Raku grammar (THE big one — body opaque this rung).
+- **`role`** — role definition (in speculative RK-39).
+- **`knowhow`** — meta-protocol-level package.
+- **`native`** — native (FFI) package.
+- **`slang`** — language extension package.
+- **`trusts`** — trusts declaration inside a package body.
+- **`also`** — additional traits applied to current package.
+
+Lowering: `(E_FNC raku_pkg_<kind> name body)` placeholder. Body is
+captured as opaque E_QLIT this rung — proper structural parsing of
+grammar/rule/token/regex bodies waits for RK-37+.
+
+**Gate:** PASS=147; COV cumulative ≥ 31+8 = 39.
+
+### RK-31 — `scope_declarator:sym<...>` (the 9 scope keywords)
+
+Spec source: `Grammar.nqp` lines 2287–2309.
+
+- **`my`** ✓ already covered (RK-1, RK-19, RK-23, RK-26).
+- **`our`** — package-scoped variable.
+- **`has`** ✓ already covered (RK-24).
+- **`HAS`** — inline composite attribute.
+- **`augment`** — open-class augmentation scope.
+- **`anon`** — anonymous declaration.
+- **`state`** — state variable (persists across calls).
+- **`supersede`** — supersede declaration scope.
+- **`unit`** — unit-scope declaration.
+
+Lowering: each is a wrapper around a declaration. `our $x = 1;` →
+`(E_FNC raku_scope_our (E_ASSIGN (E_VAR x) (E_ILIT 1)))`. `state` /
+`anon` / `unit` / `augment` / `supersede` similar.
+
+**Gate:** PASS=147; COV cumulative ≥ 39+6 = 45.
+
+### RK-32 — `routine_declarator:sym<...>` + `multi_declarator:sym<...>`
+
+Spec source: `Grammar.nqp` lines 2412–2424 + `multi_declarator` arms.
+
+`routine_declarator`:
+- **`sub`** ✓ already covered (RK-4).
+- **`method`** ✓ already covered (RK-24).
+- **`submethod`** — class-only method, not inherited.
+- **`macro`** — AST-rewriting routine (deprecated but parseable).
+
+`multi_declarator`:
+- **`multi`** — multi sub/method dispatch.
+- **`proto`** — proto routine declaration.
+- **`only`** — singleton routine (default).
+
+Lowering: existing sub_decl machinery wraps; placeholder name
+`(E_FNC raku_multi sub_node)` etc.
+
+**Gate:** PASS=147; COV cumulative ≥ 45+5 = 50.
+
+### RK-33 — `regex_declarator:sym<...>` and `type_declarator:sym<...>`
+
+Spec source: `Grammar.nqp` lines 2861–3005.
+
+`regex_declarator` (THIS is where grammar/regex bodies live):
+- **`rule`** — rule definition with `:sigspace`.
+- **`token`** — token definition (no backtracking, no `:sigspace`).
+- **`regex`** — regex definition (full backtracking).
+
+`type_declarator`:
+- **`enum`** — enum declaration.
+- **`subset`** — subset type with where-clause.
+- **`constant`** — compile-time constant.
+
+Strategy: bodies opaque (E_QLIT) for regex_declarator. RK-37+ will
+crack open the regex body language.
+
+**Gate:** PASS=147; COV cumulative ≥ 50+6 = 56.
+
+### RK-34 — `statement_mod_cond:sym<...>` and `statement_mod_loop:sym<...>`
+
+Spec source: `Grammar.nqp` lines 1475–1486.
+
+These are **postfix modifiers** — `say "hi" if $x;` is a stmt + mod.
+
+`statement_mod_cond`:
+- **`if`** — `STMT if EXPR;` → `(E_IF expr stmt)`.
+- **`unless`** — → `(E_IF (E_NOT expr) stmt)`.
+- **`when`** — `STMT when EXPR;` smartmatch arm at stmt level.
+- **`with`** — `STMT with EXPR;` → `(E_FNC raku_with expr stmt)`.
+- **`without`** — `STMT without EXPR;` → opposite of `with`.
+
+`statement_mod_loop`:
+- **`while`** — `STMT while EXPR;` → `(E_WHILE expr stmt)`.
+- **`until`** — `STMT until EXPR;` → `(E_UNTIL expr stmt)`.
+- **`for`** — `STMT for EXPR;` → `(E_EVERY (E_ITERATE expr) stmt)`.
+- **`given`** — `STMT given EXPR;` topicalize.
+
+These are *grammar shape* changes — every existing `Stmt` arm needs
+an optional postfix modifier. Done as a Stmt-wrapper pattern.
+
+**Gate:** PASS=147; COV cumulative ≥ 56+9 = 65.
+
+### RK-35 — `term:sym<...>` (the 25 terminal forms)
+
+Spec source: `Grammar.nqp` lines 1490–3121.
+
+- `fatarrow`, `colonpair` — already partial via RK-23 named-args.
+- `variable` ✓ via VarScalar/VarArray/VarHash.
+- `package_declarator`/`scope_declarator`/`routine_declarator`/`multi_declarator`/`regex_declarator`/`type_declarator` — covered by RK-30..RK-33.
+- `circumfix` — `(...)`, `[...]`, `{...}` parenthesised forms.
+- `statement_prefix` — covered by RK-29.
+- **`**`** — `**` whatever-star (slurpy whatever).
+- **`*`** — `*` whatever (anonymous lambda placeholder).
+- **`lambda`** — `-> $x { ... }` and `{ ... }` blocks as terms.
+- `value` — see RK-36.
+- **`unquote`** — `{{{ stmt }}}` quasi-quote escape.
+- **`!!`** — produced inside `?? !!` ternary.
+- **`::?IDENT`** — pseudo-package compile-time symbol.
+- **`p5end`** / **`p5data`** — Perl-5 compat.
+- **`undef`** — undefined value literal.
+- **`new`** ✓ already covered (RK-23).
+- **`self`** ✓ already covered (RK-24).
+- **`now`**, **`time`**, **`nano`** — time terms.
+- **`empty_set`** — `∅` Unicode.
+- **`rand`** — random terminal.
+- **`...`** — yada-yada (NYI).
+- **`???`** — yada-yada (warning).
+
+Lowering: most → `(E_FNC raku_term_<name>)` zero-arg placeholders.
+
+**Gate:** PASS=147; COV cumulative ≥ 65+14 = 79.
+
+### RK-36 — `value:sym<...>` and `number:sym<...>`
+
+Spec source: `Grammar.nqp` `value` and `number` proto sections.
+
+- `value:sym<quote>` ✓ already covered (LitStrSQ, LitStrDQ).
+- `value:sym<number>` — covers `LIT_INT` and `LIT_FLOAT` ✓.
+- **`value:sym<version>`** — `v6.c`, `v6.d.PREVIEW`.
+- **`value:sym<rat>`** — rational literals `1/2`, `1.5`.
+- **`value:sym<radix>`** — `:16<ff>`, `:2<1010>` radix literals.
+- **`value:sym<complex>`** — `3+2i` complex.
+- **`number:sym<bare_complex_number>`** / **`bare_rat_number`**.
+
+Lowering: keep the literal text in E_QLIT; let runtime decide later.
+
+**Gate:** PASS=147; COV cumulative ≥ 79+5 = 84.
+
+### RK-37 — `infix:sym<...>` long tail (~80 operators)
+
+Spec source: `Grammar.nqp` `infix:sym<...>` declarations.
+
+The current parser handles `+`, `-`, `*`, `/`, `%`, `~`, `==`, `!=`,
+`<`, `>`, `<=`, `>=`, `eq`, `ne`, `&&`, `||`, `..`, `..^`. The full
+list adds:
+
+- **Numeric**: `**` (exponent), `+&` (and-bitwise), `+|`, `+^`, `+<`, `+>`, `div`, `mod`, `gcd`, `lcm`.
+- **String**: `~&`, `~|`, `~^`.
+- **Boolean**: `^^` (xor), `//` (defined-or), `andthen`, `orelse`, `notandthen`.
+- **Comparison**: `<=>` (numeric three-way), `leg` (string three-way), `cmp`, `===`, `eqv`, `=:=`.
+- **Smart-match family**: `~~` ✓, `!~~`.
+- **Set ops**: `(elem)`, `(cont)`, `(|)`, `(&)`, `(^)`, `(-)`, `(<=)`, `(<)`, `(>=)`, `(>)`.
+- **Range/sequence**: `..` ✓, `..^`, `^..`, `^..^`, `...`, `...^`.
+- **Functional**: `o` (compose), `R` (reverse-args), `X`, `Z`.
+- **Assignment family**: `:=` (bind), `::=` (read-only bind), and all
+  `OP=` augments — RK-29 in speculative ladder.
+
+Per-operator approach: each `infix:sym<X>` adds one keyword classifier
+and one grammar arm at the right precedence tier. Lower to
+`(E_<TAG> lhs rhs)` if TAG exists in ir.h, else
+`(E_FNC raku_op_<name> lhs rhs)`.
+
+**This rung is large** — split into RK-37a (numeric+string ops,
+~15), RK-37b (boolean+three-way, ~10), RK-37c (set ops, ~10),
+RK-37d (range/sequence, ~6), RK-37e (functional + bind, ~6) —
+each a separate commit, separate gate run.
+
+**Gate at RK-37 close:** PASS=147; COV cumulative ≥ 84+47 = 131.
+
+### RK-38 — `prefix:sym<...>` and `postfix:sym<...>`
+
+Spec source: `Grammar.nqp` `prefix:sym` / `postfix:sym` declarations.
+
+Prefixes: `!` ✓, `-` ✓, `+`, `~`, `?`, `|`, `||`, `++` (in RK-29
+speculative), `--`, `^`, `let`, `temp`.
+Postfixes: `++`, `--`, `[i]` ✓, `{k}` ✓, `<k>` ✓, `(args)` ✓,
+`.method` ✓, `.()`, `.[]`, `.{}`, `.<>`.
+
+**Gate:** PASS=147; COV cumulative ≥ 131+10 = 141.
+
+### RK-39 — `circumfix:sym<...>` brackets/braces/quotes
+
+Spec source: `Grammar.nqp` `circumfix:sym<...>` declarations.
+
+- `( ... )` ✓ — parens.
+- `[ ... ]` — array literal.
+- `{ ... }` ✓ — block.
+- `« ... »`, `<< ... >>` — quote-words.
+- `< ... >` — quote-words bare.
+- `:( ... )` — signature literal.
+- `STATEMENT_LIST(... )` — eval-style.
+
+**Gate:** PASS=147; COV cumulative ≥ 141+6 = 147.
+
+### RK-40 — `quote:sym<...>` (the 13 quoting variants)
+
+Spec source: `Grammar.nqp` `quote:sym<...>` declarations.
+
+- `quote:sym<apos>` ✓ — `'...'` single-quote.
+- `quote:sym<dblq>` ✓ — `"..."` double-quote.
+- `quote:sym<q>` — `q[ ... ]` Q-form single.
+- `quote:sym<qq>` — `qq[ ... ]` Q-form double.
+- `quote:sym<Q>` — `Q[ ... ]` raw quote.
+- `quote:sym<qw>` — `qw[ a b c ]` word list.
+- `quote:sym<qx>` — `qx[ ... ]` shell exec.
+- `quote:sym<qqx>` — `qqx[ ... ]` interpolated shell.
+- `quote:sym</ />` ✓ — regex.
+- `quote:sym<rx>` — `rx/ ... /` regex factory.
+- `quote:sym<m>` — `m/ ... /` match (and `m:g/ ... /` ✓).
+- `quote:sym<s>` — `s/ ... / ... /` substitution ✓.
+- `quote:sym<tr>`, `quote:sym<TR>` — translation.
+
+**Gate:** PASS=147; COV cumulative ≥ 147+8 = 155.
+
+### RK-41 — Pod blocks
+
+Spec source: `Grammar.nqp` `pod_*` rules.
+
+- `=begin pod ... =end pod` — Pod block.
+- `=head1`, `=head2`, etc. — directive blocks.
+- `=for`, `=item`, `=comment`.
+- `#|` and `#=` declarator-attached Pod.
+
+Lowering: capture body as opaque E_QLIT inside
+`(E_FNC raku_pod_<kind> (E_QLIT body))`.
+
+**Gate:** PASS=147; COV cumulative ≥ 155+5 = 160.
+
+### RK-42 — Regex/grammar body internals (the OTHER big one)
+
+Spec source: `Grammar.nqp` `Perl6::RegexGrammar` (the inner-grammar slang).
+
+Replace opaque E_QLIT bodies from RK-30 (`grammar`), RK-33
+(`regex_declarator`), RK-40 (regex quote forms) with structured trees:
+
+- `<rulename>` subrule call → `(E_FNC raku_subrule (E_QLIT name))`.
+- `||` longest-token alternation; `|` first-match alternation.
+- `<?ws>`, `<.ws>`, `<( ... )>` capture markers.
+- `**` separated quantifier, `~` delimited list.
+- `<commit>`, `<cut>`.
+- `<[a..z]>`, `<-[0..9]>`, `<+[a..z]+digit>` character classes.
+- `:i` / `:m` / `:s` adverbs.
+- `:my $x = ...;` runtime declaration inside regex.
+
+Per the existing PARSER-* convention, this rung is a separate
+sub-grammar inside `parser_raku.sc` — a fresh `RegexCompiland` PATTERN
+that takes opaque body text and produces a structured tree.
+
+**Gate:** PASS=147; COV cumulative ≥ 160+10 = 170.
+
+### RK-43 — MAIN signature, sub signatures (full)
+
+Spec source: `Grammar.nqp` `signature` and `parameter` rules.
+
+Signatures are deeply structured. Coverage scope:
+- Optional params: `$x?`.
+- Default values: `$x = 0` ✓ in speculative RK-34.
+- Slurpy: `*@a`, `*%h`.
+- Named: `:$x`, `:x($y)`.
+- Typed: `Int $a` ✓ (RK-23).
+- Constraints: `$a where { ... }`.
+- Sub-signatures: `($a, ($b, $c))`.
+- Capture: `\$captured`.
+- Trait modifiers: `is rw`, `is copy`, `is required`.
+
+**Gate:** PASS=147; COV cumulative ≥ 170+8 = 178.
+
+### RK-44 — Pair / colonpair / fatarrow forms
+
+Spec source: `Grammar.nqp` `colonpair`, `fatarrow`, `pair`.
+
+- `:foo`, `:!foo`, `:foo<bar>`, `:foo(1)` — colonpair.
+- `foo => 1` ✓ (RK-23 named args).
+- `:bar(:baz)` — nested.
+
+**Gate:** PASS=147; COV cumulative ≥ 178+4 = 182.
+
+### RK-45 — Special variables (`$/`, `$!`, `$_`, `@*ARGS`, `%*ENV`, ...)
+
+Spec source: `Grammar.nqp` `special_variable:sym<...>`.
+
+The current `VarStdIn`/`VarStdOut`/`VarStdErr` (RK-25) covers the
+three I/O ones. Spec adds: `$/`, `$!`, `$_`, `@*ARGS`, `%*ENV`,
+`$*PROGRAM-NAME`, `$*KERNEL`, `$*DISTRO`, `$*VM`, `$*PERL`, `$*RAKU`,
+`$*OUT`, `$*IN`, `$*ERR`, `&?ROUTINE`, `&?BLOCK`, `$?LINE`, `$?FILE`,
+`$?CLASS`, `$?ROLE`, `::?CLASS`, `$=pod`, `$=finish`, ...
+
+Lowering: each → `(E_VAR <stripped_name>)` or
+`(E_FNC raku_specvar_<name>)` depending.
+
+**Gate:** PASS=147; COV cumulative ≥ 182+12 = 194.
+
+### RK-46 — `dotty:sym<...>` (the dotty-method variants)
+
+Spec source: `Grammar.nqp` `dotty:sym<...>`.
+
+- `.method` ✓ (RK-22 / RK-25).
+- `.+method` — call all matching methods.
+- `.*method` — call all, allow none.
+- `.?method` — call if exists.
+- `.&fn` — invoke as function.
+- `.=method` — call and assign back.
+
+**Gate:** PASS=147; COV cumulative ≥ 194+5 = 199.
+
+### RK-47 — Meta-operators
+
+Spec source: `Grammar.nqp` `*_meta_operator` protos.
+
+- `prefix_circumfix_meta_operator`: `[+]`, `[\\+]`, etc.
+- `infix_postfix_meta_operator`: `+=`, `-=`, etc. (in speculative RK-29).
+- `infix_prefix_meta_operator`: `!==`, `!eq`.
+- `infix_circumfix_meta_operator`: `>>op<<`, `«op»`.
+- `postfix_prefix_meta_operator`: `>>op`.
+- `prefix_postfix_meta_operator`: `op<<`.
+
+**Gate:** PASS=147; COV cumulative ≥ 199+10 = 209.
+
+### RK-48 — Trait modifiers (`is rw`, `does Bar`, `of Type`, ...)
+
+Spec source: `Grammar.nqp` `trait_mod:sym<...>`.
+
+- `trait_mod:sym<is>` — `is rw`, `is copy`, `is required`, …
+- `trait_mod:sym<does>` ✓ partial (RK-39 speculative).
+- `trait_mod:sym<hides>`.
+- `trait_mod:sym<of>`.
+- `trait_mod:sym<as>`.
+- `trait_mod:sym<returns>`.
+- `trait_mod:sym<handles>`.
+- `trait_mod:sym<will>`.
+
+**Gate:** PASS=147; COV cumulative ≥ 209+8 = 217.
+
+### RK-49 — `terminator:sym<...>` and `eat_terminator` edge cases
+
+Spec source: `Grammar.nqp` `terminator:sym<...>` and `eat_terminator`.
+
+Make sure every `;`-or-newline-or-`}` terminator path the official
+grammar accepts is also accepted by `parser_raku.sc`. This is a
+**hardening rung** — no new productions, just edge cases that came
+up during RK-28..RK-48.
+
+**Gate:** PASS=147; COV cumulative bookkeeping; no new fixtures
+unless edge cases surfaced.
+
+### RK-50 — Real-world program corpus
+
+Pull representative programs from rosetta-code-raku, rakudo's `t/`
+directory, and the `examples/` of popular Raku modules. Verify each
+parses and emits a structurally sane tree. This rung is the final
+"never breaks" verification — any program in this curated corpus
+that still hits Parse Error is a bug to backfill into earlier rungs.
+
+**Gate:** PASS=147; COV ≥ 250 covering at least 50 distinct
+real-world Raku programs.
+
+### Beyond RK-50
+
+- Inner-body parsing of regex/rule/token (RK-42 was opaque-only).
+- Full `make`/`made`/`match` action methods.
+- `MAIN`-driven command-line auto-parse.
+- Full Pod content parsing (RK-41 was block-level only).
 
 ---
 
@@ -1040,3 +1584,124 @@ Next: **RK-26**.
 - [x] Test corpus: 5 new fixtures (nested_calls, triple_nested_call, new_with_call_arg,
       nested_call_in_method, nested_call_arith).
 - **Gate:** PASS=147 FAIL=0. corpus@(this commit). ✓
+
+---
+
+## Watermark
+
+Session 2026-05-07 (PIVOT + RK-28-A + RK-28 LANDED) — **PARSER-RK PIVOTED to
+official-grammar coverage**, **RK-28-A coverage gate infra LANDED**,
+**RK-28 (`statement_control:sym<...>`) FULLY LANDED with all 13 new arms**.
+
+### Gates at handoff (all green, all verified post-final-edit)
+
+- `test_smoke_raku.sh`: PASS=5 FAIL=0 (unchanged from session start)
+- `test_parser_raku.sh`: PASS=147 FAIL=0 (unchanged throughout — full
+  regression protection held; oracle parity gate is intact)
+- `test_parser_raku_coverage.sh`: COV_PASS=13 COV_FAIL=0 (NEW gate;
+  was 0/0 at session start)
+
+### What changed this session
+
+**Strategic pivot (top of GOAL file):** old goal of byte-for-byte oracle
+parity with `--dump-ir` was CLOSED at PASS=147 (~95% of `raku.y`).  New
+goal is full coverage of the OFFICIAL Raku grammar (`rakudo/Grammar.nqp`,
+5933 lines, 759 productions, 495 unique non-terminals).  Real-world Raku
+programs use features the C frontend has never seen — for those, we
+emit placeholder `(E_FNC raku_<name> args...)` trees and accept that the
+oracle gate cannot grade them.
+
+**New rung ladder RK-28..RK-50** grounded in `Grammar.nqp`'s `proto`
+skeleton.  Each rung covers one proto category (`statement_control`,
+`statement_prefix`, `package_declarator`, etc.); each `:sym<X>` arm is
+a separate micro-step with its own fixture; both gates run after every
+arm with revert-on-red discipline.
+
+**RK-28-A (coverage gate infrastructure):**
+- New `one4all/scripts/test_parser_raku_coverage.sh` — parse-only gate.
+  Four assertions per fixture: exit 0, non-empty output, no `Parse Error`
+  substring, first non-blank line begins `(STMT`.  No oracle compare.
+  Skips cleanly when `parser-coverage/` is empty or absent.
+- New `corpus/programs/raku/parser-coverage/` directory with README.md
+  documenting the parse-only contract and the naming convention
+  (`stmt_ctrl_<arm>.raku`, `pkg_decl_<arm>.raku`, etc.).
+
+**RK-28 (`statement_control:sym<...>`) — all 19 arms covered:**
+
+13 newly-landed arms (one fixture each, in `parser-coverage/`):
+
+| Arm | Lowering | Strategy |
+|-----|----------|----------|
+| `without` | `(E_FNC raku_without cond block)` | Placeholder |
+| `whenever` | `(E_FNC raku_whenever expr block)` | Placeholder, xblock shape (no parens) |
+| `foreach` | `(E_EVERY (E_ITERATE name expr) block)` | Reuses existing `for` machinery |
+| `loop {}` | `(E_WHILE (E_ILIT 1) block)` | Clean E_* reuse, no placeholder |
+| `loop (i;c;s) {}` | `(E_FNC raku_loop init cond step block)` | Placeholder + new `LoopSubExpr` |
+| `use` | `(E_FNC raku_use (E_QLIT modname))` | Placeholder + new `ModuleName` |
+| `no` | `(E_FNC raku_no (E_QLIT modname))` | Placeholder |
+| `need` | `(E_FNC raku_need (E_QLIT modname))` | Placeholder |
+| `import` | `(E_FNC raku_import (E_QLIT modname))` | Placeholder |
+| `require` | `(E_FNC raku_require (E_QLIT modname))` | Placeholder |
+| `CATCH` (free) | `(E_FNC raku_catch_block block)` | Placeholder; CATCH-inside-try unchanged |
+| `CONTROL` | `(E_FNC raku_control_block block)` | Placeholder |
+| `QUIT` | `(E_FNC raku_quit_block block)` | Placeholder |
+
+Already-covered 6 arms (preserved from RK-3..RK-23): `if`, `unless`,
+`while`, `repeat`, `for`, `given`/`when`/`default`.
+
+### New non-terminals introduced this session
+
+- **`LoopSubExpr`** — accepts `lhs = rhs` (assignment-as-expression) OR
+  plain `Expr`.  Required because Raku's three-part `loop` allows
+  assignments in init/step positions, but our top-level `Expr` does
+  not include `=` (assignment is a stmt, not an expr).  FENCE-guarded
+  before `Push_var` per the RK-24 match-time-side-effect rule.
+- **`ModuleName`** — captures `Foo`, `Foo::Bar::Baz`, or `v6` /
+  `v6.c` as a single string into `capmodname`.  Used by all 5
+  module-load stmts (use/no/need/import/require).
+
+### One stop-the-line caught and fixed
+
+`stmt_ctrl_loop_three.raku` initially failed because the fixture used
+bare `my $i;` (no `=`, no type annotation).  Diagnosed in isolation —
+the existing parser handles `TypedDeclStmt` (requires type annotation)
+and `AssignStmt` (requires `=`) but NOT bare `my $var ;`.  Fixed by
+changing the fixture to `my $i = 0;`.  This is a pre-existing parser
+gap, not something this session introduced.
+
+**Filed for follow-up:** add a `BareDeclStmt` arm matching
+`$'my' $'  ' (VarScalar | VarArray | VarHash) $';' Push_empty (E_ASSIGN & 2)`
+to mirror raku.y lines 267–271 (`KW_MY VAR_SCALAR ';'` →
+`(E_ASSIGN var (E_QLIT ""))`).  Owner: any future PARSER-RK session,
+opportunistic — not blocking.
+
+### Files touched (all four repos clean before commit on each)
+
+- `corpus/programs/scrip/parser_raku.sc` — 13 new keyword tokens
+  (without, whenever, foreach, loop, use, no, need, import, require,
+  CONTROL, QUIT — CATCH already existed), 13 new finishers, 14 new
+  grammar productions (13 stmts + LoopSubExpr + ModuleName),
+  3 anchor lists updated (Stmt, BlockStmt, SubBlockStmt).
+- `corpus/programs/raku/parser-coverage/README.md` — new.
+- `corpus/programs/raku/parser-coverage/stmt_ctrl_*.raku` — 13 fixtures.
+- `one4all/scripts/test_parser_raku_coverage.sh` — new, executable.
+- `.github/GOAL-PARSER-RAKU.md` — PIVOT block at top, Invariants
+  rewritten, RK-28..RK-50 ladder grounded in Grammar.nqp, RK-28-A and
+  RK-28 marked LANDED, this watermark.
+- `.github/PLAN.md` — table line for PARSER-RAKU updated.
+
+### Commit hashes at handoff
+
+- one4all (`parser` branch): `7adcbdbd` — test_parser_raku_coverage.sh
+- corpus (`main`): `6f1c61f` — RK-28 LANDED + 13 fixtures + parser_raku.sc grammar
+- .github (`main`): this commit (push pending)
+
+### Next session — RK-29 (`statement_prefix:sym<...>`)
+
+`Grammar.nqp` lines 1394–1432.  The 16+ phasers and adverb prefixes:
+BEGIN, CHECK, INIT, END, ENTER, LEAVE, KEEP, UNDO, FIRST, NEXT, LAST,
+PRE, POST, CLOSE, TEMP, race, hyper, lazy, eager, sink, do, once,
+start, supply, react, quietly.  `try` and `gather` already covered.
+
+Per-arm discipline: one phaser at a time, both gates green between
+every step.  Each lowers to `(E_FNC raku_phaser_<name> body)` placeholder.
