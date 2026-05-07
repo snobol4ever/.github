@@ -407,8 +407,25 @@ Order them however convenient based on platform availability.
   2=cur, 3=step; E_TO_BY dispatches on step-sign each iteration).
   Remaining kinds in this step: E_EVERY, E_SUSPEND, E_BANG_BINARY,
   E_LCONCAT, E_LIMIT, E_RANDOM, E_SECTION, E_SECTION_PLUS,
-  E_SECTION_MINUS.  Next sub-rung: CH-15b (likely E_EVERY +
-  E_SUSPEND bundle — both have minimal internal state).
+  E_SECTION_MINUS.
+
+  **CH-15-SURVEY sess #74, 2026-05-07** — empirical reachability
+  audit (`docs/CHUNKS-step15-survey.md`).  Across 46 `test/`
+  programs + 317 cross-corpus programs (200 Icon, 47 snocone,
+  39 Raku, 21 scrip, 6 SNOBOL4, 4 Prolog) = **363 audited
+  programs** under `--sm-run` with `SCRIP_CHUNKS_AUDIT=1`: zero
+  fire `SM_PUSH_EXPR`.  The remaining-kinds dispatcher arm at
+  sm_lower.c:1192–1204 is dead code on real corpora today.
+  Cause (per CH-15a closed note): Icon proc bodies are walked by
+  `coro_eval`, not lowered through `sm_lower`, until Step 17
+  lands.  Implication: CH-15b is infrastructure-prep, not a
+  behaviour change, and the standard "real program + diff against
+  oracle" validation pattern does not apply.  **Recommendation:
+  defer CH-15b until Step 17 is complete**, then migrate
+  remaining kinds with full corpus validation.  Next inline
+  goal-default: **Step 16** (Prolog clauses — smaller and
+  self-contained) or **Step 17** (proc/pred table → entry_pcs —
+  the architectural unblock).  Lon's call.
 
 - [ ] **Step 16 — Migrate Prolog clauses (sm_lower.c:986).**
   Six kinds: `E_CHOICE`, `E_CLAUSE`, `E_CUT`, `E_UNIFY`,
