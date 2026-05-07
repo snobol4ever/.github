@@ -700,9 +700,21 @@ Do not let the next session repeat your mistakes.
 
 ---
 
-## Handoff note — session 8 (2026-05-06) end state
+## Handoff note — session 9 (2026-05-07) end state
 
-Gates: smoke PASS=5 FAIL=0, parser PASS=50 FAIL=0. All repos pushed.
+Gates: smoke PASS=5 FAIL=0, parser PASS=55 FAIL=0. corpus @ `10e7c0c`.
+
+**SC-7 landed:** augmented assign (`+=` `-=` `*=` `/=` `^=`). Key implementation note:
+
+- `E_*` constants like `E_ADD = "'E_ADD'"` hold strings WITH surrounding single quotes.
+  They are designed for embedding inside EVAL strings only.
+  In direct Snocone code, use string literals: `Tree('E_ASSIGN', ...)` not `Tree(E_ASSIGN, ...)`.
+- `Reduce_augmented(op)` uses `EVAL("epsilon . thx . *reduce_augmented(" op ")")` — note:
+  NO extra quotes around `op` because `op` already IS `'E_ADD'` (a quoted string literal).
+- Tree nodes are immutable value semantics in Snocone — sharing lhs in two child positions
+  (as both the assign target and the first arg of the arithmetic op) is safe.
+
+**Next:** SC-8 (break/continue). See GOAL-PARSER-SNOCONE.md for full spec.
 
 **Exact commits:**
 - corpus @ `7a17ff0` — SC-6c-bug fix: save_if_nthen/restore_if_nthen
