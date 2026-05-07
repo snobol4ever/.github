@@ -2702,3 +2702,76 @@ Open territory:
 - More arglist coverage: `foo(a, b)(c)` complex callee (oracle: parse error)
 - `else if` on same line: `if x then y else if z then w`
 - Cross-pollination: `stmt_body`/`stmt_inline` sync to sibling parsers
+
+---
+
+## GOAL PIVOT — 2026-05-07 (operator directive)
+
+### New objective
+
+**Previous goal:** parser_rebus.sc produces trees byte-identical to `scrip --dump-ir`
+for each fixture.  Gate = `tree_equal` against existing Rebus frontend.
+
+**New goal:** parser_rebus.sc parses **full, real Rebus programs** — the three
+corpus programs (`syntax_exercise.reb`, `word_count.reb`, `binary_trees.reb`)
+and any other valid `.reb` source — and emits **simplified, stripped-down
+trees** that are syntactically correct (no parse abort, no "Parse Error" output)
+for every construct in the Rebus grammar.  Tree fidelity to `--dump-ir` is
+**no longer required**.  The gate is: every target program parses to completion
+and emits at least one tree node per top-level declaration.
+
+### Simplified tree model
+
+Trees are stripped down on purpose:
+- `(STMT :subj <expr>)` for expression statements — no lowering to labels/gotos.
+- `(STMT :subj <lhs> :repl <rhs>)` for assignment — no label generation.
+- `(FUNC fname params body)` for function decls — children are the raw parts.
+- `(REC name fields)` for record decls.
+- `(IF cond body)` / `(IF cond body else)` for control flow — no gotos.
+- `(WHILE cond body)`, `(FOR var from to body)`, etc. — same.
+- All expression nodes `(E_VAR X)`, `(E_ILIT n)`, `(E_ADD a b)` etc. unchanged.
+- The existing lowering pass (`lower_stmt`, `lower_atom`, etc.) is DELETED or
+  bypassed.  The driver walks the raw Compiland tree and calls a single
+  `TDump(x)` per top-level child — no label allocation, no goto emission.
+- `tree_equal` crosscheck gate is retired for this goal.
+
+### Constructs to add / fix
+
+Currently missing from parser_rebus.sc (discovered from full programs):
+1. **Builtin function names** (`span`, `break`, `any`, `notany`, `len`, `arb`,
+   `arbno`, `bal`, `fence`, `rem`, `size`, `table`, `sort`, `input`, `output`,
+   `rpad`, `lpad`, `replace`, `ident`, `differ`, `eq`, `ne`, `lt`, `le`, `gt`,
+   `ge`, `ucase`, `lcase`, etc.) — these are bare `Id` tokens and should parse
+   as `(E_FNC name args...)` when followed by `(...)`, or `(E_VAR name)` when
+   bare. **This already works** via `call_or_id`.
+2. **`while cond do body` with assign-as-cond** (`while text := input do`) —
+   the cond is a full `expr`, which includes assignment.  Currently `while_stmt`
+   uses `*match_or_expr` which covers assignment.  **Should work already.**
+3. **Nested pattern expressions** (`break(letter) & span(letter) . word`) —
+   `&` is the pattern-concat operator; `.` is capture.  Currently `cat_expr`
+   handles `&`; capture is `dot_capt`.  **May work already.**
+4. **`initial { ... }` block** — already covered by `opt_initial`.
+5. **`while text ?- wpat do`** — match-repln as loop condition.  `match_or_expr`
+   covers `?-`.  Should work.
+6. **Simplified driver** — remove the complex `lower_*` pass; just `TDump` the
+   raw surface tree per declaration.
+
+### New gate
+
+```bash
+bash scripts/test_full_rebus.sh
+```
+
+New script: for each of `syntax_exercise.reb`, `word_count.reb`,
+`binary_trees.reb`, pipe through `parser_rebus.sc` via `--ir-run` and verify:
+- Exit 0 (no crash / timeout)
+- Output is non-empty (at least one tree node)
+- Output does NOT contain "Parse Error"
+
+No `--dump-ir` comparison.  PASS = all three programs parse cleanly.
+
+### Rung
+
+**RB-FULL-1** — next.  Simplify the driver (drop lowering, emit raw TDump),
+then run the three corpus programs and fix whatever gaps remain.
+
