@@ -82,7 +82,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-SNOBOL4 (pattern frontend)** | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | PASS=78/78 ✅ corpus@0fba291 — SN-7-7c LANDED (full keyword/function/builtin inventory + classifier patterns; cross-runtime SPITBOL x64/x32 + csnobol4 union). Next: **SN-7-8** beauty.sno full crosscheck. |
 | **IR: promote DEFINE to its own kind** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | stub written; awaiting Lon decision (cross-language emitter blast radius — see goal file) |
 | **PARSER-SNOCONE (pattern frontend)** | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | PARSER-SC-9 ✅ LANDED (sess 10, 2026-05-07) — struct → DATA() call. PASS=63 FAIL=0. Next: **SC-10** (switch/case/default). |
-| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-8 LANDED (2026-05-06, PASS=83 FAIL=0: unary_pos +x identity. corpus@dd86344) |
+| **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-9 LANDED (2026-05-07, PASS=90 FAIL=0: stmt_body/stmt_inline fixes + 7 stress fixtures. corpus@8277b51) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-22 LANDED PASS=143 — rung36 gprocs 2/2 PASS, 100% oracle coverage confirmed; RS-28 cross-pollination deferred; next: IC-23 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
 | **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-24 IN-PROGRESS PASS=131 FAIL=1 corpus@2511524 — class_and_main stray E_VAR d bug; bisect next. |
