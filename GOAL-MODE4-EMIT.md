@@ -1174,6 +1174,25 @@ to read, complex enough to be meaningful:
   output: `aXc`).  EM gate grows a runtime-correctness sub-test
   for Test 13.
 
+- [x] **Step EM-7c-symbolic-runtime-correctness — Fix blob entry label placement so `r10` is initialized.**
+  Root cause of the `abc` deviation (EM-7c-symbolic honest deviation):
+  `flat_emit_body_v` in `bb_flat.c` placed the externally-visible
+  `_pat_inv_N_alpha` label AFTER the r10-setup preamble (`lea r10,
+  [rip + Δ]; cmp esi, 0; dispatch`), so calling `fn(ζ, 0)` via the
+  exported symbol skipped the preamble entirely — `r10` was
+  uninitialized garbage, `mov eax, [r10]` read junk, memcmp failed,
+  the blob returned `DT_FAIL`, match never fired, `S` unchanged, output
+  `abc` instead of `abXc` (mode-3 oracle).
+  Fix: in TEXT mode (`text_externalise=1`), emit `EV_LABEL(lbl_alpha)`
+  BEFORE the preamble and add a new internal `lbl_alpha_body` label
+  for the dispatch target (after the preamble). Binary mode unchanged
+  (called at offset 0 = preamble start, so label placement doesn't
+  affect callers). Test 13 extended with a runtime sub-test: linked
+  binary output must match `--jit-run` oracle (`abXc`).
+  Gates: smoke ×6 PASS, EM PASS=12 (Test 13 now checks runtime
+  output), bb_flat_text PASS=18, isolation PASS, 5 tracked artifacts
+  unchanged byte-for-byte (variant patterns — no blob emitted).
+
 - [ ] **Step EM-7c-variant — Wire variant pattern nodes through Phase-2 SM ops + bb_pool runtime emit.**
   For patterns with at least one variant node (`SM_PUSH_VAR` feeding
   a parameterised pattern, `*VAR` deref, `*FN()` user-call,
@@ -1488,6 +1507,45 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7c-symbolic-runtime-correctness LANDED 2026-05-07 (session #79)
+Root cause of the `abc` deviation from EM-7c-symbolic honest deviation:
+`flat_emit_body_v` in `bb_flat.c` placed the externally-visible `_pat_inv_N_alpha`
+label AFTER the r10-setup preamble (`lea r10, [rip + Δ]; cmp esi, 0; dispatch`).
+When `bb_broker` calls `fn(NULL, 0)` targeting `_pat_inv_N_alpha`, it skips the
+preamble — `r10` is uninitialized garbage. `mov eax, [r10]` reads junk memory,
+memcmp fails (or bounds check fires), blob returns `DT_FAIL`, match never fires,
+S unchanged, output = `abc` instead of `abXc` (mode-3 oracle).
+
+Fix (one function, `flat_emit_body_v`):
+- With `text_externalise=1`: emit `EV_LABEL(lbl_alpha)` BEFORE the preamble
+  (making `_pat_inv_N_alpha` the true function entry). Introduce new internal
+  `lbl_alpha_body` label as the dispatch `je` target (after the preamble).
+  Old variable `lbl_alpha` now bifurcates into `lbl_alpha` (external = entry)
+  and `lbl_alpha_body` (internal = post-dispatch alpha body).
+- With `text_externalise=0` (binary mode): `lbl_alpha = lbl_alpha_body` (at
+  offset 0+preamble, same as before — binary callers call the function at
+  offset 0 which is the preamble, so they always get r10 setup).
+
+Test 13 in `test_smoke_jit_emit_x64.sh` extended with a runtime sub-test:
+the linked binary's output must match `--jit-run` oracle (`abXc`).
+
+Files changed:
+- `src/runtime/x86/bb_flat.c`: `flat_emit_body_v` — label repositioning
+- `scripts/test_smoke_jit_emit_x64.sh`: Test 13 runtime-correctness sub-test
+
+Gates:
+- smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4)
+- EM gate PASS=12 FAIL=0 (Test 13 runtime output `abXc` verified)
+- bb_flat_text PASS=18 (unchanged — internal `_alpha_body` label transparent to unit test)
+- isolation gate PASS
+- 5 tracked .s artifacts: empty diff vs repo (variant patterns — blobs not emitted
+  for demo programs)
+
+one4all HEAD: TBD. corpus: unchanged. .github: TBD. Session #79, 2026-05-07.
+
+Next rung: EM-7c-variant (wire variant pattern nodes through Phase-2 SM ops + bb_pool).
+Then EM-7d (beauty oracle gate).
 
 EM-7c-symbolic LANDED 2026-05-07 (session #78)
 Replaced baked process-addresses with symbolic/RIP-relative references in TEXT
