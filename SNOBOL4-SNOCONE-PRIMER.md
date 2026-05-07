@@ -700,7 +700,15 @@ Do not let the next session repeat your mistakes.
 
 ---
 
-## Handoff note — session 9 (2026-05-07) end state
+## Handoff note — session 10 (2026-05-07) end state
+
+Gates: smoke PASS=5 FAIL=0, parser PASS=63 FAIL=0. corpus @ HEAD.
+
+**SC-9 landed:** struct definition → DATA() call. Key implementation notes:
+- `Emit_struct()` uses `epsilon . thx . *emit_struct()` with NO EVAL embedding — `emit_struct()` reads `cur_struct_name` and `sc_struct_fields` as globals at match time. This avoids the EVAL-captures-at-build-time trap.
+- `struct_field_list = struct_field_first ARBNO(struct_field_rest) | epsilon` — the `| epsilon` branch handles empty `struct T {}` and leaves `sc_struct_fields = ''`, producing `DATA('T()')`.
+- `cur_struct_name` assigned via `. *assign(.cur_struct_name, token)` in `struct_cmd` — fires before `Emit_struct()` in the post-match linear sequence.
+- **Next:** SC-10 (switch/case/default). Read `snocone_parse.y` lines around `T_SWITCH`/`sc_switch_head_new`/`sc_finalize_switch` for the C frontend lowering. SC-8's break stack is reused as the switch's break target.
 
 Gates: smoke PASS=5 FAIL=0, parser PASS=60 FAIL=0. corpus @ `3420666`.
 

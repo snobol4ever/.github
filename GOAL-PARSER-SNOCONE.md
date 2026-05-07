@@ -852,18 +852,18 @@ wired into `Command`. corpus @ `3420666`. Gate: PASS=60 FAIL=0 (was 55).
 - [x] Fixtures: `break_while`, `continue_while`, `break_for`, `continue_for`, `break_nested`.
 - **Gate:** PASS=60 FAIL=0 (+5 from SC-7).
 
-### PARSER-SC-9 — `struct` definition ⏳
+### PARSER-SC-9 — `struct` definition ✅ DONE (PASS=63, session 10, 2026-05-07)
 
 `snocone_parse.y`: `T_STRUCT T_IDENT T_LBRACE struct_field_list T_RBRACE` lowers to
 a `DATA(...)` call (program-defined data type). Fields are comma-separated identifiers
 inside braces.
 
-- [ ] Add `struct_cmd` production: `$'struct' *Ident . captured_name $'{' field_list $'}'`.
-- [ ] `field_list`: ARBNO of `*Ident` separated by `$','` — collect into comma-joined string for the DATA qlit.
-- [ ] Emit `(STMT :subj (E_FNC DATA (E_QLIT "name(f1,f2,...)")))`.
-- [ ] Handle empty body `struct T {}`.
-- [ ] Fixtures: `struct_simple`, `struct_fields`, `struct_empty`.
-- **Gate:** PASS increases by 3.
+- [x] Add `$'struct'` keyword token; add `struct_cmd` production using `save_struct_field_first`/`save_struct_field_rest` helpers (mirrors param_first/param_rest). `Emit_struct()` uses `epsilon . thx . *emit_struct()` — reads `cur_struct_name` and `sc_struct_fields` as globals at match time (no EVAL embedding).
+- [x] `struct_field_list`: `struct_field_first ARBNO(struct_field_rest) | epsilon` — accumulates into `sc_struct_fields` global.
+- [x] Emit `(STMT :subj (E_FNC DATA (E_QLIT "name(f1,f2,...)")))` for non-empty; `"name()"` for empty.
+- [x] Handle empty body `struct T {}` via `| epsilon` in `struct_field_list`.
+- [x] Fixtures: `struct_simple`, `struct_fields`, `struct_empty`. corpus @ (see commit).
+- **Gate:** PASS=63 FAIL=0 (+3 from SC-8).
 
 ### PARSER-SC-10 — `switch` / `case` / `default` ⏳
 
@@ -899,9 +899,10 @@ PARSER-SC-3 ✅ PARSER-SC-INFRA-3 ✅ PARSER-SC-4 ✅ PARSER-SC-5 ✅
 PARSER-SC-6 ✅ — PASS=50 FAIL=0; beauty.sc 1148/1148 byte-identical.
 PARSER-SC-7 ✅ — PASS=55 FAIL=0; augmented assign (+= -= *= /= ^=).
 PARSER-SC-8 ✅ — PASS=60 FAIL=0; break/continue with loop-label stacks.
-SC-9 ⏳ (struct) SC-10 ⏳ (switch/case/default)**
+PARSER-SC-9 ✅ — PASS=63 FAIL=0; struct definition → DATA() call.
+SC-10 ⏳ (switch/case/default)**
 
-Gate: PASS=60 FAIL=0. corpus @ `3420666` (2026-05-07).
+Gate: PASS=63 FAIL=0. corpus @ HEAD (2026-05-07, session 10).
 
 ### SC-6c-bug + SC-6c session 2026-05-06 (session 8) — LANDED; PARSER-SC-6 CLOSED
 
