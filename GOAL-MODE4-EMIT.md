@@ -1217,11 +1217,33 @@ to read, complex enough to be meaningful:
   variant nodes; the emitted binary runs and matches `--sm-run`
   output.
 
+- [ ] **Step EM-7d-usercall-reentrant — Wire user-defined function dispatch for `*func()` in pattern context.**
+  `_rt_usercall` (the `g_user_call_hook` for mode-4) currently returns
+  FAILDESCR for all user-defined SNOBOL4 functions.  Calling INVOKE_fn /
+  APPLY_fn from inside a BB pattern match (Phase-3, inside exec_stmt, inside
+  emitted native code) causes a segfault — the SNOBOL4 interpreter call stack
+  is not initialised in mode-4's native execution context.
+  Fix: emit a name→entry_pc table in the `.s` file at startup (one entry per
+  DEFINE'd function, baked from the SM_Program's `proc_table` or from the
+  emitted `.LpcN` labels).  Register each entry as a native function pointer
+  in a `rt_chunk_registry` so `_rt_usercall` can `call` the chunk directly
+  via `call *(%rip + .Lchunk_ptr_N)` without touching the interpreter call
+  stack.  The emitted chunk's `SM_RETURN` pops the result onto the vstack;
+  `_rt_usercall` pops and returns it.
+  This is the same approach as `scrip_rt_call_chunk` but driven by name
+  rather than entry_pc.  Prerequisite: CH-17c (proc entry_pcs are finalised).
+  Gate: `S *Parse *Space RPOS(0)` pattern in beauty.sno succeeds instead of
+  failing to mainErr1; mode-4 output matches `--sm-run` output for beauty.
+
 - [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
   The full Beauty crosscheck (md5
   `abfd19a7a834484a96e824851caee159`, 646 lines) on the emitted
   binary. This is the M2-SNOBOL4 milestone gate: emitted binary
   produces byte-identical output to SPITBOL.
+  Note: EM-7d requires EM-7d-usercall-reentrant first.  Also note that
+  `--sm-run` is itself currently broken for beauty self-host (produces
+  10 lines / "Internal Error" rather than 646 lines).  The `--sm-run`
+  regression must be diagnosed and fixed before EM-7d can close.
 
 - [ ] **Step EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone.**
   Snocone rides the SNOBOL4 lowering path. This rung verifies
@@ -1628,7 +1650,41 @@ Session #80, 2026-05-07.
 Next rung: EM-7d (beauty oracle gate).
 EM-7c-variant-bb-pool-emit is the architectural ideal but not blocking on the M2 milestone path.
 
-EM-7c-variant-wordcount-correctness LANDED 2026-05-07 (session #81)
+EM-7d-prep LANDED 2026-05-07 (session #81)
+SM_PAT_CAPTURE_FN (51), SM_PAT_CAPTURE_FN_ARGS (52), SM_PAT_USERCALL (53),
+SM_PAT_USERCALL_ARGS (54) — emit helpers + runtime entries added.
+Previously these four opcodes fell through to emit_sm_unhandled in
+sm_codegen_x64_emit.c; beauty.sno now emits, assembles, and links cleanly
+(exit 0) with zero UNHANDLED_OP traps.
+
+Runtime behaviour: beauty produces 10 lines ("Parse Error\nSTART") — diverges
+from --sm-run (10 lines, "Internal Error\nSTART").  Both modes fail vs SPITBOL
+(622 lines).  Two honest deviations filed:
+
+(1) EM-7d-usercall-reentrant: _rt_usercall returns FAILDESCR for user-defined
+SNOBOL4 functions.  INVOKE_fn / APPLY_fn called from inside a BB pattern match
+(Phase-3) segfault because the SNOBOL4 interpreter call stack is uninitialised
+in mode-4's native context.  Fix: native chunk function pointer registry emitted
+in .s at startup; _rt_usercall dispatches via call/ret without interpreter
+re-entry.  New step EM-7d-usercall-reentrant added before EM-7d in step list.
+
+(2) --sm-run itself is broken for beauty self-host: produces "Internal Error"
+(10 lines) instead of 622/646 lines.  Pre-existing — present at commit 87873e5d
+(before this session).  EM-7d gate blocked until --sm-run is fixed separately.
+
+Tracked artifacts: claws5.s, treebank-list.s, treebank-array.s regenerated.
+All 5 demo .s files assemble cleanly.
+
+Gates: smoke x6 PASS, EM PASS=12, isolation PASS=49.
+one4all parent: 87873e5d.  one4all HEAD: f029dd02.
+corpus parent: 58a0be43.  corpus HEAD: 65e3c23.
+Session #81, 2026-05-07.
+
+Next rung: EM-7d-usercall-reentrant (wire native chunk function pointer table
+so _rt_usercall can dispatch user-defined functions without interpreter
+re-entry), then diagnose --sm-run beauty self-host regression, then EM-7d.
+
+
 Root cause: `scrip_rt_nv_set` did not check for DT_FAIL before calling
 NV_SET_fn, and did not update `g_last_ok`.  In the SM interpreter,
 `SM_STORE_VAR` checks `if (val.v == DT_FAIL)` → pushes FAILDESCR back,
