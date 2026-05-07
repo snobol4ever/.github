@@ -670,3 +670,22 @@ Filed SCRIP engine bugs RS-28 (ALT-in-FENCE bb_alt null-ptr) and RS-29 (ARBNO-in
 Rung36 jcon crosscheck: `test_parser_icon.sh` PASS=143 FAIL=0. IPL gprocs: 2/2 oracle-parseable PASS (grecords.icn, lindrec.icn); 138 skip (oracle rejects `link` decls). IC-22 confirmed parser covers 100% of oracle-accepted constructs. Constructs the oracle itself rejects (`link`, `invocable`, `create`, `@` activation) are out-of-scope pending LANG-IC ladder progress.
 
 **Next session (IC-23):** Add fixtures for constructs added but not yet independently tested. Expand to match any new LANG-IC ladder features as they land.
+
+---
+
+### PARSER-IC-24 LANDED PASS=153 corpus@42e4ea3
+
+671 → 631 lines (-40). Removed 35 E_* constant definitions (E_ASSIGN, E_IF,
+E_WHILE, etc.), r_nTop, stmt_kw, kw_prefix — all inlined directly into grammar
+body. All 153 fixtures PASS=153 FAIL=0.
+
+**RS-28 blocker for further compaction**: Both-sides Gray on keyword tokens
+(Lon's design: `$' ' Id $ tx *IDENT(tx,'kw') $' '`) triggers the RS-28
+null-ptr crash in bb_alt when the trailing Gray ALT node appears inside FENCE
+contexts in the expression tower. Fix: `Gray = ARBNO(white)` instead of
+`White | epsilon` eliminates the ALT node. Filed under GOAL-REWRITE-SCRIP.md
+RS-28. Op-based operator tokens (SPAN technique) and full whitespace compaction
+deferred to IC-25 pending RS-28 resolution or Gray fix.
+
+**Next (IC-25)**: Fix `Gray = ARBNO(white)` (no ALT node), then apply
+both-sides Gray keywords + Op-based operators → target ~350 lines.

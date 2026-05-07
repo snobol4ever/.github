@@ -515,3 +515,30 @@ Next rung: **CH-17c** — flip `coro_call` consumer sites to
 dispatch via entry_pc when non-(-1); add companion
 `sm_call_proc(int entry_pc, ...)`; fix the E_FNC stack-leak shape
 inherited from CH-17b'.
+
+**CH-17c LANDED sess #82, 2026-05-07** — consumer-side flip.
+`sm_call_proc(int entry_pc, int nparams, DESCR_t *args, int nargs)`
+added to `coro_runtime.c`: pushes `IcnFrame` with param slots bound
+from args, delegates body execution to `sm_call_chunk(entry_pc)` (nested
+SM_State; `SM_LOAD_FRAME`/`SM_STORE_FRAME` see the live frame via
+`icn_frame_env_load/store`), pops frame on return.  `nparams` added to
+`IcnProcEntry` (populated from `proc->ival` in `polyglot.c`);
+`gather_entry_pc`/`gather_nparams` added to `coro_t` (icon_gen.h).
+`Icn_coro_stage_t` gains `entry_pc`/`nparams`.  All three staging sites
+flipped; `proc_trampoline` and `gather_trampoline` dispatch via
+`sm_call_proc` when `entry_pc >= 0`, fall back to `coro_call` when `-1`.
+E_FNC lowering in `sm_lower.c` fixed for Icon-style nodes (`e->sval == NULL`,
+name in `children[0]->sval`): now emits `SM_CALL(fn, real_nargs)` — fixes
+the empty-name / stack-shape bug in proc-body chunks.  Empirical proof:
+`SCRIP_PROC_ENTRY_PCS=1 --sm-run palindrome.icn` shows palindrome@1 /
+main@54; `proc_trampoline` dispatches via `sm_call_proc` for both.
+Static-variable persistence deferred to CH-17g (keyed on `EXPR_t*`).
+`coro_drive_fnc` left for CH-17g cleanup.  Gates byte-identical to
+baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS,
+csnobol4 Budne PASS=61, unified_broker PASS=49, Icon corpus PASS=186
+FAIL=47 XFAIL=30 TOTAL=263, scrip_all_modes PASS=2.
+Documented in `docs/CHUNKS-step17c-validation.md`.
+Files: `src/runtime/interp/coro_runtime.h`, `src/runtime/interp/coro_runtime.c`,
+`src/driver/polyglot.c`, `src/frontend/icon/icon_gen.h`,
+`src/runtime/x86/sm_lower.c`.  Next rung: **CH-17d** (sm_lower emits
+named chunks for Prolog predicates).
