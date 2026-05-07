@@ -2775,3 +2775,53 @@ No `--dump-ir` comparison.  PASS = all three programs parse cleanly.
 **RB-FULL-1** — next.  Simplify the driver (drop lowering, emit raw TDump),
 then run the three corpus programs and fix whatever gaps remain.
 
+
+---
+
+## Session 2026-05-07 continuation — RB-FULL-1 partial; 3 bugs fixed; Bug-D open
+
+**Context at session start: ~92%. Context at handoff: ~98%.**
+
+Official grammar spec: `/home/claude/one4all/src/frontend/rebus/rebus.y` (704 lines Bison)
++ `/home/claude/one4all/src/frontend/rebus/rebus.l` (lexer, auto-semicolon via `needs_semi()`).
+TR 84-9 (Griswold 1984) uploaded and confirmed: grammar appendix pages 13-15.
+Key: "Semicolon insertion is performed automatically at the ends of lines as it is in Icon."
+
+### Three bugs fixed (corpus@40ddfed)
+
+**BUG-RB-FULL1-A** — `blank = nl` dropped `# comment\n` lines at top level.
+Fix: `blank = $' ' nl` — Gray absorbs comments before the newline.
+
+**BUG-RB-FULL1-B** — `opt_locals` required literal `;` but real programs use newline
+termination (lexer auto-inserts `;`). Fix: `FENCE($';' | epsilon)`.
+
+**BUG-RB-FULL1-C** — `$'do'`/`$'then'`/`$'else'` had trailing required White (`$'  '`)
+but real programs put newline immediately after keyword (`while x do\n`).
+Fix: changed trailing to Gray (`$' '`). Also added `opt_nl = (nl | epsilon)` before
+`stmt_body` for post-keyword newline consumption.
+
+### Active bug: BUG-RB-FULL1-D — while/if body on next line still fails
+
+`while i < 5 do\n    i := 1\n` still parses `while` and `do` as bare E_VAR identifiers.
+`while 1 do y := 1` (same-line body) works fine. Only next-line bodies fail.
+
+Minimal reproduction (no shift/reduce stack) also fails — structural issue in
+`func_body_stmt` FENCE interaction with `opt_nl` consuming the post-`do` newline
+and `stmt`'s trailing `(nl|epsilon)`.
+
+**Next session: fix BUG-RB-FULL1-D first, then continue RB-FULL-1.**
+
+Approach to try: instead of `opt_nl` inside `while_stmt`/`if_stmt`, restructure so
+`func_body_stmt` drives the multi-line body — i.e., a while/if body can itself BE
+a `func_body_stmt` recursion, not a single `stmt_body` match. Or: eliminate the
+`stmt` wrapper's trailing `nl` entirely and have `func_body_stmt` always consume
+the newline at the END of each matched stmt sequence.
+
+State:
+| Repo | HEAD |
+|------|------|
+| corpus | `40ddfed` |
+| one4all/parser | `b9b31884` (unchanged) |
+| .github | this commit |
+
+Gate: PASS=96 FAIL=0 (unchanged throughout).
