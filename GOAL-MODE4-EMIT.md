@@ -1235,15 +1235,88 @@ to read, complex enough to be meaningful:
   Gate: `S *Parse *Space RPOS(0)` pattern in beauty.sno succeeds instead of
   failing to mainErr1; mode-4 output matches `--sm-run` output for beauty.
 
+- [x] **Step EM-7d-usercall-retval-from-nv — Read user-fn retval from `NV[fname]`, not vstack.**
+  ⛔ Discovered session #83 (2026-05-07) immediately after
+  EM-7d-usercall-reentrant landed.  A minimal user-function test
+  (`DEFINE('ADD(X,Y)'); ADD = X+Y :(RETURN); OUTPUT = ADD(3,4)`)
+  emitted, assembled, linked, and ran cleanly under mode-4 — **but
+  produced no output**, while `--ir-run` and `--sm-run` correctly
+  printed `7`.
+  Root cause: `call_native_chunk` (in `scrip_rt.c`) was popping the
+  retval from the value stack:
+  `DESCR_t result = (g_vtop > 0) ? vstack_pop() : FAILDESCR;`
+  But the SM lowerer doesn't append a final `nv_get(fname)` push
+  before `SM_RETURN` — the SNOBOL4 calling convention is "value of
+  the function = `NV[fname]`" and the SM interpreter handles the
+  read in its own RETURN dispatch (`sm_interp.c:1208–1210`):
+  ```c
+  DESCR_t retval = (fr->retval_name)
+      ? NV_GET_fn(fr->retval_name)
+      : ((st->sp > 0) ? st->stack[st->sp - 1] : FAILDESCR);
+  ```
+  The body's `ADD = X+Y` lowers to `nv_get X; nv_get Y; SM_ADD;
+  nv_set ADD` — `SM_STORE_VAR` pops TOS into `NV[ADD]`.  After that
+  pop the vstack is empty (or holds unrelated residue from earlier
+  ops), so `vstack_pop()` returned garbage; mode-4 silently dropped
+  the `7` and `OUTPUT = ADD(3,4)` got `FAILDESCR`, suppressing the
+  print.
+  Fix (`src/runtime/rt/scrip_rt.c`, `call_native_chunk`):
+  - Snapshot `g_vtop` before `cfn()`.
+  - Replace `vstack_pop()` with `NV_GET_fn(fname)` — mirrors
+    `sm_interp.c:1208-1210` user-function branch byte-for-byte.
+  - Restore `g_vtop = saved_vtop` after the call to drop any vstack
+    residue the body pushed and didn't pop (mirrors interpreter's
+    `caller_sp` restore at `sm_interp.c:1215-1222`).
+  - Param-restore order unchanged.
+  Verified end-to-end: minimal user-fn test now prints `7` matching
+  oracle.  Beauty mode-4 binary now runs to completion (rc=0,
+  10 lines) instead of silently mis-printing — matching `--sm-run`'s
+  10-line failure shape (both fall short of the 646-line SPITBOL
+  oracle for unrelated pre-existing reasons; see EM-7d note below).
+  Pure-SNOBOL4 fix on the `libscrip_rt.so` side; emitter unchanged;
+  tracked artifacts byte-identical to repo.
+  Gates: smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog
+  5/5, raku 5/5, rebus 4/4), EM gate PASS=12 FAIL=0, isolation gate
+  PASS, 5 tracked .s artifacts assemble cleanly + diff vs repo
+  empty.
+
 - [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
   The full Beauty crosscheck (md5
   `abfd19a7a834484a96e824851caee159`, 646 lines) on the emitted
   binary. This is the M2-SNOBOL4 milestone gate: emitted binary
   produces byte-identical output to SPITBOL.
-  Note: EM-7d requires EM-7d-usercall-reentrant first.  Also note that
-  `--sm-run` is itself currently broken for beauty self-host (produces
-  10 lines / "Internal Error" rather than 646 lines).  The `--sm-run`
-  regression must be diagnosed and fixed before EM-7d can close.
+  Note: EM-7d requires EM-7d-usercall-reentrant + EM-7d-usercall-
+  retval-from-nv first (both ✅).  Pre-existing beauty self-host
+  problems remain that block this rung from closing today:
+  (1) `--sm-run beauty.sno < beauty.sno` produces 10 lines ending
+  in "Internal Error" (`mainErr2`) instead of the 646-line oracle —
+  pre-existing per session #82 root-cause note, traced to corpus
+  reorganisation (`-INCLUDE 'global.sno'` mismatched against `.inc`
+  filenames) plus a separate undefined-label-`error` issue.
+  (2) `--ir-run beauty.sno < beauty.sno` SEGFAULTS at HEAD —
+  separate from the `--sm-run` issue, observed sess #83.
+  (3) Mode-4 binary runs to completion (10 lines) but lands in
+  `mainErr1` ('Parse Error') while `--sm-run` lands in `mainErr2`
+  ('Internal Error').  Both are 10-line failures but they fail at
+  *different* points: `--sm-run` gets past the `Src POS(0) *Parse
+  *Space RPOS(0) :F(mainErr1)` pattern and fails on the subsequent
+  `DIFFER(sno = Pop()) :F(mainErr2)`; mode-4 fails on the pattern
+  itself.  This is the divergence flagged in EM-7d-usercall-
+  reentrant's gate text ("`S *Parse *Space RPOS(0)` pattern in
+  beauty.sno succeeds instead of failing to mainErr1") — that
+  intended gate is NOT met.
+  Closing EM-7d requires either:
+  (a) Diagnose mode-4's pattern-match divergence on `*Parse *Space
+      RPOS(0)` and fix it; reach byte-identical match with `--sm-run`
+      (which still leaves a 10-line `mainErr2` result, matching but
+      not yet oracle).  Then —
+  (b) Diagnose the underlying beauty self-host regression — the
+      "undefined label 'error'" warnings emitted by `sm_lower`
+      indicate the parser/lowerer aren't reaching the actual
+      execution path.  Likely needs a corpus-side fix too (the
+      `error` label may have been removed when files were renamed).
+  Both (a) and (b) are session-scale investigations.  Once (a) and
+  (b) close, mode-4 should reach the oracle's 646 lines.
 
 - [ ] **Step EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone.**
   Snocone rides the SNOBOL4 lowering path. This rung verifies
@@ -1529,6 +1602,100 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7d-usercall-retval-from-nv LANDED 2026-05-07 (session #83)
+==============================================================
+SNOBOL4 user-function retval discipline fix in libscrip_rt.so.
+
+Discovered immediately after EM-7d-usercall-reentrant landed: a minimal
+test (`DEFINE('ADD(X,Y)'); ADD = X+Y :(RETURN); OUTPUT = ADD(3,4)`)
+emitted, assembled, linked, ran cleanly under mode-4 — but produced no
+output, while `--ir-run` and `--sm-run` correctly printed `7`.
+
+ROOT CAUSE: `call_native_chunk` (scrip_rt.c:289-303) was popping the
+chunk's retval from the value stack:
+  DESCR_t result = (g_vtop > 0) ? vstack_pop() : FAILDESCR;
+But the SM lowerer doesn't append a final `nv_get(fname)` push before
+SM_RETURN — the SNOBOL4 calling convention is "value of the function =
+NV[fname]" and the SM interpreter does the read in its own RETURN
+dispatch (sm_interp.c:1208-1210):
+  DESCR_t retval = (fr->retval_name)
+      ? NV_GET_fn(fr->retval_name)
+      : ((st->sp > 0) ? st->stack[st->sp - 1] : FAILDESCR);
+The body's `ADD = X+Y` lowers to `nv_get X; nv_get Y; SM_ADD; nv_set ADD`
+— SM_STORE_VAR pops TOS into NV[ADD]. After that pop the vstack is
+empty (or holds unrelated residue from earlier ops); vstack_pop()
+returned garbage; mode-4 silently dropped the `7` and OUTPUT got
+FAILDESCR, suppressing the print.
+
+FIX (src/runtime/rt/scrip_rt.c, `call_native_chunk`):
+- Snapshot g_vtop before cfn().
+- Replace vstack_pop() with NV_GET_fn(fname) — mirrors sm_interp.c:1208
+  user-function branch byte-for-byte.
+- Restore g_vtop = saved_vtop after the call (mirrors interpreter's
+  caller_sp restore at sm_interp.c:1215-1222).
+- Param-restore order unchanged.
+
+VERIFIED:
+- Minimal user-fn test (`OUTPUT = ADD(3,4)` where ADD adds args) now
+  prints `7` matching `--ir-run` and `--sm-run` oracles exactly.
+- Beauty mode-4 binary now runs to completion (rc=0, 10 lines) instead
+  of silently mis-printing — matching `--sm-run`'s 10-line failure
+  shape.  Both still fall short of the 646-line SPITBOL oracle for
+  unrelated pre-existing reasons (see EM-7d note in the step list).
+
+DEVIATION FROM EM-7d-USERCALL-REENTRANT'S INTENDED GATE:
+EM-7d-usercall-reentrant's gate text reads "`S *Parse *Space RPOS(0)`
+pattern in beauty.sno succeeds instead of failing to mainErr1; mode-4
+output matches `--sm-run` output for beauty."  That gate is NOT met.
+Mode-4 still hits mainErr1 ('Parse Error', the pattern-match itself
+failing); `--sm-run` hits mainErr2 ('Internal Error', from a Pop()
+on empty stack downstream of a successful pattern match).  This rung
+fixed a *different* bug uncovered while testing the registry — the
+retval-from-vstack mistake.  Closing the original gate requires
+diagnosing why mode-4's BB pattern match for `*Parse *Space RPOS(0)`
+diverges from `--sm-run`.  Filed as part of EM-7d's blocking notes.
+
+OBSERVATIONS DURING DIAGNOSIS (filed for follow-up, not investigated):
+- `--ir-run beauty.sno < beauty.sno` SEGFAULTS at HEAD.  Separate from
+  the known `--sm-run` 10-line "Internal Error" issue.  Likely a
+  recent regression (CH-17 series touched IR/proc-table machinery).
+- `--ir-run roman.sno` and `--sm-run roman.sno` both report "parse
+  error" + "undefined label ROMAN_END/error treated as Error 24".
+  Smoke gates pass because they use different inline programs that
+  don't trigger this path.  May be related to the `+` continuation-
+  line handling, or to recent parser/lexer changes.
+- Mode-4's chunk registry over-includes: `emit_chunk_registry()`
+  adds *every* named SM_LABEL (function entries plus jump targets
+  like `ADD_END`, `END`).  Harmless because non-functions are never
+  reached through `_rt_usercall`, but noisy and worth tightening
+  (gate against `IcnProcEntry` / `Pl_PredEntry` / SNOBOL4 `function`
+  table membership).
+
+FILES CHANGED (one4all):
+  src/runtime/rt/scrip_rt.c   call_native_chunk: 4-line core change
+                              (snapshot g_vtop; NV_GET_fn for retval;
+                              restore g_vtop) plus comment update
+                              describing the corrected discipline.
+
+NO emitter changes; no tracked-artifact regen.  All 5 demo .s files
+diff cleanly vs repo.
+
+GATES:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=12 FAIL=0 (unchanged)
+- isolation gate PASS
+- 5 tracked .s artifacts: assemble cleanly, diff vs repo empty
+
+one4all parent: c48295b1.  corpus: unchanged.  .github: <new>.
+Session #83, 2026-05-07.
+
+Next rung: EM-7d (close the M2-SNOBOL4 milestone — beauty oracle gate).
+Blocked on: (a) diagnose mode-4's `*Parse *Space RPOS(0)` divergence
+from `--sm-run`; (b) diagnose underlying beauty self-host regression
+(`undefined label 'error'` warnings, 10-line `mainErr2` outcome from
+`--sm-run`).  Each is a session-scale investigation.
 
 EM-7d-usercall-reentrant LANDED 2026-05-07 (session #82)
 =========================================================
