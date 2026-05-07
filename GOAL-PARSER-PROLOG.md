@@ -67,10 +67,20 @@ bash /home/claude/one4all/scripts/install_system_packages.sh
 bash /home/claude/one4all/scripts/build_scrip.sh
 ```
 
-Gate after setup:
+⛔ **Do NOT run baseline gates at session start.** They are too slow (~4s/file × 125+ files).
+This goal only modifies `.sc` files in `corpus/programs/scrip/` and `corpus/programs/prolog/parser/`.
+Run the gate ONLY after fixing a SCRIP bug (C source change). For `.sc`-only changes, verify
+by running a single representative file manually:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_prolog.sh         # existing frontend baseline
-bash /home/claude/one4all/scripts/test_parser_prolog.sh        # parser gate
+echo 'foo(X) :- X is 1.' | timeout 8 /home/claude/one4all/scrip --ir-run \
+  /home/claude/corpus/programs/scrip/global.sc \
+  /home/claude/corpus/programs/scrip/tree.sc \
+  /home/claude/corpus/programs/scrip/stack.sc \
+  /home/claude/corpus/programs/scrip/counter.sc \
+  /home/claude/corpus/programs/scrip/semantic.sc \
+  /home/claude/corpus/programs/scrip/ShiftReduce.sc \
+  /home/claude/corpus/programs/scrip/tdump.sc \
+  /home/claude/corpus/programs/scrip/parser_prolog.sc < /dev/null
 ```
 
 ---
