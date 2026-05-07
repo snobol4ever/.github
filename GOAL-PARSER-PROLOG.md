@@ -5,10 +5,22 @@
 **Sibling ladder:** `GOAL-LANG-PROLOG.md` and `GOAL-PROLOG-IR-RUN.md`. The
 existing Prolog frontend (`src/frontend/prolog/`) is the in-process oracle.
 
-**Done when:** A Snocone program `parser_prolog.sc` reads Prolog source,
-runs one `Compiland` PATTERN that builds the canonical IR tree, and for
-every test program in the rung corpus
-`tree_equal(existing_frontend_tree, parser_prolog_tree)` returns true.
+## ⚡ GOAL PIVOT — Session 2026-05-07
+
+**Old goal (PR-0..PR-16):** Byte-exact IR tree match against the C frontend
+for every rung fixture. Driven by SCRIP capability constraints.
+
+**New goal:** Full Prolog grammar coverage. Every real Prolog program in the
+corpus must parse and produce *some* reasonable tree without aborting. Tree
+shape is pragmatic — simplified is fine, exact C-frontend match is NOT
+required. The constraint is: no silent parse failure, no abort, always at
+least one STMT emitted per top-level clause/directive.
+
+**Done when:** `parser_prolog.sc` parses every `.pl` file in
+`corpus/programs/prolog/` (recursively) without aborting, producing at least
+one tree node per top-level form. Gate: a new script
+`test_smoke_parser_prolog_full.sh` runs each `.pl` file and reports FAIL if
+output is empty or scrip exits nonzero. PASS = 100% of corpus programs parse.
 
 ---
 
@@ -1448,3 +1460,71 @@ body_goal = ( $'(' *body $')'
 
 **PR-16 PARTIAL LANDING (PASS=136 FAIL=0 estimated, 2026-05-07).**  
 Next rung: PR-17 — `|` pipe in non-list/non-DCG context; single-char SY atoms; or focus on real corpus coverage.
+
+---
+
+## ⚡ PIVOTED RUNG LADDER (PR-17+) — Full corpus parse, pragmatic trees
+
+**New philosophy (pivoted session 2026-05-07):** Stop chasing exact C-frontend
+IR match. Stop treating SCRIP bugs as blockers. New success criterion:
+
+> Every `.pl` file in `corpus/programs/prolog/` parses start-to-finish and
+> emits at least one STMT tree. No silent abort. No empty output.
+
+Tree nodes may be simplified -- e.g. unknown operators/builtins fold into
+`(E_FNC name args...)`. The grammar must be robust: unrecognized syntax
+should trigger skip-to-next-clause recovery rather than silently aborting
+the whole file.
+
+### PR-17 -- Corpus smoke pass + parse recovery -- NEXT
+
+**Goal:** Run every `.pl` in corpus through `parser_prolog.sc` and triage
+failures. Write `test_smoke_parser_prolog_full.sh`.
+
+#### Work items
+
+- [ ] **PR-17-smoke** Write `one4all/scripts/test_smoke_parser_prolog_full.sh`:
+  finds all `corpus/programs/prolog/**/*.pl`, runs each through
+  `timeout 8 scrip --ir-run [sc files]`, FAILs if output is empty or exit nonzero.
+  Reports `PASS N / TOTAL M`.
+
+- [ ] **PR-17-triage** Run smoke, collect failures, categorize:
+  1. Parse-abort (empty output) -- highest priority
+  2. Partial output (some clauses emitted, some dropped) -- medium
+  3. Wrong tree shape -- low (acceptable under new goal)
+
+- [ ] **PR-17-recover** Add top-level parse recovery so a failed `top_form`
+  match skips to the next `.` and continues rather than aborting the Compiland:
+  ```snocone
+  skip_to_dot   = ( BREAKX('.') $'.' );
+  top_form_safe = ( top_form | skip_to_dot );
+  ```
+  Compiland body changes from `top_form` to `top_form_safe`.
+
+- [ ] **PR-17-gaps** Fix highest-frequency parse-abort causes found in triage.
+  Likely candidates from corpus inspection:
+  - `\+` as prefix unary in non-paren position (`\+ foo`)
+  - `|` as disjunction in body (alternative to `;`)
+  - Single-char operator atoms in arg position (`op(200, fy, -)`)
+  - `format("~w~n", [X])` -- Str already handles `"..."` so should be fine; verify
+
+#### Gate (new)
+`test_smoke_parser_prolog_full.sh` reports PASS >= 80% on first pass after
+recovery lands; target 100% before PR-17 closes.
+
+### PR-18 -- Robustness and operator completeness -- PLANNED
+
+- `|` in body expression context (xfy 1105)
+- `\+` prefix without parens
+- Doubled-quote in atoms (`'it''s'`) -- function-based scanner workaround
+- Operator-as-atom in any arg position
+- `catch/throw` forms
+
+### Session setup reminder
+
+```bash
+cd /home/claude/one4all && git checkout parser
+bash /home/claude/one4all/scripts/build_scrip.sh
+```
+
+Run `test_smoke_parser_prolog_full.sh` (once landed), NOT `test_parser_prolog.sh`.
