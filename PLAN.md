@@ -85,7 +85,7 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 | **PARSER-REBUS (pattern frontend)** | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FW-10 LANDED (2026-05-07, PASS=91 FAIL=0: multi-arg subscript a[i,j]; global var fix; loop idiom fix. corpus@0d39195) |
 | **PARSER-ICON (pattern frontend)** | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-22 LANDED PASS=143 — rung36 gprocs 2/2 PASS, 100% oracle coverage confirmed; RS-28 cross-pollination deferred; next: IC-23 |
 | **PARSER-PROLOG (pattern frontend)** | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-12 LANDED PASS=103 FAIL=0; PR-13 IN PROGRESS (stashed) — arith/bitwise ops + -> if-then; coverage ~84%; next: complete PR-13 |
-| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-25 LANDED PASS=137 FAIL=0 — file I/O + std handles; SayFhStmt/PrintFhStmt bug fix ($*STDOUT/$*STDERR as fh arg). Next: RK-26. |
+| **PARSER-RAKU (pattern frontend)** | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-26 LANDED PASS=142 FAIL=0 — bare ident atoms (BareIdent arm in Expr11) + typed arr/hash decls. Next: RK-27. |
 | Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
 | Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
 | **Snocone-in-Snocone** | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
