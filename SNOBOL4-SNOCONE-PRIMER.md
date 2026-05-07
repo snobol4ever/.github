@@ -768,3 +768,37 @@ clobber (not a counter-frame depth issue as previous sessions suspected).
   `if_nthen` was overwritten by nested `*if_cmd`. Fix pattern: `Save_X() nPush() *rec nPop() Restore_X()`.
 - Stack pop without ARB: `SPAN(digits) . top (':' REM . rest | '')` — O(1), no ARB.
 - **Never use ARB** — Lon's rule. Use BREAKX, BREAK, SPAN, or REM instead.
+
+---
+
+## Handoff note — session 2026-05-07 (PARSER-RK-24 closure)
+
+**PARSER-RK-24 LANDED** — PASS=132 FAIL=0. corpus@78bdcb9.
+
+19. **Match-time side effects in failed alternations are NOT rolled back.**
+    `epsilon . *push_var()` — the `*push_var()` fires at MATCH TIME (via deferred `*`
+    operator), not post-match like `.`. With `&FULLSCAN=1`, the engine explores ALL
+    alternation paths, including ones that ultimately fail. Any match-time side effect
+    (`Push`, `Pop`, `nPush`, `nPop`, `nInc`) from a FAILED alternative PATH is permanent.
+    
+    The `class_and_main` bug: `SayFhStmt = $'say' $'(' *Expr $',' ...` — when
+    `say($d.name)` was tried, the inner `*Expr` matched `$d` via `VarScalar Push_var`,
+    firing `push_var()` and pushing `(E_VAR d)`. The comma check then failed — but
+    `(E_VAR d)` stayed on the tree stack, becoming a stray child of main.
+    
+    **Rule**: Any grammar alternative using `*fn()` helpers (push_var, nPush, nInc, etc.)
+    inside a pattern that might fail MUST use `FENCE` or structural disambiguation to
+    prevent the side effect from firing before failure is certain:
+    
+    ```snocone
+    // WRONG — push_var fires before comma check, stray push on failure:
+    FooFhStmt = ( $'foo' $'(' *Expr $',' *Expr $')' $';' Finish_foo_fh );
+    
+    // RIGHT — FENCE after VarScalar, before Push_var:
+    FooFhStmt = ( $'foo' $'(' VarScalar FENCE $',' Push_var *Expr $')' $';' Finish_foo_fh );
+    ```
+    
+    This is a stronger constraint than the `ARBNO(X)` definition-time capture rule —
+    it applies to ANY alternation point where a helper with side effects is used.
+    Scan all grammar alternatives for this pattern when adding new statement forms.
+
