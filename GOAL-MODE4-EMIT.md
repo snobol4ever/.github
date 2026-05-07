@@ -701,7 +701,7 @@ to read, complex enough to be meaningful:
   program that uses `SPAN`, `BREAK`, `LEN`, `*expr`, and a
   pattern with `$` capture compiles and runs.
 
-- [ ] **Step EM-7-revert — Remove brokered Phase-3 from emitted-code path.**
+- [x] **Step EM-7-revert — Remove brokered Phase-3 from emitted-code path.**
   EM-7-pre (session #71) wrongly built Phase 2 as `scrip_rt_pat_*@PLT`
   calls and Phase 3 as `scrip_rt_exec_stmt → exec_stmt → bb_broker`.
   That descriptor-tree-then-broker model is the JIT-run path's old
@@ -716,6 +716,40 @@ to read, complex enough to be meaningful:
   1/4/5 concerns, orthogonal to BB.  Gate: existing PASS=10 EM gate
   remains green minus the EM-6 pattern-matcher test (which is now
   the wrong shape and will be retired/replaced by EM-7c).
+  **LANDED session #72, 2026-05-07.** See watermark for hash and details.
+
+- [ ] **Step EM-7-default-bb-live — Flip BB-mode default to `--bb-live`.**
+  Today `scrip.c` defaults BB pattern mode to `--bb-driver` (line ~210:
+  `if (!bb_driver && !bb_live) bb_driver = 1;`).  Flip to `--bb-live`
+  default; `--bb-driver` becomes opt-in fall-back for testing.  Rationale:
+  (1) `bb_emit` dual-mode + `bb_flat` for invariants + `bb_pool` for
+  variant runtime emit IS the architecture for mode-4 (per "Design
+  Discoveries" above).  (2) Mode-3 with `--bb-live` is described in this
+  goal as **"mode-4's existence proof"** — every session that runs
+  `--bb-driver` skips exercising the path mode-4 will rely on.  Inferring
+  the wrong architecture from `--bb-driver` linkage is exactly what
+  EM-7-pre did wrong.  Defaults shape inference; flip them.  Gate: smoke
+  ×6 PASS under the new default (i.e. without explicitly passing
+  `--bb-live`); EM gate PASS=9 unchanged; isolation gate PASS.  If smoke
+  ×6 regresses, file the regressions as their own pre-flip work — DO NOT
+  bundle bug fixes into this rung.
+
+- [ ] **Step EM-7-default-jit-run — Flip execution-mode default to `--jit-run`.**
+  Today `scrip.c` defaults execution mode to `--sm-run` (line ~207:
+  `if (!mode_ir_run && !mode_sm_run && !mode_jit_run && !mode_monitor &&
+  !mode_jit_emit_x64) mode_sm_run = 1;`).  Flip to `--jit-run` default;
+  `--sm-run` and `--ir-run` become opt-in fall-backs for testing.
+  Rationale: modes 1/2/3 are fall-backs for mode-4; within that hierarchy
+  mode-3 is the closest stand-in for mode-4 while mode-4 is being built
+  — emit-time bytes-into-`.s` is just mode-3's runtime bytes-into-`bb_pool`
+  written somewhere else.  Daily testing should hit the path closest to
+  destination.  Gate: smoke ×6 PASS under the new default;
+  `test_smoke_jit_emit_x64.sh` PASS=9 unchanged; isolation gate PASS;
+  Beauty oracle (`bash scripts/test_beauty.sh` if extant, else manual
+  re-run) holds.  Same regression discipline as the bb-live flip — file
+  bugs separately.  Sequencing: do the bb-live flip first (smaller blast
+  radius — only the BB pattern code path), then the jit-run flip (whole
+  execution mode).
 
 - [ ] **Step EM-7a — PATND_t bridge from SM Phase-2 + sub-tree partition.**
   Decide path 1 (reconstruct PATND_t at emit time via SM simulator)
@@ -1049,6 +1083,68 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7-revert LANDED 2026-05-07 (session #72) -- brokered Phase-3 torn out
+of the emitted-code path per Lon's correction.
+
+What was removed:
+- `sm_codegen_x64_emit.c`: `emit_pat_call_str` / `emit_pat_call_str_int` /
+  `emit_pat_call_0` helpers; `emit_bb_box` (the 26-case SM_PAT_* PLT-call
+  dispatcher); `emit_sm_pat_capture_fn_args` and `emit_sm_pat_usercall_args`.
+  Dispatch switch: SM_PAT_* (26 cases), SM_EXEC_STMT inline block, and the
+  two SM_PAT_*_ARGS cases now fall through to `emit_sm_unhandled` (default).
+- `scrip_rt.h` / `scrip_rt.c`: full EM-6 ABI (`scrip_rt_pat_lit`,
+  `scrip_rt_pat_span`, ..., `scrip_rt_pat_capture`, `scrip_rt_pat_boxval` —
+  26 functions) plus `scrip_rt_exec_stmt`; `g_pat_stack[]` / `g_pat_sp`
+  runtime descriptor-tree state; `pat_push` / `pat_pop_internal` helpers;
+  `vstack_pop_str` / `vstack_pop_int64` (only EM-6 callers); `PATSTACK_CAP`
+  macro; `pat_assign_callcap[_named_imm]` externs (only the deleted
+  `_ARGS` callers used them); the two `_ARGS` runtime helpers.  No
+  non-mode-4 callers existed for any of these — verified via cross-grep
+  (`sm_interp.c`'s `g_pat_stack` is its own private state, distinct from
+  the deleted `scrip_rt.c` version).
+- `test_smoke_jit_emit_x64.sh`: test 10 (EM-6 pattern matcher: LEN(3) . W
+  with PLT-call assertions on `scrip_rt_pat_len@PLT`, `scrip_rt_pat_capture@PLT`,
+  `scrip_rt_exec_stmt@PLT`) retired.  EM gate goes PASS=10 → PASS=9.
+
+What was kept (EM-7-pre keepers): SM_CALL, SM_CONCAT, SM_PUSH_NULL,
+SM_COERCE_NUM, all 8 conditional return variants
+(SM_RETURN_S/F, SM_FRETURN[_S/_F], SM_NRETURN[_S/_F]); STRTAB_CAP=8192,
+VSTACK_CAP=65536; the SNOBOL4 runtime objects compiled into `libscrip_rt.so`
+(snobol4.c, snobol4_pattern.c, bb_pool.c, bb_emit.c, bb_flat.c, bb_boxes.c,
+bb_broker.c, stmt_exec.c, etc.) — they remain available for EM-7c to call
+through `bb_build_flat` / `bb_build_binary` from the corrected emit path.
+The `_rt_IDENT` / `_rt_DIFFER` builtin shims and their `register_fn`
+registrations stay (still callable through `scrip_rt_call`).
+
+Tracked .s artifacts regenerated and assemble cleanly.  UNHANDLED_OP
+markers reappear at pattern boundaries — this is the visible diff-review
+marker that EM-7c will need to handle:
+- roman.s          148 lines  (was 146 in EM-7-pre),  10 unhandled markers
+- wordcount.s      226 lines  (was 222),               6 unhandled markers
+- claws5.s        1836 lines  (was 1815),             41 unhandled markers
+- treebank-list.s 2218 lines  (was 2190),             43 unhandled markers
+- treebank-array.s 2629 lines  (was 2610),            38 unhandled markers
+Line growth = unhandled stubs replacing PLT calls.  All five assemble OK.
+
+Gates: smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+raku 5/5, rebus 4/4); isolation gate PASS (no IR-only symbol leaks); EM
+gate PASS=9 FAIL=0 (test 10 retired, all others pass: PUSH_LIT_I+HALT,
+UNHANDLED_OP trap, real frontend, EM-1 errors, EM-3 arithmetic, EM-4a
+control flow, EM-4b backward loop, EM-5a chunk call/return, EM-5b
+push-chunk descr).
+
+Followups filed inline next:
+- EM-7-default-bb-live: flip BB-mode default `--bb-driver → --bb-live`
+- EM-7-default-jit-run: flip execution-mode default `--sm-run → --jit-run`
+Rationale (per Lon, sess #72): mode-3 + bb-live IS mode-4's existence
+proof; defaulting daily testing onto fall-back paths is what let
+EM-7-pre infer the wrong architecture.  Sequence: bb-live first (smaller
+blast radius), then jit-run.  Regressions get filed as their own work,
+NOT bundled into the flip rung.
+
+Next rung after the two default-flips: EM-7a (PATND_t bridge from SM
+Phase-2 + sub-tree partition; extend `flat_is_eligible` to recursive).
 
 ⛔ COURSE CORRECTION (session #71, 2026-05-07, post-handoff): EM-7-pre
 landed the WRONG architecture for the emitted-code Phase-3 path
