@@ -856,7 +856,7 @@ to read, complex enough to be meaningful:
   invariant sub-trees plus one variant node, with correct
   child-id wiring.
 
-- [ ] **Step EM-7b — `bb_flat.c` EMIT_TEXT mode parity + external labels.**
+- [x] **Step EM-7b — `bb_flat.c` EMIT_TEXT mode parity + external labels.**
   Add EMIT_TEXT parity to `bb_flat.c`: same call sites, mode flag
   flips output to NASM/GAS lines.  Audit which `bb_emit_byte` /
   `bb_emit_u32` call sites need EMIT_TEXT counterparts; route
@@ -867,6 +867,110 @@ to read, complex enough to be meaningful:
   emitters can patch jmps to them.  Test: a small invariant
   pattern produces equivalent NASM and binary output, both
   reachable via external label.
+
+- [ ] **Step EM-7b' — Refactor: emitter as vtable (`emitter_v *`).**
+  ⛔ Course-correction filed before EM-7c (sess #75, 2026-05-07,
+  Lon's call).  EM-7b shipped working but with the wrong factoring:
+  every `bb_insn_*` helper carries its own `if (bb_emit_mode ==
+  EMIT_TEXT) ... else ...`, the mode flag is a global, and the leaf
+  walker in `bb_flat.c` decides emission semantics through whichever
+  primitive the original author reached for (44 raw `bb_emit_byte`
+  call sites side-by-side with `bb_insn_*` calls).  Top of pipeline
+  is shared, bottom branches at every leaf — the smear that
+  EXPRESSION-style template factoring is meant to eliminate.
+
+  This rung moves the discrimination from every leaf to one
+  vtable boundary.  Same shape we will use for Snocone bootstrap
+  (EXPRESSION = templates, multiple backends sharing one walker)
+  and the same shape PLAN.md's Milestone-3 matrix needs (x86 / JVM /
+  .NET / WASM / JS columns each = one `emitter_v` instance, walker
+  unchanged).
+
+  Concrete shape:
+
+  ```c
+  /* src/runtime/x86/emitter_v.h */
+  typedef struct emitter_v emitter_v;
+  struct emitter_v {
+      /* raw bytes — TEXT writes .byte directives, BINARY writes buffer */
+      void (*emit_bytes)(emitter_v *e, const uint8_t *bs, int n,
+                          const char *anno_or_NULL);
+
+      /* labels & control flow — TEXT symbolic, BINARY offset+patch */
+      void (*label_define)(emitter_v *e, bb_label_t *lbl);
+      void (*emit_jmp)    (emitter_v *e, bb_label_t *target, jmp_kind_t);
+      void (*emit_call_indirect_rax)(emitter_v *e);
+      void (*emit_call_imm64)(emitter_v *e, uint64_t addr, const char *anno);
+
+      /* section/symbol scaffolding — TEXT emits directives, BINARY no-op */
+      void (*section_text)(emitter_v *e);
+      void (*global)      (emitter_v *e, const char *name);
+      void (*intel_syntax)(emitter_v *e);   /* TEXT only */
+
+      /* current emission cursor in bytes — used by leaf emitters that
+       * need to compute relative offsets before knowing the target */
+      int  (*pos)(emitter_v *e);
+
+      void *ctx;   /* TEXT: FILE*; BINARY: bb_buf_t + pos + patch_list */
+  };
+
+  /* Two implementations, one header */
+  emitter_v *emitter_text_new  (FILE *out);
+  emitter_v *emitter_binary_new(bb_buf_t buf, int size);
+  void       emitter_free      (emitter_v *e);
+  ```
+
+  Migration:
+
+  1. Land `emitter_v.h` + `emitter_text.c` (~150 lines) +
+     `emitter_binary.c` (lift current bb_emit.c logic — ~250 lines).
+     Keep `bb_emit.c` shim functions that route through a
+     thread-local `emitter_v *` for one rung's worth of compatibility.
+  2. Convert `bb_flat.c` to take `emitter_v *e` as its driving
+     parameter.  All 44 raw `bb_emit_byte` sites become
+     `e->emit_bytes(e, (uint8_t[]){0x49, 0xBA, ...}, N, "/*mov r10,&Δ*/")`.
+     All `bb_insn_*` calls become `e->emit_jmp(e, target, JMP_JG)` etc.
+     `bb_build_flat()` and `bb_build_flat_text()` collapse into a
+     single `bb_build_flat(emitter_v *e, PATND_t *p, const char *prefix)`.
+  3. Convert `bb_build.c` (`bb_lit_emit_binary` family — 1506 lines,
+     most of the BB-side runtime emit) the same way.  This is where
+     EM-7-default-bb-live's DESCR_t fix landed; preserve those
+     helpers (`emit_descr_success_from_stack`, `emit_descr_fail`)
+     as either methods on `emitter_v` or as static helpers that
+     accept `emitter_v *e`.
+  4. Delete `bb_emit_mode` global, `bb_emit_buf`, `bb_emit_pos`,
+     `bb_emit_size`, `bb_emit_out`.  Their state lives in the
+     `emitter_v *` ctx.
+  5. Update `sm_codegen_x64_emit.c` to allocate an
+     `emitter_text_new(out)` and pass it through to anywhere that
+     currently constructs SM-side asm — only the call sites that
+     bridge into BB box code (EM-7c) need to know about it.
+  6. Re-run gates: smoke ×6, EM gate, isolation gate, beauty
+     self-host preserved (md5 `abfd19a7a834484a96e824851caee159`).
+
+  Why this is binding for the multi-backend matrix:
+  - JVM emitter: `emitter_v` whose `emit_bytes` aborts (illegal in
+    bytecode), whose `emit_jmp` writes `goto LbbN`, whose
+    `emit_call_imm64` writes `invokestatic`.  `bb_flat.c` runs
+    unchanged and produces JVM bytecode for the pattern walker.
+  - .NET: same shape over CIL.  WASM: over `i32.const` / `br_if`.
+    JS: over function calls in a closure-per-box layout.
+  - The PLAN.md Milestone-3 matrix turns from "five parallel
+    rewrites" into "five emitter_v instances + one walker".
+
+  Done when:
+  - `emitter_v.h` is the single boundary between `bb_flat.c` /
+    `bb_build.c` and the byte-vs-text decision.
+  - Zero `if (bb_emit_mode == EMIT_TEXT)` branches outside
+    `emitter_text.c` and `emitter_binary.c`.
+  - Zero raw `bb_emit_byte` calls outside `emitter_binary.c`.
+  - `bb_build_flat` takes `emitter_v *` as its first parameter;
+    `bb_build_flat_text` is gone (or becomes a thin wrapper that
+    constructs an `emitter_text_new` and calls `bb_build_flat`).
+  - All gates green at the same numbers as EM-7b close.
+
+  EM-7c picks up after EM-7b' lands and walks the SM Phase-2 window
+  through `emitter_v *` from the start.
 
   ⛔ EM-7b scoping audit (sess #74, 2026-05-07): `bb_emit.c`
   already provides full TEXT-mode support for **labels**
@@ -1225,6 +1329,122 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7b LANDED 2026-05-07 (session #75)
+EMIT_TEXT mode parity for `bb_flat.c` plus externally-visible α/β/γ/ω
+labels for invariant sub-tree chunks.  Path 1 from the EM-7b scoping
+audit (sess #74) — extend byte primitives to dual-mode, preserving
+`bb_flat.c` call sites unchanged.  TEXT mode output: walls of
+`.byte 0xNN` directives for raw-byte instruction encoding, with
+symbolic `jmp <label>` / `je <label>` etc. through the dual-mode
+`bb_insn_*` helpers in `bb_emit.c`.  Resulting `.s` assembles cleanly
+under `gcc -c` with `.intel_syntax noprefix`; the four top-level
+entry labels are `.global` so EM-7c's variant-node runtime emitters
+can patch γ/ω jmps to them via the linker.
+
+Files touched (one4all):
+- `src/runtime/x86/bb_emit.c`: `bb_emit_byte` dual-mode (TEXT emits
+  `.byte 0xNN` lines, advances bb_emit_pos informationally);
+  `bb_emit_patch_rel8`/`rel32` defensive TEXT-mode placeholders +
+  diagnostic comments (callers should route through `bb_insn_*`
+  helpers); new `bb_insn_jg_rel32` dual-mode helper.
+  `bb_emit_u16`/`u32`/`u64`/`i32`/`i8` inherit TEXT mode for free
+  via their `bb_emit_byte` recursion.
+- `src/runtime/x86/bb_emit.h`: `bb_insn_jg_rel32` declaration.
+- `src/runtime/x86/bb_flat.c`: refactored `bb_build_flat()` body
+  into private static `flat_emit_body(p, prefix, text_externalise)`.
+  Kept `bb_build_flat()` (BINARY) unchanged externally — same name,
+  same signature, same byte stream out of bb_pool.  Added
+  `bb_build_flat_text(p, out, prefix)` (TEXT) — saves/restores emit
+  state, sets EMIT_TEXT, emits `.global` directives for the four
+  top-level entry labels, calls shared body.  Converted the one
+  direct `bb_emit_patch_rel32` call site (the `jg fail` at the start
+  of `flat_emit_lit`) to `bb_insn_jg_rel32`.
+- `src/runtime/x86/bb_flat.h`: `<stdio.h>` include + `bb_build_flat_text`
+  declaration with EM-7c followup note (internal labels not yet
+  namespaced — multi-pattern-per-`.s` collision is EM-7c's job).
+- `src/runtime/x86/bb_flat_text_test.c`: NEW (~110 lines, 15 sub-tests).
+  Builds `pat_lit("hello")` (single-leaf XCHR, fully invariant),
+  emits via TEXT mode, verifies `.global` + label definitions, raw
+  `.byte` directives present, and BINARY mode still works for the
+  same pattern.  Output `.s` independently re-assembled and globals
+  verified by the smoke gate (Test 12).
+- `Makefile`: NEW rule `out/bb_flat_text_test`; FIXED rule
+  `out/sm_codegen_x64_emit_test` — was failing to build at session
+  start because EM-7a (sess #74) made `sm_codegen_x64_emit.c` reference
+  pat_* symbols that live in `libscrip_rt.so`.  Added `-Lout
+  -lscrip_rt -lgc -lm -Wl,-rpath,...` and `-DDYN_ENGINE_LINKED`.
+- `scripts/test_smoke_jit_emit_x64.sh`: Test 12 wired in — runs the
+  unit harness (PASS=15 internal), independently `gcc -c`'s the .s,
+  verifies four `_pat_inv_42_0_alpha/_beta/_gamma/_omega` symbols
+  are present and `g`-flagged via objdump.
+
+Key behaviour observed from `objdump -d /tmp/em7b.s`:
+- `movabs $0x7fb671a0ad08, %r10` — `&Δ` baked as imm64 in the
+  `.byte` directives (host-process address; same as BINARY mode
+  emits into bb_pool).
+- `cmp $0x0, %esi` + `je _pat_inv_42_0_alpha` — entry α/β dispatch
+  via dual-mode helpers, GAS resolves the rel8.
+- `mov (%r10), %eax` + `add $0x5, %eax` — load Δ + advance by lit
+  length 5 ("hello").
+- `jg _pat_inv_42_0_omega` — the new `bb_insn_jg_rel32`, GAS
+  resolves rel32 to the externally-visible omega label.
+- `call *%rax` — Intel-syntax indirect call (asserted because
+  `.intel_syntax noprefix` is at the top of the .s, otherwise GAS
+  would interpret `call rax` as call-to-symbol-named-rax).
+
+EM-7c followup recorded in `bb_flat.h` doc-comment: internal node
+labels (e.g. `xcatN_mid_g`, `litN_b`) currently have NO pattern
+prefix — so two flat patterns in the same `.s` collide on internal
+names.  Fine for EM-7b (one pattern per emission); EM-7c's wiring
+into `sm_codegen_x64_emit.c` will namespace internals.  Did not
+fix here to keep the diff small — bb_flat.c has dozens of
+`bb_label_initf` call sites for internal labels.
+
+Tracked artifacts UNCHANGED — EM-7b adds infrastructure (a new
+TEXT-mode entry point not yet wired into the SM-side emitter).
+Diff against repo `corpus/programs/snobol4/demo/*.s` empty.
+Regen protocol: nothing to commit on the corpus side.
+
+Pre-existing latent bug observed but NOT touched (filed for later):
+under default flags `--jit-run --bb-live`, the smoke pattern test
+(`S 'b' = 'X'` over `S='abc'`) produces "abXc" rather than the
+oracle's "aXc".  Verified pre-existing by stashing all EM-7b
+changes and re-running — same wrong output.  Did not regress.
+The smoke gate's snobol4 `pattern` sub-test passes because it
+explicitly uses `--ir-run`; the gate never exercises the
+`--jit-run --bb-live` combination on this pattern.  Note for a
+future investigation rung — sess #73 watermark claimed "aXc under
+--bb-live", but current behaviour disagrees; either the watermark
+is recording a pre-jit-run-default state, or there's a second
+regression on the bb-live path that crept in somewhere between
+sess #73 and EM-7a (sess #74).
+
+Gates final state:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=11 FAIL=0 (was 10; EM-7b TEXT mode added)
+- isolation gate PASS
+- bb_flat_text unit test PASS=15 FAIL=0
+- `gcc -c` clean on the emitted `.s`; 4/4 external globals visible
+
+one4all @ 3e788e71 (parent — pre-edit). corpus @ df1922f (unchanged).
+.github @ 9d67af7 (parent — pre-edit). Session #75, 2026-05-07.
+
+Next rung: EM-7b' (refactor — `emitter_v *` vtable; supersedes the
+mode-flag-in-every-helper factoring before EM-7c wires the partition
+through).  Then EM-7c (wire partition + stitching into mode-4 emitter).
+
+⛔ EM-7b' filed sess #75, 2026-05-07 (Lon's call).  EM-7b ships the
+function but bakes the wrong factoring: TEXT/BINARY discrimination is
+smeared across every leaf (44 raw `bb_emit_byte` sites, 25 `bb_insn_*`
+if/else branches).  Right shape: one vtable boundary, two
+implementations, walker is generic over emit target.  Same shape the
+Milestone-3 multi-backend matrix needs and the same shape Snocone
+bootstrap will use for EXPRESSION-as-templates.  Doing it now (as
+EM-7b') vs after EM-7c costs the same session either way — but doing
+it before EM-7c means EM-7c is written against the right contract from
+the start.  See EM-7b' rung body for migration steps.
 
 EM-7a LANDED 2026-05-07 (session #74)
 Phase-2 SM simulator: `sm_phase2_to_patnd()` reconstructs a `PATND_t *`
