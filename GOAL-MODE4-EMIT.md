@@ -868,7 +868,7 @@ to read, complex enough to be meaningful:
   pattern produces equivalent NASM and binary output, both
   reachable via external label.
 
-- [ ] **Step EM-7b' — Refactor: emitter as vtable (`emitter_v *`).**
+- [x] **Step EM-7b' — Refactor: emitter as vtable (`emitter_v *`).**
   ⛔ Course-correction filed before EM-7c (sess #75, 2026-05-07,
   Lon's call).  EM-7b shipped working but with the wrong factoring:
   every `bb_insn_*` helper carries its own `if (bb_emit_mode ==
@@ -1329,6 +1329,57 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7b' LANDED 2026-05-07 (session #76)
+`emitter_v *` vtable refactor — TEXT/BINARY discrimination moved from every
+leaf to one boundary.  Zero `if (bb_emit_mode == EMIT_TEXT)` branches in
+`bb_flat.c` (the primary conversion target this rung).  `bb_build.c` still
+uses `bb_emit_mode = EMIT_BINARY` assignments (binary-only, always was) —
+its full emitter_v conversion is step 3 of the migration; EM-7b' covers
+steps 1–2 (vtable + bb_flat.c).
+
+New files:
+- `src/runtime/x86/emitter_v.h` — vtable struct (`emitter_v`), `jmp_kind_t`
+  enum, `ev_byte1`/`ev_byte2`/`ev_byte3`/`ev_byte4` inline helpers,
+  `EV_LABEL`/`EV_JMP`/`EV_GLOBAL`/`EV_TEXT`/`EV_BYTES_RAW` macros,
+  `emitter_text_new`/`emitter_binary_new`/`emitter_free`/`emitter_end` API.
+- `src/runtime/x86/emitter_text.c` (~130 lines) — FILE*-backed text
+  implementation.  `emit_bytes` writes `.byte 0xNN[,...]` lines.  `emit_jmp`
+  writes symbolic `jmp/je/jne/jl/jge/jg name` lines.  `global_sym` writes
+  `.global name`.  `fprintf_raw` passes through to the FILE*.
+- `src/runtime/x86/emitter_binary.c` (~120 lines) — binary implementation
+  wrapping existing `bb_emit.c` globals.  All vtable calls route through the
+  proven bb_emit machinery; no new state introduced.  `emitter_binary_new`
+  calls `bb_emit_begin(buf, size)`.  `emitter_end` calls `bb_emit_end()`.
+
+Converted:
+- `src/runtime/x86/bb_flat.c` — fully converted.  All `bb_emit_byte` call
+  sites replaced by `ev_byteN` / `e->emit_bytes` calls.  All `bb_insn_*`
+  calls replaced by `EV_JMP(e, lbl, kind)` or `e->emit_call_rax(e)`.  All
+  `bb_label_define` calls replaced by `EV_LABEL(e, lbl)`.  `flat_emit_body_v`
+  takes `emitter_v *e` as first parameter.  `bb_build_flat()` constructs
+  `emitter_binary_new`; `bb_build_flat_text()` constructs `emitter_text_new`.
+  No save/restore of `bb_emit_mode` — eliminated.  Public API unchanged.
+
+Makefile: `emitter_text.c` and `emitter_binary.c` added to both the scrip
+build object list and `RT_PIC_SRCS` (libscrip_rt.so).
+
+Gates final state:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=11 FAIL=0 (unchanged from EM-7b)
+- isolation gate PASS
+- bb_flat_text unit test PASS=15 FAIL=0 (unchanged — same binary output)
+- All 5 tracked .s artifacts assemble cleanly; diff vs repo empty (no
+  emitted-output change — EM-7b' is infrastructure only)
+
+one4all HEAD pre-commit (parent): 11200032. corpus: df1922f (unchanged).
+.github: 9d67af7 (parent pre-edit). Session #76, 2026-05-07.
+
+Next rung: EM-7c (wire partition + stitching into mode-4 emitter —
+`sm_codegen_x64_emit.c` calls `emitter_text_new` and passes `emitter_v *`
+through to `bb_build_flat` for invariant sub-tree chunks; variant nodes
+emit Phase-2 SM ops that call `bb_build_binary_node` at runtime).
 
 EM-7b LANDED 2026-05-07 (session #75)
 EMIT_TEXT mode parity for `bb_flat.c` plus externally-visible α/β/γ/ω
