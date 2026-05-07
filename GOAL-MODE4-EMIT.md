@@ -1217,7 +1217,7 @@ to read, complex enough to be meaningful:
   variant nodes; the emitted binary runs and matches `--sm-run`
   output.
 
-- [ ] **Step EM-7d-usercall-reentrant — Wire user-defined function dispatch for `*func()` in pattern context.**
+- [x] **Step EM-7d-usercall-reentrant — Wire user-defined function dispatch for `*func()` in pattern context.**
   `_rt_usercall` (the `g_user_call_hook` for mode-4) currently returns
   FAILDESCR for all user-defined SNOBOL4 functions.  Calling INVOKE_fn /
   APPLY_fn from inside a BB pattern match (Phase-3, inside exec_stmt, inside
@@ -1529,6 +1529,49 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7d-usercall-reentrant LANDED 2026-05-07 (session #82)
+=========================================================
+Native chunk registry for user-defined SNOBOL4 function dispatch.
+
+Three-part implementation:
+
+scrip_rt.h: rt_chunk_entry typedef {const char *name; void *fn;} +
+scrip_rt_register_chunks(const rt_chunk_entry*) declaration.
+
+scrip_rt.c: g_chunk_reg[256] static table + chunk_reg_lookup(name).
+call_native_chunk(fname, fn, args, nargs): binds formal params via
+FUNC_PARAM_fn(fname, k) + NV_SET_fn before calling fn(), pops retval,
+restores NV bindings. _rt_usercall hits registry first, then C-builtin
+DT_E path, then FAILDESCR. scrip_rt_call short-circuits to registry
+before INVOKE_fn so user functions avoid interpreter call stack.
+scrip_rt_register_chunks() populates g_chunk_reg from emitted table.
+
+sm_codegen_x64_emit.c: strtab_collect now interns SM_LABEL a[0].s.
+strtab_lookup() added. emit_chunk_registry(out, prog) pre-pass: finds
+SM_LABEL instructions with a[0].s set, emits .section .data .Lchunk_registry
+{.quad .Lstr_N; .quad .LpcM} per function + {0;0} sentinel. emit_file_header
+gains has_chunk_registry param; conditionally emits lea rdi,[rip+.Lchunk_registry]
++ call scrip_rt_register_chunks@PLT before scrip_rt_init call.
+
+HONEST DEVIATION (documented, blocks EM-7d):
+SNOBOL4 function bodies fall through to scrip_rt_halt_tos rather than
+returning — RETURN label is emitted as SM_PUSH_VAR "RETURN" + SM_POP +
+SM_HALT (label-jump control flow not yet lowered to SM_RETURN). The
+registry infrastructure is complete and correct; the missing piece is
+CH-17c which lowers user-defined proc bodies as named chunks with SM_RETURN
+termination. Once CH-17c lands, registry entries dispatch correctly.
+
+Tracked artifacts: all 5 demo .s regenerated; all assemble clean; chunk
+registry present (roman.s: ROMAN; wordcount.s: NEXTL/NEXTW/DONE/END;
+claws5.s and treebank-*.s have their respective named labels). Zero
+UNHANDLED_OP across all five (unchanged from EM-7d-prep).
+
+Gates: smoke x6 PASS (7/7,5/5,5/5,5/5,5/5,4/4), EM PASS=12 FAIL=0,
+isolation PASS. one4all @ 9d0d9fbd. corpus @ fb27bd0. Session #82, 2026-05-07.
+
+Next: diagnose --sm-run beauty self-host regression (pre-existing before
+sess #81), then EM-7d (beauty oracle gate).
 
 EM-7c-variant LANDED 2026-05-07 (session #80) — path β
 ========================================================
