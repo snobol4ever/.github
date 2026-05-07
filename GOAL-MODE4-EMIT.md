@@ -868,6 +868,56 @@ to read, complex enough to be meaningful:
   pattern produces equivalent NASM and binary output, both
   reachable via external label.
 
+  ⛔ EM-7b scoping audit (sess #74, 2026-05-07): `bb_emit.c`
+  already provides full TEXT-mode support for **labels**
+  (`bb_label_define` branches on `bb_emit_mode`) and there is a
+  `bb_text()` helper for fprintf-style emission. However
+  `bb_emit_byte` / `bb_emit_u16` / `bb_emit_u32` / `bb_emit_u64`
+  / `bb_emit_i8` / `bb_emit_i32` are **binary-only** — they
+  unconditionally write into `bb_emit_buf`. `bb_flat.c` makes
+  ~150+ direct `bb_emit_byte` calls (raw-byte instruction
+  encoding like `bb_emit_byte(0x48); bb_emit_byte(0xB9);` for
+  `mov rcx, imm64`). Two implementation paths:
+
+  (1) **Dual-mode primitive route**: extend each `bb_emit_*`
+      byte primitive to branch on `EMIT_TEXT` and accumulate a
+      pending instruction's bytes into a small buffer, with a
+      `bb_emit_flush_instr()` (or similar) call at instruction
+      boundaries that emits a `.byte 0xNN, 0xNN, ...` line. This
+      preserves `bb_flat.c` as-is. Bytecount stays accurate
+      across modes (important for label patches in TEXT).
+      Drawback: the resulting `.s` is a wall of `.byte` directives,
+      not human-readable instructions.
+
+  (2) **Symbolic helpers route**: add a parallel set of
+      `bb_emit_X` helpers that take instruction-level arguments
+      (e.g. `bb_emit_mov_imm64(reg, imm)`) and emit either bytes
+      (BINARY mode) or symbolic GAS lines like
+      `\tmovabs rcx, 0x{imm:x}` (TEXT mode). Migrate
+      `bb_flat.c`'s emission sites one-by-one to these helpers.
+      Drawback: many migration sites; risk of skew between
+      modes; touches every helper in `bb_flat.c`.
+
+  Recommended: **path 1 first** to land EM-7b quickly with the
+  bb_flat.c source unchanged, then path 2 incrementally per
+  instruction kind in subsequent rungs to recover readability.
+  The mode-4 readability standard (page-break banners + verbatim
+  source + inline annotations) lives in the SM-side emitter, so
+  the BB-box `.s` blocks being `.byte`-walls is acceptable for
+  now — they execute correctly and link via the external α/β/γ/ω
+  labels.
+
+  External-label work (independent of byte-vs-symbolic): add an
+  optional API like `bb_build_flat_with_labels(p, label_prefix)`
+  that, at the very start of emission, calls `bb_label_define`
+  with externally-visible names (e.g. `_pat_inv_42_0_alpha`)
+  bound to the same offsets as the existing internal `.alpha`
+  labels. In TEXT mode this emits a `.global _pat_inv_42_0_alpha`
+  + `_pat_inv_42_0_alpha:` pair before the internal label; in
+  BINARY mode it stores the offset in a side-table indexed by
+  prefix+id for later look-up by the variant-node runtime
+  emitter (EM-7c).
+
 - [ ] **Step EM-7c — Wire partition + stitching into mode-4 emitter.**
   In `sm_codegen_x64_emit.c`, when the SM walk enters a Phase-2
   sub-sequence:
