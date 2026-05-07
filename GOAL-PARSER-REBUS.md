@@ -2599,3 +2599,64 @@ Two bugs fixed in `parser_rebus.sc` (corpus@0d39195):
 Gate: **PASS=94 FAIL=0**.  Smoke: PASS=4 FAIL=0.
 
 **Next milestone:** operator-directed.
+
+---
+
+## Session 2026-05-07 HANDOFF — full session record
+
+### Gate at handoff
+Smoke: PASS=4 FAIL=0 | Parser: **PASS=94 FAIL=0**
+
+### All work this session (PASS=83 → PASS=94, +11 fixtures, 9 bugs fixed)
+
+| Rung | Commit | What |
+|------|--------|------|
+| RB-FW-9-A | af1a750 | `stmt_inline` missing `*case_stmt` → nested case broken |
+| RB-FW-9-B | dc18e9c | `stmt_body` too restrictive → if-then-return, nested-if, while-if all broken |
+| RB-FW-9b | 8277b51 | Stress fixtures: fib, multi_func, record_func |
+| RB-FW-10 | e532680 | Multi-arg subscript `a[i,j]`: Decompose_sub + X_sub; global var clobbering in lower_atom; while pre-increment loop bug |
+| RB-FW-10b | fadab42 | local_initial fixture; SNOBOL4-SNOCONE-PRIMER gotcha #20 (while pre-increment) |
+| RB-FW-11 | 0d39195 | X_sub: `*alt_expr` → `*expr` (aug-assign in subscript); lower_atom ADDASSIGN/SUBASSIGN/CATASSIGN/EXCHG cases; sub_assign + comprehensive fixtures |
+
+### Fixtures added this session (11 total)
+`nested_case`, `if_return`, `nested_if`, `while_if`, `fib`, `multi_func`,
+`record_func`, `subscript_multi`, `local_initial`, `sub_assign`, `comprehensive`
+
+### Key lessons learned this session
+
+1. **`stmt_body` and `stmt_inline` must be kept in sync.** Both are used as
+   "any single statement" — `stmt_body` for if/while/repeat bodies, `stmt_inline`
+   for case clause bodies. Whenever a new stmt form is added to `stmt`, add it to
+   both. Omitting from one causes silent parse failure of that form in that context.
+
+2. **All local variables used in recursive functions must be in the signature.**
+   `lower_atom` used `idxN/idxBase/idxI` as globals — recursive calls clobbered them.
+   Any function that recurses needs ALL scratch variables in its parameter list.
+
+3. **SNOBOL4 `while (i = LT(i,n) i+1)` pre-increments before the body.**
+   Initialize to one LESS than desired start, or use explicit `while (GE/LT) { i=i+1; }`.
+   See SNOBOL4-SNOCONE-PRIMER gotcha #20.
+
+4. **Subscript args need `*expr`, not `*alt_expr`.** Augmented assignments
+   (`+:=` etc.) are at `expr` precedence, above `alt_expr`. Without this,
+   `a[i +:= 1]` silently fails.
+
+5. **Augmented assigns in expr position need lower_atom cases.** When `ADDASSIGN`
+   etc. appear as subexpressions (inside subscript indices, concat operands, etc.),
+   `lower_atom` must expand them to `E_ASSIGN(lhs, lhs op rhs)` inline, not call
+   `emit_assign` which outputs STMT lines to the wrong context.
+
+### Repos at handoff
+
+| Repo | Branch | HEAD |
+|------|--------|------|
+| corpus | main | `0d39195` |
+| one4all | parser | `b9b31884` (unchanged this session) |
+| .github | main | this commit |
+
+### Next milestone (operator-directed)
+Open territory:
+- For-loop body parsing (currently `for_body = $'do' BREAK(nl)` silently drops body;
+  oracle also drops it, so this is a divergence-tracking item, not a correctness bug)
+- Cross-pollination: `stmt_body`/`stmt_inline` sync pattern to sibling parsers
+- Any new Rebus construct the operator wants to explore
