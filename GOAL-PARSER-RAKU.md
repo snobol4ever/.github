@@ -907,3 +907,25 @@ the C frontend supports.
 Class/method/has/new OO construct — `class Dog { has $.name; method speak() { } }`
 → `(E_RECORD Dog (E_VAR name))` + method defs. Mirrors `raku.y` `class_decl` action.
 Gate target ≥132.
+
+### PARSER-RK-24 — class/OO construct — IN PROGRESS (session 2026-05-07)
+
+- [x] `VarTwigil` classifier: `$.field` / `$!field` → `(E_FIELD fieldname (E_VAR self))`.
+      `captwf`/`captwr` capture bare name; `Push_twigil` builds E_FIELD.
+- [x] `push_has_field()` / `Push_has_field` — strips twigil, pushes `(E_VAR fieldname)`.
+- [x] `push_nul()` / `Push_nul` — pushes `(E_NUL)` sentinel for main frame.
+- [x] `finish_method()` / `Finish_method` — closes inner body frame, pushes raw E_FNC with method name.
+- [x] `finish_class()` / `Finish_class` — renames E_FNC items to `ClassName__method`, emits STMTs; builds E_RECORD from E_VAR fields.
+- [x] `ClassName` / `MethodIdent` classifiers (`capclsf`/`capclsr`, `capmtf`/`capmtr`).
+- [x] `HasDecl` / `MethodDef` / `ClassBodyItem` / `ClassDecl` grammar patterns added.
+- [x] `ClassDecl` in Compiland ARBNO as `(*ClassDecl Push_nul nInc())`.
+- [x] 6 RK-24 corpus fixtures created with oracle `.ref` files.
+- [ ] **FAIL: `class_and_main`** — stray `(E_VAR d)` child in main E_FNC when class
+      has a method AND main body uses `$d.name` MethodTail.
+      **Next step:** run bisect `/tmp/debug1.raku` (class+method + `my $d = Dog.new()` only,
+      no `say($d.name)`) to isolate whether stray comes from AssignStmt or MethodTail.
+      Pattern to investigate: `my $d = Dog.new(name => "Rex")` — `NewCallName` captures
+      `Dog` into `capfnf/capfnr`; check if `ClassName` capture `capclsf/capclsr` is being
+      clobbered at parse time and whether the `$d` VarScalar push is escaping the call frame.
+- **Gate:** PASS=131 FAIL=1. corpus@2511524
+
