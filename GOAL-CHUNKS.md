@@ -483,6 +483,30 @@ When step 23 closes, the full Milestone-3 matrix in PLAN.md
 
 ## Closed steps
 
+**Step 14b (CH-14b)** — Gen-local slot infrastructure. Added `SM_LOAD_GLOCAL` and
+`SM_STORE_GLOCAL` opcodes (a[0].i = slot 0..7); added `locals[SM_GEN_LOCAL_MAX]`
+(=8) array to `SmGenState`; survives SUSPEND/RESUME automatically because
+`SmGenState` is the persistent envelope `bb_broker_drive_sm` allocates per
+generator invocation. Outside a generator drive both opcodes push FAILDESCR
++ clear last_ok (mirrors SM_PUSH_VAR's FAIL discipline). `g_current_gen_state`
+promoted from `static` to file-extern + declared in `sm_interp.h` so JIT
+codegen mirrors can reach it. Two new tests in `sm_interp_test.c`:
+`test_gen_locals_survive_suspend` (init 100, ++, ++ across two suspends —
+verifies 100/101/102) and `test_gen_locals_isolated_per_invocation` (two
+SmGenStates same chunk — both see private 100/101). CH-14 gate now 18/18 PASS
+(was 7/7). Pure addition: no producer emits the new opcodes yet, so no
+behaviour change for any existing program. Also added `SM_BB_PUMP_SM` opcode
++ handler + JIT mirror (consumer entry point for migrated generator kinds —
+pops chunk descriptor, allocates SmGenState rooted at entry_pc, drives via
+bb_broker_drive_sm with pump_print body). First producer for SM_BB_PUMP_SM
+and the gen-local opcodes is CHUNKS-step15a (E_TO + E_TO_BY).
+Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4); isolation gate PASS;
+csnobol4 Budne PASS=36 (≥34, byte-identical to baseline); unified_broker
+PASS=49; full Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263 (byte-identical
+to baseline 186/47/30).
+Documented in `docs/CHUNKS-step14b-validation.md`.
+one4all @ HEAD. Session #71, 2026-05-07.
+
 **Step 14 (CH-14)** — Generator infrastructure. `SM_SUSPEND` and `SM_RESUME` opcodes added
 to `sm_prog.h`; `SM_INTERP_SUSPENDED = 1` return-code constant; forward typedef `SmGenState`.
 `struct SmGenState` defined in `sm_interp.h` (resume_pc, stack snapshot, last_ok, started).
