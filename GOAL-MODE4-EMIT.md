@@ -1482,6 +1482,87 @@ to read, complex enough to be meaningful:
   a single macro name like `LEN_α n, saved, cursor, subj_len, γ, ω`
   and the box body becomes pure inlined x86, no PLT calls.
 
+- [ ] **Step EM-7c-greek-purge — Remove the words `alpha`, `beta`, `gamma`, `omega` from the source base.**
+  Source-of-truth rule: BB-port names are α, β, γ, ω.  These are
+  Greek letters, written as single UTF-8 codepoints, used directly
+  in C source, in asm labels, in struct field names, and in HQ
+  documentation.  The Latinised words `alpha`, `beta`, `gamma`,
+  `omega` MUST NOT appear in the source base in any BB-port
+  context.  This rule is non-negotiable; the live runtime
+  `bb_boxes.c` already follows it (`LIT_α:`, `goto LIT_ω`,
+  `ζ->δ`, `if (Δ + ζ->len > Σlen)`).  The current emitter
+  (`bb_flat.c`, `sm_codegen_x64_emit.c`, related headers) violates
+  this rule and must be corrected.
+
+  **Sole permitted exception**: ONE external linker reference
+  (a single global asm symbol that some legacy toolchain consumer
+  expects with a Latin name).  Even this one exception must be
+  documented inline at the point where it is introduced, with a
+  comment naming the consumer that requires it.  No other use is
+  allowed.
+
+  **Files known to violate the rule (audit list, not exhaustive):**
+  - `src/runtime/x86/bb_flat.c` — local variable names like
+    `lbl_alpha`, `lbl_beta`, label format strings like
+    `"_pat_inv_%d_alpha"`, comments referring to ports as
+    `alpha/beta/gamma/omega`.
+  - `src/runtime/x86/sm_codegen_x64_emit.c` — `_pat_inv_<id>_alpha`
+    label generation, comments, struct field names.
+  - `src/runtime/x86/bb_emit.h` / `bb_emit.c` — `bb_label_t`
+    helpers and any `_alpha`/`_beta`/etc. format strings.
+  - `src/runtime/x86/emitter_v.h` / `emitter_text.c` /
+    `emitter_binary.c` — any reference to the four ports.
+  - `src/runtime/x86/sm_phase2_to_patnd.c` — comments and
+    diagnostics.
+  - `src/runtime/rt/scrip_rt.c` / `scrip_rt.h` — function names
+    like `scrip_rt_match_blob` taking a `blob_alpha` argument;
+    rename to `blob_α`.
+  - `src/runtime/x86/stmt_exec.c` — `exec_stmt_blob`'s
+    `root_fn` argument is currently named after no port; check
+    for any nearby alpha/beta/gamma/omega leakage.
+  - All emitted asm labels in tracked `.s` artifacts under
+    `corpus/programs/snobol4/demo/` — these are the visible
+    output and must be regenerated with Greek labels after the
+    code purge.
+
+  **Audit command** (run before and after the purge):
+  ```bash
+  grep -nrE '\balpha\b|\bbeta\b|\bgamma\b|\bomega\b' \
+       src/runtime/x86/ src/runtime/rt/ \
+    | grep -vE 'alphabet|betagamma|alphanumeric'
+  ```
+  Before: many hits.  After: zero hits in BB-port context (the
+  one external-linker-symbol exception, if it exists, must be
+  tagged with a comment so a stricter regex can ignore it).
+
+  **What this rung does NOT touch:**
+  - `archive/` MD files — these are historical and must remain
+    as they were written.  Some use Latin words because they
+    predate the rule; do not edit archive content.
+  - HQ MD files (`GOAL-*.md`, `ARCH-*.md`, `PLAN.md`, `RULES.md`,
+    `README.md`) outside the few specific places that describe
+    the rule itself — leave existing prose alone except for
+    audit-list-style references that were obviously copy-paste.
+  - Test data, fixture programs, oracle outputs — only the
+    emitter and runtime source need the purge.
+
+  **Order of rungs:** EM-7c-greek-purge runs FIRST, before
+  EM-7c-bb-three-column, so that the three-column rung can emit
+  Greek directly without first having to clean up Latin leakage
+  it would otherwise inherit.  Once both are done, EM-7c-bb-macros
+  can swap column 2 to inline x86 with macro names like `LEN_α`,
+  `RPOS_β`, `DOL_γ_CAPTURE` consistently.
+
+  **Gate:**
+  - `grep` audit returns zero hits (or one tagged exception).
+  - smoke ×6, EM 12/12, isolation, unified_broker — all green.
+  - Tracked `.s` artifacts regenerated with Greek labels and
+    assemble cleanly.
+  - GAS accepts the labels (it does — UTF-8 in label names is
+    standard since GAS 2.20+).
+  - gcc/clang accept the C identifiers (they do — UCN support
+    in C99/C11 covers all named Greek letters).
+
 - [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
   The full Beauty crosscheck (md5
   `abfd19a7a834484a96e824851caee159`, 646 lines) on the emitted
