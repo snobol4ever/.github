@@ -1886,6 +1886,140 @@ formal closed entry in a future cleanup pass.)
 
 ## Watermark
 
+EM-7a-sim-test-fix LANDED 2026-05-07 (session #85, partial)
+============================================================
+Stale test expectations brought in line with EM-7c-invariance-rule
+(sess #84) semantics.  EM-7c-invariance-rule changed the simulator
+in `sm_codegen_x64_emit.c` so `is_variant` propagates from arg
+rather than forcing 1 for SPAN/BREAK/ANY/NOTANY/LEN/TAB/RTAB/
+FENCE/DEREF/REFNAME — only XVAR is variant.  The unit test
+`sm_phase2_sim_test.c` was not updated to match.  At HEAD
+(a2c6c089), `out/sm_phase2_sim_test` was a stale checked-in
+binary from before EM-7c-invariance-rule landed; rebuilding
+exposed 6 failing assertions:
+
+  Test A (BREAK("=") . LHS): expected has_variant=1, got 0
+                             (literal "=" arg is not variant)
+  Test C (*PAT a.k.a. XDSAR): expected has_variant=1, got 0
+                              (XDSAR graph topology fixed)
+  Test E (XDSAR / XBRKC):    expected variant=0, got 1
+                             (now invariant per EM-7c rule)
+
+Fix: invert all 6 assertions to match the corrected semantics.
+No code change; pure test-expectation correction.
+
+Files changed:
+  src/runtime/x86/sm_phase2_sim_test.c  (6 assertion inversions)
+
+Gates final state:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=12 FAIL=0  (was failing on EM-7a sim test:
+  PASS=19 FAIL=6 from stale expectations)
+- isolation gate PASS
+- 5 tracked .s artifacts: byte-identical to repo (no emitter
+  change this rung)
+
+EM-7c-greek-purge ATTEMPTED + ABANDONED 2026-05-07 (session #85)
+================================================================
+⛔ STASH MISHAP — purge work LOST.
+
+Attempted the EM-7c-greek-purge rung as named in the step list:
+remove the Latin words alpha/beta/gamma/omega from BB-port
+context across `src/runtime/x86/` and `src/runtime/rt/`,
+replacing with α/β/γ/ω.
+
+Initial purge applied across 7 files:
+- bb_flat.h    — API comment + child_α_label parameter name
+- bb_flat.c    — lbl_α/lbl_α_body/lbl_β C variable names;
+                 "%s_α"/"%s_β"/"%s_γ"/"%s_ω" format strings
+                 (the EMITTED ASM LABELS); _capN_child_α and
+                 _arbnoN_child_α label strings; comments.
+- sm_codegen_x64_emit.c — comments at lines 21, 383, 388, 448;
+                          C variable `alpha` → `child_α` in cap
+                          fixup loop (lines 450–489).  HOWEVER:
+                          ~20 OTHER format-string sites (lines
+                          1453, 1565, 1584-1585, 1622, 1626 etc.)
+                          use `_alpha`/`_beta`/`_gamma`/`_omega`
+                          in printf format strings — these were
+                          MISSED by the audit grep
+                          `\balpha\b|\bbeta\b|\bgamma\b|\bomega\b`
+                          because `_` is a word character, so
+                          `_alpha` does NOT match `\balpha\b`
+                          (no word boundary between `_` and `a`).
+- stmt_exec.c  — 6 comments
+- snobol4_pattern.c — 1 comment (user-variable-name example)
+- scrip_rt.h   — 2 comments
+- bb_flat_text_test.c — `.global _pat_inv_42_0_α` etc. assertions
+- scripts/test_smoke_jit_emit_x64.sh — Test 12 (EM-7b) SYMS/EXPECT
+                                        + Test 13 (EM-7c) label
+                                        assertions
+
+Initial gates ran clean: smoke ×6 PASS, EM gate PASS=12,
+isolation PASS, unified_broker PASS=49, sim-test 25/25 (after
+also applying the sim-test-fix above), bb_flat_text PASS=18,
+all 5 tracked .s artifacts assembled — but tracked artifacts
+still showed Latin labels in the comment lines and the
+emitter-side fprintf format strings (the missed sm_codegen
+sites).
+
+While investigating the missed sites, a `git stash` / `git stash
+pop` / `git stash drop` sequence dropped the wrong stash entry
+and the entire purge was lost.  Only the sm_phase2_sim_test.c
+fix survived in the working tree (because it was applied AFTER
+the lost stash).
+
+LESSONS:
+1. The audit grep `\balpha\b|\bbeta\b|\bgamma\b|\bomega\b` is
+   INCOMPLETE — it misses `_alpha`/`_beta`/`_gamma`/`_omega` in
+   format strings and label string-literals because `_` is a
+   word character.  The CORRECT audit is:
+     grep -nrE '\balpha\b|\bbeta\b|\bgamma\b|\bomega\b|_alpha|_beta|_gamma|_omega' \
+          src/runtime/x86/ src/runtime/rt/
+   Add this to the goal file's audit command spec for the next
+   attempt.
+2. `bb_flat_text_test.c` and `scripts/test_smoke_jit_emit_x64.sh`
+   contain stale Latin label expectations that MUST be updated
+   atomically with the emitter purge — they are part of the
+   purge surface even though they are outside the strict
+   `src/runtime/x86/` and `src/runtime/rt/` scope named in the
+   goal text.
+3. NEVER use `git stash` mid-purge.  The purge surface is too
+   large; commit progress to a feature branch instead.
+
+NEXT-SESSION PLAN for re-attempting EM-7c-greek-purge:
+  Step A: Run the CORRECTED audit (with `_alpha`/etc. globs).
+          Expect ~50–60 hits across:
+            - bb_flat.c        (~15 hits)
+            - bb_flat.h        (~5)
+            - sm_codegen_x64_emit.c (~25, mostly format strings)
+            - stmt_exec.c      (~6 comments)
+            - snobol4_pattern.c (~2 comments)
+            - scrip_rt.h       (~2 comments)
+            - bb_flat_text_test.c (~10 assertions)
+            - scripts/test_smoke_jit_emit_x64.sh (~6 assertions)
+  Step B: Edit each file in turn — straight rename, no logic
+          changes. The format strings in sm_codegen are the
+          high-fan-out site (every emitted `.s` will change).
+  Step C: Build, run gates, regen tracked artifacts.
+  Step D: Audit returns zero hits.
+  Step E: Commit one4all + corpus + .github.
+  ⛔ Do NOT use `git stash`.  Do NOT make piecemeal fixes
+  before the build is green end-to-end.
+
+ALSO FILED for next-rung work (independent of greek-purge):
+  - The PASS=12 closing line in `scripts/test_smoke_jit_emit_x64.sh`
+    references "PASS=16 unit" in the EM-7b descriptor but the
+    actual unit-test count is now 18 (since EM-7c-symbolic added
+    2 sub-tests).  Cosmetic; not a gate failure.
+
+one4all parent: a2c6c089.  one4all HEAD: 15bd97f3.
+corpus: unchanged.  .github parent: e1443a3.  .github HEAD: <new>.
+Session #85, 2026-05-07.
+
+Next rung: re-attempt EM-7c-greek-purge with corrected audit
+grep.  Then EM-7c-bb-three-column.
+
 EM-7c-invariance-rule LANDED 2026-05-07 (session #84)
 ======================================================
 Corrected invariance classification + static .data ζ emission for
