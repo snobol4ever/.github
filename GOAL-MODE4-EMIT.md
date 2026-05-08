@@ -1462,6 +1462,20 @@ to read, complex enough to be meaningful:
   - The macro library does NOT exist yet.  Column 2 holds the
     current PLT-call instruction sequence.  This rung is purely
     a layout change.
+  **Greek-letter labels are required everywhere** — α, β, γ, ω, ζ,
+  Σ, Δ — both in emitted asm labels and in any C source touched.
+  GAS accepts UTF-8 identifiers in label names; C99/C11 accepts
+  UTF-8 identifiers via universal character names; gcc and clang
+  both pass these through directly.  The historical
+  `roman.byrd-reference.s` uses `P_3_α / seq_l0_α / dol1_γ` etc.
+  directly.  The live runtime in `bb_boxes.c` uses Greek directly:
+  `LIT_α:`, `goto LIT_ω`, `ARBNO_γ_now:`, `ζ->len`, `ζ->δ`,
+  `if (Δ + ζ->len > Σlen)`.  The runtime symbols `Σ`, `Δ`, `Σlen`
+  are exported from `libscrip_rt.so` and addressed in asm as
+  `lea r10, [rip + Δ]`.  The current emitter's ASCII suffixes
+  (`_pat_inv_0_alpha` / `_beta` / `_gamma` / `_omega`) are a
+  legacy leak — this rung corrects them to `_pat_inv_0_α` /
+  `_β` / `_γ` / `_ω`, matching every other piece of the system.
   **Next rung after this**: EM-7c-bb-macros — replace each
   PLT-call action sequence with an inline macro expansion (parallel
   to historical `snobol4_asm.mac`), at which point column 2 becomes
