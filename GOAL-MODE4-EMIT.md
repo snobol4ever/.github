@@ -1366,7 +1366,109 @@ to read, complex enough to be meaningful:
   **Mode-3 impact**: `bb_build_flat` now succeeds on patterns that
   previously fell through. Smoke ×6 confirms no regressions.
 
+- [ ] **Step EM-7c-bb-three-column — Emit each BB box as a 4-port cluster in three-column form.**
+  Reference design: `archive/BB-GEN-X86-TEXT.md`, `archive/BB-GEN-LANG.md`,
+  `archive/EMITTER-MODE4-ARCH.md` §2 "BB boxes -> three-column layout",
+  and the restored historical artifacts at
+  `corpus/programs/snobol4/demo/{roman,wordcount,claws5,treebank}.byrd-reference.s`.
+  Today's `bb_flat.c` emission is structurally a flat blob with the
+  right outer α/β/γ/ω wiring but each box op is scattered across the
+  output: the α call sits at one position, the β re-entry label and
+  call sit further down, and the cap/charset/len box's four ports
+  (α, β, γ, ω) are NOT emitted together as a cluster.  The historical
+  emitter (output preserved in the `.byrd-reference.s` files) emits
+  each BB box as ONE labeled cluster with all four port labels in
+  source order, three-column layout (label / action / goto), wired by
+  direct `jmp`s to the next box's α or to enclosing γ/ω labels.
+  **This rung does NOT introduce macros.**  No `snobol4_asm.mac`-style
+  inline macro library yet (that's a later rung). The current x86
+  sequences emitted by `flat_emit_box_call` and `flat_emit_charset_call`
+  stay exactly as they are — same `lea rdi, [rip + .Lcs0_z]` /
+  `mov esi, 0` / `call bb_X@PLT` instructions, same static `.data`
+  ζ blocks, same call into `libscrip_rt.so`.  All that changes is the
+  **layout of the emitted text**: each box gets its own
+  `bbN_α:` / `bbN_β:` / `bbN_γ:` / `bbN_ω:` labels, all four printed
+  contiguously in three-column form, with `jmp` instructions in the
+  goto column wiring ports to whatever they currently wire to.
+  **Three-column law (from BB-GEN-X86-TEXT.md):**
+  ```
+      LABEL:              ACTION                          GOTO
+  ```
+  - Column 1: label at col 0, width ~22.
+  - Column 2: instruction(s) starting at col ~22.
+  - Column 3: terminating `jmp <target>` at col ~62 (or `;` comment
+    when the port falls through to an outer label).
+  **Per-box emission (from EMITTER-MODE4-ARCH.md §2):**
+  Each PATND_t kind that produces a box (XLNTH, XTB, XRTB, XPOSI,
+  XRPSI, XFNCE, XFARB, XSTAR, XLIT, XCHR, XSPNC, XBRKC, XANYC, XNNYC,
+  XBRKX, XATP, XDSAR, XEPS, XFAIL, XCAT, XOR, XNME, XFNME, XARBN)
+  emits a contiguous block:
+  ```
+  ; ---- bbN: <kind> -------------------------------------------
+  bbN_α:                  <inline ζ-load + call bb_X(z, 0)>     ; jmp bbN_γ / bbN_ω
+  bbN_β:                  <inline ζ-load + call bb_X(z, 1)>     ; jmp bbN_γ / bbN_ω
+  bbN_γ:                                                        ; jmp <enclosing γ_succ>
+  bbN_ω:                                                        ; jmp <enclosing ω_fail>
+  ```
+  All four labels emitted in source order.  `bbN_γ` and `bbN_ω` may
+  be empty fall-through labels whose only purpose is to make the
+  port visible — execution flows straight to the wired target via
+  the `jmp` in column 3.  This is essential for readability and for
+  the future macro-rung (each macro will expand inline at one of
+  these port labels).
+  **Wiring rules (from BB-GRAPH.md):**
+  - `bbN_γ` jumps to the next box's α (sequence) or the enclosing
+    pattern's γ if this is the rightmost box.
+  - `bbN_ω` jumps to the previous box's β (backtrack) or the
+    enclosing pattern's ω if this is the leftmost box.
+  - In XCAT (sequence): left.γ → right.α; right.ω → left.β.
+  - In XOR (alternation): left.ω → right.α; right.γ → enclosing.γ;
+    left.γ → enclosing.γ; right.ω → enclosing.ω.
+  - In XNME/XFNME (capture): child.γ → cap.γ_commit; child.ω →
+    cap.ω_fail.  Cap.γ commits the captured span and falls through
+    to enclosing γ.
+  **What stays the same:**
+  - `flat_is_eligible` rule (only XVAR variant) — unchanged from
+    EM-7c-invariance-rule.
+  - All static `.data` ζ structures — unchanged.
+  - `scrip_rt_patch_cap_fn` / `scrip_rt_init_arbno` startup fixups
+    — unchanged.
+  - The PLT-call instruction sequences themselves — unchanged.
+    No inline macro expansion in this rung.  Bytes in column 2
+    remain identical.
+  **What changes:**
+  - `flat_emit_box_call` and `flat_emit_charset_call` emit a labeled
+    4-port cluster instead of a tight α-call-then-β-label sequence.
+  - `flat_emit_xcat`, `flat_emit_alt`, `flat_emit_xnme`,
+    `flat_emit_xarbn` wire ports via direct `jmp` to the named
+    `bbN_γ` / `bbN_ω` labels rather than passing outer labels down
+    into each box.
+  - The TEXT emitter formats each emitted line in three columns.
+    The BINARY emitter is unchanged (no formatting concerns).
+  **Gate:**
+  - smoke ×6, EM PASS=12, isolation, unified_broker — all green.
+  - Tracked .s artifacts (`roman.s` etc.) reformatted into
+    three-column 4-port-cluster layout, byte-identical execution
+    (binaries link, run, produce same output as before).
+  - Visual diff against `*.byrd-reference.s` shows the same
+    LABEL/ACTION/GOTO structure (modulo PLT calls in the action
+    column instead of inline macro expansions — that's the next
+    rung).
+  **Honest deviations expected:**
+  - Each port label is a real assembler label.  In the historical
+    artifacts, ports are local labels under one named proc;
+    today our blobs are anonymous so the port labels need a unique
+    blob-id prefix (e.g. `_pat_inv_0_bb3_α`) to avoid collisions.
+  - The macro library does NOT exist yet.  Column 2 holds the
+    current PLT-call instruction sequence.  This rung is purely
+    a layout change.
+  **Next rung after this**: EM-7c-bb-macros — replace each
+  PLT-call action sequence with an inline macro expansion (parallel
+  to historical `snobol4_asm.mac`), at which point column 2 becomes
+  a single macro name like `LEN_α n, saved, cursor, subj_len, γ, ω`
+  and the box body becomes pure inlined x86, no PLT calls.
 
+- [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
   The full Beauty crosscheck (md5
   `abfd19a7a834484a96e824851caee159`, 646 lines) on the emitted
   binary. This is the M2-SNOBOL4 milestone gate: emitted binary
