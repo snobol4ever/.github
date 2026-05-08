@@ -1280,7 +1280,93 @@ to read, complex enough to be meaningful:
   PASS, 5 tracked .s artifacts assemble cleanly + diff vs repo
   empty.
 
-- [ ] **Step EM-7d — `--jit-emit --x64 beauty.sno` passes oracle.**
+- [x] **Step EM-7c-invariance-rule — Correct invariance classification + static .data ζ.**
+  ⛔ Discovered session #84 (2026-05-07) while investigating why the
+  five tracked demo `.s` artifacts contained zero baked BB blobs.
+  Root cause: `flat_is_eligible` in `bb_flat.c` and
+  `flat_is_eligible_node` in `sm_codegen_x64_emit.c` were excluding
+  far too many node kinds (XSPNC, XBRKC, XANYC, XNNYC, XLNTH, XTB,
+  XRTB, XDSAR, XATP, XCALLCAP, XFNCE, XFNME, XNME, XFARB, XSTAR,
+  XARBN, XBRKX) under the wrong rule "this node reads a variable at
+  match time". Per `archive/BB-GEN-X86-BIN.md`: invariance means
+  "no variable reads, no function calls, just literals and
+  constructors" *as pattern nodes*. A node reading a variable at
+  match time (XDSAR, XSPNC with charset, XLNTH with n) still has
+  fixed graph topology and ζ values baked at pattern-build time —
+  it IS invariant.
+  The ONLY truly variant node is XVAR: a runtime DESCR_t used
+  directly as a pattern component (its graph is unknown until
+  resolved at match time).
+  Same bug affected mode 3 (`--jit-run`) — invariant patterns were
+  falling through to `bb_build_binary` per-node fallback or the C
+  interpreter instead of the optimized flat-BB path. Mode 4's `.s`
+  files made the bug visible. Fixing it benefits both modes.
+  **Implementation:**
+  - `flat_is_eligible` simplified to exclude only XVAR + XCAT n>2.
+  - `flat_is_eligible_node` (emitter copy) likewise.
+  - `sm_phase2_to_patnd` simulator: propagate `is_variant` from the
+    argument's `is_variant` flag rather than forcing 1 for SPAN/
+    BREAK/ANY/NOTANY/LEN/TAB/RTAB/FENCE/DEREF/REFNAME.
+  - Added `flat_emit_node` cases for XLNTH, XTB, XRTB, XFNCE,
+    XFARB, XSTAR, XBRKX, XATP, XDSAR, XNME, XFNME, XARBN.
+  - **Static `.data` ζ emission**: process-heap pointers from
+    `bb_*_new()` constructors are NOT valid in the emitted binary's
+    address space. Each box ζ now emits as a `.data` block with
+    linker-resolved RIP-relative addresses (`lea rdi, [rip + .Llen0_z]`
+    instead of `mov rdi, <emitter-heap-addr>`). Pattern: charset_call
+    (SPAN/BREAK/ANY/NOTANY) emits `.Lcs_N_chars` + `.Lcs_N_z {chars*,
+    delta=0, padding}`; XLNTH `.long n`; XTB/XRTB `.long n; .long 0`;
+    XFNCE `.long 0`; XFARB `.long 0; .long 0`; XSTAR `.long 0`;
+    XBRKX/XATP `.string` + struct; XDSAR `.string name` + 40-byte
+    struct.
+  - **XNME/XFNME**: emit `cap_t` as static 120-byte `.data` block
+    with `name.kind=NM_VAR`, `name.var_name=&.Lvname`. Child
+    sub-proc emitted inline as globally-visible callable
+    `_capN_child_alpha`. Startup preamble calls
+    `scrip_rt_patch_cap_fn(.LcapN_data, _capN_child_alpha)` to wire
+    `cap_t->fn`.
+  - **XARBN**: heap `arbno_t` (needs dynamic stack array) allocated
+    at startup via new `scrip_rt_init_arbno(.LarbnoN_slot,
+    _arbnoN_child_alpha)` which calls `bb_arbno_new` and stores the
+    pointer in a static `.data` slot.
+  - **`libscrip_rt.so` ABI gained**: `scrip_rt_patch_cap_fn(void*,
+    void*)` and `scrip_rt_init_arbno(void**, void*)`.
+  **Honest deviations** (filed as next-rung work):
+  (1) **Deferred capture commit**: XNME's `.VAR` capture writes to
+  `NAME_t::pending` at γ but `NAME_commit` walks the global
+  capture registry which is populated via `register_capture(z)` at
+  α. The static `.data` cap_t is not yet registered with the
+  registry — the deferred commit doesn't fire. Test:
+  `S = 'hello world'; S POS(0) LEN(5) . W; OUTPUT = 'W=' W` →
+  emits clean, runs to completion, prints `W=` instead of
+  `W=hello`. The pattern matches but capture doesn't commit. Fix:
+  add `register_capture` call at α inside `bb_cap` for static
+  cap_t (or a new entry that the blob calls before invoking
+  `bb_cap`).
+  (2) **`bb_arbno`'s `arbno_t->stack`** is a `realloc`-grown array
+  — the heap `arbno_t` allocated in `scrip_rt_init_arbno` is fine
+  but if the same blob is invoked re-entrantly (recursive pattern),
+  state collisions are possible. Not a problem for the demo
+  programs.
+  **Gates final state**:
+  - smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+    raku 5/5, rebus 4/4)
+  - EM gate PASS=12 FAIL=0
+  - isolation gate PASS
+  - unified_broker PASS=49
+  - All 5 tracked .s artifacts assemble cleanly + deterministic
+  **Tracked artifact changes** (regenerated):
+  - roman.s: 146 → 274 lines (1 invariant blob baked + 1 cap)
+  - wordcount.s: 218 → 249 lines (no blobs — patterns use vars)
+  - claws5.s: 1758 → 2063 lines (1 blob)
+  - treebank-list.s: 2118 → 2493 lines (1 blob)
+  - treebank-array.s: 2547 → 2908 lines (1 blob)
+  Variant patterns still go through `scrip_rt_pat_*@PLT` calls
+  (correct — they truly need runtime construction).
+  **Mode-3 impact**: `bb_build_flat` now succeeds on patterns that
+  previously fell through. Smoke ×6 confirms no regressions.
+
+
   The full Beauty crosscheck (md5
   `abfd19a7a834484a96e824851caee159`, 646 lines) on the emitted
   binary. This is the M2-SNOBOL4 milestone gate: emitted binary
@@ -1602,6 +1688,101 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7c-invariance-rule LANDED 2026-05-07 (session #84)
+======================================================
+Corrected invariance classification + static .data ζ emission for
+flat BB blobs. Fixes both mode 3 (--jit-run) and mode 4 (--jit-emit).
+
+ROOT CAUSE: `flat_is_eligible` in bb_flat.c excluded too many node
+kinds under the wrong rule. Per archive/BB-GEN-X86-BIN.md, invariance
+means "all components invariant: no variable reads, no function
+calls, just literals and constructors" *as pattern nodes*. Reading
+a variable AT MATCH TIME (XDSAR, XSPNC with charset string, XLNTH
+with literal n) is fine — graph topology is fixed at build time.
+Only XVAR (runtime DESCR_t used directly as a pattern component)
+is truly variant.
+
+The bug affected --jit-run (mode 3) too: invariant patterns were
+falling through bb_build_flat to bb_build_binary's per-node path or
+the C interpreter, missing the optimization. Mode 4's empty .s
+artifacts made the bug visible.
+
+FIX (4 components):
+1. flat_is_eligible / flat_is_eligible_node: exclude only XVAR +
+   XCAT n>2.
+2. sm_phase2_to_patnd simulator: propagate is_variant from arg
+   rather than forcing 1 for SPAN/BREAK/ANY/NOTANY/LEN/TAB/RTAB/
+   FENCE/DEREF/REFNAME.
+3. flat_emit_node: added cases for XLNTH, XTB, XRTB, XFNCE, XFARB,
+   XSTAR, XBRKX, XATP, XDSAR, XNME, XFNME, XARBN. All ζ structures
+   emit as static .data blocks with linker-resolved RIP-relative
+   addresses (no more emitter-heap pointers baked as imm64).
+4. libscrip_rt.so ABI: added scrip_rt_patch_cap_fn(cap_ptr,
+   child_fn) and scrip_rt_init_arbno(slot_ptr, child_fn) for
+   startup wiring of XNME/XFNME/XARBN child sub-procs.
+
+WHAT TO LOOK FOR in the .s files (was 0, now 1+ each except wordcount):
+- _pat_inv_<id>_alpha:  externally-visible blob entry
+- .Lcap<n>_data:        static cap_t for XNME/XFNME captures
+- .L<box>_z labels:     static ζ for LEN/TAB/RTAB/FENCE/etc.
+- _cap<n>_child_alpha:  child sub-proc for capture
+- scrip_rt_patch_cap_fn@PLT: startup fixup calls
+
+HONEST DEVIATIONS (filed as follow-up):
+(1) Deferred capture commit: XNME's `.VAR` capture writes to
+NAME_t::pending at γ but NAME_commit walks the global capture
+registry populated via register_capture(z) at α inside bb_cap.
+The static .data cap_t is not yet registered. Test:
+  S = 'hello world'; S POS(0) LEN(5) . W; OUTPUT = 'W=' W
+mode-4: emits clean, runs, prints "W=" (empty)
+oracle: prints "W=hello"
+Pattern matches and runs (no segfault) — only the deferred commit
+is missing. Next-rung fix: ensure register_capture fires for
+static cap_t (e.g. add a registered=0→1 guard inside bb_cap or
+emit a one-time register call in the main fixup preamble).
+
+(2) bb_arbno arbno_t->stack uses realloc — heap arbno_t allocated
+once at startup via scrip_rt_init_arbno is fine for non-re-entrant
+use. Demo programs don't hit recursive ARBNO patterns.
+
+GATES FINAL:
+- smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4)
+- EM gate PASS=12 FAIL=0 (unchanged)
+- isolation gate PASS (no IR-only symbol leaks)
+- unified_broker PASS=49 FAIL=0
+- All 5 tracked .s artifacts: assemble cleanly, deterministic
+  (back-to-back diff = empty)
+
+TRACKED ARTIFACT CHANGES (corpus/programs/snobol4/demo/):
+  roman.s          146 → 274 lines  (1 invariant blob + 1 cap)
+  wordcount.s      218 → 249 lines  (0 blobs — vars dominate)
+  claws5.s        1758 → 2063 lines (1 blob + 1 cap)
+  treebank-list.s 2118 → 2493 lines (1 blob + 1 cap)
+  treebank-array  2547 → 2908 lines (1 blob + 1 cap)
+
+Variant patterns (with SM_PUSH_VAR feeding pattern ops) correctly
+remain on the scrip_rt_pat_*@PLT path — they genuinely need runtime
+construction.
+
+FILES CHANGED:
+- src/runtime/x86/bb_flat.c                  (+250 lines, restructured)
+- src/runtime/x86/bb_flat.h                  (+5 lines API)
+- src/runtime/x86/sm_codegen_x64_emit.c      (~40 lines: simulator,
+                                              flat_is_eligible_node,
+                                              cap/arbno fixup emit)
+- src/runtime/rt/scrip_rt.h                  (+10 lines)
+- src/runtime/rt/scrip_rt.c                  (+15 lines: patch_cap_fn
+                                              + init_arbno)
+
+one4all parent: ed5258eb.  corpus parent: 6428efa.
+.github parent: fa6dc2c.  Session #84, 2026-05-07.
+
+Next rung: EM-7c-capture-commit (wire register_capture for static
+cap_t so deferred .VAR captures commit at full-match success).
+Then EM-7d (beauty oracle gate — still blocked on pre-existing
+beauty self-host regression).
 
 EM-7d-usercall-retval-from-nv LANDED 2026-05-07 (session #83)
 ==============================================================
