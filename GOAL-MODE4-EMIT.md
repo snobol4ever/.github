@@ -1367,6 +1367,14 @@ to read, complex enough to be meaningful:
   previously fell through. Smoke ×6 confirms no regressions.
 
 - [ ] **Step EM-7c-sm-macros — Introduce SM-side asm macro library; SM opcodes emit as flat macro calls.**
+  > **IN-PROGRESS sess #87, 2026-05-09 — NOT LANDED.** Architectural work
+  > complete; byte-identical invariant verified; 7 of ~10 gates passed.
+  > 3 gates and the regen+commit-tracked-artifacts step are pending.
+  > Code lives on WIP branch `wip/em7c-sm-macros-sess87` @ `5b6cc972`
+  > on `snobol4ever/one4all` (NOT FOR MERGE — squash to a fresh commit
+  > on main authored under LCherryholmes after gates pass).  Full state
+  > in the IN-PROGRESS watermark block at the end of this file.
+
   Reference: archive precedent `snobol4_asm.mac` (151 macros, three-column
   shape, proven 106/106 vs SPITBOL oracle on the historical BB-binary
   emitter).  This rung lifts the same approach to the SM straight-line
