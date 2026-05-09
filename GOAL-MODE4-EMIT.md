@@ -566,9 +566,77 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       xcat0_γ:
       ```
 
-- [ ] **EM-7c-sm-three-column-verify-labels-on-demand** — Emit `.LpcN:` only when that PC is a jump target.  Today every PC gets a label (naked-label regression prevented by EM-7c-stmt-banner-fidelity's NOOP shape, but unlabelled PCs still bloat the SM section).  Pre-pass over `SM_Program` collects jump-target set (sources: `SM_JUMP`, `SM_JUMP_F`, `SM_JUMP_S`, `SM_CALL_CHUNK`, `SM_PUSH_CHUNK`, error landing pads, BB blob entry-pc map).  `emit_pc_label` emits label only if PC ∈ targets.  Risk: BB blob entry-pc back-references baked as `# baked _pat_inv_<id> pc=N..M` annotations — keep `.LpcN:` for any PC in a blob range, or rewrite annotations to use the blob's named symbol.  **Baseline (post-EM-7c-bb-macros):** roman 202, wordcount 159, claws5 1112, treebank-list 1393, treebank-array 1576.
+- [ ] **EM-FORMAT-SM** — Enforce the full SM three-column format law across all emitted `.s` artifacts.
 
-- [ ] **EM-7c-sm-three-column-verify-template-gaps-survey** — Survey the six SM template gaps before filling: `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`.  Grep of all five tracked artifacts returns zero hits — none fire on today's corpus (same dead-code shape as CH-15-SURVEY).  Deliverable: `docs/EM-7c-sm-template-gaps-survey.md` documenting (a) which programs trigger each opcode, (b) whether `sm_lower.c` arms are dead code today, (c) fill-vs-defer recommendation per opcode.  Gates: smoke ×6 PASS, EM PASS=13, bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations.
+      **The SM format law (definitive):**
+
+      1. **Three columns, no exceptions.**  Col-1 = label (24 chars, left-padded).  Col-2 = opcode / macro name (16 chars).  Col-3 = args + optional `# comment` (free width).  Single space between col-2 and col-3.
+      2. **No blank lines anywhere in the emitted `.s`.**
+      3. **Labels only when referenced.**  A `.LpcN:` line is emitted only when PC N is a jump target — i.e. is the destination of some `SM_JUMP`, `SM_JUMP_F`, `SM_JUMP_S`, `SM_CALL_CHUNK`, `SM_PUSH_CHUNK`, error landing pad, or BB blob entry-pc.  Unreferenced PCs are silent.  Risk: BB blob entry-pc back-refs (`# baked _pat_inv_<id> pc=N..M`) — keep `.LpcN:` for any PC in a blob range, or rewrite annotations to reference the blob's named symbol directly.
+      4. **Program order = SNOBOL4 source order.**  SM ops emitted in statement order; no reordering.
+      5. **Statement banners.**  Each SNOBOL4 statement begins with a 120-character `#` banner:
+         ```
+         # ============================================================================= (120 chars total)
+         # stmt N  (line L):  <verbatim source line>
+         # =============================================================================
+         ```
+         The banner immediately precedes the first SM op of that statement.  No blank line between banner and first op.
+      6. **Comments say only what is unclear from col-2/col-3.**  Col-3 comment annotates the *referent* of an opaque arg — a `.Lstr_N` label, a chunk entry-pc, a return-variant integer — not the opcode itself.  Forbidden: `# SM_POP`, `# SM_JUMP`, `# var=N`, `# str=S`, `# fname=F` (the opcode name is already col-2; `var=`, `str=`, `fname=` add noise without revealing the value).  Permitted: `# "hello"` (when col-3 shows `.Lstr_4`), `# ROMAN` (when col-3 shows a chunk index), `# :F branch` (when col-3 shows a raw pc number for a failure transfer).
+
+      **Implementation:**  Pre-pass over `SM_Program` builds a `uint8_t used_as_target[count]` bitset.  `emit_pc_label` gates on the bitset.  `emit_sm_stno` emits the 120-char `#=` banner then the STNO line (no blank between).  Comment-generation sites audited: remove `var=`/`str=`/`fname=` prefixes; keep only the bare value when it disambiguates an opaque `.Lstr_N` or numeric arg.
+
+      **Files:** `sm_codegen_x64_emit.c` (label gating, banner, comment cleanup).  No changes to `sm_macros.s`, `bb_flat.c`, or `sm_lower.c`.
+
+      **Gates:** smoke ×6 PASS, EM PASS=13, bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations (including new I4: no blank lines, already enforced; new I5: no unreferenced `.LpcN:` labels).  Tracked artifact line counts expected to drop (unreferenced PC labels removed).
+
+      **Sample — roman.s stmt 4 before/after:**
+      ```
+      BEFORE                                        AFTER
+      .Lpc6:                  STNO                  # =================================================================== (120)
+      .Lpc7:                  # PUSH_INT  baked ...  # stmt 4  (line 10):  ROMAN  N RPOS(1) LEN(1) . UNITS =  :F(RETURN)
+      .Lpc8:                  # PAT_RPOS  baked ...  # ===================================================================
+      .Lpc13:                 PUSH_VAR   .Lstr_4 # var=N    .Lpc6:   PUSH_VAR   .Lstr_4 # N
+      ```
+      Unreferenced `.Lpc7:`..`.Lpc12:` gone (blob PCs absorbed); `# var=N` → `# N`.
+
+- [ ] **EM-FORMAT-BB** — Enforce the full BB four-port / three-column format law across all emitted BB blobs.
+
+      **The BB format law (definitive):**
+
+      1. **Four ports per box, always.**  Every box emits exactly four labeled entry points: `α` (try), `β` (retry), `γ` (success exit), `ω` (failure exit).  All four carry the Greek letter suffix.  No port is omitted even if it is a trivial jump.
+      2. **Three columns.**  Col-1 = label (24 chars).  Col-2 = action (16 chars) — one instruction or macro name per line, multiple action lines per port as needed.  Col-3 = goto — the jump target(s).  Semicolons separate GAS statements on the same source line when two instructions must appear together (e.g. action + goto on one line): `LABEL:          ACTION          ; jmp TARGET`.  Gotos go in col-3; never col-2.
+      3. **No lone labels.**  A label is never emitted on a line by itself if it can share the line with the first instruction of its block.  If the block's first instruction is a multi-line sequence, the label goes on the same line as the first instruction of that sequence.  This rule applies identically to SM and BB.
+      4. **Box banners.**  Each distinct box begins with a 120-character `#` separator:
+         ```
+         #-------------------------------------------------------------------------------- (120 chars total)
+         # BOX  <kind>(<args>)  [label prefix]
+         ```
+         The banner immediately precedes the `α` label line of that box.  No blank line between banner and α line.
+      5. **Pattern banner.**  At the start of each pattern blob (before the first box), a 120-char `#=` banner names the SNOBOL4 pattern expression (verbatim source or reconstructed from PATND_t).
+      6. **No blank lines** anywhere in BB output.
+      7. **Comments in col-3** name the box kind and argument on the α line only (e.g. `# RPOS(0)`, `# LEN(1)`, `# BREAK ".,;"`) — not repeated on β/γ/ω lines.
+
+      **Implementation:**  `bb_flat.c` `flat_emit_*` and compositor functions emit banners before each box cluster.  `flat3c_label` replaced with a combined label+first-instruction form wherever the first instruction is known at label-define time.  Lone-label audit: scan all `EV_LABEL` call sites; where the next emission is always a `EV_JMP` or `flat3c_action`, fuse them.
+
+      **Files:** `bb_flat.c` (banners, lone-label fusion, col-3 goto placement), `emitter_text.c` / `bb_emit.c` (semicolon separator support for fused action+goto lines).
+
+      **Gates:** smoke ×6 PASS, EM PASS=13, bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations (extended audit: no lone labels, no blank lines in BB sections).
+
+      **Sample — roman.s RPOS+XCAT blob before/after:**
+      ```
+      BEFORE                                        AFTER
+      _pat_inv_0_α:                                 # =============== (120)
+                      lea r10,[rip+Δ]               # PAT  N RPOS(1) LEN(1) . UNITS
+                      cmp esi,0                     # ===============
+                      je  _pat_inv_0_α_body         # ---------------- (120)
+                      jmp _pat_inv_0_β              # BOX  RPOS(1)  [_pat_inv_0]
+      _pat_inv_0_α_body:                            _pat_inv_0_α:   RPOS_α  1,xcat0_γ,xcat0_ω  # RPOS(1)
+      ...                                           _pat_inv_0_β:   RPOS_β          ; jmp xcat0_ω
+                                                    # ----------------
+                                                    # BOX  XCAT  [xcat0]
+                                                    xcat0_left_β:   SEQ_β           ; jmp xcat0_ω
+                                                    xcat0_γ:        ...
+      ```
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
