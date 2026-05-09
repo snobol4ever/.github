@@ -1370,7 +1370,7 @@ to read, complex enough to be meaningful:
   > **IN-PROGRESS sess #87, 2026-05-09 — NOT LANDED.** Architectural work
   > complete; byte-identical invariant verified; 7 of ~10 gates passed.
   > 3 gates and the regen+commit-tracked-artifacts step are pending.
-  > Code lives on WIP branch `wip/em7c-sm-macros-sess87` @ `5b6cc972`
+  > Code lives on WIP branch `wip/em7c-sm-macros-sess87` @ `412bb9fc`
   > on `snobol4ever/one4all` (NOT FOR MERGE — squash to a fresh commit
   > on main authored under LCherryholmes after gates pass).  Full state
   > in the IN-PROGRESS watermark block at the end of this file.
@@ -3751,7 +3751,7 @@ NOT landed.  Session compacted twice (~52% then ~93% context);
 emergency handoff to a WIP branch on the code repo before container
 reset.
 
-WIP BRANCH (one4all):  wip/em7c-sm-macros-sess87 @ commit 5b6cc972
+WIP BRANCH (one4all):  wip/em7c-sm-macros-sess87 @ commit 412bb9fc
                        (parent: ca704e95, the EM-7c-greek-purge tip).
                        NOT FOR MERGE — the proper landing commit must
                        be re-authored under LCherryholmes per RULES.md
@@ -3835,7 +3835,7 @@ helpers DELETED):
   - EXEC_STMT_VARIANT                    (EXEC_VAR)
   - UNHANDLED trap
 
-FILES TOUCHED (one4all WIP commit 5b6cc972):
+FILES TOUCHED (one4all WIP commit 412bb9fc):
   src/runtime/x86/sm_emit_template.h     NEW
   src/runtime/x86/sm_emit_template.c     NEW
   src/runtime/x86/sm_codegen_x64_emit.c  every emit_sm_* refactored;
@@ -3919,7 +3919,7 @@ Sequence from here:
   → EM-7c-bb-macros
   → EM-7d.
 
-one4all parent: ca704e95.   one4all WIP tip: 5b6cc972
+one4all parent: ca704e95.   one4all WIP tip: 412bb9fc
                                   (branch wip/em7c-sm-macros-sess87).
 corpus parent: 4404b2f.     corpus WIP tip: (no commits this session;
                                               .s regen pending).
