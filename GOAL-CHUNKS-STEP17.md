@@ -435,7 +435,22 @@ proc_table / pred_table data.
 
 ### CH-17h — Migrate Step 15 remaining kinds (CH-15b)
 
-**Scope:** as per CH-15-SURVEY's recommendation: with proc bodies
+**CH-17h-SURVEY LANDED sess 2026-05-09** — `docs/CHUNKS-step17h-survey.md`
+documents that the line-1303 dispatcher arm (`E_EVERY`, `E_SUSPEND`,
+`E_BANG_BINARY`, `E_LCONCAT`, `E_LIMIT`, `E_RANDOM`, `E_SECTION`,
+`E_SECTION_PLUS`, `E_SECTION_MINUS`) is **dead code on real corpora today**:
+zero fires across smoke ×6 + Icon corpus 263 + unified_broker 49 +
+broad/regression runs + a hand-crafted `every`/`suspend`/section program
+that produced correct output.  Same diagnosis as CH-15-SURVEY: stmt-context
+generators lower via `lower_stmt`'s dedicated paths; chunk-body generators
+sit in chunks that are forward-jumped over until CH-17g-final makes them
+live.  **Recommendation in the survey doc: reverse the original sequencing
+— land CH-17g-final first** (its legacy-body deletion is the act that
+*creates* the test surface for these kinds, not the act that requires them
+gone), then migrate per-kind with real corpus validation.  Awaits Lon
+decision on sequencing.
+
+**Scope (when migration starts):** as per CH-15-SURVEY's recommendation: with proc bodies
 now lowered through sm_lower (CH-17b/d), every-bodies and
 generator expressions inside Icon procs reach the line-1192
 dispatcher arm.  E_EVERY, E_SUSPEND, E_BANG_BINARY, E_LCONCAT,
