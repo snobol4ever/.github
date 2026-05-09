@@ -455,56 +455,57 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       **Gates final state — same as EM-7c-bb-three-column-split:**
       smoke ×5 PASS, isolation PASS, EM PASS=12/12, bb_flat_text PASS=18/18, sm_phase2_sim PASS=25/25, unified_broker PASS=6/6 (Prolog inline; csnobol4 oracle not in env).
 
-- [ ] **EM-7c-sm-three-column-verify** — Verify and lock the SM-side three-column format end-to-end.
+- [x] **EM-7c-sm-three-column-verify** — LANDED 2026-05-09.  C audit harness in `sm_codegen_x64_emit_test.c` (`--audit <file.s>...` mode), wired into `test_smoke_jit_emit_x64.sh` as Test 14.  Emits zero violations across all six tracked artifacts.
 
-      **The three-column law for SM code** — derived from both the `test_sno_*.c` C reference
-      implementations AND the proven `*.byrd-reference.s` NASM files.  The C files and the
-      byrd-reference `.s` files both follow the same three-column discipline; language is irrelevant.
-      The ASM equivalent maps one-for-one:
+      **The audit invariants (refined from the rung spec's three bullets after empirical Python prototyping):**
 
-      ```
-      # C reference (test_sno_1.c):
-      POS0_α:       if (Δ != 0)                     goto POS0_ω;
-                    POS0 = str(Σ+Δ, 0);             goto POS0_γ;
-      POS0_β:                                       goto POS0_ω;
+      | # | Rule | What it catches |
+      |---|------|-----------------|
+      | I0 | no blank lines | trailing `\n\n` regressions |
+      | I1 | no bare `;` outside strings/comments | leftover NASM-style separator |
+      | I2 | no TAB outside string literals | indentation drift |
+      | I3 | if col-1 has content, must be `label:` shape | malformed col-1 |
+      | I3a | directive can't be off the col-1 grid (e.g. `    .ifnb`) | macro-body indentation drift |
 
-      # ASM equivalent (GAS, three-column, col1=24 col2=16 col3=args+comment):
-      .LpcN_POS0_α:           POS_α            0              # Δ==0?
-                              POS_γ_wire                      # success wire
-      .LpcN_POS0_β:           POS_β                           # always fail
-      ```
+      **Dropped from the prototype:** an "I5: col-2 token ≤16 chars when col-3 follows" rule.  Empirically, `EXEC_STMT_VARIANT` (17 chars) emits as a well-formed three-column line via `printf`'s `%-16s` (which doesn't truncate, just pads-to-min); col 3 simply pushes right by one.  The rule was a layout-target conflated with an invariant.  The *actual* col-2 invariant — single contiguous non-whitespace token, no internal whitespace — is enforced implicitly by the scan loop terminating on first whitespace, and that's what catches the EM-7c-bb-three-column-split bug class.
 
-      Labels appear **only when referenced** — this is the C reference rule.  In `test_sno_1.c`,
-      `POS0_β:` appears because `assign_ω:  goto POS0_β` targets it.  An unreferenced PC
-      gets no label line; its col-1 slot is empty.  This matches the byrd-reference `.s` files
-      where `P_3_β:` appears only because it is the scan-loop retry target.
+      **Two source-side fixes the audit surfaced:**
 
-      **Column widths** (matching byrd-reference shape, adapted for GAS):
-      col1 = 24 chars (label + `:` padded to 24).  col2 = 16 chars (macro name padded to 16).
-      col3 = args + optional `# comment` (GAS uses `#`; byrd-reference used `;` for NASM).
-      Banners are full-width `# ====...` separator lines carrying the verbatim SNOBOL4 source
-      statement — one banner per statement, matching byrd-reference's `; ====...` + `; LABEL ===`
-      pattern.  No blank lines between SM instructions.
+      (1) `emit_optional_lbl` in `sm_emit_template.c` produced 4-space-indented `.ifnb`/`.else`/`.endif` directives and 8-space-indented `lea`/`xor` body lines inside macro bodies for `PAT_LIT`/`PAT_REFNAME`/`PAT_USERCALL`/`PAT_CAPTURE`/`PAT_CALL_FN`/`PAT_CAPTURE_FN_ARGS`/`EXEC_STMT_VARIANT` macros.  Rewrote to route every line through `macro_line` so directives sit in col 2 and body operands sit in col 3.  GAS conditional-assembly is indentation-insensitive — assembly identical, audit clean.
 
-      **Scope (sm_codegen_x64_emit.c + sm_emit_template.c):**
-      - Add an audit test in `sm_codegen_x64_emit_test.c` asserting for every non-banner line:
-        (a) col-1 is empty (24 spaces) or a label ending `:` within 24 chars;
-        (b) col-2 is a single macro/directive token, no leading tab;
-        (c) no bare `;` column separator anywhere.
-      - Fix known gaps: `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`,
-        `SM_EXP`, `SM_NEXT_PUSH` — each gets a NOOP-shape or real template entry so all opcodes
-        route through the template renderer; none escape to raw `fprintf`.
-      - **Labels on demand only:** the pending-label flush must emit a `.LpcN:` line only when
-        that PC is a jump target in the program.  Unreferenced PCs are silently absorbed into
-        the following instruction's col-1 slot or dropped.
-      - `sm_macros.s` macro body lines must comply (`.macro`/`.endm` directives exempt).
+      (2) Trailing blank line at end of `sm_macros.s` (was `# === END sm macro library ===\n\n`).  Collapsed `\n\n` to single `\n`.
 
-      **Files:** `sm_codegen_x64_emit.c`, `sm_emit_template.{c,h}`, `sm_codegen_x64_emit_test.c`.
-      No new opcodes, no IR changes, no `sm_lower.c` changes.
+      **What was NOT done in this rung (deliberately deferred — same shape as prior CH-15-SURVEY):**
 
-      **Gates:** smoke ×6 PASS, isolation PASS, unified_broker PASS=49, EM PASS=12,
-      bb_flat_text PASS=18, sm_phase2_sim PASS=25.  New gate: audit test exits 0 on all five
-      tracked artifacts.  Artifact line counts byte-identical to EM-7c-s-file-beautify baseline.
+      - **Labels on demand only** — emit `.LpcN:` only when the PC is a jump target.  Architecturally interesting (needs a pre-pass over `SM_Program` computing the jump-target set before emission); risky (changes pc→label mapping that downstream BB blob entry-points depend on).  Carve as **EM-7c-sm-three-column-verify-labels-on-demand**.
+      - **Six template-gap fills** (`SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`) — none of these opcodes appear in any of the five tracked corpora today.  Same dead-code shape as CH-15-SURVEY's finding for `SM_PUSH_EXPR`.  Worth a survey before fills.  Carve as **EM-7c-sm-three-column-verify-template-gaps-survey**.
+
+      **Files touched (one4all only — corpus untouched except auto-regenerated artifacts):**
+      - `src/runtime/x86/sm_codegen_x64_emit_test.c` — added `--audit` mode (~190 LOC including doc-comment + counter/printer).
+      - `src/runtime/x86/sm_emit_template.c` — rewrote `emit_optional_lbl` (8 lines → 22, forward decl `macro_line`); trimmed trailing `\n` from END marker.
+      - `scripts/test_smoke_jit_emit_x64.sh` — added Test 14 (~30 lines).
+
+      **Tracked artifact line counts (regenerated this session):**
+      | File | Lines | Was |
+      |------|------:|----:|
+      | roman.s | 208 | 208 |
+      | wordcount.s | 158 | 158 |
+      | claws5.s | 1114 | 1114 |
+      | treebank-list.s | 1395 | 1395 |
+      | treebank-array.s | 1578 | 1578 |
+      | sm_macros.s | 248 | 249 |
+
+      Five SNOBOL4 demo artifacts byte-identical to baseline; `sm_macros.s` lost 1 line (the trailing blank).  All assemble cleanly.
+
+      **Gates final state:**
+      - smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5, rebus 4/4)
+      - isolation PASS · unified_broker PASS=49
+      - EM PASS=13 (was 12; new Test 14 audits the three-column shape) · bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+      - **NEW: EM-7c-audit gate — 0 violations across all 6 tracked artifacts**
+
+- [ ] **EM-7c-sm-three-column-verify-labels-on-demand** — Carved from EM-7c-sm-three-column-verify (2026-05-09).  Emit `.LpcN:` line only when that PC is a jump target in the program.  Today every PC gets a label whether referenced or not (this is where "naked label" failure modes used to surface — fixed in EM-7c-stmt-banner-fidelity by making every PC's col-2 non-empty).  The change is a pre-pass over `SM_Program` collecting the set of PCs reachable as jump targets (sources: `SM_JUMP`, `SM_JUMP_F`, `SM_JUMP_S`, `SM_CALL_CHUNK`, `SM_PUSH_CHUNK`, exception/error landing pads, and the BB blob entry-point map).  At emission time, `emit_pc_label` consults the set and emits the label only if PC ∈ targets.  Risk surface: BB blob entry-pc back-references baked at emit-time into `_pat_inv_<id>` data — those need to remain valid; either keep all `.LpcN:` for PCs referenced by blob `pc=N..M` annotations, or rewrite blob annotations to back-reference the surviving named blob symbol instead.  Worth carving its own rung.
+
+- [ ] **EM-7c-sm-three-column-verify-template-gaps-survey** — Carved from EM-7c-sm-three-column-verify (2026-05-09).  The rung spec listed six template gaps to fill: `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`.  Empirical scan of the five tracked artifacts (`grep -E "SM_PUSH_LIT_F|SM_PUSH_NULL_NOFLIP|SM_PUSH_EXPR|SM_NEG\b|SM_EXP\b|SM_NEXT_PUSH" *.s`) returns zero hits — none of these opcodes fire on today's corpus.  Same dead-code shape as CH-15-SURVEY's finding for `SM_PUSH_EXPR`.  Survey rung produces a `docs/EM-7c-sm-template-gaps-survey.md` documenting (a) which programs in `corpus/programs/snobol4/` (and other languages) trigger each opcode, (b) whether the dispatcher arms in `sm_lower.c` that emit these are dead code today, (c) recommendation for fill-vs-defer per opcode.  Migration without survey blast-radius unclear — fills could be no-ops shipping unused infrastructure.
 
 - [ ] **EM-7c-bb-macros** — BB-side macro library: one named macro per box-port, Greek suffixes
       enforced on all BB labels, inline box-kind annotation on every α label line.
@@ -603,6 +604,85 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-7c-sm-three-column-verify LANDED 2026-05-09
+=============================================
+
+C audit harness in `sm_codegen_x64_emit_test.c` (`--audit <file.s>...`
+mode), wired into `test_smoke_jit_emit_x64.sh` as Test 14.  Validates the
+three-column shape invariants on every line of every tracked artifact;
+emits zero violations across all six.
+
+**Audit invariants (refined empirically from the rung spec via Python
+prototyping before C port):**
+
+| # | Rule | What it catches |
+|---|------|-----------------|
+| I0 | no blank lines | trailing `\n\n` regressions |
+| I1 | no bare `;` outside strings/comments | leftover NASM-style separator |
+| I2 | no TAB outside string literals | indentation drift |
+| I3 | if col-1 has content, must be `label:` shape | malformed col-1 |
+| I3a | directive can't be off the col-1 grid (e.g. `    .ifnb`) | macro-body indent drift |
+
+Dropped the prototype's "I5: col-2 token ≤16 chars w/col-3" rule on
+reflection — `printf`'s `%-16s` doesn't truncate, so `EXEC_STMT_VARIANT`
+(17 chars) emits a well-formed three-column line with col-3 pushed right
+by 1.  Layout-target conflated with invariant.  The *actual* col-2
+invariant — single contiguous non-whitespace token — is enforced
+implicitly by the scan loop terminating on first whitespace, which is
+what catches the EM-7c-bb-three-column-split bug class.
+
+**Two source-side fixes the audit surfaced:**
+
+(1) `emit_optional_lbl` in `sm_emit_template.c` produced 4-space-indented
+    `.ifnb`/`.else`/`.endif` directives and 8-space-indented `lea`/`xor`
+    bodies inside macro bodies for `PAT_LIT`/`PAT_REFNAME`/`PAT_USERCALL`/
+    `PAT_CAPTURE`/`PAT_CALL_FN`/`PAT_CAPTURE_FN_ARGS`/`EXEC_STMT_VARIANT`
+    macros.  Rewrote to route every line through `macro_line` so
+    directives sit in col 2 and operands in col 3.  GAS conditional-
+    assembly is indentation-insensitive; assembly identical, audit clean.
+
+(2) Trailing blank line at end of `sm_macros.s` — `# === END sm macro
+    library ===\n\n` collapsed to single `\n`.
+
+**Two pieces of the rung spec deferred (carved as new sub-rungs):**
+
+- `EM-7c-sm-three-column-verify-labels-on-demand` — emit `.LpcN:` only
+  when the PC is a jump target.  Risk surface around BB-blob entry-pc
+  back-references; needs a pre-pass over `SM_Program` collecting jump
+  targets.
+- `EM-7c-sm-three-column-verify-template-gaps-survey` — the six listed
+  template gaps (`SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`,
+  `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`) fire on zero of the five tracked
+  artifacts.  Same dead-code shape as CH-15-SURVEY for `SM_PUSH_EXPR`.
+  Survey before fills.
+
+**Files touched (one4all only):**
+- `src/runtime/x86/sm_codegen_x64_emit_test.c` — new `--audit` mode (~190 LOC)
+- `src/runtime/x86/sm_emit_template.c` — rewrote `emit_optional_lbl`; trimmed END marker `\n\n`→`\n`; forward decl `macro_line`
+- `scripts/test_smoke_jit_emit_x64.sh` — added Test 14 (~30 lines)
+
+**Tracked artifact line counts:**
+
+| File | Lines | Was | trailing-ws | gcc -c |
+|------|------:|----:|:-----------:|:------:|
+| roman.s          |  208 |  208 | 0 | OK |
+| wordcount.s      |  158 |  158 | 0 | OK |
+| claws5.s         | 1114 | 1114 | 0 | OK |
+| treebank-list.s  | 1395 | 1395 | 0 | OK |
+| treebank-array.s | 1578 | 1578 | 0 | OK |
+| sm_macros.s      |  248 |  249 | 0 | (via `.include`) |
+
+Five SNOBOL4 demo artifacts byte-identical to baseline; `sm_macros.s`
+loses 1 line (the trailing blank).  All assemble cleanly.
+
+**Gates final state:**
+- smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5, rebus 4/4)
+- isolation PASS · unified_broker PASS=49
+- EM PASS=13 (was 12 — Test 14 added) · bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+- **NEW gate: audit emits 0 violations across all 6 tracked artifacts**
+
+----
 
 EM-7c-no-trailing-ws LANDED 2026-05-09
 =============================================
