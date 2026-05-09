@@ -1366,7 +1366,138 @@ to read, complex enough to be meaningful:
   **Mode-3 impact**: `bb_build_flat` now succeeds on patterns that
   previously fell through. Smoke ×6 confirms no regressions.
 
-- [ ] **Step EM-7c-bb-three-column — Emit each BB box as a 4-port cluster in three-column form.**
+- [ ] **Step EM-7c-sm-macros — Introduce SM-side asm macro library; SM opcodes emit as flat macro calls.**
+  Reference: archive precedent `snobol4_asm.mac` (151 macros, three-column
+  shape, proven 106/106 vs SPITBOL oracle on the historical BB-binary
+  emitter).  This rung lifts the same approach to the SM straight-line
+  emitter — one GNU-as macro per SM opcode group, expanded inline in the
+  emitted `.s`, no PLT calls per tiny op.
+
+  **Scope: SM only.  BB boxes are NOT macro-ified in this rung.** Per
+  the "Two Separate Emitters" architecture section above:
+  - SM opcodes → macros expanded inline (this rung).
+  - BB boxes → straight x86 in three-column form (next rung,
+    `EM-7c-bb-three-column`).
+  The two emitters share neither a macro library nor a layout
+  convention.  Conflating them is the smear EM-7b' was filed to
+  prevent.
+
+  **The macro library — `sm_macros.s`.**  Single GNU-as `.macro`
+  file, included near the top of every emitted `.s` (after the
+  preamble, before the strtab `.rodata` section).  One macro per
+  SM opcode group; the macro expands to the same x86 sequence
+  `sm_codegen_x64_emit.c` currently emits inline.  Names match the
+  opcode names: `SM_PUSH_LIT_I`, `SM_PUSH_LIT_S`, `SM_PUSH_VAR`,
+  `SM_STORE_VAR`, `SM_POP`, `SM_DUP`, `SM_SWAP`, `SM_ADD`, `SM_SUB`,
+  `SM_MUL`, `SM_DIV`, `SM_MOD`, `SM_CONCAT`, `SM_PUSH_NULL`,
+  `SM_COERCE_NUM`, `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
+  `SM_PUSH_CHUNK`, `SM_CALL_CHUNK`, `SM_RETURN`, `SM_RETURN_S`,
+  `SM_RETURN_F`, `SM_FRETURN`, `SM_FRETURN_S`, `SM_FRETURN_F`,
+  `SM_NRETURN`, `SM_NRETURN_S`, `SM_NRETURN_F`, `SM_CALL`, `SM_HALT`,
+  `SM_NOP`, `SM_STNO`, `SM_PAT_*` (all 26 variants — these emit the
+  Phase-2 build sequences).  The macros take the same arguments the
+  emitter currently bakes (an immediate for `SM_PUSH_LIT_I`, a `.LpcN`
+  label for jumps, a `.LstrN` label for `SM_PUSH_LIT_S`, etc.).
+
+  **Emitter refactor.**  After this rung, `sm_codegen_x64_emit.c`'s
+  per-opcode emit functions output **one macro call per opcode** —
+  no inline x86 in the SM-side emit path.  Concretely:
+
+  Before (today):
+  ```
+  # SM_ADD
+      pop     rdx
+      pop     rax
+      add     rax, rdx
+      push    rax
+  ```
+
+  After (this rung):
+  ```
+      SM_ADD
+  ```
+
+  The macro body in `sm_macros.s`:
+  ```
+  .macro SM_ADD
+      pop     rdx
+      pop     rax
+      add     rax, rdx
+      push    rax
+  .endm
+  ```
+
+  The bytes the assembler ultimately emits are identical.  The visible
+  `.s` shrinks by ~3-5× because each opcode is one line instead of
+  several.  Page-break banners (per the readability standard) and
+  inline annotations stay — they wrap macro calls now instead of
+  raw instruction sequences.
+
+  **Macros for control flow.**  `SM_JUMP_F .LpcN` expands to
+  `call scrip_rt_last_ok ; test eax,eax ; jz .LpcN`.  The label
+  argument flows through unchanged.  `SM_LABEL` expands to nothing
+  (the per-pc `.LpcN` label that surrounds the dispatch already
+  serves) — kept so future variants can extend it without touching
+  the emitter.
+
+  **What does NOT become a macro this rung.**  The emitted `main()`
+  preamble (calls into `scrip_rt_init`, `scrip_rt_register_chunks`,
+  cap-fixup loops) stays as raw x86 in the emitter — it is not
+  per-opcode emission; it's a one-time scaffold.  Likewise the
+  emitted `.section .rodata` strtab, the `.section .data` ζ blocks,
+  and the per-pattern invariant blob bodies (those are BB-side and
+  governed by the next rung).
+
+  **Where does `sm_macros.s` live and how is it included?**  Place
+  the file at `src/runtime/x86/sm_macros.s` (parallel to other
+  emitter sources).  The Makefile copies or symlinks it into the
+  build output and the emitter's `emit_file_header` writes a
+  `.include "sm_macros.s"` directive (or the macros are inlined
+  directly into each `.s` via `cat sm_macros.s >> out.s` in the
+  emit driver — choose whichever the build invariants prefer; the
+  visible result is the same).  Decision deferred to implementation;
+  prefer `.include` if GAS resolves include paths cleanly relative
+  to the assembling directory, otherwise inline.
+
+  **Done when:**
+  - `src/runtime/x86/sm_macros.s` exists and defines one `.macro` per
+    SM opcode group.
+  - `sm_codegen_x64_emit.c` emits one macro call per opcode for every
+    SM opcode currently baked inline.  No raw `pop rax` / `push rax`
+    / `add rax, rdx` (etc.) sequences in the SM-side emit path.
+  - Assembled bytes are byte-identical to pre-rung output (the macros
+    expand to the same instructions; the runtime behavior is
+    unchanged).
+  - Tracked `.s` artifacts visibly shrink in line count where SM
+    opcodes appeared.  The emitted output reads as a sequence of
+    macro names with arguments — a near-direct rendering of the
+    SM_Program — instead of inline x86.
+  - All gates green: smoke ×6, EM PASS=12, isolation, bb_flat_text,
+    sim, unified_broker.  Linked binaries pass the same runtime
+    correctness tests they pass today (Test 13's `abXc`, EM-3
+    arithmetic `(2+3)*4=20`, EM-5 chunk call/return rc=13, etc.).
+
+  **Honest deviation notes for the implementer.**  GAS macros are
+  expanded by the assembler, not by the linker; the resulting `.o`
+  is byte-identical to the unrolled form.  GAS `.macro` syntax does
+  not support default arguments uniformly across versions — keep
+  arguments explicit.  Comments emitted on macro-call lines (the
+  per-opcode `# str=...` / `# var=NAME` annotations from the
+  readability standard) stay alongside the macro call: `SM_PUSH_VAR
+  N    # var=N`.  GAS accepts trailing `#` comments after macro
+  invocations cleanly.
+
+  **Sequencing.**  EM-7c-sm-macros runs FIRST, before
+  EM-7c-bb-three-column.  Rationale: SM-side macro-ification is a
+  pure restructure of the straight-line emitter with no BB-side
+  blast radius.  Landing it first keeps the SM-side emit fully
+  scoped before the BB-side three-column rework begins, and ensures
+  the next rung touches only the BB-side files.  After both
+  EM-7c-sm-macros and EM-7c-bb-three-column land, EM-7c-bb-macros
+  becomes the third rung in the sequence (BB-side macros, parallel
+  to `snobol4_asm.mac`).
+
+- [ ] **Step EM-7c-bb-three-column — Emit each BB box as a 4-port cluster in three-column form, straight x86, Greek-only port names.**
   Reference design: `archive/BB-GEN-X86-TEXT.md`, `archive/BB-GEN-LANG.md`,
   `archive/EMITTER-MODE4-ARCH.md` §2 "BB boxes -> three-column layout",
   and the restored historical artifacts at
@@ -1380,53 +1511,112 @@ to read, complex enough to be meaningful:
   each BB box as ONE labeled cluster with all four port labels in
   source order, three-column layout (label / action / goto), wired by
   direct `jmp`s to the next box's α or to enclosing γ/ω labels.
-  **This rung does NOT introduce macros.**  No `snobol4_asm.mac`-style
-  inline macro library yet (that's a later rung). The current x86
-  sequences emitted by `flat_emit_box_call` and `flat_emit_charset_call`
-  stay exactly as they are — same `lea rdi, [rip + .Lcs0_z]` /
-  `mov esi, 0` / `call bb_X@PLT` instructions, same static `.data`
-  ζ blocks, same call into `libscrip_rt.so`.  All that changes is the
-  **layout of the emitted text**: each box gets its own
-  `bbN_α:` / `bbN_β:` / `bbN_γ:` / `bbN_ω:` labels, all four printed
-  contiguously in three-column form, with `jmp` instructions in the
-  goto column wiring ports to whatever they currently wire to.
-  **Three-column law (from BB-GEN-X86-TEXT.md):**
+
+  **⛔ This rung does NOT introduce BB-side macros.** Macro-ification
+  of BB boxes is a separate later rung (`EM-7c-bb-macros`).  The
+  current x86 sequences emitted by `flat_emit_box_call` and
+  `flat_emit_charset_call` stay exactly as they are — same `lea rdi,
+  [rip + .Lcs0_z]` / `mov esi, 0` / `call bb_X@PLT` instructions,
+  same static `.data` ζ blocks, same call into `libscrip_rt.so`.
+  All that changes is the **layout of the emitted text**: each box
+  gets its own `α<N>:` / `β<N>:` / `γ<N>:` / `ω<N>:` labels, all
+  four printed contiguously in three-column form, with `jmp`
+  instructions in the goto column wiring ports to whatever they
+  currently wire to.
+
+  Note: SM-side macros (`SM_PUSH_INT`, `SM_ADD`, `SM_JUMP_F`, etc.)
+  land in the prior rung (`EM-7c-sm-macros`) and are present in the
+  emitted `.s` by the time this rung starts.  The BB-side three-column
+  layout is independent of the SM-side macro-ification.
+
+  **⛔ Naming rule for generated code: Greek-only port names — no `bb`/`BB` prefix or suffix.**
+  In the emitted asm, BB-port labels are named with the Greek letter
+  alone followed by a numeric suffix.  No `bb` token appears anywhere
+  in generated code — the Greek letter says all we need to know.
+
+  - ❌ Wrong: `bb3_α` / `bb3_β` / `bb3_γ` / `bb3_ω`
+  - ❌ Wrong: `bbN_alpha:` / `_bb_box_3_α:` / `BB_3_α:`
+  - ✅ Right: `α3` / `β3` / `γ3` / `ω3`
+
+  Disambiguation when one `.s` holds multiple invariant pattern blobs:
+  prepend the existing pattern-blob prefix used by EM-7c-pure-invariant
+  (`_pat_inv_<id>_`).  So a port label inside pattern 0 box 3 is
+  `_pat_inv_0_α3` (NOT `_pat_inv_0_bb3_α`).  The `_pat_inv_<id>_`
+  prefix is the only namespacing token; the per-box identity is
+  carried entirely by `<greek-letter><N>`.
+
+  **Three-column law (corrected from BB-GEN-X86-TEXT.md):**
+
+  Each BB-port emission is **one logical asm line** with **literal
+  semicolons** as the column separators.  GAS treats `;` as a
+  statement separator on x86 (not a comment introducer — `#` is the
+  comment), so the three columns are three GAS statements on one
+  source line:
+
   ```
-      LABEL:              ACTION                          GOTO
+      LABEL: ; ACTION ; GOTO
   ```
-  - Column 1: label at col 0, width ~22.
-  - Column 2: instruction(s) starting at col ~22.
-  - Column 3: terminating `jmp <target>` at col ~62 (or `;` comment
-    when the port falls through to an outer label).
-  **Per-box emission (from EMITTER-MODE4-ARCH.md §2):**
-  Each PATND_t kind that produces a box (XLNTH, XTB, XRTB, XPOSI,
-  XRPSI, XFNCE, XFARB, XSTAR, XLIT, XCHR, XSPNC, XBRKC, XANYC, XNNYC,
-  XBRKX, XATP, XDSAR, XEPS, XFAIL, XCAT, XOR, XNME, XFNME, XARBN)
-  emits a contiguous block:
+
+  - **Column 1** — `LABEL:` (the port label, ending in `:`).
+  - **Column 2** — `ACTION` (zero or more instructions; for an
+    α/β port, the inline ζ-load + call into `libscrip_rt.so`; for
+    a γ/ω port, often empty).  Multiple instructions inside the
+    action column are themselves separated by `;` — i.e. the column
+    is a single statement-list, not a block.
+  - **Column 3** — `GOTO` (the dispatch: `jmp <target>` for forward
+    sequencing, `jmp <enclosing>` for fall-through, or absent when
+    the action ends with a `ret` or already terminates).  When
+    column 3 is absent (action terminates), the trailing `;` is
+    absent too.
+
+  Visual whitespace alignment between the columns is convention,
+  not contract — the assembler ignores it.  The `;` separators are
+  the contract.
+
+  **Per-box emission.**  Each PATND_t kind that produces a box
+  (XLNTH, XTB, XRTB, XPOSI, XRPSI, XFNCE, XFARB, XSTAR, XLIT, XCHR,
+  XSPNC, XBRKC, XANYC, XNNYC, XBRKX, XATP, XDSAR, XEPS, XFAIL, XCAT,
+  XOR, XNME, XFNME, XARBN) emits a contiguous four-port cluster:
+
   ```
-  ; ---- bbN: <kind> -------------------------------------------
-  bbN_α:                  <inline ζ-load + call bb_X(z, 0)>     ; jmp bbN_γ / bbN_ω
-  bbN_β:                  <inline ζ-load + call bb_X(z, 1)>     ; jmp bbN_γ / bbN_ω
-  bbN_γ:                                                        ; jmp <enclosing γ_succ>
-  bbN_ω:                                                        ; jmp <enclosing ω_fail>
+  # ---- N: <kind> ----------------------------------------------
+  α<N>: ; <inline ζ-load + call bb_X(z, 0)> ; jmp γ<N>
+  β<N>: ; <inline ζ-load + call bb_X(z, 1)> ; jmp γ<N>
+  γ<N>: ;                                   ; jmp <enclosing_γ>
+  ω<N>: ;                                   ; jmp <enclosing_ω>
   ```
-  All four labels emitted in source order.  `bbN_γ` and `bbN_ω` may
-  be empty fall-through labels whose only purpose is to make the
-  port visible — execution flows straight to the wired target via
-  the `jmp` in column 3.  This is essential for readability and for
-  the future macro-rung (each macro will expand inline at one of
-  these port labels).
-  **Wiring rules (from BB-GRAPH.md):**
-  - `bbN_γ` jumps to the next box's α (sequence) or the enclosing
-    pattern's γ if this is the rightmost box.
-  - `bbN_ω` jumps to the previous box's β (backtrack) or the
+
+  Notes on this shape:
+  - All four labels are emitted in source order: α, β, γ, ω.
+  - α/β actions normally end in a `call` whose return value
+    determines whether the port flows to γ (success) or ω (failure)
+    — column 3 is the `jmp` to whichever label the test selects.
+    When the runtime helper returns a DESCR_t whose `v` field is
+    `DT_FAIL`, the dispatch is `jne γ<N> ; jmp ω<N>` (tested
+    against `test rax, rax` or similar) — these can stay as
+    multiple statements separated by `;` inside column 3 if needed,
+    or split into a column-2 tail + column-3 single-jmp; pick
+    whichever the action's natural end-shape produces.
+  - γ<N> and ω<N> are commonly empty fall-through labels whose
+    only column-2 content is the implicit `nop` between two `;`s
+    (i.e. nothing).  Their reason for existing is to make the
+    port a real assembler symbol — so other boxes' γ/ω jmps have
+    a target name to wire to, and so a future macro-rung can hook
+    inline expansions at one of these named ports.
+
+  **Wiring rules (from BB-GRAPH.md).**
+  - `γ<N>` jumps to the next box's α (sequence) or to the
+    enclosing pattern's γ if this is the rightmost box.
+  - `ω<N>` jumps to the previous box's β (backtrack) or to the
     enclosing pattern's ω if this is the leftmost box.
-  - In XCAT (sequence): left.γ → right.α; right.ω → left.β.
-  - In XOR (alternation): left.ω → right.α; right.γ → enclosing.γ;
-    left.γ → enclosing.γ; right.ω → enclosing.ω.
-  - In XNME/XFNME (capture): child.γ → cap.γ_commit; child.ω →
-    cap.ω_fail.  Cap.γ commits the captured span and falls through
-    to enclosing γ.
+  - In XCAT (sequence): `left.γ → right.α` ; `right.ω → left.β`.
+  - In XOR (alternation): `left.ω → right.α` ; `right.γ →
+    enclosing.γ` ; `left.γ → enclosing.γ` ; `right.ω →
+    enclosing.ω`.
+  - In XNME/XFNME (capture): `child.γ → cap.γ_commit` ; `child.ω
+    → cap.ω_fail`.  `cap.γ` commits the captured span and falls
+    through to enclosing γ.
+
   **What stays the same:**
   - `flat_is_eligible` rule (only XVAR variant) — unchanged from
     EM-7c-invariance-rule.
@@ -1435,47 +1625,61 @@ to read, complex enough to be meaningful:
     — unchanged.
   - The PLT-call instruction sequences themselves — unchanged.
     No inline macro expansion in this rung.  Bytes in column 2
-    remain identical.
+    remain identical (after column-2 statements are resequenced
+    into a single `;`-separated statement list).
+
   **What changes:**
-  - `flat_emit_box_call` and `flat_emit_charset_call` emit a labeled
-    4-port cluster instead of a tight α-call-then-β-label sequence.
+  - `flat_emit_box_call` and `flat_emit_charset_call` emit a
+    labeled 4-port cluster — α/β/γ/ω all four — instead of a
+    tight α-call-then-β-label sequence.
   - `flat_emit_xcat`, `flat_emit_alt`, `flat_emit_xnme`,
     `flat_emit_xarbn` wire ports via direct `jmp` to the named
-    `bbN_γ` / `bbN_ω` labels rather than passing outer labels down
+    `γ<N>` / `ω<N>` labels rather than passing outer labels down
     into each box.
-  - The TEXT emitter formats each emitted line in three columns.
-    The BINARY emitter is unchanged (no formatting concerns).
+  - The TEXT emitter formats each emitted line as
+    `LABEL: ; ACTION ; GOTO` with literal `;` separators.  The
+    BINARY emitter is unchanged (no formatting concerns; it
+    writes bytes, not text).
+  - Top-level pattern entry/exit labels (`_pat_inv_<id>_α`,
+    `_β`, `_γ`, `_ω`) keep their existing names.  Per-box ports
+    inside a pattern blob use the new `α<N>` form, prefixed by
+    `_pat_inv_<id>_` for cross-blob disambiguation.
+
   **Gate:**
   - smoke ×6, EM PASS=12, isolation, unified_broker — all green.
-  - Tracked .s artifacts (`roman.s` etc.) reformatted into
+  - Tracked `.s` artifacts (`roman.s`, `claws5.s`,
+    `treebank-list.s`, `treebank-array.s`) reformatted into
     three-column 4-port-cluster layout, byte-identical execution
     (binaries link, run, produce same output as before).
   - Visual diff against `*.byrd-reference.s` shows the same
     LABEL/ACTION/GOTO structure (modulo PLT calls in the action
-    column instead of inline macro expansions — that's the next
-    rung).
+    column instead of inline macro expansions — that's the
+    `EM-7c-bb-macros` rung).
+  - Audit:
+    `grep -nE 'bb[0-9]+_[αβγω]|bbN_[αβγω]|_bb_' corpus/programs/snobol4/demo/*.s`
+    returns zero hits — the regenerated artifacts must contain
+    no `bb`-prefixed BB-port label names.
+
   **Honest deviations expected:**
-  - Each port label is a real assembler label.  In the historical
+  - Each port label is a real assembler symbol.  In the historical
     artifacts, ports are local labels under one named proc;
-    today our blobs are anonymous so the port labels need a unique
-    blob-id prefix (e.g. `_pat_inv_0_bb3_α`) to avoid collisions.
-  - The macro library does NOT exist yet.  Column 2 holds the
-    current PLT-call instruction sequence.  This rung is purely
-    a layout change.
-  **Greek-letter labels are required everywhere** — α, β, γ, ω, ζ,
-  Σ, Δ — both in emitted asm labels and in any C source touched.
+    today our blobs are anonymous so the port labels are namespaced
+    via the existing `_pat_inv_<id>_` prefix to avoid collisions
+    across blobs in the same `.s`.
+  - The BB-side macro library does NOT exist yet.  Column 2 holds
+    the current PLT-call instruction sequence (each operation
+    emitted as a comma-separated `;` statement-list within column
+    2).  This rung is purely a layout change on the BB side.
+
+  **Greek-letter labels are required everywhere** — α, β, γ, ω,
+  ζ, Σ, Δ — both in emitted asm labels and in any C source
+  touched.  The `_pat_inv_<id>_α/_β/_γ/_ω` top-level labels
+  already use Greek (per EM-7c-greek-purge, sess #86).  The new
+  per-box `α<N>/β<N>/γ<N>/ω<N>` ports continue the convention.
   GAS accepts UTF-8 identifiers in label names; C99/C11 accepts
   UTF-8 identifiers via universal character names; gcc and clang
-  both pass these through directly.  The historical
-  `roman.byrd-reference.s` uses `P_3_α / seq_l0_α / dol1_γ` etc.
-  directly.  The live runtime in `bb_boxes.c` uses Greek directly:
-  `LIT_α:`, `goto LIT_ω`, `ARBNO_γ_now:`, `ζ->len`, `ζ->δ`,
-  `if (Δ + ζ->len > Σlen)`.  The runtime symbols `Σ`, `Δ`, `Σlen`
-  are exported from `libscrip_rt.so` and addressed in asm as
-  `lea r10, [rip + Δ]`.  The current emitter's ASCII suffixes
-  (`_pat_inv_0_alpha` / `_beta` / `_gamma` / `_omega`) are a
-  legacy leak — this rung corrects them to `_pat_inv_0_α` /
-  `_β` / `_γ` / `_ω`, matching every other piece of the system.
+  both pass these through directly.
+
   **Next rung after this**: EM-7c-bb-macros — replace each
   PLT-call action sequence with an inline macro expansion (parallel
   to historical `snobol4_asm.mac`), at which point column 2 becomes
@@ -1546,12 +1750,15 @@ to read, complex enough to be meaningful:
   - Test data, fixture programs, oracle outputs — only the
     emitter and runtime source need the purge.
 
-  **Order of rungs:** EM-7c-greek-purge runs FIRST, before
-  EM-7c-bb-three-column, so that the three-column rung can emit
-  Greek directly without first having to clean up Latin leakage
-  it would otherwise inherit.  Once both are done, EM-7c-bb-macros
-  can swap column 2 to inline x86 with macro names like `LEN_α`,
-  `RPOS_β`, `DOL_γ_CAPTURE` consistently.
+  **Order of rungs:** EM-7c-greek-purge ran FIRST (LANDED sess #86),
+  so the downstream rungs emit Greek directly without inheriting
+  Latin leakage.  Sequence from here: EM-7c-sm-macros (introduce
+  SM-side asm macros — SM opcodes emit as flat macro calls), then
+  EM-7c-bb-three-column (BB boxes as 4-port clusters in three-column
+  form, straight x86, Greek-only port names — no `bb`/`BB` prefix),
+  then EM-7c-bb-macros (BB-side macro library, parallel to historical
+  `snobol4_asm.mac`).  After EM-7c-bb-macros lands, BB-side column 2
+  reads as macro calls like `LEN_α`, `RPOS_β`, `DOL_γ_CAPTURE`.
 
   **Gate:**
   - `grep` audit returns zero hits (or one tagged exception).
@@ -1886,6 +2093,69 @@ formal closed entry in a future cleanup pass.)
 
 ## Watermark
 
+GOAL CORRECTIONS 2026-05-09 (session #86, post EM-7c-greek-purge)
+==================================================================
+⛔ Lon's corrections to the rung sequence + naming rules, recorded
+here so they cannot be lost.  Three corrections, applied to the
+goal file in this session:
+
+CORRECTION 1 — Next rung is NOT EM-7c-bb-three-column.
+
+The next rung is **EM-7c-sm-macros** (introduce SM-side asm macros;
+SM opcodes emit as flat macro calls, parallel to the proven
+historical `snobol4_asm.mac` precedent).  Macros are SM-only.
+EM-7c-bb-three-column comes after.  Per the goal's "Two Separate
+Emitters" architecture: SM opcodes get macros; BB boxes get straight
+x86 in three-column form.
+
+CORRECTION 2 — BB-port naming in generated code: Greek-only.
+
+In emitted asm, BB-port labels are named with the Greek letter
+alone followed by a numeric suffix.  No `bb`/`BB` prefix or suffix
+anywhere in generated code — the Greek letter says all we need to
+know.
+
+  ❌ Wrong: `bb3_α` / `bb3_β` / `bb3_γ` / `bb3_ω`
+  ❌ Wrong: `bbN_alpha:` / `_bb_box_3_α:` / `BB_3_α:`
+  ✅ Right: `α3` / `β3` / `γ3` / `ω3`
+
+Disambiguation across multiple invariant pattern blobs in one `.s`
+uses the existing `_pat_inv_<id>_` prefix from EM-7c-pure-invariant
+— so a port label inside pattern 0 box 3 is `_pat_inv_0_α3` (NOT
+`_pat_inv_0_bb3_α`).  The pattern-blob prefix is the only
+namespacing token; per-box identity is `<greek-letter><N>`.
+
+CORRECTION 3 — Three-column form uses literal `;` as separator.
+
+Each BB-port emission is one logical asm line with semicolons as
+the column separators:
+
+  α3: ; lea rdi, [rip + .Lcs0_z] ; mov esi, 0 ; call bb_span@PLT ; jmp γ3
+
+GAS treats `;` as a statement separator on x86 (not a comment
+introducer — `#` is the comment), so the three columns are three
+GAS statements on one source line: `LABEL: ; ACTION ; GOTO`.
+Visual whitespace alignment between columns is convention; the `;`
+separators are the contract.
+
+These corrections land in the goal file in two places:
+
+  (a) The EM-7c-bb-three-column rung body has been rewritten to
+      enforce the Greek-only port naming rule and the literal-`;`
+      column separator rule, and to flag explicitly that this
+      rung does NOT introduce BB-side macros (macro-ification of
+      BB boxes is still EM-7c-bb-macros).
+
+  (b) A new EM-7c-sm-macros rung has been inserted before
+      EM-7c-bb-three-column in the step list, with full body text
+      describing the macro library, the emitter refactor, and the
+      gate definition.
+
+Order of remaining rungs: EM-7c-greek-purge ✅ → EM-7c-sm-macros →
+EM-7c-bb-three-column → EM-7c-bb-macros → EM-7d.
+
+PLAN.md row updated to reflect the new next rung.
+
 EM-7c-greek-purge LANDED 2026-05-09 (session #86)
 ==================================================
 Re-attempt of the purge abandoned in session #85.  Latin words
@@ -1987,13 +2257,23 @@ corpus parent: 6428efa.    corpus HEAD: 4404b2f.
 .github parent: e1443a3.   .github HEAD: <new>.
 Session #86, 2026-05-09.
 
-Next rung: EM-7c-bb-three-column — emit each BB box as a 4-port
-cluster in three-column LABEL/ACTION/GOTO form with bbN_α / bbN_β /
-bbN_γ / bbN_ω labels contiguous, matching the historical
-*.byrd-reference.s layout.  The Greek label vocabulary is now
-uniform across emitter, runtime, and emitted output, so the
-three-column rung can be written directly in Greek without
-inheriting any Latin leakage.
+Next rung: EM-7c-sm-macros — introduce SM-side asm macro library
+(`sm_macros.s`, one GNU-as macro per SM opcode group, parallel to
+the proven `snobol4_asm.mac`).  SM opcodes emit as flat macro calls
+(`SM_PUSH_INT 42`, `SM_ADD`, `SM_JUMP_F .LpcN`) instead of inline
+x86 — assembled bytes byte-identical, but emitted `.s` shrinks ~3-5×
+on the SM side.  Macros are SM-only; BB boxes do NOT get macros yet
+(separate later rung `EM-7c-bb-macros`).
+
+After EM-7c-sm-macros: EM-7c-bb-three-column — emit each BB box as a
+4-port cluster in three-column LABEL/ACTION/GOTO form, straight x86
+(no macros yet), with Greek-only port names — `α<N>` / `β<N>` /
+`γ<N>` / `ω<N>`, NO `bb`/`BB` prefix or suffix anywhere in generated
+code.  Disambiguation across blobs uses the existing
+`_pat_inv_<id>_` prefix only.  Three-column form uses literal `;`
+as the column separator (GAS treats `;` as a statement separator
+on x86, so each BB-port emission is one logical line:
+`LABEL: ; ACTION ; GOTO`).
 
 EM-7a-sim-test-fix LANDED 2026-05-07 (session #85, partial)
 ============================================================
