@@ -373,7 +373,118 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **EM-7c-bb-three-column-data SUBSUMED + LANDED here** (the data-block conversion sub-rung carved earlier was folded into this rung; its checkbox dropped).
 
-- [ ] EM-7c-bb-macros — BB-side macro library, parallel to historical `snobol4_asm.mac`.  Column-2 BB content becomes single macro names like `LEN_α`, `RPOS_β`.
+- [ ] **EM-7c-sm-three-column-verify** — Verify and lock the SM-side three-column format end-to-end.
+
+      **The three-column law for SM code** — derived from both the `test_sno_*.c` C reference
+      implementations AND the proven `*.byrd-reference.s` NASM files.  The C files and the
+      byrd-reference `.s` files both follow the same three-column discipline; language is irrelevant.
+      The ASM equivalent maps one-for-one:
+
+      ```
+      # C reference (test_sno_1.c):
+      POS0_α:       if (Δ != 0)                     goto POS0_ω;
+                    POS0 = str(Σ+Δ, 0);             goto POS0_γ;
+      POS0_β:                                       goto POS0_ω;
+
+      # ASM equivalent (GAS, three-column, col1=24 col2=16 col3=args+comment):
+      .LpcN_POS0_α:           POS_α            0              # Δ==0?
+                              POS_γ_wire                      # success wire
+      .LpcN_POS0_β:           POS_β                           # always fail
+      ```
+
+      Labels appear **only when referenced** — this is the C reference rule.  In `test_sno_1.c`,
+      `POS0_β:` appears because `assign_ω:  goto POS0_β` targets it.  An unreferenced PC
+      gets no label line; its col-1 slot is empty.  This matches the byrd-reference `.s` files
+      where `P_3_β:` appears only because it is the scan-loop retry target.
+
+      **Column widths** (matching byrd-reference shape, adapted for GAS):
+      col1 = 24 chars (label + `:` padded to 24).  col2 = 16 chars (macro name padded to 16).
+      col3 = args + optional `# comment` (GAS uses `#`; byrd-reference used `;` for NASM).
+      Banners are full-width `# ====...` separator lines carrying the verbatim SNOBOL4 source
+      statement — one banner per statement, matching byrd-reference's `; ====...` + `; LABEL ===`
+      pattern.  No blank lines between SM instructions.
+
+      **Scope (sm_codegen_x64_emit.c + sm_emit_template.c):**
+      - Add an audit test in `sm_codegen_x64_emit_test.c` asserting for every non-banner line:
+        (a) col-1 is empty (24 spaces) or a label ending `:` within 24 chars;
+        (b) col-2 is a single macro/directive token, no leading tab;
+        (c) no bare `;` column separator anywhere.
+      - Fix known gaps: `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`,
+        `SM_EXP`, `SM_NEXT_PUSH` — each gets a NOOP-shape or real template entry so all opcodes
+        route through the template renderer; none escape to raw `fprintf`.
+      - **Labels on demand only:** the pending-label flush must emit a `.LpcN:` line only when
+        that PC is a jump target in the program.  Unreferenced PCs are silently absorbed into
+        the following instruction's col-1 slot or dropped.
+      - `sm_macros.s` macro body lines must comply (`.macro`/`.endm` directives exempt).
+
+      **Files:** `sm_codegen_x64_emit.c`, `sm_emit_template.{c,h}`, `sm_codegen_x64_emit_test.c`.
+      No new opcodes, no IR changes, no `sm_lower.c` changes.
+
+      **Gates:** smoke ×6 PASS, isolation PASS, unified_broker PASS=49, EM PASS=12,
+      bb_flat_text PASS=18, sm_phase2_sim PASS=25.  New gate: audit test exits 0 on all five
+      tracked artifacts.  Artifact line counts byte-identical to EM-7c-s-file-beautify baseline.
+
+- [ ] **EM-7c-bb-macros** — BB-side macro library: one named macro per box-port, Greek suffixes
+      enforced on all BB labels, inline box-kind annotation on every α label line.
+
+      **What the `*.byrd-reference.s` files contribute — and what they do not:**
+      These files are from an earlier compiler generation (scrip-cc -asm, NASM syntax, different
+      ABI, `snobol4_asm.mac`).  Their internal x86 sequences, data-block layout, and column widths
+      are not authoritative for mode-4 GAS output.  What they establish unambiguously is **label
+      naming discipline**: every BB port label in every byrd-reference file carries the Greek letter
+      as a suffix — `seq_l0_α`, `seq_l0_β`, `dol1_γ`, `dol1_ω`, `P_3_α`, `P_3_β`, `P_3_γ`,
+      `P_3_ω`.  No port label anywhere omits it.  That naming rule is worth preserving.
+
+      **What the `test_sno_*.c` C files establish** (format ground truth):
+      Three-column law.  Labels appear only when referenced.  Box-kind annotation is an inline
+      col-3 comment on the first line of the box cluster, not a separate banner.  The C files'
+      `/*----*/` separators mark named-box boundaries — one separator between distinct boxes.
+
+      **Two concrete deliverables:**
+
+      **1 — Greek suffix on every BB label (label rename pass):**
+      Current mode-4 output has bare Latin-suffix BB labels: `xcat0_o`, `xcat0_mid_g`,
+      `xcat0_left_b`, `xcat0_right_o`, `_cap1_ab`, `_cap1_cb`, `_cap1_cs`, `_cap1_cf`.
+      These become `xcat0_ω`, `xcat0_γ`, `xcat0_left_β`, `xcat0_right_ω`, `_cap1_α_entry`,
+      `_cap1_β_entry`, `_cap1_γ`, `_cap1_ω`.  Systematic rename in `bb_flat.c` label-string
+      constants.  The blob-level labels `_pat_inv_<id>_α/β/γ/ω` already comply; only the
+      internal sub-labels within port bodies need fixing.
+
+      **2 — Named macro per port kind replacing raw inline x86:**
+      Each `flat_emit_*` function currently emits a multi-instruction `ev_*` / `flat3c_action`
+      sequence per port.  Replace with one `flat3c_action(e, "RPOS_α", args)` call.  `bb_macros.s`
+      carries one `.macro`/`.endm` whose body is the verbatim x86 currently emitted inline — GAS
+      expands to byte-identical bytes.  Macro naming: `BOXKIND_α` / `BOXKIND_β` per port.
+      Box-kind annotation goes inline in col-3 as `# RPOS(0)`, `# LEN(1)`, `# BREAK α` on the
+      α entry line — no separate preceding banner line.
+
+      **Files:** `bb_flat.c` (label renames + rewire to macro calls), new `bb_macros.s`
+      (auto-written to CWD, parallel to `sm_macros.s`), emitter driver (`.include "bb_macros.s"`
+      alongside `.include "sm_macros.s"`).  No `sm_lower.c` changes.  No new SM opcodes.
+
+      **Gates:** smoke ×6 PASS, isolation PASS, unified_broker PASS=49, EM PASS=12,
+      bb_flat_text PASS=18, sm_phase2_sim PASS=25.  New gate: `gcc -c` clean on all five
+      tracked artifacts.  New gate: zero bare Latin-suffix port labels in BB sections
+      (`grep -cE '\b(xcat[0-9]+_[og]|_cap[0-9]+_[abc][bf]?):'` artifacts = 0).
+
+      **Sample — roman.s before/after:**
+      ```
+      BEFORE (raw inline x86, non-Greek internal labels)
+                              lea     r10, [rip + Δ]
+                              cmp     esi, 0
+                                               je      _pat_inv_0_α_body
+                                               jmp     _pat_inv_0_β
+      xcat0_left_b:
+                                               jmp     xcat0_o
+      xcat0_mid_g:
+
+      AFTER (single macro call per port, Greek suffixes everywhere, inline annotation)
+      _pat_inv_0_α:           RPOS_α           0        # RPOS(0)
+      _pat_inv_0_β:           RPOS_β
+      xcat0_left_β:           SEQ_β
+                                               jmp     xcat0_ω
+      xcat0_γ:
+      ```
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
