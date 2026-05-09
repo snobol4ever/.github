@@ -15,6 +15,19 @@ function signatures.  Standard CHUNKS gate set + full Icon corpus
 + Prolog smoke (extended to `--sm-run` once consumer-side migrations
 land).
 
+> **CURRENT RUNG: CH-17-RENAME-a** (carved sess 2026-05-09).  See
+> `### CH-17-RENAME` below.  The rung family renames `EXPR_t`/`EXPR_e`
+> → `IR_t`/`IR_e` (the parse tree is IR, not "expression") and
+> `chunk`/`SmChunk_t`/`SM_*_CHUNK` → `expression`/`SmExpression_t`/
+> `SM_*_EXPRESSION` (the compiled SM region IS the expression).
+> CH-17-RENAME-a is the contained scaffolding rung (alias typedefs in
+> `src/ir/ir.h`); subsequent sub-rungs migrate one ownership-section
+> at a time.  RENAME interleaves with the previously-listed "next rung
+> options" (bridge-5 scan-context, CH-17g-irrun-lowers); pick whichever
+> fits the next session's scope.  Note: the rest of this file's prose
+> still uses the old vocabulary because it predates the rename — that
+> prose updates in CH-17-RENAME-h.
+
 ---
 
 ## Why this file exists
@@ -464,6 +477,201 @@ E_LIMIT, E_RANDOM, E_SECTION, E_SECTION_PLUS, E_SECTION_MINUS
 each migrate per-kind with corpus validation now possible.
 
 This is CH-15b's reactivation point.
+
+### CH-17-RENAME — Rename `EXPR_t`/`EXPR_e` → `IR_t`/`IR_e`; `chunk` → `expression`
+
+**Status:** ⏳ CURRENT RUNG (sess 2026-05-09).  Carved from "next rung
+options" after the bridge-acomp/lcomp pair landed and surfaced the
+naming inconsistency the rest of GOAL-CHUNKS exists to retire.
+
+**Why this rung exists.**  The codebase carries two semantically
+inverted names:
+
+1. **`EXPR_t` / `EXPR_e` is the *unified IR node*** (defined at
+   `src/ir/ir.h:251–262`).  Every parse-derived AST node is one —
+   statements, declarations, scopes, labels, goto targets, type
+   nodes, frame-slot descriptors, Prolog clauses, Icon proc bodies.
+   Most of the kinds in the EXPR_e enum are not "expressions" by
+   any reasonable definition.  The Prolog runtime even stores raw
+   Term pointers in `E_VAR.ival` (per `pl_runtime.c:660`) — these
+   IR nodes are doing IR-node duty, not expression duty.  The name
+   misleads every reader new to the codebase.
+
+2. **`SmChunk_t` (and the `chunk` vocabulary built around it) is the
+   *compiled expression*** — a contiguous range of SM ops addressed
+   by `entry_pc`, callable as a unit, generator-capable when driven
+   through `bb_broker_drive_sm`.  This is what code that says
+   "evaluate this expression" actually means: a pure functional
+   region with inputs (arity args on the SM stack), outputs (TOS +
+   `last_ok`), and no IR walking at runtime.  Calling it a "chunk"
+   obscures what it does and why GOAL-CHUNKS exists.
+
+The rename restores the architectural truth that the bridge-acomp/
+bridge-lcomp pair made plain to read: information that *was* implicit
+in `EXPR_t.kind` at runtime is now explicit in the SM_Program.  The
+parse tree is IR; the runtime-callable compiled SM region IS the
+expression.  Calling them by their right names makes the rest of the
+ladder (CH-17g-final, CH-17h, the M3 cells of GOAL-CHUNKS Milestone 3)
+read clearly instead of fighting a layer of mislabeling.
+
+**Done when:** `EXPR_t` and `EXPR_e` are no longer referenced anywhere
+in `src/`, `test/`, or `scripts/`; `IR_t` and `IR_e` are the names; the
+`SmChunk_t` typedef and the `chunk` vocabulary in opcode names, helper
+functions, comments, env vars, and validation docs are renamed to use
+`Expression` / `EXPR` / `expression` consistently; gates byte-identical
+to baseline at every sub-rung; documentation in
+`docs/CHUNKS-step17-rename-validation.md` records the mapping table and
+the two carving decisions (why split into sub-rungs, why this order).
+
+**Why a multi-rung carve.**  Surface size from this session's audit:
+~73 files reference `EXPR_t`, ~23 reference `EXPR_e`, ~17 reference
+chunk-flavor identifiers; total impact crosses every layer (ir →
+frontend parsers → driver/interp → runtime/x86 → runtime/interp →
+runtime/rt → docs → tests → scripts).  A single-session monolithic
+rename would (a) blow the per-session test-gate budget, (b) hide any
+subtle behavioural divergence in the diff noise, (c) collide with
+ongoing parallel sessions on the same files (per the FI-11 ownership
+table in RULES.md).  Carved into eight sub-rungs that each pass the
+standard CHUNKS gate set byte-identical and can be landed independently.
+
+**Sequencing decision.**  IR rename comes BEFORE expression rename.
+Reasoning: `EXPR_t` is the more pervasive name (~73 files vs ~17), so
+landing it first removes the ambiguity that would otherwise dog the
+expression rename ("does this `EXPR` mean the IR-side `EXPR_t` or the
+new compiled-expression vocabulary?").  Once IR-side is `IR_t`/`IR_e`,
+the chunk-side rename to `Expression` is unambiguous and the audit
+becomes a clean find-and-fix per file.
+
+#### CH-17-RENAME-a — IR header rename (`src/ir/ir.h`)
+
+**Scope:** Single file.  Add new typedefs alongside the old ones; do
+NOT delete the old typedefs in this rung.  Both names compile and refer
+to the same struct/enum.
+
+```c
+typedef struct EXPR_t IR_t;       /* alias — preferred name */
+typedef enum   EXPR_e IR_e;       /* alias — preferred name */
+/* and #define EXPR_t IR_t for transitional source-text compatibility
+ * is NOT done — ambiguity is the point we're removing.  Keep the old
+ * struct tag visible so existing files compile unchanged this rung;
+ * each subsequent rung migrates one ownership-section's files. */
+```
+
+The `EXPR_e` enum values (`E_QLIT`, `E_VAR`, etc.) keep their `E_`
+prefix in this rung — those are 100+ identifiers and they're already
+short.  Question for end-of-rung review: do they become `IR_QLIT` /
+`IR_VAR` etc. in a follow-on rung, or stay as `E_*`?  The `E_` prefix
+arguably reads more naturally than `IR_QLIT` / `IR_VAR` (Icon literature
+uses "E-codes" pervasively); leaving them is the conservative call.
+Decide at landing.
+
+**Gates:** standard CHUNKS gate set byte-identical.
+
+#### CH-17-RENAME-b — Frontend parsers (Icon, Raku, Snocone, SNOBOL4, Prolog, Rebus)
+
+**Scope:** All files under `src/frontend/`.  Each file's `EXPR_t` →
+`IR_t`, `EXPR_e` → `IR_e`.  Generated files (`*.tab.c`, `*.tab.h`,
+`*.lex.c`) regenerated via `regenerate_parser_and_lexer_from_sources.sh`
+after editing the `.y`/`.l` source per RULES.md.
+
+Per FI-11 file ownership, each frontend's files are owned by their
+session; this sub-rung coordinates a one-time pass and notes the
+ownership boundaries crossed for the merge gate.
+
+**Gates:** standard set + frontend-specific smoke ×6 byte-identical.
+
+#### CH-17-RENAME-c — IR layer + driver (`src/ir/`, `src/driver/`)
+
+**Scope:** Files in `src/ir/` (the printer, helpers) and `src/driver/`
+(`interp_eval.c`, `interp_exec.c`, `interp_hooks.c`, `polyglot.c`,
+`scrip.c`, the `interp_private.h` declarations).  This is the largest
+single-file batch (`interp_eval.c` alone has 63 references).
+
+**Gates:** standard set + Icon corpus `--ir-run` 186/47/30 byte-identical.
+
+#### CH-17-RENAME-d — Runtime-interp layer (`src/runtime/interp/`)
+
+**Scope:** `coro_runtime.{c,h}`, `coro_value.c`, `coro_stmt.c`,
+`pl_runtime.{c,h}`, `pl_broker.{c,h}`, `icn_runtime.c`, `interp_eval`
+adapters.  Note: `pl_chunk_t` (the local typedef in `pl_broker.c:560`)
+is renamed in CH-17-RENAME-g together with the broader chunk vocabulary,
+not here.
+
+**Gates:** standard set + unified_broker PASS=49 byte-identical.
+
+#### CH-17-RENAME-e — Runtime-x86 layer (`src/runtime/x86/`)
+
+**Scope:** `sm_lower.c`, `sm_interp.c`, `sm_codegen.c`, `sm_prog.{c,h}`,
+`bb_broker.c`, `bb_emit.c`, `bb_flat.c`, `eval_*.c`, `snobol4_stmt_rt.c`,
+`scrip_sm.c`, `name_t.c`, etc.  This is the layer where `EXPR_t` is most
+hostile to the GOAL-CHUNKS narrative (the "no IR pointers in SM runtime
+files" isolation gate enforces structural distance from the IR; calling
+the residual call-out parameter `IR_t *` rather than `EXPR_t *` makes
+the gate's job legible).
+
+Update the isolation-gate script if it greps for `EXPR_t` literally.
+
+**Gates:** standard set + isolation PASS byte-identical.
+
+#### CH-17-RENAME-f — Runtime-rt + cross-host bindings (`src/runtime/rt/`,
+`src/runtime/net/`, `src/runtime/jvm/`, `src/runtime/js/`, `src/silly/`)
+
+**Scope:** Native-host runtimes and the residual Silly subsystem.  Lower
+risk because most of these are oracle-mode hosts not on the live SM path.
+
+**Gates:** standard set + JVM/.NET smoke if installed (skip-on-absent
+otherwise).
+
+#### CH-17-RENAME-g — `chunk` → `expression` vocabulary in code
+
+**Scope:** opcode renames (`SM_PUSH_CHUNK` → `SM_PUSH_EXPRESSION`;
+`SM_CALL_CHUNK` → `SM_CALL_EXPRESSION`); type rename (`SmChunk_t` →
+`SmExpression_t`; `pl_chunk_t` → `pl_expression_t`); helper renames
+(`sm_call_chunk` → `sm_call_expression`; `sm_label_pc_lookup` keeps its
+name — pc lookup is mode-neutral); env var renames (`SCRIP_PROC_ENTRY_PCS`
+keeps its name; `SCRIP_*_CHUNK*` env vars become `SCRIP_*_EXPR*`);
+function-local variables and field names (`entry_pc` keeps its name —
+pc is mode-neutral, expression and chunk both have entry_pcs).
+
+**Old short-form `EXPR` use audit:** check that every occurrence of
+`EXPR` as a bare token in the post-RENAME-a–f tree refers to the new
+vocabulary, not residue from EXPR_t (e.g. `pl_runtime.c:642` comment
+"Term→EXPR bridge" is residual; either rewrite or rename consistently).
+
+**Gates:** standard set byte-identical.  New gate: grep for `\bchunk\b`
+(case-insensitive) in `src/runtime/`, `src/driver/`, `src/frontend/`
+returns zero outside historical commit messages and validation-doc
+references.
+
+#### CH-17-RENAME-h — `chunk` → `expression` vocabulary in docs, scripts, gate names
+
+**Scope:** validation docs under `docs/CHUNKS-step*`, gate scripts under
+`scripts/test_*chunk*`, `.github` PLAN.md / GOAL-CHUNKS.md / GOAL-CHUNKS-STEP17.md
+references — but NOT the file names of the goal files themselves
+(`GOAL-CHUNKS.md` and `GOAL-CHUNKS-STEP17.md`) for git-history continuity.
+Convention recorded in the rename validation doc: the goal filename
+remains historical; the goal's *content* uses the new vocabulary;
+references to closed rungs (CH-15a, CH-17b, etc.) keep their
+"CHUNKS-step*" naming because those rungs landed under that name.
+
+Future goal files should use the new vocabulary in their filenames.
+
+**Gates:** none beyond the standard set.  This is a documentation-only
+sweep.
+
+#### CH-17-RENAME-FINAL — Drop the legacy aliases
+
+**Scope:** delete the `typedef ... IR_t;` aliases from `src/ir/ir.h`
+introduced in CH-17-RENAME-a (or rather: rename the actual struct/enum
+to the new names and delete the aliases).  No file in the tree should
+still compile against `EXPR_t` after this rung lands.
+
+**Precondition:** sub-rungs a–h all green.  Empirical check: `grep -rn
+"\bEXPR_t\b\|\bEXPR_e\b" src/ test/ scripts/` returns zero hits (or only
+hits in historical commit references inside comments, which are kept
+verbatim).
+
+**Gates:** standard set byte-identical.
 
 ---
 
