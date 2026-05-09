@@ -1366,14 +1366,14 @@ to read, complex enough to be meaningful:
   **Mode-3 impact**: `bb_build_flat` now succeeds on patterns that
   previously fell through. Smoke ×6 confirms no regressions.
 
-- [ ] **Step EM-7c-sm-macros — Introduce SM-side asm macro library; SM opcodes emit as flat macro calls.**
-  > **IN-PROGRESS sess #87, 2026-05-09 — NOT LANDED.** Architectural work
-  > complete; byte-identical invariant verified; 7 of ~10 gates passed.
-  > 3 gates and the regen+commit-tracked-artifacts step are pending.
-  > Code lives on WIP branch `wip/em7c-sm-macros-sess87` @ `412bb9fc`
-  > on `snobol4ever/one4all` (NOT FOR MERGE — squash to a fresh commit
-  > on main authored under LCherryholmes after gates pass).  Full state
-  > in the IN-PROGRESS watermark block at the end of this file.
+- [x] **Step EM-7c-sm-macros — Introduce SM-side asm macro library; SM opcodes emit as flat macro calls.**
+  > **LANDED sess #88, 2026-05-09 — one4all @ `92b922ca`, corpus @ `5a0b181`.**
+  > Architectural work from sess #87 (template-driven SM emit; one source of
+  > truth in `g_sm_templates[]` table; paired `render_macro_body` /
+  > `render_call_line` switches; drift impossible by construction) plus
+  > sess #88 gate-script update + tracked-artifact regen.  All 10 gates
+  > green; byte-identical .o invariant verified vs parent ca704e95.
+  > Watermark at end of file.
 
   Reference: archive precedent `snobol4_asm.mac` (151 macros, three-column
   shape, proven 106/106 vs SPITBOL oracle on the historical BB-binary
@@ -3744,184 +3744,155 @@ NEXT SESSION: proceed directly to EM-7d gate attempt. Do not spend time
 on --sm-run regression — it is a corpus issue, not a blocker for EM-7d.
 
 
-EM-7c-sm-macros IN-PROGRESS sess #87, 2026-05-09 (NOT LANDED)
-=============================================================
-Architectural work complete and byte-identical-verified, but rung
-NOT landed.  Session compacted twice (~52% then ~93% context); 
-emergency handoff to a WIP branch on the code repo before container
-reset.
+EM-7c-sm-macros LANDED sess #88, 2026-05-09
+=============================================
+Sess #87's WIP architectural work brought to landing in sess #88
+with the gate-script update + tracked-artifact regen + commit
+under LCherryholmes that sess #87 ran out of context to do.
 
-WIP BRANCH (one4all):  wip/em7c-sm-macros-sess87 @ commit 412bb9fc
-                       (parent: ca704e95, the EM-7c-greek-purge tip).
-                       NOT FOR MERGE — the proper landing commit must
-                       be re-authored under LCherryholmes per RULES.md
-                       once the remaining gates are run.
+Architecture (drift impossible by construction, per LCherryholmes
+sess #87 directive):
 
-WHY NOT LANDED: 3 of ~10 gates were not re-run before context exhausted:
-  - test_broad_unified_broker.sh        (PASS=49 expected at baseline)
-  - bb_flat_text unit test               (PASS=18 expected)
-  - sm_phase2_sim unit test              (PASS=25 expected)
-And the regen+commit-tracked-artifacts step did not run.
-
-ARCHITECTURAL DIRECTIVE FROM LCHERRYHOLMES (sess #87):
-"Proceed with the plan that maximizes reuse of code and gives absolute
-guarantees that no drifting is even possible due to how we do things
-in a rigid manner."
-
-Drift concern raised by LCherryholmes: macro bodies in a hypothetical
-sm_macros.s file and the inline x86 emitted by sm_codegen_x64_emit.c
-must produce byte-identical assembled output.  If the two diverge —
-a movabs in one becomes a mov in the other, a register choice changes,
-an arg order flips — assembled bytes differ silently and the rung's
-byte-identical gate is the only thing that catches it on regen.  After
-regen, every future rung carries that risk.
-
-ARCHITECTURE (single source of truth, drift impossible by construction):
-
-  src/runtime/x86/sm_emit_template.h  (NEW, ~190 lines)
-  src/runtime/x86/sm_emit_template.c  (NEW, ~620 lines)
+  src/runtime/x86/sm_emit_template.h  NEW (~190 lines)
+  src/runtime/x86/sm_emit_template.c  NEW (~620 lines)
 
   - sm_op_template_t struct: {op, macro_name, runtime, kind,
     const_a, const_b}.
-  - sm_tpl_kind_t enum: 17 arg-shapes (NULLARY, INT64, LBL, LBLOPT,
-    LBL_INT32, LBLOPT_INT32, LBLOPT3, LBLOPT_I_I, EXEC_VAR, ARITH,
-    PCREF_JMP, PCREF_COND, PUSH_CHUNK, CALL_CHUNK, RET, RET_VAR,
-    UNHANDLED).
-  - g_sm_templates[] table (~55 entries; one per opcode group).
-    Multiple opcodes can share macro_name (e.g. all 5 ARITH opcodes
-    share "SM_ARITH").  De-dup happens in sm_emit_macro_library by
-    macro_name string compare.
+  - sm_tpl_kind_t enum: 17 arg-shape variants.
+  - g_sm_templates[] table: ~55 entries, one per opcode group;
+    multiple opcodes can share macro_name (e.g. all 5 ARITH
+    opcodes share "SM_ARITH"), de-duped at render time.
   - g_tpl_unhandled (op=-1), g_tpl_ret_var (op=-2): standalone
     templates not keyed by opcode.
 
   Two paired switches in sm_emit_template.c:
-    render_macro_body(out, t)       — emits ONE .macro NAME args /
-                                       body / .endm block.
-    render_call_line(out, t, args)  — emits ONE
-                                       \tMACRO_NAME formatted_args
-                                       \t# annotation
-                                       line.
+    render_macro_body(out, t)    — emits ONE .macro NAME args /
+                                   body / .endm block.
+    render_call_line(out, t, args) — emits ONE
+                                   \\tMACRO_NAME formatted_args
+                                   \\t# annotation
+                                   line.
 
-  The pairing IS the contract.  Both arms must update together when
-  adding or changing a kind.  The kind enum is the join key.  GCC
-  enforces case-completeness via `default: abort()`.
+  Pairing is the contract.  Both arms updated together when adding
+  or changing a kind.  GCC enforces case-completeness via
+  `default: abort()`.  No `sm_macros.s` on disk anymore — the
+  macro library is generated live at the top of every emitted
+  `.s` by sm_emit_macro_library() walking g_sm_templates[].
 
-  sm_emit_macro_library(out) is called at the very top of
-  sm_codegen_x64_emit() — emits every unique macro into the .s before
-  .rodata / .data / .text.
+OPCODE COVERAGE: every emit_sm_* function in
+sm_codegen_x64_emit.c routes through templates.  Old
+emit_pat_call_0 / _str / _str_int helpers DELETED.
 
-  No sm_macros.s file on disk anymore.  The macro library is generated
-  live at the top of every emitted .s, by walking g_sm_templates[].
-  Result: ONE source of truth (the table + the paired switches), and
-  drift between macro definition and per-call emission is impossible —
-  they share one renderer, paired by kind.
+  Coverage (~55 templates, 22 nullary SM_PAT_* + LBLOPT/LBLOPT3/
+  LBLOPT_INT32/LBLOPT_I_I shapes for parameterised pattern ops +
+  EXEC_VAR for variant-statement dispatch + RET_VAR for the 8
+  conditional return variants + UNHANDLED trap):
+  HALT, PUSH_LIT_I/S, PUSH_VAR, STORE_VAR, POP, ARITH×5
+  (one macro), JUMP/JUMP_S/JUMP_F, PUSH_CHUNK, CALL_CHUNK,
+  RETURN, CONCAT, PUSH_NULL, COERCE_NUM, CALL,
+  RETURN_VARIANT(8), all 22 SM_PAT_* nullary,
+  PAT_LIT/REFNAME/USERCALL (LBLOPT), PAT_CAPTURE/USERCALL_ARGS
+  (LBLOPT_INT32), PAT_CAPTURE_FN (LBLOPT3),
+  PAT_CAPTURE_FN_ARGS (LBLOPT_I_I), EXEC_STMT_VARIANT.
 
-OPCODE COVERAGE (every emit_sm_* function in sm_codegen_x64_emit.c
-now goes through templates; old emit_pat_call_0 / _str / _str_int
-helpers DELETED):
-  - HALT, PUSH_LIT_I, PUSH_LIT_S, PUSH_VAR, STORE_VAR, POP, ARITH×5
-  - JUMP, JUMP_S, JUMP_F
-  - PUSH_CHUNK, CALL_CHUNK, RETURN
-  - CONCAT, PUSH_NULL, COERCE_NUM, CALL,
-    RETURN_VARIANT (8 conditional variants RETURN_S/F, FRETURN[_S/_F],
-    NRETURN[_S/_F])
-  - All 22 SM_PAT_* nullary opcodes (SPAN, BREAK, ANY, NOTANY, LEN,
-    POS, RPOS, TAB, RTAB, ARB, ARBNO, REM, FENCE, FENCE1, FAIL,
-    ABORT, SUCCEED, BAL, EPS, CAT, ALT, DEREF, BOXVAL)
-  - PAT_LIT, PAT_REFNAME, PAT_USERCALL  (LBLOPT shape)
-  - PAT_CAPTURE, PAT_USERCALL_ARGS       (LBLOPT_INT32)
-  - PAT_CAPTURE_FN                       (LBLOPT3)
-  - PAT_CAPTURE_FN_ARGS                  (LBLOPT_I_I)
-  - EXEC_STMT_VARIANT                    (EXEC_VAR)
-  - UNHANDLED trap
+CORE INVARIANT VERIFIED — byte-identical .o output:
 
-FILES TOUCHED (one4all WIP commit 412bb9fc):
-  src/runtime/x86/sm_emit_template.h     NEW
-  src/runtime/x86/sm_emit_template.c     NEW
-  src/runtime/x86/sm_codegen_x64_emit.c  every emit_sm_* refactored;
-                                         emit_pat_call_* helpers
-                                         deleted; #include + library
-                                         emission added
-  src/runtime/x86/sm_macros.s            (was deleted earlier in
-                                         session — abandoned offline-
-                                         generation first-pass)
-  Makefile                               sm_emit_template.c added to
-                                         scrip + 3 test harnesses
-  scripts/test_smoke_jit_emit_x64.sh     line 98 inline harness gcc
-                                         updated to compile
-                                         sm_emit_template.c
+  All 5 demo .o files cmp-clean against parent ca704e95:
+    roman.o          ✓ byte-identical
+    wordcount.o      ✓ byte-identical
+    claws5.o         ✓ byte-identical
+    treebank-list.o  ✓ byte-identical
+    treebank-array.o ✓ byte-identical
 
-  Net diff: 6 files changed, +1167/-459 lines.
+  The assembled program is mathematically the same — only the
+  textual representation in .s changes (macros vs inlined).  This
+  is the architectural correctness guarantee LCherryholmes asked
+  for: "absolute guarantees that no drifting is even possible."
 
-VERIFICATION (BYTE-IDENTICAL invariant — the rung's core gate):
-  Baseline saved at sess #87 start:
-    /tmp/em7c_sm_macros_baseline/{roman,wordcount,claws5,treebank-list,
-                                  treebank-array}.{s,o}
-  All 5 demo .o files cmp-clean against baseline at every refactor
-  checkpoint AND at session end.  Re-verifiable via:
-    DEMO=/home/claude/corpus/programs/snobol4/demo
-    for f in roman wordcount claws5 treebank-list treebank-array; do
-      ./scrip --jit-emit --x64 $DEMO/$f.sno > /tmp/check_$f.s 2>/dev/null
-      gcc -c /tmp/check_$f.s -o /tmp/check_$f.o 2>/dev/null
-      cmp -s /tmp/em7c_sm_macros_baseline/$f.o /tmp/check_$f.o \
-        && echo "$f: ✓" || echo "$f: DIFFER"
-    done
-  Note: /tmp baselines do NOT survive container reset; re-derive from
-  the parent commit ca704e95 if needed.
+TRACKED ARTIFACT LINE COUNTS (corpus/programs/snobol4/demo/):
+  roman.s          274 →  474   ( +200 — small program; fixed
+                                  ~200-line macro library at top
+                                  dominates)
+  wordcount.s      249 →  444   ( +195 — same)
+  claws5.s        2063 → 1859   ( -204 — macro reuse pays at scale)
+  treebank-list.s 2493 → 2223   ( -270)
+  treebank-array.s 2908 → 2518  ( -390)
+  net:                  -469 lines across the 5 files.
 
-GATES RUN AND PASSED at expected numbers:
-  smoke snobol4 7/7        smoke snocone 5/5
-  smoke icon    5/5        smoke prolog  5/5
-  smoke raku    5/5        smoke rebus   4/4
-  EM gate test_smoke_jit_emit_x64.sh  PASS=12 FAIL=0
-  isolation test_isolation_ir_sm.sh   PASS
+  Watermark prediction "~10× shrink" was overstated for the demo
+  programs.  The fixed-cost macro library makes small programs
+  grow a bit; programs above ~4× the library shrink.  At
+  beauty.sno scale (~1700 statements) and full-corpus scale, the
+  per-instruction shrink dominates by far.  Visible win.
 
-GATES PENDING (next session must run):
-  test_broad_unified_broker.sh    (expected PASS=49 FAIL=0;
-                                   last partial showed PASS=6
-                                   FLOOR_FAIL=0 — needs proper baseline
-                                   check, the PASS=6 may be a per-
-                                   language floor count)
-  bb_flat_text unit test           (expected PASS=18)
-  sm_phase2_sim unit test          (expected PASS=25)
+GATES — 10 of 10 GREEN at sess #88 close:
+  smoke snobol4   7/7  | smoke snocone   5/5
+  smoke icon      5/5  | smoke prolog    5/5
+  smoke raku      5/5  | smoke rebus     4/4
+  isolation              PASS
+  EM gate test_smoke_jit_emit_x64.sh   PASS=12 FAIL=0
+  sm_phase2_sim_test                   PASS=25 FAIL=0
+  bb_flat_text_test                    PASS=18 FAIL=0
+  unified_broker test_broad_*          FLOOR_FAIL=0
+                                       (csnobol4 ≥34, icon=186,
+                                        prolog=6 inline)
 
-KNOWN WART (for landing rung-watermark):
-  scripts/test_smoke_jit_emit_x64.sh has an ad-hoc inline harness
-  compile (line 98 in current state) that lists sm_codegen_x64_emit.c
-  as a source.  Any future companion file added next to
-  sm_codegen_x64_emit.c needs to be added there too.  The Makefile is
-  the canonical build path; the gate's inline harness is a parallel
-  fragility.  Worth flagging for the regen-step or as a follow-up
-  cleanup.
+GATE-SCRIPT UPDATE (sess #88 closing work):
 
-PENDING TO LAND (next session):
-  1. Run the 3 pending gates.  Confirm PASS numbers match baseline.
-  2. Regen tracked artifacts: corpus/programs/snobol4/demo/
-     {roman,wordcount,claws5,treebank-list,treebank-array}.s
-     The .s files SHRINK (visible win — each ~10× shorter, since
-     per-instruction expansions become single macro calls).  The .o
-     files MUST remain byte-identical (already verified).
-  3. Update GOAL-MODE4-EMIT.md: mark EM-7c-sm-macros [x] (line 1369);
-     append LANDED watermark replacing this IN-PROGRESS one.
-  4. Update PLAN.md row to bump watermark to sess #87 LANDED.
-  5. Commit per RULES.md, authored under LCherryholmes:
-     - one4all: working tree (NOT a merge of the WIP branch — squash
-       the WIP work into a fresh commit on main authored under
-       LCherryholmes; then delete the WIP branch).
-     - corpus: regenned .s files.
-     - .github: GOAL + PLAN updates.
-  6. After landing: delete remote branch
-     wip/em7c-sm-macros-sess87 from snobol4ever/one4all.
+  scripts/test_smoke_jit_emit_x64.sh — 5 textual assertions
+  updated to match the new macro shape.  Pre-rung the gate
+  looked for inline x86 patterns (`movabs rdi, 42`,
+  `jmp     .Lpc`, `jz +\\.Lpc`, `jnz +\\.Lpc`,
+  `call +\\.Lpc[0-9]+`) in the dispatch loop body — those
+  instructions now live inside .macro bodies (`movabs rdi, \\val`,
+  `jmp \\tgt`, `jz \\tgt`, `jnz \\tgt`, `call \\tgt`) emitted at
+  the top of every .s, and the call sites read `SM_PUSH_INT 42`,
+  `SM_JUMP .LpcN`, `SM_JUMP_F .LpcN`, `SM_CALL_CHUNK .LpcN`.  The
+  new assertions verify both the call-site shape (the dispatcher
+  routed through the template) AND the macro body (the template
+  emitted the right encoding) — strictly stronger than before.
+  Runtime correctness checks unchanged (rc=42, rc=20, rc=42,
+  rc=0, rc=13, rc=21, rc='abXc' all preserved).
 
-Sequence from here:
-  EM-7c-sm-macros (this rung, IN-PROGRESS)
-  → EM-7c-bb-three-column
-  → EM-7c-bb-macros
-  → EM-7d.
+  Sess #87 watermark claimed "EM 12/12 passed" pre-handoff — that
+  was either an intermediate-state observation (pre-template-
+  refactor) or a misremember.  At sess #88 start, the gate failed
+  on the first textual assertion (no `movabs rdi, 42` in the new
+  shape).  Fixing it was 5 grep-line edits.
 
-one4all parent: ca704e95.   one4all WIP tip: 412bb9fc
-                                  (branch wip/em7c-sm-macros-sess87).
-corpus parent: 4404b2f.     corpus WIP tip: (no commits this session;
-                                              .s regen pending).
-.github parent: 6e2bbb2.    .github HEAD: <new — this commit>.
-Session #87, 2026-05-09.
+LESSONS FILED:
+
+  - When a refactor changes the textual shape of emitted asm,
+    structural assertions in gate scripts need updating in the
+    same rung.  Sess #87's pending-list omitted this.  Future
+    template-refactor rungs (EM-7c-bb-three-column,
+    EM-7c-bb-macros) should include gate-script audit + update
+    in their explicit pending-list.
+  - The EM-7c-sm-macros rung body in this goal file describes
+    the architecture clearly but does not mention gate-script
+    updates as part of the rung's done-when criteria.  Worth
+    noting for the next BB-side rungs whose textual shape will
+    change similarly.
+
+REMOTE STATE:
+
+  one4all parent: ca704e95.  one4all HEAD: 92b922ca.
+                              (squashed from WIP commit 412bb9fc
+                              into a fresh main commit authored
+                              under LCherryholmes per RULES.md;
+                              sess #87 WIP branch
+                              `wip/em7c-sm-macros-sess87` deleted
+                              post-push.)
+  corpus parent: 4404b2f.    corpus HEAD: 5a0b181.
+                              (5 demo .s artifacts regenerated;
+                              all assemble cleanly; .o byte-
+                              identical to parent.)
+  .github parent: <prior>.   .github HEAD: <new — this commit>.
+
+  Session #88, 2026-05-09.
+
+NEXT RUNG: EM-7c-bb-three-column — emit each BB box as a 4-port
+cluster in three-column LABEL/ACTION/GOTO form, straight x86 (no
+macros yet), with Greek-only port names (`α<N>` / `β<N>` /
+`γ<N>` / `ω<N>`, NO `bb`/`BB` prefix or suffix).  Then
+EM-7c-bb-macros.  Then EM-7d (beauty oracle gate).
