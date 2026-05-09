@@ -1584,9 +1584,213 @@ to read, complex enough to be meaningful:
 
   - `sm_macros.s` is regenerated on every emit run.  The regen+commit protocol needs a determinism check: `diff <(emit) <(emit)` must be empty for `sm_macros.s` too.  The macro-library generator is deterministic (table-driven, no timestamps), so this should hold — verify when running gates.
 
-  **Sequencing:** EM-7c-greek-purge ✅ → EM-7c-sm-macros ✅ → EM-7c-sm-three-column ✅ → **EM-7c-bb-three-column** → EM-7c-bb-macros → EM-7d.
+  **Sequencing:** EM-7c-greek-purge ✅ → EM-7c-sm-macros ✅ → EM-7c-sm-three-column ✅ → **EM-7c-three-column-non-bb** → EM-7c-bb-three-column → EM-7c-bb-macros → EM-7d.
 
-- [ ] **Step EM-7c-bb-three-column — Emit each BB box as a 4-port cluster in three-column form, straight x86, Greek-only port names.**
+- [ ] **Step EM-7c-three-column-non-bb — Apply SM-style three-column format to every non-BB line in the emitted `.s`.** ⛔ ACTIVE rung as of sess #91, 2026-05-09.
+
+  Today's state (post EM-7c-sm-three-column): the SM dispatch loop emits
+  every line in three-column shape (`label / opcode+args / # comment`,
+  whitespace-aligned).  Everything else in the emitted `.s` —
+  `.section` directives, `.string`/`.byte`/`.long`/`.quad` data lines,
+  static `.data` ζ blocks, `.Lchunk_registry` entries, the `main()`
+  epilogue, the `.include "sm_macros.s"` line, the contents of
+  `sm_macros.s` itself — emits in ad-hoc shape: bare lines, mixed leading
+  whitespace (`\t` vs spaces), no consistent column for instruction vs
+  argument vs comment.  This rung extends the SM dispatch's three-column
+  format uniformly to every non-BB line in the file.  After it lands,
+  every line outside a BB-box body reads in the same `label / opcode+args
+  / # comment` shape with the same column widths.
+
+  ⛔ **Exception — BB-box bodies use a different three-column format.**
+  The BB-blob bodies (today emitted by `flat_emit_*` in `bb_flat.c`,
+  living inside each `_pat_inv_<id>_α/_β/_γ/_ω` invariant pattern blob)
+  use a *different* three-column shape — `LABEL: ; ACTION ; GOTO` with
+  literal `;` as the column separator — defined in the next rung
+  `EM-7c-bb-three-column` (per Lon's Correction 3, sess #86's watermark;
+  GAS treats `;` as a statement separator on x86, not a comment
+  introducer).  This rung does NOT touch the BB-blob body code.  When
+  this rung lands, the `_pat_inv_<id>_α/β/γ/ω` blob *entry labels* are
+  formatted three-column in the SM-shape (the labels themselves —
+  column 1, with `:` suffix), but the body instructions inside the
+  blob stay in their current ad-hoc form until `EM-7c-bb-three-column`
+  reformats them to the `;`-separated BB shape.
+
+  **Format spec — same as EM-7c-sm-three-column SM-side.**
+
+  Every non-BB line is one logical line:
+  ```
+  LABEL:                  OPCODE args                          # comment
+  ```
+  Format `%-24s%-36s# anno`: column 1 = label (24-wide, with trailing
+  `:` if a label is present, otherwise empty), column 2 = opcode + args
+  (36-wide), column 3 = `# annotation`.  The widths are inherited from
+  the SM dispatch path and stay the same for visual alignment in the
+  same file.
+
+  When a line has no label, column 1 is empty (24 spaces).  When a line
+  has no comment, column 3 is empty (no `#`).  When the column 2 content
+  is wider than 36, it overflows naturally and the comment lands after
+  it — alignment becomes best-effort, never a hard wrap.
+
+  Bare-label lines (label only, no opcode) emit as standalone label
+  lines with empty columns 2/3 — same as today's SM dispatch handles
+  `SM_LABEL` / `SM_STNO` via the leftover-flush mechanism.
+
+  Pure-comment lines (banner separators, `# stmt N (line L): ...`
+  page-breaks) stay full-width comments, NOT three-column.  Banners are
+  visual structure, not three-column data; mashing them into 24/36/N
+  columns destroys the page-break effect.
+
+  **Lines covered by this rung (the full inventory):**
+
+  Top-of-file:
+  - `\t.intel_syntax noprefix` (or whatever syntax directive)
+  - `\t.include "sm_macros.s"` line
+  - `# ---...` and `# stmt...` banner lines (KEPT as full-width comments)
+
+  Section directives:
+  - `\t.section .rodata` / `\t.section .data` / `\t.section .text`
+  - `\t.text` / `\t.data`
+  - `\t.align 8` / `\t.align N`
+  - `\t.global SYMBOL`
+
+  String table (`.rodata`):
+  - `.LstrN:` label lines
+  - `\t.string "..."` data lines
+
+  Chunk registry (`.data`):
+  - `.Lchunk_registry:` label
+  - `\t.quad .LstrN` / `\t.quad .LpcN` data entries
+  - Sentinel `\t.quad 0`
+
+  Pattern blobs (entry labels only — bodies stay BB-shape for next rung):
+  - `_pat_inv_<id>_α:` / `_pat_inv_<id>_α_body:` / `_pat_inv_<id>_β:` /
+    `_pat_inv_<id>_γ:` / `_pat_inv_<id>_ω:` — these labels move to
+    column 1; the instructions following them are out of scope here.
+
+  Static `.data` ζ blocks:
+  - Charset blocks: `.LcsN_chars:` label + `\t.string "..."` data,
+    `.LcsN_z:` label + `\t.quad .LcsN_chars` / `\t.long N` / padding
+  - LEN/TAB/RTAB blocks: label + `\t.long N` / `\t.long 0`
+  - FENCE/FARB blocks: label + zeros
+  - STAR blocks: label + zero
+  - BRKX/ATP/DSAR blocks: label + `\t.string` + struct fields
+  - Capture blocks (`.LcapN_data:`): label + 120 bytes of cap_t fields
+    (kind, var_name pointer, fn pointer, etc.)
+  - Arbno slots (`.LarbnoN_slot:`): label + `\t.quad 0` placeholder
+
+  Cap/arbno child sub-procs (Phase-2 helpers, not BB-box bodies):
+  - `_capN_child_α:` / `_arbnoN_child_α:` label + body instructions
+    (today are normal x86 mov/lea/call sequences; format three-column
+    in SM-shape since they're not BB-box code).
+
+  `main()` epilogue:
+  - `_start:` or `main:` entry label
+  - `\tcall scrip_rt_init@PLT`
+  - `\tlea rdi, [rip + .Lchunk_registry]`
+  - `\tcall scrip_rt_register_chunks@PLT`
+  - Per-cap fixup: `\tlea rdi, [rip + .LcapN_data]` /
+    `\tlea rsi, [rip + _capN_child_α]` / `\tcall scrip_rt_patch_cap_fn@PLT`
+  - Per-arbno init: `\tlea rdi, [rip + .LarbnoN_slot]` /
+    `\tlea rsi, [rip + _arbnoN_child_α]` / `\tcall scrip_rt_init_arbno@PLT`
+  - `\tcall .Lpc1` (or whatever PROGRAM_ENTRY_PC) — the program-entry
+    chunk call
+  - `\tcall scrip_rt_finalize@PLT`
+  - `\tmov edi, eax` / `\tcall exit@PLT`
+
+  Inside `sm_macros.s`:
+  - `\t.macro NAME args` / `\t.endm` directive lines
+  - Body instructions inside each macro (`\tcall scrip_rt_X@PLT` /
+    `\tmovabs rdi, \\val` / etc.) — three-column.  When a macro body is
+    multiple lines, each line is its own three-column row with empty
+    column 1 (no label).
+
+  **Files to touch:**
+
+  - `src/runtime/x86/sm_codegen_x64_emit.c`: every `fputs`/`fprintf` site
+    that writes a non-dispatch-loop, non-BB-blob-body line to `out`.
+    Audit by running `git grep -nE 'fputs|fprintf' src/runtime/x86/sm_codegen_x64_emit.c`
+    and walking each call site.  The dispatch loop already routes
+    through `sm_emit_template`'s three-column renderer; everything
+    *outside* that loop is the rung's surface.  Likely candidates:
+    `emit_file_header`, `emit_strtab`, `emit_chunk_registry`,
+    `emit_pattern_blobs` (the entry labels only — the blob body call
+    `bb_build_flat_text` stays untouched), `emit_main_epilogue` (or
+    wherever `main` is emitted).
+
+  - `src/runtime/x86/sm_emit_template.c`: `sm_emit_macro_library` (the
+    function that writes `sm_macros.s`).  Currently it `fputs`'s
+    `\t.macro NAME args\n\tinstruction\n\t.endm\n` — each line needs the
+    three-column shape.  Likely cleanest to add a small helper
+    `emit_three_column_line(FILE *out, const char *label, const char *opcode_args, const char *anno)`
+    and route every non-three-column `fputs` site through it.
+
+  - `src/runtime/x86/bb_flat.c`: only the `_pat_inv_<id>_*` ENTRY-LABEL
+    emit sites — the labels themselves go three-column in SM-shape.  The
+    blob body code (every `e->emit_insn` call from `flat_emit_*`) stays
+    untouched; it'll be reformatted to BB-shape `LABEL: ; ACTION ; GOTO`
+    by the next rung.
+
+  - `src/runtime/x86/emitter_text.c`: probably untouched.  This file
+    today writes `.byte`/`.long`/`.quad` directives for raw bytes inside
+    BB-blob bodies (the old EM-7b shape).  Whether those move to
+    three-column or stay as the BB-shape depends on the next rung's
+    decision; safest is to leave them out of scope here (they're inside
+    `_pat_inv_*` blobs, BB territory).
+
+  **What to write:**
+
+  Refactor the helper.  A central `emit_3col(out, lbl, op, anno)`
+  function takes three optional strings and emits one three-column line
+  with the correct widths.  Every non-BB write site routes through it.
+  This mirrors the structure already established by
+  `sm_emit_template.c:render_call_line` for the SM dispatch path.
+
+  Audit ahead of writing the helper: count `fputs`/`fprintf` sites
+  outside the SM dispatch loop in the affected files; expect
+  ~30-50 sites to update.  Each site is mechanical — extract the label
+  (if any), the opcode+args (or directive), the comment (if any), and
+  call `emit_3col`.  Sites that emit a multi-line construct (a label
+  followed by N data lines, e.g. a `.LcapN_data` block) become N+1
+  separate `emit_3col` calls.
+
+  **Done when:**
+
+  - Every non-BB line in `roman.s`, `wordcount.s`, `claws5.s`,
+    `treebank-list.s`, `treebank-array.s`, AND `sm_macros.s` matches
+    the three-column shape.
+  - Banner lines (`# ====...`, `# stmt N (line L): ...`) preserved as
+    full-width comments — NOT three-column.
+  - BB-blob *entry labels* (`_pat_inv_<id>_α/β/γ/ω:`) are three-column;
+    BB-blob *body instructions* are unchanged from today (they're the
+    next rung's surface).
+  - All 6 tracked artifacts assemble cleanly under `gcc -c`.
+  - All 6 deterministic — back-to-back regen byte-identical.
+  - All 10 gates GREEN: smoke ×6, isolation, unified_broker PASS=49,
+    sm_phase2_sim PASS=25, bb_flat_text PASS=18, EM gate PASS=12.
+
+  **Honest deviations the implementer may need to file:**
+
+  - GAS doesn't care about whitespace alignment, so any column-width
+    choice is acceptable to the assembler — the constraint is human
+    readability and consistency with the SM dispatch line shape.  If a
+    specific data line refuses to fit (e.g. a `.string` literal with
+    embedded escape sequences that pushes column 2 past 36 wide), the
+    line overflows the 36-wide column gracefully — comment column slides
+    right.  This is fine.  Don't truncate strings to fit.
+  - Some directives have no natural column-2 content (e.g. `\t.text` is
+    a section directive with no args).  Pick a convention: emit
+    `\t.text` as column 2 only, columns 1 and 3 empty.  The `:` discipline
+    only applies to labels.
+
+  **Sequencing.**  Lands BEFORE `EM-7c-bb-three-column`.  Rationale: the
+  BB rung will reformat the BB-blob bodies in their own `;`-separated
+  three-column form; until then, the rest of the file should already
+  be uniform so the BB rung's diff is *purely* about the BB bodies.
+  Reformatting non-BB lines and BB bodies in the same rung mixes two
+  format rules in one diff and makes review harder.
+
+
   Reference design: `archive/BB-GEN-X86-TEXT.md`, `archive/BB-GEN-LANG.md`,
   `archive/EMITTER-MODE4-ARCH.md` §2 "BB boxes -> three-column layout",
   and the restored historical artifacts at
