@@ -286,7 +286,71 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       | sm_macros.s | 230 | 230 |
       All five assemble cleanly via `gcc -c`.
 
-- [ ] **EM-7c-bb-three-column-data — CURRENT.**  Convert the remaining `EV_TEXT` raw-block sites in `bb_flat.c` to three-column `LABEL: ; ACTION ; GOTO` form so emitted `.s` is uniformly three-column inside BB blobs (no more interleaved tab-indented two-column stretches).
+- [ ] **EM-7c-s-file-beautify — CURRENT.**  Make the emitted `.s` file beautiful as a single uniform document.  Both the SM-side dispatch lines and the BB-blob body lines align in one shared three-column grid.  The literal `;` separators are gone — they were a stop-gap; columns are space-aligned only.  No blank lines anywhere.  No tab-indented stragglers.  No 4-space-indented stragglers.  One file, one shape.
+
+      **The shape.**
+
+      ```
+      LABEL:                  OPCODE          ARGS / GOTO            # comment
+      ```
+
+      Three columns, space-aligned.  Widths 24 / 16 / free.  Single space between col 2 and col 3.  Single space between col 3 args and the trailing `# comment` (when present).  This is the same shape `sm_emit_template.c` already uses for SM dispatch lines today (the prior rung `EM-7c-three-column-non-bb` baked it in for SM-side).  This rung extends that shape uniformly to BB content.
+
+      Col 3 is **either** instruction args **or** a goto target — not both.  No `;` separators anywhere in emitted output (GAS treats `;` as a statement separator on x86, but readers experience `;` as visual noise, and the columns convey the structure already).  Banner lines (`# ===`, `# ----`, `# stmt N (line L): ...`) remain full-width, unchanged.
+
+      **What changes.**
+
+      1. **Remove the `;` separators** introduced by the prior partial rung in `bb_emit.c` `bb3c_format` and `emitter_v.h` `ev3c`.  Reformat both helpers to the SM-side space-aligned shape `%-24s%-16s %s` (the same printf shape `sm_emit_template.c::sm_line` and `emit_three_column_line` use).  Mode-4 readability now has ONE shape across the entire `.s`.
+
+      2. **One emitter, shared.**  Promote the `emit_three_column_line` helper currently file-static inside `sm_codegen_x64_emit.c` into a public function (or reuse the new `bb3c_format` after its shape change — they become identical).  Both SM-side and BB-side route through the same renderer.  No two implementations of "the three-column line" can ever drift again.
+
+      3. **Convert the 12 raw `EV_TEXT` blocks in `bb_flat.c`** (the `\t.section .data\n%s:\n\t.string ...\n\tlea ...\n\tmov ...\n\tcall ...@PLT\n\ttest ...\n` chunks for charsets / XLNTH / XTB / XRTB / XFNCE / XFARB / XSTAR / XBRKX / XATP / XDSAR / XARBN / XNME/XFNME).  This is the work that `EM-7c-bb-three-column-data` had carved separately; folding it in here so the whole beautification lands in one self-contained pass.  Add file-static helpers in `bb_flat.c`:
+         - `flat_data_section(e)`, `flat_text_section(e)` — section directives in col 2.
+         - `flat_data_label(e, name)` — name+`:` in col 1.
+         - `flat_data_string(e, s)`, `flat_data_quad(e, val)`, `flat_data_long(e, val)`, `flat_data_zero(e, n)` — directive in col 2, arg in col 3.
+         - `flat_globl(e, name)` — `.globl` in col 2, name in col 3.
+         - `flat_box_call(e, ζ_lbl, fn, mode)` — emits the four lines (`lea rdi, [rip + ζ_lbl]` / `mov esi, mode` / `call fn@PLT` / `test rax, rax`) each as one three-column action line.
+
+      4. **No blank lines.**  The prior rung removed three leading-`\n` sites.  Sweep again post-conversion with `grep -n '^$'` against every regenerated artifact and fix any remaining sources (most likely candidates: `sm_codegen_x64_emit.c::emit_file_header` / `emit_file_footer`; the `# -- epilogue ---` minor banner; the section transition between BB blobs and `main:`).
+
+      5. **No tab-indented or 4-space-indented stragglers.**  Sweep regenerated artifacts with `grep -nE '^\t|^    ' | grep -v '^[^:]*:#'` — anything matching is non-three-column non-banner content that needs conversion.  All such lines either become three-column or move into a banner.
+
+      6. **Banners untouched.**  `# ============` / `# ----------` / `# stmt N` / `# source-file:` / `# scrip --jit-emit` etc. stay full-width.  They are already readable as banners; squeezing them into three columns would be wrong.
+
+      **Done when.**
+
+      - Every non-banner line in every regenerated `.s` follows `%-24s%-16s %s` exactly (verified by an awk one-liner that splits each non-banner line at columns 25 and 41 and checks the leading characters of each region).
+      - Zero `;` characters appear in emitted `.s` output (other than inside string literals).
+      - Zero blank lines in any regenerated tracked artifact (`grep -c '^$'` returns 0 for each).
+      - Zero tab-indented or 4-space-indented instruction lines outside banners.
+      - All 10 gates GREEN: EM 12/12, smoke ×6 (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4), unified_broker 49, bb_flat_text 18, sm_phase2_sim 25.
+      - The `EM-7c invariant blob` end-to-end runtime check still produces `output='abXc'` byte-identical to `--jit-run`.
+      - All five tracked artifacts regenerate, assemble cleanly, and the `.s` reads as one consistent document end-to-end.
+
+      **Test sweep — paste-ready commands.**
+
+      ```bash
+      DEMO=/home/claude/corpus/programs/snobol4/demo
+      for f in roman wordcount claws5 treebank-list treebank-array; do
+          # No blank lines
+          [ "$(grep -c '^$' $DEMO/$f.s)" = "0" ] || { echo "FAIL blank in $f.s"; exit 1; }
+          # No raw `;` separators (literal `; ` outside strings)
+          grep -nE ' ; ' $DEMO/$f.s | grep -v '\.string' && { echo "FAIL ; in $f.s"; exit 1; } || true
+          # No tab-indented stragglers
+          grep -nE '^\t' $DEMO/$f.s && { echo "FAIL tab in $f.s"; exit 1; } || true
+          # Assembles cleanly
+          gcc -c $DEMO/$f.s -o /tmp/$f.o 2>/dev/null || { echo "FAIL asm $f.s"; exit 1; }
+      done
+      echo "OK all five artifacts beautiful"
+      ```
+
+      **Subsumes / supersedes.**
+
+      `EM-7c-bb-three-column-data` (the data-block conversion sub-rung, carved earlier this session) is folded into this rung.  Drop that checkbox.
+
+      `EM-7c-1to1-sm-macros` (filling missing SM template entries for `SM_LABEL`, `SM_STNO`, `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`) is **not** in scope here; track separately as a follow-up rung after beauty lands.
+
+- [ ] EM-7c-bb-three-column-data — *SUBSUMED by EM-7c-s-file-beautify (sess 2026-05-09).  Kept as a marker for the diff history; do not work on this directly — its scope is folded into the beauty rung above.*  (Original scope: convert the 12 remaining raw `EV_TEXT` data/instruction blocks in `bb_flat.c` to three-column form.)
 
       **Scope.**  Twelve raw multi-line `EV_TEXT(e, "\t.section .data\n...\n\tlea ...\n\tmov ...\n\tcall ...@PLT\n\ttest rax, rax\n", ...)` call sites in `bb_flat.c`, one per box-kind path that builds a static `cs_t` / `len_t` / `tab_t` / `rtab_t` / `fence_t` / `arb_t` / `rem_t` / `brkx_t` / `atp_t` / `dvar_t` / `arbno_t` slot / `cap_t` slot in `.data` and then emits a four-instruction (lea / mov esi / call / test) sequence in `.text` for the α and β paths.  Affected box kinds:
 
