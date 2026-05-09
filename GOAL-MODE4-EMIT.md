@@ -286,6 +286,54 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       | sm_macros.s | 230 | 230 |
       All five assemble cleanly via `gcc -c`.
 
+- [ ] **EM-7c-bb-three-column-data — CURRENT.**  Convert the remaining `EV_TEXT` raw-block sites in `bb_flat.c` to three-column `LABEL: ; ACTION ; GOTO` form so emitted `.s` is uniformly three-column inside BB blobs (no more interleaved tab-indented two-column stretches).
+
+      **Scope.**  Twelve raw multi-line `EV_TEXT(e, "\t.section .data\n...\n\tlea ...\n\tmov ...\n\tcall ...@PLT\n\ttest rax, rax\n", ...)` call sites in `bb_flat.c`, one per box-kind path that builds a static `cs_t` / `len_t` / `tab_t` / `rtab_t` / `fence_t` / `arb_t` / `rem_t` / `brkx_t` / `atp_t` / `dvar_t` / `arbno_t` slot / `cap_t` slot in `.data` and then emits a four-instruction (lea / mov esi / call / test) sequence in `.text` for the α and β paths.  Affected box kinds:
+
+       1. charsets (XSPNC, XANYC, XBRKC, XNNYC) via `flat_emit_charset_call` (lines ≈263–286 of bb_flat.c).
+       2. XLNTH (lines ≈373–384).
+       3. XTB (≈395–406).
+       4. XRTB (≈417–428).
+       5. XFNCE (≈439–450).
+       6. XFARB (≈460–471).
+       7. XSTAR / XREM (≈481–492).
+       8. XBRKX (≈505–516).
+       9. XATP (≈530–541).
+       10. XDSAR (≈555–572).
+       11. XARBN child sub-proc (≈589–632) — `.data` slot + child entry preamble + box call.
+       12. XNME / XFNME static `cap_t` + child sub-proc + α/β cap-call (≈669–754).
+
+      **Plan.**
+
+      1. Add a small helper `flat_data_emit_*` family in bb_flat.c (file-static) wrapping `ev3c` for `.data`-block emission:
+         - `flat_data_section(e)` → emits `; .section .data ;`
+         - `flat_data_label(e, name)` → emits `name: ; ; `
+         - `flat_data_string(e, s)` → emits `; .string "<escaped>" ;`
+         - `flat_data_quad(e, val)` → emits `; .quad <val> ;`
+         - `flat_data_long(e, val)` → emits `; .long <val> ;`
+         - `flat_data_zero(e, n)` → emits `; .zero <n> ;`
+         - `flat_text_section(e)` → emits `; .section .text ;` then `; .intel_syntax noprefix ;`
+         - `flat_globl(e, name)` → emits `; .globl <name> ;`
+         - `flat_box_call(e, ζ_lbl, fn, mode)` → emits the four lines (lea rdi, [rip + ζ_lbl] / mov esi, mode / call fn@PLT / test rax, rax) each as a three-column action-only line.
+
+      2. Replace each of the twelve EV_TEXT call sites with sequenced helper calls.  Mechanical edit per site; no logic changes.
+
+      3. EV_TEXT calls that emit a single short string with `\\%c`/`\\%03o` escapes inside a `.string` (charset's char-by-char escape loop, lines 265–270) need a helper that builds the escaped string buffer first, then calls `flat_data_string` once.
+
+      4. Verify three-column shape live for ALL bb_flat-emitted lines by grepping the regenerated artifacts for `^\t` (tab-leading) or `^    ` (4-space-indent) lines — both should be empty post-rung.
+
+      **Done when.**
+
+      - Every line emitted from `bb_flat.c` is in the three-column shape (or a banner / comment).
+      - The five tracked artifacts (`roman.s` `wordcount.s` `claws5.s` `treebank-list.s` `treebank-array.s`) regenerate, assemble cleanly, and contain zero tab-indented or 4-space-indented instruction lines (only banners and three-column lines).
+      - All gates GREEN: EM 12/12, smoke ×6, unified_broker 49, bb_flat_text 18, sm_phase2_sim 25.
+      - `EM-7c invariant blob` end-to-end runtime check (the EM gate test 13) still produces `output='abXc'` byte-identical to `--jit-run`.
+
+      **Not in scope (subsequent rungs):**
+
+      - `EM-7c-bb-macros` (BB-side macro library — turns three-column ACTION columns into single macro names like `LEN_α`, `RPOS_β`).
+      - `EM-7c-1to1-sm-macros` (NEW sub-rung to track: fill in template entries for `SM_LABEL`, `SM_STNO`, `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH` so the SM-side emitter has true 1:1 opcode-to-macro coverage).
+
 - [ ] EM-7c-bb-macros — BB-side macro library, parallel to historical `snobol4_asm.mac`.  Column-2 BB content becomes single macro names like `LEN_α`, `RPOS_β`.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
