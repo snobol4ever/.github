@@ -1505,6 +1505,70 @@ to read, complex enough to be meaningful:
   becomes the third rung in the sequence (BB-side macros, parallel
   to `snobol4_asm.mac`).
 
+- [ ] **Step EM-7c-sm-three-column — Three-column SM dispatch format + macro-library externalised to sm_macros.s.** ⛔ IN PROGRESS sess #89, 2026-05-09.
+
+  Two changes land together because they touch the same emission path:
+
+  (1) **Three-column dispatch format**.  Today every SM dispatch line is two lines:
+  ```
+  .Lpc13:
+  \tSM_PUSH_VAR .Lstr_4               # var=N
+  ```
+  After this rung, one line:
+  ```
+  .Lpc13:                  SM_PUSH_VAR .Lstr_4                   # var=N
+  ```
+  Format: `%-24s%-36s# anno` — column 1 (label, 24 wide), column 2 (macro+args, 36 wide), column 3 (annotation, free width).  When an instruction emits no opcode line (SM_LABEL, SM_STNO), the pending label flushes as a standalone bare-label line on the next iteration.
+
+  (2) **Macro library externalised**.  Today `sm_emit_macro_library(out)` writes ~200 lines of `.macro`/`.endm` definitions into the top of every emitted `.s`.  After this rung, the emitter writes `sm_macros.s` once per emit run (in the current working directory, where GAS finds it via `.include`); each `.s` carries only `\t.include "sm_macros.s"`.  Roman.s shrinks 474→215 lines; sm_macros.s is 229 lines.  The shared header preserves the "drift impossible" property — same template table generates both the macro bodies and the per-call dispatch lines.
+
+  **Implementation landed (one4all working tree, NOT YET COMMITTED):**
+  - `src/runtime/x86/sm_emit_template.h` — added `label` field to `sm_emit_args_t`; declared `sm_emit_set_pc_label()`, `sm_emit_consume_pc_label()`, `sm_emit_macro_library_to_path()`.
+  - `src/runtime/x86/sm_emit_template.c` — added `g_pending_pc_label[32]` static + setter/consumer; added `sm_emit_macro_library_to_path(path)` (opens path, calls `sm_emit_macro_library`, closes); refactored `render_call_line` into `build_op_col` (one switch, ~55 lines, builds opcode+args into a buffer) + 3-column emit (snapshots `g_pending_pc_label` to a local buffer **before** clearing — early version had an alias bug that nulled the buffer before printing).
+  - `src/runtime/x86/sm_codegen_x64_emit.c` — replaced inline `sm_emit_macro_library(out)` with `sm_emit_macro_library_to_path("sm_macros.s")` + emit `\t.include "sm_macros.s"`; dispatch loop now calls `sm_emit_set_pc_label(".LpcN:")` at the top of each iteration; removed the standalone `emit_pc_label` call; refactored `sm_line` to consume `g_pending_pc_label` via `sm_emit_consume_pc_label()` (so blob/baked multi-line emitters get a label on their first line); added a "flush leftover" step at top of each iteration to print any unused pending label as a bare standalone label line, plus a final flush after the dispatch loop.
+  - Removed the dead comment in `emit_file_header` about deferred `.include` (now there's a real `.include` earlier in the output).
+
+  **Verified at handoff:**
+  - Build clean (`make scrip libscrip_rt`).
+  - `OUTPUT = 'hi'` minimal program emits clean three-column shape.
+  - `roman.sno` emits cleanly (215 lines), assembles cleanly (`gcc -c roman.s -o roman.o` rc=0), and links cleanly (`gcc -no-pie roman.o -lscrip_rt` rc=0) — both the `.s` shape and the `sm_macros.s` `.include` resolution are working end-to-end.
+
+  **NOT yet done — required to close this rung:**
+
+  A. **Gate-script regex updates** in `scripts/test_smoke_jit_emit_x64.sh`.  Several assertions match `^[[:space:]]+SM_PUSH_INT[[:space:]]+42` (leading whitespace).  The new shape is `.LpcN:                  SM_PUSH_INT 42` — leading char is `.`, not whitespace.  Need to relax to `^(\.Lpc[0-9]+:[[:space:]]+|[[:space:]]+)SM_PUSH_INT[[:space:]]+42` (or similar) for every macro-call assertion.  Audit list: every `^[[:space:]]+SM_*` regex in the script — at least Test 1 (`SM_PUSH_INT 42`), Test 2 (`SM_INCR`?), and several inside Test 5..12.  Run with `bash -x` to find them all.
+
+  B. **Smoke ×6** (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4).
+
+  C. **Isolation gate**, **unified_broker**, **bb_flat_text PASS=18**, **sm_phase2_sim PASS=25**.
+
+  D. **EM gate PASS=12** (after gate-script regex fix).
+
+  E. **Tracked artifact regen** for the 5 demo `.s` files.  Significant shrink expected:
+     - roman.s         474 → ~215 (from inline macro lib externalisation)
+     - wordcount.s     444 → ~195
+     - claws5.s       1859 → ~1660
+     - treebank-list  2223 → ~1955
+     - treebank-array 2518 → ~2150
+     Net: **another ~1100-line shrink** beyond EM-7c-sm-macros, and `sm_macros.s` becomes a sixth tracked artifact in `corpus/programs/snobol4/demo/`.  All 5 must assemble cleanly.
+
+  F. **Decide where `sm_macros.s` lives** in the corpus.  Options:
+     - (a) Track in `corpus/programs/snobol4/demo/sm_macros.s` (one copy alongside the `.s` files).  Simple; demo `.s` files include from same directory.
+     - (b) Ship in `out/` and pass `gcc -Wa,-I,out` everywhere.  More portable but every consumer needs the flag.
+     - (c) Per-emit auto-write to CWD (current behaviour).  Simple but doesn't track in corpus.
+     Pick (a) for tracked artifacts: when regenerating, write to `corpus/programs/snobol4/demo/sm_macros.s` and let GAS find it via the `.include` path.
+
+  G. **Update tracked-artifact regen protocol** in this goal file's "Tracked Artifacts — Protocol" section to mention `sm_macros.s`.
+
+  **Honest deviations / known issues at handoff:**
+
+  - The `sm_macros.s` write-on-every-emit behaviour assumes the CWD is writable.  For users running `scrip --jit-emit --x64 file.sno > out.s` from `/some/readonly/dir`, this fails.  Fix: add a `--macro-header PATH` flag (or accept failure silently when the file already exists and matches).  Not blocking for the goal corpus.
+
+  - The dispatch-loop "flush leftover label" mechanism handles SM_LABEL / SM_STNO instructions that emit no opcode line.  But if a future rung introduces an opcode that *sometimes* emits and *sometimes* skips, the leftover-flush will produce phantom bare labels.  Not happening today; flagged for review.
+
+  - `sm_macros.s` is regenerated on every emit run.  The regen+commit protocol needs a determinism check: `diff <(emit) <(emit)` must be empty for `sm_macros.s` too.  The macro-library generator is deterministic (table-driven, no timestamps), so this should hold — verify when running gates.
+
+  **Sequencing:** EM-7c-greek-purge ✅ → EM-7c-sm-macros ✅ → **EM-7c-sm-three-column** ⛔ IN PROGRESS → EM-7c-bb-three-column → EM-7c-bb-macros → EM-7d.
+
 - [ ] **Step EM-7c-bb-three-column — Emit each BB box as a 4-port cluster in three-column form, straight x86, Greek-only port names.**
   Reference design: `archive/BB-GEN-X86-TEXT.md`, `archive/BB-GEN-LANG.md`,
   `archive/EMITTER-MODE4-ARCH.md` §2 "BB boxes -> three-column layout",
@@ -2100,6 +2164,157 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7c-sm-three-column EMERGENCY HANDOFF 2026-05-09 (session #89)
+=================================================================
+⛔ INCOMPLETE — handoff with the rung partially landed.  Gates NOT
+run.  Tracked artifacts NOT regenerated.  Gate-script regex updates
+required before EM gate will pass.  Working tree changes committed
+under LCherryholmes for continuity; subsequent session must finish
+the rung before declaring it landed.
+
+Two changes to the SM emission path bundled in one rung:
+
+(1) **Three-column SM dispatch format**.  Per Lon's instruction
+    "properly formatting SM S file code in three columns: label,
+    opcode, opcode_arguments+line_comment", every SM dispatch line
+    now reads as one logical line:
+
+      .Lpc13:                  SM_PUSH_VAR .Lstr_4                   # var=N
+
+    Format `%-24s%-36s# anno`: column 1 is the `.LpcN:` label
+    (24-wide), column 2 is the macro name + args (36-wide), column 3
+    is the `# annotation`.  Replaces the previous two-line
+    `.LpcN:` / `\tSM_OP args  # anno` shape.
+
+(2) **Macro library externalised to sm_macros.s**.  Per Lon's
+    instruction "do not inline macro definitions; make a macro
+    header file and include instead", the ~200-line macro library
+    no longer lives at the top of every emitted `.s`.  It lives in
+    a standalone `sm_macros.s`, regenerated alongside each emit
+    run; the emitted `.s` carries `\t.include "sm_macros.s"` near
+    the top.  GAS searches the source directory by default, so
+    placement next to the `.s` works without compiler flags.
+
+Files touched (one4all working tree):
+
+  src/runtime/x86/sm_emit_template.h
+    - sm_emit_args_t gained `label` field (column-1 PC label).
+    - sm_emit_set_pc_label / sm_emit_consume_pc_label declared
+      (set once per instruction by dispatcher; consumed by first
+      sm_emit_* call or sm_line call).
+    - sm_emit_macro_library_to_path declared (writes a standalone
+      sm_macros.s to the named path).
+
+  src/runtime/x86/sm_emit_template.c
+    - g_pending_pc_label[32] static + setter/consumer.
+    - sm_emit_macro_library_to_path implemented (fopen +
+      sm_emit_macro_library + fclose).
+    - render_call_line factored: the per-shape switch moved into
+      build_op_col() which writes the opcode+args into a buffer;
+      render_call_line() now does column-1 label + column-2
+      formatted-buffer + column-3 annotation in one fprintf.
+    - **Bug fixed mid-session**: initial render_call_line aliased
+      lbl_col into g_pending_pc_label, then cleared the buffer
+      before fprintf; clear-before-print nulled the label.  Fix:
+      snapshot to a local buffer first, then clear pending.
+
+  src/runtime/x86/sm_codegen_x64_emit.c
+    - Inline `sm_emit_macro_library(out)` call replaced with
+      `sm_emit_macro_library_to_path("sm_macros.s")` plus an emit
+      of `\t.include "sm_macros.s"`.
+    - Removed the dead-comment `# .include "sm_macros.s"` from
+      emit_file_header (now there's a real .include earlier).
+    - Dispatch loop now calls sm_emit_set_pc_label(".LpcN:") at
+      the top of each iteration; standalone emit_pc_label call
+      removed for normal dispatch.
+    - sm_line refactored to consume g_pending_pc_label via
+      sm_emit_consume_pc_label() when its `label` arg is empty
+      — so blob/baked multi-line emitters get the .LpcN: label
+      on their first emitted line.
+    - **Leftover-label flush**: at top of each loop iteration,
+      any unused pending label from the previous iteration
+      (SM_LABEL, SM_STNO that emit no opcode line) flushes as a
+      bare standalone label line so it remains a valid jump
+      target.  Plus a final flush after the dispatch loop.
+    - Cleaned up an early-session attempt at a parallel local
+      `g_cur_pc_label` that was never wired to the public
+      sm_emit_template state — single source of truth now lives
+      in sm_emit_template.c.
+
+VERIFIED AT HANDOFF (working tree, NOT IN COMMIT GATES):
+- `make scrip libscrip_rt` clean.
+- `OUTPUT = 'hi'` minimal program emits clean three-column shape:
+    .Lpc1:                  SM_PUSH_STR .Lstr_0, 0                # str="hi"
+    .Lpc2:                  SM_STORE_VAR .Lstr_1                  # store -> OUTPUT
+- `roman.sno` emits 215 lines (was 474 pre-rung) plus separate
+  229-line `sm_macros.s` — net wash for tiny programs but big win
+  expected at scale.  Assembles cleanly: `gcc -c roman.s` rc=0.
+  Links cleanly: `gcc -no-pie roman.o -lscrip_rt` rc=0.
+- Both label-on-opcode-line shape (.Lpc1: SM_PUSH_STR ...) and
+  bare-label shape (.Lpc5:, .Lpc6: alone for SM_LABEL ops) work.
+
+NOT YET DONE — REQUIRED TO CLOSE EM-7c-sm-three-column:
+
+A. Gate-script regex audit + update.  Current
+   scripts/test_smoke_jit_emit_x64.sh has assertions like:
+     grep -qE '^[[:space:]]+SM_PUSH_INT[[:space:]]+42\b' "$TMP/em2_a.s"
+   that match leading whitespace before `SM_*`.  The new shape
+   has a leading `.LpcN:                  ` instead of whitespace.
+   Update every such regex to:
+     grep -qE '^(\.Lpc[0-9]+:[[:space:]]+|[[:space:]]+)SM_PUSH_INT[[:space:]]+42\b'
+   Walk the script with `bash -x` to find them all.  Test 1 was
+   confirmed failing at handoff; subsequent tests likely affected
+   too (Test 5 SM_PUSH_VAR etc., Test 6/7/8 chunk push/call,
+   Test 9 unhandled trap).
+
+B. Smoke ×6 — snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+   raku 5/5, rebus 4/4.
+
+C. Isolation gate, unified_broker, bb_flat_text PASS=18,
+   sm_phase2_sim PASS=25.
+
+D. EM gate PASS=12 (after step A's regex fix).
+
+E. Regenerate 5 tracked .s artifacts in
+   corpus/programs/snobol4/demo/.  Decide whether sm_macros.s is
+   tracked alongside (recommended: yes — same directory means GAS
+   resolves the .include without flags).  Update the
+   "Tracked Artifacts — Protocol" section of this goal file.
+
+F. Verify regen determinism: `diff <(emit) <(emit)` empty for
+   both `.s` and `sm_macros.s`.  The macro library is generated
+   from the static template table, so it should be deterministic;
+   verify before committing.
+
+NEXT-SESSION PLAN:
+  Step 1: Bring up working tree to current state at one4all
+          parent <this-handoff-hash>.
+  Step 2: Audit + fix gate-script regexes in
+          scripts/test_smoke_jit_emit_x64.sh.
+  Step 3: Run smoke ×6, isolation, EM, unified_broker, etc.
+          Fix anything that regresses.
+  Step 4: Decide where to put sm_macros.s in corpus
+          (recommendation: same directory as the .s artifacts;
+          add to "Tracked Artifacts — Protocol" section).
+  Step 5: Regenerate 5 tracked .s + sm_macros.s; verify
+          assemble + determinism.
+  Step 6: Mark EM-7c-sm-three-column [x]; update PLAN.md.
+  Step 7: Commit + push per RULES.md handoff.
+
+REMOTE STATE AT HANDOFF:
+  one4all parent: 92b922ca (EM-7c-sm-macros).
+  one4all HEAD:   8632b93a (this commit — EMERGENCY HANDOFF WIP).
+  corpus parent:  5a0b181 (EM-7c-sm-macros artifacts).
+  corpus HEAD:    unchanged this session (no artifact regen).
+  .github parent: <prior>.  .github HEAD: <new — this commit>.
+  Session #89, 2026-05-09.
+
+Filed for next-rung work after EM-7c-sm-three-column closes:
+- EM-7c-bb-three-column (BB-side three-column shape, separate
+  rung — see the step body further up).
+- EM-7c-bb-macros (BB-side macro library).
+- EM-7d (beauty oracle gate).
 
 GOAL CORRECTIONS 2026-05-09 (session #86, post EM-7c-greek-purge)
 ==================================================================
