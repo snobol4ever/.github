@@ -1482,7 +1482,7 @@ to read, complex enough to be meaningful:
   a single macro name like `LEN_α n, saved, cursor, subj_len, γ, ω`
   and the box body becomes pure inlined x86, no PLT calls.
 
-- [ ] **Step EM-7c-greek-purge — Remove the words `alpha`, `beta`, `gamma`, `omega` from the source base.**
+- [x] **Step EM-7c-greek-purge — Remove the words `alpha`, `beta`, `gamma`, `omega` from the source base.**
   Source-of-truth rule: BB-port names are α, β, γ, ω.  These are
   Greek letters, written as single UTF-8 codepoints, used directly
   in C source, in asm labels, in struct field names, and in HQ
@@ -1885,6 +1885,115 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7c-greek-purge LANDED 2026-05-09 (session #86)
+==================================================
+Re-attempt of the purge abandoned in session #85.  Latin words
+`alpha`, `beta`, `gamma`, `omega` removed from BB-port context
+across the emitter and runtime, replaced with α/β/γ/ω.  All gates
+green; tracked artifacts regenerated.
+
+Corrected audit grep (per session #85 lessons learned):
+
+  grep -nrE '\balpha\b|\bbeta\b|\bgamma\b|\bomega\b|_alpha|_beta|_gamma|_omega' \
+       src/runtime/x86/ src/runtime/rt/
+
+Key insight from sess #85's failed attempt: the original audit
+`\balpha\b|...` missed `_alpha`/`_beta`/`_gamma`/`_omega` because
+underscore is a word character — `\b` doesn't fire between `_` and
+`a`.  Adding the bare `_alpha`/etc. globs catches the format-string
+sites in sm_codegen_x64_emit.c that drive every emitted `.s` label.
+
+Initial audit returned 160 hits across 12 source files plus 9 hits
+in scripts/test_smoke_jit_emit_x64.sh.  Final audit: zero hits.
+
+FILES TOUCHED (one4all):
+  src/runtime/x86/bb_flat.c              90 substitutions
+                                          - C identifiers: lbl_β / lbl_α /
+                                            lbl_α_body / ci_βs / α_lbl /
+                                            child_α_label
+                                          - format strings producing emitted
+                                            asm labels: %s_α / %s_β / %s_γ /
+                                            %s_ω / _arbno%d_child_α /
+                                            _cap%d_child_α
+                                          - all comment text
+  src/runtime/x86/bb_flat.h               5 hits  doc comment + parameter
+                                          name child_α_label
+  src/runtime/x86/sm_codegen_x64_emit.c  20 hits  the high-fan-out site
+                                          - emitted lea rdi,[rip + _pat_inv_%d_α]
+                                          - cap-fixup loop's local α C variable
+                                          - emitted-comment string literals
+                                          - prose comments
+  src/runtime/x86/bb_flat_text_test.c    20 hits  test assertions updated to
+                                          expect _α/_β/_γ/_ω symbols
+  src/runtime/x86/stmt_exec.c            10 hits  comments only
+  src/runtime/rt/scrip_rt.c               9 hits  blob_α function parameter
+                                          + comments
+  src/runtime/rt/scrip_rt.h               5 hits  blob_α + comments
+  src/runtime/x86/sm_interp.c             6 hits  save_Σ/save_Ω/save_Δ locals
+  src/runtime/x86/eval_code.c             6 hits  same
+  src/runtime/x86/snobol4_pattern.c       2 hits  comments only (EVAL(ω) example)
+  src/runtime/x86/snobol4_stmt_rt.c       1 hit   comment (root_α)
+  src/runtime/x86/bb_box.h                1 hit   comment
+  scripts/test_smoke_jit_emit_x64.sh     15 hits  test assertions (the ones
+                                          for Test 12 EM-7b SYMS/EXPECT and
+                                          Test 13 EM-7c label assertions)
+
+LESSONS APPLIED (per session #85's NEXT-SESSION PLAN):
+- Used the corrected audit grep including _alpha/_beta/_gamma/_omega
+- bb_flat_text_test.c and the smoke script treated as part of the
+  purge surface (they assert the EMITTED label names — Greek now)
+- NO `git stash` used; all edits committed straight from the working
+  tree to one4all in a single commit
+
+VERIFICATION:
+- gcc 13 accepted UTF-8 identifiers (UCN support in C11) in C source
+  for `lbl_β`, `α_lbl`, `child_α_label`, `blob_α`, `save_Ω`, etc.
+- GAS accepted UTF-8 in asm label names: `_pat_inv_0_α`,
+  `_pat_inv_0_α_body`, `_pat_inv_0_β`, `_pat_inv_0_γ`,
+  `_pat_inv_0_ω`, `_cap1_child_α`, `_arbno0_child_α`
+- Linker resolved Greek-named symbols across .text/.data sections
+- Emit→assemble→link→run pipeline produces correct runtime output
+  (`abXc` for `S='abc'; S 'b' = 'X'; OUTPUT=S` — matches --jit-run
+  oracle byte-for-byte; this is Test 13's runtime sub-test)
+
+GATES FINAL STATE:
+- smoke ×6 PASS  (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+                  raku 5/5, rebus 4/4)
+- EM gate PASS=12 FAIL=0  (all sub-tests including Test 13 runtime)
+- isolation gate PASS  (no IR-only symbol leaks)
+- bb_flat_text unit test PASS=18  (Greek-label assertions)
+- sm_phase2_sim unit test PASS=25  (unchanged)
+- unified_broker PASS=49 FAIL=0
+- 5 tracked .s artifacts: assemble cleanly under `gcc -c`
+
+TRACKED ARTIFACT CHANGES (corpus/programs/snobol4/demo/):
+  roman.s          21 line edits  (Latin → Greek labels in invariant blob)
+  wordcount.s     unchanged       (variant-only patterns, no invariant blob)
+  claws5.s         21 line edits  (same shape as roman)
+  treebank-list.s  21 line edits
+  treebank-array.s 21 line edits
+
+Each diffed line is a label rename only — no instruction-sequence
+changes, byte counts within each instruction unchanged.
+
+FILED FOR NEXT-RUNG WORK (independent of this rung):
+- The PASS=12 closing line in `scripts/test_smoke_jit_emit_x64.sh`
+  references "PASS=16 unit" in the EM-7b descriptor but the actual
+  unit-test count is 18.  Cosmetic; not a gate failure.
+
+one4all parent: 15bd97f3.  one4all HEAD: ca704e95.
+corpus parent: 6428efa.    corpus HEAD: 4404b2f.
+.github parent: e1443a3.   .github HEAD: <new>.
+Session #86, 2026-05-09.
+
+Next rung: EM-7c-bb-three-column — emit each BB box as a 4-port
+cluster in three-column LABEL/ACTION/GOTO form with bbN_α / bbN_β /
+bbN_γ / bbN_ω labels contiguous, matching the historical
+*.byrd-reference.s layout.  The Greek label vocabulary is now
+uniform across emitter, runtime, and emitted output, so the
+three-column rung can be written directly in Greek without
+inheriting any Latin leakage.
 
 EM-7a-sim-test-fix LANDED 2026-05-07 (session #85, partial)
 ============================================================
