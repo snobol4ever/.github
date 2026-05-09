@@ -15,18 +15,19 @@ function signatures.  Standard CHUNKS gate set + full Icon corpus
 + Prolog smoke (extended to `--sm-run` once consumer-side migrations
 land).
 
-> **CURRENT RUNG: CH-17-RENAME-FINAL** (CH-17-RENAME-a through CH-17-RENAME-g LANDED sess 2026-05-09).  See
+> **CURRENT RUNG: CH-17-RENAME-FINAL** (CH-17-RENAME-a through CH-17-RENAME-h LANDED sess 2026-05-09).  See
 > `### CH-17-RENAME` below.  The rung family renames `EXPR_t`/`EXPR_e`
-> → `IR_t`/`IR_e` (the parse tree is IR, not "expression") and
+> → `AST_t`/`AST_e` (the parse tree is AST/IR, not "expression") and
 > `chunk`/`SmChunk_t`/`SM_*_CHUNK` → `expression`/`SmExpression_t`/
 > `SM_*_EXPRESSION` (the compiled SM region IS the expression).
-> CH-17-RENAME-FINAL drops the legacy aliases from `src/ir/ir.h`.  Precondition: all files compile against `AST_t` and zero ``chunk`` remain in src/.
-> `src/ir/ir.h`); subsequent sub-rungs migrate one ownership-section
-> at a time.  RENAME interleaves with the previously-listed "next rung
-> options" (bridge-5 scan-context, CH-17g-irrun-lowers); pick whichever
-> fits the next session's scope.  Note: the rest of this file's prose
-> still uses the old vocabulary because it predates the rename — that
-> prose updates in CH-17-RENAME-h.
+> CH-17-RENAME-FINAL drops the legacy `typedef EXPR_t` aliases.
+> Precondition MET: `grep EXPR_t src/ test/ scripts/` = zero hits
+> (only historical comments in test_isolation_ir_sm.sh, kept verbatim);
+> zero `chunk` symbol in `src/runtime/` `src/driver/` `src/frontend/`
+> outside historical CHUNKS-step-tagged comments (gate PASS).
+> RENAME interleaves with the previously-listed "next rung options"
+> (bridge-5 scan-context, CH-17g-irrun-lowers); pick whichever fits
+> the next session's scope.
 
 ---
 
@@ -480,7 +481,7 @@ This is CH-15b's reactivation point.
 
 ### CH-17-RENAME — Rename `EXPR_t`/`EXPR_e` → `IR_t`/`IR_e`; `chunk` → `expression`
 
-**Status:** ✅ CH-17-RENAME-a through CH-17-RENAME-g LANDED sess 2026-05-09.  CH-17-RENAME-FINAL is next.  Carved from "next rung
+**Status:** ✅ CH-17-RENAME-a through CH-17-RENAME-h LANDED sess 2026-05-09 (g-cleanup: `g_chunk_scope` → `g_expression_scope`, `chunk_scope_walk` → `expression_scope_walk`, `SCRIP_CHUNKS_AUDIT` → `SCRIP_EXPRS_AUDIT`, `g_chunks_audit_*` → `g_exprs_audit_*`, `CHUNK_REG_MAX` → `EXPRESSION_REG_MAX`, `g_chunk_reg_count` → `g_expression_reg_count`; h: EM-5a test echo string updated).  CH-17-RENAME-FINAL is next — preconditions MET.  Carved from "next rung
 options" after the bridge-acomp/lcomp pair landed and surfaced the
 naming inconsistency the rest of GOAL-CHUNKS exists to retire.
 
