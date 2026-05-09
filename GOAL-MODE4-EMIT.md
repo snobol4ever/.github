@@ -572,7 +572,8 @@ At the end of every session that touches the mode-4 emitter:
 
 ### Tracked demo programs (canonical location: corpus/programs/snobol4/demo/)
 
-Five programs. Chosen for coverage (distinct features) and stability (will not be deleted again).
+Five SNOBOL4 demo programs plus the externalised SM-macro library.
+Chosen for coverage (distinct features) and stability (will not be deleted again).
 
 | File | Lines | Size | Features exercised |
 |------|-------|------|--------------------|
@@ -590,38 +591,54 @@ The `.s` files live side-by-side with the `.sno` files in corpus:
     corpus/programs/snobol4/demo/treebank-list.sno    treebank-list.s (101 KB)
     corpus/programs/snobol4/demo/treebank-array.sno   treebank-array.s (120 KB)
 
-Programs NOT tracked here (too large to inspect):
+Plus the shared SM-macro library, externalised by EM-7c-sm-three-column
+(sess #91, 2026-05-09) and `.include`'d by every emitted `.s`:
+
+    corpus/programs/snobol4/demo/sm_macros.s         (~5 KB, 229 lines)
+
+GAS resolves `.include "sm_macros.s"` from the same directory as the
+including `.s`, so placing it next to the demo `.s` files lets every
+tracked artifact assemble without `-I` flags.  The file is regenerated
+on every emit run; it is deterministic (table-driven from
+`g_sm_templates[]`) so back-to-back regens produce byte-identical
+output.
+
 Programs NOT tracked (too large): expression.sno, porter.sno, beauty.sno.
 
 ### Regen + commit protocol
 
 Run this at the end of every session that touches sm_codegen_x64_emit.c,
-sm_macros.s, or scrip_rt.c:
+sm_emit_template.{c,h}, or scrip_rt.c:
 
 ```bash
-cd /home/claude/one4all
 DEMO=/home/claude/corpus/programs/snobol4/demo
+SCRIP=/home/claude/one4all/scrip
 
-# Regenerate
-./scrip --jit-emit --x64 $DEMO/roman.sno          > $DEMO/roman.s          2>/dev/null
-./scrip --jit-emit --x64 $DEMO/wordcount.sno       > $DEMO/wordcount.s      2>/dev/null
-./scrip --jit-emit --x64 $DEMO/claws5.sno          > $DEMO/claws5.s         2>/dev/null
-./scrip --jit-emit --x64 $DEMO/treebank-list.sno   > $DEMO/treebank-list.s  2>/dev/null
-./scrip --jit-emit --x64 $DEMO/treebank-array.sno  > $DEMO/treebank-array.s 2>/dev/null
+# Regenerate from $DEMO so sm_macros.s lands next to the .s files.
+cd $DEMO
+$SCRIP --jit-emit --x64 roman.sno          > roman.s          2>/dev/null
+$SCRIP --jit-emit --x64 wordcount.sno       > wordcount.s      2>/dev/null
+$SCRIP --jit-emit --x64 claws5.sno          > claws5.s         2>/dev/null
+$SCRIP --jit-emit --x64 treebank-list.sno   > treebank-list.s  2>/dev/null
+$SCRIP --jit-emit --x64 treebank-array.sno  > treebank-array.s 2>/dev/null
+# sm_macros.s is auto-(re)written by every $SCRIP --jit-emit --x64 invocation
+# into CWD ($DEMO here).
 
-# Verify all assemble (do not commit if any fail)
-for s in $DEMO/roman.s $DEMO/wordcount.s $DEMO/claws5.s \
-          $DEMO/treebank-list.s $DEMO/treebank-array.s; do
-    gcc -c "$s" -o /dev/null 2>/tmp/as_err.txt         && echo "OK   $(basename $s)"         || { echo "FAIL $(basename $s) -- NOT committing"; cat /tmp/as_err.txt; exit 1; }
+# Verify all assemble (do not commit if any fail).  GAS finds sm_macros.s
+# from the same directory as the .s being assembled.
+for s in roman.s wordcount.s claws5.s treebank-list.s treebank-array.s; do
+    gcc -c "$s" -o /tmp/$(basename "$s" .s).o 2>/tmp/as_err.txt \
+        && echo "OK   $s" \
+        || { echo "FAIL $s -- NOT committing"; cat /tmp/as_err.txt; exit 1; }
 done
 
-# Commit corpus if changed
+# Commit corpus if changed (six artifacts now: 5 .s + sm_macros.s).
 cd /home/claude/corpus
-git diff --stat programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s
 git add programs/snobol4/demo/roman.s programs/snobol4/demo/wordcount.s \
         programs/snobol4/demo/claws5.s programs/snobol4/demo/treebank-list.s \
-        programs/snobol4/demo/treebank-array.s
-git diff --cached --quiet || git commit -m "x64 artifacts: regen demo/*.s (<rung>)"
+        programs/snobol4/demo/treebank-array.s \
+        programs/snobol4/demo/sm_macros.s
+git diff --cached --quiet || git commit -m "x64 artifacts: regen demo/*.s + sm_macros.s (<rung>)"
 ```
 
 ### What to look for
@@ -1505,7 +1522,7 @@ to read, complex enough to be meaningful:
   becomes the third rung in the sequence (BB-side macros, parallel
   to `snobol4_asm.mac`).
 
-- [ ] **Step EM-7c-sm-three-column — Three-column SM dispatch format + macro-library externalised to sm_macros.s.** ⛔ IN PROGRESS sess #89, 2026-05-09.
+- [x] **Step EM-7c-sm-three-column — Three-column SM dispatch format + macro-library externalised to sm_macros.s.** ✅ LANDED sess #91, 2026-05-09.
 
   Two changes land together because they touch the same emission path:
 
@@ -1567,7 +1584,7 @@ to read, complex enough to be meaningful:
 
   - `sm_macros.s` is regenerated on every emit run.  The regen+commit protocol needs a determinism check: `diff <(emit) <(emit)` must be empty for `sm_macros.s` too.  The macro-library generator is deterministic (table-driven, no timestamps), so this should hold — verify when running gates.
 
-  **Sequencing:** EM-7c-greek-purge ✅ → EM-7c-sm-macros ✅ → **EM-7c-sm-three-column** ⛔ IN PROGRESS → EM-7c-bb-three-column → EM-7c-bb-macros → EM-7d.
+  **Sequencing:** EM-7c-greek-purge ✅ → EM-7c-sm-macros ✅ → EM-7c-sm-three-column ✅ → **EM-7c-bb-three-column** → EM-7c-bb-macros → EM-7d.
 
 - [ ] **Step EM-7c-bb-three-column — Emit each BB box as a 4-port cluster in three-column form, straight x86, Greek-only port names.**
   Reference design: `archive/BB-GEN-X86-TEXT.md`, `archive/BB-GEN-LANG.md`,
@@ -1945,6 +1962,146 @@ to read, complex enough to be meaningful:
 
 ## Closed steps
 
+**Step EM-7c-sm-three-column** — Three-column SM dispatch format + macro
+library externalised + SM_ prefix stripped from generated-code macro names.
+LANDED sess #91, 2026-05-09.
+
+Picked up from sess #89's emergency handoff (8632b93a) and sess #90's lost
+purge work.  Three changes bundled in this rung:
+
+(1) **Three-column SM dispatch shape.**  Every SM dispatch line is now one
+logical line:
+
+  ```
+  .Lpc13:                  PUSH_VAR .Lstr_4                      # var=N
+  ```
+
+  Format `%-24s%-36s# anno`: column 1 is the `.LpcN:` label (24-wide),
+  column 2 is the macro call (36-wide), column 3 is the `# annotation`.
+  Replaces the previous two-line `.LpcN:` / `\\tSM_OP args` shape.  Bare
+  labels (SM_LABEL, SM_STNO that emit no opcode line) flush as standalone
+  label lines via the dispatch-loop leftover-flush mechanism.
+
+(2) **Macro library externalised to sm_macros.s.**  The ~200-line macro
+library no longer lives at the top of every emitted `.s`; it lives in a
+standalone `sm_macros.s` regenerated alongside each emit run, and the
+emitted `.s` carries `\\t.include "sm_macros.s"` near the top.  GAS
+resolves the include from the source directory by default, so placing
+`sm_macros.s` next to the `.s` artifacts (in
+`corpus/programs/snobol4/demo/`) lets every demo file assemble without
+`-I` flags.  `sm_macros.s` is generated from the same `g_sm_templates[]`
+table that drives every per-call dispatch line, so the macro definition
+and the per-instruction emission cannot drift; they share one renderer
+(`render_macro_body` + `render_call_line` paired switches in
+`sm_emit_template.c`).
+
+(3) **SM_ prefix stripped from generated-code macro names + collision
+renames.**  Per Lon's instruction: "Ensure the SM macros do not have SM_
+prefix.  The root name is good enough for generated code."  All 48
+macro names in `g_sm_templates[]` had the `SM_` prefix removed.  Two of
+the bare names collide with x86 mnemonics under GAS's
+case-insensitive instruction matching (the C-level enum names
+`SM_POP` and `SM_CALL` would have stripped to `POP`/`CALL`, which under
+`.intel_syntax noprefix` GAS treats as the `pop`/`call` x86 mnemonics
+and recurses inside the macro body):
+
+  - `SM_POP` → `VOID_POP` (mirrors the runtime helper
+    `scrip_rt_pop_void`; pairs symmetrically with the existing
+    `STATE_POP` opcode under a `<modifier>_POP` family).
+  - `SM_CALL` → `CALL_FN` (uniform `_FN` suffix to flag user-function
+    dispatch; CALL_CHUNK keeps its name since it didn't collide).
+
+  The other 45 names have distinct identifiers from any x86 mnemonic and
+  ship under their bare root names: `HALT`, `PUSH_INT`, `PUSH_STR`,
+  `PUSH_VAR`, `STORE_VAR`, `PUSH_NULL`, `CONCAT`, `COERCE_NUM`, `ARITH`
+  (shared by SM_ADD/SUB/MUL/DIV/MOD), `JUMP`/`JUMP_S`/`JUMP_F`,
+  `PUSH_CHUNK`, `CALL_CHUNK`, `RETURN`, all 22 nullary `PAT_*`,
+  `PAT_LIT`/`PAT_REFNAME`/`PAT_USERCALL` (LBLOPT shape),
+  `PAT_CAPTURE`/`PAT_USERCALL_ARGS` (LBLOPT_INT32),
+  `PAT_CAPTURE_FN`/`PAT_CAPTURE_FN_ARGS` (LBLOPT3 / LBLOPT_I_I),
+  `EXEC_STMT_VARIANT`, plus standalone `UNHANDLED` and `RETURN_VARIANT`.
+
+  C-level identifiers (`sm_opcode_t` enum members `SM_PUSH_LIT_I`,
+  `SM_POP`, `SM_CALL`, etc.) are unchanged.  The strip applies only to
+  the macro-name strings in column 2 of the template table — i.e. to the
+  text that appears in emitted `.s` files.  Comment annotations on the
+  right column still mention the C enum names where relevant
+  (`# SM_CALL fname=...`, `# SM_POP: discard TOS`).
+
+**Files touched (one4all):**
+
+  - `src/runtime/x86/sm_emit_template.c`: 49 `macro_name` string
+    literals updated in `g_sm_templates[]` (48 in the table + 2 in the
+    standalone templates `g_tpl_unhandled` / `g_tpl_ret_var`); `SM_POP` →
+    `VOID_POP`, `SM_CALL` → `CALL_FN`, all others stripped of `SM_`
+    prefix.
+  - `scripts/test_smoke_jit_emit_x64.sh`: 7 dispatch-line regexes
+    updated from `^[[:space:]]+SM_OPNAME` (two-line shape) to
+    `^\.Lpc[0-9]+:[[:space:]]+OPNAME` (three-column shape); 5
+    macro-body PLT-call assertions redirected from `$TMP/em*.s` to
+    `$ROOT/sm_macros.s` (since the body lines are no longer inlined
+    in the dispatch `.s`); cosmetic PASS=16→18 fix in EM-7b descriptor.
+
+**Honest deviation observed at handoff (filed for next-rung work):**
+
+  - Dispatch annotations still mention C enum names like `SM_CALL` and
+    `SM_POP` (e.g. `# SM_CALL fname="DEFINE" nargs=1`).  These are the
+    C identifiers and are still active in the source base; they're
+    not part of the "generated code" the strip targeted.  If a future
+    rung also strips the C enum names, the annotations can update too.
+
+**Verified end-to-end:**
+
+  - `OUTPUT = 'hi'` minimal program emits clean three-column shape:
+    `.Lpc1:                  PUSH_STR .Lstr_0, 0                # str="hi"`
+  - `roman.s` emits 219 lines (was 474 pre-rung) plus separate
+    229-line `sm_macros.s`; assembles and links cleanly when both are
+    in the same directory.
+  - `VOID_POP` and `CALL_FN` appear in dispatch lines across all 5
+    demo programs; zero `^.LpcN: SM_*` lines remain (`grep` audit).
+  - Back-to-back regen of all 6 artifacts produces byte-identical
+    output (deterministic; `g_sm_templates[]` is the single source of
+    truth, no timestamps or environmental input).
+
+**Tracked artifact line counts (corpus/programs/snobol4/demo/):**
+
+  | File | Before | After | Δ |
+  |------|-------|------|---|
+  | roman.s | 474 | 219 | −255 |
+  | wordcount.s | 444 | 174 | −270 |
+  | claws5.s | 1859 | 1220 | −639 |
+  | treebank-list.s | 2223 | 1548 | −675 |
+  | treebank-array.s | 2518 | 1751 | −767 |
+  | sm_macros.s | NEW | 229 | +229 |
+
+  Net: **−2606 lines** across the 5 demo `.s` files; macro library
+  externalised once.  `sm_macros.s` is the sixth tracked artifact.
+  Demo `.s` files now read top-to-bottom as a near-direct rendering
+  of the SM_Program — three-column form makes each statement's
+  dispatch easy to scan.
+
+**Gates final state — 10/10 GREEN:**
+
+  - smoke ×6 PASS (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+    raku 5/5, rebus 4/4)
+  - isolation gate PASS  (no IR-only symbol leaks)
+  - unified_broker test_broad_unified_broker PASS=49 FAIL=0
+  - sm_phase2_sim_test PASS=25 FAIL=0
+  - bb_flat_text_test PASS=18 FAIL=0
+  - EM gate test_smoke_jit_emit_x64.sh PASS=12 FAIL=0
+
+**Next rung after this**: EM-7c-bb-three-column — emit each BB box as a
+4-port cluster (α/β/γ/ω) in three-column LABEL/ACTION/GOTO form,
+straight x86 (no macros yet), with Greek-only port names and no `bb`/
+`BB` prefix.  Then EM-7c-bb-macros, then EM-7d (beauty oracle gate).
+
+one4all parent: 8632b93a (sess #89 EMERGENCY HANDOFF).
+one4all HEAD: <new — this commit>.
+corpus parent: 5a0b181 (EM-7c-sm-macros artifacts).
+corpus HEAD: <new — this commit>.
+.github parent: <prior>.  .github HEAD: <new — this commit>.
+Session #91, 2026-05-09.
+
 **Step EM-5** — SM_PUSH_CHUNK / SM_CALL_CHUNK / SM_RETURN.
 - Three SM chunk-discipline opcodes baked in `sm_codegen_x64_emit.c`.
   `SM_RETURN` → native `ret`; `SM_CALL_CHUNK` → baked direct
@@ -2164,6 +2321,92 @@ formal closed entry in a future cleanup pass.)
 ---
 
 ## Watermark
+
+EM-7c-sm-three-column LANDED 2026-05-09 (session #91)
+======================================================
+✅ CLOSED.  Gates 10/10 GREEN.  Six tracked artifacts regenerated and
+deterministic.  Picked up sess #89's emergency handoff (8632b93a) plus
+sess #90's lost SM_-prefix-strip work; finished gate-script regex
+updates, ran all 10 gates, regen'd 5 demo `.s` + new sm_macros.s,
+landed under LCherryholmes per RULES.md.
+
+Three changes bundled (full closed-step entry above for details):
+  (1) Three-column SM dispatch format: `.LpcN: <space>* MACRO args
+      <space>* # anno` on one logical line (was two lines).
+  (2) Macro library externalised: `sm_macros.s` next to demo `.s`
+      files in `corpus/programs/snobol4/demo/`; emitted `.s` carries
+      `\\t.include "sm_macros.s"`.  GAS resolves from source dir.
+  (3) SM_ prefix stripped from generated-code macro names; collision
+      renames `SM_POP → VOID_POP` and `SM_CALL → CALL_FN` (other 45
+      names ship under their bare root names).  C enum names
+      unchanged.
+
+Files touched:
+  one4all:
+    src/runtime/x86/sm_emit_template.c    (49 macro_name strings)
+    scripts/test_smoke_jit_emit_x64.sh    (7 regex updates + 5
+                                           macro-body redirects to
+                                           $ROOT/sm_macros.s + 1
+                                           cosmetic fix)
+  corpus:
+    programs/snobol4/demo/roman.s         (regenerated; 474→219)
+    programs/snobol4/demo/wordcount.s     (regenerated; 444→174)
+    programs/snobol4/demo/claws5.s        (regenerated; 1859→1220)
+    programs/snobol4/demo/treebank-list.s (regenerated; 2223→1548)
+    programs/snobol4/demo/treebank-array.s (regenerated; 2518→1751)
+    programs/snobol4/demo/sm_macros.s     (NEW — sixth tracked
+                                           artifact; 229 lines)
+  .github:
+    GOAL-MODE4-EMIT.md  (mark step [x], add closed-step entry,
+                         update Tracked Artifacts Protocol to add
+                         sm_macros.s as the sixth tracked artifact +
+                         update regen+commit shell snippet, update
+                         this watermark, sequencing line)
+    PLAN.md             (mode-4 row points at next rung
+                         EM-7c-bb-three-column)
+
+Verified end-to-end:
+  - `OUTPUT = 'hi'` emits clean three-column shape.
+  - roman.sno emits 219 lines + separate 229-line sm_macros.s; both
+    assemble cleanly via `gcc -c` when in same directory.
+  - `VOID_POP` and `CALL_FN` appear in dispatch lines across all 5
+    demo programs (claws5.s: 12 VOID_POP + 54 CALL_FN; treebank-array:
+    24 + 102; etc.).
+  - Zero `^.LpcN: SM_*` dispatch lines remain (audit `grep`).
+  - All 6 artifacts deterministic — back-to-back regen byte-identical.
+
+All gates 10/10 GREEN:
+  smoke snobol4   7/7  | smoke snocone   5/5
+  smoke icon      5/5  | smoke prolog    5/5
+  smoke raku      5/5  | smoke rebus     4/4
+  isolation              PASS  (no IR-only symbol leaks)
+  EM gate                PASS=12 FAIL=0
+  bb_flat_text           PASS=18 FAIL=0
+  sm_phase2_sim          PASS=25 FAIL=0
+  unified_broker         PASS=49 FAIL=0
+
+Honest deviation noted (not blocking close):
+  Dispatch annotations on the right column still reference C enum
+  names like `# SM_CALL fname=...`.  These are the C identifiers
+  in source — still active in `sm_opcode_t` and call sites
+  (`sm_interp.c`, `sm_lower.c`, etc.).  The "generated code"
+  Lon's instruction targeted is the macro-name column 2, which IS
+  stripped.  If a future rung renames the C enum, the annotation
+  text updates automatically (it's just opcode_name(opcode)).
+
+Remote state at handoff:
+  one4all parent:  8632b93a (sess #89 EMERGENCY HANDOFF).
+  one4all HEAD:    <this commit>.
+  corpus parent:   5a0b181 (EM-7c-sm-macros artifacts).
+  corpus HEAD:     <this commit>.
+  .github parent:  <prior>.  .github HEAD: <this commit>.
+  Session #91, 2026-05-09.
+
+Next rung: EM-7c-bb-three-column — BB boxes as 4-port α/β/γ/ω
+clusters in three-column LABEL/ACTION/GOTO form, straight x86
+(no macros yet), Greek-only port names, no `bb`/`BB` prefix.
+Then EM-7c-bb-macros (BB-side macro library).  Then EM-7d
+(beauty oracle gate).
 
 EM-7c-sm-three-column EMERGENCY HANDOFF 2026-05-09 (session #89)
 =================================================================
