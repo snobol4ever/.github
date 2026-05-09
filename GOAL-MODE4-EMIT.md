@@ -4111,3 +4111,146 @@ cluster in three-column LABEL/ACTION/GOTO form, straight x86 (no
 macros yet), with Greek-only port names (`α<N>` / `β<N>` /
 `γ<N>` / `ω<N>`, NO `bb`/`BB` prefix or suffix).  Then
 EM-7c-bb-macros.  Then EM-7d (beauty oracle gate).
+
+EM-7c-sm-three-column EMERGENCY HANDOFF 2026-05-09 (session #90)
+=================================================================
+⛔ INCOMPLETE — second emergency handoff atop sess #89's 8632b93a.
+
+Sess #90 finished sess #89's pending list: gate-script regex audit
++ macro-library externalisation work verified end-to-end; all 10
+gates GREEN at one point this session.  Then per Lon: "Ensure the
+SM macros do not have SM_ prefix.  The root name is good enough
+for generated code."  Stripped SM_ prefix from all 47 macro names
+in g_sm_templates[].  Two of the bare names collide with x86
+mnemonics under GAS case-insensitive instruction matching, causing
+infinite macro recursion at assembly time.  Tree currently broken.
+
+COLLISION INVENTORY (empirical via lowercase-as-instruction probe
+under `gcc -c .intel_syntax noprefix`):
+  POP   collides with x86 `pop`   (recurses on `pop rax` in body)
+  CALL  collides with x86 `call`  (recurses on `call ...@PLT` in body)
+The other 45 macro names DO NOT collide.  Tested every name in the
+template table; the suffix family (PUSH_INT/STR/VAR/CHUNK/NULL,
+CALL_CHUNK, STORE_VAR, JUMP_S/F, PAT_*, etc.) all have distinct
+identifiers from any x86 mnemonic.  HALT (x86 has hlt), JUMP (jmp),
+RETURN (ret) — no collision.
+
+DECISIONS PENDING:
+  SM_CALL -> CALL_FN     ✅ Lon confirmed
+  SM_POP  -> ?           ⛔ Lon to pick:
+    DROP    — Forth canonical "( a -- )"; precise; 4 chars.
+              Not in SIL/SNOBOL4 runtime.  Best stack-machine pedigree.
+    VOID    — mirrors runtime helper scrip_rt_pop_void@PLT exactly;
+              matches C `(void)expr` cast idiom; 4 chars.
+    DISCARD — English-precise, unambiguous, no tradition required.
+    PULL    — symmetrical with PUSH family; Forth/RPN-adjacent
+              but not standard Forth.
+    POP_FN  — uniform with CALL_FN's _FN convention.  Cosmetic
+              suffix only — no POP_CHUNK sibling exists.
+    IGNORE  — slightly imprecise (value is destroyed, not just
+              unobserved).
+  None of these clash with the SNOBOL4 runtime or SIL.
+  INVOKE/EVAL/APPLY were considered but REJECTED — all three are
+  used heavily in the SIL-faithful SNOBOL4 runtime (see
+  src/runtime/x86/snobol4_invoke.c "SIL INVOKE: universal function
+  dispatcher").  Naming an SM macro after any of them would
+  conflate SM-bytecode dispatch with SIL function-table lookup.
+
+WORKING TREE STATE AT HANDOFF (preserved locally, not committed):
+
+  one4all:  parent 8632b93a (sess #89 emergency handoff)
+    M  scripts/test_smoke_jit_emit_x64.sh
+       7 leading-whitespace SM_ regexes updated to accept
+       three-column shape: ^(\.Lpc[0-9]+:[[:space:]]+|[[:space:]]+).
+       5 macro-body PLT-call assertions (push_int, halt_tos, arith,
+       last_ok, push_chunk_descr) and the `\tgt`/`ret` body checks
+       redirected from $TMP/em*.s to $ROOT/sm_macros.s (since the
+       macro library is now externalised).  match_blob PLT stays
+       in $TMP/em7c.s (still emitted directly at SM_EXEC_STMT).
+       7 macro-name regexes updated to drop SM_ prefix
+       (PUSH_INT, JUMP, JUMP_F, JUMP_S, RETURN, CALL_CHUNK).
+
+    M  src/runtime/x86/sm_emit_template.c
+       All 47 macro_name string literals in g_sm_templates[] had
+       SM_ prefix stripped.  Two of these (POP, CALL) collide with
+       x86 mnemonics and break assembly.  Doc comment line 557
+       updated: "all share \"SM_ARITH\"" -> "all share \"ARITH\"".
+
+  corpus:   clean (sess #90 regen was reverted because it baked
+            the broken POP/CALL macro names into the .s files).
+
+  .github:  this commit only.
+
+NEXT SESSION (sess #91) — EXACT SEQUENCE:
+
+  1. git pull on all three repos (catch any other-session pushes).
+  2. cd /home/claude/one4all
+  3. Lon picks pop-side rename from the menu above.  Default if
+     Lon hasn't replied yet: DROP (Forth-canonical, 4 chars,
+     mirrors stack-machine convention; safest if no further input).
+  4. Two one-line edits in src/runtime/x86/sm_emit_template.c:
+       "POP",  -> "<chosen>",
+       "CALL", -> "CALL_FN",
+  5. make scrip libscrip_rt out/sm_codegen_x64_emit_test
+  6. Quick smoke: emit /tmp/hi.sno, verify no `SM_` in dispatch
+     lines, verify `gcc -c` clean on the .s + on sm_macros.s.
+  7. Run all 10 gates:
+       smoke ×6 (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+                 raku 5/5, rebus 4/4)
+       isolation, unified_broker (PASS=49)
+       EM gate (PASS=12), bb_flat_text (PASS=18),
+       sm_phase2_sim (PASS=25)
+  8. Regen 5 tracked .s + sm_macros.s in
+     corpus/programs/snobol4/demo/.  Run from that directory so
+     sm_macros.s lands next to the .s files (per the watermark
+     decision: place sm_macros.s in corpus/programs/snobol4/demo/
+     so GAS resolves the .include without -I flag).
+  9. Determinism check: back-to-back regen, diff empty for all
+     six artifacts.
+ 10. Assemble check: gcc -c on all 5 .s files succeeds.
+ 11. Update GOAL-MODE4-EMIT.md:
+       - Mark EM-7c-sm-three-column `[x]` in step list.
+       - Add closed-step entry summarising sess #90's gate-script
+         + macro-library + collision-resolution work + sess #91's
+         actual gate runs and artifact regen.
+       - Add sm_macros.s as the 6th tracked artifact in the
+         "Tracked Artifacts — Protocol" section + update the
+         regen+commit shell snippet.
+       - Update watermark.
+ 12. Update PLAN.md Mode-4 row to point at next rung
+     (EM-7c-bb-three-column).
+ 13. Commit per RULES.md (LCherryholmes identity, three repos,
+     .github last).
+
+OBSERVED LINE-COUNT SHRINKS (sess #90, with SM_-prefixed names —
+sess #91's post-rename regen will be byte-identical to these
+modulo the s/SM_<NAME>/<NAME>/g substitution):
+  roman.s          474 ->  219  (-255)
+  wordcount.s      444 ->  174  (-270)
+  claws5.s        1859 -> 1220  (-639)
+  treebank-list.s 2223 -> 1548  (-675)
+  treebank-array  2518 -> 1751  (-767)
+  sm_macros.s     NEW  ->  229  (sixth tracked artifact)
+  Net: -2606 lines across 5 demo programs; macro library
+  externalised once.
+
+ALL 10 GATES VERIFIED GREEN MID-SESSION (before the SM_ strip):
+  smoke snobol4   7/7  | smoke snocone   5/5
+  smoke icon      5/5  | smoke prolog    5/5
+  smoke raku      5/5  | smoke rebus     4/4
+  isolation              PASS
+  EM gate                PASS=12 FAIL=0
+  bb_flat_text           PASS=18
+  sm_phase2_sim          PASS=25
+  unified_broker         PASS=49
+
+Build dependency note: dev container needs `apt-get install
+libgc-dev` for libscrip_rt.so to build (Boehm GC headers).
+
+REMOTE STATE AT HANDOFF:
+  one4all parent: 8632b93a (sess #89; sess #90 not committed).
+  one4all HEAD on remote: 8632b93a (unchanged).
+  corpus parent: 5a0b181 (sess #88).  HEAD on remote: unchanged.
+  .github parent: <prior>.  .github HEAD: this commit.
+  Session #90, 2026-05-09.
+
