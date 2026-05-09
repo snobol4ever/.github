@@ -648,7 +648,7 @@ are committed so normal builds never require bison/flex.
 | New C function (no SIL origin) | `snake_case` | `arena_init`, `genvar_from_descr` |
 | Procedure return typedef | `RESULT_t` | always |
 
-Never CamelCase. Never ALL_CAPS for new C types (exception: `RESULT_t`).
+Never CamelCase. Never ALL_CAPS for new C types (exceptions: `RESULT_t` and the established SIL-derived family `AST_t`, `DESCR_t`, `STMT_t`, `SPEC_t` etc. — these predate the rule and are kept verbatim).
 
 ---
 
@@ -659,7 +659,7 @@ non-terminal pattern names MUST mirror the existing C frontend's
 parse-function names (and ISO BNF non-terminal names where they
 overlap). Token-classifier names MUST mirror the existing lexer's
 `TK_*` enum (lowercased where Snocone identifier rules require). IR
-node tags MUST be the exact strings `expr_dump` (or equivalent
+node tags MUST be the exact strings `ast_dump` (or equivalent
 frontend dumper) emits.
 
 Sources of truth, in order:

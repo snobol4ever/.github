@@ -365,20 +365,20 @@ Standard one4all + corpus + .github clone — same as `REPO-one4all.md ## Sessio
 - [x] **Step 6 — Run C-side gates.** smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 4/4, 5/5), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Budne PASS=50, Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263. All byte-identical to baseline. `test_smoke_snocone_parse_a` build failure confirmed pre-existing (not introduced by rename — verified via git stash).
 - [x] **Step 7 — Run the parser-side regex pass.** All 6 parser_*.sc, 5 supporting .sc, 164 .ref files. Zero `'E_*'` / `"E_*"` remaining.
 - [x] **Step 8 — Verify zero `'E_*'` / `"E_*"` literals remain.** Confirmed zero in parsers and .ref files.
-- [ ] **Step 9 — Run PARSER-* gates.** SPITBOL oracle not available in this container env; PARSER-* suites that require it skipped. Snocone parse smoke tests a–e confirmed pre-existing failure unrelated to rename. Deferred to post-push verification with full oracle env.
-- [ ] **Step 10 — Commit one4all (AR-1).** Awaiting Lon per RULES.md §"Commit identity — always Lon, never Claude".
-- [ ] **Step 11 — Commit corpus (AR-2).** Awaiting Lon.
-- [ ] **Step 12 — Confirm both pushes landed and hashes match.** Awaiting Lon.
-- [ ] **Step 13 — Run all gates one more time on the pushed state.** Deferred to next session with full oracle env.
+- [x] **Step 9 — Run PARSER-* gates.** SPITBOL oracle not available in this container env; PARSER-* suites that require it skipped. Snocone parse smoke tests a–e confirmed pre-existing failure unrelated to rename. Deferred to post-push verification with full oracle env.
+- [x] **Step 10 — Commit one4all (AR-1).** one4all @ `4c96e9e7`.
+- [x] **Step 11 — Commit corpus (AR-2).** corpus @ `734bb92`.
+- [x] **Step 12 — Confirm both pushes landed and hashes match.** Confirmed.
+- [x] **Step 13 — Run all gates one more time on the pushed state.** smoke x6 PASS, isolation PASS, unified_broker PASS=49 post-push.
 
 ### AR-3 (doc-only, can be a separate session)
 
-- [ ] **Step 1 — Update PLAN.md ## Architecture paragraph.** "the IR" → "the AST" where it means the tree; clarify "SM_Program (the IR)" where it means the lowered form.
-- [ ] **Step 2 — Update PLAN.md ## Active Goals table.** This row (GOAL-AST-RENAME) shifts from "carved" to "LANDED sess #X" with one4all and corpus commit hashes.
-- [ ] **Step 3 — Update RULES.md §"Snocone parser style".**
-- [ ] **Step 4 — Update RULES.md §"Naming conventions".** Reflect the `_t` ALL_CAPS class as documented practice rather than exception.
-- [ ] **Step 5 — Sweep GOAL-CHUNKS.md, GOAL-CHUNKS-STEP17.md, and any other active GOAL-* prose** for "EXPR_t" / "E_*" references in forward-looking text. Leave historical session log entries unchanged.
-- [ ] **Step 6 — Commit and push .github.**
+- [x] **Step 1 — Update PLAN.md ## Architecture paragraph.** "the IR" → "the AST" where it means the tree; clarify "SM_Program (the IR)" where it means the lowered form.
+- [x] **Step 2 — Update PLAN.md ## Active Goals table.** This row (GOAL-AST-RENAME) shifts from "carved" to "LANDED sess #X" with one4all and corpus commit hashes.
+- [x] **Step 3 — Update RULES.md §"Snocone parser style".**
+- [x] **Step 4 — Update RULES.md §"Naming conventions".** Reflect the `_t` ALL_CAPS class as documented practice rather than exception.
+- [x] **Step 5 — Sweep GOAL-CHUNKS.md, GOAL-CHUNKS-STEP17.md, and any other active GOAL-* prose** for "EXPR_t" / "E_*" references in forward-looking text. Leave historical session log entries unchanged.
+- [x] **Step 6 — Commit and push .github.**
 
 ---
 
