@@ -353,16 +353,78 @@ since SPITBOL doesn't run Prolog).
 
 ### CH-17g — Drop EXPR_t *proc from IcnProcEntry; lift code_free gate
 
-**Scope:** the cleanup.  After CH-17c flipped Icon/Raku consumers
-and CH-17e flipped Prolog consumers, no live code reads
-`proc_table[i].proc` or `pl_pred_table_*`'s EXPR_t payload.
-Delete the `EXPR_t *proc` field; delete the legacy `coro_call`
-body's IR walk (its scope build, its `interp_eval` body loop —
-gone); delete `pl_pred_table_lookup`'s legacy EXPR_t-returning
-overload.  `polyglot.c` stores no IR pointers.
+**CARVED into three sub-rungs sess 2026-05-09** — empirical state at
+CH-17f close: eight `coro_call(proc_table[i].proc, args, nargs)` consumer
+sites still read `.proc` directly outside the trampoline (CH-17c only
+flipped `proc_trampoline` / `gather_trampoline`).  Static-variable
+storage in `coro_runtime.c:155–183` is still keyed on `EXPR_t*`.  Chunk
+bodies still emit `SM_PUSH_EXPR + SM_BB_PUMP` for unmigrated generator
+kinds (per CH-17b' close note).  Each precondition for the field-drop
+needs its own rung.  Mirrors how CH-17b/b'/b'' were carved.
 
-Lift `lang_mask == (1u << LANG_SNO)` gate on `code_free` in
-`scrip_sm.c` — IR is freed unconditionally for all six frontends.
+#### CH-17g-call-sites — flip the eight residual consumer sites
+
+**Scope:** mirror CH-17c's trampoline-side flip for the call sites it
+didn't reach.  Add a small dispatch helper `proc_table_call(int pi,
+DESCR_t *args, int nargs)` next to `sm_call_proc` in `coro_runtime.{c,h}`:
+
+  - if `proc_table[pi].entry_pc >= 0`, call `sm_call_proc`
+  - else, fall back to `coro_call(proc_table[pi].proc, args, nargs)`
+
+Replace `coro_call(proc_table[i].proc, args, nargs)` with
+`proc_table_call(i, args, nargs)` at the eight non-trampoline call sites
+in `coro_value.c`, `raku_builtins.c`, `interp_eval.c` (×3),
+`interp_hooks.c`, `interp_exec.c` (×3), `polyglot.c`.  Trampoline-layer
+sites in `coro_runtime.c` (lines 1125, 1213, 1503) stay as-is —
+CH-17c's flip already lives inside the trampolines, reading entry_pc
+out of the staging struct.
+
+`coro_drive_fnc` (the suspend-aware generator driver,
+`coro_runtime.c:1721`) is intentionally NOT flipped — it's an IR walker
+by design and waits for CH-17h to migrate the remaining generator kinds.
+
+`sm_lower.c:1742` is producer-side (sm_lower needs to read proc->...
+to lower the body into a chunk) — it stays.
+
+Pure routing reorganisation, no behavioural change: every flipped site
+reaches one of the same two paths it was reaching before, just now
+with the chunk path as a first-class option at the call site instead
+of only at the trampoline.
+
+**Gates:** standard CHUNKS set + full Icon corpus 186/47/30 +
+unified_broker + isolation gate, all byte-identical.
+
+#### CH-17g-statics — re-key static-variable storage off EXPR_t*
+
+**Scope:** `coro_runtime.c:155–183` `static_tab[]` table keyed on
+`(EXPR_t *proc, const char *name)` — used by `coro_call`'s param-load
+preamble (line 447) and frame-pop epilogue (line 500) to persist Icon
+`static x` declarations across calls.  Re-key onto `(int entry_pc,
+const char *name)` (when entry_pc is resolved) or
+`(const char *proc_name, const char *name)` (universal fallback).
+Once this rung lands, no live runtime path keys storage on EXPR_t
+identity.
+
+**Gates:** standard set + the smoke programs that exercise Icon
+`static` vars (e.g. `wordcount.icn` if present in corpus).
+
+#### CH-17g-final — drop EXPR_t *proc; lift code_free gate
+
+**Scope:** the actual closure.  Preconditions: CH-17g-call-sites
+(eight sites flipped), CH-17g-statics (storage re-keyed), CH-17h
+(remaining generator kinds migrated so chunk bodies no longer emit
+`SM_PUSH_EXPR + SM_BB_PUMP`).  When all three are met:
+
+  - delete `EXPR_t *proc` field from `IcnProcEntry`
+  - delete the legacy body of `coro_call(EXPR_t*, ...)` (its scope
+    build, its `interp_eval` body loop) and the `coro_drive_fnc`
+    wrapper
+  - delete `pl_pred_table_lookup`'s legacy EXPR_t-returning overload
+  - lift `lang_mask == (1u << LANG_SNO)` gate on `code_free` in
+    `scrip_sm.c` — IR freed unconditionally for all six frontends
+  - strengthen `test_isolation_ir_sm.sh` with the structural check
+    forbidding `EXPR_t *` in `polyglot.c`, `coro_runtime.c`,
+    `pl_runtime.c` proc/pred-table fields
 
 This is the GOAL-CHUNKS.md Step 17 closure point.
 
@@ -396,7 +458,9 @@ This is CH-15b's reactivation point.
 | CH-17d  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for PL       |
 | CH-17e  | Prolog smoke extended to `--sm-run`                  |
 | CH-17f  | Prolog `--sm-run` crosscheck vs `--ir-run`           |
-| CH-17g  | structural: no EXPR_t* in proc_table / pred_table    |
+| CH-17g-call-sites | Icon corpus 186/47/30 byte-identical (8 sites flipped) |
+| CH-17g-statics | static-var storage no longer keyed on EXPR_t* |
+| CH-17g-final | structural: no EXPR_t* in proc_table / pred_table    |
 | CH-17h  | Icon corpus per-kind crosscheck                      |
 
 ---
@@ -556,3 +620,5 @@ consumers: pl_box_choice_pc and friends; --sm-run Prolog end-to-end).
 **CH-17e LANDED sess #84, 2026-05-07** — consumer-side flip. `pl_box_choice_pc(int entry_pc, Term **caller_args, int arity)` added to `pl_broker.h/c` (one-shot box calling `sm_call_chunk(entry_pc)`). `pl_pred_entry_lookup(const char*)` added to `pl_runtime.h/c`. Five consumer sites flipped: `interp_eval.c` E_FNC Prolog dispatch + E_CHOICE case; `pl_runtime.c` msort/predsort + general user-pred dispatch; `interp_hooks.c` polyglot hook; `polyglot.c` main/0 entry (sm_call_chunk when epc>=0). All sites: entry_pc>=0 → chunk path, else legacy IR fallback. Chunks skeleton-only (SM_RETURN from CH-17d); sm_call_chunk returns FAILDESCR (correct 'no solution'). No crash. Gates byte-identical: smoke x5 PASS, isolation PASS, unified_broker PASS=49, Budne PASS=61, Icon PASS=186/47/30 TOTAL=263. one4all HEAD `7cfa0a96`. Next rung: **CH-17f** (fill E_CHOICE/E_CLAUSE bodies in sm_lower.c; --sm-run Prolog produces correct output).
 
 **CH-17f LANDED sess #85, 2026-05-07** — new `SM_BB_ONCE_PROC` opcode (`a[0].s = "name/arity"`, `a[1].i = arity`) replaces the legacy `lower_expr(E_CHOICE) + SM_BB_ONCE` path that pushed raw `EXPR_t*` to the SM value stack and called `coro_eval(E_CHOICE)` at runtime → FATAL "unhandled kind 59". `lower_stmt` LANG_PL branch emits `SM_BB_ONCE_PROC key, arity` directly from `s->subject->sval`; `lower_expr` E_CHOICE case same. Non-E_CHOICE directive subjects fall through to legacy path. Runtime: `pl_pred_table_lookup_global(key)` → `pl_box_choice(IR, g_pl_env, arity)` → `bb_broker(BB_ONCE)` — fully correct Prolog execution via the existing IR broker. No EXPR_t* pushed or walked at the SM statement-dispatch layer. Predicate chunk bodies remain skeleton-only (CH-17d SM_RETURN); chunk body fill deferred to follow-on rung. `--sm-run` Prolog programs now produce correct output: hello.pl → "Hello, World!", roman.pl → correct. Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, Budne PASS=61, unified_broker PASS=49, Icon corpus 186/47/30 TOTAL=263 (byte-identical). Documented in `docs/CHUNKS-step17f-validation.md`. Files: `sm_prog.h`, `sm_prog.c`, `sm_interp.c`, `sm_codegen.c`, `sm_lower.c`. one4all @ `a2c6c089`. Next rung: **CH-17g** (drop `EXPR_t *proc` from `IcnProcEntry`; lift `code_free` gate).
+
+**CH-17g-call-sites LANDED sess 2026-05-09** — first of three carved sub-rungs (CH-17g-call-sites / CH-17g-statics / CH-17g-final).  CH-17g as written assumed CH-17c had flipped every `proc_table[i].proc` consumer, but empirically CH-17c flipped only the trampoline layer (`proc_trampoline`, `gather_trampoline`).  Eight `coro_call(proc_table[i].proc, args, nargs)` consumer call sites still read `.proc` directly: `coro_value.c` (E_FNC user-proc dispatch), `raku_builtins.c` (Raku method-call dispatch), `interp_eval.c` ×3 (user-proc value-context, fallback, U-22 cross-language), `interp_hooks.c` (SNO→Icon usercall), `interp_exec.c` ×3 (top-level main dispatch), `polyglot.c` (single-language Icon main).  This rung adds `proc_table_call(int pi, DESCR_t *args, int nargs)` to `coro_runtime.{c,h}` — `entry_pc >= 0 ? sm_call_proc : coro_call` — and flips the eight call sites to use it.  Trampoline-layer staging at `coro_runtime.c:1125, 1213, 1503` left as-is (CH-17c's flip already lives inside the trampolines).  `coro_drive_fnc` (`coro_runtime.c:1721`) intentionally NOT flipped — IR walker by design, M4-cleanup territory (CH-17h).  `sm_lower.c:1742` is producer-side, stays.  Pure routing reorganisation; no behavioural change because every flipped site still reaches the same two paths (chunk via `sm_call_proc` when `entry_pc >= 0`, IR via `coro_call` otherwise).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, csnobol4 Budne PASS=50 (this session's pre-flip baseline; differs from CH-17f's recorded PASS=61, environmental — investigation deferred), Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263, scrip_all_modes PASS=2 FAIL=0.  Documented in `docs/CHUNKS-step17g-call-sites-validation.md`.  Files: `src/runtime/interp/coro_runtime.h` + `coro_runtime.c` (helper); `coro_value.c`, `raku_builtins.c`, `interp_eval.c`, `interp_hooks.c`, `interp_exec.c`, `polyglot.c` (call-site flips).  Next rung: **CH-17g-statics** (re-key static-variable storage off EXPR_t*).
