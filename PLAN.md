@@ -146,8 +146,8 @@ Current-step detail lives in each Goal file, not here. This table is navigation 
 
 ## Architecture (one paragraph)
 
-Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared IR.
-SM-LOWER compiles IR to SM_Program — a flat array of stack machine instructions.
+Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST.
+SM-LOWER compiles the AST to SM_Program — a flat array of stack machine instructions (the IR).
 The INTERP executes SM_Program. The EMITTER walks SM_Program and emits native code
 (x86, JVM, .NET, JS, WASM). Interpreter and emitter share one instruction set.
 
