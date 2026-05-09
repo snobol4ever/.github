@@ -261,6 +261,30 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [x] **EM-7c-three-column-non-bb — Corrected three-column shape (label/opcode/args+comment, widths 24/16/N) extended uniformly to every non-BB line in emitted `.s` AND in `sm_macros.s` body lines AND SM dispatch.  Redundant opcode-name annotations stripped.  C enums `SM_POP`→`SM_VOID_POP` and `SM_CALL`→`SM_CALL_FN` for symmetry with macro names.  LANDED 2026-05-09.**
 
 - [ ] EM-7c-bb-three-column — Emit each BB box as a 4-port α/β/γ/ω cluster in three-column `LABEL: ; ACTION ; GOTO` form, straight x86 (no macros yet), Greek-only port names, no `bb`/`BB` prefix.
+      **PARTIAL PROGRESS sess 2026-05-09:**
+      Three-column shape `LABEL: ; ACTION ; GOTO` (widths 24/16/N, literal `;` separators) IS now emitted for every BB-box body line that flows through the central paths:
+       - `emitter_text.c` `text_emit_insn` / `text_label_define` / `text_emit_jmp` / `text_global_sym` (the workhorse for bb_flat.c instruction emissions)
+       - `bb_emit.c` `bb_label_define` / `bb_text_label` / every `bb_insn_*` TEXT branch (mov, lea, ret, nop, call, jmp/je/jne/jl/jge/jg, cmp, movzx, xor, push/pop rbp, sub/add rsp)
+      New helpers added: `bb3c_format` / `bb3c_text` (in `bb_emit.c/h`), `ev3c` / `ev3c_action_v` / `ev3c_label` / `ev3c_goto_v` (static inline in `emitter_v.h`).
+      `bb_emit_byte` / `bb_emit_patch_rel8` / `bb_emit_patch_rel32` TEXT-mode paths now `abort()` with a clear diagnostic (no more `.byte 0xNN` hex walls or `.byte 0x00` placeholders — every reachable instruction goes through a named mnemonic helper).
+      Side-quests landed alongside (responding to Lon's review):
+       (a) Per-op arithmetic macros: `ARITH \op` shared macro with opaque integer arg + `# SM_ADD` annotation removed.  Replaced with named no-arg macros `ADD_NUM`, `SUB_NUM`, `MUL_NUM`, `DIV_NUM`, `MOD_NUM` — op-enum baked into each macro body via `t->const_a`.  Col 2 carries the op name directly; redundant `# SM_<op>` annotation gone.  `_NUM` suffix avoids GAS case-insensitive collision with x86 `add`/`sub`/`mul`/`div` mnemonics (same disambiguator pattern as `VOID_POP` / `CALL_FN`).
+       (b) Blank lines in emitted `.s` eliminated.  Three sites in `sm_codegen_x64_emit.c` (`emit_major_break`, pattern-blob banner, EM-7c invariant-blobs banner) had leading `\n` that produced blank lines before banners.  All three fixed; emitted output now has zero blank lines.
+      **NOT YET DONE (next session):**
+       - 12 raw `EV_TEXT(e, "\t.section .data\n%s:\n\t.string ...\n\tlea rdi, [rip + ..]\n\tmov esi, 0\n\tcall bb_X@PLT\n\ttest rax, rax\n", ...)` blocks in `bb_flat.c` (charsets / XLNTH / XTB / XRTB / XFNCE / XFARB / XSTAR / XBRKX / XATP / XDSAR / XARBN child sub-procs / XNME/XFNME cap data + child sub-procs).  Each EV_TEXT call emits a multi-line tab-indented chunk that needs splitting into a sequence of three-column `ev3c` calls — one line per directive, label in col 1, directive in col 2.  Mechanical conversion ~80 line edits.  **Until these convert, the `.s` artifacts contain three-column lines interleaved with tab-indented two-column blocks inside BB blobs — assembles cleanly but visually inconsistent.**
+       - 1:1 SM-opcode-to-macro mapping is not yet complete.  Missing template entries for `SM_LABEL` (no-op marker, the `.LpcN` label suffices), `SM_STNO`, `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`.  Some are no-ops by design, others not yet wired through the SM-macro layer.  Worth a dedicated rung.
+      **Gates final state (this session) — 10/10 GREEN:**
+      smoke ×6: snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4 · isolation N/A this rung · unified_broker PASS=49 · EM gate PASS=12 · bb_flat_text PASS=18 · sm_phase2_sim PASS=25.
+      **Tracked artifact line counts (regenerated this session):**
+      | File | Lines | Was |
+      |------|------:|----:|
+      | roman.s | 209 | 178 |
+      | wordcount.s | 158 | 196 |
+      | claws5.s | 1115 | 1241 |
+      | treebank-list.s | 1396 | 1559 |
+      | treebank-array.s | 1579 | 1763 |
+      | sm_macros.s | 230 | 230 |
+      All five assemble cleanly via `gcc -c`.
 
 - [ ] EM-7c-bb-macros — BB-side macro library, parallel to historical `snobol4_asm.mac`.  Column-2 BB content becomes single macro names like `LEN_α`, `RPOS_β`.
 
