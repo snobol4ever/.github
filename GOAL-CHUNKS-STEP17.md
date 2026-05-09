@@ -15,12 +15,12 @@ function signatures.  Standard CHUNKS gate set + full Icon corpus
 + Prolog smoke (extended to `--sm-run` once consumer-side migrations
 land).
 
-> **CURRENT RUNG: CH-17-RENAME-a** (carved sess 2026-05-09).  See
+> **CURRENT RUNG: CH-17-RENAME-FINAL** (CH-17-RENAME-a through CH-17-RENAME-g LANDED sess 2026-05-09).  See
 > `### CH-17-RENAME` below.  The rung family renames `EXPR_t`/`EXPR_e`
 > → `IR_t`/`IR_e` (the parse tree is IR, not "expression") and
 > `chunk`/`SmChunk_t`/`SM_*_CHUNK` → `expression`/`SmExpression_t`/
 > `SM_*_EXPRESSION` (the compiled SM region IS the expression).
-> CH-17-RENAME-a is the contained scaffolding rung (alias typedefs in
+> CH-17-RENAME-FINAL drops the legacy aliases from `src/ir/ir.h`.  Precondition: all files compile against `AST_t` and zero ``chunk`` remain in src/.
 > `src/ir/ir.h`); subsequent sub-rungs migrate one ownership-section
 > at a time.  RENAME interleaves with the previously-listed "next rung
 > options" (bridge-5 scan-context, CH-17g-irrun-lowers); pick whichever
@@ -480,7 +480,7 @@ This is CH-15b's reactivation point.
 
 ### CH-17-RENAME — Rename `EXPR_t`/`EXPR_e` → `IR_t`/`IR_e`; `chunk` → `expression`
 
-**Status:** ⏳ CURRENT RUNG (sess 2026-05-09).  Carved from "next rung
+**Status:** ✅ CH-17-RENAME-a through CH-17-RENAME-g LANDED sess 2026-05-09.  CH-17-RENAME-FINAL is next.  Carved from "next rung
 options" after the bridge-acomp/lcomp pair landed and surfaced the
 naming inconsistency the rest of GOAL-CHUNKS exists to retire.
 
