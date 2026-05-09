@@ -3734,3 +3734,186 @@ oracle file if available.
 
 NEXT SESSION: proceed directly to EM-7d gate attempt. Do not spend time
 on --sm-run regression — it is a corpus issue, not a blocker for EM-7d.
+
+
+EM-7c-sm-macros IN-PROGRESS sess #87, 2026-05-09 (NOT LANDED)
+=============================================================
+Architectural work complete and byte-identical-verified, but rung
+NOT landed.  Session compacted twice (~52% then ~93% context); 
+emergency handoff to a WIP branch on the code repo before container
+reset.
+
+WIP BRANCH (one4all):  wip/em7c-sm-macros-sess87 @ commit 5b6cc972
+                       (parent: ca704e95, the EM-7c-greek-purge tip).
+                       NOT FOR MERGE — the proper landing commit must
+                       be re-authored under LCherryholmes per RULES.md
+                       once the remaining gates are run.
+
+WHY NOT LANDED: 3 of ~10 gates were not re-run before context exhausted:
+  - test_broad_unified_broker.sh        (PASS=49 expected at baseline)
+  - bb_flat_text unit test               (PASS=18 expected)
+  - sm_phase2_sim unit test              (PASS=25 expected)
+And the regen+commit-tracked-artifacts step did not run.
+
+ARCHITECTURAL DIRECTIVE FROM LCHERRYHOLMES (sess #87):
+"Proceed with the plan that maximizes reuse of code and gives absolute
+guarantees that no drifting is even possible due to how we do things
+in a rigid manner."
+
+Drift concern raised by LCherryholmes: macro bodies in a hypothetical
+sm_macros.s file and the inline x86 emitted by sm_codegen_x64_emit.c
+must produce byte-identical assembled output.  If the two diverge —
+a movabs in one becomes a mov in the other, a register choice changes,
+an arg order flips — assembled bytes differ silently and the rung's
+byte-identical gate is the only thing that catches it on regen.  After
+regen, every future rung carries that risk.
+
+ARCHITECTURE (single source of truth, drift impossible by construction):
+
+  src/runtime/x86/sm_emit_template.h  (NEW, ~190 lines)
+  src/runtime/x86/sm_emit_template.c  (NEW, ~620 lines)
+
+  - sm_op_template_t struct: {op, macro_name, runtime, kind,
+    const_a, const_b}.
+  - sm_tpl_kind_t enum: 17 arg-shapes (NULLARY, INT64, LBL, LBLOPT,
+    LBL_INT32, LBLOPT_INT32, LBLOPT3, LBLOPT_I_I, EXEC_VAR, ARITH,
+    PCREF_JMP, PCREF_COND, PUSH_CHUNK, CALL_CHUNK, RET, RET_VAR,
+    UNHANDLED).
+  - g_sm_templates[] table (~55 entries; one per opcode group).
+    Multiple opcodes can share macro_name (e.g. all 5 ARITH opcodes
+    share "SM_ARITH").  De-dup happens in sm_emit_macro_library by
+    macro_name string compare.
+  - g_tpl_unhandled (op=-1), g_tpl_ret_var (op=-2): standalone
+    templates not keyed by opcode.
+
+  Two paired switches in sm_emit_template.c:
+    render_macro_body(out, t)       — emits ONE .macro NAME args /
+                                       body / .endm block.
+    render_call_line(out, t, args)  — emits ONE
+                                       \tMACRO_NAME formatted_args
+                                       \t# annotation
+                                       line.
+
+  The pairing IS the contract.  Both arms must update together when
+  adding or changing a kind.  The kind enum is the join key.  GCC
+  enforces case-completeness via `default: abort()`.
+
+  sm_emit_macro_library(out) is called at the very top of
+  sm_codegen_x64_emit() — emits every unique macro into the .s before
+  .rodata / .data / .text.
+
+  No sm_macros.s file on disk anymore.  The macro library is generated
+  live at the top of every emitted .s, by walking g_sm_templates[].
+  Result: ONE source of truth (the table + the paired switches), and
+  drift between macro definition and per-call emission is impossible —
+  they share one renderer, paired by kind.
+
+OPCODE COVERAGE (every emit_sm_* function in sm_codegen_x64_emit.c
+now goes through templates; old emit_pat_call_0 / _str / _str_int
+helpers DELETED):
+  - HALT, PUSH_LIT_I, PUSH_LIT_S, PUSH_VAR, STORE_VAR, POP, ARITH×5
+  - JUMP, JUMP_S, JUMP_F
+  - PUSH_CHUNK, CALL_CHUNK, RETURN
+  - CONCAT, PUSH_NULL, COERCE_NUM, CALL,
+    RETURN_VARIANT (8 conditional variants RETURN_S/F, FRETURN[_S/_F],
+    NRETURN[_S/_F])
+  - All 22 SM_PAT_* nullary opcodes (SPAN, BREAK, ANY, NOTANY, LEN,
+    POS, RPOS, TAB, RTAB, ARB, ARBNO, REM, FENCE, FENCE1, FAIL,
+    ABORT, SUCCEED, BAL, EPS, CAT, ALT, DEREF, BOXVAL)
+  - PAT_LIT, PAT_REFNAME, PAT_USERCALL  (LBLOPT shape)
+  - PAT_CAPTURE, PAT_USERCALL_ARGS       (LBLOPT_INT32)
+  - PAT_CAPTURE_FN                       (LBLOPT3)
+  - PAT_CAPTURE_FN_ARGS                  (LBLOPT_I_I)
+  - EXEC_STMT_VARIANT                    (EXEC_VAR)
+  - UNHANDLED trap
+
+FILES TOUCHED (one4all WIP commit 5b6cc972):
+  src/runtime/x86/sm_emit_template.h     NEW
+  src/runtime/x86/sm_emit_template.c     NEW
+  src/runtime/x86/sm_codegen_x64_emit.c  every emit_sm_* refactored;
+                                         emit_pat_call_* helpers
+                                         deleted; #include + library
+                                         emission added
+  src/runtime/x86/sm_macros.s            (was deleted earlier in
+                                         session — abandoned offline-
+                                         generation first-pass)
+  Makefile                               sm_emit_template.c added to
+                                         scrip + 3 test harnesses
+  scripts/test_smoke_jit_emit_x64.sh     line 98 inline harness gcc
+                                         updated to compile
+                                         sm_emit_template.c
+
+  Net diff: 6 files changed, +1167/-459 lines.
+
+VERIFICATION (BYTE-IDENTICAL invariant — the rung's core gate):
+  Baseline saved at sess #87 start:
+    /tmp/em7c_sm_macros_baseline/{roman,wordcount,claws5,treebank-list,
+                                  treebank-array}.{s,o}
+  All 5 demo .o files cmp-clean against baseline at every refactor
+  checkpoint AND at session end.  Re-verifiable via:
+    DEMO=/home/claude/corpus/programs/snobol4/demo
+    for f in roman wordcount claws5 treebank-list treebank-array; do
+      ./scrip --jit-emit --x64 $DEMO/$f.sno > /tmp/check_$f.s 2>/dev/null
+      gcc -c /tmp/check_$f.s -o /tmp/check_$f.o 2>/dev/null
+      cmp -s /tmp/em7c_sm_macros_baseline/$f.o /tmp/check_$f.o \
+        && echo "$f: ✓" || echo "$f: DIFFER"
+    done
+  Note: /tmp baselines do NOT survive container reset; re-derive from
+  the parent commit ca704e95 if needed.
+
+GATES RUN AND PASSED at expected numbers:
+  smoke snobol4 7/7        smoke snocone 5/5
+  smoke icon    5/5        smoke prolog  5/5
+  smoke raku    5/5        smoke rebus   4/4
+  EM gate test_smoke_jit_emit_x64.sh  PASS=12 FAIL=0
+  isolation test_isolation_ir_sm.sh   PASS
+
+GATES PENDING (next session must run):
+  test_broad_unified_broker.sh    (expected PASS=49 FAIL=0;
+                                   last partial showed PASS=6
+                                   FLOOR_FAIL=0 — needs proper baseline
+                                   check, the PASS=6 may be a per-
+                                   language floor count)
+  bb_flat_text unit test           (expected PASS=18)
+  sm_phase2_sim unit test          (expected PASS=25)
+
+KNOWN WART (for landing rung-watermark):
+  scripts/test_smoke_jit_emit_x64.sh has an ad-hoc inline harness
+  compile (line 98 in current state) that lists sm_codegen_x64_emit.c
+  as a source.  Any future companion file added next to
+  sm_codegen_x64_emit.c needs to be added there too.  The Makefile is
+  the canonical build path; the gate's inline harness is a parallel
+  fragility.  Worth flagging for the regen-step or as a follow-up
+  cleanup.
+
+PENDING TO LAND (next session):
+  1. Run the 3 pending gates.  Confirm PASS numbers match baseline.
+  2. Regen tracked artifacts: corpus/programs/snobol4/demo/
+     {roman,wordcount,claws5,treebank-list,treebank-array}.s
+     The .s files SHRINK (visible win — each ~10× shorter, since
+     per-instruction expansions become single macro calls).  The .o
+     files MUST remain byte-identical (already verified).
+  3. Update GOAL-MODE4-EMIT.md: mark EM-7c-sm-macros [x] (line 1369);
+     append LANDED watermark replacing this IN-PROGRESS one.
+  4. Update PLAN.md row to bump watermark to sess #87 LANDED.
+  5. Commit per RULES.md, authored under LCherryholmes:
+     - one4all: working tree (NOT a merge of the WIP branch — squash
+       the WIP work into a fresh commit on main authored under
+       LCherryholmes; then delete the WIP branch).
+     - corpus: regenned .s files.
+     - .github: GOAL + PLAN updates.
+  6. After landing: delete remote branch
+     wip/em7c-sm-macros-sess87 from snobol4ever/one4all.
+
+Sequence from here:
+  EM-7c-sm-macros (this rung, IN-PROGRESS)
+  → EM-7c-bb-three-column
+  → EM-7c-bb-macros
+  → EM-7d.
+
+one4all parent: ca704e95.   one4all WIP tip: 5b6cc972
+                                  (branch wip/em7c-sm-macros-sess87).
+corpus parent: 4404b2f.     corpus WIP tip: (no commits this session;
+                                              .s regen pending).
+.github parent: 6e2bbb2.    .github HEAD: <new — this commit>.
+Session #87, 2026-05-09.
