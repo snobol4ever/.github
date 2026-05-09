@@ -15,19 +15,13 @@ function signatures.  Standard CHUNKS gate set + full Icon corpus
 + Prolog smoke (extended to `--sm-run` once consumer-side migrations
 land).
 
-> **CURRENT RUNG: CH-17-RENAME-FINAL** (CH-17-RENAME-a through CH-17-RENAME-h LANDED sess 2026-05-09).  See
-> `### CH-17-RENAME` below.  The rung family renames `EXPR_t`/`EXPR_e`
-> → `AST_t`/`AST_e` (the parse tree is AST/IR, not "expression") and
-> `chunk`/`SmChunk_t`/`SM_*_CHUNK` → `expression`/`SmExpression_t`/
-> `SM_*_EXPRESSION` (the compiled SM region IS the expression).
-> CH-17-RENAME-FINAL drops the legacy `typedef EXPR_t` aliases.
-> Precondition MET: `grep EXPR_t src/ test/ scripts/` = zero hits
-> (only historical comments in test_isolation_ir_sm.sh, kept verbatim);
-> zero `chunk` symbol in `src/runtime/` `src/driver/` `src/frontend/`
-> outside historical CHUNKS-step-tagged comments (gate PASS).
-> RENAME interleaves with the previously-listed "next rung options"
-> (bridge-5 scan-context, CH-17g-irrun-lowers); pick whichever fits
-> the next session's scope.
+> **CURRENT RUNG: CH-17c** — Flip Icon/Raku consumers: `coro_call(entry_pc)`.
+> CH-17-RENAME-FINAL LANDED sess 2026-05-09 (one4all `bcdc7e2c` +
+> validation doc `docs/CHUNKS-step17-rename-final-validation.md`).
+> RENAME family fully closed: AST_t/AST_e are the canonical names;
+> zero EXPR_t/EXPR_e anywhere in src/ test/ scripts/; zero chunk
+> code-symbol outside historical CHUNKS-step-tagged comments.
+> See `### CH-17c` below for next rung spec.
 
 ---
 
@@ -662,17 +656,25 @@ sweep.
 
 #### CH-17-RENAME-FINAL — Drop the legacy aliases
 
+**Status:** ✅ LANDED sess 2026-05-09.  one4all `bcdc7e2c` (g-cleanup +
+h) + validation doc `docs/CHUNKS-step17-rename-final-validation.md`.
+
 **Scope:** delete the `typedef ... IR_t;` aliases from `src/ir/ir.h`
 introduced in CH-17-RENAME-a (or rather: rename the actual struct/enum
 to the new names and delete the aliases).  No file in the tree should
 still compile against `EXPR_t` after this rung lands.
 
+**Finding:** AR-1 renamed struct/enum in-place; no shim aliases were
+introduced.  FINAL closes by confirming zero `EXPR_t`/`EXPR_e` in
+src/ test/ scripts/ and publishing the mapping table validation doc.
+
 **Precondition:** sub-rungs a–h all green.  Empirical check: `grep -rn
 "\bEXPR_t\b\|\bEXPR_e\b" src/ test/ scripts/` returns zero hits (or only
 hits in historical commit references inside comments, which are kept
-verbatim).
+verbatim).  ✅ CONFIRMED.
 
-**Gates:** standard set byte-identical.
+**Gates:** standard set byte-identical.  ✅ PASS (build, smoke ×6,
+isolation, unified_broker=49).
 
 ---
 
