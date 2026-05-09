@@ -373,6 +373,88 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **EM-7c-bb-three-column-data SUBSUMED + LANDED here** (the data-block conversion sub-rung carved earlier was folded into this rung; its checkbox dropped).
 
+- [x] **EM-7c-bb-three-column-split — LANDED 2026-05-09.**  Every line of every emitted `.s` artifact now obeys a true three-column law: col 1 = label-or-empty (24 wide), col 2 = mnemonic OR directive token ONLY (16 wide), col 3 = operands + optional `# comment` (free).  No more `"mov     r10, 0x..."` strings stuffed into col 2 (which overflowed the 16-wide field and broke col-3 alignment); no more `"je      _label"` strings stuffed into col 3 with cols 1+2 empty (which left jumps visually disconnected from the surrounding code).
+
+      **Diagnosis.**  The `bb3c_format` / `emit_three_column_line` primitives were already correct (`%-24s%-16s %s\n`).  The bug was at the call sites: `bb3c_action(fmt, ...)` and `emit3c_action(fmt, ...)` accepted a single fused mnemonic-plus-operands string that callers built like `"mov     r10, 0x%llx"`.  That string is 20+ chars wide and overflowed `%-16s`, spilling into col 3 and pushing the operand visually rightward by an unpredictable amount per opcode.  Jumps had the symmetric bug: `bb3c_goto`/`emit3c_goto` put the entire `"jmp _label"` into col 3 with cols 1+2 empty — leaving a 41-character empty prefix that looked like a continuation of nothing.
+
+      **Two files, surgical changes:**
+
+      1.  `src/runtime/x86/bb_emit.c`: replaced `bb3c_action`/`bb3c_goto` with **`bb3c_op(mn, args_fmt, ...)`** and **`bb3c_jmp(mn, target)`**, both taking mnemonic and operands as separate args.  Rewrote all 22 `bb_insn_*` helpers (mov, lea, cmp, je, jne, jmp, jl, jge, jg, call, ret, nop, test, xor, push, pop, add, sub, movzx, movsxd, etc.) to use the new split form.
+
+      2.  `src/runtime/x86/emitter_text.c`: replaced `emit3c_action`/`emit3c_goto` with `emit3c_op(e, mn, fmt, ...)` / `emit3c_jmp(e, mn, target)`.  Rewrote all 30 cases of `text_emit_insn`'s switch.  Rewrote `text_emit_jmp` (col 2 = jmp/je/jne/..., col 3 = target) and `text_global_sym` (col 2 = `.global`, col 3 = name).
+
+      **Result.**  SM section uses macro names (`STNO`, `PUSH_STR`, `CALL_FN`, `JUMP`, `PUSH_VAR`, `PAT_RPOS`, `RETURN_VARIANT`, etc.) in col 2.  BB section uses raw asm mnemonics (`mov`, `lea`, `cmp`, `je`, `jne`, `jmp`, `call`, `test`, `ret`, `xor`, `push`, `pop`, `movsxd`) in col 2.  Directives (`.section`, `.string`, `.quad`, `.long`, `.zero`, `.global`, `.globl`, `.intel_syntax`, `.text`, `.type`, `.size`, `.include`, `.align`) all sit in col 2 with their argument in col 3.  Operands always col 3.
+
+      **Test-side update.**  `bb_flat_text_test.c`'s substring CHECKs (`strstr(buf, ".global _pat_inv_42_0_α")`, `strstr(buf, "lea     r10, [rip + ")`) were coupled to the old fused-column shape (single space between `.global` and the symbol; five spaces between `lea` and `r10`).  Updated to two independent substring checks each — directive-token + symbol-name, mnemonic + operand-pattern — that pass regardless of inter-column padding.  Test still asserts both tokens appear (and the file structure ensures they're on the same line).  PASS=18 unchanged.
+
+      **Files touched (one4all):**
+      - `src/runtime/x86/bb_emit.c`
+      - `src/runtime/x86/emitter_text.c`
+      - `src/runtime/x86/bb_flat_text_test.c`
+
+      **Tracked artifact line counts (regenerated this session):**
+      | File | Lines |
+      |------|------:|
+      | roman.s | 208 |
+      | wordcount.s | 158 |
+      | claws5.s | 1114 |
+      | treebank-list.s | 1395 |
+      | treebank-array.s | 1578 |
+      | sm_macros.s | 249 |
+
+      Counts unchanged from EM-7c-s-file-beautify baseline.  All five `gcc -c` clean.
+
+      **Sample (roman.s) — before vs after:**
+      ```
+      BEFORE                                                AFTER
+      _pat_inv_0_α:                                         _pat_inv_0_α:
+                              lea     r10, [rip + Δ]                               lea              r10, [rip + Δ]
+                              cmp     esi, 0                                       cmp              esi, 0
+                                               je      _pat_inv_0_α_body                            je               _pat_inv_0_α_body
+                                               jmp     _pat_inv_0_β                                 jmp              _pat_inv_0_β
+      ```
+      Mnemonic now sits in col 2 of the file's universal grid; operands in col 3.
+
+      **Gates final state:**
+      smoke ×5 PASS (snobol4 2/2, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4), isolation PASS, EM gate PASS=12/12, bb_flat_text PASS=18/18, sm_phase2_sim PASS=25/25, unified_broker PASS=6/6 (Prolog inline; csnobol4 oracle not provisioned in this session env).
+
+- [x] **EM-7c-no-trailing-ws — LANDED 2026-05-09.**  No line in any generated `.s` artifact ends with whitespace.
+
+      **Diagnosis.**  The universal `%-24s%-16s %s\n` format produces left-padding to 41 chars on every line, which manifests as trailing spaces on label-only lines (col 2 + col 3 empty), action-only lines with empty col 3, and macro-body emissions inside `sm_macros.s`.
+
+      **Fix.**  Build into a buffer at every emission chokepoint, walk a tight loop right-trimming `' '` and `'\t'`, then write trimmed string + `'\n'`.  Eight chokepoints touched:
+
+      | File | Function | Role |
+      |---|---|---|
+      | `bb_emit.c` | `bb3c_format` | every BB-side `.global`, label, instruction, jmp |
+      | `sm_codegen_x64_emit.c` | `emit_three_column_line` | every SM-side directive, blob banner, `.section`, `.string`, `.quad`, etc. |
+      | `sm_codegen_x64_emit.c` | `sm_line` (label / no-label arms) | SM dispatch fallthroughs |
+      | `sm_codegen_x64_emit.c` | `emit_pc_label` | bare label-only line (was `%-24s\n` → now `.LpcN:\n`) |
+      | `sm_emit_template.c` | `macro_line` | `sm_macros.s` body lines |
+      | `sm_emit_template.c` | `render_call_line` (label / no-label arms) | every macro-driven SM dispatch line |
+      | `bb_flat.c` | `flat3c` | charset / XLNTH / XTB / XRTB / XFNCE / XFARB / XSTAR / XBRKX / XATP / XDSAR / XARBN / XNME helper sub-procs |
+      | `emitter_v.h` | `ev3c` | inline header helper |
+
+      **Verification (grep -P '[ \t]+$' and awk both report 0 lines per file):**
+      | Artifact | Lines | gcc -c | trailing-ws |
+      |---|---:|:---:|:---:|
+      | `roman.s` | 208 | OK | 0 |
+      | `wordcount.s` | 158 | OK | 0 |
+      | `claws5.s` | 1114 | OK | 0 |
+      | `treebank-list.s` | 1395 | OK | 0 |
+      | `treebank-array.s` | 1578 | OK | 0 |
+      | `sm_macros.s` | 249 | (assembled via .include) | 0 |
+
+      **Files touched (one4all):**
+      - `src/runtime/x86/bb_emit.c`
+      - `src/runtime/x86/sm_codegen_x64_emit.c`
+      - `src/runtime/x86/sm_emit_template.c`
+      - `src/runtime/x86/bb_flat.c`
+      - `src/runtime/x86/emitter_v.h`
+
+      **Gates final state — same as EM-7c-bb-three-column-split:**
+      smoke ×5 PASS, isolation PASS, EM PASS=12/12, bb_flat_text PASS=18/18, sm_phase2_sim PASS=25/25, unified_broker PASS=6/6 (Prolog inline; csnobol4 oracle not in env).
+
 - [ ] **EM-7c-sm-three-column-verify** — Verify and lock the SM-side three-column format end-to-end.
 
       **The three-column law for SM code** — derived from both the `test_sno_*.c` C reference
@@ -521,6 +603,85 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-7c-no-trailing-ws LANDED 2026-05-09
+=============================================
+
+Two new rungs landed in this session, on top of the EM-7c-s-file-beautify
+baseline.
+
+**EM-7c-bb-three-column-split** — true three columns (label / mnemonic /
+operands).  The `bb3c_format` / `emit_three_column_line` primitives were
+already correct (`%-24s%-16s %s\n`); the bug was at the call sites:
+`bb3c_action(fmt, ...)` was being given a single fused mnemonic-plus-args
+string like `"mov     r10, 0x..."` that overflowed the 16-wide col-2 field.
+Jumps had the symmetric bug: the entire `"jmp _label"` string was stuffed
+into col 3 with cols 1+2 empty, leaving a 41-char empty prefix.  Replaced
+`bb3c_action`/`bb3c_goto` with `bb3c_op(mn, args_fmt, ...)` and
+`bb3c_jmp(mn, target)`; rewrote all 22 `bb_insn_*` helpers in `bb_emit.c`
+and all 30 cases of `text_emit_insn` in `emitter_text.c`; updated
+`text_emit_jmp` and `text_global_sym` (col 2 = `.global`, col 3 = name).
+Updated `bb_flat_text_test.c`'s substring CHECKs (which were brittle to
+inter-column whitespace) to assert directive-token + symbol-name
+independently — PASS=18 unchanged.
+
+**EM-7c-no-trailing-ws** — no line in any generated `.s` artifact ends
+with whitespace.  The universal `%-24s%-16s %s\n` format produces
+left-padding to 41 chars on every line, manifesting as trailing spaces on
+label-only lines, action-only lines with empty col 3, and macro-body
+emissions inside `sm_macros.s`.  Fix: at every emission chokepoint, build
+into a buffer, walk a tight loop right-trimming `' '` and `'\t'`, write
+trimmed string + `'\n'`.  Eight chokepoints touched: `bb3c_format` in
+`bb_emit.c`, `emit_three_column_line` + `sm_line` (label/no-label arms) +
+`emit_pc_label` in `sm_codegen_x64_emit.c`, `macro_line` +
+`render_call_line` (label/no-label arms) in `sm_emit_template.c`,
+`flat3c` in `bb_flat.c`, `ev3c` in `emitter_v.h`.  Verification: `grep -P
+'[ \t]+$'` and `awk '/[ \t]+$/'` both report 0 lines per artifact.
+
+**Files touched (one4all):**
+- `src/runtime/x86/bb_emit.c`
+- `src/runtime/x86/emitter_text.c`
+- `src/runtime/x86/sm_codegen_x64_emit.c`
+- `src/runtime/x86/sm_emit_template.c`
+- `src/runtime/x86/bb_flat.c`
+- `src/runtime/x86/bb_flat_text_test.c`
+- `src/runtime/x86/emitter_v.h`
+
+**Tracked artifact line counts (regenerated this session):**
+
+| File | Lines | trailing-ws | gcc -c |
+|------|------:|:-----------:|:------:|
+| roman.s          |  208 | 0 | OK |
+| wordcount.s      |  158 | 0 | OK |
+| claws5.s         | 1114 | 0 | OK |
+| treebank-list.s  | 1395 | 0 | OK |
+| treebank-array.s | 1578 | 0 | OK |
+| sm_macros.s      |  249 | 0 | (via `.include`) |
+
+**Gates final state:**
+- smoke ×5 PASS (snobol4 2/2, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4)
+- isolation PASS
+- EM PASS=12/12  |  bb_flat_text PASS=18/18  |  sm_phase2_sim PASS=25/25
+- unified_broker PASS=6/6 (Prolog inline; csnobol4 oracle not provisioned
+  in this session env, so the broader suite truncates at the missing
+  oracle — pre-existing environmental gap, not a regression)
+- `test_smoke_all_frontend_backend_matrix.sh` is truncated mid-token in
+  the repo (line 48 of 48; pre-existing, unrelated to this session)
+
+**Sample (roman.s) — before vs after:**
+```
+BEFORE                                                AFTER
+_pat_inv_0_α:                                         _pat_inv_0_α:
+                        lea     r10, [rip + Δ]                                lea              r10, [rip + Δ]
+                                         je      _α_body                                      je               _α_body
+                                         jmp     _β                                           jmp              _β
+```
+
+Mnemonic now sits in col 2 of the file's universal grid; operands always
+in col 3; jumps no longer disconnected from surrounding code; zero
+trailing whitespace anywhere.
+
+----
 
 EM-7c-s-file-beautify LANDED 2026-05-09
 =============================================
