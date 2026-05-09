@@ -566,7 +566,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       xcat0_γ:
       ```
 
-- [ ] **EM-FORMAT-SM** — Enforce the full SM three-column format law across all emitted `.s` artifacts.
+- [ ] **EM-FORMAT-SM** — Enforce the full SM three-column format law across all emitted `.s` artifacts.  **PARTIAL PROGRESS sess 2026-05-09:** (a) 120-char `#=` statement banners + pattern-blob banner LANDED (emit_major_break / emit_minor_break / EM-7c blob banner all extended from 78 to 120 chars); (b) comment-prefix strip LANDED (10 sites: `var=`, `str=`, `fname=`, `store -> ` removed; col-3 comments now bare opaque-arg referents — `# N`, `# "hello"`, `# myfunc`).  **REMAINING:** labels-only-when-referenced (pre-pass bitset over SM_Program; risk surface for BB blob entry-pc back-refs).  Gates 10/10 GREEN this session.
 
       **The SM format law (definitive):**
 
@@ -1107,3 +1107,60 @@ EM PASS=7 (pre-existing em5 CALL_EXPRESSION env gap unchanged)
 bb_flat_text PASS=18 · sm_phase2_sim PASS=25
 
 **Next: EM-7d** — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle.
+
+
+----
+
+EM-FORMAT-SM partial LANDED 2026-05-09
+=============================================
+
+Two of three EM-FORMAT-SM pieces landed; labels-only-when-referenced deferred.
+one4all @ `8d4d6b0e`; corpus @ `e763366`.
+
+**Piece 1 — 120-char banners.**  Per the format law: each SNOBOL4
+statement preceded by 120-char `#=` banner; pattern-blob section preceded
+by 120-char `#=` banner; minor breaks 120-char `#-`.  `emit_major_break`,
+`emit_minor_break`, and the EM-7c blob-section banner in
+`sm_codegen_x64_emit.c` all extended from 78 to 120 chars.
+
+**Piece 2 — comment-prefix strip.**  Per the format law: comments name
+the bare opaque-arg referent only.  Ten sites updated:
+`emit_sm_push_lit_s`, `emit_sm_push_var`, `emit_sm_store_var`,
+`emit_sm_call_fn`, `emit_sm_pat_refname`, `emit_sm_pat_capture`,
+`emit_sm_pat_capture_fn`, `emit_sm_pat_capture_fn_args`,
+`emit_sm_pat_usercall`, `emit_sm_pat_usercall_args`.  `var=`, `str=`,
+`fname=`, `store -> ` prefixes all gone.  Sample (roman.s):
+`PUSH_VAR .Lstr_4 # var=N` → `PUSH_VAR .Lstr_4 # N`.
+
+**Deferred — labels only when referenced.**  Pre-pass over `SM_Program`
+collects jump-target set (`SM_JUMP`, `SM_JUMP_F`, `SM_JUMP_S`,
+`SM_CALL_CHUNK`, `SM_PUSH_CHUNK`, error landing pads, BB blob entry-pc
+map).  `emit_pc_label` consults bitset.  Risk: BB blob entry-pc back-refs
+baked as `# baked _pat_inv_<id> pc=N..M` annotations — keep `.LpcN:` for
+any PC in a blob range, or rewrite annotations.  Worth its own session.
+
+**Gates 10/10 GREEN:**
+- smoke snobol4 PASS=2, icon PASS=5, prolog PASS=5, raku PASS=5, rebus PASS=4
+- EM PASS=7 (pre-existing em5 CALL_EXPRESSION env gap unchanged)
+- bb_flat_text PASS=18, sm_phase2_sim PASS=25
+- audit 0 violations across 7 tracked artifacts
+
+**Tracked artifact line counts (unchanged from EM-7c-bb-macros baseline):**
+
+| File | Lines |
+|------|------:|
+| roman.s          |  202 |
+| wordcount.s      |  159 |
+| claws5.s         | 1112 |
+| treebank-list.s  | 1393 |
+| treebank-array.s | 1576 |
+| sm_macros.s      |  248 |
+| bb_macros.s      |   44 |
+
+All 5 `gcc -c` PASS.
+
+**Files touched (one4all):**
+- `src/runtime/x86/sm_codegen_x64_emit.c`
+
+**Next session:** finish EM-FORMAT-SM (labels-only-when-referenced),
+then EM-FORMAT-BB.
