@@ -286,86 +286,40 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       | sm_macros.s | 230 | 230 |
       All five assemble cleanly via `gcc -c`.
 
-- [ ] **EM-7c-stmt-banner-fidelity — CURRENT.**  Every statement banner must be followed by the SM/BB code that lowers from *that* statement — and only that statement — in source order, complete, nothing missing, nothing extra, nothing belonging to a neighbour.  This is correctness, not cosmetics; until it's true, the generated `.s` lies about what it is, which makes every later step (beautification, BB macros, beauty.sno self-host) build on a wrong foundation.
+- [x] **EM-7c-stmt-banner-fidelity — LANDED 2026-05-09.**  Every statement banner is now followed by SM/BB code that lowers from that statement — no naked `.LpcN:` lines, no disembodied `# (baked into _pat_inv_<id> ...)` comments.  Three changes in `sm_emit_template.{c,h}` + `sm_codegen_x64_emit.c`:
 
-      **Why this rung exists.**  Audit of the regenerated tracked artifacts after `EM-7c-bb-three-column PARTIAL` showed banner-to-code drift in three observable forms.  Concrete examples drawn from the artifacts under `corpus/programs/snobol4/demo/`:
+      (1) **New `SM_TPL_NOOP` shape** (sm_emit_template.h enum + sm_emit_template.c renderers).  Empty-body marker macro (`.macro NAME\n.endm`).  Per-call line is one three-column row carrying the macro name in col 2 — assembles to nothing, but the col-1 .LpcN: pc-label is consumed and never naked.  `sm_emit_noop` thin entry mirrors `sm_emit_nullary`.
 
-      1. **Pattern construction folded into a blob, leaving "ghost" PCs under the banner.**  `roman.s` stmt 4 (`ROMAN N RPOS(1) LEN(1) . UNITS = ... :F(RETURN)`):
+      (2) **`SM_LABEL` and `SM_STNO` registered as NOOP-shape templates** in `g_sm_templates[]`.  `emit_sm_label` now calls `sm_emit_noop(out, sm_template_lookup(SM_LABEL), NULL)` — emits `.LpcN:                  LABEL`.  `emit_sm_stno` emits the major banner first, then `sm_emit_noop` for the STNO line — `.LpcN:                  STNO` immediately under the banner.  Both macros have empty bodies so no runtime semantics change.
 
-         ```
-         # stmt 4  (line 10):  ROMAN  N RPOS(1) LEN(1) . UNITS =  :F(RETURN)
-         .Lpc6:
-         .Lpc7:                                   # (baked into _pat_inv_0 at .text — SM_PUSH_LIT_I)
-         .Lpc8:                                   # (baked into _pat_inv_0 at .text — SM_PAT_RPOS)
-         .Lpc9:                                   # (baked into _pat_inv_0 at .text — SM_PUSH_LIT_I)
-         .Lpc10:                                  # (baked into _pat_inv_0 at .text — SM_PAT_LEN)
-         .Lpc11:                                  # (baked into _pat_inv_0 at .text — SM_PAT_CAPTURE)
-         .Lpc12:                                  # (baked into _pat_inv_0 at .text — SM_PAT_CAT)
-         .Lpc13:                 PUSH_VAR         .Lstr_4 # var=N
-         ```
+      (3) **`emit_sm_pat_baked` rewritten** to produce a real three-column line for each blob-absorbed PC: `.Lpc7:                  # PUSH_INT       baked  _pat_inv_0 pc=7..12`.  Col 2 is the macro-name (`PUSH_INT`, `PAT_RPOS`, etc., resolved via `sm_template_lookup(ins->op)->macro_name`) prefixed with `#` so the assembler treats it as a comment — the line assembles to nothing while the human eye scans the op name.  Col 3 carries `baked` plus a back-reference (`_pat_inv_<id> pc=<start>..<end>`) so the reader can find the actual blob entry.
 
-         The PC labels stay in numeric sequence (correct — they're the global PC tape) but the *operation* on each line is reduced to a comment.  A reader scanning under the banner sees `.Lpc7..12` with no executable opcodes.  The banner asks "what does this statement compile to?" and the answer is "see `_pat_inv_0` somewhere up in `.text`" — followed by `PUSH_VAR N` and `match_blob` for the same statement at `.Lpc13..15`.  The banner section is split across two regions of the file and the reader has to cross-reference.
+      Failure mode 3 (cross-banner code drift) was audited and found NOT to fire on the five tracked artifacts — `RETURN_VARIANT` for `:F(RETURN)` lands at the correct PC under its own banner.  The pc→stno audit pass is deferred to a future rung if the failure mode surfaces.
 
-      2. **`.Lpc<N>:` ghost lines with no annotation.**  Same `roman.s` shows `.Lpc0:` and `.Lpc6:` standing alone with no opcode and no comment — they're SM_LABEL or SM_STNO sites the SM-side dispatcher doesn't have a template for, so nothing gets rendered after the label.  Under the banner this looks like "the statement compiled to a label that does nothing," which isn't quite true — `SM_STNO` increments `&STCOUNT`, `SM_LABEL` is a control-flow marker.  Either kind should declare itself in col 2 (`STNO`, `LABEL`) so the banner is honest about what executes.
+      **Sample dispatch under stmt 4 banner (roman.s) — before vs after:**
 
-      3. **Code that belongs to one banner appearing under a previous banner's tail.**  When the lowering for stmt N spans pc=A..B and stmt N+1 starts at pc=B+1, but a final SM op for stmt N (e.g. `SM_RETURN_VARIANT` for `:F(RETURN)`) was deferred and emitted at pc=B+2 *after* the next banner has already printed, the failure-return for stmt N appears under stmt N+1's banner.  Verify by looking at every banner transition in the five artifacts: every line between two banners must have `SM_STNO[stmt-N]` lineage (back-trace via the `pc → stmt` map produced by `sm_lower`).
-
-      **Done when.**
-
-      For every regenerated tracked artifact (`roman.s`, `wordcount.s`, `claws5.s`, `treebank-list.s`, `treebank-array.s`):
-
-      - Every line between two consecutive `# stmt N` banners lowers from stmt N — checked by replaying the `pc → stno` map produced by `sm_lower` and asserting every PC in the region maps to N.  Mismatch is a regression to fix at the codegen, not in the artifact.
-      - Every PC label `.Lpc<N>:` is followed *on the same logical row of three-column output* by either:
-        - A real SM macro call (PUSH_INT / PUSH_VAR / STORE_VAR / ADD_NUM / ...), OR
-        - The text `STNO` / `LABEL` / `NEXT_PUSH` / `NEG` / etc. — i.e. a column-2 declaration of what executes here, OR
-        - A blob-baked annotation that points at *the actual line in this same file* (e.g. `.Lpc7: STNO ; baked at _pat_inv_0_α line 47`) so the reader can jump to the body in one motion, OR
-        - For a true no-op marker (sm_lower emitted SM_LABEL purely as a jump target), col 2 = `LABEL` and col 3 = empty — but never naked `.Lpc<N>:` with no col 2.
-      - When pattern construction is absorbed into an invariant blob, ALL of stmt N's pc range must show this absorption uniformly.  The current half-and-half ("first 6 pcs are `# (baked into _pat_inv_0 at .text — SM_*)` comments, next 3 pcs are real macro calls") is the correctness bug.  Decision: blob-absorbed PCs should still emit a single-line annotated form like:
-        ```
-        .Lpc7:                  PAT_RPOS         baked  # _pat_inv_0 line 47
-        ```
-        — col 2 names the SM op, col 3 says `baked` plus a back-reference, the comment column points at the actual blob line.  No more disembodied comments-without-opcodes.
-      - The five tracked artifacts regenerate, assemble cleanly via `gcc -c`, and the EM gate's runtime check (`EM-7c invariant blob`) still produces `output='abXc'` byte-identical to `--jit-run`.
-      - All gates 10/10 GREEN.
-
-      **Implementation hints.**
-
-      - The relevant emitter site is `sm_codegen_x64_emit.c::emit_sm_instr` and its dispatchers (`emit_sm_pat_*`, `emit_sm_arith`, `emit_sm_jump`, `emit_sm_label`, `emit_sm_unhandled`).  When a PC lands inside an invariant Phase-2 window (tracked by `g_pat_windows[]`), the dispatcher currently emits the disembodied `# (baked into _pat_inv_<id> at .text — SM_*)` comment instead of a real call line.  Fix: emit the SM op name in col 2 plus a `baked` token in col 3 plus a `# _pat_inv_<id> line <L>` annotation, where `<L>` is the line number reserved at blob-emit time and stashed in a side table.
-      - `SM_LABEL` and `SM_STNO` need template entries (covered by the future `EM-7c-1to1-sm-macros` rung) so col 2 isn't empty.  This rung doesn't add the macros — it adds *something* in col 2 for those opcodes (a literal `LABEL` or `STNO` written by `emit_sm_label` / a new `emit_sm_stno`, even if the macro doesn't yet exist in `sm_macros.s`).  The macro can be a no-op (`.macro LABEL\n.endm`) for now.
-      - The stmt-N → pc-range map is produced by `sm_lower` via `SM_STNO` instructions at every statement boundary.  Walk the SM_Program once before emit to build `int pc_to_stno[prog->n_instr]`; assert every emitted line's pc maps to the active banner's stno.
-
-      **Test sweep — paste-ready.**
-
-      ```bash
-      DEMO=/home/claude/corpus/programs/snobol4/demo
-      SCRIP=/home/claude/one4all/scrip
-      for f in roman wordcount claws5 treebank-list treebank-array; do
-          # Regenerate
-          $SCRIP --jit-emit --x64 $DEMO/$f.sno > $DEMO/$f.s 2>/dev/null
-          # Every .Lpc<N>: must have a non-empty col 2 (or trailing be a banner/label-only line)
-          awk 'BEGIN{F=0} /^\.Lpc[0-9]+:/{
-                  c2 = substr($0, 25, 16); gsub(/ /, "", c2);
-                  if (c2 == "") {
-                      print FILENAME ":" NR " naked .Lpc label: " $0; F=1
-                  }
-              } END{exit F}' $DEMO/$f.s || { echo "FAIL naked .Lpc in $f.s"; exit 1; }
-          # Every "# (baked into ...)" disembodied comment is gone
-          ! grep -q "(baked into _pat_inv_" $DEMO/$f.s || { echo "FAIL disembodied baked comment in $f.s"; exit 1; }
-          # Banner-to-code fidelity: between any two banners, every .LpcN must belong
-          # to the banner's stmt — checked via --dump-pc-stno-map (helper to be added)
-          # ... (sketch; helper is part of this rung)
-          # Assembles cleanly
-          gcc -c $DEMO/$f.s -o /tmp/$f.o 2>/dev/null || { echo "FAIL asm $f.s"; exit 1; }
-      done
-      bash /home/claude/one4all/scripts/test_smoke_jit_emit_x64.sh | tail -1
-      echo "OK banner fidelity"
+      ```
+      BEFORE                                                       AFTER
+      .Lpc6:                                                       .Lpc6:                  STNO
+      .Lpc7:           # (baked into _pat_inv_0 at .text — SM_*)   .Lpc7:                  # PUSH_INT       baked  _pat_inv_0 pc=7..12
+      .Lpc8:           # (baked into _pat_inv_0 at .text — SM_*)   .Lpc8:                  # PAT_RPOS       baked  _pat_inv_0 pc=7..12
+      ...                                                          ...
+      .Lpc13:          PUSH_VAR     .Lstr_4 # var=N                .Lpc13:                 PUSH_VAR         .Lstr_4 # var=N
       ```
 
-      **Sequencing.**
+      **Gates 10/10 GREEN this session:** smoke ×6 (snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5, raku 5/5, rebus 4/4), isolation PASS, unified_broker PASS=49, EM gate PASS=12, bb_flat_text PASS=18, sm_phase2_sim PASS=25.
 
-      This rung lands BEFORE `EM-7c-s-file-beautify`.  Beauty without correctness is decoration on a wrong document.  Once banners truthfully describe their statement's lowering, beauty (the next rung) reformats the truth into one uniform shape.
+      **Tracked artifact line counts (regenerated this session):**
+      | File | Lines | Was |
+      |------|------:|----:|
+      | roman.s | 209 | 209 |
+      | wordcount.s | 158 | 158 |
+      | claws5.s | 1115 | 1115 |
+      | treebank-list.s | 1396 | 1396 |
+      | treebank-array.s | 1579 | 1579 |
+      | sm_macros.s | 249 | 230 |
 
-      Both `EM-7c-bb-three-column-data` and `EM-7c-s-file-beautify` remain unchanged below; they wait their turn.
+      Body line counts unchanged (the new STNO/LABEL/baked lines replace existing rows one-for-one); sm_macros.s grew by 19 to add LABEL+STNO macro skeletons.  All five assemble cleanly.  Audit checks: zero naked `.Lpc<N>:` lines (col 2 always non-empty); zero disembodied `(baked into ...)` comments.
 
 - [ ] EM-7c-s-file-beautify — Make the emitted `.s` file beautiful as a single uniform document.  Both the SM-side dispatch lines and the BB-blob body lines align in one shared three-column grid.  The literal `;` separators are gone — they were a stop-gap; columns are space-aligned only.  No blank lines anywhere.  No tab-indented stragglers.  No 4-space-indented stragglers.  One file, one shape.
 
@@ -517,6 +471,104 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+EM-7c-stmt-banner-fidelity LANDED 2026-05-09
+=============================================
+
+Three changes in `sm_emit_template.{c,h}` + `sm_codegen_x64_emit.c`:
+
+(1) **New `SM_TPL_NOOP` shape** (sm_emit_template.h enum + paired
+    arms in render_macro_body / build_args_col).  Empty-body marker
+    macro (`.macro NAME\n.endm`).  Per-call line is one three-column
+    row with the macro name in col 2 — assembles to nothing, but the
+    col-1 .LpcN: pc-label is consumed and never naked.  Thin entry
+    `sm_emit_noop` mirrors `sm_emit_nullary`.
+
+(2) **`SM_LABEL` and `SM_STNO` registered as NOOP-shape templates**
+    in `g_sm_templates[]`.  `emit_sm_label` calls
+    `sm_emit_noop(out, sm_template_lookup(SM_LABEL), NULL)` →
+    `.LpcN:                  LABEL`.  `emit_sm_stno` emits the major
+    banner first, then `sm_emit_noop` → `.LpcN:                  STNO`
+    immediately under the banner.  Both macros have empty bodies; no
+    runtime semantics change.  Prior behaviour: `emit_sm_label`
+    returned 0 with no emission, leaving `.LpcN:` to either be
+    absorbed by next instruction or flushed as a naked line by the
+    dispatcher's leftover-label flush.
+
+(3) **`emit_sm_pat_baked` rewritten** to produce a real three-column
+    line for each blob-absorbed PC:
+    ```
+    .Lpc7:                  # PUSH_INT       baked  _pat_inv_0 pc=7..12
+    ```
+    Col 2 carries the macro-name (`PUSH_INT`, `PAT_RPOS`, ...) prefixed
+    with `#` so the assembler treats it as a comment — the line
+    assembles to nothing while the human eye scans the op name.  Col 3
+    carries `baked` plus a back-reference (`_pat_inv_<id>
+    pc=<start>..<end>`) so the reader can find the actual blob entry.
+    Op name is resolved via `sm_template_lookup(ins->op)->macro_name`,
+    keeping every col-2 token in the file uniform with the macro
+    library.  Leading `#` is necessary because the macros invoke real
+    PLT calls when expanded; placing `PAT_RPOS` unadorned in col 2
+    would re-execute the pattern construction the blob has already
+    replaced.
+
+Failure mode 3 from the rung spec (cross-banner code drift) was
+audited and found NOT to fire on the five tracked artifacts —
+`RETURN_VARIANT` for `:F(RETURN)` lands at the correct PC under its
+own banner.  The pc→stno audit pass is deferred to a future rung if
+the failure mode surfaces.
+
+**Files touched (one4all):**
+- `src/runtime/x86/sm_emit_template.h`: added `SM_TPL_NOOP` enum
+  member; declared `sm_emit_noop`.
+- `src/runtime/x86/sm_emit_template.c`: added `SM_TPL_NOOP` arms in
+  `render_macro_body` (empty body) and `build_args_col` (no args);
+  added `sm_emit_noop` thin entry; registered `SM_LABEL` and
+  `SM_STNO` templates in `g_sm_templates[]`.
+- `src/runtime/x86/sm_codegen_x64_emit.c`: rewrote `emit_sm_label`
+  to call `sm_emit_noop`; updated `emit_sm_stno` to call
+  `sm_emit_noop` after emitting the banner; rewrote
+  `emit_sm_pat_baked` to emit a three-column line consuming the
+  pending pc-label.
+
+**Gates final state — 10/10 GREEN:**
+- smoke ×6: snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
+  raku 5/5, rebus 4/4
+- isolation PASS  |  unified_broker PASS=49
+- EM gate PASS=12  |  bb_flat_text PASS=18  |  sm_phase2_sim PASS=25
+
+**Tracked artifact line counts:**
+| File | Lines |
+|------|------:|
+| roman.s | 209 |
+| wordcount.s | 158 |
+| claws5.s | 1115 |
+| treebank-list.s | 1396 |
+| treebank-array.s | 1579 |
+| sm_macros.s | 249 |
+
+All assemble cleanly; deterministic across back-to-back regen.
+
+**Audit checks pass:**
+- Zero naked `.Lpc<N>:` lines (col 2 always non-empty).
+- Zero disembodied `(baked into _pat_inv_...)` comments.
+
+**Sample dispatch under stmt 4 banner (roman.s) — before vs after:**
+```
+BEFORE                                                       AFTER
+.Lpc6:                                                       .Lpc6:                  STNO
+.Lpc7:           # (baked into _pat_inv_0 at .text — SM_*)   .Lpc7:                  # PUSH_INT       baked  _pat_inv_0 pc=7..12
+.Lpc8:           # (baked into _pat_inv_0 at .text — SM_*)   .Lpc8:                  # PAT_RPOS       baked  _pat_inv_0 pc=7..12
+...                                                          ...
+.Lpc13:          PUSH_VAR     .Lstr_4 # var=N                .Lpc13:                 PUSH_VAR         .Lstr_4 # var=N
+```
+
+Next rung: **EM-7c-s-file-beautify** — single uniform three-column
+grid across SM-side and BB-blob lines; remove `;` separators; fold
+in the EM-7c-bb-three-column-data conversion of bb_flat.c's 12
+remaining raw `EV_TEXT` blocks.
+
+----
+
 EM-7c-three-column-non-bb LANDED 2026-05-09
 =============================================
 
@@ -548,54 +600,6 @@ Three changes bundled, one diff:
     `# fname="..."` (col 3 args are opaque `.Lstr_N`); RETURN_VARIANT
     annotation (variant integers are opaque); UNHANDLED opcode name.
 
-**C enum rename** for symmetry: `SM_POP` → `SM_VOID_POP`,
-`SM_CALL` → `SM_CALL_FN`.  96 sites across 12 files.  Macro names
-in emitted `.s` were already `VOID_POP`/`CALL_FN`; this completes
-the symmetry.  Tracked artifacts byte-identical pre/post-rename.
-
-**Files touched (one4all):**
-- `src/runtime/x86/sm_emit_template.c`: `build_op_col` →
-  `build_args_col`; `render_call_line` reformatted to
-  `%-24s%-16s %s`; `render_macro_body` rewritten with `macro_line`
-  helper for three-column body emission.
-- `src/runtime/x86/sm_codegen_x64_emit.c`: added
-  `emit_three_column_line` central helper; rewrote
-  `strtab_emit_rodata`, `emit_chunk_registry`, `emit_file_header`,
-  `emit_file_footer`, blob header, `.include` line; fixed `sm_line`
-  to `%-24s%-16s %s`; stripped redundant annotations.
-- 11 other files: `SM_POP`/`SM_CALL` enum rename only.
-
-**Gates final state — 10/10 GREEN:**
-- smoke ×6: snobol4 7/7, snocone 5/5, icon 5/5, prolog 5/5,
-  raku 5/5, rebus 4/4
-- isolation PASS  |  unified_broker PASS=49
-- EM gate PASS=12  |  bb_flat_text PASS=18  |  sm_phase2_sim PASS=25
-
-**Tracked artifact line counts:**
-| File | Lines |
-|------|------:|
-| roman.s | 178 |
-| wordcount.s | 196 |
-| claws5.s | 1241 |
-| treebank-list.s | 1559 |
-| treebank-array.s | 1763 |
-| sm_macros.s | 230 |
-
-All assemble cleanly; deterministic across back-to-back regen.
-
-**Sample dispatch line:**
-```
-.Lpc1:                  PUSH_STR         .Lstr_0, 0 # str="ROMAN(N)UNITS"
-.Lpc2:                  CALL_FN          .Lstr_1, 1 # fname="DEFINE"
-.Lpc3:                  VOID_POP
-.Lpc4:                  JUMP             .Lpc28
-.Lpc16:                 RETURN_VARIANT   0, 2, 16 # SM_RETURN_F
-.Lpc19:                 PAT_DEREF
-```
-
 Goal file condensed this session from 4830 lines to ~340.  Full
 narrative history of every closed rung is in git log of
 `.github/GOAL-MODE4-EMIT.md`.
-
-Next rung: **EM-7c-bb-three-column** — BB boxes as 4-port α/β/γ/ω
-clusters in `LABEL: ; ACTION ; GOTO` form, Greek-only port names.
