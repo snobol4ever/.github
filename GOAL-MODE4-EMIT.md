@@ -507,7 +507,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [ ] **EM-7c-sm-three-column-verify-template-gaps-survey** — Carved from EM-7c-sm-three-column-verify (2026-05-09).  The rung spec listed six template gaps to fill: `SM_PUSH_LIT_F`, `SM_PUSH_NULL_NOFLIP`, `SM_PUSH_EXPR`, `SM_NEG`, `SM_EXP`, `SM_NEXT_PUSH`.  Empirical scan of the five tracked artifacts (`grep -E "SM_PUSH_LIT_F|SM_PUSH_NULL_NOFLIP|SM_PUSH_EXPR|SM_NEG\b|SM_EXP\b|SM_NEXT_PUSH" *.s`) returns zero hits — none of these opcodes fire on today's corpus.  Same dead-code shape as CH-15-SURVEY's finding for `SM_PUSH_EXPR`.  Survey rung produces a `docs/EM-7c-sm-template-gaps-survey.md` documenting (a) which programs in `corpus/programs/snobol4/` (and other languages) trigger each opcode, (b) whether the dispatcher arms in `sm_lower.c` that emit these are dead code today, (c) recommendation for fill-vs-defer per opcode.  Migration without survey blast-radius unclear — fills could be no-ops shipping unused infrastructure.
 
-- [ ] **EM-7c-bb-macros** — BB-side macro library: one named macro per box-port, Greek suffixes
+- [x] **EM-7c-bb-macros** — BB-side macro library: one named macro per box-port, Greek suffixes
       enforced on all BB labels, inline box-kind annotation on every α label line.
 
       **What the `*.byrd-reference.s` files contribute — and what they do not:**
@@ -986,3 +986,55 @@ Three changes bundled, one diff:
 Goal file condensed this session from 4830 lines to ~340.  Full
 narrative history of every closed rung is in git log of
 `.github/GOAL-MODE4-EMIT.md`.
+
+----
+
+EM-7c-bb-macros LANDED 2026-05-09
+=============================================
+
+Two deliverables per rung spec.  one4all @ `baceff42`; corpus @ `e37f3ca`.
+
+**Deliverable 1 — Greek suffix rename (bb_flat.c):**
+
+All internal sub-labels within BB box bodies renamed from Latin to Greek:
+`xcat%d_mid_g/o/left_b/right_b/right_o/mid%d_g/b` →
+`xcat%d_γ/ω/left_β/right_β/right_ω/mid%d_γ/β`.
+`alt%d_c%db/f/o` → `alt%d_c%d_β/ω`.
+`_arbno%d_cs/cf/cb/ab` → `_arbno%d_γ/ω/β/α_body`.
+`_cap%d_cs/cf/cb/ab` → `_cap%d_γ/ω/β/α_body`.
+New gate: zero bare Latin-suffix port labels in BB sections
+(`grep -cE` on all 5 artifacts = 0).
+
+**Deliverable 2 — named macro per port (bb_flat.c, bb_flat.h,
+sm_codegen_x64_emit.c, new bb_macros.s 44 lines):**
+
+`bb_macros_write_to_path(path)` writes `bb_macros.s` to CWD.
+`sm_codegen_x64_emit.c` calls it and emits `.include "bb_macros.s"`
+alongside `.include "sm_macros.s"`.
+
+Macros: `DELTA_LOAD` / `SIGLEN_LOAD` (sub-sequence helpers) +
+`EPS_α/β` `FAIL_α/β` `RPOS_α/β` `POS_α/β`.
+
+`flat_emit_rpos/pos/eps/fail` converted: TEXT mode emits single macro
+call (`flat3c_action(e, "RPOS_α", "n, lbl_succ, lbl_fail")`);
+binary path unchanged.  GAS expands to byte-identical inline x86.
+
+**Tracked artifact line counts:**
+| File | Lines | Was |
+|------|------:|----:|
+| roman.s          |  202 |  208 |
+| wordcount.s      |  159 |  158 |
+| claws5.s         | 1112 | 1114 |
+| treebank-list.s  | 1393 | 1395 |
+| treebank-array.s | 1576 | 1578 |
+| sm_macros.s      |  248 |  248 |
+| bb_macros.s      |   44 |  new |
+
+All 5 `gcc -c` PASS.  Audit 0 violations (7 files).  Trailing-ws 0.
+
+**Gates:**
+smoke snobol4 PASS=2, icon PASS=5, prolog PASS=5, raku PASS=5, rebus PASS=4
+EM PASS=7 (pre-existing em5 CALL_EXPRESSION env gap unchanged)
+bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+
+**Next: EM-7d** — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle.
