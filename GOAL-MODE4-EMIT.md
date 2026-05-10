@@ -363,6 +363,137 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**EM-7d-beauty-subsystems diagnosis — rsp-alignment in user-function chunks — sess 2026-05-10 (Claude)**
+
+**Diagnosis only — no code landed.**  Three patches were attempted, broke
+the gate (PASS=4 → PASS=1), and were reverted.  Repos clean at this hash
+on entry.  This watermark exists so the next attempt does not retrace.
+
+**Mechanism of the 13 mode-4 diffs (all 13 share one root cause).**  Every
+failing driver SIGSEGVs identically: the emitted binary's `main()` is
+ABI-correct (rsp%16==0 between calls thanks to `push rbp; mov rbp,rsp`),
+but a user-function chunk emitted by `sm_codegen_x64_emit.c` has NO
+prologue.  Its label (e.g. `.L1779`) is followed directly by SM ops — the
+chunk inherits rsp%16==8 from `cfn()`'s `call` and never aligns it.
+Every PLT call from the chunk's body therefore issues with rsp%16==8
+(an ABI violation).  The misalignment propagates through `rt_match_variant
+→ exec_stmt → bb_build_flat → flat_emit_body_v` until glibc's `vsnprintf`
+(reached via `bb_label_initf("%s_α", ...)`) executes
+`movaps -0xc0(%rbp)` — and that `movaps` requires 16-byte alignment.
+The 16-byte instruction faults; SIGSEGV.
+
+Frame walk on the SIGSEGV (gdb on `match_driver` linked against
+`libscrip_rt.so`):
+- `main`:               rbp%16 == 0  ✓
+- `rt_match_variant`:   rbp%16 == 8  ✗ (caller misaligned)
+- `exec_stmt`:          rbp%16 == 8  ✗
+- `bb_build_flat`:      rbp%16 == 8  ✗
+- `flat_emit_body_v`:   rbp%16 == 8  ✗
+- `bb_label_initf`:     rbp%16 == 8  ✗
+- crash in `__printf_buffer_init` at `movaps -0xc0(%rbp)`
+
+Counting `rt_match_variant` invocations: the first 19 (called directly
+from `main()`) all have rsp == 0x...e930 (well-aligned).  The 20th has
+rsp == 0x...e2e8 — 0x648 bytes deeper, deep enough to be inside a
+chunk frame.  That 20th call is the one that crashes.  Confirmed via
+gdb conditional breakpoint with `bt`.
+
+**Why `assign_driver` passes today.**  Its only chunk (the body of
+`assign(name,expression)`) reaches `rt_call → call_native_chunk → cfn()`
+but the chunk body never invokes anything via `rt_match_variant` /
+`bb_build_flat` / `flat_emit_body_v`.  The misalignment is present but
+glibc's movaps is never reached, so the ABI violation is silent.  This
+will surface as soon as `assign`-style chunks call patterns that route
+through `bb_label_initf` — i.e., the bug is latent for many drivers
+besides the 13 currently failing.
+
+**The naive fix that doesn't work.**  Sub `rsp, 8` after each named
+SM_LABEL chunk entry, paired with `add rsp, 8` before `ret` in RETURN /
+RETURN_VARIANT macros.  Result: PASS=4 → PASS=1 (regression).  Root
+cause: not all named SM_LABELs are cfn-only entries.  SNOBOL4's
+DEFINE-pattern compiles to:
+
+```
+... CALL_FN DEFINE              ; registers function
+    JUMP after_function          ; skip body in linear flow
+    LABEL                        ; (registered in expression registry)
+.L1779: <chunk body>             ; reached via cfn() from rt_call
+    RETURN_VARIANT
+.L1799: LABEL                    ; (also registered, also a JUMP_F target)
+.L1800: <body of THE NEXT chunk> ; reached BOTH via cfn() AND via fall-through from .L1799
+    RETURN_VARIANT
+after_function:
+```
+
+So `.L1800` has dual entry semantics: when reached via `cfn()`, the call
+instruction pushed an 8-byte return address (sub-then-add balances);
+when reached via fall-through after `JUMP_F .L1799`, no return address
+was pushed (sub-then-add ends with `ret` popping garbage from main's
+frame, jumping to a stack address).  Crash at `0x7fffffffe2e0 in ?? ()`
+— the canonical signature of `ret` to a corrupted stack.
+
+**What needs to land instead.**  Three options ranked by risk:
+
+1. *(Most likely correct, requires careful validation)* Distinguish
+   "named SM_LABEL that is the cfn entry" from "named SM_LABEL that is
+   also a fall-through target".  The expression registry's entry_pc is
+   `i + 1` where `i` is the SM_LABEL pc; only `.L{i+1}` actually receives
+   `cfn()` calls, and that label is preceded by a `JUMP after_function`
+   in linear flow.  Verify: for every registered chunk entry, the
+   instruction at the previous pc is an unconditional JUMP whose target
+   is past the chunk body.  If that invariant holds, emit `sub rsp, 8`
+   only at chunk entries that are post-`JUMP` (i.e., not fall-through
+   reachable).
+
+2. Fix at the call site instead of the chunk site.  In `rt.c:call_native_chunk`,
+   the `cfn()` call is a normal C function-pointer call; the C compiler
+   already guarantees rsp%16==0 just before `call *<reg>`.  Wrap the
+   call in inline asm that does `sub rsp, 8; call *cfn; add rsp, 8`,
+   making the chunk's effective entry rsp%16==0 from the start.  The
+   chunk's `ret` then pops the original return address one slot deeper
+   — no chunk-side change needed.  But the chunk's `ret` would need to
+   know to skip the extra 8 bytes; this option doesn't actually work
+   without a chunk-side change.
+
+3. *(Cleanest semantically)* Give every chunk a real x86 prologue
+   (`push rbp; mov rbp, rsp`) and epilogue (`pop rbp; ret`).  Replace
+   `RETURN`'s body with `pop rbp; ret`; replace `RETURN_VARIANT`'s
+   taken-`ret` with `pop rbp; ret`.  This works correctly under both
+   call-entry and fall-through-entry: in fall-through, no `push rbp`
+   was executed, so `pop rbp; ret` pops main's `rbp` value plus
+   garbage — STILL WRONG.  Need the prologue to also distinguish
+   call-entry vs fall-through-entry.
+
+Conclusion: the bug is real and ABI-rooted, but the fix requires
+distinguishing dual-entry chunks from single-entry chunks — option 1
+above.  The diagnosis is the deliverable of this session.
+
+**Files touched, confirmed reverted to baseline:**
+- `one4all/src/runtime/x86/sm_codegen_x64_emit.c` — three patches
+  reverted (g_chunk_entry_pending static, emit_sm_label flag-set,
+  dispatcher loop force-flush+sub).
+- `one4all/src/runtime/x86/sm_emit_template.c` — two patches reverted
+  (SM_TPL_RET add-before-ret, SM_TPL_RET_VAR add-before-ret).
+- `corpus/programs/snobol4/demo/sm_macros.s` — checkout from HEAD
+  (auto-regen would have re-introduced the patched macros).
+
+**Gates after revert (baseline restored):**
+- `test_gate_em_beauty_subsystems_mode4.sh`: PASS=4 FAIL=13 (matches
+  prior baseline — Gen, Qize, ReadWrite, TDump, XDump, case, global,
+  match, omega, semantic, stack, trace, tree drivers diff vs --sm-run).
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+
+**Next session:** pick option 1 above.  Validate the JUMP-precedes-named-
+SM_LABEL invariant on a corpus of inputs (beauty.sno, all 17 drivers,
+roman/wordcount/claws5/treebank-* artifacts) before writing emit code.
+If the invariant holds, the patch is the same one tried this session
+but gated on `prev_instr.op == SM_JUMP`.
+
+one4all unchanged from `7238e6e4`.
+
+----
+
 **SN-33b cap_t::fn + NRETURN deref — sess 2026-05-10 (later)**
 
 Mode-4 was at 17/17 parity with `--sm-run`, but that parity was
