@@ -295,15 +295,79 @@ Rung-specific gates as listed per rung below.
       written or sealed — sits unused; harmless until a future cleanup
       removes it from `sm_image.c`.
 
-- [ ] **ME-4 — Stack-machine arithmetic and string ops.**  `SM_ADD`,
-      `SM_SUB`, `SM_MUL`, `SM_DIV`, `SM_MOD`, `SM_CONCAT`, `SM_COERCE_NUM`,
-      `SM_PUSH_NULL`, `SM_PUSH_VAR`, `SM_STORE_VAR`.  Each opcode lowers to
-      its inline native sequence — typically `<load args from r12 stack>`,
-      `mov edi, kind`, `call rt_<name>@PLT`, `<store result back through r12
-      stack>`.  Same shapes as today's `sm_macros.s` but inline bytes per
-      instruction, not pointer-array indirection.  Gate: arithmetic smoke
-      programs (`arith_sm`, etc. in test_smoke_snobol4.sh) byte-identical
-      between `--jit-run` and `--sm-run`.
+- [ ] **ME-4-pre — Register layout study + design (Lon-directed sess 2026-05-10).**
+      Before further inline-native blobs land, lock down the SM-blob
+      register convention by reading the existing self-hosting SNOBOL4
+      implementations' register-allocation decisions and writing a
+      single-page proposal Lon signs off on.  Reason: ME-4 (partial,
+      shipped this session at one4all `e7ac6f77`) was emitted without
+      a coherent register convention beyond what ME-2/ME-3 already
+      locked — each blob reloads `[r12]`-stack-base into a fresh
+      scratch and picks ABI scratch regs ad-hoc.  The four C-ABI
+      callee-saved regs (`rbx`, `r13`, `r14`, `r15`) are unclaimed in
+      SM-blob land — wasted design space.  The right move per Lon:
+      do not invent a register layout unilaterally; read what
+      CSNOBOL4 and SPITBOL already chose on real evidence.
+
+      Sources to read, in order:
+      1. **CSNOBOL4 `v311.sil` → `snobol4.c`** — the generated C
+         encodes the SIL VM's register-vs-memory partition.  Look
+         for which DESCR_t slots are kept "hot" (in C locals that
+         the C compiler will register-allocate) vs. which sit in
+         globals.  The set of "hot" slots names the de-facto
+         register-budget the original VM design considered minimal.
+         Cross-check against `archive/snobol4-csnobol4-internals.md`
+         if present, and CSNOBOL4's `descr.c` for DESCR_t layout.
+      2. **SPITBOL `sbl.min` → `bootstrap/sbl.asm`** — the hand-
+         tuned x86-32 / x86-64 register assignments.  `sbl.min`
+         declares SIL globals as named registers via SBL declaratives;
+         the bootstrap asm preserves those.  Note which SIL globals
+         map to dedicated machine registers vs. `[rel SYM]` global
+         memory, and the rationale embedded in macro definitions
+         (`asm.sbl`, `lex.sbl`, `err.sbl`).
+      3. **`bb_boxes.s`** — the proven 25-box byrd-box library.  Per-
+         box callee-save discipline is documented in
+         `GOAL-MODE3-EMIT.md` "Prior art" section; cross-check
+         which callee-saved regs each box uses as evidence of
+         which roles are "important enough to spill."
+
+      Deliverable: a `REGISTER-LAYOUT.md` (in `.github`) covering:
+      - The SIL-VM-level register set (named SIL globals →
+        machine reg, per CSNOBOL4 + SPITBOL).
+      - The SCRIP SM-blob register-set proposal (per-reg role +
+        scope + load/save discipline), tracking the prior-art
+        choices unless there is a documented reason to diverge.
+      - The interaction with the existing fixed assignments
+        (`r12 = SM_State*`, `r10 = BB-glob data`, `rbp = chunk
+        frame`, byrd-box callee-save discipline from `bb_boxes.s`).
+      - Explicit decision for each of `r13`, `r14`, `r15`, `rbx`.
+      - The realloc-invalidation question (when does `r13 =
+        SM_State.stack` need reload?  Which C calls can grow the
+        stack?  What's the marker for "this call may grow"?).
+      - The inter-statement sp-reset contract that mode-2
+        enforces at `sm_interp.c:295` — and how mode-3 will match
+        it (this is the proximate cause of the live realloc bug,
+        see ME-4 PARTIAL note).
+      Lon signs off on REGISTER-LAYOUT.md.  Then ME-4-post fixes
+      the realloc bug against the locked convention.  Then ME-5+
+      lands against the locked convention from the start.
+
+      Closure criterion: REGISTER-LAYOUT.md committed in `.github`
+      with Lon's sign-off line in its watermark.  No code changes
+      land under ME-4-pre.
+
+- [ ] **ME-4-post — Fix realloc bug + re-emit ME-4 blobs against
+      locked convention.**  After ME-4-pre lands.  Implements the
+      sp-reset-at-statement-boundary contract (per
+      REGISTER-LAYOUT.md's decision — likely Option (a): emit a
+      per-statement sp-reset blob at SM_STNO).  Re-emits the ten
+      ME-4 inline-native blobs against the locked register
+      convention, expecting ~25 bytes saved per blob from
+      eliminated base-reloads and an additional perf measurement.
+      Gate: smoke 7/7 + unified_broker 49/49 hold, the canonical
+      multi-statement reproducer (see ME-4 PARTIAL note) runs
+      byte-identical between `--jit-run` and `--sm-run`.  When
+      ME-4-post closes, ME-4 is closed.
 
 - [ ] **ME-5 — Control flow.**  `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
       `SM_STNO`.  SM_LABEL records SEG_CODE offset for the next instruction;
