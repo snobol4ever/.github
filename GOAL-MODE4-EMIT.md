@@ -363,7 +363,19 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-FORMAT-BOX-ALIGN — sess 2026-05-10 (latest)**
+**EM-FORMAT-SUBLIME-SN-LABEL-FIX — sess 2026-05-10 (latest)**
+
+`.S8`, `.S16` etc. were painted as directives (wrong colour) in the GAS-x86
+Sublime highlighter. Fix: added `.S\d+` rule to `local-labels` context
+(runs before `directives`); added `(?!S\d)` to the catch-all negative
+lookahead as a defensive guard. Both get `entity.name.label.gas` (white).
+corpus @ `ffe5887`.
+
+Next: EM-7d-beauty-subsystems (blocked on SN-33 `cap_t::fn` null fix).
+
+----
+
+**EM-FORMAT-BOX-ALIGN — sess 2026-05-10**
 
 `# BOX KIND(args)` indented so `BOX` lands at col 24 (mnemonic column).
 one4all @ `11d4388f`, corpus @ `b735676`.
