@@ -363,6 +363,28 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**EM-FORMAT-LABEL-RENAME + EM-FORMAT-SECTION-BREAKS — sess 2026-05-10 (latest)**
+
+Two formatting micro-rungs landed together:
+
+1. **EM-FORMAT-LABEL-RENAME** — `.Lstr_N` → `.SN` (string table labels in `.rodata`);
+   `.LpcN` → `.LN` (PC labels / jump targets in `.text`).  Six sites across
+   `sm_codegen_x64_emit.c` and `sm_emit_template.c`.  No semantic change —
+   pure readability: shorter, GAS-idiomatic, less visual noise.
+
+2. **EM-FORMAT-SECTION-BREAKS** — `emit_section_break()` helper (10 lines) added;
+   four `#===` separator lines inserted between the five major sections of every
+   emitted `.s` file: includes → **strings** → **expression registry** →
+   **BB code** → **SM code**.  BB data stays inline inside each blob (unchanged).
+   Makes the file's top-level structure immediately scannable.
+
+Gates: smoke 7/7 PASS, mode-4 parity 17/17 PASS.
+one4all @ `8fc4cd22`, corpus @ `6a3afc2`.
+
+**Next:** EM-7d-beauty-subsystems (blocked on SN-33 `cap_t::fn` null fix).
+
+----
+
 **EM-FORMAT-SUBLIME-GAS-INTEL landed (all 5 sub-rungs a–e); white-vs-orange label-paint inconsistency eliminated — sess 2026-05-10 (Sublime session)**
 
 Pure editor-support work: no emitter changes, no runtime changes, no

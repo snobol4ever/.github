@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-suspend** — migrate AST_SUSPEND in proc body chunks to SM opcodes (CH-17i-every ✅ 2026-05-10 — `8a85285e` — `--sm-run` rung01–04 5/24 → 17/24, all rung01_paper_* PASS byte-identical). |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-suspend** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **EM-FORMAT-SUBLIME-GAS-INTEL landed (all 5 sub-rungs); GAS-x86 base authored from scratch + SCRIP-x86 thin overlay; 1779 → 661 ll across two files; white-vs-orange label split eliminated (sess 2026-05-10 Sublime).** Next: EM-7d-beauty-subsystems (parity with --sm-run on 17 subsystem drivers; precondition to EM-7d; blocked on SN-33 cap_t::fn fix). |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **EM-FORMAT-LABEL-RENAME (.Lstr_N→.SN, .LpcN→.LN) + EM-FORMAT-SECTION-BREAKS (#=== between 5 sections) landed sess 2026-05-10.** Next: EM-7d-beauty-subsystems (parity with --sm-run on 17 subsystem drivers; blocked on SN-33 cap_t::fn fix). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
