@@ -534,4 +534,4 @@ and the existing ME-1/ME-2/ME-3 locked decisions.
 No code lands under ME-4-pre.  ME-4-post is gated on Lon's sign-off
 line below.
 
-**Lon sign-off:** [ ] pending
+**Lon sign-off:** [x] Lon Jones Cherryholmes, sess 2026-05-10 — "I think your register layout has a chance. So sign off."

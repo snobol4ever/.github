@@ -387,7 +387,7 @@ Rung-specific gates as listed per rung below.
       written or sealed — sits unused; harmless until a future cleanup
       removes it from `sm_image.c`.
 
-- [ ] **ME-4-pre — Register layout study + design (Lon-directed sess 2026-05-10).**
+- [x] **ME-4-pre — Register layout study + design (Lon-directed sess 2026-05-10).**
       Before further inline-native blobs land, lock down the SM-blob
       register convention by reading the existing self-hosting SNOBOL4
       implementations' register-allocation decisions and writing a
@@ -1190,4 +1190,99 @@ watermark to close ME-4-pre and unblock ME-4-post.
 HQ committed and pushed: ARCH-x86 + GOAL-MODE3-EMIT + PLAN +
 REGISTER-LAYOUT.  Gates verified: smoke 7/7, unified_broker 49/49.
 Mode-4 frozen as tripwire untouched.
+
+**Addendum sess 2026-05-10 (Claude latest, third session of the day):
+ME-4-pre ✅ CLOSED, ME-4-post bug-fix portion landed, full re-emit
+deferred.**
+
+Lon's sign-off on `REGISTER-LAYOUT.md` was recorded at the start of
+this session ("I think your register layout has a chance.  So sign
+off.").  That closes ME-4-pre per its own closure criterion ("Lon's
+sign-off line in REGISTER-LAYOUT.md's watermark").
+
+ME-4-post as originally scoped had two pieces:
+1. **Fix the realloc bug** that aborts multi-statement arithmetic
+   programs under `--jit-run` (e.g. simple `X = X + 1 ; Y = Y + X`
+   loops).
+2. **Re-emit the 10 ME-4 inline-native blobs** against the locked
+   register convention (`r12 = SM value-stack TOS pointer`,
+   FORTH-style; SM_STNO blob = `mov r12, [r13]` for reset + realloc
+   handling; per-blob push/pop shrinks ~30%).
+
+This session landed (1) cleanly and deferred (2) to a follow-on rung.
+Rationale: the realloc bug had a self-contained fix that did not
+require touching the byte-level blob encoders (h_stno C handler gets
+`STATE->sp = 0` line, mirroring `sm_interp.c:329`; `sm_jit_run`
+pre-grows `state->stack` to 4096 entries at entry so the
+per-statement reset bounds intra-statement depth to <= 4096).
+Re-emitting the 10 blobs against r12-as-TOS-pointer requires
+rewriting every push/pop/load-slot sequence in the byte emitter and
+adjusting the trampoline to use a second callee-saved register for
+&SM_State; that work is mechanical but has many failure modes and
+warrants its own session with fresh context budget.
+
+The split is consistent with how ME-3 itself landed — its `Addendum
+sess 2026-05-10 (Claude latest, fourth commit)` already noted "ME-4
+inlines arithmetic/stack ops and the gap widens" as future work, and
+this session continued in that incremental pattern.
+
+**What landed (commit pending):**
+
+- `sm_jit_run` pre-grows `state->stack` to 4096 entries on entry.
+  The pre-grow is idempotent (skipped if already >= 4096).  `st->sp =
+  0` set unconditionally on entry so a re-entered sm_jit_run gets a
+  clean slate.
+- `h_stno` (the C handler the standard SM_STNO blob calls) sets
+  `STATE->sp = 0` — mirrors the mode-2 contract at
+  `sm_interp.c:329`.  Comment block documents the live-bug origin and
+  the mode-2 mirror.
+- Documentation: `sm_jit_run`'s asm-volatile block and the
+  emit_trampoline source both note that the full r12=TOS-pointer
+  transition is deferred; the ME-2/ME-3 r12=&SM_State convention is
+  preserved verbatim.
+
+**What changed: 1 file, +48/-3 lines.**
+
+```
+src/runtime/x86/sm_codegen.c | 51 +++++++++++++++++++++++++++++++++++++++++---
+1 file changed, 48 insertions(+), 3 deletions(-)
+```
+
+**Gates this session:**
+
+| Gate | Before | After |
+|------|--------|-------|
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | PASS=7 FAIL=0 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | PASS=49 FAIL=0 |
+| `test_gate_sn7_beauty_self_host.sh` | PASS=26 FAIL=25 | PASS=26 FAIL=25 (unchanged baseline) |
+| Realloc reproducer (`/tmp/me4_realloc_repro.sno`) under `--jit-run` | `realloc(): invalid next size; Aborted` | `X=21 Y=231` (byte-identical to `--sm-run`) |
+| 100k counter loop under `--jit-run` | 80ms (ME-4-PARTIAL perf preserved) | 80ms |
+
+`--sm-run` vs `--jit-run` byte-identical confirmed on: realloc repro,
+100k loop.  Mode-4 gate suspended per Gates section (frozen as
+tripwire; untouched this session).
+
+**State at handoff:**
+- one4all: ready to commit (working tree dirty).  Expected new HEAD
+  after commit closes ME-4-pre + ME-4-post-bugfix.
+- corpus: unchanged.
+- .github: PLAN.md updated (current step → ME-4-post-r12-tos);
+  GOAL-MODE3-EMIT.md updated (this addendum); REGISTER-LAYOUT.md
+  Lon-signed-off.
+
+**Next active step:** ME-4-post-r12-tos — the deferred full re-emit
+of ME-4's inline-native blobs against the r12=TOS-pointer convention.
+Scope: rewrite `emit_trampoline` to read pc from a new addressing
+register; rewrite `emit_standard_blob`'s pc-bump; rewrite each of the
+10 emit_me4_* blobs' stack-access sequences (push/pop/load-slot
+become `mov [r12]/[r12+8]; add r12,16` / inverse).  Expected
+per-blob byte savings: emit_me4_arith_blob ~80B → ~55B; total
+SEG_CODE size for a typical 100-instruction program: ~30% smaller.
+Gate: same as ME-4-post bug-fix (smoke 7/7, unified_broker 49/49,
+realloc repro byte-identical, mode-4 tripwire unchanged), PLUS the
+audit checklist in REGISTER-LAYOUT.md §"Audit checklist before
+ME-4-post commits".  Coordinated with the new r13-as-&SM_State claim
+that ME-4-post-r12-tos will introduce (justified extension of the
+"future claims" door REGISTER-LAYOUT.md leaves open for r13/r14/r15/
+rbx).
 
