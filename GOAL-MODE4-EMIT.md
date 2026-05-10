@@ -646,6 +646,113 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - audit 0 violations across 6 tracked artifacts (I0–I3a all clean)
       - 0 trailing whitespace, 0 blank lines, 0 underscore-prefixed labels per artifact
 
+- [ ] **EM-FORMAT-SM-BANNER-FIDELITY** — **CURRENT STEP.**  Banners must accurately label the SM code that immediately follows them.  Fix banner-to-code drift caught in roman.s after EM-FORMAT-SM landed.
+
+      **The bug (sess 2026-05-09, post-EM-FORMAT-SM landing):**
+
+      Inspection of the freshly-emitted `corpus/programs/snobol4/demo/roman.s`
+      shows banner-text and the SM code below it do not correspond:
+
+      ```
+      # stmt 2  (line 2):  * N must be positive and less than 4000
+      .Lpc0:                  STNO
+                              PUSH_STR         .Lstr_0, 0 # "ROMAN(N)UNITS"
+                              CALL_FN          .Lstr_1, 1 # DEFINE
+                              VOID_POP
+                              JUMP             .Lpc28
+                              LABEL
+      ```
+
+      Line 2 of `roman.sno` is a SNOBOL4 comment (`*` in col 1).  The SM code
+      under that banner is the DEFINE call from a *different* statement.
+
+      ```
+      # stmt 4  (line 10):  ROMAN  N RPOS(1) LEN(1) . UNITS =  :F(RETURN)
+      .Lpc6:                  STNO
+                              ...PUSH_VAR N, blob entry α, rt_match_blob...
+                              RETURN_VARIANT   0, 2, 16 # SM_RETURN_F
+      ```
+
+      `RETURN_VARIANT 0, 2, 16` is the `:F(RETURN)` failure landing pad —
+      its code body belongs to stmt 4 conceptually but the variant lands at
+      a PC the SM_STNO machinery attributes to the wrong banner.
+
+      ```
+      # stmt 6  (line 6):  DEFINE('ROMAN(N)UNITS')  :(ROMAN_END)
+                              STNO
+                              PUSH_VAR UNITS / PAT_BREAK / PAT_CAPTURE / ...
+                              EXEC_STMT_VARIANT 0
+      ```
+
+      Banner says DEFINE; code is the table-lookup pattern.  Wrong stmt.
+
+      **Why the closed-rung audit missed this.**  The
+      `EM-7c-stmt-banner-fidelity` watermark (closed earlier same session)
+      claimed Failure mode 3 (cross-banner code drift) was "audited and
+      found NOT to fire on the five tracked artifacts."  That audit relied
+      on op-shape sniffing (banner has stmt N; SM code below has STNO and
+      lowered-from-stmt-N opcodes).  It did not cross-check the banner's
+      `(line L)` source text against the actual SNOBOL4 source line, and
+      it did not flag conditional-return variants whose PCs fall under a
+      neighbour statement's banner.
+
+      **What's wrong (root causes, hypotheses ranked):**
+
+      (1) **`SM_STNO` lineno argument is the program-counter-of-statement-
+          start, not the SNOBOL4 source line number.**  `emit_sm_stno`
+          looks up `srclines[lineno]` -- if `lineno` is a PC, the source
+          text fetched is unrelated.  Verify by `printf`-tracing
+          `emit_sm_stno`'s `lineno` arg against the source line we
+          actually expect.
+
+      (2) **`stno` / `lineno` swapped at SM_STNO emit site in `sm_lower.c`.**
+          Same observable; verify by reading the producer.
+
+      (3) **Conditional-return variants** (`:F(RETURN)`, `:S(LABEL)`, etc.)
+          land at a PC that's logically still inside the originating
+          statement, but no preceding `SM_STNO` separates them from the
+          *next* statement's banner.  The fix is either an extra `SM_STNO`
+          before the variant, or the banner emitter must mark variant
+          landing pads as "no banner" so the prior banner's code block
+          ends cleanly.
+
+      **Done when:**
+
+      - Every emitted `# stmt N (line L): <src>` banner has `<src>` equal
+        to the verbatim SNOBOL4 source at line L.
+      - Every SM op below a banner lowers from the statement that banner
+        names.  Audit harness reads source side-by-side with .s and CHECKs
+        the alignment.
+      - All 5 tracked artifacts assemble clean and pass the new audit.
+      - Existing gates 14/14 stay GREEN (smoke ×6, all_modes 2/2, EM 13,
+        bb_flat_text 18, sm_phase2_sim 25, audit 0 violations).
+
+      **Files (likely):**
+      - `src/runtime/x86/sm_codegen_x64_emit.c::emit_sm_stno` — source-text
+        lookup site.  Trace `lineno` arg, SrcLines indexing.
+      - `src/sm/sm_lower.c` — SM_STNO emit site; verify `stno`/`lineno`
+        arg order matches `SM_Instr.a[]` consumer expectation.
+      - `src/runtime/x86/sm_codegen_x64_emit_test.c` — extend `--audit`
+        with a new invariant I4 = "banner src text matches source file at
+        line L"; banner-followed-by-correct-statement check.
+
+      **Carved sub-rungs (likely):**
+      - `EM-FORMAT-SM-BANNER-FIDELITY-DIAG` — instrumented run that prints
+        every (pc, stno, lineno, src_text) tuple so we can see which
+        producer is wrong before touching either side.
+      - `EM-FORMAT-SM-BANNER-FIDELITY-FIX` — the source-side correction
+        landed only after diag confirms which of (1)/(2)/(3) is real.
+      - `EM-FORMAT-SM-BANNER-FIDELITY-AUDIT` — extend the C audit harness
+        with the new I4 invariant; wire into Test 14.
+
+      **Why this carves cleanly out of EM-FORMAT-SM.**  EM-FORMAT-SM closed
+      the *layout* questions (three-column shape, labels only when
+      referenced, lone-label rule, no-label fallback unification, leading-
+      underscore strip, CHUNK→EXPRESSION rename).  Those are stable and
+      gated.  Banner *content* fidelity is a separate axis, missed by the
+      closed-rung audit, and worth its own rung with its own audit
+      invariant rather than reopening EM-FORMAT-SM.
+
 - [ ] **EM-FORMAT-BB** — Enforce the full BB four-port / three-column format law across all emitted BB blobs.
 
       **The BB format law (definitive):**
