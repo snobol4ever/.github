@@ -179,11 +179,10 @@ any other callee-saved reg; they never observe its SM-blob meaning.
 | `sm_codegen.c` segment infrastructure (SEG_CODE, SEG_DISPATCH, seg_alloc, seg_seal) | live but misused | `src/runtime/x86/sm_codegen.c` |
 | `sm_lower.c` SM_Program lowering | live | `src/runtime/x86/sm_lower.c` |
 
-Mode 4 stays frozen during this Goal — current `sm_codegen_x64_emit.c` text
-emitter is untouched, the `test_gate_em_beauty_subsystems_mode4.sh`
-PASS=4 FAIL=13 baseline is preserved as the tripwire.  When ME-14 closes,
-GOAL-MODE4-EMIT's `EM-MODE4-IS-MODE3-DUMP` reopens with a working mode-3
-oracle to dump.
+Mode 4 stays frozen during this Goal — `sm_codegen_x64_emit.c` text emitter
+code is preserved but the mode-4 gate is suspended (per Lon sess 2026-05-10:
+mode 4 will be mode 3 + SEG_CODE serializer after ME-14 closes).  When
+ME-14 closes, GOAL-MODE4-EMIT's `EM-MODE4-IS-MODE3-DUMP` reopens.
 
 ---
 
@@ -204,8 +203,10 @@ Every rung holds the following invariants unless explicitly noted:
 
 - `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
 - `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
-- `test_gate_em_beauty_subsystems_mode4.sh`: PASS=4 FAIL=13 (frozen baseline;
-  mode 4 untouched during this Goal).
+- `test_gate_em_beauty_subsystems_mode4.sh`: **SUSPENDED** — mode 4 is not yet
+  implemented; it will be mode 3 + SEG_CODE serializer after ME-14 closes.
+  Code preserved; gate not run during ME-* rungs.  Original baseline was
+  PASS=4 FAIL=13 (env-specific; not a hard target).
 
 Rung-specific gates as listed per rung below.
 
@@ -220,17 +221,14 @@ Rung-specific gates as listed per rung below.
 
 ### Phase A — Foundation (one-stack discipline + r12 reservation)
 
-- [ ] **ME-1 — Pat-stack unification.**  Delete `g_pat_stack`/`g_jit_pat_stack`
+- [x] **ME-1 — Pat-stack unification.**  Delete `g_pat_stack`/`g_jit_pat_stack`
       and their helpers from `sm_interp.c` and `sm_codegen.c`.  Reroute every
       `SM_PAT_*` opcode to push/pop the value stack.  Delete `SM_PAT_BOXVAL`
       (it becomes a no-op; remove the case and stop emitting it from
       `sm_lower.c`).  Update `SM_EXEC_STMT` to pop pattern from the value
-      stack alongside subject and replacement.  Gate: smoke 7/7,
-      unified_broker 49/49, mode-4 parity baseline preserved.  This is the
-      architectural decision that makes every following rung tractable; it is
-      independently valuable because it deletes ~100 lines of duplicated
-      state across two files and removes the brittle `g_pat_sp = 0`
-      end-of-statement reset.
+      stack alongside subject and replacement.  ✅ 2026-05-10 one4all `HEAD`.
+      Gate: smoke 7/7, unified_broker 49/49 (mode-4 gate suspended — see
+      Gates section).
 
 - [ ] **ME-2 — `r12 = SM_State*` reservation.**  `sm_jit_run` sets
       `r12 = &state` before transferring control to `SEG_CODE`.  No emitted
@@ -677,7 +675,5 @@ no explicit callee-save spill.  A future agent puzzled by any decision in
 the Architectural target section should consult this before re-deriving
 from source.
 
-**Next:** open ME-1 (pat-stack unification).  Self-contained, ~100 lines
-deleted across `sm_interp.c` and `sm_codegen.c`, plus the
-`SM_PAT_BOXVAL` removal in `sm_lower.c`.  Gate is smoke 7/7 +
-unified_broker 49/49 + em_beauty_subsystems_mode4 baseline preserved.
+**Next:** ME-2 — `r12 = SM_State*` reservation in `sm_jit_run`.  Pure
+infrastructure; no emitted code changes; gate is smoke 7/7 + unified_broker 49/49.
