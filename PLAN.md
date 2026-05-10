@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-every-suspend** — migrate E_EVERY+E_SUSPEND in proc body chunks to SM opcodes. (CH-17i-survey-mode3 ✅ 2026-05-09: 177 Icon ir-run PASS → 111 sm-run diverge, all generator kinds; see survey doc.) |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-every-suspend** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | **EM-FORMAT-BB-LAW-TRIPLE-FUSION landed (sess 2026-05-10).**  `cmp/test + cond_jmp + uncond_jmp` triples now fuse onto single lines via two new helpers in `bb_flat.c` (`flat_box_dispatch_jne_jmp`, `flat_box_entry_dispatch`).  22 call sites + 3 entry sites converted; trailing `test` removed from `flat_box_call`/`flat_box_call_slot`.  Audit clean: 0 lone labels, 0 lone jmps, 0 jmp+jmp.  Tracked artifact line counts: roman.s 153 (-6), wordcount.s 124, claws5.s 951 (-6), treebank-list.s 1178 (-6), treebank-array.s 1357 (-6).  Gates 14/14 GREEN.  Awaiting Lon's sign-off on EM-FORMAT-BB-LAW. |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | **EM-FORMAT-BB-LAW signed off; EM-FORMAT-BB-DATA-CONSOLIDATE landed (sess 2026-05-10).** Next: EM-7d (beauty.sno SPITBOL parity) or EM-FORMAT-BB-TRAMPOLINE-ELIM. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
