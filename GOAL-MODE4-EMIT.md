@@ -1195,7 +1195,137 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-EM-FORMAT-BB-LAW handed off for Lon's visual review — sess 2026-05-09 (3rd attempt)
+EM-FORMAT-BB-LAW-TRIPLE-FUSION landed; LAW handed off for review — sess 2026-05-10
+=============================================
+
+⛔ DO NOT MARK THE EM-FORMAT-BB-LAW RUNG `[x]` WITHOUT EXPLICIT LON SIGN-OFF.
+
+This session's work: triple-fusion of `cmp/test + cond_jmp + uncond_jmp` onto
+single lines so cols 2+3+4 are all populated and no jmp instruction sits with
+only another jmp on its line.
+
+**The rule restated by Lon (sess 2026-05-10):**
+
+  "For BB's, labels in column 1 and jmp instructions in column 4.
+   opcode and args in col 2 and 3.  No label on line by self.
+   No jmp instruction on line by self.  No jmp instruction with only
+   another jmp instruction on that line."
+
+**Reading: a line is "by itself" only when one column has content.**
+
+Cond-branches (`je`/`jne`/`jl`/`jge`/`jg`/`jle`/`jbe`) are opcode+args in
+cols 2+3 — they are NOT "the jmp" of col 4.  Only the unconditional `jmp`
+is the col-4 jmp.  So a fused line `je succ; jmp fail` had cols 2+3+4
+populated and was already legal under that reading.
+
+But `je succ; jmp fail` ALONE on a line had only TWO jmp-class tokens and
+no other action, which is "jmp with only another jmp" per the rule.  That
+violated the LAW.  Triple fusion absorbs the preceding `cmp` or `test`
+so the line becomes `cmp esi, 0;<pad>je α_body; jmp β` or
+`test rax, rax;<pad>jne γ; jmp ω` — col-2/col-3 carry a non-jmp action.
+
+**Implementation (this session, `src/runtime/x86/bb_flat.c` only):**
+
+Added two helpers — pure printf, no deferred state, no queue:
+
+  `flat_box_dispatch_jne_jmp(e, succ, fail)` — emits ONE line:
+    col-2 = "test"
+    col-3 = "rax, rax;" + pad to width 27
+    col-4 = "jne <succ>; jmp <fail>"
+
+  `flat_box_entry_dispatch(e, α_body, β)` — emits ONE line:
+    col-2 = "cmp"
+    col-3 = "esi, 0;" + pad to width 27
+    col-4 = "je <α_body>; jmp <β>"
+
+Then walked the call sites:
+
+  - Removed trailing `flat3c_action(e, "test", "rax, rax")` from
+    `flat_box_call` and `flat_box_call_slot` — the test now belongs on
+    the dispatch line, not after the call.
+  - 22 sites of `flat_box_call(...)/flat_box_call_slot(...)` followed by
+    `EV_JMP JNE / EV_JMP JMP` triple → replaced the 2 EV_JMP calls with
+    one `flat_box_dispatch_jne_jmp(...)` call.  Mechanical: covers
+    LEN, TAB, RTAB, FENCE, ARB, REM, BREAKX, ATP, charsets,
+    arbno child sub-procs, capture children.
+  - 3 sites of `ev_cmp_esi_imm8(e, 0); ... EV_JMP JE α_body / EV_JMP JMP β`
+    → replaced with `flat_box_entry_dispatch(e, &α_body, &β)`; stale
+    `ev_cmp_esi_imm8` lines removed.
+
+Binary-mode paths unchanged (binary emits actual bytes, not text; the
+LAW is a textual layout rule).
+
+**Tracked artifact line counts:**
+
+| File             | Lines | Was | Δ |
+|------------------|------:|----:|---:|
+| roman.s          |   153 | 159 | -6 |
+| wordcount.s      |   124 | 124 |  0 |
+| claws5.s         |   951 | 957 | -6 |
+| treebank-list.s  |  1178 | 1184 | -6 |
+| treebank-array.s |  1357 | 1363 | -6 |
+| sm_macros.s      |   248 | 248 |  0 |
+| bb_macros.s      |    44 |  44 |  0 |
+| **TOTAL**        |  4055 | 4079 | **-24** |
+
+Each banner-bearing file lost 6 lines = 3 box-call sites × 2 lines saved
+per site (4 lines `lea/mov/call/test` + 2 EV_JMP lines = 6 lines becomes
+3 lines `lea/mov/call` + 1 fused dispatch line = 4 lines).
+
+`wordcount.s` has zero patterns hence no changes.
+
+**Sample (roman.s) — before vs after:**
+
+```
+BEFORE                                                 AFTER
+                        test       rax, rax                                  test       rax, rax;<pad>jne cap1_γ; jmp cap1_ω
+                        jne        cap1_γ
+                        jmp        cap1_ω
+```
+
+3 lines → 1 line; col-3 = "rax, rax;" padded to 27 cols; col-4 holds
+"jne cap1_γ; jmp cap1_ω" anchored at vcol 68.
+
+**Audit (Python ad-hoc, walks each .s):**
+
+| Forbidden shape                              | Found across 5 artifacts |
+|----------------------------------------------|-------------------------:|
+| label alone (only col-1 populated)           |                        0 |
+| jmp alone (only col-4 populated)             |                        0 |
+| jmp paired only with another jmp             |                        0 |
+
+Plus: 0 lone labels (EM-FORMAT-BB-LONE-LABELS still satisfied), 0
+trailing whitespace, 0 blank lines, 0 underscore-prefixed labels.
+
+**Gates 14/14 GREEN this session:**
+- smoke ×6 (snobol4 2/2 via all_modes, icon 5/5, prolog 5/5, raku 5/5,
+  rebus 4/4, snocone via all_modes 5/5)
+- all_modes 2/2 (sm-run + ir-run; x86 emit SKIP per existing harness)
+- EM PASS=13 (incl. EM-7c-audit on 6 tracked artifacts)
+- bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+- audit 0 violations across 6 tracked artifacts (I0–I3a clean)
+
+**For Lon's review:**
+
+Run a side-by-side of the freshly regenerated `roman.s` (153 lines)
+against the prior `roman.s` (159 lines).  The dispatch lines should
+now read as ONE line per decision:
+
+```
+                        cmp     esi, 0;<pad>je pat_inv_0_α_body; jmp pat_inv_0_β
+...
+                        test    rax, rax;<pad>jne cap1_γ; jmp cap1_ω
+```
+
+If the shape is right, mark `EM-FORMAT-BB-LAW` `[x]` and proceed to
+EM-FORMAT-BB-DATA-CONSOLIDATE or EM-7d.
+
+If not, the helpers are isolated in `bb_flat.c` and can be adjusted in
+one place.
+
+----
+
+EM-FORMAT-BB-LAW handed off for Lon's visual review — sess 2026-05-09 (3rd attempt) (prior watermark, retained)
 =============================================
 
 ⛔ DO NOT MARK [x] WITHOUT EXPLICIT SIGN-OFF.  Lon's exact words at end of
