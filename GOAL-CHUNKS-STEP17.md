@@ -22,9 +22,36 @@ land).
 > CH-17i-bang-concat, CH-17i-section, CH-17i-limit-random, CH-17i-prolog-initialization.
 > one4all @ `dfe68c5b`.
 >
-> **CURRENT RUNG: CH-17i-every-suspend** — migrate E_EVERY + E_SUSPEND inside proc
-> body chunks to emit SM opcodes (mirroring CH-17f's SM_BB_ONCE_PROC pattern);
-> consumer handler in sm_interp.c. Unblocks rung01/02/03/13_alt/14_limit/16/32/34/35.
+> **CH-17i-every LANDED 2026-05-10** — first half of CH-17i-every-suspend.  AST_EVERY
+> migrated off legacy `emit_push_expr + SM_BB_PUMP` onto new `SM_BB_PUMP_EVERY <every_id>`
+> (mirrors CH-17f's `SM_BB_ONCE_PROC name/arity` pattern).  AST registered in
+> `g_every_table` at lower-time; SM bytecode and value stack carry only the integer id.
+> Runtime handler does `every_table_lookup → coro_eval → bb_broker(BB_PUMP, NULL, NULL)` —
+> body_fn NULL because `coro_bb_every` already runs the do-clause via `bb_exec_stmt`
+> (passing `pump_print` would double-print, verified empirically).  Pushes NULVCL to
+> balance proc-body's trailing `SM_VOID_POP` (legacy was net-stack-zero — root cause
+> of the 111 sm-run divergences).  Files: `sm_prog.h/c` (+enum +name), `sm_interp.h/c`
+> (+every_table API + handler), `sm_codegen.c` (+JIT mirror), `sm_lower.c` (carve case
+> out of legacy fallthrough).  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5,
+> 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, broad_unified_broker PASS=6,
+> scrip_all_modes PASS=2, Icon `--ir-run` PASS=177 FAIL=56 XFAIL=30 TOTAL=263.
+> New gain: `--sm-run` rung01–04 5/24 → 17/24 (+12). All six rung01_paper_*
+> byte-identical. rung02 6/8 (the 2 FAILs are pre-existing under `--ir-run` too).
+> rung03/04 (7) still fail on AST_SUSPEND — that's the next sub-rung.  Documented in
+> `docs/CHUNKS-step17i-every-validation.md`.  one4all @ `8a85285e`.
+>
+> **CURRENT RUNG: CH-17i-suspend** — second half of CH-17i-every-suspend.  Migrate
+> AST_SUSPEND off legacy `emit_push_expr + SM_BB_PUMP`.  Different shape from
+> CH-17i-every: `suspend E [do body]` yields to the coroutine caller (the proc
+> becomes a generator), so stack discipline differs from `every`.  JCON's
+> `ir_a_Suspend` (irgen.icn:937–977) wires: expr.success → `ir_Succeed(susp_val,
+> resume_label)` (the coroutine yield); resume_label → body.start; body.success/
+> failure → expr.resume; expr.failure → ir.failure.  Expected to unblock 7
+> rung03/04 programs that currently FATAL on AST kind 50.  Same g_*_table pattern
+> as CH-17f / CH-17i-every; the runtime handler likely needs to interact with
+> `coro_bb_suspend` / `coro_stage` so the suspended-proc box is constructed at
+> handler entry rather than via `coro_eval` AST walk (or document why coro_eval
+> walk is acceptable for AST_SUSPEND in this rung).
 >
 > **⛔ 2026-05-09 ORIENTATION CORRECTION — read this before designing anything:**
 >
