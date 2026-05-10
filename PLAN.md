@@ -51,8 +51,8 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-bang-concat Phase 2/3/4** — Phase 1 ✅ 2026-05-10 (AST_LCONCAT scalar value path mirroring AST_CAT; rung15_real_swap_lconcat flips --sm-run/--jit-run FAIL→PASS; Icon --sm-run corpus 100→101). Phases 2 (AST_LCONCAT generative, deferred — not exercised by corpus), 3 (AST_BANG_BINARY scalar), 4 (AST_BANG_BINARY generative) open. |
-| **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-bang-concat Phase 2/3/4** (same as above) |
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-bang-concat Phases 2/3/4 ✅ DEFERRED 2026-05-10** — 706-program audit (Icon 271 + Raku 186 + Snocone 114 + Prolog 135) reports zero SM_PUSH_EXPR fires; doc `CHUNKS-step17i-bang-concat-phase234-audit.md`. Phase 1 ✅ 2026-05-10 (one4all `a8a064a0`). Architectural gate for the deferred phases (and sister rungs CH-17i-section, CH-17i-limit-random): CH-17g-irrun-execution. Next inline: pivot to CH-17i-prolog-initialization (concrete anchor: `coverage_net_gaps.pl`) or to CH-17g-irrun-execution itself. |
+| **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-bang-concat Phases 2/3/4 deferred** (same as above) |
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **SN-33b landed sess 2026-05-10 (one4all `7238e6e4`)**: cap_t::fn=NULL crash + NRETURN NAME_DEREF; SN-7 0/51→26/51, mode-4 parity 17/17→4/17 (parity-with-real). Next: EM-7d-beauty-subsystems work (pick any of 13 remaining mode-4 diffs) or SN-33c continuation (25 residual SN-7 fails in IR-only / SM-only / all-3 categories). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
