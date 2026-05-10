@@ -26,38 +26,74 @@ land).
 > body chunks to emit SM opcodes (mirroring CH-17f's SM_BB_ONCE_PROC pattern);
 > consumer handler in sm_interp.c. Unblocks rung01/02/03/13_alt/14_limit/16/32/34/35.
 >
-> **2026-05-09 orientation-session finding (no code committed):** verified the
-> 6 rung01_paper_*.icn programs all PASS `--ir-run` and FAIL `--sm-run` with
-> `sm_interp: stack underflow`.  Root cause is deeper than the SUSPEND/EVERY
-> arms at `sm_lower.c:1303` alone: AST_TO's existing CH-15a lowering emits
-> `chunk + SM_PUSH_EXPRESSION + SM_BB_PUMP_SM`, where `SM_BB_PUMP_SM` drains
-> the chunk via `pump_print` (sm_interp.c:911) and leaves nothing on the value
-> stack — fine in statement context, broken when AST_TO is a sub-expression
-> (e.g. `write(1 to 5)` underflows in mode-3 *without* `every` because
-> SM_CALL_FN write expects an arg from the now-empty stack).
+> **⛔ 2026-05-09 ORIENTATION CORRECTION — read this before designing anything:**
 >
-> The fix needs an **expression-context lowering mode** for generator kinds:
-> a flag (`g_in_goal_directed` or similar) that suppresses the trailing
-> `SM_BB_PUMP_SM` driver and leaves a DT_E entry-pc descriptor on the stack
-> for the consumer (AST_EVERY's pump loop, or AST_FNC's per-arg drainer) to
-> drive.  Then AST_EVERY emits its own SM consumer loop that pumps the DT_E,
-> runs body if present, and re-drives.  AST_SUSPEND is the simpler half:
-> `lower(child); SM_SUSPEND` (no body) or pump-loop with body.
+> The BB framework **already exists** and Icon/Prolog AST kinds **already have BB
+> box implementations**.  Prior session (this same note's first draft, commit
+> c6d5bfc) sketched a from-scratch SM-world design with `g_in_goal_directed`
+> flags and pump-once opcodes — that was wrong.  The infrastructure is:
 >
-> Stage proposal:
->   - Stage 1: add `g_in_goal_directed` flag; gate AST_TO/AST_TO_BY emission
->     on it; verify mode-3 `write(1 to 5)` still draws "1" (statement-context
->     `1 to 5` unchanged; AST_FNC sets the flag for arg lowering).
->   - Stage 2: AST_EVERY consumer loop in SM (no body case) → unblocks 6 rung01
->     programs.
->   - Stage 3: AST_SUSPEND no-body → trivial.
->   - Stage 4: AST_EVERY/AST_SUSPEND body cases.
+>   - `src/runtime/x86/bb_broker.c` — unified driver, three modes:
+>     - `BB_SCAN` (SNOBOL4 patterns)
+>     - `BB_PUMP` (Icon `every` semantics — drive root.α; body_fn(γ-val); β-loop)
+>     - `BB_ONCE` (Prolog single-solution)
+>   - `src/runtime/x86/bb_boxes.c` — SNOBOL4 pattern boxes with α/β/γ/ω ports.
+>   - `src/runtime/interp/coro_runtime.c::coro_eval` — Icon AST→bb_node_t
+>     factory.  Kinds already boxed: AST_TO, AST_TO_BY, AST_ITERATE, AST_LIMIT,
+>     AST_ALTERNATE, AST_BANG_BINARY, AST_LCONCAT, AST_SECTION*, AST_FNC user
+>     procs.  Each has its own `icn_*_state_t` and α/β port functions.
+>   - `src/runtime/interp/coro_value.c::AST_EVERY` — already drives the box via
+>     `bb_node_t.fn(ζ,α)` then β-loop.  That IS the every implementation.
 >
-> Prior-art read (archive): `M-G4-SHARED-ICON-SUSPEND.md` Byrd-box spec
-> applies; `archive/backend/emit_emitters/emit_x64.c::emit_every`/`emit_suspend`
-> are BB-world (not SM-world) — useful for *semantics*, not for SM opcode shape.
-> `SM_SUSPEND` and `gen_state_t`/`bb_broker_drive_sm` infrastructure already
-> in place (CHUNKS-step14); no new opcodes needed for stages 1–4.
+> **What the rung is actually about:** `coro_eval` walks the AST at runtime to
+> build the box graph.  The four-mode-isolation gate bans AST walking from
+> SM-mode runtime files.  The work is to **emit the BB graph wiring statically
+> at lower-time** — record entry_pcs / box-state init in the SM_Program — so
+> the SM interpreter dispatches to the existing boxes via the existing broker
+> *without* `coro_eval` walking AST.  The boxes themselves stay; only the
+> graph-construction path moves from runtime AST walk to lower-time emission.
+>
+> **Architecture & convention docs (archive — read before coding):**
+>   - `archive/BB-GRAPH.md` — the four-port (α/β/γ/ω) box discipline; box state
+>     ζ struct; graph storage in `bb_pool` mmap'd RW slab; backend mapping.
+>   - `archive/BB-DRIVER.md` — execution protocol the broker implements.
+>   - `archive/BB-GEN-LANG.md` — **the three-column emission law** (label col 0,
+>     action col 22, goto col 62; action+goto on **same line**).  This is what
+>     Lon means by "two jumps go inline with the action, in column 4" — it's
+>     the BB-emitter formatting convention (BB-world output, not SM-source).
+>   - `archive/GENERAL-BYRD-DYNAMIC.md` — original full design.
+>
+> **Reference implementation for IR-shape (uploaded 2026-05-09):**
+>   - `jcon-master` (Icon→JVM bytecode compiler).  `tran/irgen.icn` has full
+>     IR rules per AST kind using start/success/failure/resume labels — the same
+>     four-port discipline as Byrd boxes.  `ir_a_Every` (line 308),
+>     `ir_a_Suspend` (line 936), `ir_a_Sectionop`, `ir_a_Call` etc. are the
+>     templates.  `tran/gen_bc.icn::bc_gen_ir_Succeed` shows JVM yield via PC
+>     field on closure + areturn — directly analogous to SM_SUSPEND saving
+>     resume_pc on gen_state_t.
+>   - `ByrdBox/test_icon.c` — hand-written reference output for
+>     `every write(5 > ((1 to 2) * (3 to 4)))` showing the three-column
+>     convention applied: each AST kind gets its `_start/_resume/_succeed/_fail`
+>     labels, wired by flat goto graph, ~80 lines for the full expression.
+>
+> **What "writes itself" means:** with BB boxes already implemented and the
+> three-column convention documented, lowering AST_EVERY/AST_SUSPEND/AST_TO/etc.
+> is a mechanical translation from `coro_eval`'s C box-construction code to
+> SM_PUSH_EXPRESSION + entry_pc emissions that reach the same boxes.  Each AST
+> kind's lowering rule is a transliteration of its `coro_eval` arm.
+>
+> **Empirical baseline (verified 2026-05-09):** 6 rung01_paper_*.icn programs
+> all PASS `--ir-run`, all FAIL `--sm-run` with `sm_interp: stack underflow`.
+> All use `every write(<generator-expr>)` shape.  These flip when the
+> AST_TO/AST_FNC/AST_EVERY chain emits proper BB-graph references in SM
+> instead of the legacy `SM_PUSH_EXPR + SM_BB_PUMP` pair that pushes raw AST*.
+>
+> **Next-session protocol:** (1) re-read `archive/BB-GRAPH.md` and
+> `archive/BB-GEN-LANG.md` first; (2) read `coro_eval` in
+> `coro_runtime.c` for AST_TO/AST_EVERY/AST_SUSPEND to see the existing box
+> wiring; (3) read `bb_broker` to see how the broker drives boxes; (4) only
+> then design the lowering — and the design should be the box-emission shape,
+> not new SM opcodes.
 
 ---
 
