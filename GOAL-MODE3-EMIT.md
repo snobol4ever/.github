@@ -230,11 +230,19 @@ Rung-specific gates as listed per rung below.
       Gate: smoke 7/7, unified_broker 49/49 (mode-4 gate suspended — see
       Gates section).
 
-- [ ] **ME-2 — `r12 = SM_State*` reservation.**  `sm_jit_run` sets
+- [x] **ME-2 — `r12 = SM_State*` reservation.**  `sm_jit_run` sets
       `r12 = &state` before transferring control to `SEG_CODE`.  No emitted
       code uses `r12` yet — pure infrastructure that establishes the
       convention.  Document the convention in `sm_codegen.c` header comment.
       Gate: smoke 7/7 holds; nothing changes in emitted code.
+      ✅ 2026-05-10 one4all `babf76be`.  Implementation: `asm volatile
+      ("mov %0, %%r12" : : "r"(st) : "r12")` inside the dispatch loop body,
+      just before the stub call.  Today's C-function stubs ignore r12;
+      ME-3's per-instruction native blobs will consume it as `[r12 + offset]`
+      for value-stack ops.  Verified via `gcc -S`: `mov %rax, %r12` appears
+      inside `#APP/#NO_APP` in `sm_jit_run`'s emitted asm.  Header comment
+      now documents the full mode-3 register convention (r12 / r10 / rbp /
+      callee-saved set / scratch set).  Gate: smoke 7/7, unified_broker 49/49.
 
 ### Phase B — Native SM-blob emission (replace threaded-call JIT)
 
@@ -675,5 +683,23 @@ no explicit callee-save spill.  A future agent puzzled by any decision in
 the Architectural target section should consult this before re-deriving
 from source.
 
-**Next:** ME-2 — `r12 = SM_State*` reservation in `sm_jit_run`.  Pure
-infrastructure; no emitted code changes; gate is smoke 7/7 + unified_broker 49/49.
+**Addendum sess 2026-05-10 (third commit, this session):** ME-2 ✅ landed
+at one4all `babf76be`.  `sm_jit_run` now establishes `r12 = SM_State*`
+via `asm volatile` inside the dispatch loop, just before transferring
+control to the SEG_CODE stub.  Header comment in `sm_codegen.c` documents
+the full mode-3 register convention.  No emitted code reads or writes
+`r12` yet — today's threaded-call stubs are C functions that reach
+`SM_State` via `g_jit_state`.  ME-3 is the consumer: per-instruction
+native blobs that address the value stack as `[r12 + offset]` and never
+reload `r12`.  Gates clean: smoke 7/7, unified_broker 49/49.  one4all
+@ `babf76be`.
+
+**Next:** ME-3 — Minimal native blob set.  Rewrite `sm_codegen.c` so each
+`SM_Instr` lowers to its own contiguous native-x86 blob in `SEG_CODE`,
+not a pointer into `SEG_DISPATCH`.  Opcodes covered first: `SM_HALT`,
+`SM_PUSH_LIT_I`, `SM_PUSH_LIT_S`, `SM_POP`, `SM_JUMP`.  Build a per-PC
+side-table for jump patching.  `sm_jit_run` becomes
+`mov r12, state ; jmp [SEG_CODE_entry]`.  Tear out the per-opcode
+tail-call thunk mechanism in `SEG_DISPATCH`.  Gate: tiny hello-world
+SNOBOL4 program runs end-to-end via `--jit-run` with byte-identical
+output to `--sm-run`.
