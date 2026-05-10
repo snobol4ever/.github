@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-every-suspend** — migrate E_EVERY+E_SUSPEND in proc body chunks to SM opcodes. (CH-17i-survey-mode3 ✅ 2026-05-09: 177 Icon ir-run PASS → 111 sm-run diverge, all generator kinds; see survey doc.) |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-every-suspend** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | EM-FORMAT-BB-LONE-LABELS + EM-FORMAT-BB-COL3-COMMENTS ✅ 2026-05-09 (one4all `70b76571`). Next: **EM-FORMAT-BB-BOX-BANNERS** (or FUSED-GOTOS, or PORT-COMPLETION). |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | EM-FORMAT-BB-BOX-BANNERS ✅ 2026-05-09 (one4all `95192caa`, corpus `647acf0`) — pattern + per-box banners; 14 leaf-box paths wired; XCAT/XOR composites deferred. Next: **EM-FORMAT-BB-FUSED-GOTOS** (or PORT-COMPLETION, or beauty.sno crosscheck EM-7d). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
