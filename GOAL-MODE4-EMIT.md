@@ -296,7 +296,9 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       Net 2 lines saved per banner-bearing artifact (4-5 inline ping-pongs collapsed → 1 trailing block + 1-3 `# data:` annotation lines).  All 5 `gcc -c` clean.  Gates 14/14 GREEN.
 
-- [ ] **EM-FORMAT-BB-TRAMPOLINE-ELIM** (peephole optimizer; not a layout rung) — Eliminate trampoline jumps where `X: jmp Y`; rewrite `jmp X` callers to `jmp Y`.  Current artifacts have e.g. `xcat0_right_ω: jmp xcat0_left_β`.  Do NOT pick up before EM-FORMAT-BB-LAW + EM-FORMAT-BB-DATA-CONSOLIDATE land.  Care: only safe when `X:` is a pure trampoline (no other code flows through).
+- [x] **EM-FORMAT-BANNER-COLLAPSE-SPACE** — Banner shape collapsed `# ====...` → `#====...` and `# ----...` → `#----...` (drop the space between `#` and the rule character; keep total width at 120 columns).  Three sites in two files: `flat_emit_banner_rule` in `bb_flat.c` (BB-side major + minor); `emit_major_break` and `emit_minor_break` in `sm_codegen_x64_emit.c` (SM-side stmt banners); plus the `#-- epilogue` mini-banner.  Adjacent doc-comment shapes updated to match.  No effect on `# === BEGIN/END ... ===` macro-library markers (those have inline text and are not rule banners).  All 5 tracked artifacts regenerate clean (`gcc -c`).  Line counts unchanged from EM-FORMAT-BB-DATA-CONSOLIDATE.  Gates 13/13 GREEN (mode-4 smoke).  (sess 2026-05-10)
+
+- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under PARSER-SNOBOL4 rung SN-7-8.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  **Baseline sess 2026-05-10:** PASS=17 FAIL=0 (emit=0 link=0 diff=0) — every driver currently segfaults identically under mode-3 and mode-4 due to an unrelated runtime regression tracked under SN-7-8 (root cause diagnosed: `cap_t::fn` null at `bb_boxes.c:541` in `bb_cap`); once mode-3 starts producing output, mode-4 must continue to match it byte-for-byte.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
@@ -334,125 +336,102 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-FORMAT-BB-LAW signed off + EM-FORMAT-BB-DATA-CONSOLIDATE landed — sess 2026-05-10**
+**EM-FORMAT-BANNER-COLLAPSE-SPACE landed; EM-7d-beauty-subsystems carved + baseline established — sess 2026-05-10 (later)**
 
-EM-FORMAT-BB-LAW closed by Lon's sign-off ("layout of the S files is looking
-okay now ... fairly nice and readable").  Triple-fusion shape from prior
-session retained as final.
+Two small landings plus one new rung carved with a parity-baseline gate.
 
-EM-FORMAT-BB-DATA-CONSOLIDATE: per-blob deferred-data buffer added to
-`bb_flat.c`.  Every `flat_data_section` / `flat_text_section` pair inside a
-`pat_inv_<id>` blob now buffers data emissions into `g_flat_data_buf`
-instead of emitting inline; one consolidated `.section .data` block lands
-at the end of each blob's body via `flat_emit_body_v`.  The original
-emission sites carry an inline `# data: <labels>` comment so the reader
-still ties each box to its locals.
+**(1) EM-FORMAT-BANNER-COLLAPSE-SPACE — landed.**  Banner shape collapsed
+`# ====...` → `#====...` and `# ----...` → `#----...` (drop the space
+between `#` and the rule character; add one more `=`/`-` to keep total
+width at 120 columns).  Three sites in two files: `flat_emit_banner_rule`
+in `bb_flat.c` (BB-side major + minor); `emit_major_break` and
+`emit_minor_break` in `sm_codegen_x64_emit.c` (SM-side stmt banners);
+plus the `#-- epilogue` mini-banner.  Doc comments adjacent to each site
+updated to match.  No effect on the `# === BEGIN ... ===` macro-library
+markers — those have inline text and aren't rule banners.
 
-**Implementation (`src/runtime/x86/bb_flat.c` only):**
+**(2) EM-FORMAT-BB-TRAMPOLINE-ELIM — removed from plan (not landed; the
+rung itself was withdrawn).**  Open bullet in Steps section deleted;
+"carved follow-on rungs" prose at end of prior watermark amended to
+"none new this session"; PLAN.md goal-table cell amended to drop the
+"or EM-FORMAT-BB-TRAMPOLINE-ELIM" alternative.  EM-7d is now the sole
+next functional rung.
 
-- File-static state: `g_flat_data_buf[32K]`, `g_flat_data_active`,
-  `g_flat_data_any`, `g_flat_data_just_closed`,
-  `g_flat_data_pending_lbl[160]`, `g_flat_data_block_lbls[32][96]`.
-- `data_buf_three_col(lbl, act, got)` mirrors `bb3c_format`'s
-  `%-24s%-16s %s` shape but writes to memory; consumes any in-buffer
-  pending label as the fused col-1.
-- `data_buf_pend_label(name)` defers a label to fuse with the next data
-  directive (`.string`, `.quad`, `.long`, `.zero`).  `flat3c_label`'s
-  data-active branch routes here instead of emitting immediately — so
-  `.Lcap1_data:` and `.quad 0` land on one line, just like before.
-- `flat_data_section` flips active=1; `flat_text_section` emits the
-  `# data: name1, name2` comment to the main stream and flips active=0
-  (and sets `just_closed` so the trailing `.intel_syntax noprefix` from
-  the box's section-restore pair is suppressed — `.intel_syntax`
-  persists across `.section` switches in GAS).
-- `flat_intel_syntax` no-ops while active or just_closed.
-- All 6 data helpers (`flat_data_string`, `flat_data_quad`,
-  `flat_data_quad_int`, `flat_data_long`, `flat_data_zero`,
-  `flat3c_label`) gate on `g_flat_data_active` to choose between
-  `data_buf_three_col` (buffered) and `flat3c` (passthrough).
-- Consolidated flush at end of `flat_emit_body_v` (TEXT-externalised
-  mode only): if buffer non-empty, emit one `.section .data`, dump the
-  buffer (already three-column shaped), emit `.section .text`, reset
-  state.  `bb3c_flush_pending` called first to defend against
-  EM-FORMAT-BB-LONE-LABELS regression.
+**(3) EM-7d-beauty-subsystems — new rung carved with baseline.**  New
+rung sits between the closed `EM-FORMAT-BB-DATA-CONSOLIDATE` and the
+still-open `EM-7d`, as a precondition to EM-7d.  Exercises mode-4
+parity with `--sm-run` across the 17 `*_driver.sno` programs in
+`corpus/programs/snobol4/beauty/`.  Each driver is a small
+self-contained subsystem test (assign, case, fence, match, omega,
+semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite,
+ShiftReduce, TDump, XDump) with its own pre-baked `.ref`.  Pass
+criterion is mode-4-vs-mode-3 byte-identical, NOT `.ref`-correct: the
+absolute-correctness gate is `test_gate_sn7_beauty_self_host.sh` and
+lives under PARSER-SNOBOL4 rung SN-7-8.  Rationale: 17 small programs
+surface category-specific divergences one subsystem at a time —
+strictly easier to diagnose than chasing them simultaneously inside
+the 646-line beauty.sno.
 
-**Tracked artifact line counts:**
+New gate: `scripts/test_gate_em_beauty_subsystems_mode4.sh`
+(self-contained per RULES.md; paths derived from $0; uses `bash -c`
+to suppress parent-shell SIGSEGV trap message).  For each driver:
+emit (`--jit-emit --x64`), assemble + link against `libscrip_rt.so`,
+run, then `diff` against the same driver's `--sm-run` output.
 
-| File             | Lines | Was (LAW) | Δ |
-|------------------|------:|----------:|---:|
-| roman.s          |   151 | 153 | -2 |
-| wordcount.s      |   124 | 124 |  0 |
-| claws5.s         |   949 | 951 | -2 |
-| treebank-list.s  |  1176 | 1178 | -2 |
-| treebank-array.s |  1355 | 1357 | -2 |
-| sm_macros.s      |   248 | 248 |  0 |
-| bb_macros.s      |    44 |  44 |  0 |
-| **TOTAL**        |  4047 | 4055 | **-8** |
+**Baseline:** `PASS=17 FAIL=0  (emit=0 link=0 diff=0)`.  Mode-4 already
+achieves byte-identical parity with mode-3 on all 17 drivers — but
+both segfault identically due to an unrelated runtime regression
+tracked under SN-7-8.  Once mode-3 starts producing real output, this
+gate is where mode-4 either keeps pace or surfaces a real divergence.
 
-Each banner-bearing file lost 2 lines net: 4-5 inline section ping-pongs
-collapsed to 1 trailing block (saving ~8-10 lines) minus the 2-3 inline
-`# data: ...` readability comments.  `wordcount.s` has zero patterns
-hence no changes.
-
-**Sample (roman.s) — before vs after, BOX CAP_COND site:**
-
+**Diagnosis of the segfault (handed off to SN-7-8):** SIGSEGV at
+`bb_cap` in `src/runtime/x86/bb_boxes.c:541`, on the line
+`cr = spec_from_descr(ζ->fn(ζ->state, α));`.  The `cap_t::fn` field
+is null at the call site — pattern-capture-box function pointer is
+not being populated during box construction.  Stack:
 ```
-BEFORE                                                  AFTER
-xcat0_γ:                .section         .data          # data: .Lcap1_vname, .Lcap1_data
-.Lcap1_vname:           .string          ""             xcat0_γ:                .globl           cap1_child_α
-.Lcap1_data:            .quad            0              cap1_child_α:           lea              r10, [rip + Δ]
-                        .quad            0              ...
-                        .long            0
-                        ...
-                        .section         .text
-                        .intel_syntax    noprefix
-                        .globl           cap1_child_α
-cap1_child_α:           lea              r10, [rip + Δ]
+bb_cap (bb_boxes.c:541)
+  bb_broker (bb_broker.c:44, mode=BB_SCAN, body_fn=scan_body_fn_u9)
+    exec_stmt (stmt_exec.c:1395, subj_name="ALPHABET")
+      sm_interp_run (sm_interp.c:732)
+        sm_run_with_recovery (scrip_sm.c:159)
+          main (scrip.c:538)
 ```
+First failing statement uses subject `ALPHABET`, which is defined in
+`global.sno` (one of beauty/'s shared includes).  The bug is upstream
+of the emitter — it affects modes 1, 2, 3, and (parity-correctly)
+mode 4.  Fix belongs to the runtime / pattern-builder, not mode-4.
+Recommended next session: open SN-7-8, find the cap_t producer that
+isn't populating `fn`, fix there.  When mode-3 starts producing
+output, EM-7d-beauty-subsystems will start measuring real divergence
+(or, if mode-4 tracks correctly, advance unprompted).
 
-End-of-blob now has ONE consolidated data block:
+**Gates:** mode-4 smoke 13/13 GREEN; mode-4 beauty parity 17/17 GREEN;
+snobol4 smoke 7/7 GREEN; unified_broker 49/49 GREEN; 5/5 tracked
+artifacts (`roman.s`, `wordcount.s`, `claws5.s`, `treebank-list.s`,
+`treebank-array.s`) `gcc -c` clean.  Tracked artifact line counts
+unchanged from prior watermark (151, 124, 949, 1176, 1355).
 
-```
-pat_inv_0_ω:            mov              eax, 99
-                        xor              edx, edx
-                        ret
-                        .section         .data
-.Lcap1_vname:           .string          ""
-.Lcap1_data:            .quad            0
-                        .quad            0
-                        ...
-.Llen2_z:               .long            0
-                        .section         .text
-```
+**Files touched:**
+- `one4all/src/runtime/x86/bb_flat.c` — banner rule shape
+  (`flat_emit_banner_rule`) plus two adjacent doc-comment shapes.
+- `one4all/src/runtime/x86/sm_codegen_x64_emit.c` — `emit_major_break`,
+  `emit_minor_break`, epilogue mini-banner; one doc-comment shape.
+- `one4all/scripts/test_gate_em_beauty_subsystems_mode4.sh` — new
+  parity gate (84 lines).
+- `corpus/programs/snobol4/demo/{roman,wordcount,claws5,treebank-list,treebank-array}.s`
+  — regenerated with collapsed-banner shape.
+- `.github/GOAL-MODE4-EMIT.md` — this watermark; trampoline-elim bullet
+  removed; EM-7d-beauty-subsystems rung added before EM-7d.
+- `.github/PLAN.md` — goal-table cell updated to point at new rung.
 
-**Section-directive count per artifact:**
-| File | `.section .data` (was) | now |
-|------|----:|----:|
-| roman.s          | 2 | 1 |
-| claws5.s         | 4 | 1 |
-| treebank-list.s  | 4 | 1 |
-| treebank-array.s | 4 | 1 |
-| wordcount.s      | 0 | 0 |
-
-**Gates 14/14 GREEN:** smoke ×6 (snobol4 2/2 via all_modes, icon 5/5,
-prolog 5/5, raku 5/5, snocone via all_modes 5/5, rebus 4/4), all_modes
-2/2, EM PASS=13 (incl. EM-7c-audit on 6 tracked artifacts),
-bb_flat_text PASS=18, sm_phase2_sim PASS=25.  Audit 0 violations
-across 6 tracked artifacts.
-
-**Files touched (one4all):**
-- `src/runtime/x86/bb_flat.c` — +~180 lines for buffer state + helpers
-  + consolidated flush; rewrote 9 helper functions (the 6 data emitters
-  plus `flat3c_label`, `flat_data_section`, `flat_text_section`,
-  `flat_intel_syntax`); wired reset + flush into `flat_emit_body_v`.
-
-**Carved follow-on rungs (none new this session):** EM-FORMAT-BB-TRAMPOLINE-ELIM
-remains the next layout-style rung, scoped as a peephole optimizer pass
-after EM-7d.
+**Carved follow-on rungs:** none new beyond EM-7d-beauty-subsystems
+(which IS the carve from this session).
 
 ----
 
-> Prior watermarks (EM-FORMAT-BB-LAW-TRIPLE-FUSION,
+> Prior watermarks (EM-FORMAT-BB-DATA-CONSOLIDATE,
+> EM-FORMAT-BB-LAW + EM-FORMAT-BB-LAW-TRIPLE-FUSION,
 > EM-FORMAT-BB-LAW 3rd-attempt, EM-FORMAT-BB-LAW-still-open,
 > EM-FORMAT-BB-FUSED-GOTOS, EM-FORMAT-BB-PORT-COMPLETION,
 > EM-FORMAT-BB-BOX-BANNERS, EM-FORMAT-BB-LONE-LABELS, EM-COMBINED-QUADS,
