@@ -1195,7 +1195,82 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-EM-FORMAT-BB-LAW STILL OPEN — sess 2026-05-09 ended without sign-off
+EM-FORMAT-BB-LAW handed off for Lon's visual review — sess 2026-05-09 (3rd attempt)
+=============================================
+
+⛔ DO NOT MARK [x] WITHOUT EXPLICIT SIGN-OFF.  Lon's exact words at end of
+this session: "Perform hand off. I'll take a look at how nice it looks."
+That is review-pending, not sign-off.
+
+This session's contribution: rule re-reading, no code change.
+
+**The rule re-stated by Lon this session (verbatim):**
+
+  "For BB's, labels in column 1 and jmp instructions in column 4.
+   opcode and args in col 2 and 3.  No label on line by self.
+   No jmp instruction on line by self.  No jmp instruction with only
+   another jmp instruction on that line."
+
+  "There are no trampolines here at all.  We never use that technique.
+   We use BB's and they are connected and we have not yet optimize.
+   So what makes the statement valid is it has a label and a goto
+   section.  no problem, it is not by itself is it?"
+
+**Reading derived this session (pending Lon's review):**
+
+A line is "by itself" when ONLY one column has content.
+  - Label in col 1 + jmp in col 4 (e.g. `xcat0_right_ω: ... jmp xcat0_left_β`)
+    has TWO columns populated → label not alone, jmp not alone → LEGAL.
+  - Cond-branch (`je`/`jne`/`jl`/`jge`/`jg`/`jle`/`jbe`) is treated as
+    "opcode + args" in cols 2+3, NOT as a jmp.  Only the unconditional
+    `jmp` is "the jmp" of col 4.  So the fused line `je succ ; jmp fail`
+    has cols 2+3+4 populated and is LEGAL.
+
+**Audit result against the current committed shape (one4all `ff416eee`,
+corpus `7d92fed`):**
+
+  | Forbidden shape                              | Found across 5 artifacts |
+  |----------------------------------------------|-------------------------:|
+  | label alone (only col 1 populated)           |                        0 |
+  | jmp alone (only col 4 populated)             |                        0 |
+  | jmp with only another jmp (no other action)  |                        0 |
+
+Audit script (Python, ad-hoc): walks each .s file; for every non-blank,
+non-comment, non-directive line, classifies col-1 (label) vs rest;
+counts uncond `jmp` separately from cond-branches; reports the three
+violation classes above.  Zero across roman.s, wordcount.s, claws5.s,
+treebank-list.s, treebank-array.s.
+
+**No regen this session.**  No emitter code changed; artifacts already
+at the latest committed shape from one4all `ff416eee`.
+
+**For Lon's review:**
+  - Sample (roman.s, lines 27–91):
+    ```
+    pat_inv_0_α:            lea              r10, [rip + Δ]
+                            cmp              esi, 0
+                            je               pat_inv_0_α_body;          jmp pat_inv_0_β
+    ...
+    xcat0_right_ω:                                                      jmp xcat0_left_β
+    pat_inv_0_β:                                                        jmp xcat0_right_β
+    xcat0_ω:                                                            jmp pat_inv_0_ω
+    ```
+  - All 5 artifacts assemble clean (`gcc -c`).
+  - Gates 14/14 GREEN as of last commit (no regression — no code changed).
+
+**If Lon signs off:** mark rung [x], move to EM-FORMAT-BB-DATA-CONSOLIDATE
+or EM-7d (next rung in queue).
+
+**If Lon corrects the reading:** the rule re-statement above is verbatim
+and should be the starting point for whatever the correct reading is.
+The 4-margin BB layout (cols at vcol 0/24/41/68) is what's currently in
+tree; if violations exist under Lon's correct reading, they will need
+emitter changes in `src/runtime/x86/bb_emit.c::bb3c_emit_jmp` and
+`bb3c_flush_pending_cond_jmp`.
+
+----
+
+EM-FORMAT-BB-LAW STILL OPEN — sess 2026-05-09 ended without sign-off (prior watermark, retained)
 =============================================
 
 ⛔ Two attempts in this session, neither correct per Lon.  See rung block
