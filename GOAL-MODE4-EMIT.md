@@ -363,7 +363,20 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-FORMAT-CHUNK-RENAME — sess 2026-05-10 (latest)**
+**EM-FORMAT-COMMENT-PURGE — sess 2026-05-10 (latest)**
+
+Removed six categories of noisy comments from emitted `.s`:
+`# data: ...` annotations, `# strings/expression registry/BB code/SM code` section captions,
+`#-- epilogue ---` banner, `# pattern pat_inv_N: ...` blob caption (rule kept, text dropped).
+one4all @ `9395019b`, corpus @ `8ca7c58`.
+
+Gates: smoke 7/7, mode-4 parity 17/17. Artifacts gcc -c clean.
+
+**Next:** EM-7d-beauty-subsystems (blocked on SN-33 `cap_t::fn` null fix).
+
+----
+
+**EM-FORMAT-CHUNK-RENAME — sess 2026-05-10**
 
 `chunk` → `expression` throughout `sm_codegen_x64_emit.c`:
 `emit_chunk_registry` → `emit_expression_registry`;
