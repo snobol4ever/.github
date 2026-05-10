@@ -298,7 +298,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-FORMAT-BANNER-COLLAPSE-SPACE** — Banner shape collapsed `# ====...` → `#====...` and `# ----...` → `#----...` (drop the space between `#` and the rule character; keep total width at 120 columns).  Three sites in two files: `flat_emit_banner_rule` in `bb_flat.c` (BB-side major + minor); `emit_major_break` and `emit_minor_break` in `sm_codegen_x64_emit.c` (SM-side stmt banners); plus the `#-- epilogue` mini-banner.  Adjacent doc-comment shapes updated to match.  No effect on `# === BEGIN/END ... ===` macro-library markers (those have inline text and are not rule banners).  All 5 tracked artifacts regenerate clean (`gcc -c`).  Line counts unchanged from EM-FORMAT-BB-DATA-CONSOLIDATE.  Gates 13/13 GREEN (mode-4 smoke).  (sess 2026-05-10)
 
-- [ ] **EM-FORMAT-SUBLIME-GAS-INTEL** — Author a proper GAS-Intel-syntax Sublime highlighter from scratch in `corpus/editor/sublime/`, replacing the current `SCRIP-x86.sublime-syntax` (which is a Nasm-base + SCRIP-overlay layer cake — see sess 2026-05-10 watermark for detail on what's deficient about that arrangement).
+- [x] **EM-FORMAT-SUBLIME-GAS-INTEL** — Authored a proper GAS-Intel-syntax Sublime highlighter from scratch in `corpus/editor/sublime/`, replacing the previous `SCRIP-x86.sublime-syntax` Nasm-base-plus-overlay layer cake.  Result: 1779-line single file (Nasm base + overlay) → `GAS-x86.sublime-syntax` (467 ll) + `SCRIP-x86.sublime-syntax` (194 ll, thin overlay via `extends:`).  Total 661 ll vs 1779 ll — 63% smaller, with substantially better correctness on `;` (statement separator), `.section .note.GNU-stack` (handled via `section-name-tail` push), `.macro/.endm` (structured block with `\arg` recognition), ELF decorations (full family), and label color uniformity (`.L*` and user labels share one scope, `entity.name.label.gas` — eliminating the historic white-vs-orange split).  (sess 2026-05-10 later)
 
       **Why this is a MODE4-EMIT rung:** the readability of `.s` artifacts directly determines reviewability of mode-4 emit work.  EM-FORMAT-BB-LAW, EM-FORMAT-BB-DATA-CONSOLIDATE, EM-FORMAT-BANNER-COLLAPSE-SPACE, EM-7c-no-trailing-ws, EM-7c-bb-macros all aimed at making the emitted `.s` legible to a reviewer; the highlighter is the last leg of that.  A proper GAS highlighter is the editor-side complement of those emitter-side rungs.
 
@@ -313,11 +313,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       8. Inherits or co-installs with a `SCRIP-x86.sublime-syntax` overlay that preserves the SCRIP-specific contexts already designed (`scrip-banners`, `scrip-jumpfuse`, `scrip-mnemonics`, `scrip-labels`).  Architecturally the SCRIP overlay is a thin layer ON the GAS base, not a fork of it.
 
       **Sub-rungs:**
-      - [ ] **EM-FORMAT-SUBLIME-GAS-INTEL-a** — Reference inventory: read `man as`, the GNU `as` Texinfo manual (`info as`), and survey actual directives appearing in `corpus/programs/snobol4/demo/*.s` + `sm_macros.s` + `bb_macros.s`.  Output: a complete directive list, a complete instruction list (Intel-syntax mnemonics that actually appear), and a complete ELF-decoration list.  No code yet.
-      - [ ] **EM-FORMAT-SUBLIME-GAS-INTEL-b** — Author `GAS-x86.sublime-syntax` from scratch, ~600 lines.  Scope vocabulary uses the conventions in `corpus/editor/sublime/SNOBOL4.sublime-syntax` and `Snocone.sublime-syntax`.  Self-test: highlight `roman.s`, `wordcount.s`, `claws5.s`, `treebank-list.s`, `treebank-array.s`, `sm_macros.s`, `bb_macros.s` — every directive paints as a directive, every macro block opens/closes cleanly, every `;` is a separator not a comment.
-      - [ ] **EM-FORMAT-SUBLIME-GAS-INTEL-c** — Refactor the existing `SCRIP-x86.sublime-syntax` to be a thin overlay on the new GAS base.  Either via Sublime's `extends:` mechanism (ST 4080+) or by including only the SCRIP-specific contexts and letting the GAS file do the heavy lifting.  Result: `SCRIP-x86` drops from ~1770 lines to ~150–200 lines (the four `scrip-*` contexts plus minimal glue).
-      - [ ] **EM-FORMAT-SUBLIME-GAS-INTEL-d** — Update `corpus/editor/sublime/README.md`: title now lists four products (SNOBOL4, Snocone, GAS-x86, SCRIP-x86); Files-table extended; new GAS-x86 section explaining what it covers and why it exists; SCRIP-x86 section updated to reflect its new "thin overlay" status; Authors section credited.
-      - [ ] **EM-FORMAT-SUBLIME-GAS-INTEL-e** — Visual A/B: side-by-side screenshot or annotated text-diff of one tracked artifact (say `roman.s`) under the old `SCRIP-x86`-on-Nasm-base vs the new `SCRIP-x86`-on-GAS-base.  The new version should: paint every `.section`/`.string`/`.quad`/`.globl` as a directive (was: identifier); paint every `.macro`/`.endm` as a block keyword (was: identifier); paint `;` as a separator (was: separator already, via patch).  Lock these gains in.
+      - [x] **EM-FORMAT-SUBLIME-GAS-INTEL-a** — Reference inventory done.  Across 5 tracked `.s` artifacts + `sm_macros.s` + `bb_macros.s`: 17 distinct GAS directives (`.align .else .endif .endm .global .globl .ifnb .include .intel_syntax .long .macro .quad .section .size .text .type .zero`); 14 raw x86_64 mnemonics (`call cmp jmp jne jnz jz lea mov movabs movsxd pop sub test xor`); 13 registers; 3 ELF decorations (`@PLT @function @progbits`); 56 SCRIP SM macros + 10 BB macros; Greek-letter vocabulary `Δ Σ α β γ ω`.
+      - [x] **EM-FORMAT-SUBLIME-GAS-INTEL-b** — `GAS-x86.sublime-syntax` authored from scratch, 467 lines.  Owns scope `source.asm.gas`.  Directive families: section/symbol/attribute/data/alignment/macro/conditional/debug/mode/cfi.  Mnemonic families: move/stack/address/arith/branch/call/set/string/bit/fpu/simd/flag.  Register vocabulary by width.  ELF decorations as one family.  Critical correctness wins: `;` is `punctuation.separator.statement.gas` (NOT a comment); `#` and `/* */` are comments; `.macro/.endm` is a structured `meta.macro.gas` block with `\arg` recognition; `.section .note.GNU-stack,"",@progbits` paints as one section name via dedicated `section-name-tail` context; directive catch-all uses `(?!L)` to defer `.L*` to `local-labels`.  Validated by `gas_syntax_sim.py` walking all 7 files with all regexes compiling cleanly.
+      - [x] **EM-FORMAT-SUBLIME-GAS-INTEL-c** — `SCRIP-x86.sublime-syntax` rewritten as 194-line thin overlay.  Uses Sublime's `extends: Packages/User/GAS-x86.sublime-syntax` (build 4080+) and `meta_prepend: true` to inject SCRIP-specific contexts: `scrip-banners`, `scrip-jumpfuse`, `scrip-mnemonics`, `scrip-port-labels`.  Activated by `first_line_match: '^\s*\.include\s+"(sm|bb)_macros\.s"'` so plain GAS files fall through to the base.  Greek-port labels get the more-specific `entity.name.label.box.scrip` scope as an additive refinement, NOT a replacement — themes without override get one consistent label colour, themes with override get a distinct accent.
+      - [x] **EM-FORMAT-SUBLIME-GAS-INTEL-d** — `corpus/editor/sublime/README.md` updated.  Title now lists four products (SNOBOL4, Snocone, GAS-x86, SCRIP-x86); Files table extended; new "GAS-x86 — base GAS Intel-syntax x86_64 highlighter" section explaining what's right vs Nasm bases (specifically including the white/orange-fix mechanism); "SCRIP-x86" section rewritten as "thin overlay" with the per-overlay scope table and a label-color-uniformity explainer.  Authors section credited and updated.
+      - [x] **EM-FORMAT-SUBLIME-GAS-INTEL-e** — Visual A/B captured as `corpus/editor/sublime/MIGRATION-GAS-SCRIP.md`.  Side-by-side textual comparison on a representative claws5.s slice showing OLD vs NEW painting of every token type; quantitative summary table across all 5 tracked artifacts (`Other label-named scopes outside the unified families = 0` across the board); architectural diff (1779 ll → 661 ll, 63% smaller).
 
       **Risk:** LOW.  No emitter changes; no runtime changes; no build-system changes.  Pure editor support.  Scope is bounded by the GAS manual.
 
@@ -362,6 +362,106 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-FORMAT-SUBLIME-GAS-INTEL landed (all 5 sub-rungs a–e); white-vs-orange label-paint inconsistency eliminated — sess 2026-05-10 (Sublime session)**
+
+Pure editor-support work: no emitter changes, no runtime changes, no
+build-system changes.  Replaces the 1779-line Nasm-base + SCRIP-overlay
+layer cake with a from-scratch GAS-Intel-syntax base + thin SCRIP
+overlay.  Total: 661 lines across two files vs 1779 lines in one —
+63% smaller, materially more correct on GAS semantics, and visually
+uniform on label paint.
+
+**Files landed (in `corpus/editor/sublime/`):**
+- `GAS-x86.sublime-syntax` (NEW, 467 ll) — stand-alone GAS-Intel-syntax
+  x86_64 highlighter authored from scratch.  Owns `source.asm.gas`.
+  Activates on `[s, S, asm]`.  Comprehensive directive vocabulary
+  (`section / symbol / attribute / data / alignment / macro /
+  conditional / debug / mode / cfi / other`) with a `(?!L)` negative
+  lookahead in the catch-all so `.L*` references defer to
+  `local-labels`.  Comprehensive Intel-syntax mnemonic set
+  (`move / stack / address / arith / branch / call / set / string /
+  bit / fpu / simd / flag`).  Full register vocabulary by width
+  (`qword / dword / word / byte / ip / flags / segment / xmm / ymm /
+  zmm / mmx / cr / dr / mask`).  ELF decoration family
+  (`@PLT @GOT @GOTPCREL @function @progbits @nobits @notype …`).
+  Critical correctness wins: `;` is `punctuation.separator.statement.gas`
+  (NOT a comment); `#` and `/* */` are comments;
+  `.macro NAME args … .endm` is a structured `meta.macro.gas` block
+  with `\arg` recognition; `.section .note.GNU-stack,"",@progbits`
+  paints as one section name via dedicated `section-name-tail` push
+  context.
+
+- `SCRIP-x86.sublime-syntax` (REPLACED, 1779 → 194 ll) — thin overlay
+  on the GAS base.  Uses `extends: Packages/User/GAS-x86.sublime-syntax`
+  (Sublime Text 4 build 4080+) and `meta_prepend: true` to inject
+  four SCRIP-specific contexts: `scrip-banners` (statement / pattern
+  / box / data-annotation / rule banners), `scrip-jumpfuse` (triple-
+  fusion shape recognition), `scrip-mnemonics` (SM opcodes, PAT
+  opcodes, broker primitives, runtime calls), `scrip-port-labels`
+  (Greek-suffix label refinement).  Activated by `first_line_match:
+  '^\s*\.include\s+"(sm|bb)_macros\.s"'` so plain GAS files fall
+  through to the base.  Owns `source.asm.scrip` (unchanged).
+
+- `MIGRATION-GAS-SCRIP.md` (NEW) — visual A/B writeup.  Architectural
+  diff table; "what the OLD version got wrong about GAS" enumeration;
+  the white-vs-orange split explained; concrete claws5.s tokenization
+  comparison (OLD vs NEW painting line by line); quantitative summary
+  across all 5 tracked artifacts.
+
+- `README.md` (UPDATED) — title now lists four products; Files table
+  extended; new "GAS-x86 — base GAS Intel-syntax x86_64 highlighter"
+  section; "SCRIP-x86" section rewritten as "thin overlay" with the
+  per-overlay scope table and label-color-uniformity explainer;
+  Authors section updated.
+
+- `SCRIP-x86.LICENSE` (REMOVED) — was MIT attribution for upstream
+  Nasm base.  No longer applies; new GAS base is from-scratch
+  authorship.
+
+**The white-vs-orange fix (the user-reported issue).**  Two label
+families painted with two different scope vocabularies in the OLD
+version: `.L*` labels (GAS local-symbol convention) painted as
+`entity.name.constant.asm.x86_64` from the inherited Nasm rules,
+producing white in most themes; user labels (`pat_inv_0_α`, `cap1_β`,
+etc.) painted as `entity.name.label.box.scrip` from the SCRIP overlay,
+producing orange in most themes.  Two label kinds, two paint families,
+visually inconsistent.
+
+The NEW version paints both under a single base scope,
+`entity.name.label.gas`, by design.  The directive catch-all uses
+negative lookahead `(?!L)` to refuse `.L*`-prefix tokens; `local-labels`
+runs early in `statement-content` to claim them; `plain-labels` runs
+last to claim everything else.  Greek-suffix port labels still get
+the more-specific overlay scope `entity.name.label.box.scrip`, but
+purely as an additive refinement — themes without an explicit override
+see all labels at one consistent colour; themes with the override
+get a distinct accent for pattern-box arms only.  The
+`MIGRATION-GAS-SCRIP.md` quantitative summary confirms zero label-
+named scopes outside the unified families across all 5 tracked
+artifacts.
+
+**Validation.**  Built a Sublime-syntax-engine simulator
+(`/home/claude/work/gas_syntax_sim.py`, ~120 ll) that walks a
+.sublime-syntax through `re.compile`/`pattern.match` honouring
+push/pop/set, `meta_prepend`, anonymous push contexts, and zero-
+width anchor rules.  Tokenized all 5 tracked `.s` artifacts plus
+`sm_macros.s` and `bb_macros.s` under both the base alone and the
+merged base+overlay; every directive paints as a directive, every
+mnemonic paints as a mnemonic, every register paints by correct
+width, every ELF decoration paints, every label paints under the
+unified scope family, the triple-fusion shape `; je LBL ; jmp LBL`
+fires correctly, the `.section .note.GNU-stack,"",@progbits`
+edge case paints as one section name + ELF decoration.
+
+**Gates:** all pre-existing tests untouched (no emitter, runtime, or
+build changes).  Editor-support change only.  Tracked-artifact line
+counts unchanged from prior watermark (151, 124, 949, 1176, 1355).
+
+**Next.** EM-7d-beauty-subsystems remains the next functional rung,
+blocked on SN-33 fixing `cap_t::fn` null in `bb_boxes.c:541`.
+
+----
 
 **EM-FORMAT-BANNER-COLLAPSE-SPACE landed; EM-7d-beauty-subsystems carved + baseline established — sess 2026-05-10 (later)**
 
