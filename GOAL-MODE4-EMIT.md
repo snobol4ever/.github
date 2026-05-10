@@ -646,7 +646,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - audit 0 violations across 6 tracked artifacts (I0–I3a all clean)
       - 0 trailing whitespace, 0 blank lines, 0 underscore-prefixed labels per artifact
 
-- [ ] **EM-FORMAT-SM-BANNER-FIDELITY** — **CURRENT STEP.**  Banners must accurately label the SM code that immediately follows them.  Fix banner-to-code drift caught in roman.s after EM-FORMAT-SM landed.
+- [x] **EM-FORMAT-SM-BANNER-FIDELITY** — **LANDED sess 2026-05-09.**  Banners must accurately label the SM code that immediately follows them.  Fix banner-to-code drift caught in roman.s after EM-FORMAT-SM landed.
 
       **The bug (sess 2026-05-09, post-EM-FORMAT-SM landing):**
 
@@ -753,7 +753,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       closed-rung audit, and worth its own rung with its own audit
       invariant rather than reopening EM-FORMAT-SM.
 
-- [ ] **EM-FORMAT-BB** — Enforce the full BB four-port / three-column format law across all emitted BB blobs.
+- [ ] **EM-FORMAT-BB** — **CURRENT STEP.**  Enforce the full BB four-port / three-column format law across all emitted BB blobs.
 
       **The BB format law (definitive):**
 
@@ -827,6 +827,73 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-FORMAT-SM-BANNER-FIDELITY LANDED 2026-05-09
+=============================================
+
+Root cause: `s->lineno = lbl.lineno` in `snobol4.y` only populated
+`lineno` for labeled statements — unlabeled statements passed a zero-init
+Token, so `lineno=0` for every unlabeled stmt.  The fallback in
+`emit_sm_stno` used `stno` as a line-number proxy, fetching
+`srclines[stno]` — but `stno` is a statement counter (1,2,3…) not a
+line number (1,6,10…).  The result: `stmt 2  (line 2)` fetched the
+second comment line instead of the DEFINE on line 6; `stmt 6  (line 6)`
+fetched the DEFINE source instead of the table-lookup pattern on line 14.
+
+**Fix — two files:**
+
+1. **`src/frontend/snobol4/snobol4.l`**: Added `static int g_stmt_lineno = 1`
+   (tracks source line of current statement start) and `snobol4_get_stmt_lineno()`
+   accessor.  Set `g_stmt_lineno = lineno` in the `<INITIAL>[ \t]` rule —
+   the entry point for every unlabeled statement body.
+
+2. **`src/frontend/snobol4/snobol4.y`**: Changed `s->lineno = lbl.lineno`
+   to `s->lineno = lbl.lineno ? lbl.lineno : snobol4_get_stmt_lineno()`.
+   Labeled stmts unchanged; unlabeled stmts now carry the correct source line.
+
+3. **`src/frontend/snobol4/snobol4.h`**: Added `int snobol4_get_stmt_lineno(void)` declaration.
+
+4. **`src/runtime/x86/sm_codegen_x64_emit.c`**: Updated `emit_sm_stno` fallback
+   comment; changed fallback from `try_lineno = stno` (wrong — stno is a
+   statement counter) to `try_lineno = 0` (suppress source text rather than
+   show wrong text).  Parser fix makes this fallback unreachable for any
+   freshly-compiled program.
+
+Generated files regenerated: `snobol4.lex.c`, `snobol4.tab.c`
+(via `bash scripts/regenerate_parser_and_lexer_from_sources.sh`).
+
+**Verification (roman.sno):**
+```
+BEFORE                                           AFTER
+# stmt 2  (line 2):  * N must be positive...    # stmt 2  (line 6):  DEFINE('ROMAN(N)UNITS')..
+# stmt 4  (line 10):  ROMAN N RPOS(1)...        # stmt 4  (line 10):  ROMAN N RPOS(1)...   (unchanged — labeled)
+# stmt 6  (line 6):  DEFINE('ROMAN(N)UNITS')..  # stmt 6  (line 14):  '0,1I,2II,...,' UNITS
+```
+Every banner's `(line L): <text>` now matches the actual SNOBOL4 source.
+
+**Gates final state — 14/14 GREEN:**
+- smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5, rebus 4/4)
+- unified_broker PASS=49
+- EM PASS=13 · bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+- audit 0 violations across 7 tracked artifacts (I0–I3a clean)
+- 0 trailing whitespace, 0 blank lines, 0 underscore-prefixed labels
+
+**Tracked artifact line counts (unchanged from EM-FORMAT-SM baseline):**
+| File | Lines |
+|------|------:|
+| roman.s          |  202 |
+| wordcount.s      |  159 |
+| claws5.s         | 1112 |
+| treebank-list.s  | 1393 |
+| treebank-array.s | 1576 |
+| sm_macros.s      |  248 |
+| bb_macros.s      |   44 |
+
+All 5 `gcc -c` PASS. All 7 audit-clean.
+
+**Next rung: EM-FORMAT-BB.**
+
+----
 
 EM-FORMAT-SM LANDED 2026-05-09
 =============================================
