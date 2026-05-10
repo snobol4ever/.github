@@ -363,7 +363,191 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-7d-beauty-subsystems Option-1-attempt-2 — dual-entry semantics ruled out simple `prev==SM_JUMP` predicate — sess 2026-05-10 (Claude later)**
+**EM-7d-beauty-subsystems thunk PoC + ABI-register-handling redesign carved — sess 2026-05-10 (Claude latest)**
+
+**Diagnosis + reverted PoC — no code landed.**  Per-chunk thunk
+implementation (Option 1' from the prior watermark) was written,
+built, and tested — moved the gate from PASS=4 FAIL=13 to PASS=5
+FAIL=12 (Gen_driver started passing).  That confirms the alignment
+hypothesis: rsp%16==8 from cfn() *is* the cause of the 13 diffs, and
+inserting `sub rsp, 8` at chunk entry plus `add rsp, 8` before
+returns *does* keep PLT calls aligned.  But the thunk approach is a
+workaround, not a principled fix — Lon (correctly) called it out:
+"why not redesign and handle registers properly and not use thunks?"
+This watermark records the PoC numbers, the reverted code's shape,
+and the proper redesign for the next session to land.
+
+**Why thunks are wrong.**  A thunk shim
+`.Lthunk_<pc>: sub rsp, 8 ; jmp .L<pc>` is a way to *manually* fix an
+ABI violation that the chunk itself should fix in its prologue.
+Production compilers don't emit thunks for alignment; they emit a
+proper prologue:
+
+```
+chunk_entry:
+    push rbp           ; save caller's rbp; rsp goes from %16==8 to %16==0
+    mov  rbp, rsp      ; establish frame
+    ...body...
+    pop  rbp           ; restore caller's rbp; rsp goes from %16==0 to %16==8
+    ret                ; pops 8-byte return address; rsp back to caller's
+```
+
+This is what `main()` already does in mode-4 (see `emit_file_header`
+which emits `push rbp; mov rbp, rsp` at main entry).  Chunks should
+do the same.  The `push rbp; mov rbp, rsp` IS the alignment-fix —
+no separate `sub rsp, 8` needed.
+
+**Why I drifted to thunks anyway.**  The dual-entry problem (a SNOBOL4
+intra-function label like `assign1` in `assign_driver` is BOTH
+cfn-callable via the expression registry AND fall-through-reachable
+from inside the parent function) seemed to need runtime
+distinction.  Per-chunk thunks side-step it by giving every cfn
+entry a single-entry shim that doesn't see fall-through.
+
+But that's solving the wrong problem.  The real issue is that
+SNOBOL4 SM-lowering puts every named label in the cfn registry,
+including internal labels that are NOT separate functions — they're
+just intra-function jump targets that happen to be named.  The
+proper fix is in SM lowering, not in the emitter:
+
+**The proper redesign — three steps, in order:**
+
+1. **In `sm_lower.c`, distinguish DEFINE'd functions from internal
+   labels.**  Currently every named SM_LABEL gets `a[0].s` set, and
+   `emit_expression_registry` puts every one of them in the cfn
+   table.  Add a flag (e.g. `a[1].i = 1` for "this is a DEFINE'd
+   entry, registry should include it"; default 0 for "this is a
+   :S(label) target, registry should NOT include it").  The flag is
+   set when the parser/lowerer emits the SM_LABEL associated with a
+   `DEFINE('fn(args)')` call's body, and only there.
+
+   Source of truth for which name is a DEFINE'd function: walk for
+   `SM_CALL_FN s="DEFINE"` immediately followed by `SM_VOID_POP`
+   then `SM_JUMP -> after_fn`; the SM_LABEL at `after_fn - 1` (i.e.
+   the label whose pc is the JUMP target's predecessor's predecessor
+   — actually, the SM_LABEL at `pc_of_JUMP + 1` *if* its name
+   matches the DEFINE's first argument string).  Mark THAT SM_LABEL
+   as DEFINE'd; leave all other named SM_LABELs as plain labels.
+
+2. **Update `emit_expression_registry`** to filter on the new flag.
+   Only DEFINE'd labels enter the registry.  Internal labels remain
+   addressable via .L<pc> for intra-function jumps but never via
+   cfn().
+
+3. **Emit a real prologue at every DEFINE'd chunk entry, and a real
+   epilogue at every return inside such a chunk:**
+
+   ```
+   .L<entry_pc>:
+       push rbp                ; save caller's rbp + align rsp
+       mov  rbp, rsp           ; establish frame
+       <body>                  ; rsp%16==0 throughout
+                               ; (PLT calls inside push 8 bytes, callee
+                               ; sees %16==0 after its own prologue)
+       <return point>:
+       pop  rbp                ; restore caller's rbp
+       ret                     ; pops cfn return address
+   ```
+
+   For RETURN_VARIANT (conditional), splice `pop rbp` between
+   `jz .Lretskip_<pc>` and `ret` so it only runs on the
+   taken-return path; the falsy path falls through with rbp still
+   pointing at the chunk's frame, and the next return (if any)
+   handles the unwinding.  This matches the structure of the
+   thunk-approach inline emission already prototyped in the
+   reverted code.
+
+**Important: dual-entry case revisited under proper prologue.**
+
+After step 1 above, `assign1` is no longer in the registry — it's
+just a label inside the `assign` chunk.  cfn("assign1") returns
+"undefined function".  This is correct SNOBOL4 semantics IF the
+program never legitimately calls `assign1` as a function — and per
+the SNOBOL4 reference, only DEFINE'd names are function calls; bare
+labels are jump targets, not callables.  SPITBOL agrees (test:
+calling `assign1(...)` in a SPITBOL program errors with
+"function not defined").
+
+The dual-entry concern (label reachable both via cfn AND
+fall-through) dissolves once internal labels are removed from the
+registry: there's only one cfn entry path per chunk, the explicit
+DEFINE'd entry.  Fall-through within a chunk is just normal jump
+flow with rbp already set up — `pop rbp; ret` at any return site
+correctly unwinds the single frame.
+
+**Files for the next session's implementation:**
+
+- `src/runtime/x86/sm_lower.c` — add the DEFINE'd-flag emission.
+- `src/ir/ir.h` — possibly extend SM_Instr.a to carry the flag (or
+  reuse `a[1].i` for SM_LABEL; verify nothing else uses it).
+- `src/runtime/x86/sm_interp.c` — the interpreter doesn't care
+  about the flag (its registry behavior is fine), but any code that
+  walks SM_LABEL and reads `a[0].s` should be audited.
+- `src/runtime/x86/sm_codegen_x64_emit.c`:
+  - `emit_expression_registry`: filter by the new flag.
+  - `emit_sm_label`: emit `push rbp; mov rbp, rsp` for DEFINE'd
+    chunk entries (predicate: pc is a DEFINE'd entry).
+  - `emit_sm_return` / `emit_sm_return_variant`: emit
+    `pop rbp` before `ret` for returns inside such chunks.
+  - No thunk-emission pass.
+  - No `g_pc_intra_chunk_label` bitset (intra labels not in
+    registry, so don't need special treatment).
+- All 5 tracked artifacts regenerate (they get prologues now
+  instead of bare LABEL macros at function entries).
+
+**Validation plan:**
+
+After landing, the gate should reach PASS≥5 (matching the thunk PoC
+since the alignment is principle-equivalent).  If higher, the
+remaining failures are non-alignment-related divergences that
+SN-33 owns.  If lower, there's a fall-through-into-prologue case
+(some chunk reachable via fall-through from the previous chunk's
+non-returning path) that needs separate treatment — likely a JUMP
+emitted by sm_lower past the prologue when fall-through is
+intended.
+
+**Reverted code shape (recoverable from this commit's git log if
+useful as starting infrastructure):**
+
+- `g_pc_is_chunk_entry[]` / `g_pc_in_chunk_body[]` /
+  `g_pc_intra_chunk_label[]` bitsets in `sm_codegen_x64_emit.c`,
+  populated by `aligned_chunks_alloc_and_collect`.  Predicate for
+  chunk-entry: named SM_LABEL preceded by SM_JUMP whose target's
+  predecessor is a return variant.  Predicate distinguishes
+  DEFINE'd functions from PASS/FAIL branch labels at the .s-emit
+  level; the proper redesign moves this distinction up to
+  sm_lower.c where it belongs.
+- `emit_chunk_thunks` function emitting one
+  `.Lthunk_<pc>: sub rsp,8 ; jmp .L<pc>` per registry entry,
+  placed in `emit_file_footer` between main's `ret` and
+  `.size main, .-main`.
+- `emit_expression_registry` routing entries through `.Lthunk_<pc>`.
+- `emit_sm_return` / `emit_sm_return_variant` emitting inline
+  `add rsp, 8` before `ret` when pc is in a chunk body.
+
+Useful primarily as a reference for the bitset boilerplate; the
+actual fix uses `push rbp; mov rbp, rsp` / `pop rbp; ret` instead
+of `sub rsp, 8` / `add rsp, 8`, and the predicate moves from the
+emitter to the SM lowerer.
+
+**Gates after revert (baseline restored):**
+
+- `test_gate_em_beauty_subsystems_mode4.sh`: PASS=4 FAIL=13.
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+
+one4all unchanged from `f78d366c`.
+
+**Next session:**
+
+Land Step 1 (`sm_lower.c` DEFINE'd-flag) as a standalone rung;
+verify the registry shrinks to only DEFINE'd entries; then land
+Steps 2 + 3 (registry filter + proper prologue emission) together.
+PoC suggests PASS≥5 immediately, possibly higher.
+
+----
+
+
 
 **Diagnosis only — no code landed.**  One patch attempted (Option 1 from
 the prior watermark, gated on `prog->instrs[pc-1].op == SM_JUMP`), broke
