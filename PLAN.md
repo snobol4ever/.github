@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-every-suspend** — migrate E_EVERY+E_SUSPEND in proc body chunks to SM opcodes. (CH-17i-survey-mode3 ✅ 2026-05-09: 177 Icon ir-run PASS → 111 sm-run diverge, all generator kinds; see survey doc.) |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-every-suspend** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | **EM-FORMAT-BB-LAW signed off; EM-FORMAT-BB-DATA-CONSOLIDATE landed (sess 2026-05-10).** Next: EM-7d-beauty-subsystems (mode-4 parity with `--sm-run` on the 17 beauty subsystem drivers; precondition to EM-7d). |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | **EM-FORMAT-BB-LAW signed off; EM-FORMAT-BB-DATA-CONSOLIDATE landed; EM-FORMAT-BANNER-COLLAPSE-SPACE landed; SCRIP-x86 sublime-syntax in corpus (sess 2026-05-10).** Next: EM-FORMAT-SUBLIME-GAS-INTEL (author proper GAS-Intel base for editor support — current SCRIP-x86 is Nasm+patches), then EM-7d-beauty-subsystems (parity with --sm-run on 17 subsystem drivers; precondition to EM-7d). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
