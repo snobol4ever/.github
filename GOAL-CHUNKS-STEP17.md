@@ -448,6 +448,150 @@ This is the GOAL-CHUNKS.md Step 17 closure point.
 `pl_runtime.c` contain zero `EXPR_t *` field accesses on
 proc_table / pred_table data.
 
+#### CH-17g-irrun-execution — collapse `--ir-run` non-SNO onto the SM dispatch path
+
+**Carved sess 2026-05-09 from CH-17g-final-SURVEY-2 + Lon decision Option A.**
+
+**Why this rung exists.** CH-17g-irrun-lowers delivered observability
+(entry_pcs visible under `--ir-run`) but not execution: under
+`--ir-run` non-SNO the SM_Program is freed by `sm_resolve_irrun_entry_pcs`
+immediately after entry_pcs are populated, dispatch guards
+(`g_current_sm_prog != NULL`) short-circuit the SM path, and execution
+runs through `coro_call(proc_table[pi].proc, ...)` — the legacy AST
+walker that CH-17g-final wants to delete.  Lon's principle: AST and SM
+both deleted between phases for separation/isolation.  The only path
+forward that satisfies that principle is to route `--ir-run` non-SNO
+through the same `sm_preamble` + `sm_run_with_recovery` pipeline as
+`--sm-run`.  This rung delivers that.
+
+**Done when:** under `--ir-run`, every Icon/Raku/Prolog program reaches
+the SM interpreter dispatch loop (not `polyglot_execute`'s legacy AST
+walker), produces output byte-identical to its current `--ir-run`
+baseline, and the Icon corpus 186/47/30 + Prolog smoke gates are
+byte-identical to the pre-rung baseline.  The `g_irrun_lowers` flag and
+`sm_resolve_irrun_entry_pcs` helper are deleted.  SNOBOL4 `--ir-run`
+path is unchanged (it has its own non-SM interpreter, `execute_program`,
+that is not the AST walker this goal retires).
+
+**Active steps:**
+
+- [ ] **Step 1 — baseline capture.**  Build clean.  Run smoke ×6,
+  isolation gate, unified_broker, scrip_all_modes, Icon corpus
+  `--ir-run`.  Capture pre-rung output for the trivial probes:
+  `--ir-run /tmp/probe.icn` and `--sm-run /tmp/probe.icn` (a
+  `procedure main() write("hello from icon") end` program).  Capture
+  byte counts and md5s for at least three Icon corpus programs and
+  three Prolog corpus programs under `--ir-run`.  These are the
+  byte-identity targets for Step 4.
+
+- [ ] **Step 2 — route `--ir-run` non-SNO through `sm_preamble`.**
+  In `src/driver/scrip.c:557–565`, replace the current `else if
+  (has_non_sno) { g_irrun_lowers = 1; polyglot_execute(prog);
+  g_irrun_lowers = 0; }` arm with a path that mirrors the `--sm-run`
+  arm above it: call `sm_preamble(prog)` to get the SM_Program with
+  IR freed (the gate at `scrip_sm.c:128` lifts in CH-17g-final, but
+  works fine here because `sm_preamble` already populates proc/pred
+  tables before lowering), then `sm_run_with_recovery(sm,
+  sm_interp_run)`, then `sm_prog_free(sm)`.  SNOBOL4 (`!has_non_sno`)
+  arm continues to call `execute_program(prog)` unchanged.
+
+- [ ] **Step 3 — delete the superseded irrun-lowers infrastructure.**
+  Once Step 2 is in place, the discard-after-resolve mechanism is
+  unreachable on the `--ir-run` non-SNO path.  Delete:
+    - `g_irrun_lowers` definition + `extern` in `polyglot.h/c`
+    - `sm_resolve_irrun_entry_pcs` declaration in `scrip_sm.h` and
+      definition in `scrip_sm.c` (the function that does
+      `sm_lower → sm_resolve_proc_entry_pcs → sm_prog_free`)
+    - the `if (g_irrun_lowers) sm_resolve_irrun_entry_pcs(prog);` hook
+      in `polyglot_execute` (`polyglot.c:269–270`)
+    - the set/clear of `g_irrun_lowers` in `scrip.c:560,562`
+    - the `#include` chain that pulled `scrip_sm.h` into `polyglot.c`
+      for this single helper (verify nothing else in `polyglot.c`
+      needs it; if so, leave the include)
+
+  Eight dispatch-site guards on `g_current_sm_prog != NULL` (one in
+  `proc_table_call`, one in `pl_chunk_fn`, two in `pl_runtime.c`,
+  one in `interp_hooks.c`, two in `interp_eval.c`, one in
+  `polyglot.c`) are now sufficient on their own — under `--ir-run`,
+  `g_current_sm_prog` is the live SM_Program (set by `sm_preamble`),
+  so the guards take the SM path.  Leave them in place; they remain
+  correct.
+
+- [ ] **Step 4 — verify byte-identity against the pre-rung baseline.**
+  Build.  Run the smoke ×6, isolation, unified_broker,
+  scrip_all_modes, Icon corpus `--ir-run` (target 186/47/30), and
+  Prolog smoke gates.  Confirm `--ir-run /tmp/probe.icn` produces
+  byte-identical output to the Step 1 capture.  Confirm the three
+  Icon and three Prolog corpus programs from Step 1 produce
+  byte-identical output (md5 match) under `--ir-run`.  Investigate
+  any divergence before proceeding — divergence means a non-SNO
+  feature that the legacy `polyglot_execute` walker handled and the
+  SM dispatch path does not.  Likely surfaces (from
+  CH-17g-runtime-bridge-4's open list): scan-context builtins
+  (`tab`/`move`/`find`/`upto`/`match`/`any`/`many`), array
+  composition outside the cases bridge-acomp/lcomp covered, any
+  Raku-specific dispatch.  Each surface becomes its own follow-on
+  rung (bridge-5 et seq.) before this rung lands.
+
+- [ ] **Step 5 — confirm SNOBOL4 `--ir-run` unchanged.**  Run
+  `bash scripts/test_smoke_snobol4.sh` and any SNOBOL4-specific
+  baselines.  The SNOBOL4 path goes through `execute_program(prog)`
+  via `else { execute_program(prog); }` (`scrip.c:565`) and is not
+  touched by this rung — gate is sanity-only.
+
+- [ ] **Step 6 — handoff.**  Per RULES.md: validation doc at
+  `docs/CHUNKS-step17g-irrun-execution-validation.md`; mark steps
+  complete in this Goal file; update PLAN.md row tail; commit each
+  touched repo with a clear message; rebase + push (one4all first,
+  `.github` last); confirm `git log origin/main --oneline -1`
+  shows the new hash on remote.
+
+**Files touched:**
+  - `src/driver/scrip.c` — Step 2 dispatch arm, Step 3 flag
+    set/clear deletion
+  - `src/driver/polyglot.c` — Step 3 hook deletion + flag definition
+    deletion
+  - `src/driver/polyglot.h` — Step 3 `extern` deletion
+  - `src/driver/scrip_sm.c` — Step 3 helper definition deletion
+  - `src/driver/scrip_sm.h` — Step 3 helper declaration deletion
+  - `docs/CHUNKS-step17g-irrun-execution-validation.md` — Step 6 (new)
+
+**Files NOT touched in this rung:**
+  - `coro_runtime.c` — `proc_table_call` legacy fallback stays in
+    place; deletion is CH-17g-final's job
+  - `IcnProcEntry` struct — `AST_t *proc` field stays; deletion is
+    CH-17g-final's job
+  - `scrip_sm.c:128` `code_free` gate — lifting is CH-17g-final's job
+  - `sm_lower.c:1757` — `proc_table[pi].proc` producer-side read
+    stays; cleanup is CH-17g-final or follow-on
+
+**Gates:**
+  - smoke ×6 PASS (SNO 7/7, ICN 5/5, PL 5/5, RK 5/5, RB 4/4, SC 5/5)
+  - isolation PASS
+  - unified_broker PASS=49
+  - scrip_all_modes PASS=2 (or current baseline if it has shifted)
+  - Icon corpus `--ir-run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263
+    (byte-identical, not just same pass count)
+  - Prolog smoke PASS=5
+  - Specific gate: `--ir-run /tmp/probe.icn` byte-identical to
+    pre-rung capture
+  - Specific gate: at least three Icon and three Prolog corpus
+    programs byte-identical (md5 match) under `--ir-run` between
+    pre-rung and post-rung
+
+**Rollback signal:** if any byte-identity check in Step 4 diverges
+and the cause cannot be traced to a known SM-side gap with a clear
+follow-on rung path, revert the Step 2 dispatch change (one-line
+revert) and surface the divergence as a survey doc before
+re-attempting.  The rung is small enough that a clean revert + try
+again is cheaper than partial landings.
+
+**After this rung lands:** CH-17g-final's preconditions are
+genuinely met (no `--ir-run` path reads `proc_table[i].proc` at
+runtime; the only remaining reader is `sm_lower.c:1757`, which is
+producer-side and runs while IR is alive in all modes).
+CH-17g-final closes Step 17.
+
 ### CH-17h — Migrate Step 15 remaining kinds (CH-15b)
 
 **CH-17h-SURVEY LANDED sess 2026-05-09** — `docs/CHUNKS-step17h-survey.md`
