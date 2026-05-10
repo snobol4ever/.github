@@ -107,7 +107,7 @@ Full detail for closed rungs lives in the git log. Search by rung id
 (e.g. `git log --grep SN-17`) for the commit that landed each.
 
 - **Phase 1 — IR-run** [x] DONE: SN-1..SN-6, SN-14..SN-23 (NAM unification, per-pattern context, expr_eval, recursive patterns).
-- **Phase 2 — SM-run** [x] DONE: SN-7, SN-8 (subsystem drivers 51/51; args-on-stack SM opcodes). SN-7-note: literal `beauty.sno < beauty.sno` self-host moved to SN-26.
+- **Phase 2 — SM-run** [~] **REGRESSED 2026-05-10** — SN-7, SN-8 originally landed at 51/51 (subsystem drivers, modes 1/2/3) + args-on-stack SM opcodes.  Measured 2026-05-10 at one4all@`03766019`: 0/51.  All 17 drivers segfault in modes 1/2/3 (and 0/17 in newly-tested mode 4).  Root cause: `cap_t::fn` null at `bb_boxes.c:541`.  Restoration tracked under **SN-33**; once SN-33c lands this line returns to `[x]` and SN-33d/e extend the baseline to 68/68 across all four modes.  SN-7-note: literal `beauty.sno < beauty.sno` self-host moved to SN-26.
 - **Phase 3 — JIT-run** [x] DONE: SN-9 (JIT/codegen parity; crosscheck 207/207/207 in all three modes).
 - **SN-17** porter stemmer gap [x] DONE — IR+SM 100.00% on porter.sno.
 - **SN-25** SPITBOL `-f` won't-fix — superseded by SN-30.
@@ -116,6 +116,114 @@ Full detail for closed rungs lives in the git log. Search by rung id
 ---
 
 ## Open rungs — summaries
+
+### SN-33 — Beauty subsystem suite restoration in all four modes (opened 2026-05-10)
+
+**Done-when:** all 17 `*_driver.sno` programs in
+`corpus/programs/snobol4/beauty/` produce output byte-identical to
+their `.ref` file under modes 1, 2, 3 AND mode 4 — i.e. **68/68
+PASS**, extending the historical SN-7 = 51/51 baseline to the new
+mode-4 emit-link-run path.
+
+**Why this is now a rung:**
+The Phase-2 SM-run summary (closed rungs section above) records SN-7
+= 51/51 (17 drivers × 3 modes) as DONE.  Measured under one4all@`03766019`
++ corpus@`d77eda7` on 2026-05-10, all 17 drivers segfault identically
+in modes 1, 2, 3 AND 4.  The 51/51 baseline has regressed to 0/51,
+and mode 4 — never previously gated on these drivers — inherits the
+same 0/17.  Mode-4 IS at byte-identical parity with mode-3 today
+(both produce empty output and segfault identically); the parity
+gate `scripts/test_gate_em_beauty_subsystems_mode4.sh` in one4all
+confirms PASS=17.  The work here is a regression-restore in the
+runtime, not in the emitter.
+
+**Diagnosis (handed off from MODE4-EMIT, sess 2026-05-10):**
+SIGSEGV at `bb_cap` in `src/runtime/x86/bb_boxes.c:541`, on the line
+```c
+cr = spec_from_descr(ζ->fn(ζ->state, α));
+```
+The `cap_t::fn` field is null at the call site.  Stack:
+```
+bb_cap (bb_boxes.c:541, ζ->fn = NULL)
+  bb_broker (bb_broker.c:44, mode=BB_SCAN, body_fn=scan_body_fn_u9)
+    exec_stmt (stmt_exec.c:1395, subj_name="ALPHABET")
+      sm_interp_run (sm_interp.c:732)
+        sm_run_with_recovery (scrip_sm.c:159)
+          main (scrip.c:538)
+```
+First failing statement uses subject `ALPHABET`, defined in
+`global.sno` (the shared include for every beauty driver).  The fault
+fires the moment a pattern-capture box is invoked against a `&ALPHABET`
+match.  The cap_t is being constructed with its `fn` pointer not
+populated — a producer somewhere in the pattern-build / NAM-binding
+path is the regression site.
+
+**Suspect commit range (worth bisecting first):**
+Recent `bb_boxes.c` history, newest first:
+- `41b68e4c` SN-26c-parseerr-f: fix $ *fn(args) guard pattern
+- `a556167b` SN-23h: delete handle-based NAME_pop; rename
+  NAME_pop_top → NAME_pop
+- `d61a580e` SN-23d-follow-up: reset has_pending=0 at CAP_α
+- `c4fc4297` SN-23d: bb_cap drops nam_handle, bare NAME_pop_top
+- `989bb2f3` SN-22a+b: remove NAM mark/rollback calls from bb_alt
+  and bb_arbno
+- `13fc94dd` SN-21e partial: NAM_* → NAME_* rename + shim deletion
+- `2f5cd02d` SN-21d: collapse bb_callcap into bb_cap with NM_CALL
+- `c634526f` SN-21c: bb_capture → bb_cap; embed NAME_t
+
+`git bisect` between session #57 (2026-04-28, when SN-7 = 51/51 was
+last green) and HEAD will identify the breaking commit in seven or
+eight steps.  The regression baseline is the SN-7 gate
+`scripts/test_gate_sn7_beauty_self_host.sh`.
+
+**Sub-rungs:**
+- [ ] **SN-33a** — `git bisect` to identify the commit that broke
+      SN-7 = 51/51.  Bisect bounds: `git tag` or session #57 commit
+      vs HEAD.  Bisect script: `bash
+      scripts/test_gate_sn7_beauty_self_host.sh` (returns 0 only
+      when ≥ 51 pass).  Output: name the breaking commit.
+- [ ] **SN-33b** — Diagnose the `cap_t::fn = NULL` root cause in the
+      breaking commit.  Likely a producer (`bb_cap` constructor /
+      `cap_t` init helper / NAME-binding path) that stopped wiring
+      the function pointer through.  Fix in place; do not introduce
+      new abstractions.
+- [ ] **SN-33c** — Restore SN-7 = 51/51 (modes 1/2/3).  Existing
+      gate `scripts/test_gate_sn7_beauty_self_host.sh` returns 0.
+- [ ] **SN-33d** — Mode-4 baseline measurement on restored runtime.
+      Existing gate
+      `scripts/test_gate_em_beauty_subsystems_mode4.sh` (parity
+      with mode 3) must continue at 17/17 PASS.  IF mode-4 parity
+      drops, that surfaces a real emitter divergence — the original
+      design intent of the parity gate.
+- [ ] **SN-33e** — Mode-4 absolute correctness against `.ref` files.
+      New gate (or extension of existing
+      `test_gate_sn7_beauty_self_host.sh` to add `--jit-emit --x64`
+      as a fourth mode).  Pass criterion: 17 drivers × `.ref` diff
+      = 17/17 under mode 4, totaling SN-7 = 68/68 across all four
+      modes.
+
+**Dependencies:**
+- Blocks SN-32-sm-jit-beauty (full beauty.sno self-host) at the
+  cap-box level — beauty.sno also exercises pattern capture against
+  `&ALPHABET` and other globals, so the same `ζ->fn` null almost
+  certainly kills it once the harness gets that far.
+- Blocks MODE4-EMIT rung EM-7d-beauty-subsystems (parity gate is
+  GREEN today only because both sides are equally broken; real
+  measurement starts when mode-3 produces output).
+- Blocks MODE4-EMIT rung EM-7d (full beauty.sno mode-4 emit) for
+  the same reason.
+- Independent of SN-26-bridge-coverage and SN-32-sm-jit-beauty in
+  the sense that those advance the wire-protocol divergence target;
+  SN-33 is the in-process runtime fault.
+
+**Risk:** LOW-MEDIUM.  The bisect is mechanical; the fix should be
+local once located.  No architectural change required — this is
+restoring a property that held weeks ago.
+
+**Note on relationship to SN-7-8:** earlier MODE4-EMIT watermark
+language referenced "SN-7-8" as the umbrella rung for this work.
+SN-7-8 was a placeholder for "the still-open piece of SN-7 after the
+51/51 restoration goes in"; SN-33 is its proper carved name.
 
 ### SN-27 — UPPERCASE DATATYPE for SPITBOL x64 (opened 2026-04-21)
 **Done-when:** `sbl -b` on `output=datatype('')` prints `STRING` (not `string`). All builtin datatypes return uppercase, matching x32 / CSNOBOL4 / one4all / jvm.

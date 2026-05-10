@@ -298,7 +298,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-FORMAT-BANNER-COLLAPSE-SPACE** — Banner shape collapsed `# ====...` → `#====...` and `# ----...` → `#----...` (drop the space between `#` and the rule character; keep total width at 120 columns).  Three sites in two files: `flat_emit_banner_rule` in `bb_flat.c` (BB-side major + minor); `emit_major_break` and `emit_minor_break` in `sm_codegen_x64_emit.c` (SM-side stmt banners); plus the `#-- epilogue` mini-banner.  Adjacent doc-comment shapes updated to match.  No effect on `# === BEGIN/END ... ===` macro-library markers (those have inline text and are not rule banners).  All 5 tracked artifacts regenerate clean (`gcc -c`).  Line counts unchanged from EM-FORMAT-BB-DATA-CONSOLIDATE.  Gates 13/13 GREEN (mode-4 smoke).  (sess 2026-05-10)
 
-- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under PARSER-SNOBOL4 rung SN-7-8.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  **Baseline sess 2026-05-10:** PASS=17 FAIL=0 (emit=0 link=0 diff=0) — every driver currently segfaults identically under mode-3 and mode-4 due to an unrelated runtime regression tracked under SN-7-8 (root cause diagnosed: `cap_t::fn` null at `bb_boxes.c:541` in `bb_cap`); once mode-3 starts producing output, mode-4 must continue to match it byte-for-byte.
+- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under GOAL-LANG-SNOBOL4 rung SN-33.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  **Baseline sess 2026-05-10:** PASS=17 FAIL=0 (emit=0 link=0 diff=0) — every driver currently segfaults identically under mode-3 and mode-4 due to an unrelated runtime regression tracked under SN-33 (root cause diagnosed: `cap_t::fn` null at `bb_boxes.c:541` in `bb_cap`); once mode-3 starts producing output, mode-4 must continue to match it byte-for-byte.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
@@ -367,7 +367,7 @@ semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite,
 ShiftReduce, TDump, XDump) with its own pre-baked `.ref`.  Pass
 criterion is mode-4-vs-mode-3 byte-identical, NOT `.ref`-correct: the
 absolute-correctness gate is `test_gate_sn7_beauty_self_host.sh` and
-lives under PARSER-SNOBOL4 rung SN-7-8.  Rationale: 17 small programs
+lives under GOAL-LANG-SNOBOL4 rung SN-33.  Rationale: 17 small programs
 surface category-specific divergences one subsystem at a time —
 strictly easier to diagnose than chasing them simultaneously inside
 the 646-line beauty.sno.
@@ -381,10 +381,10 @@ run, then `diff` against the same driver's `--sm-run` output.
 **Baseline:** `PASS=17 FAIL=0  (emit=0 link=0 diff=0)`.  Mode-4 already
 achieves byte-identical parity with mode-3 on all 17 drivers — but
 both segfault identically due to an unrelated runtime regression
-tracked under SN-7-8.  Once mode-3 starts producing real output, this
+tracked under SN-33.  Once mode-3 starts producing real output, this
 gate is where mode-4 either keeps pace or surfaces a real divergence.
 
-**Diagnosis of the segfault (handed off to SN-7-8):** SIGSEGV at
+**Diagnosis of the segfault (handed off to SN-33):** SIGSEGV at
 `bb_cap` in `src/runtime/x86/bb_boxes.c:541`, on the line
 `cr = spec_from_descr(ζ->fn(ζ->state, α));`.  The `cap_t::fn` field
 is null at the call site — pattern-capture-box function pointer is
@@ -401,7 +401,7 @@ First failing statement uses subject `ALPHABET`, which is defined in
 `global.sno` (one of beauty/'s shared includes).  The bug is upstream
 of the emitter — it affects modes 1, 2, 3, and (parity-correctly)
 mode 4.  Fix belongs to the runtime / pattern-builder, not mode-4.
-Recommended next session: open SN-7-8, find the cap_t producer that
+Recommended next session: open SN-33, find the cap_t producer that
 isn't populating `fn`, fix there.  When mode-3 starts producing
 output, EM-7d-beauty-subsystems will start measuring real divergence
 (or, if mode-4 tracks correctly, advance unprompted).
