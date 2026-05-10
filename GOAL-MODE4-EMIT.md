@@ -836,7 +836,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [ ] **EM-FORMAT-BB-PORT-COMPLETION** — Audit/enforcement that every box emits all four α/β/γ/ω ports even when one would be a trivial jump.  Today some boxes (XCAT-with-zero-children, simpler leaves) emit fewer ports.  Survey first to identify which paths skip ports — same shape as CH-15-SURVEY / CH-17h-SURVEY before any code changes.
 
-- [ ] **EM-FORMAT-BB-COL3-COMMENTS** — Inline `# RPOS(0)`, `# LEN(1)`, `# BREAK ".,;"` annotations on the α line only (not repeated on β/γ/ω lines).  Mechanical: add an optional `comment` arg to the box-emit helpers; flat3c_action passes it through to col-3.
+- [x] **EM-FORMAT-BB-COL3-COMMENTS — LANDED 2026-05-09.**  Append `# KIND(args)` annotations to col-3 of leaf-box α-line emissions in `bb_flat.c`.  Today fires on tracked corpora: `# RPOS(0)` in roman.s, `# POS(0)` in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α paths are dead on tracked corpora today (zero observed) but still annotated for completeness.  Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).  Line counts unchanged (annotation appended to existing line).  Gates 14/14 GREEN.  one4all `70b76571`, corpus `f11fb1e`.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
@@ -873,6 +873,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-FORMAT-BB-COL3-COMMENTS LANDED 2026-05-09
+=============================================
+
+Append `# KIND(args)` annotations to col-3 of leaf-box α-line
+emissions in bb_flat.c.  Per the EM-FORMAT-BB rung spec: comments in
+col-3 name the box kind and argument on the α line only — not
+repeated on β/γ/ω lines.
+
+Today fires on tracked corpora: `# RPOS(0)` in roman.s; `# POS(0)`
+in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α
+paths are dead on tracked corpora today (zero observed) but still
+annotated for completeness.
+
+Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).
+No header / API changes.
+
+Tracked artifact line counts unchanged from EM-FORMAT-BB-LONE-LABELS
+baseline (annotation appended to existing line; no new line added).
+
+one4all `70b76571`, corpus `f11fb1e`.
+
+Gates 14/14 GREEN: smoke ×6, unified_broker PASS=49, EM PASS=13,
+bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations.
+
+----
 
 EM-FORMAT-BB-LONE-LABELS LANDED 2026-05-09
 =============================================
