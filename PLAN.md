@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-bang-concat** — migrate AST_BANG_BINARY + AST_LCONCAT in proc body chunks to SM opcodes (CH-17i-suspend ✅ 2026-05-10 — `--sm-run` rung01–04 17/24 → 20/24, all 3 rung03_suspend_gen* PASS byte-identical via new SM_SUSPEND_VALUE primitive). |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-bang-concat** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | **EM-FORMAT-BB-LAW-TRIPLE-FUSION landed (sess 2026-05-10).**  `cmp/test + cond_jmp + uncond_jmp` triples now fuse onto single lines via two new helpers in `bb_flat.c` (`flat_box_dispatch_jne_jmp`, `flat_box_entry_dispatch`).  22 call sites + 3 entry sites converted; trailing `test` removed from `flat_box_call`/`flat_box_call_slot`.  Audit clean: 0 lone labels, 0 lone jmps, 0 jmp+jmp.  Tracked artifact line counts: roman.s 153 (-6), wordcount.s 124, claws5.s 951 (-6), treebank-list.s 1178 (-6), treebank-array.s 1357 (-6).  Gates 14/14 GREEN.  Awaiting Lon's sign-off on EM-FORMAT-BB-LAW. |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **SN-33b landed sess 2026-05-10 (one4all `7238e6e4`)**: cap_t::fn=NULL crash + NRETURN NAME_DEREF; SN-7 0/51→26/51, mode-4 parity 17/17→4/17 (parity-with-real). Next: EM-7d-beauty-subsystems work (pick any of 13 remaining mode-4 diffs) or SN-33c continuation (25 residual SN-7 fails in IR-only / SM-only / all-3 categories). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
@@ -62,7 +62,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | Native Snocone — JVM | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all | JV-1 awaits PARSER-SC-6b |
 | Native Snocone — JS | `GOAL-NATIVE-SNOCONE-JS.md` | one4all | JS-1 awaits PARSER-SC-6b |
 | Corpus Layout | `GOAL-CORPUS-LAYOUT.md` | corpus+.github+one4all | design state |
-| SNOBOL4 Frontend | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 + **SN-33 (NEW, 2026-05-10): SN-7 51/51 regressed to 0/51; restore + extend to mode 4 = 68/68; cap_t::fn null at bb_boxes.c:541** |
+| SNOBOL4 Frontend | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 + **SN-33b landed (one4all `7238e6e4`): cap_t::fn=NULL crash + NRETURN NAME_DEREF, SN-7 0/51→26/51. SN-33c partial — 25 residual fails to triage.** |
 | Icon Frontend | `GOAL-LANG-ICON.md` | one4all | IC-9 |
 | **Prolog Frontend** | `GOAL-LANG-PROLOG.md` | one4all+corpus | PR-17 — string builtins rung40 |
 | Raku Frontend | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
