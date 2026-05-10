@@ -770,3 +770,114 @@ between `--jit-run` and `--sm-run`.  Note: now that ME-3's per-
 instruction blob model is proven, ME-4's job is to swap selected blobs'
 "call C handler" middle for direct inline native — same blob shape,
 same alignment discipline, different bytes in the middle.
+
+**⚠ Emergency handoff sess 2026-05-10 (Claude latest): ME-4 PARTIAL,
+gates clean but a downstream bug is live.**  Work done this session,
+not yet committed to a closed-rung pointer:
+
+1. **Architecture pivot:** the goal-file's literal recipe `call rt_<name>@PLT`
+   is unworkable because `scrip` does not link against `libscrip_rt.so` —
+   `rt_*` symbols don't exist in the scrip process.  Three options were
+   surveyed with Lon: (A) refactor scrip to dynamic-link libscrip_rt
+   (multi-session reshape, ~381 symbol-set deduplication), (B) static-link
+   rt.c into scrip (~10 lines of ifdef stubs to break duplicate-symbol
+   chain), (C) keep using scrip-side handlers but unify via a backend
+   abstraction inside rt.c and inline the stack-pop/push around new
+   value-in/value-out helpers (`me4_*` family).  Lon picked **Option C**.
+
+2. **rt.c backend abstraction landed.**  Added `rt_vstack_ops_t` public
+   ABI in `rt.h` (pointer-form, DESCR_t-opaque) and the matching plumbing
+   in `rt.c`: default backend = static `g_vstack[]` / `g_last_ok` (mode-4
+   unchanged by construction); `rt_set_vstack_backend(ops)` /
+   `rt_get_default_vstack_backend()` exposed.  All 25 `rt_*` function
+   bodies' direct `g_vstack` / `g_vtop` / `g_last_ok` references swept
+   through `g_ops` (auto-script + manual fixes; one false-positive fixed
+   in `rt_set_last_ok`).  libscrip_rt.so builds clean; mode-3 + mode-4
+   baseline gates unchanged (smoke 7/7, unified_broker 49/49,
+   mode-4 FAIL=13 frozen).  Note: `g_pat_stack[]` inside rt.c is NOT
+   in the backend abstraction this rung; it's libscrip_rt-internal
+   variant-pattern scratch and never seen by mode-3 (mode-3 builds
+   patterns on the value stack since ME-1).  Future rung may extend
+   the backend to cover it.
+
+3. **Variable-size blobs landed.**  The fixed 30-byte ME3_BLOB_SIZE
+   stride is gone.  Per-PC dispatch table changed from `g_blob_offsets[]`
+   (size_t byte-offsets) to `g_blob_addrs[]` (uint8_t* absolute
+   addresses).  Trampoline updated: indirect-jump through
+   `g_blob_addrs[pc]` instead of `imul rax, rax, 30 + add base`.
+   Stride encoding via imm8 imul is gone.  Trampoline now 23 bytes
+   (was 32).  No NOP padding in any blob.  emit_halt_blob = 6 bytes
+   (was 30), emit_jump_blob_skeleton = 14 bytes (was 30),
+   emit_standard_blob = 28 bytes (was 30).  Mode-4-future serialization
+   benefits: each blob is exactly the bytes it needs; no padding to
+   strip.  SM_JUMP rel32 patching updated to compute relative offset
+   from absolute addresses (was offset-based).
+
+4. **ME-4 helpers + blobs landed.**  Added `me4_arith` / `me4_concat`
+   / `me4_coerce_num` / `me4_push_var` / `me4_store_var` / `me4_push_null`
+   value-in/value-out helpers in `sm_codegen.c` (DESCR_t in / DESCR_t
+   out via SysV ABI; side effect on `g_jit_state->last_ok` only).
+   Emitted inline-native blobs for all 10 named opcodes
+   (SM_ADD/SUB/MUL/DIV/MOD/CONCAT/COERCE_NUM/PUSH_NULL/PUSH_VAR/STORE_VAR)
+   that load args from `[r12]`-anchored stack into ABI arg regs, call
+   the matching me4_* via imm64 (SEG_CODE↔scrip-text rel32 unreachable
+   by mmap distance, confirmed empirically), store result back through
+   `[r12]`-anchored stack.  All blobs defensively reload stack base
+   after the C call (most helpers can't realloc; cheap insurance).
+   Wired in `sm_codegen` dispatch loop.
+
+5. **Gates: smoke 7/7, unified_broker 49/49 PASS.**  Mode-4 gate
+   suspended (per ME-3 Gates section).  Microbench: 100k counter
+   loop sm-run 116ms → jit-run 79ms (~32% faster, vs ME-3's ~26%).
+
+6. **🐛 BUG diagnosed but unfixed: multi-statement arithmetic
+   programs abort with `realloc(): invalid next size`.**  Reproducer:
+   any program with multiple expressions per loop iteration involving
+   PUSH_VAR.  Root cause partially identified late in session:
+   `sm_interp.c:295` resets `st->sp = 0` between statements
+   (`/* reset value stack at each statement boundary */`) — mode-2
+   contract.  Mode-3's ME-3 blobs did not replicate this discipline;
+   the latent bug was hidden because handler-side `sm_push` does
+   bounds-check + realloc.  ME-4's inline-native PUSH_NULL and
+   PUSH_VAR blobs write to `stack[sp]` directly without the
+   bounds check; sp creeps past the initial `stack_cap=16` and
+   corrupts the heap.  Same gates pass because they don't exercise
+   the multi-expression-per-statement pattern.
+
+   **Fix candidates (next session):** (a) emit a per-statement
+   sp-reset blob at SM_STNO (replicates mode-2 contract); (b) add
+   inline bounds-check + slow-path call to sm_push in PUSH_NULL /
+   PUSH_VAR blobs; (c) pre-grow `SM_State.stack` to a safe bound
+   at sm_jit_run entry (compute high-water mark in sm_lower).
+   Option (a) is architecturally honest — mode-3 should match the
+   inter-statement contract mode-2 enforces.
+
+7. **Register layout was NOT redesigned this session — significant
+   regret.**  When Lon picked Option C ("variable-size blobs"), I
+   should have stopped and proposed a unified register convention
+   first: `r12` = SM_State header (locked, per ME-2 already), `r13`
+   = SM_State.stack base (the value-stack pointer, locked across all
+   blobs except after potentially-realloc'ing calls), with r14/r15
+   reserved for locals / heap-frame / chunk-frame respectively.
+   Instead I emitted blobs ad-hoc, each one reloading `[r12]` (stack
+   base) into a temporary every time.  Each blob wastes ~25 bytes on
+   redundant base-loads and sp-arithmetic that a register convention
+   would put in a once-loaded register.  This regression-tolerant but
+   sub-optimal shape is now the live mode-3 emitter.  A future rung
+   ("ME-4b" or similar) should re-emit with the locked register
+   convention, expecting blob sizes to shrink ~30% and another
+   measurable perf win.  See full discussion in session log.
+
+**State at handoff:** one4all working tree dirty; no commit pushed.
+`src/runtime/rt/rt.c` +178/-65, `src/runtime/rt/rt.h` +46/-0,
+`src/runtime/x86/sm_codegen.c` +620/-134.  ME-4 marked PARTIAL below
+(stays `- [ ]`).  Sibling Goals (esp. GOAL-CHUNKS) untouched; mode-4
+frozen as tripwire untouched.  Gates: smoke 7/7, unified_broker 49/49,
+mode-4 PASS=4 FAIL=13 frozen.  Continuation reads this addendum, fixes
+the realloc bug per the Fix candidates above, runs the failing
+reproducer (multi-statement arith — see commit body for canonical
+input), and then closes ME-4 only after that passes byte-identical.
+The register-layout redesign is the recommended **first** rung after
+ME-4 closes — call it ME-4b — so the rest of the rungs land against
+the locked convention rather than inherit the ad-hoc one.
+
