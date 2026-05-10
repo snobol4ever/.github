@@ -551,12 +551,54 @@ Rung-specific gates as listed per rung below.
       programs.  Tracked implicitly under ME-5 (control flow) which
       will revisit jump opcode encoding anyway.
 
-- [ ] **ME-5 — Control flow.**  `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
+- [x] **ME-5 — Control flow.**  `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
       `SM_STNO`.  SM_LABEL records SEG_CODE offset for the next instruction;
       SM_STNO is no-op at runtime (statement number is used by mode 4 banner
       emission, irrelevant in mode 3).  `SM_JUMP_S` and `SM_JUMP_F` lower
       as `call rt_last_ok@PLT ; test eax, eax ; jnz/jz <rel32>`.  Gate:
       `goto_s` and `goto_f` smoke tests pass under `--jit-run`.
+      ✅ 2026-05-10 (Claude latest, fifth session) at one4all
+      `880adc36`.  Two emitter additions:
+      1. `emit_standard_blob_no_stack` (39 bytes vs 57 for the full
+         standard_blob) — skips the pre-call r12→sp write (handler
+         doesn't read st->sp meaningfully) but keeps the post-call r12
+         reload so h_stno's `STATE->sp = 0` reset propagates correctly
+         to r12 via `r12 = st->stack + sp*16`.  Routed: SM_LABEL, SM_STNO.
+      2. `emit_cond_jump_blob_skeleton` (33 bytes) — inline-native lowering
+         of SM_JUMP_S / SM_JUMP_F.  Reads `[r13+16]` (st->last_ok) via
+         direct mem-imm cmp; no PLT call needed (the original spec's
+         `call rt_last_ok@PLT` is unworkable since scrip doesn't link
+         libscrip_rt — but r13=&SM_State makes it trivial to read
+         last_ok inline).  Direct rel32 to BOTH target and fall-through
+         blobs — bypasses the trampoline indirect-jump on every branch.
+         Two rel32 patches per blob; pass 2 handles them via the
+         negative-tag scheme on `jump_indices[]` (`-(target_pc + 1)`
+         distinguishes cond-jump records from SM_JUMP records).  Buffer
+         size doubled to 2x prog->count to accommodate the 2-record
+         emission per cond-jump.
+      Audit:
+      - Direct-rel32 to both arms preserves the "every blob bumps pc
+        from its own preamble" invariant — both target and fall-through
+        blobs do their own pc++.  cond_jump itself sets pc to the
+        correct destination value before jumping, so debugger/longjmp
+        recovery sees a consistent pc.
+      - `cmp dword [r13+16], 0` reads `int last_ok`; jcc on result.
+        last_ok is a 4-byte int in SM_State; the 32-bit cmp encoding
+        matches.
+      Gates: smoke 7/7 (including `goto_s`), unified_broker 49/49,
+      sn7_beauty 26/25 unchanged baseline, mode-4 tripwire 0/17
+      unchanged.  60-program corpus parser sweep: 0 divergences sm-run
+      vs jit-run.  Correctness verified on taken (IDENT), not-taken
+      (DIFFER), and tight-loop (`LT` with `:S(LOOP)F(DONE)`) shapes.
+      Perf: ~99ms median jit-run on 100k counter loop (same as pre-ME5
+      baseline within noise).  The blob-size shrinkage (57→39 for
+      SM_STNO/SM_LABEL, 57→33 for cond-jumps) doesn't translate to
+      measurable speedup on this microbench because dispatch cost is
+      already dominated by the C-handler calls and me4_arith's
+      shared_arith — but the smaller code is denser in i-cache, which
+      may matter for larger programs (untested here, out of rung
+      scope).  Future blob-size benefit will manifest on mode-4
+      serialization (smaller SEG_CODE → smaller .s).
 
 - [ ] **ME-6 — Function calls and returns.**  `SM_CALL_FN`, `SM_RETURN`,
       `SM_NRETURN`, `SM_FRETURN`.  Bridge via existing `rt_call@PLT` for
@@ -1466,3 +1508,136 @@ for handlers that don't touch the value stack — same blob shape as
 emit_standard_blob but with both sync blocks elided, ~28 bytes vs 57.
 Gate: `goto_s` and `goto_f` smoke tests pass under `--jit-run`;
 existing perf baseline preserved or improved.
+
+**Addendum sess 2026-05-10 (Claude latest, fifth session of the day):
+ME-5 ✅ CLOSED.  Control flow opcodes inline-native.**
+
+The fourth-session addendum noted ME-5 would introduce
+`emit_standard_blob_no_stack()` for handlers that don't touch the
+value stack.  This session implemented that plus inline-native
+SM_JUMP_S / SM_JUMP_F.
+
+**What landed (single file, sm_codegen.c):**
+
+1. **`emit_standard_blob_no_stack`** — 39-byte blob shape (vs 57 for
+   full standard_blob).  Pre-call r12→sp write elided (the handler
+   either ignores st->sp like h_label or overrides it like h_stno's
+   `STATE->sp = 0` — there's no pre-call state to capture).  Post-call
+   r12 reload preserved so h_stno's sp-reset propagates to r12.
+   Routed: SM_LABEL, SM_STNO.
+
+2. **`emit_cond_jump_blob_skeleton`** — 33-byte blob.  Reads
+   `[r13+16]` directly (st->last_ok); jcc on result; direct rel32 to
+   target arm; direct rel32 to fall-through arm.  No PLT call, no
+   trampoline indirect-jump — both arms are direct.  Two rel32 patch
+   sites per blob.
+
+   The original spec's `call rt_last_ok@PLT ; test eax, eax ; jnz/jz
+   <rel32>` is unworkable in this environment (scrip doesn't link
+   libscrip_rt — same constraint that drove ME-4's Option C decision).
+   But the FORTH register convention from ME-4-post-r12-tos gives us
+   r13 = &SM_State, which makes inline `cmp [r13+16], 0` trivial.
+   This is strictly better than the original recipe: no call overhead,
+   no PLT indirection, no register clobber.
+
+   Encoding:
+   ```
+   cmp dword [r13+16], 0           5 bytes  (41 83 7d 10 00)
+   jcc rel8 +13 (skip taken)       2 bytes  (74/75 0d)
+   mov dword [r13+20], target_pc   8 bytes  (41 c7 45 14 <imm32>)
+   jmp rel32 blob[target_pc]       5 bytes  (e9 <rel32>)   [PATCH 1]
+   mov dword [r13+20], fallthru    8 bytes  (41 c7 45 14 <imm32>)
+   jmp rel32 blob[fallthru_pc]     5 bytes  (e9 <rel32>)   [PATCH 2]
+   ```
+
+   jcc selection:
+   - SM_JUMP_S takes on last_ok != 0 → fall through on zero → `je`
+     (opcode 0x74).
+   - SM_JUMP_F takes on last_ok == 0 → fall through on nonzero → `jne`
+     (opcode 0x75).
+
+3. **Pass 2 patcher extended.**  Buffer sized 2x prog->count (each
+   cond-jump emits 2 patch records).  `jump_indices[j]`'s sign tags
+   the record kind:
+   - `jump_indices[j] >= 0` → SM_JUMP entry; index = source-pc; target
+     read from `prog->instrs[ji].a[0].i`.
+   - `jump_indices[j] < 0`  → ME-5 cond-jump entry (tagged); target =
+     `-jump_indices[j] - 1`.
+
+   The tag is robust: negative values can't collide with valid pc
+   indices (which are >= 0 and bounded by prog->count, well under
+   INT_MAX/2).
+
+**Why ME-5 isn't a perf win on this microbench (and is fine anyway):**
+
+100k counter loop pre-ME5 (just ME-4-post-r12-tos): 98-100ms median
+under --jit-run.  Same loop post-ME5: 97-100ms median.  Within noise.
+
+Reason: the 100k loop's per-iteration cost is dominated by
+NV_GET_fn/NV_SET_fn (variable lookups) and shared_arith (the C
+arithmetic helper).  Dispatch cost (which is what ME-5 reduces) is a
+small fraction.  Reducing standard_blob's 57 bytes to 39 (no_stack)
+for SM_STNO, and 57 to 33 (cond_jump) for SM_JUMP_S, saves dispatch
+cycles but not enough to dent the per-iteration total.
+
+This is expected and consistent with the goal-file's framing of ME-5
+as "control flow inline-native" rather than "perf rung."  The win
+manifests in:
+- Smaller SEG_CODE → smaller mode-4 .s output when EM-MODE4-IS-MODE3-
+  DUMP reopens after ME-14.
+- Fewer indirect jumps → better branch predictor behaviour on larger
+  programs (untested but architecturally cleaner).
+- One less PLT-shaped dispatch hop on every conditional branch — pure
+  win for the i-cache.
+- Architectural correctness: control flow now uses the same FORTH
+  register convention as everything else; no more standard-blob sync
+  protocol firing on stack-neutral handlers.
+
+**Audit:**
+
+| Check | Status |
+|-------|--------|
+| `goto_s` smoke (test_smoke_snobol4.sh) | ✅ PASS |
+| `define` smoke (uses SM_JUMP at function bounds) | ✅ PASS (already worked, but verified) |
+| Branch-taken correctness (IDENT-matching `:S(label)`) | ✅ PASS — outputs `right` |
+| Branch-not-taken correctness (DIFFER-mismatching `:S(label)`) | ✅ PASS — outputs `right` via `:F` fall-through |
+| Tight-loop correctness (LT, `:S(LOOP)F(DONE)`) | ✅ PASS — outputs `X=20 Y=210` |
+| SM_LABEL routed through standard_no_stack | ✅ |
+| SM_STNO routed through standard_no_stack | ✅ |
+| SM_JUMP_S routed through cond_jump | ✅ |
+| SM_JUMP_F routed through cond_jump | ✅ |
+| jump_indices buffer doubled to 2x prog->count | ✅ |
+| Negative-tag scheme distinguishes SM_JUMP from cond-jump records | ✅ |
+| r12↔sp sync protocol preserved for full standard_blob (other opcodes) | ✅ — emit_standard_blob unchanged this rung |
+
+**Gates this session:**
+
+| Gate | Before | After |
+|------|--------|-------|
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | PASS=7 FAIL=0 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | PASS=49 FAIL=0 |
+| `test_gate_sn7_beauty_self_host.sh` | PASS=26 FAIL=25 | PASS=26 FAIL=25 (unchanged baseline) |
+| `test_gate_em_beauty_subsystems_mode4.sh` (tripwire) | PASS=0 FAIL=17 | PASS=0 FAIL=17 (unchanged baseline) |
+| Realloc reproducer (multi-stmt arith) | byte-identical | byte-identical |
+| 60-program parser-corpus sweep | (30 last session) 0 divergences | 0 divergences (60 programs) |
+| 100k counter loop --jit-run | 97-100ms median | 97-100ms median (within noise) |
+| 100k counter loop --sm-run | ~120ms median | ~120ms median (untouched) |
+
+**State at handoff:**
+- one4all: working tree dirty (`src/runtime/x86/sm_codegen.c`).
+  Ready to commit.
+- corpus: unchanged.
+- .github: GOAL-MODE3-EMIT.md updated (this addendum + ME-5
+  marked `[x]`), PLAN.md updated (active step → ME-6).  Ready to
+  commit.
+
+**Next active step:** ME-6 — Function calls and returns.  `SM_CALL_FN`,
+`SM_RETURN`, `SM_NRETURN`, `SM_FRETURN`.  Bridge via existing
+`me4_*`-style helpers for builtin dispatch (the original spec's
+`rt_call@PLT` is unworkable for the same reason as ME-5's
+`rt_last_ok@PLT` — use the same Option C inline-helper pattern).
+DEFINE'd chunks get a real prologue/epilogue: `push rbp; mov rbp, rsp`
+at entry, `pop rbp; ret` at exit.  This will let recursive `roman.sno`
+run under `--jit-run` and fix the alignment problem latent in mode-3
+today.  Gate: `define` smoke passes; recursive `roman.sno` runs under
+`--jit-run`.
