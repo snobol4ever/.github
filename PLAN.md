@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-suspend** — migrate AST_SUSPEND in proc body chunks to SM opcodes (CH-17i-every ✅ 2026-05-10 — `8a85285e` — `--sm-run` rung01–04 5/24 → 17/24, all rung01_paper_* PASS byte-identical). |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-suspend** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **EM-FORMAT-COMMENT-PURGE (6 comment categories removed) landed sess 2026-05-10.** Next: EM-7d-beauty-subsystems (blocked on SN-33 cap_t::fn fix). |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **EM-FORMAT-DOUBLED-BANNER-FIX landed sess 2026-05-10.** Next: EM-7d-beauty-subsystems (blocked on SN-33 cap_t::fn fix). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |

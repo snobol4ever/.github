@@ -363,7 +363,20 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-FORMAT-COMMENT-PURGE — sess 2026-05-10 (latest)**
+**EM-FORMAT-DOUBLED-BANNER-FIX — sess 2026-05-10 (latest)**
+
+Removed four `emit_section_break()` calls that were emitting bare `#===` rules
+immediately before sections already opening with their own `#===` stmt/blob banners,
+producing doubled rules. Deleted the dead `emit_section_break` helper.
+one4all @ `0796e673`, corpus @ `6d56405`.
+
+Gates: smoke 7/7, mode-4 parity 17/17. Artifacts gcc -c clean.
+
+**Next:** EM-7d-beauty-subsystems (blocked on SN-33 `cap_t::fn` null fix).
+
+----
+
+**EM-FORMAT-COMMENT-PURGE — sess 2026-05-10**
 
 Removed six categories of noisy comments from emitted `.s`:
 `# data: ...` annotations, `# strings/expression registry/BB code/SM code` section captions,
