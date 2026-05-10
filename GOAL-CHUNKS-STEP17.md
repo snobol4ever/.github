@@ -72,21 +72,105 @@ land).
 > **CURRENT RUNG: CH-17i-bang-concat** — next sub-rung from the CH-17i-survey.
 > Migrate AST_BANG_BINARY (`!E` iterator) and AST_LCONCAT (string concat with
 > generative children) off the legacy `emit_push_expr + SM_BB_PUMP` fallthrough
-> block (sm_lower.c:1338, post-CH-17i-suspend block).  Both have existing
-> `bb_node_t` shapes in `coro_eval` (icn_iterate_state_t / icn_cat_gen_state_t)
-> — these are CH-17i-every-style migrations, NOT CH-17i-suspend-style.  Use
-> the `g_*_table` + name-driven opcode pattern (CH-17i-every is the working
-> template — see `h_bb_pump_every` in sm_codegen.c and the matching
-> `SM_BB_PUMP_EVERY` handler in sm_interp.c).  Expected gain: rung04_string_*
-> programs that currently FAIL under `--sm-run` on AST_LCONCAT in proc bodies.
+> block (sm_lower.c:1371–1380, post-CH-17i-suspend block).  Both have existing
+> `bb_node_t` shapes in `coro_eval` (icn_bang_binary_state_t / icn_binop_gen_state_t
+> with op=ICN_BINOP_CONCAT) — these are CH-17i-every-style migrations, NOT
+> CH-17i-suspend-style.
+>
+> **AUDIT 2026-05-10 (orientation session, no code written):**
+>
+> 1. **Reachability confirmed via empirical sweep.** Across the 271-program
+>    Icon corpus under `--sm-run` with `SCRIP_EXPRS_AUDIT=1`: zero programs fire
+>    SM_PUSH_EXPR, six fire SM_PUSH_EXPRESSION (rung33_case_* + rung36_jcon_kwds,
+>    all expression-shaped — not legacy fallthrough).  But targeted probes on
+>    programs using `|||` (AST_LCONCAT) and `!` (AST_BANG_BINARY) show the
+>    legacy fallthrough DOES fire on real programs not exercised by the sweep:
+>    - `rung15_real_swap_lconcat.icn` — IR PASS, SM FAIL (rc=134, "sm_interp:
+>      stack underflow" then SIGABRT).  Audit reports
+>      `[CHUNKS-AUDIT] SM_PUSH_EXPR fired at pc=3 (legacy AST_t* path)`.
+>      This is the cleanest empirical anchor: AST_LCONCAT in `main`'s body
+>      hits the legacy fallthrough, SM_BB_PUMP is net-stack-zero, trailing
+>      proc-body SM_VOID_POP underflows.  Same root cause CH-17i-every and
+>      CH-17i-suspend addressed for their kinds.
+>    - `rung11_bang_augconcat_*` (4 of 5 programs) — IR PASS, SM FAIL but
+>      mostly via a different mechanism (no SM_PUSH_EXPR fire visible in
+>      the audit).  Investigation deferred — likely augmented-concat (`||:=`)
+>      lowering issue separate from the bang-concat rung.  rung11_bang_str
+>      already PASSes both modes.
+>    - `rung22_lists_bang_list` and `rung13_table_iterate` — IR FAIL too;
+>      out of scope per "FAIL/XFAIL programs stay there".
+>
+> 2. **Stale claim corrected.** The previous version of this note said
+>    "Expected gain: rung04_string_* programs".  All five rung04_string_*
+>    programs already PASS in all three modes — pulled across by
+>    CH-17i-every+suspend.  The actual headline gain for this rung is
+>    `rung15_real_swap_lconcat` flipping FAIL→PASS.
+>
+> 3. **DESIGN DECISION (Lon, sess 2026-05-10): UNIFIED opcode + table.**
+>    Instead of CH-17i-every's per-kind shape (one opcode per AST kind, one
+>    `g_<kind>_table` per kind), this rung introduces a SINGLE generic
+>    opcode + SINGLE shared table that handles AST_BANG_BINARY, AST_LCONCAT,
+>    and (in subsequent rungs) AST_SECTION*, AST_LIMIT, AST_RANDOM.  Rationale:
+>    five upcoming rungs all have identical handler bodies modulo the table
+>    they index — a clean refactor avoids five rounds of copy-paste.
+>
+>    **Proposed shape** (next session decides final names):
+>      - **Opcode:** `SM_BB_PUMP_AST` with `a[0].i = ast_id`.
+>      - **Table:** `g_ast_pump_table` (AST_t** array), with API
+>        `ast_pump_table_register(AST_t *)` / `ast_pump_table_lookup(int)` /
+>        `ast_pump_table_reset()`.  Same lifetime model as g_every_table:
+>        borrowed AST pointers, populated by sm_lower at lower-time, reset
+>        on sm_program_free.
+>      - **Handler:** `lookup → coro_eval → bb_broker(BB_PUMP, NULL, NULL);
+>        push NULVCL` — identical to h_bb_pump_every.  Body-fn NULL
+>        because coro_bb_binop / coro_bb_bang_binary already run their
+>        own discovery via bb_exec_stmt or yield to caller — passing
+>        pump_print would double-print (verify empirically per kind).
+>      - **JIT mirror:** `h_bb_pump_ast` in sm_codegen.c, mirroring
+>        h_bb_pump_every modulo the table function.
+>      - **sm_lower.c:1371–1380:** carve AST_BANG_BINARY and AST_LCONCAT
+>        cases out of the fallthrough; emit
+>        `sm_emit_i(p, SM_BB_PUMP_AST, ast_pump_table_register(e))`.
+>        Leave AST_LIMIT, AST_RANDOM, AST_SECTION* in the fallthrough for
+>        their own rungs (CH-17i-section, CH-17i-limit-random) which will
+>        carve them out and use the same opcode/table.
+>      - **Open question — should CH-17i-every be retroactively migrated
+>        onto the unified opcode/table?** No.  Keep CH-17i-every's
+>        SM_BB_PUMP_EVERY as-is to preserve its already-validated test
+>        coverage; AST_EVERY's existing per-kind shape works and has
+>        proof-of-correctness.  The unified opcode is for the kinds
+>        that haven't yet migrated.  If later a uniform refactor wants
+>        to consolidate, that's its own (much smaller) cleanup rung.
+>
+> 4. **Validation plan for the rung.**
+>      - Smoke ×6 byte-identical (7/7, 5/5, 5/5, 5/5, 5/5, 4/4)
+>      - Isolation gate PASS
+>      - **Headline:** `rung15_real_swap_lconcat --sm-run` FAIL→PASS
+>        byte-identical to `--ir-run` output ("hello world\n")
+>      - `rung15_real_swap_lconcat --jit-run` same (via JIT mirror)
+>      - `--sm-run` rung01–04 byte-identical or +N (no regression)
+>      - Icon corpus 263 byte-identical to post-CH-17i-suspend baseline
+>        (177 PASS / 56 FAIL / 30 XFAIL)
+>      - unified_broker 49/0 unchanged
+>      - scrip_all_modes 2/0 unchanged
+>      - Document in `docs/CHUNKS-step17i-bang-concat-validation.md`
+>
+> 5. **rung11_bang_augconcat_* deferred.** Those failures are not blocked
+>    by AST_BANG_BINARY/LCONCAT lowering per the audit (no SM_PUSH_EXPR fire).
+>    Likely separate territory (augmented assignment in proc body); revisit
+>    after CH-17i-bang-concat lands to see if any flip as side effect, then
+>    file a separate rung for whatever remains.
+>
 > The ByrdBox `test_icon.c` reference (≈80 lines for the multi-generator
-> example) shows the four-port wiring at the assembly level — useful as a
-> sanity check that the lowering produces the right control flow shape.
+> example) and Proebsting "Simple Translation of Goal-Directed Evaluation"
+> show the four-port wiring at the assembly level — useful as a sanity check
+> that the lowering produces the right control flow shape.  Both available
+> as uploaded artifacts in the originating session.
 >
 > **Sub-rung order from CH-17i-survey-mode3.md:**
->   - CH-17i-bang-concat — AST_BANG_BINARY + AST_LCONCAT (next)
->   - CH-17i-section — AST_SECTION + AST_SECTION_PLUS + AST_SECTION_MINUS
->   - CH-17i-limit-random — AST_LIMIT + AST_RANDOM
+>   - CH-17i-bang-concat — AST_BANG_BINARY + AST_LCONCAT (next; introduces unified opcode/table)
+>   - CH-17i-section — AST_SECTION + AST_SECTION_PLUS + AST_SECTION_MINUS (reuse unified opcode)
+>   - CH-17i-limit-random — AST_LIMIT + AST_RANDOM (reuse unified opcode)
 >   - CH-17i-prolog-initialization — initialization/2 bridge
 >
 > When all sub-rungs land, the legacy `emit_push_expr + SM_BB_PUMP` fallthrough
