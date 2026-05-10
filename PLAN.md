@@ -51,8 +51,8 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 
 | Goal | File | Repo | Step |
 |------|------|------|------|
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-bang-concat** — migrate AST_BANG_BINARY + AST_LCONCAT in proc body chunks to SM opcodes (CH-17i-suspend ✅ 2026-05-10 — `--sm-run` rung01–04 17/24 → 20/24, all 3 rung03_suspend_gen* PASS byte-identical via new SM_SUSPEND_VALUE primitive). |
-| **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-bang-concat** (same as above) |
+| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-bang-concat Phase 2/3/4** — Phase 1 ✅ 2026-05-10 (AST_LCONCAT scalar value path mirroring AST_CAT; rung15_real_swap_lconcat flips --sm-run/--jit-run FAIL→PASS; Icon --sm-run corpus 100→101). Phases 2 (AST_LCONCAT generative, deferred — not exercised by corpus), 3 (AST_BANG_BINARY scalar), 4 (AST_BANG_BINARY generative) open. |
+| **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-bang-concat Phase 2/3/4** (same as above) |
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **SN-33b landed sess 2026-05-10 (one4all `7238e6e4`)**: cap_t::fn=NULL crash + NRETURN NAME_DEREF; SN-7 0/51→26/51, mode-4 parity 17/17→4/17 (parity-with-real). Next: EM-7d-beauty-subsystems work (pick any of 13 remaining mode-4 diffs) or SN-33c continuation (25 residual SN-7 fails in IR-only / SM-only / all-3 categories). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |

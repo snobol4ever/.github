@@ -69,13 +69,25 @@ land).
 > rung03_suspend_return on `return E` — separate territory).  Documented in
 > `docs/CHUNKS-step17i-suspend-validation.md`.  one4all @ `fd1c2b6a`.
 >
-> **CURRENT RUNG: CH-17i-bang-concat** — next sub-rung from the CH-17i-survey.
-> Migrate AST_BANG_BINARY (`!E` iterator) and AST_LCONCAT (string concat with
-> generative children) off the legacy `emit_push_expr + SM_BB_PUMP` fallthrough
-> block (sm_lower.c:1371–1380, post-CH-17i-suspend block).  Both have existing
-> `bb_node_t` shapes in `coro_eval` (icn_bang_binary_state_t / icn_binop_gen_state_t
-> with op=ICN_BINOP_CONCAT) — these are CH-17i-every-style migrations, NOT
-> CH-17i-suspend-style.
+> **CURRENT RUNG: CH-17i-bang-concat** — Phase 1 ✅ LANDED 2026-05-10
+> (one4all `a8a064a0`).  Phases 2–4 remain open; see "REVISED rung
+> structure" in note (6) below for status.  Phase 1 closed
+> rung15_real_swap_lconcat (the empirical anchor) by adding a scalar
+> value-path lowering for AST_LCONCAT mirroring AST_CAT.  Phase 2
+> (AST_LCONCAT generative case via unified SM_BB_PUMP_AST opcode)
+> deferred — empirically not exercised by the current Icon corpus.
+> Phase 3 (AST_BANG_BINARY scalar) and Phase 4 (AST_BANG_BINARY
+> generative) remain open as follow-on work.
+>
+> Original framing of the rung as a single migration off the legacy
+> `emit_push_expr + SM_BB_PUMP` fallthrough block (sm_lower.c:1371–1380)
+> covered AST_BANG_BINARY + AST_LCONCAT both ways (scalar + generative).
+> Phase 1 closed the most-impactful slice (AST_LCONCAT scalar = the
+> rung15 anchor); the remaining phases are an open follow-on rung set.
+> Both AST kinds have existing `bb_node_t` shapes in `coro_eval`
+> (icn_bang_binary_state_t / icn_binop_gen_state_t with op=ICN_BINOP_CONCAT)
+> for the generative paths — Phases 2 and 4 will use those shapes via
+> the unified opcode pattern.
 >
 > **AUDIT 2026-05-10 (orientation session, no code written):**
 >
@@ -199,22 +211,30 @@ land).
 >    one yielded value (or the runtime calls coro_bb_bang_binary directly).
 >
 >    **REVISED rung structure (proposed; awaits Lon decision):**
->      - **Phase 1 — AST_LCONCAT scalar value path.**  Add a value-context
->        `case AST_LCONCAT:` to `lower_expr` mirroring `AST_CAT` —
->        `lower_expr(c0); lower_expr(c1); SM_CONCAT`.  No new opcode.
->        Closes rung15.  Trivial.
+>      - **Phase 1 — AST_LCONCAT scalar value path.**  ✅ LANDED 2026-05-10.
+>        Mirrors AST_CAT: `lower_expr(c_i); SM_CONCAT` between adjacent pairs.
+>        No new opcode.  Headline: `rung15_real_swap_lconcat` flips
+>        `--sm-run` / `--jit-run` FAIL→PASS byte-identical to `--ir-run`.
+>        Icon `--sm-run` corpus: 100→101 PASS, +1 (zero regressions).
+>        Audit clean: zero SM_PUSH_EXPR fires post-rung anywhere on the
+>        Icon corpus.  Documented in
+>        `docs/CHUNKS-step17i-bang-concat-phase1-validation.md`.
+>        one4all @ `a8a064a0`.
 >      - **Phase 2 — generative path via unified opcode.**  When at
 >        least one child of AST_LCONCAT is `is_suspendable`, emit the
 >        unified `SM_BB_PUMP_AST` opcode + `g_ast_pump_table` registration
->        (the option-B refactor described in (3) above).  Driven by the
->        same `is_suspendable` test the AST walker uses.  Body_fn
->        question (pump_print vs NULL) decides per-context.
+>        (the option-B refactor described in (3) above).  **Deferred —
+>        empirically not exercised** by the current Icon corpus (Phase 1
+>        post-rung sweep: zero SM_PUSH_EXPR fires across 271 programs).
+>        Same precedent as CH-15-SURVEY's deferral of CH-15b: defer until
+>        a corpus program forces the issue, then land Phase 2 with that
+>        program as the empirical anchor.
 >      - **Phase 3 — AST_BANG_BINARY scalar value path.**  Add value-
->        context handling.  May reuse a new opcode `SM_BANG_BINARY` or
->        call the runtime helper directly via SM_CALL_FN.  Decide in
->        the rung.
+>        context handling.  Even scalar `!list` is iteration (apply
+>        per-element); needs runtime helper invocation, not a single
+>        opcode.  Open.
 >      - **Phase 4 — AST_BANG_BINARY generative path.**  Same unified
->        opcode pattern as Phase 2.
+>        opcode pattern as Phase 2 if/when it lands.
 >
 >    This is still ONE rung in spec but lands as 2–4 commits internally.
 >    Or carve into two adjacent rungs: CH-17i-lconcat (phases 1+2) and
