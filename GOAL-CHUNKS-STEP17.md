@@ -161,6 +161,71 @@ land).
 >    after CH-17i-bang-concat lands to see if any flip as side effect, then
 >    file a separate rung for whatever remains.
 >
+> 6. **SCOPE DISCOVERY (sess 2026-05-10, second pass):** the rung is wider
+>    than the unified-opcode model alone covers.  Two findings forced this:
+>
+>    **(a) `--ir-run` and `--sm-run` do NOT share runtime today.**
+>    CH-17g-irrun-execution is `- [ ]` (NOT landed).  Under `--ir-run`
+>    non-SNO programs still go through `polyglot_execute`'s legacy AST
+>    walker.  Under `--sm-run` they go through SM dispatch.  This is why
+>    rung15 PASSes under `--ir-run` (legacy walker handles AST_LCONCAT
+>    via `interp_eval.c:3827` — a clean value-context computation:
+>    `interp_eval(c0) ++ interp_eval(c1)`) but FAILs under `--sm-run`
+>    (legacy fallthrough fires SM_PUSH_EXPR + SM_BB_PUMP, which is
+>    net-stack-zero — the proc-body trailing SM_VOID_POP underflows).
+>    The "modes 2 and 3 share the runtime" property is ASPIRATIONAL
+>    until CH-17g-irrun-execution lands.
+>
+>    **(b) AST_LCONCAT and AST_BANG_BINARY have a NON-GENERATIVE case
+>    that needs proper value-context lowering, not broker dispatch.**
+>    `coro_eval` only enters the bb_node_t path when at least one child
+>    is `is_suspendable`; otherwise it `break`s and "lets interp_eval
+>    handle it".  Today `lower_expr` for AST_LCONCAT has NO scalar path
+>    — it falls straight to the legacy fallthrough.  rung15
+>    (`s := "hello" ||| " world"`) is the trivial scalar case and has
+>    been broken under `--sm-run` since these opcodes existed.
+>
+>    AST_CAT (line 740) demonstrates the right shape for the scalar case:
+>    `lower_expr(c0); lower_expr(c1); SM_CONCAT;` — pure value-context.
+>    AST_LCONCAT can mirror this exactly; the SPITBOL semantics
+>    (Icon ||| is a string-concat alias when both operands are strings —
+>    see interp_eval.c:3827) match SM_CONCAT's behavior 1:1.
+>
+>    AST_BANG_BINARY is harder.  Even in scalar context (one-shot value)
+>    it's `proc ! list` — apply proc to each element of list.  No SM
+>    opcode mirrors this directly; the runtime helper would still need
+>    to walk the list and call proc.  Likely needs its own opcode
+>    `SM_BANG_BINARY` taking proc-name + arg-from-stack and producing
+>    one yielded value (or the runtime calls coro_bb_bang_binary directly).
+>
+>    **REVISED rung structure (proposed; awaits Lon decision):**
+>      - **Phase 1 — AST_LCONCAT scalar value path.**  Add a value-context
+>        `case AST_LCONCAT:` to `lower_expr` mirroring `AST_CAT` —
+>        `lower_expr(c0); lower_expr(c1); SM_CONCAT`.  No new opcode.
+>        Closes rung15.  Trivial.
+>      - **Phase 2 — generative path via unified opcode.**  When at
+>        least one child of AST_LCONCAT is `is_suspendable`, emit the
+>        unified `SM_BB_PUMP_AST` opcode + `g_ast_pump_table` registration
+>        (the option-B refactor described in (3) above).  Driven by the
+>        same `is_suspendable` test the AST walker uses.  Body_fn
+>        question (pump_print vs NULL) decides per-context.
+>      - **Phase 3 — AST_BANG_BINARY scalar value path.**  Add value-
+>        context handling.  May reuse a new opcode `SM_BANG_BINARY` or
+>        call the runtime helper directly via SM_CALL_FN.  Decide in
+>        the rung.
+>      - **Phase 4 — AST_BANG_BINARY generative path.**  Same unified
+>        opcode pattern as Phase 2.
+>
+>    This is still ONE rung in spec but lands as 2–4 commits internally.
+>    Or carve into two adjacent rungs: CH-17i-lconcat (phases 1+2) and
+>    CH-17i-bang (phases 3+4).  Lon's call.
+>
+>    **Empirical anchor unchanged:** rung15_real_swap_lconcat flips
+>    FAIL→PASS under `--sm-run` after Phase 1 alone (because rung15's
+>    children are scalar string literals — the generative path doesn't
+>    fire).  Phase 2 unblocks programs with `gen ||| gen` shapes;
+>    inventory needed once Phase 1 is in.
+>
 > The ByrdBox `test_icon.c` reference (≈80 lines for the multi-generator
 > example) and Proebsting "Simple Translation of Goal-Directed Evaluation"
 > show the four-port wiring at the assembly level — useful as a sanity check
