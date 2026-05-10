@@ -325,7 +325,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **Why it isn't done yet:** sess 2026-05-10 ran the SCRIP-x86 work at the end of an already-loaded session; context budget did not permit authoring a from-scratch GAS base.  Honest scope: what was delivered (Nasm + overlay) is workable but not pride-worthy; this rung carves the gap.
 
-- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under GOAL-LANG-SNOBOL4 rung SN-33.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  **Baseline sess 2026-05-10:** PASS=17 FAIL=0 (emit=0 link=0 diff=0) — every driver currently segfaults identically under mode-3 and mode-4 due to an unrelated runtime regression tracked under SN-33 (root cause diagnosed: `cap_t::fn` null at `bb_boxes.c:541` in `bb_cap`); once mode-3 starts producing output, mode-4 must continue to match it byte-for-byte.
+- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under GOAL-LANG-SNOBOL4 rung SN-33.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  **Baseline sess 2026-05-10 post-SN-33b:** PASS=4 FAIL=13 (emit=0 link=0 diff=13).  Up from PASS=17 FAIL=0 with the prior baseline being parity-with-broken (both modes segfaulting identically); SN-33b restored mode-3 to producing real output, so the parity gate now compares mode-4 against working mode-3, surfacing real divergences as designed.  `assign_driver` passes mode-4 (and modes 1/2/3) cleanly.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
@@ -362,6 +362,64 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**SN-33b cap_t::fn + NRETURN deref — sess 2026-05-10 (later)**
+
+Mode-4 was at 17/17 parity with `--sm-run`, but that parity was
+*parity-with-broken*: both modes segfaulted identically on every beauty
+subsystem driver because of an unrelated runtime regression in the
+SM-interpreter pattern-capture path.  This session diagnosed and fixed
+that regression in the runtime (NOT in the emitter), unblocking real
+mode-4 measurement.
+
+Two related fixes in `one4all`:
+
+1. **`bb_flat.c:flat_is_eligible`** — exclude XNME/XFNME/XARBN per the
+   function's own comment.  The eligibility check claimed (lines
+   1508-1515) that captures and ARBNO should fall back to the runtime
+   variant path "until that infrastructure lands" but only excluded XVAR
+   and XCAT n>2.  Captures slipped into `flat_emit_node`'s binary path,
+   which calls `bb_cap_new(NULL, NULL, vn, NULL, immediate)` at line
+   1494 with no recursive child-blob emission, leaving `cap_t::fn` null.
+   Fix: align body with comment; captures and ARBNO route through
+   `bb_build_binary` (which does recursively build the child) instead.
+
+2. **`sm_interp.c` SM_NRETURN + `sm_codegen.c` h_return_impl** —
+   NAME_DEREF on return.  NRETURN was pushing
+   `NAMEVAL(GC_strdup(retval_name))` — substituting the function's own
+   name for the actual return descriptor.  `r = foo()` where foo
+   `:(NRETURN)`s would store "foo" instead of the empty string SPITBOL
+   produces.  IR-run gets it right via `interp_eval.c:2771`'s
+   `if (IS_NAME(r)) return NAME_DEREF(r);` after `call_user_function`.
+   Fix: push `retval` (already `NV_GET_fn(retname)` at line ~1338) and
+   apply NAME_DEREF on the way out, matching IR convention.  Same fix
+   applied symmetrically to JIT codegen handler.
+
+**Gates:**
+- `test_gate_sn7_beauty_self_host.sh` (SN-33's gate): **0/51 → 26/51**.
+  `assign_driver` passes all three modes (--ir-run, --sm-run, --jit-run).
+- `test_gate_em_beauty_subsystems_mode4.sh` (this Goal's parity gate):
+  17/17 (parity-with-broken) → **4/17 (parity-with-real)**.  The drop
+  is the design intent of the gate finally activating: mode-3 is now
+  producing real output, so mode-4 either matches it or surfaces a
+  divergence.  `assign_driver` mode-4 also passes.
+- `test_smoke_snobol4.sh`: 7/7 (no regression).
+- `test_smoke_unified_broker.sh`: 49/49 (no regression).
+
+The 13 mode-4 diffs and 25 SN-7 fails are residual SN-33 work — distinct
+real bugs in IR-only paths (e.g. `case_driver --ir-run` infinite recursion
+in `_usercall_hook → call_user_function` when fn-name shadows parameter
+name) and in SM-only paths (e.g. `counter_driver --sm-run`).  These were
+*latent behind the segfaults*; SN-33b unblocked execution and exposed
+them for individual treatment.
+
+one4all @ `7238e6e4`.
+
+Next: EM-7d-beauty-subsystems work continues — pick any one of the 13
+remaining mode-4 diffs, isolate, fix.  Or hand back to SN-33 for further
+mode-3 correctness work that will automatically lift mode-4 parity.
+
+----
 
 **EM-FORMAT-SUBLIME-SN-LABEL-FIX — sess 2026-05-10 (latest)**
 

@@ -107,7 +107,7 @@ Full detail for closed rungs lives in the git log. Search by rung id
 (e.g. `git log --grep SN-17`) for the commit that landed each.
 
 - **Phase 1 — IR-run** [x] DONE: SN-1..SN-6, SN-14..SN-23 (NAM unification, per-pattern context, expr_eval, recursive patterns).
-- **Phase 2 — SM-run** [~] **REGRESSED 2026-05-10** — SN-7, SN-8 originally landed at 51/51 (subsystem drivers, modes 1/2/3) + args-on-stack SM opcodes.  Measured 2026-05-10 at one4all@`03766019`: 0/51.  All 17 drivers segfault in modes 1/2/3 (and 0/17 in newly-tested mode 4).  Root cause: `cap_t::fn` null at `bb_boxes.c:541`.  Restoration tracked under **SN-33**; once SN-33c lands this line returns to `[x]` and SN-33d/e extend the baseline to 68/68 across all four modes.  SN-7-note: literal `beauty.sno < beauty.sno` self-host moved to SN-26.
+- **Phase 2 — SM-run** [~] **PARTIAL RESTORATION 2026-05-10** — SN-7, SN-8 originally landed at 51/51 (subsystem drivers, modes 1/2/3) + args-on-stack SM opcodes.  Measured 2026-05-10 at one4all@`03766019`: 0/51.  Post SN-33b at one4all@`7238e6e4`: **26/51**.  Two related runtime bugs fixed (cap_t::fn=NULL via flat_is_eligible omission; NRETURN missing NAME_DEREF in SM/JIT return path).  Remaining 25 fails are independent issues latent behind the segfaults; tracked under SN-33c's expanded scope.  SN-7-note: literal `beauty.sno < beauty.sno` self-host moved to SN-26.
 - **Phase 3 — JIT-run** [x] DONE: SN-9 (JIT/codegen parity; crosscheck 207/207/207 in all three modes).
 - **SN-17** porter stemmer gap [x] DONE — IR+SM 100.00% on porter.sno.
 - **SN-25** SPITBOL `-f` won't-fix — superseded by SN-30.
@@ -177,24 +177,53 @@ eight steps.  The regression baseline is the SN-7 gate
 `scripts/test_gate_sn7_beauty_self_host.sh`.
 
 **Sub-rungs:**
-- [ ] **SN-33a** — `git bisect` to identify the commit that broke
-      SN-7 = 51/51.  Bisect bounds: `git tag` or session #57 commit
-      vs HEAD.  Bisect script: `bash
-      scripts/test_gate_sn7_beauty_self_host.sh` (returns 0 only
-      when ≥ 51 pass).  Output: name the breaking commit.
-- [ ] **SN-33b** — Diagnose the `cap_t::fn = NULL` root cause in the
-      breaking commit.  Likely a producer (`bb_cap` constructor /
-      `cap_t` init helper / NAME-binding path) that stopped wiring
-      the function pointer through.  Fix in place; do not introduce
-      new abstractions.
-- [ ] **SN-33c** — Restore SN-7 = 51/51 (modes 1/2/3).  Existing
-      gate `scripts/test_gate_sn7_beauty_self_host.sh` returns 0.
+- [~] **SN-33a** — `git bisect` to identify the commit that broke
+      SN-7 = 51/51.  **Skipped sess 2026-05-10**: direct diagnosis
+      identified two related runtime bugs without needing a bisect.
+      Documented at SN-33b below; reopen this if a future regression
+      requires bisect.
+- [x] **SN-33b** — Diagnose the `cap_t::fn = NULL` root cause and fix.
+      **DONE sess 2026-05-10, one4all @ `7238e6e4`.** Two fixes:
+      (1) `bb_flat.c:flat_is_eligible` was missing its declared
+      exclusions for XNME/XFNME/XARBN; the function body excluded
+      only XVAR and XCAT n>2 while its comment promised to also
+      exclude captures and ARBNO "until that infrastructure lands."
+      Result: captures slipped into `flat_emit_node`'s binary path,
+      which calls `bb_cap_new(NULL, NULL, vn, NULL, immediate)` at
+      line 1494 with no recursive child-blob emission, leaving
+      `cap_t::fn` null.  Fix: align body with comment.  Captures and
+      ARBNO now route through `bb_build_binary` (which uses
+      `bb_nme_emit_binary` in `bb_build.c` to recursively build the
+      child and pass a real `child_fn` to `bb_cap_new`).
+      (2) `sm_interp.c` SM_NRETURN + `sm_codegen.c` h_return_impl
+      were pushing `NAMEVAL(GC_strdup(retval_name))` — substituting
+      the function's own name for the actual return descriptor.
+      IR-run does NAME_DEREF after `call_user_function` returns
+      (`interp_eval.c:2771`); SM was both substituting the wrong
+      descriptor AND skipping the deref.  Fix: push `retval` (already
+      read via `NV_GET_fn(retname)`) and apply NAME_DEREF before
+      pushing, matching IR convention.
+- [~] **SN-33c** — Restore SN-7 = 51/51 (modes 1/2/3).  **Partial
+      sess 2026-05-10**: SN-33b lifted PASS=0/51 → **PASS=26/51**.
+      The remaining 25 fails are independent issues that were latent
+      behind the segfaults — they share the same gate but not the
+      same root cause as SN-33b.  Categories observed:
+      - **ir-only** (4 drivers): Qize, XDump, case, omega — IR-only
+        bugs.  case_driver under --ir-run reproduces a stack overflow
+        in `_usercall_hook → call_user_function → interp_eval →
+        APPLY_fn → _usercall_hook → ...` cycle when calling a function
+        whose name and parameter share an identifier (`upr(upr)`).
+      - **sm+jit only** (3 drivers, was 4 before SN-33b): ShiftReduce,
+        counter, stack — SM/JIT share a bug IR doesn't have.
+      - **all 3** (5 drivers): Gen, TDump, match, semantic, trace —
+        truly broken everywhere.
+      Each category needs separate diagnosis.
 - [ ] **SN-33d** — Mode-4 baseline measurement on restored runtime.
       Existing gate
       `scripts/test_gate_em_beauty_subsystems_mode4.sh` (parity
-      with mode 3) must continue at 17/17 PASS.  IF mode-4 parity
-      drops, that surfaces a real emitter divergence — the original
-      design intent of the parity gate.
+      with mode 3) was 17/17 (parity-with-broken) before SN-33b; now
+      **4/17 (parity-with-real)** — measures real divergence as
+      designed.  `assign_driver` passes mode-4 cleanly.
 - [ ] **SN-33e** — Mode-4 absolute correctness against `.ref` files.
       New gate (or extension of existing
       `test_gate_sn7_beauty_self_host.sh` to add `--jit-emit --x64`
