@@ -1034,7 +1034,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-FORMAT-BB-COL3-COMMENTS — LANDED 2026-05-09.**  Append `# KIND(args)` annotations to col-3 of leaf-box α-line emissions in `bb_flat.c`.  Today fires on tracked corpora: `# RPOS(0)` in roman.s, `# POS(0)` in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α paths are dead on tracked corpora today (zero observed) but still annotated for completeness.  Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).  Line counts unchanged (annotation appended to existing line).  Gates 14/14 GREEN.  one4all `70b76571`, corpus `f11fb1e`.
 
-- [x] **EM-FORMAT-BB-LAW — LANDED 2026-05-09 (corrected mid-session per Lon's clarification).**  Per `archive/BB-GEN-X86-TEXT.md` "The Three-Column NASM Layout — The Law": col-1 = LABEL, col-2 = ACTION (mnemonic + params together as one column), col-3 = GOTO (live `jmp` or `;`-comment).  In our emitter, mnemonic and args have always been kept in distinct sub-columns, so the BB-side layout is effectively **four margin tabs**:
+- [ ] **EM-FORMAT-BB-LAW — STILL OPEN.  Two attempts in session 2026-05-09 did not satisfy Lon.**  The latest committed shape (one4all `ff416eee`, corpus `7d92fed`, .github `5ce4b71`) implements 4 margin tabs on BB-side (LABEL/MNEMONIC/ARGS/GOTO at file cols 0/24/41/68) and keeps SM-side 3-tab — but Lon's review at session end indicates this is still wrong.  The shape committed is described in detail below for the next agent's reference; the actual fix the LAW asks for needs further clarification from Lon.
+
+      **What was committed (the latest attempt — kept in tree but flagged as not-yet-correct):**
+
+      Per `archive/BB-GEN-X86-TEXT.md` "The Three-Column NASM Layout — The Law": col-1 = LABEL, col-2 = ACTION (mnemonic + params together as one column), col-3 = GOTO (live `jmp` or `;`-comment).  In our emitter, mnemonic and args have always been kept in distinct sub-columns, so the BB-side layout was treated as **four margin tabs**:
 
       | Tab | File col | Width | Content |
       |-----|---------:|------:|---------|
@@ -1117,6 +1121,40 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - **EM-FORMAT-BB-LAW-TRIPLE-FUSION** — extend cjmp deferral to also defer the immediately-preceding action (`test`/`cmp`) and fuse the action+cond+uncond onto a single line: col-2 = action mnemonic, col-3 = `<args>;` padded to col-3 width, col-4 = `<cond> <succ>; jmp <fail>`.  Today's α-blob entry has `cmp esi, 0` on its own line followed by `je α_body; jmp β` on the next; triple fusion would collapse these.  Risk: line width.
       - **EM-FORMAT-BB-LAW-AUDIT** — extend Test 14 audit harness with explicit invariants: "every BB-side cond mnemonic at vcol 24" and "every BB-side `jmp` at vcol 68."  Today the I0–I3a invariants pass clean but don't independently assert the four-tab discipline; codifying it makes the LAW load-bearing in the gate suite.
 
+      **⛔ NEXT AGENT — DO NOT MARK THIS RUNG `[x]` WITHOUT EXPLICIT LON SIGN-OFF.**
+
+      **Two attempts in session 2026-05-09 did not satisfy Lon:**
+
+      (a) **First attempt** (one4all `4ada754d`, corpus `f95e251`) — collapsed cond+uncond into a single col-3 string (`je xxx; jmp xxx`) starting at vcol 41, with no col-4.  Lon's response: "Wrong! Read the spec.  You see the GOTO section is column 3.  The instruction section is column 2.  So what you have is 4 columns and you are not using the fourth column."
+
+      (b) **Second attempt** (one4all `ff416eee`, corpus `7d92fed`, .github `5ce4b71` — currently in tree) — restored 4 margin tabs on BB-side: cond mnemonic at vcol 24 (Tab 2), `<succ>;` in col-3 padded to 27 (Tab 3), `jmp <fail>` at vcol 68 (Tab 4).  Bare label+jmp lines have empty col-2/col-3 with `jmp` at vcol 68.  All 5 artifacts assemble cleanly; gates 14/14 GREEN.  Lon's response at handoff: "You did it wrong so keep the step open."  Specifics of what's wrong have not been clarified yet.
+
+      **What the next agent should do FIRST:**
+
+      1. Re-read `archive/BB-GEN-X86-TEXT.md` carefully — especially the "Multi-Line Port Bodies" section at lines 50–63 of that file, which is the most concrete spec sample.  Do NOT skim.
+
+      2. Re-read this rung's session transcript via past-chat search if available — Lon corrected the implementation twice and the gap between attempt (b) and Lon's intent is in those exchanges.
+
+      3. **Inspect a current artifact in `/home/claude/corpus/programs/snobol4/demo/roman.s`** at lines 27–91 (the BB blob section).  The committed shape is real and you can see what was done.  Identify what differs from the spec sample.
+
+      4. **Hypotheses for what may still be wrong (none verified — Lon must clarify):**
+         - **H1: The cond mnemonic should ALSO be in col-4, not col-2.**  The spec at line 22 of BB-GEN-X86-TEXT.md says "Column 3 (goto): col 60+. Semicolon comment OR live `jmp`."  All jxx instructions (cond + uncond) might belong in the GOTO column, with col-2 reserved purely for non-jump action mnemonics.  If so, the fused line should look like: col-2 empty, col-3 empty padded, col-4 = `je <succ>; jmp <fail>`.
+         - **H2: The col-2/col-3 distinction in this emitter is itself the problem.**  The spec defines col-2 as "ACTION = macro name + params" — i.e. a single fused column.  Our 4-tab interpretation may be a mis-decomposition.  The true LAW shape: col-1 LABEL (24), col-2 ACTION (mnemonic+args together starting at col 24), col-3 GOTO (starting at col 60 or 68).  All actions are in col-2 regardless of width; jxx in col-3.
+         - **H3: The col-3 width or anchor position is wrong.**  Spec says "col 60+"; we picked 68.  Maybe 60 is correct.  Or maybe it should be a percentage of line width.
+         - **H4: Bare label+jmp lines have a different shape than fused.**  Maybe trampoline labels should keep `jmp` in a different position than the GOTO column of decision lines.
+         - **H5: The entire layout should be recomputed from the C reference impls (`test_sno_*.c` files mentioned in the spec at line 25).  The spec says: "This matches the C reference implementations (test_sno_*.c) exactly."  Find these files and use them as ground truth.
+
+      5. **Ask Lon for clarification before implementing anything.**  The two attempts in this session both compiled clean and matched plausible readings of the spec; neither was right.  Asking is cheaper than a third wrong attempt.
+
+      **Files in current state (post-session):**
+      - `src/runtime/x86/bb_emit.c` — has `BB_COL3_WIDTH=27`, `bb3c_emit_jmp` 4-tab fused/no-pending-uncond branches, `bb3c_flush_pending_cond_jmp` with 3-col layout.  Doc comment at the top of the BB-LAW section describes the four margin tabs.
+      - 5 corpus artifacts at the latest committed shape.
+      - `.github/PLAN.md` and `.github/GOAL-MODE4-EMIT.md` describe the current (incorrect) shape.
+
+      **DO NOT regenerate or commit artifacts again until the LAW is correctly understood.**  Any new attempt should change the layout coherently and then regen.
+
+      **Original rung-spec text (before two-attempt history) preserved below for context:**
+
 - [ ] **EM-FORMAT-BB-DATA-CONSOLIDATE** — Consolidate scattered per-blob `.section .data` blocks into a single data block at top (or bottom) of each pat_inv_<id> blob.  Today the artifacts ping-pong between `.data` and `.text` 4-5 times per blob (once per box that has static data: charsets, capture state, fence/arb/star/breakx slots, etc.).  Replace each inline `.data` block at a box site with a brief comment like `# data: .Lcap1_data, .Lcap1_vname` so the reader still knows what locals the box uses.  Implementation: bb_flat.c emit functions accumulate their `.data` content into a per-blob buffer (or two-pass: first pass collects, second pass emits) instead of emitting inline.  Affects every box kind that currently emits `flat_data_section(e)` followed by data directives (~12 sites).
 
 - [ ] **EM-FORMAT-BB-TRAMPOLINE-ELIM** (future optimizer pass; NOT a layout concern) — Eliminate trampoline jumps where one port-label just `jmp`s to another port-label.  Current artifacts contain such chains: `xcat0_right_ω: jmp xcat0_left_β`, `pat_inv_0_β: jmp xcat0_right_β`, `xcat0_ω: jmp pat_inv_0_ω`.  Replace each `jmp X` with `jmp Y` directly when `X: jmp Y` exists.  This is a peephole optimization that comes LATER — not a format/layout rung.  Lon flagged the lines as visually noticeable in the layout discussion, but did NOT request optimization in the EM-FORMAT-BB rung sequence.  Do not pick this up before EM-FORMAT-BB-LAW and EM-FORMAT-BB-DATA-CONSOLIDATE land.  Implementation (when its turn comes): post-process pass over emitted text, build a "label aliases label" map and rewrite jump targets through it.  Care: only safe when `X:` is a pure jump trampoline with no other code; if any other emission flows through `X:`, the trampoline is load-bearing.
@@ -1157,8 +1195,15 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-EM-FORMAT-BB-LAW LANDED 2026-05-09
+EM-FORMAT-BB-LAW STILL OPEN — sess 2026-05-09 ended without sign-off
 =============================================
+
+⛔ Two attempts in this session, neither correct per Lon.  See rung block
+above (look for "DO NOT MARK THIS RUNG `[x]` WITHOUT EXPLICIT LON SIGN-OFF")
+for the two attempt histories, the hypothesis list, and the next-agent
+instructions.
+
+The shape currently committed in tree (post-session):
 
 Per archive/BB-GEN-X86-TEXT.md "The Three-Column NASM Layout — The Law":
 col-1 = LABEL, col-2 = ACTION (mnemonic + params), col-3 = GOTO.  In our
