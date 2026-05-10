@@ -65,40 +65,33 @@ with subject and replacement.  This is ME-1, the opening rung.
 ### Register convention (mode-3 SM-blob land)
 
 ⛔ **The authoritative register convention is `REGISTER-LAYOUT.md`
-(carved sess 2026-05-10).**  This section summarizes; the full
-push/pop matrix, evidence base, and audit checklist live there.
+(carved sess 2026-05-10, revised same session through Lon Q&A).**
+This section summarizes; the full push/pop matrix, evidence base,
+and audit checklist live there.
 
 Settled, binding on every rung that emits SM-blob x86:
 
 | Reg | Role | Scope |
 |-----|------|-------|
-| `r12` | `SM_State*` — anchor for `last_ok`, `pc`, and pointers to the value stack | Whole emitted program; loaded once at `sm_jit_run` entry, never reloaded inside emitted code |
-| `r13` | `SM_State.stack` base ptr — value-stack data array | Whole emitted program; reloaded by SM_STNO blob (statement boundary, handles realloc) |
-| `r14` | `SM_State.sp` — current value-stack index, kept hot for inline push/pop | Whole emitted program; reset to 0 by SM_STNO blob |
-| `r15` | Reserved for ME-8 chunk return-frame anchor | Per chunk call; free until ME-8 |
-| `rbx` | Reserved for ME-11 SM_EXEC_STMT subject anchor | Per EXEC_STMT; free until ME-11 |
-| `r10` | BB-glob LOCAL data ptr; `[r10+N]` addresses every box-local in the currently-active flat-glob | Per BLOB; **constant inside a BLOB**.  Loaded by each BLOB's α-preamble (`lea r10, [rip + Δ_data]`).  See ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps" for the push/pop discipline. |
-| `rbp` | Chunk frame pointer for DEFINE'd chunks | Per DEFINE'd chunk; `push rbp ; mov rbp, rsp` at entry, `pop rbp ; ret` at exit |
+| `r12` | **SM value stack top-of-stack pointer (FORTH-style).**  Push: `mov [r12], rax ; mov [r12+8], rdx ; add r12, 16`.  Pop: `sub r12, 16 ; mov rax, [r12] ; mov rdx, [r12+8]`.  Multi-pop: `sub r12, N*16` (N compile-time-known). | Whole emitted program; loaded once at `sm_jit_run` entry from `[rel sm_state_stack_base]`; reset to base by SM_STNO blob. |
+| `r10` | **Current BB DATA-block pointer.** `[r10+N]` addresses every box-local in the active BLOB.  Constant inside a BLOB.  Saved to SmCallFrame when SM_CALL_EXPRESSION fires from BB land. | Per BLOB.  Loaded by each BLOB's α-preamble. |
+| `rbp` | DEFINE'd function frame pointer | Per active function; `push rbp ; mov rbp, rsp` / `pop rbp ; ret`. |
+| `rbx`, `r13`, `r14`, `r15` | **Free** — available for per-rung scratch or future claims | — |
 | `rax rdi rsi rdx rcx r8 r9 r11` | C-ABI scratch for PLT calls and SM-blob temporaries | Per SM-blob; caller-saved |
+| `xmm0–xmm15` | Real arithmetic when DESCR_t is real | Per SM-blob; caller-saved |
 
-**Three always-live SM-blob registers (r12, r13, r14)** survive every
-PLT call via SysV callee-saved discipline; the inline push/pop of
-DESCR_t values is `mov [r13 + r14*16], rax ; mov [r13 + r14*16+8], rdx ;
-inc r14d` — no PLT round-trip, no global-variable mov.
+**Two claimed callee-saved registers (r12, rbp-when-in-function) + one
+per-BLOB register (r10) = three claims.  Four callee-saved free (rbx,
+r13, r14, r15).  Eight GP scratch + sixteen SSE scratch.**
 
-**One always-live BB-glob register (r10)** is the LOCAL data pointer
-inside a BLOB.  Inside a BLOB the value is constant — intra-BLOB jumps
-never touch it.  Extra-BLOB jumps either tail-jump (no push/pop needed
-because the destination's α-preamble reloads its own r10) or are
-call-style with `push r10 ; … ; pop r10` framing the round-trip.
-The intra-/extra-BLOB distinction is a static property of the emitted
-`jmp` instruction; the emitter knows at emit-time which kind it is.
+`SM_State` itself lives as a static global in `.bss`, reached via
+RIP-relative `[rel sm_state + offset]` when needed (rare — SM_STNO,
+SM_EXEC_STMT, SM_CALL_*).  No register reserved for `SM_State*`.
 
-**Why `r12 = SM_State*`.**  Every SM stack op today is a PLT call to
-`rt_push_int@PLT` / `rt_pop_void@PLT` / etc.  With `r12` anchored, the hot
-ops inline as `mov [r12+sp_offset], rax ; inc dword [r12+sp_byte_offset]` —
-three instructions instead of a PLT round-trip.  This is the speedup mode 3
-is supposed to deliver, and currently does not.
+**Why FORTH-style single-register TOS instead of {base, sp}:**  All
+pop-depths are compile-time-known per opcode.  Random access at depth
+N below TOS is `[r12 - (N+1)*16]`, one SIB-encoded mov.  No runtime
+depth arithmetic.  Frees one callee-saved register.
 
 **Why `r10` for the glob data region.**  This is the proven convention from
 `bb_flat.c` (see `EM-FORMAT-BB-DATA-CONSOLIDATE` in `GOAL-MODE4-EMIT.md`'s
@@ -122,44 +115,96 @@ jumping directly into another glob's `α`), the receiving glob's entry
 preamble's `lea r10, ...` overwrites the previous glob's `r10` — that is the
 save/restore, performed unconditionally at every glob entry.
 
-### Two-stack design retired; one stack remains
+### Stacks and stack-like structures
 
-After ME-1, the only stacks in mode 3 are:
-- The `SM_State.stack` (value stack) — `DESCR_t[]` realloc'd, anchored at `r12`.
-- The native x86 stack (`rsp`) — used by `call`/`ret`/`push`/`pop` for chunk
-  prologues, PLT-call alignment, and byrd-box callee-save spill.
+SCRIP has two stacks + one heap-resident tree.  The tree replaces what
+SPITBOL/CSNOBOL4 implement as a separate pattern-history stack —
+because Byrd-boxes are stackless and their per-invocation DATA blocks
+ARE the alternatives.  See `ARCH-x86.md` §"Boxes are stackless".
 
-No pat-stack.  No third region.  The byrd-box engine's state lives in
-heap-allocated `ζ` structs reachable via the value stack's `DT_P` descriptors,
-not in any third stack.
+| | Where |
+|---|---|
+| **SM value stack** | Heap; `r12` = TOS pointer (FORTH-style).  Reset at every statement boundary by SM_STNO blob (`mov r12, [rel sm_state_stack_base]`). |
+| **Native stack (rsp)** | C-ABI calls, DEFINE'd function frames (`rbp`), source-BLOB `push r10` for the rare call-style extra-BLOB jump. |
+| **BB DATA-block tree** | Heap; `r10` walks it.  Each box at α-entry allocates fresh DATA, chains to parent via save-list header, sets `r10 = new_block`.  γ-exit unlinks; ω-exit unlinks and may free.  Pattern alternatives, FENCE bases, ARBNO iteration chains, `$`/`.` pending assignments — all DATA fields, not stack pushes. |
 
-### Deferred-eval consumer (`*P`, `*(X+1)`, `EVAL`, `CODE`)
+What SPITBOL stores on its `pmhbs`-rooted history stack (cursor saves,
+failback pointers, FENCE bases, ARBNO iteration markers) SCRIP stores
+in DATA-block fields.  The save IS the allocation; the restore IS the
+unlink.  No pattern-history stack register.  No `pmhbs`-equivalent
+register.
 
-These are produced by `GOAL-CHUNKS`'s active work: `SM_PUSH_EXPR` is being
-replaced with `SM_PUSH_CHUNK <entry_pc>, <arity>`, and the deferred body
-lowers in place as
+The byrd-box engine's state lives in heap-allocated DATA blocks
+reachable via `r10` (per-BLOB) and via the SM value stack's `DT_P`
+descriptors (when patterns sit on the value stack as constructed
+values).  See `REGISTER-LAYOUT.md` for the full picture.
 
+### Deferred-eval consumer — `*P`, `*(expr)`, `EVAL`, `CODE`
+
+These cases drive the design of how SM-blob land and BB-glob land
+interoperate.  Both run inside an outer pattern match (i.e. inside
+BB land); both transfer control to compiled code that they share
+with other call sites; both must restore the calling BLOB's `r10`
+on return.
+
+**`*P` where P is a PATTERN variable.**  P's value is a DESCR_t whose
+`.ptr` references the root box of a BLOB graph emitted when P was
+constructed.  At match time, the DEFER box wrapping `*P`:
+1. Looks up P's current value.
+2. Calls `rt_alloc_blob_data(P_root_box)` — runtime walks P's box
+   tree and allocates a fresh DATA block per box, linked per the
+   parent/child structure, returns root DATA address.
+3. Saves DEFER's own r10 (= DEFER's DATA block address) into a field
+   reachable post-call.
+4. Sets `r10 = root_data_block_address`.
+5. Jumps to P's BLOB CODE entry.
+
+P's CODE is read-only RX memory — many simultaneous matches against
+the same P run because each gets its own DATA tree.  CODE is reusable;
+DATA is per-invocation.  On return from P, DEFER restores its own r10
+and transitions to its γ/ω port.
+
+**`*(expr)` (e.g. `*(X + 1)`, `*(X ? P Q R)`).**  `expr` lowered as a
+labeled SM body at compile time:
 ```
-   SM_JUMP    skip_chunk_NN
-chunk_NN:
-   <recursively lowered SM ops for the deferred body>
-   SM_RETURN
-skip_chunk_NN:
-   SM_PUSH_CHUNK  chunk_NN, arity
+                  SM_JUMP            skip_NN
+expr_body_NN:     <SM ops>
+                  SM_RETURN
+skip_NN:          ...
+                  SM_PUSH_EXPRESSION  expr_body_NN_entry_pc
 ```
+At match time the DEFER box performs SM_CALL_EXPRESSION:
+1. Push an SmCallFrame `{ret_pc=defer_resume, caller_r12 (TOS before
+   reset), last_ok, caller_r10=current_r10}`.  Increment
+   `st->call_depth`.
+2. Reset r12 to base — the expression body runs on its own empty
+   operand stack (preserves the mode-2 contract).
+3. Jump to `expr_body_NN_entry_pc`.
 
-Mode 3's job is to *consume* these opcodes correctly.  `SM_PUSH_CHUNK` pushes
-a `DT_E` descriptor whose payload is `{ entry_pc, arity }`.  `SM_CALL_CHUNK`
-pops the descriptor, pushes a return frame, sets pc to `entry_pc`, runs until
-`SM_RETURN`, leaves the result on the value stack.  No IR walker.  No
-`EXPR_t*` field access anywhere in mode 3.
+The body runs in SM-blob land.  It may trigger sub-pattern matches
+via SM_EXEC_STMT; those allocate their own DATA trees and run to
+completion.  When `SM_RETURN` fires at end of body:
+1. Pop SmCallFrame.
+2. Restore `r10 = frame.caller_r10` (DEFER's DATA is active again).
+3. Restore r12; expression result is on TOS.
+4. Jump to `frame.ret_pc`.
+
+**The SmCallFrame distinguishes BB-land entry from SM-blob-land entry**
+by whether `caller_r10` is non-zero (or by a flag bit; details settled
+at ME-8 implementation).  The emitter knows which case applies — it
+knows whether the SM_CALL_EXPRESSION emission site sits inside an
+emitted BLOB or in pure SM-blob land.
+
+**The SM/BB code is fixed but new local is allocated.**  This applies
+recursively.  Every level — DEFER box, expression body, sub-pattern
+BLOBs — uses the same emitted CODE for repeat entries; only the DATA
+(or SmCallFrame) is fresh per invocation.
 
 `GOAL-MODE3-EMIT` does not own the producer side (sm_lower's
-`SM_PUSH_EXPR → SM_PUSH_CHUNK` migration) — that is `GOAL-CHUNKS-STEP17`'s
-work, currently in progress.  This Goal owns the consumer side.  ME-8 lands
-**after** GOAL-CHUNKS-STEP17 closes (or at least after a per-frontend SM
-sub-program migration completes for the SNOBOL4 frontend), so we are consuming
-a stable opcode shape, not a moving target.
+SM_PUSH_EXPR migration) — that is `GOAL-CHUNKS-STEP17`'s work.  This
+Goal owns the consumer side.  ME-8 lands **after** GOAL-CHUNKS-STEP17
+closes (or at least after the SNOBOL4-frontend portion migrates) so
+we consume a stable opcode shape, not a moving target.
 
 ### Variant patterns (dynamic) stay dynamic
 
@@ -183,7 +228,8 @@ broker-driven legacy path that mode 3 does not author against directly
 - Entry: control falls into the first byte of the glob — the α port of
   the first box.  No `esi` port discriminator; the glob's structure is
   static.  No `rdi = ζ` argument; locals are reached via `r10` (loaded
-  by the glob preamble as `lea r10, [rip + Δ_data]`).
+  by the glob preamble as `lea r10, [rip + Δ_data]` or as the result of
+  an `rt_alloc_blob_data()` call for re-entry cases).
 - Exit (γ success): `rax:rdx = σ:δ` returned to the caller of the glob;
   control transfers via `jmp` to the post-glob target.
 - Exit (ω failure): `eax = 99, edx = 0` and `jmp` to the failure target.
@@ -203,12 +249,12 @@ statement off to the BB engine.  The dispatched form survives as the
 broker-driven path (`--bb-brokered`); a future rung may unify the two,
 but that is not in this Goal's scope.
 
-Note `r12` is callee-saved per the C-ABI, so the mode-3 SM-blob convention
-(`r12 = SM_State*`) is preserved across byrd-box calls automatically.
-Dispatched-BB boxes that need a callee-saved working register save and
-restore `r12` like any other callee-saved reg; they never observe its
-SM-blob meaning.  Flat-BB globs do not write `r12` at all — `r12` carries
-its SM-blob meaning through the glob untouched.
+Note `r12` is the SM value-stack TOS pointer in mode-3 SM-blob land
+and is callee-saved per the C-ABI — preserved across byrd-box calls
+automatically.  Dispatched-BB boxes that need a callee-saved working
+register save and restore `r12` like any other callee-saved reg; they
+never observe its SM-blob meaning.  Flat-BB globs do not write `r12`
+at all — `r12` carries its SM-blob meaning through the glob untouched.
 
 ---
 
@@ -402,36 +448,74 @@ Rung-specific gates as listed per rung below.
       with Lon's sign-off line in its watermark.  No code changes
       land under ME-4-pre.
 
-      **Draft complete sess 2026-05-10 (Claude latest): `REGISTER-LAYOUT.md`
-      committed at `.github` HEAD.**  Locked decisions:
-      r12 = SM_State*, r13 = SM_State.stack base, r14 = SM_State.sp (hot),
-      r15 reserved for ME-8 chunk return frame, rbx reserved for ME-11
-      SM_EXEC_STMT subject anchor, rbp = chunk frame ptr, r10 = BB-glob
-      LOCAL data ptr (constant inside a BLOB; preamble loads it at every
-      α-entry; intra-BLOB jumps don't touch it; extra-BLOB tail-jumps
-      don't touch it; only call-style extra-BLOB jumps need source-BLOB
-      `push r10`/`pop r10` framing — and those are rare).  Three
-      always-live SM-blob registers (r12/r13/r14), one always-live
-      BB-glob register (r10), 14 registers free in the scratch + reserve
-      budget total.  Stack push: `mov [r13+r14*16], rax ; mov
-      [r13+r14*16+8], rdx ; inc r14d`.  SM_STNO blob: `xor r14d, r14d ;
-      mov r13, [r12+STACK_OFFSET]` — replicates `sm_interp.c:295` and
-      handles realloc.  ME-4-pre closes on Lon's sign-off line in
-      REGISTER-LAYOUT.md's watermark.  Until then, ME-4-post stays
-      blocked.  See ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps" for
-      the companion architectural rule.
+      **Draft complete (REVISED) sess 2026-05-10 (Claude latest):
+      `REGISTER-LAYOUT.md` rewritten at `.github` HEAD.**  Initial draft
+      claimed r12/r13/r14 + reserved r15/rbx.  Through Lon Q&A in this
+      session, the picture simplified:
+
+      - **r12 = SM value-stack TOS pointer (FORTH-style).**  Single
+        register holds top-of-stack; no separate {base, sp} split.
+        Push: `mov [r12], rax ; mov [r12+8], rdx ; add r12, 16`.  Pop:
+        `sub r12, 16 ; mov rax, [r12] ; mov rdx, [r12+8]`.  Multi-pop
+        `sub r12, N*16` where N is compile-time-known.  SM_STNO blob
+        resets to base: `mov r12, [rel sm_state_stack_base]`.  All
+        depths are compile-time-known per opcode (SM_ADD pops 2,
+        SM_PAT_CAT pops 2, etc.) so random access at compile-time
+        known N is `[r12 - (N+1)*16]`, one SIB-encoded mov.
+      - **r10 = current BB DATA-block pointer.**  Constant inside a
+        BLOB.  Loaded by α-preamble of every BLOB.  Saved in
+        SmCallFrame when SM_CALL_EXPRESSION fires from BB land
+        (the DEFER box case).
+      - **rbp = DEFINE'd function frame ptr** when in a function.
+      - **rbx, r13, r14, r15 = FREE.**  Available for per-rung scratch
+        or future claims.  No pre-reservation.
+      - **`SM_State` itself is NOT in a register.**  Accessed via
+        RIP-relative `[rel sm_state + offset]` from SM_STNO (rare),
+        SM_EXEC_STMT (rare), SM_CALL_* (rare).  No need to burn a
+        register on this.
+      - **Pattern history stack: GONE.**  Byrd-boxes are stackless;
+        per-invocation DATA blocks are the alternatives; backtracking
+        is DATA-block-tree traversal, not stack popping.  See
+        ARCH-x86.md §"Boxes are stackless".  No `pmhbs`-equivalent
+        register; what SPITBOL stores on `xs`-rooted history stack,
+        SCRIP stores in DATA-block fields.
+      - **Two stacks total** (not three): SM value stack (heap, r12 =
+        TOS) and native rsp (C-ABI, fn frames, rare extra-BLOB r10
+        save).  Plus the heap-resident BB DATA-block tree (walks via
+        r10) and the heap-resident SmCallFrame array
+        (`st->call_stack[]`).
+      - **SM_CALL_EXPRESSION** distinguishes BB-land entry from
+        SM-blob-land entry by saving (or not) `caller_r10` in the
+        SmCallFrame.  Emitter knows at emit time which case applies.
+      - **`*P` (P is PATTERN):** Re-uses P's emitted CODE; allocates
+        fresh DATA tree per match via `rt_alloc_blob_data`; sets r10
+        to the new root; jumps to P's CODE entry.  Code shared, DATA
+        per-invocation, re-entrant by allocation discipline.
+      - **`*(expr)`:** DEFER box uses SM_CALL_EXPRESSION with the
+        compiled SM body's entry_pc.  caller_r10 saved in the frame;
+        restored on SM_RETURN.
+
+      ME-4-pre closes on Lon's sign-off line in REGISTER-LAYOUT.md's
+      watermark.  Until then, ME-4-post stays blocked.
 
 - [ ] **ME-4-post — Fix realloc bug + re-emit ME-4 blobs against
-      locked convention.**  After ME-4-pre lands.  Implements the
-      sp-reset-at-statement-boundary contract (per
-      REGISTER-LAYOUT.md's decision — likely Option (a): emit a
-      per-statement sp-reset blob at SM_STNO).  Re-emits the ten
-      ME-4 inline-native blobs against the locked register
-      convention, expecting ~25 bytes saved per blob from
-      eliminated base-reloads and an additional perf measurement.
-      Gate: smoke 7/7 + unified_broker 49/49 hold, the canonical
-      multi-statement reproducer (see ME-4 PARTIAL note) runs
-      byte-identical between `--jit-run` and `--sm-run`.  When
+      locked convention.**  After ME-4-pre lands (Lon sign-off in
+      REGISTER-LAYOUT.md).  Implements the SM_STNO statement-boundary
+      blob (`mov r12, [rel sm_state_stack_base]` — single instruction
+      reset of TOS, handles realloc by reloading the base; replicates
+      the mode-2 contract at `sm_interp.c:295`).  Re-emits the ten
+      ME-4 inline-native blobs against the locked register convention
+      — r12 = TOS pointer directly, no `[r12+0]` reload of stack
+      base, no separate sp index.  Expected savings: each push goes
+      from ~12 bytes (today's pattern of reloading stack base +
+      computing sp offset) to ~9 bytes (`mov [r12], rax ; mov [r12+8],
+      rdx ; add r12, 16`); each pop similarly.  Expected perf
+      improvement: another measurable cut on the 100k counter loop
+      microbench beyond ME-3's ~26% and ME-4-PARTIAL's ~32% gains.
+      Audit checklist in REGISTER-LAYOUT.md gates this rung's commit.
+      Gate: smoke 7/7 + unified_broker 49/49 hold; the canonical
+      multi-statement arithmetic reproducer (see ME-4 PARTIAL note)
+      runs byte-identical between `--jit-run` and `--sm-run`.  When
       ME-4-post closes, ME-4 is closed.
 
 - [ ] **ME-5 — Control flow.**  `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
@@ -464,21 +548,51 @@ Rung-specific gates as listed per rung below.
 
 ### Phase C — Deferred-eval consumer (post-GOAL-CHUNKS)
 
-- [ ] **ME-8 — `SM_CALL_CHUNK` / `SM_PUSH_CHUNK` consumer.**  Lands **after**
-      GOAL-CHUNKS-STEP17 closes (or after the per-frontend SM sub-program
-      migration completes for the SNOBOL4 frontend, at minimum, so we
-      consume a stable opcode shape).  `SM_PUSH_CHUNK <entry_pc>, <arity>`
-      lowers to push a `DT_E` descriptor `{v=DT_E, .ptr=<packed
-      entry_pc:arity>}` on the value stack.  `SM_CALL_CHUNK` pops the
-      descriptor, pushes a return frame (capturing the post-call SM-PC),
-      transfers control via a 32-bit relative jump to `entry_pc`'s
-      SEG_CODE offset.  `SM_RETURN` inside a chunk pops the return frame
-      and jumps back.  No `EXPR_t*` access.  Coordinated with GOAL-CHUNKS:
-      we provide the mode-3 consumer; GOAL-CHUNKS provides the producer
-      (sm_lower emitting `SM_PUSH_CHUNK` in place of `SM_PUSH_EXPR`).
-      Gate: corpus programs using `*P`, `*(X+1)`, `EVAL(str)`, `CODE(str)`
-      run identically under `--jit-run` vs `--sm-run`.  Same pass-set as
-      `--ir-run` for those programs.
+- [ ] **ME-8 — `SM_PUSH_EXPRESSION` / `SM_CALL_EXPRESSION` consumer.**
+      Lands **after** GOAL-CHUNKS-STEP17 closes (or after the
+      per-frontend SM sub-program migration completes for the SNOBOL4
+      frontend, at minimum, so we consume a stable opcode shape).
+      Implements both consumers in mode-3 SM-blob land:
+
+      `SM_PUSH_EXPRESSION <entry_pc>` lowers to push a `DT_E`
+      descriptor `{v=DT_E, slen=1, i=entry_pc}` on the SM value stack
+      (FORTH-style at `[r12]`).
+
+      `SM_CALL_EXPRESSION` pops the descriptor, pushes an SmCallFrame
+      onto `st->call_stack[]`, transfers control via 32-bit relative
+      jump to `entry_pc`'s SEG_CODE offset.  `SM_RETURN` inside the
+      body pops the frame and jumps back.  No `EXPR_t*` access.
+
+      **Two emission contexts** — the emitter knows at emit time
+      which one applies:
+
+      1. **From SM-blob land** (the SM_CALL_EXPRESSION emission site
+         sits in pure SM-blob land, outside any emitted BLOB).
+         SmCallFrame holds `{ret_pc, caller_r12, last_ok,
+         caller_r10=0}`.  No r10 to restore — there was no active
+         BLOB.
+
+      2. **From BB land** (the DEFER box case — the emission site
+         sits inside an emitted BLOB).  SmCallFrame holds `{ret_pc,
+         caller_r12, last_ok, caller_r10=current_r10}`.  On
+         SM_RETURN, r10 is restored from the frame so the DEFER box's
+         own DATA block is addressable again.
+
+      Coordinated with GOAL-CHUNKS: we provide the mode-3 consumer;
+      GOAL-CHUNKS provides the producer (sm_lower emitting
+      SM_PUSH_EXPRESSION in place of the legacy SM_PUSH_EXPR).
+
+      Gate: corpus programs using `*P` (P being a PATTERN variable),
+      `*(X+1)`, `EVAL(str)`, `CODE(str)` run identically under
+      `--jit-run` vs `--sm-run`.  Same pass-set as `--ir-run` for
+      those programs.
+
+      Also covers the `*P` (PATTERN) case at the runtime side:
+      `rt_alloc_blob_data(root_box_ptr)` walks the BLOB's box tree
+      and allocates a fresh DATA tree, returning the root DATA
+      address — the DEFER box then sets r10 to this address and
+      jumps to the BLOB's CODE entry.  CODE is reusable across
+      simultaneous matches because each gets its own DATA tree.
 
 ### Phase D — Pattern construction on the value stack
 
@@ -1017,4 +1131,63 @@ input), and then closes ME-4 only after that passes byte-identical.
 The register-layout redesign is the recommended **first** rung after
 ME-4 closes — call it ME-4b — so the rest of the rungs land against
 the locked convention rather than inherit the ad-hoc one.
+
+**Addendum sess 2026-05-10 (Claude latest, second session of the day):
+ME-4 reorganized into ME-4-pre + ME-4-post; REGISTER-LAYOUT.md drafted
+and refined through Lon Q&A.**  No code lands this session; HQ docs
+only.
+
+Refinements from Lon Q&A (recorded for future sessions so the same
+ground does not need re-treading):
+
+- **r12 is the SM value-stack TOS pointer**, FORTH-style.  Not
+  `SM_State*`.  Single register holds top-of-stack; no separate
+  {base, sp} split; all pop-depths are compile-time-known per
+  opcode.  SM_State accessed via RIP-relative addressing.
+- **Pattern history stack does not exist in SCRIP.**  Byrd-boxes are
+  stackless (ARCH-x86.md §"Boxes are stackless"); per-invocation DATA
+  blocks ARE the alternatives; backtracking is DATA-block-tree
+  traversal.  SPITBOL's `pmhbs`-rooted history stack has no SCRIP
+  counterpart.  Documented in ARCH-x86.md and REGISTER-LAYOUT.md.
+- **Two stacks total**: SM value stack (heap, r12=TOS) + native rsp.
+  Plus heap-resident BB DATA-block tree (walked via r10) and heap-
+  resident SmCallFrame array (`st->call_stack[]`).
+- **`*P` re-entry**: code shared, DATA fresh.  `rt_alloc_blob_data`
+  walks P's box tree and allocates a fresh DATA tree per match.  P's
+  CODE in `bb_pool` is reused; only DATA differs per invocation.
+- **`*(expr)` and DEFER box**: SM_CALL_EXPRESSION distinguishes
+  BB-land entry (saves `caller_r10` in SmCallFrame) from SM-blob-land
+  entry (no r10 to save).  Emitter knows at emit time which applies.
+  ME-8 owns this consumer.
+- **rbx/r13/r14/r15 are free** in mode-3.  Initial draft pre-claimed
+  some of them; the refined design pre-claims none.  Two callee-saved
+  claimed (r12 + rbp-when-in-function), four free.
+- **"Chunk" terminology** is retired in REGISTER-LAYOUT.md and the
+  newer prose of GOAL-MODE3-EMIT.md.  Historical filenames
+  (GOAL-CHUNKS, GOAL-CHUNKS-STEP17) and `/* CHUNKS-step* */` comments
+  are kept as session-rung-tags; they are not type names.  A "chunk"
+  in any historical context = a CODE/EXPRESSION/DEFINE'd-function
+  body = the unit produced by `CODE(s)`, `*(expr)`, `EVAL(s)`, or
+  `DEFINE(...)` — equivalent to SPITBOL's CDBLK/EXBLK.  At the SM
+  level: a labeled SM-instruction subsequence addressable by entry_pc,
+  ending in SM_RETURN.
+
+ARCH-x86.md companion edits this session (HEAD `a49e099` and
+`ae5a069`):
+- §"Boxes are stackless" — explicit: boxes have no stack, re-entry
+  by fresh DATA allocation chained via save-list header.
+- §"Two emission forms" — flat-BB (stackless, no esi, glob structure
+  static) vs dispatched-BB (legacy bb_boxes.s with esi=port).
+- §"Intra-BLOB vs extra-BLOB jumps" — emitter knows statically which
+  kind; intra and extra-tail need no r10 save; only call-style
+  extra-BLOB needs source-BLOB `push r10`/`pop r10`.
+
+REGISTER-LAYOUT.md (HEAD `ae5a069` initial; rewritten this addendum)
+is the locked deliverable.  Awaiting Lon sign-off line in its
+watermark to close ME-4-pre and unblock ME-4-post.
+
+**State at handoff:** one4all unchanged at `e7ac6f77` (ME-4 PARTIAL).
+HQ committed and pushed: ARCH-x86 + GOAL-MODE3-EMIT + PLAN +
+REGISTER-LAYOUT.  Gates verified: smoke 7/7, unified_broker 49/49.
+Mode-4 frozen as tripwire untouched.
 
