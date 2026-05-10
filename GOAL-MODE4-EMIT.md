@@ -1034,6 +1034,102 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-FORMAT-BB-COL3-COMMENTS — LANDED 2026-05-09.**  Append `# KIND(args)` annotations to col-3 of leaf-box α-line emissions in `bb_flat.c`.  Today fires on tracked corpora: `# RPOS(0)` in roman.s, `# POS(0)` in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α paths are dead on tracked corpora today (zero observed) but still annotated for completeness.  Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).  Line counts unchanged (annotation appended to existing line).  Gates 14/14 GREEN.  one4all `70b76571`, corpus `f11fb1e`.
 
+- [ ] **EM-FORMAT-BB-LAW — Realize the original three-column LAW for BB code.**  The goal-file overview (line ~87) and `archive/BB-GEN-X86-TEXT.md` (the authoritative spec, Lon + Claude 4.6, 2026-04-04) define the LAW for every BB-code line as:
+
+      ```
+      LABEL:                  ACTION                              ; GOTO
+      col 0..23              col 24..(varies)                     ; col-3 (fixed offset)
+      ```
+
+      Three positionally-fixed columns.  Col-3 is **reserved for the goto** (or a `;`-prefixed comment).  The `;` separator before the goto sits at a fixed column so gotos visually align across consecutive lines.  Per `archive/BB-GEN-X86-TEXT.md` §"Multi-Line Port Bodies": "A port may require more than one macro line. Each line keeps its column position. The last line of a port body carries the `jmp` in column 3."
+
+      **What today's artifacts look like (post EM-FORMAT-BB-FUSED-GOTOS):**
+
+      ```
+      cap1_α_body:            .section         .data
+      .Llen2_z:               .long            0
+                              .section         .text
+                              .intel_syntax    noprefix
+                              lea              rdi, [rip + .Llen2_z]
+                              mov              esi, 0
+                              call             bb_len@PLT
+                              test             rax, rax
+                              jne              cap1_γ ; jmp cap1_ω
+      cap1_β:                 lea              rdi, [rip + .Llen2_z]
+                              mov              esi, 1
+                              call             bb_len@PLT
+                              test             rax, rax
+                              jne              cap1_γ ; jmp cap1_ω
+      cap1_γ:                 lea              rcx, [rip + Σ]
+      ...
+      xcat0_right_ω:          jmp              xcat0_left_β
+      pat_inv_0_β:            jmp              xcat0_right_β
+      xcat0_ω:                jmp              pat_inv_0_ω
+      ```
+
+      **What the LAW asks for (Lon's sample, sess 2026-05-09):**
+
+      ```
+      cap1_α_body:            .section         .data
+      .Llen2_z:               .long            0
+                              .section         .text
+                              .intel_syntax    noprefix
+                              lea              rdi, [rip + .Llen2_z]
+                              mov              esi, 0
+                              call             bb_len@PLT
+                              test             rax, rax
+                              jne              cap1_γ;                    jmp cap1_ω
+      cap1_β:                 lea              rdi, [rip + .Llen2_z]
+                              mov              esi, 1
+                              call             bb_len@PLT
+                              test             rax, rax;                  jne cap1_γ; jmp cap1_ω
+      cap1_γ:                 lea              rcx, [rip + Σ]
+      ...
+      xcat0_right_ω:                                                      jmp xcat0_left_β
+      pat_inv_0_β:                                                        jmp xcat0_right_β
+      xcat0_ω:                                                            jmp pat_inv_0_ω
+      ```
+
+      **Three concrete changes from current state:**
+
+      (1) **Goto column fixed.**  Pick a goto column (call it `BB_COL3 = 60` or similar; tune to widest action line).  Every BB-code line that has a goto puts it at that column, separated from the action by `; ` and padding.  Today the `; jmp` portion of fused lines lands at col 50ish (varies).
+
+      (2) **Bare label+jmp lines push goto to col-3.**  Today: `xcat0_right_ω: jmp xcat0_left_β` (jmp at col 24, the col-2 mnemonic position).  New: `xcat0_right_ω:                                                      jmp xcat0_left_β` (jmp at BB_COL3).  The col-2 area is empty because there's no action.  This makes trampoline-style label-only-with-jmp lines visually align with the goto column of action-bearing lines above and below them.
+
+      (3) **Triple fusion (action + cond + uncond).**  Today: `test rax, rax` is on its own line, followed by `jne X ; jmp Y` (cond+uncond fused).  New: extend fusion to absorb the preceding `test`/`cmp` action into the same line — `test rax, rax;                  jne X; jmp Y` — when the action immediately precedes the cond+uncond pair.  The `;` separator stays in col-3, so the action's col-2 stays put while the cond and uncond chain rightward in col-3.  Same pattern for the α-blob entry's `cmp esi, 0` + `je α_body` + `jmp β` triple.
+
+      **Implementation sketch:**
+
+      The col-3 alignment is a layout-time decision; the fusion logic already exists from EM-FORMAT-BB-FUSED-GOTOS.  Three changes:
+
+      (a) **`bb3c_format` introduces a fixed col-3 anchor.**  Today the format string is `%-24s%-16s %s\n`.  New: `%-24s%-30s %s\n` (or similar — tune width once the widest col-2 in tracked artifacts is measured) so col-3 always lands at the same horizontal offset.  Watch for col-2 overflow — `EXEC_STMT_VARIANT` (17 chars) already exists; the `%-16s` doesn't truncate, so existing wider names are tolerated.
+
+      (b) **`bb3c_emit_jmp` (uncond no-pending case) produces col-1 + empty col-2 + `jmp <target>` in col-3** when called via the path that today produces `xcat0_right_ω: jmp xcat0_left_β`.  The detection: an unconditional `jmp` arriving with a pending label and no pending cjmp.  Currently this routes through `bb3c_format(out, "", "jmp", "<target>")` which puts `jmp` in col-2.  New routing: emit as `bb3c_format(out, "", "", "; jmp <target>")` (label fuses via the empty-col-1 path; col-2 stays empty; col-3 carries the prefixed-`;` goto).
+
+      (c) **Triple fusion: extend the cjmp deferral to cover an additional preceding action.**  When `bb3c_emit_jmp(out, cond_mn, target)` arrives, check if the most-recent emission was an action (test/cmp/etc) — if so, *also* defer the action and fuse it into the line when the uncond arrives.  This requires tracking the most-recent action line in `bb3c_format` (a third deferred-buffer slot, pulled from the actual emitted text or re-built from the desc).  Carve as **EM-FORMAT-BB-LAW-TRIPLE-FUSION** if it adds risk.
+
+      **Done when:**
+
+      1. Every BB-code line that emits a `jmp`/`je`/`jne`/etc. has it at col-3 (the fixed BB_COL3 offset), separated from any preceding action by `; `.
+      2. Bare label+jmp lines have empty col-2 and `jmp <target>` in col-3 (no col-2 mnemonic for the jmp).
+      3. Cond+uncond pairs render as `<cond_mn>  <succ_target>; <padding>jmp <fail_target>` with the `;` at col-3.
+      4. Triple-fusion (action+cond+uncond) render on one line with two `;` separators (carve as sub-rung if needed).
+      5. All 5 tracked artifacts assemble cleanly via `gcc -c`.
+      6. Audit emits 0 violations across all 7 tracked artifacts (audit may need a new I-rule for col-3 alignment, or relaxation of existing rules to allow `;` mid-col-3).
+      7. Gates 14/14 GREEN.
+
+      **Files (likely):**
+      - `src/runtime/x86/bb_emit.c` — `bb3c_format` width/layout change; `bb3c_emit_jmp` no-pending unconditional path produces empty-col-2 + col-3-goto form.
+      - `src/runtime/x86/sm_codegen_x64_emit_test.c` — audit invariant adjustment (allow new col-3 layout; possibly add I6 = "goto in col-3 when present").
+      - `scripts/test_smoke_jit_emit_x64.sh` — Test 14 update if audit invariants change.
+
+      **Carved sub-rungs (likely):**
+      - **EM-FORMAT-BB-LAW-COL3-ANCHOR** — pick BB_COL3, change format string, regen, verify.  Smallest-step landing.  Affects (1) and (2) above.
+      - **EM-FORMAT-BB-LAW-TRIPLE-FUSION** — extend cjmp deferral to include preceding test/cmp action.  Affects (3).  Risk: triple fusion might produce lines too wide to read; may want a max-width gate.
+      - **EM-FORMAT-BB-LAW-AUDIT** — extend audit harness with col-3-alignment invariant.
+
+      **Why this rung exists:**  EM-FORMAT-BB-FUSED-GOTOS landed cond+uncond fusion via `;` separator in col-3, but did not move col-3 to a fixed anchor.  The result reads as "cond+uncond happens to be on one line" rather than "every line has a goto column."  Lon flagged the latter is the actual law, citing the original spec and the sample above.  Closing the gap finishes the realization of the LAW for BB code, parallel to how EM-FORMAT-SM closed it for SM-side dispatch.
+
 - [ ] **EM-FORMAT-BB-DATA-CONSOLIDATE** — Consolidate scattered per-blob `.section .data` blocks into a single data block at top (or bottom) of each pat_inv_<id> blob.  Today the artifacts ping-pong between `.data` and `.text` 4-5 times per blob (once per box that has static data: charsets, capture state, fence/arb/star/breakx slots, etc.).  Replace each inline `.data` block at a box site with a brief comment like `# data: .Lcap1_data, .Lcap1_vname` so the reader still knows what locals the box uses.  Implementation: bb_flat.c emit functions accumulate their `.data` content into a per-blob buffer (or two-pass: first pass collects, second pass emits) instead of emitting inline.  Affects every box kind that currently emits `flat_data_section(e)` followed by data directives (~12 sites).
 
 - [ ] **EM-FORMAT-BB-TRAMPOLINE-ELIM** — Eliminate trampoline jumps where one port-label just `jmp`s to another port-label.  Today: `xcat0_right_ω: jmp xcat0_left_β`, `pat_inv_0_β: jmp xcat0_right_β`, `xcat0_ω: jmp pat_inv_0_ω` — the "weird jump-arounds" Lon flagged.  Replace each `jmp X` in any emission with `jmp Y` directly when `X: jmp Y` is also in the emission.  Implementation: post-process pass over emitted text (or a label-resolution pass before final emit) that builds a "label aliases label" map and rewrites jump targets through it.  Care: only safe when `X:` is a pure jump trampoline with no other code; if any other emission flows through `X:`, the trampoline is load-bearing.
