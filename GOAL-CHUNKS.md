@@ -13,6 +13,38 @@ the runtime walks EXPR_t any more.  Native-host SNOBOL4
 interpreters (snobol4dotnet, snobol4jvm, JS) are each extended to
 run Snocone, giving multiple bootstrap paths for `scrip.sc`.
 
+**Four-mode isolation property** (this has always been the goal;
+SNOBOL4 and Snocone reach it via M1+M2; Icon and Prolog reach it
+via M4 + CH-17 + CH-17i — the work that finishes the same property
+for the frontends that lag).  For each of the four modes — mode 1
+(compile-only), mode 2 (`--ir-run`), mode 3 (`--sm-run`), mode 4
+(`--jit-emit --x64`) — and for each of the six frontends — SNOBOL4,
+Snocone, Icon, Raku, Prolog, Rebus — the *currently-supported*
+program surface (defined empirically by the `--ir-run` PASS set
+today) runs to completion through a runtime path that is
+structurally isolated from any AST walk: AST is freed
+unconditionally after `sm_lower` returns, in every mode.  Mode 2
+runs the SM_Program the same way mode 3 does (the `--ir-run` /
+`--sm-run` distinction is preserved as a *driver-side* choice for
+oracle/diff convenience, not as two different runtimes), with the
+exception of SNOBOL4's `execute_program` path which is its own
+non-SM interpreter and is not the AST walker this goal retires.
+Mode 4 emits native code from the same SM_Program; emitted artifact's
+link graph closes against `libscrip_rt.so` only.
+
+The strengthened isolation gate enforces the structural separation
+(no `IR_t *` field accesses in SM-mode runtime files; no
+`interp_eval` / `polyglot_execute` / `call_user_function` reachable
+from `sm_interp_run`'s call graph; emitted-artifact symbol set closes
+against the runtime SO).  Icon and Prolog reach this property via
+the CH-17i umbrella in `GOAL-CHUNKS-STEP17.md` (survey-mode3,
+mode3-completeness, mode4-icon-prolog, final-isolation).  Mode 4
+corpus coverage for the remaining frontends (SNOBOL4 and Snocone
+are M2; Raku and Rebus are M5; Icon and Prolog are
+CH-17i-mode4-icon-prolog) lands as their respective milestones
+complete.  This umbrella is *not* feature expansion: programs that
+currently FAIL or XFAIL under `--ir-run` stay in those buckets.
+
 ---
 
 ## Truth-telling preamble — what this goal exists to fix
@@ -210,6 +242,18 @@ milestones:
   - **M4** — Steps 12–18: Icon main(), Raku CASE, generator
     infrastructure, per-kind Icon generators, Prolog clauses,
     proc/pred tables, final SM_PUSH_EXPR delete.
+  - **M4.5** — Step 18.5 (CH-17i umbrella in `GOAL-CHUNKS-STEP17.md`):
+    Icon and Prolog reach the four-mode-isolation property the same
+    way SNOBOL4 and Snocone reached it via M1+M2.  Take the Icon
+    and Prolog `--ir-run` PASS surface today and make that *same*
+    surface run byte-identical under `--sm-run` and
+    `--jit-emit --x64`.  Sub-rungs: survey-mode3 (gap audit),
+    mode3-completeness (one rung per bucket), mode4-icon-prolog
+    (`--jit-emit --x64` coverage), final-isolation (extends M1's
+    isolation gate to cover the Icon+Prolog SM-mode runtime files;
+    adds mode-4 link-graph check).  Not new scope, not feature
+    expansion: the four-mode property has always been the goal;
+    this milestone finishes it for the frontends that lag.
   - **M5** — Step 19: Mode 4 x86 emitter extended to all six
     frontends.
   - **M6** — Steps 20–23: Mode 4 JVM, .NET, WASM, JS backends —
@@ -520,6 +564,63 @@ Order them however convenient based on platform availability.
   - Promote any newly-clean files into the gate.
   - Verify: grep SM_PUSH_EXPR across source tree returns zero
     hits in non-comment lines.  M4 milestone close.
+
+- [ ] **Step 18.5 — Icon and Prolog: complete the currently-supported
+  surface in all four modes (M4.5; CH-17i umbrella).**  This is not
+  new scope — the four-mode-isolation property has been GOAL-CHUNKS's
+  done-when from the start.  SNOBOL4 and Snocone reached it via M1+M2.
+  Step 18.5 is the rung set that finishes the *same* property for
+  Icon and Prolog (the frontends that lag because the proc/pred-table
+  side channel and the AST-driven BB engine kept them un-isolated).
+  Take the Icon and Prolog feature surface SCRIP supports today —
+  defined empirically by the programs that pass under `--ir-run`
+  today (Icon corpus 186 PASS / 47 FAIL / 30 XFAIL = 263; Prolog
+  `test/prolog/*.pl` baseline) — and make that *same* surface run
+  byte-identical through modes 2, 3, 4.  Programs in the FAIL/XFAIL
+  set stay there; this step does not patch them.  Spec lives in
+  `GOAL-CHUNKS-STEP17.md` under `### CH-17i`.
+
+  **Sub-rungs (defined in `GOAL-CHUNKS-STEP17.md`):**
+    - **CH-17i-survey-mode3** — empirical audit of the Icon+Prolog
+      `--ir-run` PASS subset under SM dispatch (post-CH-17g-irrun-execution
+      modes 2 and 3 share the runtime); produces a prioritised,
+      countable gap list bucketed by failure mode (missing builtin /
+      missing opcode handler / producer gap / semantic divergence).
+      Survey doc: `docs/CHUNKS-step17i-survey-mode3.md`.
+    - **CH-17i-mode3-completeness** — one sub-rung per bucket from
+      the survey, named `CH-17i-mode3-{builtin,opcode,lower,semantic}-NAME`.
+      Each lands byte-identical for its corpus subset.  Terminal
+      gate: Icon `--sm-run` PASS == Icon `--ir-run` PASS exactly,
+      same for Prolog.
+    - **CH-17i-mode4-icon-prolog** — extend `GOAL-MODE4-EMIT.md`'s
+      rung set to handle the SM opcodes Icon and Prolog use; Icon
+      and Prolog `--jit-emit --x64` PASS == `--ir-run` PASS exactly.
+    - **CH-17i-final-isolation** — strengthened isolation gate
+      extends to cover the full SM-mode runtime file set
+      (`coro_runtime.c`, `coro_value.c`, `coro_stmt.c`, `pl_runtime.c`,
+      `interp_hooks.c`, `polyglot.c`); mode 4 link-graph check via
+      `nm`/`readelf`; coverage matrix doc records {Icon, Prolog} ×
+      {modes 2, 3, 4} all-green.  This is the same isolation gate
+      M1's Step 6 strengthened for SNOBOL4 files; CH-17i-final-isolation
+      strengthens it for the Icon and Prolog files.
+
+  **Done when:** Icon and Prolog each have an all-green
+  coverage matrix across modes 2, 3, 4 (PASS count exactly equal
+  to the `--ir-run` baseline in each mode); the strengthened
+  isolation gate covers the SM-mode runtime file set; the
+  coverage matrix doc lands.
+
+  **Why this is its own step.**  Step 18 is mechanical (delete
+  SM_PUSH_EXPR, lift the `code_free` gate, strengthen the isolation
+  gate's symbol-call blacklist).  Step 19 (M5) is full Mode 4
+  corpus across *all six* frontends.  Step 18.5 is the
+  *runtime-completeness* work specifically for Icon and Prolog,
+  whose surface CH-17g's bridge-1..4 work showed is broader than
+  the SNOBOL4 surface and warrants its own rung group rather than
+  inlining into Step 18.
+
+  **Gates:** all four sub-rungs' gates land, then
+  CH-17i-final-isolation locks the property in CI.
 
 ### M5 — Mode 4 x86 emitter extends to all six frontends
 
