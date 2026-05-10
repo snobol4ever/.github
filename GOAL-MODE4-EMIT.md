@@ -363,7 +363,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-FORMAT-LABEL-RENAME + EM-FORMAT-SECTION-BREAKS — sess 2026-05-10 (latest)**
+**EM-FORMAT-CHUNK-RENAME — sess 2026-05-10 (latest)**
+
+`chunk` → `expression` throughout `sm_codegen_x64_emit.c`:
+`emit_chunk_registry` → `emit_expression_registry`;
+`.Lchunk_registry` → `.Lexpression_registry` (emitted label + `lea` operand);
+`has_chunk_registry` → `has_expression_registry`;
+`chunk_reg_count` → `expression_reg_count`; comments updated.
+one4all @ `b49a4b58`, corpus @ `123ed4d`.
+
+Gates: smoke 7/7, mode-4 parity 17/17. Artifacts gcc -c clean.
+
+**Next:** EM-7d-beauty-subsystems (blocked on SN-33 `cap_t::fn` null fix).
+
+----
+
+**EM-FORMAT-LABEL-RENAME + EM-FORMAT-SECTION-BREAKS — sess 2026-05-10**
 
 Two formatting micro-rungs landed together:
 
