@@ -859,6 +859,90 @@ runtime; the only remaining reader is `sm_lower.c:1757`, which is
 producer-side and runs while IR is alive in all modes).
 CH-17g-final closes Step 17.
 
+**SESSION 2026-05-10 — probe-and-revert findings (no rungs landed).**
+Lon directed an attempt at the rung; probe applied Step 2 (route
+non-SNO `--ir-run` through `sm_preamble + sm_run_with_recovery`),
+measured, reverted.  Working tree restored byte-clean against
+`f78d366c`.  Three concrete findings worth recording before next
+attempt:
+
+1. **Probe baselines.**  Pre-rung gates all green: smoke ×6 (7/7,
+   5/5, 5/5, 5/5, 5/5, 4/4), isolation, unified_broker 49/0,
+   scrip_all_modes 2/0, Icon `--ir-run` PASS=177 FAIL=56 XFAIL=30,
+   Prolog smoke 5/5.  Three-Icon and three-Prolog md5s captured.
+   Step 1 baseline target captured cleanly.
+
+2. **Step 2 alone — 72-program Icon regression, not 0.**  Routing
+   `--ir-run` non-SNO through `sm_preamble + sm_run_with_recovery`
+   drops Icon corpus from 177 PASS → 105 PASS (76 PASS→FAIL, 4
+   FAIL→PASS, net −72).  The `/tmp/probe.icn` and three Icon
+   `rung01_paper_*` programs ARE byte-identical (the rung's
+   nominal Step 1 probe targets), but the broader corpus diverges.
+   Distribution of the 76 regressed programs by category:
+   tables 11, scan-context 9, records 5, str-retval 4, loops 4,
+   jcon-meander 4, global-initial 4, cset-builtin 4, case 4,
+   bang-concat 4, augop 4, section 3, real-relop 3, lists 3,
+   real-arith 2, null-test 2, block-body 2, suspend 1, str-builtins
+   1, read-loop 1, alt 1.  Prolog `hello.pl`/`palindrome.pl`/
+   `plunit.pl` all diverge (initialization/2 directive — maps
+   cleanly to CH-17i-prolog-initialization).
+
+3. **Root cause is upstream of `_usercall_hook`, not at it.**
+   CH-17b'' lowers Icon proc bodies into SM bytecode; function
+   calls become `SM_CALL_FN s="<name>"` which routes through
+   `g_user_call_hook → _usercall_hook` (in `interp_hooks.c`).
+   That hook tries SNOBOL4 label, sc_dat, FNCEX_fn, proc_table,
+   pl_pred_table, SM-body lookup — but never `icn_call_builtin`'s
+   chain (raku/scan/by-name/user-proc/smart-fallback).  So Icon
+   builtin invocations from lowered proc bodies (find, tab, match,
+   upto, any, many, move, bal, key, integer, real, string, type,
+   image, copy, write/writes, table, insert, delete, push, pop,
+   get, pull, put, …) cannot reach their handlers via this
+   dispatch path.
+
+   A targeted patch was tried: insert a two-step Icon-builtin
+   dispatch (`icn_try_call_builtin_by_name` + synthesized-AST
+   `scan_try_call_builtin`) into `_usercall_hook` between the
+   proc_table cross-call and the pl_pred_table cross-call.
+   Patch was clean on baseline (Icon corpus stays 177 PASS;
+   `find()` works standalone under `--sm-run`) but only delivered
+   +1 PASS under Step 2 (105 → 106), and introduced a flake on
+   programs that previously worked.  Reverted.  The fix is small
+   and locally correct, but does NOT unblock the regression alone
+   because the residual mutators (insert/delete/push/pop/get/pull
+   /put), table indexing `t["x"]` (its own SM opcode), records,
+   augops, and case constructs each represent SM-side gaps
+   beyond just builtin dispatch.
+
+4. **Recommendation: re-sequence ahead of Step 2.**  CH-17g-final-
+   SURVEY-2's Option A is correct in *principle* (AST and SM both
+   deleted between phases; route `--ir-run` through SM dispatch).
+   But Step 2 as written assumes the SM dispatch path covers the
+   Icon `--ir-run` PASS surface, and empirically it does not.
+   The 76 regressed programs are not random — they bucket cleanly
+   onto the sequenced sub-rungs already named in this Goal file:
+   CH-17i-bang-concat phases 2/3/4 (bang-concat 4 + lconcat
+   subset of records/lists), CH-17i-section (section 3),
+   CH-17i-limit-random (likely overlaps loops/case), CH-17i-prolog-
+   initialization (Prolog 3 of 3).  Tables, records, and Icon
+   mutators (insert/delete/push/pop/get/pull/put) need their own
+   sub-rungs that don't yet exist by name.  Suggest: file
+   CH-17i-table-mutators and CH-17i-icn-list-mutators as
+   prerequisites; close all CH-17i sub-rungs first; THEN attempt
+   CH-17g-irrun-execution.  Alternative path (smaller):
+   `_usercall_hook` learns about Icon builtin dispatch (the patch
+   tried this session — close to landing on its own merits as
+   `CH-17g-irrun-prep` even before Step 2), shrinking the
+   regression set to those features that can't be solved at the
+   `_usercall_hook` layer (table indexing opcode, records, augops).
+
+**Working tree state at session end:** clean against `f78d366c`.
+No code commits, no docs landed.  Next session can re-attempt with
+the sequenced sub-rungs landed first, or carve a `CH-17g-irrun-prep`
+rung that lands the `_usercall_hook` builtin-dispatch patch on its
+own merits (it's correct standalone — the issue was that it doesn't
+unblock the rung *alone*).
+
 ### CH-17h — Migrate Step 15 remaining kinds (CH-15b)
 
 **CH-17h-SURVEY LANDED sess 2026-05-09** — `docs/CHUNKS-step17h-survey.md`
