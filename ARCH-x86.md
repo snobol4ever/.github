@@ -8,29 +8,87 @@ Human name: x86. File/folder name: x64 (historical).
 Each pattern node compiles to a self-contained x86 code+data blob in `bb_pool`.
 Four ports: α (proceed), β (resume), γ (succeed), ω (fail).
 
-**ABI:**
+### Boxes are stackless
+
+⛔ **Byrd boxes have no stack.**  A box has CODE and DATA.  No call frame, no
+local stack frame, no `push`/`pop` of working state in the body.  Every
+"local" the box needs (cursor save, counter, captured pointer) lives in its
+DATA block.
+
+Re-entry — the situation a naive reader expects to need a stack — is handled
+by **allocating a fresh DATA block on every α-port entry** and chaining the
+old one onto a save-list reachable from the new one's header.  A box that
+appears to "be on the stack three deep" is in fact three sibling DATA blocks
+linked together; the CODE is one address used three times.  CODE is shared,
+DATA is per-invocation, and the linkage between sibling DATA blocks is the
+mechanism that makes the box *appear* stack-like to a debugger or to a
+designer thinking in terms of recursion.
+
+This matters for reuse: **box CODE is reusable but not necessarily
+re-entrant**.  Two simultaneous matches against the same box address are
+fine *if and only if* each match gets its own DATA block.  Sharing a DATA
+block between two live matches will corrupt state.  The allocator's job at
+α-entry is to guarantee this never happens.
+
+### Two emission forms
+
+Boxes emit in two forms depending on how they will be called.  The forms
+share the CODE-shared / DATA-per-invocation invariant but differ in their
+entry-point ABI:
+
+**Flat BBs (the common case, `bb_flat.c` EMIT_BINARY).**  A glob of
+invariant boxes is emitted as one contiguous run of straight-line x86 in a
+single `bb_pool` slot.  Inter-box transitions are `jmp`s within the same
+slot — no `call`, no `ret`, no port-discriminator argument.  α-entry to the
+glob is by jumping at the glob's first byte; γ/ω exits are `jmp` to
+addresses outside the glob (the next glob, or back to the SM dispatcher).
+Boxes inside a glob have no per-box prologue and no `esi` entry-port
+register — the glob's structure encodes which port each box is being
+entered at, statically.  Flat BBs are the design point this architecture
+optimizes for.
+
+**Dispatched BBs (legacy C-function form, `bb_boxes.c`).**  Each box is a
+C function `bb_<name>(ζ *zeta, int port)` reachable by C `call`/`ret`.
+Here `esi` carries the port discriminator because the broker calls boxes
+generically.  This form predates flat BBs and is preserved for the broker-
+driven path (`--bb-brokered`) and for boxes that have not yet been ported
+to flat form.  When porting a box from dispatched to flat, the `esi`-test
+prologue is the first thing to delete.
+
+### Flat-BB ABI
 
 ```
-Buffer layout:
+Buffer layout (glob = N concatenated boxes' code + 1 consolidated data block):
   [0 .. CODE_END)   x86 code — position-independent via rel8/rel32 jumps
-  [CODE_END .. end) data — mutable state (n, done, fired...) + baked ptr slots (Σ/Δ/Ω/memcmp addrs)
+  [CODE_END .. end) DATA — consolidated locals for every box in the glob,
+                    addressed as [r10+N] from the glob entry preamble
+                    onward (see ME-2 / ME-4-pre register convention)
 
 Entry convention:
+  Control enters at the glob's first instruction (the α port of the
+  first box).  No `esi` port test; the glob's structure is static.
+  `r10` is loaded once by the glob preamble as `lea r10, [rip + Δ_data]`.
+
+Data access pattern (inside the glob body):
+  4D 8B 42 dd       mov rax, [r10+N]   ; load 8-byte baked ptr (Σ_addr, Δ_addr...)
+  8B 00             mov eax, [rax]     ; deref to int (Δ, Ω, n...)
+  48 8B 00          mov rax, [rax]     ; deref to ptr (Σ)
+  45 89 42 dd       mov [r10+N], eax   ; write int back to local slot
+```
+
+### Dispatched-BB ABI (legacy, preserved for `--bb-brokered`)
+
+```
+Entry convention (per dispatched box, called by the broker):
   rdi = buffer base (fn ptr IS the buffer start — same address)
-  esi = 0 (α) or 1 (β)
+  esi = 0 (α) or 1 (β)         ; port discriminator
   r10, r11 = scratch (caller-saved — no push/pop needed)
 
-Prologue (10 bytes, shared by all stateful boxes):
-  49 89 FA          mov  r10, rdi        ; r10 = blob base
-  83 FE 00          cmp  esi, 0
-  74 dd             je   α
-  EB dd             jmp  β
-
-Data access pattern:
-  4D 8B 42 dd       mov  rax, [r10+N]   ; load 8-byte baked ptr (Σ_addr, Δ_addr...)
-  8B 00             mov  eax, [rax]     ; deref to int (Δ, Ω, n...)
-  48 8B 00          mov  rax, [rax]     ; deref to ptr (Σ)
-  45 89 42 dd       mov  [r10+N], eax   ; write int back to data slot (state update)
+Prologue (10 bytes, shared by all stateful dispatched boxes):
+  49 89 FA          mov r10, rdi        ; r10 = blob base
+  83 FE 00          cmp esi, 0
+  74 dd             je  α
+  EB dd             jmp β
 ```
 
 FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes total.
@@ -168,18 +226,36 @@ mprotect(buf, size, PROT_READ|PROT_EXEC);  // I-cache fence
 
 ## CODE-shared / DATA-per-invocation
 
-Byrd boxes are naturally reentrant.  CODE (the α/β/γ/ω goto sequence)
-never changes.  Only DATA (locals: cursor saves, captures, params)
-differs between invocations.
+Byrd boxes are reentrant by mechanism, not by call frame.  CODE (the
+α/β/γ/ω goto sequence) never changes.  DATA (locals: cursor saves,
+captures, counters, params) is allocated fresh per invocation.  There is
+no stack; the *appearance* of stack-like depth comes from chaining
+sibling DATA blocks via a save-list pointer in each block's header.
 
-α allocates a DATA copy → that IS the save.
-γ/ω discards the copy → that IS the restore.
-Byrd boxes running forward and backward ARE save and restore.
+α-port entry allocates a fresh DATA block, links the prior DATA block onto
+the new one's save-list, and writes its initial cursor/state values into
+the new block → that allocation-plus-link IS the save.
 
-This invariant is what makes templated emission tractable: one
-template per box defines the CODE; per-backend emitters lower it to
-their host's reentrancy mechanism (heap-allocated ζ in C/JVM/.NET/JS,
-stack frame in `bb_pool` for x86 BINARY mode).
+γ/ω-port exit unlinks the current DATA block, restoring whichever sibling
+the save-list head names as the active one → that unlink IS the restore.
+
+Boxes running forward and backward ARE allocate-and-link / unlink-and-free.
+Nothing pushes or pops a real stack frame; nothing uses `rsp` for box
+state.  The native `rsp` belongs to the C-ABI for any PLT calls a glob
+makes (none, for flat-glob-eligible nodes — see `flat_is_eligible_node`)
+and to the SM-blob land that called into the glob.
+
+This invariant is what makes templated emission tractable: one template
+per box defines the CODE; per-backend emitters lower it to their host's
+DATA-allocation mechanism (heap-allocated ζ structs in C/JVM/.NET/JS,
+arena-allocated DATA blocks in `bb_pool` for x86 flat-BB mode).
+
+**Reuse vs re-entrancy.**  Two simultaneous matches against the same box
+CODE address are safe only if each match holds its own DATA block.  CODE
+is reusable.  CODE is not, in general, re-entrant — a second α-entry
+without a fresh DATA allocation would corrupt the first match's state.
+The allocator's contract at α-entry is to guarantee a fresh DATA block on
+every entry; nothing else in the system needs to think about re-entrancy.
 
 ## "Everything is dynamic"
 
