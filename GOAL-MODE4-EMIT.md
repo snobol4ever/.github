@@ -363,7 +363,203 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-7d-beauty-subsystems diagnosis — rsp-alignment in user-function chunks — sess 2026-05-10 (Claude)**
+**EM-7d-beauty-subsystems Option-1-attempt-2 — dual-entry semantics ruled out simple `prev==SM_JUMP` predicate — sess 2026-05-10 (Claude later)**
+
+**Diagnosis only — no code landed.**  One patch attempted (Option 1 from
+the prior watermark, gated on `prog->instrs[pc-1].op == SM_JUMP`), broke
+the gate (PASS=4 → PASS=2), and was reverted.  Repos clean at this hash
+on entry and on exit.  This watermark exists so the next attempt does
+not retrace and goes straight to the option that actually works.
+
+**What was implemented (and reverted).**  In
+`sm_codegen_x64_emit.c`:
+
+1. New file-static bitset `g_pc_in_aligned_chunk[]` populated by
+   walking `prog->instrs` once.  An SM_LABEL at pc `i` is an
+   "aligned chunk entry" iff `ins->a[0].s != NULL && prog->instrs[i-1].op == SM_JUMP`.
+   The chunk body extends from `i+1` through `(int)prev->a[0].i` (the
+   JUMP's target pc) — covering intra-chunk SM_LABELs (e.g. JUMP_F
+   branch landings inside a conditional return), since those genuinely
+   contain returns that need `add rsp, 8` too.
+2. `emit_sm_label`: emits `sub rsp, 8` after the LABEL macro line at
+   chunk entries.
+3. `emit_sm_return`: emits inline `add rsp, 8 ; ret` (bypassing the
+   SM_RETURN macro) when `pc_is_in_aligned_chunk(pc)`.
+4. `emit_sm_return_variant`: emits the entire conditional-return
+   inline (`mov edi,kind ; mov esi,cond ; call rt_do_return@PLT ;
+   test eax,eax ; jz .Lretskip_<pc> ; add rsp,8 ; ret ; .Lretskip_<pc>:`)
+   when in an aligned chunk, splicing `add rsp, 8` between `jz` and
+   `ret` so the alignment is undone only on the taken-return path.
+
+The emitted `.s` shape is correct.  All 5 tracked artifacts assemble
+clean.  But the gate regresses.
+
+**Why it fails: the SM_JUMP predicate is necessary but not sufficient
+when the chunk body contains intra-chunk named SM_LABELs.**
+
+Concrete demonstration in `assign_driver.sno` (which previously passed,
+now SIGSEGVs).  The SNOBOL4 source:
+
+```snobol4
+                          :(assign_end)              ; chunk-skip JUMP
+assign      ...                                     ; pc 1778: SM_LABEL "assign", named, prev=SM_JUMP — IS chunk entry
+            ...
+            assign = ASGN_INDIR(EVAL(expression), name)  :(NRETURN)  ; pc 1798: SM_NRETURN
+assign1     assign = ASGN_INDIR(expression, name)        :(NRETURN)  ; pc 1804: SM_NRETURN
+                                                          ; pc 1799: SM_LABEL "assign1", named, prev=SM_NRETURN
+assign_end                                                ; pc 1805: SM_LABEL "assign_end", named, prev=SM_NRETURN
+```
+
+The expression registry has THREE entries here: `assign → .L1779`,
+`assign1 → .L1800`, `assign_end → .L1806`.  Per the predicate:
+
+- `.L1779` (entry of `assign`): aligned chunk — gets `sub rsp, 8`. ✓
+- `.L1800` (entry of `assign1`): NOT aligned — prev is SM_NRETURN, not
+  SM_JUMP.  No `sub rsp, 8`.  But IS reachable via `cfn(assign1)`.
+- `.L1806` (entry of `assign_end`): NOT aligned.
+
+`.L1800` has DUAL ENTRY semantics:
+
+1. **Path A — fall-through from inside `assign`'s body.**  Reached from
+   `JUMP_F .L1799` at pc 1792 followed by fall-through past the
+   `.Lretskip_1798:` (when `rt_do_return` returned 0 — though for
+   unconditional NRETURN it always returns 1, so this path is
+   theoretical for assign but real for FRETURN_S/NRETURN_F variants in
+   other drivers).  rsp is whatever `assign`'s entry `sub rsp, 8`
+   plus subsequent ops left it at — typically aligned.
+
+2. **Path B — direct cfn() call to `assign1`.**  Reached from
+   `cfn(NV[\"assign1\"]) → call_native_chunk → call *fn`.  `call`
+   pushes 8-byte return address; rsp%16==8 entering body.  No `sub
+   rsp, 8` because `prev != SM_JUMP`.  Body's PLT calls (e.g.
+   `rt_call ASGN_INDIR`) issue with rsp%16==8.  Eventually one of
+   them reaches `bb_label_initf → vsnprintf → movaps -0xc0(%rbp)`,
+   which faults on misaligned rsp.  SIGSEGV.
+
+Adding `sub rsp, 8` at `.L1800` would fix Path B but break Path A
+(double-subtract, then the first NRETURN in the body's `add rsp, 8;
+ret` would pop garbage from main's frame — same regression mechanism
+as the prior watermark's failed Option 1 attempt).
+
+**The dual-entry case is structural in SNOBOL4, not incidental.**  Any
+function body containing a `:S(<intra_label>)` or `:F(<intra_label>)`
+has the same shape: the intra-label is registered (SNOBOL4's namespace
+puts every label in the registry) AND reachable from outside via
+cfn() AND reachable from inside via fall-through.  Across the 17
+beauty drivers, every failing driver has at least one such label
+inside a function body; the 4 passing drivers (assign with my fix
+masking the issue, fence, ShiftReduce, counter) either have only
+single-entry chunks or never call the intra-labels from outside.
+
+After my fix, `assign_driver` started failing because the cfn-entry
+to `.L1800` (which the test exercises via some indirect call path
+not yet traced — likely `EVAL`-driven dispatch or a pattern userfn
+capture) now hits the dual-entry pathology.  Pre-fix, `assign_driver`
+failed in Path A but the rsp%16==8 didn't reach a `movaps`-using
+function before the chunk returned, so the bug was latent.
+
+**What needs to land instead.**  Three options ranked by tractability:
+
+1. *(Cleanest semantically — recommended next attempt)* **Per-chunk
+   thunk shim.**  Replace registry entries pointing directly into chunk
+   bodies with entries pointing at one-shot thunks.  Each thunk is a
+   3-line proc emitted at the end of `.text`:
+
+   ```
+   .Lthunk_<entry_pc>:
+       sub rsp, 8
+       jmp .L<entry_pc>
+   ```
+
+   The expression registry stores `.Lthunk_<entry_pc>` instead of
+   `.L<entry_pc>`.  cfn() lands at the thunk; thunk aligns rsp; jumps
+   into the body.  Body executes with rsp%16==0 throughout.  Returns
+   inside the body do `add rsp, 8; ret` — same as my Option-1 attempt,
+   but now BOTH the thunk path AND the fall-through path enter the
+   body at rsp%16==0 (the fall-through path enters via the previous
+   chunk-entry's thunk-aligned state).  Single-entry-from-outside
+   semantics restored at the asm level without changing SM lowering.
+
+   Cost per chunk: 2 instructions of `.text` + 1 jump per cfn call.
+   No effect on intra-program JUMP/JUMP_S/JUMP_F (those still target
+   `.L<pc>` directly, bypassing the thunk).
+
+   Predicate: emit a thunk for EVERY named SM_LABEL (every registry
+   entry), not just `prev==SM_JUMP` ones.  Bitset for "in aligned
+   chunk" expands to "in any function body" — set from any registered
+   SM_LABEL forward to the next SM_RETURN* after which control flow
+   leaves via a non-fall-through path.  Or simpler: set [pc, end-of-
+   program] — too coarse but safe; unused returns at top-level get
+   `add rsp, 8` they don't need but the asm is harmless because main()
+   doesn't reach them (a HALT precedes).
+
+2. **`push rbp; mov rbp, rsp` proper frame at every named SM_LABEL.**
+   Distinguishes call-entry from fall-through-entry by checking rbp,
+   which is set up only on call-entry.  Complex, requires runtime
+   support (rbp inspection inside `rt_do_return`), and breaks the
+   "chunk is just inline code, no frame" simplicity that EM-FORMAT
+   work has been preserving.  Not recommended.
+
+3. **Restructure SM lowering to never register intra-function labels.**
+   `assign1`'s SM_LABEL would not get `a[0].s` set in the lowering
+   from the parser.  Registry would have one entry per DEFINE'd
+   function, period.  Clean semantically but invasive (touches
+   `sm_lower.c` and possibly the IR), and may break SNOBOL4 idioms
+   that genuinely call intra-function labels via `apply` or `$name`.
+   Defer until after Option 1 lands and stabilizes.
+
+**Validation hypothesis for Option 1 (per-chunk thunk).**  On
+`assign_driver`, the thunk approach predicts:
+- `cfn("assign")` enters via `.Lthunk_1779: sub rsp,8; jmp .L1779`.
+  Body executes at rsp%16==0.  Both NRETURN sites hit `add rsp,8;
+  ret` correctly.
+- `cfn("assign1")` enters via `.Lthunk_1800: sub rsp,8; jmp .L1800`.
+  Body (just the second NRETURN) executes at rsp%16==0.  Returns
+  correctly.
+- Fall-through from `.Lretskip_1798` to `.L1799 LABEL` to `.L1800`:
+  rsp was aligned by `.Lthunk_1779` and remains aligned through the
+  fall-through.  The NRETURN at pc 1804's `add rsp, 8; ret` pops the
+  cfn return-address pushed by ITS thunk — but wait, it would pop the
+  return-address pushed by .Lthunk_1779's thunk (the original cfn
+  call), which IS what we want (the original cfn() expects to be
+  returned to).  Check: does this break the `rt_do_return` semantics
+  for NRETURN where the function may not actually return at this
+  site?  Need to verify rt_do_return's expectation of stack shape.
+
+**Files that need touching for Option 1 (when next session attempts):**
+- `src/runtime/x86/sm_codegen_x64_emit.c` —
+  `emit_expression_registry` to emit `.Lthunk_<pc>` instead of
+  `.L<pc>` per entry (one-line change in the .quad emission); new
+  `emit_chunk_thunks` pass after the dispatch loop to emit one
+  3-line thunk per registry entry; `emit_sm_return` and
+  `emit_sm_return_variant` get the inline `add rsp, 8` ahead of `ret`
+  unconditionally for any pc in [first_named_label_pc, prog->count)
+  range — i.e., once we're past the program's top-level main-body
+  code, we're inside a function and every return needs the alignment
+  undo.
+- No changes to `sm_emit_template.c` (macros stay simple).
+- No changes to `sm_macros.s` regeneration.
+- No changes to `libscrip_rt.so`.
+- All 5 tracked artifacts will need regeneration.
+
+**Gates after revert (baseline restored):**
+- `test_gate_em_beauty_subsystems_mode4.sh`: PASS=4 FAIL=13 (unchanged).
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+
+**Next session:** implement Option 1 (per-chunk thunks).  The code
+written and reverted this session in `sm_codegen_x64_emit.c` is a
+useful starting point for the bitset infrastructure — recoverable
+from `git log -p` of this commit if helpful — but the
+`prev==SM_JUMP` predicate must be widened to "every named SM_LABEL"
+and emission moved from inline `sub rsp, 8` at the body to a
+separate thunk before the body.
+
+one4all unchanged from `f78d366c`.
+
+----
+
+
 
 **Diagnosis only — no code landed.**  Three patches were attempted, broke
 the gate (PASS=4 → PASS=1), and were reverted.  Repos clean at this hash
