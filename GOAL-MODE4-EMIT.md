@@ -566,38 +566,85 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       xcat0_γ:
       ```
 
-- [ ] **EM-FORMAT-SM** — Enforce the full SM three-column format law across all emitted `.s` artifacts.  **PARTIAL PROGRESS sess 2026-05-09:** (a) 120-char `#=` statement banners + pattern-blob banner LANDED (emit_major_break / emit_minor_break / EM-7c blob banner all extended from 78 to 120 chars); (b) comment-prefix strip LANDED (10 sites: `var=`, `str=`, `fname=`, `store -> ` removed; col-3 comments now bare opaque-arg referents — `# N`, `# "hello"`, `# myfunc`).  **REMAINING:** labels-only-when-referenced (pre-pass bitset over SM_Program; risk surface for BB blob entry-pc back-refs).  Gates 10/10 GREEN this session.
+- [x] **EM-FORMAT-SM** — Enforce the full SM three-column format law across all emitted `.s` artifacts.  **LANDED 2026-05-09** atop the partial.
 
       **The SM format law (definitive):**
 
       1. **Three columns, no exceptions.**  Col-1 = label (24 chars, left-padded).  Col-2 = opcode / macro name (16 chars).  Col-3 = args + optional `# comment` (free width).  Single space between col-2 and col-3.
       2. **No blank lines anywhere in the emitted `.s`.**
-      3. **Labels only when referenced.**  A `.LpcN:` line is emitted only when PC N is a jump target — i.e. is the destination of some `SM_JUMP`, `SM_JUMP_F`, `SM_JUMP_S`, `SM_CALL_CHUNK`, `SM_PUSH_CHUNK`, error landing pad, or BB blob entry-pc.  Unreferenced PCs are silent.  Risk: BB blob entry-pc back-refs (`# baked _pat_inv_<id> pc=N..M`) — keep `.LpcN:` for any PC in a blob range, or rewrite annotations to reference the blob's named symbol directly.
+      3. **Labels only when referenced.**  A `.LpcN:` line is emitted only when PC N is a jump target — i.e. is the destination of some `SM_JUMP`, `SM_JUMP_F`, `SM_JUMP_S`, `SM_CALL_EXPRESSION`, `SM_PUSH_EXPRESSION`, error landing pad, or chunk-registry back-ref (named SM_LABEL pc+1).  Unreferenced PCs are silent.  Pattern blob entry-pcs do NOT use `.LpcN:` references — their human-readable comments (`# baked pat_inv_<id> pc=N..M`) carry no asm symbol.
       4. **Program order = SNOBOL4 source order.**  SM ops emitted in statement order; no reordering.
-      5. **Statement banners.**  Each SNOBOL4 statement begins with a 120-character `#` banner:
-         ```
-         # ============================================================================= (120 chars total)
-         # stmt N  (line L):  <verbatim source line>
-         # =============================================================================
-         ```
-         The banner immediately precedes the first SM op of that statement.  No blank line between banner and first op.
-      6. **Comments say only what is unclear from col-2/col-3.**  Col-3 comment annotates the *referent* of an opaque arg — a `.Lstr_N` label, a chunk entry-pc, a return-variant integer — not the opcode itself.  Forbidden: `# SM_POP`, `# SM_JUMP`, `# var=N`, `# str=S`, `# fname=F` (the opcode name is already col-2; `var=`, `str=`, `fname=` add noise without revealing the value).  Permitted: `# "hello"` (when col-3 shows `.Lstr_4`), `# ROMAN` (when col-3 shows a chunk index), `# :F branch` (when col-3 shows a raw pc number for a failure transfer).
+      5. **Statement banners.**  Each SNOBOL4 statement begins with a 120-character `#` banner.
+      6. **Comments say only what is unclear from col-2/col-3.**
 
-      **Implementation:**  Pre-pass over `SM_Program` builds a `uint8_t used_as_target[count]` bitset.  `emit_pc_label` gates on the bitset.  `emit_sm_stno` emits the 120-char `#=` banner then the STNO line (no blank between).  Comment-generation sites audited: remove `var=`/`str=`/`fname=` prefixes; keep only the bare value when it disambiguates an opaque `.Lstr_N` or numeric arg.
+      **Implementation (sess 2026-05-09):**
 
-      **Files:** `sm_codegen_x64_emit.c` (label gating, banner, comment cleanup).  No changes to `sm_macros.s`, `bb_flat.c`, or `sm_lower.c`.
+      (1) **Bitset pre-pass.**  `pc_used_alloc(prog)` allocates a `uint8_t` array of size `prog->count`; `pc_used_mark(pc)` flips the bit; `pc_is_used_as_target(pc)` reads.  Sources of "PC is a target" populated by walking `prog->instrs` once: `SM_JUMP/JUMP_S/JUMP_F` a[0].i, `SM_PUSH_EXPRESSION/CALL_EXPRESSION` a[0].i, `SM_LABEL` with named a[0].s ⇒ pc+1, and pc=0 (program entry).
 
-      **Gates:** smoke ×6 PASS, EM PASS=13, bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations (including new I4: no blank lines, already enforced; new I5: no unreferenced `.LpcN:` labels).  Tracked artifact line counts expected to drop (unreferenced PC labels removed).
+      (2) **Single pre-pass.**  Population is folded into the existing `pattern_windows_collect` loop -- one walk over `prog->instrs` produces both the pattern-window registry AND the bitset.  No second pass added.
 
-      **Sample — roman.s stmt 4 before/after:**
+      (3) **Dispatch loop gate.**  `sm_emit_set_pc_label` is called only when `pc_is_used_as_target(pc)` returns 1.  Otherwise an empty label is set so `render_call_line` / `emit_three_column_line` emit col-1 blank.
+
+      (4) **Unified no-label format.**  Both no-label fallback paths (`sm_codegen_x64_emit.c::emit_one_three_column` and `sm_emit_template.c::render_call_line`) changed from `\t%-15s %s` to `%-24s%-16s %s` with empty col-1, so labelled and unlabelled lines align identically at col-2.
+
+      (5) **Lone-label rule satisfied implicitly.**  Every `.LpcN:` that survives the bitset is followed by an instruction on the same line (via `render_call_line` consuming the pending label).  No naked label lines appear in any artifact.
+
+      **Underscore-prefixed labels eliminated** (per Lon's spec at session start).  The leading `_` was stripped from every emitted label name -- `_pat_inv_<id>_α/β/γ/ω` → `pat_inv_<id>_α/β/γ/ω`, `_arbno%d_*` → `arbno%d_*`, `_cap%d_*` → `cap%d_*`.  Sites: `bb_flat.c` 4 string literals + `bb_flat_text_test.c` 11 substring-CHECK strings + `sm_codegen_x64_emit.c` blob banner + lea operand + baked-back-ref comment + doc-comments.  Test script `scripts/test_smoke_jit_emit_x64.sh` updated to match the new symbol names (objdump filter + grep substrings).  Zero underscore-prefixed labels remain in any artifact.
+
+      **CHUNK → EXPRESSION rename in macro names.**  The CH-17-RENAME-FINAL trail renamed `chunk` → `expression` everywhere except the GAS macro names emitted by `sm_emit_template.c`'s `g_sm_templates[]`.  Updated:
+      - `g_sm_templates[]` lines 117/118: `"PUSH_CHUNK"` → `"PUSH_EXPRESSION"`, `"CALL_CHUNK"` → `"CALL_EXPRESSION"`.
+      - `sm_emit_template.h` enum members: `SM_TPL_PUSH_CHUNK` → `SM_TPL_PUSH_EXPRESSION`, `SM_TPL_CALL_CHUNK` → `SM_TPL_CALL_EXPRESSION`.
+      - Doc-comments in `sm_emit_template.h` updated.
+      - `sm_macros.s` is auto-emitted by `sm_emit_macro_library` — picked up the rename automatically.
+      Pre-existing "EM PASS=7 (em5 CALL_EXPRESSION env gap)" gone — em5a + em5b now PASS in current env.
+
+      **Files touched (one4all):**
+      - `src/runtime/x86/sm_codegen_x64_emit.c` (+95 −12)
+      - `src/runtime/x86/sm_emit_template.c` (template-name + enum rename + no-label fallback)
+      - `src/runtime/x86/sm_emit_template.h` (enum rename + doc-comments)
+      - `src/runtime/x86/bb_flat.c` (label-string underscore strip)
+      - `src/runtime/x86/bb_flat_text_test.c` (test substring updates)
+      - `scripts/test_smoke_jit_emit_x64.sh` (regex relaxation + symbol updates)
+
+      **Label-definition counts (massive savings):**
+      | File | Before | After | Savings |
+      |------|------:|------:|--------:|
+      | roman.s          |   29 |   3 | 90% |
+      | wordcount.s      |   53 |   8 | 85% |
+      | claws5.s         |  508 |  52 | 90% |
+      | treebank-list.s  |  591 |  71 | 88% |
+      | treebank-array.s |  703 |  70 | 90% |
+      | **TOTAL**        | 1884 | 204 | **89%** |
+
+      **Tracked artifact line counts (unchanged from baseline -- the labels collapse into existing instruction lines via the lone-label rule, no row count changes):**
+      | File | Lines | gcc -c | trailing-ws | blank lines | _x labels |
+      |------|------:|:------:|:-----------:|:-----------:|:---------:|
+      | roman.s          |  202 | OK | 0 | 0 | 0 |
+      | wordcount.s      |  159 | OK | 0 | 0 | 0 |
+      | claws5.s         | 1112 | OK | 0 | 0 | 0 |
+      | treebank-list.s  | 1393 | OK | 0 | 0 | 0 |
+      | treebank-array.s | 1576 | OK | 0 | 0 | 0 |
+      | sm_macros.s      |  248 | OK (.include) | 0 | 0 | 0 |
+      | bb_macros.s      |   44 | OK (.include) | 0 | 0 | 0 |
+
+      **Sample (roman.s stmt 4 -- before vs after):**
       ```
-      BEFORE                                        AFTER
-      .Lpc6:                  STNO                  # =================================================================== (120)
-      .Lpc7:                  # PUSH_INT  baked ...  # stmt 4  (line 10):  ROMAN  N RPOS(1) LEN(1) . UNITS =  :F(RETURN)
-      .Lpc8:                  # PAT_RPOS  baked ...  # ===================================================================
-      .Lpc13:                 PUSH_VAR   .Lstr_4 # var=N    .Lpc6:   PUSH_VAR   .Lstr_4 # N
+      BEFORE                                                    AFTER
+      .Lpc6:                  STNO                              .Lpc6:                  STNO
+      .Lpc7:                  # PUSH_INT  baked  _pat_inv_0                             # PUSH_INT  baked  pat_inv_0 pc=7..12
+      .Lpc8:                  # PAT_RPOS  baked  _pat_inv_0                             # PAT_RPOS  baked  pat_inv_0 pc=7..12
+      ...                                                       ...
+      .Lpc13:                 PUSH_VAR   .Lstr_4 # var=N                                PUSH_VAR   .Lstr_4 # N
       ```
-      Unreferenced `.Lpc7:`..`.Lpc12:` gone (blob PCs absorbed); `# var=N` → `# N`.
+      Only `.Lpc6:` (chunk-registry target) survives; PCs 7–12 (blob-absorbed) and 13 (sequential follow-on) lose their labels.  Underscore in `_pat_inv_0` is gone.
+
+      **Gates final state — 14/14 GREEN:**
+      - smoke ×6 PASS (snobol4 2/2, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5 via all_modes, rebus 4/4)
+      - all_modes PASS=2 (sm-run + ir-run)
+      - **EM PASS=13** (was 7 — em5a + em5b unblocked by macro rename; EM-7c-audit unaffected)
+      - bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+      - audit 0 violations across 6 tracked artifacts (I0–I3a all clean)
+      - 0 trailing whitespace, 0 blank lines, 0 underscore-prefixed labels per artifact
 
 - [ ] **EM-FORMAT-BB** — Enforce the full BB four-port / three-column format law across all emitted BB blobs.
 
@@ -673,6 +720,132 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-FORMAT-SM LANDED 2026-05-09
+=============================================
+
+Atop the partial.  Three-column SM format law now fully enforced across
+every emitted `.s` artifact:
+
+1.  **Labels only when referenced** — single-pass bitset folded into
+    `pattern_windows_collect`.  Sources marked: `SM_JUMP/JUMP_S/JUMP_F`
+    (a[0].i), `SM_PUSH_EXPRESSION/CALL_EXPRESSION` (a[0].i = entry_pc),
+    named `SM_LABEL` (pc+1, chunk-registry back-ref), pc=0 (program
+    entry).  `pc_is_used_as_target(pc)` gates `sm_emit_set_pc_label`
+    in the dispatch loop.
+
+2.  **Lone-label rule satisfied implicitly** via existing
+    `g_pending_pc_label` / `render_call_line` consume mechanism — every
+    `.LpcN:` that survives the bitset is followed on the same line by
+    its instruction's macro name.  No naked label lines appear in any
+    artifact.
+
+3.  **Unified no-label fallback**.  Both no-label paths
+    (`sm_codegen_x64_emit.c::emit_one_three_column` +
+    `sm_emit_template.c::render_call_line`) changed from
+    `\t%-15s %s` to `%-24s%-16s %s` with empty col-1, so labelled and
+    unlabelled lines align identically at col-2.
+
+**Underscore-prefixed labels eliminated** per Lon's spec at session
+start.  `_pat_inv_<id>_α/β/γ/ω` → `pat_inv_<id>_α/β/γ/ω`,
+`_arbno%d_α_body` → `arbno%d_α_body`, `_cap%d_γ` → `cap%d_γ`, etc.
+Sites: 4 string literals in `bb_flat.c`, 11 substring CHECKs in
+`bb_flat_text_test.c`, banner + lea operand + baked back-ref + 4
+doc-comments in `sm_codegen_x64_emit.c`, plus 3 grep/awk patterns
+in `scripts/test_smoke_jit_emit_x64.sh`.
+
+**CHUNK → EXPRESSION rename in macro names.**  CH-17-RENAME-FINAL
+renamed every `chunk` symbol → `expression` except the GAS macro
+names emitted by `sm_emit_template.c::g_sm_templates[]`.  Updated:
+
+- `g_sm_templates[]`: `"PUSH_CHUNK"` → `"PUSH_EXPRESSION"`,
+  `"CALL_CHUNK"` → `"CALL_EXPRESSION"`.
+- `sm_emit_template.h` enum members: `SM_TPL_PUSH_CHUNK` →
+  `SM_TPL_PUSH_EXPRESSION`, `SM_TPL_CALL_CHUNK` →
+  `SM_TPL_CALL_EXPRESSION`.
+- Doc-comments in `sm_emit_template.h` updated.
+- `sm_macros.s` is auto-emitted by `sm_emit_macro_library` — picked
+  up the rename automatically.
+
+Pre-existing watermark gap "EM PASS=7 (em5 CALL_EXPRESSION env gap
+unchanged)" eliminated — em5a + em5b now PASS in current env, EM
+PASS=13.
+
+**Label-definition counts (massive savings):**
+
+| File | Before | After | Savings |
+|------|------:|------:|--------:|
+| roman.s          |   29 |   3 | 90% |
+| wordcount.s      |   53 |   8 | 85% |
+| claws5.s         |  508 |  52 | 90% |
+| treebank-list.s  |  591 |  71 | 88% |
+| treebank-array.s |  703 |  70 | 90% |
+| **TOTAL**        | **1884** | **204** | **89%** |
+
+**Tracked artifact line counts (unchanged from baseline -- the
+labels collapse into existing instruction lines via the lone-label
+rule, no row count changes):**
+
+| File | Lines | gcc -c | trailing-ws | blank lines | _x labels |
+|------|------:|:------:|:-----------:|:-----------:|:---------:|
+| roman.s          |  202 | OK | 0 | 0 | 0 |
+| wordcount.s      |  159 | OK | 0 | 0 | 0 |
+| claws5.s         | 1112 | OK | 0 | 0 | 0 |
+| treebank-list.s  | 1393 | OK | 0 | 0 | 0 |
+| treebank-array.s | 1576 | OK | 0 | 0 | 0 |
+| sm_macros.s      |  248 | OK (.include) | 0 | 0 | 0 |
+| bb_macros.s      |   44 | OK (.include) | 0 | 0 | 0 |
+
+**Files touched (one4all):**
+- `src/runtime/x86/sm_codegen_x64_emit.c` (+95 −12: bitset + gate +
+  format + underscore strip)
+- `src/runtime/x86/sm_emit_template.c` (CHUNK→EXPRESSION + no-label
+  fallback unification)
+- `src/runtime/x86/sm_emit_template.h` (enum rename + doc-comments)
+- `src/runtime/x86/bb_flat.c` (label-string underscore strip — 4
+  literals)
+- `src/runtime/x86/bb_flat_text_test.c` (test substring updates — 11
+  CHECKs)
+- `scripts/test_smoke_jit_emit_x64.sh` (label-optional regex
+  relaxation + symbol renames + bb_flat_text test pattern updates)
+
+**Gates final state — 14/14 GREEN:**
+
+- smoke ×6 PASS (snobol4 2/2, icon 5/5, prolog 5/5, raku 5/5,
+  snocone via all_modes 5/5, rebus 4/4)
+- all_modes PASS=2 (sm-run + ir-run)
+- **EM PASS=13** (was 7 — em5a + em5b unblocked by macro rename;
+  EM-7c-audit unaffected)
+- bb_flat_text PASS=18  ·  sm_phase2_sim PASS=25
+- audit 0 violations across 6 tracked artifacts (I0–I3a clean)
+- 0 trailing whitespace, 0 blank lines, 0 underscore-prefixed labels
+  per artifact
+
+**Sample dispatch under stmt 4 banner (roman.s) — before vs after:**
+
+```
+BEFORE                                                      AFTER
+.Lpc6:                  STNO                                .Lpc6:                  STNO
+.Lpc7:                  # PUSH_INT  baked  _pat_inv_0                               # PUSH_INT  baked  pat_inv_0 pc=7..12
+.Lpc8:                  # PAT_RPOS  baked  _pat_inv_0                               # PAT_RPOS  baked  pat_inv_0 pc=7..12
+...                                                         ...
+.Lpc13:                 PUSH_VAR   .Lstr_4 # var=N                                  PUSH_VAR   .Lstr_4 # N
+```
+
+`.Lpc7..12` (blob-absorbed PCs) no longer have label definitions;
+sequential PC `.Lpc13` likewise unlabelled.  Underscore in
+`_pat_inv_0` is gone.  Comment `# var=N` is now `# N` (the bare
+referent of the opaque `.Lstr_4` arg).
+
+**Multi-pass clarification.**  This rung *does not* add a second
+pass over `prog->instrs`.  `pattern_windows_collect` already walked
+the instruction array; the bitset-population loop is folded into
+that same walk.  Total pre-passes over `prog->instrs`: 1 (was 1).
+
+**Next rung:** **EM-FORMAT-BB** — apply the four-port + three-column
++ lone-label-fusion + per-box banner discipline to BB blob bodies.
+
+----
 
 EM-7c-sm-three-column-verify LANDED 2026-05-09
 =============================================
