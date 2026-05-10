@@ -892,7 +892,74 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - **EM-FORMAT-BB-BOX-BANNERS-COMPOSITES** — XCAT and XOR banners (currently skipped to avoid visual noise).
       - **EM-FORMAT-BB-BOX-BANNERS-RPOS-INDEXING** — the simulated PATND_t reconstruction yields `RPOS(0)` / `LEN(0)` / `POS(0)` for what the SNOBOL4 source spelled `RPOS(1)` / `LEN(1)` / `POS(1)`.  Internal Phase-2 indexing convention; banner reflects the simulator state faithfully.  If Lon wants source-faithful integers, the fix lives in the simulator, not the banner emitter.
 
-- [ ] **EM-FORMAT-BB-FUSED-GOTOS** — `LABEL: ACTION ; jmp TARGET` form for action+goto pairs.  Today actions and gotos emit on separate lines; the rung spec calls for `;`-separator fusion in select cases (e.g. `xcat0_right_ω: jmp xcat0_left_β` reads better fused).  Requires updating `text_emit_jmp` to optionally fuse with the prior emission, OR a new `bb3c_format`-with-goto variant that takes col-3 as a goto.  Care needed around bb3c_format's pending-label buffer — fused emission must coordinate with the buffer state.
+- [x] **EM-FORMAT-BB-FUSED-GOTOS — LANDED 2026-05-09.**  Adjacent conditional+unconditional jmp pairs now fuse onto a single line via the GAS `;` statement separator: `<cond_mn>  <succ_target> ; jmp <fail_target>`.
+
+      **The pattern.**  bb_flat.c emits 33 adjacent `EV_JMP(succ, JMP_J*); EV_JMP(fail, JMP_JMP);` pairs (where the first is conditional je/jne/jl/jge/jg and the second is the unconditional fallthrough).  Reads naturally as one "if cond goto succ else goto fail" decision.  Fusing cuts visual noise without losing the structure — the cond_mn is in col 2 (where mnemonics live), the two targets share col 3 separated by `;`.
+
+      **Implementation: deferred-emit at the bb3c layer.**  `bb_emit.c` gains a parallel deferred-emit buffer to the existing pending-label one:
+
+      ```c
+      static char  g_bb3c_pending_cjmp_mn[16]      = "";
+      static char  g_bb3c_pending_cjmp_target[256] = "";
+      static FILE *g_bb3c_pending_cjmp_out         = NULL;
+      ```
+
+      New entry point `bb3c_emit_jmp(out, mn, target)`:
+      - If `mn` is conditional (je/jne/jl/jge/jg/jle/jbe): defer to the cjmp buffer; flush any prior pending cjmp standalone first (handles two cond-jmps in a row).
+      - If `mn` is unconditional (jmp) AND a cjmp is pending on the same FILE*: emit fused line `<saved_cond_mn>    <saved_target> ; jmp <new_target>` via `bb3c_format` (so any pending label still fuses with col 1).
+      - Otherwise: emit standalone via `bb3c_format`.
+
+      `bb3c_format` flushes any pending cjmp at its top before doing anything else (any non-jmp content arriving means the cjmp can't fuse).  `bb3c_flush_pending` and `bb3c_flush_pending_to` flush BOTH the cjmp and label buffers (cjmp first, since it logically precedes).  A new `bb3c_flush_pending_cjmp_only()` flushes only the cjmp — used by raw-write paths (banners, EV_TEXT) that must NOT flush the pending label (which would regress LONE-LABELS).
+
+      **Single entry point.**  Both `text_emit_jmp` (in emitter_text.c, used via the `EV_JMP` macro) and the `bb_insn_jmp/je/jne/jl/jge/jg_*` family (in bb_emit.c, TEXT-mode arms) route through `bb3c_emit_jmp`.  No source changes outside the emitter — the 33+ existing `EV_JMP` call sites remain untouched.
+
+      **`text_fprintf_raw` updated** to call `bb3c_flush_pending_cjmp_only()` (not the full `bb3c_flush_pending`) so banner emissions (`EV_TEXT`) don't regress lone-label fusion.
+
+      **Fusion counts (tracked corpora, post-rung):**
+
+      | File             | Cond+Uncond pairs (was) | Fused lines (now) |
+      |------------------|------------------------:|------------------:|
+      | roman.s          |  6 → 0 | 8 (incl. EM-COMBINED-QUADS) |
+      | wordcount.s      |  0 → 0 | 5 (EM-COMBINED-QUADS only) |
+      | claws5.s         |  6 → 0 | 34 |
+      | treebank-list.s  |  6 → 0 | 51 |
+      | treebank-array.s |  6 → 0 | 50 |
+
+      **Sample (roman.s) — before vs after:**
+      ```
+      BEFORE (3 lines per cond+uncond pair)              AFTER (1 line)
+                              cmp esi, 0                                        cmp esi, 0
+                              je  pat_inv_0_α_body                              je pat_inv_0_α_body ; jmp pat_inv_0_β
+                              jmp pat_inv_0_β
+      ```
+
+      **Tracked artifact line counts (line drop comes from the 6 fusions per banner-bearing file × 1 line saved per fusion; wordcount unchanged since no patterns):**
+
+      | File             | Lines | Was | Δ | gcc -c | lone labels | cond+uncond | fused |
+      |------------------|------:|----:|---:|:-----:|:-----------:|:-----------:|:-----:|
+      | roman.s          |   159 | 165 | -6 |  OK   |      0      |      0      |   8   |
+      | wordcount.s      |   124 | 124 |  0 |  OK   |      0      |      0      |   5   |
+      | claws5.s         |   957 | 963 | -6 |  OK   |      0      |      0      |  34   |
+      | treebank-list.s  |  1184 | 1190 | -6 |  OK   |      0      |      0      |  51   |
+      | treebank-array.s |  1363 | 1369 | -6 |  OK   |      0      |      0      |  50   |
+      | sm_macros.s      |   248 | 248 |  0 |(.include)|   0      |      0      |   0   |
+      | bb_macros.s      |    44 |  44 |  0 |(.include)|   0      |      0      |   0   |
+
+      **Files touched (one4all):**
+      - `src/runtime/x86/bb_emit.c` — added cjmp deferral state (3 statics); new helpers `bb3c_flush_pending_cond_jmp` (static), `bb3c_flush_pending_cjmp_only` (public), `bb3c_emit_jmp` (public), `bb3c_is_cond_jmp` (static); hooked flush at top of `bb3c_format`; `bb3c_flush_pending_to` flushes cjmp before label; `bb3c_jmp` static helper routes through `bb3c_emit_jmp`.
+      - `src/runtime/x86/bb_emit.h` — declared `bb3c_emit_jmp`, `bb3c_flush_pending_cjmp_only`.
+      - `src/runtime/x86/emitter_text.c` — `emit3c_jmp` routes through `bb3c_emit_jmp`; `text_fprintf_raw` flushes pending cjmp (only) before raw write.
+
+      **Edge cases verified:**
+      - Two cond-jmps in a row (no intervening uncond): the prior one flushes standalone — verified by grep `^\s+(je|jne|jl|jge|jg)\s` not adjacent to another cond-jmp on the next line.  Doesn't fire on tracked corpora; defensive code path covered by the cjmp-buffer-already-populated branch in `bb3c_emit_jmp`.
+      - Stream change mid-buffer: flushes to the original FILE* before deferring on the new one.  Symmetric with the existing pending-label stream-change handling.
+      - Audit invariant I1 (no bare `;` outside strings/comments): EM-COMBINED-QUADS already updated I1 to allow `;` in col-3 at position ≥40.  The fused jmp's `;` lands well past col 40 (col-2 mnemonic at col 24, target name then `;` after that — typically col 50+).  Audit emits 0 violations across 7 files.
+
+      **Carved follow-on rungs (latent improvements surfaced this session, not addressed):**
+      - **EM-FORMAT-BB-DATA-CONSOLIDATE** — consolidate per-blob `.section .data` blocks scattered across box emissions into a single data block at top (or bottom) of the blob.  Today the artifacts ping-pong between `.data` and `.text` 4-5 times per blob.  At each box site, replace the inline `.data` block with a brief `# data: <labels>` comment.
+      - **EM-FORMAT-BB-TRAMPOLINE-ELIM** — eliminate trampoline jumps where one port-label just `jmp`s to another port-label (e.g. `xcat0_right_ω: jmp xcat0_left_β`, `pat_inv_0_β: jmp xcat0_right_β`, `xcat0_ω: jmp pat_inv_0_ω`).  Replace each `jmp X` where `X: jmp Y` exists with `jmp Y` directly.
+
+      **Gates 14/14 GREEN:** smoke ×6 (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone via all_modes 5/5, rebus 4/4), all_modes 2/2, isolation PASS, unified_broker PASS=49, EM PASS=13 (incl. EM-7c-audit), bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations across 7 tracked artifacts.
 
 - [x] **EM-FORMAT-BB-PORT-COMPLETION — LANDED 2026-05-09.**  Survey-first rung (same shape as CH-15-SURVEY / CH-17h-SURVEY).  Findings: port emission is structurally correct on all 5 tracked corpora.  Every box that fires emits its α/β at minimum; γ and ω are caller-owned by structural design (the parent composite or blob exit defines them; the leaf jumps to them).  No port-completion fix needed for tracked corpora.
 
@@ -967,6 +1034,10 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-FORMAT-BB-COL3-COMMENTS — LANDED 2026-05-09.**  Append `# KIND(args)` annotations to col-3 of leaf-box α-line emissions in `bb_flat.c`.  Today fires on tracked corpora: `# RPOS(0)` in roman.s, `# POS(0)` in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α paths are dead on tracked corpora today (zero observed) but still annotated for completeness.  Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).  Line counts unchanged (annotation appended to existing line).  Gates 14/14 GREEN.  one4all `70b76571`, corpus `f11fb1e`.
 
+- [ ] **EM-FORMAT-BB-DATA-CONSOLIDATE** — Consolidate scattered per-blob `.section .data` blocks into a single data block at top (or bottom) of each pat_inv_<id> blob.  Today the artifacts ping-pong between `.data` and `.text` 4-5 times per blob (once per box that has static data: charsets, capture state, fence/arb/star/breakx slots, etc.).  Replace each inline `.data` block at a box site with a brief comment like `# data: .Lcap1_data, .Lcap1_vname` so the reader still knows what locals the box uses.  Implementation: bb_flat.c emit functions accumulate their `.data` content into a per-blob buffer (or two-pass: first pass collects, second pass emits) instead of emitting inline.  Affects every box kind that currently emits `flat_data_section(e)` followed by data directives (~12 sites).
+
+- [ ] **EM-FORMAT-BB-TRAMPOLINE-ELIM** — Eliminate trampoline jumps where one port-label just `jmp`s to another port-label.  Today: `xcat0_right_ω: jmp xcat0_left_β`, `pat_inv_0_β: jmp xcat0_right_β`, `xcat0_ω: jmp pat_inv_0_ω` — the "weird jump-arounds" Lon flagged.  Replace each `jmp X` in any emission with `jmp Y` directly when `X: jmp Y` is also in the emission.  Implementation: post-process pass over emitted text (or a label-resolution pass before final emit) that builds a "label aliases label" map and rewrites jump targets through it.  Care: only safe when `X:` is a pure jump trampoline with no other code; if any other emission flows through `X:`, the trampoline is load-bearing.
+
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
 - [ ] EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries.
@@ -1002,6 +1073,81 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-FORMAT-BB-FUSED-GOTOS LANDED 2026-05-09
+=============================================
+
+Adjacent conditional+unconditional jmp pairs now fuse onto one line via
+the GAS `;` statement separator: `<cond_mn>  <succ_target> ; jmp <fail_target>`.
+
+Implementation: deferred-emit at the bb3c layer.  New parallel-to-pending-
+label state in `bb_emit.c`: `g_bb3c_pending_cjmp_*`.  New entry point
+`bb3c_emit_jmp(out, mn, target)` — defers cond-jmps; on next uncond jmp,
+emits fused line via `bb3c_format` (preserving any pending-label fusion
+in col 1).  `bb3c_format` flushes any pending cjmp at its top.  Both
+`text_emit_jmp` and `bb_insn_jmp/je/jne/jl/jge/jg_*` now route through
+`bb3c_emit_jmp`.  No source changes outside the emitter — the 33+
+existing `EV_JMP` call sites remain untouched.
+
+`bb3c_flush_pending_cjmp_only()` added so raw-write paths (banners via
+`text_fprintf_raw`) flush only the cjmp, NOT the pending label.  Without
+this split, the cjmp flush regressed EM-FORMAT-BB-LONE-LABELS by
+emitting the pending label standalone before the next banner — same
+shape as the EM-FORMAT-BB-PORT-COMPLETION fix.  Caught and corrected
+during dev.
+
+Fusion counts: 6 cond+uncond pairs per banner-bearing file (roman/claws5/
+treebank-list/treebank-array) × 4 files = 24 fusions.  wordcount.s has 0
+patterns so 0 fusions.
+
+Tracked artifact line counts:
+| File | Lines | Was | Δ |
+|------|------:|----:|---:|
+| roman.s          |  159 |  165 | −6 |
+| wordcount.s      |  124 |  124 |  0 |
+| claws5.s         |  957 |  963 | −6 |
+| treebank-list.s  | 1184 | 1190 | −6 |
+| treebank-array.s | 1363 | 1369 | −6 |
+| sm_macros.s      |  248 |  248 |  0 |
+| bb_macros.s      |   44 |   44 |  0 |
+| **TOTAL**        | 4079 | 4103 | **−24** |
+
+All 5 gcc -c clean.  0 lone labels, 0 cond+uncond pairs, 0 audit
+violations across 7 files.
+
+Sample (roman.s) — before vs after:
+```
+BEFORE                                           AFTER
+                cmp esi, 0                                       cmp esi, 0
+                je  pat_inv_0_α_body                             je pat_inv_0_α_body ; jmp pat_inv_0_β
+                jmp pat_inv_0_β
+```
+
+Files touched (one4all):
+- `src/runtime/x86/bb_emit.c` — cjmp deferral state, helpers, `bb3c_emit_jmp`,
+  hooks in `bb3c_format` and `bb3c_flush_pending_to`
+- `src/runtime/x86/bb_emit.h` — `bb3c_emit_jmp`, `bb3c_flush_pending_cjmp_only`
+  declarations
+- `src/runtime/x86/emitter_text.c` — `emit3c_jmp` through `bb3c_emit_jmp`,
+  `text_fprintf_raw` flushes cjmp only
+
+Carved follow-on rungs (latent improvements surfaced this session):
+- **EM-FORMAT-BB-DATA-CONSOLIDATE** — consolidate scattered per-blob
+  `.section .data` blocks into a single data block at top/bottom of
+  each blob.  Today the artifacts ping-pong between .data and .text
+  4-5 times per blob.  Replace inline data with `# data: <labels>` comment.
+- **EM-FORMAT-BB-TRAMPOLINE-ELIM** — eliminate trampoline jumps
+  (port-label that just `jmp`s to another port-label).  Today: e.g.
+  `xcat0_right_ω: jmp xcat0_left_β`, `pat_inv_0_β: jmp xcat0_right_β`,
+  `xcat0_ω: jmp pat_inv_0_ω`.  Replace `jmp X` where `X: jmp Y` with
+  `jmp Y` directly.
+
+Gates 14/14 GREEN: smoke ×6 (snobol4 7/7, icon 5/5, prolog 5/5,
+raku 5/5, snocone via all_modes 5/5, rebus 4/4), all_modes 2/2,
+isolation PASS, unified_broker PASS=49, EM PASS=13 (incl. EM-7c-audit),
+bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations.
+
+----
 
 EM-FORMAT-BB-PORT-COMPLETION LANDED 2026-05-09
 =============================================

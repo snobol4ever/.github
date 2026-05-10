@@ -53,7 +53,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17i-every-suspend** — migrate E_EVERY+E_SUSPEND in proc body chunks to SM opcodes. (CH-17i-survey-mode3 ✅ 2026-05-09: 177 Icon ir-run PASS → 111 sm-run diverge, all generator kinds; see survey doc.) |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | **CH-17i-every-suspend** (same as above) |
-| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | EM-FORMAT-BB-PORT-COMPLETION ✅ 2026-05-09 — survey clean on tracked corpora; surfaced + fixed lone-label regression introduced by BOX-BANNERS rung (12 lone labels → 0); two latent bugs carved as follow-on rungs (LIT-MOV-RSI-RCX, EMPTY-XCAT-LONE-LABEL-FLUSH). Next: **EM-FORMAT-BB-FUSED-GOTOS** (or beauty.sno crosscheck EM-7d). |
+| **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all | EM-FORMAT-BB-FUSED-GOTOS ✅ 2026-05-09 — adjacent cond+uncond jmp pairs fuse to `<cond>  <succ> ; jmp <fail>` (24 fusions across tracked corpora). Two new follow-on rungs carved: **EM-FORMAT-BB-DATA-CONSOLIDATE** (single data block per blob), **EM-FORMAT-BB-TRAMPOLINE-ELIM** (eliminate `X: jmp Y` chains). Next: **EM-FORMAT-BB-DATA-CONSOLIDATE** (Lon-suggested) or beauty.sno crosscheck **EM-7d**. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
