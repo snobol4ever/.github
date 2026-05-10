@@ -382,6 +382,239 @@ Rung-specific gates as listed per rung below.
 
 ---
 
+## Prior art / research basis
+
+This section captures the evidence base for the architectural decisions above.
+A future agent who finds a decision puzzling should look here before
+re-deriving from source.  All material is from the carve-session research
+(2026-05-10) reading `archive/backend/bb_boxes.s`, `archive/backend/snobol4_asm.mac`,
+`archive/backend/emit_emitters/emit_x64.c`, `.github/archive/GENERAL-SCRIP-ABI.md`,
+`.github/archive/EMITTER-X86.md`, `.github/archive/EMITTER-X86-DEEP.md`,
+`.github/archive/INTERP-X86.md`, `.github/archive/MILESTONE_BONE_PILE.md`,
+`.github/archive/BB-GEN-X86-BIN.md`, and the live `src/runtime/x86/bb_flat.c`.
+
+### Per-box callee-save discipline in `bb_boxes.s` (proven 106/106 oracle)
+
+Every box in the archive's 25-box library obeys one ABI but pushes only the
+callee-saved registers it actually uses.  Recognising the size of a box's
+prologue is part of recognising what kind of box you are reading:
+
+| Box | Pushes | Why that many |
+|-----|--------|---------------|
+| `bb_lit`, `bb_any`, `bb_notany` | `rbx, r12` | ζ + one σ holding slot |
+| `bb_arb`, `bb_len`, `bb_pos`, `bb_tab`, `bb_rem` | `rbx` | ζ only; result computed direct |
+| `bb_alt` | `rbx, r12, r13` | ζ + (σ, δ) of current child |
+| `bb_span`, `bb_brk`, `bb_breakx` | `rbx, r12, r13` | ζ + scan state |
+| `bb_seq` | `rbx, r12, r13, r14, r15` | ζ + (σ, δ) of left + (σ, δ) of right |
+| `bb_arbno`, `bb_dvar` | `rbx, r12, r13, r14, r15` | ζ + frame walker + child result |
+
+Plus `sub rsp, 8` (or 16) for stack alignment + per-call σ/δ holding slots.
+The pattern is consistent: `rbx` is always the ζ pointer; `r12..r15` carry
+per-call intermediate values that must survive across child-box `call`
+sequences.  This is the discipline mode-3 SM-blob emission must preserve
+when its blobs `call` into byrd-boxes — the boxes save what they touch; the
+SM-blob caller's r12 (= `SM_State*` in our convention) survives because the
+box restores it like any other callee-saved register.
+
+### The `Σ Δ Ω` global-subject ABI
+
+Subject text and cursor are not passed as arguments to boxes.  They live in
+`.bss` globals:
+
+```
+extern Σ          ; uint8_t *Σ      — subject text base pointer
+extern Δ          ; int      Δ      — current cursor position
+extern Ω          ; int      Ω      — subject length (the right wall)
+```
+
+Every box reads `Σ`, `Δ`, and `Ω` directly via `[rel Σ]`, `[rel Δ]`, `[rel Ω]`.
+On match success a box advances `Δ`; on backtrack it restores the saved value.
+`bb_flat.c` flat-globs load `Δ`'s address into `r10` at glob entry not
+because the glob owns `Δ` (it doesn't — `Δ` is one global), but because
+inside a flat-glob the *per-box local state* (saved cursors, frame stacks)
+sits in a consolidated `.data` block addressed via `r10`, and the boxes'
+direct `[rel Δ]` access continues to reach the one true cursor.  Two
+separate addressing modes coexist: globals via `[rel SYM]`, locals via
+`[r10+N]`.  Mode-3 SM-blob land is unaffected — it neither reads `Σ/Δ/Ω`
+nor writes them; that is byrd-box-engine business.
+
+### Box return ABI: success via value, not via continuation-jump
+
+`GENERAL-SCRIP-ABI.md` (the cross-language ABI design, 2026-03-27) proposed
+γ-jump-address and ω-jump-address in `rdx`/`rcx` at call time, with the
+callee `jmp [rdx]` on success and `jmp [rcx]` on failure.  `bb_boxes.s`
+shipped a simpler convention: the caller does a normal `call`, and the
+callee returns with `rax:rdx = σ:δ` (success) or `eax=99, edx=0` (failure,
+`DT_FAIL`); the caller `test r12, r12 ; jz <ω-label>` (or `cmp eax, 99 ; je
+<ω-label>`) right after the call.  Both are valid Byrd-box realizations;
+the simpler one is what the 106/106 oracle ran on, and it is what mode-3
+SM-blob land calls into.  We do not change this.
+
+Cross-language implication (for future GOAL-MODE3-EMIT-JVM /
+GOAL-MODE3-EMIT-NET work, not in scope here): on JVM/.NET, return-by-value
+maps naturally to a return-tuple; the continuation-jump version cannot be
+expressed without trampolines.  Sticking with return-by-value on x86 keeps
+the cross-backend translation straight.
+
+### `DESCR_t = 16 bytes, returned in rax:rdx` via C-ABI struct-return
+
+`DESCR_t` is 16 bytes (an enum tag + variant union with a string pointer + a
+size, or an int, or a real, or a pointer).  The C-ABI passes 16-byte structs
+in registers when returning from a function — specifically in `rax:rdx`.
+That is why `NV_GET_fn`, `pat_lit`, every box, every constructor in
+`snobol4_pattern.c` "naturally" returns `rax:rdx` without us having to
+arrange it: the C compiler does so.  The SM-blob convention inherits this:
+every PLT call from emitted code yields its `DESCR_t` result in `rax:rdx`,
+and the blob's job is to store both halves onto the value stack at
+`[r12+sp]` and `[r12+sp+8]`.  If a future bug shows up where only half a
+`DESCR_t` is being stored, this paragraph is the reminder of which half is
+which.
+
+### Why we re-purpose `r12` from its legacy role
+
+`archive/backend/emit_emitters/emit_x64.c` used `r12` as the per-invocation
+DATA-block pointer.  The legacy comments are explicit (`r12 points to this
+invocation's DATA block`, `mov r12, rax ; r12 = new DATA ptr`).  Mode-3 does
+not preserve that role for `r12`.  Instead, mode-3 splits the legacy
+`r12=DATA` into two: SM-blob land uses `r12 = SM_State*` for the value
+stack; BB-glob land uses `r10 = data-region pointer` for box locals
+(precisely what the legacy `r12` did, but renamed to free `r12` for the SM
+side).  Both registers are callee-saved in the SM context (we never write
+them inside emitted PLT call sequences expect at the boundaries we define).
+A future agent reading `emit_x64.c` and finding `r12 = DATA` should
+recognise this as legacy and look here for the new role assignment.
+
+### Why `r10` for the glob data region (C-ABI consequence)
+
+`r10` is *caller-saved* in the System V x86-64 C-ABI.  This means: any C
+function we PLT-call may clobber `r10` without saving it.  Two consequences
+follow that are not obvious until stated:
+
+1. **SM-blob land must not depend on `r10` surviving a PLT call.**  SM-blob
+   land does not use `r10` at all — neither read nor write — and so this is
+   a non-issue *for SM-blob land*.
+2. **BB-glob land must reload `r10` at every glob entry.**  If a glob makes
+   any external call (e.g. a capture function callback that re-enters the
+   broker), the callee may clobber `r10`; on return, the glob must not
+   assume `r10` is still pointing at its data region.  The current
+   `bb_flat.c` convention loads `r10` *once at glob entry* on the
+   assumption that flat-globs do not make external calls inside themselves
+   — which is part of what makes a sub-tree "invariant" and eligible for
+   flat-glob emission in the first place (`flat_is_eligible_node(p)`).
+   Variant nodes that need external calls do not get flat-globbed.
+
+The implicit save-free boundary works *because* of (1) — the SM caller
+doesn't care what the glob did to `r10`, and the glob doesn't care what the
+SM caller had in `r10` before.  This is a benefit of `r10`'s caller-saved
+status, not in spite of it.
+
+### Two-stack reconciliation (fuller version of the ME-1 rationale)
+
+SIL's `PATBCL/PATICL` (pattern code list / pattern instruction list) and
+`PDLPTR/PDLHED` (push-down list — the value stack) are separate because in
+SIL they serve different *executors*: PATBCL is walked by SCNR (the
+scanner); PDLPTR is walked by INTRP (the interpreter).  Two stacks for two
+machines.
+
+In SCRIP the equivalent split exists, but it is not between two value
+stacks — it is between the value stack (built by the SM dispatch loop or by
+mode-3 native code) and the byrd-box graph (executed by the byrd-box
+engine).  The byrd-box graph is the data: it is a tree of `ζ` state structs
+linked by `bb_child_t.fn` function pointers.  Construction of that tree is
+plain value arithmetic done by `SM_PAT_*` opcodes, and value arithmetic
+belongs on the value stack — not on a third stack that exists only to be
+moved into the value stack by `SM_PAT_BOXVAL`.
+
+The proof: every `SM_PAT_*` constructor (`pat_lit`, `pat_cat`, `pat_arbno`,
+…) returns a `DESCR_t` whose `v` field is `DT_P` and whose `.ptr` is the
+allocated ζ struct.  These descriptors are first-class.  `sm_pop()` and
+`sm_push()` already handle them — the type tag is in the descriptor, not in
+the stack's identity.  Once `SM_PAT_*` opcodes simply push their results to
+the value stack, `SM_EXEC_STMT` pops the pattern descriptor the same way it
+pops subject and replacement, and the SIL-style two-machine split is
+preserved at the right boundary (Phase 2 vs Phase 3, not pat-stack vs
+value-stack).
+
+This is why ME-1 is the opening rung: until the pat-stack is gone, mode-3
+SM-blob emission has to deal with two distinct stack-anchoring registers
+(one for value-stack, one for pat-stack) and lose the "`r12` is *the*
+stack" simplicity that makes everything below tractable.
+
+### EXPVAL re-entrancy (relevant to ME-8)
+
+`MILESTONE_BONE_PILE.md`'s RUNTIME-6 section spells out the SIL ground
+truth for `EXPVAL`: when evaluating an EXPRESSION-typed descriptor, SIL
+saves the entire interpreter state on a save stack before invoking the
+expression body, and restores it on exit (success or failure).  The state
+saved includes `OCBSCL/OCICL` (current code block + offset), `PATBCL/PATICL`
+(pattern code state), `WPTR/XCL/YCL/TCL` (work pointers, three temp
+descriptors), `MAXLEN/LENFCL` (string length bookkeeping), `PDLPTR/PDLHED`
+(value stack head), `NAMICL/NHEDCL` (naming stack head), and specifier
+slots (`HEADSP/TSP/TXSP/XSP`).
+
+The correctness property: EXPVAL must be fully re-entrant — an EXPRESSION
+can contain a call to `EVAL()` which calls EXPVAL again.  The save/restore
+must handle arbitrary nesting.
+
+For mode-3 ME-8 (`SM_CALL_CHUNK` consumer): the SM-blob land equivalent of
+EXPVAL's save/restore is the return-frame push that `SM_CALL_CHUNK` does
+before transferring control to the chunk's entry_pc.  The return frame
+needs to capture exactly the state that a re-entered EVAL/CODE could
+clobber: the value-stack depth at call time (so `SM_RETURN` can detect
+balance violations), the SM-PC to return to, and — critically — anything
+in `SM_State` that is mutated by sub-expressions (currently just
+`last_ok`; verify against `sm_interp.c` at ME-8 entry).
+
+If sub-expressions can mutate the pat-stack (after ME-1 there is no
+pat-stack, so this concern dissolves), or any global like `g_jit_halted`,
+those mutations either need to be captured in the return frame or proven
+to be already-correct under nesting.  This is the audit ME-8 must do
+before its first byte of code is written.
+
+The SIL "save the universe" approach is the safe default; SCRIP can be
+narrower because most of SIL's saved state has no SCRIP equivalent (we do
+not have OCBSCL/OCICL — the SM_Program is a single flat array; we do not
+have PATBCL/PATICL — the pat-stack is gone after ME-1; we do not have
+specifier slots — `DESCR_t` is the universal value).  The minimum viable
+return frame is `{ return_sm_pc, value_stack_sp_at_call, last_ok }`.
+
+### `PROG_INIT` vs `sm_jit_run` entry: why no callee-save spill
+
+`snobol4_asm.mac`'s `PROG_INIT` macro (program entry in the legacy
+asm-emitted binary) pushes all five callee-saved registers
+(`r15, r14, r13, r12, rbx`) plus `rbp` before sub-rsp'ing for local
+descriptors:
+
+```nasm
+PROG_INIT:
+    push r15 ; push r14 ; push r13 ; push r12 ; push rbx
+    push rbp ; mov rbp, rsp ; sub rsp, 56 ; call stmt_init
+```
+
+The legacy did this because the emitted code *used* `r12..r15` and `rbx` as
+implicit working registers across the whole program — they needed to be
+preserved on return to `crt0`'s `main()` caller.
+
+Mode-3's `sm_jit_run` does not need this spill at entry.  Reason: SM-blob
+land uses only `r12` as a fixed register, set once at sm_jit_run entry, and
+the C-ABI considers `r12` callee-saved — meaning *`sm_jit_run` itself*
+(which is a C function) is responsible for saving/restoring it.  The
+compiler-generated prologue/epilogue of `sm_jit_run` already does this.
+The SM-blob code that runs inside the `jmp SEG_CODE_entry` does not need
+its own additional spill; it inherits the safety of the surrounding C
+frame.
+
+Byrd-boxes called from SM-blob land do their own per-box callee-save spill
+(per the table at the top of this section), so `r12 = SM_State*` survives
+those calls.  Boxes that touch `r12` save it like any other callee-saved
+register; boxes that do not touch it leave it alone.
+
+The conclusion: mode-3 SM-blob entry is `mov r12, &state ; jmp
+SEG_CODE_entry`, not `push r12 ; … ; mov r12, &state ; … ; pop r12`.
+The C surrounding context provides the spill.
+
+---
+
 ## Definitions
 
 - **mode 3 / `--jit-run` / `--sm-native`** — third SCRIP execution mode: emit
@@ -429,6 +662,20 @@ No code landed this session — Goal-file authorship only.  Baseline gates
 at session start: smoke 7/7 PASS, unified_broker 49/49 PASS,
 em_beauty_subsystems_mode4 PASS=4 FAIL=13 (frozen as tripwire — mode 4 is
 not touched during this Goal).  one4all @ `f78d366c`.
+
+**Addendum sess 2026-05-10 (same session, second commit):** added
+`## Prior art / research basis` section (~230 lines) capturing the evidence
+base for the architectural decisions above — per-box callee-save discipline
+from `bb_boxes.s`, the `Σ Δ Ω` global-subject ABI, the box-return ABI
+(value-via-rax:rdx vs the GENERAL-SCRIP-ABI's continuation-jump proposal),
+`DESCR_t` 16-byte C-ABI struct-return convention, the `r12` re-purposing
+from its legacy `emit_x64.c` "DATA block ptr" role, why `r10`'s
+caller-saved C-ABI status makes the glob save-free boundary work, the
+fuller SIL/SCRIP two-stack reconciliation, EXPVAL re-entrancy detail
+relevant to ME-8's return-frame design, and why `sm_jit_run` entry needs
+no explicit callee-save spill.  A future agent puzzled by any decision in
+the Architectural target section should consult this before re-deriving
+from source.
 
 **Next:** open ME-1 (pat-stack unification).  Self-contained, ~100 lines
 deleted across `sm_interp.c` and `sm_codegen.c`, plus the
