@@ -152,17 +152,43 @@ when it returns: only emit what `sm_codegen` placed in `SEG_CODE` at codegen
 time; everything that materializes in `bb_pool` at execution time stays
 behind in `libscrip_rt.so`.
 
-### Byrd-box ABI unchanged
+### Byrd-box ABI — flat-BB vs dispatched-BB
 
-Per `bb_boxes.s` (the proven 25-box library, archive 106/106 oracle):
-- Entry: `rdi = ζ` (zeta — box state struct), `esi` = entry port (0 = α, 1 = β).
+Boxes exist in two emission forms.  Mode 3 SM-blob land calls into the
+flat form via a single `jmp` at glob entry; the dispatched form is the
+broker-driven legacy path that mode 3 does not author against directly
+(see `ARCH-x86.md` §"Two emission forms" for the architectural definition).
+
+**Flat-BB ABI (the path mode 3 emits SM-blob `jmp`s into):**
+- Entry: control falls into the first byte of the glob — the α port of
+  the first box.  No `esi` port discriminator; the glob's structure is
+  static.  No `rdi = ζ` argument; locals are reached via `r10` (loaded
+  by the glob preamble as `lea r10, [rip + Δ_data]`).
+- Exit (γ success): `rax:rdx = σ:δ` returned to the caller of the glob;
+  control transfers via `jmp` to the post-glob target.
+- Exit (ω failure): `eax = 99, edx = 0` and `jmp` to the failure target.
+- Boxes are stackless inside the glob — no `push`/`pop` of working state;
+  every local sits at `[r10 + N]` for some baked offset N.
+
+**Dispatched-BB ABI (legacy `bb_boxes.s` form, preserved for `--bb-brokered`):**
+- Entry: `rdi = ζ` (zeta — box state struct), `esi` = entry port
+  (0 = α, 1 = β).
 - Exit: `rax:rdx = σ:δ` (success), or `eax=99, edx=0` (failure / `DT_FAIL`).
-- Callee-saved: `rbx, r12, r13, r14, r15` — boxes save and restore their own.
+- Callee-saved (when boxes use them as working scratch across nested
+  `call`s): `rbx, r12, r13, r14, r15` — boxes save and restore their own.
+
+**Why mode 3 cares about both.**  Mode 3 SM-blob land emits *into* the
+flat form via `bb_flat.c` EMIT_BINARY when `SM_EXEC_STMT` hands a
+statement off to the BB engine.  The dispatched form survives as the
+broker-driven path (`--bb-brokered`); a future rung may unify the two,
+but that is not in this Goal's scope.
 
 Note `r12` is callee-saved per the C-ABI, so the mode-3 SM-blob convention
 (`r12 = SM_State*`) is preserved across byrd-box calls automatically.
-Boxes that need a callee-saved working register save and restore `r12` like
-any other callee-saved reg; they never observe its SM-blob meaning.
+Dispatched-BB boxes that need a callee-saved working register save and
+restore `r12` like any other callee-saved reg; they never observe its
+SM-blob meaning.  Flat-BB globs do not write `r12` at all — `r12` carries
+its SM-blob meaning through the glob untouched.
 
 ---
 
@@ -758,9 +784,17 @@ pat-stack; (2) `r12 = SM_State*`, `r10` = per-glob data region (matches
 existing convention), `rbp` = chunk frame for DEFINE'd chunks; (3) variant
 patterns stay dynamic, no static dump of `bb_pool` contents in mode 3 or
 mode 4; (4) deferred-eval consumer (ME-8) lands after GOAL-CHUNKS-STEP17
-closes so the opcode shape is stable; (5) byrd-box ABI from `bb_boxes.s`
-preserved verbatim (rdi=ζ, esi=entry, rax:rdx=σ:δ, callee-saved
-rbx/r12/r13/r14/r15).
+closes so the opcode shape is stable; (5) byrd-box ABI distinguishes the
+flat-BB form (stackless inline asm inside a glob, entered by `jmp` at the
+glob's first byte, locals at `[r10+N]`, no `esi` port discriminator) from
+the dispatched-BB form (legacy `bb_boxes.s`-style C-callable functions
+with `rdi=ζ`, `esi`=entry port, `rax:rdx=σ:δ`, callee-saved
+rbx/r12/r13/r14/r15) — mode 3 SM-blob land calls into the flat form;
+dispatched form survives for `--bb-brokered`.  Boxes are stackless: CODE
+is shared; DATA is per-invocation; sibling DATA blocks chained via
+save-list provide the appearance of stack-like depth without an actual
+stack.  See ARCH-x86.md §"Boxes are stackless" and §"Two emission forms"
+for the architectural definition.
 
 No code landed this session — Goal-file authorship only.  Baseline gates
 at session start: smoke 7/7 PASS, unified_broker 49/49 PASS,
