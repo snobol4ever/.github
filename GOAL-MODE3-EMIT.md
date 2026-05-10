@@ -246,7 +246,7 @@ Rung-specific gates as listed per rung below.
 
 ### Phase B — Native SM-blob emission (replace threaded-call JIT)
 
-- [ ] **ME-3 — Minimal native blob set.**  Rewrite `sm_codegen.c` so each
+- [x] **ME-3 — Minimal native blob set.**  Rewrite `sm_codegen.c` so each
       `SM_Instr` lowers to its own contiguous native-x86 blob in `SEG_CODE`,
       not a pointer into `SEG_DISPATCH`.  Opcodes covered: `SM_HALT`,
       `SM_PUSH_LIT_I`, `SM_PUSH_LIT_S`, `SM_POP`, `SM_JUMP`.  Build a
@@ -260,6 +260,40 @@ Rung-specific gates as listed per rung below.
       pointer array; it holds real instructions.  Gate: tiny hello-world
       SNOBOL4 program runs end-to-end via `--jit-run` with byte-identical
       output to `--sm-run`.
+      ✅ 2026-05-10 one4all `aca47e6c`.  Per-instruction 30-byte fixed-size
+      blob shape:
+         Standard: `inc dword [r12+20] ; mov rax,handler ; sub rsp,8 ;
+                    call rax ; add rsp,8 ; jmp rel32 trampoline`
+         SM_HALT:  `inc dword [r12+20] ; ret ; 24×nop`
+         SM_JUMP:  `mov dword [r12+20],target_pc ; jmp rel32 blob[target] ;
+                    16×nop`
+      Trampoline (~32B at head of SEG_CODE): reads pc from `[r12+20]`,
+      bound-checks vs prog->count, then `jmp blobs_base + pc*30`.  Stride
+      is encoded as `imul rax, rax, 30` (imm8).  Per-PC side table
+      `g_blob_offsets[]` built during emit; used now for SM_JUMP rel32
+      patching in pass 2 (`seg_patch_u32` to `blob[target_pc] - rel32_end`),
+      will be reused by mode-4 SEG_CODE serializer.  `sm_jit_run` becomes
+      a six-line C function: `mov r12,state` (asm volatile) + `entry()`
+      (called as `void(*)(void)` to trampoline) + `return 0`.  SM_HALT's
+      `ret` returns to `entry()`'s call site — no C dispatch loop.
+      16-byte stack alignment: pre-fix the 22-byte blob without `sub rsp,8`
+      / `add rsp,8` segfaulted on arith and goto_s because `entry()` left
+      `rsp ≡ 8 (mod 16)` and naive `call rax` would enter handlers at
+      `rsp ≡ 0`, faulting on the first `movaps` in printf/vsnprintf/GC
+      alloc.  The `sub/add rsp, 8` pair restores the ABI's `rsp ≡ 8`
+      invariant on callee entry.  Header comment documents the discipline.
+      Gates: smoke 7/7, unified_broker 49/49, SN-7 beauty 26/25 unchanged.
+      Extended verification: arith, concat, goto_s, unconditional jump,
+      vars+arith, 100k-iter loop, pattern replacement, DEFINE'd function
+      — all byte-identical `--sm-run` vs `--jit-run`.  Perf microbench
+      (100k counter loop): sm-run 110ms, jit-run 82ms (~26% faster);
+      modest because handlers still do most work via `call rax`.  ME-4
+      inlines arithmetic/stack ops and the gap widens.  Mode-4 gates
+      (`test_smoke_jit_emit_x64.sh`, `test_gate_em_beauty_*`) SUSPENDED
+      per Gates section; verified pre-existing FAIL state is unchanged.
+      SEG_DISPATCH slab still mmap'd by `sm_image_init` but no longer
+      written or sealed — sits unused; harmless until a future cleanup
+      removes it from `sm_image.c`.
 
 - [ ] **ME-4 — Stack-machine arithmetic and string ops.**  `SM_ADD`,
       `SM_SUB`, `SM_MUL`, `SM_DIV`, `SM_MOD`, `SM_CONCAT`, `SM_COERCE_NUM`,
@@ -694,12 +728,45 @@ native blobs that address the value stack as `[r12 + offset]` and never
 reload `r12`.  Gates clean: smoke 7/7, unified_broker 49/49.  one4all
 @ `babf76be`.
 
-**Next:** ME-3 — Minimal native blob set.  Rewrite `sm_codegen.c` so each
-`SM_Instr` lowers to its own contiguous native-x86 blob in `SEG_CODE`,
-not a pointer into `SEG_DISPATCH`.  Opcodes covered first: `SM_HALT`,
-`SM_PUSH_LIT_I`, `SM_PUSH_LIT_S`, `SM_POP`, `SM_JUMP`.  Build a per-PC
-side-table for jump patching.  `sm_jit_run` becomes
-`mov r12, state ; jmp [SEG_CODE_entry]`.  Tear out the per-opcode
-tail-call thunk mechanism in `SEG_DISPATCH`.  Gate: tiny hello-world
-SNOBOL4 program runs end-to-end via `--jit-run` with byte-identical
-output to `--sm-run`.
+**Addendum sess 2026-05-10 (fourth commit, same session as ME-2):** ME-3 ✅
+landed at one4all `aca47e6c`.  Per-instruction native blob emitter
+replaces the threaded-call C dispatch loop; `SEG_CODE` now holds 30-byte
+native blobs (one per `SM_Instr`) threaded by `jmp`/`call`/`ret`, not a
+`uint8_t**` pointer array.  `sm_jit_run` is a six-line C function:
+load `r12 = SM_State*`, `entry()` into the shared trampoline at the head
+of `SEG_CODE`, return when `SM_HALT`'s blob `ret`s out.  Per-PC side
+table `g_blob_offsets[]` built during emit; used now for `SM_JUMP` rel32
+patching in pass 2, reusable by mode-4's SEG_CODE serializer.
+
+Stack-alignment correctness: the initial 22-byte standard blob (no
+`sub rsp,8` / `add rsp,8` around `call rax`) segfaulted on arith and
+goto_s because `sm_jit_run`'s `entry()` C call leaves `rsp ≡ 8 (mod 16)`
+and a naive `call rax` would enter the handler at `rsp ≡ 0`, faulting on
+the first `movaps` in printf/vsnprintf/GC alloc.  Fix: pad with
+`sub rsp,8` / `call rax` / `add rsp,8` around the call, restoring the
+ABI's `rsp ≡ 8` invariant on callee entry.  Blob grew 22→30 bytes;
+header comment in `sm_codegen.c` documents the discipline.
+
+Verification: smoke 7/7, unified_broker 49/49, SN-7 beauty 26/25
+unchanged baseline.  Extended byte-identity (`--sm-run` vs `--jit-run`)
+on arith, concat, goto_s, unconditional jump, vars+arith, 100k-iter
+loop, pattern replacement, DEFINE'd function — all pass.  Perf
+microbench 100k counter loop: ~26% faster (sm-run 110ms → jit-run 82ms);
+modest because handlers still do most work via `call rax`.  ME-4
+inlines arithmetic/stack ops and the gap widens.  Mode-4 gates
+SUSPENDED per Gates section; pre-existing FAIL state unchanged.
+SEG_DISPATCH slab still mmap'd but no longer written/sealed — sits
+unused; harmless.  one4all @ `aca47e6c`.
+
+**Next:** ME-4 — Stack-machine arithmetic and string ops.  `SM_ADD`,
+`SM_SUB`, `SM_MUL`, `SM_DIV`, `SM_MOD`, `SM_CONCAT`, `SM_COERCE_NUM`,
+`SM_PUSH_NULL`, `SM_PUSH_VAR`, `SM_STORE_VAR`.  Each opcode lowers to
+its inline native sequence — typically `<load args from r12 stack>`,
+`mov edi, kind`, `call rt_<name>@PLT`, `<store result back through r12
+stack>`.  Same shapes as today's `sm_macros.s` but inline bytes per
+instruction, not pointer-array indirection.  Gate: arithmetic smoke
+programs (`arith_sm` etc. in `test_smoke_snobol4.sh`) byte-identical
+between `--jit-run` and `--sm-run`.  Note: now that ME-3's per-
+instruction blob model is proven, ME-4's job is to swap selected blobs'
+"call C handler" middle for direct inline native — same blob shape,
+same alignment discipline, different bytes in the middle.
