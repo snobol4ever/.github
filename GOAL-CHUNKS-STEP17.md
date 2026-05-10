@@ -15,27 +15,16 @@ function signatures.  Standard CHUNKS gate set + full Icon corpus
 + Prolog smoke (extended to `--sm-run` once consumer-side migrations
 land).
 
-> **CURRENT RUNG: CH-17g-irrun-execution** (carved sess 2026-05-09 via SURVEY-2).
-> Lon decision: Option A — `--ir-run` non-SNO routes through the same
-> `sm_preamble` + `sm_run_with_recovery` path as `--sm-run`; AST and SM
-> both deleted between phases.  Drop `g_irrun_lowers` flag and
-> `sm_resolve_irrun_entry_pcs` helper (superseded).  SNOBOL4 `--ir-run`
-> path unchanged.  Once landed, CH-17g-final closes Step 17 (delete
+> **CH-17i-survey-mode3 LANDED 2026-05-09** — `docs/CHUNKS-step17i-survey-mode3.md`.
+> 177 Icon ir-run PASS → 111 sm-run diverge (all semantic; root cause: generator
+> kinds inside proc bodies emit SM_PUSH_EXPR+SM_BB_PUMP, incompatible with SM dispatch).
+> Prolog: 4 PASS → 1 fail (initialization/2 bridge gap). Sub-rungs: CH-17i-every-suspend,
+> CH-17i-bang-concat, CH-17i-section, CH-17i-limit-random, CH-17i-prolog-initialization.
+> one4all @ `dfe68c5b`.
 >
-> **STATUS sess 2026-05-09 — DEFERRED pending CH-17i-mode3-completeness.**
-> Empirical Step 2 attempt this session (one4all `0c72978d`) regressed
-> smoke icon 5→3 and unified_broker 49→22.  Reverted per Rollback
-> Signal.  Survey doc:
-> `one4all/docs/CHUNKS-step17g-irrun-execution-survey-3.md`.  Cause:
-> SM dispatch path doesn't yet cover the Icon `--ir-run` PASS surface
-> (stmt-context value-leak in if/while; generator producer/consumer
-> shape mismatch from CH-15a/CH-15-SURVEY).  Re-sequencing per the
-> survey: **CH-17i-survey-mode3** runs first, then
-> **CH-17i-mode3-completeness** sub-rungs close the buckets, then
-> CH-17g-irrun-execution's one-line flip lands as the act of
-> declaring mode 2 = mode 3.  CH-17g-final follows that.
-> `AST_t *proc` field; delete legacy `coro_call` body + four trampoline
-> stagers; lift `code_free` gate).  See `docs/CHUNKS-step17g-final-survey-2.md`.
+> **CURRENT RUNG: CH-17i-every-suspend** — migrate E_EVERY + E_SUSPEND inside proc
+> body chunks to emit SM opcodes (mirroring CH-17f's SM_BB_ONCE_PROC pattern);
+> consumer handler in sm_interp.c. Unblocks rung01/02/03/13_alt/14_limit/16/32/34/35.
 
 ---
 
