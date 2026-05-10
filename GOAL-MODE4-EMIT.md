@@ -1,5 +1,11 @@
 # GOAL-MODE4-EMIT.md — Mode 4 x86 backend (`--jit-emit --x64`)
 
+⛔ **REQUIRED READING — read these BEFORE opening any source file or running any code under this Goal:**
+1. `ARCH-x86.md` (whole file) — defines the x86 backend, the four execution modes, the BINARY/TEXT dual-emitter principle, the byrd-box ABI, and the SM_Program / native-code relationship.
+2. `ARCH-SCRIP.md` (whole file) — defines mode-1/2/3/4 in the table at §"Execution modes (RS-15)" and the mode-specific notes section.
+
+**Why this directive exists:** past sessions have repeatedly inferred mode-3 and mode-4 semantics from `sm_codegen.c` source rather than from these architecture docs.  Every time, the inferred picture was wrong, and the wasted session work eventually had to be reverted.  The architecture docs are the source of truth; the source code is where the architecture is incompletely realized.  If a session-author finds a contradiction between code and architecture doc, the code is the bug, not the doc.
+
 **Repo:** one4all (primary).  **Carved sess #62, 2026-05-05** from
 GOAL-CHUNKS Steps 8 + 19.
 
@@ -11,21 +17,79 @@ library carrying NV table, pattern matcher, GC, BB broker,
 generator/Prolog backtracking machinery.  After Step 19 (M5), scope
 extends to Icon, Raku, Prolog, Rebus.
 
+**Mode-4 is mode-3's SEG_CODE dumped to `.s` (sess 2026-05-10 pivot).**
+Per ARCH-x86.md §"Stack machine (SM_Program)" + §"Dual-mode emitter
+(TEXT / BINARY)", mode-3 and mode-4 share ONE emitter.  The architectural
+realization here is the tightest possible: mode-3 produces native bytes in
+SEG_CODE; mode-4 runs mode-3, then disassembles the SEG_CODE bytes back to
+`.s` and writes them out.  Byte-identity is by construction; there is no
+parallel text-emitter walking SM_Program.  See active rung
+`EM-MODE4-IS-MODE3-DUMP` for the full architectural pivot, and
+`ARCH-x86.md` for why this is the only design that survives the
+"no divergence between interpreter and emitter" invariant.
+
 ---
 
 ## Architectural target
 
+**Pivot sess 2026-05-10 (Claude later):** mode-4 is no longer authored as
+a parallel text emitter that walks SM_Program.  Mode-4 is mode-3's
+SEG_CODE bytes serialized to `.s`.  ONE emitter (mode-3); mode-4 is
+its disk-dump form.
+
 ```
 file.{sno,sc} ─► [parser] ─► IR ─► [sm_lower] ─► SM_Program
                                                       │
-                                              [sm_codegen --x64]
+                                              [sm_codegen]   ←── ONE emitter; populates SEG_CODE
+                                                      │              with native x86 bytes
+                                                      ▼
+                                            SEG_CODE (RX in process)
                                                       │
-                                              file.s + sm_macros.s
-                                                      │
-                                              ld + libscrip_rt.so
-                                                      │
-                                                file (ELF)
+                                          ┌───────────┴───────────┐
+                                          ▼                       ▼
+                                  mode 3 (in-process):    mode 4 (to disk):
+                                    jmp SEG_CODE_entry       seg_code_dump_as_s()
+                                    (sm_jit_run)             walks SEG_CODE bytes,
+                                          │                  disassembles back to
+                                          ▼                  GAS asm text plus
+                                  program runs              auxiliary sections
+                                  in-process                (.rodata, .data registry,
+                                                              libscrip_rt imports);
+                                                              writes file.s
+                                                              + sm_macros.s.
+                                                                       │
+                                                                       ▼
+                                                              ld + libscrip_rt.so
+                                                                       │
+                                                                       ▼
+                                                                file (ELF)
 ```
+
+**Why this is the only design consistent with ARCH-x86 §"Stack machine
+(SM_Program)":** the architecture says "EMITTER walks same SM_Program →
+native code.  One instruction set.  No divergence between interpreter
+and emitter."  Two literal emitters that walk SM_Program separately
+(today's `sm_codegen.c` BINARY-ish and `sm_codegen_x64_emit.c` TEXT)
+have already shown the failure mode — divergence is undetectable
+without running both and diff'ing, and neither side can be the oracle
+for the other while both are works-in-progress.  The only design where
+divergence is impossible by construction is: ONE emitter, two
+output-time forms (live execution; disk dump).
+
+**The disassembly approach.**  Mode-4's `seg_code_dump_as_s()` is the
+inverse of `sm_codegen` only in the trivial sense — it does not need
+to re-derive any high-level structure.  It walks SEG_CODE pc-by-pc
+emitting:
+- A 3-column GAS line for each instruction byte sequence.  The
+  emitter records, per SM-instruction-PC, the (SEG_CODE offset, length,
+  comment) tuple as it lays bytes down; mode-4 reads this side-table
+  and writes the asm form via byte-to-mnemonic conversion (or via a
+  format that GAS will assemble back to the same bytes).
+- The pre-baked auxiliary sections (.rodata strtab, .data registry,
+  banner comments, file header, libscrip_rt PLT references) — these
+  are NOT in SEG_CODE today (SEG_CODE is text-only) and stay the
+  responsibility of mode-4's auxiliary-section emitter.  The novelty
+  is only that the text section is now SEG_CODE-byte-derived.
 
 Emitted `main()`:
 
@@ -38,9 +102,9 @@ int main(int argc, char **argv) {
 ```
 
 `PROGRAM_ENTRY_PC` baked at emit time.  Emitted binary contains
-compiled SM chunks (one per function/proc/predicate/deferred body)
-plus calls into `libscrip_rt.so` for language semantics.  No
-`EXPR_t` walker in the binary — that is the point.
+the same compiled SM bytes mode-3 placed in SEG_CODE, plus calls
+into `libscrip_rt.so` for language semantics.  No `EXPR_t` walker
+in the binary — that is the point.
 
 **Symbol surface (libscrip_rt.so):** `scrip_rt_init`,
 `scrip_rt_finalize`, `scrip_rt_push/pop/peek`,
@@ -325,7 +389,76 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **Why it isn't done yet:** sess 2026-05-10 ran the SCRIP-x86 work at the end of an already-loaded session; context budget did not permit authoring a from-scratch GAS base.  Honest scope: what was delivered (Nasm + overlay) is workable but not pride-worthy; this rung carves the gap.
 
-- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under GOAL-LANG-SNOBOL4 rung SN-33.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  **Baseline sess 2026-05-10 post-SN-33b:** PASS=4 FAIL=13 (emit=0 link=0 diff=13).  Up from PASS=17 FAIL=0 with the prior baseline being parity-with-broken (both modes segfaulting identically); SN-33b restored mode-3 to producing real output, so the parity gate now compares mode-4 against working mode-3, surfacing real divergences as designed.  `assign_driver` passes mode-4 (and modes 1/2/3) cleanly.
+- [ ] **EM-MODE4-IS-MODE3-DUMP** — Mode-4 IS mode-3's SEG_CODE serialized to `.s`.  ⛔ **The architecture for this is in `ARCH-x86.md` and `ARCH-SCRIP.md` and has been since day one.**  Tightest possible realization of ARCH-x86 §"Stack machine (SM_Program)": ONE emitter (mode-3, `sm_codegen.c`); mode-4 dumps mode-3's bytes to disk.  No parallel text emitter; byte-identity by construction.
+
+      **The principle (ARCH-x86.md §"Stack machine (SM_Program)" + §"Dual-mode emitter (TEXT / BINARY)"):**
+
+      > INTERP dispatches instructions.  **EMITTER walks same SM_Program → native code.  One instruction set.  No divergence between interpreter and emitter.**
+
+      The previous attempt (rung `EM-SM-NATIVE-BYTES`, withdrawn 2026-05-10) read this as "lift the BB-side TEXT/BINARY vtable to SM side so two backends share one walker."  That works on the BB side because both the TEXT and BINARY BB backends actually emit instructions.  On the SM side it's overkill: there is no need for a TEXT backend to walk SM_Program at all when the BINARY backend already produces the bytes.  Mode-4 is not "the text twin of mode-3" — mode-4 is "mode-3 plus disk dump."
+
+      **The mode definitions (ARCH-x86.md §"scrip unified executable"):**
+
+      | Mode | Flag (canonical) | Legacy alias | What it does |
+      |------|------------------|--------------|--------------|
+      | 3 | `--sm-native` | `--jit-run` | `SM_Program → x86 bytes → mmap slab → jump in` (no emit to disk; in-process) |
+      | 4 | `--sm-emit --target=x64` | `--jit-emit --x64` | Run mode-3 to populate SEG_CODE; **then** dump SEG_CODE to `.s` plus auxiliary sections; toolchain link |
+
+      ARCH-SCRIP.md table:
+
+      | # | Mode | Flag | Purpose | Pipeline |
+      |---|------|------|---------|----------|
+      | 3 | SM gen / exec | `--jit-run` | speed without asm/link/process overhead | IR → `sm_lower` → `sm_codegen` → `sm_jit_run` |
+      | 4 | SM gen / asm / link / exec | future | full native binary path | IR → `sm_lower` → `sm_codegen` → `seg_code_dump_as_s` → asm + link → exec |
+
+      The mode-4 row in ARCH-SCRIP previously read `IR → sm_lower → asm-emit → link → exec`, which left "asm-emit" undefined.  It is now defined: `asm-emit = sm_codegen + seg_code_dump_as_s`.
+
+      **What's wrong today (sess 2026-05-10 audit):**
+
+      1. Mode-3 (`sm_codegen.c`) does NOT walk SM_Program → native code per ARCH-x86 §"Stack machine".  It builds:
+         - per-OPCODE 12-byte tail-call thunk (`mov rax,<handler>; jmp rax`) into `SEG_DISPATCH`;
+         - `SEG_CODE` as a `uint8_t **` array of pointers, one per SM instruction, pointing into the per-opcode thunks;
+         - `sm_jit_run` is a C `while` loop indirecting through the array.
+
+         This is interpretation, not native compilation.  Mode-4 cannot be a SEG_CODE dump while SEG_CODE holds pointers, not instructions.
+
+      2. Mode-4 (`sm_codegen_x64_emit.c`) is the FIRST native-x86 SM emitter.  Every alignment/prologue/chunk-frame question has been solved from scratch in this file with no oracle.  Once mode-3 produces real bytes, mode-4 becomes a `seg_code_dump_as_s()` call and most of `sm_codegen_x64_emit.c`'s control-flow logic deletes.
+
+      **Done-when:**
+      - `sm_codegen` lowers each `SM_Instr` to a contiguous native x86 blob in `SEG_CODE` (per-instruction, NOT per-opcode-shared); SM control flow (LABEL/JUMP/JUMP_S/JUMP_F/CALL_FN entry/RETURN/NRETURN/FRETURN) is real native `jmp`/`call`/`ret` with 32-bit displacements patched at end of codegen.
+      - `sm_jit_run` is `setup_state ; jmp <SEG_CODE entry>` — no C dispatch loop, no per-instruction pointer-array.
+      - `seg_code_dump_as_s(out, prog)` walks SEG_CODE pc-by-pc using a side-table populated during `sm_codegen` (per-PC: `{seg_code_offset, byte_count, mnemonic_hint, comment}`) and writes GAS asm text that reassembles to the exact same bytes.  Auxiliary sections (.rodata strtab, .data registry, banner comments, libscrip_rt PLT references, file header, expression registry, sm_macros.s, the emitted-main wrapper) stay in mode-4's auxiliary-section emitter — that part of `sm_codegen_x64_emit.c` is preserved.
+      - `--sm-emit --target=x64` calls `sm_codegen` (populates SEG_CODE), then calls `seg_code_dump_as_s` (writes the .text section of the .s file), then writes the auxiliary sections.
+
+      **Test gate** (new): `test_gate_em_mode4_is_mode3_dump.sh`.
+      For each .sno in a small fixture set:
+      1. Mode-4: `scrip --sm-emit --target=x64 file.sno > file.s`; assemble: `as -o file.o file.s`; `objdump -d file.o > file.s.disasm`.
+      2. Mode-3 with debug variant: `scrip --sm-native --dump-seg-code file.sno > file.bin`; `objdump -D -b binary -m i386:x86-64 file.bin > file.bin.disasm`.
+      3. `diff file.s.disasm file.bin.disasm` must be empty modulo a known short whitelist (loader-relative vs absolute static-data addrs; PLT stubs vs direct calls — link-time vs run-time differences only).
+
+      The whitelist IS the precise quantification of "99.999%".  Any divergence outside it is a bug in mode-3 (since mode-4 is mode-3-plus-dump, mode-4 cannot diverge from mode-3 by construction once the dump path works).
+
+      **Sub-rungs (proposed; refine on entry):**
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-a — Audit + design doc.**  Document current `sm_codegen.c` (per-opcode tail-call thunk + per-instruction pointer-array + C dispatch loop) byte-for-byte; design the per-instruction-blob replacement; design the side-table that links each SM PC to its SEG_CODE byte range and a mnemonic/comment hint for the dump; design the `seg_code_dump_as_s` walker.  Output: `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Mode-3 native control flow.**  Rewrite `sm_codegen.c` so each `SM_Instr` lowers to its own contiguous blob in `SEG_CODE`.  SM_LABEL records SEG_CODE offset; SM_JUMP/JUMP_S/JUMP_F emit native `jmp`/`jne`/`je` with 32-bit displacements (two-pass: collect labels first, patch second); SM_CALL_FN emits direct call to the libscrip_rt-resolved imm64 of `rt_call`; SM_RETURN/NRETURN/FRETURN and conditional variants emit the native sequence the previous attempt used in `emit_sm_return_variant`.  At end of codegen, `mprotect(SEG_CODE, RX)` and seal.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-c — ABI alignment fix at the cfn-call site in libscrip_rt.**  The 8-byte misalignment problem (rsp%16==8 inside cfn after the host CALL, while PLT calls expect %16==0) is solved at the libscrip_rt cfn-call site (`call_native_chunk` in `rt.c`), not in the emitter: `__asm__ volatile ("sub rsp, 8\n\tcall *%0\n\tadd rsp, 8" : : "r"(cfn) : "memory")`.  ONE place, ONE fix, principled.  Emitted chunks need no prologue; SM_RETURN is plain `ret`.  Effects: `assign_driver` and the rest of the 17 beauty subsystems should pass mode-4 immediately on the new emit path (matches abandoned thunk PoC's PASS=5 gain, possibly higher).
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-d — `sm_jit_run` rewrite.**  Tear out the C while-loop and the per-instruction pointer-array.  Replace with `setup g_jit_state; jmp <SEG_CODE entry>`.  SM_HALT compiles to native code that returns control to `sm_jit_run`'s frame.  Run `test_smoke_snobol4.sh` — must stay PASS=7.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-e — `seg_code_dump_as_s()` and side-table.**  Add to `sm_codegen.c` a side-table populated during BINARY emission: for each SM PC, record `{seg_code_offset, byte_count, mnemonic_hint, comment}`.  Implement `seg_code_dump_as_s(out, prog)` that walks the side-table and writes GAS asm text that reassembles to identical bytes.  This is a **disassembly with hints**, not a re-walk of SM_Program — the SM_Program walk happens in `sm_codegen` only.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-f — Mode-4 collapses to call-mode-3-then-dump.**  Rewrite `sm_codegen_x64_emit.c` so it (1) calls `sm_codegen(prog)` to populate SEG_CODE, (2) writes the file header + auxiliary sections (`.rodata` strtab, `.data` registry, `sm_macros.s` include, banner comments, libscrip_rt PLT references), (3) calls `seg_code_dump_as_s(out, prog)` for the .text section, (4) writes the file footer.  Most of today's mode-4 control-flow emission code (`emit_sm_label`, `emit_sm_jump*`, `emit_sm_return*`, `emit_sm_call`, `emit_sm_push_*`, `emit_sm_arith`, etc.) DELETES.  The auxiliary-section emission code STAYS.  Run `test_gate_em_beauty_subsystems_mode4.sh` — must hit PASS≥5 immediately (alignment fix lifts the floor) and likely higher as mode-4 inherits whatever mode-3 does.  Run new `test_gate_em_mode4_is_mode3_dump.sh` — must be GREEN; that gate is the canonical mode-4 correctness check from this point on.
+
+      **Dependencies:** none.  Blocks `EM-7d-beauty-subsystems`, `EM-7d`, `EM-8`, `EM-9`.  Does NOT block `EM-FORMAT-SUBLIME-GAS-INTEL` (editor support, independent).
+
+      **Risk:** HIGH but bounded.  Touches `sm_codegen.c` (mode-3) and `sm_codegen_x64_emit.c` (mode-4).  Mitigation: sub-rungs are sequenced so each one passes its own gate before the next opens.  After sub-rung -b mode-3 emits real bytes; the smoke gate `test_smoke_snobol4.sh` PASS=7 invariant is the tripwire.  After sub-rung -e the dump exists but mode-4 still uses the old text emitter (gates unchanged).  Sub-rung -f flips mode-4 to the dump path; this is the single risky change, and it's a pure replacement of emission method, not a reordering of pipeline.
+
+      **Why this is the right pivot, finally:** the watermark's three-step plan (DEFINE-flag in sm_lower; registry filter; prologue/epilogue) was answering "how do chunks get prologues."  The previous rung's plan (lift the BB-side vtable) was answering "how do mode-3 and mode-4 share a walker."  Both questions assume the answer is "two emitters that walk SM_Program."  ARCH-x86 says one emitter.  Mode-3 IS the emitter.  Mode-4 is mode-3 plus dump.  The session that opens this rung must read `ARCH-x86.md` and `ARCH-SCRIP.md` first; without that grounding, the same wrong answers will be re-derived from inference.
+
+- [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` programs in `corpus/programs/snobol4/beauty/`.  Each driver exercises one subsystem (assign, case, fence, match, omega, semantic, stack, trace, tree, counter, global, Gen, Qize, ReadWrite, ShiftReduce, TDump, XDump) with its own `.ref` oracle.  Gate: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` — for each driver, emit (`--jit-emit --x64`), assemble, link against `libscrip_rt.so`, run, then `diff` against the same driver's `--sm-run` output.  Pass criterion is mode-4-vs-mode-3 byte-identical, *not* `.ref`-correct: the absolute-correctness gate (drivers vs `.ref`) is `test_gate_sn7_beauty_self_host.sh` and lives under GOAL-LANG-SNOBOL4 rung SN-33.  Mode-4 cannot be more correct than mode-3; what this rung enforces is that the emitter pipeline reproduces SM-interpreter behaviour exactly.  Rationale: 17 small, self-contained subsystem programs surface category-specific divergences (pattern matching, FENCE, capture, indirection, function calls, tracing) one subsystem at a time — strictly easier to diagnose than chasing them simultaneously inside the 646-line beauty.sno.  This rung is a precondition to EM-7d; EM-7d cannot pass while subsystems diverge, and any subsystem mode-3 fix automatically lifts mode-4 here.  ⛔ **BLOCKED on EM-MODE4-IS-MODE3-DUMP.**  Once that rung lands, this rung's gate becomes derived: if mode-4 IS mode-3-dump, then mode-3-vs-mode-4 byte-identity is by construction and this rung's job reduces to verifying that mode-3 itself runs the 17 drivers correctly (which is GOAL-LANG-SNOBOL4 SN-33's territory).  This rung may collapse into SN-33 as a result.  **Baseline sess 2026-05-10 post-SN-33b:** PASS=4 FAIL=13 (emit=0 link=0 diff=13) — frozen.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
