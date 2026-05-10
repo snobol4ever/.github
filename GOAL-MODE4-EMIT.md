@@ -753,44 +753,90 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       closed-rung audit, and worth its own rung with its own audit
       invariant rather than reopening EM-FORMAT-SM.
 
-- [ ] **EM-FORMAT-BB** — **CURRENT STEP.**  Enforce the full BB four-port / three-column format law across all emitted BB blobs.
+- [x] **EM-FORMAT-BB-LONE-LABELS — LANDED 2026-05-09.**  Lone BB-side labels are now fused with the first instruction or directive that follows.  Multiple labels for the same address remain valid as a label chain (each prior label emits standalone, the *last* label fuses with the first content line).
 
-      **The BB format law (definitive):**
+      **Implementation in `bb_emit.c`:**  `bb3c_format` now holds a static pending-label buffer (`g_bb3c_pending_label` + `g_bb3c_pending_out`).  Three branches: label-only emission buffers (flushing prior chain entry as standalone first); has-content with empty col-1 fuses pending; has-content with own col-1 flushes pending standalone and uses caller's col-1.  New `bb3c_flush_pending()` exposed in `bb_emit.h` for end-of-stream / section-boundary flush.
 
-      1. **Four ports per box, always.**  Every box emits exactly four labeled entry points: `α` (try), `β` (retry), `γ` (success exit), `ω` (failure exit).  All four carry the Greek letter suffix.  No port is omitted even if it is a trivial jump.
-      2. **Three columns.**  Col-1 = label (24 chars).  Col-2 = action (16 chars) — one instruction or macro name per line, multiple action lines per port as needed.  Col-3 = goto — the jump target(s).  Semicolons separate GAS statements on the same source line when two instructions must appear together (e.g. action + goto on one line): `LABEL:          ACTION          ; jmp TARGET`.  Gotos go in col-3; never col-2.
-      3. **No lone labels.**  A label is never emitted on a line by itself if it can share the line with the first instruction of its block.  If the block's first instruction is a multi-line sequence, the label goes on the same line as the first instruction of that sequence.  This rule applies identically to SM and BB.
-      4. **Box banners.**  Each distinct box begins with a 120-character `#` separator:
-         ```
-         #-------------------------------------------------------------------------------- (120 chars total)
-         # BOX  <kind>(<args>)  [label prefix]
-         ```
-         The banner immediately precedes the `α` label line of that box.  No blank line between banner and α line.
-      5. **Pattern banner.**  At the start of each pattern blob (before the first box), a 120-char `#=` banner names the SNOBOL4 pattern expression (verbatim source or reconstructed from PATND_t).
-      6. **No blank lines** anywhere in BB output.
-      7. **Comments in col-3** name the box kind and argument on the α line only (e.g. `# RPOS(0)`, `# LEN(1)`, `# BREAK ".,;"`) — not repeated on β/γ/ω lines.
+      **Bug found and fixed during dev:** initial code did `eff_L = g_bb3c_pending_label` and then cleared the static buffer BEFORE writing.  `eff_L` became dangling (pointed at a now-zeroed static).  Fix: snapshot pending label to a stack-local `fused_lbl[256]` first, then clear, then write.
 
-      **Implementation:**  `bb_flat.c` `flat_emit_*` and compositor functions emit banners before each box cluster.  `flat3c_label` replaced with a combined label+first-instruction form wherever the first instruction is known at label-define time.  Lone-label audit: scan all `EV_LABEL` call sites; where the next emission is always a `EV_JMP` or `flat3c_action`, fuse them.
+      **UTF-8-aware visual-width padding** (new `bb3c_visual_width` + `bb3c_pad_to_width` helpers): `printf("%-24s")` pads to 24 *bytes*, but Greek labels (`pat_inv_0_α:`) contain multi-byte UTF-8 codepoints (α/β/γ/ω/Σ/Δ each 2 bytes for 1 visual column).  Without correction, Greek-suffix labels misaligned col-2 by 1+ visual columns vs ASCII labels.  Fix counts non-continuation bytes (`(b & 0xC0) != 0x80`) for visual width; pads to *visual* target.  Now every label aligns its first instruction at exact column 24.
 
-      **Files:** `bb_flat.c` (banners, lone-label fusion, col-3 goto placement), `emitter_text.c` / `bb_emit.c` (semicolon separator support for fused action+goto lines).
+      **Routing — every emission path now flows through `bb3c_format`:**
+      - `flat3c` in `bb_flat.c` (data-section labels: `.Lcap1_data:`, `.Llen2_z:`; child-entry labels: `cap1_child_α:`).  Uses new public `emitter_text_file(emitter_v *)` accessor in `emitter_text.c` to fetch the underlying FILE*.
+      - `emit_three_column_line` in `sm_codegen_x64_emit.c` (`.Lchunk_registry:` and SM-side directives).
+      - `sm_line` in `sm_codegen_x64_emit.c` (SM dispatch lines).
+      - `render_call_line` in `sm_emit_template.c` (macro-driven SM dispatch — the dominant path).  `bb_emit.h` included for `bb3c_format` access.
+      - SM-side dispatcher's leftover-label flush at `sm_codegen_x64_emit.c` line ~2092 (was bypassing buffer with raw `fprintf(out, "%s\n", leftover)`).
+      - Final post-loop leftover flush at end of dispatch (same).
 
-      **Gates:** smoke ×6 PASS, EM PASS=13, bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations (extended audit: no lone labels, no blank lines in BB sections).
+      **Strategic flush points** (`bb3c_flush_pending()` calls):
+      - End of `emit_pattern_blobs` — before SM-dispatch begins.
+      - Top of `emit_major_break` and `emit_minor_break` — banners write via raw `fputs`, must flush first.
+      - Top of `emit_file_footer` — same reason for `# -- epilogue ---` separator.
+      - End of `bb_build_flat_text` — for direct callers like `bb_flat_text_test` that don't go through `sm_codegen_x64_emit`.
+      - End of full emit (after footer) — final safety net.
 
-      **Sample — roman.s RPOS+XCAT blob before/after:**
+      **EM-NO-INTERNAL-COMMENTS leftover removed** (cleanup folded in): the 4-line `# source-file: ... # Each statement appears below ...` block at `sm_codegen_x64_emit.c` lines ~2076–2082 is gone.  It was sitting inside `main:` between `rt_init` and the first stmt banner.
+
+      **Files touched (one4all only — corpus auto-regenerated):**
+      - `src/runtime/x86/bb_emit.c` (+~110 −15: pending-label buffer + UTF-8 width helpers + bb3c_format rewrite)
+      - `src/runtime/x86/bb_emit.h` (+8: declare bb3c_flush_pending)
+      - `src/runtime/x86/emitter_text.c` (+8: emitter_text_file accessor)
+      - `src/runtime/x86/emitter_v.h` (+5: emitter_text_file declaration)
+      - `src/runtime/x86/bb_flat.c` (+8 −9: flat3c routes through bb3c_format; bb_build_flat_text flushes at end)
+      - `src/runtime/x86/sm_codegen_x64_emit.c` (+~25 −30: emit_three_column_line/sm_line route through bb3c_format; remove source-file leftover; flush at section boundaries; dispatcher leftover via bb3c_format)
+      - `src/runtime/x86/sm_emit_template.c` (+5 −12: include bb_emit.h; render_call_line routes through bb3c_format)
+
+      **Tracked artifact line counts:**
+      | File | Lines | Was | Δ |
+      |------|------:|----:|---:|
+      | roman.s          |  156 |  179 | −23 |
+      | wordcount.s      |  124 |  129 | −5  |
+      | claws5.s         |  954 |  977 | −23 |
+      | treebank-list.s  | 1181 | 1204 | −23 |
+      | treebank-array.s | 1360 | 1383 | −23 |
+      | sm_macros.s      |  248 |  248 |  0  |
+      | bb_macros.s      |   44 |   44 |  0  |
+      | **TOTAL**        | 4067 | 4164 | **−97** |
+
+      All 5 `gcc -c` PASS.  Audit clean: 0 lone labels, 0 trailing-ws, 0 blank lines, 0 underscore-prefixed labels per artifact.
+
+      **Sample (roman.s) — before vs after:**
       ```
-      BEFORE                                        AFTER
-      _pat_inv_0_α:                                 # =============== (120)
-                      lea r10,[rip+Δ]               # PAT  N RPOS(1) LEN(1) . UNITS
-                      cmp esi,0                     # ===============
-                      je  _pat_inv_0_α_body         # ---------------- (120)
-                      jmp _pat_inv_0_β              # BOX  RPOS(1)  [_pat_inv_0]
-      _pat_inv_0_α_body:                            _pat_inv_0_α:   RPOS_α  1,xcat0_γ,xcat0_ω  # RPOS(1)
-      ...                                           _pat_inv_0_β:   RPOS_β          ; jmp xcat0_ω
-                                                    # ----------------
-                                                    # BOX  XCAT  [xcat0]
-                                                    xcat0_left_β:   SEQ_β           ; jmp xcat0_ω
-                                                    xcat0_γ:        ...
+      BEFORE                                         AFTER
+      .Lstr_0:                                       .Lstr_0:                .string          "ROMAN(N)UNITS"
+                              .string  "ROMAN(N)..."
+      ...                                            ...
+      pat_inv_0_α:                                   pat_inv_0_α:            lea              r10, [rip + Δ]
+                              lea     r10,[rip+Δ]
+                              cmp     esi, 0                                 cmp              esi, 0
+      pat_inv_0_α_body:                              pat_inv_0_α_body:       RPOS_α           0, xcat0_γ, xcat0_ω
+                              RPOS_α  0,xcat0_γ,...
+      xcat0_γ:                                       xcat0_γ:                .section         .data
+                              .section .data
+      .Lcap1_vname:                                  .Lcap1_vname:           .string          ""
+                              .string ""
+      ...                                            ...
+      cap1_child_α:                                  cap1_child_α:           lea              r10, [rip + Δ]
+                              lea     r10,[rip+Δ]
       ```
+      Greek-suffix labels align correctly at col-2 thanks to UTF-8 visual-width padding (`pat_inv_0_α:` = 9 visual cols, padded to 24).
+
+      **Gates final state — 14/14 GREEN:**
+      - smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5, rebus 4/4)
+      - unified_broker PASS=49
+      - EM PASS=13 (incl. EM-7c-audit) · bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+      - Audit 0 violations across 7 tracked artifacts (I0–I3a clean)
+
+      **Carved sub-rungs deferred for follow-on sessions** (the EM-FORMAT-BB rung spec from sess #87 had 7 properties; this rung landed property #3 + #6 + a UTF-8-alignment correction.  Remaining):
+
+- [ ] **EM-FORMAT-BB-BOX-BANNERS** — Pattern-blob banner (120-char `#=` naming the SNOBOL4 pattern verbatim or PATND_t-reconstructed); per-box banner (120-char `#-` + `# BOX <kind>(<args>)  [label prefix]`).  Implementation lives in `bb_flat.c` — each `flat_emit_<kind>` gets a `flat_emit_box_banner(e, "RPOS", args)` call before its α label.  The pattern-level banner emits once per blob in `emit_pattern_blobs` before `bb_build_flat_text`.
+
+- [ ] **EM-FORMAT-BB-FUSED-GOTOS** — `LABEL: ACTION ; jmp TARGET` form for action+goto pairs.  Today actions and gotos emit on separate lines; the rung spec calls for `;`-separator fusion in select cases (e.g. `xcat0_right_ω: jmp xcat0_left_β` reads better fused).  Requires updating `text_emit_jmp` to optionally fuse with the prior emission, OR a new `bb3c_format`-with-goto variant that takes col-3 as a goto.  Care needed around bb3c_format's pending-label buffer — fused emission must coordinate with the buffer state.
+
+- [ ] **EM-FORMAT-BB-PORT-COMPLETION** — Audit/enforcement that every box emits all four α/β/γ/ω ports even when one would be a trivial jump.  Today some boxes (XCAT-with-zero-children, simpler leaves) emit fewer ports.  Survey first to identify which paths skip ports — same shape as CH-15-SURVEY / CH-17h-SURVEY before any code changes.
+
+- [ ] **EM-FORMAT-BB-COL3-COMMENTS** — Inline `# RPOS(0)`, `# LEN(1)`, `# BREAK ".,;"` annotations on the α line only (not repeated on β/γ/ω lines).  Mechanical: add an optional `comment` arg to the box-emit helpers; flat3c_action passes it through to col-3.
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).  Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`, (b) underlying beauty self-host regression (corpus issue: `-INCLUDE 'global.sno'` mismatched against `.inc` filenames; `error` label undefined).
 
@@ -827,6 +873,81 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-FORMAT-BB-LONE-LABELS LANDED 2026-05-09
+=============================================
+
+Lone BB-side labels fused with the first instruction or directive that
+follows.  Multiple labels at the same address remain valid as a chain
+(each prior label flushes standalone, last fuses).  Implementation:
+pending-label buffer in `bb3c_format` (the universal three-column
+emitter).  Four emission paths now route through it: `flat3c` (bb_flat.c),
+`emit_three_column_line`/`sm_line` (sm_codegen_x64_emit.c),
+`render_call_line` (sm_emit_template.c).  Strategic `bb3c_flush_pending`
+calls at section boundaries (banners, footer, end of pattern blobs, end
+of bb_build_flat_text).
+
+UTF-8-aware visual-width padding (`bb3c_visual_width` /
+`bb3c_pad_to_width`): Greek-suffix labels (`pat_inv_0_α:`, `xcat0_γ:`,
+`cap1_β:`) now align col-2 correctly.  Without this, `%-24s` pads to 24
+*bytes* but α/β/γ/ω are 2-byte codepoints counting as 1 visual column —
+labels misaligned by 1+ visual columns.  Fix counts non-continuation
+bytes (`(b & 0xC0) != 0x80`).
+
+EM-NO-INTERNAL-COMMENTS leftover removed (cleanup folded in): 4-line
+`# source-file: roman.sno  (36 lines)` block at sm_codegen_x64_emit.c
+~lines 2076–2082 sat inside main: between rt_init and the first stmt
+banner; missed by prior closure.
+
+Bug found during dev: initial code did `eff_L = g_bb3c_pending_label`
+then cleared the static buffer before `bb3c_write_line(out, eff_L,
+...)` — eff_L became dangling.  Fix: snapshot pending to stack-local
+`fused_lbl[256]` first.
+
+Tracked artifact line counts:
+| File | Lines | Was | Δ |
+|------|------:|----:|---:|
+| roman.s          |  156 |  179 | −23 |
+| wordcount.s      |  124 |  129 | −5  |
+| claws5.s         |  954 |  977 | −23 |
+| treebank-list.s  | 1181 | 1204 | −23 |
+| treebank-array.s | 1360 | 1383 | −23 |
+| sm_macros.s      |  248 |  248 |  0  |
+| bb_macros.s      |   44 |   44 |  0  |
+| **TOTAL**        | 4067 | 4164 | **−97** |
+
+All 5 gcc -c PASS.  Audit clean: 0 lone labels, 0 trailing-ws, 0 blank
+lines, 0 underscore-prefixed labels per artifact.
+
+Files (one4all):
+- `src/runtime/x86/bb_emit.{c,h}` — pending-label buffer +
+  bb3c_flush_pending + UTF-8 visual-width helpers + bb3c_format rewrite
+- `src/runtime/x86/emitter_text.c` + `emitter_v.h` — emitter_text_file
+  public accessor (returns FILE* for text-mode emitters)
+- `src/runtime/x86/bb_flat.c` — flat3c routes through bb3c_format;
+  bb_build_flat_text flushes at end
+- `src/runtime/x86/sm_codegen_x64_emit.c` — emit_three_column_line +
+  sm_line route through bb3c_format; remove source-file leftover;
+  flush at section boundaries; dispatcher leftover via bb3c_format
+- `src/runtime/x86/sm_emit_template.c` — include bb_emit.h;
+  render_call_line through bb3c_format
+
+one4all `68490fd6`, corpus `562c841`.
+
+**Gates 14/14 GREEN:** smoke ×6 (snobol4 7/7, icon 5/5, prolog 5/5,
+raku 5/5, snocone 5/5, rebus 4/4), unified_broker PASS=49, EM PASS=13
+(incl. EM-7c-audit), bb_flat_text PASS=18, sm_phase2_sim PASS=25,
+audit 0 violations across 7 tracked artifacts.
+
+Carved follow-on rungs (the EM-FORMAT-BB rung spec from sess #87 had
+7 properties; this rung landed property #3 + #6 + a UTF-8 alignment
+correction.  Remaining):
+- **EM-FORMAT-BB-BOX-BANNERS** — pattern + per-box 120-char banners
+- **EM-FORMAT-BB-FUSED-GOTOS** — `LABEL: ACTION ; jmp TARGET` form
+- **EM-FORMAT-BB-PORT-COMPLETION** — survey, then ensure all 4 ports per box
+- **EM-FORMAT-BB-COL3-COMMENTS** — `# RPOS(0)` etc. on α line only
+
+----
 
 EM-COMBINED-QUADS LANDED 2026-05-09
 =============================================
