@@ -828,6 +828,17 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+EM-COMBINED-QUADS LANDED 2026-05-09
+=============================================
+
+`.quad .Lstr_N` and `.quad .LpcM` pairs merged onto one line with `;`
+separator in `emit_chunk_registry`. Sentinel also combined. Remaining
+annotations removed (EM-7d, cap/arbno fixup). Audit I1 updated to allow
+`;` in col-3 (pos ≥ 40) as GAS statement separator.
+one4all `b19f75ba`, corpus `bf48667`. Gates 13/13.
+
+----
+
 EM-ONE-LINE-STRINGS + EM-NO-INTERNAL-COMMENTS LANDED 2026-05-09
 =============================================
 
