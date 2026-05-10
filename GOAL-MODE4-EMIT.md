@@ -363,7 +363,16 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-FORMAT-DOUBLED-BANNER-FIX — sess 2026-05-10 (latest)**
+**EM-FORMAT-BOX-ALIGN — sess 2026-05-10 (latest)**
+
+`# BOX KIND(args)` indented so `BOX` lands at col 24 (mnemonic column).
+one4all @ `11d4388f`, corpus @ `b735676`.
+Gates: smoke 7/7, mode-4 parity 17/17. Artifacts gcc -c clean.
+Next: EM-7d-beauty-subsystems (blocked on SN-33 `cap_t::fn` null fix).
+
+----
+
+**EM-FORMAT-DOUBLED-BANNER-FIX — sess 2026-05-10**
 
 Removed four `emit_section_break()` calls that were emitting bare `#===` rules
 immediately before sections already opening with their own `#===` stmt/blob banners,
