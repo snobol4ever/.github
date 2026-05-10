@@ -226,7 +226,7 @@ Rung-specific gates as listed per rung below.
       `SM_PAT_*` opcode to push/pop the value stack.  Delete `SM_PAT_BOXVAL`
       (it becomes a no-op; remove the case and stop emitting it from
       `sm_lower.c`).  Update `SM_EXEC_STMT` to pop pattern from the value
-      stack alongside subject and replacement.  ✅ 2026-05-10 one4all `HEAD`.
+      stack alongside subject and replacement.  ✅ 2026-05-10 one4all `cc3cd475`.
       Gate: smoke 7/7, unified_broker 49/49 (mode-4 gate suspended — see
       Gates section).
 
