@@ -62,7 +62,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | Native Snocone — JVM | `GOAL-NATIVE-SNOCONE-JVM.md` | one4all | JV-1 awaits PARSER-SC-6b |
 | Native Snocone — JS | `GOAL-NATIVE-SNOCONE-JS.md` | one4all | JS-1 awaits PARSER-SC-6b |
 | Corpus Layout | `GOAL-CORPUS-LAYOUT.md` | corpus+.github+one4all | design state |
-| SNOBOL4 Frontend | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 |
+| SNOBOL4 Frontend | `GOAL-LANG-SNOBOL4.md` | one4all | SN-32 + **SN-33 (NEW, 2026-05-10): SN-7 51/51 regressed to 0/51; restore + extend to mode 4 = 68/68; cap_t::fn null at bb_boxes.c:541** |
 | Icon Frontend | `GOAL-LANG-ICON.md` | one4all | IC-9 |
 | **Prolog Frontend** | `GOAL-LANG-PROLOG.md` | one4all+corpus | PR-17 — string builtins rung40 |
 | Raku Frontend | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
