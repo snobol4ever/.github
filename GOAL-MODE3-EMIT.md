@@ -64,15 +64,35 @@ with subject and replacement.  This is ME-1, the opening rung.
 
 ### Register convention (mode-3 SM-blob land)
 
+⛔ **The authoritative register convention is `REGISTER-LAYOUT.md`
+(carved sess 2026-05-10).**  This section summarizes; the full
+push/pop matrix, evidence base, and audit checklist live there.
+
 Settled, binding on every rung that emits SM-blob x86:
 
 | Reg | Role | Scope |
 |-----|------|-------|
-| `r12` | `SM_State*` — anchor for value stack, `last_ok`, `pc` | Whole emitted program; loaded once at `sm_jit_run` entry, never reloaded inside emitted code |
-| `r10` | per-glob data-region pointer; `[r10+N]` addresses every local in the currently-active flat-glob | Per BB-glob, loaded once at glob entry preamble; glob-private (caller does not use `r10`, so glob boundary is implicitly save-free) |
-| `rbp` | chunk frame pointer for DEFINE'd chunks | Per DEFINE'd chunk; established via `push rbp ; mov rbp, rsp` at entry, torn down via `pop rbp ; ret` at exit |
-| `rbx, r13, r14, r15` | callee-saved working registers, used per-box per `bb_boxes.s` convention | Per byrd-box; boxes save/restore their own |
+| `r12` | `SM_State*` — anchor for `last_ok`, `pc`, and pointers to the value stack | Whole emitted program; loaded once at `sm_jit_run` entry, never reloaded inside emitted code |
+| `r13` | `SM_State.stack` base ptr — value-stack data array | Whole emitted program; reloaded by SM_STNO blob (statement boundary, handles realloc) |
+| `r14` | `SM_State.sp` — current value-stack index, kept hot for inline push/pop | Whole emitted program; reset to 0 by SM_STNO blob |
+| `r15` | Reserved for ME-8 chunk return-frame anchor | Per chunk call; free until ME-8 |
+| `rbx` | Reserved for ME-11 SM_EXEC_STMT subject anchor | Per EXEC_STMT; free until ME-11 |
+| `r10` | BB-glob LOCAL data ptr; `[r10+N]` addresses every box-local in the currently-active flat-glob | Per BLOB; **constant inside a BLOB**.  Loaded by each BLOB's α-preamble (`lea r10, [rip + Δ_data]`).  See ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps" for the push/pop discipline. |
+| `rbp` | Chunk frame pointer for DEFINE'd chunks | Per DEFINE'd chunk; `push rbp ; mov rbp, rsp` at entry, `pop rbp ; ret` at exit |
 | `rax rdi rsi rdx rcx r8 r9 r11` | C-ABI scratch for PLT calls and SM-blob temporaries | Per SM-blob; caller-saved |
+
+**Three always-live SM-blob registers (r12, r13, r14)** survive every
+PLT call via SysV callee-saved discipline; the inline push/pop of
+DESCR_t values is `mov [r13 + r14*16], rax ; mov [r13 + r14*16+8], rdx ;
+inc r14d` — no PLT round-trip, no global-variable mov.
+
+**One always-live BB-glob register (r10)** is the LOCAL data pointer
+inside a BLOB.  Inside a BLOB the value is constant — intra-BLOB jumps
+never touch it.  Extra-BLOB jumps either tail-jump (no push/pop needed
+because the destination's α-preamble reloads its own r10) or are
+call-style with `push r10 ; … ; pop r10` framing the round-trip.
+The intra-/extra-BLOB distinction is a static property of the emitted
+`jmp` instruction; the emitter knows at emit-time which kind it is.
 
 **Why `r12 = SM_State*`.**  Every SM stack op today is a PLT call to
 `rt_push_int@PLT` / `rt_pop_void@PLT` / etc.  With `r12` anchored, the hot
@@ -381,6 +401,25 @@ Rung-specific gates as listed per rung below.
       Closure criterion: REGISTER-LAYOUT.md committed in `.github`
       with Lon's sign-off line in its watermark.  No code changes
       land under ME-4-pre.
+
+      **Draft complete sess 2026-05-10 (Claude latest): `REGISTER-LAYOUT.md`
+      committed at `.github` HEAD.**  Locked decisions:
+      r12 = SM_State*, r13 = SM_State.stack base, r14 = SM_State.sp (hot),
+      r15 reserved for ME-8 chunk return frame, rbx reserved for ME-11
+      SM_EXEC_STMT subject anchor, rbp = chunk frame ptr, r10 = BB-glob
+      LOCAL data ptr (constant inside a BLOB; preamble loads it at every
+      α-entry; intra-BLOB jumps don't touch it; extra-BLOB tail-jumps
+      don't touch it; only call-style extra-BLOB jumps need source-BLOB
+      `push r10`/`pop r10` framing — and those are rare).  Three
+      always-live SM-blob registers (r12/r13/r14), one always-live
+      BB-glob register (r10), 14 registers free in the scratch + reserve
+      budget total.  Stack push: `mov [r13+r14*16], rax ; mov
+      [r13+r14*16+8], rdx ; inc r14d`.  SM_STNO blob: `xor r14d, r14d ;
+      mov r13, [r12+STACK_OFFSET]` — replicates `sm_interp.c:295` and
+      handles realloc.  ME-4-pre closes on Lon's sign-off line in
+      REGISTER-LAYOUT.md's watermark.  Until then, ME-4-post stays
+      blocked.  See ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps" for
+      the companion architectural rule.
 
 - [ ] **ME-4-post — Fix realloc bug + re-emit ME-4 blobs against
       locked convention.**  After ME-4-pre lands.  Implements the

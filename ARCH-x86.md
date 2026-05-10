@@ -76,6 +76,40 @@ Data access pattern (inside the glob body):
   45 89 42 dd       mov [r10+N], eax   ; write int back to local slot
 ```
 
+### Intra-BLOB vs extra-BLOB jumps
+
+Every emitted jump from inside a BLOB knows statically whether its target
+lies inside the same BLOB or outside it.  The emitter has both buffers in
+hand at emit time, so the distinction is a compile-time property of the
+generated `jmp` instruction, not a runtime check.
+
+**Intra-BLOB jump** — target address is within `[blob_start, blob_end)`.
+The BLOB's LOCAL register (`r10`) is unchanged across the jump; no save,
+no restore.  Plain `jmp rel32 target`.  This is the common case — every
+α→β/γ/ω port transition inside a glob is intra-BLOB.
+
+**Extra-BLOB jump** — target address is outside `[blob_start, blob_end)`.
+The destination BLOB's α-preamble will load its own LOCAL via
+`lea r10, [rip + Δ_data]`, overwriting the source BLOB's r10.
+
+  * **Tail extra-jump** (γ/ω port exits the glob, control never returns
+    to here) — emit nothing about LOCAL.  The source BLOB's r10 is dead
+    after this jump; the destination's α-preamble will load its own.
+    Plain `jmp rel32 target`.  This is the common case for extra-BLOB.
+
+  * **Call-style extra-jump** (rare in flat-BB land; can arise for a
+    capture-function callback that re-enters the broker) — the source
+    BLOB needs its LOCAL preserved across the outbound call because
+    control will resume at a point inside the source BLOB.  Source BLOB
+    emits `push r10` before the outbound jump and `pop r10` at the
+    resume point.  Push/pop are the source BLOB's responsibility, not
+    the destination's.
+
+The invariant the emitter must hold: **never jump into the middle of a
+BLOB from outside.**  Every cross-BLOB entry lands on the α-preamble.
+The preamble is the contract that the destination BLOB's LOCAL is loaded
+before any `[r10+N]` reference fires.
+
 ### Dispatched-BB ABI (legacy, preserved for `--bb-brokered`)
 
 ```
