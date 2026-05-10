@@ -25,6 +25,39 @@ land).
 > **CURRENT RUNG: CH-17i-every-suspend** — migrate E_EVERY + E_SUSPEND inside proc
 > body chunks to emit SM opcodes (mirroring CH-17f's SM_BB_ONCE_PROC pattern);
 > consumer handler in sm_interp.c. Unblocks rung01/02/03/13_alt/14_limit/16/32/34/35.
+>
+> **2026-05-09 orientation-session finding (no code committed):** verified the
+> 6 rung01_paper_*.icn programs all PASS `--ir-run` and FAIL `--sm-run` with
+> `sm_interp: stack underflow`.  Root cause is deeper than the SUSPEND/EVERY
+> arms at `sm_lower.c:1303` alone: AST_TO's existing CH-15a lowering emits
+> `chunk + SM_PUSH_EXPRESSION + SM_BB_PUMP_SM`, where `SM_BB_PUMP_SM` drains
+> the chunk via `pump_print` (sm_interp.c:911) and leaves nothing on the value
+> stack — fine in statement context, broken when AST_TO is a sub-expression
+> (e.g. `write(1 to 5)` underflows in mode-3 *without* `every` because
+> SM_CALL_FN write expects an arg from the now-empty stack).
+>
+> The fix needs an **expression-context lowering mode** for generator kinds:
+> a flag (`g_in_goal_directed` or similar) that suppresses the trailing
+> `SM_BB_PUMP_SM` driver and leaves a DT_E entry-pc descriptor on the stack
+> for the consumer (AST_EVERY's pump loop, or AST_FNC's per-arg drainer) to
+> drive.  Then AST_EVERY emits its own SM consumer loop that pumps the DT_E,
+> runs body if present, and re-drives.  AST_SUSPEND is the simpler half:
+> `lower(child); SM_SUSPEND` (no body) or pump-loop with body.
+>
+> Stage proposal:
+>   - Stage 1: add `g_in_goal_directed` flag; gate AST_TO/AST_TO_BY emission
+>     on it; verify mode-3 `write(1 to 5)` still draws "1" (statement-context
+>     `1 to 5` unchanged; AST_FNC sets the flag for arg lowering).
+>   - Stage 2: AST_EVERY consumer loop in SM (no body case) → unblocks 6 rung01
+>     programs.
+>   - Stage 3: AST_SUSPEND no-body → trivial.
+>   - Stage 4: AST_EVERY/AST_SUSPEND body cases.
+>
+> Prior-art read (archive): `M-G4-SHARED-ICON-SUSPEND.md` Byrd-box spec
+> applies; `archive/backend/emit_emitters/emit_x64.c::emit_every`/`emit_suspend`
+> are BB-world (not SM-world) — useful for *semantics*, not for SM opcode shape.
+> `SM_SUSPEND` and `gen_state_t`/`bb_broker_drive_sm` infrastructure already
+> in place (CHUNKS-step14); no new opcodes needed for stages 1–4.
 
 ---
 
