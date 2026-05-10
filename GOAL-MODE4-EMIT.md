@@ -1034,40 +1034,62 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-FORMAT-BB-COL3-COMMENTS — LANDED 2026-05-09.**  Append `# KIND(args)` annotations to col-3 of leaf-box α-line emissions in `bb_flat.c`.  Today fires on tracked corpora: `# RPOS(0)` in roman.s, `# POS(0)` in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α paths are dead on tracked corpora today (zero observed) but still annotated for completeness.  Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).  Line counts unchanged (annotation appended to existing line).  Gates 14/14 GREEN.  one4all `70b76571`, corpus `f11fb1e`.
 
-- [x] **EM-FORMAT-BB-LAW — LANDED 2026-05-09.**  Every BB jxx (`jmp`/`je`/`jne`/`jl`/`jge`/`jg`/`jle`/`jbe`) now lives in column 3 of the three-column LAW.  Column 2 (the action mnemonic field) is reserved for non-jump instructions.  Per Lon's directive at session: "Don't have more than one blank between je or jmp or jxx instruction when it is in column 3.  Which should be always for BB's."
+- [x] **EM-FORMAT-BB-LAW — LANDED 2026-05-09 (corrected mid-session per Lon's clarification).**  Per `archive/BB-GEN-X86-TEXT.md` "The Three-Column NASM Layout — The Law": col-1 = LABEL, col-2 = ACTION (mnemonic + params together as one column), col-3 = GOTO (live `jmp` or `;`-comment).  In our emitter, mnemonic and args have always been kept in distinct sub-columns, so the BB-side layout is effectively **four margin tabs**:
 
-      **The landed shape (per LAW):**
-      - Col-1 (label, 24 wide).  Col-2 (action, 16 wide).  Col-3 (operands or goto) starts at file col 41.
-      - **Standalone uncond / bare label+jmp:** col-2 empty, col-3 = `jmp <target>`.  jmp lands at vcol 41.
-      - **Fused cond+uncond:** col-2 empty, col-3 = `<cond_mn> <succ_target>; jmp <fail_target>`.  cond mnemonic lands at vcol 41; ONE space separates `;` and `jmp` (no padding).
-      - **Standalone cond-jmp** (no uncond partner — defensive, doesn't fire on tracked corpora): col-2 empty, col-3 = `<cond_mn> <target>`.
+      | Tab | File col | Width | Content |
+      |-----|---------:|------:|---------|
+      | 1   |  0       | 24    | LABEL  |
+      | 2   | 24       | 16    | MNEMONIC |
+      | 3   | 41       | 27    | ARGS   |
+      | 4   | 68       | free  | GOTO   |
 
-      **Diversion from the original sketch.**  The rung-spec hypothesised a fixed `BB_GOTO_COL = 60..68` anchor with padding inside col-3 to right-align `jmp` across all decision lines.  Lon's correction at session: every BB jxx in col-3 (including the cond), one space between adjacent jxx, no padding.  The result is that every cond/uncond/fused BB jxx starts at the **same** position (vcol 41 = col-3 start) — which IS the intended uniform alignment, just achieved by left-anchoring the cond-jmp itself to col-3 rather than padding the uncond rightward from col-2.  Reads as "the line begins at col-3 with the goto" — exactly what the LAW asks.
+      **SM-side keeps its 3-margin layout** (LABEL / MNEMONIC / ARGS at 24 / 16 / free).  SM has no GOTO column because SM jumps are macro invocations (`JUMP .Lpc28`) that occupy col-2 themselves.  The 4-tab discipline applies only to BB-side emission paths in `bb_emit.c::bb3c_emit_jmp` and `bb_emit.c::bb3c_flush_pending_cond_jmp`.
 
-      **Three concrete changes from prior state, all in `src/runtime/x86/bb_emit.c`:**
+      The GOTO column (Tab 4) is reserved for live `jmp` (or `;`-prefixed comment).  When present, `jmp` always lands at file col 68 — visually aligning the goto column vertically across consecutive lines, which is the LAW's intent.
 
-      (1) **`bb3c_emit_jmp` no-pending uncond branch** — was emitting via `bb3c_format(out, "", m, t)` which placed `jmp` in col-2.  Now builds col-3 = `"<m> <t>"` and emits via `bb3c_format(out, "", "", goto_col3)`.  Col-2 empty; jmp at vcol 41.
+      **BB-jxx cases:**
 
-      (2) **`bb3c_emit_jmp` fused cond+uncond branch** — was emitting `bb3c_format(out, "", saved_mn, fused_col3)` placing the cond mnemonic in col-2 and `<target> ; jmp <target>` in col-3.  Now builds col-3 = `"<cond_mn> <succ_target>; <m> <t>"` and emits via `bb3c_format(out, "", "", fused_col3)`.  Col-2 empty; both cond and uncond in col-3 starting at vcol 41.
+      (1) **Fused cond+uncond:** col-2 = cond mnemonic (`je`/`jne`/...), col-3 = `<succ_target>;` (left-anchored, padded with spaces to width 27), col-4 = `jmp <fail_target>`.  The `;` lives in col-3 right after the cond's arg.  `jmp` lands at vcol 68.
+      Sample: `je               pat_inv_0_α_body;          jmp pat_inv_0_β`
 
-      (3) **`bb3c_flush_pending_cond_jmp`** (the standalone cond-jmp emit path, fires when a cond-jmp arrives but no uncond partner follows before some non-jmp content) — was writing via `bb3c_write_line(out, "", mn, target)` placing cond in col-2.  Now builds col-3 = `"<mn> <target>"` and writes via `bb3c_write_line(out, "", "", goto_col3)`.
+      (2) **Bare label+jmp / standalone uncond:** col-2 empty, col-3 empty (padded to 27 visual cols), col-4 = `jmp <target>`.  Trampoline lines now read as "label declaration; goto live in the goto column."
+      Sample: `xcat0_right_ω:                                                      jmp xcat0_left_β`
 
-      **Triple fusion not done in this rung.**  Action+cond+uncond on one line (`test rax, rax; jne X; jmp Y`) is carved as **EM-FORMAT-BB-LAW-TRIPLE-FUSION** for a future session.  Today the action emits separately on its own line above the fused decision.
+      (3) **Standalone cond-jmp** (defensive — doesn't fire on tracked corpora today): col-2 = cond mnemonic, col-3 = target, col-4 empty.
 
-      **Sample (roman.s — before vs after):**
+      **First-attempt correction.**  The first commit at this rung (one4all `4ada754d`, corpus `f95e251`) misinterpreted "every BB jxx in col-3" as collapsing the cond+uncond into a single col-3 string starting at vcol 41 with no col-4.  That left the GOTO column unused — effectively flattening the LAW's three columns to two.  Lon flagged: "you have 4 columns and you are not using the fourth column."  This rung's final shape (committed below) restores the GOTO column anchor at vcol 68 with proper col-2/col-3/col-4 separation.
 
+      **Three concrete changes from baseline state, all in `src/runtime/x86/bb_emit.c`:**
+
+      (1) **`bb3c_emit_jmp` fused cond+uncond branch** — col-2 = cond mnemonic, col-3 = `"<succ_target>;"` padded to BB_COL3_WIDTH=27 visual cols (UTF-8-aware via `bb3c_pad_to_width`), col-4 = `"jmp <fail_target>"`.  Emitted via `bb3c_format(out, "", saved_mn, rest)` where `rest` carries the col-3+col-4 content.
+
+      (2) **`bb3c_emit_jmp` no-pending uncond branch** (bare label+jmp, trampolines) — col-2 empty, col-3 padded to width 27 with spaces, col-4 = `"jmp <target>"`.
+
+      (3) **`bb3c_flush_pending_cond_jmp`** (standalone cond-jmp; defensive path) — col-2 mnemonic + col-3 target + col-4 empty (the obvious shape; this path isn't hit on any tracked corpus).
+
+      **Triple fusion (action+cond+uncond on one line) NOT done in this rung** — carved as **EM-FORMAT-BB-LAW-TRIPLE-FUSION** for a future session.  Today the action emits separately on its own line above the fused decision.  When triple fusion lands, the action's args + `;` will live in col-3 and the cond+uncond chain will live in col-4.
+
+      **Sample (roman.s) — final shape:**
       ```
-      BEFORE                                                   AFTER
-      pat_inv_0_α:    lea     r10, [rip + Δ]                   pat_inv_0_α:    lea     r10, [rip + Δ]
-                      cmp     esi, 0                                           cmp     esi, 0
-                      je      α_body ; jmp β                                   <col41> je α_body; jmp β
-      ...                                                      ...
-      xcat0_right_ω:  jmp     xcat0_left_β                     xcat0_right_ω:  <col41 empty col2> jmp xcat0_left_β
-      pat_inv_0_β:    jmp     xcat0_right_β                    pat_inv_0_β:    <empty>            jmp xcat0_right_β
-      xcat0_ω:        jmp     pat_inv_0_ω                      xcat0_ω:        <empty>            jmp pat_inv_0_ω
+      pat_inv_0_α:            lea              r10, [rip + Δ]
+                              cmp              esi, 0
+                              je               pat_inv_0_α_body;          jmp pat_inv_0_β
+      ...
+                              test             rax, rax
+                              jne              cap1_γ;                    jmp cap1_ω
+      ...
+      xcat0_right_ω:                                                      jmp xcat0_left_β
+      pat_inv_0_β:                                                        jmp xcat0_right_β
+      xcat0_ω:                                                            jmp pat_inv_0_ω
       ```
 
-      **Tracked artifact line counts (unchanged from baseline — only the in-line layout changed):**
+      **Verification (per artifact, all 5):**
+      - Every cond mnemonic (`je`/`jne`) at vcol 24 (Tab 2).
+      - Every `jmp` at vcol 68 (Tab 4).
+      - 6 fused cond+uncond + 3 bare label+jmp = 9 BB-jxx-bearing lines per banner-bearing file × 4 files = 36 lines.  Zero violations across all 5 artifacts.
+      - wordcount.s has zero patterns hence zero BB-jxx lines (correct).
+
+      **Tracked artifact line counts (unchanged from baseline; only in-line layout shifted):**
       | File | Lines |
       |------|------:|
       | roman.s | 159 |
@@ -1080,11 +1102,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       All 5 `gcc -c` clean.
 
-      **Verification (per artifact, all 5):**
-      Across 9 BB-jxx-bearing lines per banner-bearing file (roman/claws5/treebank-list/treebank-array; wordcount has no patterns hence 0): every jxx lands at visual col 41.  6 of 9 are fused cond+uncond pairs; 3 of 9 are bare label+jmp trampolines.  Zero exceptions, zero violations.
-
       **Files touched (one4all only):**
-      - `src/runtime/x86/bb_emit.c` (+38 −13 lines: rewrite of `bb3c_emit_jmp` fused + standalone-uncond branches and `bb3c_flush_pending_cond_jmp`; doc comment updated).
+      - `src/runtime/x86/bb_emit.c` — `BB_COL3_WIDTH` constant added; `bb3c_emit_jmp` fused + no-pending uncond branches rewritten to use 4-tab layout; `bb3c_flush_pending_cond_jmp` restored to col-2-mnemonic form; doc comment updated to describe the four margin tabs (and the SM-side 3-margin distinction).
 
       **Gates 14/14 GREEN:**
       - smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone via all_modes 2/2, rebus 4/4)
@@ -1095,8 +1114,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - 0 trailing whitespace, 0 blank lines, 0 underscore-prefixed labels, 0 lone labels per artifact
 
       **Carved follow-on rungs:**
-      - **EM-FORMAT-BB-LAW-TRIPLE-FUSION** — extend cjmp deferral to also defer the immediately-preceding action (`test`/`cmp`/etc) and fuse all three onto the cond-jmp's line as `<action>; <cond> <succ>; jmp <fail>`.  Today's α-blob entry has `cmp esi, 0` on its own line followed by `je α_body; jmp β` on the next; triple fusion would collapse these to a single line.  Risk: line width.
-      - **EM-FORMAT-BB-LAW-AUDIT** — extend Test 14 audit harness with an explicit invariant: "every BB-side jxx mnemonic lands at vcol 41."  Today the audit's I0–I3a invariants pass clean but don't independently assert col-3 jxx anchoring; codifying it makes the LAW load-bearing in the gate suite.
+      - **EM-FORMAT-BB-LAW-TRIPLE-FUSION** — extend cjmp deferral to also defer the immediately-preceding action (`test`/`cmp`) and fuse the action+cond+uncond onto a single line: col-2 = action mnemonic, col-3 = `<args>;` padded to col-3 width, col-4 = `<cond> <succ>; jmp <fail>`.  Today's α-blob entry has `cmp esi, 0` on its own line followed by `je α_body; jmp β` on the next; triple fusion would collapse these.  Risk: line width.
+      - **EM-FORMAT-BB-LAW-AUDIT** — extend Test 14 audit harness with explicit invariants: "every BB-side cond mnemonic at vcol 24" and "every BB-side `jmp` at vcol 68."  Today the I0–I3a invariants pass clean but don't independently assert the four-tab discipline; codifying it makes the LAW load-bearing in the gate suite.
 
 - [ ] **EM-FORMAT-BB-DATA-CONSOLIDATE** — Consolidate scattered per-blob `.section .data` blocks into a single data block at top (or bottom) of each pat_inv_<id> blob.  Today the artifacts ping-pong between `.data` and `.text` 4-5 times per blob (once per box that has static data: charsets, capture state, fence/arb/star/breakx slots, etc.).  Replace each inline `.data` block at a box site with a brief comment like `# data: .Lcap1_data, .Lcap1_vname` so the reader still knows what locals the box uses.  Implementation: bb_flat.c emit functions accumulate their `.data` content into a per-blob buffer (or two-pass: first pass collects, second pass emits) instead of emitting inline.  Affects every box kind that currently emits `flat_data_section(e)` followed by data directives (~12 sites).
 
@@ -1141,46 +1160,67 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 EM-FORMAT-BB-LAW LANDED 2026-05-09
 =============================================
 
-Every BB jxx (`jmp`/`je`/`jne`/`jl`/`jge`/`jg`/`jle`/`jbe`) now lives in
-column 3 of the three-column LAW.  Column 2 is reserved for non-jump
-action mnemonics.  Per Lon's directive at session: "Don't have more than
-one blank between je or jmp or jxx instruction when it is in column 3.
-Which should be always for BB's."
+Per archive/BB-GEN-X86-TEXT.md "The Three-Column NASM Layout — The Law":
+col-1 = LABEL, col-2 = ACTION (mnemonic + params), col-3 = GOTO.  In our
+emitter, mnemonic and args are kept in distinct sub-columns, so the
+**BB-side layout is effectively four margin tabs**:
 
-The shape:
-- col-1 = label (24 wide), col-2 = action (16 wide), col-3 = goto/operands
-  starting at file col 41.
-- Standalone uncond / bare label+jmp: col-2 empty, col-3 = `jmp <target>`.
-- Fused cond+uncond: col-2 empty, col-3 = `<cond_mn> <succ>; jmp <fail>`
-  with ONE space after `;` (no padding).
-- Standalone cond-jmp (defensive, doesn't fire on tracked corpora):
-  col-2 empty, col-3 = `<cond_mn> <target>`.
+| Tab | File col | Width | Content |
+|-----|---------:|------:|---------|
+| 1   |  0       | 24    | LABEL  |
+| 2   | 24       | 16    | MNEMONIC |
+| 3   | 41       | 27    | ARGS   |
+| 4   | 68       | free  | GOTO   |
 
-Diversion from the prior rung-spec sketch: the spec hypothesised a fixed
-`BB_GOTO_COL = 60..68` anchor with padding inside col-3 to right-align
-`jmp` across decision lines.  Lon corrected at session: every BB jxx
-left-anchored to col-3 (incl. the cond mnemonic), one space between
-adjacent jxx, no padding.  The result IS uniform alignment — every
-cond/uncond/fused jxx starts at vcol 41 — just achieved by left-anchoring
-rather than padding rightward from col-2.
+**SM-side keeps its 3-margin layout** (LABEL / MNEMONIC / ARGS at 24 / 16 /
+free).  SM has no GOTO column because SM jumps are macro invocations
+(`JUMP .Lpc28`) that occupy col-2 themselves.  The 4-tab discipline applies
+only to BB-side emission paths.
+
+BB-jxx cases (final shape):
+  (1) Fused cond+uncond:  col-2 = cond_mn, col-3 = "<succ>;" padded to 27,
+      col-4 = "jmp <fail>".  jmp lands at vcol 68.
+  (2) Bare label+jmp:     col-2 empty, col-3 padded to 27, col-4 = "jmp <t>".
+  (3) Standalone cond-jmp (defensive): col-2 = cond_mn, col-3 = target.
+
+First-attempt correction: an earlier commit at this rung (one4all `4ada754d`,
+corpus `f95e251`) misinterpreted "every BB jxx in col-3" as collapsing
+cond+uncond into a single col-3 string starting at vcol 41 with no col-4 —
+flattening the LAW's three columns to two.  Lon flagged: "you have 4
+columns and you are not using the fourth column."  Fixed in this rung's
+final commit; GOTO column anchor restored at vcol 68.
 
 Three changes in `src/runtime/x86/bb_emit.c`:
-  (1) `bb3c_emit_jmp` no-pending uncond: empty col-2, `jmp <target>` in col-3.
-  (2) `bb3c_emit_jmp` fused cond+uncond: empty col-2, `<cond_mn> <succ>; <m> <t>` in col-3.
-  (3) `bb3c_flush_pending_cond_jmp`: empty col-2, `<mn> <target>` in col-3.
+  (1) `BB_COL3_WIDTH = 27` constant added; doc comment describing four
+      margin tabs (and SM-side 3-margin distinction).
+  (2) `bb3c_emit_jmp` fused cond+uncond branch: col-2 = cond mnemonic,
+      col-3 = "<succ>;" padded to 27 visual cols (UTF-8-aware via
+      `bb3c_pad_to_width`), col-4 = "jmp <fail>".
+  (3) `bb3c_emit_jmp` no-pending uncond branch (bare label+jmp,
+      trampolines): col-2 empty, col-3 padded to 27, col-4 = "jmp <t>".
+  (4) `bb3c_flush_pending_cond_jmp` (standalone cond-jmp): col-2 mnemonic
+      + col-3 target + col-4 empty.
 
-Sample (roman.s):
+Sample (roman.s) — final shape:
 ```
-                                         je pat_inv_0_α_body; jmp pat_inv_0_β
-                                         jne cap1_γ; jmp cap1_ω
-xcat0_right_ω:                           jmp xcat0_left_β
-pat_inv_0_β:                             jmp xcat0_right_β
-xcat0_ω:                                 jmp pat_inv_0_ω
+pat_inv_0_α:            lea              r10, [rip + Δ]
+                        cmp              esi, 0
+                        je               pat_inv_0_α_body;          jmp pat_inv_0_β
+...
+                        test             rax, rax
+                        jne              cap1_γ;                    jmp cap1_ω
+...
+xcat0_right_ω:                                                      jmp xcat0_left_β
+pat_inv_0_β:                                                        jmp xcat0_right_β
+xcat0_ω:                                                            jmp pat_inv_0_ω
 ```
 
-All BB-jxx mnemonics across 4 banner-bearing artifacts land at vcol 41.
-Verified: 9 jxx-bearing lines per file × 4 files = 36 jxx lines, every
-single one at vcol 41 (6 fused cond+uncond, 3 bare label+jmp per file).
+Verified across all 5 artifacts:
+- Every cond mnemonic (`je`/`jne`) at vcol 24 (Tab 2).
+- Every `jmp` at vcol 68 (Tab 4).
+- 6 fused cond+uncond + 3 bare label+jmp = 9 BB-jxx-bearing lines per
+  banner-bearing file × 4 files = 36 lines.  Zero violations.
+- wordcount.s has zero patterns hence zero BB-jxx lines (correct).
 
 Tracked artifact line counts (UNCHANGED — only in-line layout shifted):
 | File | Lines |
@@ -1196,24 +1236,21 @@ Tracked artifact line counts (UNCHANGED — only in-line layout shifted):
 All 5 `gcc -c` clean.
 
 Triple fusion (action+cond+uncond on one line) NOT done in this rung.
-Carved as EM-FORMAT-BB-LAW-TRIPLE-FUSION for a future session.  Today
-the action emits separately on its own line above the fused decision.
+Carved as EM-FORMAT-BB-LAW-TRIPLE-FUSION for a future session.
 
 Files touched (one4all):
-- `src/runtime/x86/bb_emit.c` (+38 −13: rewrite of `bb3c_emit_jmp` fused
-  + standalone-uncond branches and `bb3c_flush_pending_cond_jmp`;
-  doc comment updated)
+- `src/runtime/x86/bb_emit.c` — `BB_COL3_WIDTH=27` + 4-tab layout in
+  `bb3c_emit_jmp` (fused + no-pending uncond) and 3-col layout in
+  `bb3c_flush_pending_cond_jmp`; doc comment updated to describe the four
+  BB-side margin tabs and the SM-side 3-margin distinction.
 
 Carved follow-on rungs:
 - **EM-FORMAT-BB-LAW-TRIPLE-FUSION** — defer the immediately-preceding
-  action (`test`/`cmp`/etc) and fuse onto the cond-jmp's line.  Today
-  the α-blob entry has `cmp esi, 0` on its own line above
-  `je α_body; jmp β`; triple fusion would collapse these.  Risk: line
-  width.
-- **EM-FORMAT-BB-LAW-AUDIT** — extend Test 14 audit harness with an
-  explicit "every BB jxx mnemonic lands at vcol 41" invariant.  Today
-  the I0–I3a invariants pass clean but don't independently assert
-  col-3 jxx anchoring.
+  action (`test`/`cmp`) onto the cond-jmp's line: col-2 = action mnemonic,
+  col-3 = `<args>;` padded to 27, col-4 = `<cond> <succ>; jmp <fail>`.
+- **EM-FORMAT-BB-LAW-AUDIT** — extend Test 14 with explicit invariants:
+  "every BB-side cond mnemonic at vcol 24" and "every BB-side `jmp` at
+  vcol 68."  Codifies the four-tab discipline as a load-bearing gate.
 
 Gates 14/14 GREEN: smoke ×6 (snobol4 7/7, icon 5/5, prolog 5/5,
 raku 5/5, snocone via all_modes 2/2, rebus 4/4), all_modes 2/2,
