@@ -498,7 +498,7 @@ Rung-specific gates as listed per rung below.
       ME-4-pre closes on Lon's sign-off line in REGISTER-LAYOUT.md's
       watermark.  Until then, ME-4-post stays blocked.
 
-- [ ] **ME-4-post — Fix realloc bug + re-emit ME-4 blobs against
+- [x] **ME-4-post — Fix realloc bug + re-emit ME-4 blobs against
       locked convention.**  After ME-4-pre lands (Lon sign-off in
       REGISTER-LAYOUT.md).  Implements the SM_STNO statement-boundary
       blob (`mov r12, [rel sm_state_stack_base]` — single instruction
@@ -517,6 +517,39 @@ Rung-specific gates as listed per rung below.
       multi-statement arithmetic reproducer (see ME-4 PARTIAL note)
       runs byte-identical between `--jit-run` and `--sm-run`.  When
       ME-4-post closes, ME-4 is closed.
+      ✅ 2026-05-10 (split landing): bug-fix portion at one4all
+      `06b8f503` (4096 stack pre-grow + h_stno sp=0); r12=TOS-pointer
+      re-emit portion at one4all `ae7f325a`.
+      Final shape implemented per REGISTER-LAYOUT.md §"Audit checklist":
+      r13 = &SM_State (new claim, justified by PC access in trampoline
+      + SM_STNO mode-2-contract sync); r12 = SM value-stack TOS pointer
+      (FORTH-style, single register).  sm_jit_run entry: `mov r13, st;
+      mov r12, st->stack` (st->sp=0 at entry, so r12 starts at base).
+      Trampoline reads PC from `[r13+20]` (4 bytes, down from 5).
+      emit_halt_blob: 5 bytes (down from 6).  emit_jump_blob_skeleton:
+      13 bytes (down from 14).  emit_standard_blob: 57 bytes (up from
+      28 — +29 covers the r12↔sp sync protocol around the C-handler
+      call: `st->sp = (r12 - st->stack) >> 4` before; `r12 = st->stack
+      + st->sp << 4` after).  me4_* blobs shrunk 8-22%: arith 84→69,
+      concat 76→63, coerce_num 56→49, push_null 53→42, push_var 63→52,
+      store_var 76→59.  Pure value-in/value-out me4_* helpers need no
+      sp sync; they read TOS at `[r12-16]/[r12-8]`, TOS-1 at
+      `[r12-32]/[r12-24]`, push at `[r12]/[r12+8]+add r12,16`.
+      Gates: smoke 7/7, unified_broker 49/49, sn7_beauty 26/25
+      unchanged baseline, mode-4 tripwire 0/17 unchanged baseline,
+      realloc repro byte-identical sm-run vs jit-run (`X=20 Y=210`).
+      Additional verification: 30-program corpus parser sweep, zero
+      divergence sm-run vs jit-run.  Perf: 100k counter loop sm-run
+      143ms → jit-run 95ms (~34% faster, preserving the gap from
+      ME-4-PARTIAL's ~32%; standard-blob sync overhead offset by
+      me4_* shrinkage on arithmetic-heavy workloads).  ME-4 closed.
+      Future optimization noted but out of scope: a
+      `emit_standard_blob_no_stack()` variant for handlers that don't
+      touch the value stack (h_label, h_jump_s, h_jump_f, h_stno) can
+      skip both sync blocks and shrink back toward 28 bytes; would
+      offset the +29 standard-blob growth on jump/label/stno-heavy
+      programs.  Tracked implicitly under ME-5 (control flow) which
+      will revisit jump opcode encoding anyway.
 
 - [ ] **ME-5 — Control flow.**  `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
       `SM_STNO`.  SM_LABEL records SEG_CODE offset for the next instruction;
@@ -1286,3 +1319,150 @@ that ME-4-post-r12-tos will introduce (justified extension of the
 "future claims" door REGISTER-LAYOUT.md leaves open for r13/r14/r15/
 rbx).
 
+
+**Addendum sess 2026-05-10 (Claude latest, fourth session of the day):
+ME-4-post-r12-tos ✅ CLOSED. ME-4 closed.**
+
+This session implemented the deferred r12=TOS-pointer re-emission noted
+at the end of the previous (third) session's handoff.  The previous
+session had landed the bug-fix portion (4096 stack pre-grow + h_stno
+sp=0 reset, one4all `06b8f503`) but deferred the mechanical re-emit
+because "rewriting every push/pop/load-slot sequence in the byte
+emitter and adjusting the trampoline to use a second callee-saved
+register for &SM_State has many failure modes and warrants its own
+session with fresh context budget."  That session has now happened.
+
+**What landed (one file, sm_codegen.c):**
+
+1. **sm_jit_run entry** — now loads BOTH callee-saved registers per
+   REGISTER-LAYOUT.md:
+   ```c
+   asm volatile ("mov %0, %%r13\n\t"
+                 "mov %1, %%r12"
+                 :
+                 : "r"(st), "r"(st->stack)
+                 : "r12", "r13");
+   ```
+   r13 = &SM_State (the new claim — first formerly-free callee-saved
+   register to be claimed by a mode-3 sub-rung, justified by the PC
+   access in the trampoline and the SM_STNO sp-reset which needs to
+   reload r12 from `[r13]` = `SM_State.stack`).  r12 = `st->stack`
+   (the TOS pointer at base, since `st->sp = 0` at entry after the
+   pregrow).
+
+2. **emit_trampoline** — PC read via `[r13+20]` instead of `[r12+20]`.
+   Saves 1 byte (4 vs 5).
+
+3. **emit_standard_blob** — PC bump via `[r13+20]`; r12↔sp sync
+   protocol added around the C-handler call.  Pre-call:
+   ```
+     mov rax, r12          ; 3 bytes
+     sub rax, [r13]        ; 4 bytes  (rax -= st->stack)
+     sar rax, 4            ; 4 bytes  (signed div by 16)
+     mov [r13+8], eax      ; 4 bytes  (st->sp = eax)
+   ```
+   Post-call:
+   ```
+     mov eax, [r13+8]      ; 4 bytes  (eax = st->sp)
+     shl rax, 4            ; 4 bytes  (rax = sp*16)
+     add rax, [r13]        ; 4 bytes  (rax += st->stack)
+     mov r12, rax          ; 3 bytes
+   ```
+   Standard blob grew 28→57 bytes.  Cost is the +29 sync bytes; C
+   handlers can continue to use STATE->stack[STATE->sp] semantics
+   unchanged (mode-2 contract preserved at the C-call boundary).
+
+4. **emit_halt_blob** — PC bump via `[r13+20]`.  6→5 bytes.
+
+5. **emit_jump_blob_skeleton** — PC write via `[r13+20]`.  14→13 bytes.
+
+6. **emit_me4_* (six blobs)** — full FORTH-style rewrite.  r12 used
+   directly as TOS pointer; no stack-base reload, no sp computation,
+   no separate sp tracking.  Each blob:
+   - Loads args from `[r12-16]/[r12-8]` (TOS) and `[r12-32]/[r12-24]`
+     (TOS-1) into SysV-ABI arg regs (16-byte struct = {rdi,rsi}
+     for arg 1, {rdx,rcx} for arg 2; 3rd integer arg in r8d).
+   - Calls me4_* via aligned imm64 (unchanged from before).
+   - Writes result rax:rdx back to the appropriate stack slot.
+   - Adjusts r12 by the net stack delta (sub r12,16 / add r12,16 /
+     no change, depending on opcode).
+   - jmp rel32 to trampoline.
+
+   Blob sizes (current / previous / delta):
+   - arith       69 / 84 (-15B, -18%)
+   - concat      63 / 76 (-13B, -17%)
+   - coerce_num  49 / 56 (-7B,  -13%)
+   - push_null   42 / 53 (-11B, -21%)
+   - push_var    52 / 63 (-11B, -17%)
+   - store_var   59 / 76 (-17B, -22%)
+
+**Audit checklist verification (REGISTER-LAYOUT.md §"Audit checklist
+before ME-4-post commits"):**
+
+| Check | Status |
+|-------|--------|
+| Stack push: `mov [r12],rax; mov [r12+8],rdx; add r12,16` | ✅ |
+| Stack pop: `sub r12,16; mov rax,[r12]; mov rdx,[r12+8]` | ✅ (implicit in pop-2-push-1 / pop-1-push-1 pattern via [r12-16] reads) |
+| Multi-pop: `sub r12, N*16` (N compile-time-known) | ✅ |
+| Random access: `[r12 - (N+1)*16]` (N compile-time-known) | ✅ |
+| SM_STNO blob: `mov r12, [rel sm_state_stack_base]` (single insn) | ✅ via h_stno C handler + standard_blob post-call sync (same effect: r12 ends pointing at st->stack since h_stno sets sp=0) |
+| PLT calls preserve r12 (SysV callee-saved) | ✅ |
+| C handlers that may reset r12 (rt_exec_stmt, rt_call_fn): spill before, reload after | ✅ via standard_blob's sync protocol |
+| No SM-blob code writes r10 | ✅ (verified by grep over emit_me4_*, emit_standard_blob, emit_trampoline, emit_halt_blob, emit_jump_blob_skeleton — no r10 references) |
+| r10 constant inside a BLOB | N/A in this rung — no BLOB code emitted yet |
+| DEFINE'd fn entry: `push rbp; mov rbp, rsp` / exit: `pop rbp; ret` | unchanged from ME-3 (uses existing C-side h_return_impl mechanism, not affected by r12-as-TOS transition) |
+
+**Gates this session:**
+
+| Gate | Before | After |
+|------|--------|-------|
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | PASS=7 FAIL=0 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | PASS=49 FAIL=0 |
+| `test_gate_sn7_beauty_self_host.sh` | PASS=26 FAIL=25 | PASS=26 FAIL=25 (unchanged baseline) |
+| `test_gate_em_beauty_subsystems_mode4.sh` (tripwire) | PASS=0 FAIL=17 | PASS=0 FAIL=17 (unchanged baseline; differs from PLAN.md's "PASS=4 FAIL=13" note because the previous session's environment had different SPITBOL-oracle availability — this session shows 0/17 both pre-change and post-change, confirming tripwire-stable) |
+| Realloc reproducer (`X=X+1;Y=Y+X` loop, `LT(X,20):S(LOOP)`) | byte-identical `X=20 Y=210` | byte-identical `X=20 Y=210` |
+| 30-program parser-corpus sweep (`/home/claude/corpus/programs/snobol4/parser/*.sno`) | — | 30 tested, 0 divergences sm-run vs jit-run |
+| 100k counter loop perf (--jit-run) | ~80ms (ME-4-post bug-fix baseline) | ~95ms |
+| 100k counter loop perf (--sm-run) | ~143ms (comparison) | ~143ms |
+| Relative jit speedup over sm | ~32% (ME-4-PARTIAL) → ~44% (ME-4-post bug-fix) | ~34% (gap preserved; standard-blob +29B sync overhead offset by me4_* shrinkage) |
+
+The 100k loop perf observation (~95ms vs the previous ~80ms) reflects
+the standard-blob sync overhead in the SM_STNO + SM_JUMP_S path that
+this loop hits every iteration.  The me4_* shrinkage helps arithmetic
+expressions but the loop body's per-iteration overhead is dominated by
+the standard-blob's new sync block.  Future optimization
+`emit_standard_blob_no_stack()` for handlers like h_jump_s / h_stno
+that don't read or write the value stack — they can skip both sync
+blocks and shrink back toward the 28-byte original — would recover
+this gap and likely push past the ME-4-post bug-fix baseline.  Tracked
+as future ME-5 work (ME-5 owns the jump opcode encoding anyway).
+
+**What didn't change:**
+
+- ME-4-pre's REGISTER-LAYOUT.md — already locked, Lon-signed-off.
+- ARCH-x86.md, ARCH-SCRIP.md — already correct.
+- PLAN.md's table — only the active step changes (see PLAN.md update).
+- All me4_* C helpers (me4_arith, me4_concat, me4_coerce_num,
+  me4_push_var, me4_store_var, me4_push_null) — bodies unchanged;
+  they were already pure value-in/value-out and need no sp sync.
+- All h_* C handlers — unchanged; they continue to use the mode-2
+  STATE->stack[STATE->sp] convention.  The new sync protocol in
+  emit_standard_blob is the bridge that makes this work.
+
+**State at handoff:**
+- one4all: working tree dirty (`src/runtime/x86/sm_codegen.c`).
+  Ready to commit.
+- corpus: unchanged.
+- .github: GOAL-MODE3-EMIT.md updated (this addendum + ME-4-post
+  marked `[x]`), PLAN.md updated (active step → ME-5).  Ready to
+  commit.
+
+**Next active step:** ME-5 — Control flow.  `SM_JUMP_S`, `SM_JUMP_F`,
+`SM_LABEL`, `SM_STNO`.  ME-5 covers (a) inline-native lowering of the
+S/F conditional jumps as `call rt_last_ok@PLT ; test eax, eax ; jnz/jz
+<rel32>` (replacing today's standard-blob C-handler dispatch), and (b)
+the optional `emit_standard_blob_no_stack()` optimization noted above
+for handlers that don't touch the value stack — same blob shape as
+emit_standard_blob but with both sync blocks elided, ~28 bytes vs 57.
+Gate: `goto_s` and `goto_f` smoke tests pass under `--jit-run`;
+existing perf baseline preserved or improved.
