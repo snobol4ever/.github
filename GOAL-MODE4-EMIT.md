@@ -828,6 +828,42 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+EM-ONE-LINE-STRINGS + EM-NO-INTERNAL-COMMENTS LANDED 2026-05-09
+=============================================
+
+Two additional fixes landed same session as EM-FORMAT-SM-BANNER-FIDELITY,
+no new rung numbers (cleanup quality-of-life, not format-law rungs).
+
+**Fix 1 — one-line .Lstr_N: .string:**
+`strtab_emit_rodata` previously emitted a bare label line then a separate
+`.string` line.  Merged into one: `lbl` in col-1, `.string` in col-2, value
+in col-3.  Result: `.Lstr_0:                .string          "ROMAN(N)UNITS"`.
+
+**Fix 2 — remove all internal comments from emitted .s:**
+Removed from `sm_codegen_x64_emit.c`:
+- 7-line header block (`scrip --jit-emit --x64`, architecture notes)
+- 5-line blob section banner (`EM-7c: invariant pattern blobs...`)
+- Per-blob `# ---- pattern blob N (Phase-2 window ...) ----` banner
+- `# blob entry α  (Phase-2 pc=...)` annotation on `lea rdi` line
+- `# subj_name=NAME` / `# subj_name=NULL` annotations on `lea rsi` / `xor esi` lines
+- `# has_repl=N` annotation on `mov edx` line
+- `# EM-7c: Phase-3+5 against baked invariant blob` on `call rt_match_blob`
+- `# expression: NAME -> .LpcN` on chunk registry `.quad` lines
+
+**Line count savings:**
+| File | Before | After |
+|------|-------:|------:|
+| roman.s          |  202 |  181 |
+| wordcount.s      |  159 |  134 |
+| claws5.s         | 1112 | 1005 |
+| treebank-list.s  | 1393 | 1249 |
+| treebank-array.s | 1576 | 1427 |
+
+**Gates:** smoke ×6 PASS, broker PASS=49, EM PASS=13, audit 0 violations.
+**Hashes:** one4all `203426c6`, corpus `95589c1`.
+
+----
+
 EM-FORMAT-SM-BANNER-FIDELITY LANDED 2026-05-09
 =============================================
 
