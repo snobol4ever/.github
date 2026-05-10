@@ -70,24 +70,34 @@ land).
 > `docs/CHUNKS-step17i-suspend-validation.md`.  one4all @ `fd1c2b6a`.
 >
 > **CURRENT RUNG: CH-17i-bang-concat** — Phase 1 ✅ LANDED 2026-05-10
-> (one4all `a8a064a0`).  Phases 2 / 3 / 4 ✅ DEFERRED 2026-05-10
+> (one4all `a8a064a0`).  Phases 2 / 3 / 4 ✅ SEQUENCED 2026-05-10
 > (audit doc `CHUNKS-step17i-bang-concat-phase234-audit.md` ; one4all
-> `daa017ba`).  Phase 1 closed rung15_real_swap_lconcat
+> `f78d366c`).  Phase 1 closed rung15_real_swap_lconcat
 > (the empirical anchor) by adding a scalar value-path lowering for
 > AST_LCONCAT mirroring AST_CAT.  Phases 2 (AST_LCONCAT generative),
 > 3 (AST_BANG_BINARY scalar), and 4 (AST_BANG_BINARY generative) are
-> all deferred on the same basis: a 706-program audit sweep across
-> Icon (271) + Raku (186) + Snocone (114) + Prolog (135) under
-> `--sm-run` with `SCRIP_EXPRS_AUDIT=1` shows **zero** SM_PUSH_EXPR
-> fires for any of these kinds.  Mirrors CH-15-SURVEY's deferral of
-> CH-15b on identical reasoning — the architectural unblock is
-> CH-17g-irrun-execution (proc bodies route through SM dispatch);
-> until that lands, the kinds are structurally unreachable from any
-> SM lowering site.  Same finding applies to sister rungs
-> CH-17i-section and CH-17i-limit-random.  Re-trigger condition: any
-> non-zero `FIRES:` count from the canonical audit script (see audit
-> doc §"Audit script"), at which point the relevant phase is
-> unblocked with the firing program as anchor.
+> all sequenced behind CH-17g-irrun-execution on the same basis: a
+> 706-program audit sweep across Icon (271) + Raku (186) + Snocone
+> (114) + Prolog (135) under `--sm-run` with `SCRIP_EXPRS_AUDIT=1`
+> shows **zero** SM_PUSH_EXPR fires for any of these kinds today —
+> precisely because proc bodies are still tree-walked via
+> `coro_pump_proc_by_name` → `coro_eval`, an in-host-process AST
+> walker that Mode 4 cannot embed in a standalone binary.  Mirrors
+> CH-15-SURVEY's deferral of CH-15b on identical reasoning.
+>
+> ⚠ **Sequenced ≠ optional.**  These phases are **required** for
+> CH-17i-mode4-icon-prolog (Mode 4 for Icon/Prolog).  An emitted asm
+> binary cannot fall back to `coro_eval`; every kind a 177-PASS
+> Icon program uses must be in compiled SM by the time Mode 4
+> ships.  Same finding applies to sister rungs CH-17i-section and
+> CH-17i-limit-random.  Sequence:
+> CH-17g-irrun-execution → CH-17i-bang-concat-{2,3,4} +
+> -section + -limit-random + -prolog-initialization →
+> CH-17i-mode3-completeness → CH-17i-mode4-icon-prolog →
+> CH-17i-final-isolation.  Re-trigger for the per-kind rungs:
+> any non-zero `FIRES:` count from the canonical audit script
+> after CH-17g lands (see audit doc §"Audit script" /
+> §"Architectural sequencing").
 >
 > Original framing of the rung as a single migration off the legacy
 > `emit_push_expr + SM_BB_PUMP` fallthrough block (sm_lower.c:1371–1380)
@@ -233,23 +243,27 @@ land).
 >      - **Phase 2 — generative path via unified opcode.**  When at
 >        least one child of AST_LCONCAT is `is_suspendable`, emit the
 >        unified `SM_BB_PUMP_AST` opcode + `g_ast_pump_table` registration
->        (the option-B refactor described in (3) above).  **DEFERRED
->        2026-05-10** — 706-program audit (Icon 271 + Raku 186 + Snocone 114
->        + Prolog 135) under `--sm-run` reports zero SM_PUSH_EXPR fires
->        for any kind in the legacy fallthrough block.  Architectural
->        gate: CH-17g-irrun-execution (proc bodies routed through SM
->        dispatch).  Re-trigger when the canonical audit script
+>        (the option-B refactor described in (3) above).  **SEQUENCED
+>        2026-05-10** behind CH-17g-irrun-execution — 706-program audit
+>        (Icon 271 + Raku 186 + Snocone 114 + Prolog 135) under `--sm-run`
+>        reports zero SM_PUSH_EXPR fires today, but the kind is required
+>        for Mode 4 on Icon (emitted binary cannot tree-walk).
+>        Re-trigger when the canonical audit script
 >        (`docs/CHUNKS-step17i-bang-concat-phase234-audit.md` §"Audit
->        script") returns a non-zero `FIRES:` line.  Same precedent as
->        CH-15-SURVEY's deferral of CH-15b.
+>        script") returns a non-zero `FIRES:` line — which becomes
+>        possible once CH-17g lands.  Same precedent as CH-15-SURVEY's
+>        deferral of CH-15b.
 >      - **Phase 3 — AST_BANG_BINARY scalar value path.**  Add value-
 >        context handling.  Even scalar `!list` is iteration (apply
 >        per-element); needs runtime helper invocation, not a single
->        opcode.  **DEFERRED 2026-05-10** — same audit basis as Phase 2;
->        see `docs/CHUNKS-step17i-bang-concat-phase234-audit.md`.
+>        opcode.  **SEQUENCED 2026-05-10** behind CH-17g-irrun-execution;
+>        same audit basis as Phase 2.  Required for Mode 4 on Icon.
+>        See `docs/CHUNKS-step17i-bang-concat-phase234-audit.md`
+>        §"Architectural sequencing".
 >      - **Phase 4 — AST_BANG_BINARY generative path.**  Same unified
->        opcode pattern as Phase 2 if/when it lands.  **DEFERRED
->        2026-05-10** — same audit basis as Phase 2.
+>        opcode pattern as Phase 2 if/when it lands.  **SEQUENCED
+>        2026-05-10** behind CH-17g-irrun-execution; same audit basis.
+>        Required for Mode 4 on Icon.
 >
 >    This is still ONE rung in spec but lands as 2–4 commits internally.
 >    Or carve into two adjacent rungs: CH-17i-lconcat (phases 1+2) and
