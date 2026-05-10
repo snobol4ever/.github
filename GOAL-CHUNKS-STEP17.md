@@ -40,87 +40,58 @@ land).
 > rung03/04 (7) still fail on AST_SUSPEND — that's the next sub-rung.  Documented in
 > `docs/CHUNKS-step17i-every-validation.md`.  one4all @ `8a85285e`.
 >
-> **CURRENT RUNG: CH-17i-suspend** — second half of CH-17i-every-suspend.  Migrate
-> AST_SUSPEND off legacy `emit_push_expr + SM_BB_PUMP`.  Different shape from
-> CH-17i-every: `suspend E [do body]` yields to the coroutine caller (the proc
-> becomes a generator), so stack discipline differs from `every`.  JCON's
-> `ir_a_Suspend` (irgen.icn:937–977) wires: expr.success → `ir_Succeed(susp_val,
-> resume_label)` (the coroutine yield); resume_label → body.start; body.success/
-> failure → expr.resume; expr.failure → ir.failure.  Expected to unblock 7
-> rung03/04 programs that currently FATAL on AST kind 50.  Same g_*_table pattern
-> as CH-17f / CH-17i-every; the runtime handler likely needs to interact with
-> `coro_bb_suspend` / `coro_stage` so the suspended-proc box is constructed at
-> handler entry rather than via `coro_eval` AST walk (or document why coro_eval
-> walk is acceptable for AST_SUSPEND in this rung).
+> **CH-17i-suspend LANDED 2026-05-10** — second half of CH-17i-every-suspend.
+> AST_SUSPEND migrated off legacy `emit_push_expr + SM_BB_PUMP` onto a new
+> direct-yield primitive `SM_SUSPEND_VALUE` (NOT the g_*_table pattern of
+> CH-17i-every / CH-17f).  Rationale: AST_SUSPEND has no `bb_node_t` shape —
+> its existing semantics (coro_stmt.c:88) are pure in-frame state mutation,
+> and the actual yield is performed by the *outer* loop's swapcontext.
+> Under SM dispatch (proc bodies routed through `sm_call_proc` since CH-17g)
+> there is no outer-loop AST walker to observe `FRAME.suspending`, so the
+> SM-side equivalent is a primitive opcode that does the swapcontext directly.
+> Mirrors JCON's `ir_Succeed` (irgen.icn:962, 970) and the swapcontext half
+> of `coro_bb_suspend` (icon_gen.c:211–240).  New helper `sm_yield_to_caller(v)`
+> in coro_runtime.c stashes `v` in `active_coro->yielded` and `swapcontext`s
+> to caller_ctx; on resume control falls back to the SM dispatch loop, where
+> the do-clause SM runs next.  Lowering shape: `[expr] / SM_JUMP_F L_end /
+> SM_SUSPEND_VALUE / [do-clause] / SM_VOID_POP / SM_PUSH_NULL / SM_JUMP /
+> L_end / L_finally`.  Net stack delta +1 either path; outer proc-body
+> SM_VOID_POP balances.  Files: `sm_prog.h/c` (+enum +name), `sm_lower.c`
+> (carve case out of legacy fallthrough), `coro_runtime.c` (+yield helper),
+> `sm_interp.c` (+handler), `sm_codegen.c` (+JIT mirror).  Gates byte-identical:
+> smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker
+> PASS=49, scrip_all_modes PASS=2, Icon `--ir-run` PASS=177 FAIL=56 XFAIL=30
+> TOTAL=263.  New gain: `--sm-run` rung01–04 17/24 → 20/24 (+3) — exactly
+> rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter
+> flipping from FATAL to PASS.  `--jit-run` rung01–04 same 17/24 → 20/24
+> (+3) via the `h_suspend_value` JIT mirror.  Remaining 4 FAILs in rung01–04
+> are pre-existing (rung02_proc_fact JIT segfault, rung03_suspend_fail and
+> rung03_suspend_return on `return E` — separate territory).  Documented in
+> `docs/CHUNKS-step17i-suspend-validation.md`.  one4all @ `fd1c2b6a`.
 >
-> **⛔ 2026-05-09 ORIENTATION CORRECTION — read this before designing anything:**
+> **CURRENT RUNG: CH-17i-bang-concat** — next sub-rung from the CH-17i-survey.
+> Migrate AST_BANG_BINARY (`!E` iterator) and AST_LCONCAT (string concat with
+> generative children) off the legacy `emit_push_expr + SM_BB_PUMP` fallthrough
+> block (sm_lower.c:1338, post-CH-17i-suspend block).  Both have existing
+> `bb_node_t` shapes in `coro_eval` (icn_iterate_state_t / icn_cat_gen_state_t)
+> — these are CH-17i-every-style migrations, NOT CH-17i-suspend-style.  Use
+> the `g_*_table` + name-driven opcode pattern (CH-17i-every is the working
+> template — see `h_bb_pump_every` in sm_codegen.c and the matching
+> `SM_BB_PUMP_EVERY` handler in sm_interp.c).  Expected gain: rung04_string_*
+> programs that currently FAIL under `--sm-run` on AST_LCONCAT in proc bodies.
+> The ByrdBox `test_icon.c` reference (≈80 lines for the multi-generator
+> example) shows the four-port wiring at the assembly level — useful as a
+> sanity check that the lowering produces the right control flow shape.
 >
-> The BB framework **already exists** and Icon/Prolog AST kinds **already have BB
-> box implementations**.  Prior session (this same note's first draft, commit
-> c6d5bfc) sketched a from-scratch SM-world design with `g_in_goal_directed`
-> flags and pump-once opcodes — that was wrong.  The infrastructure is:
+> **Sub-rung order from CH-17i-survey-mode3.md:**
+>   - CH-17i-bang-concat — AST_BANG_BINARY + AST_LCONCAT (next)
+>   - CH-17i-section — AST_SECTION + AST_SECTION_PLUS + AST_SECTION_MINUS
+>   - CH-17i-limit-random — AST_LIMIT + AST_RANDOM
+>   - CH-17i-prolog-initialization — initialization/2 bridge
 >
->   - `src/runtime/x86/bb_broker.c` — unified driver, three modes:
->     - `BB_SCAN` (SNOBOL4 patterns)
->     - `BB_PUMP` (Icon `every` semantics — drive root.α; body_fn(γ-val); β-loop)
->     - `BB_ONCE` (Prolog single-solution)
->   - `src/runtime/x86/bb_boxes.c` — SNOBOL4 pattern boxes with α/β/γ/ω ports.
->   - `src/runtime/interp/coro_runtime.c::coro_eval` — Icon AST→bb_node_t
->     factory.  Kinds already boxed: AST_TO, AST_TO_BY, AST_ITERATE, AST_LIMIT,
->     AST_ALTERNATE, AST_BANG_BINARY, AST_LCONCAT, AST_SECTION*, AST_FNC user
->     procs.  Each has its own `icn_*_state_t` and α/β port functions.
->   - `src/runtime/interp/coro_value.c::AST_EVERY` — already drives the box via
->     `bb_node_t.fn(ζ,α)` then β-loop.  That IS the every implementation.
->
-> **What the rung is actually about:** `coro_eval` walks the AST at runtime to
-> build the box graph.  The four-mode-isolation gate bans AST walking from
-> SM-mode runtime files.  The work is to **emit the BB graph wiring statically
-> at lower-time** — record entry_pcs / box-state init in the SM_Program — so
-> the SM interpreter dispatches to the existing boxes via the existing broker
-> *without* `coro_eval` walking AST.  The boxes themselves stay; only the
-> graph-construction path moves from runtime AST walk to lower-time emission.
->
-> **Architecture & convention docs (archive — read before coding):**
->   - `archive/BB-GRAPH.md` — the four-port (α/β/γ/ω) box discipline; box state
->     ζ struct; graph storage in `bb_pool` mmap'd RW slab; backend mapping.
->   - `archive/BB-DRIVER.md` — execution protocol the broker implements.
->   - `archive/BB-GEN-LANG.md` — **the three-column emission law** (label col 0,
->     action col 22, goto col 62; action+goto on **same line**).  This is what
->     Lon means by "two jumps go inline with the action, in column 4" — it's
->     the BB-emitter formatting convention (BB-world output, not SM-source).
->   - `archive/GENERAL-BYRD-DYNAMIC.md` — original full design.
->
-> **Reference implementation for IR-shape (uploaded 2026-05-09):**
->   - `jcon-master` (Icon→JVM bytecode compiler).  `tran/irgen.icn` has full
->     IR rules per AST kind using start/success/failure/resume labels — the same
->     four-port discipline as Byrd boxes.  `ir_a_Every` (line 308),
->     `ir_a_Suspend` (line 936), `ir_a_Sectionop`, `ir_a_Call` etc. are the
->     templates.  `tran/gen_bc.icn::bc_gen_ir_Succeed` shows JVM yield via PC
->     field on closure + areturn — directly analogous to SM_SUSPEND saving
->     resume_pc on gen_state_t.
->   - `ByrdBox/test_icon.c` — hand-written reference output for
->     `every write(5 > ((1 to 2) * (3 to 4)))` showing the three-column
->     convention applied: each AST kind gets its `_start/_resume/_succeed/_fail`
->     labels, wired by flat goto graph, ~80 lines for the full expression.
->
-> **What "writes itself" means:** with BB boxes already implemented and the
-> three-column convention documented, lowering AST_EVERY/AST_SUSPEND/AST_TO/etc.
-> is a mechanical translation from `coro_eval`'s C box-construction code to
-> SM_PUSH_EXPRESSION + entry_pc emissions that reach the same boxes.  Each AST
-> kind's lowering rule is a transliteration of its `coro_eval` arm.
->
-> **Empirical baseline (verified 2026-05-09):** 6 rung01_paper_*.icn programs
-> all PASS `--ir-run`, all FAIL `--sm-run` with `sm_interp: stack underflow`.
-> All use `every write(<generator-expr>)` shape.  These flip when the
-> AST_TO/AST_FNC/AST_EVERY chain emits proper BB-graph references in SM
-> instead of the legacy `SM_PUSH_EXPR + SM_BB_PUMP` pair that pushes raw AST*.
->
-> **Next-session protocol:** (1) re-read `archive/BB-GRAPH.md` and
-> `archive/BB-GEN-LANG.md` first; (2) read `coro_eval` in
-> `coro_runtime.c` for AST_TO/AST_EVERY/AST_SUSPEND to see the existing box
-> wiring; (3) read `bb_broker` to see how the broker drives boxes; (4) only
-> then design the lowering — and the design should be the box-emission shape,
-> not new SM opcodes.
+> When all sub-rungs land, the legacy `emit_push_expr + SM_BB_PUMP` fallthrough
+> block in sm_lower.c contains zero kinds.  At that point CH-17i-mode4-icon-prolog
+> + CH-17i-final-isolation (the closing rungs of CH-17i) become unblocked.
 
 ---
 
