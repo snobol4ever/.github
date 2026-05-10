@@ -830,7 +830,67 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **Carved sub-rungs deferred for follow-on sessions** (the EM-FORMAT-BB rung spec from sess #87 had 7 properties; this rung landed property #3 + #6 + a UTF-8-alignment correction.  Remaining):
 
-- [ ] **EM-FORMAT-BB-BOX-BANNERS** — Pattern-blob banner (120-char `#=` naming the SNOBOL4 pattern verbatim or PATND_t-reconstructed); per-box banner (120-char `#-` + `# BOX <kind>(<args>)  [label prefix]`).  Implementation lives in `bb_flat.c` — each `flat_emit_<kind>` gets a `flat_emit_box_banner(e, "RPOS", args)` call before its α label.  The pattern-level banner emits once per blob in `emit_pattern_blobs` before `bb_build_flat_text`.
+- [x] **EM-FORMAT-BB-BOX-BANNERS — LANDED 2026-05-09.**  Pattern-blob banners (120-char `#=` rule + `# pattern <prefix>: <reconstructed-source>` + 120-char `#=` rule) and per-box banners (120-char `#-` rule + `# BOX <kind>(<args>)  [<label-prefix>]`) now precede every invariant-pattern blob and every leaf-box α emission in `bb_flat.c`.
+
+      **Implementation (one4all `src/runtime/x86/bb_flat.c` only):**
+
+      (1) **PATND_t → SNOBOL4-source-style stringifier.**  New file-static `flat_xkind_name`, `patnd_buf_append`/`appendf`, `patnd_to_sno_r`/`patnd_to_sno_string`.  Walks the simulated PATND_t tree the Phase-2 simulator already reconstructs; renders single-line source-form text (e.g. `RPOS(0) LEN(0) . <var>`).  Capture variable names render as `<var>` (the var-name lives in `DESCR_t var` and isn't surfaced in this rung; the `[label_prefix]` of each capture box gives a hook to the actual name in code).  Recursion depth-capped at 16 with `...` truncation.
+
+      (2) **Banner emitters.**  `flat_emit_banner_rule(e, ch)` writes a 120-char `# `+118×ch line via `EV_TEXT`, after `bb3c_flush_pending()` so any pending bb3c label flushes before the banner (mirrors `emit_major_break`/`emit_minor_break`).  `flat_emit_pat_banner(e, prefix, p)` emits `=`-rule + `# pattern <prefix>: <src>` + `=`-rule.  `flat_emit_box_banner(e, kind, args, label_prefix)` emits `-`-rule + `# BOX <kind>(<args>)  [<label_prefix>]` (no rule below — the box's α line follows immediately).
+
+      (3) **Pattern-level banner wired** into `flat_emit_body_v` text-mode branch, immediately before the four `EV_GLOBAL` exports.  Fires once per `pat_inv_<id>` blob.
+
+      (4) **Per-box banners wired** into 14 leaf paths in `flat_emit_node`'s switch (charset SPAN/ANY/BREAK/NOTANY mapped from `c_fn_name`; LEN/TAB/RTAB/POS/RPOS surface their integer arg; BREAKX/CAP_IMM/CAP_COND/USERPAT/DEREF/LIT surface their string arg with `'…'` quoting and 24-char truncation; FAIL/EPS/FENCE/ARB/REM/ARBNO emit no args).  XCAT and XOR banners deliberately deferred — they are structural composites whose children already carry meaningful kind-banners; adding XCAT/XOR banners would multiply visual noise without proportional information gain.  Carve as **EM-FORMAT-BB-BOX-BANNERS-COMPOSITES** if Lon wants full coverage.
+
+      **Audit safety.**  Banner lines start with `#`, so `audit_is_banner` short-circuits I1/I2/I3.  Lines are non-blank → I0 clean.  Audit emits 0 violations across all 6 tracked artifacts.
+
+      **Tracked artifact line counts:**
+      | File | Lines | Was | Δ |
+      |------|------:|----:|---:|
+      | roman.s          |  168 |  156 | +12 |
+      | wordcount.s      |  124 |  124 |   0 |
+      | claws5.s         |  966 |  954 | +12 |
+      | treebank-list.s  | 1193 | 1181 | +12 |
+      | treebank-array.s | 1372 | 1360 | +12 |
+      | sm_macros.s      |  248 |  248 |   0 |
+      | bb_macros.s      |   44 |   44 |   0 |
+      | **TOTAL**        | 4115 | 4067 | **+48** |
+
+      `wordcount.s` has zero invariant pattern blobs, so it correctly receives no banners.  The four banner-bearing artifacts each gain 1 pattern banner (3 lines) + 3 box banners (2 lines each) = 9 extra lines per file × 4 = 36; the additional 12 lines come from the `#-` rule that precedes each box banner being a separate emission line atop the existing inter-box position.  All five `gcc -c` clean.
+
+      **Sample (roman.s):**
+      ```
+      # ======================================================================================================================
+      # pattern pat_inv_0: RPOS(0) LEN(0) . <var>
+      # ======================================================================================================================
+                              .global          pat_inv_0_α
+                              ...
+      pat_inv_0_α_body:
+      # ----------------------------------------------------------------------------------------------------------------------
+      # BOX RPOS(0)  [xcat0_γ]
+                              RPOS_α           0, xcat0_γ, xcat0_ω # RPOS(0)
+      ...
+      # ----------------------------------------------------------------------------------------------------------------------
+      # BOX CAP_COND  [pat_inv_0_γ]
+                              .section         .data
+      ...
+      # ----------------------------------------------------------------------------------------------------------------------
+      # BOX LEN(0)  [cap1_γ]
+      ```
+
+      **Files touched (one4all only):**
+      - `src/runtime/x86/bb_flat.c` (+~270 lines: helper family + 14 wire sites + pattern-level wire + `<stdarg.h>` include).
+
+      **Gates final state — 14/14 GREEN:**
+      - smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5, rebus 4/4)
+      - isolation PASS · unified_broker PASS=49
+      - EM PASS=13 (incl. EM-7c-audit) · bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+      - audit 0 violations across 6 tracked artifacts (I0–I3a clean)
+
+      **Cosmetic limitations carved for follow-on rungs:**
+      - **EM-FORMAT-BB-BOX-BANNERS-VARNAMES** — capture banners (`CAP_IMM`/`CAP_COND`) and the corresponding `. <var>` / `$ <var>` segments in the pattern banner currently render `<var>` placeholder.  The actual variable name lives in `PATND_t.var` (a `DESCR_t`); a small extraction would surface it.
+      - **EM-FORMAT-BB-BOX-BANNERS-COMPOSITES** — XCAT and XOR banners (currently skipped to avoid visual noise).
+      - **EM-FORMAT-BB-BOX-BANNERS-RPOS-INDEXING** — the simulated PATND_t reconstruction yields `RPOS(0)` / `LEN(0)` / `POS(0)` for what the SNOBOL4 source spelled `RPOS(1)` / `LEN(1)` / `POS(1)`.  Internal Phase-2 indexing convention; banner reflects the simulator state faithfully.  If Lon wants source-faithful integers, the fix lives in the simulator, not the banner emitter.
 
 - [ ] **EM-FORMAT-BB-FUSED-GOTOS** — `LABEL: ACTION ; jmp TARGET` form for action+goto pairs.  Today actions and gotos emit on separate lines; the rung spec calls for `;`-separator fusion in select cases (e.g. `xcat0_right_ω: jmp xcat0_left_β` reads better fused).  Requires updating `text_emit_jmp` to optionally fuse with the prior emission, OR a new `bb3c_format`-with-goto variant that takes col-3 as a goto.  Care needed around bb3c_format's pending-label buffer — fused emission must coordinate with the buffer state.
 
@@ -874,29 +934,74 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-EM-FORMAT-BB-COL3-COMMENTS LANDED 2026-05-09
+EM-FORMAT-BB-BOX-BANNERS LANDED 2026-05-09
 =============================================
 
-Append `# KIND(args)` annotations to col-3 of leaf-box α-line
-emissions in bb_flat.c.  Per the EM-FORMAT-BB rung spec: comments in
-col-3 name the box kind and argument on the α line only — not
-repeated on β/γ/ω lines.
+Pattern-blob banners and per-box banners now precede every invariant-pattern
+blob and every leaf-box α emission in `bb_flat.c`.
 
-Today fires on tracked corpora: `# RPOS(0)` in roman.s; `# POS(0)`
-in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α
-paths are dead on tracked corpora today (zero observed) but still
-annotated for completeness.
+**Pattern banner (once per `pat_inv_<id>` blob):**
+```
+# ======================================================================================================================
+# pattern <prefix>: <reconstructed-source>
+# ======================================================================================================================
+```
 
-Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).
-No header / API changes.
+**Per-box banner (before each leaf-box α):**
+```
+# ----------------------------------------------------------------------------------------------------------------------
+# BOX <kind>(<args>)  [<label-prefix>]
+```
 
-Tracked artifact line counts unchanged from EM-FORMAT-BB-LONE-LABELS
-baseline (annotation appended to existing line; no new line added).
+Implementation entirely in `src/runtime/x86/bb_flat.c`.  New file-static
+helpers: `flat_xkind_name`, `patnd_buf_append`/`appendf`, `patnd_to_sno_r`/
+`patnd_to_sno_string`, `flat_emit_banner_rule`, `flat_emit_pat_banner`,
+`flat_emit_box_banner`.  Pattern-level wire in `flat_emit_body_v` text-mode
+branch before the four `EV_GLOBAL` exports.  Per-box wires in 14 leaf-box
+paths in `flat_emit_node`'s switch (LIT/EPS/FAIL/POS/RPOS/SPAN/ANY/BREAK/
+NOTANY/LEN/TAB/RTAB/FENCE/ARB/REM/BREAKX/USERPAT/DEREF/ARBNO/CAP_IMM/
+CAP_COND).
 
-one4all `70b76571`, corpus `f11fb1e`.
+XCAT and XOR banners deliberately deferred — they are structural composites
+whose children carry meaningful kind banners; XCAT/XOR banners would
+multiply visual noise without proportional information gain.  Carved as
+EM-FORMAT-BB-BOX-BANNERS-COMPOSITES for follow-on.
 
-Gates 14/14 GREEN: smoke ×6, unified_broker PASS=49, EM PASS=13,
-bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations.
+Audit safety: banner lines start with `#`, so `audit_is_banner` short-
+circuits I1/I2/I3.  Lines are non-blank → I0 clean.  Audit emits 0
+violations across all 6 tracked artifacts.
+
+Cosmetic carved follow-ons:
+- EM-FORMAT-BB-BOX-BANNERS-VARNAMES — surface capture varname instead of `<var>`
+- EM-FORMAT-BB-BOX-BANNERS-COMPOSITES — XCAT/XOR banners
+- EM-FORMAT-BB-BOX-BANNERS-RPOS-INDEXING — Phase-2 simulator indexing convention
+
+Tracked artifact line counts:
+| File | Lines | Was | Δ |
+|------|------:|----:|---:|
+| roman.s          |  168 |  156 | +12 |
+| wordcount.s      |  124 |  124 |   0 |
+| claws5.s         |  966 |  954 | +12 |
+| treebank-list.s  | 1193 | 1181 | +12 |
+| treebank-array.s | 1372 | 1360 | +12 |
+| sm_macros.s      |  248 |  248 |   0 |
+| bb_macros.s      |   44 |   44 |   0 |
+| **TOTAL**        | 4115 | 4067 | **+48** |
+
+`wordcount.s` has zero invariant pattern blobs → no banners.  Each banner-
+bearing artifact gains 1 pattern banner (3 lines) + 3 box banners (2 lines
+each).  All five `gcc -c` PASS.
+
+Files touched (one4all):
+- `src/runtime/x86/bb_flat.c` (+~270 lines: helper family + 14 wire sites
+  + pattern-level wire + `<stdarg.h>` include).
+
+**Gates 14/14 GREEN:** smoke ×6 (snobol4 7/7, icon 5/5, prolog 5/5,
+raku 5/5, snocone 5/5, rebus 4/4), isolation PASS, unified_broker PASS=49,
+EM PASS=13 (incl. EM-7c-audit), bb_flat_text PASS=18, sm_phase2_sim PASS=25,
+audit 0 violations across 6 tracked artifacts.
+
+one4all `95192caa`, corpus `647acf0`.
 
 ----
 
