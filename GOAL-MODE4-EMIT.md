@@ -894,7 +894,76 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [ ] **EM-FORMAT-BB-FUSED-GOTOS** — `LABEL: ACTION ; jmp TARGET` form for action+goto pairs.  Today actions and gotos emit on separate lines; the rung spec calls for `;`-separator fusion in select cases (e.g. `xcat0_right_ω: jmp xcat0_left_β` reads better fused).  Requires updating `text_emit_jmp` to optionally fuse with the prior emission, OR a new `bb3c_format`-with-goto variant that takes col-3 as a goto.  Care needed around bb3c_format's pending-label buffer — fused emission must coordinate with the buffer state.
 
-- [ ] **EM-FORMAT-BB-PORT-COMPLETION** — Audit/enforcement that every box emits all four α/β/γ/ω ports even when one would be a trivial jump.  Today some boxes (XCAT-with-zero-children, simpler leaves) emit fewer ports.  Survey first to identify which paths skip ports — same shape as CH-15-SURVEY / CH-17h-SURVEY before any code changes.
+- [x] **EM-FORMAT-BB-PORT-COMPLETION — LANDED 2026-05-09.**  Survey-first rung (same shape as CH-15-SURVEY / CH-17h-SURVEY).  Findings: port emission is structurally correct on all 5 tracked corpora.  Every box that fires emits its α/β at minimum; γ and ω are caller-owned by structural design (the parent composite or blob exit defines them; the leaf jumps to them).  No port-completion fix needed for tracked corpora.
+
+      **Survey methodology:**  `port_survey.py` walks each .s artifact and classifies every Greek-suffix label by box family (label-prefix-before-Greek), port (α/β/γ/ω with optional `_body`/`_entry` sub-suffix), and DEFINED (col-1 with `:`) vs REFERENCED (jump target / .global).  Grouped by family, defined-vs-referenced counts per port.
+
+      **Findings table (across all 5 tracked artifacts):**
+
+      | Family       | α def | α ref | β def | β ref | γ def | γ ref | ω def | ω ref |
+      |--------------|------:|------:|------:|------:|------:|------:|------:|------:|
+      | pat_inv_0    |     8 |    12 |     4 |     8 |     4 |    16 |     4 |     8 |
+      | cap1         |     4 |     4 |     4 |     4 |     4 |    12 |     4 |     8 |
+      | cap1_child   |     4 |     8 |     0 |     0 |     0 |     0 |     0 |     0 |
+      | xcat0        |     0 |     0 |     0 |     0 |     4 |     8 |     4 |     8 |
+      | xcat0_left   |     0 |     0 |     4 |     4 |     0 |     0 |     0 |     0 |
+      | xcat0_right  |     0 |     0 |     4 |     4 |     0 |     0 |     4 |     8 |
+
+      Three classes of "no label of port X":
+      - **Caller-owned ports**: leaf γ/ω are passed in by parent — structural, not a bug.
+      - **Sub-procedure boxes** (cap1_child): one-shot dispatch, no backtracking — no β/γ/ω is meaningful.
+      - **Composite ports** (xcat0_γ/ω, xcat0_left/right_β/ω): routing labels between children, owned by composite, not by individual box.
+
+      **Survey ALSO surfaced an unrelated regression** of EM-FORMAT-BB-LONE-LABELS — fixed in this rung:
+
+      `flat_emit_banner_rule` (introduced in EM-FORMAT-BB-BOX-BANNERS, sess 2026-05-09 earlier) called `bb3c_flush_pending()` to "flush any pending label so it doesn't appear AFTER this banner."  But the bb3c pending-label buffer is consulted ONLY by future bb3c_format calls; banner emission via `EV_TEXT` → `e->fprintf_raw` writes directly to the FILE* without touching the buffer.  So the protection was unnecessary AND the flush regressed LONE-LABELS by writing the pending label as a standalone lone-label line BEFORE the banner.
+
+      **Bug instances**: 3 lone labels per file × 4 banner-bearing files = 12 lone labels:
+      - `pat_inv_0_α_body:` (4 occurrences — the blob entry body label, flushed before per-box banner of first child)
+      - `xcat0_γ:` (4 occurrences — the xcat success-exit, flushed before second-child box banner)
+      - `cap1_α_body:` (4 occurrences — capture body label, flushed before LEN box banner inside child sub-proc)
+
+      **Fix**: removed `bb3c_flush_pending()` from `flat_emit_banner_rule`.  Pending label sits in buffer through banner emission (which goes directly to file).  Next `flat3c_action` call after the banner consumes the pending label via the existing empty-col-1 fusion path.  Result: banner first, then `<label>:    <first content line>` on a fused line.
+
+      **Verification (after fix):**
+
+      | File             | Lines | Was | Δ | Lone labels | gcc -c |
+      |------------------|------:|----:|---:|:-----------:|:------:|
+      | roman.s          |   165 | 168 | -3 |       0     |   OK   |
+      | wordcount.s      |   124 | 124 |  0 |       0     |   OK   |
+      | claws5.s         |   963 | 966 | -3 |       0     |   OK   |
+      | treebank-list.s  |  1190 | 1193 | -3 |       0     |   OK   |
+      | treebank-array.s |  1369 | 1372 | -3 |       0     |   OK   |
+      | sm_macros.s      |   248 | 248 |  0 |       0     | (.include) |
+      | bb_macros.s      |    44 |  44 |  0 |       0     | (.include) |
+
+      **Sample (roman.s) — before vs after:**
+      ```
+      BEFORE                                          AFTER
+                              je    pat_inv_0_α_body                          je               pat_inv_0_α_body
+                              jmp   pat_inv_0_β                               jmp              pat_inv_0_β
+      pat_inv_0_α_body:                               # ----------------------------
+      # ----------------------------                  # BOX RPOS(0)  [xcat0_γ]
+      # BOX RPOS(0)  [xcat0_γ]                        pat_inv_0_α_body:       RPOS_α    0, xcat0_γ, xcat0_ω # RPOS(0)
+                              RPOS_α  0, xcat0_γ...   xcat0_left_β:           RPOS_β    xcat0_ω
+      ```
+
+      `nm` on the assembled object verifies `pat_inv_0_α_body`, `xcat0_γ`, `cap1_α_body` are all defined as `.text` symbols at the correct addresses (the section-switching `.section .data` directives that some α_body labels fuse with switch sections AFTER the label is bound).
+
+      **Carved follow-on rungs** (latent bugs surfaced by survey, not fixed here):
+      - **EM-FORMAT-BB-LIT-MOV-RSI-RCX** — `flat_emit_lit` line 577 has a raw `fprintf_raw("    mov     rsi, rcx\n")` that bypasses bb3c_format and emits a 4-space-indented 2-column line.  Doesn't fire on tracked corpora (no XLIT pattern element) but fires on any program with a string-literal in a pattern.  Fix: add `BB_INSN_MOV_RSI_RCX` insn kind, route through `e->emit_insn`.
+      - **EM-FORMAT-BB-EMPTY-XCAT-LONE-LABEL-FLUSH** — `flat_emit_xcat` `nchildren == 0` path emits a chain of bare labels with no following content (`mid_γ`, `right_ω`, `right_β`, `left_β`).  Doesn't fire on tracked corpora but is latent.  Fix: insert a `nop` between final labels, or call `bb3c_flush_pending` at end of empty-XCAT.
+
+      **Files touched (one4all):**
+      - `src/runtime/x86/bb_flat.c` — removed `bb3c_flush_pending()` call from `flat_emit_banner_rule`; added doc-comment explaining why the flush was wrong.
+
+      **Gates 14/14 GREEN:**
+      - smoke ×6 PASS (snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone via all_modes 5/5, rebus 4/4)
+      - all_modes PASS=2 (sm-run + ir-run)
+      - isolation PASS · unified_broker PASS=49
+      - EM PASS=13 (incl. EM-7c-audit) · bb_flat_text PASS=18 · sm_phase2_sim PASS=25
+      - audit 0 violations across 6 tracked artifacts
+      - **NEW invariant verified: 0 lone labels across 5 artifacts (was 12)**
 
 - [x] **EM-FORMAT-BB-COL3-COMMENTS — LANDED 2026-05-09.**  Append `# KIND(args)` annotations to col-3 of leaf-box α-line emissions in `bb_flat.c`.  Today fires on tracked corpora: `# RPOS(0)` in roman.s, `# POS(0)` in claws5.s + treebank-list.s + treebank-array.s.  EPS_α and FAIL_α paths are dead on tracked corpora today (zero observed) but still annotated for completeness.  Files: `src/runtime/x86/bb_flat.c` only (4 leaf-box α emissions).  Line counts unchanged (annotation appended to existing line).  Gates 14/14 GREEN.  one4all `70b76571`, corpus `f11fb1e`.
 
@@ -933,6 +1002,62 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+EM-FORMAT-BB-PORT-COMPLETION LANDED 2026-05-09
+=============================================
+
+Survey-first rung.  Findings: port emission is structurally correct on
+all 5 tracked corpora.  Every box that fires emits its α/β at minimum;
+γ and ω are caller-owned by structural design.  No port-completion fix
+needed for tracked corpora.  Two latent bugs carved as follow-on rungs:
+- EM-FORMAT-BB-LIT-MOV-RSI-RCX — raw fprintf_raw bypass at bb_flat.c:577
+- EM-FORMAT-BB-EMPTY-XCAT-LONE-LABEL-FLUSH — chain of bare labels at end
+  of empty-XCAT path
+
+Survey ALSO surfaced an unrelated regression of EM-FORMAT-BB-LONE-LABELS
+introduced by the EM-FORMAT-BB-BOX-BANNERS rung (same session) — fixed
+in this rung:
+
+`flat_emit_banner_rule` was calling `bb3c_flush_pending()` to "flush
+any pending label so it doesn't appear AFTER this banner."  The
+protection was unnecessary (banner emission via fprintf_raw doesn't
+touch the buffer) AND the flush regressed LONE-LABELS by writing the
+pending label as a standalone lone-label line BEFORE the banner.
+
+Bug instances: 3 lone labels per file × 4 banner-bearing files = 12
+lone labels (`pat_inv_0_α_body:`, `xcat0_γ:`, `cap1_α_body:`).
+
+Fix: removed the `bb3c_flush_pending()` call.  Pending label stays in
+buffer through banner emission; the next `flat3c_action` after the
+banner consumes it via empty-col-1 fusion.  Result: banner first, then
+`<label>:    <first content line>` on a single fused line.
+
+Verification: 0 lone labels across all 5 artifacts (was 12).  All 5
+gcc -c clean.  Line counts dropped 3 per banner-bearing file.
+
+Files touched (one4all):
+- `src/runtime/x86/bb_flat.c` (-2 lines: removed flush call; +12 lines:
+  doc-comment explaining why)
+
+Tracked artifact line counts:
+| File | Lines | Was | Δ |
+|------|------:|----:|---:|
+| roman.s          |  165 |  168 | −3 |
+| wordcount.s      |  124 |  124 |  0 |
+| claws5.s         |  963 |  966 | −3 |
+| treebank-list.s  | 1190 | 1193 | −3 |
+| treebank-array.s | 1369 | 1372 | −3 |
+| sm_macros.s      |  248 |  248 |  0 |
+| bb_macros.s      |   44 |   44 |  0 |
+| **TOTAL**        | 4103 | 4115 | **−12** |
+
+Gates 14/14 GREEN: smoke ×6 (snobol4 7/7, icon 5/5, prolog 5/5,
+raku 5/5, snocone via all_modes 5/5, rebus 4/4), all_modes 2/2,
+isolation PASS, unified_broker PASS=49, EM PASS=13 (incl. EM-7c-audit),
+bb_flat_text PASS=18, sm_phase2_sim PASS=25, audit 0 violations across
+6 tracked artifacts.  NEW invariant verified: 0 lone labels.
+
+----
 
 EM-FORMAT-BB-BOX-BANNERS LANDED 2026-05-09
 =============================================
