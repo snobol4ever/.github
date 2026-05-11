@@ -1430,6 +1430,24 @@ Honest mode-3: 143→152 (+9). ir-run: 186 unchanged.
 (rung36_jcon_wordcnt segfault — pre-existing). Remaining 86 FAIL programs:
 survey needed to identify next highest-yield gap category.
 
+**Failure category triage (sess 2026-05-11 end-of-session survey):**
+```
+37  rung36_jcon_*     — large JCON programs; mixed gaps (lists, tables, sort, scan, string ops)
+ 4  rung13_table_*    — table builtins (member, insert, delete, subscript)
+ 4  rung23_table_*    — table iteration / key operations
+ 4  rung05_scan_*     — scan segfaults (pre-existing --sm-run crash, not scan-context bug)
+ 3  rung33_case_*     — case expression gaps
+ 2  rung22_lists_*    — list builtins (push/put/size/pop)
+ 2  rung25_global_*   — global/initial declaration semantics
+ 2  rung15_real_swap_swap_* — string swap via assign
+ 2  rung18_real_relop_* — real number relops
+ 2  rung31_sort_*     — sort/sortf
+```
+Recommended next targets: **rung13/23 table builtins** (8 programs, likely
+`member`/`insert`/`delete` not in `icn_try_call_builtin_by_name`), then
+**rung22 list builtins** (push/put/pop/size). The rung36 failures are
+harder (full programs needing multiple sub-fixes).
+
 ---
 
 ## Definitions
