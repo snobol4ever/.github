@@ -1316,10 +1316,61 @@ working implementation.  Both are in scope as primary references.
 
 ---
 
-## Closed rungs (none — file just opened)
+## Closed rungs
 
-(Sessions that close rungs append a paragraph here with one4all
-hash, gates, and any honest deferrals.  Format mirrors
+### A3-seed-fix ✅ 2026-05-10 (sess Claude)
+
+Unified the three independent `static unsigned long _rnd_seed = 12345UL`
+LCG seeds (`coro_value.c::_rnd_seed`, `sm_interp.c::sm_rnd_seed`,
+`interp_eval.c::_rnd_seed`) into one canonical
+`unsigned long bb_icn_rnd_seed = 12345UL;` defined in `coro_value.c`
+and externed via `coro_value.h`. All three sites now advance one
+shared counter, so `--ir-run`, `--sm-run`, and the
+SNOBOL4-evaluator AST_RANDOM fallback produce bit-identical
+sequences for any program that exercises only one consumption path.
+
+Files touched (5): `coro_value.h` (extern), `coro_value.c`
+(definition + use site), `sm_interp.c` (include + use site),
+`interp_eval.c` (include + use site). LCG algorithm and seed
+value unchanged.
+
+Honest mode-3 dial moved 116→117 (+1 PASS). The remaining
+divergence in `rung36_jcon_random.icn` is no longer seed-driven;
+it is caused by separate SM-mode gaps (`&lcase`/`&ucase` keyword
+evaluation returns empty, `?L` for list-random raises
+"Undefined function or operation"). Those gaps are out of scope
+for this rung and belong to sibling SM-mode work.
+
+Doc: `docs/CHUNKS-icon-bb-A3-seed-fix-validation.md`.
+
+### A4 — CH-17i-alternate ✅ 2026-05-10 (sess Claude)
+
+Migrated `AST_ALTERNATE` (`E1 | E2 | E3 | …`) off the SM default
+`SM_PUSH_NULL` fallthrough onto a real lowering via `SM_BB_PUMP_AST`.
+Same shape as A1's `AST_BANG_BINARY` and the A4-pulled-forward
+`AST_ITERATE`: register the AST node in `g_ast_pump_table`, emit
+`SM_BB_PUMP_AST` with the returned id; runtime drives
+`coro_bb_alternate` (already implemented in `coro_runtime.c:1418`)
+via `coro_eval` → `node.fn(node.ζ, α)` to pull the first value of
+the alternation.
+
+Pre-rung anchor `x := 1 | 2 | 3; write(x);` printed blank under
+`--sm-run` (assigned `&null`); post-rung it prints `1` under all
+three modes (ir-run, sm-run, honest sm-run). `every write(1|2|3)`
+already worked pre-rung — `AST_EVERY`'s SM lowering takes a
+different path; A4's contribution is the value-context use
+(assignment, function arguments, etc.).
+
+Files touched (1): `sm_lower.c` — added `case AST_ALTERNATE:`
+arm immediately after `AST_ITERATE`.
+
+Honest mode-3 dial moved 117→122 (+5 PASS). ir-run baseline
+unchanged at 177/56/30. All smokes and unified_broker clean.
+
+Doc: `docs/CHUNKS-icon-bb-alternate-validation.md`.
+
+(Sessions that close further rungs append a paragraph here with
+one4all hash, gates, and any honest deferrals.  Format mirrors
 `GOAL-CHUNKS-STEP17.md`'s "Closed rungs" section.)
 
 ---
