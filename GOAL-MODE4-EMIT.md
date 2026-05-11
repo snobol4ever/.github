@@ -312,10 +312,10 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -f SM: `templates/sm_push_lit_i.c`. `movabs rdi,val; call rt_push_int@PLT`. (Sonnet 4.6, `33b3c7ba`)
   - [x] -g BB: `templates/bb_xlnth.c` integer-cursor family (XLNTH/XTB/XRTB). (Sonnet 4.6, `9e2ea80e`)
   - [x] -h SM: `templates/sm_void_pop.c`. `call rt_pop_void@PLT`. (Sonnet 4.6, `87f59f43`)
-  - [ ] **-i BB: `bb_xbrkx`** ← **NEXT**. Break-from-variable box. Follow -e callback pattern.
-  - [ ] -j SM: `sm_jump` family (JUMP/JUMP_S/JUMP_F).
-  - [ ] -k BB: XPOSI+XRPSI (one rung).
-  - [ ] -l SM: arithmetic family (ADD/SUB/MUL/DIV/MOD/EXP).
+  - [x] -i BB: `templates/bb_xbrkx.c` BREAKX box. Callback pattern (brkx_text_body in bb_flat.c). Byte-identical. (Sonnet 4.6, one4all `a895fbeb`)
+  - [x] -j SM: `templates/sm_jump.c` JUMP/JUMP_S/JUMP_F. (Sonnet 4.6, one4all `cc21cf01`)
+  - [x] -k BB: `templates/bb_xposi.c` POS/RPOS. Callback pattern. (Sonnet 4.6, one4all `30b19814`)
+  - [ ] **-l SM: arithmetic family** ← **NEXT**. ADD/SUB/MUL/DIV/MOD/EXP.
   - [ ] -m BB: XFARB+XEPS+XFAIL (one rung).
   - [ ] -n..p Further SM/BB alternation (SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN family, remaining BB boxes, SM_PAT_*).
   - [ ] -q SM_LABEL / SM_STNO structural markers.
@@ -364,7 +364,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 Gates: smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. 5/5 artifacts gcc-c clean.
 one4all `87f59f43` · corpus `2f6beec` · .github `b78e199`.
 
-**Next: -i — BB-axis: `bb_xbrkx`** (break-from-variable; follow -e callback pattern in bb_flat.c).
+**Next: -l — SM-axis: arithmetic family** (ADD/SUB/MUL/DIV/MOD/EXP).
 
 **Template pattern for SM sub-rungs (follow for -j onward):**
 1. `templates/sm_<opcode>.c`: `emit_sm_<opcode>(emitter_t *e, <operands>)`.
