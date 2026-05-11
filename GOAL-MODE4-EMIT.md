@@ -446,6 +446,19 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First SM opcode end-to-end: SM_HALT.**  `templates/sm_halt.c`.  mode-3 through it (replaces `emit_halt_blob`); mode-4 through it (replaces `emit_sm_halt`); `sm_macros.s` HALT generated from it via new `tools/regen_macros.c`.  New gate `test_gate_em_template_byte_identity.sh`.
 
+      **PARTIAL LANDING — sess 2026-05-11 (Claude Opus 4.7):** The mode-3 portion is fully wired and gated; mode-4 wiring blocked on a design question.  See watermark for the full picture.  At a glance:
+
+      - ✅ `templates/sm_halt.c` written; describes SM_HALT as `inc [r13+20]; ret` (the mode-3 form, also the design-doc form).
+      - ✅ `templates/templates.h` created to aggregate template declarations.
+      - ✅ `BB_INSN_INC_MEM_R13_DISP8` added to emitter.h; impl in both text and binary backends.
+      - ✅ Mode-3 routed through the template via a capture-and-flush adapter (`emit_halt_blob_via_template` in `sm_codegen.c`); legacy `emit_halt_blob` retained with `__attribute__((unused))` as a one-line revert path.
+      - ✅ Two gates: `test_gate_em_template_byte_identity.sh` (behavioral parity, 4/4 PASS) and `build_and_run_test_template_byte_identity.sh` (byte-level: drives `emit_sm_halt` into a buffer and compares to the literal expected sequence `41 ff 45 14 c3`).
+      - ✅ Visual demo `demo_template_productions.c` exercises all three backends on the template and prints the productions side-by-side.
+      - ⛔ **Mode-4 NOT wired.**  Mode-4 today emits `call rt_halt_tos@PLT` for SM_HALT (via `sm_emit_template.c` SM_TPL_NULLARY arm), which is structurally different from the template's `inc [r13+20]; ret`.  Resolving the discrepancy is a Lon-decision: either change mode-4 to match the template (Option A — strong "one source of truth"), or accept that mode-3 and mode-4 differ for some opcodes because their host environments differ (Option B — but the design doc forbids backend-conditional template bodies).  See `templates/sm_halt.c` header comment ("KNOWN OPEN ARCHITECTURAL QUESTION") and the watermark for details.
+      - ⛔ **`sm_macros.s` regeneration NOT done.**  Blocked on the same question — the macro_def backend's HALT body has the same divergence problem as the text-INVOCATION backend's per-call-site line.  `tools/regen_macros.c` not authored.
+
+      Reopens for a follow-up session: either close mode-4 via the chosen option, or carve `-c-mode4` as a new sub-rung once the decision lands.
+
       - [ ] **EM-MODE4-IS-MODE3-DUMP-d — First BB box end-to-end: bb_xchr.**  `templates/bb_xchr.c`.  Simplest box (one-character literal compare).  Wires `bb_flat.c`'s XCHR emit calls through the new vtable.  Proves BB side of the surface.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-e through -p — One emission unit per rung, alternating SM ↔ BB.**  Suggested order: sm_push_lit_i, bb_xlit, sm_push_lit_s, bb_xspnc, sm_void_pop, bb_xanyc, sm_jump, bb_xbrkc, sm_jump_s+sm_jump_f, bb_xnnyc, sm_add+sub+mul+div+mod+exp (one rung), bb_xlnth+xtb+xrtb (one rung).  Each rung lands its own template C file(s), deletes corresponding inline emission from `sm_codegen.c` / `bb_flat.c` / `sm_codegen_x64_emit.c` / `bb_emit.c`, regenerates the corresponding macro.
@@ -509,6 +522,206 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-c PARTIAL LANDING (mode-3 wired; mode-4 blocked on design question) — sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Sub-rung -c was carved as "first SM opcode end-to-end: SM_HALT,
+mode-3 + mode-4 + sm_macros.s through one template."  The mode-3
+portion is fully landed and gated.  The mode-4 portion surfaced an
+architectural contradiction between the design doc and existing
+production code that I deliberately did not silently resolve.  The
+sub-rung is therefore left `[ ]` with a partial-landing note, pending
+Lon's decision on direction.
+
+**The architectural contradiction.**
+
+Mode-3's current `emit_halt_blob` emits 5 bytes:
+```
+  41 ff 45 14   ; inc dword [r13 + 20]  — st->pc++
+  c3            ; ret                    — return to sm_jit_run's C caller
+```
+
+Mode-4's current `emit_sm_halt` (in `sm_codegen_x64_emit.c`) emits a
+single GAS line:
+```
+  HALT                    ; macro invocation
+```
+whose body, defined by `sm_emit_template.c` SM_TPL_NULLARY arm, expands to:
+```
+  call rt_halt_tos@PLT    ; PLT call into libscrip_rt.so
+```
+
+These are NOT the same instructions.  The environments differ:
+mode-3 runs in-process (r13 is a live SM_State pointer; ret unwinds
+to sm_jit_run's C frame); mode-4 is a standalone binary linked
+against `libscrip_rt.so` (no sm_jit_run; rt_halt_tos handles exit-
+code propagation; main() wrapper handles termination).
+
+The design doc's SM_HALT example
+(`MIGRATION-MODE4-IS-MODE3-DUMP.md` §"The template-as-program") shows
+the *mode-3* form as the output of *all three* backends.  But mode-4
+today produces something structurally different, and the design
+doc's stated invariant ("templates do not branch on the backend")
+forbids the obvious workaround.
+
+**Three coherent paths forward** (Lon decision):
+
+| Option | Description | Cost |
+|--------|-------------|------|
+| **A** | Honor the design doc.  Change mode-4 to emit `inc [r13+20]; ret` like mode-3.  Mode-4's main() / libscrip_rt absorbs whatever rt_halt_tos was doing for exit-code propagation. | Behavioral change to mode-4 emission; mode-4 binaries become byte-identical to mode-3.  Strong "one source of truth." |
+| **B** | Honor existing code.  Templates acknowledge per-backend dispatch via backend-conditional surface methods (e.g. `e->exit_via_ret_or_plt_halt()`).  This contradicts the design doc's "templates do not branch on backend" rule.  Effectively withdraws part of the design doc. | Documentation churn.  Templates become slightly less pure but more honest about reality.  Probably the right answer for opcodes where mode-3 and mode-4 must legitimately diverge. |
+| **C** | Define different scope for some opcodes.  SM_HALT is special — it's terminative.  Most opcodes (arithmetic, pushes, jumps, calls into runtime) likely DO match across mode-3 and mode-4 because both call into the same runtime symbols.  SM_HALT can stay mode-3-only-templated; the rest of the retrofit (sub-rungs -d through -p) goes per-design and most won't surface this problem. | Smallest change; pragmatic.  Loses "every opcode through one template" property for the handful of opcodes that genuinely differ.  Probably the right operational answer: build the machinery, exempt the few opcodes that can't fit, document why. |
+
+I cannot resolve A vs B vs C alone — the decision affects the
+backbone of every subsequent sub-rung.  Stopping here for direction.
+
+**What landed:**
+
+- `src/runtime/x86/emitter.h`:
+  - New `BB_INSN_INC_MEM_R13_DISP8` enum kind (a2 carries disp8;
+    used by SM_HALT and future SM opcodes that touch SM_State
+    integer fields).
+  - New inline helper `emit_inc_mem_r13_disp8(e, disp)`.
+
+- `src/runtime/x86/emitter_binary.c`:
+  - Impl for the new kind: 4 bytes `41 ff 45 <disp8>`.
+
+- `src/runtime/x86/emitter_text.c`:
+  - Impl for the new kind: `inc dword ptr [r13 + N]` three-column line.
+
+- `src/runtime/x86/templates/sm_halt.c` — NEW file, 92 lines.
+  - First per-opcode template: `void emit_sm_halt(emitter_t *e)`.
+  - Body (sprinkle model): `e->comment(...)`, `emit_inc_mem_r13_disp8(e, 20)`,
+    `emit_ret(e)`, `e->pad_to_blob_size(e)`.
+  - Extensive header comment documenting the KNOWN OPEN
+    ARCHITECTURAL QUESTION (the mode-3/mode-4 divergence above),
+    the byte-identity invariant, the sub-rung scope decision, and
+    the rollback path.
+
+- `src/runtime/x86/templates/templates.h` — NEW file.
+  - Aggregates template declarations; `void emit_sm_halt(emitter_t *e)`.
+  - Documents naming convention; will grow with each subsequent
+    rung as templates are added.
+
+- `src/runtime/x86/sm_codegen.c`:
+  - `+include` for templates.h, bb_emit.h, emitter.h.
+  - Legacy `emit_halt_blob` kept with `__attribute__((unused))` —
+    serves as rollback reference + byte-identity oracle (the gate
+    invariant is "template output == legacy output", and the legacy
+    function's literal `seg_byte(SEG_CODE, 0x41); seg_byte(..., 0xff);
+    seg_byte(..., 0x45); seg_byte(..., 0x14); seg_byte(..., 0xc3);`
+    is the canonical reference).
+  - New `emit_halt_blob_via_template()` adapter (capture-and-flush
+    pattern): allocates a 16-byte temp buffer, constructs a binary
+    emitter targeting it, runs the template, sanity-checks length,
+    then `seg_byte`s the captured bytes into SEG_CODE.  Aborts on
+    template-bug (length != 5) rather than corrupting SEG_CODE.
+  - SM_HALT case in the pass-1 dispatcher (line ~3151) calls
+    `emit_halt_blob_via_template()` instead of `emit_halt_blob()`.
+    Single-line revert if needed.
+
+- `src/runtime/x86/test_template_byte_identity.c` — NEW unit test.
+  - Drives `emit_sm_halt` through a binary emitter, compares the
+    resulting bytes to the literal expected sequence
+    `41 ff 45 14 c3` byte-for-byte.  Also checks a sentinel
+    (pre-fill 0xAB) past the 5-byte boundary to catch overruns.
+
+- `src/runtime/x86/demo_template_productions.c` — NEW (not a test).
+  - Drives `emit_sm_halt` through all three backends and prints the
+    output side-by-side.  Useful for Lon when evaluating Option A
+    vs B vs C.
+
+- `scripts/test_gate_em_template_byte_identity.sh` — NEW gate.
+  - Behavioral: runs four small SNOBOL4 programs (immediate halt,
+    halt after arith, halt after match, halt after loop) under
+    both `--sm-run` (interpreter, byte-identity oracle) and
+    `--jit-run` (mode-3, walks SEG_CODE through the template's
+    SM_HALT blob); requires output equality.  Catches any template
+    bug that produces semantically-different bytes.
+
+- `scripts/build_and_run_test_template_byte_identity.sh` — NEW.
+  - Builds and runs the unit test above.  Stronger than the
+    behavioral gate because it catches equivalent-but-different
+    encodings of the same operation.
+
+- `Makefile`:
+  - `templates/sm_halt.c` added to scrip rule (line 243).  NOT
+    added to `RT_PIC_SRCS` — libscrip_rt.so does not include
+    `sm_codegen.c`, and the template is only called from there
+    today.  When mode-4 wiring lands, that may change.
+
+**Gates (all green):**
+
+- `bash scripts/build_scrip.sh`: clean.
+- `bash scripts/test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `bash scripts/test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- `bash scripts/test_smoke_snocone.sh`: PASS=5 FAIL=0.
+- `bash scripts/test_smoke_snobol4_jit.sh`: `--sm-run` 197/64,
+  `--jit-run` 197/64 — three-mode parity preserved (and confirms
+  SM_HALT-via-template is byte-identical to SM_HALT-via-legacy
+  across the 261-program crosscheck).
+- `bash scripts/test_gate_em_template_byte_identity.sh`: PASS=4
+  FAIL=0.
+- `bash scripts/build_and_run_test_template_byte_identity.sh`:
+  PASS (5 bytes, exact match `41 ff 45 14 c3`, sentinel intact).
+- `-Wall -Wextra -Wno-unused-parameter -Wno-unused-function` on
+  `sm_halt.c`, `emitter_text.c`, `emitter_binary.c`: zero warnings.
+
+**Visual demo output (for Lon, when deciding A/B/C):**
+
+```
+=== emit_sm_halt — BINARY backend ===
+  bytes (5 total): 41 ff 45 14 c3
+  meaning: inc dword [r13+20] ; ret
+
+=== emit_sm_halt — TEXT_INVOCATION backend ===
+    # SM_HALT — exit sm_jit_run via ret
+                        inc              dword ptr [r13 + 20]
+                        ret
+
+=== emit_sm_halt — TEXT_DEFINITION (== MACRO_DEF) backend ===
+    # SM_HALT — exit sm_jit_run via ret
+                        inc              dword ptr [r13 + 20]
+                        ret
+```
+
+The TEXT_DEFINITION output is identical to TEXT_INVOCATION because
+the template body doesn't call `macro_begin`/`macro_end` (that would
+wrap with `.macro HALT ... .endm`).  Adding those calls is trivial
+once Lon picks Option A (single source of truth) over Option B/C.
+
+**Static-analysis invariants:**
+
+- `grep -rE 'emit_v|emitter_v|EMITTER_V' src/runtime/x86/` — empty.  Holds.
+- `grep macro_ src/runtime/x86/templates/bb_*.c` — empty (vacuously,
+  no BB templates yet).
+
+**Sub-rung -d (next session, IF Lon picks Option B or C):**
+
+Sub-rung -d (`bb_xchr`, the first BB box template) is mostly
+independent of the mode-3/mode-4 SM_HALT decision because BB boxes
+have no `sm_macros.s` involvement and BB invocation paths are the
+same in both modes.  -d could land in parallel with the A/B/C
+decision.  -c-mode4 (closing the mode-4 portion of -c) waits for
+the decision.
+
+**Pre-read for next session:**
+1. `templates/sm_halt.c` (header comment in full).
+2. This watermark (the "architectural contradiction" section).
+3. `MIGRATION-MODE4-IS-MODE3-DUMP.md` §"The template-as-program".
+4. `sm_emit_template.c` lines 273-310 (the existing
+   `render_macro_body` SM_TPL_NULLARY arm — what mode-4's HALT
+   does today).
+5. The visual demo output above.
+
+Required first action (sub-rung -d): no decision required, can
+proceed.  Required first action (sub-rung -c-mode4 or whichever
+follow-up closes -c): Lon picks A / B / C; agent reads the picked
+path's implications and proceeds.
+
+----
+
+
 
 **EM-MODE4-IS-MODE3-DUMP-b landed (vtable skeleton, narrow-shape resolution) — sess 2026-05-11 (Claude Opus 4.7, latest)**
 
