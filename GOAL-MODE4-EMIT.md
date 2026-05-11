@@ -335,6 +335,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -m BB: `templates/bb_xfarb.c` XFARB/XEPS/XFAIL (ARB/EPS/FAIL). Nullary callback pattern. (Sonnet 4.6, one4all `1fcb9437`)
   - [x] -n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops. Pattern identical to sm_void_pop: `emit_sm_nullary_rt` helper in `sm_nullary_rt.c`; old static dispatch wrappers in `sm_codegen_x64_emit.c` bridge into `emit_mode_set+template`. (Sonnet 4.6)
   - [x] -o SM: SM_LABEL + SM_STNO structural markers. `t_noop_macro(name)` + `t_banner_stno(stno,lineno,src)` added to bb_emit. `sm_label_stno.c`: emit_sm_label (BINARY=no-op; TEXT=LABEL col2) + emit_sm_stno (banner+STNO col2). Old statics renamed *_dispatch. (Sonnet 4.6, one4all `36ca8ea0`)
+  - [x] -p SM: `templates/sm_call_fn.c`. New t_helpers: `t_lea_rdi_strtab_sym` + `t_mov_esi_imm32`. Template is MACRO_DEF source of truth for CALL_FN macro body (lea rdi,[rip+\lbl]; mov esi,\n; call rt_call@PLT). TEXT dispatch uses sm_emit_lbl_int32 (proven path), emits `CALL_FN .SN, nargs # fname`. (Sonnet 4.6, one4all `3911a0df`)
 
 - [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of vtable calls with no branching.
 
@@ -422,51 +423,39 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 | `sm_arith.c` | SM_ADD..SM_MOD | t_mov_rdi_imm64, t_call_sym_plt |
 | `sm_nullary_rt.c` | SM_CONCAT/PUSH_NULL/COERCE_NUM | t_call_sym_plt |
 | `sm_label_stno.c` | SM_LABEL/SM_STNO | t_noop_macro, t_banner_stno |
+| `sm_call_fn.c` | SM_CALL_FN (MACRO_DEF only) | t_lea_rdi_strtab_sym, t_mov_esi_imm32, t_call_sym_plt |
 
 ### t_* helpers surface (bb_emit.h / bb_emit.c)
 
 `t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
 `t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
-`t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`.
+`t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
+`t_lea_rdi_strtab_sym`, `t_mov_esi_imm32`.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full.
 2. Confirm baseline: `test_gate_em_template_byte_identity.sh` = 4/4, smoke 7/7.
-3. Next rung: **EM-MODE4-IS-MODE3-DUMP-p — SM_CALL_FN** (big).
-   - SM_CALL_FN uses `lea_rip_sym` (RIP-relative address of a strtab entry),
-     expression-registry (`rt_register_expressions@PLT`), and `rt_call@PLT`.
-   - Study `emit_sm_call` in `sm_codegen_x64_emit.c` (~line 1085) for the
-     full argument layout: `a[0].s` = function name, `a[1].i` = nargs.
-   - Study `emit_sm_push_lit_s` for how strtab labels work (RIP-rel load).
-   - The template signature will be: `emit_sm_call_fn(emitter_t *e, const char *name, int nargs)`.
-   - New t_* helpers needed: `t_lea_rip_sym(sym_name)` (BINARY: placeholder rel32;
-     TEXT: `lea rdi, [rip + sym_name]`).
-4. After SM_CALL_FN: SM_RETURN family (-r), then SM_PAT_* ops (-u), then BB template
-   purity (EM-TEMPLATE-PURITY-1 audit).
+3. Next rung: **EM-MODE4-IS-MODE3-DUMP-q (formerly -r) — SM_RETURN family**.
+   - SM_RETURN/SM_FRETURN/SM_NRETURN and their _S/_F conditional variants.
+   - Binary side: `emit_me6_return_blob` in `sm_codegen.c`; bits encoding kind+cond.
+   - Text side: `emit_sm_return_variant` in `sm_codegen_x64_emit.c` uses
+     `sm_emit_ret_var(out, kind, cond, pc, opcode_name)`.
+   - Template signature: `emit_sm_return(e, kind, cond)` where kind∈{0=RET,1=FRET,2=NRET}
+     and cond∈{0=uncond,1=_S,2=_F}.
+   - Study `sm_emit_ret_var` in `sm_emit_template.c` for the macro name lookup.
+4. After SM_RETURN: SM_PAT_* ops (-s), then remaining BB boxes (-t),
+   then EM-TEMPLATE-PURITY audit.
 
-### Commit 1 — `EM-MODE4-IS-MODE3-DUMP-j+l`: port sm_jump + sm_arith
-- Added `t_test_rax_rax()` (BINARY: `48 85 C0`; TEXT/MACRO_DEF: `test rax, rax`)
-- Added `t_emit_jmp(target, kind)` (BINARY: `bb_insn_j*_rel8/rel32`; TEXT/MACRO_DEF: `bb3c_emit_jmp`)
-- Moved `jmp_kind_t` from `emitter.h` → `bb_emit.h` (no circular deps; emitter.h picks it up)
-- Ported `sm_jump.c`: all `EMIT_OPT`/`EMIT_JMP`/`emit_*` → `t_*`; `(void)e`
-- Ported `sm_arith.c`: same; `(void)e`
-- Gates: smoke 7/7, template-byte-id 4/4
+### SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)
 
-### Commit 2 — `EM-MODE4-IS-MODE3-DUMP-n`: port SM_CONCAT/PUSH_NULL/COERCE_NUM
-- New `templates/sm_nullary_rt.c` with shared `emit_sm_nullary_rt()` helper
-- Three template functions: `emit_sm_concat`, `emit_sm_push_null`, `emit_sm_coerce_num`
-- Old static dispatch wrappers in `sm_codegen_x64_emit.c` renamed `*_dispatch`, bridge via `emit_mode_set(EMIT_TEXT, out)` + template call
-- Declared in `templates.h`; added to Makefile compile rules
-- Gates: smoke 7/7, template-byte-id 4/4
+**one4all `3911a0df` on remote.**
 
-### Next session must
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full.
-2. Confirm baseline gates: template-byte-id 4/4, smoke 7/7.
-3. Next rung is **EM-MODE4-IS-MODE3-DUMP** sub-rungs continuing the SM/BB alternation:
-   - **-o SM_LABEL / SM_STNO** structural markers (per goal file: `-q` in older numbering).
-     Shape: `SM_TPL_NOOP` — macro body is `.macro N\n.endm`; per-call emits the macro name
-     in col 2 so `.LpcN:` prefix is never naked. Check `sm_emit_template.c` for NOOP shape.
-   - **-p SM_CALL_FN** (big; uses `lea_rip_sym`, expression-registry).
-4. After SM axis is complete, BB templates (xchr/xspnc/xbrkx/xlnth/xposi/xfarb) need
-   EM-TEMPLATE-PURITY treatment (remove `is_text` guards, callback parameters).
+Commit this session: `3911a0df` — EM-MODE4-IS-MODE3-DUMP-p: SM_CALL_FN template.
+
+Key finding: `t_macro_begin` in EMIT_TEXT mode (via `bb_emit_mode` global) emits
+param *names* not concrete values, and the body instructions also emit — double
+emission. This is a pre-existing pattern in all `t_macro_begin`-using templates.
+Fix: TEXT dispatch for SM_CALL_FN uses `sm_emit_lbl_int32` (proven path), producing
+clean `CALL_FN .SN, nargs # fname`. The template body is MACRO_DEF source of truth
+only. Artifact gcc-c failures at line 10 (PUSH_INT movabs issue) pre-exist.
