@@ -60,8 +60,8 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Icon BB Complete (honest mode 3)** | `GOAL-ICON-BB-COMPLETE.md` | one4all+.github | **NEXT: rung13 conjunction-in-generator.** Sess 2026-05-11d (Claude Sonnet 4.6): rung06 scan/any ✅ `4b2a8700` (+1). Honest 227/44. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
-| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SI-8** — Doc pass: PLAN.md, RULES.md, scrip_cc.h header comment. SI-7 ✅ corpus `27f0c5f` one4all `744b4826` (67 snocone parser-fixture .ref oracles). SI-1 ✅ `9d23cf8c`, SI-2 ✅ `7f840b71`, SI-3 ✅ `9e9e1f8f`, SI-4 ✅ `9c21656d`, SI-5 ✅ `499948f3`, SI-6 ✅ `f06d4b40`. |
-| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **PAUSED — awaits GOAL-SM-LOWER-REFACTOR.** SL-1 begins after SR-15 lands; translation becomes a transcription exercise once `sm_lower.c` is pristine. SL-0 ✅ folder + goal created. |
+| **✅ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **COMPLETE** — SI-1..SI-8 all closed. one4all `c1be7390`. Unlocks GOAL-SNOCONE-SM-LOWER (SL-1). |
+| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **UNBLOCKED — GOAL-SM-LOWER-REFACTOR complete.** SL-1 ready to begin. SL-0 ✅ folder + goal created. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
