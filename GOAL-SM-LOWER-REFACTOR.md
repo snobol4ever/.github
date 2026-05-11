@@ -563,10 +563,12 @@ AST_PROGRAM                    ← was CODE_t
 
 **SI-4** — SNOBOL4 frontend emits `AST_STMT`/`AST_END` directly; remove shim from that path.
 
-- [ ] Add `ast_stmt_new()` and `ast_attr_leaf/int/expr()` helpers in `scrip_cc.h`
-- [ ] Update `snobol4.y` (or `CMPILE.c`) grammar actions to emit `AST_STMT` with tagged-attr children (`:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go`) and `AST_END` directly — matching `stmt_to_ast()` output exactly
-- [ ] Call `lower(ast_prog)` directly from the SNOBOL4 path; bypass `code_to_ast()`
-- [ ] Gate: smoke snobol4 byte-identical
+**SI-4 ✅ Session 2026-05-11, one4all `9c21656d`** — SNOBOL4 frontend emits `AST_STMT` directly via new `sno_parse_ast(FILE*, const char*, CODE_t**)` entry point.  `PP` struct extended with `AST_t *ast_prog` field; `sno4_stmt_commit_go` builds the AST node via `stmt_to_ast(s)` (one canonical builder, byte-identical to the shim path) and appends to `pp->ast_prog`.  New `parse_program_tokens_ast(Lex*, AST_t**)` in `snobol4.y`; new `sno_parse_ast` in `snobol4.l` (single parse pass, returns both CODE_t and AST_PROGRAM).  Public helpers `ast_stmt_new` / `ast_attr_leaf` / `ast_attr_int` / `ast_attr_expr` declared in `scrip_cc.h` (promoted from static in `stmt_ast.c`).  `scrip.c` SNOBOL4 path uses `sno_parse_ast` and accumulates `ast_prog` in parallel with `CODE_t` merge (mirror is_end stripping).  `sm_preamble` signature extended to `(void *prog, void *ast_prog)`; uses `ast_prog` when non-NULL, falls back to `code_to_ast(prog)` otherwise (SI-5 will migrate remaining five frontends).  `lower(ast_prog)` called directly on SNOBOL4 path; `code_to_ast` bypassed.  Gate: byte-identical 30/30, all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone 5/5/5/5, rebus 4/4, broker 49/49, isolation PASS, SN-7 beauty self-host 26/25 (unchanged from baseline, same FAILS list).
+
+- [x] Add `ast_stmt_new()` and `ast_attr_leaf/int/expr()` helpers in `scrip_cc.h`
+- [x] Update `snobol4.y` (or `CMPILE.c`) grammar actions to emit `AST_STMT` with tagged-attr children (`:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go`) and `AST_END` directly — matching `stmt_to_ast()` output exactly
+- [x] Call `lower(ast_prog)` directly from the SNOBOL4 path; bypass `code_to_ast()`
+- [x] Gate: smoke snobol4 byte-identical
 
 **SI-5** — Remaining five frontends emit `AST_STMT`/`AST_END` directly (same tagged-attr shape as SI-4).
 
