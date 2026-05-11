@@ -365,10 +365,6 @@ inline `#include` is fixed here: introduce `AugOp_e` enum in
 boundary (one change in `icon.y`), and the cohort handler reads
 `e->ival` as `AugOp_e` with no frontend dependency.
 
-- [ ] New `AugOp_e` enum in `ast.h`
-- [ ] Icon frontend writes `AugOp_e` values into `AST_AUGOP.ival`
-- [ ] `cohort_icn_relop.c`, `cohort_icn_cset.c`, `cohort_icn_unary.c`
-- [ ] Remove 24 cases from legacy switch
 - [x] Gate
 
 **SR-10 — cohort_icn_ctrl + cohort_icn_data + cohort_icn_sect.**
@@ -376,9 +372,6 @@ Control flow (9 kinds) + data constructors (4) + section ops (4).
 The big AST_CASE handler (Raku) moves intact. AST_TO_BY (86 lines)
 becomes a proper named function `lower_to_by`.
 
-- [ ] `cohort_icn_ctrl.c`, `cohort_icn_data.c`, `cohort_icn_sect.c`
-- [ ] Remove 17 cases from legacy switch
-- [ ] Gate
 
 **SR-11 ✅ Session 2026-05-11, one4all `69e7dde8`** — `lower_icn_gen.c` (7: TO/TO_BY inline SM coroutines + EVERY/SUSPEND/ITERATE/ALTERNATE/LIMIT) + `lower_prolog.c` (6: CHOICE/CLAUSE/CUT/UNIFY/TRAIL_MARK/TRAIL_UNWIND). Legacy switch now empty — zero `case AST_*` remain. Gate: PASS=30 FAIL=0 byte-identical.
 
@@ -406,7 +399,6 @@ handler.
 - [x] `lower_unhandled` records kind in ctx
 - [x] Post-lowering report (silent if empty)
 - [x] Every `AST_e` value has an explicit handler-table entry
-- [ ] Gate
 
 
 **SR-14 ✅ Session 2026-05-11, one4all `4b46d16c`** — silent fallback eliminated + cohort collapse.
@@ -439,7 +431,6 @@ bodies are pruned to the *load-bearing* explanations (why a check
 exists, not what rung introduced it); the rest moves to commit
 messages per RULES.md.
 
-- [ ] `sm_lower.c` head-comment: ≤ 80 lines, architectural
 - [x] Per-cohort head-comments: kinds + semantics
 - [x] Prune rung-archaeology; keep load-bearing rationale
 - [x] Final review: would a new contributor understand this on first read?
