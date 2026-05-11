@@ -1,43 +1,29 @@
-# HANDOFF — session 2026-05-11 (GOAL-SM-LOWER-REFACTOR complete)
+# HANDOFF — session 2026-05-11 (lower.c cleanup + GOAL-STMT-INTO-AST created)
+
+## State
+
+**one4all `fedf1e87`** · **`.github` `3faca8a`**
 
 ## What landed this session
 
-**one4all `f500a3bd`** · **`.github` `3f3e51d`**
+GOAL-SM-LOWER-REFACTOR complete (SR-1..SR-15c):
+- SR-14: silent default eliminated; explicit handler per AST kind
+- SR-15: lower.c 1854→1142 lines (factored helpers, e→t rename)
+- SR-15b: g_handlers table → direct switch in lower_expr
+- SR-15c: LowerCtx struct eliminated; file-scope statics (g_p, g_labtab,
+  g_in_proc_body, g_proc_scope, g_unhandled_kinds)
+- lower_ctx.h: 170→59 lines; lower_ctx.c: 232→108 lines
+- local var labtab→tbl in lower_stmt
 
-GOAL-SM-LOWER-REFACTOR is fully closed (SR-1 through SR-15).
+New goal created: GOAL-STMT-INTO-AST (SI-1..SI-8) — collapse CODE_t+STMT_t
+into AST_t. All 24 steps open. GOAL-AST-RENAME tombstoned (complete).
 
-SR-14: silent `default:` fallback eliminated. Every `AST_e` slot in
-`g_handlers[]` is now explicit — `lower_unhandled` for unimplemented kinds,
-real handlers for all others. `lower_expr` is 4 lines. Post-lowering
-diagnostic report names any unhandled kinds by `ast_e_name[]`.
+## Next
 
-SR-15 (Lon request: "make lower.c a proper tiny readable function"):
-1,854 → 1,142 lines via factoring:
-- `emit_thunk()` — JUMP/body/RETURN/PUSH_EXPRESSION, was copy-pasted 6×
-- `emit_var_load/store()` — frame-slot-or-NV dispatch, was duplicated 4×
-- `emit_pat_capture/fn_args()` — merged cond/immed capture (differed by flag)
-- `lower_while_until()` — merged while/until (differed by jump direction)
-- `lower_section_3()` — merged three section variants (differed by fn name)
-- `emit_range_coroutine()` — merged lower_to/lower_to_by
-- `build_proc_scope()` — extracted from lower_proc_skeletons
-- `e` → `t` (tree node) everywhere; `T0/T1/T2` macros; `CALL1/CALL2`
+**GOAL-STMT-INTO-AST, SI-1** — add `AST_PROGRAM`, `AST_STMT`, `AST_GOTO_S/F/U`
+to `ast.h` enum and `ast_e_name[]`. Gate: build only.
 
-Also: 17 cohort files collapsed into `lower.c` (Lon request, session mid-point).
-`lower_ctx.c` stays separate as infrastructure.
-
-Gate throughout: PASS=2/7/5/5/5/5/4 smokes, broker PASS=49/49.
-
-## What is next
-
-**GOAL-SNOCONE-SM-LOWER** is the explicit consumer of this refactor.
-`sm_lower.c` is now pristine: each cohort section maps directly to a
-Snocone cohort file. SL-1 begins immediately.
-
-From PLAN.md:
-> Snocone sm_lower (M2 path) | GOAL-SNOCONE-SM-LOWER.md | corpus+one4all
-> PAUSED — awaits GOAL-SM-LOWER-REFACTOR. SL-1 begins after SR-15 lands.
-
-## Session start for next session
+## Session start
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github
@@ -45,15 +31,12 @@ git clone https://TOKEN@github.com/snobol4ever/one4all.git /home/claude/one4all
 git clone https://TOKEN@github.com/snobol4ever/corpus.git /home/claude/corpus
 ```
 
-Read PLAN.md → GOAL-SNOCONE-SM-LOWER.md → RULES.md.
+Read PLAN.md → GOAL-STMT-INTO-AST.md → RULES.md.
 Run session setup from REPO-one4all.md (interp/compiler category).
 
-## Notes for next Claude
+## Notes
 
-- `lower.c` naming convention: `c`=LowerCtx*, `p`=SM_Program*, `t`=AST_t*, `s`=STMT_t*
-- `lower_ctx.h` macros use `t` not `e` (updated this session)
-- `emit_push_expr(c, t)` in `lower_ctx.h` still uses `e` internally (its own param) — fine
-- The Snocone port (SL-1+) should mirror `lower.c`'s structure directly:
-  each `static void lower_foo(LowerCtx *c, const AST_t *t)` → Snocone function
-  each section → Snocone cohort file
-  `g_handlers[]` dispatch → Snocone TABLE lookup
+- lower.c handler signatures: `(const AST_t *t)` — no context pointer
+- lower.c naming: p=SM_Program*, t=AST_t*, s=STMT_t*
+- g_labtab is the LabelTable global (function API still labtab_*)
+- GOAL-SM-LOWER-REFACTOR: tombstone it next session (all rungs done)
