@@ -112,7 +112,7 @@ each is independently revertable.  A session may do one and stop.
 
 - [x] Replace blank-line-paragraph-separators with `//===…===` (major)
       or `//---…---` (minor) 120-char comment dividers.  Model:
-      `corpus/programs/scrip/parser_snobol4.sc`.  Maps to §8.
+      `corpus/SCRIP/parser_snobol4.sc`.  Maps to §8.
 - [x] Audit existing comment dividers — any that aren't 120 chars
       get retrimmed or extended.  beauty.sc's 80-char bars are
       grandfathered there but new files standardize on 120.
@@ -1691,7 +1691,7 @@ opportunistic — not blocking.
 
 ### Files touched (all four repos clean before commit on each)
 
-- `corpus/programs/scrip/parser_raku.sc` — 13 new keyword tokens
+- `corpus/SCRIP/parser_raku.sc` — 13 new keyword tokens
   (without, whenever, foreach, loop, use, no, need, import, require,
   CONTROL, QUIT — CATCH already existed), 13 new finishers, 14 new
   grammar productions (13 stmts + LoopSubExpr + ModuleName),
