@@ -205,7 +205,19 @@ each independently committable, each preserving the gate.
 
 ## Closed rungs (pointer trail)
 
-*(none yet — this is a fresh goal)*
+**SR-1 ✅ Session 2026-05-11, one4all `f209b8d3` (initial `456dc7a6` +
+rename followup `f209b8d3`)** — LowerCtx carved out into
+`src/runtime/x86/lower_ctx.h`. Signatures of `lower_expr`,
+`lower_pat_expr`, `lower_stmt`, `emit_goto`, `emit_push_expr` now
+take `LowerCtx *c`. Two file-scope globals
+(`g_expression_body_lowering`, `g_expression_scope`) removed; their
+state moved to ctx fields. `CH0/CH1/LOWER*` macros and inline
+`emit_push_expr` relocated to the header so cohort files (SR-4+)
+can use them. Followup commit `f209b8d3` renamed `lt` → `labtab` and
+`lt_*` → `labtab_*` (Lon: 'lt' reads as less-than to a SNOBOL4
+brain — jarring). Verification harness
+`scripts/test_sm_lower_byte_identical.sh` baked at 30 programs ×
+6 frontends; PASS=30 FAIL=0 byte-identical. Full smoke gate green.
 
 ---
 
@@ -227,22 +239,23 @@ LabelTable *lt)`. The two globals `g_expression_body_lowering` and
 call sites as today. File is still monolithic; only the parameter
 shape changes.
 
-- [ ] Define `LowerCtx` in new `lower_ctx.h`
-- [ ] Refactor signatures: `lower_expr(LowerCtx*, const AST_t*)` etc.
-- [ ] Move globals to ctx fields; remove file-scope state
-- [ ] Inline `emit_push_expr`, `LOWER*` macros, `CH0/CH1` move to header
-- [ ] Gate: scrip_all_modes + smoke ×6 + isolation byte-identical
+- [x] Define `LowerCtx` in new `lower_ctx.h`
+- [x] Refactor signatures: `lower_expr(LowerCtx*, const AST_t*)` etc.
+- [x] Move globals to ctx fields; remove file-scope state
+- [x] Inline `emit_push_expr`, `LOWER*` macros, `CH0/CH1` move to header
+- [x] Gate: scrip_all_modes + smoke ×6 + isolation byte-identical
 
 **SR-2 — Extract `LabelTable` to its own translation unit.**
-`lt_init` / `lt_define` / `lt_find` / `lt_patch_later` / `lt_resolve`
-/ `lt_free` move to `lower_ctx.c`. `LabelEntry` / `PatchEntry` /
+`labtab_init` / `labtab_define` / `labtab_find` / `labtab_patch_later`
+/ `labtab_resolve` / `labtab_free` move to `lower_ctx.c`. `LabelEntry`
+/ `PatchEntry` /
 `LabelTable` typedefs move to `lower_ctx.h`. The file knows nothing
 of `SM_Program` internals — it's a name-to-int registry with a
 patch list. Replace `malloc/realloc/strdup/free` with `GC_MALLOC` /
 `GC_strdup` for memory-discipline consistency with the rest of the
 runtime.
 
-- [ ] Move `lt_*` family + types to `lower_ctx.{h,c}`
+- [ ] Move `labtab_*` family + types to `lower_ctx.{h,c}`
 - [ ] Migrate to GC allocation; drop `abort()` paths
 - [ ] Gate: as SR-1
 
@@ -456,9 +469,9 @@ This is the gate that catches mistakes the smoke tests miss. ~50
 programs × md5 = 50 lines of expected output. A single byte diff is
 a hard FAIL.
 
-- [ ] Write the harness as part of SR-1 setup (before any structural change)
-- [ ] Bake baseline hashes
-- [ ] Run before/after every rung
+- [x] Write the harness as part of SR-1 setup (before any structural change)
+- [x] Bake baseline hashes
+- [x] Run before/after every rung
 
 ---
 
