@@ -316,7 +316,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -j SM: `templates/sm_jump.c` JUMP/JUMP_S/JUMP_F. (Sonnet 4.6, one4all `cc21cf01`)
   - [x] -k BB: `templates/bb_xposi.c` POS/RPOS. Callback pattern. (Sonnet 4.6, one4all `30b19814`)
   - [x] -l SM: `templates/sm_arith.c` ADD/SUB/MUL/DIV/MOD. emit_sm_arith_op; movabs rdi,op; call rt_arith@PLT. (Sonnet 4.6, one4all `3b431771`)
-  - [ ] **-m BB: XFARB+XEPS+XFAIL** ← **NEXT**. Three degenerate boxes (ARB, EPSILON, FAIL).
+  - [x] -m BB: `templates/bb_xfarb.c` XFARB/XEPS/XFAIL (ARB/EPS/FAIL). Nullary callback pattern. (Sonnet 4.6, one4all `1fcb9437`)
+  - [ ] **-n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops** ← **NEXT**. Pattern identical to sm_void_pop.
   - [ ] -m BB: XFARB+XEPS+XFAIL (one rung).
   - [ ] -n..p Further SM/BB alternation (SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN family, remaining BB boxes, SM_PAT_*).
   - [ ] -q SM_LABEL / SM_STNO structural markers.
@@ -354,26 +355,31 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-MODE4-IS-MODE3-DUMP-h landed — sess 2026-05-11 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-`templates/sm_void_pop.c` — `emit_sm_void_pop(emitter_t *e)`. Emits `call rt_pop_void@PLT`. No mode-3/mode-4 divergence. Nullary; same pattern as sm_push_lit_i but no operand.
+Sub-rungs -h through -m landed this session. All gates green throughout.
 
-- `sm_codegen_x64_emit.c`: `emit_sm_pop` body replaced; legacy `emit_sm_pop_legacy` `__attribute__((unused))`.
-- `templates/templates.h`: declaration added.
-- `Makefile`: `sm_void_pop.c` in scrip rule; NOT in RT_PIC_SRCS.
+| Rung | Kind | Template | one4all hash |
+|------|------|----------|------|
+| -h | SM | `sm_void_pop.c` — call rt_pop_void@PLT | `87f59f43` |
+| -i | BB | `bb_xbrkx.c` — BREAKX; callback pattern | `1fcb9437` |
+| -j | SM | `sm_jump.c` — JUMP/JUMP_S/JUMP_F | `cc21cf01` |
+| -k | BB | `bb_xposi.c` — POS/RPOS; callback | `30b19814` |
+| -l | SM | `sm_arith.c` — ADD/SUB/MUL/DIV/MOD | `3b431771` |
+| -m | BB | `bb_xfarb.c` — XFARB/XEPS/XFAIL; nullary callback | `1fcb9437` |
 
-Gates: smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. 5/5 artifacts gcc-c clean.
-one4all `87f59f43` · corpus `2f6beec` · .github `b78e199`.
+**Gates at handoff (one4all `1fcb9437`):** smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. claws5.s + treebank-list.s + treebank-array.s byte-identical.
 
-**Next: -m — BB-axis: XFARB+XEPS+XFAIL** (ARB/epsilon/fail degenerate boxes).
+**Files created:** `sm_void_pop.c`, `sm_jump.c`, `sm_arith.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`.
+**Files modified:** `templates.h`, `bb_flat.h` (three new typedef), `bb_flat.c` (callbacks+wrappers+dispatch), `sm_codegen_x64_emit.c` (routes through templates), `Makefile`.
 
-**Template pattern for SM sub-rungs (follow for -j onward):**
-1. `templates/sm_<opcode>.c`: `emit_sm_<opcode>(emitter_t *e, <operands>)`.
-2. Old `emit_sm_<opcode>(FILE*,...)` in `sm_codegen_x64_emit.c` → `emit_<opcode>_line`; new wrapper constructs `emitter_text_new(out)`, calls template, `emitter_free`.
-3. Add to `templates.h` and Makefile scrip rule (not RT_PIC_SRCS).
+**Template pattern (established, follow for all subsequent sub-rungs):**
 
-**Template pattern for BB sub-rungs (follow for -i onward):**
-1. `templates/bb_<kind>.c`: `emit_bb_<kind>(emitter_t *e, ...)`.
-2. Text path: `bb_<kind>_text_fn` callback in `bb_flat.c`; `flat_emit_x<kind>` wrapper builds arg struct and calls template.
-3. `flat_emit_node` dispatch collapses to one-liner calling `flat_emit_x<kind>`.
-4. Add to `templates.h`, Makefile scrip rule AND RT_PIC_SRCS (BB templates are in libscrip_rt).
+*SM:* one `.c` per opcode; rename old `emit_sm_<op>(FILE*,...)` to `_line`; new wrapper: `emitter_text_new` → template → `emitter_free`. Add to `templates.h` + Makefile scrip rule (NOT RT_PIC_SRCS).
+
+*BB:* one `.c` per kind; add `bb_*_text_fn` typedef to `bb_flat.h`; text callback in `bb_flat.c`; `flat_emit_node` dispatch one-liner. Add to `templates.h` + Makefile scrip rule AND RT_PIC_SRCS.
+
+**Next sub-rung: -n — SM-axis: CONCAT/COERCE_NUM/PUSH_NULL and other nullary RT-call ops.**
+Pattern: identical to sm_void_pop (SM_TPL_NULLARY entries in sm_emit_template.c). One file, one function per opcode, each: `call rt_<name>@PLT`.
+
+**Remaining after -n:** -o (SM_LABEL/SM_STNO), -p (SM_CALL_FN big), -q (SM_RETURN family + ABI), -r (remaining BB: XFNCE/XDSAR/XATP/XCAT/XOR/XSTAR/XCALLCAP/XNME/XFNME/XARBN), -s (SM_PAT_*), -t (generated macros), -u (close).
