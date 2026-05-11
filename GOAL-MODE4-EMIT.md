@@ -402,31 +402,29 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, second instance)**
 
-Sub-rungs -h through -m landed this session. All gates green throughout.
+**No code landed this session. one4all remains at `1fcb9437`.**
 
-| Rung | Kind | Template | one4all hash |
-|------|------|----------|------|
-| -h | SM | `sm_void_pop.c` — call rt_pop_void@PLT | `87f59f43` |
-| -i | BB | `bb_xbrkx.c` — BREAKX; callback pattern | `1fcb9437` |
-| -j | SM | `sm_jump.c` — JUMP/JUMP_S/JUMP_F | `cc21cf01` |
-| -k | BB | `bb_xposi.c` — POS/RPOS; callback | `30b19814` |
-| -l | SM | `sm_arith.c` — ADD/SUB/MUL/DIV/MOD | `3b431771` |
-| -m | BB | `bb_xfarb.c` — XFARB/XEPS/XFAIL; nullary callback | `1fcb9437` |
+This session established and committed **The Law of Template Functions** to `GOAL-MODE4-EMIT.md` (`.github` pushed, hash `da1a75c`). See the section above `## Architectural target`.
 
-**Gates at handoff (one4all `1fcb9437`):** smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. claws5.s + treebank-list.s + treebank-array.s byte-identical.
+**Key clarification from Lon (this session):**
+- One C template function per SM opcode and per BB box — the **only** output path
+- Called by **both mode 3 and mode 4** — not mode-4-only
+- All output through `emitter_t` vtable (binary / text / macro_def)
+- The `FILE*` wrapper pattern used in sub-rungs -h through -m is **wrong** — it must be replaced
+- `EM-TEMPLATE-PURITY` exists to eradicate all violations of this law
 
-**Files created:** `sm_void_pop.c`, `sm_jump.c`, `sm_arith.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`.
-**Files modified:** `templates.h`, `bb_flat.h` (three new typedef), `bb_flat.c` (callbacks+wrappers+dispatch), `sm_codegen_x64_emit.c` (routes through templates), `Makefile`.
+**What was attempted and reverted:**
+Sub-rung -n (`SM_CONCAT`, `SM_PUSH_NULL`, `SM_COERCE_NUM`) was written using the wrong `FILE*` wrapper pattern before the Law was understood. All changes reverted cleanly. one4all working tree is clean.
 
-**Template pattern (established, follow for all subsequent sub-rungs):**
+**Gates at handoff (one4all `1fcb9437`):** smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. Unchanged from previous session.
 
-*SM:* one `.c` per opcode; rename old `emit_sm_<op>(FILE*,...)` to `_line`; new wrapper: `emitter_text_new` → template → `emitter_free`. Add to `templates.h` + Makefile scrip rule (NOT RT_PIC_SRCS).
+**Next session must:**
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full — no exceptions
+2. Run session setup / confirm baseline gates at `1fcb9437`
+3. Execute `EM-TEMPLATE-PURITY` — fix BB templates -d through -m to use pure vtable calls, no `is_text`, no callbacks
+4. Only then proceed to sub-rung -n with the correct pattern
 
-*BB:* one `.c` per kind; add `bb_*_text_fn` typedef to `bb_flat.h`; text callback in `bb_flat.c`; `flat_emit_node` dispatch one-liner. Add to `templates.h` + Makefile scrip rule AND RT_PIC_SRCS.
-
-**Next sub-rung: -n — SM-axis: CONCAT/COERCE_NUM/PUSH_NULL and other nullary RT-call ops.**
-Pattern: identical to sm_void_pop (SM_TPL_NULLARY entries in sm_emit_template.c). One file, one function per opcode, each: `call rt_<name>@PLT`.
-
-**Remaining after -n:** -o (SM_LABEL/SM_STNO), -p (SM_CALL_FN big), -q (SM_RETURN family + ABI), -r (remaining BB: XFNCE/XDSAR/XATP/XCAT/XOR/XSTAR/XCALLCAP/XNME/XFNME/XARBN), -s (SM_PAT_*), -t (generated macros), -u (close).
+**The correct template pattern (per Law of Template Functions):**
+One `.c` file per opcode/box. The template function takes `emitter_t *e` only (plus opcode-specific args). Mode 3 and mode 4 both call it directly with an appropriately constructed emitter. No `FILE*`. No `emitter_text_new` wrapper at the call site. No `is_text` branching inside. Pure vtable calls throughout.
