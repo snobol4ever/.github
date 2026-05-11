@@ -61,7 +61,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **✅ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **COMPLETE** — SI-1..SI-12 all closed. one4all `15cfaa2d`. Unlocks GOAL-SNOCONE-SM-LOWER (SL-1). |
-| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **SL-2 next: emit_goto in Snocone. SL-1 ✅ labtab_* + smoke test (corpus sm_lower.sc).** |
+| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **SL-2 next: emit_goto. SL-1 ✅ `3de3f44`. Sess 2026-05-11: lower.c audited+fixed (`4ca192a3`), SPITBOL manual read, handoff note in goal file.** |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
