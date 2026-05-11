@@ -205,6 +205,11 @@ each independently committable, each preserving the gate.
 
 ## Closed rungs (pointer trail)
 
+**SR-3 ✅ Session 2026-05-11, one4all `20d2fb63`** — `emit_goto`,
+`expression_scope_walk`, `kw_canonicalize` moved from `sm_lower.c` to
+`lower_ctx.c`.  Four inline upcase loops replaced with `kw_canonicalize`
+(GC-allocated, no 63-char cap).  Gate: PASS=30 FAIL=0 byte-identical.
+
 **SR-2 ✅ Session 2026-05-11, one4all `daf27aeb`** — `labtab_*` family
 (labtab_init/define/find/patch_later/resolve/free) moved from `sm_lower.c`
 to `lower_ctx.c`.  LabelEntry/PatchEntry/LabelTable declarations already in
@@ -274,10 +279,10 @@ runtime.
 keeps only the dispatch + entry point + (still-monolithic) cohort
 switches.
 
-- [ ] Move helpers to `lower_ctx.c`
-- [ ] Extract `kw_canonicalize(const char *)` — no 63-char cap, GC-allocated
-- [ ] Replace both inline upcase loops in `AST_AUGOP` with the helper
-- [ ] Gate: as SR-1
+- [x] Move helpers to `lower_ctx.c`
+- [x] Extract `kw_canonicalize(const char *)` — no 63-char cap, GC-allocated
+- [x] Replace both inline upcase loops in `AST_AUGOP` with the helper
+- [x] Gate: as SR-1
 
 ### Phase 2 — Cohort carve-out (the bulk of the work)
 
