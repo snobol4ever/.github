@@ -418,7 +418,9 @@ Lon request: all 17 cohort `.c` files (`lower_literal`, `lower_ref`, `lower_arit
 
 **SI-1 ✅ Session 2026-05-11** — Add `AST_PROGRAM`, `AST_STMT`, `AST_GOTO_S`, `AST_GOTO_F`, `AST_GOTO_U` to `ast.h` enum before `AST_KIND_COUNT`. Matching `ast_e_name[]` entries added. New kinds routed to `lower_unhandled` via existing `default:` in `lower_expr`. Pure enum addition — zero runtime behaviour change. Gate: build clean + all 7 smokes PASS + broker 49/49.
 
-**SI-2 ✅ Session 2026-05-11** — `AST_aux` union typedef + `a[3]` field added to `AST_t` (ast.h; a[0].i=lineno, a[1].i=stno, a[2].i=flags). `src/driver/stmt_ast.c` written: `stmt_to_ast(STMT_t*)` builds AST_STMT with 6 children (subject/pattern/replacement/GOTO_S/F/U), `code_to_ast(CODE_t*)` builds AST_PROGRAM. Both declared in `scrip_cc.h`. Makefile gains `stmt_ast.o`. Gate: build clean + all 7 smokes PASS + broker 49/49.
+**SI-2 ✅ Session 2026-05-11** — `AST_aux` union typedef + `a[3]` field added to `AST_t` (a[0].i=lineno, a[1].i=stno; no flag bits — pure). `AST_END` added as distinct kind (is_end is structure not bit). `stmt_ast.c` rewritten with pure encoding: `has_eq` = children[2] slot presence; `AST_NUL` = `=` with empty repl; goto arms: `sval`=label, `children[0]`=computed expr. Gate: build + all 7 smokes + broker 49/49.
+
+**SI-3 ✅ Session 2026-05-11, one4all `9e9e1f8f`** — `AST_t` is now a pure 4-field logical tree (t=kind, v=sval/ival/dval, n=nchildren, c=children[]); `a[3]` removed. `AST_ATTR` kind added for tagged attribute nodes. `AST_STMT` encoding switches from positional children to tagged attributes matching `parser_snobol4.sc` exactly (`:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go`). `lower_stmt` reads via `attr_*` tag-scan helpers — no positional indexing, no `a[]`. Gate: build + all 7 smokes + broker 49/49.
 Factored: `emit_thunk` (JUMP/body/RETURN/PUSH_EXPRESSION pattern), `emit_var_load/store`
 (frame-slot-or-NV dispatch), `emit_pat_capture/emit_pat_fn_args` (merged cond/immed capture),
 `lower_while_until` (merged while/until), `lower_section_3` (merged three section variants),
@@ -549,10 +551,10 @@ AST_PROGRAM                    ← was CODE_t
 
 **SI-3** — `lower()` and `lower_stmt` take `AST_t*`. Call sites use `code_to_ast()` shim.
 
-- [ ] Change `lower()` to `SM_Program *lower(const AST_t *prog)`; update `lower.h`
-- [ ] Rewrite `lower_stmt(const AST_t *s)` reading children[0..8] + a[*]
-- [ ] Shim call sites: `lower(code_to_ast(prog))`
-- [ ] Gate: all smokes + broker byte-identical
+- [x] Change `lower()` to `SM_Program *lower(const AST_t *prog)`; update `lower.h`
+- [x] Rewrite `lower_stmt(const AST_t *s)` reading children[0..5] + a[0..1]
+- [x] Shim call sites: `lower(code_to_ast(prog))`
+- [x] Gate: all smokes + broker byte-identical
 
 **SI-4** — SNOBOL4 frontend emits `AST_STMT` directly; remove shim from that path.
 
