@@ -438,21 +438,31 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       The whitelist IS the precise quantification of "99.999%".  Any divergence outside it is a bug in mode-3 (since mode-4 is mode-3-plus-dump, mode-4 cannot diverge from mode-3 by construction once the dump path works).
 
-      **Sub-rungs (sess 2026-05-11 pivot — supersedes the prior -a..-f list):**
+      **Sub-rungs (sess 2026-05-11 pivot, second pass — co-equal SM+BB):**
 
-      - [x] **EM-MODE4-IS-MODE3-DUMP-a — Design doc + this amendment.**  `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` lands; the rung header above is amended to point at it.  No code in this sub-rung.  Sess 2026-05-11 (Claude Opus 4.7).
+      - [x] **EM-MODE4-IS-MODE3-DUMP-a — Design doc + this amendment.**  `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` lands; the rung header above is amended to point at it.  Second pass (later sess 2026-05-11) clarifies: SM and BB are co-equal under this architecture — every SM opcode AND every BB box gets its own template C file from day one.  Sprinkle model: a template can issue any call on the `emit_v` surface (instruction, comment, banner, blank line, formatting) and each backend chooses to implement or no-op each one.  No code in this sub-rung.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emit_v.h` with the `emit_v` struct; three backend impls (`emit_v_binary.c`, `emit_v_text.c`, `emit_v_macro_def.c`).  Wire into Makefile.  Nothing calls them yet.  Gates green.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emit_v.h` with the `emit_v` struct (~50 entry points covering instruction primitives, structural markers, BB-port primitives, formatting, macro hooks); three backend impls (`emit_v_binary.c`, `emit_v_text.c`, `emit_v_macro_def.c`); `src/runtime/x86/templates/` directory created.  Wire into Makefile.  Nothing calls them yet.  Gates green.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First opcode end-to-end: SM_HALT.**  New `src/runtime/x86/sm_templates/halt.c`.  Mode-3's halt blob goes through it; mode-4's halt emission goes through it; `sm_macros.s` HALT macro regenerated from it via new `tools/regen_sm_macros.c`.  New gate `test_gate_em_template_byte_identity.sh` validates mode-3-bytes vs mode-4-asm-then-bytes are identical on a tiny program exercising the opcode.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First SM opcode end-to-end: SM_HALT.**  `templates/sm_halt.c`.  mode-3 through it (replaces `emit_halt_blob`); mode-4 through it (replaces `emit_sm_halt`); `sm_macros.s` HALT generated from it via new `tools/regen_macros.c`.  New gate `test_gate_em_template_byte_identity.sh`.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-d through -k — One opcode per rung**, in order: SM_PUSH_LIT_I, SM_PUSH_LIT_S, SM_VOID_POP, SM_JUMP, SM_JUMP_S/SM_JUMP_F, arithmetic (SM_ADD/SUB/MUL/DIV/MOD/EXP), SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN/SM_NRETURN/SM_FRETURN family.  Each rung lands a template C file under `sm_templates/`, deletes corresponding inline emission from both `sm_codegen.c` and `sm_codegen_x64_emit.c`, regenerates the corresponding macro in `sm_macros.s`.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-d — First BB box end-to-end: bb_xchr.**  `templates/bb_xchr.c`.  Simplest box (one-character literal compare).  Wires `bb_flat.c`'s XCHR emit calls through the new vtable.  Proves BB side of the surface.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-l — Pattern opcodes** (SM_PAT_*).  Same discipline; each pattern primitive gets its own template C file.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-e through -p — One emission unit per rung, alternating SM ↔ BB.**  Suggested order: sm_push_lit_i, bb_xlit, sm_push_lit_s, bb_xspnc, sm_void_pop, bb_xanyc, sm_jump, bb_xbrkc, sm_jump_s+sm_jump_f, bb_xnnyc, sm_add+sub+mul+div+mod+exp (one rung), bb_xlnth+xtb+xrtb (one rung).  Each rung lands its own template C file(s), deletes corresponding inline emission from `sm_codegen.c` / `bb_flat.c` / `sm_codegen_x64_emit.c` / `bb_emit.c`, regenerates the corresponding macro.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-m — `sm_macros.s` becomes generated artifact**, make rule added, file optionally dropped from git in favor of build-time regen.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-q — SM_LABEL / SM_STNO** (structural markers; one rung).
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-n — Rung close.**  `test_gate_em_beauty_subsystems_mode4.sh` should improve from baseline (PASS=4 FAIL=13) as byte-identity is by construction.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-r — SM_CALL_FN.**  Big SM rung; uses `lea_rip_sym`, `call_plt`, expression-registry interaction.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-s — SM_RETURN / SM_NRETURN / SM_FRETURN family** including conditional variants.  ABI alignment work decided inside ONE template file; fixes mode-3 and mode-4 by construction.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-t — Remaining BB boxes.**  XFNCE, XDSAR, XATP, XBRKX, XCALLCAP, XCAT, XOR, XSTAR, XFARB, XPOSI, XRPSI, XNME, XFNME, XARBN, XFAIL.  Bundle in 2-3 rungs by structural similarity.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-u — Pattern SM opcodes** (`SM_PAT_*`).  Same discipline.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-v — `sm_macros.s` and `bb_macros.s` become generated artifacts**, make rule added, files dropped from git in favor of build-time regen (or kept with a "DO NOT EDIT — generated" header).
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-w — Rung close.**  `test_gate_em_beauty_subsystems_mode4.sh` improves from baseline.  Delete `emitter_v.h` / `emitter_text.c` / `emitter_binary.c` (BB-side legacy vtable subsumed by `emit_v.h`).  Delete `sm_emit_template.c` / `sm_emit_template.h` (SM-side macro-renderer subsumed by templates + `emit_v_text.c`).
 
       **Superseded sub-rungs (prior framing, recorded for git-log archaeology only — do not implement these as written):** -a (audit/design doc with SEG_CODE-disassembly framing), -b (rewrite sm_codegen.c control flow as standalone task), -c (libscrip_rt cfn-call ABI fix at the call site — re-evaluate after template retrofit; may be unnecessary), -d (`sm_jit_run` rewrite — happens naturally as templates land), -e (`seg_code_dump_as_s` side-table — replaced by template vtable), -f (mode-4 collapses to call-mode-3-then-dump — replaced by mode-4 walks SM_Program with text backend).
 
@@ -499,6 +509,63 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-a amended (second pass: SM+BB co-equal; sprinkle model) — sess 2026-05-11 (Claude Opus 4.7, later)**
+
+Second clarification from Lon, same session:
+
+1. **Sprinkle model.**  A template C function can issue any call on
+   the `emit_v` surface — instruction emission, comment, banner,
+   blank line, formatting, structural marker.  Each backend is free
+   to implement or no-op any given call.  The surface is generous on
+   purpose: comments and formatting are first-class calls, and a
+   backend's right to ignore them is first-class too.  Worked SM_HALT
+   example in the design doc shows the sprinkle in action.
+
+2. **SM and BB are co-equal from day one.**  Earlier framing phased
+   SM first ("BB-side discipline deferred").  Wrong — Lon corrected:
+   every SM opcode AND every BB box gets its own template C file
+   from the start.  They share `templates/` directory, the surface,
+   and the backends.  Sequencing in the design doc updated to
+   alternate SM ↔ BB landings so the gate surface is exercised
+   from both directions during the retrofit.
+
+**What changed in this amendment:**
+
+- `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` — section
+  "BB-side discipline (deferred…)" replaced with section "SM and BB
+  are co-equal under this architecture"; full file-system layout
+  shown with both `sm_*.c` and `bb_*.c` template files; sprinkle
+  model section added with the per-call-category implement-or-no-op
+  table; vtable surface expanded with BB-port primitives
+  (`bb_port_label`, `bb_port_jmp`, `bb_box_banner`) and section/
+  data primitives; sequencing replaced with co-equal SM+BB rungs
+  (-a through -w).
+- `.github/GOAL-MODE4-EMIT.md` — sub-rung list replaced to match
+  (the b/c/d split is now: -b vtable skeleton, -c first SM opcode
+  SM_HALT, -d first BB box bb_xchr, -e..-p alternating, -q SM_LABEL,
+  -r SM_CALL_FN, -s RETURN family, -t remaining BB boxes, -u
+  SM_PAT_*, -v macros generated, -w close).
+- This watermark amended on top of the prior one.
+
+**Gates:** unchanged (still docs-only).
+
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- `test_gate_em_beauty_subsystems_mode4.sh`: same pre-existing
+  link issue documented in prior watermark below; not caused by
+  this amendment.
+- 5/5 tracked artifacts `gcc -c` clean.
+
+**Next session:** sub-rung -b (vtable skeleton).  Pre-reads:
+`MIGRATION-MODE4-IS-MODE3-DUMP.md` (post-amendment); `ARCH-x86.md`;
+`ARCH-SCRIP.md`; this watermark.  Required first action: fix
+`libscrip_rt` Makefile rule (add `coro_runtime.c`) so the
+mode-4-beauty gate has a baseline to measure against.
+
+----
+
+
 
 **EM-MODE4-IS-MODE3-DUMP-a landed (template-vtable design doc + rung amendment) — sess 2026-05-11 (Claude Opus 4.7)**
 
