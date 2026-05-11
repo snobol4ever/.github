@@ -1560,8 +1560,57 @@ Honest mode-3: 174→177 (+3, all five rung18 programs clean).
 Gates: smoke 5/7/5/5/5/4, broker 49/49, ir-run 185/48/30 unchanged.
 
 **Next targets (start of next session):**
-1. Scan context (+5, rung05) — `ICN_SCAN_PUSH/POP` gaps in SM (`rung05_scan_scan_concat_subject`, `rung05_scan_scan_nested`, `rung05_scan_scan_restores`, `rung05_scan_scan_subject`, `rung05_scan_scan_var`).
-2. Other 7 remaining honest failures in 01-35 (excluding rung36 series):
+1. Scan context (+5, rung05) — `ICN_SCAN_PUSH/POP` gaps in SM.
+2. Remaining 7 honest fails in 01-35: rung02_proc_locals,
+   rung06_cset_any_fail, rung11_bang_augconcat_bang_concat,
+   rung13_alt_alt_filter, rung23_table_table_key,
+   rung24_records_record_loop, rung24_records_two_types.
+
+### CH-17g-scan-subject ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+All 5 rung05_scan_* programs flip to honest mode-3.
+
+Root cause: `NV_GET_fn` in `snobol4.c` had no handler for `"&subject"`
+or `"&pos"`. The Icon frontend (`icon_parse.c`) emits `AST_VAR` (not
+`AST_KEYWORD`) for these, so `SM_PUSH_VAR` receives the verbatim
+lowercase ampersand-prefixed name (e.g. `"&subject"`). `ICN_SCAN_PUSH`
+correctly set `scan_subj` in C but reading back via `NV_GET_fn` fell
+through to the NV hash bucket and returned `NULVCL`.
+
+Fix: added `strcmp`-matched handlers for `"&subject"` and `"&pos"` in
+both `NV_GET_fn` and `NV_SET_fn` in `snobol4.c`, reading/writing the
+`scan_subj` and `scan_pos` globals (defined in `coro_runtime.c`).
+Exact `strcmp` not `strcasecmp` — per RULES.md, casing belongs at the
+ingress (lex) layer, not at lookup sites. Icon is always case-sensitive;
+`"&subject"` is the canonical form verbatim from source.
+
+Files touched: `src/runtime/x86/snobol4.c` (`5f6d9d8b`).
+Honest mode-3 dial: 180→185 (+5). Gates: smoke 5/7/5/5/5/4, broker 49/49,
+isolation PASS, ir-run 185/48/30 unchanged.
+
+### CH-17g-icon-conjunction ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+Icon `&` operator parsed to `AST_SEQ` (shared AST kind with SNOBOL4
+string concatenation). `cohort_seq.c::lower_cat_seq` was emitting
+`SM_CONCAT` for all `AST_SEQ`, making `any(cset) & (found := 1)` behave
+as string concatenation with no failure-guard — the right operand always
+executed regardless of whether the left succeeded.
+
+Fix: in `lower_cat_seq`, when `e->kind == AST_SEQ && g_lang == LANG_ICN`,
+emit goal-directed conjunction: each non-final child gets `SM_JUMP_F ->
+done` (failure short-circuits with `last_ok=0` and `FAILDESCR` on stack)
+followed by `SM_VOID_POP`. Last child result is the conjunction value.
+`g_lang` is set per-statement before lowering so it is canonical at the
+call site. SNOBOL4/Snocone `AST_SEQ` paths unchanged.
+
+Note: the conjunction fix fires only for directly-lowered Icon expressions.
+`every` bodies still go through `SM_BB_PUMP_EVERY` (legacy coro_eval path)
+so `rung13_alt_alt_filter` (`every (x:=...) > 2 & write(x)`) remains
+honest-FAIL until CH-17g-irrun-execution lands and routes through
+`sm_call_proc`. The fix is correct and will compose with that work.
+
+Files touched: `src/runtime/x86/cohort_seq.c` (`74faf1d0`).
+ir-run baseline 185/48/30 unchanged. All smokes clean. Broker 49/49.
    `rung02_proc_locals`, `rung06_cset_any_fail`, `rung11_bang_augconcat_bang_concat`,
    `rung13_alt_alt_filter`, `rung23_table_table_key`, `rung24_records_record_loop`,
    `rung24_records_two_types`.
