@@ -197,3 +197,5 @@ Complete tree_t vocabulary: type=tree_t, kind-enum=tree_e, fields t/v/n/c.
 **SI-12 ✅** Session 2026-05-11, one4all `007a2082` — revert tree_t/tree_e
 back to AST_t/AST_e per Lon. Keep fields t/v/n/c. tree_push/tree_pop →
 ast_push/ast_pop. tree_new → expr_new.
+
+**SI-13 ✅** Session 2026-05-11 — rename AST_t→tree_t, AST_e→tree_e, AST_*→TT_* (196 kind constants), ast_e_name[]→tt_e_name[], expr_new→ast_node_new (avoids collision with snobol4.c runtime). TermTag enum renamed TERM_* to avoid TT_VAR clash. lower_baseline.txt rebaked. Gates: lower 30/30, snobol4 7/7, snocone 5/5, rebus 4/4; icon/prolog/raku/broker at pre-existing baseline (unchanged).
