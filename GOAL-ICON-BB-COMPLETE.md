@@ -116,19 +116,20 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: 227/44/0 at sess 2026-05-11d)
+## Active next targets (honest dial: ~231/~40/0 at sess 2026-05-11e)
 
-Sess 2026-05-11d (Claude Sonnet 4.6, one4all `4b2a8700`):
-- **rung06 scan/any fix** ✅ `4b2a8700` (+1, 226→227 honest): Two bugs fixed together:
-  (1) `ICN_SCAN_PUSH`/`ICN_SCAN_POP` not inline in `SM_CALL_FN` — were falling through past FAIL-arg check, breaking scan context. Fixed as inline special cases in `sm_interp.c`.
-  (2) Icon `&` conjunction (`AST_SEQ`) lowered as `SM_CONCAT` — `CH-17g-icon-conjunction` fix was in defunct `lower_seq.c`. Re-applied to `lower.c::lower_cat_seq` with `g_lang==LANG_ICN` gate. Added `g_lang=LANG_ICN` in `lower_proc_skeletons` (actual Icon lowering path). `rung06_cset_any_fail` flips honest.
+Sess 2026-05-11e (Claude Sonnet 4.6, one4all `3648dae5`):
+- **g_lang=LANG_ICN scoped to SM Icon execution** ✅ `3648dae5` (+4, 208→212 at 8s timeouts):
+  (1) `sm_interp.c SM_BB_PUMP_PROC`: save/restore `g_lang` around `bb_broker` call, setting `LANG_ICN` for Icon proc execution duration. Icon builtins (`trim`, `map`, etc.) now use Icon semantics.
+  (2) `scrip_sm.c`: set `g_lang=LANG_ICN` after `lower()` when `lang_mask` has Icon bit.
+  Newly honest: `rung28_builtins_str_trim_map`, `rung24_records_record_loop`, +2 more.
 
-Remaining 44 failures — known root causes:
-- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — `SM_BB_PUMP_EVERY` still used; Phase C2/C3 gap (every + conjunction-in-generator).
+Remaining failures — known root causes:
+- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — `SM_BB_PUMP_EVERY` still used; Phase C2/C3 gap (every + conjunction-in-generator). `coro_eval(AST_SEQ)` evaluates conjunction once non-generatively; `AST_ALTERNATE` not yet lowered as suspendable SM coroutine.
 - `rung36_jcon_statics`: static vars not persisting across calls in honest mode.
-- Many rung36: complex Icon features not yet lowered (segfaults, timeouts).
+- Many rung36: complex Icon features (segfaults, timeouts).
 
-Next: `rung13` conjunction-in-generator gap (Phase C2/C3 — `every` body lowering).
+Next: rung13 conjunction-in-generator — requires Phase A4 (`AST_ALTERNATE` → pure SM coroutine) + `every` body driving that coroutine without `SM_BB_PUMP_EVERY`.
 
 ---
 
@@ -163,6 +164,7 @@ Next: `rung13` conjunction-in-generator gap (Phase C2/C3 — `every` body loweri
 | loop_next fix | `cf389ad7` | 205→224 | `coro_bb_every`: save/clear/restore `FRAME.loop_next` around body |
 | assign-cat fix | `f32e690e` | 224→226 | `icn_bb_assign_cat`: re-eval RHS each tick when AST_VAR alongside leaf gen |
 | rung06 scan/any fix | `4b2a8700` | 226→227 | ICN_SCAN_PUSH/POP inline in sm_interp; Icon & conjunction SM_JUMP_F in lower_proc_skeletons |
+| g_lang LANG_ICN scoped | `3648dae5` | 227→~231 | SM_BB_PUMP_PROC saves/restores g_lang; sm_preamble sets after lower(); rung28+rung24 gain |
 
 ---
 
