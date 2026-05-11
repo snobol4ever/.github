@@ -129,6 +129,17 @@ correctly (verified by `OUTPUT =` statements).
 
 ### SL-2 — emit_goto in Snocone
 
+**Session handoff note (2026-05-11):** lower.c audited + 7 fixes committed (one4all `4ca192a3`).
+SPITBOL manual read in full — complete semantic map in session context. Next session
+translates emit_goto first, then SL-3..SL-9 in sequence.
+Key translation decisions for the whole file:
+- File-scope C globals (g_p, g_labtab, g_in_proc_body, g_proc_scope) → Snocone module-level vars
+- SM_Program* operations → stubbed as integer index counter in Phase 1
+- lower_expr dispatch (switch on t->t) → if/else chain dispatching on e_kind string field
+- lower_pat_expr → SM_PUSH_EXPR stub per goal spec (SL-10 Ph2 fills it in)
+- expression_scope_walk → stub returning empty scope (filled in SL-6+)
+- strcasecmp for RETURN/FRETURN/NRETURN → IDENT after REPLACE(name,&LCASE,&UCASE)
+
 Translate `emit_goto` (handles unconditional / success / failure /
 dual-arm goto combinations) into Snocone.
 
