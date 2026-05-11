@@ -600,7 +600,7 @@ Rung-specific gates as listed per rung below.
       scope).  Future blob-size benefit will manifest on mode-4
       serialization (smaller SEG_CODE → smaller .s).
 
-- [ ] **ME-6 — Function calls and returns.**  PARTIAL — see handoff addendum
+- [x] **ME-6 — Function calls and returns.**
       sess 2026-05-10 (Claude latest, sixth session) at end of this file.
       Prerequisite ME-7 ✅ closed this session (DEFINE-entry flag in place);
       remaining work is the prologue/epilogue blob emission, which needs a
@@ -2015,3 +2015,72 @@ hazard before enabling the prologue/epilogue.  Recommended sub-rungs
 The architectural scaffolding landed this session (SM_State field,
 helper, emit functions) is reusable as-is for ME-6a — only the
 routing site changes.
+
+**Addendum sess 2026-05-11 (Claude Sonnet 4.6): ME-6a ✅ CLOSED. ME-6 closed.**
+
+Session goal: implement ME-6a — route prologue/epilogue through a new
+`SM_DEFINE_ENTRY` opcode that fires exactly once per function call, not on
+every goto that lands on the entry label.
+
+**Root cause of the re-entry hazard (from ME-6 Path A diagnosis, sess #7):**
+The define-entry SM_LABEL blob was the proposed prologue site.  But SM_LABEL
+is the destination of every jump that targets that PC — including icase-style
+`:(self)` gotos inside the function body.  Every re-entry re-executed
+`push rbp` without a paired pop, polluting the native stack until SM_HALT's
+`ret` fetched a stale saved-rbp value as its return target, producing the
+observed `rip == rsp` segfault in case_driver.sno.
+
+**ME-6a fix — SM_DEFINE_ENTRY + jit_in_call flag:**
+
+New field `int jit_in_call` added to `SM_State` at offset 28 ([r13+28]).
+`h_call` sets `STATE->jit_in_call = 1` immediately before `STATE->pc =
+body_pc`.  `sm_lower` emits `SM_DEFINE_ENTRY` immediately after every
+define-entry SM_LABEL (the one with `a[2].i==1` from ME-7).
+
+`emit_me6_define_entry_blob` (~26 bytes):
+```
+  inc dword [r13+20]        ; pc++
+  mov eax, [r13+28]         ; eax = jit_in_call
+  mov dword [r13+28], 0     ; always clear the flag
+  test eax, eax             ; was this a real call?
+  jz skip                   ; no: skip prologue (goto re-entry path)
+  push rbp                  ; yes: save caller's rbp
+  mov rbp, rsp              ; establish frame
+skip:
+  jmp rel32 trampoline
+```
+
+`h_call` path: `jit_in_call=1` → SM_LABEL blob (no-op) → SM_DEFINE_ENTRY
+blob reads 1, clears, does push+mov → SM_STNO → body. Exactly one prologue
+per call.
+
+Goto path (`:(COUNT)` etc.): `jit_in_call=0` (h_call never set it) →
+SM_LABEL blob (no-op) → SM_DEFINE_ENTRY blob reads 0, clears (harmless),
+skips push+mov → SM_STNO resets stack → body continues. No prologue.
+
+Nine return variants (SM_RETURN/FRETURN/NRETURN and _S/_F) routed through
+`emit_me6_return_blob` with correct bit encoding. `me6_return_dispatch`
+(landed sess #7 as scaffolding) consumed without modification.
+
+**ME-6b gate — test_gate_me6_reentry_hazard.sh (PASS=3):**
+- `self_goto_loop` — COUNT(5,0) via :(COUNT) re-entry → `5` ✅
+- `recursive_fib_7` — FIB(7) via recursion → `13` ✅
+- `combined_loop_and_recursion` — both in same program → `13\n10` ✅
+
+**Files changed (one4all `accafb5f`):**
+- `sm_interp.h` — `SM_State.jit_in_call` at offset 28
+- `sm_prog.h` — `SM_DEFINE_ENTRY` opcode
+- `sm_prog.c` — `"SM_DEFINE_ENTRY"` in opnames[]
+- `sm_interp.c` — `case SM_DEFINE_ENTRY: break` (no-op mode-2)
+- `sm_lower.c` — emit `SM_DEFINE_ENTRY` after define-entry SM_LABEL
+- `sm_codegen.c` — `h_define_entry`; `jit_in_call=1` in h_call; rewritten
+  `emit_me6_define_entry_blob` with guard; routing for SM_DEFINE_ENTRY and
+  nine return variants
+- `scripts/test_gate_me6_reentry_hazard.sh` — ME-6b gate
+
+**Gates: smoke 7/7, unified_broker 49/49, me6_reentry_hazard 3/3.**
+sn7_beauty 21/30 (verified identical to pre-rung baseline via git stash).
+
+**Next active step: ME-8** — `SM_PUSH_EXPRESSION` / `SM_CALL_EXPRESSION`
+consumer. Lands after GOAL-CHUNKS-STEP17 closes (stable opcode shape).
+ME-9 (pattern primitives) is the alternative if CHUNKS stays blocked.
