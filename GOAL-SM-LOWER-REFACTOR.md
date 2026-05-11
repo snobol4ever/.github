@@ -551,20 +551,24 @@ AST_PROGRAM                    ← was CODE_t
 - [x] Write `stmt_ast.c`, declare in `scrip_cc.h`
 - [x] Gate: build + smoke snobol4
 
-**SI-3** — `lower()` and `lower_stmt` take `AST_t*`. Call sites use `code_to_ast()` shim.
+**SI-3** — `lower()` and `lower_stmt` take `AST_t*`. Pure tree encoding. Call sites use `code_to_ast()` shim.
 
 - [x] Change `lower()` to `SM_Program *lower(const AST_t *prog)`; update `lower.h`
-- [x] Rewrite `lower_stmt(const AST_t *s)` reading children[0..5] + a[0..1]
+- [x] `AST_t` pure: remove `a[3]`; document `sval`/`ival`/`dval` as C split of logical `v` (Snocone will have one `v`; C keeps three because Icon scope analysis writes both `sval` and `ival` on `AST_VAR` nodes)
+- [x] Add `AST_ATTR` kind for tagged attribute nodes; add `AST_END` as structural kind
+- [x] `AST_STMT` uses tagged-attribute children matching `parser_snobol4.sc` exactly: `:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go` — no positional slots, no flag bits
+- [x] Rewrite `lower_stmt(const AST_t *s)` reading tagged attrs via `stmt_attr_find/expr/str`
 - [x] Shim call sites: `lower(code_to_ast(prog))`
 - [x] Gate: all smokes + broker byte-identical
 
-**SI-4** — SNOBOL4 frontend emits `AST_STMT` directly; remove shim from that path.
+**SI-4** — SNOBOL4 frontend emits `AST_STMT`/`AST_END` directly; remove shim from that path.
 
-- [ ] Add `ast_stmt_new()` helper
-- [ ] Update `snobol4.y` grammar actions
+- [ ] Add `ast_stmt_new()` and `ast_attr_leaf/int/expr()` helpers in `scrip_cc.h`
+- [ ] Update `snobol4.y` (or `CMPILE.c`) grammar actions to emit `AST_STMT` with tagged-attr children (`:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go`) and `AST_END` directly — matching `stmt_to_ast()` output exactly
+- [ ] Call `lower(ast_prog)` directly from the SNOBOL4 path; bypass `code_to_ast()`
 - [ ] Gate: smoke snobol4 byte-identical
 
-**SI-5** — Remaining five frontends emit `AST_STMT` directly.
+**SI-5** — Remaining five frontends emit `AST_STMT`/`AST_END` directly (same tagged-attr shape as SI-4).
 
 - [ ] icon
 - [ ] prolog
@@ -578,9 +582,11 @@ AST_PROGRAM                    ← was CODE_t
 - [ ] Delete structs and helpers
 - [ ] Gate: all smokes + broker byte-identical
 
-**SI-7** — Snocone parsers emit `'AST_PROGRAM'`/`'AST_STMT'` tags; update `.ref` oracles.
+**SI-7** — Snocone parsers emit `'AST_PROGRAM'`/`'AST_STMT'`/`'AST_END'` trees with tagged-attr children; update `.ref` oracles.
 
-- [ ] Update `corpus/SCRIP/parser_*.sc`
+The Snocone `tree` datatype has one `v` field (SNOBOL4 value). `AST_ATTR` nodes carry the tag in `v` and the payload as `children[0]` (or as a leaf with `v` for simple strings). `parser_snobol4.sc` already produces this shape — SI-7 aligns the `.ref` oracle files.
+
+- [ ] Update `corpus/SCRIP/parser_*.sc` if needed for `AST_END`/`AST_ATTR` kinds
 - [ ] Regenerate `.ref` oracles
 - [ ] Gate: PARSER-* fixtures pass
 
