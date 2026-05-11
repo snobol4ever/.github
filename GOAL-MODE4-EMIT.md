@@ -526,6 +526,93 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6) — GOAL-MODE4-EMIT template retrofit**
+
+**What this session did (sub-rungs -c through -g):**
+
+- **-c (mode-4 closure):** Lon delegated A/B/C to Claude. **Option C chosen:**
+  SM_HALT is a sanctioned terminative exception — mode-3 keeps `inc [r13+20]; ret`
+  (in-process), mode-4 keeps `call rt_halt_tos@PLT` (standalone binary). Recorded in
+  `templates/sm_halt.c` header. Both opcodes use `emit_halt_line` / `emit_sm_halt`
+  (renamed in `sm_codegen_x64_emit.c` to avoid symbol collision with templates).
+
+- **-e (BB: charset family XSPNC/XBRKC/XANYC/XNNYC):** `templates/bb_xspnc.c`.
+  `emit_bb_charset()` owns binary path; text path via `bb_charset_text_fn` callback
+  into `bb_flat.c` (avoids externalizing statics). `g_flat_node_id` extern-promoted.
+  `bb_charset_text_fn` typedef in `bb_flat.h`.
+
+- **-f (SM: sm_push_lit_i):** `templates/sm_push_lit_i.c`.
+  `movabs rdi, val; call rt_push_int@PLT`. No mode-3/mode-4 divergence.
+  `sm_codegen_x64_emit.c` wired: `emit_push_lit_i_line()` constructs text emitter,
+  calls template. `templates/templates.h` included in `sm_codegen_x64_emit.c`.
+
+- **-g (BB: integer-cursor XLNTH/XTB/XRTB):** `templates/bb_xlnth.c`.
+  Same callback pattern as -e. `flat_emit_box_call` extern-promoted.
+  `bb_intcur_text_fn` typedef in `bb_flat.h`. 69 inline lines → 3 dispatch one-liners.
+  XLNTH: 1 long in `.data`; XTB/XRTB: 2 longs (n + padding).
+
+**Commits (all pushed):**
+- one4all `463fff0d` — -c + -e
+- one4all `33b3c7ba` — -f
+- one4all `9e2ea80e` — -g (HEAD)
+- corpus `fd5c8a9`  — artifact regen (-e)
+- .github multiple commits (watermarks + PLAN.md)
+
+**Gates at handoff (one4all `9e2ea80e`):**
+- `test_smoke_snobol4.sh`: 7/7
+- `test_smoke_unified_broker.sh`: 49/49
+- `test_smoke_snocone.sh`: 5/5
+- `test_gate_em_template_byte_identity.sh`: 4/4
+- treebank-list.s + claws5.s + roman.s stash/pop diff: empty (byte-identical)
+
+**Template pattern established (follow for all subsequent sub-rungs):**
+
+*BB templates* — one `.c` file per kind or structurally-identical family:
+1. Template owns binary path: allocate zeta, call `flat_emit_box_call`.
+2. Text path: `bb_flat.c` provides a `bb_*_text_fn` callback (arg struct carries
+   all needed state: fn ptr, fn name, kind name, operands).
+3. `bb_flat.c` provides `flat_emit_x*()` wrappers that build arg struct and call template.
+4. `flat_emit_node` dispatch cases call `flat_emit_x*()` — one-liners.
+5. Add new callback typedef to `bb_flat.h`; expose any needed statics as extern there.
+6. Add template to `templates.h`, `RT_PIC_SRCS`, and scrip compile rule.
+
+*SM templates* — one `.c` file per opcode (or tight family):
+1. Function signature: `emit_sm_<opcode>(emitter_t *e, <operands>)`.
+2. Body: `EMIT_OPT(e, comment, ...)` + `emit_*` helpers + `EMIT_OPT(e, macro_begin/end, ...)`.
+3. In `sm_codegen_x64_emit.c`: rename the old `emit_sm_<opcode>(FILE*, ...)` static to
+   `emit_<opcode>_line(FILE*, ...)` (avoids symbol conflict). New function constructs
+   `emitter_text_new(out)`, calls template, `emitter_free(e)`.
+4. Add template to `templates.h` and scrip compile rule (NOT RT_PIC_SRCS — SM templates
+   called only from `sm_codegen_x64_emit.c` / `sm_codegen.c`).
+
+**Next sub-rung: `-h` — SM-axis: `sm_void_pop`**
+
+`SM_VOID_POP` pops and discards TOS. Mode-4 currently:
+```
+sm_emit_nullary(out, sm_template_lookup(SM_VOID_POP), NULL)
+→ VOID_POP macro → call rt_pop_void@PLT
+```
+Template: `emit_sm_void_pop(emitter_t *e)` — `call rt_pop_void@PLT` only.
+Same pattern as `sm_push_lit_i` but no operand. Rename `emit_sm_void_pop(FILE*,...)` →
+`emit_void_pop_line(FILE*,...)` in `sm_codegen_x64_emit.c`.
+
+After `-h`: `-i` (BB: XBRKX), then alternating per the revised sequence in the goal file.
+
+**Files created this session:**
+- `src/runtime/x86/templates/bb_xspnc.c`
+- `src/runtime/x86/templates/sm_push_lit_i.c`
+- `src/runtime/x86/templates/bb_xlnth.c`
+
+**Files modified this session:**
+- `src/runtime/x86/templates/sm_halt.c` (Option C decision)
+- `src/runtime/x86/templates/templates.h` (new declarations)
+- `src/runtime/x86/bb_flat.c` (callbacks + wrappers + dispatch + externs promoted)
+- `src/runtime/x86/bb_flat.h` (typedefs + externs)
+- `src/runtime/x86/sm_codegen_x64_emit.c` (renames + template wiring + include)
+- `Makefile` (new template files)
+
+----
+
 **EM-MODE4-IS-MODE3-DUMP-g landed — sess 2026-05-11 (Claude Sonnet 4.6)**
 
 `templates/bb_xlnth.c` — `emit_bb_intcur()` + per-kind wrappers for XLNTH/XTB/XRTB.
