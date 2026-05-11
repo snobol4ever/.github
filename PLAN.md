@@ -61,7 +61,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **PAUSED** — reopens when ME-14 closes. Mode-4 = mode-3 + SEG_CODE serializer. Tripwire: test_gate_em_beauty_subsystems_mode4 PASS=4 FAIL=13 frozen. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
-| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-10** — cohort_icn_ctrl + cohort_icn_data + cohort_icn_sect. Closed: SR-1..SR-8 ✅, **SR-9 ✅ `907644e5`** — cohort_icn_relop (12 relop kinds) + cohort_icn_cset (4 cset ops + LCONCAT) + cohort_icn_unary (7: NONNULL/NULL/NOT/SIZE/RANDOM/IDENTICAL/AUGOP); mid-function #include eliminated; AugOp_e added to ast.h. Gate: PASS=30 FAIL=0. |
+| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-10** — cohort_icn_ctrl + cohort_icn_data + cohort_icn_sect. Closed: SR-1..SR-9 ✅. **rename ✅ `cc21aa5a`** — sm_lower→lower, cohort_*→lower_* (14 files renamed; all refs updated; gate PASS=30). **SR-9 ✅ `907644e5`** — cohort_icn_relop (12) + cohort_icn_cset (5) + cohort_icn_unary (7; #include fix). |
 | **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **PAUSED — awaits GOAL-SM-LOWER-REFACTOR.** SL-1 begins after SR-15 lands; translation becomes a transcription exercise once `sm_lower.c` is pristine. SL-0 ✅ folder + goal created. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
