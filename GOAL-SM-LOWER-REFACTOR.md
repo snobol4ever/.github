@@ -113,17 +113,16 @@ lower 30/30, all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone 5/5/5/5,
 rebus 4/4, broker 49/49, isolation PASS, SN-7 beauty self-host 26/25
 unchanged (same FAILS list confirmed by stash-and-rerun).
 
-**SI-5** — Remaining five frontends emit `AST_STMT`/`AST_END` directly
-(same tagged-attr shape as SI-4). Each frontend's gate: that frontend's
-smoke + broker.
-
-- [ ] icon — `icon_compile` returns both CODE_t and AST_PROGRAM; pump
-  `AST_STMT` into AST_PROGRAM in `icn_parse_file`'s top-level loop.
-- [ ] prolog — `prolog_lower.c` builds parallel AST_PROGRAM.
-- [ ] raku — `raku_driver.c` (grammar already populates `raku_prog_result`).
-- [ ] rebus — `rebus_lower.c` (has elaborate goto_s/goto_f/goto_u — mirror
-  SNOBOL4's `stmt_to_ast` shape).
-- [ ] snocone — `snocone_driver.c`.
+**SI-5 ✅** Session 2026-05-11, one4all `499948f3` — all five non-SNO
+frontends emit AST_PROGRAM directly. Each compile fn gains `AST_t **out_ast`
+(NULL to discard; polyglot path passes NULL). Icon: `icn_parse_file` builds
+AST_PROGRAM in-loop via `push_child` + `ast_stmt_new`; no AST_END appended
+(icon CODE_t has no is_end sentinel). Prolog/Raku/Rebus/Snocone: call
+`code_to_ast(prog)` inside compile fn — guarantees byte-identical shape.
+`scrip.c` all five non-SNO branches capture `&sub_ast` and merge into
+`ast_prog`. `polyglot.c` all callers pass NULL. Gates byte-identical:
+lower 30/30, all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone/rebus
+5/5/5/5/4, broker 49/49, isolation PASS.
 
 **SI-6** — Delete `CODE_t`, `STMT_t`, `stmt_ast.c`, all helpers; remove the
 `code_to_ast(prog)` fallback in `sm_preamble`.
