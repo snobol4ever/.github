@@ -1478,3 +1478,65 @@ harder (full programs needing multiple sub-fixes).
   is `SM_BB_PUMP_<KIND>` for migrated kinds; legacy is
   `SM_BB_PUMP` (which pops an `EXPR_t*` off the SM value stack
   and walks the AST).
+### CH-17g-builtin-batch ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+Added to `icn_try_call_builtin_by_name` (`interp_eval.c`): `SIZE` (`*E`),
+`NONNULL` (`\E`), `ICN_NULL` (`/E`), `FIELD_GET`, `FIELD_SET`, `MAKELIST`
+(`[]` literal), `RECORD_MAKE`, `insert`, `delete`, `member`, `key`, `push`,
+`put`, `get`, `pull`, `sort`, `sortf`. List mutators (`push`/`put`/`get`/
+`pull`/`sort`/`sortf`) guarded by `icn_type=="list"` tag so Raku's
+SOH-string array builtins are unaffected (return 0 → `INVOKE_fn` handles).
+
+Fixed `AST_ASSIGN` lowering in `sm_lower.c`: added `AST_IDX` LHS branch
+(emits `IDX_SET`) and `AST_FIELD` LHS branch (emits `FIELD_SET`) so
+`t[k] := v` and `r.f := v` work correctly in SM mode.
+
+Extended `subscript_set` in `snobol4_pattern.c` to handle `DT_DATA` —
+Icon list element and record field mutation by index.
+
+Files: `interp_eval.c`, `sm_lower.c`, `snobol4_pattern.c` (`c95eb2bd`).
+Honest mode-3: 141→167 (+26). Gates: smoke 5/7/5/5/5/4, broker 49/49.
+
+### CH-17g-case-swap-null ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+**Icon pair-layout `AST_CASE`** implemented in `sm_lower.c`: topic evaluated
+once into NV `__case_topic__`; each arm compared via `ICN_CASE_EQ`
+(type-aware: numeric if both operands numeric, string-strcmp otherwise);
+FAILDESCR popped on arm-miss; lone trailing child = default arm. All 4
+rung33 case programs pass honest mode-3.
+
+**`AST_SWAP` (`:=:`)** lowered inline in `sm_lower.c` for simple `AST_VAR`
+lhs/rhs: load lhs → NV `__icn_swap_tmp__`, load rhs, store rhs → lhs,
+load tmp, store → rhs; result (new lhs = old rhs) left on stack. Both
+rung15 swap programs pass.
+
+**`AST_NULL` (`/E`)** separated from `AST_NUL` (`&null` literal) in
+`sm_lower.c`; now emits `ICN_NULL 1` which returns `NULVCL` iff arg is
+null/empty, else `FAILDESCR`. Both rung34 null tests pass.
+
+Added to `icn_try_call_builtin_by_name`: `ICN_CASE_EQ`, `ICN_NULL`.
+
+Files: `sm_lower.c`, `interp_eval.c` (`7adfdc20`).
+Honest mode-3: 167→174 (+7). Gates: smoke 5/7/5/5/5/4, broker 49/49, ir-run 185.
+
+**Next targets (sess 2026-05-11 end-of-session survey — 12 non-rung36 failures):**
+```
+5  rung05_scan_*       — scan context save/restore broken in SM (ICN_SCAN_PUSH/POP gaps)
+3  rung18_real_relop_* — SM_ACOMP success value leaks through AST_IF condition;
+                         fix: SM_VOID_POP after condition eval in AST_IF lowering
+3  rung21/25_initial_* — `initial` block runs every call; needs once-flag per proc
+1  rung06_cset_any_fail — any() returns wrong result in SM scan context
+1  rung11_bang_augconcat — bang-concat generative case
+1  rung13_alt_alt_filter — alt/filter generators
+1  rung23_table_key    — key() generator (oneshot ok, generator not)
+1  rung24_records_loop — record iteration loop
+1  rung28_str_trim_map — trim/map arg order or context
+1  rung35_block_body   — extra value on stack from if-block
+```
+
+**Highest-yield next fix:** AST_IF condition leak (3 programs, 2-line fix):
+in `sm_lower.c` AST_IF arm, after `lower_expr(condition)`, the condition
+expression leaves its result on the stack (`SM_ACOMP` pushes `r` on
+success). After the `SM_JUMP_F`, the match path has `r` on stack before
+the then-body is lowered — add `SM_VOID_POP` before then-body and before
+else-body to drain the condition result.
