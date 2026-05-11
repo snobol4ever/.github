@@ -420,6 +420,8 @@ Lon request: all 17 cohort `.c` files (`lower_literal`, `lower_ref`, `lower_arit
 
 **SI-2 ✅ Session 2026-05-11** — `AST_aux` union typedef + `a[3]` field added to `AST_t` (a[0].i=lineno, a[1].i=stno; no flag bits — pure). `AST_END` added as distinct kind (is_end is structure not bit). `stmt_ast.c` rewritten with pure encoding: `has_eq` = children[2] slot presence; `AST_NUL` = `=` with empty repl; goto arms: `sval`=label, `children[0]`=computed expr. Gate: build + all 7 smokes + broker 49/49.
 
+**v-field note ✅ Session 2026-05-11, one4all `7f840b71`** — Anonymous union for sval/ival/dval attempted and reverted: Icon scope analysis (coro_runtime.c) sets both sval and ival on AST_VAR nodes after frame-slot assignment — union aliasing breaks this. C keeps three separate fields documented as the split of one logical v; Snocone tree will have one v field. Gate preserved.
+
 **SI-3 ✅ Session 2026-05-11, one4all `9e9e1f8f`** — `AST_t` is now a pure 4-field logical tree (t=kind, v=sval/ival/dval, n=nchildren, c=children[]); `a[3]` removed. `AST_ATTR` kind added for tagged attribute nodes. `AST_STMT` encoding switches from positional children to tagged attributes matching `parser_snobol4.sc` exactly (`:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go`). `lower_stmt` reads via `attr_*` tag-scan helpers — no positional indexing, no `a[]`. Gate: build + all 7 smokes + broker 49/49.
 Factored: `emit_thunk` (JUMP/body/RETURN/PUSH_EXPRESSION pattern), `emit_var_load/store`
 (frame-slot-or-NV dispatch), `emit_pat_capture/emit_pat_fn_args` (merged cond/immed capture),
