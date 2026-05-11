@@ -30,6 +30,22 @@ parallel text-emitter walking SM_Program.  See active rung
 
 ---
 
+## ⚡ THE LAW OF TEMPLATE FUNCTIONS (sess 2026-05-11, Lon)
+
+**One C template function per SM opcode and per BB box. That is the only way to emit anything.**
+
+- The C template function is called by **both mode 3 and mode 4**. It is not mode-4-only.
+- It handles everything: labels, instructions, arguments, line comments, tabbing, formatting, multiple lines.
+- Every call inside the template function goes through the `emitter_t` vtable.
+- The vtable routes to the correct backend: `emitter_binary` (native x86 bytes), `emitter_text` (GAS `.s` lines), or `emitter_macro_def` (`.macro` definitions for `sm_macros.s` regen).
+- **No other output path exists or is permitted.** `sm_emit_nullary`, `sm_emit_lbl`, `FILE*`-based static wrappers — all dead. The template function is the sole source of truth.
+- Inline comments in col 3 carry only info NOT visible in col 2 (variable names, string values, disambiguators). The template function is responsible for emitting these via the vtable.
+- `is_text` guards, callbacks into `bb_flat.c`, raw instruction emission in template bodies — all violations of this law. `EM-TEMPLATE-PURITY` exists to eradicate them.
+
+**Consequence for sub-rung -n and all subsequent rungs:** the `FILE*`-based static wrapper pattern (e.g. `emit_sm_concat_insn` calling `emitter_text_new` then the template) is wrong. Mode 3 and mode 4 both call the template function directly with an appropriate emitter. The template function is the call site, not a wrapper around it.
+
+---
+
 ## Architectural target
 
 **Pivot sess 2026-05-10 (Claude later):** mode-4 is no longer authored as
