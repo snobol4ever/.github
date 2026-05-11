@@ -167,6 +167,18 @@ Every rung:
 
 - [ ] **ME-9 — Pattern primitives.** All `SM_PAT_*` constructors: load args from r12 stack, call rt_pat_<kind> via imm64, store DT_P result to r12 stack. Combinators (SM_PAT_CAT/ALT/ARBNO) pop inputs, call combinator, push result. Gate: pattern smoke programs byte-identical `--jit-run` vs `--sm-run`.
 
+      Sub-rungs (Group ordering by signature shape):
+
+      - [x] **ME-9a — Group A (nullary).** Inline-native `emit_me9_pat_nullary_blob(rt_fn, tramp)` (42 bytes; mirrors `emit_me4_push_null_blob`). Wired for eight opcodes: `SM_PAT_ARB`, `SM_PAT_REM`, `SM_PAT_FAIL`, `SM_PAT_SUCCEED`, `SM_PAT_EPS`, `SM_PAT_FENCE`, `SM_PAT_ABORT`, `SM_PAT_BAL`. **Note:** the current SNOBOL4 frontend (`snobol4.y` `pat_prim_kind()`) only produces these AST kinds when the keyword appears in **function-call syntactic form** — `ARB(...)`, `FAIL(...)`, etc. Bare-keyword `'xyz' ARB`, `(FAIL | 'a')` tokenize as `T_IDENT` and lower to `SM_PUSH_VAR("ARB") + SM_PAT_DEREF` (variable-deref path), so the eight inline blobs are present but unreached by any current SNOBOL4 corpus program. Verified by diagnostic fprintf — zero calls across feat/parser corpus. Code is correct in shape; gates green; the dispatch may activate from other frontends (Snocone/Rebus) or a future SNOBOL4 frontend change.
+
+      - [x] **ME-9b — `SM_PAT_LIT`.** Inline-native `emit_me9_pat_lit_blob(lit_ptr, tramp)` (52 bytes; mirrors `emit_me4_push_var_blob`). Calls `pat_lit(s)` via imm64 with the literal pointer baked from `a[0].s`. `pat_lit` null-guards internally (`snobol4_pattern.c:84-88`); blob passes through. **Verified hot:** diagnostic fprintf fired twice on `feat/f04_pattern_primitives.sno` (`lit="he"` and `lit="a"`). Byte-identical PASS across all 21 `feat/` programs.
+
+      - [ ] **ME-9c — Group C (charset).** `SM_PAT_ANY`, `SM_PAT_NOTANY`, `SM_PAT_SPAN`, `SM_PAT_BREAK`. Each pops a string from r12, calls `VARVAL_fn` to coerce to `const char*`, then calls `pat_X(cs)`. Net delta 0 (pop 1, push 1).
+      - [ ] **ME-9d — Group D (integer arg).** `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`, `SM_PAT_RTAB`. Each pops a DESCR_t, checks `v==DT_I` (else 0), calls `pat_X(n)`. Net delta 0.
+      - [ ] **ME-9e — Group E (unary pattern).** `SM_PAT_ARBNO`, `SM_PAT_FENCE1`. Pop inner pat, call combinator, push. Net delta 0.
+      - [ ] **ME-9f — Group F (binary pattern).** `SM_PAT_CAT`, `SM_PAT_ALT`. Pop right then left, call combinator, push. Net delta −1.
+      - [ ] **ME-9g — Group G (deref/refname).** `SM_PAT_DEREF` (most common — variable-as-pattern path), `SM_PAT_REFNAME`. These have non-trivial dispatch logic (DT_P pass-through, DT_S → pat_lit, else pat_ref(name)); easier to keep as thin trampolines `me9_pat_deref(v)` / `me9_pat_refname(name)` than to inline the type-discrimination chain in x86. Net delta 0.
+
 - [ ] **ME-10 — Capture and user-call.** `SM_PAT_CAPTURE`, `SM_PAT_CAPTURE_FN`, `SM_PAT_CAPTURE_FN_ARGS`, `SM_PAT_USERCALL`, `SM_PAT_USERCALL_ARGS`, `SM_PAT_DEREF`, `SM_PAT_REFNAME`. Gate: assign-driver + capture-bearing patterns from beauty subsystems under `--jit-run`.
 
 ### Phase E — Statement execution boundary and Icon/Prolog
@@ -200,8 +212,8 @@ Full research notes in git log (search "Prior art / research basis"). Key facts:
 
 ## Watermark
 
-Carved 2026-05-11 (Claude latest, session reconnaissance). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
+Carved 2026-05-11 (Claude latest, session ME-9a + ME-9b). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
 
-Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f`.
+Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f` · **ME-9a ✅ `f087571e`** · **ME-9b ✅ `f087571e`**.
 
-Session 2026-05-11 (no code commits): verified ME-6 gate 3/3 still green; gates 7/49/3 all clean. Reconnaissance against ME-8's four gate-shaped corpus programs found 3/4 already byte-identical under the existing C-handler fallback (`feat/f13_eval_code`, `parser/defer_simple`, `parser/defer_alt`); `parser/defer_in_pat.sno` (`X *P` unbound) segfaults under `--jit-run` only — bug isolated to DT_P pat construction downstream of `exec_stmt`, NOT in ME-8 territory; tracked as ME-13 audit item.  Details in the ME-8 rung body above.
+Session 2026-05-11 (ME-9a + ME-9b landed): ME-9a wires eight nullary `SM_PAT_*` opcodes through `emit_me9_pat_nullary_blob` (42 bytes); paths correct but unreached by current SNOBOL4 corpus because frontend lowers bare-keyword `ARB`/`FAIL`/etc. via `SM_PUSH_VAR`+`SM_PAT_DEREF` rather than the dedicated opcodes. ME-9b wires `SM_PAT_LIT` through `emit_me9_pat_lit_blob` (52 bytes); **verified hot** by diagnostic — fires twice on `feat/f04_pattern_primitives.sno` (`"he"`, `"a"`). All 21 `feat/` programs byte-identical `--sm-run` vs `--jit-run`. Gates: smoke 7/7, broker 49/49, me6 reentry 3/3. Earlier reconnaissance against ME-8's four gate-shaped corpus programs found 3/4 already byte-identical under the existing C-handler fallback (`feat/f13_eval_code`, `parser/defer_simple`, `parser/defer_alt`); `parser/defer_in_pat.sno` (`X *P` unbound) segfaults under `--jit-run` only — bug isolated to DT_P pat construction downstream of `exec_stmt`, NOT in ME-8 territory; tracked as ME-13 audit item.
