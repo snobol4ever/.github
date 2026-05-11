@@ -444,7 +444,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       - [x] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emitter.h` extended with the new SM-template surface (structural markers, BB-port primitives, formatting, macro hooks) on top of the existing narrow-vtable `emit_insn`/`bb_insn_desc_t` shape.  Implementations land in `emitter_text.c` (real GAS asm output) and `emitter_binary.c` (no-op where the design says so; faithful stubs where bytes might be needed).  New file `emitter_macro_def.c` is a thin wrapper that constructs a text emitter in `TEXT_MODE_DEFINITION`.  `src/runtime/x86/templates/` directory created with a README explaining the per-opcode-template convention and the static-analysis invariant for BB-template macro-discipline.  Both new files wired into the Makefile (scrip rule + RT_PIC_SRCS).  Nothing calls the new surface yet.  Sub-rung -c (SM_HALT, the first template) will be the first caller.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First SM opcode end-to-end: SM_HALT.**  `templates/sm_halt.c`.  mode-3 through it (replaces `emit_halt_blob`); mode-4 through it (replaces `emit_sm_halt`); `sm_macros.s` HALT generated from it via new `tools/regen_macros.c`.  New gate `test_gate_em_template_byte_identity.sh`.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-c — First SM opcode end-to-end: SM_HALT.**  `templates/sm_halt.c`.  mode-3 through it (replaces `emit_halt_blob`); mode-4 through it (replaces `emit_sm_halt`); `sm_macros.s` HALT generated from it via new `tools/regen_macros.c`.  New gate `test_gate_em_template_byte_identity.sh`.
 
       **PARTIAL LANDING — sess 2026-05-11 (Claude Opus 4.7):** The mode-3 portion is fully wired and gated; mode-4 wiring blocked on a design question.  See watermark for the full picture.  At a glance:
 
@@ -461,7 +461,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       - [x] **EM-MODE4-IS-MODE3-DUMP-d — First BB box end-to-end: bb_xchr.**  `templates/bb_xchr.c`.  Simplest box (one-character — actually arbitrary-length — literal compare).  Wires `bb_flat.c`'s XCHR emit calls through the new vtable.  Proves BB side of the surface.  Sess 2026-05-11 (Claude Opus 4.7): byte-identical lift of `flat_emit_lit` + the inline banner-emission in `flat_emit_node`'s XCHR case into `emit_bb_xchr(emitter_t *e, PATND_t *p, lbl_succ, lbl_fail, lbl_β)`.  Unlike SM_HALT, XCHR has NO mode-3-vs-mode-4 divergence — both modes call into the same runtime symbols (memcmp, bb_label_*); the binary-vs-text difference is fully absorbed by the existing emitter vtable's symbolic helpers (BB_INSN_LEA_RCX_SYM, BB_INSN_CALL_SYM_PLT) — so -d landed cleanly without any A/B/C decision needed.  Two byte-identity verifications: (1) `claws5.s` emission `git stash`/`pop` diff: empty (byte-identical); (2) `--sm-run` 197/64 == `--jit-run` 197/64 unchanged across the 261-program jit smoke crosscheck.  Legacy `flat_emit_lit` retained with `__attribute__((unused))` as a rollback reference.  Two free functions (`flat_emit_banner_rule`, `flat_emit_box_banner`) promoted from `static` to external linkage and declared in `bb_flat.h` so templates can call them.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-e through -p — One emission unit per rung, alternating SM ↔ BB.**  Suggested order: sm_push_lit_i, bb_xlit, sm_push_lit_s, bb_xspnc, sm_void_pop, bb_xanyc, sm_jump, bb_xbrkc, sm_jump_s+sm_jump_f, bb_xnnyc, sm_add+sub+mul+div+mod+exp (one rung), bb_xlnth+xtb+xrtb (one rung).  Each rung lands its own template C file(s), deletes corresponding inline emission from `sm_codegen.c` / `bb_flat.c` / `sm_codegen_x64_emit.c` / `bb_emit.c`, regenerates the corresponding macro.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-e — charset-family BB box template (XSPNC/XBRKC/XANYC/XNNYC).**  `templates/bb_xspnc.c` + `emit_bb_charset()` callback design. Byte-identical. Gates 7/7+49/49+5/5+4/4, claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `157352d8`)
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-f through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: sm_push_lit_i, bb_xlnth+xtb+xrtb (one rung), sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp (one rung).  Each rung lands its own template C file(s), deletes corresponding inline emission.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-q — SM_LABEL / SM_STNO** (structural markers; one rung).
 
@@ -522,6 +523,52 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-c(closed) + EM-MODE4-IS-MODE3-DUMP-e landed — sess 2026-05-11 (Claude Sonnet 4.6)**
+
+**-c mode-4 closure — Option C decision recorded.**
+
+Lon delegated the A/B/C choice to Claude (Sonnet 4.6). Option C chosen: SM_HALT
+is a **sanctioned terminative exception**. The "no divergence" invariant
+covers program semantics; termination mechanism is host-environment-specific.
+Mode-3 keeps `inc [r13+20]; ret` (in-process); mode-4 keeps
+`call rt_halt_tos@PLT` (standalone binary). Decision recorded in
+`templates/sm_halt.c` header. No code change. Sub-rung -c now closed.
+
+**-e: charset-family BB box template (XSPNC/XBRKC/XANYC/XNNYC).**
+
+`templates/bb_xspnc.c` provides `emit_bb_charset()` — the binary path.
+Text path lives in `bb_flat.c` as `charset_text_body()` (a `bb_charset_text_fn`
+callback), avoiding externalization of `bb_flat.c`'s static helpers.
+Four per-kind wrappers (`flat_emit_xspnc/xbrkc/xanyc/xnnyc`) call
+`emit_bb_charset` with the right runtime fn + text callback; `flat_emit_node`
+dispatch cases updated. `flat_emit_charset_call` marked `__attribute__((unused))`.
+`g_flat_node_id` promoted from `static` to `extern` (declared in `bb_flat.h`).
+`bb_charset_text_fn` callback typedef added to `bb_flat.h`.
+
+**Gates (all green):**
+- `test_smoke_snobol4.sh`: 7/7
+- `test_smoke_unified_broker.sh`: 49/49
+- `test_smoke_snocone.sh`: 5/5
+- `test_gate_em_template_byte_identity.sh`: 4/4
+- `git stash`/`pop` diff on `claws5.s`: **empty** (byte-identical)
+- 5/5 tracked artifacts `gcc -c` clean. Line counts unchanged (71/121/868/1104/1284).
+
+**Files touched:**
+- `src/runtime/x86/templates/bb_xspnc.c` — NEW
+- `src/runtime/x86/templates/sm_halt.c` — Option C decision recorded
+- `src/runtime/x86/templates/templates.h` — emit_bb_charset declaration
+- `src/runtime/x86/bb_flat.c` — charset_text_body + wrappers; dispatch updated; g_flat_node_id extern
+- `src/runtime/x86/bb_flat.h` — g_flat_node_id extern + bb_charset_text_fn typedef
+- `Makefile` — bb_xspnc.c added to scrip rule + RT_PIC_SRCS
+- corpus tracked artifacts regenerated (byte-identical)
+
+**one4all commit:** `157352d8`. **corpus commit:** `fd5c8a9`.
+
+**Next sub-rung:** `-f` — suggested `sm_push_lit_i` (SM-axis) or `bb_xlnth`+`xtb`+`xrtb`
+(BB-axis integer-cursor family). SM-axis is now unblocked (Option C decided).
+
+----
 
 **_v eradication CLOSED — survivors renamed/deleted sess 2026-05-11 (Claude Opus 4.7, latest)**
 
