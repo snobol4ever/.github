@@ -523,6 +523,39 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**_v eradication CLOSED — survivors renamed/deleted sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Sub-rung that the prior watermark (below) carved as a future task: completed in-session.  Two changes, both purely cosmetic (no emission change):
+
+1. **`flat_emit_body_v` → `flat_emit_body`** — mechanical rename in `src/runtime/x86/bb_flat.c`.  4 sites: definition + one doc-comment reference + two callers.
+2. **`ev3c` family deleted entirely** from `src/runtime/x86/emitter.h`.  Static analysis confirmed zero external callers — four dead-code helpers (`ev3c`, `ev3c_action_v`, `ev3c_label`, `ev3c_goto_v`) carrying both the banned `ev` prefix (emitter-vtable) and, for two of them, also the banned `_v` suffix.  Per Lon's fourth-pass directive ("Eradicate it from docs and source. I do not want to see it ever again"), deletion is cleaner than rename for dead code.  Doc-comment placeholder explains the eradication and the rule for future emitters (use `emit3c_label`-style names if three-column helpers are ever wanted again).
+
+**Tightened static-analysis invariants — all three pass:**
+
+```
+grep -rE '\bemit_v\b|\bemitter_v\b|\bEMITTER_V\b' src/runtime/x86/    empty
+grep -rEn '\b[a-z][a-zA-Z0-9_]*_v\s*\(' src/runtime/x86/              empty
+grep -rn '\bev3c' src/runtime/x86/                                    one doc-comment archaeology hit
+```
+
+The first invariant has been in place since the fourth-pass watermark below; the second and third are newly tightened to also catch the `_v` function-name suffix and the `ev3c` family.
+
+**Gates (all green):**
+- `build_scrip.sh`, `libscrip_rt.so` rebuild: clean.
+- `test_smoke_snobol4.sh`: 7/7.
+- `test_smoke_unified_broker.sh`: 49/49.
+- `test_smoke_snocone.sh`: 5/5.
+- `test_gate_em_template_byte_identity.sh`: 4/4.
+- `build_and_run_test_template_byte_identity.sh`: PASS.
+- `test_smoke_snobol4_jit.sh`: `--sm-run` 197/64, `--jit-run` 197/64, three-mode parity on crosscheck: 133 programs.
+- `git stash`/`pop` byte-diff on `claws5.s`: empty (byte-identical).
+
+**one4all commit:** `55ef787f`.
+
+----
+
+
+
 **_v eradication-directive incomplete — three survivors flagged sess 2026-05-11 (Claude Opus 4.7, latest)**
 
 Post-handoff inspection (Lon's question: "what does the v in `flat_emit_body_v` stand for?") surfaced three function names that should have been caught by sub-rung -a's fourth-pass `_v` eradication but slipped through because the static-analysis grep was scoped narrowly to `emit_v|emitter_v|EMITTER_V` literal patterns, not the broader `_v` function-name suffix convention.
