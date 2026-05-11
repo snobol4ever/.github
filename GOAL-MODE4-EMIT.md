@@ -315,7 +315,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -i BB: `templates/bb_xbrkx.c` BREAKX box. Callback pattern (brkx_text_body in bb_flat.c). Byte-identical. (Sonnet 4.6, one4all `a895fbeb`)
   - [x] -j SM: `templates/sm_jump.c` JUMP/JUMP_S/JUMP_F. (Sonnet 4.6, one4all `cc21cf01`)
   - [x] -k BB: `templates/bb_xposi.c` POS/RPOS. Callback pattern. (Sonnet 4.6, one4all `30b19814`)
-  - [ ] **-l SM: arithmetic family** ← **NEXT**. ADD/SUB/MUL/DIV/MOD/EXP.
+  - [x] -l SM: `templates/sm_arith.c` ADD/SUB/MUL/DIV/MOD. emit_sm_arith_op; movabs rdi,op; call rt_arith@PLT. (Sonnet 4.6, one4all `3b431771`)
+  - [ ] **-m BB: XFARB+XEPS+XFAIL** ← **NEXT**. Three degenerate boxes (ARB, EPSILON, FAIL).
   - [ ] -m BB: XFARB+XEPS+XFAIL (one rung).
   - [ ] -n..p Further SM/BB alternation (SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN family, remaining BB boxes, SM_PAT_*).
   - [ ] -q SM_LABEL / SM_STNO structural markers.
@@ -364,7 +365,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 Gates: smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. 5/5 artifacts gcc-c clean.
 one4all `87f59f43` · corpus `2f6beec` · .github `b78e199`.
 
-**Next: -l — SM-axis: arithmetic family** (ADD/SUB/MUL/DIV/MOD/EXP).
+**Next: -m — BB-axis: XFARB+XEPS+XFAIL** (ARB/epsilon/fail degenerate boxes).
 
 **Template pattern for SM sub-rungs (follow for -j onward):**
 1. `templates/sm_<opcode>.c`: `emit_sm_<opcode>(emitter_t *e, <operands>)`.
