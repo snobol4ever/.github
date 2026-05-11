@@ -402,29 +402,62 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, second instance)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Opus 4.7, third instance)**
 
-**No code landed this session. one4all remains at `1fcb9437`.**
+**Partial EM-TEMPLATE-PURITY work landed: emitter vtable extended with three new slots. one4all `57d272e0` (was `3ed2d766`).**
 
-This session established and committed **The Law of Template Functions** to `GOAL-MODE4-EMIT.md` (`.github` pushed, hash `da1a75c`). See the section above `## Architectural target`.
+### What landed (vtable surface only, no templates rewritten):
 
-**Key clarification from Lon (this session):**
-- One C template function per SM opcode and per BB box — the **only** output path
-- Called by **both mode 3 and mode 4** — not mode-4-only
-- All output through `emitter_t` vtable (binary / text / macro_def)
-- The `FILE*` wrapper pattern used in sub-rungs -h through -m is **wrong** — it must be replaced
-- `EM-TEMPLATE-PURITY` exists to eradicate all violations of this law
+Added three vtable methods to `emitter_t` (`src/runtime/x86/emitter.h`) plus implementations in both backends (`emitter_text.c`, `emitter_binary.c`):
 
-**What was attempted and reverted:**
-Sub-rung -n (`SM_CONCAT`, `SM_PUSH_NULL`, `SM_COERCE_NUM`) was written using the wrong `FILE*` wrapper pattern before the Law was understood. All changes reverted cleanly. one4all working tree is clean.
+| Slot | Text rendering | Binary rendering |
+|------|----------------|------------------|
+| `data_long(e, val)` | `.long <val>` line | 4 bytes little-endian via `bb_emit_byte` |
+| `bb_zeta_rdi(e, ptr, sym)` | `lea rdi, [rip + sym]` | `mov rdi, imm64(ptr)` via `emit_mov_rdi_imm64` |
+| `bb_dispatch_jne_jmp(e, lbl_succ, lbl_fail)` | fused `test rax,rax; jne x; jmp y` (one 3-column line) | `emit_test_rax_rax` + `EV_JMP(JNE)` + `EV_JMP(JMP)` |
 
-**Gates at handoff (one4all `1fcb9437`):** smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4. Unchanged from previous session.
+These compile clean, are wired into both vtables, and no callers exist yet. **Gates green at handoff: smoke 7/7, broker 49/49, template-byte-id 4/4.** No regressions.
 
-**Next session must:**
+### What was attempted and reverted: bb_xchr.c rewrite
+
+Rewrote `templates/bb_xchr.c` to strip `is_text` and use the vtable — emitting `.data` section content via `EMIT_OPT(e, section, ...)`, `EMIT_OPT(e, data_string, ...)`, `EMIT_OPT(e, data_quad_sym, ...)`, `EMIT_OPT(e, data_long, ...)`, then switching back to `.text` and emitting the α/β port instructions.
+
+**This broke mode-3.** Both `--sm-run` and `--jit-run` SIGSEGV on the `halt_after_match` fixture in `test_gate_em_template_byte_identity.sh`. Root cause: the binary backend's `data_string` and `data_quad` methods write raw bytes via `bb_emit_byte` (their original purpose, predating sub-rung -b). In bb_pool / SEG_CODE land there is no `.data` section — bytes go wherever the emit cursor sits. So my `EMIT_OPT(e, data_string, e, lit, len)` etc. wrote the literal's bytes *between the α-port's instructions* in SEG_CODE, corrupting executable code.
+
+`bb_xchr.c` reverted to its pre-session state (`git checkout`). Gates restored.
+
+### The deeper architectural question this exposed
+
+The Law of Template Functions says the template emits via vtable, and each backend renders appropriately. But for charset/intcur/brkx/xchr boxes, the binary and text backends have **fundamentally different storage models**:
+
+- **Text:** zeta lives in a static `.data` section; α-port `lea`s its address into `rdi`.
+- **Binary:** zeta is heap-allocated (`calloc`) by the *emitter at compile time*; α-port bakes the heap pointer as `mov rdi, imm64`.
+
+The existing `data_string`/`data_quad` vtable slots aren't the right abstraction — they assume the binary backend has a writable data section, which `bb_pool` doesn't. The right abstraction is something like `bb_zeta_emit(e, kind, init_fn)` where the binary backend allocates+initializes the zeta on the heap (calling `init_fn` to fill it) while the text backend emits the equivalent `.data` block.
+
+Until that's designed, the `is_text` split in `bb_xchr/xspnc/xbrkx/xlnth` between "heap-allocate zeta" and "emit static .data" is structurally unavoidable — what the existing dirty templates do is correct in spirit; only the *text path delegating to a callback in bb_flat.c* is the Law violation.
+
+### Refined understanding for next session
+
+`EM-TEMPLATE-PURITY` as written ("no `is_text` guard, no callback") may be too strict for the data-emitting box family. Two options for next session:
+
+**Option A — accept narrow `is_text` for storage-model split.** Keep `if (e->is_text)` purely for the zeta allocation split (heap vs `.data` section), but eliminate the *callback* (move the text-path body INTO the template). This matches what `bb_xposi`/`bb_xfarb` already do for their narrower split. Document the narrow exception in the Law.
+
+**Option B — design a `bb_zeta_*` vtable abstraction.** Add `e->bb_zeta_alloc(kind, size, init_data, init_len)` returning a `void *cookie`; binary backend `calloc`s and copies; text backend emits `.data` block and returns the label string as the cookie. Templates use the cookie via `e->bb_zeta_rdi(e, cookie)`. This is the architecturally clean form but requires the cookie abstraction to be uniform across all four dirty templates' zeta layouts (charset: `{char*, int, int}`; intcur LEN: `{int}`; intcur TAB/RTAB: `{int, int}`; brkx: `{char*, int}`). Doable but a real design pass — not a 30-minute rewrite.
+
+Lon should pick A or B before next session attempts the rewrite.
+
+### Files modified this session (clean commit at handoff):
+
+- `src/runtime/x86/emitter.h` — declarations for the 3 new vtable slots
+- `src/runtime/x86/emitter_text.c` — text implementations + vtable wiring
+- `src/runtime/x86/emitter_binary.c` — binary implementations + vtable wiring
+
+### Next session must:
+
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full — no exceptions
-2. Run session setup / confirm baseline gates at `1fcb9437`
-3. Execute `EM-TEMPLATE-PURITY` — fix BB templates -d through -m to use pure vtable calls, no `is_text`, no callbacks
-4. Only then proceed to sub-rung -n with the correct pattern
-
-**The correct template pattern (per Law of Template Functions):**
-One `.c` file per opcode/box. The template function takes `emitter_t *e` only (plus opcode-specific args). Mode 3 and mode 4 both call it directly with an appropriately constructed emitter. No `FILE*`. No `emitter_text_new` wrapper at the call site. No `is_text` branching inside. Pure vtable calls throughout.
+2. Read this watermark and decide Option A vs Option B with Lon
+3. Confirm baseline gates at new HEAD (smoke 7/7, broker 49/49, template-byte-id 4/4)
+4. Execute `EM-TEMPLATE-PURITY` on `bb_xchr.c`, `bb_xspnc.c`, `bb_xbrkx.c`, `bb_xlnth.c` per chosen option
+5. Also fix `flat_emit_box_call` in `bb_flat.c` (has its own `is_text` guard — covered by the new `bb_dispatch_jne_jmp` vtable slot already landed this session)
+6. Only then proceed to sub-rung -n with the correct pattern
