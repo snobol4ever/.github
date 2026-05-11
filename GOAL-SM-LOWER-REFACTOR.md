@@ -315,22 +315,23 @@ the pattern. Legacy switch loses these cases.
 - [x] Remove the 5 cases from the legacy switch
 - [x] Gate + verify `g_handlers[AST_QLIT]` etc. are non-NULL at runtime
 
-**SR-5 — cohort_ref.** VAR, KEYWORD, INDIRECT, DEFER. The
-expression-scope-aware AST_VAR logic (frame slot vs NV) moves with
-it; it consults `ctx->expression_scope` cleanly now that there's no
-file-scope global.
+**SR-5 ✅ Session 2026-05-11, one4all `237c8c51`** — `cohort_ref.c` (VAR/KEYWORD/INDIRECT/DEFER).
+`lower_expr` promoted from `static` to non-static (Phase-2 cohort promotion; INDIRECT
+and DEFER recurse into it). Declaration added to `lower_ctx.h`. 4 cases removed from
+legacy switch. Gate: PASS=30 FAIL=0 byte-identical.
 
-- [ ] `cohort_ref.c` with 4 handlers
-- [ ] Remove 4 cases from legacy switch
-- [ ] Gate
+- [x] `cohort_ref.c` with 4 handlers
+- [x] Remove 4 cases from legacy switch
+- [x] Gate
 
-**SR-6 — cohort_arith.** INTERROGATE, NAME, MNS, PLS, ADD, SUB, MUL,
-DIV, MOD, POW. The `LOWER2` / `LOWER1_VAL` helpers do real work
-here — most cases collapse to one-liners.
+**SR-6 ✅ Session 2026-05-11, one4all `237c8c51`** — `cohort_arith.c` (INTERROGATE/NAME/MNS/PLS/ADD/SUB/MUL/DIV/MOD/POW).
+One-liners use LOWER2/LOWER1_VAL macros (with `SM_Program *p = c->p` in scope).
+INTERROGATE and NAME moved from non-contiguous legacy-switch locations. 10 cases removed.
+Gate: PASS=30 FAIL=0 byte-identical.
 
-- [ ] `cohort_arith.c` with 10 handlers
-- [ ] Remove 10 cases from legacy switch
-- [ ] Gate
+- [x] `cohort_arith.c` with 10 handlers
+- [x] Remove 10 cases from legacy switch
+- [x] Gate
 
 **SR-7 — cohort_seq + cohort_pat_prim.** Sequence/alternation (5)
 plus the 14 pattern primitives. These are SNOBOL4-heavy and exercise

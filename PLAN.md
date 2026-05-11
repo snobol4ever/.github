@@ -61,7 +61,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **PAUSED** — reopens when ME-14 closes. Mode-4 = mode-3 + SEG_CODE serializer. Tripwire: test_gate_em_beauty_subsystems_mode4 PASS=4 FAIL=13 frozen. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
-| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-5** — cohort_ref (VAR, KEYWORD, INDIRECT, DEFER). Closed: SR-1..SR-3 ✅, **SR-4 ✅ `556877a4`** — dispatcher infra + cohort_literal. |
+| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-7** — cohort_seq + cohort_pat_prim. Closed: SR-1..SR-4 ✅, **SR-5 ✅ `237c8c51`** — cohort_ref (VAR/KEYWORD/INDIRECT/DEFER); lower_expr promoted non-static. **SR-6 ✅ `237c8c51`** — cohort_arith (INTERROGATE/NAME/MNS/PLS/ADD/SUB/MUL/DIV/MOD/POW). |
 | **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **PAUSED — awaits GOAL-SM-LOWER-REFACTOR.** SL-1 begins after SR-15 lands; translation becomes a transcription exercise once `sm_lower.c` is pristine. SL-0 ✅ folder + goal created. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
