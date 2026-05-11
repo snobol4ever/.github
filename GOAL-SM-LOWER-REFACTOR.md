@@ -190,3 +190,6 @@ t (kind) / v (union sval|ival|dval) / n (nchildren) / c (children[]).
 tree_push/tree_pop/tree_new inline in ast.h: c[] doubles on push, halves
 when n < _nalloc/4, frees when empty. All open-coded realloc push blocks
 replaced. 101 files changed.
+
+**SI-11 ✅** Session 2026-05-11, one4all `71df89af` — AST_e → tree_e.
+Complete tree_t vocabulary: type=tree_t, kind-enum=tree_e, fields t/v/n/c.
