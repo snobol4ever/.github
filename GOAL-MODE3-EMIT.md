@@ -1833,3 +1833,185 @@ to be achievable.  Both are landed in this session's commit.
 recommended.  Sibling work that remains active per the goal file's
 premier-goal carve: `GOAL-ICON-BB-COMPLETE`.  All other goals stay
 paused until ME-* closes.
+
+**Addendum sess 2026-05-10 (Claude latest, seventh session of the day):
+ME-6 Path A scaffolding landed; routing held — re-entry-into-entry-label
+hazard discovered.**
+
+Session goal: execute Path A as the canonical next step.  Implementation
+proceeded through the planned mechanism, then a regression in
+sn7_beauty (26 → 20) under `--jit-run` revealed an architectural hazard
+not anticipated in the previous session's handoff.
+
+**What landed (architectural scaffolding only; no behaviour change):**
+
+1. **`SM_State.jit_epilogue_pending` (int, offset 24)** — new field
+   inserted immediately after `pc` (offset 20).  Original offsets
+   (stack=0, sp=8, stack_cap=12, last_ok=16, pc=20) are unchanged, so
+   every existing emitted-byte access to `[r13+0]`, `[r13+8]`,
+   `[r13+16]`, `[r13+20]` continues to work without modification.
+   Downstream fields (err_jmp, call_stack, call_depth) shift by 8 bytes
+   but are accessed only by C code, which the compiler handles.
+   Zero-initialised by `sm_state_init`'s `memset`.
+
+2. **`me6_return_dispatch(int bits)` C helper** in `sm_codegen.c`
+   (marked `__attribute__((unused))` for now).  Decodes variant bits:
+   - bit 0 = is_fret  (FRETURN family)
+   - bit 1 = is_nret  (NRETURN family)
+   - bit 2 = cond_s   (fire only if  st->last_ok)
+   - bit 3 = cond_f   (fire only if !st->last_ok)
+   Gates on the condition, calls `h_return_impl(is_fret, is_nret)` on
+   match, sets `jit_epilogue_pending = 1` iff a frame was actually
+   popped, returns the flag value.  Always clears the flag at entry to
+   prevent stale-1 leaks across no-op variants.
+
+3. **`emit_me6_define_entry_blob(trampoline_abs_off)`** (marked unused).
+   15 bytes: `inc dword [r13+20]` + `push rbp` + `mov rbp, rsp` +
+   `jmp rel32 trampoline`.
+
+4. **`emit_me6_return_blob(bits, trampoline_abs_off)`** (marked unused).
+   ~72 bytes: pc-bump + sync r12→sp + `mov edi, bits` + imm64 call to
+   `me6_return_dispatch` + sync sp→r12 (using rcx so rax survives) +
+   `test eax, eax` + `jz no_unwind +4` + `mov rsp, rbp` + `pop rbp` +
+   `jmp rel32 trampoline`.
+
+**Why routing was reverted: the re-entry-into-entry-label hazard.**
+
+Initial implementation routed SM_LABEL with `a[2].i == 1` through
+`emit_me6_define_entry_blob` and the nine return-variant opcodes through
+`emit_me6_return_blob`.  Build clean.  Smoke 7/7 + broker 49/49 held.
+**But sn7_beauty regressed from 26 → 20.**
+
+Investigation: case_driver.sno segfaulted under `--jit-run` immediately.
+gdb showed `rip == rsp` post-fault — classic signature of a `ret` that
+fetched its return address from a stack location holding a saved-rbp
+value rather than a code address.  Trace back: the `icase` function in
+`case.sno` contains the loop pattern
+
+```snobol4
+icase    str  POS(0) ANY(&UCASE &LCASE) . letter =  :F(icase1)
+         icase = icase (upr(letter) | lwr(letter))  :(icase)
+```
+
+— where the bare goto `:(icase)` is a SM_JUMP back to the function's
+own define-entry SM_LABEL.  Every iteration re-enters the define-entry
+blob and re-executes `push rbp` — but there is **no paired pop** within
+the loop.  The function eventually exits via a single SM_RETURN_S; that
+SM_RETURN_S pops exactly one rbp, leaving N-1 stale saved-rbp values
+contaminating the native stack.  When the eventual SM_HALT's `ret`
+fires (or when a libgc routine, or any caller, does a `ret`), the
+return address pulled off the stack is one of those stale rbp values,
+which is itself a stack address — and we jump to it, leading to the
+observed `rip == rsp` state.
+
+The hazard is **structural**: SM_LABEL is the destination not just of
+the dispatch from `h_call`, but of *any* SM_JUMP whose target_pc lands
+on that label.  SNOBOL4 idioms routinely use `:(label)` jumps inside
+function bodies where the label IS the function entry — this is the
+SNOBOL4 way to write a tail-recursive loop without re-invoking the
+DEFINE'd dispatch machinery.  Several patterns are affected: icase-
+style accumulator loops, manual fixed-point iteration, label-fall-
+through into a fresh iteration.  The prologue-on-SM_LABEL design is
+fundamentally incompatible with these idioms because SM_LABEL fires
+on every entry to that PC, not on every "call".
+
+**Fix options for next session (all explicitly out of scope for this one):**
+
+a) **Move the prologue to h_call.**  Have `h_call` set a flag (e.g.
+   `SmCallFrame.jit_prologue_active`) when it dispatches to a user
+   function.  Emit a synthetic prologue trampoline at h_call's
+   handler — but h_call is a C function and cannot inject native
+   pushes into the SM-blob's native stack.  This option requires
+   either splitting h_call into an emitted prologue + a C body or
+   making `STATE->pc = body_pc` go through an emitted helper that
+   does the push.  Doable but invasive.
+
+b) **Detect re-entry at the prologue blob.**  Compare `rbp` to the
+   prior frame's prologue-rbp value; only push if "new" entry.
+   Requires a per-blob memory slot for "rbp seen this entry" or a
+   call-frame-correlated flag.  Complicates the simple "push once,
+   pop once" invariant.
+
+c) **Make the prologue a no-op when entered via SM_JUMP.**  This
+   requires knowing the entry mode, which the blob does not.  Could
+   route SM_JUMP-into-define-entry through a different (shifted)
+   address that skips the prologue — but every SM_JUMP would then
+   need to know whether its target is a define-entry label and emit
+   to the shifted address.  Doable; touches every SM_JUMP emitter.
+
+d) **Defer rbp accounting until per-instruction native emission
+   subsumes the dispatch loop entirely** (mode-3 as a real JIT,
+   ME-14 era).  At that point the call/return distinction is
+   structural (native call/ret) rather than data-flow (PC-driven
+   dispatch), and rbp can hang off a native call frame naturally.
+   This is the architecturally clean answer but is far off.
+
+The handoff's previous-session finding still stands: recursive `fib`
+runs byte-identically across modes today without any rbp accounting.
+The Path A mechanism has no functional payoff in the current dispatch
+model — it was always architectural scaffolding for the eventual
+ME-MODE4-IS-MODE3-DUMP serializer and for the latent vsnprintf
+alignment concern (which, on closer inspection this session, is a
+C-side bb_label_initf concern not a bb_pool-emitted-code concern).
+
+**What the landed scaffolding buys the next session:**
+
+1. The SM_State field is in place at a known offset; emitters can use
+   `[r13+24]` directly without re-deriving the offset.
+2. The C helper `me6_return_dispatch` exists and is correct — once
+   the routing problem is solved, wire it in.
+3. The emit functions exist and are byte-correct against the
+   established register convention — once the entry-blob hazard is
+   addressed (option a or c above), enabling them is a one-line
+   change in `sm_codegen.c`'s dispatch loop.
+4. The diagnosis is recorded so the next agent doesn't re-discover
+   the icase hazard.
+
+**Gates this session:**
+
+| Gate | Before | After |
+|------|--------|-------|
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | PASS=7 FAIL=0 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | PASS=49 FAIL=0 |
+| `test_gate_sn7_beauty_self_host.sh` | PASS=26 FAIL=25 | PASS=26 FAIL=25 |
+| Recursive fib (088_define_recursive_fib.sno) byte-identical sm/jit/ir | ✅ | ✅ |
+| 2-DEFINE inline repro (`/tmp/me6_repro2.sno`) byte-identical sm/jit | n/a | ✅ |
+| Conditional-return repro (`/tmp/me6_repro3.sno`) byte-identical sm/jit | n/a | ✅ |
+
+**Files touched this session:**
+- `src/runtime/x86/sm_interp.h` — `jit_epilogue_pending` field, offset 24 (+12/-1)
+- `src/runtime/x86/sm_codegen.c` — `me6_return_dispatch` + two emit functions (all `__attribute__((unused))` for now), header comment explaining the routing decision (+~190/-0)
+
+**State at handoff:**
+- one4all: working tree dirty (`sm_interp.h`, `sm_codegen.c`).
+  Ready to commit.
+- corpus: unchanged.
+- .github: GOAL-MODE3-EMIT.md updated (this addendum); PLAN.md
+  updated (active step → ME-6 retry with re-entry fix).
+  Ready to commit.
+
+**Next active step:** ME-6 retry — solve the re-entry-into-entry-label
+hazard before enabling the prologue/epilogue.  Recommended sub-rungs
+(file new step IDs in the goal file):
+
+- **ME-6a — route through h_call.**  Pick option (a) above.  Concrete
+  shape: add an `int jit_prologue_active` field to `SmCallFrame`; set
+  to 1 in `h_call`'s user-function branch right after `STATE->pc =
+  body_pc`; emit a new opcode `SM_DEFINE_ENTRY` between SM_CALL_FN
+  and the body's first SM_LABEL (or replace the define-entry
+  SM_LABEL's flag-driven dispatch with an explicit
+  `SM_DEFINE_ENTRY` instruction that sm_lower emits at every DEFINE
+  body's head).  SM_DEFINE_ENTRY's blob does the push; SM_RETURN-
+  variant blob does the conditional pop gated on
+  `caller_frame->jit_prologue_active`.  Cleanest because every entry
+  is reached exactly once per call; SM_JUMP to a SM_LABEL never
+  passes through SM_DEFINE_ENTRY.
+
+- **ME-6b — instrument case_driver as a regression gate.**  Add
+  `test_gate_me6_reentry_hazard.sh` that compiles a minimal icase-
+  shaped function and runs it under `--jit-run`; the test passes
+  iff exit code 0 and no segfault.  Locks in the fix.
+
+The architectural scaffolding landed this session (SM_State field,
+helper, emit functions) is reusable as-is for ME-6a — only the
+routing site changes.
