@@ -523,6 +523,36 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**_v eradication-directive incomplete — three survivors flagged sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Post-handoff inspection (Lon's question: "what does the v in `flat_emit_body_v` stand for?") surfaced three function names that should have been caught by sub-rung -a's fourth-pass `_v` eradication but slipped through because the static-analysis grep was scoped narrowly to `emit_v|emitter_v|EMITTER_V` literal patterns, not the broader `_v` function-name suffix convention.
+
+**Survivors:**
+
+| File | Symbol | Meaning of the `v` |
+|------|--------|--------------------|
+| `src/runtime/x86/bb_flat.c:1545` | `flat_emit_body_v` | "takes an `emitter_t *` (vtable-style emitter argument)" — exactly the banned convention |
+| `src/runtime/x86/emitter.h:399` | `ev3c_action_v` | doubly cursed — `ev_` prefix + `_v` suffix; the latter may also denote vprintf-style va_args |
+| `src/runtime/x86/emitter.h:417` | `ev3c_goto_v`   | same as above |
+
+Per Lon's directive captured in the fourth-pass watermark below: "Scrap the use of the character V or v for this concept here. It means nothing. Get rid of it. Eradicate it from docs and source. I do not want to see it ever again."  The directive applies; the rename was simply missed.
+
+**Carved as follow-on rung (not landed this session):** small mechanical rename
+- `flat_emit_body_v` → `flat_emit_body` (call site at bb_flat.c lines 1637 and 1655 updated)
+- `ev3c_action_v` → `emit3c_action_va` or similar (preserving va_args connotation if that's the actual reason for the `_v` here — verify before rename)
+- `ev3c_goto_v` → `emit3c_goto_va` likewise
+- Tighten the static-analysis invariant to also catch `_v\b` (function-name suffix) and `\bev[0-9_]` (ev3c-style prefixes), in addition to the existing `emit_v|emitter_v|EMITTER_V` patterns
+
+**Risk:** trivial.  Pure rename, no behavior change.  Three call sites total across the codebase.
+
+**Pre-read for the follow-on rung:** this watermark; the fourth-pass watermark below (Lon's verbatim directive); the fifth-pass watermark (which clarified `em_` → `emit_`).
+
+**Gates:** no code change this addendum.  All gates unchanged from prior handoff hashes (one4all `f74db5bf`, .github `fd1e3fc`).
+
+----
+
+
+
 **EM-MODE4-IS-MODE3-DUMP-d closed (BB side proven; bb_xchr template byte-identical) — sess 2026-05-11 (Claude Opus 4.7, latest)**
 
 Sub-rung -d lands cleanly with full closure (unlike -c, which is
