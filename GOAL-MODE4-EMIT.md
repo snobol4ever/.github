@@ -510,7 +510,106 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-MODE4-IS-MODE3-DUMP-a amended (fourth pass: `_v` banned; rename across source + docs) — sess 2026-05-11 (Claude Opus 4.7, latest)**
+**EM-MODE4-IS-MODE3-DUMP-a amended (fifth pass: `em_` → `emit_`; `EMIT_V` reverted) — sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Two corrections from Lon to the fourth pass:
+
+1. **`em_` → `emit_`.**  The helper-namespace rename I chose
+   (`ev_*` → `em_*`) used unfamiliar shorthand.  "emit" is the
+   actual word and matches `emit_insn` — the vtable's central
+   method — already in use everywhere.  Helpers are now named
+   `emit_mov_rax_imm64`, `emit_load_delta`, `emit_call_rax`,
+   `emit_jmp`, etc.  Reads as the verb the function does.
+
+   115 substitutions across `emitter.h` (63) and `bb_flat.c` (52).
+   Pre-checked for collisions: zero — `em_insn0` → `emit_insn0`
+   is distinct from `emit_insn` (the vtable method).  Build and
+   gates clean.
+
+2. **`EMIT_V` in `snocone_lex.c` reverted.**  Fourth pass had
+   renamed it to `EMIT_VAL`.  Lon corrected: the `V` there stands
+   for *value-token* in the lexer's EMIT-this-as-a-value macro,
+   not for vtable.  Unrelated to the emitter concept.  Reverted
+   to original `EMIT_V` — 6 sites + 2 comment refs back to their
+   pre-fourth-pass form.
+
+**Lon's principle, captured for future sessions:** "ignore `_V`
+where it does not apply to our concept, emitters, here.  So do not
+change any unrelated code."  The directive targets the emitter-
+vtable convention specifically.  Other code that happens to have a
+`_V` or `_v` suffix for unrelated reasons (value-token macros,
+math vectors, version literals, etc.) is **out of scope** and
+must not be touched.
+
+**Gates after corrections:**
+
+- Build: clean.
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_snocone.sh`: PASS=5 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- 5/5 tracked artifacts emit + `gcc -c` clean.
+
+**Updated static-analysis invariant:**
+
+```
+grep -rE 'emit_v|emitter_v|EMITTER_V' src/runtime/x86/
+```
+
+returns empty.  Note the scope tightened: BOTH expressions are
+restricted to `src/runtime/x86/` (the emitter subsystem) so that
+unrelated `_V` usage elsewhere — Snocone's value-token macro,
+math/vector code, etc. — is not affected.  The directive bans
+`_v`/`_V` as an *emitter-naming convention*; it does not ban the
+letter V everywhere.
+
+**Final name set for the emitter subsystem:**
+
+| Concept | Name |
+|---------|------|
+| Header  | `emitter.h` |
+| Vtable type | `emitter_t` |
+| Backends | `emitter_binary`, `emitter_text`, `emitter_macro_def` |
+| Inline helpers | `emit_*` (e.g. `emit_mov_rax_imm64`, `emit_call_rax`, `emit_load_delta`) |
+| Vtable method | `emit_insn` |
+
+**Surface-design tension flagged for sub-rung -b to resolve:**
+
+The existing `emitter.h` has ONE primary vtable method
+(`emit_insn(e, &desc)` taking a `bb_insn_desc_t` with typed
+operand slots) and MANY inline helpers that build `bb_insn_desc_t`
+and dispatch through it.  The design doc as currently written
+proposes MANY vtable methods (one per x86 instruction: `mov_reg_imm64`,
+`call_plt`, `ret`, …) with NO helper layer.
+
+These are two different shapes:
+
+- **Existing (BB-side prior art):** narrow vtable, wide helper
+  layer.  Adding a new instruction = new kind enum + new `BB_INSN_*`
+  case in each backend's `emit_insn` switch + new inline helper.
+- **Proposed in design doc:** wide vtable, no helper layer.  Adding
+  a new instruction = new function pointer slot + new method
+  in each backend's struct.
+
+Sub-rung -b chooses one.  Recommendation (to be confirmed at -b
+entry): keep the existing narrow-vtable / wide-helper shape — it's
+proven (106/106 against SPITBOL oracle), the helper layer is the
+natural place for sprinkle (helpers can wrap their `emit_insn`
+call with `e->comment(...)` and other formatting calls
+trivially), and the kind enum + desc struct centralize what each
+instruction *means* in one place rather than scattering it across
+backend impls.
+
+Design doc will be amended in sub-rung -b to reflect the chosen
+shape.  Today's doc text describing the wide-vtable proposal stays
+as historical context.
+
+Ready for sub-rung -b.
+
+----
+
+
+
+**EM-MODE4-IS-MODE3-DUMP-a amended (fourth pass: `_v` banned; rename across source + docs) — sess 2026-05-11 (Claude Opus 4.7, later)**
 
 Lon's directive: `_v` (and the `ev_` prefix it spawns) is banned
 project-wide.  "Scrap the use of the character V or v for this
