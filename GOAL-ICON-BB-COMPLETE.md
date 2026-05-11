@@ -46,19 +46,17 @@ bash scripts/test_smoke_icon.sh                 # PASS=5
 bash scripts/test_smoke_unified_broker.sh       # PASS=49
 bash scripts/test_isolation_ir_sm.sh            # PASS
 bash scripts/test_icon_ir_all_rungs.sh          # 185/48/30
-bash scripts/test_icon_sm_no_ast_walk.sh        # honest dial (194/45/1 at sess 2026-05-11)
+bash scripts/test_icon_sm_no_ast_walk.sh        # honest dial (224/~39/0 at sess 2026-05-11c)
 ```
+
+⚠️ `test_icon_sm_no_ast_walk.sh` uses 8s timeouts — some long-running programs register as FAIL. Run a manual sweep with 10s+ timeouts to get accurate count.
 
 ---
 
 ## Honest-mode-3 protocol
 
-Probe helpers live in `scripts/icon_bb_probes.sh`:
-- `bb_probe_detect` / `bb_probe_detect_anchor` — is the rung needed?
-- `bb_probe_complete` / `bb_probe_complete_anchor` — checks output + honest + audit + smokes
-- `bb_probe_scoreboard` — FLIPPED/REGRESSED/STILL-PASS/STILL-FAIL
-- Regression tripwire: smoke ×6 + broker md5 diff vs `baselines/icon-bb/smoke-*.md5`
-- Bisection: `scripts/icon_bb_bisect.sh`
+Probe helpers in `scripts/icon_bb_probes.sh`: `bb_probe_detect`, `bb_probe_complete`, `bb_probe_scoreboard`.
+Baseline md5: `baselines/icon-bb/sm-run-honest.md5` (created sess 2026-05-11c).
 
 A rung is **honestly complete** iff: (a) output matches `--ir-run`, (b) passes under `SCRIP_NO_AST_WALK=1`, (c) audit counter zero for kind, (d) smokes unchanged, (e) ≥1 program flipped honest.
 
@@ -66,80 +64,70 @@ A rung is **honestly complete** iff: (a) output matches `--ir-run`, (b) passes u
 
 ## Phase A — drain legacy fallthrough
 
-Six kinds at `lower.c` legacy block emit `emit_push_expr + SM_BB_PUMP`:
-`AST_BANG_BINARY`, `AST_LIMIT`, `AST_RANDOM`, `AST_SECTION`, `AST_SECTION_MINUS`, `AST_SECTION_PLUS`, plus generative `AST_LCONCAT` variant.
+`lower_bang_binary` and generative `lower_lconcat` emit `SM_BB_PUMP_AST` (bridges to `coro_eval` via `g_ast_pump_active` exemption — not caught by `SCRIP_EXPRS_AUDIT`). Phase A replaces each with a pure SM coroutine using the `emit_range_coroutine` pattern: `SM_JUMP` over body → `SM_RESUME` → loop with `SM_STORE/LOAD_GLOCAL` + `SM_SUSPEND` → `SM_PUSH_NULL + SM_RETURN` → `SM_PUSH_EXPRESSION + SM_BB_PUMP_SM`.
 
 #### A1 — CH-17i-bang-concat-gen — `AST_BANG_BINARY` + `AST_LCONCAT` (generative)
-- [ ] JCON: `ir_a_Binop` with closure. Reuse `icn_bang_binary_state_t` / `icn_binop_gen_state_t`.
-- [ ] Anchor: `rung15_real_swap_lconcat.icn` (sm-run gives stack underflow today)
+- [ ] JCON: `ir_a_Binop` with closure / `ir_a_Unop`. Reuse `icn_bang_binary_state_t` / `icn_binop_gen_state_t`.
+- [ ] Anchor: `rung15_real_swap_lconcat.icn`. Gate: smoke ×6, isolation PASS, anchor flips honest.
 - [ ] Files: `sm_prog.h/c`, `sm_interp.h/c`, `sm_codegen.c`, `lower.c`
-- [ ] Gate: smoke ×6, isolation PASS, rung15 flips FAIL→PASS honest
-- [ ] Doc: `docs/CHUNKS-icon-bb-bang-concat-gen-validation.md`
 
 #### A2 — CH-17i-section — `AST_SECTION*`
-- [ ] JCON: `ir_a_Sectionop`. State: `icn_section_state_t { subj, lo, hi, kind }`.
-- [ ] Anchor: TBD (gen subscript in section). Gate: standard + anchor honest.
+- [ ] JCON: `ir_a_Sectionop`. State: `icn_section_state_t { subj, lo, hi, kind }`. Gate: standard + anchor honest.
 
 #### A3 — CH-17i-limit-random — `AST_LIMIT` + `AST_RANDOM`
-- [ ] JCON: `ir_a_Limitation`. Random: one-shot α, re-randomize β.
-- [ ] Anchor: TBD (`every write(seq() \ 5)`, `?L`). Gate: standard + anchor.
+- [ ] JCON: `ir_a_Limitation`. Gate: standard + anchor.
 
 #### A4 — CH-17i-iterate — `AST_ITERATE` (`!E`)
-- [ ] JCON: `ir_a_Unop` with closure. Existing: `icn_bb_iterate`.
-- [ ] Anchor: TBD (`every write(!list)`). Gate: standard + anchor.
+- [ ] JCON: `ir_a_Unop` with closure. Gate: standard + anchor.
 
 #### A5 — CH-17i-seqexpr-gen — `AST_SEQ_EXPR` (generative `;`-parens)
-- [ ] JCON: `ir_conjunction`. State: `icn_seq_expr_state_t`.
-- [ ] Anchor: TBD. Gate: standard + anchor.
+- [ ] JCON: `ir_conjunction`. Gate: standard + anchor.
 
 #### A6 — CH-17i-fallthrough-delete
-- [ ] After A1–A5: delete legacy block, replace with `abort()` + message.
-- [ ] Gate: zero `SM_PUSH_EXPR` fires corpus-wide in `--sm-run` and `--jit-run`.
+- [ ] After A1–A5: delete legacy block, replace with `abort()`. Gate: zero `SM_PUSH_EXPR` fires corpus-wide.
 
 ---
 
 ## Phase B — generative reductions
 
-Scalar ops become generators when `is_suspendable(child)`. Extend scalar arms in `lower.c`; no new opcodes (use existing `SM_SUSPEND_VALUE` + goto wiring).
+Scalar ops become generators when `is_suspendable(child)`. Extend scalar arms in `lower.c`; use existing `SM_SUSPEND_VALUE` + goto wiring.
 
-- [ ] **B1** CH-17i-arith-gen — `AST_ADD/SUB/MUL/DIV/MOD/…` gen children. Anchor: `every write((1 to 3) + (1 to 2))`
-- [ ] **B2** CH-17i-rel-gen — relops gen children. Anchor: `every write(2 < (1 to 4))`
-- [ ] **B3** CH-17i-cat-gen — `AST_CAT`/`AST_LCONCAT` mixed. Anchor: `every write("v=" || (1 to 3))`
-- [ ] **B4** CH-17i-deref-gen — `AST_NONNULL`/`AST_NULL`/`AST_IDENTICAL` gen. Anchor: `every write(\(1 | &null | 3))`
-- [ ] **B5** CH-17i-idx-gen — `AST_IDX` gen index. Anchor: `every write(s[1 to 3])`
-- [ ] **B6** CH-17i-assign-gen — `AST_ASSIGN` gen RHS + `AST_REVASSIGN`/`AST_REVSWAP`. Anchor: `every x := (1 to 3); write(x)`
+- [ ] **B1** arith-gen — `AST_ADD/SUB/MUL/DIV/MOD/…` gen children.
+- [ ] **B2** rel-gen — relops gen children.
+- [ ] **B3** cat-gen — `AST_CAT`/`AST_LCONCAT` mixed.
+- [ ] **B4** deref-gen — `AST_NONNULL`/`AST_NULL`/`AST_IDENTICAL` gen.
+- [ ] **B5** idx-gen — `AST_IDX` gen index.
+- [ ] **B6** assign-gen — `AST_ASSIGN` gen RHS + `AST_REVASSIGN`/`AST_REVSWAP`.
 
 ---
 
 ## Phase C — control-flow generator-awareness
 
-- [ ] **C1** CH-17i-fnc-gen — `AST_FNC` gen arg / user proc with `suspend`. Anchor: `every write(seq())`
-- [ ] **C2** CH-17i-loop-cond-gen — `while/until/repeat` gen condition. Anchor: `while (i := find("x",s)) do …`
-- [ ] **C3** CH-17i-if-gen — `AST_IF` gen condition (Proebsting §4.5). Anchor: `every write(if 1=1 then (1 to 3) else 0)`
-- [ ] **C4** CH-17i-not-gen — `AST_NOT` gen subexpr. Anchor: `every write(not (1=2 | 1=3))`
+- [ ] **C1** fnc-gen — `AST_FNC` gen arg / user proc with `suspend`.
+- [ ] **C2** loop-cond-gen — `while/until/repeat` gen condition.
+- [ ] **C3** if-gen — `AST_IF` gen condition (Proebsting §4.5).
+- [ ] **C4** not-gen — `AST_NOT` gen subexpr.
 
 ---
 
 ## Phase D/E (owned by CHUNKS-STEP17)
 
-| Rung | Prereqs |
-|------|---------|
-| CH-17g-irrun-prep — `_usercall_hook` Icon-builtin dispatch | after Phase C |
-| CH-17g-irrun-execution — route `--ir-run` non-SNO through `sm_preamble+sm_run_with_recovery` | after prep |
-| CH-17i-mode3-completeness / mode4-icon-prolog / final-isolation | after Phases A–D |
+CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / final-isolation. All after Phase C.
 
 ---
 
-## Active next targets (honest dial: 205/34/1 at sess 2026-05-11b)
+## Active next targets (honest dial: 224/~39/0 at sess 2026-05-11c)
 
-Sess 2026-05-11b (Claude Sonnet 4.6): rung24 ✅ `bc6357da` -- two AST_FIELD lvalue
-gaps fixed: (1) interp_eval.c AST_ASSIGN had no AST_FIELD arm (--ir-run wrote 0);
-(2) icn_bb_assign_gen had AST_VAR-only writeback (--sm-run/honest wrote 0).
-Fixed using FIELD_SET_fn in coro_runtime.c. All three modes now produce 1/2/3.
-rung02/06/11/13/23 already passed honestly (prior sessions).
+Sess 2026-05-11c (Claude Sonnet 4.6): **loop_next fix** ✅ (commit pending) — `coro_bb_every` in `coro_runtime.c` did not clear `FRAME.loop_next` between body iterations. When `next` fired, the flag persisted into subsequent β calls, causing `AST_SEQ` to short-circuit every following body. Fixed by save/clear/restore around `bb_exec_stmt`. 205→224 honest (+19). Also: `baselines/icon-bb/sm-run-honest.md5` created.
 
-Next: Phase A rungs (bang/lconcat-gen, section, limit, random) and Phase B/C
-(generative reductions, control-flow generator-awareness). ABORT=1: rung36_jcon_sieve.
+Remaining 39 failures — known root causes:
+- `rung02_proc_locals`: `every total := total + (1 to n)` gives 5 not 15 — accumulation in every-body not re-reading updated var (drive-node caching issue).
+- `rung06_cset_any_fail`: scan/any result off-by-one.
+- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — empty; goal-directed conjunction in generative context (Phase C3 or B-series gap).
+- `rung36_jcon_statics`: static vars not persisting across calls in honest mode.
+- Many rung36: complex Icon features not yet lowered.
+
+Next: investigate `rung02` accumulation bug (drive-node caching re-evaluating stale var snapshot).
 
 ---
 
@@ -157,20 +145,21 @@ Next: Phase A rungs (bang/lconcat-gen, section, limit, random) and Phase B/C
 
 | Rung | Commit | Honest gain | Notes |
 |------|--------|-------------|-------|
-| A0 — CH-17i-cheat-tripwire | — | — | `SCRIP_NO_AST_WALK=1` guard in `coro_eval`/`interp_eval`/etc. |
-| A3-seed-fix | — | 116→117 | Unified 3 LCG seeds → `bb_icn_rnd_seed` in `coro_value.c` |
-| A4 — CH-17i-alternate | — | 117→122 | `AST_ALTERNATE` → `SM_BB_PUMP_AST`; value-context assign works |
-| CH-17g-smcall-proc | `60656fce`/`e0d7e4f5` | 126→130 | `SM_CALL_FN` scans `proc_table` before NV dispatch; trampoline guard |
-| CH-17g-augop-inline | `bb6d4ee7` | 130→140 | `AST_AUGOP` inline read-compute-writeback for frame/NV vars |
+| A0 — cheat-tripwire | — | — | `SCRIP_NO_AST_WALK=1` guard in `coro_eval`/`interp_eval`/etc. |
+| A3-seed-fix | — | 116→117 | Unified 3 LCG seeds → `bb_icn_rnd_seed` |
+| A4 — alternate | — | 117→122 | `AST_ALTERNATE` → `SM_BB_PUMP_AST` |
+| CH-17g-smcall-proc | `60656fce` | 126→130 | `SM_CALL_FN` scans `proc_table` before NV dispatch |
+| CH-17g-augop-inline | `bb6d4ee7` | 130→140 | `AST_AUGOP` inline read-compute-writeback |
 | CH-17g-loop-stack | `864fe914` | 140→143 | `SM_VOID_POP` before `SM_PUSH_NULL` at while/until exit |
-| CH-17g-scan | `d8760856` | 143→152 | `AST_CSET`→string; `AST_SCAN`→`ICN_SCAN_PUSH/POP`; scan builtins |
-| CH-17g-builtin-batch | `c95eb2bd` | 141→167 | `SIZE/NONNULL/NULL/FIELD_GET/SET/MAKELIST/RECORD_MAKE/insert/delete/member/key/push/put/get/pull/sort/sortf`; `AST_ASSIGN` IDX+FIELD LHS; `subscript_set` DT_DATA |
-| CH-17g-case-swap-null | `7adfdc20` | 167→174 | `AST_CASE` pair-layout; `AST_SWAP` inline; `AST_NULL` (`/E`) |
-| AST_IF condition leak | `2f3dbc65` | 174→177 | `SM_VOID_POP` after `SM_JUMP_F` drains stale condition value |
-| CH-17g-scan-subject | `5f6d9d8b` | 180→185 | `NV_GET/SET_fn` for `&subject`/`&pos` via `scan_subj`/`scan_pos` |
-| CH-17g-icon-conjunction | `74faf1d0` | — | `AST_SEQ` + `LANG_ICN` → goal-directed conjunction via `SM_JUMP_F` |
-| CH-17g-initial-once | `b4d7ee18` | 172→175 | `initial {}` sentinel via NV `__initial_<ptr>__`; vars excluded from frame scope |
-| rung24 record-field-assign-gen | `bc6357da` | 203→205 | AST_FIELD lvalue in interp_eval.c AST_ASSIGN + icn_bb_assign_gen; FIELD_SET_fn writeback |
+| CH-17g-scan | `d8760856` | 143→152 | `AST_CSET`→string; `AST_SCAN`→`ICN_SCAN_PUSH/POP` |
+| CH-17g-builtin-batch | `c95eb2bd` | 141→167 | SIZE/NONNULL/NULL/FIELD_GET/SET/MAKELIST/RECORD_MAKE/etc. |
+| CH-17g-case-swap-null | `7adfdc20` | 167→174 | `AST_CASE`; `AST_SWAP`; `AST_NULL` |
+| AST_IF condition leak | `2f3dbc65` | 174→177 | `SM_VOID_POP` after `SM_JUMP_F` |
+| CH-17g-scan-subject | `5f6d9d8b` | 180→185 | `NV_GET/SET_fn` for `&subject`/`&pos` |
+| CH-17g-icon-conjunction | `74faf1d0` | — | `AST_SEQ` + `LANG_ICN` → `SM_JUMP_F` |
+| CH-17g-initial-once | `b4d7ee18` | 172→175 | `initial {}` sentinel via NV |
+| rung24 record-field-assign | `bc6357da` | 203→205 | AST_FIELD lvalue in interp_eval + icn_bb_assign_gen |
+| loop_next fix | pending | 205→224 | `coro_bb_every`: save/clear/restore `FRAME.loop_next` around body |
 
 ---
 
@@ -182,7 +171,6 @@ Next: Phase A rungs (bang/lconcat-gen, section, limit, random) and Phase B/C
 | `src/runtime/x86/sm_prog.h/c` | Yes (Phase A) |
 | `src/runtime/x86/sm_interp.h/c` | Yes (Phase A) |
 | `src/runtime/x86/sm_codegen.c` | Yes (Phase A JIT mirrors) |
-| `src/runtime/interp/coro_runtime.c` | Fixes (sm_call_proc etc.) |
-| `src/runtime/interp/coro_runtime.h` | Fixes (IcnProcEntry) |
+| `src/runtime/interp/coro_runtime.c` | Fixes |
 | `src/runtime/interp/interp_eval.c` | Builtin additions |
-| `docs/CHUNKS-icon-bb-*-validation.md` | Per rung |
+| `baselines/icon-bb/` | Baseline md5 files |
