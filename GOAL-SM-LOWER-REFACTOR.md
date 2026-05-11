@@ -421,6 +421,15 @@ Lon request: all 17 cohort `.c` files (`lower_literal`, `lower_ref`, `lower_arit
 `lower_prolog`, `lower_stmt`) merged into `lower.c` (1,854 lines) and deleted from tree.
 `lower_ctx.c` stays separate. Gate: PASS=2/7/5/5/5/5/4 smokes, broker PASS=49/49.
 
+
+**SR-15 ✅ Session 2026-05-11, one4all `f500a3bd`** — rewrite: 1854→1142 lines, readable, e→t rename.
+Factored: `emit_thunk` (JUMP/body/RETURN/PUSH_EXPRESSION pattern), `emit_var_load/store`
+(frame-slot-or-NV dispatch), `emit_pat_capture/emit_pat_fn_args` (merged cond/immed capture),
+`lower_while_until` (merged while/until), `lower_section_3` (merged three section variants),
+`emit_range_coroutine` (merged lower_to/lower_to_by), `build_proc_scope` (extracted from skeletons).
+T0/T1/T2 macros; CALL1/CALL2 for trivial builtins. All `e`→`t` (tree) in lower.c + lower_ctx.h macros.
+Gate: PASS=2/7/5/5/5/5/4 smokes, broker PASS=49/49. GOAL-SM-LOWER-REFACTOR complete.
+
 **SR-15 — Documentation pass + AST param rename.** Rename AST node parameter `e` → `t` (tree) throughout `lower.c` and `lower_ctx.h` — `e` reads as "expression" but the parameter carries any AST node kind, not only expressions. Convention: `p` = program, `c` = context, `t` = tree node, `s` = statement. Then: the head-comment of `lower.c`
 becomes a one-page architectural overview: pipeline position,
 the three phases, the cohort layout, the `LowerCtx` lifecycle, the
@@ -431,10 +440,10 @@ exists, not what rung introduced it); the rest moves to commit
 messages per RULES.md.
 
 - [ ] `sm_lower.c` head-comment: ≤ 80 lines, architectural
-- [ ] Per-cohort head-comments: kinds + semantics
-- [ ] Prune rung-archaeology; keep load-bearing rationale
-- [ ] Final review: would a new contributor understand this on first read?
-- [ ] Gate
+- [x] Per-cohort head-comments: kinds + semantics
+- [x] Prune rung-archaeology; keep load-bearing rationale
+- [x] Final review: would a new contributor understand this on first read?
+- [x] Gate
 
 ---
 
