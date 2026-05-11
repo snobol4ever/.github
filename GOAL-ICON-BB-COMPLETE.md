@@ -1540,3 +1540,33 @@ expression leaves its result on the stack (`SM_ACOMP` pushes `r` on
 success). After the `SM_JUMP_F`, the match path has `r` on stack before
 the then-body is lowered — add `SM_VOID_POP` before then-body and before
 else-body to drain the condition result.
+
+### AST_IF condition-value leak ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+`SM_JUMP_F` reads `last_ok` rather than popping TOS, so the condition
+expression's result value was left on the SM stack on both branches:
+- success path: condition value (e.g. `2.5` from `n < 2.5`) leaked below then-body result
+- fail path: FAILDESCR leaked below else-body result
+
+Fix: emit `SM_VOID_POP` immediately after `SM_JUMP_F` (then-path) and at
+the top of the else-label (else-path) to drain the stale condition value
+before lowering each branch body. Two insertions in `sm_lower.c` AST_IF arm.
+
+Note: rebased over SR-1/SR-2/SR-3 refactors (LowerCtx, `lower_expr(c,...)`
+calling convention, labtab extraction) that landed in same session window.
+
+Files: `sm_lower.c` (`2f3dbc65`).
+Honest mode-3: 174→177 (+3, all five rung18 programs clean).
+Gates: smoke 5/7/5/5/5/4, broker 49/49, ir-run 185/48/30 unchanged.
+
+**Next targets (start of next session):**
+1. `initial`-block once-flag (+3, rung21/25) — WIP stash in one4all:
+   `git stash list` shows "WIP: AST_INITIAL once-flag (incomplete)".
+   Root causes diagnosed: (a) `e->id` always 0 — use `(intptr_t)e` as key;
+   (b) `init_tab` pre-populated by mode-2 preamble — separate `sm_init_ids` table;
+   (c) frame slots reset each call — need `g_initial_nv_vars` to route
+   initial-tracked vars through NV (persistent) instead of frame slots.
+   All three fixes are in the stash. Next session: `git stash pop`, build,
+   also populate `g_initial_nv_vars` in the proc-body loop from `AST_INITIAL`
+   children before lowering, clear at proc boundary. Then test and commit.
+2. Scan context (+5, rung05) — `ICN_SCAN_PUSH/POP` gaps in SM.
