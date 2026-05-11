@@ -510,6 +510,61 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**EM-MODE4-IS-MODE3-DUMP-a amended (third pass: macro_def is SM-only; `_v` = vtable) — sess 2026-05-11 (Claude Opus 4.7, later still)**
+
+Third clarification from Lon, same session:
+
+1. **The `_v` suffix** on `emit_v` (the vtable type and header
+   filename) stands for **vtable** — table of function pointers.
+   Naming follows the existing `emitter_v.h` precedent on the BB
+   side; after the retrofit, `emitter_v.h` deletes and `emit_v.h`
+   is the survivor.  Documented inline at the vtable-surface section
+   of the design doc.
+
+2. **macro_def is SM-only.**  BB templates never call
+   `macro_begin / macro_end / macro_param_ref`; the
+   `emit_v_macro_def` driver never instantiates a BB template.
+   Earlier doc framing left this ambiguous (showed `macro_def`
+   as a generic third backend over both kinds); third pass makes
+   the asymmetry explicit.
+
+   The architectural reason: `sm_macros.s` is a library of
+   parameterized GAS `.macro` definitions invoked from mode-4's
+   per-call-site emission (`PUSH_INT 42`) to keep `.s` readable.
+   Each SM opcode → one macro.  BB boxes have no such macro
+   layer — each box appears in `.s` as straight-line asm with
+   α/β/γ/ω labels, not wrapped in `.macro`.  Box parameters
+   (literal bytes, csets, lengths) bake into DATA, not into macro
+   args.  So there is no `bb_macros.s` regeneration counterpart
+   and the macro_def driver iterates SM-only.
+
+**What changed in this amendment:**
+
+- `MIGRATION-MODE4-IS-MODE3-DUMP.md`:
+  - New section "macro_def is SM-only — the one asymmetry"
+    between "SM and BB are co-equal" and "The 'sprinkle' model"
+    sections.  Includes per-backend-by-template-kind matrix.
+  - "Three backends" table at top gets an "Applies to" column
+    noting macro_def is SM-only.
+  - Sprinkle-model table gets two new rows for the BB-port
+    primitives (`bb_port_label`/`bb_port_jmp` and `bb_box_banner`)
+    explicitly marked "never reached" in the macro_def column.
+  - Vtable-surface section gets a one-paragraph naming note:
+    `_v = vtable`, inheriting from `emitter_v.h`.
+- `GOAL-MODE4-EMIT.md`: this watermark appended on top.
+
+**Static-analysis invariant** for the project's life:
+`grep macro_ src/runtime/x86/templates/bb_*.c` returns zero hits.
+If it ever returns anything, a BB template is incorrectly calling
+into the SM-only macro surface and the offending file needs to
+be rewritten without those calls.
+
+**Gates:** unchanged.  Still docs-only.
+
+----
+
+
+
 **EM-MODE4-IS-MODE3-DUMP-a amended (second pass: SM+BB co-equal; sprinkle model) — sess 2026-05-11 (Claude Opus 4.7, later)**
 
 Second clarification from Lon, same session:
