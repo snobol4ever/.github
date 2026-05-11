@@ -205,6 +205,14 @@ each independently committable, each preserving the gate.
 
 ## Closed rungs (pointer trail)
 
+**SR-2 ✅ Session 2026-05-11, one4all `daf27aeb`** — `labtab_*` family
+(labtab_init/define/find/patch_later/resolve/free) moved from `sm_lower.c`
+to `lower_ctx.c`.  LabelEntry/PatchEntry/LabelTable declarations already in
+`lower_ctx.h` (SR-1); added the six function prototypes.  Memory migrated to
+GC_MALLOC/GC_REALLOC/GC_strdup; labtab_free() is a no-op shim; abort() paths
+removed.  Makefile gains lower_ctx.o line.  sm_lower.c loses ~80 lines.
+Gate: PASS=30 FAIL=0 byte-identical. All six frontend smokes green. Broker 49/49.
+
 **SR-1 ✅ Session 2026-05-11, one4all `f209b8d3` (initial `456dc7a6` +
 rename followup `f209b8d3`)** — LowerCtx carved out into
 `src/runtime/x86/lower_ctx.h`. Signatures of `lower_expr`,
@@ -255,9 +263,9 @@ patch list. Replace `malloc/realloc/strdup/free` with `GC_MALLOC` /
 `GC_strdup` for memory-discipline consistency with the rest of the
 runtime.
 
-- [ ] Move `labtab_*` family + types to `lower_ctx.{h,c}`
-- [ ] Migrate to GC allocation; drop `abort()` paths
-- [ ] Gate: as SR-1
+- [x] Move `labtab_*` family + types to `lower_ctx.{h,c}`
+- [x] Migrate to GC allocation; drop `abort()` paths
+- [x] Gate: as SR-1
 
 **SR-3 — Extract emit helpers.** Move `emit_goto`,
 `sm_pat_capture_fn_arg_names`, `expression_scope_walk`,
