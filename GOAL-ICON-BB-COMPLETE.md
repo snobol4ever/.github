@@ -116,19 +116,19 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: 226/37/0 at sess 2026-05-11c)
+## Active next targets (honest dial: 227/44/0 at sess 2026-05-11d)
 
-Sess 2026-05-11c (Claude Sonnet 4.6, one4all `f32e690e`):
-- **loop_next fix** ✅ `cf389ad7` (+19, 205→224): `coro_bb_every` not clearing `FRAME.loop_next` between body iterations — `next` bled into subsequent β calls, causing `AST_SEQ` to short-circuit all following bodies. Fixed by save/clear/restore around `bb_exec_stmt`. Baseline md5 created.
-- **assign-cat fix** ✅ `f32e690e` (+2, 224→226): `icn_bb_assign_gen` captured mutable scalar (e.g. `total`) once at α. New `icn_bb_assign_cat` box: when RHS has AST_VAR sibling of leaf generator, drives leaf per tick and re-evaluates full RHS via `coro_drive_node` injection so vars read fresh. Fixes `every total := total + (1 to n)`.
+Sess 2026-05-11d (Claude Sonnet 4.6, one4all `4b2a8700`):
+- **rung06 scan/any fix** ✅ `4b2a8700` (+1, 226→227 honest): Two bugs fixed together:
+  (1) `ICN_SCAN_PUSH`/`ICN_SCAN_POP` not inline in `SM_CALL_FN` — were falling through past FAIL-arg check, breaking scan context. Fixed as inline special cases in `sm_interp.c`.
+  (2) Icon `&` conjunction (`AST_SEQ`) lowered as `SM_CONCAT` — `CH-17g-icon-conjunction` fix was in defunct `lower_seq.c`. Re-applied to `lower.c::lower_cat_seq` with `g_lang==LANG_ICN` gate. Added `g_lang=LANG_ICN` in `lower_proc_skeletons` (actual Icon lowering path). `rung06_cset_any_fail` flips honest.
 
-Remaining 37 failures — known root causes:
-- `rung06_cset_any_fail`: scan/any result off-by-one.
-- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — empty honest; goal-directed conjunction in generative context (Phase C3 or B-series gap).
+Remaining 44 failures — known root causes:
+- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — `SM_BB_PUMP_EVERY` still used; Phase C2/C3 gap (every + conjunction-in-generator).
 - `rung36_jcon_statics`: static vars not persisting across calls in honest mode.
 - Many rung36: complex Icon features not yet lowered (segfaults, timeouts).
 
-Next: `rung06` scan/any bug, then `rung13` conjunction-in-generator gap.
+Next: `rung13` conjunction-in-generator gap (Phase C2/C3 — `every` body lowering).
 
 ---
 
@@ -162,6 +162,7 @@ Next: `rung06` scan/any bug, then `rung13` conjunction-in-generator gap.
 | rung24 record-field-assign | `bc6357da` | 203→205 | AST_FIELD lvalue in interp_eval + icn_bb_assign_gen |
 | loop_next fix | `cf389ad7` | 205→224 | `coro_bb_every`: save/clear/restore `FRAME.loop_next` around body |
 | assign-cat fix | `f32e690e` | 224→226 | `icn_bb_assign_cat`: re-eval RHS each tick when AST_VAR alongside leaf gen |
+| rung06 scan/any fix | `4b2a8700` | 226→227 | ICN_SCAN_PUSH/POP inline in sm_interp; Icon & conjunction SM_JUMP_F in lower_proc_skeletons |
 
 ---
 
