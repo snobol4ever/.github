@@ -463,7 +463,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       - [x] **EM-MODE4-IS-MODE3-DUMP-e — charset-family BB box template (XSPNC/XBRKC/XANYC/XNNYC).**  `templates/bb_xspnc.c` + `emit_bb_charset()` callback design. Byte-identical. Gates 7/7+49/49+5/5+4/4, claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `157352d8`)
       - [x] **EM-MODE4-IS-MODE3-DUMP-f — sm_push_lit_i template (SM-axis).**  `templates/sm_push_lit_i.c`; mode-4 routed through it. Byte-identical.  emit_sm_halt/emit_sm_push_lit_i in sm_codegen_x64_emit.c renamed to avoid conflict with template symbols.  Gates 7/7+49/49+5/5+4/4, roman.s+claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `33b3c7ba`)
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-g through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: bb_xlnth+xtb+xrtb (one rung), sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp (one rung).  Each rung lands its own template C file(s).
+      - [x] **EM-MODE4-IS-MODE3-DUMP-g — integer-cursor family (XLNTH/XTB/XRTB).**  `templates/bb_xlnth.c`. 69 inline lines -> 3 dispatch one-liners. Byte-identical.  Gates 7/7+49/49+5/5+4/4, treebank-list.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `9e2ea80e`)
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-h through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-q — SM_LABEL / SM_STNO** (structural markers; one rung).
 
@@ -524,6 +525,19 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-g landed — sess 2026-05-11 (Claude Sonnet 4.6)**
+
+`templates/bb_xlnth.c` — `emit_bb_intcur()` + per-kind wrappers for XLNTH/XTB/XRTB.
+Same callback pattern as -e (charset). Binary path: `bb_len_new`/`bb_tab_new`/
+`bb_rtab_new` + `flat_emit_box_call`. Text path: `intcur_text_body` in `bb_flat.c`.
+Key difference from charset: XLNTH emits 1 long in `.data`; XTB/XRTB emit 2 longs.
+`flat_emit_box_call` promoted from static to extern. 69 inline lines → 3 one-liners.
+**one4all commit:** `9e2ea80e`. Gates: 7/7+49/49+5/5+4/4. treebank-list.s diff empty.
+
+**Next: `-h`** — SM-axis: `sm_void_pop` (simplest SM pop opcode).
+
+----
 
 **EM-MODE4-IS-MODE3-DUMP-f landed — sess 2026-05-11 (Claude Sonnet 4.6)**
 
