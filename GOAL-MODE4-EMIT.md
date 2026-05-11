@@ -462,7 +462,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - [x] **EM-MODE4-IS-MODE3-DUMP-d — First BB box end-to-end: bb_xchr.**  `templates/bb_xchr.c`.  Simplest box (one-character — actually arbitrary-length — literal compare).  Wires `bb_flat.c`'s XCHR emit calls through the new vtable.  Proves BB side of the surface.  Sess 2026-05-11 (Claude Opus 4.7): byte-identical lift of `flat_emit_lit` + the inline banner-emission in `flat_emit_node`'s XCHR case into `emit_bb_xchr(emitter_t *e, PATND_t *p, lbl_succ, lbl_fail, lbl_β)`.  Unlike SM_HALT, XCHR has NO mode-3-vs-mode-4 divergence — both modes call into the same runtime symbols (memcmp, bb_label_*); the binary-vs-text difference is fully absorbed by the existing emitter vtable's symbolic helpers (BB_INSN_LEA_RCX_SYM, BB_INSN_CALL_SYM_PLT) — so -d landed cleanly without any A/B/C decision needed.  Two byte-identity verifications: (1) `claws5.s` emission `git stash`/`pop` diff: empty (byte-identical); (2) `--sm-run` 197/64 == `--jit-run` 197/64 unchanged across the 261-program jit smoke crosscheck.  Legacy `flat_emit_lit` retained with `__attribute__((unused))` as a rollback reference.  Two free functions (`flat_emit_banner_rule`, `flat_emit_box_banner`) promoted from `static` to external linkage and declared in `bb_flat.h` so templates can call them.
 
       - [x] **EM-MODE4-IS-MODE3-DUMP-e — charset-family BB box template (XSPNC/XBRKC/XANYC/XNNYC).**  `templates/bb_xspnc.c` + `emit_bb_charset()` callback design. Byte-identical. Gates 7/7+49/49+5/5+4/4, claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `157352d8`)
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-f through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: sm_push_lit_i, bb_xlnth+xtb+xrtb (one rung), sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp (one rung).  Each rung lands its own template C file(s), deletes corresponding inline emission.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-f — sm_push_lit_i template (SM-axis).**  `templates/sm_push_lit_i.c`; mode-4 routed through it. Byte-identical.  emit_sm_halt/emit_sm_push_lit_i in sm_codegen_x64_emit.c renamed to avoid conflict with template symbols.  Gates 7/7+49/49+5/5+4/4, roman.s+claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `33b3c7ba`)
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-g through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: bb_xlnth+xtb+xrtb (one rung), sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp (one rung).  Each rung lands its own template C file(s).
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-q — SM_LABEL / SM_STNO** (structural markers; one rung).
 
@@ -523,6 +524,28 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-f landed — sess 2026-05-11 (Claude Sonnet 4.6)**
+
+`templates/sm_push_lit_i.c` — `emit_sm_push_lit_i(emitter_t *e, int64_t val)`.
+Emits `movabs rdi, val; call rt_push_int@PLT`. No mode-3/mode-4 divergence —
+both modes call rt_push_int at runtime. Macro begin/end hooks included for
+future sm_macros.s regeneration via macro_def backend.
+
+`sm_codegen_x64_emit.c` changes:
+- `emit_sm_halt` → `emit_halt_line` (avoid link conflict with template's
+  `emit_sm_halt(emitter_t*)`; SM_HALT dispatch updated).
+- `emit_sm_push_lit_i(FILE*,...)` → `emit_sm_push_lit_i_legacy` (unused rollback).
+- New `emit_push_lit_i_line`: constructs text emitter, calls template.
+- `templates/templates.h` included; SM_PUSH_LIT_I dispatch → `emit_push_lit_i_line`.
+
+**Gates:** smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4.
+roman.s + claws5.s stash/pop diff: empty. Static analysis clean.
+**one4all commit:** `33b3c7ba`.
+
+**Next sub-rung: `-g`** — BB-axis: `bb_xlnth` + `xtb` + `xrtb` (integer-cursor family).
+
+----
 
 **EM-MODE4-IS-MODE3-DUMP-c(closed) + EM-MODE4-IS-MODE3-DUMP-e landed — sess 2026-05-11 (Claude Sonnet 4.6)**
 
