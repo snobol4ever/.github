@@ -205,6 +205,11 @@ each independently committable, each preserving the gate.
 
 ## Closed rungs (pointer trail)
 
+**SR-4 ✅ Session 2026-05-11, one4all `556877a4`** — dispatcher infrastructure
++ `cohort_literal.c` (QLIT/CSET/ILIT/FLIT/NUL). `LowerHandler` typedef,
+`g_handlers[]`, hybrid `lower_expr`, `cohort_literal_register()`. Stale
+`sm_lower_baseline.txt` entry for `rk_logic_or` corrected. Gate: PASS=30 FAIL=0.
+
 **SR-3 ✅ Session 2026-05-11, one4all `20d2fb63`** — `emit_goto`,
 `expression_scope_walk`, `kw_canonicalize` moved from `sm_lower.c` to
 `lower_ctx.c`.  Four inline upcase loops replaced with `kw_canonicalize`
@@ -303,12 +308,12 @@ dispatcher, and registration mechanism. Migrate **cohort_literal**
 (QLIT, ILIT, FLIT, CSET, NUL) — the simplest 5 cases — to validate
 the pattern. Legacy switch loses these cases.
 
-- [ ] `typedef void (*LowerHandler)(LowerCtx*, const AST_t*)` in `lower_ctx.h`
-- [ ] `g_handlers[AST_KIND_COUNT]` array in `sm_lower.c`
-- [ ] Hybrid `lower_expr`: handler-first, switch-fallback
-- [ ] `cohort_literal.c` with 5 handlers + `_register`
-- [ ] Remove the 5 cases from the legacy switch
-- [ ] Gate + verify `g_handlers[AST_QLIT]` etc. are non-NULL at runtime
+- [x] `typedef void (*LowerHandler)(LowerCtx*, const AST_t*)` in `lower_ctx.h`
+- [x] `g_handlers[AST_KIND_COUNT]` array in `sm_lower.c`
+- [x] Hybrid `lower_expr`: handler-first, switch-fallback
+- [x] `cohort_literal.c` with 5 handlers + `_register`
+- [x] Remove the 5 cases from the legacy switch
+- [x] Gate + verify `g_handlers[AST_QLIT]` etc. are non-NULL at runtime
 
 **SR-5 — cohort_ref.** VAR, KEYWORD, INDIRECT, DEFER. The
 expression-scope-aware AST_VAR logic (frame slot vs NV) moves with
