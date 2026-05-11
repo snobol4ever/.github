@@ -1373,6 +1373,63 @@ Doc: `docs/CHUNKS-icon-bb-alternate-validation.md`.
 one4all hash, gates, and any honest deferrals.  Format mirrors
 `GOAL-CHUNKS-STEP17.md`'s "Closed rungs" section.)
 
+### CH-17g-smcall-proc ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+`SM_CALL_FN` for Icon user procs was dispatching through the SNOBOL4
+NV-binding inline path (binding params into NV, jumping to body_pc).
+But proc bodies lowered by CH-17b'' use `SM_LOAD_FRAME`/`SM_STORE_FRAME`
+(frame-slot ABI) — params bound into NV were invisible to the body.
+Fix: scan `proc_table` in `SM_CALL_FN` before DATA/NV dispatch; when
+name matches a resolved `entry_pc`, call `sm_call_proc` directly.
+
+Companion fix `CH-17g-smcall-proc-trampoline`: `proc_trampoline` was
+calling `sm_call_proc(entry_pc)` unconditionally, but under `--ir-run`
+the SM is freed after `sm_resolve_irrun_entry_pcs` — `g_current_sm_prog`
+is NULL. Added the same guard as `proc_table_call` already had.
+
+Files: `sm_interp.c` (`60656fce`), `coro_runtime.c` (`e0d7e4f5`).
+ir-run: 177→186 (+9). Honest mode-3: 126→130 (+4).
+
+### CH-17g-augop-inline ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+`AST_AUGOP` was lowered as `lower_expr(lhs) + lower_expr(rhs) + PUSH_LIT_I op
++ SM_CALL_FN AUGOP 3` — but `AUGOP` was not in `icn_try_call_builtin_by_name`
+and even if it were, lhs was pushed as a value with no writeback slot.
+Fix: for simple lhs (frame-slot or NV name), inline the read-compute-writeback:
+`SM_LOAD_FRAME + [rhs] + SM_ADD/SUB/MUL/DIV/MOD/CONCAT + SM_STORE_FRAME`.
+Complex/unsupported lhs still falls back to AUGOP call.
+
+Files: `sm_lower.c` (`bb6d4ee7`). Honest mode-3: 130→140 (+10).
+
+### CH-17g-loop-stack ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+`AST_WHILE` exits via `SM_JUMP_F` (condition FAILDESCR left on stack);
+`AST_UNTIL` exits via `SM_JUMP_S` (condition result left on stack). Both
+then emitted `SM_PUSH_NULL` without discarding the leftover condition value,
+causing a stray value to accumulate and surface as extra output on the next
+`write()`. Fix: emit `SM_VOID_POP` before `SM_PUSH_NULL` at both exit labels.
+
+Files: `sm_lower.c` (`864fe914`). Honest mode-3: 140→143 (+3).
+
+### CH-17g-scan ✅ 2026-05-11 (sess Claude Sonnet 4.6)
+
+Three related Icon scanning fixes:
+1. **AST_CSET**: default arm → `SM_PUSH_NULL`. Now `SM_PUSH_LIT_S(sval)` —
+   cset chars as string, accepted by `any()`/`many()`/`upto()`.
+2. **AST_SCAN** (Icon `?`): was using SNOBOL4 `lower_pat_expr` + `SM_EXEC_STMT`.
+   Now: `[lower subject]` + `ICN_SCAN_PUSH` (saves context, sets
+   `scan_subj`/`scan_pos=1`) + `SM_VOID_POP` + `[lower body]` + `ICN_SCAN_POP`
+   (restores context, passes body result through).
+3. **Scan builtins** added to `icn_try_call_builtin_by_name`: `ICN_SCAN_PUSH`,
+   `ICN_SCAN_POP`, `any`, `many`, `upto`, `tab`, `move`, `match`, `find`.
+
+Files: `sm_lower.c`, `interp_eval.c` (`d8760856`).
+Honest mode-3: 143→152 (+9). ir-run: 186 unchanged.
+
+**Next rung (A5 = seqexpr-gen / next gap):** Honest PASS=152/263. ABORT=1
+(rung36_jcon_wordcnt segfault — pre-existing). Remaining 86 FAIL programs:
+survey needed to identify next highest-yield gap category.
+
 ---
 
 ## Definitions
