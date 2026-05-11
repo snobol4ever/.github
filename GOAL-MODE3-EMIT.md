@@ -175,7 +175,7 @@ Every rung:
 
       - [x] **ME-9c — Group C (charset).** `SM_PAT_ANY`, `SM_PAT_NOTANY`, `SM_PAT_SPAN`, `SM_PAT_BREAK`. Each pops a string from r12, calls `VARVAL_fn` to coerce to `const char*`, then calls `pat_X(cs)`. Net delta 0 (pop 1, push 1).
       - [x] **ME-9d — Group D (integer arg).** `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`, `SM_PAT_RTAB`. Each pops a DESCR_t, checks `v==DT_I` (else 0), calls `pat_X(n)`. Net delta 0.
-      - [ ] **ME-9e — Group E (unary pattern).** `SM_PAT_ARBNO`, `SM_PAT_FENCE1`. Pop inner pat, call combinator, push. Net delta 0.
+      - [x] **ME-9e — Group E (unary pattern).** `SM_PAT_ARBNO`, `SM_PAT_FENCE1`. Pop inner pat, call combinator, push. Net delta 0.
       - [ ] **ME-9f — Group F (binary pattern).** `SM_PAT_CAT`, `SM_PAT_ALT`. Pop right then left, call combinator, push. Net delta −1.
       - [ ] **ME-9g — Group G (deref/refname).** `SM_PAT_DEREF` (most common — variable-as-pattern path), `SM_PAT_REFNAME`. These have non-trivial dispatch logic (DT_P pass-through, DT_S → pat_lit, else pat_ref(name)); easier to keep as thin trampolines `me9_pat_deref(v)` / `me9_pat_refname(name)` than to inline the type-discrimination chain in x86. Net delta 0.
 
@@ -212,8 +212,10 @@ Full research notes in git log (search "Prior art / research basis"). Key facts:
 
 ## Watermark
 
-Carved 2026-05-11 (Claude latest, session ME-9d). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
+Carved 2026-05-11 (Claude latest, session ME-9c+ME-9d+ME-9e). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
 
-Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f` · ME-9a ✅ `f087571e` · ME-9b ✅ `f087571e` · ME-9c ✅ `15fff315` · **ME-9d ✅ `02bf4cd7`**.
+Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f` · ME-9a ✅ `f087571e` · ME-9b ✅ `f087571e` · ME-9c ✅ `15fff315` · ME-9d ✅ `02bf4cd7` · **ME-9e ✅ `38019ad1`**.
 
-Session 2026-05-11 (ME-9d): five `me9_pat_*` C helpers (`me9_pat_len`/`pos`/`rpos`/`tab`/`rtab`) for `SM_PAT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB`. Each checks `d.v == DT_I ? d.i : 0` and calls the constructor. Blob shape identical to ME-9c (single-DESCR_t-arg, net delta 0) — **reuses `emit_me9_pat_charset_blob` directly** since signature `DESCR_t (*)(DESCR_t)` matches. **Verified hot**: diagnostic fired all 5 opcodes (LEN/POS/RPOS/TAB/RTAB) on `feat/f04_pattern_primitives.sno`, each with distinct helper address. All 21 feat/ programs byte-identical `--sm-run` vs `--jit-run`. Gates: smoke 7/7, broker 49/49, me6 reentry 3/3.
+Session 2026-05-11 (ME-9e): `SM_PAT_ARBNO` and `SM_PAT_FENCE1` dispatched directly to `pat_arbno` / `pat_fence_p` runtime entry points via `emit_me9_pat_charset_blob` — both already have `DESCR_t(DESCR_t)` signature with no coercion/guard needed, so **no `me9_*` helper indirection required**. **Verified hot**: diagnostic fired SM_PAT_ARBNO (op=37) once on `feat/f04_pattern_primitives.sno` (`'aaa' ARBNO('a')`); SM_PAT_FENCE1 path correct but unexercised by current feat/ corpus (f04 uses bare `FENCE`, which is the zero-arg `SM_PAT_FENCE` from ME-9a). All 21 feat/ programs byte-identical `--sm-run` vs `--jit-run`. Gates: smoke 7/7, broker 49/49, me6 reentry 3/3.
+
+The 4-rung pattern ME-9c+d+e demonstrates `emit_me9_pat_charset_blob` is a generic single-DESCR_t-arg / net-delta-0 blob template; any SM_PAT_* opcode whose runtime entry matches `DESCR_t(*)(DESCR_t)` (directly or via a one-liner `me9_*` helper) plugs in with one dispatch-block clause and zero new emit code.
