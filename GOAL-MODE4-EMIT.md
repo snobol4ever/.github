@@ -389,7 +389,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **Why it isn't done yet:** sess 2026-05-10 ran the SCRIP-x86 work at the end of an already-loaded session; context budget did not permit authoring a from-scratch GAS base.  Honest scope: what was delivered (Nasm + overlay) is workable but not pride-worthy; this rung carves the gap.
 
-- [ ] **EM-MODE4-IS-MODE3-DUMP** — Mode-4 IS mode-3's SEG_CODE serialized to `.s`.  ⛔ **The architecture for this is in `ARCH-x86.md` and `ARCH-SCRIP.md` and has been since day one.**  Tightest possible realization of ARCH-x86 §"Stack machine (SM_Program)": ONE emitter (mode-3, `sm_codegen.c`); mode-4 dumps mode-3's bytes to disk.  No parallel text emitter; byte-identity by construction.
+- [ ] **EM-MODE4-IS-MODE3-DUMP** — One template per SM opcode; three backends (binary / text / macro_def) walk it.  ⛔ **Read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first; it is the design.**  Outcome unchanged from earlier framing (mode-4's `.s` matches mode-3's bytes by construction).  Mechanism *changed* sess 2026-05-11 (Lon pivot): not literal SEG_CODE disassembly, but a per-opcode C template walked by an `emit_v` vtable with binary / text-invocation / macro-definition backends.  The text backend keeps `.s` readable by emitting macro invocations (`PUSH_INT 42`), and the same templates regenerate `sm_macros.s` so the macro body is not a parallel source of truth.  Per Lon (sess 2026-05-11): "use the BB templates to produce the macros. We still want S readable."
 
       **The principle (ARCH-x86.md §"Stack machine (SM_Program)" + §"Dual-mode emitter (TEXT / BINARY)"):**
 
@@ -438,19 +438,23 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       The whitelist IS the precise quantification of "99.999%".  Any divergence outside it is a bug in mode-3 (since mode-4 is mode-3-plus-dump, mode-4 cannot diverge from mode-3 by construction once the dump path works).
 
-      **Sub-rungs (proposed; refine on entry):**
+      **Sub-rungs (sess 2026-05-11 pivot — supersedes the prior -a..-f list):**
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-a — Audit + design doc.**  Document current `sm_codegen.c` (per-opcode tail-call thunk + per-instruction pointer-array + C dispatch loop) byte-for-byte; design the per-instruction-blob replacement; design the side-table that links each SM PC to its SEG_CODE byte range and a mnemonic/comment hint for the dump; design the `seg_code_dump_as_s` walker.  Output: `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-a — Design doc + this amendment.**  `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` lands; the rung header above is amended to point at it.  No code in this sub-rung.  Sess 2026-05-11 (Claude Opus 4.7).
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Mode-3 native control flow.**  Rewrite `sm_codegen.c` so each `SM_Instr` lowers to its own contiguous blob in `SEG_CODE`.  SM_LABEL records SEG_CODE offset; SM_JUMP/JUMP_S/JUMP_F emit native `jmp`/`jne`/`je` with 32-bit displacements (two-pass: collect labels first, patch second); SM_CALL_FN emits direct call to the libscrip_rt-resolved imm64 of `rt_call`; SM_RETURN/NRETURN/FRETURN and conditional variants emit the native sequence the previous attempt used in `emit_sm_return_variant`.  At end of codegen, `mprotect(SEG_CODE, RX)` and seal.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emit_v.h` with the `emit_v` struct; three backend impls (`emit_v_binary.c`, `emit_v_text.c`, `emit_v_macro_def.c`).  Wire into Makefile.  Nothing calls them yet.  Gates green.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-c — ABI alignment fix at the cfn-call site in libscrip_rt.**  The 8-byte misalignment problem (rsp%16==8 inside cfn after the host CALL, while PLT calls expect %16==0) is solved at the libscrip_rt cfn-call site (`call_native_chunk` in `rt.c`), not in the emitter: `__asm__ volatile ("sub rsp, 8\n\tcall *%0\n\tadd rsp, 8" : : "r"(cfn) : "memory")`.  ONE place, ONE fix, principled.  Emitted chunks need no prologue; SM_RETURN is plain `ret`.  Effects: `assign_driver` and the rest of the 17 beauty subsystems should pass mode-4 immediately on the new emit path (matches abandoned thunk PoC's PASS=5 gain, possibly higher).
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First opcode end-to-end: SM_HALT.**  New `src/runtime/x86/sm_templates/halt.c`.  Mode-3's halt blob goes through it; mode-4's halt emission goes through it; `sm_macros.s` HALT macro regenerated from it via new `tools/regen_sm_macros.c`.  New gate `test_gate_em_template_byte_identity.sh` validates mode-3-bytes vs mode-4-asm-then-bytes are identical on a tiny program exercising the opcode.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-d — `sm_jit_run` rewrite.**  Tear out the C while-loop and the per-instruction pointer-array.  Replace with `setup g_jit_state; jmp <SEG_CODE entry>`.  SM_HALT compiles to native code that returns control to `sm_jit_run`'s frame.  Run `test_smoke_snobol4.sh` — must stay PASS=7.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-d through -k — One opcode per rung**, in order: SM_PUSH_LIT_I, SM_PUSH_LIT_S, SM_VOID_POP, SM_JUMP, SM_JUMP_S/SM_JUMP_F, arithmetic (SM_ADD/SUB/MUL/DIV/MOD/EXP), SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN/SM_NRETURN/SM_FRETURN family.  Each rung lands a template C file under `sm_templates/`, deletes corresponding inline emission from both `sm_codegen.c` and `sm_codegen_x64_emit.c`, regenerates the corresponding macro in `sm_macros.s`.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-e — `seg_code_dump_as_s()` and side-table.**  Add to `sm_codegen.c` a side-table populated during BINARY emission: for each SM PC, record `{seg_code_offset, byte_count, mnemonic_hint, comment}`.  Implement `seg_code_dump_as_s(out, prog)` that walks the side-table and writes GAS asm text that reassembles to identical bytes.  This is a **disassembly with hints**, not a re-walk of SM_Program — the SM_Program walk happens in `sm_codegen` only.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-l — Pattern opcodes** (SM_PAT_*).  Same discipline; each pattern primitive gets its own template C file.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-f — Mode-4 collapses to call-mode-3-then-dump.**  Rewrite `sm_codegen_x64_emit.c` so it (1) calls `sm_codegen(prog)` to populate SEG_CODE, (2) writes the file header + auxiliary sections (`.rodata` strtab, `.data` registry, `sm_macros.s` include, banner comments, libscrip_rt PLT references), (3) calls `seg_code_dump_as_s(out, prog)` for the .text section, (4) writes the file footer.  Most of today's mode-4 control-flow emission code (`emit_sm_label`, `emit_sm_jump*`, `emit_sm_return*`, `emit_sm_call`, `emit_sm_push_*`, `emit_sm_arith`, etc.) DELETES.  The auxiliary-section emission code STAYS.  Run `test_gate_em_beauty_subsystems_mode4.sh` — must hit PASS≥5 immediately (alignment fix lifts the floor) and likely higher as mode-4 inherits whatever mode-3 does.  Run new `test_gate_em_mode4_is_mode3_dump.sh` — must be GREEN; that gate is the canonical mode-4 correctness check from this point on.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-m — `sm_macros.s` becomes generated artifact**, make rule added, file optionally dropped from git in favor of build-time regen.
+
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-n — Rung close.**  `test_gate_em_beauty_subsystems_mode4.sh` should improve from baseline (PASS=4 FAIL=13) as byte-identity is by construction.
+
+      **Superseded sub-rungs (prior framing, recorded for git-log archaeology only — do not implement these as written):** -a (audit/design doc with SEG_CODE-disassembly framing), -b (rewrite sm_codegen.c control flow as standalone task), -c (libscrip_rt cfn-call ABI fix at the call site — re-evaluate after template retrofit; may be unnecessary), -d (`sm_jit_run` rewrite — happens naturally as templates land), -e (`seg_code_dump_as_s` side-table — replaced by template vtable), -f (mode-4 collapses to call-mode-3-then-dump — replaced by mode-4 walks SM_Program with text backend).
 
       **Dependencies:** none.  Blocks `EM-7d-beauty-subsystems`, `EM-7d`, `EM-8`, `EM-9`.  Does NOT block `EM-FORMAT-SUBLIME-GAS-INTEL` (editor support, independent).
 
@@ -495,6 +499,81 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-a landed (template-vtable design doc + rung amendment) — sess 2026-05-11 (Claude Opus 4.7)**
+
+Pivot from Lon: mode-4 will not be literal SEG_CODE disassembly.  It
+will be ONE per-opcode C template per SM op, walked by an `emit_v`
+vtable with three concrete backends — binary (writes bytes to
+SEG_CODE; replaces today's `sm_codegen.c` inline byte writes), text
+(writes GAS asm text; replaces today's `sm_codegen_x64_emit.c`
+parallel emitter), and macro_def (regenerates `sm_macros.s` so its
+macros are produced from the same template, not hand-maintained).
+Lon's clarification on Q5: keep `.s` readable — text backend emits
+macro invocations like `PUSH_INT 42`, not the underlying instruction
+sequence; the macro body is generated by macro_def from the same
+template.  This means one source of truth per opcode, three
+productions, divergence impossible by construction.
+
+**What landed in this sub-rung:**
+
+- `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` — full design: layers,
+  vtable surface, three-call-site discipline, SM_HALT example
+  template, sequencing plan (b through n).  This is the spec.
+- `.github/GOAL-MODE4-EMIT.md` rung header amended: points at the
+  design doc, replaces "SEG_CODE serialized to `.s`" framing with
+  "one template per opcode, three backends."
+- Sub-rung list replaced (-a through -n).  Old -a through -f
+  preserved as "superseded" reference for git-log archaeology.
+
+**What did NOT land:**
+
+- Any code changes.  No emit_v.h, no backend impls, no template
+  files, no SEG_CODE plumbing changes.  Sub-rung -a is design only.
+- Per Lon's expectation: "We want things almost right the first
+  time."  Locking the design before any code prevents the next
+  session from inferring a different architecture from
+  half-implemented pieces.
+
+**Gates:** unchanged (this commit is docs-only).
+
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- `test_gate_em_beauty_subsystems_mode4.sh`: **PRE-EXISTING regression observed sess 2026-05-11** — PASS=0 FAIL=17 (all link), not the watermark's stated PASS=4 FAIL=13.  Cause: `libscrip_rt.so` link fails with `undefined reference to g_sm_dispatch_active` / `g_ast_pump_active` — these are defined in `src/runtime/interp/coro_runtime.c` which is NOT in the library's source list in `Makefile`'s `libscrip_rt` rule.  Existed before this commit (this commit touches zero `.c` files; one new `.md` and two amended `.md`s).  Not caused by sub-rung -a.  Likely introduced in a recent CH-17g land where coro_runtime grew the tripwire globals but the library Makefile rule wasn't updated.  **Action for next session:** add `src/runtime/interp/coro_runtime.c` (and any sibling sources it depends on) to the `libscrip_rt` rule in `Makefile` to restore the PASS=4 baseline before opening sub-rung -b.  Should be a one-line edit to the Makefile.
+- 5/5 tracked artifacts (`roman.s`, `wordcount.s`, `claws5.s`, `treebank-list.s`, `treebank-array.s`) `gcc -c` clean (verified separately).
+
+**Files touched:**
+- `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` — new (the design doc).
+- `.github/GOAL-MODE4-EMIT.md` — rung header amended; sub-rung list
+  replaced; this watermark added.
+- `.github/PLAN.md` — to be updated to point at sub-rung -b as the
+  active step.
+
+**Next session:**
+
+Open `EM-MODE4-IS-MODE3-DUMP-b` — vtable skeleton.  Add
+`src/runtime/x86/emit_v.h` with the struct from the design doc;
+three skeleton backend impls (`emit_v_binary.c`, `emit_v_text.c`,
+`emit_v_macro_def.c`).  Wire into Makefile.  Nothing calls them yet.
+Both gates green.  This is structural setup; SM_HALT (the first real
+opcode retrofit) is sub-rung -c.
+
+⛔ **Required pre-read for next session before touching any code:**
+1. `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` (the design doc).
+2. `ARCH-x86.md` (whole file).
+3. `ARCH-SCRIP.md` (whole file).
+4. The rung header for `EM-MODE4-IS-MODE3-DUMP` above (the amended
+   one).
+5. This watermark.
+
+If a session-author finds the design doc contradicts what they think
+mode-4 should do, they should resolve the contradiction by reading
+the doc more carefully — the doc was written from the Lon pivot of
+sess 2026-05-11 and is the source of truth for this rung.
+
+----
+
+
 
 **EM-7d-beauty-subsystems thunk PoC + ABI-register-handling redesign carved — sess 2026-05-10 (Claude latest)**
 
