@@ -116,18 +116,19 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: 224/~39/0 at sess 2026-05-11c)
+## Active next targets (honest dial: 226/37/0 at sess 2026-05-11c)
 
-Sess 2026-05-11c (Claude Sonnet 4.6): **loop_next fix** ✅ (commit pending) — `coro_bb_every` in `coro_runtime.c` did not clear `FRAME.loop_next` between body iterations. When `next` fired, the flag persisted into subsequent β calls, causing `AST_SEQ` to short-circuit every following body. Fixed by save/clear/restore around `bb_exec_stmt`. 205→224 honest (+19). Also: `baselines/icon-bb/sm-run-honest.md5` created.
+Sess 2026-05-11c (Claude Sonnet 4.6, one4all `f32e690e`):
+- **loop_next fix** ✅ `cf389ad7` (+19, 205→224): `coro_bb_every` not clearing `FRAME.loop_next` between body iterations — `next` bled into subsequent β calls, causing `AST_SEQ` to short-circuit all following bodies. Fixed by save/clear/restore around `bb_exec_stmt`. Baseline md5 created.
+- **assign-cat fix** ✅ `f32e690e` (+2, 224→226): `icn_bb_assign_gen` captured mutable scalar (e.g. `total`) once at α. New `icn_bb_assign_cat` box: when RHS has AST_VAR sibling of leaf generator, drives leaf per tick and re-evaluates full RHS via `coro_drive_node` injection so vars read fresh. Fixes `every total := total + (1 to n)`.
 
-Remaining 39 failures — known root causes:
-- `rung02_proc_locals`: `every total := total + (1 to n)` gives 5 not 15 — accumulation in every-body not re-reading updated var (drive-node caching issue).
+Remaining 37 failures — known root causes:
 - `rung06_cset_any_fail`: scan/any result off-by-one.
-- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — empty; goal-directed conjunction in generative context (Phase C3 or B-series gap).
+- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — empty honest; goal-directed conjunction in generative context (Phase C3 or B-series gap).
 - `rung36_jcon_statics`: static vars not persisting across calls in honest mode.
-- Many rung36: complex Icon features not yet lowered.
+- Many rung36: complex Icon features not yet lowered (segfaults, timeouts).
 
-Next: investigate `rung02` accumulation bug (drive-node caching re-evaluating stale var snapshot).
+Next: `rung06` scan/any bug, then `rung13` conjunction-in-generator gap.
 
 ---
 
@@ -159,7 +160,8 @@ Next: investigate `rung02` accumulation bug (drive-node caching re-evaluating st
 | CH-17g-icon-conjunction | `74faf1d0` | — | `AST_SEQ` + `LANG_ICN` → `SM_JUMP_F` |
 | CH-17g-initial-once | `b4d7ee18` | 172→175 | `initial {}` sentinel via NV |
 | rung24 record-field-assign | `bc6357da` | 203→205 | AST_FIELD lvalue in interp_eval + icn_bb_assign_gen |
-| loop_next fix | pending | 205→224 | `coro_bb_every`: save/clear/restore `FRAME.loop_next` around body |
+| loop_next fix | `cf389ad7` | 205→224 | `coro_bb_every`: save/clear/restore `FRAME.loop_next` around body |
+| assign-cat fix | `f32e690e` | 224→226 | `icn_bb_assign_cat`: re-eval RHS each tick when AST_VAR alongside leaf gen |
 
 ---
 
