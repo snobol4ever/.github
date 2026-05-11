@@ -415,6 +415,8 @@ Lon request: all 17 cohort `.c` files (`lower_literal`, `lower_ref`, `lower_arit
 
 
 **SR-15 ✅ Session 2026-05-11, one4all `f500a3bd`** — rewrite: 1854→1142 lines, readable, e→t rename.
+
+**SI-1 ✅ Session 2026-05-11** — Add `AST_PROGRAM`, `AST_STMT`, `AST_GOTO_S`, `AST_GOTO_F`, `AST_GOTO_U` to `ast.h` enum before `AST_KIND_COUNT`. Matching `ast_e_name[]` entries added. New kinds routed to `lower_unhandled` via existing `default:` in `lower_expr`. Pure enum addition — zero runtime behaviour change. Gate: build clean + all 7 smokes PASS + broker 49/49.
 Factored: `emit_thunk` (JUMP/body/RETURN/PUSH_EXPRESSION pattern), `emit_var_load/store`
 (frame-slot-or-NV dispatch), `emit_pat_capture/emit_pat_fn_args` (merged cond/immed capture),
 `lower_while_until` (merged while/until), `lower_section_3` (merged three section variants),
@@ -534,8 +536,8 @@ AST_PROGRAM                    ← was CODE_t
 
 **SI-1** — Add `AST_PROGRAM`, `AST_STMT`, `AST_GOTO_S/F/U` to `ast.h` enum + `ast_e_name[]`.
 
-- [ ] Add kinds to `ast.h`
-- [ ] Gate: build
+- [x] Add kinds to `ast.h`
+- [x] Gate: build
 
 **SI-2** — Shim helpers in `src/driver/stmt_ast.c`:
 `stmt_to_ast(STMT_t*)` and `code_to_ast(CODE_t*)`. Declare in `scrip_cc.h`.
