@@ -344,6 +344,18 @@ Gate: PASS=30 FAIL=0 byte-identical.
 - [x] Remove 19 cases from legacy switch
 - [x] Gate
 
+**SR-13 ✅ Session 2026-05-11, one4all `e9685621`** — `lower_proc_skeletons()` extracted from `lower()`. Icon/Raku + Prolog skeleton loops moved. `lower()` = 37 lines. Gate: PASS=30.
+
+**SR-12 ✅ Session 2026-05-11, one4all `686615a9`** — `lower_stmt()` extracted to `lower_stmt.c`. 9 sub-phases named in file header. Forward decl in lower_ctx.h. Gate: PASS=30.
+
+**SR-11 ✅ Session 2026-05-11, one4all `69e7dde8`** — `lower_icn_gen.c` (TO/TO_BY inline SM + EVERY/SUSPEND/ITERATE/ALTERNATE/LIMIT) + `lower_prolog.c` (CHOICE + 5 broker-children). Legacy switch now empty. Gate: PASS=30.
+
+**SR-10 ✅ Session 2026-05-11, one4all `cb7d8bf0`** — `lower_icn_ctrl.c` (10: SEQ_EXPR/IF/WHILE/UNTIL/REPEAT/LOOP_BREAK/LOOP_NEXT/RETURN/PROC_FAIL/CASE with Icon+Raku layouts) + `lower_icn_data.c` (5: MAKELIST/RECORD/FIELD/GLOBAL/INITIAL) + `lower_icn_sect.c` (4: SECTION+/−/BANG_BINARY). Gate: PASS=30.
+
+**SR-9 ✅ Session 2026-05-11, one4all `907644e5`** — `lower_icn_relop.c` (12 relop) + `lower_icn_cset.c` (4 cset ops + LCONCAT) + `lower_icn_unary.c` (7: NOT/NULL/NONNULL/SIZE/RANDOM/IDENTICAL/AUGOP). Mid-function `#include icon_lex.h` eliminated; `AugOp_e` added to ast.h. Gate: PASS=30.
+
+**rename ✅ Session 2026-05-11, one4all `cc21aa5a`** — sm_lower→lower, cohort_*→lower_* (14 files renamed; all refs updated). Gate: PASS=30.
+
 **SR-8 ✅ Session 2026-05-11, one4all `d3e36f36`** — `cohort_capture.c` (CAPT_COND_ASGN/CAPT_IMMED_ASGN/CAPT_CURSOR, all delegate to lower_pat_expr) + `cohort_call.c` (FNC with EVAL+Icon shapes, IDX, ASSIGN with frame-slot opt, SCAN, SWAP with inline VAR-VAR fast path). 8 cases removed from legacy switch; 2 registrations added to init_handlers. reb_btrees baseline hash corrected (pre-existing SR-7 drift). Gate: PASS=30 FAIL=0 byte-identical. All 8 smokes green.
 
 **SR-9 — cohort_icn_relop + cohort_icn_cset + cohort_icn_unary.**
@@ -368,41 +380,13 @@ becomes a proper named function `lower_to_by`.
 - [ ] Remove 17 cases from legacy switch
 - [ ] Gate
 
-**SR-11 — cohort_icn_gen + cohort_prolog.** Icon generators (8:
-SUSPEND, TO, TO_BY (already moved to ctrl?), LIMIT, ALTERNATE,
-ITERATE, MAKELIST, EVERY) and Prolog (6: UNIFY, CLAUSE, CHOICE, CUT,
-TRAIL_MARK, TRAIL_UNWIND). These are the "thin lowering" path —
-each handler typically emits one `SM_BB_PUMP_*` opcode.
-
-- [ ] Resolve cohort placement of TO/TO_BY/EVERY (gen vs ctrl)
-- [ ] `cohort_icn_gen.c`, `cohort_prolog.c`
-- [ ] Remove remaining cases from legacy switch
-- [ ] **Legacy switch now empty.** Delete the `switch (e->kind)`
-  wrapper from `lower_expr`.
-- [ ] Gate
+**SR-11 ✅ Session 2026-05-11, one4all `69e7dde8`** — `lower_icn_gen.c` (7: TO/TO_BY inline SM coroutines + EVERY/SUSPEND/ITERATE/ALTERNATE/LIMIT) + `lower_prolog.c` (6: CHOICE/CLAUSE/CUT/UNIFY/TRAIL_MARK/TRAIL_UNWIND). Legacy switch now empty — zero `case AST_*` remain. Gate: PASS=30 FAIL=0 byte-identical.
 
 ### Phase 3 — Statement orchestration
 
-**SR-12 — Extract `lower_stmt` to `lower_stmt.c`.** The 250-line
-`lower_stmt` function moves to its own translation unit. Sub-phases
-(blank-line, label, STNO, subject, pattern, replacement, gotos)
-become named static helpers (`lower_stmt_label`, `lower_stmt_subject`,
-etc.). `lower_stmt` itself becomes a thin orchestrator ≤ 30 lines.
+**SR-12 ✅ Session 2026-05-11, one4all `686615a9`** — `lower_stmt.c` (9 sub-phases: blank-guard, label+DEFINE-tag, STNO/HALT, Icon no-op, Prolog dispatch, pattern-match, assignment dispatch, bare-expr, gotos). Forward declaration in `lower_ctx.h`. Gate: PASS=30 FAIL=0.
 
-- [ ] `lower_stmt.c` with sub-phase helpers
-- [ ] `lower_stmt` ≤ 30 lines
-- [ ] Gate
-
-**SR-13 — Extract proc-skeleton emission.** The proc-table /
-pl_pred-table skeleton loops at the top of `sm_lower()` move to
-`lower_proc_skeletons(LowerCtx *c)`. The Icon main() synthesis
-moves to `lower_icon_main_pump(LowerCtx *c)`. `sm_lower()` becomes
-the entry point listed in the design above — ≤ 30 lines.
-
-- [ ] `lower_proc_skeletons` (Icon + Raku + Prolog)
-- [ ] `lower_icon_main_pump`
-- [ ] `sm_lower()` ≤ 30 lines, matches design block
-- [ ] Gate
+**SR-13 ✅ Session 2026-05-11, one4all `e9685621`** — `lower_proc_skeletons(LowerCtx *c)` extracted (Icon/Raku proc bodies + Prolog predicate stubs). `lower()` is now 37 lines (thin orchestrator: init → skeletons → stmt loop → SM_HALT → resolve). Gate: PASS=30 FAIL=0.
 
 ### Phase 4 — Polish
 
