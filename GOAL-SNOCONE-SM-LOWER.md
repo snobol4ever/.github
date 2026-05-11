@@ -108,7 +108,7 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 
 - [x] Create `GOAL-SNOCONE-SM-LOWER.md` (this file) in `.github`
 - [x] Add row to PLAN.md goals table
-- [ ] Create `corpus/programs/snocone/scrip/` folder with a
+- [x] Create `corpus/programs/snocone/scrip/` folder with a
   `README.md` explaining the folder's purpose
 
 ### SL-1 — LabelTable in Snocone
@@ -124,8 +124,8 @@ Done when: a small inline test at the bottom of `sm_lower.sc` defines
 three labels, patches two forward references, and resolves them
 correctly (verified by `OUTPUT =` statements).
 
-- [ ] Translate `lt_*` family
-- [ ] Inline smoke test passes
+- [x] Translate `lt_*` family
+- [x] Inline smoke test passes
 
 ### SL-2 — emit_goto in Snocone
 
