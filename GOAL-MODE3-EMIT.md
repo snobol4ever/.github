@@ -128,6 +128,41 @@ Every rung:
 
       Gate: `*P`, `*(X+1)`, `EVAL(str)`, `CODE(str)` corpus programs byte-identical `--jit-run` vs `--sm-run`.
 
+      **Session 2026-05-11 reconnaissance (blocked-on-CHUNKS — no code changes):**
+      Current `--jit-run` against the four gate-shaped corpus programs:
+      `feat/f13_eval_code.sno` ✓ byte-identical · `parser/defer_simple.sno` ✓ ·
+      `parser/defer_alt.sno` ✓ · `parser/defer_in_pat.sno` ✗ **segfault under
+      `--jit-run`** (clean under `--sm-run`).  The existing `emit_standard_blob`
+      fallback already routes `SM_PUSH_EXPRESSION`/`SM_CALL_EXPRESSION` to
+      `h_push_chunk`/`h_call_chunk` C handlers (sm_codegen.c:1334–1335), and
+      `h_return_impl` (sm_codegen.c:152) already disambiguates thunk frames
+      via `fr->retval_name == NULL` (CHUNKS-step02 contract).  So the
+      *opcode* work for ME-8 is largely de-facto live; the inline-native
+      blobs are an optimization, not a correctness step.
+
+      **defer_in_pat segfault is NOT in ME-8 territory.**  Backtrace:
+      `#0 ??(addr) → #1 bb_broker bb_broker.c:44 → #2 exec_stmt stmt_exec.c:1395
+      → #3 h_exec_stmt sm_codegen.c:976`.  Diagnostic prints (reverted before
+      commit per RULES.md) show both modes deliver an *identical-looking*
+      `pat` descriptor (`v=DT_P`, same `.p` address) into `exec_stmt`; the
+      EM-7c `DT_E && pat.ptr` branch is **not** taken (`pat.v == DT_P`, not
+      DT_E).  Both modes reach the DT_P branch and call into bb_build* /
+      cache; mode 2 returns, mode 3 crashes jumping to an invalid
+      `root.fn`.  Hypothesis (unverified): the PATND_t for `*P` (P unbound)
+      references runtime state whose lifetime differs between modes —
+      likely a stale function pointer in the per-process pool, or
+      `sm_preamble`'s code_free path invalidating something the
+      deferred-pattern PATND_t still references.  Fix-it work belongs to
+      ME-13 (Glob integration audit), not ME-8.
+
+      **Recommendation when CHUNKS-STEP17 closes:** ME-8's native-blob
+      emit_me8_push_expression_blob / emit_me8_call_expression_blob are
+      mechanical (≈30 bytes / ≈90 bytes; identical shape to existing
+      ME-4 inline blobs and ME-6 me6_return_dispatch flow).  Drop them
+      into the dispatch chain in `sm_codegen` next to SM_PUSH_VAR /
+      SM_STORE_VAR.  Reframe the gate to the three already-passing
+      corpus programs; carry `defer_in_pat.sno` to ME-13.
+
 ### Phase D — Pattern construction on the value stack
 
 - [ ] **ME-9 — Pattern primitives.** All `SM_PAT_*` constructors: load args from r12 stack, call rt_pat_<kind> via imm64, store DT_P result to r12 stack. Combinators (SM_PAT_CAT/ALT/ARBNO) pop inputs, call combinator, push result. Gate: pattern smoke programs byte-identical `--jit-run` vs `--sm-run`.
@@ -165,6 +200,8 @@ Full research notes in git log (search "Prior art / research basis"). Key facts:
 
 ## Watermark
 
-Carved 2026-05-10 (Claude latest). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
+Carved 2026-05-11 (Claude latest, session reconnaissance). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
 
 Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f`.
+
+Session 2026-05-11 (no code commits): verified ME-6 gate 3/3 still green; gates 7/49/3 all clean. Reconnaissance against ME-8's four gate-shaped corpus programs found 3/4 already byte-identical under the existing C-handler fallback (`feat/f13_eval_code`, `parser/defer_simple`, `parser/defer_alt`); `parser/defer_in_pat.sno` (`X *P` unbound) segfaults under `--jit-run` only — bug isolated to DT_P pat construction downstream of `exec_stmt`, NOT in ME-8 territory; tracked as ME-13 audit item.  Details in the ME-8 rung body above.
