@@ -1560,13 +1560,79 @@ Honest mode-3: 174→177 (+3, all five rung18 programs clean).
 Gates: smoke 5/7/5/5/5/4, broker 49/49, ir-run 185/48/30 unchanged.
 
 **Next targets (start of next session):**
-1. `initial`-block once-flag (+3, rung21/25) — WIP stash in one4all:
-   `git stash list` shows "WIP: AST_INITIAL once-flag (incomplete)".
-   Root causes diagnosed: (a) `e->id` always 0 — use `(intptr_t)e` as key;
-   (b) `init_tab` pre-populated by mode-2 preamble — separate `sm_init_ids` table;
-   (c) frame slots reset each call — need `g_initial_nv_vars` to route
-   initial-tracked vars through NV (persistent) instead of frame slots.
-   All three fixes are in the stash. Next session: `git stash pop`, build,
-   also populate `g_initial_nv_vars` in the proc-body loop from `AST_INITIAL`
-   children before lowering, clear at proc boundary. Then test and commit.
-2. Scan context (+5, rung05) — `ICN_SCAN_PUSH/POP` gaps in SM.
+1. Scan context (+5, rung05) — `ICN_SCAN_PUSH/POP` gaps in SM (`rung05_scan_scan_concat_subject`, `rung05_scan_scan_nested`, `rung05_scan_scan_restores`, `rung05_scan_scan_subject`, `rung05_scan_scan_var`).
+2. Other 7 remaining honest failures in 01-35 (excluding rung36 series):
+   `rung02_proc_locals`, `rung06_cset_any_fail`, `rung11_bang_augconcat_bang_concat`,
+   `rung13_alt_alt_filter`, `rung23_table_table_key`, `rung24_records_record_loop`,
+   `rung24_records_two_types`.
+
+### CH-17g-initial-once ✅ 2026-05-11 (sess Claude Opus 4.7)
+
+Icon `initial { ... }` blocks were re-running on every procedure call
+in SM mode because:
+1. `e->id` is never assigned (always 0) — mode-2's `init_tab` keyed on
+   `e->id` couldn't have worked in SM either.
+2. Variables assigned inside `initial` were routed to frame slots,
+   which reset each call — so even if the body ran only once, the
+   resulting binding was lost on the next call.
+
+Fix is two-part:
+
+**Part 1 — `lower_ctx.c::expression_scope_walk`:** added an
+`if (e->kind == AST_INITIAL) return;` short-circuit so the walk does
+not contribute frame slots for vars appearing inside an `initial`
+subtree.
+
+**Part 2 — `sm_lower.c` proc-body setup loop:** after
+`expression_scope_walk` builds `expression_sc`, walk the proc body
+once more looking for `AST_INITIAL` children whose `AST_ASSIGN` LHS
+is `AST_VAR`.  Remove those names from `expression_sc` by compacting
+and re-densifying slot indices.  This handles the case where an
+initial-block var also appears OUTSIDE the initial block (e.g.
+`initial x := 10; x := x + 1`) — the outer use would otherwise add
+the name to scope, putting `x` into a frame slot.  All references
+then route to NV (`SM_PUSH_VAR` / `SM_STORE_VAR`) which persists
+across calls.
+
+**Part 3 — `sm_lower.c::AST_INITIAL` lowering** (replaced stub):
+sentinel-guarded inline lowering.  Each `AST_INITIAL` node gets a
+unique persistent NV sentinel named `__initial_<hex_ptr>__`.
+
+```
+  SM_PUSH_VAR  __initial_<ptr>__       ; null on first call
+  SM_CALL_FN   NONNULL 1               ; FAIL if null, success if set
+  SM_JUMP_S    L_skip                  ; sentinel set → skip body
+  SM_VOID_POP                          ; drop FAILDESCR from NONNULL
+  [ lower each child (the initial body) ]
+  SM_PUSH_LIT_I 1
+  SM_STORE_VAR __initial_<ptr>__       ; mark sentinel
+  SM_VOID_POP
+  SM_JUMP      L_done
+L_skip:
+  SM_VOID_POP                          ; drop NONNULL's success value
+L_done:
+  SM_PUSH_NULL                         ; initial is statement-context
+```
+
+Files: `src/runtime/x86/lower_ctx.c`, `src/runtime/x86/sm_lower.c` (`b4d7ee18`).
+
+Anchors flip honest mode-3 (all three byte-identical to `--ir-run`):
+- `rung21_global_initial_initial_once` — `11\n12\n13\n`
+- `rung25_global_initial_once` — `11\n12\n13\n`
+- `rung25_global_initial_zero` — `1\n2\n`
+
+Honest mode-3 dial: 172→175 in rungs 01-35 (+3).
+Gates: smoke 5/7/5/5/5/4, broker 49/49, isolation PASS,
+ir-run 185/48/30 unchanged.
+
+Failure-list verified: post-fix corpus failures = pre-fix list minus
+the three rung21/25 programs.  No new failures.  No regression.
+
+Doc: deferred (notes captured in this closed-rung paragraph).
+
+**Next targets (start of next session):**
+1. Scan context (+5, rung05) — `ICN_SCAN_PUSH/POP` gaps in SM.
+2. Remaining 7 honest fails in 01-35: rung02_proc_locals,
+   rung06_cset_any_fail, rung11_bang_augconcat_bang_concat,
+   rung13_alt_alt_filter, rung23_table_table_key,
+   rung24_records_record_loop, rung24_records_two_types.
