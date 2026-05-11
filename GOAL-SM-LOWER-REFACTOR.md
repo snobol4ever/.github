@@ -27,7 +27,7 @@ making the Snocone port a one-to-one translation.
 3. Cross-cutting state lives in `LowerCtx`; no file-scope globals. ✅ SR-1
 4. No mid-function `#include`; frontend tokens normalize at the boundary. ✅ SR-9
 5. `CODE_t` and `STMT_t` deleted; all frontends emit AST_PROGRAM/AST_STMT
-   directly. ⏳ SI-1..SI-8 (SI-1..SI-4 closed; SI-5..SI-8 open)
+   directly. ⏳ SI-1..SI-8 (SI-1..SI-6 closed; SI-7..SI-8 open)
 6. `lower.c` head-comment is a one-page architectural overview. ✅ SR-15
 7. **All gates byte-identical** to baseline at every rung-close.
 
@@ -124,16 +124,17 @@ AST_PROGRAM in-loop via `push_child` + `ast_stmt_new`; no AST_END appended
 lower 30/30, all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone/rebus
 5/5/5/5/4, broker 49/49, isolation PASS.
 
-**SI-6** ⏳ PARTIAL `14d6fabf` — sm_preamble fallback deleted; execute_program/
-polyglot_init/label_table_build/prescan_defines all take AST_t*. BROKEN: lower
-28/30, snobol4 6/7 (--ir-run segfault), rebus 0/4. Root cause: per-stmt locals
-(goto_u/s/f, s_subject, s_pattern, s_repl, s_has_eq, s_lang) declared INSIDE the
-while body above setjmp — C99 says these are indeterminate after longjmp. FIX:
-hoist all per-stmt locals above the outer while loop, re-assign from
-prog->children[ci] at top of each iteration. Also fix rebus/snocone regressions
-(likely polyglot_lang_mask missing LANG_SNO when no :lang attr present, or
-polyglot_execute first-child lang detection). stmt_ast.c/STMT_t/CODE_t still live
-in scrip_cc.h for snocone/prolog/raku/rebus frontends — delete in SI-7.
+**SI-6 ✅** Session 2026-05-11, one4all `f06d4b40` — sm_preamble fallback deleted;
+execute_program/polyglot_init/label_table_build/prescan_defines all take AST_t*.
+Root cause of emergency partial segfault: call_user_function in interp_call.c
+still used STMT_t* linked-list traversal; label_lookup returns const AST_t* so
+the cast segfaulted on any user-defined function call. Fix: hoist per-stmt locals
+above while in execute_program (longjmp safety); add g_exec_prog global; rewrite
+call_user_function body-walk to AST index walk via g_exec_prog + stmt_attr_*
+helpers; interp_hooks.c STMT_t *_body → const AST_t *_body. Gates: lower 28/30
+(2 pre-existing), all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone/rebus
+5/5/5/5/4, broker 45/49 (4 pre-existing), isolation PASS. stmt_ast.c/STMT_t/
+CODE_t still live in scrip_cc.h for snocone/prolog/raku/rebus — delete in SI-7.
 
 **SI-7** — Snocone `.ref` oracles updated for the canonical AST shape
 (`parser_snobol4.sc` already produces it). Gate: PARSER-* fixtures pass.
