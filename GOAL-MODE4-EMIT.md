@@ -318,6 +318,24 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -l SM: `templates/sm_arith.c` ADD/SUB/MUL/DIV/MOD. emit_sm_arith_op; movabs rdi,op; call rt_arith@PLT. (Sonnet 4.6, one4all `3b431771`)
   - [x] -m BB: `templates/bb_xfarb.c` XFARB/XEPS/XFAIL (ARB/EPS/FAIL). Nullary callback pattern. (Sonnet 4.6, one4all `1fcb9437`)
   - [ ] **-n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops** ← **NEXT**. Pattern identical to sm_void_pop.
+
+- [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. This is the architectural debt introduced by sub-rungs -d through -m.
+
+  **The invariant:** a template function calls emitter primitives only. No `if (e->is_text)`. No `text_body_fn` callback parameter. No `void *text_body_arg`. The vtable routes each primitive to the right backend. This is what `MIGRATION-MODE4-IS-MODE3-DUMP.md` §"The sprinkle model" says and what every SM template already does correctly.
+
+  **What went wrong:** BB templates were written with `if (e->is_text)` guards and callback parameters because certain emitter primitives (banner emission, three-column data-section layout, label-generating helpers) lacked text-backend implementations. The callbacks delegated text emission back into `bb_flat.c`'s statics. This is exactly the wrong inversion — the template must drive, the vtable must absorb.
+
+  **Steps to fix:**
+
+  - [ ] **EM-TEMPLATE-PURITY-1 — Audit missing text primitives.** For each BB template that has `is_text` / callback, list every `bb_flat.c` static it calls through the callback. These are the primitives that need text-backend implementations on the `emitter_t` vtable. Expected set includes: `flat_emit_box_banner`, `flat3c_action`, `flat3c_label`, `flat_data_section`/`flat_text_section`/`flat_intel_syntax`, `flat_data_string`, `flat_data_quad`, `flat_data_long`, `flat_box_call`, `flat_box_dispatch_jne_jmp`, `g_flat_node_id`.
+
+  - [ ] **EM-TEMPLATE-PURITY-2 — Add missing primitives to `emitter_t` vtable.** For each primitive identified in -1: add a slot to `emitter.h`, implement in `emitter_text.c` (real GAS text output), implement as no-op in `emitter_binary.c`. Key ones: `box_banner(kind, args)`, `data_section_begin()`, `text_section_begin()`, `intel_syntax()`, `data_string(s)`, `data_long(v)`, `box_call(rdi_expr, fn_name, port)`, `box_dispatch(lbl_succ, lbl_fail)`. The `g_flat_node_id` counter must move to the emitter state so each emitter instance tracks its own id.
+
+  - [ ] **EM-TEMPLATE-PURITY-3 — Rewrite each BB template as a pure vtable-call function.** One by one: `bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`. Remove `is_text` guard, remove callback parameters, remove callback typedefs from `bb_flat.h`. The `flat_emit_node` dispatch cases become simple one-liners calling the template with just the semantic parameters (chars, n, etc.) and the four labels.
+
+  - [ ] **EM-TEMPLATE-PURITY-4 — Delete dead callback infrastructure.** Remove from `bb_flat.c`: `charset_text_body`, `brkx_text_body`, `intcur_text_body`, `pos_text_body`, `rpos_text_body`, `arb_text_body`, `eps_text_body`, `fail_text_body`, and their arg structs. Remove from `bb_flat.h`: `bb_charset_text_fn`, `bb_brkx_text_fn`, `bb_intcur_text_fn`, `bb_pos_text_fn`, `bb_nullary_text_fn` typedefs. Gates must stay green throughout.
+
+  - [ ] **EM-TEMPLATE-PURITY-5 — Verify.** `grep -r 'is_text\|text_body_fn\|text_body_arg' src/runtime/x86/templates/` returns empty. All gates green. Tracked artifacts byte-identical.
   - [ ] -m BB: XFARB+XEPS+XFAIL (one rung).
   - [ ] -n..p Further SM/BB alternation (SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN family, remaining BB boxes, SM_PAT_*).
   - [ ] -q SM_LABEL / SM_STNO structural markers.
