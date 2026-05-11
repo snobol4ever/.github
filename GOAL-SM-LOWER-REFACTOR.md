@@ -333,16 +333,16 @@ Gate: PASS=30 FAIL=0 byte-identical.
 - [x] Remove 10 cases from legacy switch
 - [x] Gate
 
-**SR-7 — cohort_seq + cohort_pat_prim.** Sequence/alternation (5)
-plus the 14 pattern primitives. These are SNOBOL4-heavy and exercise
-the `lower_pat_expr` adapter — the pattern adapter stays a single
-file (`lower_pat.c`) but the *value-context* arms of these kinds
-move into cohorts.
+**SR-7 ✅ Session 2026-05-11, one4all `0b06ccf1`** — `cohort_seq.c` (VLIST/CAT/SEQ/ALT/OPSYN)
++ `cohort_pat_prim.c` (18 pat-prim kinds, all delegate to lower_pat_expr)
++ `lower_pat.c` (lower_pat_expr + sm_pat_capture_fn_arg_names extracted from sm_lower.c).
+Stale reb_btrees baseline entry corrected (244f9e6a, pre-existing drift).
+Gate: PASS=30 FAIL=0 byte-identical.
 
-- [ ] `cohort_seq.c`, `cohort_pat_prim.c`
-- [ ] Move `lower_pat_expr` to `lower_pat.c`
-- [ ] Remove 19 cases from legacy switch
-- [ ] Gate
+- [x] `cohort_seq.c`, `cohort_pat_prim.c`
+- [x] Move `lower_pat_expr` to `lower_pat.c`
+- [x] Remove 19 cases from legacy switch
+- [x] Gate
 
 **SR-8 — cohort_capture + cohort_call.** Captures (3) + FNC, IDX,
 ASSIGN, SCAN, SWAP (5). AST_FNC includes the EVAL(*expr) special
