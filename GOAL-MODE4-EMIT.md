@@ -464,7 +464,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
       - [x] **EM-MODE4-IS-MODE3-DUMP-e — charset-family BB box template (XSPNC/XBRKC/XANYC/XNNYC).**  `templates/bb_xspnc.c` + `emit_bb_charset()` callback design. Byte-identical. Gates 7/7+49/49+5/5+4/4, claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `157352d8`)
       - [x] **EM-MODE4-IS-MODE3-DUMP-f — sm_push_lit_i template (SM-axis).**  `templates/sm_push_lit_i.c`; mode-4 routed through it. Byte-identical.  emit_sm_halt/emit_sm_push_lit_i in sm_codegen_x64_emit.c renamed to avoid conflict with template symbols.  Gates 7/7+49/49+5/5+4/4, roman.s+claws5.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `33b3c7ba`)
       - [x] **EM-MODE4-IS-MODE3-DUMP-g — integer-cursor family (XLNTH/XTB/XRTB).**  `templates/bb_xlnth.c`. 69 inline lines -> 3 dispatch one-liners. Byte-identical.  Gates 7/7+49/49+5/5+4/4, treebank-list.s diff empty. (sess 2026-05-11 Claude Sonnet 4.6, one4all `9e2ea80e`)
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-h through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-h through -p — Remaining emission units, alternating SM ↔ BB.**  Suggested order: sm_void_pop, bb_xbrkx, sm_jump, bb_xposi+xrpsi (one rung), sm_jump_s+sm_jump_f, bb_xfarb+xeps+xfail (one rung), sm_add+sub+mul+div+mod+exp.
+        - [x] **-h: SM-axis: sm_void_pop** ✅ sess 2026-05-11 (Claude Sonnet 4.6, one4all `87f59f43`). Template: `call rt_pop_void@PLT`. No mode-3/mode-4 divergence. Gates: 7/7+49/49+5/5+4/4. 5/5 artifacts gcc -c clean.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-q — SM_LABEL / SM_STNO** (structural markers; one rung).
 
@@ -526,7 +527,39 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6) — GOAL-MODE4-EMIT template retrofit**
+**EM-MODE4-IS-MODE3-DUMP-h landed — sess 2026-05-11 (Claude Sonnet 4.6)**
+
+`templates/sm_void_pop.c` — `emit_sm_void_pop(emitter_t *e)`.
+Emits `call rt_pop_void@PLT`. No mode-3/mode-4 divergence — both modes
+call rt_pop_void at runtime. Identical pattern to sm_push_lit_i but
+with no operand (nullary). macro_begin("VOID_POP", NULL, 0).
+
+`sm_codegen_x64_emit.c` changes:
+- `emit_sm_pop(FILE*,...)` body replaced: constructs text emitter,
+  calls `emit_sm_void_pop(e)`. Legacy `sm_emit_nullary` path renamed
+  `emit_sm_pop_legacy` with `__attribute__((unused))`.
+- `templates/templates.h`: `void emit_sm_void_pop(emitter_t *e)` declared.
+- `Makefile`: `sm_void_pop.c` added to scrip compile rule (NOT RT_PIC_SRCS).
+
+**Gates (all green):**
+- `test_smoke_snobol4.sh`: 7/7
+- `test_smoke_unified_broker.sh`: 49/49
+- `test_smoke_snocone.sh`: 5/5
+- `test_gate_em_template_byte_identity.sh`: 4/4
+- 5/5 tracked artifacts `gcc -c` clean
+
+**one4all commit:** `87f59f43`. **corpus commit:** `2f6beec`.
+
+**Next sub-rung: `-i` — BB-axis: `bb_xbrkx`**
+
+XBRKX is the "break-from-variable" box (BREAK applied to a runtime
+variable, not a literal charset). Pattern similar to bb_xspnc (charset
+family) but with runtime variable lookup. Follow the -e template
+pattern (callback-based text body in bb_flat.c).
+
+---
+
+
 
 **What this session did (sub-rungs -c through -g):**
 
