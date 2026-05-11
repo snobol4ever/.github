@@ -518,3 +518,73 @@ less-mature one.
 
 The single piece that six languages depend on becomes the single
 piece a new contributor reads first.
+
+---
+
+## Phase 5 — Collapse CODE_t + STMT_t into AST_t (SI-1..SI-8)
+
+`CODE_t` is a linked list of `STMT_t`. `STMT_t` is named pointers to `AST_t`
+children plus scalars. Both are trees in struct clothing. Flatten into:
+
+```
+AST_PROGRAM                    ← was CODE_t
+  AST_STMT  sval=label ival=lang a[0].i=lineno a[1].i=stno a[2].i=flags
+    children[0] = subject
+    children[1] = pattern      (NULL if absent)
+    children[2] = replacement  (NULL if absent)
+    children[3] = AST_GOTO_S   sval=target (NULL if absent)
+    children[4] = AST_GOTO_F   sval=target
+    children[5] = AST_GOTO_U   sval=target
+    children[6..8] = goto_s/f/u_expr (computed gotos)
+```
+
+`lower()` takes `const AST_t *prog`. `lower_stmt` takes `const AST_t *s`.
+`CODE_t` and `STMT_t` cease to exist — names freed for runtime use.
+
+**SI-1** — Add `AST_PROGRAM`, `AST_STMT`, `AST_GOTO_S/F/U` to `ast.h` enum + `ast_e_name[]`.
+
+- [ ] Add kinds to `ast.h`
+- [ ] Gate: build
+
+**SI-2** — Shim helpers in `src/driver/stmt_ast.c`:
+`stmt_to_ast(STMT_t*)` and `code_to_ast(CODE_t*)`. Declare in `scrip_cc.h`.
+
+- [ ] Write `stmt_ast.c`, declare in `scrip_cc.h`
+- [ ] Gate: build + smoke snobol4
+
+**SI-3** — `lower()` and `lower_stmt` take `AST_t*`. Call sites use `code_to_ast()` shim.
+
+- [ ] Change `lower()` to `SM_Program *lower(const AST_t *prog)`; update `lower.h`
+- [ ] Rewrite `lower_stmt(const AST_t *s)` reading children[0..8] + a[*]
+- [ ] Shim call sites: `lower(code_to_ast(prog))`
+- [ ] Gate: all smokes + broker byte-identical
+
+**SI-4** — SNOBOL4 frontend emits `AST_STMT` directly; remove shim from that path.
+
+- [ ] Add `ast_stmt_new()` helper
+- [ ] Update `snobol4.y` grammar actions
+- [ ] Gate: smoke snobol4 byte-identical
+
+**SI-5** — Remaining five frontends emit `AST_STMT` directly.
+
+- [ ] icon
+- [ ] prolog
+- [ ] raku
+- [ ] rebus
+- [ ] snocone
+- [ ] Gate after each: that frontend's smoke + broker
+
+**SI-6** — Delete `CODE_t`, `STMT_t`, `stmt_ast.c`, all related helpers.
+
+- [ ] Delete structs and helpers
+- [ ] Gate: all smokes + broker byte-identical
+
+**SI-7** — Snocone parsers emit `'AST_PROGRAM'`/`'AST_STMT'` tags; update `.ref` oracles.
+
+- [ ] Update `corpus/SCRIP/parser_*.sc`
+- [ ] Regenerate `.ref` oracles
+- [ ] Gate: PARSER-* fixtures pass
+
+**SI-8** — Doc pass: `PLAN.md`, `RULES.md`, `scrip_cc.h` header comment.
+
+- [ ] Update docs
