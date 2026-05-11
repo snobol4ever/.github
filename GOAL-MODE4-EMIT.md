@@ -334,6 +334,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -l SM: `templates/sm_arith.c` ADD/SUB/MUL/DIV/MOD. emit_sm_arith_op; movabs rdi,op; call rt_arith@PLT. (Sonnet 4.6, one4all `3b431771`)
   - [x] -m BB: `templates/bb_xfarb.c` XFARB/XEPS/XFAIL (ARB/EPS/FAIL). Nullary callback pattern. (Sonnet 4.6, one4all `1fcb9437`)
   - [x] -n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops. Pattern identical to sm_void_pop: `emit_sm_nullary_rt` helper in `sm_nullary_rt.c`; old static dispatch wrappers in `sm_codegen_x64_emit.c` bridge into `emit_mode_set+template`. (Sonnet 4.6)
+  - [x] -o SM: SM_LABEL + SM_STNO structural markers. `t_noop_macro(name)` + `t_banner_stno(stno,lineno,src)` added to bb_emit. `sm_label_stno.c`: emit_sm_label (BINARY=no-op; TEXT=LABEL col2) + emit_sm_stno (banner+STNO col2). Old statics renamed *_dispatch. (Sonnet 4.6, one4all `36ca8ea0`)
 
 - [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of vtable calls with no branching.
 
@@ -402,9 +403,47 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, fifth instance)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, sixth instance)**
 
-**one4all `7af48670` on remote (pre-session).** This session landed two commits:
+**one4all `36ca8ea0` on remote.** Three commits this session:
+
+- `7af48670` (upstream rebase) — prior session
+- `92925bcf` — EM-MODE4-IS-MODE3-DUMP-n: SM_CONCAT/PUSH_NULL/COERCE_NUM
+- `36ca8ea0` — EM-MODE4-IS-MODE3-DUMP-o: SM_LABEL/SM_STNO
+
+### SM templates ported so far
+
+| Template file | Ops covered | Key helpers |
+|---------------|-------------|-------------|
+| `sm_halt.c` | SM_HALT | t_inc_mem_r13_disp8, t_ret |
+| `sm_push_lit_i.c` | SM_PUSH_LIT_I | t_mov_rdi_imm64, t_call_sym_plt |
+| `sm_void_pop.c` | SM_VOID_POP | t_call_sym_plt |
+| `sm_jump.c` | SM_JUMP/S/F | t_test_rax_rax, t_emit_jmp |
+| `sm_arith.c` | SM_ADD..SM_MOD | t_mov_rdi_imm64, t_call_sym_plt |
+| `sm_nullary_rt.c` | SM_CONCAT/PUSH_NULL/COERCE_NUM | t_call_sym_plt |
+| `sm_label_stno.c` | SM_LABEL/SM_STNO | t_noop_macro, t_banner_stno |
+
+### t_* helpers surface (bb_emit.h / bb_emit.c)
+
+`t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
+`t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
+`t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full.
+2. Confirm baseline: `test_gate_em_template_byte_identity.sh` = 4/4, smoke 7/7.
+3. Next rung: **EM-MODE4-IS-MODE3-DUMP-p — SM_CALL_FN** (big).
+   - SM_CALL_FN uses `lea_rip_sym` (RIP-relative address of a strtab entry),
+     expression-registry (`rt_register_expressions@PLT`), and `rt_call@PLT`.
+   - Study `emit_sm_call` in `sm_codegen_x64_emit.c` (~line 1085) for the
+     full argument layout: `a[0].s` = function name, `a[1].i` = nargs.
+   - Study `emit_sm_push_lit_s` for how strtab labels work (RIP-rel load).
+   - The template signature will be: `emit_sm_call_fn(emitter_t *e, const char *name, int nargs)`.
+   - New t_* helpers needed: `t_lea_rip_sym(sym_name)` (BINARY: placeholder rel32;
+     TEXT: `lea rdi, [rip + sym_name]`).
+4. After SM_CALL_FN: SM_RETURN family (-r), then SM_PAT_* ops (-u), then BB template
+   purity (EM-TEMPLATE-PURITY-1 audit).
 
 ### Commit 1 — `EM-MODE4-IS-MODE3-DUMP-j+l`: port sm_jump + sm_arith
 - Added `t_test_rax_rax()` (BINARY: `48 85 C0`; TEXT/MACRO_DEF: `test rax, rax`)
