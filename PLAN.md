@@ -61,7 +61,8 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **PAUSED** — reopens when ME-14 closes. Mode-4 = mode-3 + SEG_CODE serializer. Tripwire: test_gate_em_beauty_subsystems_mode4 PASS=4 FAIL=13 frozen. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
-| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **NEXT: SL-1** — LabelTable in Snocone. SL-0 ✅ (folder + goal created this session). |
+| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-1** — carve out LowerCtx + verification harness. 15 rungs in 4 phases: foundations (SR-1..3) → cohort carve-out (SR-4..11) → statement orchestration (SR-12..13) → polish (SR-14..15). Destination: ~16 cohort files ≤300 lines, `lower_expr` ≤80 lines as a kind→handler dispatch, no globals, no inline includes, no silent fallback. Gate: byte-identical bytecode across six frontends at every rung. |
+| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **PAUSED — awaits GOAL-SM-LOWER-REFACTOR.** SL-1 begins after SR-15 lands; translation becomes a transcription exercise once `sm_lower.c` is pristine. SL-0 ✅ folder + goal created. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
