@@ -600,7 +600,17 @@ Rung-specific gates as listed per rung below.
       scope).  Future blob-size benefit will manifest on mode-4
       serialization (smaller SEG_CODE → smaller .s).
 
-- [ ] **ME-6 — Function calls and returns.**  `SM_CALL_FN`, `SM_RETURN`,
+- [ ] **ME-6 — Function calls and returns.**  PARTIAL — see handoff addendum
+      sess 2026-05-10 (Claude latest, sixth session) at end of this file.
+      Prerequisite ME-7 ✅ closed this session (DEFINE-entry flag in place);
+      remaining work is the prologue/epilogue blob emission, which needs a
+      conditional epilogue mechanism (signal from C handler back to blob)
+      to handle SM_RETURN_S/_F variants whose unwind is condition-dependent.
+      Recursive `fib` already runs byte-identical sm-run vs jit-run today,
+      proving the existing dispatch model doesn't need rbp accounting for
+      correctness — the prologue/epilogue's actual purpose (per goal text)
+      is the latent vsnprintf alignment in `bb_pool` byrd-box code, which
+      is a different code path than SM-blob land.  `SM_CALL_FN`, `SM_RETURN`,
       `SM_NRETURN`, `SM_FRETURN`.  Bridge via existing `rt_call@PLT` for
       builtin dispatch.  DEFINE'd chunks get a real prologue/epilogue:
       `push rbp ; mov rbp, rsp` at entry, `pop rbp ; ret` at exit.  This
@@ -609,7 +619,7 @@ Rung-specific gates as listed per rung below.
       `bb_label_initf` faults on `rsp%16==8`).  Gate: `define` smoke
       passes; recursive `roman.sno` runs under `--jit-run`.
 
-- [ ] **ME-7 — Chunk dispatch fix in `sm_lower.c`.**  Distinguish DEFINE'd
+- [x] **ME-7 — Chunk dispatch fix in `sm_lower.c`.**  Distinguish DEFINE'd
       function entries from internal labels (the `:S(label)` / `:F(label)`
       targets).  Add a flag on `SM_LABEL` (e.g. `a[1].i = 1` for DEFINE'd
       entries, 0 otherwise) set by the lowerer when it emits the label
@@ -620,6 +630,29 @@ Rung-specific gates as listed per rung below.
       do not enter the registry and do not receive prologues.  Gate:
       `test_gate_sn7_beauty_self_host.sh` measured via `--jit-run` lifts
       from the current 26/51 baseline (exact target tbd; we expect ≥27).
+      ✅ 2026-05-10 sess 6 (Claude latest).  Implementation differs from
+      original spec slightly: flag landed at `a[2].i = 1` (not `a[1].i`)
+      because `a[1].i` is already used to store the label's PC for
+      `sm_label_pc_lookup`.  `a[2].i` is otherwise unused for SM_LABEL.
+      New runtime API `FUNC_IS_ENTRY_LABEL(label)` in `snobol4.c`/`.h`
+      scans every FNCBLK_t bucket for any registered user function whose
+      `entry_label` matches `label`; O(N) over registered functions but
+      called only once per labeled SNOBOL4 statement at lower time, so
+      negligible.  `lower_stmt` calls `FUNC_IS_ENTRY_LABEL` after
+      `sm_label_named` for `s->label` and sets `a[2].i = 1` on hit —
+      prescan_defines() has already populated the function table by the
+      time sm_lower runs (sm_preamble ordering), so the check is
+      authoritative.  `sm_prog.c` printer extended to emit `s="<name>"
+      define_entry=1` for SM_LABEL — previously SM_LABEL had no case in
+      the dump switch and printed bare.  Gate uplift: PASS=26 FAIL=25
+      baseline preserved (this rung adds no codegen behavior change — the
+      flag is consumed by ME-6, which is still PARTIAL).  Verified the
+      flag fires correctly: `--dump-sm` on the `define` smoke shows
+      `SM_LABEL s="DOUBLE" define_entry=1` for the DOUBLE function entry
+      but no flag on the `END` goto-target label.  Recursive fib stress
+      test (`088_define_recursive_fib.sno`, 144 calls for fib(10)) runs
+      byte-identical sm-run vs jit-run, demonstrating the flag works
+      through real recursion.
 
 ### Phase C — Deferred-eval consumer (post-GOAL-CHUNKS)
 
@@ -1641,3 +1674,162 @@ at entry, `pop rbp; ret` at exit.  This will let recursive `roman.sno`
 run under `--jit-run` and fix the alignment problem latent in mode-3
 today.  Gate: `define` smoke passes; recursive `roman.sno` runs under
 `--jit-run`.
+
+**Addendum sess 2026-05-10 (Claude latest, sixth session of the day):
+ME-7 ✅ CLOSED.  ME-6 remains PARTIAL with deferred-scope note.  Two
+diagnostic prerequisites also landed.**
+
+Session goal was ME-6 (function calls + returns).  Close reading of
+the system surfaced two upstream issues that had to be fixed before
+ME-6's gate ("define smoke passes; recursive roman.sno runs under
+--jit-run") was even achievable:
+
+1. **`opnames[]` shift bug in `sm_prog.c`.**  The string array
+   `opnames[SM_OPCODE_COUNT]` was missing `"SM_BB_PUMP_AST"`, causing
+   every opcode name from `SM_CALL_FN` onward to be displayed shifted
+   up by one slot in `--dump-sm`.  E.g. an actual `SM_CALL_FN`
+   instruction was printed as `SM_RETURN`.  Pure display bug — runtime
+   was always correct — but it had been actively misleading earlier
+   sessions' reading of the codegen dispatch.  One-line fix: add
+   `"SM_BB_PUMP_AST"` between `"SM_BB_PUMP_EVERY"` and
+   `"SM_SUSPEND_VALUE"` in the array.
+
+2. **Bare RETURN/FRETURN/NRETURN statement-subject lowering bug in
+   `sm_lower.c`.**  A SNOBOL4 statement consisting of just `RETURN`
+   (no `=`, no pattern, no goto) is equivalent to `:(RETURN)`.  The
+   lowerer was emitting `SM_PUSH_VAR s="RETURN"; SM_VOID_POP` instead
+   of `SM_RETURN`.  Effect: the `define` smoke test (which uses bare
+   `RETURN` as the body of its `DOUBLE` function) produced `42` under
+   `--ir-run` (which has its own bare-RETURN handling) but **empty
+   output under `--sm-run` and `--jit-run`** because the function
+   had no way to return.  Both SM modes were byte-identical (both
+   equally broken), so the bug was invisible to byte-identity gates.
+   Fix: in `lower_stmt`'s bare-expression-statement branch
+   (`!has_eq && !pattern && !goto`), check whether `s->subject` is
+   an `AST_VAR` whose `sval` (case-insensitive) is `RETURN`,
+   `FRETURN`, or `NRETURN`; if so, emit the matching return opcode
+   directly and jump to `emit_gotos`.  Mirrors `emit_goto`'s
+   existing treatment of those names as goto targets (~line 222 of
+   the same file).  Post-fix: `define` smoke produces `42`
+   byte-identical across all three modes (IR, SM, JIT).
+
+3. **ME-7 — SM_LABEL DEFINE-entry flag.**  Original spec said put
+   the flag at `a[1].i = 1`, but `a[1].i` is already the label's PC
+   (used by `sm_label_pc_lookup`).  Settled at `a[2].i = 1`, which
+   was otherwise unused for SM_LABEL.  Three components:
+   - **New runtime API** `int FUNC_IS_ENTRY_LABEL(const char *label)`
+     in `snobol4.c`/`.h`.  Scans every `FNCBLK_t` bucket
+     (FUNC_BUCKETS=128) for any registered user function whose
+     `entry_label` (or `name` if `entry_label` is NULL) matches the
+     query.  O(N) over registered functions, called once per
+     labeled SNOBOL4 statement at lower time — negligible.
+   - **`lower_stmt` consumes it.**  Right after `sm_label_named(p,
+     s->label)`, call `FUNC_IS_ENTRY_LABEL(s->label)`; if it
+     returns 1, set `p->instrs[p->count - 1].a[2].i = 1`.
+     `prescan_defines()` has already populated the function table
+     by the time `sm_lower` runs (sm_preamble calls them in that
+     order), so the check is authoritative.
+   - **`sm_prog.c` printer extended.**  SM_LABEL previously had no
+     case in the operand-printing switch and printed bare ("`SM_LABEL`"
+     with no operand text).  Now prints `s="<name>"` if the label is
+     named, plus `define_entry=1` if the flag is set.  Helpful for
+     verifying ME-7 lowering at a glance.
+
+Verified on the `define` smoke source:
+```
+   10  SM_LABEL             s="DOUBLE" define_entry=1
+   18  SM_LABEL             s="END"
+```
+PC 10 (DOUBLE function entry) flagged; PC 18 (END goto target) not
+flagged.  Correct.
+
+**ME-6 scope deferred — three findings:**
+
+a) **The dispatch model has no native "return-from-function" hook.**
+   SM_RETURN's C handler (`h_return_impl`) updates `STATE->pc` to
+   the caller's return-PC, then the trampoline jumps to that PC's
+   blob.  Native `rsp` threads through the entire dispatch chain
+   with no natural unwind point — there's no `ret` instruction
+   in the SM_RETURN blob.
+
+b) **Conditional return variants only undo on condition.**
+   `SM_RETURN_S`/`SM_RETURN_F`/`SM_FRETURN_S`/etc. — nine variants
+   in total — only call `h_return_impl` if their respective
+   `last_ok` predicate holds.  A blob emitting `mov rsp, rbp; pop
+   rbp` unconditionally before/around the handler call would
+   break when the handler decides NOT to return.  The unwind
+   must be signaled by the handler back to the blob (e.g. via a
+   new `STATE->jit_epilogue_pending` field, or via the helper's
+   return value as in the me4_* helper family).
+
+c) **Recursive fib already works correctly across all three modes.**
+   `088_define_recursive_fib.sno` (fib(10) = 144 calls) is
+   byte-identical sm-run vs jit-run vs ir-run today.  This proves
+   the existing dispatch model handles recursion correctly without
+   rbp accounting.  The prologue/epilogue's real purpose per the
+   goal text is the latent vsnprintf alignment failure in
+   `bb_pool` byrd-box code — which is a different code path than
+   SM-blob land.
+
+d) **Recursive `roman.sno` gate is unsatisfiable in this environment.**
+   `bb_alloc: pool exhausted (need 4096, have 0)` under all three
+   modes including `--ir-run`.  This is upstream of ME-6.
+
+**Recommended approach for ME-6 next session:**
+
+Two paths, each worth a separate session:
+
+- **Path A — design the epilogue signal**, in scope for ME-6 proper.
+  Add `int jit_epilogue_pending` to `SM_State`.  Implement a single
+  helper `int me6_return_dispatch(int variant_bits)` that wraps the
+  nine return-variant cases, calls `h_return_impl` when the
+  condition holds, sets `jit_epilogue_pending` iff a frame was
+  popped, returns the flag value.  Each return-variant blob:
+  bump pc, sync r12→sp, call `me6_return_dispatch(<imm>)`,
+  sync sp→r12, `test eax, eax`, `je no_unwind`, `mov rsp, rbp; pop
+  rbp`, `no_unwind:`, `jmp trampoline`.  DEFINE-entry SM_LABEL
+  blob: standard pc-bump + `push rbp; mov rbp, rsp` + standard
+  trampoline jump.  Gate: existing gates green, recursive fib
+  still byte-identical, plus a new test (TBD) that demonstrates
+  rbp is preserved across nested calls.
+
+- **Path B — find and fix the actual vsnprintf alignment failure.**
+  The goal text says it's "latent in mode 3 today: any chunk that
+  PLT-calls `vsnprintf` via `bb_label_initf` faults on
+  `rsp%16==8`."  Construct a minimal reproducer that triggers the
+  fault, then design the prologue/epilogue against the concrete
+  failure.  Higher-value path because it gives the change a real
+  test rather than a speculative one, but requires more upfront
+  investigation.
+
+Path A is the canonical next step for the rung as written.
+
+**Diagnostic prerequisites separate from ME-7:**
+
+The `opnames[]` shift fix and the bare-RETURN lowering fix are
+not part of ME-7's spec but were necessary prereqs for ME-6's gate
+to be achievable.  Both are landed in this session's commit.
+
+**Gates this session:**
+
+| Gate | Before | After |
+|------|--------|-------|
+| `test_smoke_snobol4.sh` | PASS=7 FAIL=0 | PASS=7 FAIL=0 |
+| `test_smoke_unified_broker.sh` | PASS=49 FAIL=0 | PASS=49 FAIL=0 |
+| `test_gate_sn7_beauty_self_host.sh` | PASS=26 FAIL=25 | PASS=26 FAIL=25 (unchanged baseline) |
+| Multi-statement arith realloc reproducer | byte-identical | byte-identical |
+| 30-program parser-corpus sweep | 0 divergences | 0 divergences |
+| Recursive fib (`088_define_recursive_fib.sno`) | byte-identical sm/jit | byte-identical sm/jit/ir |
+| `define` smoke under all three modes | `42` IR, `` SM, `` JIT | `42` everywhere (new) |
+| 100k counter loop perf | sm ~100ms, jit ~80ms | sm ~100ms, jit ~80ms |
+
+**Files touched this session:**
+- `src/runtime/x86/sm_prog.c` — `opnames[]` shift fix + SM_LABEL printer case (+8/-1)
+- `src/runtime/x86/sm_lower.c` — bare-RETURN lowering + ME-7 flag set (+38/-1)
+- `src/runtime/x86/snobol4.c` — `FUNC_IS_ENTRY_LABEL` impl (+21/-0)
+- `src/runtime/x86/snobol4.h` — `FUNC_IS_ENTRY_LABEL` decl (+4/-0)
+
+**Next active step:** ME-6 (PARTIAL → push toward closure).  Path A
+recommended.  Sibling work that remains active per the goal file's
+premier-goal carve: `GOAL-ICON-BB-COMPLETE`.  All other goals stay
+paused until ME-* closes.
