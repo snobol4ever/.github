@@ -421,7 +421,7 @@ Lon request: all 17 cohort `.c` files (`lower_literal`, `lower_ref`, `lower_arit
 `lower_prolog`, `lower_stmt`) merged into `lower.c` (1,854 lines) and deleted from tree.
 `lower_ctx.c` stays separate. Gate: PASS=2/7/5/5/5/5/4 smokes, broker PASS=49/49.
 
-**SR-15 — Documentation pass.** The head-comment of `sm_lower.c`
+**SR-15 — Documentation pass + AST param rename.** Rename AST node parameter `e` → `t` (tree) throughout `lower.c` and `lower_ctx.h` — `e` reads as "expression" but the parameter carries any AST node kind, not only expressions. Convention: `p` = program, `c` = context, `t` = tree node, `s` = statement. Then: the head-comment of `lower.c`
 becomes a one-page architectural overview: pipeline position,
 the three phases, the cohort layout, the `LowerCtx` lifecycle, the
 isolation gate. Every cohort file's head-comment lists its kinds
