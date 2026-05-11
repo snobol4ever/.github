@@ -459,7 +459,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       Reopens for a follow-up session: either close mode-4 via the chosen option, or carve `-c-mode4` as a new sub-rung once the decision lands.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-d — First BB box end-to-end: bb_xchr.**  `templates/bb_xchr.c`.  Simplest box (one-character literal compare).  Wires `bb_flat.c`'s XCHR emit calls through the new vtable.  Proves BB side of the surface.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-d — First BB box end-to-end: bb_xchr.**  `templates/bb_xchr.c`.  Simplest box (one-character — actually arbitrary-length — literal compare).  Wires `bb_flat.c`'s XCHR emit calls through the new vtable.  Proves BB side of the surface.  Sess 2026-05-11 (Claude Opus 4.7): byte-identical lift of `flat_emit_lit` + the inline banner-emission in `flat_emit_node`'s XCHR case into `emit_bb_xchr(emitter_t *e, PATND_t *p, lbl_succ, lbl_fail, lbl_β)`.  Unlike SM_HALT, XCHR has NO mode-3-vs-mode-4 divergence — both modes call into the same runtime symbols (memcmp, bb_label_*); the binary-vs-text difference is fully absorbed by the existing emitter vtable's symbolic helpers (BB_INSN_LEA_RCX_SYM, BB_INSN_CALL_SYM_PLT) — so -d landed cleanly without any A/B/C decision needed.  Two byte-identity verifications: (1) `claws5.s` emission `git stash`/`pop` diff: empty (byte-identical); (2) `--sm-run` 197/64 == `--jit-run` 197/64 unchanged across the 261-program jit smoke crosscheck.  Legacy `flat_emit_lit` retained with `__attribute__((unused))` as a rollback reference.  Two free functions (`flat_emit_banner_rule`, `flat_emit_box_banner`) promoted from `static` to external linkage and declared in `bb_flat.h` so templates can call them.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-e through -p — One emission unit per rung, alternating SM ↔ BB.**  Suggested order: sm_push_lit_i, bb_xlit, sm_push_lit_s, bb_xspnc, sm_void_pop, bb_xanyc, sm_jump, bb_xbrkc, sm_jump_s+sm_jump_f, bb_xnnyc, sm_add+sub+mul+div+mod+exp (one rung), bb_xlnth+xtb+xrtb (one rung).  Each rung lands its own template C file(s), deletes corresponding inline emission from `sm_codegen.c` / `bb_flat.c` / `sm_codegen_x64_emit.c` / `bb_emit.c`, regenerates the corresponding macro.
 
@@ -522,6 +522,166 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-d closed (BB side proven; bb_xchr template byte-identical) — sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Sub-rung -d lands cleanly with full closure (unlike -c, which is
+partial pending the SM_HALT mode-3-vs-mode-4 A/B/C decision).  The
+contrast is instructive: BB boxes are template-shaped already in
+the existing codebase (`flat_emit_lit` and its siblings take an
+`emitter_t *e` and call vtable methods exclusively), so the
+"first BB template" rung is largely a *relocation* with namespace
+cleanup, not new architecture.  The 106/106-vs-SPITBOL property
+that earlier watermarks credited to the BB-side vtable carries
+through unchanged — the template lives in a different file but is
+the same function body.
+
+**Key finding: BB-side templates have no mode-3/mode-4 divergence
+analogous to SM_HALT's.**
+
+Mode-3 (in-process JIT) and mode-4 (standalone binary) call the same
+runtime symbols for BB-box semantics (`memcmp`, `bb_label_*`,
+`bb_brk`/`bb_any`/`bb_notany`/`bb_span`, etc.) and read/write the
+same global subject-string anchors (`Σ`, `Σlen`, `Δ`).  The only
+binary-vs-text difference is *how* literal-string pointers are
+addressed — RIP-relative symbol (text, via `BB_INSN_LEA_RCX_SYM`)
+vs imm64 raw pointer (binary, fallback in the same vtable kind).
+The existing emitter vtable absorbs this entirely.
+
+This means: **for sub-rungs that touch only BB boxes, the SM_HALT
+A/B/C decision is not blocking.**  The template machinery can be
+populated across all BB box kinds (sub-rungs -d through -p as they
+fall within the BB axis of the alternation) without waiting on Lon.
+Subsequent SM-side sub-rungs do block on the decision because
+SM_TPL_NULLARY and SM_TPL_RET both face the same mode-3-vs-mode-4
+question (rt_halt_tos for HALT; bare `ret` for RETURN that mode-3
+treats one way and mode-4 must wrap with libscrip_rt-aware exit).
+
+**What landed:**
+
+- `src/runtime/x86/templates/bb_xchr.c` — NEW file, 121 lines.
+  Defines `void emit_bb_xchr(emitter_t *e, PATND_t *p, lbl_succ,
+  lbl_fail, lbl_β)`.  Body lifted byte-for-byte from the previous
+  `flat_emit_lit` (in bb_flat.c) plus the inline banner-emission
+  in `flat_emit_node`'s XCHR case.  Combined into one function
+  because both halves emit the *same* BB box (the banner introduces
+  the literal-match sequence; they're a unit).
+
+- `src/runtime/x86/templates/templates.h` — restructured.
+  All dependency pull-ins moved to top of file (`snobol4.h`,
+  `emitter.h`, `bb_emit.h`, `snobol4_patnd.h`) so any caller gets
+  every type it needs by including this one header.  Avoids the
+  forward-declaration ordering trap when a template references a
+  type from another header.  `emit_bb_xchr` declaration added.
+
+- `src/runtime/x86/bb_flat.h` — two prototypes added.
+  `flat_emit_banner_rule(emitter_t *e, char ch)` and
+  `flat_emit_box_banner(emitter_t *e, const char *kind, const char
+  *args, const char *label_prefix)`.  Both were `static` in
+  `bb_flat.c`; promoted to external linkage so per-box template
+  files can call them.
+
+- `src/runtime/x86/bb_flat.c` —
+  - `#include "templates/templates.h"` added.
+  - `flat_emit_banner_rule` and `flat_emit_box_banner` lose
+    `static` keyword (definitions match the now-public declarations).
+  - `flat_emit_lit` marked `__attribute__((unused))` and retained
+    as rollback reference + byte-identity oracle.
+  - The XCHR case in `flat_emit_node` collapses from 10 lines
+    (preview formatting + banner call + `flat_emit_lit` call) to
+    a single `emit_bb_xchr(e, p, lbl_succ, lbl_fail, lbl_β)` call.
+
+- `Makefile` — `templates/bb_xchr.c` added to scrip rule (line 244)
+  AND to `RT_PIC_SRCS` (libscrip_rt.so).  Unlike `sm_halt.c` which
+  is called only from `sm_codegen.c` (not in libscrip_rt), `bb_xchr.c`
+  is called from `bb_flat.c` which IS in libscrip_rt.  Both build
+  targets include the file.
+
+**Gates (all green):**
+
+- `bash scripts/build_scrip.sh`: clean.
+- `bash scripts/test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `bash scripts/test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- `bash scripts/test_smoke_snocone.sh`: PASS=5 FAIL=0.
+- `bash scripts/test_smoke_snobol4_jit.sh`: `--sm-run` 197/64,
+  `--jit-run` 197/64 — three-mode parity preserved across the
+  261-program crosscheck.  XCHR is exercised heavily here (literal
+  match is in nearly every pattern); identical pass/fail numbers
+  prove byte-for-byte preservation.
+- `bash scripts/test_gate_em_template_byte_identity.sh`: 4/4 PASS
+  (the sub-rung -c gate; XCHR-via-template doesn't change SM_HALT
+  emission).
+- `bash scripts/build_and_run_test_template_byte_identity.sh`:
+  PASS (sub-rung -c unit test; still verifies the literal byte
+  sequence `41 ff 45 14 c3` for SM_HALT).
+- `git stash`/`pop` byte-diff on `claws5.s` (the tracked artifact
+  with the most LIT BOX banners — 4 of the 6 total across the 5
+  tracked artifacts): **empty diff**.  Definitive proof that the
+  XCHR template lifts the body byte-for-byte; mode-4 `.s` output
+  is unchanged at the byte level.
+- `-Wall -Wextra -Wno-unused-parameter -Wno-unused-function` on
+  the new `templates/bb_xchr.c` and on the modified `bb_flat.c`:
+  zero new warnings.  (One pre-existing `unused-variable d2`
+  warning inside the now-unused `flat_emit_lit` body — verified
+  via `git stash`/`pop` to predate sub-rung -d; not introduced
+  here, not in scope to fix.)
+
+**Tracked-artifact post-rung confirmation:**
+
+| File             | Lines | LIT BOX banners | `gcc -c` |
+|------------------|------:|----------------:|:--------:|
+| roman.s          |    71 | 0               | OK       |
+| wordcount.s      |   121 | 0               | OK       |
+| claws5.s         |   868 | 4               | OK       |
+| treebank-list.s  |  1104 | 0               | OK       |
+| treebank-array.s |  1284 | 2               | OK       |
+
+Line counts identical to post-sub-rung-b baseline.  6 LIT BOX
+banners across the 5 artifacts, all now produced by the template.
+
+**Static-analysis invariants:**
+
+- `grep -rE 'emit_v|emitter_v|EMITTER_V' src/runtime/x86/` — empty.  Holds.
+- `grep macro_ src/runtime/x86/templates/bb_*.c` — empty.  HOLDS
+  (no longer vacuously — `bb_xchr.c` exists; verified that it
+  contains zero `macro_` calls, consistent with BB-template
+  discipline).
+
+**Sub-rung -e (next session — no decision required to proceed):**
+
+The next alternating-axis rung is **sm_push_lit_i**.  This SM
+opcode emits inline native code that loads a constant integer
+onto the value stack via `rt_push_int`.  Like SM_HALT, it has a
+mode-3 (in-process) byte-pattern and a mode-4 (macro invocation
+`PUSH_INT val`) text-pattern — and likely *the same* mode-3-vs-
+mode-4 divergence pattern as SM_HALT (`call rt_push_int@PLT` in
+mode-4 vs inline byte sequence in mode-3).
+
+**If Lon has decided A/B/C by then,** the SM_PUSH_LIT_I retrofit
+follows the decided shape.  Mode-3 wires through the template;
+mode-4 either wires through it (Option A — change mode-4 to
+match mode-3) or stays inline (Option B/C — template-as-mode-3-
+only, document divergence).
+
+**If the decision is still open,** the BB-axis alternation
+continues: sub-rung -e becomes another BB box (XSPNC — span box,
+next-simplest after XCHR) and sm_push_lit_i waits as -e' or -f.
+
+**Pre-read for sub-rung -e (whichever it is):**
+1. `templates/sm_halt.c` and `templates/bb_xchr.c` (the two patterns).
+2. `MIGRATION-MODE4-IS-MODE3-DUMP.md` §"The template-as-program".
+3. The "KNOWN OPEN ARCHITECTURAL QUESTION" in sub-rung -c watermark
+   (below).
+4. This watermark.
+5. For BB-axis: `bb_flat.c` `flat_emit_charset_call` (XSPNC's
+   current emit path).
+6. For SM-axis: `sm_codegen.c` `emit_push_int_lit_blob` (or
+   equivalent SM_PUSH_LIT_I site) and `sm_codegen_x64_emit.c`
+   `emit_sm_push_lit_i`.
+
+----
+
+
 
 **EM-MODE4-IS-MODE3-DUMP-c PARTIAL LANDING (mode-3 wired; mode-4 blocked on design question) — sess 2026-05-11 (Claude Opus 4.7, latest)**
 
