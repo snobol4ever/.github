@@ -174,7 +174,7 @@ Every rung:
       - [x] **ME-9b — `SM_PAT_LIT`.** Inline-native `emit_me9_pat_lit_blob(lit_ptr, tramp)` (52 bytes; mirrors `emit_me4_push_var_blob`). Calls `pat_lit(s)` via imm64 with the literal pointer baked from `a[0].s`. `pat_lit` null-guards internally (`snobol4_pattern.c:84-88`); blob passes through. **Verified hot:** diagnostic fprintf fired twice on `feat/f04_pattern_primitives.sno` (`lit="he"` and `lit="a"`). Byte-identical PASS across all 21 `feat/` programs.
 
       - [x] **ME-9c — Group C (charset).** `SM_PAT_ANY`, `SM_PAT_NOTANY`, `SM_PAT_SPAN`, `SM_PAT_BREAK`. Each pops a string from r12, calls `VARVAL_fn` to coerce to `const char*`, then calls `pat_X(cs)`. Net delta 0 (pop 1, push 1).
-      - [ ] **ME-9d — Group D (integer arg).** `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`, `SM_PAT_RTAB`. Each pops a DESCR_t, checks `v==DT_I` (else 0), calls `pat_X(n)`. Net delta 0.
+      - [x] **ME-9d — Group D (integer arg).** `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`, `SM_PAT_RTAB`. Each pops a DESCR_t, checks `v==DT_I` (else 0), calls `pat_X(n)`. Net delta 0.
       - [ ] **ME-9e — Group E (unary pattern).** `SM_PAT_ARBNO`, `SM_PAT_FENCE1`. Pop inner pat, call combinator, push. Net delta 0.
       - [ ] **ME-9f — Group F (binary pattern).** `SM_PAT_CAT`, `SM_PAT_ALT`. Pop right then left, call combinator, push. Net delta −1.
       - [ ] **ME-9g — Group G (deref/refname).** `SM_PAT_DEREF` (most common — variable-as-pattern path), `SM_PAT_REFNAME`. These have non-trivial dispatch logic (DT_P pass-through, DT_S → pat_lit, else pat_ref(name)); easier to keep as thin trampolines `me9_pat_deref(v)` / `me9_pat_refname(name)` than to inline the type-discrimination chain in x86. Net delta 0.
@@ -212,8 +212,8 @@ Full research notes in git log (search "Prior art / research basis"). Key facts:
 
 ## Watermark
 
-Carved 2026-05-11 (Claude latest, session ME-9c). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
+Carved 2026-05-11 (Claude latest, session ME-9d). Premier-goal declared by Lon. Architecture locked: one value stack, r12=TOS, r13=&SM_State, r10=BB data, rbp=fn frame, variant patterns stay dynamic. Full history in git log.
 
-Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f` · ME-9a ✅ `f087571e` · ME-9b ✅ `f087571e` · **ME-9c ✅ `15fff315`**.
+Closed rungs: ME-1 ✅ `cc3cd475` · ME-2 ✅ `babf76be` · ME-3 ✅ `aca47e6c` · ME-4 ✅ `06b8f503`+`ae7f325a` · ME-5 ✅ `880adc36` · ME-7 ✅ `3d88cee7` · ME-6 ✅ `accafb5f` · ME-9a ✅ `f087571e` · ME-9b ✅ `f087571e` · ME-9c ✅ `15fff315` · **ME-9d ✅ `02bf4cd7`**.
 
-Session 2026-05-11 (ME-9c): four `me9_pat_*` C helpers + `emit_me9_pat_charset_blob` inline-native blob for `SM_PAT_ANY`/`NOTANY`/`SPAN`/`BREAK`. Shape mirrors `emit_me4_coerce_num_blob` — pop DESCR_t from [r12-16]/[r12-8], call via imm64, write result back (net delta 0). Verified hot on `feat/f04_pattern_primitives.sno` (ANY/SPAN/BREAK exercised). All 21 feat/ programs byte-identical `--sm-run` vs `--jit-run`. Gates: smoke 7/7, broker 49/49, me6 reentry 3/3.
+Session 2026-05-11 (ME-9d): five `me9_pat_*` C helpers (`me9_pat_len`/`pos`/`rpos`/`tab`/`rtab`) for `SM_PAT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB`. Each checks `d.v == DT_I ? d.i : 0` and calls the constructor. Blob shape identical to ME-9c (single-DESCR_t-arg, net delta 0) — **reuses `emit_me9_pat_charset_blob` directly** since signature `DESCR_t (*)(DESCR_t)` matches. **Verified hot**: diagnostic fired all 5 opcodes (LEN/POS/RPOS/TAB/RTAB) on `feat/f04_pattern_primitives.sno`, each with distinct helper address. All 21 feat/ programs byte-identical `--sm-run` vs `--jit-run`. Gates: smoke 7/7, broker 49/49, me6 reentry 3/3.
