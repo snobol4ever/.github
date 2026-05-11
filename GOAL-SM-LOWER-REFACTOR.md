@@ -193,3 +193,7 @@ replaced. 101 files changed.
 
 **SI-11 ✅** Session 2026-05-11, one4all `71df89af` — AST_e → tree_e.
 Complete tree_t vocabulary: type=tree_t, kind-enum=tree_e, fields t/v/n/c.
+
+**SI-12 ✅** Session 2026-05-11, one4all `007a2082` — revert tree_t/tree_e
+back to AST_t/AST_e per Lon. Keep fields t/v/n/c. tree_push/tree_pop →
+ast_push/ast_pop. tree_new → expr_new.
