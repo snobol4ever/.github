@@ -369,7 +369,7 @@ boundary (one change in `icon.y`), and the cohort handler reads
 - [ ] Icon frontend writes `AugOp_e` values into `AST_AUGOP.ival`
 - [ ] `cohort_icn_relop.c`, `cohort_icn_cset.c`, `cohort_icn_unary.c`
 - [ ] Remove 24 cases from legacy switch
-- [ ] Gate
+- [x] Gate
 
 **SR-10 — cohort_icn_ctrl + cohort_icn_data + cohort_icn_sect.**
 Control flow (9 kinds) + data constructors (4) + section ops (4).
@@ -403,10 +403,23 @@ omission. Adding a new kind to `ast.h` forces a registration choice
 — either map to `lower_unhandled` (with a rung pointer) or write a
 handler.
 
-- [ ] `lower_unhandled` records kind in ctx
-- [ ] Post-lowering report (silent if empty)
-- [ ] Every `AST_e` value has an explicit handler-table entry
+- [x] `lower_unhandled` records kind in ctx
+- [x] Post-lowering report (silent if empty)
+- [x] Every `AST_e` value has an explicit handler-table entry
 - [ ] Gate
+
+
+**SR-14 ✅ Session 2026-05-11, one4all `4b46d16c`** — silent fallback eliminated + cohort collapse.
+`lower_unhandled(c,e)` records kind in `ctx->unhandled_kinds[]` bitset and emits SM_PUSH_NULL.
+`init_handlers()` pre-fills all `AST_KIND_COUNT` slots with `lower_unhandled`; cohorts overwrite
+their slices. `AST_REVASSIGN`/`AST_REVSWAP` explicitly left at `lower_unhandled` with SR-15+ comment.
+`lower_expr` reduced to 4-line pure dispatch — no legacy switch, no silent default. Post-lowering
+report in `lower()` names unhandled kinds via `ast_e_name[]` (requires `IR_DEFINE_NAMES`).
+Lon request: all 17 cohort `.c` files (`lower_literal`, `lower_ref`, `lower_arith`, `lower_seq`,
+`lower_pat`, `lower_pat_prim`, `lower_capture`, `lower_call`, `lower_icn_relop`, `lower_icn_cset`,
+`lower_icn_unary`, `lower_icn_ctrl`, `lower_icn_data`, `lower_icn_sect`, `lower_icn_gen`,
+`lower_prolog`, `lower_stmt`) merged into `lower.c` (1,854 lines) and deleted from tree.
+`lower_ctx.c` stays separate. Gate: PASS=2/7/5/5/5/5/4 smokes, broker PASS=49/49.
 
 **SR-15 — Documentation pass.** The head-comment of `sm_lower.c`
 becomes a one-page architectural overview: pipeline position,
