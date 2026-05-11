@@ -61,6 +61,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **PAUSED** — reopens when ME-14 closes. Mode-4 = mode-3 + SEG_CODE serializer. Tripwire: test_gate_em_beauty_subsystems_mode4 PASS=4 FAIL=13 frozen. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
+| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **NEXT: SL-1** — LabelTable in Snocone. SL-0 ✅ (folder + goal created this session). |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
