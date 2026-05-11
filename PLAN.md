@@ -61,7 +61,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Mode-4 x86 Emitter** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | **PAUSED** — reopens when ME-14 closes. Mode-4 = mode-3 + SEG_CODE serializer. Tripwire: test_gate_em_beauty_subsystems_mode4 PASS=4 FAIL=13 frozen. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
-| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-8** — cohort_capture + cohort_call. Closed: SR-1..SR-6 ✅, **SR-7 ✅ `0b06ccf1`** — cohort_seq (VLIST/CAT/SEQ/ALT/OPSYN) + cohort_pat_prim (18 pat-prims) + lower_pat.c (lower_pat_expr extracted). |
+| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SR-9** — cohort_icn_relop + cohort_icn_cset + cohort_icn_unary. Closed: SR-1..SR-7 ✅, **SR-7 ✅ `0b06ccf1`** — cohort_seq (VLIST/CAT/SEQ/ALT/OPSYN) + cohort_pat_prim (18 pat-prims) + lower_pat.c (lower_pat_expr extracted). **SR-8 ✅ `d3e36f36`** — cohort_capture (CAPT_COND_ASGN/CAPT_IMMED_ASGN/CAPT_CURSOR) + cohort_call (FNC/IDX/ASSIGN/SCAN/SWAP). Gate: PASS=30 FAIL=0. |
 | **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **PAUSED — awaits GOAL-SM-LOWER-REFACTOR.** SL-1 begins after SR-15 lands; translation becomes a transcription exercise once `sm_lower.c` is pristine. SL-0 ✅ folder + goal created. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |

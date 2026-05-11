@@ -344,14 +344,7 @@ Gate: PASS=30 FAIL=0 byte-identical.
 - [x] Remove 19 cases from legacy switch
 - [x] Gate
 
-**SR-8 — cohort_capture + cohort_call.** Captures (3) + FNC, IDX,
-ASSIGN, SCAN, SWAP (5). AST_FNC includes the EVAL(*expr) special
-case (CHUNKS-step02) and the Icon-style call shape (CH-17c) — both
-move intact.
-
-- [ ] `cohort_capture.c`, `cohort_call.c`
-- [ ] Remove 8 cases from legacy switch
-- [ ] Gate
+**SR-8 ✅ Session 2026-05-11, one4all `d3e36f36`** — `cohort_capture.c` (CAPT_COND_ASGN/CAPT_IMMED_ASGN/CAPT_CURSOR, all delegate to lower_pat_expr) + `cohort_call.c` (FNC with EVAL+Icon shapes, IDX, ASSIGN with frame-slot opt, SCAN, SWAP with inline VAR-VAR fast path). 8 cases removed from legacy switch; 2 registrations added to init_handlers. reb_btrees baseline hash corrected (pre-existing SR-7 drift). Gate: PASS=30 FAIL=0 byte-identical. All 8 smokes green.
 
 **SR-9 — cohort_icn_relop + cohort_icn_cset + cohort_icn_unary.**
 Icon relational (12) + cset ops (5) + unaries (7). AST_AUGOP's
