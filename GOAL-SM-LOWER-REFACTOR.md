@@ -178,3 +178,15 @@ transcription exercise: structural decisions made here, in a mature
 language with a mature gate, before being expressed in a less-mature one.
 The single piece six languages depend on becomes the single piece a new
 contributor reads first.
+
+**SI-9 ✅** Session 2026-05-11, one4all `dba8c612` — CODE_t/STMT_t eradicated
+from all public APIs. All five non-SNO compile fns return void. scrip_cc.h
+public headers no longer mention CODE_t/STMT_t. Type bug fixed (interp_eval.c
+STMT_t *body → const tree_t *body). Stale comments purged throughout.
+
+**SI-10 ✅** Session 2026-05-11, one4all `508b2324` — AST_t → tree_t with
+canonical four logical fields matching Snocone `tree` datatype exactly:
+t (kind) / v (union sval|ival|dval) / n (nchildren) / c (children[]).
+tree_push/tree_pop/tree_new inline in ast.h: c[] doubles on push, halves
+when n < _nalloc/4, frees when empty. All open-coded realloc push blocks
+replaced. 101 files changed.
