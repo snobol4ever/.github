@@ -336,6 +336,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops. Pattern identical to sm_void_pop: `emit_sm_nullary_rt` helper in `sm_nullary_rt.c`; old static dispatch wrappers in `sm_codegen_x64_emit.c` bridge into `emit_mode_set+template`. (Sonnet 4.6)
   - [x] -o SM: SM_LABEL + SM_STNO structural markers. `t_noop_macro(name)` + `t_banner_stno(stno,lineno,src)` added to bb_emit. `sm_label_stno.c`: emit_sm_label (BINARY=no-op; TEXT=LABEL col2) + emit_sm_stno (banner+STNO col2). Old statics renamed *_dispatch. (Sonnet 4.6, one4all `36ca8ea0`)
   - [x] -p SM: `templates/sm_call_fn.c`. New t_helpers: `t_lea_rdi_strtab_sym` + `t_mov_esi_imm32`. Template is MACRO_DEF source of truth for CALL_FN macro body (lea rdi,[rip+\lbl]; mov esi,\n; call rt_call@PLT). TEXT dispatch uses sm_emit_lbl_int32 (proven path), emits `CALL_FN .SN, nargs # fname`. (Sonnet 4.6, one4all `3911a0df`)
+  - [x] -q SM: `templates/sm_return.c`. RETURN (ret) + RETURN_VARIANT (mov edi,kind; mov esi,cond; call rt_do_return@PLT; test/jz/ret/label). New t_helpers: `t_mov_edi_imm32`, `t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`. Existing static emit_sm_return/_variant renamed *_dispatch. (Sonnet 4.6, one4all `6aeb2d67`)
 
 - [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of vtable calls with no branching.
 
@@ -424,38 +425,33 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 | `sm_nullary_rt.c` | SM_CONCAT/PUSH_NULL/COERCE_NUM | t_call_sym_plt |
 | `sm_label_stno.c` | SM_LABEL/SM_STNO | t_noop_macro, t_banner_stno |
 | `sm_call_fn.c` | SM_CALL_FN (MACRO_DEF only) | t_lea_rdi_strtab_sym, t_mov_esi_imm32, t_call_sym_plt |
+| `sm_return.c` | SM_RETURN / SM_RETURN_VARIANT (MACRO_DEF only) | t_mov_edi_imm32, t_mov_esi_imm32, t_test_eax_eax, t_jz_retskip, t_retskip_label, t_ret |
 
 ### t_* helpers surface (bb_emit.h / bb_emit.c)
 
 `t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
 `t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
 `t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
-`t_lea_rdi_strtab_sym`, `t_mov_esi_imm32`.
+`t_lea_rdi_strtab_sym`, `t_mov_esi_imm32`, `t_mov_edi_imm32`,
+`t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full.
 2. Confirm baseline: `test_gate_em_template_byte_identity.sh` = 4/4, smoke 7/7.
-3. Next rung: **EM-MODE4-IS-MODE3-DUMP-q (formerly -r) — SM_RETURN family**.
-   - SM_RETURN/SM_FRETURN/SM_NRETURN and their _S/_F conditional variants.
-   - Binary side: `emit_me6_return_blob` in `sm_codegen.c`; bits encoding kind+cond.
-   - Text side: `emit_sm_return_variant` in `sm_codegen_x64_emit.c` uses
-     `sm_emit_ret_var(out, kind, cond, pc, opcode_name)`.
-   - Template signature: `emit_sm_return(e, kind, cond)` where kind∈{0=RET,1=FRET,2=NRET}
-     and cond∈{0=uncond,1=_S,2=_F}.
-   - Study `sm_emit_ret_var` in `sm_emit_template.c` for the macro name lookup.
-4. After SM_RETURN: SM_PAT_* ops (-s), then remaining BB boxes (-t),
-   then EM-TEMPLATE-PURITY audit.
+3. Next rung: **EM-MODE4-IS-MODE3-DUMP-r — SM_PAT_* opcodes**.
+   - Study the SM_PAT_* text emitters in `sm_codegen_x64_emit.c` (~line 1700+).
+   - Many are nullary (PAT_ARB, PAT_EPS, etc.) — same pattern as sm_nullary_rt.c.
+   - PAT_LIT / PAT_REFNAME take a strtab label — same pattern as sm_call_fn.c.
+   - PAT_CAPTURE takes lbl + kind integer.
+   - Start with the nullary group; bundle similar shapes into one template file.
+4. After SM_PAT_*: remaining BB boxes (EM-TEMPLATE-PURITY audit).
 
-### SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)
+### SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, continued)
 
-**one4all `3911a0df` on remote.**
+**one4all `6aeb2d67` on remote.**  Two commits this session:
+- `3911a0df` (rebased to earlier) — EM-MODE4-IS-MODE3-DUMP-p: SM_CALL_FN
+- `6aeb2d67` — EM-MODE4-IS-MODE3-DUMP-q: SM_RETURN / SM_RETURN_VARIANT
 
-Commit this session: `3911a0df` — EM-MODE4-IS-MODE3-DUMP-p: SM_CALL_FN template.
-
-Key finding: `t_macro_begin` in EMIT_TEXT mode (via `bb_emit_mode` global) emits
-param *names* not concrete values, and the body instructions also emit — double
-emission. This is a pre-existing pattern in all `t_macro_begin`-using templates.
-Fix: TEXT dispatch for SM_CALL_FN uses `sm_emit_lbl_int32` (proven path), producing
-clean `CALL_FN .SN, nargs # fname`. The template body is MACRO_DEF source of truth
-only. Artifact gcc-c failures at line 10 (PUSH_INT movabs issue) pre-exist.
+Pattern established: TEXT dispatch keeps proven `sm_emit_*` path; template
+body is MACRO_DEF source of truth only. t_* helpers added incrementally.
