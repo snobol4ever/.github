@@ -26,8 +26,9 @@ making the Snocone port a one-to-one translation.
 2. Every kind has an explicit handler entry; no silent default. ✅ SR-14
 3. Cross-cutting state lives in `LowerCtx`; no file-scope globals. ✅ SR-1
 4. No mid-function `#include`; frontend tokens normalize at the boundary. ✅ SR-9
-5. `CODE_t` and `STMT_t` deleted; all frontends emit AST_PROGRAM/AST_STMT
-   directly. ⏳ SI-1..SI-8 (SI-1..SI-7 closed; SI-8 open)
+5. `CODE_t` and `STMT_t` no longer drive `sm_preamble`/`execute_program`;
+   all frontends produce `AST_PROGRAM`/`AST_STMT` for the driver.
+   ✅ SI-1..SI-8 complete. (Full type deletion deferred to GOAL-SNOCONE-SM-LOWER.)
 6. `lower.c` head-comment is a one-page architectural overview. ✅ SR-15
 7. **All gates byte-identical** to baseline at every rung-close.
 
@@ -142,7 +143,10 @@ new `.ref` oracles added to `corpus/programs/snocone/parser-fixtures/`
 `test_snocone_parser_fixtures.sh` added; PASS=67 FAIL=0. All existing
 gates at baseline.
 
-**SI-8** — Doc pass: `PLAN.md`, `RULES.md`, `scrip_cc.h` header comment.
+**SI-8 ✅** Session 2026-05-11, one4all `c1be7390` — `scrip_cc.h` doc pass.
+Top-of-file header rewritten to describe SI-1..SI-6 pipeline shape accurately.
+Stale "SI-7 will migrate" forward reference removed; CODE_t shim deferral
+updated to point to GOAL-SNOCONE-SM-LOWER (SL-1+).
 
 ---
 
