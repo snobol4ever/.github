@@ -442,7 +442,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       - [x] **EM-MODE4-IS-MODE3-DUMP-a — Design doc + this amendment.**  `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` lands; the rung header above is amended to point at it.  Second pass (later sess 2026-05-11) clarifies: SM and BB are co-equal under this architecture — every SM opcode AND every BB box gets its own template C file from day one.  Sprinkle model: a template can issue any call on the `emitter_t` surface (instruction, comment, banner, blank line, formatting) and each backend chooses to implement or no-op each one.  No code in this sub-rung.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emitter.h` with the `emitter_t` struct (~50 entry points covering instruction primitives, structural markers, BB-port primitives, formatting, macro hooks); three backend impls (`emitter_binary.c`, `emitter_text.c`, `emitter_macro_def.c`); `src/runtime/x86/templates/` directory created.  Wire into Makefile.  Nothing calls them yet.  Gates green.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emitter.h` extended with the new SM-template surface (structural markers, BB-port primitives, formatting, macro hooks) on top of the existing narrow-vtable `emit_insn`/`bb_insn_desc_t` shape.  Implementations land in `emitter_text.c` (real GAS asm output) and `emitter_binary.c` (no-op where the design says so; faithful stubs where bytes might be needed).  New file `emitter_macro_def.c` is a thin wrapper that constructs a text emitter in `TEXT_MODE_DEFINITION`.  `src/runtime/x86/templates/` directory created with a README explaining the per-opcode-template convention and the static-analysis invariant for BB-template macro-discipline.  Both new files wired into the Makefile (scrip rule + RT_PIC_SRCS).  Nothing calls the new surface yet.  Sub-rung -c (SM_HALT, the first template) will be the first caller.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First SM opcode end-to-end: SM_HALT.**  `templates/sm_halt.c`.  mode-3 through it (replaces `emit_halt_blob`); mode-4 through it (replaces `emit_sm_halt`); `sm_macros.s` HALT generated from it via new `tools/regen_macros.c`.  New gate `test_gate_em_template_byte_identity.sh`.
 
@@ -509,6 +509,184 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**EM-MODE4-IS-MODE3-DUMP-b landed (vtable skeleton, narrow-shape resolution) — sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Sub-rung -b lands as the structural setup the sub-rung header
+prescribed.  Three deliverables, zero behavior change to live code.
+
+**Surface-design tension resolved: narrow vtable retained.**  The
+fifth-pass watermark (below) flagged a choice between the existing
+narrow-vtable shape (one `emit_insn(e, &desc)` method + many inline
+helpers building `bb_insn_desc_t`) and the design doc's wide-vtable
+proposal (one function pointer per x86 instruction).  Decision:
+narrow.  Reasons:
+
+1. Proven: the existing `emit_insn` + `bb_insn_desc_t` carries 106/106
+   parity against SPITBOL on the BB side today.  Replacing it is risk
+   for no gain.
+2. Opcode-level primitives the design doc lists (mov_reg_imm64,
+   call_reg, ret, push_reg, lea_rip_sym, ...) are already absorbed by
+   `BB_INSN_*` enum members.  Sub-rung -c will add new `BB_INSN_*`
+   kinds (e.g. `BB_INSN_INC_MEM_DISP8` for SM_HALT's `inc [r13+20]`)
+   as templates demand them.  Bounded change per new instruction.
+3. The "sprinkle" model (templates calling comment/banner/blank-line
+   alongside instruction emission) works fine with narrow vtable —
+   those calls *are* new methods on the vtable, orthogonal to
+   `emit_insn`.
+4. The wide-vtable proposal would duplicate, not replace, what the
+   desc-based machinery already does — two ways to spell each
+   instruction.
+
+**What landed:**
+
+- `src/runtime/x86/emitter.h` — new vtable methods appended after the
+  existing 7 (label_define, emit_jmp, ..., intern_str):
+  - **Structural markers:** `label_name`, `pc_label`, `section`,
+    `directive`, `data_quad`, `data_quad_sym`, `data_string`,
+    `pad_to_blob_size`
+  - **BB-port primitives:** `bb_port_label`, `bb_port_jmp`,
+    `bb_box_banner`
+  - **Formatting:** `comment`, `banner`, `minor_break`, `blank_line`
+  - **macro_def hooks:** `macro_begin`, `macro_param_ref`, `macro_end`
+  - New field `text_mode` of type `emitter_text_mode_t` (enum
+    `TEXT_MODE_INVOCATION` / `TEXT_MODE_DEFINITION`) selects how
+    macro-begin/end render in the text backend
+  - New `EMIT_OPT(e, method, ...)` NULL-safe helper macro
+  - New constructor `emitter_text_new_mode(out, mode)`; legacy
+    `emitter_text_new(out)` keeps the default INVOCATION mode
+
+- `src/runtime/x86/emitter_text.c` — implementations for every new
+  method above.  Text-DEFINITION mode emits `.macro NAME params ...
+  .endm` blocks; text-INVOCATION mode emits a single `NAME args` line
+  with subsequent body emissions suppressed by a per-backend flag
+  until `macro_end`.  All implementations route through the existing
+  `bb3c_format` machinery where three-column shape is expected
+  (`label_name`, `pc_label`, `data_quad`, …) so the readability rules
+  established by EM-FORMAT-* rungs are preserved automatically.
+
+- `src/runtime/x86/emitter_binary.c` — vtable slots filled in.
+  `data_quad` / `data_string` emit real bytes via `bb_emit_u64` /
+  `bb_emit_byte`.  Everything else is a faithful no-op per the
+  design doc; binary backend's only job is bytes-into-SEG_CODE, and
+  the formatting/banner/comment surface has no byte equivalent.
+  Stubs return cleanly so callers in -c onward don't crash on calls
+  the binary backend chooses to ignore.
+
+- `src/runtime/x86/emitter_macro_def.c` — new file, 41 lines.  Thin
+  wrapper: `emitter_macro_def_new(out)` calls
+  `emitter_text_new_mode(out, TEXT_MODE_DEFINITION)`.  No separate
+  free needed — `emitter_free` already handles the underlying text
+  emitter.
+
+- `src/runtime/x86/templates/` — new directory + `README.md`
+  documenting the per-opcode-template convention, the three-backend
+  matrix (binary / text / macro_def), the SM-only nature of
+  macro_def, the file-naming convention (`sm_<opcode>.c` /
+  `bb_<kind>.c`), and the static-analysis invariant for BB-template
+  macro discipline.
+
+- `Makefile` — `emitter_macro_def.c` added to the `scrip` rule's
+  compilation line (line 195) and to `RT_PIC_SRCS` (line 80).
+
+**Gates (all green, both before and after this rung):**
+
+- `bash scripts/build_scrip.sh`: clean.
+- `bash scripts/test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `bash scripts/test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- `bash scripts/test_smoke_snocone.sh`: PASS=5 FAIL=0.
+- `bash scripts/test_gate_em_beauty_subsystems_mode4.sh`: PASS=0
+  FAIL=17 (all link) — **unchanged from session start**.  Pre-
+  existing link issue (libscrip_rt.so missing `coro_bb_*`,
+  `bb_eval_value`, `icn_call_builtin`, `kw_assign`, and 6+ more
+  symbols) is NOT a one-line Makefile edit as the prior watermark
+  guessed — adding `coro_runtime.c` alone pulls in 10+ transitive
+  symbols.  Carved as future housekeeping rung (call it
+  `EM-MODE4-LIBSCRIPRT-LINK`).  Not in scope of -b.
+- `-Wall -Wextra -Wno-unused-{parameter,variable,function}` on the
+  three emitter files: zero warnings.  (Initial pass had `multichar`
+  + `switch-outside-range` warnings from a `case 'α':` clause;
+  fixed by dropping the Greek-glyph case labels and accepting only
+  ASCII `a`/`b`/`g`/`o` as input — the design doc specifies ASCII as
+  the canonical template input anyway.)
+
+**Tracked-artifact note:** The 5 tracked `.s` artifacts emit + `gcc -c`
+clean post-rung.  Line counts (71, 121, 868, 1104, 1284) differ from
+the rung-header's stated baseline (151, 124, 949, 1176, 1355).  This
+delta predates -b — fourth-pass watermark noted the same delta
+versus corpus copies and flagged it as a *pre-existing* pattern-blob
+emission regression for a separate session.  Sub-rung -b's emission
+path is byte-identical to its pre-rung path (no live caller of the
+new vtable surface yet), so this delta is not caused by -b.  Corpus
+copies of `*.s` left untouched on disk.
+
+**Static-analysis invariant: `_v` ban.**
+`grep -rE 'emit_v|emitter_v|EMITTER_V' src/runtime/x86/` returns
+empty.  Holds.
+
+**Static-analysis invariant: BB-template macro discipline.**
+`grep macro_ src/runtime/x86/templates/bb_*.c` returns nothing —
+vacuously holds (no BB templates yet; sub-rung -d adds the first).
+
+**Surface-design rationale captured for sub-rung -c:**
+
+The sprinkle model expresses cleanly under narrow vtable.  A template
+like:
+
+```c
+void emit_sm_halt(emitter_t *e) {
+    e->banner       (e, "SM_HALT");
+    e->comment      (e, "exit via ret");
+    e->macro_begin  (e, "HALT", NULL, 0);
+    /* inc qword ptr [r13+20] — pc++ */
+    e->inc_mem_disp8(e, REG_R13, 20);   /* if -c adds this method,
+                                         * OR routes via emit_insn
+                                         * with a new BB_INSN_*    */
+    e->ret          (e);                 /* same                    */
+    e->macro_end    (e);
+    e->pad_to_blob_size(e);
+}
+```
+
+Under narrow-vtable, `inc_mem_disp8` and `ret` are added as inline
+helpers (`emit_inc_mem_disp8`, `emit_ret` — the latter already
+exists) building `bb_insn_desc_t` and dispatching through
+`emit_insn`.  `banner`, `comment`, `macro_begin`, `macro_end`,
+`pad_to_blob_size` are the vtable methods this rung added.  No
+mixed-model gymnastics needed.
+
+**Next session:** sub-rung -c (SM_HALT, the first template).
+Required first action: read this watermark + the rung header (which
+points at `MIGRATION-MODE4-IS-MODE3-DUMP.md`).  Sub-rung -c work:
+
+1. Create `src/runtime/x86/templates/sm_halt.c` with
+   `void emit_sm_halt(emitter_t *e)`.
+2. Add any new `BB_INSN_*` kinds the template needs (likely
+   `BB_INSN_INC_MEM_DISP8`) to `emitter.h` and impl in both
+   `emitter_text.c` and `emitter_binary.c`.
+3. Route mode-3's existing `emit_halt_blob` (or equivalent) call site
+   in `sm_codegen.c` through `emit_sm_halt(emitter_binary_new(...))`.
+4. Route mode-4's existing SM_HALT emission site in
+   `sm_codegen_x64_emit.c` through `emit_sm_halt(emitter_text_new(...,
+   TEXT_MODE_INVOCATION))`.
+5. Generate `sm_macros.s` HALT entry from
+   `emit_sm_halt(emitter_macro_def_new(...))` via new
+   `tools/regen_macros.c`.
+6. Verify byte-identity: mode-3's HALT bytes pre- vs post-rung.
+   Verify text shape: mode-4's HALT line pre- vs post-rung.
+7. New gate `test_gate_em_template_byte_identity.sh` validates the
+   above mechanically.
+
+⛔ **Pre-read for sub-rung -c:**
+1. `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` (the design doc).
+2. `ARCH-x86.md` (whole file).
+3. `ARCH-SCRIP.md` (whole file).
+4. The `EM-MODE4-IS-MODE3-DUMP` rung header above.
+5. This watermark.
+
+----
+
+
 
 **EM-MODE4-IS-MODE3-DUMP-a amended (fifth pass: `em_` → `emit_`; `EMIT_V` reverted) — sess 2026-05-11 (Claude Opus 4.7, latest)**
 
