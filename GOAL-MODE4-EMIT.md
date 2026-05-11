@@ -333,7 +333,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -k BB: `templates/bb_xposi.c` POS/RPOS. Callback pattern. (Sonnet 4.6, one4all `30b19814`)
   - [x] -l SM: `templates/sm_arith.c` ADD/SUB/MUL/DIV/MOD. emit_sm_arith_op; movabs rdi,op; call rt_arith@PLT. (Sonnet 4.6, one4all `3b431771`)
   - [x] -m BB: `templates/bb_xfarb.c` XFARB/XEPS/XFAIL (ARB/EPS/FAIL). Nullary callback pattern. (Sonnet 4.6, one4all `1fcb9437`)
-  - [ ] **-n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops** ← **NEXT**. Pattern identical to sm_void_pop.
+  - [x] -n SM: CONCAT/COERCE_NUM/PUSH_NULL and similar nullary RT-call ops. Pattern identical to sm_void_pop: `emit_sm_nullary_rt` helper in `sm_nullary_rt.c`; old static dispatch wrappers in `sm_codegen_x64_emit.c` bridge into `emit_mode_set+template`. (Sonnet 4.6)
 
 - [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of vtable calls with no branching.
 
@@ -402,113 +402,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Opus 4.7, fourth instance)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, fifth instance)**
 
-**one4all `39e25002` on remote.** Three commits this session, on top of upstream `4b2a8700` (ICON-BB rung06) and `14d6fabf` (SI-6 PARTIAL emergency):
-- `8d07b386` — three-way helper infrastructure + sm_halt ported
-- `f4b14e8d` — sm_push_lit_i ported (+ t_mov_rdi_imm64, t_call_sym_plt, t_macro_begin/end helpers)
-- `39e25002` — sm_void_pop ported (no new helpers needed)
+**one4all `7af48670` on remote (pre-session).** This session landed two commits:
 
-### The architectural shift this session implements
+### Commit 1 — `EM-MODE4-IS-MODE3-DUMP-j+l`: port sm_jump + sm_arith
+- Added `t_test_rax_rax()` (BINARY: `48 85 C0`; TEXT/MACRO_DEF: `test rax, rax`)
+- Added `t_emit_jmp(target, kind)` (BINARY: `bb_insn_j*_rel8/rel32`; TEXT/MACRO_DEF: `bb3c_emit_jmp`)
+- Moved `jmp_kind_t` from `emitter.h` → `bb_emit.h` (no circular deps; emitter.h picks it up)
+- Ported `sm_jump.c`: all `EMIT_OPT`/`EMIT_JMP`/`emit_*` → `t_*`; `(void)e`
+- Ported `sm_arith.c`: same; `(void)e`
+- Gates: smoke 7/7, template-byte-id 4/4
 
-Lon's specification (clarified through several rounds of Q&A this session):
-**SM C templates are plain C functions that call free-standing helpers.
-Each helper consults `bb_emit_mode` internally and does one of three
-things — write x86 bytes (BINARY), write a GAS text line (TEXT), write a
-`.macro`-body line (MACRO_DEF) — one of which may be "do nothing".  No
-`emitter_t` is consulted from inside a template body or from inside a
-helper.  No vtable.  No `EMIT_OPT`.  No `e->method(e, ...)` indirection.**
-
-The shift supersedes every prior framing of EM-TEMPLATE-PURITY that tried to extend or patch the `emitter_t` vtable.  The vtable was a wrong turn; the correct shape is plain C functions with the three-way decision at the leaf.  `emitter_t` and its backends stay alive temporarily because untouched templates still reference them; once all templates are ported the struct and `emitter_text.c`/`emitter_binary.c`/`emitter_macro_def.c` delete.
-
-### What landed (additive — no callers outside templates changed)
-
-In `src/runtime/x86/bb_emit.h` and `bb_emit.c`:
-
-| Helper | What it does (3-way switch on `bb_emit_mode`) |
-|--------|-----------------------------------------------|
-| `emit_mode_set(mode, out)` | central setter; called once per emit pass |
-| `t_comment(text)` | TEXT/MACRO_DEF: `    # text` line; BINARY: no-op |
-| `t_bb_box_banner(kind, args)` | TEXT/MACRO_DEF: 120-char `#---` rule + caption; BINARY: no-op |
-| `t_inc_mem_r13_disp8(disp)` | BINARY: `41 ff 45 <disp>`; TEXT/MACRO_DEF: `inc dword ptr [r13+disp]` |
-| `t_ret()` | BINARY: `c3`; TEXT/MACRO_DEF: `ret` |
-| `t_pad_to_blob_size()` | no-op all 3 (hook for future) |
-| `t_mov_rdi_imm64(val)` | BINARY: `48 BF <8>` (10 bytes); TEXT/MACRO_DEF: `mov rdi, 0x<val>` |
-| `t_call_sym_plt(sym, fn_fallback)` | BINARY: `mov rax,fn; call rax` (12 bytes); TEXT/MACRO_DEF: `call sym@PLT` |
-| `t_macro_begin(name, params[], n)` | TEXT: invocation line; MACRO_DEF: `.macro NAME params`; BINARY: no-op |
-| `t_macro_end()` | MACRO_DEF: `.endm`; TEXT/BINARY: no-op |
-
-Also: `bb_emit_byte()` abort tightened from "TEXT-only" to "non-BINARY-only" — now catches MACRO_DEF leaks too.
-
-Also: `bb_emit_mode_t` enum extended from 2-value (TEXT/BINARY) to 3-value (TEXT/BINARY/MACRO_DEF).
-
-The `t_` prefix exists only to avoid name collision with the existing `emit_X(emitter_t *e, ...)` inlines in `emitter.h` during the transition.  When the vtable deletes, the `t_` prefix can be dropped in a rename pass.
-
-### SM templates ported (signature unchanged; body uses only t_* helpers)
-
-| Template | Helpers used | Status |
-|----------|--------------|--------|
-| `sm_halt.c` | t_comment, t_inc_mem_r13_disp8, t_ret, t_pad_to_blob_size | ✅ ported, byte-identical |
-| `sm_push_lit_i.c` | t_comment, t_macro_begin, t_mov_rdi_imm64, t_call_sym_plt, t_macro_end, t_pad_to_blob_size | ✅ ported |
-| `sm_void_pop.c` | t_comment, t_macro_begin, t_call_sym_plt, t_macro_end, t_pad_to_blob_size | ✅ ported |
-| `sm_jump.c` (JUMP/JUMP_S/JUMP_F) | needs `t_emit_jmp`, `t_test_rax_rax` | 🔲 next |
-| `sm_arith.c` (ADD/SUB/MUL/DIV/MOD) | reuses `t_mov_rdi_imm64`, `t_call_sym_plt` (no new helpers) | 🔲 after sm_jump |
-
-### How callers wire up (unchanged)
-
-The three places that drive SM templates:
-- `sm_codegen.c:emit_halt_blob_via_template` — calls `emitter_binary_new(buf, size)` which sets `bb_emit_mode = EMIT_BINARY` and `bb_emit_buf/pos/size`.  Then calls `emit_sm_halt(e)`.  The body ignores `e` but the mode and bb_emit globals it set are exactly what `t_*` helpers consult.
-- `sm_codegen_x64_emit.c:775` — mode-4 text-emit driver.  Same shape: text-emitter construction sets `bb_emit_mode = EMIT_TEXT` and `bb_emit_out = FILE*`.
-- Two demos (`test_template_byte_identity.c`, `demo_template_productions.c`) — gated, unchanged.
-
-### Gates at handoff
-
-- `test_smoke_snobol4.sh` — **PASS=6 FAIL=1** (`define` fails — upstream SI-6 regression)
-- `test_smoke_unified_broker.sh` — **PASS=45 FAIL=4** (same upstream cause)
-- `test_gate_em_template_byte_identity.sh` — **PASS=4 FAIL=0** ← this is *my* gate
-
-**The smoke 6/7 and broker 45/49 regressions are upstream `14d6fabf` (SI-6 PARTIAL emergency).  Verified by checking out `14d6fabf` alone and running the gates — same failures.  No contribution from my work.**
-
-### Pre-existing issues observed but not addressed (not in scope)
-
-- **Mode-4 `.s` files crash scrip when re-run** at every commit checked back to `57d272e0`.  Unrelated to template-shape work.  Likely a `--jit-emit --x64` driver issue, not a template issue.
-- **`sm_macros.s` uses `movabs rdi, \val`** which GAS rejects when val is a small immediate (movabs requires a 64-bit immediate operand).  Pre-existing.
-- **`text_macro_begin` sets `g_text_macro_suppress` but nothing reads it** — so TEXT mode emits BOTH the invocation line AND the body, when the design says one OR the other.  `t_macro_begin` preserves this behavior shape-for-shape; do not fix incidentally; the right fix is a separate body-suppression rung.
+### Commit 2 — `EM-MODE4-IS-MODE3-DUMP-n`: port SM_CONCAT/PUSH_NULL/COERCE_NUM
+- New `templates/sm_nullary_rt.c` with shared `emit_sm_nullary_rt()` helper
+- Three template functions: `emit_sm_concat`, `emit_sm_push_null`, `emit_sm_coerce_num`
+- Old static dispatch wrappers in `sm_codegen_x64_emit.c` renamed `*_dispatch`, bridge via `emit_mode_set(EMIT_TEXT, out)` + template call
+- Declared in `templates.h`; added to Makefile compile rules
+- Gates: smoke 7/7, template-byte-id 4/4
 
 ### Next session must
-
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full (no exceptions).
-2. Confirm baseline gates: template-byte-id should still be 4/4.  Smoke/broker remain at upstream-emergency baseline until the SI-6 session lands its repair.
-3. Port `sm_jump.c`:
-   - Add `t_test_rax_rax()` — BINARY: `48 85 C0`; TEXT/MACRO_DEF: `test rax, rax` line via `bb3c_format(bb_emit_out, "", "test", "rax, rax")`.
-   - Add `t_emit_jmp(bb_label_t *target, jmp_kind_t kind)` — BINARY: 1-byte opcode (unconditional `0xE9`) or 2-byte opcode `jmp_rel32[k]` (conditional) + `bb_emit_patch_rel32(target)`; TEXT/MACRO_DEF: `bb3c_emit_jmp(bb_emit_out, mn, target->name)` where `mn` indexes into `{"jmp","je","jne","jl","jge","jg"}`.
-   - Replace `EMIT_JMP(e, ...)` and `emit_test_rax_rax(e)` in `sm_jump.c` with the `t_` versions.  Mark `(void)e`.
-4. Port `sm_arith.c`:
-   - Reads op enum into rdi via `t_mov_rdi_imm64`, then `t_call_sym_plt("rt_arith", 0)`.  Both helpers exist.
-5. Once all 5 SM templates are ported, **the SM axis is done**.  BB templates (xchr/xspnc/xbrkx/xlnth/xposi/xfarb) come next — and **the BB family is where the prior reverted attempt failed** (binary data section vs heap-allocated zeta).  The three-way pattern resolves this naturally: `t_data_section_begin`, `t_data_label`, `t_data_quad_sym`, `t_data_long`, `t_data_section_end` are no-ops in BINARY (no `.data` in bb_pool); they emit text in TEXT/MACRO_DEF.  The binary path heap-allocates the zeta directly in the template (still plain C; no `if (mode)` branch needed because the data-section helpers harmlessly no-op).
-6. Eventually: delete `emitter_t`, `emitter_text.c`, `emitter_binary.c`, `emitter_macro_def.c`, all `EMIT_OPT` macros, all `static inline void emit_X(emitter_t *e, ...)` declarations in `emitter.h`.  Rename `t_*` helpers to drop the prefix.
-
-### The pattern, for quick reference
-
-```c
-/* helper in bb_emit.c — three-way switch on bb_emit_mode */
-void t_FOO(args) {
-    switch (bb_emit_mode) {
-    case EMIT_BINARY:    /* bb_emit_byte(...) bytes here */       return;
-    case EMIT_TEXT:      /* bb3c_format(bb_emit_out, ...) line */ return;
-    case EMIT_MACRO_DEF: /* same shape as TEXT for body lines */  return;
-    }
-}
-
-/* template body — plain C calling plain C helpers */
-void emit_sm_FOO(emitter_t *e, args) {
-    (void)e;                  /* transitional: caller still passes e */
-    t_comment("SM_FOO");
-    t_macro_begin("FOO", params, n);
-    t_FOO_helpers(...);
-    t_macro_end();
-    t_pad_to_blob_size();
-}
-```
-
-That's the shape.  Three-way at the leaf, plain C above.
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full.
+2. Confirm baseline gates: template-byte-id 4/4, smoke 7/7.
+3. Next rung is **EM-MODE4-IS-MODE3-DUMP** sub-rungs continuing the SM/BB alternation:
+   - **-o SM_LABEL / SM_STNO** structural markers (per goal file: `-q` in older numbering).
+     Shape: `SM_TPL_NOOP` — macro body is `.macro N\n.endm`; per-call emits the macro name
+     in col 2 so `.LpcN:` prefix is never naked. Check `sm_emit_template.c` for NOOP shape.
+   - **-p SM_CALL_FN** (big; uses `lea_rip_sym`, expression-registry).
+4. After SM axis is complete, BB templates (xchr/xspnc/xbrkx/xlnth/xposi/xfarb) need
+   EM-TEMPLATE-PURITY treatment (remove `is_text` guards, callback parameters).
