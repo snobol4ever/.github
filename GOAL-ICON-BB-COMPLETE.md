@@ -130,18 +130,16 @@ Scalar ops become generators when `is_suspendable(child)`. Extend scalar arms in
 
 ---
 
-## Active next targets (honest dial: 194/45/1 at sess 2026-05-11)
+## Active next targets (honest dial: 205/34/1 at sess 2026-05-11b)
 
-Remaining honest fails rungs 01–35:
+Sess 2026-05-11b (Claude Sonnet 4.6): rung24 ✅ `bc6357da` -- two AST_FIELD lvalue
+gaps fixed: (1) interp_eval.c AST_ASSIGN had no AST_FIELD arm (--ir-run wrote 0);
+(2) icn_bb_assign_gen had AST_VAR-only writeback (--sm-run/honest wrote 0).
+Fixed using FIELD_SET_fn in coro_runtime.c. All three modes now produce 1/2/3.
+rung02/06/11/13/23 already passed honestly (prior sessions).
 
-| Program | Symptom | Root cause |
-|---------|---------|------------|
-| `rung02_proc_locals` | local `total` reads 0 in `every` body | `sm_call_proc` doesn't patch AST_VAR ival → fix in progress |
-| `rung06_cset_any_fail` | `any()` returns 1 not 0 (inverted) | scan context / `any()` fail case |
-| `rung11_bang_augconcat_bang_concat` | `every result ||:= !s` empty output | augop + generator RHS |
-| `rung13_alt_alt_filter` | `every (x:=…)>2 & write(x)` empty | conjunction in `every` body; needs CH-17g-irrun-execution |
-| `rung23_table_table_key` | `key(t)` returns 0 | `key()` generator not wired |
-| `rung24_records_record_loop` | `every c.n := 1 to 3` writes 0s | record field assign + gen RHS |
+Next: Phase A rungs (bang/lconcat-gen, section, limit, random) and Phase B/C
+(generative reductions, control-flow generator-awareness). ABORT=1: rung36_jcon_sieve.
 
 ---
 
@@ -172,6 +170,7 @@ Remaining honest fails rungs 01–35:
 | CH-17g-scan-subject | `5f6d9d8b` | 180→185 | `NV_GET/SET_fn` for `&subject`/`&pos` via `scan_subj`/`scan_pos` |
 | CH-17g-icon-conjunction | `74faf1d0` | — | `AST_SEQ` + `LANG_ICN` → goal-directed conjunction via `SM_JUMP_F` |
 | CH-17g-initial-once | `b4d7ee18` | 172→175 | `initial {}` sentinel via NV `__initial_<ptr>__`; vars excluded from frame scope |
+| rung24 record-field-assign-gen | `bc6357da` | 203→205 | AST_FIELD lvalue in interp_eval.c AST_ASSIGN + icn_bb_assign_gen; FIELD_SET_fn writeback |
 
 ---
 
