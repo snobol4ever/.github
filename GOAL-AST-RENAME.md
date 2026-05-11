@@ -6,7 +6,7 @@
 **Done when:**
 - No `EXPR_t`, `EXPR_e`, or `expr_e_name` identifier remains in `one4all/src/`.
 - No bare `E_*` enum-value identifier (where `*` is an uppercase kind name) remains in `one4all/src/`.
-- No `'E_*'` or `"E_*"` string literal remains in `corpus/programs/scrip/parser_*.sc` or any `.ref` oracle file.
+- No `'E_*'` or `"E_*"` string literal remains in `corpus/SCRIP/parser_*.sc` or any `.ref` oracle file.
 - `PLAN.md` architecture paragraph and prose use **AST** for the source-faithful tagged tree and reserve **IR** for `SM_Program` (the lowered form).
 - `RULES.md §"Snocone parser style"` references `AST_*` strings instead of `E_*`.
 - All gates byte-identical to baseline across the rename: smoke ×6, isolation, unified_broker, csnobol4 Budne, Icon corpus 186/47/30, PARSER-* fixtures (modulo the renamed strings, which are part of the change).
@@ -56,7 +56,7 @@ Recorded so future sessions don't slip back into wishful framing.
 
 5. **All sessions wait for this rename to complete.** Per Lon, sess
    2026-05-09. No parallel work on `src/runtime/x86/`, `src/driver/`,
-   `src/frontend/*/`, or `corpus/programs/scrip/parser_*.sc` while AR-1
+   `src/frontend/*/`, or `corpus/SCRIP/parser_*.sc` while AR-1
    + AR-2 are mid-flight. The rename touches 73 C files and 6 parsers;
    an intervening commit on any of them creates merge conflicts at every
    rename site. Sessions that need to do unrelated work in those areas
@@ -113,7 +113,7 @@ Numbers from `grep` over fresh repos (sess 2026-05-09):
 | `'E_X'` / `"E_X"` string literals (in C debug/dump code) | 189 |
 | Distinct `'E_X'` string literals (in C code) | 157 |
 
-**Snocone parser side (corpus/programs/scrip/parser_*.sc):**
+**Snocone parser side (corpus/SCRIP/parser_*.sc):**
 
 | File | Total `'E_X'` refs | Distinct |
 |---|---:|---:|
@@ -137,11 +137,11 @@ Numbers from `grep` over fresh repos (sess 2026-05-09):
 
 | File | Total |
 |---|---:|
-| `corpus/programs/scrip/ShiftReduce.sc` | 10 |
-| `corpus/programs/scrip/qize.sc` | 2 |
-| `corpus/programs/scrip/semantic.sc` | 3 |
-| `corpus/programs/scrip/smoke.sc` | 21 |
-| `corpus/programs/scrip/tdump.sc` | 44 |
+| `corpus/SCRIP/ShiftReduce.sc` | 10 |
+| `corpus/SCRIP/qize.sc` | 2 |
+| `corpus/SCRIP/semantic.sc` | 3 |
+| `corpus/SCRIP/smoke.sc` | 21 |
+| `corpus/SCRIP/tdump.sc` | 44 |
 
 Grand totals: **~6,889 occurrences** across **~250 files** in two repos.
 
@@ -227,7 +227,7 @@ perl -pi -e 's/"E_([A-Z][A-Z_]*)"/"AST_$1"/g' <file>
 
 ### AR-2 — Snocone parser side: same rename across `parser_*.sc` + `.ref` oracles + supporting `.sc` files
 
-**Scope:** `corpus/programs/scrip/parser_*.sc` (6 files) + 164 `.ref` files + 5 supporting `.sc` files (`ShiftReduce.sc`, `qize.sc`, `semantic.sc`, `smoke.sc`, `tdump.sc`).
+**Scope:** `corpus/SCRIP/parser_*.sc` (6 files) + 164 `.ref` files + 5 supporting `.sc` files (`ShiftReduce.sc`, `qize.sc`, `semantic.sc`, `smoke.sc`, `tdump.sc`).
 
 **Mechanical operations:**
 

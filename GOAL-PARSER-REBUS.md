@@ -592,7 +592,7 @@ job is not to mirror the existing frontend's bugs.
 
 ## Reference — `parser_snocone.sc` as the model
 
-Read `corpus/programs/scrip/parser_snocone.sc` end-to-end before
+Read `corpus/SCRIP/parser_snocone.sc` end-to-end before
 starting. It is the closest sibling: same shared SC blob, same
 `Compiland`/`Command` spine, hand-rolled expression-precedence ladder
 (`Expr17` atoms → `Expr9` mul/div → `Expr6` add/sub → `Expr4` concat
@@ -657,7 +657,7 @@ scrip --parser-crosscheck parser_rebus.sc tiny.reb
 ```
 
 SCRIP runs `parser_rebus.sc` (which `-include`s the shared SC library from
-`corpus/programs/scrip/`) against `tiny.reb`. PAT produces tree t2 via
+`corpus/SCRIP/`) against `tiny.reb`. PAT produces tree t2 via
 `Compiland`; the existing frontend produces t1. Compared in memory
 (`tree_equal`), executed in memory. No subprocesses, no temp files.
 
@@ -816,7 +816,7 @@ is "every deviation is either fixed OR documented in a comment", not
 "zero greps match".
 
 Audit performed 2026-05-04 against
-`corpus/programs/scrip/parser_rebus.sc` (current corpus HEAD `707bd5d`
+`corpus/SCRIP/parser_rebus.sc` (current corpus HEAD `707bd5d`
 plus two diagnostic patches from session #4 — A: flat mul/add tier
 shape, B: `*stmt`→`*stmt_line`).  Violations enumerated below.
 
@@ -1988,7 +1988,7 @@ All 7 unary operator cases (`RE_NEG/POS/NOT/VALUE/BANG/DEREF/PATOPT`) read
 `rbinop(kind, NULL, operand, ...)`. Fixed all 7 to `e->right`.
 Committed `one4all/parser` @ `deeae350`.
 
-**PARSER-RB-FW-1 landed** in `corpus/programs/scrip/parser_rebus.sc`:
+**PARSER-RB-FW-1 landed** in `corpus/SCRIP/parser_rebus.sc`:
 - Full expression precedence tower above `alt_expr`:
   `unary_expr (-) → mul_expr (* /) → add_expr (+ -) → cmp_expr (= ~= < <= > >=) → cat_expr (|| &) → alt_expr → expr`
 - `call_or_id` + `decompose_call`: parses `f(a, b, ...)` → `(E_FNC F (E_VAR A) (E_VAR B))`
@@ -2026,7 +2026,7 @@ Committed `one4all/parser` @ `deeae350`.
 
 ### File locations
 
-- Parser: `corpus/programs/scrip/parser_rebus.sc`
+- Parser: `corpus/SCRIP/parser_rebus.sc`
 - Fixtures: `corpus/programs/rebus/parser/*.reb` and `.ref`
 - Test script: `one4all/scripts/test_parser_rebus.sh`
 - Oracle: `one4all/scrip --dump-ir <file.reb>`

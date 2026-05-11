@@ -24,7 +24,7 @@ bash /home/claude/one4all/scripts/test_parser_snobol4.sh   # must be PASS=89 FAI
 
 Parser invocation:
 ```bash
-SCRIP=/home/claude/one4all/scrip; RT=/home/claude/corpus/programs/scrip
+SCRIP=/home/claude/one4all/scrip; RT=/home/claude/corpus/SCRIP
 $SCRIP --ir-run $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
   $RT/ShiftReduce.sc $RT/semantic.sc $RT/qize.sc $RT/gen.sc \
   $RT/tdump.sc $RT/assign.sc $RT/parser_snobol4.sc < input.sno

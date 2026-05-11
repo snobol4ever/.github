@@ -28,7 +28,7 @@ output is empty or scrip exits nonzero. PASS = 100% of corpus programs parse.
 
 All six PARSER-* parsers share `Compiland`/`Shift`/`Reduce`/`Push`/`Pop`/`Top`/
 `tree`/`TDump`/`stack` plus the `nPush`/`nInc`/`nTop`/`nPop` counter helpers
-from `corpus/programs/scrip/`. Bug fixes there benefit all six.
+from `corpus/SCRIP/`. Bug fixes there benefit all six.
 
 Prolog is the most syntactically distinct of the six — clauses (`head :-
 body.`), facts (`fact.`), terms with arity. The Compiland spine is identical
@@ -68,19 +68,19 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 ```
 
 ⛔ **Do NOT run baseline gates at session start.** They are too slow (~4s/file × 125+ files).
-This goal only modifies `.sc` files in `corpus/programs/scrip/` and `corpus/programs/prolog/parser/`.
+This goal only modifies `.sc` files in `corpus/SCRIP/` and `corpus/programs/prolog/parser/`.
 Run the gate ONLY after fixing a SCRIP bug (C source change). For `.sc`-only changes, verify
 by running a single representative file manually:
 ```bash
 echo 'foo(X) :- X is 1.' | timeout 8 /home/claude/one4all/scrip --ir-run \
-  /home/claude/corpus/programs/scrip/global.sc \
-  /home/claude/corpus/programs/scrip/tree.sc \
-  /home/claude/corpus/programs/scrip/stack.sc \
-  /home/claude/corpus/programs/scrip/counter.sc \
-  /home/claude/corpus/programs/scrip/semantic.sc \
-  /home/claude/corpus/programs/scrip/ShiftReduce.sc \
-  /home/claude/corpus/programs/scrip/tdump.sc \
-  /home/claude/corpus/programs/scrip/parser_prolog.sc < /dev/null
+  /home/claude/corpus/SCRIP/global.sc \
+  /home/claude/corpus/SCRIP/tree.sc \
+  /home/claude/corpus/SCRIP/stack.sc \
+  /home/claude/corpus/SCRIP/counter.sc \
+  /home/claude/corpus/SCRIP/semantic.sc \
+  /home/claude/corpus/SCRIP/ShiftReduce.sc \
+  /home/claude/corpus/SCRIP/tdump.sc \
+  /home/claude/corpus/SCRIP/parser_prolog.sc < /dev/null
 ```
 
 ---
@@ -92,11 +92,11 @@ scrip --parser-crosscheck parser_prolog.sc tiny.pl
 ```
 
 SCRIP runs `parser_prolog.sc` (which `-include`s the shared SC library from
-`corpus/programs/scrip/`) against `tiny.pl`. PAT produces IR tree t2 via
+`corpus/SCRIP/`) against `tiny.pl`. PAT produces IR tree t2 via
 `Compiland`; the existing frontend produces t1. Compared in memory
 (`tree_equal`), executed in memory.
 
-**Shared SC library** (`corpus/programs/scrip/`):
+**Shared SC library** (`corpus/SCRIP/`):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc
 ```
@@ -1314,7 +1314,7 @@ The semantic for `Reduce_ifthen` is correct (`reduce_ifthen()` function pops the
 
 ### Files changed (uncommitted)
 
-- `corpus/programs/scrip/parser_prolog.sc`
+- `corpus/SCRIP/parser_prolog.sc`
   - Added `@>=`/`@>`/`@=<`/`@<` arms to `cmp_expr` FENCE
   - Added `. _op_name` capture to `$'\'` token
   - Replaced disj's `ARBNO($';' nInc() conj)` with `disj_tail` tail recursion
@@ -1687,7 +1687,7 @@ Remaining gaps in priority order:
 
 ```bash
 SCRIP=/home/claude/one4all/scrip
-SRC=/home/claude/corpus/programs/scrip
+SRC=/home/claude/corpus/SCRIP
 SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc \
     $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc \
     $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
@@ -1750,7 +1750,7 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 
 # Quick sanity check (should produce 3 STMT lines):
 SCRIP=/home/claude/one4all/scrip
-SRC=/home/claude/corpus/programs/scrip
+SRC=/home/claude/corpus/SCRIP
 SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
 timeout 7 $SCRIP --ir-run $SC < /home/claude/corpus/programs/prolog/rung11_findall_findall_basic.pl 2>/dev/null | grep -c "^(STMT"
 # expected: 3

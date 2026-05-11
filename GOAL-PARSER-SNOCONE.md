@@ -62,12 +62,12 @@ scrip --parser-crosscheck parser_snocone.sc tiny.sc
 ```
 
 SCRIP runs `parser_snocone.sc` (which `-include`s the shared SC library from
-`corpus/programs/scrip/`) against `tiny.sc` — PAT produces IR tree t2 via
+`corpus/SCRIP/`) against `tiny.sc` — PAT produces IR tree t2 via
 `Compiland`; the existing Snocone frontend produces t1. Both compared in
 memory (`tree_equal`), both executed in memory. No subprocesses, no temp
 files, no on-disk diffs.
 
-**Shared SC library** (`corpus/programs/scrip/`):
+**Shared SC library** (`corpus/SCRIP/`):
 ```
 tree.sc  stack.sc  counter.sc  ShiftReduce.sc  semantic.sc  gen.sc  tdump.sc
 ```
@@ -487,7 +487,7 @@ New constructs implemented and working (gate PASS=46 FAIL=0):
   parenthesized expression `(expr)` in Expr17, `goto_cmd`, `label_prefix`, `for_cmd`.
 
 **SC-6a LANDED (2026-05-05) — White+NL fix + Expr11/Expr12 + Call restructure.**
-Changes to `corpus/programs/scrip/parser_snocone.sc`:
+Changes to `corpus/SCRIP/parser_snocone.sc`:
 - `White_h`/`Gray_h` — horizontal-only ws (no nl); used by `$'(g'` and Call opener.
 - `White_expr` — continuation-only ws (nl only with `+`/`.` marker per S_CONT).
 - `White = *White_expr | nl FENCE(SPAN(' ' tab)|epsilon)` — full ws including bare nl
@@ -585,7 +585,7 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       and refined 2026-05-06 session 4.  **FIXED session 5 (2026-05-06).**
 
       **Fix:** replaced `(E_Parse & 'nTop()')` with `reduce_prim(E_Parse)` at
-      Compiland line 654 (`corpus/programs/scrip/parser_snocone.sc`).
+      Compiland line 654 (`corpus/SCRIP/parser_snocone.sc`).
       `reduce_prim(tag)` (defined in `semantic.sc`) produces
       `epsilon . *ReducePrim(tag)` — fires `ReducePrim` at match time, which
       calls `TopCounter()` as its very first operation before popping any args.
@@ -646,7 +646,7 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
 
       **Probable fix to try first:** replace `(E_Parse & 'nTop()')` with
       `reduce_prim('E_Parse')` which uses `ReducePrim(tag)` from
-      `corpus/programs/scrip/ShiftReduce.sc`.  ReducePrim reads
+      `corpus/SCRIP/ShiftReduce.sc`.  ReducePrim reads
       `TopCounter()` internally at match time — same as `nTop()` but
       called as the very first operation inside the `.`-action body,
       eliminating any concern about the EVAL'd pattern's binding time.
@@ -773,12 +773,12 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       `nPush()`/`nPop()` actions during recursion.  Not yet confirmed.
 
       **Files touched this session (ALL REVERTED before push):**
-      - `corpus/programs/scrip/parser_snocone.sc` — instrumentation in every
+      - `corpus/SCRIP/parser_snocone.sc` — instrumentation in every
         `finalize_*`, `emit_*`, `decompose_stmt`, plus dump output at end of
         driver
-      - `corpus/programs/scrip/counter.sc` — `dbg_frame_depth` /
+      - `corpus/SCRIP/counter.sc` — `dbg_frame_depth` /
         `dbg_inc_compiland` tracking in `PushCounter`/`PopCounter`/`IncCounter`
-      - `corpus/programs/scrip/stack.sc` — `dbg_push_compiland` /
+      - `corpus/SCRIP/stack.sc` — `dbg_push_compiland` /
         `dbg_push_stmt_d1` tracking in `Push`/`Pop`
 
       Per RULES.md "Diagnostic patches are diagnostic — never commit them",
@@ -986,11 +986,11 @@ re-instrumented per-construct firing trace logging
 
 **Files touched this session — ALL REVERTED before push** per RULES.md
 "Diagnostic patches are diagnostic — never commit them":
-- `corpus/programs/scrip/parser_snocone.sc` — instrumented every
+- `corpus/SCRIP/parser_snocone.sc` — instrumented every
   `finalize_*`, `emit_*`, `decompose_stmt`; dump output at end of driver
-- `corpus/programs/scrip/counter.sc` — `dbg_frame_depth` + per-frame
+- `corpus/SCRIP/counter.sc` — `dbg_frame_depth` + per-frame
   IncCounter tracking
-- `corpus/programs/scrip/stack.sc` — depth-1 Push/Pop counters + STMT-tag
+- `corpus/SCRIP/stack.sc` — depth-1 Push/Pop counters + STMT-tag
   filtering
 
 Gates remain smoke PASS=5 / parser PASS=50.

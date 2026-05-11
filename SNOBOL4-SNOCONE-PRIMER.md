@@ -563,7 +563,7 @@ beauty.sc parses. Always run beauty.sc separately before claiming
 
 ```bash
 SCRIP=/home/claude/one4all/scrip
-SRC=/home/claude/corpus/programs/scrip
+SRC=/home/claude/corpus/SCRIP
 cat /home/claude/corpus/programs/snocone/demo/beauty/beauty.sc | \
   timeout 30 $SCRIP --ir-run $SRC/global.sc $SRC/tree.sc $SRC/stack.sc \
     $SRC/counter.sc $SRC/semantic.sc $SRC/ShiftReduce.sc $SRC/qize.sc \
@@ -655,8 +655,8 @@ Empty output = `Parse Error`. Each line of output is one IR statement.
 | `$` immediate assignment | SPITBOL Manual ch.7 (pp 87-) |
 | Canonical PARSER style | `GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc` |
 | Per-language parser | `GOAL-PARSER-{SNOBOL4,SNOCONE,ICON,PROLOG,RAKU,REBUS}.md` |
-| Pattern library | `corpus/programs/scrip/{tree,stack,counter,ShiftReduce,semantic,assign,qize,gen,tdump,global}.sc` |
-| Reference grammars | `corpus/programs/scrip/parser_snobol4.sc` (canonical) |
+| Pattern library | `corpus/SCRIP/{tree,stack,counter,ShiftReduce,semantic,assign,qize,gen,tdump,global}.sc` |
+| Reference grammars | `corpus/SCRIP/parser_snobol4.sc` (canonical) |
 | Beauty source | `corpus/programs/snocone/demo/beauty/beauty.sc` |
 
 Always cross-check `parser_snobol4.sc` for canonical idioms before
