@@ -208,7 +208,7 @@ runtime path).
 | `flat_is_eligible(p)` | live | `bb_flat.c` |
 | `bb_pool.c` RW→RX slab | proven | `bb_pool.c` |
 | `stmt_exec.c` Phase-3 driver | live | `stmt_exec.c` |
-| `emitter_v` vtable (TEXT/BINARY) | live | `emitter_v.h` + `emitter_text.c` + `emitter_binary.c` |
+| `emitter_t` vtable (TEXT/BINARY) | live | `emitter_t.h` + `emitter_text.c` + `emitter_binary.c` |
 | Phase-2 PATND_t simulator | live | `sm_phase2_to_patnd` in `sm_codegen_x64_emit.c` |
 
 Mode-3 (`--jit-run --bb-live`) is mode-4's existence proof.  Mode-4
@@ -314,7 +314,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [x] EM-7-emit-determinism — Fix dangling `s->subject->sval` pointer.
 - [x] EM-7a — Phase-2 SM simulator (PATND_t reconstruction).
 - [x] EM-7b — `bb_flat.c` EMIT_TEXT mode + external α/β/γ/ω labels.
-- [x] EM-7b' — `emitter_v` vtable refactor.
+- [x] EM-7b' — `emitter_t` vtable refactor.
 - [x] EM-7b'' — Instruction-description layer.
 - [x] EM-7c-pure-invariant — Wire fully-invariant patterns through `.text` blobs.
 - [x] EM-7c-symbolic — Symbolic refs replace baked process addresses.
@@ -389,7 +389,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **Why it isn't done yet:** sess 2026-05-10 ran the SCRIP-x86 work at the end of an already-loaded session; context budget did not permit authoring a from-scratch GAS base.  Honest scope: what was delivered (Nasm + overlay) is workable but not pride-worthy; this rung carves the gap.
 
-- [ ] **EM-MODE4-IS-MODE3-DUMP** — One template per SM opcode; three backends (binary / text / macro_def) walk it.  ⛔ **Read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first; it is the design.**  Outcome unchanged from earlier framing (mode-4's `.s` matches mode-3's bytes by construction).  Mechanism *changed* sess 2026-05-11 (Lon pivot): not literal SEG_CODE disassembly, but a per-opcode C template walked by an `emit_v` vtable with binary / text-invocation / macro-definition backends.  The text backend keeps `.s` readable by emitting macro invocations (`PUSH_INT 42`), and the same templates regenerate `sm_macros.s` so the macro body is not a parallel source of truth.  Per Lon (sess 2026-05-11): "use the BB templates to produce the macros. We still want S readable."
+- [ ] **EM-MODE4-IS-MODE3-DUMP** — One template per SM opcode; three backends (binary / text / macro_def) walk it.  ⛔ **Read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first; it is the design.**  Outcome unchanged from earlier framing (mode-4's `.s` matches mode-3's bytes by construction).  Mechanism *changed* sess 2026-05-11 (Lon pivot): not literal SEG_CODE disassembly, but a per-opcode C template walked by an `emitter_t` vtable with binary / text-invocation / macro-definition backends.  The text backend keeps `.s` readable by emitting macro invocations (`PUSH_INT 42`), and the same templates regenerate `sm_macros.s` so the macro body is not a parallel source of truth.  Per Lon (sess 2026-05-11): "use the BB templates to produce the macros. We still want S readable."
 
       **The principle (ARCH-x86.md §"Stack machine (SM_Program)" + §"Dual-mode emitter (TEXT / BINARY)"):**
 
@@ -440,9 +440,9 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       **Sub-rungs (sess 2026-05-11 pivot, second pass — co-equal SM+BB):**
 
-      - [x] **EM-MODE4-IS-MODE3-DUMP-a — Design doc + this amendment.**  `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` lands; the rung header above is amended to point at it.  Second pass (later sess 2026-05-11) clarifies: SM and BB are co-equal under this architecture — every SM opcode AND every BB box gets its own template C file from day one.  Sprinkle model: a template can issue any call on the `emit_v` surface (instruction, comment, banner, blank line, formatting) and each backend chooses to implement or no-op each one.  No code in this sub-rung.
+      - [x] **EM-MODE4-IS-MODE3-DUMP-a — Design doc + this amendment.**  `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` lands; the rung header above is amended to point at it.  Second pass (later sess 2026-05-11) clarifies: SM and BB are co-equal under this architecture — every SM opcode AND every BB box gets its own template C file from day one.  Sprinkle model: a template can issue any call on the `emitter_t` surface (instruction, comment, banner, blank line, formatting) and each backend chooses to implement or no-op each one.  No code in this sub-rung.
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emit_v.h` with the `emit_v` struct (~50 entry points covering instruction primitives, structural markers, BB-port primitives, formatting, macro hooks); three backend impls (`emit_v_binary.c`, `emit_v_text.c`, `emit_v_macro_def.c`); `src/runtime/x86/templates/` directory created.  Wire into Makefile.  Nothing calls them yet.  Gates green.
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-b — Vtable skeleton.**  `src/runtime/x86/emitter.h` with the `emitter_t` struct (~50 entry points covering instruction primitives, structural markers, BB-port primitives, formatting, macro hooks); three backend impls (`emitter_binary.c`, `emitter_text.c`, `emitter_macro_def.c`); `src/runtime/x86/templates/` directory created.  Wire into Makefile.  Nothing calls them yet.  Gates green.
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-c — First SM opcode end-to-end: SM_HALT.**  `templates/sm_halt.c`.  mode-3 through it (replaces `emit_halt_blob`); mode-4 through it (replaces `emit_sm_halt`); `sm_macros.s` HALT generated from it via new `tools/regen_macros.c`.  New gate `test_gate_em_template_byte_identity.sh`.
 
@@ -462,7 +462,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
       - [ ] **EM-MODE4-IS-MODE3-DUMP-v — `sm_macros.s` and `bb_macros.s` become generated artifacts**, make rule added, files dropped from git in favor of build-time regen (or kept with a "DO NOT EDIT — generated" header).
 
-      - [ ] **EM-MODE4-IS-MODE3-DUMP-w — Rung close.**  `test_gate_em_beauty_subsystems_mode4.sh` improves from baseline.  Delete `emitter_v.h` / `emitter_text.c` / `emitter_binary.c` (BB-side legacy vtable subsumed by `emit_v.h`).  Delete `sm_emit_template.c` / `sm_emit_template.h` (SM-side macro-renderer subsumed by templates + `emit_v_text.c`).
+      - [ ] **EM-MODE4-IS-MODE3-DUMP-w — Rung close.**  `test_gate_em_beauty_subsystems_mode4.sh` improves from baseline.  Delete `emitter_t.h` / `emitter_text.c` / `emitter_binary.c` (BB-side legacy vtable subsumed by `emitter.h`).  Delete `sm_emit_template.c` / `sm_emit_template.h` (SM-side macro-renderer subsumed by templates + `emitter_text.c`).
 
       **Superseded sub-rungs (prior framing, recorded for git-log archaeology only — do not implement these as written):** -a (audit/design doc with SEG_CODE-disassembly framing), -b (rewrite sm_codegen.c control flow as standalone task), -c (libscrip_rt cfn-call ABI fix at the call site — re-evaluate after template retrofit; may be unnecessary), -d (`sm_jit_run` rewrite — happens naturally as templates land), -e (`seg_code_dump_as_s` side-table — replaced by template vtable), -f (mode-4 collapses to call-mode-3-then-dump — replaced by mode-4 walks SM_Program with text backend).
 
@@ -510,20 +510,104 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**EM-MODE4-IS-MODE3-DUMP-a amended (third pass: macro_def is SM-only; `_v` = vtable) — sess 2026-05-11 (Claude Opus 4.7, later still)**
+**EM-MODE4-IS-MODE3-DUMP-a amended (fourth pass: `_v` banned; rename across source + docs) — sess 2026-05-11 (Claude Opus 4.7, latest)**
+
+Lon's directive: `_v` (and the `ev_` prefix it spawns) is banned
+project-wide.  "Scrap the use of the character V or v for this
+concept here.  It means nothing.  Get rid of it.  Eradicate it from
+docs and source.  I do not want to see it ever again."
+
+**Source rename landed in this commit:**
+
+| Before              | After                              |
+|---------------------|------------------------------------|
+| `emitter_v.h`       | `emitter.h`                        |
+| `EMITTER_V_H` guard | `EMITTER_H`                        |
+| `emitter_v` struct  | `emitter_t`                        |
+| `ev_*` helpers      | `em_*`                             |
+
+7 files touched in the emitter rename:
+- `src/runtime/x86/emitter.h` (renamed from `emitter_v.h`; 55+63 internal substitutions for the type and the inline helper namespace)
+- `src/runtime/x86/emitter_binary.c` (11 substitutions: include + type refs)
+- `src/runtime/x86/emitter_text.c` (17 substitutions: same)
+- `src/runtime/x86/bb_emit.c` (1 include substitution)
+- `src/runtime/x86/bb_flat.c` (39 + 52 substitutions: include, type refs, all `ev_*` helper call sites)
+- `src/runtime/x86/bb_flat.h` (2 substitutions)
+- `src/runtime/x86/sm_codegen_x64_emit.c` (1 include substitution)
+
+8th file touched (Snocone lexer): `src/frontend/snocone/snocone_lex.c` — `EMIT_V` macro renamed to `EMIT_VAL` (6 sites + 2 comment refs).  Standalone `_V` suffix in capital case caught by the same directive — Lon's "I do not want to see it ever again" applies regardless of case.
+
+Zero residuals: `grep -rE 'emit_v|emitter_v|\bev_[a-z]' src/runtime/x86/` returns empty for non-comment-stray hits.  The only remaining `ev_*` matches anywhere in `src/` are `ev_bin`, `ev_ftr`, `ev_tr` in `snobol4.c` — these are SNOBOL4 runtime event tokens (binary-event, ftrace-event, trace-event), unrelated to the emitter helper namespace, and predate this rung by years.  Left alone.
+
+**Docs rename landed in this commit:**
+
+`MIGRATION-MODE4-IS-MODE3-DUMP.md` — 99 occurrences scrubbed.
+`emit_v.h` → `emitter.h`; `emit_v` (struct) → `emitter_t`;
+`emit_v_binary.c` → `emitter_binary.c`; `emit_v_text.c` →
+`emitter_text.c`; `emit_v_macro_def.c` → `emitter_macro_def.c`;
+constructor/destructor names rebranded analogously.  Naming-note
+section rewritten: no more "`_v` means vtable" claim; replaced with
+"the existing `emitter_text.c` / `emitter_binary.c` use `emitter_t`,
+and this rung extends the same vocabulary to SM."
+
+`GOAL-MODE4-EMIT.md` — 17 occurrences scrubbed.  This watermark
+appended on top; earlier third-pass watermark (the now-stale
+"`_v` = vtable" pass) updated to reflect what actually landed.
+
+**Gates after rename + rebuild:**
+
+- `bash scripts/build_scrip.sh`: clean.
+- `test_smoke_snobol4.sh`: PASS=7 FAIL=0.
+- `test_smoke_unified_broker.sh`: PASS=49 FAIL=0.
+- 5/5 tracked artifacts (`roman.s`, `wordcount.s`, `claws5.s`,
+  `treebank-list.s`, `treebank-array.s`) regen + `gcc -c` clean.
+  The regenerated `.s` files differ from corpus copies — but the
+  un-renamed scrip at `32365d6a` produces the same 71-line roman.s
+  as the renamed scrip, while corpus has 146 lines.  That delta
+  predates this rename (pattern-blob emission regression already
+  present at `32365d6a`).  Not caused by this rung; flagged for a
+  separate session.
+- Pre-existing libscrip_rt link issue from prior watermarks
+  unchanged (still: `g_sm_dispatch_active` / `g_ast_pump_active`
+  externs missing from the lib's Makefile rule).
+
+**Why this rename is mandatory housekeeping for sub-rung -b:**
+
+Sub-rung -b adds new files using this naming.  If we landed -b
+without the rename, we'd introduce a *third* parallel naming
+convention (the proposed `emit_v_*` files) alongside the existing
+`emitter_v.h` and the legacy `ev_*` helpers — three styles for
+one concept.  Doing the rename now, as part of -a, means -b adds
+files that follow ONE established convention from day one.
+
+**Next session:** sub-rung -b (vtable skeleton).  Header is
+`emitter.h` (already exists; -b adds new entry-point declarations
+to it).  Backends are `emitter_binary.c` (already exists; -b adds
+new function pointer impls), `emitter_text.c` (already exists;
+analogous), `emitter_macro_def.c` (new file).  No naming
+ambiguity left.
+
+⛔ **Static-analysis invariant for the project's life:**
+
+```
+grep -rE 'emit_v|emitter_v|\bev_(?!bin|ftr|tr)' src/
+```
+
+returns empty.  If any commit introduces `_v` or `ev_*` (other
+than the three runtime-event tokens in `snobol4.c`), that commit
+is regressing this directive and must be amended.
+
+----
+
+
+
+**EM-MODE4-IS-MODE3-DUMP-a amended (third pass: macro_def is SM-only) — sess 2026-05-11 (Claude Opus 4.7, later still)**
 
 Third clarification from Lon, same session:
 
-1. **The `_v` suffix** on `emit_v` (the vtable type and header
-   filename) stands for **vtable** — table of function pointers.
-   Naming follows the existing `emitter_v.h` precedent on the BB
-   side; after the retrofit, `emitter_v.h` deletes and `emit_v.h`
-   is the survivor.  Documented inline at the vtable-surface section
-   of the design doc.
-
-2. **macro_def is SM-only.**  BB templates never call
+1. **macro_def is SM-only.**  BB templates never call
    `macro_begin / macro_end / macro_param_ref`; the
-   `emit_v_macro_def` driver never instantiates a BB template.
+   `emitter_macro_def` driver never instantiates a BB template.
    Earlier doc framing left this ambiguous (showed `macro_def`
    as a generic third backend over both kinds); third pass makes
    the asymmetry explicit.
@@ -538,6 +622,11 @@ Third clarification from Lon, same session:
    args.  So there is no `bb_macros.s` regeneration counterpart
    and the macro_def driver iterates SM-only.
 
+2. **Naming question raised about `_v` suffix.**  Earlier-pass
+   note had claimed `_v` meant "vtable".  Fourth-pass watermark
+   (above) records Lon's decision to ban the convention outright
+   and the rename that followed.
+
 **What changed in this amendment:**
 
 - `MIGRATION-MODE4-IS-MODE3-DUMP.md`:
@@ -549,9 +638,8 @@ Third clarification from Lon, same session:
   - Sprinkle-model table gets two new rows for the BB-port
     primitives (`bb_port_label`/`bb_port_jmp` and `bb_box_banner`)
     explicitly marked "never reached" in the macro_def column.
-  - Vtable-surface section gets a one-paragraph naming note:
-    `_v = vtable`, inheriting from `emitter_v.h`.
-- `GOAL-MODE4-EMIT.md`: this watermark appended on top.
+- `GOAL-MODE4-EMIT.md`: this watermark.  Fourth-pass watermark
+  (above) supersedes any naming claims made here.
 
 **Static-analysis invariant** for the project's life:
 `grep macro_ src/runtime/x86/templates/bb_*.c` returns zero hits.
@@ -559,7 +647,8 @@ If it ever returns anything, a BB template is incorrectly calling
 into the SM-only macro surface and the offending file needs to
 be rewritten without those calls.
 
-**Gates:** unchanged.  Still docs-only.
+**Gates:** unchanged (third pass was docs-only; fourth pass above
+records the source rename + gate re-runs).
 
 ----
 
@@ -570,7 +659,7 @@ be rewritten without those calls.
 Second clarification from Lon, same session:
 
 1. **Sprinkle model.**  A template C function can issue any call on
-   the `emit_v` surface — instruction emission, comment, banner,
+   the `emitter_t` surface — instruction emission, comment, banner,
    blank line, formatting, structural marker.  Each backend is free
    to implement or no-op any given call.  The surface is generous on
    purpose: comments and formatting are first-class calls, and a
@@ -625,7 +714,7 @@ mode-4-beauty gate has a baseline to measure against.
 **EM-MODE4-IS-MODE3-DUMP-a landed (template-vtable design doc + rung amendment) — sess 2026-05-11 (Claude Opus 4.7)**
 
 Pivot from Lon: mode-4 will not be literal SEG_CODE disassembly.  It
-will be ONE per-opcode C template per SM op, walked by an `emit_v`
+will be ONE per-opcode C template per SM op, walked by an `emitter_t`
 vtable with three concrete backends — binary (writes bytes to
 SEG_CODE; replaces today's `sm_codegen.c` inline byte writes), text
 (writes GAS asm text; replaces today's `sm_codegen_x64_emit.c`
@@ -650,7 +739,7 @@ productions, divergence impossible by construction.
 
 **What did NOT land:**
 
-- Any code changes.  No emit_v.h, no backend impls, no template
+- Any code changes.  No emitter.h, no backend impls, no template
   files, no SEG_CODE plumbing changes.  Sub-rung -a is design only.
 - Per Lon's expectation: "We want things almost right the first
   time."  Locking the design before any code prevents the next
@@ -674,9 +763,9 @@ productions, divergence impossible by construction.
 **Next session:**
 
 Open `EM-MODE4-IS-MODE3-DUMP-b` — vtable skeleton.  Add
-`src/runtime/x86/emit_v.h` with the struct from the design doc;
-three skeleton backend impls (`emit_v_binary.c`, `emit_v_text.c`,
-`emit_v_macro_def.c`).  Wire into Makefile.  Nothing calls them yet.
+`src/runtime/x86/emitter.h` with the struct from the design doc;
+three skeleton backend impls (`emitter_binary.c`, `emitter_text.c`,
+`emitter_macro_def.c`).  Wire into Makefile.  Nothing calls them yet.
 Both gates green.  This is structural setup; SM_HALT (the first real
 opcode retrofit) is sub-rung -c.
 
