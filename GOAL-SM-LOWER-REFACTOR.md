@@ -27,7 +27,7 @@ making the Snocone port a one-to-one translation.
 3. Cross-cutting state lives in `LowerCtx`; no file-scope globals. ✅ SR-1
 4. No mid-function `#include`; frontend tokens normalize at the boundary. ✅ SR-9
 5. `CODE_t` and `STMT_t` deleted; all frontends emit AST_PROGRAM/AST_STMT
-   directly. ⏳ SI-1..SI-8 (SI-1..SI-6 closed; SI-7..SI-8 open)
+   directly. ⏳ SI-1..SI-8 (SI-1..SI-7 closed; SI-8 open)
 6. `lower.c` head-comment is a one-page architectural overview. ✅ SR-15
 7. **All gates byte-identical** to baseline at every rung-close.
 
@@ -136,8 +136,11 @@ helpers; interp_hooks.c STMT_t *_body → const AST_t *_body. Gates: lower 28/30
 5/5/5/5/4, broker 45/49 (4 pre-existing), isolation PASS. stmt_ast.c/STMT_t/
 CODE_t still live in scrip_cc.h for snocone/prolog/raku/rebus — delete in SI-7.
 
-**SI-7** — Snocone `.ref` oracles updated for the canonical AST shape
-(`parser_snobol4.sc` already produces it). Gate: PARSER-* fixtures pass.
+**SI-7 ✅** Session 2026-05-11, corpus `27f0c5f`, one4all `744b4826` — 60
+new `.ref` oracles added to `corpus/programs/snocone/parser-fixtures/`
+(7 pre-existing confirmed byte-identical). Gate script
+`test_snocone_parser_fixtures.sh` added; PASS=67 FAIL=0. All existing
+gates at baseline.
 
 **SI-8** — Doc pass: `PLAN.md`, `RULES.md`, `scrip_cc.h` header comment.
 
