@@ -60,7 +60,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 | **Icon BB Complete (honest mode 3)** | `GOAL-ICON-BB-COMPLETE.md` | one4all+.github | **NEXT: Phase A rungs (bang/lconcat-gen, section, limit, random); Phase B/C generative reductions.** Sess 2026-05-11b (Claude Sonnet 4.6): rung24 ✅ `bc6357da` (+2 honest, 203→205) -- AST_FIELD lvalue in interp_eval.c AST_ASSIGN + icn_bb_assign_gen both missing; FIELD_SET_fn writeback. Honest 205/34/1. |
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
-| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SI-3** — `lower()` + `lower_stmt()` take `AST_t*`; call sites use `code_to_ast()` shim. SI-1 ✅ `9d23cf8c`, SI-2 ✅ (AST_aux a[3] + stmt_ast.c). |
+| **⚡ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **NEXT: SI-4** — SNOBOL4 frontend emits AST_STMT directly. SI-1 ✅ `9d23cf8c`, SI-2+SI-3 ✅ `9e9e1f8f` (pure AST_t {t,v,n,c}; tagged-attr STMT; lower() takes AST_PROGRAM). |
 | **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **PAUSED — awaits GOAL-SM-LOWER-REFACTOR.** SL-1 begins after SR-15 lands; translation becomes a transcription exercise once `sm_lower.c` is pristine. SL-0 ✅ folder + goal created. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
