@@ -177,19 +177,19 @@ A rung is COMPLETE only when all seven gates pass AND honest count N_after > N_b
 
 ### IB-1 — emit_bb_icn_to (integer range: 1 to N, 1 to N by S)
 Step 1: understand semantics.
-- [ ] Read coro_bb_to_by in coro_runtime.c. Note: alpha initialises
+- [x] Read coro_bb_to_by in coro_runtime.c. Note: alpha initialises
       state.cur=lo, state.hi=hi, state.step=step. Returns cur if cur<=hi
       (or >=hi for negative step), else FAILDESCR. beta: cur+=step, same check.
-- [ ] Read test_icon.c to1_* / to2_* labels. Confirm three-column form.
+- [x] Read test_icon.c to1_* / to2_* labels. Confirm three-column form.
 Step 2: runtime helpers.
-- [ ] In icn_box_rt.h declare: typedef struct { int64_t cur,hi,step; } icn_to_state_t;
-- [ ] In icn_box_rt.c implement:
+- [x] In icn_box_rt.h declare: typedef struct { int64_t cur,hi,step; } icn_to_state_t;
+- [x] In icn_box_rt.c implement:
       icn_to_state_t* icn_to_make(int64_t lo, int64_t hi, int64_t step) — calloc + init.
       DESCR_t icn_to_alpha(void *z, int port) — alpha: set cur=lo; beta: cur+=step;
         shared: if step>0 && cur>hi, or step<0 && cur<hi: return FAILDESCR;
         return descr_int(cur).
 Step 3: template.
-- [ ] Write src/runtime/x86/templates/bb_icn_to.c:
+- [x] Write src/runtime/x86/templates/bb_icn_to.c:
       void emit_bb_icn_to(emitter_t *e, void *zeta_ptr,
                           bb_label_t *lbl_succ, bb_label_t *lbl_fail, bb_label_t *lbl_beta)
       Body: t_bb_box_banner("ICN_TO","range");
@@ -198,13 +198,13 @@ Step 3: template.
             t_bb_port_call(zeta_ptr, "icn_to_alpha", fn_ptr, 1, lbl_succ, lbl_fail);
       (void)e; — mandatory.
 Step 4: lower.c wiring.
-- [ ] In lower_to / lower_to_by: evaluate lo/hi/step expressions onto SM stack.
+- [x] In lower_to / lower_to_by: evaluate lo/hi/step expressions onto SM stack.
       Emit SM_CALL_FN "icn_to_make" with 2 or 3 args -> returns icn_to_state_t*.
       Emit call to emit_bb_icn_to with the returned zeta ptr.
       Delete old SM coroutine emission (SM_JUMP/SM_RESUME/SM_STORE_GLOCAL etc).
 Step 5: gates.
-- [ ] Anchor: corpus program using `write(1 to 5)` in scalar context.
-- [ ] GATE-1..7 all pass. N_after > N_before (N1 > N0). Commit.
+- [x] Anchor: corpus program using `write(1 to 5)` in scalar context.
+- [x] GATE-1..7 all pass. N_after > N_before (N1 > N0). Commit.
 
 ### IB-2 — emit_bb_icn_iterate (!E)
 Step 1: semantics.
@@ -290,10 +290,10 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 - [ ] Commit.
 
 ### IB-10 — purge SM coroutine opcodes from Icon path
-- [ ] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
+- [x] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
       Must be zero after IB-1..IB-8 land.
-- [ ] is_suspendable() returns false for all migrated TT_ kinds.
-- [ ] Build clean. GATE-1..7 full sweep. Commit.
+- [x] is_suspendable() returns false for all migrated TT_ kinds.
+- [x] Build clean. GATE-1..7 full sweep. Commit.
 
 ---
 
