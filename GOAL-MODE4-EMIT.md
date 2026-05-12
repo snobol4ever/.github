@@ -439,9 +439,10 @@ All must be rewritten per EM-TEMPLATE-PURITY. Next rung: **-s** (fix all six BB 
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md` in full.
 2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
-3. Next rung: **EM-TEMPLATE-PURITY → -s** — fix all six BB templates.
+3. **All SM templates are complete and clean** (zero violations — verified sess 2026-05-11). Do not re-audit SM templates; go straight to BB.
+4. Next rung: **EM-TEMPLATE-PURITY → -s** — fix all six BB templates.
    - Each currently uses `e->is_text`, `EMIT_OPT`, `EMIT_JMP`, `EMIT_LABEL`, or text callbacks.
    - Add `t_bb_port_alpha` / `t_bb_port_beta` to `bb_emit.h` as needed.
    - Rewrite to pure `t_*` calls. No `(void)e` needed — `e` can be dropped from signature once all BB templates are clean.
    - Verify: `grep -r 'is_text\|EMIT_OPT\|EMIT_JMP\|EMIT_LABEL\|text_body' src/runtime/x86/templates/bb_*.c` returns empty.
-4. After BB templates clean: rung -t (generated artifacts), then -u (rung close).
+5. After BB templates clean: rung -t (generated artifacts), then -u (rung close).
