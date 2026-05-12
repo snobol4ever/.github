@@ -208,14 +208,14 @@ Step 5: gates.
 
 ### IB-2 — emit_bb_icn_iterate (!E)
 Step 1: semantics.
-- [ ] Read ICN_BANG_NEXT handler in sm_interp.c (rung15 area).
+- [x] Read ICN_BANG_NEXT handler in sm_interp.c (rung15 area).
       State: {subject DESCR_t, index int}. Supports string/list/table/record.
       alpha: init index=0, fetch element[0]. beta: index++, fetch element[index].
       Fail when index >= length/size.
 Step 2: runtime helpers in icn_box_rt.c.
-- [ ] icn_iterate_state_t: {DESCR_t subject; int index;}.
-- [ ] icn_iterate_make(DESCR_t subject) — calloc + set subject, index=0.
-- [ ] DESCR_t icn_iterate_tick(void *z, int port) — port 0: reset index=0;
+- [x] icn_iterate_state_t: {DESCR_t subject; int index;}.
+- [x] icn_iterate_make(DESCR_t subject) — calloc + set subject, index=0.
+- [x] DESCR_t icn_iterate_tick(void *z, int port) — port 0: reset index=0;
       port 1: index++; shared: fetch element, return it or FAILDESCR.
 Step 3: template bb_icn_iterate.c.
 Step 4: wire lower_iterate. Delete SM coroutine body (SM_CALL_FN ICN_BANG_NEXT path).
@@ -223,21 +223,21 @@ Step 5: anchor rung15_iterate_string.icn. GATE-1..7. N up. Commit.
 
 ### IB-3 — emit_bb_icn_alt (A|B alternate)
 Step 1: semantics.
-- [ ] Read coro_bb_alternate / icn_alternate_state_t in coro_runtime.c.
+- [x] Read coro_bb_alternate / icn_alternate_state_t in coro_runtime.c.
       Two child bb_node_t (left, right). Phase tracks which is active.
       alpha: try left-alpha. If left-omega, try right-alpha. If right-omega: omega.
       beta: resume active branch. If active-omega, advance to next branch.
 Step 2: runtime helpers.
-- [ ] icn_alt_state_t: {bb_node_t left; bb_node_t right; int phase;}.
-- [ ] icn_alt_make(bb_node_t left, bb_node_t right).
-- [ ] DESCR_t icn_alt_tick(void *z, int port).
+- [x] icn_alt_state_t: {bb_node_t left; bb_node_t right; int phase;}.
+- [x] icn_alt_make(bb_node_t left, bb_node_t right).
+- [x] DESCR_t icn_alt_tick(void *z, int port).
 Step 3: template bb_icn_alt.c.
 Step 4: wire lower_alternate non-hoisted path. Delete lower_bb_pump_ast for TT_ALTERNATE.
 Step 5: anchor: rung alternate program. GATE-1..7. N up. Commit.
 
 ### IB-4 — emit_bb_icn_every (every E [do body])
 Step 1: semantics.
-- [ ] Read coro_bb_every carefully. The body (if present) runs via bb_exec_stmt
+- [x] Read coro_bb_every carefully. The body (if present) runs via bb_exec_stmt
       per tick. loop_next save/restore around body call.
       alpha: pump generator alpha; if gamma run body; return gen value.
       beta: pump generator beta; if gamma run body; return gen value.
@@ -249,7 +249,7 @@ Step 5: anchor: every write(1 to 3). GATE-1..7. N up. Commit.
 
 ### IB-5 — emit_bb_icn_limit (E\N)
 Step 1: semantics.
-- [ ] Read coro_bb_limit. Wraps inner generator; caps at N values.
+- [x] Read coro_bb_limit. Wraps inner generator; caps at N values.
       alpha: count=0, pump inner alpha; if gamma count++; if count>max omega.
       beta: if count>=max omega; pump inner beta; if gamma count++.
 Step 2: runtime helpers. icn_limit_state_t, icn_limit_make, icn_limit_tick.
@@ -259,7 +259,7 @@ Step 5: anchor: rung14 limit program. GATE-1..7. N up. Commit.
 
 ### IB-6 — emit_bb_icn_bang (E1!E2 bang binary)
 Step 1: semantics.
-- [ ] Read coro_bb_bang_binary. Pump E2 generator each tick; call E1(arg).
+- [x] Read coro_bb_bang_binary. Pump E2 generator each tick; call E1(arg).
       If E1 fails on arg, skip to next E2 value (goal-directed evaluation).
       alpha: pump E2 alpha -> call E1. beta: loop E2 beta until E1 succeeds.
 Step 2: runtime helpers. icn_bang_state_t, icn_bang_make, icn_bang_tick.
