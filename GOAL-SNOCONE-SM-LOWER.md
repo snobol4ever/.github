@@ -711,3 +711,46 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
      4  SM_STNO              stmt=2 line=3
      5  SM_HALT
   ```
+
+### SL-13c-tilde-fix — `~` is not boolean negation in Snocone ✅ sess 2026-05-12c (Claude Opus 4.7)
+
+Unbundled half of the SI-11 work (GOAL-SNOCONE-SM-INTERP). Discovered
+while writing the first `.sc`-side hand-built AST test that uses forward
+jumps (`SL_GOS`).
+
+**Bug.**  `lower.sc` lines 85 and 107 used `if (~LT(res, 0))` intending
+SPITBOL's "negate success/failure" reading of `~`. In Snocone, `~` is a
+unary operator that builds a **PATTERN value** (not-pattern, used inside
+`?` matches); `~LT(-1, 0)` returns a PATTERN, which is "truthy" in `if`.
+Result: every forward-reference jump took the immediate-patch branch
+with `res = -1` (the failure sentinel from `labtab_find`), freezing
+`-1` into the jump's `a0`; `g_patch` stayed empty so `labtab_resolve`
+had nothing to do. Backward references (label already in `g_labtab`)
+worked correctly because `labtab_find` returned a valid index.
+
+**Why no earlier test caught it.**  All existing `.sc`-side
+hand-built AST tests are sequential — none used `SL_GOS` / `SL_GOF` /
+`SL_GOU` slots. SNOBOL4 source-level `:S(L)` flows through the C-side
+`lower.c` (which uses a different patching mechanism), so this Snocone
+code path had never been exercised.
+
+**Fix.**  `~LT(x, 0)` → `GE(x, 0)` at both sites.
+
+**Third occurrence left alone.**  Line 1054's `if (~IDENT(last_op,
+'SM_HALT')) emit('SM_HALT');` has the same bug — `~IDENT(...)` is
+always-truthy — so a redundant `SM_HALT` is always emitted at the end of
+every program (visible as twin `SM_HALT` instructions at the tail of
+every SM dump). Benign: the redundant HALT is unreachable. Fixing it
+would byte-shift `.ref` files across many tests including
+`sm_lower_test.ref` and various JIT crosscheck baselines. Out of scope
+for this fix; tracked as a follow-up cleanup whenever a `.ref` rebake
+sweep is convenient.
+
+Gates: `test_self_host_smoke.sh` PASS=6/7 (the si_07_pat_lit FAIL is
+pre-existing, confirmed via stash-and-rerun comparison);
+`test_lower_byte_identical.sh` PASS=27/30 unchanged (3 pl_* fails
+pre-existing); `smoke_snobol4` 7/7, `smoke_snocone` 5/5,
+`smoke_icon` 5/5, `smoke_prolog` 5/5, `smoke_rebus` 4/4, `smoke_raku`
+5/5, `smoke_scrip_all_modes` 2/2; unified broker 22/49 identical
+pre/post-fix.
+

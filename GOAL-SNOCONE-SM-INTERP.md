@@ -501,7 +501,7 @@ changes).
 
 
 
-### SI-11 — Comparisons (ACOMP, LCOMP) ⏳ implemented sess 2026-05-12, test pending
+### SI-11 — Comparisons (ACOMP, LCOMP) ✅ sess 2026-05-12 (Claude Opus 4.7)
 
 Opcodes: `SM_ACOMP` (arithmetic comparison: LT/LE/GT/GE/EQ/NE),
 `SM_LCOMP` (lexical comparison: LLT/LLE/LGT/LGE/LEQ/LNE).
@@ -513,11 +513,14 @@ value (the operand or null per SPITBOL semantics).
 Host calls: `LT`, `LE`, `GT`, `GE`, `EQ`, `NE`, `LLT`, `LLE`, `LGT`,
 `LGE`, `LEQ`, `LNE` — all are host builtins.
 
-Test program: `:S(GT(X, 0))` style branch test.
+Test program: hand-built AST exercising `TT_LT` (3<5 → 'lt-ok') and
+`TT_LGT` ('beta'>'alpha' lex → 'lgt-ok'), each with a `:S(label)` success
+goto.  Lowers to `SM_ACOMP TT_LT` + `SM_JUMP_S` and `SM_LCOMP TT_LGT` +
+`SM_JUMP_S` respectively.
 
 - [x] Add ACOMP + LCOMP opcodes (sm_interp.sc lines added sess 2026-05-12)
-- [ ] `si_11_compare.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] `si_11_compare.sc` + `si_11_compare_native.sc` + `si_11_compare.ref`
+- [x] SI-5 cross-check PASS (test_self_host_smoke.sh PASS=6/7; si_07_pat_lit FAIL is pre-existing)
 
 **Implementation — sess 2026-05-12 (Claude Opus 4.7).**  Snocone-side
 lowering (`lower_comp` in lower.sc) passes the kind STRING in a0
@@ -527,9 +530,42 @@ Both ACOMP and LCOMP follow Icon-style relops: on success push the right
 operand and set last_ok=1; on failure push empty string and clear last_ok.
 Mirrors NUMREL/STRREL macros in interp_eval.c.
 
-Test still pending — needs a program whose lowering reliably emits
-SM_ACOMP/SM_LCOMP (most idiomatic Snocone uses `:S/:F` goto sugar that
-lowers through different paths).
+**Test design — sess 2026-05-12c (Claude Opus 4.7).**  Snocone has no
+infix `<` operator in source — `TT_LT` / `TT_LGT` AST nodes are produced
+by `parser_icon.sc` and `parser_raku.sc`, not by the Snocone or SNOBOL4
+parsers (which emit `SM_CALL_FN s="LT"` instead).  So the test
+hand-builds the AST directly: `mk_bin('TT_LT', ilit(3), ilit(5))` with
+`SL_GOS = 'YES_A'` slot.  This exercises the `SM_ACOMP` path via the
+.sc-side `lower()` for the first time.  The native counterpart uses
+host `LT`/`LGT` builtins under `--ir-run`, producing byte-identical
+stdout.
+
+**Bug found and fixed in `lower.sc` — `~` is NOT boolean negation in
+Snocone.**  First SI-11 test run produced `SM_JUMP_S a0=-1` instead of a
+patched target.  Root cause: `lower.sc`'s `emit_goto` (line 107) and
+`labtab_resolve` (line 85) used `if (~LT(res, 0)) sm_patch_jump(...)
+else labtab_patch_later(...)` intending the SPITBOL "negate
+success/failure" reading of `~`.  In Snocone, `~` is a unary operator
+that builds a **PATTERN value** (not-pattern); `~LT(-1, 0)` evaluates to
+a PATTERN, which is always "truthy" in `if`.  Result: every
+forward-reference jump took the immediate-patch branch with `res = -1`,
+freezing the failure sentinel into the jump's a0; `g_patch` stayed
+empty so `labtab_resolve` had nothing to do.  No prior test exposed this
+because SNOBOL4 source flows through C `lower.c` (not `.sc`), and no
+existing `.sc`-side hand-built AST used `SL_GOS` / `SL_GOF` / `SL_GOU`
+slots.  Fix: both sites changed to `if (GE(res, 0))` (and parallel for
+`tgt`).  A third occurrence at line 1054 (`if (~IDENT(last_op,
+'SM_HALT'))`) is **left alone** — it is a benign bug that causes one
+redundant trailing `SM_HALT`; fixing it would shift `.ref` files in
+unrelated tests.  Documented in `GOAL-SNOCONE-SM-LOWER.md` as the
+unbundled half of this fix (SL-13c-tilde-fix).
+
+Gates: `test_self_host_smoke.sh` PASS=6/7 (si_07_pat_lit FAIL
+pre-existing, confirmed via git stash compare); `test_lower_byte_identical.sh`
+PASS=27/30 (3 pl_* fails pre-existing, unchanged); `smoke_snobol4` 7/7,
+`smoke_snocone` 5/5, `smoke_icon` 5/5, `smoke_prolog` 5/5, `smoke_rebus`
+4/4, `smoke_raku` 5/5, `smoke_scrip_all_modes` 2/2, unified broker 22/49
+(identical pre/post-fix).
 
 
 ### SI-12 — Function calls (CALL_FN)
