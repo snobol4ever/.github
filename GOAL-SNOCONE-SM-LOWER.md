@@ -553,16 +553,20 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
   sess 2026-05-12 (Claude Sonnet 4.6). corpus `pending`.
 - [x] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()` — done.
   sess 2026-05-12 (Claude Sonnet 4.6). corpus `pending`.
-- [ ] **SL-13a — Fix qize.sc Append-through-function-parameter hang** (prereq for steps 3-4)
-  When qize.sc is loaded, `Append()` called through a function parameter breaks
-  (infinite loop / hang). Root cause noted in SL-2: the `while (LT(CQize_ci, 32))`
-  loop at top of qize.sc building `CQize_ctrl32` corrupts Append for later callers.
-  Fix options: (a) replace that loop with a fixed literal string, (b) move qize.sc
-  load after all runtime files that use Append, (c) file as scrip interpreter bug
-  and patch the interpreter. Pick the cheapest option that lets run_scrip_parser.sh
-  include qize.sc without hanging.
-  Gate: `bash one4all/scripts/run_scrip_parser.sh snobol4` with trivial input
-  produces SM output with no hang and no Error 5.
+- [x] **SL-13a — Fix SCRIP bug: `subject ? pat = repl` in condition context not split into stmt fields** (prereq for steps 3-4)
+  Root cause (sess 2026-05-12, Claude Sonnet 4.6): `str ? pat = repl` used as an
+  `if`/`while` condition is not split into `s->subject + s->pattern + s->replacement + s->has_eq`
+  by `sc_split_subject_pattern`. The statement lands as
+  `(STMT :subj TT_ASSIGN(TT_SCAN(subj,pat), repl) :goF ...)` with no `:pat`/`:eq`.
+  `lower_stmt` never sees a pattern field; falls through to `lower_expr` on the
+  `TT_ASSIGN` node, which emits `ICN_SCAN_PUSH + ASGN` (Icon scan path) — no
+  `SM_EXEC_STMT` is emitted, no write-back occurs, subject variable is never updated.
+  This causes SQize's `while(1)` to loop forever because `str` is never consumed.
+  Fix (sess 2026-05-12, Claude Sonnet 4.6): added `TT_ASSIGN` unwrap to
+  `sc_make_cond_fail_stmt` in `snocone_parse.y` + `snocone_parse.tab.c` (both kept
+  in sync). Mirrors the identical unwrap already present in `sc_append_stmt`.
+  Also re-enabled `qize.sc` in `run_scrip_parser.sh`.
+  Gate: PASS — no hang, no Error 5, smoke 6/6, sm_lower_test 11/11.
 - [ ] Wire parser → lower → sm_dump end-to-end on trivial .sno input
   Script: `bash one4all/scripts/run_scrip_parser.sh snobol4 file.sno`
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
