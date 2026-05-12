@@ -3,7 +3,7 @@
 **Repo:** corpus (primary) + one4all + .github
 **Done when:** `corpus/programs/snocone/scrip/sm_lower.sc` is a
 faithful Snocone translation of `one4all/src/runtime/x86/sm_lower.c`.
-The Snocone source is human-readable, passes `scrip --sc-run` with
+The Snocone source is human-readable, passes `scrip --ir-run tree.sc lower.sc ...` with
 output identical to the C original on a set of reference inputs,
 and is structured so that future SM opcode additions can be tracked
 in both files in parallel.
@@ -98,6 +98,36 @@ git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
 # Build scrip for testing
 bash /home/claude/one4all/scripts/build_scrip.sh
+```
+
+### How to run Snocone programs in this goal
+
+scrip has no `--sc-check` or `--sc-run` flags.  Use `--ir-run` and list
+all source files on the command line in dependency order.  scrip
+concatenates them into one program before running.
+
+`lower.sc` depends on `tree.sc` (provides `struct tree`, `Append`, etc.):
+
+```bash
+SCRIP=/home/claude/one4all/scrip
+SCRIP_DIR=/home/claude/corpus/SCRIP
+
+# Parse + run lower smoke (the per-SL gate):
+$SCRIP --ir-run \
+  $SCRIP_DIR/tree.sc \
+  $SCRIP_DIR/lower.sc \
+  $SCRIP_DIR/lower_driver.sc \
+  $SCRIP_DIR/smoke_lower.sc
+```
+
+Expected clean output (no Error lines, SM instructions printed):
+```
+--- SM ---
+   0  SM_STNO    ...
+   1  SM_PUSH_LIT_S  s="hello"
+   2  SM_STORE_VAR   s="OUTPUT"
+   3  SM_STNO    ...
+   4  SM_HALT
 ```
 
 ---
@@ -289,7 +319,7 @@ B. **AST_/TT_ unification across all 9 SCRIP/*.sc files** (per Lon's directive).
 
 - [x] Translate generator cases (or stub them explicitly)
 
-### SL-7 — lower_stmt
+### SL-7 — lower_stmt full port
 
 Translate `lower_stmt` in full:
 - Blank-line short-circuit
@@ -300,7 +330,16 @@ Translate `lower_stmt` in full:
 - Replacement path
 - Goto emission via `emit_goto`
 
-- [ ] Translate `lower_stmt`
+**Sess 2026-05-11 (Claude Sonnet 4.6):**
+- Added `goto_u_expr` computed-goto path (`SM_JUMP_INDIR`) to `lower_stmt` and `emit_gotos` block.
+- Added `SM_DEFINE_ENTRY` stub comment (Ph3).
+- Fixed pre-existing parse error: `lower_nonnull`, `lower_null`, `lower_size` had space before `(t)` in function definition — Snocone parser rejects it.  Fixed to `lower_nonnull(t)` etc.
+- Updated Session Setup with correct multi-file `--ir-run` invocation; fixed Gate commands.
+- **Root cause of Error 3 / missing SM_STORE_VAR found:** In Snocone, single-quoted strings `'TT_VAR'` are NAME-typed (unevaluated expression), not STRING. All `IDENT(t(x), 'TT_*')` comparisons in `lower.sc` silently fail because `t(x)` returns a STRING but `'TT_VAR'` is NAME. Every `'TT_*'` literal throughout `lower.sc` must be changed to `"TT_*"` (double quotes = STRING). This is a pervasive fix (~100+ occurrences).
+
+- [ ] Mass-rename all `'TT_*'` string literals to `"TT_*"` in `lower.sc`
+- [ ] Verify `smoke_lower` gate: no Error lines, SM instructions emitted correctly, output matches `smoke_lower.ref`
+- [ ] Bake `smoke_lower.ref`
 
 ### SL-8 — sm_lower (main entry point)
 
@@ -337,13 +376,16 @@ translation of the ~300-line C original.
 ## Gate
 
 ```bash
-# Gate: Snocone source parses cleanly
-scrip --sc-check corpus/programs/snocone/scrip/sm_lower.sc
+SCRIP=/home/claude/one4all/scrip
+SCRIP_DIR=/home/claude/corpus/SCRIP
 
-# Gate: test driver matches .ref
-scrip --sc-run corpus/programs/snocone/scrip/sm_lower_test.sc \
-  | diff - corpus/programs/snocone/scrip/sm_lower_test.ref
+# Gate: smoke_lower produces SM instructions (no Error lines, count > 0)
+$SCRIP --ir-run \
+  $SCRIP_DIR/tree.sc \
+  $SCRIP_DIR/lower.sc \
+  $SCRIP_DIR/lower_driver.sc \
+  $SCRIP_DIR/smoke_lower.sc \
+  | diff - $SCRIP_DIR/smoke_lower.ref
 ```
 
-No FAIL lines. No diff output. Both must pass before any commit that
-advances SL-1 or beyond.
+No diff output. Must pass before any commit that advances SL-7 or beyond.
