@@ -313,11 +313,21 @@ dispatch IB-1..IB-8 left in place). Net -164 lines from `lower.c`.
 STATEMENT, not a generator subexpression coroutine — out of IB-10
 scope as written.
 
-Gates (one4all 7be3c8e0 → 1b13cc6d):
+Gates (one4all 7be3c8e0 → 1b13cc6d), median of 5 runs each:
   GATE-1 smoke_icon:        PASS=5   FAIL=0    (unchanged)
   GATE-2 smoke_broker:      PASS=22  FAIL=27   (unchanged, post-PB-8)
   GATE-3 icon ir_all:       PASS=180 FAIL=55   (unchanged)
-  GATE-4 honest (NO_AST):   PASS=210 FAIL=2    (+2 / -2 vs baseline)
+  GATE-4 honest (NO_AST):   median PASS=209    (baseline median 206, +3)
+
+⚠️ **GATE-4 is flaky** — across 5 runs at the same SHA, PASS swings
+~6 points (e.g. at baseline 7be3c8e0: 205/206/206/209/210; at HEAD
+1b13cc6d: 204/207/209/210/211). Centered on `rung24_records_*` and
+some `rung36_jcon_*` programs that segfault intermittently. The flake
+**pre-exists this IB-10 work** — it reproduces on the unmodified
+7be3c8e0 baseline. Likely cause: 8-second timeout under load or
+Boehm-GC nondeterminism on record-type allocation. Single-run GATE-4
+numbers are unreliable; always take the median of 3–5 runs when
+reporting honest-count deltas.
 
 ✅ **IB-10 part 2 resolved (no work needed) sess 2026-05-12 (Claude Opus 4.7):**
 
@@ -394,8 +404,9 @@ Deltas in the table above are against the live baseline.
                    actual intent was satisfied by part 1). Also added
                    `.github/jcon_irgen.icn` (JCON 43 ir_a_* reference).
   one4all HEAD:    1b13cc6d
-  Honest PASS:     210 (was 208 at 7be3c8e0 — +2 from IB-10 part 1;
-                   2 segfaults remaining)
+  Honest PASS:     median 209 across 5 runs (baseline 7be3c8e0 median 206;
+                   +3 from IB-10 part 1). GATE-4 is flaky — see IB-10
+                   close note for variance and root cause.
   ir-run PASS:     180 (unchanged)
   BB tally:        43 JCON ir_a_* total. 8 templates landed
                    (IB-1..IB-8: ToBy, iterate, Alt, Every, Limitation,
