@@ -130,11 +130,10 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 - [x] Gate: honest dial 17 → **105** (+88). No smoke regression.
 - [x] Files: `src/runtime/x86/lower.c`, `src/runtime/x86/sm_interp.c`
 
-#### PB-5 — TT_CHOICE unnamed/dynamic
-- [ ] Dynamic predicate lookup (not a compile-time-known name): emit `SM_CALL_FN "PL_CHOICE_DYNAMIC" N` that dispatches through the predicate table at runtime.
-- [ ] In `lower.c`: unnamed TT_CHOICE arm → dynamic lookup path.
-- [ ] Gate: standard + ≥1 honest flip.
-- [ ] Files: `sm_interp.c`, `lower.c`
+#### PB-5 — TT_CHOICE stmt arity=0 fix
+- [x] `emit_prolog_call_arity0()`: calls `SM_BB_ONCE_PROC` with arity=0 for Pass 3 TT_CHOICE stmts, matching IR semantics (IR calls `pl_box_choice` with arity=0 for all stmts).
+- [x] Gate: honest dial 105 → **106**. Remaining 14 FAIL are rung10 puzzle programs (proper head unification needs PB-6). Smoke unchanged.
+- [x] Files: `src/runtime/x86/lower.c`
 
 #### PB-6 — TT_CHOICE full inline (OR-box as SM coroutine)
 - [ ] Largest rung: inline the OR-box as a pure SM coroutine with `SM_GEN_TICK` over clauses. Each clause becomes a coroutine arm (like `lower_alternate_gen` for Icon).
@@ -161,13 +160,16 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 105/294 at sess 2026-05-12, one4all 1af5368e)
+## Active next targets (honest dial: 106/294 at sess 2026-05-12, one4all 695aed00)
 
-Remaining 15 FAIL are puzzle programs (rung10) where SM produces output but ir-run gives
-empty — pre-existing IR gap. These are not regressions.
+Remaining 14 FAIL: all rung10 puzzle programs (`main :- puzzle; true`). `puzzle` calls
+`person(Cashier)` etc. — head unification of fact args into clause env vars not working
+correctly in SM (Cashier gets slot-index integers instead of atom values). Root cause:
+`g_pl_env` not properly threaded for nested predicate calls with actual args. Requires
+PB-6 (full clause inline with proper env allocation per call frame).
 
-**PB-5** — TT_CHOICE unnamed/dynamic: next rung when ready.
-**PB-6** — TT_CHOICE full inline (OR-box as SM coroutine): large rung.
+**PB-6** — TT_CHOICE full inline (OR-box as SM coroutine): large rung, prerequisite for
+proper head unification in nested predicate calls.
 
 ---
 
@@ -189,8 +191,9 @@ empty — pre-existing IR gap. These are not regressions.
 | PB-0 | f63a07cd | 17 | test_prolog_bb_honest.sh; baseline 17 (not 31) |
 | PB-1 | f63a07cd | 17 | TT_UNIFY → PL_UNIFY SM_CALL_FN |
 | PB-2 | e765733c | 17 | TT_CUT → PL_CUT SM_CALL_FN |
-| PB-3 | e765733c | 17 | TT_TRAIL_* → PL_TRAIL_* SM_CALL_FN (infra; prolog_lower doesn't emit yet) |
-| PB-4 | 1af5368e | **105** | initialization directive suppressed; assertz/asserta → PL_BUILTIN. +88 honest. |
+| PB-3 | e765733c | 17 | TT_TRAIL_* → PL_TRAIL_* SM_CALL_FN (infra) |
+| PB-4 | 1af5368e | **105** | initialization suppressed; assertz/asserta → PL_BUILTIN. +88. |
+| PB-5 | 695aed00 | **106** | TT_CHOICE stmt calls arity=0 (matches IR). +1. |
 
 ---
 
