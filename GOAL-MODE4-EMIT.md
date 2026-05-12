@@ -721,7 +721,150 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   Sub-rungs: EM-BB-MACROS-0 through EM-BB-MACROS-9 — one per box kind (XCHR, XPOSI/XRPSI, charset family, intcur family, XBRKX, XFARB/XEPS/XFAIL, port-call boxes). Each rung: add `g_bb_emit_macros` branch in `emit_bb_<kind>` that emits one fused line per port via `bb3c_format`. Gate per rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, `gcc -c` on emitted `.s` clean.
 
+---
 
+## Emitter Cleanup — EC series (readability + Snocone-conversion prep)
+
+**Goal:** make `bb_templates.c`, `sm_templates.c`, `bb_emit.c/h` readable enough to convert to Snocone, mirroring the `lower.c` → `lower.sc` path. Prerequisite for the Snocone emitter frontend.
+
+**Audit summary (sess 2026-05-13, Claude Sonnet 4.6):**
+
+- `bb_templates.c` 629 lines, 35 functions. Three structural patterns dominate:
+  - **Pattern A — jmp-only (no state):** XEPS, XFAIL, XVAR, XCAT, XOR — 4–5 lines each.
+  - **Pattern B — alloc + two port_calls:** 22 boxes (XABRT, XBAL, XFARB, XFNCE, XSUCF, XSTAR, XNME, XFNME, XCALLCAP, XARBN, all 9 Icon boxes, charset, intcur). All share the exact same 5-line shape.
+  - **Pattern C — complex per-box logic:** XCHR, XPOSI, XRPSI, XDSAR, XATP, XBRKX. Stay as-is.
+- **Critical bug (EC-1):** `bb_cap`, `bb_arb`, `bb_rem`, `bb_succeed`, `bb_abort`, `bb_bal`, `bb_fence`, `bb_arbno`, `bb_atp`, `bb_breakx`, `bb_len`, `bb_tab`, `bb_rtab` are called as PLT symbols in `t_bb_port_call` with `fn_fallback=0`. In BINARY (mode-3 JIT) this emits `mov rax, 0; call rax` → crash. These C box functions were deleted in EDP-9 alongside the C box bodies. They must be restored as runtime functions in `bb_boxes.c`.
+- **Scattered extern decls:** each template has its own `extern bb_foo_new()` immediately above it.
+- **`emit_bb_intcur` fragile:** dispatches by `c_fn_name[3]` character position.
+- **`emit_bb_xcat` ≡ `emit_bb_xor`** (same bytes, different banner). **`emit_bb_xfail` ≡ `emit_bb_xvar`**.
+- **Three TEXT-mode `is_text` guards remain** in `emit_bb_xatp`, `emit_bb_xstar`, `emit_bb_xfnce` — surviving PURITY violations.
+- `bb_emit.h` is 445 lines with dead/stale declarations.
+
+### EC-1 — Restore missing runtime BB box functions
+
+**What:** EDP-9 deleted all 26 `DESCR_t bb_*(void*, int)` C box bodies. But several are referenced as PLT call targets in `t_bb_port_call` with `fn_fallback=0`. In BINARY (mode-3) this produces `mov rax, 0; call rax` → crash. These must be restored to `bb_boxes.c` as C functions: `bb_cap`, `bb_arb`, `bb_rem`, `bb_succeed`, `bb_abort`, `bb_bal`, `bb_fence`, `bb_arbno`, `bb_atp`, `bb_breakx`, `bb_len`, `bb_tab`, `bb_rtab`.
+
+Recover each function body from `git log --all -p -- src/runtime/x86/bb_boxes.c` — pick the most recent version of each before EDP-9's deletion commit. `bb_cap` is the most critical (captures used everywhere). Also update `fn_fallback` in `t_bb_port_call` call sites to pass the actual C function pointer so BINARY mode works correctly — change `0` to `(uint64_t)(uintptr_t)bb_cap` etc.
+
+**Also declare `extern DESCR_t bb_cap(...)` etc. in `bb_box.h`** (the declaration was removed by EDP-10 cleanup of dead entries, but the function is coming back).
+
+**Gate:** build clean, smoke 7/7, broker 49/49, template-byte-id 4/4, beauty-subsystems PASS≥12 (expect gain from capture patterns now working in mode-3).
+
+- [ ] **EC-1**
+
+### EC-2 — Group all extern declarations at top of `bb_templates.c`
+
+**What:** Move every `extern bb_*_new()` and `extern DESCR_t bb_*(...)` declaration out of the per-function interstitial positions and into one block immediately after the `#include` lines. This makes the full dependency surface visible at a glance — essential for Snocone conversion.
+
+**Gate:** build clean (no behavioral change), smoke 7/7.
+
+- [ ] **EC-2**
+
+### EC-3 — Introduce `emit_bb_stateful()` helper; collapse 22 Pattern-B templates
+
+**What:** All 22 Pattern-B boxes share this exact shape:
+```c
+t_bb_box_banner("FOO", arg);
+T *z = bb_foo_new(arg);
+t_bb_port_call((uint64_t)(uintptr_t)z, "bb_foo", fn_fallback, 0, lbl_succ, lbl_fail);
+t_label_define(lbl_β);
+t_bb_port_call((uint64_t)(uintptr_t)z, "bb_foo", fn_fallback, 1, lbl_succ, lbl_fail);
+```
+
+Add one static helper to `bb_templates.c`:
+```c
+static void emit_bb_stateful(const char *banner, const char *arg,
+                              void *zeta, const char *fn_name, uint64_t fn_fallback,
+                              bb_label_t *lbl_succ, bb_label_t *lbl_fail, bb_label_t *lbl_β)
+{
+    t_bb_box_banner(banner, arg ? arg : "");
+    t_bb_port_call((uint64_t)(uintptr_t)zeta, fn_name, fn_fallback, 0, lbl_succ, lbl_fail);
+    t_label_define(lbl_β);
+    t_bb_port_call((uint64_t)(uintptr_t)zeta, fn_name, fn_fallback, 1, lbl_succ, lbl_fail);
+}
+```
+
+Every `emit_bb_xabrt`, `emit_bb_xbal`, `emit_bb_xfarb`, `emit_bb_xfnce`, `emit_bb_xsucf`, `emit_bb_xnme`, `emit_bb_xfnme`, `emit_bb_xcallcap`, `emit_bb_xarbn`, all 9 Icon box templates, `emit_bb_charset`, `emit_bb_intcur` become one-liners. `bb_templates.c` shrinks from ~629 to ~350 lines.
+
+**Gate:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5.
+
+- [ ] **EC-3**
+
+### EC-4 — Merge duplicate templates (xcat/xor, xfail/xvar)
+
+**What:** `emit_bb_xcat` and `emit_bb_xor` are byte-for-byte identical except the banner string — both emit `jmp lbl_fail` twice with `t_label_define(lbl_β)` in between. `emit_bb_xfail` and `emit_bb_xvar` are also identical (both `jmp lbl_fail` twice). Add:
+
+```c
+static void emit_bb_jmp_pair(const char *banner,
+                              bb_label_t *lbl_succ, bb_label_t *lbl_fail, bb_label_t *lbl_β)
+{
+    (void)lbl_succ;
+    t_bb_box_banner(banner, "");
+    t_emit_jmp(lbl_fail, JMP_JMP);
+    t_label_define(lbl_β);
+    t_emit_jmp(lbl_fail, JMP_JMP);
+}
+```
+
+And for XEPS (which uses lbl_succ on α):
+```c
+static void emit_bb_jmp_eps(bb_label_t *lbl_succ, bb_label_t *lbl_fail, bb_label_t *lbl_β)
+{
+    t_bb_box_banner("EPS", "");
+    t_emit_jmp(lbl_succ, JMP_JMP);
+    t_label_define(lbl_β);
+    t_emit_jmp(lbl_fail, JMP_JMP);
+}
+```
+
+**Gate:** build clean, smoke 7/7, template-byte-id 4/4.
+
+- [ ] **EC-4**
+
+### EC-5 — Fix `emit_bb_intcur` dispatch (remove char-position hack)
+
+**What:** `emit_bb_intcur` dispatches by `c_fn_name[3]` character position (`'l'`→len, `'t'`→tab, `'r'`→rtab). Replace with an explicit enum or simply inline three one-line wrapper bodies and delete `emit_bb_intcur` (it's called from only 3 sites: `emit_bb_xlnth`, `emit_bb_xtb`, `emit_bb_xrtb`):
+
+```c
+void emit_bb_xlnth(emitter_t *e, long long n, ...) {
+    len_t *z = bb_len_new((int)n);
+    emit_bb_stateful("LEN", NULL, z, "bb_len", (uint64_t)(uintptr_t)bb_len, lbl_succ, lbl_fail, lbl_β);
+}
+```
+
+Delete `emit_bb_intcur` entirely.
+
+**Gate:** build clean, smoke 7/7.
+
+- [ ] **EC-5**
+
+### EC-6 — Remove remaining TEXT-mode `is_text` guards in templates (PURITY completion)
+
+**What:** `emit_bb_xatp`, `emit_bb_xstar`, `emit_bb_xfnce` still have `if (bb_emit_mode == EMIT_TEXT || bb_emit_mode == EMIT_TEXT_INLINE)` branches that call `flat_text_simple_box` or inline `flat_*` helpers — PURITY violations that survived PURITY-2/3. After EC-3, `emit_bb_xstar` and `emit_bb_xfnce` become `emit_bb_stateful` calls (the TEXT path is no longer needed if `t_bb_port_call` handles TEXT correctly). `emit_bb_xatp` needs a `t_bb_static_data_ptr` helper added to `bb_emit.h` for its `.data` section string. Remove all `is_text` guards; every template must be a pure sequence of `t_*` calls.
+
+**Gate:** build clean, smoke 7/7, template-byte-id 4/4, `gcc -c` on emitted `.s` clean.
+
+- [ ] **EC-6**
+
+### EC-7 — Trim `bb_emit.h` (remove dead declarations, cap at 300 lines)
+
+**What:** `bb_emit.h` is 445 lines. Audit and remove: declarations for `bb_emit.c`-internal helpers that are `static` and don't need external visibility; stale comments about `EMIT_BINARY_BROKERED` being a "stub"; old `BB_INSN_*` enum values for instructions no longer emitted; redundant `extern` re-declarations of things already in `bb_box.h`. Target: ≤ 300 lines. No behavioral change.
+
+**Gate:** build clean, smoke 7/7.
+
+- [ ] **EC-7**
+
+### EC-8 — `bb_templates.c` Snocone-ready final shape
+
+**What:** After EC-1..EC-7, `bb_templates.c` should look like: grouped imports, one extern block, two private helpers (`emit_bb_stateful`, `emit_bb_jmp_pair`), and 35 public `emit_bb_*` functions each consisting of 1–5 `t_*` calls with no branching (Pattern C boxes) or a single `emit_bb_stateful(...)` call (Pattern B). At this point each function is a direct Snocone candidate — same shape as the `lower.c` functions before `lower.sc` conversion.
+
+**Deliverable:** a written mapping table (in a new `ARCH-EMITTER.md`) of each `emit_bb_*` function to its Snocone equivalent expression, confirming no function uses C-specific features (pointer arithmetic, heap allocation, conditionals on `bb_emit_mode`) that would block conversion. Heap allocation (`bb_*_new()`) moves to the Snocone caller; the `t_*` helpers become Snocone builtins wrapping the same C implementations.
+
+**Gate:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5. Human review of `ARCH-EMITTER.md` mapping table before Snocone conversion begins.
+
+- [ ] **EC-8**
+
+---
 
 ### M5 phase — extends to Icon, Raku, Prolog, Rebus
 
@@ -766,7 +909,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11. one4all HEAD `a21a6e19`.
-3. **EM-BB-MACROS** — `--jit-emit --x64 --bb-macros` emits BB boxes with raw x86 three-column GAS, jumps at col 3. Flag already wired (`ec334068`); `g_bb_emit_macros` global declared. ⛔ "Do not begin until EDP-12 closes" — EDP-12 now closed. Sub-rungs EM-BB-MACROS-0 through EM-BB-MACROS-9 (one per box kind). Gate per rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, `gcc -c` on emitted `.s` clean.
+3. **EC-1 — Restore missing runtime BB box functions.** Recover `bb_cap`, `bb_arb`, `bb_rem`, `bb_succeed`, `bb_abort`, `bb_bal`, `bb_fence`, `bb_arbno`, `bb_atp`, `bb_breakx`, `bb_len`, `bb_tab`, `bb_rtab` C function bodies from `git log --all -p -- src/runtime/x86/bb_boxes.c` (deleted in EDP-9). Without them, `t_bb_port_call` with `fn_fallback=0` emits `call 0` in BINARY mode — crash. Restore to `bb_boxes.c`, update `fn_fallback` args from `0` to actual function pointer, re-declare in `bb_box.h`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4, beauty-subsystems PASS≥12.
 
 ### Lessons recorded
 
