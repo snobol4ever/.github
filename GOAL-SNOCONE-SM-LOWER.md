@@ -127,38 +127,67 @@ correctly (verified by `OUTPUT =` statements).
 - [x] Translate `lt_*` family
 - [x] Inline smoke test passes
 
-### SL-2 — emit_goto in Snocone
+### SL-2 — emit_goto in Snocone ✅ skeleton landed 2026-05-12
 
-**Session handoff note (2026-05-11, updated):** lower.c underwent a full readability/refactor pass across three sessions (one4all `aac9cb32`). Net −65 lines. Changes:
-- Duplicate T0/T1/T2 macros removed; CALL1/CALL2 eliminated; lower_cset merged into lower_strlit
-- All 32 `SM_Program *p = g_p` aliases eliminated; LOWER2/LOWER1_VAL macros updated to use g_p directly
-- `extern int g_lang` moved to file scope; session-artifact (SI-3) comments stripped
-- `emit_case_chunk` deleted — folded into `emit_thunk`; lower_fnc EVAL path uses emit_thunk + opcode patch
-- `lower_acomp`/`lower_lcomp` collapsed into `lower_comp(t, op)`
-- `emit_prolog_call(sval)` extracts strrchr/arity pattern shared by lower_choice + lower_stmt
-- `emit_pat_nary(t, op)` extracts double-loop pattern in lower_pat_expr + lower_cat_seq
-- `emit_lhs_store(lhs)` unifies all lhs-dispatch from lower_assign and lower_stmt has_eq block
-- `emit_proc_stub(name)` extracts JUMP/label/RETURN/patch stub from Prolog skeleton loop
-lower.c is now in good shape to serve as the readable reference for sm_lower.sc translation.
-Next session translates emit_goto (SL-2) first, then SL-3..SL-9 in sequence.
-Key translation decisions for the whole file:
-- File-scope C globals (g_p, g_labtab, g_in_proc_body, g_proc_scope) → Snocone module-level vars
-- SM_Program* operations → stubbed as integer index counter in Phase 1
-- lower_expr dispatch (switch on t->t) → if/else chain dispatching on e_kind string field
-- lower_pat_expr → SM_PUSH_EXPR stub per goal spec (SL-10 Ph2 fills it in)
-- expression_scope_walk → stub returning empty scope (filled in SL-6+)
-- strcasecmp for RETURN/FRETURN/NRETURN → IDENT after REPLACE(name,&LCASE,&UCASE)
+**Session 2026-05-12 (Claude Opus 4.7) — SL-2 skeleton lands plus full file scaffolding.**
 
-Translate `emit_goto` (handles unconditional / success / failure /
-dual-arm goto combinations) into Snocone.
+Files created in `corpus/SCRIP/`:
+- `lower.sc` (633 lines) — dispatcher + literals + vars + arithmetic + concat
+  + calls + assigns + pattern primitives + STMT walker + emit_goto + sm_dump
+- `sm_lower_driver.sc` — `Lower_collect` / `Lower_run` / `Lower_dump_ast`
+- `smoke_lower.sc` — hand-built `OUTPUT = 'hello' / END` AST → Lower → SM
 
-Done when: `emit_goto` with all five call signatures (no-goto,
-unconditional, S-only, F-only, S+F) produces the correct SM opcode
-sequence in the inline test.
+NOTE on file location: the original goal-spec target was
+`corpus/programs/snocone/scrip/sm_lower.sc`, but the active SCRIP work tree
+(per `corpus/SCRIP/README.md`) is `corpus/SCRIP/`.  Landed there to share
+runtime infra with the six PARSER-* drivers. Move later if desired; one-line `git mv`.
 
-- [ ] Translate `emit_goto`
+**emit_goto** is table-driven (3-row TABLE keyed by `RETURN`/`FRETURN`/`NRETURN`
+with `plain succ fail` columns), exactly mirroring the post-refactor C
+emit_goto.
 
-### SL-3 — lower_expr skeleton (literals + variables)
+**lower.c further squeezed (same session, before .sc translation):**
+- −2 L: `lower_alt` wrapper deleted (TT_ALT dispatcher calls `lower_pat_expr` directly)
+- −2 L: `lower_cset_op` wrapper deleted (TT_CSET_* dispatcher calls `emit_push_expr` directly)
+- −3 L: 3 `lower_section_*` wrappers folded into dispatcher calls to `lower_section_3(t, fn)`
+- +3 L: emit_goto rewritten as `ret_kinds[]` table-loop (mirrors what the .sc port does)
+- Net: 1241 → 1237 lines.  Build clean.  Broad corpus gate byte-identical to HEAD (PASS=206/FAIL=74).
+
+**Verified working:**
+- `Lower(g_program)` over a hand-built `(STMT :lbl END :end)` produces
+  exactly 3 SM instructions: `SM_LABEL` + `SM_STNO` + `SM_HALT`.
+- `g_instr_tbl[0]` reads back `op = SM_LABEL` correctly.
+- `Lower_collect` propagates `Append` across files (when qize.sc absent).
+
+**Two open issues to triage next session:**
+1. A spurious "Error 3 — Erroneous array or table reference" prints at module
+   load time.  Does NOT prevent Lower from running correctly.  Bisected to
+   somewhere between lines 188 and 637 of lower.sc; the most likely culprit
+   is `emit_goto`'s `REPLACE(target, &LCASE, &UCASE)` being eagerly evaluated
+   at function-definition time with `target = null`.  Fix: gate with an
+   explicit null check before the REPLACE, or defer the upper-case fold via
+   a helper.
+2. Loading `qize.sc` (specifically the top-level `while (LT(CQize_ci, 32))`
+   loop building `CQize_ctrl32`) breaks `Append`-through-function-parameter
+   for unrelated trees built later.  Reproducible.  Smoke avoids qize for now,
+   but tdump.sc (needed for `Lower_dump_ast`) requires qize → blocks AST dump.
+   Workaround: replace CQize_ctrl32 loop with a fixed literal, OR move qize
+   loading after lower.sc, OR file as a separate scrip-Snocone interpreter bug.
+
+**Tag-name mismatch (informational, not a bug in lower.sc):**
+lower.sc compares `t(x)` against canonical `TT_VAR` / `TT_QLIT` / ... — matching
+the C `--dump-ir` output and `tt_e_name[]`.  Current `parser_*.sc` still emits
+`'AST_VAR'` etc. (per GOAL-AST-RENAME — that rename landed `EXPR_*`→`AST_*`;
+the subsequent `AST_*`→`TT_*` rename on the C side has not yet swept the .sc
+parsers).  Constants are isolated at the top of `lower.sc` — one-line edit per
+tag when the .sc parsers are retagged.
+
+Done when: `emit_goto` with all five call signatures (no-goto, unconditional,
+S-only, F-only, S+F) produces the correct SM opcode sequence in the inline test.
+
+- [x] Translate `emit_goto` — table-driven, in `lower.sc` lines 190-207
+
+### SL-3 — lower_expr skeleton (literals + variables) ✅ landed with SL-2
 
 Translate the `lower_expr` dispatch for the simplest cases:
 
@@ -173,16 +202,16 @@ Translate the `lower_expr` dispatch for the simplest cases:
 Done when: a test `.sc` program calls `lower_expr` on hand-built
 `AST_t`-equivalent Snocone records for each case and checks opcode output.
 
-- [ ] Translate literal + variable cases of `lower_expr`
+- [x] Translate literal + variable cases of `lower_expr` (in `lower.sc` lower_strlit/ilit/flit/nul/var/keyword + dispatcher)
 
-### SL-4 — lower_expr: arithmetic + call + unary
+### SL-4 — lower_expr: arithmetic + call + unary ✅ landed with SL-2 (concat partial)
 
-- `AST_ADD` / `AST_SUB` / `AST_MUL` / `AST_DIV` / `AST_MOD` / `AST_EXP`
-- `AST_UNEG` / `AST_UPLUS`
-- `AST_CALL` (builtin and user call paths)
-- `AST_CONCAT`
+- `AST_ADD` / `AST_SUB` / `AST_MUL` / `AST_DIV` / `AST_MOD` / `AST_EXP` — done (lower_add..lower_pow + lower_bin helper)
+- `AST_UNEG` / `AST_UPLUS` — done (lower_mns / lower_pls)
+- `AST_CALL` (builtin and user call paths) — done (lower_fnc; Icon-style callee-as-c[0] path NOT yet ported)
+- `AST_CONCAT` (TT_SEQ / TT_CAT) — done (lower_cat_seq; Icon goal-directed-conjunction branch deferred to SL-N)
 
-- [ ] Translate arithmetic, call, concat cases
+- [x] Translate arithmetic, call, concat cases (Icon-specific call/seq subpaths pending)
 
 ### SL-5 — lower_expr: control + comparison
 
