@@ -116,26 +116,24 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: 209/~34/1 at sess 2026-05-11f)
+## Active next targets (honest dial: 211/~32/1 at sess 2026-05-11g)
 
-Sess 2026-05-11f (Claude Sonnet 4.6): SI-13 union-clobber fixes ✅ `b891504a`:
-Four bugs in the AST_t→tree_t rename that clobbered v.sval/v.ival union:
-(1) parse_proc stored nparams in v.ival after v.sval=name → proc name zeroed;
-    fix: nparams → _id, all readers updated (lower.c, coro_runtime.c, polyglot.c).
-(2) icn_scope_patch assigned slot to TT_FNC callee child[0] → v.sval=NULL;
-    fix: skip c[0] for TT_FNC in scope_patch.
-(3) icn_scope_patch wrote slot to v.ival → clobbered v.sval (same union);
-    non-zero slot N → v.sval=(char*)N → SIGSEGV in keyword check;
-    fix: write slot to _id, all slot readers in coro_value.c/coro_runtime.c updated.
-(4) lower_baseline rebaked (Icon expected hash was empty due to bug 1).
-IR-run: 1→182 (+181). Honest SM: 0→209 (+209). Residual gaps are pre-existing SI-13.
+Sess 2026-05-11g (Claude Sonnet 4.6): rung13 conjunction-in-generator ✅ `fa8bd48f`:
+SM_GEN_TICK opcode: single-tick SM generator drive (sm_prog.h, sm_interp.c, sm_codegen.c).
+bb_broker_drive_sm_one: drives one tick, returns yielded value.
+IcnFrame.every_gen[EVERY_GEN_SLOT_MAX]: per-call SmGenState* slots (coro_runtime.h).
+lower.c: lower_every hoists first TT_ALTERNATE (restricted to TT_ASSIGN RHS context) as
+  inner SM coroutine with SM_SUSPEND per arm; outer loop drives via SM_GEN_TICK;
+  g_hoist_alt context suppresses redundant TT_ALTERNATE emit in body expression.
+lower_is_suspendable_icn: TT_SEQ-aware check (lower-time only, not exported).
+Honest SM: 208→211.
 
 Remaining failures — known root causes:
-- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — conjunction-in-generator.
+- rung14: `every write((1|2|3|4|5) \ 2)` — TT_LIMIT wrapping alternate (Phase A3).
 - rung36: complex Icon features (segfaults, timeouts).
-- Some IR failures: interp_eval.c slot reads still use v.ival (not yet updated).
+- Some IR failures: interp_eval.c slot reads still use v.ival.
 
-Next: rung13 conjunction-in-generator — requires Phase A4 (`AST_ALTERNATE` → pure SM coroutine) + `every` body driving that coroutine without `SM_BB_PUMP_EVERY`.
+Next: rung14 TT_LIMIT-in-generator — requires Phase A3 (TT_LIMIT → SM coroutine).
 
 ---
 
@@ -172,6 +170,7 @@ Next: rung13 conjunction-in-generator — requires Phase A4 (`AST_ALTERNATE` →
 | rung06 scan/any fix | `4b2a8700` | 226→227 | ICN_SCAN_PUSH/POP inline in sm_interp; Icon & conjunction SM_JUMP_F in lower_proc_skeletons |
 | g_lang LANG_ICN scoped | `3648dae5` | 227→~231 | SM_BB_PUMP_PROC saves/restores g_lang; sm_preamble sets after lower(); rung28+rung24 gain |
 | SI-13 union-clobber fix | `b891504a` | 0→209 honest, 1→182 IR | Four v.sval/v.ival alias bugs: nparams→_id; callee skip; slot→_id; baseline rebake |
+| rung13 conjunction-in-generator | `fa8bd48f` | 208→211 honest | SM_GEN_TICK + bb_broker_drive_sm_one + IcnFrame.every_gen[]; lower_every hoists TT_ALTERNATE as inner SM coroutine; outer SM_GEN_TICK loop |
 
 ---
 
