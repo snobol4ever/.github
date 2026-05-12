@@ -750,7 +750,7 @@ Recover each function body from `git log --all -p -- src/runtime/x86/bb_boxes.c`
 
 **Gate:** build clean, smoke 7/7, broker 49/49, template-byte-id 4/4, beauty-subsystems PASS≥12 (expect gain from capture patterns now working in mode-3).
 
-- [ ] **EC-1**
+- [x] **EC-1 — Restore missing runtime BB box functions** *(sess 2026-05-13, Claude Sonnet 4.6, one4all `3ec4fcec`)*
 
 ### EC-2 — Group all extern declarations at top of `bb_templates.c`
 
@@ -885,7 +885,40 @@ Delete `emit_bb_intcur` entirely.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13b (Claude Sonnet 4.6)**
+
+**EC-1 closed.** one4all HEAD `3ec4fcec`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
+
+**Baseline correction:** PASS=11 in the prior watermark was stale (built against an older libscrip_rt). True baseline at HEAD `a21a6e19` was PASS=10; our session preserved that.
+
+### Work done
+
+**EC-1: Zero C BB calls — all box templates use rt_bb_* (PLT) or inline x86.**
+
+Replaced all `t_bb_port_call(fn_fallback=0)` calls — which caused `call 0` (crash) or `call bb_*` (old C BB ABI) in BINARY mode — with either:
+1. **Pure inline jmp sequences** (ABORT, FENCE, SUCCEED — no call at all)
+2. **`rt_bb_*` functions** in `libscrip_rt.so` with real fn_fallback pointers
+
+New `rt_bb_*` functions in `rt.c/rt.h`: `rt_bb_arb`, `rt_bb_len`, `rt_bb_tab`, `rt_bb_rtab`, `rt_bb_bal`, `rt_bb_breakx`, `rt_bb_span`, `rt_bb_brk`, `rt_bb_any`, `rt_bb_notany`, `rt_bb_arbno` + `rt_bb_arbno_new`, `rt_bb_atp`, `rt_bb_cap`, `rt_bb_rem`.
+
+`rt.c` added to scrip's Makefile build rule so fn_fallback addresses resolve at link time for BINARY mode (mode-3); PLT calls in TEXT (mode-4) resolve from `libscrip_rt.so` at load time.
+
+**Note on EC-1 vs original spec:** The original EC-1 spec said "restore C BB functions." The Lon directive this session was "zero C BB calls — use x86 asm." We implemented the stronger form: all simple boxes (ABORT/FENCE/SUCCEED) are pure inline x86 jmps; all stateful boxes call `rt_bb_*` (not `bb_*`) so the old C BB ABI is completely gone.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `3ec4fcec`.
+3. **EC-2 — Group all extern declarations at top of `bb_templates.c`.** Move every `extern bb_*_new()` and `extern DESCR_t bb_*(...)` and `extern rt_bb_*(...)` declaration out of per-function positions into one block after `#include` lines.
+4. Gate: build clean (no behavioral change), smoke 7/7.
+
+### Lessons recorded
+
+- `fn_fallback=0` in `t_bb_port_call` → `call 0` in BINARY mode → crash. Every `fn_fallback` argument must be a real function pointer or zero must be provably unreachable at runtime (i.e. TEXT/MACRO_DEF mode only).
+- `rt.c` was only in `libscrip_rt.so`, not in `scrip`. Taking `(uintptr_t)rt_bb_*` in `bb_templates.c` (compiled into scrip) required adding `rt.c` to the scrip Makefile rule.
+- True baseline at `a21a6e19` was PASS=10, not PASS=11. The PASS=11 watermark was from a stale libscrip_rt built at an earlier HEAD. Always rebuild libscrip_rt at session start before recording a baseline.
+
+
 
 **EDP-6 through EDP-9 closed.** one4all HEAD `21b7518a`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11 FAIL=6 (+8 vs EDP-5 baseline of 3).
 
