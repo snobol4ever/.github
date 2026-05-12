@@ -282,6 +282,28 @@ Real implementations require host infrastructure beyond plain Snocone:
 
 ---
 
+## Session note — 2026-05-12 (Claude Sonnet 4.6, handoff #4)
+
+**Strategic direction from Lon:** The high-value next move is to run `sm_interp.sc`
+end-to-end from three frontend parsers — SNOBOL4, Snocone, Rebus — and compare
+output against REF files using the existing crosscheck/regression suite.
+Pipeline: `parser_*.sc → tree → lower.sc → sm_interp.sc`.
+
+**SL-13d investigation results:**
+- `parser_snobol4.sc` main loop already calls `Lower_collect(result)` (line 350) and `Lower_run()` — code is wired correctly.
+- Running `bash scripts/run_scrip_parser.sh snobol4 trivial.sno` shows `SM_Program count=1 / SM_HALT` — Lower_collect is never triggered.
+- Root cause isolated: after `Src ? Compiland` matches, `Top()` returns empty — the value stack is empty. `ptree = Pop()` returns `''` so `n(ptree) = ''` → zero children → the `while (LE(i, nk))` loop body never fires.
+- Two `Error 5` at stmt 45 at load time are likely `SQize` or OPSYN/EVAL failures inside `_qtag()` (semantic.sc) during grammar construction, corrupting shift/reduce patterns so `Command`/`Stmt` rules don't push to the value stack during scanning.
+- **Not pursued further per Lon directive.** SL-13d remains `- [ ]`. True self-hosting (Track C) is blocked on this.
+
+**New primary objective:** Three-frontend crosscheck via Track B (Python converter).
+Pipeline: `parser_*.sc → scrip --dump-ir → dump_ir_to_ast_builder.py → .sc test file → sm_interp.sc → diff .ref`.
+Frontends: SNOBOL4, Snocone, Rebus.
+
+**NEXT: SI-18** — write `scripts/dump_ir_to_ast_builder.py`, validate on 3+ already-mirrored programs, run on broad smoke corpus across all three frontends.
+
+---
+
 ## Gate
 
 ```bash
