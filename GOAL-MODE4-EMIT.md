@@ -519,37 +519,151 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12c (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12d (Claude Opus 4.7)**
 
-**one4all `see commit` on remote. corpus unchanged. .github updated this session.**
+**No commits this session.** Baseline unchanged on all remotes.
+Baseline reconfirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+beauty-subsystems mode4 PASS=6 FAIL=11.
 
 ### Done this session
 
-1. **Session setup complete.** Repos cloned, scrip + libscrip_rt built. Baseline confirmed: template-byte-id 4/4, beauty-subsystems PASS=6 FAIL=11 — matches prior handoff.
-2. **Bug found and fixed: expression registry included goto labels, not just function-entry labels.**
-   `emit_expression_registry()` in `sm_codegen_x64_emit.c` filtered on `SM_LABEL && a[0].s != NULL`, which matched ALL named labels — including SNOBOL4 goto targets like `G1`, `lwr_end`, etc. These non-callable addresses were registered as user functions, causing `call_native_chunk` to jump to garbage.
-   **Fix:** added `&& ins->a[2].i == 1` guard (the flag set by `lower.c` only for `FUNC_IS_ENTRY_LABEL` labels). Registry now contains only true function-entry labels. Committed as `EM-MODE4-IS-MODE3-DUMP-EXPR-REG-FILTER`.
-3. **Second bug found: DEFINE_ENTRY re-executes on internal function loops.**
-   `icase()` has a `:(icase)` self-loop. The SM lowerer emits the loop label at the same PC as `SM_DEFINE_ENTRY`. So every loop iteration re-executes `push rbp; mov rbp, rsp`, growing the stack unboundedly. After N iterations `ret` pops the wrong return address → jump into stack memory → SIGSEGV.
-   **Root cause confirmed via disassembly:** `.L1837` and `.L1838` are the same address, both pointing at `DEFINE_ENTRY`. The loop `jmp .L1837` re-enters DEFINE_ENTRY rather than the first real opcode.
-   **Fix needed (next session):** the DEFINE_ENTRY preamble must only run once at function entry, not on every loop-back. Two options:
-   - (A) Emit the function-entry goto label AFTER DEFINE_ENTRY, not at the same PC. Lower.c currently emits `SM_LABEL_NAMED(fname)` then `SM_DEFINE_ENTRY`; the loop target should skip DEFINE_ENTRY.
-   - (B) Make DEFINE_ENTRY a conditional `push rbp; mov rbp, rsp` guarded by a "first entry" flag — but this is messier.
-   Option A is correct: the SNOBOL4 label for a function (e.g. `icase`) marks the ENTRY point which includes the prologue. Internal `:(icase)` gotos should jump to the first real opcode (after DEFINE_ENTRY), not to DEFINE_ENTRY itself. This requires `lower.c` to emit an INNER label (e.g. `icase_body`) immediately after `SM_DEFINE_ENTRY`, and GOTO resolution within the function to use that inner label.
-   **PASS unchanged at 6** (registry fix alone doesn't unblock case/omega; loop-re-entry is the remaining crash).
+1. **Session setup complete.** Repos cloned, scrip + libscrip_rt built,
+   all four baseline gates green.
 
-### Remaining 11 failures (PASS=6 FAIL=11)
+2. **Corrected sess 2026-05-12c's root-cause analysis for case_driver / omega_driver.**
+   The prior handoff said `:(icase)` looping back through `SM_DEFINE_ENTRY`
+   re-executes `push rbp; mov rbp, rsp` and grows the stack. That is the
+   **mode-3 (JIT) hazard**, not the **mode-4 (TEXT) hazard**.
 
-- **case_driver, omega_driver (diff → segfault):** DEFINE_ENTRY loop re-entry bug (above). case.sno's `icase()` loops via `:(icase)` re-entering DEFINE_ENTRY. Fix: Option A in lower.c.
-- **match_driver (diff → segfault):** Prior session's bb_pool crash; not reinvestigated this session.
-- **XDump_driver (link):** Link failure; not investigated.
-- **Qize_driver, ReadWrite_driver, TDump_driver, semantic_driver, tree_driver, stack_driver, global_driver (diff):** Not investigated.
+   In mode-4 the `DEFINE_ENTRY` macro body in regenerated `sm_macros.s` is:
+   ```
+   .macro DEFINE_ENTRY
+       call rt_define_entry@PLT
+       push rbp
+       mov  rbp, rsp
+   .endm
+   ```
+   `rt_define_entry` is a no-op (rt.c:1109). The prologue *is* present.
+   Re-execution on `:(icase)` loop-back does push rbp again, but the
+   crash is not stack growth — `RETURN` only fires once per call.
+
+   Actual gdb evidence after my fix below (RIP / RSP / R10 / backtrace
+   captured this session):
+   ```
+   #0  0x7ffff7060069 in ?? ()         ← bb_pool RX mapping
+   #1  0x7ffff7884197 in bb_broker (..., body_fn=scan_body_fn_u9, ...)
+        at bb_broker.c:44                ← fn(root.ζ, α) call
+   #2  0x7ffff7868173 in exec_stmt (...) at stmt_exec.c:1400
+   #3  0x7ffff78427f4 in rt_match_variant (...) at rt.c:937
+   r10 = 0x1                            ← *** should be &Δ ***
+   ```
+   Disassembly at the crash address shows a γ-fallthrough path in an
+   XSPNC blob doing `mov (%rcx),%rax ; movslq (%r10),%rcx`. R10 holds
+   the integer `1` (a `last_ok` / count residue) instead of `&Δ`.
+   The BB blob was entered without its α-preamble running.
+
+   Per ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps": every cross-BLOB
+   entry must land on the α-preamble (`lea r10, [rip + Δ_data]`).
+   This blob is being entered at a non-α offset and R10 is stale.
+
+3. **Architectural fix for DEFINE-ENTRY-LOOP applied and verified (NOT COMMITTED).**
+
+   The handoff's Option A is the correct shape. Single-point fix in
+   `src/runtime/x86/lower.c` at the FUNC_IS_ENTRY_LABEL branch:
+
+   ```c
+   if (FUNC_IS_ENTRY_LABEL(label)) {
+       g_p->instrs[g_p->count - 1].a[2].i = 1;
+       sm_emit(g_p, SM_DEFINE_ENTRY);
+       /* EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-LOOP: internal :(fname)
+        * gotos must skip the DEFINE_ENTRY prologue.  External call
+        * (rt_call → chunk_reg_lookup → call_native_chunk) reaches the
+        * function via expression registry pointing at SM_LABEL+1 =
+        * SM_DEFINE_ENTRY.  Internal goto reaches it via labtab.
+        * Re-point the labtab entry to the PC AFTER SM_DEFINE_ENTRY. */
+       tbl->labels[tbl->nlabels - 1].instr_idx = g_p->count;
+   }
+   ```
+
+   No new labtab API needed — directly mutate the just-appended entry.
+   No template / sm_macros.s change needed (the legacy `render_macro_body`
+   in `sm_emit_template.c:307` already emits prologue when t->macro_name
+   == "DEFINE_ENTRY"; that path remains the source of truth for the
+   `.macro` body).
+
+   **Verified in emitted asm:** with the patch applied,
+   `case_driver.s` shows:
+   ```
+   .Lexpression_registry: .quad .S175 ; .quad .L1838    ← external entry
+   .L1838:  DEFINE_ENTRY                                 ← prologue here
+   .L1839:  PUSH_VAR  .S176 # str                        ← first body op
+   ...
+   jmp .L1839                                            ← internal :(icase)
+   ```
+   External callers run the prologue; internal loop-backs skip it. The
+   old `.L1837` label (SM_LABEL "icase") is correctly elided by the
+   `pc_used_as_target` pre-pass — nothing references it any more.
+
+   **Result with patch:** PASS still 6/17. The fix DOES make progress —
+   the case_driver crash moved from `call_native_chunk:rt.c:428`
+   (RIP=`0x7fffffffe2b8`, a stack address — classic ret-to-corrupted-
+   stack) to `bb_broker:44` with R10 corruption (above). The downstream
+   BB-blob bug masks the PASS improvement.
+
+   **Reverted before handoff** to keep diff minimal — RULES says
+   commit-with-pass-improvement; a fix with no observable PASS gain
+   muddies the rung close. The patch is saved at
+   `/tmp/define-entry-loop-fix.patch` but that path will not survive
+   the next container. Re-apply from this handoff text.
 
 ### Next session must
 
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: template-byte-id 4/4, beauty-subsystems PASS≥6.
-3. **Fix DEFINE_ENTRY loop re-entry (case_driver + omega_driver):** In `lower.c`, after emitting `SM_DEFINE_ENTRY`, emit a second anonymous/inner SM_LABEL that goto-resolution within the same function uses as the loop-back target. Specifically: the `labtab_define(tbl, label, lbl_idx)` currently maps `"icase"` → the DEFINE_ENTRY PC. It should map to a NEW label emitted immediately AFTER `SM_DEFINE_ENTRY`. Expected: PASS 6→8.
-4. After case+omega pass: investigate match_driver (gdb bt on bb_pool crash), then XDump link, then systematic walk of remaining 7 diff-fails.
-5. After PASS≥10, commit ABI fix from prior session as discrete rung `EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-ABI`.
+1. Read `RULES.md`, `ARCH-x86.md` (esp. §"Intra-BLOB vs extra-BLOB jumps"),
+   `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+   beauty-subsystems mode4 PASS=6.
+
+3. **Re-apply the lower.c patch above as the first action.** Verify
+   the emitted `.s` shows the expected `.L1838: DEFINE_ENTRY` /
+   `.L1839: PUSH_VAR` shape on case_driver.
+
+4. **Diagnose the BB-blob R10 corruption** that case_driver / omega_driver
+   now hit at `bb_broker:44`. Approach:
+
+   a. Identify the blob whose γ-fallthrough is entering without R10 set.
+      The crash blob is an XSPNC charset box at `0x7ffff7060000`. Use
+      `bb_emit` / `bb_flat` debug logging to dump the per-blob α-preamble
+      offsets, then add a watch-equivalent C `_check(r10_value, blob_id)`
+      assertion at the head of each blob template (per RULES.md
+      "Debugging — gdb hardware watchpoints DO NOT work" — use
+      `__builtin_trap()` instrumentation, not gdb watchpoints).
+
+   b. Trace: which extra-BLOB jump landed here without going through
+      α-preamble? Candidates per ARCH-x86: a γ-port exit that resumed
+      into this blob's β / mid-body, OR a tail-extra-jump where the
+      source BLOB was supposed to push/pop r10 and didn't.
+
+   c. The fix is likely in `bb_flat.c` (extra-BLOB γ-port emission)
+      or in one of the BB templates' port wiring — NOT in lower.c
+      or in rt.c.
+
+5. After case_driver + omega_driver pass (expected PASS 6→8), commit
+   both fixes together as `EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-LOOP`
+   and a follow-up rung name for the BB-blob R10 fix.
+
+6. Then move to match_driver (separate bb_pool crash), then XDump_driver
+   (link failure), then the 7 remaining diff-fails.
+
+### Lessons recorded
+
+- "Loop re-entry of DEFINE_ENTRY grows stack" is a JIT hazard, not a
+  mode-4 hazard.  Mode-4's symptom is downstream — the prologue/epilogue
+  do balance correctly when no other corruption happens.
+
+- When a fix correctly applies but PASS count doesn't move, the architecturally
+  correct change still belongs in the tree — but the handoff must say
+  *what's between the fix and the next PASS bump*, in enough detail that
+  the next session doesn't redo the analysis.  This handoff does that
+  for the BB-blob R10 corruption.
 
