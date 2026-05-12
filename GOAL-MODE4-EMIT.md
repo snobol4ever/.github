@@ -403,14 +403,14 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - BB total: 28 kinds in XKIND_t. 14 covered (XCHR XSPNC XBRKC XANYC XNNYC XLNTH XTB XRTB XPOSI XRPSI XFARB XFAIL XEPS XBRKX). **14 missing.**
 
   **Multi-opcode SM files that must be split first (one file per opcode):**
-  - [x] **TC-SPLIT-1** — `sm_arith.c` → `sm_add.c sm_sub.c sm_mul.c sm_div.c sm_mod.c` (5 files). Old file deleted.
-  - [x] **TC-SPLIT-2** — `sm_nullary_rt.c` → `sm_concat.c sm_push_null.c sm_coerce_num.c` (3 files). Old file deleted.
+  - [~] **TC-SPLIT-1** — `sm_arith.c` → `sm_add.c sm_sub.c sm_mul.c sm_div.c sm_mod.c` (5 files). Old file deleted. *Superseded by TC-UNSPLIT-1 (sess 2026-05-12g).*
+  - [~] **TC-SPLIT-2** — `sm_nullary_rt.c` → `sm_concat.c sm_push_null.c sm_coerce_num.c` (3 files). Old file deleted. *Superseded by TC-UNSPLIT-2 (sess 2026-05-12g). Note: `sm_nullary_rt.c` was later renamed to `sm_rtcall.c` in commit 980e2d1c; that bundle is the source of truth.*
   - [~] **TC-SPLIT-3** — `sm_var.c` → `sm_push_var.c sm_store_var.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-3.*
-  - [x] **TC-SPLIT-4** — `sm_jump.c` → `sm_jump.c sm_jump_s.c sm_jump_f.c` (already 1 per opcode; rename to 3 single-op files). Old file deleted.
+  - [~] **TC-SPLIT-4** — `sm_jump.c` → `sm_jump.c sm_jump_s.c sm_jump_f.c` (already 1 per opcode; rename to 3 single-op files). Old file deleted. *Superseded by TC-UNSPLIT-4 (sess 2026-05-12g).*
   - [~] **TC-SPLIT-5** — `sm_label_stno.c` → `sm_label.c sm_stno.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-5.*
-  - [x] **TC-SPLIT-6** — `sm_return.c` → `sm_return.c sm_return_variant.c` (2 files). Old file deleted.
-  - [x] **TC-SPLIT-7** — `sm_exec_stmt.c` → `sm_push_expression.c sm_call_expression.c sm_exec_stmt.c` (3 files). Old file deleted.
-  - [x] **TC-SPLIT-8** — `sm_pat_nullary.c` → 22 individual files (one per PAT opcode). Old file deleted.
+  - [~] **TC-SPLIT-6** — `sm_return.c` → `sm_return.c sm_return_variant.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-6 (sess 2026-05-12g). Also folds back in the 8 conditional return per-ops created fresh in commit 3cc8b399 (sm_freturn, sm_nreturn, sm_return_s, sm_return_f, sm_freturn_s, sm_freturn_f, sm_nreturn_s, sm_nreturn_f).*
+  - [~] **TC-SPLIT-7** — `sm_exec_stmt.c` → `sm_push_expression.c sm_call_expression.c sm_exec_stmt.c` (3 files). Old file deleted. *Superseded by TC-UNSPLIT-7 (sess 2026-05-12g).*
+  - [~] **TC-SPLIT-8** — `sm_pat_nullary.c` → 22 individual files (one per PAT opcode). Old file deleted. *Superseded by TC-UNSPLIT-8 (sess 2026-05-12g). `sm_pat_nullary.c` was later renamed to `sm_pat_rtcall.c` in commit 980e2d1c; that bundle is the source of truth.*
   - [~] **TC-SPLIT-9** — `sm_pat_lbl.c` → `sm_pat_lit.c sm_pat_refname.c sm_pat_usercall.c` (3 files). Old file deleted. *Superseded by TC-UNSPLIT-9 (per-op files were never actually created).*
   - [~] **TC-SPLIT-10** — `sm_pat_capture.c` → `sm_pat_capture.c sm_pat_usercall_args.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-10 (per-op file was never actually created).*
   - [~] **TC-SPLIT-11** — `sm_pat_capture_fn.c` → `sm_pat_capture_fn.c sm_pat_capture_fn_args.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-11 (per-op file was never actually created).*
@@ -559,6 +559,45 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
     contains both `emit_sm_pat_capture_fn` + `emit_sm_pat_capture_fn_args`.
     Add to Makefile.
 
+  - [x] **TC-UNSPLIT-1** *(sess 2026-05-12g)* — `sm_arith.c` source of truth: 5 emit
+    functions (`emit_sm_add/sub/mul/div/mod`) + non-static `emit_sm_arith_op` helper.
+    Deleted: `sm_add.c sm_sub.c sm_mul.c sm_div.c sm_mod.c`.  Duplicate
+    `emit_sm_arith_op` removed from `sm_helpers.c`.
+
+  - [x] **TC-UNSPLIT-2** *(sess 2026-05-12g)* — `sm_rtcall.c` source of truth (formerly
+    `sm_nullary_rt.c`, renamed in commit 980e2d1c).  Already contained 3 emit functions
+    (`emit_sm_concat/push_null/coerce_num`) + static `emit_sm_rtcall` helper.  Deleted:
+    `sm_concat.c sm_push_null.c sm_coerce_num.c`.
+
+  - [x] **TC-UNSPLIT-4** *(sess 2026-05-12g)* — `sm_jump.c` source of truth: 3 emit
+    functions (`emit_sm_jump/jump_s/jump_f`) + static `make_pc_label` helper (restored
+    from pre-split state in commit accf4477^).  Deleted: `sm_jump_s.c sm_jump_f.c`.
+
+  - [x] **TC-UNSPLIT-6** *(sess 2026-05-12g)* — `sm_return.c` source of truth: 10 emit
+    functions: `emit_sm_return`, `emit_sm_return_variant`, plus the 8 conditional
+    return wrappers (`emit_sm_freturn`, `emit_sm_nreturn`, `emit_sm_return_s/_f`,
+    `emit_sm_freturn_s/_f`, `emit_sm_nreturn_s/_f`).  The 8 conditional returns were
+    NEW templates added by commit 3cc8b399 (not pre-split bundle content), but per
+    the binding rule "one C template function per opcode; file count is incidental"
+    they all live in `sm_return.c`.  Deleted: `sm_return_variant.c sm_freturn.c
+    sm_nreturn.c sm_return_s.c sm_return_f.c sm_freturn_s.c sm_freturn_f.c
+    sm_nreturn_s.c sm_nreturn_f.c` (9 files total).
+
+  - [x] **TC-UNSPLIT-7** *(sess 2026-05-12g)* — `sm_exec_stmt.c` source of truth: 3 emit
+    functions (`emit_sm_push_expression`, `emit_sm_call_expression`, `emit_sm_exec_stmt`)
+    restored from pre-split state in commit accf4477^.  Deleted: `sm_push_expression.c
+    sm_call_expression.c`.
+
+  - [x] **TC-UNSPLIT-8** *(sess 2026-05-12g)* — `sm_pat_rtcall.c` source of truth
+    (formerly `sm_pat_nullary.c`, renamed in commit 980e2d1c).  Already contained 22
+    emit functions (`emit_sm_pat_eps/arb/rem/fail/succeed/abort/bal/fence/fence1/
+    span/break/any/notany/len/pos/rpos/tab/rtab/arbno/cat/alt/deref`) + static
+    `emit_sm_pat_rtcall` helper.  Deleted 22 per-op files: `sm_pat_abort.c
+    sm_pat_alt.c sm_pat_any.c sm_pat_arb.c sm_pat_arbno.c sm_pat_bal.c sm_pat_break.c
+    sm_pat_cat.c sm_pat_deref.c sm_pat_eps.c sm_pat_fail.c sm_pat_fence0.c
+    sm_pat_fence1.c sm_pat_len.c sm_pat_notany.c sm_pat_pos.c sm_pat_rem.c
+    sm_pat_rpos.c sm_pat_rtab.c sm_pat_span.c sm_pat_succeed.c sm_pat_tab.c`.
+
   - [x] **TC-UNSPLIT-CLOSE** — After 3/5/9/10/11 close, flip TC-SPLIT-3/5/9/10/11
     from `[x]` to `[~]` (with note `superseded by TC-UNSPLIT-N`).  Leave TC-SPLIT-1/2/4/6/7/8
     as `[x]` — those were genuinely correct splits.  Confirm
@@ -571,6 +610,17 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
     sm_label_stno.c, sm_pat_lbl.c, sm_pat_capture.c, sm_pat_capture_fn.c) now wired
     into Makefile. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5,
     beauty-subsystems mode4 PASS=6 FAIL=11 (baseline preserved).*
+
+    *Reopened and extended sess 2026-05-12g: Lon corrected the audit's
+    "OK — leave as-is" verdicts for TC-SPLIT-1/2/4/6/7/8.  The binding rule applies
+    uniformly to all splits, not just the orphan-bundle cases.  Extended scope:
+    TC-UNSPLIT-1/2/4/6/7/8 added above.  After all 11 unsplits: 43 additional per-op
+    files deleted in sess 2026-05-12g (89 → 46 sm_*.c template files).  Total
+    cumulative delta from peak-split state: 89 - 46 = 43 (sess 2026-05-12g) plus
+    -4 (sess 2026-05-12f) = -47 from the 93-file peak that existed at HEAD
+    `c9b7428d`.  All eleven TC-SPLITs are now `[~]` (superseded).  Gates remain:
+    smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems mode4 PASS=6
+    FAIL=11 (baseline preserved across both sessions).*
 
 - [ ] **EM-BB-PURGE** — Delete all C BB box functions from `bb_boxes.c`. Both brokered (`--bb-driver`) and flat (`--bb-live`) modes generate x86 blobs via the C template functions. The blobs differ in calling mechanism — not identical:
 
@@ -620,6 +670,141 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-12g (Claude Opus 4.7)**
+
+**TC-UNSPLIT-1, -2, -4, -6, -7, -8 all closed this session** plus
+TC-UNSPLIT-CLOSE re-amended.  one4all `802c88ee`.  All six bundle files
+(`sm_arith.c`, `sm_rtcall.c`, `sm_jump.c`, `sm_return.c`,
+`sm_exec_stmt.c`, `sm_pat_rtcall.c`) are now the source of truth for
+their opcode groups.  43 per-op files deleted; Makefile updated.
+Baseline preserved on all gates.
+
+`find src/runtime/x86/templates -name 'sm_*.c' | wc -l`: 89 → 46
+(Δ this session = -43).  Cumulative from peak-split state (sess
+2026-05-12e baseline `c9b7428d` had 93): -47 across two sessions.
+
+### Why this session reopened TC-UNSPLIT
+
+Sess 2026-05-12f closed TC-UNSPLIT-3/5/9/10/11/CLOSE based on the
+audit table in the goal file, which marked TC-SPLIT-1/2/4/6/7/8 as
+"OK — leave as-is".  Lon corrected this: the audit's "OK" verdicts
+were wrong calls.  The binding rule "one C template function per
+opcode; file count is incidental; restore the bundle files as the
+source of truth; delete the per-op fragments" applies uniformly to
+**all eleven** TC-SPLITs, not just the five with orphan-bundle
+duplicates.  The "OK" cases survived because of
+`-Wl,--allow-multiple-definition` in the Makefile, but that's
+tolerance, not correctness.
+
+### What this session did
+
+1. **TC-UNSPLIT-1: `sm_arith.c`.**  Recreated with 5 emit functions
+   (`emit_sm_add/sub/mul/div/mod`) + non-static `emit_sm_arith_op`
+   helper.  Removed duplicate `emit_sm_arith_op` from `sm_helpers.c`.
+   Deleted 5 per-op files.
+
+2. **TC-UNSPLIT-2: `sm_rtcall.c`.**  Bundle already contained all 3
+   emit functions (`emit_sm_concat/push_null/coerce_num`) + static
+   `emit_sm_rtcall` helper — no recreation needed.  Deleted 3 per-op
+   files.  Note: `sm_rtcall.c` is the renamed form of
+   `sm_nullary_rt.c` (rename commit 980e2d1c); the rename is
+   orthogonal to the unsplit.
+
+3. **TC-UNSPLIT-4: `sm_jump.c`.**  Recreated as 3-function bundle
+   (`emit_sm_jump/jump_s/jump_f`) + static `make_pc_label` helper
+   (restored from pre-split form in commit accf4477^).  Deleted
+   `sm_jump_s.c` and `sm_jump_f.c`.
+
+4. **TC-UNSPLIT-6: `sm_return.c`.**  Recreated as 10-function bundle:
+   `emit_sm_return`, `emit_sm_return_variant`, plus the 8 conditional
+   return wrappers.  The 8 conditional returns were NEW templates
+   added by commit 3cc8b399 (not pre-split bundle content) but folded
+   into `sm_return.c` per the binding rule.  Deleted 9 per-op files.
+
+5. **TC-UNSPLIT-7: `sm_exec_stmt.c`.**  Recreated as 3-function bundle
+   (`emit_sm_push_expression`, `emit_sm_call_expression`,
+   `emit_sm_exec_stmt`) restored from pre-split form.  Deleted 2
+   per-op files.
+
+6. **TC-UNSPLIT-8: `sm_pat_rtcall.c`.**  Bundle already contained all
+   22 emit functions + static `emit_sm_pat_rtcall` helper — no
+   recreation needed.  Deleted 22 per-op `sm_pat_*.c` files.  Note:
+   `sm_pat_rtcall.c` is the renamed form of `sm_pat_nullary.c`
+   (rename commit 980e2d1c).
+
+7. **`sm_helpers.c` cleanup partial.**  Removed duplicate
+   `emit_sm_arith_op` and `emit_sm_lbl_rt` definitions (both are
+   now `static` inside their bundles).  Retained `emit_sm_rtcall`
+   and `emit_sm_pat_rtcall` because many other single-opcode template
+   files (`sm_push_null_noflip.c`, `sm_suspend.c`, `sm_resume.c`,
+   `sm_define.c`, `sm_define_entry.c`, etc.) still call them.  Full
+   deletion of `sm_helpers.c` is blocked on a future broader fold —
+   those single-opcode files could also be merged into a generic
+   "rtcall family" bundle, but that exceeds this session's scope.
+
+8. **Makefile updated.**  Removed 43 source-list entries and 43
+   recipe lines for the per-op files.  Added entries/recipes for the
+   5 newly-recreated bundles (sm_arith.c, sm_jump.c, sm_return.c,
+   sm_exec_stmt.c) plus the 2 already-extant bundles that weren't yet
+   wired in (sm_rtcall.c, sm_pat_rtcall.c).
+
+### What this session did NOT do
+
+- **Did not re-apply the lower.c DEFINE_ENTRY labtab fix** from sess
+  2026-05-12d.  Still pending.
+- **Did not diagnose the BB-blob R10 corruption.**  Beauty-subsystems
+  PASS still 6/17.
+- **Did not delete `sm_helpers.c`.**  Two functions remain
+  (`emit_sm_rtcall`, `emit_sm_pat_rtcall`) because many single-opcode
+  template files outside the unsplit scope still call them.
+
+### Lesson recorded
+
+The original TC-UNSPLIT audit table labelled 6 of the 11 splits as
+"OK — leave as-is".  Three of those (TC-SPLIT-2, TC-SPLIT-8) were
+labelled OK because the bundle file's rename had been mistaken for a
+delete; one (TC-SPLIT-1) was labelled OK because the bundle was
+considered "a helper, not a duplicate" (true at the helper level, but
+the per-op files were still violating the one-function-per-opcode
+shape); the others (TC-SPLIT-4, -6, -7) were labelled OK because the
+bundle file was "repurposed" as a single-op file — but repurposing a
+bundle file as a single-op file still leaves the surrounding per-op
+files as fragments that violate the binding rule.
+
+**The audit should have applied the binding rule uniformly to all 11
+splits.**  Future audits in similar refactoring rungs should not
+exempt cases on the grounds that the build still works — `--allow-multiple-definition`
+and helper-only bundles both mask the violation.  The test is purely
+structural: does each opcode have one template function, and is that
+function in the bundle file with its sibling opcodes' functions?
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md` (esp. §"Intra-BLOB vs extra-BLOB jumps"),
+   `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+   beauty-subsystems mode4 PASS=6.
+
+3. **Re-apply the lower.c DEFINE_ENTRY labtab fix** from sess 2026-05-12d.
+
+4. **Diagnose the BB-blob R10 corruption** that case_driver /
+   omega_driver hit at `bb_broker:44`.  See sess 2026-05-12d's
+   analysis.
+
+5. (Optional cleanup, lower priority) Consider folding the remaining
+   single-opcode template files that wrap `emit_sm_rtcall` (currently:
+   `sm_push_null_noflip.c`, `sm_suspend.c`, `sm_resume.c`, `sm_define.c`,
+   `sm_define_entry.c`, `sm_gen_tick.c`, `sm_suspend_value.c`,
+   `sm_load_glocal.c`, `sm_store_glocal.c`, `sm_load_frame.c`,
+   `sm_store_frame.c`, `sm_icmp_gt.c`, `sm_icmp_lt.c`,
+   `sm_bb_pump*.c`, `sm_bb_once*.c`, `sm_exp.c`, `sm_neg.c`,
+   `sm_acomp.c`, `sm_lcomp.c`, `sm_incr.c`, `sm_decr.c`) into a single
+   `sm_rtcall_ops.c` bundle.  Would let `sm_helpers.c` be deleted
+   entirely.  Currently out of scope.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-12f (Claude Opus 4.7)**
 
