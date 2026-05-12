@@ -384,7 +384,21 @@ Translate `sm_lower`:
 - Statement walk (`CODE_t → STMT_t → lower_stmt`)
 - `lt_resolve` call
 
-- [ ] Translate `sm_lower`
+**Sess 2026-05-12 (Claude Sonnet 4.6) — SL-8 confirmed complete.**
+
+`lower()` was implemented during the SL-5/SL-6 session (Claude Opus 4.7) as part of the
+"lower() main now calls lower_proc_skeletons() first" work, but the checkbox was not ticked.
+All three required pieces are present in `corpus/SCRIP/lower.sc`:
+1. `lower_proc_skeletons()` call (stub — Ph3 will port proc_table)
+2. Statement walk: loop over `n(prog)` children, LANG_ICN skip + has_icn flag, `lower_stmt(s)`
+3. `labtab_resolve()` at end
+4. SM_HALT guard + `SM_BB_PUMP_PROC('main',0)` if Icon stmts seen
+
+Gate confirms: `smoke_lower` diff clean, 6 SM instructions, no Error lines.
+`sm_stno_label_record()` equivalent (stno_labels[] debugger array) omitted — not needed for
+Phase 1 gate; can be added in Ph3 if the interp needs it for STNO label lookup.
+
+- [x] Translate `sm_lower`
 
 ### SL-9 — test driver + .ref
 
