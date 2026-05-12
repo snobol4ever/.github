@@ -86,6 +86,14 @@ No other files in this folder initially.
 
 ## Session Setup
 
+⛔ **READ THE SPITBOL MANUAL BEFORE WRITING ANY SNOCONE CODE.**
+The SPITBOL manual (spitbol-manual-v3_7.pdf, uploaded each session or available
+via project knowledge) is the authoritative reference for SNOBOL4/SPITBOL semantics.
+Writing Snocone code without first checking the manual for the relevant language
+construct leads to bugs — confirmed in SL-10 (session 2026-05-12) when `:or:`
+was used as a boolean OR operator, which is not valid Snocone syntax.
+Read the relevant chapter(s) before implementing any non-trivial language feature.
+
 ```bash
 cd /home/claude/one4all
 git config user.name "LCherryholmes"
@@ -130,7 +138,7 @@ Expected clean output (no Error lines, SM instructions printed):
    4  SM_HALT
 ```
 
-### Critical Snocone vs SNOBOL4 syntax difference
+### Critical Snocone vs SNOBOL4 syntax differences
 
 **`(cond val, alt)` does NOT work in Snocone.**
 In SNOBOL4/SPITBOL, `(DIFFER(x) x, 'default')` is a conditional-value expression.
@@ -144,6 +152,27 @@ result = (DIFFER(v(t)) v(t), '');
 if (DIFFER(v(t))) { result = v(t); } else { result = ''; }
 ```
 This affects ~24+ sites in lower.sc. Grep: `grep -n "DIFFER.*), \|IDENT.*), " lower.sc`
+
+**Alternative evaluation `(expr1, expr2, ..., exprN)` is SPITBOL, not Snocone.**
+SPITBOL Chapter 7 defines alternative (selective) evaluation: a parenthesized,
+comma-separated list where the first succeeding expression's value is returned.
+Example from the manual: `MAXIJ = (GE(I,J) I, J)`.
+This form is NOT available in Snocone — the comma is pattern ALT there.
+To express boolean OR conditions in Snocone, use two separate `if` statements:
+```snocone
+/* WRONG — :or: is not valid Snocone syntax */
+if (IDENT(x, 1) :or: IDENT(y, 0)) { ... }
+
+/* WRONG — comma is pattern ALT, not alternative evaluation */
+if (IDENT(x, 1), IDENT(y, 0)) { ... }
+
+/* RIGHT — two separate if branches */
+if (IDENT(x, 1)) { do_thing(); }
+if (IDENT(y, 0)) { do_thing(); }
+```
+Confirmed broken in SL-10 (session 2026-05-12): `:or:` caused a parse error.
+Fix: split into two `if` branches. The SPITBOL manual was not consulted before
+writing the code — this mistake would have been avoided by reading Chapter 7 first.
 
 ---
 
