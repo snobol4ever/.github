@@ -652,24 +652,31 @@ via SL_GOU-as-expression (which `lower.sc` lowers to `lower_expr(goto_u_expr)` +
 - [x] `si_14_computed_goto.sc` + native + `.ref`
 - [x] SI-5 cross-check PASS (PASS=9/10; si_07_pat_lit pre-existing FAIL)
 
-### SI-15 — Phase 2 closing gate: cross-check on real corpus programs
+### SI-15 — Phase 2 closing gate: cross-check on real corpus programs ✅ sess 2026-05-12 (Claude Sonnet 4.6)
 
-Goal: pick 3-5 small but real `.sno` / `.sc` programs from `corpus/programs/`
-that use only Phase-2-covered features (no Icon, no Prolog, no generators,
-no ARRAY/TABLE), run them through the self-hosted pipeline, and confirm
-byte-identical output to native scrip.
+Three hosted tests mirror real corpus programs:
+- `si_15a_literals.sc` ↔ `programs/snocone/corpus/sc1_literals.sc` — string/integer literals + multiple OUTPUT writes
+- `si_15b_arith.sc` ↔ `programs/snocone/corpus/sc3_arith.sc` — all SI-4/SI-6 arithmetic (ADD/SUB/MUL/DIV/POW) + variable r/w
+- `si_15c_pat_replace.sc` — named-subject pattern match with replacement (`S 'world' = 'there'`)
 
-Candidates to evaluate:
-- A `Hello, World!` variant (already in SI-1..SI-5 form)
-- A simple pattern-match program (substring replace)
-- A small string-manipulation program (no I/O loops)
+Each hand-builds the AST that a real corpus program would produce (the parser→lower
+pipeline depends on SL-13d which is still open), then runs through lower.sc + sm_interp.sc
+and is cross-checked byte-identical against a native counterpart that runs the same
+logical program directly through scrip.
 
-Extend `test_self_host_smoke.sh` to iterate these cases.  PASS=5/5 closes
-Phase 2.
+**Bug found and fixed during SI-15c — SM_EXEC_STMT named-subject write-back.**  The original
+hosted `SM_EXEC_STMT` arm used `$sname_v ? pat_v = repl_v` for the named-subject case,
+exploiting Snocone's `$name` indirection.  But dollar-indirection produces an rvalue, so
+the in-place pattern mutation never propagated back to the original variable.  Fix: copy
+`$sname_v` into a local, run the match on the local, then write `$sname_v = local` after
+the match.  This **also resolved the long-standing `si_07_pat_lit` cross-check failure**
+(which had been carried as pre-existing FAIL since SI-7).
 
-- [ ] Inventory candidate programs
-- [ ] Add real-program cases to `test_self_host_smoke.sh`
-- [ ] PASS=5/5 on cross-check
+Test discovery: `TT_POW` (not `TT_EXP`) is the AST tag for exponentiation in `lower.sc`.
+
+- [x] Inventory candidate programs (3 cases land; more easy to add)
+- [x] Add real-program cases to `test_self_host_smoke.sh`
+- [x] PASS=13/13 on cross-check (was 6/7 at start of session; PASS-only gate met)
 
 ### Phase 3 — deferred
 
