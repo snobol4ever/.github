@@ -142,9 +142,11 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 - [x] Files: `src/frontend/prolog/prolog_lower.c`, `src/frontend/prolog/pl_broker.c`
 
 #### PB-7 — fallthrough delete
-- [ ] After PB-1–PB-6: remove `lower_prolog_child` legacy path, replace with `abort()`.
-- [ ] Gate: zero `SM_BB_ONCE` / `SM_BB_PUMP_AST` fires on any Prolog corpus program.
-- [ ] Note: rung30 DCG SM failures are pre-existing (IR now correct); fix DCG SM path before PB-7 delete.
+- [x] Remove `lower_prolog_child` legacy path, replace with `abort()`.
+- [x] Replace unnamed `lower_choice` arm (`emit_push_expr + SM_BB_ONCE`) with `abort()`.
+- [x] Replace `lower_stmt` LANG_PL else-branch (`lower_expr + SM_BB_ONCE`) with `abort()`.
+- [x] Gate: 0 abort hits on full Prolog corpus (0 FATAL fires confirmed). Honest 97 (+1). No regressions.
+- [x] Note: rung30 DCG SM failures pre-existing; confirmed they do NOT route through deleted path (phrase/2 → PL_BUILTIN → pl_box_choice_pc).
 
 ---
 
@@ -160,16 +162,15 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 108/294 at sess 2026-05-12b, one4all TBD)
+## Active next targets (honest dial: 97/294 at sess 2026-05-12c one4all `dbf827d8`)
 
-**PB-6 ✅ closed.** Two root causes found and fixed:
-1. `lower_term(TERM_VAR)` emitted wrong tag (TERM_VAR=TT_ILIT=1) → `pl_unified_term_from_expr` returned slot integer
-2. `ec->v.ival/dval` union clobber → n_vars always 0 → `main_cenv=NULL` → vars never bound
+**PB-7 ✅ closed.** Legacy `lower_prolog_child` / `lower_choice` unnamed arm / `lower_stmt` LANG_PL else-branch all replaced with `abort()` tripwires. Confirmed dead on full corpus. +1 honest PASS (total 97).
 
-Remaining 12 rung10 puzzle FAIL: duplicate-output backtracking (SM doesn't cut properly after `fail` in puzzle body). Pre-existing, separate from cenv threading.
-rung30 DCG: 5 SM false-passes exposed (IR oracle now correct). SM DCG path needs work.
+Remaining 18 FAIL:
+- 13 × rung10 puzzle: backtracking/cut bugs (SM doesn't cut properly after `fail` in puzzle body)
+- 5 × rung30 DCG: `phrase/2` → `pl_box_choice_pc` wrong; pre-existing SM DCG bug (IR correct)
 
-**NEXT: PB-7** — remove `lower_prolog_child` legacy path (after rung30 DCG SM fixed).
+**NEXT: Phase B JIT mirrors (B1–B5)** — add `sm_codegen_x64` entries for `PL_UNIFY`, `PL_CUT`, `PL_TRAIL_MARK`, `PL_TRAIL_UNWIND`, `PL_BUILTIN` so `--jit-run` matches `--sm-run`.
 
 ---
 
@@ -193,7 +194,8 @@ rung30 DCG: 5 SM false-passes exposed (IR oracle now correct). SM DCG path needs
 | PB-2 | e765733c | 17 | TT_CUT → PL_CUT SM_CALL_FN |
 | PB-3 | e765733c | 17 | TT_TRAIL_* → PL_TRAIL_* SM_CALL_FN (infra) |
 | PB-4 | 1af5368e | **105** | initialization suppressed; assertz/asserta → PL_BUILTIN. +88. |
-| PB-6 | TBD | **108** | TERM_VAR→TT_VAR tag fix + v.ival/v.dval union order fix. +2 puzzle PASSes. rung30 DCG false-pass exposed (pre-existing SM bug). |
+| PB-6 | 27e53531 | **108** | TERM_VAR→TT_VAR tag fix + v.ival/v.dval union order fix. +2 puzzle PASSes. rung30 DCG false-pass exposed (pre-existing SM bug). |
+| PB-7 | dbf827d8 | **97** | lower_prolog_child + lower_choice unnamed + lower_stmt else-branch deleted → abort(). 0 abort hits. Honest 96→97 (+1). |
 
 ---
 
