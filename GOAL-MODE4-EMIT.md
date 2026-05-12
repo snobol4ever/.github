@@ -398,9 +398,21 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Opus 4.7)**
 
-**one4all `f33589d8` on remote.**
+**one4all `3468bb67` on remote.**
+
+### Done this session
+
+**Watermark task #6 — strip comments from template `.c` files.**
+Per Lon's direction, scope widened from "inline comments only,
+keep banners" to "every comment, including banners".  Zero `/*`
+or `//` remain in any of the 22 template `.c` files
+(`src/runtime/x86/templates/*.c`).  Gates: build clean,
+`test_gate_em_template_byte_identity.sh` PASS=4/4.  Diff:
+−894/+79.  Templates now read as pure sequences of `t_*` helper
+calls; function intent lives in `g_sm_templates[]` metadata and
+in this Goal/`MIGRATION-MODE4-IS-MODE3-DUMP.md` doc.
 
 ### ⛔ THE LAW (re-stated): ONE FILE PER SM OPCODE
 
@@ -465,7 +477,7 @@ SM_LOAD_FRAME, SM_STORE_FRAME.
 3. **Split all multi-opcode SM template files** — one file per opcode, named `sm_<opcode>.c`. Use the shared helper pattern (static helper called by each thin wrapper) to avoid duplication while obeying one-file-per-opcode.
 4. **Add all 46 missing SM opcodes** to `g_sm_templates[]` and write their individual files.
 5. Verify: every opcode in `sm_prog.h` enum has exactly one `sm_<opcode>.c` file in `templates/`.
-6. **Remove all inline comments from every template `.c` file.** Keep only comments that explain a function (the block comment above each `void emit_sm_*` or `void emit_bb_*` function). Delete all inline `/* ... */` comments on individual `t_*` calls (e.g. `/* BINARY: movabs rdi,val  TEXT: mov rdi, val */`). These clutter the template body and belong in `MIGRATION-MODE4-IS-MODE3-DUMP.md` or the `t_*` helper's own comment in `bb_emit.c`, not in the template call site.
+6. ~~Remove all inline comments from every template `.c` file.~~ **DONE** sess 2026-05-11 (Claude Opus 4.7, one4all `3468bb67`).  Scope widened to all comments including banners — every template `.c` is zero-comment.  Templates read as pure `t_*` call sequences.
 
 | Template file | Opcodes |
 |---------------|---------|
