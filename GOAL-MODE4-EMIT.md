@@ -465,7 +465,7 @@ SM_LOAD_FRAME, SM_STORE_FRAME.
 3. **Split all multi-opcode SM template files** — one file per opcode, named `sm_<opcode>.c`. Use the shared helper pattern (static helper called by each thin wrapper) to avoid duplication while obeying one-file-per-opcode.
 4. **Add all 46 missing SM opcodes** to `g_sm_templates[]` and write their individual files.
 5. Verify: every opcode in `sm_prog.h` enum has exactly one `sm_<opcode>.c` file in `templates/`.
-6. Only then: fix BB templates (EM-TEMPLATE-PURITY).
+6. **Remove all inline comments from every template `.c` file.** Keep only comments that explain a function (the block comment above each `void emit_sm_*` or `void emit_bb_*` function). Delete all inline `/* ... */` comments on individual `t_*` calls (e.g. `/* BINARY: movabs rdi,val  TEXT: mov rdi, val */`). These clutter the template body and belong in `MIGRATION-MODE4-IS-MODE3-DUMP.md` or the `t_*` helper's own comment in `bb_emit.c`, not in the template call site.
 
 | Template file | Opcodes |
 |---------------|---------|
