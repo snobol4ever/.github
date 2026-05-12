@@ -61,7 +61,7 @@ Current-step detail lives in each Goal file. This table is navigation + current 
 
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **✅ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **COMPLETE** — SI-1..SI-12 all closed. one4all `15cfaa2d`. Unlocks GOAL-SNOCONE-SM-LOWER (SL-1). |
-| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **NEXT: fix Error 3 in smoke_lower then SL-5.** SL-2/3/4 ✅ corpus `1c96aa4`. Housekeeping sess 2026-05-11 (Claude Sonnet 4.6): `sm_lower_driver.sc`→`lower_driver.sc`; all SCRIP/*.sc comments stripped (−1654 L). Error 3 in smoke_lower run (stmts 36,40,44) not yet fixed — fires inside Lower_run(), suspected c(t)[i] on childless tree node. |
+| **Snocone sm_lower (M2 path)** | `GOAL-SNOCONE-SM-LOWER.md` | corpus+one4all+.github | **NEXT: fix Error 3 in smoke_lower then SL-5.** SL-2/3/4 ✅ corpus `43c37bb`. Housekeeping sess 2026-05-11 (Claude Sonnet 4.6): `sm_lower_driver.sc`→`lower_driver.sc`; all SCRIP/*.sc comments stripped entirely (−2127 L total). Error 3 in smoke_lower run (stmts 36,40,44) not yet fixed — fires inside Lower_run(), suspected c(t)[i] on childless tree node. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
