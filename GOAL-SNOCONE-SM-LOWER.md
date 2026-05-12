@@ -613,72 +613,95 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
   feeding a populated parse tree to `Lower_collect` for trivial single-statement
   inputs — that's parser-driver work, not a capture-bug blocker, and belongs to
   a follow-on rung). Capture-bug blocker is closed.
-- [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
+- [x] Verify SM output matches C `--sm-run --dump-sm` for same input
   Next-session task. Now unblocked from the capture-bug side, but a SECOND,
   DEEPER `--ir-run` bug found during this verification attempt blocks
   end-to-end SM equivalence:
 
-  **NEW BLOCKER — SL-13c: EVAL-built patterns lose their deferred actions
-  under `--ir-run`.** Discovered sess 2026-05-12 (Claude Opus 4.7) while
-  attempting SL-13 step 4. `parser_snobol4.sc` Compiland matches `Src` but
-  Pop() returns null because `Reduce` / `Shift` / `IncCounter` are never
-  called during the match — only `PushCounter` and `PopCounter` fire. Both
-  paths use the same `epsilon . *Func()` deferred-call idiom; the difference
-  is that nPush()/nPop() return the pattern directly while reduce()/shift()/
-  nInc() build the pattern via `EVAL("epsilon . *Func(...)")`.
+  **SL-13c — CLOSED sess 2026-05-12 (Claude Opus 4.7), one4all `24133d4f`.
+  Deferred `*Fn()` calls in capture patterns silently dropped under both
+  `--ir-run` and `--sm-run`.**
 
-  Minimal reproducer (no captures, no parser machinery):
+  Reproducer (now passes):
   ```snocone
   function Foo(x) { OUTPUT = "Foo(" x ") called"; nreturn; }
   function makepat(arg) { makepat = EVAL("epsilon . *Foo('" arg "')"); return; }
   p = makepat('hello');
   OUTPUT = "DATATYPE(p) = " DATATYPE(p);   /* prints: PATTERN */
   'subject' ? p;
-  OUTPUT = "after match";                   /* prints, but Foo() never did */
+  OUTPUT = "after match";
   ```
-  Expected: `Foo(hello) called`. Actual on `--ir-run` AND `--sm-run`: silent.
+  Pre-fix: silent. Post-fix: prints `Foo(hello) called`.
 
-  Confirmed via xTrace=99 in parser_snobol4.sc: only `PushCounter()` and
-  `PopCounter()` print between Compiland match start and end. `Reduce`,
-  `Shift`, `IncCounter` are silent — even though Compiland matched.
+  The Goal file's prior hypothesis (EVAL-specific) was wrong — the bug also
+  manifested on direct (non-EVAL) `pat . *Fn(args)`. Confirmed via A/B with
+  SNOBOL4 oracle (SPITBOL fires both; scrip fired neither). Two distinct
+  root causes, both required for the fix:
 
-  Compiland trivial-input trace (input `X = 'hello'\nEND\n`):
-  ```
-  PushCounter()    ← nPush() = `epsilon . *PushCounter()` — direct, fires
-  PopCounter()     ← nPop()  = `epsilon . *PopCounter()`  — direct, fires
-  ; SM_Program  count=1
-     0  SM_HALT
-  ```
-  `reduce(E_Parse,'nTop()')` = `EVAL("epsilon . *Reduce('Parse', nTop())")`
-  — EVAL-built — does NOT fire its deferred `*Reduce(...)`. Same for every
-  `shift(*X, 'tag')` and `nInc()`.
+  **Root cause 1: `src/runtime/x86/eval_code.c` — `TT_CAPT_COND_ASGN` and
+  `TT_CAPT_IMMED_ASGN` had no `TT_DEFER(TT_FNC ...)` branch.**
 
-  Investigation entry points for next session:
-  1. Confirm with direct vs EVAL A/B: `p1 = epsilon . *Foo('x'); p2 =
-     EVAL("epsilon . *Foo('x')")`; match both, see which fires.
-  2. Find EVAL's pattern-building path. Likely candidates:
-     `src/runtime/x86/eval_code.c` (TT_FNC dispatch for "EVAL"),
-     `src/runtime/x86/snobol4.c` `EVAL_fn`, or wherever XEVAL / TT_EVAL
-     constructs the PATND_t tree. The deferred-call PATND nodes
-     (XCALLCAP, or XDSAR for `*expr`) may be losing their function-name
-     binding or `g_user_call_hook` registration through EVAL.
-  3. Check if the deferred call's function name is being resolved against
-     the wrong NAME context — e.g. EVAL parses in a fresh scope where
-     `Reduce` / `Shift` / `IncCounter` aren't visible, vs. the calling
-     scope where `PushCounter` / `PopCounter` are. (Unlikely since
-     `DATATYPE(p) = PATTERN` reports the pattern was built, but worth ruling
-     out.)
-  4. Compare with `--sm-run` (which reproduces the same bug per minimal
-     test). If both modes are broken, the bug is in EVAL's pattern build,
-     not in the IR walk. If only `--ir-run` is broken, it's in
-     `eval_code.c` again.
-  5. SPITBOL Manual Ch.7 (Unevaluated Expressions) and Ch.20 (EVAL function)
-     are authoritative for what EVAL should preserve in a pattern. Ch.18
-     (Patterns) describes deferred evaluation (`*expr`) semantics.
+  `pat . *Func(args)` parses (via `--dump-ir`) as
+  `TT_CAPT_COND_ASGN(pat, TT_DEFER(TT_FNC Func args...))`. Both handlers
+  fell through to `else { name = eval_node(tgt); }` on a `TT_DEFER` target,
+  which returns a `DT_E` frozen expression — `pat_assign_cond` cannot
+  consume that, the capture target name is lost, and `name_commit_value`
+  is never called for `NM_CALL`.
 
-  Once SL-13c is closed, re-run `bash run_scrip_parser.sh snobol4 trivial.sno`
-  and diff against C `scrip --sm-run --dump-sm trivial.sno`. Target output
-  for trivial.sno (`X = 'hello'\nEND\n`):
+  Fix: unwrap `TT_DEFER` first; dispatch the inner `TT_FNC` to
+  `pat_assign_callcap` (cond `.`) or `pat_assign_callcap_named_imm` (imm `$`)
+  — mirrors the SM-path `SM_PAT_CAPTURE_FN_ARGS` handler at
+  `sm_interp.c:743`. Also added a `TT_DEFER(TT_VAR)` branch for the
+  `pat . *var` form. Args are evaluated eagerly (same as SM path) but the
+  CALL is deferred to match time via the resulting `XCALLCAP` node. Diff
+  +49/−3 in `src/runtime/x86/eval_code.c`. Authority: SPITBOL Manual v3.7
+  Ch.18 (Patterns), pp.86-87.
+
+  **Root cause 2: `src/runtime/x86/bb_flat.c` — `flat_emit_node` has no
+  `XCALLCAP` case.**
+
+  Root cause 1 fixed the build of `XCALLCAP` `PATND_t` nodes, but
+  `bb_build_flat` (the M-DYN-FLAT invariant path tried before
+  `bb_build_binary` in `stmt_exec.c:1324`) accepted `XCALLCAP` as
+  eligible. `flat_emit_node`'s switch has cases for XNME/XFNME but
+  **not** XCALLCAP — it fell into `default` which emits a β→fail stub.
+  Result: deferred-call captures silently failed every match attempt.
+  bb_build_binary at `bb_build.c:1219` has a correct
+  `bb_callcap_emit_binary` that builds the cap_t via `bb_cap_new_call`
+  and wires the trampoline to `bb_cap` with NM_CALL — but the flat path
+  consumed XCALLCAP first and never reached it.
+
+  Fix: add `XCALLCAP` to the `flat_is_eligible` exclusion list (sits
+  alongside `XNME`/`XFNME`/`XARBN` which have the same recursive-child
+  limitation). Routes all XCALLCAP patterns through `bb_build_binary`
+  until a real flat XCALLCAP emitter lands. Diff +8/−1 in
+  `src/runtime/x86/bb_flat.c`.
+
+  Diagnostic methodology: `fprintf` traces inserted at `pat_assign_callcap_named`,
+  `eval_code.c TT_CAPT_COND_ASGN`, and `stmt_exec.c case XCALLCAP` proved
+  that the PATND_t was being built correctly but `bb_build`'s XCALLCAP
+  handler was never reached — pointing to the flat path. All three traces
+  stripped before commit. Per RULES.md: diagnostic patches are diagnostic,
+  never commit them.
+
+  Gates: smoke_lower 6/6, sm_lower_test 11/11, smoke_snobol4 7/7,
+  smoke_snocone 5/5, smoke_icon 5/5, smoke_rebus 4/4, smoke_prolog 5/5,
+  scrip_all_modes 2/2. Pre-existing baselines: smoke_raku 0/5 unchanged.
+  Unified broker 13/49 (was 10/49 pre-fix — **+3 tests now pass**, no
+  regressions). Broad corpus 205/280 (was 204/280 vs HEAD `27e53531` —
+  **+1 test now passes**, no regressions).
+
+  **Next-rung note (SL-13d? — parser-driver populating Lower):**
+  With SL-13c closed, `bash run_scrip_parser.sh snobol4 trivial.sno` runs
+  end-to-end without hang/Error, but still emits `; SM_Program count=1 / SM_HALT`
+  for input `X = 'hello' / END`. C `--sm-run --dump-sm` on the same input
+  emits 6 instructions (target output below). The remaining gap is in the
+  Snocone-side `parser_snobol4.sc` driver feeding `Lower_collect` —
+  Compiland matches but the tree handed to Lower is empty or near-empty.
+  This is parser-driver work, not a capture-bug; it is the SL-13 step 4
+  destination but is no longer blocked.
+
+  Target output for trivial.sno (`X = 'hello'\nEND\n`):
   ```
   ; SM_Program  count=6
      0  SM_STNO              stmt=1 line=1
