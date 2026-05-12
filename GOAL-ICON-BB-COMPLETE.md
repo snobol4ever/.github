@@ -75,7 +75,7 @@ A rung is **honestly complete** iff: (a) output matches `--ir-run`, (b) passes u
 - [ ] JCON: `ir_a_Sectionop`. State: `icn_section_state_t { subj, lo, hi, kind }`. Gate: standard + anchor honest.
 
 #### A3 — CH-17i-limit-random — `AST_LIMIT` + `AST_RANDOM`
-- [ ] JCON: `ir_a_Limitation`. Gate: standard + anchor.
+- [x] JCON: `ir_a_Limitation`. Gate: standard + anchor. (rung14 TT_LIMIT ✅ `554aa38f`)
 
 #### A4 — CH-17i-iterate — `AST_ITERATE` (`!E`)
 - [ ] JCON: `ir_a_Unop` with closure. Gate: standard + anchor.
@@ -116,24 +116,21 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: 211/~32/1 at sess 2026-05-11g)
+## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h)
 
-Sess 2026-05-11g (Claude Sonnet 4.6): rung13 conjunction-in-generator ✅ `fa8bd48f`:
-SM_GEN_TICK opcode: single-tick SM generator drive (sm_prog.h, sm_interp.c, sm_codegen.c).
-bb_broker_drive_sm_one: drives one tick, returns yielded value.
-IcnFrame.every_gen[EVERY_GEN_SLOT_MAX]: per-call SmGenState* slots (coro_runtime.h).
-lower.c: lower_every hoists first TT_ALTERNATE (restricted to TT_ASSIGN RHS context) as
-  inner SM coroutine with SM_SUSPEND per arm; outer loop drives via SM_GEN_TICK;
-  g_hoist_alt context suppresses redundant TT_ALTERNATE emit in body expression.
-lower_is_suspendable_icn: TT_SEQ-aware check (lower-time only, not exported).
-Honest SM: 208→211.
+Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
+lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
+GLOCAL[0] holds remaining count. Outer SM_GEN_TICK drives limit coroutine; limit coroutine
+drives inner alternate via nested SM_GEN_TICK, counting down from N, suspending each value.
+SM_DECR 1 decrements; separate VOID_POP cleanup for FAILDESCR (done_inner) and yielded_val (done_ctr).
+lower_every detects gen_expr->t == TT_LIMIT and delegates. Honest SM: 212→213.
 
 Remaining failures — known root causes:
-- rung14: `every write((1|2|3|4|5) \ 2)` — TT_LIMIT wrapping alternate (Phase A3).
+- rung15: `!E` iterate — Phase A4 AST_ITERATE.
 - rung36: complex Icon features (segfaults, timeouts).
 - Some IR failures: interp_eval.c slot reads still use v.ival.
 
-Next: rung14 TT_LIMIT-in-generator — requires Phase A3 (TT_LIMIT → SM coroutine).
+Next: rung15 AST_ITERATE (`!E`) — Phase A4.
 
 ---
 
@@ -171,6 +168,7 @@ Next: rung14 TT_LIMIT-in-generator — requires Phase A3 (TT_LIMIT → SM corout
 | g_lang LANG_ICN scoped | `3648dae5` | 227→~231 | SM_BB_PUMP_PROC saves/restores g_lang; sm_preamble sets after lower(); rung28+rung24 gain |
 | SI-13 union-clobber fix | `b891504a` | 0→209 honest, 1→182 IR | Four v.sval/v.ival alias bugs: nparams→_id; callee skip; slot→_id; baseline rebake |
 | rung13 conjunction-in-generator | `fa8bd48f` | 208→211 honest | SM_GEN_TICK + bb_broker_drive_sm_one + IcnFrame.every_gen[]; lower_every hoists TT_ALTERNATE as inner SM coroutine; outer SM_GEN_TICK loop |
+| rung14 limit-in-generator | `554aa38f` | 212→213 honest | lower_limit_every: slot_inner (TT_ALTERNATE coro) + slot_limit (limit wrapper); GLOCAL[0]=count; nested SM_GEN_TICK; SM_DECR 1; stack cleanup at each exit |
 
 ---
 
