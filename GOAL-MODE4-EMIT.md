@@ -742,6 +742,26 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**SESSION HANDOFF — sess 2026-05-12m (Claude Sonnet 4.6)**
+
+**No new one4all commits this session.** one4all HEAD `d44d2941`. All gates confirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10.
+
+### Work done
+
+1. **EM-BB-MACROS spec corrected and repositioned.** Moved block to after EM-9 (doppelgangers must complete first). Spec clarified: raw x86 three-column format, jumps at col 3, **no named port-call macros** (not `BREAK_α_VAR` etc. from byrd-reference files — those are NASM-era artifacts). The target format is the same three-column GAS output the emitter already produces for xposi/xrpsi/xeps/xfail, extended to all box kinds. PLAN.md updated.
+
+2. **EDP-4 root cause confirmed.** Attempted EDP-4 (`sm_codegen_x64_emit.c` → template dispatch), regressed beauty-subsystems PASS 7→3. Root cause: the new `emit_mode_set(TEXT_MODE()); emit_sm_x(NULL)` pattern in the main switch doesn't consume the SM pending-label. When `SM_PAT_POS`/`SM_PAT_LEN`/`SM_PAT_CAT` etc. appear at branch targets (having a pending `.LN:` label), the label is orphaned from its instruction. Fix: each of the 24 `sm_emit_rtcall → template` replacements needs a static dispatch wrapper that calls `sm_emit_consume_pc_label()` before routing to the template — identical pattern to the existing `emit_sm_concat_dispatch`, `emit_sm_push_null_dispatch`, etc. that already work correctly.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7.
+3. **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.** For each remaining `sm_emit_rtcall(out, sm_template_lookup(SM_X), NULL)` call in the main switch (SM_DEFINE_ENTRY, SM_DEFINE, and 22 SM_PAT_* opcodes), add a static dispatch wrapper function `emit_sm_X_dispatch(FILE *out, int pc)` that: (a) calls `sm_emit_consume_pc_label()` to get the pending label, (b) calls `emit_mode_set(TEXT_MODE(), out)`, (c) calls `emit_sm_x(NULL, args)`. Wire each wrapper into the main switch. After EDP-4, both mode-3 (`sm_codegen.c`) and mode-4 (`sm_codegen_x64_emit.c`) dispatch through the same template functions.
+4. Gate: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7 (must not regress).
+5. Commit EDP-4. Then EDP-5 through EDP-12.
+
+---
+
 **SESSION HANDOFF — sess 2026-05-12l (Claude Sonnet 4.6)**
 
 **EM-BB-MACROS flag wired.** one4all `ec334068`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10 (baseline preserved).
