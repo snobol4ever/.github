@@ -259,11 +259,248 @@ or `g_count` would clash with interpreter / lowerer state.  Phase 2 needs
 either a prefix discipline (already followed: `si_*` / `g_*`) made
 explicit and documented, or a TABLE-based local frame.  Not blocking SI-1..SI-5.
 
-### SI-6..SI-N — Phase 2 (separate session)
+### Phase 2 — coverage rungs derived from SPITBOL manual
 
-Patterns, EXEC_STMT, calls, generators.  Each rung adds one opcode
-family with a corresponding test program.  Order to be determined by
-what existing corpus programs we want to run self-hosted next.
+**Reference loaded sess 2026-05-12 (Claude Sonnet 4.6).**  Per Lon, Snocone
+expression syntax and semantics are 100% identical to SPITBOL — only control
+flow (braced blocks instead of label-goto) and newline-as-whitespace differ.
+SPITBOL manual v3.7 (368 pages) consulted; relevant chapters cataloged:
+
+| Chapter | Title | Scope used for rung planning |
+|---------|-------|------------------------------|
+| 3 | Fundamentals | data types, simple operators |
+| 4 | Control Flow and Functions | success/failure model |
+| 6 | Pattern Matching | algorithm + primitives |
+| 7 | Additional Operators and Datatypes | extensions |
+| 15 | Operators (reference) | full operator table |
+| 17 | Data Types and Conversion | nine internal types |
+| 18 | Patterns and Pattern Matching (reference) | primitive patterns |
+| 19 | SPITBOL Functions | built-in function catalog |
+
+SPITBOL nine internal data types: STRING, INTEGER, REAL, PATTERN, ARRAY, TABLE,
+NAME, EXPRESSION, CODE.  Phase 1 covers STRING / INTEGER / REAL only (the
+trivial-runtime cases — values ride free on host Snocone).  Phase 2 covers
+PATTERN (large) and NAME (small).  ARRAY / TABLE / EXPRESSION / CODE land in
+Phase 3 since they require either lower.sc extensions or host-runtime hooks.
+
+SPITBOL binary operators (Ch 15) — Phase 1 covered `=` (assignment via
+SM_STORE_VAR), `space` (concat via SM_CONCAT), `+`/`-`/`*`/`/` (arithmetic).
+Phase 2 covers `?` (pattern match), `|` (pattern alt), `^`/`!`/`**`
+(exponentiation), `.` (NAME via PAT_REFNAME / capture), `$` (immediate
+assignment, partial), and the LT/LE/GT/GE/EQ/NE + LLT/.../LNE comparison
+families (lowered to SM_ACOMP / SM_LCOMP).
+
+SPITBOL unary operators (Ch 15) — Phase 1 covered `+`/`-` (numeric).  Phase 2
+covers `.` (NAME — via SM_PAT_REFNAME for pattern context, separate path for
+expression context), `*` (defer — affects how lower.sc emits, not interp),
+`$` (indirection via host $name, already exploited in SI-2), `~` (negation
+of success/failure — handled by SM_JUMP_F semantics), `?` (interrogation —
+combo of EXEC_STMT result + SM_PUSH_NULL), `@` (cursor — pattern context only).
+
+Each rung's gate: hand-built or native test program lowers and runs through
+the self-hosted pipeline, then SI-5 cross-check confirms hosted-output ==
+native-output byte-identical.  Tests live in `corpus/SCRIP/si_*.sc` (hosted)
++ `corpus/SCRIP/si_*_native.sc` (native counterpart).  Naming change from
+the SI-1..SI-5 ad-hoc `smoke_interp` / `sm_interp_test` — `si_<rung>_*`
+groups Phase-2 tests by rung for easy scanning.
+
+The gap between what `lower.sc` emits today and what `sm_interp.sc` handles
+today is 41 opcodes (audited sess 2026-05-12).  Phase 2 closes that gap
+opcode by opcode in 10 rungs.
+
+### SI-6 — Exponentiation ⏳ NEXT
+
+`SM_EXP` (`^` / `!` / `**`) — right-associative, priority 11.  One-liner
+extension to SI-4 arithmetic: `si_push((a + 0) ^ (b + 0))`.
+
+Test program: `OUTPUT = 2 ^ 10` → `1024`.
+
+- [ ] Add `SM_EXP` arm to `sm_interp_step`
+- [ ] `si_06_exp.sc` + `si_06_exp_native.sc` + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-7 — Pattern matching statement (EXEC_STMT + PAT_LIT + PAT_DEREF + PUSH_EXPR)
+
+Implements the SPITBOL pattern-match statement form: `SUBJECT ? PATTERN`
+and `SUBJECT ? PATTERN = REPLACEMENT`.  This rung covers the minimum
+pattern statement machinery — just enough to match a literal string.
+
+Opcodes: `SM_PAT_LIT` (string literal as pattern), `SM_PAT_DEREF`
+(variable-as-pattern), `SM_PAT_REFNAME` (capture-to-variable via `.`),
+`SM_PUSH_EXPR` (deferred expression — fallback path), `SM_EXEC_STMT`
+(invoke matcher on subject with built pattern + optional replacement).
+
+Implementation note: `SM_EXEC_STMT` is the interesting one.  In C it calls
+into the runtime's pattern matcher; in `sm_interp.sc` we cannot replicate
+the matcher (~2000 lines of C).  Strategy: emit a host-Snocone string
+match — pop replacement, pop subject-name, pop pattern, run a real
+Snocone pattern-match statement using `$name ? pat = repl`, then push the
+result.  This sidesteps reimplementing the matcher and exploits the host's
+existing engine.
+
+Test program: `S = 'hello'; S 'ell' = 'ELL'; OUTPUT = S` → `hELLo`.
+
+- [ ] Add pattern-statement opcodes
+- [ ] `si_07_pat_lit.sc` + `si_07_pat_lit_native.sc` + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-8 — Primitive patterns (ABORT, ARB, FAIL, FENCE, REM, SUCCEED, BAL)
+
+Opcodes: `SM_PAT_ABORT`, `SM_PAT_ARB`, `SM_PAT_BAL`, `SM_PAT_FAIL`,
+`SM_PAT_FENCE`, `SM_PAT_REM`, `SM_PAT_SUCCEED`.
+
+Each pushes a corresponding primitive pattern value onto the value stack.
+In host Snocone these primitives are `ABORT`, `ARB`, `BAL`, `FAIL`,
+`FENCE`, `REM`, `SUCCEED` — globally bound by the scrip runtime.  Arm
+body: `si_push(ABORT)`, etc.
+
+Test program: `S = 'abc'; S ARB . X 'c'; OUTPUT = X` → `ab`.
+
+- [ ] Add seven primitive-pattern opcodes
+- [ ] `si_08_prim_pats.sc` + native + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-9 — Pattern function calls (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, ARBNO)
+
+Opcodes: `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`,
+`SM_PAT_RTAB`, `SM_PAT_ANY`, `SM_PAT_NOTANY`, `SM_PAT_SPAN`,
+`SM_PAT_BREAK`, `SM_PAT_ARBNO`.
+
+Each pops one argument, applies host's pattern constructor: `si_push(LEN(arg))`.
+Trivial because host runtime owns the constructors.
+
+Test program: `S = 'abc123'; S LEN(3) . LET SPAN(&DIGITS) . NUM` → captures
+`abc` and `123`.
+
+- [ ] Add ten pattern-function opcodes
+- [ ] `si_09_pat_fns.sc` + native + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-10 — Pattern combinators (CAT, ALT)
+
+Opcodes: `SM_PAT_CAT` (subsequent — space operator), `SM_PAT_ALT`
+(alternation — `|` operator).  N-ary: pops n patterns, builds combined
+pattern.
+
+Implementation: pop arg count from operand `a0(ins)`, pop that many
+patterns from stack, concatenate / alternate using host operators
+(`p1 p2 p3` for CAT, `p1 | p2 | p3` for ALT), push the result.
+
+Test program: `('foo' | 'bar') 'baz'` matching `'foobaz'` succeeds,
+`'foobat'` fails.
+
+- [ ] Add CAT + ALT opcodes
+- [ ] `si_10_pat_combine.sc` + native + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-11 — Comparisons (ACOMP, LCOMP)
+
+Opcodes: `SM_ACOMP` (arithmetic comparison: LT/LE/GT/GE/EQ/NE),
+`SM_LCOMP` (lexical comparison: LLT/LLE/LGT/LGE/LEQ/LNE).
+
+Each pops two values, performs comparison per `a0(ins)` op-name,
+sets `si_last_ok = 1` on success / `0` on failure, pushes one result
+value (the operand or null per SPITBOL semantics).
+
+Host calls: `LT`, `LE`, `GT`, `GE`, `EQ`, `NE`, `LLT`, `LLE`, `LGT`,
+`LGE`, `LEQ`, `LNE` — all are host builtins.
+
+Test program: `:S(GT(X, 0))` style branch test.
+
+- [ ] Add ACOMP + LCOMP opcodes
+- [ ] `si_11_compare.sc` + native + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-12 — Function calls (CALL_FN)
+
+Opcode: `SM_CALL_FN` — `si=Index s="name" nargs=N`.
+
+Implementation: pop nargs args, look up function by name (a0=name string),
+invoke via host `APPLY()` builtin which takes a function name + arg list,
+push result.  `APPLY` is the SPITBOL/host runtime's indirect-call mechanism;
+no new infrastructure needed.
+
+Built-in functions accessible this way once the opcode lands: SIZE, SUBSTR,
+REPLACE, REVERSE, TRIM, LPAD, RPAD, DUPL, IDENT, DIFFER, DATATYPE, CONVERT,
+EVAL, TABLE, ARRAY, DATA, DEFINE, ... — anything the host runtime exposes.
+
+Test program: `OUTPUT = SIZE('hello')` → `5`.
+
+- [ ] Add CALL_FN opcode (APPLY-based dispatch)
+- [ ] `si_12_call_builtin.sc` + native + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-13 — Function returns (RETURN, FRETURN, NRETURN)
+
+Opcodes: `SM_RETURN`, `SM_FRETURN`, `SM_NRETURN`.
+
+For user-defined functions, these set the return-value behavior:
+RETURN = normal value, FRETURN = signal failure, NRETURN = return a NAME
+(for `*fn()` callers).  Implementation needs a frame stack (`si_call_stack[]`)
+that SM_CALL_FN pushes onto when entering a user function lowered to SM.
+
+Note: this rung only matters when lower.sc emits user-function bodies.
+Today `lower_proc_skeletons` is a stub so no user-function bodies are
+emitted.  Build the frame infrastructure here so SI-13 unblocks once
+lower.sc starts emitting real bodies.
+
+- [ ] Add frame stack (`si_call_stack`, `si_csp`)
+- [ ] Add RETURN / FRETURN / NRETURN opcodes
+- [ ] `si_13_proc.sc` + native + `.ref` (using DEFINE-based user fn)
+- [ ] SI-5 cross-check PASS
+
+### SI-14 — Computed goto (JUMP_INDIR)
+
+Opcode: `SM_JUMP_INDIR` — pops a label name from stack, looks up in
+label table, jumps.  Needed for SPITBOL `:($X)` form.
+
+Strategy: `lower.sc` already builds `g_labtab[name] = pc` for every
+`SM_LABEL`.  Arm: `nm = si_pop(); si_pc = g_labtab[nm];`.
+
+Test program: `LBL = 'TARGET'; :($LBL) ... TARGET OUTPUT = 'hit'`.
+
+- [ ] Add JUMP_INDIR opcode
+- [ ] `si_14_computed_goto.sc` + native + `.ref`
+- [ ] SI-5 cross-check PASS
+
+### SI-15 — Phase 2 closing gate: cross-check on real corpus programs
+
+Goal: pick 3-5 small but real `.sno` / `.sc` programs from `corpus/programs/`
+that use only Phase-2-covered features (no Icon, no Prolog, no generators,
+no ARRAY/TABLE), run them through the self-hosted pipeline, and confirm
+byte-identical output to native scrip.
+
+Candidates to evaluate:
+- A `Hello, World!` variant (already in SI-1..SI-5 form)
+- A simple pattern-match program (substring replace)
+- A small string-manipulation program (no I/O loops)
+
+Extend `test_self_host_smoke.sh` to iterate these cases.  PASS=5/5 closes
+Phase 2.
+
+- [ ] Inventory candidate programs
+- [ ] Add real-program cases to `test_self_host_smoke.sh`
+- [ ] PASS=5/5 on cross-check
+
+### Phase 3 — deferred
+
+The following opcodes are deferred to Phase 3 because they need infrastructure
+beyond the trivial-runtime pattern:
+
+- `SM_BB_ONCE`, `SM_BB_ONCE_PROC`, `SM_BB_PUMP`, `SM_BB_PUMP_AST`,
+  `SM_BB_PUMP_EVERY`, `SM_BB_PUMP_PROC`, `SM_BB_PUMP_SM` — Icon/Prolog
+  broker pumps; require the BB scheduler to be ported or a host-side
+  hook.  Deferred until self-host can run pure SNOBOL4/Snocone programs.
+- `SM_SUSPEND_VALUE`, `SM_RESUME`, `SM_GEN_TICK`, `SM_DECR`, `SM_INCR`,
+  `SM_LOAD_GLOCAL`, `SM_STORE_GLOCAL`, `SM_LOAD_FRAME`, `SM_STORE_FRAME`
+  — generator coroutines + frame slots.  Deferred for the same reason.
+- `SM_PAT_CAPTURE`, `SM_PAT_CAPTURE_FN`, `SM_PAT_CAPTURE_FN_ARGS`,
+  `SM_PAT_USERCALL`, `SM_PAT_USERCALL_ARGS`, `SM_PAT_EPS` — advanced
+  pattern capture forms; some may collapse into SI-9 if scope permits.
+- `SM_PUSH_EXPRESSION`, `SM_CALL_EXPRESSION` — unevaluated expression
+  data type; needs host EXPRESSION support exposed via APPLY or similar.
+- `SM_DEFINE`, `SM_DEFINE_ENTRY` — function definition; ties into SI-13
+  but the lowering side (proc_skeletons in lower.sc) is also stubbed.
 
 ---
 
