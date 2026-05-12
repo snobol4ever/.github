@@ -546,7 +546,16 @@ Fix required in the Snocone frontend: implement `T_2AMP` binary op, or
 rewrite the ShiftReduce `&` form to use a different notation.
 Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
 
-- [ ] Confirm parser_snobol4.sc parse error is fixed (GOAL-PARSER-SNOBOL4)
-- [ ] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()`
+- [x] Confirm parser_snobol4.sc parse error is fixed — T_2AMP/T_2TILDE blocker resolved
+  by rewriting all `A & B` → `reduce(A, B)` and `A ~ B` → `shift(A, B)` in
+  parser_snobol4.sc, parser_snocone.sc, parser_icon.sc, parser_raku.sc (~206 sites).
+  OPSYN('&','reduce',2) and OPSYN('~','shift',2) semantics preserved via explicit calls.
+  sess 2026-05-12 (Claude Sonnet 4.6). corpus `pending`.
+- [x] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()` — done.
+  sess 2026-05-12 (Claude Sonnet 4.6). corpus `pending`.
 - [ ] Wire parser → lower → sm_dump end-to-end on trivial .sno input
+  **Blocker:** qize.sc hang (pre-existing Append-through-function-parameter bug, SL-2).
+  Without qize.sc: 3 Error 5 "SQize undefined" at load (non-fatal for non-label inputs).
+  SM pipeline runs: `SM_HALT` produced. Full lowering blocked until qize bug fixed.
+  Script: `bash one4all/scripts/run_scrip_parser.sh snobol4 file.sno`
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
