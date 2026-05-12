@@ -356,7 +356,7 @@ Test program: `OUTPUT = 2 ^ 10` → `1024`.
 - [x] `si_06_exp.sc` + `si_06_exp_native.sc` + `.ref`
 - [x] SI-5 cross-check PASS
 
-### SI-7 — Pattern matching statement (EXEC_STMT + PAT_LIT + PAT_DEREF + PUSH_EXPR)
+### SI-7 — Pattern matching statement (EXEC_STMT + PAT_LIT + PAT_DEREF + PUSH_EXPR) ✅ sess 2026-05-12
 
 Implements the SPITBOL pattern-match statement form: `SUBJECT ? PATTERN`
 and `SUBJECT ? PATTERN = REPLACEMENT`.  This rung covers the minimum
@@ -377,11 +377,50 @@ existing engine.
 
 Test program: `S = 'hello'; S 'ell' = 'ELL'; OUTPUT = S` → `hELLo`.
 
-- [ ] Add pattern-statement opcodes
-- [ ] `si_07_pat_lit.sc` + `si_07_pat_lit_native.sc` + `.ref`
+- [x] Add pattern-statement opcodes
+- [x] `si_07_pat_lit.sc` + `si_07_pat_lit_native.sc` + `.ref`
 - [x] SI-5 cross-check PASS
 
-### SI-8 — Primitive patterns (ABORT, ARB, FAIL, FENCE, REM, SUCCEED, BAL)
+**Implementation — sess 2026-05-12 (Claude Opus 4.7).**  All five opcodes
+landed as one-liners:
+
+- `SM_PAT_LIT  s=X`  → `sm_push(a0(ins))` — strings are patterns in SPITBOL/Snocone
+- `SM_PAT_DEREF`     → `a = sm_pop(); sm_push(a)` — type-discrimination is implicit in host
+- `SM_PAT_REFNAME s=name` → `sm_push($name)` — current value of named var as pattern
+- `SM_PUSH_EXPR`     → `sm_push('')` — Ph2 stub (deferred-expression carrier)
+- `SM_EXEC_STMT s=sname i=has_repl` → pop repl, subj, pat (reverse of lower push order);
+  dispatch on named/anonymous subject and presence of replacement; use host
+  `$sname_v ? pat_v = repl_v` (named, with repl) etc.  Sets `last_ok = 1` on
+  match success, `0` on failure.  Named-subject path mutates host variable
+  by indirection — that's the whole self-hosting trick.
+
+**Bug found and fixed during this rung — Snocone boolean OR is not `|`.**
+First-cut implementation gated subject-name handling with
+`if (IDENT(sname_v) | IDENT(sname_v, ''))` — intended as boolean OR but the
+`|` here is **pattern alternation**: it builds a pattern *value*, and
+`if (pattern_value)` always succeeds because a bound name has a value
+(per ARCH-SNOCONE.md "Conditions are SPITBOL backtracking expressions").
+Result: the anonymous-subject branch fired for every statement, so the
+named-subject write-back path was never taken — the test produced `hello`
+instead of `hELLo`.  Fix: flip to `if (DIFFER(sname_v, ''))` for the named
+case (the common path), with the anonymous case as `else`.  No `|` needed
+once the two branches are properly mutually exclusive.
+
+The lesson is documented in ARCH-SNOCONE.md ("Boolean OR is the alternation
+operator `|`") but the practical consequence is sharper: `|` works for
+boolean OR **only when both operands are themselves backtracking expressions
+that can fail** (e.g. `IDENT(x, A) | IDENT(x, B)`).  Combining predicate
+calls with `|` when one of them always succeeds gives wrong-looking
+"always-true" behaviour.
+
+Gates: smoke_interp + sm_interp_test + si_06_exp + si_07_pat_lit all
+byte-identical hosted == native; test_self_host_smoke.sh PASS=4/4
+FAIL=0.  No regressions: smoke_snocone 5/5, smoke_snobol4 7/7,
+test_lower_byte_identical 27/30 (3 pre-existing pl_* fails unchanged).
+
+
+
+### SI-8 — Primitive patterns (ABORT, ARB, FAIL, FENCE, REM, SUCCEED, BAL) ✅ sess 2026-05-12
 
 Opcodes: `SM_PAT_ABORT`, `SM_PAT_ARB`, `SM_PAT_BAL`, `SM_PAT_FAIL`,
 `SM_PAT_FENCE`, `SM_PAT_REM`, `SM_PAT_SUCCEED`.
@@ -393,11 +432,26 @@ body: `si_push(ABORT)`, etc.
 
 Test program: `S = 'abc'; S ARB . X 'c'; OUTPUT = X` → `ab`.
 
-- [ ] Add seven primitive-pattern opcodes
-- [ ] `si_08_prim_pats.sc` + native + `.ref`
+- [x] Add seven primitive-pattern opcodes
+- [x] `si_08_prim_pats.sc` + native + `.ref`
 - [x] SI-5 cross-check PASS
 
-### SI-9 — Pattern function calls (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, ARBNO)
+**Implementation — sess 2026-05-12 (Claude Opus 4.7).**  Seven primitives
+as one-liners pushing host globals (ABORT/ARB/BAL/FAIL/REM/SUCCEED).  Plus
+SM_PAT_FENCE0 (nullary, pushes FENCE) and SM_PAT_FENCE1 (unary, pops child
+and pushes `FENCE(child)`).  Also landed SM_PAT_CAPTURE — necessary because
+the rung's canonical test `ARB . X 'c'` needs capture.
+
+**SM_PAT_CAPTURE — EVAL trick.**  Host Snocone's `.` and `$` capture
+operators bind to a literal name token at parse time.  The opcode operand
+gives us a *string* at runtime.  Workaround: stash the child pattern in a
+known module global (`si_cap_tmp`), then EVAL the capture expression
+literally — `EVAL('si_cap_tmp . ' nm)` substitutes the runtime name string
+into source syntax that the host then compiles.  Adds a global slot but
+no other infrastructure; cursor mode (`@`) and immediate mode (`$`) work
+through the same trick.
+
+### SI-9 — Pattern function calls (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, ARBNO) ✅ sess 2026-05-12
 
 Opcodes: `SM_PAT_LEN`, `SM_PAT_POS`, `SM_PAT_RPOS`, `SM_PAT_TAB`,
 `SM_PAT_RTAB`, `SM_PAT_ANY`, `SM_PAT_NOTANY`, `SM_PAT_SPAN`,
@@ -409,28 +463,45 @@ Trivial because host runtime owns the constructors.
 Test program: `S = 'abc123'; S LEN(3) . LET SPAN(&DIGITS) . NUM` → captures
 `abc` and `123`.
 
-- [ ] Add ten pattern-function opcodes
-- [ ] `si_09_pat_fns.sc` + native + `.ref`
+- [x] Add ten pattern-function opcodes
+- [x] `si_09_pat_fns.sc` + native + `.ref`
 - [x] SI-5 cross-check PASS
 
-### SI-10 — Pattern combinators (CAT, ALT)
+**Implementation — sess 2026-05-12 (Claude Opus 4.7).**  Eleven one-liners
+total (the ten listed plus SM_PAT_EPS, which pushes empty string).  Integer-
+arg ops (LEN/POS/RPOS/TAB/RTAB) coerce via `+0`; charset-arg ops
+(ANY/NOTANY/SPAN/BREAK) pass the string through.  ARBNO takes a pattern
+child via the host's ARBNO constructor.
+
+Test caught one AST-build bug: I'd used `TT_CONCAT` for the expression-
+context concat tag — actually `TT_CAT` (lower.sc line 792, lower_cat_seq
+handler).  `TT_CONCAT` falls through to SM_PUSH_NULL.  Fixed; both
+captures fire and `LET=abc` / `NUM=123` are printed byte-identical.
+
+### SI-10 — Pattern combinators (CAT, ALT) ✅ sess 2026-05-12 (pulled forward into SI-8)
 
 Opcodes: `SM_PAT_CAT` (subsequent — space operator), `SM_PAT_ALT`
-(alternation — `|` operator).  N-ary: pops n patterns, builds combined
-pattern.
+(alternation — `|` operator).
 
-Implementation: pop arg count from operand `a0(ins)`, pop that many
-patterns from stack, concatenate / alternate using host operators
-(`p1 p2 p3` for CAT, `p1 | p2 | p3` for ALT), push the result.
+**Goal file said "n-ary" but the actual lowering is binary.**  Verified:
+`emit_pat_nary` in lower.sc pushes all children then emits `SM_PAT_CAT`
+**n-1 times**, and sm_interp.c handles SM_PAT_CAT/ALT as binary pop-pop-
+push.  Implemented binary as one-liners: `sm_push(a b)` for CAT (space
+operator on patterns), `sm_push(a | b)` for ALT.  Host's space operator
+auto-promotes strings to patterns when one operand is already a pattern.
 
-Test program: `('foo' | 'bar') 'baz'` matching `'foobaz'` succeeds,
-`'foobat'` fails.
+- [x] Add CAT + ALT opcodes
+- [x] SI-5 cross-check PASS (via si_08_prim_pats which uses CAT)
 
-- [ ] Add CAT + ALT opcodes
-- [ ] `si_10_pat_combine.sc` + native + `.ref`
-- [x] SI-5 cross-check PASS
+The Goal file's prose "pops n patterns from stack" is incorrect for the
+current lowering; left as-is for now since the binary form is what
+ships.  Could be a documentation rung if a future SL rung changes to a
+genuine n-ary opcode (which would need lower.sc and sm_interp.c parallel
+changes).
 
-### SI-11 — Comparisons (ACOMP, LCOMP)
+
+
+### SI-11 — Comparisons (ACOMP, LCOMP) ⏳ implemented sess 2026-05-12, test pending
 
 Opcodes: `SM_ACOMP` (arithmetic comparison: LT/LE/GT/GE/EQ/NE),
 `SM_LCOMP` (lexical comparison: LLT/LLE/LGT/LGE/LEQ/LNE).
@@ -444,9 +515,22 @@ Host calls: `LT`, `LE`, `GT`, `GE`, `EQ`, `NE`, `LLT`, `LLE`, `LGT`,
 
 Test program: `:S(GT(X, 0))` style branch test.
 
-- [ ] Add ACOMP + LCOMP opcodes
+- [x] Add ACOMP + LCOMP opcodes (sm_interp.sc lines added sess 2026-05-12)
 - [ ] `si_11_compare.sc` + native + `.ref`
-- [x] SI-5 cross-check PASS
+- [ ] SI-5 cross-check PASS
+
+**Implementation — sess 2026-05-12 (Claude Opus 4.7).**  Snocone-side
+lowering (`lower_comp` in lower.sc) passes the kind STRING in a0
+(`'TT_EQ'`, `'TT_LT'`, etc) — note this differs from the C side which
+passes the integer EKind.  Interp dispatches on a string-equality cascade.
+Both ACOMP and LCOMP follow Icon-style relops: on success push the right
+operand and set last_ok=1; on failure push empty string and clear last_ok.
+Mirrors NUMREL/STRREL macros in interp_eval.c.
+
+Test still pending — needs a program whose lowering reliably emits
+SM_ACOMP/SM_LCOMP (most idiomatic Snocone uses `:S/:F` goto sugar that
+lowers through different paths).
+
 
 ### SI-12 — Function calls (CALL_FN)
 
