@@ -402,9 +402,54 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **one4all `f33589d8` on remote.**
 
-### SM templates — ALL 53 OPCODES COMPLETE
+### SM template status — PARTIAL (53/99 opcodes covered)
 
-16 template files covering every opcode in g_sm_templates[]:
+16 template files exist covering the 53 opcodes already in `g_sm_templates[]`
+in `sm_emit_template.c`.  **46 opcodes are in the enum (`sm_prog.h`) but NOT
+yet in `g_sm_templates[]` and have no template file.**  These must be added
+before SM templates are truly complete.
+
+Opcodes covered by existing 16 files: SM_HALT, SM_PUSH_LIT_I, SM_PUSH_LIT_S,
+SM_PUSH_VAR, SM_STORE_VAR, SM_VOID_POP, SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM,
+SM_ADD/SUB/MUL/DIV/MOD, SM_JUMP/S/F, SM_LABEL, SM_STNO, SM_CALL_FN, SM_RETURN,
+SM_RETURN_VARIANT, SM_PUSH_EXPRESSION, SM_CALL_EXPRESSION, SM_EXEC_STMT,
+all SM_PAT_* (22 opcodes).
+
+**Opcodes still needing g_sm_templates[] entries AND template files:**
+SM_EXP, SM_NEG, SM_PUSH_LIT_F, SM_PUSH_NULL_NOFLIP, SM_PUSH_EXPR,
+SM_INCR, SM_DECR, SM_LCOMP, SM_RCOMP, SM_TRIM, SM_ACOMP, SM_SPCINT, SM_SPREAL,
+SM_FRETURN, SM_NRETURN, SM_RETURN_S, SM_RETURN_F, SM_FRETURN_S, SM_FRETURN_F,
+SM_NRETURN_S, SM_NRETURN_F, SM_DEFINE_ENTRY, SM_DEFINE,
+SM_JUMP_INDIR, SM_SELBRA, SM_STATE_PUSH, SM_STATE_POP,
+SM_BB_PUMP, SM_BB_ONCE, SM_BB_ONCE_PROC, SM_BB_PUMP_PROC, SM_BB_PUMP_CASE,
+SM_BB_PUMP_SM, SM_BB_PUMP_EVERY, SM_BB_PUMP_AST,
+SM_SUSPEND, SM_RESUME, SM_SUSPEND_VALUE,
+SM_LOAD_GLOCAL, SM_STORE_GLOCAL, SM_ICMP_GT, SM_ICMP_LT,
+SM_LOAD_FRAME, SM_STORE_FRAME.
+
+### t_* helpers surface (bb_emit.h / bb_emit.c)
+
+`t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
+`t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
+`t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
+`t_lea_rdi_strtab_sym`, `t_lea_rdx_strtab_sym`,
+`t_mov_esi_imm32`, `t_mov_edi_imm32`, `t_mov_edx_imm32`,
+`t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`,
+`t_movabs_rdi_entry`, `t_call_sym_param`.
+
+### BB templates — all six still violating
+
+`bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
+3. **Finish SM templates first** — add the 46 missing opcodes to `g_sm_templates[]`
+   and write their template files. Group by shape (nullary rt-call, lbl, lbl+int,
+   etc.) to minimise new files. Do NOT start BB until all SM opcodes have files.
+4. Then fix all six BB templates (EM-TEMPLATE-PURITY).
+5. Verify SM complete: `comm -23 <(grep SM_ sm_prog.h|...) <(grep SM_ sm_emit_template.c|...)` returns empty.
 
 | Template file | Opcodes |
 |---------------|---------|
@@ -424,32 +469,3 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 | `sm_pat_lbl.c` | SM_PAT_LIT, SM_PAT_REFNAME, SM_PAT_USERCALL |
 | `sm_pat_capture.c` | SM_PAT_CAPTURE, SM_PAT_USERCALL_ARGS |
 | `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN, SM_PAT_CAPTURE_FN_ARGS |
-
-### t_* helpers surface (bb_emit.h / bb_emit.c)
-
-`t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
-`t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
-`t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
-`t_lea_rdi_strtab_sym`, `t_lea_rdx_strtab_sym`,
-`t_mov_esi_imm32`, `t_mov_edi_imm32`, `t_mov_edx_imm32`,
-`t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`,
-`t_movabs_rdi_entry`, `t_call_sym_param`.
-
-### BB templates — all six still violating (do these next)
-
-`bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`
-
-All use `e->is_text`, `EMIT_OPT`, `EMIT_JMP`, `EMIT_LABEL`, or callbacks.
-Must be rewritten per EM-TEMPLATE-PURITY before any BB work is considered done.
-
-### Next session must
-
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md` in full.
-2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
-3. **SM templates are 100% complete — verified `f33589d8`. Do NOT re-audit SM.**
-4. Next rung: **EM-TEMPLATE-PURITY → fix all six BB templates**.
-   - Each currently uses `e->is_text`, `EMIT_OPT`, `EMIT_JMP`, `EMIT_LABEL`, or text callbacks.
-   - Add `t_bb_port_alpha`/`t_bb_port_beta` to `bb_emit.h` as needed.
-   - Rewrite to pure `t_*` calls. No `is_text`. No callbacks. No `e->` calls.
-   - Verify: `grep -r 'is_text\|EMIT_OPT\|EMIT_JMP\|EMIT_LABEL\|text_body' src/runtime/x86/templates/bb_*.c` returns empty.
-5. After BB templates clean: rung -t (generated artifacts), then -u (rung close).
