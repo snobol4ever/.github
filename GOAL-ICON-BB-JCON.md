@@ -63,31 +63,34 @@ fixes first, regressions last).
 
 ## Steps
 
-### IJ-1 — Alternate filter in `every` (Cluster A)
+### IJ-1 — Alternate filter in `every` (Cluster A) ✅ sess 2026-05-12 (`c5bb0775`)
 
-**Target:** rung13_alt_alt_filter  (every (x := (1|2|3|4|5)) > 2 & write(x) → 3,4,5)
-**Root cause:** bb_eval_value for TT_ALTERNATE in a bounded/filter context:
-when the outer expression fails (x > 2 fails for x=1,2), the alternate must
-resume to next value; currently it stops at first successful alternate arm
-without iterating all values.
+**Root cause:** TT_SEQ (conjunction &) had no coro_eval case — fell through to oneshot
+which eagerly called bb_eval_value(TT_SEQ); first child (x:=1)>2 failed for x=1,2 → FAILDESCR.
+**Fix:** Added TT_SEQ generator case in coro_eval: when c[0] is suspendable, build
+icn_every_state_t with gen=coro_eval(c[0]), body=c[1], reusing coro_bb_every semantics.
+ir-run 196→197.
 
-- [ ] Read coro_bb_alternate + bb_eval_value TT_ALTERNATE case.
-- [ ] Identify where the filter failure fails to resume the alternate.
-- [ ] Fix: alternate resumes beta when outer expression fails (goal-directed filter).
-- [ ] Test source: rung13_alt_alt_filter.icn already exists.
-- [ ] GATE-1..4. Commit.
+- [x] Read coro_bb_alternate + bb_eval_value TT_ALTERNATE case.
+- [x] Identify where the filter failure fails to resume the alternate.
+- [x] Fix: TT_SEQ as filter conjunction generator in coro_eval.
+- [x] Test source: rung13_alt_alt_filter.icn already exists.
+- [x] GATE-1..4. Commit.
 
-### IJ-2 — Table key iteration (Cluster B)
+### IJ-2 — Table key iteration (Cluster B) ✅ sess 2026-05-12 (`8529aec9`)
 
-**Target:** rung23_table_table_key  (every total +:= t[key(t)] → 60)
-**Root cause:** `key(t)` generator iterates table keys and yields each in turn;
-combined with `t[key]` subscript the total should be 10+20+30=60 but gets 30.
-Likely key() only returns last key, not generating all keys.
+**Root cause:** TT_FNC in bb_eval_value lacked coro_drive_node injection check.
+coro_bb_cat injected drive_node=key(t), drive_val=k each tick, but TT_FNC ignored it
+and re-evaluated key(t) fresh — building a new key_iterate box starting from alpha
+every time. So t[1]=10 was read on every tick; total accumulated 10+10+10=30 not 60.
+**Fix:** Added injection check `if (coro_drive_node && e == coro_drive_node) return coro_drive_val`
+at top of TT_FNC case in bb_eval_value. Same pattern as TT_TO, TT_ITERATE, TT_BANG_BINARY, etc.
+ir-run 197→198.
 
-- [ ] Read icn_builtin `key` — check if it returns all keys or stops at first.
-- [ ] Fix: key(t) must be a generator yielding each key once.
-- [ ] Test source: rung23_table_table_key.icn already exists.
-- [ ] GATE-1..4. Commit.
+- [x] Read icn_builtin key — coro_bb_tbl_key_iterate was correct.
+- [x] Fix: TT_FNC injection check in bb_eval_value (coro_value.c).
+- [x] Test source: rung23_table_table_key.icn already exists.
+- [x] GATE-1..4. Commit.
 
 ### IJ-3 — `proc()` builtin + indirect invocation (Cluster C)
 
@@ -332,7 +335,7 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
 ## Watermark
 
   Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: 7efdf09a
-  ir-run:       PASS=196 FAIL=39 XFAIL=30 TOTAL=265
+  one4all HEAD: 8529aec9
+  ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
   Honest:       PASS=259 FAIL=1  ABORT=0
-  Current step: IJ-1
+  Current step: IJ-3
