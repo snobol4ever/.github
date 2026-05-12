@@ -425,13 +425,24 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `ebb338d9` on remote. corpus `dcce732`.**
+**one4all `ebb338d9` on remote. corpus `dcce732`. .github `dd05b8d`.**
 
 ### Done this session
 
-**EM-TEMPLATE-PURITY-1 audit complete.** All 11 BB template files audited; every violation catalogued (is_text guards, callback params, raw emit_* calls, EMIT_OPT/JMP/LABEL vtable calls). t_* helpers needed for PURITY-2 identified. See PURITY-1 checkbox above.
+1. **BB template files split one-per-box.** bb_xfarb→xeps+xfail+xfarb, bb_xlnth→xtb+xrtb+xlnth, bb_xposi→xposi+xrpsi. SM families stay together (Lon decision).
+2. **EM-TEMPLATE-PURITY-1/2/3/4/5 — all 11 BB templates pure t_*.** New t_* helpers: t_label_define, t_bb_port_call, t_load_delta_cmp_imm, t_load_siglen_sub_cmp_delta, t_lea_rsi_strtab_sym, t_add/sub_delta_imm, t_sigma_plus_delta_to_rdi, t_bounds_check_delta_plus_len. PURITY grep clean.
+3. **Sub-rung -s done** (via PURITY rungs).
+4. **Sub-rung -t done.** sm_macros.s/.intel_syntax fix; emit_push_lit_i_line TEXT mode fix; all 5 demo artifacts gcc-c clean.
 
-**BB template files split one-per-box.**
+### Next session must
+
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, demo artifacts 5/5 gcc-c clean.
+3. **Sub-rung -u**: run beauty-subsystems gate (`scripts/test_gate_em_beauty_subsystems_mode4.sh`), record new PASS count vs baseline PASS=4, delete legacy emitter files if gate improves.
+
+### Previous session (Claude Opus 4.7, `3468bb67`)
+
+**Watermark task #6 — strip comments from template `.c` files.**
 Per Lon's direction: SM template families stay together (similar shape
 is not a reason to split); BB boxes are different — one file each.
 Split: bb_xfarb.c (had XEPS/XFAIL/XFARB) → bb_xeps.c + bb_xfail.c +
