@@ -385,7 +385,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
     - `t_lit_match(lit, len, lbl_succ, lbl_fail, lbl_beta)` — xchr binary path (bounds+memcmp+delta-advance).
     - Remove all `bb_charset_text_fn`, `bb_intcur_text_fn`, `bb_brkx_text_fn` callback typedefs and parameters once t_* helpers cover their output.
 
-  - [ ] **EM-TEMPLATE-PURITY-2 — Add port-call helpers to `bb_emit.h`.** `t_bb_port_alpha(kind, args, lbl_succ, lbl_fail)` and `t_bb_port_beta(kind, args, lbl_fail)`. TEXT writes `KIND_α args, lbl_succ, lbl_fail`. BINARY emits the port's byte sequence. Both fully implemented.
+  - [x] **EM-TEMPLATE-PURITY-2 — Add port-call helpers to `bb_emit.h`.** (Sonnet 4.6, `e6c522f3`) Added: `t_label_define`, `t_bb_port_call`, `t_load_delta_cmp_imm`, `t_load_siglen_sub_cmp_delta`. 10 of 11 BB templates now pure t_* (bb_xspnc, bb_xbrkx, bb_xfarb, bb_xlnth, bb_xtb, bb_xrtb, bb_xposi, bb_xrpsi, bb_xeps, bb_xfail). Callback params removed from all signatures; bb_flat.c call sites updated. bb_xchr still has 2 is_text guards — PURITY-3.
 
   - [ ] **EM-TEMPLATE-PURITY-3 — Rewrite each BB template.** One `t_bb_port_alpha` call, one `t_bb_port_beta` call, `t_bb_box_banner`, done. No `is_text`, no callbacks, no raw instruction emission in the template body.
 
@@ -425,7 +425,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `5fa770d6` on remote. .github `<pushed below>`.**
+**one4all `e6c522f3` on remote.**
 
 ### Done this session
 
