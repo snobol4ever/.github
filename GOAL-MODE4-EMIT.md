@@ -405,15 +405,15 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   **Multi-opcode SM files that must be split first (one file per opcode):**
   - [x] **TC-SPLIT-1** — `sm_arith.c` → `sm_add.c sm_sub.c sm_mul.c sm_div.c sm_mod.c` (5 files). Old file deleted.
   - [x] **TC-SPLIT-2** — `sm_nullary_rt.c` → `sm_concat.c sm_push_null.c sm_coerce_num.c` (3 files). Old file deleted.
-  - [x] **TC-SPLIT-3** — `sm_var.c` → `sm_push_var.c sm_store_var.c` (2 files). Old file deleted.
+  - [~] **TC-SPLIT-3** — `sm_var.c` → `sm_push_var.c sm_store_var.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-3.*
   - [x] **TC-SPLIT-4** — `sm_jump.c` → `sm_jump.c sm_jump_s.c sm_jump_f.c` (already 1 per opcode; rename to 3 single-op files). Old file deleted.
-  - [x] **TC-SPLIT-5** — `sm_label_stno.c` → `sm_label.c sm_stno.c` (2 files). Old file deleted.
+  - [~] **TC-SPLIT-5** — `sm_label_stno.c` → `sm_label.c sm_stno.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-5.*
   - [x] **TC-SPLIT-6** — `sm_return.c` → `sm_return.c sm_return_variant.c` (2 files). Old file deleted.
   - [x] **TC-SPLIT-7** — `sm_exec_stmt.c` → `sm_push_expression.c sm_call_expression.c sm_exec_stmt.c` (3 files). Old file deleted.
   - [x] **TC-SPLIT-8** — `sm_pat_nullary.c` → 22 individual files (one per PAT opcode). Old file deleted.
-  - [x] **TC-SPLIT-9** — `sm_pat_lbl.c` → `sm_pat_lit.c sm_pat_refname.c sm_pat_usercall.c` (3 files). Old file deleted.
-  - [x] **TC-SPLIT-10** — `sm_pat_capture.c` → `sm_pat_capture.c sm_pat_usercall_args.c` (2 files). Old file deleted.
-  - [x] **TC-SPLIT-11** — `sm_pat_capture_fn.c` → `sm_pat_capture_fn.c sm_pat_capture_fn_args.c` (2 files). Old file deleted.
+  - [~] **TC-SPLIT-9** — `sm_pat_lbl.c` → `sm_pat_lit.c sm_pat_refname.c sm_pat_usercall.c` (3 files). Old file deleted. *Superseded by TC-UNSPLIT-9 (per-op files were never actually created).*
+  - [~] **TC-SPLIT-10** — `sm_pat_capture.c` → `sm_pat_capture.c sm_pat_usercall_args.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-10 (per-op file was never actually created).*
+  - [~] **TC-SPLIT-11** — `sm_pat_capture_fn.c` → `sm_pat_capture_fn.c sm_pat_capture_fn_args.c` (2 files). Old file deleted. *Superseded by TC-UNSPLIT-11 (per-op file was never actually created).*
 
   **Missing SM opcode template files (new files + g_sm_templates[] entries):**
   - [x] **TC-SM-1** — `sm_push_lit_f.c` (SM_PUSH_LIT_F: push real literal → `rt_push_real`)
@@ -535,36 +535,42 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   Sub-rungs:
 
-  - [ ] **TC-UNSPLIT-3** — `sm_var.c` is the source of truth.  Keep `emit_sm_lbl_rt`
+  - [x] **TC-UNSPLIT-3** — `sm_var.c` is the source of truth.  Keep `emit_sm_lbl_rt`
     static helper plus `emit_sm_push_var` + `emit_sm_store_var`.  Delete
     `templates/sm_push_var.c` + `templates/sm_store_var.c`.  Update Makefile:
     remove the two per-op entries; add `$(RT)/x86/templates/sm_var.c` source-list
     entry and matching recipe line.
 
-  - [ ] **TC-UNSPLIT-5** — `sm_label_stno.c` is the source of truth.  Keep
+  - [x] **TC-UNSPLIT-5** — `sm_label_stno.c` is the source of truth.  Keep
     `emit_sm_label` + `emit_sm_stno`.  Delete `templates/sm_label.c` +
     `templates/sm_stno.c`.  Update Makefile per step 4.
 
-  - [ ] **TC-UNSPLIT-9** — `sm_pat_lbl.c` is the source of truth (only place these
+  - [x] **TC-UNSPLIT-9** — `sm_pat_lbl.c` is the source of truth (only place these
     functions exist).  Verify it contains `emit_sm_pat_lit`, `emit_sm_pat_refname`,
     `emit_sm_pat_usercall` (or whatever names the bundle currently uses).  No per-op
     files to delete (they were never created).  Add `$(RT)/x86/templates/sm_pat_lbl.c`
     to Makefile and recipe.  After this rung, the SM_TPL_LBLOPT table dispatch and
     the template-function path both reach the same code.
 
-  - [ ] **TC-UNSPLIT-10** — `sm_pat_capture.c` source of truth.  Verify it contains
+  - [x] **TC-UNSPLIT-10** — `sm_pat_capture.c` source of truth.  Verify it contains
     both `emit_sm_pat_capture` + `emit_sm_pat_usercall_args`.  Add to Makefile.
 
-  - [ ] **TC-UNSPLIT-11** — `sm_pat_capture_fn.c` source of truth.  Verify it
+  - [x] **TC-UNSPLIT-11** — `sm_pat_capture_fn.c` source of truth.  Verify it
     contains both `emit_sm_pat_capture_fn` + `emit_sm_pat_capture_fn_args`.
     Add to Makefile.
 
-  - [ ] **TC-UNSPLIT-CLOSE** — After 3/5/9/10/11 close, flip TC-SPLIT-3/5/9/10/11
+  - [x] **TC-UNSPLIT-CLOSE** — After 3/5/9/10/11 close, flip TC-SPLIT-3/5/9/10/11
     from `[x]` to `[~]` (with note `superseded by TC-UNSPLIT-N`).  Leave TC-SPLIT-1/2/4/6/7/8
     as `[x]` — those were genuinely correct splits.  Confirm
     `find src/runtime/x86/templates -name 'sm_*.c' | wc -l` decreases by 8
     (= 4 deleted per-op for SPLIT-3/5 × 2; no deletions for 9/10/11 since per-op
-    files never existed).
+    files never existed). *Actual delta sess 2026-05-12f: -4, not -8 (93→89). The
+    "-8" in the original rung text was a miscount; SPLIT-3 deletes 2 per-op files
+    (sm_push_var, sm_store_var) and SPLIT-5 deletes 2 (sm_label, sm_stno) = 4 total.
+    9/10/11 deleted 0 files (per-op never existed). All five bundles (sm_var.c,
+    sm_label_stno.c, sm_pat_lbl.c, sm_pat_capture.c, sm_pat_capture_fn.c) now wired
+    into Makefile. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+    beauty-subsystems mode4 PASS=6 FAIL=11 (baseline preserved).*
 
 - [ ] **EM-BB-PURGE** — Delete all C BB box functions from `bb_boxes.c`. Both brokered (`--bb-driver`) and flat (`--bb-live`) modes generate x86 blobs via the C template functions. The blobs differ in calling mechanism — not identical:
 
@@ -614,6 +620,102 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-12f (Claude Opus 4.7)**
+
+**TC-UNSPLIT-3, -5, -9, -10, -11, -CLOSE all closed this session.**
+one4all `c074dd7e`.  All five bundle files (`sm_var.c`,
+`sm_label_stno.c`, `sm_pat_lbl.c`, `sm_pat_capture.c`,
+`sm_pat_capture_fn.c`) are now the source of truth
+and are wired into the Makefile.  Four orphan per-op files deleted
+(`sm_push_var.c`, `sm_store_var.c`, `sm_label.c`, `sm_stno.c`).
+Baseline preserved: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+beauty-subsystems mode4 PASS=6 FAIL=11.
+
+`find src/runtime/x86/templates -name 'sm_*.c' | wc -l`: 93 → 89 (Δ = -4).
+The goal file's prior "-8" claim was a miscount and has been corrected
+in TC-UNSPLIT-CLOSE.
+
+### Done this session
+
+1. **Session setup complete.** Repos cloned, scrip + libscrip_rt built,
+   all four baseline gates green.
+
+2. **TC-UNSPLIT-3 (sm_var) closed.**
+   - Bundle `sm_var.c` (containing `emit_sm_lbl_rt` static helper +
+     `emit_sm_push_var` + `emit_sm_store_var`) confirmed as most
+     recent (touched commit `3468bb67`).
+   - Per-op files `sm_push_var.c` and `sm_store_var.c` deleted.
+   - Makefile: removed two per-op source-list entries and recipe
+     lines; added `sm_var.c`.
+   - Gates green.
+
+3. **TC-UNSPLIT-5 (sm_label_stno) closed.**
+   - Bundle `sm_label_stno.c` (containing `emit_sm_label` +
+     `emit_sm_stno`) confirmed as most recent (touched commit
+     `3468bb67`).
+   - Per-op files `sm_label.c` and `sm_stno.c` deleted.
+   - Makefile updated analogously.
+   - Gates green.
+
+4. **TC-UNSPLIT-9, -10, -11 closed (bundle-only; per-op files never
+   existed on disk despite prior `[x]` claims).**
+   - `sm_pat_lbl.c`: contains `emit_sm_pat_lit`, `emit_sm_pat_refname`,
+     `emit_sm_pat_usercall` (+ static helper `emit_sm_pat_lbl_rt`).
+   - `sm_pat_capture.c`: contains `emit_sm_pat_capture`,
+     `emit_sm_pat_usercall_args`.
+   - `sm_pat_capture_fn.c`: contains `emit_sm_pat_capture_fn`,
+     `emit_sm_pat_capture_fn_args`.
+   - All three signatures match `templates.h` declarations.
+   - Makefile: added three source-list entries and three recipe lines.
+   - Gates green.
+
+5. **TC-UNSPLIT-CLOSE closed.**  TC-SPLIT-3, -5, -9, -10, -11 flipped
+   from `[x]` to `[~]` with `Superseded by TC-UNSPLIT-N` notes.
+   TC-SPLIT-1/2/4/6/7/8 left as `[x]` — those were genuine splits.
+
+### What this session did NOT do
+
+- **Did not re-apply the lower.c DEFINE_ENTRY labtab fix** from sess
+  2026-05-12d.  That work is now next-up on critical path along with
+  the BB-blob R10 corruption diagnosis.
+- **Did not diagnose the BB-blob R10 corruption.**  Beauty-subsystems
+  PASS still 6/17; expected to move to 8/17 once the R10 corruption
+  + DEFINE_ENTRY patch land together.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md` (esp. §"Intra-BLOB vs extra-BLOB jumps"),
+   `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+   beauty-subsystems mode4 PASS=6.
+
+3. **Re-apply the lower.c DEFINE_ENTRY labtab fix** from sess 2026-05-12d
+   handoff (preserved below).  Verify the emitted `.s` shows the expected
+   `.L<entry>: DEFINE_ENTRY` / `.L<body+1>: PUSH_VAR` shape on case_driver.
+
+4. **Diagnose the BB-blob R10 corruption** that case_driver / omega_driver
+   now hit at `bb_broker:44`.  See sess 2026-05-12d's analysis for the
+   gdb trace, the `bb_pool` mapping address, and the candidate fix
+   locations (`bb_flat.c` γ-port emission OR a BB template's port
+   wiring).
+
+5. After both fixes land, commit them together as
+   `EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-LOOP` + a follow-up rung name
+   for the BB-blob R10 fix.
+
+### Lesson recorded
+
+The original TC-UNSPLIT-CLOSE rung text claimed the file-count delta
+would be -8; arithmetic of "4 deleted per-op for SPLIT-3/5" is in fact
+4 files, and SPLIT-9/10/11 deleted 0.  The correction is recorded in
+the rung text and reflected in the actual on-disk delta of -4.  Future
+rung text that prescribes an expected file-count delta should derive
+the number from the per-rung deletion list rather than asserting it
+inline.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-12e (Claude Opus 4.7)**
 
