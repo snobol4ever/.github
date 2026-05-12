@@ -166,11 +166,20 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 **Phase B (B1-B4) ✅ closed** (one4all `7d8dbea8`). JIT mirrors for `PL_UNIFY`, `PL_CUT`, `PL_TRAIL_MARK`, `PL_TRAIL_UNWIND`, `PL_BUILTIN` added to `sm_codegen.c`. JIT crosscheck: SM PASS=96 == JIT PASS=96, SM==JIT parity=113/294. No divergence.
 
-Remaining open:
-- **B4** `PL_CHOICE_DYNAMIC` — not yet emitted by lower.c; deferred.
-- **B5** clause-inline JIT shape — deferred (requires full TT_CLAUSE inline migration).
+### ⛔ Remaining 18 FAILs are blocked on CH-17g-irrun-execution
 
-**NEXT: rung10 puzzle backtracking/cut fix** — 13 programs fail because SM doesn't cut properly after `fail` in puzzle body. Or **rung30 DCG SM fix** — `phrase/2` → `pl_box_choice_pc` wrong (5 programs).
+**Root cause (investigated sess 2026-05-12c):** Both failure groups share the same underlying gap:
+
+- **13 × rung10 puzzle** — `puzzle` body uses `fail` to force backtracking through nested `person/1` calls. SM emits `SM_BB_ONCE_PROC` for each call — one-shot, no backtrack support. Cut inside `differ/2` works correctly (IR `g_pl_cur_cut_flag` scoping is correct) but the SM statement loop cannot re-drive earlier `SM_BB_ONCE_PROC` calls on backtrack.
+- **5 × rung30 DCG** — `phrase/2` in `interp_exec_pl_builtin` takes the `pl_box_choice_pc` path (entry_pc resolved) → `pl_chunk_fn` → `sm_call_expression` one-shot. `greeting/2` body uses `SM_BB_ONCE_PROC` for terminal unifications which can't backtrack.
+
+Both require **CH-17g-irrun-execution** (Prolog proc bodies routed through SM with proper backtracking via `sm_preamble+sm_run_with_recovery`). That rung is blocked by a 76-program Icon regression; see GOAL-CHUNKS.md.
+
+Remaining open:
+- **B4** `PL_CHOICE_DYNAMIC` JIT mirror — deferred (not yet emitted by `lower.c`)
+- **B5** clause-inline JIT shape — deferred (requires full `TT_CLAUSE` inline migration)
+
+**NEXT when CH-17g lands:** re-run honest gate — expect significant PASS jump for rung10 + rung30.
 
 ---
 
