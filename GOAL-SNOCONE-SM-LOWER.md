@@ -538,13 +538,13 @@ patching in place. Also added `SM_CALL_EXPRESSION` display to `fmt_instr`.
 Fix is one line: replace `TDump(result)` with `Lower_collect(result)` and
 add `Lower_run()` at the end of the parser's main loop.
 
-**Blocker (sess 2026-05-12):** `parser_snobol4.sc` has a pre-existing
-parse error at line 87 (`XList` rule with `|` operator) when run under
-`--ir-run` with the full blob (`global.sc tree.sc stack.sc counter.sc
-ShiftReduce.sc semantic.sc qize.sc gen.sc tdump.sc assign.sc`).
-The error is NOT caused by the lower.sc addition — it reproduces on the
-original parser invocation without lower.sc. Must be fixed in
-GOAL-PARSER-SNOBOL4 first before SL-13 can proceed.
+**Blocker (sess 2026-05-12):** `parser_snobol4.sc` line 85 fails with full blob.
+Root cause: `parser_snobol4.sc` is SNOBOL4 source that uses SNOBOL4 pattern-context
+juxtaposition idioms (e.g. `$',' nInc() *Expr FENCE(*FnArgTail | epsilon)` builds
+a pattern by concatenating sub-patterns). In Snocone, juxtaposition is string
+concatenation, not pattern concatenation — the file isn't valid Snocone.
+This is GOAL-PARSER-SNOBOL4's problem to resolve, not SL-13's.
+SL-13 is correctly blocked until parser_snobol4.sc is rewritten as proper Snocone.
 
 - [ ] Confirm parser_snobol4.sc parse error is fixed (GOAL-PARSER-SNOBOL4)
 - [ ] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()`
