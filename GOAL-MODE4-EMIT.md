@@ -681,7 +681,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
     Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, sm_macros.s byte-identical to corpus demo reference.
 
-  - [ ] **EDP-3 — `sm_codegen.c` reduced to dispatch.**  For each per-opcode case body that does inline `bb_emit_byte(0x...)` emission, replace with a call to `emit_sm_<x>(e, args)`.  After this, `sm_codegen.c` is a thin `switch (ins->op) { case SM_X: emit_sm_x(e, ...); break; ... }` walker over SM_Program.
+  - [x] **EDP-3 — `sm_codegen.c` reduced to dispatch.**  Converted 35-arm if-else chain in `sm_codegen()` to a clean switch. Each case calls the same `emit_me*_blob()` helper as before; nested inner switches (ME-9c/9d/9e/9f/9a groups) flattened to one case per opcode. `sm_codegen.c` is now a thin dispatcher; all blob-emit logic stays in static helpers. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7. (Sonnet 4.6, one4all `ed41f343`)
 
   - [ ] **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.**  Same treatment for the text-emit path.  After this, both mode-3 (binary) and mode-4 (text) walk SM_Program by dispatching to the SAME template functions through `bb_emit_mode` switching.  The architectural goal of "ONE emitter, two output-time forms" from ARCH-x86.md is realised.
 
@@ -733,9 +733,30 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12i (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12k (Claude Sonnet 4.6)**
 
-**No commits to one4all this session.** Baseline unchanged (one4all `baa29424`). All gates confirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10.
+**EDP-3 closed.** one4all `ed41f343`. All gates confirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10 (baseline preserved).
+
+### Work done
+
+**EDP-3: sm_codegen.c if-else dispatch → clean switch.**
+
+Converted the 35-arm `if-else` chain in `sm_codegen()` to a `switch (op)` statement. Semantics unchanged; each `case` calls the same `emit_me*_blob()` helper as before. The three nested inner switches (ME-9c charset group, ME-9d integer-arg group, ME-9a nullary group) were flattened to one `case` per opcode. SM_JUMP_S/F remain in a shared case; RETURN variants remain grouped with shared `bits` computation. Net: 207 deletions, 134 insertions (−73 lines).
+
+`sm_codegen.c` is now a thin dispatcher: per-opcode blob-emit logic lives exclusively in the static `emit_me*_blob()` helpers; the switch body is call sites only. Enables EDP-4 migration.
+
+### Key architectural finding (EDP-4 planning)
+
+`rt_*` functions (`rt_push_int`, `rt_nv_get`, etc.) live only in `libscrip_rt.so`, not in `scrip`. Mode-3 JIT uses `me4_*/me9_*/me10_*/me11_*/me12_*` helpers compiled into `scrip`. Templates calling `t_call_sym_plt(rt_sym, 0)` produce `mov rax, 0; call rax` in BINARY mode — unusable for mode-3. Templates are TEXT/mode-4 only in their current form.
+
+EDP-4 scope is therefore `sm_codegen_x64_emit.c` (the mode-4 text emitter), not `sm_codegen.c`. EDP-4 replaces all `sm_emit_*(out, sm_template_lookup(SM_X), args)` calls in `sm_codegen_x64_emit.c` with `emit_mode_set(TEXT_MODE(), out); emit_sm_x(NULL, args)`.
+
+### Next session must
+
+1. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7.
+2. **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.** For each `sm_emit_*(out, sm_template_lookup(SM_X), args)` call, replace with `emit_mode_set(TEXT_MODE(), out); emit_sm_x(NULL, args)`. After this, both mode-3 (binary via `sm_codegen.c`) and mode-4 (text via `sm_codegen_x64_emit.c`) walk SM_Program dispatching to the same template functions through `bb_emit_mode` switching — the ARCH-x86.md "ONE emitter, two output-time forms" invariant realized.
+3. Gate after EDP-4: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, `sm_macros.s` byte-matches corpus demo reference.
+4. Commit EDP-4.
 
 ### Work done this session
 
