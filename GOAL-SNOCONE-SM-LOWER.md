@@ -535,22 +535,18 @@ patching in place. Also added `SM_CALL_EXPRESSION` display to `fmt_instr`.
 
 `parser_snobol4.sc` outputs `TDump(result)` (serialized text per stmt).
 `lower_driver.sc` calls `Lower_collect(stmt)` (expects a live tree node).
-These are not yet connected — the full Snocone self-hosting pipeline
-`parser_snobol4.sc → lower.sc → sm_interp.sc` requires the parser to
-hand tree nodes directly to `Lower_collect` rather than serializing them.
+Fix is one line: replace `TDump(result)` with `Lower_collect(result)` and
+add `Lower_run()` at the end of the parser's main loop.
 
-Options:
-1. Add a `--sc-compile` mode to scrip that runs parser → lower → interp
-   as a single `--ir-run` invocation, passing live tree nodes.
-2. Modify `parser_snobol4.sc` to call `Lower_collect(result)` instead of
-   `TDump(result)` when running in pipeline mode (flag via global var).
-3. Define a bridge `.sc` that imports both parser and lower outputs
-   and connects them.
+**Blocker (sess 2026-05-12):** `parser_snobol4.sc` has a pre-existing
+parse error at line 87 (`XList` rule with `|` operator) when run under
+`--ir-run` with the full blob (`global.sc tree.sc stack.sc counter.sc
+ShiftReduce.sc semantic.sc qize.sc gen.sc tdump.sc assign.sc`).
+The error is NOT caused by the lower.sc addition — it reproduces on the
+original parser invocation without lower.sc. Must be fixed in
+GOAL-PARSER-SNOBOL4 first before SL-13 can proceed.
 
-Coordinate with Lon before implementing — this touches the parser goal
-(GOAL-LANG-SNOCONE / GOAL-PARSER-SNOCONE) and the interp goal
-(GOAL-SNOCONE-SM-INTERP).
-
-- [ ] Decide integration approach with Lon
-- [ ] Wire parser → lower → sm_dump end-to-end on a trivial .sno input
+- [ ] Confirm parser_snobol4.sc parse error is fixed (GOAL-PARSER-SNOBOL4)
+- [ ] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()`
+- [ ] Wire parser → lower → sm_dump end-to-end on trivial .sno input
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
