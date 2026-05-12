@@ -387,20 +387,22 @@ Deltas in the table above are against the live baseline.
 
 ## Watermark
 
-  Last session:    2026-05-12 (Claude Sonnet 4.6) — post-IB-10 bug fixes (3 commits).
-                   (1) Fix TT_ITERATE list/table: coro_eval called descr_to_str_icn before
-                   DT_DATA/DT_T checks, making list/table iteration unreachable. Fixed by
-                   hoisting DT_DATA+DT_T checks above string coercion. ir-run +8.
-                   (2) Fix SM_EXP: Icon ^ always returns real; int^int was returning INTVAL.
-                   Changed coerce.c to return REALVAL. SNOBOL4 POWER_fn unchanged. ir-run +5.
-                   (3) Add SM_BB_EVAL: TT_ALTERNATE in value context aborted with
-                   'BUG: Icon AST pump — kind 54'. New opcode stores tree_t* in every_table
-                   (avoids ast_gc_clone GC hazard); handler calls bb_eval_value directly.
-                   honest PASS +29 (215->244). ir-run +1.
-  one4all HEAD:    158d23fc
-  Honest PASS:     244 FAIL=1 ABORT=0 (FAIL=rung36_jcon_arith &collections flakiness)
-  ir-run PASS:     194 FAIL=41
-  BB tally:        43 JCON ir_a_* total. 8 templates landed (IB-1..IB-8). 35 remain.
-  Current rung:    GOAL DONE on IB ladder. NEXT: continue ir-run triage (41 remaining
-                   FAILs: 36 rung36 with other issues post-alternate-fix, 5 smaller).
-                   rung36 cluster: lists/roman/scan/etc need further builtin/feature work.
+  Last session:    2026-05-12 (Claude Sonnet 4.6) — 6 commits, ir-run 180->195, honest 215->259.
+                   (1) TT_ITERATE DT_DATA/DT_T before descr_to_str_icn (+8 ir-run).
+                   (2) SM_EXP real result for Icon ^ (+5 ir-run).
+                   (3) SM_BB_EVAL for TT_ALTERNATE value context via every_table+bb_eval_value
+                       (GC-safe: avoids ast_gc_clone). honest +29.
+                   (4) SM_BB_EVAL extended to TT_TO/TO_BY/ITERATE/BANG_BINARY. honest +8.
+                   (5) SM_STORE_FRAME: propagate FAILDESCR (fixes while-read() hang). ir-run +1.
+                   (6) New Icon builtins: open/close/read(file)/reads(file,n)/IDENTICAL/set/ASGN/variable.
+                   Remaining 40 ir-run FAILs: 20 WRONG_OUTPUT (statics, augop-in-IDX, scan, etc.),
+                   10 MISSING_BUILTIN (args, image(2-arg), remove, etc.), 4 NO_OUTPUT (hang/timeout),
+                   6 other.
+  one4all HEAD:    6d48bff0
+  Honest PASS:     259 FAIL=1 ABORT=0 (FAIL=rung36_jcon_arith &collections flakiness)
+  ir-run PASS:     195 FAIL=40
+  BB tally:        43 JCON ir_a_* total. 8 templates (IB-1..IB-8). 35 remain on SM_BB_PUMP_EVERY.
+  Current rung:    GOAL DONE. NEXT: continue ir-run triage (40 FAILs). Priority:
+                   static variable persistence across calls (rung36_jcon_statics),
+                   augop with nested generator in IDX (total +:= t[key(t)]),
+                   scan/string WRONG_OUTPUT (partial output, later divergence).
