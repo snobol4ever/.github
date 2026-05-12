@@ -116,18 +116,24 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: ~231/~40/0 at sess 2026-05-11e)
+## Active next targets (honest dial: 209/~34/1 at sess 2026-05-11f)
 
-Sess 2026-05-11e (Claude Sonnet 4.6, one4all `3648dae5`):
-- **g_lang=LANG_ICN scoped to SM Icon execution** ✅ `3648dae5` (+4, 208→212 at 8s timeouts):
-  (1) `sm_interp.c SM_BB_PUMP_PROC`: save/restore `g_lang` around `bb_broker` call, setting `LANG_ICN` for Icon proc execution duration. Icon builtins (`trim`, `map`, etc.) now use Icon semantics.
-  (2) `scrip_sm.c`: set `g_lang=LANG_ICN` after `lower()` when `lang_mask` has Icon bit.
-  Newly honest: `rung28_builtins_str_trim_map`, `rung24_records_record_loop`, +2 more.
+Sess 2026-05-11f (Claude Sonnet 4.6): SI-13 union-clobber fixes ✅ `b891504a`:
+Four bugs in the AST_t→tree_t rename that clobbered v.sval/v.ival union:
+(1) parse_proc stored nparams in v.ival after v.sval=name → proc name zeroed;
+    fix: nparams → _id, all readers updated (lower.c, coro_runtime.c, polyglot.c).
+(2) icn_scope_patch assigned slot to TT_FNC callee child[0] → v.sval=NULL;
+    fix: skip c[0] for TT_FNC in scope_patch.
+(3) icn_scope_patch wrote slot to v.ival → clobbered v.sval (same union);
+    non-zero slot N → v.sval=(char*)N → SIGSEGV in keyword check;
+    fix: write slot to _id, all slot readers in coro_value.c/coro_runtime.c updated.
+(4) lower_baseline rebaked (Icon expected hash was empty due to bug 1).
+IR-run: 1→182 (+181). Honest SM: 0→209 (+209). Residual gaps are pre-existing SI-13.
 
 Remaining failures — known root causes:
-- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — `SM_BB_PUMP_EVERY` still used; Phase C2/C3 gap (every + conjunction-in-generator). `coro_eval(AST_SEQ)` evaluates conjunction once non-generatively; `AST_ALTERNATE` not yet lowered as suspendable SM coroutine.
-- `rung36_jcon_statics`: static vars not persisting across calls in honest mode.
-- Many rung36: complex Icon features (segfaults, timeouts).
+- `rung13_alt_alt_filter`: `every (x := alt) > 2 & write(x)` — conjunction-in-generator.
+- rung36: complex Icon features (segfaults, timeouts).
+- Some IR failures: interp_eval.c slot reads still use v.ival (not yet updated).
 
 Next: rung13 conjunction-in-generator — requires Phase A4 (`AST_ALTERNATE` → pure SM coroutine) + `every` body driving that coroutine without `SM_BB_PUMP_EVERY`.
 
@@ -165,6 +171,7 @@ Next: rung13 conjunction-in-generator — requires Phase A4 (`AST_ALTERNATE` →
 | assign-cat fix | `f32e690e` | 224→226 | `icn_bb_assign_cat`: re-eval RHS each tick when AST_VAR alongside leaf gen |
 | rung06 scan/any fix | `4b2a8700` | 226→227 | ICN_SCAN_PUSH/POP inline in sm_interp; Icon & conjunction SM_JUMP_F in lower_proc_skeletons |
 | g_lang LANG_ICN scoped | `3648dae5` | 227→~231 | SM_BB_PUMP_PROC saves/restores g_lang; sm_preamble sets after lower(); rung28+rung24 gain |
+| SI-13 union-clobber fix | `b891504a` | 0→209 honest, 1→182 IR | Four v.sval/v.ival alias bugs: nparams→_id; callee skip; slot→_id; baseline rebake |
 
 ---
 
