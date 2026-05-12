@@ -495,3 +495,22 @@ $SCRIP --ir-run \
 
 No diff output from either. Must pass before any commit that advances SL-7 or beyond.
 
+
+### SL-11 — emit_thunk + lower_defer
+
+Translate `emit_thunk` and `lower_defer` from C to Snocone.
+
+`emit_thunk` emits: `SM_JUMP(skip)` | `entry:` body | `SM_RETURN` |
+`SM_PUSH_EXPRESSION(entry, 0)`. This is the CHUNKS M1/M2 path —
+compiled entry_pc descriptor, not legacy `SM_PUSH_EXPR` tree pointer.
+
+Also fixed `emit_pat_fn_args`: non-literal args now call `emit_thunk`
+(matches C), not `lower_expr`. Added `SM_PUSH_EXPRESSION` display case
+to `fmt_instr`.
+
+**Sess 2026-05-12 (Claude Sonnet 4.6)** — corpus `1620344`.
+
+- [x] Translate `emit_thunk`
+- [x] Update `lower_defer` to call `emit_thunk`
+- [x] Fix `emit_pat_fn_args` non-literal path
+- [x] Gates clean: smoke 6/6, sm_lower_test 11/11
