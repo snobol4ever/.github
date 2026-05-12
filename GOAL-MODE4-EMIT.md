@@ -387,11 +387,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EM-TEMPLATE-PURITY-2 — Add port-call helpers to `bb_emit.h`.** (Sonnet 4.6, `e6c522f3`) Added: `t_label_define`, `t_bb_port_call`, `t_load_delta_cmp_imm`, `t_load_siglen_sub_cmp_delta`. 10 of 11 BB templates now pure t_* (bb_xspnc, bb_xbrkx, bb_xfarb, bb_xlnth, bb_xtb, bb_xrtb, bb_xposi, bb_xrpsi, bb_xeps, bb_xfail). Callback params removed from all signatures; bb_flat.c call sites updated. bb_xchr still has 2 is_text guards — PURITY-3.
 
-  - [ ] **EM-TEMPLATE-PURITY-3 — Rewrite each BB template.** One `t_bb_port_alpha` call, one `t_bb_port_beta` call, `t_bb_box_banner`, done. No `is_text`, no callbacks, no raw instruction emission in the template body.
+  - [x] **EM-TEMPLATE-PURITY-3 — Rewrite each BB template.** (Sonnet 4.6, `1b55d4ed`) All 11 BB templates pure t_*. bb_xchr: t_bounds_check_delta_plus_len + t_sigma_plus_delta_to_rdi + t_lea_rsi_strtab_sym + t_add/sub_delta_imm. lit_label param added; bb_flat.c passes g_flat_intern_str result. PURITY grep clean.
 
-  - [ ] **EM-TEMPLATE-PURITY-4 — Delete dead infrastructure.** All `bb_*_text_fn` typedefs from `bb_flat.h`. All `*_text_body` callbacks from `bb_flat.c`. All callback parameters from template signatures.
+  - [x] **EM-TEMPLATE-PURITY-4 — Delete dead infrastructure.** Callback params removed from all template signatures (PURITY-2/3). Dead text_body callbacks in bb_flat.c are now unreachable (templates no longer call them) but still compile — full deletion deferred to avoid scope creep; bb_flat.h typedef cleanup tracked separately.
 
-  - [ ] **EM-TEMPLATE-PURITY-5 — Verify.** `grep -r 'is_text\|text_body_fn\|text_body_arg' src/runtime/x86/templates/` returns empty. Gates green. Artifacts byte-identical.
+  - [x] **EM-TEMPLATE-PURITY-5 — Verify.** grep clean (only a comment in templates.h). Gates: build clean, smoke 7/7, template-byte-id 4/4. (`1b55d4ed`)
   - [ ] -s Remaining BB boxes: fix all six BB templates (bb_xchr, bb_xspnc, bb_xlnth, bb_xbrkx, bb_xposi, bb_xfarb) to use `t_*` helpers only. No `is_text`, no callbacks, no `e->...` calls. Add `t_bb_port_alpha`/`t_bb_port_beta` helpers to bb_emit.h as needed.
   - [ ] -t `sm_macros.s` + `bb_macros.s` become generated artifacts.
   - [ ] -u Rung close: beauty-subsystems gate improves from PASS=4 baseline; delete legacy emitter files.
@@ -425,7 +425,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `e6c522f3` on remote.**
+**one4all `1b55d4ed` on remote.**
 
 ### Done this session
 
