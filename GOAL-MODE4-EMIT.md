@@ -519,51 +519,37 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12b (Claude Opus 4.7)**
+**SESSION HANDOFF — sess 2026-05-12c (Claude Sonnet 4.6)**
 
-**one4all `b5f47fc2` on remote. corpus unchanged. .github updated this session.**
+**one4all `see commit` on remote. corpus unchanged. .github updated this session.**
 
 ### Done this session
 
-1. **Session setup complete.** Repos cloned, scrip + libscrip_rt built. Baseline confirmed: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS=5 FAIL=12 — matches prior handoff.
-2. **PASS=6 FAIL=11 (was PASS=5 FAIL=12).** `Gen_driver` now passes via the C-ABI alignment fix below.
-3. **Root cause for match_driver segfault identified and partially fixed: SysV AMD64 stack alignment violation in mode-4 user-function bodies.**
-
-   The mode-4 emitted JIT body for a `DEFINE`d function is entered via a normal C-ABI `call cfn()` from `call_native_chunk` in `rt.c`.  At entry, `rsp%16==8` (post-call invariant).  The body subsequently makes `call rt_*@PLT` calls whose callees use SSE-aligned access (e.g. `bb_build` does `movaps -0x60(%rbp)`).  Without a C-frame prologue (`push rbp; mov rbp,rsp`) at function entry, every nested call arrives at a callee that sees `rsp%16==8` post-pushed-return, violating the ABI's `(rsp+8)%16==0` requirement; downstream `movaps` SIGSEGVs inside libc / libscrip_rt internals.
-
-   Mode-3's `SM_DEFINE_ENTRY` blob handles this via `push rbp; mov rbp,rsp; sub rsp,8` (see sm_codegen.c §ME-6a / ME-13).  Mode-4's `DEFINE_ENTRY` macro had **no prologue at all**.
-
-   **Fix landed:** `sm_emit_template.c::render_macro_body` `SM_TPL_RTCALL` arm, special-cased for `macro_name == "DEFINE_ENTRY"`, emits `push rbp; mov rbp, rsp` (NOT `sub rsp,8` — see math note below).  `SM_TPL_RET` and `SM_TPL_RET_VAR` arms emit `mov rsp,rbp; pop rbp` before the `ret` to undo the prologue.
-
-   **Alignment math (corrected after a wrong first cut):** mode-4 cfn() entry has `rsp%16==8`.  `push rbp` alone moves `rsp` by -8 → `rsp%16==0`.  Subsequent `call` pushes 8 → callee entry `rsp%16==8` ✓.  **Adding `sub rsp,8` here would leave alignment at 8** (the buggy first attempt's symptom: bb_build's `rbp%16==8` causing the same `movaps` SIGSEGV).  Mode-3's `sub rsp,8` is required because its dispatch invariant is `rsp%16==8` at trampoline entry, a different starting state.
-
-4. **Architectural finding logged for EM-TEMPLATE-PURITY:** the per-opcode template `.c` files in `templates/` (the documented "law") are NOT the production source of `sm_macros.s`.  The legacy `render_macro_body` switch in `sm_emit_template.c` is the real renderer.  Edits to `templates/sm_define_entry.c`, `templates/sm_return.c`, etc., have **no effect on the emitted .s** until EM-TEMPLATE-COMPLETE's pluming lands.  The fix in this session was applied to `render_macro_body` for that reason.
-
-### Files changed (uncommitted in one4all)
-
-| File | Change | Status |
-|------|--------|--------|
-| `src/runtime/x86/sm_emit_template.c` | `render_macro_body` adds C-frame prologue/epilogue to DEFINE_ENTRY / RETURN / RETURN_VARIANT | **the real fix** |
-| `src/runtime/rt/rt.c` | Added `g_native_chunk_depth` counter + `rt_in_native_chunk()` def, bump/decrement around `cfn()` in `call_native_chunk` | instrumentation, harmless, useful for future depth checks |
-| `src/runtime/rt/rt.h` | Declared `int rt_in_native_chunk(void)` | matches rt.c |
-| `src/runtime/x86/stmt_exec.c` | Weak `rt_in_native_chunk` fallback (returns 0) so scrip binary links cleanly | required because mode-1/2/3 scrip does not link libscrip_rt |
-| `src/runtime/x86/bb_emit.c`/`.h` | Added `t_push_rbp_frame()` / `t_pop_rbp_frame_ret()` helpers | unused today; landed for EM-TEMPLATE-PURITY to call once templates are wired |
+1. **Session setup complete.** Repos cloned, scrip + libscrip_rt built. Baseline confirmed: template-byte-id 4/4, beauty-subsystems PASS=6 FAIL=11 — matches prior handoff.
+2. **Bug found and fixed: expression registry included goto labels, not just function-entry labels.**
+   `emit_expression_registry()` in `sm_codegen_x64_emit.c` filtered on `SM_LABEL && a[0].s != NULL`, which matched ALL named labels — including SNOBOL4 goto targets like `G1`, `lwr_end`, etc. These non-callable addresses were registered as user functions, causing `call_native_chunk` to jump to garbage.
+   **Fix:** added `&& ins->a[2].i == 1` guard (the flag set by `lower.c` only for `FUNC_IS_ENTRY_LABEL` labels). Registry now contains only true function-entry labels. Committed as `EM-MODE4-IS-MODE3-DUMP-EXPR-REG-FILTER`.
+3. **Second bug found: DEFINE_ENTRY re-executes on internal function loops.**
+   `icase()` has a `:(icase)` self-loop. The SM lowerer emits the loop label at the same PC as `SM_DEFINE_ENTRY`. So every loop iteration re-executes `push rbp; mov rbp, rsp`, growing the stack unboundedly. After N iterations `ret` pops the wrong return address → jump into stack memory → SIGSEGV.
+   **Root cause confirmed via disassembly:** `.L1837` and `.L1838` are the same address, both pointing at `DEFINE_ENTRY`. The loop `jmp .L1837` re-enters DEFINE_ENTRY rather than the first real opcode.
+   **Fix needed (next session):** the DEFINE_ENTRY preamble must only run once at function entry, not on every loop-back. Two options:
+   - (A) Emit the function-entry goto label AFTER DEFINE_ENTRY, not at the same PC. Lower.c currently emits `SM_LABEL_NAMED(fname)` then `SM_DEFINE_ENTRY`; the loop target should skip DEFINE_ENTRY.
+   - (B) Make DEFINE_ENTRY a conditional `push rbp; mov rbp, rsp` guarded by a "first entry" flag — but this is messier.
+   Option A is correct: the SNOBOL4 label for a function (e.g. `icase`) marks the ENTRY point which includes the prologue. Internal `:(icase)` gotos should jump to the first real opcode (after DEFINE_ENTRY), not to DEFINE_ENTRY itself. This requires `lower.c` to emit an INNER label (e.g. `icase_body`) immediately after `SM_DEFINE_ENTRY`, and GOTO resolution within the function to use that inner label.
+   **PASS unchanged at 6** (registry fix alone doesn't unblock case/omega; loop-re-entry is the remaining crash).
 
 ### Remaining 11 failures (PASS=6 FAIL=11)
 
-- **match_driver (diff → still segfaults but at a DIFFERENT site).**  Alignment is fixed; new backtrace shows crash at `0x7ffff705c069` inside a `bb_pool` RX page, called from `bb_broker` (`bb_broker.c:44`) driven from `exec_stmt:1400`.  This is a downstream pattern-match bug uncovered by fixing the alignment SIGSEGV — likely a corrupt bb_box `fn` pointer or a missing pattern node.  Reproduce: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` shows `match_driver(diff)`.  Get fresh backtrace with `gdb -batch -ex run -ex "bt 8" --args` on the linked match.prog.
-- **XDump_driver (link).**  Link failure; cause not investigated this session.
-- **case_driver, omega_driver (diff → link fail via asm error).**  `sm_lower: undefined label 'error' → Error 24` stderr line contains U+2192 (`→`); when this lands in a `.s` comment GAS chokes.  Search `sm_lower.c` for the `→` rune and replace with `->`.
-- **Gen_driver — NEWLY PASSING — was diff this session.** (Not in fail list.)
-- **Qize_driver, ReadWrite_driver, TDump_driver, semantic_driver, tree_driver, stack_driver, global_driver (diff)** — not investigated.
+- **case_driver, omega_driver (diff → segfault):** DEFINE_ENTRY loop re-entry bug (above). case.sno's `icase()` loops via `:(icase)` re-entering DEFINE_ENTRY. Fix: Option A in lower.c.
+- **match_driver (diff → segfault):** Prior session's bb_pool crash; not reinvestigated this session.
+- **XDump_driver (link):** Link failure; not investigated.
+- **Qize_driver, ReadWrite_driver, TDump_driver, semantic_driver, tree_driver, stack_driver, global_driver (diff):** Not investigated.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS≥6.
-3. Fix `case_driver` + `omega_driver`: `grep -nP "→" src/runtime/x86/sm_lower.c` and replace with `->`.  Expected: PASS jumps to 8 in one rung.
-4. Investigate `match_driver`'s new (downstream) crash — gdb backtrace inside the `bb_pool` blob.  Most likely a bb_node fn pointer corruption from the user-function call frame.
-5. Investigate XDump_driver link failure (single rung).
-6. Begin systematic walk through the remaining diff fails.
-7. After PASS≥10, commit the C-ABI alignment fix as a discrete rung named `EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-ABI` and reference this watermark.
+2. Confirm baseline: template-byte-id 4/4, beauty-subsystems PASS≥6.
+3. **Fix DEFINE_ENTRY loop re-entry (case_driver + omega_driver):** In `lower.c`, after emitting `SM_DEFINE_ENTRY`, emit a second anonymous/inner SM_LABEL that goto-resolution within the same function uses as the loop-back target. Specifically: the `labtab_define(tbl, label, lbl_idx)` currently maps `"icase"` → the DEFINE_ENTRY PC. It should map to a NEW label emitted immediately AFTER `SM_DEFINE_ENTRY`. Expected: PASS 6→8.
+4. After case+omega pass: investigate match_driver (gdb bt on bb_pool crash), then XDump link, then systematic walk of remaining 7 diff-fails.
+5. After PASS≥10, commit ABI fix from prior session as discrete rung `EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-ABI`.
 
