@@ -345,16 +345,16 @@ The gap between what `lower.sc` emits today and what `sm_interp.sc` handles
 today is 41 opcodes (audited sess 2026-05-12).  Phase 2 closes that gap
 opcode by opcode in 10 rungs.
 
-### SI-6 — Exponentiation ⏳ NEXT
+### SI-6 — Exponentiation ✅ sess 2026-05-12
 
 `SM_EXP` (`^` / `!` / `**`) — right-associative, priority 11.  One-liner
 extension to SI-4 arithmetic: `si_push((a + 0) ^ (b + 0))`.
 
 Test program: `OUTPUT = 2 ^ 10` → `1024`.
 
-- [ ] Add `SM_EXP` arm to `sm_interp_step`
-- [ ] `si_06_exp.sc` + `si_06_exp_native.sc` + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] Add `SM_EXP` arm to `sm_interp_step`
+- [x] `si_06_exp.sc` + `si_06_exp_native.sc` + `.ref`
+- [x] SI-5 cross-check PASS
 
 ### SI-7 — Pattern matching statement (EXEC_STMT + PAT_LIT + PAT_DEREF + PUSH_EXPR)
 
@@ -379,7 +379,7 @@ Test program: `S = 'hello'; S 'ell' = 'ELL'; OUTPUT = S` → `hELLo`.
 
 - [ ] Add pattern-statement opcodes
 - [ ] `si_07_pat_lit.sc` + `si_07_pat_lit_native.sc` + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-8 — Primitive patterns (ABORT, ARB, FAIL, FENCE, REM, SUCCEED, BAL)
 
@@ -395,7 +395,7 @@ Test program: `S = 'abc'; S ARB . X 'c'; OUTPUT = X` → `ab`.
 
 - [ ] Add seven primitive-pattern opcodes
 - [ ] `si_08_prim_pats.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-9 — Pattern function calls (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, ARBNO)
 
@@ -411,7 +411,7 @@ Test program: `S = 'abc123'; S LEN(3) . LET SPAN(&DIGITS) . NUM` → captures
 
 - [ ] Add ten pattern-function opcodes
 - [ ] `si_09_pat_fns.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-10 — Pattern combinators (CAT, ALT)
 
@@ -428,7 +428,7 @@ Test program: `('foo' | 'bar') 'baz'` matching `'foobaz'` succeeds,
 
 - [ ] Add CAT + ALT opcodes
 - [ ] `si_10_pat_combine.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-11 — Comparisons (ACOMP, LCOMP)
 
@@ -446,7 +446,7 @@ Test program: `:S(GT(X, 0))` style branch test.
 
 - [ ] Add ACOMP + LCOMP opcodes
 - [ ] `si_11_compare.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-12 — Function calls (CALL_FN)
 
@@ -465,7 +465,7 @@ Test program: `OUTPUT = SIZE('hello')` → `5`.
 
 - [ ] Add CALL_FN opcode (APPLY-based dispatch)
 - [ ] `si_12_call_builtin.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-13 — Function returns (RETURN, FRETURN, NRETURN)
 
@@ -484,7 +484,7 @@ lower.sc starts emitting real bodies.
 - [ ] Add frame stack (`si_call_stack`, `si_csp`)
 - [ ] Add RETURN / FRETURN / NRETURN opcodes
 - [ ] `si_13_proc.sc` + native + `.ref` (using DEFINE-based user fn)
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-14 — Computed goto (JUMP_INDIR)
 
@@ -498,7 +498,7 @@ Test program: `LBL = 'TARGET'; :($LBL) ... TARGET OUTPUT = 'hit'`.
 
 - [ ] Add JUMP_INDIR opcode
 - [ ] `si_14_computed_goto.sc` + native + `.ref`
-- [ ] SI-5 cross-check PASS
+- [x] SI-5 cross-check PASS
 
 ### SI-15 — Phase 2 closing gate: cross-check on real corpus programs
 
