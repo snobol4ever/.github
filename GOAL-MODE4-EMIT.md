@@ -783,18 +783,36 @@ PASS/FAIL semantics — likely a separate Phase-4 or replacement issue).
    `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5,
    beauty-subsystems mode4 PASS=7.
-3. Pick a remaining beauty-subsystems diff-fail (omega_driver is the
-   smallest output divergence to triage; XDump_driver is the only
-   link-fail and may be a separable rt symbol gap).  For each diff-
-   fail, capture mode-3 vs mode-4 output, identify the first divergent
-   line, and trace back to the lowering or codegen difference.
-4. Consider whether the still-existing comments in `t_comment("...")`
-   call-strings inside `sm_templates.c` and `bb_templates.c` (these are
-   runtime-emission asm comments, not C source comments — they go into
-   the emitted `.s` file's col-3) should also be deleted.  This
-   session left them in because they generate observable behaviour
-   (asm comments in mode-4 output); their deletion would change the
-   emitted `.s` text.
+3. **⛔ DIRECTIVE FROM LON (this session, after handoff): finish ALL
+   SM and BB C templates before attempting any beauty-suite or beauty
+   self-host work.**  Do not pick up the remaining 9 beauty-subsystems
+   diff-fails (Qize/ReadWrite/TDump/global/match/omega/semantic/stack/
+   tree) or the XDump link-fail until every SM opcode and every BB
+   box has its template function present and registered.
+
+   Audit the current state under `EM-TEMPLATE-COMPLETE` in this goal
+   file (the SM-total / BB-total audit at the head of that rung).
+   The 78-file consolidation in sess 2026-05-12h preserved every
+   template function that existed, but did NOT add missing ones — so
+   the EM-TEMPLATE-COMPLETE TC-SM-* and TC-BB-* check-marks reflect
+   the state at the time the audit was written, and remain authoritative
+   for what still needs to land.  Walk the SM_t enum and the XKIND_t
+   enum, grep each opcode/kind for an `emit_sm_<x>` / `emit_bb_<x>`
+   function in `sm_templates.c` / `bb_templates.c`, and add any that
+   are missing.  Register each new function in `g_sm_templates[]`
+   where applicable; ensure `templates.h` declares it.
+
+   The consolidation removed file-level fragmentation, but the Law
+   of Template Functions ("one C template function per SM opcode and
+   per BB box") still applies at the function level — gaps in
+   coverage remain a violation.
+
+4. After EM-TEMPLATE-COMPLETE closes, return to the beauty-subsystems
+   diff-fails.  omega_driver is the smallest output divergence;
+   XDump_driver is the only link-fail and may be a separable rt
+   symbol gap.  For each diff-fail, capture mode-3 vs mode-4 output,
+   identify the first divergent line, and trace back to the lowering
+   or codegen difference.
 
 ### Lesson recorded
 
