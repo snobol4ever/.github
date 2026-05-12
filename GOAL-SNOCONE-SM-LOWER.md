@@ -213,13 +213,13 @@ Done when: a test `.sc` program calls `lower_expr` on hand-built
 
 - [x] Translate arithmetic, call, concat cases (Icon-specific call/seq subpaths pending)
 
-### SL-5 — lower_expr: control + comparison
+### SL-5 — lower_expr: control + comparison ✅ landed sess 2026-05-12
 
-- `AST_IF` / `AST_WHILE` / `AST_UNTIL` / `AST_FOR`
-- `AST_RETURN` / `AST_FAIL` / `AST_FRETURN`
-- `AST_COMPARE` family
+- `TT_IF` / `TT_WHILE` / `TT_UNTIL` / `TT_REPEAT` / `TT_LOOP_BREAK` / `TT_LOOP_NEXT`
+- `TT_RETURN` / `TT_PROC_FAIL`
+- `TT_LT/LE/GT/GE/EQ/NE` (acomp) and `TT_LLT/LLE/LGT/LGE/LEQ/LNE` (lcomp)
 
-- [ ] Translate control-flow and comparison cases
+- [x] Translate control-flow and comparison cases
 
 **Session 2026-05-11 (Claude Sonnet 4.6) — housekeeping before SL-5:**
 - Renamed `sm_lower_driver.sc` → `lower_driver.sc`; fixed references. corpus `a5aa690`.
@@ -231,14 +231,63 @@ Done when: a test `.sc` program calls `lower_expr` on hand-built
   called from lower_stmt when tree node has no children array yet. NOT blocking — Lower()
   still executes but produces empty SM output. Fix needed before SL-5 gate can pass.
 
-### SL-6 — lower_expr: Icon / Prolog generator stubs
+**Session 2026-05-12 (Claude Opus 4.7) — SL-5+SL-6 expansion plus AST_/TT_ unification.**
 
-- `AST_EVERY` → `SM_BB_PUMP_EVERY`
-- `AST_SUSPEND` → `SM_SUSPEND_VALUE`
-- `AST_BB_ONCE_PROC` → `SM_BB_ONCE`
-- All others → `emit_push_expr` stub with `# TODO: Ph2` comment
+Two pieces of work, one commit per repo:
 
-- [ ] Translate generator cases (or stub them explicitly)
+A. **lower.sc expansion** (526 → 1025 lines, +499 L): SL-5 + SL-6 + structural fill-ins
+   bringing .sc handler coverage to parity with lower.c's `lower_expr` switch.
+   - SL-5: lower_if, lower_while/until (shared body), lower_repeat, lower_loop_break,
+     lower_loop_next, lower_return, lower_proc_fail; lower_comp + lower_acomp + lower_lcomp.
+   - SL-6: lower_to, lower_to_by, lower_every, lower_suspend, lower_limit, lower_bb_pump_ast,
+     lower_choice, lower_prolog_child, emit_prolog_call.  Range-coroutine emission stubbed
+     (Ph3 task — needs SM_PUSH_EXPRESSION + GLOCAL slot infrastructure).
+   - Plus: lower_indirect, lower_defer (stub), lower_interrogate, lower_name, lower_vlist,
+     lower_opsyn, lower_idx, lower_scan, lower_swap, lower_lconcat (no-gen path),
+     lower_nonnull/null/not/size/identical/random, lower_augop (VAR/KEYWORD fast path),
+     lower_seq_expr, lower_case (Icon pair layout), lower_makelist, lower_record, lower_field,
+     lower_global, lower_initial, lower_section + plus + minus, lower_bang_binary.
+   - Augmented emit_lhs_store with TT_INDIRECT, TT_FNC (NRETURN_ASGN / ITEM_SET / fn_SET),
+     and TT_FIELD paths.
+   - Refined lower_fnc with Icon-style callee path (c[0] is callee when v is null).
+   - Refined lower_stmt: LANG_ICN skip after STNO, LANG_PL branch (TT_CHOICE → emit_prolog_call
+     or fallback BB_ONCE), TT_VAR-as-RETURN/FRETURN/NRETURN special-case in unconditional path.
+   - Added lower_proc_skeletons stub (empty pass — Ph3 will port proc_table / g_pl_pred_table).
+   - lower() main now calls lower_proc_skeletons() first, skips LANG_ICN stmts in walk,
+     emits SM_BB_PUMP_PROC('main',0) tail if any Icon stmt was seen.
+
+   Remaining gap vs lower.c (~210 L): emit_range_coroutine, emit_thunk, proc_skeletons body,
+   lower_pat_expr deep cases, scope_walk, build_proc_scope, FUNC_IS_ENTRY_LABEL, sm_label_named.
+   All are Ph2/Ph3 infrastructure.
+
+B. **AST_/TT_ unification across all 9 SCRIP/*.sc files** (per Lon's directive).
+   - 799 `AST_*` → `TT_*` renames across ShiftReduce.sc, parser_{icon,prolog,raku,rebus,
+     snobol4,snocone}.sc, smoke.sc, tdump.sc.
+   - 244 TT_-variable declarations removed: lower.sc 109, parser_rebus 26, parser_snobol4 38,
+     parser_snocone 32, parser_raku 29, parser_prolog 10.  Per Lon: "Do not use TT_*
+     variables in Snocone; use the strings 'TT_*' and \"TT_*\" depending on context."
+   - 135 bare `TT_X` references in lower.sc inlined as `'TT_X'`.
+   - parser_snobol4 / parser_raku double-quoted forms preserved verbatim as `"'TT_X'"`
+     (8-char string literal) — these were `TT_X = "'TT_X'"` decls before; inlining preserves
+     the SHIFT-REDUCE `~ "'TT_X'"` rename idiom byte-for-byte.
+   - Final verification: 0 lingering AST_, 0 TT_-decls, 0 bare TT_-refs across all .sc files.
+
+   Quote semantics confirmed via SPITBOL manual Chapter 3 (data types) and Chapter 7
+   (unevaluated expressions): single-quoted and double-quoted strings produce equivalent
+   STRING-typed literals outside pattern contexts; ShiftReduce.Reduce branches on
+   `DATATYPE(t) == 'EXPRESSION'` to call EVAL only when the tag is a deferred-eval form
+   (which neither `'TT_X'` nor `"'TT_X'"` is — both are STRING).
+
+### SL-6 — lower_expr: Icon / Prolog generator stubs ✅ landed with SL-5 above
+
+- `TT_EVERY` → `SM_BB_PUMP_EVERY` (stubbed: emits SM_PUSH_EXPR + opcode)
+- `TT_SUSPEND` → `SM_SUSPEND_VALUE` (full conditional flow with JUMP_F/JUMP)
+- `TT_BB_ONCE_PROC` → `SM_BB_ONCE`  (via lower_choice/lower_prolog_child)
+- `TT_TO` / `TT_TO_BY` / `TT_LIMIT` / `TT_BANG_BINARY` / `TT_ALTERNATE` / `TT_ITERATE`
+  stubbed via SM_PUSH_EXPR + appropriate BB_PUMP variant
+- `TT_CLAUSE` / `TT_CUT` / `TT_UNIFY` / `TT_TRAIL_MARK` / `TT_TRAIL_UNWIND` → lower_prolog_child
+
+- [x] Translate generator cases (or stub them explicitly)
 
 ### SL-7 — lower_stmt
 
