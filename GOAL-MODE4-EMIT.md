@@ -644,6 +644,58 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [ ] **EM-BB-PURGE-5** — Delete heap ζ struct typedefs (`lit_t span_t arb_t` etc.) from `bb_box.h` and `bb_<kind>_new()` constructors from `bb_boxes.c`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
 
+- [ ] **EM-DOPPELGANGER-PURGE** — Now that `sm_templates.c` and `bb_templates.c` are the single source of truth (sess 2026-05-12h, 91 SM emitters + 35 BB emitters covering all SM_t and XKIND_t entries), eradicate every parallel SM-opcode / BB-box emission path that still exists outside those two files.  Final result: deleting any template function from `sm_templates.c` / `bb_templates.c` either breaks the corresponding opcode's emission, or — better — fails the link with "undefined reference".  No silent fallback paths.
+
+  **Suspects (sess 2026-05-12h inventory):**
+  - `src/runtime/x86/sm_codegen.c` — mode-3 byte emitter; per-opcode inline emission.
+  - `src/runtime/x86/sm_codegen_x64_emit.c` — mode-4 text emitter; per-opcode inline emission; also hosts the legacy `g_sm_templates[]` macro-table dispatch (SM_TPL_LBLOPT etc.).
+  - `src/runtime/x86/sm_emit_template.c` — bridge between `g_sm_templates[]` and templates; contains `render_macro_body` / `render_call_line` that produce parallel output to template functions.
+  - `src/runtime/x86/bb_flat.c` — `flat_emit_eps`, `flat_emit_fail`, `flat_emit_pos`, `flat_emit_rpos`, `flat_emit_arb`, `flat_emit_fence`, `flat_emit_rem`, `flat_emit_atp`, `flat_emit_dvar`, etc. per-XKIND helpers.
+  - `src/runtime/x86/bb_build.c` — `bb_lit_emit_binary`, `bb_build_binary_node`, C-struct BB tree builder.
+  - `src/runtime/x86/bb_boxes.c` — 26 C-function BB boxes (`bb_lit`, `bb_span`, `bb_arb`, ...).
+  - `src/runtime/x86/bb_box.h` — heap ζ struct typedefs (`lit_t`, `span_t`, `arb_t`, ...) and `bb_<kind>_new()` constructors.
+  - `Makefile` `-Wl,--allow-multiple-definition` — the smoking gun that tells us doppelgangers exist.
+
+  **Gate after every sub-rung:**
+  - `test_smoke_snobol4.sh` PASS=7
+  - `test_gate_em_template_byte_identity.sh` PASS=4 (byte-identical mode-3 vs mode-4)
+  - `test_smoke_snocone.sh` PASS=5
+  - `test_smoke_unified_broker.sh` no regression
+  - `test_gate_em_beauty_subsystems_mode4.sh` ≥ PASS=7
+
+  **The template-byte-id gate is the lynchpin:** if deleting a doppelganger changes emission bytes, the doppelganger WAS the live path and the template needs to match its output first.
+
+  Sub-rungs:
+
+  - [ ] **EDP-1 — Audit script.**  Write `scripts/util_audit_doppelgangers.sh` that walks the `SM_t` enum in `sm_prog.h` and the `XKIND_t` enum in `snobol4_patnd.h`, greps `src/runtime/x86/*.c` for `case SM_<X>:` / `case X<X>:` and `emit_sm_<x>` / `emit_bb_<x>` occurrences, and reports file:line for every match outside `sm_templates.c` / `bb_templates.c`.  Output is a checklist of candidate deletions for EDP-2..-10.  Commit script + initial audit report.
+
+  - [ ] **EDP-2 — `sm_emit_template.c` legacy table purge.**  Delete `g_sm_templates[]`, `render_macro_body`, `render_call_line`, `SM_TPL_LBLOPT` and friends.  Template functions in `sm_templates.c` become the only dispatch surface.  Callers using `g_sm_templates[i]` rewire to `emit_sm_<x>` directly.
+
+  - [ ] **EDP-3 — `sm_codegen.c` reduced to dispatch.**  For each per-opcode case body that does inline `bb_emit_byte(0x...)` emission, replace with a call to `emit_sm_<x>(e, args)`.  After this, `sm_codegen.c` is a thin `switch (ins->op) { case SM_X: emit_sm_x(e, ...); break; ... }` walker over SM_Program.
+
+  - [ ] **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.**  Same treatment for the text-emit path.  After this, both mode-3 (binary) and mode-4 (text) walk SM_Program by dispatching to the SAME template functions through `bb_emit_mode` switching.  The architectural goal of "ONE emitter, two output-time forms" from ARCH-x86.md is realised.
+
+  - [ ] **EDP-5 — `bb_flat.c` `flat_emit_*` helpers folded into templates.**  Each `flat_emit_<x>` either calls `emit_bb_<x>(e, ...)` from `bb_templates.c` or is deleted entirely if the template already covers the call surface.  After this, `bb_flat.c` becomes a thin walker that dispatches each PATND node to the right template.
+
+  - [ ] **EDP-6 — Activate `EM-BB-PURGE-1` above.**  Add `EMIT_BINARY_BROKERED` to `bb_emit_mode_t`. Implement port-call preamble for brokered mode.
+
+  - [ ] **EDP-7 — Activate `EM-BB-PURGE-2` above.**  Add `bb_build_brokered(pp)`. Wire `BB_MODE_DRIVER` to use it.
+
+  - [ ] **EDP-8 — Activate `EM-BB-PURGE-3` above.**  Delete `bb_build()` from `stmt_exec.c`.
+
+  - [ ] **EDP-9 — Activate `EM-BB-PURGE-4` above.**  Delete all 26 C-function BB boxes from `bb_boxes.c`.
+
+  - [ ] **EDP-10 — Activate `EM-BB-PURGE-5` above.**  Delete heap ζ struct typedefs and `bb_<kind>_new()` constructors.
+
+  - [ ] **EDP-11 — Remove `-Wl,--allow-multiple-definition`.**  From `Makefile`'s libscrip_rt link line.  If any duplicate-symbol errors surface at link time, that IS a residual doppelganger — find and delete.  After clean link, EM-DOPPELGANGER-PURGE closes.
+
+  - [ ] **EDP-12 — Close-out report.**  Re-run EDP-1's audit script.  Output should show every SM opcode and every XKIND_t kind reaches exactly ONE emitter — the template function in `sm_templates.c` / `bb_templates.c`.  No remaining matches outside those two files.  Commit the clean audit as the close artifact.
+
+  **Done when:** all gates green; `-Wl,--allow-multiple-definition` removed; EDP-1 audit shows zero matches outside `sm_templates.c` / `bb_templates.c`.
+
+  **Architectural significance:** this rung realises ARCH-x86.md §"Stack machine (SM_Program)"'s "EMITTER walks same SM_Program → native code.  One instruction set.  No divergence between interpreter and emitter." literally — there will be exactly one place in the codebase where SM_X (or X<KIND>) gets emitted as native code, regardless of mode-3 / mode-4 output form.
+
+
  — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` beauty programs. Gate: `scripts/test_gate_em_beauty_subsystems_mode4.sh`. Pass criterion: mode-4 vs mode-3 byte-identical (not `.ref`-correct). **Baseline: PASS=4 FAIL=13. BLOCKED on EM-MODE4-IS-MODE3-DUMP.**
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`). Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`; (b) beauty self-host regression.
