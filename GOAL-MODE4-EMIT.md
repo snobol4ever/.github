@@ -671,6 +671,155 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
+**SESSION HANDOFF — sess 2026-05-12h (Claude Opus 4.7)**
+
+**case_driver mode-4 unblocked. Beauty-subsystems PASS 6 → 7.** one4all
+HEAD `baa29424`. Three fixes landed this session:
+
+### 1. BB-blob R10 corruption — diagnosed and fixed
+
+The "Diagnose the BB-blob R10 corruption" next-up from the previous
+three handoffs (sess 2026-05-12d/e/f/g) is closed.  Root cause was the
+canonical "caller-saved register lost across a runtime call":
+
+- A flat-BB BLOB's α-preamble does `lea r10, [rip + Δ_data]`.
+- The BLOB body then issues `call bb_<kind>@PLT` (e.g. bb_deferred_var_exported)
+  to the runtime.
+- The AMD64 SysV ABI marks `r10` as **caller-saved** — the called
+  function is free to clobber it.  Many do.
+- The BLOB's γ-success branch resumes after the call and does
+  `movslq (%r10), %rcx` to load Δ — against garbage R10 → segfault.
+
+Gdb evidence: R10=0x1 (a residue of ESI=1 from the β port call) at the
+crash site `0x7ffff7060069` in a bb_deferred_var XDSAR blob,
+`bb_broker:44` calling into the blob.
+
+**Fix** (per ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps":
+"Source BLOB emits `push r10` before the outbound jump and `pop r10`
+at the resume point"):
+
+- Added `BB_INSN_PUSH_R10` (41 52) and `BB_INSN_POP_R10` (41 5A) to
+  `emitter.h` BB_INSN enum.
+- Added `emit_push_r10()` / `emit_pop_r10()` inline helpers.
+- Added corresponding cases in `emitter_binary.c` and `emitter_text.c`.
+- Wrapped both α and β port calls in `bb_flat.c::flat_emit_box_call`
+  with `emit_push_r10` / `emit_pop_r10`.
+- Also wrapped `flat_box_call` and `flat_box_call_slot` (text-mode
+  variants) for symmetry.
+- Also wrapped `t_bb_port_call` in `bb_emit.c` (the template-side
+  helper that BB templates call via `t_*`).
+
+**Verification**: `case_driver.sno` previously segfaulted at
+`bb_broker:44` on statement 1.  Now produces all 9 expected PASS lines
+matching `--sm-run` byte-for-byte.  Beauty-subsystems mode-4 gate:
+PASS=6 FAIL=11 → PASS=7 FAIL=10 (case_driver moved from diff-fail
+[segfault → empty output] to pass).
+
+### 2. lower.c DEFINE_ENTRY labtab fix re-applied
+
+Re-applied the fix from sess 2026-05-12d handoff: at FUNC_IS_ENTRY_LABEL,
+overwrite the just-defined labtab entry's `instr_idx` to point AFTER
+the SM_DEFINE_ENTRY instruction.  Internal `:(fname)` gotos now skip
+the prologue; external rt_call entries still hit it.  Verified the
+emitted `.s` shows `.L<entry>: DEFINE_ENTRY` / `.L<body+1>: PUSH_VAR`
+shape on case_driver.
+
+### 3. Template consolidation (per Lon directive this session)
+
+78 per-opcode template files in `src/runtime/x86/templates/` → 2 files:
+
+- `src/runtime/x86/sm_templates.c` (45 SM opcode emitters)
+- `src/runtime/x86/bb_templates.c` (33 BB box emitters)
+
+Processing:
+- All C source comments (`/* */` and `//`) stripped.
+- All blank lines stripped.
+- 120-char `/*===...===*/` divider between each function.
+- `templates/` directory deleted.
+- `sm_helpers.h` deleted; its three helper declarations
+  (`emit_sm_rtcall`, `emit_sm_pat_rtcall`, `emit_sm_lbl_rt`) replaced
+  by static-in-file forward declarations at the top of
+  `sm_templates.c`.  These helpers are now `static` (private to the
+  bundle); `emit_sm_arith_op` remains non-static (called externally
+  from `sm_codegen_x64_emit.c`; declared in `templates.h`).
+- `templates.h` and `sm_helpers.h` move from `templates/` up to
+  `src/runtime/x86/`.
+- All `"../emitter.h"` etc. in template bodies become `"emitter.h"`.
+- All `"templates/templates.h"` includes in non-template files
+  (`bb_flat.c`, `sm_codegen.c`, `sm_codegen_x64_emit.c`,
+  `test_template_byte_identity.c`, `demo_template_productions.c`)
+  become `"templates.h"`.
+- Makefile: removed 78 source-list entries (the `RT_PIC_SRCS` list)
+  and 78 `gcc -c .../sm_X.c -o .../template_sm_X.o` recipe lines;
+  added 2 of each (`sm_templates.c`, `bb_templates.c`).
+
+The Law of Template Functions ("one C template function per SM opcode
+and per BB box") is structurally satisfied — there are 45 SM template
+functions and 33 BB template functions, each as a distinct C function
+inside its bundle.  File count is incidental, per the same Law.
+
+### Gates
+
+| Gate | Before sess | After sess |
+|---|---|---|
+| `test_smoke_snobol4.sh`                  | PASS=7 FAIL=0   | PASS=7 FAIL=0   |
+| `test_gate_em_template_byte_identity.sh` | PASS=4 FAIL=0   | PASS=4 FAIL=0   |
+| `test_smoke_snocone.sh`                  | PASS=5 FAIL=0   | PASS=5 FAIL=0   |
+| `test_gate_em_beauty_subsystems_mode4.sh`| PASS=6 FAIL=11  | **PASS=7 FAIL=10** |
+| `test_smoke_unified_broker.sh`           | PASS=22 FAIL=27 | PASS=22 FAIL=27 |
+
+Remaining beauty-subsystems failures (9 diff + 1 link):
+Qize_driver, ReadWrite_driver, TDump_driver, XDump_driver (link),
+global_driver, match_driver, omega_driver, semantic_driver,
+stack_driver, tree_driver.  All distinct bugs from the R10
+corruption — now they are content-divergence bugs, not segfaults.
+omega_driver was confirmed to run to completion and produce 15 lines
+of output diverging from --sm-run starting at line 1 (different
+PASS/FAIL semantics — likely a separate Phase-4 or replacement issue).
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`,
+   `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+   beauty-subsystems mode4 PASS=7.
+3. Pick a remaining beauty-subsystems diff-fail (omega_driver is the
+   smallest output divergence to triage; XDump_driver is the only
+   link-fail and may be a separable rt symbol gap).  For each diff-
+   fail, capture mode-3 vs mode-4 output, identify the first divergent
+   line, and trace back to the lowering or codegen difference.
+4. Consider whether the still-existing comments in `t_comment("...")`
+   call-strings inside `sm_templates.c` and `bb_templates.c` (these are
+   runtime-emission asm comments, not C source comments — they go into
+   the emitted `.s` file's col-3) should also be deleted.  This
+   session left them in because they generate observable behaviour
+   (asm comments in mode-4 output); their deletion would change the
+   emitted `.s` text.
+
+### Lesson recorded
+
+The "R10 corruption" bug had been pending across four sessions
+(2026-05-12d/e/f/g).  Each prior session correctly identified the
+crash site (`bb_broker:44`, R10=1, inside an XSPNC/XDSAR blob doing
+`movslq (%r10), %rcx`) but stopped short of identifying that R10 is
+caller-saved per the AMD64 SysV ABI and that BB port calls were
+emitting `call fn@PLT` with no register-save bracket.
+
+The fix is purely structural and the simplest possible reading of
+ARCH-x86.md §"Intra-BLOB vs extra-BLOB jumps": *every* runtime call
+from inside a flat-BB BLOB body needs `push r10` before and `pop r10`
+after, because the call is by definition an extra-BLOB call where
+control returns inside the source BLOB.
+
+Future debugging hint for this class of "register clobbered across
+runtime call inside a flat BLOB": check that the call sites in
+`bb_flat.c` and `bb_emit.c` bracket every PLT call in `push <reg>` /
+`pop <reg>` for every register the BLOB body relies on.  Today only
+r10 matters; future BLOB-LOCAL register additions would need the
+same treatment.
+
+---
+
 **SESSION HANDOFF — sess 2026-05-12g (Claude Opus 4.7)**
 
 **TC-UNSPLIT-1, -2, -4, -6, -7, -8 all closed this session** plus
