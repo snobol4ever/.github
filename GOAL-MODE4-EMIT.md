@@ -36,13 +36,13 @@ parallel text-emitter walking SM_Program.  See active rung
 
 - The C template function is called by **both mode 3 and mode 4**. It is not mode-4-only.
 - It handles everything: labels, instructions, arguments, line comments, tabbing, formatting, multiple lines.
-- Every call inside the template function goes through the `emitter_t` vtable.
-- The vtable routes to the correct backend: `emitter_binary` (native x86 bytes), `emitter_text` (GAS `.s` lines), or `emitter_macro_def` (`.macro` definitions for `sm_macros.s` regen).
+- Every call inside the template function goes through the **`t_*` free-standing helpers** (`t_call_sym_plt`, `t_ret`, `t_mov_rdi_imm64`, `t_comment`, `t_macro_begin`, `t_macro_end`, `t_pad_to_blob_size`, etc.) declared in `bb_emit.h`. These helpers read `bb_emit_mode` internally and route to the correct output: x86 bytes (BINARY), GAS asm text (TEXT), or `.macro` body (MACRO_DEF).
+- The `emitter_t *e` parameter exists on every template signature for call-site compatibility but is **unused inside the body** (`(void)e;`). Do not call through it.
 - **No other output path exists or is permitted.** `sm_emit_nullary`, `sm_emit_lbl`, `FILE*`-based static wrappers — all dead. The template function is the sole source of truth.
-- Inline comments in col 3 carry only info NOT visible in col 2 (variable names, string values, disambiguators). The template function is responsible for emitting these via the vtable.
+- Inline comments in col 3 carry only info NOT visible in col 2 (variable names, string values, disambiguators). Use `t_comment(...)` for these.
 - `is_text` guards, callbacks into `bb_flat.c`, raw instruction emission in template bodies — all violations of this law. `EM-TEMPLATE-PURITY` exists to eradicate them.
 
-**Consequence for sub-rung -n and all subsequent rungs:** the `FILE*`-based static wrapper pattern (e.g. `emit_sm_concat_insn` calling `emitter_text_new` then the template) is wrong. Mode 3 and mode 4 both call the template function directly with an appropriate emitter. The template function is the call site, not a wrapper around it.
+**Consequence for sub-rung -n and all subsequent rungs:** call `t_*` helpers directly. Do not call through `e->`. The template function is the sole call site.
 
 ---
 
@@ -317,7 +317,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] EM-1..EM-7d-prep — Driver wiring, libscrip_rt skeleton, BB flat/text/binary, pattern integration, DEFINE entry, usercall registry, readability rungs, Sublime highlighter. All closed. Details in git log.
 - [x] EM-FORMAT-* (BB-LAW, DATA-CONSOLIDATE, BANNER-COLLAPSE-SPACE, SUBLIME-GAS-INTEL, and all sub-rungs). Closed. Details in git log.
-- [ ] **EM-MODE4-IS-MODE3-DUMP** — One template per SM opcode/BB box; three backends (binary/text/macro_def). ⛔ Read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first — it is the design. Gates: smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4, 5 artifacts gcc-c clean.
+- [ ] **EM-MODE4-IS-MODE3-DUMP** — One template per SM opcode/BB box; three output modes (BINARY/TEXT/MACRO_DEF) via `bb_emit_mode` + `t_*` helpers. ⛔ Read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first — it describes the `t_*` model. Gates: smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4, 5 artifacts gcc-c clean.
 
   Sub-rungs:
   - [x] -a Design doc (`MIGRATION-MODE4-IS-MODE3-DUMP.md`). No code.
@@ -338,32 +338,30 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -p SM: `templates/sm_call_fn.c`. New t_helpers: `t_lea_rdi_strtab_sym` + `t_mov_esi_imm32`. Template is MACRO_DEF source of truth for CALL_FN macro body (lea rdi,[rip+\lbl]; mov esi,\n; call rt_call@PLT). TEXT dispatch uses sm_emit_lbl_int32 (proven path), emits `CALL_FN .SN, nargs # fname`. (Sonnet 4.6, one4all `3911a0df`)
   - [x] -q SM: `templates/sm_return.c`. RETURN (ret) + RETURN_VARIANT (mov edi,kind; mov esi,cond; call rt_do_return@PLT; test/jz/ret/label). New t_helpers: `t_mov_edi_imm32`, `t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`. Existing static emit_sm_return/_variant renamed *_dispatch. (Sonnet 4.6, one4all `6aeb2d67`)
 
-- [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of vtable calls with no branching.
+- [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of `t_*` calls with no branching.
 
-  **The invariant:** a template function calls emitter methods only. No `if (e->is_text)`. No callback parameter. No `void *arg`. The vtable routes each call to the right backend.
+  **The invariant:** a template function calls `t_*` helpers only (`t_comment`, `t_call_sym_plt`, `t_ret`, `t_macro_begin`, etc. from `bb_emit.h`). No `if (e->is_text)`. No callback parameter. No `void *arg`. The `t_*` helpers read `bb_emit_mode` internally and route to the correct output.
 
-  **The correct shape — one macro invocation per port.**
+  **The correct shape — one `t_*` call per port.**
 
   Looking at the byrd-reference `.s` files, a POS box emits:
   ```
   seq_l0_α:   RPOS_α  1, cursor, subject_len_val, seq_r0_α, P_3_ω  ; RPOS(%ld)
   seq_l0_β:   RPOS_β  cursor, P_3_ω
   ```
-  One macro call per port. The macro body in `bb_macros.s` contains the actual `cmp`/`jmp` instructions. The template does NOT emit raw instructions — it emits one macro invocation per port via the vtable. The binary backend emits the corresponding bytes directly. The text backend emits the macro invocation line. Same vtable call; different backend rendering.
+  One `t_*` call per port. The `t_*` helper writes bytes (BINARY), the macro invocation line (TEXT), or the macro body line (MACRO_DEF). Same `t_*` call; different `bb_emit_mode` rendering.
 
-  **What went wrong in sub-rungs -d through -m:** templates emitted raw instructions (`emit_load_delta`, `emit_cmp_eax_imm32`, `EMIT_JMP`) for the binary path, and delegated text emission to callbacks into `bb_flat.c`. This inverted the design. The template should emit ONE port-call per port (`e->bb_port_alpha(...)`, `e->bb_port_beta(...)`), and each backend decides what that means — bytes or macro text.
+  **What went wrong in sub-rungs -d through -m:** templates emitted raw instructions (`emit_load_delta`, `emit_cmp_eax_imm32`, `EMIT_JMP`) for the binary path, and delegated text emission to callbacks into `bb_flat.c`. This inverted the design. The template should call one `t_*` helper per port, and `bb_emit_mode` decides what that means — bytes or asm text.
 
-  **The vtable surface for BB templates:**
-
-  Each box port becomes one call on the emitter: `e->bb_α(e, kind, args, lbl_succ, lbl_fail)`, `e->bb_β(e, kind, args, lbl_fail)`. The text backend formats these as `KIND_α args, lbl_succ, lbl_fail` in three-column GAS. The binary backend emits the port's byte sequence. The `EMIT_OPT` macro (null-safe vtable call) is the call site.
+  **The `t_*` surface for BB templates:** add port-call helpers to `bb_emit.h` — e.g. `t_bb_port_alpha(kind, args, lbl_succ, lbl_fail)`, `t_bb_port_beta(kind, args, lbl_fail)`. TEXT mode formats these as `KIND_α args, lbl_succ, lbl_fail` in three-column GAS. BINARY mode emits the port's byte sequence.
 
   **Steps to fix:**
 
-  - [ ] **EM-TEMPLATE-PURITY-1 — Audit.** For each BB template with `is_text`/callback, record: what macro name does the text path emit per port, what bytes does the binary path emit per port. This is the spec for the vtable slots needed.
+  - [ ] **EM-TEMPLATE-PURITY-1 — Audit.** For each BB template with `is_text`/callback, record: what output does the text path emit per port, what bytes does the binary path emit per port. This is the spec for the `t_*` helpers needed.
 
-  - [ ] **EM-TEMPLATE-PURITY-2 — Add port-call slots to `emitter_t`.** `bb_port_alpha(e, kind, args, lbl_succ, lbl_fail)` and `bb_port_beta(e, kind, args, lbl_fail)`. Text backend emits `KIND_α args, lbl_succ, lbl_fail`. Binary backend emits the port's byte sequence. Both implemented fully — no NULL slots.
+  - [ ] **EM-TEMPLATE-PURITY-2 — Add port-call helpers to `bb_emit.h`.** `t_bb_port_alpha(kind, args, lbl_succ, lbl_fail)` and `t_bb_port_beta(kind, args, lbl_fail)`. TEXT writes `KIND_α args, lbl_succ, lbl_fail`. BINARY emits the port's byte sequence. Both fully implemented.
 
-  - [ ] **EM-TEMPLATE-PURITY-3 — Rewrite each BB template.** One `bb_port_alpha` call, one `bb_port_beta` call, banner comment, done. No `is_text`, no callbacks, no raw instruction emission in the template body.
+  - [ ] **EM-TEMPLATE-PURITY-3 — Rewrite each BB template.** One `t_bb_port_alpha` call, one `t_bb_port_beta` call, `t_bb_box_banner`, done. No `is_text`, no callbacks, no raw instruction emission in the template body.
 
   - [ ] **EM-TEMPLATE-PURITY-4 — Delete dead infrastructure.** All `bb_*_text_fn` typedefs from `bb_flat.h`. All `*_text_body` callbacks from `bb_flat.c`. All callback parameters from template signatures.
 
