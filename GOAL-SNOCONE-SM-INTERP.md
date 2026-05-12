@@ -253,11 +253,45 @@ operator.  No value boxing, no separate arithmetic engine, no string
 machinery — the host IR interp handles all of that.  The .sc program is
 purely stack-and-dispatch plumbing.
 
-**Known Ph2 concern — namespace collision.**  Because all `--ir-run` files
-share one variable namespace, a user program that names a variable `si_pc`
-or `g_count` would clash with interpreter / lowerer state.  Phase 2 needs
-either a prefix discipline (already followed: `si_*` / `g_*`) made
-explicit and documented, or a TABLE-based local frame.  Not blocking SI-1..SI-5.
+**C-parallel names — sess 2026-05-12 (Claude Sonnet 4.6).**  Per Lon's
+directive: names in `sm_interp.sc` mirror `sm_interp.c` so the two files
+read side-by-side without translation.
+
+| C side                            | .sc side                                    |
+|-----------------------------------|---------------------------------------------|
+| `typedef struct {...} SM_State;`  | `struct SM_State { stack, sp, stack_cap, last_ok, pc }` |
+| `SM_State st_inst;`               | `st = SM_State(TABLE(), 0, 0, 1, 0);`       |
+| `st->stack`, `st->sp`, ...        | `stack(st)`, `sp(st)`, ...                  |
+| `sm_push(st, d)`                  | `sm_push(d)`                                |
+| `sm_pop(st)`                      | `sm_pop()`                                  |
+| `sm_state_init(st)`               | `sm_state_init()`                           |
+| `sm_interp_run(prog, st)`         | `sm_interp_run()`                           |
+| `return 0;` from main loop        | `pc(st) = g_count;` (push pc past end)      |
+
+Two systematic departures:
+1. The `st` parameter is module-global rather than passed; Snocone has no
+   easy by-reference for structs.
+2. C has no `halted` flag — `SM_HALT` returns from `sm_interp_run_inner`.
+   In Snocone the `while` loop body has no early-loop-exit, so `SM_HALT`
+   advances `pc(st)` to `g_count` and the `while (LT(pc(st), g_count))`
+   condition naturally exits.
+
+**Pending lower.sc rename** — owned by lower.sc, not sm_interp.sc.
+Today lower.sc uses module globals `g_count` and `g_instr_tbl[]`;
+the C-parallel form would be `struct SM_Program { instrs, count }` with
+an instance `prog = SM_Program(TABLE(), 0)`, accessed as `count(prog)`
+and `instrs(prog)`.  Refactor is mechanical but spans ~30 sites in
+lower.sc; not bundled with the sm_interp.sc rename.  Tracked as an
+SL- follow-up rung when convenient.
+
+**Known Ph2 concern — namespace collision (mitigated by C-parallel rename).**
+Because all `--ir-run` files share one variable namespace, a user program
+naming any of `st`, `g_count`, `g_instr_tbl`, `g_program`, `g_patch`, ...
+would clash with interpreter/lowerer state.  The sess 2026-05-12 rename
+collapsed all interpreter state into a single global `st` (a `struct
+SM_State` instance), so the .sc-side collision surface is now exactly
+`st` (one name) plus the lower.sc globals.  Document the reserved-name
+list when lower.sc gets its parallel rename to `prog = SM_Program(...)`.
 
 ### Phase 2 — coverage rungs derived from SPITBOL manual
 
