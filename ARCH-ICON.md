@@ -74,7 +74,10 @@ Read them to understand semantics. Do not copy them as implementation.
 
 ## JCON reference
 
-jcon-master/tran/irgen.icn — 43 ir_a_* procedures, one per AST construct.
+`.github/jcon_irgen.icn` (mirror of `jcon-master/tran/irgen.icn`) —
+**43 `ir_a_*` procedures, one per Icon AST construct**. This is the
+canonical BB enumeration for Icon and the ground truth for what each
+construct does.
 ir_info(start, resume, failure, success) — the four-port record on every node.
 ir_a_ToBy, ir_a_Unop (closure=!E), ir_a_Alt, ir_a_Every, ir_a_Limitation,
 ir_a_Binop (closure=bang), ir_a_Mutual (seq), ir_a_Scan, ir_a_Not, etc.
@@ -87,4 +90,8 @@ This is the ground truth for what each Icon construct does.
 ## Active goal
 
 GOAL-ICON-BB-NATIVE.md — implement Icon generator constructs as flat BB
-template functions. 9 rungs (IB-0 through IB-9). Current: IB-0.
+template functions. 11 rungs (IB-0 through IB-10). IB-0..IB-9 closed;
+IB-10 (purge SM coroutine opcodes from Icon path) currently open.
+The IB ladder migrates 8 of the 43 JCON BBs (ToBy, iterate, Alt, Every,
+Limitation, bang-Binop, lconcat, Mutual-seq); the remaining 35 stay on
+the statement-level SM_BB_PUMP_AST path until later ladders.
