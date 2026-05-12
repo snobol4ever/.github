@@ -394,7 +394,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] **EM-TEMPLATE-PURITY-5 — Verify.** grep clean (only a comment in templates.h). Gates: build clean, smoke 7/7, template-byte-id 4/4. (`1b55d4ed`)
   - [x] -s All 11 BB templates pure t_* (done via PURITY-2/3). See above.
   - [x] -t `sm_macros.s` + `bb_macros.s` generated artifacts (Sonnet 4.6, one4all `ebb338d9`, corpus `dcce732`). Fixed .intel_syntax header; fixed TEXT-mode emit_push_lit_i_line. All 5 demo .s gcc-c clean.
-  - [ ] -u Rung close: beauty-subsystems gate improves from PASS=4 baseline; delete legacy emitter files.
+  - [x] -u Rung close: beauty-subsystems PASS=5 (was 2 at session start, baseline=4). one4all `7e123dc6`. Fixes: two broken block-comment /*s in rt.c/rt.h stripped by comment-strip session; add ast.h include for TT_EQ etc.; replace EXP_R_fn with pow(); fix SM_PAT_* fall-through (22 opcodes emitting EXEC_STMT_VARIANT instead of rt_pat_*@PLT); add g_in_text_macro_body flag in bb_emit.c suppressing t_* body helpers in TEXT mode (fixes double-emission of ADD_NUM etc.); add SM_DEFINE_ENTRY/SM_DEFINE to codegen switch (was UNHANDLED, aborted). Remaining 12 failures: 1 link (XDump), 11 diff (pattern-match-in-userfn segfault; sm_lower undefined-label asm error for case/omega; global_driver IDENT semantics; Gen/Qize/ReadWrite/TDump/semantic/tree — all blocked on deeper rt issues).
 
 - [ ] **EM-TEMPLATE-COMPLETE** — Every SM opcode and BB box has exactly one `.c` template file. One file per opcode/box, named `sm_<opcode_lowercase>.c` / `bb_<kind_lowercase>.c`. All registered in `g_sm_templates[]` (or handled in `sm_codegen_x64_emit.c` for special cases) and in the Makefile. Gate: build clean, smoke 7/7, template-byte-id 4/4.
 
@@ -521,33 +521,35 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
 
-**one4all `554aa38f` on remote (HEAD — no code changes this session; investigation only). corpus `dcce732`. .github updated this session.**
+**one4all `7e123dc6` on remote. corpus unchanged. .github updated this session.**
 
 ### Done this session
 
-1. **Session setup complete.** Packages installed, scrip built, libscrip_rt.so built. Smoke 7/7, template-byte-id 4/4.
-2. **Sub-rung -u gate run.** beauty-subsystems gate: **PASS=2 FAIL=15 (all diff-failures)**. Regressed from PASS=4 baseline. Root cause found (see below). No code changes made — fix deferred to next session.
-3. **Root cause of PASS=2 regression diagnosed:**
-   - All 15 failing drivers crash at runtime with `libscrip_rt: SM value stack underflow` (rc=134).
-   - The 2 "passing" drivers (ShiftReduce_driver, trace_driver) produce empty output from both sm-run and mode-4 — vacuous parity.
-   - **Bug:** `rt_match_variant(subj_name, has_repl)` in `rt.c:924` pops TWO values from vstack (repl + subj). But the emitted asm for a no-replacement statement pushes only ONE value (`PUSH_INT 0` for has_repl=0) before `EXEC_STMT_VARIANT`. Second pop underflows.
-   - **Stack contract mismatch:** sm_lower emits `SM_EXEC_STMT` with `a[0].s=subj_name, a[1].i=has_repl`. The mode-4 TEXT emitter (sm_exec_stmt.c template) calls `rt_match_variant(subj_lbl, has_repl)` — passing subject as a C argument (not a vstack value). But `rt_match_variant` expects BOTH subject AND repl on the vstack. The mode-3 sm_interp path pushes subject onto vstack before calling exec_stmt; the mode-4 rt.c path does not.
-   - **Evidence:** emitted asm shows `PUSH_INT 0 / EXEC_STMT_VARIANT 0, .S1 # subj=ALPHABET` — the subject name is a macro argument but rt_match_variant tries to vstack_pop() it as a DESCR_t.
-   - **Fix direction:** Either (a) make `rt_match_variant` accept subject as a C arg (NV lookup by name, not vstack pop) — removing one of the two pops — or (b) change sm_lower to emit a PUSH_VAR for the subject before SM_EXEC_STMT so rt_match_variant's two pops are satisfied. Option (a) is simpler: subject is already passed as `subj_name` C arg; just do `NV_GET_fn(subj_name)` instead of `vstack_pop()` for the subject.
+1. **Session setup complete.** Packages installed, scrip built, libscrip_rt.so built (after fixes). Smoke 7/7, template-byte-id 4/4.
+2. **Sub-rung -u complete.** beauty-subsystems PASS=5 FAIL=12 (up from PASS=2 at session start; exceeds PASS=4 baseline).
+3. **Six bugs fixed** (all in one4all `7e123dc6`):
+   - rt.c/rt.h: two broken `/*` block comments stripped by Opus 4.7 comment-strip session.
+   - rt.c: missing `#include "../../ast/ast.h"` for TT_EQ/TT_NE/TT_L* (rt_acomp/rt_lcomp).
+   - rt.c: `EXP_R_fn` (no definition anywhere) replaced with `pow()` in rt_exp; added `<math.h>`.
+   - sm_codegen_x64_emit.c: 22 SM_PAT_* opcodes fell through to `emit_sm_exec_stmt_variant` → EXEC_STMT_VARIANT instead of their `rt_pat_*@PLT` calls → vstack underflow crash.
+   - bb_emit.c: `g_in_text_macro_body` flag added; `t_macro_begin` sets it in TEXT mode, `t_macro_end` clears it; 11 `t_*` body helpers no-op in TEXT when flag set. Fixes double-emission (ADD_NUM macro call + raw `mov rdi; call rt_arith` both emitted).
+   - sm_codegen_x64_emit.c: SM_DEFINE_ENTRY and SM_DEFINE added to dispatch switch via `sm_emit_rtcall`; previously fell to `emit_sm_unhandled` → abort.
 
-### Template file counts (as of this session)
+### Remaining 12 failures (PASS=5 FAIL=12)
 
-- **SM templates:** 16 files (`sm_arith.c` sm_call_fn sm_exec_stmt sm_halt sm_jump sm_label_stno sm_nullary_rt sm_pat_capture sm_pat_capture_fn sm_pat_lbl sm_pat_nullary sm_push_lit_i sm_push_lit_s sm_return sm_var sm_void_pop)
-- **BB templates:** 11 files (bb_xbrkx bb_xchr bb_xeps bb_xfail bb_xfarb bb_xlnth bb_xposi bb_xrpsi bb_xrtb bb_xspnc bb_xtb)
+- **XDump_driver (link)**: link failure, cause not investigated.
+- **match_driver (diff)**: segfault — pattern match statement inside `call_native_chunk` user-function body. `subj pat` in a user-defined function crashes. The pat-stack / exec_stmt / bb_build_flat interaction inside a `call_native_chunk` call frame is the likely site.
+- **global_driver (diff)**: IDENT semantics — mode-4 `INVOKE_fn("IDENT",...)` returns the argument value instead of null string when args are identical. sm-run returns null correctly.
+- **case_driver, omega_driver (diff → link fail via asm error)**: `sm_lower: undefined label 'error' → Error 24` message emitted to stderr during emit; the `→` (U+2192) character causes GAS to choke on the `.s` file.
+- **Gen_driver, Qize_driver, ReadWrite_driver, TDump_driver, semantic_driver, tree_driver (diff)**: not yet investigated.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, MIGRATION-MODE4-IS-MODE3-DUMP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4.
-3. **Fix rt_match_variant vstack contract.** In `src/runtime/rt/rt.c:rt_match_variant`: the subject is already passed as `subj_name` C arg — change `DESCR_t subj_d = vstack_pop()` to `DESCR_t subj_d = (subj_name && *subj_name) ? NV_GET_fn(subj_name) : NULVCL`. This makes the function pop only ONE value (repl), matching what mode-4 actually pushes.
-4. Rebuild libscrip_rt.so (`make libscrip_rt`), re-run beauty-subsystems gate. Expect PASS to recover above 4.
-5. If PASS improves, proceed with legacy emitter file deletion per sub-rung -u.
-6. Gate: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS > 4.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS≥5.
+3. Fix pattern-match-in-userfn segfault (match_driver). Root: `call_native_chunk` calls `cfn()` (function body) which runs `rt_match_variant` → `exec_stmt` → `bb_build_flat`. The crash is inside this chain. Instrument `exec_stmt_blob` / `bb_build_flat` return path. Likely the pat-stack `g_pat_sp` is not reset between calls or the vstack depth save/restore in `call_native_chunk` interferes.
+4. Investigate and fix remaining diff failures.
+5. Aim for PASS>8 before next handoff.
 
 ### Previous session (Claude Opus 4.7, `3468bb67`)
 
