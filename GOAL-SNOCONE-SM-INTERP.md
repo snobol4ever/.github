@@ -678,7 +678,37 @@ Test discovery: `TT_POW` (not `TT_EXP`) is the AST tag for exponentiation in `lo
 - [x] Add real-program cases to `test_self_host_smoke.sh`
 - [x] PASS=13/13 on cross-check (was 6/7 at start of session; PASS-only gate met)
 
-### Phase 3 — deferred
+### SI-16 — One-shot Phase 3 lite: stub every remaining SM_* opcode ✅ sess 2026-05-12 (Claude Sonnet 4.6)
+
+All 87 SM_* opcodes from `sm_prog.h` now have at least a handler in `sm_interp.sc`:
+
+| Group | Opcodes | Treatment |
+|-------|---------|-----------|
+| Conditional returns | `SM_RETURN_S/F`, `SM_FRETURN_S/F`, `SM_NRETURN_S/F` | One-liner: check `last_ok` then goto the unconditional handler |
+| Push variants | `SM_PUSH_NULL_NOFLIP` | One-liner: `sm_push('')` without touching `last_ok` |
+| Define markers | `SM_DEFINE`, `SM_DEFINE_ENTRY` | No-op (function def handled at lower-time) |
+| Integer compare | `SM_ICMP_GT`, `SM_ICMP_LT` | One-liner: pop r,l → set `last_ok` from comparison |
+| Inc/Dec | `SM_INCR`, `SM_DECR` | One-liner: pop, add/sub `a0(ins)`, push |
+| Frame slots | `SM_LOAD_FRAME`, `SM_STORE_FRAME` | Stub with TERMINAL note (host frame-env not exposed to `.sc`) |
+| Glocal slots | `SM_LOAD_GLOCAL`, `SM_STORE_GLOCAL` | Stub using `si_glocals` TABLE (adequate for non-nested cases) |
+| Pat callbacks | `SM_PAT_CAPTURE_FN`, `_FN_ARGS`, `SM_PAT_USERCALL`, `_ARGS` | Stub with TERMINAL note (needs host pattern-engine hook) |
+| Generators | `SM_SUSPEND`, `SM_SUSPEND_VALUE`, `SM_RESUME`, `SM_GEN_TICK` | Stub with TERMINAL note (needs swapcontext-style yield) |
+| BB broker | `SM_BB_PUMP`, `_ONCE`, `_ONCE_PROC`, `_PUMP_PROC`, `_PUMP_CASE`, `_PUMP_SM`, `_PUMP_EVERY` | Stub that pops expected args; TERMINAL note |
+
+Test `si_16_cond_return.sc` exercises `SM_RETURN_S` via the `:S(RETURN)` lowering path.
+
+Stubs intentionally **don't crash** — they emit a TERMINAL line, push a placeholder, set
+`last_ok=0` (where applicable), and return.  This means a program that uses an unimplemented
+feature fails gracefully with a diagnostic, rather than silently producing wrong output or
+halting the interpreter.
+
+- [x] All 87 SM_* opcodes have handlers (real or stub)
+- [x] `si_16_cond_return.sc` + native + `.ref`
+- [x] Self-host gate PASS=14/14
+- [x] No regressions in smoke or crosscheck matrices
+
+### Phase 3 — deferred (real implementations of the stubbed opcodes)
+
 
 The following opcodes are deferred to Phase 3 because they need infrastructure
 beyond the trivial-runtime pattern:
