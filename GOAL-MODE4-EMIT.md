@@ -687,13 +687,13 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-5 — `bb_flat.c` `flat_emit_*` helpers folded into templates.**  Each `flat_emit_<x>` either calls `emit_bb_<x>(e, ...)` from `bb_templates.c` or is deleted entirely if the template already covers the call surface.  After this, `bb_flat.c` becomes a thin walker that dispatches each PATND node to the right template. (Sonnet 4.6, one4all `fd1a1ce4`) Promoted 14 static flat_* helpers to extern (decls in bb_flat.h). Added flat_text_simple_box() helper in bb_templates.c. Updated emit_bb_xfnce/xstar/xatp/xdsar with TEXT-mode static-data paths. Rewrote flat_emit_node as thin dispatcher calling emit_bb_* directly. Deleted 13 trivial wrappers and 290 lines of orphaned inline is_text code. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=3 (baseline).
 
-  - [ ] **EDP-6 — Activate `EM-BB-PURGE-1` above.**  Add `EMIT_BINARY_BROKERED` to `bb_emit_mode_t`. Implement port-call preamble for brokered mode.
+  - [x] **EDP-6 — Activate `EM-BB-PURGE-1` above.**  Add `t_brokered_prologue` + `t_brokered_epilogue_ret` to `bb_emit.h/c`. C-ABI wrapper helpers for brokered per-box blobs. (Sonnet 4.6, one4all `13b23e43`)
 
-  - [ ] **EDP-7 — Activate `EM-BB-PURGE-2` above.**  Add `bb_build_brokered(pp)`. Wire `BB_MODE_DRIVER` to use it.
+  - [x] **EDP-7 — Activate `EM-BB-PURGE-2` above.**  Add `bb_build_brokered(pp)` in `bb_flat.c`: C-ABI frame (push rbp/pop rbp) around flat BB body. `BB_MODE_BROKERED` added to `bb_mode_t`. `BB_MODE_DRIVER` + `BB_MODE_BROKERED` both route through `bb_build_brokered`. `BB_INSN_POP_RBP` + `emit_pop_rbp()` added to emitter. (Sonnet 4.6, one4all `f5cfc468`)
 
-  - [ ] **EDP-8 — Activate `EM-BB-PURGE-3` above.**  Delete `bb_build()` from `stmt_exec.c`.
+  - [x] **EDP-8 — Activate `EM-BB-PURGE-3` above.**  Delete `bb_build()` (~420 lines) from `stmt_exec.c`. All call sites updated: `!bin_done` fallback → eps binary blob; `bb_deferred_var` child rebuild → `bb_build_brokered` + eps; test helpers updated. (Sonnet 4.6, one4all `3936eb2f`)
 
-  - [ ] **EDP-9 — Activate `EM-BB-PURGE-4` above.**  Delete all 26 C-function BB boxes from `bb_boxes.c`.
+  - [x] **EDP-9 — Activate `EM-BB-PURGE-4` above.**  Deleted all 26 `DESCR_t bb_*` C box bodies (~439 lines) from `bb_boxes.c`. All call sites use `bb_build_brokered` / `bb_lit_emit_binary` / `bb_eps_emit_binary`. `bb_build.c` removed from Makefile (dead after C boxes deleted); `bb_lit_emit_binary` + `bb_eps_emit_binary` + static helpers moved to `bb_flat.c`. rt.c `rt_init` now sets `BB_MODE_BROKERED`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, **beauty-subsystems PASS=11 FAIL=6 (+8 vs prior baseline of 3)**. (Sonnet 4.6, one4all `21b7518a`)
 
   - [ ] **EDP-10 — Activate `EM-BB-PURGE-5` above.**  Delete heap ζ struct typedefs and `bb_<kind>_new()` constructors.
 
@@ -741,6 +741,36 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
+
+**EDP-6 through EDP-9 closed.** one4all HEAD `21b7518a`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11 FAIL=6 (+8 vs EDP-5 baseline of 3).
+
+### Work done
+
+**EDP-6:** `t_brokered_prologue` + `t_brokered_epilogue_ret` added to `bb_emit.h/c`. Architectural insight (from Lon): brokered blobs are identical flat BB bodies wrapped in C-ABI frame (`push rbp/pop rbp`); no separate preamble variant needed.
+
+**EDP-7:** `bb_build_brokered(PATND_t *p)` in `bb_flat.c` — emits prologue + flat BB body with `brokered=1` flag causing γ/ω exits to emit `pop rbp` before `ret`. `BB_MODE_BROKERED` added to `bb_mode_t`. `BB_INSN_POP_RBP` + `emit_pop_rbp()` added to emitter chain. Both `BB_MODE_DRIVER` and `BB_MODE_BROKERED` route through `bb_build_brokered`.
+
+**EDP-8:** `bb_build()` deleted (~420 lines) from `stmt_exec.c`. All call sites updated to `bb_build_brokered` / eps binary blob. `bb_deferred_var` child rebuild uses `bb_build_brokered` + eps fallback.
+
+**EDP-9:** All 26 `DESCR_t bb_*` C box bodies deleted from `bb_boxes.c`. `bb_build.c` removed from Makefile (dead). `bb_lit_emit_binary` + `bb_eps_emit_binary` + static byte-emit helpers moved to `bb_flat.c`. `rt_init` sets `BB_MODE_BROKERED`. All call sites (`bb_templates.c`, `bb_flat.c`, `stmt_exec.c`) updated to use string-based discriminators and 0 for `fn_fallback`. Beauty-subsystems improved 3→11 because the brokered blob path now handles patterns that previously fell through to C boxes.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11.
+3. **EDP-10 — Delete heap ζ struct typedefs and `bb_<kind>_new()` constructors.** From `bb_box.h` (`lit_t span_t arb_t` etc.) and `bb_boxes.c`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
+4. **EDP-11 — Remove `-Wl,--allow-multiple-definition`.** If link errors surface they are residual doppelgangers to delete. After clean link, EM-DOPPELGANGER-PURGE closes.
+5. Note: `bb_build.c` still exists on disk (not in Makefile). If EDP-10/11 gates pass cleanly, `git rm bb_build.c` at that point.
+
+### Lessons recorded
+
+- Brokered blobs are flat BB bodies + C-ABI frame. No separate preamble variant. `t_brokered_prologue` / `t_brokered_epilogue_ret` are the complete interface.
+- `bb_build.c` had the only `bb_lit_emit_binary` + `bb_eps_emit_binary` implementations; these must survive alongside their static byte-emit helpers. Move to `bb_flat.c` as the natural home.
+- beauty-subsystems PASS=11 is the new baseline (not 3). The +8 gain comes from the brokered blob path replacing C boxes for all patterns that were previously served by `bb_build_binary`.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-12o (Claude Sonnet 4.6)**
 
