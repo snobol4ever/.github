@@ -636,19 +636,21 @@ Notes for the future SI rung that lands real user-function bodies (depends on
 - [x] `si_13_proc.sc` + native + `.ref`
 - [x] SI-5 cross-check PASS (PASS=8/9; si_07_pat_lit pre-existing FAIL)
 
-### SI-14 — Computed goto (JUMP_INDIR)
+### SI-14 — Computed goto (JUMP_INDIR) ✅ sess 2026-05-12 (Claude Sonnet 4.6)
 
-Opcode: `SM_JUMP_INDIR` — pops a label name from stack, looks up in
-label table, jumps.  Needed for SPITBOL `:($X)` form.
+Opcode: `SM_JUMP_INDIR` — pops label name from TOS, looks up in `g_labtab[name]`,
+sets `pc` to the resulting instruction index.  Implementation is a one-liner —
+`nm = sm_pop(); pc = g_labtab[nm];` — because `lower.sc` already populates
+`g_labtab[name] = pc-of-SM_LABEL` during normal lowering.
 
-Strategy: `lower.sc` already builds `g_labtab[name] = pc` for every
-`SM_LABEL`.  Arm: `nm = si_pop(); si_pc = g_labtab[nm];`.
+Test `si_14_computed_goto.sc` hand-builds `L = 'TARGET'; :($L); ...; TARGET: ...`
+via SL_GOU-as-expression (which `lower.sc` lowers to `lower_expr(goto_u_expr)` +
+`SM_JUMP_INDIR`).  Cross-checked against a native counterpart that uses plain
+`goto target` for the same observable jump.
 
-Test program: `LBL = 'TARGET'; :($LBL) ... TARGET OUTPUT = 'hit'`.
-
-- [ ] Add JUMP_INDIR opcode
-- [ ] `si_14_computed_goto.sc` + native + `.ref`
-- [x] SI-5 cross-check PASS
+- [x] Add JUMP_INDIR opcode
+- [x] `si_14_computed_goto.sc` + native + `.ref`
+- [x] SI-5 cross-check PASS (PASS=9/10; si_07_pat_lit pre-existing FAIL)
 
 ### SI-15 — Phase 2 closing gate: cross-check on real corpus programs
 
