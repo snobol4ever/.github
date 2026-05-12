@@ -476,7 +476,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - **Flat/live (`--bb-live`):** Broker `CALL`s the blob **once at α** (`esi=0`). The entire pattern tree is one contiguous blob. Internal backtracking is **direct `jmp`** to β labels within the blob — no C calls between boxes, no C stack for inter-box transitions. Blob preamble: `movabs r10, &Δ` (BINARY) / `lea r10,[rip+Δ]` (TEXT). `rdi`=ζ is ignored (`ζ=NULL` from broker). β is reached by internal `jmp`, never by a second broker `CALL`. Jump in, jump out.
 
-  Template functions must generate two different blob shapes — `EMIT_BINARY_BROKERED` (C ABI, per-box, heap ζ via rdi) vs `EMIT_BINARY_FLAT` (r10/jmp-threaded, contiguous, no heap ζ). The existing `EMIT_BINARY` is already `EMIT_BINARY_FLAT`.
+  Template functions must generate two different blob shapes — `EMIT_BINARY_BROKERED` (C ABI, per-box, heap ζ via rdi) vs `EMIT_BINARY_FLAT` (r10/jmp-threaded, contiguous, no heap ζ). The existing `EMIT_BINARY_WIRED` is the flat/live path (already implemented).
 
   **What is deleted after both shapes implemented:** every `DESCR_t bb_<kind>(void *ζ, int entry)` C function and heap ζ struct typedefs — replaced by template-generated blobs.
 

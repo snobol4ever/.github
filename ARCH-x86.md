@@ -36,7 +36,7 @@ Boxes emit in two forms depending on how they will be called.  The forms
 share the CODE-shared / DATA-per-invocation invariant but differ in their
 entry-point ABI:
 
-**Flat BBs (the common case, `bb_flat.c` EMIT_BINARY).**  A glob of
+**Flat BBs (the common case, `bb_flat.c` EMIT_BINARY_WIRED).**  A glob of
 invariant boxes is emitted as one contiguous run of straight-line x86 in a
 single `bb_pool` slot.  Inter-box transitions are `jmp`s within the same
 slot — no `call`, no `ret`, no port-discriminator argument.  α-entry to the
@@ -230,24 +230,36 @@ proc, with internal port wiring expressed as `jmp`. C function → NASM
 proc; C label → NASM local label (`.name`); goto → `jmp`; return →
 `ret` (or `jmp` to caller's γ/ω); α/β entry → `cmp esi, 0; je .alpha`.
 
-## Dual-mode emitter (TEXT / BINARY)
+## Four-mode emitter (TEXT / BINARY_WIRED / BINARY_BROKERED / MACRO_DEF)
 
-`bb_emit.c` operates in two modes via a global switch:
+`bb_emit.c` operates in four modes via a global switch:
 
 ```c
-typedef enum { EMIT_TEXT, EMIT_BINARY } bb_emit_mode_t;
+typedef enum {
+    EMIT_TEXT             = 0,
+    EMIT_BINARY_WIRED     = 1,   /* flat/live: one blob, jmp-threaded, r10=&Δ */
+    EMIT_BINARY_BROKERED  = 2,   /* brokered: per-box blob, C ABI, rdi=ζ      */
+    EMIT_MACRO_DEF        = 3    /* sm_macros.s .macro body regen             */
+} bb_emit_mode_t;
 extern bb_emit_mode_t bb_emit_mode;
 ```
 
-- **EMIT_TEXT**: writes NASM `.s` text → file → NASM → ELF → link.
-- **EMIT_BINARY**: writes raw x86-64 bytes into the current `bb_pool`
-  buffer.  Labels are buffer offsets.  Forward refs tracked in a patch
-  list, resolved when the label is defined.
+- **EMIT_TEXT**: writes GAS `.s` text → file → GAS → ELF → link.
+- **EMIT_BINARY_WIRED** (flat/live mode): writes raw x86-64 bytes into one
+  contiguous `bb_pool` buffer for the entire pattern tree. Boxes `jmp` directly
+  to each other's α/β/γ/ω labels within the blob. Broker calls the blob **once**
+  at α entry (`esi=0`); backtracking is internal `jmp`. Preamble loads
+  `r10=&Δ` (RIP-relative); `rdi=ζ` is ignored (`ζ=NULL`). Jump in, jump out.
+- **EMIT_BINARY_BROKERED** (brokered mode): writes raw x86-64 bytes into
+  `bb_pool`, one blob per box. Each blob has a full C ABI entry: `rdi=ζ` heap
+  struct (local state), `esi=port` (`cmp esi,0; je α; jmp β`), `ret` to
+  return to broker. Broker calls `fn(ζ,0)` for α and `fn(ζ,1)` for β as
+  separate C calls. (EM-BB-PURGE-1: replaces the pre-compiled C box functions
+  in `bb_boxes.c` with template-generated blobs.)
+- **EMIT_MACRO_DEF**: emits `.macro NAME ... .endm` body for `sm_macros.s` regen.
 
-Same C function generates both.  Same call sites.  The switch is
-global state.  Any behavioral difference between the two modes is a
-bug in the binary branch, detectable immediately by running the same
-corpus tests in both modes.
+Same template C function generates all four modes. Same call sites. The switch
+is global state.
 
 **Cache coherence:** after writing x86 bytes into a buffer and before
 jumping into it, the I-cache must be flushed.  We use the `mprotect`
