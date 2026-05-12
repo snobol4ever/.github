@@ -111,16 +111,17 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 - [x] Files: `src/runtime/x86/sm_interp.c`, `src/runtime/x86/lower.c`
 
 #### PB-2 — TT_CUT (!)
-- [ ] Add `SM_CALL_FN "PL_CUT" 0` handler in `sm_interp.c` — calls `pl_cut()` from `pl_runtime.c`. Mirrors `pl_box_cut`.
-- [ ] In `lower.c`: `TT_CUT` → `SM_CALL_FN "PL_CUT" 0`.
-- [ ] Gate: standard + ≥1 honest flip.
-- [ ] Files: `sm_interp.c`, `lower.c`
+- [x] Add `SM_CALL_FN "PL_CUT" 0` handler in `sm_interp.c` — pops DT_E (ignored), sets `g_pl_cut_flag=1`, succeeds.
+- [x] In `lower.c`: `TT_CUT` → `emit_push_expr(t)` + `SM_CALL_FN "PL_CUT" 0`.
+- [x] Gate: no regression. Honest dial unchanged (TT_CLAUSE still blocked).
+- [x] Files: `sm_interp.c`, `lower.c`
 
 #### PB-3 — TT_TRAIL_MARK / TT_TRAIL_UNWIND
-- [ ] Add `SM_CALL_FN "PL_TRAIL_MARK" 0` and `SM_CALL_FN "PL_TRAIL_UNWIND" 0` handlers.
-- [ ] In `lower.c`: wire `TT_TRAIL_MARK` → `PL_TRAIL_MARK`, `TT_TRAIL_UNWIND` → `PL_TRAIL_UNWIND`.
-- [ ] Gate: standard + ≥1 honest flip.
-- [ ] Files: `sm_interp.c`, `lower.c`
+- [x] Add `SM_CALL_FN "PL_TRAIL_MARK" 0` and `SM_CALL_FN "PL_TRAIL_UNWIND" 0` handlers in `sm_interp.c`.
+- [x] In `lower.c`: wire `TT_TRAIL_MARK` → `PL_TRAIL_MARK`, `TT_TRAIL_UNWIND` → `PL_TRAIL_UNWIND`.
+- [x] NOTE: `prolog_lower.c` does not yet emit TT_TRAIL_MARK/UNWIND nodes. They are planned sentinels; trail management is currently inside `pl_box_choice`/`pl_box_clause` in the broker. Wiring is correct prep; nodes activate when PB-4 emits them.
+- [x] Gate: no regression.
+- [x] Files: `sm_interp.c`, `lower.c`
 
 #### PB-4 — TT_CLAUSE (clause body inline)
 - [ ] Understand `TT_CLAUSE` layout from `prolog_lower.c`: child[0]=head-args (TT_UNIFY sequence), child[1..n]=body goals.
@@ -160,11 +161,15 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 17/294 at sess 2026-05-12, one4all f63a07cd)
+## Active next targets (honest dial: 17/294 at sess 2026-05-12, one4all e765733c)
 
-Immediate: **PB-2** — TT_CUT (`g_pl_cut_flag` set).
-Then: **PB-3** — TT_TRAIL_MARK / TT_TRAIL_UNWIND.
-Then: **PB-4** — TT_CLAUSE inline (needs PB-3 first; this is the key unlock for most programs).
+**PB-4 BLOCKED** on caller-args availability in SM path. TT_CLAUSE head unification
+requires the caller's Term** args (stored in pl_choice_t in the broker), which are not
+yet threaded through SM dispatch. Same gap as CH-17g-irrun-execution (Icon).
+
+Workaround under consideration: add `g_pl_caller_args` global set by `SM_BB_ONCE_PROC`
+before invoking clause bodies — enabling TT_CLAUSE inline lowering without full CH-17g.
+Lon to decide direction before PB-4 starts.
 
 ---
 
@@ -185,6 +190,8 @@ Then: **PB-4** — TT_CLAUSE inline (needs PB-3 first; this is the key unlock fo
 | (carve baseline) | — | 17 honest | TT_CHOICE named → SM_BB_ONCE_PROC already migrated. --ir-run oracle gives 17 (not 31; .expected-based estimate inflated by programs --ir-run can't run) |
 | PB-0 | f63a07cd | 17 | test_prolog_bb_honest.sh added |
 | PB-1 | f63a07cd | 17 | TT_UNIFY → PL_UNIFY SM_CALL_FN. No honest gain yet (needs TT_CLAUSE+TT_TRAIL to unlock) |
+| PB-2 | e765733c | 17 | TT_CUT → PL_CUT SM_CALL_FN. Infra ready. |
+| PB-3 | e765733c | 17 | TT_TRAIL_MARK/UNWIND → PL_TRAIL_* SM_CALL_FN. Infra ready. prolog_lower.c doesn't emit these nodes yet. |
 
 ---
 
