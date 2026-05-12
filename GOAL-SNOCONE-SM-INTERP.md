@@ -568,23 +568,31 @@ PASS=27/30 (3 pl_* fails pre-existing, unchanged); `smoke_snobol4` 7/7,
 (identical pre/post-fix).
 
 
-### SI-12 — Function calls (CALL_FN)
+### SI-12 — Function calls (CALL_FN) ✅ sess 2026-05-12 (Claude Sonnet 4.6)
 
 Opcode: `SM_CALL_FN` — `si=Index s="name" nargs=N`.
 
-Implementation: pop nargs args, look up function by name (a0=name string),
-invoke via host `APPLY()` builtin which takes a function name + arg list,
-push result.  `APPLY` is the SPITBOL/host runtime's indirect-call mechanism;
-no new infrastructure needed.
+Implementation: pop nargs args into `si_args[1..N]` (left-to-right), look up function
+by name (a0=name string), invoke via host `APPLY(nm, arg1, ..., argN)`.  Arity dispatch
+0..5 via a nested `switch (b)` — covers all standard SPITBOL/SNOBOL4 builtins.
+Pseudo-calls (INDIR_GET, ASGN, IDX, etc.) stub to `''` with a TERMINAL note (Ph3).
 
-Built-in functions accessible this way once the opcode lands: SIZE, SUBSTR,
-REPLACE, REVERSE, TRIM, LPAD, RPAD, DUPL, IDENT, DIFFER, DATATYPE, CONVERT,
-EVAL, TABLE, ARRAY, DATA, DEFINE, ... — anything the host runtime exposes.
+**Structural improvement — switch dispatch (sess 2026-05-12).**  On Lon's direction,
+the entire `sm_interp_step` body was converted from an `if (IDENT(opc, '...'))` chain
+to a single `switch (opc)` — Snocone's `switch` compiles to an O(1) indirect-goto
+dispatch table, mirroring the `$('pp_' t)` label-dispatch pattern in `beauty.sno`.
+Multi-line cases (EXEC_STMT, ACOMP, LCOMP, PAT_CAPTURE, CALL_FN) use `goto block_label`
+within the function body. All `X + 0` numeric coercions replaced with `+X`.
 
-Test program: `OUTPUT = SIZE('hello')` → `5`.
+Test program: `OUTPUT = SIZE('hello')` → `5`;
+`OUTPUT = SUBSTR('hello', 2, 3)` → `ell`;
+`OUTPUT = TRIM('  hi  ')` → `  hi`.
 
-- [ ] Add CALL_FN opcode (APPLY-based dispatch)
-- [ ] `si_12_call_builtin.sc` + native + `.ref`
+Gates: `test_self_host_smoke.sh` PASS=7/8 (si_07_pat_lit FAIL pre-existing, unchanged);
+all prior rungs byte-identical hosted == native.
+
+- [x] Add CALL_FN opcode (APPLY-based dispatch)
+- [x] `si_12_call_builtin.sc` + native + `.ref`
 - [x] SI-5 cross-check PASS
 
 ### SI-13 — Function returns (RETURN, FRETURN, NRETURN)
