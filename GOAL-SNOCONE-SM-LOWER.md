@@ -553,9 +553,16 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
   sess 2026-05-12 (Claude Sonnet 4.6). corpus `pending`.
 - [x] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()` — done.
   sess 2026-05-12 (Claude Sonnet 4.6). corpus `pending`.
+- [ ] **SL-13a — Fix qize.sc Append-through-function-parameter hang** (prereq for steps 3-4)
+  When qize.sc is loaded, `Append()` called through a function parameter breaks
+  (infinite loop / hang). Root cause noted in SL-2: the `while (LT(CQize_ci, 32))`
+  loop at top of qize.sc building `CQize_ctrl32` corrupts Append for later callers.
+  Fix options: (a) replace that loop with a fixed literal string, (b) move qize.sc
+  load after all runtime files that use Append, (c) file as scrip interpreter bug
+  and patch the interpreter. Pick the cheapest option that lets run_scrip_parser.sh
+  include qize.sc without hanging.
+  Gate: `bash one4all/scripts/run_scrip_parser.sh snobol4` with trivial input
+  produces SM output with no hang and no Error 5.
 - [ ] Wire parser → lower → sm_dump end-to-end on trivial .sno input
-  **Blocker:** qize.sc hang (pre-existing Append-through-function-parameter bug, SL-2).
-  Without qize.sc: 3 Error 5 "SQize undefined" at load (non-fatal for non-label inputs).
-  SM pipeline runs: `SM_HALT` produced. Full lowering blocked until qize bug fixed.
   Script: `bash one4all/scripts/run_scrip_parser.sh snobol4 file.sno`
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
