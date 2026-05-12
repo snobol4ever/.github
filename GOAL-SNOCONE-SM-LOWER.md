@@ -129,9 +129,18 @@ correctly (verified by `OUTPUT =` statements).
 
 ### SL-2 — emit_goto in Snocone
 
-**Session handoff note (2026-05-11):** lower.c audited + 7 fixes committed (one4all `4ca192a3`).
-SPITBOL manual read in full — complete semantic map in session context. Next session
-translates emit_goto first, then SL-3..SL-9 in sequence.
+**Session handoff note (2026-05-11, updated):** lower.c underwent a full readability/refactor pass across three sessions (one4all `aac9cb32`). Net −65 lines. Changes:
+- Duplicate T0/T1/T2 macros removed; CALL1/CALL2 eliminated; lower_cset merged into lower_strlit
+- All 32 `SM_Program *p = g_p` aliases eliminated; LOWER2/LOWER1_VAL macros updated to use g_p directly
+- `extern int g_lang` moved to file scope; session-artifact (SI-3) comments stripped
+- `emit_case_chunk` deleted — folded into `emit_thunk`; lower_fnc EVAL path uses emit_thunk + opcode patch
+- `lower_acomp`/`lower_lcomp` collapsed into `lower_comp(t, op)`
+- `emit_prolog_call(sval)` extracts strrchr/arity pattern shared by lower_choice + lower_stmt
+- `emit_pat_nary(t, op)` extracts double-loop pattern in lower_pat_expr + lower_cat_seq
+- `emit_lhs_store(lhs)` unifies all lhs-dispatch from lower_assign and lower_stmt has_eq block
+- `emit_proc_stub(name)` extracts JUMP/label/RETURN/patch stub from Prolog skeleton loop
+lower.c is now in good shape to serve as the readable reference for sm_lower.sc translation.
+Next session translates emit_goto (SL-2) first, then SL-3..SL-9 in sequence.
 Key translation decisions for the whole file:
 - File-scope C globals (g_p, g_labtab, g_in_proc_body, g_proc_scope) → Snocone module-level vars
 - SM_Program* operations → stubbed as integer index counter in Phase 1
