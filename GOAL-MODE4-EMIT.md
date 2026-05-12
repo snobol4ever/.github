@@ -337,6 +337,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -o SM: SM_LABEL + SM_STNO structural markers. `t_noop_macro(name)` + `t_banner_stno(stno,lineno,src)` added to bb_emit. `sm_label_stno.c`: emit_sm_label (BINARY=no-op; TEXT=LABEL col2) + emit_sm_stno (banner+STNO col2). Old statics renamed *_dispatch. (Sonnet 4.6, one4all `36ca8ea0`)
   - [x] -p SM: `templates/sm_call_fn.c`. New t_helpers: `t_lea_rdi_strtab_sym` + `t_mov_esi_imm32`. Template is MACRO_DEF source of truth for CALL_FN macro body (lea rdi,[rip+\lbl]; mov esi,\n; call rt_call@PLT). TEXT dispatch uses sm_emit_lbl_int32 (proven path), emits `CALL_FN .SN, nargs # fname`. (Sonnet 4.6, one4all `3911a0df`)
   - [x] -q SM: `templates/sm_return.c`. RETURN (ret) + RETURN_VARIANT (mov edi,kind; mov esi,cond; call rt_do_return@PLT; test/jz/ret/label). New t_helpers: `t_mov_edi_imm32`, `t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`. Existing static emit_sm_return/_variant renamed *_dispatch. (Sonnet 4.6, one4all `6aeb2d67`)
+  - [x] -r SM: SM_PAT_* all opcodes. Four template files: `sm_pat_nullary.c` (22 nullary ops), `sm_pat_lbl.c` (LIT/REFNAME/USERCALL), `sm_pat_capture.c` (CAPTURE/USERCALL_ARGS), `sm_pat_capture_fn.c` (CAPTURE_FN/CAPTURE_FN_ARGS). New t_helpers: `t_lea_rdx_strtab_sym`, `t_mov_edx_imm32`. Conflicting statics in sm_codegen_x64_emit.c renamed *_dispatch. (Sonnet 4.6, one4all `d8fec035`)
 
 - [ ] **EM-TEMPLATE-PURITY** — Remove all `is_text` guards and callback parameters from every BB template. Make every template a pure sequence of `t_*` calls with no branching.
 
@@ -366,15 +367,9 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [ ] **EM-TEMPLATE-PURITY-4 — Delete dead infrastructure.** All `bb_*_text_fn` typedefs from `bb_flat.h`. All `*_text_body` callbacks from `bb_flat.c`. All callback parameters from template signatures.
 
   - [ ] **EM-TEMPLATE-PURITY-5 — Verify.** `grep -r 'is_text\|text_body_fn\|text_body_arg' src/runtime/x86/templates/` returns empty. Gates green. Artifacts byte-identical.
-  - [ ] -m BB: XFARB+XEPS+XFAIL (one rung).
-  - [ ] -n..p Further SM/BB alternation (SM_LABEL/SM_STNO, SM_CALL_FN, SM_RETURN family, remaining BB boxes, SM_PAT_*).
-  - [ ] -q SM_LABEL / SM_STNO structural markers.
-  - [ ] -r SM_CALL_FN (big; uses lea_rip_sym, expression-registry).
-  - [ ] -s SM_RETURN / SM_NRETURN / SM_FRETURN family incl. conditional variants. ABI alignment fixed here for both mode-3 and mode-4.
-  - [ ] -t Remaining BB boxes: XFNCE, XDSAR, XATP, XCALLCAP, XCAT, XOR, XSTAR, XFARB, XPOSI, XRPSI, XNME, XFNME, XARBN, XFAIL.
-  - [ ] -u Pattern SM opcodes (SM_PAT_*).
-  - [ ] -v `sm_macros.s` + `bb_macros.s` become generated artifacts.
-  - [ ] -w Rung close: beauty-subsystems gate improves from PASS=4 baseline; delete legacy emitter files.
+  - [ ] -s Remaining BB boxes: fix all six BB templates (bb_xchr, bb_xspnc, bb_xlnth, bb_xbrkx, bb_xposi, bb_xfarb) to use `t_*` helpers only. No `is_text`, no callbacks, no `e->...` calls. Add `t_bb_port_alpha`/`t_bb_port_beta` helpers to bb_emit.h as needed.
+  - [ ] -t `sm_macros.s` + `bb_macros.s` become generated artifacts.
+  - [ ] -u Rung close: beauty-subsystems gate improves from PASS=4 baseline; delete legacy emitter files.
 
 - [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` beauty programs. Gate: `scripts/test_gate_em_beauty_subsystems_mode4.sh`. Pass criterion: mode-4 vs mode-3 byte-identical (not `.ref`-correct). **Baseline: PASS=4 FAIL=13. BLOCKED on EM-MODE4-IS-MODE3-DUMP.**
 
@@ -403,15 +398,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, sixth instance)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `36ca8ea0` on remote.** Three commits this session:
+**one4all `d8fec035` on remote.**
 
-- `7af48670` (upstream rebase) — prior session
-- `92925bcf` — EM-MODE4-IS-MODE3-DUMP-n: SM_CONCAT/PUSH_NULL/COERCE_NUM
-- `36ca8ea0` — EM-MODE4-IS-MODE3-DUMP-o: SM_LABEL/SM_STNO
-
-### SM templates ported so far
+### SM templates complete (all SM opcodes covered)
 
 | Template file | Ops covered | Key helpers |
 |---------------|-------------|-------------|
@@ -422,34 +413,35 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 | `sm_arith.c` | SM_ADD..SM_MOD | t_mov_rdi_imm64, t_call_sym_plt |
 | `sm_nullary_rt.c` | SM_CONCAT/PUSH_NULL/COERCE_NUM | t_call_sym_plt |
 | `sm_label_stno.c` | SM_LABEL/SM_STNO | t_noop_macro, t_banner_stno |
-| `sm_call_fn.c` | SM_CALL_FN (MACRO_DEF only) | t_lea_rdi_strtab_sym, t_mov_esi_imm32, t_call_sym_plt |
-| `sm_return.c` | SM_RETURN / SM_RETURN_VARIANT (MACRO_DEF only) | t_mov_edi_imm32, t_mov_esi_imm32, t_test_eax_eax, t_jz_retskip, t_retskip_label, t_ret |
+| `sm_call_fn.c` | SM_CALL_FN (MACRO_DEF only) | t_lea_rdi_strtab_sym, t_mov_esi_imm32 |
+| `sm_return.c` | SM_RETURN/RETURN_VARIANT (MACRO_DEF only) | t_mov_edi_imm32, t_test_eax_eax, t_jz_retskip, t_retskip_label, t_ret |
+| `sm_pat_nullary.c` | SM_PAT_EPS/ARB/REM/FAIL/SUCCEED/ABORT/BAL/FENCE/FENCE1/SPAN/BREAK/ANY/NOTANY/LEN/POS/RPOS/TAB/RTAB/ARBNO/CAT/ALT/DEREF | t_call_sym_plt |
+| `sm_pat_lbl.c` | SM_PAT_LIT/REFNAME/USERCALL | t_lea_rdi_strtab_sym |
+| `sm_pat_capture.c` | SM_PAT_CAPTURE/USERCALL_ARGS | t_lea_rdi_strtab_sym, t_mov_esi_imm32 |
+| `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN/CAPTURE_FN_ARGS | t_lea_rdi_strtab_sym, t_lea_rdx_strtab_sym, t_mov_esi_imm32, t_mov_edx_imm32 |
 
 ### t_* helpers surface (bb_emit.h / bb_emit.c)
 
 `t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
 `t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
 `t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
-`t_lea_rdi_strtab_sym`, `t_mov_esi_imm32`, `t_mov_edi_imm32`,
+`t_lea_rdi_strtab_sym`, `t_lea_rdx_strtab_sym`,
+`t_mov_esi_imm32`, `t_mov_edi_imm32`, `t_mov_edx_imm32`,
 `t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`.
+
+### BB templates — still violating (all six use is_text / callbacks / e->...)
+
+`bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`
+
+All must be rewritten per EM-TEMPLATE-PURITY. Next rung: **-s** (fix all six BB templates).
 
 ### Next session must
 
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md` in full.
-2. Confirm baseline: `test_gate_em_template_byte_identity.sh` = 4/4, smoke 7/7.
-3. Next rung: **EM-MODE4-IS-MODE3-DUMP-r — SM_PAT_* opcodes**.
-   - Study the SM_PAT_* text emitters in `sm_codegen_x64_emit.c` (~line 1700+).
-   - Many are nullary (PAT_ARB, PAT_EPS, etc.) — same pattern as sm_nullary_rt.c.
-   - PAT_LIT / PAT_REFNAME take a strtab label — same pattern as sm_call_fn.c.
-   - PAT_CAPTURE takes lbl + kind integer.
-   - Start with the nullary group; bundle similar shapes into one template file.
-4. After SM_PAT_*: remaining BB boxes (EM-TEMPLATE-PURITY audit).
-
-### SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6, continued)
-
-**one4all `6aeb2d67` on remote.**  Two commits this session:
-- `3911a0df` (rebased to earlier) — EM-MODE4-IS-MODE3-DUMP-p: SM_CALL_FN
-- `6aeb2d67` — EM-MODE4-IS-MODE3-DUMP-q: SM_RETURN / SM_RETURN_VARIANT
-
-Pattern established: TEXT dispatch keeps proven `sm_emit_*` path; template
-body is MACRO_DEF source of truth only. t_* helpers added incrementally.
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md` in full.
+2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
+3. Next rung: **EM-TEMPLATE-PURITY → -s** — fix all six BB templates.
+   - Each currently uses `e->is_text`, `EMIT_OPT`, `EMIT_JMP`, `EMIT_LABEL`, or text callbacks.
+   - Add `t_bb_port_alpha` / `t_bb_port_beta` to `bb_emit.h` as needed.
+   - Rewrite to pure `t_*` calls. No `(void)e` needed — `e` can be dropped from signature once all BB templates are clean.
+   - Verify: `grep -r 'is_text\|EMIT_OPT\|EMIT_JMP\|EMIT_LABEL\|text_body' src/runtime/x86/templates/bb_*.c` returns empty.
+4. After BB templates clean: rung -t (generated artifacts), then -u (rung close).
