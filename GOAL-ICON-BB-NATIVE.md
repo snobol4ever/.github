@@ -1,146 +1,145 @@
 # GOAL-ICON-BB-NATIVE.md — Icon via native Byrd Box templates
 
 **Repo:** one4all + .github
-**Sister docs:** `GOAL-ICON-BB-COMPLETE.md` (superseded), `GOAL-LANG-ICON.md`,
-                 `GOAL-MODE4-EMIT.md`, `ARCH-x86.md`, `ARCH-ICON.md`
+**Sister docs:** `GOAL-ICON-BB-COMPLETE.md` (superseded), `GOAL-MODE4-EMIT.md`,
+                 `ARCH-x86.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`
 **Carved:** 2026-05-12
 
-⛔ **REQUIRED READING before any code:**
-1. `ARCH-x86.md` — full file. Boxes are x86 blobs. CODE is shared machine code.
-   DATA is per-invocation heap. α/β/γ/ω are goto labels inside x86 code.
-   Two emission forms: FLAT (wired, jmp-threaded) and BROKERED (legacy C ABI).
-2. `ARCH-SCRIP.md` — full file. Mode 1/2/3/4 definitions.
-3. `GOAL-MODE4-EMIT.md` §"THE LAW OF TEMPLATE FUNCTIONS" — one C template
-   function per SM opcode and per BB box kind. t_* helpers only. No other path.
+⛔ **REQUIRED READING before any code — no exceptions:**
+1. `ARCH-x86.md` full file — boxes, WIRED vs BROKERED, t_* primitives, zeta.
+2. `ARCH-SCRIP.md` full file — mode 1/2/3/4 definitions.
+3. `GOAL-MODE4-EMIT.md` §"THE LAW OF TEMPLATE FUNCTIONS".
+4. `ARCH-ICON.md` — Icon four-port model, what exists, what is missing.
+5. `.github/test_icon.c` — the canonical three-column alpha/beta/gamma/omega form.
 
 ---
 
-## The insight that killed GOAL-ICON-BB-COMPLETE
+## Why GOAL-ICON-BB-COMPLETE was wrong (one month lost)
 
-GOAL-ICON-BB-COMPLETE was encoding the four-port BB protocol as SM bytecode:
+It encoded the four-port BB protocol as SM bytecode:
 SM_JUMP / SM_RESUME / SM_STORE_GLOCAL / SM_SUSPEND / SM_RETURN.
-This is wrong for two reasons:
-
-1. **BB boxes are x86 assembly blobs**, not SM instructions. The four ports
-   (alpha=start, beta=resume, gamma=succeed, omega=fail) are goto targets inside
-   machine code, exactly as shown in .github/test_icon.c. The SM layer is the
-   CARRIER that calls into the BB engine — not the executor of Icon semantics.
-
-2. **The right architecture** (per ARCH-SCRIP.md RS-20, 2026-05-03):
-   "Icon and Prolog programs may lower thinly into SM — often a single
-   SM_BB_PUMP / SM_BB_ONCE instruction that hands the whole program to the
-   BB engine."
-   SM is thin. BB is the executor. Icon semantics live in BB boxes.
+This is wrong. Boxes are x86 blobs. SM is the thin carrier. BB is the executor.
+See ARCH-SCRIP.md RS-20: "Icon programs may lower thinly into SM — often a
+single SM_BB_PUMP instruction that hands the whole program to the BB engine."
 
 ---
 
-## What currently exists and works
+## What currently exists and works — do not touch
 
-**Statement level (SM_BB_PUMP): already correct.**
-- lower.c emits SM_PUSH_EXPR <tree_t*> + SM_BB_PUMP for each Icon statement.
-- sm_interp.c pops the tree_t*, calls coro_eval() -> bb_node_t, then
-  bb_broker(node, BB_PUMP, pump_print, NULL).
-- sm_codegen.c mirrors this exactly in h_bb_pump.
-- This path is CORRECT AND COMPLETE. Do not touch it.
+**Statement level:** lower.c emits SM_PUSH_EXPR <tree_t*> + SM_BB_PUMP per Icon
+statement. sm_interp pops tree_t*, calls coro_eval() -> bb_node_t at RUNTIME,
+then bb_broker(node, BB_PUMP, ...). This is correct. Do not touch.
 
-**coro_eval() / coro_runtime.c**: the existing C-function dispatched boxes
-(coro_bb_every, coro_bb_limit, coro_bb_bang_binary, coro_bb_to_by,
-coro_bb_seq_expr, icn_bb_assign_gen, icn_bb_identical_gen, etc.) are the
-EMIT_BINARY_BROKERED (legacy) form — each is a C function fn(zeta, port).
-They work correctly today as the --ir-run and honest --sm-run engine.
-They are NOT the architectural target but ARE the semantic reference.
+**coro_runtime.c brokered boxes:** coro_bb_to_by, coro_bb_every, coro_bb_limit,
+coro_bb_bang_binary, coro_bb_seq_expr, coro_bb_alternate, icn_bb_assign_gen etc.
+These are EMIT_BINARY_BROKERED (legacy C ABI fn(zeta,port)). They are the
+SEMANTIC REFERENCE for each construct's alpha/beta behaviour. Not the target form.
 
-**The architectural target** is EMIT_BINARY_WIRED (flat BB):
-One template C function per Icon box kind (e.g. emit_bb_icn_to,
-emit_bb_icn_iterate) that emits raw x86-64 bytes via t_* helpers,
-producing a jmp-threaded blob with no C-call overhead per box.
-This is what bb_xchr.c, bb_xor.c, bb_xstar.c etc. do for SNOBOL4.
-Icon needs the same treatment.
+---
+
+## The critical architecture distinction: emit-time vs runtime zeta
+
+SNOBOL4 boxes: arguments come from Σ/Δ/Ω globals (implicit subject). The
+zeta is allocated at EMIT TIME (during lower()), baked as an immediate ptr
+into the x86 blob. See bb_xarbn.c: `void *z = bb_arbno_new(...)`.
+
+Icon generators: arguments are RUNTIME VALUES from the value stack (lo, hi
+for `1 to N`; subject DESCR_t for `!s`). The zeta must be allocated and
+populated at RUNTIME, not at emit time.
+
+This means the flat-BB template for an Icon generator cannot bake the zeta
+ptr as an immediate. Instead:
+
+  **Pattern A — runtime-allocated zeta via SM opcodes:**
+  lower.c emits instructions to: evaluate args onto stack, call
+  icn_FOO_make() (a runtime allocator that pops args and returns zeta*),
+  then branch into the x86 blob. The blob's alpha port reads state from
+  the zeta* passed in rdi (BROKERED ABI: rdi=zeta, esi=port).
+
+  **Pattern B — BROKERED template + bb_broker at statement level:**
+  Keep using coro_eval() + bb_broker at statement level (already done).
+  The BROKERED coro_bb_* C functions ARE the box implementation.
+  Write template functions emit_bb_icn_* that emit BROKERED-form blobs
+  (rdi=zeta, esi=port, call C runtime helper, ret) using t_bb_port_call.
+  This is identical to what bb_xarbn.c, bb_xatp.c, bb_xbal.c do —
+  they are all BROKERED, calling C helpers with zeta allocated at emit time.
+  For Icon, the zeta is allocated at RUNTIME by SM code before broker entry.
+
+**Decision: Pattern B is correct for this goal.**
+The statement-level SM_BB_PUMP already calls coro_eval() at runtime to
+build the bb_node_t (with zeta). The template functions emit BROKERED blobs
+that are called via bb_broker. The wiring already exists. What is missing is
+the template C functions that codify the box structure in the one-template-
+per-box law, replacing the ad-hoc SM coroutine / SM_BB_PUMP_AST paths.
 
 ---
 
 ## Done when
 
 1. Every Icon generator construct has a template C function emit_bb_icn_*
-   in src/runtime/x86/templates/ that emits correct flat-BB x86.
-2. lower.c wires each Icon construct to its emit_bb_icn_* template rather
-   than emitting SM coroutine opcodes or SM_BB_PUMP_AST fallthrough.
+   in src/runtime/x86/templates/ following the Law of Template Functions.
+2. lower.c replaces SM coroutine opcodes and SM_BB_PUMP_AST fallthrough with
+   proper lowering that routes through the new templates.
 3. SCRIP_NO_AST_WALK=1 ./scrip --sm-run == ./scrip --ir-run for every
-   program in the --ir-run PASS set (the honest gate).
+   program in the --ir-run PASS set (honest gate).
 4. --ir-emit byte-identical to pre-goal baseline for every corpus program.
-5. SM_BB_PUMP_AST, SM_BB_PUMP_SM, SM_RESUME, SM_STORE_GLOCAL,
-   SM_SUSPEND_VALUE, SM_RETURN never appear in the emitted SM_Program
-   for any Icon construct. These were SM-coroutine workarounds; now gone.
-6. Smokes unchanged throughout every rung.
+5. --sm-native (mode 3 JIT) produces identical output to --sm-interp for
+   every honest-passing program (JIT crosscheck gate).
+6. SM_BB_PUMP_AST, SM_BB_PUMP_SM, and SM coroutine opcodes (SM_RESUME,
+   SM_STORE_GLOCAL, SM_SUSPEND_VALUE) never emitted for Icon constructs.
+7. test_smoke_icon.sh PASS=5 and test_smoke_unified_broker.sh PASS=49
+   maintained at every single rung without exception.
 
 ---
 
-## Architecture of an Icon BB box
+## Box structure (three-column form, from test_icon.c)
 
-From test_icon.c — three-column form, every construct has four ports:
+Every Icon construct maps to four labeled sections in the x86 blob:
 
-  /* alpha port — fresh entry */
-  to_start:  lo = eval(lo_expr);  cur = lo;   goto to_check;
-  /* beta port — resume/backtrack */
-  to_resume: cur++;               goto to_check;
-  to_check:  if (cur > hi)        goto to_fail;
-             value = cur;         goto to_succeed; /* gamma port */
-  to_fail:   /* propagate omega */
+  alpha: initialize state from args; compute first value; jmp gamma or omega
+  beta:  advance state; compute next value; jmp gamma or omega
+  gamma: value is ready — jmp to caller's success label
+  omega: exhausted — jmp to caller's fail label
 
-In the template C function this becomes t_* calls. The runtime helpers
-(icn_to_alpha, icn_to_beta) are small C functions that read/write the
-DATA block (zeta struct). The template wires control flow; the runtime
-helper does the arithmetic. t_bb_port_call emits the call + branch.
+In BROKERED form (rdi=zeta, esi=port):
+  prologue: cmp esi,0; je alpha; jmp beta
+
+The template function emits this via t_bb_port_call for alpha and beta,
+with t_label_define(lbl_beta) between them.
 
 ---
 
-## Box taxonomy for Icon
+## Box taxonomy
 
-Generator constructs need flat-BB templates. Scalar constructs (succeed/fail
-only: relops, arith, field get) are already handled by coro_eval ->
-coro_oneshot and work correctly; they do not need new templates in this goal.
+  Construct         TT_ kind          Template              Semantic ref in coro_runtime.c
+  ---------         --------          --------              ------------------------------
+  Integer range     TT_TO / TT_TO_BY  emit_bb_icn_to        coro_bb_to_by
+  Iterate !E        TT_ITERATE        emit_bb_icn_iterate   (ICN_BANG_NEXT path)
+  Alternate A|B     TT_ALTERNATE      emit_bb_icn_alt       coro_bb_alternate
+  Every E [do B]    TT_EVERY          emit_bb_icn_every     coro_bb_every
+  Limitation E\N    TT_LIMIT          emit_bb_icn_limit     coro_bb_limit
+  Bang binary E1!E2 TT_BANG_BINARY    emit_bb_icn_bang      coro_bb_bang_binary
+  List concat |||   TT_LCONCAT        emit_bb_icn_lconcat   coro_bb_cat (gen path)
+  Seq expr (E1;E2)  TT_SEQ_EXPR       emit_bb_icn_seq       coro_bb_seq_expr
 
-  Construct        TT_ kind        Template                Generator?
-  -----------      ---------       --------                ----------
-  Integer range    TT_TO/TO_BY     emit_bb_icn_to          yes
-  Iterate !E       TT_ITERATE      emit_bb_icn_iterate     yes
-  Alternate A|B    TT_ALTERNATE    emit_bb_icn_alt         yes
-  Every            TT_EVERY        emit_bb_icn_every       yes
-  Limitation E\N   TT_LIMIT        emit_bb_icn_limit       yes
-  Bang binary E1!E2 TT_BANG_BINARY emit_bb_icn_bang        yes
-  List concat |||  TT_LCONCAT      emit_bb_icn_lconcat     yes
-  Seq expr (E1;E2) TT_SEQ_EXPR     emit_bb_icn_seq         yes
-
-JCON reference for each: jcon-master/tran/irgen.icn ir_a_* procedures.
-Semantic reference: coro_runtime.c coro_bb_* functions (BROKERED form).
+JCON reference: jcon-master/tran/irgen.icn ir_a_* procedures.
 
 ---
 
 ## File layout
 
   src/runtime/x86/templates/
-    bb_icn_to.c         emit_bb_icn_to        TT_TO / TT_TO_BY
-    bb_icn_iterate.c    emit_bb_icn_iterate   TT_ITERATE (!E)
-    bb_icn_alt.c        emit_bb_icn_alt       TT_ALTERNATE (A|B)
-    bb_icn_every.c      emit_bb_icn_every     TT_EVERY
-    bb_icn_limit.c      emit_bb_icn_limit     TT_LIMIT (E\N)
-    bb_icn_bang.c       emit_bb_icn_bang      TT_BANG_BINARY (E1!E2)
-    bb_icn_lconcat.c    emit_bb_icn_lconcat   TT_LCONCAT (|||)
-    bb_icn_seq.c        emit_bb_icn_seq       TT_SEQ_EXPR ((E1;E2))
+    bb_icn_to.c           emit_bb_icn_to
+    bb_icn_iterate.c      emit_bb_icn_iterate
+    bb_icn_alt.c          emit_bb_icn_alt
+    bb_icn_every.c        emit_bb_icn_every
+    bb_icn_limit.c        emit_bb_icn_limit
+    bb_icn_bang.c         emit_bb_icn_bang
+    bb_icn_lconcat.c      emit_bb_icn_lconcat
+    bb_icn_seq.c          emit_bb_icn_seq
 
-  src/runtime/interp/
-    icn_box_rt.c        runtime alpha/beta port helpers called by templates
-    icn_box_rt.h        declarations
-
-  src/runtime/x86/lower.c
-    lower_to, lower_to_by   -> emit_bb_icn_to    (was SM coroutine)
-    lower_iterate           -> emit_bb_icn_iterate (was SM coroutine)
-    lower_alternate         -> emit_bb_icn_alt    (was lower_bb_pump_ast)
-    lower_every             -> emit_bb_icn_every  (was SM_BB_PUMP_EVERY)
-    lower_limit             -> emit_bb_icn_limit  (was emit_push_expr+SM_BB_PUMP)
-    lower_bang_binary       -> emit_bb_icn_bang   (was SM_BB_PUMP_AST)
-    lower_lconcat           -> emit_bb_icn_lconcat (was SM_BB_PUMP_AST)
-    lower_seq_expr          -> emit_bb_icn_seq    (was scalar only)
+  src/runtime/interp/icn_box_rt.c   runtime alpha/beta C helpers (zeta r/w)
+  src/runtime/interp/icn_box_rt.h   declarations
 
 ---
 
@@ -151,132 +150,183 @@ Semantic reference: coro_runtime.c coro_bb_* functions (BROKERED form).
   bash scripts/build_scrip.sh
   bash scripts/build_spitbol_oracle.sh
 
-Baseline gates (all green before every rung):
-  bash scripts/test_smoke_icon.sh                 # PASS=5  never regress
-  bash scripts/test_smoke_unified_broker.sh       # PASS=49 never regress
-  bash scripts/test_icon_ir_all_rungs.sh          # 185/48/30 byte-identical
-  bash scripts/test_icon_sm_no_ast_walk.sh        # honest dial rises each rung
+---
+
+## Gate protocol — every rung must pass ALL of these
+
+  GATE-1  bash scripts/test_smoke_icon.sh                # must be PASS=5
+  GATE-2  bash scripts/test_smoke_unified_broker.sh      # must be PASS=49
+  GATE-3  bash scripts/test_icon_ir_all_rungs.sh         # must be 185/48/30
+  GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh       # honest count must not decrease
+  GATE-5  ./scrip --sm-native <anchor> == ./scrip --sm-interp <anchor>  (JIT crosscheck)
+  GATE-6  ./scrip --dump-sm <anchor> | grep -c SM_BB_PUMP_AST  # must be 0 for migrated construct
+  GATE-7  ./scrip --ir-emit <anchor> == baseline ir-emit  (byte-identical, diff must be empty)
+
+A rung is COMPLETE only when all seven gates pass AND honest count N_after > N_before.
 
 ---
 
-## Rungs
+## Rung ladder
 
-### IB-0 — baseline
-- [ ] Run session setup. Confirm smoke 5/5, broker 49/49, ir-all 185/48/30.
-- [ ] Record honest baseline N0 (SCRIP_NO_AST_WALK=1 pass count).
-- [ ] Create src/runtime/interp/icn_box_rt.h and icn_box_rt.c — empty stubs,
-      include guards, placeholder comment. Wire into Makefile.
-- [ ] Build clean. Smokes unchanged. Commit.
+### IB-0 — baseline + scaffolding (no behaviour change)
+- [ ] GATE-1..4: run all gates, record N0 (honest PASS count). Write N0 here: ___
+- [ ] Create src/runtime/interp/icn_box_rt.h — empty, include guards only.
+- [ ] Create src/runtime/interp/icn_box_rt.c — empty, includes header.
+- [ ] Add icn_box_rt.o to Makefile. Build clean.
+- [ ] GATE-1..4 again: all unchanged. Commit.
 
-### IB-1 — icn_to template (integer range generator)
-- [ ] Study coro_bb_to_by in coro_runtime.c for alpha/beta semantics.
-      Study test_icon.c to1_* labels for the three-column form.
-- [ ] Implement runtime helpers in icn_box_rt.c:
-      icn_to_alpha(zeta, lo, hi, step) — init state, return first value or FAIL.
-      icn_to_beta(zeta) — advance cur, return next value or FAIL.
+### IB-1 — emit_bb_icn_to (integer range: 1 to N, 1 to N by S)
+Step 1: understand semantics.
+- [ ] Read coro_bb_to_by in coro_runtime.c. Note: alpha initialises
+      state.cur=lo, state.hi=hi, state.step=step. Returns cur if cur<=hi
+      (or >=hi for negative step), else FAILDESCR. beta: cur+=step, same check.
+- [ ] Read test_icon.c to1_* / to2_* labels. Confirm three-column form.
+Step 2: runtime helpers.
+- [ ] In icn_box_rt.h declare: typedef struct { int64_t cur,hi,step; } icn_to_state_t;
+- [ ] In icn_box_rt.c implement:
+      icn_to_state_t* icn_to_make(int64_t lo, int64_t hi, int64_t step) — calloc + init.
+      DESCR_t icn_to_alpha(void *z, int port) — alpha: set cur=lo; beta: cur+=step;
+        shared: if step>0 && cur>hi, or step<0 && cur<hi: return FAILDESCR;
+        return descr_int(cur).
+Step 3: template.
 - [ ] Write src/runtime/x86/templates/bb_icn_to.c:
-      emit_bb_icn_to(e, lbl_succ, lbl_fail, lbl_beta, zeta_ptr).
-      alpha: t_bb_port_call(zeta_ptr, "icn_to_alpha", ..., lbl_succ, lbl_fail).
-      beta:  t_label_define(lbl_beta) + t_bb_port_call("icn_to_beta",...).
-- [ ] Wire lower_to and lower_to_by in lower.c to call emit_bb_icn_to.
-      Delete SM coroutine emission for TT_TO / TT_TO_BY.
-- [ ] Anchor: write(1 to 3) in scalar context.
-      Gate: honest PASS, N1 > N0. dump-sm shows no SM_RESUME/GLOCAL/SUSPEND.
-      Smokes unchanged. Commit.
+      void emit_bb_icn_to(emitter_t *e, void *zeta_ptr,
+                          bb_label_t *lbl_succ, bb_label_t *lbl_fail, bb_label_t *lbl_beta)
+      Body: t_bb_box_banner("ICN_TO","range");
+            t_bb_port_call(zeta_ptr, "icn_to_alpha", fn_ptr, 0, lbl_succ, lbl_fail);
+            t_label_define(lbl_beta);
+            t_bb_port_call(zeta_ptr, "icn_to_alpha", fn_ptr, 1, lbl_succ, lbl_fail);
+      (void)e; — mandatory.
+Step 4: lower.c wiring.
+- [ ] In lower_to / lower_to_by: evaluate lo/hi/step expressions onto SM stack.
+      Emit SM_CALL_FN "icn_to_make" with 2 or 3 args -> returns icn_to_state_t*.
+      Emit call to emit_bb_icn_to with the returned zeta ptr.
+      Delete old SM coroutine emission (SM_JUMP/SM_RESUME/SM_STORE_GLOCAL etc).
+Step 5: gates.
+- [ ] Anchor: corpus program using `write(1 to 5)` in scalar context.
+- [ ] GATE-1..7 all pass. N_after > N_before (N1 > N0). Commit.
 
-### IB-2 — icn_iterate template (!E)
-- [ ] Study coro_runtime.c for iterate semantics. State: {subject DESCR_t, index}.
-      alpha: init index=0, get element[0] or FAIL.
-      beta: index++, get element[index] or FAIL.
-- [ ] Runtime helpers icn_iterate_alpha, icn_iterate_beta in icn_box_rt.c.
-- [ ] Template bb_icn_iterate.c. Wire lower_iterate. Delete SM coroutine body.
-- [ ] Anchor: rung15_iterate_string.icn. Gate: honest PASS, N up. Commit.
+### IB-2 — emit_bb_icn_iterate (!E)
+Step 1: semantics.
+- [ ] Read ICN_BANG_NEXT handler in sm_interp.c (rung15 area).
+      State: {subject DESCR_t, index int}. Supports string/list/table/record.
+      alpha: init index=0, fetch element[0]. beta: index++, fetch element[index].
+      Fail when index >= length/size.
+Step 2: runtime helpers in icn_box_rt.c.
+- [ ] icn_iterate_state_t: {DESCR_t subject; int index;}.
+- [ ] icn_iterate_make(DESCR_t subject) — calloc + set subject, index=0.
+- [ ] DESCR_t icn_iterate_tick(void *z, int port) — port 0: reset index=0;
+      port 1: index++; shared: fetch element, return it or FAILDESCR.
+Step 3: template bb_icn_iterate.c.
+Step 4: wire lower_iterate. Delete SM coroutine body (SM_CALL_FN ICN_BANG_NEXT path).
+Step 5: anchor rung15_iterate_string.icn. GATE-1..7. N up. Commit.
 
-### IB-3 — icn_alt template (A|B alternate)
-- [ ] Study coro_bb_alternate / icn_alternate_state_t in coro_runtime.c.
-      alpha: try left. On left-omega try right. On right-omega -> own omega.
-      beta: resume whichever branch is live.
-- [ ] Runtime helpers icn_alt_alpha, icn_alt_beta.
-- [ ] Template bb_icn_alt.c. Wire lower_alternate non-hoisted path.
-      Delete lower_bb_pump_ast call for TT_ALTERNATE.
-- [ ] Gate: honest PASS, N up. Smokes OK. Commit.
+### IB-3 — emit_bb_icn_alt (A|B alternate)
+Step 1: semantics.
+- [ ] Read coro_bb_alternate / icn_alternate_state_t in coro_runtime.c.
+      Two child bb_node_t (left, right). Phase tracks which is active.
+      alpha: try left-alpha. If left-omega, try right-alpha. If right-omega: omega.
+      beta: resume active branch. If active-omega, advance to next branch.
+Step 2: runtime helpers.
+- [ ] icn_alt_state_t: {bb_node_t left; bb_node_t right; int phase;}.
+- [ ] icn_alt_make(bb_node_t left, bb_node_t right).
+- [ ] DESCR_t icn_alt_tick(void *z, int port).
+Step 3: template bb_icn_alt.c.
+Step 4: wire lower_alternate non-hoisted path. Delete lower_bb_pump_ast for TT_ALTERNATE.
+Step 5: anchor: rung alternate program. GATE-1..7. N up. Commit.
 
-### IB-4 — icn_every template (every E [do body])
-- [ ] Study coro_bb_every. Pump generator alpha/beta; run body each tick.
-      Body runs through bb_exec_stmt (not re-lowered).
-- [ ] Runtime helpers icn_every_alpha, icn_every_beta.
-- [ ] Template bb_icn_every.c. Wire lower_every. Delete SM_BB_PUMP_EVERY Icon path.
-- [ ] Anchor: every write(1 to 3). Gate: honest PASS, N up. Smokes OK. Commit.
+### IB-4 — emit_bb_icn_every (every E [do body])
+Step 1: semantics.
+- [ ] Read coro_bb_every carefully. The body (if present) runs via bb_exec_stmt
+      per tick. loop_next save/restore around body call.
+      alpha: pump generator alpha; if gamma run body; return gen value.
+      beta: pump generator beta; if gamma run body; return gen value.
+      omega from generator -> omega the every box.
+Step 2: runtime helpers. icn_every_state_t, icn_every_make, icn_every_tick.
+Step 3: template bb_icn_every.c.
+Step 4: wire lower_every. Delete SM_BB_PUMP_EVERY for LANG_ICN path.
+Step 5: anchor: every write(1 to 3). GATE-1..7. N up. Commit.
 
-### IB-5 — icn_limit template (E\N)
-- [ ] Study coro_bb_limit. Wrap inner generator; cap at N values.
-      alpha: reset count, pump inner alpha. beta: if count < N pump inner beta else omega.
-- [ ] Runtime helpers icn_limit_alpha, icn_limit_beta.
-- [ ] Template bb_icn_limit.c. Wire lower_limit.
-      Delete emit_push_expr + SM_BB_PUMP for Icon TT_LIMIT.
-- [ ] Anchor: rung14 limit program. Gate: honest PASS, N up. Smokes OK. Commit.
+### IB-5 — emit_bb_icn_limit (E\N)
+Step 1: semantics.
+- [ ] Read coro_bb_limit. Wraps inner generator; caps at N values.
+      alpha: count=0, pump inner alpha; if gamma count++; if count>max omega.
+      beta: if count>=max omega; pump inner beta; if gamma count++.
+Step 2: runtime helpers. icn_limit_state_t, icn_limit_make, icn_limit_tick.
+Step 3: template bb_icn_limit.c.
+Step 4: wire lower_limit. Delete emit_push_expr + SM_BB_PUMP for Icon TT_LIMIT.
+Step 5: anchor: rung14 limit program. GATE-1..7. N up. Commit.
 
-### IB-6 — icn_bang template (E1!E2 bang binary)
-- [ ] Study coro_bb_bang_binary. Pump E2 generator; call E1(arg) each tick.
-      If E1 fails on arg, skip to next E2 (goal-directed).
-- [ ] Runtime helpers icn_bang_alpha, icn_bang_beta.
-- [ ] Template bb_icn_bang.c. Wire lower_bang_binary. Delete SM_BB_PUMP_AST call.
-- [ ] Gate: honest PASS, N up. Smokes OK. Commit.
+### IB-6 — emit_bb_icn_bang (E1!E2 bang binary)
+Step 1: semantics.
+- [ ] Read coro_bb_bang_binary. Pump E2 generator each tick; call E1(arg).
+      If E1 fails on arg, skip to next E2 value (goal-directed evaluation).
+      alpha: pump E2 alpha -> call E1. beta: loop E2 beta until E1 succeeds.
+Step 2: runtime helpers. icn_bang_state_t, icn_bang_make, icn_bang_tick.
+Step 3: template bb_icn_bang.c.
+Step 4: wire lower_bang_binary. Delete SM_BB_PUMP_AST call.
+Step 5: anchor: bang_binary corpus program. GATE-1..7. N up. Commit.
 
-### IB-7 — icn_lconcat + icn_seq templates
-- [ ] icn_lconcat: generator over list concat (study lower_lconcat, coro_bb_cat).
-- [ ] icn_seq: seq_expr generative (study coro_bb_seq_expr).
-- [ ] Templates bb_icn_lconcat.c, bb_icn_seq.c. Wire both in lower.c.
-      Delete SM_BB_PUMP_AST calls for TT_LCONCAT and generative TT_SEQ_EXPR.
-- [ ] Gate: honest PASS, N up. Smokes OK. Commit.
+### IB-7 — emit_bb_icn_lconcat (||| generative list concat)
+Step 1: semantics. Read coro_bb_cat (gen path) in coro_runtime.c.
+Step 2: runtime helpers. icn_lconcat_state_t, icn_lconcat_make, icn_lconcat_tick.
+Step 3: template bb_icn_lconcat.c.
+Step 4: wire lower_lconcat. Delete SM_BB_PUMP_AST call.
+Step 5: anchor: lconcat corpus program. GATE-1..7. N up. Commit.
 
-### IB-8 — delete SM_BB_PUMP_AST from Icon path entirely
+### IB-8 — emit_bb_icn_seq (generative (E1;E2;...;En))
+Step 1: semantics. Read coro_bb_seq_expr. Eval E1..E(n-1) for side effects;
+        build last_box from En; pump last_box.
+Step 2: runtime helpers. icn_seq_state_t, icn_seq_make, icn_seq_tick.
+Step 3: template bb_icn_seq.c.
+Step 4: wire lower_seq_expr generative path. Delete SM_BB_PUMP_AST call.
+Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
+
+### IB-9 — purge SM_BB_PUMP_AST from Icon path
 - [ ] grep lower.c for SM_BB_PUMP_AST in LANG_ICN-reachable paths. Must be zero.
-- [ ] Replace any remaining lower_bb_pump_ast for Icon with:
-      abort("BUG: Icon AST pump reached — missing template for kind %d", t->t)
-- [ ] Full corpus sweep: zero AST-pump fires under SCRIP_NO_AST_WALK=1.
-- [ ] Gate: honest PASS count == ir-run PASS count (explain any gap). Commit.
+- [ ] Any remaining call: replace with abort("BUG: Icon AST pump — kind %d", t->t).
+- [ ] GATE-1..4 full corpus sweep. GATE-5 JIT crosscheck full corpus.
+- [ ] Honest PASS count == ir-run PASS count. Explain any gap in commit message.
+- [ ] Commit.
 
-### IB-9 — cleanup
-- [ ] Delete unused SM coroutine helpers from lower.c (SM_RESUME, SM_STORE_GLOCAL,
-      SM_SUSPEND_VALUE, SM_RETURN sites that were Icon-only).
-- [ ] is_suspendable returns false for all migrated TT_ kinds.
-- [ ] coro_eval not reachable under SCRIP_NO_AST_WALK=1 for any Icon program.
-- [ ] Build clean. Full gate sweep. Commit.
-
----
-
-## Invariants — never break
-
-1. test_smoke_icon.sh PASS=5 at every rung.
-2. test_smoke_unified_broker.sh PASS=49 at every rung.
-3. --ir-emit byte-identical to pre-goal baseline at every rung.
-4. SM_BB_PUMP_AST count in Icon-reachable lower.c paths never increases.
-5. Each rung commits at most two constructs. One is better.
-6. Each rung's anchor must flip at least one program honest.
-7. Template files: t_* helpers only. No e-> vtable calls. No raw byte emission.
-   Per GOAL-MODE4-EMIT "THE LAW OF TEMPLATE FUNCTIONS".
+### IB-10 — purge SM coroutine opcodes from Icon path
+- [ ] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
+      Must be zero after IB-1..IB-8 land.
+- [ ] is_suspendable() returns false for all migrated TT_ kinds.
+- [ ] Build clean. GATE-1..7 full sweep. Commit.
 
 ---
 
-## What NOT to do
+## Invariants — ANY violation stops the session
 
-- DO NOT implement Icon constructs as SM coroutines (SM_JUMP/SM_RESUME/
-  SM_STORE_GLOCAL/SM_SUSPEND/SM_RETURN). That encodes BB protocol in SM.
-  It is wrong. It is what GOAL-ICON-BB-COMPLETE did. One month lost.
-- DO NOT write new C functions called at runtime as the box form.
-  coro_bb_* in coro_runtime.c are BROKERED (legacy). Target is WIRED flat.
-  Use coro_bb_* only as semantic reference, not as implementation target.
-- DO NOT invent new SM opcodes (SM_BB_EXEC, SM_GEN_SUSPEND, etc.).
-  SM_BB_PUMP at statement level is correct and sufficient.
-  Sub-expression generators are flat BB blobs, not new SM opcodes.
-- DO NOT call through e-> in template bodies. t_* only.
+1. GATE-1: test_smoke_icon PASS=5. Never regress.
+2. GATE-2: test_smoke_unified_broker PASS=49. Never regress.
+3. GATE-3: --ir-emit byte-identical. Never regress.
+4. GATE-4: honest count never decreases between rungs.
+5. GATE-5: --sm-native == --sm-interp for anchor at every rung.
+6. GATE-6: SM_BB_PUMP_AST count for migrated construct = 0 in dump-sm.
+7. GATE-7: --ir-emit diff vs baseline is empty.
+8. Template law: t_* helpers only in template bodies. No e-> calls. No raw bytes.
+9. One construct per rung. No bundling. Each rung gets its own commit.
+10. Each rung flips at least one program from non-honest to honest PASS.
+
+---
+
+## What NOT to do (permanent record)
+
+- SM coroutines for Icon constructs — WRONG. One month lost on this.
+- New SM opcodes (SM_BB_EXEC etc.) — unnecessary. SM_BB_PUMP exists.
+- e-> vtable calls in templates — forbidden by Law of Template Functions.
+- Touching the statement-level SM_BB_PUMP path — it is correct, leave it.
+- Allocating zeta at emit time for constructs with runtime arguments —
+  SNOBOL4 boxes can do this (implicit Sigma/Delta globals) but Icon
+  generators cannot (lo/hi/subject are runtime stack values).
 
 ---
 
 ## Watermark
 
-  Last session:      2026-05-12 (carved + architecture fully clarified)
-  one4all HEAD:      (set at IB-0)
-  Honest PASS N0:    (set at IB-0)
-  Current rung:      IB-0
+  Last session:    2026-05-12 (architecture fully clarified, emit-time vs runtime zeta)
+  one4all HEAD:    (set at IB-0)
+  Honest PASS N0:  (set at IB-0)
+  Current rung:    IB-0
