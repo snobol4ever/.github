@@ -130,9 +130,22 @@ Expected clean output (no Error lines, SM instructions printed):
    4  SM_HALT
 ```
 
----
+### Critical Snocone vs SNOBOL4 syntax difference
 
-## Step sequence
+**`(cond val, alt)` does NOT work in Snocone.**
+In SNOBOL4/SPITBOL, `(DIFFER(x) x, 'default')` is a conditional-value expression.
+In Snocone the comma inside parens is **pattern ALT** — it produces a PATTERN, not a value.
+The `|` operator is also pattern ALT in Snocone. Use `if/else` instead:
+```snocone
+/* WRONG — produces PATTERN, causes Error 3 */
+result = (DIFFER(v(t)) v(t), '');
+
+/* RIGHT */
+if (DIFFER(v(t))) { result = v(t); } else { result = ''; }
+```
+This affects ~24+ sites in lower.sc. Grep: `grep -n "DIFFER.*), \|IDENT.*), " lower.sc`
+
+---
 
 ### SL-0 — Create corpus/snocone/scrip/ folder and skeleton ✅ (this session)
 
@@ -337,9 +350,19 @@ Translate `lower_stmt` in full:
 - Updated Session Setup with correct multi-file `--ir-run` invocation; fixed Gate commands.
 - **Root cause of Error 3 / missing SM_STORE_VAR found:** In Snocone, single-quoted strings `'TT_VAR'` are NAME-typed (unevaluated expression), not STRING. All `IDENT(t(x), 'TT_*')` comparisons in `lower.sc` silently fail because `t(x)` returns a STRING but `'TT_VAR'` is NAME. Every `'TT_*'` literal throughout `lower.sc` must be changed to `"TT_*"` (double quotes = STRING). This is a pervasive fix (~100+ occurrences).
 
-- [ ] Mass-rename all `'TT_*'` string literals to `"TT_*"` in `lower.sc`
-- [ ] Verify `smoke_lower` gate: no Error lines, SM instructions emitted correctly, output matches `smoke_lower.ref`
-- [ ] Bake `smoke_lower.ref`
+- [ ] Mass-fix `(COND val, alt)` → `if(COND){val}else{alt}` throughout lower.sc
+  **ROOT CAUSE confirmed sess 2026-05-11 (Claude Sonnet 4.6):**
+  Snocone does NOT support SNOBOL4's `(cond val, alt)` conditional-value syntax.
+  In Snocone the comma inside parens is pattern ALT, producing a PATTERN not a value.
+  Example: `(DIFFER(v(lhs)) v(lhs), '')` yields a PATTERN instead of a string.
+  This causes Error 3 (erroneous array/table reference) whenever the result is
+  used as a string/int operand. lower.sc has ~24+ such occurrences.
+  Fix: rewrite each as `if (COND) { result = val; } else { result = alt; }` at
+  call site, OR factor into a helper. The inline form `(COND val | alt)` also
+  does NOT work — `|` in Snocone is also pattern ALT. Must use if/else.
+  Grep pattern to find all: `grep -n "(DIFFER\|IDENT.*), " lower.sc`
+- [ ] Verify smoke_lower gate: no Error lines, SM instructions emitted, output matches smoke_lower.ref
+- [ ] Bake smoke_lower.ref
 
 ### SL-8 — sm_lower (main entry point)
 
