@@ -409,8 +409,27 @@ Write `sm_lower_test.sc`: a small SNOBOL4-via-Snocone program that:
 3. Dumps the SM_Program as text (opcode name + operand per line)
 4. Output matches `sm_lower_test.ref`
 
-- [ ] Write test driver
-- [ ] Bake `.ref`
+**Sess 2026-05-12 (Claude Sonnet 4.6) — SL-9 lands.**
+
+Created `corpus/SCRIP/sm_lower_test.sc` — a 3-statement test driver:
+- stmt 1: `X = 'hello'` (assignment)
+- stmt 2: `X 'hi' = 'bye'` (pattern match with replacement)
+- stmt 3: `END` label
+
+Exercises five distinct lowering paths absent in `smoke_lower.sc`: pattern-match
+emission (`lower_pat_expr` on `TT_QLIT` → `SM_PAT_LIT`), subject-name extraction
+into `SM_EXEC_STMT`, and the has_eq=1 replacement path. The pattern uses a literal
+so it stays out of the Ph2 `lower_pat_expr` stub fallback.
+
+Output: 11 SM instructions, matches `sm_lower_test.ref` byte-identical. Gate clean.
+`smoke_lower` regression also clean — no shared-state damage.
+
+Note: this test sits alongside `smoke_lower.sc` rather than replacing it. `smoke_lower`
+remains the per-SL minimal gate (6 instructions, fast); `sm_lower_test` is the broader
+SL-9 spec-test (11 instructions, three statement archetypes).
+
+- [x] Write test driver
+- [x] Bake `.ref`
 
 ### SL-10 — Ph2: lower_pat_expr
 
@@ -428,14 +447,22 @@ translation of the ~300-line C original.
 SCRIP=/home/claude/one4all/scrip
 SCRIP_DIR=/home/claude/corpus/SCRIP
 
-# Gate: smoke_lower produces SM instructions (no Error lines, count > 0)
+# Gate 1: smoke_lower — minimal per-SL gate (6 SM instructions)
 $SCRIP --ir-run \
   $SCRIP_DIR/tree.sc \
   $SCRIP_DIR/lower.sc \
   $SCRIP_DIR/lower_driver.sc \
   $SCRIP_DIR/smoke_lower.sc \
   | diff - $SCRIP_DIR/smoke_lower.ref
+
+# Gate 2: sm_lower_test — SL-9 spec-test (11 SM instructions, 3 stmt archetypes)
+$SCRIP --ir-run \
+  $SCRIP_DIR/tree.sc \
+  $SCRIP_DIR/lower.sc \
+  $SCRIP_DIR/lower_driver.sc \
+  $SCRIP_DIR/sm_lower_test.sc \
+  | diff - $SCRIP_DIR/sm_lower_test.ref
 ```
 
-No diff output. Must pass before any commit that advances SL-7 or beyond.
+No diff output from either. Must pass before any commit that advances SL-7 or beyond.
 
