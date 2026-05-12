@@ -392,8 +392,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] **EM-TEMPLATE-PURITY-4 — Delete dead infrastructure.** Callback params removed from all template signatures (PURITY-2/3). Dead text_body callbacks in bb_flat.c are now unreachable (templates no longer call them) but still compile — full deletion deferred to avoid scope creep; bb_flat.h typedef cleanup tracked separately.
 
   - [x] **EM-TEMPLATE-PURITY-5 — Verify.** grep clean (only a comment in templates.h). Gates: build clean, smoke 7/7, template-byte-id 4/4. (`1b55d4ed`)
-  - [ ] -s Remaining BB boxes: fix all six BB templates (bb_xchr, bb_xspnc, bb_xlnth, bb_xbrkx, bb_xposi, bb_xfarb) to use `t_*` helpers only. No `is_text`, no callbacks, no `e->...` calls. Add `t_bb_port_alpha`/`t_bb_port_beta` helpers to bb_emit.h as needed.
-  - [ ] -t `sm_macros.s` + `bb_macros.s` become generated artifacts.
+  - [x] -s All 11 BB templates pure t_* (done via PURITY-2/3). See above.
+  - [x] -t `sm_macros.s` + `bb_macros.s` generated artifacts (Sonnet 4.6, one4all `ebb338d9`, corpus `dcce732`). Fixed .intel_syntax header; fixed TEXT-mode emit_push_lit_i_line. All 5 demo .s gcc-c clean.
   - [ ] -u Rung close: beauty-subsystems gate improves from PASS=4 baseline; delete legacy emitter files.
 
 - [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` beauty programs. Gate: `scripts/test_gate_em_beauty_subsystems_mode4.sh`. Pass criterion: mode-4 vs mode-3 byte-identical (not `.ref`-correct). **Baseline: PASS=4 FAIL=13. BLOCKED on EM-MODE4-IS-MODE3-DUMP.**
@@ -425,7 +425,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `1b55d4ed` on remote.**
+**one4all `ebb338d9` on remote. corpus `dcce732`.**
 
 ### Done this session
 
