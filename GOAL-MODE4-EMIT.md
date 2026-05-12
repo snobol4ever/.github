@@ -358,7 +358,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   **Steps to fix:**
 
-  - [ ] **EM-TEMPLATE-PURITY-1 — Audit.** For each BB template with `is_text`/callback, record: what output does the text path emit per port, what bytes does the binary path emit per port. This is the spec for the `t_*` helpers needed.
+  - [x] **EM-TEMPLATE-PURITY-1 — Audit.** (Sonnet 4.6, sess 2026-05-11)
+
+    Every BB template audited. Violations recorded per file:
+
+    | File | is_text guard | callback param | raw emit_* calls | EMIT_OPT/JMP/LABEL vtable |
+    |------|:---:|:---:|:---:|:---:|
+    | bb_xchr.c | ✓ (x2, intern_str branch) | — | emit_load_delta, emit_add_eax_imm32, emit_cmp_eax_siglen, emit_sigma_plus_delta, emit_mov_rdi_rax, emit_mov_rdx_imm64, emit_insn (x2), emit_call_sym_plt, emit_test_eax_eax, emit_add_delta_imm, emit_sub_delta_imm | EMIT_JMP (x4), EMIT_LABEL |
+    | bb_xspnc.c (charset) | ✓ | bb_charset_text_fn | emit_mov_rdi_imm64 (x2), emit_mov_esi_imm32 (x2), emit_call_sym_plt (x2), emit_test_rax_rax (x2) | EMIT_JMP (x4), EMIT_LABEL |
+    | bb_xlnth.c (intcur) | ✓ | bb_intcur_text_fn | flat_emit_box_call | — |
+    | bb_xtb.c | — | passes text_fn/text_arg through to intcur | — | — |
+    | bb_xrtb.c | — | passes text_fn/text_arg through to intcur | — | — |
+    | bb_xbrkx.c | ✓ | bb_brkx_text_fn | emit_mov_rdi_imm64 (x2), emit_mov_esi_imm32 (x2), emit_call_sym_plt (x2), emit_test_rax_rax (x2) | EMIT_JMP (x4), EMIT_LABEL |
+    | bb_xposi.c | — | — | emit_load_delta, emit_cmp_eax_imm32 | EMIT_OPT (x2), EMIT_JMP (x3), EMIT_LABEL |
+    | bb_xrpsi.c | — | — | emit_load_siglen, emit_sub_eax_imm32, emit_mov_ecx_eax, emit_load_delta, emit_cmp_eax_ecx | EMIT_OPT (x2), EMIT_JMP (x3), EMIT_LABEL |
+    | bb_xfarb.c | — | — | emit_mov_rdi_imm64 (x2), emit_mov_esi_imm32 (x2), emit_call_sym_plt (x2), emit_test_rax_rax (x2) | EMIT_OPT (x2), EMIT_JMP (x4), EMIT_LABEL |
+    | bb_xeps.c | — | — | — | EMIT_OPT (x2), EMIT_JMP (x2), EMIT_LABEL |
+    | bb_xfail.c | — | — | — | EMIT_OPT (x2), EMIT_JMP (x2), EMIT_LABEL |
+
+    **t_* helpers needed for PURITY-2:**
+    - `t_bb_box_banner(kind, args)` — already exists in bb_emit.h ✔
+    - `t_bb_port_alpha(zeta_ptr, c_fn_name, port_int, lbl_succ, lbl_fail)` — binary: mov rdi,zeta; mov esi,port; call fn@PLT; test rax,rax; jne succ; jmp fail. TEXT: three-column macro invocation.
+    - `t_bb_port_beta(zeta_ptr, c_fn_name, port_int, lbl_fail)` — same shape, beta entry.
+    - `t_load_delta_cmp_imm(n, lbl_fail)` — binary: emit_load_delta + cmp eax,n + jne fail. TEXT: inline.
+    - `t_load_siglen_sub_cmp_delta(n, lbl_fail)` — for RPOS binary path.
+    - `t_lit_match(lit, len, lbl_succ, lbl_fail, lbl_beta)` — xchr binary path (bounds+memcmp+delta-advance).
+    - Remove all `bb_charset_text_fn`, `bb_intcur_text_fn`, `bb_brkx_text_fn` callback typedefs and parameters once t_* helpers cover their output.
 
   - [ ] **EM-TEMPLATE-PURITY-2 — Add port-call helpers to `bb_emit.h`.** `t_bb_port_alpha(kind, args, lbl_succ, lbl_fail)` and `t_bb_port_beta(kind, args, lbl_fail)`. TEXT writes `KIND_α args, lbl_succ, lbl_fail`. BINARY emits the port's byte sequence. Both fully implemented.
 
@@ -400,9 +425,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `5fa770d6` on remote.**
+**one4all `5fa770d6` on remote. .github `<pushed below>`.**
 
 ### Done this session
+
+**EM-TEMPLATE-PURITY-1 audit complete.** All 11 BB template files audited; every violation catalogued (is_text guards, callback params, raw emit_* calls, EMIT_OPT/JMP/LABEL vtable calls). t_* helpers needed for PURITY-2 identified. See PURITY-1 checkbox above.
 
 **BB template files split one-per-box.**
 Per Lon's direction: SM template families stay together (similar shape
