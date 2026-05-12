@@ -300,6 +300,8 @@ Pipeline: `parser_*.sc → tree → lower.sc → sm_interp.sc`.
 Pipeline: `parser_*.sc → scrip --dump-ir → dump_ir_to_ast_builder.py → .sc test file → sm_interp.sc → diff .ref`.
 Frontends: SNOBOL4, Snocone, Rebus.
 
+**Corpus cleanup (sess 2026-05-12 handoff #5):** 53 test files (si_*, sm_interp_test*, sm_lower_test*, smoke_interp*, smoke_lower*, smoke.sc) moved from `corpus/SCRIP/` root into `corpus/SCRIP/tests/`. Runtime files (tree.sc, lower.sc, sm_interp.sc, parser_*.sc, etc.) remain in root. `test_self_host_smoke.sh` updated; gate 16/16 PASS confirmed. corpus `cee6722`, one4all `185c9832`.
+
 **NEXT: SI-18** — write `scripts/dump_ir_to_ast_builder.py`, validate on 3+ already-mirrored programs, run on broad smoke corpus across all three frontends.
 
 ---
