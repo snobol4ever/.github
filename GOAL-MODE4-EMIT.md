@@ -470,6 +470,102 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] **TC-BB-13** — `bb_xvar.c` (XVAR: variable holding a pattern — variant, runtime only)
   - [x] **TC-BB-14** — `bb_xatp.c` (XATP: user-defined pattern function call)
 
+- [ ] **TC-UNSPLIT** — Reverse over-eager file splits.  The Law of Template Functions
+  (sess 2026-05-11) requires "one C template **function** per SM opcode and per BB box."
+  It does NOT require one **file** per opcode.  TC-SPLIT-1 through TC-SPLIT-11 over-applied
+  the Law at the file level and produced fragmentation without architectural benefit, plus
+  an inconsistent on-disk state: some bundle files remain in `src/runtime/x86/templates/`
+  but are orphaned (not in Makefile, defining duplicate symbols of the per-op files).
+  For SPLITs 9/10/11, the per-op files were never created — the rungs were marked `[x]`
+  prematurely; the bundle files remain on disk but unbuilt; legacy `g_sm_templates[]`
+  dispatch via SM_TPL_LBLOPT covers the opcodes through the macro-table path.
+
+  **Pre-existing state audit (HEAD `c9b7428d`, sess 2026-05-12 Opus 4.7):**
+
+  | TC-SPLIT | Bundle file | Per-op files | In Makefile | Status |
+  |----------|-------------|--------------|-------------|--------|
+  | -1 sm_arith.c | exists (helper-only: `emit_sm_arith_op`) | sm_add/sub/mul/div/mod.c (5) | per-op | OK — bundle is a helper, not a duplicate; leave as-is |
+  | -2 sm_nullary_rt.c | DELETED | sm_concat/push_null/coerce_num.c (3) | per-op | OK — fully split, delete confirmed |
+  | -3 sm_var.c | EXISTS, ORPHAN | sm_push_var.c / sm_store_var.c | per-op | **BROKEN** — bundle is dead code with duplicate symbols |
+  | -4 sm_jump.c | repurposed (single op) | sm_jump_s.c / sm_jump_f.c | all three | OK |
+  | -5 sm_label_stno.c | EXISTS, ORPHAN | sm_label.c / sm_stno.c | per-op | **BROKEN** — bundle dead, duplicate symbols |
+  | -6 sm_return.c | repurposed (single op) | sm_return_variant.c | both | OK |
+  | -7 sm_exec_stmt.c | repurposed (single op) | sm_push_expression.c / sm_call_expression.c | all three | OK |
+  | -8 sm_pat_nullary.c | DELETED | 22 individual sm_pat_*.c | per-op | OK |
+  | -9 sm_pat_lbl.c | EXISTS, ORPHAN | sm_pat_lit/refname/usercall.c — **DO NOT EXIST** | — | **NEVER ACTUALLY DONE** — bundle dead; dispatch via SM_TPL_LBLOPT table-only |
+  | -10 sm_pat_capture.c | EXISTS, ORPHAN | sm_pat_usercall_args.c — **DOES NOT EXIST** | — | **NEVER ACTUALLY DONE** |
+  | -11 sm_pat_capture_fn.c | EXISTS, ORPHAN | sm_pat_capture_fn_args.c — **DOES NOT EXIST** | — | **NEVER ACTUALLY DONE** |
+
+  **Decision (sess 2026-05-12, Lon):** unsplit.  "One template function per opcode" is
+  the binding rule; file count is incidental.  Restore the bundle files as the source of
+  truth for each group; delete the per-op fragments where they exist.
+
+  **Per-rung procedure (apply to each TC-UNSPLIT-N below):**
+
+  1. **Git-archaeology each function in the bundle.**  For each `emit_sm_*` function the
+     bundle should contain, run `git log --all -p -- src/runtime/x86/templates/<file>` and
+     `git log --all -p -S 'emit_sm_<opcode>'` to find every commit that touched it.  The
+     latest version of each function body wins.  This step is required because:
+     - Some functions were edited inside the bundle before the split.
+     - Some functions were edited inside the per-op file after the split.
+     - Some functions exist in both with different bodies (especially `sm_var.c` /
+       `sm_label_stno.c` / `sm_pat_lbl.c` / `sm_pat_capture.c` / `sm_pat_capture_fn.c`
+       which retained their pre-split content while per-op files were also added).
+     Walk every relevant commit; pick the implementation with the latest meaningful
+     edit per function.  If both edited concurrently, prefer the per-op file (it was
+     the active build artifact).
+
+  2. **Rewrite the bundle `.c` file** containing all `emit_sm_*` functions for the group,
+     each at its latest version per step 1, plus any shared helper used only inside the
+     group (e.g. `emit_sm_lbl_rt` inside `sm_var.c`).
+
+  3. **Delete the per-op fragments** with `git rm` (for files that exist on disk).
+
+  4. **Update `Makefile`:** remove every `$(RT)/x86/templates/sm_<perop>.c` source-list
+     entry AND every `$(CC) -c $(RT)/x86/templates/sm_<perop>.c -o $(OBJ)/template_sm_<perop>.o`
+     recipe line for the per-op files; add the bundle `.c` if not already listed.
+
+  5. **Rebuild scrip + libscrip_rt:** `bash scripts/build_scrip.sh && make libscrip_rt`.
+     Both must succeed clean.
+
+  6. **Gate** before commit: `bash scripts/test_smoke_snobol4.sh` (PASS=7),
+     `bash scripts/test_gate_em_template_byte_identity.sh` (PASS=4),
+     `bash scripts/test_smoke_snocone.sh` (PASS=5),
+     `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` (PASS≥6).
+
+  Sub-rungs:
+
+  - [ ] **TC-UNSPLIT-3** — `sm_var.c` is the source of truth.  Keep `emit_sm_lbl_rt`
+    static helper plus `emit_sm_push_var` + `emit_sm_store_var`.  Delete
+    `templates/sm_push_var.c` + `templates/sm_store_var.c`.  Update Makefile:
+    remove the two per-op entries; add `$(RT)/x86/templates/sm_var.c` source-list
+    entry and matching recipe line.
+
+  - [ ] **TC-UNSPLIT-5** — `sm_label_stno.c` is the source of truth.  Keep
+    `emit_sm_label` + `emit_sm_stno`.  Delete `templates/sm_label.c` +
+    `templates/sm_stno.c`.  Update Makefile per step 4.
+
+  - [ ] **TC-UNSPLIT-9** — `sm_pat_lbl.c` is the source of truth (only place these
+    functions exist).  Verify it contains `emit_sm_pat_lit`, `emit_sm_pat_refname`,
+    `emit_sm_pat_usercall` (or whatever names the bundle currently uses).  No per-op
+    files to delete (they were never created).  Add `$(RT)/x86/templates/sm_pat_lbl.c`
+    to Makefile and recipe.  After this rung, the SM_TPL_LBLOPT table dispatch and
+    the template-function path both reach the same code.
+
+  - [ ] **TC-UNSPLIT-10** — `sm_pat_capture.c` source of truth.  Verify it contains
+    both `emit_sm_pat_capture` + `emit_sm_pat_usercall_args`.  Add to Makefile.
+
+  - [ ] **TC-UNSPLIT-11** — `sm_pat_capture_fn.c` source of truth.  Verify it
+    contains both `emit_sm_pat_capture_fn` + `emit_sm_pat_capture_fn_args`.
+    Add to Makefile.
+
+  - [ ] **TC-UNSPLIT-CLOSE** — After 3/5/9/10/11 close, flip TC-SPLIT-3/5/9/10/11
+    from `[x]` to `[~]` (with note `superseded by TC-UNSPLIT-N`).  Leave TC-SPLIT-1/2/4/6/7/8
+    as `[x]` — those were genuinely correct splits.  Confirm
+    `find src/runtime/x86/templates -name 'sm_*.c' | wc -l` decreases by 8
+    (= 4 deleted per-op for SPLIT-3/5 × 2; no deletions for 9/10/11 since per-op
+    files never existed).
+
 - [ ] **EM-BB-PURGE** — Delete all C BB box functions from `bb_boxes.c`. Both brokered (`--bb-driver`) and flat (`--bb-live`) modes generate x86 blobs via the C template functions. The blobs differ in calling mechanism — not identical:
 
   - **Brokered (`--bb-driver`):** Broker calls each box as a separate C function via `CALL fn(ζ, port)`. Each box is an independent blob with full C ABI: `rdi`=ζ heap struct (local state), `esi`=port (`cmp esi,0; je α; jmp β`), `ret` to return to broker. Broker drives scan by calling `fn(ζ,0)` then `fn(ζ,1)` for backtrack. C stack linkage between broker and each box. Each box is a separate blob in `bb_pool`.
@@ -518,6 +614,123 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-12e (Claude Opus 4.7)**
+
+**No commits this session.** Baseline unchanged on all remotes (one4all
+`c9b7428d`).  Working tree clean.
+
+Baseline reconfirmed at session start: smoke 7/7, template-byte-id 4/4,
+snocone 5/5, beauty-subsystems mode4 PASS=6 FAIL=11.
+
+### Done this session
+
+1. **Session setup complete.**  Repos cloned, scrip + libscrip_rt built,
+   all four baseline gates green.
+
+2. **Re-applied the lower.c DEFINE_ENTRY labtab fix from the previous
+   handoff (sess 2026-05-12d) and verified architectural shape.**
+   Emitted `case_driver.s` shows the expected pattern:
+   ```
+   .Lexpression_registry:  .quad .S175 ; .quad .L1838     # external entry
+   .L1838:                 DEFINE_ENTRY                    # prologue here
+   .L1839:                 PUSH_VAR  .S176 # str           # first body op
+   ...
+   jmp .L1839                                              # internal :(icase)
+   ```
+   External callers run the prologue; internal loop-backs skip it.
+   PASS still 6/17 — the BB-blob R10 corruption masks any improvement,
+   exactly as the prior handoff predicted.  **Patch reverted before
+   handoff to keep tree clean.**  The exact patch text remains in the
+   sess 2026-05-12d watermark below; re-apply from there.
+
+3. **Confirmed the BB-blob R10 corruption is mode-4-specific.**
+   `--jit-run` (mode 3) on the same case_driver.sno produces all 9
+   expected PASS lines and exits cleanly.  The mode-4 binary segfaults
+   on the **first statement's** EXEC_STMT_VARIANT call (gdb backtrace
+   shows `main → rt_match_variant → exec_stmt → bb_broker:44`, with
+   R10=1 and RIP inside an XSPNC blob doing `movslq (%r10),%rcx`).
+   The crash is **before any user function is invoked**, ruling out
+   the DEFINE_ENTRY / RETURN macro hypothesis explored in this session.
+
+4. **Audited the template-split state and discovered TC-SPLIT
+   inconsistency on HEAD `c9b7428d`** — see TC-UNSPLIT rung above for
+   the full audit table.  Summary:
+   - TC-SPLIT-1/2/4/6/7/8 are correct.
+   - TC-SPLIT-3 (sm_var) and -5 (sm_label_stno): bundle files are
+     orphaned (still on disk, not in Makefile, duplicate-symbol with
+     the per-op files which are the active artifacts).
+   - TC-SPLIT-9/10/11: the per-op files **were never created** despite
+     `[x]` checkmarks; the bundles (sm_pat_lbl.c / sm_pat_capture.c /
+     sm_pat_capture_fn.c) sit on disk but aren't built either.
+     SM_PAT_LIT/REFNAME/USERCALL etc. dispatch via the legacy
+     `g_sm_templates[]` table through `render_macro_body` /
+     `render_call_line` (SM_TPL_LBLOPT), which is why the system
+     functions even with the template-function files unbuilt.
+
+5. **Added TC-UNSPLIT rung to the goal file** with audit table,
+   per-rung procedure (git-archaeology, recombine, delete fragments,
+   update Makefile, gate), and 6 sub-rungs (3/5/9/10/11/CLOSE).
+
+### Investigation that did not pan out this session
+
+- **DEFINE_ENTRY/RETURN macro alignment hypothesis was wrong.**
+  Initially hypothesized that the regenerated `sm_macros.s` had an
+  unbalanced `RETURN` macro (only `ret` with no matching `pop rbp`),
+  based on a stale `sm_macros.s` in `corpus/programs/snobol4/demo/`.
+  But the **freshly-regenerated** `sm_macros.s` produced by
+  `sm_emit_macro_library_to_path()` correctly emits `mov rsp, rbp; pop
+  rbp; ret` for RETURN, matching the corresponding `push rbp; mov rbp,
+  rsp` in DEFINE_ENTRY.  Macros are balanced; this is not the bug.
+
+  The stale demo `sm_macros.s` is committed in corpus from an older
+  state — orthogonal cleanup candidate, not on critical path.
+
+- **The handoff's stated "DEFINE_ENTRY loop hazard is a JIT hazard"
+  still holds.**  The real mode-4 hazard is the BB-blob R10
+  corruption, which fires on statement 1 before any user function
+  runs, ruling out everything DEFINE_ENTRY-related as the proximate
+  cause of the case_driver crash.
+
+### Next session must
+
+1. Read RULES.md, ARCH-x86.md (esp. §"Intra-BLOB vs extra-BLOB jumps"),
+   ARCH-SCRIP.md, MIGRATION-MODE4-IS-MODE3-DUMP.md.
+
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5,
+   beauty-subsystems mode4 PASS=6.
+
+3. **Work TC-UNSPLIT-3 first** (smallest scope: 2 per-op files +
+   1 bundle file).  Follow the per-rung procedure in the goal file
+   exactly.  Then -5, then 9/10/11 (largest — git-archaeology
+   required for the orphaned bundle files since they may contain
+   stale code that hasn't been touched since the original split).
+
+4. After TC-UNSPLIT-CLOSE, return to the lower.c DEFINE_ENTRY patch
+   (re-apply from sess 2026-05-12d handoff below) and then to the
+   BB-blob R10 corruption diagnosis (sess 2026-05-12d analysis
+   stands: it's an extra-BLOB jump landing mid-body instead of at
+   α-preamble; fix likely in bb_flat.c γ-port emission or one of the
+   BB templates' port wiring).
+
+### Lessons recorded
+
+- Past sessions marked TC-SPLIT-9/10/11 `[x]` without verifying the
+  per-op files existed on disk; the build system's tolerance for
+  this (legacy table dispatch covering the gap) hid the lie.  Before
+  marking any future template-split rung `[x]`, the close gate must
+  include `ls src/runtime/x86/templates/<expected>.c` for every
+  per-op file the rung names.
+
+- File-level fragmentation is not the Law of Template Functions.
+  The Law is "one C template **function** per opcode."  When a
+  group of functions naturally shares a static helper (e.g. the
+  `emit_sm_lbl_rt` inside `sm_var.c`), keeping them in one file is
+  fine and arguably better than fragmenting the helper across
+  per-op files or extracting it to `sm_helpers.c` solely to enable
+  fragmentation.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-12d (Claude Opus 4.7)**
 
