@@ -519,141 +519,51 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12b (Claude Opus 4.7)**
 
-**one4all `7e123dc6` on remote. corpus unchanged. .github updated this session.**
+**one4all `b5f47fc2` on remote. corpus unchanged. .github updated this session.**
 
 ### Done this session
 
-1. **Session setup complete.** Packages installed, scrip built, libscrip_rt.so built (after fixes). Smoke 7/7, template-byte-id 4/4.
-2. **Sub-rung -u complete.** beauty-subsystems PASS=5 FAIL=12 (up from PASS=2 at session start; exceeds PASS=4 baseline).
-3. **Six bugs fixed** (all in one4all `7e123dc6`):
-   - rt.c/rt.h: two broken `/*` block comments stripped by Opus 4.7 comment-strip session.
-   - rt.c: missing `#include "../../ast/ast.h"` for TT_EQ/TT_NE/TT_L* (rt_acomp/rt_lcomp).
-   - rt.c: `EXP_R_fn` (no definition anywhere) replaced with `pow()` in rt_exp; added `<math.h>`.
-   - sm_codegen_x64_emit.c: 22 SM_PAT_* opcodes fell through to `emit_sm_exec_stmt_variant` → EXEC_STMT_VARIANT instead of their `rt_pat_*@PLT` calls → vstack underflow crash.
-   - bb_emit.c: `g_in_text_macro_body` flag added; `t_macro_begin` sets it in TEXT mode, `t_macro_end` clears it; 11 `t_*` body helpers no-op in TEXT when flag set. Fixes double-emission (ADD_NUM macro call + raw `mov rdi; call rt_arith` both emitted).
-   - sm_codegen_x64_emit.c: SM_DEFINE_ENTRY and SM_DEFINE added to dispatch switch via `sm_emit_rtcall`; previously fell to `emit_sm_unhandled` → abort.
+1. **Session setup complete.** Repos cloned, scrip + libscrip_rt built. Baseline confirmed: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS=5 FAIL=12 — matches prior handoff.
+2. **PASS=6 FAIL=11 (was PASS=5 FAIL=12).** `Gen_driver` now passes via the C-ABI alignment fix below.
+3. **Root cause for match_driver segfault identified and partially fixed: SysV AMD64 stack alignment violation in mode-4 user-function bodies.**
 
-### Remaining 12 failures (PASS=5 FAIL=12)
+   The mode-4 emitted JIT body for a `DEFINE`d function is entered via a normal C-ABI `call cfn()` from `call_native_chunk` in `rt.c`.  At entry, `rsp%16==8` (post-call invariant).  The body subsequently makes `call rt_*@PLT` calls whose callees use SSE-aligned access (e.g. `bb_build` does `movaps -0x60(%rbp)`).  Without a C-frame prologue (`push rbp; mov rbp,rsp`) at function entry, every nested call arrives at a callee that sees `rsp%16==8` post-pushed-return, violating the ABI's `(rsp+8)%16==0` requirement; downstream `movaps` SIGSEGVs inside libc / libscrip_rt internals.
 
-- **XDump_driver (link)**: link failure, cause not investigated.
-- **match_driver (diff)**: segfault — pattern match statement inside `call_native_chunk` user-function body. `subj pat` in a user-defined function crashes. The pat-stack / exec_stmt / bb_build_flat interaction inside a `call_native_chunk` call frame is the likely site.
-- **global_driver (diff)**: IDENT semantics — mode-4 `INVOKE_fn("IDENT",...)` returns the argument value instead of null string when args are identical. sm-run returns null correctly.
-- **case_driver, omega_driver (diff → link fail via asm error)**: `sm_lower: undefined label 'error' → Error 24` message emitted to stderr during emit; the `→` (U+2192) character causes GAS to choke on the `.s` file.
-- **Gen_driver, Qize_driver, ReadWrite_driver, TDump_driver, semantic_driver, tree_driver (diff)**: not yet investigated.
+   Mode-3's `SM_DEFINE_ENTRY` blob handles this via `push rbp; mov rbp,rsp; sub rsp,8` (see sm_codegen.c §ME-6a / ME-13).  Mode-4's `DEFINE_ENTRY` macro had **no prologue at all**.
 
-### Next session must
+   **Fix landed:** `sm_emit_template.c::render_macro_body` `SM_TPL_RTCALL` arm, special-cased for `macro_name == "DEFINE_ENTRY"`, emits `push rbp; mov rbp, rsp` (NOT `sub rsp,8` — see math note below).  `SM_TPL_RET` and `SM_TPL_RET_VAR` arms emit `mov rsp,rbp; pop rbp` before the `ret` to undo the prologue.
 
-1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, MIGRATION-MODE4-IS-MODE3-DUMP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS≥5.
-3. Fix pattern-match-in-userfn segfault (match_driver). Root: `call_native_chunk` calls `cfn()` (function body) which runs `rt_match_variant` → `exec_stmt` → `bb_build_flat`. The crash is inside this chain. Instrument `exec_stmt_blob` / `bb_build_flat` return path. Likely the pat-stack `g_pat_sp` is not reset between calls or the vstack depth save/restore in `call_native_chunk` interferes.
-4. Investigate and fix remaining diff failures.
-5. Aim for PASS>8 before next handoff.
+   **Alignment math (corrected after a wrong first cut):** mode-4 cfn() entry has `rsp%16==8`.  `push rbp` alone moves `rsp` by -8 → `rsp%16==0`.  Subsequent `call` pushes 8 → callee entry `rsp%16==8` ✓.  **Adding `sub rsp,8` here would leave alignment at 8** (the buggy first attempt's symptom: bb_build's `rbp%16==8` causing the same `movaps` SIGSEGV).  Mode-3's `sub rsp,8` is required because its dispatch invariant is `rsp%16==8` at trampoline entry, a different starting state.
 
-### Previous session (Claude Opus 4.7, `3468bb67`)
+4. **Architectural finding logged for EM-TEMPLATE-PURITY:** the per-opcode template `.c` files in `templates/` (the documented "law") are NOT the production source of `sm_macros.s`.  The legacy `render_macro_body` switch in `sm_emit_template.c` is the real renderer.  Edits to `templates/sm_define_entry.c`, `templates/sm_return.c`, etc., have **no effect on the emitted .s** until EM-TEMPLATE-COMPLETE's pluming lands.  The fix in this session was applied to `render_macro_body` for that reason.
 
-**Watermark task #6 — strip comments from template `.c` files.**
-Per Lon's direction: SM template families stay together (similar shape
-is not a reason to split); BB boxes are different — one file each.
-Split: bb_xfarb.c (had XEPS/XFAIL/XFARB) → bb_xeps.c + bb_xfail.c +
-bb_xfarb.c. bb_xlnth.c (had shared helper + XLNTH/XTB/XRTB) →
-bb_xtb.c + bb_xrtb.c + bb_xlnth.c (keeps intcur helper + XLNTH).
-bb_xposi.c (had XPOSI/XRPSI) → bb_xposi.c + bb_xrpsi.c.
-Makefile updated. Gates: build clean, template-byte-id 4/4.
+### Files changed (uncommitted in one4all)
 
-### Previous session (Claude Opus 4.7, `3468bb67`)
+| File | Change | Status |
+|------|--------|--------|
+| `src/runtime/x86/sm_emit_template.c` | `render_macro_body` adds C-frame prologue/epilogue to DEFINE_ENTRY / RETURN / RETURN_VARIANT | **the real fix** |
+| `src/runtime/rt/rt.c` | Added `g_native_chunk_depth` counter + `rt_in_native_chunk()` def, bump/decrement around `cfn()` in `call_native_chunk` | instrumentation, harmless, useful for future depth checks |
+| `src/runtime/rt/rt.h` | Declared `int rt_in_native_chunk(void)` | matches rt.c |
+| `src/runtime/x86/stmt_exec.c` | Weak `rt_in_native_chunk` fallback (returns 0) so scrip binary links cleanly | required because mode-1/2/3 scrip does not link libscrip_rt |
+| `src/runtime/x86/bb_emit.c`/`.h` | Added `t_push_rbp_frame()` / `t_pop_rbp_frame_ret()` helpers | unused today; landed for EM-TEMPLATE-PURITY to call once templates are wired |
 
-**Watermark task #6 — strip comments from template `.c` files.**
-Per Lon's direction, scope widened from "inline comments only,
-keep banners" to "every comment, including banners".  Zero `/*`
-or `//` remain in any of the 22 template `.c` files
-(`src/runtime/x86/templates/*.c`).  Gates: build clean,
-`test_gate_em_template_byte_identity.sh` PASS=4/4.  Diff:
-−894/+79.  Templates now read as pure sequences of `t_*` helper
-calls; function intent lives in `g_sm_templates[]` metadata and
-in this Goal/`MIGRATION-MODE4-IS-MODE3-DUMP.md` doc.
+### Remaining 11 failures (PASS=6 FAIL=11)
 
-### ⛔ THE LAW (re-stated): ONE FILE PER SM OPCODE
-
-`GOAL-MODE4-EMIT.md` §"THE LAW OF TEMPLATE FUNCTIONS" says:
-**One C template function per SM opcode.** That means one `.c` file per opcode.
-Not one file per group of similar opcodes. Not one file for all nullary ops.
-One file. One opcode. Every file named `sm_<opcode_lowercase>.c`.
-
-### Current SM template files — VIOLATIONS (multi-opcode bundles)
-
-These existing files each contain multiple opcodes and must be **split** into
-one file per opcode before SM is considered done:
-
-| File | Opcodes bundled (must become separate files) |
-|------|----------------------------------------------|
-| `sm_arith.c` | SM_ADD, SM_SUB, SM_MUL, SM_DIV, SM_MOD — split into sm_add.c, sm_sub.c, sm_mul.c, sm_div.c, sm_mod.c |
-| `sm_nullary_rt.c` | SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM — split into sm_concat.c, sm_push_null.c, sm_coerce_num.c |
-| `sm_var.c` | SM_PUSH_VAR, SM_STORE_VAR — split into sm_push_var.c, sm_store_var.c |
-| `sm_jump.c` | SM_JUMP, SM_JUMP_S, SM_JUMP_F — split into sm_jump.c, sm_jump_s.c, sm_jump_f.c |
-| `sm_label_stno.c` | SM_LABEL, SM_STNO — split into sm_label.c, sm_stno.c |
-| `sm_return.c` | SM_RETURN, SM_RETURN_VARIANT — split into sm_return.c, sm_return_variant.c |
-| `sm_exec_stmt.c` | SM_PUSH_EXPRESSION, SM_CALL_EXPRESSION, SM_EXEC_STMT — split into 3 files |
-| `sm_pat_nullary.c` | 22 opcodes — split into 22 files |
-| `sm_pat_lbl.c` | SM_PAT_LIT, SM_PAT_REFNAME, SM_PAT_USERCALL — split into 3 files |
-| `sm_pat_capture.c` | SM_PAT_CAPTURE, SM_PAT_USERCALL_ARGS — split into 2 files |
-| `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN, SM_PAT_CAPTURE_FN_ARGS — split into 2 files |
-
-Single-opcode files already correct: `sm_halt.c`, `sm_push_lit_i.c`,
-`sm_push_lit_s.c`, `sm_call_fn.c`, `sm_void_pop.c`.
-
-### SM opcodes still completely missing (not in g_sm_templates[], no file)
-
-SM_EXP, SM_NEG, SM_PUSH_LIT_F, SM_PUSH_NULL_NOFLIP, SM_PUSH_EXPR,
-SM_INCR, SM_DECR, SM_LCOMP, SM_RCOMP, SM_TRIM, SM_ACOMP, SM_SPCINT, SM_SPREAL,
-SM_FRETURN, SM_NRETURN, SM_RETURN_S, SM_RETURN_F, SM_FRETURN_S, SM_FRETURN_F,
-SM_NRETURN_S, SM_NRETURN_F, SM_DEFINE_ENTRY, SM_DEFINE,
-SM_JUMP_INDIR, SM_SELBRA, SM_STATE_PUSH, SM_STATE_POP,
-SM_BB_PUMP, SM_BB_ONCE, SM_BB_ONCE_PROC, SM_BB_PUMP_PROC, SM_BB_PUMP_CASE,
-SM_BB_PUMP_SM, SM_BB_PUMP_EVERY, SM_BB_PUMP_AST,
-SM_SUSPEND, SM_RESUME, SM_SUSPEND_VALUE,
-SM_LOAD_GLOCAL, SM_STORE_GLOCAL, SM_ICMP_GT, SM_ICMP_LT,
-SM_LOAD_FRAME, SM_STORE_FRAME.
-
-### t_* helpers surface (bb_emit.h / bb_emit.c)
-
-`t_comment`, `t_bb_box_banner`, `t_inc_mem_r13_disp8`, `t_ret`, `t_pad_to_blob_size`,
-`t_mov_rdi_imm64`, `t_call_sym_plt`, `t_macro_begin`, `t_macro_end`,
-`t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
-`t_lea_rdi_strtab_sym`, `t_lea_rdx_strtab_sym`,
-`t_mov_esi_imm32`, `t_mov_edi_imm32`, `t_mov_edx_imm32`,
-`t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`,
-`t_movabs_rdi_entry`, `t_call_sym_param`.
-
-### BB templates — all six still violating (do AFTER SM is complete)
-
-`bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`
+- **match_driver (diff → still segfaults but at a DIFFERENT site).**  Alignment is fixed; new backtrace shows crash at `0x7ffff705c069` inside a `bb_pool` RX page, called from `bb_broker` (`bb_broker.c:44`) driven from `exec_stmt:1400`.  This is a downstream pattern-match bug uncovered by fixing the alignment SIGSEGV — likely a corrupt bb_box `fn` pointer or a missing pattern node.  Reproduce: `bash scripts/test_gate_em_beauty_subsystems_mode4.sh` shows `match_driver(diff)`.  Get fresh backtrace with `gdb -batch -ex run -ex "bt 8" --args` on the linked match.prog.
+- **XDump_driver (link).**  Link failure; cause not investigated this session.
+- **case_driver, omega_driver (diff → link fail via asm error).**  `sm_lower: undefined label 'error' → Error 24` stderr line contains U+2192 (`→`); when this lands in a `.s` comment GAS chokes.  Search `sm_lower.c` for the `→` rune and replace with `->`.
+- **Gen_driver — NEWLY PASSING — was diff this session.** (Not in fail list.)
+- **Qize_driver, ReadWrite_driver, TDump_driver, semantic_driver, tree_driver, stack_driver, global_driver (diff)** — not investigated.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
-3. **Split all multi-opcode SM template files** — one file per opcode, named `sm_<opcode>.c`. Use the shared helper pattern (static helper called by each thin wrapper) to avoid duplication while obeying one-file-per-opcode.
-4. **Add all 46 missing SM opcodes** to `g_sm_templates[]` and write their individual files.
-5. Verify: every opcode in `sm_prog.h` enum has exactly one `sm_<opcode>.c` file in `templates/`.
-6. ~~Remove all inline comments from every template `.c` file.~~ **DONE** sess 2026-05-11 (Claude Opus 4.7, one4all `3468bb67`).  Scope widened to all comments including banners — every template `.c` is zero-comment.  Templates read as pure `t_*` call sequences.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, beauty-subsystems PASS≥6.
+3. Fix `case_driver` + `omega_driver`: `grep -nP "→" src/runtime/x86/sm_lower.c` and replace with `->`.  Expected: PASS jumps to 8 in one rung.
+4. Investigate `match_driver`'s new (downstream) crash — gdb backtrace inside the `bb_pool` blob.  Most likely a bb_node fn pointer corruption from the user-function call frame.
+5. Investigate XDump_driver link failure (single rung).
+6. Begin systematic walk through the remaining diff fails.
+7. After PASS≥10, commit the C-ABI alignment fix as a discrete rung named `EM-MODE4-IS-MODE3-DUMP-DEFINE-ENTRY-ABI` and reference this watermark.
 
-| Template file | Opcodes |
-|---------------|---------|
-| `sm_halt.c` | SM_HALT |
-| `sm_push_lit_i.c` | SM_PUSH_LIT_I |
-| `sm_push_lit_s.c` | SM_PUSH_LIT_S |
-| `sm_var.c` | SM_PUSH_VAR, SM_STORE_VAR |
-| `sm_void_pop.c` | SM_VOID_POP |
-| `sm_nullary_rt.c` | SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM |
-| `sm_arith.c` | SM_ADD, SM_SUB, SM_MUL, SM_DIV, SM_MOD |
-| `sm_jump.c` | SM_JUMP, SM_JUMP_S, SM_JUMP_F |
-| `sm_label_stno.c` | SM_LABEL, SM_STNO |
-| `sm_call_fn.c` | SM_CALL_FN |
-| `sm_return.c` | SM_RETURN, SM_RETURN_VARIANT |
-| `sm_exec_stmt.c` | SM_PUSH_EXPRESSION, SM_CALL_EXPRESSION, SM_EXEC_STMT |
-| `sm_pat_nullary.c` | SM_PAT_EPS/ARB/REM/FAIL/SUCCEED/ABORT/BAL/FENCE/FENCE1/SPAN/BREAK/ANY/NOTANY/LEN/POS/RPOS/TAB/RTAB/ARBNO/CAT/ALT/DEREF |
-| `sm_pat_lbl.c` | SM_PAT_LIT, SM_PAT_REFNAME, SM_PAT_USERCALL |
-| `sm_pat_capture.c` | SM_PAT_CAPTURE, SM_PAT_USERCALL_ARGS |
-| `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN, SM_PAT_CAPTURE_FN_ARGS |
