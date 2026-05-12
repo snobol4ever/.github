@@ -200,8 +200,10 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 **GOAL-PROLOG-BB-COMPLETE is effectively done** — honest dial 111/294, zero FAILs, zero ABORTs. Remaining 183 programs not in the `--ir-run` PASS set are blocked by other goals (Prolog frontend coverage, rung30+ features).
 
-Remaining open (deferred):
-- **B4** `PL_CHOICE_DYNAMIC` JIT mirror — not yet emitted by `lower.c`
+**Cleanup committed one4all `c9b7428d`:** `lower_prolog_child()` tombstone stub deleted; `TT_CLAUSE` dispatch routed to `lower_unhandled()`. Gates unchanged: smoke_icon 5/5, broker 22/49, honest 111/294 FAIL=0 ABORT=0.
+
+Remaining open (deferred — not this goal's blocker):
+- **B4** `PL_CHOICE_DYNAMIC` JIT mirror — opcode not yet emitted by `lower.c`; no-op to mirror until lower.c emits it
 - **B5** clause-inline JIT shape — requires full `TT_CLAUSE` inline migration
 
 ---
