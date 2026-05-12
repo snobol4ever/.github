@@ -400,25 +400,30 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `d8fec035` on remote.**
+**one4all `f33589d8` on remote.**
 
-### SM templates complete (all SM opcodes covered)
+### SM templates — ALL 53 OPCODES COMPLETE
 
-| Template file | Ops covered | Key helpers |
-|---------------|-------------|-------------|
-| `sm_halt.c` | SM_HALT | t_inc_mem_r13_disp8, t_ret |
-| `sm_push_lit_i.c` | SM_PUSH_LIT_I | t_mov_rdi_imm64, t_call_sym_plt |
-| `sm_void_pop.c` | SM_VOID_POP | t_call_sym_plt |
-| `sm_jump.c` | SM_JUMP/S/F | t_test_rax_rax, t_emit_jmp |
-| `sm_arith.c` | SM_ADD..SM_MOD | t_mov_rdi_imm64, t_call_sym_plt |
-| `sm_nullary_rt.c` | SM_CONCAT/PUSH_NULL/COERCE_NUM | t_call_sym_plt |
-| `sm_label_stno.c` | SM_LABEL/SM_STNO | t_noop_macro, t_banner_stno |
-| `sm_call_fn.c` | SM_CALL_FN (MACRO_DEF only) | t_lea_rdi_strtab_sym, t_mov_esi_imm32 |
-| `sm_return.c` | SM_RETURN/RETURN_VARIANT (MACRO_DEF only) | t_mov_edi_imm32, t_test_eax_eax, t_jz_retskip, t_retskip_label, t_ret |
-| `sm_pat_nullary.c` | SM_PAT_EPS/ARB/REM/FAIL/SUCCEED/ABORT/BAL/FENCE/FENCE1/SPAN/BREAK/ANY/NOTANY/LEN/POS/RPOS/TAB/RTAB/ARBNO/CAT/ALT/DEREF | t_call_sym_plt |
-| `sm_pat_lbl.c` | SM_PAT_LIT/REFNAME/USERCALL | t_lea_rdi_strtab_sym |
-| `sm_pat_capture.c` | SM_PAT_CAPTURE/USERCALL_ARGS | t_lea_rdi_strtab_sym, t_mov_esi_imm32 |
-| `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN/CAPTURE_FN_ARGS | t_lea_rdi_strtab_sym, t_lea_rdx_strtab_sym, t_mov_esi_imm32, t_mov_edx_imm32 |
+16 template files covering every opcode in g_sm_templates[]:
+
+| Template file | Opcodes |
+|---------------|---------|
+| `sm_halt.c` | SM_HALT |
+| `sm_push_lit_i.c` | SM_PUSH_LIT_I |
+| `sm_push_lit_s.c` | SM_PUSH_LIT_S |
+| `sm_var.c` | SM_PUSH_VAR, SM_STORE_VAR |
+| `sm_void_pop.c` | SM_VOID_POP |
+| `sm_nullary_rt.c` | SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM |
+| `sm_arith.c` | SM_ADD, SM_SUB, SM_MUL, SM_DIV, SM_MOD |
+| `sm_jump.c` | SM_JUMP, SM_JUMP_S, SM_JUMP_F |
+| `sm_label_stno.c` | SM_LABEL, SM_STNO |
+| `sm_call_fn.c` | SM_CALL_FN |
+| `sm_return.c` | SM_RETURN, SM_RETURN_VARIANT |
+| `sm_exec_stmt.c` | SM_PUSH_EXPRESSION, SM_CALL_EXPRESSION, SM_EXEC_STMT |
+| `sm_pat_nullary.c` | SM_PAT_EPS/ARB/REM/FAIL/SUCCEED/ABORT/BAL/FENCE/FENCE1/SPAN/BREAK/ANY/NOTANY/LEN/POS/RPOS/TAB/RTAB/ARBNO/CAT/ALT/DEREF |
+| `sm_pat_lbl.c` | SM_PAT_LIT, SM_PAT_REFNAME, SM_PAT_USERCALL |
+| `sm_pat_capture.c` | SM_PAT_CAPTURE, SM_PAT_USERCALL_ARGS |
+| `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN, SM_PAT_CAPTURE_FN_ARGS |
 
 ### t_* helpers surface (bb_emit.h / bb_emit.c)
 
@@ -427,22 +432,24 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 `t_test_rax_rax`, `t_emit_jmp`, `t_noop_macro`, `t_banner_stno`,
 `t_lea_rdi_strtab_sym`, `t_lea_rdx_strtab_sym`,
 `t_mov_esi_imm32`, `t_mov_edi_imm32`, `t_mov_edx_imm32`,
-`t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`.
+`t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`,
+`t_movabs_rdi_entry`, `t_call_sym_param`.
 
-### BB templates — still violating (all six use is_text / callbacks / e->...)
+### BB templates — all six still violating (do these next)
 
 `bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`
 
-All must be rewritten per EM-TEMPLATE-PURITY. Next rung: **-s** (fix all six BB templates).
+All use `e->is_text`, `EMIT_OPT`, `EMIT_JMP`, `EMIT_LABEL`, or callbacks.
+Must be rewritten per EM-TEMPLATE-PURITY before any BB work is considered done.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md` in full.
 2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
-3. **All SM templates are complete and clean** (zero violations — verified sess 2026-05-11). Do not re-audit SM templates; go straight to BB.
-4. Next rung: **EM-TEMPLATE-PURITY → -s** — fix all six BB templates.
+3. **SM templates are 100% complete — verified `f33589d8`. Do NOT re-audit SM.**
+4. Next rung: **EM-TEMPLATE-PURITY → fix all six BB templates**.
    - Each currently uses `e->is_text`, `EMIT_OPT`, `EMIT_JMP`, `EMIT_LABEL`, or text callbacks.
-   - Add `t_bb_port_alpha` / `t_bb_port_beta` to `bb_emit.h` as needed.
-   - Rewrite to pure `t_*` calls. No `(void)e` needed — `e` can be dropped from signature once all BB templates are clean.
+   - Add `t_bb_port_alpha`/`t_bb_port_beta` to `bb_emit.h` as needed.
+   - Rewrite to pure `t_*` calls. No `is_text`. No callbacks. No `e->` calls.
    - Verify: `grep -r 'is_text\|EMIT_OPT\|EMIT_JMP\|EMIT_LABEL\|text_body' src/runtime/x86/templates/bb_*.c` returns empty.
 5. After BB templates clean: rung -t (generated artifacts), then -u (rung close).
