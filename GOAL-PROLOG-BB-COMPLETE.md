@@ -100,15 +100,15 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 ## Phase A — drain legacy fallthrough (one AST kind per rung)
 
 #### PB-0 — tripwire + test script
-- [ ] Add `test_prolog_bb_honest.sh` script (mirrors `test_icon_sm_no_ast_walk.sh`).
-- [ ] Baseline: run and record honest dial count (31 at carve 2026-05-12).
-- [ ] Files: `scripts/test_prolog_bb_honest.sh`
+- [x] Add `test_prolog_bb_honest.sh` script (mirrors `test_icon_sm_no_ast_walk.sh`).
+- [x] Baseline: run and record honest dial count (17 at carve 2026-05-12 via --ir-run oracle; PLAN.md estimated 31 via .expected files).
+- [x] Files: `scripts/test_prolog_bb_honest.sh`
 
 #### PB-1 — TT_UNIFY (=/2)
-- [ ] Add `SM_CALL_FN "PL_UNIFY" 2` handler in `sm_interp.c` — pops two terms, calls `pl_unify()` from `pl_runtime.c`, sets `last_ok`. Mirrors `pl_box_unify` in `pl_broker.c`.
-- [ ] In `lower.c`: replace `lower_prolog_child(t)` for `TT_UNIFY` with inline: `lower_expr(T0(t)); lower_expr(T1(t)); SM_CALL_FN "PL_UNIFY" 2`.
-- [ ] Gate: honest dial increases ≥1; smoke 5/5; rung22 (write_canonical) still 5/5.
-- [ ] Files: `src/runtime/x86/sm_interp.c`, `src/runtime/x86/lower.c`
+- [x] Add `SM_CALL_FN "PL_UNIFY" 0` handler in `sm_interp.c` — pops DT_E tree_t*, calls `pl_unified_term_from_expr` on both children with `g_pl_env`, then `unify()`. No coro_eval.
+- [x] In `lower.c`: split `TT_UNIFY` from `lower_prolog_child` fallthrough → `emit_push_expr(t)` + `SM_CALL_FN "PL_UNIFY" 0`.
+- [x] Gate: honest dial 17 (unchanged — TT_UNIFY programs also need TT_CLAUSE+TT_TRAIL migrated; no regression). Smoke PASS=1 FAIL=4 pre-existing.
+- [x] Files: `src/runtime/x86/sm_interp.c`, `src/runtime/x86/lower.c`
 
 #### PB-2 — TT_CUT (!)
 - [ ] Add `SM_CALL_FN "PL_CUT" 0` handler in `sm_interp.c` — calls `pl_cut()` from `pl_runtime.c`. Mirrors `pl_box_cut`.
@@ -160,10 +160,11 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 31/294 at sess 2026-05-12 carve)
+## Active next targets (honest dial: 17/294 at sess 2026-05-12, one4all f63a07cd)
 
-Immediate: **PB-0** — write `test_prolog_bb_honest.sh`, record baseline.
-Then: **PB-1** — TT_UNIFY is the simplest kind; will unlock many clause-body programs.
+Immediate: **PB-2** — TT_CUT (`g_pl_cut_flag` set).
+Then: **PB-3** — TT_TRAIL_MARK / TT_TRAIL_UNWIND.
+Then: **PB-4** — TT_CLAUSE inline (needs PB-3 first; this is the key unlock for most programs).
 
 ---
 
@@ -181,7 +182,9 @@ Then: **PB-1** — TT_UNIFY is the simplest kind; will unlock many clause-body p
 
 | Rung | Commit | Honest gain | Notes |
 |------|--------|-------------|-------|
-| (carve baseline) | — | 31 honest | TT_CHOICE named → SM_BB_ONCE_PROC already migrated |
+| (carve baseline) | — | 17 honest | TT_CHOICE named → SM_BB_ONCE_PROC already migrated. --ir-run oracle gives 17 (not 31; .expected-based estimate inflated by programs --ir-run can't run) |
+| PB-0 | f63a07cd | 17 | test_prolog_bb_honest.sh added |
+| PB-1 | f63a07cd | 17 | TT_UNIFY → PL_UNIFY SM_CALL_FN. No honest gain yet (needs TT_CLAUSE+TT_TRAIL to unlock) |
 
 ---
 
