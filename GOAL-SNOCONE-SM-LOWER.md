@@ -538,13 +538,13 @@ patching in place. Also added `SM_CALL_EXPRESSION` display to `fmt_instr`.
 Fix is one line: replace `TDump(result)` with `Lower_collect(result)` and
 add `Lower_run()` at the end of the parser's main loop.
 
-**Blocker (sess 2026-05-12):** `parser_snobol4.sc` line 85 fails with full blob.
-Root cause: `parser_snobol4.sc` is SNOBOL4 source that uses SNOBOL4 pattern-context
-juxtaposition idioms (e.g. `$',' nInc() *Expr FENCE(*FnArgTail | epsilon)` builds
-a pattern by concatenating sub-patterns). In Snocone, juxtaposition is string
-concatenation, not pattern concatenation — the file isn't valid Snocone.
-This is GOAL-PARSER-SNOBOL4's problem to resolve, not SL-13's.
-SL-13 is correctly blocked until parser_snobol4.sc is rewritten as proper Snocone.
+**Blocker (sess 2026-05-12):** `parser_snobol4.sc` line 87 fails — the
+ShiftReduce grammar DSL uses `"tag" & 'action'` (SNOBOL4 AND pattern
+operator). In Snocone, `&` as a binary operator (`T_2AMP`) is declared
+in `snocone_parse.y` but has no grammar production — it is unimplemented.
+Fix required in the Snocone frontend: implement `T_2AMP` binary op, or
+rewrite the ShiftReduce `&` form to use a different notation.
+Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
 
 - [ ] Confirm parser_snobol4.sc parse error is fixed (GOAL-PARSER-SNOBOL4)
 - [ ] Replace `TDump(result)` → `Lower_collect(result)`, add `Lower_run()`
