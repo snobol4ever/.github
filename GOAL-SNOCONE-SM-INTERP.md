@@ -595,24 +595,46 @@ all prior rungs byte-identical hosted == native.
 - [x] `si_12_call_builtin.sc` + native + `.ref`
 - [x] SI-5 cross-check PASS
 
-### SI-13 — Function returns (RETURN, FRETURN, NRETURN)
+### SI-13 — Function returns (RETURN, FRETURN, NRETURN) ✅ sess 2026-05-12 (Claude Sonnet 4.6)
 
-Opcodes: `SM_RETURN`, `SM_FRETURN`, `SM_NRETURN`.
+Opcodes: `SM_RETURN`, `SM_FRETURN`, `SM_NRETURN`, plus `SM_PUSH_EXPRESSION` and
+`SM_CALL_EXPRESSION` (the thunk-invocation pair).
 
-For user-defined functions, these set the return-value behavior:
-RETURN = normal value, FRETURN = signal failure, NRETURN = return a NAME
-(for `*fn()` callers).  Implementation needs a frame stack (`si_call_stack[]`)
-that SM_CALL_FN pushes onto when entering a user function lowered to SM.
+Frame infrastructure in `sm_interp.sc`:
+- `si_call_stack` (TABLE of frame-TABLEs), `si_csp` (depth)
+- `si_push_frame(ret_pc, retval_name)` — snapshots caller value stack into the
+  frame's `caller_stack` TABLE, resets `sp = 0` for the callee.
+- `si_pop_frame(is_fret, is_nret)` — reads retval (from NV slot if `retval_name`
+  is non-empty, else from TOS), restores caller stack, resets `pc = fr['ret_pc']`,
+  pushes retval and sets `last_ok` per return kind.
 
-Note: this rung only matters when lower.sc emits user-function bodies.
-Today `lower_proc_skeletons` is a stub so no user-function bodies are
-emitted.  Build the frame infrastructure here so SI-13 unblocks once
-lower.sc starts emitting real bodies.
+Opcodes:
+- `SM_PUSH_EXPRESSION a0=entry_pc` — pushes a TABLE descriptor
+  `{type:'EXPR', entry_pc:N}` (the `.sc` equivalent of C's DT_E DESCR_t).
+- `SM_CALL_EXPRESSION a0=entry_pc` — reads `entry_pc` directly from `a0`
+  (not from a stack descriptor — `emit_thunk` patches the last pushed instr
+  to `SM_CALL_EXPRESSION` in place, preserving its `a0=entry_pc` field).
+  Pushes a frame with `retval_name=''` (thunk: use TOS), jumps to entry_pc.
+- `SM_RETURN` — `si_pop_frame(0, 0)`; if at top-level (`si_csp=0`), halt.
+- `SM_FRETURN` — `si_pop_frame(1, 0)`; pushes `''` and sets `last_ok=0`.
+- `SM_NRETURN` — Ph1 same as SM_RETURN (thunks use TOS; real NAME-deref deferred).
 
-- [ ] Add frame stack (`si_call_stack`, `si_csp`)
-- [ ] Add RETURN / FRETURN / NRETURN opcodes
-- [ ] `si_13_proc.sc` + native + `.ref` (using DEFINE-based user fn)
-- [x] SI-5 cross-check PASS
+Test `si_13_proc.sc` hand-builds three EVAL(*expr) cases: `EVAL(*X)='hello'`,
+`EVAL(*(3+4))=7`, and `EVAL(*PROC_FAIL)` with `:F(FRET_FAILED)` exercising the
+FRETURN→last_ok=0 path through `SM_CALL_EXPRESSION` + `SM_FRETURN`.
+
+Notes for the future SI rung that lands real user-function bodies (depends on
+`lower_proc_skeletons` going non-stub):
+- `si_push_frame` will need a `retval_name` parameter set to the NV slot the
+  body writes into (currently always `''` for thunks).
+- `saved_names` / `saved_vals` TABLE inside each frame for param/local
+  save/restore (infrastructure shape exists; not wired since SM-bodies don't
+  emit them yet).
+
+- [x] Add frame stack (`si_call_stack`, `si_csp`)
+- [x] Add RETURN / FRETURN / NRETURN opcodes (+ PUSH_EXPRESSION / CALL_EXPRESSION)
+- [x] `si_13_proc.sc` + native + `.ref`
+- [x] SI-5 cross-check PASS (PASS=8/9; si_07_pat_lit pre-existing FAIL)
 
 ### SI-14 — Computed goto (JUMP_INDIR)
 
