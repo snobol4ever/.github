@@ -135,12 +135,11 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 - [x] Gate: honest dial 105 → **106**. Remaining 14 FAIL are rung10 puzzle programs (proper head unification needs PB-6). Smoke unchanged.
 - [x] Files: `src/runtime/x86/lower.c`
 
-#### PB-6 — TT_CHOICE full inline (OR-box as SM coroutine)
-- [ ] Largest rung: inline the OR-box as a pure SM coroutine with `SM_GEN_TICK` over clauses. Each clause becomes a coroutine arm (like `lower_alternate_gen` for Icon).
-- [ ] Uses `EVERY_GEN_SLOT_MAX` slot counter; `SM_JUMP_F` between clause arms.
-- [ ] Prereq: PB-3 + PB-4 complete.
-- [ ] Gate: standard + ≥5 honest flip; no regression on any passing rung.
-- [ ] Files: `sm_interp.c`, `lower.c`, possibly `sm_prog.h` (new opcode if needed)
+#### PB-6 — TT_CHOICE full inline (OR-box via BB broker, not SM coroutine)
+- [ ] **Architecture note (corrected from carve):** PB-6 is NOT an SM coroutine. The correct target is BB-land: `SM_BB_ONCE_PROC` already calls `pl_box_choice` → `bb_broker` → `pl_box_clause` for each clause. The 14 remaining FAIL (rung10 puzzles) fail because `interp_exec_pl_builtin` inside `pl_box_goal_from_ir` doesn't properly bind clause variables when calling user predicates like `person(X)`. Fix: ensure `g_pl_env` (the clause cenv) is properly passed as the env for nested `is_pl_user_call` goals inside `interp_exec_pl_builtin`.
+- [ ] Probe: in `pl_runtime.c` `interp_exec_pl_builtin`, the `is_pl_user_call` branch allocates `uenv` for the callee but uses `env` (the caller's env) to evaluate goal arg expressions. Verify `env` is the clause's `cenv` not NULL when called from `pl_box_goal_from_ir`.
+- [ ] Gate: ≥1 of the 14 rung10 puzzle programs flips to honest PASS; ABORT still 0.
+- [ ] Files: `src/runtime/interp/pl_runtime.c` (reference only — do not modify if fix is in broker), `src/frontend/prolog/pl_broker.c`
 
 #### PB-7 — fallthrough delete
 - [ ] After PB-1–PB-6: remove `lower_prolog_child` legacy path, replace with `abort()`.
@@ -162,14 +161,19 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ## Active next targets (honest dial: 106/294 at sess 2026-05-12, one4all 695aed00)
 
-Remaining 14 FAIL: all rung10 puzzle programs (`main :- puzzle; true`). `puzzle` calls
-`person(Cashier)` etc. — head unification of fact args into clause env vars not working
-correctly in SM (Cashier gets slot-index integers instead of atom values). Root cause:
-`g_pl_env` not properly threaded for nested predicate calls with actual args. Requires
-PB-6 (full clause inline with proper env allocation per call frame).
+**Architecture confirmed correct — this is NOT the Icon off-rails problem:**
+- `SM_BB_ONCE_PROC` → `pl_box_choice` → `bb_broker` → pure BB-land ✅
+- PB-6 spec corrected: do NOT build SM coroutines (SM_GEN_TICK etc.) for Prolog
+- ABORT=0: no coro_eval reached from SM dispatch ✅
 
-**PB-6** — TT_CHOICE full inline (OR-box as SM coroutine): large rung, prerequisite for
-proper head unification in nested predicate calls.
+Remaining 14 FAIL: all rung10 puzzle programs. `puzzle` calls `person(X)` etc. inside
+clause body via `interp_exec_pl_builtin` / `pl_box_goal_from_ir`. Bug: nested user
+predicate calls don't properly bind clause variables (X gets slot-index integer, not atom).
+Fix target: `g_pl_env` / cenv threading in `pl_box_goal_from_ir` for `is_pl_user_call`
+goals — ensure callee sees caller's cenv for arg evaluation.
+
+**NEXT: PB-6** — fix cenv threading in `pl_box_goal_from_ir` for nested user predicate
+calls. BB-land fix (pl_broker.c / pl_runtime.c), NOT SM coroutines.
 
 ---
 
