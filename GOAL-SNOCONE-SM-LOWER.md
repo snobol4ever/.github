@@ -221,6 +221,16 @@ Done when: a test `.sc` program calls `lower_expr` on hand-built
 
 - [ ] Translate control-flow and comparison cases
 
+**Session 2026-05-11 (Claude Sonnet 4.6) — housekeeping before SL-5:**
+- Renamed `sm_lower_driver.sc` → `lower_driver.sc`; fixed references. corpus `a5aa690`.
+- Stripped all comments from `corpus/SCRIP/*.sc`, kept one `// name` per function def. −1654 L. corpus `1c96aa4`.
+- Investigated Error 3 "erroneous array/table reference" in smoke_lower run (stmts 36,40,44).
+  Root cause not yet confirmed. Error fires at runtime inside Lower_run(), with last SM_STNO
+  pointing to lower.sc line 36 (TT_INDIRECT assignment). Error 3 in scrip fires on subscript
+  of non-array/non-table (snobol4_pattern.c:543). Suspected site: c(t)[i] in a tree helper
+  called from lower_stmt when tree node has no children array yet. NOT blocking — Lower()
+  still executes but produces empty SM output. Fix needed before SL-5 gate can pass.
+
 ### SL-6 — lower_expr: Icon / Prolog generator stubs
 
 - `AST_EVERY` → `SM_BB_PUMP_EVERY`
