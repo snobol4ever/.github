@@ -396,6 +396,80 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] -t `sm_macros.s` + `bb_macros.s` generated artifacts (Sonnet 4.6, one4all `ebb338d9`, corpus `dcce732`). Fixed .intel_syntax header; fixed TEXT-mode emit_push_lit_i_line. All 5 demo .s gcc-c clean.
   - [ ] -u Rung close: beauty-subsystems gate improves from PASS=4 baseline; delete legacy emitter files.
 
+- [ ] **EM-TEMPLATE-COMPLETE** — Every SM opcode and BB box has exactly one `.c` template file. One file per opcode/box, named `sm_<opcode_lowercase>.c` / `bb_<kind_lowercase>.c`. All registered in `g_sm_templates[]` (or handled in `sm_codegen_x64_emit.c` for special cases) and in the Makefile. Gate: build clean, smoke 7/7, template-byte-id 4/4.
+
+  **Audit (sess 2026-05-12, Sonnet 4.6):**
+  - SM total: 89 opcodes in enum (after deleting 8 dead: SM_TRIM SM_SPCINT SM_SPREAL SM_SELBRA SM_RCOMP SM_STATE_PUSH SM_STATE_POP SM_JUMP_INDIR). 54 have templates. **35 missing.**
+  - BB total: 28 kinds in XKIND_t. 14 covered (XCHR XSPNC XBRKC XANYC XNNYC XLNTH XTB XRTB XPOSI XRPSI XFARB XFAIL XEPS XBRKX). **14 missing.**
+
+  **Multi-opcode SM files that must be split first (one file per opcode):**
+  - [ ] **TC-SPLIT-1** — `sm_arith.c` → `sm_add.c sm_sub.c sm_mul.c sm_div.c sm_mod.c` (5 files). Old file deleted.
+  - [ ] **TC-SPLIT-2** — `sm_nullary_rt.c` → `sm_concat.c sm_push_null.c sm_coerce_num.c` (3 files). Old file deleted.
+  - [ ] **TC-SPLIT-3** — `sm_var.c` → `sm_push_var.c sm_store_var.c` (2 files). Old file deleted.
+  - [ ] **TC-SPLIT-4** — `sm_jump.c` → `sm_jump.c sm_jump_s.c sm_jump_f.c` (already 1 per opcode; rename to 3 single-op files). Old file deleted.
+  - [ ] **TC-SPLIT-5** — `sm_label_stno.c` → `sm_label.c sm_stno.c` (2 files). Old file deleted.
+  - [ ] **TC-SPLIT-6** — `sm_return.c` → `sm_return.c sm_return_variant.c` (2 files). Old file deleted.
+  - [ ] **TC-SPLIT-7** — `sm_exec_stmt.c` → `sm_push_expression.c sm_call_expression.c sm_exec_stmt.c` (3 files). Old file deleted.
+  - [ ] **TC-SPLIT-8** — `sm_pat_nullary.c` → 22 individual files (one per PAT opcode). Old file deleted.
+  - [ ] **TC-SPLIT-9** — `sm_pat_lbl.c` → `sm_pat_lit.c sm_pat_refname.c sm_pat_usercall.c` (3 files). Old file deleted.
+  - [ ] **TC-SPLIT-10** — `sm_pat_capture.c` → `sm_pat_capture.c sm_pat_usercall_args.c` (2 files). Old file deleted.
+  - [ ] **TC-SPLIT-11** — `sm_pat_capture_fn.c` → `sm_pat_capture_fn.c sm_pat_capture_fn_args.c` (2 files). Old file deleted.
+
+  **Missing SM opcode template files (new files + g_sm_templates[] entries):**
+  - [ ] **TC-SM-1** — `sm_push_lit_f.c` (SM_PUSH_LIT_F: push real literal → `rt_push_real`)
+  - [ ] **TC-SM-2** — `sm_push_null_noflip.c` (SM_PUSH_NULL_NOFLIP: push null, preserve last_ok → `rt_push_null_noflip`)
+  - [ ] **TC-SM-3** — `sm_push_expr.c` (SM_PUSH_EXPR: push frozen DT_E expression descriptor → `rt_push_expr`)
+  - [ ] **TC-SM-4** — `sm_exp.c` (SM_EXP: exponentiation, pop 2, push result → `rt_exp`)
+  - [ ] **TC-SM-5** — `sm_neg.c` (SM_NEG: negate TOS → `rt_neg`)
+  - [ ] **TC-SM-6** — `sm_incr.c` (SM_INCR: increment TOS by immediate → `rt_incr`)
+  - [ ] **TC-SM-7** — `sm_decr.c` (SM_DECR: decrement TOS by immediate → `rt_decr`)
+  - [ ] **TC-SM-8** — `sm_acomp.c` (SM_ACOMP: numeric compare, op in a[0].i → `rt_acomp`)
+  - [ ] **TC-SM-9** — `sm_lcomp.c` (SM_LCOMP: lexicographic compare, op in a[0].i → `rt_lcomp`)
+  - [ ] **TC-SM-10** — `sm_define_entry.c` (SM_DEFINE_ENTRY: no-op in interp; mode-3 blob does conditional push rbp → `rt_define_entry`)
+  - [ ] **TC-SM-11** — `sm_define.c` (SM_DEFINE: function definition stub → no-op macro)
+  - [ ] **TC-SM-12** — `sm_freturn.c` (SM_FRETURN → reuse RETURN_VARIANT shape via `rt_do_return`)
+  - [ ] **TC-SM-13** — `sm_nreturn.c` (SM_NRETURN → reuse RETURN_VARIANT shape)
+  - [ ] **TC-SM-14** — `sm_return_s.c` (SM_RETURN_S → RETURN_VARIANT, cond=S)
+  - [ ] **TC-SM-15** — `sm_return_f.c` (SM_RETURN_F → RETURN_VARIANT, cond=F)
+  - [ ] **TC-SM-16** — `sm_freturn_s.c` (SM_FRETURN_S → RETURN_VARIANT, FRETURN+cond=S)
+  - [ ] **TC-SM-17** — `sm_freturn_f.c` (SM_FRETURN_F → RETURN_VARIANT, FRETURN+cond=F)
+  - [ ] **TC-SM-18** — `sm_nreturn_s.c` (SM_NRETURN_S → RETURN_VARIANT, NRETURN+cond=S)
+  - [ ] **TC-SM-19** — `sm_nreturn_f.c` (SM_NRETURN_F → RETURN_VARIANT, NRETURN+cond=F)
+  - [ ] **TC-SM-20** — `sm_suspend.c` (SM_SUSPEND: yield from generator → `rt_suspend`)
+  - [ ] **TC-SM-21** — `sm_resume.c` (SM_RESUME: no-op marker → noop macro)
+  - [ ] **TC-SM-22** — `sm_suspend_value.c` (SM_SUSPEND_VALUE: swapcontext yield → `rt_suspend_value`)
+  - [ ] **TC-SM-23** — `sm_gen_tick.c` (SM_GEN_TICK: drive generator one step → `rt_gen_tick`)
+  - [ ] **TC-SM-24** — `sm_load_glocal.c` (SM_LOAD_GLOCAL: push gen-local slot N → `rt_load_glocal`)
+  - [ ] **TC-SM-25** — `sm_store_glocal.c` (SM_STORE_GLOCAL: pop into gen-local slot N → `rt_store_glocal`)
+  - [ ] **TC-SM-26** — `sm_icmp_gt.c` (SM_ICMP_GT: integer compare >, sets last_ok → `rt_icmp_gt`)
+  - [ ] **TC-SM-27** — `sm_icmp_lt.c` (SM_ICMP_LT: integer compare <, sets last_ok → `rt_icmp_lt`)
+  - [ ] **TC-SM-28** — `sm_load_frame.c` (SM_LOAD_FRAME: push IcnFrame.env[slot] → `rt_load_frame`)
+  - [ ] **TC-SM-29** — `sm_store_frame.c` (SM_STORE_FRAME: pop into IcnFrame.env[slot] → `rt_store_frame`)
+  - [ ] **TC-SM-30** — `sm_bb_pump.c` (SM_BB_PUMP: drive BB generator → `rt_bb_pump`)
+  - [ ] **TC-SM-31** — `sm_bb_once.c` (SM_BB_ONCE: run BB once → `rt_bb_once`)
+  - [ ] **TC-SM-32** — `sm_bb_once_proc.c` (SM_BB_ONCE_PROC → `rt_bb_once_proc`)
+  - [ ] **TC-SM-33** — `sm_bb_pump_proc.c` (SM_BB_PUMP_PROC → `rt_bb_pump_proc`)
+  - [ ] **TC-SM-34** — `sm_bb_pump_case.c` (SM_BB_PUMP_CASE → `rt_bb_pump_case`)
+  - [ ] **TC-SM-35** — `sm_bb_pump_sm.c` (SM_BB_PUMP_SM → `rt_bb_pump_sm`)
+  - [ ] **TC-SM-36** — `sm_bb_pump_every.c` (SM_BB_PUMP_EVERY → `rt_bb_pump_every`)
+  - [ ] **TC-SM-37** — `sm_bb_pump_ast.c` (SM_BB_PUMP_AST → `rt_bb_pump_ast`)
+
+  **Missing BB box template files:**
+  - [ ] **TC-BB-1** — `bb_xarbn.c` (XARBN: ARBNO(p) — recursive match box)
+  - [ ] **TC-BB-2** — `bb_xstar.c` (XSTAR: REM — match rest of subject)
+  - [ ] **TC-BB-3** — `bb_xfnce.c` (XFNCE: FENCE or FENCE(p))
+  - [ ] **TC-BB-4** — `bb_xabrt.c` (XABRT: ABORT — terminate match)
+  - [ ] **TC-BB-5** — `bb_xsucf.c` (XSUCF: SUCCEED — always succeed with backtrack)
+  - [ ] **TC-BB-6** — `bb_xbal.c` (XBAL: BAL — balanced parentheses)
+  - [ ] **TC-BB-7** — `bb_xcat.c` (XCAT: concatenation — left then right)
+  - [ ] **TC-BB-8** — `bb_xor.c` (XOR: alternation — left | right)
+  - [ ] **TC-BB-9** — `bb_xdsar.c` (XDSAR: deferred var ref *name)
+  - [ ] **TC-BB-10** — `bb_xfnme.c` (XFNME: immediate capture pat $ var)
+  - [ ] **TC-BB-11** — `bb_xnme.c` (XNME: conditional capture pat . var)
+  - [ ] **TC-BB-12** — `bb_xcallcap.c` (XCALLCAP: conditional capture pat . *func())
+  - [ ] **TC-BB-13** — `bb_xvar.c` (XVAR: variable holding a pattern — variant, runtime only)
+  - [ ] **TC-BB-14** — `bb_xatp.c` (XATP: user-defined pattern function call)
+
 - [ ] **EM-7d-beauty-subsystems** — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` beauty programs. Gate: `scripts/test_gate_em_beauty_subsystems_mode4.sh`. Pass criterion: mode-4 vs mode-3 byte-identical (not `.ref`-correct). **Baseline: PASS=4 FAIL=13. BLOCKED on EM-MODE4-IS-MODE3-DUMP.**
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`). Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`; (b) beauty self-host regression.
