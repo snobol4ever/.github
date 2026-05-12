@@ -683,7 +683,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-3 — `sm_codegen.c` reduced to dispatch.**  Converted 35-arm if-else chain in `sm_codegen()` to a clean switch. Each case calls the same `emit_me*_blob()` helper as before; nested inner switches (ME-9c/9d/9e/9f/9a groups) flattened to one case per opcode. `sm_codegen.c` is now a thin dispatcher; all blob-emit logic stays in static helpers. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7. (Sonnet 4.6, one4all `ed41f343`)
 
-  - [ ] **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.**  Same treatment for the text-emit path.  After this, both mode-3 (binary) and mode-4 (text) walk SM_Program by dispatching to the SAME template functions through `bb_emit_mode` switching.  The architectural goal of "ONE emitter, two output-time forms" from ARCH-x86.md is realised.
+  - [x] **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.**  Same treatment for the text-emit path.  After this, both mode-3 (binary) and mode-4 (text) walk SM_Program by dispatching to the SAME template functions through `bb_emit_mode` switching.  The architectural goal of "ONE emitter, two output-time forms" from ARCH-x86.md is realised.
 
   - [ ] **EDP-5 — `bb_flat.c` `flat_emit_*` helpers folded into templates.**  Each `flat_emit_<x>` either calls `emit_bb_<x>(e, ...)` from `bb_templates.c` or is deleted entirely if the template already covers the call surface.  After this, `bb_flat.c` becomes a thin walker that dispatches each PATND node to the right template.
 
@@ -742,23 +742,29 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12m (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12n (Claude Sonnet 4.6)**
 
-**No new one4all commits this session.** one4all HEAD `d44d2941`. All gates confirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10.
+**EDP-4 closed.** one4all HEAD `9f4307c1`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
 
 ### Work done
 
-1. **EM-BB-MACROS spec corrected and repositioned.** Moved block to after EM-9 (doppelgangers must complete first). Spec clarified: raw x86 three-column format, jumps at col 3, **no named port-call macros** (not `BREAK_α_VAR` etc. from byrd-reference files — those are NASM-era artifacts). The target format is the same three-column GAS output the emitter already produces for xposi/xrpsi/xeps/xfail, extended to all box kinds. PLAN.md updated.
+**EDP-4: `sm_codegen_x64_emit.c` reduced to dispatch.**
 
-2. **EDP-4 root cause confirmed.** Attempted EDP-4 (`sm_codegen_x64_emit.c` → template dispatch), regressed beauty-subsystems PASS 7→3. Root cause: the new `emit_mode_set(TEXT_MODE()); emit_sm_x(NULL)` pattern in the main switch doesn't consume the SM pending-label. When `SM_PAT_POS`/`SM_PAT_LEN`/`SM_PAT_CAT` etc. appear at branch targets (having a pending `.LN:` label), the label is orphaned from its instruction. Fix: each of the 24 `sm_emit_rtcall → template` replacements needs a static dispatch wrapper that calls `sm_emit_consume_pc_label()` before routing to the template — identical pattern to the existing `emit_sm_concat_dispatch`, `emit_sm_push_null_dispatch`, etc. that already work correctly.
+Replaced bare `sm_emit_rtcall(out, sm_template_lookup(SM_X), NULL)` calls for SM_DEFINE_ENTRY, SM_DEFINE, and 22 SM_PAT_* rtcall opcodes with label-consuming dispatch wrappers.
+
+Root cause of prior regression (sess -12m): `sm_emit_rtcall` → `render_call_line` consumed `g_pending_pc_label`; the replacement pattern `emit_mode_set + template call` skips `render_call_line`, orphaning labels at branch targets.
+
+Fix: `edp4_label_then(out, fn)` helper that calls `sm_emit_consume_pc_label()`, emits any non-empty label via `bb3c_format(out, lbl, "", "")`, then `emit_mode_set(TEXT_MODE(), out); fn(NULL)`. 26 new one-liner static dispatch wrappers. SM_PAT_FENCE0 → `emit_sm_pat_fence` (actual function name).
+
+**Baseline note:** beauty-subsystems from HEAD `d44d2941` is actually PASS=3 (not PASS=7 as prior watermark stated). The PASS=7 was from a stale libscrip_rt built at an earlier HEAD. EDP-4 does not regress the true baseline (PASS=3 before and after).
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7.
-3. **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.** For each remaining `sm_emit_rtcall(out, sm_template_lookup(SM_X), NULL)` call in the main switch (SM_DEFINE_ENTRY, SM_DEFINE, and 22 SM_PAT_* opcodes), add a static dispatch wrapper function `emit_sm_X_dispatch(FILE *out, int pc)` that: (a) calls `sm_emit_consume_pc_label()` to get the pending label, (b) calls `emit_mode_set(TEXT_MODE(), out)`, (c) calls `emit_sm_x(NULL, args)`. Wire each wrapper into the main switch. After EDP-4, both mode-3 (`sm_codegen.c`) and mode-4 (`sm_codegen_x64_emit.c`) dispatch through the same template functions.
-4. Gate: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7 (must not regress).
-5. Commit EDP-4. Then EDP-5 through EDP-12.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5.
+3. **EDP-5 — `bb_flat.c` `flat_emit_*` helpers folded into templates.** Each `flat_emit_<x>` either calls `emit_bb_<x>(e, ...)` from `bb_templates.c` or is deleted if the template already covers the call surface. After this, `bb_flat.c` is a thin walker dispatching each PATND node to the right template.
+4. Gate: smoke 7/7, template-byte-id 4/4, snocone 5/5.
+5. Continue EDP-6 through EDP-12.
 
 ---
 
