@@ -669,7 +669,17 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-1 — Audit script.**  Write `scripts/util_audit_doppelgangers.sh` that walks the `SM_t` enum in `sm_prog.h` and the `XKIND_t` enum in `snobol4_patnd.h`, greps `src/runtime/x86/*.c` for `case SM_<X>:` / `case X<X>:` and `emit_sm_<x>` / `emit_bb_<x>` occurrences, and reports file:line for every match outside `sm_templates.c` / `bb_templates.c`.  Output is a checklist of candidate deletions for EDP-2..-10.  Commit script + initial audit report. (Sonnet 4.6, one4all `59d96aea`) Initial count: SM=299, BB=190, Total=489 hits. Candidates: sm_codegen.c, sm_codegen_x64_emit.c, sm_emit_template.c, bb_flat.c, bb_build.c, bb_boxes.c.
 
-  - [ ] **EDP-2 — `sm_emit_template.c` legacy table purge.**  Delete `g_sm_templates[]`, `render_macro_body`, `render_call_line`, `SM_TPL_LBLOPT` and friends.  Template functions in `sm_templates.c` become the only dispatch surface.  Callers using `g_sm_templates[i]` rewire to `emit_sm_<x>` directly.
+  - [ ] **EDP-2 — `sm_emit_template.c` legacy table purge + inline/macro switch.**
+
+    **Design (sess 2026-05-12, Sonnet 4.6):** Two sub-tasks:
+
+    **A) Table purge.** Delete `g_sm_templates[]`, `render_macro_body`, `render_call_line`, `SM_TPL_*` enum, `sm_op_template_t`, `sm_emit_args_t`, all `sm_emit_*` convenience wrappers, `sm_template_lookup/unhandled/ret_var`. Keep only `sm_emit_set_pc_label`, `sm_emit_consume_pc_label`. Rewrite `sm_emit_macro_library` to call template functions in `EMIT_MACRO_DEF` mode. Required guard fix in `bb_emit.c`: add `if (bb_emit_mode == EMIT_MACRO_DEF && !g_in_text_macro_body) return;` to every `t_*` helper that emits raw content (prevents stray instructions outside `.macro` bodies). Fix `t_macro_begin` to use comma-separated params in MACRO_DEF mode. Structural macros without `t_macro_begin` in their template (HALT, JUMP/S/F, STNO, LABEL, EXEC_STMT_VARIANT, UNHANDLED) must be emitted via `fputs` directly in `sm_emit_macro_library`. Add `emit_sm_bb_pump_ast` + `emit_sm_unhandled_op` to `sm_templates.c` (both were missing from consolidated file).
+
+    **B) `--jit-emit-inline` switch (Lon directive sess 2026-05-12).** The mode-4 `.s` emitter currently produces macro invocations (`PUSH_VAR .S42  # name`) — human-readable but requires `sm_macros.s` at assembly time. A new `--jit-emit-inline` flag makes the emitter produce expanded inline GAS instructions (`lea rdi, [rip + .S42]; call rt_nv_get@PLT`) — self-contained, faster to assemble, better for production. The C template system handles this via `bb_emit_mode`: `EMIT_TEXT` with `g_in_text_macro_body = 0` suppresses macro wrappers and lets each `t_*` helper write its raw GAS instruction. The switch sets a new global `g_emit_inline = 1`; the TEXT-mode dispatchers call `emit_mode_set(EMIT_TEXT_INLINE, out)` (new mode value) which bypasses `t_macro_begin`/`t_macro_end` entirely. **Wiring:** add `--jit-emit-inline` to `scrip.c` argparse; add `EMIT_TEXT_INLINE` to `bb_emit_mode_t`; in `EMIT_TEXT_INLINE` mode, `t_macro_begin`/`t_macro_end` are no-ops and all other `t_*` helpers emit their raw GAS line. Result: same template functions, same `bb_emit_mode` dispatch, two output shapes.
+
+    **Architectural note:** The old `sm_emit_*(out, sm_template_lookup(SM_X), args)` pattern in `sm_codegen_x64_emit.c` served double duty — macro invocation line for `EMIT_TEXT` (macro mode) and raw instruction for `EMIT_TEXT_INLINE`. After EDP-2, both paths call `emit_sm_x(NULL, args)` but with different `bb_emit_mode`: macro mode uses `EMIT_TEXT` (t_macro_begin emits invocation); inline mode uses `EMIT_TEXT_INLINE` (t_macro_begin is no-op, t_* emit raw instructions).
+
+    Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, sm_macros.s byte-identical to corpus demo reference.
 
   - [ ] **EDP-3 — `sm_codegen.c` reduced to dispatch.**  For each per-opcode case body that does inline `bb_emit_byte(0x...)` emission, replace with a call to `emit_sm_<x>(e, args)`.  After this, `sm_codegen.c` is a thin `switch (ins->op) { case SM_X: emit_sm_x(e, ...); break; ... }` walker over SM_Program.
 
@@ -722,6 +732,37 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-12i (Claude Sonnet 4.6)**
+
+**No commits to one4all this session.** Baseline unchanged (one4all `baa29424`). All gates confirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10.
+
+### Work done this session
+
+**EDP-2 deep investigation.** Attempted full implementation of table purge + `sm_codegen_x64_emit.c` rewire. Encountered and fully diagnosed two architectural issues:
+
+**Issue 1 — MACRO_DEF outside-body suppression.** In `EMIT_MACRO_DEF` mode, `t_*` helpers that write raw content (e.g. `t_inc_mem_r13_disp8`, `t_ret`) lack the `g_in_text_macro_body` guard that prevents writing outside a `.macro` body. `emit_sm_halt` (which uses `t_inc_mem_r13_disp8 + t_ret` instead of `t_macro_begin/end`) wrote stray raw instructions into `sm_macros.s`. **Fix:** add `if (bb_emit_mode == EMIT_MACRO_DEF && !g_in_text_macro_body) return;` guard to the TEXT/MACRO_DEF combined case of every `t_*` helper that writes raw content. Also fix `t_macro_begin` MACRO_DEF to use comma-separated params. Structural macros (HALT, JUMP/S/F, STNO, LABEL, EXEC_STMT_VARIANT, UNHANDLED) need explicit `.macro/.endm` blocks in `sm_emit_macro_library` since their template functions have no `t_macro_begin`.
+
+**Issue 2 — TEXT mode invocation line.** `sm_codegen_x64_emit.c` dispatchers replaced `sm_emit_lbl(out, sm_template_lookup(SM_PUSH_VAR), lbl, anno)` with `emit_mode_set(EMIT_TEXT, out); emit_sm_push_var(NULL, lbl, ptr)`. In TEXT mode, `t_macro_begin("PUSH_VAR", params, 1)` writes `    PUSH_VAR lbl` where `lbl` is the literal parameter name, not the actual `.S42` label. The old `render_call_line` formatted the actual argument values. **Root cause:** template functions in TEXT mode emit macro invocation lines with parameter NAMES not argument VALUES. The `emitter_text_new` pattern (already used by VOID_POP, JUMP, LABEL, ARITH) avoids this because those templates don't use `t_macro_begin`. **Fix design:** add `EMIT_TEXT_INLINE` to `bb_emit_mode_t` — in this mode `t_macro_begin/end` are no-ops and all other `t_*` helpers write raw GAS. Both old macro-invocation path (EMIT_TEXT) and new inline path (EMIT_TEXT_INLINE) use the same template functions. See EDP-2 rung above for full design.
+
+### Lon directive — `--jit-emit-inline` switch
+
+Per Lon: add a command-line switch to control whether mode-4 `.s` output uses macro invocations (human-readable, requires `sm_macros.s`) or inlined expanded GAS (self-contained, faster assembly). Design recorded in EDP-2 rung above. The `EMIT_TEXT_INLINE` bb_emit_mode value is the implementation vehicle.
+
+### Next session must
+
+1. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7.
+2. Implement EDP-2 in correct order:
+   a. Add `EMIT_TEXT_INLINE = 4` to `bb_emit_mode_t` in `bb_emit.h`. In `bb_emit.c`, `t_macro_begin` and `t_macro_end` are no-ops for `EMIT_TEXT_INLINE`; all other `t_*` helpers treat `EMIT_TEXT_INLINE` identically to `EMIT_TEXT` (same raw GAS output).
+   b. Add `--jit-emit-inline` flag to `scrip.c`. Wire it to set a global `g_jit_emit_inline = 1` read by `sm_codegen_x64_emit.c`'s top-level entry to choose `emit_mode_set(EMIT_TEXT_INLINE, out)` vs `emit_mode_set(EMIT_TEXT, out)`.
+   c. In `sm_codegen_x64_emit.c`, replace all `sm_emit_*(out, sm_template_lookup(SM_X), args)` calls with `emit_sm_x(NULL, args)` (mode already set by caller). The `emitter_text_new(out)` pattern already used by some wrappers becomes `emit_mode_set(..., out)`.
+   d. In `sm_emit_template.c`: strip table; rewrite `sm_emit_macro_library` with structural macros via `fputs` + template-function calls in `EMIT_MACRO_DEF` mode; keep only pc-label state functions.
+   e. In `bb_emit.c`: add MACRO_DEF outside-body suppression guard to all TEXT/MACRO_DEF combined `t_*` cases; fix `t_macro_begin` comma-separator.
+3. Add `emit_sm_bb_pump_ast` + `emit_sm_unhandled_op` to `sm_templates.c` (missing from consolidated file).
+4. Gate: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7. Verify `sm_macros.s` byte-matches corpus demo reference.
+5. Commit EDP-2 + `--jit-emit-inline`.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-12h (Claude Opus 4.7)**
 
