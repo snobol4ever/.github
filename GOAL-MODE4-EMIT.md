@@ -470,28 +470,27 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] **TC-BB-13** — `bb_xvar.c` (XVAR: variable holding a pattern — variant, runtime only)
   - [x] **TC-BB-14** — `bb_xatp.c` (XATP: user-defined pattern function call)
 
-- [ ] **EM-BB-PURGE** — Delete all C BB box functions from `bb_boxes.c`. Both brokered (`--bb-driver`) and flat (`--bb-live`) modes generate x86 blobs via the C template functions. The **only** architectural difference between the two modes is C stack linkage:
-  - **Brokered:** broker calls blob via `CALL fn(ζ, port)` — C ABI. Blob entry honors `rdi`=ζ, `esi`=port, returns via `ret`.
-  - **Flat:** broker calls blob via `CALL fn(NULL, port)` — same C ABI at the entry point, but the blob internally uses `r10` as local data register and `jmp`s between sub-boxes rather than `call`/`ret`. No heap ζ struct.
-  Both are x86. Both go through `bb_broker`. The C box functions (`bb_span`, `bb_arb`, `bb_rem`, etc.) are deleted — the template functions are the sole source of truth.
+- [ ] **EM-BB-PURGE** — Delete all C BB box functions from `bb_boxes.c`. Both brokered (`--bb-driver`) and flat (`--bb-live`) modes generate x86 blobs via the C template functions. The blobs differ in calling mechanism — not identical:
 
-  **Architecture:** `bb_build_flat()` and `bb_build_binary()` already emit x86 blobs via `t_*` helpers. Brokered mode (`BB_MODE_DRIVER`) currently calls `bb_build()` which constructs a C-struct graph and uses pre-compiled C box functions. After purge: `BB_MODE_DRIVER` calls `bb_build_flat()` / `bb_build_binary()` instead — same as flat mode. The broker calls the resulting blob address with `CALL fn(ζ=NULL, port)`.
+  - **Brokered (`--bb-driver`):** Broker calls each box as a separate C function via `CALL fn(ζ, port)`. Each box is an independent blob with full C ABI: `rdi`=ζ heap struct (local state), `esi`=port (`cmp esi,0; je α; jmp β`), `ret` to return to broker. Broker drives scan by calling `fn(ζ,0)` then `fn(ζ,1)` for backtrack. C stack linkage between broker and each box. Each box is a separate blob in `bb_pool`.
 
-  **What is deleted:** every `DESCR_t bb_<kind>(void *ζ, int entry)` C function in `bb_boxes.c`, their `<kind>_t *bb_<kind>_new()` constructors, and all heap `ζ` struct allocations in `bb_build()` / `stmt_exec.c`. The `bb_box.h` struct typedefs (`lit_t`, `span_t`, `arb_t`, `rem_t`, `fence_t`, etc.) are deleted.
+  - **Flat/live (`--bb-live`):** Broker `CALL`s the blob **once at α** (`esi=0`). The entire pattern tree is one contiguous blob. Internal backtracking is **direct `jmp`** to β labels within the blob — no C calls between boxes, no C stack for inter-box transitions. Blob preamble: `movabs r10, &Δ` (BINARY) / `lea r10,[rip+Δ]` (TEXT). `rdi`=ζ is ignored (`ζ=NULL` from broker). β is reached by internal `jmp`, never by a second broker `CALL`. Jump in, jump out.
 
-  **What stays:** `bb_broker.c` (universal scan/pump/once loop), `bb_pool.c` (RX memory allocator), `bb_flat.c` (flat blob emitter), `bb_build.c` (binary trampoline emitter), `bb_emit.c` / `t_*` helpers, all template files.
+  Template functions must generate two different blob shapes — `EMIT_BINARY_BROKERED` (C ABI, per-box, heap ζ via rdi) vs `EMIT_BINARY_FLAT` (r10/jmp-threaded, contiguous, no heap ζ). The existing `EMIT_BINARY` is already `EMIT_BINARY_FLAT`.
+
+  **What is deleted after both shapes implemented:** every `DESCR_t bb_<kind>(void *ζ, int entry)` C function and heap ζ struct typedefs — replaced by template-generated blobs.
 
   Sub-rungs:
 
-  - [ ] **EM-BB-PURGE-1** — Wire `BB_MODE_DRIVER` to use `bb_build_flat` / `bb_build_binary` (same as `BB_MODE_LIVE`). Verify smoke 7/7. The two modes now produce identical blobs; `--bb-driver` becomes an alias for `--bb-live`. Gate: smoke 7/7.
+  - [ ] **EM-BB-PURGE-1** — Add `EMIT_BINARY_BROKERED` to `bb_emit_mode_t`. Implement `t_bb_port_call` and preamble for brokered mode: per-box blob with C ABI entry (`movabs r10,&Δ; cmp esi,0; je α; jmp β`), ζ state via heap struct accessed through rdi, `ret` to exit. Gate: build clean, smoke 7/7.
 
-  - [ ] **EM-BB-PURGE-2** — Delete `bb_build()` from `stmt_exec.c` (the C-struct builder). Remove all `bb_<kind>_new()` constructor calls from `bb_build()`. Gate: build clean, smoke 7/7.
+  - [ ] **EM-BB-PURGE-2** — Add `bb_build_brokered(pp)`: walks PATND_t, calls template functions in `EMIT_BINARY_BROKERED` mode producing per-box blobs. Wire `BB_MODE_DRIVER` to use `bb_build_brokered` instead of `bb_build()`. Gate: smoke 7/7.
 
-  - [ ] **EM-BB-PURGE-3** — Delete all `DESCR_t bb_<kind>(void *ζ, int entry)` C box functions from `bb_boxes.c`. These are: `bb_lit`, `bb_seq`, `bb_alt`, `bb_arb`, `bb_arbno`, `bb_any`, `bb_notany`, `bb_span`, `bb_brk`, `bb_breakx`, `bb_len`, `bb_pos`, `bb_tab`, `bb_rem`, `bb_eps`, `bb_bal`, `bb_abort`, `bb_not`, `bb_interr`, `bb_cap`, `bb_atp`, `bb_fence`, `bb_fail`, `bb_rpos`, `bb_rtab`, `bb_succeed`. Gate: build clean, smoke 7/7.
+  - [ ] **EM-BB-PURGE-3** — Delete `bb_build()` from `stmt_exec.c` (C-struct builder). Gate: build clean, smoke 7/7.
 
-  - [ ] **EM-BB-PURGE-4** — Delete heap ζ struct typedefs from `bb_box.h`: `lit_t`, `seq_t`, `alt_t`, `arb_t`, `arbno_t`, `any_t`, `notany_t`, `span_t`, `brk_t`, `brkx_t`, `len_t`, `pos_t`, `tab_t`, `rem_t`, `eps_t`, `bal_t`, `abort_t`, `not_t`, `interr_t`, `cap_t`, `atp_t`, `fence_t`, `fail_t`, `rpos_t`, `rtab_t`, `succeed_t`. Delete their `bb_<kind>_new()` constructors from `bb_boxes.c`. Gate: build clean, smoke 7/7, broker 49/49.
+  - [ ] **EM-BB-PURGE-4** — Delete all `DESCR_t bb_<kind>(void *ζ, int entry)` C box functions from `bb_boxes.c`: `bb_lit bb_seq bb_alt bb_arb bb_arbno bb_any bb_notany bb_span bb_brk bb_breakx bb_len bb_pos bb_tab bb_rem bb_eps bb_bal bb_abort bb_not bb_interr bb_cap bb_atp bb_fence bb_fail bb_rpos bb_rtab bb_succeed`. Gate: build clean, smoke 7/7.
 
-  - [ ] **EM-BB-PURGE-5** — Merge `BB_MODE_DRIVER` and `BB_MODE_LIVE` into one mode. Remove `--bb-driver` / `--bb-live` flags; single BB execution path. Retire `bb_mode_t` enum. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
+  - [ ] **EM-BB-PURGE-5** — Delete heap ζ struct typedefs (`lit_t span_t arb_t` etc.) from `bb_box.h` and `bb_<kind>_new()` constructors from `bb_boxes.c`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
 
  — Mode-4 parity with `--sm-run` across all 17 `*_driver.sno` beauty programs. Gate: `scripts/test_gate_em_beauty_subsystems_mode4.sh`. Pass criterion: mode-4 vs mode-3 byte-identical (not `.ref`-correct). **Baseline: PASS=4 FAIL=13. BLOCKED on EM-MODE4-IS-MODE3-DUMP.**
 
