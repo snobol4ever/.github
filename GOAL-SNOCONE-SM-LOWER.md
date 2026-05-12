@@ -350,19 +350,31 @@ Translate `lower_stmt` in full:
 - Updated Session Setup with correct multi-file `--ir-run` invocation; fixed Gate commands.
 - **Root cause of Error 3 / missing SM_STORE_VAR found:** In Snocone, single-quoted strings `'TT_VAR'` are NAME-typed (unevaluated expression), not STRING. All `IDENT(t(x), 'TT_*')` comparisons in `lower.sc` silently fail because `t(x)` returns a STRING but `'TT_VAR'` is NAME. Every `'TT_*'` literal throughout `lower.sc` must be changed to `"TT_*"` (double quotes = STRING). This is a pervasive fix (~100+ occurrences).
 
-- [ ] Mass-fix `(COND val, alt)` → `if(COND){val}else{alt}` throughout lower.sc
-  **ROOT CAUSE confirmed sess 2026-05-11 (Claude Sonnet 4.6):**
-  Snocone does NOT support SNOBOL4's `(cond val, alt)` conditional-value syntax.
-  In Snocone the comma inside parens is pattern ALT, producing a PATTERN not a value.
-  Example: `(DIFFER(v(lhs)) v(lhs), '')` yields a PATTERN instead of a string.
-  This causes Error 3 (erroneous array/table reference) whenever the result is
-  used as a string/int operand. lower.sc has ~24+ such occurrences.
-  Fix: rewrite each as `if (COND) { result = val; } else { result = alt; }` at
-  call site, OR factor into a helper. The inline form `(COND val | alt)` also
-  does NOT work — `|` in Snocone is also pattern ALT. Must use if/else.
-  Grep pattern to find all: `grep -n "(DIFFER\|IDENT.*), " lower.sc`
-- [ ] Verify smoke_lower gate: no Error lines, SM instructions emitted, output matches smoke_lower.ref
-- [ ] Bake smoke_lower.ref
+- [x] Verify and fix lower.sc + scrip runtime (see session note below)
+- [x] Verify smoke_lower gate: no Error lines, SM instructions emitted, output matches smoke_lower.ref
+- [x] Bake smoke_lower.ref — 6 instructions: SM_STNO + SM_PUSH_LIT_S + SM_STORE_VAR + SM_LABEL + SM_STNO + SM_HALT
+
+  **Session 2026-05-11 (Claude Sonnet 4.6, session 2) — SL-7 gate passes.**
+
+  Previous session's `(COND val, alt)` diagnosis was WRONG. That form IS valid
+  Snocone VLIST alt-eval (SPITBOL Manual Ch.7 Alternative Evaluation). No mass-rename needed.
+
+  Two actual root causes found and fixed:
+
+  1. **lower.sc:101 truncated line** — `pick = (IDENT(op,'SM_JUMP_S') succ,` line
+     had its second half `(IDENT(op,'SM_JUMP_F') fail, plain));` truncated to just
+     `JUMP_F') fail, plain));`, causing a parse error cascading as "syntax error at line 119".
+     Restored to one correct line.
+
+  2. **Snocone per-file label counter bug (one4all)** — `sc_label_new()` in
+     `snocone_parse.tab.c`/`.y` used `st->label_seq` which resets to 0 each parse call.
+     Under `--ir-run` with multiple files, `tree.sc` generates `_Ltop_0001`/`_Lend_0002`,
+     then `lower.sc` generates the SAME labels — while-exit jumps land inside `tree.sc`'s
+     `Insert()` instead of after the while, so `lower()` produced only SM_HALT.
+     Fix: `static int global_label_seq` in `sc_label_new()`. Also routed
+     `sc_switch_head_new()`'s tmp-var name through `sc_label_new()`. Fix in both
+     `snocone_parse.y` (source) and `snocone_parse.tab.c` (generated, committed in sync).
+     Snocone smoke PASS=5 FAIL=0; broker baseline unchanged (10/49).
 
 ### SL-8 — sm_lower (main entry point)
 
