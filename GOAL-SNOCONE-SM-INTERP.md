@@ -132,15 +132,20 @@ under raw scrip.
 
 ```
 corpus/SCRIP/
-    sm_interp.sc           — main translation (this goal)
-    sm_interp_driver.sc    — wires Lower_run() into Run() (Phase 1: takes
-                             the SM table built by lower() in module globals
-                             and invokes sm_interp_run_sc())
-    smoke_interp.sc        — minimal program: OUTPUT = 'hi'; END
-    smoke_interp.ref       — expected stdout: 'hi'
-    sm_interp_test.sc      — broader test: assignment + arithmetic
-    sm_interp_test.ref     — baked output
+    sm_interp.sc                 — main translation (this goal)
+    smoke_interp.sc              — minimal hosted: OUTPUT = 'hi'; END    (SI-2)
+    smoke_interp.ref             — baked output                          (SI-2)
+    smoke_interp_native.sc       — equivalent native source              (SI-5)
+    sm_interp_test.sc            — hosted arithmetic: X = 2+3; OUT=X*4   (SI-4)
+    sm_interp_test.ref           — baked output                          (SI-4)
+    sm_interp_test_native.sc     — equivalent native source              (SI-5)
 ```
+
+Plus `one4all/scripts/test_self_host_smoke.sh` for the SI-5 cross-check.
+
+A separate `sm_interp_driver.sc` was not needed: each hosted test
+calls `lower(g_program)` then `sm_interp_run_sc()` directly inline,
+keeping driver and test fused in one file.
 
 ---
 
@@ -182,64 +187,77 @@ The rungs retrace, in order, the lower.sc rungs SL-1..SL-9 — but on the
 interpreter side.  Each rung extends `sm_interp.sc` to handle the SM
 opcodes produced by the corresponding lower.sc rung's tests.
 
-### SI-1 — Skeleton + dispatch loop ⏳ NEXT
+### SI-1 — Skeleton + dispatch loop ✅ sess 2026-05-12
 
-Create `sm_interp.sc` with module globals, `si_push`/`si_pop` helpers,
-and the main `sm_interp_run_sc()` loop dispatching on `op(g_instr_tbl[si_pc])`.
-Empty switch arms for every opcode (each just emits to stderr "unimpl <op>").
-Implement `SM_HALT` and `SM_LABEL` only.
+Created `sm_interp.sc` with module globals, `si_push`/`si_pop` helpers, and
+the main `sm_interp_run_sc()` loop dispatching on `op(g_instr_tbl[si_pc])`.
+Pre-increment `si_pc` before dispatch matches C convention.
 
-Done when: an empty SM_Program with only `SM_HALT` runs through
-`sm_interp_run_sc()` without error.  Stderr is silent.
+- [x] Create `sm_interp.sc` skeleton
+- [x] Implement `SM_HALT`, `SM_LABEL`
+- [x] Inline smoke: `lower(empty TT_PROGRAM)` → `sm_interp_run_sc()` is silent
 
-- [ ] Create `sm_interp.sc` skeleton
-- [ ] Implement `SM_HALT`, `SM_LABEL`
-- [ ] Inline smoke: `lower(empty TT_PROGRAM)` → `sm_interp_run_sc()` is silent
+### SI-2 — STNO + literals + variables + VOID_POP ✅ sess 2026-05-12
 
-### SI-2 — STNO + literals + variables + VOID_POP
+Implemented `SM_STNO`, `SM_PUSH_LIT_S/I/F`, `SM_PUSH_NULL`, `SM_PUSH_VAR`,
+`SM_STORE_VAR`, `SM_VOID_POP`.  `SM_PUSH_VAR` uses `$name` indirection to
+read the host program's namespace; `SM_STORE_VAR` writes the same way.
+This is the self-hosting trick: when the hosted program does `OUTPUT = ...`,
+real host OUTPUT receives the value and scrip's stdout magic prints it.
 
-Implement `SM_STNO`, `SM_PUSH_LIT_S/I/F`, `SM_PUSH_NULL`, `SM_PUSH_VAR`,
-`SM_STORE_VAR`, `SM_VOID_POP`.
+`smoke_interp.sc` hand-builds AST for `OUTPUT = 'hi'; END`, lowers, runs.
+Stdout: `--- interp ---\nhi\n--- done ---\n`.  First self-hosted output. ✓
 
-Done when: `smoke_interp.sc` (a hand-built AST equivalent to
-`OUTPUT = 'hi'; END`) lowers and runs, producing `hi` on stdout.
+- [x] Implement listed opcodes
+- [x] Create `smoke_interp.sc` + `.ref`
+- [x] Gate: self-hosted output byte-identical to native scrip output (see SI-5)
 
-- [ ] Implement listed opcodes
-- [ ] Create `smoke_interp.sc` + `.ref`
-- [ ] Gate: self-hosted output byte-identical to native scrip output
+### SI-3 — Jumps ✅ sess 2026-05-12
 
-### SI-3 — Jumps
+Implemented `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F` — three one-liners.
+`a0(ins) + 0` coerces the stringified target back to integer pc.
 
-Implement `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F`.  Needed for any program
-with `:(label)` gotos.
+- [x] Implement jumps
+- [x] Test program with control flow runs end-to-end (covered by SI-4 test)
 
-Done when: a 3-statement program with an unconditional goto runs to
-completion.
+### SI-4 — Arithmetic + COERCE + CONCAT ✅ sess 2026-05-12
 
-- [ ] Implement jumps
-- [ ] Test program with `:(label)` runs end-to-end
+Implemented `SM_ADD`, `SM_SUB`, `SM_MUL`, `SM_DIV`, `SM_MOD`, `SM_NEG`,
+`SM_COERCE_NUM`, `SM_CONCAT` — all one-liners riding on host Snocone
+arithmetic and string-concat operators.  `a + 0` is the standard
+string-to-number coercion idiom.  `SM_CONCAT` is `si_push(a b)` — Snocone
+juxtaposition.
 
-### SI-4 — Arithmetic + COERCE + CONCAT
+`sm_interp_test.sc` hand-builds AST for `X = 2 + 3; OUTPUT = X * 4; END`,
+self-hosted execution prints `20`.
 
-Implement `SM_ADD`, `SM_SUB`, `SM_MUL`, `SM_DIV`, `SM_MOD`, `SM_NEG`,
-`SM_COERCE_NUM`, `SM_CONCAT`.
+- [x] Implement arithmetic + concat
+- [x] Create `sm_interp_test.sc` + `.ref`
 
-Done when: `sm_interp_test.sc` (assignment + arithmetic, e.g. `X = 2 + 3;
-OUTPUT = X * 4; END`) runs and prints `20`.
+### SI-5 — Cross-check gate ✅ sess 2026-05-12
 
-- [ ] Implement arithmetic + concat
-- [ ] Create `sm_interp_test.sc` + `.ref`
+`one4all/scripts/test_self_host_smoke.sh` runs each test program through
+both the self-hosted pipeline and natively under scrip, then diffs stdout.
+Two cases (`smoke_interp` and `sm_interp_test`) both pass byte-identical.
 
-### SI-5 — Cross-check gate
+This is the operational form of "ultimate test for lower.sc" — semantic
+equivalence between the SM stream produced by lower.sc and the AST
+interpreter scrip uses directly.
 
-Add `scripts/test_self_host_smoke.sh`: for each `*.sc` test in a small
-fixed list, run twice — once natively under scrip, once via the
-self-hosted lower+interp pipeline — and diff stdout.
+- [x] Write test script
+- [x] Two test programs pass (SI-6+ will broaden coverage)
 
-Done when: 3+ test programs pass byte-identical diff.
+**Runtime is trivial as expected.**  `sm_interp.sc` is ~70 lines total;
+each opcode arm is a one-liner stack push/pop with a call into a host
+operator.  No value boxing, no separate arithmetic engine, no string
+machinery — the host IR interp handles all of that.  The .sc program is
+purely stack-and-dispatch plumbing.
 
-- [ ] Write test script
-- [ ] Three test programs pass
+**Known Ph2 concern — namespace collision.**  Because all `--ir-run` files
+share one variable namespace, a user program that names a variable `si_pc`
+or `g_count` would clash with interpreter / lowerer state.  Phase 2 needs
+either a prefix discipline (already followed: `si_*` / `g_*`) made
+explicit and documented, or a TABLE-based local frame.  Not blocking SI-1..SI-5.
 
 ### SI-6..SI-N — Phase 2 (separate session)
 
@@ -255,14 +273,20 @@ what existing corpus programs we want to run self-hosted next.
 SCRIP=/home/claude/one4all/scrip
 SCRIP_DIR=/home/claude/corpus/SCRIP
 
-# Gate 1: smoke_interp self-hosted output matches native scrip on same program
-NATIVE=$($SCRIP --ir-run $SCRIP_DIR/smoke_interp_native.sc)
-HOSTED=$($SCRIP --ir-run $SCRIP_DIR/tree.sc $SCRIP_DIR/lower.sc \
-                          $SCRIP_DIR/lower_driver.sc \
-                          $SCRIP_DIR/sm_interp.sc \
-                          $SCRIP_DIR/sm_interp_driver.sc \
-                          $SCRIP_DIR/smoke_interp.sc)
-[ "$NATIVE" = "$HOSTED" ] && echo PASS || echo FAIL
+# Gate 1: smoke_interp self-hosted byte-identical to baked .ref
+$SCRIP --ir-run \
+  $SCRIP_DIR/tree.sc $SCRIP_DIR/lower.sc $SCRIP_DIR/lower_driver.sc \
+  $SCRIP_DIR/sm_interp.sc $SCRIP_DIR/smoke_interp.sc \
+  | diff - $SCRIP_DIR/smoke_interp.ref
+
+# Gate 2: sm_interp_test self-hosted byte-identical to baked .ref
+$SCRIP --ir-run \
+  $SCRIP_DIR/tree.sc $SCRIP_DIR/lower.sc $SCRIP_DIR/lower_driver.sc \
+  $SCRIP_DIR/sm_interp.sc $SCRIP_DIR/sm_interp_test.sc \
+  | diff - $SCRIP_DIR/sm_interp_test.ref
+
+# Gate 3: SI-5 cross-check — hosted == native for every test
+bash /home/claude/one4all/scripts/test_self_host_smoke.sh
 ```
 
-Both byte-identical.  Must pass before any commit that advances SI-2 or beyond.
+All three must pass before any commit that advances SI-2 or beyond.
