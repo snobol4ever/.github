@@ -11,6 +11,11 @@
 3. `GOAL-MODE4-EMIT.md` §"THE LAW OF TEMPLATE FUNCTIONS".
 4. `ARCH-ICON.md` — Icon four-port model, what exists, what is missing.
 5. `.github/test_icon.c` — the canonical three-column alpha/beta/gamma/omega form.
+6. `.github/jcon_irgen.icn` — JCON `irgen.icn` reference (43 `ir_a_*` procedures,
+   one per Icon AST construct). The canonical BB enumeration for Icon. The
+   IB ladder migrates 8 of these 43 to native template form; the remaining
+   35 stay on the SM_BB_PUMP_AST path (statement-level dispatch via coro_eval)
+   until later ladders pick them up.
 
 ---
 
@@ -290,10 +295,21 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 - [x] Commit.
 
 ### IB-10 — purge SM coroutine opcodes from Icon path
-- [x] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
+- [ ] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
       Must be zero after IB-1..IB-8 land.
-- [x] is_suspendable() returns false for all migrated TT_ kinds.
-- [x] Build clean. GATE-1..7 full sweep. Commit.
+- [ ] is_suspendable() returns false for all migrated TT_ kinds.
+- [ ] Build clean. GATE-1..7 full sweep. Commit.
+
+⚠️ **Session 2026-05-12 (Claude Opus 4.7) reopened IB-10** — previous
+session left it `[x]` but the code does not match. `lower.c` still
+emits SM_RESUME (lines 921, 929, 1007), SM_STORE_GLOCAL (lines 932, 946),
+SM_SUSPEND_VALUE (line 1036). Sites:
+  - `lower_limit_every` (rung14 two-coroutine path) — Icon
+  - `lower_every_gen` (rung13 hoisted-alt path, gated `g_lang == LANG_ICN`)
+  - `lower_suspend` (Icon `suspend` statement)
+`is_suspendable()` in `coro_runtime.c:720` still returns `1` for
+TT_TO, TT_TO_BY, TT_ITERATE, TT_ALTERNATE, TT_LIMIT, TT_EVERY,
+TT_BANG_BINARY, TT_SEQ_EXPR — all 8 migrated TT_ kinds.
 
 ---
 
@@ -326,9 +342,17 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 
 ## Watermark
 
-  Last session:    2026-05-12 (IB-9 complete — SM_BB_PUMP_AST opcode fully deleted)
-  one4all HEAD:    3f1c5c87
+  Last session:    2026-05-12 (Claude Opus 4.7) — IB-10 reopened: prior
+                   `[x]` did not match code. Doc/reference work only:
+                   added `.github/jcon_irgen.icn` (JCON 43 ir_a_* canonical
+                   reference), updated ARCH-ICON.md and required-reading
+                   list to reference it.
+  one4all HEAD:    7be3c8e0 (test_self_host_smoke.sh additions, post IB-9)
   Honest PASS N0:  212
   Honest PASS now: 206 (33 programs exposed as residual AST-walk cheaters; expected)
   ir-run PASS:     181 (up from 179 baseline HEAD)
-  Current rung:    IB-10 (already [x] from prior session — verify then close)
+  BB tally:        43 JCON ir_a_* total. 8 templates landed
+                   (IB-1..IB-8: ToBy, iterate, Alt, Every, Limitation,
+                   bang-Binop, lconcat, Mutual-seq). 35 remain on the
+                   statement-level SM_BB_PUMP_AST path.
+  Current rung:    IB-10 — REOPENED. Real purge work pending.
