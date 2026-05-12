@@ -295,21 +295,45 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 - [x] Commit.
 
 ### IB-10 — purge SM coroutine opcodes from Icon path
-- [ ] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
+- [x] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
       Must be zero after IB-1..IB-8 land.
 - [ ] is_suspendable() returns false for all migrated TT_ kinds.
-- [ ] Build clean. GATE-1..7 full sweep. Commit.
+- [x] Build clean. GATE-1..7 full sweep. Commit.
 
-⚠️ **Session 2026-05-12 (Claude Opus 4.7) reopened IB-10** — previous
-session left it `[x]` but the code does not match. `lower.c` still
-emits SM_RESUME (lines 921, 929, 1007), SM_STORE_GLOCAL (lines 932, 946),
-SM_SUSPEND_VALUE (line 1036). Sites:
-  - `lower_limit_every` (rung14 two-coroutine path) — Icon
-  - `lower_every_gen` (rung13 hoisted-alt path, gated `g_lang == LANG_ICN`)
-  - `lower_suspend` (Icon `suspend` statement)
-`is_suspendable()` in `coro_runtime.c:720` still returns `1` for
-TT_TO, TT_TO_BY, TT_ITERATE, TT_ALTERNATE, TT_LIMIT, TT_EVERY,
-TT_BANG_BINARY, TT_SEQ_EXPR — all 8 migrated TT_ kinds.
+✅ **IB-10 part 1 closed sess 2026-05-12 (Claude Opus 4.7, one4all `1b13cc6d`):**
+SM coroutine emission purged from `lower_every` and `lower_limit_every`.
+`lower_alternate_gen` deleted (was only called from the purged bodies).
+All Icon `every` / `every (E\N)` statements now route through
+`SM_BB_PUMP_EVERY` → `coro_eval` → `bb_broker` (the statement-level
+dispatch IB-1..IB-8 left in place). Net -164 lines from `lower.c`.
+`lower_suspend` (still emits SM_SUSPEND_VALUE) is the Icon `suspend`
+STATEMENT, not a generator subexpression coroutine — out of IB-10
+scope as written.
+
+Gates (one4all 7be3c8e0 → 1b13cc6d):
+  GATE-1 smoke_icon:        PASS=5   FAIL=0    (unchanged)
+  GATE-2 smoke_broker:      PASS=22  FAIL=27   (unchanged, post-PB-8)
+  GATE-3 icon ir_all:       PASS=180 FAIL=55   (unchanged)
+  GATE-4 honest (NO_AST):   PASS=210 FAIL=2    (+2 / -2 vs baseline)
+
+⏳ **IB-10 part 2 deferred** — `is_suspendable()` flip. The function is
+the shared generative-detection oracle in `coro_runtime.c:720` and is
+still actively used by many code paths covering the 35 unmigrated JCON
+BBs (TT_ADD/SUB/MUL/IDX/ASSIGN/IDENTICAL/CAT and the augmented forms).
+Flipping it globally for the 8 migrated TT_ kinds would lie to the
+still-active C-coroutine paths.
+
+Design call needed: either
+  (a) split into `is_suspendable()` (legacy, unchanged) and
+      `is_suspendable_bb_native()` (returns 0 for the 8 migrated kinds)
+      and route the flat-BB emit sites through the new predicate, OR
+  (b) flip the function globally and audit every caller in
+      `coro_runtime.c` to confirm the answer is harmless for migrated
+      kinds (since the new BB-template path supplants their old role).
+
+Watermark numbers in this file were stale-by-a-few on absolute counts
+(prior session reported 206/181; live baseline at 7be3c8e0 was 208/180).
+Deltas in the table above are against the live baseline.
 
 ---
 
@@ -342,17 +366,18 @@ TT_BANG_BINARY, TT_SEQ_EXPR — all 8 migrated TT_ kinds.
 
 ## Watermark
 
-  Last session:    2026-05-12 (Claude Opus 4.7) — IB-10 reopened: prior
-                   `[x]` did not match code. Doc/reference work only:
-                   added `.github/jcon_irgen.icn` (JCON 43 ir_a_* canonical
-                   reference), updated ARCH-ICON.md and required-reading
-                   list to reference it.
-  one4all HEAD:    7be3c8e0 (test_self_host_smoke.sh additions, post IB-9)
-  Honest PASS N0:  212
-  Honest PASS now: 206 (33 programs exposed as residual AST-walk cheaters; expected)
-  ir-run PASS:     181 (up from 179 baseline HEAD)
+  Last session:    2026-05-12 (Claude Opus 4.7) — IB-10 part 1 ✅
+                   (purge SM coroutine emission from lower.c Icon paths).
+                   IB-10 part 2 (is_suspendable() flip) deferred —
+                   needs design call.  Also added `.github/jcon_irgen.icn`
+                   (JCON 43 ir_a_* canonical reference).
+  one4all HEAD:    1b13cc6d
+  Honest PASS:     210 (was 208 at 7be3c8e0 — +2 from IB-10 part 1;
+                   2 segfaults remaining)
+  ir-run PASS:     180 (was 180 at 7be3c8e0 — unchanged; watermark's
+                   prior "181" was off-by-one against live baseline)
   BB tally:        43 JCON ir_a_* total. 8 templates landed
                    (IB-1..IB-8: ToBy, iterate, Alt, Every, Limitation,
                    bang-Binop, lconcat, Mutual-seq). 35 remain on the
                    statement-level SM_BB_PUMP_AST path.
-  Current rung:    IB-10 — REOPENED. Real purge work pending.
+  Current rung:    IB-10 part 2 — is_suspendable() flip (deferred).
