@@ -685,7 +685,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-4 — `sm_codegen_x64_emit.c` reduced to dispatch.**  Same treatment for the text-emit path.  After this, both mode-3 (binary) and mode-4 (text) walk SM_Program by dispatching to the SAME template functions through `bb_emit_mode` switching.  The architectural goal of "ONE emitter, two output-time forms" from ARCH-x86.md is realised.
 
-  - [ ] **EDP-5 — `bb_flat.c` `flat_emit_*` helpers folded into templates.**  Each `flat_emit_<x>` either calls `emit_bb_<x>(e, ...)` from `bb_templates.c` or is deleted entirely if the template already covers the call surface.  After this, `bb_flat.c` becomes a thin walker that dispatches each PATND node to the right template.
+  - [x] **EDP-5 — `bb_flat.c` `flat_emit_*` helpers folded into templates.**  Each `flat_emit_<x>` either calls `emit_bb_<x>(e, ...)` from `bb_templates.c` or is deleted entirely if the template already covers the call surface.  After this, `bb_flat.c` becomes a thin walker that dispatches each PATND node to the right template. (Sonnet 4.6, one4all `fd1a1ce4`) Promoted 14 static flat_* helpers to extern (decls in bb_flat.h). Added flat_text_simple_box() helper in bb_templates.c. Updated emit_bb_xfnce/xstar/xatp/xdsar with TEXT-mode static-data paths. Rewrote flat_emit_node as thin dispatcher calling emit_bb_* directly. Deleted 13 trivial wrappers and 290 lines of orphaned inline is_text code. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=3 (baseline).
 
   - [ ] **EDP-6 — Activate `EM-BB-PURGE-1` above.**  Add `EMIT_BINARY_BROKERED` to `bb_emit_mode_t`. Implement port-call preamble for brokered mode.
 
@@ -742,9 +742,36 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12n (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12o (Claude Sonnet 4.6)**
 
-**EDP-4 closed.** one4all HEAD `9f4307c1`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
+**EDP-5 closed.** one4all HEAD `fd1a1ce4`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=3 (baseline preserved).
+
+### Work done
+
+**EDP-5: bb_flat.c flat_emit_node made thin dispatcher.**
+
+1. Promoted 14 static helpers in bb_flat.c to extern (flat3c_label, flat_data_section/text/intel_syntax/string/quad/quad_int/long/zero/globl, flat_box_call/slot/dispatch_jne_jmp/entry_dispatch). Added declarations to bb_flat.h.
+
+2. Added static `flat_text_simple_box(e, lbl_prefix, fn_name, succ, fail, β)` helper in bb_templates.c — handles TEXT-mode static-data emission for single-.long-0 ζ boxes.
+
+3. Updated templates for stateful boxes:
+   - `emit_bb_xfnce`: TEXT → `flat_text_simple_box(e, "fence", "bb_fence", ...)`.
+   - `emit_bb_xstar`: TEXT → `flat_text_simple_box(e, "rem", "bb_rem", ...)`.
+   - `emit_bb_xatp`: TEXT → static {.string vname, .long 0 x2, .quad vname_lbl}.
+   - `emit_bb_xdsar`: TEXT → static {.string name, .quad name_lbl, .quad 0 x3, .long 0 x2}.
+
+4. Rewrote `flat_emit_node` as a thin switch: XCHR/XEPS/XFAIL/XPOSI/XRPSI call `emit_bb_*` directly; XCAT/XOR call `flat_emit_xcat/alt` (which recurse via `flat_emit_node`); charset family via `emit_bb_charset`; integer-cursor via `emit_bb_xlnth/xtb/xrtb`; XFNCE/XFARB/XSTAR/XBRKX/XATP/XDSAR all call templates. XNME/XFNME/XARBN/XCALLCAP (ineligible, never reached) fall to default β→fail stub.
+
+5. Deleted 13 trivial wrapper functions (flat_emit_eps/fail/xfarb/pos/rpos/xspnc/xbrkc/xanyc/xnnyc/xbrkx/xlnth/xtb/xrtb) — all were one-liners. Deleted 290 lines of orphaned inline is_text code from old flat_emit_node switch.
+
+Net: 3 files changed, 148 insertions(+), 385 deletions(−).
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=3.
+3. **EDP-6 — Add `EMIT_BINARY_BROKERED` to `bb_emit_mode_t`.** Implement `t_bb_port_call` and preamble for brokered mode: per-box blob with C ABI entry (`movabs r10,&Δ; cmp esi,0; je α; jmp β`), ζ state via heap struct accessed through rdi, `ret` to exit. Gate: build clean, smoke 7/7.
+4. Continue EDP-7 through EDP-12.
 
 ### Work done
 
