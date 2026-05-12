@@ -716,10 +716,125 @@ Test `si_16_cond_return.sc` exercises `SM_RETURN_S` via the `:S(RETURN)` lowerin
 - [x] Self-host gate PASS=14/14
 - [x] Smoke matrix 33/33; no regressions in cross-check matrix
 
-### Phase 3 — deferred (real implementations of the stubbed opcodes)
+### Phase 3 — Run the existing test suite through sm_interp.sc
+
+**Strategy** (opened sess 2026-05-12 handoff, Lon directive).  The end-goal is to
+prove `sm_interp.sc` can execute the broad existing test corpus, not just hand-built
+si_* tests.  Three parallel tracks:
+
+| Track | Source | How |
+|-------|--------|-----|
+| **Track A: corpus mirrors** | `programs/snocone/corpus/sc*.sc` | Hand-build a parallel `.sc` AST builder per program; cross-check vs native `--ir-run` of the original file.  This is what SI-15a/b/c did — extend to cover sc2/sc4/sc5/sc6/sc7/sc8/sc9/sc10. |
+| **Track B: convert from --dump-ir** | Any `.sno` or `.sc` | Script `dump_ir_to_ast_builder.py` reads `scrip --dump-ir foo.sno` text output, emits a `.sc` file that hand-builds the equivalent AST.  Mechanical, scales to hundreds of programs.  Limited to syntax `--dump-ir` actually emits. |
+| **Track C: parser_*.sc driver** | Any `.sno` / `.sc` | Awaits SL-13d completion (parser-to-AST pipeline).  Then `scrip --ir-run tree.sc lower.sc parser_snobol4.sc lower_driver.sc sm_interp.sc <prog>.sno` is the full self-hosting form.  Out of scope until SL-13d lands. |
+
+This section opens **Track A** as the immediate path forward.
+
+### SI-17 — Cover programs/snocone/corpus/sc2..sc10 via mirror tests
+
+Hand-build a SI-15-style mirror test for each remaining `sc*.sc` corpus file that
+uses only Phase-2-covered features (no DEFINE bodies, no Icon/Prolog, no ARRAY/TABLE).
+
+Candidates inventory (sess 2026-05-12 handoff):
+
+| Source | Features | Mirror name | Status |
+|--------|----------|-------------|--------|
+| `sc1_literals.sc` | strings, int lits, multi-OUTPUT | `si_15a_literals` | ✅ SI-15 |
+| `sc2_assign.sc` | variable assign + read | `si_17a_assign` | ⏳ |
+| `sc3_arith.sc` | full arithmetic | `si_15b_arith` | ✅ SI-15 |
+| `sc4_control.sc` | `if/else`, comparisons | `si_17b_control` | ⏳ |
+| `sc5_while.sc` | `while` loop | `si_17c_while` | ⏳ |
+| `sc6_for.sc` | `for` loop | `si_17d_for` | ⏳ (gated by lower.sc TT_FOR support) |
+| `sc7_procedure.sc` | user-defined function | `si_17e_proc` | ⛔ blocked — lower_proc_skeletons stub |
+| `sc8_strings.sc` | concat + SIZE | `si_17f_strings` | ⏳ |
+| `sc9_multiproc.sc` | multiple procs | `si_17g_multiproc` | ⛔ blocked — same as sc7 |
+| `sc10_wordcount.sc` | pattern + counter | `si_17h_wordcount` | ⏳ (pending pattern coverage check) |
+
+For each mirror test:
+1. Read the source `.sc` file; understand its semantics.
+2. Hand-build a parallel `si_17X_*.sc` that constructs the AST via `Lower_collect`.
+3. Create `si_17X_*_native.sc` that uses host Snocone directly (no AST building) and
+   produces the same observable stdout, framed by `'--- interp ---'` / `'--- done ---'`.
+4. Bake the `.ref` from the native; add `si_17X_*` to `test_self_host_smoke.sh`.
+5. Cross-check hosted vs native must be byte-identical.
+
+Per-rung close: PASS=N/N on the harness.  Closing the whole SI-17 ladder is
+PASS=all-feasible-cases/all (skip the ⛔ blocked ones; document them).
+
+- [ ] SI-17a — `sc2_assign.sc` mirror
+- [ ] SI-17b — `sc4_control.sc` mirror
+- [ ] SI-17c — `sc5_while.sc` mirror
+- [ ] SI-17d — `sc6_for.sc` mirror (probe TT_FOR first)
+- [ ] SI-17e — ⛔ blocked: `sc7_procedure.sc` (lower_proc_skeletons stub)
+- [ ] SI-17f — `sc8_strings.sc` mirror
+- [ ] SI-17g — ⛔ blocked: `sc9_multiproc.sc`
+- [ ] SI-17h — `sc10_wordcount.sc` mirror (probe pattern coverage)
+- [ ] All feasible mirrors green; goal: ≥6 new tests passing
+
+### SI-18 — Track B opener: build dump_ir_to_ast_builder.py
+
+Write a converter that reads `scrip --dump-ir <file>` text output and emits an
+equivalent AST-builder `.sc` file.  The `--dump-ir` text format is a stable, simple
+S-expression grammar — straightforward to parse with Python `re`.
+
+Output `.sc` template:
+```
+function mk_slot(...) ...
+... (standard prelude from SI-15 tests)
+Lower_collect(<built AST for stmt 1>);
+Lower_collect(<built AST for stmt 2>);
+...
+OUTPUT = '--- interp ---';
+lower(g_program);
+sm_interp_run();
+OUTPUT = '--- done ---';
+```
+
+Scope:
+- Cover the kinds `--dump-ir` actually emits: `TT_STMT`, `:eq`, `:subj`, `:pat`, `:repl`,
+  `:goS`, `:goF`, `:go`, `:lbl`, `:end`, plus expression kinds (`TT_VAR`, `TT_QLIT`,
+  `TT_ILIT`, `TT_ADD`/`TT_SUB`/etc., `TT_FNC`, `TT_DEFER`, etc.).
+- Don't try to cover `TT_PROC` bodies (blocked the same way as SI-17e).
+- Emit a small validation pass: re-parse the emitted `.sc` and confirm `Lower_collect`
+  shape matches the original `--dump-ir` output.
+
+- [ ] `scripts/dump_ir_to_ast_builder.py` written
+- [ ] Validated on 3+ already-mirrored programs (output matches hand-built SI-15/17 cases)
+- [ ] Run on every `programs/snobol4/smoke/*.sno` (the simple ones) and `programs/snocone/corpus/sc*.sc`
+
+### SI-19 — Bulk-run converted tests through the self-hosted pipeline
+
+With SI-18's converter in hand, generate `.sc` mirrors for the entire feasible corpus
+and add them to a new harness `test_self_host_corpus.sh`.
+
+- [ ] `scripts/test_self_host_corpus.sh` driving all generated mirrors
+- [ ] Triage: each FAIL gets a category — `unimpl-opcode`, `lower-bug`, `interp-bug`,
+  `host-semantic-diff`, or `pre-existing-known`.
+- [ ] First pass coverage report: PASS=X / total
+
+### SI-20 — Fix bugs surfaced by Track A + Track B
+
+Bugs surfaced by the broader corpus run get fixed here, one at a time.  Each fix:
+1. Minimal reproducer hand-built as an `si_20X_<bug>.sc` test.
+2. Fix in `sm_interp.sc` (or note in goal file if it's a `lower.sc` / parser issue).
+3. Re-run full harness to confirm no regression.
+
+- [ ] At least 3 bug fixes landed (or honest report if none found — that's a great outcome)
+
+### SI-21 — Phase 3 closing gate
+
+Self-host harness running ≥30 distinct programs (vs current 14), all green.
+Coverage report committed under `corpus/SCRIP/coverage_report.md` listing every
+program tried and its status.
+
+- [ ] Total self-host tests ≥ 30
+- [ ] All listed tests PASS or have documented blocker
+- [ ] coverage_report.md committed
+
+### Phase 4 — deferred (real implementations of the stubbed opcodes)
 
 
-The following opcodes are deferred to Phase 3 because they need infrastructure
+The following opcodes are deferred to Phase 4 because they need infrastructure
 beyond the trivial-runtime pattern:
 
 - `SM_BB_ONCE`, `SM_BB_ONCE_PROC`, `SM_BB_PUMP`, `SM_BB_PUMP_AST`,
