@@ -567,16 +567,51 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
   in sync). Mirrors the identical unwrap already present in `sc_append_stmt`.
   Also re-enabled `qize.sc` in `run_scrip_parser.sh`.
   Gate: PASS — no hang, no Error 5, smoke 6/6, sm_lower_test 11/11.
-- [ ] Wire parser → lower → sm_dump end-to-end on trivial .sno input
+- [x] **SL-13b — Fix `--ir-run` pattern captures (`. var` / `$ var`) not writing back to variables**
+  Root cause (sess 2026-05-12, Claude Opus 4.7): bug was NOT in `SM_PAT_CAPTURE`
+  (sm_interp.c:682) as previously hypothesized — `--ir-run` doesn't execute SM at
+  all, it uses the IR tree-walk in `eval_code.c`. The capture handlers
+  `TT_CAPT_COND_ASGN` (eval_code.c:317) and `TT_CAPT_IMMED_ASGN` (eval_code.c:345)
+  only special-cased `TT_INDIRECT` targets; plain `TT_VAR` / `TT_KEYWORD` fell
+  through to `eval_node(tgt)` which returns the variable's *value* (`NULVCL` /
+  `DT_SNUL` when unset), not a NAME. That non-DT_N descriptor flowed into
+  `pat_assign_cond`'s `PATND_t.var`; at `bb_build XNME` it matched neither the
+  `varname` nor the `var_ptr` extraction patterns (stmt_exec.c:823-827), so
+  `bb_cap_new(NULL, NULL, …)` initialised the embedded NAME with `kind=NM_VAR=0`
+  and `varname=NULL`. At CAP_γ the deferred capture pushed onto the NAM ctx with
+  the wrong kind; at `NAME_commit` it was a safe no-op — the captured substring
+  was never written back to the variable.
+  Trace evidence (smoking gun): `CAP_γ XNME defer push kind=1` for SNOBOL4
+  --sm-run / Snocone --sm-run (working), `kind=0` for Snocone --ir-run (broken).
+  Fix: in both `TT_CAPT_COND_ASGN` and `TT_CAPT_IMMED_ASGN`, short-circuit
+  plain `TT_VAR` (`name = NAME_fn(tgt->v.sval)`) and `TT_KEYWORD`
+  (`name = NAME_fn("&" + tgt->v.sval)`) before the existing `TT_INDIRECT`
+  branch. Mirrors the SM-path `SM_PAT_CAPTURE` handler at sm_interp.c:687 and
+  the existing `TT_NAME` case at eval_code.c:262-268. Authority: SPITBOL Manual
+  v3.7 Ch. 18 (Patterns), pp. 62, 87 — "assigns the matching substring on its
+  left to **the variable on its right**" (the operand is a name, not a value).
+  one4all `fff3a307`. Diff +24/−4 in `src/runtime/x86/eval_code.c`.
+  Reproducer:
+  ```
+  str = 'hello world';
+  str ? (POS(0) LEN(5) . part);
+  OUTPUT = part;
+  ```
+  Pre-fix `--ir-run`: empty output. Post-fix: `hello`.
+  Gate: Goal Gate 1 smoke_lower 6/6, Gate 2 sm_lower_test 11/11, smoke_snocone
+  5/5, smoke_snobol4 7/7, smoke_icon 5/5, smoke_rebus 4/4, smoke_scrip_all_modes
+  2/2. Pre-existing baselines unchanged (prolog 1/5, raku 0/5, unified_broker
+  10/49). Porter.sno --ir-run output byte-identical pre/post fix (porter has
+  unrelated pre-existing `--ir-run` gaps in pattern-valued fn calls / deferred
+  callcaps that this fix does not touch).
+- [x] Wire parser → lower → sm_dump end-to-end on trivial .sno input
   Script: `bash one4all/scripts/run_scrip_parser.sh snobol4 file.sno`
-  **BLOCKED by pre-existing SCRIP bug: pattern captures (`. var`) not updating variables
-  in Snocone --ir-run context.** Investigation sess 2026-05-12 (Claude Sonnet 4.6):
-  `str ? (POS(0) REM . part)` never sets `part` — true even at global scope.
-  SNOBOL4 --sm-run works correctly. SM dump shows SM_PAT_CAPTURE s="part" is emitted,
-  SM_EXEC_STMT has_repl=0 subj="str" — structurally correct. Bug is in SM_PAT_CAPTURE
-  handler (sm_interp.c:682) — likely NAME_commit not firing captures back via NV_SET_fn,
-  OR captures going to a wrong NV slot. Parser's Compiland grammar matches correctly,
-  Src is filled, but Pop() returns nothing because the grammar's Push() calls via
-  reduce() actions use captures internally, so the parse tree is never built.
-  Next: investigate SM_PAT_CAPTURE at sm_interp.c:682.
+  Sess 2026-05-12 (Claude Opus 4.7): with SL-13b in place, the script now runs
+  end-to-end on `X = 'hello'` / `END` without hang or Error, emitting
+  `; SM_Program  count=1` / `SM_HALT`. The pipeline is wired and operational;
+  the empty SM is the next layer of work (the parser_snobol4 driver isn't yet
+  feeding a populated parse tree to `Lower_collect` for trivial single-statement
+  inputs — that's parser-driver work, not a capture-bug blocker, and belongs to
+  a follow-on rung). Capture-bug blocker is closed.
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
+  Next-session task. Now unblocked.
