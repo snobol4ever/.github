@@ -402,20 +402,37 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **one4all `f33589d8` on remote.**
 
-### SM template status — PARTIAL (53/99 opcodes covered)
+### ⛔ THE LAW (re-stated): ONE FILE PER SM OPCODE
 
-16 template files exist covering the 53 opcodes already in `g_sm_templates[]`
-in `sm_emit_template.c`.  **46 opcodes are in the enum (`sm_prog.h`) but NOT
-yet in `g_sm_templates[]` and have no template file.**  These must be added
-before SM templates are truly complete.
+`GOAL-MODE4-EMIT.md` §"THE LAW OF TEMPLATE FUNCTIONS" says:
+**One C template function per SM opcode.** That means one `.c` file per opcode.
+Not one file per group of similar opcodes. Not one file for all nullary ops.
+One file. One opcode. Every file named `sm_<opcode_lowercase>.c`.
 
-Opcodes covered by existing 16 files: SM_HALT, SM_PUSH_LIT_I, SM_PUSH_LIT_S,
-SM_PUSH_VAR, SM_STORE_VAR, SM_VOID_POP, SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM,
-SM_ADD/SUB/MUL/DIV/MOD, SM_JUMP/S/F, SM_LABEL, SM_STNO, SM_CALL_FN, SM_RETURN,
-SM_RETURN_VARIANT, SM_PUSH_EXPRESSION, SM_CALL_EXPRESSION, SM_EXEC_STMT,
-all SM_PAT_* (22 opcodes).
+### Current SM template files — VIOLATIONS (multi-opcode bundles)
 
-**Opcodes still needing g_sm_templates[] entries AND template files:**
+These existing files each contain multiple opcodes and must be **split** into
+one file per opcode before SM is considered done:
+
+| File | Opcodes bundled (must become separate files) |
+|------|----------------------------------------------|
+| `sm_arith.c` | SM_ADD, SM_SUB, SM_MUL, SM_DIV, SM_MOD — split into sm_add.c, sm_sub.c, sm_mul.c, sm_div.c, sm_mod.c |
+| `sm_nullary_rt.c` | SM_CONCAT, SM_PUSH_NULL, SM_COERCE_NUM — split into sm_concat.c, sm_push_null.c, sm_coerce_num.c |
+| `sm_var.c` | SM_PUSH_VAR, SM_STORE_VAR — split into sm_push_var.c, sm_store_var.c |
+| `sm_jump.c` | SM_JUMP, SM_JUMP_S, SM_JUMP_F — split into sm_jump.c, sm_jump_s.c, sm_jump_f.c |
+| `sm_label_stno.c` | SM_LABEL, SM_STNO — split into sm_label.c, sm_stno.c |
+| `sm_return.c` | SM_RETURN, SM_RETURN_VARIANT — split into sm_return.c, sm_return_variant.c |
+| `sm_exec_stmt.c` | SM_PUSH_EXPRESSION, SM_CALL_EXPRESSION, SM_EXEC_STMT — split into 3 files |
+| `sm_pat_nullary.c` | 22 opcodes — split into 22 files |
+| `sm_pat_lbl.c` | SM_PAT_LIT, SM_PAT_REFNAME, SM_PAT_USERCALL — split into 3 files |
+| `sm_pat_capture.c` | SM_PAT_CAPTURE, SM_PAT_USERCALL_ARGS — split into 2 files |
+| `sm_pat_capture_fn.c` | SM_PAT_CAPTURE_FN, SM_PAT_CAPTURE_FN_ARGS — split into 2 files |
+
+Single-opcode files already correct: `sm_halt.c`, `sm_push_lit_i.c`,
+`sm_push_lit_s.c`, `sm_call_fn.c`, `sm_void_pop.c`.
+
+### SM opcodes still completely missing (not in g_sm_templates[], no file)
+
 SM_EXP, SM_NEG, SM_PUSH_LIT_F, SM_PUSH_NULL_NOFLIP, SM_PUSH_EXPR,
 SM_INCR, SM_DECR, SM_LCOMP, SM_RCOMP, SM_TRIM, SM_ACOMP, SM_SPCINT, SM_SPREAL,
 SM_FRETURN, SM_NRETURN, SM_RETURN_S, SM_RETURN_F, SM_FRETURN_S, SM_FRETURN_F,
@@ -437,7 +454,7 @@ SM_LOAD_FRAME, SM_STORE_FRAME.
 `t_test_eax_eax`, `t_jz_retskip`, `t_retskip_label`,
 `t_movabs_rdi_entry`, `t_call_sym_param`.
 
-### BB templates — all six still violating
+### BB templates — all six still violating (do AFTER SM is complete)
 
 `bb_xchr.c`, `bb_xspnc.c`, `bb_xlnth.c`, `bb_xbrkx.c`, `bb_xposi.c`, `bb_xfarb.c`
 
@@ -445,11 +462,10 @@ SM_LOAD_FRAME, SM_STORE_FRAME.
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
 2. Confirm baseline: smoke 7/7, snocone 5/5, template-byte-id 4/4.
-3. **Finish SM templates first** — add the 46 missing opcodes to `g_sm_templates[]`
-   and write their template files. Group by shape (nullary rt-call, lbl, lbl+int,
-   etc.) to minimise new files. Do NOT start BB until all SM opcodes have files.
-4. Then fix all six BB templates (EM-TEMPLATE-PURITY).
-5. Verify SM complete: `comm -23 <(grep SM_ sm_prog.h|...) <(grep SM_ sm_emit_template.c|...)` returns empty.
+3. **Split all multi-opcode SM template files** — one file per opcode, named `sm_<opcode>.c`. Use the shared helper pattern (static helper called by each thin wrapper) to avoid duplication while obeying one-file-per-opcode.
+4. **Add all 46 missing SM opcodes** to `g_sm_templates[]` and write their individual files.
+5. Verify: every opcode in `sm_prog.h` enum has exactly one `sm_<opcode>.c` file in `templates/`.
+6. Only then: fix BB templates (EM-TEMPLATE-PURITY).
 
 | Template file | Opcodes |
 |---------------|---------|
