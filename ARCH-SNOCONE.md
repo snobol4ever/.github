@@ -6,6 +6,14 @@ the architecture (lexer / grammar / driver implementation map). All
 other Snocone documentation in this repo is either a one-line
 pointer to this file or has been removed.
 
+**Reference spec for expression semantics:** SPITBOL Manual v3.7 by
+Mark B. Emmer and Edward K. Quillen (Catspaw, 2000) — 368 pages.
+Snocone expression syntax and semantics are 100% identical to SPITBOL;
+the only differences are control flow (C-style braces vs label-goto)
+and newline-as-whitespace. Chapters 15 (Operators), 17 (Data Types),
+18 (Patterns), and 19 (Functions) are authoritative for what Snocone
+expressions mean. Frontends and runtimes never reinterpret these.
+
 Frontend: SNOCONE. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
 
 ---
