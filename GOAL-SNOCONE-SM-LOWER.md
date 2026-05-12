@@ -530,3 +530,27 @@ patching in place. Also added `SM_CALL_EXPRESSION` display to `fmt_instr`.
 - [x] Add EVAL(*expr) special case to lower_fnc
 - [x] fmt_instr SM_CALL_EXPRESSION display
 - [x] Gates clean: smoke 6/6, sm_lower_test 11/11
+
+### SL-13 — Parser → Lower pipeline integration
+
+`parser_snobol4.sc` outputs `TDump(result)` (serialized text per stmt).
+`lower_driver.sc` calls `Lower_collect(stmt)` (expects a live tree node).
+These are not yet connected — the full Snocone self-hosting pipeline
+`parser_snobol4.sc → lower.sc → sm_interp.sc` requires the parser to
+hand tree nodes directly to `Lower_collect` rather than serializing them.
+
+Options:
+1. Add a `--sc-compile` mode to scrip that runs parser → lower → interp
+   as a single `--ir-run` invocation, passing live tree nodes.
+2. Modify `parser_snobol4.sc` to call `Lower_collect(result)` instead of
+   `TDump(result)` when running in pipeline mode (flag via global var).
+3. Define a bridge `.sc` that imports both parser and lower outputs
+   and connects them.
+
+Coordinate with Lon before implementing — this touches the parser goal
+(GOAL-LANG-SNOCONE / GOAL-PARSER-SNOCONE) and the interp goal
+(GOAL-SNOCONE-SM-INTERP).
+
+- [ ] Decide integration approach with Lon
+- [ ] Wire parser → lower → sm_dump end-to-end on a trivial .sno input
+- [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
