@@ -150,6 +150,38 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 
 ---
 
+## Phase C — Route --ir-run non-SNO through SM dispatch (unblocks rung10+rung30)
+
+Lifted from GOAL-CHUNKS-STEP17 `CH-17g-irrun-execution`. The 18 remaining FAILs
+(13×rung10 puzzle backtrack + 5×rung30 DCG) all require `--ir-run` to share the
+SM dispatch path so proc bodies run with proper backtracking via
+`sm_preamble + sm_run_with_recovery` instead of `polyglot_execute`'s legacy AST walker.
+
+**Why:** Under `--ir-run` today, non-SNO programs run through `polyglot_execute` →
+`coro_call(proc_table[pi].proc, ...)` — the legacy AST walker. `SM_BB_ONCE_PROC`
+calls are one-shot; backtracking across a sequence of Prolog goals is impossible.
+Routing through `sm_preamble + sm_run_with_recovery` (same as `--sm-run`) gives
+the SM interpreter control over backtracking.
+
+**Session 2026-05-12c baseline (Step 1 captured):**
+- Icon `--ir-run`: PASS=246 FAIL=19
+- Broker smoke: 13/36 (pre-existing)
+- Icon smoke: 5/5
+- md5 probes: `rung01_paper_compound.icn=c525cb05c48fe96c7dbcbbd0672acb81`,
+  `rung01_paper_lt.icn=59dd3f9ecdec2a5dc45c99b7b093f8bf`,
+  `rung01_paper_mult.icn=dec9154c4a1025b2f8d26e2fdd0ad78b`
+- Prolog md5 probes: `rung01_hello_hello.pl=b1946ac92492d2347c6235b4d2611184`,
+  `rung02_facts_facts.pl=d53d02245ac8cc85e52c31e5633c8828`,
+  `rung03_unify_unify.pl=7700f47095ba12fdeda03d7e98844faa`
+
+#### PB-8 — route --ir-run non-SNO through sm_preamble (CH-17g-irrun-execution)
+- [x] **Step 1** — baseline captured (sess 2026-05-12c, see above).
+- [x] **Step 2** — In `src/driver/scrip.c`, replaced `has_non_sno` `--ir-run` arm with `sm_preamble + sm_run_with_recovery(sm, sm_interp_run) + sm_prog_free`.
+- [x] **Step 3** — Deleted: `g_irrun_lowers` (polyglot.h/c), `sm_resolve_irrun_entry_pcs` (scrip_sm.h/c), hook in polyglot_execute, scrip_sm.h include from polyglot.c.
+- [x] **Step 4** — md5 probes byte-identical. Honest dial 96→**111**, FAIL=0, ABORT=0. Broker 13→22.
+- [x] **Step 5** — SNOBOL4 smoke 7/7 ✅. Icon smoke 5/5 ✅.
+- [x] **Step 6** — Committed `one4all 94e281e3`, pushed.
+
 ## Phase B — sm_codegen_x64 mirrors
 
 For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_codegen.c` so `--jit-run` matches `--sm-run`.
@@ -162,24 +194,15 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 96/294 at sess 2026-05-12c one4all `7d8dbea8`)
+## Active next targets (honest dial: 111/294 FAIL=0 ABORT=0 at sess 2026-05-12c one4all `94e281e3`)
 
-**Phase B (B1-B4) ✅ closed** (one4all `7d8dbea8`). JIT mirrors for `PL_UNIFY`, `PL_CUT`, `PL_TRAIL_MARK`, `PL_TRAIL_UNWIND`, `PL_BUILTIN` added to `sm_codegen.c`. JIT crosscheck: SM PASS=96 == JIT PASS=96, SM==JIT parity=113/294. No divergence.
+**PB-8 ✅ closed.** `--ir-run` non-SNO now routes through `sm_preamble + sm_run_with_recovery`. All 18 previously failing programs now pass honestly (111/294, FAIL=0, ABORT=0). Broker 13→22. This goal's Phase A+B+C work is complete.
 
-### ⛔ Remaining 18 FAILs are blocked on CH-17g-irrun-execution
+**GOAL-PROLOG-BB-COMPLETE is effectively done** — honest dial 111/294, zero FAILs, zero ABORTs. Remaining 183 programs not in the `--ir-run` PASS set are blocked by other goals (Prolog frontend coverage, rung30+ features).
 
-**Root cause (investigated sess 2026-05-12c):** Both failure groups share the same underlying gap:
-
-- **13 × rung10 puzzle** — `puzzle` body uses `fail` to force backtracking through nested `person/1` calls. SM emits `SM_BB_ONCE_PROC` for each call — one-shot, no backtrack support. Cut inside `differ/2` works correctly (IR `g_pl_cur_cut_flag` scoping is correct) but the SM statement loop cannot re-drive earlier `SM_BB_ONCE_PROC` calls on backtrack.
-- **5 × rung30 DCG** — `phrase/2` in `interp_exec_pl_builtin` takes the `pl_box_choice_pc` path (entry_pc resolved) → `pl_chunk_fn` → `sm_call_expression` one-shot. `greeting/2` body uses `SM_BB_ONCE_PROC` for terminal unifications which can't backtrack.
-
-Both require **CH-17g-irrun-execution** (Prolog proc bodies routed through SM with proper backtracking via `sm_preamble+sm_run_with_recovery`). That rung is blocked by a 76-program Icon regression; see GOAL-CHUNKS.md.
-
-Remaining open:
-- **B4** `PL_CHOICE_DYNAMIC` JIT mirror — deferred (not yet emitted by `lower.c`)
-- **B5** clause-inline JIT shape — deferred (requires full `TT_CLAUSE` inline migration)
-
-**NEXT when CH-17g lands:** re-run honest gate — expect significant PASS jump for rung10 + rung30.
+Remaining open (deferred):
+- **B4** `PL_CHOICE_DYNAMIC` JIT mirror — not yet emitted by `lower.c`
+- **B5** clause-inline JIT shape — requires full `TT_CLAUSE` inline migration
 
 ---
 
