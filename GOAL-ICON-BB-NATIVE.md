@@ -297,7 +297,10 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 ### IB-10 — purge SM coroutine opcodes from Icon path
 - [x] grep lower.c for SM_RESUME, SM_STORE_GLOCAL, SM_SUSPEND_VALUE in Icon paths.
       Must be zero after IB-1..IB-8 land.
-- [ ] is_suspendable() returns false for all migrated TT_ kinds.
+- [~] is_suspendable() returns false for all migrated TT_ kinds.
+      ⛔ INVARIANT AS WRITTEN IS UNSOUND — see audit below. Effectively
+      already satisfied (no SM coroutine emission in lower.c Icon paths);
+      nothing additional to do.
 - [x] Build clean. GATE-1..7 full sweep. Commit.
 
 ✅ **IB-10 part 1 closed sess 2026-05-12 (Claude Opus 4.7, one4all `1b13cc6d`):**
@@ -316,20 +319,38 @@ Gates (one4all 7be3c8e0 → 1b13cc6d):
   GATE-3 icon ir_all:       PASS=180 FAIL=55   (unchanged)
   GATE-4 honest (NO_AST):   PASS=210 FAIL=2    (+2 / -2 vs baseline)
 
-⏳ **IB-10 part 2 deferred** — `is_suspendable()` flip. The function is
-the shared generative-detection oracle in `coro_runtime.c:720` and is
-still actively used by many code paths covering the 35 unmigrated JCON
-BBs (TT_ADD/SUB/MUL/IDX/ASSIGN/IDENTICAL/CAT and the augmented forms).
-Flipping it globally for the 8 migrated TT_ kinds would lie to the
-still-active C-coroutine paths.
+✅ **IB-10 part 2 resolved (no work needed) sess 2026-05-12 (Claude Opus 4.7):**
 
-Design call needed: either
-  (a) split into `is_suspendable()` (legacy, unchanged) and
-      `is_suspendable_bb_native()` (returns 0 for the 8 migrated kinds)
-      and route the flat-BB emit sites through the new predicate, OR
-  (b) flip the function globally and audit every caller in
-      `coro_runtime.c` to confirm the answer is harmless for migrated
-      kinds (since the new BB-template path supplants their old role).
+Audit of `is_suspendable()` callers in `coro_runtime.c`:
+
+| Lines | Site | Purpose |
+|-------|------|---------|
+| 1320  | TT_TO with gen lo/hi              | wrap via coro_bb_to_by |
+| 1459  | TT_IDENTICAL with gen child       | drive gen, test === per value |
+| 1516  | binop_map (ADD/SUB/MUL/.../EQ/NE) | drive gen in arith/relational |
+| 1533  | TT_CAT                            | string concat with gen child |
+| 1559  | TT_IDX                            | s[gen_idx] |
+| 1576  | find(cset, gen_subject)           | builtin with gen arg |
+| 1655  | generic builtin loop              | per-gen-arg icn_fnc_gen |
+| 1685  | upto(cset, gen_subject)           | |
+| 1705  | user-proc TT_FNC fallback         | |
+| 1757  | TT_NONNULL (\E) filter            | |
+| 1800  | TT_FNC for is_proc                | |
+| 1822  | TT_ASSIGN with gen RHS            | x := gen Byrd-box assignment |
+
+Every caller asks the SEMANTIC question — *"does this subtree yield a
+sequence?"* — to choose between simple-eval and coro_bb_* generative
+wrapping. None of them ask the DISPATCH question — *"should I emit SM
+coroutine bytecode?"*. The 8 migrated TT_ kinds (TT_TO, TT_TO_BY,
+TT_ITERATE, TT_ALTERNATE, TT_LIMIT, TT_EVERY, TT_BANG_BINARY,
+TT_SEQ_EXPR) remain semantic generators regardless of which backend
+drives them; the IB-1..IB-8 templates and the still-active coro_bb_*
+wrappers both depend on `is_suspendable` correctly reporting YES for
+these kinds.
+
+The invariant as written conflated two distinct questions. The actual
+intent ("no SM coroutine emission for migrated kinds") was already
+satisfied by IB-10 part 1. No code change needed.
 
 Watermark numbers in this file were stale-by-a-few on absolute counts
 (prior session reported 206/181; live baseline at 7be3c8e0 was 208/180).
@@ -366,18 +387,21 @@ Deltas in the table above are against the live baseline.
 
 ## Watermark
 
-  Last session:    2026-05-12 (Claude Opus 4.7) — IB-10 part 1 ✅
-                   (purge SM coroutine emission from lower.c Icon paths).
-                   IB-10 part 2 (is_suspendable() flip) deferred —
-                   needs design call.  Also added `.github/jcon_irgen.icn`
-                   (JCON 43 ir_a_* canonical reference).
+  Last session:    2026-05-12 (Claude Opus 4.7) — IB-10 fully resolved.
+                   Part 1 ✅ (purge SM coroutine emission from lower.c
+                   Icon paths). Part 2 ✅ no-op (is_suspendable() audit
+                   showed the as-written invariant was unsound; the
+                   actual intent was satisfied by part 1). Also added
+                   `.github/jcon_irgen.icn` (JCON 43 ir_a_* reference).
   one4all HEAD:    1b13cc6d
   Honest PASS:     210 (was 208 at 7be3c8e0 — +2 from IB-10 part 1;
                    2 segfaults remaining)
-  ir-run PASS:     180 (was 180 at 7be3c8e0 — unchanged; watermark's
-                   prior "181" was off-by-one against live baseline)
+  ir-run PASS:     180 (unchanged)
   BB tally:        43 JCON ir_a_* total. 8 templates landed
                    (IB-1..IB-8: ToBy, iterate, Alt, Every, Limitation,
                    bang-Binop, lconcat, Mutual-seq). 35 remain on the
                    statement-level SM_BB_PUMP_AST path.
-  Current rung:    IB-10 part 2 — is_suspendable() flip (deferred).
+  Current rung:    GOAL DONE on the IB ladder.  Next: either advance
+                   to a new IB ladder for the next BB cluster, or
+                   investigate the 2 segfaults in GATE-4
+                   (rung24_records_two_types, rung36_jcon_gener).
