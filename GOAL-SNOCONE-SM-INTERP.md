@@ -689,23 +689,32 @@ All 87 SM_* opcodes from `sm_prog.h` now have at least a handler in `sm_interp.s
 | Define markers | `SM_DEFINE`, `SM_DEFINE_ENTRY` | No-op (function def handled at lower-time) |
 | Integer compare | `SM_ICMP_GT`, `SM_ICMP_LT` | One-liner: pop r,l → set `last_ok` from comparison |
 | Inc/Dec | `SM_INCR`, `SM_DECR` | One-liner: pop, add/sub `a0(ins)`, push |
-| Frame slots | `SM_LOAD_FRAME`, `SM_STORE_FRAME` | Stub with TERMINAL note (host frame-env not exposed to `.sc`) |
-| Glocal slots | `SM_LOAD_GLOCAL`, `SM_STORE_GLOCAL` | Stub using `si_glocals` TABLE (adequate for non-nested cases) |
-| Pat callbacks | `SM_PAT_CAPTURE_FN`, `_FN_ARGS`, `SM_PAT_USERCALL`, `_ARGS` | Stub with TERMINAL note (needs host pattern-engine hook) |
-| Generators | `SM_SUSPEND`, `SM_SUSPEND_VALUE`, `SM_RESUME`, `SM_GEN_TICK` | Stub with TERMINAL note (needs swapcontext-style yield) |
-| BB broker | `SM_BB_PUMP`, `_ONCE`, `_ONCE_PROC`, `_PUMP_PROC`, `_PUMP_CASE`, `_PUMP_SM`, `_PUMP_EVERY` | Stub that pops expected args; TERMINAL note |
+| Frame slots | `SM_LOAD_FRAME`, `SM_STORE_FRAME` | **Silent no-op** (Icon frame env not in `.sc`) |
+| Glocal slots | `SM_LOAD_GLOCAL`, `SM_STORE_GLOCAL` | Working stub using `si_glocals` TABLE (adequate for non-nested generators) |
+| Pat callbacks | `SM_PAT_CAPTURE_FN`, `_FN_ARGS`, `SM_PAT_USERCALL`, `_ARGS` | TERMINAL warning + push `''` (scrip-emittable — silent would hide bugs) |
+| Generators | `SM_SUSPEND`, `SM_SUSPEND_VALUE`, `SM_RESUME`, `SM_GEN_TICK` | **Silent no-op / fail-marker** (needs swapcontext-style yield) |
+| BB broker | `SM_BB_PUMP`, `_ONCE`, `_ONCE_PROC`, `_PUMP_PROC`, `_PUMP_CASE`, `_PUMP_SM`, `_PUMP_EVERY` | **Silent stubs** that pop expected args (needs real scheduler) |
+
+**Silent-stub policy (Lon directive sess 2026-05-12 handoff).**  Icon/Prolog opcodes
+that are too complex to implement in `.sc` silently no-op — they pop their expected
+stack arguments, push placeholder values where the protocol requires, and return
+without printing anything to TERMINAL.  This means a scrip program running through
+the self-hosted pipeline that happens to use Icon/Prolog constructs runs to
+completion (possibly with wrong values) rather than spamming stderr.
+
+TERMINAL warnings preserved only where they indicate a real issue:
+- Pattern callback opcodes (`PAT_CAPTURE_FN`/`_FN_ARGS`/`PAT_USERCALL`/`_ARGS`) —
+  these ARE emittable from scrip and silent failure would hide bugs
+- `SM_CALL_FN` pseudo-calls (`INDIR_GET`/`ASGN`/`IDX_SET`/etc.) — SNOBOL4 lvalue paths
+- `SM_CALL_FN` with nargs > 5 (the dispatch covers 0..5 only)
+- The catch-all `default:` for any unknown opcode
 
 Test `si_16_cond_return.sc` exercises `SM_RETURN_S` via the `:S(RETURN)` lowering path.
-
-Stubs intentionally **don't crash** — they emit a TERMINAL line, push a placeholder, set
-`last_ok=0` (where applicable), and return.  This means a program that uses an unimplemented
-feature fails gracefully with a diagnostic, rather than silently producing wrong output or
-halting the interpreter.
 
 - [x] All 87 SM_* opcodes have handlers (real or stub)
 - [x] `si_16_cond_return.sc` + native + `.ref`
 - [x] Self-host gate PASS=14/14
-- [x] No regressions in smoke or crosscheck matrices
+- [x] Smoke matrix 33/33; no regressions in cross-check matrix
 
 ### Phase 3 — deferred (real implementations of the stubbed opcodes)
 
