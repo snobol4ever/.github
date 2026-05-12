@@ -695,9 +695,9 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-9 — Activate `EM-BB-PURGE-4` above.**  Deleted all 26 `DESCR_t bb_*` C box bodies (~439 lines) from `bb_boxes.c`. All call sites use `bb_build_brokered` / `bb_lit_emit_binary` / `bb_eps_emit_binary`. `bb_build.c` removed from Makefile (dead after C boxes deleted); `bb_lit_emit_binary` + `bb_eps_emit_binary` + static helpers moved to `bb_flat.c`. rt.c `rt_init` now sets `BB_MODE_BROKERED`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, **beauty-subsystems PASS=11 FAIL=6 (+8 vs prior baseline of 3)**. (Sonnet 4.6, one4all `21b7518a`)
 
-  - [ ] **EDP-10 — Activate `EM-BB-PURGE-5` above.**  Delete heap ζ struct typedefs and `bb_<kind>_new()` constructors.
+  - [x] **EDP-10 — Activate `EM-BB-PURGE-5` above.**  Delete heap ζ struct typedefs and `bb_<kind>_new()` constructors. Deleted 13 constructors with no external callers (bb_lit_new, bb_seq_new, bb_alt_new, bb_any_new, bb_notany_new, bb_span_new, bb_brk_new, bb_pos_new, bb_eps_new, bb_not_new, bb_interr_new, bb_fail_new, bb_rpos_new) + local typedefs (seq_t, alt_t, not_t, interr_t, arbno_frame_t). Deleted 9 orphan typedefs from bb_box.h (lit_t, span_t, any_t, notany_t, brk_t, pos_t, rpos_t, eps_t, fail_t). Dead local typedef block (alt_t, seq_t, arbno_t) deleted from stmt_exec.c. bb_build.c removed from disk (git rm). Gates: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11. (Sonnet 4.6, one4all `267429d0`)
 
-  - [ ] **EDP-11 — Remove `-Wl,--allow-multiple-definition`.**  From `Makefile`'s libscrip_rt link line.  If any duplicate-symbol errors surface at link time, that IS a residual doppelganger — find and delete.  After clean link, EM-DOPPELGANGER-PURGE closes.
+  - [x] **EDP-11 — Remove `-Wl,--allow-multiple-definition`.**  From `Makefile`'s libscrip_rt link line. Clean link with zero duplicate-symbol errors — confirms all doppelgangers eliminated. EM-DOPPELGANGER-PURGE closes. (Sonnet 4.6, one4all `901d4746`)
 
   - [ ] **EDP-12 — Close-out report.**  Re-run EDP-1's audit script.  Output should show every SM opcode and every XKIND_t kind reaches exactly ONE emitter — the template function in `sm_templates.c` / `bb_templates.c`.  No remaining matches outside those two files.  Commit the clean audit as the close artifact.
 
@@ -756,19 +756,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **EDP-9:** All 26 `DESCR_t bb_*` C box bodies deleted from `bb_boxes.c`. `bb_build.c` removed from Makefile (dead). `bb_lit_emit_binary` + `bb_eps_emit_binary` + static byte-emit helpers moved to `bb_flat.c`. `rt_init` sets `BB_MODE_BROKERED`. All call sites (`bb_templates.c`, `bb_flat.c`, `stmt_exec.c`) updated to use string-based discriminators and 0 for `fn_fallback`. Beauty-subsystems improved 3→11 because the brokered blob path now handles patterns that previously fell through to C boxes.
 
+**EDP-10:** Deleted 13 orphan constructors from `bb_boxes.c` (bb_lit_new, bb_seq_new, bb_alt_new, bb_any_new, bb_notany_new, bb_span_new, bb_brk_new, bb_pos_new, bb_eps_new, bb_not_new, bb_interr_new, bb_fail_new, bb_rpos_new) plus their local typedefs (seq_t, alt_t, not_t, interr_t). Deleted 9 orphan typedefs from bb_box.h (lit_t, span_t, any_t, notany_t, brk_t, pos_t, rpos_t, eps_t, fail_t); removed bb_build() declaration. Deleted dead local typedef block (alt_t, seq_t, arbno_t) from stmt_exec.c. `git rm bb_build.c`. Gates: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11. (Sonnet 4.6, one4all `267429d0`)
+
+**EDP-11:** Removed `-Wl,--allow-multiple-definition` from Makefile libscrip_rt link. Clean link — zero duplicate-symbol errors. EM-DOPPELGANGER-PURGE closes. (Sonnet 4.6, one4all `901d4746`)
+
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11.
-3. **EDP-10 — Delete heap ζ struct typedefs and `bb_<kind>_new()` constructors.** From `bb_box.h` (`lit_t span_t arb_t` etc.) and `bb_boxes.c`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
-4. **EDP-11 — Remove `-Wl,--allow-multiple-definition`.** If link errors surface they are residual doppelgangers to delete. After clean link, EM-DOPPELGANGER-PURGE closes.
-5. Note: `bb_build.c` still exists on disk (not in Makefile). If EDP-10/11 gates pass cleanly, `git rm bb_build.c` at that point.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11. one4all HEAD `901d4746`.
+3. **EDP-12 — Close-out report.** Re-run `scripts/util_audit_doppelgangers.sh`. Output should show every SM opcode and every XKIND_t kind reaches exactly ONE emitter in `sm_templates.c` / `bb_templates.c`. No remaining matches outside those two files. Commit clean audit as close artifact. After EDP-12, EM-DOPPELGANGER-PURGE is fully closed.
 
 ### Lessons recorded
 
 - Brokered blobs are flat BB bodies + C-ABI frame. No separate preamble variant. `t_brokered_prologue` / `t_brokered_epilogue_ret` are the complete interface.
 - `bb_build.c` had the only `bb_lit_emit_binary` + `bb_eps_emit_binary` implementations; these must survive alongside their static byte-emit helpers. Move to `bb_flat.c` as the natural home.
-- beauty-subsystems PASS=11 is the new baseline (not 3). The +8 gain comes from the brokered blob path replacing C boxes for all patterns that were previously served by `bb_build_binary`.
+- beauty-subsystems PASS=11 is the stable baseline through EDP-6..EDP-11.
+- EDP-10 audit key: check `bb_flat.c` extern decls (only declares constructors it calls); `bb_templates.c` calls are the primary surviving use. `bb_build.c` refs are irrelevant (not in Makefile).
 
 ---
 
