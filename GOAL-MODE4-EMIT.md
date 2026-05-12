@@ -710,6 +710,61 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`). Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`; (b) beauty self-host regression.
 
+- [ ] **EM-BB-MACROS** — `--jit-emit --x64 --bb-macros` emits BB boxes in beautified three-column macro-invocation format. `--bb-macros` flag wired (one4all `ec334068`); `g_bb_emit_macros` global declared. No behavior yet — all sub-rungs below are unstarted.
+
+  **The spec.** Every BB box port must emit as **one three-column line** in TEXT mode:
+  ```
+  LABEL:                  MACRO            args  # comment
+  ```
+  Current TEXT output expands every port to 5–20 raw GAS instructions. Goal: each port collapses to a single named macro invocation. The macro body in `bb_macros.s` expands to those same instructions. BINARY mode is unchanged (raw bytes from `t_*` helpers).
+
+  **How `g_bb_emit_macros` gates each template:** at the top of each `emit_bb_<kind>`, check `if (g_bb_emit_macros && t_bb_is_text_mode())` — if true, emit macro invocation lines via `t_bb_text_port()` and return; otherwise fall through to existing `t_*` raw-instruction path.
+
+  **New helpers needed (add to `bb_emit.h` / `bb_emit.c`):**
+  - `int  t_bb_is_text_mode(void)` — returns 1 when `bb_emit_mode` is TEXT or TEXT_INLINE.
+  - `void t_bb_text_port(bb_label_t *lbl_entry, const char *macro_name, const char *args)` — emits one `bb3c_format` line: `"LABEL:"  "MACRO"  "args"`. In non-TEXT mode: no-op.
+
+  **Gate for every sub-rung:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7. Additionally: `scrip --jit-emit --x64 --bb-macros file.sno | gcc -c -x assembler -` must succeed (no GAS errors).
+
+  Sub-rungs (each adds macros to `bb_macros_write_to_path` in `bb_flat.c` AND adds a `g_bb_emit_macros` branch to the matching `emit_bb_<kind>` in `bb_templates.c`):
+
+  - [ ] **EM-BB-MACROS-0 — Helpers.** Add `t_bb_is_text_mode()` and `t_bb_text_port()` to `bb_emit.h`/`bb_emit.c`. No template changes yet. Gate: build clean, smoke 7/7.
+
+  - [ ] **EM-BB-MACROS-1 — XCHR (LIT).** Macros: `LIT_CHECK lbl, len, lbl_succ, lbl_fail` (α-body: bounds check + memcmp + delta advance); `LIT_UNDO len, lbl_fail` (β-body: delta retreat). Template: `emit_bb_xchr` emits `LIT_CHECK` for α-body and `LIT_UNDO` for β-body when `--bb-macros`.
+
+    Before (`--jit-emit --x64`):
+    ```
+    pat_inv_0_α_body:       mov              eax, [r10]
+                            add              eax, 5
+                            mov              rcx, 0x96fe30
+                            ...14 more lines...
+    pat_inv_0_β:            mov              eax, [r10]
+                            sub              eax, 5
+                            mov              [r10], eax
+                                                                        jmp pat_inv_0_ω
+    ```
+    After (`--jit-emit --x64 --bb-macros`):
+    ```
+    pat_inv_0_α_body:       LIT_CHECK        .S4, 5, pat_inv_0_γ, pat_inv_0_ω
+    pat_inv_0_β:            LIT_UNDO         5, pat_inv_0_ω
+    ```
+
+  - [ ] **EM-BB-MACROS-2 — XEPS / XFAIL.** Macros already exist (`EPS_α/β`, `FAIL_α/β`). Add `g_bb_emit_macros` branches to `emit_bb_xeps` and `emit_bb_xfail` in `bb_templates.c` to emit those macro invocations. No new macros needed.
+
+  - [ ] **EM-BB-MACROS-3 — XPOSI / XRPSI.** Macros already exist (`POS_α/β`, `RPOS_α/β`). Add `g_bb_emit_macros` branches to `emit_bb_xposi` and `emit_bb_xrpsi`.
+
+  - [ ] **EM-BB-MACROS-4 — Charset family (XSPNC / XBRKC / XANYC / XNNYC).** Macros: `SPAN_α cs, lbl_succ, lbl_fail` / `SPAN_β lbl_fail`; same shape for `BRK_α/β`, `ANY_α/β`, `NOTANY_α/β`. Each calls the appropriate C charset helper (`bb_span`, `bb_brk`, etc.) via PLT. Template: `emit_bb_charset` branches.
+
+  - [ ] **EM-BB-MACROS-5 — Integer-cursor family (XLNTH / XTB / XRTB).** Macros: `LNTH_α n, lbl_succ, lbl_fail` / `LNTH_β lbl_fail`; same for `TAB_α/β`, `RTAB_α/β`. Templates: `emit_bb_xlnth`, `emit_bb_xtb`, `emit_bb_xrtb` branches via `emit_bb_intcur`.
+
+  - [ ] **EM-BB-MACROS-6 — XBRKX.** Macros: `BRKX_α cs, lbl_succ, lbl_fail` / `BRKX_β cs, lbl_succ, lbl_fail`. Template: `emit_bb_xbrkx` branch.
+
+  - [ ] **EM-BB-MACROS-7 — XFARB / XEPS / XFAIL group (ARB/FAB).** Macros: `ARB_α lbl_succ` / `ARB_β lbl_succ, lbl_fail`; `FAB_α lbl_succ, lbl_fail` / `FAB_β lbl_fail`. Template: `emit_bb_xfarb` branch.
+
+  - [ ] **EM-BB-MACROS-8 — Port-call boxes (XDSAR / XATP / XCALLCAP / XNME / XFNME / XARBN / XFNCE / XSUCF / XBAL / XABRT / XCAT / XOR / XVAR / XSTAR).** Macros: one `KIND_α fn, ζ, lbl_succ, lbl_fail` / `KIND_β fn, ζ, lbl_fail` per kind. Template: each `emit_bb_<kind>` branch — these all use `t_bb_port_call` so the macro body is `push r10; mov rdi, ζ; mov esi, port; call fn@PLT; pop r10; test rax, rax; jne succ; jmp fail`.
+
+  - [ ] **EM-BB-MACROS-9 — Gate + corpus artifact regen.** Run `scrip --jit-emit --x64 --bb-macros` on all six tracked corpus artifacts (roman, wordcount, claws5, treebank-list, treebank-array). Each must assemble clean (`gcc -c`). Regenerate corpus `.s` files with `--bb-macros` flag. Add `test_gate_em_bb_macros.sh` that runs `--bb-macros` on a small fixture and verifies: (a) output assembles; (b) linked binary matches `--sm-run` output; (c) `grep -c "LIT_CHECK\|SPAN_α\|POS_α"` is non-zero (macros actually present). Gate: 7/7 smoke, 4/4 template-byte-id, 5/5 snocone, beauty-subsystems PASS≥7, bb-macros gate PASS.
+
 - [ ] EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries.
 
 - [ ] EM-9 — M2 milestone close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
@@ -733,9 +788,47 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12k (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12l (Claude Sonnet 4.6)**
 
-**EDP-3 closed.** one4all `ed41f343`. All gates confirmed: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10 (baseline preserved).
+**EM-BB-MACROS flag wired.** one4all `ec334068`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10 (baseline preserved).
+
+### Work done
+
+1. **EDP-3 pushed** (from prior session, `ed41f343`): sm_codegen.c if-else → clean switch.
+
+2. **EM-BB-MACROS-0 partial**: `--bb-macros` CLI flag wired in `scrip.c`; `g_bb_emit_macros` global declared in `bb_emit.h`/`bb_emit.c`. No behavior change yet.
+
+3. **EM-BB-MACROS rungs documented** in this goal file (EM-BB-MACROS-0 through EM-BB-MACROS-9) with explicit before/after TEXT output and gate requirements.
+
+### Current BB TEXT-mode output (what we have)
+
+`--jit-emit --x64` emits BB boxes as raw expanded GAS instruction sequences — 5–20 lines per port:
+```
+pat_inv_0_α_body:       mov              eax, [r10]
+                        add              eax, 5
+                        mov              rcx, 0x96fe30
+                        cmp              eax, [rcx]
+                        jg               pat_inv_0_ω
+                        ...14 more lines...
+```
+
+### Target BB TEXT-mode output (what --bb-macros will produce)
+
+One three-column line per port:
+```
+pat_inv_0_α_body:       LIT_CHECK        .S4, 5, pat_inv_0_γ, pat_inv_0_ω
+pat_inv_0_β:            LIT_UNDO         5, pat_inv_0_ω
+```
+
+### EDP-4 note (from prior session)
+
+EDP-4 (`sm_codegen_x64_emit.c` dispatch to templates) was attempted but regressed beauty-subsystems PASS 7→3. Root cause: `emit_mode_set(TEXT_MODE()); emit_sm_x(NULL)` in the main switch doesn't consume the SM pending-label (set by `sm_emit_set_pc_label`). The old `sm_emit_rtcall → render_call_line → bb3c_format(out, pending_label, ...)` consumed it correctly. When `SM_PAT_POS`/`SM_PAT_LEN`/`SM_PAT_CAT` appear at branch targets, the label is orphaned → wrong binary structure → segfault. EDP-4 needs a label-consuming wrapper before each template call. Reverted; recorded here for next attempt.
+
+### Next session must
+
+1. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7.
+2. Begin **EM-BB-MACROS-0**: add `t_bb_is_text_mode()` and `t_bb_text_port()` to `bb_emit.h`/`bb_emit.c`. Then **EM-BB-MACROS-1** (XCHR/LIT macros).
+3. Gate after each sub-rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, `scrip --jit-emit --x64 --bb-macros file.sno | gcc -c -x assembler -` succeeds.
 
 ### Work done
 
