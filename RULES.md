@@ -423,6 +423,27 @@ The gate is defined in the Goal file or REPO file.
 
 ---
 
+## Flaky gates — measure by median, not single runs
+
+⛔ Some gates are inherently noisy in this container; a single-run
+number is not reliable for measuring deltas between SHAs.  Always take
+**median of 3–5 runs** when reporting honest-count or pass-count
+deltas, on both the before-SHA and after-SHA.
+
+### Known flaky gates
+
+| Gate | Variance | Centered on | Likely cause |
+|------|----------|-------------|--------------|
+| `test_icon_sm_no_ast_walk.sh` (GATE-4 of GOAL-ICON-BB-NATIVE) | ~6 PASS points across 5 runs at the same SHA | `rung24_records_*`, some `rung36_jcon_*` segfault intermittently | 8-second timeout under load and/or Boehm-GC nondeterminism on record allocation |
+
+Verified 2026-05-12 (Claude Opus 4.7) — flake reproduces on
+unmodified one4all 7be3c8e0 baseline, so it pre-exists any single
+session's changes.  Do not chase a 1-2 point single-run delta as if
+it were signal; do not attribute single-run regressions to a session's
+code changes without re-measuring on the unmodified baseline first.
+
+---
+
 ## Parallel frontend sessions (FI-11)
 
 Each frontend owns a distinct subtree. Six sessions can develop
