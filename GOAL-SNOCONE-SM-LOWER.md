@@ -614,4 +614,77 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
   inputs — that's parser-driver work, not a capture-bug blocker, and belongs to
   a follow-on rung). Capture-bug blocker is closed.
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
-  Next-session task. Now unblocked.
+  Next-session task. Now unblocked from the capture-bug side, but a SECOND,
+  DEEPER `--ir-run` bug found during this verification attempt blocks
+  end-to-end SM equivalence:
+
+  **NEW BLOCKER — SL-13c: EVAL-built patterns lose their deferred actions
+  under `--ir-run`.** Discovered sess 2026-05-12 (Claude Opus 4.7) while
+  attempting SL-13 step 4. `parser_snobol4.sc` Compiland matches `Src` but
+  Pop() returns null because `Reduce` / `Shift` / `IncCounter` are never
+  called during the match — only `PushCounter` and `PopCounter` fire. Both
+  paths use the same `epsilon . *Func()` deferred-call idiom; the difference
+  is that nPush()/nPop() return the pattern directly while reduce()/shift()/
+  nInc() build the pattern via `EVAL("epsilon . *Func(...)")`.
+
+  Minimal reproducer (no captures, no parser machinery):
+  ```snocone
+  function Foo(x) { OUTPUT = "Foo(" x ") called"; nreturn; }
+  function makepat(arg) { makepat = EVAL("epsilon . *Foo('" arg "')"); return; }
+  p = makepat('hello');
+  OUTPUT = "DATATYPE(p) = " DATATYPE(p);   /* prints: PATTERN */
+  'subject' ? p;
+  OUTPUT = "after match";                   /* prints, but Foo() never did */
+  ```
+  Expected: `Foo(hello) called`. Actual on `--ir-run` AND `--sm-run`: silent.
+
+  Confirmed via xTrace=99 in parser_snobol4.sc: only `PushCounter()` and
+  `PopCounter()` print between Compiland match start and end. `Reduce`,
+  `Shift`, `IncCounter` are silent — even though Compiland matched.
+
+  Compiland trivial-input trace (input `X = 'hello'\nEND\n`):
+  ```
+  PushCounter()    ← nPush() = `epsilon . *PushCounter()` — direct, fires
+  PopCounter()     ← nPop()  = `epsilon . *PopCounter()`  — direct, fires
+  ; SM_Program  count=1
+     0  SM_HALT
+  ```
+  `reduce(E_Parse,'nTop()')` = `EVAL("epsilon . *Reduce('Parse', nTop())")`
+  — EVAL-built — does NOT fire its deferred `*Reduce(...)`. Same for every
+  `shift(*X, 'tag')` and `nInc()`.
+
+  Investigation entry points for next session:
+  1. Confirm with direct vs EVAL A/B: `p1 = epsilon . *Foo('x'); p2 =
+     EVAL("epsilon . *Foo('x')")`; match both, see which fires.
+  2. Find EVAL's pattern-building path. Likely candidates:
+     `src/runtime/x86/eval_code.c` (TT_FNC dispatch for "EVAL"),
+     `src/runtime/x86/snobol4.c` `EVAL_fn`, or wherever XEVAL / TT_EVAL
+     constructs the PATND_t tree. The deferred-call PATND nodes
+     (XCALLCAP, or XDSAR for `*expr`) may be losing their function-name
+     binding or `g_user_call_hook` registration through EVAL.
+  3. Check if the deferred call's function name is being resolved against
+     the wrong NAME context — e.g. EVAL parses in a fresh scope where
+     `Reduce` / `Shift` / `IncCounter` aren't visible, vs. the calling
+     scope where `PushCounter` / `PopCounter` are. (Unlikely since
+     `DATATYPE(p) = PATTERN` reports the pattern was built, but worth ruling
+     out.)
+  4. Compare with `--sm-run` (which reproduces the same bug per minimal
+     test). If both modes are broken, the bug is in EVAL's pattern build,
+     not in the IR walk. If only `--ir-run` is broken, it's in
+     `eval_code.c` again.
+  5. SPITBOL Manual Ch.7 (Unevaluated Expressions) and Ch.20 (EVAL function)
+     are authoritative for what EVAL should preserve in a pattern. Ch.18
+     (Patterns) describes deferred evaluation (`*expr`) semantics.
+
+  Once SL-13c is closed, re-run `bash run_scrip_parser.sh snobol4 trivial.sno`
+  and diff against C `scrip --sm-run --dump-sm trivial.sno`. Target output
+  for trivial.sno (`X = 'hello'\nEND\n`):
+  ```
+  ; SM_Program  count=6
+     0  SM_STNO              stmt=1 line=1
+     1  SM_PUSH_LIT_S        s="hello"
+     2  SM_STORE_VAR         s="X"
+     3  SM_LABEL             s="END"
+     4  SM_STNO              stmt=2 line=3
+     5  SM_HALT
+  ```
