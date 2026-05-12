@@ -667,7 +667,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   Sub-rungs:
 
-  - [ ] **EDP-1 — Audit script.**  Write `scripts/util_audit_doppelgangers.sh` that walks the `SM_t` enum in `sm_prog.h` and the `XKIND_t` enum in `snobol4_patnd.h`, greps `src/runtime/x86/*.c` for `case SM_<X>:` / `case X<X>:` and `emit_sm_<x>` / `emit_bb_<x>` occurrences, and reports file:line for every match outside `sm_templates.c` / `bb_templates.c`.  Output is a checklist of candidate deletions for EDP-2..-10.  Commit script + initial audit report.
+  - [x] **EDP-1 — Audit script.**  Write `scripts/util_audit_doppelgangers.sh` that walks the `SM_t` enum in `sm_prog.h` and the `XKIND_t` enum in `snobol4_patnd.h`, greps `src/runtime/x86/*.c` for `case SM_<X>:` / `case X<X>:` and `emit_sm_<x>` / `emit_bb_<x>` occurrences, and reports file:line for every match outside `sm_templates.c` / `bb_templates.c`.  Output is a checklist of candidate deletions for EDP-2..-10.  Commit script + initial audit report. (Sonnet 4.6, one4all `59d96aea`) Initial count: SM=299, BB=190, Total=489 hits. Candidates: sm_codegen.c, sm_codegen_x64_emit.c, sm_emit_template.c, bb_flat.c, bb_build.c, bb_boxes.c.
 
   - [ ] **EDP-2 — `sm_emit_template.c` legacy table purge.**  Delete `g_sm_templates[]`, `render_macro_body`, `render_call_line`, `SM_TPL_LBLOPT` and friends.  Template functions in `sm_templates.c` become the only dispatch surface.  Callers using `g_sm_templates[i]` rewire to `emit_sm_<x>` directly.
 
