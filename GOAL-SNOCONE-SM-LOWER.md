@@ -514,3 +514,19 @@ to `fmt_instr`.
 - [x] Update `lower_defer` to call `emit_thunk`
 - [x] Fix `emit_pat_fn_args` non-literal path
 - [x] Gates clean: smoke 6/6, sm_lower_test 11/11
+
+### SL-12 — EVAL(*expr) in lower_fnc
+
+`EVAL(*expr)` is the canonical way to evaluate a deferred expression.
+The C special case in `lower_fnc`: emit the thunk, then patch the last
+instruction from `SM_PUSH_EXPRESSION` → `SM_CALL_EXPRESSION` (evaluate
+immediately rather than push descriptor for later).
+
+In Snocone: `g_instr_tbl[g_count - 1] = sm_instr('SM_CALL_EXPRESSION', ...)`
+patching in place. Also added `SM_CALL_EXPRESSION` display to `fmt_instr`.
+
+**Sess 2026-05-12 (Claude Sonnet 4.6)** — corpus `e408c87`.
+
+- [x] Add EVAL(*expr) special case to lower_fnc
+- [x] fmt_instr SM_CALL_EXPRESSION display
+- [x] Gates clean: smoke 6/6, sm_lower_test 11/11
