@@ -169,11 +169,11 @@ A rung is COMPLETE only when all seven gates pass AND honest count N_after > N_b
 ## Rung ladder
 
 ### IB-0 — baseline + scaffolding (no behaviour change)
-- [ ] GATE-1..4: run all gates, record N0 (honest PASS count). Write N0 here: ___
-- [ ] Create src/runtime/interp/icn_box_rt.h — empty, include guards only.
-- [ ] Create src/runtime/interp/icn_box_rt.c — empty, includes header.
-- [ ] Add icn_box_rt.o to Makefile. Build clean.
-- [ ] GATE-1..4 again: all unchanged. Commit.
+- [x] GATE-1..4: run all gates, record N0 (honest PASS count). Write N0 here: **212**
+- [x] Create src/runtime/interp/icn_box_rt.h — empty, include guards only.
+- [x] Create src/runtime/interp/icn_box_rt.c — empty, includes header.
+- [x] Add icn_box_rt.o to Makefile. Build clean.
+- [x] GATE-1..4 again: all unchanged. Commit. `c8032b0c`
 
 ### IB-1 — emit_bb_icn_to (integer range: 1 to N, 1 to N by S)
 Step 1: understand semantics.
@@ -326,7 +326,7 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 
 ## Watermark
 
-  Last session:    2026-05-12 (architecture fully clarified, emit-time vs runtime zeta)
-  one4all HEAD:    (set at IB-0)
-  Honest PASS N0:  (set at IB-0)
-  Current rung:    IB-0
+  Last session:    2026-05-12 (IB-0 complete — scaffolding + baseline N0=212)
+  one4all HEAD:    c8032b0c
+  Honest PASS N0:  212
+  Current rung:    IB-1
