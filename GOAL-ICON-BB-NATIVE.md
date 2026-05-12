@@ -387,22 +387,27 @@ Deltas in the table above are against the live baseline.
 
 ## Watermark
 
-  Last session:    2026-05-12 (Claude Sonnet 4.6) — 6 commits, ir-run 180->195, honest 215->259.
-                   (1) TT_ITERATE DT_DATA/DT_T before descr_to_str_icn (+8 ir-run).
-                   (2) SM_EXP real result for Icon ^ (+5 ir-run).
-                   (3) SM_BB_EVAL for TT_ALTERNATE value context via every_table+bb_eval_value
-                       (GC-safe: avoids ast_gc_clone). honest +29.
-                   (4) SM_BB_EVAL extended to TT_TO/TO_BY/ITERATE/BANG_BINARY. honest +8.
-                   (5) SM_STORE_FRAME: propagate FAILDESCR (fixes while-read() hang). ir-run +1.
-                   (6) New Icon builtins: open/close/read(file)/reads(file,n)/IDENTICAL/set/ASGN/variable.
-                   Remaining 40 ir-run FAILs: 20 WRONG_OUTPUT (statics, augop-in-IDX, scan, etc.),
-                   10 MISSING_BUILTIN (args, image(2-arg), remove, etc.), 4 NO_OUTPUT (hang/timeout),
-                   6 other.
-  one4all HEAD:    6d48bff0
+  Last session:    2026-05-12 (Claude Sonnet 4.6) — 10 commits, ir-run 180->196, honest 215->259.
+                   (1) TT_ITERATE DT_DATA/DT_T before descr_to_str_icn (ir +8).
+                   (2) SM_EXP real result for Icon ^ (ir +5).
+                   (3) SM_BB_EVAL for TT_ALTERNATE value context (honest +29).
+                   (4) SM_BB_EVAL extended to TT_TO/TO_BY/ITERATE/BANG_BINARY (honest +8).
+                   (5) SM_STORE_FRAME: propagate FAILDESCR (while-read() loop fix, ir +1).
+                   (6) New Icon builtins: open/close/read(file)/reads/IDENTICAL/set/ASGN/variable.
+                   (7) sm_call_proc: static variable save/restore (IC-9, ir +1).
+                   (8) lower_augop: relop augops via SM_ACOMP/SM_LCOMP; bb_eval_value
+                       TT_AUGOP returns FAILDESCR on failure (not NULVCL).
+                   (9) bb_eval_value TT_VAR: fall through to NV when frame slot unset —
+                       fixes static list access in alternates (roman.icn works).
+                   Root cause of (9): build_proc_scope removes initial{}-assigned names from
+                   scope (SM_STORE_VAR/NV path); sm_call_proc icn_scope_patch adds them back
+                   at high slot indices; bb_eval_value was reading empty slots instead of NV.
+  one4all HEAD:    7efdf09a
   Honest PASS:     259 FAIL=1 ABORT=0 (FAIL=rung36_jcon_arith &collections flakiness)
-  ir-run PASS:     195 FAIL=40
-  BB tally:        43 JCON ir_a_* total. 8 templates (IB-1..IB-8). 35 remain on SM_BB_PUMP_EVERY.
-  Current rung:    GOAL DONE. NEXT: continue ir-run triage (40 FAILs). Priority:
-                   static variable persistence across calls (rung36_jcon_statics),
-                   augop with nested generator in IDX (total +:= t[key(t)]),
-                   scan/string WRONG_OUTPUT (partial output, later divergence).
+  ir-run PASS:     196 FAIL=39
+  BB tally:        43 JCON ir_a_* total. 8 templates (IB-1..IB-8). 35 on SM_BB_PUMP_EVERY.
+  Current rung:    GOAL DONE. NEXT: ir-run triage (39 FAILs). Priority:
+                   roman "cannot convert" (integer(n)>0|fail — PROC_FAIL in alternate);
+                   nested generator conjunction (every A & B: both A and B must generate);
+                   more missing builtins (args, image(x,w), remove);
+                   scan/string partial output (complex scan-context alternation).
