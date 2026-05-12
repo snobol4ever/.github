@@ -136,14 +136,15 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 - [x] Files: `src/runtime/x86/lower.c`
 
 #### PB-6 — TT_CHOICE full inline (OR-box via BB broker, not SM coroutine)
-- [ ] **Architecture note (corrected from carve):** PB-6 is NOT an SM coroutine. The correct target is BB-land: `SM_BB_ONCE_PROC` already calls `pl_box_choice` → `bb_broker` → `pl_box_clause` for each clause. The 14 remaining FAIL (rung10 puzzles) fail because `interp_exec_pl_builtin` inside `pl_box_goal_from_ir` doesn't properly bind clause variables when calling user predicates like `person(X)`. Fix: ensure `g_pl_env` (the clause cenv) is properly passed as the env for nested `is_pl_user_call` goals inside `interp_exec_pl_builtin`.
-- [ ] Probe: in `pl_runtime.c` `interp_exec_pl_builtin`, the `is_pl_user_call` branch allocates `uenv` for the callee but uses `env` (the caller's env) to evaluate goal arg expressions. Verify `env` is the clause's `cenv` not NULL when called from `pl_box_goal_from_ir`.
-- [ ] Gate: ≥1 of the 14 rung10 puzzle programs flips to honest PASS; ABORT still 0.
-- [ ] Files: `src/runtime/interp/pl_runtime.c` (reference only — do not modify if fix is in broker), `src/frontend/prolog/pl_broker.c`
+- [x] **Root cause 1 (prolog_lower.c):** `lower_term(TERM_VAR)` emitted `ast_node_new(TERM_VAR)` (tag=1). But `TERM_VAR==1==TT_ILIT` — `pl_unified_term_from_expr` switch hit `case TT_ILIT:` and returned `term_new_int(slot_index)`. Fix: emit `ast_node_new(TT_VAR)` (tag=5). `pl_box_choice_call` wildcard guard updated to check `TT_VAR`.
+- [x] **Root cause 2 (prolog_lower.c):** `ec->v.ival = n_vars; ec->v.dval = arity` — union write of `dval` clobbered `ival`, setting n_vars=0. `pl_env_new(0)=NULL` so all clauses got no env. Fix: set `dval` first, then `ival`.
+- [x] Gate: honest dial 106 → **108** (+2): puzzle_08 and puzzles flip to honest PASS. ABORT=0. Smoke icon 5/5, broker 13/36 (+3). rung30 DCG: 5 false-pass → FAIL (IR oracle now correct, SM still wrong — pre-existing SM bug exposed, not a regression).
+- [x] Files: `src/frontend/prolog/prolog_lower.c`, `src/frontend/prolog/pl_broker.c`
 
 #### PB-7 — fallthrough delete
 - [ ] After PB-1–PB-6: remove `lower_prolog_child` legacy path, replace with `abort()`.
 - [ ] Gate: zero `SM_BB_ONCE` / `SM_BB_PUMP_AST` fires on any Prolog corpus program.
+- [ ] Note: rung30 DCG SM failures are pre-existing (IR now correct); fix DCG SM path before PB-7 delete.
 
 ---
 
@@ -159,21 +160,16 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 106/294 at sess 2026-05-12, one4all 695aed00)
+## Active next targets (honest dial: 108/294 at sess 2026-05-12b, one4all TBD)
 
-**Architecture confirmed correct — this is NOT the Icon off-rails problem:**
-- `SM_BB_ONCE_PROC` → `pl_box_choice` → `bb_broker` → pure BB-land ✅
-- PB-6 spec corrected: do NOT build SM coroutines (SM_GEN_TICK etc.) for Prolog
-- ABORT=0: no coro_eval reached from SM dispatch ✅
+**PB-6 ✅ closed.** Two root causes found and fixed:
+1. `lower_term(TERM_VAR)` emitted wrong tag (TERM_VAR=TT_ILIT=1) → `pl_unified_term_from_expr` returned slot integer
+2. `ec->v.ival/dval` union clobber → n_vars always 0 → `main_cenv=NULL` → vars never bound
 
-Remaining 14 FAIL: all rung10 puzzle programs. `puzzle` calls `person(X)` etc. inside
-clause body via `interp_exec_pl_builtin` / `pl_box_goal_from_ir`. Bug: nested user
-predicate calls don't properly bind clause variables (X gets slot-index integer, not atom).
-Fix target: `g_pl_env` / cenv threading in `pl_box_goal_from_ir` for `is_pl_user_call`
-goals — ensure callee sees caller's cenv for arg evaluation.
+Remaining 12 rung10 puzzle FAIL: duplicate-output backtracking (SM doesn't cut properly after `fail` in puzzle body). Pre-existing, separate from cenv threading.
+rung30 DCG: 5 SM false-passes exposed (IR oracle now correct). SM DCG path needs work.
 
-**NEXT: PB-6** — fix cenv threading in `pl_box_goal_from_ir` for nested user predicate
-calls. BB-land fix (pl_broker.c / pl_runtime.c), NOT SM coroutines.
+**NEXT: PB-7** — remove `lower_prolog_child` legacy path (after rung30 DCG SM fixed).
 
 ---
 
@@ -197,7 +193,7 @@ calls. BB-land fix (pl_broker.c / pl_runtime.c), NOT SM coroutines.
 | PB-2 | e765733c | 17 | TT_CUT → PL_CUT SM_CALL_FN |
 | PB-3 | e765733c | 17 | TT_TRAIL_* → PL_TRAIL_* SM_CALL_FN (infra) |
 | PB-4 | 1af5368e | **105** | initialization suppressed; assertz/asserta → PL_BUILTIN. +88. |
-| PB-5 | 695aed00 | **106** | TT_CHOICE stmt calls arity=0 (matches IR). +1. |
+| PB-6 | TBD | **108** | TERM_VAR→TT_VAR tag fix + v.ival/v.dval union order fix. +2 puzzle PASSes. rung30 DCG false-pass exposed (pre-existing SM bug). |
 
 ---
 
