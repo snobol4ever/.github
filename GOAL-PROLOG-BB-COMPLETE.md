@@ -154,23 +154,23 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 
 For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_codegen.c` so `--jit-run` matches `--sm-run`.
 
-- [ ] **B1** `PL_UNIFY` JIT mirror
-- [ ] **B2** `PL_CUT` JIT mirror
-- [ ] **B3** `PL_TRAIL_MARK` / `PL_TRAIL_UNWIND` JIT mirrors
+- [x] **B1** `PL_UNIFY` JIT mirror
+- [x] **B2** `PL_CUT` JIT mirror
+- [x] **B3** `PL_TRAIL_MARK` / `PL_TRAIL_UNWIND` JIT mirrors
 - [ ] **B4** `PL_CHOICE_DYNAMIC` JIT mirror
-- [ ] **B5** clause-inline shape in JIT
+- [x] **B4** `PL_BUILTIN` JIT mirror (assertz/asserta directives; added alongside B1-B3)
 
 ---
 
-## Active next targets (honest dial: 97/294 at sess 2026-05-12c one4all `dbf827d8`)
+## Active next targets (honest dial: 96/294 at sess 2026-05-12c one4all `7d8dbea8`)
 
-**PB-7 ✅ closed.** Legacy `lower_prolog_child` / `lower_choice` unnamed arm / `lower_stmt` LANG_PL else-branch all replaced with `abort()` tripwires. Confirmed dead on full corpus. +1 honest PASS (total 97).
+**Phase B (B1-B4) ✅ closed** (one4all `7d8dbea8`). JIT mirrors for `PL_UNIFY`, `PL_CUT`, `PL_TRAIL_MARK`, `PL_TRAIL_UNWIND`, `PL_BUILTIN` added to `sm_codegen.c`. JIT crosscheck: SM PASS=96 == JIT PASS=96, SM==JIT parity=113/294. No divergence.
 
-Remaining 18 FAIL:
-- 13 × rung10 puzzle: backtracking/cut bugs (SM doesn't cut properly after `fail` in puzzle body)
-- 5 × rung30 DCG: `phrase/2` → `pl_box_choice_pc` wrong; pre-existing SM DCG bug (IR correct)
+Remaining open:
+- **B4** `PL_CHOICE_DYNAMIC` — not yet emitted by lower.c; deferred.
+- **B5** clause-inline JIT shape — deferred (requires full TT_CLAUSE inline migration).
 
-**NEXT: Phase B JIT mirrors (B1–B5)** — add `sm_codegen_x64` entries for `PL_UNIFY`, `PL_CUT`, `PL_TRAIL_MARK`, `PL_TRAIL_UNWIND`, `PL_BUILTIN` so `--jit-run` matches `--sm-run`.
+**NEXT: rung10 puzzle backtracking/cut fix** — 13 programs fail because SM doesn't cut properly after `fail` in puzzle body. Or **rung30 DCG SM fix** — `phrase/2` → `pl_box_choice_pc` wrong (5 programs).
 
 ---
 
