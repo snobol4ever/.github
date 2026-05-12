@@ -436,8 +436,8 @@ SL-9 spec-test (11 instructions, three statement archetypes).
 Replace the `SM_PUSH_EXPR` stub in `lower_pat_expr` with a full
 translation of the ~300-line C original.
 
-- [ ] Translate `lower_pat_expr`
-- [ ] Re-run test gate; update `.ref` if output improves
+- [x] Translate `lower_pat_expr`
+- [x] Re-run test gate; output unchanged (CAPT_*/DEFER nodes not present in test inputs; gates still 6/6 and 11/11)
 
 ---
 
