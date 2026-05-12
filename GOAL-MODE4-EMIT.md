@@ -669,7 +669,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-1 — Audit script.**  Write `scripts/util_audit_doppelgangers.sh` that walks the `SM_t` enum in `sm_prog.h` and the `XKIND_t` enum in `snobol4_patnd.h`, greps `src/runtime/x86/*.c` for `case SM_<X>:` / `case X<X>:` and `emit_sm_<x>` / `emit_bb_<x>` occurrences, and reports file:line for every match outside `sm_templates.c` / `bb_templates.c`.  Output is a checklist of candidate deletions for EDP-2..-10.  Commit script + initial audit report. (Sonnet 4.6, one4all `59d96aea`) Initial count: SM=299, BB=190, Total=489 hits. Candidates: sm_codegen.c, sm_codegen_x64_emit.c, sm_emit_template.c, bb_flat.c, bb_build.c, bb_boxes.c.
 
-  - [ ] **EDP-2 — `sm_emit_template.c` legacy table purge + inline/macro switch.**
+  - [x] **EDP-2 — `sm_emit_template.c` legacy table purge + inline/macro switch.**
 
     **Design (sess 2026-05-12, Sonnet 4.6):** Two sub-tasks:
 
@@ -1276,6 +1276,76 @@ snocone 5/5, beauty-subsystems mode4 PASS=6 FAIL=11.
   fine and arguably better than fragmenting the helper across
   per-op files or extracting it to `sm_helpers.c` solely to enable
   fragmentation.
+
+---
+
+**SESSION HANDOFF — sess 2026-05-12j (Claude Sonnet 4.6)**
+
+**EDP-2 closed.** one4all `4c9ebd47`.
+
+### Work done
+
+**EDP-2: EMIT_TEXT_INLINE + --jit-emit-inline flag + MACRO_DEF body guards.**
+
+1. `EMIT_TEXT_INLINE = 4` added to `bb_emit_mode_t` in `bb_emit.h`. In
+   `bb_emit.c`, `t_macro_begin`/`t_macro_end` are no-ops for
+   `EMIT_TEXT_INLINE`; all other `t_*` helpers treat it as `EMIT_TEXT`
+   (fall-through; 32 sites patched by Python).
+
+2. `--jit-emit-inline` flag added to `scrip.c` argparse. Sets
+   `g_jit_emit_inline` (declared in `sm_codegen_x64_emit.h`, defined in
+   `sm_codegen_x64_emit.c`) before calling `sm_codegen_x64_emit`. A
+   `TEXT_MODE()` macro in `sm_codegen_x64_emit.c` picks `EMIT_TEXT_INLINE`
+   vs `EMIT_TEXT` based on the flag. All 12 `emit_mode_set(EMIT_TEXT, out)`
+   call sites updated to `emit_mode_set(TEXT_MODE(), out)`. In inline mode,
+   the `sm_macros.s`/`bb_macros.s` write and `.include` lines are skipped.
+
+3. MACRO_DEF body guards: `t_macro_begin` in `EMIT_MACRO_DEF` now sets
+   `g_in_text_macro_body = 1`; `t_macro_end` clears it. Suppression guard
+   `if (bb_emit_mode == EMIT_MACRO_DEF && !g_in_text_macro_body) return;`
+   added to all raw-content `t_*` arms lacking it (22 additional sites).
+   `t_macro_begin` MACRO_DEF comma-separator fixed (space → comma).
+
+4. `emit_sm_bb_pump_ast` + `emit_sm_unhandled_op` added to `sm_templates.c`;
+   `emit_sm_unhandled_op` declared in `templates.h`.
+
+**Note on scope:** `sm_emit_macro_library` was not rewritten to call
+template functions. Template functions cannot emit parametric macro bodies
+correctly in EMIT_MACRO_DEF mode (e.g. `emit_sm_push_lit_i(NULL, 0)` emits
+`mov rdi, 0x0` not `movabs rdi, \val`). The old `render_macro_body` table
+remains the correct path for parametric macros. The `--jit-emit-inline` mode
+currently affects only the subset of opcodes already routing through
+`emit_mode_set(TEXT_MODE(), out)` + direct template calls (about 12 dispatch
+functions). Full inline output requires EDP-3/4 to rewire all dispatch
+functions away from `sm_emit_lbl`/`sm_emit_rtcall`/etc.
+
+**Lesson recorded:** The dispatch functions in `sm_codegen_x64_emit.c` that
+call `sm_emit_rtcall(out, sm_template_lookup(SM_X), NULL)` produce correct
+macro invocation lines via `render_call_line` — these cannot be naively
+replaced with `emit_sm_x(NULL)` because the template function emits raw
+instructions (not macro invocations) in TEXT mode. EDP-3 must replace these
+with calls to a new `emit_invoke_mode_set(TEXT_MODE(), out)` + a per-opcode
+text-invocation helper OR convert all TEXT-mode emission to EMIT_TEXT_INLINE
+globally.
+
+### Gates
+
+| Gate | Result |
+|------|--------|
+| `test_smoke_snobol4.sh`                   | PASS=7  |
+| `test_gate_em_template_byte_identity.sh`  | PASS=4  |
+| `test_smoke_snocone.sh`                   | PASS=5  |
+| `test_gate_em_beauty_subsystems_mode4.sh` | PASS=7 FAIL=10 (baseline preserved) |
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7.
+3. **EDP-3 — `sm_codegen.c` reduced to dispatch.** For each per-opcode
+   case body that does inline `bb_emit_byte(0x...)` emission, replace with a
+   call to `emit_sm_<x>(e, args)`. After this, `sm_codegen.c` is a thin
+   `switch (ins->op) { case SM_X: emit_sm_x(e, ...); break; ... }` walker.
+
 
 ---
 
