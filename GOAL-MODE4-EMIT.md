@@ -758,7 +758,7 @@ Recover each function body from `git log --all -p -- src/runtime/x86/bb_boxes.c`
 
 **Gate:** build clean (no behavioral change), smoke 7/7.
 
-- [ ] **EC-2**
+- [x] **EC-2** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `44c2d621`)*
 
 ### EC-3 — Introduce `emit_bb_stateful()` helper; collapse 22 Pattern-B templates
 
@@ -909,8 +909,8 @@ New `rt_bb_*` functions in `rt.c/rt.h`: `rt_bb_arb`, `rt_bb_len`, `rt_bb_tab`, `
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `3ec4fcec`.
-3. **EC-2 — Group all extern declarations at top of `bb_templates.c`.** Move every `extern bb_*_new()` and `extern DESCR_t bb_*(...)` and `extern rt_bb_*(...)` declaration out of per-function positions into one block after `#include` lines.
-4. Gate: build clean (no behavioral change), smoke 7/7.
+3. **EC-3 — Introduce `emit_bb_stateful()` helper; collapse 22 Pattern-B templates.**
+4. Gate: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5.
 
 ### Lessons recorded
 
