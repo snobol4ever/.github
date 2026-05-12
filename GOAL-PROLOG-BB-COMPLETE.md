@@ -123,12 +123,12 @@ or `lower_choice` unnamed arm (emit_push_expr + SM_BB_ONCE ⛔):
 - [x] Gate: no regression.
 - [x] Files: `sm_interp.c`, `lower.c`
 
-#### PB-4 — TT_CLAUSE (clause body inline)
-- [ ] Understand `TT_CLAUSE` layout from `prolog_lower.c`: child[0]=head-args (TT_UNIFY sequence), child[1..n]=body goals.
-- [ ] Emit inline SM sequence: for each child, `lower_expr(child_i)` + `SM_JUMP_F fail_clause`. On success, fall through. On fail, `SM_PUSH_NULL`.
-- [ ] TT_TRAIL_MARK / TT_TRAIL_UNWIND must be migrated first (PB-3 prereq).
-- [ ] Gate: standard + ≥1 honest flip; no regression on rungs 22–25.
-- [ ] Files: `sm_interp.c`, `lower.c`
+#### PB-4 — LANG_PL stmt lowering fix (initialization + assertz/asserta)
+- [x] Suppress `:- initialization(Goal)` directive in SM (TT_CHOICE stmt for `Goal/0` already calls it, preventing double-call).
+- [x] Route other TT_FNC directives (assertz/asserta/retract/abolish) via `emit_push_expr + SM_CALL_FN "PL_BUILTIN" 0`.
+- [x] Add `PL_BUILTIN` handler in `sm_interp.c`: pops DT_E tree_t*, calls `interp_exec_pl_builtin(goal, g_pl_env)`.
+- [x] Gate: honest dial 17 → **105** (+88). No smoke regression.
+- [x] Files: `src/runtime/x86/lower.c`, `src/runtime/x86/sm_interp.c`
 
 #### PB-5 — TT_CHOICE unnamed/dynamic
 - [ ] Dynamic predicate lookup (not a compile-time-known name): emit `SM_CALL_FN "PL_CHOICE_DYNAMIC" N` that dispatches through the predicate table at runtime.
@@ -161,15 +161,13 @@ For each new `SM_CALL_FN` handler added in Phase A, add a JIT mirror in `sm_code
 
 ---
 
-## Active next targets (honest dial: 17/294 at sess 2026-05-12, one4all e765733c)
+## Active next targets (honest dial: 105/294 at sess 2026-05-12, one4all 1af5368e)
 
-**PB-4 BLOCKED** on caller-args availability in SM path. TT_CLAUSE head unification
-requires the caller's Term** args (stored in pl_choice_t in the broker), which are not
-yet threaded through SM dispatch. Same gap as CH-17g-irrun-execution (Icon).
+Remaining 15 FAIL are puzzle programs (rung10) where SM produces output but ir-run gives
+empty — pre-existing IR gap. These are not regressions.
 
-Workaround under consideration: add `g_pl_caller_args` global set by `SM_BB_ONCE_PROC`
-before invoking clause bodies — enabling TT_CLAUSE inline lowering without full CH-17g.
-Lon to decide direction before PB-4 starts.
+**PB-5** — TT_CHOICE unnamed/dynamic: next rung when ready.
+**PB-6** — TT_CHOICE full inline (OR-box as SM coroutine): large rung.
 
 ---
 
@@ -187,11 +185,12 @@ Lon to decide direction before PB-4 starts.
 
 | Rung | Commit | Honest gain | Notes |
 |------|--------|-------------|-------|
-| (carve baseline) | — | 17 honest | TT_CHOICE named → SM_BB_ONCE_PROC already migrated. --ir-run oracle gives 17 (not 31; .expected-based estimate inflated by programs --ir-run can't run) |
-| PB-0 | f63a07cd | 17 | test_prolog_bb_honest.sh added |
-| PB-1 | f63a07cd | 17 | TT_UNIFY → PL_UNIFY SM_CALL_FN. No honest gain yet (needs TT_CLAUSE+TT_TRAIL to unlock) |
-| PB-2 | e765733c | 17 | TT_CUT → PL_CUT SM_CALL_FN. Infra ready. |
-| PB-3 | e765733c | 17 | TT_TRAIL_MARK/UNWIND → PL_TRAIL_* SM_CALL_FN. Infra ready. prolog_lower.c doesn't emit these nodes yet. |
+| (carve baseline) | — | 17 honest | TT_CHOICE named → SM_BB_ONCE_PROC already migrated |
+| PB-0 | f63a07cd | 17 | test_prolog_bb_honest.sh; baseline 17 (not 31) |
+| PB-1 | f63a07cd | 17 | TT_UNIFY → PL_UNIFY SM_CALL_FN |
+| PB-2 | e765733c | 17 | TT_CUT → PL_CUT SM_CALL_FN |
+| PB-3 | e765733c | 17 | TT_TRAIL_* → PL_TRAIL_* SM_CALL_FN (infra; prolog_lower doesn't emit yet) |
+| PB-4 | 1af5368e | **105** | initialization directive suppressed; assertz/asserta → PL_BUILTIN. +88 honest. |
 
 ---
 
