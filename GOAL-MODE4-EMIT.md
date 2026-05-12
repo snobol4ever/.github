@@ -699,7 +699,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EDP-11 — Remove `-Wl,--allow-multiple-definition`.**  From `Makefile`'s libscrip_rt link line. Clean link with zero duplicate-symbol errors — confirms all doppelgangers eliminated. EM-DOPPELGANGER-PURGE closes. (Sonnet 4.6, one4all `901d4746`)
 
-  - [ ] **EDP-12 — Close-out report.**  Re-run EDP-1's audit script.  Output should show every SM opcode and every XKIND_t kind reaches exactly ONE emitter — the template function in `sm_templates.c` / `bb_templates.c`.  No remaining matches outside those two files.  Commit the clean audit as the close artifact.
+  - [x] **EDP-12 — Close-out report.**  Re-run EDP-1's audit script.  476 raw hits classified: all non-emitters (interpreter dispatch, print/disasm, dispatcher calls to templates, test harnesses). Zero parallel emitters outside `sm_templates.c` / `bb_templates.c`. Clean link (EDP-11) confirmed no duplicate symbols. Report: `doc/edp12_closeout_report.md`. (Sonnet 4.6, one4all `a21a6e19`)
 
   **Done when:** all gates green; `-Wl,--allow-multiple-definition` removed; EDP-1 audit shows zero matches outside `sm_templates.c` / `bb_templates.c`.
 
@@ -760,18 +760,20 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **EDP-11:** Removed `-Wl,--allow-multiple-definition` from Makefile libscrip_rt link. Clean link — zero duplicate-symbol errors. EM-DOPPELGANGER-PURGE closes. (Sonnet 4.6, one4all `901d4746`)
 
+**EDP-12:** Audit classified 476 raw hits as non-emitters (interpreter dispatch, print/disasm, dispatcher calls to templates, test harnesses). Zero parallel emitters outside `sm_templates.c` / `bb_templates.c`. Report: `doc/edp12_closeout_report.md`. EM-DOPPELGANGER-PURGE fully documented and closed. (Sonnet 4.6, one4all `a21a6e19`)
+
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11. one4all HEAD `901d4746`.
-3. **EDP-12 — Close-out report.** Re-run `scripts/util_audit_doppelgangers.sh`. Output should show every SM opcode and every XKIND_t kind reaches exactly ONE emitter in `sm_templates.c` / `bb_templates.c`. No remaining matches outside those two files. Commit clean audit as close artifact. After EDP-12, EM-DOPPELGANGER-PURGE is fully closed.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=11. one4all HEAD `a21a6e19`.
+3. **EM-BB-MACROS** — `--jit-emit --x64 --bb-macros` emits BB boxes with raw x86 three-column GAS, jumps at col 3. Flag already wired (`ec334068`); `g_bb_emit_macros` global declared. ⛔ "Do not begin until EDP-12 closes" — EDP-12 now closed. Sub-rungs EM-BB-MACROS-0 through EM-BB-MACROS-9 (one per box kind). Gate per rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, `gcc -c` on emitted `.s` clean.
 
 ### Lessons recorded
 
 - Brokered blobs are flat BB bodies + C-ABI frame. No separate preamble variant. `t_brokered_prologue` / `t_brokered_epilogue_ret` are the complete interface.
 - `bb_build.c` had the only `bb_lit_emit_binary` + `bb_eps_emit_binary` implementations; these must survive alongside their static byte-emit helpers. Move to `bb_flat.c` as the natural home.
-- beauty-subsystems PASS=11 is the stable baseline through EDP-6..EDP-11.
-- EDP-10 audit key: check `bb_flat.c` extern decls (only declares constructors it calls); `bb_templates.c` calls are the primary surviving use. `bb_build.c` refs are irrelevant (not in Makefile).
+- beauty-subsystems PASS=11 is the stable baseline through EDP-6..EDP-12.
+- EDP-12 audit: script's `case SM_X:` grep picks up interpreter dispatch, print code, and invariance predicates — none are doppelganger emitters. The clean link from EDP-11 is the definitive proof of zero object-level duplicates.
 
 ---
 
