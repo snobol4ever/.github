@@ -569,4 +569,14 @@ Belongs to GOAL-LANG-SNOCONE / Snocone frontend work.
   Gate: PASS — no hang, no Error 5, smoke 6/6, sm_lower_test 11/11.
 - [ ] Wire parser → lower → sm_dump end-to-end on trivial .sno input
   Script: `bash one4all/scripts/run_scrip_parser.sh snobol4 file.sno`
+  **BLOCKED by pre-existing SCRIP bug: pattern captures (`. var`) not updating variables
+  in Snocone --ir-run context.** Investigation sess 2026-05-12 (Claude Sonnet 4.6):
+  `str ? (POS(0) REM . part)` never sets `part` — true even at global scope.
+  SNOBOL4 --sm-run works correctly. SM dump shows SM_PAT_CAPTURE s="part" is emitted,
+  SM_EXEC_STMT has_repl=0 subj="str" — structurally correct. Bug is in SM_PAT_CAPTURE
+  handler (sm_interp.c:682) — likely NAME_commit not firing captures back via NV_SET_fn,
+  OR captures going to a wrong NV slot. Parser's Compiland grammar matches correctly,
+  Src is filled, but Pop() returns nothing because the grammar's Push() calls via
+  reduce() actions use captures internally, so the parse tree is never built.
+  Next: investigate SM_PAT_CAPTURE at sm_interp.c:682.
 - [ ] Verify SM output matches C `--sm-run --dump-sm` for same input
