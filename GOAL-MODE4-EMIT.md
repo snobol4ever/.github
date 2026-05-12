@@ -398,11 +398,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-11 (Claude Opus 4.7)**
+**SESSION HANDOFF — sess 2026-05-11 (Claude Sonnet 4.6)**
 
-**one4all `3468bb67` on remote.**
+**one4all `5fa770d6` on remote.**
 
 ### Done this session
+
+**BB template files split one-per-box.**
+Per Lon's direction: SM template families stay together (similar shape
+is not a reason to split); BB boxes are different — one file each.
+Split: bb_xfarb.c (had XEPS/XFAIL/XFARB) → bb_xeps.c + bb_xfail.c +
+bb_xfarb.c. bb_xlnth.c (had shared helper + XLNTH/XTB/XRTB) →
+bb_xtb.c + bb_xrtb.c + bb_xlnth.c (keeps intcur helper + XLNTH).
+bb_xposi.c (had XPOSI/XRPSI) → bb_xposi.c + bb_xrpsi.c.
+Makefile updated. Gates: build clean, template-byte-id 4/4.
+
+### Previous session (Claude Opus 4.7, `3468bb67`)
 
 **Watermark task #6 — strip comments from template `.c` files.**
 Per Lon's direction, scope widened from "inline comments only,
