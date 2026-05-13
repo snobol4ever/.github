@@ -135,24 +135,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13k (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13m (Claude Sonnet 4.6)**
 
-one4all HEAD `824b0648`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `9470c409`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- EM-DEVTABLE closed (all 7 sub-rungs): emitter_t vtable struct removed entirely
-- New form-based API: 8 emit_form_* functions encode x86-64 encoding classes; caller supplies opcode bytes
-- emitter_t kept as typedef int stub for template signature compat; never dereferenced
-- emitter.h: 557 -> 205 lines; emitter.c: 547 -> 436 lines; no malloc, no vtable, no pointer threading
-- bb_flat.h/c: all emitter_t *e params stripped; intern_str callback signature updated to (const char *)
-- emitter_bb.c, sm_codegen.c, sm_codegen_x64_emit.c, test/demo callers all updated to lifecycle API
+- Scoped ESP-11..14 (emitter consolidation and dead-code deletion)
+- ESP-11: sm_codegen.c binary dispatch switched from emit_me*_blob() to emit_standard_blob(g_handlers[op]); all opcodes unified through handler table
+- ESP-12: 1,400 lines of emit_me*_blob() dead code deleted; sm_codegen.c 3603->2201 lines
+- ESP-13: sm_codegen_x64_emit.c (2426 lines) + .h (70 lines) merged into sm_codegen.c and deleted; sm_codegen_text() is new TEXT-mode entry point; scrip.c, Makefile, test file updated
+- ESP-14: stale comments (me4_*/me6_return_dispatch/EM-MODE4-IS-MODE3-DUMP-c) swept from unified sm_codegen.c
+- sm_codegen_x64_emit.c and sm_codegen_x64_emit.h no longer exist
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD = commit from this session.
-3. EM-BB-FORMAT next open rung. See rung spec above.
-
-Note: bb_emit_* -> emit_* (sess 2026-05-13k). flat_emit_* -> emit_flat_*; sm_emit_* -> emit_sm_* (sess 2026-05-13l). 4 one-liner forwarders removed (emit_sm_op called directly). Low-level primitives (bb_emit_byte, bb_emit_u32/u64, bb_emit_begin/end, bb_emit_patch_rel32, bb_emit_mode, bb_emit_out, bb_emit_pos) unchanged.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `9470c409`.
+3. Next open rung: EM-BB-FORMAT. See rung spec above.
 
