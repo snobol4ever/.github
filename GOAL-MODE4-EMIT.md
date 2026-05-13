@@ -105,7 +105,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-13k (Claude Sonnet 4.6)**
 
-one4all HEAD TBD (commit pending). Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `b85e727e`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
@@ -121,4 +121,6 @@ one4all HEAD TBD (commit pending). Gates: smoke 7/7, template-byte-id 4/4, em8 5
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD = commit from this session.
 3. EM-BB-FORMAT next open rung. See rung spec above.
+
+Note: bb_emit_* instruction emitters renamed to emit_* (consistent prefix). Low-level primitives (bb_emit_byte, bb_emit_u32/u64, bb_emit_begin/end, bb_emit_patch_rel32, bb_emit_mode, bb_emit_out, bb_emit_pos) unchanged.
 
