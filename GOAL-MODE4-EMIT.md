@@ -200,21 +200,17 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
+**SESSION HANDOFF (EMERGENCY) — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `e00a7c6f`. corpus HEAD `52e4657`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, snocone 5/5, gcc -c 5/5.
+one4all HEAD `e00a7c6f` (RW-5, clean — RW-6 reverted). corpus HEAD `52e4657`. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
-- RW-5: `emit_flat.c/h` replaces `emit_bb_flat.c` (deleted). `emit_walk.c/h` replaces `emit_sm_text.c` (deleted).
-  - All public API renamed per ARCH-EMITTER.md (see commit message for full table).
-  - Backward-compat `#define` aliases in new headers; all callers unchanged without edits.
-  - Shim `.h` files (`emit_bb_flat.h`, `emit_sm_text.h`) left in place; deleted at RW-6.
-  - Makefile updated to compile `emit_flat.c` + `emit_walk.c` instead of old files.
-  - corpus artifact regen committed (`52e4657`).
+- RW-5: ✅ committed `e00a7c6f`.
+- RW-6: ⛔ ATTEMPTED, REVERTED (emergency). Breakage: smoke 5/7, byte-id 3/4. Root cause: compat `#define` aliases in `emit_seq.h`/`emit_text.h` rewrote function *definitions* in `emit_form.c` (e.g. `emit_bb_zeta_rdi` definition got renamed to `emit_seq_zeta_rdi` by macro expansion), producing duplicate symbols at link time. `EMIT_FORM_IMPL` guard fixed link errors but gate regressions remained. All RW-6 changes stashed and reverted; one4all is at clean `e00a7c6f`.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
 2. Confirm one4all HEAD `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4.
-3. Current step: **RW-6** — Delete old foundation: `emit_insn.c`, `emit_form.c`, `emit_mode.c`, `emit_label.c`, `emit_text3c.c`, `emit_bb_seq.c`, `emit_buf.c`, `emit_bb_gen.h`, `emit_defs.h`. Also delete shim `.h` files `emit_bb_flat.h` + `emit_sm_text.h`. Umbrella `emit_bb_gen.h` → `emit.h`. Update Makefile. Finalize `ARCH-EMITTER.md` with bootstrap notes for Snocone/Icon. Gates: full suite, `gcc -c` all artifacts, beauty ≥10.
+3. Retry **RW-6** with correct approach: shim old `.h` files to new ones first; then selectively remove old `.c` files from the build one at a time, verifying gates after each. Do NOT use `#define` aliases for names that `emit_form.c` defines (i.e. `emit_bb_zeta_rdi`, `emit_bb_dispatch_jne_jmp`, `emit_fprintf_raw`). Instead: rename those definitions directly in `emit_form.c`, or use `__attribute__((weak, alias(...)))` in new `.c` files to provide the old symbol names without macro rewriting.
