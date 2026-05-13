@@ -179,14 +179,9 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `insn.h/c` (all ~65 leaf fns, IS_TEXT at top/binary below); `emit_text.h/c` (thin wrappers over emit_text3c); `emit_label_new.h/c` (emit_label_init/initf wrappers). IS_TEXT/IS_BIN/IS_WIRED/IS_BROKERED macros in insn.h. All alongside old code, no callers changed. one4all `d15b8050`. Gates: smoke 7/7, byte-id 4/4.
 
-- [ ] **RW-2** ⚡ NEXT — `emit_seq.h/emit_seq.c`: rewrite `emit_bb_seq.c` using only
-  `insn_*`/`emit_mode`/`emit_label`/`emit_text`. No if-statements — only calls.
-  Every duplicated 3-line pattern becomes a named `emit_seq_*` helper.
-  No compound helper body > 8 lines. ~90 lines replaces ~660.
-  Old `emit_bb_seq.c` still compiled alongside.
-  Gates: `gcc -c` clean, smoke 7/7 unchanged.
+- [x] **RW-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_seq.h/c`: all compound sequences with new names; insn_* calls throughout; lea-vs-movabs handled at seq layer (3 fns); emit_seq_port_call/port_call_rip forward IS_TEXT to format-port path. one4all `4dcea3b6`. Gates: smoke 7/7, byte-id 4/4.
 
-- [ ] **RW-3** — `emit_bb.c`: rewrite `emit_bb_box.c`. Table-driven stateful
+- [ ] **RW-3** ⚡ NEXT — `emit_bb.c`: rewrite `emit_bb_box.c`. Table-driven stateful
   boxes (`bb_box_def_t[]` + `emit_bb_stateful()` driver). No if-statements in
   any template function — only calls. Delete old `emit_bb_box.c`.
   ~80 lines replaces ~259.
@@ -218,7 +213,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `d15b8050`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `4dcea3b6`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
@@ -230,8 +225,7 @@ one4all HEAD `d15b8050`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `d15b8050`. Gates: smoke 7/7, byte-id 4/4.
-3. Current step: **RW-2** — `emit_seq.h/emit_seq.c`: rewrite `emit_bb_seq.c` using
-   only `insn_*`/`emit_mode`/`emit_label`/`emit_text`. No if-statements in bodies.
-   Every duplicated 3-line pattern → named `emit_seq_*` helper. No body > 8 lines.
-   Old `emit_bb_seq.c` still compiled alongside.
+2. Confirm one4all HEAD `4dcea3b6`. Gates: smoke 7/7, byte-id 4/4.
+3. Current step: **RW-3** — `emit_bb.c`: table-driven stateful BB boxes.
+   `bb_box_def_t[]` + `emit_bb_stateful()` driver. Delete old `emit_bb_box.c`.
+   Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
