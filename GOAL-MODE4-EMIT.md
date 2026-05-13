@@ -105,7 +105,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-13k (Claude Sonnet 4.6)**
 
-one4all HEAD `f9e9ca67`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `824b0648`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
