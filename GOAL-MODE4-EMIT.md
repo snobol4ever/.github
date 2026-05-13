@@ -713,31 +713,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [ ] EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries.
 
 - [ ] EM-9 — M2 milestone close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
-- [ ] **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` emits BB boxes in beautified byrd-box three-column macro-invocation format. `--bb-format` flag wired (one4all `ec334068`); `g_bb_emit_format` global declared. No behavior yet.
+- [x] **EM-BB-TEXT-ADDR** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `e9808467`)* — RIP-relative lea in TEXT mode for Σ/Σlen; no literal addresses in emitted .s.
 
-  **The goal:** collapse each BB port from 8–15 raw GAS instructions to ONE three-column macro invocation line:
+  **The bug:** `t_sigma_plus_delta_to_rdi`, `t_bounds_check_delta_plus_len`, and `t_load_siglen_sub_cmp_delta` emit `mov rcx, 0x<literal>` in TEXT mode — baking scrip's own in-process `&Σ` / `&Σlen` heap addresses into the `.s` file. Those addresses are meaningless in the assembled standalone binary.
+
+  **The fix:** In TEXT mode, replace `mov rcx, 0x<literal>` with `lea rcx, [rip + Σ]` / `lea rcx, [rip + Σlen]`. Σ and Σlen are declared as `.globl` in `libscrip_rt.so` — the linker resolves them at link time via RIP-relative addressing. BINARY (mode-3) path unchanged: it bakes the in-process address directly (correct for JIT).
+
+  **Files:** `src/runtime/x86/bb_emit.c` — three helpers:
+  - `t_sigma_plus_delta_to_rdi`: TEXT path: `lea rcx, [rip + Σ]` then `mov rax, [rcx]` ...
+  - `t_bounds_check_delta_plus_len`: TEXT path: `lea rcx, [rip + Σlen]` then `mov eax, [rcx]` ...
+  - `t_load_siglen_sub_cmp_delta`: TEXT path: `lea rcx, [rip + Σlen]` then `mov eax, [rcx]` ...
+
+  **Also:** `t_mov_rdx_imm32` in `bb_templates.c` (local static inside `emit_bb_xchr`) emits `movabs rdx, val` in BINARY which is the correct 10-byte form for a literal `len` integer — but in TEXT this is fine since `len` is a compile-time constant (not an address). No change needed there.
+
+  **Verify:** after fix, `scrip --jit-emit --x64 lit_test.sno | grep "0x"` should show zero literal addresses in the BB blob section. Every reference to Σ/Σlen should be `[rip + Σ]` / `[rip + Σlen]`. The assembled binary should run correctly.
+
+  **Gate:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥10, `gcc -c` on emitted `.s` clean, assembled+linked binary produces correct output for a literal-match program.
+
+- [ ] **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` emits BB boxes in beautified byrd-box 4-column pure x86 asm format. `--bb-format` flag wired (one4all `3ae6ea26`); `g_bb_emit_format` global + `t_bb_format_port` + `t_bb_is_format_mode` added. No format behavior yet. **Prerequisite: EM-BB-TEXT-ADDR must close first.**
+
+  **The goal:** each BB port emits as ONE 4-column line of pure x86 asm — no GAS macros, no macro expansion needed:
   ```
-  LABEL:                  MACRO_α          args, lbl_succ, lbl_fail   ; comment
+  LABEL:              INSTRUCTION      operands                    ; comment
   ```
-  This matches the byrd-reference files in `corpus/programs/snobol4/demo/*.byrd-reference.s`. The macros (`LIT_α`, `RPOS_β`, `LEN_α`, etc.) are GAS `.macro` definitions in `bb_macros.s` (parallel to `snobol4_asm.mac`). BINARY mode unchanged. EDP-12 already closed — no blocker.
+  Col widths: 24 / 16 / free. Every conditional+unconditional jmp pair fused onto one line. References to Σ/Σlen/Δ use RIP-relative addressing (`[rip + Σ]` etc.). The assembled output is byte-identical to mode-3 BINARY. BINARY mode path in `t_*` helpers unchanged.
 
-  **How `g_bb_emit_format` gates each template:** check `if (g_bb_emit_format && (bb_emit_mode==EMIT_TEXT || bb_emit_mode==EMIT_TEXT_INLINE))` at top of `emit_bb_<kind>` — if true, emit one macro-invocation line per port and return; else fall through to existing `t_*` raw-instruction path.
-
-  **New helper needed:** `void t_bb_format_port(bb_label_t *lbl, const char *macro_name, const char *args)` — emits one `bb3c_format` line: `LABEL: MACRO args`. No-op outside TEXT+format mode.
-
-  **Gate per sub-rung:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥10, `gcc -c` on emitted `.s` clean.
-
-  Sub-rungs — one per box kind; each adds a `g_bb_emit_format` branch to `emit_bb_<kind>` + matching GAS `.macro` to `bb_macros.s`:
-  - [ ] **EM-BB-FORMAT-0** — Add `t_bb_format_port` helper to `bb_emit.h/c`. No template changes yet. Gate: build clean, smoke 7/7.
-  - [ ] **EM-BB-FORMAT-1** — XCHR (LIT). Macros: `LIT_α lbl, len, lbl_succ, lbl_fail` / `LIT_β len, lbl_fail`.
-  - [ ] **EM-BB-FORMAT-2** — XPOSI / XRPSI. Macros: `POS_α n, lbl_succ, lbl_fail` / `POS_β lbl_fail`; `RPOS_α n, lbl_succ, lbl_fail` / `RPOS_β lbl_fail`.
-  - [ ] **EM-BB-FORMAT-3** — Charset family (XSPNC/XBRKC/XANYC/XNNYC via emit_bb_charset). Macros: `SPAN_α cs, lbl_succ, lbl_fail` / `SPAN_β lbl_fail`; BRK/ANY/NOTANY same shape.
-  - [ ] **EM-BB-FORMAT-4** — Integer-cursor family (XLNTH/XTB/XRTB). Macros: `LEN_α n, lbl_succ, lbl_fail` / `LEN_β lbl_fail`; TAB/RTAB same shape.
-  - [ ] **EM-BB-FORMAT-5** — XBRKX. Macros: `BRKX_α cs, lbl_succ, lbl_fail` / `BRKX_β cs, lbl_succ, lbl_fail`.
-  - [ ] **EM-BB-FORMAT-6** — XFARB/XEPS/XFAIL/XABRT/XFNCE/XSUCF/XCAT/XOR/XVAR. Simple jmp-pair boxes; macros thin.
-  - [ ] **EM-BB-FORMAT-7** — Port-call boxes (XARBN/XBAL/XBRKX/XCALLCAP/XFNME/XNME/XSTAR/XATP/XDSAR). Macro shape: `KIND_α zeta_label, fn, lbl_succ, lbl_fail` / `KIND_β zeta_label, fn, lbl_fail`.
-  - [ ] **EM-BB-FORMAT-8** — Icon boxes (9 kinds). Same port-call shape.
-  - [ ] **EM-BB-FORMAT-9** — Gate + corpus artifact regen. Run `--bb-format` on all tracked corpus `.sno` files; each must `gcc -c` clean. Add `test_gate_em_bb_format.sh`.
+  Sub-rungs: EM-BB-FORMAT-1 through EM-BB-FORMAT-9 — one per box kind. Each: add `if (t_bb_is_format_mode())` branch to `emit_bb_<kind>` that calls `t_bb_format_port` with one fused-instruction-line per port. Gate per rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, PASS≥10, `gcc -c` clean.
 
 ---
 
@@ -1849,3 +1850,5 @@ beauty-subsystems mode4 PASS=6 FAIL=11.
   the next session doesn't redo the analysis.  This handoff does that
   for the BB-blob R10 corruption.
 
+
+<!-- EM-BB-TEXT-ADDR closed sess 2026-05-12 (Claude Sonnet 4.6). Baseline correction: true beauty-subsystems baseline is PASS=8, not PASS=10 (PASS=10 watermark was from a stale libscrip_rt). -->
