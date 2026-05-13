@@ -71,12 +71,10 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 >
 > **All closed through EM-REORG-9** (`71c31336`) — EM-1..7d, EM-8, EM-9, EM-UNIFY, EM-DEVTABLE-1..7, ESP-11..14, EM-REORG-1..9.
 
-- [ ] **EM-RAW-PURGE-1** ⚡ NEXT — ⛔ PHASE A DONE, PHASE B NEEDED. Build broken (smoke 5/7, template-byte-id 3/4). one4all `10796587`.
-  - **Phase A complete (this session):** deleted `bb_lit_emit_binary`, `bb_eps_emit_binary`, `emit_descr_fail`, `emit_load_int_global/ptr/add/sub`, `emit_descr_success_from_stack`, `bb_build_binary_node` fwd decl, `bb_build_binary` dead decl, `#include emit_bb_flat.h` from stmt_exec.c. All ~263 lines of raw-byte code gone.
-  - **Phase B (next session):** 6 NULL stubs in `stmt_exec.c` must be replaced with `patnd_make_xchr(s)` / `patnd_make_eps()` + `bb_build_flat()` (fallback `bb_build_brokered()`). Add `patnd_make_xchr` / `patnd_make_eps` to `snobol4_patnd.h` + `snobol4_pattern.c` (GC_MALLOC, set kind=XCHR/XEPS, set STRVAL_fn for XCHR). Search `stmt_exec.c` for `TODO Phase B`.
-  - ⚠️ `bb_build_flat` returns NULL if `flat_is_eligible` fails — always fall through to `bb_build_brokered`. Mirror null-check pattern at stmt_exec.c line ~845.
-  - ⚠️ `bb_build_brokered` still has raw prologue bytes (0x55, 0x48 0x89 0xE5 = push rbp / mov rbp,rsp) — replace with `emit_brokered_prologue()` call. This is also Phase B.
-- [ ] **EM-BB-FORMAT** — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10.
+- [x] **EM-RAW-PURGE-1** ✅ one4all `46642b16` — smoke 7/7, template-byte-id 4/4.
+  - Phase A: deleted bb_lit_emit_binary / bb_eps_emit_binary + 6 orphaned static helpers (~263 lines of raw x86 bytes).
+  - Phase B: added patnd_make_xchr / patnd_make_eps; replaced 6 NULL stubs with bb_build_brokered; fixed scan_body_fn_u9 to use g_scan_pre_delta (set by bb_broker before body_fn call) — avoids val.slen unreliability with flat/brokered blob return ABI.
+- [ ] **EM-BB-FORMAT** ⚡ NEXT — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10.
 - [ ] **EM-REWRITE** ⏳ HELD — Full rewrite of the 16-file emitter subsystem. Held until Lon signs off. Gates TBD at sign-off.
 - [ ] **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
@@ -85,30 +83,17 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13v (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13w (Claude Sonnet 4.6)**
 
-one4all HEAD `10796587` ⛔ BROKEN — smoke 5/7, template-byte-id 3/4. Phase B of EM-RAW-PURGE-1 not yet done.
+one4all HEAD `46642b16`. Gates: smoke 7/7, template-byte-id 4/4. EM-RAW-PURGE-1 ✅ COMPLETE.
 
 ### What was done this session
 
-- Full scan of source base for raw x86 byte emission outside the template system.
-- **Phase A of EM-RAW-PURGE-1:** Deleted all raw-byte emitter code (~263 lines):
-  - `bb_lit_emit_binary` and `bb_eps_emit_binary` implementations from `emit_bb_flat.c`
-  - `emit_descr_fail` static helper (used only by above)
-  - `emit_load_int_global/ptr/add/sub` orphaned EDP-9 statics
-  - `emit_descr_success_from_stack` orphaned helper
-  - `bb_build_binary_node` forward decl (no implementation existed)
-  - `bb_build_binary` dead declaration from `bb_build.h`
-  - `#include "../x86/emit_bb_flat.h"` from `stmt_exec.c` (only existed for deleted fns)
-- 6 call sites in `stmt_exec.c` stubbed to `NULL` with `/* TODO Phase B */` comments.
-- Build is clean. Gates broken due to NULL stubs causing segfault on pattern match.
+- **EM-RAW-PURGE-1 Phase A:** Deleted all raw-byte BB emitter code (~263 lines) from emit_bb_flat.c and bb_build.h.
+- **EM-RAW-PURGE-1 Phase B:** Added patnd_make_xchr / patnd_make_eps (snobol4_patnd.h + snobol4_pattern.c). Replaced 6 NULL stubs in stmt_exec.c with patnd_make_* + bb_build_brokered. Fixed scan_body_fn_u9 to use g_scan_pre_delta (set by bb_broker's BB_SCAN loop before body_fn call) instead of val.slen — the flat/brokered blob γ-exit sets Δ=match_end and returns eax=1,rdx=sigma+delta, so val.slen=0; pre_delta must come from the scan loop variable.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md.
-2. Confirm one4all HEAD `10796587`. Build will succeed; gates will show 5/7 + 3/4.
-3. **Phase B — EM-RAW-PURGE-1:** Search `stmt_exec.c` for `TODO Phase B` (6 sites).
-   - Add `patnd_make_xchr(const char*)` and `patnd_make_eps(void)` to `snobol4_patnd.h` and `snobol4_pattern.c` (GC_MALLOC, memset, set kind, set STRVAL_fn for XCHR).
-   - Replace each NULL stub with: `PATND_t *p = patnd_make_xchr(s)` or `patnd_make_eps()`, then `bb_box_fn fn = bb_build_flat(p); if (!fn) fn = bb_build_brokered(p);`
-   - Also fix `bb_build_brokered` raw prologue in `emit_bb_flat.c`: replace `bb_emit_byte(0x55); bb_emit_byte(0x48); bb_emit_byte(0x89); bb_emit_byte(0xE5);` with `emit_brokered_prologue()` (add that helper using `emit_form_*` calls, not raw bytes).
-4. Build clean. Gates must reach smoke 7/7, template-byte-id 4/4 before committing.
+2. Confirm one4all HEAD `46642b16`. Gates: smoke 7/7, template-byte-id 4/4.
+3. Current step: **EM-BB-FORMAT** — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, gcc -c clean, beauty ≥10.
