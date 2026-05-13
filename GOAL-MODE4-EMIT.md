@@ -105,7 +105,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **SESSION HANDOFF — sess 2026-05-13j (Claude Sonnet 4.6)**
 
-one4all HEAD `e025ad26`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `12212bc0`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
@@ -118,6 +118,6 @@ one4all HEAD `e025ad26`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `e025ad26`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `12212bc0`.
 3. **EM-DEVTABLE** — remove `emitter_t` vtable; globals replace `e->is_text` / `e->ctx`. Full scope in rung above. Then **EM-MODE4-IS-MODE3-DUMP**.
 
