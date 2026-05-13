@@ -71,6 +71,13 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 >
 > **All closed through EM-REORG-9** (`71c31336`) — EM-1..7d, EM-8, EM-9, EM-UNIFY, EM-DEVTABLE-1..7, ESP-11..14, EM-REORG-1..9.
 
+- [ ] **EM-RAW-PURGE-1** ⚡ NEXT — Finish removing `bb_lit_emit_binary` / `bb_eps_emit_binary` from `stmt_exec.c`. Replace all 5 remaining call sites with `patnd_make_xchr`/`patnd_make_eps` + `bb_build_flat`. Remove declarations from `bb_build.h`. Delete `bb_lit_emit_SIDECAR.c`. Build clean. Gates: smoke 7/7, template-byte-id 4/4.
+  - Remaining call sites in `stmt_exec.c`: lines 660, 871, 878, 888, 894, 1166.
+  - `bb_build.h` lines 23 + 30 — remove both declarations.
+  - `patnd_make_xchr` / `patnd_make_eps` already added to `snobol4_patnd.h` + `snobol4_pattern.c` this session.
+  - `bb_build_brokered` raw-byte prologue already fixed → `emit_brokered_prologue()` this session.
+  - 221-line raw-byte block already removed from `emit_bb_flat.c` this session (saved in sidecar for cherry-pick reference).
+  - ⚠️ `bb_build_flat` returns NULL if `flat_is_eligible` fails. All replacement sites must handle NULL return (fall through to epsilon or error) — mirror the existing null-check pattern at line 844.
 - [ ] **EM-BB-FORMAT** — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10.
 - [ ] **EM-REWRITE** ⏳ HELD — Full rewrite of the 16-file emitter subsystem. Held until Lon signs off. Gates TBD at sign-off.
 - [ ] **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
@@ -80,19 +87,24 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13t (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13u (Claude Sonnet 4.6)**
 
-one4all HEAD `b0729299`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `b0729299` (partial work in tree, not yet committed — see EM-RAW-PURGE-1). Gates at session start: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- Added `EM-REWRITE` step (HELD pending sign-off).
-- Removed 501 blank lines from inside function bodies across 6 emitter `.c` files (`b0729299`).
-- Compacted `GOAL-MODE4-EMIT.md`, `PLAN.md`, `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+- Diagnosed `bb_lit_emit_binary` / `bb_eps_emit_binary` as raw-byte doppelgangers that slipped EDP-12 (audit script only matched `XKIND_t` / `SM_*` names, not function-level raw emitters).
+- Removed 221-line raw-byte block from `emit_bb_flat.c` (lines 1138–1359); saved to `src/runtime/x86/bb_lit_emit_SIDECAR.c` for cherry-pick reference.
+- Fixed `bb_build_brokered` raw prologue bytes → `emit_brokered_prologue()`.
+- Added `patnd_make_xchr(const char*)` and `patnd_make_eps(void)` to `snobol4_patnd.h` + `snobol4_pattern.c`.
+- Converted 2 of 7 `stmt_exec.c` call sites (lines ~641, ~650) to use `patnd_make_xchr`/`patnd_make_eps` + `bb_build_flat`.
+- Added `EM-RAW-PURGE-1` step documenting remaining work.
+- **NOT committed** — build not yet verified clean. Next session must finish EM-RAW-PURGE-1 before committing.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `b0729299`.
-3. Current step: **EM-REWRITE** (HELD) — stay on this step until Lon signs off.
-4. ⚠️ KEY LESSON: when moving functions that call `emit_macro_begin`, check TEXT-mode branches include `if (bb_emit_mode == EMIT_TEXT && g_in_text_macro_body) return;` to suppress body instructions after macro invocation.
+3. Current step: **EM-RAW-PURGE-1** — finish all remaining call sites, remove `bb_build.h` declarations, delete sidecar, build clean, run gates, commit.
+4. ⚠️ KEY LESSON: `bb_lit_emit_binary` / `bb_eps_emit_binary` are raw-byte BB emitters — they bypass the template system entirely. Every x86 byte emitter (BB or SM) must go through `emit_bb_*` / `emit_sm_*` template functions. No exceptions.
+5. ⚠️ KEY LESSON: when moving functions that call `emit_macro_begin`, check TEXT-mode branches include `if (bb_emit_mode == EMIT_TEXT && g_in_text_macro_body) return;` to suppress body instructions after macro invocation.
