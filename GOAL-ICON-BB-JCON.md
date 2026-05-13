@@ -113,16 +113,29 @@ Every step in IJ-3 that touches a BB (proc-as-value, indirect invocation,
 image) MUST be grounded in what jcon_irgen.icn actually emits — not inferred
 from C source alone. Previous Claude skipped this and had to backtrack.
 
-**Partial progress (one4all `41f51263`):**
+**Partial progress (one4all `d696d3a4`):**
 - ✅ `raku_fh_name[]` filename table — `image(fh)` → `file(foo.baz)`
 - ✅ `image()` extended: `list(n)`, `record(typename)`, `procedure name`, both paths
 - ✅ `proc(name,arity)` builtin implemented (returns `DT_E` for user procs)
 - ✅ `args(proc_val)` builtin — returns nparams / -2 for varargs
 - ✅ `icn_proc_as_value()` in `coro_value.c` — bare proc name TT_VAR → `DT_E`/`DT_S`
+- ✅ Indirect callee dispatch in `bb_eval_value` TT_FNC: non-TT_VAR callee evaluates
+  to DT_E/DT_S and dispatches via proc_table / icn_try_call_builtin_by_name.
+- ✅ Same indirect dispatch + proc-value-in-variable fallback in `interp_eval.c` TT_FNC.
+- ✅ `icn_proc_as_value` stores proc_table index in slen (was nparams) for --ir-run fallback.
+
+**Root cause of remaining failures — MUST READ ir_a_Ident FIRST:**
+Bare proc name in value context (`pv := p0`) parses as **TT_FNC zero-arg call**,
+NOT TT_VAR. So `bb_eval_value` calls `p0()` and stores its return value (FAILDESCR/NULVCL),
+not a DT_E proc descriptor. The proc value DT_E is never stored into pv's slot.
+JCON resolves this via `ir_a_Ident` which emits `ir_Var` for bare names — the Icon
+parser must produce TT_VAR (not TT_FNC) for a bare name in value context.
+NEXT SESSION: read `ir_a_Ident` in jcon_irgen.icn, then fix the Icon parser or
+lower pass to emit TT_VAR (not zero-arg TT_FNC) for bare proc names in value position.
 
 **Remaining blockers:**
-1. Indirect call of `DT_E`/`DT_S` proc values in TT_FNC dispatch
-   (needed for `(!plist)(1,2)` in rung36_jcon_args)
+1. Bare proc name in value context: `pv := p0` — fix parser/lower to produce TT_VAR,
+   not zero-arg TT_FNC, when name appears in value (not call) position.
 2. Global variable persistence for file handles in `--ir-run`
    (rung36_jcon_fncs1: `f` global reads as 0/stdin after open())
 
@@ -362,9 +375,9 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
 ## Watermark
 
   Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: 41f51263
+  one4all HEAD: d696d3a4
   ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
   Honest:       PASS=259 FAIL=1  ABORT=0
-  Current step: IJ-3 (partial — image/proc/args/proc-as-value done;
-                indirect DT_E/DT_S invocation + global-var persistence
-                needed to flip rung36_jcon_args/lists/record/fncs1)
+  Current step: IJ-3 (partial — image/proc/args/proc-as-value/indirect-dispatch done;
+                bare-proc-name-as-value parse fix + global-var persistence needed;
+                MUST read ir_a_Ident in jcon_irgen.icn before coding next session)
