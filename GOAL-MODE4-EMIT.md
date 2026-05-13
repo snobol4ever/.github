@@ -185,9 +185,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-4** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_sm.c` merges `emit_sm_op.c` + `emit_sm_shape.c` (both deleted). `emit_sm_shape.h` kept as compat header for `emit_sm_text.c`. one4all `3c7bce9c`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-5** ⚡ NEXT — `emit_flat.c/h`: rewrite `emit_bb_flat.c`. `emit_walk.c/h`:
-  rewrite `emit_sm_text.c`. Delete old files.
-  Gates: full suite + `gcc -c` on all emitted artifacts.
+- [x] **RW-5** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_flat.c/h` replaces `emit_bb_flat.c` (deleted). `emit_walk.c/h` replaces `emit_sm_text.c` (deleted). Shim `.h` files left in place for RW-6. Backward-compat `#define` aliases in new headers; all callers unchanged. Makefile updated. one4all `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5, gcc -c 5/5 artifacts OK.
 
 - [ ] **RW-6** — Delete old foundation: `emit_insn.c`, `emit_form.c`,
   `emit_mode.c`, `emit_label.c`, `emit_text3c.c`, `emit_bb_seq.c`,
@@ -204,20 +202,19 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `3c7bce9c`. .github HEAD `e931def1`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD `e00a7c6f`. corpus HEAD `52e4657`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, snocone 5/5, gcc -c 5/5.
 
 ### What was done this session
 
-- RW-0: ARCH-EMITTER.md — full old→new name scan (16 emitter files). Fixed emit_* naming. Removed 58 self-rename rows.
-- RW-1: `insn.h/c` (65 leaf fns, IS_TEXT/IS_BIN), `emit_text.h/c`, `emit_label_new.h/c` alongside old code.
-- RW-2: `emit_seq.h/c` — compound sequences with new names, insn_* calls, no if-in-body.
-- RW-3: `emit_bb.c` replaces `emit_bb_box.c` (deleted). Table-driven static drivers.
-- RW-4: `emit_sm.c` merges `emit_sm_op.c` + `emit_sm_shape.c` (both deleted). Compat `emit_sm_shape.h` kept.
+- RW-5: `emit_flat.c/h` replaces `emit_bb_flat.c` (deleted). `emit_walk.c/h` replaces `emit_sm_text.c` (deleted).
+  - All public API renamed per ARCH-EMITTER.md (see commit message for full table).
+  - Backward-compat `#define` aliases in new headers; all callers unchanged without edits.
+  - Shim `.h` files (`emit_bb_flat.h`, `emit_sm_text.h`) left in place; deleted at RW-6.
+  - Makefile updated to compile `emit_flat.c` + `emit_walk.c` instead of old files.
+  - corpus artifact regen committed (`52e4657`).
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `3c7bce9c`. Gates: smoke 7/7, byte-id 4/4.
-3. Current step: **RW-5** — `emit_flat.c/h`: rewrite `emit_bb_flat.c`. `emit_walk.c/h`:
-   rewrite `emit_sm_text.c`. Delete old files.
-   Gates: full suite + `gcc -c` on all emitted artifacts.
+2. Confirm one4all HEAD `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4.
+3. Current step: **RW-6** — Delete old foundation: `emit_insn.c`, `emit_form.c`, `emit_mode.c`, `emit_label.c`, `emit_text3c.c`, `emit_bb_seq.c`, `emit_buf.c`, `emit_bb_gen.h`, `emit_defs.h`. Also delete shim `.h` files `emit_bb_flat.h` + `emit_sm_text.h`. Umbrella `emit_bb_gen.h` → `emit.h`. Update Makefile. Finalize `ARCH-EMITTER.md` with bootstrap notes for Snocone/Icon. Gates: full suite, `gcc -c` all artifacts, beauty ≥10.
