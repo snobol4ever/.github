@@ -73,8 +73,12 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 - [x] Fix `to by` integer truncation of string/cset bounds (preserve pure-real path). `ae2d16f7`
 - [x] Fix `to by` alternation args (every toby(A|B,...) only fires once — generator not resumed). `2f54cd84`
 - [x] Fix `~~(A|B|C) ? move(5)` — scan with generative subject (TT_SCAN not suspendable). `2f54cd84`
-- [ ] Fix `?x` random char of string/cset (debug).
-- [ ] GATE-1..4. Commit.
+- [x] Fix `to by` pure-real truncation (remove coro_bb_to_by_real fast-path; JCON always truncates). `b50d8180`
+- [x] Fix cset image (CSETVAL sentinel slen=0xFFFF…; image() emits 'chars'; int/real cset ops coerce). `b50d8180`
+- [x] Fix int ^ negative-int → truncate to integer per JCON rule. `b50d8180`
+- [x] rung36_jcon_coerce PASS. rung36_jcon_numeric PASS.
+- [ ] Fix `?x` random char of string/cset → moved to IJ-16 (cluster R, &random seeding step).
+- [x] GATE-1..4. Commit. `b50d8180`
 
 ### IJ-8 — Lexicographic string comparison edge cases (Cluster H)
 
@@ -153,7 +157,7 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 
 ## Watermark
 
-  one4all: 2f54cd84  corpus: cea9548
+  one4all: b50d8180  corpus: cea9548
   ir-run:  PASS=198 FAIL=37 XFAIL=30
-  honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-7 partial — to-by JCON pure-real truncation; cset image; ?x random.
+  honest:  PASS=267 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-8 — lexicographic string comparison edge cases (rung36_jcon_lexcmp).
