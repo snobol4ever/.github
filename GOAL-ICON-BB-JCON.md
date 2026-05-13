@@ -50,6 +50,14 @@ fixes first, regressions last).
   cd /home/claude/one4all
   bash scripts/build_scrip.sh
 
+**⚠️ BB IMPLEMENTATION RULE (mandatory, no exceptions):**
+Every step that implements or modifies a BB (builtin, proc-as-value, indirect
+call, image, etc.) MUST begin by reading `jcon_irgen.icn` (located in the
+.github repo root, cloned to /home/claude/.github/jcon_irgen.icn).
+Specifically read the `ir_a_Call` and `ir_a_Ident` procedures to understand
+how JCON represents the construct you are implementing at the IR/BB level.
+Do NOT infer semantics from C source alone — the irgen is the spec.
+
 ---
 
 ## Gate protocol — every step must pass ALL of these before commit
@@ -98,9 +106,28 @@ ir-run 197→198.
 **Root cause:** `proc("~===", 2)` — lookup procedure object by name/arity.
 Also: list image builtin `image(L)` for list display.
 
-- [ ] Read JCON `ir_a_Call` in jcon_irgen.icn for proc semantics.
-- [ ] Implement `proc(name, arity)` builtin: looks up by name in global proc table,
-      returns procedure value or fails if not found.
+**⚠️ MANDATORY BEFORE CODING:** Read `jcon_irgen.icn` (in .github repo root)
+in full, especially `ir_a_Call` and `ir_a_Ident`, to understand how JCON
+represents proc values and indirect calls at the BB/IR level.
+Every step in IJ-3 that touches a BB (proc-as-value, indirect invocation,
+image) MUST be grounded in what jcon_irgen.icn actually emits — not inferred
+from C source alone. Previous Claude skipped this and had to backtrack.
+
+**Partial progress (one4all `41f51263`):**
+- ✅ `raku_fh_name[]` filename table — `image(fh)` → `file(foo.baz)`
+- ✅ `image()` extended: `list(n)`, `record(typename)`, `procedure name`, both paths
+- ✅ `proc(name,arity)` builtin implemented (returns `DT_E` for user procs)
+- ✅ `args(proc_val)` builtin — returns nparams / -2 for varargs
+- ✅ `icn_proc_as_value()` in `coro_value.c` — bare proc name TT_VAR → `DT_E`/`DT_S`
+
+**Remaining blockers:**
+1. Indirect call of `DT_E`/`DT_S` proc values in TT_FNC dispatch
+   (needed for `(!plist)(1,2)` in rung36_jcon_args)
+2. Global variable persistence for file handles in `--ir-run`
+   (rung36_jcon_fncs1: `f` global reads as 0/stdin after open())
+
+- [x] Read JCON `ir_a_Call` in jcon_irgen.icn for proc semantics.
+- [ ] Wire indirect DT_E/DT_S invocation in TT_FNC dispatch (coro_value.c + interp_eval.c).
 - [ ] Verify `image(x)` produces correct string for lists, records, procedures.
 - [ ] Write test source `rung37_proc_lookup.icn` if no focused test exists.
       Expected: proc("write",1) succeeds; proc("noexist",1) fails;
