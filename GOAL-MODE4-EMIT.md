@@ -91,21 +91,41 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13d (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13e (Claude Sonnet 4.6)**
 
-**Diagnosis: semantic_driver tests 4–7 = bb_pool exhaustion.** one4all HEAD `c0675506` (no code changes — diagnosis only). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 14/17.
+**Diagnosis revised: semantic_driver tests 4–7 skip is NOT pool exhaustion alone.** one4all HEAD `8476b3f4`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 14/17.
 
-### Root cause
+### What was done this session
 
-`global.sno` runs ~163 `&ALPHABET POS(N) LEN(M) . var` pattern-match statements at startup. Each allocates a page-aligned `bb_pool` entry (4 KB minimum). `BB_POOL_SIZE = 4 MB` (`bb_pool.h:35`). By the time `'' nPush()` executes in semantic_driver, the pool is exhausted. `bb_alloc` calls `abort()` on exhaustion, but the binary exits 0 silently because `sm_run_with_recovery`'s `setjmp` catches it. Standalone tests without beauty includes pass; full beauty includes trigger the silent skip.
+`bb_pool_reset()` + `exec_stmt_pool_reset()` implemented as infrastructure (one4all `8476b3f4`). The infrastructure is correct and ready. The call in `rt_match_variant` was NOT committed — see below.
 
-### Fix direction
+### Revised root cause analysis
 
-Two options: (a) increase `BB_POOL_SIZE` 4 MB → 16 MB; (b) add `bb_pool_reset()` (set `pool_top = pool_base`) called after each `exec_stmt` — patterns don't outlive their statement, so this reclaims all memory without freeing the mmap slab. Option (b) is architecturally correct.
+The pool exhaustion diagnosis was correct for some programs, but semantic_driver tests 4–7 skip for a SECOND reason: **missing error recovery in mode-4 emitted binaries**.
+
+In mode-4, `rt_init()` does not call `setjmp(g_sno_err_jmp)` or set `g_sno_err_active = 1`. When a runtime error fires inside `exec_stmt()` (called from `rt_match_variant`), `sno_runtime_error` fires. With `g_sno_err_active = 0` it does NOT longjmp — it prints to stderr and returns. Execution then continues with undefined state. Tests 4–7 (`'' nPush()` etc.) involve deferred pattern calls (`epsilon . *PushCounter()`) that trigger errors in the mode-4 context (function not found in native expression registry or C builtins), causing the silent skip.
+
+### Symmetry trap
+
+`rt_match_variant` pool reset works correctly for mode-4 in isolation. But adding it breaks the beauty gate (12→14) because:
+- Programs like Gen_driver/TDump_driver/Qize/omega/XDump have sm-run pool-exhausting during DEFINE init (aborts, 0 stdout lines).
+- With pool reset in `rt_match_variant`, mode-4 survives and produces output while sm-run still aborts → mismatch → FAIL.
+- Baseline "passes" for these programs relied on both modes aborting → empty diff.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 14/17. one4all HEAD `c0675506`.
-3. **Fix bb_pool exhaustion** — implement `bb_pool_reset()` in `bb_pool.c`; call it in `rt_match_variant` after `exec_stmt` returns (or in `stmt_exec.c` at Phase-5 end). Gate: beauty ≥15/17 (semantic_driver tests 4–7 now passing).
-4. counter_driver / stack_driver: pre-existing mode-2 bugs — accept as known divergence.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 14/17. one4all HEAD `8476b3f4`.
+3. **Add mode-4 error recovery wrapper** in `rt.c` around the emitted binary's main execution. Model: `sm_run_with_recovery` in `scrip_sm.c`. `rt_init` must `setjmp(g_sno_err_jmp)` in a loop, set `g_sno_err_active = 1`, and on longjmp mark the current statement as failed and advance to next `SM_STNO` boundary. This is the architectural pre-requisite for tests 4–7 to run correctly.
+4. **Then** add `exec_stmt_pool_reset()` call in `rt_match_variant` (infrastructure already in `8476b3f4`). This fixes pool exhaustion for programs that now have proper error recovery.
+5. Gate target: beauty ≥15/17. counter_driver / stack_driver: pre-existing mode-2 bugs — accept as known divergence.
+
+### Key code references
+
+- `bb_pool_reset()`: `src/runtime/x86/bb_pool.c` — implemented, ready.
+- `exec_stmt_pool_reset()`: `src/runtime/x86/stmt_exec.c` — implemented, ready.
+- `exec_stmt_pool_reset` declaration: `src/runtime/x86/bb_box.h` — ready.
+- `rt_match_variant`: `src/runtime/rt/rt.c:910` — add `exec_stmt_pool_reset()` call here after error recovery is in place.
+- Mode-4 error recovery model: `src/driver/scrip_sm.c:122` `sm_run_with_recovery`.
+- `g_sno_err_jmp` / `g_sno_err_active`: declared in `src/runtime/x86/snobol4.h:415-416`.
+
