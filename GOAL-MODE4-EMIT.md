@@ -135,17 +135,18 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13p (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13q (Claude Sonnet 4.6)**
 
-one4all HEAD `0d2818ad`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `1fc4490c`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- Dropped `emit_sm_gen.c` — confirmed dead duplicate of `emit_sm_text.c` (not in Makefile, all gates pass). −2451 lines.
+- Dropped `emit_sm_gen.c` — confirmed dead duplicate of `emit_sm_text.c`. −2451 lines.
+- Stripped all body/inline comments from all 16 mode-4 emitter files. Kept one `/* summary */` per function/group and all `/*----*/` banners. 11315→9449 lines total.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `0d2818ad`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `1fc4490c`.
 3. Next open rung: EM-BB-FORMAT. See rung spec above.
 
