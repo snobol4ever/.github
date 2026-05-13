@@ -94,38 +94,38 @@ Text branch on top, binary branch below. One glance shows both. Drift impossible
 
 **One mode system.** Two parallel systems (`g_is_text` in `emit_form.c` and
 `bb_emit_mode` everywhere else) plus bolted-on `g_bb_emit_format` third
-mini-mode replaced by single enum + single global in `em_mode`. Two axes:
+mini-mode replaced by single enum + single global in `emit_mode`. Two axes:
 output format (TEXT vs BINARY vs MACRO_DEF) × wiring (WIRED vs BROKERED).
 `TEXT_INLINE` folds into TEXT — `g_jit_emit_inline` becomes a text sub-flag,
 not a mode value. `IS_TEXT` / `IS_BIN` / `IS_WIRED` / `IS_BROKERED` macros.
 
-**Pure functional.** Every `insn_*` and `em_seq_*` function takes its inputs,
+**Pure functional.** Every `insn_*` and `emit_seq_*` function takes its inputs,
 dispatches once, produces output, returns. No hidden state in logic.
 Written so the Snocone/Icon bootstrap compiler can generate calls directly —
 Icon tree-pattern-match an IR node, extract operands, call `insn_*`.
 Snocone string-pattern on opcode names to dispatch to shape helpers.
 
 **Composable naming.** Every name built from fragments that parallel across levels:
-- Layer prefix: `insn_` (leaf), `em_seq_` (compound), `em_bb_` (BB template),
-  `em_sm_` (SM template). No prefix = public API (called by walker/codegen).
+- Layer prefix: `insn_` (leaf), `emit_seq_` (compound), `emit_bb_` (BB template),
+  `emit_sm_` (SM template). No prefix = public API (called by walker/codegen).
 - Operand shape suffix: `_rr` (reg←reg), `_ri` (reg←imm), `_rm` (reg←mem),
   `_rs` (reg←rip-sym), `_r` (single reg), `_0` (nullary).
 - Size suffix where ambiguous: `_64`, `_32`, `_8`.
-- BB box suffix: noun naming the box kind — `em_bb_lit`, `em_bb_pos`, `em_bb_stateful`.
-- SM op suffix: opcode name — `em_sm_push_str`, `em_sm_store_var`.
-- Seq suffix: what it computes — `em_seq_bounds_check`, `em_seq_sigma_delta`,
-  `em_seq_port_call`.
+- BB box suffix: noun naming the box kind — `emit_bb_lit`, `emit_bb_pos`, `emit_bb_stateful`.
+- SM op suffix: opcode name — `emit_sm_push_str`, `emit_sm_store_var`.
+- Seq suffix: what it computes — `emit_seq_bounds_check`, `emit_seq_sigma_delta`,
+  `emit_seq_port_call`.
 
 **Coding patterns applied systematically:**
 - *Table-driven dispatch* — 20 stateful BB boxes → `bb_box_def_t[]` table +
-  one `em_bb_stateful()` driver. SM opcode families → shape-class table.
+  one `emit_bb_stateful()` driver. SM opcode families → shape-class table.
 - *X-group macros* — sets of nearly-identical `insn_*` (jcc family, push/pop
   family) generated from a single `INSN_JCC(name, opcode)` macro invocation,
   keeping text+binary side-by-side without repetition.
 - *Single-responsibility files* — each `.c` owns exactly one concern; no
   function defined in two files; no symbol split across files.
 - *Helper extraction* — every duplicated 3-line pattern in compound helpers
-  becomes a named `em_seq_*` function. Target: no compound helper body > 8 lines.
+  becomes a named `emit_seq_*` function. Target: no compound helper body > 8 lines.
 
 **`emit_sm_binary.c` is not an emitter.** It is a mode-3 C interpreter.
 It stays in `src/runtime/x86/` but is excluded from all emitter file maps,
@@ -135,21 +135,21 @@ line counts, and rewrite steps. It is never touched by EM-REWRITE.
 
 | Old | New | Deleted at step |
 |-----|-----|----------------|
-| `emit_buf.c/h` | folded into `em_mode.c` | RW-6 |
-| `emit_form.c/h` | `insn.c/h` + `em_mode.c` | RW-6 |
+| `emit_buf.c/h` | folded into `emit_mode.c` | RW-6 |
+| `emit_form.c/h` | `insn.c/h` + `emit_mode.c` | RW-6 |
 | `emit_insn.c/h` | `insn.c/h` | RW-6 |
-| `emit_label.c/h` | `em_label.c/h` | RW-6 |
-| `emit_text3c.c/h` | `em_text.c/h` | RW-6 |
-| `emit_mode.c/h` | `em_mode.c/h` | RW-6 |
-| `emit_bb_seq.c/h` | `em_seq.c/h` | RW-6 |
-| `emit_bb_gen.h` | `em.h` (umbrella) | RW-6 |
-| `emit_defs.h` | `em_defs.h` | RW-6 |
-| `emit_bb_box.c` | `em_bb.c` | RW-3 |
-| `emit_sm_op.c` | `em_sm.c` | RW-4 |
-| `emit_sm_shape.c/h` | `em_sm.c` | RW-4 |
-| `emit_templates.h` | `em_templates.h` | RW-4 |
-| `emit_bb_flat.c/h` | `em_flat.c/h` | RW-5 |
-| `emit_sm_text.c/h` | `em_walk.c/h` | RW-5 |
+| `emit_label.c/h` | `emit_label.c/h` | RW-6 |
+| `emit_text3c.c/h` | `emit_text.c/h` | RW-6 |
+| `emit_mode.c/h` | `emit_mode.c/h` | RW-6 |
+| `emit_bb_seq.c/h` | `emit_seq.c/h` | RW-6 |
+| `emit_bb_gen.h` | `emit.h` (umbrella) | RW-6 |
+| `emit_defs.h` | `emit_defs.h` | RW-6 |
+| `emit_bb_box.c` | `emit_bb.c` | RW-3 |
+| `emit_sm_op.c` | `emit_sm.c` | RW-4 |
+| `emit_sm_shape.c/h` | `emit_sm.c` | RW-4 |
+| `emit_templates.h` | `emit_templates.h` | RW-4 |
+| `emit_bb_flat.c/h` | `emit_flat.c/h` | RW-5 |
+| `emit_sm_text.c/h` | `emit_walk.c/h` | RW-5 |
 | `emit_sm_binary.c/h` | **unchanged** | never |
 
 ### EM-REWRITE — Three diseases being cured
@@ -165,58 +165,58 @@ Fix: `insn_*` leaf unifies both. Compound helper calls it once.
 
 **Disease 3 — 20 stateful BB boxes written individually.**
 Every `emit_bb_xbal`, `emit_bb_xfarb` etc. is banner+alpha+beta_label+beta.
-Fix: `bb_box_def_t[]` table + one `em_bb_stateful()` driver.
+Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ### EM-REWRITE steps
 
 - [x] **RW-0** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — Naming scan. Full read of all 16 emitter
   files (excluding `emit_sm_binary.c`). Produced `ARCH-EMITTER.md` in `.github` (`567fc033`):
   sibling-consistent old→new name table for all functions/globals across L0–L5.
-  Key decisions: `insn_` prefix for leaf fns; `em_seq_` for compound sequences;
-  `em_bb_` for box templates; `em_sm_op_` for opcode emitters vs `em_sm_shape_` for
-  renderers; `em_text_` for TEXT-only helpers; `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
+  Key decisions: `insn_` prefix for leaf fns; `emit_seq_` for compound sequences;
+  `emit_bb_` for box templates; `emit_sm_op_` for opcode emitters vs `emit_sm_shape_` for
+  renderers; `emit_text_` for TEXT-only helpers; `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
   Gates: none (doc-only).
 
 - [ ] **RW-1** ⚡ NEXT — Foundation layer: write alongside old code, no deletions.
-  `em_mode.h/c`: single enum (TEXT/BINARY/MACRO_DEF) × wiring flag
+  `emit_mode.h/c`: single enum (TEXT/BINARY/MACRO_DEF) × wiring flag
   (WIRED/BROKERED). `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
-  `g_jit_emit_inline` becomes `em_set_inline(int)` sub-flag on TEXT mode.
-  `em_label.h/c`: all label symbols in one file (currently split across
-  `emit_label.c` + `emit_form.c`). `em_text.h/c`: rewrite `emit_text3c.c`
+  `g_jit_emit_inline` becomes `emit_set_inline(int)` sub-flag on TEXT mode.
+  `emit_label.h/c`: all label symbols in one file (currently split across
+  `emit_label.c` + `emit_form.c`). `emit_text.h/c`: rewrite `emit_text3c.c`
   — pending-label/cjmp machinery, 4-col BB port format.
   `insn.h/insn.c`: all ~60 leaf functions with X-group macros for jcc/push/pop
   families. Each function: `if (IS_TEXT) { text; return; }` / binary below.
   ~180 lines total for `insn.c`. Old files still compiled, no callers changed.
   Gates: `gcc -c` clean, smoke 7/7 unchanged.
 
-- [ ] **RW-2** — `em_seq.h/em_seq.c`: rewrite `emit_bb_seq.c` using only
-  `insn_*`/`em_mode`/`em_label`/`em_text`. No if-statements — only calls.
-  Every duplicated 3-line pattern becomes a named `em_seq_*` helper.
+- [ ] **RW-2** — `emit_seq.h/emit_seq.c`: rewrite `emit_bb_seq.c` using only
+  `insn_*`/`emit_mode`/`emit_label`/`emit_text`. No if-statements — only calls.
+  Every duplicated 3-line pattern becomes a named `emit_seq_*` helper.
   No compound helper body > 8 lines. ~90 lines replaces ~660.
   Old `emit_bb_seq.c` still compiled alongside.
   Gates: `gcc -c` clean, smoke 7/7 unchanged.
 
-- [ ] **RW-3** — `em_bb.c`: rewrite `emit_bb_box.c`. Table-driven stateful
-  boxes (`bb_box_def_t[]` + `em_bb_stateful()` driver). No if-statements in
+- [ ] **RW-3** — `emit_bb.c`: rewrite `emit_bb_box.c`. Table-driven stateful
+  boxes (`bb_box_def_t[]` + `emit_bb_stateful()` driver). No if-statements in
   any template function — only calls. Delete old `emit_bb_box.c`.
   ~80 lines replaces ~259.
   Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-4** — `em_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
+- [ ] **RW-4** — `emit_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
   One shape-class helper per SM opcode family; opcode families identified
   by shape (push-literal, push-var, binary-op, branch, call, etc).
   No if-statements in any template function. Delete old files.
-  `em_templates.h` replaces `emit_templates.h`.
+  `emit_templates.h` replaces `emit_templates.h`.
   Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-5** — `em_flat.c/h`: rewrite `emit_bb_flat.c`. `em_walk.c/h`:
+- [ ] **RW-5** — `emit_flat.c/h`: rewrite `emit_bb_flat.c`. `emit_walk.c/h`:
   rewrite `emit_sm_text.c`. Delete old files.
   Gates: full suite + `gcc -c` on all emitted artifacts.
 
 - [ ] **RW-6** — Delete old foundation: `emit_insn.c`, `emit_form.c`,
   `emit_mode.c`, `emit_label.c`, `emit_text3c.c`, `emit_bb_seq.c`,
   `emit_buf.c`, `emit_bb_gen.h`, `emit_defs.h`.
-  Umbrella `emit_bb_gen.h` → `em.h`. Update Makefile.
+  Umbrella `emit_bb_gen.h` → `emit.h`. Update Makefile.
   Finalize `ARCH-EMITTER.md` with bootstrap notes for Snocone/Icon.
   Gates: full suite, `gcc -c` all artifacts, beauty ≥10.
 - [ ] **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
@@ -236,11 +236,11 @@ one4all HEAD `7ad43ba3`. .github HEAD `567fc033`. Gates: template-byte-id 4/4.
 - Produced `ARCH-EMITTER.md`: complete old→new name table, sibling-consistent across all families.
 - Key naming decisions:
   - `insn_` — leaf fns (one x86 instruction, IS_TEXT at top, binary below)
-  - `em_seq_` — compound sequences (L3); no if-statements in body
-  - `em_bb_` — BB box templates (L4); table-driven via `bb_box_def_t[]`
-  - `em_sm_op_` — SM opcode emitters; `em_sm_shape_` — shape-class renderers
-  - `em_text_` — TEXT-only helpers; `em_label_` — label lifecycle; `em_mode_` — mode globals
-  - `em_flat_` — flat-glob builder; `em_walk_` — text SM codegen walker
+  - `emit_seq_` — compound sequences (L3); no if-statements in body
+  - `emit_bb_` — BB box templates (L4); table-driven via `bb_box_def_t[]`
+  - `emit_sm_op_` — SM opcode emitters; `emit_sm_shape_` — shape-class renderers
+  - `emit_text_` — TEXT-only helpers; `emit_label_` — label lifecycle; `emit_mode_` — mode globals
+  - `emit_flat_` — flat-glob builder; `emit_walk_` — text SM codegen walker
   - `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros replace scattered `bb_emit_mode` checks
   - `emit_sm_nullary_rt` (static) → absorbed into opcode dispatch table
   - `emit_add_delta_imm` / `emit_sub_delta_imm` → promoted to `insn_` layer (multi-insn but always-together)
@@ -251,6 +251,6 @@ one4all HEAD `7ad43ba3`. .github HEAD `567fc033`. Gates: template-byte-id 4/4.
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
 2. Confirm one4all HEAD `7ad43ba3`. Gates: template-byte-id 4/4.
-3. Current step: **RW-1** — Foundation layer: write `em_mode.h/c`, `em_label.h/c`,
-   `em_text.h/c`, `insn.h/insn.c` alongside old code. No deletions, no caller changes.
+3. Current step: **RW-1** — Foundation layer: write `emit_mode.h/c`, `emit_label.h/c`,
+   `emit_text.h/c`, `insn.h/insn.c` alongside old code. No deletions, no caller changes.
    Use names from ARCH-EMITTER.md exclusively.
