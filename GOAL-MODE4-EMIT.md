@@ -233,6 +233,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ---
 
+**SESSION HANDOFF — sess 2026-05-13c (Claude Sonnet 4.6)**
+
+**EM-7d: rel8→rel32 + rt_acomp fix.** one4all HEAD `c0675506`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 14/17 (+1 vs prev 13/17).
+
+### Work done
+
+1. **rel8→rel32 conditional jumps** (`c0675506`): `bb_emit.c` — added `bb_insn_je/jl/jge_rel32`; `emit_jmp` dispatcher now uses rel32 for `JMP_JE/JNE/JL/JGE`. Prevents `bb_label_define` abort on large BB globs (`trace_driver` `xcat0_ω` disp=141). **trace_driver now PASS.**
+2. **`rt_acomp` DT_S coercion** (`c0675506`): `rt.c` `rt_acomp` now coerces non-I/non-R/non-SNUL to 0 (matches `sm_interp.c` L1897). Fixes `EQ(DT_S-string, integer)` via `SM_ACOMP` path. No beauty gate change (semantic_driver uses `SM_CALL_FN "EQ"`, not `SM_ACOMP`).
+
+### Beauty gate: 14/17 PASS
+
+| Driver | Status | Root cause |
+|--------|--------|------------|
+| counter_driver | ❌ DIFF | Pre-existing mode-2 bug → parity break |
+| semantic_driver | ❌ DIFF | `epsilon . *PushCounter()` capture-fn doesn't fire in mode-4 `SM_EXEC_STMT`. Pattern matches but `PushCounter` side-effect skipped. Confirmed: `PushCounter()` alone works; bug is in pattern-capture dispatch path when pattern body contains `*Fn()` captures. |
+| stack_driver | ❌ DIFF | `.value($'@S')` → NAMEVAL not NAMEPTR. Pre-existing lowering bug. |
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 14/17. one4all HEAD `c0675506`.
+3. **semantic_driver capture-fn**: `epsilon . *PushCounter()` — pattern matches but `PushCounter` side-effect not executed in mode-4. Check `SM_PAT_CAPTURE_FN` handler in `sm_codegen.c` and `rt_bb_cap` in `rt.c`. Reproducer: after calling `nPush()` in value context (test 1), `'' nPush()` in pattern context matches `epsilon` but doesn't fire `*PushCounter()` capture. `PushCounter()` direct call works fine.
+4. stack/counter: accept as known divergence.
+
+---
+
 **SESSION HANDOFF — sess 2026-05-13b (Claude Sonnet 4.6)**
 
 **EM-7d: three rt.c fixes.** one4all HEAD `c7400111`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 13/17 (+1 vs prev 12/17).
