@@ -135,21 +135,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13n (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13o (Claude Sonnet 4.6)**
 
-one4all HEAD `a87483ab`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `47c03c26`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- ESP-11..14 closed (previous watermark): binary dispatch unified, emit_me*_blob deleted, sm_codegen_x64_emit.c/.h deleted, sm_codegen_text() created
-- ESP-15: split sm_codegen.c into two files:
-  - sm_codegen.c (2151 lines): binary/mode-3 only -- sm_codegen(), sm_jit_run(), trampoline, emit_standard_blob, g_blob_addrs, g_handlers[], h_* handlers. Still directly emits binary x86 for structural scaffolding (trampoline + blob wrappers).
-  - emitter_sm_gen.c (2387 lines): text/mode-4 only -- sm_codegen_text(), strtab, SrcLines, pattern_windows, emit_file_header/footer, per-opcode TEXT switch.
-- Emitter file inventory now clean: 10 files with clear mode ownership (see PLAN.md note)
+PIVOT — emitter file rename + cleanup (no rung work):
+
+- All emitter files renamed to `emit_*` prefix for naming consistency and Snocone-port readiness:
+  - `emitter_bb.c`          → `emit_bb.c`
+  - `emitter_bb_gen.c/h`    → `emit_bb_gen.c/h`
+  - `emitter_defs.c`        → `emit_defs.c`
+  - `emitter_sm.c`          → `emit_sm.c`
+  - `emitter_sm_gen.c`      → `emit_sm_gen.c` (kept) + `emit_sm_text.c` (clean split, mode-4 entry)
+  - `emitter_sm_template.c/h` → `emit_sm_template.c/h`
+  - `bb_flat.c/h`           → `emit_bb_flat.c/h`
+  - `sm_codegen.c/h` split  → `emit_sm_binary.c/h` (mode-3) + `emit_sm_text.h` (mode-4)
+  - `emitter.h/emitter.c`   → `emit.h/emit.c`
+  - `templates.h`           → `emit_templates.h`
+- All 11 mode-4 files stripped of comments; `/*----*/` 120-char banners added between non-one-liner functions. Net: −838 lines.
+- Mode-4 file inventory (6987 lines total): emit.h/c, emit_bb_gen.h/c, emit_bb.c, emit_templates.h, emit_sm_template.h/c, emit_sm.c, emit_sm_text.h/c.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `a87483ab`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `47c03c26`.
 3. Next open rung: EM-BB-FORMAT. See rung spec above.
+4. Note: `emit_sm_gen.c` and `emit_sm_text.c` are currently parallel (old + new split). Drop `emit_sm_gen.c` when `emit_sm_text.c` confirmed canonical.
 
