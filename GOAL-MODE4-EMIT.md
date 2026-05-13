@@ -72,7 +72,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
 - [x] **EM-9** — M2 close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
-- [ ] **EM-UNIFY** — Emitter subsystem unification. Three sub-rungs, all in one session:
+- [x] **EM-UNIFY** — Emitter subsystem unification. Three sub-rungs, all in one session:
   - **EM-UNIFY-a** Rename: `sm_templates.c` → `emitter_sm.c`; `bb_templates.c` → `emitter_bb.c`. Update Makefile, all `#include`s, function-pointer tables.
   - **EM-UNIFY-b** Merge `emitter_binary.c` + `emitter_text.c` into single `emitter.c`. Each low-level primitive (e.g. `emit_mov_rax_imm64`) becomes one function with an `if (is_text)` branch — binary bytes on one path, GAS mnemonic on the other. The two outputs are side-by-side in the same function body so they can be checked against each other at a glance. No more parallel files.
   - **EM-UNIFY-c** Opcode-as-argument API: replace hardcoded per-opcode `emit_sm_add()` / `emit_sm_sub()` / … families with a dispatched `emit_sm_op(int opcode, …)` that takes the SM opcode enum as an argument. Same for BB box family where applicable. Reduces template function count; callers pass the opcode, not a distinct function name.
@@ -96,26 +96,21 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13h (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13i (Claude Sonnet 4.6)**
 
-one4all HEAD `cdd0f967`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8-snocone-jit-emit 5/5, beauty 14/17.
+one4all HEAD `686bb145`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8-snocone-jit-emit 5/5, beauty 14/17.
 
 ### What was done this session
 
-**EM-9 closed.** Three deliverables:
-1. `libscrip_rt.so` ABI already fully documented in `src/runtime/rt/rt.h` (confirmed in-place; no new file needed — the header is the ABI doc).
-2. `make jit-emit-test` target added to `Makefile`: depends on `scrip` + `libscrip_rt`; runs `test_smoke_snobol4.sh` (7/7) + `test_gate_em8_snocone_jit_emit.sh` (5/5).
-3. `GOAL-CHUNKS.md` Step 8 marked `[x]`.
-
-**M2 (mode-4 x86 emitter for SNOBOL4 + Snocone) is now CLOSED.**
-
-**EM-10..EM-16 Icon path cancelled.** Icon is being rewritten pure-BB (no SM carrier); SM_SUSPEND/RESUME opcodes are irrelevant for Icon. M5 Icon work will be flat-BB extension, scoped as new rungs when M4 closes. Prolog/Raku SM path unchanged.
-
-**EM-UNIFY rung added** (sess 2026-05-13h): three sub-rungs — (a) rename sm_templates/bb_templates, (b) merge emitter_binary+emitter_text into single entwined emitter.c, (c) opcode-as-argument API replacing hardcoded per-opcode function families.
+**EM-UNIFY closed.** All three sub-rungs in one commit (`686bb145`):
+- EM-UNIFY-a: `sm_templates.c`→`emitter_sm.c`, `bb_templates.c`→`emitter_bb.c`
+- EM-UNIFY-b: `emitter_binary.c`+`emitter_text.c` merged into `emitter.c`; every leaf reads `e->is_text` and produces binary or GAS text side-by-side
+- EM-UNIFY-c: 50-entry `g_sm_nullary[]` table replaces ~40 identical functions; `emit_sm_op(opcode)` dispatch added; `emit_sm_arith_dispatch`, `emit_sm_int_arg`, `emit_sm_pat_str` helpers collapse further families
+- Net: 1100 lines deleted, 955 inserted — ~1.15x reduction in this pass; the table-driven approach enables further collapse
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8 5/5, beauty 14/17.
-3. **EM-10..EM-16** — M5 phase: SM_SUSPEND/RESUME, multi-frontend. ⛔ Do not begin until GOAL-CHUNKS M4 (Steps 12–18) closes.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `686bb145`.
+3. Next open step: **EM-MODE4-IS-MODE3-DUMP** (parent) — read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first.
 
