@@ -730,6 +730,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   **Gate:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥10, `gcc -c` on emitted `.s` clean, assembled+linked binary produces correct output for a literal-match program.
 
+- [x] **EM-BB-R10-FIX** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `d96d5520`)* — Add `t_push_r10`/`t_pop_r10` to `bb_emit.h/c`; wrap memcmp call in `emit_bb_xchr` with push/pop r10. Fixes r10 clobber in TEXT-mode standalone binaries. beauty-subsystems PASS 8→10.
+
 - [ ] **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` emits BB boxes in beautified byrd-box 4-column pure x86 asm format. `--bb-format` flag wired (one4all `3ae6ea26`); `g_bb_emit_format` global + `t_bb_format_port` + `t_bb_is_format_mode` added. No format behavior yet. **Prerequisite: EM-BB-TEXT-ADDR must close first.**
 
   **The goal:** each BB port emits as ONE 4-column line of pure x86 asm — no GAS macros, no macro expansion needed:
@@ -926,7 +928,33 @@ EC-8 (`08707cb0`): Removed dead `flat_text_simple_box` helper. Wrote `ARCH-EMITT
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `08707cb0`.
-3. **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` raw x86 three-column output for BB boxes. Spec in GOAL-MODE4-EMIT.md §EM-BB-FORMAT. Flag already wired (`ec334068`); no behavior yet. Start with EM-BB-FORMAT-0 (if not already done) and EM-BB-FORMAT-1 (XCHR box).
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+
+**EM-BB-TEXT-ADDR + EM-BB-R10-FIX closed.** one4all HEAD `d96d5520`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
+
+### Work done this session
+
+1. Renamed EM-BB-MACROS → EM-BB-FORMAT throughout goal+plan+code (`--bb-macros` → `--bb-format`, `g_bb_emit_macros` → `g_bb_emit_format`). Fixed spec: goal is 4-column pure x86 asm per BB port, not GAS macro invocations.
+
+2. **EM-BB-FORMAT-0** (`3ae6ea26`): Added `t_bb_format_port` + `t_bb_is_format_mode` helpers to `bb_emit.h/c`. No format behavior yet.
+
+3. **EM-BB-TEXT-ADDR** (`e9808467`): Fixed three TEXT-mode helpers (`t_sigma_plus_delta_to_rdi`, `t_bounds_check_delta_plus_len`, `t_load_siglen_sub_cmp_delta`) to emit `lea rcx, [rip + Σ]` / `[rip + Σlen]` instead of `mov rcx, 0x<literal>` (in-process heap address). Zero literal `0x...` addresses in BB blob sections of emitted `.s` files.
+
+4. **EM-BB-R10-FIX** (`d96d5520`): Diagnosed segfault in emitted standalone binaries — `memcmp@PLT` in `emit_bb_xchr` clobbered `r10` (caller-saved, AMD64 SysV ABI). Added `t_push_r10`/`t_pop_r10` to `bb_emit.h/c` (BINARY: bytes `41 52`/`41 5A`; TEXT: `push r10`/`pop r10`). Wrapped memcmp call in `emit_bb_xchr`. beauty-subsystems PASS 8→10. Emitted+assembled+linked binary now runs correctly.
+
+### Current emitted binary status
+
+`scrip --jit-emit --x64 program.sno | gcc -no-pie - out/libscrip_rt.so -o prog && echo input | ./prog` works for programs using literal pattern matching (XCHR). Remaining failures in beauty-subsystems (7) are content-divergence bugs, not crashes.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `d96d5520`.
+3. **EM-BB-FORMAT-1** — Begin 4-column pure x86 asm formatting for BB boxes with `--bb-format` flag. Start with XPOSI/XRPSI (simplest: already nearly 1-line-per-port in current TEXT output). The `t_bb_format_port` helper is ready. For each box kind, add `if (t_bb_is_format_mode()) { t_bb_format_port(lbl, instr, operands_with_fused_goto); return; }` branch at top of `emit_bb_<kind>`.
+
+### Lesson recorded
+
+Every PLT call inside a flat-BB blob must be bracketed with `push r10` / `pop r10`. The `t_bb_port_call` helper already does this. Any `t_call_sym_plt` call that is NOT inside `t_bb_port_call` (like the `memcmp` in `emit_bb_xchr`) needs explicit `t_push_r10`/`t_pop_r10` wrappers. This applies to both BINARY and TEXT modes. Audit: search `bb_templates.c` for `t_call_sym_plt` calls outside `t_bb_port_call` before adding new boxes.
 
 
 
