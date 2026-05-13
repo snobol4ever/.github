@@ -220,10 +220,18 @@ for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only ha
 - [x] Diff rung36_jcon_kwds. Implement missing stubs.
 - [x] rung37_keywords.icn. GATE-1..4. Commit.
 
-### IJ-12 — Queens mutual conjunction `every A & B` (Cluster P)
+### IJ-12 — Queens mutual conjunction `every A & B` (Cluster P) ✅ `6b20b4a2`
 
-- [ ] Read JCON ir_a_Mutual. Fix TT_MUTUAL cross-product.
-- [ ] rung37_mutual.icn. GATE-1..4. Commit.
+Root cause: sm_call_proc's static restore loop called static_get() for
+static vars (rows/up/down) but static_tab had no entry yet during recursive
+calls — the caller hasn't exited so it hasn't saved. initial{} stores statics
+via SM_STORE_FRAME to the caller's frame; recursive callee's frame slots zero.
+
+Fix: when static_get() returns 0, fall back to parent frame (frame_stack[fd-2])
+for the same slot. Live static values propagate across recursive calls.
+
+- [x] Read JCON ir_a_Mutual. Fix TT_MUTUAL cross-product.
+- [x] rung37_mutual.icn. GATE-1..4. Commit. `6b20b4a2` / corpus `47e3b67`
 
 ### IJ-13 — Segfaults: htprep / meander / kross (Cluster O)
 
@@ -278,17 +286,7 @@ for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only ha
 
 ## Watermark
 
-  one4all: 36fc9d2f  corpus: 418ed33
-  ir-run:  PASS=199 FAIL=36 XFAIL=30
-  honest:  PASS=271 FAIL=1 ABORT=0   broker: 22/49
-  Step:    IJ-12 IN PROGRESS (sess 2026-05-13, Claude Sonnet 4.6):
-           Infrastructure committed (36fc9d2f): coro_bb_mutual (JCON ir_a_Mutual
-           semantics, A=outer/B=inner rebuilt per A-tick); coro_bb_revassign_lhs_gen
-           (generative LHS subscript e.g. line[!sol] <- 'Q'); use_rhs_gen for chained
-           <- (rows[r] <- up[...] <- down[...] <- 1); subscript_set DT_S string fix.
-           Queens STILL FAILS: permutation test (no diagonals) passes 24 perms.
-           With diagonals, inner q() calls find no valid rows. Root cause suspected:
-           coro_bb_binop beta-advance reads `c` from wrong frame context when A
-           is the nested 3-level eq-chain inside inner recursive q() call.
-           NEXT: IJ-12 debug — in coro_bb_binop beta, verify `up[n+r-c]` re-eval
-           uses correct c value from inner q() frame. Then rung37_mutual.icn + gates.
+  one4all: 6b20b4a2  corpus: 47e3b67
+  ir-run:  PASS=200 FAIL=35 XFAIL=30
+  honest:  PASS=272 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-12 ✅. NEXT: IJ-13 (segfaults: htprep/meander/kross — ASAN build)
