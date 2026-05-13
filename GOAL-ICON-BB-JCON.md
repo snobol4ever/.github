@@ -200,7 +200,7 @@ from "drain body then advance subject" to "advance subject after one body value"
 
 ## Watermark
 
-  one4all: 4008701c  corpus: eac177d
+  one4all: 47c03c26  corpus: eac177d
   ir-run:  PASS=198 FAIL=37 XFAIL=30
   honest:  PASS=269 FAIL=1 ABORT=0   broker: 23/49
   Step:    IJ-9 COMPLETE — coro_bb_scan_gen beta fix: set body_live=0 on external beta,
