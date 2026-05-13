@@ -71,7 +71,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [ ] **EM-BB-FORMAT** (parent) — closes when smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10. Spec: each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions.
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
-- [ ] **EM-9** — M2 close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
+- [x] **EM-9** — M2 close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
 
 ### M5 phase — Icon, Raku, Prolog, Rebus
 
@@ -91,20 +91,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13g (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13h (Claude Sonnet 4.6)**
 
-one4all HEAD `a73e0150`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8-snocone-jit-emit 5/5, beauty 14/17.
+one4all HEAD `cdd0f967`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8-snocone-jit-emit 5/5, beauty 14/17.
 
 ### What was done this session
 
-**EM-8 closed.** `test_gate_em8_snocone_jit_emit.sh` written and passing PASS=5 FAIL=0. Five Snocone smoke programs compile and run correctly under `--jit-emit --x64` linked against `libscrip_rt.so`.
+**EM-9 closed.** Three deliverables:
+1. `libscrip_rt.so` ABI already fully documented in `src/runtime/rt/rt.h` (confirmed in-place; no new file needed — the header is the ABI doc).
+2. `make jit-emit-test` target added to `Makefile`: depends on `scrip` + `libscrip_rt`; runs `test_smoke_snobol4.sh` (7/7) + `test_gate_em8_snocone_jit_emit.sh` (5/5).
+3. `GOAL-CHUNKS.md` Step 8 marked `[x]`.
+
+**M2 (mode-4 x86 emitter for SNOBOL4 + Snocone) is now CLOSED.**
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8 5/5, beauty 14/17. one4all HEAD `a73e0150`.
-3. **EM-9**: M2 close — document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
-   - Check `Makefile` for existing `jit-emit-test` target or add one.
-   - Document ABI in `src/runtime/rt/rt.h` header comment or a new `LIBSCRIP_RT_ABI.md`.
-   - Find GOAL-CHUNKS Step 8 in `GOAL-CHUNKS.md` and mark `[x]`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8 5/5, beauty 14/17.
+3. **EM-10..EM-16** — M5 phase: SM_SUSPEND/RESUME, multi-frontend. ⛔ Do not begin until GOAL-CHUNKS M4 (Steps 12–18) closes.
 

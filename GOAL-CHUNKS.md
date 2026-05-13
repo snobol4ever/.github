@@ -361,7 +361,7 @@ milestones:
 > engine, `polyglot.c`, and the proc/pred tables.  Two sessions can
 > work both tracks simultaneously without merge collisions.
 
-- [ ] **Step 8 — File `GOAL-MODE4-EMIT.md` and execute it
+- [x] **Step 8 — File `GOAL-MODE4-EMIT.md` and execute it
   to completion.**  (See file — owns both M2 and M5 phases of
   the x86 mode-4 emitter, rungs EM-1 through EM-9 cover this
   step.)  This is itself a multi-rung sub-goal **executed in a
