@@ -114,3 +114,5 @@ one4all HEAD `686bb145`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5,
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `686bb145`.
 3. Next open step: **EM-MODE4-IS-MODE3-DUMP** (parent) — read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first.
 
+**Design decision (sess 2026-05-13i):** `emitter_t *e` stays. It carries `e->is_text`, `e->intern_str`, and vtable dispatch (`e->emit_insn`, `e->fprintf_raw`). `bb_flat.c` needs per-instance state for concurrent text+binary emitters (byte-identity test holds both live simultaneously). Promoting to globals would break that. Decision: don't remove.
+
