@@ -794,7 +794,26 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [ ] **EM-SPEC-T-ERADICATE** — Remove `spec_t` from the BB engine. `spec_t = { const char *σ; int δ }` is a SNOBOL4-specific type. Cross-language compatibility requires the BB box return type to be `DESCR_t` (already the declared type of `bb_box_fn`) everywhere. `spec_t` still appears in `bb_box.h` (11 uses), `bb_boxes.c` (`arbno_frame_t`), `stmt_exec.c` (local vars at 6+ sites), `rt.c` (local vars at 8 sites). The `DESCR_t` layout is already defined to subsume `spec_t` (both 16 bytes, rax:rdx, comment in `bb_box.h:200`). Migration: replace every `spec_t` local with `DESCR_t`; replace `spec(σ, δ)` constructor with `descr_from_spec(σ, δ)` (new inline in `bb_box.h`); replace `spec_from_descr(d)` with direct field access; delete `spec_t` typedef. This enables Prolog (boolean) and Icon (any value) boxes to share the same BB engine without SNOBOL4-specific type leakage.
 
   Sub-rungs:
-  - [ ] **EST-1** — Audit: `grep -rn spec_t src/` → list every file + count. Record here.
+  - [x] **EST-1** — Audit: `grep -rn spec_t src/` → list every file + count. Record here. *(Sonnet 4.6, sess 2026-05-12)*
+
+    **Audit results (one4all HEAD `b0d93f7a`):**
+
+    | File | Count | Nature |
+    |------|-------|--------|
+    | `src/runtime/x86/bb_box.h` | 11 | `typedef spec_t`, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()`, `pending` field in `bb_deferred_var_t`, comments |
+    | `src/runtime/x86/bb_convert.h` | 6 | `descr_from_spec()` + `spec_from_descr()` helpers (bridge during migration) |
+    | `src/runtime/rt/rt.c` | 15 | Local vars in 14 `rt_bb_*` functions (ARB, LEN, TAB, RTAB, BAL, BREAKX, SPAN, BRK, ANY, NOTANY, ARBNO+br, ATP, cr, REM) + `rt_arbno_frame_t` |
+    | `src/runtime/x86/stmt_exec.c` | 11 | Local vars `UC` (line 367) + `DVAR` (line 542) + `spec_from_descr()` call sites (lines 738, 1171, 1178); rest are comments |
+    | `src/runtime/x86/bb_boxes.c` | 1 | `arbno_frame_t` typedef (`spec_t matched; int start`) |
+    | `src/runtime/x86/bb_flat.c` | 3 | Comments only |
+    | `src/runtime/x86/descr.h` | 2 | Comments only |
+    | `src/runtime/x86/bb_broker.c` | 1 | Comment only |
+    | `src/frontend/prolog/pl_broker.c` | 2 | Comments only |
+    | `src/frontend/icon/icon_gen.c` | 1 | Comment only |
+    | `src/frontend/snobol4/CMPILE.c` | 19 | **OUT OF SCOPE** — CMPILE.c defines its own `spec_t` (line 84: `typedef struct { const char *ptr; int len; } spec_t; /* SIL SPEC */`). Completely separate type from `bb_box.h`'s `spec_t`. Not part of this migration. |
+
+    **Active migration targets:** `bb_box.h` (typedef + helpers), `bb_convert.h` (bridge helpers), `rt.c` (15 local vars), `stmt_exec.c` (5 real sites), `bb_boxes.c` (1 struct). Total: 47 hits in scope; comments-only files are no-ops.
+
   - [ ] **EST-2** — Add `descr_from_spec(σ, δ)` inline helper to `bb_box.h`. Migrate `bb_boxes.c` (arbno_frame_t) and `rt.c` (8 local vars) from `spec_t` to `DESCR_t`. Gate: build clean, smoke 7/7, broker 49/49.
   - [ ] **EST-3** — Migrate `stmt_exec.c` (6 sites). Gate: build clean, smoke 7/7.
   - [ ] **EST-4** — Delete `spec_t` typedef, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()` from `bb_box.h`. Delete `spec_from_descr()`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
@@ -985,6 +1004,22 @@ Delete `emit_bb_intcur` entirely.
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+
+**EST-1 closed.** one4all HEAD `b0d93f7a` (no code change — audit only). .github HEAD (this commit). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9.
+
+### Work done
+
+1. **EST-1 audit** — full `grep -rn spec_t src/` sweep. 72 total hits. Active migration targets: `bb_box.h` (typedef+helpers), `bb_convert.h` (bridge helpers), `rt.c` (15 local vars across 14 `rt_bb_*` functions), `stmt_exec.c` (5 real sites: UC, DVAR, 3× spec_from_descr calls), `bb_boxes.c` (arbno_frame_t). Comments-only files (bb_flat.c, descr.h, bb_broker.c, pl_broker.c, icon_gen.c) are no-ops. CMPILE.c has its own unrelated SIL `spec_t` — OUT OF SCOPE. Audit recorded in goal file.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `b0d93f7a`.
+3. **EST-2** — Add `descr_from_spec(σ, δ)` inline to `bb_box.h` (takes two params, not a `spec_t`). Migrate `bb_boxes.c` (`arbno_frame_t`: replace `spec_t matched` with `DESCR_t matched`) and all 15 `rt.c` local vars from `spec_t` to `DESCR_t` (use `FAILDESCR` as the empty sentinel, `descr_from_spec()` for construction, direct field access for `σ`/`δ`). Gate: build clean, smoke 7/7, broker 49/49.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-13c (Claude Sonnet 4.6)**
 
