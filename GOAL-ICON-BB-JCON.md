@@ -103,12 +103,30 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 - `is_scan_builtin_name()` added to scan_builtins.c/h.
 - `coro_bb_fnc` loops on scan-builtin failure (upto/find/tab/move/etc.) to try next arg value.
 
-**Remaining blocker:** `rung36_jcon_scan` — `every write(("badc"|"edgf"|"x") ? write(upto(!&lcase)))`
-produces only 2 values (one subject, partial body) instead of all positions across all subjects.
-Root cause: `coro_bb_scan_gen` body_gen β-resume — after firing first position in subject "badc",
-β should advance to next upto position but body exhausts early. Audit `coro_bb_scan_gen` β path.
+**Root cause identified (sess 2026-05-13, Claude Sonnet 4.6):**
+`coro_bb_scan_gen` on external β resumes `body_gen` β — this is WRONG per JCON semantics.
+Each subject should contribute exactly ONE body execution (α tick). On external β, the scan
+must advance to the NEXT subject (not resume the body).
 
-- [ ] Fix `(A|B) ? body` — resume subject generator on body failure; body_gen β-resume per subject.
+Proof from `rung36_jcon_scan.expected` vs actual:
+  Expected: `1, 5, 5`  — one value per subject (badc→1, edgf→5, x→5)
+  Actual:   `2, 2, 1, 1, 4, 4, ...` — many values per subject (body β pumped)
+
+Also confirmed by JCON JVM bytecode (`icn_76_scan_bfail → icn_77_β` = advances subject on
+body exhaustion) and by running `every write(image(every write(("badc"|"edgf"|"x") ? write(upto(!&lcase)))) | "none")`
+which produces the above doubled values.
+
+**The fix:** In `coro_bb_scan_gen`, on β entry (`entry != α && z->body_live`):
+  - Do NOT call `z->body_gen.fn(z->body_gen.ζ, β)`
+  - Instead set `z->body_live = 0` immediately and fall through to advance subject
+  This makes each subject contribute exactly one body value (from α), matching JCON semantics.
+
+CAUTION: verify the fix does not break `every write((1 to 10) ? move(1))` (currently passing).
+That test has non-generative body (move), so body β → FAIL already → subject advance. The fix
+is structurally equivalent for non-generative bodies. For generative bodies, it changes behaviour
+from "drain body then advance subject" to "advance subject after one body value" — which is correct.
+
+- [ ] Fix `coro_bb_scan_gen` β: set body_live=0, skip body β, fall through to subject advance.
 - [ ] rung37_scan_alt.icn. GATE-1..4. Commit.
 
 ### IJ-10 — &pos / &subject negative positions (Cluster L)
@@ -181,9 +199,9 @@ Root cause: `coro_bb_scan_gen` body_gen β-resume — after firing first positio
   one4all: d1044104  corpus: 04f24b8
   ir-run:  PASS=198 FAIL=37 XFAIL=30
   honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-9 PARTIAL — every-as-expression fix landed (d1044104).
-           Remaining: scan alternation body-gen resume (rung36_jcon_scan).
-           Root cause: coro_bb_scan_gen fires body only once per subject
-           when body has generative arg (write(upto(!&lcase))). β-resume
-           reinstalls scan ctx but body_gen doesn't advance to next upto pos.
-           Next: audit body_gen β path in coro_bb_scan_gen.
+  Step:    IJ-9 PARTIAL — root cause of scan alternation bug identified (sess 2026-05-13).
+           Fix: coro_bb_scan_gen on external β must NOT resume body_gen β.
+           Instead: set body_live=0, fall through to advance subject immediately.
+           Each subject contributes exactly ONE body α tick (JCON semantics).
+           See detailed analysis in IJ-9 step above.
+           Next: implement the fix, write rung37_scan_alt.icn, run GATE-1..4.
