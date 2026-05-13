@@ -814,9 +814,9 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
     **Active migration targets:** `bb_box.h` (typedef + helpers), `bb_convert.h` (bridge helpers), `rt.c` (15 local vars), `stmt_exec.c` (5 real sites), `bb_boxes.c` (1 struct). Total: 47 hits in scope; comments-only files are no-ops.
 
-  - [ ] **EST-2** — Add `descr_from_spec(σ, δ)` inline helper to `bb_box.h`. Migrate `bb_boxes.c` (arbno_frame_t) and `rt.c` (8 local vars) from `spec_t` to `DESCR_t`. Gate: build clean, smoke 7/7, broker 49/49.
-  - [ ] **EST-3** — Migrate `stmt_exec.c` (6 sites). Gate: build clean, smoke 7/7.
-  - [ ] **EST-4** — Delete `spec_t` typedef, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()` from `bb_box.h`. Delete `spec_from_descr()`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
+  - [x] **EST-2** — Add `descr_from_spec(σ, δ)` inline helper to `bb_box.h`. Migrate `bb_boxes.c` (arbno_frame_t) and `rt.c` (8 local vars) from `spec_t` to `DESCR_t`. Gate: build clean, smoke 7/7, broker 49/49.
+  - [x] **EST-3** — Migrate `stmt_exec.c` (6 sites). Gate: build clean, smoke 7/7.
+  - [x] **EST-4** — Delete `spec_t` typedef, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()` from `bb_box.h`. Delete `spec_from_descr()`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
 
 - [ ] **EM-XVAL-DESCR** — Cross-language BB value protocol. Every BB box returns `DESCR_t`. The DESCR_t value carries semantic meaning per frontend:
   - SNOBOL4: `DT_STRING` match span (σ, δ) — the matched substring
@@ -1004,6 +1004,25 @@ Delete `emit_bb_intcur` entirely.
 ---
 
 ## Watermark
+
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+
+**EM-SPEC-T-ERADICATE complete (EST-1..4).** one4all HEAD `a2b65fb9`. .github HEAD (this commit). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9 (baseline preserved throughout).
+
+### Work done
+
+1. **EST-1** (prev session, `270821a`): audit — 72 hits, 5 active files, CMPILE.c out of scope.
+2. **EST-2** (`31df5bbf`): added `descr_match(σ,δ)` + `descr_match_cat(x,y)` helpers to `bb_box.h`. Migrated all 14 `rt_bb_*` locals + `rt_arbno_frame_t.matched` + `bb_boxes.c::arbno_frame_t.matched` + `cap_t::pending` field. No `spec_t` in `rt.c` or `bb_boxes.c`.
+3. **EST-3** (`230bfdd3`): migrated `stmt_exec.c` — `UC`, `DVAR`, `sp`, `r1`, `r2` all to `DESCR_t`; `spec_from_descr`/`descr_from_spec` calls replaced with direct `descr_match()` / `IS_FAIL_fn()`.
+4. **EST-4** (`a2b65fb9`): deleted `spec_t` typedef, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()` from `bb_box.h`. Deleted `bb_convert.h` entirely. Removed `#include "bb_convert.h"` from `rt.c`, `bb_boxes.c`, `bb_broker.h`, `stmt_exec.c`. Only comments mention `spec_t` — no live code.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `a2b65fb9`.
+3. **EM-XVAL-DESCR EXVAL-1** — audit all `bb_box_fn` call sites in `stmt_exec.c`, `rt.c`, `bb_flat.c`, `bb_broker.c` that assume SNOBOL4 σ/δ layout (i.e. read `.s`/`.slen` from the return without checking `.v`). File findings to `doc/xval_audit.md`. Gate: doc committed.
+
+---
 
 **SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
 
