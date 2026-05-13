@@ -49,6 +49,7 @@ IJ-11 icn_kw_read() centralises keyword reads; type()/image() cset fixes. Cluste
 IJ-12 `6b20b4a2` static parent-frame fallback for recursive procs. Cluster P ✅.
 IJ-13a `d2453ecc` ast_gc_clone: only GC_strdup sval for string-typed nodes (crash fix).
 IJ-13b `2d5567ca` &input/&output/&errout -> INTVAL(0/1/2); read(infile:=&input) works.
+IJ-14 `00cec4c3` fix coro_bb_iterate static-alias bug: z->ch (in-struct 2-byte buf) returned directly caused all put(L,!s) entries to alias same ptr → last char. GC_strdup(z->ch) each tick. Same fix in coro_value.c TT_ITERATE. mindfa/mffsol still FAIL: cset ++/--/** missing from inline interp_eval (SM_CALL_FN only); separate gap.
 IJ-13c `1e4a6d7f` DT_FH=12 sentinel in descr.h; FHVAL(idx) macro; &input/&output/&errout return FHVAL; open() returns FHVAL; write/writes/read/reads/close all route via DT_FH first-arg. honest 273→274. Cluster O htprep/meander/kross still FAIL (root: while-loop/scan bug in in(), not DT_FH).
 
 ## Active steps
@@ -65,7 +66,7 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ### IJ-14 — stdin programs: mindfa / mffsol (Cluster Q)
 
-- [ ] Write .stdin fixtures. GATE-1..4. Commit.
+- [x] Write .stdin fixtures. GATE-1..4. Commit. (fixtures pre-existed; fixed coro_bb_iterate static-alias `00cec4c3`; mindfa/mffsol still blocked by cset ++/-- missing from inline interp_eval)
 
 ### IJ-15 — parse program (Cluster Q)
 
@@ -113,7 +114,7 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: 1e4a6d7f  corpus: 77de346
+  one4all: 00cec4c3  corpus: 77de346
   ir-run:  PASS=200 FAIL=35 XFAIL=30
   honest:  PASS=274 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-14 (stdin fixtures for mindfa/mffsol)
+  NEXT: IJ-15 (parse program — Cluster Q)
