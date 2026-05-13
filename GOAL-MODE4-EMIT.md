@@ -73,11 +73,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
 - [x] **EM-9** — M2 close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
 
-### M5 phase — Icon, Raku, Prolog, Rebus
+### M5 phase — Raku, Prolog, Rebus (Icon cancelled from SM path)
 
 ⛔ Do not begin until GOAL-CHUNKS M4 (Steps 12–18) closes.
 
-- [ ] EM-10..EM-16 — SM_SUSPEND/RESUME, multi-frontend, M5 close. Details deferred.
+- [~] EM-10..EM-16 — SM_SUSPEND/RESUME, multi-frontend, M5 close. **CANCELLED for Icon** (sess 2026-05-13h): Icon is being rewritten pure-BB with no SM carrier; SM_SUSPEND/RESUME opcodes are irrelevant for Icon. Icon mode-4 emission will extend flat-BB emission to cover Icon generator boxes directly — new rungs scoped when M4 closes. Prolog and Raku SM_SUSPEND/RESUME work remains; re-scope those rungs when M4 closes.
 
 ---
 
@@ -103,6 +103,8 @@ one4all HEAD `cdd0f967`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5,
 3. `GOAL-CHUNKS.md` Step 8 marked `[x]`.
 
 **M2 (mode-4 x86 emitter for SNOBOL4 + Snocone) is now CLOSED.**
+
+**EM-10..EM-16 Icon path cancelled.** Icon is being rewritten pure-BB (no SM carrier); SM_SUSPEND/RESUME opcodes are irrelevant for Icon. M5 Icon work will be flat-BB extension, scoped as new rungs when M4 closes. Prolog/Raku SM path unchanged.
 
 ### Next session must
 
