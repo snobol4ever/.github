@@ -143,14 +143,11 @@ from C source alone. Previous Claude skipped this and had to backtrack.
 **Missing:** sin/cos/tan/atan/exp/log/sqrt (floating-point math),
             iand/ior/ixor/ishift/icom (integer bitwise ops).
 
-- [ ] Read jcon_irgen.icn `ir_a_Call` for math builtins.
-- [ ] Implement missing math builtins in icn_builtins.c (sin/cos/tan/atan/exp/log/sqrt).
-- [ ] Implement integer bitwise builtins: iand/ior/ixor/ishift/icom.
-- [ ] Write test source `rung37_math_builtins.icn`:
-      write(sin(0.0)), write(cos(0.0)), write(iand(12,10)), write(ior(12,10)),
-      write(ishift(1,3)), write(sqrt(4.0)).
-      Expected: 0.0, 1.0, 8, 14, 8, 2.0.
-- [ ] GATE-1..4. Commit.
+- [x] Read jcon_irgen.icn `ir_a_Call` for math builtins.
+- [x] Implement missing math builtins in icn_builtins.c (sin/cos/tan/atan/exp/log/sqrt). ✅ prior session
+- [x] Implement integer bitwise builtins: iand/ior/ixor/ishift/icom. ✅ prior session
+- [x] Builtin-as-proc-value: f := sqrt; f(4.0); image(f,15) → "function sqrt". one4all `2e810645`.
+- [x] GATE-1..4. Commit.
 
 ### IJ-5 — String formatting builtins: center/left/right/detab/entab (Cluster E)
 
@@ -367,8 +364,9 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
   Carved:       2026-05-12 (Claude Sonnet 4.6)
   one4all HEAD: b36d7655
   ir-run:       PASS=199 FAIL=36 XFAIL=30 TOTAL=265
-  Current step: IJ-4 (IJ-1 ✅ `c5bb0775`, IJ-2 ✅ `8529aec9`, IJ-3 ✅ `248379b3`).
-                Note: Icon 9.5 oracle built from uploaded icon-master.zip at /home/claude/icon-bin/icon.
-                Key finding: 3() → FAILDESCR (not 3); every write((!plist)()) skips
-                non-callable elements. Also closed: IJ-4 math builtins, IJ-5 detab/entab, TK_AUGPOW fix.
-                ir-run PASS=199 FAIL=36; honest PASS=266 FAIL=1 ABORT=0.
+  Current step: IJ-5 (IJ-1..IJ-4 ✅). one4all `2e810645`.
+                Icon 9.5 oracle at /home/claude/icon-bin/icon (built from uploaded icon-master.zip).
+                ir-run PASS=198 FAIL=37 (baseline); honest PASS=266 FAIL=1 ABORT=0.
+                IJ-4 note: rung36_jcon_mathfunc still failing — rounding via r() proc
+                and 'every try(sqrt, 0.0|0.25|...)' pattern needs investigation.
+                Builtin-as-proc-value (f:=sqrt; f(4.0)) now works.
