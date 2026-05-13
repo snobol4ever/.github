@@ -83,22 +83,43 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13x (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13y (Claude Sonnet 4.6)**
 
-one4all HEAD `d894c021`. Gates: smoke 7/7, template-byte-id 4/4. EM-RAW-PURGE-1 ✅ + full source scan ✅.
+one4all HEAD `d894c021`. .github HEAD `829f7714`. Gates: smoke 7/7, template-byte-id 4/4.
 
 ### What was done this session
 
-- Full source scan: every raw bb_emit_byte/u32/u64 call found and eliminated from emit_bb_seq.c and emit_bb_box.c.
-- Added 21 new bb_insn_* functions to emit_insn.c/h covering all missing instruction encodings.
-- Rewrote emit_bb_seq.c (16 raw-byte blocks → bb_insn_* calls); fixed emit_bb_box.c (1 block).
-- Fixed bb_build_brokered raw prologue → emit_brokered_prologue().
-- Zero raw bb_emit_byte calls now exist outside the L0-L2 primitive layer (emit_buf/form/insn/label/mode.c).
-- emit_insn.c IS part of the primitive layer — its bb_emit_byte calls are legitimate (they are the template implementation).
+- Verified emitter architecture: mode-3 (`emit_sm_binary.c`) is a C stack machine interpreter — zero x86 emission, completely outside emitter scope. Confirmed correct.
+- Verified SM ops: exactly one C template function per op in `emit_sm_op.c`; `emit_sm_text.c` always calls through them. No duplicates.
+- Verified BB ops: exactly one C template function per op in `emit_bb_box.c`. No duplicates.
+- Full emitter source inventory: 8,920 lines across 16 file pairs, L0–L5.
+- Emitter cleanup STILL ACTIVE per Lon — continue scanning before EM-BB-FORMAT.
+
+### Emitter file inventory (8,920 lines total)
+
+| File | Lines | Layer |
+|---|---:|---|
+| emit_buf.h/c | 173 | L0 byte primitive |
+| emit_defs.h/c | 58 | L0 type defs |
+| emit_form.h/c | 445 | L1 encoding forms |
+| emit_insn.h/c | 708 | L2 single insns |
+| emit_label.h/c | 76 | L2 label lifecycle |
+| emit_mode.h/c | 280 | L2 mode globals |
+| emit_text3c.h/c | 306 | L2 3-col formatter |
+| emit.h/c | 334 | L2 dual-mode forms |
+| emit_bb_gen.h | 24 | L2 umbrella shim |
+| emit_templates.h | 212 | L3/4 decls |
+| emit_bb_seq.h/c | 660 | L3 compound BB helpers |
+| emit_bb_box.c | 259 | L4 BB box templates |
+| emit_bb_flat.h/c | 1241 | L5 flat glob builder |
+| emit_sm_shape.h/c | 904 | L4 SM shape renderers |
+| emit_sm_op.c | 388 | L4 SM op templates |
+| emit_sm_text.h/c | 1763 | L5 text SM codegen walker |
+| emit_sm_binary.h/c | 1423 | L5 mode-3 interpreter (no x86 emission) |
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md.
 2. Confirm one4all HEAD `d894c021`. Gates: smoke 7/7, template-byte-id 4/4.
-3. Current step: **EM-BB-FORMAT** — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, gcc -c clean, beauty ≥10.
-4. NOTE: emitter cleanup is still ACTIVE per Lon's instruction. Continue scanning for violations before EM-BB-FORMAT work.
+3. Emitter cleanup still active — scan before EM-BB-FORMAT work.
+4. Current step: **EM-BB-FORMAT** — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, gcc -c clean, beauty ≥10.
