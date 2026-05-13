@@ -377,9 +377,9 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
 ## Watermark
 
   Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: 2e0ce555
-  ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
-  Honest:       PASS=259 FAIL=1  ABORT=0
-  Current step: IJ-3 (partial — DT_E storage/dispatch working; every write((!plist)())
-                blocked at SM/BB seam; coro_bb_indirect_callee drive injection needed;
-                see 'Remaining open issue' above for hypothesis and fix direction)
+  one4all HEAD: b36d7655
+  ir-run:       PASS=199 FAIL=36 XFAIL=30 TOTAL=265
+  Current step: IJ-3 (next: fix every-inside-builtin-arg BB; rung37_every_in_arg.icn
+                isolates it — image(every 1|2|3) → &null instead of 1,2,3;
+                coro_bb_fnc needs to treat TT_EVERY arg as a generator not a oneshot.
+                Also closed: IJ-4 math builtins, IJ-5 detab/entab, TK_AUGPOW fix.)
