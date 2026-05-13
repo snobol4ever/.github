@@ -732,15 +732,95 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 - [x] **EM-BB-R10-FIX** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `d96d5520`)* — Add `t_push_r10`/`t_pop_r10` to `bb_emit.h/c`; wrap memcmp call in `emit_bb_xchr` with push/pop r10. Fixes r10 clobber in TEXT-mode standalone binaries. beauty-subsystems PASS 8→10.
 
-- [ ] **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` emits BB boxes in beautified byrd-box 4-column pure x86 asm format. `--bb-format` flag wired (one4all `3ae6ea26`); `g_bb_emit_format` global + `t_bb_format_port` + `t_bb_is_format_mode` added. No format behavior yet. **Prerequisite: EM-BB-TEXT-ADDR must close first.**
+- [ ] **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` emits BB boxes in beautified byrd-box 4-column pure x86 asm format. `--bb-format` flag wired (one4all `3ae6ea26`); `g_bb_emit_format` global + `t_bb_format_port` + `t_bb_is_format_mode` added. Baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `d96d5520`.
 
-  **The goal:** each BB port emits as ONE 4-column line of pure x86 asm — no GAS macros, no macro expansion needed:
+  **The goal:** each BB port emits as ONE 4-column `;`-separated line of pure x86 asm — no named macros, no macro expansion needed. 4 columns, `;`-separated (GAS treats `;` as statement separator on x86):
   ```
-  LABEL:              INSTRUCTION      operands                    ; comment
+  col1: LABEL:           col2: instruction    col3: operands          col4: ; jmp target
   ```
-  Col widths: 24 / 16 / free. Every conditional+unconditional jmp pair fused onto one line. References to Σ/Σlen/Δ use RIP-relative addressing (`[rip + Σ]` etc.). The assembled output is byte-identical to mode-3 BINARY. BINARY mode path in `t_*` helpers unchanged.
+  Col widths: 24 / 16 / 32 / free. Every conditional test+jump pair fused as `cmp …; je succ` in col2/col3 and `jmp fail` in col4. The assembled output is byte-identical to mode-3 BINARY. BINARY mode path in `t_*` helpers unchanged.
 
-  Sub-rungs: EM-BB-FORMAT-1 through EM-BB-FORMAT-9 — one per box kind. Each: add `if (t_bb_is_format_mode())` branch to `emit_bb_<kind>` that calls `t_bb_format_port` with one fused-instruction-line per port. Gate per rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, PASS≥10, `gcc -c` clean.
+  Example — POS(2):
+  ```
+  pat_0_α:             cmp    dword [r10+Δ], 2       ; je pat_0_γ ; jmp pat_0_ω
+  pat_0_β:                                            ; jmp pat_0_ω
+  ```
+
+  ⛔ **LAW: No `if` statements in C template functions. Only function calls.**
+  The `t_*` helpers handle all mode-branching internally. Template functions call `t_*` helpers and return. No `if (t_bb_is_format_mode())` in any `emit_bb_*` or `emit_sm_*` body — ever.
+
+  **Architecture for format mode in `t_*` helpers:**
+
+  A "port context" accumulator in `bb_emit.c` buffers the current port's inline instructions. `t_label_define` in FORMAT mode saves the label as the pending port label (instead of emitting it). `t_emit_jmp` in FORMAT mode flushes the accumulated port buffer as one 4-column `;`-separated line with the jump in col4. The `t_load_delta_cmp_imm`, `t_sigma_plus_delta_to_rdi`, `t_bounds_check_delta_plus_len` etc. append their instruction fragment to the accumulator in FORMAT mode. Result: the template body is unchanged; FORMAT mode is purely a property of the `t_*` implementation.
+
+  **Port context API (new internal state in `bb_emit.c`):**
+  ```c
+  /* FORMAT mode port accumulator — flushed by t_emit_jmp */
+  static char g_fmt_pending_label[BB_LABEL_NAME_MAX + 2];  /* "LABEL:" or "" */
+  static char g_fmt_port_body[512];  /* accumulated col2+col3 instructions */
+
+  /* called by t_label_define in FORMAT mode: saves label, does NOT emit */
+  void t_fmt_save_label(bb_label_t *lbl);
+
+  /* called by each t_* body helper in FORMAT mode: appends to g_fmt_port_body */
+  void t_fmt_append_body(const char *instr, const char *operands);
+
+  /* called by t_emit_jmp in FORMAT mode: flushes the 4-column line */
+  void t_fmt_flush_jmp(bb_label_t *jmp_target, jmp_kind_t kind);
+  ```
+
+  Sub-rungs:
+
+  - [ ] **EM-BB-FORMAT-ARCH** — Implement port context accumulator in `bb_emit.c`. Add `g_fmt_pending_label`, `g_fmt_port_body`, `t_fmt_save_label`, `t_fmt_append_body`, `t_fmt_flush_jmp`. Update `t_label_define`: in FORMAT mode, call `t_fmt_save_label` instead of emitting. Update `t_emit_jmp`: in FORMAT mode, call `t_fmt_flush_jmp`. Add FORMAT branch to `t_load_delta_cmp_imm` (appends `cmp dword [r10+Δ], n`), `t_load_siglen_sub_cmp_delta` (appends `mov eax, [rip+Σlen]; sub eax, [r10+Δ]; cmp eax, n`), `t_sigma_plus_delta_to_rdi` (appends `lea rdi, [rip+Σ]; …`), `t_bounds_check_delta_plus_len` (appends bounds check fragment). No `if` in any template body. Gate: build clean, smoke 7/7, template-byte-id 4/4. No behavioral change (no `--bb-format` tests yet).
+
+  - [ ] **EM-BB-FORMAT-1** — XPOSI + XRPSI. With the accumulator in place, `emit_bb_xposi` and `emit_bb_xrpsi` are already correct — their `t_load_delta_cmp_imm` / `t_load_siglen_sub_cmp_delta` / `t_label_define` / `t_emit_jmp` calls produce 4-column output in FORMAT mode with no template change. Verify: `scrip --jit-emit --x64 --bb-format pos.sno` shows correct 4-column output for POS/RPOS boxes. Gate: smoke 7/7, template-byte-id 4/4, snocone 5/5, PASS≥10, `gcc -c` on emitted `.s` clean.
+
+  - [ ] **EM-BB-FORMAT-2** — XEPS + XFAIL + XABRT + XSUCF + XFNCE. All use `t_emit_jmp` + `t_label_define` — the accumulator already makes these correct in FORMAT mode. Verify output. Gate per rung: smoke 7/7, template-byte-id 4/4.
+
+  - [ ] **EM-BB-FORMAT-3** — XCAT + XOR + XVAR (jmp-pair boxes). Same verification. Gate.
+
+  - [ ] **EM-BB-FORMAT-4** — Charset family (XSPNC, XBRKC, XANYC, XNNYC). `emit_bb_charset` uses `t_bb_port_call`. Add FORMAT branch to `t_bb_port_call` that appends `call fn@PLT` to `g_fmt_port_body` and defers the jmp. Gate.
+
+  - [ ] **EM-BB-FORMAT-5** — Integer-cursor family (XLNTH, XTB, XRTB). Same treatment as charset. Gate.
+
+  - [ ] **EM-BB-FORMAT-6** — Stateful RT-call family (XFARB, XBAL, XBRKX, XFNME, XNME, XCALLCAP, XARBN, XSTAR). Gate.
+
+  - [ ] **EM-BB-FORMAT-7** — XCHR (literal match). `emit_bb_xchr` uses `t_bounds_check_delta_plus_len` + `t_sigma_plus_delta_to_rdi` — with FORMAT mode accumulation these produce a multi-fragment fused line. Gate.
+
+  - [ ] **EM-BB-FORMAT-8** — XDSAR + XATP. These use `t_bb_port_call_rip`. Add FORMAT branch to `t_bb_port_call_rip`. Gate.
+
+  - [ ] **EM-BB-FORMAT-9** — Icon BB boxes (ICN_ALT, ICN_BANG, ICN_EVERY, ICN_ITERATE, ICN_LCONCAT, ICN_LIMIT, ICN_SEQ, ICN_TO, ICN_TO_BY). All use `emit_bb_stateful` → already correct after FORMAT-4 lands. Gate: smoke 7/7, snocone 5/5, PASS≥10, `gcc -c` clean. Update corpus `.s` artifacts. EM-BB-FORMAT closes.
+
+- [ ] **EM-SPEC-T-ERADICATE** — Remove `spec_t` from the BB engine. `spec_t = { const char *σ; int δ }` is a SNOBOL4-specific type. Cross-language compatibility requires the BB box return type to be `DESCR_t` (already the declared type of `bb_box_fn`) everywhere. `spec_t` still appears in `bb_box.h` (11 uses), `bb_boxes.c` (`arbno_frame_t`), `stmt_exec.c` (local vars at 6+ sites), `rt.c` (local vars at 8 sites). The `DESCR_t` layout is already defined to subsume `spec_t` (both 16 bytes, rax:rdx, comment in `bb_box.h:200`). Migration: replace every `spec_t` local with `DESCR_t`; replace `spec(σ, δ)` constructor with `descr_from_spec(σ, δ)` (new inline in `bb_box.h`); replace `spec_from_descr(d)` with direct field access; delete `spec_t` typedef. This enables Prolog (boolean) and Icon (any value) boxes to share the same BB engine without SNOBOL4-specific type leakage.
+
+  Sub-rungs:
+  - [ ] **EST-1** — Audit: `grep -rn spec_t src/` → list every file + count. Record here.
+  - [ ] **EST-2** — Add `descr_from_spec(σ, δ)` inline helper to `bb_box.h`. Migrate `bb_boxes.c` (arbno_frame_t) and `rt.c` (8 local vars) from `spec_t` to `DESCR_t`. Gate: build clean, smoke 7/7, broker 49/49.
+  - [ ] **EST-3** — Migrate `stmt_exec.c` (6 sites). Gate: build clean, smoke 7/7.
+  - [ ] **EST-4** — Delete `spec_t` typedef, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()` from `bb_box.h`. Delete `spec_from_descr()`. Gate: build clean, smoke 7/7, broker 49/49, template-byte-id 4/4.
+
+- [ ] **EM-XVAL-DESCR** — Cross-language BB value protocol. Every BB box returns `DESCR_t`. The DESCR_t value carries semantic meaning per frontend:
+  - SNOBOL4: `DT_STRING` match span (σ, δ) — the matched substring
+  - Prolog: `DT_BOOL` success/failure (already `last_ok` semantics)
+  - Icon: `DT_INTEGER`, `DT_STRING`, `DT_REAL`, or any structured value
+
+  **Done when:** `bb_box_fn` callers in `stmt_exec.c`, `rt.c`, `bb_flat.c`, `bb_broker.c` interpret the returned `DESCR_t` by type tag rather than assuming SNOBOL4 layout. No hard-coded `spec_t` layout assumptions. Prerequisite: EM-SPEC-T-ERADICATE.
+
+  Sub-rungs:
+  - [ ] **EXVAL-1** — Audit all `bb_box_fn` call sites. Record which assume σ/δ layout (SNOBOL4-only) vs which are already type-agnostic. File: `doc/xval_audit.md`.
+  - [ ] **EXVAL-2** — Add `DESCR_t descr_match_span(const char *σ, int δ)` and `DESCR_t descr_bool(int ok)` constructors to `snobol4.h` / `icn_runtime.h` respectively. Update SNOBOL4 box returns to use `descr_match_span`; update Prolog box returns to use `descr_bool`. Gate: build clean, smoke 7/7, broker 49/49.
+  - [ ] **EXVAL-3** — Update callers in `stmt_exec.c` + `bb_broker.c` to dispatch on `DESCR_t` type tag. SNOBOL4 match: unwrap span. Prolog: treat non-zero integer as success. Icon: pass value through to generator. Gate: smoke 7/7, broker 49/49, icon ir-run parity.
+
+- [ ] **EM-S-ARTIFACTS-COMMIT** — `.s` demo artifacts committed to corpus on every session that touches emitter. The tracked protocol (bottom of EM-BB-FORMAT section) regenerates and commits `{roman,wordcount,claws5,treebank-list,treebank-array,sm_macros}.s`. **Three changes to the current protocol:**
+
+  1. **Also commit `bb_macros.s`** — `bb_macros.s` is generated alongside `sm_macros.s` by every `--jit-emit` run and must be tracked.
+  2. **Gate is `gcc -c` clean**, not `as` — use `gcc -c $f.s -o /tmp/$(basename $f .s).o` to catch link-time issues earlier.
+  3. **Commit must happen every session** touching `bb_emit.c`, `bb_templates.c`, `sm_templates.c`, `sm_codegen_x64_emit.c`, or `rt.c` — not only EM-tagged sessions. The corpus `.s` files are the observable output of the emitter; stale artifacts = stale truth.
+
+  Sub-rungs:
+  - [ ] **ESA-1** — Update the tracked-artifacts protocol block in this goal file to include `bb_macros.s`. Commit updated GOAL file.
+  - [ ] **ESA-2** — Regenerate all 7 artifacts at HEAD `d96d5520` and commit to corpus. Gate: `gcc -c` clean on all 7.
+  - [ ] **ESA-3** — Add `scripts/util_regen_demo_s_artifacts.sh` that runs the protocol non-interactively. Commit to one4all. Every future session that touches the emitter runs this script before handoff.
 
 ---
 
@@ -906,28 +986,30 @@ Delete `emit_bb_intcur` entirely.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-**EC-2 through EC-8 all closed.** one4all HEAD `08707cb0`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
+**EM-BB-FORMAT architecture redesigned + new goal steps added.** one4all HEAD `d96d5520` (no code commits this session — arch/goal work only). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
 
 ### Work done
 
-EC-2 (`44c2d621`): Grouped all extern declarations into one block after #includes.
-EC-3 (`944e163e`): Added `emit_bb_stateful()` helper; collapsed 18 Pattern-B templates to one-liners. 648→537 lines.
-EC-4 (`48e09af6`): Added `emit_bb_jmp_pair()` helper; collapsed xabrt/xcat/xfail/xor/xvar.
-EC-5 (`522b2a1b`): Deleted `emit_bb_intcur` dispatch hack; xlnth/xrtb/xtb now call `emit_bb_stateful` directly.
-EC-6 (`3db28fc9`): Added `t_bb_port_call_rip` to `bb_emit.h/c`; removed last two `is_text` guards in xatp/xdsar. Zero `bb_emit_mode` branches in `bb_templates.c`.
-EC-7 (`1ae712e1`): Trimmed `bb_emit.h` 454→282 lines (condensed preamble, stripped per-function prose comments, compacted `bb_insn_*` section).
-EC-8 (`08707cb0`): Removed dead `flat_text_simple_box` helper. Wrote `ARCH-EMITTER.md` mapping table: 28/35 emit_bb_* functions are direct Snocone conversion candidates (Pattern A/B); 7/35 stay as C stubs (Pattern C: xchr, xatp, xdsar, charset, xposi, xrpsi). Also confirmed: unified single-emitter system, all C BB box functions eradicated (replaced by rt_bb_* in libscrip_rt.so called via PLT).
-
-### Emitter Cleanup (EC) series: COMPLETE
-
-`bb_templates.c` final shape: grouped includes → one extern block → two private helpers (emit_bb_jmp_pair + emit_bb_stateful) → 35 public emit_bb_* functions. Each function is a pure sequence of t_* calls or a single emit_bb_stateful/emit_bb_jmp_pair call. No bb_emit_mode branching anywhere in the file. Snocone conversion can begin when the t_* builtin surface is defined.
+- Reverted bad EM-BB-FORMAT-1 code (had `if (t_bb_is_format_mode())` in template bodies — violates no-if law; used `POS_α`/`POS_β` named macros — wrong, format must be pure x86).
+- Rewrote EM-BB-FORMAT spec: correct 4-column architecture using port-context accumulator in `bb_emit.c`. No `if` in templates. `t_*` helpers handle format mode internally.
+- Added new goal steps: **EM-SPEC-T-ERADICATE** (remove SNOBOL4-specific `spec_t` from BB engine for cross-language compatibility), **EM-XVAL-DESCR** (cross-language DESCR_t value protocol for SNO/PL/ICN), **EM-S-ARTIFACTS-COMMIT** (`.s` artifacts committed to corpus every session).
+- Added **EM-BB-FORMAT-ARCH** sub-rung: implement the port-context accumulator before any per-box format rungs.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `08707cb0`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `d96d5520`.
+3. **EM-BB-FORMAT-ARCH** — implement port-context accumulator in `bb_emit.c`. New state: `g_fmt_pending_label` + `g_fmt_port_body[]`. Update `t_label_define` + `t_emit_jmp` for FORMAT mode. Add FORMAT branch to `t_load_delta_cmp_imm` + `t_load_siglen_sub_cmp_delta`. No template body changes needed. Gate: build clean, smoke 7/7, template-byte-id 4/4.
+4. **EM-BB-FORMAT-1** — verify XPOSI + XRPSI produce correct 4-column output with no template changes.
+5. **ESA-1 + ESA-2** — update artifact protocol to include `bb_macros.s`; regen and commit all 7 `.s` files to corpus.
+
+### Lessons recorded (this session)
+
+- **No `if (t_bb_is_format_mode())` in template bodies.** The Law says templates contain only `t_*` calls. The format mode is handled entirely inside `t_*` helpers via `bb_emit_mode` + accumulator state. An `if` in a template body is the same violation as `if (bb_emit_mode == EMIT_TEXT)` — banned.
+- **No named port macros** (`POS_α`, `RPOS_β`). FORMAT mode emits pure x86 instructions (`cmp`, `je`, `jmp`, `call`) in 4-column `;`-fused form. The column structure is: `LABEL: ; instruction operands ; jmp target`.
+- **`spec_t` must die before cross-language BB engine is possible.** It encodes SNOBOL4 match semantics (`const char *σ; int δ`) directly in the return type. Prolog and Icon boxes cannot conform to this layout. EM-SPEC-T-ERADICATE is a prerequisite for any serious multi-language BB work.
 **SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
 
 **EM-BB-TEXT-ADDR + EM-BB-R10-FIX closed.** one4all HEAD `d96d5520`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
