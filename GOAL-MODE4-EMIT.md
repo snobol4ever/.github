@@ -779,17 +779,17 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   - [x] **EM-BB-FORMAT-3** — XCAT + XOR + XVAR (jmp-pair boxes). Same verification. Gate.
 
-  - [ ] **EM-BB-FORMAT-4** — Charset family (XSPNC, XBRKC, XANYC, XNNYC). `emit_bb_charset` uses `t_bb_port_call`. Add FORMAT branch to `t_bb_port_call` that appends `call fn@PLT` to `g_fmt_port_body` and defers the jmp. Gate.
+  - [x] **EM-BB-FORMAT-4** — Charset family (XSPNC, XBRKC, XANYC, XNNYC). `emit_bb_charset` uses `t_bb_port_call`. Add FORMAT branch to `t_bb_port_call` that appends `call fn@PLT` to `g_fmt_port_body` and defers the jmp. Gate.
 
-  - [ ] **EM-BB-FORMAT-5** — Integer-cursor family (XLNTH, XTB, XRTB). Same treatment as charset. Gate.
+  - [x] **EM-BB-FORMAT-5** — Integer-cursor family (XLNTH, XTB, XRTB). Same treatment as charset. Gate.
 
-  - [ ] **EM-BB-FORMAT-6** — Stateful RT-call family (XFARB, XBAL, XBRKX, XFNME, XNME, XCALLCAP, XARBN, XSTAR). Gate.
+  - [x] **EM-BB-FORMAT-6** — Stateful RT-call family (XFARB, XBAL, XBRKX, XFNME, XNME, XCALLCAP, XARBN, XSTAR). Gate.
 
-  - [ ] **EM-BB-FORMAT-7** — XCHR (literal match). `emit_bb_xchr` uses `t_bounds_check_delta_plus_len` + `t_sigma_plus_delta_to_rdi` — with FORMAT mode accumulation these produce a multi-fragment fused line. Gate.
+  - [x] **EM-BB-FORMAT-7** — XCHR (literal match). `emit_bb_xchr` uses `t_bounds_check_delta_plus_len` + `t_sigma_plus_delta_to_rdi` — with FORMAT mode accumulation these produce a multi-fragment fused line. Gate.
 
-  - [ ] **EM-BB-FORMAT-8** — XDSAR + XATP. These use `t_bb_port_call_rip`. Add FORMAT branch to `t_bb_port_call_rip`. Gate.
+  - [x] **EM-BB-FORMAT-8** — XDSAR + XATP. These use `t_bb_port_call_rip`. Add FORMAT branch to `t_bb_port_call_rip`. Gate.
 
-  - [ ] **EM-BB-FORMAT-9** — Icon BB boxes (ICN_ALT, ICN_BANG, ICN_EVERY, ICN_ITERATE, ICN_LCONCAT, ICN_LIMIT, ICN_SEQ, ICN_TO, ICN_TO_BY). All use `emit_bb_stateful` → already correct after FORMAT-4 lands. Gate: smoke 7/7, snocone 5/5, PASS≥10, `gcc -c` clean. Update corpus `.s` artifacts. EM-BB-FORMAT closes.
+  - [x] **EM-BB-FORMAT-9** — Icon BB boxes (ICN_ALT, ICN_BANG, ICN_EVERY, ICN_ITERATE, ICN_LCONCAT, ICN_LIMIT, ICN_SEQ, ICN_TO, ICN_TO_BY). All use `emit_bb_stateful` → already correct after FORMAT-4 lands. Gate: smoke 7/7, snocone 5/5, PASS≥10, `gcc -c` clean. Update corpus `.s` artifacts. EM-BB-FORMAT closes.
 
 - [ ] **EM-SPEC-T-ERADICATE** — Remove `spec_t` from the BB engine. `spec_t = { const char *σ; int δ }` is a SNOBOL4-specific type. Cross-language compatibility requires the BB box return type to be `DESCR_t` (already the declared type of `bb_box_fn`) everywhere. `spec_t` still appears in `bb_box.h` (11 uses), `bb_boxes.c` (`arbno_frame_t`), `stmt_exec.c` (local vars at 6+ sites), `rt.c` (local vars at 8 sites). The `DESCR_t` layout is already defined to subsume `spec_t` (both 16 bytes, rax:rdx, comment in `bb_box.h:200`). Migration: replace every `spec_t` local with `DESCR_t`; replace `spec(σ, δ)` constructor with `descr_from_spec(σ, δ)` (new inline in `bb_box.h`); replace `spec_from_descr(d)` with direct field access; delete `spec_t` typedef. This enables Prolog (boolean) and Icon (any value) boxes to share the same BB engine without SNOBOL4-specific type leakage.
 
