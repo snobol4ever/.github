@@ -187,12 +187,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-5** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_flat.c/h` replaces `emit_bb_flat.c` (deleted). `emit_walk.c/h` replaces `emit_sm_text.c` (deleted). Shim `.h` files left in place for RW-6. Backward-compat `#define` aliases in new headers; all callers unchanged. Makefile updated. one4all `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5, gcc -c 5/5 artifacts OK.
 
-- [ ] **RW-6** — Delete old foundation: `emit_insn.c`, `emit_form.c`,
-  `emit_mode.c`, `emit_label.c`, `emit_text3c.c`, `emit_bb_seq.c`,
-  `emit_buf.c`, `emit_bb_gen.h`, `emit_defs.h`.
-  Umbrella `emit_bb_gen.h` → `emit.h`. Update Makefile.
-  Finalize `ARCH-EMITTER.md` with bootstrap notes for Snocone/Icon.
-  Gates: full suite, `gcc -c` all artifacts, beauty ≥10.
+- [~] **RW-6** ⚡ PARTIAL `a6d3ec98` sess 2026-05-13 (Claude Sonnet 4.6) — emit_bb_seq.c/h deleted; emit_bb.c+emit_sm.c+emit_flat.c+emit_walk.c+emit_mode.c updated throughout to new names (emit_seq_*, insn_*, emit_text_*, emit_label_*); emit_text_global added to emit_text.c/h; emit.h umbrella written; emit_bb_gen.h updated. Gates: smoke 7/7, byte-id 4/4, snocone 5/5. REMAINING: delete 5 old .c files from Makefile+filesystem: emit_insn.c, emit_form.c, emit_buf.c, emit_label.c, emit_text3c.c (still compiled, no symbol conflicts with new files). Also: delete emit.c (leftover debris from prior failed attempt), finalize ARCH-EMITTER.md bootstrap notes, migrate all callers from emit_bb_gen.h to emit.h.
 - [ ] **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
 
@@ -202,15 +197,14 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF (EMERGENCY) — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `e00a7c6f` (RW-5, clean — RW-6 reverted). corpus HEAD `52e4657`. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `a6d3ec98` (RW-6 partial). Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
-- RW-5: ✅ committed `e00a7c6f`.
-- RW-6: ⛔ ATTEMPTED, REVERTED (emergency). Breakage: smoke 5/7, byte-id 3/4. Root cause: compat `#define` aliases in `emit_seq.h`/`emit_text.h` rewrote function *definitions* in `emit_form.c` (e.g. `emit_bb_zeta_rdi` definition got renamed to `emit_seq_zeta_rdi` by macro expansion), producing duplicate symbols at link time. `EMIT_FORM_IMPL` guard fixed link errors but gate regressions remained. All RW-6 changes stashed and reverted; one4all is at clean `e00a7c6f`.
+- RW-6 partial: ✅ committed `a6d3ec98`. emit_bb_seq.c/h deleted. All new files (emit_bb.c, emit_sm.c, emit_flat.c, emit_walk.c, emit_mode.c) updated to call new-name APIs (emit_seq_*, insn_*, emit_text_*). emit_text_global added. emit.h umbrella written. Makefile: added insn.o/emit_seq.o/emit_text.o/emit_label_new.o compile rules; removed emit_bb_seq.o rule.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4.
-3. Retry **RW-6** with correct approach: shim old `.h` files to new ones first; then selectively remove old `.c` files from the build one at a time, verifying gates after each. Do NOT use `#define` aliases for names that `emit_form.c` defines (i.e. `emit_bb_zeta_rdi`, `emit_bb_dispatch_jne_jmp`, `emit_fprintf_raw`). Instead: rename those definitions directly in `emit_form.c`, or use `__attribute__((weak, alias(...)))` in new `.c` files to provide the old symbol names without macro rewriting.
+2. Confirm one4all HEAD `a6d3ec98`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+3. Finish RW-6: remove emit_insn.c, emit_form.c, emit_buf.c, emit_label.c, emit_text3c.c from Makefile RT_PIC_SRCS and explicit .o rules, delete from filesystem. Check for any remaining callers of old-name symbols (grep bb_insn_, bb_emit_byte, bb_label_, bb3c_, g_is_text, emit_global_sym). Also delete emit.c (leftover). Verify gates after each deletion. Then finalize ARCH-EMITTER.md and migrate emit_bb_gen.h → emit.h.
