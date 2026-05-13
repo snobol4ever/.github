@@ -230,3 +230,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 3. **tree_driver DIFFER guard** — mode-2 correct, mode-4 wrong on test 3. `_rt_DIFFER` 2-arg now returns NULVCL; but tree.sno uses `DIFFER` in pattern context (`. *func()` form or direct). Check if the DIFFER fix broke tree_driver or if it's a separate issue. Run: `scrip --jit-emit --x64 tree_driver.sno` and compare test 3 diff.
 4. **match_driver notmatch** — `notmatch` is an NRETURN function using `notmatch = .dummy :(NRETURN)`. Tests 3/4 swap pass/fail between mode-2 and mode-4. Diagnose NRETURN semantics in mode-4 `rt_do_return`.
 5. **stack_driver** — mode-2 FAILs 1/2/3 but mode-4 PASSes them (mode-4 matches SPITBOL). This is a pre-existing mode-2 bug; beauty gate is parity (mode-4 must match mode-2), so this counts as a FAIL even though mode-4 is correct. Either fix mode-2 or accept as known divergence.
+
+---
+
+**SESSION HANDOFF — sess 2026-05-13b (Claude Sonnet 4.6)**
+
+**EM-7d: three rt.c fixes.** one4all HEAD `c7400111`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 13/17 (+1 vs prev 12/17).
+
+### Work done
+
+1. **`_rt_DIFFER`/`_rt_IDENT` 1-arg** (`435134eb`): use `IS_NULL_fn()` so DATA/INTEGER/PATTERN count as non-null. **tree_driver test 3 fixed.**
+2. **FRETURN/NRETURN `kw_rtntype`** (`435134eb`): `rt_do_return` sets `kw_rtntype`; `rt_call` honours it after `call_native_chunk` instead of recalculating from NV[fname]. **match_driver tests 3/4 fixed.**
+3. **Two-arg DEFINE body label** (`c7400111`): `rt_call` tries `FUNC_ENTRY_fn(name)` on miss — resolves `DEFINE('nPush()','nPush_')` style. **semantic_driver tests 1/2/3 fixed.**
+
+### Beauty gate: 13/17 PASS
+
+| Driver | Status | Root cause |
+|--------|--------|------------|
+| counter_driver | ❌ DIFF | Mode-4 correctly handles TopCounter FRETURN; mode-2 pre-existing bug → parity break |
+| semantic_driver | ❌ DIFF | Tests 4–7 silent-skip in mode-4: `'' nPush()` inline call fails when full `semantic_driver.sno` compiled. Standalone tests pass. Root cause: likely OPSYN/bb_pool state interaction. Tests 5/6/8 pre-existing mode-2 bugs. |
+| stack_driver | ❌ DIFF | `.value($'@S')` → NAMEVAL not NAMEPTR. Pre-existing lowering bug. |
+| trace_driver | ❌ DIFF | Mode-2 aborts: `bb_label rel8 overflow 'xcat0_ω': disp=141`. Pre-existing. |
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 13/17. one4all HEAD `c7400111`.
+3. **semantic_driver tests 4–7**: add `OPSYN` to minimal test to isolate root cause of silent-skip.
+4. **trace_driver rel8 overflow**: `bb_label_define` needs rel32 fallback when disp > 127. File: `src/runtime/x86/bb_emit.c`.
+5. stack/counter: accept as known divergence.
