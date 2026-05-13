@@ -135,22 +135,21 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13m (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13n (Claude Sonnet 4.6)**
 
-one4all HEAD `9470c409`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `a87483ab`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- Scoped ESP-11..14 (emitter consolidation and dead-code deletion)
-- ESP-11: sm_codegen.c binary dispatch switched from emit_me*_blob() to emit_standard_blob(g_handlers[op]); all opcodes unified through handler table
-- ESP-12: 1,400 lines of emit_me*_blob() dead code deleted; sm_codegen.c 3603->2201 lines
-- ESP-13: sm_codegen_x64_emit.c (2426 lines) + .h (70 lines) merged into sm_codegen.c and deleted; sm_codegen_text() is new TEXT-mode entry point; scrip.c, Makefile, test file updated
-- ESP-14: stale comments (me4_*/me6_return_dispatch/EM-MODE4-IS-MODE3-DUMP-c) swept from unified sm_codegen.c
-- sm_codegen_x64_emit.c and sm_codegen_x64_emit.h no longer exist
+- ESP-11..14 closed (previous watermark): binary dispatch unified, emit_me*_blob deleted, sm_codegen_x64_emit.c/.h deleted, sm_codegen_text() created
+- ESP-15: split sm_codegen.c into two files:
+  - sm_codegen.c (2151 lines): binary/mode-3 only -- sm_codegen(), sm_jit_run(), trampoline, emit_standard_blob, g_blob_addrs, g_handlers[], h_* handlers. Still directly emits binary x86 for structural scaffolding (trampoline + blob wrappers).
+  - emitter_sm_gen.c (2387 lines): text/mode-4 only -- sm_codegen_text(), strtab, SrcLines, pattern_windows, emit_file_header/footer, per-opcode TEXT switch.
+- Emitter file inventory now clean: 10 files with clear mode ownership (see PLAN.md note)
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `9470c409`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `a87483ab`.
 3. Next open rung: EM-BB-FORMAT. See rung spec above.
 
