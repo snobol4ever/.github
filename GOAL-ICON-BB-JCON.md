@@ -335,7 +335,9 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
 ## Watermark
 
   Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: 8529aec9
+  one4all HEAD: 41f51263
   ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
   Honest:       PASS=259 FAIL=1  ABORT=0
-  Current step: IJ-3
+  Current step: IJ-3 (partial — image/proc/args/proc-as-value done;
+                indirect DT_E/DT_S invocation + global-var persistence
+                needed to flip rung36_jcon_args/lists/record/fncs1)
