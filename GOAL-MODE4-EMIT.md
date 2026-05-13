@@ -67,7 +67,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **Open:**
 
-- [ ] **EM-MODE4-IS-MODE3-DUMP** (parent) — Gates: smoke 7/7, broker 49/49, snocone 5/5, template-byte-id 4/4, artifacts gcc-c clean. ⛔ Read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first.
+- [ ] **EM-DEVTABLE** — Remove `emitter_t` vtable struct entirely. Replace function-pointer dispatch with direct calls; replace `e->is_text` with global `g_is_text`; replace `e->ctx` FILE* with global `g_emit_out`. Scope: `emitter.h`, `emitter.c`, `bb_flat.h`, `bb_flat.c` (75 call sites), `emitter_bb.c` callback typedefs, `emitter_defs.c`, `test_template_byte_identity.c`, `demo_template_productions.c`, `sm_codegen_x64_emit.c`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 - [ ] **EM-BB-FORMAT** (parent) — closes when smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10. Spec: each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions.
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
@@ -112,5 +112,5 @@ one4all HEAD `e025ad26`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `e025ad26`.
-3. Next open step: **EM-MODE4-IS-MODE3-DUMP** — read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first.
+3. **EM-DEVTABLE** — remove `emitter_t` vtable; globals replace `e->is_text` / `e->ctx`. Full scope in rung above. Then **EM-MODE4-IS-MODE3-DUMP**.
 
