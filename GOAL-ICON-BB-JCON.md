@@ -162,6 +162,61 @@ Fixes:
 
 ### IJ-11 — Missing &keywords table entries (Cluster M)
 
+**Handoff notes (sess 2026-05-13, Claude Sonnet 4.6):**
+
+Root cause: `SM_PUSH_VAR` for `&keyword` names falls through to `NV_GET_fn` which returns NULVCL
+for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only handled 6 keywords
+(pos, subject, letters, ucase, lcase, digits) as STRVAL — none as CSETVAL, so `type()` returned
+"string" not "cset" and `kw()` formatted them wrong.
+
+**Stashed work (git stash in one4all, not committed):**
+- `interp_eval.c`: added `icn_kw_read(kw)` function + `g_icn_error/trace/dump/random` globals.
+  `kw_assign` now persists writable keywords to globals.
+  `icn_kw_read` covers: pos, subject, e, pi, phi, error, trace, dump, random, fail, control,
+  errornumber, errortext, errorvalue, interval, meta, shift, null, window (FAILDESCR/NULVCL),
+  lcase, ucase, letters, digits, ascii, cset (CSETVAL), allocated, col, collections, regions,
+  row, storage, x, y (INTVAL(0)), level (INTVAL(1)), lpress/mpress/etc. (INTVAL neg),
+  input/errout/output (STRVAL), current/main/source (STRVAL co-expr), version, progname,
+  clock, date, dateline, time. Unknown → FAILDESCR.
+- `sm_interp.c`: `SM_PUSH_VAR` for Icon `&keyword` now calls `icn_kw_read(name+1)`.
+- `coro_value.c`: `bb_eval_value TT_VAR` keyword branch now calls `icn_kw_read`.
+- `coro_runtime.h`: added `DESCR_t icn_kw_read(const char *kw)` declaration.
+
+**Remaining issues in rung36_jcon_kwds after stash was applied:**
+1. `type()` builtin doesn't check CSETVAL sentinel (DT_S with slen=0xFFFFFFFF) → always
+   returns "string". Fix: add `else if (av.v==DT_S && av.slen==0xFFFFFFFFu) t="cset";`
+   BEFORE `else t="string"` in icn_call_builtin `type` handler (interp_eval.c line ~453).
+2. `&ascii`/`&cset` return blank — icn_cset_canonical drops NUL bytes (char 0).
+   Fix: build cset strings starting from char 1 (ASCII printable subset), or handle
+   NUL specially. For &ascii: chars 1..127 (127 chars); for &cset: chars 1..255 (255 chars).
+3. `&digits`/`&lcase`/`&ucase`/`&letters` show raw string not "X  [size N]" format — blocked
+   by issue 1 (type() fix unblocks kw() cset branch).
+4. `&dateline`: `ctime()` output doesn't intersect with `'kwfxday, EIRL:m'` correctly.
+   kw() proc does `(&dateline ** 'kwfxday, EIRL:m')` — cset intersection of dateline string
+   with that cset. Our dateline is a raw ctime() string; intersection needs to work correctly.
+5. `&allocated`/`&collections`/`&regions`/`&storage` are generative (4/4/3/3 values).
+   `every kw("allocated", &allocated | "[failed]")` fires 4 times in JCON. Our single
+   INTVAL(0) fires once. Need to generate via alternation or seed NV with multiple values.
+6. `&features` generates 10 strings. Same generative issue. Expected: UNIX, Java, ASCII,
+   co-expressions, dynamic loading, environment variables, large integers, pipes, system
+   function, graphics.
+7. `&null` image shows blank (empty write), expected `&null`. Fix: in kw() proc, `image(&null)`
+   → `image()` no-arg handler returns "&null" — but `type(&null)` is "null" not "string",
+   so kw() hits `default: s := image(value)`. Check icn_call_builtin image() for null descr.
+8. `&window` shows blank, expected `&null`. Fix: return NULVCL for &window (already done
+   in stash), but kw() prints `image(NULVCL)` — check that `image` of NULVCL returns "&null".
+9. `&progname` shows "scrip" not "kwds". Fix: thread input filename basename through to runtime.
+
+**Recommended approach for next session:**
+1. `git stash pop` in one4all to restore stash.
+2. Fix `type()` (issue 1) — one-line fix, unblocks issues 3+.
+3. Fix `image()` of NULVCL to return "&null" (issues 7, 8).
+4. Fix `&ascii`/`&cset` char range (issue 2).
+5. Accept `&features`, `&allocated`/`&collections`/`&regions`/`&storage`, `&progname`,
+   `&dateline` as residual XFAIL (they require generative keyword infrastructure or
+   deeper system integration). The test may not reach PASS but will gain many lines.
+6. Run GATE-1..4, commit if gates green.
+
 - [ ] Diff rung36_jcon_kwds. Implement missing stubs.
 - [ ] rung37_keywords.icn. GATE-1..4. Commit.
 
@@ -226,6 +281,8 @@ Fixes:
   one4all: 88db975a  corpus: 3df52f6
   ir-run:  PASS=199 FAIL=36 XFAIL=30
   honest:  PASS=270 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-10 COMPLETE — ICN_KW_SWAP fixed: frame slot write + correct lhs/rhs order.
-           rung36_jcon_subjpos PASS. rung37_neg_pos.icn added.
-           NEXT: IJ-11 — missing &keywords table entries (rung36_jcon_kwds).
+  Step:    IJ-11 IN PROGRESS — icn_kw_read infrastructure written (stashed in one4all,
+           not committed). Stash covers: SM_PUSH_VAR keyword dispatch, kw_assign globals,
+           bb_eval_value routing. Remaining blockers: type() cset sentinel, image() null,
+           &ascii/&cset NUL-byte handling, generative keywords. See IJ-11 handoff notes above.
+           NEXT: git stash pop, fix type()/image() for cset/null, run gates, commit.
