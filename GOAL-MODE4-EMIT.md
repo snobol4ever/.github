@@ -234,3 +234,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `b8ef6b18`.
 3. **EM-7d** — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle. Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`; (b) beauty self-host regression. Diagnose with `--jit-emit` vs `--sm-run` diff on beauty.sno.
+
+---
+
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+
+**EM-7d partial.** one4all HEAD `f530d6d3`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9.
+
+### Work done
+
+1. **XDSAR fn_fallback fix** (`dc9c6992`): `emit_bb_xdsar` in `bb_templates.c` passed `fn_fallback=0` to `emit_bb_port_call_rip` → `call 0` → SIGSEGV in BINARY mode. Fixed by declaring `bb_deferred_var_exported` extern and passing its address. Fixes `match_driver` mode-4 crash.
+2. **SM_PAT_BOXVAL removal** (`f530d6d3`): Deleted stale `SM_PAT_BOXVAL` comment lines from sm_prog.h, sm_interp.c, sm_codegen.c, sm_codegen_x64_emit.c, sm_emit_template.c, sm_prog.c, and `rt_pat_boxval` declaration from rt.h.
+
+### Root cause of mode-4 pattern-variable bug
+
+`rt_pat_*` functions push patterns to `g_pat_stack[]` (separate from `g_vstack[]`). `rt_nv_set` (SM_STORE_VAR) pops from `g_vstack[]` → underflow crash when storing a pattern into a variable (`p = ANY('aeiou')`). `rt_match_variant` correctly pops from `g_pat_stack[]` for EXEC_STMT, so that path works — only the STORE_VAR path is broken.
+
+**Fix:** remove `g_pat_stack[]` entirely from rt.c. Replace `pat_push`→`vstack_push`, `pat_pop_internal`→`vstack_pop` throughout rt.c. Update `rt_match_variant` to pop pattern from vstack (it was pushed first by `lower_pat_expr`, before subj and repl). Delete `PATSTACK_CAP`, `g_pat_stack`, `g_pat_sp`, `pat_push`, `pat_pop_internal`, `rt_pat_boxval` body.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `f530d6d3`.
+3. **Remove pat-stack from rt.c.** Edit `src/runtime/rt/rt.c` directly (do not use sed in multiple passes — use a single Python script or direct editor). Changes needed:
+   - Delete lines: `#define PATSTACK_CAP 256`, `static DESCR_t g_pat_stack[PATSTACK_CAP];`, `static int g_pat_sp = 0;`
+   - Delete the block comment `/* EM-7c-variant: pat-stack helpers … */` and its two static functions (`pat_push` + `pat_pop_internal`) that follow
+   - Replace all `pat_push(` → `vstack_push(` and `pat_pop_internal()` → `vstack_pop()`
+   - Delete `rt_pat_boxval` function body
+   - In `rt_match_variant`: change `DESCR_t pat_d = (g_pat_sp > 0) ? pat_pop_internal() : pat_epsilon();` → `DESCR_t pat_d = vstack_pop();` and delete `g_pat_sp = 0;` line
+4. Build clean, run smoke 7/7, broker 49/49, beauty PASS≥9. Then run `match_driver` and `xdsar_test` manually to confirm pattern-variable assignment works in mode-4.
