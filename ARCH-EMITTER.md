@@ -669,3 +669,26 @@ The rewrite makes the emitter callable from the Snocone/Icon bootstrap compiler:
 The `insn_*` layer is the generation target for the Snocone code generator: it emits
 `insn_jmp_r32(lbl)` calls rather than raw bytes, making the generated code readable and
 verifiable against the C reference.
+
+---
+
+## RW-6 Completion Record (sess 2026-05-13 continuation)
+
+**Files deleted (RW-6 finish):**
+
+| Deleted `.c` | Implementation moved to |
+|---|---|
+| `emit_buf.c` | `emit_mode.c` (appended) |
+| `emit_form.c` | `emit_mode.c` (appended) |
+| `emit_label.c` | `emit_label_new.c` (rewritten standalone) |
+| `emit_text3c.c` | `emit_text.c` (rewritten standalone) |
+| `emit_insn.c` | `insn.c` (appended) |
+| `emit.c` | deleted (filesystem debris; was never in Makefile) |
+
+**Headers kept** (still declare old names, still valid): `emit_buf.h`, `emit_form.h`, `emit_label.h`, `emit_text3c.h`, `emit_insn.h`.
+
+**`emit_bb_gen.h`** reduced to a one-line shim: `#include "emit.h"`.
+
+**All callers** migrated from `emit_bb_gen.h` → `emit.h` (11 files).
+
+**Gates after deletion:** smoke 7/7, byte-id 4/4, snocone 5/5.

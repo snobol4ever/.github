@@ -187,7 +187,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-5** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_flat.c/h` replaces `emit_bb_flat.c` (deleted). `emit_walk.c/h` replaces `emit_sm_text.c` (deleted). Shim `.h` files left in place for RW-6. Backward-compat `#define` aliases in new headers; all callers unchanged. Makefile updated. one4all `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5, gcc -c 5/5 artifacts OK.
 
-- [~] **RW-6** ⚡ PARTIAL `a6d3ec98` sess 2026-05-13 (Claude Sonnet 4.6) — emit_bb_seq.c/h deleted; emit_bb.c+emit_sm.c+emit_flat.c+emit_walk.c+emit_mode.c updated throughout to new names (emit_seq_*, insn_*, emit_text_*, emit_label_*); emit_text_global added to emit_text.c/h; emit.h umbrella written; emit_bb_gen.h updated. Gates: smoke 7/7, byte-id 4/4, snocone 5/5. REMAINING: delete 5 old .c files from Makefile+filesystem: emit_insn.c, emit_form.c, emit_buf.c, emit_label.c, emit_text3c.c (still compiled, no symbol conflicts with new files). Also: delete emit.c (leftover debris from prior failed attempt), finalize ARCH-EMITTER.md bootstrap notes, migrate all callers from emit_bb_gen.h to emit.h.
+- [x] **RW-6** ✅ sess 2026-05-13 cont. (Claude Sonnet 4.6) — Deleted emit_buf.c (→emit_mode.c), emit_form.c (→emit_mode.c), emit_label.c (→emit_label_new.c standalone), emit_text3c.c (→emit_text.c standalone), emit_insn.c (→insn.c appended), emit.c (debris, not in Makefile). All 5 compiled files removed from Makefile RT_PIC_SRCS + explicit .o rules. Migrated 11 callers from emit_bb_gen.h → emit.h; emit_bb_gen.h reduced to one-line shim. ARCH-EMITTER.md finalized with RW-6 completion record. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 - [ ] **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
 
@@ -195,16 +195,16 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF (EMERGENCY) — sess 2026-05-13 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 cont. (Claude Sonnet 4.6)**
 
-one4all HEAD `a6d3ec98` (RW-6 partial). Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD TBD (RW-6 complete). Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
-### What was done this session
+### What was done this session (continuation)
 
-- RW-6 partial: ✅ committed `a6d3ec98`. emit_bb_seq.c/h deleted. All new files (emit_bb.c, emit_sm.c, emit_flat.c, emit_walk.c, emit_mode.c) updated to call new-name APIs (emit_seq_*, insn_*, emit_text_*). emit_text_global added. emit.h umbrella written. Makefile: added insn.o/emit_seq.o/emit_text.o/emit_label_new.o compile rules; removed emit_bb_seq.o rule.
+- RW-6 complete: deleted emit_buf.c, emit_form.c, emit_label.c, emit_text3c.c, emit_insn.c, emit.c. Content absorbed into emit_mode.c, emit_label_new.c, emit_text.c, insn.c respectively. Makefile updated. All callers migrated to emit.h. emit_bb_gen.h → one-line shim. ARCH-EMITTER.md finalized.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `a6d3ec98`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-3. Finish RW-6: remove emit_insn.c, emit_form.c, emit_buf.c, emit_label.c, emit_text3c.c from Makefile RT_PIC_SRCS and explicit .o rules, delete from filesystem. Check for any remaining callers of old-name symbols (grep bb_insn_, bb_emit_byte, bb_label_, bb3c_, g_is_text, emit_global_sym). Also delete emit.c (leftover). Verify gates after each deletion. Then finalize ARCH-EMITTER.md and migrate emit_bb_gen.h → emit.h.
+2. Confirm one4all HEAD (post-commit). Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+3. Next active step: **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files.
