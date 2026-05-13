@@ -114,16 +114,15 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   **Steps (one commit each, gates green at every step):**
 
-  - [ ] **EM-REORG-1** — Create `emit_defs.h`: extract `bb_emit_mode_t`, `bb_label_t`, `jmp_kind_t`, `bb_patch_t`, `BB_LABEL_NAME_MAX`, `BB_PATCH_MAX` from `emit_bb_gen.h` into new `emit_defs.h`. `emit_bb_gen.h` `#include`s it. No `.c` changes. Build + gates.
-  - [ ] **EM-REORG-2** — Create `emit_buf.h/c` (L0): move `bb_emit_byte/u16/u32/u64/i8/i32`, `bb_emit_begin/end`, `bb_emit_patch_rel8/rel32`, `bb_patch_list[BB_PATCH_MAX]`, `bb_patch_count`, `bb_emit_buf/pos/size`, `g_is_text`, `g_emit_pos`, `g_emit_text_mode` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_buf.h`. `emit.c` `#include`s `emit_buf.h` (already gets it transitively via `emit_bb_gen.h`). Build + gates.
-  - [ ] **EM-REORG-3** — Create `emit_form.h/c` (L1): move `emit_form_*` (12 fns), `emitter_init_binary/text/end`, `emitter_text_out`, `emitter_pos` out of `emit.h/c`. Absorb `emit_defs.c` (`emitter_init_macro_def`, 8 lines) into `emit_form.c`. `emit.h` becomes a thin shim `#include "emit_form.h"` for backward compat. Delete `emit_defs.c`. Update Makefile. Build + gates.
-  - [ ] **EM-REORG-4** — Create `emit_label.h/c` (L2): move `bb_label_init/initf/define`, `emit_label_define`, `emit_label_define_bb`, `emit_label_name`, `emit_pc_label`, `emit_jmp`, `emit_jmp_label` out of `emit_bb_gen.h/c` and `emit.h/c`. `emit_bb_gen.h` `#include`s `emit_label.h`. Build + gates.
-  - [ ] **EM-REORG-5** — Create `emit_text3c.h/c` (L2): move `bb3c_format/text/emit_jmp/flush_pending*`, `bb_text/bb_text_label/bb_text_comment`, `emit_comment`, `emit_bb_box_banner`, `emit_banner/minor_break/blank_line`, `emit_section/directive/global_sym`, `emit_fprintf_raw`, `emit_data_quad/quad_sym/string/long`, `emit_banner_stno` out of `emit_bb_gen.h/c` and `emit.h/c`. `emit_bb_gen.h` `#include`s `emit_text3c.h`. Build + gates.
-  - [ ] **EM-REORG-6** — Create `emit_insn.h/c` (L2): move `bb_insn_*` (30 fns), `emit_ret`, `emit_push/pop_r10`, `emit_test_rax/eax`, `emit_mov_rdi_imm64`, `emit_mov_esi_imm32`, `emit_call_sym_plt`, `emit_add/sub_delta_imm` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_insn.h`. Build + gates.
+  - [x] **EM-REORG-1** — Create `emit_defs.h`: extract `bb_emit_mode_t`, `bb_label_t`, `jmp_kind_t`, `bb_patch_t`, `BB_LABEL_NAME_MAX`, `BB_PATCH_MAX` from `emit_bb_gen.h` into new `emit_defs.h`. `emit_bb_gen.h` `#include`s it. No `.c` changes. Build + gates.
+  - [x] **EM-REORG-2** — Create `emit_buf.h/c` (L0): move `bb_emit_byte/u16/u32/u64/i8/i32`, `bb_emit_begin/end`, `bb_emit_patch_rel8/rel32`, `bb_patch_list[BB_PATCH_MAX]`, `bb_patch_count`, `bb_emit_buf/pos/size`, `g_is_text`, `g_emit_pos`, `g_emit_text_mode` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_buf.h`. Build + gates.
+  - [x] **EM-REORG-3** — Create `emit_form.h/c` (L1): move `emit_form_*` (12 fns), `emitter_init_binary/text/end`, `emitter_text_out`, `emitter_pos` out of `emit.h/c`. Absorb `emit_defs.c` (`emitter_init_macro_def`, 8 lines) into `emit_form.c`. `emit.h` becomes a thin shim. Delete `emit_defs.c`. Update Makefile. Build + gates.
+  - [x] **EM-REORG-4** — Create `emit_label.h/c` (L2): move `bb_label_init/initf/define`, `emit_label_define` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_label.h`. Build + gates.
+  - [x] **EM-REORG-5** — Create `emit_text3c.h/c` (L2): move `bb3c_*`, `bb_text*`, `emit_comment`, `emit_bb_box_banner`, `emit_banner_stno` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_text3c.h`. Build + gates.
+  - [x] **EM-REORG-6** — Create `emit_insn.h/c` (L2): move `bb_insn_*` (30 fns), `emit_ret`, `emit_push/pop_r10`, `emit_test_*`, `emit_mov_rdi_imm64`, `emit_mov_esi_imm32`, `emit_call_sym_plt`, `emit_add/sub_delta_imm` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_insn.h`. `emit.c` retired from build. Bug found+fixed: `emit_mov_rdi_imm64` and `emit_call_sym_plt` were missing `if (EMIT_TEXT && g_in_text_macro_body) return` guard — caused double-emission of macro body after `emit_macro_begin`. Build + gates.
   - [ ] **EM-REORG-7** — Create `emit_mode.h/c` (L2): move `bb_emit_mode` global, `emit_mode_set`, `emit_macro_begin/end`, `emit_macro_param_ref`, `emit_bb_is_format_mode`, `fmt_body_append`, `emit_bb_format_port`, `g_bb_emit_format`, `emit_pad_to_blob_size` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` `#include`s `emit_mode.h`. Build + gates.
   - [ ] **EM-REORG-8** — Create `emit_bb_seq.h/c` (L3): move all remaining compound BB helpers from `emit_bb_gen.h/c` — `emit_bb_port_call*`, `emit_brokered_*`, `emit_push/pop_rbp_frame`, `emit_lea_*`, `emit_load_*`, `emit_sigma_*`, `emit_bounds_*`, `emit_movabs_rdi_entry`, `emit_call_sym_param`, `emit_jz_retskip`, `emit_retskip_label`, `emit_noop_macro`, `emit_bb_inc_mem_r13_disp8`, `emit_mov_edi/edx_imm32`, remaining `emit_sym_lea_*`. `emit_bb_gen.h` now a pure umbrella shim `#include`ing all 7 new headers. `emit_bb_gen.c` is empty → delete it. Build + gates.
   - [ ] **EM-REORG-9** — Rename `emit_bb.c` → `emit_bb_box.c` + create `emit_bb_box.h`. Rename `emit_sm.c` → `emit_sm_op.c` + create `emit_sm_op.h`. Rename `emit_sm_template.h/c` → `emit_sm_shape.h/c`. Update Makefile + all `#include`s. Delete old files. Build + gates.
-  - [ ] **EM-REORG-10** — Remove `emit.h` shim and `emit_bb_gen.h` umbrella: replace every `#include "emit.h"` with specific `emit_form.h`/`emit_buf.h`/`emit_label.h` etc.; replace every `#include "emit_bb_gen.h"` with specific new headers. Update `emit_templates.h`. Verify Makefile lists exactly the 15 final `.c` files. Build + gates. Commit.
 
 - [ ] **EM-BB-FORMAT** (parent) — closes when smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10. Spec: each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions.
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
@@ -185,18 +184,29 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13q (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13r (Claude Sonnet 4.6)**
 
-one4all HEAD `1fc4490c`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD `47c2f30c`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- Dropped `emit_sm_gen.c` — confirmed dead duplicate of `emit_sm_text.c`. −2451 lines.
-- Stripped all body/inline comments from all 16 mode-4 emitter files. Kept one `/* summary */` per function/group and all `/*----*/` banners. 11315→9449 lines total.
+EM-REORG-1..6 complete — six new files created, code moved out of `emit_bb_gen.c` by call-hierarchy level:
+
+| Commit | Step | What moved |
+|---|---|---|
+| `90f7a33a` | EM-REORG-1 | `emit_defs.h` — shared types (no .c) |
+| `87cf4113` | EM-REORG-2 | `emit_buf.h/c` — L0 raw buffer (`bb_emit_byte/u16/u32`, patch, begin/end) |
+| `d3ab16d9` | EM-REORG-3 | `emit_form.h/c` — L1 x86 encoding forms; `emit_defs.c` absorbed; `emit.h` → shim |
+| `7a951a8c` | EM-REORG-4 | `emit_label.h/c` — label lifecycle (`bb_label_init/initf/define`) |
+| `d9020a1c` | EM-REORG-5 | `emit_text3c.h/c` — 3-col formatter, `bb_text*`, `emit_comment/box_banner/banner_stno` |
+| `47c2f30c` | EM-REORG-6 | `emit_insn.h/c` — `bb_insn_*` (30), `emit_ret/push_r10/test_*/mov_rdi/call_sym_plt/add_delta/sub_delta`; `emit.c` retired from build. Bug fixed: missing `g_in_text_macro_body` TEXT guard in two insn functions caused double-emission of macro body. |
+
+`emit_bb_gen.c` now contains only: mode globals + `emit_mode_set` + macro begin/end + format helpers + compound BB helpers + `emit_jmp` + `emit_label_define` + `emit_mov_edi/edx_imm32` + `emit_bb_port_call*` + `emit_lea/load/sigma/bounds` etc. — next two steps drain it completely.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `1fc4490c`.
-3. Next open rung: **EM-REORG-1**. Pure moves, no logic changes, gates green after every step. Call-graph analysis complete — see EM-REORG plan above.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `47c2f30c`.
+3. Next open rung: **EM-REORG-7** — create `emit_mode.h/c` (mode globals, `emit_mode_set`, macro begin/end, format helpers). Then EM-REORG-8 drains `emit_bb_gen.c` entirely. Then EM-REORG-9 renames `emit_bb.c/emit_sm.c/emit_sm_template`.
+4. ⚠️ KEY LESSON: when moving functions that call `emit_macro_begin`, check that all TEXT-mode branches in the moved functions include `if (bb_emit_mode == EMIT_TEXT && g_in_text_macro_body) return;` to suppress body instructions after a macro invocation. Missing this causes double-emission at runtime.
 
