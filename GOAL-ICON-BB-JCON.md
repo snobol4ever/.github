@@ -87,7 +87,25 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 - [x] rung37_str_relop.icn + .expected. GATE-1..4. Commit.
 - Note: rung36_jcon_lexcmp still FAIL — blocked by IJ-12 mutual conjunction (every A & B).
 
-### IJ-9 — Scan alternation resume (Cluster K)
+### IJ-9 — Scan alternation resume (Cluster K) ⏳ PARTIAL `5a71bf11`
+
+**Architecture established (one4all `5a71bf11`):**
+- `is_suspendable(TT_SCAN)` now returns 1 when subject OR body is generative.
+- `coro_bb_scan_gen` extended: on β, re-installs body scan context (`body_subj`/`body_pos`),
+  pumps `body_gen` β before advancing to next subject. Outer context saved/restored every tick.
+- `is_scan_builtin_name()` added to scan_builtins.c/h.
+- `coro_bb_fnc` loops on scan-builtin failure (upto/find/tab/move/etc.) to try next arg value.
+
+**What works:** `every write(subj_gen ? write(upto(!&lcase)))` in bare statement context
+correctly resumes body generator — mini tests pass, correct value counts produced.
+
+**Remaining blocker:** `image(every write(subj_gen ? body))` in arg position (wrapped in
+outer write call) evaluates body only once. Root cause: `write("label", image(every ...) | "none")`
+takes a different TT_EVERY dispatch path than bare `image(every ...)` statement.
+The bare statement form (mini8) → `bb_eval_value(TT_EVERY)` in coro_value.c → works.
+The wrapped form (mini7) → different path, runs body only once.
+Next session: add `fprintf(stderr,"DBG TT_EVERY coro_value\n")` / `fprintf(stderr,"DBG TT_EVERY interp_eval\n")`
+to pinpoint which handler fires, then fix that handler to run box to exhaustion.
 
 - [ ] Fix `(A|B) ? body` — resume subject generator on body failure.
 - [ ] rung37_scan_alt.icn. GATE-1..4. Commit.
@@ -159,7 +177,7 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 
 ## Watermark
 
-  one4all: 340bccc3  corpus: 04f24b8
+  one4all: 5a71bf11  corpus: 04f24b8
   ir-run:  PASS=198 FAIL=37 XFAIL=30
   honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-9 — scan alternation resume (rung36_jcon_scan cluster K).
+  Step:    IJ-9 PARTIAL — scan alternation body-gen resume; image(every) dispatch path blocker.
