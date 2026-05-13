@@ -233,9 +233,30 @@ for the same slot. Live static values propagate across recursive calls.
 - [x] Read JCON ir_a_Mutual. Fix TT_MUTUAL cross-product.
 - [x] rung37_mutual.icn. GATE-1..4. Commit. `6b20b4a2` / corpus `47e3b67`
 
-### IJ-13 — Segfaults: htprep / meander / kross (Cluster O)
+### IJ-13 — Segfaults: htprep / meander / kross (Cluster O) ⏳ PARTIAL
 
-- [ ] ASAN build. Fix crashes. GATE-1..4. Commit per fix.
+**IJ-13a `d2453ecc`: htprep no longer crashes.**
+Root cause: `ast_gc_clone()` called `GC_strdup(e->v.sval)` for ALL node types,
+but TT_ILIT/TT_FLIT/TT_AUGOP etc. store ival/dval in the same union — casting
+an integer to char* and passing to strlen/GC_strdup crashes. Fix: switch on e->t;
+only GC_strdup for TT_QLIT/TT_VAR/TT_KEYWORD/TT_FNC/TT_IDX/TT_CSET/TT_ATTR.
+
+**IJ-13b `2d5567ca`: &input/&output/&errout now return fh slot integers.**
+icn_kw_read now returns INTVAL(0/1/2) for &input/&output/&errout respectively
+(matching raku_fh_table[0]=stdin, [1]=stdout, [2]=stderr).
+read(infile) where infile:=&input now works.
+
+**Remaining — htprep still produces empty output:**
+htprep's `out()` calls `write(outfile, s)` where outfile is an fh integer.
+write/writes can't safely distinguish fh from plain int without a typed
+file-handle descriptor (DT_FH). Needed: introduce a file-handle descriptor
+type so write(fh, s) routes correctly. Tracked as future step IJ-13c.
+
+**meander, kross: no longer crash, but output is wrong (separate issues).**
+
+- [x] Fix ast_gc_clone SIGSEGV (IJ-13a `d2453ecc`)
+- [x] Fix &input/&output/&errout to return fh integers (IJ-13b `2d5567ca`)
+- [ ] IJ-13c: introduce DT_FH typed descriptor; fix write(fh,...) routing
 
 ### IJ-14 — stdin programs: mindfa / mffsol (Cluster Q)
 
@@ -284,9 +305,24 @@ for the same slot. Live static values propagate across recursive calls.
 6. New test source has matching .expected in same commit.
 7. No corpus source modified to work around runtime bugs.
 
+## ⚠️ Icon test authoring — semicolons required (non-standard)
+
+scrip's Icon frontend requires explicit semicolons at the end of every
+statement. This is NON-STANDARD vs real Icon/JCON (which use newline
+as statement separator). All `.icn` test files written for this project
+(rung37_*.icn etc.) must terminate every statement with `;`.
+
+Example — WRONG (parses as error):
+    x := 1
+    write(x)
+
+Example — CORRECT:
+    x := 1;
+    write(x);
+
 ## Watermark
 
-  one4all: 6b20b4a2  corpus: 47e3b67
+  one4all: 2d5567ca  corpus: 47e3b67
   ir-run:  PASS=200 FAIL=35 XFAIL=30
-  honest:  PASS=272 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-12 ✅. NEXT: IJ-13 (segfaults: htprep/meander/kross — ASAN build)
+  honest:  PASS=273 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-13 partial (crash fixed; fh-typed descriptor needed for write(fh,s)). NEXT: IJ-13c or IJ-14
