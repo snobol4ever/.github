@@ -189,6 +189,13 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-6** ✅ sess 2026-05-13 cont. (Claude Sonnet 4.6) — Deleted emit_buf.c (→emit_mode.c), emit_form.c (→emit_mode.c), emit_label.c (→emit_label_new.c standalone), emit_text3c.c (→emit_text.c standalone), emit_insn.c (→insn.c appended), emit.c (debris, not in Makefile). All 5 compiled files removed from Makefile RT_PIC_SRCS + explicit .o rules. Migrated 11 callers from emit_bb_gen.h → emit.h; emit_bb_gen.h reduced to one-line shim. ARCH-EMITTER.md finalized with RW-6 completion record. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 - [x] **EM-SNOCONE-PREP** ✅ `71244e57` — Comment cleanup (prev sess `85b4f292`) + bb3c_format→emit_text_3col migration in emit_seq.c; emit_text3c.h→emit_text.h; IS_TEXT guard on emit_seq_call_tgt (missing guard was Disease-1 survivor). Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+- [x] **RW-OPCODES** ✅ `edf0c88a` — — Replace every raw `bb_emit_byte(0xNN)` magic constant in `emit_core.c`'s `insn_*` binary branches with named `#define` opcode constants. Goal: binary branches read like assembly (`REX_W; MOV_RAX_IMM64; bb_emit_u64(v)`) rather than hex soup. All names in a single table `x86_opcodes.h` (new file). No logic changes; pure readability. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+
+  **Spec:**
+  - New file `src/runtime/x86/x86_opcodes.h` — one `#define` per distinct opcode byte used in `emit_core.c`, named after the Intel mnemonic + operand encoding. Examples: `REX_W 0x48`, `MOV_EAX_IMM32 0xB8`, `MOV_RAX_IMM64 0xB8` (same byte, distinguished by REX.W prefix), `RET 0xC3`, `NOP 0x90`, `CALL_RM 0xFF`, `JMP_REL8 0xEB`, `JMP_REL32 0xE9`, `JE_REL8 0x74`, `JNE_REL8 0x75`, `JL_REL8 0x7C`, `JGE_REL8 0x7D`, `JG_REL32 0x0F /*+*/ 0x8F`, `MOV_R_RM 0x89`, `MOV_RM_R 0x8B`, `LEA 0x8D`, `CMP_EAX_IMM32 0x3D`, `CMP_AL_IMM8 0x3C`, `ADD_EAX_IMM32 0x05`, `SUB_EAX_IMM32 0x2D`, `XOR_RM_R 0x31`, `TEST_RM_R 0x85`, `MOVZX 0x0F /*+*/ 0xB6`, `MOVSXD 0x49 /*+*/ 0x63`, `INC_RM 0xFF`, `PUSH_RBP 0x55`, `POP_RBP 0x5D`, `PUSH_R12 0x41 /*+*/ 0x54`, `POP_R12 0x41 /*+*/ 0x5C`, ModRM bytes where useful.
+  - Each multi-byte sequence gets a short inline comment explaining what it encodes.
+  - `emit_core.c` `insn_*` functions updated to use the names.
+  - No changes to TEXT branches, no logic changes.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
 
 ---
@@ -197,7 +204,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `b0437a74`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD `edf0c88a`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
@@ -208,6 +215,6 @@ one4all HEAD `b0437a74`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `b0437a74`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-3. Update ARCH-EMITTER.md to reflect RW-CONSOLIDATE file map (old 16-file map is stale).
+2. Confirm one4all HEAD `edf0c88a`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+3. **RW-OPCODES** — write x86_opcodes.h, replace raw hex in insn_* binary branches in emit_core.c.
 4. Continue **M5** or next active step.
