@@ -83,17 +83,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13w (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13x (Claude Sonnet 4.6)**
 
-one4all HEAD `46642b16`. Gates: smoke 7/7, template-byte-id 4/4. EM-RAW-PURGE-1 ✅ COMPLETE.
+one4all HEAD `d894c021`. Gates: smoke 7/7, template-byte-id 4/4. EM-RAW-PURGE-1 ✅ + full source scan ✅.
 
 ### What was done this session
 
-- **EM-RAW-PURGE-1 Phase A:** Deleted all raw-byte BB emitter code (~263 lines) from emit_bb_flat.c and bb_build.h.
-- **EM-RAW-PURGE-1 Phase B:** Added patnd_make_xchr / patnd_make_eps (snobol4_patnd.h + snobol4_pattern.c). Replaced 6 NULL stubs in stmt_exec.c with patnd_make_* + bb_build_brokered. Fixed scan_body_fn_u9 to use g_scan_pre_delta (set by bb_broker's BB_SCAN loop before body_fn call) instead of val.slen — the flat/brokered blob γ-exit sets Δ=match_end and returns eax=1,rdx=sigma+delta, so val.slen=0; pre_delta must come from the scan loop variable.
+- Full source scan: every raw bb_emit_byte/u32/u64 call found and eliminated from emit_bb_seq.c and emit_bb_box.c.
+- Added 21 new bb_insn_* functions to emit_insn.c/h covering all missing instruction encodings.
+- Rewrote emit_bb_seq.c (16 raw-byte blocks → bb_insn_* calls); fixed emit_bb_box.c (1 block).
+- Fixed bb_build_brokered raw prologue → emit_brokered_prologue().
+- Zero raw bb_emit_byte calls now exist outside the L0-L2 primitive layer (emit_buf/form/insn/label/mode.c).
+- emit_insn.c IS part of the primitive layer — its bb_emit_byte calls are legitimate (they are the template implementation).
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md.
-2. Confirm one4all HEAD `46642b16`. Gates: smoke 7/7, template-byte-id 4/4.
+2. Confirm one4all HEAD `d894c021`. Gates: smoke 7/7, template-byte-id 4/4.
 3. Current step: **EM-BB-FORMAT** — each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. No if-statements in template functions. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, gcc -c clean, beauty ≥10.
+4. NOTE: emitter cleanup is still ACTIVE per Lon's instruction. Continue scanning for violations before EM-BB-FORMAT work.
