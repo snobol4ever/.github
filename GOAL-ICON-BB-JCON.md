@@ -80,10 +80,12 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 - [ ] Fix `?x` random char of string/cset → moved to IJ-16 (cluster R, &random seeding step).
 - [x] GATE-1..4. Commit. `b50d8180`
 
-### IJ-8 — Lexicographic string comparison edge cases (Cluster H)
+### IJ-8 — Lexicographic string comparison edge cases (Cluster H) ✅ `340bccc3`
 
-- [ ] Diff rung36_jcon_lexcmp expected vs actual. Fix.
-- [ ] rung37_str_relop.icn. GATE-1..4. Commit.
+- [x] bb_strrel: coerce int/real to decimal image string before strcmp.
+- [x] bb_strrel: return STRVAL(rs) not raw descriptor.
+- [x] rung37_str_relop.icn + .expected. GATE-1..4. Commit.
+- Note: rung36_jcon_lexcmp still FAIL — blocked by IJ-12 mutual conjunction (every A & B).
 
 ### IJ-9 — Scan alternation resume (Cluster K)
 
@@ -157,7 +159,7 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 
 ## Watermark
 
-  one4all: b50d8180  corpus: cea9548
+  one4all: 340bccc3  corpus: 04f24b8
   ir-run:  PASS=198 FAIL=37 XFAIL=30
-  honest:  PASS=267 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-8 — lexicographic string comparison edge cases (rung36_jcon_lexcmp).
+  honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-9 — scan alternation resume (rung36_jcon_scan cluster K).
