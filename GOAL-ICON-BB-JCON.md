@@ -113,31 +113,33 @@ Every step in IJ-3 that touches a BB (proc-as-value, indirect invocation,
 image) MUST be grounded in what jcon_irgen.icn actually emits — not inferred
 from C source alone. Previous Claude skipped this and had to backtrack.
 
-**Partial progress (one4all `d696d3a4`):**
+**Partial progress (one4all `2e0ce555`):**
 - ✅ `raku_fh_name[]` filename table — `image(fh)` → `file(foo.baz)`
 - ✅ `image()` extended: `list(n)`, `record(typename)`, `procedure name`, both paths
 - ✅ `proc(name,arity)` builtin implemented (returns `DT_E` for user procs)
 - ✅ `args(proc_val)` builtin — returns nparams / -2 for varargs
 - ✅ `icn_proc_as_value()` in `coro_value.c` — bare proc name TT_VAR → `DT_E`/`DT_S`
-- ✅ Indirect callee dispatch in `bb_eval_value` TT_FNC: non-TT_VAR callee evaluates
-  to DT_E/DT_S and dispatches via proc_table / icn_try_call_builtin_by_name.
-- ✅ Same indirect dispatch + proc-value-in-variable fallback in `interp_eval.c` TT_FNC.
-- ✅ `icn_proc_as_value` stores proc_table index in slen (was nparams) for --ir-run fallback.
+- ✅ Indirect callee dispatch in `bb_eval_value` + `interp_eval.c` TT_FNC
+- ✅ `lower.c emit_var_load`: Icon proc names → `SM_PUSH_VAR` → DT_E (not LOAD_FRAME SNUL)
+- ✅ `sm_interp.c SM_PUSH_VAR`: promotes Icon proc names to DT_E descriptor
+- ✅ `sm_interp.c SM_CALL_FN`: dispatches DT_E from frame slots via `FRAME.sc`
+- ✅ `coro_runtime.c sm_call_proc`: copies `lower_sc` into `FRAME.sc`
+- ✅ `coro_bb_indirect_callee`: new BB generator box for `(!plist)()` — generative callee
+- ✅ `coro_value.c` indirect callee: handles DT_I (`3()` → `3`), DT_SNUL, DT_S proc names
+- ✅ `sm_interp.c SM_RETURN`: Icon fall-off-end returns `NULVCL` not `FAILDESCR`
+- ✅ `pv := p0; write(image(pv))` → `"procedure p0"` ✓; `pv()` → calls p0 ✓
+- ✅ `every (!plist)()` with mixed int+proc drives generator correctly
 
-**Root cause of remaining failures — MUST READ ir_a_Ident FIRST:**
-Bare proc name in value context (`pv := p0`) parses as **TT_FNC zero-arg call**,
-NOT TT_VAR. So `bb_eval_value` calls `p0()` and stores its return value (FAILDESCR/NULVCL),
-not a DT_E proc descriptor. The proc value DT_E is never stored into pv's slot.
-JCON resolves this via `ir_a_Ident` which emits `ir_Var` for bare names — the Icon
-parser must produce TT_VAR (not TT_FNC) for a bare name in value context.
-NEXT SESSION: read `ir_a_Ident` in jcon_irgen.icn, then fix the Icon parser or
-lower pass to emit TT_VAR (not zero-arg TT_FNC) for bare proc names in value position.
-
-**Remaining blockers:**
-1. Bare proc name in value context: `pv := p0` — fix parser/lower to produce TT_VAR,
-   not zero-arg TT_FNC, when name appears in value (not call) position.
-2. Global variable persistence for file handles in `--ir-run`
-   (rung36_jcon_fncs1: `f` global reads as 0/stdin after open())
+**Remaining open issue — next session:**
+`every write((!plist)())` — the SM/BB seam. Root cause hypothesis:
+`coro_bb_fnc` calls `icn_call_builtin(z->call, z->args, z->nargs)` for write,
+but `icn_call_builtin` RE-EVALUATES args from tree_t children, ignoring the
+pre-computed `z->args[gen_idx]` that contains the result from `coro_bb_indirect_callee`.
+So write sees a fresh oneshot eval of `(!plist)()` (→ FAILDESCR) instead of the
+DT_E/NULVCL from the indirect callee. Fix: ensure the generative arg value flows
+to the builtin via `coro_drive_node`/`coro_drive_val` injection (same pattern
+as `coro_bb_fnc` already uses for other builtins with generative args — check
+how it injects the value into the call node's child before calling icn_call_builtin).
 
 - [x] Read JCON `ir_a_Call` in jcon_irgen.icn for proc semantics.
 - [ ] Wire indirect DT_E/DT_S invocation in TT_FNC dispatch (coro_value.c + interp_eval.c).
@@ -375,9 +377,9 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
 ## Watermark
 
   Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: d696d3a4
+  one4all HEAD: 2e0ce555
   ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
   Honest:       PASS=259 FAIL=1  ABORT=0
-  Current step: IJ-3 (partial — image/proc/args/proc-as-value/indirect-dispatch done;
-                bare-proc-name-as-value parse fix + global-var persistence needed;
-                MUST read ir_a_Ident in jcon_irgen.icn before coding next session)
+  Current step: IJ-3 (partial — DT_E storage/dispatch working; every write((!plist)())
+                blocked at SM/BB seam; coro_bb_indirect_callee drive injection needed;
+                see 'Remaining open issue' above for hypothesis and fix direction)
