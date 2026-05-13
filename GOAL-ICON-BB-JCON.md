@@ -1,378 +1,155 @@
-# GOAL-ICON-BB-JCON.md — Icon ir-run FAIL triage: missing builtins, BB fixes, new test sources
+# GOAL-ICON-BB-JCON.md — Icon ir-run FAIL triage
 
 **Repo:** one4all + corpus + .github
-**Carved:** 2026-05-12
-**Prerequisite:** GOAL-ICON-BB-NATIVE ✅ (one4all `7efdf09a`)
-
----
+**Carved:** 2026-05-12  **Prereq:** GOAL-ICON-BB-NATIVE ✅ (one4all `7efdf09a`)
 
 ## Objective
 
-Fix the 39 ir-run FAILs left after GOAL-ICON-BB-NATIVE.  Each step targets one
-cluster of related failures, adds a focused test source to corpus if none exists,
-and leaves all gates green.  Steps are ordered by risk-to-reward ratio (easiest
-fixes first, regressions last).
+Fix the 39 ir-run FAILs left after GOAL-ICON-BB-NATIVE. Steps ordered by risk-to-reward.
 
----
+## Baseline → Current
 
-## Baseline (one4all `7efdf09a`, 2026-05-12)
+  Baseline (7efdf09a): ir-run PASS=196 FAIL=39. honest PASS=259.
+  Current  (ce8c1211): ir-run PASS=198 FAIL=37. honest PASS=268. broker 23/49.
 
-  ir-run:  PASS=196  FAIL=39  XFAIL=30  TOTAL=265
-  honest:  PASS=259  FAIL=1   ABORT=0
-
-### 39 FAILs by cluster
+## Remaining FAILs by cluster
 
 | # | Cluster | Tests | Root cause |
 |---|---------|-------|------------|
-| A | **Alternate filter in every** | rung13_alt_alt_filter | `every (x := A|B) > N` — BB_EVAL skips filter in alternate; only 0 of 3 values printed |
-| B | **Table key iteration** | rung23_table_table_key | `key(t)` generator yields wrong count (30 vs 60) |
-| C | **Missing builtins — proc/image** | rung36_jcon_args, rung36_jcon_record, rung36_jcon_lists, rung36_jcon_fncs1 | `proc("op",arity)` lookup + `image()` builtin |
-| D | **Missing builtins — math** | rung36_jcon_mathfunc | `sin/cos/tan/exp/log/sqrt` + `floor/ceil/iand/ior/ixor/ishift` |
-| E | **Missing builtins — string** | rung36_jcon_endetab, rung36_jcon_prepro | `detab/entab/center/left/right` with width/fill args |
-| F | **Augop for non-numeric / partial** | rung36_jcon_augment | `^:=` with integer base (power augop wrong result) |
-| G | **Coerce / type conversion** | rung36_jcon_coerce, rung36_jcon_numeric | `+x / -x / *x` as coerce ops; `integer := abs` returns function not &null |
-| H | **Lexicographic string comparison** | rung36_jcon_lexcmp | `s1 << s2` etc. comparators not returning correct boolean for all cases |
-| I | **Radix literals** | rung36_jcon_radix | `"2r111...111"` (large binary literals) overflow to -1 instead of big int |
-| J | **String builtins partial** | rung36_jcon_string, rung36_jcon_string1 | `repl/trim` edge cases; `===` / `~===` identical-op augops |
-| K | **Scan alternation** | rung36_jcon_scan, rung36_jcon_scan1, rung36_jcon_scan2 | `(A|B) ? body` scan alternation resumes incorrectly |
-| L | **&pos / &subject negative pos** | rung36_jcon_subjpos, rung36_jcon_substring | negative position values (-5..-1) in &pos / &subject |
-| M | **Keywords table** | rung36_jcon_kwds | missing keyword values in &keywords table (partial output) |
-| N | **Level / profsum / ck** | rung36_jcon_level, rung36_jcon_profsum, rung36_jcon_ck | FP precision + `level()` builtin + `&allocated` |
-| O | **Segfaults / crashes** | rung36_jcon_htprep, rung36_jcon_meander, rung36_jcon_kross | seg fault in hash-table, meander, kross programs |
-| P | **Queens / genqueen partial** | rung36_jcon_queens, rung36_jcon_genqueen | 6-queens partial output (mutual conjunction every A&B) |
-| Q | **Parse / mindfa / mffsol** | rung36_jcon_parse, rung36_jcon_mindfa, rung36_jcon_mffsol | stdin-dependent programs (need .stdin fixture) or complex I/O |
-| R | **Random / large** | rung36_jcon_random | `&random` seeding reproducibility |
-
----
+| G | Coerce / type conversion | rung36_jcon_coerce, rung36_jcon_numeric | `to`-loop truncation; `~~`; `?` random |
+| C | Missing builtins — proc/image | rung36_jcon_args, rung36_jcon_record, rung36_jcon_lists, rung36_jcon_fncs1 | residual after IJ-3 |
+| E | Missing builtins — string | rung36_jcon_endetab, rung36_jcon_prepro | `&error`/`$define` |
+| H | Lex string comparison | rung36_jcon_lexcmp | edge cases |
+| I | Radix literals | rung36_jcon_radix | large binary overflow |
+| J | String builtins partial | rung36_jcon_string, rung36_jcon_string1 | repl/trim edge cases |
+| K | Scan alternation | rung36_jcon_scan, rung36_jcon_scan1, rung36_jcon_scan2 | alternation resume |
+| L | &pos / &subject negative | rung36_jcon_subjpos, rung36_jcon_substring | negative positions |
+| M | Keywords table | rung36_jcon_kwds | missing &keywords entries |
+| N | Level / profsum / ck | rung36_jcon_level, rung36_jcon_profsum, rung36_jcon_ck | level() + &allocated |
+| O | Segfaults | rung36_jcon_htprep, rung36_jcon_meander, rung36_jcon_kross | crashes |
+| P | Queens mutual conjunction | rung36_jcon_queens, rung36_jcon_genqueen | `every A & B` |
+| Q | stdin programs | rung36_jcon_parse, rung36_jcon_mindfa, rung36_jcon_mffsol | stdin fixtures |
+| R | Random | rung36_jcon_random | `&random` seeding |
 
 ## Session Setup
 
-  cd /home/claude/one4all
-  bash scripts/build_scrip.sh
+  cd /home/claude/one4all && bash scripts/build_scrip.sh
 
-**⚠️ BB IMPLEMENTATION RULE (mandatory, no exceptions):**
-Every step that implements or modifies a BB (builtin, proc-as-value, indirect
-call, image, etc.) MUST begin by reading `jcon_irgen.icn` (located in the
-.github repo root, cloned to /home/claude/.github/jcon_irgen.icn).
-Specifically read the `ir_a_Call` and `ir_a_Ident` procedures to understand
-how JCON represents the construct you are implementing at the IR/BB level.
-Do NOT infer semantics from C source alone — the irgen is the spec.
+**⚠️ BB RULE:** Every step touching a BB must first read `.github/jcon_irgen.icn`
+(`ir_a_Call` + `ir_a_Ident`). Do not infer BB semantics from C source alone.
 
----
+## Gates
 
-## Gate protocol — every step must pass ALL of these before commit
-
-  GATE-1  bash scripts/test_smoke_icon.sh                 # PASS=5  never regress
-  GATE-2  bash scripts/test_smoke_unified_broker.sh       # PASS=22 never regress (post-PB-8)
-  GATE-3  bash scripts/test_icon_ir_all_rungs.sh          # PASS must not decrease
-  GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS=259 must not decrease
-
----
+  GATE-1  bash scripts/test_smoke_icon.sh                 # PASS=5
+  GATE-2  bash scripts/test_smoke_unified_broker.sh       # PASS=23
+  GATE-3  bash scripts/test_icon_ir_all_rungs.sh          # PASS ≥ prev
+  GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS ≥ 268
 
 ## Steps
 
-### IJ-1 — Alternate filter in `every` (Cluster A) ✅ sess 2026-05-12 (`c5bb0775`)
+### IJ-1..IJ-6 ✅ DONE
 
-**Root cause:** TT_SEQ (conjunction &) had no coro_eval case — fell through to oneshot
-which eagerly called bb_eval_value(TT_SEQ); first child (x:=1)>2 failed for x=1,2 → FAILDESCR.
-**Fix:** Added TT_SEQ generator case in coro_eval: when c[0] is suspendable, build
-icn_every_state_t with gen=coro_eval(c[0]), body=c[1], reusing coro_bb_every semantics.
-ir-run 196→197.
+IJ-1 `c5bb0775` TT_SEQ filter conjunction. IJ-2 `8529aec9` table key injection.
+IJ-3 `248379b3` proc()/image()/indirect callee. IJ-4 math/bitwise builtins.
+IJ-5 `8ecc814a` detab/entab/cset canonical. IJ-6 augop (already passing).
 
-- [x] Read coro_bb_alternate + bb_eval_value TT_ALTERNATE case.
-- [x] Identify where the filter failure fails to resume the alternate.
-- [x] Fix: TT_SEQ as filter conjunction generator in coro_eval.
-- [x] Test source: rung13_alt_alt_filter.icn already exists.
-- [x] GATE-1..4. Commit.
+### IJ-7 — Operator string invocation + type coercion (Cluster G) ⏳ partial `ce8c1211`
 
-### IJ-2 — Table key iteration (Cluster B) ✅ sess 2026-05-12 (`8529aec9`)
+**Done:** `icn_try_call_builtin_by_name` now dispatches all unary/binary operator
+symbols: `+/-/*/ !/\\/~/?` (unary), arithmetic, numeric relops, string relops,
+identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 
-**Root cause:** TT_FNC in bb_eval_value lacked coro_drive_node injection check.
-coro_bb_cat injected drive_node=key(t), drive_val=k each tick, but TT_FNC ignored it
-and re-evaluated key(t) fresh — building a new key_iterate box starting from alpha
-every time. So t[1]=10 was read on every tick; total accumulated 10+10+10=30 not 60.
-**Fix:** Added injection check `if (coro_drive_node && e == coro_drive_node) return coro_drive_val`
-at top of TT_FNC case in bb_eval_value. Same pattern as TT_TO, TT_ITERATE, TT_BANG_BINARY, etc.
-ir-run 197→198.
+**Remaining in rung36_jcon_coerce:**
+- `toby`: `i to j by k` with real/cset/string bounds → truncate to integer.
+  `coro_bb_to_gen` uses raw reals; need integer truncation when bounds coerce to int.
+- `~~x`: double cset complement should round-trip cleanly.
+- `?x`: random char of string/cset (already in unary `?` handler, debug needed).
+- `rung36_jcon_numeric`: cset `--` on int args; `^` with negative exponent.
 
-- [x] Read icn_builtin key — coro_bb_tbl_key_iterate was correct.
-- [x] Fix: TT_FNC injection check in bb_eval_value (coro_value.c).
-- [x] Test source: rung23_table_table_key.icn already exists.
-- [x] GATE-1..4. Commit.
-
-### IJ-3 — `proc()` builtin + indirect invocation (Cluster C)
-
-**Target:** rung36_jcon_args, rung36_jcon_record, rung36_jcon_fncs1, rung36_jcon_lists
-**Root cause:** `proc("~===", 2)` — lookup procedure object by name/arity.
-Also: list image builtin `image(L)` for list display.
-
-**⚠️ MANDATORY BEFORE CODING:** Read `jcon_irgen.icn` (in .github repo root)
-in full, especially `ir_a_Call` and `ir_a_Ident`, to understand how JCON
-represents proc values and indirect calls at the BB/IR level.
-Every step in IJ-3 that touches a BB (proc-as-value, indirect invocation,
-image) MUST be grounded in what jcon_irgen.icn actually emits — not inferred
-from C source alone. Previous Claude skipped this and had to backtrack.
-
-**Partial progress (one4all `2e0ce555`):**
-- ✅ `raku_fh_name[]` filename table — `image(fh)` → `file(foo.baz)`
-- ✅ `image()` extended: `list(n)`, `record(typename)`, `procedure name`, both paths
-- ✅ `proc(name,arity)` builtin implemented (returns `DT_E` for user procs)
-- ✅ `args(proc_val)` builtin — returns nparams / -2 for varargs
-- ✅ `icn_proc_as_value()` in `coro_value.c` — bare proc name TT_VAR → `DT_E`/`DT_S`
-- ✅ Indirect callee dispatch in `bb_eval_value` + `interp_eval.c` TT_FNC
-- ✅ `lower.c emit_var_load`: Icon proc names → `SM_PUSH_VAR` → DT_E (not LOAD_FRAME SNUL)
-- ✅ `sm_interp.c SM_PUSH_VAR`: promotes Icon proc names to DT_E descriptor
-- ✅ `sm_interp.c SM_CALL_FN`: dispatches DT_E from frame slots via `FRAME.sc`
-- ✅ `coro_runtime.c sm_call_proc`: copies `lower_sc` into `FRAME.sc`
-- ✅ `coro_bb_indirect_callee`: new BB generator box for `(!plist)()` — generative callee
-- ✅ `coro_value.c` indirect callee: handles DT_I (`3()` → FAILDESCR per Icon 9.5 oracle), DT_SNUL, DT_S proc names
-- ✅ `sm_interp.c SM_RETURN`: Icon fall-off-end returns `NULVCL` not `FAILDESCR`
-- ✅ `pv := p0; write(image(pv))` → `"procedure p0"` ✓; `pv()` → calls p0 ✓
-- ✅ `every (!plist)()` with mixed int+proc drives generator correctly
-- ✅ `coro_bb_indirect_callee` loop fix: skips non-callable types (int/real) and continues to next; FAILDESCR only on exhaustion. Fixed double-call bug (entry_pc found → slen fallback was firing again). Verified with Icon 9.5 oracle (uploaded icon-master.zip). one4all `248379b3`.
-
-- [x] Read JCON `ir_a_Call` in jcon_irgen.icn for proc semantics.
-- [x] Wire indirect DT_E/DT_S invocation in TT_FNC dispatch (coro_value.c + interp_eval.c).
-- [x] Verify `image(x)` produces correct string for lists, records, procedures.
-- [x] Write test source `rung37_proc_lookup.icn` if no focused test exists.
-- [x] GATE-1..4. Commit.
-
-### IJ-4 — Math builtins: trig + integer bitwise (Cluster D)
-
-**Target:** rung36_jcon_mathfunc
-**Missing:** sin/cos/tan/atan/exp/log/sqrt (floating-point math),
-            iand/ior/ixor/ishift/icom (integer bitwise ops).
-
-- [x] Read jcon_irgen.icn `ir_a_Call` for math builtins.
-- [x] Implement missing math builtins in icn_builtins.c (sin/cos/tan/atan/exp/log/sqrt). ✅ prior session
-- [x] Implement integer bitwise builtins: iand/ior/ixor/ishift/icom. ✅ prior session
-- [x] Builtin-as-proc-value: f := sqrt; f(4.0); image(f,15) → "function sqrt". one4all `2e810645`.
-- [x] GATE-1..4. Commit.
-
-### IJ-5 — String formatting builtins: center/left/right/detab/entab (Cluster E) ✅ sess 2026-05-13 (`8ecc814a`)
-
-**Target:** rung36_jcon_endetab, rung36_jcon_prepro
-center/left/right were already implemented. detab/entab had two bugs.
-
-**Root causes fixed:**
-- TT_CSET literal canonicalization: '1987' was stored/emitted as raw bytes; now
-  sorted+deduped via icn_cset_canonical() in lower.c (SM path) + interp_eval.c/coro_value.c.
-- entab/detab gap logic: period was hardcoded 8; now = stop_value (one stop) or
-  last-stop minus second-to-last (two+ stops). Fixes multi-stop round-trip.
-- entab/detab type check: string tab-stop args now return FAILDESCR (error 101
-  semantics); 'entab(s,"3")' silently coerced — now correctly fails.
-- rung36_jcon_endetab still FAIL: ferr() calls require &error/&errornumber trap
-  (not yet impl). rung36_jcon_prepro: preprocessor $define issue, different cluster.
-- honest PASS 266→267.
-
-- [x] Read Icon book definitions for center/left/right/detab/entab.
-- [x] Implement in icn_builtins.c.
-- [x] Write test source `rung37_string_format.icn` (corpus `1ff4e6c`).
-- [x] GATE-1..4. Commit.
-
-### IJ-6 — Augop for power and remaining missing augops (Cluster F) ✅ already passing
-
-`rung36_jcon_augment` was already PASS at session start. No work needed.
-
-- [x] Run rung36_jcon_augment with --ir-run --dump-sm to isolate the wrong SM sequence.
-- [x] Fix lower_augop or SM_ACOMP for the `^` case.
-- [x] Write test source `rung37_augops.icn` with i := 2; i ^:= 3; write(i) → 8.
-- [x] GATE-1..4. Commit.
-
-### IJ-7 — Type coercion operators `+x / -x / *x` (Cluster G)
-
-**Target:** rung36_jcon_coerce, rung36_jcon_numeric
-**Root cause:** Unary +, -, * as coerce operators (not arithmetic):
-  +x coerces to numeric (integer or real),
-  -x coerces to numeric and negates,
-  *x coerces to integer (truncate real).
-  Also: `integer := abs` should store the function object, not &null.
-
-- [ ] Read coro_value.c / bb_eval_value for TT_PLS / TT_MNS / TT_MUL unary cases.
-
-**Session 2026-05-13 partial (183b6ec9): Two pre-existing bugs fixed:**
-- coro_eval fallback: icn_oneshot→icn_lazy_box (fixes === in alternation context)
-- FAIL/SUCCEED in icn_try_call_builtin_by_name (fixes ~=== always-true bug)
-  GATE-2 broker +1 (22→23). ir-run 198, honest 267.
-- [ ] Fix: unary + must coerce string to number (not just negate).
-- [ ] Fix: `integer` as lvalue for a function assignment — verify function values
-      are assignable to variables without being called.
-- [ ] Write test source `rung37_coerce.icn`:
-      write(+"3"), write(-"3"), write(*3.7), x := abs; write(x(-4)) → 3, -3, 3, 4.
+- [x] Add unary/binary operator dispatch in icn_try_call_builtin_by_name.
+- [x] rung37_coerce.icn + .expected.
+- [ ] Fix `to` loop integer truncation of real/string/cset bounds.
+- [ ] Fix `~~x` double-complement round-trip.
 - [ ] GATE-1..4. Commit.
 
-### IJ-8 — Lexicographic string comparison operators (Cluster H)
+### IJ-8 — Lexicographic string comparison edge cases (Cluster H)
 
-**Target:** rung36_jcon_lexcmp  (`s1 << s2`, `s1 <<= s2`, `s1 == s2`, `s1 ~== s2`, `s1 >>= s2`, `s1 >> s2`)
-**Root cause:** String comparison operators return wrong values for some inputs
-(empty string comparisons, equal strings, etc.).
-
-- [ ] Run rung36_jcon_lexcmp --ir-run and diff expected. Isolate first wrong line.
-- [ ] Fix string comparison operators in icn_builtins / bb_eval_value.
-- [ ] Write test source `rung37_str_relop.icn`:
-      write("a" << "b"), write("b" << "a"), write("a" == "a"), write("a" ~== "b") → a, fail, a, a.
-- [ ] GATE-1..4. Commit.
+- [ ] Diff rung36_jcon_lexcmp expected vs actual. Fix.
+- [ ] rung37_str_relop.icn. GATE-1..4. Commit.
 
 ### IJ-9 — Scan alternation resume (Cluster K)
 
-**Target:** rung36_jcon_scan, rung36_jcon_scan1, rung36_jcon_scan2
-**Root cause:** `(A|B) ? body` — when body fails, scan must resume the subject
-generator (A|B) to try the next subject. Currently partial output shows the
-alternation is not resumed after body failure.
-
-- [ ] Read bb_eval_value TT_SCAN + coro_bb_alternate interaction.
-- [ ] Fix: scan with generative subject must retry scan on each successive subject value.
-- [ ] Write test source `rung37_scan_alt.icn`:
-      every write(("abc"|"def") ? find("bc")) → 2 (finds in "abc", fails in "def").
-- [ ] GATE-1..4. Commit.
+- [ ] Fix `(A|B) ? body` — resume subject generator on body failure.
+- [ ] rung37_scan_alt.icn. GATE-1..4. Commit.
 
 ### IJ-10 — &pos / &subject negative positions (Cluster L)
 
-**Target:** rung36_jcon_subjpos, rung36_jcon_substring
-**Root cause:** Icon positions are 1-based with negative values meaning from end.
-Position -1 = last+1, -2 = last, etc. Some operations with negative pos fail or
-return wrong results.
-
-- [ ] Audit icn_pos_normalize / scan position handling for negative values.
-- [ ] Fix: negative &pos assignments and substring operations with negative bounds.
-- [ ] Write test source `rung37_neg_pos.icn`:
-      "abcde" ? (tab(-2); write(&pos)) → 4; write("abcde"[-2:0]) → "de".
-- [ ] GATE-1..4. Commit.
+- [ ] Audit icn_pos_normalize. rung37_neg_pos.icn. GATE-1..4. Commit.
 
 ### IJ-11 — Missing &keywords table entries (Cluster M)
 
-**Target:** rung36_jcon_kwds  (partial keyword table output)
-**Root cause:** Several Icon keywords (&allocated, &clock, &collections, &current,
-&main, &progname, &source, &storage, &time, &version) not implemented or returning &null.
-
-- [ ] Diff expected vs actual for rung36_jcon_kwds to enumerate missing keywords.
-- [ ] Implement missing keywords (at minimum stubs returning appropriate types/values).
-- [ ] Write test source `rung37_keywords.icn`: write(&ascii), write(&null), write(type(&main)).
-- [ ] GATE-1..4. Commit.
+- [ ] Diff rung36_jcon_kwds. Implement missing stubs.
+- [ ] rung37_keywords.icn. GATE-1..4. Commit.
 
 ### IJ-12 — Queens mutual conjunction `every A & B` (Cluster P)
 
-**Target:** rung36_jcon_queens, rung36_jcon_genqueen
-**Root cause:** `every A & B` requires BOTH A and B to generate in conjunction
-(cross-product semantics). Currently queens only outputs 6-Queens header, meaning
-the mutual conjunction fails to drive both generators.
-
-- [ ] Read JCON ir_a_Mutual in jcon_irgen.icn for conjunction semantics.
-- [ ] Fix: TT_MUTUAL in bb_eval_value / coro_runtime — both arms must succeed for
-      conjunction to succeed; either failing causes resume of the other.
-- [ ] Write test source `rung37_mutual.icn`:
-      every write((1|2) & (3|4)) → 3, 4, 3, 4 (cross product).
-- [ ] GATE-1..4. Commit.
+- [ ] Read JCON ir_a_Mutual. Fix TT_MUTUAL cross-product.
+- [ ] rung37_mutual.icn. GATE-1..4. Commit.
 
 ### IJ-13 — Segfaults: htprep / meander / kross (Cluster O)
 
-**Target:** rung36_jcon_htprep, rung36_jcon_meander, rung36_jcon_kross
-**Root cause:** Unknown — these three segfault. Must triage before fixing.
-NOTE: gdb hw watchpoints are broken in this container (see RULES.md).
-Use __builtin_trap + ASAN or fprintf instrumentation.
+- [ ] ASAN build. Fix crashes. GATE-1..4. Commit per fix.
 
-- [ ] Run each under ASAN build: `CFLAGS="-fsanitize=address" bash scripts/build_scrip.sh`.
-- [ ] Identify crash site from ASAN output.
-- [ ] Fix crash(es). Each program gets its own commit if different root causes.
-- [ ] GATE-1..4. Commit per distinct fix.
+### IJ-14 — stdin programs: mindfa / mffsol (Cluster Q)
 
-### IJ-14 — stdin-dependent programs: mindfa / mffsol (Cluster Q)
+- [ ] Write .stdin fixtures. GATE-1..4. Commit.
 
-**Target:** rung36_jcon_mindfa, rung36_jcon_mffsol
-**Root cause:** These programs read from stdin. They need `.stdin` fixture files
-in corpus matching the expected output.
+### IJ-15 — parse program (Cluster Q)
 
-- [ ] Read each program source. Determine what stdin input produces the .expected output.
-- [ ] Write corpus/programs/icon/rung36_jcon_mindfa.stdin and rung36_jcon_mffsol.stdin.
-- [ ] Verify test_icon_ir_all_rungs.sh picks up .stdin (it already does — see run_one()).
-- [ ] GATE-1..4. Commit (corpus commit only, no one4all change).
+- [ ] Diff expected. Fix root cause. GATE-1..4. Commit.
 
-### IJ-15 — `parse` program: complex expression parsing (Cluster Q)
+### IJ-16 — &random seeding + radix literals (Clusters R, I)
 
-**Target:** rung36_jcon_parse
-**Root cause:** parse.icn is a full expression parser in Icon. Partial output
-(19683.0, 1, -2) shows complex evaluation succeeding but some paths wrong.
+- [ ] Fix &random r/w. Fix radix overflow.
+- [ ] rung37_random_radix.icn. GATE-1..4. Commit.
 
-- [ ] Diff expected vs actual to isolate first divergence.
-- [ ] Fix root cause (likely a scan or string or numeric issue exposed after IJ-5/7/8).
-- [ ] GATE-1..4. Commit.
+### IJ-17 — level / profsum / ck (Cluster N)
 
-### IJ-16 — `&random` seeding and large integer literals (Clusters R, I)
+- [ ] level() builtin. &allocated keyword. FP XFAIL if needed. GATE-1..4. Commit.
 
-**Target:** rung36_jcon_random, rung36_jcon_radix
-**Root cause:** &random keyword assignment for reproducible sequences; and
-large binary radix literals like "2r111...111" (64+ bits) overflowing to -1
-instead of arbitrary precision (or at least correct 64-bit signed value).
+## rung37_* test sources
 
-- [ ] Fix &random keyword read/write for reproducible sequences.
-- [ ] Fix radix literal parsing for values > INT64_MAX (clamp or error message).
-- [ ] Write test source `rung37_random_radix.icn`:
-      &random := 0; write(?10), write(?10) → reproducible pair.
-      write(integer("8r77")) → 63.
-- [ ] GATE-1..4. Commit.
-
-### IJ-17 — Remaining partial-output programs: level / profsum / ck (Cluster N)
-
-**Target:** rung36_jcon_level, rung36_jcon_profsum, rung36_jcon_ck
-**Root cause:** Mixed — level() builtin, &allocated keyword (storage counter),
-floating-point precision differences. Triage each.
-
-- [ ] Diff each expected. level() needs a builtin returning call-stack depth.
-- [ ] &allocated needs a keyword returning integer bytes allocated.
-- [ ] FP precision: if platform difference, XFAIL with a note.
-- [ ] GATE-1..4. Commit.
-
----
-
-## New test sources summary (to add to corpus/programs/icon/)
-
-Each step above adds one focused test. Naming convention: `rung37_<topic>.icn`
-with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
-
-| File | Step | Tests |
-|------|------|-------|
-| rung37_proc_lookup.icn | IJ-3 | proc() builtin |
-| rung37_math_builtins.icn | IJ-4 | sin/cos/iand/ior/ishift/sqrt |
-| rung37_string_format.icn | IJ-5 | center/left/right/detab/entab |
-| rung37_augops.icn | IJ-6 | ^:= and other augops |
-| rung37_coerce.icn | IJ-7 | unary +x / -x / *x coerce |
-| rung37_str_relop.icn | IJ-8 | << <<= == ~== >>= >> |
-| rung37_scan_alt.icn | IJ-9 | scan with alternate subject |
-| rung37_neg_pos.icn | IJ-10 | negative &pos / substring |
-| rung37_keywords.icn | IJ-11 | &keywords stubs |
-| rung37_mutual.icn | IJ-12 | every A & B conjunction |
-| rung37_random_radix.icn | IJ-16 | &random + radix literals |
-
----
+| File | Step | Status |
+|------|------|--------|
+| rung37_proc_lookup.icn | IJ-3 | ✅ |
+| rung37_math_builtins.icn | IJ-4 | ✅ |
+| rung37_string_format.icn | IJ-5 | ✅ |
+| rung37_augops.icn | IJ-6 | ✅ |
+| rung37_coerce.icn | IJ-7 | ✅ |
+| rung37_str_relop.icn | IJ-8 | ⏳ |
+| rung37_scan_alt.icn | IJ-9 | ⏳ |
+| rung37_neg_pos.icn | IJ-10 | ⏳ |
+| rung37_keywords.icn | IJ-11 | ⏳ |
+| rung37_mutual.icn | IJ-12 | ⏳ |
+| rung37_random_radix.icn | IJ-16 | ⏳ |
 
 ## Done when
 
-  ir-run PASS ≥ 230 (from 196; all 39 FAILs addressed — some may become XFAIL with note).
-  Honest PASS ≥ 259 (must not decrease).
-  All 17 rung37 test sources in corpus, all passing.
-  GATE-1..4 green throughout.
+  ir-run PASS ≥ 230. Honest PASS ≥ 268. All rung37 tests passing. GATE-1..4 green.
 
----
-
-## Invariants — ANY violation stops the session
+## Invariants
 
 1. GATE-1: smoke_icon PASS=5. Never regress.
-2. GATE-2: smoke_broker PASS=22. Never regress.
-3. GATE-3: ir-run PASS must not decrease between steps.
-4. GATE-4: honest PASS must not decrease between steps.
-5. One cluster per step. No bundling. Each step gets its own commit.
-6. Every new test source has a matching .expected file committed alongside it.
-7. No corpus source modified to work around a runtime bug (RULES.md).
-
----
+2. GATE-2: broker PASS=23. Never regress.
+3. GATE-3: ir-run PASS must not decrease.
+4. GATE-4: honest PASS must not decrease.
+5. One cluster per step, own commit.
+6. New test source has matching .expected in same commit.
+7. No corpus source modified to work around runtime bugs.
 
 ## Watermark
 
-  Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: 8ecc814a
-  ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
-  Current step: IJ-7 (IJ-1..IJ-6 ✅, IJ-7 partial).
-                one4all HEAD: 183b6ec9
-                ir-run: PASS=198 FAIL=37 XFAIL=30 TOTAL=265
-                honest PASS=267 FAIL=1 ABORT=0. broker 23/49.
-                IJ-7 partial: lazy-box + ~=== FAIL fix done. Remaining: unary coerce +x/-x/*x.
+  one4all: ce8c1211  corpus: cea9548
+  ir-run:  PASS=198 FAIL=37 XFAIL=30
+  honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-7 partial — to-loop + ~~ + ? remaining.
