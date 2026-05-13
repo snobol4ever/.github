@@ -177,19 +177,9 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
   renderers; `emit_text_` for TEXT-only helpers; `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
   Gates: none (doc-only).
 
-- [ ] **RW-1** ⚡ NEXT — Foundation layer: write alongside old code, no deletions.
-  `emit_mode.h/c`: single enum (TEXT/BINARY/MACRO_DEF) × wiring flag
-  (WIRED/BROKERED). `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
-  `g_jit_emit_inline` becomes `emit_set_inline(int)` sub-flag on TEXT mode.
-  `emit_label.h/c`: all label symbols in one file (currently split across
-  `emit_label.c` + `emit_form.c`). `emit_text.h/c`: rewrite `emit_text3c.c`
-  — pending-label/cjmp machinery, 4-col BB port format.
-  `insn.h/insn.c`: all ~60 leaf functions with X-group macros for jcc/push/pop
-  families. Each function: `if (IS_TEXT) { text; return; }` / binary below.
-  ~180 lines total for `insn.c`. Old files still compiled, no callers changed.
-  Gates: `gcc -c` clean, smoke 7/7 unchanged.
+- [x] **RW-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `insn.h/c` (all ~65 leaf fns, IS_TEXT at top/binary below); `emit_text.h/c` (thin wrappers over emit_text3c); `emit_label_new.h/c` (emit_label_init/initf wrappers). IS_TEXT/IS_BIN/IS_WIRED/IS_BROKERED macros in insn.h. All alongside old code, no callers changed. one4all `d15b8050`. Gates: smoke 7/7, byte-id 4/4.
 
-- [ ] **RW-2** — `emit_seq.h/emit_seq.c`: rewrite `emit_bb_seq.c` using only
+- [ ] **RW-2** ⚡ NEXT — `emit_seq.h/emit_seq.c`: rewrite `emit_bb_seq.c` using only
   `insn_*`/`emit_mode`/`emit_label`/`emit_text`. No if-statements — only calls.
   Every duplicated 3-line pattern becomes a named `emit_seq_*` helper.
   No compound helper body > 8 lines. ~90 lines replaces ~660.
@@ -228,29 +218,20 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `7ad43ba3`. .github HEAD `567fc033`. Gates: template-byte-id 4/4.
+one4all HEAD `d15b8050`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
-- Full source read of all 16 emitter files (excluding `emit_sm_binary.c`).
-- Produced `ARCH-EMITTER.md`: complete old→new name table, sibling-consistent across all families.
-- Key naming decisions:
-  - `insn_` — leaf fns (one x86 instruction, IS_TEXT at top, binary below)
-  - `emit_seq_` — compound sequences (L3); no if-statements in body
-  - `emit_bb_` — BB box templates (L4); table-driven via `bb_box_def_t[]`
-  - `emit_sm_op_` — SM opcode emitters; `emit_sm_shape_` — shape-class renderers
-  - `emit_text_` — TEXT-only helpers; `emit_label_` — label lifecycle; `emit_mode_` — mode globals
-  - `emit_flat_` — flat-glob builder; `emit_walk_` — text SM codegen walker
-  - `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros replace scattered `bb_emit_mode` checks
-  - `emit_sm_nullary_rt` (static) → absorbed into opcode dispatch table
-  - `emit_add_delta_imm` / `emit_sub_delta_imm` → promoted to `insn_` layer (multi-insn but always-together)
-  - `emit_pad_to_blob_size` deleted (no-op in all modes)
-- Marked RW-0 complete in GOAL-MODE4-EMIT.md.
+- RW-0: produced ARCH-EMITTER.md (full old→new name scan, all 16 emitter files).
+  Fixed em_* → emit_* throughout. Removed 58 self-rename rows. Collapsed empty bb_box section.
+- RW-1: wrote `insn.h/c` (~65 leaf fns, IS_TEXT/IS_BIN macros), `emit_text.h/c`,
+  `emit_label_new.h/c`, all alongside old code. Makefile updated. Gates pass.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `7ad43ba3`. Gates: template-byte-id 4/4.
-3. Current step: **RW-1** — Foundation layer: write `emit_mode.h/c`, `emit_label.h/c`,
-   `emit_text.h/c`, `insn.h/insn.c` alongside old code. No deletions, no caller changes.
-   Use names from ARCH-EMITTER.md exclusively.
+2. Confirm one4all HEAD `d15b8050`. Gates: smoke 7/7, byte-id 4/4.
+3. Current step: **RW-2** — `emit_seq.h/emit_seq.c`: rewrite `emit_bb_seq.c` using
+   only `insn_*`/`emit_mode`/`emit_label`/`emit_text`. No if-statements in bodies.
+   Every duplicated 3-line pattern → named `emit_seq_*` helper. No body > 8 lines.
+   Old `emit_bb_seq.c` still compiled alongside.
