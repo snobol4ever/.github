@@ -217,8 +217,8 @@ for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only ha
    deeper system integration). The test may not reach PASS but will gain many lines.
 6. Run GATE-1..4, commit if gates green.
 
-- [ ] Diff rung36_jcon_kwds. Implement missing stubs.
-- [ ] rung37_keywords.icn. GATE-1..4. Commit.
+- [x] Diff rung36_jcon_kwds. Implement missing stubs.
+- [x] rung37_keywords.icn. GATE-1..4. Commit.
 
 ### IJ-12 — Queens mutual conjunction `every A & B` (Cluster P)
 
@@ -258,7 +258,7 @@ for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only ha
 | rung37_str_relop.icn | IJ-8 | ⏳ |
 | rung37_scan_alt.icn | IJ-9 | ⏳ |
 | rung37_neg_pos.icn | IJ-10 | ✅ |
-| rung37_keywords.icn | IJ-11 | ⏳ |
+| rung37_keywords.icn | IJ-11 | ✅ |
 | rung37_mutual.icn | IJ-12 | ⏳ |
 | rung37_random_radix.icn | IJ-16 | ⏳ |
 
@@ -278,11 +278,13 @@ for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only ha
 
 ## Watermark
 
-  one4all: 88db975a  corpus: 3df52f6
+  one4all: 9681072c  corpus: 418ed33
   ir-run:  PASS=199 FAIL=36 XFAIL=30
-  honest:  PASS=270 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-11 IN PROGRESS — icn_kw_read infrastructure written (stashed in one4all,
-           not committed). Stash covers: SM_PUSH_VAR keyword dispatch, kw_assign globals,
-           bb_eval_value routing. Remaining blockers: type() cset sentinel, image() null,
-           &ascii/&cset NUL-byte handling, generative keywords. See IJ-11 handoff notes above.
-           NEXT: git stash pop, fix type()/image() for cset/null, run gates, commit.
+  honest:  PASS=271 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-12 — Queens mutual conjunction `every A & B` (Cluster P)
+           IJ-11 ✅ sess 2026-05-13 (Claude Sonnet 4.6): icn_kw_read() infrastructure;
+           type()/image()/*/write() cset fixes; named-cset registry with GC-stable
+           pointers and icn_kw_cset_len() for NUL-inclusive &ascii/&cset sizes;
+           &error/trace/dump/random r/w globals; &fail FAILDESCR passthrough.
+           rung36_jcon_kwds residual XFAIL: &allocated/collections/features/regions/
+           storage (generative), &progname, &dateline-m. rung37_keywords ✅ honest+1.
