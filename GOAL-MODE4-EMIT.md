@@ -201,65 +201,32 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ---
 
-**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-**EXVAL-2 + EXVAL-3 closed; EM-XVAL-DESCR complete.** one4all HEAD `e31ab505`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9, broker 22/49.
+**EM-7d partial: pat-stack removal + PUSH_REAL + IDENT/DIFFER fixes.** one4all HEAD `b3afed64`. corpus HEAD `18ebc6d`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 12/17.
 
 ### Work done
 
-1. **EXVAL-2** (`6f29d644`): `descr_match_span(σ,δ)` + `descr_bool(ok)` added to `bb_box.h`. `descr_match` aliased to `descr_match_span`. All 14 `rt_bb_*` calls in `rt.c` → `descr_match_span`. `pl_gamma()` → `descr_bool(1)`.
-2. **EXVAL-3** (`e31ab505`): `scan_body_fn_u9` guards `val.slen` with `val.v == DT_S`. `rt_bb_cap cap_commit` guards `.s`/`.slen` with `cr.v != DT_S` coercion.
+1. **Pat-stack removal** (`fa539fe7`): `g_pat_stack[]`/`g_pat_sp` deleted; all `rt_pat_*()` use `vstack_push/vstack_pop`; `rt_match_variant` pops pattern from vstack; `rt_pat_boxval` deleted.
+2. **PUSH_REAL macro fix** (`fa539fe7`): `emit_sm_push_lit_f` now passes bit-pattern as hex (`0x%016llx`) not decimal — GAS `movabs` needs integer immediate. `sm_emit_macro_library` now appends hand-written PUSH_REAL macro after generated table. corpus `sm_macros.s` updated (`18ebc6d`). **XDump_driver now passes.**
+3. **`_rt_IDENT`/`_rt_DIFFER` fix** (`b3afed64`): both returned `a[0]` on 2-arg success; SPITBOL SIL returns NULVCL (empty string). Fix: return `NULVCL`. **global_driver now passes.**
+
+### Beauty gate status: 12/17 PASS
+
+| Driver | Status | Root cause |
+|--------|--------|------------|
+| XDump_driver | ✅ PASS | fixed this session |
+| global_driver | ✅ PASS | fixed this session |
+| match_driver | ❌ DIFF | notmatch NRETURN: mode-4 inverts success/fail vs mode-2 |
+| semantic_driver | ❌ DIFF | mode-2 also wrong vs SPITBOL; deeper failure in mode-4 |
+| stack_driver | ❌ DIFF | mode-2 is wrong vs SPITBOL; mode-4 is more correct |
+| trace_driver | ❌ DIFF | mode-2 produces no output; both wrong |
+| tree_driver | ❌ DIFF | DIFFER guard fails in mode-4 (mode-2 correct) |
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `e31ab505`.
-3. **ESA-2** — regenerate all 7 `.s` artifacts at HEAD and commit to corpus (`gcc -c` clean). Then **ESA-3**: add `scripts/util_regen_demo_s_artifacts.sh`.
-
----
-
-**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
-
-**ESA-2 + ESA-3 closed; EM-S-ARTIFACTS-COMMIT complete.** one4all HEAD `b8ef6b18`. corpus HEAD `0843f58`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9.
-
-### Work done
-
-1. **ESA-2**: artifacts verified current (EXVAL-2/3 don't touch emitter; prior regen at corpus `1c30091` still valid). `gcc -c` clean on all 7.
-2. **ESA-3** (`b8ef6b18`): `scripts/util_regen_demo_s_artifacts.sh` — emits 5 demo `.s`, verifies `gcc -c` clean on all 7, commits corpus with rung-name arg. Self-contained, idempotent (skips commit when no changes).
-3. **EM-XVAL-DESCR** parent rung closed (all sub-rungs done).
-4. **EM-S-ARTIFACTS-COMMIT** parent rung closed (ESA-1..3 done).
-
-### Next session must
-
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `b8ef6b18`.
-3. **EM-7d** — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle. Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`; (b) beauty self-host regression. Diagnose with `--jit-emit` vs `--sm-run` diff on beauty.sno.
-
----
-
-**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
-
-**EM-7d partial.** one4all HEAD `f530d6d3`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9.
-
-### Work done
-
-1. **XDSAR fn_fallback fix** (`dc9c6992`): `emit_bb_xdsar` in `bb_templates.c` passed `fn_fallback=0` to `emit_bb_port_call_rip` → `call 0` → SIGSEGV in BINARY mode. Fixed by declaring `bb_deferred_var_exported` extern and passing its address. Fixes `match_driver` mode-4 crash.
-2. **SM_PAT_BOXVAL removal** (`f530d6d3`): Deleted stale `SM_PAT_BOXVAL` comment lines from sm_prog.h, sm_interp.c, sm_codegen.c, sm_codegen_x64_emit.c, sm_emit_template.c, sm_prog.c, and `rt_pat_boxval` declaration from rt.h.
-
-### Root cause of mode-4 pattern-variable bug
-
-`rt_pat_*` functions push patterns to `g_pat_stack[]` (separate from `g_vstack[]`). `rt_nv_set` (SM_STORE_VAR) pops from `g_vstack[]` → underflow crash when storing a pattern into a variable (`p = ANY('aeiou')`). `rt_match_variant` correctly pops from `g_pat_stack[]` for EXEC_STMT, so that path works — only the STORE_VAR path is broken.
-
-**Fix:** remove `g_pat_stack[]` entirely from rt.c. Replace `pat_push`→`vstack_push`, `pat_pop_internal`→`vstack_pop` throughout rt.c. Update `rt_match_variant` to pop pattern from vstack (it was pushed first by `lower_pat_expr`, before subj and repl). Delete `PATSTACK_CAP`, `g_pat_stack`, `g_pat_sp`, `pat_push`, `pat_pop_internal`, `rt_pat_boxval` body.
-
-### Next session must
-
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `f530d6d3`.
-3. **Remove pat-stack from rt.c.** Edit `src/runtime/rt/rt.c` directly (do not use sed in multiple passes — use a single Python script or direct editor). Changes needed:
-   - Delete lines: `#define PATSTACK_CAP 256`, `static DESCR_t g_pat_stack[PATSTACK_CAP];`, `static int g_pat_sp = 0;`
-   - Delete the block comment `/* EM-7c-variant: pat-stack helpers … */` and its two static functions (`pat_push` + `pat_pop_internal`) that follow
-   - Replace all `pat_push(` → `vstack_push(` and `pat_pop_internal()` → `vstack_pop()`
-   - Delete `rt_pat_boxval` function body
-   - In `rt_match_variant`: change `DESCR_t pat_d = (g_pat_sp > 0) ? pat_pop_internal() : pat_epsilon();` → `DESCR_t pat_d = vstack_pop();` and delete `g_pat_sp = 0;` line
-4. Build clean, run smoke 7/7, broker 49/49, beauty PASS≥9. Then run `match_driver` and `xdsar_test` manually to confirm pattern-variable assignment works in mode-4.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty 12/17. one4all HEAD `b3afed64`.
+3. **tree_driver DIFFER guard** — mode-2 correct, mode-4 wrong on test 3. `_rt_DIFFER` 2-arg now returns NULVCL; but tree.sno uses `DIFFER` in pattern context (`. *func()` form or direct). Check if the DIFFER fix broke tree_driver or if it's a separate issue. Run: `scrip --jit-emit --x64 tree_driver.sno` and compare test 3 diff.
+4. **match_driver notmatch** — `notmatch` is an NRETURN function using `notmatch = .dummy :(NRETURN)`. Tests 3/4 swap pass/fail between mode-2 and mode-4. Diagnose NRETURN semantics in mode-4 `rt_do_return`.
+5. **stack_driver** — mode-2 FAILs 1/2/3 but mode-4 PASSes them (mode-4 matches SPITBOL). This is a pre-existing mode-2 bug; beauty gate is parity (mode-4 must match mode-2), so this counts as a FAIL even though mode-4 is correct. Either fix mode-2 or accept as known divergence.
