@@ -228,9 +228,18 @@ one4all HEAD `d0b7fdd3`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 - RW-CONSOLIDATE `a474db49`: 31 emitter files → 11. emit_core.c/h absorbs insn+label+text+seq+mode; emit_bb.c/h absorbs emit_flat; emit_sm.c/h absorbs emit_walk. 20 old headers deleted. sm_tpl_kind_t/sm_op_template_t/emit_sm_args_t now internal to emit_sm.c. emit_form.h updated to include emit_core.h. emit_templates.h updated to include emit_bb.h.
 - Comment strip `b0437a74`: all comments removed from emit_core/bb/sm .c/.h; 120-char dividers before each function.
 
+### What was done this session
+
+- EM-SNOCONE-PREP ✅ `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; IS_TEXT guard on emit_seq_call_tgt.
+- RW-CONSOLIDATE ✅ `a474db49`: 31 emitter files → 11 (emit_core.c/h + emit_bb.c/h + emit_sm.c/h).
+- Comment strip ✅ `b0437a74`: all comments removed from emit_core/bb/sm; 120-char dividers before functions.
+- RW-OPCODES ✅ `edf0c88a`: x86_opcodes.h — 101 named constants for every raw opcode byte in insn_* functions.
+- RW-STYLE-1+2 ✅ `d0b7fdd3`: if(IS_TEXT){call();return;} restructured to proper if/else; return removed from inside branches; multi-stmt else gets braces.
+
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
 2. Confirm one4all HEAD `d0b7fdd3`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-3. **RW-OPCODES** — write x86_opcodes.h, replace raw hex in insn_* binary branches in emit_core.c.
+3. Update ARCH-EMITTER.md — old 16-file map is stale; reflect RW-CONSOLIDATE (3 compiled units: emit_core, emit_bb, emit_sm + frozen emit_sm_binary).
+4. Continue **M5** or next active step.
 4. Continue **M5** or next active step.
