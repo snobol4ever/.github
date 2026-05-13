@@ -183,14 +183,9 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_bb.c` replaces `emit_bb_box.c`. Two static drivers; stateless/stateful/complex boxes. emit_bb_box.c deleted. one4all `36df6775`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-4** ⚡ NEXT — `emit_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
-  One shape-class helper per SM opcode family; opcode families identified
-  by shape (push-literal, push-var, binary-op, branch, call, etc).
-  No if-statements in any template function. Delete old files.
-  `emit_templates.h` replaces `emit_templates.h`.
-  Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
+- [x] **RW-4** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_sm.c` merges `emit_sm_op.c` + `emit_sm_shape.c` (both deleted). `emit_sm_shape.h` kept as compat header for `emit_sm_text.c`. one4all `3c7bce9c`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-5** — `emit_flat.c/h`: rewrite `emit_bb_flat.c`. `emit_walk.c/h`:
+- [ ] **RW-5** ⚡ NEXT — `emit_flat.c/h`: rewrite `emit_bb_flat.c`. `emit_walk.c/h`:
   rewrite `emit_sm_text.c`. Delete old files.
   Gates: full suite + `gcc -c` on all emitted artifacts.
 
@@ -209,7 +204,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `36df6775`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `3c7bce9c`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
@@ -221,7 +216,7 @@ one4all HEAD `36df6775`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `36df6775`. Gates: smoke 7/7, byte-id 4/4.
-3. Current step: **RW-4** — `emit_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
-   Shape-class table; one shape fn per opcode family. Delete old files.
-   Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+2. Confirm one4all HEAD `3c7bce9c`. Gates: smoke 7/7, byte-id 4/4.
+3. Current step: **RW-5** — `emit_flat.c/h` + `emit_walk.c/h`: rewrite
+   `emit_bb_flat.c` and `emit_sm_text.c`. Delete old files.
+   Gates: full suite + `gcc -c` on all emitted artifacts.
