@@ -218,28 +218,19 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 cont. (Claude Sonnet 4.6)**
 
-one4all HEAD `d0b7fdd3`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-
-### What was done this session
-
-- EM-SNOCONE-PREP complete `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; IS_TEXT guard on emit_seq_call_tgt.
-- RW-CONSOLIDATE `a474db49`: 31 emitter files → 11. emit_core.c/h absorbs insn+label+text+seq+mode; emit_bb.c/h absorbs emit_flat; emit_sm.c/h absorbs emit_walk. 20 old headers deleted. sm_tpl_kind_t/sm_op_template_t/emit_sm_args_t now internal to emit_sm.c. emit_form.h updated to include emit_core.h. emit_templates.h updated to include emit_bb.h.
-- Comment strip `b0437a74`: all comments removed from emit_core/bb/sm .c/.h; 120-char dividers before each function.
+one4all HEAD `7751ec30`. Gates: smoke 7/7, snocone 5/5.
 
 ### What was done this session
 
-- EM-SNOCONE-PREP ✅ `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; IS_TEXT guard on emit_seq_call_tgt.
-- RW-CONSOLIDATE ✅ `a474db49`: 31 emitter files → 11 (emit_core.c/h + emit_bb.c/h + emit_sm.c/h).
-- Comment strip ✅ `b0437a74`: all comments removed from emit_core/bb/sm; 120-char dividers before functions.
-- RW-OPCODES ✅ `edf0c88a`: x86_opcodes.h — 101 named constants for every raw opcode byte in insn_* functions.
-- RW-STYLE-1+2 ✅ `d0b7fdd3`: if(IS_TEXT){call();return;} restructured to proper if/else; return removed from inside branches; multi-stmt else gets braces.
+- RW-BREAKS `40deed45`: inserted 120-char /*---*/ dividers before all multi-line functions in emit_core.c + emit_bb.c + emit_sm.c. ⚠️ OVER-INSERTED — made files unreadable. Next session must revert or clean up.
+- RW-SYMNAMES `7751ec30`: renamed emit_flat_macros_to_path → emit_bb_macro_library_to_path to match emit_sm_macro_library_to_path; dropped redundant #define shim.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `d0b7fdd3`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-3. Update ARCH-EMITTER.md — old 16-file map is stale; reflect RW-CONSOLIDATE (3 compiled units: emit_core, emit_bb, emit_sm + frozen emit_sm_binary).
-4. Continue **M5** or next active step.
-4. Continue **M5** or next active step.
+2. Confirm one4all HEAD `7751ec30`. Gates: smoke 7/7, snocone 5/5.
+3. ⚠️ Fix RW-BREAKS damage: revert `40deed45` (the over-inserted dividers) — restore emit_core.c, emit_bb.c, emit_sm.c to their state at `d0b7fdd3`, reapply only the RW-SYMNAMES rename on top.
+4. Update ARCH-EMITTER.md to reflect RW-CONSOLIDATE (3 compiled units: emit_core, emit_bb, emit_sm + frozen emit_sm_binary).
+5. Continue **M5** or next active step.
