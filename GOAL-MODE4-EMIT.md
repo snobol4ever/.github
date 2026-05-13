@@ -197,14 +197,16 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `71244e57`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD `a474db49`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
-- EM-SNOCONE-PREP complete `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; emit_text3c.h→emit_text.h include; IS_TEXT guard added to emit_seq_call_tgt (was calling emit_text_3col without mode guard — Disease-1 survivor). All tracked artifacts compile clean.
+- EM-SNOCONE-PREP complete `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; IS_TEXT guard on emit_seq_call_tgt.
+- RW-CONSOLIDATE `a474db49`: 31 emitter files → 11. emit_core.c/h absorbs insn+label+text+seq+mode; emit_bb.c/h absorbs emit_flat; emit_sm.c/h absorbs emit_walk. 20 old headers deleted. sm_tpl_kind_t/sm_op_template_t/emit_sm_args_t now internal to emit_sm.c. emit_form.h updated to include emit_core.h. emit_templates.h updated to include emit_bb.h.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `71244e57`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-3. Continue **M5** (or await GOAL-CHUNKS as gating condition — check PLAN.md).
+2. Confirm one4all HEAD `a474db49`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+3. Update ARCH-EMITTER.md to reflect RW-CONSOLIDATE file map (old 16-file map is stale).
+4. Continue **M5** or next active step.
