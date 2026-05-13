@@ -270,38 +270,6 @@ serializes it.
 mprotect(buf, size, PROT_READ|PROT_EXEC);  // I-cache fence
 ```
 
-## CODE-shared / DATA-per-invocation
-
-Byrd boxes are reentrant by mechanism, not by call frame.  CODE (the
-α/β/γ/ω goto sequence) never changes.  DATA (locals: cursor saves,
-captures, counters, params) is allocated fresh per invocation.  There is
-no stack; the *appearance* of stack-like depth comes from chaining
-sibling DATA blocks via a save-list pointer in each block's header.
-
-α-port entry allocates a fresh DATA block, links the prior DATA block onto
-the new one's save-list, and writes its initial cursor/state values into
-the new block → that allocation-plus-link IS the save.
-
-γ/ω-port exit unlinks the current DATA block, restoring whichever sibling
-the save-list head names as the active one → that unlink IS the restore.
-
-Boxes running forward and backward ARE allocate-and-link / unlink-and-free.
-Nothing pushes or pops a real stack frame; nothing uses `rsp` for box
-state.  The native `rsp` belongs to the C-ABI for any PLT calls a glob
-makes (none, for flat-glob-eligible nodes — see `flat_is_eligible_node`)
-and to the SM-blob land that called into the glob.
-
-This invariant is what makes templated emission tractable: one template
-per box defines the CODE; per-backend emitters lower it to their host's
-DATA-allocation mechanism (heap-allocated ζ structs in C/JVM/.NET/JS,
-arena-allocated DATA blocks in `bb_pool` for x86 flat-BB mode).
-
-**Reuse vs re-entrancy.**  Two simultaneous matches against the same box
-CODE address are safe only if each match holds its own DATA block.  CODE
-is reusable.  CODE is not, in general, re-entrant — a second α-entry
-without a fresh DATA allocation would corrupt the first match's state.
-The allocator's contract at α-entry is to guarantee a fresh DATA block on
-every entry; nothing else in the system needs to think about re-entrancy.
 
 ## "Everything is dynamic"
 
