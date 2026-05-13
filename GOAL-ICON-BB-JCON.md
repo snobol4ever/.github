@@ -149,22 +149,26 @@ from C source alone. Previous Claude skipped this and had to backtrack.
 - [x] Builtin-as-proc-value: f := sqrt; f(4.0); image(f,15) → "function sqrt". one4all `2e810645`.
 - [x] GATE-1..4. Commit.
 
-### IJ-5 — String formatting builtins: center/left/right/detab/entab (Cluster E)
+### IJ-5 — String formatting builtins: center/left/right/detab/entab (Cluster E) ✅ sess 2026-05-13 (`8ecc814a`)
 
 **Target:** rung36_jcon_endetab, rung36_jcon_prepro
-**Missing:** center(s,n,fill), left(s,n,fill), right(s,n,fill), detab(s,...), entab(s,...).
+center/left/right were already implemented. detab/entab had two bugs.
 
-- [ ] Read Icon book definitions for center/left/right/detab/entab.
-- [ ] Implement in icn_builtins.c.
-      center(s,n,c): pad s to width n centered with fill char c (default space).
-      left(s,n,c): left-justify. right(s,n,c): right-justify.
-      detab(s,t1,...): expand tabs to spaces at tab stops t1,... (default every 8).
-      entab(s,t1,...): compress spaces to tabs.
-- [ ] Write test source `rung37_string_format.icn`:
-      write(center("hi",6)), write(left("hi",6,".")), write(right("hi",6,".")),
-      write(detab("\tabc")), write(entab("        x")).
-      Expected: "  hi  ", "hi....", "....hi", "        abc", "\tx".
-- [ ] GATE-1..4. Commit.
+**Root causes fixed:**
+- TT_CSET literal canonicalization: '1987' was stored/emitted as raw bytes; now
+  sorted+deduped via icn_cset_canonical() in lower.c (SM path) + interp_eval.c/coro_value.c.
+- entab/detab gap logic: period was hardcoded 8; now = stop_value (one stop) or
+  last-stop minus second-to-last (two+ stops). Fixes multi-stop round-trip.
+- entab/detab type check: string tab-stop args now return FAILDESCR (error 101
+  semantics); 'entab(s,"3")' silently coerced — now correctly fails.
+- rung36_jcon_endetab still FAIL: ferr() calls require &error/&errornumber trap
+  (not yet impl). rung36_jcon_prepro: preprocessor $define issue, different cluster.
+- honest PASS 266→267.
+
+- [x] Read Icon book definitions for center/left/right/detab/entab.
+- [x] Implement in icn_builtins.c.
+- [x] Write test source `rung37_string_format.icn` (corpus `1ff4e6c`).
+- [x] GATE-1..4. Commit.
 
 ### IJ-6 — Augop for power and remaining missing augops (Cluster F)
 
@@ -362,11 +366,10 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
 ## Watermark
 
   Carved:       2026-05-12 (Claude Sonnet 4.6)
-  one4all HEAD: b36d7655
-  ir-run:       PASS=199 FAIL=36 XFAIL=30 TOTAL=265
-  Current step: IJ-5 (IJ-1..IJ-4 ✅). one4all `2e810645`.
-                Icon 9.5 oracle at /home/claude/icon-bin/icon (built from uploaded icon-master.zip).
-                ir-run PASS=198 FAIL=37 (baseline); honest PASS=266 FAIL=1 ABORT=0.
-                IJ-4 note: rung36_jcon_mathfunc still failing — rounding via r() proc
-                and 'every try(sqrt, 0.0|0.25|...)' pattern needs investigation.
-                Builtin-as-proc-value (f:=sqrt; f(4.0)) now works.
+  one4all HEAD: 8ecc814a
+  ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
+  Current step: IJ-6 (IJ-1..IJ-5 ✅).
+                honest PASS=267 FAIL=1 ABORT=0.
+                IJ-5 note: rung36_jcon_endetab still FAIL — ferr() calls require
+                &error/&errornumber trap (not yet impl). rung36_jcon_prepro is
+                a preprocessor $define cluster, not a string-format issue.
