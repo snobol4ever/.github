@@ -170,16 +170,14 @@ center/left/right were already implemented. detab/entab had two bugs.
 - [x] Write test source `rung37_string_format.icn` (corpus `1ff4e6c`).
 - [x] GATE-1..4. Commit.
 
-### IJ-6 — Augop for power and remaining missing augops (Cluster F)
+### IJ-6 — Augop for power and remaining missing augops (Cluster F) ✅ already passing
 
-**Target:** rung36_jcon_augment  (i ^:= 9 should give 19^9, not a wrong value)
-**Root cause:** `^:=` augop — the power augop may compute base^exp but store wrong value
-or the wrong operand order.
+`rung36_jcon_augment` was already PASS at session start. No work needed.
 
-- [ ] Run rung36_jcon_augment with --ir-run --dump-sm to isolate the wrong SM sequence.
-- [ ] Fix lower_augop or SM_ACOMP for the `^` case.
-- [ ] Write test source `rung37_augops.icn` with i := 2; i ^:= 3; write(i) → 8.
-- [ ] GATE-1..4. Commit.
+- [x] Run rung36_jcon_augment with --ir-run --dump-sm to isolate the wrong SM sequence.
+- [x] Fix lower_augop or SM_ACOMP for the `^` case.
+- [x] Write test source `rung37_augops.icn` with i := 2; i ^:= 3; write(i) → 8.
+- [x] GATE-1..4. Commit.
 
 ### IJ-7 — Type coercion operators `+x / -x / *x` (Cluster G)
 
@@ -191,6 +189,11 @@ or the wrong operand order.
   Also: `integer := abs` should store the function object, not &null.
 
 - [ ] Read coro_value.c / bb_eval_value for TT_PLS / TT_MNS / TT_MUL unary cases.
+
+**Session 2026-05-13 partial (183b6ec9): Two pre-existing bugs fixed:**
+- coro_eval fallback: icn_oneshot→icn_lazy_box (fixes === in alternation context)
+- FAIL/SUCCEED in icn_try_call_builtin_by_name (fixes ~=== always-true bug)
+  GATE-2 broker +1 (22→23). ir-run 198, honest 267.
 - [ ] Fix: unary + must coerce string to number (not just negate).
 - [ ] Fix: `integer` as lvalue for a function assignment — verify function values
       are assignable to variables without being called.
@@ -368,8 +371,8 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
   Carved:       2026-05-12 (Claude Sonnet 4.6)
   one4all HEAD: 8ecc814a
   ir-run:       PASS=198 FAIL=37 XFAIL=30 TOTAL=265
-  Current step: IJ-6 (IJ-1..IJ-5 ✅).
-                honest PASS=267 FAIL=1 ABORT=0.
-                IJ-5 note: rung36_jcon_endetab still FAIL — ferr() calls require
-                &error/&errornumber trap (not yet impl). rung36_jcon_prepro is
-                a preprocessor $define cluster, not a string-format issue.
+  Current step: IJ-7 (IJ-1..IJ-6 ✅, IJ-7 partial).
+                one4all HEAD: 183b6ec9
+                ir-run: PASS=198 FAIL=37 XFAIL=30 TOTAL=265
+                honest PASS=267 FAIL=1 ABORT=0. broker 23/49.
+                IJ-7 partial: lazy-box + ~=== FAIL fix done. Remaining: unary coerce +x/-x/*x.
