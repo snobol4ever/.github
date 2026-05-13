@@ -14,26 +14,7 @@ REPO or Goal file first. Training data is wrong. Verify before asserting.
 
 ## Read the Goal's spec sections, not just the active rung
 
-⛔ A Goal file's active rung is the **next step**.  It is not the
-**destination**.  Before working on any active rung, read every
-section in that Goal file that describes the system — top-of-file
-goal statement, "Done when", "Architecture reminder", protocol
-sections, invariants — and walk the closed-rung pointer trail.
-The active rung is one step inside a system whose shape is
-described elsewhere in the Goal file.
-
-If a section names properties of the deliverable (synchronous IPC,
-full event coverage, single wire protocol, no sidecar files,
-symmetric coverage across runtimes, etc.), those properties are
-binding on every sub-rung that touches that subsystem.  An agent
-that observes a gap between current state and stated properties
-must treat that gap as work to be done within the existing plan,
-not as a new architectural shift to be discussed.
-
-The closed-rung pointer trail is part of the picture.  A long list
-of closed sub-rungs converging on a single subsystem describes the
-shape of that subsystem; an agent who cannot see the destination
-in the trail has missed it.
+⛔ The active rung is the **next step**, not the destination. Before working, read every spec section in the Goal file — goal statement, "Done when", architecture, invariants, closed-rung trail. Properties named in any section are binding on every sub-rung touching that subsystem.
 
 ---
 
@@ -161,22 +142,9 @@ not the inferior.
 | Catch any access to a page | `mprotect()` the containing page read-only after init — works in containers where ptrace HW regs don't |
 | Software watchpoint (gdb fallback) | `set can-use-hw-watchpoints 0; watch <expr>` — technically works but **absurdly slow** (instruction-stepping the entire inferior); only viable for tiny repros |
 
-### When `__builtin_trap()` is the right diagnostic
+### Diagnostic patches — never commit them
 
-When a value is reaching a known-bad state via an unknown path, a
-trap-on-assertion at every write site is faster, cleaner, and more
-informative than a watchpoint would have been even in a non-container
-env: gdb gets a SIGABRT at the exact bad write with full backtrace,
-whereas a watchpoint just stops on a write (good or bad) and you'd
-have to filter conditionally.  Don't lament the missing watchpoint —
-this technique is often better.
-
-### Diagnostic patches are diagnostic — never commit them
-
-`__builtin_trap()` instrumentation, `_check()` helpers, `fprintf` to
-stderr in hot paths, and `mprotect` traps are debugging aids.  Keep
-them in `.orig` backups, revert before commit.  If the bug was found,
-the **fix** ships; the instrumentation does not.
+`__builtin_trap()`, `_check()` helpers, `fprintf` to stderr, `mprotect` traps are debugging aids only. Revert before commit; ship the fix, not the instrumentation.
 
 ---
 
@@ -211,29 +179,12 @@ see below).
 
 ### CSNOBOL4 2.3.3 — RETIRED as a general oracle (Mon Apr 28 2026)
 
-⛔ **Do not use CSNOBOL4 as an oracle for new work.** A separate session
-is tracking the FENCE bug (`GOAL-CSN-FENCE-FIX`) and until that goal
-closes, CSNOBOL4's behaviour cannot be relied on for cross-runtime
-comparison.  Existing references in goal files, REPO files, and harness
-configs that name CSNOBOL4 alongside SPITBOL should be read as
-historical — drop the `csn` participant from any new harness invocations
-and trust SPITBOL alone.
+⛔ Do not use CSNOBOL4 for new work (FENCE bug open). Silly exception: CSNOBOL4 is sole oracle for `GOAL-SILLY-*` (bug-for-bug SIL fidelity). All other goals: SPITBOL only.
 
 ```
 /home/claude/csnobol4/snobol4     # binary (Silly use only)
-/home/claude/csnobol4/            # repo (snobol4ever/csnobol4)
 ```
 Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
-
-**Silly exception (still active):** CSNOBOL4 is the **sole** oracle for
-Silly SNOBOL4 goals (`SS-MONITOR`, `GOAL-SILLY-*`) because Silly is a
-faithful C rewrite of CSNOBOL4's SIL source.  These goals are
-unaffected by the retirement above — they need bug-for-bug fidelity
-with CSNOBOL4, not correctness against SPITBOL.
-
-For all other goals: when a Goal file or REPO file mentions CSNOBOL4
-as an oracle, treat that mention as obsolete pending a future cleanup
-pass.  Run only SPITBOL.
 
 `.ref` files are pre-baked in corpus.  SPITBOL not required to run
 test gates.
@@ -551,35 +502,7 @@ an open question; not yet started.
 
 ## Sync-step monitor — read the divergence point, not the trace
 
-⛔ **Never read the full trace stream during debugging.**  Reading
-hundreds or thousands of trace records into a chat context wastes
-context and obscures what matters.  The monitor process exists to
-read traces for you.
-
-What you want from the monitor is exactly two records:
-
-1. The **last record where all participants agree** — the runtime's
-   state was demonstrably correct up through this point.
-2. The **first record where they diverge** — what each runtime emitted
-   when their behaviour first differed.
-
-The bug is the work that happens between (1) and (2).  Always.  With
-two adjacent records, the divergence is bounded to the code path
-executed between them — usually a single statement or a single
-function entry/exit.  The bug is then crystal clear.
-
-Workflow:
-1. Run the harness; it stops at first divergence and reports those
-   two records (last-agree + first-disagree).
-2. Read **only those two records** plus the matching SNOBOL4 source
-   line numbers.
-3. Identify what the runtime was doing between them.
-4. Fix; re-run; the next divergence (if any) is now the next bug.
-
-If the harness output dumps more than two records' worth of context,
-trim it before reading.  If you need to look at trace history in a
-debugger, open the harness's saved log file directly — never paste
-it into the chat.
+⛔ Never read the full trace stream. The monitor reports exactly two records: last-agree and first-disagree. The bug lives between them. Read only those two records + matching source line numbers, fix, re-run.
 
 ---
 
