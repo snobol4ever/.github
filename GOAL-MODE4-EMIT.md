@@ -181,13 +181,9 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 - [x] **RW-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_seq.h/c`: all compound sequences with new names; insn_* calls throughout; lea-vs-movabs handled at seq layer (3 fns); emit_seq_port_call/port_call_rip forward IS_TEXT to format-port path. one4all `4dcea3b6`. Gates: smoke 7/7, byte-id 4/4.
 
-- [ ] **RW-3** ⚡ NEXT — `emit_bb.c`: rewrite `emit_bb_box.c`. Table-driven stateful
-  boxes (`bb_box_def_t[]` + `emit_bb_stateful()` driver). No if-statements in
-  any template function — only calls. Delete old `emit_bb_box.c`.
-  ~80 lines replaces ~259.
-  Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
+- [x] **RW-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_bb.c` replaces `emit_bb_box.c`. Two static drivers; stateless/stateful/complex boxes. emit_bb_box.c deleted. one4all `36df6775`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-4** — `emit_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
+- [ ] **RW-4** ⚡ NEXT — `emit_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
   One shape-class helper per SM opcode family; opcode families identified
   by shape (push-literal, push-var, binary-op, branch, call, etc).
   No if-statements in any template function. Delete old files.
@@ -213,7 +209,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `4dcea3b6`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `36df6775`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
@@ -225,7 +221,7 @@ one4all HEAD `4dcea3b6`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `4dcea3b6`. Gates: smoke 7/7, byte-id 4/4.
-3. Current step: **RW-3** — `emit_bb.c`: table-driven stateful BB boxes.
-   `bb_box_def_t[]` + `emit_bb_stateful()` driver. Delete old `emit_bb_box.c`.
+2. Confirm one4all HEAD `36df6775`. Gates: smoke 7/7, byte-id 4/4.
+3. Current step: **RW-4** — `emit_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
+   Shape-class table; one shape fn per opcode family. Delete old files.
    Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
