@@ -18,14 +18,10 @@ No code changes in this step — doc only.
 | Old file | New file | Deleted at step |
 |---|---|---|
 | `emit_buf.c/h` | folded into `emit_mode.c` | RW-6 |
-| `emit_defs.h` | `emit_defs.h` | RW-6 |
 | `emit_form.c/h` | `insn.c/h` + `emit_mode.c` | RW-6 |
 | `emit_insn.c/h` | `insn.c/h` | RW-6 |
-| `emit_label.c/h` | `emit_label.c/h` | RW-6 |
-| `emit_mode.c/h` | `emit_mode.c/h` | RW-6 |
 | `emit_text3c.c/h` | `emit_text.c/h` | RW-6 |
 | `emit_bb_gen.h` | `emit.h` (umbrella) | RW-6 |
-| `emit_templates.h` | `emit_templates.h` | RW-4 |
 | `emit_bb_seq.c/h` | `emit_seq.c/h` | RW-2 |
 | `emit_bb_box.c` | `emit_bb.c` | RW-3 |
 | `emit_bb_flat.c/h` | `emit_flat.c/h` | RW-5 |
@@ -133,8 +129,6 @@ No code changes in this step — doc only.
 |---|---|---|---|
 | `emit_bb_zeta_rdi` | `emit_seq_zeta_rdi` | L3 | lea/movabs rdi ← ζ ptr |
 | `emit_bb_dispatch_jne_jmp` | `emit_seq_dispatch_jne_jmp` | L3 | test+jne+jmp port-dispatch tail |
-| `emit_bb_port_label` | `emit_bb_port_label` | L4 | TEXT: `pfx_α:` label |
-| `emit_bb_port_jmp` | `emit_bb_port_jmp` | L4 | TEXT: `jmp pfx_α` |
 
 ### Cursor-arithmetic helpers (emit_form.c — become part of insn layer)
 
@@ -164,10 +158,8 @@ They map to named `insn_*` fns already defined in emit_insn.c:
 | Old | New | Notes |
 |---|---|---|
 | `bb_emit_mode_t` | `emit_mode_t` | Enum; two-axis: format × wiring |
-| `EMIT_TEXT` | `EMIT_TEXT` | |
 | `EMIT_BINARY_WIRED` | `EMIT_BINARY` | Default wiring (flat) |
 | `EMIT_BINARY_BROKERED` | `EMIT_BINARY` + `EMIT_F_BROKERED` flag | Second axis |
-| `EMIT_MACRO_DEF` | `EMIT_MACRO_DEF` | |
 | `EMIT_TEXT_INLINE` | `EMIT_TEXT` + `EMIT_F_INLINE` sub-flag | Folded; `emit_set_inline(int)` |
 | `bb_label_t` | `emit_label_t` | |
 | `jmp_kind_t` | `emit_jmp_t` | Enum: JMP / JE / JNE / JL / JGE / JG |
@@ -252,16 +244,10 @@ These are all TEXT-only. All go to `emit_text.c`. Naming: `emit_text_` prefix.
 
 | Old | New | Notes |
 |---|---|---|
-| `emit_mode_set` | `emit_mode_set` | Set mode + out; replaces all three `emitter_init_*` |
-| `emit_outf` | `emit_outf` | Return `g_em_out ?: stdout` |
 | `emit_bb_is_format_mode` | `emit_is_fmt` | Return `g_emit_fmt_active && IS_TEXT` |
 | `fmt_body_append` | `emit_fmt_append` | Append insn frag to format-port body buffer |
 | `emit_bb_format_port` | `emit_fmt_port` | Flush label+body+jmp as one 3-col BB port line |
 | `emit_pad_to_blob_size` | *(deleted)* | No-op in all modes; remove |
-| `emit_macro_begin` | `emit_macro_begin` | Emit `.macro name params` or macro-call preamble |
-| `emit_macro_end` | `emit_macro_end` | Emit `.endm` or clear body flag |
-| `emit_jmp` | `emit_jmp` | Dispatch: format-port flush, text 3col-jmp, or binary insn |
-| `emit_label_define` | `emit_label_define` | Dispatch: format-port save or `emit_label_define` |
 | `bb3c_op` | `emit_3c_op` | TEXT convenience: `emit_text_3col("", mn, args)` |
 | `bb3c_jmp` | `emit_3c_jmp` | TEXT convenience: `emit_text_jmp(mn, target)` |
 
@@ -342,68 +328,7 @@ Disease-2 cure: each calls `insn_*` once per instruction — no text/binary fork
 
 ## L4 — `emit_bb_box.c` → `emit_bb.c`
 
-All BB box template functions. Prefix `emit_bb_`. Table-driven: `bb_box_def_t[]` + `emit_bb_stateful()`.
-
-### Static drivers (remain static)
-
-| Old | New | Notes |
-|---|---|---|
-| `emit_bb_jmp_pair` | `emit_bb_jmp_pair` | Static: emit stateless jmp-pair box (ABORT/CAT/FAIL/ALT/VAR) |
-| `emit_bb_stateful` | `emit_bb_stateful` | Static driver: banner + brokered port-call + test/jmp |
-
-### Stateless boxes (jmp-pair)
-
-| Old | New | Notes |
-|---|---|---|
-| `emit_bb_xabrt` | `emit_bb_xabrt` | ABORT — always fail |
-| `emit_bb_xcat` | `emit_bb_xcat` | CAT — concatenate (has β) |
-| `emit_bb_xfail` | `emit_bb_xfail` | FAIL |
-| `emit_bb_xor` | `emit_bb_xor` | ALT (has β) |
-| `emit_bb_xvar` | `emit_bb_xvar` | VAR (has β) |
-| `emit_bb_xeps` | `emit_bb_xeps` | EPS — epsilon, always succeed |
-| `emit_bb_xsucf` | `emit_bb_xsucf` | SUCF — succeed-or-fail |
-
-### Stateful SNOBOL4 boxes
-
-| Old | New | Notes |
-|---|---|---|
-| `emit_bb_xbal` | `emit_bb_xbal` | BAL — balanced string |
-| `emit_bb_xfarb` | `emit_bb_xfarb` | ARB — arbitrary |
-| `emit_bb_xlnth` | `emit_bb_xlnth` | LEN(n) |
-| `emit_bb_xrtb` | `emit_bb_xrtb` | RTAB(n) |
-| `emit_bb_xstar` | `emit_bb_xstar` | REM — remainder |
-| `emit_bb_xtb` | `emit_bb_xtb` | TAB(n) |
-
-### Stateful Icon boxes
-
-| Old | New | Notes |
-|---|---|---|
-| `emit_bb_icon_alt` | `emit_bb_icon_alt` | ICN_ALT |
-| `emit_bb_icon_bang` | `emit_bb_icon_bang` | ICN_BANG |
-| `emit_bb_icon_every` | `emit_bb_icon_every` | ICN_EVERY |
-| `emit_bb_icon_iterate` | `emit_bb_icon_iterate` | ICN_ITERATE |
-| `emit_bb_icon_lconcat` | `emit_bb_icon_lconcat` | ICN_LCONCAT |
-| `emit_bb_icon_limit` | `emit_bb_icon_limit` | ICN_LIMIT |
-| `emit_bb_icon_seq` | `emit_bb_icon_seq` | ICN_SEQ |
-| `emit_bb_icon_to` | `emit_bb_icon_to` | ICN_TO |
-| `emit_bb_icon_to_by` | `emit_bb_icon_to_by` | ICN_TO_BY |
-
-### Complex boxes (bespoke code)
-
-| Old | New | Notes |
-|---|---|---|
-| `emit_bb_xchr` | `emit_bb_xchr` | CHR literal match (inline lit compare) |
-| `emit_bb_charset` | `emit_bb_charset` | Charset match (SPAN/BREAK/ANY/NOTANY dispatcher) |
-| `emit_bb_xbrkx` | `emit_bb_xbrkx` | BRKX (charset, has β) |
-| `emit_bb_xposi` | `emit_bb_xposi` | POS(n) |
-| `emit_bb_xrpsi` | `emit_bb_xrpsi` | RPOS(n) |
-| `emit_bb_xdsar` | `emit_bb_xdsar` | DSAR (deferred string-as-regex) |
-| `emit_bb_xatp` | `emit_bb_xatp` | ATP (at position, variable) |
-| `emit_bb_xnme` | `emit_bb_xnme` | NME (name match) |
-| `emit_bb_xfnme` | `emit_bb_xfnme` | FNME (name match, has child) |
-| `emit_bb_xfnce` | `emit_bb_xfnce` | FENCE |
-| `emit_bb_xcallcap` | `emit_bb_xcallcap` | CALLCAP (pattern captures via fn call) |
-| `emit_bb_xarbn` | `emit_bb_xarbn` | ARBN (ARBNO child) |
+All BB box template functions keep their existing names (`emit_bb_xchr`, `emit_bb_xbal`, `emit_bb_icon_alt`, etc.). No renames. The structural change is internal: 20 stateful boxes move from individually-written functions to a `bb_box_def_t[]` table + single `emit_bb_stateful()` driver.
 
 ---
 
@@ -416,9 +341,6 @@ Sibling set: all return `int`, take `(FILE *out, const sm_op_template_t *t, …)
 
 | Old | New | Notes |
 |---|---|---|
-| `emit_sm_macro_library` | `emit_sm_macro_library` | Write full sm_macros.s to FILE* |
-| `emit_sm_macro_library_to_path` | `emit_sm_macro_library_to_path` | Write sm_macros.s to path |
-| `emit_sm_set_pc_label` | `emit_sm_set_pc_label` | Set current pc label string (static state) |
 | `emit_sm_template_selftest` | `emit_sm_selftest` | Run template selftest |
 | `emit_sm_template` | `emit_sm_shape` | Dispatch to the right shape-class fn |
 | `emit_sm_rtcall` | `emit_sm_shape_rtcall` | Shape: nullary rt-call macro |
@@ -449,7 +371,6 @@ Prefix `emit_sm_op_` to distinguish from shape-class renderers.
 
 | Old | New | Notes |
 |---|---|---|
-| `emit_sm_op` | `emit_sm_op` | Central dispatcher → shape table |
 | `emit_sm_coerce_num` | `emit_sm_op_coerce_num` | |
 | `emit_sm_exp` | `emit_sm_op_exp` | |
 | `emit_sm_neg` | `emit_sm_op_neg` | |
@@ -503,8 +424,6 @@ Prefix `emit_sm_op_` to distinguish from shape-class renderers.
 
 | Old | New | Notes |
 |---|---|---|
-| `emit_sm_arith_dispatch` | `emit_sm_arith_dispatch` | Internal: int op → macro name |
-| `emit_sm_arith_op` | `emit_sm_arith_op` | Internal: emit named arith macro |
 | `emit_sm_add` | `emit_sm_op_add` | |
 | `emit_sm_sub` | `emit_sm_op_sub` | |
 | `emit_sm_mul` | `emit_sm_op_mul` | |
@@ -718,8 +637,6 @@ Public API only (static helpers stay static in `emit_flat.c`).
 | `flat_box_call_slot` | `emit_flat_box_call_slot` | Emit flat box call via slot label |
 | `flat_box_dispatch_jne_jmp` | `emit_flat_dispatch_jne_jmp` | Emit test+jne+jmp dispatch |
 | `flat_box_entry_dispatch` | `emit_flat_entry_dispatch` | Emit α/β entry dispatch |
-| `emit_flat_box_banner` | `emit_flat_box_banner` | Emit flat box `#--- BOX` banner |
-| `emit_flat_banner_rule` | `emit_flat_banner_rule` | Emit `#---` rule line |
 | `emit_flat_box_call` | `emit_flat_box_call_fn` | Emit flat call to a C box_fn |
 | `bb_macros_write_to_path` | `emit_flat_macros_to_path` | Write bb_macros.s to path |
 | `flat_is_eligible` | `emit_flat_is_eligible` | (static → keep static) |
