@@ -125,29 +125,17 @@ from C source alone. Previous Claude skipped this and had to backtrack.
 - ✅ `sm_interp.c SM_CALL_FN`: dispatches DT_E from frame slots via `FRAME.sc`
 - ✅ `coro_runtime.c sm_call_proc`: copies `lower_sc` into `FRAME.sc`
 - ✅ `coro_bb_indirect_callee`: new BB generator box for `(!plist)()` — generative callee
-- ✅ `coro_value.c` indirect callee: handles DT_I (`3()` → `3`), DT_SNUL, DT_S proc names
+- ✅ `coro_value.c` indirect callee: handles DT_I (`3()` → FAILDESCR per Icon 9.5 oracle), DT_SNUL, DT_S proc names
 - ✅ `sm_interp.c SM_RETURN`: Icon fall-off-end returns `NULVCL` not `FAILDESCR`
 - ✅ `pv := p0; write(image(pv))` → `"procedure p0"` ✓; `pv()` → calls p0 ✓
 - ✅ `every (!plist)()` with mixed int+proc drives generator correctly
-
-**Remaining open issue — next session:**
-`every write((!plist)())` — the SM/BB seam. Root cause hypothesis:
-`coro_bb_fnc` calls `icn_call_builtin(z->call, z->args, z->nargs)` for write,
-but `icn_call_builtin` RE-EVALUATES args from tree_t children, ignoring the
-pre-computed `z->args[gen_idx]` that contains the result from `coro_bb_indirect_callee`.
-So write sees a fresh oneshot eval of `(!plist)()` (→ FAILDESCR) instead of the
-DT_E/NULVCL from the indirect callee. Fix: ensure the generative arg value flows
-to the builtin via `coro_drive_node`/`coro_drive_val` injection (same pattern
-as `coro_bb_fnc` already uses for other builtins with generative args — check
-how it injects the value into the call node's child before calling icn_call_builtin).
+- ✅ `coro_bb_indirect_callee` loop fix: skips non-callable types (int/real) and continues to next; FAILDESCR only on exhaustion. Fixed double-call bug (entry_pc found → slen fallback was firing again). Verified with Icon 9.5 oracle (uploaded icon-master.zip). one4all `248379b3`.
 
 - [x] Read JCON `ir_a_Call` in jcon_irgen.icn for proc semantics.
-- [ ] Wire indirect DT_E/DT_S invocation in TT_FNC dispatch (coro_value.c + interp_eval.c).
-- [ ] Verify `image(x)` produces correct string for lists, records, procedures.
-- [ ] Write test source `rung37_proc_lookup.icn` if no focused test exists.
-      Expected: proc("write",1) succeeds; proc("noexist",1) fails;
-      proc("~===",2) returns the ~=== operator procedure.
-- [ ] GATE-1..4. Commit.
+- [x] Wire indirect DT_E/DT_S invocation in TT_FNC dispatch (coro_value.c + interp_eval.c).
+- [x] Verify `image(x)` produces correct string for lists, records, procedures.
+- [x] Write test source `rung37_proc_lookup.icn` if no focused test exists.
+- [x] GATE-1..4. Commit.
 
 ### IJ-4 — Math builtins: trig + integer bitwise (Cluster D)
 
@@ -379,7 +367,8 @@ with matching `rung37_<topic>.expected`. Steps IJ-14 add `.stdin` fixtures.
   Carved:       2026-05-12 (Claude Sonnet 4.6)
   one4all HEAD: b36d7655
   ir-run:       PASS=199 FAIL=36 XFAIL=30 TOTAL=265
-  Current step: IJ-3 (next: fix every-inside-builtin-arg BB; rung37_every_in_arg.icn
-                isolates it — image(every 1|2|3) → &null instead of 1,2,3;
-                coro_bb_fnc needs to treat TT_EVERY arg as a generator not a oneshot.
-                Also closed: IJ-4 math builtins, IJ-5 detab/entab, TK_AUGPOW fix.)
+  Current step: IJ-4 (IJ-1 ✅ `c5bb0775`, IJ-2 ✅ `8529aec9`, IJ-3 ✅ `248379b3`).
+                Note: Icon 9.5 oracle built from uploaded icon-master.zip at /home/claude/icon-bin/icon.
+                Key finding: 3() → FAILDESCR (not 3); every write((!plist)()) skips
+                non-callable elements. Also closed: IJ-4 math builtins, IJ-5 detab/entab, TK_AUGPOW fix.
+                ir-run PASS=199 FAIL=36; honest PASS=266 FAIL=1 ABORT=0.
