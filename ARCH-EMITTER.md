@@ -692,3 +692,28 @@ verifiable against the C reference.
 **All callers** migrated from `emit_bb_gen.h` → `emit.h` (11 files).
 
 **Gates after deletion:** smoke 7/7, byte-id 4/4, snocone 5/5.
+
+---
+
+## RW-CONSOLIDATE Completion Record (sess 2026-05-13 cont. / cleanup sess)
+
+**Current compiled units (3 + 1 frozen):**
+
+| File | Role |
+|---|---|
+| `emit_core.c` | L0–L2: buf, form, insn, label, text, mode — all leaf infrastructure |
+| `emit_bb.c` | L3–L4: BB box templates (flat + brokered) + macro library writer |
+| `emit_sm.c` | L4–L5: SM opcode templates, shape renderers, text+walk codegen |
+| `emit_sm_binary.c` | **frozen** — mode-3 C interpreter; never touched by EM-REWRITE |
+
+**Function rename landed (RW-SYMNAMES):**
+
+| Old | New |
+|---|---|
+| `emit_flat_macros_to_path` | `emit_bb_macro_library_to_path` |
+
+Companion `#define bb_macros_write_to_path` in `emit_bb.h` updated to point to new name.
+
+**RW-BREAKS damage repaired:** Over-inserted 120-char `/*---*/` dividers in `emit_core.c`, `emit_bb.c`, `emit_sm.c` (commit `40deed45`) were reverted. Files restored to `d0b7fdd3` base, RW-SYMNAMES rename reapplied cleanly.
+
+**Gates:** smoke 7/7, snocone 5/5, byte-id 4/4.
