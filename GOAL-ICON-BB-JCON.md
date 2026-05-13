@@ -278,13 +278,17 @@ for everything except `&pos`/`&subject`. The coro path (`bb_eval_value`) only ha
 
 ## Watermark
 
-  one4all: 9681072c  corpus: 418ed33
+  one4all: 36fc9d2f  corpus: 418ed33
   ir-run:  PASS=199 FAIL=36 XFAIL=30
-  honest:  PASS=271 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-12 — Queens mutual conjunction `every A & B` (Cluster P)
-           IJ-11 ✅ sess 2026-05-13 (Claude Sonnet 4.6): icn_kw_read() infrastructure;
-           type()/image()/*/write() cset fixes; named-cset registry with GC-stable
-           pointers and icn_kw_cset_len() for NUL-inclusive &ascii/&cset sizes;
-           &error/trace/dump/random r/w globals; &fail FAILDESCR passthrough.
-           rung36_jcon_kwds residual XFAIL: &allocated/collections/features/regions/
-           storage (generative), &progname, &dateline-m. rung37_keywords ✅ honest+1.
+  honest:  PASS=271 FAIL=1 ABORT=0   broker: 22/49
+  Step:    IJ-12 IN PROGRESS (sess 2026-05-13, Claude Sonnet 4.6):
+           Infrastructure committed (36fc9d2f): coro_bb_mutual (JCON ir_a_Mutual
+           semantics, A=outer/B=inner rebuilt per A-tick); coro_bb_revassign_lhs_gen
+           (generative LHS subscript e.g. line[!sol] <- 'Q'); use_rhs_gen for chained
+           <- (rows[r] <- up[...] <- down[...] <- 1); subscript_set DT_S string fix.
+           Queens STILL FAILS: permutation test (no diagonals) passes 24 perms.
+           With diagonals, inner q() calls find no valid rows. Root cause suspected:
+           coro_bb_binop beta-advance reads `c` from wrong frame context when A
+           is the nested 3-level eq-chain inside inner recursive q() call.
+           NEXT: IJ-12 debug — in coro_bb_binop beta, verify `up[n+r-c]` re-eval
+           uses correct c value from inner q() frame. Then rung37_mutual.icn + gates.
