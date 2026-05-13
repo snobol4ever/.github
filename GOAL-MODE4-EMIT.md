@@ -218,16 +218,27 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 cleanup (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 mode4-tests (Claude Sonnet 4.6)**
 
-one4all HEAD `98a93700`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
+one4all HEAD `e61819e5`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=12/17 FAIL=5.
 
 ### What was done this session
 
-- RW-BREAKS-FIX `98a93700`: reverted over-inserted /*---*/ dividers (commit `40deed45`) from emit_core.c, emit_bb.c, emit_sm.c. Restored files to `d0b7fdd3` base; reapplied RW-SYMNAMES rename cleanly on top. ARCH-EMITTER.md updated with RW-CONSOLIDATE record (3 compiled units: emit_core, emit_bb, emit_sm + frozen emit_sm_binary).
+Pivoted to run SNOBOL4 test suites under mode-4 (`--jit-emit --x64`). Beauty subsystem gate went from 0/17 → 12/17 PASS. Three root-cause fixes:
+
+1. `emit_sm_int_arg` `b65f1ec9`: text-mode invocation was emitting literal param name `op` instead of integer value — `UNHANDLED op` in asm was unresolvable. Fixed to format integer into string.
+2. Δ symbol name `b65f1ec9`: `emit_sym_lea_r10("delta", ...)` used ASCII `"delta"` instead of UTF-8 `"Δ"` — undefined reference at link time. Fixed.
+3. `emit_sm_op` + `emit_sm_arith_dispatch` loop bugs `2a0fa18f`: both loops fired `emit_sm_unhandled_op` on every non-matching iteration instead of only after exhausting the table. Fixed with early `return` on match.
+4. `bb_emit_mode` default `e61819e5`: changed from `EMIT_TEXT` to `EMIT_BINARY_WIRED` so mode-4 runtime binaries don't crash when `bb_build_brokered` calls `emit_flat_body`.
+
+### Remaining 5 diff failures
+
+- **ShiftReduce_driver, trace_driver** (segfault): `XDSAR` deferred-var patterns go through `bb_build_brokered` → `emit_flat_body` binary emit → GPF inside `vsnprintf`. Likely `FLAT_BUF_MAX` overflow corrupting state before `vsnprintf`'s buffer-end sentinel write. Next session: check `bb_emit_end()` assertion / buffer size, or add `XDSAR` to `flat_is_eligible` exclusion list so brokered path handles it differently.
+- **counter_driver, semantic_driver, stack_driver** (diff): pre-existing `--sm-run` divergences. Mode-4 output is actually closer to SPITBOL oracle in some cases (stack: 7/7 vs sm-run 4/7). These are not mode-4 bugs — the parity gate compares to sm-run which is itself wrong. Accept or gate differently.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `98a93700`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
-3. Continue **M5** (Raku/Prolog/Rebus SM_SUSPEND/RESUME — on hold until GOAL-CHUNKS M4 closes) or next active step.
+2. Confirm one4all HEAD `e61819e5`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4 PASS=12/17.
+3. Fix ShiftReduce/trace segfault: investigate `FLAT_BUF_MAX` vs actual brokered binary size for XDSAR nodes, or exclude XDSAR from flat path and handle via dedicated brokered-binary path that doesn't call `emit_flat_body`.
+4. Decide on counter/semantic/stack diffs: either accept (they're sm-run bugs not mode-4 bugs) or fix sm-run.
