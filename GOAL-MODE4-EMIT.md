@@ -67,14 +67,14 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 **Open:**
 
-- [ ] **EM-DEVTABLE** — Remove `emitter_t` vtable struct entirely. Replace function-pointer dispatch with direct calls; replace `e->is_text` with global `g_is_text`; replace `e->ctx` FILE* with global `g_emit_out`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
-  - [ ] **EM-DEVTABLE-1** — `emitter.h`: delete `struct emitter_t` and all 25 function-pointer fields. Delete `emitter_text_mode_t` enum and `TEXT_MODE_*` constants. Add `extern int g_is_text;` and `extern FILE *g_emit_out;` and `extern int g_emit_text_mode;`. Delete all `EV_*` macro dispatch shorthands that route through `e->`. Delete vtable constructor declarations `emitter_binary_new` / `emitter_text_new` / `emitter_text_new_mode` / `emitter_free` / `emitter_end` / `emitter_text_file`. Replace with `void emitter_init_binary(bb_buf_t buf, int size)` and `void emitter_init_text(FILE *out, int mode)`.
-  - [ ] **EM-DEVTABLE-2** — `emitter.c`: drop `emitter_t *e` from every `unified_*` function. `e->is_text` → `g_is_text`. `outf(e)` → `g_emit_out`. `CTX(e)->pos` → `g_emit_pos`. `e->text_mode` → `g_emit_text_mode`. Delete `text_ctx_t` struct. Delete `emitter_tmpl` static. Constructors set globals, no malloc. `emitter_text_file()` → returns `g_is_text ? g_emit_out : NULL`. `emitter_end()` → `g_is_text ? g_emit_pos : bb_emit_end()`.
-  - [ ] **EM-DEVTABLE-3** — `bb_flat.h`: strip `emitter_t *e` from all ~20 function signatures. Delete `bb_charset_text_fn` / `bb_intcur_text_fn` / `bb_brkx_text_fn` / `bb_pos_text_fn` / `bb_nullary_text_fn` typedef function-pointer types (or strip their `emitter_t *e` param). Delete `bb_flat_set_intern_str` if it only existed to wire `e->intern_str`.
-  - [ ] **EM-DEVTABLE-4** — `bb_flat.c`: 75 call sites. Replace `e->emit_insn(e, &d)` → `unified_emit_insn(&d)`. Replace `e->emit_jmp(e, ...)` → `unified_emit_jmp(...)`. Replace `e->intern_str(e, lit)` → `g_flat_intern_str(lit)` (promote to module-level fn ptr). Replace `e->fprintf_raw(e, ...)` → `unified_fprintf_raw(...)`. Strip `emitter_t *e` from all function signatures.
-  - [ ] **EM-DEVTABLE-5** — `emitter_bb.c`: strip `emitter_t *e` from all callback typedefs and implementations.
-  - [ ] **EM-DEVTABLE-6** — Remaining callers: `emitter_defs.c`, `test_template_byte_identity.c`, `demo_template_productions.c`, `sm_codegen_x64_emit.c`. Replace `emitter_t *e = emitter_binary_new(...)` → `emitter_init_binary(...)`. Replace `emitter_t *e = emitter_text_new(...)` → `emitter_init_text(...)`. Remove all `emitter_free(e)` calls.
-  - [ ] **EM-DEVTABLE-7** — Build clean, run gates: smoke 7/7, template-byte-id 4/4, em8 5/5. Commit.
+- [x] **EM-DEVTABLE** — Remove `emitter_t` vtable struct. Form-based API: 8 `emit_form_*` functions encode x86-64 encoding classes; caller supplies opcode bytes. Global state (`g_is_text`, `g_emit_pos`, `g_emit_text_mode`) replaces `e->is_text`/`e->ctx`. `emitter_t` typedef kept as `int` stub for template signature compat. `emitter_h`: 557→205 lines. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5. ✅ sess 2026-05-13k (Claude Sonnet 4.6).
+  - [x] **EM-DEVTABLE-1** — `emitter.h`: struct deleted; form-based API; globals; lifecycle `emitter_init_binary`/`emitter_init_text`/`emitter_end`.
+  - [x] **EM-DEVTABLE-2** — `emitter.c`: form functions `emit_form_reg64_imm64`, `emit_form_reg32_imm32`, `emit_form_alu_eax_imm32`, `emit_form_alu_esi_imm8`, `emit_form_reg_reg2/3`, `emit_form_mem2/3/4`, `emit_form_r13_disp8`, `emit_form_nullary1/2/3`, `emit_sym_lea_rcx/r10`, `emit_call_sym_plt`. No malloc. No vtable.
+  - [x] **EM-DEVTABLE-3** — `bb_flat.h`: all ~20 signatures stripped of `emitter_t *e`. Callback typedefs also stripped.
+  - [x] **EM-DEVTABLE-4** — `bb_flat.c`: all call sites updated; `e->is_text`→`g_is_text`; `e->intern_str`→`g_flat_intern_str`; `e->fprintf_raw`→`emit_fprintf_raw`; vtable macros removed.
+  - [x] **EM-DEVTABLE-5** — `emitter_bb.c`: `emitter_t *e` stripped from xdsar/xatp signatures and all call sites.
+  - [x] **EM-DEVTABLE-6** — `emitter_defs.c`, `test_template_byte_identity.c`, `demo_template_productions.c`, `sm_codegen_x64_emit.c`, `sm_codegen.c` all updated to new lifecycle API.
+  - [x] **EM-DEVTABLE-7** — Build clean; smoke 7/7; template-byte-id 4/4; em8 5/5.
 - [ ] **EM-BB-FORMAT** (parent) — closes when smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10. Spec: each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions.
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
@@ -103,21 +103,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13j (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13k (Claude Sonnet 4.6)**
 
-one4all HEAD `12212bc0`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+one4all HEAD TBD (commit pending). Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-- EM-9 closed (make jit-emit-test, ABI doc, CHUNKS Step 8 [x])
-- EM-10..16 Icon SM path cancelled (pure-BB rewrite)
-- EM-UNIFY closed: sm_templates→emitter_sm, bb_templates→emitter_bb, emitter_binary+text→emitter.c, table-driven nullary dispatch
-- emitter_macro_def.c → emitter_defs.c
-- Design decision: keep emitter_t *e (intern_str, is_text, vtable are per-instance)
+- EM-DEVTABLE closed (all 7 sub-rungs): emitter_t vtable struct removed entirely
+- New form-based API: 8 emit_form_* functions encode x86-64 encoding classes; caller supplies opcode bytes
+- emitter_t kept as typedef int stub for template signature compat; never dereferenced
+- emitter.h: 557 -> 205 lines; emitter.c: 547 -> 436 lines; no malloc, no vtable, no pointer threading
+- bb_flat.h/c: all emitter_t *e params stripped; intern_str callback signature updated to (const char *)
+- emitter_bb.c, sm_codegen.c, sm_codegen_x64_emit.c, test/demo callers all updated to lifecycle API
 
 ### Next session must
 
-1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `12212bc0`.
-3. **EM-DEVTABLE** — remove `emitter_t` vtable; globals replace `e->is_text` / `e->ctx`. Full scope in rung above. Then **EM-MODE4-IS-MODE3-DUMP**.
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD = commit from this session.
+3. EM-BB-FORMAT next open rung. See rung spec above.
 
