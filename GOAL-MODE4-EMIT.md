@@ -826,7 +826,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   **Done when:** `bb_box_fn` callers in `stmt_exec.c`, `rt.c`, `bb_flat.c`, `bb_broker.c` interpret the returned `DESCR_t` by type tag rather than assuming SNOBOL4 layout. No hard-coded `spec_t` layout assumptions. Prerequisite: EM-SPEC-T-ERADICATE.
 
   Sub-rungs:
-  - [ ] **EXVAL-1** — Audit all `bb_box_fn` call sites. Record which assume σ/δ layout (SNOBOL4-only) vs which are already type-agnostic. File: `doc/xval_audit.md`.
+  - [x] **EXVAL-1** — Audit all `bb_box_fn` call sites. Record which assume σ/δ layout (SNOBOL4-only) vs which are already type-agnostic. File: `doc/xval_audit.md`. *(Sonnet 4.6, one4all `799f8492`)*
   - [ ] **EXVAL-2** — Add `DESCR_t descr_match_span(const char *σ, int δ)` and `DESCR_t descr_bool(int ok)` constructors to `snobol4.h` / `icn_runtime.h` respectively. Update SNOBOL4 box returns to use `descr_match_span`; update Prolog box returns to use `descr_bool`. Gate: build clean, smoke 7/7, broker 49/49.
   - [ ] **EXVAL-3** — Update callers in `stmt_exec.c` + `bb_broker.c` to dispatch on `DESCR_t` type tag. SNOBOL4 match: unwrap span. Prolog: treat non-zero integer as success. Icon: pass value through to generator. Gate: smoke 7/7, broker 49/49, icon ir-run parity.
 
@@ -1007,20 +1007,23 @@ Delete `emit_bb_intcur` entirely.
 
 **SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
 
-**EM-SPEC-T-ERADICATE complete (EST-1..4).** one4all HEAD `a2b65fb9`. .github HEAD (this commit). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9 (baseline preserved throughout).
+**EXVAL-1 closed.** one4all HEAD `799f8492`. .github HEAD (this commit). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9 (baseline preserved).
 
 ### Work done
 
-1. **EST-1** (prev session, `270821a`): audit — 72 hits, 5 active files, CMPILE.c out of scope.
-2. **EST-2** (`31df5bbf`): added `descr_match(σ,δ)` + `descr_match_cat(x,y)` helpers to `bb_box.h`. Migrated all 14 `rt_bb_*` locals + `rt_arbno_frame_t.matched` + `bb_boxes.c::arbno_frame_t.matched` + `cap_t::pending` field. No `spec_t` in `rt.c` or `bb_boxes.c`.
-3. **EST-3** (`230bfdd3`): migrated `stmt_exec.c` — `UC`, `DVAR`, `sp`, `r1`, `r2` all to `DESCR_t`; `spec_from_descr`/`descr_from_spec` calls replaced with direct `descr_match()` / `IS_FAIL_fn()`.
-4. **EST-4** (`a2b65fb9`): deleted `spec_t` typedef, `spec_empty`, `spec()`, `spec_cat()`, `spec_is_empty()` from `bb_box.h`. Deleted `bb_convert.h` entirely. Removed `#include "bb_convert.h"` from `rt.c`, `bb_boxes.c`, `bb_broker.h`, `stmt_exec.c`. Only comments mention `spec_t` — no live code.
+1. **EXVAL-1** (`799f8492`): audited all `bb_box_fn` call sites in `stmt_exec.c`, `rt.c`, `bb_flat.c`, `bb_broker.c`. Key findings:
+   - `bb_broker.c`: type-agnostic (only `IS_FAIL_fn` check) ✓
+   - `bb_flat.c`: type-agnostic (Δ-based cursor, no `.s`/`.slen` read) ✓
+   - `scan_body_fn_u9` in `stmt_exec.c:736`: SNOBOL4-specific — uses `val.slen` as match length without checking `val.v`
+   - `rt_bb_cap` in `rt.c:1579`: reads `cr.s`/`cr.slen` without `DT_S` type check
+   - All other `rt_bb_*`: SNOBOL4-specific by design (correct); Icon/Prolog use separate box implementations
+   - Audit filed to `doc/xval_audit.md`.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `a2b65fb9`.
-3. **EM-XVAL-DESCR EXVAL-1** — audit all `bb_box_fn` call sites in `stmt_exec.c`, `rt.c`, `bb_flat.c`, `bb_broker.c` that assume SNOBOL4 σ/δ layout (i.e. read `.s`/`.slen` from the return without checking `.v`). File findings to `doc/xval_audit.md`. Gate: doc committed.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `799f8492`.
+3. **EXVAL-2** — Add `DESCR_t descr_match_span(const char *σ, int δ)` and `DESCR_t descr_bool(int ok)` constructors to `snobol4.h` / `icn_runtime.h` respectively. Update SNOBOL4 box returns to use `descr_match_span`; update Prolog box returns to use `descr_bool`. Gate: build clean, smoke 7/7, broker 49/49.
 
 ---
 
