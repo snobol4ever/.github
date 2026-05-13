@@ -68,8 +68,12 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 
 - [x] Add unary/binary operator dispatch in icn_try_call_builtin_by_name.
 - [x] rung37_coerce.icn + .expected.
-- [ ] Fix `to` loop integer truncation of real/string/cset bounds.
-- [ ] Fix `~~x` double-complement round-trip.
+- [x] Fix `~~x` double-complement round-trip (NUL skip + int/real coercion). `ae2d16f7`
+- [x] Fix `~~generator` suspension (TT_CSET_COMPL in is_suspendable + coro_bb_cset_compl). `ae2d16f7`
+- [x] Fix `to by` integer truncation of string/cset bounds (preserve pure-real path). `ae2d16f7`
+- [ ] Fix `to by` alternation args (every toby(A|B,...) only fires once — generator not resumed).
+- [ ] Fix `~~(A|B|C) ? move(5)` — scan with generative subject (TT_SCAN not suspendable).
+- [ ] Fix `?x` random char of string/cset (debug).
 - [ ] GATE-1..4. Commit.
 
 ### IJ-8 — Lexicographic string comparison edge cases (Cluster H)
@@ -149,7 +153,7 @@ identity, `[]`, cset `++/--/**`. rung37_coerce.icn ✅.
 
 ## Watermark
 
-  one4all: ce8c1211  corpus: cea9548
+  one4all: ae2d16f7  corpus: cea9548
   ir-run:  PASS=198 FAIL=37 XFAIL=30
   honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-7 partial — to-loop + ~~ + ? remaining.
+  Step:    IJ-7 partial — to-loop alternation + scan-subject gen + ? remaining.
