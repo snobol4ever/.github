@@ -713,13 +713,31 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [ ] EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries.
 
 - [ ] EM-9 — M2 milestone close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
-- [ ] **EM-BB-MACROS** — `--jit-emit --x64 --bb-macros` emits BB boxes with jump targets in col 3. `--bb-macros` flag wired (one4all `ec334068`); `g_bb_emit_macros` global declared. No behavior yet.
+- [ ] **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` emits BB boxes in beautified byrd-box three-column macro-invocation format. `--bb-format` flag wired (one4all `ec334068`); `g_bb_emit_format` global declared. No behavior yet.
 
-  **The spec:** raw x86 assembly, three-column layout per ARCH-x86.md — col 0 LABEL (24), col 2 ACTION (16), col 3 GOTO. Every conditional+unconditional jmp pair is fused on one line (cond in col 2, jmp in col 3). No separate jmp lines. No `BREAK_α_VAR` or any other named macros — raw GAS instructions only, jumps at col 3. The byrd-reference files (`corpus/programs/snobol4/demo/*.byrd-reference.s`) show a NASM-era predecessor; the GAS equivalent is what `--bb-macros` must produce. Do NOT copy the macro names from those files.
+  **The goal:** collapse each BB port from 8–15 raw GAS instructions to ONE three-column macro invocation line:
+  ```
+  LABEL:                  MACRO_α          args, lbl_succ, lbl_fail   ; comment
+  ```
+  This matches the byrd-reference files in `corpus/programs/snobol4/demo/*.byrd-reference.s`. The macros (`LIT_α`, `RPOS_β`, `LEN_α`, etc.) are GAS `.macro` definitions in `bb_macros.s` (parallel to `snobol4_asm.mac`). BINARY mode unchanged. EDP-12 already closed — no blocker.
 
-  ⛔ **Do not begin until EDP-12 closes.**
+  **How `g_bb_emit_format` gates each template:** check `if (g_bb_emit_format && (bb_emit_mode==EMIT_TEXT || bb_emit_mode==EMIT_TEXT_INLINE))` at top of `emit_bb_<kind>` — if true, emit one macro-invocation line per port and return; else fall through to existing `t_*` raw-instruction path.
 
-  Sub-rungs: EM-BB-MACROS-0 through EM-BB-MACROS-9 — one per box kind (XCHR, XPOSI/XRPSI, charset family, intcur family, XBRKX, XFARB/XEPS/XFAIL, port-call boxes). Each rung: add `g_bb_emit_macros` branch in `emit_bb_<kind>` that emits one fused line per port via `bb3c_format`. Gate per rung: build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥7, `gcc -c` on emitted `.s` clean.
+  **New helper needed:** `void t_bb_format_port(bb_label_t *lbl, const char *macro_name, const char *args)` — emits one `bb3c_format` line: `LABEL: MACRO args`. No-op outside TEXT+format mode.
+
+  **Gate per sub-rung:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS≥10, `gcc -c` on emitted `.s` clean.
+
+  Sub-rungs — one per box kind; each adds a `g_bb_emit_format` branch to `emit_bb_<kind>` + matching GAS `.macro` to `bb_macros.s`:
+  - [ ] **EM-BB-FORMAT-0** — Add `t_bb_format_port` helper to `bb_emit.h/c`. No template changes yet. Gate: build clean, smoke 7/7.
+  - [ ] **EM-BB-FORMAT-1** — XCHR (LIT). Macros: `LIT_α lbl, len, lbl_succ, lbl_fail` / `LIT_β len, lbl_fail`.
+  - [ ] **EM-BB-FORMAT-2** — XPOSI / XRPSI. Macros: `POS_α n, lbl_succ, lbl_fail` / `POS_β lbl_fail`; `RPOS_α n, lbl_succ, lbl_fail` / `RPOS_β lbl_fail`.
+  - [ ] **EM-BB-FORMAT-3** — Charset family (XSPNC/XBRKC/XANYC/XNNYC via emit_bb_charset). Macros: `SPAN_α cs, lbl_succ, lbl_fail` / `SPAN_β lbl_fail`; BRK/ANY/NOTANY same shape.
+  - [ ] **EM-BB-FORMAT-4** — Integer-cursor family (XLNTH/XTB/XRTB). Macros: `LEN_α n, lbl_succ, lbl_fail` / `LEN_β lbl_fail`; TAB/RTAB same shape.
+  - [ ] **EM-BB-FORMAT-5** — XBRKX. Macros: `BRKX_α cs, lbl_succ, lbl_fail` / `BRKX_β cs, lbl_succ, lbl_fail`.
+  - [ ] **EM-BB-FORMAT-6** — XFARB/XEPS/XFAIL/XABRT/XFNCE/XSUCF/XCAT/XOR/XVAR. Simple jmp-pair boxes; macros thin.
+  - [ ] **EM-BB-FORMAT-7** — Port-call boxes (XARBN/XBAL/XBRKX/XCALLCAP/XFNME/XNME/XSTAR/XATP/XDSAR). Macro shape: `KIND_α zeta_label, fn, lbl_succ, lbl_fail` / `KIND_β zeta_label, fn, lbl_fail`.
+  - [ ] **EM-BB-FORMAT-8** — Icon boxes (9 kinds). Same port-call shape.
+  - [ ] **EM-BB-FORMAT-9** — Gate + corpus artifact regen. Run `--bb-format` on all tracked corpus `.sno` files; each must `gcc -c` clean. Add `test_gate_em_bb_format.sh`.
 
 ---
 
@@ -907,7 +925,7 @@ EC-8 (`08707cb0`): Removed dead `flat_text_simple_box` helper. Wrote `ARCH-EMITT
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `08707cb0`.
-3. **EM-BB-MACROS** — `--jit-emit --x64 --bb-macros` raw x86 three-column output for BB boxes. Spec in GOAL-MODE4-EMIT.md §EM-BB-MACROS. Flag already wired (`ec334068`); no behavior yet. Start with EM-BB-MACROS-0 (if not already done) and EM-BB-MACROS-1 (XCHR box).
+3. **EM-BB-FORMAT** — `--jit-emit --x64 --bb-format` raw x86 three-column output for BB boxes. Spec in GOAL-MODE4-EMIT.md §EM-BB-FORMAT. Flag already wired (`ec334068`); no behavior yet. Start with EM-BB-FORMAT-0 (if not already done) and EM-BB-FORMAT-1 (XCHR box).
 
 
 
@@ -1030,15 +1048,15 @@ Fix: `edp4_label_then(out, fn)` helper that calls `sm_emit_consume_pc_label()`, 
 
 **SESSION HANDOFF — sess 2026-05-12l (Claude Sonnet 4.6)**
 
-**EM-BB-MACROS flag wired.** one4all `ec334068`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10 (baseline preserved).
+**EM-BB-FORMAT flag wired.** one4all `ec334068`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=7 FAIL=10 (baseline preserved).
 
 ### Work done
 
 1. **EDP-3 pushed** (from prior session, `ed41f343`): sm_codegen.c if-else → clean switch.
 
-2. **EM-BB-MACROS-0 partial**: `--bb-macros` CLI flag wired in `scrip.c`; `g_bb_emit_macros` global declared in `bb_emit.h`/`bb_emit.c`. No behavior change yet.
+2. **EM-BB-FORMAT-0 partial**: `--bb-format` CLI flag wired in `scrip.c`; `g_bb_emit_format` global declared in `bb_emit.h`/`bb_emit.c`. No behavior change yet.
 
-3. **EM-BB-MACROS spec corrected**: moved to after EM-9 (after doppelgangers complete); spec is raw x86 three-column with jumps at col 3, no named macros.
+3. **EM-BB-FORMAT spec corrected**: moved to after EM-9 (after doppelgangers complete); spec is raw x86 three-column with jumps at col 3, no named macros.
 
 ### EDP-4 note (from prior session)
 
