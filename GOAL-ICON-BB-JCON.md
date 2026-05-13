@@ -133,7 +133,7 @@ from "drain body then advance subject" to "advance subject after one body value"
   position for first generated char instead). The beta fix is correct and verified by rung37_scan_alt.
   rung36_jcon_scan cluster K residual blocked by separate upto(!cset) issue tracked as future step.
 
-### IJ-10 — &pos / &subject negative positions (Cluster L) ⏳ PARTIAL `259e1aec`
+### IJ-10 — &pos / &subject negative positions (Cluster L) ✅ COMPLETE
 
 **SM layer fixed (259e1aec):**
 - SM_PUSH_VAR: &pos/&subject read from scan_pos/scan_subj in Icon mode (not NV table).
@@ -141,13 +141,24 @@ from "drain body then advance subject" to "advance subject after one body value"
 - lower_swap: keyword operand bypasses non-atomic fast path → emits ICN_KW_SWAP.
 - ICN_KW_SWAP handler: atomic probe via icn_kw_can_assign before writing either side.
 
-**Remaining:** rung36_jcon_subjpos diff lines 56-57 — swap inside scan body routes
-through coro_value.c TT_SWAP (not SM path). Need atomic kw_assign probe in
-bb_eval_value TT_SWAP case (coro_value.c ~line 1360 area).
-Also: rung36_jcon_substring still FAIL (separate negative-index substring issue).
+**IJ-10 complete (sess 2026-05-13, Claude Sonnet 4.6):**
+Root cause: `--ir-run` for Icon routes through SM interpreter (sm_preamble + sm_run_with_recovery),
+not through interp_eval or coro_value.c. ICN_KW_SWAP handler used NV_SET_fn for the plain-var write
+instead of icn_frame_env_store(slot), so local variable `x` was written to NV but read back from
+FRAME.env[slot], seeing the stale value. Also: the original ICN_KW_SWAP normalized keyword to
+always be "lhs" (first), breaking left-to-right write semantics for `var :=: &keyword` case.
 
-- [ ] Fix coro_value.c TT_SWAP for keyword operands (atomic kw_can_assign probe).
-- [ ] Write rung37_neg_pos.icn. GATE-1..4. Commit.
+Fixes:
+- lower_swap: push `lv=T0_val, rv=T1_val` (not normalized), plus kw_name, var_name, var_slot,
+  kw_is_lhs (6 args total) so the handler knows original write order.
+- ICN_KW_SWAP 6: kw_is_lhs=1 → probe rv→kw first, if OOB fail (nothing written), else write lv→var.
+  kw_is_lhs=0 → write rv→var first (always OK), then probe lv→kw, if OOB stop (var committed).
+- var write uses icn_frame_env_store(slot) when slot ≥ 0 and frame active, else NV_SET_fn.
+- rung36_jcon_subjpos: PASS (was 1 diff line).
+- Note: rung36_jcon_substring still FAIL (separate negative-index substring assignment issue).
+
+- [x] Fix ICN_KW_SWAP: use icn_frame_env_store(slot) for plain-var write, preserve lhs/rhs order.
+- [x] Write rung37_neg_pos.icn. GATE-1..4. Commit.
 
 ### IJ-11 — Missing &keywords table entries (Cluster M)
 
@@ -191,7 +202,7 @@ Also: rung36_jcon_substring still FAIL (separate negative-index substring issue)
 | rung37_coerce.icn | IJ-7 | ✅ |
 | rung37_str_relop.icn | IJ-8 | ⏳ |
 | rung37_scan_alt.icn | IJ-9 | ⏳ |
-| rung37_neg_pos.icn | IJ-10 | ⏳ |
+| rung37_neg_pos.icn | IJ-10 | ✅ |
 | rung37_keywords.icn | IJ-11 | ⏳ |
 | rung37_mutual.icn | IJ-12 | ⏳ |
 | rung37_random_radix.icn | IJ-16 | ⏳ |
@@ -212,11 +223,9 @@ Also: rung36_jcon_substring still FAIL (separate negative-index substring issue)
 
 ## Watermark
 
-  one4all: 259e1aec  corpus: eac177d
-  ir-run:  PASS=198 FAIL=37 XFAIL=30
-  honest:  PASS=269 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-10 PARTIAL — SM_PUSH_VAR/SM_STORE_VAR &pos/&subject fixed for Icon
-           (kw_assign normalization, OOB→FAIL, read from scan state).
-           lower_swap + ICN_KW_SWAP added for atomic keyword swaps.
-           Remaining: coro_value.c TT_SWAP keyword case (swap inside scan body
-           goes through bb_eval_value, not SM). rung36_jcon_subjpos 1 diff line.
+  one4all: 88db975a  corpus: 3df52f6
+  ir-run:  PASS=199 FAIL=36 XFAIL=30
+  honest:  PASS=270 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-10 COMPLETE — ICN_KW_SWAP fixed: frame slot write + correct lhs/rhs order.
+           rung36_jcon_subjpos PASS. rung37_neg_pos.icn added.
+           NEXT: IJ-11 — missing &keywords table entries (rung36_jcon_kwds).
