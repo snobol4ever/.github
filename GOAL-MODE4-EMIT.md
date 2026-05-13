@@ -72,6 +72,11 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
 - [x] **EM-9** — M2 close: document `libscrip_rt.so` ABI; `make jit-emit-test`; mark GOAL-CHUNKS Step 8 `[x]`.
+- [ ] **EM-UNIFY** — Emitter subsystem unification. Three sub-rungs, all in one session:
+  - **EM-UNIFY-a** Rename: `sm_templates.c` → `emitter_sm.c`; `bb_templates.c` → `emitter_bb.c`. Update Makefile, all `#include`s, function-pointer tables.
+  - **EM-UNIFY-b** Merge `emitter_binary.c` + `emitter_text.c` into single `emitter.c`. Each low-level primitive (e.g. `emit_mov_rax_imm64`) becomes one function with an `if (is_text)` branch — binary bytes on one path, GAS mnemonic on the other. The two outputs are side-by-side in the same function body so they can be checked against each other at a glance. No more parallel files.
+  - **EM-UNIFY-c** Opcode-as-argument API: replace hardcoded per-opcode `emit_sm_add()` / `emit_sm_sub()` / … families with a dispatched `emit_sm_op(int opcode, …)` that takes the SM opcode enum as an argument. Same for BB box family where applicable. Reduces template function count; callers pass the opcode, not a distinct function name.
+  - Gates: smoke 7/7, template-byte-id 4/4, em8 5/5, `make jit-emit-test` clean.
 
 ### M5 phase — Raku, Prolog, Rebus (Icon cancelled from SM path)
 
@@ -105,6 +110,8 @@ one4all HEAD `cdd0f967`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5,
 **M2 (mode-4 x86 emitter for SNOBOL4 + Snocone) is now CLOSED.**
 
 **EM-10..EM-16 Icon path cancelled.** Icon is being rewritten pure-BB (no SM carrier); SM_SUSPEND/RESUME opcodes are irrelevant for Icon. M5 Icon work will be flat-BB extension, scoped as new rungs when M4 closes. Prolog/Raku SM path unchanged.
+
+**EM-UNIFY rung added** (sess 2026-05-13h): three sub-rungs — (a) rename sm_templates/bb_templates, (b) merge emitter_binary+emitter_text into single entwined emitter.c, (c) opcode-as-argument API replacing hardcoded per-opcode function families.
 
 ### Next session must
 
