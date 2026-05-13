@@ -126,8 +126,12 @@ That test has non-generative body (move), so body β → FAIL already → subjec
 is structurally equivalent for non-generative bodies. For generative bodies, it changes behaviour
 from "drain body then advance subject" to "advance subject after one body value" — which is correct.
 
-- [ ] Fix `coro_bb_scan_gen` β: set body_live=0, skip body β, fall through to subject advance.
-- [ ] rung37_scan_alt.icn. GATE-1..4. Commit.
+- [x] Fix `coro_bb_scan_gen` β: set body_live=0, skip body β, fall through to subject advance. `4008701c`
+- [x] rung37_scan_alt.icn. GATE-1..4. Commit. `4008701c` / corpus `eac177d`
+- Note: rung36_jcon_scan still FAIL — root cause is `upto(!&lcase)` arg semantics diverging from JCON
+  (JCON treats `!cset` as producing the full cset for upto; our coro_bb_fnc retry produces first matching
+  position for first generated char instead). The beta fix is correct and verified by rung37_scan_alt.
+  rung36_jcon_scan cluster K residual blocked by separate upto(!cset) issue tracked as future step.
 
 ### IJ-10 — &pos / &subject negative positions (Cluster L)
 
@@ -196,12 +200,12 @@ from "drain body then advance subject" to "advance subject after one body value"
 
 ## Watermark
 
-  one4all: d1044104  corpus: 04f24b8
+  one4all: 4008701c  corpus: eac177d
   ir-run:  PASS=198 FAIL=37 XFAIL=30
-  honest:  PASS=268 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-9 PARTIAL — root cause of scan alternation bug identified (sess 2026-05-13).
-           Fix: coro_bb_scan_gen on external β must NOT resume body_gen β.
-           Instead: set body_live=0, fall through to advance subject immediately.
-           Each subject contributes exactly ONE body α tick (JCON semantics).
-           See detailed analysis in IJ-9 step above.
-           Next: implement the fix, write rung37_scan_alt.icn, run GATE-1..4.
+  honest:  PASS=269 FAIL=1 ABORT=0   broker: 23/49
+  Step:    IJ-9 COMPLETE — coro_bb_scan_gen beta fix: set body_live=0 on external beta,
+           fall through to subject advance. Each subject gets ONE body alpha tick (JCON).
+           rung37_scan_alt.icn verifies: move/tab/count/failure-skip. GATE-1..4 green.
+           Residual: rung36_jcon_scan cluster K still FAIL — separate issue with
+           upto(!&lcase) arg semantics (our coro_bb_fnc scan-builtin retry generates
+           first-char position; JCON treats !cset as full cset for upto). Next: IJ-10.
