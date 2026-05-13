@@ -169,15 +169,15 @@ Fix: `bb_box_def_t[]` table + one `em_bb_stateful()` driver.
 
 ### EM-REWRITE steps
 
-- [ ] **RW-0** ⚡ NEXT — Naming scan. Scan every function in all 16 emitter
-  files (excluding `emit_sm_binary.c`). Produce canonical name table in
-  `ARCH-EMITTER.md`: old name → new name, layer, operand-shape suffix, notes.
-  Every subsequent step writes code using names from this table.
-  No code changes. No callers changed.
-  Deliverable: `ARCH-EMITTER.md` committed to `.github`.
-  Gates: none (doc-only step).
+- [x] **RW-0** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — Naming scan. Full read of all 16 emitter
+  files (excluding `emit_sm_binary.c`). Produced `ARCH-EMITTER.md` in `.github` (`567fc033`):
+  sibling-consistent old→new name table for all functions/globals across L0–L5.
+  Key decisions: `insn_` prefix for leaf fns; `em_seq_` for compound sequences;
+  `em_bb_` for box templates; `em_sm_op_` for opcode emitters vs `em_sm_shape_` for
+  renderers; `em_text_` for TEXT-only helpers; `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
+  Gates: none (doc-only).
 
-- [ ] **RW-1** — Foundation layer: write alongside old code, no deletions.
+- [ ] **RW-1** ⚡ NEXT — Foundation layer: write alongside old code, no deletions.
   `em_mode.h/c`: single enum (TEXT/BINARY/MACRO_DEF) × wiring flag
   (WIRED/BROKERED). `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros.
   `g_jit_emit_inline` becomes `em_set_inline(int)` sub-flag on TEXT mode.
@@ -226,56 +226,31 @@ Fix: `bb_box_def_t[]` table + one `em_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13z (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `d894c021`. .github HEAD `see push`. Gates: smoke 7/7, template-byte-id 4/4.
+one4all HEAD `7ad43ba3`. .github HEAD `567fc033`. Gates: template-byte-id 4/4.
 
 ### What was done this session
 
-- Full emitter scan (all 16 files, excluding `emit_sm_binary.c`).
-- Diagnosed three diseases: 80× repeated mode switch; 2× text/binary duplication
-  in compound helpers; 20 individually-written stateful BB boxes.
-- Designed EM-REWRITE with Lon. Key decisions made and recorded:
-  - `if (IS_TEXT)` at leaf only, never in template functions
-  - Side-by-side text+binary: text branch on top, binary below, same function
-  - Two-axis mode: format (TEXT/BINARY/MACRO_DEF) × wiring (WIRED/BROKERED);
-    `TEXT_INLINE` folds into TEXT as a sub-flag, not a mode value
-  - Composable naming: layer prefix + operand-shape suffix + size suffix
-  - X-group macros for jcc/push/pop families (no repetition)
-  - Table-driven stateful BB boxes: `bb_box_def_t[]` + `em_bb_stateful()`
-  - SM opcode families dispatched by shape class, not individually
-  - `emit_sm_binary.c` is NOT an emitter — excluded from rewrite entirely
-  - Pure functional; Snocone/Icon bootstrap-friendly
-- Projected: ~500 lines replaces ~2,400 in affected files (>2× reduction)
-- Added RW-0 naming scan step (was missing — caught on review)
-- Split overloaded old RW-4 into RW-4 (em_sm) + RW-5 (em_flat/em_walk) + RW-6 (delete)
-- Updated PLAN.md
-
-### Emitter file inventory (target after rewrite in parentheses)
-
-| File | Lines | New | Target |
-|---|---:|---|---:|
-| emit_buf.h/c | 173 | → em_mode.c | folded |
-| emit_defs.h/c | 58 | → em_defs.h | ~30 |
-| emit_form.h/c | 445 | → insn.c/h | ~100 |
-| emit_insn.h/c | 708 | → insn.c/h | ~180 |
-| emit_label.h/c | 76 | → em_label.c/h | ~60 |
-| emit_mode.h/c | 280 | → em_mode.c/h | ~80 |
-| emit_text3c.h/c | 306 | → em_text.c/h | ~150 |
-| emit_bb_gen.h | 24 | → em.h | ~20 |
-| emit_templates.h | 212 | → em_templates.h | ~100 |
-| emit_bb_seq.h/c | 660 | → em_seq.c/h | ~90 |
-| emit_bb_box.c | 259 | → em_bb.c | ~80 |
-| emit_bb_flat.h/c | 1241 | → em_flat.c/h | ~600 |
-| emit_sm_shape.h/c | 904 | → em_sm.c | ~150 |
-| emit_sm_op.c | 388 | → em_sm.c | (above) |
-| emit_sm_text.h/c | 1763 | → em_walk.c/h | ~900 |
-| emit_sm_binary.h/c | 1423 | **unchanged** | 1423 |
+- Full source read of all 16 emitter files (excluding `emit_sm_binary.c`).
+- Produced `ARCH-EMITTER.md`: complete old→new name table, sibling-consistent across all families.
+- Key naming decisions:
+  - `insn_` — leaf fns (one x86 instruction, IS_TEXT at top, binary below)
+  - `em_seq_` — compound sequences (L3); no if-statements in body
+  - `em_bb_` — BB box templates (L4); table-driven via `bb_box_def_t[]`
+  - `em_sm_op_` — SM opcode emitters; `em_sm_shape_` — shape-class renderers
+  - `em_text_` — TEXT-only helpers; `em_label_` — label lifecycle; `em_mode_` — mode globals
+  - `em_flat_` — flat-glob builder; `em_walk_` — text SM codegen walker
+  - `IS_TEXT`/`IS_BIN`/`IS_WIRED`/`IS_BROKERED` macros replace scattered `bb_emit_mode` checks
+  - `emit_sm_nullary_rt` (static) → absorbed into opcode dispatch table
+  - `emit_add_delta_imm` / `emit_sub_delta_imm` → promoted to `insn_` layer (multi-insn but always-together)
+  - `emit_pad_to_blob_size` deleted (no-op in all modes)
+- Marked RW-0 complete in GOAL-MODE4-EMIT.md.
 
 ### Next session must
 
-1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md.
-2. Confirm one4all HEAD `d894c021`. Gates: smoke 7/7, template-byte-id 4/4.
-3. Current step: **RW-0** — naming scan. Read all 16 emitter files (exclude
-   `emit_sm_binary.c`). Produce `ARCH-EMITTER.md` with full old→new name table,
-   layer assignments, operand-shape suffixes. Commit to `.github`. No code changes.
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
+2. Confirm one4all HEAD `7ad43ba3`. Gates: template-byte-id 4/4.
+3. Current step: **RW-1** — Foundation layer: write `em_mode.h/c`, `em_label.h/c`,
+   `em_text.h/c`, `insn.h/insn.c` alongside old code. No deletions, no caller changes.
+   Use names from ARCH-EMITTER.md exclusively.
