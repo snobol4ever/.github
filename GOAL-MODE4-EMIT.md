@@ -116,52 +116,59 @@ Naming is composable from operand-kind fragments (`_rr`, `_ri`, `_rm` etc).
 | `emit_defs.h` | `em_defs.h` | RW-10 |
 | `emit_templates.h` | `em_templates.h` | RW-7 |
 
+### EM-REWRITE — Three diseases being cured
+
+**Disease 1 — Mode switch repeated ~80 times.**
+Every function switches on `bb_emit_mode` with 5 cases collapsing to 2.
+Fix: `IS_TEXT` / `IS_BIN` macros in `em_mode.h`. One `if` at the leaf. Never above.
+
+**Disease 2 — Text/binary parallel duplicated in every compound helper.**
+`emit_bb_seq.c` writes every instruction twice — once as `bb3c_format(...)` and
+once as `bb_insn_*()`. Functions are 2× longer than they need to be.
+Fix: `insn_*` leaf unifies both. Compound helper calls it once. `em_seq.c` is
+half the size of `emit_bb_seq.c`.
+
+**Disease 3 — 20 stateful BB boxes written individually.**
+Every `emit_bb_xbal`, `emit_bb_xfarb`, etc. is banner+alpha+beta_label+beta —
+the same four calls with different names and state constructors.
+Fix: one `bb_box_def_t` table + one `em_stateful()` driver. 20 wrappers → table rows.
+
 ### EM-REWRITE steps
 
-- [ ] **RW-1** ⚡ NEXT — New leaf layer: `insn.h / insn.c`. All `insn_*` functions.
-  Each: `if (IS_TEXT) { text_side; return; }` / binary side below. No callers changed.
+- [ ] **RW-1** ⚡ NEXT — `insn.h / insn.c`: all ~60 leaf `insn_*` functions.
+  Shape: `if (IS_TEXT) { text; return; }` / binary below. ~180 lines total.
+  No callers changed. Old `emit_insn.c` + `emit_form.c` still compiled.
+  Also write `em_mode.h / em_mode.c`: single enum, `IS_TEXT`/`IS_BIN` macros,
+  replaces `g_is_text` + `bb_emit_mode` + `g_bb_emit_format`.
+  Also write `em_label.h / em_label.c`: all label symbols in one file
+  (currently split across `emit_label.c` + `emit_form.c`).
+  Also write `em_text.h / em_text.c`: rewrite of `emit_text3c.c`.
   Gates: `gcc -c` clean, smoke 7/7 unchanged.
 
-- [ ] **RW-2** — New mode core: `em_mode.h / em_mode.c`. Single enum replacing
-  `g_is_text` + `bb_emit_mode` + `g_bb_emit_format`. `IS_TEXT`/`IS_BIN` macros.
-  Old files still compiled. Gates: builds clean alongside old.
+- [ ] **RW-2** — `em_seq.h / em_seq.c`: rewrite `emit_bb_seq.c` using only
+  `insn_*` / `em_mode` / `em_label` / `em_text`. No if-statements — only calls.
+  Three code paths collapse to one. ~90 lines replaces ~660.
+  Old `emit_bb_seq.c` still compiled alongside.
+  Gates: `gcc -c` clean, smoke 7/7 unchanged.
 
-- [ ] **RW-3** — New label layer: `em_label.h / em_label.c`. All label symbols
-  in one file (currently split across `emit_label.c` + `emit_form.c`).
-  Old files still compiled. Gates: builds clean.
-
-- [ ] **RW-4** — New 3-column formatter: `em_text.h / em_text.c`. Rewrite of
-  `emit_text3c.c` — pending-label/cjmp machinery, 4-col BB port format.
-  Old file still compiled. Gates: builds clean.
-
-- [ ] **RW-5** — New compound sequences: `em_seq.h / em_seq.c`. Rewrite of
-  `emit_bb_seq.c` using only `insn_*`/`em_mode`/`em_label`/`em_text`.
-  No if-statements — only calls. Three code paths collapse to one.
-  Old file still compiled. Gates: builds clean alongside old.
-
-- [ ] **RW-6** — Cutover BB templates: rewrite `emit_bb_box.c` → `em_bb.c`
-  using `em_seq`/`insn_*` only. No if-statements in any template function.
-  Delete old `emit_bb_box.c`. First deletion.
+- [ ] **RW-3** — `em_bb.c`: rewrite `emit_bb_box.c`. Table-driven stateful boxes
+  (`bb_box_def_t[]` + one `em_stateful()` driver). No if-statements in any
+  template function. Delete old `emit_bb_box.c`. ~80 lines replaces ~259.
   Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5.
 
-- [ ] **RW-7** — Cutover SM templates: rewrite `emit_sm_op.c` + `emit_sm_shape.c`
-  → `em_sm.c`. Delete old files. Update `emit_templates.h` → `em_templates.h`.
-  Gates: full suite.
+- [ ] **RW-4** — `em_sm.c`: rewrite `emit_sm_op.c` + `emit_sm_shape.c`.
+  One shape-class helper per opcode family; no if-statements in templates.
+  Delete old files. Update `emit_templates.h` → `em_templates.h`.
+  Also rewrite `emit_bb_flat.c` → `em_flat.c` and `emit_sm_text.c` → `em_walk.c`.
+  ~300 lines replaces ~1,292 + ~1,241 + ~1,763.
+  Gates: full suite + `gcc -c` on emitted artifacts.
 
-- [ ] **RW-8** — Cutover flat glob builder: rewrite `emit_bb_flat.c` → `em_flat.c`.
-  Delete old. Gates: full suite + `gcc -c` on emitted artifacts.
-
-- [ ] **RW-9** — Cutover text SM codegen walker: rewrite `emit_sm_text.c` → `em_walk.c`.
-  Delete old. Gates: full suite.
-
-- [ ] **RW-10** — Delete old layer: `emit_insn.c`, `emit_form.c`, `emit_mode.c`,
+- [ ] **RW-5** — Delete old layer: `emit_insn.c`, `emit_form.c`, `emit_mode.c`,
   `emit_label.c`, `emit_text3c.c`, `emit_bb_seq.c`, `emit_buf.c`, `emit_bb_gen.h`,
-  `emit_defs.h`. Update Makefile. Umbrella becomes `em.h`.
+  `emit_defs.h`. Umbrella `emit_bb_gen.h` → `em.h`. Update Makefile.
+  Write `ARCH-EMITTER.md`: layer structure, naming conventions, IS_TEXT/IS_BIN
+  pattern, Snocone/Icon bootstrap notes.
   Gates: full suite, `gcc -c` all artifacts, beauty ≥10.
-
-- [ ] **RW-11** — Rename remaining call sites. Write `ARCH-EMITTER.md` — new
-  single source of truth: layer structure, naming conventions, IS_TEXT/IS_BIN
-  pattern, Snocone/Icon bootstrap notes. Update `GOAL-MODE4-EMIT.md`.
 - [ ] **EM-SNOCONE-PREP** — ESP-1..10: stale names, comments, dead code in emitter files. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
 
@@ -171,42 +178,45 @@ Naming is composable from operand-kind fragments (`_rr`, `_ri`, `_rm` etc).
 
 **SESSION HANDOFF — sess 2026-05-13z (Claude Sonnet 4.6)**
 
-one4all HEAD `d894c021`. .github HEAD `see push below`. Gates: smoke 7/7, template-byte-id 4/4.
+one4all HEAD `d894c021`. .github HEAD `see push`. Gates: smoke 7/7, template-byte-id 4/4.
 
 ### What was done this session
 
-- Full emitter scan (all 16 files, excluding large SM/BB template files).
-- Diagnosed two parallel mode systems (`g_is_text` + `bb_emit_mode`) plus bolted-on `g_bb_emit_format` third mini-mode.
-- Designed full EM-REWRITE plan with Lon: 11 steps, multi-session, old code stays live until each cutover step deletes it.
-- Design invariants: no if-statements in template functions; side-by-side text+binary in leaf `insn_*` functions; one mode system; pure functional; Snocone/Icon bootstrap-friendly naming.
-- EM-BB-FORMAT superseded by RW-4/RW-5.
-- Wrote RW-1 through RW-11 step block into this file.
+- Full emitter scan (all 16 files excluding large SM/BB template files).
+- Diagnosed three diseases: 80× repeated mode switch, 2× text/binary duplication
+  in compound helpers, 20 individually-written stateful BB boxes.
+- Designed EM-REWRITE with Lon: 5-session plan, old code stays live until cutover.
+- Key invariants: no if-statements in template functions; one `if (IS_TEXT)` at
+  leaf only; side-by-side text+binary; one mode system; pure functional;
+  Snocone/Icon bootstrap-friendly composable naming.
+- Projected: ~500 lines replaces ~2,400 lines in the affected files (>2× reduction).
+- Consolidated 11-step plan into 5 steps. Wrote into this file. Updated PLAN.md.
 
-### Emitter file inventory (8,920 lines total)
+### Emitter file inventory (8,920 lines total — target: ~5,000 after rewrite)
 
-| File | Lines | Layer |
-|---|---:|---|
-| emit_buf.h/c | 173 | L0 byte primitive |
-| emit_defs.h/c | 58 | L0 type defs |
-| emit_form.h/c | 445 | L1 encoding forms |
-| emit_insn.h/c | 708 | L2 single insns |
-| emit_label.h/c | 76 | L2 label lifecycle |
-| emit_mode.h/c | 280 | L2 mode globals |
-| emit_text3c.h/c | 306 | L2 3-col formatter |
-| emit_bb_gen.h | 24 | L2 umbrella shim |
-| emit_templates.h | 212 | L3/4 decls |
-| emit_bb_seq.h/c | 660 | L3 compound BB helpers |
-| emit_bb_box.c | 259 | L4 BB box templates |
-| emit_bb_flat.h/c | 1241 | L5 flat glob builder |
-| emit_sm_shape.h/c | 904 | L4 SM shape renderers |
-| emit_sm_op.c | 388 | L4 SM op templates |
-| emit_sm_text.h/c | 1763 | L5 text SM codegen walker |
-| emit_sm_binary.h/c | 1423 | L5 mode-3 interpreter (no x86 emission) |
+| File | Lines | New file | Target |
+|---|---:|---|---:|
+| emit_buf.h/c | 173 | → em_mode.c | folded |
+| emit_defs.h/c | 58 | → em_defs.h | ~30 |
+| emit_form.h/c | 445 | → insn.c/h | ~100 |
+| emit_insn.h/c | 708 | → insn.c/h | ~180 |
+| emit_label.h/c | 76 | → em_label.c/h | ~60 |
+| emit_mode.h/c | 280 | → em_mode.c/h | ~80 |
+| emit_text3c.h/c | 306 | → em_text.c/h | ~150 |
+| emit_bb_gen.h | 24 | → em.h | ~20 |
+| emit_templates.h | 212 | → em_templates.h | ~100 |
+| emit_bb_seq.h/c | 660 | → em_seq.c/h | ~90 |
+| emit_bb_box.c | 259 | → em_bb.c | ~80 |
+| emit_bb_flat.h/c | 1241 | → em_flat.c/h | ~600 |
+| emit_sm_shape.h/c | 904 | → em_sm.c | ~150 |
+| emit_sm_op.c | 388 | → em_sm.c | (above) |
+| emit_sm_text.h/c | 1763 | → em_walk.c/h | ~900 |
+| emit_sm_binary.h/c | 1423 | unchanged | 1423 |
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md.
 2. Confirm one4all HEAD `d894c021`. Gates: smoke 7/7, template-byte-id 4/4.
-3. Current step: **RW-1** — write `insn.h / insn.c` alongside old `emit_insn.c`.
-   All `insn_*` leaf functions: `if (IS_TEXT) { text; return; }` / binary below.
-   No callers changed. Gate: `gcc -c` clean, smoke 7/7 unchanged.
+3. Current step: **RW-1** — write `em_mode.h/c`, `em_label.h/c`, `em_text.h/c`,
+   `insn.h/insn.c` alongside old files. No callers changed.
+   Gate: `gcc -c` clean, smoke 7/7 unchanged.
