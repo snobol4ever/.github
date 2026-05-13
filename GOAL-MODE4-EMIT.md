@@ -197,16 +197,17 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `a474db49`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD `b0437a74`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
 - EM-SNOCONE-PREP complete `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; IS_TEXT guard on emit_seq_call_tgt.
 - RW-CONSOLIDATE `a474db49`: 31 emitter files → 11. emit_core.c/h absorbs insn+label+text+seq+mode; emit_bb.c/h absorbs emit_flat; emit_sm.c/h absorbs emit_walk. 20 old headers deleted. sm_tpl_kind_t/sm_op_template_t/emit_sm_args_t now internal to emit_sm.c. emit_form.h updated to include emit_core.h. emit_templates.h updated to include emit_bb.h.
+- Comment strip `b0437a74`: all comments removed from emit_core/bb/sm .c/.h; 120-char dividers before each function.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `a474db49`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+2. Confirm one4all HEAD `b0437a74`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 3. Update ARCH-EMITTER.md to reflect RW-CONSOLIDATE file map (old 16-file map is stale).
 4. Continue **M5** or next active step.
