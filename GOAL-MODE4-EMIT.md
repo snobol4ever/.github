@@ -204,19 +204,20 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `3c7bce9c`. .github HEAD see push. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `3c7bce9c`. .github HEAD `e931def1`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
-- RW-0: produced ARCH-EMITTER.md (full old→new name scan, all 16 emitter files).
-  Fixed em_* → emit_* throughout. Removed 58 self-rename rows. Collapsed empty bb_box section.
-- RW-1: wrote `insn.h/c` (~65 leaf fns, IS_TEXT/IS_BIN macros), `emit_text.h/c`,
-  `emit_label_new.h/c`, all alongside old code. Makefile updated. Gates pass.
+- RW-0: ARCH-EMITTER.md — full old→new name scan (16 emitter files). Fixed emit_* naming. Removed 58 self-rename rows.
+- RW-1: `insn.h/c` (65 leaf fns, IS_TEXT/IS_BIN), `emit_text.h/c`, `emit_label_new.h/c` alongside old code.
+- RW-2: `emit_seq.h/c` — compound sequences with new names, insn_* calls, no if-in-body.
+- RW-3: `emit_bb.c` replaces `emit_bb_box.c` (deleted). Table-driven static drivers.
+- RW-4: `emit_sm.c` merges `emit_sm_op.c` + `emit_sm_shape.c` (both deleted). Compat `emit_sm_shape.h` kept.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
 2. Confirm one4all HEAD `3c7bce9c`. Gates: smoke 7/7, byte-id 4/4.
-3. Current step: **RW-5** — `emit_flat.c/h` + `emit_walk.c/h`: rewrite
-   `emit_bb_flat.c` and `emit_sm_text.c`. Delete old files.
+3. Current step: **RW-5** — `emit_flat.c/h`: rewrite `emit_bb_flat.c`. `emit_walk.c/h`:
+   rewrite `emit_sm_text.c`. Delete old files.
    Gates: full suite + `gcc -c` on all emitted artifacts.
