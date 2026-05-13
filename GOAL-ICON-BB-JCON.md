@@ -133,9 +133,21 @@ from "drain body then advance subject" to "advance subject after one body value"
   position for first generated char instead). The beta fix is correct and verified by rung37_scan_alt.
   rung36_jcon_scan cluster K residual blocked by separate upto(!cset) issue tracked as future step.
 
-### IJ-10 — &pos / &subject negative positions (Cluster L)
+### IJ-10 — &pos / &subject negative positions (Cluster L) ⏳ PARTIAL `259e1aec`
 
-- [ ] Audit icn_pos_normalize. rung37_neg_pos.icn. GATE-1..4. Commit.
+**SM layer fixed (259e1aec):**
+- SM_PUSH_VAR: &pos/&subject read from scan_pos/scan_subj in Icon mode (not NV table).
+- SM_STORE_VAR: &pos/&subject writes route through kw_assign (JCON normalization, OOB→FAIL).
+- lower_swap: keyword operand bypasses non-atomic fast path → emits ICN_KW_SWAP.
+- ICN_KW_SWAP handler: atomic probe via icn_kw_can_assign before writing either side.
+
+**Remaining:** rung36_jcon_subjpos diff lines 56-57 — swap inside scan body routes
+through coro_value.c TT_SWAP (not SM path). Need atomic kw_assign probe in
+bb_eval_value TT_SWAP case (coro_value.c ~line 1360 area).
+Also: rung36_jcon_substring still FAIL (separate negative-index substring issue).
+
+- [ ] Fix coro_value.c TT_SWAP for keyword operands (atomic kw_can_assign probe).
+- [ ] Write rung37_neg_pos.icn. GATE-1..4. Commit.
 
 ### IJ-11 — Missing &keywords table entries (Cluster M)
 
@@ -200,12 +212,11 @@ from "drain body then advance subject" to "advance subject after one body value"
 
 ## Watermark
 
-  one4all: 47c03c26  corpus: eac177d
+  one4all: 259e1aec  corpus: eac177d
   ir-run:  PASS=198 FAIL=37 XFAIL=30
   honest:  PASS=269 FAIL=1 ABORT=0   broker: 23/49
-  Step:    IJ-9 COMPLETE — coro_bb_scan_gen beta fix: set body_live=0 on external beta,
-           fall through to subject advance. Each subject gets ONE body alpha tick (JCON).
-           rung37_scan_alt.icn verifies: move/tab/count/failure-skip. GATE-1..4 green.
-           Residual: rung36_jcon_scan cluster K still FAIL — separate issue with
-           upto(!&lcase) arg semantics (our coro_bb_fnc scan-builtin retry generates
-           first-char position; JCON treats !cset as full cset for upto). Next: IJ-10.
+  Step:    IJ-10 PARTIAL — SM_PUSH_VAR/SM_STORE_VAR &pos/&subject fixed for Icon
+           (kw_assign normalization, OOB→FAIL, read from scan state).
+           lower_swap + ICN_KW_SWAP added for atomic keyword swaps.
+           Remaining: coro_value.c TT_SWAP keyword case (swap inside scan body
+           goes through bb_eval_value, not SM). rung36_jcon_subjpos 1 diff line.
