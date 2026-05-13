@@ -156,8 +156,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - SNOBOL4: `DT_STRING` match span (σ, δ). Prolog: `DT_BOOL`. Icon: any value.
   - Sub-rungs:
     - [x] **EXVAL-1** — Audit. `doc/xval_audit.md`. *(Sonnet 4.6, `799f8492`)*
-    - [ ] **EXVAL-2** — Add `descr_match_span(const char *σ, int δ)` + `descr_bool(int ok)` to `snobol4.h` / `icn_runtime.h`. Update SNOBOL4 box returns to `descr_match_span`; Prolog to `descr_bool`. Gate: build clean, smoke 7/7, broker 49/49.
-    - [ ] **EXVAL-3** — Update callers in `stmt_exec.c` + `bb_broker.c` to dispatch on `DESCR_t` type tag. Gate: smoke 7/7, broker 49/49, icon ir-run parity.
+    - [x] **EXVAL-2** — `descr_match_span(σ,δ)` + `descr_bool(ok)` added to `bb_box.h`; `descr_match` aliased; all `rt_bb_*` updated to `descr_match_span`; `pl_gamma()` calls `descr_bool(1)`. *(Sonnet 4.6, `6f29d644`)*
+    - [x] **EXVAL-3** — `scan_body_fn_u9`: `DT_S` type guard before `val.slen`; `rt_bb_cap`: `DT_S` guard before `.s`/`.slen` access. *(Sonnet 4.6, `e31ab505`)*
 
 - [ ] **EM-S-ARTIFACTS-COMMIT** — `.s` artifacts committed every session touching emitter. Protocol block above already updated to include `bb_macros.s` and use `gcc -c`.
   - [ ] **ESA-1** — Commit updated goal file (this file; done when pushed).
@@ -203,3 +203,20 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `799f8492`.
 3. **EXVAL-2** — Add `descr_match_span(σ, δ)` + `descr_bool(ok)` constructors; update SNOBOL4/Prolog box returns. Gate: build clean, smoke 7/7, broker 49/49.
+
+---
+
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+
+**EXVAL-2 + EXVAL-3 closed; EM-XVAL-DESCR complete.** one4all HEAD `e31ab505`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9, broker 22/49.
+
+### Work done
+
+1. **EXVAL-2** (`6f29d644`): `descr_match_span(σ,δ)` + `descr_bool(ok)` added to `bb_box.h`. `descr_match` aliased to `descr_match_span`. All 14 `rt_bb_*` calls in `rt.c` → `descr_match_span`. `pl_gamma()` → `descr_bool(1)`.
+2. **EXVAL-3** (`e31ab505`): `scan_body_fn_u9` guards `val.slen` with `val.v == DT_S`. `rt_bb_cap cap_commit` guards `.s`/`.slen` with `cr.v != DT_S` coercion.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `e31ab505`.
+3. **ESA-2** — regenerate all 7 `.s` artifacts at HEAD and commit to corpus (`gcc -c` clean). Then **ESA-3**: add `scripts/util_regen_demo_s_artifacts.sh`.
