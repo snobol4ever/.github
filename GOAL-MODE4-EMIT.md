@@ -218,19 +218,16 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 cont. (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 cleanup (Claude Sonnet 4.6)**
 
-one4all HEAD `7751ec30`. Gates: smoke 7/7, snocone 5/5.
+one4all HEAD `98a93700`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
 
 ### What was done this session
 
-- RW-BREAKS `40deed45`: inserted 120-char /*---*/ dividers before all multi-line functions in emit_core.c + emit_bb.c + emit_sm.c. ⚠️ OVER-INSERTED — made files unreadable. Next session must revert or clean up.
-- RW-SYMNAMES `7751ec30`: renamed emit_flat_macros_to_path → emit_bb_macro_library_to_path to match emit_sm_macro_library_to_path; dropped redundant #define shim.
+- RW-BREAKS-FIX `98a93700`: reverted over-inserted /*---*/ dividers (commit `40deed45`) from emit_core.c, emit_bb.c, emit_sm.c. Restored files to `d0b7fdd3` base; reapplied RW-SYMNAMES rename cleanly on top. ARCH-EMITTER.md updated with RW-CONSOLIDATE record (3 compiled units: emit_core, emit_bb, emit_sm + frozen emit_sm_binary).
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `7751ec30`. Gates: smoke 7/7, snocone 5/5.
-3. ⚠️ Fix RW-BREAKS damage: revert `40deed45` (the over-inserted dividers) — restore emit_core.c, emit_bb.c, emit_sm.c to their state at `d0b7fdd3`, reapply only the RW-SYMNAMES rename on top.
-4. Update ARCH-EMITTER.md to reflect RW-CONSOLIDATE (3 compiled units: emit_core, emit_bb, emit_sm + frozen emit_sm_binary).
-5. Continue **M5** or next active step.
+2. Confirm one4all HEAD `98a93700`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
+3. Continue **M5** (Raku/Prolog/Rebus SM_SUSPEND/RESUME — on hold until GOAL-CHUNKS M4 closes) or next active step.
