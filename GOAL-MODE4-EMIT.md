@@ -96,23 +96,21 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13i (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13j (Claude Sonnet 4.6)**
 
-one4all HEAD `686bb145`. Gates: smoke 7/7, template-byte-id 4/4, snocone-ir 5/5, em8-snocone-jit-emit 5/5, beauty 14/17.
+one4all HEAD `e025ad26`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 ### What was done this session
 
-**EM-UNIFY closed.** All three sub-rungs in one commit (`686bb145`):
-- EM-UNIFY-a: `sm_templates.c`→`emitter_sm.c`, `bb_templates.c`→`emitter_bb.c`
-- EM-UNIFY-b: `emitter_binary.c`+`emitter_text.c` merged into `emitter.c`; every leaf reads `e->is_text` and produces binary or GAS text side-by-side
-- EM-UNIFY-c: 50-entry `g_sm_nullary[]` table replaces ~40 identical functions; `emit_sm_op(opcode)` dispatch added; `emit_sm_arith_dispatch`, `emit_sm_int_arg`, `emit_sm_pat_str` helpers collapse further families
-- Net: 1100 lines deleted, 955 inserted — ~1.15x reduction in this pass; the table-driven approach enables further collapse
+- EM-9 closed (make jit-emit-test, ABI doc, CHUNKS Step 8 [x])
+- EM-10..16 Icon SM path cancelled (pure-BB rewrite)
+- EM-UNIFY closed: sm_templates→emitter_sm, bb_templates→emitter_bb, emitter_binary+text→emitter.c, table-driven nullary dispatch
+- emitter_macro_def.c → emitter_defs.c
+- Design decision: keep emitter_t *e (intern_str, is_text, vtable are per-instance)
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `686bb145`.
-3. Next open step: **EM-MODE4-IS-MODE3-DUMP** (parent) — read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first.
-
-**Design decision (sess 2026-05-13i):** `emitter_t *e` stays. It carries `e->is_text`, `e->intern_str`, and vtable dispatch (`e->emit_insn`, `e->fprintf_raw`). `bb_flat.c` needs per-instance state for concurrent text+binary emitters (byte-identity test holds both live simultaneously). Promoting to globals would break that. Decision: don't remove.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `e025ad26`.
+3. Next open step: **EM-MODE4-IS-MODE3-DUMP** — read `one4all/MIGRATION-MODE4-IS-MODE3-DUMP.md` first.
 
