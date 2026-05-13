@@ -75,6 +75,41 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - [x] **EM-DEVTABLE-5** — `emitter_bb.c`: `emitter_t *e` stripped from xdsar/xatp signatures and all call sites.
   - [x] **EM-DEVTABLE-6** — `emitter_defs.c`, `test_template_byte_identity.c`, `demo_template_productions.c`, `sm_codegen_x64_emit.c`, `sm_codegen.c` all updated to new lifecycle API.
   - [x] **EM-DEVTABLE-7** — Build clean; smoke 7/7; template-byte-id 4/4; em8 5/5.
+- [ ] **EM-REORG** (parent) — Pure code reorganisation: move functions from current 16 files into properly-segregated files by call-hierarchy level. No logic changes. Gates after every step: smoke 7/7, template-byte-id 4/4, em8 5/5.
+
+  **Target layout (all `emit_*.h/c`):**
+
+  | Level | File(s) | Content |
+  |---|---|---|
+  | L0 | `emit_raw.h/c` | Raw byte/text primitives: `emit_form_*`, `emitter_init_*`, `emitter_end` |
+  | L1 | `emit_insn.h/c` | Single x86 instruction emitters: `bb_insn_*`, `emit_ret`, `emit_mov_*`, `emit_push/pop_r10`, `emit_test_*`, `emit_call_sym_plt`, `emit_add/sub_delta_imm`, `emit_mov_esi/rdi_imm*` |
+  | L2 | `emit_defs.h` | Shared types only (no .c): `bb_emit_mode_t`, `bb_label_t`, `jmp_kind_t`, `bb_patch_t`, `BB_LABEL_NAME_MAX`, `BB_PATCH_MAX` |
+  | L2 | `emit_mode.h/c` | Mode switch + globals: `bb_emit_mode`, `emit_mode_set`, macro begin/end, format-mode helpers |
+  | L2 | `emit_label.h/c` | Label lifecycle + raw buffer: `bb_label_*`, `bb_emit_byte/u16/u32/i8/i32`, `bb_emit_begin/end`, `bb_emit_patch_rel8/rel32`, `emit_label_*`, `emit_pc_label` |
+  | L2 | `emit_text3c.h/c` | 3-col GAS formatter + text I/O: `bb3c_*`, `bb_text*`, `emit_banner*`, `emit_section`, `emit_directive`, `emit_data_*`, `emit_jmp`, `emit_fprintf_raw`, `emit_comment`, `emit_bb_box_banner`, `emit_blank_line`, `emit_global_sym` |
+  | L3 | `emit_bb_port.h/c` | BB compound emitters: `emit_bb_port_call*`, `emit_brokered_*`, `emit_push/pop_rbp_frame`, `emit_lea_*_strtab_sym`, `emit_load_delta_cmp_imm`, `emit_load_siglen_sub_cmp_delta`, `emit_sigma_plus_delta_to_rdi`, `emit_bounds_check_delta_plus_len`, `emit_movabs_rdi_entry`, `emit_call_sym_param`, `emit_jz_retskip`, `emit_retskip_label`, `emit_noop_macro`, `emit_pad_to_blob_size`, `emit_bb_inc_mem_r13_disp8`, `emit_bb_format_port`, `fmt_body_append`, `emit_bb_is_format_mode` |
+  | L3 | `emit_bb_box.h/c` | BB box template functions (one per box type: XCHR, XEPS, XNME, XSTAR, XOR…) |
+  | L3 | `emit_bb_flat.h/c` | Flat-glob builder (unchanged name) |
+  | L4 | `emit_sm_op.h/c` | SM opcode template functions (91 templates, one per opcode) |
+  | L4 | `emit_sm_shape.h/c` | SM shape renderers (`emit_sm_int64`, `emit_sm_lbl*`, `emit_sm_pcref*`, `emit_sm_ret*`…) |
+  | L5 | `emit_sm_binary.h/c` | Binary SM codegen + `sm_jit_run` (unchanged name) |
+  | L5 | `emit_sm_text.h/c` | Text SM codegen + strtab + srclines + simstack (unchanged name) |
+  | — | `emit_templates.h` | All template fn declarations (unchanged) |
+
+  **Steps (one commit each, gates green at every step):**
+
+  - [ ] **EM-REORG-1** — Create `emit_defs.h`: extract `bb_emit_mode_t`, `bb_label_t`, `jmp_kind_t`, `bb_patch_t`, `BB_LABEL_NAME_MAX`, `BB_PATCH_MAX` from `emit_bb_gen.h` into new `emit_defs.h`. `emit_bb_gen.h` gains `#include "emit_defs.h"`. No `.c` changes.
+  - [ ] **EM-REORG-2** — Create `emit_mode.h/c`: move `bb_emit_mode` global, `emit_mode_set`, `emit_macro_begin/end`, `emit_bb_is_format_mode`, `fmt_body_append`, `emit_bb_format_port`, `g_bb_emit_format` out of `emit_bb_gen.h/c`. `emit_bb_gen.h` gains `#include "emit_mode.h"`.
+  - [ ] **EM-REORG-3** — Create `emit_label.h/c`: move `bb_label_init/initf/define`, `bb_label_defined`, `bb_emit_byte/u16/u32/u64/i8/i32`, `bb_emit_begin/end`, `bb_emit_patch_rel8/rel32`, `bb_patch_list`, `bb_emit_buf/pos/size`, `emit_label_define/define_bb`, `emit_pc_label`, `emit_label_name` out of `emit_bb_gen.h/c`.
+  - [ ] **EM-REORG-4** — Create `emit_text3c.h/c`: move `bb3c_format/text/emit_jmp/flush_pending*`, `bb_text/bb_text_label/bb_text_comment`, `emit_comment`, `emit_bb_box_banner`, `emit_banner/minor_break/blank_line`, `emit_section/directive/global_sym`, `emit_fprintf_raw`, `emit_data_quad/quad_sym/string/long`, `emit_jmp`, `emit_banner_stno` out of `emit_bb_gen.h/c`.
+  - [ ] **EM-REORG-5** — Create `emit_bb_port.h/c`: move all remaining compound BB helpers out of `emit_bb_gen.h/c` (see target table above). After this step `emit_bb_gen.h` is a thin umbrella `#include`ing all new L2/L3 headers for backward compat.
+  - [ ] **EM-REORG-6** — Create `emit_insn.h/c`: move `bb_insn_*`, `emit_ret`, `emit_push/pop_r10`, `emit_test_rax/eax`, `emit_mov_rdi_imm64`, `emit_call_sym_plt`, `emit_mov_esi_imm32`, `emit_add/sub_delta_imm` from `emit_bb_gen.c` into `emit_insn.c`. `emit_bb_gen.h` umbrella gains `#include "emit_insn.h"`. `emit_bb_gen.c` is now empty → delete it.
+  - [ ] **EM-REORG-7** — Rename `emit.h/c` → `emit_raw.h/c`. Absorb `emit_defs.c` (8 lines: `emitter_init_macro_def`) into `emit_raw.c`. Update all `#include "emit.h"` → `#include "emit_raw.h"` across the 14 files. `emit_bb_gen.h` umbrella gains `#include "emit_raw.h"`. Delete `emit_defs.c`. Update Makefile.
+  - [ ] **EM-REORG-8** — Rename `emit_bb.c` → `emit_bb_box.c` + create `emit_bb_box.h` (extract extern declarations). Update Makefile + all `#include`s. Delete `emit_bb.c`.
+  - [ ] **EM-REORG-9** — Rename `emit_sm.c` → `emit_sm_op.c` + create `emit_sm_op.h`. Update Makefile + all `#include`s. Delete `emit_sm.c`.
+  - [ ] **EM-REORG-10** — Rename `emit_sm_template.h/c` → `emit_sm_shape.h/c`. Update Makefile + all `#include`s. Delete old files.
+  - [ ] **EM-REORG-11** — Final cleanup: remove `emit_bb_gen.h` umbrella shim if no external callers remain (replace every `#include "emit_bb_gen.h"` with specific new headers). Update `emit_templates.h` imports. Verify Makefile lists exactly the 14 final `.c` files. Commit.
+
 - [ ] **EM-BB-FORMAT** (parent) — closes when smoke 7/7, template-byte-id 4/4, snocone 5/5, `gcc -c` clean, beauty ≥10. Spec: each BB port = one 4-column `;`-separated GAS line, widths 24/16/32/free. ⛔ No if-statements in template functions.
 - [x] **EM-7d** — beauty.sno PASS=14/17. Remaining FAILs: `counter_driver` (pre-existing mode-2 bug, parity break), `semantic_driver` (pre-existing NRETURN/counter-stack divergence — nTop() returns empty instead of failing after nPush+nInc+nPop sequence), `stack_driver` (pre-existing lowering bug). Accept all three as known divergence.
 - [x] **EM-8** — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries. ✅ sess 2026-05-13f: gate `test_gate_em8_snocone_jit_emit.sh` PASS=5 (output/arith/procedure/if_eq/while). beauty.sc emits+links but produces 0 lines (pre-existing Snocone mode-4 output bug, not EM-8 blocker).
@@ -148,5 +183,5 @@ one4all HEAD `1fc4490c`. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, em8 5/5. one4all HEAD `1fc4490c`.
-3. Next open rung: EM-BB-FORMAT. See rung spec above.
+3. Next open rung: **EM-REORG-1**. Pure moves, no logic changes, gates green after every step.
 
