@@ -1,98 +1,754 @@
-# ARCH-EMITTER.md — BB Template Snocone Conversion Map
+# ARCH-EMITTER.md — Emitter Naming Scan (RW-0)
 
-**Status:** EC-8 deliverable (sess 2026-05-12).
-
-Each `emit_bb_*` function in `src/runtime/x86/bb_templates.c` is catalogued
-here for Snocone conversion readiness.  The conversion mirrors `lower.c` →
-`lower.sc`: each C function becomes a Snocone function with the same
-signature, calling Snocone builtins that wrap the same `t_*` / `flat_data_*`
-C implementations.
-
-**Heap allocation rule:** `bb_*_new()` / `rt_bb_*_new()` / `icon_*_new()`
-calls move to the Snocone caller site (i.e. the lowering pass that calls
-`emit_bb_*`).  The template function itself receives the allocated `zeta`
-pointer as an opaque integer argument — same as the current C `void *zeta`
-parameter in `emit_bb_stateful`.
-
-**`t_*` builtins:** each `t_*` helper in `bb_emit.h` becomes a Snocone
-builtin of the same name, wrapping the existing C implementation.  No
-`bb_emit_mode` branching in Snocone — that lives inside the C builtins.
+Produced: sess 2026-05-13 (Claude Sonnet 4.6), step RW-0.
+Source: full read of all 16 emitter files (excluding `emit_sm_binary.c/h`).
 
 ---
 
-## Pattern classification
+## Purpose
 
-| Pattern | Shape | Snocone conversion |
-|---------|-------|--------------------|
-| **A — jmp-only** | `t_bb_box_banner` + 2-4 `t_emit_jmp` / `t_label_define` calls | Trivial: direct 1:1 translation |
-| **B — stateful** | `emit_bb_stateful(banner, arg, zeta, fn, fn_ptr, succ, fail, β)` | One Snocone call to `emit_bb_stateful` builtin |
-| **C — complex** | Contains `snprintf`, `flat_data_*`, string dispatch, or `memcmp` call | Stays in C; Snocone calls C stub |
+This document is the canonical name-mapping table for EM-REWRITE.
+Every subsequent step (RW-1 through RW-6) writes code using names from this table.
+No code changes in this step — doc only.
 
 ---
 
-## Function-by-function table
+## File map (old → new)
 
-| Function | Pattern | C-specific features | Snocone status |
-|----------|---------|---------------------|----------------|
-| `emit_bb_icon_alt` | B | none — `icon_alt_new()` moves to caller | **Direct convert** |
-| `emit_bb_icon_bang` | B | none | **Direct convert** |
-| `emit_bb_icon_every` | B | none | **Direct convert** |
-| `emit_bb_icon_iterate` | B | none | **Direct convert** |
-| `emit_bb_icon_lconcat` | B | none | **Direct convert** |
-| `emit_bb_icon_limit` | B | none | **Direct convert** |
-| `emit_bb_icon_seq` | B | none | **Direct convert** |
-| `emit_bb_icon_to` | B | none | **Direct convert** |
-| `emit_bb_icon_to_by` | B | none | **Direct convert** |
-| `emit_bb_xarbn` | B | `rt_bb_arbno_new(child_fn, NULL)` moves to caller | **Direct convert** |
-| `emit_bb_xbal` | B | `bb_bal_new()` moves to caller | **Direct convert** |
-| `emit_bb_xbrkx` | B | `bb_breakx_new(chars)` moves to caller | **Direct convert** |
-| `emit_bb_xcallcap` | B | `bb_cap_new_call(...)` moves to caller | **Direct convert** |
-| `emit_bb_xfarb` | B | `bb_arb_new()` moves to caller | **Direct convert** |
-| `emit_bb_xfnme` | B | `bb_cap_new(...)` moves to caller | **Direct convert** |
-| `emit_bb_xlnth` | B | `bb_len_new(num)` moves to caller | **Direct convert** |
-| `emit_bb_xnme` | B | `bb_cap_new(...)` moves to caller | **Direct convert** |
-| `emit_bb_xrtb` | B | `bb_rtab_new(num)` moves to caller | **Direct convert** |
-| `emit_bb_xstar` | B | `bb_rem_new()` moves to caller | **Direct convert** |
-| `emit_bb_xtb` | B | `bb_tab_new(num)` moves to caller | **Direct convert** |
-| `emit_bb_xabrt` | A | none | **Direct convert** |
-| `emit_bb_xcat` | A | none | **Direct convert** |
-| `emit_bb_xeps` | A | none | **Direct convert** |
-| `emit_bb_xfail` | A | none | **Direct convert** |
-| `emit_bb_xfnce` | A | none | **Direct convert** |
-| `emit_bb_xor` | A | none | **Direct convert** |
-| `emit_bb_xsucf` | A | none | **Direct convert** |
-| `emit_bb_xvar` | A | none | **Direct convert** |
-| `emit_bb_xposi` | A+ | `snprintf` for banner arg (trivial) | **Direct convert** (snprintf → string concatenation in Snocone) |
-| `emit_bb_xrpsi` | A+ | `snprintf` for banner arg | **Direct convert** |
-| `emit_bb_xchr` | C | `strlen`, `snprintf`, `t_mov_rdx_imm32` local static, `memcmp` via `t_call_sym_plt` | **C stub** |
-| `emit_bb_xatp` | C | `snprintf`, `flat_data_*` section emit, `bb_atp_new`, `t_bb_port_call_rip` | **C stub** |
-| `emit_bb_xdsar` | C | `snprintf`, `flat_data_*` section emit, `bb_dvar_bin_new`, `t_bb_port_call_rip` | **C stub** |
-| `emit_bb_charset` | C | `calloc`, `strcmp` dispatch on `c_fn_name` | **C stub** |
+| Old file | New file | Deleted at step |
+|---|---|---|
+| `emit_buf.c/h` | folded into `em_mode.c` | RW-6 |
+| `emit_defs.h` | `em_defs.h` | RW-6 |
+| `emit_form.c/h` | `insn.c/h` + `em_mode.c` | RW-6 |
+| `emit_insn.c/h` | `insn.c/h` | RW-6 |
+| `emit_label.c/h` | `em_label.c/h` | RW-6 |
+| `emit_mode.c/h` | `em_mode.c/h` | RW-6 |
+| `emit_text3c.c/h` | `em_text.c/h` | RW-6 |
+| `emit_bb_gen.h` | `em.h` (umbrella) | RW-6 |
+| `emit_templates.h` | `em_templates.h` | RW-4 |
+| `emit_bb_seq.c/h` | `em_seq.c/h` | RW-2 |
+| `emit_bb_box.c` | `em_bb.c` | RW-3 |
+| `emit_bb_flat.c/h` | `em_flat.c/h` | RW-5 |
+| `emit_sm_op.c` | `em_sm.c` | RW-4 |
+| `emit_sm_shape.c/h` | `em_sm.c` | RW-4 |
+| `emit_sm_text.c/h` | `em_walk.c/h` | RW-5 |
+| `emit_sm_binary.c/h` | **unchanged** | never |
 
 ---
 
-## Private helpers
+## Naming rules applied
 
-| Helper | Shape | Snocone |
-|--------|-------|---------|
-| `emit_bb_stateful` | 4 `t_*` calls, no branching | Snocone builtin wrapping C impl |
-| `emit_bb_jmp_pair` | `t_bb_box_banner` + conditional `t_label_define` + 2 `t_emit_jmp` | Snocone builtin; `beta_first` integer param |
+**Layer prefix** (mandatory, determines scope):
+- `insn_` — L0/L1 leaf: one x86 instruction, TEXT branch + binary branch
+- `em_label_` — L2 label lifecycle
+- `em_text_` — L2 TEXT-only formatting (3-col, banners, raw output)
+- `em_mode_` — L2 mode lifecycle (set, query)
+- `em_fmt_` — L2 format-port helpers (BB port formatting for dispatched boxes)
+- `em_seq_` — L3 compound sequences (multi-instruction, all modes)
+- `em_bb_` — L4 BB box templates (one BB box kind per function)
+- `em_sm_` — L4/L5 SM opcode templates and shape renderers
+- `em_flat_` — L5 flat-glob builder helpers
+- `em_walk_` — L5 text SM codegen walker helpers
+
+**Operand-shape suffix** (added when needed for disambiguation):
+- `_rr` register←register; `_rm` register←memory; `_ri` register←immediate
+- `_r8` / `_r32` / `_r64` size suffix on patches and jump forms
+- `_i8` / `_i32` / `_i64` immediate size on leaf insn fns
+- `_sym` when the operand is a symbolic (RIP-relative) reference
+
+**Single `if (IS_TEXT)` at the leaf** — never in any em_seq_*, em_bb_*, or em_sm_* body.
 
 ---
 
-## Summary
+## L0 — `emit_buf.c/h` → folded into `em_mode.c`
 
-- **28 of 35** functions are Pattern A or B — zero C-specific features,
-  direct Snocone conversion once `emit_bb_stateful` and `emit_bb_jmp_pair`
-  are exposed as builtins.
-- **7 of 35** are Pattern C — stay in C, called from Snocone via C stub
-  mechanism same as `lower.sc` calling C helpers.
-- No function branches on `bb_emit_mode` — that decision lives inside
-  `t_*` builtins.
-- No function does pointer arithmetic on `emitter_t *e` — `(void)e` on
-  every Pattern A/B function.
+### Globals
 
-**Prerequisite before conversion starts:** Snocone builtin surface for
-`t_bb_box_banner`, `t_bb_port_call`, `t_label_define`, `t_emit_jmp`,
-`t_bb_port_call_rip`, plus the `bb_label_t` handle type in Snocone.
-These parallel the `lower.sc` builtin surface for IR nodes.
+| Old | New | Notes |
+|---|---|---|
+| `bb_emit_buf` | `g_em_buf` | Active binary buffer slot |
+| `bb_emit_pos` | `g_em_pos` | Write cursor into buffer |
+| `bb_emit_size` | `g_em_size` | Buffer capacity |
+| `bb_patch_list[]` | `g_em_patches[]` | Deferred jump-target patch records |
+| `bb_patch_count` | `g_em_patch_n` | Fill count of patch list |
+
+### Functions
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_emit_begin` | `em_buf_begin` | Init binary buffer and cursor |
+| `bb_emit_end` | `em_buf_end` | Assert no unresolved patches; return size |
+| `bb_emit_patch_rel8` | `em_patch_r8` | Write or defer rel8 displacement |
+| `bb_emit_patch_rel32` | `em_patch_r32` | Write or defer rel32 displacement |
+| `bb_emit_byte` | `em_b` | Write one byte (binary only; traps in text) |
+| `bb_emit_u16` | `em_u16` | Write 2 bytes LE |
+| `bb_emit_u32` | `em_u32` | Write 4 bytes LE |
+| `bb_emit_u64` | `em_u64` | Write 8 bytes LE |
+| `bb_emit_i8` | `em_i8` | Write signed byte |
+| `bb_emit_i32` | `em_i32` | Write signed 32-bit LE |
+
+---
+
+## L1 — `emit_form.c/h` → split: `insn.c/h` + `em_mode.c`
+
+### Mode-init functions (absorbed into `em_mode_set`)
+
+| Old | New | Notes |
+|---|---|---|
+| `emitter_init_binary` | *(absorbed)* | Call `em_mode_set(EM_BINARY, NULL)` + `em_buf_begin` |
+| `emitter_init_text` | *(absorbed)* | Call `em_mode_set(EM_TEXT, out)` |
+| `emitter_init_macro_def` | *(absorbed)* | Call `em_mode_set(EM_MACRO_DEF, out)` |
+| `emitter_end` | *(absorbed)* | Inline at call site |
+| `emitter_text_out` | *(deleted)* | Use `em_outf()` |
+| `emitter_pos` | *(deleted)* | Use `g_em_pos` / `g_em_buf_pos` directly |
+
+### Internal static helpers (absorbed into `insn_*` bodies — not exposed)
+
+| Old | Notes |
+|---|---|
+| `b1/b2/b3/b4` | Absorbed; call `em_b()` directly |
+| `u32/u64` | Absorbed; call `em_u32/em_u64` |
+| `t3c` / `t3c_jmp` | Absorbed; insn bodies call `em_text_3col` / `em_text_jmp` |
+
+### Data-output functions (TEXT only — go into `em_text.c`)
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_data_quad` | `em_text_data_quad` | TEXT: `.quad imm64` |
+| `emit_data_quad_sym` | `em_text_data_quad_sym` | TEXT: `.quad sym` |
+| `emit_data_string` | `em_text_data_string` | TEXT: `.ascii "..."` |
+| `emit_data_long` | `em_text_data_long` | TEXT: `.long val` |
+| `emit_section` | `em_text_section` | TEXT: `.section name` / `.text` / `.data` |
+| `emit_directive` | `em_text_directive` | TEXT: arbitrary `.directive` line |
+| `emit_banner` | `em_text_banner` | TEXT: `#===…===` major break |
+| `emit_minor_break` | `em_text_minor_break` | TEXT: `#---…---` minor break |
+| `emit_blank_line` | `em_text_blank` | TEXT: blank line |
+| `emit_fprintf_raw` | `em_text_rawf` | TEXT: raw vfprintf to out |
+| `emit_global_sym` | `em_text_global` | TEXT: `.global name` |
+| `emit_macro_param_ref` | `em_text_param_ref` | TEXT: `\name` in macro body |
+
+### BB-wiring output functions (emit_form.c — go to em_seq.c or em_bb.c)
+
+| Old | New | Layer | Notes |
+|---|---|---|---|
+| `emit_bb_zeta_rdi` | `em_seq_zeta_rdi` | L3 | lea/movabs rdi ← ζ ptr |
+| `emit_bb_dispatch_jne_jmp` | `em_seq_dispatch_jne_jmp` | L3 | test+jne+jmp port-dispatch tail |
+| `emit_bb_port_label` | `em_bb_port_label` | L4 | TEXT: `pfx_α:` label |
+| `emit_bb_port_jmp` | `em_bb_port_jmp` | L4 | TEXT: `jmp pfx_α` |
+
+### Cursor-arithmetic helpers (emit_form.c — become part of insn layer)
+
+These in emit_form.c compute σ+Δ and load/store Δ through `emit_mov_eax_r10mem` etc.
+They map to named `insn_*` fns already defined in emit_insn.c:
+
+| Old (emit_form.c) | Maps to (insn.c) |
+|---|---|
+| `emit_load_r10_delta_ptr` | *(deleted — inline `insn_lea_r10_rip_sym`)* |
+| `emit_load_delta` | *(deleted — inline `insn_mov_eax_r10mem`)* |
+| `emit_store_delta` | *(deleted — inline `insn_mov_r10mem_eax`)* |
+| `emit_load_sigma` | *(deleted — inline `insn_lea_rcx_rip_sym` + `insn_mov_rax_mem_rcx`)* |
+| `emit_load_siglen` | *(deleted — inline two insns)* |
+| `emit_sigma_plus_delta` | *(deleted — becomes `em_seq_sigma_delta_rdi`)* |
+| `emit_cmp_eax_siglen` | *(deleted — inline two insns)* |
+| `emit_label_define_bb` | *(merged into `em_label_define`)* |
+| `emit_label_name` | `em_label_emit_name` | TEXT: emit `name:` |
+| `emit_pc_label` | `em_label_pc` | Emit `.LpcN:` |
+| `emit_jmp_label` | `em_jmp` | Same fn already in em_mode |
+
+---
+
+## L2 — `emit_defs.h` → `em_defs.h`
+
+### Types
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_emit_mode_t` | `em_mode_t` | Enum; two-axis: format × wiring |
+| `EMIT_TEXT` | `EM_TEXT` | |
+| `EMIT_BINARY_WIRED` | `EM_BINARY` | Default wiring (flat) |
+| `EMIT_BINARY_BROKERED` | `EM_BINARY` + `EM_F_BROKERED` flag | Second axis |
+| `EMIT_MACRO_DEF` | `EM_MACRO_DEF` | |
+| `EMIT_TEXT_INLINE` | `EM_TEXT` + `EM_F_INLINE` sub-flag | Folded; `em_set_inline(int)` |
+| `bb_label_t` | `em_label_t` | |
+| `jmp_kind_t` | `em_jmp_t` | Enum: JMP / JE / JNE / JL / JGE / JG |
+| `bb_patch_t` | `em_patch_t` | |
+| `bb_patch_kind_t` | `em_patch_kind_t` | PATCH_R8 / PATCH_R32 |
+| `BB_LABEL_NAME_MAX` | `EM_LABEL_MAX` | |
+| `BB_LABEL_UNRESOLVED` | `EM_UNRESOLVED` | |
+| `BB_PATCH_MAX` | `EM_PATCH_MAX` | |
+| `bb_label_defined(l)` | `em_label_ok(l)` | Macro: offset != EM_UNRESOLVED |
+
+### New macros (RW-1 deliverable)
+
+| New macro | Meaning |
+|---|---|
+| `IS_TEXT` | `(g_em_mode == EM_TEXT \|\| g_em_mode == EM_MACRO_DEF)` |
+| `IS_BIN` | `(g_em_mode == EM_BINARY)` |
+| `IS_WIRED` | `!(g_em_flags & EM_F_BROKERED)` |
+| `IS_BROKERED` | `(g_em_flags & EM_F_BROKERED)` |
+
+---
+
+## L2 — `emit_label.c/h` → `em_label.c/h`
+
+Three functions; names are a sibling set:
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_label_init` | `em_label_init` | Zero + copy name string |
+| `bb_label_initf` | `em_label_initf` | Zero + vsnprintf name |
+| `bb_label_define` | `em_label_define` | Resolve offset; patch waiters (binary) or emit `name:` (text) |
+
+---
+
+## L2 — `emit_text3c.c/h` → `em_text.c/h`
+
+These are all TEXT-only. All go to `em_text.c`. Naming: `em_text_` prefix.
+
+### Public API
+
+| Old | New | Notes |
+|---|---|---|
+| `bb3c_emit_jmp` | `em_text_jmp` | Emit 3-col jmp (handles cond-jmp pairing) |
+| `bb3c_format` | `em_text_3col` | Core 3-col formatter: `L A G` |
+| `bb3c_text` | `em_text_op` | Guard (TEXT-only) then `em_text_3col` |
+| `bb_text` | `em_text_rawf` | vfprintf to out (TEXT-only guard) |
+| `bb_text_label` | `em_text_label` | TEXT: emit label or binary: `em_label_define` |
+| `bb_text_comment` | `em_text_comment` | TEXT: `; comment\n` |
+| `emit_comment` | `em_text_comment` | Merge; same behaviour |
+| `bb3c_flush_pending_cjmp_only` | `em_text_flush_cjmp` | Flush pending conditional jmp |
+| `bb3c_flush_pending` | `em_text_flush` | Flush pending cjmp + label |
+| `emit_bb_box_banner` | `em_text_box_banner` | TEXT: `#--- BOX kind(args)` banner |
+| `emit_banner_stno` | `em_text_stno_banner` | TEXT: `#===…===` stmt banner |
+
+### Static helpers (remain static in `em_text.c`)
+
+| Old | Notes |
+|---|---|
+| `bb3c_visual_width` | UTF-8-aware visual width |
+| `bb3c_pad_to_width` | Right-pad to column target |
+| `bb3c_write_line` | Write one L/A/G line to FILE* |
+| `bb3c_flush_pending_cond_jmp` | Internal flush helper |
+| `bb3c_flush_pending_to` | Internal flush-and-redirect |
+| `bb3c_is_cond_jmp` | String → bool: is this mnemonic a cjmp |
+
+---
+
+## L2 — `emit_mode.c/h` → `em_mode.c/h`
+
+### Globals
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_emit_mode` | `g_em_mode` | Active `em_mode_t` value |
+| `bb_emit_out` | `g_em_out` | FILE* for TEXT / MACRO_DEF output |
+| `g_bb_emit_format` | `g_em_fmt_active` | Format-port mode active flag |
+| `g_in_text_macro_body` | `g_em_in_macro` | Inside `.macro` / macro-invocation body |
+| `g_is_text` (emit_form.c) | *(deleted)* | Replaced by `IS_TEXT` macro |
+| `g_emit_text_mode` (emit_form.c) | *(deleted)* | Replaced by `g_em_mode` + sub-flags |
+| `g_emit_pos` (emit_form.c) | *(deleted)* | TEXT pos-tracking removed; binary uses `g_em_pos` |
+
+### Functions
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_mode_set` | `em_mode_set` | Set mode + out; replaces all three `emitter_init_*` |
+| `emit_outf` | `em_outf` | Return `g_em_out ?: stdout` |
+| `emit_bb_is_format_mode` | `em_is_fmt` | Return `g_em_fmt_active && IS_TEXT` |
+| `fmt_body_append` | `em_fmt_append` | Append insn frag to format-port body buffer |
+| `emit_bb_format_port` | `em_fmt_port` | Flush label+body+jmp as one 3-col BB port line |
+| `emit_pad_to_blob_size` | *(deleted)* | No-op in all modes; remove |
+| `emit_macro_begin` | `em_macro_begin` | Emit `.macro name params` or macro-call preamble |
+| `emit_macro_end` | `em_macro_end` | Emit `.endm` or clear body flag |
+| `emit_jmp` | `em_jmp` | Dispatch: format-port flush, text 3col-jmp, or binary insn |
+| `emit_label_define` | `em_label_define` | Dispatch: format-port save or `em_label_define` |
+| `bb3c_op` | `em_3c_op` | TEXT convenience: `em_text_3col("", mn, args)` |
+| `bb3c_jmp` | `em_3c_jmp` | TEXT convenience: `em_text_jmp(mn, target)` |
+
+### Static helpers (remain static in `em_mode.c`)
+
+| Old | Notes |
+|---|---|
+| `fmt_label_save` | Save label name for next format-port flush |
+| `fmt_flush_jmp` | Flush label+body+jmp to 3-col line |
+
+---
+
+## L2 — `emit_bb_gen.h` → `em.h`
+
+Umbrella include. No functions. Rename only; contents updated to new filenames.
+
+---
+
+## L3 — `emit_bb_seq.c/h` → `em_seq.c/h`
+
+All compound sequences. Prefix `em_seq_`. Every body ≤ 8 lines.
+Disease-2 cure: each calls `insn_*` once per instruction — no text/binary fork in body.
+
+### Frame / prologue / epilogue family
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_push_rbp_frame` | `em_seq_frame_enter` | push rbp; mov rbp,rsp; sub rsp,8 |
+| `emit_pop_rbp_frame_ret` | `em_seq_frame_leave` | mov rsp,rbp; pop rbp; ret |
+| `emit_brokered_prologue` | `em_seq_brokered_enter` | push rbp; mov rbp,rsp (C-ABI brokered) |
+| `emit_brokered_epilogue_ret` | `em_seq_brokered_leave` | mov eax,result; pop rbp; ret |
+
+### Register-load family (lea/movabs → named register)
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_lea_rdi_strtab_sym` | `em_seq_lea_rdi_sym` | lea rdi,[rip+sym] / movabs rdi,ptr |
+| `emit_lea_rdx_strtab_sym` | `em_seq_lea_rdx_sym` | lea rdx,[rip+sym] / movabs rdx,ptr |
+| `emit_lea_rsi_strtab_sym` | `em_seq_lea_rsi_sym` | lea rsi,[rip+sym] / movabs rsi,ptr |
+| `emit_movabs_rdi_entry` | `em_seq_movabs_rdi` | movabs rdi,ptr (no RIP form for this one) |
+| `emit_sigma_plus_delta_to_rdi` | `em_seq_sigma_delta_rdi` | Compute σ+Δ → rdi |
+
+### Immediate-to-register family
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_mov_edx_imm32` | `em_seq_mov_edx_i32` | mov edx, imm32 |
+| `emit_mov_edi_imm32` | `em_seq_mov_edi_i32` | mov edi, imm32 |
+
+### Cursor / bounds family
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_bb_inc_mem_r13_disp8` | `em_seq_inc_r13` | inc dword[r13+disp] |
+| `emit_add_delta_imm` | *(moved to insn layer)* | mov+add+mov sequence; becomes `insn_add_delta_i` |
+| `emit_sub_delta_imm` | *(moved to insn layer)* | mov+sub+mov sequence; becomes `insn_sub_delta_i` |
+| `emit_load_delta_cmp_imm` | `em_seq_cmp_delta_i` | mov eax,[r10]; cmp; jne/jmp |
+| `emit_load_siglen_sub_cmp_delta` | `em_seq_cmp_siglen_delta` | siglen−n vs Δ check |
+| `emit_bounds_check_delta_plus_len` | `em_seq_bounds_len` | Δ+len ≤ siglen check |
+
+### Return-skip / label family
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_jz_retskip` | `em_seq_jz_retskip` | jz .Lretskip_N (text) / nop (binary) |
+| `emit_retskip_label` | `em_seq_retskip_label` | Define .Lretskip_N |
+
+### Call family
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_call_sym_param` | `em_seq_call_tgt` | call sym@PLT (text) or call \\tgt (macro) |
+| `emit_noop_macro` | `em_seq_noop_macro` | Emit named no-op macro call (text only) |
+| `emit_bb_port_call` | `em_seq_port_call` | Full brokered port-call: push r12; movabs rdi; mov esi; call; pop r12; test; jne/jmp |
+| `emit_bb_port_call_rip` | `em_seq_port_call_rip` | Same but RIP-relative ζ load |
+
+---
+
+## L4 — `emit_bb_box.c` → `em_bb.c`
+
+All BB box template functions. Prefix `em_bb_`. Table-driven: `bb_box_def_t[]` + `em_bb_stateful()`.
+
+### Static drivers (remain static)
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_bb_jmp_pair` | `em_bb_jmp_pair` | Static: emit stateless jmp-pair box (ABORT/CAT/FAIL/ALT/VAR) |
+| `emit_bb_stateful` | `em_bb_stateful` | Static driver: banner + brokered port-call + test/jmp |
+
+### Stateless boxes (jmp-pair)
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_bb_xabrt` | `em_bb_xabrt` | ABORT — always fail |
+| `emit_bb_xcat` | `em_bb_xcat` | CAT — concatenate (has β) |
+| `emit_bb_xfail` | `em_bb_xfail` | FAIL |
+| `emit_bb_xor` | `em_bb_xor` | ALT (has β) |
+| `emit_bb_xvar` | `em_bb_xvar` | VAR (has β) |
+| `emit_bb_xeps` | `em_bb_xeps` | EPS — epsilon, always succeed |
+| `emit_bb_xsucf` | `em_bb_xsucf` | SUCF — succeed-or-fail |
+
+### Stateful SNOBOL4 boxes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_bb_xbal` | `em_bb_xbal` | BAL — balanced string |
+| `emit_bb_xfarb` | `em_bb_xfarb` | ARB — arbitrary |
+| `emit_bb_xlnth` | `em_bb_xlnth` | LEN(n) |
+| `emit_bb_xrtb` | `em_bb_xrtb` | RTAB(n) |
+| `emit_bb_xstar` | `em_bb_xstar` | REM — remainder |
+| `emit_bb_xtb` | `em_bb_xtb` | TAB(n) |
+
+### Stateful Icon boxes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_bb_icon_alt` | `em_bb_icon_alt` | ICN_ALT |
+| `emit_bb_icon_bang` | `em_bb_icon_bang` | ICN_BANG |
+| `emit_bb_icon_every` | `em_bb_icon_every` | ICN_EVERY |
+| `emit_bb_icon_iterate` | `em_bb_icon_iterate` | ICN_ITERATE |
+| `emit_bb_icon_lconcat` | `em_bb_icon_lconcat` | ICN_LCONCAT |
+| `emit_bb_icon_limit` | `em_bb_icon_limit` | ICN_LIMIT |
+| `emit_bb_icon_seq` | `em_bb_icon_seq` | ICN_SEQ |
+| `emit_bb_icon_to` | `em_bb_icon_to` | ICN_TO |
+| `emit_bb_icon_to_by` | `em_bb_icon_to_by` | ICN_TO_BY |
+
+### Complex boxes (bespoke code)
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_bb_xchr` | `em_bb_xchr` | CHR literal match (inline lit compare) |
+| `emit_bb_charset` | `em_bb_charset` | Charset match (SPAN/BREAK/ANY/NOTANY dispatcher) |
+| `emit_bb_xbrkx` | `em_bb_xbrkx` | BRKX (charset, has β) |
+| `emit_bb_xposi` | `em_bb_xposi` | POS(n) |
+| `emit_bb_xrpsi` | `em_bb_xrpsi` | RPOS(n) |
+| `emit_bb_xdsar` | `em_bb_xdsar` | DSAR (deferred string-as-regex) |
+| `emit_bb_xatp` | `em_bb_xatp` | ATP (at position, variable) |
+| `emit_bb_xnme` | `em_bb_xnme` | NME (name match) |
+| `emit_bb_xfnme` | `em_bb_xfnme` | FNME (name match, has child) |
+| `emit_bb_xfnce` | `em_bb_xfnce` | FENCE |
+| `emit_bb_xcallcap` | `em_bb_xcallcap` | CALLCAP (pattern captures via fn call) |
+| `emit_bb_xarbn` | `em_bb_xarbn` | ARBN (ARBNO child) |
+
+---
+
+## L4 — `emit_sm_op.c` + `emit_sm_shape.c/h` → `em_sm.c` + `em_templates.h`
+
+### Shape-class renderers (`emit_sm_shape.c` → `em_sm.c`)
+
+These take a `sm_op_template_t*` and render one 3-col macro line.
+Sibling set: all return `int`, take `(FILE *out, const sm_op_template_t *t, …)`.
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_macro_library` | `em_sm_macro_library` | Write full sm_macros.s to FILE* |
+| `emit_sm_macro_library_to_path` | `em_sm_macro_library_to_path` | Write sm_macros.s to path |
+| `emit_sm_set_pc_label` | `em_sm_set_pc_label` | Set current pc label string (static state) |
+| `emit_sm_template_selftest` | `em_sm_selftest` | Run template selftest |
+| `emit_sm_template` | `em_sm_shape` | Dispatch to the right shape-class fn |
+| `emit_sm_rtcall` | `em_sm_shape_rtcall` | Shape: nullary rt-call macro |
+| `emit_sm_noop` | `em_sm_shape_noop` | Shape: no-op macro (LABEL, STNO) |
+| `emit_sm_int64` | `em_sm_shape_i64` | Shape: macro with one int64 arg |
+| `emit_sm_lbl` | `em_sm_shape_lbl` | Shape: macro with one label (pc-ref) arg |
+| `emit_sm_lblopt` | `em_sm_shape_lbl_opt` | Shape: macro with optional label arg |
+| `emit_sm_lbl_int32` | `em_sm_shape_lbl_i32` | Shape: macro with label + int32 args |
+| `emit_sm_lblopt_int32` | `em_sm_shape_lbl_opt_i32` | Shape: macro with optional label + int32 args |
+| `emit_sm_arith` | `em_sm_shape_arith` | Shape: arithmetic op macro |
+| `emit_sm_pcref_jmp` | `em_sm_shape_pcref_jmp` | Shape: unconditional jump to pc-label |
+| `emit_sm_pcref_cond` | `em_sm_shape_pcref_cond` | Shape: conditional jump to pc-label |
+| `edp4_emit_push_expression` | `em_sm_shape_push_expr` | Shape: PUSH_EXPRESSION (entry_pc, arity) |
+| `edp4_emit_call_expression` | `em_sm_shape_call_expr` | Shape: CALL_EXPRESSION (target_pc) |
+| `emit_sm_ret` | `em_sm_shape_ret` | Shape: RETURN |
+| `emit_sm_ret_var` | `em_sm_shape_ret_var` | Shape: FRETURN/NRETURN variants |
+| `emit_sm_unhandled` | `em_sm_shape_unhandled` | Shape: unhandled-op trap |
+| `emit_sm_exec_var` | `em_sm_shape_exec_var` | Shape: EXEC_STMT with subject/replacement |
+| `emit_sm_capture_fn` | `em_sm_shape_capture_fn` | Shape: PAT_CAPTURE_FN |
+| `emit_sm_capture_fn_args` | `em_sm_shape_capture_fn_args` | Shape: PAT_CAPTURE_FN_ARGS |
+
+### Opcode template functions (`emit_sm_op.c` → `em_sm.c`)
+
+These emit one SM opcode's macro call. Sibling set: all return `void`, take semantic args.
+Prefix `em_sm_op_` to distinguish from shape-class renderers.
+
+#### Nullary (no-arg) opcodes — via `emit_sm_op(SM_FOO)` trampoline
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_op` | `em_sm_op` | Central dispatcher → shape table |
+| `emit_sm_coerce_num` | `em_sm_op_coerce_num` | |
+| `emit_sm_exp` | `em_sm_op_exp` | |
+| `emit_sm_neg` | `em_sm_op_neg` | |
+| `emit_sm_define` | `em_sm_op_define` | |
+| `emit_sm_define_entry` | `em_sm_op_define_entry` | |
+| `emit_sm_pat_eps` | `em_sm_op_pat_eps` | |
+| `emit_sm_pat_arb` | `em_sm_op_pat_arb` | |
+| `emit_sm_pat_rem` | `em_sm_op_pat_rem` | |
+| `emit_sm_pat_fail` | `em_sm_op_pat_fail` | |
+| `emit_sm_pat_succeed` | `em_sm_op_pat_succeed` | |
+| `emit_sm_pat_abort` | `em_sm_op_pat_abort` | |
+| `emit_sm_pat_bal` | `em_sm_op_pat_bal` | |
+| `emit_sm_pat_fence` | `em_sm_op_pat_fence` | |
+| `emit_sm_pat_fence1` | `em_sm_op_pat_fence1` | |
+| `emit_sm_pat_span` | `em_sm_op_pat_span` | |
+| `emit_sm_pat_break` | `em_sm_op_pat_break` | |
+| `emit_sm_pat_any` | `em_sm_op_pat_any` | |
+| `emit_sm_pat_notany` | `em_sm_op_pat_notany` | |
+| `emit_sm_pat_len` | `em_sm_op_pat_len` | |
+| `emit_sm_pat_pos` | `em_sm_op_pat_pos` | |
+| `emit_sm_pat_rpos` | `em_sm_op_pat_rpos` | |
+| `emit_sm_pat_tab` | `em_sm_op_pat_tab` | |
+| `emit_sm_pat_rtab` | `em_sm_op_pat_rtab` | |
+| `emit_sm_pat_arbno` | `em_sm_op_pat_arbno` | |
+| `emit_sm_pat_cat` | `em_sm_op_pat_cat` | |
+| `emit_sm_pat_alt` | `em_sm_op_pat_alt` | |
+| `emit_sm_pat_deref` | `em_sm_op_pat_deref` | |
+| `emit_sm_resume` | `em_sm_op_resume` | |
+| `emit_sm_suspend` | `em_sm_op_suspend` | |
+| `emit_sm_suspend_value` | `em_sm_op_suspend_value` | |
+| `emit_sm_gen_tick` | `em_sm_op_gen_tick` | |
+| `emit_sm_load_glocal` | `em_sm_op_load_glocal` | |
+| `emit_sm_store_glocal` | `em_sm_op_store_glocal` | |
+| `emit_sm_load_frame` | `em_sm_op_load_frame` | |
+| `emit_sm_store_frame` | `em_sm_op_store_frame` | |
+| `emit_sm_icmp_gt` | `em_sm_op_icmp_gt` | |
+| `emit_sm_icmp_lt` | `em_sm_op_icmp_lt` | |
+| `emit_sm_bb_once` | `em_sm_op_bb_once` | |
+| `emit_sm_bb_once_proc` | `em_sm_op_bb_once_proc` | |
+| `emit_sm_bb_pump` | `em_sm_op_bb_pump` | |
+| `emit_sm_bb_pump_case` | `em_sm_op_bb_pump_case` | |
+| `emit_sm_bb_pump_every` | `em_sm_op_bb_pump_every` | |
+| `emit_sm_bb_pump_proc` | `em_sm_op_bb_pump_proc` | |
+| `emit_sm_bb_pump_sm` | `em_sm_op_bb_pump_sm` | |
+| `emit_sm_bb_pump_ast` | `em_sm_op_bb_pump_ast` | (via `emit_sm_nullary_rt`) |
+| `emit_sm_halt` | `em_sm_op_halt` | |
+| `emit_sm_return` | `em_sm_op_return` | |
+| `emit_sm_label` | `em_sm_op_label` | LABEL no-op |
+
+#### Arithmetic opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_arith_dispatch` | `em_sm_arith_dispatch` | Internal: int op → macro name |
+| `emit_sm_arith_op` | `em_sm_arith_op` | Internal: emit named arith macro |
+| `emit_sm_add` | `em_sm_op_add` | |
+| `emit_sm_sub` | `em_sm_op_sub` | |
+| `emit_sm_mul` | `em_sm_op_mul` | |
+| `emit_sm_div` | `em_sm_op_div` | |
+| `emit_sm_mod` | `em_sm_op_mod` | |
+
+#### Comparison opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_acomp` | `em_sm_op_acomp` | Arithmetic compare (op enum) |
+| `emit_sm_lcomp` | `em_sm_op_lcomp` | Lexicographic compare (op enum) |
+| `emit_sm_unhandled_op` | `em_sm_op_unhandled` | Unhandled-op trap |
+
+#### Integer-argument opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_incr` | `em_sm_op_incr` | INCR n |
+| `emit_sm_decr` | `em_sm_op_decr` | DECR n |
+| `emit_sm_stno` | `em_sm_op_stno` | STNO stno lineno src (also emits banner) |
+
+#### Branch opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_jump` | `em_sm_op_jump` | Unconditional JUMP pc |
+| `emit_sm_jump_s` | `em_sm_op_jump_s` | JUMP_S pc (on success) |
+| `emit_sm_jump_f` | `em_sm_op_jump_f` | JUMP_F pc (on failure) |
+
+#### Return-variant opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_return_variant` | `em_sm_op_return_var` | Internal dispatcher |
+| `emit_sm_freturn` | `em_sm_op_freturn` | FRETURN pc |
+| `emit_sm_nreturn` | `em_sm_op_nreturn` | NRETURN pc |
+| `emit_sm_return_s` | `em_sm_op_return_s` | RETURN on success |
+| `emit_sm_return_f` | `em_sm_op_return_f` | RETURN on failure |
+| `emit_sm_freturn_s` | `em_sm_op_freturn_s` | |
+| `emit_sm_freturn_f` | `em_sm_op_freturn_f` | |
+| `emit_sm_nreturn_s` | `em_sm_op_nreturn_s` | |
+| `emit_sm_nreturn_f` | `em_sm_op_nreturn_f` | |
+
+#### Push opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_push_lit_i` | `em_sm_op_push_lit_i` | PUSH_INT / PUSH_FLOAT arg |
+| `emit_sm_push_lit_f` | `em_sm_op_push_lit_f` | PUSH_FLOAT arg |
+| `emit_sm_push_lit_s` | `em_sm_op_push_lit_s` | PUSH_STR sym len |
+| `emit_sm_push_expr` | `em_sm_op_push_expr` | PUSH_EXPR ptr (IR-mode expr ptr) |
+| `emit_sm_push_expression` | `em_sm_op_push_expression` | PUSH_EXPRESSION entry_pc arity |
+| `emit_sm_push_var` | `em_sm_op_push_var` | PUSH_VAR sym |
+| `emit_sm_store_var` | `em_sm_op_store_var` | STORE_VAR sym |
+
+#### Call opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_call_expression` | `em_sm_op_call_expression` | CALL_EXPRESSION tgt |
+| `emit_sm_call_fn` | `em_sm_op_call_fn` | CALL_FN name nargs |
+| `emit_sm_exec_stmt` | `em_sm_op_exec_stmt` | EXEC_STMT subj has_repl |
+
+#### Pattern-capture opcodes
+
+| Old | New | Notes |
+|---|---|---|
+| `emit_sm_pat_lit` | `em_sm_op_pat_lit` | PAT_LIT sym |
+| `emit_sm_pat_refname` | `em_sm_op_pat_refname` | PAT_REFNAME sym |
+| `emit_sm_pat_usercall` | `em_sm_op_pat_usercall` | PAT_USERCALL sym |
+| `emit_sm_pat_capture` | `em_sm_op_pat_capture` | PAT_CAPTURE name kind |
+| `emit_sm_pat_usercall_args` | `em_sm_op_pat_usercall_args` | PAT_USERCALL_ARGS name nargs |
+| `emit_sm_pat_capture_fn` | `em_sm_op_pat_capture_fn` | PAT_CAPTURE_FN fname |
+| `emit_sm_pat_capture_fn_args` | `em_sm_op_pat_capture_fn_args` | PAT_CAPTURE_FN_ARGS fname nargs |
+
+---
+
+## L2 — `emit_insn.c/h` → `insn.c/h`
+
+All leaf emitters. Prefix `insn_`. Each: `if (IS_TEXT) { text; return; }` / binary below.
+X-group macros for jcc and push/pop families.
+
+### Single-instruction: mov family
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_mov_eax_imm32` | `insn_mov_eax_i32` | B8 imm32 |
+| `bb_insn_mov_rax_imm64` | `insn_mov_rax_i64` | REX.W B8 imm64 (movabs) |
+| `bb_insn_mov_rbp_rsp` | `insn_mov_rbp_rsp` | 48 89 E5 |
+| `bb_insn_mov_rsp_rbp` | `insn_mov_rsp_rbp` | 48 89 EC |
+| `bb_insn_mov_rcx_imm64` | `insn_mov_rcx_i64` | 48 B9 imm64 (movabs) |
+| `bb_insn_mov_rdx_imm64` | `insn_mov_rdx_i64` | 48 BA imm64 (movabs) |
+| `bb_insn_mov_rsi_imm64` | `insn_mov_rsi_i64` | 48 BE imm64 (movabs) |
+| `bb_insn_mov_edx_imm32` | `insn_mov_edx_i32` | BA imm32 |
+| `bb_insn_mov_edi_imm32` | `insn_mov_edi_i32` | BF imm32 |
+| `bb_insn_mov_ecx_eax` | `insn_mov_ecx_eax` | 89 C1 |
+| `bb_insn_mov_rdi_rax` | `insn_mov_rdi_rax` | 48 89 C7 |
+| `bb_insn_mov_eax_r10mem` | `insn_mov_eax_r10mem` | 41 8B 02 — load Δ |
+| `bb_insn_mov_eax_mem_rcx` | `insn_mov_eax_rcxmem` | 8B 01 |
+| `bb_insn_mov_rax_mem_rcx` | `insn_mov_rax_rcxmem` | 48 8B 01 |
+| `emit_mov_rdi_imm64` | `insn_mov_rdi_i64` | 48 BF imm64 (movabs) |
+| `emit_mov_esi_imm32` | `insn_mov_esi_i32` | BE imm32 |
+
+### Single-instruction: cmp family
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_cmp_esi_imm8` | `insn_cmp_esi_i8` | 83 FE imm8 |
+| `bb_insn_cmp_esi_imm32` | `insn_cmp_esi_i32` | 81 FE imm32 |
+| `bb_insn_cmp_al_imm8` | `insn_cmp_al_i8` | 3C imm8 |
+| `bb_insn_cmp_eax_imm32` | `insn_cmp_eax_i32` | 3D imm32 |
+| `bb_insn_cmp_eax_ecx` | `insn_cmp_eax_ecx` | 39 C8 |
+| `bb_insn_cmp_eax_mem_rcx` | `insn_cmp_eax_rcxmem` | 3B 01 |
+
+### Single-instruction: movzx / movsxd / lea
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_movzx_eax_rdi_off8` | `insn_movzx_eax_rdi_off8` | 0F B6 47 off |
+| `bb_insn_movsxd_rcx_r10mem` | `insn_movsxd_rcx_r10mem` | 49 63 0A |
+| `bb_insn_lea_rax_rax_rcx` | `insn_lea_rax_rax_rcx` | 48 8D 04 08 |
+| `emit_sym_lea_rcx` | `insn_lea_rcx_rip_sym` | 48 B9 (bin: movabs) / lea rcx,[rip+sym] |
+| `emit_sym_lea_r10` | `insn_lea_r10_rip_sym` | 49 BA (bin: movabs) / lea r10,[rip+sym] |
+
+### Single-instruction: add / sub family
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_sub_rsp_imm8` | `insn_sub_rsp_i8` | 48 83 EC imm8 |
+| `bb_insn_add_rsp_imm8` | `insn_add_rsp_i8` | 48 83 C4 imm8 |
+| `bb_insn_sub_eax_imm32` | `insn_sub_eax_i32` | 2D imm32 |
+| `bb_insn_add_eax_imm32` | `insn_add_eax_i32` | 05 imm32 |
+| `emit_add_delta_imm` | `insn_add_delta_i` | mov+add+mov Δ sequence |
+| `emit_sub_delta_imm` | `insn_sub_delta_i` | mov+sub+mov Δ sequence |
+
+### Single-instruction: test / xor
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_xor_eax_eax` | `insn_xor_eax_eax` | 31 C0 |
+| `emit_test_rax_rax` | `insn_test_rax_rax` | 48 85 C0 |
+| `emit_test_eax_eax` | `insn_test_eax_eax` | 85 C0 |
+
+### Single-instruction: inc
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_inc_r13_disp8` | `insn_inc_r13_disp8` | 41 FF 45 disp — increment [r13+disp] |
+
+### Single-instruction: jcc / jmp family (X-group macro generated)
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_jmp_rel8` | `insn_jmp_r8` | EB rel8 |
+| `bb_insn_jmp_rel32` | `insn_jmp_r32` | E9 rel32 |
+| `bb_insn_je_rel8` | `insn_je_r8` | 74 rel8 |
+| `bb_insn_je_rel32` | `insn_je_r32` | 0F 84 rel32 |
+| `bb_insn_jne_rel8` | `insn_jne_r8` | 75 rel8 |
+| `bb_insn_jne_rel32` | `insn_jne_r32` | 0F 85 rel32 |
+| `bb_insn_jl_rel8` | `insn_jl_r8` | 7C rel8 |
+| `bb_insn_jl_rel32` | `insn_jl_r32` | 0F 8C rel32 |
+| `bb_insn_jge_rel8` | `insn_jge_r8` | 7D rel8 |
+| `bb_insn_jge_rel32` | `insn_jge_r32` | 0F 8D rel32 |
+| `bb_insn_jg_rel32` | `insn_jg_r32` | 0F 8F rel32 |
+
+### Single-instruction: push / pop family (X-group macro generated)
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_push_rbp` | `insn_push_rbp` | 55 |
+| `bb_insn_pop_rbp` | `insn_pop_rbp` | 5D |
+| `emit_push_r10` | `insn_push_r10` | 41 52 |
+| `emit_pop_r10` | `insn_pop_r10` | 41 5A |
+| `bb_insn_push_r12` | `insn_push_r12` | 41 54 |
+| `bb_insn_pop_r12` | `insn_pop_r12` | 41 5C |
+
+### Single-instruction: call / ret / nop
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_insn_ret` | `insn_ret` | C3 |
+| `emit_ret` | `insn_ret` | Merge: same encoding |
+| `bb_insn_nop` | `insn_nop` | 90 |
+| `bb_insn_call_rax` | `insn_call_rax` | FF D0 |
+| `emit_call_sym_plt` | `insn_call_plt` | Binary: movabs rax,fn + call rax; Text: call sym@PLT |
+
+---
+
+## L5 — `emit_bb_flat.c/h` → `em_flat.c/h`
+
+Public API only (static helpers stay static in `em_flat.c`).
+
+| Old | New | Notes |
+|---|---|---|
+| `bb_build_flat_text` | `em_flat_build` | Build flat-BB TEXT for a PATND_t tree |
+| `bb_build_flat_text_reset` | `em_flat_reset` | Reset intern-str and cap-fixup state |
+| `bb_flat_set_cap_fixup_cb` | `em_flat_set_cap_fixup` | Set callback for capture-ptr fixup |
+| `bb_flat_set_intern_str` | `em_flat_set_intern_str` | Set string interning fn |
+| `flat3c_label` | `em_flat_label` | Emit flat 3-col label (public; called by tests) |
+| `flat_data_section` | `em_flat_data_section` | Emit `.section .data` |
+| `flat_text_section` | `em_flat_text_section` | Emit `.text` |
+| `flat_intel_syntax` | `em_flat_intel_syntax` | Emit `.intel_syntax noprefix` |
+| `flat_data_string` | `em_flat_data_string` | Emit `.ascii` data |
+| `flat_data_quad` | `em_flat_data_quad` | Emit `.quad sym` data |
+| `flat_data_quad_int` | `em_flat_data_quad_i` | Emit `.quad val` data |
+| `flat_data_long` | `em_flat_data_long` | Emit `.long val` data |
+| `flat_data_zero` | `em_flat_data_zero` | Emit `.zero n` data |
+| `flat_globl` | `em_flat_globl` | Emit `.globl name` |
+| `flat_box_call` | `em_flat_box_call` | Emit flat box call sequence |
+| `flat_box_call_slot` | `em_flat_box_call_slot` | Emit flat box call via slot label |
+| `flat_box_dispatch_jne_jmp` | `em_flat_dispatch_jne_jmp` | Emit test+jne+jmp dispatch |
+| `flat_box_entry_dispatch` | `em_flat_entry_dispatch` | Emit α/β entry dispatch |
+| `emit_flat_box_banner` | `em_flat_box_banner` | Emit flat box `#--- BOX` banner |
+| `emit_flat_banner_rule` | `em_flat_banner_rule` | Emit `#---` rule line |
+| `emit_flat_box_call` | `em_flat_box_call_fn` | Emit flat call to a C box_fn |
+| `bb_macros_write_to_path` | `em_flat_macros_to_path` | Write bb_macros.s to path |
+| `flat_is_eligible` | `em_flat_is_eligible` | (static → keep static) |
+
+---
+
+## L5 — `emit_sm_text.c/h` → `em_walk.c/h`
+
+Public API (internal statics stay static).
+
+| Old | New | Notes |
+|---|---|---|
+| `sm_codegen_text` | `em_walk_codegen` | Top-level: SM_Program → GNU-as .s |
+| `flat_is_eligible_node` | `em_flat_eligible` | Is PATND_t node eligible for flat-BB? (shared with em_flat) |
+| `patnd_is_fully_invariant` | `em_flat_invariant` | Is PATND_t tree fully invariant? |
+| `sm_phase2_to_patnd` | `em_walk_phase2` | Phase-2: SM window → PATND_t reconstruction |
+| `g_jit_emit_inline` | `g_em_inline` | Sub-flag: inline BB blob addresses |
+
+---
+
+## Bootstrap note for Snocone / Icon (RW-6 deliverable addition)
+
+The rewrite makes the emitter callable from the Snocone/Icon bootstrap compiler:
+
+- **Icon**: pattern-match an IR node kind → call `em_sm_op_*` or `em_bb_*` directly.
+  All functions are pure: take explicit args, return void or int, no hidden state in logic.
+- **Snocone**: string-pattern on SM opcode name → look up in `em_sm_shape_*` table.
+  Table is an array of `{ const char *name; void (*fn)(…); }` entries.
+
+The `insn_*` layer is the generation target for the Snocone code generator: it emits
+`insn_jmp_r32(lbl)` calls rather than raw bytes, making the generated code readable and
+verifiable against the C reference.
