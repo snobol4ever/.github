@@ -196,6 +196,22 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
   - Each multi-byte sequence gets a short inline comment explaining what it encodes.
   - `emit_core.c` `insn_*` functions updated to use the names.
   - No changes to TEXT branches, no logic changes.
+- [x] **RW-STYLE-1** ✅ `d0b7fdd3` — Eliminate all `if (cond) { text_call(); return; } / binary_stmts;` constructs in `emit_core.c`, `emit_bb.c`, `emit_sm.c`. The `return;` inside the if-body is redundant (the else path exits naturally); removing it lets the text and binary sides sit symmetrically as if/else with no return inside either. Target form:
+  ```c
+  if (IS_TEXT)
+      text_call();          // single stmt: no braces
+  else {
+      binary_stmt1();       // multi stmt: braces
+      binary_stmt2();
+  }
+  ```
+  Or when binary is also one statement:
+  ```c
+  if (IS_TEXT) text_call();
+  else         binary_stmt();
+  ```
+  Rules: (1) strip `return;` from text-side body; (2) add `else` before binary side; (3) remove braces from either side that has exactly one statement; (4) if binary side has multiple statements, keep its braces. No logic changes. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+- [x] **RW-STYLE-2** ✅ `d0b7fdd3` (folded into RW-STYLE-1) — Remove braces from every single-C-statement `if`/`else` body in `emit_core.c`, `emit_bb.c`, `emit_sm.c`. Rule: body is exactly one statement → no braces. Two-statement bodies (e.g. `{ t3c(…); return; }`) keep braces. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
 
 ---
@@ -204,7 +220,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 **SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `edf0c88a`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD `d0b7fdd3`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
@@ -215,6 +231,6 @@ one4all HEAD `edf0c88a`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `edf0c88a`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+2. Confirm one4all HEAD `d0b7fdd3`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 3. **RW-OPCODES** — write x86_opcodes.h, replace raw hex in insn_* binary branches in emit_core.c.
 4. Continue **M5** or next active step.
