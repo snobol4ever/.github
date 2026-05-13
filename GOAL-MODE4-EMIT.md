@@ -788,7 +788,7 @@ Every `emit_bb_xabrt`, `emit_bb_xbal`, `emit_bb_xfarb`, `emit_bb_xfnce`, `emit_b
 
 **Gate:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5.
 
-- [ ] **EC-3**
+- [x] **EC-3** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `944e163e`)*
 
 ### EC-4 — Merge duplicate templates (xcat/xor, xfail/xvar)
 
@@ -819,7 +819,7 @@ static void emit_bb_jmp_eps(bb_label_t *lbl_succ, bb_label_t *lbl_fail, bb_label
 
 **Gate:** build clean, smoke 7/7, template-byte-id 4/4.
 
-- [ ] **EC-4**
+- [x] **EC-4** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `48e09af6`)*
 
 ### EC-5 — Fix `emit_bb_intcur` dispatch (remove char-position hack)
 
@@ -836,7 +836,7 @@ Delete `emit_bb_intcur` entirely.
 
 **Gate:** build clean, smoke 7/7.
 
-- [ ] **EC-5**
+- [x] **EC-5** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `522b2a1b`)*
 
 ### EC-6 — Remove remaining TEXT-mode `is_text` guards in templates (PURITY completion)
 
@@ -844,7 +844,7 @@ Delete `emit_bb_intcur` entirely.
 
 **Gate:** build clean, smoke 7/7, template-byte-id 4/4, `gcc -c` on emitted `.s` clean.
 
-- [ ] **EC-6**
+- [x] **EC-6** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `3db28fc9`)*
 
 ### EC-7 — Trim `bb_emit.h` (remove dead declarations, cap at 300 lines)
 
@@ -852,7 +852,7 @@ Delete `emit_bb_intcur` entirely.
 
 **Gate:** build clean, smoke 7/7.
 
-- [ ] **EC-7**
+- [x] **EC-7** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `1ae712e1`)*
 
 ### EC-8 — `bb_templates.c` Snocone-ready final shape
 
@@ -862,7 +862,7 @@ Delete `emit_bb_intcur` entirely.
 
 **Gate:** build clean, smoke 7/7, template-byte-id 4/4, snocone 5/5. Human review of `ARCH-EMITTER.md` mapping table before Snocone conversion begins.
 
-- [ ] **EC-8**
+- [x] **EC-8** *(sess 2026-05-12, Claude Sonnet 4.6, one4all `08707cb0`)*
 
 ---
 
@@ -885,9 +885,31 @@ Delete `emit_bb_intcur` entirely.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13b (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
 
-**EC-1 closed.** one4all HEAD `3ec4fcec`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
+**EC-2 through EC-8 all closed.** one4all HEAD `08707cb0`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
+
+### Work done
+
+EC-2 (`44c2d621`): Grouped all extern declarations into one block after #includes.
+EC-3 (`944e163e`): Added `emit_bb_stateful()` helper; collapsed 18 Pattern-B templates to one-liners. 648→537 lines.
+EC-4 (`48e09af6`): Added `emit_bb_jmp_pair()` helper; collapsed xabrt/xcat/xfail/xor/xvar.
+EC-5 (`522b2a1b`): Deleted `emit_bb_intcur` dispatch hack; xlnth/xrtb/xtb now call `emit_bb_stateful` directly.
+EC-6 (`3db28fc9`): Added `t_bb_port_call_rip` to `bb_emit.h/c`; removed last two `is_text` guards in xatp/xdsar. Zero `bb_emit_mode` branches in `bb_templates.c`.
+EC-7 (`1ae712e1`): Trimmed `bb_emit.h` 454→282 lines (condensed preamble, stripped per-function prose comments, compacted `bb_insn_*` section).
+EC-8 (`08707cb0`): Removed dead `flat_text_simple_box` helper. Wrote `ARCH-EMITTER.md` mapping table: 28/35 emit_bb_* functions are direct Snocone conversion candidates (Pattern A/B); 7/35 stay as C stubs (Pattern C: xchr, xatp, xdsar, charset, xposi, xrpsi). Also confirmed: unified single-emitter system, all C BB box functions eradicated (replaced by rt_bb_* in libscrip_rt.so called via PLT).
+
+### Emitter Cleanup (EC) series: COMPLETE
+
+`bb_templates.c` final shape: grouped includes → one extern block → two private helpers (emit_bb_jmp_pair + emit_bb_stateful) → 35 public emit_bb_* functions. Each function is a pure sequence of t_* calls or a single emit_bb_stateful/emit_bb_jmp_pair call. No bb_emit_mode branching anywhere in the file. Snocone conversion can begin when the t_* builtin surface is defined.
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `08707cb0`.
+3. **EM-BB-MACROS** — `--jit-emit --x64 --bb-macros` raw x86 three-column output for BB boxes. Spec in GOAL-MODE4-EMIT.md §EM-BB-MACROS. Flag already wired (`ec334068`); no behavior yet. Start with EM-BB-MACROS-0 (if not already done) and EM-BB-MACROS-1 (XCHR box).
+
+
 
 **Baseline correction:** PASS=11 in the prior watermark was stale (built against an older libscrip_rt). True baseline at HEAD `a21a6e19` was PASS=10; our session preserved that.
 
