@@ -188,24 +188,23 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 - [x] **RW-5** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — `emit_flat.c/h` replaces `emit_bb_flat.c` (deleted). `emit_walk.c/h` replaces `emit_sm_text.c` (deleted). Shim `.h` files left in place for RW-6. Backward-compat `#define` aliases in new headers; all callers unchanged. Makefile updated. one4all `e00a7c6f`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5, gcc -c 5/5 artifacts OK.
 
 - [x] **RW-6** ✅ sess 2026-05-13 cont. (Claude Sonnet 4.6) — Deleted emit_buf.c (→emit_mode.c), emit_form.c (→emit_mode.c), emit_label.c (→emit_label_new.c standalone), emit_text3c.c (→emit_text.c standalone), emit_insn.c (→insn.c appended), emit.c (debris, not in Makefile). All 5 compiled files removed from Makefile RT_PIC_SRCS + explicit .o rules. Migrated 11 callers from emit_bb_gen.h → emit.h; emit_bb_gen.h reduced to one-line shim. ARCH-EMITTER.md finalized with RW-6 completion record. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-- [~] **EM-SNOCONE-PREP** ⚡ PARTIAL `85b4f292` — Comment cleanup done: stale RW-N references removed from insn.h/c, emit_seq.h, emit_text.h, emit_label_new.h/c. REMAINING: ESP-1..10 proper — migrate TEXT-path `bb3c_format` calls in emit_seq.c to `emit_text_3col`; ensure all compound helpers call `insn_*` leaves only. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+- [x] **EM-SNOCONE-PREP** ✅ `71244e57` — Comment cleanup (prev sess `85b4f292`) + bb3c_format→emit_text_3col migration in emit_seq.c; emit_text3c.h→emit_text.h; IS_TEXT guard on emit_seq_call_tgt (missing guard was Disease-1 survivor). Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 - [~] **M5** — Raku/Prolog/Rebus SM_SUSPEND/RESUME. ⛔ Hold until GOAL-CHUNKS M4 closes. Icon cancelled (pure-BB path instead).
 
 ---
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 cont. (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
 
-one4all HEAD `85b4f292`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+one4all HEAD `71244e57`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
 
 ### What was done this session
 
-- RW-6 complete `3763151f`: deleted emit_buf/emit_form/emit_label/emit_text3c/emit_insn/emit.c; absorbed into emit_mode+emit_label_new+emit_text+insn; emit_bb_gen.h→shim; callers→emit.h; ARCH-EMITTER.md finalized.
-- EM-SNOCONE-PREP partial `85b4f292`: stale RW-N comment cleanup in insn.h/c, emit_seq.h, emit_text.h, emit_label_new.h/c.
+- EM-SNOCONE-PREP complete `71244e57`: bb3c_format→emit_text_3col in emit_seq.c; emit_text3c.h→emit_text.h include; IS_TEXT guard added to emit_seq_call_tgt (was calling emit_text_3col without mode guard — Disease-1 survivor). All tracked artifacts compile clean.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `85b4f292`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
-3. Continue **EM-SNOCONE-PREP**: migrate `bb3c_format` direct calls in emit_seq.c to emit_text_3col; audit compound helpers for IS_TEXT-at-leaf compliance.
+2. Confirm one4all HEAD `71244e57`. Gates: smoke 7/7, byte-id 4/4, snocone 5/5.
+3. Continue **M5** (or await GOAL-CHUNKS as gating condition — check PLAN.md).
