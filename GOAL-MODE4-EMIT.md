@@ -85,6 +85,30 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
   - **EM-UNIFY-c** Opcode-as-argument API: replace hardcoded per-opcode `emit_sm_add()` / `emit_sm_sub()` / … families with a dispatched `emit_sm_op(int opcode, …)` that takes the SM opcode enum as an argument. Same for BB box family where applicable. Reduces template function count; callers pass the opcode, not a distinct function name.
   - Gates: smoke 7/7, template-byte-id 4/4, em8 5/5, `make jit-emit-test` clean.
 
+- [ ] **EM-SNOCONE-PREP** — Finish cleaning up emitter code for Snocone conversion. No behaviour changes; naming, comments, and dead-code only. Gates: smoke 7/7, template-byte-id 4/4, em8 5/5.
+
+  **Scope** (in priority order):
+
+  - [ ] **ESP-1 — File-header comments.** `emitter_bb_gen.h/c` still say `bb_emit.h / bb_emit.c` in their opening comment blocks. `emitter_sm_template.c/h` may reference old names. Update all file-top comment blocks to match actual filenames.
+
+  - [ ] **ESP-2 — Stale comments in source.** Grep-sweep for `bb_emit.h`, `bb_emit.c`, `emitter_binary_new`, `emitter_text_new`, `emitter_free`, `sm_emit_template` in comments throughout `emitter_bb_gen.c`, `bb_flat.c`, `sm_codegen_x64_emit.c`. Rewrite to reflect current names and API.
+
+  - [ ] **ESP-3 — edp4_* collision names.** `edp4_emit_push_expression`, `edp4_emit_call_expression` in `emitter_sm_template.c/h` and `edp4_sm_arith`, `edp4_sm_unhandled`, `edp4_label_then` in `sm_codegen_x64_emit.c` are collision-avoidance names assigned under pressure. Rename to clear descriptive names: `emit_sm_text_push_expr`, `emit_sm_text_call_expr`, `dispatch_sm_arith`, `dispatch_sm_unhandled`, `dispatch_with_pc_label`.
+
+  - [ ] **ESP-4 — `emitter_t *` in callback signature.** `edp4_label_then(FILE *out, void (*fn)(emitter_t *))` in `sm_codegen_x64_emit.c` still threads `emitter_t *` as a dead parameter through function-pointer type. Change to `void (*fn)(void)` and update all call sites (they all pass `NULL` anyway).
+
+  - [ ] **ESP-5 — `EV_*` macro references in comments.** `EV_JMP`, `EV_TEXT`, `EV_LABEL` appear in comments in `emitter_bb_gen.c/h` and `bb_flat.c` as if they are live API. They are not — they were removed. Replace comment references with `emit_jmp_label`, `emit_fprintf_raw`, `emit_label_define_bb`.
+
+  - [ ] **ESP-6 — `bb_emit_buf`, `bb_emit` bare names.** `bb_emit_buf` and bare `bb_emit` appear in some internal identifiers. Audit and rename to `emitter_bb_gen_buf` / `emit_bb_gen` if they are external; remove if they are dead.
+
+  - [ ] **ESP-7 — `data_buf_emit_*`, `bb_eps_emit_binary`, `bb_lit_emit_binary`, `bb_nme_emit_binary`, `bb_callcap_emit_binary` in `bb_flat.c`.** These are static helpers with `_emit_` in the middle. Rename: `emit_data_buf_block_comment`, `emit_bb_eps_binary`, `emit_bb_lit_binary`, `emit_bb_nme_binary`, `emit_bb_callcap_binary`.
+
+  - [ ] **ESP-8 — `strtab_emit_rodata` in `sm_codegen_x64_emit.c`.** Rename to `emit_strtab_rodata` (emit_ prefix, noun follows).
+
+  - [ ] **ESP-9 — `emitter_t` stub typedef comment.** The `typedef int emitter_t` stub in `emitter.h` has no explanatory comment visible to a Snocone porter. Add a clear block comment: "Backward-compat stub — template functions declare `emitter_t *e` but never dereference it (`(void)e` at top of body). Remove this typedef and strip the dead param when porting templates to Snocone."
+
+  - [ ] **ESP-10 — Final sweep and gate.** `grep -rn "_emit_" src/runtime/x86/ --include="*.c" --include="*.h"` must produce zero results for function definitions and call sites (comments and filename strings exempted). Run smoke 7/7, template-byte-id 4/4, em8 5/5. Commit.
+
 ### M5 phase — Raku, Prolog, Rebus (Icon cancelled from SM path)
 
 ⛔ Do not begin until GOAL-CHUNKS M4 (Steps 12–18) closes.
