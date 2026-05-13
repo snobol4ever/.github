@@ -49,6 +49,7 @@ IJ-11 icn_kw_read() centralises keyword reads; type()/image() cset fixes. Cluste
 IJ-12 `6b20b4a2` static parent-frame fallback for recursive procs. Cluster P ✅.
 IJ-13a `d2453ecc` ast_gc_clone: only GC_strdup sval for string-typed nodes (crash fix).
 IJ-13b `2d5567ca` &input/&output/&errout -> INTVAL(0/1/2); read(infile:=&input) works.
+IJ-13c `1e4a6d7f` DT_FH=12 sentinel in descr.h; FHVAL(idx) macro; &input/&output/&errout return FHVAL; open() returns FHVAL; write/writes/read/reads/close all route via DT_FH first-arg. honest 273→274. Cluster O htprep/meander/kross still FAIL (root: while-loop/scan bug in in(), not DT_FH).
 
 ## Active steps
 
@@ -58,9 +59,9 @@ htprep/meander/kross no longer crash but produce empty/wrong output.
 Root: `write(outfile, s)` where `outfile := &output` is INTVAL(1).
 write/writes cannot distinguish fh from plain int without a typed descriptor.
 
-- [ ] Introduce DT_FH sentinel (DT_S slen=0xFFFFFFFE ptr=slot, or new DT_ tag).
-- [ ] Update write/writes/read/reads/close/open to use it.
-- [ ] rung37_file_io.icn + .expected. GATE-1..4. Commit.
+- [x] Introduce DT_FH sentinel (DT_S slen=0xFFFFFFFE ptr=slot, or new DT_ tag).
+- [x] Update write/writes/read/reads/close/open to use it.
+- [x] rung37_file_io.icn + .expected. GATE-1..4. Commit.
 
 ### IJ-14 — stdin programs: mindfa / mffsol (Cluster Q)
 
@@ -92,7 +93,7 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 | rung37_neg_pos.icn | IJ-10 | done |
 | rung37_keywords.icn | IJ-11 | done |
 | rung37_mutual.icn | IJ-12 | done |
-| rung37_file_io.icn | IJ-13c | pending |
+| rung37_file_io.icn | IJ-13c | done |
 | rung37_random_radix.icn | IJ-16 | pending |
 
 ## Done when
@@ -112,7 +113,7 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: 2d5567ca  corpus: 47e3b67
+  one4all: 1e4a6d7f  corpus: 77de346
   ir-run:  PASS=200 FAIL=35 XFAIL=30
-  honest:  PASS=273 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-13c (DT_FH typed descriptor for write(fh,s))
+  honest:  PASS=274 FAIL=1 ABORT=0   broker: 23/49
+  NEXT: IJ-14 (stdin fixtures for mindfa/mffsol)
