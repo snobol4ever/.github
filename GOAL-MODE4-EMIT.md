@@ -986,30 +986,46 @@ Delete `emit_bb_intcur` entirely.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13b (Claude Sonnet 4.6)**
 
-**EM-BB-FORMAT architecture redesigned + new goal steps added.** one4all HEAD `d96d5520` (no code commits this session — arch/goal work only). Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
+**Template reformatting + EM-BB-FORMAT arch redesign.** one4all HEAD `710d9088`. .github HEAD `dfd3435`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
 
 ### Work done
 
-- Reverted bad EM-BB-FORMAT-1 code (had `if (t_bb_is_format_mode())` in template bodies — violates no-if law; used `POS_α`/`POS_β` named macros — wrong, format must be pure x86).
-- Rewrote EM-BB-FORMAT spec: correct 4-column architecture using port-context accumulator in `bb_emit.c`. No `if` in templates. `t_*` helpers handle format mode internally.
-- Added new goal steps: **EM-SPEC-T-ERADICATE** (remove SNOBOL4-specific `spec_t` from BB engine for cross-language compatibility), **EM-XVAL-DESCR** (cross-language DESCR_t value protocol for SNO/PL/ICN), **EM-S-ARTIFACTS-COMMIT** (`.s` artifacts committed to corpus every session).
-- Added **EM-BB-FORMAT-ARCH** sub-rung: implement the port-context accumulator before any per-box format rungs.
+1. **Reverted bad EM-BB-FORMAT-1** (`0d0f8119`): removed `if (t_bb_is_format_mode())` branches in template bodies (violates no-if law) and `POS_α`/`POS_β` named macros (wrong — format must be pure x86).
+
+2. **EM-BB-FORMAT architecture redesigned** (`.github` `dfd3435`): correct 4-column port-context accumulator design documented in GOAL file. `t_label_define` saves pending label; `t_emit_jmp` flushes one `;`-fused 4-column line. No `if` in any template body — ever. New sub-rung `EM-BB-FORMAT-ARCH` added as prerequisite.
+
+3. **New goal steps added** (`.github` `dfd3435`): `EM-SPEC-T-ERADICATE` (4 sub-rungs, remove `spec_t` from BB engine), `EM-XVAL-DESCR` (3 sub-rungs, cross-language DESCR_t protocol), `EM-S-ARTIFACTS-COMMIT` (3 sub-rungs, `.s` + `bb_macros.s` to corpus every session).
+
+4. **`bb_templates.c` reformatted** (`710d9088`): 477 → 281 lines (−41%). Extern block paired horizontally. 9 Icon + 6 simple-stateful + 5 jmp-pair boxes all one-liners. Signatures consolidated. Params renamed `s, f, b` throughout.
+
+5. **`sm_templates.c` reformatted** (`710d9088`): 729 → 415 lines (−43%). 22 PAT_* rtcall one-liners, 20 M5 stub one-liners, 10 return-variant wrappers condensed, push/store/arith groups one-liners.
 
 ### Next session must
 
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`, `MIGRATION-MODE4-IS-MODE3-DUMP.md`.
-2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `d96d5520`.
-3. **EM-BB-FORMAT-ARCH** — implement port-context accumulator in `bb_emit.c`. New state: `g_fmt_pending_label` + `g_fmt_port_body[]`. Update `t_label_define` + `t_emit_jmp` for FORMAT mode. Add FORMAT branch to `t_load_delta_cmp_imm` + `t_load_siglen_sub_cmp_delta`. No template body changes needed. Gate: build clean, smoke 7/7, template-byte-id 4/4.
-4. **EM-BB-FORMAT-1** — verify XPOSI + XRPSI produce correct 4-column output with no template changes.
-5. **ESA-1 + ESA-2** — update artifact protocol to include `bb_macros.s`; regen and commit all 7 `.s` files to corpus.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10. one4all HEAD `710d9088`.
+3. **EM-BB-FORMAT-ARCH** — implement port-context accumulator in `bb_emit.c`:
+   - Add `g_fmt_pending_label[BB_LABEL_NAME_MAX+2]` and `g_fmt_port_body[512]` static state.
+   - `t_fmt_save_label(lbl)`: saves label string, no emit.
+   - `t_fmt_append_body(instr, operands)`: appends `instr operands` to accumulator.
+   - `t_fmt_flush_jmp(target, kind)`: emits 4-column `;`-fused line and clears state.
+   - Update `t_label_define`: in FORMAT mode call `t_fmt_save_label` instead of emitting.
+   - Update `t_emit_jmp`: in FORMAT mode call `t_fmt_flush_jmp`.
+   - Add FORMAT append to: `t_load_delta_cmp_imm` (`cmp dword [r10+Δ], n`), `t_load_siglen_sub_cmp_delta`, `t_sigma_plus_delta_to_rdi`, `t_bounds_check_delta_plus_len`, `t_bb_port_call`.
+   - Gate: build clean, smoke 7/7, template-byte-id 4/4. No template body changes needed.
+4. **EM-BB-FORMAT-1** — verify XPOSI + XRPSI emit correct 4-column output (`--bb-format`) with zero template changes.
+5. **ESA-1** — add `bb_macros.s` to the tracked-artifacts protocol block in GOAL file.
+6. **ESA-2** — run protocol, commit 7 `.s` files to corpus.
 
 ### Lessons recorded (this session)
 
-- **No `if (t_bb_is_format_mode())` in template bodies.** The Law says templates contain only `t_*` calls. The format mode is handled entirely inside `t_*` helpers via `bb_emit_mode` + accumulator state. An `if` in a template body is the same violation as `if (bb_emit_mode == EMIT_TEXT)` — banned.
-- **No named port macros** (`POS_α`, `RPOS_β`). FORMAT mode emits pure x86 instructions (`cmp`, `je`, `jmp`, `call`) in 4-column `;`-fused form. The column structure is: `LABEL: ; instruction operands ; jmp target`.
-- **`spec_t` must die before cross-language BB engine is possible.** It encodes SNOBOL4 match semantics (`const char *σ; int δ`) directly in the return type. Prolog and Icon boxes cannot conform to this layout. EM-SPEC-T-ERADICATE is a prerequisite for any serious multi-language BB work.
+- **No `if` in template bodies.** `if (t_bb_is_format_mode())` in a template is the same violation as `if (bb_emit_mode == EMIT_TEXT)`. All mode-branching lives inside `t_*` helpers.
+- **No named port macros** (`POS_α`, `RPOS_β`). FORMAT mode emits pure x86 (`cmp`, `je`, `jmp`, `call`) in 4-column `;`-fused form: `LABEL: ; instruction operands ; jmp target`.
+- **`spec_t` must die before cross-language BB is possible.** It encodes SNOBOL4 match semantics directly in the return type. EM-SPEC-T-ERADICATE is a prerequisite for ICN/PL BB work.
+- **Horizontal formatting reads far better at 120 chars.** The prior vertical wrapping of 1-arg functions across 5 lines was the main readability problem. One-liners with aligned columns are the right shape for these template dispatchers.
+
 **SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
 
 **EM-BB-TEXT-ADDR + EM-BB-R10-FIX closed.** one4all HEAD `d96d5520`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty-subsystems PASS=10 FAIL=7.
