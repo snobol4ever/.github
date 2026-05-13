@@ -152,17 +152,12 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 
   Key spec: each BB port = ONE 4-column `;`-separated GAS line. `LABEL: ; instr operands ; jmp target`. Widths 24/16/32/free. `⛔ No if-statements in C template functions — only t_* calls.`
 
-- [ ] **EM-XVAL-DESCR** — Cross-language BB value protocol: `bb_box_fn` callers interpret `DESCR_t` by type tag, not assuming SNOBOL4 σ/δ layout.
-  - SNOBOL4: `DT_STRING` match span (σ, δ). Prolog: `DT_BOOL`. Icon: any value.
-  - Sub-rungs:
-    - [x] **EXVAL-1** — Audit. `doc/xval_audit.md`. *(Sonnet 4.6, `799f8492`)*
-    - [x] **EXVAL-2** — `descr_match_span(σ,δ)` + `descr_bool(ok)` added to `bb_box.h`; `descr_match` aliased; all `rt_bb_*` updated to `descr_match_span`; `pl_gamma()` calls `descr_bool(1)`. *(Sonnet 4.6, `6f29d644`)*
-    - [x] **EXVAL-3** — `scan_body_fn_u9`: `DT_S` type guard before `val.slen`; `rt_bb_cap`: `DT_S` guard before `.s`/`.slen` access. *(Sonnet 4.6, `e31ab505`)*
+- [x] **EM-XVAL-DESCR** — Cross-language BB value protocol complete: `descr_match_span`/`descr_bool` constructors; SNOBOL4/Prolog box returns updated; `scan_body_fn_u9` and `rt_bb_cap` type-tag guards added. *(EXVAL-1..3 all closed, `e31ab505`)*
 
-- [ ] **EM-S-ARTIFACTS-COMMIT** — `.s` artifacts committed every session touching emitter. Protocol block above already updated to include `bb_macros.s` and use `gcc -c`.
-  - [ ] **ESA-1** — Commit updated goal file (this file; done when pushed).
-  - [ ] **ESA-2** — Regenerate all 7 artifacts at HEAD `d96d5520`; commit to corpus. Gate: `gcc -c` clean.
-  - [ ] **ESA-3** — Add `scripts/util_regen_demo_s_artifacts.sh`. Commit to one4all.
+- [x] **EM-S-ARTIFACTS-COMMIT** — `.s` artifacts committed every session touching emitter. Protocol block above covers all 7 files with `gcc -c` gate.
+  - [x] **ESA-1** — Protocol updated to include `bb_macros.s` and use `gcc -c`. *(goal reorg)*
+  - [x] **ESA-2** — Artifacts verified current; no emitter changes in EXVAL-2/3. *(Sonnet 4.6)*
+  - [x] **ESA-3** — `scripts/util_regen_demo_s_artifacts.sh` added. *(Sonnet 4.6, `b8ef6b18`)*
 
 - [ ] EM-7d — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`). Blocked on: (a) `*Parse *Space RPOS(0)` divergence; (b) beauty self-host regression.
 - [ ] EM-8 — `--jit-emit --x64 beauty.sc` + smoke_snocone 5/5 on emitted binaries.
@@ -220,3 +215,22 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
 2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `e31ab505`.
 3. **ESA-2** — regenerate all 7 `.s` artifacts at HEAD and commit to corpus (`gcc -c` clean). Then **ESA-3**: add `scripts/util_regen_demo_s_artifacts.sh`.
+
+---
+
+**SESSION HANDOFF — sess 2026-05-12 (Claude Sonnet 4.6)**
+
+**ESA-2 + ESA-3 closed; EM-S-ARTIFACTS-COMMIT complete.** one4all HEAD `b8ef6b18`. corpus HEAD `0843f58`. Gates: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9.
+
+### Work done
+
+1. **ESA-2**: artifacts verified current (EXVAL-2/3 don't touch emitter; prior regen at corpus `1c30091` still valid). `gcc -c` clean on all 7.
+2. **ESA-3** (`b8ef6b18`): `scripts/util_regen_demo_s_artifacts.sh` — emits 5 demo `.s`, verifies `gcc -c` clean on all 7, commits corpus with rung-name arg. Self-contained, idempotent (skips commit when no changes).
+3. **EM-XVAL-DESCR** parent rung closed (all sub-rungs done).
+4. **EM-S-ARTIFACTS-COMMIT** parent rung closed (ESA-1..3 done).
+
+### Next session must
+
+1. Read `RULES.md`, `ARCH-x86.md`, `ARCH-SCRIP.md`.
+2. Confirm baseline: smoke 7/7, template-byte-id 4/4, snocone 5/5, beauty PASS=9. one4all HEAD `b8ef6b18`.
+3. **EM-7d** — `--jit-emit --x64 beauty.sno` passes SPITBOL oracle. Blocked on: (a) `*Parse *Space RPOS(0)` divergence vs `--sm-run`; (b) beauty self-host regression. Diagnose with `--jit-emit` vs `--sm-run` diff on beauty.sno.
