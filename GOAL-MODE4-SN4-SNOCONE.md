@@ -97,7 +97,7 @@ Fix: for variant-pattern ARBNO/CAP, the child blob IS emitted inline in the patt
 Run `test_interp_broad_corpus_and_beauty.sh` in mode-4 (needs a new script or MODE=x64 wrapper). Every test that passes under `--sm-run` must also pass under `--jit-emit --x64`.
 
 - [x] **M4SN-4a** — Write `test_mode4_broad_corpus_snobol4.sh`. ✅ sess 2026-05-14 (Claude Sonnet 4.6, `5ede8aa1`). compile_mode4 helper; crosscheck + beauty + demo corpus; PASS/FAIL/SKIP.
-- [ ] **M4SN-4b** — Run and triage failures by category. Fix mode-4-specific failures only. Partial: sess 2026-05-14 (`b8d5da36`): 108/280 (was 93). Fixed: (1) emit_flat_invariant excludes XNME/XFNME/XCALLCAP; (2) rt_bb_cap pre_δ span; (3) NAMEPTR var_ptr path; (4) FAILDESCR test: cmp al,99 in all emit_seq_port_call paths; (5) emit_label_define_bb in NAMEPTR branch. Remaining 18 mode-4-specific failures including 052_pat_arbno (bb_emit_end abort: unresolved label="" in brokered XCAT containing XNME(XARBN)).
+- [ ] **M4SN-4b** — Run and triage failures by category. Fix mode-4-specific failures only. Partial: sess 2026-05-14 (`b8d5da36`): 108/280 (was 93). Fixed: (1) emit_flat_invariant excludes XNME/XFNME/XCALLCAP; (2) rt_bb_cap pre_δ span; (3) NAMEPTR var_ptr path; (4) FAILDESCR test: cmp al,99 in all emit_seq_port_call paths; (5) emit_label_define_bb in NAMEPTR branch. Continued sess 2026-05-14 (`308da7a6`): 118/280 (+10). Four bugs fixed in variant ARBNO/XCAT path: (1) emit_flat_xcat 3+child: local right_β never defined — use betas[nc-2] as last_β; (2) pre_build_children does not recurse into grandchildren — add recursive pre_build_children(ch) before bb_build_flat(ch); (3) XARBN child must be brokered not flat (rt_bb_arbno calls child via C ABI without r10 setup); (4) rt_bb_arbno disambiguation: old ->stack heuristic misreads blob code as rt_arbno_t — replace with magic sentinel RT_ARBNO_MAGIC=0xA2B20000 in both rt_arbno_t and arbno_t. REMAINING: 052_pat_arbno variant capture (ARBNO . V) still fails — rt_bb_cap calls rt_bb_arbno correctly (no abort/segfault), but match result not propagated back to outer XCAT flat blob; root cause in rt_bb_cap return-value interaction not yet resolved.
 - [ ] **M4SN-4c** — Target: mode-4 broad corpus PASS ≥ sm-run PASS (128/280). No regression.
 
 ### M4SN-5 — Full regression: test_regression_full_corpus.sh MODE=x64 with libscrip_rt pipeline
@@ -146,8 +146,10 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `b8d5da36` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 6/6 ✅, beauty parity 10/17, mode-4 broad corpus 108/280 (sm-run 144/280).
+**HEAD** one4all `308da7a6` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 6/6 ✅, beauty parity 10/17, mode-4 broad corpus 118/280 (sm-run 144/280).
 
 Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-4b continued. Two more fixes: (1) FAILDESCR test: replaced test rax,rax → cmp al,99 in all emit_seq_port_call paths — DT_FAIL=99 is non-zero so test rax,rax was treating FAIL as success for ANY/SPAN/BREAK captures; (2) NAMEPTR binary branch: emit_label_define_bb(lbl_β) not emit_label_define for brokered mode. Mode-4 broad corpus 108/280 (was 105).
 
-**Next:** M4SN-4b continued — fix 052_pat_arbno (bb_emit_end: unresolved label="" in brokered XCAT(XPOSI,XCAT(XNME(XARBN),XRTB)) blob). Also 059_capture_dollar_deferred (XFNME NAMEPTR path), 082_keyword_stcount (wrong output, semantic), 087_define_freturn (abort), 094_data_define_access. Target: 144/280.
+Sess 2026-05-14b (Claude Sonnet 4.6): M4SN-4b continued. Four bugs fixed in variant ARBNO/XCAT path (see M4SN-4b note above). Mode-4 broad corpus 118/280 (+10).
+
+**Next:** M4SN-4b continued — fix 052_pat_arbno variant capture (ARBNO . V): rt_bb_cap is called correctly but match result not propagated back to outer XCAT flat blob; trace rt_bb_cap return value vs emit_seq_port_call cmp al,99 check. Also 059_capture_dollar_deferred (XFNME NAMEPTR path), 082_keyword_stcount (wrong output, semantic), 087_define_freturn (abort), 094_data_define_access. Target: 144/280.
