@@ -135,12 +135,25 @@ Silly exception: CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY
 | Path | What |
 |------|------|
 | `src/frontend/snobol4/CMPILE.c` | SNOBOL4 parser |
+| `src/ast/ast.h` | shared AST node type (tree_t / tree_e) |
 | `src/driver/scrip.c` | unified scrip executable |
+| `src/lower/lower.c` | AST → SM_Program compiler pass |
+| `src/lower/sm_prog.h` | SM_Program flat instruction array |
+| `src/lower/scrip_ir.h` | IR_prog_t / IR_t DCG node types |
+| `src/lower/ir_exec.c` | DCG graph-walk executor |
+| `src/lower/lower_pat_dcg.c` | build IR_prog_t from pattern tree_t |
+| `src/processor/sm_interp.c` | mode-2 SM C dispatch loop |
+| `src/processor/sm_jit_interp.c` | mode-3 JIT runner |
+| `src/processor/bb_broker.c` | unified Byrd box broker |
+| `src/processor/bb_pool.c` | mmap pool for binary Byrd boxes |
+| `src/emitter/emit_core.c` | x86 byte/label/patch primitives |
+| `src/emitter/emit_bb.c` | BB box x86 templates |
+| `src/emitter/emit_sm.c` | SM opcode x86 templates |
 | `src/runtime/snobol4/snobol4.c` | runtime (TRACE, comm_var, monitor hooks) |
 | `src/runtime/snobol4/stmt_exec.c` | 5-phase statement executor |
-| `src/runtime/asm/bb_pool.c` | mmap pool for binary Byrd boxes |
-| `src/runtime/asm/bb_emit.c` | byte/label/patch primitives |
-| `src/runtime/dyn/` | bb_*.c — 25 C box implementations |
+| `src/runtime/snobol4/descr.h` | DESCR_t universal value type |
+| `src/runtime/interp/` | Icon / Prolog / Raku interpreter runtimes |
+| `src/runtime/rt/rt.c` | libscrip_rt.so (mode-4 ABI) |
 | `src/silly/` | Silly SNOBOL4 faithful C rewrite |
 | `test/monitor/` | sync-step monitor infrastructure |
 
