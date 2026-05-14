@@ -78,7 +78,7 @@ Gate after every step: smoke 7/7, byte-id 4/4. No logic changes — pure reforma
 - [x] **S200-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `5d1d1274` — `emit_core.c` (2,433→1,786 lines). 200-col separators; `insn_*` 49 one-liners; `bb_insn_*` 41 one-liners; `t3/tf/tj` compacted. Zero blank lines, zero >200-col lines. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-4** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3cfe85f0` — `emit_bb.c` (1,532→1,368 lines). Zero blank lines, zero >200-col, no inline/body comments. Stateless one-liners column-aligned; stateful helpers compacted; XBAL/XBRKX/XDSAR/XATP/charset stripped of body comments; flat builder reformatted; bm_* helpers compacted. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-5** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `68ab8cd7` — `emit_sm.c` (2,766 lines). 167 separators upgraded from 120-char to 200-char. File already had zero blank lines, zero inline/body comments, zero >200-col lines. Pure separator-width upgrade. Gates: smoke 7/7, byte-id 4/4.
-- [ ] **S200-6** — `sm_jit_interp.c` (1,382 lines). Mode-3 interpreter, same rules.
+- [~] **S200-6** — `sm_jit_interp.c` SKIPPED — frozen file, excluded from all emitter rewrite steps per ARCH-EMITTER.md ("never touched by EM-REWRITE").
 - [ ] **S200-7** — Final sweep: `grep` lines >200 chars, double blank lines, single-stmt brace survivors. Fix all. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
 
@@ -270,4 +270,4 @@ S200-4 and S200-5 complete:
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
 2. Confirm one4all HEAD `68ab8cd7`. Gates: smoke 7/7, byte-id 4/4.
-3. **S200-6**: reformat `sm_jit_interp.c` (1,382 lines) — same rules: 200-char separators, zero blanks, no inline/body comments, 200-col max.
+3. **S200-7**: final sweep — `grep` lines >200 chars, double blank lines, single-stmt brace survivors across all emitter C/H files (`emit_core.c`, `emit_bb.c`, `emit_sm.c` and headers). Fix all. Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: S200-6 (`sm_jit_interp.c`) is SKIPPED — that file is frozen, excluded from all emitter rewrite steps per ARCH-EMITTER.md.
