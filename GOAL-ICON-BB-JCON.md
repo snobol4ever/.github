@@ -136,3 +136,13 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
   4. Replace coro_eval TT_FNC proc path with icn_bb_make_proc_box.
   5. GATE-1..4. Commit. Verify suspend(1|2|3) generates all values.
   6. IJ-30: delete proc_trampoline / coro_t / swapcontext (keep only for create/@).
+
+## Architecture note (IJ-43 clarification)
+
+coro_bb_* C functions = EMIT_BINARY_BROKERED box implementations.
+Same pattern as rt_bb_arb, rt_bb_len, etc. in rt.c.
+emit_bb_icon_* templates emit x86: mov rdi/esi, call@PLT, test, jne/jmp.
+This IS correct BROKERED form per ARCH-x86.md.
+Not wrong. Not lazy. Same as every other BB in the system.
+
+NEXT: IJ-29 — fix coro_drive_fnc suspend loop (suspend 1|2|3 generates all values).
