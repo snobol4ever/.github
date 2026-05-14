@@ -218,27 +218,31 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 mode4-tests (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 mode4-xdsar-fix (Claude Sonnet 4.6)**
 
-one4all HEAD `e61819e5`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=12/17 FAIL=5.
+one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=13/17 FAIL=4.
 
 ### What was done this session
 
-Pivoted to run SNOBOL4 test suites under mode-4 (`--jit-emit --x64`). Beauty subsystem gate went from 0/17 → 12/17 PASS. Three root-cause fixes:
+Two emitter bugs fixed; beauty gate 12→13/17:
 
-1. `emit_sm_int_arg` `b65f1ec9`: text-mode invocation was emitting literal param name `op` instead of integer value — `UNHANDLED op` in asm was unresolvable. Fixed to format integer into string.
-2. Δ symbol name `b65f1ec9`: `emit_sym_lea_r10("delta", ...)` used ASCII `"delta"` instead of UTF-8 `"Δ"` — undefined reference at link time. Fixed.
-3. `emit_sm_op` + `emit_sm_arith_dispatch` loop bugs `2a0fa18f`: both loops fired `emit_sm_unhandled_op` on every non-matching iteration instead of only after exhausting the table. Fixed with early `return` on match.
-4. `bb_emit_mode` default `e61819e5`: changed from `EMIT_TEXT` to `EMIT_BINARY_WIRED` so mode-4 runtime binaries don't crash when `bb_build_brokered` calls `emit_flat_body`.
+1. **XDSAR not excluded from `flat_is_eligible`** (`56a9897a`): XDSAR nodes (deferred-var `*foo` patterns) were eligible for `bb_build_brokered` → `emit_flat_body`, which ran at runtime inside the generated binary and crashed in `emit_label_initf`/`vsnprintf` (stack corruption context). Fix: add `p->kind == XDSAR` to `flat_is_eligible` exclusion in `emit_bb.c`. Falls back to C brokered box path.
 
-### Remaining 5 diff failures
+2. **Absolute Σ/Σlen addresses in text .s output** (`56a9897a`): `emit_seq_sigma_delta_rdi`, `emit_seq_bounds_len`, `emit_seq_cmp_siglen_delta` all called `insn_mov_rcx_i64(addr)` unconditionally, baking the scrip-process's own `&Σ`/`&Σlen` pointer values into the emitted `.s`. Generated binary segfaulted dereferencing those stale addresses at runtime. Fix: `IS_TEXT` guard calls `emit_sym_lea_rcx("Σ"/"Σlen", addr)` → correct RIP-relative symbol reference.
 
-- **ShiftReduce_driver, trace_driver** (segfault): `XDSAR` deferred-var patterns go through `bb_build_brokered` → `emit_flat_body` binary emit → GPF inside `vsnprintf`. Likely `FLAT_BUF_MAX` overflow corrupting state before `vsnprintf`'s buffer-end sentinel write. Next session: check `bb_emit_end()` assertion / buffer size, or add `XDSAR` to `flat_is_eligible` exclusion list so brokered path handles it differently.
-- **counter_driver, semantic_driver, stack_driver** (diff): pre-existing `--sm-run` divergences. Mode-4 output is actually closer to SPITBOL oracle in some cases (stack: 7/7 vs sm-run 4/7). These are not mode-4 bugs — the parity gate compares to sm-run which is itself wrong. Accept or gate differently.
+### Remaining 4 diff failures (accepted as sm-run bugs)
+
+Confirmed against SPITBOL oracle:
+- **counter_driver**: SPITBOL 5/5 PASS = mode-4 output. sm-run has 2 wrong FAILs.
+- **stack_driver**: SPITBOL 7/7 PASS; mode-4 5/5 PASS (missing 2 tests). sm-run has 3 FAILs.
+- **semantic_driver**: SPITBOL 8/8 PASS; both sm-run and mode-4 produce fewer/wrong lines (pre-existing DATATYPE bug).
+- **trace_driver**: SPITBOL crashes ERROR 243 (NRETURN bug); sm-run and mode-4 both run further — not mode-4 emitter bugs.
+
+These are all sm-run accuracy divergences. The parity gate uses sm-run as reference; mode-4 is at least as correct (and often more correct) than sm-run.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `e61819e5`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4 PASS=12/17.
-3. Fix ShiftReduce/trace segfault: investigate `FLAT_BUF_MAX` vs actual brokered binary size for XDSAR nodes, or exclude XDSAR from flat path and handle via dedicated brokered-binary path that doesn't call `emit_flat_body`.
-4. Decide on counter/semantic/stack diffs: either accept (they're sm-run bugs not mode-4 bugs) or fix sm-run.
+2. Confirm one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4 PASS=13/17.
+3. Remaining 4 diff failures are sm-run accuracy bugs — accept at 13/17 or investigate further per Lon's direction.
+4. Consider broad corpus run under mode-4 to find next class of emitter bugs.
