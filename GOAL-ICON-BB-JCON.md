@@ -127,3 +127,126 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
   ir-run:  PASS=201 FAIL=34 XFAIL=30
   honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
   NEXT: IJ-16 (&random seeding + radix literals)
+
+---
+
+## Missing JCON BB steps (IJ-18 onward)
+
+Each ir_a_* procedure in jcon_irgen.icn = one Byrd Box. Status per construct:
+
+| JCON ir_a_ | coro_bb_ | Status |
+|------------|----------|--------|
+| ToBy | coro_bb_to / coro_bb_to_by / coro_bb_to_by_real / coro_bb_to_nested | ✅ done |
+| Alt | coro_bb_alternate | ✅ done |
+| Every | coro_bb_every | ✅ done |
+| Limitation | coro_bb_limit | ✅ done |
+| Binop (closure/bang) | coro_bb_bang_binary / coro_bb_binop | ✅ done |
+| Mutual (seq) | coro_bb_mutual | ✅ done |
+| Scan | coro_bb_scan_gen | ✅ done |
+| Suspend | coro_bb_suspend | ✅ done |
+| Ident (!E iterate) | coro_bb_iterate / coro_bb_list_iterate / coro_bb_tbl_iterate / coro_bb_tbl_key_iterate / coro_bb_record_iterate | ✅ done |
+| Not | — | ❌ missing |
+| RepAlt | — | ❌ missing |
+| Case | — | ❌ missing |
+| Repeat | — | ❌ missing |
+| Until | — | ❌ missing |
+| While | — | ❌ missing |
+| Create | — | ❌ missing |
+| Next | — | ❌ missing |
+| Break | — | ❌ missing |
+| Sectionop | — | ❌ missing |
+| Key (generative) | — | ❌ missing |
+| ListConstructor (!L) | — | ❌ missing |
+| Compound | — | ❌ missing |
+| Field (generative) | — | ❌ missing |
+| CoexpList | — | ❌ missing |
+| Return (from suspend) | — | ❌ missing |
+| Fail | — | ❌ missing |
+
+Non-generative (handled inline in bb_eval_value — no separate BB needed):
+NoOp, Global, If, Initial, Invocable, Link, Intlit, Reallit, Stringlit,
+Csetlit, ProcDecl, ProcBody, ProcCode, Record, Call, Unop, Arglist.
+
+### IJ-18 — ir_a_Not (negation-as-failure)
+
+`!E` in negation context: succeeds (null) if E fails, fails if E succeeds.
+Maps to `coro_bb_not`. No state; purely structural.
+
+- [ ] Implement coro_bb_not in coro_runtime.c. Wire in coro_eval TT_NOT. GATE-1..4. Commit.
+
+### IJ-19 — ir_a_RepAlt (|E repeated alternation)
+
+`|E` — pump E to exhaustion then restart. Maps to `coro_bb_repalt`.
+State: gen (the sub-box). On omega restart gen from alpha.
+
+- [ ] Implement coro_bb_repalt. Wire in coro_eval TT_REPALT (if present) or TT_ALTERNATE path. GATE-1..4. Commit.
+
+### IJ-20 — ir_a_While / ir_a_Until / ir_a_Repeat (loops)
+
+`while E do B`, `until E do B`, `repeat B`.
+Maps to coro_bb_while, coro_bb_until, coro_bb_repeat.
+State: expr_gen, body_gen. While/Until gate on expr success/failure.
+Repeat loops unconditionally.
+
+- [ ] Implement coro_bb_while, coro_bb_until, coro_bb_repeat. Wire TT_WHILE/UNTIL/REPEAT in coro_eval. GATE-1..4. Commit.
+
+### IJ-21 — ir_a_Case (case expression)
+
+`case E of { C1: B1 ... Cn: Bn default: D }`.
+Maps to coro_bb_case. State: expr val, current clause index, body_gen.
+Compares E === clause expr; on match pumps body; on body omega tries next clause.
+
+- [ ] Implement coro_bb_case. Wire TT_CASE in coro_eval. GATE-1..4. Commit.
+
+### IJ-22 — ir_a_Next / ir_a_Break (loop control)
+
+`next` — continue to next loop iteration (goto nextlabel in JCON terms).
+`break E` — exit loop with value E.
+Both short-circuit the enclosing loop BB.
+
+- [ ] Implement loop-control signaling in BB context. GATE-1..4. Commit.
+
+### IJ-23 — ir_a_Create (co-expression creation)
+
+`create E` — creates a co-expression that generates E lazily.
+Maps to coro_bb_create. State: suspended bb_node_t.
+On alpha: freeze E as a bb_node_t, return co-expression descriptor.
+On activate (@coexp): resume the frozen node.
+
+- [ ] Implement coro_bb_create + co-expression activation. Wire TT_CREATE. GATE-1..4. Commit.
+
+### IJ-24 — ir_a_Sectionop (s[i:j] generative)
+
+`s[gen:j]` or `s[i:gen]` — generative subscript.
+Maps to coro_bb_section_gen. Pumps the generative bound, yields each section.
+
+- [ ] Implement coro_bb_section_gen. Wire TT_SECTION/PLUS/MINUS when bounds are generative. GATE-1..4. Commit.
+
+### IJ-25 — ir_a_Key (generative keywords: &features, &allocated, etc.)
+
+`&features` generates strings; `&allocated` generates 3 integers; etc.
+Maps to coro_bb_kw_gen per keyword. Currently one-shot.
+
+- [ ] Implement generative keyword BBs. Wire icn_kw_read generators. GATE-1..4. Commit.
+
+### IJ-26 — ir_a_ListConstructor generative ([gen, ...])
+
+`[1 to 3, "x"]` — list where elements may be generators.
+Currently non-generative. Generative form pumps each element slot.
+
+- [ ] Implement coro_bb_list_constructor_gen. Wire TT_MAKELIST when children generative. GATE-1..4. Commit.
+
+### IJ-27 — ir_a_Compound generative (E1; E2; ... EN all-must-succeed)
+
+`(E1; E2; E3)` — compound expression, all succeed or fail.
+Maps to coro_bb_compound_gen when any sub-expr is generative.
+
+- [ ] Implement coro_bb_compound_gen. Wire TT_COMPOUND generative path. GATE-1..4. Commit.
+
+### IJ-28 — ir_a_Field generative (r.field where r is generative)
+
+`(!L).field` — field access on generative object.
+Maps to coro_bb_field_gen. Pumps object generator, yields field each time.
+
+- [ ] Implement coro_bb_field_gen. Wire TT_FIELD when object is generative. GATE-1..4. Commit.
+
