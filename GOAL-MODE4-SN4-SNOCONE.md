@@ -146,12 +146,14 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `7eb1d935` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 7/17 (pre-existing), mode-4 broad corpus 128/280 (sm-run 167/280).
+**HEAD** one4all `923daa48` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17, mode-4 broad corpus 136/280 (sm-run 167/280).
 
-Sess 2026-05-14c (Claude Sonnet 4.6): M4SN-4b: fix ARBNO . V variant capture — broad corpus 124/280.
+Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: SM_NEG + NRETURN fixes — 128/280 (+4 vs 124).
 
-Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: two fixes:
-(1) SM_NEG (opcode 26) missing from emit_walk_codegen switch — added emit_sm_neg_dispatch + emit_sm_exp_dispatch. Fixes unary negation in mode-4.
-(2) NRETURN in mode-4: (a) rt_do_return kind=2 popped TOS (garbage) instead of reading NV[fname]; added rt_do_nreturn(fname,cond) that calls NV_GET_fn(fname) directly. (b) RETURN_VARIANT/NRETURN_VAR macros did frame-restore (mov rsp,rbp;pop rbp;ret) inside call_native_chunk — wrong, exits main. Fixed: return 2 from chunk context → macro skips frame restore, just ret. Broad corpus 128/280 (+4).
+Sess 2026-05-14e (Claude Sonnet 4.6): M4SN-4b: three fixes — 128/280 → 136/280 (+8), beauty 7/17 → 13/17 (+6):
+(1) rt_arith/rt_coerce_num: propagate DT_FAIL instead of to_int(FAIL) → Error 1.
+(2) DEFINE body ABI frame: DEFINE_ENTRY emits push rbp/mov rbp,rsp; RETURN paths emit pop rbp; RETURN_VARIANT/NRETURN_VAR macros always do full frame restore (removed chunk-shortcut return-2 path). Fixes ARRAY() in DEFINE, recursive fib, roman_numeral, test_math.
+(3) NRETURN deref in rt_call: dereference NAMEVAL→NV_GET_fn matching sm_interp.c. Fixes assign_driver + related.
+19 mode-4-specific failures remain: FENCE cluster (12), &STNO (1), deferred-$ (1), *var patterns (2), test_case (1), 059 (1), other (1).
 
-**Next:** M4SN-4b continued — target sm-run parity 167/280. 21 mode-4-specific failures remain; fence/arbno patterns dominate. Next: triage 059_capture_dollar_deferred, 082_keyword_stcount, fileinfo, and fence pattern failures.
+**Next:** M4SN-4b continued — target sm-run parity 167/280. FENCE cluster root cause (emit_flat_fence / rt_bb_fence in mode-4 binary path).
