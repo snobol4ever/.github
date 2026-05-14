@@ -596,20 +596,20 @@ Never CamelCase. Never ALL_CAPS for new C types (exceptions: `RESULT_t` and the 
 
 ### ⛔ IR subsystem naming: uppercase `IR_` prefix throughout
 
-The DCG is the IR.  `IR_t` (not `ir_graph_t`) matches `tree_t` by convention.
+The DCG is the IR.  `IR_t` (node) matches `tree_t`; `IR_prog_t` (graph) matches `SM_Program`.
 All IR subsystem types and functions use uppercase `IR_` prefix, not lowercase `ir_`:
 
 ```
-IR_t          -- the IR (ir_graph_t banned)
-IR_node_t     -- one node in the DCG
+IR_t          -- one DCG node (matches tree_t)
+IR_prog_t     -- the graph envelope: entry + flat node roster (matches SM_Program)
 IR_kind_t     -- kind enum
-IR_alloc()    -- allocate a graph
-IR_free()     -- free a graph
-IR_reset()    -- reset runtime state
+IR_alloc()    -- allocate IR_prog_t
+IR_free()     -- free IR_prog_t
+IR_reset()    -- reset runtime state in all IR_t nodes
 IR_print()    -- dump
 IR_exec_once() / IR_exec_pump() -- graph-walk executor
-IR_exec_node() -- per-node eval dispatch
-IR_lower_pat() -- build DCG from SNOBOL4 pattern tree
+IR_exec_node() -- per IR_t node eval dispatch
+IR_lower_pat() -- build IR_prog_t from SNOBOL4 pattern tree
 ```
 
 Rationale: `IR_` is visually distinct from `tree_t`, `DESCR_t`, `PATND_t`.
@@ -628,7 +628,7 @@ as a phase/IR label in the FINAL PIPELINE clarification.
 | `SM_EXEC_GEN` | `SM_EXEC_DCG` |
 | `SM_PUMP_GEN` | `SM_PUMP_DCG` |
 | `ir_graph_t` | `IR_t` |
-| `ir_node_t` | `IR_node_t` |
+| `ir_node_t` | `IR_t` (node) |
 | `ir_kind_t` | `IR_kind_t` |
 | `ir_exec_once` / `ir_exec_pump` | `IR_exec_once` / `IR_exec_pump` |
 | `ir_graph_alloc` / `ir_graph_free` etc. | `IR_alloc` / `IR_free` etc. |
