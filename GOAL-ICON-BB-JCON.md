@@ -93,7 +93,66 @@ Honest PASS >= 275, zero SM scalar fallback. Retire SM_SUSPEND_VALUE if --sm-run
 
 - [x] Triage profsum/ck. Root causes: (1) next-in-scan doesn't restart enclosing while (profsum), (2) generative tab-arg tab(n|0) not supported (ck Image()). Both XFAIL corpus 1fe096c. Scan-builtin correctness fixes landed: any/many/upto non-advancing (6 sites across 5 files); real scan-subject coercion via real_str at all ICN_SCAN_PUSH/TT_SCAN sites. one4all 1203986f.
 
-## IJ-19 — next cluster triage
+## IJ-19 — BB runtime generator fixes
+
+**Root causes confirmed (both --ir-run and --sm-run identical wrong output → bug is in
+icn_bb_build / bb_eval_value, NOT in lower.c).**
+
+⚠ No coro subsystem. Icon is pure BB. Do NOT touch coro_runtime.c or coro_*.
+Files to edit: `src/runtime/interp/icn_runtime.c`, `icn_runtime.h`, `icn_value.c`, `icon_gen.c`.
+
+### IJ-19a — icn_bb_upto Byrd box (scalar args, generative)
+
+`upto(cset, str)` with scalar args is not generative — `icn_bb_build` has no box for it.
+Only `icn_upto_gen_subj_t` (generative subject) exists. Needs `icn_upto_state_t` + `icn_bb_upto`
+yielding each matching position in sequence. Pattern: mirrors `icn_bb_find` (icon_gen.c).
+Fixes: kross (`every j := upto(s2,s1)`), meander (`find(…)`-related), htprep.
+
+- [ ] Add `icn_upto_state_t` struct to `icon_gen.h`. Add `icn_bb_upto` Byrd box to `icon_gen.c`.
+      Wire into `icn_bb_build` TT_FNC path: when `fn=="upto"` and `nargs>=2` and args scalar,
+      build `icn_upto_state_t` from evaluated cset+str args, return `icn_bb_upto` box.
+      GATE-1..4. Commit.
+
+### IJ-19b — icn_drive_node extern + bb_eval_value injection check
+
+`icn_drive_node` is defined in `icn_runtime.c` but not extern'd in `icn_runtime.h`.
+`bb_eval_value` (icn_value.c) never checks it. `icn_bb_cat` sets it but the injection
+is silently ignored → `s[1 to 3]` gives `a,a,a` not `a,b,c`.
+
+- [ ] Add `extern tree_t *icn_drive_node;` to `icn_runtime.h` (alongside existing `icn_drive_val`).
+      Add check at top of `bb_eval_value`: `if (icn_drive_node && e == icn_drive_node) return icn_drive_val;`
+      GATE-1..4. Commit.
+
+### IJ-19c — drive injection in TT_EVERY/TT_ASSIGN branch
+
+`bb_eval_value` TT_EVERY/TT_ASSIGN branch calls `bb_eval_value(gen)` without setting
+`icn_drive_node=leaf, icn_drive_val=tick` first → `(1 to n)` rebuilds from α each tick.
+Fixes rung02 (`every total := total + (1 to n)` → gives 5 not 15).
+
+- [ ] In the TT_EVERY/TT_ASSIGN while-loop body in `icn_value.c`: save/set/restore
+      `icn_drive_node=leaf, icn_drive_val=tick` around the `bb_eval_value(gen)` call.
+      GATE-1..4. Commit.
+
+### IJ-19d — FRAME.suspending in icn_bb_proc_call
+
+After `bb_exec_stmt(st)` in `icn_bb_proc_call` (icon_gen.c), only `FRAME.returning`
+and `FRAME.loop_break` are checked. `FRAME.suspending` is not → suspend inside a
+while-loop inside a user proc is silently dropped. Fixes rung03 (`suspend i do i:=i+1`).
+
+- [ ] After `bb_exec_stmt(st)` in `icn_bb_proc_call`: add `if (FRAME.suspending) {`
+      `DESCR_t sv=FRAME.suspend_val; z->suspend_body=FRAME.suspend_do;`
+      `z->in_suspend=1; FRAME.suspending=0; return sv; }` before the loop_break check.
+      GATE-1..4. Commit.
+
+### IJ-19e — real to-by generator
+
+`icn_bb_build` TT_TO_BY always uses `icn_bb_to_by` (int). `icn_bb_to_by_real` exists
+in `icon_gen.c` but is never selected. Fixes rung19 (`3.0 to 1.0 by -1.0`).
+
+- [ ] In `icn_bb_build` TT_TO_BY: after coercion, add `if (!any_str && IS_REAL_fn(lo_d)
+      && IS_REAL_fn(hi_d) && IS_REAL_fn(step_d))` → allocate `icn_to_by_real_state_t`,
+      return `icn_bb_to_by_real` box.
+      GATE-1..4. Commit.
 
 ## Done when
 
@@ -125,7 +184,7 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
   IJ-17 ✅ 2a4f7812 &level=frame_depth; jcon_level XFAIL corpus d6eed3d
   IJ-18 ✅ 1203986f any/many/upto non-advancing; real scan-subj coercion; profsum/ck XFAIL corpus 1fe096c
   IJ-19-prep ✅ f1dbb78b NO_AST_WALK_GUARD unconditional for Icon — no env var, always crash
-  NEXT: IJ-19 — Cluster O triage (rung36_jcon_htprep/meander/kross — in() procedure)
+  NEXT: IJ-19a — icn_bb_upto Byrd box (scalar args generative; see IJ-19 steps above)
 
 ## Session notes (sess 2026-05-14, handoff #2)
 
