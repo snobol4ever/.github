@@ -239,6 +239,12 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 - [x] IR_ICN_LIMIT DCG. icn_lim_dcg_t{gen,max,count} in opaque. one4all `b7d74bf9`.
       ir-run 159→164 (+5), honest 275→276 (+1).
 
+### IJ-19-binop-gen — arith/relop with generative operands
+
+- [x] IR_ICN_BINOP DCG. icn_binop_dcg_t in opaque. icn_binop_apply in lower_icn.c.
+      binop_map[] + TT_CAT cross-product wired. one4all `f63c60f0`.
+      ir-run 164→174 (+10), broker 22→23.
+
 ### IJ-19-remaining — remaining 38 constructs in order of complexity
 
 ---
@@ -266,8 +272,8 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ## Watermark
 
-  one4all: b7d74bf9  corpus: 1fe096c
-  ir-run:  PASS=164 FAIL=66
+  one4all: f63c60f0  corpus: 1fe096c
+  ir-run:  PASS=174 FAIL=56
   honest:  PASS=276
-  smoke_icon: 5/5   broker: 22/49
-  NEXT: IJ-19-binop-gen (arith/relop with generative operand)
+  smoke_icon: 5/5   broker: 23/49
+  NEXT: IJ-19-remaining (next highest-value construct from FAIL list)
