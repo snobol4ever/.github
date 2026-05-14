@@ -60,7 +60,7 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 - [x] **SF-3** ✅ `4e3306d5` — `emit_bb_xstar` flat REM. Stateless. α: Δ=Σlen →γ. β: →ω. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [x] **SF-4** ✅ `98b2e204` — `emit_bb_xlnth/xtb/xrtb` flat LEN/TAB/RTAB. n baked as immediate; no DATA. LEN: Δ+n≤Σlen→γ. TAB: Δ≤n→γ, Δ=n. RTAB: Δ≤Σlen-n→γ. All β→ω. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [x] **SF-5** ✅ `55857945` — `emit_bb_xbrkx` flat inline BREAKX. DATA: .string chars; .quad chars_ptr; .long δ. α: scan fwd while Σ[Δ+δ] not in chars; δ==0||Δ+δ>=Σlen →ω; else Δ+=δ →γ. β: Δ-=δ →ω. Assembles clean. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
-- [ ] **SF-6** — ICN_* boxes flat. Zeroed DATA block on α-entry (self-init). `coro_bb_*` called as direct calls with DATA block address in rdi (not PLT stub).
+- [x] **SF-6** ✅ `8a63e515` — ICN_* boxes: `emit_bb_stateful` gains `nquads` param; all 45 ICN box emitters pass `ICN_NQ(state_t)` = `(sizeof(state_t)+7)/8` so TEXT path emits a correctly-sized zeroed `.data` block per box kind. Non-ICN callers (ARBNO/BREAKX/CALLCAP/CHARSET) retain `nquads=6`. Companion gate fixes (SF-6-pre `f7400d23`): JUMP/JUMP_S/JUMP_F dispatch→macro form; rt_arith case values corrected; RETURN macro→plain ret; sm_phase2_sim_test field names fixed; bb_flat_text_test intern_str callback. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing).
 - [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
 - [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
 
@@ -72,8 +72,8 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 
 ## Watermark
 
-**HEAD** one4all `55857945` · .github TBD · Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+**HEAD** one4all `8a63e515` · .github TBD · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
 
-**Next:** SF-6 — ICN_* boxes flat. Zeroed DATA block on α-entry. `coro_bb_*` called as direct calls with DATA block address in rdi (not PLT stub).
+**Next:** SF-7 — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead). Clean up `emit_bb_xbrkx` IS_TEXT guards.
 
-**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `55857945`.
+**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `8a63e515`.
