@@ -173,6 +173,23 @@ Simple constructs first (pure integer state, no child generators):
 
 ## Active steps
 
+### ⛔ EMERGENCY — REVERT icn_bb_every AND icn_bb_to BEFORE ANY OTHER WORK
+
+`icn_bb_every` and `icn_bb_to` committed in `a82b42c5` are **C BBs with four ports — wrong**.
+The rule is: no C function `DESCR_t foo(void *zeta, int entry)`. Zero. None.
+All BBs are emitted IR_block_t DCGs driven by `icn_bb_dcg`.
+
+**What to do first:**
+1. Delete `icn_bb_every` and `icn_bb_to` from `icn_runtime.c`.
+2. Replace `icn_bb_to` with `IR_ICN_TO` DCG: add to `IR_e` enum, add executor case in `ir_exec.c`,
+   add `lower_icn_to(lo, hi)` in `lower_icn.c`, wire `icn_bb_build(TT_TO)` to return
+   `(bb_node_t){ icn_bb_dcg, dz, 0 }` — same pattern as `IR_ICN_UPTO`.
+3. Replace `icn_bb_every` with `IR_ICN_EVERY` DCG: same pattern. The every DCG node
+   drives its inner gen DCG node (wired child) to exhaustion, runs body via `bb_exec_stmt`.
+   Or: `icn_bb_build(TT_EVERY)` builds the gen box and returns `icn_bb_dcg` pointing at
+   an IR block that sequences gen ticks and body execution.
+4. Gates green, commit, push.
+
 ### IJ-19-debug — fix upto scalar dispatch in icn_bb_build (FIRST)
 
 - [x] Add debug print, confirm `fn` and position in TT_FNC block.
