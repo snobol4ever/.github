@@ -667,3 +667,55 @@ diff between the two paths must come back empty.
 Makefiles, or CI. Symlinks break silently when targets move or are deleted
 (see corpus fbab26b incident). Use real files, copies, or path variables
 instead.
+
+---
+
+## C code style — 200-character line width (all one4all C/H files)
+
+**The goal:** every function fits on a screen page. Wide lines, no wasted vertical space, no wasted horizontal space.
+
+### Line width
+- **200 characters maximum.** Wrap only when a line would exceed 200.
+- No 80-col or 120-col limits. We own the editor.
+
+### Vertical space
+- **No blank lines inside a function body.**
+- **One blank line between functions** (or a separator line — see below).
+- **No blank lines between a function signature and its opening `{`.**
+
+### Separator lines
+- `/*` followed by `-` repeated to column 200, then ` */` — minor section break within a file.
+- `/*` followed by `=` repeated to column 200, then ` */` — major section break (sparingly).
+- Example minor: `/*---------- ... ----------*/` (total 200 chars including `/*` and `*/`).
+
+### Operators and star character
+- **One space around ` * ` in all contexts** — pointer declarators, multiplication, dereference, comment borders. Never `int*x` or `*p`; always `int * x` or `* p`.
+- One space around all binary operators: `a + b`, `x == y`, `p->field`.
+
+### Braces
+- **Omit `{` `}` when the body of `if` / `else` / `for` / `while` is exactly one statement.**
+- Two or more statements always get braces.
+- Opening `{` on the same line as the control keyword: `if (x) {`
+- Closing `}` on its own line, same indent as the keyword.
+
+### Horizontal packing — one-liners
+- Short related functions that each fit in 200 chars **go on one line**:
+  ```c
+  int  foo(void) { return g_foo; }
+  void set_foo(int v) { g_foo = v; }
+  ```
+- Use column alignment to make families of one-liners read as a table:
+  ```c
+  void insn_ret   (void) { if (IS_TEXT) t3("ret",   "");    else B(RET);           }
+  void insn_nop   (void) { if (IS_TEXT) t3("nop",   "");    else B(NOP);           }
+  void insn_push_r10(void){ if (IS_TEXT) t3("push", "r10"); else { B(0x41); B(0x50); } }
+  ```
+
+### Vertical alignment within a function
+- Align `=` in sequences of assignments.
+- Align argument columns in sequences of similar calls.
+- Keep the pattern: declaration block → blank-free logic block → return.
+
+### Conversion order
+Convert files in this order (experiment on emitter first, then spread):
+`emit_core.c` → `emit_bb.c` → `emit_sm.c` → `sm_jit_interp.c` → all headers.
