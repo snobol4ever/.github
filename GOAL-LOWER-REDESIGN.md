@@ -1,4 +1,4 @@
-# GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (ir_node_t / ir_graph_t)
+# GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (IR_node_t / IR_t)
 
 **Repo:** one4all + .github
 **Supersedes:** GOAL-ICON-LOWER-REDESIGN.md
@@ -83,7 +83,7 @@ SCRIP has six languages. Each has two kinds of computation:
 | Raku     | mostly scalar               | generators exist but rare; mostly tree-shaped |
 
 **The SM (stack machine) drives everything.** It is the spine of execution.
-**The BB (brokered-box / ir_graph_t) handles all goal-directed computation.**
+**The BB (brokered-box / IR_t) handles all goal-directed computation.**
 Both lands coexist and call into each other seamlessly — including cross-language calls.
 
 ---
@@ -120,16 +120,16 @@ graph construction to runtime, using the raw AST as the IR by accident.
                     │                                      │
                     │  SM_PUSH_LIT / SM_ADD / SM_STORE …  │  ← scalar ops
                     │  SM_CALL_FN / SM_RETURN …            │  ← procedure calls
-                    │  SM_EXEC_GEN(ir_graph_t*)  ←──────────────── NEW opcode
+                    │  SM_EXEC_GEN(IR_t*)  ←──────────────── NEW opcode
                     │                   │                  │
                     └───────────────────│──────────────────┘
                                         │ enter BB land
                                         ▼
                     ┌─────────────────────────────────────┐
-                    │       BB (ir_graph_t executor)        │
+                    │       BB (IR_t executor)        │
                     │       goal-directed computation      │
                     │                                      │
-                    │  ir_node_t graph walk               │
+                    │  IR_node_t graph walk               │
                     │  start / resume / succ / fail ports  │
                     │  produces values → pushed to SM stack│
                     │                                      │
@@ -138,7 +138,7 @@ graph construction to runtime, using the raw AST as the IR by accident.
                     └─────────────────────────────────────┘
 ```
 
-`SM_EXEC_GEN(ptr)` replaces `SM_BB_EVAL(ptr)`. The pointer is now a `ir_graph_t*`
+`SM_EXEC_GEN(ptr)` replaces `SM_BB_EVAL(ptr)`. The pointer is now a `IR_t*`
 (compile-time wired graph) instead of a `tree_t*` (raw AST). This is the only
 change visible at the SM level — everything else is internal to the two lands.
 
@@ -162,7 +162,7 @@ Termination is guaranteed by generator exhaustion: resume → fail when done.
 
 ---
 
-## The four-port node: ir_node_t
+## The four-port node: IR_node_t
 
 Language-neutral. Lives in `src/runtime/common/`. Used by all six languages.
 
@@ -224,24 +224,24 @@ typedef enum {
     IR_PL_UNIFY,       /* unification */
     IR_PL_CUT,         /* ! */
     IR_PL_CALL,        /* call(Goal) */
-} ir_kind_t;
+} IR_kind_t;
 
-typedef struct ir_node ir_node_t;
+typedef struct ir_node IR_node_t;
 struct ir_node {
-    ir_kind_t      kind;
+    IR_kind_t      kind;
 
     /* Four control ports — NULL until generator phase wires them.
      * port_start  = entry: first evaluation attempt
      * port_resume = backtrack: try next value (NULL means scalar/non-generative)
      * port_succ   = success continuation (value in .value)
      * port_fail   = failure continuation (no value) */
-    ir_node_t     *port_start;
-    ir_node_t     *port_resume;
-    ir_node_t     *port_succ;
-    ir_node_t     *port_fail;
+    IR_node_t     *port_start;
+    IR_node_t     *port_resume;
+    IR_node_t     *port_succ;
+    IR_node_t     *port_fail;
 
-    /* Children (pre-wiring tree; becomes DCG after ir_lower_wire()) */
-    ir_node_t    **c;
+    /* Children (pre-wiring tree; becomes DCG after IR_lower_wire()) */
+    IR_node_t    **c;
     int             n;
 
     /* Payload */
@@ -249,7 +249,7 @@ struct ir_node {
         int64_t     ival;       /* LIT_I, op code for BINOP/UNOP */
         double      dval;       /* LIT_F */
         const char *sval;       /* LIT_S, VAR name, CALL name */
-        struct { ir_node_t *l, *r; int op; } binop;
+        struct { IR_node_t *l, *r; int op; } binop;
         struct { const char *name; int nargs; } call;
     };
 
@@ -259,7 +259,7 @@ struct ir_node {
     int             state;      /* executor state machine (0=fresh) */
 
     /* Graph bookkeeping */
-    int             id;         /* unique within ir_graph_t — set by ir_lower */
+    int             id;         /* unique within IR_t — set by ir_lower */
     int             generative; /* 1 if port_resume is meaningful */
     int             visited;    /* scratch for traversal algorithms */
     int             lang;       /* which language produced this node */
@@ -267,11 +267,11 @@ struct ir_node {
 
 /* A complete wired generator CFG for one procedure or pattern */
 typedef struct {
-    ir_node_t     *entry;      /* == root->port_start */
-    ir_node_t    **all;        /* flat array of all nodes (for reset/GC) */
+    IR_node_t     *entry;      /* == root->port_start */
+    IR_node_t    **all;        /* flat array of all nodes (for reset/GC) */
     int             n;          /* count */
     int             lang;       /* LANG_SNO / LANG_ICN / LANG_PL / etc. */
-} ir_graph_t;
+} IR_t;
 ```
 
 ---
@@ -311,12 +311,12 @@ It wires all four ports. Back-edges create the cycles.
 
 ## The new SM opcode: SM_EXEC_GEN
 
-Replaces `SM_BB_EVAL`. Operand is a `ir_graph_t*` (compile-time wired graph).
+Replaces `SM_BB_EVAL`. Operand is a `IR_t*` (compile-time wired graph).
 
 ```c
 case SM_EXEC_GEN: {
-    ir_graph_t *cfg = (ir_graph_t *)ins->a[0].ptr;
-    DESCR_t val = ir_exec_once(cfg);   /* drive graph: start→succ or start→fail */
+    IR_t *cfg = (IR_t *)ins->a[0].ptr;
+    DESCR_t val = IR_exec_once(cfg);   /* drive graph: start→succ or start→fail */
     st->last_ok = !IS_FAIL_fn(val);
     sm_push(st, val);
     break;
@@ -326,16 +326,16 @@ case SM_EXEC_GEN: {
 For generative contexts (`every`, `while`) a separate pump opcode drives resume:
 ```c
 case SM_PUMP_GEN: {
-    ir_graph_t *cfg = (ir_graph_t *)ins->a[0].ptr;
+    IR_t *cfg = (IR_t *)ins->a[0].ptr;
     /* drives cfg until exhausted, executing body SM block per value */
     ...
 }
 ```
 
-The ir_graph_t executor can call back into SM for scalar sub-expressions:
+The IR_t executor can call back into SM for scalar sub-expressions:
 ```c
 /* Inside ir_exec — calling a scalar sub-expression */
-DESCR_t ir_exec_call_sm(SM_State *st, SM_Program *prog, int entry_pc) {
+DESCR_t IR_exec_call_sm(SM_State *st, SM_Program *prog, int entry_pc) {
     /* push a return frame, run SM from entry_pc, pop result */
     /* seamless re-entry — SM and BB share the same value stack */
 }
@@ -349,7 +349,7 @@ DESCR_t ir_exec_call_sm(SM_State *st, SM_Program *prog, int entry_pc) {
 
 ```
 scalar stmts:   AST → lower_sno.c → SM array (SM_ADD, SM_STORE_VAR…) — UNCHANGED
-pattern match:  AST → lower_pat.c → ir_node_t tree → ir_lower_wire() → ir_graph_t
+pattern match:  AST → lower_pat.c → IR_node_t tree → IR_lower_wire() → IR_t
                 SM stmt emits SM_EXEC_GEN(cfg) at the pattern-match site
                 ir_exec drives the pattern graph; subject position is thread-local state
                 on match success → SM continues; on failure → SM branches (GOTO fail-label)
@@ -361,7 +361,7 @@ model — we just compile the BB part at lower time instead of building it ad-ho
 ### Snocone
 
 ```
-everything:     AST → lower_sco.c → ir_node_t tree → ir_lower_wire() → ir_graph_t
+everything:     AST → lower_sco.c → IR_node_t tree → IR_lower_wire() → IR_t
                 SM_EXEC_GEN drives top-level expressions
                 scalar sub-expressions fold into IR_BINOP etc. (no SM needed)
 ```
@@ -373,14 +373,14 @@ Snocone is the cleanest — everything is a generator, single path.
 ```
 Test bed for SM+BB hybrid (like SNOBOL4 but simpler syntax):
 scalar stmts:   SM array
-pattern parts:  ir_node_t / ir_graph_t via SM_EXEC_GEN
+pattern parts:  IR_node_t / IR_t via SM_EXEC_GEN
 Use Rebus to validate the SM↔BB boundary before touching SNOBOL4.
 ```
 
 ### Icon
 
 ```
-everything:     AST → lower_icn.c → ir_node_t tree → ir_lower_wire() → ir_graph_t
+everything:     AST → lower_icn.c → IR_node_t tree → IR_lower_wire() → IR_t
                 no SM array for Icon expressions at all
                 SM_EXEC_GEN(cfg) is the only Icon opcode emitted per statement
                 ir_exec handles the entire expression graph
@@ -390,8 +390,8 @@ everything:     AST → lower_icn.c → ir_node_t tree → ir_lower_wire() → i
 ### Prolog
 
 ```
-goals:          AST → lower_pl.c → ir_node_t tree (IR_PL_CHOICE, IR_PL_UNIFY…)
-                → ir_lower_wire() → ir_graph_t
+goals:          AST → lower_pl.c → IR_node_t tree (IR_PL_CHOICE, IR_PL_UNIFY…)
+                → IR_lower_wire() → IR_t
                 SM_EXEC_GEN drives goal resolution
                 choice points = IR_PL_CHOICE with alternation back-edges
                 cut = IR_PL_CUT prunes the choice graph
@@ -401,7 +401,7 @@ goals:          AST → lower_pl.c → ir_node_t tree (IR_PL_CHOICE, IR_PL_UNIFY
 
 ```
 mostly scalar:  AST → lower_rku.c → SM array (as today)
-generators:     ir_node_t for lazy lists, gather/take, etc.
+generators:     IR_node_t for lazy lists, gather/take, etc.
                 SM_EXEC_GEN where needed
 ```
 
@@ -415,7 +415,7 @@ When SNOBOL4 calls an Icon proc, or Prolog calls a SNOBOL4 pattern:
 SM (SNOBOL4 context)
   │  SM_CALL_FN "icon_proc"
   │
-  └─→ ir_exec(icon_proc_cfg)       ← enters BB land with Icon ir_graph_t
+  └─→ ir_exec(icon_proc_cfg)       ← enters BB land with Icon IR_t
           │  IR_CALL → "sno_builtin"
           └─→ SM sub-call            ← back into SM land for SNOBOL4 scalar
                   │  returns DESCR_t
@@ -427,7 +427,7 @@ SM continues
 
 The DESCR_t value type is shared. SM stack is shared. The only boundary is
 which executor (SM interp vs ir_exec graph walker) is currently active.
-The `g_lang` flag is NOT needed for dispatch — the ir_graph_t carries its
+The `g_lang` flag is NOT needed for dispatch — the IR_t carries its
 own `lang` field and the ir_exec handles all kinds uniformly.
 
 ---
@@ -436,59 +436,59 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 
 ### Phase 0: Infrastructure (no behavior change)
 
-**LR-0** — Define ir_node_t, ir_graph_t, ir_kind_t
+**LR-0** — Define IR_node_t, IR_t, IR_kind_t
 - New: `src/runtime/common/scrip_ir.h` + `scrip_ir.c`
 - alloc, free, print, reset
 - No lowering changes. All gates pass. Commit.
 
-**LR-1** — Generator phase: ir_lower_wire()
-- New: `src/runtime/common/ir_lower.h` + `ir_lower.c`
-- Input: ir_node_t tree. Output: all four ports wired → ir_graph_t.
+**LR-1** — Generator phase: IR_lower_wire()
+- New: `src/runtime/common/IR_lower.h` + `IR_lower.c`
+- Input: IR_node_t tree. Output: all four ports wired → IR_t.
 - Standalone unit test only. All gates pass. Commit.
 
 **LR-2** — ir_exec: graph-walk executor
 - New: `src/runtime/common/ir_exec.h` + `ir_exec.c`
-- ir_exec_once(ir_graph_t*) → DESCR_t
-- ir_exec_pump(ir_graph_t*, body_fn) → int ticks
+- IR_exec_once(IR_t*) → DESCR_t
+- IR_exec_pump(IR_t*, body_fn) → int ticks
 - Standalone unit test: `scripts/test_ir_exec_unit.sh`. All gates pass. Commit.
 
 **LR-3** — Add SM_EXEC_GEN opcode (dead — nothing emits it yet)
 - sm_prog.h: add SM_EXEC_GEN, SM_PUMP_GEN
-- sm_interp.c: add handler (calls ir_exec_once / ir_exec_pump)
+- sm_interp.c: add handler (calls IR_exec_once / IR_exec_pump)
 - sm_jit_interp.c: same
 - No lower.c changes. All gates pass. Commit.
 
 ### Phase 1: Rebus as test bed for SM+BB hybrid
 
-**LR-4** — Rebus lower: emit ir_node_t alongside existing path (additive)
-- lower_rebus.c: for pattern nodes, also build ir_node_t tree + wire + cache ir_graph_t
+**LR-4** — Rebus lower: emit IR_node_t alongside existing path (additive)
+- lower_rebus.c: for pattern nodes, also build IR_node_t tree + wire + cache IR_t
 - SM_EXEC_GEN path activated for Rebus patterns
-- Fallback to old path if ir_graph_t absent
+- Fallback to old path if IR_t absent
 - GATE: smoke_rebus pass. Commit.
 
-**LR-5** — Rebus: delete old pattern BB, use ir_graph_t only
+**LR-5** — Rebus: delete old pattern BB, use IR_t only
 - Remove old Rebus ad-hoc BB pattern code
 - GATE: smoke_rebus pass. Commit.
 
 ### Phase 2: Icon migration
 
-**LR-6** — Icon lower: emit ir_node_t alongside SM_BB_EVAL (additive)
-- lower.c: LANG_ICN path builds ir_node_t tree + wire → ir_graph_t per expression
-- SM_BB_EVAL handler: if ir_graph_t present → ir_exec; else → icn_bb_build fallback
+**LR-6** — Icon lower: emit IR_node_t alongside SM_BB_EVAL (additive)
+- lower.c: LANG_ICN path builds IR_node_t tree + wire → IR_t per expression
+- SM_BB_EVAL handler: if IR_t present → ir_exec; else → icn_bb_build fallback
 - GATE-1..4 unchanged. Commit.
 
 **LR-7** — Icon: delete SM_BB_EVAL, every_table, ICN_BB_EVAL, icn_bb_build
 - SM_BB_EVAL opcode removed. every_table deleted. ICN_BB_EVAL macro deleted.
 - icn_bb_build, bb_eval_value, icn_bb_scan_gen, icn_bb_fnc — all deleted.
-- Icon lower emits ir_node_t only. SM_EXEC_GEN is the only Icon opcode.
+- Icon lower emits IR_node_t only. SM_EXEC_GEN is the only Icon opcode.
 - GATE-1..4 must pass. Commit.
 
 ### Phase 3: SNOBOL4 pattern migration
 
-**LR-8** — SNOBOL4 pattern lower: emit ir_node_t alongside bb_node_t (additive)
+**LR-8** — SNOBOL4 pattern lower: emit IR_node_t alongside bb_node_t (additive)
 - lower_pat.c / rt.c: IR_PAT_* nodes built at compile time
 - SM_EXEC_GEN drives pattern match; SM continues on match result
-- Fallback to old bb_node_t path if ir_graph_t absent
+- Fallback to old bb_node_t path if IR_t absent
 - GATE: smoke_snobol4 + beauty 195/195. Commit.
 
 **LR-9** — SNOBOL4: delete ad-hoc bb_node_t pattern runtime
@@ -498,10 +498,10 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 
 ### Phase 4: Prolog migration
 
-**LR-10** — Prolog lower: emit ir_node_t for goals (additive)
+**LR-10** — Prolog lower: emit IR_node_t for goals (additive)
 - lower_prolog.c: IR_PL_CHOICE, IR_PL_UNIFY nodes
 - SM_EXEC_GEN drives goal resolution
-- Fallback to pl_box_choice if ir_graph_t absent
+- Fallback to pl_box_choice if IR_t absent
 - GATE: smoke_prolog + broker. Commit.
 
 **LR-11** — Prolog: delete pl_box_choice ad-hoc BB
@@ -510,18 +510,18 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 
 ### Phase 5: Snocone migration
 
-**LR-12** — Snocone: emit ir_node_t for all expressions
-- lower_sco.c: all Snocone expressions → ir_node_t
+**LR-12** — Snocone: emit IR_node_t for all expressions
+- lower_sco.c: all Snocone expressions → IR_node_t
 - GATE: smoke_snocone. Commit.
 
 ### Phase 6: Mode-3 / Mode-4 JIT
 
-**LR-13** — Mode-3 JIT: emit x86 from ir_graph_t nodes
-- bb_flat.c / emit_bb.c: walk ir_graph_t instead of tree_t*
-- Each ir_kind_t maps to x86 emission
+**LR-13** — Mode-3 JIT: emit x86 from IR_t nodes
+- bb_flat.c / emit_bb.c: walk IR_t instead of tree_t*
+- Each IR_kind_t maps to x86 emission
 - GATE: --jit-run ≥ --sm-run PASS counts. Commit.
 
-**LR-14** — Mode-4 JIT: stateful x86 from ir_graph_t
+**LR-14** — Mode-4 JIT: stateful x86 from IR_t
 - GATE: mode-4 parity with mode-3. Commit.
 
 ### Phase 7: Cleanup
@@ -530,7 +530,7 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 - Dead code after LR-7. SM_EXEC_GEN is the only BB entry point.
 - Commit.
 
-**LR-16** — Raku: migrate generators to ir_node_t
+**LR-16** — Raku: migrate generators to IR_node_t
 - gather/take, lazy lists, etc.
 - GATE: smoke_raku. Commit.
 
@@ -551,9 +551,9 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 
 ### New (src/runtime/common/)
 ```
-scrip_ir.h / scrip_ir.c     — ir_node_t, ir_graph_t, ir_kind_t
-ir_lower.h / ir_lower.c   — ir_lower_wire() — wiring pass
-ir_exec.h / ir_exec.c     — ir_exec_once(), ir_exec_pump()
+scrip_ir.h / scrip_ir.c     — IR_node_t, IR_t, IR_kind_t
+IR_lower.h / IR_lower.c   — IR_lower_wire() — wiring pass
+ir_exec.h / ir_exec.c     — IR_exec_once(), IR_exec_pump()
 ```
 
 ### Modified
@@ -561,7 +561,7 @@ ir_exec.h / ir_exec.c     — ir_exec_once(), ir_exec_pump()
 sm_prog.h                   — add SM_EXEC_GEN, SM_PUMP_GEN
 sm_interp.c                 — add SM_EXEC_GEN handler
 sm_jit_interp.c             — add SM_EXEC_GEN handler
-lower.c                     — Icon: emit ir_node_t; SNOBOL4 pat: emit IR_PAT_*
+lower.c                     — Icon: emit IR_node_t; SNOBOL4 pat: emit IR_PAT_*
 lower_rebus.c               — emit IR_PAT_* for patterns
 lower_prolog.c              — emit IR_PL_CHOICE / IR_PL_UNIFY
 ```
@@ -604,14 +604,14 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 2. **SM is the spine**: SM_EXEC_GEN is one opcode. The SM drives sequencing,
    procedure calls, variable storage. BB handles only goal-directed sub-computation.
 
-3. **ir_node_t is language-neutral**: IR_PAT_*, IR_PL_*, IR_EVERY etc. are
+3. **IR_node_t is language-neutral**: IR_PAT_*, IR_PL_*, IR_EVERY etc. are
    all kinds of the same struct. One allocator, one phase, one executor.
 
 4. **Rebus as test bed**: validate SM+BB hybrid boundary on a smaller language
    before touching SNOBOL4. Rebus patterns are simpler but structurally identical.
 
-5. **Cross-language calls are seamless**: ir_graph_t carries its own lang field.
-   ir_exec handles IR_CALL by looking up the target proc's ir_graph_t or SM block.
+5. **Cross-language calls are seamless**: IR_t carries its own lang field.
+   ir_exec handles IR_CALL by looking up the target proc's IR_t or SM block.
    DESCR_t and the SM value stack are shared across both lands.
 
 6. **Incremental — never break**: each step is additive with fallback until
@@ -625,25 +625,26 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: b4ce7a4a  .github: (this commit)
-  Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅
-  NEXT: LR-S1 — SNOBOL4 pattern lower: emit IR_PAT_* nodes alongside existing path (additive)
+  one4all: 589bde0e  .github: (this commit)
+  Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅
+  NEXT: LR-S1b — ir_exec pattern eval (IR_PAT_LIT cursor walk); exec_stmt reads a[2].ptr
 
 ## Step log
 
-  LR-0 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all bfe6ac9d): scrip_ir.h/c — ir_node_t,
-        ir_graph_t, ir_kind_t (44 kinds), alloc/free/reset/print. Additive infrastructure.
-        All six smoke gates pass (SNO 7/7, ICN 5/5, PL 5/5, REB 4/4, SCO 5/5, RKU 5/5).
-  LR-1 N/A — deleted per FINAL PIPELINE clarification: lower wires DCG directly; no separate
-        generator phase / ir_lower.c needed.
+  LR-0 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all bfe6ac9d): scrip_ir.h/c — IR_node_t,
+        IR_t, IR_kind_t (44 kinds), alloc/free/reset/print.
+  LR-1 N/A — lower wires DCG directly; no separate generator phase needed.
   LR-2 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all b4ce7a4a): ir_exec.h/c — DCG
-        graph-walk executor. ir_exec_once/ir_exec_pump/ir_exec_eval_node. IR_LIT_*/FAIL/
-        SUCCEED/TO_BY implemented; all others safe FAILDESCR stubs. SM_EXEC_DCG and
-        SM_PUMP_DCG handlers upgraded from stubs to live ir_exec calls. Standalone unit
-        test: PASS=11 FAIL=0. All six smoke gates pass.
-  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 2ae6fe36+474df331): SM_EXEC_DCG +
-        SM_PUMP_DCG opcodes in sm_prog.h; renamed from SM_EXEC_GEN/SM_PUMP_GEN ('gen'
-        banned per RULES.md). Handlers now live (call ir_exec). All six smoke gates pass.
+        graph-walk executor. IR_exec_once/IR_exec_pump. Unit test PASS=11 FAIL=0.
+  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 474df331): SM_EXEC_DCG + SM_PUMP_DCG
+        opcodes (renamed from SM_EXEC_GEN/SM_PUMP_GEN -- 'gen' banned per RULES.md).
+  LR-S1 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all f3dc096a): lower_pat_dcg.c/h —
+        build IR_t from tree_t* at lower time. 12 TT_* kinds wired with back-edges
+        (PAT_CAT B.fail->A.resume, PAT_ARB/PAT_SPAN self-resume). DCG stored in
+        SM_EXEC_STMT a[2].ptr via sm_emit_sip(). exec_stmt still uses bb_node_t path
+        (additive, zero behavior change). All six smoke gates pass.
+  LR-S1b �#f3 ir_exec pattern eval: IR_PAT_LIT cursor walk; exec_stmt reads a[2].ptr;
+         gate: smoke_snobol4 7/7 + beauty 195/195.
 ---
 
 ## PIVOT: Start with SNOBOL4 patterns (not Icon, not Rebus)
@@ -654,13 +655,13 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 1. **Self-contained BB land.** Patterns are completely separable from scalar SNOBOL4.
    SM array for scalars is untouched. The only change: pattern match site emits
-   `SM_EXEC_GEN(ir_graph_t*)` instead of building bb_node_t ad-hoc at runtime.
+   `SM_EXEC_GEN(IR_t*)` instead of building bb_node_t ad-hoc at runtime.
 
 2. **Clearest SM↔BB boundary.** One entry (`SM_EXEC_GEN`), one exit (match
    success/failure returned to SM). This is the two-as-one theory in its simplest form.
 
 3. **Best oracle.** beauty.sno — Milestone 1 locked at md5 `abfd19a7a834484a96e824851caee159`.
-   If beauty passes byte-identical after replacing ad-hoc BB with ir_graph_t, the
+   If beauty passes byte-identical after replacing ad-hoc BB with IR_t, the
    design is validated on a real 646-line program with ARB, SPAN, alternation, ARBNO.
 
 4. **No Icon disruption.** Icon stays exactly as-is (SM_BB_EVAL / icn_bb_build)
@@ -668,10 +669,10 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ### Revised step order
 
-**LR-0..3: Infrastructure** (unchanged — ir_node_t, ir_lower, ir_exec, SM_EXEC_GEN)
+**LR-0..3: Infrastructure** (unchanged — IR_node_t, ir_lower, ir_exec, SM_EXEC_GEN)
 
-**LR-S1 — SNOBOL4 pattern lower: emit ir_node_t (additive)**
-- lower_pat path: for each pattern constructor, build IR_PAT_* nodes + wire + ir_graph_t
+**LR-S1 — SNOBOL4 pattern lower: emit IR_node_t (additive)**
+- lower_pat path: for each pattern constructor, build IR_PAT_* nodes + wire + IR_t
 - SM_EXEC_GEN path activated at the pattern-match site
 - Old bb_node_t path kept as fallback
 - GATE: smoke_snobol4 pass + beauty 195/195. Commit.
@@ -690,37 +691,37 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ### Naming fix
 
-`ir_graph_t` renamed to `ir_graph_t` throughout — "CFG" is overloaded
+`IR_t` renamed to `IR_t` throughout — "CFG" is overloaded
 (Control-Flow Graph AND Context-Free Grammar in parsing contexts).
-`ir_graph_t` is unambiguous: a generator directed cyclic graph.
+`IR_t` is unambiguous: a generator directed cyclic graph.
 
 ---
 
 ## CLARIFICATION: No separate generator phase — lower wires directly
 
 A tree is a subset of a DCG (no back-edges, one parent per node).
-lower.c produces a ir_graph_t (DCG) in ONE pass — the wiring of
+lower.c produces a IR_t (DCG) in ONE pass — the wiring of
 port_start/resume/succ/fail happens during lowering, not in a separate phase.
 
 ```
-Parser → tree_t (pure tree) → lower → ir_graph_t (DCG) → ir_exec / emit
+Parser → tree_t (pure tree) → lower → IR_t (DCG) → ir_exec / emit
 ```
 
 The "generator phase" described earlier is WRONG as a separate pass.
-Fold it into lower: each lower_* function builds its ir_node_t AND wires
+Fold it into lower: each lower_* function builds its IR_node_t AND wires
 its four ports using the already-wired children. Bottom-up, one pass.
 
 The SM array is NOT a separate IR — it is one possible serialization of the
-acyclic (tree-shaped) portions of the ir_graph_t. SNOBOL4 scalars happen
-to produce acyclic ir_graph_t subgraphs that can be serialized as SM instructions.
+acyclic (tree-shaped) portions of the IR_t. SNOBOL4 scalars happen
+to produce acyclic IR_t subgraphs that can be serialized as SM instructions.
 SNOBOL4 patterns and all Icon expressions produce cyclic subgraphs — these
 cannot be serialized as flat SM arrays, so ir_exec drives them directly.
 
-SM_EXEC_GEN is the handoff: SM array execution hits SM_EXEC_GEN(ir_graph_t*)
+SM_EXEC_GEN is the handoff: SM array execution hits SM_EXEC_GEN(IR_t*)
 and transfers to ir_exec for the cyclic subgraph. On return (succ or fail),
 SM array execution resumes.
 
-Delete LR-1 (ir_lower.c) from the step list — it does not exist.
+Delete LR-1 (IR_lower.c) from the step list — it does not exist.
 lower.c IS the generator phase.
 
 ---
@@ -737,18 +738,18 @@ AST (tree_t)          — pure tree, language-specific, unchanged
 lower                 — one pass, bottom-up, wires DCG as it goes
   │
   ▼
-DCG (ir_graph_t)     — directed cyclic graph, language-neutral
+DCG (IR_t)     — directed cyclic graph, language-neutral
   │                     tree-shaped subgraphs: scalar expressions
   │                     cyclic subgraphs: patterns, generators, choice points
   │
   ├──▶ SM emitter     — walks acyclic subgraphs → SM array
-  │         │            cyclic subgraphs → SM_EXEC_GEN(ir_graph_t* subgraph)
+  │         │            cyclic subgraphs → SM_EXEC_GEN(IR_t* subgraph)
   │         ▼
   │       SM array → sm_interp (--sm-run)
   │                → JIT mode-3 x86 emission (--jit-run)
   │                → JIT mode-4 stateful x86 (--mode4-run)
   │
-  └──▶ BB emitter     — walks cyclic subgraphs → ir_graph_t execution nodes
+  └──▶ BB emitter     — walks cyclic subgraphs → IR_t execution nodes
             │            (for --ir-run: ir_exec drives the graph directly)
             ▼
           BB graph  → ir_exec (--ir-run)
