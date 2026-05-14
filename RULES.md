@@ -594,6 +594,21 @@ are committed so normal builds never require bison/flex.
 
 Never CamelCase. Never ALL_CAPS for new C types (exceptions: `RESULT_t` and the established SIL-derived family `AST_t`, `DESCR_t`, `STMT_t`, `SPEC_t` etc. — these predate the rule and are kept verbatim).
 
+### ⛔ "gen" banned from opcode names and IR identifiers
+
+Do **not** use the word `gen` or `generator` in SM opcode names, IR struct names,
+or C function names introduced by GOAL-LOWER-REDESIGN.
+The correct term is **DCG** (Directed Cyclic Graph) — the structural description of what
+the IR actually is.  "Generator" is Icon academic terminology and was already dropped
+as a phase/IR label in the FINAL PIPELINE clarification.
+
+| Wrong | Correct |
+|-------|---------|
+| `SM_EXEC_GEN` | `SM_EXEC_DCG` |
+| `SM_PUMP_GEN` | `SM_PUMP_DCG` |
+| `ir_gen_*` functions | `ir_dcg_*` or plain `ir_*` |
+| "generator graph" in comments | "DCG" |
+
 ---
 
 ## Snocone parser style — names track the existing frontend; no goto unless required
