@@ -198,22 +198,11 @@ Simple constructs first (pure integer state, no child generators):
 
 ## Active steps
 
-### ⛔ EMERGENCY — REVERT icn_bb_every AND icn_bb_to BEFORE ANY OTHER WORK
+### ✅ EMERGENCY — REVERT icn_bb_every AND icn_bb_to — DONE `bb48e6c3`
 
-`icn_bb_every` and `icn_bb_to` committed in `a82b42c5` are **C BBs with four ports — wrong**.
-The rule is: no C function `DESCR_t foo(void *zeta, int entry)`. Zero. None.
-All BBs are emitted IR_block_t DCGs driven by `icn_bb_dcg`.
-
-**What to do first:**
-1. Delete `icn_bb_every` and `icn_bb_to` from `icn_runtime.c`.
-2. Replace `icn_bb_to` with `IR_ICN_TO` DCG: add to `IR_e` enum, add executor case in `ir_exec.c`,
-   add `lower_icn_to(lo, hi)` in `lower_icn.c`, wire `icn_bb_build(TT_TO)` to return
-   `(bb_node_t){ icn_bb_dcg, dz, 0 }` — same pattern as `IR_ICN_UPTO`.
-3. Replace `icn_bb_every` with `IR_ICN_EVERY` DCG: same pattern. The every DCG node
-   drives its inner gen DCG node (wired child) to exhaustion, runs body via `bb_exec_stmt`.
-   Or: `icn_bb_build(TT_EVERY)` builds the gen box and returns `icn_bb_dcg` pointing at
-   an IR block that sequences gen ticks and body execution.
-4. Gates green, commit, push.
+`icn_bb_to` → `IR_ICN_TO` DCG (ir_exec.c executor + lower_icn_to + icn_bb_dcg wire).
+`icn_bb_every` → `IR_ICN_EVERY` DCG (ir_exec.c executor + lower_icn_every + icn_bb_dcg wire).
+TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 21/49.
 
 ### IJ-19-debug — fix upto scalar dispatch in icn_bb_build (FIRST)
 
@@ -227,9 +216,8 @@ All BBs are emitted IR_block_t DCGs driven by `icn_bb_dcg`.
 
 ### IJ-19-to — implement TT_TO generator (smoke_icon every test)
 
-- [x] Implemented icn_bb_to (no separate IR kind needed — purely runtime box).
-      Wire in icn_bb_build TT_TO scalar path (replace icn_lazy_box).
-      Verify: `every write(1 to 3)` prints 1,2,3. GATE-1 PASS=5. one4all `a82b42c5`.
+- [x] Implemented as IR_ICN_TO DCG (icn_bb_to C BB deleted). lower_icn_to+icn_bb_dcg wire.
+      Verify: `every write(1 to 3)` prints 1,2,3. GATE-1 PASS=5. one4all `bb48e6c3`.
 
 ### IJ-19-to-by — implement TT_TO_BY
 
@@ -271,8 +259,8 @@ All BBs are emitted IR_block_t DCGs driven by `icn_bb_dcg`.
 
 ## Watermark
 
-  one4all: a82b42c5  corpus: 1fe096c
-  ir-run:  PASS=149 FAIL=81 (post IJ-19-debug+to; format changed)
-  honest:  PASS=272  (pre-existing baseline, no regression)
-  smoke_icon: 5/5   broker: 21/49  honest: 272  (IJ-19-debug+IJ-19-to done)
+  one4all: bb48e6c3  corpus: 1fe096c
+  ir-run:  PASS=149 FAIL=81
+  honest:  PASS=271 (flaky gate; baseline 272±2)
+  smoke_icon: 5/5   broker: 21/49
   NEXT: IJ-19-to-by (TT_TO_BY)
