@@ -283,10 +283,18 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 034e00f3  corpus: 1fe096c
-  ir-run:  PASS=192 FAIL=38
+  one4all: 53254e3c  corpus: 1fe096c
+  ir-run:  PASS=197 FAIL=33
   honest:  PASS=273
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, needs CH-17g coroutine prereq);
-        rung01_paper_nested_to (nested-to cross-product); rung02_proc_locals (proc local frame);
-        rung28_builtins_str_trim_map (leading spaces); rung30/rung32/rung36 (various builtins)
+  NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
+        rung32_strretval_strret_every (generative arg through user proc);
+        rung36_jcon_lexcmp (TT_SEQ mutual now works but more data rows needed);
+        rung36_jcon_* suite (various builtins and features)
+
+  Session fixes (5 commits):
+    722e6a4f IR_ICN_TO_NESTED DCG: (lo_gen to hi_gen) cross-product — rung01 +1
+    d66e5483 trim trailing-only fix; seq(i,j) DCG — rung28+rung30 +2
+    15a09372 icn_drive_node check in bb_eval_value — accumulation fixed — rung02 +1
+    27a74057 icn_bb_mutual: TT_SEQ cross-product (A&B) — +1
+    rung13_alt_alt_filter: confirmed already passing (stale goal note)
