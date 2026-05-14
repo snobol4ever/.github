@@ -124,7 +124,8 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
   IJ-16 ✅ radix ull fix + both XFAIL (bignum/RNG mismatch)
   IJ-17 ✅ 2a4f7812 &level=frame_depth; jcon_level XFAIL corpus d6eed3d
   IJ-18 ✅ 1203986f any/many/upto non-advancing; real scan-subj coercion; profsum/ck XFAIL corpus 1fe096c
-  NEXT: IJ-19 — next cluster triage (Cluster O: output routing / in() bug)
+  IJ-19-prep ✅ f1dbb78b NO_AST_WALK_GUARD unconditional for Icon — no env var, always crash
+  NEXT: IJ-19 — Cluster O triage (rung36_jcon_htprep/meander/kross — in() procedure)
 
 ## Session notes (sess 2026-05-14)
 
