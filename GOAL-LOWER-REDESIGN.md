@@ -625,12 +625,13 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: 92213ee1  .github: (this commit)
+  one4all: 917dbae9  .github: (this commit)
   Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅ renames ✅ LR-S1b PARTIAL
-  NEXT: LR-S1b (cont.) — IR_exec_pat regressions: 039_pat_any, 041_pat_span, 058_capture_dot_immediate
-        and others failing. IR_exec_node PAT_* cases + SM_EXEC_STMT a[2].ptr hook are wired but
-        IR_exec_pat scan loop has bugs: capture ASSIGN wiring wrong, broad corpus 128/280.
-        Fix IR_exec_pat and IR_PAT_ASSIGN_* before gate can pass.
+  NEXT: LR-S1b (cont.) — broad corpus 145/280. Remaining failures include:
+        pre-existing segfaults in exec_stmt (LEN/POS/TAB with dynamic args),
+        unimplemented: TT_ARBNO, TT_BAL, TT_BREAKX, dynamic-arg LEN/POS/TAB/RTAB.
+        Gate target: smoke 7/7 + broad corpus ≥ pre-LR-S1b baseline (128/280 already beaten).
+        Consider LR-S2 (delete bb_node_t path) only after broad corpus stabilises.
 
 ## Step log
 
@@ -651,13 +652,14 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
     d7adb8f6: port_start/resume/succ/fail → α/β/γ/ω (BB greek letter convention)
     92213ee1: IR_t struct tag = IR_t; kind→t; drop id/generative/visited/lang/binop/call;
               drop IR_node_alloc lang param
-  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all 92213ee1):
-        IR_exec_node PAT_* cases added (IR_PAT_LIT/ARB/SPAN/ANY/BREAK/REM/FENCE/ABORT/ASSIGN_*).
-        SM_EXEC_STMT reads a[2].ptr → calls IR_exec_pat when set.
-        IR_exec_pat wired (Phase1+scan+Phase4/5). smoke_snobol4 7/7 PASS.
-        REGRESSIONS: broad corpus 128/280 (039_pat_any, 041_pat_span, 058_capture_dot_immediate etc.)
-        Root cause: IR_exec_pat scan loop + IR_PAT_ASSIGN_* wiring bugs. Gate NOT passed.
-        NEXT session: fix IR_exec_pat regressions before gate.
+  Reorg ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 553a836a):
+        frontend/lower/processor/emitter/runtime/snobol4 folder layout.
+        84 files moved. Makefile + all #include paths updated. All smoke gates pass.
+  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all 917dbae9):
+        Fix ASSIGN_IMM/COND wiring (CAT/ALT wrapper nodes removed — return first child).
+        Add LEN/NOTANY/POS/RPOS/TAB/RTAB to IR_exec_node and build_node.
+        Wire IR_exec_pat into sm_jit_interp.c h_exec_stmt (default mode is --jit-run).
+        broad corpus 128→145/280. smoke_snobol4 7/7, all six languages 5/5.
 ---
 
 ## PIVOT: Start with SNOBOL4 patterns (not Icon, not Rebus)
