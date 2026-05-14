@@ -257,3 +257,36 @@ f07_keywords, f12_load_unload, f14_dyn_opt, f18_error_handling, f19_real_numbers
 3. Fix Class A (stateful box zeta): add `.Lbox_z` data slot to `emit_bb_stateful` text path and switch to `emit_seq_port_call_rip`. Affects XANYC/XSPNC/XBRKC/XNNYC/XLNTH/XTB/XRTB/XBAL/XFARB/XSTAR/XBRKX + ICN_* boxes.
 4. Fix Class B (DEFINE_ENTRY): suppress extra prologue in DEFINE_ENTRY text macro, or rework how SM_DEFINE_ENTRY interacts with `main`'s frame.
 5. After fixes: broad corpus scan target ≥160/163.
+
+---
+
+## Watermark
+
+**SESSION HANDOFF — sess 2026-05-13 mode4-charset-fix (Claude Sonnet 4.6)**
+
+one4all HEAD `3db853a7`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=10/17 (baseline at `56a9897a` also confirmed 10/17 — previous watermark overstated 13/17).
+
+### What was done this session
+
+**emit_bb_charset text path fix** (`3db853a7`): In text mode, `emit_bb_charset` was calling `emit_bb_stateful` → `emit_seq_port_call`, which emitted `lea rdi, [rip + fn_name]` — using the *function* name (`rt_bb_any` etc.) as the RIP-relative zeta pointer. At runtime the binary received the PLT stub address as zeta, causing `strchr(PLT_stub, char)` → SIGSEGV. Fix: text mode bypasses `emit_bb_stateful` and emits a `.section .data` block with `.Lcs{id}_chars` string + `.Lcs{id}_z` struct (`.quad chars_label, .long 0, .long 0`), then calls `emit_seq_port_call_rip`. Labels emitted with colon suffix (`.Lcs0_chars:`) to avoid GAS treating them as unknown directives. Verified: f04_pattern_primitives no longer crashes.
+
+**Broad corpus baseline clarification**: Full scan (166 programs including beauty+demo+parser+csnobol4-suite) shows ~144 PASS at `56a9897a`. The scan script's abort-handling was misclassifying sm-run aborts as mode-4 crashes; both produce empty output so they match — they should be PASS not CRASH.
+
+### Remaining work (next session)
+
+**Class A — Other stateful box types in text mode** (TAB/RTAB/LEN/BAL/ARB/REM/BREAKX/ARBNO/ICN_* boxes): same PLT-stub-as-zeta bug in `emit_bb_stateful`. Fix strategy:
+- Boxes with no chars ptr (BAL/ARB/REM/ICN_*): add IS_TEXT guard to `emit_bb_stateful` emitting zeroed `.Lstateful{id}_z` data block (6 `.quad 0`) — these self-initialize from zero on first call.
+- TAB/RTAB/LEN: need integer `n` baked in as first field; data block = `.long n; .long 0`.
+- BREAKX: needs chars ptr — same pattern as charset fix above.
+
+**Class B — DEFINE_ENTRY corrupts main frame** (fn_define_labeled, expr_parser): DEFINE_ENTRY macro emits extra `push rbp / mov rbp, rsp` inside `main`'s body; the DEFINE_ENTRY sm_macros.s macro should not emit a prologue in the text path (it creates a new frame inside main's frame).
+
+**Beauty gate 10/17**: ShiftReduce, TDump, global still failing. Likely more stateful box issues (ShiftReduce uses BAL/ARB; TDump and global use pattern primitives). Should improve once Class A is fixed.
+
+### Next session must
+
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
+2. Confirm one4all HEAD `3db853a7`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
+3. Fix Class A: IS_TEXT guard in `emit_bb_stateful` for zero-init boxes + per-box fixes for TAB/RTAB/LEN (int field) and BREAKX (chars ptr).
+4. Fix Class B: DEFINE_ENTRY sm_macros.s macro body.
+5. Run clean corpus scan distinguishing sm-run-abort from mode-4-crash.
