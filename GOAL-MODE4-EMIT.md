@@ -330,7 +330,7 @@ zeta struct), but that lives in the flat glob's DATA block — not in a
 heap struct dispatched through a C function pointer. The RTCALL path was
 always a temporary fallback. These steps complete what the arch specified.
 
-- [ ] **SF-1** — `emit_bb_xbal` flat template. `bal_t { int δ; }`. α: alloc DATA, zero δ, scan balanced parens inline. β: resume from saved cursor. γ/ω exits. No `rt_bb_bal` call.
+- [x] **SF-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3fcc90a7` — `emit_bb_xbal` flat inline BAL box. Text path: `.data` slot for `int δ`; inline `'('`/`')'` byte-compare loop via RIP-relative Σ/Σlen/Δ symbols; no `rt_bb_bal` call. Binary path: heap zeta via `emit_seq_port_call` (unchanged). Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: SNOBOL4 frontend emits `PUSH_VAR` for `BAL` rather than `XBAL` in all tested programs — the emit path is structurally correct but unexercised until frontend keyword wiring routes `BAL` → `XBAL`.
 - [ ] **SF-2** — `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
 - [ ] **SF-3** — `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string). β→ω.
 - [ ] **SF-4** — `emit_bb_xlnth`/`xtb`/`xrtb` flat. `n` baked in DATA at emit time. α: check cursor arithmetic → γ or ω. β→ω (no re-entry for positional boxes).
@@ -343,7 +343,28 @@ always a temporary fallback. These steps complete what the arch specified.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 mode4-stateful-revert (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 mode4-SF-1 (Claude Sonnet 4.6)**
+
+one4all HEAD `3fcc90a7`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17 (unchanged). Snocone 1/5 pre-existing.
+
+### What was done this session
+
+**SF-1 — `emit_bb_xbal` flat inline BAL box** (`3fcc90a7`): Text path emits `.data` slot (`.Lbal{id}_z`: `.long 0; .long 0`) and inline `'('`/`')'` byte-compare loop using RIP-relative Σ/Σlen/Δ symbol references. No `rt_bb_bal` call in text mode. Binary path unchanged (heap zeta via `emit_seq_port_call`). emit+link verified on all BAL-using demo programs (treebank-array, treebank-list, claws5).
+
+### Key finding from history scan
+
+- Archive `bb_boxes.s`: BAL was always a **stub** (always ω, printed error). Never flat-implemented in the assembly era.
+- Commit `76924fca`: first real BAL logic, as C function `bb_bal()` in `bb_boxes.c`.
+- SNOBOL4 frontend currently emits `PUSH_VAR` for the token `BAL` instead of routing to `XBAL`. The SF-1 emit path is correct but unexercised until frontend keyword wiring is fixed (separate issue, not SF scope).
+
+### Next session must
+
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
+2. Confirm one4all HEAD `3fcc90a7`. Gates: smoke 7/7, byte-id 4/4.
+3. Investigate SNOBOL4 frontend `BAL` keyword wiring — why does `BAL` in a pattern emit `PUSH_VAR` instead of `XBAL`? Fix or note as separate goal.
+4. Proceed to SF-2: `emit_bb_xfarb` (ARB) flat template.
+
+
 
 one4all HEAD `d4a17203`. corpus HEAD `96444bf`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=10/17.
 
