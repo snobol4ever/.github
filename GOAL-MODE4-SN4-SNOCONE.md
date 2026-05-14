@@ -146,7 +146,7 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `c8916942` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17, mode-4 broad corpus 156/280 (sm-run 167/280).
+**HEAD** one4all `ad5cb86d` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17 (pre-existing on HEAD 53254e3c), mode-4 broad corpus 182/280 (sm-run 167/280 — parity EXCEEDED).
 
 Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: SM_NEG + NRETURN fixes — 128/280 (+4 vs 124).
 
@@ -159,4 +159,7 @@ Sess 2026-05-14f (Claude Sonnet 4.6): M4SN-4b: FENCE(P) child inline emit — 13
 Root cause: `emit_bb_xfnce` ignored XFNCE children entirely (unconditional jmp-succ at α), so FENCE(LEN(1)|LEN(2)) etc. skipped the child pattern. Fix: `emit_flat_xfnce` — when nchildren>0, emit child inline then seal β→fail; bare FENCE unchanged. Fixes tests 100–107, 109 (partial), 116–117, 120–123, and more.
 Remaining mode-4-specific failures: FENCE-via-*var (108–115, 118–119, 129–130): segfault in reentrant `bb_build_brokered` call — XDSAR dereferences a FENCE pattern at match-time, causing `bb_deferred_var` → `bb_build_brokered` → `emit_flat_body` to run inside the broker scan loop. The emitter's global state (bb_emit_mode, bb_emit_buf) is not saved/restored across the reentrant call. Stack appears corrupted at `emit_label_initf` entry. Fix needed: save/restore emitter global state around reentrant `bb_build_brokered` calls, OR pre-build all XDSAR child blobs before broker entry.
 
-**Next:** M4SN-4b continued — XDSAR reentrant emitter fix (tests 108–115). Then remaining: *var-star patterns (070, 072, 074), 027_arith_exponent, 059_capture_dollar_deferred, test_case, test_stack, test_string. Target: sm-run parity 167/280.
+Sess 2026-05-14g (Claude Sonnet 4.6): M4SN-4b: stack misalignment fix in emit_seq_port_call{,_rip} — 156/280 → 182/280 (+26):
+Root cause: emit_seq_port_call and emit_seq_port_call_rip emit push r10 / setup / call fn / pop r10 inside brokered blobs that already have push rbp from emit_seq_brokered_enter. This leaves rsp misaligned by 8 at the call site. bb_deferred_var_exported → bb_build_brokered → emit_flat_body → vsnprintf triggers SIGSEGV in glibc 2.39 SSE snprintf on misaligned stack. Fix: add sub rsp,8 after push r10 and add rsp,8 before pop r10 in BOTH emit_seq_port_call (binary pool blobs) and emit_seq_port_call_rip (TEXT mode). Fixes tests 108–113, 115–119 (fence_via_var, arbno-of-star-var-fence). Gates: smoke_snobol4 7/7, crosscheck_snocone 8/8, gate_em8 5/5. Beauty 13/17 pre-existing on HEAD 53254e3c. one4all `ad5cb86d`.
+
+**Next:** M4SN-4b continued — 059_capture_dollar_deferred ($ capture empty in mode-4), 106_pat_fence_with_capture (FENCE+$ capture), test_case. Target: sm-run parity 167/280 EXCEEDED (182/280); push toward 200+/280.
