@@ -66,6 +66,7 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 ---
 
 ## Steps
+
 ---
 
 ## EM-STYLE-200COL — Reformat all emitter C/H files to 200-col style
@@ -81,6 +82,27 @@ Gate after every step: smoke 7/7, byte-id 4/4. No logic changes — pure reforma
 - [ ] **S200-6** — `sm_jit_interp.c` (1,382 lines). Mode-3 interpreter, same rules.
 - [ ] **S200-7** — Final sweep: `grep` lines >200 chars, double blank lines, single-stmt brace survivors. Fix all. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
+
+
+
+## EM-STATEFUL-FLAT — Make stateful boxes flat (spec-correct, no RTCALL)
+
+**Architectural note (Lon, 2026-05-13):** Stateful boxes do not belong in
+the runtime via RTCALL. They require per-invocation DATA allocation (the
+zeta struct), but that lives in the flat glob's DATA block — not in a
+heap struct dispatched through a C function pointer. The RTCALL path was
+always a temporary fallback. These steps complete what the arch specified.
+
+- [x] **SF-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3fcc90a7` — `emit_bb_xbal` flat inline BAL box. Text path: `.data` slot for `int δ`; inline `'('`/`')'` byte-compare loop via RIP-relative Σ/Σlen/Δ symbols; no `rt_bb_bal` call. Binary path: heap zeta via `emit_seq_port_call` (unchanged). Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: SNOBOL4 frontend emits `PUSH_VAR` for `BAL` rather than `XBAL` in all tested programs — the emit path is structurally correct but unexercised until frontend keyword wiring routes `BAL` → `XBAL`.
+- [ ] **SF-2** — `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
+- [ ] **SF-3** — `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string). β→ω.
+- [ ] **SF-4** — `emit_bb_xlnth`/`xtb`/`xrtb` flat. `n` baked in DATA at emit time. α: check cursor arithmetic → γ or ω. β→ω (no re-entry for positional boxes).
+- [ ] **SF-5** — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
+- [ ] **SF-6** — ICN_* boxes flat. Zeroed DATA block on α-entry (self-init). C body functions (`coro_bb_*`) called as direct calls within the glob with DATA block address in rdi (not PLT stub).
+- [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
+- [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
+
+---
 
 
 > Closed history: `git log -p .github/GOAL-MODE4-EMIT.md`
@@ -335,25 +357,6 @@ Fixes in `emit_bb.c`:
 3. Build libscrip_rt.so (`make libscrip_rt` in one4all) and run `test_gate_em_beauty_subsystems_mode4.sh` to measure beauty PASS/17.
 4. Investigate remaining beauty failures — determine which are sm-run-accuracy divergences vs true mode-4 bugs.
 5. Run broad corpus scan with libscrip_rt to distinguish sm-run-abort from mode-4-crash.
-
----
-
-## EM-STATEFUL-FLAT — Make stateful boxes flat (spec-correct, no RTCALL)
-
-**Architectural note (Lon, 2026-05-13):** Stateful boxes do not belong in
-the runtime via RTCALL. They require per-invocation DATA allocation (the
-zeta struct), but that lives in the flat glob's DATA block — not in a
-heap struct dispatched through a C function pointer. The RTCALL path was
-always a temporary fallback. These steps complete what the arch specified.
-
-- [x] **SF-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3fcc90a7` — `emit_bb_xbal` flat inline BAL box. Text path: `.data` slot for `int δ`; inline `'('`/`')'` byte-compare loop via RIP-relative Σ/Σlen/Δ symbols; no `rt_bb_bal` call. Binary path: heap zeta via `emit_seq_port_call` (unchanged). Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: SNOBOL4 frontend emits `PUSH_VAR` for `BAL` rather than `XBAL` in all tested programs — the emit path is structurally correct but unexercised until frontend keyword wiring routes `BAL` → `XBAL`.
-- [ ] **SF-2** — `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
-- [ ] **SF-3** — `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string). β→ω.
-- [ ] **SF-4** — `emit_bb_xlnth`/`xtb`/`xrtb` flat. `n` baked in DATA at emit time. α: check cursor arithmetic → γ or ω. β→ω (no re-entry for positional boxes).
-- [ ] **SF-5** — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
-- [ ] **SF-6** — ICN_* boxes flat. Zeroed DATA block on α-entry (self-init). C body functions (`coro_bb_*`) called as direct calls within the glob with DATA block address in rdi (not PLT stub).
-- [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
-- [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
 
 ---
 
