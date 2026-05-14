@@ -74,8 +74,8 @@ git diff --cached --quiet || git commit -m "x64 artifacts: regen <rung>"
 Mirrors steps in GOAL-STYLE-200COL.md. Tracked here so MODE4-EMIT sessions see them in one place.
 Gate after every step: smoke 7/7, byte-id 4/4. No logic changes — pure reformatting.
 
-- [x] **S200-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `0ce4080a` — `emit_defs.h`, `emit.h`, `x86_opcodes.h`, `emit_core.h`, `emit_form.h`. 200-col, paired decls, column-aligned families, one space around `*`. 418→362 lines.
-- [ ] **S200-2** — `emit_bb.h` + `emit_sm.h` + `sm_jit_interp.h` + `emit_templates.h`. Remaining headers, same rules.
+- [x] **S200-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `fe47f032` — `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`. 200-col, paired decls, column-aligned families, one space around `*`. Duplicate `#include "emit.h"` removed. Fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures (take `int pc`, not `void`). 280→243 lines.
+- [ ] **S200-3** — `emit_core.c` (2,433 lines). Additional rules now in RULES.md: **zero blank lines anywhere in C/H files** (separator lines only between functions); **no inline or body comments** (banner `/* ... */` immediately after separator, before signature only). Work section by section: (a) `insn_*` leaf family — one-liners, column-aligned table. (b) `emit_seq_*` compound helpers. (c) `emit_form_*` / `emit_sym_*` / `emit_load_*`. (d) label/jmp helpers.
 - [ ] **S200-3** — `emit_core.c` (2,433 lines). Work section by section: (a) `insn_*` leaf family — one-liners, column-aligned table. (b) `emit_seq_*` compound helpers. (c) `emit_form_*` / `emit_sym_*` / `emit_load_*`. (d) label/jmp helpers.
 - [ ] **S200-4** — `emit_bb.c` (1,532 lines). (a) Stateless box one-liners. (b) `emit_bb_stateful*`. (c) Inline box functions. (d) Flat data helpers.
 - [ ] **S200-5** — `emit_sm.c` (2,772 lines). Opcode family by family: (a) `emit_sm_op_*` one-liners. (b) Shape renderers. (c) Walk/codegen driver.

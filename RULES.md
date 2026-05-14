@@ -678,15 +678,30 @@ instead.
 - **200 characters maximum.** Wrap only when a line would exceed 200.
 - No 80-col or 120-col limits. We own the editor.
 
-### Vertical space
-- **No blank lines inside a function body.**
-- **One blank line between functions** (or a separator line — see below).
-- **No blank lines between a function signature and its opening `{`.**
+### Vertical space — no blank lines anywhere
+- **Zero blank lines in any C/H file** — not inside bodies, not between functions, not at top or bottom.
+- Functions are separated by a minor separator line only (no blank line before or after it).
+- **No blank line between a function signature and its opening `{`.**
 
 ### Separator lines
-- `/*` followed by `-` repeated to column 200, then ` */` — minor section break within a file.
-- `/*` followed by `=` repeated to column 200, then ` */` — major section break (sparingly).
+- `/*` followed by `-` repeated to column 200, then ` */` — minor section break; goes between every pair of functions and between logical groups.
+- `/*` followed by `=` repeated to column 200, then ` */` — major section break (sparingly, for file-level divisions).
 - Example minor: `/*---------- ... ----------*/` (total 200 chars including `/*` and `*/`).
+
+### Comments — banners only, no inline comments
+- **No inline or end-of-line comments** — no `// text` or trailing `/* text */` after code.
+- **No comments inside function bodies.**
+- When a function needs a comment, place a `/* Block comment. */` on the line immediately after the separator line, before the function signature. Single line preferred; wrap only when unavoidable.
+- Example:
+  ```c
+  /*----...----*/
+  /* Emit push rbp / mov rbp,rsp / sub rsp,8 — standard C ABI frame enter. */
+  void emit_seq_frame_enter(void) {
+      insn_push_rbp();
+      insn_mov_rbp_rsp();
+      insn_sub_rsp_i8(8);
+  }
+  ```
 
 ### Operators and star character
 - **One space around ` * ` in all contexts** — pointer declarators, multiplication, dereference, comment borders. Never `int*x` or `*p`; always `int * x` or `* p`.
