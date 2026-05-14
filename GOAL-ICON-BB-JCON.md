@@ -283,18 +283,19 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 53254e3c  corpus: 1fe096c
-  ir-run:  PASS=197 FAIL=33
+  one4all: 37ff6d70  corpus: 1fe096c
+  ir-run:  PASS=199 FAIL=31
   honest:  PASS=273
   smoke_icon: 5/5   broker: 23/49
   NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
         rung32_strretval_strret_every (generative arg through user proc);
-        rung36_jcon_lexcmp (TT_SEQ mutual now works but more data rows needed);
         rung36_jcon_* suite (various builtins and features)
 
-  Session fixes (5 commits):
-    722e6a4f IR_ICN_TO_NESTED DCG: (lo_gen to hi_gen) cross-product — rung01 +1
-    d66e5483 trim trailing-only fix; seq(i,j) DCG — rung28+rung30 +2
-    15a09372 icn_drive_node check in bb_eval_value — accumulation fixed — rung02 +1
+  Session fixes (+7, 7 commits this session):
+    722e6a4f IR_ICN_TO_NESTED DCG: nested-to cross-product — rung01 +1
+    d66e5483 trim trailing-only; seq DCG — rung28+rung30 +2
+    15a09372 icn_drive_node in bb_eval_value (accumulation) — rung02 +1
     27a74057 icn_bb_mutual: TT_SEQ cross-product (A&B) — +1
-    rung13_alt_alt_filter: confirmed already passing (stale goal note)
+    83bb0751 TT_NONNULL empty-string fix — rung36_jcon_lexcmp +1
+    bcdc0706 ?lhs assign stubs (bb path); TT_NONNULL confirmed
+    37ff6d70 loop_next/break in IR_ICN_EVERY — rung36_jcon_primes +1
