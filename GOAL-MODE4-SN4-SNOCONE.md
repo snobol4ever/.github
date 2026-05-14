@@ -121,8 +121,8 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `296e85b6` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty 17/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 6/8, gate_em8 5/5 ✅.
+**HEAD** one4all `453fcbd7` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty 17/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 7/8, gate_em8 5/5 ✅.
 
-Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-0a/0b/0c/3a done; M4SN-1 fixed (two bugs in emit_sm.c: expression_registry missing fn .quad + DEFINE_ENTRY push rbp stack corruption). one4all `e2f94c6e`.
+Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-3b partial — beauty_global FIXED (SIZE(array) returns hi-lo+1 across all 4 paths: interp_eval.c/sm_jit_interp.c/rt.c rt_call/rt_bb_cap_direct). beauty_fence BLOCKED: emit_bb_xlnth binary paths needed but cause mode-4 parity regression (XNME+XLNTH flat blob in sm-run succeeds but mode-4 ELF still crashes; emit_sm.c preamble skips rt_init_cap for variant patterns). rt_bb_cap_direct added to rt.c/rt.h for next attempt.
 
-**Next:** M4SN-2 — crosscheck_snobol4 6/6 confirmed. M4SN-3b — crosscheck_snocone 8/8 (beauty_fence + beauty_global UTC indirect pre-existing non-mode-4 bugs to investigate).
+**Next:** M4SN-3b — fix beauty_fence. Root: emit_bb_xlnth/xtb/xrtb binary paths leave beta label unresolved when inside XOR flat body. Fix requires either: (A) emit_sm.c preamble emits rt_init_cap for variant-pattern XNME caps (not just invariant), OR (B) make flat_is_eligible exclude XNME-containing patterns so brokered path handles them (which avoids binary label issue without affecting mode-4 parity). Approach B is simpler.
