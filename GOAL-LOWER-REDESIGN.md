@@ -625,9 +625,12 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: e36e556d  .github: (this commit)
-  Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅ renames ✅
-  NEXT: LR-S1b — IR_exec_node pattern kinds (IR_PAT_LIT cursor walk); exec_stmt reads SM_EXEC_STMT a[2].ptr
+  one4all: 92213ee1  .github: (this commit)
+  Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅ renames ✅ LR-S1b PARTIAL
+  NEXT: LR-S1b (cont.) — IR_exec_pat regressions: 039_pat_any, 041_pat_span, 058_capture_dot_immediate
+        and others failing. IR_exec_node PAT_* cases + SM_EXEC_STMT a[2].ptr hook are wired but
+        IR_exec_pat scan loop has bugs: capture ASSIGN wiring wrong, broad corpus 128/280.
+        Fix IR_exec_pat and IR_PAT_ASSIGN_* before gate can pass.
 
 ## Step log
 
@@ -642,8 +645,19 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
     589bde0e: ir_graph_t→IR_t, ir_node_t→IR_node_t, ir_*→IR_* (uppercase prefix)
     e36e556d: IR_node_t→IR_t (node, matches tree_t), IR_t→IR_prog_t (graph, matches SM_Program)
     Fixed sizeof(IR_prog_t)→sizeof(IR_t) in IR_node_alloc (heap corruption bug).
-  LR-S1b �#f3 IR_exec_node for IR_PAT_LIT/ARB/SPAN/etc with cursor walk;
-         exec_stmt reads a[2].ptr; gate: smoke_snobol4 7/7 + beauty 195/195.
+  Renames ✅ sess 2026-05-14 (Claude Sonnet 4.6):
+    81c4642e: SM_EXEC_DCG→SM_EXEC_BB, SM_PUMP_DCG→SM_PUMP_BB
+    0430b1e2: IR_kind_t→IR_e, IR_KIND_COUNT→IR_E_COUNT, IR_kind_name→IR_e_name
+    d7adb8f6: port_start/resume/succ/fail → α/β/γ/ω (BB greek letter convention)
+    92213ee1: IR_t struct tag = IR_t; kind→t; drop id/generative/visited/lang/binop/call;
+              drop IR_node_alloc lang param
+  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all 92213ee1):
+        IR_exec_node PAT_* cases added (IR_PAT_LIT/ARB/SPAN/ANY/BREAK/REM/FENCE/ABORT/ASSIGN_*).
+        SM_EXEC_STMT reads a[2].ptr → calls IR_exec_pat when set.
+        IR_exec_pat wired (Phase1+scan+Phase4/5). smoke_snobol4 7/7 PASS.
+        REGRESSIONS: broad corpus 128/280 (039_pat_any, 041_pat_span, 058_capture_dot_immediate etc.)
+        Root cause: IR_exec_pat scan loop + IR_PAT_ASSIGN_* wiring bugs. Gate NOT passed.
+        NEXT session: fix IR_exec_pat regressions before gate.
 ---
 
 ## PIVOT: Start with SNOBOL4 patterns (not Icon, not Rebus)
