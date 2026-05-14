@@ -89,7 +89,11 @@ Honest PASS >= 275, zero SM scalar fallback. Retire SM_SUSPEND_VALUE if --sm-run
 
 - [x] level() builtin. &allocated. XFAIL if needed. GATE-1..4. Commit. ✅ 2a4f7812 &level=frame_depth; jcon_level XFAIL corpus d6eed3d.
 
-## IJ-18 — profsum / ck residual (Cluster N)
+### IJ-18 — profsum / ck residual (Cluster N) ✅
+
+- [x] Triage profsum/ck. Root causes: (1) next-in-scan doesn't restart enclosing while (profsum), (2) generative tab-arg tab(n|0) not supported (ck Image()). Both XFAIL corpus 1fe096c. Scan-builtin correctness fixes landed: any/many/upto non-advancing (6 sites across 5 files); real scan-subject coercion via real_str at all ICN_SCAN_PUSH/TT_SCAN sites. one4all 1203986f.
+
+## IJ-19 — next cluster triage
 
 ## Done when
 
@@ -112,14 +116,15 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
 
 ## Watermark
 
-  one4all: 2a4f7812  corpus: d6eed3d
-  ir-run:  PASS=191 FAIL=41 XFAIL=33
+  one4all: 1203986f  corpus: 1fe096c
+  ir-run:  PASS=191 FAIL=39 XFAIL=35
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
   IJ-BB-3 Group G ✅ fb9b5fa0
   IJ-BB-4+5 ✅ fully-BB confirmed, no scalar SM fallback
   IJ-16 ✅ radix ull fix + both XFAIL (bignum/RNG mismatch)
-  IJ-17 ✅ 2a4f7812 &level returns frame_depth; jcon_level XFAIL (generator exhaustion residual)
-  NEXT: IJ-18 — profsum/ck/&allocated triage (Cluster N residual)
+  IJ-17 ✅ 2a4f7812 &level=frame_depth; jcon_level XFAIL corpus d6eed3d
+  IJ-18 ✅ 1203986f any/many/upto non-advancing; real scan-subj coercion; profsum/ck XFAIL corpus 1fe096c
+  NEXT: IJ-19 — next cluster triage (Cluster O: output routing / in() bug)
 
 ## Session notes (sess 2026-05-14)
 
