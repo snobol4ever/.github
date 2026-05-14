@@ -625,7 +625,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: 2ae6fe36  .github: (this commit)
+  one4all: 474df331  .github: (this commit)
   Status: IN PROGRESS — LR-0 ✅ LR-3 ✅
   NEXT: LR-2 — ir_exec.h/c (ir_exec_once, ir_exec_pump, standalone unit test)
 
@@ -768,5 +768,8 @@ DCG (ir_graph_t)     — directed cyclic graph, language-neutral
 - "generator phase" — never existed; lower wires the DCG directly
 - "generator IR" — the DCG is just the DCG; no special name for a phase
 - SM array as primary IR — it is now a derived emission from the DCG
+- "gen" in opcode names — banned. SM_EXEC_DCG / SM_PUMP_DCG, not SM_EXEC_GEN / SM_PUMP_GEN.
+  The opcodes drive the DCG; naming them after "generator" conflates Icon academic
+  terminology with the structural concept. DCG is the correct term throughout.
 
 **The DCG is the IR. Lower produces it. Everything fans out from it.**
