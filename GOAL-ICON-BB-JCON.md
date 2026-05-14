@@ -68,9 +68,17 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 - [x] Write .stdin fixtures. GATE-1..4. Commit. (fixtures pre-existed; fixed coro_bb_iterate static-alias `00cec4c3`; mindfa/mffsol still blocked by cset ++/-- missing from inline interp_eval)
 
-### IJ-15 — parse program (Cluster Q)
+### IJ-15 — cset literal/builtin/ops + parse program (Cluster Q)
 
-- [ ] Diff expected. Fix root cause. GATE-1..4. Commit.
+- [x] rung36_jcon_parse: already passing at session start (no code change needed).
+- [x] cset literal (TT_CSET) now pushes CSETVAL via SM_PUSH_LIT_CS opcode.
+- [x] cset(x) builtin added to icn_try_call_builtin_by_name.
+- [x] TT_CSET_UNION/DIFF/INTER/COMPL lowered to SM_CALL_FN instead of emit_push_expr.
+- [x] TK_AUGCSET_UNION/DIFF/INTER in lower_augop fast-path.
+- [x] ICN_BANG_NEXT + coro_bb_iterate slen fix (CSETVAL 0xFFFFFFFF sentinel).
+- [x] coro_stmt.c default delegates to bb_eval_value (unblocks mindfa/mffsol startup).
+- [x] rung37_cset_ops.icn + .expected. GATE-1..4. Commit `52db8b96`.
+  mindfa/mffsol still FAIL (algorithm logic; not cset infrastructure). Cluster Q partial.
 
 ### IJ-16 — &random seeding + radix literals (Clusters R, I)
 
@@ -95,6 +103,7 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 | rung37_keywords.icn | IJ-11 | done |
 | rung37_mutual.icn | IJ-12 | done |
 | rung37_file_io.icn | IJ-13c | done |
+| rung37_cset_ops.icn | IJ-15 | done |
 | rung37_random_radix.icn | IJ-16 | pending |
 
 ## Done when
@@ -114,7 +123,7 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: 00cec4c3  corpus: 77de346
-  ir-run:  PASS=200 FAIL=35 XFAIL=30
-  honest:  PASS=274 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-15 (parse program — Cluster Q)
+  one4all: 52db8b96  corpus: 2ba5a92
+  ir-run:  PASS=201 FAIL=34 XFAIL=30
+  honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
+  NEXT: IJ-16 (&random seeding + radix literals)
