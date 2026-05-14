@@ -65,7 +65,7 @@ Fix: for variant-pattern ARBNO/CAP, the child blob IS emitted inline in the patt
 ### M4SN-3 — Crosscheck snocone 8/8
 
 - [x] **M4SN-3a** — Fix `procedure` diff in `test_gate_em8_snocone_jit_emit.sh` and `test_crosscheck_snocone.sh`. The Snocone frontend lowers to the same IR — if procedure calls fail in mode-4, this is likely a `SM_CALL` / user-function dispatch issue in the x64 binary (same root as SNOBOL4 DEFINE failures).
-- [ ] **M4SN-3b** — Fix second crosscheck_snocone failure. Gates: crosscheck_snocone 8/8, gate_em8 5/5.
+- [x] **M4SN-3b** — Fix second crosscheck_snocone failure. Gates: crosscheck_snocone 8/8, gate_em8 5/5. ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all `d965e9ed`): delete flat_is_eligible; add xlnth/xtb/xrtb binary paths; bb_in_pool cap dispatch fix; emit_flat_invariant excludes XNME/XFNME/XCALLCAP.
 
 ### M4SN-4 — Broad corpus SNOBOL4: sm-run parity in mode-4
 
@@ -121,8 +121,8 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `453fcbd7` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty 17/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 7/8, gate_em8 5/5 ✅.
+**HEAD** one4all `d965e9ed` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty parity 10/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅.
 
-Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-3b partial — beauty_global FIXED (SIZE(array) returns hi-lo+1 across all 4 paths: interp_eval.c/sm_jit_interp.c/rt.c rt_call/rt_bb_cap_direct). beauty_fence BLOCKED: emit_bb_xlnth binary paths needed but cause mode-4 parity regression (XNME+XLNTH flat blob in sm-run succeeds but mode-4 ELF still crashes; emit_sm.c preamble skips rt_init_cap for variant patterns). rt_bb_cap_direct added to rt.c/rt.h for next attempt.
+Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-3b CLOSED. beauty_fence FIXED (crosscheck_snocone 8/8). Fixes: (1) delete flat_is_eligible — all BBs eligible for flat; (2) xlnth/xtb/xrtb binary emission paths; (3) bb_in_pool cap dispatch — rt_bb_cap heuristic now uses bb_in_pool to detect JIT blob vs TEXT slot; (4) emit_flat_invariant excludes XNME/XFNME/XCALLCAP (cap ζ state → always variant). Mode-4 beauty parity 10/17 (was 17/17 both-crash; now both run, 7 content-diffs are pre-existing sm-run semantic bugs).
 
-**Next:** M4SN-3b — fix beauty_fence. Root: emit_bb_xlnth/xtb/xrtb binary paths leave beta label unresolved when inside XOR flat body. Fix requires either: (A) emit_sm.c preamble emits rt_init_cap for variant-pattern XNME caps (not just invariant), OR (B) make flat_is_eligible exclude XNME-containing patterns so brokered path handles them (which avoids binary label issue without affecting mode-4 parity). Approach B is simpler.
+**Next:** M4SN-2 — crosscheck_snobol4 6/6 (already passing). Move to M4SN-4 broad corpus snobol4 sm-run parity in mode-4.
