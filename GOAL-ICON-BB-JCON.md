@@ -66,7 +66,24 @@ stack-switching paths. `coro_eval` (BB node factory) and all pure-BB `coro_bb_*`
 Delete `icon_suspend_new` / `coro_bb_suspend` extern from `emit_bb.c` and `icon_gen.c`.
 - [x] Stub/remove suspend emitter. Remove ucontext.h from icon_gen.c/h. Build clean. GATE-1..2.
 
-### IJ-CORO-3 — delete SM_SUSPEND, SM_SUSPEND_VALUE, SM_BB_EVAL, SM_LOAD/STORE_FRAME opcodes
+### IJ-CORO-5 — eradicate "coro" as a symbol name everywhere NEXT
+
+All remaining `coro_*` symbols renamed. None of these are coroutines — they are
+Icon BB runtime infrastructure. Mapping:
+
+| Old | New |
+|-----|-----|
+| `coro_eval` | `icn_bb_build` (builds a bb_node_t from a tree_t) |
+| `coro_oneshot` | `icn_bb_oneshot` |
+| `coro_pump_proc_by_name` | `icn_bb_pump_proc_by_name` |
+| `coro_runtime.c/h` | `icn_runtime.c/h` |
+| `coro_stmt.c/h` | `icn_stmt.c/h` |
+| `coro_value.c/h` | `icn_value.c/h` |
+| `coro_stage` / `coro_t` / `coro_drive*` / `coro_call` (dead stubs/comments) | purge |
+
+- [x] Rename all coro_* live symbols and files. Build clean. GATE-1..4. Commit.
+
+### IJ-CORO-3 — delete SM_RESUME, SM_GEN_TICK (confirmed dead opcodes)
 These SM opcodes were emitted by lower.c for Icon generators/locals via the old coro path.
 With pure-BB Icon they are dead. Remove from sm_prog.h, sm_interp.c, emit_sm_binary.c,
 emit_sm.c, sm_prog.c. Remove the lower.c emit sites. Build clean. GATE-1..2.
@@ -146,10 +163,11 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: 140ed1c6  corpus: 2ba5a92
+  one4all: df637204  corpus: 2ba5a92
   ir-run:  PASS=201 FAIL=34 XFAIL=30
   honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
   NEXT: IJ-CORO-3 (delete SM_RESUME, SM_GEN_TICK) then IJ-16 (&random + radix)
+  CORO-5 ✅ df637204: coro_* eradicated; icn_runtime/stmt/value; icn_bb_build/oneshot/pump_proc_by_name
 
 ## IJ-29 next-session recipe
 
