@@ -76,7 +76,7 @@ Gate after every step: smoke 7/7, byte-id 4/4. No logic changes — pure reforma
 
 - [x] **S200-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `fe47f032` — `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`. 200-col, paired decls, column-aligned families, one space around `*`. Duplicate `#include "emit.h"` removed. Fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures (take `int pc`, not `void`). 280→243 lines.
 - [x] **S200-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `5d1d1274` — `emit_core.c` (2,433→1,786 lines). 200-col separators; `insn_*` 49 one-liners; `bb_insn_*` 41 one-liners; `t3/tf/tj` compacted. Zero blank lines, zero >200-col lines. Gates: smoke 7/7, byte-id 4/4.
-- [ ] **S200-4** — `emit_bb.c` (1,532 lines). (a) Stateless box one-liners. (b) `emit_bb_stateful*`. (c) Inline box functions. (d) Flat data helpers.
+- [x] **S200-4** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3cfe85f0` — `emit_bb.c` (1,532→1,368 lines). Zero blank lines, zero >200-col, no inline/body comments. Stateless one-liners column-aligned; stateful helpers compacted; XBAL/XBRKX/XDSAR/XATP/charset stripped of body comments; flat builder reformatted; bm_* helpers compacted. Gates: smoke 7/7, byte-id 4/4.
 - [ ] **S200-5** — `emit_sm.c` (2,772 lines). Opcode family by family: (a) `emit_sm_op_*` one-liners. (b) Shape renderers. (c) Walk/codegen driver.
 - [ ] **S200-6** — `sm_jit_interp.c` (1,382 lines). Mode-3 interpreter, same rules.
 - [ ] **S200-7** — Final sweep: `grep` lines >200 chars, double blank lines, single-stmt brace survivors. Fix all. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
@@ -255,21 +255,18 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 S200-headers+core (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 S200-emit_bb (Claude Sonnet 4.6)**
 
-one4all HEAD `5d1d1274`. .github HEAD `69137eaa`. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `72840167`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
-Style rules updated and S200-1 through S200-3 complete:
+S200-4 complete:
 
-- **Style rule additions** (`.github` `d2f5add9`): RULES.md § "C code style" updated with two new rules for all one4all C/H files: (1) zero blank lines anywhere in a file — separator lines only between functions; (2) no inline or end-of-line comments, no comments inside function bodies — banner `/* ... */` on line immediately after separator, before signature only.
-- **S200-2** (`fe47f032`): `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h` reformatted — 280→243 lines, paired decls, column-aligned families, duplicate `#include "emit.h"` removed, fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures.
-- **S200-3** (`5d1d1274`): `emit_core.c` reformatted — 2,433→1,786 lines. 200-col separators throughout; `insn_*` 49 trivial functions → one-liners; `bb_insn_*` 41 functions → one-liners; `t3/tf/tj` helpers compacted. Zero blank lines, zero >200-col violations.
+- **S200-4** (`3cfe85f0`): `emit_bb.c` reformatted — 1,532→1,368 lines. Zero blank lines, zero >200-col, no inline/body comments. Stateless box one-liners column-aligned. Stateful helpers compacted. XBAL/XBRKX/XDSAR/XATP/charset inline functions stripped of body comments. Flat builder section reformatted. bm_* macro library helpers compacted. Note: emit_bb.c.bak left as reference.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `5d1d1274`. Gates: smoke 7/7, byte-id 4/4.
-3. **S200-4**: reformat `emit_bb.c` (1,532 lines) — (a) stateless box one-liners column-aligned; (b) `emit_bb_stateful*` helpers; (c) inline box functions (XBAL, XDSAR, charset); (d) flat data helpers. Same rules: zero blanks, no inline/body comments, 200-col.
-4. After S200-4, continue S200-5 (`emit_sm.c`) if context allows.
+2. Confirm one4all HEAD `3cfe85f0`. Gates: smoke 7/7, byte-id 4/4.
+3. **S200-5**: reformat `emit_sm.c` (2,772 lines) — (a) `emit_sm_op_*` one-liners; (b) shape renderers; (c) walk/codegen driver. Same rules: zero blanks, no inline/body comments, 200-col.
