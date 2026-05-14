@@ -85,9 +85,11 @@ Honest PASS >= 275, zero SM scalar fallback. Retire SM_SUSPEND_VALUE if --sm-run
 - [x] &random / random: XFAIL (JCON RNG sequence differs; &random not updated post-? call). corpus `1554437`.
   GATE-1..4 green. ir-run FAIL=42 XFAIL=32.
 
-### IJ-17 — level / profsum / ck (Cluster N)
+### IJ-17 — level / profsum / ck (Cluster N) ✅
 
-- [ ] level() builtin. &allocated. XFAIL if needed. GATE-1..4. Commit.
+- [x] level() builtin. &allocated. XFAIL if needed. GATE-1..4. Commit. ✅ 2a4f7812 &level=frame_depth; jcon_level XFAIL corpus d6eed3d.
+
+## IJ-18 — profsum / ck residual (Cluster N)
 
 ## Done when
 
@@ -110,13 +112,14 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
 
 ## Watermark
 
-  one4all: ec0c62ee  corpus: 1554437
-  ir-run:  PASS=191 FAIL=42 XFAIL=32
+  one4all: 2a4f7812  corpus: d6eed3d
+  ir-run:  PASS=191 FAIL=41 XFAIL=33
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
   IJ-BB-3 Group G ✅ fb9b5fa0
   IJ-BB-4+5 ✅ fully-BB confirmed, no scalar SM fallback
   IJ-16 ✅ radix ull fix + both XFAIL (bignum/RNG mismatch)
-  NEXT: IJ-17 — level() + &allocated (Cluster N)
+  IJ-17 ✅ 2a4f7812 &level returns frame_depth; jcon_level XFAIL (generator exhaustion residual)
+  NEXT: IJ-18 — profsum/ck/&allocated triage (Cluster N residual)
 
 ## Session notes (sess 2026-05-14)
 
@@ -124,3 +127,6 @@ IJ-BB-3 Group G: lower_fnc sval guard is critical — ICN_BB_EVAL only when t->v
 Icon-style calls (sval==NULL, c[0] is callee) must fall through to SM; bb_eval_value TT_FNC expects name in sval.
 IJ-16 radix: remaining mismatches all require bignum (> int64 values). Not worth implementing.
 IJ-16 random: JCON uses Icon v9 RNG; our LCG is different; &random not updated post-?. Both XFAIL.
+IJ-17 &level: was hardcoded INTVAL(1). Fix: INTVAL(frame_depth) — frame_depth increments on every Icon
+  procedure entry in icn_runtime.c. call_depth (SNOBOL4 interp) is always 0 in Icon BB path. jcon_level
+  still FAILs by 2 lines (every/suspend exhaustion: bar(3) only fires body once); XFAIL in corpus.
