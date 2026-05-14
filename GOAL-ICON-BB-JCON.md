@@ -210,13 +210,14 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: 767d9a2d  corpus: 2ba5a92
+  one4all: dfb2497c  corpus: 2ba5a92
   ir-run:  PASS=191 FAIL=44 XFAIL=30
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
   NEXT: IJ-BB-3 Group G (calls+records) or assign/scan fix
   IJ-BB-2 ✅: 7 bb_eval_value gap handlers added (601af0e0)
   IJ-BB-3 partial ✅: Groups A-D ✅ b187bd59; E(augop) ✅ a40e4791; H(sections) ✅ 767d9a2d
   coro rename: coro_drive_node→icn_drive_node, coro_drive_val→icn_drive_val in icn_runtime.c/h (767d9a2d)
+  coro files deleted: coro_runtime/stmt/value .c/.h removed (dfb2497c)
 
 ## IJ-29 next-session recipe
 
