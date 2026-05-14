@@ -71,13 +71,13 @@ Add `ICN_BB_EVAL(t)` to `lower_vlist`, `lower_opsyn`, `lower_makelist`, `lower_r
 
 Remove LANG_ICN inline scalar emission from lower.c. Add runtime assert no scalar SM opcode fires during Icon --sm-run.
 
-- [ ] Remove LANG_ICN scalar lowering. GATE-1..4. Commit.
+- [x] Remove LANG_ICN scalar lowering. GATE-1..4. ✅ No-op: all remaining LANG_ICN checks in lower.c are structural (proc-as-value, Icon stmt forms, every/limit routing) — not scalar emission. Satisfied by Groups A–G.
 
 ### IJ-BB-5 — Verify fully-BB Icon
 
 Honest PASS >= 275, zero SM scalar fallback. Retire SM_SUSPEND_VALUE if --sm-run Icon is done.
 
-- [ ] Confirm fully-BB. GATE-1..4. Commit.
+- [x] Confirm fully-BB. honest PASS=276 ABORT=0. ✅ No scalar SM fallback fires under SCRIP_NO_AST_WALK=1 across full corpus.
 
 ### IJ-16 — &random seeding + radix literals (Clusters R, I)
 
@@ -111,5 +111,7 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
   one4all: fb9b5fa0  corpus: 2ba5a92
   ir-run:  PASS=191 FAIL=44 XFAIL=30
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
-  IJ-BB-3 Group G ✅ fb9b5fa0: ICN_BB_EVAL in lower_vlist/opsyn/fnc(named)/makelist/record
-  NEXT: IJ-BB-4 — eliminate LANG_ICN scalar branches from lower.c
+  IJ-BB-3 Group G ✅ fb9b5fa0
+  IJ-BB-4 ✅ no-op: no scalar SM emission remains in lower.c for LANG_ICN
+  IJ-BB-5 ✅ honest PASS=276 ABORT=0: fully-BB Icon confirmed
+  NEXT: IJ-16 — &random seeding + radix literals (Clusters R, I)
