@@ -12,7 +12,7 @@ substrate. They differ in how they walk and dispatch the program.
 
 | # | Mode | Flag | Purpose | Pipeline |
 |---|------|------|---------|----------|
-| 1 | IR interp | `--ir-run` | correctness reference; in-memory tree walk | IR → `execute_program` |
+| 1 | AST interp | `--ast-run` | correctness reference; in-memory tree walk | IR → `execute_program` |
 | 2 | SM gen / interp | `--sm-run` (default) | program in final SM/BB form, dispatched in C | IR → `sm_lower` → `sm_interp_run` |
 | 3 | SM gen / exec | `--jit-run` | speed without asm/link/process overhead | IR → `sm_lower` → `sm_codegen` → `sm_jit_run` |
 | 4 | SM gen / asm / link / exec | future | full native binary path | IR → `sm_lower` → asm-emit → link → exec |
@@ -59,7 +59,7 @@ The IR-only entry points must never be called from SM-mode code paths.
 
 ## Mode-specific notes
 
-**Mode 1 (IR interp):** never sets `g_current_sm_prog`. Calls `execute_program` which walks `STMT_t` chains and uses `interp_eval` recursively. Free to call any IR symbol.
+**Mode 1 (AST interp):** never sets `g_current_sm_prog`. Calls `execute_program` which walks AST (`STMT_t`) chains and uses `interp_eval` recursively. Free to call any AST symbol.
 
 **Mode 2 (SM gen / interp):** `sm_preamble()` followed by `sm_run_with_recovery(sm, sm_interp_run)`. `SM_CALL` dispatches user functions via SM call frames; pattern-context `*func()` reaches `_usercall_hook` which dispatches via nested `sm_interp_run` (RS-11).
 
