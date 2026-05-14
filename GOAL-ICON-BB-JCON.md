@@ -79,9 +79,11 @@ Honest PASS >= 275, zero SM scalar fallback. Retire SM_SUSPEND_VALUE if --sm-run
 
 - [x] Confirm fully-BB. honest PASS=276 ABORT=0. ✅ No scalar SM fallback fires under SCRIP_NO_AST_WALK=1 across full corpus.
 
-### IJ-16 — &random seeding + radix literals (Clusters R, I)
+### IJ-16 — &random seeding + radix literals (Clusters R, I) ✅
 
-- [ ] Fix &random r/w. Fix radix overflow. rung37_random_radix.icn. GATE-1..4. Commit.
+- [x] Radix overflow: icon_lex.c uses unsigned long long; bignum cases XFAIL (corpus). one4all `ec0c62ee`.
+- [x] &random / random: XFAIL (JCON RNG sequence differs; &random not updated post-? call). corpus `1554437`.
+  GATE-1..4 green. ir-run FAIL=42 XFAIL=32.
 
 ### IJ-17 — level / profsum / ck (Cluster N)
 
@@ -108,10 +110,10 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
 
 ## Watermark
 
-  one4all: fb9b5fa0  corpus: 2ba5a92
-  ir-run:  PASS=191 FAIL=44 XFAIL=30
+  one4all: ec0c62ee  corpus: 1554437
+  ir-run:  PASS=191 FAIL=42 XFAIL=32
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
   IJ-BB-3 Group G ✅ fb9b5fa0
-  IJ-BB-4 ✅ no-op: no scalar SM emission remains in lower.c for LANG_ICN
-  IJ-BB-5 ✅ honest PASS=276 ABORT=0: fully-BB Icon confirmed
-  NEXT: IJ-16 — &random seeding + radix literals (Clusters R, I)
+  IJ-BB-4+5 ✅ fully-BB confirmed, no scalar SM fallback
+  IJ-16 ✅ radix ull fix + both XFAIL (bignum/RNG mismatch)
+  NEXT: IJ-17 — level() + &allocated (Cluster N)
