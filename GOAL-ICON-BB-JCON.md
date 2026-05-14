@@ -9,6 +9,7 @@
 
 ⚠ No coro subsystem. Icon is pure BB. Do NOT touch coro_runtime.c or coro_*.
 ⚠ BB RULE: Read `.github/jcon_irgen.icn` before touching any BB.
+⚠ NO C BB BOXES. `icon_gen.c` is DELETED. Do NOT create new C BB box functions (no `DESCR_t foo(void *zeta, int entry)` implementations). All BB behaviour is in the C template emitter functions (`emit_bb_icon_*` in `emit_bb.c`). Dispatch in `icn_bb_build` routes to the lazy fallback; fix generators by correcting `lower.c` emission and `icn_bb_build` dispatch to existing template infrastructure, not by writing new C box functions.
 
 ## Gates
 
@@ -19,14 +20,14 @@
 
 ## Active steps
 
-### IJ-19a — icn_bb_upto Byrd box (scalar args, generative)
+### IJ-19a — upto(cset,str) scalar dispatch in icn_bb_build
 
-`upto(cset,str)` with scalar args is not generative — `icn_bb_build` has no box for it.
-Mirrors `icn_bb_find` pattern in `icon_gen.c`. Fixes kross/meander/htprep.
+`upto(cset,str)` with scalar args has no dispatch case in `icn_bb_build` — falls to lazy fallback.
+Mirrors `find(needle,str)` pattern. Fixes kross/meander/htprep.
 
-- [ ] Add `icn_upto_state_t` to `icon_gen.h`. Add `icn_bb_upto` box to `icon_gen.c`.
-      In `icn_bb_build` TT_FNC: when `fn=="upto"` and `nargs>=2` and args scalar,
-      build box from evaluated cset+str, return `icn_bb_upto`. GATE-1..4. Commit.
+- [ ] In `icn_runtime.c` `icn_bb_build` TT_FNC: when `fn=="upto"` and `nargs>=2` and `!is_suspendable(e->c[2])`,
+      eval cset+str args, route through the scan_builtins upto path wrapped as a oneshot or
+      via existing `icn_bb_build` scan-context upto machinery. GATE-1..4. Commit.
 
 ### IJ-19b — icn_drive_node extern + bb_eval_value injection
 
@@ -46,22 +47,23 @@ TT_EVERY/TT_ASSIGN while-loop calls `bb_eval_value(gen)` without setting `icn_dr
 - [ ] In `icn_value.c` TT_EVERY/TT_ASSIGN loop body: save/set/restore
       `icn_drive_node=leaf, icn_drive_val=tick` around `bb_eval_value(gen)`. GATE-1..4. Commit.
 
-### IJ-19d — FRAME.suspending in icn_bb_proc_call
+### IJ-19d — FRAME.suspending in proc call dispatch
 
-`icn_bb_proc_call` (icon_gen.c) checks `FRAME.returning` and `FRAME.loop_break` after
+Proc call dispatch checks `FRAME.returning` and `FRAME.loop_break` after
 `bb_exec_stmt(st)` but not `FRAME.suspending` → suspend inside while-loop dropped (rung03).
 
-- [ ] After `bb_exec_stmt(st)`: add `if (FRAME.suspending) { DESCR_t sv=FRAME.suspend_val;`
+- [ ] In `icn_runtime.c` proc call body loop: add `if (FRAME.suspending) { DESCR_t sv=FRAME.suspend_val;`
       `z->suspend_body=FRAME.suspend_do; z->in_suspend=1; FRAME.suspending=0; return sv; }`
       GATE-1..4. Commit.
 
 ### IJ-19e — real to-by generator
 
-`icn_bb_build` TT_TO_BY always uses int path. `icn_bb_to_by_real` exists but never
-selected → rung19 (`3.0 to 1.0 by -1.0`) gives ints.
+`icn_bb_build` TT_TO_BY always uses int path. `icn_bb_to_by_real` was in the deleted
+`icon_gen.c` — real `to-by` (rung19: `3.0 to 1.0 by -1.0`) gives ints instead of reals.
 
-- [ ] In `icn_bb_build` TT_TO_BY after coercion: `if (!any_str && IS_REAL_fn(lo_d)
-      && IS_REAL_fn(hi_d) && IS_REAL_fn(step_d))` → `icn_to_by_real_state_t` + `icn_bb_to_by_real`.
+- [ ] Implement real to-by dispatch in `icn_runtime.c` `icn_bb_build` TT_TO_BY:
+      after coercion, `if (!any_str && IS_REAL_fn(lo_d) && IS_REAL_fn(hi_d) && IS_REAL_fn(step_d))`
+      route through appropriate real range machinery (no new C BB box — use template path).
       GATE-1..4. Commit.
 
 ## Done when
