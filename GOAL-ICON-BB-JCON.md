@@ -108,7 +108,7 @@ Per-emitter procedure:
 
 ## Watermark
 
-  one4all: 58e1814a  corpus: 1fe096c
+  one4all: 53c7d1b6  corpus: 1fe096c
   ir-run:  PASS=191 FAIL=39 XFAIL=35
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-19-lower — write lower_icn.c DCG for all Icon TT_* (Step 1 before any emitters)
+  NEXT: Fix icn_runtime.c icn_bb_build dead refs → lazy, then emit_bb_icon_to first inline x86 emitter
