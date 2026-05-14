@@ -283,12 +283,15 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 37ff6d70  corpus: 1fe096c
-  ir-run:  PASS=199 FAIL=31
+  one4all: e116b9fd  corpus: 1fe096c
+  ir-run:  PASS=200 FAIL=30
   honest:  PASS=273
   smoke_icon: 5/5   broker: 23/49
   NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
         rung32_strretval_strret_every (generative arg through user proc);
+        rung36_jcon_substring H/I: !str := val string frame-local writeback (ICN_ITERATE_FIRST_SET
+        hits NV global table, misses FRAME.env slot; fix: ICN_BB_EVAL guard in lower_assign
+        when LHS is TT_ITERATE routes through bb_eval_value which has slot-aware write path);
         rung36_jcon_* suite (various builtins and features)
 
   Session fixes (+7, 7 commits this session):
