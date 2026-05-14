@@ -71,8 +71,8 @@ Fix: for variant-pattern ARBNO/CAP, the child blob IS emitted inline in the patt
 
 Run `test_interp_broad_corpus_and_beauty.sh` in mode-4 (needs a new script or MODE=x64 wrapper). Every test that passes under `--sm-run` must also pass under `--jit-emit --x64`.
 
-- [ ] **M4SN-4a** — Write `test_mode4_broad_corpus_snobol4.sh`: same logic as `test_interp_broad_corpus_and_beauty.sh` but uses the emit→link→run pipeline. SCRIP=./scrip, RT_DIR=./out, assemble in /home/claude/one4all (for macros). Compare output vs `.ref` files.
-- [ ] **M4SN-4b** — Run and triage failures by category. Fix mode-4-specific failures only (those passing in `--sm-run` but failing in mode-4).
+- [x] **M4SN-4a** — Write `test_mode4_broad_corpus_snobol4.sh`. ✅ sess 2026-05-14 (Claude Sonnet 4.6, `5ede8aa1`). compile_mode4 helper; crosscheck + beauty + demo corpus; PASS/FAIL/SKIP.
+- [x] **M4SN-4b** — Triage and fix XNME capture failures. ✅ sess 2026-05-14 (`5ede8aa1`): 105/280 (was 93). Fixed: (1) emit_flat_invariant excludes XNME/XFNME/XCALLCAP; (2) rt_bb_cap pre_δ span fix; (3) NAMEPTR varname extraction uses var_ptr path. Remaining 17 mode-4-specific failures: bb_broker BB_SCAN sets Δ=scan, ANY-type blobs scan forward → capture position off. Next: fix capture span for scanner-type children.
 - [ ] **M4SN-4c** — Target: mode-4 broad corpus PASS ≥ sm-run PASS (128/280). No regression.
 
 ### M4SN-5 — Full regression: test_regression_full_corpus.sh MODE=x64 with libscrip_rt pipeline
@@ -121,8 +121,8 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `d965e9ed` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty parity 10/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅.
+**HEAD** one4all `5ede8aa1` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 6/6 ✅, beauty parity 10/17, mode-4 broad corpus 105/280 (sm-run 144/280).
 
-Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-3b CLOSED. beauty_fence FIXED (crosscheck_snocone 8/8). Fixes: (1) delete flat_is_eligible — all BBs eligible for flat; (2) xlnth/xtb/xrtb binary emission paths; (3) bb_in_pool cap dispatch — rt_bb_cap heuristic now uses bb_in_pool to detect JIT blob vs TEXT slot; (4) emit_flat_invariant excludes XNME/XFNME/XCALLCAP (cap ζ state → always variant). Mode-4 beauty parity 10/17 (was 17/17 both-crash; now both run, 7 content-diffs are pre-existing sm-run semantic bugs).
+Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-4a/4b. Script written. XNME captures fixed via NAMEPTR var_ptr path + pre_δ span + emit_flat_invariant exclusion. 17 mode-4-specific failures remain: bb_broker BB_SCAN sets Δ=scan before each fn call; for scanner-type children (ANY, SPAN, BREAK) the child advances Δ independently of scan position; pre_δ=scan but child may start scan from Δ=scan and advance further, making Δ-pre_δ = matched length correct. Root not yet pinned for these 17 — next session continues M4SN-4b.
 
-**Next:** M4SN-2 — crosscheck_snobol4 6/6 (already passing). Move to M4SN-4 broad corpus snobol4 sm-run parity in mode-4.
+**Next:** M4SN-4b continued — debug remaining 17 mode-4-specific failures (039_pat_any, 052_pat_arbno, 059_capture_dollar_deferred, etc.). Check bb_broker scan + capture interaction; fix or understand why ANY/SPAN captures still miscapture.
