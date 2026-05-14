@@ -65,7 +65,7 @@ Add `ICN_BB_EVAL(t)` to `lower_vlist`, `lower_opsyn`, `lower_makelist`, `lower_r
 
 **lower_fnc placement rule:** guard fires **after** the EVAL-thunk special case and **only when `t->v.sval != NULL`**. Icon-style calls (`sval==NULL`, `c[0]` is callee) must not be intercepted — `bb_eval_value` TT_FNC expects the name in `sval`. Naïve guard at top regresses rung36_jcon_nargs (args() returns wrong count).
 
-- [ ] Apply ICN_BB_EVAL guards to all 5 functions with correct placement. GATE-1..4. Commit.
+- [x] Apply ICN_BB_EVAL guards to all 5 functions with correct placement. GATE-1..4. Commit .
 
 ### IJ-BB-4 — Eliminate LANG_ICN scalar branches from lower.c
 
@@ -108,8 +108,8 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
 
 ## Watermark
 
-  one4all: dfb2497c (session start)  corpus: 2ba5a92
-  ir-run:  PASS=192 FAIL=43 XFAIL=30  (Group G partial: vlist/opsyn/makelist/record ✅; lower_fnc needs sval guard)
-  honest:  PASS=273 FAIL=2 ABORT=0   broker: 23/49
-  rung36_jcon_arith FAIL is pre-existing (pointer value in output).
-  NEXT: IJ-BB-3 Group G — fix lower_fnc sval guard, commit all 5 functions
+  one4all: fb9b5fa0  corpus: 2ba5a92
+  ir-run:  PASS=191 FAIL=44 XFAIL=30
+  honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
+  IJ-BB-3 Group G ✅ fb9b5fa0: ICN_BB_EVAL in lower_vlist/opsyn/fnc(named)/makelist/record
+  NEXT: IJ-BB-4 — eliminate LANG_ICN scalar branches from lower.c
