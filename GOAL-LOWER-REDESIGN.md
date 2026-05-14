@@ -562,9 +562,19 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: f1dbb78b  .github: cb23fc50
-  Status: DESIGN — no code yet
-  NEXT: LR-0 — define ir_node_t in src/runtime/common/scrip_ir.h
+  one4all: bfe6ac9d  .github: (this commit)
+  Status: IN PROGRESS — LR-0 done
+  NEXT: LR-3 — add SM_EXEC_GEN / SM_PUMP_GEN opcodes (sm_prog.h, sm_interp.c, sm_jit_interp.c; nothing emits them yet)
+
+## Step log
+
+  LR-0 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all bfe6ac9d): scrip_ir.h/c — ir_node_t,
+        ir_graph_t, ir_kind_t (44 kinds), alloc/free/reset/print. Additive infrastructure.
+        All six smoke gates pass (SNO 7/7, ICN 5/5, PL 5/5, REB 4/4, SCO 5/5, RKU 5/5).
+  LR-1 N/A — deleted per FINAL PIPELINE clarification: lower wires DCG directly; no separate
+        generator phase / ir_lower.c needed.
+  LR-2 ⏳ ir_exec.h/c — ir_exec_once, ir_exec_pump (standalone unit test)
+  LR-3 ⏳ SM_EXEC_GEN / SM_PUMP_GEN opcodes — sm_prog.h + sm_interp.c + sm_jit_interp.c
 
 ---
 
