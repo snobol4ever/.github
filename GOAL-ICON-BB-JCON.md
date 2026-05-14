@@ -20,8 +20,8 @@ Fix ir-run FAILs left after GOAL-ICON-BB-NATIVE. Steps by risk-to-reward.
 | L | &pos / &subject negative | rung36_jcon_substring | negative-index substring assignment |
 | M | Keywords table | rung36_jcon_kwds | generative keywords (&features, &allocated, etc.) |
 | N | Level / profsum / ck | rung36_jcon_level, rung36_jcon_profsum, rung36_jcon_ck | level() + &allocated |
-| O | Output routing | rung36_jcon_htprep, rung36_jcon_meander, rung36_jcon_kross | write(fh,s) needs DT_FH |
-| Q | stdin programs | rung36_jcon_parse, rung36_jcon_mindfa, rung36_jcon_mffsol | stdin fixtures |
+| O | Output routing | rung36_jcon_htprep, rung36_jcon_meander, rung36_jcon_kross | while-loop/scan bug in in() |
+| Q | stdin programs | rung36_jcon_mindfa, rung36_jcon_mffsol | algorithm logic (cset infra done) |
 | R | Random | rung36_jcon_random | `&random` seeding |
 
 ## Session Setup
@@ -40,132 +40,44 @@ Fix ir-run FAILs left after GOAL-ICON-BB-NATIVE. Steps by risk-to-reward.
 
 ## Closed steps (trail)
 
-IJ-1..6: TT_SEQ, table keys, proc/image/indirect, math/bitwise, detab/cset, augop.
-IJ-7 `b50d8180` operator dispatch + coerce (~~, to-by, ^neg, cset image). Clusters G ✅.
-IJ-8 `340bccc3` bb_strrel: coerce int/real to string before strcmp.
-IJ-9 `4008701c` coro_bb_scan_gen b: advance subject not resume body. rung37_scan_alt ✅.
-IJ-10 `259e1aec` ICN_KW_SWAP: icn_frame_env_store + preserve lhs/rhs order. Cluster L partial ✅.
-IJ-11 icn_kw_read() centralises keyword reads; type()/image() cset fixes. Cluster M partial ✅.
-IJ-12 `6b20b4a2` static parent-frame fallback for recursive procs. Cluster P ✅.
-IJ-13a `d2453ecc` ast_gc_clone: only GC_strdup sval for string-typed nodes (crash fix).
-IJ-13b `2d5567ca` &input/&output/&errout -> INTVAL(0/1/2); read(infile:=&input) works.
-IJ-14 `00cec4c3` fix coro_bb_iterate static-alias bug: z->ch (in-struct 2-byte buf) returned directly caused all put(L,!s) entries to alias same ptr → last char. GC_strdup(z->ch) each tick. Same fix in coro_value.c TT_ITERATE. mindfa/mffsol still FAIL: cset ++/--/** missing from inline interp_eval (SM_CALL_FN only); separate gap.
-IJ-13c `1e4a6d7f` DT_FH=12 sentinel in descr.h; FHVAL(idx) macro; &input/&output/&errout return FHVAL; open() returns FHVAL; write/writes/read/reads/close all route via DT_FH first-arg. honest 273→274. Cluster O htprep/meander/kross still FAIL (root: while-loop/scan bug in in(), not DT_FH).
+IJ-1..6 ✅ TT_SEQ, table keys, proc/image/indirect, math/bitwise, detab/cset, augop.
+IJ-7 ✅ `b50d8180` operator dispatch + coerce. Cluster G done.
+IJ-8 ✅ `340bccc3` bb_strrel: coerce int/real to string before strcmp.
+IJ-9 ✅ `4008701c` scan_gen: advance subject not resume body. rung37_scan_alt.
+IJ-10 ✅ `259e1aec` ICN_KW_SWAP. Cluster L partial.
+IJ-11 ✅ icn_kw_read(); type()/image() cset fixes. Cluster M partial.
+IJ-12 ✅ `6b20b4a2` static parent-frame fallback for recursive procs. Cluster P.
+IJ-13a ✅ `d2453ecc` ast_gc_clone: GC_strdup sval only for string nodes.
+IJ-13b ✅ `2d5567ca` &input/&output/&errout → INTVAL(0/1/2).
+IJ-13c ✅ `1e4a6d7f` DT_FH sentinel; write/read/open route via DT_FH. rung37_file_io.
+IJ-14 ✅ `00cec4c3` coro_bb_iterate static-alias (GC_strdup each tick).
+IJ-15 ✅ `52db8b96` cset literal/builtin/ops. rung37_cset_ops.
+IJ-CORO-1..5 ✅ `dfb2497c` delete swapcontext machinery; rename coro_*→icn_*; delete SM_RESUME/SM_GEN_TICK; clean includes.
+IJ-BB-1 ✅ Gap audit: 7 Icon-reachable TT_* kinds missing bb_eval_value handlers.
+IJ-BB-2 ✅ `601af0e0` 7 handlers added (TT_INTERROGATE, TT_GLOBAL, TT_INDIRECT, TT_NAME, TT_RECORD, TT_VLIST, TT_OPSYN).
+IJ-BB-3 Groups A–E, H ✅ ICN_BB_EVAL in lower_strlit/ilit/flit/nul/var/keyword/unary/binary/augop/sections. `767d9a2d`.
 
 ## Active steps
 
-### IJ-CORO-1 — delete swapcontext proc boxes from coro_runtime.c NEXT
-Remove `coro_bb_suspend`, `coro_bb_fnc`, `coro_bb_fnc_multi`, `coro_bb_indirect_callee`,
-`proc_trampoline`, `coro_alloc`, `gather_trampoline`, `coro_stage`, `sm_yield_to_caller`,
-`coro_drive()`, `coro_drive_fnc()`. These are the ucontext/swapcontext coroutine
-stack-switching paths. `coro_eval` (BB node factory) and all pure-BB `coro_bb_*` boxes stay.
-- [x] Delete dead proc-box and ucontext machinery from coro_runtime.c. Build clean. GATE-1..2.
+### IJ-BB-3 Group G — calls+records (IN PROGRESS)
 
-### IJ-CORO-2 — delete emit_bb_icon_suspend + icon_suspend_new + rename coro_bb_* → icn_bb_*
-`coro_bb_suspend` is wired into `emit_bb.c` as the suspend emitter. Replace with FAILDESCR stub.
-Delete `icon_suspend_new` / `coro_bb_suspend` extern from `emit_bb.c` and `icon_gen.c`.
-- [x] Stub/remove suspend emitter. Remove ucontext.h from icon_gen.c/h. Build clean. GATE-1..2.
+Add `ICN_BB_EVAL(t)` to `lower_vlist`, `lower_opsyn`, `lower_makelist`, `lower_record`, `lower_fnc`.
 
-### IJ-CORO-5 — eradicate "coro" as a symbol name everywhere NEXT
+**lower_fnc placement rule:** guard fires **after** the EVAL-thunk special case and **only when `t->v.sval != NULL`**. Icon-style calls (`sval==NULL`, `c[0]` is callee) must not be intercepted — `bb_eval_value` TT_FNC expects the name in `sval`. Naïve guard at top regresses rung36_jcon_nargs (args() returns wrong count).
 
-All remaining `coro_*` symbols renamed. None of these are coroutines — they are
-Icon BB runtime infrastructure. Mapping:
-
-| Old | New |
-|-----|-----|
-| `coro_eval` | `icn_bb_build` (builds a bb_node_t from a tree_t) |
-| `coro_oneshot` | `icn_bb_oneshot` |
-| `coro_pump_proc_by_name` | `icn_bb_pump_proc_by_name` |
-| `coro_runtime.c/h` | `icn_runtime.c/h` |
-| `coro_stmt.c/h` | `icn_stmt.c/h` |
-| `coro_value.c/h` | `icn_value.c/h` |
-| `coro_stage` / `coro_t` / `coro_drive*` / `coro_call` (dead stubs/comments) | purge |
-
-- [x] Rename all coro_* live symbols and files. Build clean. GATE-1..4. Commit.
-
-### IJ-CORO-3 — delete SM_RESUME, SM_GEN_TICK (confirmed dead opcodes)
-- [x] Delete SM_RESUME, SM_GEN_TICK. SM_SUSPEND_VALUE stays. Build clean. GATE-1..4. Commit `33625214`.
-
-### IJ-CORO-4 — delete coro_stmt.c and coro_value.c dead code, clean includes
-- [x] Remove #include <ucontext.h> from scrip.c. Clean stale coro_call/trampoline comments from icn_runtime.c, icn_stmt.c, icn_value.c. Build clean. GATE-1..4. Commit `b7f5de14`.
-
-### IJ-BB-1 — Audit bb_eval_value coverage vs lower.c Icon scalar cases ✅
-Gap analysis complete. lower.c has 9 TT_* kinds with no bb_eval_value handler:
-
-| Kind | lower.c impl | bb_eval_value needed |
-|------|-------------|----------------------|
-| `TT_INTERROGATE` | `lower_expr(c[0])` — no-op wrapper | `return bb_eval_value(e->c[0])` — trivial |
-| `TT_GLOBAL` | `sm_emit(SM_PUSH_NULL)` — declaration no-op | `return NULVCL` — trivial |
-| `TT_INDIRECT` | calls `INDIR_GET` builtin | `icn_call_builtin("INDIR_GET", 1, args)` |
-| `TT_NAME` | pushes string + calls `NAME_PUSH` | `icn_call_builtin("NAME_PUSH", 1, args)` |
-| `TT_RECORD` | push name + children + `RECORD_MAKE` | `icn_call_builtin("RECORD_MAKE", n+1, args)` |
-| `TT_VLIST` | short-circuit value list | evaluate children with JUMP_S logic |
-| `TT_OPSYN` | operator synonym resolution | translate op string + call builtin |
-| `TT_DEFER` | SNOBOL4 thunk — not Icon | skip (not reachable in LANG_ICN) |
-| `TT_CHOICE` | Prolog only | skip (not reachable in LANG_ICN) |
-
-- [x] Gap table produced. Commit (this file).
-
-### IJ-BB-2 — Fill bb_eval_value gaps (NEXT)
-Add handlers for the 7 Icon-reachable gaps from IJ-BB-1.
-TT_INTERROGATE and TT_GLOBAL are trivial one-liners.
-TT_INDIRECT, TT_NAME, TT_RECORD call through to icn_call_builtin.
-TT_VLIST requires short-circuit evaluation matching lower_vlist semantics.
-TT_OPSYN requires operator string translation matching lower_opsyn.
-- [ ] Add 7 handlers. GATE-1..4. Commit.
-
-### IJ-BB-3 — Route Icon scalar expressions through SM_BB_EVAL per-kind (IN PROGRESS)
-Macro ICN_BB_EVAL(t) added to lower.c: if g_lang==LANG_ICN emit SM_BB_EVAL(every_table_register(t)) and return.
-Applied group-by-group with gates after each.
-
-Rollout order and status:
-- [x] Group A (literals+NUL): lower_strlit/ilit/flit/nul + TT_CSET inline case.
-- [x] Group B (var reads): lower_var, lower_keyword. ir-run 190→191, honest 275→276.
-- [x] Group C (unary): lower_mns/pls/nonnull/null/size/identical/random/not/global/interrogate/name/indirect.
-- [x] Group D (binary): lower_add/sub/mul/div/mod/pow, lower_comp/acomp/lcomp, lower_idx/field/lconcat/cat_seq, inline cset ops. one4all `00918062`.
-- [x] Group E (augop only): lower_augop. `a40e4791`. lower_assign/scan/swap blocked: ICN_BB_EVAL(TT_ASSIGN) writes to transient FRAME.env[slot]; initial{}-modified locals need NV persistence across calls. Group F blocked: lower_if etc. contain TT_RETURN descendants; SM machine does not honour FRAME.returning after SM_BB_EVAL. Deferred.
-  NOTE: lower_assign and lower_scan cause ir-run regression (191→187) when ICN_BB_EVAL added.
-  Root cause unknown — bb_eval_value TT_ASSIGN or TT_SCAN path has a bug. Debug before converting.
-  Suggested approach: add ICN_BB_EVAL to lower_augop first (simpler), then debug assign/scan.
-- [ ] Group F (control flow): blocked — contains TT_RETURN/TT_PROC_FAIL descendants; SM machine ignores FRAME.returning after SM_BB_EVAL. Needs SM_BB_EVAL to check FRAME.returning after call, or a different approach.
-- [ ] Group G (calls+records): lower_fnc, lower_record, lower_vlist, lower_opsyn, lower_makelist.
-- [x] Group H (sections): TT_SECTION/SECTION_PLUS/SECTION_MINUS inline ICN_BB_EVAL at lower_expr dispatch. `767d9a2d`. lower_seq_expr skipped (structural).
-- [ ] After all groups: verify honest PASS >= 276. Commit.
+- [ ] Apply ICN_BB_EVAL guards to all 5 functions with correct placement. GATE-1..4. Commit.
 
 ### IJ-BB-4 — Eliminate LANG_ICN scalar branches from lower.c
-With SM_BB_ONCE routing verified, remove the LANG_ICN inline scalar emission
-from lower.c. Add runtime assert that no scalar SM opcode fires during Icon --sm-run.
+
+Remove LANG_ICN inline scalar emission from lower.c. Add runtime assert no scalar SM opcode fires during Icon --sm-run.
+
 - [ ] Remove LANG_ICN scalar lowering. GATE-1..4. Commit.
 
-### IJ-BB-5 — Verify fully-BB Icon: honest PASS >= 275, zero SM scalar fallback
-Confirm with tripwire that honest mode holds. Retire SM_SUSPEND_VALUE if --sm-run Icon is done.
-- [ ] Confirm fully-BB. Remove SM_SUSPEND_VALUE if --sm-run Icon retired. GATE-1..4. Commit.
+### IJ-BB-5 — Verify fully-BB Icon
 
-### IJ-13c — write(fh, s) routing (Cluster O)
+Honest PASS >= 275, zero SM scalar fallback. Retire SM_SUSPEND_VALUE if --sm-run Icon is done.
 
-htprep/meander/kross no longer crash but produce empty/wrong output.
-Root: `write(outfile, s)` where `outfile := &output` is INTVAL(1).
-write/writes cannot distinguish fh from plain int without a typed descriptor.
-
-- [x] Introduce DT_FH sentinel (DT_S slen=0xFFFFFFFE ptr=slot, or new DT_ tag).
-- [x] Update write/writes/read/reads/close/open to use it.
-- [x] rung37_file_io.icn + .expected. GATE-1..4. Commit.
-
-### IJ-14 — stdin programs: mindfa / mffsol (Cluster Q)
-
-- [x] Write .stdin fixtures. GATE-1..4. Commit. (fixtures pre-existed; fixed coro_bb_iterate static-alias `00cec4c3`; mindfa/mffsol still blocked by cset ++/-- missing from inline interp_eval)
-
-### IJ-15 — cset literal/builtin/ops + parse program (Cluster Q)
-
-- [x] rung36_jcon_parse: already passing at session start (no code change needed).
-- [x] cset literal (TT_CSET) now pushes CSETVAL via SM_PUSH_LIT_CS opcode.
-- [x] cset(x) builtin added to icn_try_call_builtin_by_name.
-- [x] TT_CSET_UNION/DIFF/INTER/COMPL lowered to SM_CALL_FN instead of emit_push_expr.
-- [x] TK_AUGCSET_UNION/DIFF/INTER in lower_augop fast-path.
-- [x] ICN_BANG_NEXT + coro_bb_iterate slen fix (CSETVAL 0xFFFFFFFF sentinel).
-- [x] coro_stmt.c default delegates to bb_eval_value (unblocks mindfa/mffsol startup).
-- [x] rung37_cset_ops.icn + .expected. GATE-1..4. Commit `52db8b96`.
-  mindfa/mffsol still FAIL (algorithm logic; not cset infrastructure). Cluster Q partial.
+- [ ] Confirm fully-BB. GATE-1..4. Commit.
 
 ### IJ-16 — &random seeding + radix literals (Clusters R, I)
 
@@ -174,24 +86,6 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 ### IJ-17 — level / profsum / ck (Cluster N)
 
 - [ ] level() builtin. &allocated. XFAIL if needed. GATE-1..4. Commit.
-
-## rung37_* test sources
-
-| File | Step | Status |
-|------|------|--------|
-| rung37_proc_lookup.icn | IJ-3 | done |
-| rung37_math_builtins.icn | IJ-4 | done |
-| rung37_string_format.icn | IJ-5 | done |
-| rung37_augops.icn | IJ-6 | done |
-| rung37_coerce.icn | IJ-7 | done |
-| rung37_str_relop.icn | IJ-8 | done |
-| rung37_scan_alt.icn | IJ-9 | done |
-| rung37_neg_pos.icn | IJ-10 | done |
-| rung37_keywords.icn | IJ-11 | done |
-| rung37_mutual.icn | IJ-12 | done |
-| rung37_file_io.icn | IJ-13c | done |
-| rung37_cset_ops.icn | IJ-15 | done |
-| rung37_random_radix.icn | IJ-16 | pending |
 
 ## Done when
 
@@ -206,34 +100,16 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 5. One cluster per step, own commit.
 6. New test source has matching .expected in same commit.
 7. No corpus source modified to work around runtime bugs.
-8. scrip Icon requires explicit `;` after every statement (non-standard vs real Icon/JCON). All rung37_*.icn must use semicolons.
+8. scrip Icon requires explicit `;` after every statement. All rung37_*.icn must use semicolons.
+
+## Architecture note
+
+icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as rt_bb_arb, rt_bb_len in rt.c). emit_bb_icon_* templates emit x86: mov rdi/esi, call@PLT, test, jne/jmp. Correct BROKERED form per ARCH-x86.md.
 
 ## Watermark
 
-  one4all: dfb2497c  corpus: 2ba5a92
-  ir-run:  PASS=191 FAIL=44 XFAIL=30
-  honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-BB-3 Group G (calls+records) or assign/scan fix
-  IJ-BB-2 ✅: 7 bb_eval_value gap handlers added (601af0e0)
-  IJ-BB-3 partial ✅: Groups A-D ✅ b187bd59; E(augop) ✅ a40e4791; H(sections) ✅ 767d9a2d
-  coro rename: coro_drive_node→icn_drive_node, coro_drive_val→icn_drive_val in icn_runtime.c/h (767d9a2d)
-  coro files deleted: coro_runtime/stmt/value .c/.h removed (dfb2497c)
-
-## IJ-29 next-session recipe
-
-  1. grep the bb_node_t field name: grep -n "bb_node_t" src/frontend/icon/icon_gen.c | head -3
-  2. grep alpha/beta constants: grep -n "define alpha\|define beta\|alpha = 0\|beta = 1" src/ -r --include=*.h | head -5
-  3. Replace coro_drive_fnc suspend loop with BB pump (see this session diff).
-  4. Replace coro_eval TT_FNC proc path with icn_bb_make_proc_box.
-  5. GATE-1..4. Commit. Verify suspend(1|2|3) generates all values.
-  6. IJ-30: delete proc_trampoline / coro_t / swapcontext (keep only for create/@).
-
-## Architecture note (IJ-43 clarification)
-
-coro_bb_* C functions = EMIT_BINARY_BROKERED box implementations.
-Same pattern as rt_bb_arb, rt_bb_len, etc. in rt.c.
-emit_bb_icon_* templates emit x86: mov rdi/esi, call@PLT, test, jne/jmp.
-This IS correct BROKERED form per ARCH-x86.md.
-Not wrong. Not lazy. Same as every other BB in the system.
-
-NEXT: IJ-29 — fix coro_drive_fnc suspend loop (suspend 1|2|3 generates all values).
+  one4all: dfb2497c (session start)  corpus: 2ba5a92
+  ir-run:  PASS=192 FAIL=43 XFAIL=30  (Group G partial: vlist/opsyn/makelist/record ✅; lower_fnc needs sval guard)
+  honest:  PASS=273 FAIL=2 ABORT=0   broker: 23/49
+  rung36_jcon_arith FAIL is pre-existing (pointer value in output).
+  NEXT: IJ-BB-3 Group G — fix lower_fnc sval guard, commit all 5 functions
