@@ -319,3 +319,44 @@ Fixes in `emit_bb.c`:
 3. Build libscrip_rt.so (`make libscrip_rt` in one4all) and run `test_gate_em_beauty_subsystems_mode4.sh` to measure beauty PASS/17.
 4. Investigate remaining beauty failures — determine which are sm-run-accuracy divergences vs true mode-4 bugs.
 5. Run broad corpus scan with libscrip_rt to distinguish sm-run-abort from mode-4-crash.
+
+---
+
+## EM-STATEFUL-FLAT — Make stateful boxes flat (spec-correct, no RTCALL)
+
+**Architectural note (Lon, 2026-05-13):** Stateful boxes do not belong in
+the runtime via RTCALL. They require per-invocation DATA allocation (the
+zeta struct), but that lives in the flat glob's DATA block — not in a
+heap struct dispatched through a C function pointer. The RTCALL path was
+always a temporary fallback. These steps complete what the arch specified.
+
+- [ ] **SF-1** — `emit_bb_xbal` flat template. `bal_t { int δ; }`. α: alloc DATA, zero δ, scan balanced parens inline. β: resume from saved cursor. γ/ω exits. No `rt_bb_bal` call.
+- [ ] **SF-2** — `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
+- [ ] **SF-3** — `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string). β→ω.
+- [ ] **SF-4** — `emit_bb_xlnth`/`xtb`/`xrtb` flat. `n` baked in DATA at emit time. α: check cursor arithmetic → γ or ω. β→ω (no re-entry for positional boxes).
+- [ ] **SF-5** — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
+- [ ] **SF-6** — ICN_* boxes flat. Zeroed DATA block on α-entry (self-init). C body functions (`coro_bb_*`) called as direct calls within the glob with DATA block address in rdi (not PLT stub).
+- [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
+- [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
+
+---
+
+## Watermark
+
+**SESSION HANDOFF — sess 2026-05-13 mode4-stateful-revert (Claude Sonnet 4.6)**
+
+one4all HEAD `d4a17203`. corpus HEAD `96444bf`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=10/17.
+
+### What was done this session
+
+**Class A stateful-box zeta text fix** (`fa75289f`, one4all): `emit_bb_stateful` IS_TEXT guard emits zeroed `.data` block + `emit_seq_port_call_rip`. `emit_bb_stateful_int` for LEN/TAB/RTAB. `emit_bb_xbrkx` inline IS_TEXT path. Broad corpus 113/113.
+
+**Class B (DEFINE_ENTRY) — attempted and reverted**: Removing push/rbp from DEFINE_ENTRY broke user-function RETURN (mov rsp,rbp/pop rbp/ret needs a matching prologue). Reverted in `d4a17203` / corpus `96444bf`. Beauty restored to 10/17.
+
+**Lon's architectural directive**: Stateful boxes do not belong in the RT via RTCALL. They need per-invocation DATA in the flat glob, not heap dispatch. SF-1..SF-8 above are the now-steps.
+
+### Next session must
+
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
+2. Confirm one4all HEAD `d4a17203`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty 10/17.
+3. Start SF-1: `emit_bb_xbal` flat template — inline BAL logic in the glob, DATA block holds `int δ`, no `rt_bb_bal` call.
