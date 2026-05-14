@@ -625,7 +625,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: 0c84d492  .github: (this commit)
+  one4all: 8ff71978  .github: (this commit)
   Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅ renames ✅ LR-S1b ✅
   NEXT: LR-S2 — delete bb_node_t path; all SNOBOL4 pattern matching via IR_exec_pat.
         Prerequisite: fix bb_node_t pattern-variable deref bugs (TT_VAR as pattern
@@ -640,12 +640,12 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
   LR-2 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all b4ce7a4a): IR_exec_once/IR_exec_pump. Unit test 11/11.
   LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 474df331): SM_EXEC_DCG + SM_PUMP_DCG opcodes.
   LR-S1 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all f3dc096a): lower_pat_dcg.c/h —
-        IR_prog_t built from tree_t* at lower time; stored in SM_EXEC_STMT a[2].ptr.
+        IR_block_t built from tree_t* at lower time; stored in SM_EXEC_STMT a[2].ptr.
         exec_stmt still uses bb_node_t path (additive). All six smoke gates pass.
   Renames ✅ sess 2026-05-14 (Claude Sonnet 4.6):
     589bde0e: ir_graph_t→IR_t, ir_node_t→IR_node_t, ir_*→IR_* (uppercase prefix)
-    e36e556d: IR_node_t→IR_t (node, matches tree_t), IR_t→IR_prog_t (graph, matches SM_Program)
-    Fixed sizeof(IR_prog_t)→sizeof(IR_t) in IR_node_alloc (heap corruption bug).
+    e36e556d: IR_node_t→IR_t (node, matches tree_t), IR_t→IR_block_t (graph, matches SM_Program)
+    Fixed sizeof(IR_block_t)→sizeof(IR_t) in IR_node_alloc (heap corruption bug).
   Renames ✅ sess 2026-05-14 (Claude Sonnet 4.6):
     81c4642e: SM_EXEC_DCG→SM_EXEC_BB, SM_PUMP_DCG→SM_PUMP_BB
     0430b1e2: IR_kind_t→IR_e, IR_KIND_COUNT→IR_E_COUNT, IR_kind_name→IR_e_name
@@ -660,7 +660,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
         Add LEN/NOTANY/POS/RPOS/TAB/RTAB to IR_exec_node and build_node.
         Wire IR_exec_pat into sm_jit_interp.c h_exec_stmt (default mode is --jit-run).
         broad corpus 128→145/280. smoke_snobol4 7/7, all six languages 5/5.
-  LR-S1b ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 0c84d492):
+  LR-S1b ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 8ff71978):
         All IR-achievable patterns implemented. broad corpus 161/280.
         Remaining 119 failures: all pre-existing bb_node_t pattern-var deref bugs
         (TT_VAR/TT_DEFER as pattern operand). IR path exhausted for this rung.
