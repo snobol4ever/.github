@@ -615,3 +615,32 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 `gen_cfg_t` renamed to `gen_graph_t` throughout — "CFG" is overloaded
 (Control-Flow Graph AND Context-Free Grammar in parsing contexts).
 `gen_graph_t` is unambiguous: a generator directed cyclic graph.
+
+---
+
+## CLARIFICATION: No separate generator phase — lower wires directly
+
+A tree is a subset of a DCG (no back-edges, one parent per node).
+lower.c produces a gen_graph_t (DCG) in ONE pass — the wiring of
+port_start/resume/succ/fail happens during lowering, not in a separate phase.
+
+```
+Parser → tree_t (pure tree) → lower → gen_graph_t (DCG) → gen_exec / emit
+```
+
+The "generator phase" described earlier is WRONG as a separate pass.
+Fold it into lower: each lower_* function builds its gen_node_t AND wires
+its four ports using the already-wired children. Bottom-up, one pass.
+
+The SM array is NOT a separate IR — it is one possible serialization of the
+acyclic (tree-shaped) portions of the gen_graph_t. SNOBOL4 scalars happen
+to produce acyclic gen_graph_t subgraphs that can be serialized as SM instructions.
+SNOBOL4 patterns and all Icon expressions produce cyclic subgraphs — these
+cannot be serialized as flat SM arrays, so gen_exec drives them directly.
+
+SM_EXEC_GEN is the handoff: SM array execution hits SM_EXEC_GEN(gen_graph_t*)
+and transfers to gen_exec for the cyclic subgraph. On return (succ or fail),
+SM array execution resumes.
+
+Delete LR-1 (gen_phase.c) from the step list — it does not exist.
+lower.c IS the generator phase.
