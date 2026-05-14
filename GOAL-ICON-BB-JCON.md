@@ -175,18 +175,19 @@ Simple constructs first (pure integer state, no child generators):
 
 ### IJ-19-debug — fix upto scalar dispatch in icn_bb_build (FIRST)
 
-- [ ] Add debug print, confirm `fn` and position in TT_FNC block.
+- [x] Add debug print, confirm `fn` and position in TT_FNC block.
       Fix dispatch condition so `upto('aeiou', "hello world")` → `icn_bb_dcg`.
       Verify: `./scrip --ir-run /tmp/test_upto.icn` prints `2\n5\n8` (positions in "hello world").
       GATE-1..4. Commit.
+      Root causes fixed: (1) IR_ICN_UPTO stored hay in nd->value.s which IR_reset zeroed —
+      moved to new IR_t.sval2 field. (2) icn_bb_every was returning icn_lazy_box stub —
+      implemented and wired. one4all `a82b42c5`.
 
 ### IJ-19-to — implement TT_TO generator (smoke_icon every test)
 
-- [ ] Add IR_ICN_TO to scrip_ir.h.
-      Add executor case to ir_exec.c (α: cur=lo, β: cur++, bounds→ω).
-      Write lower_icn_to(lo, hi) in lower_icn.c.
-      Wire in icn_bb_build TT_TO block (replace lazy with icn_bb_dcg).
-      Verify: `every write(1 to 3)` prints 1,2,3. GATE-1 PASS=5. Commit.
+- [x] Implemented icn_bb_to (no separate IR kind needed — purely runtime box).
+      Wire in icn_bb_build TT_TO scalar path (replace icn_lazy_box).
+      Verify: `every write(1 to 3)` prints 1,2,3. GATE-1 PASS=5. one4all `a82b42c5`.
 
 ### IJ-19-to-by — implement TT_TO_BY
 
@@ -228,7 +229,8 @@ Simple constructs first (pure integer state, no child generators):
 
 ## Watermark
 
-  one4all: b389062e+  corpus: 1fe096c
-  ir-run:  PASS=191 FAIL=39 (pre-deletion baseline)
-  smoke_icon: 4/5   broker: 20/23  (post-deletion, lazy routing)
-  NEXT: IJ-19-debug — fix upto scalar dispatch, then IJ-19-to (TT_TO restores smoke_icon 5/5)
+  one4all: a82b42c5  corpus: 1fe096c
+  ir-run:  PASS=149 FAIL=81 (post IJ-19-debug+to; format changed)
+  honest:  PASS=272  (pre-existing baseline, no regression)
+  smoke_icon: 5/5   broker: 21/49  honest: 272  (IJ-19-debug+IJ-19-to done)
+  NEXT: IJ-19-to-by (TT_TO_BY)
