@@ -79,7 +79,7 @@ Gate after every step: smoke 7/7, byte-id 4/4. No logic changes — pure reforma
 - [x] **S200-4** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3cfe85f0` — `emit_bb.c` (1,532→1,368 lines). Zero blank lines, zero >200-col, no inline/body comments. Stateless one-liners column-aligned; stateful helpers compacted; XBAL/XBRKX/XDSAR/XATP/charset stripped of body comments; flat builder reformatted; bm_* helpers compacted. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-5** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `68ab8cd7` — `emit_sm.c` (2,766 lines). 167 separators upgraded from 120-char to 200-char. File already had zero blank lines, zero inline/body comments, zero >200-col lines. Pure separator-width upgrade. Gates: smoke 7/7, byte-id 4/4.
 - [~] **S200-6** — `sm_jit_interp.c` SKIPPED — frozen file, excluded from all emitter rewrite steps per ARCH-EMITTER.md ("never touched by EM-REWRITE").
-- [ ] **S200-7** — Final sweep: `grep` lines >200 chars, double blank lines, single-stmt brace survivors. Fix all. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+- [x] **S200-7** ✅ sess 2026-05-14 (Claude Sonnet 4.6) one4all `7f06f33d` — Final sweep: 12 single-stmt brace survivors in emit_core.c, 4 in emit_sm.c removed. No >200-col lines, no blank lines found. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
 
 
@@ -255,19 +255,18 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 S200-emit_bb+emit_sm (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-14 S200-7 (Claude Sonnet 4.6)**
 
-one4all HEAD `68ab8cd7`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `7f06f33d`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
 ### What was done this session
 
-S200-4 and S200-5 complete:
+S200-7 complete (EM-STYLE-200COL fully done):
 
-- **S200-4** (`72840167`): `emit_bb.c` reformatted — 1,532→1,368 lines. Zero blank lines, zero >200-col, no inline/body comments. Stateless box one-liners column-aligned. Stateful helpers compacted. Flat builder section reformatted.
-- **S200-5** (`68ab8cd7`): `emit_sm.c` — 167 separators upgraded 120→200-char. File already clean otherwise.
+- **S200-7** (`7f06f33d`): Final sweep of all emitter C/H files. No lines >200 chars, no blank lines found. Removed 12 single-stmt brace survivors in `emit_core.c` and 4 in `emit_sm.c`. Pure style, no logic changes.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `68ab8cd7`. Gates: smoke 7/7, byte-id 4/4.
-3. **S200-7**: final sweep — `grep` lines >200 chars, double blank lines, single-stmt brace survivors across all emitter C/H files (`emit_core.c`, `emit_bb.c`, `emit_sm.c` and headers). Fix all. Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: S200-6 (`sm_jit_interp.c`) is SKIPPED — that file is frozen, excluded from all emitter rewrite steps per ARCH-EMITTER.md.
+2. Confirm one4all HEAD `7f06f33d`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+3. **SF-2**: `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
