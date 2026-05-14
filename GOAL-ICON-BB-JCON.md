@@ -114,11 +114,23 @@ TT_VLIST requires short-circuit evaluation matching lower_vlist semantics.
 TT_OPSYN requires operator string translation matching lower_opsyn.
 - [ ] Add 7 handlers. GATE-1..4. Commit.
 
-### IJ-BB-3 — Route Icon scalar expressions through bb_eval_value via SM_BB_ONCE
-lower.c currently emits SM scalar opcodes inline for Icon expressions.
-Change lower_expr for LANG_ICN to emit SM_BB_ONCE pointing to the tree_t*
-instead of inlining SM opcodes — execution falls through to bb_eval_value.
-- [ ] Route LANG_ICN scalar exprs through SM_BB_ONCE. GATE-1..4. honest PASS must not decrease. Commit.
+### IJ-BB-3 — Route Icon scalar expressions through SM_BB_EVAL per-kind (IN PROGRESS)
+Macro ICN_BB_EVAL(t) added to lower.c: if g_lang==LANG_ICN emit SM_BB_EVAL(every_table_register(t)) and return.
+Applied group-by-group with gates after each.
+
+Rollout order and status:
+- [x] Group A (literals+NUL): lower_strlit/ilit/flit/nul + TT_CSET inline case.
+- [x] Group B (var reads): lower_var, lower_keyword. ir-run 190→191, honest 275→276.
+- [x] Group C (unary): lower_mns/pls/nonnull/null/size/identical/random/not/global/interrogate/name/indirect.
+- [x] Group D (binary): lower_add/sub/mul/div/mod/pow, lower_comp/acomp/lcomp, lower_idx/field/lconcat/cat_seq, inline cset ops. one4all `00918062`.
+- [ ] Group E (assignment+swap+scan): lower_assign, lower_swap, lower_scan, lower_augop.
+  NOTE: lower_assign and lower_scan cause ir-run regression (191→187) when ICN_BB_EVAL added.
+  Root cause unknown — bb_eval_value TT_ASSIGN or TT_SCAN path has a bug. Debug before converting.
+  Suggested approach: add ICN_BB_EVAL to lower_augop first (simpler), then debug assign/scan.
+- [ ] Group F (control flow): lower_if, lower_while, lower_until, lower_repeat, lower_case, lower_initial, lower_loop_break/next, lower_return, lower_proc_fail.
+- [ ] Group G (calls+records): lower_fnc, lower_record, lower_vlist, lower_opsyn, lower_makelist.
+- [ ] Group H (sections+scan): lower_section_3, lower_seq_expr.
+- [ ] After all groups: verify honest PASS >= 276. Commit.
 
 ### IJ-BB-4 — Eliminate LANG_ICN scalar branches from lower.c
 With SM_BB_ONCE routing verified, remove the LANG_ICN inline scalar emission
@@ -198,11 +210,12 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: b7f5de14  corpus: 2ba5a92
-  ir-run:  PASS=190 FAIL=45 XFAIL=30
-  honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-BB-2 (fill 7 bb_eval_value gaps: TT_INTERROGATE/GLOBAL/INDIRECT/NAME/RECORD/VLIST/OPSYN)
-  IJ-BB-1 ✅: gap table complete (7 Icon-reachable gaps, 2 skipped: TT_DEFER/TT_CHOICE not Icon)
+  one4all: b187bd59  corpus: 2ba5a92
+  ir-run:  PASS=191 FAIL=44 XFAIL=30
+  honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
+  NEXT: IJ-BB-3 Group E — debug TT_ASSIGN/TT_SCAN regression, then convert augop/control/calls
+  IJ-BB-2 ✅: 7 bb_eval_value gap handlers added (601af0e0)
+  IJ-BB-3 partial ✅: Groups A-D converted to SM_BB_EVAL (b187bd59); Groups E-H pending
 
 ## IJ-29 next-session recipe
 
