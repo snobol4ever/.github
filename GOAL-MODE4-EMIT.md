@@ -59,7 +59,7 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 - [x] **SF-2** ✅ `c99fe633` — `emit_bb_xfarb` flat ARB. DATA: .long count; .long start. α: count=0; start=Δ; →γ. β: count++; if start+count>Σlen →ω; else Δ=start+count →γ. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [x] **SF-3** ✅ `4e3306d5` — `emit_bb_xstar` flat REM. Stateless. α: Δ=Σlen →γ. β: →ω. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [x] **SF-4** ✅ `98b2e204` — `emit_bb_xlnth/xtb/xrtb` flat LEN/TAB/RTAB. n baked as immediate; no DATA. LEN: Δ+n≤Σlen→γ. TAB: Δ≤n→γ, Δ=n. RTAB: Δ≤Σlen-n→γ. All β→ω. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
-- [ ] **SF-5** — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
+- [x] **SF-5** ✅ `55857945` — `emit_bb_xbrkx` flat inline BREAKX. DATA: .string chars; .quad chars_ptr; .long δ. α: scan fwd while Σ[Δ+δ] not in chars; δ==0||Δ+δ>=Σlen →ω; else Δ+=δ →γ. β: Δ-=δ →ω. Assembles clean. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [ ] **SF-6** — ICN_* boxes flat. Zeroed DATA block on α-entry (self-init). `coro_bb_*` called as direct calls with DATA block address in rdi (not PLT stub).
 - [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
 - [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
@@ -72,8 +72,8 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 
 ## Watermark
 
-**HEAD** one4all `98b2e204` · .github `ab6193cf` · Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+**HEAD** one4all `55857945` · .github TBD · Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
-**Next:** SF-5 — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
+**Next:** SF-6 — ICN_* boxes flat. Zeroed DATA block on α-entry. `coro_bb_*` called as direct calls with DATA block address in rdi (not PLT stub).
 
-**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `98b2e204`.
+**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `55857945`.
