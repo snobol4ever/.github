@@ -93,7 +93,7 @@ heap struct dispatched through a C function pointer. The RTCALL path was
 always a temporary fallback. These steps complete what the arch specified.
 
 - [x] **SF-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3fcc90a7` — `emit_bb_xbal` flat inline BAL box. Text path: `.data` slot for `int δ`; inline `'('`/`')'` byte-compare loop via RIP-relative Σ/Σlen/Δ symbols; no `rt_bb_bal` call. Binary path: heap zeta via `emit_seq_port_call` (unchanged). Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: SNOBOL4 frontend emits `PUSH_VAR` for `BAL` rather than `XBAL` in all tested programs — the emit path is structurally correct but unexercised until frontend keyword wiring routes `BAL` → `XBAL`.
-- [ ] **SF-2** — `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
+- [x] **SF-2** ✅ sess 2026-05-14 (Claude Sonnet 4.6) one4all `c99fe633` — `emit_bb_xfarb` flat inline ARB box. DATA: .long count; .long start. α: count=0; start=Δ; advance 0 → γ. β: count++; if start+count > Σlen → ω; else Δ=start+count → γ. Binary path unchanged. Assembles clean. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [ ] **SF-3** — `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string). β→ω.
 - [ ] **SF-4** — `emit_bb_xlnth`/`xtb`/`xrtb` flat. `n` baked in DATA at emit time. α: check cursor arithmetic → γ or ω. β→ω (no re-entry for positional boxes).
 - [ ] **SF-5** — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
@@ -255,18 +255,19 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-14 S200-7 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-14 SF-2 (Claude Sonnet 4.6)**
 
-one4all HEAD `7f06f33d`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+one4all HEAD `c99fe633`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
 ### What was done this session
 
-S200-7 complete (EM-STYLE-200COL fully done):
+S200-7 + SF-2 complete:
 
-- **S200-7** (`7f06f33d`): Final sweep of all emitter C/H files. No lines >200 chars, no blank lines found. Removed 12 single-stmt brace survivors in `emit_core.c` and 4 in `emit_sm.c`. Pure style, no logic changes.
+- **S200-7** (`7f06f33d`): Final style sweep — 16 single-stmt brace survivors removed across emit_core.c + emit_sm.c.
+- **SF-2** (`c99fe633`): `emit_bb_xfarb` flat inline ARB box. DATA: .long count + .long start. α sets count=0/start=Δ/advances 0→γ. β increments count, checks Σlen bound, sets Δ=start+count→γ or →ω.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `7f06f33d`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
-3. **SF-2**: `emit_bb_xfarb` (ARB) flat. `arb_t { int count; int start; }`. α: save start=cursor, count=0, try zero-length → γ. β: advance count, retry → γ, exhaust → ω.
+2. Confirm one4all HEAD `c99fe633`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+3. **SF-3**: `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string, Δ=Σlen). β→ω.
