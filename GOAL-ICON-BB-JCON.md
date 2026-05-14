@@ -1,4 +1,4 @@
-# GOAL-ICON-BB-JCON.md — Icon BB emitters (43 JCON constructs)
+# GOAL-ICON-BB-JCON.md — Icon BB: lower.c DCG + inline x86 emitters (43 JCON constructs)
 
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-ICON-BB-NATIVE ✅ `7efdf09a`
@@ -9,59 +9,42 @@
 
 ⚠ No coro subsystem. Icon is pure BB. Do NOT touch coro_runtime.c or coro_*.
 ⚠ BB RULE: Read `.github/jcon_irgen.icn` before touching any BB.
+⚠ NO C BB BOXES. No `DESCR_t foo(void *zeta, int entry)` functions anywhere, ever.
 
 ---
 
-## Architecture — what a BB emitter IS
+## Architecture — the two steps
 
-Each Icon generator construct maps to an `emit_bb_icon_*` function in `src/emitter/emit_bb.c`.
-That function emits **inline x86 assembly** implementing alpha/beta directly — no C helper called.
+### Step 1 — lower.c builds the DCG for Icon (FIRST)
 
-Reference sources for alpha/beta logic of each construct:
-1. `jcon_irgen.icn` — JCON IR: four-port wiring (start/resume/success/failure) for each AST node.
-2. Deleted `icon_gen.c` — recoverable via `git show HEAD~1:src/runtime/interp/icon_gen.c`.
-   Each `DESCR_t icn_bb_*(void *zeta, int entry)` body IS the alpha (entry==0) / beta (entry==1) logic.
-   Use it as the direct specification for the inline x86.
+Currently `lower.c` for Icon is a no-op: every TT_* node hits `ICN_BB_EVAL(t)` which
+registers the raw `tree_t*` and emits `SM_BB_EVAL(id)`. The DCG is never built at
+compile time — `icn_bb_build` walks the live AST at runtime on every call.
 
-Emitter pattern (TEXT mode):
+**The fix:** write `src/lower/lower_icn.c` (mirrors `lower_pat_dcg.c` for SNOBOL4).
+For each Icon TT_* kind, build a compile-time `IR_block_t` graph with four ports
+(start / resume / success / fail) wired per `jcon_irgen.icn`'s `ir_a_*` procedures.
+Emit `SM_EXEC_BB(ptr)` instead of `SM_BB_EVAL(id)`.
 
-  void emit_bb_icon_to(bb_label_t *s, bb_label_t *f, bb_label_t *b) {
-      emit_bb_box_banner("ICN_TO", "");
-      if (IS_TEXT) {
-          int id = g_flat_node_id++;
-          // Emit .data: zeta struct as zero-init .quad slots
-          // Emit .text: alpha inline x86 — read zeta fields, compute, jmp s or f
-          // emit_label_define(b)
-          // Emit .text: beta inline x86 — advance state, jmp s or f
-          return;
-      }
-      // binary mode: same logic via insn_* helpers
-  }
+Reference: `jcon_irgen.icn` — each `ir_a_CONSTRUCT` procedure shows exactly how the
+four ports connect. That IS the DCG wiring for Icon.
+Reference: `src/lower/lower_pat_dcg.c` — the SNOBOL4 equivalent; copy its structure.
 
-Key rules:
-- Zeta lives in .data as .quad 0 slots. SM populates fields at runtime before broker drives.
-- Blob reads/writes zeta fields via [rip + zlbl + offset] (TEXT) or immediate ptr (binary).
-- Blob jumps directly to s (success) or f (fail) — no rax test, no C call.
-- Replace each ICN_EMIT2(...) one-liner with a real inline emitter body.
-- Remove the corresponding `extern DESCR_t icn_bb_*` declaration when done.
-- NO `DESCR_t foo(void *zeta, int entry)` C functions created anywhere, ever.
+### Step 2 — inline x86 emitters for each construct (AFTER Step 1)
+
+Each `IR_block_t` node points to an `emit_bb_icon_*` function in `src/emitter/emit_bb.c`.
+That function emits **inline x86** implementing alpha/beta directly — no C helper called.
+
+Alpha/beta logic source: deleted `icon_gen.c` via
+  `git show HEAD~1:src/runtime/interp/icon_gen.c`
+Each `DESCR_t icn_bb_*(void *zeta, int entry)` body IS the alpha/beta spec.
 
 Simple state structs (start here):
-  icn_to_state_t    = { long lo; long hi; long cur; }            3 quads, 24 bytes
-  icn_to_by_state_t = { long lo; long hi; long step; long cur; } 4 quads, 32 bytes
+  icn_to_state_t    = { long lo; long hi; long cur; }             3 quads
+  icn_to_by_state_t = { long lo; long hi; long step; long cur; }  4 quads
 
-TT_TO alpha/beta (from deleted icon_gen.c):
-  α: cur=lo; if cur>hi → jmp f; else jmp s (value=cur)
-  β: cur++; if cur>hi → jmp f; else jmp s (value=cur)
-
-TT_TO_BY alpha/beta:
-  α: cur=lo; if step>0 && cur>hi → jmp f; if step<0 && cur<hi → jmp f; else jmp s
-  β: cur+=step; same bounds test; jmp s or f
-
-Value delivery: the broker reads the value from wherever the emitter stores it
-(a scratch slot in the zeta, or a shared DESCR_t result area). Look at how
-existing inline boxes (emit_bb_xbal, emit_bb_xarbn) deliver results — adapt
-that pattern for integer values.
+Replace each `ICN_EMIT2(...)` one-liner with a real inline x86 body.
+Remove the corresponding `extern DESCR_t icn_bb_*` declaration when done.
 
 ---
 
@@ -76,20 +59,27 @@ that pattern for integer values.
 
 ## Active steps
 
-### IJ-19-emit — write inline x86 BB emitters for the 43 JCON constructs
+### IJ-19-lower — write lower_icn.c: DCG for all Icon TT_* (Step 1)
 
-Replace each ICN_EMIT2 one-liner in emit_bb.c with real inline x86.
-Start with the simplest (pure integer state, no pointers):
+- [ ] Create `src/lower/lower_icn.c` and `src/lower/lower_icn.h`.
+      For each Icon TT_* kind, build `IR_block_t` graph following `jcon_irgen.icn` `ir_a_*`.
+      Wire four ports: start→resume→success→fail per JCON wiring.
+      Call from `lower.c` instead of `ICN_BB_EVAL(t)` for each TT_* kind.
+      Emit `SM_EXEC_BB(ptr)` not `SM_BB_EVAL(id)`.
+      Add to Makefile. GATE-1..4. Commit.
+
+### IJ-19-emit — inline x86 emitters for 43 constructs (Step 2, after Step 1)
 
 - [ ] emit_bb_icon_to      (TT_TO,    3-long state)   GATE-1..4. Commit.
 - [ ] emit_bb_icon_to_by   (TT_TO_BY, 4-long state)   GATE-1..4. Commit.
-- [ ] emit_bb_icon_iterate (TT_ITERATE, string state)  GATE-1..4. Commit.
+- [ ] emit_bb_icon_iterate (TT_ITERATE)                GATE-1..4. Commit.
 - [ ] ... remaining 40 in order of state complexity.
 
 Per-emitter procedure:
-  1. `git show HEAD~1:src/runtime/interp/icon_gen.c` → find `icn_bb_CONSTRUCT` → read alpha/beta.
-  2. Read `jcon_irgen.icn` `ir_a_CONSTRUCT` for four-port wiring.
-  3. Write inline x86 body using bb3c_format (TEXT path).
+  1. `git show HEAD~1:src/runtime/interp/icon_gen.c` → `icn_bb_CONSTRUCT` → alpha/beta logic.
+  2. `jcon_irgen.icn` `ir_a_CONSTRUCT` → four-port wiring.
+  3. Write inline x86 via bb3c_format (TEXT path). Zeta in .data as .quad slots.
+     Blob jumps directly to s or f — no rax test, no C call.
   4. Replace ICN_EMIT2 one-liner. Remove extern DESCR_t declaration.
   5. GATE-1..4. Commit.
 
@@ -97,6 +87,7 @@ Per-emitter procedure:
 
 ## Done when
 
+  lower_icn.c builds DCG for all Icon TT_* at compile time.
   All 43 ICN_EMIT2 lines replaced with inline x86 emitters.
   No `extern DESCR_t icn_bb_*` declarations remain in emit_bb.c.
   ir-run PASS >= 230. Honest PASS >= 268. GATE-1..4 green.
@@ -120,4 +111,4 @@ Per-emitter procedure:
   one4all: 58e1814a  corpus: 1fe096c
   ir-run:  PASS=191 FAIL=39 XFAIL=35
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-19-emit — emit_bb_icon_to inline x86 (TT_TO, simplest 3-long state)
+  NEXT: IJ-19-lower — write lower_icn.c DCG for all Icon TT_* (Step 1 before any emitters)
