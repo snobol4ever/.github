@@ -1,4 +1,4 @@
-# GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (gen_node_t / gen_cfg_t)
+# GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (gen_node_t / gen_graph_t)
 
 **Repo:** one4all + .github
 **Supersedes:** GOAL-ICON-LOWER-REDESIGN.md
@@ -20,7 +20,7 @@ SCRIP has six languages. Each has two kinds of computation:
 | Raku     | mostly scalar               | generators exist but rare; mostly tree-shaped |
 
 **The SM (stack machine) drives everything.** It is the spine of execution.
-**The BB (brokered-box / gen_cfg_t) handles all goal-directed computation.**
+**The BB (brokered-box / gen_graph_t) handles all goal-directed computation.**
 Both lands coexist and call into each other seamlessly — including cross-language calls.
 
 ---
@@ -57,13 +57,13 @@ graph construction to runtime, using the raw AST as the IR by accident.
                     │                                      │
                     │  SM_PUSH_LIT / SM_ADD / SM_STORE …  │  ← scalar ops
                     │  SM_CALL_FN / SM_RETURN …            │  ← procedure calls
-                    │  SM_EXEC_GEN(gen_cfg_t*)  ←──────────────── NEW opcode
+                    │  SM_EXEC_GEN(gen_graph_t*)  ←──────────────── NEW opcode
                     │                   │                  │
                     └───────────────────│──────────────────┘
                                         │ enter BB land
                                         ▼
                     ┌─────────────────────────────────────┐
-                    │       BB (gen_cfg_t executor)        │
+                    │       BB (gen_graph_t executor)        │
                     │       goal-directed computation      │
                     │                                      │
                     │  gen_node_t graph walk               │
@@ -75,7 +75,7 @@ graph construction to runtime, using the raw AST as the IR by accident.
                     └─────────────────────────────────────┘
 ```
 
-`SM_EXEC_GEN(ptr)` replaces `SM_BB_EVAL(ptr)`. The pointer is now a `gen_cfg_t*`
+`SM_EXEC_GEN(ptr)` replaces `SM_BB_EVAL(ptr)`. The pointer is now a `gen_graph_t*`
 (compile-time wired graph) instead of a `tree_t*` (raw AST). This is the only
 change visible at the SM level — everything else is internal to the two lands.
 
@@ -196,7 +196,7 @@ struct gen_node {
     int             state;      /* executor state machine (0=fresh) */
 
     /* Graph bookkeeping */
-    int             id;         /* unique within gen_cfg_t — set by gen_phase */
+    int             id;         /* unique within gen_graph_t — set by gen_phase */
     int             generative; /* 1 if port_resume is meaningful */
     int             visited;    /* scratch for traversal algorithms */
     int             lang;       /* which language produced this node */
@@ -208,7 +208,7 @@ typedef struct {
     gen_node_t    **all;        /* flat array of all nodes (for reset/GC) */
     int             n;          /* count */
     int             lang;       /* LANG_SNO / LANG_ICN / LANG_PL / etc. */
-} gen_cfg_t;
+} gen_graph_t;
 ```
 
 ---
@@ -248,11 +248,11 @@ It wires all four ports. Back-edges create the cycles.
 
 ## The new SM opcode: SM_EXEC_GEN
 
-Replaces `SM_BB_EVAL`. Operand is a `gen_cfg_t*` (compile-time wired graph).
+Replaces `SM_BB_EVAL`. Operand is a `gen_graph_t*` (compile-time wired graph).
 
 ```c
 case SM_EXEC_GEN: {
-    gen_cfg_t *cfg = (gen_cfg_t *)ins->a[0].ptr;
+    gen_graph_t *cfg = (gen_graph_t *)ins->a[0].ptr;
     DESCR_t val = gen_exec_once(cfg);   /* drive graph: start→succ or start→fail */
     st->last_ok = !IS_FAIL_fn(val);
     sm_push(st, val);
@@ -263,13 +263,13 @@ case SM_EXEC_GEN: {
 For generative contexts (`every`, `while`) a separate pump opcode drives resume:
 ```c
 case SM_PUMP_GEN: {
-    gen_cfg_t *cfg = (gen_cfg_t *)ins->a[0].ptr;
+    gen_graph_t *cfg = (gen_graph_t *)ins->a[0].ptr;
     /* drives cfg until exhausted, executing body SM block per value */
     ...
 }
 ```
 
-The gen_cfg_t executor can call back into SM for scalar sub-expressions:
+The gen_graph_t executor can call back into SM for scalar sub-expressions:
 ```c
 /* Inside gen_exec — calling a scalar sub-expression */
 DESCR_t gen_exec_call_sm(SM_State *st, SM_Program *prog, int entry_pc) {
@@ -286,7 +286,7 @@ DESCR_t gen_exec_call_sm(SM_State *st, SM_Program *prog, int entry_pc) {
 
 ```
 scalar stmts:   AST → lower_sno.c → SM array (SM_ADD, SM_STORE_VAR…) — UNCHANGED
-pattern match:  AST → lower_pat.c → gen_node_t tree → gen_phase_wire() → gen_cfg_t
+pattern match:  AST → lower_pat.c → gen_node_t tree → gen_phase_wire() → gen_graph_t
                 SM stmt emits SM_EXEC_GEN(cfg) at the pattern-match site
                 gen_exec drives the pattern graph; subject position is thread-local state
                 on match success → SM continues; on failure → SM branches (GOTO fail-label)
@@ -298,7 +298,7 @@ model — we just compile the BB part at lower time instead of building it ad-ho
 ### Snocone
 
 ```
-everything:     AST → lower_sco.c → gen_node_t tree → gen_phase_wire() → gen_cfg_t
+everything:     AST → lower_sco.c → gen_node_t tree → gen_phase_wire() → gen_graph_t
                 SM_EXEC_GEN drives top-level expressions
                 scalar sub-expressions fold into GEN_BINOP etc. (no SM needed)
 ```
@@ -310,14 +310,14 @@ Snocone is the cleanest — everything is a generator, single path.
 ```
 Test bed for SM+BB hybrid (like SNOBOL4 but simpler syntax):
 scalar stmts:   SM array
-pattern parts:  gen_node_t / gen_cfg_t via SM_EXEC_GEN
+pattern parts:  gen_node_t / gen_graph_t via SM_EXEC_GEN
 Use Rebus to validate the SM↔BB boundary before touching SNOBOL4.
 ```
 
 ### Icon
 
 ```
-everything:     AST → lower_icn.c → gen_node_t tree → gen_phase_wire() → gen_cfg_t
+everything:     AST → lower_icn.c → gen_node_t tree → gen_phase_wire() → gen_graph_t
                 no SM array for Icon expressions at all
                 SM_EXEC_GEN(cfg) is the only Icon opcode emitted per statement
                 gen_exec handles the entire expression graph
@@ -328,7 +328,7 @@ everything:     AST → lower_icn.c → gen_node_t tree → gen_phase_wire() →
 
 ```
 goals:          AST → lower_pl.c → gen_node_t tree (GEN_PL_CHOICE, GEN_PL_UNIFY…)
-                → gen_phase_wire() → gen_cfg_t
+                → gen_phase_wire() → gen_graph_t
                 SM_EXEC_GEN drives goal resolution
                 choice points = GEN_PL_CHOICE with alternation back-edges
                 cut = GEN_PL_CUT prunes the choice graph
@@ -352,7 +352,7 @@ When SNOBOL4 calls an Icon proc, or Prolog calls a SNOBOL4 pattern:
 SM (SNOBOL4 context)
   │  SM_CALL_FN "icon_proc"
   │
-  └─→ gen_exec(icon_proc_cfg)       ← enters BB land with Icon gen_cfg_t
+  └─→ gen_exec(icon_proc_cfg)       ← enters BB land with Icon gen_graph_t
           │  GEN_CALL → "sno_builtin"
           └─→ SM sub-call            ← back into SM land for SNOBOL4 scalar
                   │  returns DESCR_t
@@ -364,7 +364,7 @@ SM continues
 
 The DESCR_t value type is shared. SM stack is shared. The only boundary is
 which executor (SM interp vs gen_exec graph walker) is currently active.
-The `g_lang` flag is NOT needed for dispatch — the gen_cfg_t carries its
+The `g_lang` flag is NOT needed for dispatch — the gen_graph_t carries its
 own `lang` field and the gen_exec handles all kinds uniformly.
 
 ---
@@ -373,20 +373,20 @@ own `lang` field and the gen_exec handles all kinds uniformly.
 
 ### Phase 0: Infrastructure (no behavior change)
 
-**LR-0** — Define gen_node_t, gen_cfg_t, gen_kind_t
+**LR-0** — Define gen_node_t, gen_graph_t, gen_kind_t
 - New: `src/runtime/common/gen_node.h` + `gen_node.c`
 - alloc, free, print, reset
 - No lowering changes. All gates pass. Commit.
 
 **LR-1** — Generator phase: gen_phase_wire()
 - New: `src/runtime/common/gen_phase.h` + `gen_phase.c`
-- Input: gen_node_t tree. Output: all four ports wired → gen_cfg_t.
+- Input: gen_node_t tree. Output: all four ports wired → gen_graph_t.
 - Standalone unit test only. All gates pass. Commit.
 
 **LR-2** — gen_exec: graph-walk executor
 - New: `src/runtime/common/gen_exec.h` + `gen_exec.c`
-- gen_exec_once(gen_cfg_t*) → DESCR_t
-- gen_exec_pump(gen_cfg_t*, body_fn) → int ticks
+- gen_exec_once(gen_graph_t*) → DESCR_t
+- gen_exec_pump(gen_graph_t*, body_fn) → int ticks
 - Standalone unit test: `scripts/test_gen_exec_unit.sh`. All gates pass. Commit.
 
 **LR-3** — Add SM_EXEC_GEN opcode (dead — nothing emits it yet)
@@ -398,20 +398,20 @@ own `lang` field and the gen_exec handles all kinds uniformly.
 ### Phase 1: Rebus as test bed for SM+BB hybrid
 
 **LR-4** — Rebus lower: emit gen_node_t alongside existing path (additive)
-- lower_rebus.c: for pattern nodes, also build gen_node_t tree + wire + cache gen_cfg_t
+- lower_rebus.c: for pattern nodes, also build gen_node_t tree + wire + cache gen_graph_t
 - SM_EXEC_GEN path activated for Rebus patterns
-- Fallback to old path if gen_cfg_t absent
+- Fallback to old path if gen_graph_t absent
 - GATE: smoke_rebus pass. Commit.
 
-**LR-5** — Rebus: delete old pattern BB, use gen_cfg_t only
+**LR-5** — Rebus: delete old pattern BB, use gen_graph_t only
 - Remove old Rebus ad-hoc BB pattern code
 - GATE: smoke_rebus pass. Commit.
 
 ### Phase 2: Icon migration
 
 **LR-6** — Icon lower: emit gen_node_t alongside SM_BB_EVAL (additive)
-- lower.c: LANG_ICN path builds gen_node_t tree + wire → gen_cfg_t per expression
-- SM_BB_EVAL handler: if gen_cfg_t present → gen_exec; else → icn_bb_build fallback
+- lower.c: LANG_ICN path builds gen_node_t tree + wire → gen_graph_t per expression
+- SM_BB_EVAL handler: if gen_graph_t present → gen_exec; else → icn_bb_build fallback
 - GATE-1..4 unchanged. Commit.
 
 **LR-7** — Icon: delete SM_BB_EVAL, every_table, ICN_BB_EVAL, icn_bb_build
@@ -425,7 +425,7 @@ own `lang` field and the gen_exec handles all kinds uniformly.
 **LR-8** — SNOBOL4 pattern lower: emit gen_node_t alongside bb_node_t (additive)
 - lower_pat.c / rt.c: GEN_PAT_* nodes built at compile time
 - SM_EXEC_GEN drives pattern match; SM continues on match result
-- Fallback to old bb_node_t path if gen_cfg_t absent
+- Fallback to old bb_node_t path if gen_graph_t absent
 - GATE: smoke_snobol4 + beauty 195/195. Commit.
 
 **LR-9** — SNOBOL4: delete ad-hoc bb_node_t pattern runtime
@@ -438,7 +438,7 @@ own `lang` field and the gen_exec handles all kinds uniformly.
 **LR-10** — Prolog lower: emit gen_node_t for goals (additive)
 - lower_prolog.c: GEN_PL_CHOICE, GEN_PL_UNIFY nodes
 - SM_EXEC_GEN drives goal resolution
-- Fallback to pl_box_choice if gen_cfg_t absent
+- Fallback to pl_box_choice if gen_graph_t absent
 - GATE: smoke_prolog + broker. Commit.
 
 **LR-11** — Prolog: delete pl_box_choice ad-hoc BB
@@ -453,12 +453,12 @@ own `lang` field and the gen_exec handles all kinds uniformly.
 
 ### Phase 6: Mode-3 / Mode-4 JIT
 
-**LR-13** — Mode-3 JIT: emit x86 from gen_cfg_t nodes
-- bb_flat.c / emit_bb.c: walk gen_cfg_t instead of tree_t*
+**LR-13** — Mode-3 JIT: emit x86 from gen_graph_t nodes
+- bb_flat.c / emit_bb.c: walk gen_graph_t instead of tree_t*
 - Each gen_kind_t maps to x86 emission
 - GATE: --jit-run ≥ --sm-run PASS counts. Commit.
 
-**LR-14** — Mode-4 JIT: stateful x86 from gen_cfg_t
+**LR-14** — Mode-4 JIT: stateful x86 from gen_graph_t
 - GATE: mode-4 parity with mode-3. Commit.
 
 ### Phase 7: Cleanup
@@ -488,7 +488,7 @@ own `lang` field and the gen_exec handles all kinds uniformly.
 
 ### New (src/runtime/common/)
 ```
-gen_node.h / gen_node.c     — gen_node_t, gen_cfg_t, gen_kind_t
+gen_node.h / gen_node.c     — gen_node_t, gen_graph_t, gen_kind_t
 gen_phase.h / gen_phase.c   — gen_phase_wire() — wiring pass
 gen_exec.h / gen_exec.c     — gen_exec_once(), gen_exec_pump()
 ```
@@ -547,8 +547,8 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 4. **Rebus as test bed**: validate SM+BB hybrid boundary on a smaller language
    before touching SNOBOL4. Rebus patterns are simpler but structurally identical.
 
-5. **Cross-language calls are seamless**: gen_cfg_t carries its own lang field.
-   gen_exec handles GEN_CALL by looking up the target proc's gen_cfg_t or SM block.
+5. **Cross-language calls are seamless**: gen_graph_t carries its own lang field.
+   gen_exec handles GEN_CALL by looking up the target proc's gen_graph_t or SM block.
    DESCR_t and the SM value stack are shared across both lands.
 
 6. **Incremental — never break**: each step is additive with fallback until
@@ -565,3 +565,53 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
   one4all: f1dbb78b  .github: cb23fc50
   Status: DESIGN — no code yet
   NEXT: LR-0 — define gen_node_t in src/runtime/common/gen_node.h
+
+---
+
+## PIVOT: Start with SNOBOL4 patterns (not Icon, not Rebus)
+
+**Revised migration order:** SNOBOL4 patterns first.
+
+### Why SNOBOL4 patterns are the perfect first target
+
+1. **Self-contained BB land.** Patterns are completely separable from scalar SNOBOL4.
+   SM array for scalars is untouched. The only change: pattern match site emits
+   `SM_EXEC_GEN(gen_graph_t*)` instead of building bb_node_t ad-hoc at runtime.
+
+2. **Clearest SM↔BB boundary.** One entry (`SM_EXEC_GEN`), one exit (match
+   success/failure returned to SM). This is the two-as-one theory in its simplest form.
+
+3. **Best oracle.** beauty.sno — Milestone 1 locked at md5 `abfd19a7a834484a96e824851caee159`.
+   If beauty passes byte-identical after replacing ad-hoc BB with gen_graph_t, the
+   design is validated on a real 646-line program with ARB, SPAN, alternation, ARBNO.
+
+4. **No Icon disruption.** Icon stays exactly as-is (SM_BB_EVAL / icn_bb_build)
+   during the entire SNOBOL4 pattern migration. Don't touch Icon until LR-S is done.
+
+### Revised step order
+
+**LR-0..3: Infrastructure** (unchanged — gen_node_t, gen_phase, gen_exec, SM_EXEC_GEN)
+
+**LR-S1 — SNOBOL4 pattern lower: emit gen_node_t (additive)**
+- lower_pat path: for each pattern constructor, build GEN_PAT_* nodes + wire + gen_graph_t
+- SM_EXEC_GEN path activated at the pattern-match site
+- Old bb_node_t path kept as fallback
+- GATE: smoke_snobol4 pass + beauty 195/195. Commit.
+
+**LR-S2 — SNOBOL4: delete ad-hoc bb_node_t pattern runtime (clean break)**
+- Remove rt_bb_arb, rt_bb_span, rt_bb_arbno, rt_bb_any, rt_bb_break
+- Remove ad-hoc bb_node_t construction in snobol4_pattern.c
+- gen_exec handles all SNOBOL4 pattern matching via GEN_PAT_* nodes
+- GATE: smoke_snobol4 + beauty 195/195. Commit.
+
+**LR-S3 — Cross-check: Snocone and Rebus patterns still pass**
+- Snocone and Rebus pattern matching also routes through gen_exec (same GEN_PAT_* nodes)
+- GATE: smoke_snocone + smoke_rebus. Commit.
+
+**Then proceed to Icon (LR-6..7), Prolog (LR-10..11), etc. as originally planned.**
+
+### Naming fix
+
+`gen_cfg_t` renamed to `gen_graph_t` throughout — "CFG" is overloaded
+(Control-Flow Graph AND Context-Free Grammar in parsing contexts).
+`gen_graph_t` is unambiguous: a generator directed cyclic graph.
