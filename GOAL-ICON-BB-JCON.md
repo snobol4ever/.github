@@ -127,17 +127,26 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
   IJ-19-prep ✅ f1dbb78b NO_AST_WALK_GUARD unconditional for Icon — no env var, always crash
   NEXT: IJ-19 — Cluster O triage (rung36_jcon_htprep/meander/kross — in() procedure)
 
-## Session notes (sess 2026-05-14, handoff)
+## Session notes (sess 2026-05-14, handoff #2)
 
-IJ-17 ✅ &level=frame_depth (not call_depth — that's SNOBOL4 interp stack, always 0 in Icon BB path).
-IJ-18 ✅ any/many/upto non-advancing in scan context (6 sites, 5 files). Real scan-subject coercion via real_str at all ICN_SCAN_PUSH/TT_SCAN sites.
-IJ-19-prep ✅ NO_AST_WALK_GUARD now unconditional for Icon (g_lang==LANG_ICN, no env var).
-PIVOT: GOAL-LOWER-REDESIGN.md created — universal IR pipeline redesign.
-  - parser→AST→lower→DCG(ir_graph_t)→SM emitter+BB emitter→all modes
-  - ir_node_t/ir_graph_t/IR_* naming (matches JCON's ir_ convention)
-  - SNOBOL4 patterns first (beauty.sno oracle), then Icon, then Prolog
-  - SM array = serialization of acyclic DCG subgraphs only
-  - SM_EXEC_GEN = single handoff opcode from SM land to BB land
-  - DCG = directed cyclic graph (back-edges mandatory for every/while/SPAN/ARB)
-  - No separate generator phase — lower wires four ports directly, one pass
-NEXT on JCON goal: IJ-19 Cluster O (htprep/meander/kross — in() procedure, next-in-scan)
+IJ-17 ✅ &level=frame_depth. IJ-18 ✅ scan builtins. IJ-19-prep ✅ NO_AST_WALK_GUARD unconditional.
+
+BB RUNTIME BUGS FOUND (no code committed — next session implements):
+1. upto() not generative in non-scan context: icn_bb_build has no Byrd box for
+   upto(cset,str) with scalar args. Only handles upto(cset, gen_subject). Needs
+   icn_bb_upto box yielding each position. Affects kross (every j:=upto(s2,s1)).
+2. icn_drive_node not extern'd in icn_runtime.h — bb_eval_value never sees it.
+   Fix: add extern, add check at top of bb_eval_value(). Affects s[1 to 3] (rung16).
+3. TT_EVERY/TT_ASSIGN drive injection missing: bb_eval_value(gen) called without
+   setting icn_drive_node=leaf/icn_drive_val=tick first. Affects rung02 (every total:=total+(1 to n)).
+4. FRAME.suspending not caught in icn_bb_proc_call after bb_exec_stmt() returns.
+   Only checks FRAME.returning and FRAME.loop_break. Affects rung03 (suspend in while).
+5. TT_TO_BY always uses int path: icn_bb_to_by_real exists but never used from
+   icn_bb_build. Fix: when all bounds DT_R, use real box. Affects rung19.
+6. find() not generative in non-scan context for meander algorithm.
+
+CONFIRMED: kross/meander/htprep bugs are in BB runtime (icn_bb_build/bb_eval_value),
+NOT in lower.c. --ir-run and --sm-run produce identical wrong output.
+
+NEXT: IJ-19 — implement the above BB runtime fixes.
+Files: src/runtime/interp/icn_runtime.c, icn_runtime.h, icn_value.c, icon_gen.c.
