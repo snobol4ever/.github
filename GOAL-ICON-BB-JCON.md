@@ -283,8 +283,10 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: f63c60f0  corpus: 1fe096c
-  ir-run:  PASS=174 FAIL=56
-  honest:  PASS=276
+  one4all: 034e00f3  corpus: 1fe096c
+  ir-run:  PASS=192 FAIL=38
+  honest:  PASS=273
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining — debug bb_exec_stmt body drop in IR_ICN_EVERY; then TT_SEQ_EXPR, TT_SUSPEND
+  NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, needs CH-17g coroutine prereq);
+        rung01_paper_nested_to (nested-to cross-product); rung02_proc_locals (proc local frame);
+        rung28_builtins_str_trim_map (leading spaces); rung30/rung32/rung36 (various builtins)
