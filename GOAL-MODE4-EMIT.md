@@ -39,7 +39,7 @@ BB boxes → GNU-as procs, 4-col `LABEL: ; ACTION ; jmp target`.
 | L4 | `emit_sm_shape.h/c` | SM shape renderers |
 | L4 | `emit_sm_op.h/c` | SM opcode templates (91) |
 | L5 | `emit_bb_flat.h/c` | Flat-glob builder |
-| L5 | `emit_sm_binary.h/c` | Binary SM codegen + `sm_jit_run` |
+| L5 | `sm_jit_interp.h/c` | Binary SM codegen + `sm_jit_run` |
 | L5 | `emit_sm_text.h/c` | Text SM codegen + strtab + srclines |
 | — | `emit_templates.h` | All template fn declarations |
 | — | `emit_bb_gen.h` | Umbrella shim (includes L0–L3) |
@@ -127,7 +127,7 @@ Snocone string-pattern on opcode names to dispatch to shape helpers.
 - *Helper extraction* — every duplicated 3-line pattern in compound helpers
   becomes a named `emit_seq_*` function. Target: no compound helper body > 8 lines.
 
-**`emit_sm_binary.c` is not an emitter.** It is a mode-3 C interpreter.
+**`sm_jit_interp.c` is not an emitter.** It is a mode-3 C interpreter.
 It stays in `src/runtime/x86/` but is excluded from all emitter file maps,
 line counts, and rewrite steps. It is never touched by EM-REWRITE.
 
@@ -150,7 +150,7 @@ line counts, and rewrite steps. It is never touched by EM-REWRITE.
 | `emit_templates.h` | `emit_templates.h` | RW-4 |
 | `emit_bb_flat.c/h` | `emit_flat.c/h` | RW-5 |
 | `emit_sm_text.c/h` | `emit_walk.c/h` | RW-5 |
-| `emit_sm_binary.c/h` | **unchanged** | never |
+| `sm_jit_interp.c/h` | **unchanged** | never |
 
 ### EM-REWRITE — Three diseases being cured
 
@@ -170,7 +170,7 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 ### EM-REWRITE steps
 
 - [x] **RW-0** ✅ sess 2026-05-13 (Claude Sonnet 4.6) — Naming scan. Full read of all 16 emitter
-  files (excluding `emit_sm_binary.c`). Produced `ARCH-EMITTER.md` in `.github` (`567fc033`):
+  files (excluding `sm_jit_interp.c`). Produced `ARCH-EMITTER.md` in `.github` (`567fc033`):
   sibling-consistent old→new name table for all functions/globals across L0–L5.
   Key decisions: `insn_` prefix for leaf fns; `emit_seq_` for compound sequences;
   `emit_bb_` for box templates; `emit_sm_op_` for opcode emitters vs `emit_sm_shape_` for

@@ -1,7 +1,7 @@
 # ARCH-EMITTER.md — Emitter Naming Scan (RW-0)
 
 Produced: sess 2026-05-13 (Claude Sonnet 4.6), step RW-0.
-Source: full read of all 16 emitter files (excluding `emit_sm_binary.c/h`).
+Source: full read of all 16 emitter files (excluding `sm_jit_interp.c/h`).
 
 ---
 
@@ -28,7 +28,7 @@ No code changes in this step — doc only.
 | `emit_sm_op.c` | `emit_sm.c` | RW-4 |
 | `emit_sm_shape.c/h` | `emit_sm.c` | RW-4 |
 | `emit_sm_text.c/h` | `emit_walk.c/h` | RW-5 |
-| `emit_sm_binary.c/h` | **unchanged** | never |
+| `sm_jit_interp.c/h` | **unchanged** | never |
 
 ---
 
@@ -704,7 +704,7 @@ verifiable against the C reference.
 | `emit_core.c` | L0–L2: buf, form, insn, label, text, mode — all leaf infrastructure |
 | `emit_bb.c` | L3–L4: BB box templates (flat + brokered) + macro library writer |
 | `emit_sm.c` | L4–L5: SM opcode templates, shape renderers, text+walk codegen |
-| `emit_sm_binary.c` | **frozen** — mode-3 C interpreter; never touched by EM-REWRITE |
+| `sm_jit_interp.c` | **frozen** — mode-3 C interpreter; never touched by EM-REWRITE |
 
 **Function rename landed (RW-SYMNAMES):**
 
