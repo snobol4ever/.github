@@ -54,7 +54,30 @@ IJ-13c `1e4a6d7f` DT_FH=12 sentinel in descr.h; FHVAL(idx) macro; &input/&output
 
 ## Active steps
 
-### IJ-13c — write(fh, s) routing (Cluster O) NEXT
+### IJ-CORO-1 — delete swapcontext proc boxes from coro_runtime.c NEXT
+Remove `coro_bb_suspend`, `coro_bb_fnc`, `coro_bb_fnc_multi`, `coro_bb_indirect_callee`,
+`proc_trampoline`, `coro_alloc`, `gather_trampoline`, `coro_stage`, `sm_yield_to_caller`,
+`coro_drive()`, `coro_drive_fnc()`. These are the ucontext/swapcontext coroutine
+stack-switching paths. `coro_eval` (BB node factory) and all pure-BB `coro_bb_*` boxes stay.
+- [x] Delete dead proc-box and ucontext machinery from coro_runtime.c. Build clean. GATE-1..2.
+
+### IJ-CORO-2 — delete emit_bb_icon_suspend + icon_suspend_new + rename coro_bb_* → icn_bb_*
+`coro_bb_suspend` is wired into `emit_bb.c` as the suspend emitter. Replace with FAILDESCR stub.
+Delete `icon_suspend_new` / `coro_bb_suspend` extern from `emit_bb.c` and `icon_gen.c`.
+- [x] Stub/remove suspend emitter. Remove ucontext.h from icon_gen.c/h. Build clean. GATE-1..2.
+
+### IJ-CORO-3 — delete SM_SUSPEND, SM_SUSPEND_VALUE, SM_BB_EVAL, SM_LOAD/STORE_FRAME opcodes
+These SM opcodes were emitted by lower.c for Icon generators/locals via the old coro path.
+With pure-BB Icon they are dead. Remove from sm_prog.h, sm_interp.c, emit_sm_binary.c,
+emit_sm.c, sm_prog.c. Remove the lower.c emit sites. Build clean. GATE-1..2.
+- [ ] Delete SM_RESUME, SM_GEN_TICK (confirmed dead). SM_SUSPEND_VALUE stays until --sm-run Icon retired. Build clean. GATE-1..2.
+
+### IJ-CORO-4 — delete coro_stmt.c and coro_value.c dead code, clean includes
+After CORO-1..3, audit coro_stmt.c and coro_value.c for any remaining references to
+deleted symbols. Remove #include <ucontext.h> everywhere it crept in.
+- [ ] Final dead-code sweep. Clean build. GATE-1..4 green. Commit all.
+
+### IJ-13c — write(fh, s) routing (Cluster O)
 
 htprep/meander/kross no longer crash but produce empty/wrong output.
 Root: `write(outfile, s)` where `outfile := &output` is INTVAL(1).
