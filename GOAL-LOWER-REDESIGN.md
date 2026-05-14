@@ -2,7 +2,63 @@
 
 **Repo:** one4all + .github
 **Supersedes:** GOAL-ICON-LOWER-REDESIGN.md
-**Status:** DESIGN — no code yet
+**Status:** IN PROGRESS — LR-0 ✅
+
+---
+
+## ⚠️ Parallel session notice — GOAL-MODE4-EMIT (IF-* rungs)
+
+A separate concurrent session is building BB template code (inline x86 emitters) for all
+remaining C BB boxes in the runtime shared library — GOAL-MODE4-EMIT IF-* rungs.  That
+session commits to one4all on the same `main` branch.  Every push here must `git pull
+--rebase` first.  Unexpected commits on one4all between our own pushes are from that session
+— not corruption, not a merge conflict to resolve, just rebase on top.
+
+Files that session touches: `src/runtime/x86/emit_bb.c`, `src/runtime/x86/bb_flat.c`,
+and ICN-specific emitter helpers.  Our LR-* rungs touch
+`src/runtime/common/scrip_ir.*`, `src/runtime/x86/sm_prog.h`,
+`src/runtime/x86/sm_interp.c`, `src/runtime/x86/sm_jit_interp.c`.
+Zero file overlap — sessions are safe to run side by side.
+
+---
+
+## Reference: JCON — Icon compiler to Java (prior art for DCG IR)
+
+**GitHub:** https://github.com/proebsting/jcon
+
+JCON (Gregg Townsend / Ralph Griswold, U of Arizona, ~1996–2000) is an Icon→Java compiler
+whose intermediate representation uses the same four-port concept as our DCG design.
+
+Key JCON IR insight (from `tran/ir.icn` + `tran/irgen.icn`):
+
+```
+record ir_info(start, resume, failure, success, x)
+```
+
+Every AST node gets an `ir_info` attached during IR generation.  The four labels
+(`start`, `resume`, `failure`, `success`) are exactly our four ports
+(`port_start`, `port_resume`, `port_fail`, `port_succ`).  JCON emits **labeled flat
+instruction chunks** (`ir_chunk(label, insnList)`) and wires them via `ir_Goto` / label
+references.  Our design uses **direct C pointer wiring** in a DCG instead — same semantics,
+simpler at execution time (no label lookup, pointer is the jump).
+
+JCON's `ir_Succeed(coord, expr, resumeLabel)` maps to our `port_succ` + `port_resume` pair.
+JCON's `ir_ResumeValue(coord, lhs, value, failLabel)` maps to our `port_resume` + `port_fail`.
+
+JCON covers Icon only (Java backend).  Our DCG generalises to all six languages and all
+three backends (interp / mode-3 JIT / mode-4 JIT).
+
+**What to borrow from JCON when writing our lowering passes:**
+- `ir_a_Scan` wiring → `lower_icn.c` IR_SCAN port assignments (LR-6)
+- `ir_a_Limitation` wiring → IR_LIMIT port assignments
+- `ir_a_Not` wiring → IR_NONNULL / IR_INTERROGATE
+- alternation (`a_Alternation`) → IR_ALTERNATE / IR_PAT_ALT back-edges
+- `every` loop wiring (`ir_init_loop`) → IR_EVERY body.fail→expr.resume back-edge
+- `ir_a_Scan` body.fail→expr.resume → IR_SCAN back-edge (same pattern)
+
+Read `tran/irgen.icn` when writing `lower_icn.c` (LR-6) and `lower_sco.c` (LR-12).
+The zip is archived at `/mnt/user-data/uploads/jcon-master.zip` for this session;
+use GitHub URL for future sessions.
 
 ---
 
