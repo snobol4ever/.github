@@ -226,7 +226,8 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ### IJ-19-iterate — implement TT_ITERATE (!str, !list, !table)
 
-- [ ] IR_ICN_ITERATE. α: pos=0; β: pos++. Return hay[pos] as 1-char string. Commit.
+- [x] IR_ICN_ITERATE string path. sval2=str, ival=len, counter=pos; GC_malloc 1-char per tick.
+      lower_icn_iterate + icn_bb_dcg wire. list/table/Raku remain lazy (future). one4all `8cf94938`.
 
 ### IJ-19-alternate — implement TT_ALTERNATE (A|B)
 
@@ -259,8 +260,8 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ## Watermark
 
-  one4all: a0b0700b  corpus: 1fe096c
-  ir-run:  PASS=150 FAIL=80
+  one4all: 8cf94938  corpus: 1fe096c
+  ir-run:  PASS=153 FAIL=77
   honest:  PASS=271 (flaky gate; baseline 272±2)
-  smoke_icon: 5/5   broker: 21/49
-  NEXT: IJ-19-iterate (TT_ITERATE — !str, !list, !table)
+  smoke_icon: 5/5   broker: 22/49
+  NEXT: IJ-19-alternate (TT_ALTERNATE — A|B)
