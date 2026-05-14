@@ -94,8 +94,8 @@ always a temporary fallback. These steps complete what the arch specified.
 
 - [x] **SF-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `3fcc90a7` — `emit_bb_xbal` flat inline BAL box. Text path: `.data` slot for `int δ`; inline `'('`/`')'` byte-compare loop via RIP-relative Σ/Σlen/Δ symbols; no `rt_bb_bal` call. Binary path: heap zeta via `emit_seq_port_call` (unchanged). Gates: smoke 7/7, byte-id 4/4, beauty 10/17. Note: SNOBOL4 frontend emits `PUSH_VAR` for `BAL` rather than `XBAL` in all tested programs — the emit path is structurally correct but unexercised until frontend keyword wiring routes `BAL` → `XBAL`.
 - [x] **SF-2** ✅ sess 2026-05-14 (Claude Sonnet 4.6) one4all `c99fe633` — `emit_bb_xfarb` flat inline ARB box. DATA: .long count; .long start. α: count=0; start=Δ; advance 0 → γ. β: count++; if start+count > Σlen → ω; else Δ=start+count → γ. Binary path unchanged. Assembles clean. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
-- [ ] **SF-3** — `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string). β→ω.
-- [ ] **SF-4** — `emit_bb_xlnth`/`xtb`/`xrtb` flat. `n` baked in DATA at emit time. α: check cursor arithmetic → γ or ω. β→ω (no re-entry for positional boxes).
+- [x] **SF-3** ✅ sess 2026-05-14 (Claude Sonnet 4.6) one4all `4e3306d5` — `emit_bb_xstar` flat inline REM box. Stateless — no DATA. α: Δ=Σlen → γ. β: → ω. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+- [x] **SF-4** ✅ sess 2026-05-14 (Claude Sonnet 4.6) one4all `98b2e204` — `emit_bb_xlnth/xtb/xrtb` flat inline LEN/TAB/RTAB. n baked as immediate; no DATA block. LEN: Δ+n≤Σlen check. TAB: Δ≤n check, Δ=n. RTAB: Δ≤Σlen-n check, Δ=Σlen-n. All β→ω. Assembles clean. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [ ] **SF-5** — `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
 - [ ] **SF-6** — ICN_* boxes flat. Zeroed DATA block on α-entry (self-init). C body functions (`coro_bb_*`) called as direct calls within the glob with DATA block address in rdi (not PLT stub).
 - [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
@@ -255,19 +255,21 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-14 SF-2 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-14 SF-3+SF-4 (Claude Sonnet 4.6)**
 
-one4all HEAD `c99fe633`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+one4all HEAD `98b2e204`. .github HEAD TBD. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 
 ### What was done this session
 
-S200-7 + SF-2 complete:
+S200-7 + SF-2 + SF-3 + SF-4 complete:
 
-- **S200-7** (`7f06f33d`): Final style sweep — 16 single-stmt brace survivors removed across emit_core.c + emit_sm.c.
-- **SF-2** (`c99fe633`): `emit_bb_xfarb` flat inline ARB box. DATA: .long count + .long start. α sets count=0/start=Δ/advances 0→γ. β increments count, checks Σlen bound, sets Δ=start+count→γ or →ω.
+- **S200-7** (`7f06f33d`): Final style sweep.
+- **SF-2** (`c99fe633`): emit_bb_xfarb ARB flat — count/start DATA, lazy extension.
+- **SF-3** (`4e3306d5`): emit_bb_xstar REM flat — stateless, α: Δ=Σlen→γ, β→ω.
+- **SF-4** (`98b2e204`): emit_bb_xlnth/xtb/xrtb LEN/TAB/RTAB flat — n as immediate, no DATA, β→ω.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `c99fe633`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
-3. **SF-3**: `emit_bb_xstar` (REM) flat. α→γ unconditionally (matches rest of string, Δ=Σlen). β→ω.
+2. Confirm one4all HEAD `98b2e204`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
+3. **SF-5**: `emit_bb_xbrkx` flat. chars ptr baked from `.data` string label. α: scan past chars, save δ. β: advance one, retry.
