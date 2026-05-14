@@ -644,3 +644,53 @@ SM array execution resumes.
 
 Delete LR-1 (gen_phase.c) from the step list — it does not exist.
 lower.c IS the generator phase.
+
+---
+
+## FINAL PIPELINE (canonical)
+
+```
+Parser
+  │
+  ▼
+AST (tree_t)          — pure tree, language-specific, unchanged
+  │
+  ▼
+lower                 — one pass, bottom-up, wires DCG as it goes
+  │
+  ▼
+DCG (gen_graph_t)     — directed cyclic graph, language-neutral
+  │                     tree-shaped subgraphs: scalar expressions
+  │                     cyclic subgraphs: patterns, generators, choice points
+  │
+  ├──▶ SM emitter     — walks acyclic subgraphs → SM array
+  │         │            cyclic subgraphs → SM_EXEC_GEN(gen_graph_t* subgraph)
+  │         ▼
+  │       SM array → sm_interp (--sm-run)
+  │                → JIT mode-3 x86 emission (--jit-run)
+  │                → JIT mode-4 stateful x86 (--mode4-run)
+  │
+  └──▶ BB emitter     — walks cyclic subgraphs → gen_graph_t execution nodes
+            │            (for --ir-run: gen_exec drives the graph directly)
+            ▼
+          BB graph  → gen_exec (--ir-run)
+                    → JIT x86 direct from DCG nodes
+```
+
+**Per language:**
+
+| Language | SM emitter        | BB emitter                     |
+|----------|-------------------|-------------------------------|
+| SNOBOL4  | scalar stmts ✓    | patterns (GEN_PAT_*)           |
+| Snocone  | nothing           | everything                     |
+| Rebus    | scalar stmts ✓    | patterns (GEN_PAT_*)           |
+| Icon     | nothing (or stub) | everything (GEN_EVERY etc.)    |
+| Prolog   | nothing           | goals (GEN_PL_CHOICE etc.)     |
+| Raku     | scalar stmts ✓    | generators (subset)            |
+
+**Terms dropped:**
+- "generator phase" — never existed; lower wires the DCG directly
+- "generator IR" — the DCG is just the DCG; no special name for a phase
+- SM array as primary IR — it is now a derived emission from the DCG
+
+**The DCG is the IR. Lower produces it. Everything fans out from it.**
