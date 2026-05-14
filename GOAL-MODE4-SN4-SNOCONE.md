@@ -146,10 +146,8 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `308da7a6` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 6/6 ✅, beauty parity 10/17, mode-4 broad corpus 118/280 (sm-run 144/280).
+**HEAD** one4all `b6b6e09d` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (beauty_omega ir-run pre-existing), beauty parity 6/17, mode-4 broad corpus 124/280 (sm-run 144/280).
 
-Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-4b continued. Two more fixes: (1) FAILDESCR test: replaced test rax,rax → cmp al,99 in all emit_seq_port_call paths — DT_FAIL=99 is non-zero so test rax,rax was treating FAIL as success for ANY/SPAN/BREAK captures; (2) NAMEPTR binary branch: emit_label_define_bb(lbl_β) not emit_label_define for brokered mode. Mode-4 broad corpus 108/280 (was 105).
+Sess 2026-05-14c (Claude Sonnet 4.6): M4SN-4b: fix ARBNO . V variant capture — three bugs in brokered-blob XNME path: (1) pre_build_children XNME/XFNME must use bb_build_brokered for child (not bb_build_flat — flat blobs are jump fragments, not callable); (2) rt_bb_cap β span: rt_bb_arbno β restores Δ to fr->start; added cap_t.cap_start saved at α, use descr_match_span(Σ+cap_start, Δ-cap_start) at β; (3) emit_seq_port_call binary: push r12/pop r12 → push r10/pop r10 (r10 = flat-blob Δ-pointer, clobbered by C calls; bug since 553a836a reorg). Broad corpus 124/280 (+6 vs 118).
 
-Sess 2026-05-14b (Claude Sonnet 4.6): M4SN-4b continued. Four bugs fixed in variant ARBNO/XCAT path (see M4SN-4b note above). Mode-4 broad corpus 118/280 (+10).
-
-**Next:** M4SN-4b continued — fix 052_pat_arbno variant capture (ARBNO . V): rt_bb_cap is called correctly but match result not propagated back to outer XCAT flat blob; trace rt_bb_cap return value vs emit_seq_port_call cmp al,99 check. Also 059_capture_dollar_deferred (XFNME NAMEPTR path), 082_keyword_stcount (wrong output, semantic), 087_define_freturn (abort), 094_data_define_access. Target: 144/280.
+**Next:** M4SN-4b continued — target 144/280 (sm-run parity). Triage remaining 156 failures for mode-4-specific vs pre-existing.
