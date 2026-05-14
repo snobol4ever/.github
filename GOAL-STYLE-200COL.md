@@ -28,9 +28,7 @@
 
 ## Steps
 
-- [ ] **S200-1** — `emit_core.h` + `emit_form.h` + `emit_defs.h` + `emit.h` + `x86_opcodes.h`
-  All headers: 200-col, one-liner families, `*` spacing, no single-stmt braces.
-  These are small (5–233 lines each) — good warm-up. Gates: byte-id 4/4, smoke 7/7.
+- [x] **S200-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `0ce4080a` — `emit_core.h` + `emit_form.h` + `emit_defs.h` + `emit.h` + `x86_opcodes.h`. 200-col, paired decls, column-aligned families, one space around `*`, separator comments. 418→362 lines. Gates: smoke 7/7, byte-id 4/4.
 
 - [ ] **S200-2** — `emit_bb.h` + `emit_sm.h` + `sm_jit_interp.h` + `emit_templates.h`
   Remaining headers. Same rules. Gates: byte-id 4/4, smoke 7/7.
@@ -73,3 +71,25 @@
 ## Watermark
 
 *(none yet — goal not started)*
+
+---
+
+## Watermark
+
+**SESSION HANDOFF — sess 2026-05-13 style-200col (Claude Sonnet 4.6)**
+
+one4all HEAD `0ce4080a`. Gates: smoke 7/7, byte-id 4/4.
+
+### What was done this session
+
+- Added 200-col style rules to RULES.md.
+- Created GOAL-STYLE-200COL.md with steps S200-1..7; added to PLAN.md.
+- Renamed `emit_sm_binary.c/h` → `sm_jit_interp.c/h` (it is an interpreter, not an emitter). one4all `959050c6`, .github `3b0f1278`.
+- **S200-1** complete (`0ce4080a`): `emit_defs.h`, `emit.h`, `x86_opcodes.h`, `emit_core.h`, `emit_form.h` all reformatted to 200-col style.
+
+### Next session must
+
+1. Read RULES.md § "C code style — 200-character line width", GOAL-STYLE-200COL.md.
+2. Confirm one4all HEAD `0ce4080a`. Gates: smoke 7/7, byte-id 4/4.
+3. **S200-2**: reformat `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`.
+4. **S200-3**: reformat `emit_core.c` (2,433 lines) — work section by section: `insn_*` one-liners first, then `emit_seq_*`, then `emit_form_*`/`emit_sym_*`/`emit_load_*`, then label/jmp helpers.
