@@ -290,3 +290,32 @@ one4all HEAD `3db853a7`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode
 3. Fix Class A: IS_TEXT guard in `emit_bb_stateful` for zero-init boxes + per-box fixes for TAB/RTAB/LEN (int field) and BREAKX (chars ptr).
 4. Fix Class B: DEFINE_ENTRY sm_macros.s macro body.
 5. Run clean corpus scan distinguishing sm-run-abort from mode-4-crash.
+
+---
+
+## Watermark
+
+**SESSION HANDOFF — sess 2026-05-13 mode4-stateful-box-fix (Claude Sonnet 4.6)**
+
+one4all HEAD `fa75289f`. corpus HEAD `65dad13`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Broad corpus (demo+beauty+parser+csnobol4-suite): 113/113 PASS 0 FAIL (emit+assemble only; libscrip_rt not built this session).
+
+### What was done this session
+
+**Class A — stateful box zeta fix** (`fa75289f`): All stateful boxes through `emit_bb_stateful` in text mode called `emit_seq_port_call` → `lea rdi, [rip + fn_name]` — using the *function* name as the RIP-relative zeta pointer, passing PLT stub address as zeta → SIGSEGV.
+
+Fixes in `emit_bb.c`:
+- `emit_bb_stateful`: IS_TEXT guard emits zeroed `.Lstat{id}_z` block (6×`.quad 0`) in `.section .data`, then uses `emit_seq_port_call_rip`. Covers BAL/ARB/REM + all 25 ICN_* boxes.
+- `emit_bb_stateful_int` (new): bakes `.long n; .long 0` for LEN/TAB/RTAB. `emit_bb_xlnth`/`xtb`/`xrtb` now call this.
+- `emit_bb_xbrkx`: IS_TEXT path emits chars string + `brkx_t` data block with chars ptr label (same pattern as charset fix).
+
+**Class B — DEFINE_ENTRY frame corruption fix** (`fa75289f`): `emit_sm.c` emitted `push rbp / mov rbp, rsp` after `call rt_define_entry@PLT` in the macro body. Removed. DEFINE_ENTRY is a pure runtime notification, not a function entry point.
+
+**corpus `sm_macros.s`** regenerated (`65dad13`): DEFINE_ENTRY macro now only `call rt_define_entry@PLT` + `.endm`.
+
+### Next session must
+
+1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
+2. Confirm one4all HEAD `fa75289f`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
+3. Build libscrip_rt.so (`make libscrip_rt` in one4all) and run `test_gate_em_beauty_subsystems_mode4.sh` to measure beauty PASS/17.
+4. Investigate remaining beauty failures — determine which are sm-run-accuracy divergences vs true mode-4 bugs.
+5. Run broad corpus scan with libscrip_rt to distinguish sm-run-abort from mode-4-crash.
