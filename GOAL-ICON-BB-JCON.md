@@ -89,32 +89,45 @@ Icon BB runtime infrastructure. Mapping:
 ### IJ-CORO-4 — delete coro_stmt.c and coro_value.c dead code, clean includes
 - [x] Remove #include <ucontext.h> from scrip.c. Clean stale coro_call/trampoline comments from icn_runtime.c, icn_stmt.c, icn_value.c. Build clean. GATE-1..4. Commit `b7f5de14`.
 
-### IJ-BB-1 — Audit bb_eval_value coverage vs lower.c Icon scalar cases (NEXT)
-Map every TT_* that lower.c handles for LANG_ICN against bb_eval_value cases.
-Produce a gap table. Goal: identify exactly which kinds need new bb_eval_value handlers
-before the SM scalar path can be eliminated for Icon.
-- [ ] Produce gap table. Update this goal file with findings. Commit.
+### IJ-BB-1 — Audit bb_eval_value coverage vs lower.c Icon scalar cases ✅
+Gap analysis complete. lower.c has 9 TT_* kinds with no bb_eval_value handler:
 
-### IJ-BB-2 — Fill bb_eval_value gaps from IJ-BB-1
-For each TT_* in lower.c LANG_ICN path that has no bb_eval_value handler, add one.
-Expected gaps: TT_INDIRECT, TT_NAME, TT_INTERROGATE, TT_DEFER, TT_VLIST, TT_OPSYN.
-- [ ] Add missing handlers. GATE-1..4. Commit.
+| Kind | lower.c impl | bb_eval_value needed |
+|------|-------------|----------------------|
+| `TT_INTERROGATE` | `lower_expr(c[0])` — no-op wrapper | `return bb_eval_value(e->c[0])` — trivial |
+| `TT_GLOBAL` | `sm_emit(SM_PUSH_NULL)` — declaration no-op | `return NULVCL` — trivial |
+| `TT_INDIRECT` | calls `INDIR_GET` builtin | `icn_call_builtin("INDIR_GET", 1, args)` |
+| `TT_NAME` | pushes string + calls `NAME_PUSH` | `icn_call_builtin("NAME_PUSH", 1, args)` |
+| `TT_RECORD` | push name + children + `RECORD_MAKE` | `icn_call_builtin("RECORD_MAKE", n+1, args)` |
+| `TT_VLIST` | short-circuit value list | evaluate children with JUMP_S logic |
+| `TT_OPSYN` | operator synonym resolution | translate op string + call builtin |
+| `TT_DEFER` | SNOBOL4 thunk — not Icon | skip (not reachable in LANG_ICN) |
+| `TT_CHOICE` | Prolog only | skip (not reachable in LANG_ICN) |
 
-### IJ-BB-3 — Route Icon proc bodies through SM_BB_ONCE instead of SM scalar opcodes
-lower.c currently emits SM scalar opcodes inline for Icon proc bodies.
-Change Icon proc lowering to wrap each expression as SM_BB_ONCE → bb_eval_value.
-SM_PUSH_LIT_I, SM_PUSH_VAR, SM_CALL_FN etc. should no longer fire for LANG_ICN scalars.
-- [ ] Route Icon scalar exprs through SM_BB_ONCE. GATE-1..4. honest PASS must not decrease. Commit.
+- [x] Gap table produced. Commit (this file).
 
-### IJ-BB-4 — Eliminate SM scalar opcodes from Icon lower path
-With SM_BB_ONCE routing verified, remove the LANG_ICN scalar emission branches from lower.c.
-Add SCRIP_NO_AST_WALK-style tripwire that aborts if a scalar SM opcode fires during Icon --sm-run.
-- [ ] Remove LANG_ICN scalar lowering from lower.c. GATE-1..4. Commit.
+### IJ-BB-2 — Fill bb_eval_value gaps (NEXT)
+Add handlers for the 7 Icon-reachable gaps from IJ-BB-1.
+TT_INTERROGATE and TT_GLOBAL are trivial one-liners.
+TT_INDIRECT, TT_NAME, TT_RECORD call through to icn_call_builtin.
+TT_VLIST requires short-circuit evaluation matching lower_vlist semantics.
+TT_OPSYN requires operator string translation matching lower_opsyn.
+- [ ] Add 7 handlers. GATE-1..4. Commit.
+
+### IJ-BB-3 — Route Icon scalar expressions through bb_eval_value via SM_BB_ONCE
+lower.c currently emits SM scalar opcodes inline for Icon expressions.
+Change lower_expr for LANG_ICN to emit SM_BB_ONCE pointing to the tree_t*
+instead of inlining SM opcodes — execution falls through to bb_eval_value.
+- [ ] Route LANG_ICN scalar exprs through SM_BB_ONCE. GATE-1..4. honest PASS must not decrease. Commit.
+
+### IJ-BB-4 — Eliminate LANG_ICN scalar branches from lower.c
+With SM_BB_ONCE routing verified, remove the LANG_ICN inline scalar emission
+from lower.c. Add runtime assert that no scalar SM opcode fires during Icon --sm-run.
+- [ ] Remove LANG_ICN scalar lowering. GATE-1..4. Commit.
 
 ### IJ-BB-5 — Verify fully-BB Icon: honest PASS >= 275, zero SM scalar fallback
-Confirm with tripwire disabled that honest mode passes at baseline or better.
-SM_SUSPEND_VALUE may now be removed (Icon --sm-run retired).
-- [ ] Confirm fully-BB. Remove SM_SUSPEND_VALUE if --sm-run Icon is retired. GATE-1..4. Commit.
+Confirm with tripwire that honest mode holds. Retire SM_SUSPEND_VALUE if --sm-run Icon is done.
+- [ ] Confirm fully-BB. Remove SM_SUSPEND_VALUE if --sm-run Icon retired. GATE-1..4. Commit.
 
 ### IJ-13c — write(fh, s) routing (Cluster O)
 
@@ -188,9 +201,8 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
   one4all: b7f5de14  corpus: 2ba5a92
   ir-run:  PASS=190 FAIL=45 XFAIL=30
   honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-BB-1 (audit bb_eval_value coverage gaps)
-  CORO-3 ✅ 33625214: SM_RESUME + SM_GEN_TICK deleted
-  CORO-4 ✅ b7f5de14: ucontext.h removed; stale coro comments cleaned
+  NEXT: IJ-BB-2 (fill 7 bb_eval_value gaps: TT_INTERROGATE/GLOBAL/INDIRECT/NAME/RECORD/VLIST/OPSYN)
+  IJ-BB-1 ✅: gap table complete (7 Icon-reachable gaps, 2 skipped: TT_DEFER/TT_CHOICE not Icon)
 
 ## IJ-29 next-session recipe
 
