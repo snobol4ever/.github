@@ -61,7 +61,7 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 - [x] **SF-4** ✅ `98b2e204` — `emit_bb_xlnth/xtb/xrtb` flat LEN/TAB/RTAB. n baked as immediate; no DATA. LEN: Δ+n≤Σlen→γ. TAB: Δ≤n→γ, Δ=n. RTAB: Δ≤Σlen-n→γ. All β→ω. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [x] **SF-5** ✅ `55857945` — `emit_bb_xbrkx` flat inline BREAKX. DATA: .string chars; .quad chars_ptr; .long δ. α: scan fwd while Σ[Δ+δ] not in chars; δ==0||Δ+δ>=Σlen →ω; else Δ+=δ →γ. β: Δ-=δ →ω. Assembles clean. Gates: smoke 7/7, byte-id 4/4, beauty 10/17.
 - [x] **SF-6** ✅ `8a63e515` — ICN_* boxes: `emit_bb_stateful` gains `nquads` param; all 45 ICN box emitters pass `ICN_NQ(state_t)` = `(sizeof(state_t)+7)/8` so TEXT path emits a correctly-sized zeroed `.data` block per box kind. Non-ICN callers (ARBNO/BREAKX/CALLCAP/CHARSET) retain `nquads=6`. Companion gate fixes (SF-6-pre `f7400d23`): JUMP/JUMP_S/JUMP_F dispatch→macro form; rt_arith case values corrected; RETURN macro→plain ret; sm_phase2_sim_test field names fixed; bb_flat_text_test intern_str callback. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing).
-- [ ] **SF-7** — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead after SF-1..6). Clean up `emit_bb_xbrkx` IS_TEXT guards.
+- [x] **SF-7** ✅ — Delete `emit_bb_stateful_int` (zero callers). Fix `emit_bb_xbrkx` binary path: replace `emit_bb_stateful(...)` fallback with direct `emit_seq_port_call(z, "rt_bb_breakx", fn, 0/1, s, f)` + `emit_label_define(b)` between ports — matching the BAL/ARB/REM pattern. `emit_bb_stateful` and `emit_bb_stateful_text_data` stay; they are still live for ARBNO/CALLCAP/CAP_IMM/CAP_COND/CHARSET and all ICN_* emitters. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing).
 - [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
 
 > Closed history: `git log -p .github/GOAL-MODE4-EMIT.md`
@@ -70,10 +70,30 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 
 ---
 
+## EM-ICN-FLAT — Convert all 44 ICN_* RTCALL boxes to flat DATA-in-glob emit
+
+**Baseline (sess 2026-05-14):** Icon ir-run PASS=191 FAIL=44; honest (SCRIP_NO_AST_WALK=1 --sm-run) PASS=275 FAIL=2; broker 23/49. smoke_icon 5/5.
+
+Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode emits `N` zeroed `.quad` slots in `.data` then routes the α and β ports through `emit_seq_port_call_rip`. That is correct but routes through an abstraction that will be deleted once ARBNO/CALLCAP/CHARSET are also flat. The ICN flat work converts each `emit_bb_icon_*` from the `emit_bb_stateful` wrapper to the canonical two-path pattern: `if (IS_TEXT) { emit_bb_icn_text_data(nquads, zlbl); emit_seq_port_call_rip(...port0...); emit_label_define(b); emit_seq_port_call_rip(...port1...); return; } emit_seq_port_call(...port0...); emit_label_define(b); emit_seq_port_call(...port1...);` — identical semantics, no abstraction layer.
+
+**Helper to add once (IF-0):** `static void emit_bb_icn_text_data(int nquads, char *zlbl_out)` — same body as `emit_bb_stateful_text_data` but renamed for ICN use; keeps the non-ICN `emit_bb_stateful_text_data` intact for ARBNO/CALLCAP/CHARSET until those are also flat.
+
+**Grouping:** ICN boxes are grouped into batches of ~8 per step to keep each commit reviewable. All steps gate on: smoke_icon 5/5; broker ≥23/49; ir-run PASS ≥ prev; honest PASS ≥ 275.
+
+- [ ] **IF-0** — Add `emit_bb_icn_text_data(int nquads, char *zlbl_out)` static helper in `emit_bb.c` (copy of `emit_bb_stateful_text_data` body, distinct name). No callers yet. Compile-clean. Gates: smoke_snobol4 7/7, smoke_icon 5/5.
+- [ ] **IF-1** — Convert batch A (8 boxes): `emit_bb_icon_alt`, `emit_bb_icon_bang`, `emit_bb_icon_every`, `emit_bb_icon_iterate`, `emit_bb_icon_lconcat`, `emit_bb_icon_limit`, `emit_bb_icon_seq`, `emit_bb_icon_to`. Each: replace single `emit_bb_stateful(...)` call with two-path inline using `emit_bb_icn_text_data` + `emit_seq_port_call_rip` (TEXT) / `emit_seq_port_call` (binary). Gates: smoke_icon 5/5, broker ≥23/49, ir-run ≥ 191, honest ≥ 275.
+- [ ] **IF-2** — Convert batch B (8 boxes): `emit_bb_icon_to_by`, `emit_bb_icon_not`, `emit_bb_icon_repalt`, `emit_bb_icon_while_gen`, `emit_bb_icon_until_gen`, `emit_bb_icon_repeat_gen`, `emit_bb_icon_case_gen`, `emit_bb_icon_compound_gen`. Gates: same as IF-1.
+- [ ] **IF-3** — Convert batch C (8 boxes): `emit_bb_icon_field_gen`, `emit_bb_icon_section_gen`, `emit_bb_icon_kw_gen`, `emit_bb_icon_listcon_gen`, `emit_bb_icon_proc_call`, `emit_bb_icon_scan`, `emit_bb_icon_noop`, `emit_bb_icon_intlit`. Gates: same as IF-1.
+- [ ] **IF-4** — Convert batch D (8 boxes): `emit_bb_icon_reallit`, `emit_bb_icon_strlit`, `emit_bb_icon_csetlit`, `emit_bb_icon_global`, `emit_bb_icon_if`, `emit_bb_icon_initial`, `emit_bb_icon_invocable`, `emit_bb_icon_link`. Gates: same as IF-1.
+- [ ] **IF-5** — Convert batch E (remaining 12 boxes): `emit_bb_icon_record`, `emit_bb_icon_return`, `emit_bb_icon_fail`, `emit_bb_icon_unop`, `emit_bb_icon_next`, `emit_bb_icon_break`, `emit_bb_icon_create`, `emit_bb_icon_coexplist`, `emit_bb_icon_arglist`, `emit_bb_icon_procdecl`, `emit_bb_icon_procbody`, `emit_bb_icon_proccode`. Gates: same as IF-1.
+- [ ] **IF-6** — Delete `emit_bb_stateful_int` (zero callers confirmed). Verify `emit_bb_stateful` now has exactly 6 non-ICN callers: ARBNO, BREAKX-binary, CALLCAP, CAP_IMM, CAP_COND, CHARSET. `emit_bb_stateful_text_data` stays. Compile-clean. Gates: smoke_snobol4 7/7, smoke_icon 5/5, jit_emit_x64 11/13.
+
+---
+
 ## Watermark
 
-**HEAD** one4all `8a63e515` · .github TBD · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
+**HEAD** one4all `c2da1e32` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
 
-**Next:** SF-7 — Delete `emit_bb_stateful`, `emit_bb_stateful_int`, `emit_bb_stateful_text_data` (dead). Clean up `emit_bb_xbrkx` IS_TEXT guards.
+**Next:** SF-8 — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit. Then EM-ICN-FLAT IF-0.
 
-**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `8a63e515`.
+**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD at SF-7 commit.
