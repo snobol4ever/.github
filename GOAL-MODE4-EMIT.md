@@ -98,10 +98,8 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 **HEAD** one4all `4f0e2996` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13, beauty 17/17.
 
-**Completed this session:** SF-8 (IDENT/DIFFER fix + ARBNO/CAP startup patching, beauty 7→17/17) + SF-12 (emit_bb_rtcall_data → emit_bb_ptr_slot, XFNME/XNME inline consolidation). **EM-STATEFUL-FLAT section complete.** Next: M5 (Raku/Prolog/Rebus SM_SUSPEND/RESUME — on hold until GOAL-CHUNKS M4 closes) or EM-ICN-FLAT further work.
+**Completed this session:** SF-8 (IDENT/DIFFER fix + ARBNO/CAP startup patching, beauty 7→17/17) + SF-12 (emit_bb_rtcall_data → emit_bb_ptr_slot, XFNME/XNME inline consolidation). **EM-STATEFUL-FLAT section complete.**
 
-**Architecture decision (sess 2026-05-14):** `--bb-inline-limit=N` switch implemented. `BB_OVER_LIMIT(sz)` guard on every SNOBOL4 TEXT-path box falls back to `emit_bb_rtcall(...)` which calls `rt_bb_*@PLT` in `libscrip_rt.so`. This is NOT a true hybrid — it is wholesale BB dispatch to the pre-existing C brokered-path implementations. Would violate single-truth if the same box kind had some instances inlined and some RTCALLed in one run. The real hybrid (replace expensive inner loops with RT helper calls while keeping flat α/β/γ/ω structure) is a separate future design. Current `--bb-inline-limit` is a valid size-vs-speed knob for the output `.s` file size, but the architectural tension is recorded here.
+**Best next for mode-4 everywhere:** EM-ICN-FLAT — apply the same startup-patching mechanism (rt_init_cap / rt_init_arbno pattern from SF-8) to ICN_* boxes. All 44 ICN boxes use ICN_EMIT2 (IF-1..IF-5 done) which emits `emit_bb_icn_text_data` + `emit_seq_port_call_rip`. In TEXT mode, the `.Licn{id}_z` `.data` blocks are all zeros — ICN state structs need initialization via a new `rt_init_icn_box(slot_ptr, child_fn, state_t_size)` pattern before rt_init. Baseline: smoke_icon 5/5, broker 23/49, ir-run 191/235.
 
-**Naming:** `emit_bb_stateful` and `emit_bb_stateful_text_data` renamed to `emit_bb_rtcall` and `emit_bb_rtcall_data`. Labels `.Lstat%d_z` → `.Lrtc%d_z`.
-
-**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `6bcc9837`.
+**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `4f0e2996`.
