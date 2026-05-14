@@ -123,9 +123,9 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: 52db8b96  corpus: 2ba5a92
+  one4all: 6b351a91  corpus: 2ba5a92
   ir-run:  PASS=201 FAIL=34 XFAIL=30
-  honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
+  honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
   NEXT: IJ-16 (&random seeding + radix literals)
 
 ---
