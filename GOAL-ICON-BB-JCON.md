@@ -250,3 +250,33 @@ Maps to coro_bb_field_gen. Pumps object generator, yields field each time.
 
 - [ ] Implement coro_bb_field_gen. Wire TT_FIELD when object is generative. GATE-1..4. Commit.
 
+
+### IJ-29 — wire icn_bb_proc_call: replace coro_bb_suspend for all proc calls
+
+Per JCON irgen.icn: coroutines are ONLY for `create E` / `@coexp` (co-expression feature).
+Every other construct — suspend, every, while, generators — is pure BB alpha/beta.
+icn_bb_proc_call already written in icon_gen_missing.c.
+
+- [ ] In coro_eval TT_FNC user-proc path: replace `coro_bb_suspend` with `icn_bb_make_proc_box`.
+- [ ] In coro_pump_proc_by_name: same replacement.
+- [ ] Verify frame push only on alpha, pop only on omega/return. No double push.
+- [ ] Test recursive procs (queens), suspend-with-alt (recogn), every-suspend. GATE-1..4. Commit.
+
+### IJ-30 — rip out all swapcontext/coro_t machinery except co-expression
+
+Once IJ-29 is verified green, delete the dead code:
+
+- [ ] Remove proc_trampoline, gather_trampoline (no longer called for procs).
+- [ ] Remove coro_t struct fields: stack, gen_ctx, caller_ctx (keep only for create/@ path).
+- [ ] Remove active_coro, FRAME.suspending, FRAME.suspend_val, FRAME.suspend_do globals (dead after IJ-29).
+- [ ] Remove sm_yield_to_caller (dead — only called from SM_SUSPEND_VALUE which is SM-path only).
+- [ ] Keep coro_bb_suspend ONLY for the create/@ co-expression activation path.
+- [ ] GATE-1..4. Commit.
+
+### IJ-31 — fix suspend expr generator resume (the core suspend bug)
+
+`suspend (1|2|3)` currently yields only `1` because bb_exec_stmt re-evaluates from alpha on resume.
+After IJ-29/30: icn_bb_proc_call naturally fixes this — it saves the bb_node_t and pumps beta.
+This step is: verify recogn, roman, and other suspend-heavy tests pass. Add rung37_suspend_gen.icn.
+
+- [ ] Verify `suspend E|F|G` generates all values via icn_bb_proc_call. GATE-1..4. Commit.
