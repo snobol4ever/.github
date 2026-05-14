@@ -231,7 +231,13 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ### IJ-19-alternate — implement TT_ALTERNATE (A|B)
 
-- [ ] IR_ICN_ALTERNATE. left child first, then right. Uses child IR_block_t nodes. Commit.
+- [x] IR_ICN_ALTERNATE DCG. icn_alt_dcg_t{gen[2],which} in opaque. n-ary chain. one4all `51460d4f`.
+      ir-run 153→159 (+6), honest 271→275 (+4).
+
+### IJ-19-limit — implement TT_LIMIT (gen\\N)
+
+- [x] IR_ICN_LIMIT DCG. icn_lim_dcg_t{gen,max,count} in opaque. one4all `b7d74bf9`.
+      ir-run 159→164 (+5), honest 275→276 (+1).
 
 ### IJ-19-remaining — remaining 38 constructs in order of complexity
 
@@ -260,8 +266,8 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ## Watermark
 
-  one4all: 8cf94938  corpus: 1fe096c
-  ir-run:  PASS=153 FAIL=77
-  honest:  PASS=271 (flaky gate; baseline 272±2)
+  one4all: b7d74bf9  corpus: 1fe096c
+  ir-run:  PASS=164 FAIL=66
+  honest:  PASS=276
   smoke_icon: 5/5   broker: 22/49
-  NEXT: IJ-19-alternate (TT_ALTERNATE — A|B)
+  NEXT: IJ-19-binop-gen (arith/relop with generative operand)
