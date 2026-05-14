@@ -625,9 +625,9 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: 474df331  .github: (this commit)
-  Status: IN PROGRESS — LR-0 ✅ LR-3 ✅
-  NEXT: LR-2 — ir_exec.h/c (ir_exec_once, ir_exec_pump, standalone unit test)
+  one4all: b4ce7a4a  .github: (this commit)
+  Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅
+  NEXT: LR-S1 — SNOBOL4 pattern lower: emit IR_PAT_* nodes alongside existing path (additive)
 
 ## Step log
 
@@ -636,12 +636,14 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
         All six smoke gates pass (SNO 7/7, ICN 5/5, PL 5/5, REB 4/4, SCO 5/5, RKU 5/5).
   LR-1 N/A — deleted per FINAL PIPELINE clarification: lower wires DCG directly; no separate
         generator phase / ir_lower.c needed.
-  LR-2 ⏳ ir_exec.h/c — ir_exec_once, ir_exec_pump (standalone unit test)
-  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 2ae6fe36): SM_EXEC_GEN + SM_PUMP_GEN
-        opcodes added to sm_prog.h enum; stub case handlers in sm_interp.c (push FAILDESCR);
-        NULL entries in sm_jit_interp.c g_handlers[]. Nothing emits these yet.
-        All six smoke gates pass.
-
+  LR-2 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all b4ce7a4a): ir_exec.h/c — DCG
+        graph-walk executor. ir_exec_once/ir_exec_pump/ir_exec_eval_node. IR_LIT_*/FAIL/
+        SUCCEED/TO_BY implemented; all others safe FAILDESCR stubs. SM_EXEC_DCG and
+        SM_PUMP_DCG handlers upgraded from stubs to live ir_exec calls. Standalone unit
+        test: PASS=11 FAIL=0. All six smoke gates pass.
+  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 2ae6fe36+474df331): SM_EXEC_DCG +
+        SM_PUMP_DCG opcodes in sm_prog.h; renamed from SM_EXEC_GEN/SM_PUMP_GEN ('gen'
+        banned per RULES.md). Handlers now live (call ir_exec). All six smoke gates pass.
 ---
 
 ## PIVOT: Start with SNOBOL4 patterns (not Icon, not Rebus)
