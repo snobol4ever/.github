@@ -84,15 +84,37 @@ Icon BB runtime infrastructure. Mapping:
 - [x] Rename all coro_* live symbols and files. Build clean. GATE-1..4. Commit.
 
 ### IJ-CORO-3 — delete SM_RESUME, SM_GEN_TICK (confirmed dead opcodes)
-These SM opcodes were emitted by lower.c for Icon generators/locals via the old coro path.
-With pure-BB Icon they are dead. Remove from sm_prog.h, sm_interp.c, emit_sm_binary.c,
-emit_sm.c, sm_prog.c. Remove the lower.c emit sites. Build clean. GATE-1..2.
-- [ ] Delete SM_RESUME, SM_GEN_TICK (confirmed dead). SM_SUSPEND_VALUE stays until --sm-run Icon retired. Build clean. GATE-1..2.
+- [x] Delete SM_RESUME, SM_GEN_TICK. SM_SUSPEND_VALUE stays. Build clean. GATE-1..4. Commit `33625214`.
 
 ### IJ-CORO-4 — delete coro_stmt.c and coro_value.c dead code, clean includes
-After CORO-1..3, audit coro_stmt.c and coro_value.c for any remaining references to
-deleted symbols. Remove #include <ucontext.h> everywhere it crept in.
-- [ ] Final dead-code sweep. Clean build. GATE-1..4 green. Commit all.
+- [x] Remove #include <ucontext.h> from scrip.c. Clean stale coro_call/trampoline comments from icn_runtime.c, icn_stmt.c, icn_value.c. Build clean. GATE-1..4. Commit `b7f5de14`.
+
+### IJ-BB-1 — Audit bb_eval_value coverage vs lower.c Icon scalar cases (NEXT)
+Map every TT_* that lower.c handles for LANG_ICN against bb_eval_value cases.
+Produce a gap table. Goal: identify exactly which kinds need new bb_eval_value handlers
+before the SM scalar path can be eliminated for Icon.
+- [ ] Produce gap table. Update this goal file with findings. Commit.
+
+### IJ-BB-2 — Fill bb_eval_value gaps from IJ-BB-1
+For each TT_* in lower.c LANG_ICN path that has no bb_eval_value handler, add one.
+Expected gaps: TT_INDIRECT, TT_NAME, TT_INTERROGATE, TT_DEFER, TT_VLIST, TT_OPSYN.
+- [ ] Add missing handlers. GATE-1..4. Commit.
+
+### IJ-BB-3 — Route Icon proc bodies through SM_BB_ONCE instead of SM scalar opcodes
+lower.c currently emits SM scalar opcodes inline for Icon proc bodies.
+Change Icon proc lowering to wrap each expression as SM_BB_ONCE → bb_eval_value.
+SM_PUSH_LIT_I, SM_PUSH_VAR, SM_CALL_FN etc. should no longer fire for LANG_ICN scalars.
+- [ ] Route Icon scalar exprs through SM_BB_ONCE. GATE-1..4. honest PASS must not decrease. Commit.
+
+### IJ-BB-4 — Eliminate SM scalar opcodes from Icon lower path
+With SM_BB_ONCE routing verified, remove the LANG_ICN scalar emission branches from lower.c.
+Add SCRIP_NO_AST_WALK-style tripwire that aborts if a scalar SM opcode fires during Icon --sm-run.
+- [ ] Remove LANG_ICN scalar lowering from lower.c. GATE-1..4. Commit.
+
+### IJ-BB-5 — Verify fully-BB Icon: honest PASS >= 275, zero SM scalar fallback
+Confirm with tripwire disabled that honest mode passes at baseline or better.
+SM_SUSPEND_VALUE may now be removed (Icon --sm-run retired).
+- [ ] Confirm fully-BB. Remove SM_SUSPEND_VALUE if --sm-run Icon is retired. GATE-1..4. Commit.
 
 ### IJ-13c — write(fh, s) routing (Cluster O)
 
@@ -163,11 +185,12 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: df637204  corpus: 2ba5a92
-  ir-run:  PASS=201 FAIL=34 XFAIL=30
+  one4all: b7f5de14  corpus: 2ba5a92
+  ir-run:  PASS=190 FAIL=45 XFAIL=30
   honest:  PASS=275 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-CORO-3 (delete SM_RESUME, SM_GEN_TICK) then IJ-16 (&random + radix)
-  CORO-5 ✅ df637204: coro_* eradicated; icn_runtime/stmt/value; icn_bb_build/oneshot/pump_proc_by_name
+  NEXT: IJ-BB-1 (audit bb_eval_value coverage gaps)
+  CORO-3 ✅ 33625214: SM_RESUME + SM_GEN_TICK deleted
+  CORO-4 ✅ b7f5de14: ucontext.h removed; stale coro comments cleaned
 
 ## IJ-29 next-session recipe
 
