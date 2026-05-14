@@ -96,9 +96,9 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 ## Watermark
 
-**HEAD** one4all `1cc799bc` · Gates: smoke_icon 5/5, jit_emit 11/13.
+**HEAD** one4all `660e3ddb` · Gates: smoke_icon 5/5, jit_emit 11/13, sn26_auto_binary PASS.
 
-**Next:** SF-12 — delete `emit_bb_rtcall_data` (now only used by ARBNO/CALLCAP/CAP_IMM/CAP_COND which have their own inline TEXT paths; confirm zero ICN_* callers). Also SF-8 — broad corpus ≥160/163. EM-ICN-FLAT series complete (IF-0..IF-6 all closed).
+**Next:** SF-8 (broad corpus ≥160/163) and SF-12 (delete emit_bb_rtcall_data — now that all box types are flat-eligible, ARBNO/CALLCAP/CAP_IMM/CAP_COND TEXT paths are the only remaining users). Dead code in stmt_exec.c brokered-fallback for XNME/XFNME/XARBN/XCALLCAP can also be pruned.
 
 **Architecture decision (sess 2026-05-14):** `--bb-inline-limit=N` switch implemented. `BB_OVER_LIMIT(sz)` guard on every SNOBOL4 TEXT-path box falls back to `emit_bb_rtcall(...)` which calls `rt_bb_*@PLT` in `libscrip_rt.so`. This is NOT a true hybrid — it is wholesale BB dispatch to the pre-existing C brokered-path implementations. Would violate single-truth if the same box kind had some instances inlined and some RTCALLed in one run. The real hybrid (replace expensive inner loops with RT helper calls while keeping flat α/β/γ/ω structure) is a separate future design. Current `--bb-inline-limit` is a valid size-vs-speed knob for the output `.s` file size, but the architectural tension is recorded here.
 
