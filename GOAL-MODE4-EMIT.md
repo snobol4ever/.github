@@ -63,6 +63,10 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 - [x] **SF-6** ✅ `8a63e515` — ICN_* boxes: `emit_bb_stateful` gains `nquads` param; all 45 ICN box emitters pass `ICN_NQ(state_t)` = `(sizeof(state_t)+7)/8` so TEXT path emits a correctly-sized zeroed `.data` block per box kind. Non-ICN callers (ARBNO/BREAKX/CALLCAP/CHARSET) retain `nquads=6`. Companion gate fixes (SF-6-pre `f7400d23`): JUMP/JUMP_S/JUMP_F dispatch→macro form; rt_arith case values corrected; RETURN macro→plain ret; sm_phase2_sim_test field names fixed; bb_flat_text_test intern_str callback. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing).
 - [x] **SF-7** ✅ — Delete `emit_bb_stateful_int` (zero callers). Fix `emit_bb_xbrkx` binary path: replace `emit_bb_stateful(...)` fallback with direct `emit_seq_port_call(z, "rt_bb_breakx", fn, 0/1, s, f)` + `emit_label_define(b)` between ports — matching the BAL/ARB/REM pattern. `emit_bb_stateful` and `emit_bb_stateful_text_data` stay; they are still live for ARBNO/CALLCAP/CAP_IMM/CAP_COND/CHARSET and all ICN_* emitters. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing).
 - [ ] **SF-8** — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit.
+- [x] **SF-9** ✅ — `emit_bb_charset` binary path: replace `else { emit_bb_stateful(...) }` with direct `emit_seq_port_call(z, rt_name, rt_fn, 0/1, s, f)` + `emit_label_define(b)`. Already has its own IS_TEXT flat path; only the binary else-branch calls `emit_bb_stateful`. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
+- [x] **SF-10** ✅ — `emit_bb_xcallcap`, `emit_bb_xfnme`, `emit_bb_xnme` (CALLCAP/CAP_IMM/CAP_COND): add IS_TEXT flat path using `emit_bb_stateful_text_data` + `emit_seq_port_call_rip`; binary path uses direct `emit_seq_port_call`. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
+- [x] **SF-11** ✅ — `emit_bb_xarbn` (ARBNO): add IS_TEXT flat path using `emit_bb_stateful_text_data` + `emit_seq_port_call_rip`; binary path uses direct `emit_seq_port_call`. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
+- [ ] **SF-12** — Delete `emit_bb_stateful` and `emit_bb_stateful_text_data` (zero SNOBOL4 callers; blocked on IF-0..IF-5 clearing ICN_* callers). Compile-clean. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
 
 > Closed history: `git log -p .github/GOAL-MODE4-EMIT.md`
 
@@ -92,8 +96,8 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 ## Watermark
 
-**HEAD** one4all `c2da1e32` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
+**HEAD** one4all `a4ee9735` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
 
-**Next:** SF-8 — Broad corpus ≥160/163 PASS. Beauty gate ≥10/17. Commit. Then EM-ICN-FLAT IF-0.
+**Next:** SF-8 (broad corpus gate), then SF-12 (delete `emit_bb_stateful`/`emit_bb_stateful_text_data`) blocked on IF-0..IF-5; or start IF-0 in parallel.
 
-**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD at SF-7 commit.
+**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD at SF-9/10/11 commit.
