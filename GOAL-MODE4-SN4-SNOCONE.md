@@ -146,8 +146,12 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `b6b6e09d` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (beauty_omega ir-run pre-existing), beauty parity 6/17, mode-4 broad corpus 124/280 (sm-run 144/280).
+**HEAD** one4all `7eb1d935` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 7/17 (pre-existing), mode-4 broad corpus 128/280 (sm-run 167/280).
 
-Sess 2026-05-14c (Claude Sonnet 4.6): M4SN-4b: fix ARBNO . V variant capture — three bugs in brokered-blob XNME path: (1) pre_build_children XNME/XFNME must use bb_build_brokered for child (not bb_build_flat — flat blobs are jump fragments, not callable); (2) rt_bb_cap β span: rt_bb_arbno β restores Δ to fr->start; added cap_t.cap_start saved at α, use descr_match_span(Σ+cap_start, Δ-cap_start) at β; (3) emit_seq_port_call binary: push r12/pop r12 → push r10/pop r10 (r10 = flat-blob Δ-pointer, clobbered by C calls; bug since 553a836a reorg). Broad corpus 124/280 (+6 vs 118).
+Sess 2026-05-14c (Claude Sonnet 4.6): M4SN-4b: fix ARBNO . V variant capture — broad corpus 124/280.
 
-**Next:** M4SN-4b continued — target 144/280 (sm-run parity). Triage remaining 156 failures for mode-4-specific vs pre-existing.
+Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: two fixes:
+(1) SM_NEG (opcode 26) missing from emit_walk_codegen switch — added emit_sm_neg_dispatch + emit_sm_exp_dispatch. Fixes unary negation in mode-4.
+(2) NRETURN in mode-4: (a) rt_do_return kind=2 popped TOS (garbage) instead of reading NV[fname]; added rt_do_nreturn(fname,cond) that calls NV_GET_fn(fname) directly. (b) RETURN_VARIANT/NRETURN_VAR macros did frame-restore (mov rsp,rbp;pop rbp;ret) inside call_native_chunk — wrong, exits main. Fixed: return 2 from chunk context → macro skips frame restore, just ret. Broad corpus 128/280 (+4).
+
+**Next:** M4SN-4b continued — target sm-run parity 167/280. 21 mode-4-specific failures remain; fence/arbno patterns dominate. Next: triage 059_capture_dollar_deferred, 082_keyword_stcount, fileinfo, and fence pattern failures.
