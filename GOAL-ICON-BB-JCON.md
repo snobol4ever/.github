@@ -221,8 +221,8 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ### IJ-19-to-by — implement TT_TO_BY
 
-- [ ] Same pattern as TT_TO. Add IR_ICN_TO_BY. step>0: cur<=hi; step<0: cur>=hi.
-      GATE-1..4. Commit.
+- [x] IR_ICN_TO_BY DCG. ival=lo,ival2=hi,ival3=step. lower_icn_to_by+icn_bb_dcg.
+      rung07_control_to_by PASS, rung19_pow_toby_* int/var PASS. one4all `a0b0700b`.
 
 ### IJ-19-iterate — implement TT_ITERATE (!str, !list, !table)
 
@@ -259,8 +259,8 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ## Watermark
 
-  one4all: bb48e6c3  corpus: 1fe096c
-  ir-run:  PASS=149 FAIL=81
+  one4all: a0b0700b  corpus: 1fe096c
+  ir-run:  PASS=150 FAIL=80
   honest:  PASS=271 (flaky gate; baseline 272±2)
   smoke_icon: 5/5   broker: 21/49
-  NEXT: IJ-19-to-by (TT_TO_BY)
+  NEXT: IJ-19-iterate (TT_ITERATE — !str, !list, !table)
