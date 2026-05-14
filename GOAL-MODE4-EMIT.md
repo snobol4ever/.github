@@ -255,147 +255,21 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 mode4-corpus-scan (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 S200-headers+core (Claude Sonnet 4.6)**
 
-one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=13/17 FAIL=4. Broad corpus (demo+beauty+124 parser/csnobol4-suite): PASS=155/163, EMIT=0, LINK=0, DIFF=5, CRASH=3.
+one4all HEAD `5d1d1274`. .github HEAD `69137eaa`. Gates: smoke 7/7, byte-id 4/4.
 
 ### What was done this session
 
-Two emitter bugs fixed; beauty gate 12→13/17:
+Style rules updated and S200-1 through S200-3 complete:
 
-1. **XDSAR not excluded from `flat_is_eligible`** (`56a9897a`): XDSAR nodes (deferred-var `*foo` patterns) were eligible for `bb_build_brokered` → `emit_flat_body`, which ran at runtime inside the generated binary and crashed in `emit_label_initf`/`vsnprintf` (stack corruption context). Fix: add `p->kind == XDSAR` to `flat_is_eligible` exclusion in `emit_bb.c`. Falls back to C brokered box path.
-
-2. **Absolute Σ/Σlen addresses in text .s output** (`56a9897a`): `emit_seq_sigma_delta_rdi`, `emit_seq_bounds_len`, `emit_seq_cmp_siglen_delta` all called `insn_mov_rcx_i64(addr)` unconditionally, baking the scrip-process's own `&Σ`/`&Σlen` pointer values into the emitted `.s`. Generated binary segfaulted dereferencing those stale addresses at runtime. Fix: `IS_TEXT` guard calls `emit_sym_lea_rcx("Σ"/"Σlen", addr)` → correct RIP-relative symbol reference.
-
-Broad corpus scan run: demo+beauty+parser+csnobol4-suite (163 programs). 155 PASS, 8 failures:
-
-### Remaining 4 beauty diffs (accepted as sm-run bugs)
-
-Confirmed against SPITBOL oracle: counter, semantic, stack, trace — all sm-run accuracy divergences. Mode-4 is at least as correct.
-
-### 3 new crashes from broad corpus scan (next session)
-
-**Class A — stateful BB box zeta absolute address (f04_pattern_primitives):**
-`rt_bb_any` called with `zeta=0x4010e0 <rt_bb_any@plt>` — the PLT stub address, not a zeta struct.
-Root cause: `emit_seq_port_call` text path at line 1163 emits `lea rdi, [rip + fn_name]` using the *function name* as the RIP-relative symbol for the zeta struct. But stateful boxes (ANY, SPAN, BREAK, NOTANY, TAB, RTAB, LEN, BAL, ARB, REM, BREAKX, and all ICN_* boxes) need a `.quad` data slot in the emitted `.s` with a `.Lbox_z` label, same pattern as XDSAR/XATP use `emit_seq_port_call_rip`.
-Fix needed: `emit_bb_stateful` must emit a data section with a `.Lbox_z` label containing the box-specific runtime state, then call `emit_seq_port_call_rip` with that label. In binary mode, behavior is unchanged (zeta_ptr is a live heap address). In text mode, the data section provides a relocatable slot.
-
-**Class B — DEFINE_ENTRY corrupts main frame (fn_define_labeled, expr_parser):**
-`main=0x0` at crash — the `main` prologue is corrupted. `DEFINE_ENTRY` macro emits `push rbp / mov rbp, rsp` AFTER `call rt_define_entry@PLT` inside `main`'s body. This extra prologue corrupts the return stack. DEFINE_ENTRY should be a pure label target (no prologue emission) in the text path; the actual function prologue belongs in the `sm_macros.s` DEFINE body or should be suppressed when inside main.
-
-### 5 diffs from broad corpus scan
-
-f07_keywords, f12_load_unload, f14_dyn_opt, f18_error_handling, f19_real_numbers — pre-existing sm-run accuracy divergences, not mode-4 emitter bugs. Not investigated this session.
+- **Style rule additions** (`.github` `d2f5add9`): RULES.md § "C code style" updated with two new rules for all one4all C/H files: (1) zero blank lines anywhere in a file — separator lines only between functions; (2) no inline or end-of-line comments, no comments inside function bodies — banner `/* ... */` on line immediately after separator, before signature only.
+- **S200-2** (`fe47f032`): `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h` reformatted — 280→243 lines, paired decls, column-aligned families, duplicate `#include "emit.h"` removed, fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures.
+- **S200-3** (`5d1d1274`): `emit_core.c` reformatted — 2,433→1,786 lines. 200-col separators throughout; `insn_*` 49 trivial functions → one-liners; `bb_insn_*` 41 functions → one-liners; `t3/tf/tj` helpers compacted. Zero blank lines, zero >200-col violations.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
-3. Fix Class A (stateful box zeta): add `.Lbox_z` data slot to `emit_bb_stateful` text path and switch to `emit_seq_port_call_rip`. Affects XANYC/XSPNC/XBRKC/XNNYC/XLNTH/XTB/XRTB/XBAL/XFARB/XSTAR/XBRKX + ICN_* boxes.
-4. Fix Class B (DEFINE_ENTRY): suppress extra prologue in DEFINE_ENTRY text macro, or rework how SM_DEFINE_ENTRY interacts with `main`'s frame.
-5. After fixes: broad corpus scan target ≥160/163.
-
----
-
-## Watermark
-
-**SESSION HANDOFF — sess 2026-05-13 mode4-charset-fix (Claude Sonnet 4.6)**
-
-one4all HEAD `3db853a7`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=10/17 (baseline at `56a9897a` also confirmed 10/17 — previous watermark overstated 13/17).
-
-### What was done this session
-
-**emit_bb_charset text path fix** (`3db853a7`): In text mode, `emit_bb_charset` was calling `emit_bb_stateful` → `emit_seq_port_call`, which emitted `lea rdi, [rip + fn_name]` — using the *function* name (`rt_bb_any` etc.) as the RIP-relative zeta pointer. At runtime the binary received the PLT stub address as zeta, causing `strchr(PLT_stub, char)` → SIGSEGV. Fix: text mode bypasses `emit_bb_stateful` and emits a `.section .data` block with `.Lcs{id}_chars` string + `.Lcs{id}_z` struct (`.quad chars_label, .long 0, .long 0`), then calls `emit_seq_port_call_rip`. Labels emitted with colon suffix (`.Lcs0_chars:`) to avoid GAS treating them as unknown directives. Verified: f04_pattern_primitives no longer crashes.
-
-**Broad corpus baseline clarification**: Full scan (166 programs including beauty+demo+parser+csnobol4-suite) shows ~144 PASS at `56a9897a`. The scan script's abort-handling was misclassifying sm-run aborts as mode-4 crashes; both produce empty output so they match — they should be PASS not CRASH.
-
-### Remaining work (next session)
-
-**Class A — Other stateful box types in text mode** (TAB/RTAB/LEN/BAL/ARB/REM/BREAKX/ARBNO/ICN_* boxes): same PLT-stub-as-zeta bug in `emit_bb_stateful`. Fix strategy:
-- Boxes with no chars ptr (BAL/ARB/REM/ICN_*): add IS_TEXT guard to `emit_bb_stateful` emitting zeroed `.Lstateful{id}_z` data block (6 `.quad 0`) — these self-initialize from zero on first call.
-- TAB/RTAB/LEN: need integer `n` baked in as first field; data block = `.long n; .long 0`.
-- BREAKX: needs chars ptr — same pattern as charset fix above.
-
-**Class B — DEFINE_ENTRY corrupts main frame** (fn_define_labeled, expr_parser): DEFINE_ENTRY macro emits extra `push rbp / mov rbp, rsp` inside `main`'s body; the DEFINE_ENTRY sm_macros.s macro should not emit a prologue in the text path (it creates a new frame inside main's frame).
-
-**Beauty gate 10/17**: ShiftReduce, TDump, global still failing. Likely more stateful box issues (ShiftReduce uses BAL/ARB; TDump and global use pattern primitives). Should improve once Class A is fixed.
-
-### Next session must
-
-1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `3db853a7`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
-3. Fix Class A: IS_TEXT guard in `emit_bb_stateful` for zero-init boxes + per-box fixes for TAB/RTAB/LEN (int field) and BREAKX (chars ptr).
-4. Fix Class B: DEFINE_ENTRY sm_macros.s macro body.
-5. Run clean corpus scan distinguishing sm-run-abort from mode-4-crash.
-
----
-
-## Watermark
-
-**SESSION HANDOFF — sess 2026-05-13 mode4-stateful-box-fix (Claude Sonnet 4.6)**
-
-one4all HEAD `fa75289f`. corpus HEAD `65dad13`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Broad corpus (demo+beauty+parser+csnobol4-suite): 113/113 PASS 0 FAIL (emit+assemble only; libscrip_rt not built this session).
-
-### What was done this session
-
-**Class A — stateful box zeta fix** (`fa75289f`): All stateful boxes through `emit_bb_stateful` in text mode called `emit_seq_port_call` → `lea rdi, [rip + fn_name]` — using the *function* name as the RIP-relative zeta pointer, passing PLT stub address as zeta → SIGSEGV.
-
-Fixes in `emit_bb.c`:
-- `emit_bb_stateful`: IS_TEXT guard emits zeroed `.Lstat{id}_z` block (6×`.quad 0`) in `.section .data`, then uses `emit_seq_port_call_rip`. Covers BAL/ARB/REM + all 25 ICN_* boxes.
-- `emit_bb_stateful_int` (new): bakes `.long n; .long 0` for LEN/TAB/RTAB. `emit_bb_xlnth`/`xtb`/`xrtb` now call this.
-- `emit_bb_xbrkx`: IS_TEXT path emits chars string + `brkx_t` data block with chars ptr label (same pattern as charset fix).
-
-**Class B — DEFINE_ENTRY frame corruption fix** (`fa75289f`): `emit_sm.c` emitted `push rbp / mov rbp, rsp` after `call rt_define_entry@PLT` in the macro body. Removed. DEFINE_ENTRY is a pure runtime notification, not a function entry point.
-
-**corpus `sm_macros.s`** regenerated (`65dad13`): DEFINE_ENTRY macro now only `call rt_define_entry@PLT` + `.endm`.
-
-### Next session must
-
-1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `fa75289f`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
-3. Build libscrip_rt.so (`make libscrip_rt` in one4all) and run `test_gate_em_beauty_subsystems_mode4.sh` to measure beauty PASS/17.
-4. Investigate remaining beauty failures — determine which are sm-run-accuracy divergences vs true mode-4 bugs.
-5. Run broad corpus scan with libscrip_rt to distinguish sm-run-abort from mode-4-crash.
-
----
-
-## Watermark
-
-**SESSION HANDOFF — sess 2026-05-13 mode4-SF-1 (Claude Sonnet 4.6)**
-
-one4all HEAD `3fcc90a7`. Gates: smoke 7/7, byte-id 4/4, beauty 10/17 (unchanged). Snocone 1/5 pre-existing.
-
-### What was done this session
-
-**SF-1 — `emit_bb_xbal` flat inline BAL box** (`3fcc90a7`): Text path emits `.data` slot (`.Lbal{id}_z`: `.long 0; .long 0`) and inline `'('`/`')'` byte-compare loop using RIP-relative Σ/Σlen/Δ symbol references. No `rt_bb_bal` call in text mode. Binary path unchanged (heap zeta via `emit_seq_port_call`). emit+link verified on all BAL-using demo programs (treebank-array, treebank-list, claws5).
-
-### Key finding from history scan
-
-- Archive `bb_boxes.s`: BAL was always a **stub** (always ω, printed error). Never flat-implemented in the assembly era.
-- Commit `76924fca`: first real BAL logic, as C function `bb_bal()` in `bb_boxes.c`.
-- SNOBOL4 frontend currently emits `PUSH_VAR` for the token `BAL` instead of routing to `XBAL`. The SF-1 emit path is correct but unexercised until frontend keyword wiring is fixed (separate issue, not SF scope).
-
-### Next session must
-
-1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `3fcc90a7`. Gates: smoke 7/7, byte-id 4/4.
-3. Investigate SNOBOL4 frontend `BAL` keyword wiring — why does `BAL` in a pattern emit `PUSH_VAR` instead of `XBAL`? Fix or note as separate goal.
-4. Proceed to SF-2: `emit_bb_xfarb` (ARB) flat template.
-
-
-
-one4all HEAD `d4a17203`. corpus HEAD `96444bf`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=10/17.
-
-### What was done this session
-
-**Class A stateful-box zeta text fix** (`fa75289f`, one4all): `emit_bb_stateful` IS_TEXT guard emits zeroed `.data` block + `emit_seq_port_call_rip`. `emit_bb_stateful_int` for LEN/TAB/RTAB. `emit_bb_xbrkx` inline IS_TEXT path. Broad corpus 113/113.
-
-**Class B (DEFINE_ENTRY) — attempted and reverted**: Removing push/rbp from DEFINE_ENTRY broke user-function RETURN (mov rsp,rbp/pop rbp/ret needs a matching prologue). Reverted in `d4a17203` / corpus `96444bf`. Beauty restored to 10/17.
-
-**Lon's architectural directive**: Stateful boxes do not belong in the RT via RTCALL. They need per-invocation DATA in the flat glob, not heap dispatch. SF-1..SF-8 above are the now-steps.
-
-### Next session must
-
-1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `d4a17203`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty 10/17.
-3. Start SF-1: `emit_bb_xbal` flat template — inline BAL logic in the glob, DATA block holds `int δ`, no `rt_bb_bal` call.
+2. Confirm one4all HEAD `5d1d1274`. Gates: smoke 7/7, byte-id 4/4.
+3. **S200-4**: reformat `emit_bb.c` (1,532 lines) — (a) stateless box one-liners column-aligned; (b) `emit_bb_stateful*` helpers; (c) inline box functions (XBAL, XDSAR, charset); (d) flat data helpers. Same rules: zero blanks, no inline/body comments, 200-col.
+4. After S200-4, continue S200-5 (`emit_sm.c`) if context allows.
