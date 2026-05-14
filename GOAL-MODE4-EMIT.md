@@ -88,7 +88,7 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 - [x] **IF-1** ✅ `bfe58803` — Convert batch A (8 boxes): `emit_bb_icon_alt`, `emit_bb_icon_bang`, `emit_bb_icon_every`, `emit_bb_icon_iterate`, `emit_bb_icon_lconcat`, `emit_bb_icon_limit`, `emit_bb_icon_seq`, `emit_bb_icon_to`. ICN_EMIT2 macro; C constructors deleted/moved to static inline. Gates: smoke_snobol4 7/7, smoke_icon 5/5.
 - [x] **IF-2** ✅ `9a55b3cf` — Convert batch B (8 boxes): `emit_bb_icon_to_by`, `emit_bb_icon_not`, `emit_bb_icon_repalt`, `emit_bb_icon_while_gen`, `emit_bb_icon_until_gen`, `emit_bb_icon_repeat_gen`, `emit_bb_icon_case_gen`, `emit_bb_icon_compound_gen`. Note: batch B _new funcs live in icon_gen.c; static inline in emit_bb.c is internal-linkage (no conflict). icon_to_by_new deleted from bb_boxes.c. Gates: smoke_snobol4 7/7, smoke_icon 5/5.
 - [x] **IF-3** ✅ `158e0a88` — Convert batch C (8 boxes): `emit_bb_icon_field_gen`, `emit_bb_icon_section_gen`, `emit_bb_icon_kw_gen`, `emit_bb_icon_listcon_gen`, `emit_bb_icon_proc_call`, `emit_bb_icon_scan`, `emit_bb_icon_noop`, `emit_bb_icon_intlit`. _new() constructors already extern-declared; no static inline needed. Gates: smoke_icon 5/5, jit_emit 11/13.
-- [ ] **IF-4** — Convert batch D (8 boxes): `emit_bb_icon_reallit`, `emit_bb_icon_strlit`, `emit_bb_icon_csetlit`, `emit_bb_icon_global`, `emit_bb_icon_if`, `emit_bb_icon_initial`, `emit_bb_icon_invocable`, `emit_bb_icon_link`. Gates: same as IF-1.
+- [x] **IF-4** ✅ `dbde3975` — Convert batch D (8 boxes): `emit_bb_icon_reallit`, `emit_bb_icon_strlit`, `emit_bb_icon_csetlit`, `emit_bb_icon_global`, `emit_bb_icon_if`, `emit_bb_icon_initial`, `emit_bb_icon_invocable`, `emit_bb_icon_link`. Gates: smoke_icon 5/5, jit_emit 11/13.
 - [ ] **IF-5** — Convert batch E (remaining 12 boxes): `emit_bb_icon_record`, `emit_bb_icon_return`, `emit_bb_icon_fail`, `emit_bb_icon_unop`, `emit_bb_icon_next`, `emit_bb_icon_break`, `emit_bb_icon_create`, `emit_bb_icon_coexplist`, `emit_bb_icon_arglist`, `emit_bb_icon_procdecl`, `emit_bb_icon_procbody`, `emit_bb_icon_proccode`. Gates: same as IF-1.
 - [ ] **IF-6** — Delete `emit_bb_stateful_int` (zero callers confirmed). Verify `emit_bb_stateful` now has exactly 6 non-ICN callers: ARBNO, BREAKX-binary, CALLCAP, CAP_IMM, CAP_COND, CHARSET. `emit_bb_stateful_text_data` stays. Compile-clean. Gates: smoke_snobol4 7/7, smoke_icon 5/5, jit_emit_x64 11/13.
 
@@ -96,9 +96,9 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 ## Watermark
 
-**HEAD** one4all `158e0a88` · Gates: smoke_icon 5/5, jit_emit 11/13.
+**HEAD** one4all `dbde3975` · Gates: smoke_icon 5/5, jit_emit 11/13.
 
-**Next:** IF-4 (batch D: reallit/strlit/csetlit/global/if/initial/invocable/link). Pattern same as IF-3: _new() constructors already extern-declared; use ICN_EMIT2 directly. SF-12 still blocked on IF-3..IF-5.
+**Next:** IF-5 (batch E: remaining 12 boxes — record/return/fail/unop/next/break/create/coexplist/arglist/procdecl/procbody/proccode). Same pattern. SF-12 still blocked on IF-5 completion.
 
 **Architecture decision (sess 2026-05-14):** `--bb-inline-limit=N` switch implemented. `BB_OVER_LIMIT(sz)` guard on every SNOBOL4 TEXT-path box falls back to `emit_bb_rtcall(...)` which calls `rt_bb_*@PLT` in `libscrip_rt.so`. This is NOT a true hybrid — it is wholesale BB dispatch to the pre-existing C brokered-path implementations. Would violate single-truth if the same box kind had some instances inlined and some RTCALLed in one run. The real hybrid (replace expensive inner loops with RT helper calls while keeping flat α/β/γ/ω structure) is a separate future design. Current `--bb-inline-limit` is a valid size-vs-speed knob for the output `.s` file size, but the architectural tension is recorded here.
 
