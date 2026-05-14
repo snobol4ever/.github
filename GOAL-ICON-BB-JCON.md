@@ -123,13 +123,13 @@ Rollout order and status:
 - [x] Group B (var reads): lower_var, lower_keyword. ir-run 190→191, honest 275→276.
 - [x] Group C (unary): lower_mns/pls/nonnull/null/size/identical/random/not/global/interrogate/name/indirect.
 - [x] Group D (binary): lower_add/sub/mul/div/mod/pow, lower_comp/acomp/lcomp, lower_idx/field/lconcat/cat_seq, inline cset ops. one4all `00918062`.
-- [ ] Group E (assignment+swap+scan): lower_assign, lower_swap, lower_scan, lower_augop.
+- [x] Group E (augop only): lower_augop. `a40e4791`. lower_assign/scan/swap blocked: ICN_BB_EVAL(TT_ASSIGN) writes to transient FRAME.env[slot]; initial{}-modified locals need NV persistence across calls. Group F blocked: lower_if etc. contain TT_RETURN descendants; SM machine does not honour FRAME.returning after SM_BB_EVAL. Deferred.
   NOTE: lower_assign and lower_scan cause ir-run regression (191→187) when ICN_BB_EVAL added.
   Root cause unknown — bb_eval_value TT_ASSIGN or TT_SCAN path has a bug. Debug before converting.
   Suggested approach: add ICN_BB_EVAL to lower_augop first (simpler), then debug assign/scan.
-- [ ] Group F (control flow): lower_if, lower_while, lower_until, lower_repeat, lower_case, lower_initial, lower_loop_break/next, lower_return, lower_proc_fail.
+- [ ] Group F (control flow): blocked — contains TT_RETURN/TT_PROC_FAIL descendants; SM machine ignores FRAME.returning after SM_BB_EVAL. Needs SM_BB_EVAL to check FRAME.returning after call, or a different approach.
 - [ ] Group G (calls+records): lower_fnc, lower_record, lower_vlist, lower_opsyn, lower_makelist.
-- [ ] Group H (sections+scan): lower_section_3, lower_seq_expr.
+- [x] Group H (sections): TT_SECTION/SECTION_PLUS/SECTION_MINUS inline ICN_BB_EVAL at lower_expr dispatch. `767d9a2d`. lower_seq_expr skipped (structural).
 - [ ] After all groups: verify honest PASS >= 276. Commit.
 
 ### IJ-BB-4 — Eliminate LANG_ICN scalar branches from lower.c
@@ -210,12 +210,13 @@ write/writes cannot distinguish fh from plain int without a typed descriptor.
 
 ## Watermark
 
-  one4all: b187bd59  corpus: 2ba5a92
+  one4all: 767d9a2d  corpus: 2ba5a92
   ir-run:  PASS=191 FAIL=44 XFAIL=30
   honest:  PASS=276 FAIL=1 ABORT=0   broker: 23/49
-  NEXT: IJ-BB-3 Group E — debug TT_ASSIGN/TT_SCAN regression, then convert augop/control/calls
+  NEXT: IJ-BB-3 Group G (calls+records) or assign/scan fix
   IJ-BB-2 ✅: 7 bb_eval_value gap handlers added (601af0e0)
-  IJ-BB-3 partial ✅: Groups A-D converted to SM_BB_EVAL (b187bd59); Groups E-H pending
+  IJ-BB-3 partial ✅: Groups A-D ✅ b187bd59; E(augop) ✅ a40e4791; H(sections) ✅ 767d9a2d
+  coro rename: coro_drive_node→icn_drive_node, coro_drive_val→icn_drive_val in icn_runtime.c/h (767d9a2d)
 
 ## IJ-29 next-session recipe
 
