@@ -96,8 +96,12 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 ## Watermark
 
-**HEAD** one4all `a4ee9735` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
+**HEAD** one4all `6bcc9837` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13 (em7c runtime pre-existing open).
 
-**Next:** SF-8 (broad corpus gate), then SF-12 (delete `emit_bb_stateful`/`emit_bb_stateful_text_data`) blocked on IF-0..IF-5; or start IF-0 in parallel.
+**Next:** SF-8 (broad corpus gate). SF-12 (delete emit_bb_rtcall/emit_bb_rtcall_data) blocked on IF-0..IF-5.
 
-**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD at SF-9/10/11 commit.
+**Architecture decision (sess 2026-05-14):** `--bb-inline-limit=N` switch implemented. `BB_OVER_LIMIT(sz)` guard on every SNOBOL4 TEXT-path box falls back to `emit_bb_rtcall(...)` which calls `rt_bb_*@PLT` in `libscrip_rt.so`. This is NOT a true hybrid — it is wholesale BB dispatch to the pre-existing C brokered-path implementations. Would violate single-truth if the same box kind had some instances inlined and some RTCALLed in one run. The real hybrid (replace expensive inner loops with RT helper calls while keeping flat α/β/γ/ω structure) is a separate future design. Current `--bb-inline-limit` is a valid size-vs-speed knob for the output `.s` file size, but the architectural tension is recorded here.
+
+**Naming:** `emit_bb_stateful` and `emit_bb_stateful_text_data` renamed to `emit_bb_rtcall` and `emit_bb_rtcall_data`. Labels `.Lstat%d_z` → `.Lrtc%d_z`.
+
+**Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `6bcc9837`.
