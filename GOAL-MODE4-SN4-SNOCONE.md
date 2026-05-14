@@ -46,7 +46,7 @@ Only mode-4-specific failures matter here. From beauty: 0 (17/17 perfect). From 
 
 - [x] **M4SN-0a** — Run `test_crosscheck_snobol4.sh` and `test_crosscheck_snocone.sh` with verbose output. For each failure: diff mode-4 output vs sm-run output. Categorize: emit error / asm error / link error / wrong output / segfault.
 - [x] **M4SN-0b** — Run `test_gate_em8_snocone_jit_emit.sh` verbose. Diff `procedure` driver mode-4 vs sm-run.
-- [ ] **M4SN-0c** — Run `test_smoke_jit_emit_x64.sh` and identify EM-7c root cause (got='abc' want='aXc'). The EM-7c test is a variant ARBNO pattern — likely the non-invariant variant cap path (child_fn=NULL, no label registered). Fix or XFAIL.
+- [x] **M4SN-0c** — Run `test_smoke_jit_emit_x64.sh` and identify EM-7c root cause (got='abc' want='aXc'). The EM-7c test is a variant ARBNO pattern — likely the non-invariant variant cap path (child_fn=NULL, no label registered). Fix or XFAIL.
 
 ### M4SN-1 — Fix EM-7c (variant ARBNO/CAP with no invariant child blob)
 
@@ -56,7 +56,7 @@ Fix: for variant-pattern ARBNO/CAP, the child blob IS emitted inline in the patt
 - (A) Emit a RIP-relative label for the inline child code and register that as the fn
 - (B) Fall back to `rt_bb_*@PLT` brokered path for variant caps (acceptable — they are rare)
 
-- [ ] **M4SN-1** — Implement option B as the simpler fix: detect `child_fn==NULL` in `emit_bb_xarbn/xnme/xfnme/xcallcap` TEXT path and emit a brokered `rt_bb_arbno_brokered` / `rt_bb_cap_brokered` call instead. Gates: EM-7c PASS, smoke 7/7, beauty 17/17.
+- [x] **M4SN-1** — Root cause: GAS movsxd encoding bug (`dword [r10]` → `[r10+4]`); fix: `dword ptr [r10]`. ALL mode-4 pattern matches now work. Option B not needed. as the simpler fix: detect `child_fn==NULL` in `emit_bb_xarbn/xnme/xfnme/xcallcap` TEXT path and emit a brokered `rt_bb_arbno_brokered` / `rt_bb_cap_brokered` call instead. Gates: EM-7c PASS, smoke 7/7, beauty 17/17.
 
 ### M4SN-2 — Crosscheck snobol4 6/6
 
@@ -121,8 +121,8 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `e2f94c6e` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty 17/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 6/8, gate_em8 5/5 ✅.
+**HEAD** one4all `296e85b6` · Baselines: smoke_snobol4 7/7, jit_emit 11/13, beauty 17/17, crosscheck_sn4 6/6 ✅, crosscheck_sc 6/8, gate_em8 5/5 ✅.
 
-Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-0a/0b done; M4SN-3a fixed (two bugs in emit_sm.c: expression_registry missing fn .quad + DEFINE_ENTRY push rbp stack corruption). one4all `e2f94c6e`.
+Sess 2026-05-14 (Claude Sonnet 4.6): M4SN-0a/0b/0c/3a done; M4SN-1 fixed (two bugs in emit_sm.c: expression_registry missing fn .quad + DEFINE_ENTRY push rbp stack corruption). one4all `e2f94c6e`.
 
-**Next:** M4SN-0c — EM-7c root cause (variant ARBNO got='abc' want='aXc'), then M4SN-1.
+**Next:** M4SN-2 — crosscheck_snobol4 6/6 confirmed. M4SN-3b — crosscheck_snocone 8/8 (beauty_fence + beauty_global UTC indirect pre-existing non-mode-4 bugs to investigate).
