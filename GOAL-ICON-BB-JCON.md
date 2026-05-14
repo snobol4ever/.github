@@ -127,12 +127,17 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
   IJ-19-prep ✅ f1dbb78b NO_AST_WALK_GUARD unconditional for Icon — no env var, always crash
   NEXT: IJ-19 — Cluster O triage (rung36_jcon_htprep/meander/kross — in() procedure)
 
-## Session notes (sess 2026-05-14)
+## Session notes (sess 2026-05-14, handoff)
 
-IJ-BB-3 Group G: lower_fnc sval guard is critical — ICN_BB_EVAL only when t->v.sval != NULL.
-Icon-style calls (sval==NULL, c[0] is callee) must fall through to SM; bb_eval_value TT_FNC expects name in sval.
-IJ-16 radix: remaining mismatches all require bignum (> int64 values). Not worth implementing.
-IJ-16 random: JCON uses Icon v9 RNG; our LCG is different; &random not updated post-?. Both XFAIL.
-IJ-17 &level: was hardcoded INTVAL(1). Fix: INTVAL(frame_depth) — frame_depth increments on every Icon
-  procedure entry in icn_runtime.c. call_depth (SNOBOL4 interp) is always 0 in Icon BB path. jcon_level
-  still FAILs by 2 lines (every/suspend exhaustion: bar(3) only fires body once); XFAIL in corpus.
+IJ-17 ✅ &level=frame_depth (not call_depth — that's SNOBOL4 interp stack, always 0 in Icon BB path).
+IJ-18 ✅ any/many/upto non-advancing in scan context (6 sites, 5 files). Real scan-subject coercion via real_str at all ICN_SCAN_PUSH/TT_SCAN sites.
+IJ-19-prep ✅ NO_AST_WALK_GUARD now unconditional for Icon (g_lang==LANG_ICN, no env var).
+PIVOT: GOAL-LOWER-REDESIGN.md created — universal IR pipeline redesign.
+  - parser→AST→lower→DCG(ir_graph_t)→SM emitter+BB emitter→all modes
+  - ir_node_t/ir_graph_t/IR_* naming (matches JCON's ir_ convention)
+  - SNOBOL4 patterns first (beauty.sno oracle), then Icon, then Prolog
+  - SM array = serialization of acyclic DCG subgraphs only
+  - SM_EXEC_GEN = single handoff opcode from SM land to BB land
+  - DCG = directed cyclic graph (back-edges mandatory for every/while/SPAN/ARB)
+  - No separate generator phase — lower wires four ports directly, one pass
+NEXT on JCON goal: IJ-19 Cluster O (htprep/meander/kross — in() procedure, next-in-scan)
