@@ -66,7 +66,7 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 - [x] **SF-9** ✅ — `emit_bb_charset` binary path: replace `else { emit_bb_stateful(...) }` with direct `emit_seq_port_call(z, rt_name, rt_fn, 0/1, s, f)` + `emit_label_define(b)`. Already has its own IS_TEXT flat path; only the binary else-branch calls `emit_bb_stateful`. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
 - [x] **SF-10** ✅ — `emit_bb_xcallcap`, `emit_bb_xfnme`, `emit_bb_xnme` (CALLCAP/CAP_IMM/CAP_COND): add IS_TEXT flat path using `emit_bb_stateful_text_data` + `emit_seq_port_call_rip`; binary path uses direct `emit_seq_port_call`. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
 - [x] **SF-11** ✅ — `emit_bb_xarbn` (ARBNO): add IS_TEXT flat path using `emit_bb_stateful_text_data` + `emit_seq_port_call_rip`; binary path uses direct `emit_seq_port_call`. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
-- [ ] **SF-12** — Delete `emit_bb_stateful` and `emit_bb_stateful_text_data` (zero SNOBOL4 callers; blocked on IF-0..IF-5 clearing ICN_* callers). Compile-clean. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13.
+- [x] **SF-12** ✅ — `emit_bb_rtcall_data` replaced by `emit_bb_ptr_slot` (1 quad, no nquads param). `emit_bb_rtcall_data_fn` deleted. XFNME/XNME inline cases in `emit_flat_node` now route through `emit_bb_xfnme`/`emit_bb_xnme`. Compile-clean. Gates: smoke_snobol4 7/7, jit_emit_x64 11/13, beauty 17/17.
 
 > Closed history: `git log -p .github/GOAL-MODE4-EMIT.md`
 
@@ -96,9 +96,9 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 ## Watermark
 
-**HEAD** one4all `(post SF-8)` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13, beauty 17/17.
+**HEAD** one4all `4f0e2996` · Gates: smoke_snobol4 7/7, jit_emit_x64 11/13, beauty 17/17.
 
-**Completed this session:** SF-8 — IDENT/DIFFER integer coercion fix; ARBNO/CAP/CALLCAP cap_fixup_t → rt_init_cap/rt_init_arbno startup patching; child_cache label bridge. **Next:** SF-12 (delete emit_bb_rtcall_data — zero SNOBOL4 callers now that cap TEXT path uses pointer-slot).
+**Completed this session:** SF-8 (IDENT/DIFFER fix + ARBNO/CAP startup patching, beauty 7→17/17) + SF-12 (emit_bb_rtcall_data → emit_bb_ptr_slot, XFNME/XNME inline consolidation). **EM-STATEFUL-FLAT section complete.** Next: M5 (Raku/Prolog/Rebus SM_SUSPEND/RESUME — on hold until GOAL-CHUNKS M4 closes) or EM-ICN-FLAT further work.
 
 **Architecture decision (sess 2026-05-14):** `--bb-inline-limit=N` switch implemented. `BB_OVER_LIMIT(sz)` guard on every SNOBOL4 TEXT-path box falls back to `emit_bb_rtcall(...)` which calls `rt_bb_*@PLT` in `libscrip_rt.so`. This is NOT a true hybrid — it is wholesale BB dispatch to the pre-existing C brokered-path implementations. Would violate single-truth if the same box kind had some instances inlined and some RTCALLed in one run. The real hybrid (replace expensive inner loops with RT helper calls while keeping flat α/β/γ/ω structure) is a separate future design. Current `--bb-inline-limit` is a valid size-vs-speed knob for the output `.s` file size, but the architectural tension is recorded here.
 
