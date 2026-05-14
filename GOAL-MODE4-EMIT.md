@@ -218,9 +218,9 @@ Fix: `bb_box_def_t[]` table + one `emit_bb_stateful()` driver.
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 mode4-xdsar-fix (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-13 mode4-corpus-scan (Claude Sonnet 4.6)**
 
-one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=13/17 FAIL=4.
+one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4: PASS=13/17 FAIL=4. Broad corpus (demo+beauty+124 parser/csnobol4-suite): PASS=155/163, EMIT=0, LINK=0, DIFF=5, CRASH=3.
 
 ### What was done this session
 
@@ -230,19 +230,30 @@ Two emitter bugs fixed; beauty gate 12→13/17:
 
 2. **Absolute Σ/Σlen addresses in text .s output** (`56a9897a`): `emit_seq_sigma_delta_rdi`, `emit_seq_bounds_len`, `emit_seq_cmp_siglen_delta` all called `insn_mov_rcx_i64(addr)` unconditionally, baking the scrip-process's own `&Σ`/`&Σlen` pointer values into the emitted `.s`. Generated binary segfaulted dereferencing those stale addresses at runtime. Fix: `IS_TEXT` guard calls `emit_sym_lea_rcx("Σ"/"Σlen", addr)` → correct RIP-relative symbol reference.
 
-### Remaining 4 diff failures (accepted as sm-run bugs)
+Broad corpus scan run: demo+beauty+parser+csnobol4-suite (163 programs). 155 PASS, 8 failures:
 
-Confirmed against SPITBOL oracle:
-- **counter_driver**: SPITBOL 5/5 PASS = mode-4 output. sm-run has 2 wrong FAILs.
-- **stack_driver**: SPITBOL 7/7 PASS; mode-4 5/5 PASS (missing 2 tests). sm-run has 3 FAILs.
-- **semantic_driver**: SPITBOL 8/8 PASS; both sm-run and mode-4 produce fewer/wrong lines (pre-existing DATATYPE bug).
-- **trace_driver**: SPITBOL crashes ERROR 243 (NRETURN bug); sm-run and mode-4 both run further — not mode-4 emitter bugs.
+### Remaining 4 beauty diffs (accepted as sm-run bugs)
 
-These are all sm-run accuracy divergences. The parity gate uses sm-run as reference; mode-4 is at least as correct (and often more correct) than sm-run.
+Confirmed against SPITBOL oracle: counter, semantic, stack, trace — all sm-run accuracy divergences. Mode-4 is at least as correct.
+
+### 3 new crashes from broad corpus scan (next session)
+
+**Class A — stateful BB box zeta absolute address (f04_pattern_primitives):**
+`rt_bb_any` called with `zeta=0x4010e0 <rt_bb_any@plt>` — the PLT stub address, not a zeta struct.
+Root cause: `emit_seq_port_call` text path at line 1163 emits `lea rdi, [rip + fn_name]` using the *function name* as the RIP-relative symbol for the zeta struct. But stateful boxes (ANY, SPAN, BREAK, NOTANY, TAB, RTAB, LEN, BAL, ARB, REM, BREAKX, and all ICN_* boxes) need a `.quad` data slot in the emitted `.s` with a `.Lbox_z` label, same pattern as XDSAR/XATP use `emit_seq_port_call_rip`.
+Fix needed: `emit_bb_stateful` must emit a data section with a `.Lbox_z` label containing the box-specific runtime state, then call `emit_seq_port_call_rip` with that label. In binary mode, behavior is unchanged (zeta_ptr is a live heap address). In text mode, the data section provides a relocatable slot.
+
+**Class B — DEFINE_ENTRY corrupts main frame (fn_define_labeled, expr_parser):**
+`main=0x0` at crash — the `main` prologue is corrupted. `DEFINE_ENTRY` macro emits `push rbp / mov rbp, rsp` AFTER `call rt_define_entry@PLT` inside `main`'s body. This extra prologue corrupts the return stack. DEFINE_ENTRY should be a pure label target (no prologue emission) in the text path; the actual function prologue belongs in the `sm_macros.s` DEFINE body or should be suppressed when inside main.
+
+### 5 diffs from broad corpus scan
+
+f07_keywords, f12_load_unload, f14_dyn_opt, f18_error_handling, f19_real_numbers — pre-existing sm-run accuracy divergences, not mode-4 emitter bugs. Not investigated this session.
 
 ### Next session must
 
 1. Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md.
-2. Confirm one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4. Beauty mode-4 PASS=13/17.
-3. Remaining 4 diff failures are sm-run accuracy bugs — accept at 13/17 or investigate further per Lon's direction.
-4. Consider broad corpus run under mode-4 to find next class of emitter bugs.
+2. Confirm one4all HEAD `56a9897a`. Gates: smoke 7/7, snocone 5/5, byte-id 4/4.
+3. Fix Class A (stateful box zeta): add `.Lbox_z` data slot to `emit_bb_stateful` text path and switch to `emit_seq_port_call_rip`. Affects XANYC/XSPNC/XBRKC/XNNYC/XLNTH/XTB/XRTB/XBAL/XFARB/XSTAR/XBRKX + ICN_* boxes.
+4. Fix Class B (DEFINE_ENTRY): suppress extra prologue in DEFINE_ENTRY text macro, or rework how SM_DEFINE_ENTRY interacts with `main`'s frame.
+5. After fixes: broad corpus scan target ≥160/163.
