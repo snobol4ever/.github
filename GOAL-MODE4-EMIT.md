@@ -74,6 +74,22 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 
 ---
 
+## CLI — Command-line switch rename / audit
+
+- [x] **CLI-1** ✅ `0d21325f` — Add `--ast-run` as canonical name for mode-1 (AST tree-walk); keep `--ir-run` as deprecated alias (frees `--ir-run` semantically for future DCG/IR interpreter). Add `--dump-ast` / `--dump-ast-bison`; keep `--dump-ir` / `--dump-ir-bison` as aliases. Update help text, ARCH-x86.md, ARCH-SCRIP.md. Gates: smoke_icon 5/5, sn26_auto_binary PASS.
+- [ ] **CLI-2** — ⛔ DISCUSS WITH LON BEFORE DOING. Full audit and rename of all CLI switches for consistency. Issues to resolve in conversation:
+  1. **Prefix vs suffix convention:** current mix is `--ast-run` (noun-verb) but `--dump-ast` (verb-noun). Should it be `--run-ast` / `--run-sm` / `--run-jit` (verb-noun everywhere), or `--ast-run` / `--sm-run` / `--jit-run` (noun-verb everywhere)? Pick one and apply uniformly.
+  2. **Full switch inventory to discuss names for:**
+     - Execution modes: `--ast-run`, `--sm-run`, `--jit-run`, `--jit-emit`
+     - Dump/diagnostic: `--dump-ast`, `--dump-ast-bison`, `--dump-sm`, `--dump-bb`, `--dump-parse`, `--dump-parse-flat`
+     - BB pattern mode: `--bb-driver`, `--bb-live` (or `--bb-brokered`, `--bb-flat` per ARCH-x86.md)
+     - Target: `--x64` (currently a sub-flag of `--jit-emit`)
+     - Other: `--monitor`, `--trace`, `--bench`, `--case-sensitive`, `--jit-emit-inline`, `--bb-format`
+  3. **ARCH-x86.md has a second naming layer** (`--sm-interp`, `--sm-native`, `--sm-emit`, `--bb-brokered`, `--bb-flat`) that was the proposed canonical set but never landed in `scrip.c`. Do we adopt those, or design fresh names from the CLI-2 discussion?
+  4. Reserved for future: `--ir-run` (DCG/IR interpreter), once that mode exists.
+
+---
+
 ## EM-ICN-FLAT — Convert all 44 ICN_* RTCALL boxes to flat DATA-in-glob emit
 
 **Baseline (sess 2026-05-14):** Icon ir-run PASS=191 FAIL=44; honest (SCRIP_NO_AST_WALK=1 --sm-run) PASS=275 FAIL=2; broker 23/49. smoke_icon 5/5.
