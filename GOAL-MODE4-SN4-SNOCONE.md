@@ -146,7 +146,7 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `923daa48` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17, mode-4 broad corpus 136/280 (sm-run 167/280).
+**HEAD** one4all `c8916942` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17, mode-4 broad corpus 156/280 (sm-run 167/280).
 
 Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: SM_NEG + NRETURN fixes — 128/280 (+4 vs 124).
 
@@ -154,6 +154,9 @@ Sess 2026-05-14e (Claude Sonnet 4.6): M4SN-4b: three fixes — 128/280 → 136/2
 (1) rt_arith/rt_coerce_num: propagate DT_FAIL instead of to_int(FAIL) → Error 1.
 (2) DEFINE body ABI frame: DEFINE_ENTRY emits push rbp/mov rbp,rsp; RETURN paths emit pop rbp; RETURN_VARIANT/NRETURN_VAR macros always do full frame restore (removed chunk-shortcut return-2 path). Fixes ARRAY() in DEFINE, recursive fib, roman_numeral, test_math.
 (3) NRETURN deref in rt_call: dereference NAMEVAL→NV_GET_fn matching sm_interp.c. Fixes assign_driver + related.
-19 mode-4-specific failures remain: FENCE cluster (12), &STNO (1), deferred-$ (1), *var patterns (2), test_case (1), 059 (1), other (1).
 
-**Next:** M4SN-4b continued — target sm-run parity 167/280. FENCE cluster root cause (emit_flat_fence / rt_bb_fence in mode-4 binary path).
+Sess 2026-05-14f (Claude Sonnet 4.6): M4SN-4b: FENCE(P) child inline emit — 136/280 → 156/280 (+20):
+Root cause: `emit_bb_xfnce` ignored XFNCE children entirely (unconditional jmp-succ at α), so FENCE(LEN(1)|LEN(2)) etc. skipped the child pattern. Fix: `emit_flat_xfnce` — when nchildren>0, emit child inline then seal β→fail; bare FENCE unchanged. Fixes tests 100–107, 109 (partial), 116–117, 120–123, and more.
+Remaining mode-4-specific failures: FENCE-via-*var (108–115, 118–119, 129–130): segfault in reentrant `bb_build_brokered` call — XDSAR dereferences a FENCE pattern at match-time, causing `bb_deferred_var` → `bb_build_brokered` → `emit_flat_body` to run inside the broker scan loop. The emitter's global state (bb_emit_mode, bb_emit_buf) is not saved/restored across the reentrant call. Stack appears corrupted at `emit_label_initf` entry. Fix needed: save/restore emitter global state around reentrant `bb_build_brokered` calls, OR pre-build all XDSAR child blobs before broker entry.
+
+**Next:** M4SN-4b continued — XDSAR reentrant emitter fix (tests 108–115). Then remaining: *var-star patterns (070, 072, 074), 027_arith_exponent, 059_capture_dollar_deferred, test_case, test_stack, test_string. Target: sm-run parity 167/280.
