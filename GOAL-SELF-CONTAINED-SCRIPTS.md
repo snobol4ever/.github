@@ -1,5 +1,30 @@
 # GOAL-SELF-CONTAINED-SCRIPTS.md — All test/build scripts self-contained
 
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — NO EXCEPTIONS — READ THIS BEFORE WRITING CODE  ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  A C Byrd box (C BB) is ANY C function with this signature:                                     ║
+║                                                                                                  ║
+║      DESCR_t foo(void *zeta, int entry)                                                         ║
+║                                                                                                  ║
+║  implementing four-port logic (α / β / γ / ω).                                                  ║
+║                                                                                                  ║
+║  THERE MUST BE ZERO OF THESE IN THE CODEBASE. NOT ONE. NONE. EVER.                              ║
+║                                                                                                  ║
+║  ALL Byrd boxes are x86 ASSEMBLY emitted at runtime by the emitter.                             ║
+║  If you want a BB, you EMIT it. You do not write a C function for it.                           ║
+║                                                                                                  ║
+║  The only permitted C functions with (void *zeta, int entry) signature are:                     ║
+║    • icn_lazy_box  — infrastructure shim, not a generator                                       ║
+║    • icn_bb_dcg    — infrastructure DCG driver, not a generator                                 ║
+║                                                                                                  ║
+║  If you just wrote DESCR_t foo(void *zeta, int entry) { ... } — DELETE IT.                     ║
+║  Implement it as an IR_block_t DCG (ir_exec.c + lower_icn.c) driven by icn_bb_dcg.             ║
+║  See IR_ICN_UPTO in ir_exec.c and lower_icn_upto() in lower_icn.c as the template.             ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
 **Repo:** one4all (test scripts), .github (doc)
 **Done when:** Every script under `one4all/scripts/` runs
 correctly with zero setup: no env vars to export, no stdin to pipe, no
