@@ -57,8 +57,15 @@ three backends (interp / mode-3 JIT / mode-4 JIT).
 - `ir_a_Scan` body.fail→expr.resume → IR_SCAN back-edge (same pattern)
 
 Read `tran/irgen.icn` when writing `lower_icn.c` (LR-6) and `lower_sco.c` (LR-12).
-The zip is archived at `/mnt/user-data/uploads/jcon-master.zip` for this session;
-use GitHub URL for future sessions.
+
+**Key files extracted and reviewed (sess 2026-05-14):**
+- `tran/ir.icn` — all IR record types; confirms four-port model (ir_info.start/resume/failure/success)
+- `tran/irgen.icn` — wiring logic for every AST node kind; the reference for our lower_* ports
+- `jcon/trampgen.icn` — trampoline/operator dispatch; less directly applicable (Java-specific)
+
+These files have limited direct applicability (Icon-only, Java backend, chunk/label model vs our
+pointer DCG) but `irgen.icn` wiring patterns are the authoritative reference for LR-6/LR-12.
+Use GitHub URL to re-fetch for future sessions: https://github.com/proebsting/jcon
 
 ---
 
@@ -618,9 +625,9 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: bfe6ac9d  .github: (this commit)
-  Status: IN PROGRESS — LR-0 done
-  NEXT: LR-3 — add SM_EXEC_GEN / SM_PUMP_GEN opcodes (sm_prog.h, sm_interp.c, sm_jit_interp.c; nothing emits them yet)
+  one4all: 2ae6fe36  .github: (this commit)
+  Status: IN PROGRESS — LR-0 ✅ LR-3 ✅
+  NEXT: LR-2 — ir_exec.h/c (ir_exec_once, ir_exec_pump, standalone unit test)
 
 ## Step log
 
@@ -630,7 +637,10 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
   LR-1 N/A — deleted per FINAL PIPELINE clarification: lower wires DCG directly; no separate
         generator phase / ir_lower.c needed.
   LR-2 ⏳ ir_exec.h/c — ir_exec_once, ir_exec_pump (standalone unit test)
-  LR-3 ⏳ SM_EXEC_GEN / SM_PUMP_GEN opcodes — sm_prog.h + sm_interp.c + sm_jit_interp.c
+  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 2ae6fe36): SM_EXEC_GEN + SM_PUMP_GEN
+        opcodes added to sm_prog.h enum; stub case handlers in sm_interp.c (push FAILDESCR);
+        NULL entries in sm_jit_interp.c g_handlers[]. Nothing emits these yet.
+        All six smoke gates pass.
 
 ---
 
