@@ -245,7 +245,18 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
       binop_map[] + TT_CAT cross-product wired. one4all `f63c60f0`.
       ir-run 164→174 (+10), broker 22→23.
 
-### IJ-19-remaining — remaining 38 constructs in order of complexity
+### IJ-19-remaining — remaining constructs in order of complexity
+
+**OPEN BUG — investigate first:** `rung13_alt_alt_filter` (`every (x := (1|2|3|4|5)) > 2 & write(x)`) produces nothing.
+Root cause candidate: `bb_exec_stmt(body)` in `IR_ICN_EVERY` not executing when body is TT_FNC(write).
+Probed 2026-05-14: outer EVERY ticks 4× correctly (3 successes + ω); write("x") never fires.
+Likely parse: `TT_EVERY(c[0]=gen, c[1]=write)` → body=c[1] stored in sval2 correctly, but
+`bb_exec_stmt` silently drops it. Check `icn_stmt.c` bb_exec_stmt for TT_FNC in stmt context.
+
+Next DCGs to implement (highest ir-run yield first):
+- TT_SEQ_EXPR (rung16_seqexpr) — `(E1; E2; ...; En)` sequential expression
+- TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume
+- TT_ITERATE list/table paths (rung22, rung13_table_iterate)
 
 ---
 
@@ -276,4 +287,4 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
   ir-run:  PASS=174 FAIL=56
   honest:  PASS=276
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining (next highest-value construct from FAIL list)
+  NEXT: IJ-19-remaining — debug bb_exec_stmt body drop in IR_ICN_EVERY; then TT_SEQ_EXPR, TT_SUSPEND
