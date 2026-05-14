@@ -625,13 +625,14 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: aecf97bb  .github: (this commit)
+  one4all: 0c84d492  .github: (this commit)
   Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅ renames ✅ LR-S1b PARTIAL
-  NEXT: LR-S1b (cont.) — broad corpus 155/280. Remaining failures:
-        pre-existing bb_node_t bugs: TT_VAR deref in patterns (ARBNO via var, FENCE via var,
-        star_deref, pattern variable in CAPT_COND_ASGN inner), dynamic-arg LEN/POS/TAB/RTAB.
-        Fixed this session: IR_PAT_POS/TAB union clobber (nd->ival overwritten by nd->sval="R");
-        use nd->n as direction flag (0=left, 1=right). +10 tests (145→155/280).
+  NEXT: LR-S1b (cont.) — broad corpus 161/280. Remaining failures:
+        pre-existing bb_node_t bugs: TT_VAR deref in patterns (FENCE via var,
+        star_deref, pattern variable in CAPT_COND_ASGN inner, ARBNO via var),
+        dynamic-arg LEN/POS/TAB/RTAB, arith exponent (256. vs 256), non-pattern bugs.
+        Fixed this session: IR_PAT_POS/TAB union clobber (+10, 145→155);
+        IR_PAT_ARBNO greedy executor (+6, 155→161).
         Consider LR-S2 (delete bb_node_t path) only after broad corpus stabilises.
 
 ## Step log
@@ -661,10 +662,11 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
         Add LEN/NOTANY/POS/RPOS/TAB/RTAB to IR_exec_node and build_node.
         Wire IR_exec_pat into sm_jit_interp.c h_exec_stmt (default mode is --jit-run).
         broad corpus 128→145/280. smoke_snobol4 7/7, all six languages 5/5.
-  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all aecf97bb):
-        Fix IR_PAT_POS/TAB union clobber: build_node set nd->ival then nd->sval="R",
-        clobbering ival via the union.  Use nd->n as direction flag (0=left, 1=right).
-        broad corpus 145→155/280. smoke 7/7, all six languages pass.
+  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all 0c84d492):
+        Implement IR_PAT_ARBNO: inner as separate IR_prog_t in nd->c[0], position
+        stack (int*) in nd->c[1], stack depth in nd->state (IR_reset clears).
+        Greedy loop calls IR_exec_once(inner_cfg) until fail/zero-progress; resume pops.
+        Removed self-loop guard from IR_exec_once. broad corpus 155→161/280.
 ---
 
 ## PIVOT: Start with SNOBOL4 patterns (not Icon, not Rebus)
