@@ -117,3 +117,10 @@ icn_bb_* C functions = EMIT_BINARY_BROKERED box implementations (same pattern as
   IJ-BB-4+5 ✅ fully-BB confirmed, no scalar SM fallback
   IJ-16 ✅ radix ull fix + both XFAIL (bignum/RNG mismatch)
   NEXT: IJ-17 — level() + &allocated (Cluster N)
+
+## Session notes (sess 2026-05-14)
+
+IJ-BB-3 Group G: lower_fnc sval guard is critical — ICN_BB_EVAL only when t->v.sval != NULL.
+Icon-style calls (sval==NULL, c[0] is callee) must fall through to SM; bb_eval_value TT_FNC expects name in sval.
+IJ-16 radix: remaining mismatches all require bignum (> int64 values). Not worth implementing.
+IJ-16 random: JCON uses Icon v9 RNG; our LCG is different; &random not updated post-?. Both XFAIL.
