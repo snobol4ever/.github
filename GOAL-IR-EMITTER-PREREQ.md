@@ -16,108 +16,112 @@
 
 ## Goal statement
 
-Lower must consume `tree_t` completely and produce one self-contained `IR_block_t` — the DCG — that encodes the entire program: scalar expressions, pattern structure, control flow, procedure definitions, deferred evaluations, generator expressions. Nothing left dangling as a `tree_t*` or raw pointer in `SM_Program`. The emitter walks the DCG and emits bytes. It never looks back at `tree_t`. It never follows a pointer to something outside the graph.
+Three hard rules — no exceptions:
 
-**Done when:** `SM_Program` contains zero `tree_t*` and zero `IR_block_t*` pointer fields. Every reference to prior-phase data is an integer index into a DCG roster (`dcg_table`) owned by `SM_Program`. The emitter serializes the DCG roster inline — no live-process pointer survives into emitted output. Mode 4 (emit→asm→link→exec) is possible.
+1. **IR_t makes no reference, direct or indirect, to tree_t.** The IR graph is self-contained. Lower fully consumes tree_t and produces IR_block_t. No tree_t* anywhere in IR_t nodes, IR_block_t, or any struct reachable from them.
+
+2. **SM opcodes make no reference, direct or indirect, to IR_block_t or IR_t.** SM_Program is a flat serializable instruction array. No IR_block_t* or IR_t* in any SM_Instr field. References to DCGs are integer indices into SM_Program.dcg_table — an owned roster whose entries are serialized inline by the emitter.
+
+3. **SM opcodes make no reference, direct or indirect, to tree_t.** No tree_t* in any SM_Instr field. All AST data is fully lowered to IR before lower exits.
+
+**Done when:** All three rules hold. Mode 4 (emit→asm→link→exec) is correct: no live-process pointer from any prior phase survives into emitted output.
 
 ---
 
 ## Architecture: the correct pipeline
 
 ```
-source
-  → parser
-  → tree_t + CODE_t        (label_table / proc_table / g_pl_pred_table built here — legitimate pre-lower state)
-
-tree_t
-  → lower                  (consumes tree_t COMPLETELY)
-  → IR_block_t             (DCG — self-contained; no tree_t* inside; no pointers to other phases)
-      scalar exprs         → IR_LIT_*, IR_VAR, IR_BINOP, IR_CALL, IR_ASSIGN, IR_RETURN ...
-      pattern structure    → IR_PAT_LIT, IR_PAT_SPAN, IR_PAT_CAT, IR_PAT_ALT ...
-      deferred exprs       → IR_t subtrees (not tree_t* clones)
-      generator exprs      → IR_t subtrees (not every_table tree_t* entries)
-      control flow         → IR_GOTO, IR_LABEL, IR_PROC ...
-      proc bodies          → IR_PROC subtrees
-
-IR_block_t
-  → emitter                (walks DCG, calls vtable, emits bytes)
-  → no tree_t* anywhere
-  → no IR_block_t* hanging off SM opcodes
-  → no live pointers of any kind in output
+source → parser → tree_t
+                    ↓ lower CONSUMES tree_t completely
+                  IR_block_t   ← self-contained; no tree_t* anywhere inside
+                    ↓ emitter walks IR_block_t
+                  bytes / asm  ← no pointers to prior phases
 ```
+
+SM_Program is an internal carrier for the x86 path. After this GOAL:
+- SM_Program.dcg_table[] owns all IR_block_t entries (integer-indexed from SM opcodes)
+- SM_Instr has no void*/tree_t*/IR_block_t* cross-phase fields
+- every_table is eliminated (it held tree_t* keyed by SM opcode operand)
+- SM_PUSH_EXPR is eliminated (it carried a tree_t* clone)
 
 ---
 
-## Three pointer sidecars to eliminate
+## Audit of violations (as of IEP-4)
 
-Today lower embeds raw pointers from prior phases into `SM_Program`. All three must become DCG-resident `IR_t` nodes:
+### Rule 1: IR_t → tree_t (CLEAN)
+IR_t.opaque holds runtime structs (icn_alt_dcg_t, GeneratorState etc) — all created by lower, not references into tree_t. ✅ No violation.
 
-| Opcode | Embedded pointer | Mechanism | Problem |
-|--------|-----------------|-----------|---------|
-| `SM_EXEC_STMT` | `void* = IR_block_t*` | `sm_emit_sip(…, pat_dcg)` | Pattern DCG pointer — dies in mode 4 |
-| `SM_PUSH_EXPR` | `void* = tree_t*` | `sm_emit_ptr(SM_PUSH_EXPR, ast_gc_clone(t))` | Deferred AST pointer — dies in mode 4 |
-| `SM_BB_EVAL` / `SM_BB_PUMP_EVERY` | `int64_t = every_table index` | `every_table_register(tree_t*)` | `every_table[]` holds `tree_t*` — index is safe but the table it points into holds live AST pointers; must migrate to DCG roster |
+### Rule 2: SM opcodes → IR_block_t / IR_t (IEP-4 partially fixed)
+| Site | Status |
+|------|--------|
+| SM_EXEC_STMT a[2] was IR_block_t* | ✅ Fixed IEP-4 — now dcg_table index |
+| SM_EXEC_BB a[0] was IR_block_t* | ✅ Fixed IEP-4 — now dcg_table index |
+| SM_BB_EVAL a[0].i = every_table index → every_table[i] = tree_t* | ⏳ IEP-5 |
+
+### Rule 3: SM opcodes → tree_t (OPEN)
+| Site | Status |
+|------|--------|
+| SM_PUSH_EXPR a[0].ptr = tree_t* (ast_gc_clone) | ⏳ IEP-6 |
+| DESCR_t.ptr cast to tree_t* in sm_interp (SM_PUSH_EXPR consumer) | ⏳ IEP-6 (eliminated with opcode) |
+| DESCR_t.ptr cast to tree_t* for Prolog goal (sm_interp) | ⏳ IEP-6 |
+
+### Note: runtime mutable state in SM_Instr (separate concern)
+icn_to_state_t* / icn_to_by_state_t* in SM_Instr.a[2].ptr are allocated by the interpreter at runtime (not by lower) and mutated per-execution. These are not cross-phase leaks from lower — they are mutable execution state embedded in the instruction. Mode-4 fix for these is a separate GOAL (they need to become per-call stack allocations, not instruction-embedded pointers). NOT in scope here.
 
 ---
 
 ## Completed steps
 
-- [x] **IEP-1** — `emit_ir_block` entry point + `ir_node_id` stubs. ✅ `b7f54805`
-- [x] **IEP-2** — `ir_walk` DFS visitor + `ir_is_generator`. ✅ `e942e468`
-- [x] **IEP-3** — `scrip.c` wired: `--target=jvm/js` → `emit_ir_block`; `--x64` unchanged. ✅ `35142ba5`
-- [x] **IEP-VTABLE** — `IR_emit_vtable_t` dispatch inside single walk; `emit_ir_targets.c` with 6 stub vtables. ✅ `92f628b0`
-- [x] **IEP-INCLUDE** — `src/include/` with 6 stage-boundary headers; forward shims; `-I$(SRC)/include`. ✅ `b77d3729`
-- [x] **IEP-RENAME** — `scrip_ir.h` → `src/include/IR.h`; mass-replace. ✅ `1e7a7f5e`
+- [x] **IEP-1** — emit_ir_block entry point + ir_node_id stubs. ✅ `b7f54805`
+- [x] **IEP-2** — ir_walk DFS visitor + ir_is_generator. ✅ `e942e468`
+- [x] **IEP-3** — scrip.c wired: --target=jvm/js → emit_ir_block; --x64 unchanged. ✅ `35142ba5`
+- [x] **IEP-VTABLE** — IR_emit_vtable_t dispatch inside single walk; emit_ir_targets.c with 6 stub vtables. ✅ `92f628b0`
+- [x] **IEP-INCLUDE** — src/include/ with 6 stage-boundary headers; forward shims; -I$(SRC)/include. ✅ `b77d3729`
+- [x] **IEP-RENAME** — scrip_ir.h → src/include/IR.h; mass-replace. ✅ `1e7a7f5e`
+- [x] **IEP-4** — SM_EXEC_STMT and SM_EXEC_BB: IR_block_t* → dcg_table integer index. sm_prog_dcg_add + sm_emit_sii added. Both interpreters updated. ✅ `d9dff43a`
 
 ---
 
 ## Remaining steps
 
-### IEP-4 — Add DCG roster to SM_Program; replace SM_EXEC_STMT IR_block_t* with index
+### IEP-5 — Eliminate every_table (tree_t* keyed by SM_BB_EVAL index)
 
-- [x] **IEP-4** — Add `IR_block_t **dcg_table; int dcg_count; int dcg_cap;` to `SM_Program` in `src/include/sm_prog.h`. Add `sm_prog_dcg_add(SM_Program*, IR_block_t*) -> int` in `sm_prog.c` — appends to roster, returns integer index. In `lower.c`, replace:
-  ```c
-  sm_emit_sip(g_p, SM_EXEC_STMT, sname, (int64_t)has_eq, (void *)pat_dcg);
-  ```
-  with:
-  ```c
-  sm_emit_sii(g_p, SM_EXEC_STMT, sname, (int64_t)has_eq, (int64_t)sm_prog_dcg_add(g_p, pat_dcg));
-  ```
-  Update runtime (`sm_interp.c`, `sm_jit_interp.c`) to resolve the index: `sm->dcg_table[idx]` replaces the old `(IR_block_t*)a[2].ptr`. Add `sm_prog_free` to free `dcg_table` entries. `SM_EXEC_STMT`'s third operand is now always an integer — no pointer in `SM_Instr`.
+- [ ] **IEP-5** — every_table[] in sm_interp holds tree_t* entries, indexed by SM_BB_EVAL's integer operand. This is an indirect tree_t reference from SM opcodes (Rule 3 violation). Replace:
+  1. In lower.c, wherever `every_table_register(tree_t* t)` is called: instead call `IR_lower_icn_gen(t)` to produce `IR_block_t*`, register via `sm_prog_dcg_add`, emit the dcg index as the SM_BB_EVAL operand.
+  2. In sm_interp and sm_jit_interp: SM_BB_EVAL resolves `sm->dcg_table[idx]` instead of `every_table_lookup(id)`.
+  3. Delete `every_table_register`, `every_table_lookup`, `every_table_reset`, the `every_table[]` array, and `SM_BB_PUMP_EVERY` if it also uses every_table.
+  4. IR_lower_icn_gen must produce a fully self-contained IR_block_t — no tree_t* inside.
 
-  **Gate:** `scrip --sm-run` and `scrip --jit-run` on beauty.sno produce identical output before and after. `grep "void \*ptr" src/include/sm_prog.h` — pointer field only on `SM_PUSH_EXPR` (not yet removed).
+  **Gate:** Symbol `every_table` absent from codebase. SM_BB_EVAL operand is a dcg_table index. scrip --sm-run Icon corpus gate unchanged.
 
-### IEP-5 — Migrate every_table tree_t* into DCG roster; replace SM_BB_EVAL index
+### IEP-6 — Eliminate SM_PUSH_EXPR (tree_t* in SM_Instr)
 
-- [ ] **IEP-5** — `every_table[]` in `sm_interp.c` holds `tree_t*` entries indexed by `SM_BB_EVAL`'s operand. Replace: lower calls `IR_lower_icn_gen(tree_t*)` to produce an `IR_block_t*` for each Icon generator expression, registers it via `sm_prog_dcg_add`, emits the integer index. Runtime resolves `sm->dcg_table[idx]` instead of `every_table_lookup(id)`. Delete `every_table_register`, `every_table_lookup`, `every_table_reset` and the `every_table[]` array once all sites migrated. Affects `SM_BB_EVAL` and `SM_BB_PUMP_EVERY` operands throughout `lower.c`.
+- [ ] **IEP-6** — SM_PUSH_EXPR carries `a[0].ptr = tree_t*` (a GC-cloned AST subtree for deferred eval). This is a direct tree_t reference from SM opcodes (Rule 3 violation). Replace:
+  1. In lower.c, `emit_push_expr(tree_t* t)`: call `IR_lower_expr(t)` to produce a scalar IR_t subtree, wrap in IR_block_t, register via `sm_prog_dcg_add`, emit `SM_PUSH_IR_EXPR` with the dcg index.
+  2. In sm_interp and sm_jit_interp: SM_PUSH_IR_EXPR resolves `sm->dcg_table[idx]`, evaluates via `IR_exec_once`, pushes result.
+  3. All DESCR_t.ptr casts to tree_t* that come from SM_PUSH_EXPR consumers are eliminated with the opcode.
+  4. Remove SM_PUSH_EXPR from sm_prog.h. Remove ast_gc_clone dependency from lower.c.
+  5. IR_lower_expr must produce a fully self-contained IR_block_t — no tree_t* inside.
 
-  **Gate:** `every_table` symbol absent from codebase. `scrip --sm-run` Icon corpus gate unchanged.
+  **Gate:** SM_PUSH_EXPR absent from sm_prog.h. ast_gc_clone not called from lower.c. All (tree_t*)expr_d.ptr casts gone from interpreters. scrip --sm-run on full SNOBOL4 corpus unchanged.
 
-### IEP-6 — Lower deferred expressions to IR_t; eliminate SM_PUSH_EXPR
+### IEP-7 — Audit and verify all three rules hold
 
-- [ ] **IEP-6** — `SM_PUSH_EXPR` carries a cloned `tree_t*` for deferred eval (pattern arguments, indirect refs, etc.). Replace `emit_push_expr(t)` in `lower.c` with `emit_push_ir_expr(t)`: call `IR_lower_expr(tree_t*) -> IR_t*` to produce a scalar `IR_t` subtree, register the containing `IR_block_t` via `sm_prog_dcg_add`, emit `SM_PUSH_IR_EXPR` with integer index. Runtime evaluates via `IR_exec_once(sm->dcg_table[idx])`. Remove `SM_PUSH_EXPR` opcode from `sm_prog.h` and `ast_clone.h` dependency from `lower.c` once all sites migrated.
+- [ ] **IEP-7** — Confirm all three rules:
+  1. `grep -rn "tree_t" src/include/IR.h src/lower/ir_exec.c src/lower/lower_icn.c` — zero tree_t references in IR subsystem files.
+  2. `grep -n "void \*ptr\|tree_t \*\|IR_block_t \*" src/include/sm_prog.h` — zero cross-phase pointer fields in SM_Instr (dcg_table itself is allowed — it is the owned roster).
+  3. `grep "sm_emit_ptr\|\.ptr\s*=" src/lower/lower.c` — zero pointer-embedding calls in lower (only integer/string/float operands emitted).
+  4. Run scrip --jit-emit --x64 on beauty.sno — output byte-identical to pre-IEP-4 baseline.
 
-  **Gate:** `SM_PUSH_EXPR` opcode absent from codebase. `ast_gc_clone` not called from `lower.c`. `scrip --sm-run` on full SNOBOL4 corpus unchanged.
-
-### IEP-7 — Verify SM_Program is pointer-free; confirm mode 4 readiness
-
-- [ ] **IEP-7** — Audit `SM_Instr` for any remaining `void*` or `tree_t*` or `IR_block_t*` fields used as cross-phase carriers. Run:
-  ```bash
-  grep -n "void \*ptr\|tree_t \*\|IR_block_t \*" src/include/sm_prog.h
-  ```
-  Must return zero hits outside `dcg_table` itself. The only pointer surviving in `SM_Program` is `dcg_table` — the owned roster of `IR_block_t*` entries that IS the serializable payload. String literals (`char*` in `SM_PUSH_LIT_S` etc.) are data, not phase-boundary objects.
-
-  Run `scrip --jit-emit --x64` on beauty.sno — output byte-identical to pre-IEP-4 baseline. Mode 4 readiness confirmed.
+  Note: icn_to_state_t* / icn_to_by_state_t* in SM_Instr.a[2].ptr are runtime-mutable execution state (not lower sidecars) — flagged for a separate GOAL, not blocking here.
 
 ---
 
 ## What next GOALs plug in here
 
-**GOAL-SN4-JVM-EMIT:** fill `g_emit_vtable_jvm.emit_scalar` and `.emit_generator` in `src/emitter/emit_jvm.c`. Walk `IR_t` nodes, emit Jasmin code equivalent to `src/runtime/jvm/bb_boxes.j`.
-
-**GOAL-SN4-JS-EMIT:** same for `g_emit_vtable_js` in `src/emitter/emit_js.c`, targeting `src/runtime/js/bb_boxes.js`.
-
-**x86 vtable wiring:** `g_emit_vtable_x86.emit_prologue` calls `sm_codegen_text` — wired when lower produces `IR_block_t` directly (this GOAL).
+**GOAL-SN4-JVM-EMIT:** fill g_emit_vtable_jvm.emit_scalar and .emit_generator in src/emitter/emit_jvm.c.
+**GOAL-SN4-JS-EMIT:** same for g_emit_vtable_js in src/emitter/emit_js.c.
+**Mode-4 runtime state:** icn_to_state_t* embedded in SM_Instr needs its own GOAL — per-call stack allocation replacing instruction-embedded mutable pointer.
 
 ---
 
@@ -133,8 +137,8 @@ session: 2026-05-15 (Claude Sonnet 4.6)
 
 ## Key invariants
 
-- **One entry point.** `emit_ir_block` is the sole emitter entry for all 6 backends × all 6 frontends.
-- **One walk.** `ir_walk` traverses the DCG once; the vtable selects per-node template functions.
-- **IR_block_t is the stage boundary.** Lower produces it. Emitters receive it. `SM_Program` is an internal carrier for the x86 path only — and after IEP-4/5/6 it is pointer-free.
-- **`src/include/` is the canonical header location.** Stage-boundary types live there.
-- **No C Byrd box functions.** Zero `DESCR_t foo(void *zeta, int entry)` functions.
+- **One entry point.** emit_ir_block is the sole emitter entry for all 6 backends × all 6 frontends.
+- **One walk.** ir_walk traverses the DCG once; the vtable selects per-node template functions.
+- **IR_block_t is the stage boundary.** Lower produces it. Emitters receive it. SM_Program is pointer-free after IEP-5/6.
+- **src/include/ is the canonical header location.**
+- **No C Byrd box functions.**
