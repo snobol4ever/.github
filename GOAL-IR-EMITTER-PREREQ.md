@@ -59,58 +59,44 @@ source → parser → tree_t + shared tables (label_table, proc_table, g_pl_pred
 
 ## Remaining steps
 
-### IEP-5 — Eliminate every_table (indirect tree_t* reference from SM_BB_EVAL)
+### IEP-5 — DEFERRED: owned by GOAL-CHUNKS (every_table / SM_PUSH_EXPR)
 
-- [ ] **IEP-5** — `every_table[]` holds `tree_t*` entries indexed by `SM_BB_EVAL`'s integer operand. This is an indirect tree_t reference from SM opcodes — violates Rule 3. Replace:
-  1. In lower.c, replace every `every_table_register(tree_t* t)` call: call `IR_lower_icn_gen(t)` to produce `IR_block_t*`, register via `sm_prog_dcg_add`, emit the dcg index as the `SM_BB_EVAL` operand. `IR_lower_icn_gen` must produce a fully self-contained `IR_block_t` — no `tree_t*` inside.
-  2. In sm_interp and sm_jit_interp: `SM_BB_EVAL` resolves `sm->dcg_table[idx]` instead of `every_table_lookup(id)`.
-  3. Delete `every_table_register`, `every_table_lookup`, `every_table_reset`, `every_table[]`. Delete `SM_BB_PUMP_EVERY` if it also uses every_table.
+- [ ] **IEP-5** — ⛔ **Do not implement here. Owned by GOAL-CHUNKS.**
 
-  **Gate:** Symbol `every_table` absent from codebase. `scrip --sm-run` Icon corpus gate unchanged.
+  `SM_BB_EVAL`, `SM_BB_PUMP_EVERY`, and `every_table[]` are active intentional infrastructure introduced by CHUNKS STEP17 (CH-17f). `every_table` holds `tree_t*` — a Rule 3 violation — but CHUNKS owns the migration. Touching it here conflicts with active CHUNKS work.
 
-### IEP-6 — Eliminate SM_PUSH_EXPR (direct tree_t* in SM_Instr)
+  `SM_PUSH_EXPR` elimination is the stated goal of `GOAL-CHUNKS.md` ("Done when: SM_PUSH_EXPR opcode is deleted"). CHUNKS migrates it via `SM_PUSH_CHUNK` / `SM_BB_PUMP_AST`.
 
-- [ ] **IEP-6** — `SM_PUSH_EXPR` carries `a[0].ptr = tree_t*` (a GC-cloned AST subtree). Direct tree_t reference from SM opcodes — violates Rule 3. Replace:
-  1. In lower.c, `emit_push_expr(tree_t* t)`: call `IR_lower_expr(t)` to produce a scalar `IR_t` subtree, wrap in `IR_block_t`, register via `sm_prog_dcg_add`, emit `SM_PUSH_IR_EXPR` with the dcg index. `IR_lower_expr` must produce a fully self-contained `IR_block_t` — no `tree_t*` inside.
-  2. In sm_interp and sm_jit_interp: `SM_PUSH_IR_EXPR` resolves `sm->dcg_table[idx]`, evaluates via `IR_exec_once`, pushes result. All `(tree_t*)expr_d.ptr` casts eliminated.
-  3. Remove `SM_PUSH_EXPR` from sm_prog.h. Remove `ast_gc_clone` from lower.c.
+  This step completes when GOAL-CHUNKS closes. At that point: `every_table` gone, `SM_PUSH_EXPR` gone, Rule 3 satisfied by construction.
 
-  **Gate:** `SM_PUSH_EXPR` absent from sm_prog.h. `ast_gc_clone` not called from lower.c. `scrip --sm-run` on full SNOBOL4 corpus unchanged.
+### IEP-6 — DEFERRED: owned by GOAL-CHUNKS
+
+- [ ] **IEP-6** — ⛔ **Do not implement here. See IEP-5.**
 
 ### IEP-7 — Delete tree_t immediately after lower() returns (Rule 1 enforcement)
 
-- [ ] **IEP-7** — In scrip.c and scrip_sm.c, immediately after `lower(ast_prog)` / `sm_preamble(ast_prog)` returns successfully, call `code_free(code)` and null out `ast_prog`. This frees the entire parser-phase tree. Any code that retained a pointer into tree_t will crash immediately — making silent violations impossible.
+- [ ] **IEP-7** — In `scrip_sm.c`, after `SM_Program *sm = lower(ast_prog)` succeeds, call `code_free(code)` and null `ast_prog`. In the `--dump-sm` path in `scrip.c` (calls `lower()` directly): same. Mode 1 (`--ast-run`) is exempt — tree_t IS the program there; no lower phase runs.
 
-  `code_free` exists in `ast_clone.c` but is never called. Wire it:
-  - In `sm_preamble()` in `scrip_sm.c`: after `SM_Program *sm = lower(ast_prog)`, call `code_free` and set `ast_prog = NULL`.
-  - In the `--dump-sm` path in scrip.c (which calls `lower()` directly): same treatment.
-  - In `execute_program` (mode 1 / --ast-run): tree_t IS the program — do NOT free here. Mode 1 is exempt because it walks the tree directly; it has no lower phase. Document this exemption explicitly.
+  `code_free` exists in `ast_clone.c` but is currently never called. Wire it at both SM-path exit points.
 
-  **Gate:** `scrip --sm-run beauty.sno` and `scrip --jit-run beauty.sno` pass. Any surviving dangling pointer crashes immediately on the first run after this step, exposing any IEP-5/6 violations not yet fixed.
+  ⛔ **IEP-7 cannot run until GOAL-CHUNKS completes.** Every surviving `every_table` and `SM_PUSH_EXPR` site holds a `tree_t*` — freeing tree_t before CHUNKS finishes crashes immediately. That crash is the proof CHUNKS is done.
 
-  ⛔ **IEP-7 must run AFTER IEP-5 and IEP-6 are complete.** Freeing tree_t before eliminating every_table and SM_PUSH_EXPR will crash because they still hold tree_t pointers. IEP-5 and IEP-6 first, then IEP-7.
+  **Gate:** `scrip --sm-run beauty.sno` and `scrip --jit-run beauty.sno` pass with tree_t freed after lower. Any dangling reference crashes immediately.
 
-### IEP-8 — Delete IR_block_t after dcg_table registration (Rule 2 enforcement)
+### IEP-8 — sm_prog_free frees dcg_table entries (Rule 2 enforcement)
 
-- [ ] **IEP-8** — After lower registers each `IR_block_t*` into `dcg_table` via `sm_prog_dcg_add`, the local `IR_block_t*` in lower must be freed — lower no longer owns it; `SM_Program.dcg_table` owns it. After the emitter processes each dcg_table entry in `emit_ir_block`, free that entry via `IR_free`. This enforces that no code retains a live IR pointer beyond its phase.
+- [ ] **IEP-8** — In `sm_prog_free()`: call `IR_free(dcg_table[i])` for each entry before freeing `dcg_table`. Ownership: `sm_prog_dcg_add` transfers ownership to `SM_Program`; lower must not free after registration. Modes 2/3 keep dcg_table alive for the interpreter lifetime; mode 4 emitter walks dcg_table then sm_prog_free cleans up.
 
-  Concretely:
-  - In lower.c: after each `sm_prog_dcg_add(g_p, pat_dcg)` call, do NOT free pat_dcg (dcg_table now owns it). Document ownership transfer clearly.
-  - In `sm_prog_free()`: call `IR_free(dcg_table[i])` for each entry before freeing `dcg_table` itself.
-  - In `emit_ir_block`: after calling `ir_walk` on `cfg`, call `IR_free(cfg)` only if the emitter is the terminal consumer (i.e. mode 4). In modes 2/3, dcg_table entries must survive for the interpreter. Add an `IR_emit_vtable_t.owns_dcg` flag — mode-4 emitters set it to 1.
-
-  **Gate:** valgrind on `scrip --jit-emit --x64 beauty.sno` shows zero IR_block_t leaks.
+  **Gate:** valgrind on `scrip --sm-run beauty.sno` shows zero IR_block_t leaks.
 
 ### IEP-9 — Final audit: all three rules verified by construction
 
-- [ ] **IEP-9** — Confirm by construction:
-  1. `grep -rn "ast_prog\|tree_t\b" src/lower/lower.c` after IEP-7 — no live ast_prog reference after `lower()` returns.
-  2. `grep -n "void \*ptr" src/include/sm_prog.h` — `sm_operand_t.ptr` field removed or commented "runtime state only — no cross-phase use".
-  3. `grep "sm_emit_ptr\|\.ptr\s*=" src/lower/lower.c` — zero hits.
-  4. `scrip --sm-run beauty.sno` and `scrip --jit-run beauty.sno` — pass.
-  5. `scrip --jit-emit --x64 beauty.sno` — byte-identical to pre-IEP-4 baseline.
-
-  Note: `icn_to_state_t*` / `icn_to_by_state_t*` in `SM_Instr.a[2].ptr` are runtime-mutable execution state written by the interpreter itself — not lower sidecars. They are a separate mode-4 concern (need per-call stack allocation) tracked in a future GOAL.
+- [ ] **IEP-9** — After IEP-7 and IEP-8 (and GOAL-CHUNKS complete):
+  1. `grep "sm_emit_ptr" src/lower/lower.c` — zero hits.
+  2. `grep "every_table" src/` — zero hits (CHUNKS done).
+  3. `grep "SM_PUSH_EXPR" src/include/sm_prog.h` — zero hits (CHUNKS done).
+  4. `scrip --sm-run beauty.sno` and `scrip --jit-run beauty.sno` pass.
+  5. `scrip --jit-emit --x64 beauty.sno` byte-identical to pre-IEP-4 baseline.
 
 ---
 
@@ -125,7 +111,7 @@ source → parser → tree_t + shared tables (label_table, proc_table, g_pl_pred
 ## State
 
 ```
-watermark: IEP-4 (IEP-5/6/7/8/9 open)
+watermark: IEP-4 (IEP-5/6 deferred to CHUNKS; IEP-7/8/9 open after CHUNKS)
 head: d9dff43a
 session: 2026-05-15 (Claude Sonnet 4.6)
 ```
