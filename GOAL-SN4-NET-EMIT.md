@@ -280,10 +280,26 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳
-head: one4all 524b4a1b
-session: 2026-05-15
+watermark: SN4-NET-5 ⏳ (partial)
+head: one4all eb74b9a5
+session: 2026-05-15 (Claude Opus 4.7)
 progress: SN4-NET-1 ✅ SnoRt.il scalar runtime; SN4-NET-2 ✅ 19 BB emitters emit_net.c;
   SN4-NET-3 ✅ SM walker + --target=net wiring; SN4-NET-4 ✅ smoke 7/7 PASS.
-  NEXT: SN4-NET-5 beauty self-host.
+  SN4-NET-5 ⏳ partial: beauty.sno assembles + executes without exception.
+    Fixed: MSIL comment ';' → '//'; SM_JUMP/JUMP_S/JUMP_F now emit conditional br to NET_L{target};
+    SM_HALT branches to NET_DONE (was falling through); has_continue tracking; added stubs for
+    SM_CALL_FN, SM_RETURN/FRETURN/NRETURN (all variants), SM_DEFINE_ENTRY, SM_DEFINE, SM_EXEC_STMT,
+    SM_INCR/DECR, SM_LOAD/STORE_FRAME/GLOCAL, SM_PUSH_EXPRESSION, SM_PUSH_EXPR, SM_CALL_EXPRESSION,
+    SM_SUSPEND/SUSPEND_VALUE, SM_PAT_* family, SM_BB_* family, SM_ICMP_GT/LT.
+    Runtime: coerce_num and _obj_to_dbl now use Double.TryParse (was Double.Parse crashing on
+    non-numeric strings); do_return now sets last_ok per kind (FRETURN→false, RETURN/NRETURN→true);
+    sno_call dispatches to 8 built-ins (SIZE, TRIM, DUPL, SUBSTR, IDENT, DIFFER, INTEGER, DATATYPE)
+    with fail-and-pop-nargs default for unknown names.
+    Beauty status: emits valid MSIL (58407 lines), ilasm clean, mono runs to completion (exit 0),
+    produces 628 stdout lines (oracle 622) but only 1 non-blank line. Stores write empty strings
+    because pattern matches and user-defined functions are still stubs.
+  NEXT: user-defined function dispatch — SM_DEFINE_ENTRY must build a name→pc table; SM_CALL_FN
+    must look up user functions before falling back to built-ins; need a call stack in SnoRt for
+    return addresses + a frame-slot array for locals. After that: wire SM_PAT_* opcodes to the
+    19 already-emitted pat_*_* classes via Alpha/Beta calls on a MatchState.
 ```
