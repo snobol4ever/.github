@@ -71,8 +71,8 @@
 - [x] **S200-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `fe47f032` — `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`. 200-col, paired decls, column-aligned families. Removed duplicate `#include "emit.h"`. Fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures. 280→243 lines. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `5d1d1274` — `emit_core.c` (2,433→1,786 lines). 200-col separators; `insn_*` 49 one-liners; `bb_insn_*` 41 one-liners; `t3/tf/tj` compacted. Zero blank lines, zero >200-col lines. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-4** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `9f63967d` — `ast/ast.h` 518→156, `ast/ast_print.c` 242→124, `ast/ast_verify.c` 336→123 lines. All 8 passes applied. Oracle: smoke 7/7 + disassembly equivalence. Smoke 7/7.
-- [ ] **S200-5** — `processor/sm_interp.c` + `processor/*.h` (5,791 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
-- [ ] **S200-6** — `lower/*.c` + `lower/*.h` (4,055 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [x] **S200-5** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `0529d47d` — processor/ all files. 5,791→3,488 lines. Smoke 7/7.
+- [x] **S200-6** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `d76f0c48` — lower/ all files. 4,055→2,882 lines. Smoke 7/7.
 - [ ] **S200-7** — `emitter/emit_bb.c` + `emitter/emit_sm.c` + `emitter/sm_jit_interp.c` (remaining emitter C files, 1,685+2,888 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
 - [ ] **S200-8** — `runtime/*.c` + `runtime/*.h` (19,916 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
 - [ ] **S200-9** — `driver/*.c` + `driver/*.h` (9,775 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
@@ -83,8 +83,8 @@
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-15 S200-4 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-15 S200-6 (Claude Sonnet 4.6)**
 
-one4all HEAD `9f63967d`. Gates: smoke 7/7. Next: S200-5 — processor/ folder.
+one4all HEAD `d76f0c48`. Gates: smoke 7/7. Next: S200-7 — emitter/ remaining C files.
 
 one4all HEAD `dea300a2`. Gates: smoke 7/7, byte-id 4/4. Next: S200-4 — ast folder.
