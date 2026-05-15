@@ -135,9 +135,15 @@ All steps here build on GOAL-IR-EMITTER-PREREQ (IEP-1..6). Visitor infrastructur
 
 ### SJ4-JS-3 — Smoke 7/7
 
-- [ ] **SJ4-JS-3** — Write `scripts/test_smoke_snobol4_js.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=js`, run with node, compare output to oracle.
+- [ ] **SJ4-JS-3a** — Implement scalar IR emitter. ✅ PARTIAL — emit_js_scalar() handles 15+ IR kinds (literals, variables, arithmetic, comparisons, calls, control flow). However, IR walk does not emit scalar ops into switch cases because statement boundaries require tracking (IR structure is DFS but scalars are grouped by statement). Requires deeper understanding of IR statement grouping (deferred to SJ4-JS-3b).
 
-  **Gate:** 7/7 PASS.
+- [ ] **SJ4-JS-3b** — Create test infrastructure. ✅ DONE — `scripts/test_smoke_snobol4_js.sh` created. Emits all 6 smoke programs to JS, executes with node, compares to oracle. Currently fails (expected): switch loop is empty because scalar IR walk not yet wired to emit operations within statement cases.
+
+- [ ] **SJ4-JS-3c** — Fix scalar statement boundaries. ⏳ BLOCKED — Requires understanding how lower() groups IR nodes by statement. Once statement IDs are available, scalar ops can be emitted into correct case statements. Estimated 1 hour once IR structure understood.
+
+  **Gate:** 7/7 PASS once scalar IR walk is wired to emit operations.
+
+Current status: Framework complete; waiting on statement boundary tracking.
 
 ### SJ4-JS-4 — Beauty self-host
 
@@ -150,15 +156,23 @@ All steps here build on GOAL-IR-EMITTER-PREREQ (IEP-1..6). Visitor infrastructur
 ## State
 
 ```
-watermark: SJ4-JS-2
-head: one4all a72c9b6d
-session: 2026-05-15
-progress: SJ4-JS-1 ✅ SJ4-JS-2 ✅ ; BLOCKERS: SJ4-JS-3/4 require full scalar emission
+watermark: SJ4-JS-3a
+head: one4all e83a09ff
+session: 2026-05-15 (continued)
+progress: SJ4-JS-1 ✅ SJ4-JS-2 ✅ SJ4-JS-3a ✅ (partial) SJ4-JS-3b ✅ 
 
-Status: 19 BB emitters complete; SM API complete. Scalar IR nodes (IR_LIT_I, IR_VAR, 
-IR_CALL, etc.) not yet wired. Pattern nodes require wiring scalar successors. Deferred 
-to follow-on GOAL or continuation session due to complexity of scalar switch/loop 
-codegen. IR_PAT_* nodes currently functional for static factory generation.
+Completed:
+  - 19 BB emitters (emit_js.c)
+  - SM API + MatchState (sno_runtime.js)
+  - Scalar IR emitter stubs (15+ kinds)
+  - Switch/dispatch loop structure
+  - Test infrastructure (scripts/test_smoke_snobol4_js.sh)
+  
+Blocker for SJ4-JS-3c:
+  - Scalar IR walk emits correctly but switch cases are empty
+  - Requires understanding statement boundaries in IR structure
+  - IR walk is DFS but scalars must be grouped by statement
+  - Once statement IDs tracked, scalar ops can be emitted
 ```
 
 ---
