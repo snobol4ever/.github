@@ -146,9 +146,15 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `d811da09` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 15/17 (+2 this sess), mode-4 broad corpus 189/280 (sm-run 128/280 — parity EXCEEDED).
+**HEAD** one4all `c24b0a97` · Baselines: smoke_snobol4 7/7 ✅, gate_em8 5/5 ✅, crosscheck_sn4 5/6, crosscheck_sc 8/8 ✅, beauty 15/17, mode-4 broad corpus 240/280 (sm-run 128/280).
 
-Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: SM_NEG + NRETURN fixes — 128/280 (+4 vs 124).
+Sess 2026-05-15c (Claude Sonnet 4.6): M4SN-4b: NRETURN deep dive + fixes.
+- **Fixed NRETURN in mode-4:** (1) Removed vstack_push from rt_do_nreturn — value is lost when call_native_chunk resets vstack. rt_call now correctly handles dereferencing from return variable. (2) Fixed emit_sm_return_variant_dispatch to properly intern fname string to rodata label for NRETURN_VAR macro lea rdi,... instruction.
+- **Simple NRETURN now works:** `get_x = .x :(NRETURN)` correctly returns NAME descriptors in mode-4, matching sm-run and jit-run.
+- **Blocked on NRETURN_ASGN:** Lvalue assignment to NRETURN-returning functions (e.g., `ref_a() = 26`) has garbage nargs=140... in SM lowering (SM_SUSPEND_VALUE s="NRETURN_ASGN"). This blocks 1013_func_nreturn, 1016_eval, 1114_item (3 tests).
+
+Next: Fix NRETURN_ASGN lowering or find alternate path to 250/280.
+
 
 Sess 2026-05-14e (Claude Sonnet 4.6): M4SN-4b: three fixes — 128/280 → 136/280 (+8), beauty 7/17 → 13/17 (+6):
 (1) rt_arith/rt_coerce_num: propagate DT_FAIL instead of to_int(FAIL) → Error 1.
