@@ -290,18 +290,23 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 11c43e0d  corpus: 1fe096c
+  one4all: e2d80506  corpus: 1fe096c
   ir-run:  PASS=202 FAIL=28
-  honest:  PASS=273
+  honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
   NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
         rung32_strretval_strret_every (generative arg through user proc);
-        rung36_jcon_substring H/I: !str := val string frame-local writeback (ICN_ITERATE_FIRST_SET
-        hits NV global table, misses FRAME.env slot; fix: ICN_BB_EVAL guard in lower_assign
-        when LHS is TT_ITERATE routes through bb_eval_value which has slot-aware write path);
+        rung36_jcon_scan: every (("a"|"b") ? write(upto(!&lcase))) only yields 2 values instead
+        of 6 — icn_bb_scan_gen β path not re-pumping body gen (upto+generative-cset) when
+        subject alternates; body exhausts and doesn't try next subject correctly;
+        rung36_jcon_string: find/match/any/upto with generative pos args (1 to 10) missing output;
+        rung36_jcon_wordcnt: sort(table, 3) — 2-arg sort not implemented;
+        rung36_jcon_substring H/I: !str := val string frame-local writeback;
         rung36_jcon_* suite (various builtins and features)
 
-  Session fixes (+1, 3 commits this session):
+  Session fixes (+1, 1 commit this session):
+    e2d80506 IJ-19-remaining: fix icn_bb_scan_gen integer subject crash (honest 273->275)
+  Prior session fixes:
     11c43e0d IJ-19-remaining: image(DT_FH) fix; any/many/upto 2-arg in icn_try_call_builtin_by_name
     fec85821 IJ-19-remaining: any/many/upto 2-arg outside scan, cset identity (slen=0xFFFFFFFF) fix
     390335c3 IJ-19-remaining: math nargs>=1, list() nargs>=0, ||| list concat, scan_pos default
