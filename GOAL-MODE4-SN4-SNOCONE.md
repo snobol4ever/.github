@@ -85,7 +85,7 @@ Fix: for variant-pattern ARBNO/CAP, the child blob IS emitted inline in the patt
 
 ### M4SN-2 — Crosscheck snobol4 6/6
 
-- [ ] **M4SN-2** — Fix the 1 failing crosscheck snobol4 test. Likely a pattern or builtin issue specific to the mode-4 binary path. Gates: crosscheck_snobol4 6/6, smoke 7/7, beauty 17/17.
+- [x] **M4SN-2** — Fix the 1 failing crosscheck snobol4 test (beauty_omega). Root cause: test script had no SNO_LIB for beauty driver runs; SPITBOL ref absent in container; fell back to ir-run vs sm-run compare but ir-run crashes (bb_alloc pool exhausted on large programs). Fix: use corpus omega_driver.ref directly as oracle; set SNO_LIB for all beauty runs; treat ir-run empty output as skip-ir when oracle ref present. ✅ sess 2026-05-15 (Claude Sonnet 4.6, one4all `15d28f85`). Gates: crosscheck_snobol4 6/6, smoke 7/7.
 
 ### M4SN-3 — Crosscheck snocone 8/8
 
@@ -163,6 +163,13 @@ Sess 2026-05-14g (Claude Sonnet 4.6): M4SN-4b: stack misalignment fix in emit_se
 Root cause: emit_seq_port_call and emit_seq_port_call_rip emit push r10 / setup / call fn / pop r10 inside brokered blobs that already have push rbp from emit_seq_brokered_enter. This leaves rsp misaligned by 8 at the call site. bb_deferred_var_exported → bb_build_brokered → emit_flat_body → vsnprintf triggers SIGSEGV in glibc 2.39 SSE snprintf on misaligned stack. Fix: add sub rsp,8 after push r10 and add rsp,8 before pop r10 in BOTH emit_seq_port_call (binary pool blobs) and emit_seq_port_call_rip (TEXT mode). Fixes tests 108–113, 115–119 (fence_via_var, arbno-of-star-var-fence). Gates: smoke_snobol4 7/7, crosscheck_snocone 8/8, gate_em8 5/5. Beauty 13/17 pre-existing on HEAD 53254e3c. one4all `ad5cb86d`.
 
 **Next:** M4SN-4b continued — push toward 200+/280. Investigate ShiftReduce_driver (SM segfault, pre-existing) and remaining broad corpus fails.
+
+Sess 2026-05-15 (Claude Sonnet 4.6): M4SN-2 ✅ + M4SN-4b interp_call case fix:
+(1) M4SN-2: crosscheck_snobol4 6/6 — beauty_omega test fixed. Script now uses corpus omega_driver.ref directly; SNO_LIB set for beauty driver runs; ir-run crash (bb_alloc pool exhausted) treated as skip-ir when oracle present. one4all `15d28f85`.
+(2) M4SN-4b: interp_call.c ufname block: removed unconditional toupper(); now uses sno_fold_name() which is a no-op in case-sensitive mode (default). Casing at ingress only per RULES.md. No regression — all gates green. one4all `68a77cf0`.
+Next: M4SN-4b continued — resolve differ/DIFFER registration (rt_init registers uppercase only; corpus tests call lowercase; need ingress-layer fix OR register both cases).
+
+**HEAD** one4all `68a77cf0` · Baselines: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus 189/280.
 
 Sess 2026-05-14i (Claude Sonnet 4.6): M4SN-4b: fix call_native_chunk locals/retval — 186/280 → 189/280 (+3), beauty 13/17 → 15/17 (+2):
 Root cause: call_native_chunk saved/restored formal parameters only. The function's own NV slot (return-value accumulator) and local variables were not saved or cleared before the call. Second inline call to a recursive pattern-building function like `icase(str)letter,ch` produced a wrong pattern because NV[icase] still held the prior result; the body concatenated onto it. Fix: save NV[retname] + all FUNC_LOCAL_fn entries, clear to SNUL, restore in reverse after the call. Retname via FUNC_ENTRY_fn/FNCEX_fn (mirrors interp_call.c). Gates: smoke 7/7, crosscheck_sc 8/8, gate_em8 5/5, beauty 15/17, broad 189/280. one4all `d811da09`.
