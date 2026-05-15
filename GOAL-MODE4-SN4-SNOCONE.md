@@ -146,7 +146,7 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `ad5cb86d` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17 (pre-existing on HEAD 53254e3c), mode-4 broad corpus 182/280 (sm-run 167/280 — parity EXCEEDED).
+**HEAD** one4all `38084951` · Baselines: smoke_snobol4 7/7, gate_em8 5/5 ✅, crosscheck_sc 8/8 ✅, crosscheck_sn4 5/6 (pre-existing), beauty parity 13/17 (pre-existing), mode-4 broad corpus 186/280 (sm-run 128/280 — parity EXCEEDED).
 
 Sess 2026-05-14d (Claude Sonnet 4.6): M4SN-4b: SM_NEG + NRETURN fixes — 128/280 (+4 vs 124).
 
@@ -163,3 +163,12 @@ Sess 2026-05-14g (Claude Sonnet 4.6): M4SN-4b: stack misalignment fix in emit_se
 Root cause: emit_seq_port_call and emit_seq_port_call_rip emit push r10 / setup / call fn / pop r10 inside brokered blobs that already have push rbp from emit_seq_brokered_enter. This leaves rsp misaligned by 8 at the call site. bb_deferred_var_exported → bb_build_brokered → emit_flat_body → vsnprintf triggers SIGSEGV in glibc 2.39 SSE snprintf on misaligned stack. Fix: add sub rsp,8 after push r10 and add rsp,8 before pop r10 in BOTH emit_seq_port_call (binary pool blobs) and emit_seq_port_call_rip (TEXT mode). Fixes tests 108–113, 115–119 (fence_via_var, arbno-of-star-var-fence). Gates: smoke_snobol4 7/7, crosscheck_snocone 8/8, gate_em8 5/5. Beauty 13/17 pre-existing on HEAD 53254e3c. one4all `ad5cb86d`.
 
 **Next:** M4SN-4b continued — 059_capture_dollar_deferred ($ capture empty in mode-4), 106_pat_fence_with_capture (FENCE+$ capture), test_case. Target: sm-run parity 167/280 EXCEEDED (182/280); push toward 200+/280.
+
+Sess 2026-05-14h (Claude Sonnet 4.6): M4SN-4b: XFNME NAMEPTR + &STNO — 182/280 → 186/280 (+4):
+(1) emit_bb.c XFNME: NAME_fn() returns NAMEPTR (slen=1,ptr=nv_cell) for ordinary vars; .s alias
+    read as varname gave empty string → NV_SET_fn no-op → $ capture lost. Fix: NAMEPTR branch
+    in emit_flat_node XFNME mirroring XNME: bb_cap_new(...,NULL,(DESCR_t*)ptr,1) → NM_PTR.
+    059_capture_dollar_deferred PASS, 106_pat_fence_with_capture PASS.
+(2) rt.c/rt.h: add rt_set_stno(int64_t). emit_sm.c emit_sm_stno: emit mov edi,N / call rt_set_stno@PLT
+    as raw TEXT lines (STNO macro stays no-op; column-format GAS positional-arg issue avoided).
+    082_keyword_stcount PASS. Gates: smoke 7/7, beauty 13/17, crosscheck_sc 8/8, gate_em8 5/5.
