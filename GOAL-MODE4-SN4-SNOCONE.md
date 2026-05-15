@@ -146,14 +146,15 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `c24b0a97` · Baselines: smoke_snobol4 7/7 ✅, gate_em8 5/5 ✅, crosscheck_sn4 5/6, crosscheck_sc 8/8 ✅, beauty 15/17, mode-4 broad corpus 240/280 (sm-run 128/280).
+**HEAD** one4all `85717ff8` · Baselines: smoke_snobol4 7/7 ✅, gate_em8 5/5 ✅, crosscheck_sn4 5/6, crosscheck_sc 8/8 ✅, beauty 15/17, mode-4 broad corpus 240/280 (241/280 jit-run).
 
-Sess 2026-05-15c (Claude Sonnet 4.6): M4SN-4b: NRETURN deep dive + fixes.
-- **Fixed NRETURN in mode-4:** (1) Removed vstack_push from rt_do_nreturn — value is lost when call_native_chunk resets vstack. rt_call now correctly handles dereferencing from return variable. (2) Fixed emit_sm_return_variant_dispatch to properly intern fname string to rodata label for NRETURN_VAR macro lea rdi,... instruction.
-- **Simple NRETURN now works:** `get_x = .x :(NRETURN)` correctly returns NAME descriptors in mode-4, matching sm-run and jit-run.
-- **Blocked on NRETURN_ASGN:** Lvalue assignment to NRETURN-returning functions (e.g., `ref_a() = 26`) has garbage nargs=140... in SM lowering (SM_SUSPEND_VALUE s="NRETURN_ASGN"). This blocks 1013_func_nreturn, 1016_eval, 1114_item (3 tests).
+Sess 2026-05-15c (Claude Sonnet 4.6): M4SN-4b: NRETURN + NRETURN_ASGN fixes — partial success.
+- **NRETURN in simple statements:** Fixed rt_do_nreturn (removed vstack_push) and emit_sm_return_variant_dispatch (intern fname to rodata). Simple `label = expr :(NRETURN)` now works in mode-4.
+- **NRETURN_ASGN (lvalue to NRETURN result):** Fixed lowering bug where fname was overwriting nargs field in SM instruction. Now emit NRETURN_ASGN_<funcname> instead of generic NRETURN_ASGN. Added handlers in sm_jit_interp.c (strncmp prefix check) and rt_call (rt.c). Status: 1013_func_nreturn ✅ PASS (mode-4), but 1016_eval and 1114_item still segfault in mode-4 (pass in jit-run).
+- Overall: 240/280 (no change from union bug fix alone; 1013 only, 1016/1114 need deeper debugging).
 
-Next: Fix NRETURN_ASGN lowering or find alternate path to 250/280.
+Next: Investigate 1016/1114 segfaults in mode-4 (jit-run passes). Likely issue in call_native_chunk frame handling or return value type confusion in presence of _SET functions.
+
 
 
 Sess 2026-05-14e (Claude Sonnet 4.6): M4SN-4b: three fixes — 128/280 → 136/280 (+8), beauty 7/17 → 13/17 (+6):
