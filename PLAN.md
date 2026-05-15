@@ -67,6 +67,9 @@ END` where C `--sm-run --dump-sm` emits 6 instructions (SM_STNO/PUSH_LIT_S/STORE
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **NEXT: S200-4** — `emit_bb.c`. S200-3 ✅ `5d1d1274`. Rules in RULES.md § "C code style". New rules: zero blank lines in C/H files; banner-only comments (no inline, no body comments). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass (AR-1+AR-2 ✅ 2026-05-09) |
 | **✅ sm_lower.c refactor (prereq for SL)** | `GOAL-SM-LOWER-REFACTOR.md` | one4all+.github | **COMPLETE** — SI-1..SI-12 all closed. one4all `15cfaa2d`. Unlocks GOAL-SNOCONE-SM-LOWER (SL-1). |
+| **⚡ IR_t Emitter Foundation (prereq for JVM+JS)** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | **NEXT: IEP-1** — define emit_ir_block entry point + IR_t visitor. Must complete before SN4-JVM and SN4-JS. |
+| **⚡ SN4 JVM Emitter (IR_t-based, beauty self-host)** | `GOAL-SN4-JVM-EMIT.md` | one4all+.github | **NEXT: SJ4-JVM-1** — complete 19 BB templates for JVM. Prereq: GOAL-IR-EMITTER-PREREQ. Concurrent with SN4-JS. |
+| **⚡ SN4 JS Emitter (IR_t-based, beauty self-host)** | `GOAL-SN4-JS-EMIT.md` | one4all+.github | **NEXT: SJ4-JS-1** — complete 19 BB templates for JS. Prereq: GOAL-IR-EMITTER-PREREQ. Concurrent with SN4-JVM. |
 | **SCRIP Bootstrap (M2+M3)** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all+ | CB-0-corpus |
 | **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
 | **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
