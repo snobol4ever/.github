@@ -291,16 +291,15 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 7977321b  corpus: 1fe096c
+  one4all: caa71037  corpus: 1fe096c
   ir-run:  PASS=206 FAIL=24 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining -- remaining CH-17g-blocked rungs (scan/string/wordcnt).
-        Non-blocked: rung36_jcon_substring J/K/L (subscript-range assign s[i:j]:=X);
-        rung36_jcon_table (member(T,x) & writes via TT_SEQ/is_suspendable(TT_FNC) bug).
-        Done this session: every !tbl:=val table/list iterate-assign fix (58eeb2bb);
-        !str:=ch frame-local writeback via ICN_ITERATE_FIRST_SET slot fix (7977321b).
-        rung36_jcon_substring H/I now correct (Xbcde / YYYYY).
+  NEXT: IJ-19-remaining -- BB path for "if s[i:j]:=val" broken (icn_value.c TT_SECTION
+        in TT_ASSIGN handler -- icn_string_section_assign receives TT_IDX not TT_SECTION).
+        Standalone s[i:j]:=val now works via new SM ICN_SECTION_RANGE_SET.
+        s[i]:=val in every loop works via BB frame scope_get fix.
+        CH-17g-blocked: scan, string, wordcnt. substring J still -- (every loop s[i]:=t[i]).
 
   Session notes (2026-05-16, one4all 00da02b6):
     TT_SUSPEND user-proc generators implemented via GeneratorState DCG.
