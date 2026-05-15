@@ -291,12 +291,35 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 63c6fd2a  corpus: 1fe096c
+  one4all: 5198d619  corpus: 1fe096c
   ir-run:  PASS=206 FAIL=24 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining CH-17g follow-up — icn_bb_assign_lhs_gen implemented but key(x) generator
-        needs separate fix (may be in how key() is called, not in assignment pump logic).
+  NEXT: IJ-19-remaining wraparound-slice fail-propagation bug:
+        y := x[-3+:6] yields y=&null instead of failing assignment.
+        bb_section in icn_value.c:120-122 correctly returns FAILDESCR for
+        out-of-range BBS_PLUS on a list base. SM_BB_EVAL in sm_interp.c:697
+        correctly pushes that FAIL with last_ok=0. But the subsequent
+        emit_var_store path (TT_VAR LHS -> SM_STORE_VAR) appears to convert
+        FAIL to &null on store. Repro:
+          x := [1,2,3,4,5,6,7,8,9]
+          y := x[-3+:6]
+          write(type(y))       # null  (should be: failed assignment, y unchanged)
+        Trace: emit_var_store in lower.c:117 + SM_STORE_VAR handler in sm_interp.c.
+        Affects rung36_jcon_lists final 2-line diff (u./v. wraparound failed
+        not printed because limage(label, FAIL) doesn't propagate).
+
+  Session notes (2026-05-15, one4all 0fed7020, Claude Opus 4.7):
+    IJ-19-remaining: ICN_RANDOM_SET list case wired.
+    Bug: handler in sm_interp.c:1014 went straight to base.u->type->nfields
+    user-record path, skipping the icn_type=="list" check. ?x := val on a
+    list silently no-op'd; subsequent ASGN/INDEX path then extended list
+    with &null.
+    Fix: add list branch using subscript_set(base, INTVAL(fi+1), val),
+    mirroring icn_value.c:386. Track ok through all branches.
+    Repro: x := [1]; ?x := 2  -> [1] 2  (was [2] 1 &null).
+    rung36_jcon_lists diff: 5 regions -> 1 region remaining (wraparound).
+    Gates unchanged: smoke 5/5, broker 23/49, ir-run 206, honest 275.
 
   Session notes (2026-05-17 EMERGENCY FINAL, one4all 63c6fd2a):
     CH-17g: icn_bb_assign_lhs_gen implemented. key() generator EXISTS (icn_bb_tbl_key_iterate).
