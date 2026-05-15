@@ -92,7 +92,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-3 — Smoke 7/7
 
-- [ ] **SJ4-JVM-3** — Write `scripts/test_smoke_snobol4_jvm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=jvm`, assemble with jasmin.jar, run with java, compare output to oracle.
+- [ ] **SJ4-JVM-3** (deferred) — Write `scripts/test_smoke_snobol4_jvm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=jvm`, assemble with jasmin.jar, run with java, compare output to oracle.
 
   **Gate:** 7/7 PASS.
 
@@ -107,8 +107,8 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SJ4-JVM-2
-head: f41fa90f
+watermark: SJ4-JVM-2 — SJ4-JVM-3 deferred (gate script ready; needs SJ4-JVM-3.5 scalar emitter)
+head: 49762ec4
 session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
