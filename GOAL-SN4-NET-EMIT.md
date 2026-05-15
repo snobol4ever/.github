@@ -280,26 +280,49 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳ (partial)
-head: one4all eb74b9a5
+watermark: SN4-NET-5 ⏳ (partial — user-function dispatch landed; param binding pending)
+head: one4all bb77ac29
 session: 2026-05-15 (Claude Opus 4.7)
 progress: SN4-NET-1 ✅ SnoRt.il scalar runtime; SN4-NET-2 ✅ 19 BB emitters emit_net.c;
   SN4-NET-3 ✅ SM walker + --target=net wiring; SN4-NET-4 ✅ smoke 7/7 PASS.
-  SN4-NET-5 ⏳ partial: beauty.sno assembles + executes without exception.
-    Fixed: MSIL comment ';' → '//'; SM_JUMP/JUMP_S/JUMP_F now emit conditional br to NET_L{target};
-    SM_HALT branches to NET_DONE (was falling through); has_continue tracking; added stubs for
-    SM_CALL_FN, SM_RETURN/FRETURN/NRETURN (all variants), SM_DEFINE_ENTRY, SM_DEFINE, SM_EXEC_STMT,
-    SM_INCR/DECR, SM_LOAD/STORE_FRAME/GLOCAL, SM_PUSH_EXPRESSION, SM_PUSH_EXPR, SM_CALL_EXPRESSION,
-    SM_SUSPEND/SUSPEND_VALUE, SM_PAT_* family, SM_BB_* family, SM_ICMP_GT/LT.
-    Runtime: coerce_num and _obj_to_dbl now use Double.TryParse (was Double.Parse crashing on
-    non-numeric strings); do_return now sets last_ok per kind (FRETURN→false, RETURN/NRETURN→true);
-    sno_call dispatches to 8 built-ins (SIZE, TRIM, DUPL, SUBSTR, IDENT, DIFFER, INTEGER, DATATYPE)
-    with fail-and-pop-nargs default for unknown names.
-    Beauty status: emits valid MSIL (58407 lines), ilasm clean, mono runs to completion (exit 0),
-    produces 628 stdout lines (oracle 622) but only 1 non-blank line. Stores write empty strings
-    because pattern matches and user-defined functions are still stubs.
-  NEXT: user-defined function dispatch — SM_DEFINE_ENTRY must build a name→pc table; SM_CALL_FN
-    must look up user functions before falling back to built-ins; need a call stack in SnoRt for
-    return addresses + a frame-slot array for locals. After that: wire SM_PAT_* opcodes to the
-    19 already-emitted pat_*_* classes via Alpha/Beta calls on a MatchState.
+  SN4-NET-5 ⏳ partial:
+    Round 1 (one4all eb74b9a5): beauty.sno assembles + executes without exception.
+      - emit_net.c: fixed ';' → '//' MSIL comment syntax; SM_JUMP/JUMP_S/JUMP_F
+        now emit conditional br to NET_L{target} (were silent no-ops); SM_HALT
+        branches to NET_DONE; has_continue tracking; added stubs for SM_CALL_FN,
+        SM_RETURN family, SM_PAT_* family, SM_BB_* family, SM_DEFINE_ENTRY/DEFINE,
+        SM_EXEC_STMT, SM_INCR/DECR, SM_LOAD/STORE_FRAME/GLOCAL, SM_PUSH_EXPRESSION,
+        SM_PUSH_EXPR, SM_CALL_EXPRESSION, SM_SUSPEND/SUSPEND_VALUE, SM_ICMP_GT/LT.
+      - SnoRt.il: coerce_num and _obj_to_dbl use Double.TryParse (was Parse crash);
+        do_return sets last_ok per kind (FRETURN→false, RETURN/NRETURN→true);
+        sno_call dispatches to 8 built-ins (SIZE, TRIM, DUPL, SUBSTR, IDENT, DIFFER,
+        INTEGER, DATATYPE).
+    Round 2 (one4all bb77ac29): user-function dispatch.
+      - emit_net.c: pre-scan SM_Program to build (name → entry_pc) table from
+        SM_LABEL define_entry=1 instructions. SM_SUSPEND_VALUE / SM_CALL_FN for
+        known user functions: emit push_ret_pc(i+1); _pc = entry_pc; br NET_DISPATCH.
+        SM_RETURN family: emit _pc = pop_ret_pc(); br NET_DISPATCH.
+      - SnoRt.il: added _ret (Stack<int32>) and _frames (Stack<Dictionary>) static
+        fields; push_ret_pc(int32) / pop_ret_pc(): int32 methods with empty-stack
+        guard. Initialized in .cctor and _init.
+    Test harness baseline (31 scripts run, see /tmp/test_results/REPORT.md):
+      - All shared SNOBOL4/Snocone gates green: smoke_snobol4 7/7, smoke_net 7/7,
+        jit-parity 180-prog, crosscheck_snobol4 6/6, crosscheck_snocone 8/8,
+        smoke_snocone 5/5, sj4jvm1 19/19, sj4jvm2 5/5.
+      - All other failures pre-existing (verified by stash+rebuild+rerun).
+    Beauty status: assembles (58407 lines MSIL), ilasm clean, mono exit 0; simple
+      DEFINE'd function reaches its body and returns — but parameter is not yet
+      bound into the param-name global (empty-string sees `'Hello, ' who` → only
+      the unconsumed arg leaks through). 622-line oracle vs 628-line .NET emit;
+      only 1 non-blank line in .NET output.
+  NEXT (param binding — completes user-fn calls):
+    - At each define_entry, emit a per-parameter sequence that pops the value
+      stack into the parameter name's global via store_var(pname). Mirrors
+      h_call's NV_SET_fn(pname, args[k]) loop in sm_jit_interp.c.
+    - Save/restore prior values of param-name and function-name globals across
+      the call via _frames, mirroring saved_names/saved_vals in SmCallFrame.
+    - Parse parameter list from SM_PUSH_LIT_S argument feeding SM_SUSPEND_VALUE
+      DEFINE during pre-scan to know parameter names per function.
+  After that:
+    - SM_PAT_* wiring to emitted pat_*_* classes via Alpha/Beta on a MatchState.
 ```
