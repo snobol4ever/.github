@@ -100,28 +100,45 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 - [x] **SJ4-JVM-3.5** (sess 2026-05-15b) — Implement `emit_jvm_from_sm()` SM_Program walker and `emit_jvm_program()` entry point. Converts SM opcodes to Jasmin invokestatic calls to rt/SnoRt static methods. Update prologue/epilogue to emit .class wrapper. Wire into scrip.c. Test hello.sno: emits → assembles → runs → correct output ✅.
 
-### SJ4-JVM-4 — Beauty self-host
+### SJ4-JVM-4 — Beauty self-host (in progress)
 
-- [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. **Three critical bugs fixed this session:**
+- [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. **Critical fixes across sessions 2026-05-15e + 2026-05-15f:**
+
+  **Session 2026-05-15e fixes:**
   1. ✅ `coerce_num` NumberFormatException: Non-numeric strings crashed `Long.parseLong()`. Fixed with `try_parse_long/double` helpers using Jasmin `.catch` blocks.
-  2. ✅ `push_null` / `aconst_null` NPE: `ArrayDeque.push(null)` throws. Fixed: SNOBOL4 unset = `""` (empty string), not JVM null. Changed all 5 aconst_null → ldc "".
-  3. ✅ Arithmetic opcode constants: Emitter sent wrong parameters to `arith()` (ADD:1→0, SUB:2→1, etc.). Fixed constants in emit_jvm.c. Added defensive coercion in arith/acomp.
-  4. ✅ Missing `mod()` method: Added modulo implementation using `lrem`.
+  2. ✅ `push_null` / `aconst_null` NPE: `ArrayDeque.push(null)` throws. Fixed: SNOBOL4 unset = `""` (empty string), not JVM null.
+  3. ✅ Arithmetic opcode constants: Emitter sent wrong parameters to `arith()`. Fixed.
+  4. ✅ Missing `mod()` method: Added modulo via `lrem`.
 
-  **Test results (session 2026-05-15e):**
-  - Smoke gate: 7/7 PASS (all arith operations correct)
-  - Beauty.sno: Emits 12,343 lines of valid Jasmin, assembles without error
-  - Execution: Runs to deep computation ("3Reduce(, )") before hitting expected semantic errors
-  - JVM pipeline: emit → assemble → execute fully operational
-  - Comparison: JVM version executes further than C interpreter (which segfaults)
+  **Session 2026-05-15f fixes (Claude Sonnet 4.5, one4all `f40c034c`):**
+  5. ✅ `pop_obj` empty-stack safety: Returns null instead of NoSuchElementException.
+  6. ✅ SM control flow: SM_JUMP/JUMP_S/JUMP_F now emit `goto_w sm_pc_<target>` with per-PC labels (`sm_pc_N:`). Beauty's 28K-line Jasmin requires goto_w (wide) for large method bounds.
+  7. ✅ SUBSTR 2-arg form + bounds checking: `SUBSTR(STR, POS)` and `SUBSTR(STR, POS, N)` both supported. Failure cases (POS ≤ 0, N < 0, POS+N-1 > len) set last_ok=false instead of throwing.
+  8. ✅ Comparison builtins: LE, LT, GE, GT, EQ, NE added via `builtin_numcmp(op)` helper using `to_long()` coercion and `lcmp`.
+  9. ✅ Unknown function dispatch: Now pops `nargs` arguments before pushing failure (was leaving stack corrupted, causing spurious output).
+
+  **Test results (session 2026-05-15f):**
+  - C smoke (test_smoke_snobol4.sh): 7/7 PASS (no regressions)
+  - JVM smoke (test_smoke_snobol4_jvm.sh): 5/7 PASS
+    - PASS: output, concat, arith, goto_s, arith_sm
+    - FAIL: pattern (requires SM_PAT_* opcode handlers or IR generator path)
+    - FAIL: define (requires SM_DEFINE/SM_CALL_FN user-function dispatch)
+  - Loop test verified: `I=1; loop OUTPUT=I; I=I+1; LE(I,3) :S(loop)` → outputs 1,2,3 correctly on JVM
+  - Beauty.sno: Emits + assembles (28K Jasmin lines, valid); limited execution (uses SM_PAT_* opcodes silently dropped)
+
+  **Architecture finding:**
+  Pattern matching uses the **IR generator path** (`IR_PAT_*` nodes via `dcg_table`), not the SM scalar opcode path. The 19 BB emitters in emit_jvm.c handle generator IR nodes, but `emit_jvm_generator` is not yet wired to dispatch from `dcg_table` entries.
 
   **Next session (SJ4-JVM-4 completion):**
-  - [ ] Run beauty.sno to completion and compare output byte-identical to oracle (if oracle available)
-  - [ ] If oracle unavailable, validate output correctness via manual spot-checks
-  - [ ] Update demo artifact checksums if SM instruction generation changed
-  - [ ] Mark SJ4-JVM-4 complete when beauty output validated
+  - [ ] Implement SM_PAT_* opcode handlers (LIT, ANY, NOTANY, SPAN, BREAK, LEN, POS, RPOS, TAB, RTAB, ARB, ARBNO, REM, CAT, ALT, CAPTURE, FENCE, FAIL, EPS) — OR — wire `emit_jvm_generator()` to dispatch IR_block_t entries via the 19 existing BB emitters
+  - [ ] Implement SM_DEFINE_ENTRY/SM_DEFINE/SM_CALL_FN user-function dispatch (function registry in SnoRt + Jasmin method-per-function generation)
+  - [ ] Implement SM_RETURN/SM_FRETURN/SM_NRETURN and _S/_F variants
+  - [ ] Implement SM_EXEC_STMT for pattern statement execution
+  - [ ] Implement SM_BB_* generator opcodes (PUMP, ONCE, EVAL, etc.)
+  - [ ] Run beauty.sno to completion, compare output byte-identical to oracle
+  - [ ] Mark SJ4-JVM-4 complete when beauty validates
 
-  **Gate:** Smoke 7/7 PASS; Beauty.sno assembly succeeds; arithmetic operations correct.
+  **Gate:** Smoke 7/7 PASS; Beauty.sno output byte-identical to oracle.
 
 ---
 
@@ -163,49 +180,50 @@ beauty.j:       226c5bac25dd7fd69f297dfdcfdf327c (12343 lines, comprehensive tes
 ## State
 
 ```
-watermark: SJ4-JVM-3 ✅ COMPLETE (7/7 smoke PASS); SJ4-JVM-4 🔄 IN PROGRESS
-  - Coerce_num fix: ✅ NumberFormatException fixed (try_parse_long/double with .catch)
-  - Null handling: ✅ aconst_null NPE fixed (push empty string "" not null)
-  - Arithmetic opcodes: ✅ Constants corrected (0=add 1=sub 2=mul 3=div)
-  - Beauty.sno: Assembly ✅; Execution ✅ (runs to 3Reduce, deep computation)
+watermark: SJ4-JVM-3 ✅ COMPLETE; SJ4-JVM-4 🔄 IN PROGRESS (SM control flow + builtins)
 
-Test suite status (session 2026-05-15e):
-  ✅ SNOBOL4 smoke:      7/7 PASS (arith_sm validates all arithmetic fixes)
-  ✅ SNOBOL4 JVM smoke:  7/7 PASS (NEW - full emit→assemble→execute pipeline)
-  ✅ Beauty.sno:         Assembly ✅, Execution ✅ (runs to deep execution)
-  TOTAL: 7/7 smoke + beauty, 0 failures
+Session 2026-05-15f (Claude Sonnet 4.5) progress:
+  - ✅ SM control flow: SM_JUMP/JUMP_S/JUMP_F implemented (goto_w-based, per-PC labels)
+  - ✅ SUBSTR: 2-arg form + bounds checking (no more StringIndexOutOfBoundsException)
+  - ✅ Comparison builtins: LE/LT/GE/GT/EQ/NE via builtin_numcmp(op)
+  - ✅ Unknown function: now pops nargs args before failing (was corrupting stack)
+  - ✅ Loop test: I=1; loop OUTPUT=I; I=I+1; LE(I,3) :S(loop) → "1,2,3" correctly
+  - ✅ pop_obj empty-stack safety
 
-Execution status (session 2026-05-15e):
-  • Beauty.sno emits 12,343 lines valid Jasmin
-  • Assembles without error (jasmin.jar)
-  • Executes: "3Reduce(, )" then semantic errors (expected for complex self-hosted program)
-  • Runs further than C interpreter (which segfaults on same input)
+Test suite status (session 2026-05-15f):
+  ✅ C smoke:      7/7 PASS (no regressions)
+  🟡 JVM smoke:    5/7 PASS (output, concat, arith, goto_s, arith_sm)
+                          (failures: pattern - needs SM_PAT_* impl;
+                                     define - needs user fn dispatch)
+  🟡 Beauty.sno:   emits + assembles + executes; limited execution
+                          (requires SM_PAT_* opcodes + IR generator dispatch)
+
+Test smoke script rewritten: now uses proper SNOBOL4 syntax with tab indentation
+  (was using inline programs without proper labels/END, causing oracle to reject)
 
 Backend status:
-  • C interpreter:  7/7 smoke, beauty crashes with segfault
-  • JVM:            7/7 smoke, beauty runs to deep execution ✓
+  • C interpreter:  7/7 smoke PASS
+  • JVM:            5/7 smoke PASS, full pipeline operational
+                    Scalar + arithmetic + control flow + builtins working
+                    Pattern matching + user functions: pending IR/SM_DEFINE work
 
-Session findings (2026-05-15e):
-  1. Coerce_num bug: Long.parseLong("#N") threw → fixed with try_parse_long + .catch
-  2. Null bug: ArrayDeque.push(null) threw → fixed: SNOBOL4 unset = "" not null
-  3. Arith bug: Opcode constants wrong (1→0, 2→1, 3→2, 4→3) → fixed + defensive coercion
-  4. Mod missing: Added mod() method using lrem opcode
-  5. Beauty.sno: Now executes properly on JVM (fixes enable full pipeline)
+Architecture finding:
+  Pattern matching uses IR generator path (IR_PAT_* nodes via dcg_table),
+  not the SM scalar opcode path that emit_jvm_from_sm walks.
+  Beauty.sno uses many SM_PAT_* opcodes which are silently dropped because
+  emit_jvm_from_sm has no handler — pattern emission requires wiring
+  emit_jvm_generator() to dispatch from IR_block_t* entries in dcg_table.
 
-Demo artifacts (session 2026-05-15e - need regeneration):
-  hello.j:        0bb216fca7e77ec37486ef7eb140e033 (22 lines, I/O test)
-  counter.j:      77364710c58e6ee05ed33ecd41b7479d (53 lines, loop test)
-  pattern_test.j: 1e1843144e4956b7427ee02a4bb728f7 (36 lines, pattern test)
-  arithmetic.j:   0bbd509431a2dfea99531b673093b222 (83 lines, arithmetic validation)
-  beauty.j:       226c5bac25dd7fd69f297dfdcfdf327c (12343 lines, comprehensive)
-  [Checksums may differ due to arith fix; verify after rebuild]
+Remaining blockers for SJ4-JVM-4 completion:
+  1. SM_PAT_* opcode handlers (or IR generator path activation)
+  2. SM_DEFINE_ENTRY/SM_DEFINE/SM_CALL_FN user function dispatch
+  3. SM_RETURN/SM_FRETURN/SM_NRETURN variants
+  4. SM_EXEC_STMT pattern statement execution
+  5. SM_BB_* generator opcodes
 
-head: b380e409 (one4all), f384d3fc (.github), 5981718 (corpus)
-session: 2026-05-15e (Claude Haiku 4.5)
-test: 7/7 smoke PASS; beauty.sno assembly+execution working; all arith/null/coerce fixes verified
+head: f40c034c (one4all)
+session: 2026-05-15f (Claude Sonnet 4.5)
 ```
-
----
 
 ---
 
