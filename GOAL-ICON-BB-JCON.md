@@ -291,27 +291,54 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 5198d619  corpus: 1fe096c
-  ir-run:  PASS=206 FAIL=24 XFAIL=35
+  one4all: f82de5d0  corpus: 1fe096c
+  ir-run:  PASS=207 FAIL=23 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining wraparound-slice fail-propagation bug:
-        y := x[-3+:6] yields y=&null instead of failing assignment.
-        bb_section in icn_value.c:120-122 correctly returns FAILDESCR for
-        out-of-range BBS_PLUS on a list base. SM_BB_EVAL in sm_interp.c:697
-        correctly pushes that FAIL with last_ok=0. But the subsequent
-        emit_var_store path (TT_VAR LHS -> SM_STORE_VAR) appears to convert
-        FAIL to &null on store. Repro:
-          x := [1,2,3,4,5,6,7,8,9]
-          y := x[-3+:6]
-          write(type(y))       # null  (should be: failed assignment, y unchanged)
-        Trace: emit_var_store in lower.c:117 + SM_STORE_VAR handler in sm_interp.c.
-        Affects rung36_jcon_lists final 2-line diff (u./v. wraparound failed
-        not printed because limage(label, FAIL) doesn't propagate).
+  NEXT: IJ-19-remaining — continue residual rung36_jcon_* triage.
+        rung36_jcon_lists ✅ byte-identical (fixed this session).
+        Outstanding (per prior watermark):
+          - rung36_jcon_fncs1 (global/record-field name collision)
+          - rung36_jcon_endetab (infinite loop)
+          - rung36_jcon_coerce (pre-existing segfault)
+          - rung36_jcon_wordcnt (every f(gen_arg) re-pump — blocked on CH-17g)
+          - rung36_jcon_scan/string (blocked on CH-17g-irrun-execution)
+        Also: TT_ITERATE list/table paths (rung22, rung13_table_iterate)
+        still on icn_lazy_box stub; future DCG conversion.
+
+  Session notes (2026-05-15, one4all f82de5d0, Claude Opus 4.7):
+    IJ-19-remaining: FAIL-arg propagation in named-proc fast-paths.
+    Two missing IS_FAIL_fn short-circuits in user-proc call sites — both
+    had sister paths in the same handler that already did the check
+    correctly, so the fix is two minimal patches matching the surrounding
+    pattern.
+    (1) icn_value.c TT_FNC named-proc fast-path (~line 453): the arg
+        eval loop returned the value of bb_eval_value without checking
+        IS_FAIL_fn, unlike the indirect-callee and fallback paths in the
+        same TT_FNC handler which do.
+    (2) icn_runtime.c icn_bb_build named-proc oneshot (~line 1444): same
+        omission at BB-construction time. Fix: short-circuit by
+        returning an icn_bb_oneshot seeded with FAILDESCR (which already
+        returns FAIL on first pump via existing IS_FAIL_fn guard at
+        line 348).
+    Repro: limage("u", x[-3+:6]) | write("u. wraparound failed")
+      Before: " &null" (limage runs with lst=FAIL printed as &null)
+      After:  "u. wraparound failed" (call fails, | falls through)
+    Misdiagnosis correction: the prior watermark hypothesized that
+    SM_STORE_VAR was converting FAIL->&null on store. That handler is
+    actually correct (sm_interp.c:387-391 short-circuits on DT_FAIL).
+    The y := x[-3+:6] reproducer with "y prints null" is not actually
+    buggy — y was never assigned, and type(&null)="null" is correct
+    Icon semantics for an unassigned local. Verified by pre-setting
+    y := 999: assignment correctly fails, y stays 999.
+    Gates: smoke_icon 5/5, broker 23/49, ir-run 206->207 (+1),
+    honest 275. Cross-language smoke: prolog 5/5, rebus 4/4, raku 5/5,
+    scrip_all_modes 2/2. rung36_jcon_lists diff: 1 region -> 0 (PASS).
 
   Session notes (2026-05-15, one4all 0fed7020, Claude Opus 4.7):
     IJ-19-remaining: ICN_RANDOM_SET list case wired.
     Bug: handler in sm_interp.c:1014 went straight to base.u->type->nfields
+
     user-record path, skipping the icn_type=="list" check. ?x := val on a
     list silently no-op'd; subsequent ASGN/INDEX path then extended list
     with &null.
