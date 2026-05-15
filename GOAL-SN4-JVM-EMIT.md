@@ -86,7 +86,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-2 — SnoRt.j: complete JVM runtime class
 
-- [ ] **SJ4-JVM-2** — Create/complete `src/runtime/jvm/SnoRt.j`. All methods called by scalar node emission (from IEP-4): push_int, push_str, push_real, push_null, push_var, store_var, pop_void, concat, neg, exp_op, coerce_num, arith(I), acomp(I), lcomp(I), last_ok, set_last_ok, set_stno, halt_tos, call, do_return, init, finalize. Plus MatchState class (sigma String, delta int, omega int). Plus the BB runtime support: get_pending_caps list, commit_caps, discard_caps (for ASSIGN_COND deferred capture). INPUT from stdin (readLine). OUTPUT trap (System.out.println on store_var("OUTPUT")).
+- [x] **SJ4-JVM-2** — Create/complete `src/runtime/jvm/SnoRt.j`. All methods called by scalar node emission (from IEP-4): push_int, push_str, push_real, push_null, push_var, store_var, pop_void, concat, neg, exp_op, coerce_num, arith(I), acomp(I), lcomp(I), last_ok, set_last_ok, set_stno, halt_tos, call, do_return, init, finalize. Plus MatchState class (sigma String, delta int, omega int). Plus the BB runtime support: get_pending_caps list, commit_caps, discard_caps (for ASSIGN_COND deferred capture). INPUT from stdin (readLine). OUTPUT trap (System.out.println on store_var("OUTPUT")).
 
   **Gate:** Hand-written test .j file calling push_str + halt_tos runs and prints the string.
 
@@ -107,8 +107,8 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SJ4-JVM-1
-head: 2404f429
+watermark: SJ4-JVM-2
+head: f41fa90f
 session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
