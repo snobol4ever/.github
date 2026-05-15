@@ -291,19 +291,19 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 1d4e816c  corpus: 1fe096c
+  one4all: f59e0747  corpus: 1fe096c
   ir-run:  PASS=206 FAIL=24 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
   NEXT: IJ-19-remaining -- remaining failures: list slice x[i:j] on lists (returns empty),
-        table iteration (missing iterate handler), scan generator (CH-17g-blocked).
+        table iteration & x[key(x)] re-pumping (CH-17g-blocked), scan generator (CH-17g-blocked).
 
-  Session notes (2026-05-17 continuation, one4all 1d4e816c):
-    Fixed negative indexing off-by-one in subscript_get (list) and subscript_get2 (string slices).
-    Formula was n + i + 2 (wrong extra +1), now n + i + 1 (correct). Affects x[-1], x[-2], etc.
-    Gates: smoke_icon 5/5, ir-run 206, honest 275 (unchanged).
-    Substring test still fails on nested slice assignment (x[i:j][k:l] := val), beyond IJ-19 scope.
-    List slices x[i:j] still return FAILDESCR (not implemented). Table iteration blocked (separate bug).
+  Session notes (2026-05-17 final, one4all f59e0747):
+    Investigated negative indexing fix — attempted to change subscript formula from n+i+2 to n+i+1.
+    REVERTED: caused regression in list test O (to/-5 to -1 became -6 to -2). Root cause: the formula
+    change affected behavior in unexpected places. Negative indexing formula appears correct as-is.
+    Makefile Makefile tab indentation fix (emit_jvm.c line 289). Gates stable: smoke_icon 5/5, ir-run 206.
+    Key blockers remain: CH-17g (generators in LHS), list slices, table iteration.
 
   Session notes (2026-05-17, one4all cac06b4e):
     IJ-19-remaining: fix TT_SEQ conjunction & short-circuit in bb_exec_stmt.
