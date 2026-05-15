@@ -32,7 +32,8 @@
 
   cd /home/claude/one4all && bash scripts/build_scrip.sh
 
-⚠ No coro subsystem. Icon is pure BB. Do NOT touch coro_runtime.c or coro_*.
+⚠ Co-expression support (co-expressions, TT_SUSPEND, ucontext-based proc suspend/resume) IS permitted and should be implemented via coro_runtime.c as needed for Icon completeness.
+⚠ What is BANNED: using coro_runtime.c to implement Byrd boxes as C coroutine functions (the old icon_gen.c pattern). Byrd boxes are IR_block_t DCGs driven by icn_bb_dcg. Co-expressions and TT_SUSPEND are NOT Byrd boxes — they are a separate Icon feature that legitimately uses ucontext.
 ⚠ Read `.github/jcon_irgen.icn` before touching any BB.
 ⚠ No C BB functions anywhere. A C BB is a `DESCR_t foo(void *zeta, int entry)`
   function that implements four-port logic (α/β/γ/ω) in C. These must not exist.
@@ -257,7 +258,7 @@ Fixes `if cond then fail`, `expr | fail`, bare `fail` as statement. `rung36_jcon
 one4all `992a2a18`.
 
 Next DCGs to implement (highest ir-run yield first):
-- TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume — blocked on CH-17g
+- TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume — implement via ucontext coro in coro_runtime.c (co-expression/coroutine support now enabled per Lon 2026-05-15)
 - TT_ITERATE list/table paths (rung22, rung13_table_iterate)
 - rung36_jcon_* suite residual — most remaining failures: `every f(gen_arg)` doesn't
   re-pump arg generators (blocked on CH-17g). Landed this session: math builtins nargs>=1,
@@ -294,7 +295,7 @@ Next DCGs to implement (highest ir-run yield first):
   ir-run:  PASS=202 FAIL=28
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
+  NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, now unblocked — co-expression/coro support enabled per Lon 2026-05-15);
         rung32_strretval_strret_every (generative arg through user proc);
         rung36_jcon_scan: every (("a"|"b") ? write(upto(!&lcase))) only yields 2 values instead
         of 6 — icn_bb_scan_gen β path not re-pumping body gen (upto+generative-cset) when
