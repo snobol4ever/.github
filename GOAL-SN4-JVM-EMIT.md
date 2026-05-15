@@ -78,7 +78,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-1 — Complete all 19 BB template emitters for JVM
 
-- [ ] **SJ4-JVM-1** — For each IR_PAT_* kind in the table above, implement `emit_jvm_bb_NODE(IR_t *nd, FILE *out, int stmt_id, int node_id)`. For each: read the reference class from bb_boxes.j (or the git single-file path), then write the C emitter that generates equivalent Jasmin parameterized by nd->sval / nd->ival / nd->n (rpos/rtab variant flag). All 19 node kinds. The IEP-5 step started the simplest ones; this step finishes all of them.
+- [x] **SJ4-JVM-1** — For each IR_PAT_* kind in the table above, implement `emit_jvm_bb_NODE(IR_t *nd, FILE *out, int stmt_id, int node_id)`. For each: read the reference class from bb_boxes.j (or the git single-file path), then write the C emitter that generates equivalent Jasmin parameterized by nd->sval / nd->ival / nd->n (rpos/rtab variant flag). All 19 node kinds. The IEP-5 step started the simplest ones; this step finishes all of them.
 
   Count: 19 BB template functions (LIT, SPAN, BREAK, ANY, NOTANY, LEN, POS, RPOS, TAB, RTAB, REM, ARB, ARBNO, CAT/SEQ, ALT, ASSIGN_IMM, ASSIGN_COND, FENCE, ABORT).
 
@@ -107,9 +107,9 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SJ4-JVM-0
-head: (not started)
-session: (not started)
+watermark: SJ4-JVM-1
+head: 2404f429
+session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
 ---
