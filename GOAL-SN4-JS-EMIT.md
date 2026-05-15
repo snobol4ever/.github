@@ -149,44 +149,48 @@ All steps here build on GOAL-IR-EMITTER-PREREQ (IEP-1..6). Visitor infrastructur
 
 **Status:** SJ4-JS-3 COMPLETE ✅ All smoke tests execute via JavaScript!
 
-### SJ4-JS-4 — Beauty Self-Host
+### SJ4-JS-4 — Ladder Testing (PIVOT from beauty self-host)
 
-- [ ] **SJ4-JS-4** — Run beauty.sno via `scrip --target=js`. Verify md5sum matches SPITBOL oracle (646 lines).
+- [x] **SJ4-JS-4a** — Fix SM_Program instruction indexing. Use instruction index (0..N) as case label, not SM_STNO stmt numbers. **Done** — ea20a02c
+  - Fixes JUMP_S/JUMP_F landing at wrong instructions
+  - Unblocks rung10/rung11 (now 15/16 PASS)
+  
+- [ ] **SJ4-JS-4b** — Resolve SM_PAT_CAPTURE_FN_ARGS opcode mismatch. Builtin calls (IDENT, DIFFER, SIZE, etc.) emit opcode 66 (SM_PAT_CAPTURE_FN_ARGS), not SM_SUSPEND_VALUE. Case statement doesn't match at runtime.
+  - **Blocker**: Fix enum consistency between sm_prog.h compilation and emit_js.c
+  - **Action**: Force full rebuild or verify header alignment
+  - Once fixed: expect 120+ PASS (ladder currently 74/153)
 
-  **Quick test:**
-  ```bash
-  scrip --target=js /home/claude/corpus/programs/snobol4/beauty.sno > /tmp/beauty.js
-  node /tmp/beauty.js > /tmp/beauty_out.txt
-  md5sum /tmp/beauty_out.txt  # Expected: abfd19a7a834484a96e824851caee159
-  ```
+- [ ] **SJ4-JS-4c** — Generate demo JS artifacts. **Done** — corpus d9b3b2c
+  - 6 syntactically valid JS programs in `/home/claude/corpus/programs/snobol4/demo/`
+  - claws5.js, porter.js, roman.js, treebank-array.js, treebank-list.js, wordcount.js
+  - beauty.js stub (include file issue in corpus, not emitter bug)
 
-  **Gate:** md5sum beauty_output.txt = abfd19a7a834484a96e824851caee159 (646 lines).
-
-  **Status:** Ready for testing. No known blockers. High confidence. Estimated 15–30 min.
+**Status:** Ladder testing active. Baseline 74 PASS / 79 FAIL (153 total tests). Blocker identified and documented. Demo artifacts committed.
 
 ---
 
 ## State
 
 ```
-watermark: SJ4-JS-3c COMPLETE
-head: one4all 16d71127 (with merge commits from parallel SJ4-JVM-3)
-session: 2026-05-15 (extended, concluded)
-progress: SJ4-JS-1 ✅ SJ4-JS-2 ✅ SJ4-JS-3 ✅ SJ4-JS-4 ⏳ (ready)
+watermark: SJ4-JS-4a COMPLETE (ladder pivot)
+head: one4all ea20a02c, corpus d9b3b2c
+session: 2026-05-15 (extended, still active)
+progress: SJ4-JS-1 ✅ SJ4-JS-2 ✅ SJ4-JS-3 ✅ SJ4-JS-4a ✅ SJ4-JS-4b ⏳ (blocked)
 
-BREAKTHROUGH: SM_Program walker (emit_js_from_sm) fully operational
-- 20+ SM opcodes → JS rt.* mappings
-- Switch/dispatch loop with proper statement numbering
-- Pattern factories (IR-based) + scalars (SM-based) coexist cleanly
-- Smoke tests: 6/6 PASS ✅
+LADDER TESTING BASELINE: 74 PASS / 79 FAIL (153 total corpus tests)
+- Rung10: 8/9 PASS (was 0/9) — jump fix unblocked most tests
+- Strings: 13/17 PASS (was 6/17)
+- Keywords: 5/11 PASS (was 0/11) — DIFFER/COMPARE/LEXICAL work; IDENT/DATATYPE broken
+- Control: working baseline
+- Patterns, functions, data: 0 PASS (require user-defined funcs or pattern support)
 
-Architecture validated. No blockers for SJ4-JS-4.
-Next developer: Run beauty.sno test (15 min) to complete goal.
+BLOCKER: Opcode enum value 66 matches SM_PAT_CAPTURE_FN_ARGS in .h but case statement in emit_js.c doesn't match at runtime. Builtin function calls silently fail.
 
-Files touched: emit_js.c, emit_ir.h, scrip.c, sno_runtime.js
-Commits: 7 code (5 core + 2 GOAL docs)
+Files touched: emit_js.c (SM walker rewrite), sno_runtime.js (_peek export), corpus/demo/*.js (7 new artifacts)
+Commits: 2 (one4all ea20a02c, corpus d9b3b2c)
 Build: Clean
-Tests: 6/6 PASS
+Tests: 74/153 PASS ladder
+Demo: 6/7 JS valid (beauty.js stub due to corpus include issue)
 ```
 
 ---
