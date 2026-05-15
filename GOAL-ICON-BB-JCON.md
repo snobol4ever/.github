@@ -291,11 +291,21 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: e2d80506  corpus: 1fe096c
-  ir-run:  PASS=202 FAIL=28
-  honest:  PASS=275
+  one4all: ee25cfb2  corpus: 1fe096c
+  ir-run:  PASS=195 FAIL=35 XFAIL=35
+  honest:  PASS=268
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, now unblocked — co-expression/coro support enabled per Lon 2026-05-15);
+  NEXT: IJ-19-remaining -- TT_SUSPEND (user proc suspend generators).
+        ARCHITECTURAL CONSTRAINT (Lon 2026-05-15): NO AST/tree_t* walking at runtime pump time.
+        TT_SUSPEND must be lowered to an IR_block_t DCG in lower_icn.c, driven by icn_bb_dcg.
+        The DCG captures the proc's compiled SM entry_pc and uses bb_broker_drive_sm_one per pump.
+        Key insight: proc body is already SM-lowered (SM_BB_EVAL stmts + SM_SUSPEND_VALUE for suspend).
+        Problem: SM_SUSPEND_VALUE calls sm_yield_to_caller (stub -> 0); SM_SUSPEND opcode does real
+        suspend into SmGenState. Fix: change lower_suspend to emit SM_SUSPEND (not SM_SUSPEND_VALUE)
+        and implement sm_yield_to_caller to save SM_State into g_current_gen_state and return
+        SM_INTERP_SUSPENDED from sm_interp_run. Then bb_broker_drive_sm_one works correctly.
+        This is pure SM-level mechanism -- no AST, no tree_t*, no ucontext.
+        Session 2026-05-15 explored three wrong approaches (see session notes below); correct path above.
         rung32_strretval_strret_every (generative arg through user proc);
         rung36_jcon_scan: every (("a"|"b") ? write(upto(!&lcase))) only yields 2 values instead
         of 6 — icn_bb_scan_gen β path not re-pumping body gen (upto+generative-cset) when
@@ -305,7 +315,21 @@ Next DCGs to implement (highest ir-run yield first):
         rung36_jcon_substring H/I: !str := val string frame-local writeback;
         rung36_jcon_* suite (various builtins and features)
 
-  Session fixes (+1, 1 commit this session):
+  Session notes (2026-05-15, no commit to one4all -- all approaches reverted):
+    HQ commit a2c7cb62: enabled co-expression/TT_SUSPEND support in GOAL-ICON-BB-JCON + ARCH-ICON.
+    Three approaches tried and rejected for TT_SUSPEND user-proc generators:
+      (1) bb_broker_drive_sm_one -- proc body uses SM_BB_EVAL which calls bb_eval_value; TT_SUSPEND
+          goes through icn_stmt.c which sets FRAME.suspending but SM_BB_EVAL never checks it.
+          sm_yield_to_caller is a stub (returns 0); SM_SUSPEND_VALUE never actually suspends.
+      (2) ucontext swapcontext -- proc runs via sm_call_expression; sm_yield_to_caller swapcontext.
+          Rejected: requires proc body to run on separate ucontext stack; complex lifecycle.
+      (3) icn_bb_proc_call state machine (from git b5407597^) -- walks tree_t* AST at pump time.
+          Rejected by Lon 2026-05-15: NO AST/tree_t* structures at runtime pump time.
+    CORRECT PATH (not yet implemented): lower_suspend should emit SM_SUSPEND (not SM_SUSPEND_VALUE).
+    Implement sm_yield_to_caller to actually save SM_State into g_current_gen_state and return
+    SM_INTERP_SUSPENDED. Then bb_broker_drive_sm_one drives the proc SM correctly across pumps.
+    This is all SM-opcode level -- zero AST, zero tree_t*, zero ucontext.
+  Prior session fix:
     e2d80506 IJ-19-remaining: fix icn_bb_scan_gen integer subject crash (honest 273->275)
   Prior session fixes:
     11c43e0d IJ-19-remaining: image(DT_FH) fix; any/many/upto 2-arg in icn_try_call_builtin_by_name
