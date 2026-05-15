@@ -85,6 +85,7 @@
 
 **SESSION HANDOFF — sess 2026-05-15 S200-6 (Claude Sonnet 4.6)**
 
-one4all HEAD `d76f0c48`. Gates: smoke 7/7. Next: S200-7 — emitter/ remaining C files.
+one4all HEAD `d76f0c48`. Gates: smoke 7/7. Next: S200-7 — emitter/ remaining C files (emit_bb.c, emit_sm.c).
 
-one4all HEAD `dea300a2`. Gates: smoke 7/7, byte-id 4/4. Next: S200-4 — ast folder.
+### Pass rules reminder
+Apply all 8 passes per file. Oracle = smoke 7/7 + disassembly equiv (not raw .o md5 — debug info shifts). Tools: beautify_sm.py + add_separators.py in /tmp/ from prior session, or rewrite by hand for short files.
