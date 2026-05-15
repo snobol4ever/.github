@@ -291,19 +291,20 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: d9b56acb  corpus: 1fe096c
+  one4all: 63c6fd2a  corpus: 1fe096c
   ir-run:  PASS=206 FAIL=24 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining -- remaining blockers: CH-17g (generators in LHS subscripts),
-        nested slice assignment (x[i:j][k:l] := val), table iteration edge cases.
+  NEXT: IJ-19-remaining CH-17g follow-up — icn_bb_assign_lhs_gen implemented but key(x) generator
+        needs separate fix (may be in how key() is called, not in assignment pump logic).
 
-  Session notes (2026-05-17 extended final, one4all d9b56acb):
-    Implemented list slice support in subscript_get2: x[i:j] on lists now creates new list
-    instead of returning FAILDESCR. Uses DATCON_fn("icnlist",...) pattern matching list construction.
-    Gates remain stable (206/275/5/5). List slices pass parameter tests but substring test failures
-    (L tests) are due to nested slice assignment, not list slice reading. CH-17g blocks further
-    progress on table/scan failures.
+  Session notes (2026-05-17 final extended, one4all 63c6fd2a):
+    Implemented icn_bb_assign_lhs_gen function to support generators in LHS subscripts.
+    Added check in icn_bb_build for TT_ASSIGN with generative indices.
+    Gates stable (206/275/5/5). key(x) generator may need separate builtin implementation.
+    Test shows x[key(x)] := 99 assigned to wrong keys (only some set to 99, others unchanged).
+    Problem likely: key(x) not properly re-generating on each β pump, not in assignment logic.
+    Needs: check key() builtin implementation and how it interacts with every loop.
 
   Session notes (2026-05-17, one4all cac06b4e):
     IJ-19-remaining: fix TT_SEQ conjunction & short-circuit in bb_exec_stmt.
