@@ -59,6 +59,52 @@ Any frontend (SNOBOL4 / Snocone / Rebus / Icon / Prolog / Raku)
 
 ---
 
+## Remaining steps — eliminate pointer sidecars from SM_Program
+
+These are required for mode 4 (emit→asm→link→exec) correctness. In mode 3 (in-memory JIT) raw pointers in `SM_Program` happen to work. In mode 4 the emitter writes bytes to a file — a pointer from the compiler process is meaningless in the emitted binary. Every `tree_t*` and `IR_block_t*` embedded in `SM_Program` must be replaced by fully-lowered `IR_t` nodes so the emitter receives a self-contained graph.
+
+### Two pointer leaks to eliminate
+
+| Opcode | Embedded pointer | What it points to | Problem |
+|--------|-----------------|-------------------|---------|
+| `SM_PUSH_EXPR` | `a[0].ptr = tree_t*` | cloned AST subtree for deferred eval | mode-4 emitter cannot serialize a live heap pointer |
+| `SM_EXEC_STMT` | third arg `void* = IR_block_t*` | pattern DCG built by `IR_lower_pat` | same — pointer dies when compiler exits |
+
+### IEP-4 — Eliminate SM_EXEC_STMT IR_block_t* pointer
+
+- [ ] **IEP-4** — `SM_EXEC_STMT` currently carries the pattern DCG as a raw `IR_block_t*` pointer (set by `lower.c` line `sm_emit_sip(g_p, SM_EXEC_STMT, sname, has_eq, pat_dcg)`). Replace this with a stable integer index into a DCG roster attached to `SM_Program`. Concretely:
+
+  1. Add `IR_block_t **dcg_table; int dcg_count;` to `SM_Program` in `src/include/sm_prog.h`.
+  2. Add `sm_prog_dcg_register(SM_Program*, IR_block_t*) -> int index` in `sm_prog.c`.
+  3. In `lower.c`, replace `sm_emit_sip(…, pat_dcg)` with `sm_emit_sii(…, sm_prog_dcg_register(g_p, pat_dcg), 0)` — the pointer slot becomes an index.
+  4. Runtime (`sm_interp.c`, `sm_jit_interp.c`) resolves the index back to `IR_block_t*` via `sm->dcg_table[idx]` before calling `bb_broker`.
+  5. Emitter (`emit_ir_block`) receives the full `dcg_table` alongside `SM_Program` and serializes each `IR_block_t` as inline `IR_t` node data — no pointer emitted.
+
+  **Gate:** `scrip --sm-run` and `scrip --jit-run` produce identical output before and after. `SM_EXEC_STMT`'s third operand is an integer index, never a pointer.
+
+### IEP-5 — Eliminate SM_PUSH_EXPR tree_t* pointer
+
+- [ ] **IEP-5** — `SM_PUSH_EXPR` carries a raw `tree_t*` (a GC-cloned AST subtree for deferred expression evaluation, used for pattern arguments evaluated at match time). Replace with a fully-lowered `IR_t` subtree registered in the DCG roster:
+
+  1. In `lower.c`, when emitting `SM_PUSH_EXPR`, instead call `IR_lower_expr(t) -> IR_t*` to produce an `IR_t` node for the expression, register it in `dcg_table`, and emit `SM_PUSH_IR_EXPR` with the integer index.
+  2. Replace `SM_PUSH_EXPR` opcode with `SM_PUSH_IR_EXPR` (or reuse the slot with index semantics). Remove `SM_PUSH_EXPR` from `sm_prog.h` once all sites are migrated.
+  3. Runtime resolves `sm->dcg_table[idx]` and evaluates the `IR_t` expression via `IR_exec_once`.
+  4. Emitter serializes the `IR_t` expression nodes inline — no `tree_t*` in emitted output.
+
+  **Gate:** `SM_PUSH_EXPR` opcode eliminated from codebase. All former `SM_PUSH_EXPR` sites use `SM_PUSH_IR_EXPR` with integer index. `scrip --sm-run` and `scrip --jit-run` produce identical output before and after.
+
+### IEP-6 — Verify SM_Program is pointer-free
+
+- [ ] **IEP-6** — Audit `SM_Program` / `SM_Instr` for any remaining `void*` or `tree_t*` or `IR_block_t*` fields used as cross-phase carriers. The only surviving pointer fields must be:
+  - `dcg_table` itself (the roster — this IS the serializable payload, not a sidecar pointer)
+  - String literals (`char*` for `SM_PUSH_LIT_S` etc.) — these are data, not phase-boundary objects; emitter serializes them as inline bytes.
+
+  Confirm with `grep -n "void \*ptr\|tree_t \*\|IR_block_t \*" src/include/sm_prog.h` returning zero hits outside dcg_table.
+
+  **Gate:** `scrip --jit-emit --x64` on beauty.sno produces byte-identical output to the pre-IEP-4/5 baseline. Mode 4 readiness confirmed: no live-process pointers in `SM_Program`.
+
+---
+
 ## What next GOALs plug in here
 
 **GOAL-SN4-JVM-EMIT:** fill `g_emit_vtable_jvm.emit_scalar` and `.emit_generator` in a new `src/emitter/emit_jvm.c`. Walk IR_t nodes, emit Jasmin code equivalent to `src/runtime/jvm/bb_boxes.j`.
