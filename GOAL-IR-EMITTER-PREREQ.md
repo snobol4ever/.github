@@ -103,7 +103,7 @@ For cyclic nodes (IR_PAT_ARB, IR_PAT_SPAN, IR_PAT_ARBNO — where `port_resume` 
 
 ### IEP-1 — Define the emitter entry point signature
 
-- [ ] **IEP-1** — Define `emit_ir_block(IR_t *cfg, FILE *out, const char *target)` in a new file `src/emitter/emit_ir.h`. This is the single entry point all target emitters will implement. `target` is one of `"x86"`, `"jvm"`, `"js"`, `"wasm"`, `"net"`, `"c"`. Add a dispatch table: `emit_ir_block` calls `emit_ir_block_jvm` / `emit_ir_block_js` etc. based on target. No implementation yet — stubs only (return 0, emit a comment).
+- [x] **IEP-1** — Define `emit_ir_block(IR_t *cfg, FILE *out, const char *target)` in a new file `src/emitter/emit_ir.h`. ✅ one4all `b7f54805` This is the single entry point all target emitters will implement. `target` is one of `"x86"`, `"jvm"`, `"js"`, `"wasm"`, `"net"`, `"c"`. Add a dispatch table: `emit_ir_block` calls `emit_ir_block_jvm` / `emit_ir_block_js` etc. based on target. No implementation yet — stubs only (return 0, emit a comment).
 
   Also define `ir_node_id(IR_t *nd)` — returns `nd->id` if nonzero, else `(int)(uintptr_t)nd % 100000` as a stable surrogate. Emitters use this for all label/name generation.
 
@@ -182,9 +182,9 @@ For cyclic nodes (IR_PAT_ARB, IR_PAT_SPAN, IR_PAT_ARBNO — where `port_resume` 
 ## State
 
 ```
-watermark: IEP-0
-head: (not started)
-session: (not started)
+watermark: IEP-1
+head: b7f54805
+session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
 ---
