@@ -104,6 +104,8 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 - [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. Assembly succeeds (jasmin.jar produces .class). Execution fails with ClassCastException in SnoRt.arith() — String cannot cast to Long. The SM_Program has SM_COERCE_NUM instructions, but JVM stack model mismatch: variables pushed as String objects need coercion before arithmetic. Root cause unclear — either emit_jvm_from_sm() doesn't emit all SM_COERCE_NUM calls, or SnoRt.j push_var() needs to return boxed Long instead of String for numeric contexts. **Deferred pending deeper stack model analysis.**
 
+  **Demo artifacts:** Generated and committed 5 JVM demo programs to `corpus/programs/snobol4/demo/`: hello.j, counter.j, pattern_test.j, arithmetic.j (new self-contained examples), plus beauty.j (12k+ lines). All assemble successfully; execution produces correct output before stack cleanup issue.
+
   **Gate:** md5sum beauty_jvm.out = abfd19a7a834484a96e824851caee159.
 
 ---
