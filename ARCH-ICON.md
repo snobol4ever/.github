@@ -87,6 +87,21 @@ This is the ground truth for what each Icon construct does.
 
 ---
 
+## Co-expressions and TT_SUSPEND
+
+**Co-expression support is ENABLED (Lon decision 2026-05-15).**
+
+Co-expressions (`create E`, `@C`, `^C`) and user-proc suspend/resume (`TT_SUSPEND`) are
+legitimate Icon features that use ucontext-based coroutines in coro_runtime.c. These are
+NOT Byrd boxes — they are a separate suspension mechanism for user-defined generators.
+
+What remains banned: implementing Byrd box constructs (TT_TO, TT_ALTERNATE, etc.) as
+`DESCR_t foo(void *zeta, int entry)` C functions. Those must be IR_block_t DCGs.
+Co-expressions and TT_SUSPEND use their own separate call path via icn_bb_suspend
+and the ucontext machinery — this path is correct and should be completed.
+
+---
+
 ## Active goal
 
 GOAL-ICON-BB-NATIVE.md — implement Icon generator constructs as flat BB
