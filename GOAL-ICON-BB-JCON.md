@@ -305,6 +305,8 @@ Next DCGs to implement (highest ir-run yield first):
         and implement sm_yield_to_caller to save SM_State into g_current_gen_state and return
         SM_INTERP_SUSPENDED from sm_interp_run. Then bb_broker_drive_sm_one works correctly.
         This is pure SM-level mechanism -- no AST, no tree_t*, no ucontext.
+        OPTIONAL: the stmt-walking logic from git b5407597^ icn_bb_proc_call can guide lower_icn_proc_gen()
+        if a lower-time DCG approach is preferred -- but the SM_SUSPEND fix is simpler and sufficient.
         Session 2026-05-15 explored three wrong approaches (see session notes below); correct path above.
         rung32_strretval_strret_every (generative arg through user proc);
         rung36_jcon_scan: every (("a"|"b") ? write(upto(!&lcase))) only yields 2 values instead
