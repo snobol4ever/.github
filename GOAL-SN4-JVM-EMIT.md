@@ -92,9 +92,13 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-3 — Smoke 7/7
 
-- [ ] **SJ4-JVM-3** (deferred) — Write `scripts/test_smoke_snobol4_jvm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=jvm`, assemble with jasmin.jar, run with java, compare output to oracle.
+- [ ] **SJ4-JVM-3** (deferred) — Write `scripts/test_smoke_snobol4_jvm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --jit-emit --target=jvm`, assemble with jasmin.jar, run with java, compare output to oracle.
 
   **Gate:** 7/7 PASS.
+
+### SJ4-JVM-3.5 — Scalar emitter (SM_Program walker)
+
+- [x] **SJ4-JVM-3.5** (sess 2026-05-15b) — Implement `emit_jvm_from_sm()` SM_Program walker and `emit_jvm_program()` entry point. Converts SM opcodes to Jasmin invokestatic calls to rt/SnoRt static methods. Update prologue/epilogue to emit .class wrapper. Wire into scrip.c. Test hello.sno: emits → assembles → runs → correct output ✅.
 
 ### SJ4-JVM-4 — Beauty self-host
 
@@ -107,9 +111,10 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SJ4-JVM-2 — SJ4-JVM-3 deferred (gate script ready; needs SJ4-JVM-3.5 scalar emitter)
-head: 49762ec4
-session: 2026-05-15 (Claude Sonnet 4.6)
+watermark: SJ4-JVM-3.5 — scalar emitter complete (SM_Program walker + emit_jvm_program)
+head: 0f3e3476
+session: 2026-05-15b (Claude Sonnet 4.6)
+test: hello.sno → .j → .class → java runs successfully, prints "hello"
 ```
 
 ---
