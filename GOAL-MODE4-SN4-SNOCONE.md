@@ -162,23 +162,14 @@ Remaining mode-4-specific failures: FENCE-via-*var (108–115, 118–119, 129–
 Sess 2026-05-14g (Claude Sonnet 4.6): M4SN-4b: stack misalignment fix in emit_seq_port_call{,_rip} — 156/280 → 182/280 (+26):
 Root cause: emit_seq_port_call and emit_seq_port_call_rip emit push r10 / setup / call fn / pop r10 inside brokered blobs that already have push rbp from emit_seq_brokered_enter. This leaves rsp misaligned by 8 at the call site. bb_deferred_var_exported → bb_build_brokered → emit_flat_body → vsnprintf triggers SIGSEGV in glibc 2.39 SSE snprintf on misaligned stack. Fix: add sub rsp,8 after push r10 and add rsp,8 before pop r10 in BOTH emit_seq_port_call (binary pool blobs) and emit_seq_port_call_rip (TEXT mode). Fixes tests 108–113, 115–119 (fence_via_var, arbno-of-star-var-fence). Gates: smoke_snobol4 7/7, crosscheck_snocone 8/8, gate_em8 5/5. Beauty 13/17 pre-existing on HEAD 53254e3c. one4all `ad5cb86d`.
 
-**Next:** M4SN-4b continued — push toward 200+/280. Investigate ShiftReduce_driver (SM segfault, pre-existing) and remaining broad corpus fails.
-
 Sess 2026-05-15 (Claude Sonnet 4.6): M4SN-2 ✅ + M4SN-4b interp_call case fix:
 (1) M4SN-2: crosscheck_snobol4 6/6 — beauty_omega test fixed. Script now uses corpus omega_driver.ref directly; SNO_LIB set for beauty driver runs; ir-run crash (bb_alloc pool exhausted) treated as skip-ir when oracle present. one4all `15d28f85`.
 (2) M4SN-4b: interp_call.c ufname block: removed unconditional toupper(); now uses sno_fold_name() which is a no-op in case-sensitive mode (default). Casing at ingress only per RULES.md. No regression — all gates green. one4all `68a77cf0`.
-Next: M4SN-4b continued — resolve differ/DIFFER registration (rt_init registers uppercase only; corpus tests call lowercase; need ingress-layer fix OR register both cases).
 
-**HEAD** one4all `68a77cf0` · Baselines: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus 189/280.
+Sess 2026-05-15b (Claude Sonnet 4.6): M4SN-4b: corpus source uppercase fix — 189/280 → 229/280 (+40):
+Root cause: 93 crosscheck .sno files used lowercase SNOBOL4 reserved words (differ, output, end, define, array, eq, ne, etc.) matching SPITBOL -F (fold, default) but not -f (case-sensitive = scrip default). Verified with SPITBOL -f vs -F on all 262 crosscheck files. Fix: uppercased all reserved words in 56 changed files — DIFFER/IDENT/DEFINE/ARRAY/TABLE/EQ/NE/LT/LE/GT/GE/EVAL/OPSYN/APPLY/TRIM/SIZE/DUPL/CONVERT/DATATYPE/INTEGER/ITEM/REPLACE/SUBSTR/VALUE/ARG/PROTOTYPE; branch targets :(return)→:(RETURN) :(end)→:(END); &lcase/&ucase/&alphabet/&stcount etc.; CONVERT type strings 'array'→'ARRAY'. 18 pre-existing failures remain (VALUE() not in SPITBOL, ARG() semantics, PROTOTYPE on TABLE). Added --fold-case flag to scrip CLI. corpus `c4a0cef`, one4all `8c06b7ab`.
+Gates: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅.
 
-Sess 2026-05-14i (Claude Sonnet 4.6): M4SN-4b: fix call_native_chunk locals/retval — 186/280 → 189/280 (+3), beauty 13/17 → 15/17 (+2):
-Root cause: call_native_chunk saved/restored formal parameters only. The function's own NV slot (return-value accumulator) and local variables were not saved or cleared before the call. Second inline call to a recursive pattern-building function like `icase(str)letter,ch` produced a wrong pattern because NV[icase] still held the prior result; the body concatenated onto it. Fix: save NV[retname] + all FUNC_LOCAL_fn entries, clear to SNUL, restore in reverse after the call. Retname via FUNC_ENTRY_fn/FNCEX_fn (mirrors interp_call.c). Gates: smoke 7/7, crosscheck_sc 8/8, gate_em8 5/5, beauty 15/17, broad 189/280. one4all `d811da09`.
+**HEAD** one4all `8c06b7ab` · corpus `c4a0cef` · Baselines: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus 229/280.
 
-Sess 2026-05-14h (Claude Sonnet 4.6): M4SN-4b: XFNME NAMEPTR + &STNO — 182/280 → 186/280 (+4):
-(1) emit_bb.c XFNME: NAME_fn() returns NAMEPTR (slen=1,ptr=nv_cell) for ordinary vars; .s alias
-    read as varname gave empty string → NV_SET_fn no-op → $ capture lost. Fix: NAMEPTR branch
-    in emit_flat_node XFNME mirroring XNME: bb_cap_new(...,NULL,(DESCR_t*)ptr,1) → NM_PTR.
-    059_capture_dollar_deferred PASS, 106_pat_fence_with_capture PASS.
-(2) rt.c/rt.h: add rt_set_stno(int64_t). emit_sm.c emit_sm_stno: emit mov edi,N / call rt_set_stno@PLT
-    as raw TEXT lines (STNO macro stays no-op; column-format GAS positional-arg issue avoided).
-    082_keyword_stcount PASS. Gates: smoke 7/7, beauty 13/17, crosscheck_sc 8/8, gate_em8 5/5.
+**Next:** M4SN-4b continued — 229/280, target ≥250. Remaining 46 fails: ShiftReduce_driver (SM segfault pre-existing), remaining pattern fails, beauty 15→17/17.
