@@ -204,20 +204,39 @@ int emit_js_epilogue(IR_block_t * cfg, FILE * out) {
 
 **Gate:** Valid JS with switch loop structure; doesn't execute yet but parses.
 
-### Phase 3: Statement Boundaries (SJ4-JS-3c)
+### Phase 3: Statement Boundaries (SJ4-JS-3c) — ARCHITECTURE REVISED
 
-Wire statement case numbers via IR metadata or visitor context:
+**Critical discovery:** The lower phase does NOT create scalar IR_t nodes. It emits SM_Program (stack machine instructions) directly. IR_block_t is only created for patterns (patterns are generators; scalars execute linearly).
+
+**Revised approach:** Instead of using IR walk for scalars, iterate over SM_Program instruction stream:
 
 ```c
-typedef struct {
-    IR_emit_vtable_t * vt;
-    FILE * out;
-    int stmt_id;
-    int case_num;
-} emit_js_context_t;
+int emit_js_from_sm_program(SM_Program * sm, FILE * out) {
+    for (int i = 0; i < sm->count; i++) {
+        SM_Instr * instr = &sm->instrs[i];
+        switch (instr->op) {
+        case SM_PUSH_LIT_I:
+            fprintf(out, "rt.push_int(%lld); ", instr->a[0].i);
+            break;
+        case SM_PUSH_LIT_S:
+            fprintf(out, "rt.push_str(\"%s\", %d); ", instr->a[0].s, (int)strlen(instr->a[0].s));
+            break;
+        case SM_STORE_VAR:
+            fprintf(out, "rt.store_var(\"%s\"); ", instr->a[0].s);
+            break;
+        case SM_CONCAT:
+            fprintf(out, "rt.concat(); ");
+            break;
+        case SM_STNO:
+            fprintf(out, "case %lld: ", instr->a[0].i);
+            break;
+        // ... etc
+        }
+    }
+}
 ```
 
-Each statement's entry IR_t node gets a case label.
+**This requires changing the emission entry point** from IR-based to SM-based for SNOBOL4 scalars.
 
 **Gate:** test_smoke_snobol4_js.sh produces executable JS for hello.sno.
 
