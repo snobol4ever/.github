@@ -291,15 +291,26 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: caa71037  corpus: 1fe096c
+  one4all: cac06b4e  corpus: 1fe096c
   ir-run:  PASS=206 FAIL=24 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining -- BB path for "if s[i:j]:=val" broken (icn_value.c TT_SECTION
-        in TT_ASSIGN handler -- icn_string_section_assign receives TT_IDX not TT_SECTION).
-        Standalone s[i:j]:=val now works via new SM ICN_SECTION_RANGE_SET.
-        s[i]:=val in every loop works via BB frame scope_get fix.
-        CH-17g-blocked: scan, string, wordcnt. substring J still -- (every loop s[i]:=t[i]).
+  NEXT: IJ-19-remaining -- list negative indexing off-by-one (x[-2] on 3-elem list
+        returns last elem instead of second-to-last; x[-1] silently fails).
+        list slice x[1:0] returns string chars instead of list elems (hits string path).
+        every x[key(x)] := 99 CH-17g-blocked (generator in LHS subscript not re-pumped).
+
+  Session notes (2026-05-17, one4all cac06b4e):
+    IJ-19-remaining: fix TT_SEQ conjunction & short-circuit in bb_exec_stmt.
+    Root cause: TT_SEQ (Icon & operator) shared case with TT_SEQ_EXPR (block) in
+    bb_exec_stmt; both used bb_exec_stmt per child which discards return value and
+    never short-circuits. Fix: TT_SEQ now uses bb_eval_value per child, returns on
+    IS_FAIL_fn. TT_SEQ_EXPR keeps bb_exec_stmt per child (statement failure absorbed).
+    Reproducer: every x := 0|1|2 do { member(T,x) & write(x) } -- write fired for
+    all x; now fires only when member succeeds. Gates unchanged (206/275/5/5/23) --
+    fix is correctness improvement; failing rungs have additional issues beyond this.
+    Investigated next: list negative indexing (x[-2] off-by-one) and list slices
+    (x[1:0] hitting string path). Not yet fixed -- context window limit reached.
 
   Session notes (2026-05-16, one4all 00da02b6):
     TT_SUSPEND user-proc generators implemented via GeneratorState DCG.
