@@ -641,27 +641,6 @@ IR_lower_pat() -- build IR_prog_t from SNOBOL4 pattern tree
 Rationale: `IR_` is visually distinct from `tree_t`, `DESCR_t`, `PATND_t`.
 Lowercase `ir_` is hard to read in dense C code.
 
-### ⛔ "gen" banned from opcode names and IR identifiers
-
-Do **not** use the word `gen` or `generator` in SM opcode names, IR struct names,
-or C function names introduced by GOAL-LOWER-REDESIGN.
-The correct term is **DCG** (Directed Cyclic Graph) — the structural description of what
-the IR actually is.  "Generator" is Icon academic terminology and was already dropped
-as a phase/IR label in the FINAL PIPELINE clarification.
-
-| Wrong | Correct |
-|-------|---------|
-| `SM_EXEC_GEN` | `SM_EXEC_DCG` |
-| `SM_PUMP_GEN` | `SM_PUMP_DCG` |
-| `ir_graph_t` | `IR_t` |
-| `ir_node_t` | `IR_t` (node) |
-| `ir_kind_t` | `IR_kind_t` |
-| `ir_exec_once` / `ir_exec_pump` | `IR_exec_once` / `IR_exec_pump` |
-| `ir_graph_alloc` / `ir_graph_free` etc. | `IR_alloc` / `IR_free` etc. |
-| `ir_gen_*` functions | `IR_*` (uppercase prefix throughout) |
-| "generator graph" in comments | "DCG" |
-
----
 
 ## Snocone parser style — names track the existing frontend; no goto unless required
 
