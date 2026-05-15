@@ -75,7 +75,7 @@ Today lower embeds raw pointers from prior phases into `SM_Program`. All three m
 
 ### IEP-4 — Add DCG roster to SM_Program; replace SM_EXEC_STMT IR_block_t* with index
 
-- [ ] **IEP-4** — Add `IR_block_t **dcg_table; int dcg_count; int dcg_cap;` to `SM_Program` in `src/include/sm_prog.h`. Add `sm_prog_dcg_add(SM_Program*, IR_block_t*) -> int` in `sm_prog.c` — appends to roster, returns integer index. In `lower.c`, replace:
+- [x] **IEP-4** — Add `IR_block_t **dcg_table; int dcg_count; int dcg_cap;` to `SM_Program` in `src/include/sm_prog.h`. Add `sm_prog_dcg_add(SM_Program*, IR_block_t*) -> int` in `sm_prog.c` — appends to roster, returns integer index. In `lower.c`, replace:
   ```c
   sm_emit_sip(g_p, SM_EXEC_STMT, sname, (int64_t)has_eq, (void *)pat_dcg);
   ```
@@ -124,8 +124,8 @@ Today lower embeds raw pointers from prior phases into `SM_Program`. All three m
 ## State
 
 ```
-watermark: IEP-3 (IEP-4/5/6/7 open)
-head: 1e7a7f5e
+watermark: IEP-4 (IEP-5/6/7 open)
+head: d9dff43a
 session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
