@@ -102,13 +102,21 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-4 — Beauty self-host
 
-- [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. **Arithmetic type mismatch fixed** ✓ via SM_COERCE_NUM insertion. Simple arithmetic tests (hello, counter, pattern_test, arithmetic.sno) now execute correctly on JVM producing correct output. Beauty.sno progresses past initial push/counter logic but hits NumberFormatException when attempting to coerce non-numeric strings ("#N" variable patterns). Issue is context-dependent: beauty has mixed numeric and string operations; need selective coercion (only when operands are truly numeric, not string intermediate forms). 
+- [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. **Arithmetic type mismatch partially fixed** ✓ via SM_COERCE_NUM insertion. Simple arithmetic tests (hello, counter, pattern_test, arithmetic.sno) execute correctly on JVM producing correct output (7, 30, 3, 13). Beauty.sno assembly succeeds but execution fails on NumberFormatException when coerce_num() attempts to parse non-numeric variable name "#N" (used in arithmetic expression while undefined, defaulting to name string).
 
-  **Root cause:** Unary operators (like unary plus) already insert SM_COERCE_NUM, but binary arithmetic operators (add/sub/mul/div/mod) did not. Fixed via lower.c: each operator now explicitly coerces both operands before operation.
+  **Root cause analysis:** SM_COERCE_NUM insertion is overly aggressive — it coerces ALL arithmetic operands regardless of context. Beauty.sno uses variable names like `#N` in arithmetic expressions, but when undefined, they default to their name string `"#N"`, which coerce_num() cannot parse as Long.
+
+  **Solution options (not yet implemented):**
+  1. Type inference during SM lowering — mark variables as numeric/string/undefined
+  2. Conditional coercion — suppress for string-only contexts (concat, pattern match)
+  3. Graceful fallback — modify coerce_num() in SnoRt.j to return 0 for unparseable strings (SNOBOL4 semantic)
+  4. Variable semantics — investigate why undefined variables default to their name string instead of numeric 0
+
+  **Current status:** Arithmetic fix ✅ works for simple programs; beauty.sno deferred pending variable initialization semantics analysis.
 
   **Demo artifacts:** hello.j, counter.j, pattern_test.j, arithmetic.j all run successfully; arithmetic produces: 7, 30, 3, 13 (10+3, 10*3, 10-3, 10÷3).
 
-  **Gate:** arithmetic smoke 4/4 PASS; beauty.sno assembly succeeds, execution started but needs further context-aware coercion analysis.
+  **Gate:** arithmetic smoke 4/4 PASS; beauty.sno assembly succeeds, execution halts on variable coercion edge case.
 
 ---
 
@@ -150,10 +158,10 @@ beauty.j:       226c5bac25dd7fd69f297dfdcfdf327c (12343 lines, comprehensive tes
 ## State
 
 ```
-watermark: SJ4-JVM-3 ✅ complete; SJ4-JVM-4 in progress — SM_COERCE_NUM arithmetic fix ✅; smoke 7/7 PASS; demo artifacts regenerated & verified (5 programs, checksums match); beauty.sno assembly succeeds, execution started (hits non-numeric coercion edge case).
-head: c197e2f9 (one4all), ee8aa820 (.github)
+watermark: SJ4-JVM-3 ✅ complete; SJ4-JVM-4 in progress — SM_COERCE_NUM arithmetic fix ✅ for simple cases; demo artifacts verified; beauty.sno exec halts on undefined variable coercion (variable #N defaults to name string, coerce fails). Root cause: variable initialization semantics; need type-aware or graceful fallback coercion strategy.
+head: 6171c5ba (one4all), 356ca0f5 (.github), 5981718 (corpus — regenerated demo artifacts)
 session: 2026-05-15d (Claude Haiku 4.5, continued)
-test: arithmetic smoke 4/4 PASS (7, 30, 3, 13); demo artifacts all assemble ✓; beauty.sno progresses but needs context-aware coercion strategy
+test: arithmetic smoke 4/4 PASS (7, 30, 3, 13); demo artifacts all assemble ✓; beauty.sno progresses to variable arithmetic, hits coerce edge case
 ```
 
 ---
