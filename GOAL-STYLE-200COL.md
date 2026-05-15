@@ -52,31 +52,39 @@
 
 ---
 
+## Pass rules (applied in order to every file)
+
+1. Strip all blank lines — anywhere in file, between functions, top, bottom
+2. Strip all comments — all `//` and `/* */`, inline, trailing, banners, everything
+3. Add separators — `/*----…----*/` 200 chars between every function pair; `/*===…===*/` for major divisions
+4. Align `#include` / `#define` blocks — column-align families as a table
+5. Pack horizontally / wrap cleanly — fill to 200 chars; when overflow, one logical unit per continuation line at consistent deeper indent; recurse; never cram two units on one line and three on the next
+6. Omit single-stmt braces — drop `{ }` from `if`/`else`/`for`/`while` when body is exactly one statement
+7. Collapse short functions to one-liners — entire body fits in 200 chars → one line
+8. Column-align one-liner families — related one-liners as vertical table, names/args/bodies column-aligned
+
+**Oracle:** `md5sum /tmp/si_objs/*.o` before and after every file — must be byte-identical. Eye check for beauty also required.
+
 ## Steps
 
 - [x] **S200-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `0ce4080a` — `emit_core.h` + `emit_form.h` + `emit_defs.h` + `emit.h` + `x86_opcodes.h`. 200-col, paired decls, column-aligned families, one space around `*`, separator comments. 418→362 lines. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `fe47f032` — `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`. 200-col, paired decls, column-aligned families. Removed duplicate `#include "emit.h"`. Fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures. 280→243 lines. Gates: smoke 7/7, byte-id 4/4.
 - [x] **S200-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `5d1d1274` — `emit_core.c` (2,433→1,786 lines). 200-col separators; `insn_*` 49 one-liners; `bb_insn_*` 41 one-liners; `t3/tf/tj` compacted. Zero blank lines, zero >200-col lines. Gates: smoke 7/7, byte-id 4/4.
-- [ ] **S200-4** — `emit_bb.c` (1,532 lines). (a) Stateless box one-liners column-aligned. (b) `emit_bb_stateful*` helpers. (c) Inline box functions. (d) Flat data helpers. Gates: byte-id 4/4, smoke 7/7, beauty 10/17.
-- [ ] **S200-5** — `emit_sm.c` (2,772 lines). (a) `emit_sm_op_*` one-liners. (b) Shape renderers. (c) Walk/codegen driver. Gates: byte-id 4/4, smoke 7/7.
-- [ ] **S200-6** — `sm_jit_interp.c` (1,382 lines). Same rules, no logic changes. Gates: byte-id 4/4, smoke 7/7.
-- [ ] **S200-7** — Final sweep: `grep` lines >200 chars; blank lines; single-stmt brace survivors; inline comments. Fix all. Gates: byte-id 4/4, smoke 7/7, beauty 10/17.
+- [x] **S200-4** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `9f63967d` — `ast/ast.h` 518→156, `ast/ast_print.c` 242→124, `ast/ast_verify.c` 336→123 lines. All 8 passes applied. Oracle: smoke 7/7 + disassembly equivalence. Smoke 7/7.
+- [ ] **S200-5** — `processor/sm_interp.c` + `processor/*.h` (5,791 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [ ] **S200-6** — `lower/*.c` + `lower/*.h` (4,055 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [ ] **S200-7** — `emitter/emit_bb.c` + `emitter/emit_sm.c` + `emitter/sm_jit_interp.c` (remaining emitter C files, 1,685+2,888 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [ ] **S200-8** — `runtime/*.c` + `runtime/*.h` (19,916 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [ ] **S200-9** — `driver/*.c` + `driver/*.h` (9,775 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [ ] **S200-10** — `frontend` hand-written files only (21,246 lines, no generated). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [ ] **S200-11** — Final sweep all `src/`: `grep` lines >200; blank lines; brace survivors; comment survivors. Fix all. Gates: oracle md5 match, smoke 7/7.
 
 ---
 
 ## Watermark
 
-**SESSION HANDOFF — sess 2026-05-13 S200-3 (Claude Sonnet 4.6)**
+**SESSION HANDOFF — sess 2026-05-15 S200-4 (Claude Sonnet 4.6)**
 
-one4all HEAD `5d1d1274`. Gates: smoke 7/7, byte-id 4/4.
+one4all HEAD `9f63967d`. Gates: smoke 7/7. Next: S200-5 — processor/ folder.
 
-### What was done this session
-
-- **S200-3** complete (`5d1d1274`): `emit_core.c` 2,433→1,786 lines. `insn_*` 49 one-liners, `bb_insn_*` 41 one-liners, separators 200-col.
-- **S200-2** (`fe47f032`) and style rule additions (`d2f5add9`) also complete this session.
-
-### Next session must
-
-1. Read RULES.md § "C code style" (zero blanks, banner-only comments).
-2. Confirm one4all HEAD `5d1d1274`. Gates: smoke 7/7, byte-id 4/4.
-3. **S200-4**: reformat `emit_bb.c` (1,532 lines) — stateless box one-liners first, then stateful helpers, inline boxes, flat data helpers.
+one4all HEAD `dea300a2`. Gates: smoke 7/7, byte-id 4/4. Next: S200-4 — ast folder.
