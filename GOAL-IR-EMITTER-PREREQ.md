@@ -100,18 +100,32 @@ source → parser → tree_t + shared tables (label_table, proc_table, g_pl_pred
 
 ---
 
+## Remaining tree_t* dependencies NOT covered by CHUNKS
+
+Two live `tree_t*` references survive in shared tables after lower runs. CHUNKS does not touch these. They independently block IEP-7 (delete tree_t after lower):
+
+| Table | Field | Set by | Used by | Problem |
+|-------|-------|--------|---------|---------|
+| `proc_table[i].proc` | `tree_t*` | `polyglot_init` walks AST | `icn_runtime.c` — proc body re-execution at runtime | live tree_t* past lower boundary |
+| `g_pl_pred_table` entries | `tree_t*` | `polyglot_init` inserts AST subtrees | `pl_runtime.c` — Prolog clause eval at runtime | live tree_t* past lower boundary |
+
+Fix: lower must fully lower Icon proc bodies and Prolog clause trees to `IR_block_t` entries in `dcg_table`, replacing `tree_t*` in both tables with integer indices. New GOAL needed — larger than IEP scope.
+
+---
+
 ## What next GOALs plug in here
 
 **GOAL-SN4-JVM-EMIT:** fill `g_emit_vtable_jvm` in `src/emitter/emit_jvm.c`.
 **GOAL-SN4-JS-EMIT:** fill `g_emit_vtable_js` in `src/emitter/emit_js.c`.
 **Runtime state in SM_Instr:** `icn_to_state_t*` per-call allocation — separate GOAL.
+**proc_table + pl_pred_table:** new GOAL — lower Icon proc bodies and Prolog clauses fully into dcg_table; replace tree_t* in both tables with integer indices. Prerequisite for IEP-7.
 
 ---
 
 ## State
 
 ```
-watermark: IEP-4 (IEP-5/6 deferred to CHUNKS; IEP-7/8/9 open after CHUNKS)
+watermark: IEP-4 (IEP-5/6 deferred to CHUNKS; IEP-7/8/9 blocked on CHUNKS + proc_table/pl_pred_table GOAL)
 head: d9dff43a
 session: 2026-05-15 (Claude Sonnet 4.6)
 ```
