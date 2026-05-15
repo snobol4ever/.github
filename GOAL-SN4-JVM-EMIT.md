@@ -104,7 +104,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 - [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. **Arithmetic type mismatch partially fixed** ✓ via SM_COERCE_NUM insertion. Simple arithmetic tests (hello, counter, pattern_test, arithmetic.sno) execute correctly on JVM producing correct output (7, 30, 3, 13). Beauty.sno assembly succeeds but execution fails on NumberFormatException when coerce_num() attempts to parse non-numeric variable name "#N" (used in arithmetic expression while undefined, defaulting to name string).
 
-  **Root cause analysis:** SM_COERCE_NUM insertion is overly aggressive — it coerces ALL arithmetic operands regardless of context. Beauty.sno uses variable names like `#N` in arithmetic expressions, but when undefined, they default to their name string `"#N"`, which coerce_num() cannot parse as Long.
+  **Root cause analysis:** Stack model issue with undefined variables. Investigation shows: when undefined variable is assigned (e.g., `X = Y` where Y is undefined), JVM stack underflows on halt_tos(). This suggests push_var() may not handle undefined variables correctly, or variable assignment doesn't push expected values. This is deeper than coercion — it's about how undefined variables propagate through the stack model.
 
   **Solution options (not yet implemented):**
   1. Type inference during SM lowering — mark variables as numeric/string/undefined
