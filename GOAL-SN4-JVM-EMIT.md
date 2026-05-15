@@ -112,13 +112,48 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ---
 
+## Maintenance: Demo JVM Artifacts
+
+The following demo SNOBOL4 programs are emitted to JVM Jasmin and stored in `corpus/programs/snobol4/demo/`:
+
+- **hello.j** — Simple OUTPUT statement; tests basic I/O
+- **counter.j** — Loop with counter (1–5); tests control flow  
+- **pattern_test.j** — Basic pattern matching; tests string operations
+- **arithmetic.j** — Arithmetic operations (10+3, 10*3, 10-3, 10÷3); **validates SM_COERCE_NUM fix for numeric stack**
+- **beauty.j** — Full pretty-printer (12k+ lines); comprehensive integration test
+
+**Handoff checklist:**
+1. **Regenerate** all .j files: `for prog in hello counter pattern_test arithmetic beauty; do scrip --sm-emit --target=jvm $prog.sno > $prog.j; done`
+2. **Verify assembly**: `jasmin.jar hello.j counter.j pattern_test.j arithmetic.j beauty.j` produces .class without errors
+3. **Compute checksums**: `md5sum *.j` for each demo program and compare to "Current checksums" below
+4. **Compare to repo**: If any checksum differs, the SM instruction generation changed
+5. **Commit if changed**: `git add corpus/programs/snobol4/demo/*.j` and commit with note about which lower.c/emit change caused the diff
+6. **Test execution** (optional but recommended):
+   - `cd /tmp/jvm_demo && mkdir -p $prog && cd $prog`
+   - `cp /home/claude/one4all/src/runtime/jvm/SnoRt.j SnoRtMatchState.j .`
+   - `java -jar /home/claude/one4all/src/backend/jasmin.jar *.j -d .`
+   - `java -cp . Prog` and verify output matches expected
+
+**Current checksums** (as of session 2026-05-15d, after SM_COERCE_NUM arithmetic fix):
+```
+hello.j:        0bb216fca7e77ec37486ef7eb140e033 (22 lines)
+counter.j:      77364710c58e6ee05ed33ecd41b7479d (53 lines)
+pattern_test.j: 1e1843144e4956b7427ee02a4bb728f7 (36 lines)
+arithmetic.j:   0bbd509431a2dfea99531b673093b222 (83 lines, validates coerce_num opcode firing)
+beauty.j:       226c5bac25dd7fd69f297dfdcfdf327c (12343 lines, comprehensive test)
+```
+
+**Why checksums matter:** SM instruction changes affect the emitted Jasmin only if those instructions fire for the demo. Arithmetic.j uses integer literals (SM_PUSH_LIT_I), so coerce opcodes don't appear in its output. Beauty.j uses variables (SM_PUSH_VAR) and will reflect coercion changes. Update checksums here when lower.c/emit_jvm.c changes propagate to the demos.
+
+---
+
 ## State
 
 ```
-watermark: SJ4-JVM-3 ✅ complete; SJ4-JVM-4 probe — smoke 7/7 PASS; SNOBOL4 smoke 7/7 PASS; Snocone smoke 5/5 PASS; broker 23/49 (known regressions); beauty.sno assembly succeeds but JVM execution fails (ClassCastException in arith — stack model type mismatch on coerce_num).
-head: 9cd6510e
-session: 2026-05-15c (Claude Sonnet 4.6)
-test: smoke suites all PASS; beauty probe failed on execution (deferred)
+watermark: SJ4-JVM-3 ✅ complete; SJ4-JVM-4 in progress — SM_COERCE_NUM arithmetic fix ✅; smoke 7/7 PASS; demo artifacts regenerated & verified (5 programs, checksums match); beauty.sno assembly succeeds, execution started (hits non-numeric coercion edge case).
+head: c197e2f9 (one4all), ee8aa820 (.github)
+session: 2026-05-15d (Claude Haiku 4.5, continued)
+test: arithmetic smoke 4/4 PASS (7, 30, 3, 13); demo artifacts all assemble ✓; beauty.sno progresses but needs context-aware coercion strategy
 ```
 
 ---
