@@ -298,13 +298,16 @@ Next DCGs to implement (highest ir-run yield first):
   NEXT: IJ-19-remaining CH-17g follow-up — icn_bb_assign_lhs_gen implemented but key(x) generator
         needs separate fix (may be in how key() is called, not in assignment pump logic).
 
-  Session notes (2026-05-17 final extended, one4all 63c6fd2a):
-    Implemented icn_bb_assign_lhs_gen function to support generators in LHS subscripts.
-    Added check in icn_bb_build for TT_ASSIGN with generative indices.
-    Gates stable (206/275/5/5). key(x) generator may need separate builtin implementation.
-    Test shows x[key(x)] := 99 assigned to wrong keys (only some set to 99, others unchanged).
-    Problem likely: key(x) not properly re-generating on each β pump, not in assignment logic.
-    Needs: check key() builtin implementation and how it interacts with every loop.
+  Session notes (2026-05-17 EMERGENCY FINAL, one4all 63c6fd2a):
+    CH-17g: icn_bb_assign_lhs_gen implemented. key() generator EXISTS (icn_bb_tbl_key_iterate).
+    BLOCKER IDENTIFIED: table test shows x[key(x)]:=99 fails — values remain 88 not 99.
+    Hypothesis: subscript_set() for tables works (line 469: table_set_descr called).
+    BUT: the assignment pump may be restoring saved value on β instead of keeping assignment.
+    BUG LIKELY: icn_bb_assign_lhs_gen line ~660 calls subscript_set but doesn't prevent
+    restoration of saved value. Check: when entry != α, it restores z->saved before pump.
+    FIX: probably need to NOT restore on β if this is persistent assignment (not revassign).
+    NEXT: trace through revassign_lhs_gen vs assign_lhs_gen logic — are they identical?
+    They probably shouldn't be: revswap UNDOES on β; assign should PERSIST assignment on β.
 
   Session notes (2026-05-17, one4all cac06b4e):
     IJ-19-remaining: fix TT_SEQ conjunction & short-circuit in bb_exec_stmt.
