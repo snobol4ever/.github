@@ -92,7 +92,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-3 — Smoke 7/7
 
-- [ ] **SJ4-JVM-3** (deferred) — Write `scripts/test_smoke_snobol4_jvm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --jit-emit --target=jvm`, assemble with jasmin.jar, run with java, compare output to oracle.
+- [x] **SJ4-JVM-3** (deferred) — Write `scripts/test_smoke_snobol4_jvm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --jit-emit --target=jvm`, assemble with jasmin.jar, run with java, compare output to oracle.
 
   **Gate:** 7/7 PASS.
 
@@ -102,7 +102,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SJ4-JVM-4 — Beauty self-host
 
-- [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. Fix remaining failures. beauty.sno exercises all 19 BB kinds plus DEFINE, arithmetic, OUTPUT, &STCOUNT, indirect patterns.
+- [ ] **SJ4-JVM-4** — Run beauty.sno under `scrip --sm-emit --target=jvm`. Assembly succeeds (jasmin.jar produces .class). Execution fails with ClassCastException in SnoRt.arith() — String cannot cast to Long. The SM_Program has SM_COERCE_NUM instructions, but JVM stack model mismatch: variables pushed as String objects need coercion before arithmetic. Root cause unclear — either emit_jvm_from_sm() doesn't emit all SM_COERCE_NUM calls, or SnoRt.j push_var() needs to return boxed Long instead of String for numeric contexts. **Deferred pending deeper stack model analysis.**
 
   **Gate:** md5sum beauty_jvm.out = abfd19a7a834484a96e824851caee159.
 
@@ -111,10 +111,10 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SJ4-JVM-3.5 — scalar emitter complete (SM_Program walker + emit_jvm_program)
-head: 0f3e3476
-session: 2026-05-15b (Claude Sonnet 4.6)
-test: hello.sno → .j → .class → java runs successfully, prints "hello"
+watermark: SJ4-JVM-3 ✅ complete; SJ4-JVM-4 probe — smoke 7/7 PASS; SNOBOL4 smoke 7/7 PASS; Snocone smoke 5/5 PASS; broker 23/49 (known regressions); beauty.sno assembly succeeds but JVM execution fails (ClassCastException in arith — stack model type mismatch on coerce_num).
+head: 9cd6510e
+session: 2026-05-15c (Claude Sonnet 4.6)
+test: smoke suites all PASS; beauty probe failed on execution (deferred)
 ```
 
 ---
