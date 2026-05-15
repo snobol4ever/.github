@@ -259,7 +259,11 @@ one4all `992a2a18`.
 Next DCGs to implement (highest ir-run yield first):
 - TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume — blocked on CH-17g
 - TT_ITERATE list/table paths (rung22, rung13_table_iterate)
-- rung36_jcon_* suite — various builtins, &pos negative assignment, string scanning multi-arg forms
+- rung36_jcon_* suite residual — most remaining failures: `every f(gen_arg)` doesn't
+  re-pump arg generators (blocked on CH-17g). Landed this session: math builtins nargs>=1,
+  list() nargs, ||| list concat, any/many/upto 2-arg, cset identity, image(DT_FH).
+  rung36_jcon_kross now PASS. Remaining: fncs1 (global/record-field name collision),
+  endetab (infinite loop), coerce (pre-existing segfault).
 
 ---
 
@@ -286,8 +290,8 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 992a2a18  corpus: 1fe096c
-  ir-run:  PASS=201 FAIL=29
+  one4all: 11c43e0d  corpus: 1fe096c
+  ir-run:  PASS=202 FAIL=28
   honest:  PASS=273
   smoke_icon: 5/5   broker: 23/49
   NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
@@ -297,9 +301,8 @@ Next DCGs to implement (highest ir-run yield first):
         when LHS is TT_ITERATE routes through bb_eval_value which has slot-aware write path);
         rung36_jcon_* suite (various builtins and features)
 
-  Session fixes (+1, 1 commit this session):
+  Session fixes (+1, 3 commits this session):
+    11c43e0d IJ-19-remaining: image(DT_FH) fix; any/many/upto 2-arg in icn_try_call_builtin_by_name
+    fec85821 IJ-19-remaining: any/many/upto 2-arg outside scan, cset identity (slen=0xFFFFFFFF) fix
+    390335c3 IJ-19-remaining: math nargs>=1, list() nargs>=0, ||| list concat, scan_pos default
     992a2a18 IJ-19-fail: fix fail keyword in proc bodies (SM_BB_EVAL + sm_call_expression) — roman +1
-    27a74057 icn_bb_mutual: TT_SEQ cross-product (A&B) — +1
-    83bb0751 TT_NONNULL empty-string fix — rung36_jcon_lexcmp +1
-    bcdc0706 ?lhs assign stubs (bb path); TT_NONNULL confirmed
-    37ff6d70 loop_next/break in IR_ICN_EVERY — rung36_jcon_primes +1
