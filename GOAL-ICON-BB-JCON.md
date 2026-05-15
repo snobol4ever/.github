@@ -291,16 +291,16 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: d9fe4677  corpus: 1fe096c
+  one4all: 7977321b  corpus: 1fe096c
   ir-run:  PASS=206 FAIL=24 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining -- fix ICN_ITERATE_FIRST_SET / set_and_trace to write frame locals
-        (not just NV globals) for !s := X single-shot string iteration assignment.
-        Also: TT_BANG_BINARY done; push/put/pop multi-arg done; g_lang fix done.
-        Remaining: rung36_jcon_scan (body gen not re-pumped across subjects);
-        rung36_jcon_string (generative pos args); rung36_jcon_wordcnt (sort(table,3));
-        rung36_jcon_substring H/I (!str := val writeback); rung36_jcon_* misc.
+  NEXT: IJ-19-remaining -- remaining CH-17g-blocked rungs (scan/string/wordcnt).
+        Non-blocked: rung36_jcon_substring J/K/L (subscript-range assign s[i:j]:=X);
+        rung36_jcon_table (member(T,x) & writes via TT_SEQ/is_suspendable(TT_FNC) bug).
+        Done this session: every !tbl:=val table/list iterate-assign fix (58eeb2bb);
+        !str:=ch frame-local writeback via ICN_ITERATE_FIRST_SET slot fix (7977321b).
+        rung36_jcon_substring H/I now correct (Xbcde / YYYYY).
 
   Session notes (2026-05-16, one4all 00da02b6):
     TT_SUSPEND user-proc generators implemented via GeneratorState DCG.
