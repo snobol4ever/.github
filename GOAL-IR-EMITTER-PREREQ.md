@@ -80,8 +80,8 @@ An `IR_t` node has four ports: `α` (start/alpha), `β` (resume/beta), `γ` (suc
 ## State
 
 ```
-watermark: IEP-3
-head: 35142ba5
+watermark: IEP-COMPLETE
+head: 92f628b0
 session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
