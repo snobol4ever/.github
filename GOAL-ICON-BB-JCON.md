@@ -261,7 +261,7 @@ Next DCGs to implement (highest ir-run yield first):
 - TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume — implement via ucontext coro in coro_runtime.c (co-expression/coroutine support now enabled per Lon 2026-05-15)
 - TT_ITERATE list/table paths (rung22, rung13_table_iterate)
 - rung36_jcon_* suite residual — most remaining failures: `every f(gen_arg)` doesn't
-  re-pump arg generators (blocked on CH-17g). Landed this session: math builtins nargs>=1,
+  re-pump arg generators. Landed this session: math builtins nargs>=1,
   list() nargs, ||| list concat, any/many/upto 2-arg, cset identity, image(DT_FH).
   rung36_jcon_kross now PASS. Remaining: fncs1 (global/record-field name collision),
   endetab (infinite loop), coerce (pre-existing segfault).
@@ -301,8 +301,8 @@ Next DCGs to implement (highest ir-run yield first):
           - rung36_jcon_fncs1 (global/record-field name collision)
           - rung36_jcon_endetab (infinite loop)
           - rung36_jcon_coerce (pre-existing segfault)
-          - rung36_jcon_wordcnt (every f(gen_arg) re-pump — blocked on CH-17g)
-          - rung36_jcon_scan/string (blocked on CH-17g-irrun-execution)
+          - rung36_jcon_wordcnt (every f(gen_arg) re-pump)
+          - rung36_jcon_scan/string
         Also: TT_ITERATE list/table paths (rung22, rung13_table_iterate)
         still on icn_lazy_box stub; future DCG conversion.
 
@@ -349,7 +349,7 @@ Next DCGs to implement (highest ir-run yield first):
     Gates unchanged: smoke 5/5, broker 23/49, ir-run 206, honest 275.
 
   Session notes (2026-05-17 EMERGENCY FINAL, one4all 63c6fd2a):
-    CH-17g: icn_bb_assign_lhs_gen implemented. key() generator EXISTS (icn_bb_tbl_key_iterate).
+    icn_bb_assign_lhs_gen implemented. key() generator EXISTS (icn_bb_tbl_key_iterate).
     BLOCKER IDENTIFIED: table test shows x[key(x)]:=99 fails — values remain 88 not 99.
     Hypothesis: subscript_set() for tables works (line 469: table_set_descr called).
     BUT: the assignment pump may be restoring saved value on β instead of keeping assignment.
