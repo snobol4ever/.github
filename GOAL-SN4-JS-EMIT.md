@@ -103,6 +103,58 @@ function wire_pat_5(ms) {
 
 ---
 
+## Demo Artifacts Maintenance
+
+**CRITICAL:** At the end of each session, regenerate all demo JavaScript artifacts and commit them if changed.
+
+### Demo Artifact Files
+
+Location: `/home/claude/corpus/programs/snobol4/demo/`
+
+All `.sno` files should have corresponding `.js` equivalents. Currently maintained:
+- arithmetic.js, claws5.js, counter.js, expression.js, hello.js, pattern_test.js, porter.js, roman.js, treebank-array.js, treebank-list.js, wordcount.js
+- beauty.js (stub - may fail due to include file issues)
+
+### Regeneration Process (Session Handoff Checklist)
+
+```bash
+# 1. Regenerate all artifacts
+cd /home/claude/one4all
+DEMO=/home/claude/corpus/programs/snobol4/demo
+for sno in $DEMO/*.sno; do
+  base=$(basename "$sno" .sno)
+  [ "$base" = "beauty" ] && continue  # skip if include issues
+  echo "Emit $base..."
+  ./scrip --target=js "$sno" > "$DEMO/${base}.js" 2>/dev/null
+done
+
+# 2. Verify syntax (all should pass)
+cd $DEMO
+for js in *.js; do node --check "$js" 2>&1 | grep -v "^$" && echo "ERROR: $js"; done
+
+# 3. Commit if changed
+cd /home/claude/corpus
+git add programs/snobol4/demo/*.js
+git commit -m "Handoff: regenerated demo artifacts (update timestamp + verify syntax)" 2>&1
+git push
+```
+
+### Expected State
+
+- **Valid JS files**: 10+ (arithmetic, claws5, counter, expression, hello, pattern_test, porter, roman, treebank-array, treebank-list, wordcount, etc.)
+- **Syntax check**: All should pass `node --check`
+- **beauty.js**: May be stub or incomplete (due to -INCLUDE directive parsing in corpus)
+- **Commit**: One commit per session with timestamp
+
+### Notes
+
+- Demo artifacts validate emitter against real SNOBOL4 code (not synthetic tests)
+- Syntax errors indicate emitter bugs; investigate if any `*.js` fails node --check
+- beauty.js include issues are corpus-level, not emitter bugs; acceptable to skip or use last-known-good version
+- Compare file sizes with previous session to detect major regressions
+
+---
+
 ## Session Setup
 
 ```bash
