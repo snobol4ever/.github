@@ -230,13 +230,13 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SN4-NET-1 — SnoRt.il: complete .NET scalar runtime class
 
-- [ ] **SN4-NET-1** — Create `src/runtime/net/SnoRt.il`. All static methods listed in the table above. The value stack is a .NET `Stack<object>` static field. Type coercion follows the same rules as SnoRt.j (coerce_num: if object is string → parse as double; if already numeric → pass through). OUTPUT: trap in store_var when varname == "OUTPUT" → Console.WriteLine. INPUT: push_var on "INPUT" → Console.ReadLine(). Pending-captures list for ASSIGN_COND.
+- [x] **SN4-NET-1** — Create `src/runtime/net/SnoRt.il`. All static methods listed in the table above. The value stack is a .NET `Stack<object>` static field. Type coercion follows the same rules as SnoRt.j (coerce_num: if object is string → parse as double; if already numeric → pass through). OUTPUT: trap in store_var when varname == "OUTPUT" → Console.WriteLine. INPUT: push_var on "INPUT" → Console.ReadLine(). Pending-captures list for ASSIGN_COND.
 
   **Gate:** Hand-written test .il file calling push_str + halt_tos assembles with ilasm and runs under mono/dotnet, printing the string.
 
 ### SN4-NET-2 — Complete all 19 BB template emitters for .NET
 
-- [ ] **SN4-NET-2** — For each IR_PAT_* kind in the table above, implement `emit_net_bb_NODE(IR_t *nd, FILE *out, int stmt_id, int node_id)`. For each: read the reference class from `src/runtime/net/bb_boxes.il`, then write the C emitter that generates an equivalent nested MSIL class parameterized by nd->sval / nd->ival / nd->n (rpos/rtab variant flag). All 19 node kinds.
+- [x] **SN4-NET-2** — For each IR_PAT_* kind in the table above, implement `emit_net_bb_NODE(IR_t *nd, FILE *out, int stmt_id, int node_id)`. For each: read the reference class from `src/runtime/net/bb_boxes.il`, then write the C emitter that generates an equivalent nested MSIL class parameterized by nd->sval / nd->ival / nd->n (rpos/rtab variant flag). All 19 node kinds.
 
   Count: 19 BB template functions (LIT, SPAN, BREAK, ANY, NOTANY, LEN, POS, RPOS, TAB, RTAB, REM, ARB, ARBNO, CAT/SEQ, ALT, ASSIGN_IMM, ASSIGN_COND, FENCE, ABORT).
 
@@ -246,13 +246,13 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SN4-NET-3 — Scalar emitter (SM_Program walker) + wire into scrip.c
 
-- [ ] **SN4-NET-3** — Create `src/emitter/emit_net.c` with `emit_net_from_sm(SM_Program *prog, FILE *out)` and `emit_net_program(tree_t *tree, FILE *out)` entry point. The SM walker converts SM opcodes to MSIL invokestatic/callvirt calls to SnoRt static methods, wrapping everything in a `switch (_pc)` dispatch loop using MSIL's `switch` instruction. Emit `.assembly`, `.module`, `.class Prog`, and `Main()` wrapper. Wire `--sm-emit --target=net` in `scrip.c`.
+- [x] **SN4-NET-3** — Create `src/emitter/emit_net.c` with `emit_net_from_sm(SM_Program *prog, FILE *out)` and `emit_net_program(tree_t *tree, FILE *out)` entry point. The SM walker converts SM opcodes to MSIL invokestatic/callvirt calls to SnoRt static methods, wrapping everything in a `switch (_pc)` dispatch loop using MSIL's `switch` instruction. Emit `.assembly`, `.module`, `.class Prog`, and `Main()` wrapper. Wire `--sm-emit --target=net` in `scrip.c`.
 
   **Gate:** `scrip --sm-emit --target=net hello.sno > hello.il && ilasm hello.il && mono hello.exe` prints `Hello World`.
 
 ### SN4-NET-4 — Smoke 7/7
 
-- [ ] **SN4-NET-4** — Write `scripts/test_smoke_snobol4_net.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=net`, assemble with ilasm, run with mono (or dotnet), compare output to oracle `.ref` files.
+- [x] **SN4-NET-4** — Write `scripts/test_smoke_snobol4_net.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=net`, assemble with ilasm, run with mono (or dotnet), compare output to oracle `.ref` files.
 
   **Gate:** 7/7 PASS.
 
@@ -280,8 +280,10 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-NET-1 ⏳ NOT STARTED
-head: (none — new goal)
-session: created 2026-05-15
-progress: prereqs (IEP-1..6) ✅ via GOAL-IR-EMITTER-PREREQ; this goal not yet started
+watermark: SN4-NET-5 ⏳
+head: one4all 524b4a1b
+session: 2026-05-15
+progress: SN4-NET-1 ✅ SnoRt.il scalar runtime; SN4-NET-2 ✅ 19 BB emitters emit_net.c;
+  SN4-NET-3 ✅ SM walker + --target=net wiring; SN4-NET-4 ✅ smoke 7/7 PASS.
+  NEXT: SN4-NET-5 beauty self-host.
 ```
