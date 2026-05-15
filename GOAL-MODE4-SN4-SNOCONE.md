@@ -170,6 +170,10 @@ Sess 2026-05-15b (Claude Sonnet 4.6): M4SN-4b: corpus source uppercase fix — 1
 Root cause: 93 crosscheck .sno files used lowercase SNOBOL4 reserved words (differ, output, end, define, array, eq, ne, etc.) matching SPITBOL -F (fold, default) but not -f (case-sensitive = scrip default). Verified with SPITBOL -f vs -F on all 262 crosscheck files. Fix: uppercased all reserved words in 56 changed files — DIFFER/IDENT/DEFINE/ARRAY/TABLE/EQ/NE/LT/LE/GT/GE/EVAL/OPSYN/APPLY/TRIM/SIZE/DUPL/CONVERT/DATATYPE/INTEGER/ITEM/REPLACE/SUBSTR/VALUE/ARG/PROTOTYPE; branch targets :(return)→:(RETURN) :(end)→:(END); &lcase/&ucase/&alphabet/&stcount etc.; CONVERT type strings 'array'→'ARRAY'. 18 pre-existing failures remain (VALUE() not in SPITBOL, ARG() semantics, PROTOTYPE on TABLE). Added --fold-case flag to scrip CLI. corpus `c4a0cef`, one4all `8c06b7ab`.
 Gates: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅.
 
-**HEAD** one4all `8c06b7ab` · corpus `c4a0cef` · Baselines: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus 229/280.
+**HEAD** one4all `8b2b1109` · corpus `c4a0cef` · Baselines: smoke 7/7, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus 237/280.
 
-**Next:** M4SN-4b continued — 229/280, target ≥250. Remaining 46 fails: ShiftReduce_driver (SM segfault pre-existing), remaining pattern fails, beauty 15→17/17.
+Sess 2026-05-15c (Claude Sonnet 4.6): M4SN-4b: two root-cause fixes — 229/280 → 237/280 (+8):
+(1) simstack union clobber (emit_sm.c): simstack_push_const_s wrote .i=0 after .s=ptr (nulled pointer); simstack_push_const_i wrote .s=NULL after .i=n (zeroed integer). Fix: delete the clobbering assignments. Fixes ANY/SPAN/BREAK/NOTANY charset patterns (W05) and LEN/POS/RPOS/TAB cursor-position patterns (W06). one4all `b4942173`.
+(2) rt_arith integer-only (rt.c): rt_arith always coerced to int64_t and returned INTVAL, ignoring DT_R operands. Fix: delegate to shared_arith() which handles int/int→int, real/real→real, mixed→real, and SM_EXP. Fixes 412_arith_real, 413_arith_mixed. one4all `8b2b1109`.
+
+**Next:** M4SN-4b continued — 237/280, target ≥250. Remaining mode-4-specific: W04_arbno (ARBNO child label in text mode), 1013/1016/1114 (NRETURN/EVAL/ITEM crashes). Pre-existing sm-run fails unchanged.
