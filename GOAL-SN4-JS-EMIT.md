@@ -119,19 +119,19 @@ All steps here build on GOAL-IR-EMITTER-PREREQ (IEP-1..6). Visitor infrastructur
 
 ### SJ4-JS-1 — Complete all 19 BB template emitters for JS
 
-- [ ] **SJ4-JS-1** — For each IR_PAT_* kind in the table above, implement `emit_js_bb_NODE(IR_t *nd, FILE *out, int stmt_id, int node_id)`. For each: read the reference factory from bb_boxes.js (or the git single-file path), then write the C emitter that generates equivalent JS parameterized by nd->sval / nd->ival / nd->n. All 19 node kinds.
+- [x] **SJ4-JS-1** — For each IR_PAT_* kind in the table above, implement `emit_js_bb_NODE(IR_t *nd, FILE *out, int stmt_id, int node_id)`. For each: read the reference factory from bb_boxes.js (or the git single-file path), then write the C emitter that generates equivalent JS parameterized by nd->sval / nd->ival / nd->n. All 19 node kinds.
 
   Count: 19 BB template functions (LIT, SPAN, BREAK, ANY, NOTANY, LEN, POS, RPOS, TAB, RTAB, REM, ARB, ARBNO, CAT/SEQ, ALT, ASSIGN_IMM, ASSIGN_COND, FENCE, ABORT).
 
   String escaping for JS string literals: double-quote → \", backslash → \\, \n → \\n, \t → \\t, non-printable → \\xNN. Reference: `archive/backend/emit_emitters/emit_js.c` js_escape_string().
 
-  **Gate:** All 19 emit valid JS (node --check on a file containing all factory stubs).
+  **Gate:** All 19 emit valid JS (node --check on a file containing all factory stubs). ✅ PASS — one4all `63adaaa4`.
 
 ### SJ4-JS-2 — Extend sno_runtime.js with SM-compatible API
 
-- [ ] **SJ4-JS-2** — `src/runtime/js/sno_runtime.js` already has _vars, _str(), _num(). Add SM-level methods called by scalar node emission (from IEP-4): push_int, push_str, push_real_bits, push_null, push_var, store_var, pop_void, concat, neg, exp_op, coerce_num, arith(op), acomp(op), lcomp(op), last_ok, set_last_ok, set_stno, halt_tos, call(name,nargs), do_return(kind,cond), _init, _finalize. Plus MatchState factory (returns {sigma,delta,omega}). Plus pending-captures list for ASSIGN_COND: _push_cap(varname,text), _commit_caps(), _discard_caps().
+- [x] **SJ4-JS-2** — `src/runtime/js/sno_runtime.js` already has _vars, _str(), _num(). Add SM-level methods called by scalar node emission (from IEP-4): push_int, push_str, push_real_bits, push_null, push_var, store_var, pop_void, concat, neg, exp_op, coerce_num, arith(op), acomp(op), lcomp(op), last_ok, set_last_ok, set_stno, halt_tos, call(name,nargs), do_return(kind,cond), _init, _finalize. Plus MatchState factory (returns {sigma,delta,omega}). Plus pending-captures list for ASSIGN_COND: _push_cap(varname,text), _commit_caps(), _discard_caps().
 
-  **Gate:** node -e "const rt=require('./sno_runtime.js'); rt._init(); rt.push_str('hi',2); rt.halt_tos();" prints hi.
+  **Gate:** node -e "const rt=require('./sno_runtime.js'); rt._init(); rt.push_str('hi',2); rt.halt_tos();" prints hi. ✅ PASS — one4all `a72c9b6d`. All 20+ API methods exported and tested.
 
 ### SJ4-JS-3 — Smoke 7/7
 
@@ -150,9 +150,15 @@ All steps here build on GOAL-IR-EMITTER-PREREQ (IEP-1..6). Visitor infrastructur
 ## State
 
 ```
-watermark: SJ4-JS-0
-head: (not started)
-session: (not started)
+watermark: SJ4-JS-2
+head: one4all a72c9b6d
+session: 2026-05-15
+progress: SJ4-JS-1 ✅ SJ4-JS-2 ✅ ; BLOCKERS: SJ4-JS-3/4 require full scalar emission
+
+Status: 19 BB emitters complete; SM API complete. Scalar IR nodes (IR_LIT_I, IR_VAR, 
+IR_CALL, etc.) not yet wired. Pattern nodes require wiring scalar successors. Deferred 
+to follow-on GOAL or continuation session due to complexity of scalar switch/loop 
+codegen. IR_PAT_* nodes currently functional for static factory generation.
 ```
 
 ---
