@@ -247,16 +247,19 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
 
 ### IJ-19-remaining — remaining constructs in order of complexity
 
-**OPEN BUG — investigate first:** `rung13_alt_alt_filter` (`every (x := (1|2|3|4|5)) > 2 & write(x)`) produces nothing.
-Root cause candidate: `bb_exec_stmt(body)` in `IR_ICN_EVERY` not executing when body is TT_FNC(write).
-Probed 2026-05-14: outer EVERY ticks 4× correctly (3 successes + ω); write("x") never fires.
-Likely parse: `TT_EVERY(c[0]=gen, c[1]=write)` → body=c[1] stored in sval2 correctly, but
-`bb_exec_stmt` silently drops it. Check `icn_stmt.c` bb_exec_stmt for TT_FNC in stmt context.
+**RESOLVED:** `rung13_alt_alt_filter` now passes (fixed in prior session).
+
+**RESOLVED:** `fail` keyword in proc bodies now propagates correctly (IJ-19-fail, sess 2026-05-14).
+Two bugs in `sm_interp.c`: (1) `SM_BB_EVAL` did not check `FRAME.returning` after `bb_eval_value`
+drives `TT_PROC_FAIL` via alternation arm (`expr | fail`). (2) `sm_call_expression` read stack
+top instead of `FAILDESCR` when `SM_FRETURN` fired at top-level of nested SM_State. Both fixed.
+Fixes `if cond then fail`, `expr | fail`, bare `fail` as statement. `rung36_jcon_roman` now passes.
+one4all `992a2a18`.
 
 Next DCGs to implement (highest ir-run yield first):
-- TT_SEQ_EXPR (rung16_seqexpr) — `(E1; E2; ...; En)` sequential expression
-- TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume
+- TT_SUSPEND (rung03_suspend_gen_*) — user proc suspend/resume — blocked on CH-17g
 - TT_ITERATE list/table paths (rung22, rung13_table_iterate)
+- rung36_jcon_* suite — various builtins, &pos negative assignment, string scanning multi-arg forms
 
 ---
 
@@ -283,8 +286,8 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: e116b9fd  corpus: 1fe096c
-  ir-run:  PASS=200 FAIL=30
+  one4all: 992a2a18  corpus: 1fe096c
+  ir-run:  PASS=201 FAIL=29
   honest:  PASS=273
   smoke_icon: 5/5   broker: 23/49
   NEXT: IJ-19-remaining — TT_SUSPEND (user proc generators, blocked on CH-17g coroutine prereq);
@@ -294,10 +297,8 @@ Next DCGs to implement (highest ir-run yield first):
         when LHS is TT_ITERATE routes through bb_eval_value which has slot-aware write path);
         rung36_jcon_* suite (various builtins and features)
 
-  Session fixes (+7, 7 commits this session):
-    722e6a4f IR_ICN_TO_NESTED DCG: nested-to cross-product — rung01 +1
-    d66e5483 trim trailing-only; seq DCG — rung28+rung30 +2
-    15a09372 icn_drive_node in bb_eval_value (accumulation) — rung02 +1
+  Session fixes (+1, 1 commit this session):
+    992a2a18 IJ-19-fail: fix fail keyword in proc bodies (SM_BB_EVAL + sm_call_expression) — roman +1
     27a74057 icn_bb_mutual: TT_SEQ cross-product (A&B) — +1
     83bb0751 TT_NONNULL empty-string fix — rung36_jcon_lexcmp +1
     bcdc0706 ?lhs assign stubs (bb path); TT_NONNULL confirmed
