@@ -155,6 +155,98 @@ of that IR_block_t* happens either at lower time (today's path via
 Both are valid endpoints; the SNOBOL4-style composition path keeps the
 SM stream involved in the build.
 
+### Lessons from jcon — the canonical Icon IR builder
+
+jcon (`/refs/jcon-master/tran/irgen.icn` + `tran/ir.icn`) provides the
+reference design we are converging on.  Key observations:
+
+  1. **Four-port labels per AST node.**  `procedure ir_init(p)` allocates
+     four named labels for every Icon expression:
+
+         p.ir.start    -- entry (α-port)
+         p.ir.resume   -- re-entry to produce next value (β-port)
+         p.ir.success  -- continuation on success    (γ-port)
+         p.ir.failure  -- continuation on failure    (ω-port)
+
+     This is exactly the Byrd-box four-port model.  Every AST node has a
+     pre-allocated rendezvous label for each port.
+
+  2. **Composition = pure label-stitching.**  Each `ir_a_FOO(p, ...)`
+     procedure does three things: (a) call ir_init(p) to allocate its own
+     four labels; (b) recursively suspend ir() on children (which allocates
+     their labels and emits their chunks); (c) emit a handful of `ir_chunk`
+     pieces whose only contents are `ir_Goto(child.ir.X)` thread-throughs.
+
+     ir_a_Alt is the cleanest example: emits N chunks, one at each
+     alternative's failure label that gotos the next alternative's start,
+     and one at each success label that gotos the parent's success.  No
+     state machines, no zeta structs, no opaque pointers — pure flat
+     label-threaded code.
+
+  3. **Generators carry no opaque state.**  ir_a_ToBy emits an ir_opfn for
+     the "..." operator with a `closure` temporary — the state of the
+     generator is just *a normal IR register* tracked through SSA-ish data
+     flow.  Resume is "goto byexpr.ir.resume" which re-enters the same
+     IR_opfn instruction, which advances the closure register.  No
+     hand-coded α/β/γ/ω C function with a private zeta struct.
+
+  4. **One IR instruction set, no per-construct opcodes.**  ir.icn defines
+     ~25 record types covering all Icon: `ir_Move`, `ir_Goto`, `ir_OpFunction`,
+     `ir_Call`, `ir_Succeed`, `ir_Fail`, `ir_Create`, `ir_CoRet`, etc.
+     Every Icon construct lowers to combinations of these — there is NO
+     `ir_a_To` opcode, no `ir_a_Every` opcode, no `ir_a_Limit` opcode.
+     They're all expressed as chunk graphs over the basic instruction set.
+
+#### What this tells us about our design
+
+Our current scrip IR has TWO problems that jcon's design solves:
+
+  • **Per-construct IR opcodes.**  We have `IR_ICN_TO`, `IR_ICN_TO_BY`,
+    `IR_ICN_UPTO`, `IR_ICN_ITERATE`, `IR_ICN_ALTERNATE`, `IR_ICN_LIMIT`,
+    `IR_ICN_BINOP`, `IR_ICN_EVERY` — each with private state fields
+    (counter, lo/hi/step, gen[2]/which, opaque structs).  jcon does ALL
+    of these with the same general `ir_Move + ir_Goto + ir_OpFunction`
+    triad.  Resume is just `goto resume_label`; the operator function
+    advances its own internal state on each invocation.
+
+  • **Recursive AST-tied four-port runtime.**  Our IR_t has α/β/γ/ω
+    pointer fields pointing to *other IR_t nodes* — the four-port model
+    is encoded in the IR graph topology.  jcon flattens this: the four
+    ports become four *labels* attached to each AST node at lower time,
+    and the IR is a flat list of (label, [instructions]) chunks where
+    every cross-port transition is a literal `goto` to a label.  The
+    runtime just walks chunks sequentially; resume = jump.
+
+Both observations point the same direction: **flatten IR to a chunk-of-
+instructions list with explicit labels, drop per-construct IR opcodes,
+express generator state as named temporaries.**  This is the SNOBOL4
+postorder composition pattern applied to a flat label-threaded IR
+instead of a tree.
+
+#### Concrete next-step impact
+
+For the immediate work (close smoke_icon every+if_expr):
+
+  • TT_IF mirrors `ir_a_If` exactly: pre-allocate four labels on the if
+    expression; lower the test, the then-branch, and the else-branch as
+    sub-chunks; emit chunks stitching their success/failure labels into
+    the parent's success/failure.  No new IR opcode needed.
+
+  • TT_TO mirrors `ir_a_ToBy`: lower from/to as sub-expressions; emit a
+    closure temporary; emit chunks that pump (from advances counter, to
+    bounds-checks).  Today's `IR_ICN_TO` is a shortcut; the jcon shape
+    is the general answer.
+
+  • TT_EVERY mirrors `ir_a_Every`: bounded re-entry — emit a chunk at the
+    body.ir.success label that gotos the gen.ir.resume label.  This IS
+    the every-loop: success → resume → more values.  No special opcode.
+
+For the longer arc: rewriting our IR layer to be flat-chunk-based puts us
+on the same architecture jcon uses, which has been battle-tested as a
+viable Icon target since the 1990s.  It also matches the eventual x86
+emitter shape: labels become PC values, chunks become basic blocks,
+gotos become `jmp` instructions.  No translation gap.
+
 ### Same pattern as SNOBOL4 — only the granularity differs
 
 SNOBOL4 pattern handling in sm_interp.c uses exactly this same SM↔BB bridge
