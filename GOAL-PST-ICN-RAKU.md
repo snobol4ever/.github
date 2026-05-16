@@ -52,12 +52,12 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
 
 ## Step 2 — Icon audit
 
-- [ ] **PST-ICN-2a** — Read `src/frontend/icon/icon_parse.c` AND
+- [x] **PST-ICN-2a** — Read `src/frontend/icon/icon_parse.c` AND
   `corpus/SCRIP/parser_icon.sc` in full. Flag: (1) in-place append instead of
   always-wrap; (2) children not in source order; (3) non-`tree_t` IR allocation;
   (4) slot assignment / scope tracking. Record findings in State block.
 
-- [ ] **PST-ICN-2b** — Fix all violations found in 2a (or record "none").
+- [x] **PST-ICN-2b** — Fix all violations found in 2a (or record "none").
   Both C and SCRIP files in the same commit.
   Gates: `smoke_icon`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
@@ -92,10 +92,19 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: created 2026-05-16 (session 30/58)
-next: PST-ICN-2a — read icon_parse.c and parser_icon.sc in full; list violations
-audit findings: (pending)
-mirror gaps: (none)
+watermark: 2026-05-16 (session 30/58)
+next: PST-RAKU-3a — read raku.y and parser_raku.sc in full; list violations
+audit findings Icon (PST-ICN-2a/2b complete):
+  V1 FIXED: TT_AUGOP v.ival now stores AUGOP_* (was raw IcnTkKind). lower.c, lower_icn.c, interp_eval.c, icn_value.c all updated.
+  V2 FIXED: TT_LOCAL / TT_STATIC_DECL node kinds added to ast.h. Parser, lower, interp, icn_runtime all updated.
+  V3 NOTE: proc->_id = nparams — _id is not v.*, borderline; lower_icn.c depends on it for body_start. Left as-is.
+  V4 FIXED: CODE_t/STMT_t stripped from icn_parse_file; returns NULL (callers all use (void)prog or out_ast).
+  V5 FIXED: parse_block_or_expr no longer mutates/frees seq node on single-child collapse.
+  V6 FIXED: TT_SECTION_PLUS / TT_SECTION_MINUS added to parser_icon.sc Expr11tail.
+  AUGOP SCRIP MIRROR NOTE: SCRIP Tree() API cannot set v.ival; augop op-code mirror requires Tree() API extension. Tracked as known limitation.
+  TT_LOCAL/TT_STATIC_DECL SCRIP MIRROR FIXED: push_static_stmt added; LocalDecl/StaticDecl now emit TT_LOCAL/TT_STATIC_DECL respectively.
+gates: smoke_icon 5/5, smoke_raku 5/5, scrip_all_modes 2/0, crosscheck_snobol4 6/6 — all green.
+mirror gaps remaining: augop ival encoding (needs Tree() API extension)
 ```
 
 ## Authorship
