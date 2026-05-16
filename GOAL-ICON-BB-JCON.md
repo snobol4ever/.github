@@ -1,6 +1,20 @@
 # GOAL-ICON-BB-JCON.md — Icon: 43 BB emitters + lower_icn DCG
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║  Sess 2026-05-15g removed all tree_t* dereferences from sm_interp.c (mode 2) and                ║
+║  sm_jit_interp.c (mode 3). Stubs print [NO-AST] <opcode> on stderr.                              ║
+║                                                                                                  ║
+║  If a gate breaks with [NO-AST] FOO — write fresh SM/BB lowering for FOO.                       ║
+║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
+║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
+║                                                                                                  ║
+║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — NO EXCEPTIONS — READ THIS BEFORE WRITING CODE  ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                                  ║
@@ -291,22 +305,66 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 54304353  corpus: 1fe096c
-  ir-run:  PASS=207 FAIL=23 XFAIL=35
-  honest:  PASS=275
-  smoke_icon: 5/5   broker: 23/49
-  NEXT: continue old-system deletion (interp_eval.c 4268 lines, interp_exec.c
-        AST execution paths, _usercall_hook, coro_call fallbacks).
-        Then resume BB DCG work — TT_ITERATE list/table is the highest-yield
-        next BB (template ready: deleted coro_bb_list_iterate state struct
-        is { DESCR_t list_obj; int pos; } per git show 76d82c98:
-        src/frontend/icon/icon_gen.h:68).
-        Outstanding rung36_jcon_* failures:
-          - rung36_jcon_fncs1 (global/record-field name collision)
-          - rung36_jcon_endetab (infinite loop)
-          - rung36_jcon_coerce (pre-existing segfault)
-          - rung36_jcon_wordcnt (every f(gen_arg) re-pump)
-          - rung36_jcon_scan/string
+  one4all: fb3c4153  corpus: 1fe096c
+  ir-run:  BROKEN — see session notes below (was 207)
+  honest:  BROKEN — see session notes below (was 275)
+  smoke_icon: 0/5   smoke_prolog: 0/5   broker: 14/49
+  Other smokes unchanged: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4.
+  Breakage is intentional (Lon directive: break gates to expose missing SM/BB lowering).
+  NEXT: write fresh SM/BB code for the eight stubbed sites — list below.
+        Stub fingerprints (stderr) name the exact opcode missing fresh lowering:
+          1. SM_BB_EVAL                    — Icon expression eval (highest yield)
+          2. PL_BUILTIN                    — Prolog builtins (write/1, nl/0, arith)
+          3. PL_UNIFY                      — Prolog unification
+          4. SM_BB_PUMP_EVERY              — Icon `every` generator-driver
+          5. SM_BB_PUMP / SM_BB_ONCE       — generic BB drivers (Icon scan, etc.)
+          6. SM_BB_ONCE_PROC               — Prolog clause invocation
+          7. sm_call_proc tree-walk        — already removed; lower_sc must arrive pre-built
+        After fresh lowering restores smoke_icon and smoke_prolog, resume BB DCG work
+        (TT_ITERATE list/table remains highest-yield next BB).
+
+  Session notes (2026-05-15g, one4all fb3c4153, Claude Opus 4.7):
+    Lon directive: delete ALL AST walking from modes 2, 3, 4.  Mode 4 is alive
+    (HQ updated: ARCH-SCRIP.md Mode-4 description rewritten present-tense; same
+    in GOAL-MODE3-EMIT.md). Mode 1 stays.
+
+    AST-walk inventory and disposition:
+      Mode 2 (sm_interp.c):
+        line 652  SM_BB_PUMP            — stubbed, prints [NO-AST]
+        line 661  SM_BB_ONCE            — stubbed
+        line 671  SM_BB_EVAL            — stubbed (was the FRETURN-handling block)
+        line 704  SM_BB_ONCE_PROC       — stubbed (Prolog clause lookup)
+        line 813  SM_BB_PUMP_EVERY      — stubbed
+        line 1300 SM_CALL "PL_UNIFY"    — stubbed
+        line 1327 SM_CALL "PL_BUILTIN"  — stubbed
+        line 1785 sm_call_proc body loop — removed (icn_scope_patch walked proc->c[bi]);
+                                           lower_sc now used as-is from lower time
+      Mode 3 (sm_jit_interp.c):
+        line 277  h_bb_pump             — stubbed
+        line 287  h_bb_once             — stubbed
+        line 298  h_bb_once_proc        — stubbed
+        line 412  h_bb_pump_every       — stubbed
+        line 811  h_usercall PL_UNIFY   — stubbed
+        line 838  h_usercall PL_BUILTIN — stubbed
+      Mode 3/4 emitter templates (src/emitter/*.c): zero AST walks pre-existing.
+
+    Build: clean.  Diff: sm_interp.c −66, sm_jit_interp.c −15, net −81 lines.
+
+    Dead infrastructure left in place (no walking, just storage):
+      sm_interp.c:84  extern decl of icn_bb_build (no caller in this file now)
+      sm_interp.c:114-132  g_every_table registry (producer alive, no consumer)
+      sm_jit_interp.c:263  extern decl of icn_bb_build
+    Defer their deletion to a follow-up.
+
+    Pre-deletion baseline: icon 5/5  snobol4 7/7  prolog 5/5  raku 5/5
+                           snocone 5/5  rebus 4/4  broker 23/49.
+    Post-deletion gates:   icon 0/5  snobol4 7/7  prolog 0/5  raku 5/5
+                           snocone 5/5  rebus 4/4  broker 14/49.
+
+    HQ updated (.github):
+      ARCH-SCRIP.md: Mode 4 description present-tense (EMIT_TEXT via shared
+                     src/emitter/*.c templates; same SM_Program as mode 3).
+      GOAL-MODE3-EMIT.md: one "Mode 4 will not dump" → "does not dump".
 
   Session notes (2026-05-15c, one4all 54304353, Claude Opus 4.7):
     Lon directive: old AST-walker system is being deleted.  Forward pipeline

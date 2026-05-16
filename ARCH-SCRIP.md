@@ -65,7 +65,7 @@ The IR-only entry points must never be called from SM-mode code paths.
 
 **Mode 3 (SM gen / exec):** `sm_preamble()` followed by `sm_codegen(sm)` followed by `sm_run_with_recovery(sm, sm_jit_run)`. Handlers in `sm_codegen.c` mirror `sm_interp.c` semantics — including `kw_rtntype` writes on return (RS-11).
 
-**Mode 4 (future):** Will share `sm_preamble()`. Will replace `sm_codegen` + `sm_jit_run` with an asm-emitter + linker + child-process exec. The same isolation invariants apply.
+**Mode 4 (SM gen / emit):** `sm_preamble()` followed by emit through the shared `src/emitter/*.c` templates with `bb_emit_mode = EMIT_TEXT` — produces GAS assembly text on a `FILE*`. Same SM_Program, same template bodies as mode 3; only `bb_emit_mode` and the output sink differ. The same isolation invariants apply.
 
 ## Driver helpers (RS-14)
 
@@ -74,4 +74,4 @@ Two helpers in `src/driver/scrip_sm.{c,h}`:
 - `sm_preamble(prog) -> SM_Program*` — `label_table_build` + `prescan_defines` + `g_sno_err_active = 1` + `sm_lower` + `g_current_sm_prog = sm` + `code_free` + `label_table_clear_stmts`. Returns NULL on failure.
 - `sm_run_with_recovery(sm, runner)` — initialises `SM_State`, drives a `setjmp(g_sno_err_jmp)` loop calling `runner(sm, &st)` until normal halt or fatal error. Used by both `--sm-run` and `--jit-run`.
 
-Mode 4 will use both helpers verbatim — only the runner-equivalent step changes.
+Mode 4 uses both helpers verbatim — the runner step is replaced by walking the same SM_Program through `src/emitter/*.c` templates with `bb_emit_mode = EMIT_TEXT`.

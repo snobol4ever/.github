@@ -26,6 +26,37 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — NO AST WALKING IN MODES 2, 3, OR 4 — NEVER RESTORE — READ BEFORE WRITING    ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Modes 2 (SM interp), 3 (SM → x86 in-memory JIT), and 4 (SM → GAS asm text) are AST-free.       ║
+║  No code reached from sm_interp_run, sm_jit_run, or any src/emitter/*.c template may walk        ║
+║  a tree_t* node — no dereference, no ->t, ->c[], ->n, ->v access; no calls to                   ║
+║  interp_eval, bb_eval_value, icn_bb_build, pl_unified_term_from_expr, icn_scope_patch,           ║
+║  interp_exec_pl_builtin, pl_pred_table_lookup_global, or any other AST-walking helper            ║
+║  from modes 2/3/4.                                                                               ║
+║                                                                                                  ║
+║  Sess 2026-05-15g (Lon directive) stubbed all such sites with                                    ║
+║      fprintf(stderr, "[NO-AST] <opcode> stub: needs fresh SM/BB lowering\n");                    ║
+║      st->last_ok = 0;   (or STATE->last_ok = 0 in mode 3)                                        ║
+║  Each stub fingerprint names the exact opcode that still needs fresh SM/BB lowering.            ║
+║                                                                                                  ║
+║  If your gate fails with a `[NO-AST] FOO` line: write fresh SM/BB code for FOO.                 ║
+║  Do NOT "fix" it by restoring the AST-walking call — that is the violation.                     ║
+║  Do NOT route through proc_table_call, _usercall_hook AST fallback, or any other                 ║
+║  back-door that hands a tree_t* to mode-2/3/4 code.                                              ║
+║                                                                                                  ║
+║  Mode 1 (`--ir-run` standalone AST interp, interp_eval.c + interp_exec.c + interp_call.c)        ║
+║  is the ONLY place AST walking is permitted. Mode 1 stays; it is the reference path.            ║
+║                                                                                                  ║
+║  This rule applies to every language session — Icon, Prolog, Snocone, SNOBOL4, Rebus, Raku.     ║
+║  No language-specific exception. If your frontend lowers to SM_Program / IR_block_t, that       ║
+║  lowered form is what mode 2/3/4 sees; the AST is invisible to them.                            ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
 ## Where rules belong
 
 ⛔ Rules live in `RULES.md` only. `PLAN.md` is navigation and state.

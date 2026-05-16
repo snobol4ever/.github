@@ -1,6 +1,20 @@
 # GOAL-MODE3-EMIT.md — Mode 3 becomes a real per-instruction native x86 emitter
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║  Sess 2026-05-15g removed all tree_t* dereferences from sm_interp.c (mode 2) and                ║
+║  sm_jit_interp.c (mode 3). Stubs print [NO-AST] <opcode> on stderr.                              ║
+║                                                                                                  ║
+║  If a gate breaks with [NO-AST] FOO — write fresh SM/BB lowering for FOO.                       ║
+║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
+║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
+║                                                                                                  ║
+║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — NO EXCEPTIONS — READ THIS BEFORE WRITING CODE  ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                                  ║
@@ -77,7 +91,7 @@ SM_State layout (offsets from r13): stack=0, sp=8, stack_cap=12, last_ok=16, pc=
 
 ### Variant patterns stay dynamic
 
-`bb_flat.c` EMIT_BINARY emits globs into `bb_pool` at runtime — unchanged. Mode 4 will not dump these; only `SEG_CODE` is serialized.
+`bb_flat.c` EMIT_BINARY emits globs into `bb_pool` at runtime — unchanged. Mode 4 does not dump these; only `SEG_CODE` is serialized.
 
 ---
 
