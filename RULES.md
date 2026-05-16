@@ -1,6 +1,27 @@
 # RULES.md — snobol4ever Working Rules
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — NEVER RESTORE DELETED INTERPRETER CODE (SJ4-JS-BB0)                        ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Session (Claude, 2026-05-16) deleted sno_engine.js and pattern-interpreter sections from      ║
+║  sno_runtime.js. These files are GONE FOREVER. Do NOT restore them, do NOT re-add pattern      ║
+║  interpreter code, do NOT call back to an interpreter from emitted JS code.                    ║
+║                                                                                                  ║
+║  Pattern matching in JS emitter MUST emit actual Byrd-box-style factories that implement       ║
+║  α/β/γ/ω ports as closures / function methods. Every SM_PAT_* opcode emits a factory function. ║
+║  SM_EXEC_STMT pops the factory from stack and emits code that wires and runs the match         ║
+║  engine. No data structures. No interpreter. Only Byrd semantics.                              ║
+║                                                                                                  ║
+║  This rule is binding on every future JS emitter work, including GOAL-SN4-JS-EMIT-*,           ║
+║  and by extension applies to JVM, .NET, WASM emitters too (NO DATA-DRIVEN PATTERN MATCHING).    ║
+║                                                                                                  ║
+║  Violation: commit a file that re-adds sno_engine.js or pattern interpreter code = REJECTION.  ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — NO EXCEPTIONS — READ THIS BEFORE WRITING CODE  ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                                  ║
