@@ -393,35 +393,91 @@ SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" 
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c in progress — see hand-off below)
-head: one4all bb77ac29 (main) + sn4-net-5c-wip branch cfd678db
-session: 2026-05-15 (Claude Opus 4.7) — hand-off
+watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c parameter binding ✅, frame save/restore ⏳)
+head: one4all bb77ac29 (main) + sn4-net-5c-wip branch 06576570
+session: 2026-05-16 (Claude Opus 4.7) — partial close on 5c
 progress:
   SN4-NET-1 ✅ SnoRt.il scalar runtime;
   SN4-NET-2 ✅ 19 BB emitters in emit_net.c;
   SN4-NET-3 ✅ SM walker + --target=net wiring;
-  SN4-NET-4 ✅ smoke 7/7 PASS;
+  SN4-NET-4 ✅ smoke 7/7 PASS (now 8/8 with define_simple);
   SN4-NET-5a ✅ control-flow / comment / runtime fixes (one4all eb74b9a5);
   SN4-NET-5b ✅ user-function dispatch — call/return without param
     binding via pre-scan name→pc table + push/pop_ret_pc on _ret stack
     (one4all bb77ac29);
-  SN4-NET-5c ⏳ in progress on branch `sn4-net-5c-wip` (cfd678db).
+  SN4-NET-5c ⏳ on branch sn4-net-5c-wip (06576570):
+    Parameter binding: ✅ Steps 1, 2, 4 working — non-recursive DEFINEs
+      with single or multi-param call/return correctly. Greet(who),
+      Add(a,b), nested Add(Add(...)) all pass.
+    Frame save/restore: ⏳ Step 3 still needed — recursive Fact(n)
+      corrupts caller's n and runs away.
   SN4-NET-5d — SM_PAT_* opcode wiring to pat_*_* BB classes.
   SN4-NET-5z — byte-identical beauty closeout.
   SN4-NET-6 — broad SNOBOL4 corpus ladder.
 
-test baseline (this session, /tmp/test_results/REPORT.md):
-  31 SNOBOL4 + Snocone test scripts run on main @ bb77ac29. All shared
-  gates green:
-    smoke_snobol4 7/7, smoke_net 7/7, jit-parity 180-prog,
-    crosscheck_snobol4 6/6, crosscheck_snocone 8/8, smoke_snocone 5/5,
-    sj4jvm1 19/19, sj4jvm2 5/5.
-  All other failures pre-existing (verified by stash + rebuild + rerun):
-  snocone parse_a..j (C compile errors against renamed AST/STMT types),
-  hand_suite, parser_fixtures, wasm smoke banner pollution.
+session 2026-05-16 gates (on sn4-net-5c-wip @ 06576570):
+  smoke_snobol4_net    8/8 PASS  (was 7/7; +define_simple regression catcher)
+  smoke_snobol4        7/7 PASS  (unchanged)
+  smoke_snocone        5/5 PASS  (unchanged)
+  smoke_icon           5/5 PASS  (unchanged)
+  unified_broker      23/49 PASS (was 14/35 on main; +9 PASS, no regressions)
+  all_modes            2/3 PASS  (--jit-emit --net failure pre-existing on main)
+
+The fix was a two-character filter change in emit_net.c second-pass scan:
+the previous WIP checked ins->op != SM_SUSPEND_VALUE to find DEFINE
+pseudo-calls and extract param prototypes, but scrip's SNOBOL4 lowering
+emits ALL named calls as SM_CALL_FN (including DEFINE). The dump-time
+names[] array in sm_prog.c has a spurious "SM_GEN_TICK" entry that
+shifts the printed labels by one starting at SM_SUSPEND_VALUE — the dump
+displays SM_CALL_FN as "SM_SUSPEND_VALUE" and SM_RETURN as "SM_CALL_FN".
+This led the previous session to believe a null-name SM_CALL_FN was the
+implicit return marker. In fact :(RETURN) lowers to SM_RETURN (op=67)
+correctly; the dump just mislabels it. The actual fix:
+    -if (ins->op != SM_SUSPEND_VALUE) continue;
+    +if (ins->op != SM_CALL_FN && ins->op != SM_SUSPEND_VALUE) continue;
 ```
 
-## Hand-off — SN4-NET-5c in progress on branch `sn4-net-5c-wip` (cfd678db)
+## Hand-off — frame save/restore remaining (SN4-NET-5c step 3)
+
+Branch `sn4-net-5c-wip @ 06576570` is in a good state — non-recursive
+DEFINEs work, smoke 8/8, broker +9 vs main, no regressions. Ready to
+merge to main when the user gives the handoff phrase.
+
+What's still needed for full SN4-NET-5c ✅:
+
+**Step 3 — Frame save/restore.** SNOBOL4 parameters are global variables.
+Without saving them across calls, recursive `Fact(n)` overwrites the
+caller's `n`. The fix mirrors h_call in src/processor/sm_jit_interp.c
+lines 880-925: at function entry, save the current values of the
+function-name var AND every param-name var into a frame dict, then bind
+the new arg values. At return, restore from the frame.
+
+The SnoRt.il already has _frames : Stack<Dictionary<string,object>>
+allocated and initialized but unused (added in 5b). Needed methods:
+
+  void frame_enter(string fname, string[] pnames)
+    — push new frame dict;
+    — for fname and each pname, save current var value into the dict;
+    — caller still does store_var on each param after (or fold the
+      "set new value" into a different helper).
+
+  void frame_exit()
+    — pop top frame dict;
+    — for each entry, restore var to saved value.
+
+Then in emit_net.c:
+  - SM_LABEL define_entry: before the existing per-param store_var loop,
+    emit a frame_enter call (need to build a string[] of param names —
+    can do via a precomputed array in MSIL static fields, or via repeated
+    push then frame_enter_n style).
+  - SM_RETURN / SM_NRETURN / SM_FRETURN (all variants): before the
+    existing do_return + pop_ret_pc, emit a frame_exit call.
+
+Verification: Fact(5) should produce "120" matching SPITBOL oracle.
+Add `define_recursive` to the smoke gate guarding against future regressions.
+
+## Hand-off — original SN4-NET-5c hand-off below (now mostly resolved)
+
 
 This session got most of SN4-NET-5c built but the integration of the
 function-body-end return is wrong. Smoke 7/7 still passes on the branch
