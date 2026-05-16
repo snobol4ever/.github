@@ -71,7 +71,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
   `tree_t`/`TT_QLIT` — that is a violation analogous to PST-SN4-1a.
   Record findings in State block.
 
-- [ ] **PST-RAKU-3b** — Fix all violations (or record "none").
+- [x] **PST-RAKU-3b** — Fix all violations (or record "none").
   Both C and SCRIP files in the same commit.
   Gates: `smoke_raku`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
@@ -92,8 +92,8 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-16 (session 30/58)
-next: PST-RAKU-3b — fix all raku.y violations; regenerate raku.tab.c; mirror in parser_raku.sc
+watermark: 2026-05-16 (session 30/59)
+next: DONE — all PST-ICN and PST-RAKU steps complete
 audit findings Icon (PST-ICN-2a/2b complete):
   V1 FIXED: TT_AUGOP v.ival now stores AUGOP_* (was raw IcnTkKind). lower.c, lower_icn.c, interp_eval.c, icn_value.c all updated.
   V2 FIXED: TT_LOCAL / TT_STATIC_DECL node kinds added to ast.h. Parser, lower, interp, icn_runtime all updated.
@@ -116,7 +116,16 @@ audit findings Raku (PST-RAKU-3a complete, 3b pending):
   V5: when_list uses pair->ival to store comparison kind (AST_LEQ vs AST_EQ) in a SEQ_EXPR carrier node.
   V6: ->nchildren / ->children[] direct field access (AST_t names, not tree_t ->n / ->c[]).
 gates: smoke_icon 5/5, smoke_raku 5/5, scrip_all_modes 2/0, crosscheck_snobol4 6/6 — all green.
-mirror gaps remaining: augop ival encoding (needs Tree() API extension); raku.y full rename (PST-RAKU-3b)
+  V1 FIXED: AST_t/AST_e/AST_VAR/AST_FNC/AST_QLIT etc. → tree_t/tree_e/TT_VAR/TT_FNC/TT_QLIT throughout raku.y.
+      SCRIP side already used TT_* names — no change needed.
+  V2 FIXED: CODE_t/STMT_t stripped; raku_parse_string returns tree_t*. add_proc() builds TT_STMT with :lang/:subj attrs.
+      raku_driver.c: no code_to_ast(); takes tree_t* directly. SCRIP side already tree-only.
+  V3 FIXED: SUB_TAG bitmask removed from v.ival; _id=SUB_TAG_ID=1 used as hoist flag. v.ival = nparams only.
+  V4 FIXED: for_stmt matches OP_RANGE inline; make_for_range builds body2 fresh (no in-place append).
+      SCRIP finish_for_range mirrored: builds body2 fresh.
+  V5 FIXED: when_list pair is TT_SEQ_EXPR[TT_ILIT(cmpkind), val, body]. SCRIP already correct.
+  V6 FIXED: all ->n/->c[]/->t/->v.sval/->v.ival accesses correct throughout raku.y.
+gates: smoke_icon 5/5, smoke_raku 5/5, scrip_all_modes 2/0, crosscheck_snobol4 6/6 — all green.
 ```
 
 ## Authorship
