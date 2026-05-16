@@ -109,3 +109,33 @@ All findings documented here for next session. Ready for either:
 2. **Strategic escalation:** File high-priority bugs for Categories A/B, move to infrastructure work
 3. **Session handoff:** Prepare for next SNOBOL4 specialist session
 
+
+---
+
+## Addendum — Mode Maintenance Analysis (Sess 2026-05-16, late)
+
+Measured per-mode maintenance state from code + commits + goals.
+
+### Mode 1 (`--ast-run`, `driver/interp_*.c`, 5,853 LOC)
+- **NO-AST stubs:** 0 (allowed — Mode 1 IS the AST walker)
+- **Active goals touching it:** 16 (every frontend lives here)
+- **Status:** correctness oracle. Surface-area pain, no architectural debt.
+- **Maintenance cost per fix:** minutes-to-hours (full visibility, `printf` works)
+
+### Mode 2 (`--sm-run`, `processor/sm_interp.c`, 2,132 LOC)
+- **NO-AST stubs:** **8** (SM_BB_PUMP/ONCE/EVAL/ONCE_PROC/PUMP_EVERY, PL_UNIFY, PL_BUILTIN, sm_call_proc)
+- **Un-stubbed AST back-channel:** at least one (`bb_deferred_var` → `bb_build_brokered` from `stmt_exec.c:329` — causes the DATA-accessor SEGFAULT)
+- **Active goals touching it:** 5 (CHUNKS being the largest)
+- **Status:** **sick**. Default mode, architecturally cleanest design, most known broken handlers. ~35-40 test failures rooted here.
+- **Maintenance cost per fix:** hours-to-days (each fix requires designing the lowering before patching)
+
+### Mode 3 (`--jit-run`, `processor/sm_jit_interp.c`, 1,541 LOC)
+- **NO-AST stubs:** 6 (inherited from Mode 2's contract — fire identically)
+- **Active goals touching it:** 1, and **CLOSED** (`GOAL-MODE3-EMIT` ✅ Sess 2026-05-11c)
+- **Status:** **healthiest mode**. Watermark: `--jit-run ≥ --sm-run byte-identical across all six frontends`.
+- **Maintenance cost per fix:** rare (Mode 3 inherits Mode 2's bugs; very few originate here)
+
+### Strategic Recommendation
+
+**A "MODE-2-AST-REFACTOR" goal is the highest-leverage next step.** Fix each of the 8 stubs one at a time = slow grind. Design the lowering pattern once (how do deferred-variable patterns lower into SM_Program without AST callbacks?), then apply systematically to all 8 stubs + the un-stubbed back-channel. Expected impact: unblocks ~35-40 broad-corpus tests across modes 2/3/4 simultaneously (cross-pollination payoff).
+
