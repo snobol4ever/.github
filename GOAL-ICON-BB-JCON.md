@@ -39,6 +39,41 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — CROSS-LANGUAGE CALLS GO SM↔SM OR BB↔BB, NEVER SM↔BB                         ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Each language owns its own SM↔BB bridge contract WITHIN that language:                         ║
+║    • Icon:   `SM_BB_PUMP_PROC` / `icn_bb_dcg` / `proc_table[i].ir_body`                          ║
+║    • SNOBOL4: `SM_PAT_*` composer family / `pat_cat`/`pat_alt` / PATND_t tree                   ║
+║    • Prolog: `SM_PL_CHOICE`-family / `pl_bb_dcg` / `dcg_table[i].ir_body`                       ║
+║                                                                                                  ║
+║  The α/β/γ/ω port semantics differ per language: Icon "β" advances a generator's internal       ║
+║  counter; Prolog "β" pops a choice-point and tries the next clause; SNOBOL4 "β" backtracks      ║
+║  along the pattern's anchor chain.  These contracts are NOT interchangeable.                    ║
+║                                                                                                  ║
+║  When polyglot code crosses a language boundary, the call MUST land at the same level it       ║
+║  left from:                                                                                      ║
+║                                                                                                  ║
+║    SM(lang_A) ──→ SM(lang_B)    via top-level dispatch (SM_CALL_FN, frontend emission)          ║
+║    BB(lang_A) ──→ BB(lang_B)    via a registered BB callee at the same level                    ║
+║                                                                                                  ║
+║  NEVER:                                                                                          ║
+║                                                                                                  ║
+║    SM(lang_A) ──→ BB(lang_B)    direct reach-across — DIFFERENT port semantics                  ║
+║    BB(lang_A) ──→ SM(lang_B)    direct reach-up — bypasses the bridge contract                  ║
+║                                                                                                  ║
+║  The SM↔BB bridge inside any one language is the ONLY place SM-level and BB-level code         ║
+║  meet, and that bridge is owned by — and meaningful only for — that one language.               ║
+║                                                                                                  ║
+║  Polyglot composability is structural, not semantic.  Cutting and pasting BBs across            ║
+║  languages produces a syntactically valid graph that runs nonsense.  Composition WITHIN a       ║
+║  language is plug-and-play; composition ACROSS languages requires a deliberate ABI bridge at   ║
+║  the SM↔SM or BB↔BB level that translates port semantics.                                       ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-ICON-BB-NATIVE ✅ `7efdf09a`
 
@@ -666,6 +701,36 @@ Next DCGs to implement (highest ir-run yield first):
         TT_WHILE, TT_UNTIL, TT_REPEAT, nested TT_FNC (user procs called from
         main).  Then unblock more of the broker (currently 16/49) and the
         ir-run rungs (currently 20/265).
+
+  Session 2026-05-15 followup (Claude Opus 4.7, one4all `c2c20d1a`):
+    Lon clarified the cross-language invariant: SM↔BB bridges are
+    PER-LANGUAGE.  Cross-language calls go SM↔SM or BB↔BB, NEVER SM↔BB.
+    The α/β/γ/ω port semantics differ per language — Icon "β" advances a
+    generator counter; Prolog "β" pops a choice-point and tries the next
+    clause; SNOBOL4 "β" backtracks along the pattern anchor chain.  These
+    are not interchangeable.
+
+    Added prominent banner box at the top of this file recording the rule
+    verbatim.  Same banner reproduced in the new sister Goal
+    `GOAL-PROLOG-BB-JCON.md` (also created this session).  Both Goals now
+    list the rule among their invariants.
+
+    Conceptual consequence: composability is structural, not semantic.
+    Cut-and-paste of BBs WITHIN a language is plug-and-play (the four-port
+    label contract is uniform).  Cut-and-paste ACROSS languages is
+    forbidden because the port contracts differ — those crossings must
+    happen at the SM↔SM or BB↔BB level via a deliberate ABI bridge that
+    translates port semantics.
+
+    Sister Goal created: GOAL-PROLOG-BB-JCON.md.  Mirror of this file with
+    Prolog port semantics substituted — `SM_BB_ONCE_PROC` instead of
+    `SM_BB_PUMP_PROC`, `pl_bb_dcg` instead of `icn_bb_dcg`, `dcg_table[]`
+    instead of `proc_table[]`, etc.  Step ladder PJ-1..PJ-8 mirrors the
+    Icon IJ-* ladder.  Prereq: GOAL-PROLOG-BB-COMPLETE at one4all
+    `c9b7428d`.  Starting state: smoke_prolog 0/5 — all five smoke tests
+    stub on `SM_BB_ONCE_PROC` NO-AST currently.
+
+    PLAN.md row for "Prolog BB JCON triage" added pointing at the new Goal.
 
   Session 2026-05-15h (Claude Sonnet 4.6, one4all `66b4d52e`):
     Architectural directive recorded (Lon, 2026-05-15): Icon program = TWO SM
