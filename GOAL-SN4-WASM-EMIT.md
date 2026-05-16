@@ -344,3 +344,42 @@ next-session note: SN4-WASM-5g (pattern matching) — the JS-style stack-of-obje
                    wiring; recommendation is to implement the JS-style approach first for
                    ladder PASS gain, defer the BB-arena model to a later optimization pass.
 ```
+
+---
+
+## ⛔ CRITICAL RULE (Added 2026-05-16 Final)
+
+**SN4-WASM-5g Redesign Required**
+
+DO NOT implement stack-based pattern system (previous attempt was wrong architecture).
+
+MUST implement BB-arena pattern system (integrate with existing 32-byte box infrastructure).
+
+### Correct Architecture: BB-Arena Patterns (Steps 0-5)
+
+**Step 0: Prepare** ✅ DONE
+- Reverted all non-BB pattern code (2026-05-16)
+
+**Step 1: Design BB Pattern Boxes** (Next Session)
+- α/β function pairs for 25 pattern types
+- 32-byte boxes in BB arena (0x50000..0x5FFFF)
+- Same structure as scalar nodes (standard BB format)
+
+**Step 2: Implement bb_boxes.wat Pattern Functions** (Next Session)
+- Pattern construction (α)
+- Pattern matching with backtracking (β)
+- Cursor management, capture queue
+
+**Step 3: Wire SM_PAT_* in Emitter** (Next Session)
+- SM_PAT_LIT → call BB α function
+- SM_PAT_CAT/ALT → recursive BB box calls
+- SM_EXEC_STMT → scan loop using BB boxes
+
+**Step 4: Integration Testing**
+- Smoke: 7/7 PASS (no regression)
+- Ladder: PASS ≥ 100/129
+
+**Step 5: Optimization (Deferred)**
+- Pattern caching
+- Advanced pruning
+
