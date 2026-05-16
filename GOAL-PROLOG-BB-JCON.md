@@ -66,11 +66,10 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 | Step | Description | Gate |
 |---|---|---|
 | **PJ-1** ✅ | Add `pl_bb_dcg` bridge + `g_dcg_table[]` registry skeleton. Mirror of `icn_bb_dcg`/`proc_table`. Landed at one4all `e6af028c`. | Build clean; gates unchanged |
-| **PJ-2** | Create `src/lower/lower_pl.c` + `.h`. `lower_pl_predicate(tree_t*)` returns NULL placeholder. Wire `lower()` to populate `dcg_table[i].ir_body = NULL`. | Build clean; gates unchanged |
-| **PJ-3** | Replace `[NO-AST]` stub in `sm_interp.c case SM_BB_ONCE_PROC` with body handler: lookup `dcg_table[name/arity]`, wrap in `pl_dcg_state_t`, drive via `bb_broker`. Fall back to legacy stub when `ir_body == NULL`. | smoke_prolog still 0/5 (no IR yet) |
-| **PJ-4** | `lower_pl_expr_node` handles TT_FNC(write/nl), TT_UNIFY, TT_FNC("is"), TT_VAR, TT_ILIT/QLIT/NAME. Wire into `lower_pl_predicate` building `IR_SEQ`. | smoke_prolog write/unify/arith PASS |
-| **PJ-5** | `IR_PL_CHOICE` executor + `lower_pl_choice(clauses[], n)`. α: trail_mark, try clause 0. β: trail_unwind, advance, try next. ω: exhausted. | smoke_prolog clause PASS |
-| **PJ-6** | `IR_PL_CALL` executor (recursion). Lookup `dcg_table[name/arity]`, fresh state, inner drive. Save choice-point depth as cut barrier. | smoke_prolog recursion PASS → 5/5 |
+| **PJ-2** ✅ | Create `src/lower/lower_pl.c` + `.h`. `lower_pl_predicate(tree_t*)` returns NULL placeholder. Wire `lower()` to populate `dcg_table[i].ir_body = NULL`. Landed `d9fe1496`. | Build clean; gates unchanged |
+| **PJ-3** ✅ | Replace `[NO-AST]` stub in `sm_interp.c case SM_BB_ONCE_PROC` with body handler: lookup `dcg_table[name/arity]`, wrap via `pl_bb_once_proc_by_name`, drive via `bb_broker`. Landed `f5db4e5f`. | smoke_prolog still 0/5 (no IR yet) |
+| **PJ-4** ✅ | `lower_pl_expr_node` handles TT_FNC(write/nl), TT_UNIFY, TT_FNC("is"), TT_VAR, TT_ILIT/QLIT/NAME. Wire into `lower_pl_predicate` building `IR_SEQ`. IR_PL_BUILTIN/VAR/ATOM/ARITH/UNIFY executors in ir_exec.c. pl_bb_env_push/pop. Landed `cb1417a5`. | smoke_prolog 3/5 (write+unify+arith PASS) |
+| **PJ-5/6** 🔄 | `IR_PL_CHOICE` (multi-clause) + `IR_PL_CALL` (predicate call with arg binding). WIP `7be007c2`. fact/1 lowers and executes correctly. KNOWN BUG: IR_PL_CHOICE has two shapes that collide: (A) multi-clause uses c[i]->opaque=IR_block_t*; (B) inline ';' disjunction uses c[i] as raw IR_t* from lower_pl_seq — executor reads opaque=NULL → main/0 ir_body=NULL. FIX: split IR_PL_ALT (new kind, inline two-branch, drives c[0]/c[1] directly as IR_t*) from IR_PL_CHOICE (multi-clause only, each c[i]->opaque=IR_block_t*). Add IR_PL_ALT to IR.h + ir_exec.c; change lower_pl_stmt_node ';' case to emit IR_PL_ALT. | smoke_prolog clause+recursion PASS → 5/5 |
 | **PJ-7** | `IR_PL_CUT` executor. Discard choice points to enclosing barrier. Mark surrounding CHOICE so β skips past cut clauses. | broker `!` tests PASS |
 | **PJ-8** | Delete `pl_runtime.c` AST-walking paths for modes 2/3/4: `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`, `interp_exec_pl_builtin` become mode-1-only. Modes 2/3/4 use `g_dcg_table` exclusively. | smoke_prolog 5/5; honest_prolog gate green |
 
@@ -81,15 +80,19 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 ## Watermark
 
 ```
-one4all: e6af028c (PJ-1 landed)  corpus: 1fe096c
-smoke_prolog: 0/5 (intentional baseline; PJ-1 is skeleton-only)
+one4all: 7be007c2 (PJ-5/6 WIP)  corpus: 1fe096c
+smoke_prolog: 3/5 (write_atom+unify+arith PASS; clause+recursion blocked by IR_PL_CHOICE/IR_PL_ALT split bug)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
-honest icon-suite: 277 PASS / 0 FAIL / 0 ABORT
-broker: 16/49
+broker: 18/49
 ```
 
-**Session 2026-05-15 fu#4 (Opus 4.7):** PJ-1 closed at `e6af028c`. Added `pl_bb_dcg` bridge to `pl_runtime.c` (mirrors `icn_bb_dcg` byte-for-byte: `pl_dcg_state_t { IR_block_t *cfg; int first; }`, same α-resets-first / once-then-resume dispatch). Added `g_dcg_table[PL_DCG_TABLE_MAX]` + `g_dcg_count` registry with `pl_dcg_lookup(name, arity)` and `pl_dcg_register(name, arity, ir_body)`. New types `PlScopeEnt`/`PlScope`/`Pl_PredEntry_BB` in `pl_runtime.h` mirror Icon equivalents (minus `tree_t* proc` per NO-AST-WALK rule). Build clean. All gates unchanged.
+**Session 2026-05-16 (Claude Sonnet 4.6):** PJ-2 `d9fe1496`, PJ-3 `f5db4e5f`, PJ-4 `cb1417a5` landed. PJ-5/6 WIP `7be007c2`.
 
-Env note: `libgc-dev` was missing at session start; `apt-get install -y libgc-dev` fixed it. `scripts/install_system_packages.sh` already lists it in PKGS — Session Setup may benefit from running it on dirty containers.
+Key facts for next session:
+- `libgc-dev` needed: `apt-get install -y libgc-dev` (already in install_system_packages.sh).
+- arity-from-key fix in `pl_bb_once_proc_by_name`: `sm_emit_si` for SM_BB_ONCE_PROC always passes arity=0; fix parses arity from the slash in the key string.
+- IR kinds added: `IR_PL_BUILTIN`, `IR_PL_VAR`, `IR_PL_ATOM`, `IR_PL_ARITH` in `IR.h`; executors in `ir_exec.c`.
+- `pl_bb_env_push(n)` / `pl_bb_env_pop(saved)` in `pl_runtime.c/.h`; wired in `sm_interp.c SM_BB_ONCE_PROC`.
+- `lower_pl_clause_body`: inserts `IR_PL_UNIFY(IR_PL_VAR(i), head_term_i)` for each head arg.
 
-**NEXT:** PJ-2 — create `src/lower/lower_pl.c` + `lower_pl.h`. Implement `lower_pl_predicate(tree_t*)` returning NULL initially as placeholder; wire `lower()` to populate `g_dcg_table[i].ir_body = NULL` per Prolog predicate at proc-table-skeleton emission. Mirror of `lower_icn_proc_body`.
+**NEXT (PJ-5/6 fix):** Add `IR_PL_ALT` to `IR.h` (new kind, inline two-branch disjunction). In `ir_exec.c`: `IR_PL_ALT` drives `c[0]` directly (as IR_t*, no opaque); on fail, drives `c[1]`. Keep `IR_PL_CHOICE` for multi-clause only (c[i]->opaque=IR_block_t*). In `lower_pl.c`: change ';' case in `lower_pl_stmt_node` to emit `IR_PL_ALT` (not `IR_PL_CHOICE`). After this fix main/0 with ';' will lower, smoke_prolog clause+recursion should PASS → 5/5.
