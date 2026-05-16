@@ -178,3 +178,14 @@ cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 3/5
 
 Latent bug to file: `every (s := "" | "a") do write(s)` infinite-loops
 in IR mode at watermark — not blocked on this goal but worth a ticket.
+
+---
+
+## PST-RAKU-3b COMPLETE — 2026-05-16 (session 30/59)
+
+**one4all**: `3b11ec53` PST-RAKU-3b: raku.y pure syntax tree — all violations fixed
+**corpus**: `e662a5a` PST-RAKU-3b: parser_raku.sc mirror — fix finish_for_range in-place append (V4)
+**.github**: `069243fa` PST-RAKU-3b ✅: goal complete — all Icon+Raku PST violations fixed and gated
+
+All 6 Raku violations fixed. Gates: smoke_raku 5/5, smoke_icon 5/5, scrip_all_modes 2/0, crosscheck_snobol4 6/6.
+Next goal: PST-REBUS-PROLOG at PST-PL-6a.
