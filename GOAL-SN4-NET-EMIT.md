@@ -349,17 +349,72 @@ SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" 
 
   **Gate:** smoke 7/7 maintained. New test: `Greet(who) Greet = 'Hello, ' who :(RETURN)` followed by `OUTPUT = Greet('World')` produces `Hello, World` matching SPITBOL oracle. Recursive factorial `Fact(n)` returns the correct value and doesn't corrupt the caller's local n.
 
-#### SN4-NET-5d — Pattern opcode wiring
+#### SN4-NET-5d — Pattern BB emission (flat wired MSIL)
 
-- [ ] **SN4-NET-5d** — Wire `SM_PAT_*` opcodes to invoke the already-emitted `pat_*_*` BB classes (those produced by SN4-NET-2's BB template emitters). Beauty uses pattern matching for its main parse loop; without this, ~half of beauty's logic still runs on empty strings.
+Session 2026-05-16d (Claude Sonnet 4.5): **Correct architecture — emit flat, wired MSIL pattern code inline.** Patterns do NOT use a separate stack. BB primitives manipulate Σ/Δ/Ω globals (subject, cursor, omega). Do NOT use `boxes.dll`. Emit MSIL code blobs for each primitive with inline α and β logic, branching within the method, no external dispatch (same model as x86 `--bb-flat`).
 
-  - Each SM_PAT_* opcode is a marker that says "construct a BB pattern node of type X here." Beauty's compiled SM program has hundreds of these between an outer `SM_BB_PUMP` / `SM_BB_ONCE` driver.
-  - At emit time, the SM walker needs to: (a) instantiate the right pat_*_* class with the right constructor args from `instr->a[*]`, (b) chain them (CAT and ALT compose children), (c) hand the root to the SM_BB_PUMP/ONCE driver.
-  - The runtime model: a MatchState struct holds cursor, subject, anchor; BB Alpha() returns success and updates cursor; BB Beta() retries.
-  - This is mostly mechanical given the 19 BB classes already emitted, but needs a per-PAT-opcode stack-based composition: SM_PAT_LIT pushes a new BB instance onto a "current pattern" stack, SM_PAT_CAT pops two and pushes a CAT wrapper, etc.
-  - SnoRt needs a `_pat_stack : Stack<IByrdBox>` and helpers `pat_push(IByrdBox)`, `pat_pop_cat()`, `pat_pop_alt()`, `pat_run_pump()`, `pat_run_once()`.
+- [ ] **SN4-NET-5d-1** — Add Σ/Δ/Ω globals to SnoRt.il:
+  - Add static fields: `_sigma : string`, `_delta : int32`, `_omega : int32`
+  - Initialize in `.cctor` and `_init()`
+  - Add accessor methods: `get_sigma()`, `set_sigma(string)`, `get_delta()`, `set_delta(int32)`, `get_omega()`, `set_omega(int32)`
+  
+  **Gate:** SnoRt.il assembles; smoke 9/9 PASS maintained.
 
-  **Gate:** A simple pattern program (e.g. `S = 'hello world' ; S 'hello' = 'goodbye' ; OUTPUT = S`) produces the correct output via .NET emit path.
+- [ ] **SN4-NET-5d-2** — Emit Σ/Δ/Ω initialization in SM_EXEC_STMT:
+  - In `emit_net.c`, when emitting `SM_EXEC_STMT`, emit MSIL that:
+    - Pops replacement (if `has_repl=1`)
+    - Pops subject DESCR value
+    - Pops pattern DESCR value
+    - Fetches subject string from `_vars[subj_name]`
+    - Calls `SnoRt::set_sigma(string)`, `SnoRt::set_delta(0)`, `SnoRt::set_omega(length)`
+  
+  **Gate:** smoke 9/9 PASS maintained (no pattern opcodes yet).
+
+- [ ] **SN4-NET-5d-3** — Emit pattern tree construction (SM_PAT_* → DESCR):
+  - For each `SM_PAT_*` opcode, emit MSIL that constructs a DESCR on the value stack
+  - Pattern DESCR holds a pattern ID (use `DT_E` with a unique integer ID, or store metadata in side table)
+  - `SM_PAT_CAT`, `SM_PAT_ALT` pop two DESCR patterns, combine them, push result
+  - Store pattern metadata: map ID → (primitive type, args, successor_id, fail_id)
+  
+  **Gate:** smoke 9/9 PASS maintained.
+
+- [ ] **SN4-NET-5d-4** — Implement pattern primitive MSIL code generation:
+  - Create helper function in `emit_net.c`: `emit_net_pat_alpha_beta(int pat_id, FILE *out)` that emits the α and β entry points for a pattern
+  - For each primitive type: `bb_lit`, `bb_any`, `bb_span`, `bb_break`, `bb_len`, `bb_pos`, `bb_rpos`, `bb_tab`, `bb_rtab`, `bb_rem`, `bb_arb`, `bb_arbno`, `bb_fence`, `bb_abort`
+  - Emit α logic: load Σ/Δ/Ω, check condition, advance Δ on match, call successor on success or branch to β on fail
+  - Emit β logic: restore Δ (backtrack), branch to fail successor
+  - Use labels: `PAT_<id>_A_SUCC`, `PAT_<id>_A_FAIL`, `PAT_<id>_B_NEXT` for control flow
+  
+  **Gate:** Simple test: `S = 'hello'; S 'hello'` assembles and runs without error.
+
+- [ ] **SN4-NET-5d-5** — Wire SM_EXEC_STMT to call pattern blob and extract result:
+  - When emitting `SM_EXEC_STMT`, after Σ/Δ/Ω initialization, emit a call to the pattern blob entry point (α)
+  - Pattern blob returns a match result (Success bool, MatchStart int, MatchLength int) via return value or locals
+  - Extract result, apply replacement if `has_repl=1` and match succeeded
+  - Store updated subject back to `_vars[subj_name]`
+  - Set `_last_ok` based on match result
+  
+  **Gate:** smoke 9/9 PASS + new pattern test: `S = 'hello world'; S 'hello' = 'goodbye'` → output = `'goodbye world'`.
+
+- [ ] **SN4-NET-5d-6** — Implement composition (CAT, ALT):
+  - `SM_PAT_CAT` generates code that chains left.α → right.α (on left success, continue to right; on left fail, try left.β)
+  - `SM_PAT_ALT` generates code that tries left.α first, backtracks to right.α if left fails
+  - Emit label references for successor/alternative paths
+  
+  **Gate:** Pattern with alternation and sequence: `S ANY('aeiou') LEN(2)` works.
+
+- [ ] **SN4-NET-5d-7** — Implement capture (SM_PAT_CAPTURE):
+  - When `SM_PAT_CAPTURE` is encountered, wrap the pattern with capture metadata
+  - On α success, record MatchStart and MatchLength in pending capture list
+  - After pattern succeeds, extract matched text via `Substring(MatchStart, MatchLength)` and store in `_vars[varname]`
+  
+  **Gate:** `S 'hello' . X` → X bound to 'hello'.
+
+- [ ] **SN4-NET-5d-8** — Test suite and gate:
+  - Extend `scripts/test_smoke_snobol4_net.sh` with pattern tests
+  - Add tests: literal match, ANY, SPAN, LEN, CAT, ALT, CAPTURE, replacement
+  
+  **Gate:** smoke 9/9 PASS (original) + 5+ new pattern tests = 14+ PASS.
 
 #### SN4-NET-5z — Byte-identical beauty (closeout)
 
@@ -393,38 +448,37 @@ SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" 
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c ✅ — parameter binding + frame save/restore)
-head: one4all b3c0527d (main) — sn4-net-5c-wip merged
-session: 2026-05-15 (Claude Opus 4.7) — SN4-NET-5c closed
+watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c ✅, 5d ⏳ — pattern BB flat wired emission)
+head: one4all 9a1d4b50 (main) — 5d-1 and 5d-2 landed
+session: 2026-05-16d (Claude Sonnet 4.5) — SN4-NET-5d architecture corrected, 5d-1/5d-2 complete
+
 progress:
   SN4-NET-1 ✅ SnoRt.il scalar runtime;
-  SN4-NET-2 ✅ 19 BB emitters in emit_net.c;
+  SN4-NET-2 ✅ 19 BB emitters in emit_net.c (OLD — will be removed);
   SN4-NET-3 ✅ SM walker + --target=net wiring;
-  SN4-NET-4 ✅ smoke 9/9 PASS (now with define_simple + define_recursive);
-  SN4-NET-5a ✅ control-flow / comment / runtime fixes (one4all eb74b9a5);
-  SN4-NET-5b ✅ user-function dispatch — call/return without param
-    binding via pre-scan name→pc table + push/pop_ret_pc on _ret stack
-    (one4all bb77ac29);
-  SN4-NET-5c ✅ parameter binding + frame save/restore (one4all 64a89740, merged b3c0527d).
-    Step 1: parse param list from DEFINE literal ✅
-    Step 2: emit param binding (reverse pop) at function entry ✅
-    Step 3: frame save/restore — frame_push + frame_save(name) at
-      define_entry; frame_exit() at all RETURN/NRETURN/FRETURN sites
-      AND on null-name SM_CALL_FN implicit return. Recursive Fact(5)=120 ✅
-    Step 4: return-value via push_var(fname) on RETURN ✅
-  SN4-NET-5d ⏳ SM_PAT_* opcode wiring to pat_*_* BB classes — NEXT.
-  SN4-NET-5z — byte-identical beauty closeout.
-  SN4-NET-6 — broad SNOBOL4 corpus ladder.
+  SN4-NET-4 ✅ smoke 9/9 PASS (9 tests);
+  SN4-NET-5a ✅ control-flow / comment / runtime fixes;
+  SN4-NET-5b ✅ user-function dispatch;
+  SN4-NET-5c ✅ parameter binding + frame save/restore;
+  SN4-NET-5d ⏳ Pattern BB flat wired MSIL emission:
+    5d-1 ✅ Σ/Δ/Ω globals in SnoRt.il (one4all de341691)
+    5d-2 ✅ SM_EXEC_STMT Σ/Δ/Ω initialization (one4all 9a1d4b50)
+    5d-3 ⏳ Pattern tree construction (SM_PAT_*)
+    5d-4 ⏳ Pattern primitive MSIL generation
+    5d-5 ⏳ SM_EXEC_STMT pattern blob driver
+    5d-6 ⏳ Composition (CAT, ALT)
+    5d-7 ⏳ Capture
+    5d-8 ⏳ Test suite
 
-session 2026-05-15 gates (on main @ b3c0527d):
-  smoke_snobol4_net    9/9 PASS  (was 8/8; +define_recursive)
-  smoke_snobol4        7/7 PASS  (unchanged)
-  smoke_snocone        5/5 PASS  (unchanged)
-  smoke_icon           5/5 PASS  (unchanged)
-  smoke_prolog         5/5 PASS  (unchanged)
-  smoke_rebus          4/4 PASS  (unchanged)
-  unified_broker      23/49 PASS (unchanged vs sn4-net-5c-wip baseline)
-  all_modes            2/3 PASS  (--jit-emit --net failure pre-existing on main)
+gates (current @ 9a1d4b50):
+  smoke_snobol4_net    9/9 PASS
+  smoke_snobol4        7/7 PASS
+  smoke_snocone        5/5 PASS
+  smoke_icon           5/5 PASS
+  smoke_prolog         5/5 PASS
+  smoke_rebus          4/4 PASS
+  unified_broker      23/49 PASS
+  all_modes            2/3 PASS
 ```
 
 ## Step 3 implementation notes (closed)
