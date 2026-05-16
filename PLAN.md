@@ -58,7 +58,10 @@ Lon names a goal. You:
 | **Prolog BB JCON triage** | `GOAL-PROLOG-BB-JCON.md` | one4all+corpus+.github | **PJ-5 cont.** — (A) TT_FNC comparison routing; (B) IR_PL_UNIFY literal match; (C) backtracking pump. Watermark `141c4816`: smoke_prolog 3/5. |
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
-| **⚡ Pure Syntax Tree (six frontends)** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SN4-1b** — strip `TT_SCAN`-unpacking / `TT_SEQ`-splitting from `sno4_stmt_commit_go`; move to `lower.c`. **SCRIP mirror same commit:** strip from `corpus/SCRIP/parser_snobol4.sc:pp_stmt`, add to `corpus/SCRIP/lower.sc`. New ⛔ SCRIP self-host mirror invariant binds every PST-* rung. 1a ✅ `544a6de0`. |
+| **⚡ PST: SNOBOL4 cleanup** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-ICN-2a** — Icon parser audit. 1a ✅ `544a6de0`, 1b ✅, 1d ✅, 1d-SCRIP ✅, 1c ✅ (2026-05-16). |
+| **⚡ PST: Icon + Raku audit** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **PST-ICN-2a** — read icon_parse.c + parser_icon.sc; list violations. |
+| **⚡ PST: Snocone rewrite** | `GOAL-PST-SNOCONE.md` | one4all+corpus+.github | **PST-SC-4a** — TT_AUGOP: move augop expansion from parser to lower. |
+| **⚡ PST: Rebus + Prolog rewrite** | `GOAL-PST-REBUS-PROLOG.md` | one4all+corpus+.github | **PST-RB-5a** — read rebus.y + downstream; complete REKind→TT_* mapping. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
 | **SN4 JVM Emitter** | `GOAL-SN4-JVM-EMIT.md` | one4all+.github | **SJ4-JVM-4** 🔄 — method-split `e01e17eb` ✅. Beauty.sno halts at "Parse Error" (semantic). smoke 13/13. |
