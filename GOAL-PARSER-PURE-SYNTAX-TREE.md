@@ -53,7 +53,7 @@ Simplest rule: **if the action body reads or writes anything other than its own 
 
 ### Step 1 — SNOBOL4 cleanup
 
-- [ ] **PST-SN4-1a** — Remove EXPORT/IMPORT special-case from `sno4_stmt_commit_go`. **Finding (2026-05-16):** no consumer reads `prog->exports` / `prog->imports`. `ast_clone.c:code_free` is the only reader and it only frees the lists. Action: delete the parser-side special-case; also delete the parallel write in `prolog_lower.c:368-372` and the dead `icn_prescan_imports`. Leave the types and fields in place for now (deletion is a separate cleanup if needed) so the parser-purity rung is minimal and reversible.
+- [x] **PST-SN4-1a** ✅ (2026-05-16, one4all `544a6de0`) — EXPORT/IMPORT special-case removed from `sno4_stmt_commit_go`. Finding: no consumer reads `prog->exports` / `prog->imports`; the original "move to lower/driver" was moot. Bundled in the same commit: synced stale `snobol4.y` to canonical `tree_t` / `TT_*` names (`AST_t`→`tree_t`, `AST_e`→`tree_e`, `AST_<KIND>`→`TT_<KIND>` for 48 kinds, `expr_new`→`ast_node_new`, field renames `nchildren/children/kind/sval/ival/dval/nalloc` → `n/c/t/v.sval/v.ival/v.dval/_nalloc`). Without the sync, any bison regen reverts the codebase to pre-rename names and breaks the build. Gates: smoke 7/0 (baseline 7/0), beauty self-host 29/22 (baseline-identical).
 - [ ] **PST-SN4-1b** — Remove `AST_SCAN`-unpacking and `AST_SEQ`-splitting subject/pattern rearrangement. Equivalent logic in `lower`.
 - [ ] **PST-SN4-1c** — Lift goto fields (`goto_u`, `goto_s`, `goto_f` and `_expr` variants) off `STMT_t` onto `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children. Lower then walks these children to emit `IR_SM_JUMP`/`IR_SM_JUMP_S`/`IR_SM_JUMP_F`.
 - [ ] **PST-SN4-1d** — Document `snobol4.y` header as reference for pure-syntax-tree style.
@@ -349,8 +349,9 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
-head: .github HEAD = 9c465916
-next: PST-SN4-1a (delete EXPORT/IMPORT parser-side special-case — no consumer)
+            Stage 1 Step 1 — PST-SN4-1a ✅ (one4all 544a6de0, .github pending)
+head: .github HEAD pending push (after PST-SN4-1a mark)
+next: PST-SN4-1b (strip AST_SCAN-unpacking / AST_SEQ-rearrangement from sno4_stmt_commit_go)
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
