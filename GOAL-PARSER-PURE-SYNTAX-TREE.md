@@ -49,12 +49,41 @@ Simplest rule: **if the action body reads or writes anything other than its own 
 
 ---
 
+## ⛔ SCRIP self-host mirror invariant (binding on every PST-* rung)
+
+Every change to a one4all C frontend or to `lower.c` / `lower_*.c` has a matching change to the corresponding Snocone-self-hosted source under `corpus/SCRIP/`, committed in the **same rung** (i.e. the same handoff). The SCRIP folder is not a downstream consumer that catches up later — it is a second implementation of the same compiler, and the two must move together.
+
+Mirror map (C side → SCRIP side):
+
+| C frontend / lower file | SCRIP mirror | Mirror responsibility |
+|---|---|---|
+| `src/frontend/snobol4/snobol4.y` (`sno4_stmt_commit_go`, statement-rule actions) | `corpus/SCRIP/parser_snobol4.sc` (`pp_stmt` and the per-statement rules above it) | Both build the same `:subj`/`:pat`/`:eq`/`:repl`/`:go*` attribute shape on `TT_STMT` |
+| `src/frontend/icon/icon_parse.c` | `corpus/SCRIP/parser_icon.sc` | Same `tree_t` shape per construct |
+| `src/frontend/raku/raku.y` | `corpus/SCRIP/parser_raku.sc` | Same |
+| `src/frontend/snocone/snocone_parse.y` | `corpus/SCRIP/parser_snocone.sc` | Same — including Step 4's full rewrite |
+| `src/frontend/rebus/*` | `corpus/SCRIP/parser_rebus.sc` | Same — Step 5's `tree_t` build |
+| `src/frontend/prolog/prolog_parse.c` | `corpus/SCRIP/parser_prolog.sc` | Same — Step 6's `tree_t` build + slot deferral |
+| `src/lower/lower.c` and `src/lower/lower_*.c` | `corpus/SCRIP/lower.sc` | Whatever the C parser stops doing, the SCRIP parser also stops doing — and whatever C `lower` newly absorbs, `lower.sc` newly absorbs. Mirror is by behavior, not by line-for-line code. |
+
+Rules for the mirror:
+
+1. **Same-commit pairing.** A handoff that touches a C parser/lower file without touching the SCRIP mirror is a rule violation. Reject in review.
+2. **Per-step gate.** Every PST-* rung adds `parser_<lang>.sc` smoke / `corpus_SCRIP` round-trip to its gate set. If the SCRIP frontend can no longer reproduce the C frontend's `:subj`/`:pat`/… tree for the corpus, the rung is not done.
+3. **Identifier mirroring.** Per RULES.md "Snocone parser style," non-terminal names in `parser_<lang>.sc` mirror the C frontend's parse-function names; IR node tags mirror the exact strings the C dumper emits. When a C rename happens (e.g. `AST_SCAN` → `TT_SCAN`), the SCRIP file renames in the same commit.
+4. **Lower split-of-labor parity.** When parser-side logic moves to lower in the C path (e.g. PST-SN4-1b's SCAN-unpack and SEQ-split), the exact same logic moves from `parser_<lang>.sc` to `lower.sc` in the SCRIP path. The post-parse `tree_t` shape produced by both paths must remain bit-identical for the smoke corpus.
+5. **Byte-identical beauty test extends to SCRIP.** Beauty self-host via the C frontend must remain md5 `abfd19a7a834484a96e824851caee159`. Beauty self-host via the SCRIP frontend (when wired in mode-3/mode-4) must produce the same byte sequence. Any divergence is a regression of this goal, not a separate goal.
+6. **No silent mirror gap.** If a C-side change cannot yet be mirrored (e.g. the SCRIP language doesn't have a feature needed), file an explicit `⚠ MIRROR-GAP-NNN` entry in this goal file's State block before commit. Do not commit unilaterally.
+
+The pre-existing entries `PST-SC-4l` (`sc_split_subject_pattern` → lower) and PST-SN4-1b (SCAN-unpack / SEQ-split → lower) are the first concrete tests of this invariant: both have direct SCRIP mirrors in `parser_snobol4.sc:pp_stmt` (lines ~287–314) and `parser_snocone.sc`. Move the C-side logic and the SCRIP-side logic in the same commit.
+
+---
+
 ## Stage 1 — Parser step ladder
 
 ### Step 1 — SNOBOL4 cleanup
 
 - [x] **PST-SN4-1a** ✅ (2026-05-16, one4all `544a6de0`) — EXPORT/IMPORT special-case removed from `sno4_stmt_commit_go`. Finding: no consumer reads `prog->exports` / `prog->imports`; the original "move to lower/driver" was moot. Bundled in the same commit: synced stale `snobol4.y` to canonical `tree_t` / `TT_*` names (`AST_t`→`tree_t`, `AST_e`→`tree_e`, `AST_<KIND>`→`TT_<KIND>` for 48 kinds, `expr_new`→`ast_node_new`, field renames `nchildren/children/kind/sval/ival/dval/nalloc` → `n/c/t/v.sval/v.ival/v.dval/_nalloc`). Without the sync, any bison regen reverts the codebase to pre-rename names and breaks the build. Gates: smoke 7/0 (baseline 7/0), beauty self-host 29/22 (baseline-identical).
-- [ ] **PST-SN4-1b** — Remove `AST_SCAN`-unpacking and `AST_SEQ`-splitting subject/pattern rearrangement. Equivalent logic in `lower`.
+- [ ] **PST-SN4-1b** — Remove `TT_SCAN`-unpacking (`snobol4.y` lines ~227–231) and `TT_SEQ`-splitting (lines ~232–246) subject/pattern rearrangement from `sno4_stmt_commit_go`. Equivalent logic moves into `src/lower/lower.c` just before the `if (pattern) { ... }` branch (~line 1014), so it operates on the `:subj`/`:pat` attributes after `stmt_to_ast`. **SCRIP mirror (same commit):** strip the equivalent split blocks from `corpus/SCRIP/parser_snobol4.sc:pp_stmt` (lines ~287–314 — the `TT_ALT`/`TT_SEQ` split arms inside the `if (DIFFER(t(ppPatrn)))` and the `if (IDENT(t(subj_ir), 'TT_SEQ') ... IDENT(t(c(subj_ir)[1]), 'TT_VAR'))` arms) and add the same logic to `corpus/SCRIP/lower.sc` in the `:subj`/`:pat` path. Gate: post-parse `tree_t` shape bit-identical between C frontend and SCRIP frontend for the smoke corpus; beauty self-host byte-identical.
 - [ ] **PST-SN4-1c** — Lift goto fields (`goto_u`, `goto_s`, `goto_f` and `_expr` variants) off `STMT_t` onto `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children. Lower then walks these children to emit `IR_SM_JUMP`/`IR_SM_JUMP_S`/`IR_SM_JUMP_F`.
 - [ ] **PST-SN4-1d** — Document `snobol4.y` header as reference for pure-syntax-tree style.
 
@@ -62,17 +91,17 @@ Gates: scrip_all_modes, smoke_snobol4, broad corpus.
 
 ### Step 2 — Icon audit
 
-- [ ] **PST-ICN-2a** — Read `icon_parse.c` in full. List violations. Record findings.
-- [ ] **PST-ICN-2b** — Fix violations if any.
+- [ ] **PST-ICN-2a** — Read `icon_parse.c` AND `corpus/SCRIP/parser_icon.sc` in full. List violations in both. Record findings.
+- [ ] **PST-ICN-2b** — Fix violations if any, in both files within the same commit. SCRIP mirror invariant applies.
 
 ### Step 3 — Raku audit
 
-- [ ] **PST-RAKU-3a** — Read `raku.y` in full. List violations. Record findings.
-- [ ] **PST-RAKU-3b** — Fix violations if any.
+- [ ] **PST-RAKU-3a** — Read `raku.y` AND `corpus/SCRIP/parser_raku.sc` in full. List violations in both. Record findings.
+- [ ] **PST-RAKU-3b** — Fix violations if any, in both files within the same commit. SCRIP mirror invariant applies.
 
 ### Step 4 — Snocone rewrite (bulk of the work)
 
-Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green.
+Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green. **SCRIP mirror:** every rung in this step touches both `src/frontend/snocone/snocone_parse.y` / `src/lower/lower.c` AND `corpus/SCRIP/parser_snocone.sc` / `corpus/SCRIP/lower.sc` in the same commit. The post-parse `tree_t` produced by both parsers must match for the snocone smoke corpus at the end of each rung.
 
 - [ ] **PST-SC-4a** — Lower handles `TT_AUGOP`. Parser emits `TT_AUGOP` tagged with `AUGOP_*` enum instead of expanding `+=` etc.
 - [ ] **PST-SC-4b** — Lower handles `TT_IF(cond, then, else?)`. Parser replaces `sc_if_head_new`/`sc_finalize_if_*` with single `TT_IF`. `IfHead` deleted.
@@ -93,6 +122,8 @@ Gates: snocone_smoke, snocone broad corpus, scrip_all_modes.
 
 ### Step 5 — Rebus rewrite (RExpr* → tree_t)
 
+**SCRIP mirror:** every rung touches `src/frontend/rebus/*` AND `corpus/SCRIP/parser_rebus.sc` in the same commit.
+
 - [ ] **PST-RB-5a** — Map `REKind` → `TT_*` equivalents. Add new `TT_*` to `ast.h` only if needed.
 - [ ] **PST-RB-5b** — Action bodies build `tree_t` directly.
 - [ ] **PST-RB-5c** — `RExpr`/`RStmt`/`RProgram` and helpers (`rexpr_new`, `SAL`, `EAL`, `STAL`) deleted.
@@ -101,6 +132,8 @@ Gates: snocone_smoke, snocone broad corpus, scrip_all_modes.
 Gates: rebus smoke, rebus corpus, scrip_all_modes.
 
 ### Step 6 — Prolog rewrite (Term* → tree_t)
+
+**SCRIP mirror:** every rung touches `src/frontend/prolog/prolog_parse.c` AND `corpus/SCRIP/parser_prolog.sc` in the same commit. Slot deferral mirror lives in `corpus/SCRIP/lower.sc`.
 
 Term → tree_t mapping:
 
@@ -323,7 +356,8 @@ These share the prefix but are not IR-from-lower:
 ## Risks
 
 - **Beauty self-host regression.** Snocone changes are deep. Every PST-SC-4* rung must pass beauty smoke test before commit.
-- **Lower bloat.** Open new files for major pieces (`lower_snocone_ctrl.c`, `lower_pl_clause.c`).
+- **SCRIP mirror drift.** The single biggest risk of this goal: C frontend evolves rung-by-rung while `corpus/SCRIP/parser_*.sc` lags. Result is two implementations of the same compiler that disagree on `tree_t` shape, masked by gates that only test the C path. Mitigation: per-rung gate that diffs C-frontend dump vs SCRIP-frontend dump on smoke corpus; never commit a rung where they diverge.
+- **Lower bloat.** Open new files for major pieces (`lower_snocone_ctrl.c`, `lower_pl_clause.c`). Mirror split on the SCRIP side if `lower.sc` becomes unwieldy.
 - **Rebus has thin lower today.** `rebus_lower.c` will grow significantly in Step 5.
 - **Prolog parser shares scope state with lookahead.** Preserve variable-name→identity correspondence across a clause; only the slot numbering moves.
 
@@ -350,10 +384,15 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅
-head: .github = db68f6e6   one4all = 544a6de0   corpus = unchanged
-next: PST-SN4-1b (strip AST_SCAN-unpacking / AST_SEQ-rearrangement from sno4_stmt_commit_go)
+            SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
+head: .github = db68f6e6 (pre-amendment) → pending bump after this commit
+       one4all = 544a6de0   corpus = unchanged
+next: PST-SN4-1b — strip TT_SCAN-unpacking / TT_SEQ-rearrangement from sno4_stmt_commit_go
+       AND mirror in corpus/SCRIP/parser_snobol4.sc:pp_stmt
+       AND move equivalent logic into both lower.c and corpus/SCRIP/lower.sc
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
+mirror gaps: (none)
 ```
 
 ### Note for next session — bison regen behavior
@@ -364,4 +403,4 @@ ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower →
 
 ## Authorship
 
-Drafted by Claude Opus 4.7, 2026-05-16. Stage 2 split-IR design same session. Stage 2 bulk-rename plan (`SM_*`→`IR_SM_*`, `IR_*`→`IR_BB_*`) added 2026-05-16 (this session, with Lon).
+Drafted by Claude Opus 4.7, 2026-05-16. Stage 2 split-IR design same session. Stage 2 bulk-rename plan (`SM_*`→`IR_SM_*`, `IR_*`→`IR_BB_*`) added 2026-05-16 (this session, with Lon). SCRIP self-host mirror invariant added 2026-05-16 (same session, with Lon) — requires every PST-* rung to update `corpus/SCRIP/parser_*.sc` and `corpus/SCRIP/lower.sc` alongside the C-side change in the same commit.
