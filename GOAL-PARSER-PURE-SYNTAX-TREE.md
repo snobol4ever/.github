@@ -438,6 +438,66 @@ The interpreter walks the port edges. The emitters walk the children to
 generate the instruction stream and walk the ports to generate the branch
 targets.
 
+### JCON's IR confirms the "single edge per labeled port" model
+
+The reference Java implementation of Icon — JCON (Townsend & Proebsting,
+1999, code archived) — uses exactly this discipline. Inspected
+`jcon-master/tran/ir.icn` (48 lines) and `irgen.icn` (1559 lines):
+
+**Every JCON IR record carries at most one extra edge as a labeled field:**
+
+```icon
+record ir_Field      (coord, lhs, expr, field,         failLabel)
+record ir_OpFunction (coord, lhs, fn, argList,         failLabel)
+record ir_Call       (coord, lhs, fn, argList,         failLabel)
+record ir_ResumeValue(coord, lhs, value,               failLabel)
+record ir_Key        (coord, lhs, name,                failLabel)
+record ir_Goto       (coord, targetLabel)
+record ir_Succeed    (coord, expr, resumeLabel)
+record ir_CoRet      (coord, value, resumeLabel)
+record ir_EnterInit  (coord, startLabel)
+```
+
+Operations that **cannot fail** (`ir_Move`, `ir_MoveLabel`, `ir_Deref`,
+`ir_Assign`, `ir_MakeList`, `ir_IntLit`, `ir_StrLit`, ...) carry **no
+control edge at all** — they fall through to the next instruction in the
+same `ir_chunk`. Operations that **can fail** carry exactly one extra
+named edge (`failLabel`, or for suspend-style ops, `resumeLabel`).
+
+Per AST node, JCON allocates a 4-label **interface block** —
+`ir_info(start, resume, failure, success)` — declared in
+`irgen.icn` line 10. That structure looks like our α/β/γ/ω port set, but
+its role is different:
+
+- The 4-label `ir_info` is **per AST node** (each parse-tree node gets
+  one block of four entry/exit labels).
+- The single `failLabel` / `resumeLabel` is **per instruction** (one
+  outgoing edge from one node).
+
+This is the model. **Per-node ports vs per-instruction edges.** And in
+both cases — JCON or our IR — there is **never more than one outgoing
+edge per (node, port-name)**.
+
+**JCON has no 2-edge BB pattern.** Even where backtracking happens (alt
+exhaustion, generator resumption), the wiring is always a single edge
+labeled by its role. The "graph" emerges because multiple nodes' single
+edges can converge on the same target, and back-edges form natural cycles.
+
+The dot-export tool (`gen_dot.icn`) makes this concrete: it walks the
+emitted instruction list and writes one `A -> B [label="failure"]` edge
+per failure-carrying instruction, one `A -> B [label="resumeLabel"]` per
+suspend. No instruction emits two parallel edges to the same neighbor.
+The 4-port-per-AST-node and the single-edge-per-instruction live happily
+together with no contradiction.
+
+**Conclusion for our design:** the same is true in our IR_t. The four
+`α/β/γ/ω` are four *named ports*, each holding one edge. They are not
+"four edges between two nodes." A node that uses only `γ` (forward
+control) is degenerately fine; a pattern node that uses all four is also
+fine. Tree-shaped programs naturally use just `γ` (and ω for fail-out);
+backtracking-shaped subgraphs use the full set. The IR switches mode
+based on node kind — no representational change needed.
+
 ## Worked examples
 
 ### Example 1 — SNOBOL4 `X = 5`
@@ -646,6 +706,26 @@ walks via `c[]`. The execution graph walks via `α/β/γ/ω`. Single edges
 throughout (no back-pointers). Cycles exist for loops, backtracking, and
 pattern retry — and that is exactly what "directed cyclic graph" means.
 
+### Mapping to JCON terminology
+
+For anyone cross-referencing with JCON's `tran/ir.icn` and `tran/irgen.icn`:
+
+| Our IR_t concept              | JCON equivalent                                |
+|-------------------------------|------------------------------------------------|
+| `IR_t` struct                 | `ir_*` record (one per instruction kind)       |
+| `c[]/n` children              | record fields holding operand nodes (`expr`, `argList`) |
+| α/β/γ/ω ports (per AST node)  | `ir_info(start, resume, failure, success)`     |
+| Single edge per port          | per-instruction `failLabel` / `resumeLabel`    |
+| `cfg->entry`                  | `codeStart` field of `ir_Function`             |
+| Fall-through (deterministic)  | no label field — next insn in same `ir_chunk`  |
+| Goto edge                     | `ir_Goto(targetLabel)`                         |
+| Pattern subgraph              | (Icon has no patterns — N/A; SNOBOL4 specific) |
+
+JCON groups instructions into `ir_chunk(label, insnList)` — a labeled
+straight-line basic block. Our IR_t flattens that: each node carries its
+own port wiring rather than relying on a containing chunk's position.
+Same execution semantics; different layout choice.
+
 ## Stage 2 step ladder — Lower
 
 - [ ] **PST-LR-1** — Audit current `lower.c` against new pure-tree input.
@@ -759,6 +839,7 @@ ladder Stage 2: lower audit → per-construct passes (AUGOP/IF/WHILE/FOR/CASE/BR
 
 Drafted by Claude Opus 4.7, 2026-05-16, session after BB0 correction.
 Stage 2 design added same session, after Lon raised the SM-tree vs BB-graph
-question. Lon specified the architecture (pure syntax tree, lower owns the
-DCG, dual-nature `IR_t` carrying c[] skeleton + α/β/γ/ω execution ports)
-and asked for the worked examples.
+question. JCON cross-reference added after Lon supplied the JCON tarball
+to confirm the single-edge-per-port model. Lon specified the architecture
+(pure syntax tree, lower owns the DCG, dual-nature `IR_t` carrying c[]
+skeleton + α/β/γ/ω execution ports) and asked for the worked examples.
