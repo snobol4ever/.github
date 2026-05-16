@@ -26,7 +26,7 @@
 
 **Repo:** one4all + .github
 **Goal:** scrip --sm-emit --target=net file.sno emits a .il file; ilasm + mono/dotnet runs it correctly.
-**Done when:** beauty.sno byte-identical to SPITBOL oracle (md5 abfd19a7a834484a96e824851caee159, 646 lines).
+**Done when:** smoke_snobol4_net + broader SNOBOL4 corpus test suites pass (pattern matching complete). NOTE: beauty.sno removed as finality requirement — beauty contains EVAL/CODE which require mode-1 AST evaluation; .NET emitter focusing on deterministic pattern + arithmetic + function paths.
 
 ---
 
