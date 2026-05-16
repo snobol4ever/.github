@@ -403,40 +403,108 @@ The two are **orthogonal axes of the same node**:
 
 | Axis | What it expresses | When used |
 |---|---|---|
-| `c[]/n` children | **Abstract syntax skeleton** — what the program *says* | Always populated for compound nodes |
-| `α/β/γ/ω` ports | **Control wiring** — where execution *goes* | Populated for nodes that participate in BB-style backtracking |
+| `c[]/n` children | **Static n-ary operand structure** of compound IR nodes | Only when the kind has structural list-of-children (e.g. `IR_PL_CHOICE` alternatives, `IR_CALL` arg list, `IR_MAKELIST` elements, `IR_CASE` arms) |
+| α/β/γ/ω ports | **Control wiring** — where execution *goes* | Populated for every node whose role in the graph requires it |
+
+#### About c[]/n in the IR — observed from the worked example
+
+After walking through `if (n < 5) { s ? POS(0) ('yes'|'no') RPOS(0) } else { s ? ('0'|'1') }`
+end to end, the IR graph has **twelve nodes and not one of them uses `c[]/n`**.
+That is not a bug; it is the SM/BB style talking. In a stack-machine model
+operands flow on the runtime value stack — predecessor pushes, this node
+pops. The graph's port edges carry execution order; values are implicit.
+A `IR_BINOP "<"` doesn't carry "lhs" and "rhs" pointers because two earlier
+nodes' γ-chain already left those values on the stack.
+
+So `c[]` is a **per-kind** field, not universal. Many kinds leave `c[] = NULL, n = 0`.
+The cases that genuinely need it are kinds with **static n-ary structure
+beyond what one γ-chain can express**:
+
+- `IR_PL_CHOICE` — list of clause-entry pointers (alternatives to try)
+- `IR_CALL` / `IR_OpFunction` — argument list (paralleling JCON's `argList` field)
+- `IR_MAKELIST` — element list
+- `IR_CASE` — arm list (pairs of value, body-entry)
+- `IR_PROC` — parameter list
+
+For everything else (binops, unops, assigns, pattern ops, goto, if, succeed,
+fail, return, var, literals) — `c[]` is empty and ports do the work.
+
+This is **different from the AST**, where `c[]/n` is the *only* way the
+tree is held together. The AST stage is pure n-ary tree. The IR stage is
+a directed graph where the n-ary-tree axis collapses to "used by some
+kinds, not others."
 
 For nodes that produce a single deterministic value (e.g. `IR_LIT_I`,
-`IR_ASSIGN(x, ADD(y,z))`), the BB wiring degenerates to: `α = self`,
-`γ = next-in-sequence`, `ω = fail-out`, `β = ω`. The same backtracking
-machinery walks both kinds without a special case — deterministic nodes
-just never schedule a retry.
+`IR_ASSIGN`), the BB wiring degenerates to: `α = self`, `γ = next-in-sequence`,
+`ω = fail-out`, `β = ω`. The same dispatch machinery walks both kinds
+without a special case — deterministic nodes just never schedule a retry.
 
-For pure pattern operators (`IR_PAT_LIT`, `IR_PAT_ARB`, etc.), the children
-are typically empty (`n = 0`) and all four ports are populated — exactly
-what `lower_pat_dcg.c` already does today.
-
-For compound nodes that mix both (e.g. `IR_PL_CALL` of a Prolog predicate
-that itself contains a `;` disjunction), children carry the static syntax
-(c[0]=functor-name, c[1..]=args), and ports carry the dynamic wiring (γ to
-next-on-success which is the next conjunct, ω to next-on-fail which is the
-backtrack target).
+For pure pattern operators (`IR_PAT_LIT`, `IR_PAT_ARB`, etc.), `c[]` is
+empty and all four ports are populated — exactly what `lower_pat_dcg.c`
+already does today.
 
 **One edge per (source-node, port).** Not two. The target node does not
 carry a back-pointer to the source. Backtracking-cycles are represented
 by some downstream port pointing back upstream — that's a real cycle in
 the directed graph, just expressed as `node_B->β = node_A` (single edge).
 
+### Concrete worked example summary
+
+Worked through `if (n < 5) { s ? POS(0) ('yes'|'no') RPOS(0) } else { s ? ('0'|'1') }`:
+
+**AST (Stage 1 output):** 19 vertices, 18 edges, out-tree, edges labelled by
+child-index `c[i]`. No ports. No cycles. Pure n-ary tree.
+
+**IR (Stage 2 output):** ~12 vertices, ~20 edges, directed graph.
+
+The then-branch (the non-trivial pattern):
+
+```
+n3 IR_VAR "s"     γ→n4
+n4 IR_PAT_POS 0   α=self  β→ω  γ→n5  ω→n_fail
+n5 IR_PAT_ALT     α→n6
+n6 IR_PAT_LIT "yes"  γ→n8   ω→n7    (failure tries next alt)
+n7 IR_PAT_LIT "no"   γ→n8   ω→n_fail
+n8 IR_PAT_RPOS 0  α=self  γ→n_join  β→n5  ω→n_fail
+                                     ^^^^^
+                                     the key back-edge — retry the alt
+                                     for a different choice when RPOS fails
+```
+
+The single back-edge `n8.β → n5` is **the entire reason a pattern node
+needs four ports.** In SM-style straight-line code the only backward edge
+is a loop's "goto top." Pattern matching needs the richer retry semantics
+that β buys you. SM nodes use γ + ω (two ports). BB nodes use all four.
+
+The else-branch (`('0'|'1')`):
+
+```
+n9 IR_VAR "s"     γ→n10
+n10 IR_PAT_ALT    α→n11
+n11 IR_PAT_LIT "0"  γ→n_join  ω→n12
+n12 IR_PAT_LIT "1"  γ→n_join  ω→n_fail
+```
+
+Here β is never wired because there's no upstream retry — the alt is the
+whole pattern. n10/n11/n12 are effectively three-port nodes (α, γ, ω).
+The field for β exists in the struct but lower simply leaves it NULL.
+
+**Graph-theory observation:** the IR is a *labelled directed graph with
+bounded out-degree* (≤4). Not a multigraph (no two parallel edges between
+the same pair sharing one label). Cyclic in general. Each edge belongs to
+a specific port family — and that family **is the label**, not a separate
+annotation.
+
 ### The "tree-vs-graph" duality, made precise
 
-Reading down `c[]` from `cfg->entry` recursively gives you the **AST-shaped
-skeleton** (tree-shaped — no cycles, no shared subtrees in practice).
-Reading `α/β/γ/ω` and following whichever port is "next" gives you the
-**execution trajectory** (graph-shaped — cyclic for backtracking).
+The AST stage is an n-ary tree. The IR stage is a directed graph.
+The two stages share neither shape nor representation — they share
+only the node-struct layout (a single `tree_t` / `IR_t` struct that
+exposes both axes; each kind picks what it needs).
 
-The interpreter walks the port edges. The emitters walk the children to
-generate the instruction stream and walk the ports to generate the branch
-targets.
+The interpreter walks the port edges. The emitters walk the children
+for kinds that have n-ary operand structure, and walk the ports to
+generate the branch targets.
 
 ### JCON's IR confirms the "single edge per labeled port" model
 
@@ -499,6 +567,15 @@ backtracking-shaped subgraphs use the full set. The IR switches mode
 based on node kind — no representational change needed.
 
 ## Worked examples
+
+**Caveat from later design refinement:** Examples 1–6 below were drafted
+before the full worked example with real BB structure (concrete summary
+above in "Resolution"). Where examples 1–6 show `c:[VAR("X")]` on a
+deterministic node like `IR_ASSIGN` or `IR_BINOP`, that is **schematic
+only** — in the real IR those operands flow on the runtime stack via the
+γ-chain, not as children. Read examples 1–6 for the port-wiring shape;
+read the "Concrete worked example summary" section for the accurate c[]
+usage rule.
 
 ### Example 1 — SNOBOL4 `X = 5`
 
@@ -690,7 +767,8 @@ of the IR_t node that some other node's γ port points to.
 | Concern | Where it lives |
 |---|---|
 | Surface syntax (parens, keywords, source-order) | Stage 1: pure tree_t |
-| Compound-node operand skeleton                  | Stage 2: IR_t.c[] children |
+| Compound-node static operand list (kinds that need it) | Stage 2: IR_t.c[] children — sparse (PL_CHOICE, CALL, MAKELIST, CASE, PROC) |
+| Implicit operand flow (binops, assigns, etc.)            | Stage 2: runtime value stack threaded by γ-chain — no c[] |
 | Sequential control flow                          | Stage 2: IR_t.γ port |
 | Failure / backtracking                          | Stage 2: IR_t.ω, β ports |
 | Self-loop (e.g. pattern retry)                  | Stage 2: IR_t.α = self  |
@@ -757,9 +835,13 @@ Same execution semantics; different layout choice.
 
 After lower completes:
 
-1. **Every IR_t with non-zero c[]/n carries valid children of declared kind**
-   (e.g. an `IR_ASSIGN` always has `c[0]` being the lhs descriptor — typically
-   `IR_VAR` or `IR_INDIRECT` — and the rhs comes from γ-chain evaluation).
+1. **`c[]/n` is per-kind, not universal.** Most IR kinds leave c[] empty
+   (operands flow through the runtime stack via the γ-chain). Only kinds
+   with genuine static n-ary structure populate c[]: `IR_PL_CHOICE`,
+   `IR_CALL`, `IR_OpFunction`, `IR_MAKELIST`, `IR_CASE`, `IR_PROC`. For
+   those kinds, c[] holds the static list (alternatives, arg slots, arms,
+   parameters) — children are *not* the operand graph; the operand graph
+   is the γ-chain.
 2. **Every IR_t carries an ω port** (the fail-out). For deterministic nodes
    the ω points at the statement-level fail-out target. ω is never NULL in
    a completed graph.
@@ -826,11 +908,12 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh   # (verify path)
 
 ```
 watermark: Stage 1 Step 0 (parser diagnosis) ✅
-           Stage 2 design ✅ (six worked examples; IR_t dual-axis resolution)
-head: .github HEAD = 50293f9f (initial GOAL landed)
+           Stage 2 design ✅ (six worked examples + concrete pattern example)
+           Stage 2 design refined ✅ — c[]/n confirmed sparse-per-kind, not universal
+head: .github HEAD = ffa1a9bb (JCON cross-reference landed)
 next: PST-SN4-1a — remove EXPORT/IMPORT special-case from sno4_stmt_commit_go
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
-ladder Stage 2: lower audit → per-construct passes (AUGOP/IF/WHILE/FOR/CASE/BREAK/DEFINE/SCAN-split/GOTO) → Prolog slots → Rebus lower → cross-lang audit
+ladder Stage 2: lower audit → per-construct passes → Prolog slots → Rebus lower → cross-lang audit
 ```
 
 ---
@@ -840,6 +923,13 @@ ladder Stage 2: lower audit → per-construct passes (AUGOP/IF/WHILE/FOR/CASE/BR
 Drafted by Claude Opus 4.7, 2026-05-16, session after BB0 correction.
 Stage 2 design added same session, after Lon raised the SM-tree vs BB-graph
 question. JCON cross-reference added after Lon supplied the JCON tarball
-to confirm the single-edge-per-port model. Lon specified the architecture
-(pure syntax tree, lower owns the DCG, dual-nature `IR_t` carrying c[]
-skeleton + α/β/γ/ω execution ports) and asked for the worked examples.
+to confirm the single-edge-per-port model. **Worked-example refinement**
+added same session after Lon asked for a non-trivial pattern example
+(`POS(0) ('yes'|'no') RPOS(0)` then-branch, `('0'|'1')` else-branch): the
+exercise revealed that `c[]/n` is essentially **unused** in the IR for
+deterministic SM-style and most BB-style nodes — operands flow on the
+runtime value stack via the γ-chain. `c[]` is reserved for kinds with
+genuine static n-ary structure (PL_CHOICE alternatives, CALL arg lists,
+MAKELIST elements, CASE arms, PROC parameters). The AST stage remains a
+pure n-ary tree; the IR stage is a directed graph where the n-ary axis
+collapses to "per-kind, sparse."
