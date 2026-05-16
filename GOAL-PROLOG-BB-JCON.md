@@ -80,7 +80,7 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 ## Watermark
 
 ```
-one4all: 141c4816 (PJ-5/6 landed)  corpus: 1fe096c
+one4all: e23bd809 (PJ-5 cont)  corpus: 1fe096c
 smoke_prolog: 3/5 (write_atom+unify+arith PASS; clause+recursion blocked: IR_UNIFY literal match + TT_FNC comparison routing + backtracking pump)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
 broker: 18/49
