@@ -116,14 +116,18 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-BREAK-NEXT-IDENTICAL-NULL-RANDOM | TT_LOOP_BREAK/IR_BREAK, TT_LOOP_NEXT/IR_NEXT (loop_break/loop_next save+restore in IR_EVERY/WHILE/UNTIL/REPEAT); TT_PROC_FAIL→IR_FAIL; TT_IDENTICAL/IR_IDENTICAL; TT_NULL/IR_NULL_TEST + TT_NULL no-arg→IR_LIT_NUL; TT_NONNULL/IR_NONNULL; TT_RANDOM/IR_RANDOM. ir-run 74→79 (+5). | `301fcd49` |
 | IJ-NEG-POS | TT_MNS/IR_NEG and TT_PLS/IR_POS unary arith; executor reuses icn_binop_apply(SUB/ADD, INTVAL(0), v) for free int/real/string-coerce. ir-run 79→81 (+2). | `80497128` |
 | IJ-CSET-LIT | TT_CSET literal lowered to IR_LIT_S (csets-as-strings, one char per member). TT_CSET_COMPL/UNION/DIFF/INTER deferred (need dedicated IR kinds for complement against 256-char &cset). ir-run 81→82 (+1). | `787644c7` |
+| IJ-SCAN | TT_SCAN → IR_ICN_SCAN (push/pop scan_subj/scan_pos); TT_KEYWORD and &-prefix TT_VAR → IR_ICN_KEYWORD (resolves &subject/&pos/&null/&fail). Builtins any/many/upto/match/move/find/tab were already in icn_try_call_builtin_by_name; only the upstream lowering edge was missing. ir-run 82→97 (+15). Recovers rung05_scan_*, rung06_cset_any/many/upto, rung08_strbuiltins_* in one shot. | `1841f7de` |
 
 ## NEXT step
 
-Failing-rung survey (sess 2026-05-16d) found three categories driving remaining FAILs:
+Failing-rung survey (sess 2026-05-16d) found three categories driving remaining FAILs. Category 1 landed as IJ-SCAN (`1841f7de`); two remain:
 
-1. **Pattern-scan ops** (`any` / `many` / `upto` / `match` / `move` / `find`) — currently emit `[NO-AST] SM_BB_EVAL stub`. Affects rung05_scan_*, rung06_cset_*, rung08_strbuiltins_*. Likely +10–15 rungs. **Highest-yield next target.**
-2. **Generator cross-product in plain (non-augop) binops** — `(1 to 3) * (1 to 2)` returns only `1, 4` instead of all six pairs. Affects paper §2 examples (rung01_paper_*), rung02_arith_gen_*. Likely an IR_BINOP issue: needs to act as generator when either operand is a generator (same role IR_ICN_BINOP plays for augop). Likely +5–8 rungs.
+1. ~~**Pattern-scan ops** (`any` / `many` / `upto` / `match` / `move` / `find`)~~ — ✅ landed in IJ-SCAN. The fix was upstream: TT_SCAN/TT_KEYWORD/&-prefix TT_VAR were returning NULL from lower_icn_expr_node, aborting whole-proc IR lowering. Builtins were already implemented.
+2. **Generator cross-product in plain (non-augop) binops** — `(1 to 3) * (1 to 2)` returns only `1, 4` instead of all six pairs. Affects paper §2 examples (rung01_paper_*), rung02_arith_gen_*. Likely an IR_BINOP issue: needs to act as generator when either operand is a generator (same role IR_ICN_BINOP plays for augop). Likely +5–8 rungs. **Highest-yield next target.**
 3. **`every write(fact(5))` over-iteration anomaly** — emits `120` five times instead of once. Suggests user-proc generator (IR_ICN_PROC_GEN / TT_SUSPEND) re-yields when it shouldn't, or `every` doesn't break on first proc return. Affects rung02_proc_* and rung03_suspend_*.
+
+Latent bug exposed by IJ-SCAN (not on the path of any active target):
+- `every (s := "" | "a") do write(s)` infinite-loops in IR mode. Reproduces at watermark too, but was previously masked in rung36_jcon_lexcmp because that rung's `&null` failed to lower upstream. Worth filing as a separate ticket; do not block on it.
 
 Older simpler targets still applicable if pattern-scan blocks:
 - **TT_CSET_COMPL** (`~cset`) — unary, simple, parallel to TT_NEG.
@@ -132,8 +136,8 @@ Older simpler targets still applicable if pattern-scan blocks:
 ## Watermark
 
 ```
-one4all: 787644c7 (IJ-CSET-LIT landed)  corpus: 1fe096c
-ir-run:  82/265    honest: 278 PASS / 0 FAIL / 0 ABORT
+one4all: 1841f7de (IJ-SCAN landed)  corpus: 1fe096c
+ir-run:  97/265    honest: 277 PASS / 0 FAIL / 0 ABORT
 smoke_icon: 5/5    broker: 18/49
-cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 0/5 (intentional)
+cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 3/5
 ```
