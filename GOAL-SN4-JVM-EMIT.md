@@ -196,53 +196,37 @@ cleanly with jasmin.jar.
 ## State
 
 ```
-watermark: SJ4-JVM-3 ✅ COMPLETE; SJ4-JVM-4 🔄 IN PROGRESS (SM control flow + builtins)
+watermark: SJ4-JVM-3 ✅ COMPLETE; SJ4-JVM-4 🔄 IN PROGRESS (user-fn dispatch landed)
 
-Session 2026-05-15f (Claude Sonnet 4.5) progress:
-  - ✅ SM control flow: SM_JUMP/JUMP_S/JUMP_F implemented (goto_w-based, per-PC labels)
-  - ✅ SUBSTR: 2-arg form + bounds checking (no more StringIndexOutOfBoundsException)
-  - ✅ Comparison builtins: LE/LT/GE/GT/EQ/NE via builtin_numcmp(op)
-  - ✅ Unknown function: now pops nargs args before failing (was corrupting stack)
-  - ✅ Loop test: I=1; loop OUTPUT=I; I=I+1; LE(I,3) :S(loop) → "1,2,3" correctly
-  - ✅ pop_obj empty-stack safety
+Session 2026-05-15 (Claude Sonnet 4.6) progress:
+  - ✅ emit_jvm_from_sm: pre-scan SM_LABEL define_entry=1 → fn name→pc table
+  - ✅ SM_CALL_FN/SUSPEND_VALUE: user fns → bind_params + push_ret_pc + goto_w entry
+  - ✅ Empty-name SM_CALL_FN → unconditional RETURN (:(RETURN) convention)
+  - ✅ SM_RETURN/FRETURN/NRETURN + all _S/_F conditional variants
+  - ✅ sm_ret_dispatch tableswitch 0..(n-1) for computed returns
+  - ✅ SM_DEFINE_ENTRY/SM_DEFINE: no-op (entries handled by SM_LABEL)
+  - ✅ SM_EXEC_STMT: stub (sets last_ok=false; pattern exec pending)
+  - ✅ SnoRt.j: ret_stack, fn_params, _ret_fn, push/pop_ret_pc, bind_params,
+                builtin_DEFINE (proto parsing), fn_return_push (return value)
+  - ✅ VALIDATED: double(21) → 42 via JVM path
 
-Test suite status (session 2026-05-15f, after honest gate rewrite):
-  ✅ C smoke:      7/7 PASS (no regressions)
-  ✅ JVM smoke:    7/7 PASS — honest gate (output, concat, arith, goto_unconditional,
-                          loop_le, le_branch, arith_sm)
-                          (Previous version had inline programs without END/labels,
-                          causing both oracle and JVM to fail equally — meaningless)
+Test suite status (session 2026-05-15, d295a2c0):
+  ✅ C smoke:      7/7 PASS
+  ✅ JVM smoke:    7/7 PASS
   ✅ Snocone smoke: 5/5 PASS
-  ✅ Icon smoke:    5/5 PASS
-  🟡 Beauty.sno:   emits + assembles + executes; limited execution
-                          (requires SM_PAT_* opcodes + IR generator dispatch)
-
-Tests deliberately exclude pattern matching and DEFINE — those need:
-  - SM_PAT_* opcode handlers (or IR generator path activation)
-  - SM_DEFINE_ENTRY/SM_DEFINE/SM_CALL_FN user function dispatch
-
-Backend status:
-  • C interpreter:  7/7 smoke PASS
-  • JVM:            5/7 smoke PASS, full pipeline operational
-                    Scalar + arithmetic + control flow + builtins working
-                    Pattern matching + user functions: pending IR/SM_DEFINE work
-
-Architecture finding:
-  Pattern matching uses IR generator path (IR_PAT_* nodes via dcg_table),
-  not the SM scalar opcode path that emit_jvm_from_sm walks.
-  Beauty.sno uses many SM_PAT_* opcodes which are silently dropped because
-  emit_jvm_from_sm has no handler — pattern emission requires wiring
-  emit_jvm_generator() to dispatch from IR_block_t* entries in dcg_table.
+  ⛔ Icon smoke:   0/5 FAIL (pre-existing: [NO-AST] stubs from 2026-05-15g)
+  🟡 Beauty.sno:  emits + assembles; user functions dispatch correctly;
+                  blocked on SM_PAT_* (pattern matching) + SM_EXEC_STMT
 
 Remaining blockers for SJ4-JVM-4 completion:
-  1. SM_PAT_* opcode handlers (or IR generator path activation)
-  2. SM_DEFINE_ENTRY/SM_DEFINE/SM_CALL_FN user function dispatch
-  3. SM_RETURN/SM_FRETURN/SM_NRETURN variants
-  4. SM_EXEC_STMT pattern statement execution
-  5. SM_BB_* generator opcodes
+  1. SM_PAT_* opcode handlers — build IR_prog_t from dcg_table and run via IR_exec
+     OR emit pattern match inline via existing 19 BB emitters
+  2. SM_EXEC_STMT — pattern statement execution (subject + pattern + replacement)
+  3. SM_BB_* generator opcodes (PUMP, EVAL, ONCE, etc.)
+  4. Multi-param functions (bind_params already handles comma-separated params)
 
-head: c6f60145 (one4all)
-session: 2026-05-15f (Claude Sonnet 4.5)
+head: d295a2c0 (one4all)
+session: 2026-05-15 (Claude Sonnet 4.6)
 ```
 
 ---
