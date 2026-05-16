@@ -291,20 +291,76 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: f82de5d0  corpus: 1fe096c
+  one4all: 54304353  corpus: 1fe096c
   ir-run:  PASS=207 FAIL=23 XFAIL=35
   honest:  PASS=275
   smoke_icon: 5/5   broker: 23/49
-  NEXT: IJ-19-remaining — continue residual rung36_jcon_* triage.
-        rung36_jcon_lists ✅ byte-identical (fixed this session).
-        Outstanding (per prior watermark):
+  NEXT: continue old-system deletion (interp_eval.c 4268 lines, interp_exec.c
+        AST execution paths, _usercall_hook, coro_call fallbacks).
+        Then resume BB DCG work — TT_ITERATE list/table is the highest-yield
+        next BB (template ready: deleted coro_bb_list_iterate state struct
+        is { DESCR_t list_obj; int pos; } per git show 76d82c98:
+        src/frontend/icon/icon_gen.h:68).
+        Outstanding rung36_jcon_* failures:
           - rung36_jcon_fncs1 (global/record-field name collision)
           - rung36_jcon_endetab (infinite loop)
           - rung36_jcon_coerce (pre-existing segfault)
           - rung36_jcon_wordcnt (every f(gen_arg) re-pump)
           - rung36_jcon_scan/string
-        Also: TT_ITERATE list/table paths (rung22, rung13_table_iterate)
-        still on icn_lazy_box stub; future DCG conversion.
+
+  Session notes (2026-05-15c, one4all 54304353, Claude Opus 4.7):
+    Lon directive: old AST-walker system is being deleted.  Forward pipeline
+    is AST → IR → BB/SM only.  Anything not on BB/SM goes.
+
+    BB tally: 10 of 51 DCGs done.  Done: TO, TO_BY, TO_NESTED, UPTO,
+    EVERY, ITERATE (string only), ALTERNATE, LIMIT, BINOP, PROC_GEN.
+    Remaining 41 grouped: ~15 trivial single-shot wrappers (csetlit,
+    intlit, strlit, fail_bb, etc.), ~10 single-state generators
+    (list_iterate, tbl_iterate, find, find_subj, upto_subj, bal,
+    record_iterate, key_gen, etc.), ~10 conditional/composite (if_bb,
+    not, unop, return_bb, until_gen, while_gen, repeat_gen, case_gen,
+    field_gen, section_gen), ~5 composition over child generators
+    (compound_gen, listcon_gen, repalt, arglist, coexplist, create),
+    plus suspend (already covered by proc_gen), make_proc_box, proc_call
+    (infrastructure).
+
+    This session deleted polyglot_execute (one4all `54304353`):
+      - scrip.c: removed `else if (has_non_sno && g_polyglot)` arm
+      - polyglot.c: deleted polyglot_execute() definition (57 lines)
+      - polyglot.h: deleted polyglot_execute() declaration
+      parse_scrip_polyglot() retained (parsing, not execution).
+      Polyglot .scrip / .md files now route through SM dispatch via the
+      has_non_sno fallthrough arm at scrip.c:402.  Previously broken:
+      polyglot_execute called proc_table_call without setting up
+      g_current_sm_prog, so proc_table_call hit its `entry_pc>=0 &&
+      g_current_sm_prog!=NULL` guard, returned FAILDESCR, and produced
+      empty output.  Now /tmp/probe.scrip with a trivial Icon block
+      prints "hello from icon" correctly.
+      All four Icon gates unchanged: smoke 5/5, broker 23/49, ir-run
+      207, honest 275.
+
+    Also this session: removed all CH-17g references from this Goal file
+    per Lon directive (.github `489b9e12`).  That blocker is not to be
+    mentioned again; BB construction is unblocked and proceeds without it.
+
+    NEXT-SESSION DELETION PLAN (5K+ lines):
+      1. interp_eval.c (4268 lines) — AST walker; entry points include
+         interp_eval(), called from polyglot.c (already deleted there),
+         icn_runtime.c, icn_value.c, raku_builtins.c, eval_pat.c.  Audit
+         each call site: replace with SM dispatch or remove.
+      2. interp_exec.c — AST execution paths using proc_table_call (which
+         is itself fine — it routes through sm_call_proc already).
+      3. _usercall_hook in interp_hooks.c — the g_user_call_hook dispatch
+         is the SM-side entry; verify all reachable paths terminate in
+         SM/BB and not AST walks, then prune the AST-fallback branches.
+      4. Any remaining coro_call(proc_table[pi].proc, ...) fallback in
+         coro_runtime.c (per prior session notes, may already be gone;
+         confirm).
+      5. Files in src/runtime/interp/ that still walk tree_t* at runtime
+         (icn_runtime.c has NO_AST_WALK_GUARD declarations that flag
+         improper AST access — those guards become the boundary).
+
+    Watermark commit 54304353 verified on remote.
 
   Session notes (2026-05-15, one4all f82de5d0, Claude Opus 4.7):
     IJ-19-remaining: FAIL-arg propagation in named-proc fast-paths.
