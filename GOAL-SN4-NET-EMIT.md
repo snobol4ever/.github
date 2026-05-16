@@ -258,9 +258,108 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SN4-NET-5 — Beauty self-host
 
-- [ ] **SN4-NET-5** — Run beauty.sno under `scrip --sm-emit --target=net`. Assemble and execute. Diff output against SPITBOL oracle.
+SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" to "byte-identical to SPITBOL oracle." During session 2026-05-15 (Claude Opus 4.7) the work decomposed into substeps as the actual semantics of `SM_CALL_FN`, `SM_SUSPEND_VALUE`, and the SPITBOL-style call frame became clearer. Substeps are landed incrementally so each is independently testable against the smoke gate.
 
-  **Gate:** md5 of output matches `abfd19a7a834484a96e824851caee159` (646 lines).
+#### SN4-NET-5a — Emit-side correctness fixes (control flow, comment syntax)
+
+- [x] **SN4-NET-5a** (one4all `eb74b9a5`) — Fix the cases where emit_net.c was producing invalid MSIL or silent no-ops that previously assembled-and-ran but did wrong things:
+  - MSIL comment syntax: `;` is not a comment in MSIL — use `//`. The `default:` case in the SM dispatch was emitting `; [net SM op N unimplemented]` which caused ilasm syntax errors. Now emits `//`.
+  - `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F` were silently `break;` with no `br` instruction emitted — assembled clean, did nothing. Now emit conditional `br` to `NET_L{target}` via `SnoRt::last_ok()`.
+  - `SM_HALT` was falling through to the auto-trailer `stloc _pc; br NET_DISPATCH` — now branches to `NET_DONE`.
+  - Added a `has_continue` flag to each iteration of the SM walker. When set, the auto-trailer is suppressed. Jumps, returns, and halt all set `has_continue=1`.
+  - Added safe-default cases (no-op `break`) for all opcodes that lack semantic emission in this rung: SM_CALL_FN, SM_RETURN family, SM_PAT_* family, SM_BB_* family, SM_DEFINE_ENTRY, SM_DEFINE, SM_EXEC_STMT, SM_INCR/DECR, SM_LOAD/STORE_FRAME, SM_LOAD/STORE_GLOCAL, SM_PUSH_EXPRESSION, SM_PUSH_EXPR, SM_CALL_EXPRESSION, SM_SUSPEND, SM_SUSPEND_VALUE, SM_ICMP_GT/LT.
+
+  Runtime-side fixes in SnoRt.il:
+  - `coerce_num` used `Double::Parse(string)` which threw on any non-numeric input — that's everywhere in SNOBOL4. Now uses `Double::TryParse(string, float64&)` and defaults to 0.0 on parse failure. Same fix in `_obj_to_dbl`.
+  - `do_return` now sets `_last_ok` per return kind: FRETURN→false, RETURN/NRETURN→true. Was a no-op.
+  - `sno_call` now dispatches over 8 built-ins (SIZE, TRIM, DUPL, SUBSTR, IDENT, DIFFER, INTEGER, DATATYPE), with a fail-and-pop-nargs default for unknown names that sets `_last_ok=false` and pushes `""`. Mirrors `SnoRt.j` skeleton.
+
+  **Gate:** smoke 7/7 maintained; beauty.il assembles with ilasm clean; mono exits 0 on `beauty.exe`.
+
+#### SN4-NET-5b — User-function dispatch (call/return; no params yet)
+
+- [x] **SN4-NET-5b** (one4all `bb77ac29`) — Wire `SM_SUSPEND_VALUE` / `SM_CALL_FN` (for named user functions) and the `SM_RETURN` family to actually invoke and return from user-defined function bodies. Without this, all SNOBOL4 programs that use DEFINE produce empty output for their function-call sites.
+  - **Pre-scan pass** in `emit_net_from_sm`: build a `(name → entry_pc)` table by walking the SM_Program once and recording every `SM_LABEL` instruction whose `a[2].i` is non-zero (the `define_entry=1` marker).
+  - **SM_SUSPEND_VALUE / SM_CALL_FN** for known user functions: emit a 3-instruction sequence — `push_ret_pc(i+1); ldc.i4 entry_pc; stloc _pc; br NET_DISPATCH`. The `i+1` is the PC immediately after the call site, so return resumes at the right place. Functions not in the table fall through to the existing `sno_call(name, nargs)` built-in dispatch.
+  - **SM_RETURN / SM_FRETURN / SM_NRETURN** (all variants): in addition to existing `do_return(kind, has_val)` call which sets `_last_ok`, now also emit `pop_ret_pc(); stloc _pc; br NET_DISPATCH` to actually return to the caller's PC. Without this, returns just set last_ok and then fell through to the next SM instruction, which was undefined behavior.
+  - **SnoRt.il additions:**
+    - `_ret`: `Stack<int32>` static field for return PCs.
+    - `_frames`: `Stack<Dictionary<string, object>>` static field (allocated and initialized but not yet used — wiring for SN4-NET-5c).
+    - `push_ret_pc(int32) : void`, `pop_ret_pc() : int32` with empty-stack guard returning -1.
+    - Both new fields initialized in `.cctor` and `_init`.
+
+  **Gate:** smoke 7/7 maintained; a single-argument DEFINE'd function executes its body and returns. For `Greet(who)` calling `Greet('World')`, the function body is reached (versus skipping it entirely in SN4-NET-5a). Argument binding gap means the body sees the param uninitialized — that's SN4-NET-5c.
+
+#### SN4-NET-5c — Parameter binding and frame save/restore
+
+- [ ] **SN4-NET-5c** — Make user-function calls bind their argument values into the parameter names' globals, mirroring SPITBOL semantics. The h_call function in `src/processor/sm_jit_interp.c` is the reference implementation; this step ports its parameter binding loop to the .NET emit path.
+
+  ##### Step 1: Parse parameter list from DEFINE literal
+  
+  In the SM_Program pre-scan pass (already added in SN4-NET-5b), when an `SM_SUSPEND_VALUE s="DEFINE" nargs=1` is encountered, walk backward to find the immediately-preceding `SM_PUSH_LIT_S`. Its `a[0].s` is the DEFINE argument string in the form `"FuncName(p1,p2,...)"` or `"FuncName(p1,p2,...)locals..."`. Parse out the parameter names (split on `(`, then `,`, until `)`), strip whitespace and uppercase if `-f` case-folding is active. Store the parameter list for `FuncName` alongside the entry_pc in the function table. Use a parallel array or extend the existing structure.
+
+  ##### Step 2: Emit parameter binding at function entry
+  
+  After the pre-scan, when emitting the SM_LABEL with `define_entry=1` (the function's entry), follow that label with a per-parameter binding sequence:
+  ```
+  NET_L<entry_pc>:
+      ; bind params in reverse order — args are on _stk in push-order, so last
+      ; arg is on top. Pop in reverse to match param order.
+      ldstr      "<paramN>"
+      call       void SnoRt::store_var(string)
+      ...
+      ldstr      "<param1>"
+      call       void SnoRt::store_var(string)
+  ```
+  Each `store_var` pops the value stack into the param-name's global. Order matters: args were pushed left-to-right at the call site, so the rightmost arg is on top of the stack and must bind to the rightmost parameter.
+  
+  Special case: when caller passed fewer args than the function declares, the missing slots must be bound to the null string. Easiest approach: at the call site (SM_SUSPEND_VALUE / SM_CALL_FN), if nargs < declared_arity, push `null` (empty string) `declared_arity - nargs` times before the call. This keeps the entry-side emit uniform.
+
+  ##### Step 3: Frame save/restore via _frames
+  
+  SNOBOL4 functions use the global name-value store — parameter names are real variables that the caller's code may also be using. To prevent corruption across recursive or nested calls, on entry we must save the prior values of every parameter name AND the function name (used as the return value receptacle), and on return we must restore them.
+  
+  Use the `_frames` Stack<Dictionary<string,object>> field added in SN4-NET-5b. New methods on SnoRt:
+  - `frame_save(string name) : void` — read current var value (or null), push a single-key dictionary onto `_frames`, also call store_var to bind a new initial value. Actually simpler: combine into one method.
+  - `frame_push_save(string name, object initial) : void` — push current value of var `name` onto a frame dict, then `store_var(name)` to the new value.
+  - At entry: a sequence of `frame_push_save` calls (one per param and one for the function name itself).
+  - At return (in SM_RETURN family handlers, before `pop_ret_pc`): a single call to `frame_restore_all()` that walks the top frame's dict and restores every key, then pops the frame.
+  
+  Alternative design: one big save list per call. The frame dict has the function-name as key 0 and params as keys 1..N. `frame_enter(string fname, string[] pnames)` and `frame_exit()` are the only two methods.
+
+  ##### Step 4: Return-value handling
+  
+  In SNOBOL4 the function name (e.g. `Greet`) is the variable that holds the return value — `Greet = 'Hello, ' who` assigns the return value. On entry to the function, this name's prior value is saved (covered by step 3). On RETURN, before frame_exit pops everything back, we need to peek the function-name's current value and push it onto the value stack as the call's result. On FRETURN, push FAIL (or skip the push and let last_ok=false signal failure). On NRETURN, push the name itself (the var indirection) rather than the dereferenced value.
+  
+  Pre-scan needs to also record the function name → return-value-name (typically same as function name, but `&FNCLEVEL` or aliasing may differ).
+
+  **Gate:** smoke 7/7 maintained. New test: `Greet(who) Greet = 'Hello, ' who :(RETURN)` followed by `OUTPUT = Greet('World')` produces `Hello, World` matching SPITBOL oracle. Recursive factorial `Fact(n)` returns the correct value and doesn't corrupt the caller's local n.
+
+#### SN4-NET-5d — Pattern opcode wiring
+
+- [ ] **SN4-NET-5d** — Wire `SM_PAT_*` opcodes to invoke the already-emitted `pat_*_*` BB classes (those produced by SN4-NET-2's BB template emitters). Beauty uses pattern matching for its main parse loop; without this, ~half of beauty's logic still runs on empty strings.
+
+  - Each SM_PAT_* opcode is a marker that says "construct a BB pattern node of type X here." Beauty's compiled SM program has hundreds of these between an outer `SM_BB_PUMP` / `SM_BB_ONCE` driver.
+  - At emit time, the SM walker needs to: (a) instantiate the right pat_*_* class with the right constructor args from `instr->a[*]`, (b) chain them (CAT and ALT compose children), (c) hand the root to the SM_BB_PUMP/ONCE driver.
+  - The runtime model: a MatchState struct holds cursor, subject, anchor; BB Alpha() returns success and updates cursor; BB Beta() retries.
+  - This is mostly mechanical given the 19 BB classes already emitted, but needs a per-PAT-opcode stack-based composition: SM_PAT_LIT pushes a new BB instance onto a "current pattern" stack, SM_PAT_CAT pops two and pushes a CAT wrapper, etc.
+  - SnoRt needs a `_pat_stack : Stack<IByrdBox>` and helpers `pat_push(IByrdBox)`, `pat_pop_cat()`, `pat_pop_alt()`, `pat_run_pump()`, `pat_run_once()`.
+
+  **Gate:** A simple pattern program (e.g. `S = 'hello world' ; S 'hello' = 'goodbye' ; OUTPUT = S`) produces the correct output via .NET emit path.
+
+#### SN4-NET-5z — Byte-identical beauty (closeout)
+
+- [ ] **SN4-NET-5z** — With 5a, 5b, 5c, 5d landed, run beauty.sno and diff against SPITBOL oracle. Resolve any remaining built-ins beauty uses that aren't in the SnoRt 8 (likely: REPLACE, ARRAY, TABLE, CONVERT, PROTOTYPE, and others — discover by running and adding as needed). Address whitespace, line-ending, and minor formatting differences if any remain.
+
+  **Gate:** `md5sum` of `mono beauty.exe < beauty.sno` matches the oracle. Per session 2026-05-15 oracle is 622 lines under current corpus (the GOAL header's 646-line / `abfd19a7...` md5 was captured at an earlier corpus state and may have drifted; the live gate is "byte-identical to the live oracle output").
+
+### SN4-NET-6 — Cross-check ladder against SNOBOL4 corpus
+
+- [ ] **SN4-NET-6** — After beauty self-hosts, run the broader SNOBOL4 corpus (≈260 programs in `corpus/crosscheck/`) through `scrip --sm-emit --target=net` and diff each against the JIT-mode reference. Mirrors the JS ladder (`test_sn4_js_ladder_safe.sh` 10/129) and the JIT-mode crosscheck (180-program parity).
+
+  Build the test runner script `scripts/test_sn4_net_ladder.sh` following the pattern of `test_sn4_js_ladder_safe.sh`: for each .sno in the corpus, emit + assemble + run, diff output to the .ref oracle, count PASS/FAIL/SKIP. Use the existing `--jit-run` as the secondary reference for programs without .ref files.
+
+  **Gate:** ≥ JS ladder's PASS count, ideally ≥ JIT-mode parity baseline (180). Document remaining failures and their root causes (typically missing built-ins, pattern features, or extensions beauty doesn't exercise).
 
 ---
 
@@ -280,49 +379,38 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳ (partial — user-function dispatch landed; param binding pending)
+watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c next)
 head: one4all bb77ac29
 session: 2026-05-15 (Claude Opus 4.7)
-progress: SN4-NET-1 ✅ SnoRt.il scalar runtime; SN4-NET-2 ✅ 19 BB emitters emit_net.c;
-  SN4-NET-3 ✅ SM walker + --target=net wiring; SN4-NET-4 ✅ smoke 7/7 PASS.
-  SN4-NET-5 ⏳ partial:
-    Round 1 (one4all eb74b9a5): beauty.sno assembles + executes without exception.
-      - emit_net.c: fixed ';' → '//' MSIL comment syntax; SM_JUMP/JUMP_S/JUMP_F
-        now emit conditional br to NET_L{target} (were silent no-ops); SM_HALT
-        branches to NET_DONE; has_continue tracking; added stubs for SM_CALL_FN,
-        SM_RETURN family, SM_PAT_* family, SM_BB_* family, SM_DEFINE_ENTRY/DEFINE,
-        SM_EXEC_STMT, SM_INCR/DECR, SM_LOAD/STORE_FRAME/GLOCAL, SM_PUSH_EXPRESSION,
-        SM_PUSH_EXPR, SM_CALL_EXPRESSION, SM_SUSPEND/SUSPEND_VALUE, SM_ICMP_GT/LT.
-      - SnoRt.il: coerce_num and _obj_to_dbl use Double.TryParse (was Parse crash);
-        do_return sets last_ok per kind (FRETURN→false, RETURN/NRETURN→true);
-        sno_call dispatches to 8 built-ins (SIZE, TRIM, DUPL, SUBSTR, IDENT, DIFFER,
-        INTEGER, DATATYPE).
-    Round 2 (one4all bb77ac29): user-function dispatch.
-      - emit_net.c: pre-scan SM_Program to build (name → entry_pc) table from
-        SM_LABEL define_entry=1 instructions. SM_SUSPEND_VALUE / SM_CALL_FN for
-        known user functions: emit push_ret_pc(i+1); _pc = entry_pc; br NET_DISPATCH.
-        SM_RETURN family: emit _pc = pop_ret_pc(); br NET_DISPATCH.
-      - SnoRt.il: added _ret (Stack<int32>) and _frames (Stack<Dictionary>) static
-        fields; push_ret_pc(int32) / pop_ret_pc(): int32 methods with empty-stack
-        guard. Initialized in .cctor and _init.
-    Test harness baseline (31 scripts run, see /tmp/test_results/REPORT.md):
-      - All shared SNOBOL4/Snocone gates green: smoke_snobol4 7/7, smoke_net 7/7,
-        jit-parity 180-prog, crosscheck_snobol4 6/6, crosscheck_snocone 8/8,
-        smoke_snocone 5/5, sj4jvm1 19/19, sj4jvm2 5/5.
-      - All other failures pre-existing (verified by stash+rebuild+rerun).
-    Beauty status: assembles (58407 lines MSIL), ilasm clean, mono exit 0; simple
-      DEFINE'd function reaches its body and returns — but parameter is not yet
-      bound into the param-name global (empty-string sees `'Hello, ' who` → only
-      the unconsumed arg leaks through). 622-line oracle vs 628-line .NET emit;
-      only 1 non-blank line in .NET output.
-  NEXT (param binding — completes user-fn calls):
-    - At each define_entry, emit a per-parameter sequence that pops the value
-      stack into the parameter name's global via store_var(pname). Mirrors
-      h_call's NV_SET_fn(pname, args[k]) loop in sm_jit_interp.c.
-    - Save/restore prior values of param-name and function-name globals across
-      the call via _frames, mirroring saved_names/saved_vals in SmCallFrame.
-    - Parse parameter list from SM_PUSH_LIT_S argument feeding SM_SUSPEND_VALUE
-      DEFINE during pre-scan to know parameter names per function.
-  After that:
-    - SM_PAT_* wiring to emitted pat_*_* classes via Alpha/Beta on a MatchState.
+progress:
+  SN4-NET-1 ✅ SnoRt.il scalar runtime;
+  SN4-NET-2 ✅ 19 BB emitters in emit_net.c;
+  SN4-NET-3 ✅ SM walker + --target=net wiring;
+  SN4-NET-4 ✅ smoke 7/7 PASS;
+  SN4-NET-5a ✅ control-flow / comment / runtime fixes — beauty.il assembles
+    and runs to completion on mono (one4all eb74b9a5).
+  SN4-NET-5b ✅ user-function dispatch (call/return without param binding)
+    via pre-scan name→pc table, push/pop_ret_pc on _ret stack
+    (one4all bb77ac29).
+  SN4-NET-5c ⏳ NEXT — parameter binding & frame save/restore (see step
+    detail above for 4-substep plan: parse param list from DEFINE literal,
+    emit per-param store_var at entry, frame save/restore via _frames,
+    return-value handling).
+  SN4-NET-5d — SM_PAT_* opcode wiring to pat_*_* BB classes.
+  SN4-NET-5z — byte-identical beauty closeout.
+  SN4-NET-6 — broad SNOBOL4 corpus ladder.
+
+test baseline (this session, /tmp/test_results/REPORT.md):
+  31 SNOBOL4 + Snocone test scripts run. All shared gates green:
+    smoke_snobol4 7/7, smoke_net 7/7, jit-parity 180-prog,
+    crosscheck_snobol4 6/6, crosscheck_snocone 8/8, smoke_snocone 5/5,
+    sj4jvm1 19/19, sj4jvm2 5/5.
+  All other failures pre-existing (verified by stash + rebuild + rerun):
+  snocone parse_a..j (C compile errors against renamed AST/STMT types),
+  hand_suite, parser_fixtures, wasm smoke banner pollution.
+
+beauty status @ bb77ac29:
+  emits 58407 lines of valid MSIL → ilasm clean → mono exit 0;
+  produces 628 stdout lines (oracle 622), 1 non-blank;
+  param-binding gap means function bodies see uninitialized params.
 ```
