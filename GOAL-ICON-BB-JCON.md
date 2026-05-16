@@ -112,22 +112,22 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-19-to-dyn | TT_TO with non-literal bounds (TT_VAR / TT_FNC etc.) — IR_ICN_TO now evaluates `c[0]`/`c[1]` on α to seed `ival`/`ival2` when present | `c4de1e69` |
 | IJ-AUGOP-REPEAT-ALT-NOT | TT_AUGOP (+:= -:= *:= /:= %:= ||:= relop augops) → IR_BINOP+IR_ASSIGN; TT_REPEAT → IR_REPEAT (loop until body FAIL); TT_ALTERNATE → IR_ALT (n-ary); TT_NOT → IR_NOT; IR_CALL user-proc dispatch via proc_table ir_body + frame push/pop. ir-run 31→56 (+25). | `17eae4a3` |
 
+| IJ-SEQ-SIZE-CASE-STRRELOP-RETURN | TT_SEQ (conjunction → IR_IF); TT_SIZE → IR_SIZE; TT_CASE → IR_CASE (selector+key/val+default); TT_LLT/LLE/LGT/LGE/LEQ/LNE → IR_BINOP with ICN_BINOP_S* string relop kinds; TT_RETURN → IR_RETURN with FRAME.returning early-exit propagation through IR_SEQ and IR_CALL user-proc dispatch. ir-run 56→74 (+18). | `14211966` |
+
 ## NEXT step
 
-**More `lower_icn_expr_node` coverage** to grow ir-run + honest. In order of complexity:
+**More `lower_icn_expr_node` coverage** to grow ir-run. In order of complexity:
 
-1. **TT_LOOP_BREAK / TT_LOOP_NEXT** — `break` and `next` inside repeat/while/until loops. TT_LOOP_BREAK should propagate FAIL up so IR_REPEAT/IR_WHILE exits; TT_LOOP_NEXT should restart the loop body.
-2. **TT_CASE** — `case E of { C1: E1; ... default: ED }`. Needs IR_CASE kind or encode as IR_IF chain.
-3. **TT_SIZE** — `*x` (size of string/list/table). Unary; emit IR_SIZE or use existing builtin dispatch.
-4. **Nested user-proc TT_FNC** — already wired via IR_CALL user-proc dispatch (`17eae4a3`); re-run gate to confirm cross-proc rung coverage now unlocked.
-
-Each step: extend `lower_icn_expr_node` in `lower_icn.c`, add executor case to `ir_exec.c` if a new IR kind is needed, run GATE-1..4, commit.
+1. **TT_LOOP_BREAK / TT_LOOP_NEXT** — `break` and `next` inside repeat/while/until. Set `FRAME.loop_break` / `FRAME.loop_next`; IR_WHILE/IR_UNTIL/IR_REPEAT check these flags.
+2. **TT_PROC_FAIL** — `fail` statement in a proc body. Emit IR_FAIL (already exists).
+3. **TT_IDENTICAL / TT_NULL / TT_NONNULL** — `===`, `\x` (null test), `\x` (nonnull). Simple unary/binary IR nodes.
+4. **TT_RANDOM** — `?E` (random element). Unary.
 
 ## Watermark
 
 ```
-one4all: 17eae4a3 (IJ-AUGOP-REPEAT-ALT-NOT landed)  corpus: 1fe096c
-ir-run:  56/265    honest: 277 PASS / 0 FAIL / 0 ABORT
+one4all: 14211966 (IJ-SEQ-SIZE-CASE-STRRELOP-RETURN landed)  corpus: 1fe096c
+ir-run:  74/265    honest: 277 PASS / 0 FAIL / 0 ABORT
 smoke_icon: 5/5    broker: 16/49
-cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 0/5 (intentional — see GOAL-PROLOG-BB-JCON)
+cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 0/5 (intentional)
 ```
