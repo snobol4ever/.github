@@ -137,7 +137,7 @@ On completion, update Step 2 and Step 3 checkboxes in the Frontend status table 
 Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green. **SCRIP mirror:** every rung in this step touches both `src/frontend/snocone/snocone_parse.y` / `src/lower/lower.c` AND `corpus/SCRIP/parser_snocone.sc` / `corpus/SCRIP/lower.sc` in the same commit. The post-parse `tree_t` produced by both parsers must match for the snocone smoke corpus at the end of each rung.
 
 - [x] **PST-SC-4a** ✅ (2026-05-16, one4all `3c09f91d`, corpus `67eaa51`) — Parser emits `TT_AUGOP(lhs, rhs)` with `v.ival = TK_AUG*`; `lower_augop` already handled it. `sc_clone_expr_simple` deleted. SCRIP mirror: `reduce_augmented` → `reduce_augop(op)`, `TK_AUGPOW=1007` added to `lower.sc` and `parser_snocone.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, smoke_scrip_all_modes PASS=2/0.
-- [ ] **PST-SC-4b** — Lower handles `TT_IF(cond, then, else?)`. Parser replaces `sc_if_head_new`/`sc_finalize_if_*` with single `TT_IF`. `IfHead` deleted.
+- [x] **PST-SC-4b** ✅ (2026-05-16, one4all `4aa8727b`, corpus `a939309`) — Parser emits `TT_IF(cond, TT_PROGRAM(then_stmts), TT_PROGRAM(else_stmts))` as a single `TT_STMT(:subj TT_IF(...))`. `IfHead`/`sc_if_head_new`/`sc_finalize_if_no_else`/`sc_finalize_if_else` deleted. `sc_collect_body()` extracts CODE_t stmt range into `TT_PROGRAM` subtree. `if_before_body` snapshot field added to `ScParseState`. ALT/SEQ always-wrap-binary fixes bundled (Snocone equivalent of PST-SN4-1d). `lower.c`: `case TT_PROGRAM` added to `lower_expr_inner`. SCRIP mirror: `finalize_if`/`finalize_if_else` rewritten; `lower_program_block` added to `lower.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, scrip_all_modes PASS=2/0 — baseline-identical.
 - [ ] **PST-SC-4c** — `TT_WHILE(cond, body)`. `WhileHead`/`sc_finalize_while` deleted.
 - [ ] **PST-SC-4d** — `TT_REPEAT` / do-while. `DoHead`/`sc_finalize_do_while` deleted.
 - [ ] **PST-SC-4e** — `TT_FOR(init, cond, step, body)`. `ForHead`/`sc_finalize_for` deleted.
@@ -378,16 +378,19 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
-            Stage 1 Step 4 — PST-SC-4a ✅
+            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
 head: .github = (this commit)
-       one4all = 3c09f91d (PST-SC-4a)
-       corpus  = 67eaa51  (PST-SC-4a SCRIP mirror)
-session 30/59 completed: PST-SC-4a — TT_AUGOP node emitted by Snocone parser; lower absorbs expansion. SCRIP mirror in same commit. Gates baseline-identical.
-next: PST-SC-4b — TT_IF(cond, then, else?): parser replaces sc_if_head_new/sc_finalize_if_* with single TT_IF node. IfHead deleted.
+       one4all = 4aa8727b (PST-SC-4b)
+       corpus  = a939309  (PST-SC-4b SCRIP mirror)
+session PST-SC-4b completed: TT_IF(cond,then,else?) — Snocone parser emits pure syntax node.
+  IfHead deleted. sc_collect_body() extracts body stmts into TT_PROGRAM. lower.c handles TT_PROGRAM
+  as block body in lower_expr_inner. ALT/SEQ always-wrap fixes bundled. SCRIP mirror same commit.
+  Gates: snocone_smoke 5/0, crosscheck_snocone 8/0, scrip_all_modes 2/0 — baseline-identical.
+next: PST-SC-4c — TT_WHILE(cond, body). WhileHead/sc_finalize_while deleted.
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4b next) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4c next) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
