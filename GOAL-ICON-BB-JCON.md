@@ -119,7 +119,8 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-SCAN | TT_SCAN → IR_ICN_SCAN (push/pop scan_subj/scan_pos); TT_KEYWORD and &-prefix TT_VAR → IR_ICN_KEYWORD (resolves &subject/&pos/&null/&fail). Builtins any/many/upto/match/move/find/tab were already in icn_try_call_builtin_by_name; only the upstream lowering edge was missing. ir-run 82→97 (+15). Recovers rung05_scan_*, rung06_cset_any/many/upto, rung08_strbuiltins_* in one shot. | `1841f7de` |
 | IJ-BINOP-GEN | TT_ADD/SUB/MUL/DIV/MOD/LT/LE/GT/GE/EQ/NE/CAT with generator operand → IR_BINOP_GEN (cross-product). Tracks per-child gen-kind so non-generator operands don't get re-pumped (avoids infinite loops on `5 > ((1 to 2) * (3 to 4))`). ir-run 97→105 (+8). Broker bonus: 18→19. | `05097be3` |
 | IJ-CALL-SNAPSHOT | Snapshot/restore (value, counter, state) of callee's `ir_body` across `IR_exec_once` in `IR_CALL` user-proc dispatch. Recursive proc calls share the IR graph; the inner `IR_reset` was wiping the caller's mid-evaluation per-node state. Visible victim: `IR_BINOP_GEN` reads `nd->c[0]->value` after both children eval'd — when c[1] is a recursive call, c[0]'s value was FAILDESCR. Fixed value of `write(fact(5))` → `120` (was blank). Does NOT flip rung02_proc_fact PASS because `every write(fact(5))` still pumps (single-shot proc returns NOT FAIL → IR_EVERY can't tell it's done; Category 3 / Fix #2). Gates flat at watermark. | `398776da` |
-| IJ-EVERY-SINGLESHOT | Fix #2 landed. proc_table.is_generator bit set at lower time by scanning lowered ir_body->all[] for IR_SUSPEND (src/lower/lower.c). New recursive classifier ir_is_single_shot(IR_t*) in src/lower/ir_exec.c: generator IR kinds (IR_ICN_*, IR_BINOP_GEN, IR_ALT, IR_ALTERNATE, IR_SUSPEND, IR_REPEAT, IR_TO_BY, IR_LIMIT, IR_ICN_SCAN) → 0; IR_CALL → recurse through proc_table.is_generator for user procs / small generator-builtin whitelist (find/upto/any/many/bal/key/seq) for builtins / all-args-single-shot otherwise; default → walk children. IR_EVERY consults it for c[0]; if single-shot, break after one iteration. Flips rung02_proc_fact, rung02_proc_add_proc. ir-run 105→107 (+2). Gates: smoke_icon 5/5, broker 19/49, honest 277/0/0. |
+| IJ-EVERY-SINGLESHOT | Fix #2 landed. proc_table.is_generator bit set at lower time by scanning lowered ir_body->all[] for IR_SUSPEND (src/lower/lower.c). New recursive classifier ir_is_single_shot(IR_t*) in src/lower/ir_exec.c: generator IR kinds (IR_ICN_*, IR_BINOP_GEN, IR_ALT, IR_ALTERNATE, IR_SUSPEND, IR_REPEAT, IR_TO_BY, IR_LIMIT, IR_ICN_SCAN) → 0; IR_CALL → recurse through proc_table.is_generator for user procs / small generator-builtin whitelist (find/upto/any/many/bal/key/seq) for builtins / all-args-single-shot otherwise; default → walk children. IR_EVERY consults it for c[0]; if single-shot, break after one iteration. Flips rung02_proc_fact, rung02_proc_add_proc. ir-run 105→107 (+2). Gates: smoke_icon 5/5, broker 19/49, honest 277/0/0. | `b1ed4117` |
+| IJ-BINOP-GEN-VAR-RERED | In IR_BINOP_GEN β-pump, re-evaluate the non-generator side when it's a pure-variable read (IR_VAR / IR_ICN_KEYWORD). Fixes `every total := total + (1 to 5)` returning 5 instead of 15: the LHS `total` had been captured once at α and never re-read, so the binop computed 0+1, 0+2, …, 0+5. The augop form `total +:= (1 to 5)` already worked because TT_AUGOP lowers to plain IR_BINOP. Pure-var-only restriction protects side-effecting IR_CALL etc. from re-firing. Flips rung02_proc_locals. ir-run 107→108 (+1). | `304e9476` |
 
 ## NEXT step
 
@@ -134,7 +135,6 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 ## NEXT step
 
 Fix #2 landed. Next candidate targets in descending value:
-- **`every total := total + (1 to n)` body-augop accumulation** — `rung02_proc_locals` still FAILs (got 5, expected 15). IR_AUGOP inside an every-body with a generator RHS appears to overwrite rather than accumulate. Likely IR_AUGOP-with-RHS-generator semantics. Diagnose at lower.c augop emission and ir_exec IR_AUGOP case.
 - **`rung03_suspend_gen`** — user-defined generator via `suspend ... do ...` (TT_SUSPEND with `do` body) yields empty output even at watermark; IR_SUSPEND likely missing the post-yield resume edge. Affects rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter (3 rungs).
 - **TT_CSET_COMPL** (`~cset`) — unary, simple, parallel to TT_NEG.
 - **TT_CSET_DIFF** (`cset1 -- cset2`) — already an AST kind; binop on csets.
@@ -142,8 +142,8 @@ Fix #2 landed. Next candidate targets in descending value:
 ## Watermark
 
 ```
-one4all: b1ed4117 (IJ-EVERY-SINGLESHOT landed)  corpus: 1fe096c
-ir-run:  107/265   honest: 277 PASS / 0 FAIL / 0 ABORT
+one4all: 304e9476 (IJ-BINOP-GEN-VAR-RERED landed)  corpus: 1fe096c
+ir-run:  108/265   honest: 277 PASS / 0 FAIL / 0 ABORT
 smoke_icon: 5/5    broker: 19/49
 cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 4/5
 ```
