@@ -415,26 +415,40 @@ one.  Either path lands at the same BB-land shape.
   • The "Icon program = two SM instructions" endpoint matches jcon's
     outer shape: program enters one function, which is one codeList.
 
-#### Three ideas worth stealing for `GOAL-LOWER-REDESIGN`
+#### Retracted (Sess 2026-05-15 followup #3, after Lon pushed back)
 
-  1. **Drop per-construct IR opcodes.**  Replace `IR_ICN_EVERY/LIMIT/
-     ALTERNATE/TO/...` with the universal triad `IR_MOVE + IR_GOTO +
-     IR_OPFN` plus four labels per AST node.  ~8 fewer opcodes, ~8 fewer
-     opaque structs, ~8 fewer executors.
-  2. **Generator state = IR register, not opaque struct.**  `1 to 3`
-     becomes `IR_OPFN("...", [from, to, by, closure_reg])` where
-     `closure_reg` is a normal IR temp.  The op-function advances
-     `closure_reg` on each resume.
-  3. **Failure/success threading by label.**  Every IR_t grows a
-     `failLabel`; FAIL = `ir_Goto(failLabel)`, SUCCESS = fall-through.
-     Eliminates the α/β/γ/ω pointer fields in favor of plain `IR_GOTO`.
+Three ideas were floated as a future "GOAL-LOWER-REDESIGN" arc.  Two are
+RETRACTED as overreach; one is kept as a coding-style technique.
 
-These are not this session's work — they are the `GOAL-LOWER-REDESIGN`
-arc.  This Goal closes out the per-construct ICN opcode family before
-that redesign by getting the *current* shape to cover smoke_icon and the
-broker gate.  Once coverage is high enough, the redesign can rewrite the
-IR layer wholesale — the SM↔BB bridge model and `proc_table[i].ir_body`
-layout stay the same; only the IR_block_t internals change.
+  1. ~~**Drop per-construct IR opcodes.**~~  RETRACTED.  Per-construct
+     opcodes (`IR_ICN_TO`, `IR_PAT_CAT`, `IR_PL_CHOICE`, ...) are the
+     correct way to encode per-language port semantics inside the
+     universal four-port envelope.  Folding them into a "universal triad"
+     would optimize for Icon at the cost of SNOBOL4 (algebra-of-patterns
+     is its natural shape — `pat_cat`/`pat_alt` over PATND_t is not
+     improved by chunkification) and Prolog (trail/choice-point is a
+     structured side-effect log, not a register).  The per-construct
+     family stays.
+
+  2. ~~**Generator state = IR register, not opaque struct.**~~  RETRACTED.
+     Works for Icon's integer-counter generators.  Fails for Prolog's
+     trail (which has unwinding semantics that a register cannot model),
+     partial for Raku's object-flavored generators.  Per-language opaque
+     structs are correct where the language's state has structure.
+
+  3. **Failure/success threading by label at LOWER TIME.**  KEPT, but
+     SCOPED.  At runtime, the four α/β/γ/ω pointer fields stay as the
+     universal abstraction — they ARE what makes cross-language BB↔BB
+     composability work.  But at LOWER time, thinking "this AST node has
+     four labels — start, resume, success, failure — and I emit edges
+     connecting children's labels to mine" is a clearer mental model than
+     "what state struct do I need?"  Same output, cleaner reasoning.
+     This is a coding-style technique for new lowering code, not a
+     runtime change.
+
+The wholesale "GOAL-LOWER-REDESIGN" arc is NOT a planned next step.  The
+current IR layout is correct.  Coverage growth in `lower_icn_expr_node`
+(more constructs supported) IS the work — not a wholesale rewrite.
 
 ### Two execution paths for Icon generators:
 
@@ -640,6 +654,20 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
       honest 277 → 277 (unchanged).  No cross-language regression.
       Two-instruction shape confirmed via --dump-sm for both smoke programs.
 
+### ✅ IJ-AST-IR-BB-while-until-seqexpr-globals — TT_WHILE/UNTIL/SEQ_EXPR/GLOBAL (sess 2026-05-15 Opus 4.7)
+
+- [x] Extended `lower_icn_expr_node` with four more AST kinds:
+        TT_WHILE / TT_UNTIL — emit IR_WHILE / IR_UNTIL with cond + body
+        TT_SEQ_EXPR        — emit IR_SEQ over the child statements (block body)
+        TT_GLOBAL / TT_INITIAL — emit IR_SUCCEED (no-op; scope is built at lower
+                                  time via proc_table[i].lower_sc)
+      Added IR_UNTIL to enum + kind_names.  Added IR_WHILE + IR_UNTIL executors
+      to ir_exec.c — both reset c[0]->state to 0 before each pump (correct for
+      scalar comparison conds; correct semantics for while-loop iteration).
+      Always succeed with NULVCL after termination.
+      Gates: smoke_icon 5/5 (unchanged); broker 16/49 (unchanged); honest
+      277 → 278 (+1); ir-run 20 → 31 (+11).  No cross-language regression.
+
 ### IJ-19-remaining — remaining constructs in order of complexity
 
 **RESOLVED:** `rung13_alt_alt_filter` now passes (fixed in prior session).
@@ -685,9 +713,9 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 927e0296  corpus: 1fe096c
-  ir-run:  20/265 (baseline 15 at d30949cb; +5 from TT_IF/TT_EVERY/TT_TO)
-  honest:  277 PASS / 0 FAIL / 0 ABORT
+  one4all: b974e111  corpus: 1fe096c
+  ir-run:  31/265 (baseline 15 at d30949cb; +16 from IF/EVERY/TO/WHILE/UNTIL/SEQ_EXPR/GLOBAL)
+  honest:  278 PASS / 0 FAIL / 0 ABORT
   smoke_icon: 5/5   smoke_prolog: 0/5   broker: 16/49
   Other smokes unchanged: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4.
   smoke_icon ALL FIVE PASS via the two-SM-instruction shape:
@@ -774,6 +802,48 @@ Next DCGs to implement (highest ir-run yield first):
     stub on `SM_BB_ONCE_PROC` NO-AST currently.
 
     PLAN.md row for "Prolog BB JCON triage" added pointing at the new Goal.
+
+  Session 2026-05-15 followup #3 (Claude Opus 4.7, one4all `b974e111`):
+    Continued coverage in lower_icn_expr_node:
+      • TT_WHILE / TT_UNTIL  → IR_WHILE / IR_UNTIL (c[0]=cond, c[1]=body)
+      • TT_SEQ_EXPR          → IR_SEQ (compound block, parsed when 2+ statements
+                                appear in braces)
+      • TT_GLOBAL / TT_INITIAL → IR_SUCCEED (no-op: scope is built at lower time
+                                  via proc_table[i].lower_sc; the declaration
+                                  has no runtime effect)
+    Added IR_UNTIL to IR_e enum + kind_names.  Added IR_WHILE + IR_UNTIL
+    executors to ir_exec.c — both reset c[0]->state to 0 before each pump
+    (correct for scalar comparison conds, which is the common case).
+
+    Programs like
+        procedure main()
+          local i;
+          i := 1;
+          while i < 4 do { write(i); i := i + 1; };
+        end
+    now lower to a single IR_block_t under SM_BB_PUMP_PROC main +
+    SM_HALT — the canonical two-instruction shape.
+
+    Gate movement:
+      smoke_icon   5/5     unchanged
+      broker       16/49   unchanged
+      honest       277→278 (+1)
+      ir-run       20→31   (+11)
+      Cross-lang smokes all unchanged.
+
+    The +11 on ir-run reflects rungs that needed `local x;` declarations
+    plus while/until/block-body loops finally lowering cleanly.
+
+    Also this session: tightened the cross-language banner box in both
+    Icon and Prolog JCON Goals.  Previous wording forbade 'SM↔BB across
+    languages' too broadly — that phrasing accidentally banned the
+    normal mode of operation (every language has SM bridge opcodes that
+    broker its own BB-land).  Corrected statement: SM(A)↔SM(B) via
+    `g_user_call_hook` (today; SM_XCALL conceptually); BB(A)↔BB(B) via
+    the universal α/β/γ/ω four-port contract.  WHAT IS FORBIDDEN is
+    narrower: invoking a language-A SM-bridge handler with a language-B
+    BB object as its operand — that crosses port semantics in a way
+    the handler is hardcoded to not handle.
 
   Session 2026-05-15 followup #2 (Claude Opus 4.7, one4all `927e0296`):
     Lon directive: four ports must be hard-wired with direct pointers, not
