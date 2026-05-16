@@ -403,73 +403,124 @@ The two are **orthogonal axes of the same node**:
 
 | Axis | What it expresses | When used |
 |---|---|---|
-| `c[]/n` children | **Static n-ary operand structure** of compound IR nodes | Only when the kind has structural list-of-children (e.g. `IR_PL_CHOICE` alternatives, `IR_CALL` arg list, `IR_MAKELIST` elements, `IR_CASE` arms) |
+| `c[]/n` children | **n-ary children** of compound nodes | When the kind is genuinely n-ary (sequence, alternation, arg list, case arms, parameter list, element list, multi-clause choice) |
 | α/β/γ/ω ports | **Control wiring** — where execution *goes* | Populated for every node whose role in the graph requires it |
 
-#### About c[]/n in the IR — observed from the worked example
+#### About c[]/n — n-ary flattening rationale
 
-After walking through `if (n < 5) { s ? POS(0) ('yes'|'no') RPOS(0) } else { s ? ('0'|'1') }`
-end to end, the IR graph has **twelve nodes and not one of them uses `c[]/n`**.
-That is not a bug; it is the SM/BB style talking. In a stack-machine model
-operands flow on the runtime value stack — predecessor pushes, this node
-pops. The graph's port edges carry execution order; values are implicit.
-A `IR_BINOP "<"` doesn't carry "lhs" and "rhs" pointers because two earlier
-nodes' γ-chain already left those values on the stack.
+Left and right grammar recursion naturally produce **left- or right-leaning
+binary trees**. The parser flattens them. Look at the SNOBOL4 grammar:
 
-So `c[]` is a **per-kind** field, not universal. Many kinds leave `c[] = NULL, n = 0`.
-The cases that genuinely need it are kinds with **static n-ary structure
-beyond what one γ-chain can express**:
+```c
+expr3 T_2PIPE expr4
+  { if($1->kind==AST_ALT) { expr_add_child($1,$3); $$=$1; }
+    else { AST_t*a=expr_new(AST_ALT); expr_add_child(a,$1);
+           expr_add_child(a,$3); $$=a; } }
+```
 
-- `IR_PL_CHOICE` — list of clause-entry pointers (alternatives to try)
-- `IR_CALL` / `IR_OpFunction` — argument list (paralleling JCON's `argList` field)
+First reduction makes a new ALT with two children; each subsequent reduction
+*grows* the same node by appending. Result: a **flat n-ary list**, not a
+deep `ALT(ALT(ALT(a,b),c),d)` tower. This is a tiny one-liner in the
+parser that saves every downstream stage from doing recursive descent
+that asks "is this child itself an ALT? if so recurse; otherwise treat
+as terminal." The flat form is `for (i=0; i<n; i++) handle(c[i])` — a
+linear sibling scan, not a tree walk.
+
+So `c[]` exists in the AST for **logic, not optimization**. Some
+constructs are inherently "see all children at once" — and the flat
+representation expresses that directly while a left-leaning binary chain
+only does it implicitly.
+
+The same logic carries into the IR. Pattern alternation, sequence,
+argument lists, case arms — every stage that wires these up needs to
+see the whole list. Walking `α-then-ω*` to recover the list at every
+consumer is just as wasteful as walking the binary chain to recover
+the flat list in the AST.
+
+#### What populates c[] in the IR
+
+**Yes** (n-ary list essential to the kind):
+
+- `IR_PAT_ALT` — alternatives
+- `IR_PAT_CAT` / `IR_PAT_SEQ` — concatenated pattern pieces (yes,
+  even though ω-chaining can reconstruct the list — having it flat
+  matters for the wiring logic)
+- `IR_PL_CHOICE` — alternative clause-entry pointers
+- `IR_CALL` / `IR_OpFunction` — argument list
 - `IR_MAKELIST` — element list
-- `IR_CASE` — arm list (pairs of value, body-entry)
+- `IR_CASE` — arm list (each arm a pair: value, body-entry)
 - `IR_PROC` — parameter list
+- `IR_ALT`, `IR_ALTERNATE` (Icon `|`, generator alternation)
+- statement-sequence container in a block / procedure body
 
-For everything else (binops, unops, assigns, pattern ops, goto, if, succeed,
-fail, return, var, literals) — `c[]` is empty and ports do the work.
+**No** (truly atomic at the IR level — operands flow on the runtime stack
+via the γ-chain):
 
-This is **different from the AST**, where `c[]/n` is the *only* way the
-tree is held together. The AST stage is pure n-ary tree. The IR stage is
-a directed graph where the n-ary-tree axis collapses to "used by some
-kinds, not others."
+- `IR_LIT_*`, `IR_VAR`, `IR_GOTO`, `IR_FAIL`, `IR_SUCCEED`
+- `IR_BINOP`, `IR_UNOP`, `IR_ASSIGN`, `IR_AUGOP`
+- `IR_IF` (cond was evaluated upstream, result on stack)
+- Pattern leaves: `IR_PAT_LIT`, `IR_PAT_ANY`, `IR_PAT_NOTANY`, `IR_PAT_SPAN`,
+  `IR_PAT_BREAK`, `IR_PAT_LEN`, `IR_PAT_POS`, `IR_PAT_RPOS`, `IR_PAT_TAB`,
+  `IR_PAT_REM`, `IR_PAT_FENCE`, `IR_PAT_ABORT`, `IR_PAT_ARB`
+
+For these, `c[] = NULL, n = 0`.
+
+#### Trade-off summary
+
+- **AST**: flatten n-ary in the parser; consumers get a sibling-walk.
+- **IR**: keep n-ary structure flat in `c[]` for kinds that are inherently
+  n-ary; let SM-style atomic nodes leave `c[]` empty.
+- **Lower** owes the IR both: the flat `c[]` for the n-ary kinds, AND the
+  port wiring (which often mirrors the children — `c[i].ω → c[i+1].α` for
+  alternation, etc.). The duplication is intentional — same information
+  reachable two ways: by indexed access (`c[]`) and by chained
+  traversal (ports). Each consumer picks whichever serves its logic
+  better.
 
 For nodes that produce a single deterministic value (e.g. `IR_LIT_I`,
 `IR_ASSIGN`), the BB wiring degenerates to: `α = self`, `γ = next-in-sequence`,
-`ω = fail-out`, `β = ω`. The same dispatch machinery walks both kinds
-without a special case — deterministic nodes just never schedule a retry.
+`ω = fail-out`, `β = ω`. The dispatch machinery walks both kinds without
+special-casing — deterministic nodes just never schedule a retry.
 
-For pure pattern operators (`IR_PAT_LIT`, `IR_PAT_ARB`, etc.), `c[]` is
-empty and all four ports are populated — exactly what `lower_pat_dcg.c`
-already does today.
+For pure pattern *leaf* operators (`IR_PAT_LIT`, `IR_PAT_ARB`, etc.),
+`c[]` is empty and all four ports are populated.
 
-**One edge per (source-node, port).** Not two. The target node does not
-carry a back-pointer to the source. Backtracking-cycles are represented
-by some downstream port pointing back upstream — that's a real cycle in
-the directed graph, just expressed as `node_B->β = node_A` (single edge).
+For pattern *composers* (`IR_PAT_ALT`, `IR_PAT_CAT`), both `c[]` and
+all four ports are populated.
+
+**One edge per (source-node, port).** Not two. Backtracking-cycles
+are represented by some downstream port pointing back upstream — that's
+a real cycle in the directed graph, expressed as `node_B->β = node_A`
+(single edge).
 
 ### Concrete worked example summary
 
 Worked through `if (n < 5) { s ? POS(0) ('yes'|'no') RPOS(0) } else { s ? ('0'|'1') }`:
 
 **AST (Stage 1 output):** 19 vertices, 18 edges, out-tree, edges labelled by
-child-index `c[i]`. No ports. No cycles. Pure n-ary tree.
+child-index `c[i]`. No ports. No cycles. Pure n-ary tree. `TT_ALT` and
+`TT_SEQ` are flat — `('yes'|'no')` produces one `TT_ALT` with two children,
+not `ALT(QLIT, QLIT)` nested deeper.
 
 **IR (Stage 2 output):** ~12 vertices, ~20 edges, directed graph.
 
 The then-branch (the non-trivial pattern):
 
 ```
-n3 IR_VAR "s"     γ→n4
-n4 IR_PAT_POS 0   α=self  β→ω  γ→n5  ω→n_fail
-n5 IR_PAT_ALT     α→n6
-n6 IR_PAT_LIT "yes"  γ→n8   ω→n7    (failure tries next alt)
-n7 IR_PAT_LIT "no"   γ→n8   ω→n_fail
-n8 IR_PAT_RPOS 0  α=self  γ→n_join  β→n5  ω→n_fail
-                                     ^^^^^
-                                     the key back-edge — retry the alt
-                                     for a different choice when RPOS fails
+n3 IR_VAR "s"           γ→n4
+n4 IR_PAT_POS 0         α=self  β→ω  γ→n5  ω→n_fail
+n5 IR_PAT_ALT  c:[n6,n7]   α→n6      ω→n_fail
+n6 IR_PAT_LIT "yes"     γ→n8   ω→n7      (failure tries next alt)
+n7 IR_PAT_LIT "no"      γ→n8   ω→n5.ω    (last alt — ω propagates out)
+n8 IR_PAT_RPOS 0        α=self  γ→n_join  β→n5  ω→n_fail
+                                          ^^^^^
+                                          the key back-edge — retry the alt
+                                          for a different choice when RPOS fails
 ```
+
+Note: `n5` (IR_PAT_ALT) now carries `c:[n6,n7]` — the flat list of
+alternatives — alongside its α port that enters the first alt. The list
+and the chain are *both* present, and that is intentional.
 
 The single back-edge `n8.β → n5` is **the entire reason a pattern node
 needs four ports.** In SM-style straight-line code the only backward edge
@@ -479,32 +530,36 @@ that β buys you. SM nodes use γ + ω (two ports). BB nodes use all four.
 The else-branch (`('0'|'1')`):
 
 ```
-n9 IR_VAR "s"     γ→n10
-n10 IR_PAT_ALT    α→n11
-n11 IR_PAT_LIT "0"  γ→n_join  ω→n12
-n12 IR_PAT_LIT "1"  γ→n_join  ω→n_fail
+n9  IR_VAR "s"             γ→n10
+n10 IR_PAT_ALT c:[n11,n12]  α→n11   ω→n_fail
+n11 IR_PAT_LIT "0"          γ→n_join  ω→n12
+n12 IR_PAT_LIT "1"          γ→n_join  ω→n10.ω
 ```
 
-Here β is never wired because there's no upstream retry — the alt is the
-whole pattern. n10/n11/n12 are effectively three-port nodes (α, γ, ω).
-The field for β exists in the struct but lower simply leaves it NULL.
+`IR_PAT_ALT` carries `c[]` here too. β is never wired because there's no
+upstream retry — the alt is the whole pattern. n11/n12 are effectively
+three-port nodes (α implicit, γ, ω). The field for β exists in the struct
+but lower simply leaves it NULL.
 
 **Graph-theory observation:** the IR is a *labelled directed graph with
-bounded out-degree* (≤4). Not a multigraph (no two parallel edges between
-the same pair sharing one label). Cyclic in general. Each edge belongs to
-a specific port family — and that family **is the label**, not a separate
-annotation.
+bounded out-degree* (≤4 from ports) **plus an auxiliary indexed access
+to children for n-ary kinds**. Cyclic in general. Edges labelled by port
+family. Children are not edges in the execution graph — they are an
+indexed reference into the same node set.
 
 ### The "tree-vs-graph" duality, made precise
 
-The AST stage is an n-ary tree. The IR stage is a directed graph.
-The two stages share neither shape nor representation — they share
-only the node-struct layout (a single `tree_t` / `IR_t` struct that
-exposes both axes; each kind picks what it needs).
+The AST stage is an n-ary tree (parser flattens left/right-recursive
+chains into flat lists).
 
-The interpreter walks the port edges. The emitters walk the children
-for kinds that have n-ary operand structure, and walk the ports to
-generate the branch targets.
+The IR stage is a directed graph **with an indexed sibling view** on
+those n-ary kinds that have one. The same nodes appear both reachable
+by graph traversal (ports) and by indexed access (`c[]` on the
+container node). Two views, same node set.
+
+The interpreter walks the port edges. The emitters walk both — children
+for laying out the static structure (jump tables, argument lists),
+ports for wiring branches.
 
 ### JCON's IR confirms the "single edge per labeled port" model
 
@@ -908,9 +963,12 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh   # (verify path)
 
 ```
 watermark: Stage 1 Step 0 (parser diagnosis) ✅
-           Stage 2 design ✅ (six worked examples + concrete pattern example)
-           Stage 2 design refined ✅ — c[]/n confirmed sparse-per-kind, not universal
-head: .github HEAD = ffa1a9bb (JCON cross-reference landed)
+           Stage 2 design ✅
+           Stage 2 design refined re. c[]: keep n-ary kinds flat in c[]
+             (PAT_ALT, PAT_CAT, CALL, MAKELIST, CASE, PROC, PL_CHOICE) —
+             parser-flatten rationale carries into IR for the same logic
+             reasons. SM-style atomic nodes leave c[] empty.
+head: .github HEAD = 32a6af4f
 next: PST-SN4-1a — remove EXPORT/IMPORT special-case from sno4_stmt_commit_go
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: lower audit → per-construct passes → Prolog slots → Rebus lower → cross-lang audit
