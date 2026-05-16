@@ -349,12 +349,16 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
-            Stage 1 Step 1 — PST-SN4-1a ✅ (one4all 544a6de0, .github pending)
-head: .github HEAD pending push (after PST-SN4-1a mark)
+            Stage 1 Step 1 — PST-SN4-1a ✅
+head: .github = db68f6e6   one4all = 544a6de0   corpus = unchanged
 next: PST-SN4-1b (strip AST_SCAN-unpacking / AST_SEQ-rearrangement from sno4_stmt_commit_go)
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
+
+### Note for next session — bison regen behavior
+
+`snobol4.y` was previously out of sync with the committed `snobol4.tab.c/.tab.h`. Fixed in `544a6de0` by mechanical sed across `.y`. **Verify on entry that `bison -d -o snobol4.tab.c snobol4.y` produces a `.tab.c` byte-comparable to the committed one** (apart from intentional edits). The top-level Makefile compiles the committed `.tab.c` directly without a `.y` dependency rule, so a divergent `.y` can persist undetected in normal builds — only the per-frontend `Makefile` triggers regen. If any frontend other than SNOBOL4 has a similar `.y`/`.tab.c` desync, the same fix pattern applies.
 
 ---
 
