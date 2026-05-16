@@ -1,1157 +1,275 @@
 # GOAL-PARSER-PURE-SYNTAX-TREE.md — Six Frontends, One Pure tree_t
 
 **Repo:** one4all + .github
-**Status:** scoping
-**Two stages:**
-
-- **Stage 1 (parsers):** every frontend produces a pure `tree_t` syntax tree,
-  one-to-one with surface syntax. No lowering, no desugaring, no graph
-  construction. Built directly with `tree_t` — no separate intermediate types.
-- **Stage 2 (lower):** the single `lower` stage consumes the pure `tree_t` and
-  produces `IR_t` — the directed graph with c[] children for the AST skeleton
-  and α/β/γ/ω ports for the execution wiring.
+**Status:** Stage 1 active (PST-SN4-1a next)
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► (IR_t — DCG with ports)
 ```
 
-The only license parsers have to deviate from one-to-one is:
-
-- **Discarding pure layout tokens** that exist solely for grouping or punctuation
-  and carry no semantic content. The canonical example: `( x )` — the parentheses
-  exist in the parse tree only to disambiguate precedence; they do **not** appear
-  in the syntax tree. Same for statement terminators, separators, head/tail
-  keyword pairs that bracket a structure, etc.
-- **Choosing a node kind for an operator** (e.g. `T_PLUS` token → `TT_ADD` node).
-  This is mechanical, not semantic.
-
-Everything else — every rewrite, every introduced node not directly named by the
-grammar, every label, every goto chain, every clone of an expression — is a
-**violation** and belongs in `lower`.
+Parsers may only: discard pure layout tokens (parens, separators); choose a node kind for an operator. Everything else — rewrites, introduced nodes, labels, gotos, augop expansion, control-flow lowering, slot allocation — belongs in `lower`.
 
 ---
 
-## Why now
+## Why
 
-The five language frontends arrived at the current shared `tree_t` from very
-different starting points. Three of them (SNOBOL4, Icon, Raku) are already
-close. Three of them (Snocone, Rebus, Prolog) carry significant historical
-deviation:
+Three frontends carry historical deviation:
+- **Snocone** — does ALL control-flow lowering in parser actions (labels, gotos, augop expansion, stmt splicing, loop frames). ~80 helper references in `snocone_parse.y`.
+- **Rebus** — builds separate `RProgram`/`RStmt`/`RExpr` IR, never touches `tree_t`.
+- **Prolog** — builds `Term*` + assigns variable slots during parsing. Zero `tree_t` references in `prolog_parse.c`.
 
-- **Snocone** desugars `+=`/`-=`/`*=`/etc. at parse time by cloning the LHS into
-  the RHS; generates fresh labels via `sc_label_new` for every `if`/`while`/`do`/
-  `for`/`switch`/`break`/`continue`; splices synthetic `STMT_t` chains directly
-  into the live `CODE_t` statement list; tracks loop frames (`LoopFrame`) and
-  pending user-labels mid-parse; and emits gotos as completed statements.
-  Essentially the entire control-flow lowering already runs in the parser
-  action bodies. (`snocone_parse.y` 1227 lines, 80+ helper references.)
-- **Rebus** builds an entirely separate IR (`RProgram`/`RStmt`/`RExpr` /
-  `REKind`) that never touches `tree_t`. Zero references to `TT_*` or `tree_t`
-  in `rebus.y`. The conversion to `tree_t` happens elsewhere, untraceable from
-  the grammar.
-- **Prolog** builds yet a third IR (`Term` / `term_new_atom` / `term_new_compound`
-  / `term_new_var`) and tracks variable scopes during parsing. Zero references
-  to `tree_t` in `prolog_parse.c`. The `if/then/else` directive stack
-  (`IF_STACK_MAX`, `IfFrame`) does control-flow logic during parsing.
-
-The result: `lower` is asymmetric across languages. For SNOBOL4 it does real
-lowering work; for Snocone it gets pre-lowered input and has nothing left to
-do; for Rebus and Prolog there is a hidden conversion stage between parser and
-lower that nobody owns. This blocks the goal stated in PLAN.md:
-
-> Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the
-> shared AST. SM-LOWER compiles the AST to SM_Program …
-
-The shared AST is `tree_t`. Today it is only shared in two-and-a-half of six
-cases.
+Result: `lower` is asymmetric — for SNOBOL4 it does real lowering; for Snocone it gets pre-lowered input; for Rebus/Prolog there's a hidden conversion stage nobody owns.
 
 ---
 
-## What "pure syntax tree" means, concretely
+## Pure-syntax rules
 
-For every grammar production `LHS → RHS`, the action body either:
+**Allowed in action bodies:** `ast_node_new(TT_*)`, `expr_new`, `expr_unary`, `expr_binary`, `ast_push`, `expr_add_child`. Setting `v.sval`/`v.ival`/`v.dval` from token. Flat-list growth (`ast_push` for left-recursive rules).
 
-1. Returns one of its RHS children unchanged (delegation — e.g. `expr8 : expr9`
-   in SNOBOL4), or
-2. Allocates **one** new `tree_t` node whose kind names the construct, attaches
-   the relevant RHS subtrees as children **in source order**, and returns it.
+**Forbidden:** cloning subtrees; `sc_label_new`; splicing `STMT_t` chains; loop-frame tracking; building non-`tree_t` IR (`RExpr*`, `Term*`); variable-slot assignment; EXPORT/IMPORT string special-casing; resorting children for positional semantics.
 
-Allowed in action bodies:
-- `ast_node_new(TT_*)` / `expr_new(TT_*)` / `expr_unary` / `expr_binary` / `ast_push` / `expr_add_child`.
-- Setting `v.sval`/`v.ival`/`v.dval` from the immediate token value.
-- Choosing between flat-list nodes (`ast_push` onto an existing same-kind parent
-  for left-associative left-recursive rules) vs. nested binary. **Either is
-  fine, as long as no extra semantic work happens.** The current SNOBOL4
-  `expr3 T_2PIPE expr4` rule that grows a flat `AST_ALT` list is the model.
-
-Forbidden in action bodies:
-- Cloning subtrees (`sc_clone_expr_simple` and friends).
-- Allocating labels (`sc_label_new`).
-- Allocating and splicing `STMT_t` chains into a global statement list as a
-  side effect (`sc_append_stmt`, `sc_splice_after`, `sc_finalize_if_*`,
-  `sc_finalize_while`, `sc_finalize_for`, `sc_finalize_switch`,
-  `sc_finalize_function`).
-- Tracking loop frames or scope state for the purpose of resolving `break` /
-  `continue` to labels. The parser may push a tree node `TT_LOOP_BREAK`; it
-  must **not** resolve which loop it targets.
-- Building any non-`tree_t` IR (Rebus's `RExpr*`, Prolog's `Term*`).
-- Variable-slot allocation (`scope_get` in `prolog_parse.c` assigning
-  `next_slot++` to each new variable). Slots are a lowering concern.
-- Special-casing labels by string (the `EXPORT`/`IMPORT` branches in
-  `sno4_stmt_commit_go`).
-- Resorting children of a node because the language has positional semantics
-  (the `if(!pat && subj && subj->kind==AST_SCAN)` rearrangement near the end
-  of `sno4_stmt_commit_go` is borderline — see Step 1 below).
-
-The simplest rule: **if the action body reads or writes anything other than its
-own RHS values, it is doing something other than building the syntax tree.**
+Simplest rule: **if the action body reads or writes anything other than its own RHS values, it's doing something other than building the syntax tree.**
 
 ---
 
-## Scope, per frontend
+## Frontend status
 
-Diagnosis already completed in the scoping session.
-
-### SNOBOL4 (`src/frontend/snobol4/snobol4.y`) — closest to clean
-
-- ✅ Expression layer (`expr0`..`expr17`) is essentially pure: one node per rule, children in source order.
-- ✅ Parentheses dropped on `T_LPAREN expr0 T_RPAREN { $$ = $2; }`.
-- ⚠ `sno4_stmt_commit_go` performs three non-trivial transformations on the
-  committed statement:
-  1. `EXPORT`/`IMPORT` labels intercepted and written to a side table.
-  2. If subject is `AST_SCAN(a, b)` and no pattern given, it re-attaches `a` as
-     subject and `b` as pattern (re-shuffling syntax for downstream
-     convenience).
-  3. If subject is `AST_SEQ` whose head is a Var/Keyword/Qlit/Indirect, it
-     splits head as subject and tail as pattern.
-  These belong in `lower`.
-- ⚠ Goto fields are stored as `s->goto_u`/`s->goto_s`/`s->goto_f` raw strings
-  on the `STMT_t` rather than as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children
-  of the `TT_STMT` tree node. The pure-tree form would put them on the tree.
-
-### Icon (`src/frontend/icon/icon_parse.c`) — clean
-
-- ✅ Builds `tree_t` directly via `ast_node_new(TT_*)`, `expr_unary`, `expr_binary`.
-- ✅ Each Icon construct (`if`, `every`, `while`, `repeat`, `case`, `to`/`to by`)
-  maps to one node kind.
-- No major violations found in the scoping pass. **Targeted audit only.**
-
-### Raku (`src/frontend/raku/raku.y`) — clean
-
-- ✅ Uses `AST_t` (= `tree_t`) throughout. ~50 references.
-- `strip_sigil` and the `ExprList` arglist accumulator are mechanical and OK.
-- **Targeted audit only.**
-
-### Snocone (`src/frontend/snocone/snocone_parse.y`) — major rewrite
-
-The parser today performs the entirety of control-flow lowering. Required:
-
-- Replace the `sc_if_head_new` / `sc_finalize_if_*` machinery with a single
-  rule that builds `TT_IF` with three children: `cond`, `then-block`,
-  `opt-else-block`.
-- Replace `sc_while_head_new` / `sc_finalize_while` with `TT_WHILE(cond, body)`.
-- Replace `sc_do_head_new` / `sc_finalize_do_while` with a single
-  `TT_REPEAT(body, cond)` (or a new `TT_DO_WHILE`).
-- Replace `sc_for_head_new` / `sc_finalize_for` with `TT_FOR(init, cond, step, body)`.
-- Replace `sc_switch_*` with `TT_CASE(disc, case-list)` where each case is a
-  `(value, body)` pair node.
-- Replace `sc_append_break` / `sc_append_continue` (which resolve to labels)
-  with `TT_LOOP_BREAK` / `TT_LOOP_NEXT` nodes carrying the optional user-label
-  string only — **no** resolution.
-- Replace `sc_func_head_new` / `sc_finalize_function` with `TT_DEFINE` (or
-  reuse an existing kind) carrying name, arglist children, body block.
-- Move the augmented-assignment expansions (`+= → ASSIGN(x, ADD(x, e))`) into
-  `lower`. The parser emits a single `TT_AUGOP` node tagged with the operator
-  enum (`AUGOP_ADD`, etc.) — that enum already exists in `ast.h`.
-- Move `sc_split_subject_pattern` (post-parse subject/pattern split for SNOBOL4-style
-  scanned statements within Snocone) to `lower`.
-- The parser produces a `TT_PROGRAM` whose children are statement-tree
-  nodes — **not** a linear `STMT_t` list with goto-and-label statements
-  spliced in.
-- Remove all per-parse `ScParseState` machinery related to labels, loop frames,
-  pending user-labels, switch heads, function heads. The parser state shrinks
-  to: the lexer, the file name, the error count.
-
-This is the **bulk of the work** and the heart of the GOAL.
-
-### Rebus (`src/frontend/rebus/rebus.y`) — entire IR replacement
-
-Rebus today builds `RProgram`/`RStmt`/`RExpr` and converts to `tree_t`
-elsewhere. The grammar action bodies need to build `tree_t` directly,
-matching the pattern used by SNOBOL4 and Icon. Then the `RProgram` types
-and `rexpr_new` API are deleted.
-
-### Prolog (`src/frontend/prolog/prolog_parse.c`) — entire IR replacement + slot deferral
-
-Prolog today builds `Term *` and assigns variable slots during parsing
-(`scope_get(...)` → `term_new_var(next_slot++)`). The grammar must build
-`tree_t` directly: clauses are `TT_CLAUSE(head, body)`, atoms are
-`TT_QLIT`/`TT_VAR`, compound terms are a kind like `TT_FNC` with name in
-`v.sval` and arg children, the `;` operator is `TT_ALT`, the `,` operator
-is `TT_CAT`, `:-` is `TT_CLAUSE`, `->` is its own kind, cut is `TT_CUT`.
-Variable-slot allocation moves to `lower`.
-
-The `IfFrame` / `ifst_top` directive-stack logic for conditional file
-inclusion is separable; it can stay or move depending on how directives
-land elsewhere. **Defer judgment to the rung that touches it.**
+| Frontend | Status | Notes |
+|----------|--------|-------|
+| **SNOBOL4** | ~clean | Three warts in `sno4_stmt_commit_go`; goto fields on `STMT_t` not tree |
+| **Icon** | clean | Targeted audit only |
+| **Raku** | clean | Targeted audit only |
+| **Snocone** | major rewrite | Entire control-flow lowering lives in parser |
+| **Rebus** | full replacement | `RExpr`/`RStmt`/`RProgram` → `tree_t` |
+| **Prolog** | full replacement + slot deferral | `Term*` → `tree_t`; slot assignment → lower |
 
 ---
 
-## Stage 1 step ladder — Parsers
+## Stage 1 — Parser step ladder
 
-Each step lands a single commit (or a small sequence) and a green build of
-the existing test gates. **No new test regressions per step.** When a step
-removes desugaring from a parser, the corresponding desugaring is added to
-`lower` first (or in the same commit), so end-to-end behavior is preserved.
+### Step 1 — SNOBOL4 cleanup
 
-### Step 0 — Diagnosis ✅ (this document)
+- [ ] **PST-SN4-1a** — Remove EXPORT/IMPORT special-case from `sno4_stmt_commit_go`. Move to post-parse pass in lower/driver.
+- [ ] **PST-SN4-1b** — Remove `AST_SCAN`-unpacking and `AST_SEQ`-splitting subject/pattern rearrangement. Equivalent logic in `lower`.
+- [ ] **PST-SN4-1c** — Lift goto fields (`goto_u`, `goto_s`, `goto_f` and `_expr` variants) off `STMT_t` onto `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children.
+- [ ] **PST-SN4-1d** — Document `snobol4.y` header as reference for pure-syntax-tree style.
 
-- [x] Diagnose each of the six parsers and record findings (above).
-- [x] Identify violations per frontend.
-- [x] Identify the canonical pure-syntax model (SNOBOL4 expression layer).
-
-### Step 1 — SNOBOL4 cleanup (small, sets the template)
-
-- [ ] **PST-SN4-1a** — Remove EXPORT/IMPORT special-case from `sno4_stmt_commit_go`. Move to a post-parse pass in `lower` or driver.
-- [ ] **PST-SN4-1b** — Remove the `AST_SCAN`-unpacking and `AST_SEQ`-splitting subject/pattern rearrangement. Equivalent logic added to `lower`.
-- [ ] **PST-SN4-1c** — Lift goto fields (`goto_u`, `goto_s`, `goto_f`, and their `_expr` variants) off `STMT_t` and onto the `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children.
-- [ ] **PST-SN4-1d** — Document in `snobol4.y` header comment: this grammar is the reference for pure-syntax-tree style. Other frontends should match.
-
-Gates after each rung: scrip_all_modes, smoke_snobol4, broad corpus.
+Gates: scrip_all_modes, smoke_snobol4, broad corpus.
 
 ### Step 2 — Icon audit
 
-- [ ] **PST-ICN-2a** — Read `icon_parse.c` in full, list any places building synthetic structure (e.g. the `TT_TO_BY` from a `to ... by ...` rule is fine; a `for` loop secretly expanding into a `(_init; cond; step)` triplet wrapping `IF` and `EVERY` would be a violation). Record findings.
-- [ ] **PST-ICN-2b** — If violations found, fix them with same pattern as SNOBOL4.
+- [ ] **PST-ICN-2a** — Read `icon_parse.c` in full. List violations. Record findings.
+- [ ] **PST-ICN-2b** — Fix violations if any.
 
 ### Step 3 — Raku audit
 
-- [ ] **PST-RAKU-3a** — Read `raku.y` in full, list any helper that does work beyond node construction. Record findings.
+- [ ] **PST-RAKU-3a** — Read `raku.y` in full. List violations. Record findings.
 - [ ] **PST-RAKU-3b** — Fix violations if any.
 
-### Step 4 — Snocone rewrite (the big one)
+### Step 4 — Snocone rewrite (bulk of the work)
 
-Each sub-step lands the lower-side equivalent first, then strips the
-parser-side desugaring.
+Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green.
 
-- [ ] **PST-SC-4a** — Add `lower_snocone.c` (or extend existing lower) handling for `TT_AUGOP`. Run gates. Remove `+=`/`-=`/`*=`/`/=`/`%=`/`^=`/`||=` expansion from the parser; replace with `TT_AUGOP` node. Gates green.
-- [ ] **PST-SC-4b** — Lower handles `TT_IF(cond, then, else?)`. Parser replaces `sc_if_head_new` + `sc_finalize_if_no_else`/`sc_finalize_if_else` with single `TT_IF` build. `IfHead` struct deleted.
-- [ ] **PST-SC-4c** — Same for `TT_WHILE(cond, body)`. `WhileHead`/`sc_finalize_while` deleted.
-- [ ] **PST-SC-4d** — Same for `TT_REPEAT` / do-while. `DoHead`/`sc_finalize_do_while` deleted.
-- [ ] **PST-SC-4e** — Same for `TT_FOR(init, cond, step, body)`. `ForHead`/`sc_finalize_for` deleted.
-- [ ] **PST-SC-4f** — Same for `TT_CASE` (switch). `SwitchHead`/`CaseEntry`/`sc_finalize_switch` deleted.
-- [ ] **PST-SC-4g** — Same for `TT_DEFINE` (function definition). `FuncHead`/`sc_finalize_function` deleted.
-- [ ] **PST-SC-4h** — `break` / `continue` build `TT_LOOP_BREAK` / `TT_LOOP_NEXT` carrying optional user-label string. Loop-frame resolution moves to lower. `LoopFrame`/`sc_loop_push`/`sc_loop_pop`/`sc_loop_find_by_user_label` deleted.
-- [ ] **PST-SC-4i** — Labels (`label:` form). Parser builds `TT_STMT` with a label attribute or a sibling `TT_GOTO_U` target name; deletes `sc_emit_label_pad` and pending-label tracking.
-- [ ] **PST-SC-4j** — `return`/`freturn`/`nreturn` → `TT_RETURN(value?)` and dedicated kinds for the fail/null variants. `sc_append_return`/`sc_append_freturn`/`sc_append_nreturn` deleted.
-- [ ] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U` node. `sc_append_goto_label` deleted.
-- [ ] **PST-SC-4l** — `sc_split_subject_pattern` moved to lower.
-- [ ] **PST-SC-4m** — Top-level changes: `TT_PROGRAM` is now a tree of nested statement trees (not a flat linear list with synthetic gotos and labels). `sc_append_stmt`/`sc_splice_after`/`sc_make_label_stmt`/`sc_make_goto_uncond_stmt` deleted.
+- [ ] **PST-SC-4a** — Lower handles `TT_AUGOP`. Parser emits `TT_AUGOP` tagged with `AUGOP_*` enum instead of expanding `+=` etc.
+- [ ] **PST-SC-4b** — Lower handles `TT_IF(cond, then, else?)`. Parser replaces `sc_if_head_new`/`sc_finalize_if_*` with single `TT_IF`. `IfHead` deleted.
+- [ ] **PST-SC-4c** — `TT_WHILE(cond, body)`. `WhileHead`/`sc_finalize_while` deleted.
+- [ ] **PST-SC-4d** — `TT_REPEAT` / do-while. `DoHead`/`sc_finalize_do_while` deleted.
+- [ ] **PST-SC-4e** — `TT_FOR(init, cond, step, body)`. `ForHead`/`sc_finalize_for` deleted.
+- [ ] **PST-SC-4f** — `TT_CASE` (switch). `SwitchHead`/`CaseEntry`/`sc_finalize_switch` deleted.
+- [ ] **PST-SC-4g** — `TT_DEFINE` (function). `FuncHead`/`sc_finalize_function` deleted.
+- [ ] **PST-SC-4h** — `break`/`continue` → `TT_LOOP_BREAK`/`TT_LOOP_NEXT` with optional user-label string only. Loop-frame resolution → lower. `LoopFrame`/`sc_loop_push`/`sc_loop_pop`/`sc_loop_find_by_user_label` deleted.
+- [ ] **PST-SC-4i** — Labels (`label:`) → `TT_STMT` with label attribute or sibling `TT_GOTO_U` target. `sc_emit_label_pad` and pending-label tracking deleted.
+- [ ] **PST-SC-4j** — `return`/`freturn`/`nreturn` → `TT_RETURN` and dedicated kinds. `sc_append_return/*freturn/*nreturn` deleted.
+- [ ] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted.
+- [ ] **PST-SC-4l** — `sc_split_subject_pattern` → lower.
+- [ ] **PST-SC-4m** — `TT_PROGRAM` is tree of statement-tree nodes (not flat list with synthetic gotos/labels). `sc_append_stmt`/`sc_splice_after`/`sc_make_label_stmt`/`sc_make_goto_uncond_stmt` deleted.
 - [ ] **PST-SC-4n** — `ScParseState` shrunk to lexer + filename + error count. Audit complete.
 
-Gates after each rung: snocone_smoke, snocone broad corpus, scrip_all_modes.
+Gates: snocone_smoke, snocone broad corpus, scrip_all_modes.
 
 ### Step 5 — Rebus rewrite (RExpr* → tree_t)
 
-- [ ] **PST-RB-5a** — Map `REKind` enum values to `TT_*` equivalents. Where a Rebus operator has no direct `tree_t` counterpart, either reuse the nearest (e.g. Rebus arithmetic → `TT_ADD`/`TT_SUB`/...) or add a new `TT_*` kind to `ast.h`.
-- [ ] **PST-RB-5b** — Action bodies rewritten to build `tree_t` directly.
-- [ ] **PST-RB-5c** — `RExpr`/`RStmt`/`RProgram` and helpers (`rexpr_new`, `SAL`, `EAL`, `STAL`) deleted from `rebus.y` and `rebus.h`.
-- [ ] **PST-RB-5d** — Downstream consumers (`rebus_lower.c`, `rebus_emit.c`, `rebus_print.c`) updated to consume `tree_t` instead of `RExpr*`.
+- [ ] **PST-RB-5a** — Map `REKind` → `TT_*` equivalents. Add new `TT_*` to `ast.h` only if needed.
+- [ ] **PST-RB-5b** — Action bodies build `tree_t` directly.
+- [ ] **PST-RB-5c** — `RExpr`/`RStmt`/`RProgram` and helpers (`rexpr_new`, `SAL`, `EAL`, `STAL`) deleted.
+- [ ] **PST-RB-5d** — Downstream consumers (`rebus_lower.c`, `rebus_emit.c`, `rebus_print.c`) updated.
 
 Gates: rebus smoke, rebus corpus, scrip_all_modes.
 
 ### Step 6 — Prolog rewrite (Term* → tree_t)
 
-The Prolog parser today builds a `Term *` IR with `term_new_atom` /
-`term_new_compound` / `term_new_var`, and assigns variable slots during
-parsing (`scope_get` → `term_new_var(next_slot++)`). The conversion to
-`tree_t` must happen, and slot assignment must move to lower.
-
-Term-kind to tree_t-kind mapping:
+Term → tree_t mapping:
 
 | Term construct | tree_t kind | Notes |
 |---|---|---|
-| atom              | `TT_QLIT`     | `v.sval = atom name` |
-| integer literal   | `TT_ILIT`     | `v.ival = value` |
-| float literal     | `TT_FLIT`     | `v.dval = value` |
-| variable          | `TT_VAR`      | `v.sval = name`, **no slot** |
-| anonymous var `_` | `TT_VAR`      | `v.sval = "_"` — lower allocates fresh slot |
-| compound `f(...)` | `TT_FNC`      | `v.sval = functor name`, `c[] = arg trees` |
-| list `[a,b\|t]`   | `TT_MAKELIST` | `c[] = elements followed by optional tail` |
-| string `"abc"`    | `TT_QLIT`     | (whichever convention the Prolog dialect chose) |
-| `,` conjunction   | `TT_CAT`      | left-associative flat or nested per convention |
-| `;` disjunction   | `TT_ALT`      | flat list of branches |
-| `->` if-then      | `TT_IF`       | `c[0]=cond, c[1]=then` (no else when used inside `;`) |
-| `;` w/ `->` left  | `TT_IF`       | `c[0]=cond, c[1]=then, c[2]=else` |
-| `:-` clause       | `TT_CLAUSE`   | `c[0]=head, c[1]=body` |
-| `:-` directive    | `TT_CLAUSE`   | `c[0]=NULL or TT_NUL, c[1]=body` (head-less) |
-| `!` cut           | `TT_CUT`      | leaf |
-| arithmetic `+/-/*` | `TT_ADD/SUB/MUL...` | only when in `is/2` context — let lower decide |
+| atom | `TT_QLIT` | `v.sval = name` |
+| integer/float literal | `TT_ILIT`/`TT_FLIT` | |
+| variable | `TT_VAR` | `v.sval = name`, **no slot** |
+| anonymous `_` | `TT_VAR` | `v.sval = "_"` — lower allocates fresh slot |
+| compound `f(...)` | `TT_FNC` | `v.sval = functor`, `c[] = args` |
+| list `[a,b\|t]` | `TT_MAKELIST` | elements + optional tail |
+| `,` conjunction | `TT_CAT` | |
+| `;` disjunction | `TT_ALT` | |
+| `->` if-then | `TT_IF` | `c[0]=cond, c[1]=then` |
+| `;` w/ `->` left | `TT_IF` | `c[0]=cond, c[1]=then, c[2]=else` |
+| `:-` clause | `TT_CLAUSE` | `c[0]=head, c[1]=body` |
+| `:-` directive | `TT_CLAUSE` | `c[0]=NULL/TT_NUL, c[1]=body` |
+| `!` cut | `TT_CUT` | leaf |
 
-Step-by-step:
+Steps:
+- [ ] **PST-PL-6a** — Verify kind-mapping against corpus edge cases. Probably no new `TT_*` needed.
+- [ ] **PST-PL-6b** — Add parallel `tree_t`-building code path alongside existing `Term*` code. Both active.
+- [ ] **PST-PL-6c** — Verifier: parse clause both ways, assert structural equivalence. Run across Prolog corpus.
+- [ ] **PST-PL-6d** — Switch downstream consumers (`prolog_lower.c`, `prolog_unify.c`, `prolog_builtin.c`, `prolog_driver.c`) to `tree_t` one at a time.
+- [ ] **PST-PL-6e** — Move variable-slot allocation to pre-lower pass in `prolog_lower.c`: walk clause `tree_t`, collect `TT_VAR` names, assign sequential slots, attach to `IR_PL_VAR.ival` during lowering.
+- [ ] **PST-PL-6f** — Delete `Term*`-returning code paths. Delete slot-assignment from `scope_get`.
+- [ ] **PST-PL-6g** — Decide whether `IfFrame` directive-stack stays in parser (likely yes — preprocessor concern). Document.
 
-- [ ] **PST-PL-6a** — Decide the kind-mapping table above against any
-  edge cases in the current corpus (anonymous vars, named numbers,
-  special atoms). Add new `TT_*` kinds to `ast.h` only if no good
-  reuse exists. Likely no new kinds needed.
-- [ ] **PST-PL-6b** — Add a parallel `tree_t`-building code path to
-  `prolog_parse.c` alongside the existing `Term *` code. Each parse
-  function gets a sibling that returns `tree_t *`. **Both code paths
-  active simultaneously during this rung** — provides ground truth.
-- [ ] **PST-PL-6c** — Add a verifier: parse a clause both ways, walk
-  both representations, assert structural equivalence (atom/var/compound
-  identity, child counts, ordering). Run across the Prolog corpus.
-- [ ] **PST-PL-6d** — Switch downstream consumers (`prolog_lower.c`,
-  `prolog_unify.c`, `prolog_builtin.c`, `prolog_driver.c`) one at a
-  time to consume `tree_t` for **source-level** clauses. The runtime
-  `Term` machinery is **unaffected** — `Term` remains the runtime
-  representation; only its role as parser output is removed.
-- [ ] **PST-PL-6e** — Move variable-slot allocation to a pre-lower
-  pass in `prolog_lower.c`: walk each clause's `tree_t`, collect every
-  `TT_VAR` name into a per-clause table, assign sequential slots, and
-  attach the slot to the corresponding `IR_PL_VAR` node's `ival` during
-  lowering. The parser keeps **no** scope state.
-- [ ] **PST-PL-6f** — Delete the `Term *`-returning code paths from
-  `prolog_parse.c`. Delete `scope_get`'s slot-assignment side. The
-  `VarScope` may shrink to a name-set or disappear entirely.
-- [ ] **PST-PL-6g** — Decide whether the `IfFrame` directive-stack
-  (conditional file inclusion) stays in the parser. It is separable;
-  likely stays as a preprocessor concern. Document the decision.
+Gates: prolog smoke, prolog corpus, scrip_all_modes, Prolog BB gates.
 
-Gates: prolog smoke, prolog corpus, scrip_all_modes, Byrd-box prolog
-gates (Prolog BB JCON / Prolog BB Byrd).
+### Step 7 — Invariant tests
 
-### Step 7 — Cross-frontend invariant tests
-
-- [ ] **PST-INV-7a** — Add `scripts/test_pure_syntax_tree.sh`: for each frontend, parse a representative file, dump the resulting `tree_t` via `ast_print`, and assert: no synthetic label nodes, no statement-list splicing artifacts, no non-`tree_t` types present in the parser's output.
-- [ ] **PST-INV-7b** — Add an `ast_verify` mode that walks a `tree_t` and asserts every node kind is justified by the source language's syntax production set (per-language allow-list).
-- [ ] **PST-INV-7c** — Add a lint pass over the grammar files (`*.y`) and parser sources (`prolog_parse.c`, `icon_parse.c`) that flags forbidden patterns: `strdup` of label names, `sprintf("L%d", ++counter)`, `clone_*` of expression nodes, anything matching `sc_label_new` / `sc_finalize_*` patterns.
+- [ ] **PST-INV-7a** — `scripts/test_pure_syntax_tree.sh`: parse representative file per frontend, dump via `ast_print`, assert no synthetic label nodes, no splicing artifacts, no non-`tree_t` types.
+- [ ] **PST-INV-7b** — `ast_verify` mode: walk `tree_t`, assert every node kind justified by source language's syntax production set (per-language allow-list).
+- [ ] **PST-INV-7c** — Lint pass over `*.y` / `prolog_parse.c` / `icon_parse.c` flagging forbidden patterns: `strdup` of label names, `sprintf("L%d", ++counter)`, `clone_*`, `sc_label_new`, `sc_finalize_*`.
 
 ---
 
 ## Lower's new responsibilities (Stage 1 summary)
 
-Everything stripped from parsers lands here. The catalog:
-
-- **Augmented assignment** (`TT_AUGOP` with `AUGOP_*` enum) → expand to the
-  natural `TT_ASSIGN(lhs, TT_<op>(lhs, rhs))` form, cloning `lhs` once.
-- **Control flow → labels and gotos**: `TT_IF`, `TT_WHILE`, `TT_REPEAT`,
-  `TT_FOR`, `TT_CASE` expand into IR_t graphs with α/β/γ/ω wiring.
-- **Break/continue resolution**: walk the surrounding loop context; the parser
-  no longer pre-resolves which loop is the target.
-- **SNOBOL4 subject/pattern split**: when a SNOBOL4 statement's subject parses
-  as `EXPR ? PAT` (`AST_SCAN`) or as `VAR EXPR…` (`AST_SEQ` with head being a
-  Var/Keyword/Qlit/Indirect), split into subject and pattern in lower.
-- **Goto fields onto tree**: lower reads `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F`
-  children of `TT_STMT` rather than `STMT_t` string fields.
-- **Prolog variable slot allocation**: per-clause scope assigning each named
-  variable an integer slot.
-- **EXPORT/IMPORT**: walk `TT_PROGRAM` looking for the labeled statements;
-  populate the export/import side tables.
-
-`lower` is the right home for all of this. It is where `IR_t` is built, where
-`IR_alloc`/`IR_node_alloc` live, where the Byrd-box port wiring happens.
-
-The Stage 2 design below specifies how lower builds `IR_t` from `tree_t`.
+- **Augmented assignment** — `TT_AUGOP` → `TT_ASSIGN(lhs, TT_<op>(lhs', rhs))`, cloning lhs once.
+- **Control flow → labels/gotos** — `TT_IF`, `TT_WHILE`, `TT_REPEAT`, `TT_FOR`, `TT_CASE` → IR_t graphs with α/β/γ/ω wiring.
+- **Break/continue resolution** — walk surrounding loop context; parser no longer pre-resolves.
+- **SNOBOL4 subject/pattern split** — `AST_SCAN` and `AST_SEQ` rearrangement moved here.
+- **Goto fields onto tree** — read `TT_GOTO_U/S/F` children of `TT_STMT` instead of `STMT_t` string fields.
+- **Prolog slot allocation** — per-clause scope assigning each named variable an integer slot.
+- **EXPORT/IMPORT** — walk `TT_PROGRAM` looking for labeled statements; populate side tables.
 
 ---
 
 ## Stage 1 done criterion
 
-1. Every parser action body either (a) returns one RHS child unchanged, or (b)
-   calls `ast_node_new` / `expr_new` / `expr_unary` / `expr_binary` / `ast_push`
-   / `expr_add_child` and returns the new `tree_t` node. No other side
-   effects. No other allocations of node-like types.
-2. The grammar files (`snobol4.y`, `snocone_parse.y`, `rebus.y`, `raku.y`)
-   and the hand-written parsers (`icon_parse.c`, `prolog_parse.c`) all build
-   only `tree_t` nodes. The types `RExpr`/`RStmt`/`RProgram` (Rebus) and the
-   `Term` type used as a parser-output type (Prolog) are gone — at least from
-   the parser. (`Term` remains as a Prolog runtime concept; only its use as
-   parser output is removed.)
-3. All existing test gates green: smoke for every frontend, scrip_all_modes,
-   broad corpus, broker, Byrd-box gates, NEW pure-syntax-tree invariant
-   gates from Step 7.
-4. Beauty self-host still byte-identical (Milestone 1 not broken).
+1. Every parser action body either (a) returns one RHS child unchanged or (b) calls `ast_node_new`/`expr_new`/`expr_unary`/`expr_binary`/`ast_push`/`expr_add_child` and returns the node. No other side effects or allocations of node-like types.
+2. Grammar files and hand-written parsers build only `tree_t`. `RExpr`/`RStmt`/`RProgram` gone from parsers. `Term` gone as parser output (survives as runtime type).
+3. All existing test gates green. NEW pure-syntax-tree invariant gates (Step 7) green.
+4. Beauty self-host byte-identical (Milestone 1 protected).
 
 ---
 
-# STAGE 2 — Lower: from pure tree_t to two IRs (SM + BB)
+## Stage 2 — Lower: pure tree_t → IR_sm_t + IR_bb_t
 
-Stage 1 (above) gets parsers right. Stage 2 designs and implements `lower`,
-which consumes the pure `tree_t` and produces **two distinct IR families**:
+### Split-IR design
 
-```
-(source) → parser → tree_t (pure AST) → lower → { IR_sm_t, IR_bb_t }
-                                                  SM references BB
-                                                  BB never references SM
-```
+Two distinct types:
 
-## Design refinement: split SM and BB into two IR types
+| Type | Shape | Role |
+|------|-------|------|
+| **`IR_sm_t`** | flat array of instructions | deterministic SM code: literals, var r/w, binops, assigns, gotos, conditional branches, calls, returns, pattern invocations |
+| **`IR_bb_t`** | directed graph with α/β/γ/ω ports | pattern/generator subgraphs: backtracking, choice points, scan markers, generator state |
 
-The earlier sections of Stage 2 (immediately below — "The dual-nature design
-challenge" through "Stage 2 done criterion") describe a one-struct design
-that carries both SM-style children and BB-style ports on every `IR_t`.
-That design works but it papers over real separation. The cleaner design,
-arrived at after several rounds of refinement, **splits the IR into two
-distinct types**:
-
-| Type | Shape | What it carries | How it executes |
-|---|---|---|---|
-| **`IR_sm_t`** | flat array of instructions (basic-block program) | one statement of SM code: literals, var read/write, binops, assigns, gotos, conditional branches, calls, returns, pattern invocations, generator invocations | dispatched sequentially by the interpreter loop / mapped to native instructions by the emitters |
-| **`IR_bb_t`** | directed graph with α/β/γ/ω ports | one pattern subgraph or one generator subgraph: pattern operators, choice points, scan markers, generator state | dispatched by the Byrd-box engine — α to enter, γ on success, ω on fail, β on retry |
-
-**Reference direction is asymmetric:**
-
-- An `IR_sm_t` instruction *can* hold a pointer to an `IR_bb_t` graph
-  (e.g. `SM_EXEC_PATTERN(subj_var, IR_bb_t *pat, replace?)`).
-- An `IR_bb_t` node **never** references an `IR_sm_t` instruction. When
-  a pattern callout needs user code (deferred `*F(x)`), the BB node holds
-  an opaque hook descriptor that the engine knows how to dispatch — not
-  a structural pointer into SM.
-
-This matches the existing downstream stages:
-
-- The interpreter's `SM_Program` (per PLAN.md architecture summary) is already
-  a flat array of SM instructions.
-- `lower_pat_dcg.c` already produces `IR_block_t` separately for pattern
-  subgraphs.
-- The emitters (x86, JVM, .NET, JS, WASM) already walk `SM_Program` linearly
-  and treat pattern execution as a callout. The split codifies what they
-  already do.
-
-### Why this is "prettier" — separation of concerns
-
-1. **Different shapes have different types.** A flat array of instructions
-   and a 4-port directed graph are not the same data structure. Forcing
-   them into one struct with sparse field usage was a compromise.
-2. **One-way reference matches the runtime contract.** SM calls into BB;
-   BB never calls back. The type system can enforce that — `IR_sm_t` can
-   hold `IR_bb_t *`, but not the reverse.
-3. **Every program has at least two SM instructions.** Even a one-line Icon
-   expression like `1+1` lowers to push-1 / push-1 / add / halt. There is
-   no program without SM. BB is *invoked* by SM, never the entry point.
-4. **Different stages need different things:** the interpreter's main loop
-   wants an indexed array of SM ops; the Byrd-box engine wants a port-wired
-   graph for patterns. Two types serve two consumers cleanly.
-5. **Future emitters become simpler.** A native-code emitter walks the SM
-   array generating instructions and, when it hits `SM_EXEC_PATTERN`, emits
-   a call into the BB engine. It doesn't have to walk a heterogeneous graph
-   and switch on "is this an SM-ish node or a BB-ish node?"
-
-### Kind assignment
-
-**SM kinds (`IR_sm_e`):**
-
-- Stack-machine ops: `SM_PUSH_LIT_S`, `SM_PUSH_LIT_I`, `SM_PUSH_VAR`,
-  `SM_PUSH_KEYWORD`, `SM_STORE_VAR`, `SM_INDIRECT`
-- Arithmetic / comparison: `SM_ADD`, `SM_SUB`, `SM_MUL`, `SM_DIV`,
-  `SM_MOD`, `SM_POW`, `SM_LT`, `SM_LE`, `SM_GT`, `SM_GE`, `SM_EQ`, `SM_NE`
-  (and string variants)
-- Concatenation, augops: `SM_CAT`, `SM_AUGOP`
-- Control flow: `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
-  `SM_HALT`, `SM_FAIL`, `SM_SUCCEED`, `SM_RETURN`, `SM_FRETURN`,
-  `SM_NRETURN`
-- Function machinery: `SM_CALL_FN`, `SM_CALL_BUILTIN`, `SM_ARG_PUSH`,
-  `SM_LOCAL_INIT`
-- Pattern / generator invocation (the bridge to BB):
-  - `SM_EXEC_PATTERN(subj_slot, IR_bb_t *pat, has_replace)` — full
-    SNOBOL4 pattern-match statement
-  - `SM_BUILD_PATTERN(IR_bb_t *pat)` — push a pattern value (when a
-    pattern is treated as a first-class value)
-  - `SM_RESUME_GENERATOR(IR_bb_t *gen)` — Icon/Prolog yield
-- Statement framing: `SM_STNO` (statement number), `SM_STMT_BEGIN`,
-  `SM_STMT_END`
-
-**BB kinds (`IR_bb_e`):**
-
-- SNOBOL4 pattern leaves: `BB_PAT_LIT`, `BB_PAT_ANY`, `BB_PAT_NOTANY`,
-  `BB_PAT_SPAN`, `BB_PAT_BREAK`, `BB_PAT_BREAKX`, `BB_PAT_LEN`,
-  `BB_PAT_POS`, `BB_PAT_RPOS`, `BB_PAT_TAB`, `BB_PAT_RTAB`, `BB_PAT_REM`,
-  `BB_PAT_ARB`, `BB_PAT_FENCE`, `BB_PAT_ABORT`, `BB_PAT_BAL`,
-  `BB_PAT_SUCCEED`, `BB_PAT_FAIL`
-- SNOBOL4 pattern composers: `BB_PAT_CAT`, `BB_PAT_ALT`, `BB_PAT_ARBNO`
-- SNOBOL4 pattern captures: `BB_PAT_ASSIGN_IMM`, `BB_PAT_ASSIGN_COND`,
-  `BB_PAT_CURSOR`, `BB_PAT_CALLOUT`
-- Icon generator BB: `BB_ICN_TO`, `BB_ICN_TO_BY`, `BB_ICN_UPTO`,
-  `BB_ICN_ALTERNATE`, `BB_ICN_LIMIT`, `BB_ICN_BINOP`, `BB_ICN_TO_NESTED`,
-  `BB_ICN_PROC_GEN`
-- Prolog BB: `BB_PL_CHOICE`, `BB_PL_UNIFY`, `BB_PL_CUT`, `BB_PL_CALL`,
-  `BB_PL_BUILTIN`, `BB_PL_VAR`, `BB_PL_ATOM`, `BB_PL_ARITH`, `BB_PL_ALT`
-
-**Struct shapes:**
+**Reference direction:** `IR_sm_t` can hold `IR_bb_t*`. `IR_bb_t` never references `IR_sm_t`.
 
 ```c
-/* IR_sm_t — one SM instruction in a flat array */
 typedef struct {
     IR_sm_e    op;
-    union {
-        int64_t       ival;
-        double        dval;
-        const char  * sval;
-        IR_bb_t     * bb;        /* pattern / generator subgraph */
-    } arg;
-    int          stno;            /* source statement number */
-    int          target;          /* for jumps: index into the SM array */
-    /* additional per-op fields as needed */
+    union { int64_t ival; double dval; const char *sval; IR_bb_t *bb; } arg;
+    int        stno;
+    int        target;   /* jump index into SM array */
 } IR_sm_t;
 
-typedef struct {
-    IR_sm_t   * insns;           /* flat array, indexed by instruction number */
-    int         n;
-    IR_bb_t  ** patterns;        /* all BB subgraphs referenced from insns */
-    int         npatterns;
-    /* string table, label table, etc. */
-} IR_sm_program_t;
+typedef struct { IR_sm_t *insns; int n; IR_bb_t **patterns; int npatterns; } IR_sm_program_t;
 
-/* IR_bb_t — one BB node in a port-wired graph */
 typedef struct IR_bb_t IR_bb_t;
 struct IR_bb_t {
-    IR_bb_e     t;
-    IR_bb_t   * α, * β, * γ, * ω;
-    IR_bb_t  ** c;  int n;        /* flat n-ary children for composer kinds */
-    union {
-        int64_t       ival;
-        double        dval;
-        const char  * sval;
-        void        * opaque;     /* engine-specific state — opaque to type */
-    } v;
-    int          _id;
+    IR_bb_e  t;
+    IR_bb_t *α, *β, *γ, *ω;
+    IR_bb_t **c; int n;   /* n-ary children for composer kinds */
+    union { int64_t ival; double dval; const char *sval; void *opaque; } v;
+    int _id;
 };
 
-typedef struct {
-    IR_bb_t   * entry;
-    IR_bb_t  ** all;
-    int         n;
-    int         lang;             /* IR_LANG_* — which frontend produced this */
-} IR_bb_block_t;
+typedef struct { IR_bb_t *entry; IR_bb_t **all; int n; int lang; } IR_bb_block_t;
 ```
 
-**Note:** the BB node retains `c[]/n` for the n-ary flattening reason
-established earlier (alternatives, sequence pieces). The SM instruction
-does not need `c[]` — its arguments are inline scalars or one pointer
-into BB-land.
-
-### Where the existing `IR_t` enum kinds go
-
-The current `IR_t` enum mixes both worlds. Migration map:
-
-| Current `IR_*` kind | Goes to |
-|---|---|
-| `IR_LIT_I/S/F/NUL`, `IR_VAR`, `IR_ASSIGN`, `IR_AUGOP`, `IR_BINOP`, `IR_UNOP`, `IR_CALL`, `IR_SEQ` | SM |
-| `IR_FAIL`, `IR_SUCCEED`, `IR_GOTO`, `IR_RETURN`, `IR_IF`, `IR_NOT`, `IR_NONNULL`, `IR_INTERROGATE` | SM |
-| `IR_SCAN` | SM (it invokes BB) |
-| `IR_SUSPEND`, `IR_BREAK`, `IR_NEXT`, `IR_PROC` | SM |
-| `IR_PAT_*` (all 17 of them) | BB |
-| `IR_ICN_*` (the Icon generator family) | BB |
-| `IR_PL_*` (the Prolog family) | BB |
-| `IR_ALTERNATE`, `IR_TO_BY`, `IR_EVERY`, `IR_WHILE`, `IR_UNTIL`, `IR_REPEAT`, `IR_ALT`, `IR_LIMIT` | mixed — Icon generative versions go to BB; non-generative versions (Snocone `while`, etc.) become SM with `SM_RESUME_GENERATOR` for the generative parts |
-| `IR_CASE`, `IR_SIZE`, `IR_NEG`, `IR_POS`, `IR_IDENTICAL`, `IR_NULL_TEST`, `IR_RANDOM` | SM |
-| `IR_ICN_PROC_GEN` | BB (it's the generator dispatcher) |
-
-The split is mechanical — almost every kind has an obvious home based
-on whether it's "deterministic instruction in a sequence" or "node in a
-backtracking subgraph."
-
-### Stage 2 step ladder — revised for split-IR
-
-The previous Stage 2 ladder (LR-* / per-construct passes) still applies,
-but each rung now produces SM, BB, or both:
-
-- [ ] **PST-LR-0a — Define the two new types.** Add `IR_sm_t` /
-      `IR_sm_e` / `IR_sm_program_t` and `IR_bb_t` / `IR_bb_e` /
-      `IR_bb_block_t` to a new header (`src/include/IR_sm.h`,
-      `src/include/IR_bb.h`). Keep the old `IR_t` around through migration.
-- [ ] **PST-LR-0b — Migration scaffolding.** Add a converter
-      `IR_sm_t * sm_from_legacy(IR_t *)` and `IR_bb_t * bb_from_legacy(IR_t *)`
-      so existing lower output keeps working while consumers migrate.
-- [ ] **PST-LR-0c — Migrate `lower_pat_dcg.c`** to emit `IR_bb_t` directly
-      (already 90% there structurally — just rename). This is the smallest
-      first move and validates the type split on real code.
-- [ ] **PST-LR-0d — Migrate `sm_codegen.c`** (or wherever today's SM instruction
-      emission lives) to emit `IR_sm_t`. Identify the single SM-side reference
-      to a BB pattern (likely the `SM_EXEC_STMT` family) and switch its
-      payload type from `IR_t *` to `IR_bb_t *`.
-- [ ] **PST-LR-0e — Migrate interpreter `ir_exec.c`** to dispatch on
-      `IR_sm_t` for the SM array, with hand-off into the BB engine for
-      patterns/generators. The BB engine itself was already separate.
-- [ ] **PST-LR-0f — Migrate each emitter** (x86, JVM, .NET, JS, WASM)
-      one at a time. Each emitter consumes `IR_sm_program_t` directly
-      and emits BB-engine calls for the pattern invocations.
-- [ ] **PST-LR-0g — Delete legacy `IR_t`** after all consumers migrated.
-
-Then the per-construct rungs (PST-LR-2a..2i) re-target: each lower-side
-pass now decides "this AST construct produces SM, BB, or both" and emits
-accordingly.
-
-### What this changes about Stage 1
-
-Stage 1 (parsers → pure tree_t) **does not change at all.** The parsers
-still produce `tree_t`. The split is entirely in Stage 2 — lower decides
-which side of the split each construct belongs to.
-
----
-
-The text below this point preserves the earlier one-struct design discussion
-for historical context. It is **superseded** by the split design above.
-Where the two conflict, the split-IR design is authoritative.
-
-## The dual-nature design challenge
-
-`IR_t` already has two ways of pointing at neighbors:
-
-```c
-struct IR_t {
-    IR_e t;                         /* node kind                                 */
-    IR_t *α, *β, *γ, *ω;            /* Byrd-box ports — control wiring           */
-    IR_t **c;  int n;               /* children — operand / body skeleton        */
-    ...                             /* value slots: ival/dval/sval, opaque, etc. */
-};
-```
-
-The question raised in design: **the SM is a tree; the BB is a 4-port graph
-with one edge per (node, port). How do they coexist in one IR_t?**
-
-### Resolution
-
-The two are **orthogonal axes of the same node**:
-
-| Axis | What it expresses | When used |
-|---|---|---|
-| `c[]/n` children | **n-ary children** of compound nodes | When the kind is genuinely n-ary (sequence, alternation, arg list, case arms, parameter list, element list, multi-clause choice) |
-| α/β/γ/ω ports | **Control wiring** — where execution *goes* | Populated for every node whose role in the graph requires it |
-
-#### About c[]/n — n-ary flattening rationale
-
-Left and right grammar recursion naturally produce **left- or right-leaning
-binary trees**. The parser flattens them. Look at the SNOBOL4 grammar:
-
-```c
-expr3 T_2PIPE expr4
-  { if($1->kind==AST_ALT) { expr_add_child($1,$3); $$=$1; }
-    else { AST_t*a=expr_new(AST_ALT); expr_add_child(a,$1);
-           expr_add_child(a,$3); $$=a; } }
-```
-
-First reduction makes a new ALT with two children; each subsequent reduction
-*grows* the same node by appending. Result: a **flat n-ary list**, not a
-deep `ALT(ALT(ALT(a,b),c),d)` tower. This is a tiny one-liner in the
-parser that saves every downstream stage from doing recursive descent
-that asks "is this child itself an ALT? if so recurse; otherwise treat
-as terminal." The flat form is `for (i=0; i<n; i++) handle(c[i])` — a
-linear sibling scan, not a tree walk.
-
-So `c[]` exists in the AST for **logic, not optimization**. Some
-constructs are inherently "see all children at once" — and the flat
-representation expresses that directly while a left-leaning binary chain
-only does it implicitly.
-
-The same logic carries into the IR. Pattern alternation, sequence,
-argument lists, case arms — every stage that wires these up needs to
-see the whole list. Walking `α-then-ω*` to recover the list at every
-consumer is just as wasteful as walking the binary chain to recover
-the flat list in the AST.
-
-#### What populates c[] in the IR
-
-**Yes** (n-ary list essential to the kind):
-
-- `IR_PAT_ALT` — alternatives
-- `IR_PAT_CAT` / `IR_PAT_SEQ` — concatenated pattern pieces (yes,
-  even though ω-chaining can reconstruct the list — having it flat
-  matters for the wiring logic)
-- `IR_PL_CHOICE` — alternative clause-entry pointers
-- `IR_CALL` / `IR_OpFunction` — argument list
-- `IR_MAKELIST` — element list
-- `IR_CASE` — arm list (each arm a pair: value, body-entry)
-- `IR_PROC` — parameter list
-- `IR_ALT`, `IR_ALTERNATE` (Icon `|`, generator alternation)
-- statement-sequence container in a block / procedure body
-
-**No** (truly atomic at the IR level — operands flow on the runtime stack
-via the γ-chain):
-
-- `IR_LIT_*`, `IR_VAR`, `IR_GOTO`, `IR_FAIL`, `IR_SUCCEED`
-- `IR_BINOP`, `IR_UNOP`, `IR_ASSIGN`, `IR_AUGOP`
-- `IR_IF` (cond was evaluated upstream, result on stack)
-- Pattern leaves: `IR_PAT_LIT`, `IR_PAT_ANY`, `IR_PAT_NOTANY`, `IR_PAT_SPAN`,
-  `IR_PAT_BREAK`, `IR_PAT_LEN`, `IR_PAT_POS`, `IR_PAT_RPOS`, `IR_PAT_TAB`,
-  `IR_PAT_REM`, `IR_PAT_FENCE`, `IR_PAT_ABORT`, `IR_PAT_ARB`
-
-For these, `c[] = NULL, n = 0`.
-
-#### Trade-off summary
-
-- **AST**: flatten n-ary in the parser; consumers get a sibling-walk.
-- **IR**: keep n-ary structure flat in `c[]` for kinds that are inherently
-  n-ary; let SM-style atomic nodes leave `c[]` empty.
-- **Lower** owes the IR both: the flat `c[]` for the n-ary kinds, AND the
-  port wiring (which often mirrors the children — `c[i].ω → c[i+1].α` for
-  alternation, etc.). The duplication is intentional — same information
-  reachable two ways: by indexed access (`c[]`) and by chained
-  traversal (ports). Each consumer picks whichever serves its logic
-  better.
-
-For nodes that produce a single deterministic value (e.g. `IR_LIT_I`,
-`IR_ASSIGN`), the BB wiring degenerates to: `α = self`, `γ = next-in-sequence`,
-`ω = fail-out`, `β = ω`. The dispatch machinery walks both kinds without
-special-casing — deterministic nodes just never schedule a retry.
-
-For pure pattern *leaf* operators (`IR_PAT_LIT`, `IR_PAT_ARB`, etc.),
-`c[]` is empty and all four ports are populated.
-
-For pattern *composers* (`IR_PAT_ALT`, `IR_PAT_CAT`), both `c[]` and
-all four ports are populated.
-
-**One edge per (source-node, port).** Not two. Backtracking-cycles
-are represented by some downstream port pointing back upstream — that's
-a real cycle in the directed graph, expressed as `node_B->β = node_A`
-(single edge).
-
-### Concrete worked example summary
-
-Worked through `if (n < 5) { s ? POS(0) ('yes'|'no') RPOS(0) } else { s ? ('0'|'1') }`:
-
-**AST (Stage 1 output):** 19 vertices, 18 edges, out-tree, edges labelled by
-child-index `c[i]`. No ports. No cycles. Pure n-ary tree. `TT_ALT` and
-`TT_SEQ` are flat — `('yes'|'no')` produces one `TT_ALT` with two children,
-not `ALT(QLIT, QLIT)` nested deeper.
-
-**IR (Stage 2 output):** ~12 vertices, ~20 edges, directed graph.
-
-The then-branch (the non-trivial pattern):
-
-```
-n3 IR_VAR "s"           γ→n4
-n4 IR_PAT_POS 0         α=self  β→ω  γ→n5  ω→n_fail
-n5 IR_PAT_ALT  c:[n6,n7]   α→n6      ω→n_fail
-n6 IR_PAT_LIT "yes"     γ→n8   ω→n7      (failure tries next alt)
-n7 IR_PAT_LIT "no"      γ→n8   ω→n5.ω    (last alt — ω propagates out)
-n8 IR_PAT_RPOS 0        α=self  γ→n_join  β→n5  ω→n_fail
-                                          ^^^^^
-                                          the key back-edge — retry the alt
-                                          for a different choice when RPOS fails
-```
-
-Note: `n5` (IR_PAT_ALT) now carries `c:[n6,n7]` — the flat list of
-alternatives — alongside its α port that enters the first alt. The list
-and the chain are *both* present, and that is intentional.
-
-The single back-edge `n8.β → n5` is **the entire reason a pattern node
-needs four ports.** In SM-style straight-line code the only backward edge
-is a loop's "goto top." Pattern matching needs the richer retry semantics
-that β buys you. SM nodes use γ + ω (two ports). BB nodes use all four.
-
-The else-branch (`('0'|'1')`):
-
-```
-n9  IR_VAR "s"             γ→n10
-n10 IR_PAT_ALT c:[n11,n12]  α→n11   ω→n_fail
-n11 IR_PAT_LIT "0"          γ→n_join  ω→n12
-n12 IR_PAT_LIT "1"          γ→n_join  ω→n10.ω
-```
-
-`IR_PAT_ALT` carries `c[]` here too. β is never wired because there's no
-upstream retry — the alt is the whole pattern. n11/n12 are effectively
-three-port nodes (α implicit, γ, ω). The field for β exists in the struct
-but lower simply leaves it NULL.
-
-**Graph-theory observation:** the IR is a *labelled directed graph with
-bounded out-degree* (≤4 from ports) **plus an auxiliary indexed access
-to children for n-ary kinds**. Cyclic in general. Edges labelled by port
-family. Children are not edges in the execution graph — they are an
-indexed reference into the same node set.
-
-### The "tree-vs-graph" duality, made precise
-
-The AST stage is an n-ary tree (parser flattens left/right-recursive
-chains into flat lists).
-
-The IR stage is a directed graph **with an indexed sibling view** on
-those n-ary kinds that have one. The same nodes appear both reachable
-by graph traversal (ports) and by indexed access (`c[]` on the
-container node). Two views, same node set.
-
-The interpreter walks the port edges. The emitters walk both — children
-for laying out the static structure (jump tables, argument lists),
-ports for wiring branches.
-
-### JCON's IR confirms the "single edge per labeled port" model
-
-The reference Java implementation of Icon — JCON (Townsend & Proebsting,
-1999, code archived) — uses exactly this discipline. Inspected
-`jcon-master/tran/ir.icn` (48 lines) and `irgen.icn` (1559 lines):
-
-**Every JCON IR record carries at most one extra edge as a labeled field:**
-
-```icon
-record ir_Field      (coord, lhs, expr, field,         failLabel)
-record ir_OpFunction (coord, lhs, fn, argList,         failLabel)
-record ir_Call       (coord, lhs, fn, argList,         failLabel)
-record ir_ResumeValue(coord, lhs, value,               failLabel)
-record ir_Key        (coord, lhs, name,                failLabel)
-record ir_Goto       (coord, targetLabel)
-record ir_Succeed    (coord, expr, resumeLabel)
-record ir_CoRet      (coord, value, resumeLabel)
-record ir_EnterInit  (coord, startLabel)
-```
-
-Operations that **cannot fail** (`ir_Move`, `ir_MoveLabel`, `ir_Deref`,
-`ir_Assign`, `ir_MakeList`, `ir_IntLit`, `ir_StrLit`, ...) carry **no
-control edge at all** — they fall through to the next instruction in the
-same `ir_chunk`. Operations that **can fail** carry exactly one extra
-named edge (`failLabel`, or for suspend-style ops, `resumeLabel`).
-
-Per AST node, JCON allocates a 4-label **interface block** —
-`ir_info(start, resume, failure, success)` — declared in
-`irgen.icn` line 10. That structure looks like our α/β/γ/ω port set, but
-its role is different:
-
-- The 4-label `ir_info` is **per AST node** (each parse-tree node gets
-  one block of four entry/exit labels).
-- The single `failLabel` / `resumeLabel` is **per instruction** (one
-  outgoing edge from one node).
-
-This is the model. **Per-node ports vs per-instruction edges.** And in
-both cases — JCON or our IR — there is **never more than one outgoing
-edge per (node, port-name)**.
-
-**JCON has no 2-edge BB pattern.** Even where backtracking happens (alt
-exhaustion, generator resumption), the wiring is always a single edge
-labeled by its role. The "graph" emerges because multiple nodes' single
-edges can converge on the same target, and back-edges form natural cycles.
-
-The dot-export tool (`gen_dot.icn`) makes this concrete: it walks the
-emitted instruction list and writes one `A -> B [label="failure"]` edge
-per failure-carrying instruction, one `A -> B [label="resumeLabel"]` per
-suspend. No instruction emits two parallel edges to the same neighbor.
-The 4-port-per-AST-node and the single-edge-per-instruction live happily
-together with no contradiction.
-
-**Conclusion for our design:** the same is true in our IR_t. The four
-`α/β/γ/ω` are four *named ports*, each holding one edge. They are not
-"four edges between two nodes." A node that uses only `γ` (forward
-control) is degenerately fine; a pattern node that uses all four is also
-fine. Tree-shaped programs naturally use just `γ` (and ω for fail-out);
-backtracking-shaped subgraphs use the full set. The IR switches mode
-based on node kind — no representational change needed.
-
-## Worked examples
-
-**Caveat from later design refinement:** Examples 1–6 below were drafted
-before the full worked example with real BB structure (concrete summary
-above in "Resolution"). Where examples 1–6 show `c:[VAR("X")]` on a
-deterministic node like `IR_ASSIGN` or `IR_BINOP`, that is **schematic
-only** — in the real IR those operands flow on the runtime stack via the
-γ-chain, not as children. Read examples 1–6 for the port-wiring shape;
-read the "Concrete worked example summary" section for the accurate c[]
-usage rule.
-
-### Example 1 — SNOBOL4 `X = 5`
-
-Pure tree_t after Stage 1:
-
-```
-TT_STMT
-└── TT_ASSIGN
-    ├── TT_VAR "X"
-    └── TT_ILIT 5
-```
-
-Lowered IR_t (one block, three nodes):
-
-```
-[entry → n0]
-
-  n0: IR_LIT_I (ival=5)        children: []           α=n0  β=n2  γ=n1  ω=n2
-  n1: IR_ASSIGN                children: [VAR("X")]   α=n1  β=n2  γ=n2  ω=n2
-  n2: (HALT/success sentinel)
-```
-
-The `c[]` children of n1 carry the LHS name (a small leaf IR_VAR with
-`sval="X"`). The port wiring threads n0 → n1 → halt. Pure tree on the
-syntactic side; pure linear graph on the execution side, all in one
-data structure.
-
-### Example 2 — SNOBOL4 `S "hello" :S(DONE)`
-
-(Pattern-match S against "hello", on success goto DONE.)
-
-Pure tree_t:
-
-```
-TT_STMT
-├── TT_SCAN
-│   ├── TT_VAR "S"
-│   └── TT_QLIT "hello"
-├── TT_GOTO_S
-│   └── TT_QLIT "DONE"
-```
-
-Lowered IR_t:
-
-```
-[entry → n0]
-
-  n0: IR_VAR "S"               c:[]    α=n0  γ=n1     ω=fail
-  n1: IR_SCAN                  c:[n0]  α=n2  γ=n3     ω=fail
-  n2: IR_PAT_LIT "hello"       c:[]    α=n2  β=fail  γ=n3 (scan-success)  ω=fail
-  n3: IR_GOTO sval="DONE"      α=n3  γ=halt           ω=halt
-```
-
-The pattern subgraph (just n2) is wired through n1's `α` port. On success,
-n2's `γ` returns control to whatever follows the SCAN — here n3. On
-failure, n2's `ω` falls out to the statement-level fail-out. This is the
-same wiring `lower_pat_dcg.c` builds today.
-
-### Example 3 — SNOBOL4 `LOOP X = X + 1 :(LOOP)`
-
-(Unconditional goto-LOOP after add.)
-
-Pure tree_t:
-
-```
-TT_STMT label="LOOP"
-├── TT_ASSIGN
-│   ├── TT_VAR "X"
-│   └── TT_ADD
-│       ├── TT_VAR "X"
-│       └── TT_ILIT 1
-├── TT_GOTO_U
-│   └── TT_QLIT "LOOP"
-```
-
-Lowered IR_t:
-
-```
-[entry → n0 (labeled "LOOP")]
-
-  n0: IR_VAR "X"               c:[]                    γ=n1    ω=fail
-  n1: IR_LIT_I 1               c:[]                    γ=n2    ω=fail
-  n2: IR_BINOP "+"             c:[]                    γ=n3    ω=fail
-  n3: IR_ASSIGN                c:[VAR("X")]            γ=n4    ω=fail
-  n4: IR_GOTO sval="LOOP"      γ=n0  (the back-edge — graph cycle)
-```
-
-`n4->γ = n0` is the **single back-edge** that makes this a cyclic
-directed graph. There is no `n0->predecessor` field — n0 doesn't know n4
-points at it. The cycle exists in the graph; no bookkeeping in the
-target.
-
-### Example 4 — Prolog `parent(tom, X).`
-
-(Query: find X such that parent(tom, X).)
-
-Pure tree_t after Stage 1 (no slot numbers — those come from lower):
-
-```
-TT_FNC "parent"
-├── TT_QLIT "tom"        // atom
-└── TT_VAR "X"           // unbound var
-```
-
-Lower assigns var slots (`X → slot 0`) and emits:
-
-```
-[entry → n0]
-
-  n0: IR_PL_CHOICE                 (push choice point)
-       c:[clause0_entry, clause1_entry, ...]   α=n0  γ=n1  ω=fail-out
-
-  n1: IR_PL_CALL "parent"           c:[atom-tom, var-slot-0]
-       (built-in dispatch happens through the choice point's α)
-       γ=success-continuation  ω=n0->next-clause
-```
-
-Children carry the syntactic structure (the call's name and arg list).
-Ports carry the backtracking — on fail, control flows to the choice
-point's next alternative, which is a graph edge into another clause head.
-
-### Example 5 — Icon `every i := 1 to 10 do write(i)`
-
-Pure tree_t (using existing kinds):
-
-```
-TT_EVERY
-└── TT_ITERATE
-    ├── TT_ASSIGN
-    │   ├── TT_VAR "i"
-    │   └── TT_TO_BY
-    │       ├── TT_ILIT 1
-    │       ├── TT_ILIT 10
-    │       └── (implicit step=1 elided OR explicit TT_ILIT 1)
-    └── TT_FNC "write"
-        └── TT_VAR "i"
-```
-
-Lower wires a generator-loop:
-
-```
-  gen: IR_ICN_TO_BY               opaque=range state(1,10,1)
-                                  α=gen  γ=body-α   ω=loop-exit
-
-  body0: IR_ASSIGN                c:[VAR("i")]      γ=body1   ω=back-to-gen
-
-  body1: IR_CALL "write"          c:[VAR("i")]      γ=back-to-gen
-                                                    (gen's resume)
-```
-
-Every iteration: gen advances → body executes → control returns to gen's
-`γ` resume edge → gen advances → ... until gen's pool exhausted, then
-control flows out gen's `ω`. Single edges in each direction; cycles
-naturally form between gen and body.
-
-### Example 6 — Snocone `if (x < 5) { y = 1; } else { y = 2; }`
-
-Pure tree_t (after Stage 1 — single TT_IF node, no labels):
-
-```
-TT_IF
-├── TT_LT                  // cond
-│   ├── TT_VAR "x"
-│   └── TT_ILIT 5
-├── TT_PROGRAM             // then-block
-│   └── TT_STMT
-│       └── TT_ASSIGN [VAR("y"), ILIT(1)]
-└── TT_PROGRAM             // else-block
-    └── TT_STMT
-        └── TT_ASSIGN [VAR("y"), ILIT(2)]
-```
-
-Lower expands to labels + gotos as IR_t edges:
-
-```
-  cmp:  IR_BINOP "<"        c:[VAR("x"), ILIT(5)]    γ=br   ω=fail
-  br:   IR_IF               γ=then-entry  ω=else-entry  (both = single edges)
-
-  t0: ... then body ...      → goto join via γ
-  e0: ... else body ...      → goto join via γ
-  join: (next stmt)
-```
-
-No label strings exist after lowering. The "label" is just the identity
-of the IR_t node that some other node's γ port points to.
-
-## Design summary
-
-| Concern | Where it lives |
-|---|---|
-| Surface syntax (parens, keywords, source-order) | Stage 1: pure tree_t |
-| Compound-node static operand list (kinds that need it) | Stage 2: IR_t.c[] children — sparse (PL_CHOICE, CALL, MAKELIST, CASE, PROC) |
-| Implicit operand flow (binops, assigns, etc.)            | Stage 2: runtime value stack threaded by γ-chain — no c[] |
-| Sequential control flow                          | Stage 2: IR_t.γ port |
-| Failure / backtracking                          | Stage 2: IR_t.ω, β ports |
-| Self-loop (e.g. pattern retry)                  | Stage 2: IR_t.α = self  |
-| Static labels / goto target strings             | Stage 2: collapsed into edges; no strings survive |
-| Pattern subgraphs                                | Stage 2: full 4-port wiring (existing lower_pat_dcg) |
-| Generators (Icon, Prolog)                        | Stage 2: opaque state + γ/ω ports for resume/fail |
-| Loops (while/for/repeat)                         | Stage 2: γ-back-edge to head, ω forward-edge to exit |
-| Procedure / clause calls                         | Stage 2: c[] for arg evaluation, γ to continuation |
-
-**Net:** the tree-vs-graph tension dissolves. The same `IR_t` struct
-serves both roles by populating different fields. The syntactic skeleton
-walks via `c[]`. The execution graph walks via `α/β/γ/ω`. Single edges
-throughout (no back-pointers). Cycles exist for loops, backtracking, and
-pattern retry — and that is exactly what "directed cyclic graph" means.
-
-### Mapping to JCON terminology
-
-For anyone cross-referencing with JCON's `tran/ir.icn` and `tran/irgen.icn`:
-
-| Our IR_t concept              | JCON equivalent                                |
-|-------------------------------|------------------------------------------------|
-| `IR_t` struct                 | `ir_*` record (one per instruction kind)       |
-| `c[]/n` children              | record fields holding operand nodes (`expr`, `argList`) |
-| α/β/γ/ω ports (per AST node)  | `ir_info(start, resume, failure, success)`     |
-| Single edge per port          | per-instruction `failLabel` / `resumeLabel`    |
-| `cfg->entry`                  | `codeStart` field of `ir_Function`             |
-| Fall-through (deterministic)  | no label field — next insn in same `ir_chunk`  |
-| Goto edge                     | `ir_Goto(targetLabel)`                         |
-| Pattern subgraph              | (Icon has no patterns — N/A; SNOBOL4 specific) |
-
-JCON groups instructions into `ir_chunk(label, insnList)` — a labeled
-straight-line basic block. Our IR_t flattens that: each node carries its
-own port wiring rather than relying on a containing chunk's position.
-Same execution semantics; different layout choice.
-
-## Stage 2 step ladder — Lower
-
-- [ ] **PST-LR-1** — Audit current `lower.c` against new pure-tree input.
-  Identify call sites that depend on parser-side desugaring (e.g. expect
-  `STMT_t.goto_u` string instead of a child `TT_GOTO_U` tree node).
-  Catalog them.
-- [ ] **PST-LR-2** — Add new lowering passes for the constructs that
-  Stage 1 *removed* from parsers:
-    - [ ] PST-LR-2a — `TT_AUGOP` → `IR_ASSIGN(lhs, IR_BINOP(lhs', rhs))` with proper lhs duplication policy.
-    - [ ] PST-LR-2b — `TT_IF` → cmp / br / then-entry / else-entry / join wiring.
-    - [ ] PST-LR-2c — `TT_WHILE`/`TT_REPEAT`/`TT_UNTIL` → head/back-edge/exit.
-    - [ ] PST-LR-2d — `TT_FOR(init, cond, step, body)` → init → head → cond → body → step → back-to-head.
-    - [ ] PST-LR-2e — `TT_CASE` → cascade of compare-and-branch or jump-table (lower's choice).
-    - [ ] PST-LR-2f — `TT_LOOP_BREAK` / `TT_LOOP_NEXT` → resolved against the innermost matching enclosing loop in the lowering walk.
-    - [ ] PST-LR-2g — `TT_DEFINE` (Snocone function) → `IR_PROC` node with c[] = params, body lowered into a subgraph.
-    - [ ] PST-LR-2h — SNOBOL4 subject/pattern split (the SCAN/SEQ rearrangement removed from parser).
-    - [ ] PST-LR-2i — `TT_GOTO_U/S/F` children of `TT_STMT` → resolved to IR_t edges (γ/ω depending on success/fail/unconditional).
-- [ ] **PST-LR-3** — Prolog variable-slot allocation moved from parser to a
-  per-clause pre-lower pass: walk the clause's tree_t, collect every
-  `TT_VAR sval`, assign sequential slots, attach the slot index to the
-  corresponding `IR_PL_VAR` node's `ival`.
-- [ ] **PST-LR-4** — Rebus lowering (currently thin) grows to handle
-  tree_t input (replacing the old RExpr-consuming code path). Audit
-  `rebus_lower.c` for what it must add.
-- [ ] **PST-LR-5** — Cross-language audit: every front-end's lowered IR
-  obeys the invariants below.
-
-## IR_t invariants (Stage 2 lower-side contract)
-
-After lower completes:
-
-1. **`c[]/n` is per-kind, not universal.** Most IR kinds leave c[] empty
-   (operands flow through the runtime stack via the γ-chain). Only kinds
-   with genuine static n-ary structure populate c[]: `IR_PL_CHOICE`,
-   `IR_CALL`, `IR_OpFunction`, `IR_MAKELIST`, `IR_CASE`, `IR_PROC`. For
-   those kinds, c[] holds the static list (alternatives, arg slots, arms,
-   parameters) — children are *not* the operand graph; the operand graph
-   is the γ-chain.
-2. **Every IR_t carries an ω port** (the fail-out). For deterministic nodes
-   the ω points at the statement-level fail-out target. ω is never NULL in
-   a completed graph.
-3. **Every IR_t that can succeed carries a γ port** to the next-on-success
-   target. Some terminal nodes (e.g. `IR_RETURN`) lack a γ.
-4. **No node carries a label *string* as a control-flow target.** Labels are
-   collapsed to edges. The only `sval` survivors are names of variables,
-   atoms, builtins, and string literals (which are values, not jump targets).
-5. **Cycles exist only via ports**, never via c[]. The c[] skeleton is a
-   forest of trees; the port wiring is the directed cyclic graph.
-6. **Block entry**: `cfg->entry` is the node where execution begins.
-   `cfg->all[]` is the flat node table (existing convention from
-   `IR_alloc` / `IR_node_alloc`).
-
-## Stage 2 done criterion
-
-1. `lower` produces `IR_t` from pure `tree_t` for all six languages.
-2. The interpreter (`ir_exec.c`) runs the new IR with same outputs as today
-   (broad corpus pass-counts ≥ current head).
+`c[]/n` is sparse: only kinds with genuine static n-ary structure use it (`IR_PL_CHOICE`, `IR_CALL`, `IR_MAKELIST`, `IR_CASE`, `IR_PROC`, `IR_PAT_ALT`, `IR_PAT_CAT`). Most SM instructions and BB leaves leave `c[]` empty — operands flow on the runtime stack via the γ-chain.
+
+### SM kinds (`IR_sm_e`)
+Stack: `SM_PUSH_LIT_S/I`, `SM_PUSH_VAR`, `SM_PUSH_KEYWORD`, `SM_STORE_VAR`, `SM_INDIRECT`.
+Arithmetic/compare: `SM_ADD/SUB/MUL/DIV/MOD/POW/LT/LE/GT/GE/EQ/NE` (and string variants).
+Other: `SM_CAT`, `SM_AUGOP`.
+Control: `SM_JUMP`, `SM_JUMP_S/F`, `SM_LABEL`, `SM_HALT`, `SM_FAIL`, `SM_SUCCEED`, `SM_RETURN/FRETURN/NRETURN`.
+Calls: `SM_CALL_FN`, `SM_CALL_BUILTIN`, `SM_ARG_PUSH`, `SM_LOCAL_INIT`.
+Pattern/generator bridge: `SM_EXEC_PATTERN(subj_slot, IR_bb_t *pat, has_replace)`, `SM_BUILD_PATTERN(IR_bb_t *pat)`, `SM_RESUME_GENERATOR(IR_bb_t *gen)`.
+Framing: `SM_STNO`, `SM_STMT_BEGIN`, `SM_STMT_END`.
+
+### BB kinds (`IR_bb_e`)
+SNOBOL4 leaves: `BB_PAT_LIT/ANY/NOTANY/SPAN/BREAK/BREAKX/LEN/POS/RPOS/TAB/RTAB/REM/ARB/FENCE/ABORT/BAL/SUCCEED/FAIL`.
+Composers: `BB_PAT_CAT/ALT/ARBNO`.
+Captures: `BB_PAT_ASSIGN_IMM/ASSIGN_COND/CURSOR/CALLOUT`.
+Icon: `BB_ICN_TO/TO_BY/UPTO/ALTERNATE/LIMIT/BINOP/TO_NESTED/PROC_GEN`.
+Prolog: `BB_PL_CHOICE/UNIFY/CUT/CALL/BUILTIN/VAR/ATOM/ARITH/ALT`.
+
+### Legacy IR_t migration map
+
+| Current | Goes to |
+|---------|---------|
+| `IR_LIT_*/VAR/ASSIGN/AUGOP/BINOP/UNOP/CALL/SEQ` | SM |
+| `IR_FAIL/SUCCEED/GOTO/RETURN/IF/NOT/NONNULL/INTERROGATE` | SM |
+| `IR_SCAN/SUSPEND/BREAK/NEXT/PROC` | SM |
+| `IR_PAT_*` (all 17) | BB |
+| `IR_ICN_*` (Icon generator family) | BB |
+| `IR_PL_*` (Prolog family) | BB |
+| `IR_ALTERNATE/TO_BY/EVERY/WHILE/UNTIL/REPEAT/ALT/LIMIT` | mixed — generative → BB; non-generative → SM with `SM_RESUME_GENERATOR` |
+| `IR_CASE/SIZE/NEG/POS/IDENTICAL/NULL_TEST/RANDOM` | SM |
+
+### Stage 2 step ladder
+
+- [ ] **PST-LR-0a** — Define `IR_sm_t`/`IR_sm_e`/`IR_sm_program_t` and `IR_bb_t`/`IR_bb_e`/`IR_bb_block_t` in new headers (`src/include/IR_sm.h`, `src/include/IR_bb.h`). Keep legacy `IR_t` through migration.
+- [ ] **PST-LR-0b** — Migration scaffolding: `IR_sm_t *sm_from_legacy(IR_t*)` and `IR_bb_t *bb_from_legacy(IR_t*)`.
+- [ ] **PST-LR-0c** — Migrate `lower_pat_dcg.c` to emit `IR_bb_t` directly (already ~90% there).
+- [ ] **PST-LR-0d** — Migrate `sm_codegen.c` to emit `IR_sm_t`. Switch SM_EXEC_STMT payload from `IR_t*` to `IR_bb_t*`.
+- [ ] **PST-LR-0e** — Migrate `ir_exec.c` to dispatch on `IR_sm_t`, hand off to BB engine for patterns/generators.
+- [ ] **PST-LR-0f** — Migrate each emitter (x86, JVM, .NET, JS, WASM) one at a time.
+- [ ] **PST-LR-0g** — Delete legacy `IR_t`.
+- [ ] **PST-LR-1** — Audit `lower.c` against pure-tree input. Catalog call sites that depend on parser-side desugaring.
+- [ ] **PST-LR-2a** — `TT_AUGOP` → `IR_ASSIGN(lhs, IR_BINOP(lhs', rhs))`.
+- [ ] **PST-LR-2b** — `TT_IF` → cmp/br/then/else/join wiring.
+- [ ] **PST-LR-2c** — `TT_WHILE`/`TT_REPEAT`/`TT_UNTIL` → head/back-edge/exit.
+- [ ] **PST-LR-2d** — `TT_FOR(init, cond, step, body)` → init→head→cond→body→step→back.
+- [ ] **PST-LR-2e** — `TT_CASE` → cascade compare-and-branch or jump-table.
+- [ ] **PST-LR-2f** — `TT_LOOP_BREAK`/`TT_LOOP_NEXT` → resolved against innermost matching loop.
+- [ ] **PST-LR-2g** — `TT_DEFINE` → `IR_PROC` with c[]=params, body lowered.
+- [ ] **PST-LR-2h** — SNOBOL4 subject/pattern split (SCAN/SEQ rearrangement removed from parser).
+- [ ] **PST-LR-2i** — `TT_GOTO_U/S/F` children of `TT_STMT` → resolved to IR_t edges (γ/ω per success/fail/unconditional).
+- [ ] **PST-LR-3** — Prolog slot allocation: pre-lower pass walks clause `tree_t`, collects `TT_VAR` names, assigns slots, attaches `ival` during lowering.
+- [ ] **PST-LR-4** — Rebus lowering (`rebus_lower.c`) grows to handle `tree_t` input.
+- [ ] **PST-LR-5** — Cross-language audit: every frontend's lowered IR obeys invariants.
+
+### IR_t invariants (post-lower)
+
+1. `c[]/n` per-kind only — most IR leaves it empty; only `IR_PL_CHOICE`, `IR_CALL`, `IR_MAKELIST`, `IR_CASE`, `IR_PROC`, pattern composers use it.
+2. Every `IR_t` carries ω (fail-out). Never NULL in completed graph.
+3. Every `IR_t` that can succeed carries γ to next-on-success target.
+4. No node carries a label string as control-flow target. Only values survive in `sval`.
+5. Cycles exist only via ports, never via `c[]`. `c[]` skeleton is a forest.
+6. `cfg->entry` is execution entry. `cfg->all[]` is flat node table.
+
+### Stage 2 done criterion
+
+1. `lower` produces IR from pure `tree_t` for all six languages.
+2. Interpreter (`ir_exec.c`) produces same outputs as today (broad corpus ≥ current head).
 3. Beauty self-host byte-identical (Milestone 1 protected).
-4. The native emitters (x86, JVM, JS, .NET, WASM) consume the new IR with
-   no regression in their corpus pass-counts.
-5. All `tree_t` → `IR_t` lowering documented in per-construct comments in
-   `lower.c` / `lower_*.c` so the design above is checkable from the code.
+4. All emitters (x86, JVM, .NET, JS, WASM) no regression in corpus pass-counts.
+5. All `tree_t` → IR lowering documented in per-construct comments in `lower.c`/`lower_*.c`.
 
 ---
 
-## Risks and mitigations
+## Risks
 
-- **Beauty self-host regression.** Snocone changes are deep. Stage gate:
-  every PST-SC-4* rung must pass `scripts/test_beauty_self_host_smoke.sh`
-  (or whichever script covers Milestone 1) before commit.
-- **Lower bloat.** `lower.c` is already large. Open new files for major
-  pieces (`lower_snocone_ctrl.c` for Snocone control flow, `lower_pl_clause.c`
-  for Prolog slot allocation) rather than piling on.
-- **Rebus has no lower today** — `rebus_lower.c` exists but is thin. Step 5
-  will grow it. Budget for that.
-- **Prolog parser shares scope state with lookahead.** Carefully preserve
-  the variable-name → identity correspondence across a clause; just don't
-  assign slots in the parser. The lookup table stays; only the slot
-  numbering moves to lower.
+- **Beauty self-host regression.** Snocone changes are deep. Every PST-SC-4* rung must pass beauty smoke test before commit.
+- **Lower bloat.** Open new files for major pieces (`lower_snocone_ctrl.c`, `lower_pl_clause.c`).
+- **Rebus has thin lower today.** `rebus_lower.c` will grow significantly in Step 5.
+- **Prolog parser shares scope state with lookahead.** Preserve variable-name→identity correspondence across a clause; only the slot numbering moves.
 
 ---
 
@@ -1164,11 +282,9 @@ bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
 ```
 
-For Step 4 (Snocone) and Step 7 (invariant tests), also build the
-snocone smoke harness:
-
+For Step 4 (Snocone) and Step 7 (invariants):
 ```bash
-bash /home/claude/one4all/scripts/build_snocone_smoke.sh   # (verify path)
+bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 
 ---
@@ -1176,35 +292,16 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh   # (verify path)
 ## State
 
 ```
-watermark: Stage 1 Step 0 (parser diagnosis) ✅
-           Stage 2 design ✅ (multiple rounds)
-           Stage 2 SPLIT-IR DESIGN ✅ — separate IR_sm_t and IR_bb_t types
-             SM = flat array of instructions; references BB
-             BB = 4-port directed graph; never references SM
-             matches existing downstream (SM_Program + lower_pat_dcg already
-             gesture at this split)
+watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅
 head: .github HEAD = 9c465916
-next: PST-LR-0a — define IR_sm_t / IR_sm_e / IR_sm_program_t and
-      IR_bb_t / IR_bb_e / IR_bb_block_t in new headers
+next: PST-SN4-1a
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: define split types → migrate lower_pat_dcg → migrate sm_codegen →
-                migrate ir_exec → migrate emitters one by one → delete legacy IR_t
+                migrate ir_exec → migrate emitters → delete legacy IR_t
 ```
 
 ---
 
 ## Authorship
 
-Drafted by Claude Opus 4.7, 2026-05-16, session after BB0 correction.
-Stage 2 design added same session, after Lon raised the SM-tree vs BB-graph
-question. JCON cross-reference added after Lon supplied the JCON tarball
-to confirm the single-edge-per-port model. **Worked-example refinement**
-added same session after Lon asked for a non-trivial pattern example
-(`POS(0) ('yes'|'no') RPOS(0)` then-branch, `('0'|'1')` else-branch): the
-exercise revealed that `c[]/n` is essentially **unused** in the IR for
-deterministic SM-style and most BB-style nodes — operands flow on the
-runtime value stack via the γ-chain. `c[]` is reserved for kinds with
-genuine static n-ary structure (PL_CHOICE alternatives, CALL arg lists,
-MAKELIST elements, CASE arms, PROC parameters). The AST stage remains a
-pure n-ary tree; the IR stage is a directed graph where the n-ary axis
-collapses to "per-kind, sparse."
+Drafted by Claude Opus 4.7, 2026-05-16. Stage 2 split-IR design same session.
