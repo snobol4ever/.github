@@ -375,11 +375,225 @@ The Stage 2 design below specifies how lower builds `IR_t` from `tree_t`.
 
 ---
 
-# STAGE 2 — Lower: from pure tree_t to IR_t (SM + BB)
+# STAGE 2 — Lower: from pure tree_t to two IRs (SM + BB)
 
 Stage 1 (above) gets parsers right. Stage 2 designs and implements `lower`,
-which consumes the pure `tree_t` and produces `IR_t` — the directed graph
-that the interpreter and the native-code emitters share.
+which consumes the pure `tree_t` and produces **two distinct IR families**:
+
+```
+(source) → parser → tree_t (pure AST) → lower → { IR_sm_t, IR_bb_t }
+                                                  SM references BB
+                                                  BB never references SM
+```
+
+## Design refinement: split SM and BB into two IR types
+
+The earlier sections of Stage 2 (immediately below — "The dual-nature design
+challenge" through "Stage 2 done criterion") describe a one-struct design
+that carries both SM-style children and BB-style ports on every `IR_t`.
+That design works but it papers over real separation. The cleaner design,
+arrived at after several rounds of refinement, **splits the IR into two
+distinct types**:
+
+| Type | Shape | What it carries | How it executes |
+|---|---|---|---|
+| **`IR_sm_t`** | flat array of instructions (basic-block program) | one statement of SM code: literals, var read/write, binops, assigns, gotos, conditional branches, calls, returns, pattern invocations, generator invocations | dispatched sequentially by the interpreter loop / mapped to native instructions by the emitters |
+| **`IR_bb_t`** | directed graph with α/β/γ/ω ports | one pattern subgraph or one generator subgraph: pattern operators, choice points, scan markers, generator state | dispatched by the Byrd-box engine — α to enter, γ on success, ω on fail, β on retry |
+
+**Reference direction is asymmetric:**
+
+- An `IR_sm_t` instruction *can* hold a pointer to an `IR_bb_t` graph
+  (e.g. `SM_EXEC_PATTERN(subj_var, IR_bb_t *pat, replace?)`).
+- An `IR_bb_t` node **never** references an `IR_sm_t` instruction. When
+  a pattern callout needs user code (deferred `*F(x)`), the BB node holds
+  an opaque hook descriptor that the engine knows how to dispatch — not
+  a structural pointer into SM.
+
+This matches the existing downstream stages:
+
+- The interpreter's `SM_Program` (per PLAN.md architecture summary) is already
+  a flat array of SM instructions.
+- `lower_pat_dcg.c` already produces `IR_block_t` separately for pattern
+  subgraphs.
+- The emitters (x86, JVM, .NET, JS, WASM) already walk `SM_Program` linearly
+  and treat pattern execution as a callout. The split codifies what they
+  already do.
+
+### Why this is "prettier" — separation of concerns
+
+1. **Different shapes have different types.** A flat array of instructions
+   and a 4-port directed graph are not the same data structure. Forcing
+   them into one struct with sparse field usage was a compromise.
+2. **One-way reference matches the runtime contract.** SM calls into BB;
+   BB never calls back. The type system can enforce that — `IR_sm_t` can
+   hold `IR_bb_t *`, but not the reverse.
+3. **Every program has at least two SM instructions.** Even a one-line Icon
+   expression like `1+1` lowers to push-1 / push-1 / add / halt. There is
+   no program without SM. BB is *invoked* by SM, never the entry point.
+4. **Different stages need different things:** the interpreter's main loop
+   wants an indexed array of SM ops; the Byrd-box engine wants a port-wired
+   graph for patterns. Two types serve two consumers cleanly.
+5. **Future emitters become simpler.** A native-code emitter walks the SM
+   array generating instructions and, when it hits `SM_EXEC_PATTERN`, emits
+   a call into the BB engine. It doesn't have to walk a heterogeneous graph
+   and switch on "is this an SM-ish node or a BB-ish node?"
+
+### Kind assignment
+
+**SM kinds (`IR_sm_e`):**
+
+- Stack-machine ops: `SM_PUSH_LIT_S`, `SM_PUSH_LIT_I`, `SM_PUSH_VAR`,
+  `SM_PUSH_KEYWORD`, `SM_STORE_VAR`, `SM_INDIRECT`
+- Arithmetic / comparison: `SM_ADD`, `SM_SUB`, `SM_MUL`, `SM_DIV`,
+  `SM_MOD`, `SM_POW`, `SM_LT`, `SM_LE`, `SM_GT`, `SM_GE`, `SM_EQ`, `SM_NE`
+  (and string variants)
+- Concatenation, augops: `SM_CAT`, `SM_AUGOP`
+- Control flow: `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F`, `SM_LABEL`,
+  `SM_HALT`, `SM_FAIL`, `SM_SUCCEED`, `SM_RETURN`, `SM_FRETURN`,
+  `SM_NRETURN`
+- Function machinery: `SM_CALL_FN`, `SM_CALL_BUILTIN`, `SM_ARG_PUSH`,
+  `SM_LOCAL_INIT`
+- Pattern / generator invocation (the bridge to BB):
+  - `SM_EXEC_PATTERN(subj_slot, IR_bb_t *pat, has_replace)` — full
+    SNOBOL4 pattern-match statement
+  - `SM_BUILD_PATTERN(IR_bb_t *pat)` — push a pattern value (when a
+    pattern is treated as a first-class value)
+  - `SM_RESUME_GENERATOR(IR_bb_t *gen)` — Icon/Prolog yield
+- Statement framing: `SM_STNO` (statement number), `SM_STMT_BEGIN`,
+  `SM_STMT_END`
+
+**BB kinds (`IR_bb_e`):**
+
+- SNOBOL4 pattern leaves: `BB_PAT_LIT`, `BB_PAT_ANY`, `BB_PAT_NOTANY`,
+  `BB_PAT_SPAN`, `BB_PAT_BREAK`, `BB_PAT_BREAKX`, `BB_PAT_LEN`,
+  `BB_PAT_POS`, `BB_PAT_RPOS`, `BB_PAT_TAB`, `BB_PAT_RTAB`, `BB_PAT_REM`,
+  `BB_PAT_ARB`, `BB_PAT_FENCE`, `BB_PAT_ABORT`, `BB_PAT_BAL`,
+  `BB_PAT_SUCCEED`, `BB_PAT_FAIL`
+- SNOBOL4 pattern composers: `BB_PAT_CAT`, `BB_PAT_ALT`, `BB_PAT_ARBNO`
+- SNOBOL4 pattern captures: `BB_PAT_ASSIGN_IMM`, `BB_PAT_ASSIGN_COND`,
+  `BB_PAT_CURSOR`, `BB_PAT_CALLOUT`
+- Icon generator BB: `BB_ICN_TO`, `BB_ICN_TO_BY`, `BB_ICN_UPTO`,
+  `BB_ICN_ALTERNATE`, `BB_ICN_LIMIT`, `BB_ICN_BINOP`, `BB_ICN_TO_NESTED`,
+  `BB_ICN_PROC_GEN`
+- Prolog BB: `BB_PL_CHOICE`, `BB_PL_UNIFY`, `BB_PL_CUT`, `BB_PL_CALL`,
+  `BB_PL_BUILTIN`, `BB_PL_VAR`, `BB_PL_ATOM`, `BB_PL_ARITH`, `BB_PL_ALT`
+
+**Struct shapes:**
+
+```c
+/* IR_sm_t — one SM instruction in a flat array */
+typedef struct {
+    IR_sm_e    op;
+    union {
+        int64_t       ival;
+        double        dval;
+        const char  * sval;
+        IR_bb_t     * bb;        /* pattern / generator subgraph */
+    } arg;
+    int          stno;            /* source statement number */
+    int          target;          /* for jumps: index into the SM array */
+    /* additional per-op fields as needed */
+} IR_sm_t;
+
+typedef struct {
+    IR_sm_t   * insns;           /* flat array, indexed by instruction number */
+    int         n;
+    IR_bb_t  ** patterns;        /* all BB subgraphs referenced from insns */
+    int         npatterns;
+    /* string table, label table, etc. */
+} IR_sm_program_t;
+
+/* IR_bb_t — one BB node in a port-wired graph */
+typedef struct IR_bb_t IR_bb_t;
+struct IR_bb_t {
+    IR_bb_e     t;
+    IR_bb_t   * α, * β, * γ, * ω;
+    IR_bb_t  ** c;  int n;        /* flat n-ary children for composer kinds */
+    union {
+        int64_t       ival;
+        double        dval;
+        const char  * sval;
+        void        * opaque;     /* engine-specific state — opaque to type */
+    } v;
+    int          _id;
+};
+
+typedef struct {
+    IR_bb_t   * entry;
+    IR_bb_t  ** all;
+    int         n;
+    int         lang;             /* IR_LANG_* — which frontend produced this */
+} IR_bb_block_t;
+```
+
+**Note:** the BB node retains `c[]/n` for the n-ary flattening reason
+established earlier (alternatives, sequence pieces). The SM instruction
+does not need `c[]` — its arguments are inline scalars or one pointer
+into BB-land.
+
+### Where the existing `IR_t` enum kinds go
+
+The current `IR_t` enum mixes both worlds. Migration map:
+
+| Current `IR_*` kind | Goes to |
+|---|---|
+| `IR_LIT_I/S/F/NUL`, `IR_VAR`, `IR_ASSIGN`, `IR_AUGOP`, `IR_BINOP`, `IR_UNOP`, `IR_CALL`, `IR_SEQ` | SM |
+| `IR_FAIL`, `IR_SUCCEED`, `IR_GOTO`, `IR_RETURN`, `IR_IF`, `IR_NOT`, `IR_NONNULL`, `IR_INTERROGATE` | SM |
+| `IR_SCAN` | SM (it invokes BB) |
+| `IR_SUSPEND`, `IR_BREAK`, `IR_NEXT`, `IR_PROC` | SM |
+| `IR_PAT_*` (all 17 of them) | BB |
+| `IR_ICN_*` (the Icon generator family) | BB |
+| `IR_PL_*` (the Prolog family) | BB |
+| `IR_ALTERNATE`, `IR_TO_BY`, `IR_EVERY`, `IR_WHILE`, `IR_UNTIL`, `IR_REPEAT`, `IR_ALT`, `IR_LIMIT` | mixed — Icon generative versions go to BB; non-generative versions (Snocone `while`, etc.) become SM with `SM_RESUME_GENERATOR` for the generative parts |
+| `IR_CASE`, `IR_SIZE`, `IR_NEG`, `IR_POS`, `IR_IDENTICAL`, `IR_NULL_TEST`, `IR_RANDOM` | SM |
+| `IR_ICN_PROC_GEN` | BB (it's the generator dispatcher) |
+
+The split is mechanical — almost every kind has an obvious home based
+on whether it's "deterministic instruction in a sequence" or "node in a
+backtracking subgraph."
+
+### Stage 2 step ladder — revised for split-IR
+
+The previous Stage 2 ladder (LR-* / per-construct passes) still applies,
+but each rung now produces SM, BB, or both:
+
+- [ ] **PST-LR-0a — Define the two new types.** Add `IR_sm_t` /
+      `IR_sm_e` / `IR_sm_program_t` and `IR_bb_t` / `IR_bb_e` /
+      `IR_bb_block_t` to a new header (`src/include/IR_sm.h`,
+      `src/include/IR_bb.h`). Keep the old `IR_t` around through migration.
+- [ ] **PST-LR-0b — Migration scaffolding.** Add a converter
+      `IR_sm_t * sm_from_legacy(IR_t *)` and `IR_bb_t * bb_from_legacy(IR_t *)`
+      so existing lower output keeps working while consumers migrate.
+- [ ] **PST-LR-0c — Migrate `lower_pat_dcg.c`** to emit `IR_bb_t` directly
+      (already 90% there structurally — just rename). This is the smallest
+      first move and validates the type split on real code.
+- [ ] **PST-LR-0d — Migrate `sm_codegen.c`** (or wherever today's SM instruction
+      emission lives) to emit `IR_sm_t`. Identify the single SM-side reference
+      to a BB pattern (likely the `SM_EXEC_STMT` family) and switch its
+      payload type from `IR_t *` to `IR_bb_t *`.
+- [ ] **PST-LR-0e — Migrate interpreter `ir_exec.c`** to dispatch on
+      `IR_sm_t` for the SM array, with hand-off into the BB engine for
+      patterns/generators. The BB engine itself was already separate.
+- [ ] **PST-LR-0f — Migrate each emitter** (x86, JVM, .NET, JS, WASM)
+      one at a time. Each emitter consumes `IR_sm_program_t` directly
+      and emits BB-engine calls for the pattern invocations.
+- [ ] **PST-LR-0g — Delete legacy `IR_t`** after all consumers migrated.
+
+Then the per-construct rungs (PST-LR-2a..2i) re-target: each lower-side
+pass now decides "this AST construct produces SM, BB, or both" and emits
+accordingly.
+
+### What this changes about Stage 1
+
+Stage 1 (parsers → pure tree_t) **does not change at all.** The parsers
+still produce `tree_t`. The split is entirely in Stage 2 — lower decides
+which side of the split each construct belongs to.
+
+---
+
+The text below this point preserves the earlier one-struct design discussion
+for historical context. It is **superseded** by the split design above.
+Where the two conflict, the split-IR design is authoritative.
 
 ## The dual-nature design challenge
 
@@ -963,15 +1177,18 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh   # (verify path)
 
 ```
 watermark: Stage 1 Step 0 (parser diagnosis) ✅
-           Stage 2 design ✅
-           Stage 2 design refined re. c[]: keep n-ary kinds flat in c[]
-             (PAT_ALT, PAT_CAT, CALL, MAKELIST, CASE, PROC, PL_CHOICE) —
-             parser-flatten rationale carries into IR for the same logic
-             reasons. SM-style atomic nodes leave c[] empty.
-head: .github HEAD = 32a6af4f
-next: PST-SN4-1a — remove EXPORT/IMPORT special-case from sno4_stmt_commit_go
+           Stage 2 design ✅ (multiple rounds)
+           Stage 2 SPLIT-IR DESIGN ✅ — separate IR_sm_t and IR_bb_t types
+             SM = flat array of instructions; references BB
+             BB = 4-port directed graph; never references SM
+             matches existing downstream (SM_Program + lower_pat_dcg already
+             gesture at this split)
+head: .github HEAD = 9c465916
+next: PST-LR-0a — define IR_sm_t / IR_sm_e / IR_sm_program_t and
+      IR_bb_t / IR_bb_e / IR_bb_block_t in new headers
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
-ladder Stage 2: lower audit → per-construct passes → Prolog slots → Rebus lower → cross-lang audit
+ladder Stage 2: define split types → migrate lower_pat_dcg → migrate sm_codegen →
+                migrate ir_exec → migrate emitters one by one → delete legacy IR_t
 ```
 
 ---
