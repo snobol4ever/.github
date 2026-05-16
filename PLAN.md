@@ -51,7 +51,7 @@ Lon names a goal. You:
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17g-irrun-execution** — routes `--ir-run` non-SNO through sm_preamble+sm_run_with_recovery. 2026-05-10 probe-and-revert: step 2 causes 177→105 Icon regression; root cause = SM_CALL_FN from Icon proc bodies doesn't reach icn_call_builtin via _usercall_hook. Prereqs: CH-17g-irrun-prep + CH-17i-table-mutators + CH-17i-icn-list-mutators. |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | same as CHUNKS row |
-| **Icon BB JCON triage** | `GOAL-ICON-BB-JCON.md` | one4all+corpus+.github | gen cross-product ✅ landed as IJ-BINOP-GEN. Next: `every write(fact(5))` over-iteration. 2026-05-16e: IJ-SCAN `1841f7de` +15, IJ-BINOP-GEN `05097be3` +8. ir-run 105. |
+| **Icon BB JCON triage** | `GOAL-ICON-BB-JCON.md` | one4all+corpus+.github | Cat-3 decomposed. Fix #1 ✅ IJ-CALL-SNAPSHOT `398776da` (preserve caller IR graph state across recursive IR_CALL; `write(fact(5))` → 120). Fix #2 ⏳ NEXT: `every write(fact(5))` over-iteration; needs proc-is-generator bit on proc_table consulted at IR_EVERY. ir-run 105. |
 | **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ sm-run 223/280 ✅. See `BUG_CATEGORIZATION_20260516.md`. |
 | **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
 | **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |

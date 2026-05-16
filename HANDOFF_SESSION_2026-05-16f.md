@@ -1,63 +1,180 @@
-# HANDOFF — Session 2026-05-16f (SNOBOL4 PST session)
+# HANDOFF — Session 2026-05-16f (GOAL-ICON-BB-JCON)
 
-**Goal:** GOAL-PARSER-PURE-SYNTAX-TREE.md — SNOBOL4 session
-**Step completed:** PST-SN4-2 — parser_snobol4.sc pure syntax tree, zero worker functions
-
----
-
-## What was done
-
-### corpus @ 9cc4587 — parser_snobol4.sc + lower.sc
-
-**parser_snobol4.sc** (341 → 254 lines):
-- Deleted `push_qlit` / `Push_qlit`; replaced `*String Push_qlit` with `*String shift(str_body, "'TT_QLIT'")` inline
-- Deleted `strip_parens`, `make_goto_slot`, `pp_stmt`
-- Redesigned `Stmt` rule: now emits `TT_STMT` directly via `nPush`/`nInc` counter
-- Children in source order: `TT_LABEL?` subject? `TT_PAT(pat)?` `TT_EQ(repl?)?` `TT_GOTO_U/S/F*`
-- New sub-rules: `StmtLabel` (shifts as `TT_LABEL`), `StmtRepl` (reduces as `TT_EQ`)
-- `Command` no longer wraps `Stmt` in `reduce('Stmt', 7)` — `TT_STMT` comes straight through
-- Driver loop: `Lower_collect(cmd)` directly on `TT_STMT` nodes; no cooking; no `prev_label_only`
-- Only permitted functions remaining: `sn_match`, `sn_upr` (pure tokenizer helpers, zero tree building)
-
-**lower.sc**:
-- Deleted `sno_strip_parens`, `sno_make_goto_slot`, `sno_pp_stmt` (added this session, then superseded)
-- Added `lower_sno_unpack`: walks `TT_STMT` children by kind, populates `lower_stmt` locals
-- `lower_stmt`: new `TT_STMT` branch uses `lower_sno_unpack`; legacy `STMT` attr-tag branch kept for test harnesses
-
-### .github @ 245927a6
-
-- `GOAL-PARSER-PURE-SYNTAX-TREE.md`: state block updated, PST-SN4-2 marked
-- `PLAN.md`: SNOBOL4+Snocone row updated
+**Date:** 2026-05-16
+**Goal:** GOAL-ICON-BB-JCON — `every write(fact(5))` over-iteration triage
+**Claude:** Opus 4.7
 
 ---
 
-## Gates (all baseline-identical)
+## Headline
 
-| Gate | Result |
-|------|--------|
-| smoke_snobol4 | PASS=7 FAIL=0 |
-| crosscheck_snobol4 | PASS=6 FAIL=0 |
-| smoke_scrip_all_modes | PASS=2 FAIL=0 |
-| beauty_self_host | PASS=29 FAIL=22 (baseline) |
+**Category 3 decomposed into two independent fixes; Fix #1 landed.** The
+"emits 120 five times" symptom described in the 2026-05-16e handoff was
+actually masking a deeper architectural bug — `fact(5)` itself was
+returning a null/empty value, not 120, due to recursive proc calls
+wiping their caller's mid-evaluation IR graph state. With Fix #1
+(`IJ-CALL-SNAPSHOT`, one4all `398776da`), `write(fact(5))` correctly
+yields `120`. `every write(fact(5))` now loops emitting the correct
+value (`120` ad infinitum) instead of blank lines — confirming Fix #2
+(IR_EVERY exit-on-single-shot-proc) is a separate, smaller problem.
+Gates flat at watermark.
 
 ---
 
-## State
+## Work completed this session
+
+### IJ-CALL-SNAPSHOT — one4all@398776da (ir-run 105 → 105, no rung flip)
+
+**Diagnosis path.** Started reproducing `rung02_proc_fact.icn`:
+```icon
+procedure fact(n)
+  if n = 0 then return 1;
+  return n * fact(n - 1);
+end
+procedure main()
+  every write(fact(5));
+end
+```
+Expected: `120` (single line). Observed at watermark: **1,000,000 blank
+lines** (NOT "120 five times" as the prior handoff stated — that turned
+out to be a misreading; the actual symptom is a null-value infinite
+loop). The handoff hypothesis ("IR_ICN_PROC_GEN re-yields" or "IR_EVERY
+doesn't stop on proc return") was on the right track for the loop but
+missed that the value itself was wrong.
+
+Stripping `every` away as a control:
+- `write(fact(0))` → `1` ✓
+- `write(fact(1))` → *blank* ✗
+- `write(fact(5))` → *blank* ✗
+
+So the recursive branch (`return n * fact(n-1)`) was producing null,
+not 120 with `every` repeating. Triangulating on operand orientation:
+- `2 * fact(1)`         → blank
+- `fact(1) * 2`         → 2
+- `n * fact(n-1)` at n=1 → blank
+- `fact(n-1) * n` at n=1 → 1
+- `0 + fact(1)`         → blank
+- `fact(1) + 0`         → 1
+- `2 * id(3)` (non-recursive) → 6
+
+**Pattern:** recursive call on the **right** of a binop returns null;
+on the **left**, fine. The asymmetry is the smoking gun.
+
+**Root cause.** Two interacting facts:
+1. `is_suspendable(TT_FNC) = 1` in `icn_runtime.c:307`, so any binop
+   with a function call lowers to `IR_BINOP_GEN` (not `IR_BINOP`).
+2. `IR_BINOP_GEN` in `ir_exec.c:191` reads `nd->c[0]->value` AFTER
+   evaluating both children — into the `icn_binop_apply` call. This
+   is fine if both children are pure leaf evaluations, but…
+3. `IR_CALL` user-proc dispatch (line 99-117) does:
+   ```c
+   IR_reset(proc_table[_pi].ir_body);
+   out = IR_exec_once(proc_table[_pi].ir_body);
+   ```
+   and `IR_exec_once` itself calls `IR_reset(cfg)`. When the callee
+   IS the same proc that's currently executing (recursion), `IR_reset`
+   zeros `value`, `counter`, `state` on **every node of the shared
+   graph** — including the outer activation's literal `2`, the outer
+   IR_BINOP_GEN itself, and so on.
+
+So in `2 * fact(1)`: outer `IR_BINOP_GEN` evals c[0] (literal 2) →
+`c[0]->value = INTVAL(2)`. Then evals c[1] (`IR_CALL` fact(0)) → inner
+`IR_exec_once` calls `IR_reset` → blows c[0]->value back to FAILDESCR.
+IR_CALL writes c[1]->value = INTVAL(1). Then `icn_binop_apply(MUL,
+c[0]->value=FAILDESCR, c[1]->value=1)` → propagates failure → blank.
+
+`IR_BINOP` (the non-gen path) happens to be **correct by accident**
+because it captures `lv` into a local *before* the inner call:
+```c
+IR_exec_node(nd->c[0]);
+DESCR_t lv = nd->c[0]->value;   /* survives the inner reset */
+...
+IR_exec_node(nd->c[1]);
+DESCR_t rv = nd->c[1]->value;   /* set after the inner reset, fine */
+```
+
+**Fix.** Architectural: snapshot the callee's per-node mutable state
+(`value`, `counter`, `state` — exactly what `IR_reset` zeroes) before
+`IR_exec_once`, restore after. Always-on, uniform; cost is
+`malloc(n * 40 bytes)` per user-proc call. New helpers
+`IR_snapshot_state` / `IR_restore_state` in `scrip_ir.c`, declared in
+`IR.h`. Snapshot taken on the callee's `ir_body` regardless of
+caller — when they're the same proc (recursion), this preserves the
+caller's activation; when different (cross-proc), it's harmless
+overhead.
+
+**Result.**
+- `write(fact(5))`         → `120` (was: blank)
+- `n * fact(n-1)` at n=1   → `1`   (was: blank)
+- `2 * fact(1)`            → `2`   (was: blank)
+- `every write(fact(5))`   → `120` repeated (was: blank repeated) — Fix #2 still needed for termination
+
+**Gate counts (median of 3 runs, all match watermark):**
+- GATE-1 smoke_icon:   PASS=5  FAIL=0
+- GATE-2 broker:       PASS=19 FAIL=30
+- GATE-3 ir_all_rungs: PASS=105 FAIL=125 XFAIL=35 TOTAL=265
+- GATE-4 no_ast_walk:  PASS=277 FAIL=0 ABORT=0
+
+The fix doesn't flip rung02_proc_fact PASS because `every` still
+infinite-loops — that's Fix #2. But the fix is architecturally
+necessary for any future stateful node (IR_EVERY, IR_REPEAT, etc.)
+appearing inside a recursive proc body; without it those would all
+have subtle corruption bugs.
+
+---
+
+## Detour worth recording
+
+During this session I temporarily added an IR_EVERY guard
+(`if (!_c0_is_gen) break;` consuming `nd->ival2 = is_suspendable(c[0])`
+set at lower time) thinking it'd be Fix #2. It would NOT be:
+`is_suspendable(TT_FNC) = 1` returns 1 for every function call,
+including non-generator ones like `write(fact(5))`. So `_c0_is_gen`
+would be 1 and the loop wouldn't exit. Reverted.
+
+The right signal for Fix #2 is **whether the called proc's body
+contains a `TT_SUSPEND`** (i.e. is the proc itself a generator?) —
+not whether the AST node is "suspendable". This bit can be computed at
+proc-registration time and stored on `IcnProcEntry`, then consulted
+at IR_EVERY when c[0]'s outermost node is an IR_CALL to a user proc.
+
+---
+
+## Final state — push confirmed
 
 ```
-one4all = 9ed3c99b  (unchanged — no C-side changes this session)
-corpus  = 9cc4587   (PST-SN4-2)
-.github = 245927a6  (PST-SN4-2 handoff)
+one4all: 398776da  (rebased onto 0b0dc9d3 from parallel session)
+.github: HANDOFF + PLAN + GOAL updates to be pushed last per RULES
+
+ir-run:  105/265   honest: 277 PASS / 0 FAIL / 0 ABORT
+smoke_icon: 5/5    broker: 19/49
+cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 3/5
 ```
 
 ---
 
-## Next steps
+## Next session pickup
 
-**SNOBOL4 parser is done.** `parser_snobol4.sc` is a pure syntax tree parser with only `Shift`/`Reduce` primitives and zero worker functions. Step 1 of GOAL-PARSER-PURE-SYNTAX-TREE.md is complete.
+**Target:** Fix #2 — `every write(fact(5))` over-iteration.
 
-**Next session should be Snocone (PST-SC-4a):**
-- Move `TT_AUGOP` expansion from `snocone_parse.y` into `lower.c`
-- Mirror in `corpus/SCRIP/parser_snocone.sc` + `corpus/SCRIP/lower.sc`
+**Plan:**
+1. Add `int is_generator` (or rename: `has_suspend`) field to
+   `IcnProcEntry` in `icn_runtime.h`. Default 0.
+2. At proc registration (where `proc_table[i].ir_body` is built),
+   walk the body and set `is_generator = 1` if any `IR_SUSPEND` node
+   exists. Alternatively, set it at AST time via the existing
+   `proc_has_suspend(tree_t*)` helper in `icn_runtime.c:295`.
+3. In `IR_EVERY`'s executor (`ir_exec.c:260`), detect when c[0]
+   resolves to an `IR_CALL` to a user proc and consult that proc's
+   `is_generator` bit. If non-generator, break after one iteration.
+4. Edge case: c[0] is a chained call (`write(fact(5))`) — the
+   outermost call is `write`, which IS variadic but `write` itself is
+   single-shot. So actually the rule simplifies: **if c[0]'s top is
+   IR_CALL and the resolved proc is non-generator, single-shot**.
+   The argument `fact(5)` is single-shot by the same rule recursively.
+5. Run GATE-3 to measure ir-run delta. Expected: +5 to +10 (rung02_proc_*,
+   maybe some rung03_suspend_* if the user-proc-generator path is also
+   getting confused by this).
 
-**Note:** This session did NOT touch C-side (`src/frontend/snobol4/snobol4.y` or `src/lower/lower.c`). The C-side SNOBOL4 parser was already clean from PST-SN4-1a through 1d. Only the SCRIP mirror (`parser_snobol4.sc`) was brought to purity this session.
+Latent bug to file: `every (s := "" | "a") do write(s)` infinite-loops
+in IR mode at watermark — not blocked on this goal but worth a ticket.
