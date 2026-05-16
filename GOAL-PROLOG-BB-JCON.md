@@ -70,7 +70,8 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 | **PJ-3** ✅ | Replace `[NO-AST]` stub in `sm_interp.c case SM_BB_ONCE_PROC` with body handler: lookup `dcg_table[name/arity]`, wrap via `pl_bb_once_proc_by_name`, drive via `bb_broker`. Landed `f5db4e5f`. | smoke_prolog still 0/5 (no IR yet) |
 | **PJ-4** ✅ | `lower_pl_expr_node` handles TT_FNC(write/nl), TT_UNIFY, TT_FNC("is"), TT_VAR, TT_ILIT/QLIT/NAME. Wire into `lower_pl_predicate` building `IR_SEQ`. IR_PL_BUILTIN/VAR/ATOM/ARITH/UNIFY executors in ir_exec.c. pl_bb_env_push/pop. Landed `cb1417a5`. | smoke_prolog 3/5 (write+unify+arith PASS) |
 | **PJ-5/6** ✅ | IR_PL_ALT landed `141c4816`. IR_PL_CHOICE/ALT split done; arity emit fix; n-ary comma fix; ival/sval union collision fixed (IR_PL_VAR/CALL/BUILTIN). smoke_prolog 3/5. NEXT blockers: (A) head-arg unification: IR_PL_UNIFY executor must handle IR_LIT_I/F match (for count(0)); (B) comparison ops: lower_pl_stmt_node must route TT_FNC(">/<") to builtin, not IR_PL_CALL; (C) backtracking: IR_PL_CHOICE multi-clause + pump for clause test. |
-| **PJ-7** | `IR_PL_CUT` executor. Discard choice points to enclosing barrier. Mark surrounding CHOICE so β skips past cut clauses. | broker `!` tests PASS |
+| **PJ-5a** ✅ | Fix entry-point invocation + add IR_PL_SEQ + cut barrier. (1) `lower.c` TT_CHOICE-subject stmts made no-op (was auto-invoking every defined predicate at program start, with no args, before main); `:- initialization(name).` now emits `SM_BB_ONCE_PROC name/arity` (was no-op). (2) Added `IR_PL_SEQ` opcode + executor: short-circuit on first goal failure, succeed if all succeed (replaces Icon-flavored IR_SEQ in `lower_pl.c`). (3) `IR_PL_CUT` now sets `g_pl_cut_flag`; `IR_PL_CHOICE` checks it and stops trying alternatives. smoke_prolog 4/5: recursion PASS (was FAIL). broker: 19/49 (was 18). Other smokes & honest gates unchanged. |
+| **PJ-7** | Backtracking pump for `clause` test: turn IR_PL_CHOICE into a restartable generator so `fact(X), fail` re-enters on retry. Likely requires IR_PL_CALL to drive callee CHOICE via IR_exec_pump when caller is in a fail-driven context. Also needed: cut-barrier semantics integrated with pump (cut prunes pump state). | broker `!` tests PASS; smoke_prolog clause test PASS |
 | **PJ-8** | Delete `pl_runtime.c` AST-walking paths for modes 2/3/4: `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`, `interp_exec_pl_builtin` become mode-1-only. Modes 2/3/4 use `g_dcg_table` exclusively. | smoke_prolog 5/5; honest_prolog gate green |
 
 ## Done when
@@ -80,24 +81,31 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 ## Watermark
 
 ```
-one4all: e23bd809 (PJ-5 cont)  corpus: 1fe096c
-smoke_prolog: 3/5 (write_atom+unify+arith PASS; clause+recursion blocked: IR_UNIFY literal match + TT_FNC comparison routing + backtracking pump)
+one4all: 0b0dc9d3 (PJ-5a)  corpus: 1fe096c
+smoke_prolog: 4/5 (write_atom+unify+arith+recursion PASS; clause blocked on backtracking pump)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
-broker: 18/49
+honest gates: prolog 128/0/0, icon 277/0/0 (no regression)
+icon --ir-run: 105/265 (no regression)
+broker: 19/49 (was 18)
 ```
 
-**Session 2026-05-16b (Claude Sonnet 4.6):** PJ-5/6 landed `141c4816`. IR_PL_ALT split done. Five union-collision bugs fixed (ival/sval alias in IR_t). N-ary comma. Arity emit fix.
+**Session 2026-05-16d (Claude Opus 4.7):** PJ-5a landed. Three bugs fixed at once: (1) `lower.c` was emitting `SM_BB_ONCE_PROC` for every TT_CHOICE-subject statement — i.e. invoking every defined predicate (with no args!) at program start, before `main`. This made multi-predicate tests (clause, recursion) corrupt themselves. Fix: TT_CHOICE-subject is now a no-op (predicate already registered in g_dcg_table by lower_proc_skeletons); `:- initialization(name).` properly emits the entry call. (2) Added `IR_PL_SEQ` opcode for Prolog conjunction semantics — short-circuit on failure, succeed iff all succeed. The shared `IR_SEQ` was Icon-flavored ("always fail at end"). (3) `IR_PL_CUT` now sets `g_pl_cut_flag`; `IR_PL_CHOICE` checks it and stops trying alternatives. Cut flag is saved/restored across CHOICE entries for proper nesting.
 
 Key facts for next session:
 - `libgc-dev` needed: `apt-get install -y libgc-dev`.
 - IR_t union: `ival`, `dval`, `sval` all alias. Always use `ival2` for integer fields on nodes that also carry `sval`.
 - tree_t.v union: `sval`, `ival`, `dval` alias. Last write wins. `lower_clause` writes sval then dval then ival — so only `ival` (= n_vars) survives. Arity must be passed explicitly or extracted from sval key.
-- TT_FNC(">" / "<" / ">=" / "<=" / "=:=" / "=\\=") are how Prolog comparison goals appear — NOT TT_GT/TT_LT. lower_pl_stmt_node generic FNC handler must intercept these before falling to IR_PL_CALL.
-- IR_PL_UNIFY executor needs to handle IR_LIT_I/IR_LIT_F on RHS (for head-arg matching like count(0)).
-- IR_PL_CHOICE (multi-clause): currently iterates all clauses eagerly. For backtracking (clause test), need pump mode — IR_PL_CALL should use IR_exec_pump or drive IR_PL_CHOICE as generator.
+- TT_FNC(">" / "<" / ">=" / "<=" / "=:=" / "=\\=") are how Prolog comparison goals appear — NOT TT_GT/TT_LT. lower_pl_stmt_node generic FNC handler intercepts these before falling to IR_PL_CALL. ✅ Already correct in lower_pl.c.
+- IR_PL_UNIFY executor handles IR_LIT_I/IR_LIT_F on either side. ✅ Already correct.
+- **Head-arg slot collision is benign**: clause `count(N) :- ...` produces head_arg unify `IR_PL_UNIFY(VAR(slot=0), VAR(slot=0))` because parser assigns N to slot 0 (same as head-arg position 0). This unifies var-with-itself — always succeeds, no real check. Doesn't matter because callee's slot 0 already holds the caller-bound term.
+- IR_PL_CHOICE (multi-clause): still iterates all clauses single-shot. For `clause` test (fail-driven backtracking), need pump mode — IR_PL_CALL should use IR_exec_pump or drive IR_PL_CHOICE as a generator that can be re-entered.
 
-**NEXT (PJ-5 continuation — smoke_prolog 5/5):**
-1. In `lower_pl_stmt_node`: add TT_FNC(">") / TT_FNC("<") / TT_FNC(">=") / TT_FNC("<=") / TT_FNC("=:=") / TT_FNC("=\\=") cases — emit IR_PL_BUILTIN with sval=op and two term children (same as TT_GT branch already added for non-FNC path).
-2. In `ir_exec.c` IR_PL_UNIFY: add handling for IR_LIT_I/IR_LIT_F on RHS when LHS is IR_PL_VAR (unify slot with integer/float literal).
-3. For `recursion` test: with fixes (1) and (2), count/1 IR should build and N>0 should work. Verify count(0):-! fires the cut correctly via IR_PL_CHOICE first-clause match.
-4. For `clause` test: requires backtracking pump over fact/1 clauses driven by fail. May need IR_PL_CALL to drive IR_PL_CHOICE as a generator on repeated calls from parent fail.
+**NEXT (PJ-7 — smoke_prolog 5/5):**
+The `clause` test (`fact(a). fact(b). fact(c). main :- fact(X), write(X), nl, fail ; true.`) requires backtracking pump:
+1. `fact(X)` must succeed once with X=a, leaving a "resume" frame.
+2. When `fail` triggers backtrack, control returns to fact and tries next clause → X=b.
+3. After exhausting fact clauses, fall through to `; true` disjunction's right branch.
+
+Sketch: make `IR_PL_CHOICE` stateful (`nd->state` = next clause index; `nd->counter` = saved trail mark). IR_PL_CALL drives the callee CHOICE via a "resumption" mechanism — perhaps IR_exec_pump with a callback that checks if the surrounding conjunction wants more. IR_PL_ALT (`;`) also needs to be a generator (or at minimum, retry left side on failure).
+
+Watch out: the `fail` builtin currently returns FAILDESCR/ω which IR_PL_SEQ correctly short-circuits — but there's no mechanism today to *re-enter* fact and try the next clause. This is real new infrastructure.
