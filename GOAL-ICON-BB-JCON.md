@@ -89,6 +89,30 @@ EVAL, etc.).  Those bridges hand pre-built IR_block_t*'s to bb_broker.  The
 IR_block_t* registry is BB-land state, indexed by the bridge opcode's operand
 (eval-id, proc-id, etc.).  Nothing at runtime dereferences a tree_t*.
 
+### Same pattern as SNOBOL4 — only the granularity differs
+
+SNOBOL4 pattern handling in sm_interp.c uses exactly this same SM↔BB bridge
+shape, just at a finer granularity:
+
+  • SNOBOL4: many small SM→BB bridge opcodes, one per pattern primitive.
+    SM_PAT_LIT, SM_PAT_ANY, SM_PAT_SPAN, SM_PAT_BREAK, SM_PAT_LEN, SM_PAT_POS,
+    SM_PAT_TAB, SM_PAT_ARB, SM_PAT_ARBNO, SM_PAT_CAT, SM_PAT_ALT, etc.
+    Each handler is a tiny bridge: it pops its operand (a string, an integer,
+    or pre-built BB sub-patterns) and pushes a BB-land pattern object built
+    via pat_lit / pat_any_cs / pat_cat / pat_alt / etc.  The full pattern is
+    composed by the SM stream itself in postorder.  Composition lives on the
+    SM stack.
+
+  • Icon: coarser bridge — one SM_BB_XXX opcode brokers an entire expression
+    (or proc body).  The handler looks up a pre-built IR_block_t* by id and
+    hands it to bb_broker.  Composition happens at lower time; the BB-land
+    registry stores the composed IR_block_t.
+
+Both designs respect the same invariants: SM is the entry; bridge opcodes are
+the only contact surface; BB-land structures (SNOBOL4 patterns, Icon
+IR_block_t's) are pre-built (or stack-composed) before bb_broker is invoked;
+nothing dereferences tree_t* at runtime.
+
 ### Two execution paths for Icon generators:
 
 **Path A — `--ir-run` / `--sm-run` (interpreter):**
