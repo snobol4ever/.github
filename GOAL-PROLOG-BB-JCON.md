@@ -79,6 +79,41 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — FOUR PORTS HARD-WIRED WITH DIRECT POINTERS — NO IMPLICIT ZERO-INIT          ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Every IR_t carries four port fields:                                                            ║
+║                                                                                                  ║
+║      IR_t * α;      // entry (first attempt at the goal)                                         ║
+║      IR_t * β;      // resume (retry next clause + trail unwind)                                 ║
+║      IR_t * γ;      // success continuation (goal succeeded)                                     ║
+║      IR_t * ω;      // failure continuation (goal failed)                                        ║
+║                                                                                                  ║
+║  These MUST be set to concrete values by `IR_node_alloc`, NOT left as zero-init NULL.            ║
+║  The current SCRIP convention (enforced by `IR_node_alloc` in scrip_ir.c):                       ║
+║                                                                                                  ║
+║      α = nd        // self-loop on entry — node re-enters itself                                ║
+║      β = nd        // self-loop on resume — node advances its own state                         ║
+║      γ = NULL      // success ⇒ return value to driver (terminator marker)                      ║
+║      ω = NULL      // failure ⇒ return FAIL to driver (terminator marker)                       ║
+║                                                                                                  ║
+║  γ = NULL and ω = NULL are EXPLICIT terminator pointers under the driver protocol:               ║
+║  IR_exec_once / IR_exec_resume terminate when IR_exec_node returns NULL, returning nd->value.    ║
+║  This is hard-wiring with direct pointer semantics — NULL is the terminator value, set           ║
+║  deliberately, never relied upon as zero-init coincidence.                                        ║
+║                                                                                                  ║
+║  For Prolog the β port specifically means: pop the trail back to the saved mark, advance to     ║
+║  the next matching clause, re-enter at that clause's start.  The same `α=nd, β=nd` self-loop    ║
+║  convention applies — the node's own executor reads `nd->state` (clause index) and               ║
+║  `nd->counter` (trail position) to know whether this is α or β.                                 ║
+║                                                                                                  ║
+║  Future flat-chunk redesign (GOAL-LOWER-REDESIGN) may rewire γ/ω to point at successor nodes    ║
+║  (jcon's pure label-threaded model).  Until that arc lands, the self-loop α/β + NULL-terminator  ║
+║  γ/ω convention IS the four-port wiring contract — and `IR_node_alloc` enforces it.              ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-PROLOG-BB-COMPLETE (PB-8 ✅ honest 111/294 FAIL=0 ABORT=0 at one4all `c9b7428d`)
 **Sister Goal:** GOAL-ICON-BB-JCON (use it as the template — same architecture, swap port semantics)
@@ -500,7 +535,7 @@ count PASS / FAIL / ABORT.
 
 ## Watermark
 
-  one4all: c2c20d1a  corpus: 1fe096c
+  one4all: 927e0296  corpus: 1fe096c
   smoke_prolog: 0/5  (all five stub on SM_BB_ONCE_PROC NO-AST)
   Other smokes unchanged: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5.
   honest icon-suite: 277 PASS / 0 FAIL / 0 ABORT.
