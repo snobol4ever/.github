@@ -110,9 +110,9 @@ expressible as shift + reduce with no helpers that inspect previously-built chil
 - `lower_icn.c`: handle `TT_MATCH_UNARY`; read field name from `e->c[1]->v.sval` in `TT_FIELD` case
 - `.ref` files: regenerate for `field_access`, `subscript_field`, `match_expr`, and any other affected fixtures
 
-- [ ] **PST-ICN-4a** — Infrastructure: add `TT_MATCH_UNARY` to `ast.h`; update `icon_parse.c` unary `=` and `TT_FIELD` construction; update `lower_icn.c` for both new kinds; regenerate `.ref` files for affected fixtures. Gates: `smoke_icon`, `crosscheck_snobol4`.
+- [x] **PST-ICN-4a** — Infrastructure: add `TT_MATCH_UNARY` to `ast.h`; update `icon_parse.c` unary `=` and `TT_FIELD` construction; update `lower_icn.c` for both new kinds; regenerate `.ref` files for affected fixtures. Gates: `smoke_icon`, `crosscheck_snobol4`.
 
-- [ ] **PST-ICN-4b** — SCRIP mirror: eliminate all 13 helpers from `parser_icon.sc`; replace with inline `shift`/`reduce` actions. Both C and SCRIP committed together. Gates: `smoke_icon`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
+- [x] **PST-ICN-4b** — SCRIP mirror: eliminate all 13 helpers from `parser_icon.sc`; replace with inline `shift`/`reduce` actions. Both C and SCRIP committed together. Gates: `smoke_icon`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
 ## Step 5 — SCRIP mirror helper elimination (Raku)
 
@@ -153,8 +153,9 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
 ```
 watermark: 2026-05-16 (session 30/60)
-next: PST-ICN-4a — TT_MATCH_UNARY + TT_FIELD child fix (C + SCRIP mirror)
-REOPENED 2026-05-16 session 30/60: SCRIP mirror files never brought to shift/reduce-only.
+next: PST-RAKU-5a — audit parser_raku.sc flatten_*/finish_* violations
+PST-ICN-4a ✅ one4all@c52b724c: TT_MATCH_UNARY, TT_FIELD child layout, ICN_FIELD_NAME macro.
+PST-ICN-4b ✅ corpus@0ecae06: parser_icon.sc 525→381 lines, 9 structural helpers → reduce, 5 PST-allowed leaf-push functions retained.
   C-side fixes from PST-ICN-2b did not propagate to SCRIP mirrors. parser_icon.sc has 13
   helper functions that Pop/inspect/reassemble trees; parser_raku.sc has ~80. flatten_* in
   parser_raku.sc violate left-to-right child order invariant. PST-RAKU-3b was marked done
