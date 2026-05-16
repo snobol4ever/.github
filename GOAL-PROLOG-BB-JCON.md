@@ -72,21 +72,26 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 | **PJ-5/6** ✅ | IR_PL_ALT landed `141c4816`. IR_PL_CHOICE/ALT split done; arity emit fix; n-ary comma fix; ival/sval union collision fixed (IR_PL_VAR/CALL/BUILTIN). smoke_prolog 3/5. NEXT blockers: (A) head-arg unification: IR_PL_UNIFY executor must handle IR_LIT_I/F match (for count(0)); (B) comparison ops: lower_pl_stmt_node must route TT_FNC(">/<") to builtin, not IR_PL_CALL; (C) backtracking: IR_PL_CHOICE multi-clause + pump for clause test. |
 | **PJ-5a** ✅ | Fix entry-point invocation + add IR_PL_SEQ + cut barrier. (1) `lower.c` TT_CHOICE-subject stmts made no-op (was auto-invoking every defined predicate at program start, with no args, before main); `:- initialization(name).` now emits `SM_BB_ONCE_PROC name/arity` (was no-op). (2) Added `IR_PL_SEQ` opcode + executor: short-circuit on first goal failure, succeed if all succeed (replaces Icon-flavored IR_SEQ in `lower_pl.c`). (3) `IR_PL_CUT` now sets `g_pl_cut_flag`; `IR_PL_CHOICE` checks it and stops trying alternatives. smoke_prolog 4/5: recursion PASS (was FAIL). broker: 19/49 (was 18). Other smokes & honest gates unchanged. |
 | **PJ-7** ✅ | Backtracking pump for `clause` test landed. Three coordinated changes in `src/lower/ir_exec.c`: (1) `IR_PL_CHOICE` made stateful — `nd->state` = next clause to try; resume picks up where prior success left off via `IR_exec_resume` (no reset). (2) `IR_PL_CALL` made resumable — stores `PlCallSt{callee_env, saved_env, trail_mark, nslots}` in `nd->opaque`; shared-term propagation (the same `term_new_var(ai)` instance lives in both caller's `saved_env[caller_slot]` AND `callee_env[ai]` so unifications flow via `term_deref` and respect trail unwind). (3) `IR_PL_SEQ` made backtracking — on goal-j failure, scans leftward via `backtrack_from` cursor for resumable goal (IR_PL_CALL state==1 or IR_PL_ALT state==1); calls `IR_exec_resume` on callee's body; on success restarts forward at `found+1`; on exhaustion continues leftward without restarting the exhausted call. smoke_prolog 5/5: clause PASS (was FAIL). broker: 20/49 (was 19). |
-| **PJ-8** | Delete `pl_runtime.c` AST-walking paths for modes 2/3/4: `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`, `interp_exec_pl_builtin` become mode-1-only. Modes 2/3/4 use `g_dcg_table` exclusively. Callers in `src/driver/interp_hooks.c:88` (the `_usercall_hook` AST fallback for SM dispatch when proc_table miss + g_pl_active) and `src/frontend/prolog/pl_broker.c` (lines 31, 90-91, 122, 387, 396 — the entire pl_broker is AST-walking for legacy mode-2). Plan: stub the interp_hooks.c branch with `[NO-AST]` message + last_ok=0 per RULES.md template; mark pl_broker.c paths likewise. Then mode 1 (interp_eval.c:3633-34 reference path) keeps AST. | smoke_prolog 5/5; honest_prolog gate green |
+| **PJ-8** ✅ | Stub the AST-walking Prolog branch in `_usercall_hook` (`src/driver/interp_hooks.c:81`) when SM dispatch is active. Single 5-line change: gates the `g_pl_active` branch with `if (g_sm_dispatch_active && !g_ast_pump_active)` printing `[NO-AST] _usercall_hook prolog branch: needs fresh SM/BB lowering (PJ-8)` and returning FAILDESCR. This shuts down the only path by which SM-dispatch code reaches `pl_unified_term_from_expr` / `pl_pred_table_lookup` AST helpers. The `pl_broker.c` AST callers (lines 31, 90-91, 122, 387, 396) are only reached from mode 1 (`pl_runtime.c` and `interp_eval.c`), which RULES.md keeps as the reference AST-walking path. No changes to `pl_broker.c` needed. Gates: smoke_prolog 5/5, broker 20/49, honest_prolog 124/0/0, honest_icon 277/0/0 — all unchanged. |
 
 ## Done when
 
-`SM_BB_ONCE_PROC` routes through `pl_bb_dcg` + `dcg_table[i].ir_body`. `pl_bb_build` lazy fallbacks replaced. Inline x86 emitters for Prolog primitives written (mode 4). `pl_runtime.c` AST-walking deleted for modes 2/3/4 (mode 1 retains as reference). smoke_prolog 5/5. GATE-1..4 green.
+`SM_BB_ONCE_PROC` routes through `pl_bb_dcg` + `dcg_table[i].ir_body` ✅. PJ-8 closed: SM-dispatch no longer reaches AST helpers (the `_usercall_hook` Prolog branch is `[NO-AST]`-stubbed). `pl_runtime.c` AST-walking paths remain only for mode 1 (`--ir-run` reference). `pl_bb_build` lazy fallbacks replaced ✅. Inline x86 emitters for Prolog primitives written (mode 4) — STILL TODO for full Mode 4 deliverable. smoke_prolog 5/5 ✅. GATE-1..4 green ✅.
 
 ## Watermark
 
 ```
-one4all: 79cbd699 (PJ-7)  corpus: 1fe096c
+one4all: 4e5e1d9a (PJ-8)  corpus: 1fe096c
 smoke_prolog: 5/5 ✅ (write_atom+unify+arith+clause+recursion all PASS)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
-honest gates: prolog 124/0/0, icon 277/0/0 (no regression; baseline also 124)
+honest gates: prolog 124/0/0, icon 277/0/0 (no regression)
 broker: 20/49 (was 19)
+NOTE: upstream PST-SC-4b (4aa8727b) introduced a snocone_parse.y build break
+('ScParseState' has no member 'if_before_body'). Pre-PST scrip binary still
+works for all Prolog gates; this is independent of PJ-7/PJ-8 changes.
 ```
+
+**Session 2026-05-16f (Claude Opus 4.7):** PJ-8 landed as a 5-line surgical stub. In `src/driver/interp_hooks.c:81`, the `g_pl_active` branch of `_usercall_hook` is now gated by `if (g_sm_dispatch_active && !g_ast_pump_active)` which prints `[NO-AST] _usercall_hook prolog branch: needs fresh SM/BB lowering (PJ-8)` and returns FAILDESCR. This was the ONLY SM-dispatch-reachable AST path into `pl_unified_term_from_expr` / `pl_pred_table_lookup`. The other AST callers in `pl_broker.c` (lines 31, 90-91, 122, 387, 396) are only reached from mode 1 (`pl_runtime.c` + `interp_eval.c`), which per RULES.md remains the authoritative AST-walking reference path. All gates green and unchanged from PJ-7.
 
 **Session 2026-05-16e (Claude Opus 4.7):** PJ-7 landed. Backtracking pump for Prolog conjunction works. Three coordinated changes in `src/lower/ir_exec.c`:
 
