@@ -123,9 +123,23 @@ previously-built subtrees and mutate them — a direct violation of the left-to-
 child order invariant. The `finish_*` functions do Pop/reassemble equivalent to what
 should be inline `reduce` actions.
 
-- [ ] **PST-RAKU-5a** — Audit `parser_raku.sc` fully: catalogue all `flatten_*` as
+- [x] **PST-RAKU-5a** — Audit `parser_raku.sc` fully: catalogue all `flatten_*` as
   child-inspection violations and all `finish_*` that inspect `->kind` of prior nodes.
   Record findings in State block.
+  FINDINGS (2026-05-16 session 30/60):
+    R1 HARD: flatten_add/sub/mul/div/cat — inspect t(lhs) to append-in-place; left-to-right violation.
+       Fix: replace with reduce('TT_ADD',2) etc. — always-wrap, right-leaning chain.
+    R2 HARD: finish_given (line 530) — inspects t(val) (TT_QLIT test) to choose cmpkind integer.
+       Semantic reasoning belongs in lower. Fix: emit val as-is; lower selects cmpkind.
+    R3 HARD: finish_class (lines 1114-1117) — inspects t(item) to split methods/fields;
+       mutates v(item) and v(c(item)[1]) (slot assignment). Fix: emit all items as children;
+       lower handles class-prefix renaming.
+    R4 HARD: finish_for_range (line 463) — reads c(body)[i] to copy children into new seq;
+       control-flow lowering inside parser. Fix: emit body as-is; lower desugars for-range.
+    R5 STYLE: ~80 finish_*/push_* functions: Pop N, build node, Push — equivalent to inline reduce.
+       Not child-kind violations, but named functions doing what reduce should express inline.
+       Large scope; tackle after R1-R4 hard violations fixed.
+  NOT violations (confirmed clean): lines 1917-1919 are post-parse driver output, not grammar actions.
 
 - [ ] **PST-RAKU-5b** — Eliminate `flatten_*` violations: replace with always-wrap
   `reduce` (produces right-leaning chain, correct per PST rules). Update C `raku.y`
@@ -153,7 +167,7 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
 ```
 watermark: 2026-05-16 (session 30/60)
-next: PST-RAKU-5a — audit parser_raku.sc flatten_*/finish_* violations
+next: PST-RAKU-5b — fix R1 (flatten_*→reduce) + R2/R3/R4 hard violations in parser_raku.sc
 PST-ICN-4a ✅ one4all@c52b724c: TT_MATCH_UNARY, TT_FIELD child layout, ICN_FIELD_NAME macro.
 PST-ICN-4b ✅ corpus@0ecae06: parser_icon.sc 525→381 lines, 9 structural helpers → reduce, 5 PST-allowed leaf-push functions retained.
   C-side fixes from PST-ICN-2b did not propagate to SCRIP mirrors. parser_icon.sc has 13
