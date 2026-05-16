@@ -138,7 +138,7 @@ Both must change: `Term*` → `tree_t`, slot assignment → pre-lower pass.
 
 ### Rungs
 
-- [ ] **PST-PL-6a** — Verify kind-mapping against corpus edge cases.
+- [x] **PST-PL-6a** — Verify kind-mapping against corpus edge cases.
   Read `prolog_parse.c` AND `corpus/SCRIP/parser_prolog.sc` in full.
   Check whether any Prolog construct needs a new `TT_*` not in `ast.h`.
   Record findings. **No code changes yet.**
@@ -210,9 +210,17 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-RB-5d complete 2026-05-16 (session 30/58)
-next: PST-PL-6a — verify Prolog kind-mapping against corpus edge cases; read prolog_parse.c AND corpus/SCRIP/parser_prolog.sc in full; check for any TT_* gaps. No code changes.
-mirror gaps: (none)
+watermark: PST-PL-6a complete 2026-05-16 (session 30/58)
+next: PST-PL-6b — add parallel tree_t-building code path alongside existing Term* code in prolog_parse.c.
+findings-6a:
+  - All required TT_* already in ast.h: TT_QLIT/ILIT/FLIT/VAR/NUL/FNC/MAKELIST/CAT/ALT/IF/CLAUSE/CUT/UNIFY. No new kinds needed.
+  - List shape: C parser builds '.'(H,T) chains via ATOM_DOT. tree_t: TT_MAKELIST with flat children [e1..en, tail]. Lowerer rebuilds cons chain.
+  - Conjunction: parser flattens via flatten_conj() into PlClause.body[]. tree_t: TT_PROGRAM with flat children (not nested TT_CAT).
+  - ;/-> if-then-else: parser produces ';'('->'(Cond,Then),Else). 6b must pattern-match this shape to emit TT_IF(cond,then,else).
+  - IfFrame directive stack: stays in parser (preprocessor concern, not AST). PST-PL-6g confirmed: no change needed.
+  - TERM_ATOM("!") maps to TT_CUT leaf. ATOM_CUT used in C parser.
+  - Directive (:-) head is NULL in PlClause; tree_t: TT_CLAUSE(TT_NUL, body).
+mirror gaps: (none — parser_prolog.sc already produces tree_t shapes)
 ```
 
 ## Authorship

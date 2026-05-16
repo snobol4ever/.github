@@ -60,7 +60,7 @@ Lon names a goal. You:
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
 | **⚡ PST: SNOBOL4 + Snocone** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SC-4a** — Snocone: TT_AUGOP to lower. SN4: 1a ✅ 1b ✅ 1d ✅ 1c ✅ PST-SN4-2 ✅ (2026-05-16): parser_snobol4.sc pure syntax tree, zero worker functions. |
 | **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **DONE** PST-RAKU-3b ✅ 2026-05-16. All violations fixed; gates green. |
-| **⚡ PST: Rebus + Prolog** | `GOAL-PST-REBUS-PROLOG.md` | one4all+corpus+.github | **PST-PL-6a** — verify Prolog kind-mapping; read prolog_parse.c + parser_prolog.sc. PST-RB-5a ✅ 5b ✅ 5c ✅ 5d ✅ 2026-05-16. |
+| **⚡ PST: Rebus + Prolog** | `GOAL-PST-REBUS-PROLOG.md` | one4all+corpus+.github | **PST-PL-6b** — parallel tree_t path in prolog_parse.c. PST-RB-5a-5d ✅ PST-PL-6a ✅ 2026-05-16. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
 | **SN4 JVM Emitter** | `GOAL-SN4-JVM-EMIT.md` | one4all+.github | **SJ4-JVM-4** 🔄 — method-split `e01e17eb` ✅. Beauty.sno halts at "Parse Error" (semantic). smoke 13/13. |
