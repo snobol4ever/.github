@@ -118,26 +118,29 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-CSET-LIT | TT_CSET literal lowered to IR_LIT_S (csets-as-strings, one char per member). TT_CSET_COMPL/UNION/DIFF/INTER deferred (need dedicated IR kinds for complement against 256-char &cset). ir-run 81→82 (+1). | `787644c7` |
 | IJ-SCAN | TT_SCAN → IR_ICN_SCAN (push/pop scan_subj/scan_pos); TT_KEYWORD and &-prefix TT_VAR → IR_ICN_KEYWORD (resolves &subject/&pos/&null/&fail). Builtins any/many/upto/match/move/find/tab were already in icn_try_call_builtin_by_name; only the upstream lowering edge was missing. ir-run 82→97 (+15). Recovers rung05_scan_*, rung06_cset_any/many/upto, rung08_strbuiltins_* in one shot. | `1841f7de` |
 | IJ-BINOP-GEN | TT_ADD/SUB/MUL/DIV/MOD/LT/LE/GT/GE/EQ/NE/CAT with generator operand → IR_BINOP_GEN (cross-product). Tracks per-child gen-kind so non-generator operands don't get re-pumped (avoids infinite loops on `5 > ((1 to 2) * (3 to 4))`). ir-run 97→105 (+8). Broker bonus: 18→19. | `05097be3` |
+| IJ-CALL-SNAPSHOT | Snapshot/restore (value, counter, state) of callee's `ir_body` across `IR_exec_once` in `IR_CALL` user-proc dispatch. Recursive proc calls share the IR graph; the inner `IR_reset` was wiping the caller's mid-evaluation per-node state. Visible victim: `IR_BINOP_GEN` reads `nd->c[0]->value` after both children eval'd — when c[1] is a recursive call, c[0]'s value was FAILDESCR. Fixed value of `write(fact(5))` → `120` (was blank). Does NOT flip rung02_proc_fact PASS because `every write(fact(5))` still pumps (single-shot proc returns NOT FAIL → IR_EVERY can't tell it's done; Category 3 / Fix #2). Gates flat at watermark. | `398776da` |
 
 ## NEXT step
 
-Failing-rung survey (sess 2026-05-16d) found three categories driving remaining FAILs. Categories 1 and 2 landed; one remains:
+Failing-rung survey (sess 2026-05-16d) found three categories driving remaining FAILs. Categories 1 and 2 landed; category 3 has been *decomposed* — Fix #1 landed:
 
 1. ~~**Pattern-scan ops**~~ — ✅ landed in IJ-SCAN (`1841f7de`).
 2. ~~**Generator cross-product in plain binops**~~ — ✅ landed in IJ-BINOP-GEN (`05097be3`).
-3. **`every write(fact(5))` over-iteration anomaly** — emits `120` five times instead of once. Suggests user-proc generator (IR_ICN_PROC_GEN / TT_SUSPEND) re-yields when it shouldn't, or `every` doesn't break on first proc return. Affects rung02_proc_* and rung03_suspend_*. **Highest-yield next target.**
+3. **`every write(fact(5))` over-iteration** — decomposed:
+   - **Fix #1 ✅** — `IJ-CALL-SNAPSHOT` (`398776da`). Recursive proc calls were wiping caller IR graph state via the inner `IR_reset`. Now snapshotted/restored. `write(fact(5))` correctly yields `120`. **Did not flip rung02_proc_fact PASS** (still loops, just with right value).
+   - **Fix #2 ⏳ — NEXT TARGET.** `every write(fact(5))` keeps pumping because IR_EVERY drives c[0] until `IS_FAIL_fn` and a single-shot `write(...)` always succeeds. Need a way to mark IR_CALL (or the surrounding IR_EVERY) as "single-shot from a non-generator proc" so `every` exits after one iteration. Naive `is_suspendable(c[0])` is too coarse (returns 1 for every TT_FNC). Real signal is whether the called proc's body contains a `TT_SUSPEND` — i.e. is the proc itself a generator (has `IR_SUSPEND` somewhere in its `ir_body`)? Plumb that bit through `proc_table` at lower time; consult it at IR_EVERY's IR_CALL c[0] resolution. Affects rung02_proc_* and rung03_suspend_*. Estimated +5-10 ir-run when landed.
 
 Latent bug exposed by IJ-SCAN (still not on the path of any active target):
 - `every (s := "" | "a") do write(s)` infinite-loops in IR mode. Reproduces at watermark too. Worth filing as a separate ticket; do not block on it.
 
-Older simpler targets still applicable if pattern-scan blocks:
+Older simpler targets still applicable if Fix #2 blocks:
 - **TT_CSET_COMPL** (`~cset`) — unary, simple, parallel to TT_NEG.
 - **TT_CSET_DIFF** (`cset1 -- cset2`) — already an AST kind; binop on csets.
 
 ## Watermark
 
 ```
-one4all: 05097be3 (IJ-BINOP-GEN landed)  corpus: 1fe096c
+one4all: 398776da (IJ-CALL-SNAPSHOT landed)  corpus: 1fe096c
 ir-run:  105/265   honest: 277 PASS / 0 FAIL / 0 ABORT
 smoke_icon: 5/5    broker: 19/49
 cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 3/5
