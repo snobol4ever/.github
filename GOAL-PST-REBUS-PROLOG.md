@@ -222,17 +222,16 @@ findings-6a:
   - Directive (:-) head is NULL in PlClause; tree_t: TT_CLAUSE(TT_NUL, raw_body).
 findings-6b:
   - Lexer struct is plain-copyable (src ptr + ints, no heap). Save p->lx before Term* parse; restore into p2 for parallel pt_* replay.
-  - Parallel functions: pt_primary, pt_term, pt_list, pt_args, pt_binop, pt_make_clause. All pure reduce actions.
+  - Parallel functions: pt_primary, pt_term, pt_list, pt_args, pt_binop, pt_flatten_conj, pt_maybe_ifthenelse, pt_make_clause.
   - TreeScope tracks name→interned-ptr; no slot numbers (moved to 6e).
   - Atoms → TT_QLIT; vars → TT_VAR(v.sval=name); cuts → TT_CUT leaf.
   - TT_FNC for all compound terms (functors, operators, builtins) with v.sval=functor name.
-  - ';'('->'(C,T),E) emitted raw — prolog_lower.c converts to TT_IF (lower's job, not parser's).
-  - Conjunction emitted raw as nested TT_FNC(",") chains — lower flattens (lower's job, not parser's).
-  - TT_CLAUSE(head|TT_NUL, raw_body) — no TT_PROGRAM wrapper injected by parser.
-  - Every action body: ast_node_new(TT_*) + ast_push from RHS values only. No tree reads. Pure shift/reduce.
+  - pt_flatten_conj: n-ary conjunction flattening → TT_PROGRAM. Parser-level reduce action. Stays in parser.
+  - pt_maybe_ifthenelse: ;(->(C,T),E) → TT_IF(c,t,e). Grammar-level reduce on syntactic idiom. Stays in parser.
+  - pt_make_clause: TT_CLAUSE(head|TT_NUL, TT_PROGRAM[flat body]). Body flattened via pt_flatten_conj.
   - DCG: parallel path builds raw pre-expansion tree_t; DCG expansion deferred to lower.
   - PlClause.tr populated for all non-if-directive clauses. Directives: tr=NULL.
-  - Gates: smoke_prolog PASS=5 FAIL=0 (clause now passing!), crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
+  - Gates: smoke_prolog PASS=5 FAIL=0, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
 mirror gaps: (none — parser_prolog.sc already produces tree_t shapes)
 ```
 
