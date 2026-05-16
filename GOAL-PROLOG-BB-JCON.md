@@ -71,8 +71,8 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 | **PJ-4** ✅ | `lower_pl_expr_node` handles TT_FNC(write/nl), TT_UNIFY, TT_FNC("is"), TT_VAR, TT_ILIT/QLIT/NAME. Wire into `lower_pl_predicate` building `IR_SEQ`. IR_PL_BUILTIN/VAR/ATOM/ARITH/UNIFY executors in ir_exec.c. pl_bb_env_push/pop. Landed `cb1417a5`. | smoke_prolog 3/5 (write+unify+arith PASS) |
 | **PJ-5/6** ✅ | IR_PL_ALT landed `141c4816`. IR_PL_CHOICE/ALT split done; arity emit fix; n-ary comma fix; ival/sval union collision fixed (IR_PL_VAR/CALL/BUILTIN). smoke_prolog 3/5. NEXT blockers: (A) head-arg unification: IR_PL_UNIFY executor must handle IR_LIT_I/F match (for count(0)); (B) comparison ops: lower_pl_stmt_node must route TT_FNC(">/<") to builtin, not IR_PL_CALL; (C) backtracking: IR_PL_CHOICE multi-clause + pump for clause test. |
 | **PJ-5a** ✅ | Fix entry-point invocation + add IR_PL_SEQ + cut barrier. (1) `lower.c` TT_CHOICE-subject stmts made no-op (was auto-invoking every defined predicate at program start, with no args, before main); `:- initialization(name).` now emits `SM_BB_ONCE_PROC name/arity` (was no-op). (2) Added `IR_PL_SEQ` opcode + executor: short-circuit on first goal failure, succeed if all succeed (replaces Icon-flavored IR_SEQ in `lower_pl.c`). (3) `IR_PL_CUT` now sets `g_pl_cut_flag`; `IR_PL_CHOICE` checks it and stops trying alternatives. smoke_prolog 4/5: recursion PASS (was FAIL). broker: 19/49 (was 18). Other smokes & honest gates unchanged. |
-| **PJ-7** | Backtracking pump for `clause` test: turn IR_PL_CHOICE into a restartable generator so `fact(X), fail` re-enters on retry. Likely requires IR_PL_CALL to drive callee CHOICE via IR_exec_pump when caller is in a fail-driven context. Also needed: cut-barrier semantics integrated with pump (cut prunes pump state). | broker `!` tests PASS; smoke_prolog clause test PASS |
-| **PJ-8** | Delete `pl_runtime.c` AST-walking paths for modes 2/3/4: `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`, `interp_exec_pl_builtin` become mode-1-only. Modes 2/3/4 use `g_dcg_table` exclusively. | smoke_prolog 5/5; honest_prolog gate green |
+| **PJ-7** ✅ | Backtracking pump for `clause` test landed. Three coordinated changes in `src/lower/ir_exec.c`: (1) `IR_PL_CHOICE` made stateful — `nd->state` = next clause to try; resume picks up where prior success left off via `IR_exec_resume` (no reset). (2) `IR_PL_CALL` made resumable — stores `PlCallSt{callee_env, saved_env, trail_mark, nslots}` in `nd->opaque`; shared-term propagation (the same `term_new_var(ai)` instance lives in both caller's `saved_env[caller_slot]` AND `callee_env[ai]` so unifications flow via `term_deref` and respect trail unwind). (3) `IR_PL_SEQ` made backtracking — on goal-j failure, scans leftward via `backtrack_from` cursor for resumable goal (IR_PL_CALL state==1 or IR_PL_ALT state==1); calls `IR_exec_resume` on callee's body; on success restarts forward at `found+1`; on exhaustion continues leftward without restarting the exhausted call. smoke_prolog 5/5: clause PASS (was FAIL). broker: 20/49 (was 19). |
+| **PJ-8** | Delete `pl_runtime.c` AST-walking paths for modes 2/3/4: `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`, `interp_exec_pl_builtin` become mode-1-only. Modes 2/3/4 use `g_dcg_table` exclusively. Callers in `src/driver/interp_hooks.c:88` (the `_usercall_hook` AST fallback for SM dispatch when proc_table miss + g_pl_active) and `src/frontend/prolog/pl_broker.c` (lines 31, 90-91, 122, 387, 396 — the entire pl_broker is AST-walking for legacy mode-2). Plan: stub the interp_hooks.c branch with `[NO-AST]` message + last_ok=0 per RULES.md template; mark pl_broker.c paths likewise. Then mode 1 (interp_eval.c:3633-34 reference path) keeps AST. | smoke_prolog 5/5; honest_prolog gate green |
 
 ## Done when
 
@@ -81,31 +81,36 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 ## Watermark
 
 ```
-one4all: 0b0dc9d3 (PJ-5a)  corpus: 1fe096c
-smoke_prolog: 4/5 (write_atom+unify+arith+recursion PASS; clause blocked on backtracking pump)
+one4all: 86880dfc (PJ-7)  corpus: 1fe096c
+smoke_prolog: 5/5 ✅ (write_atom+unify+arith+clause+recursion all PASS)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
-honest gates: prolog 128/0/0, icon 277/0/0 (no regression)
-icon --ir-run: 105/265 (no regression)
-broker: 19/49 (was 18)
+honest gates: prolog 124/0/0, icon 277/0/0 (no regression; baseline also 124)
+broker: 20/49 (was 19)
 ```
 
-**Session 2026-05-16d (Claude Opus 4.7):** PJ-5a landed. Three bugs fixed at once: (1) `lower.c` was emitting `SM_BB_ONCE_PROC` for every TT_CHOICE-subject statement — i.e. invoking every defined predicate (with no args!) at program start, before `main`. This made multi-predicate tests (clause, recursion) corrupt themselves. Fix: TT_CHOICE-subject is now a no-op (predicate already registered in g_dcg_table by lower_proc_skeletons); `:- initialization(name).` properly emits the entry call. (2) Added `IR_PL_SEQ` opcode for Prolog conjunction semantics — short-circuit on failure, succeed iff all succeed. The shared `IR_SEQ` was Icon-flavored ("always fail at end"). (3) `IR_PL_CUT` now sets `g_pl_cut_flag`; `IR_PL_CHOICE` checks it and stops trying alternatives. Cut flag is saved/restored across CHOICE entries for proper nesting.
+**Session 2026-05-16e (Claude Opus 4.7):** PJ-7 landed. Backtracking pump for Prolog conjunction works. Three coordinated changes in `src/lower/ir_exec.c`:
+
+(1) **`IR_PL_CHOICE` made stateful** — `nd->state` = next clause index to try (0=fresh). On re-entry via `IR_exec_resume`, the for-loop body `for (ci = nd->state; ci < nd->n; ci++)` skips clauses already tried. On success: `nd->state = ci+1`. On exhaustion: `nd->state = 0` and FAIL.
+
+(2) **`IR_PL_CALL` made resumable** — first call stores `PlCallSt{callee_env, saved_env, trail_mark, nslots}` in `nd->opaque` and sets `nd->state = 1`. The KEY insight: **shared-term propagation** — when caller arg is an unbound `IR_PL_VAR`, allocate one `term_new_var(ai)` and store the SAME pointer in both `callee_env[ai]` AND `saved_env[caller_slot]`. The callee's body unifies via `unify()` which trail-pushes binding. Caller reads `g_pl_env[slot]` and does `term_deref` to get current binding. Trail unwind correctly reveals next solution. Earlier attempt used `term_deref(callee_env[ai])` for propagation — that's WRONG because deref returns a fresh atom value that doesn't track future rebindings.
+
+(3) **`IR_PL_SEQ` made backtracking** — added `int backtrack_from` cursor. Forward: run goals 0..n-1; on success advance. On failure: set `backtrack_from = j` and enter backtrack loop. Backtrack scans left of `backtrack_from` for nearest goal with state==1 (resumable IR_PL_CALL or retryable IR_PL_ALT). For CALL: unwind trail to `cs->trail_mark`, swap `g_pl_env = cs->callee_env`, refresh trail mark, call `IR_exec_resume(rbb->ir_body)`. If yields: re-propagate shared terms, restart forward at `found+1`, `backtrack_from = -1`. If exhausted: free cs, opaque=NULL, state=0, `backtrack_from = found` (continue scanning further left). For ALT: set state=2 (signal to ALT case "skip left, run right"), execute c[1].
+
+(4) **`IR_PL_ALT` extended** — state==2 means "called from SEQ backtrack pump: skip left branch and run right directly." After taking right branch, state reset to 0.
 
 Key facts for next session:
 - `libgc-dev` needed: `apt-get install -y libgc-dev`.
 - IR_t union: `ival`, `dval`, `sval` all alias. Always use `ival2` for integer fields on nodes that also carry `sval`.
-- tree_t.v union: `sval`, `ival`, `dval` alias. Last write wins. `lower_clause` writes sval then dval then ival — so only `ival` (= n_vars) survives. Arity must be passed explicitly or extracted from sval key.
-- TT_FNC(">" / "<" / ">=" / "<=" / "=:=" / "=\\=") are how Prolog comparison goals appear — NOT TT_GT/TT_LT. lower_pl_stmt_node generic FNC handler intercepts these before falling to IR_PL_CALL. ✅ Already correct in lower_pl.c.
-- IR_PL_UNIFY executor handles IR_LIT_I/IR_LIT_F on either side. ✅ Already correct.
-- **Head-arg slot collision is benign**: clause `count(N) :- ...` produces head_arg unify `IR_PL_UNIFY(VAR(slot=0), VAR(slot=0))` because parser assigns N to slot 0 (same as head-arg position 0). This unifies var-with-itself — always succeeds, no real check. Doesn't matter because callee's slot 0 already holds the caller-bound term.
-- IR_PL_CHOICE (multi-clause): still iterates all clauses single-shot. For `clause` test (fail-driven backtracking), need pump mode — IR_PL_CALL should use IR_exec_pump or drive IR_PL_CHOICE as a generator that can be re-entered.
+- tree_t.v union: `sval`, `ival`, `dval` alias. Arity must be passed explicitly or extracted from sval key.
+- TT_FNC(">" / "<" / ">=" / "<=" / "=:=" / "=\\=") are how Prolog comparison goals appear. Already handled in lower_pl.c.
+- Atom arg-binding check is `av.v == DT_S && av.s && av.s[0]` (was `(DT_S || DT_SNUL) && av.s` — that wrongly created empty atom for NULVCL).
+- The `--ir-run` mode is the only place these IR_PL_* opcodes execute. Modes 2/3/4 (SM dispatch) currently route through `_usercall_hook` in `interp_hooks.c` which still calls AST-walking `pl_unified_term_from_expr` — PJ-8 cleans that up.
 
-**NEXT (PJ-7 — smoke_prolog 5/5):**
-The `clause` test (`fact(a). fact(b). fact(c). main :- fact(X), write(X), nl, fail ; true.`) requires backtracking pump:
-1. `fact(X)` must succeed once with X=a, leaving a "resume" frame.
-2. When `fail` triggers backtrack, control returns to fact and tries next clause → X=b.
-3. After exhausting fact clauses, fall through to `; true` disjunction's right branch.
+**NEXT (PJ-8 — delete AST walking from modes 2/3/4):**
+Three callers outside mode 1 (interp_eval.c) need stubbing per RULES.md `[NO-AST]` template:
+- `src/driver/interp_hooks.c:88` — `_usercall_hook` Prolog branch calls `pl_unified_term_from_expr`. Replace with `[NO-AST] _usercall_hook prolog` stub + `st->last_ok = 0`. This routes mode-2/3/4 SM dispatch through fresh `g_dcg_table` lookup instead.
+- `src/frontend/prolog/pl_broker.c` — entire file is AST-walking legacy mode-2. Lines 31 (interp_exec_pl_builtin), 90-91 (pl_unified_term_from_expr), 122 (head-arg unify), 387 (pl_pred_table_lookup_global), 396 (caller_args). Stub each call site.
 
-Sketch: make `IR_PL_CHOICE` stateful (`nd->state` = next clause index; `nd->counter` = saved trail mark). IR_PL_CALL drives the callee CHOICE via a "resumption" mechanism — perhaps IR_exec_pump with a callback that checks if the surrounding conjunction wants more. IR_PL_ALT (`;`) also needs to be a generator (or at minimum, retry left side on failure).
+Mode 1 reference path stays: `src/driver/interp_eval.c:3633-34` keeps calling `pl_unified_term_from_expr` (this is `--ir-run` standalone AST interp per RULES.md).
 
-Watch out: the `fail` builtin currently returns FAILDESCR/ω which IR_PL_SEQ correctly short-circuits — but there's no mechanism today to *re-enter* fact and try the next clause. This is real new infrastructure.
+Gate: smoke_prolog 5/5 must stay; honest_prolog 124/0/0 stays; broker baseline at 20/49 — some broker tests may shift if pl_broker.c stub triggers different paths.
