@@ -215,20 +215,24 @@ next: PST-PL-6c — verifier: after parsing a clause both ways, assert structura
 findings-6a:
   - All required TT_* already in ast.h: TT_QLIT/ILIT/FLIT/VAR/NUL/FNC/MAKELIST/CAT/ALT/IF/CLAUSE/CUT/UNIFY. No new kinds needed.
   - List shape: C parser builds '.'(H,T) chains via ATOM_DOT. tree_t: TT_MAKELIST with flat children [e1..en, tail]. Lowerer rebuilds cons chain.
-  - Conjunction: parser flattens via flatten_conj() into PlClause.body[]. tree_t: TT_PROGRAM with flat children (not nested TT_CAT).
-  - ;/-> if-then-else: parser produces ';'('->'(Cond,Then),Else). 6b pattern-matches in pt_maybe_ifthenelse() → TT_IF(cond,then,else).
+  - Conjunction: parser flattens via flatten_conj() into PlClause.body[]. tree_t: raw nested TT_FNC(",") chains — lower flattens.
+  - ;/-> if-then-else: emitted raw as TT_FNC(";", TT_FNC("->",C,T), E) — prolog_lower.c detects and emits TT_IF.
   - IfFrame directive stack: stays in parser (preprocessor concern, not AST). PST-PL-6g confirmed: no change needed.
   - TERM_ATOM("!") maps to TT_CUT leaf. ATOM_CUT used in C parser.
-  - Directive (:-) head is NULL in PlClause; tree_t: TT_CLAUSE(TT_NUL, body).
+  - Directive (:-) head is NULL in PlClause; tree_t: TT_CLAUSE(TT_NUL, raw_body).
 findings-6b:
   - Lexer struct is plain-copyable (src ptr + ints, no heap). Save p->lx before Term* parse; restore into p2 for parallel pt_* replay.
-  - Parallel functions: pt_primary, pt_term, pt_list, pt_args, pt_binop, pt_maybe_ifthenelse, pt_flatten_conj, pt_make_clause.
+  - Parallel functions: pt_primary, pt_term, pt_list, pt_args, pt_binop, pt_make_clause. All pure reduce actions.
   - TreeScope tracks name→interned-ptr; no slot numbers (moved to 6e).
-  - Atoms → TT_QLIT (Prolog atoms are quoted literals); vars → TT_VAR(v.sval=name); cuts → TT_CUT leaf.
-  - TT_FNC used for all compound terms (functors, operators, builtins) with v.sval=functor name.
-  - DCG clauses: parallel path builds raw pre-expansion tree_t (head + body); DCG expansion deferred to lower in tree path.
-  - PlClause.tr populated for all non-if-directive clauses. Directives set tr=NULL.
-  - All gates held at baseline: smoke_prolog PASS=4 FAIL=1(clause, pre-existing), crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
+  - Atoms → TT_QLIT; vars → TT_VAR(v.sval=name); cuts → TT_CUT leaf.
+  - TT_FNC for all compound terms (functors, operators, builtins) with v.sval=functor name.
+  - ';'('->'(C,T),E) emitted raw — prolog_lower.c converts to TT_IF (lower's job, not parser's).
+  - Conjunction emitted raw as nested TT_FNC(",") chains — lower flattens (lower's job, not parser's).
+  - TT_CLAUSE(head|TT_NUL, raw_body) — no TT_PROGRAM wrapper injected by parser.
+  - Every action body: ast_node_new(TT_*) + ast_push from RHS values only. No tree reads. Pure shift/reduce.
+  - DCG: parallel path builds raw pre-expansion tree_t; DCG expansion deferred to lower.
+  - PlClause.tr populated for all non-if-directive clauses. Directives: tr=NULL.
+  - Gates: smoke_prolog PASS=5 FAIL=0 (clause now passing!), crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
 mirror gaps: (none — parser_prolog.sc already produces tree_t shapes)
 ```
 
