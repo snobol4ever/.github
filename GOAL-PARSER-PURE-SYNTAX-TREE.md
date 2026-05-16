@@ -1,7 +1,8 @@
 # GOAL-PARSER-PURE-SYNTAX-TREE.md — Six Frontends, One Pure tree_t
 
 **Repo:** one4all + .github
-**Status:** Stage 1 active (PST-SN4-1a next)
+**Status:** Stage 1 active — SNOBOL4 Step 1 nearly done; Snocone Step 4 next
+**Concurrent goals:** `GOAL-PST-ICN-RAKU.md` (Icon+Raku) · `GOAL-PST-REBUS-PROLOG.md` (Rebus+Prolog)
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► IR_sm_t[]  ──┐
@@ -126,15 +127,10 @@ The pre-existing entries `PST-SC-4l` (`sc_split_subject_pattern` → lower) and 
 
 Gates: scrip_all_modes, smoke_snobol4, broad corpus.
 
-### Step 2 — Icon audit
+### Step 2 — Icon audit + Step 3 — Raku audit
 
-- [ ] **PST-ICN-2a** — Read `icon_parse.c` AND `corpus/SCRIP/parser_icon.sc` in full. List violations in both. Record findings.
-- [ ] **PST-ICN-2b** — Fix violations if any, in both files within the same commit. SCRIP mirror invariant applies.
-
-### Step 3 — Raku audit
-
-- [ ] **PST-RAKU-3a** — Read `raku.y` AND `corpus/SCRIP/parser_raku.sc` in full. List violations in both. Record findings.
-- [ ] **PST-RAKU-3b** — Fix violations if any, in both files within the same commit. SCRIP mirror invariant applies.
+Owned by **`GOAL-PST-ICN-RAKU.md`**. Work those steps there.
+On completion, update Step 2 and Step 3 checkboxes in the Frontend status table above.
 
 ### Step 4 — Snocone rewrite (bulk of the work)
 
@@ -157,49 +153,10 @@ Add lower-side equivalent first, then strip parser-side desugaring. Each rung: g
 
 Gates: snocone_smoke, snocone broad corpus, scrip_all_modes.
 
-### Step 5 — Rebus rewrite (RExpr* → tree_t)
+### Step 5 — Rebus rewrite + Step 6 — Prolog rewrite
 
-**SCRIP mirror:** every rung touches `src/frontend/rebus/*` AND `corpus/SCRIP/parser_rebus.sc` in the same commit.
-
-- [ ] **PST-RB-5a** — Map `REKind` → `TT_*` equivalents. Add new `TT_*` to `ast.h` only if needed.
-- [ ] **PST-RB-5b** — Action bodies build `tree_t` directly.
-- [ ] **PST-RB-5c** — `RExpr`/`RStmt`/`RProgram` and helpers (`rexpr_new`, `SAL`, `EAL`, `STAL`) deleted.
-- [ ] **PST-RB-5d** — Downstream consumers (`rebus_lower.c`, `rebus_emit.c`, `rebus_print.c`) updated.
-
-Gates: rebus smoke, rebus corpus, scrip_all_modes.
-
-### Step 6 — Prolog rewrite (Term* → tree_t)
-
-**SCRIP mirror:** every rung touches `src/frontend/prolog/prolog_parse.c` AND `corpus/SCRIP/parser_prolog.sc` in the same commit. Slot deferral mirror lives in `corpus/SCRIP/lower.sc`.
-
-Term → tree_t mapping:
-
-| Term construct | tree_t kind | Notes |
-|---|---|---|
-| atom | `TT_QLIT` | `v.sval = name` |
-| integer/float literal | `TT_ILIT`/`TT_FLIT` | |
-| variable | `TT_VAR` | `v.sval = name`, **no slot** |
-| anonymous `_` | `TT_VAR` | `v.sval = "_"` — lower allocates fresh slot |
-| compound `f(...)` | `TT_FNC` | `v.sval = functor`, `c[] = args` |
-| list `[a,b\|t]` | `TT_MAKELIST` | elements + optional tail |
-| `,` conjunction | `TT_CAT` | |
-| `;` disjunction | `TT_ALT` | |
-| `->` if-then | `TT_IF` | `c[0]=cond, c[1]=then` |
-| `;` w/ `->` left | `TT_IF` | `c[0]=cond, c[1]=then, c[2]=else` |
-| `:-` clause | `TT_CLAUSE` | `c[0]=head, c[1]=body` |
-| `:-` directive | `TT_CLAUSE` | `c[0]=NULL/TT_NUL, c[1]=body` |
-| `!` cut | `TT_CUT` | leaf |
-
-Steps:
-- [ ] **PST-PL-6a** — Verify kind-mapping against corpus edge cases. Probably no new `TT_*` needed.
-- [ ] **PST-PL-6b** — Add parallel `tree_t`-building code path alongside existing `Term*` code. Both active.
-- [ ] **PST-PL-6c** — Verifier: parse clause both ways, assert structural equivalence. Run across Prolog corpus.
-- [ ] **PST-PL-6d** — Switch downstream consumers (`prolog_lower.c`, `prolog_unify.c`, `prolog_builtin.c`, `prolog_driver.c`) to `tree_t` one at a time.
-- [ ] **PST-PL-6e** — Move variable-slot allocation to pre-lower pass in `prolog_lower.c`: walk clause `tree_t`, collect `TT_VAR` names, assign sequential slots, attach to `IR_PL_VAR.ival` during lowering.
-- [ ] **PST-PL-6f** — Delete `Term*`-returning code paths. Delete slot-assignment from `scope_get`.
-- [ ] **PST-PL-6g** — Decide whether `IfFrame` directive-stack stays in parser (likely yes — preprocessor concern). Document.
-
-Gates: prolog smoke, prolog corpus, scrip_all_modes, Prolog BB gates.
+Owned by **`GOAL-PST-REBUS-PROLOG.md`**. Work those steps there.
+On completion, update Step 5 and Step 6 checkboxes in the Frontend status table above.
 
 ### Step 7 — Invariant tests
 
@@ -435,9 +392,10 @@ session 30/58 completed: PST-SN4-1a, PST-SN4-1b, PST-SN4-1d (C+SCRIP), PST-SN4-1
   files each need exactly 2 languages. GOAL-PST-ICN-RAKU.md and GOAL-PST-REBUS-PROLOG.md
   currently duplicate steps already in this file. Next session must fix the split
   so each concurrent file truly owns its two languages, then proceed with PST-ICN-2a.
-next: FIX goal file split (2 languages per file, no overlap), then PST-ICN-2a
+next: PST-SC-4a — TT_AUGOP: move augop expansion from snocone parser to lower
 mirror gaps: (none)
-ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4a next) → invariants
+         (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 shift/reduce endpoint: once both invariants (pure-tree + left-to-right) hold across all six C frontends,
   every corpus/SCRIP/parser_*.sc collapses to a dispatch table + Shift/Reduce in ShiftReduce.sc.
