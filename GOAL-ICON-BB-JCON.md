@@ -305,23 +305,58 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: fb3c4153  corpus: 1fe096c
+  one4all: 7fd70c00  corpus: 1fe096c
   ir-run:  BROKEN — see session notes below (was 207)
   honest:  BROKEN — see session notes below (was 275)
-  smoke_icon: 0/5   smoke_prolog: 0/5   broker: 14/49
+  smoke_icon: 1/5   smoke_prolog: 0/5   broker: 14/49
   Other smokes unchanged: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4.
-  Breakage is intentional (Lon directive: break gates to expose missing SM/BB lowering).
-  NEXT: write fresh SM/BB code for the eight stubbed sites — list below.
-        Stub fingerprints (stderr) name the exact opcode missing fresh lowering:
-          1. SM_BB_EVAL                    — Icon expression eval (highest yield)
-          2. PL_BUILTIN                    — Prolog builtins (write/1, nl/0, arith)
-          3. PL_UNIFY                      — Prolog unification
-          4. SM_BB_PUMP_EVERY              — Icon `every` generator-driver
-          5. SM_BB_PUMP / SM_BB_ONCE       — generic BB drivers (Icon scan, etc.)
-          6. SM_BB_ONCE_PROC               — Prolog clause invocation
-          7. sm_call_proc tree-walk        — already removed; lower_sc must arrive pre-built
-        After fresh lowering restores smoke_icon and smoke_prolog, resume BB DCG work
-        (TT_ITERATE list/table remains highest-yield next BB).
+  smoke_icon: write_str now PASS via new AST→IR→BB path (see 2026-05-15 wedge notes).
+  Breakage still intentional for the other four icon smokes + prolog (Lon directive:
+  break gates to expose missing SM/BB lowering).
+  NEXT: expand lower_icn_expr_node to cover TT_BINOP (arith/string_op/if_expr),
+        then TT_IF / control flow, then user-proc calls (IR_CALL routing back
+        through icn_bb_pump_proc_by_name for non-builtin names). Same pattern
+        scales to additional proc bodies as more node kinds land.
+        For Prolog, separate work: PL_BUILTIN + PL_UNIFY stubs need their own
+        AST→IR→BB analog.
+
+  Session notes (2026-05-15, one4all 7fd70c00, Claude Opus 4.7):
+    First AST→IR→BB wedge per Lon's directive (forward pipeline is AST→IR→BB
+    only; SM not in the loop).
+
+    Two earlier attempts in this session put IR behind an SM lookup
+    (ir_eval_table keyed by SM eval-id, then inline AST→SM lowering).  Both
+    reverted after Lon flagged the SM-layering violation.  Recorded lesson:
+    the SM_BB_EVAL stub message "needs fresh SM/BB lowering" is misleading.
+    The real fix is to remove SM_BB_EVAL from the path entirely — build
+    IR_block_t for proc bodies, drive via icn_bb_dcg / bb_broker.
+
+    The landing wedge:
+      • IcnProcEntry gains IR_block_t *ir_body.
+      • lower_proc_skeletons calls new lower_icn_proc_body(tree_t*) per proc.
+        Returns NULL on any unsupported AST kind (caller falls back silently
+        to legacy SM emission, which is also still emitted).
+      • lower_icn_proc_body builds an IR_SEQ over body statements ending at
+        FAILDESCR so bb_broker(BB_PUMP) exits after one tick — matches Icon
+        procedure-falls-off-end semantics (no trailing newline from
+        pump_print on NULVCL).
+      • lower_icn_expr_node currently covers TT_ILIT, TT_QLIT, TT_VAR,
+        TT_ASSIGN(TT_VAR := expr), TT_FNC(builtin).
+      • icn_bb_pump_proc_by_name: when ir_body != NULL, pushes a fresh
+        IcnFrame with proc's lower_sc, wraps IR_block in icn_dcg_state_t,
+        returns (bb_node_t){icn_bb_dcg, dz, 0}.  bb_broker drives.
+        icn_bb_dcg calls IR_exec_once(α) / IR_exec_resume(β).
+      • New IR executor cases (ir_exec.c): IR_VAR, IR_ASSIGN, IR_CALL, IR_SEQ.
+        IR_VAR/IR_ASSIGN resolve frame slots by NAME via scope_get(&FRAME.sc,
+        name) at exec time — no tree_t* deref at runtime.  IR_CALL uses
+        icn_try_call_builtin_by_name.
+      • SM_BB_EVAL stub untouched.  New path does not go through it.
+
+    Wedge program: 'procedure main(); i := 0; write(i); end' prints '0'.
+
+    Gates: smoke_icon 0/5 -> 1/5 (write_str PASS).  All other passing gates
+    unchanged: snobol4 7/7, snocone 5/5, rebus 4/4, raku 5/5.  Prolog 0/5
+    unchanged.
 
   Session notes (2026-05-15g, one4all fb3c4153, Claude Opus 4.7):
     Lon directive: delete ALL AST walking from modes 2, 3, 4.  Mode 4 is alive
