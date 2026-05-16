@@ -34,6 +34,40 @@ Result: `lower` is asymmetric — for SNOBOL4 it does real lowering; for Snocone
 
 Simplest rule: **if the action body reads or writes anything other than its own RHS values, it's doing something other than building the syntax tree.**
 
+### ⛔ Left-to-right child order (added 2026-05-16, session 30/58)
+
+**The children of every node must appear in the same left-to-right order in which their tokens are read from the source.** No reordering for "convenience," no swapping operand positions to match a runtime calling convention, no promoting a particular child to a distinguished slot because it's the "real" subject. The tree is a direct geometric record of the token stream's bracketed structure — nothing else.
+
+Equivalent ways to say the same thing:
+
+- A reduce `RHS_1 RHS_2 ... RHS_n → LHS` produces a node whose children are `[RHS_1, RHS_2, ..., RHS_n]` in exactly that order. (Empty/terminal RHS pieces that carry no AST value contribute nothing; everything else contributes in source order.)
+- For any rule with a chained / left-recursive flavor (e.g. `expr → expr OP expr`), the AST kind reflects the operator, the children are `[left, right]`, and **the left child is whatever the parser had already built** — not flattened by reaching into the previous reduction. If a flat n-ary form is wanted (e.g. `TT_SEQ` for concatenation), produce it by **always making a fresh node**, never by mutating-in-place an existing sibling node from the stack.
+- No reduction action may "look inside" a previously-built child and decide to attach to it instead of wrapping it. Example of what's now forbidden:
+  ```
+  goto_expr T_CONCAT goto_atom
+      { if($1->t==TT_SEQ){expr_add_child($1,$3);$$=$1;}     /* FORBIDDEN: mutates prior node */
+        else{tree_t*s=ast_node_new(TT_SEQ);expr_add_child(s,$1);expr_add_child(s,$3);$$=s;} }
+  ```
+  Must become:
+  ```
+  goto_expr T_CONCAT goto_atom
+      { tree_t*s=ast_node_new(TT_SEQ);expr_add_child(s,$1);expr_add_child(s,$3);$$=s; }
+  ```
+  Yes, this builds a right-leaning chain of `TT_SEQ(prev, atom)` instead of a flat `TT_SEQ(a,b,c,d)`. **That is correct.** Re-flattening, if ever wanted, is a downstream concern (lower or a tree pass) — not a parser-action concern.
+
+### Why this matters: the shift/reduce minimum
+
+The reason this rule is binding is the Snocone-self-host endpoint. Once the C frontends produce a tree whose every node is `(kind, children-in-source-order)` with no positional surprises and no in-place mutation, **every frontend in `corpus/SCRIP/parser_*.sc` can be reduced to two operations**: `Shift` (push the next token's leaf node onto a working stack) and `Reduce(kind, n)` (pop `n` items from the stack, wrap them as the children of a new node of kind `kind`, push the node back). Nothing else. No "if the top-of-stack is already a SEQ then append," no "promote child 1 to the subject slot," no special-cases on TT_* kinds inside the reducer. The grammar table picks `kind` and `n`; `Shift` and `Reduce` execute mechanically.
+
+This is the second half of the goal. The first half — making `tree_t` faithful to the grammar — is what every PST-* rung accomplishes. The second half — collapsing the parser-action surface to `{Shift, Reduce}` — only works if the first half holds the left-to-right invariant. A single in-place mutation in a single action breaks the equivalence.
+
+Concrete consequence for every PST-* rung still ahead:
+1. While reading a frontend's parse actions, flag any action that **inspects the kind or shape of an `$N` value** before deciding what to build. Those are the actions that have to be rewritten to "always wrap, never append-in-place."
+2. While reading a frontend's parse actions, flag any action whose output node's children are not in `$1, $2, $3, ...` order (skipping syntactic-only RHS pieces). Those are reorderings and must be unwound.
+3. After a rung is complete, the action body for every grammar rule should be expressible as **one** `Reduce(TT_KIND, N)` call (or zero, for purely-syntactic rules that pass a value through unchanged).
+
+The PST-SN4-1b lesson (this session) is the canonical example: the parser's TT_SCAN-unpack and TT_SEQ-split were both `inspect-kind-and-rearrange` actions. Removing them and letting downstream consumers (via `stmt_split_subj_pat` helper) do the work at consumption time leaves the parser action as the pure form. The `goto_expr T_CONCAT goto_atom` example above is the next visible offender in `snobol4.y`; it's queued as part of PST-SN4-1d (or a new PST-SN4-1e if 1d turns out to be doc-only).
+
 ---
 
 ## Frontend status
@@ -75,6 +109,8 @@ Rules for the mirror:
 6. **No silent mirror gap.** If a C-side change cannot yet be mirrored (e.g. the SCRIP language doesn't have a feature needed), file an explicit `⚠ MIRROR-GAP-NNN` entry in this goal file's State block before commit. Do not commit unilaterally.
 
 The pre-existing entries `PST-SC-4l` (`sc_split_subject_pattern` → lower) and PST-SN4-1b (SCAN-unpack / SEQ-split → lower) are the first concrete tests of this invariant: both have direct SCRIP mirrors in `parser_snobol4.sc:pp_stmt` (lines ~287–314) and `parser_snocone.sc`. Move the C-side logic and the SCRIP-side logic in the same commit.
+
+**Shift/reduce endpoint.** When this goal completes and the left-to-right-child-order rule (see Pure-syntax rules above) holds across all six C frontends, each `corpus/SCRIP/parser_*.sc` is expected to collapse to a small dispatch table plus the same two primitives — `Shift(token)` and `Reduce(TT_KIND, n)` — implemented once in `corpus/SCRIP/ShiftReduce.sc`. Every grammar production becomes a row in the table; no per-rule action code remains in the `.sc` files. That collapse is the proof-of-purity: if a frontend can't be expressed without per-rule action code, the C side has residual non-purity that has to be hunted down.
 
 ---
 
@@ -385,14 +421,18 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
-head: .github = db68f6e6 (pre-amendment) → pending bump after this commit
-       one4all = 544a6de0   corpus = unchanged
-next: PST-SN4-1b — strip TT_SCAN-unpacking / TT_SEQ-rearrangement from sno4_stmt_commit_go
-       AND mirror in corpus/SCRIP/parser_snobol4.sc:pp_stmt
-       AND move equivalent logic into both lower.c and corpus/SCRIP/lower.sc
+            Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
+head: .github = 85032755 (pre this amendment) → pending bump after this commit
+       one4all = 544a6de0 + uncommitted PST-SN4-1b work in progress
+       corpus = unchanged
+next: finish PST-SN4-1b — SCRIP mirror in corpus/SCRIP/parser_snobol4.sc:pp_stmt + corpus/SCRIP/lower.sc
+       then audit snobol4.y for left-to-right violations (the goto_expr T_CONCAT goto_atom rule
+       is a known offender; likely 3-5 more).
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 mirror gaps: (none)
+shift/reduce endpoint: once both invariants (pure-tree + left-to-right) hold across all six C frontends,
+  every corpus/SCRIP/parser_*.sc collapses to a dispatch table + Shift/Reduce in ShiftReduce.sc.
 ```
 
 ### Note for next session — bison regen behavior
@@ -403,4 +443,4 @@ mirror gaps: (none)
 
 ## Authorship
 
-Drafted by Claude Opus 4.7, 2026-05-16. Stage 2 split-IR design same session. Stage 2 bulk-rename plan (`SM_*`→`IR_SM_*`, `IR_*`→`IR_BB_*`) added 2026-05-16 (this session, with Lon). SCRIP self-host mirror invariant added 2026-05-16 (same session, with Lon) — requires every PST-* rung to update `corpus/SCRIP/parser_*.sc` and `corpus/SCRIP/lower.sc` alongside the C-side change in the same commit.
+Drafted by Claude Opus 4.7, 2026-05-16. Stage 2 split-IR design same session. Stage 2 bulk-rename plan (`SM_*`→`IR_SM_*`, `IR_*`→`IR_BB_*`) added 2026-05-16 (this session, with Lon). SCRIP self-host mirror invariant added 2026-05-16 (same session, with Lon) — requires every PST-* rung to update `corpus/SCRIP/parser_*.sc` and `corpus/SCRIP/lower.sc` alongside the C-side change in the same commit. Left-to-right child-order invariant added 2026-05-16 (same session, with Lon) — the children of every AST node must appear in the same order as their tokens in the source, enabling each `corpus/SCRIP/parser_*.sc` to collapse to a dispatch table plus the two-primitive `Shift` / `Reduce` core.
