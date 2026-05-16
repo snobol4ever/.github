@@ -70,6 +70,25 @@
 
 ## Architecture — what we are building
 
+### Three layers, with the SM↔BB bridge as the only contact point:
+
+```
+AST  -- (lower time) -->  SM_Program     [contains SM_BB_XXX bridge opcodes]
+                          IR_block_t *   [pre-built per bridge op, lives in BB land]
+
+Runtime: SM interp / SM JIT / SM emit-text runs SM_Program.
+         An SM_BB_XXX instruction brokers from SM into BB land by handing the
+         pre-built IR_block_t* to bb_broker (driving icn_bb_dcg, which calls
+         IR_exec_once / IR_exec_resume).  SM never sees tree_t*; BB never sees
+         tree_t*; modes 2/3/4 are AST-free.
+```
+
+The SM_Program is the entry point.  Execution starts in SM.  An Icon program
+compiles down to an SM_Program containing SM_BB_XXX bridge opcodes (PUMP_PROC,
+EVAL, etc.).  Those bridges hand pre-built IR_block_t*'s to bb_broker.  The
+IR_block_t* registry is BB-land state, indexed by the bridge opcode's operand
+(eval-id, proc-id, etc.).  Nothing at runtime dereferences a tree_t*.
+
 ### Two execution paths for Icon generators:
 
 **Path A — `--ir-run` / `--sm-run` (interpreter):**
@@ -313,12 +332,29 @@ Next DCGs to implement (highest ir-run yield first):
   smoke_icon: write_str now PASS via new AST→IR→BB path (see 2026-05-15 wedge notes).
   Breakage still intentional for the other four icon smokes + prolog (Lon directive:
   break gates to expose missing SM/BB lowering).
-  NEXT: expand lower_icn_expr_node to cover TT_BINOP (arith/string_op/if_expr),
-        then TT_IF / control flow, then user-proc calls (IR_CALL routing back
-        through icn_bb_pump_proc_by_name for non-builtin names). Same pattern
-        scales to additional proc bodies as more node kinds land.
-        For Prolog, separate work: PL_BUILTIN + PL_UNIFY stubs need their own
-        AST→IR→BB analog.
+  NEXT: keep SM_BB_EVAL (and the other SM_BB_XXX) IN the SM stream as the
+        SM↔BB bridge. Rewrite the handlers to broker via bb_broker driving
+        icn_bb_dcg over a pre-built IR_block_t* registered at lower time by
+        eval-id (in a BB-land registry — NOT every_table which holds tree_t*).
+        The current wedge only handles proc *entry* (SM_BB_PUMP_PROC routes
+        via icn_bb_pump_proc_by_name → icn_bb_dcg).  The general fix for
+        SM_BB_EVAL is to do the same shape: at lower time, build an
+        IR_block_t* for each expression and store it in a BB-land
+        ir_eval_registry[eval_id]; SM_BB_EVAL pops the id, calls
+        bb_broker(node{icn_bb_dcg, dz{cfg=ir_eval_registry[id]}, 0}, BB_ONCE,
+        body, NULL), pushes the result.
+        Then expand lower_icn_expr_node to TT_BINOP (closes arith/string_op/
+        if_expr), then TT_IF, then non-builtin TT_FNC.
+        For Prolog: same shape for PL_BUILTIN / PL_UNIFY stubs.
+
+  Architectural correction (recorded after Lon clarified, 2026-05-15):
+    The first wedge attempt this session had SM_BB_EVAL call IR_exec_once
+    directly — wrong because it bypassed bb_broker / icn_bb_dcg.  The fix
+    is NOT to remove SM_BB_EVAL from the path; it is to keep SM_BB_EVAL as
+    the SM→BB bridge but have it broker via icn_bb_dcg over a pre-built
+    IR_block_t* (looked up from a BB-land registry by eval-id).  SM stays
+    in the loop; SM is the entry point; SM_BB_XXX is the only contact
+    surface with BB land; nothing dereferences tree_t* at runtime.
 
   Session notes (2026-05-15, one4all 7fd70c00, Claude Opus 4.7):
     First AST→IR→BB wedge per Lon's directive (forward pipeline is AST→IR→BB
