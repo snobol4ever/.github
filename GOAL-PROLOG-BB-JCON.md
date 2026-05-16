@@ -69,7 +69,7 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 | **PJ-2** ✅ | Create `src/lower/lower_pl.c` + `.h`. `lower_pl_predicate(tree_t*)` returns NULL placeholder. Wire `lower()` to populate `dcg_table[i].ir_body = NULL`. Landed `d9fe1496`. | Build clean; gates unchanged |
 | **PJ-3** ✅ | Replace `[NO-AST]` stub in `sm_interp.c case SM_BB_ONCE_PROC` with body handler: lookup `dcg_table[name/arity]`, wrap via `pl_bb_once_proc_by_name`, drive via `bb_broker`. Landed `f5db4e5f`. | smoke_prolog still 0/5 (no IR yet) |
 | **PJ-4** ✅ | `lower_pl_expr_node` handles TT_FNC(write/nl), TT_UNIFY, TT_FNC("is"), TT_VAR, TT_ILIT/QLIT/NAME. Wire into `lower_pl_predicate` building `IR_SEQ`. IR_PL_BUILTIN/VAR/ATOM/ARITH/UNIFY executors in ir_exec.c. pl_bb_env_push/pop. Landed `cb1417a5`. | smoke_prolog 3/5 (write+unify+arith PASS) |
-| **PJ-5/6** 🔄 | `IR_PL_CHOICE` (multi-clause) + `IR_PL_CALL` (predicate call with arg binding). WIP `7be007c2`. fact/1 lowers and executes correctly. KNOWN BUG: IR_PL_CHOICE has two shapes that collide: (A) multi-clause uses c[i]->opaque=IR_block_t*; (B) inline ';' disjunction uses c[i] as raw IR_t* from lower_pl_seq — executor reads opaque=NULL → main/0 ir_body=NULL. FIX: split IR_PL_ALT (new kind, inline two-branch, drives c[0]/c[1] directly as IR_t*) from IR_PL_CHOICE (multi-clause only, each c[i]->opaque=IR_block_t*). Add IR_PL_ALT to IR.h + ir_exec.c; change lower_pl_stmt_node ';' case to emit IR_PL_ALT. | smoke_prolog clause+recursion PASS → 5/5 |
+| **PJ-5/6** ✅ | IR_PL_ALT landed `141c4816`. IR_PL_CHOICE/ALT split done; arity emit fix; n-ary comma fix; ival/sval union collision fixed (IR_PL_VAR/CALL/BUILTIN). smoke_prolog 3/5. NEXT blockers: (A) head-arg unification: IR_PL_UNIFY executor must handle IR_LIT_I/F match (for count(0)); (B) comparison ops: lower_pl_stmt_node must route TT_FNC(">/<") to builtin, not IR_PL_CALL; (C) backtracking: IR_PL_CHOICE multi-clause + pump for clause test. |
 | **PJ-7** | `IR_PL_CUT` executor. Discard choice points to enclosing barrier. Mark surrounding CHOICE so β skips past cut clauses. | broker `!` tests PASS |
 | **PJ-8** | Delete `pl_runtime.c` AST-walking paths for modes 2/3/4: `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`, `interp_exec_pl_builtin` become mode-1-only. Modes 2/3/4 use `g_dcg_table` exclusively. | smoke_prolog 5/5; honest_prolog gate green |
 
@@ -80,19 +80,24 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 ## Watermark
 
 ```
-one4all: 7be007c2 (PJ-5/6 WIP)  corpus: 1fe096c
-smoke_prolog: 3/5 (write_atom+unify+arith PASS; clause+recursion blocked by IR_PL_CHOICE/IR_PL_ALT split bug)
+one4all: 141c4816 (PJ-5/6 landed)  corpus: 1fe096c
+smoke_prolog: 3/5 (write_atom+unify+arith PASS; clause+recursion blocked: IR_UNIFY literal match + TT_FNC comparison routing + backtracking pump)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
 broker: 18/49
 ```
 
-**Session 2026-05-16 (Claude Sonnet 4.6):** PJ-2 `d9fe1496`, PJ-3 `f5db4e5f`, PJ-4 `cb1417a5` landed. PJ-5/6 WIP `7be007c2`.
+**Session 2026-05-16b (Claude Sonnet 4.6):** PJ-5/6 landed `141c4816`. IR_PL_ALT split done. Five union-collision bugs fixed (ival/sval alias in IR_t). N-ary comma. Arity emit fix.
 
 Key facts for next session:
-- `libgc-dev` needed: `apt-get install -y libgc-dev` (already in install_system_packages.sh).
-- arity-from-key fix in `pl_bb_once_proc_by_name`: `sm_emit_si` for SM_BB_ONCE_PROC always passes arity=0; fix parses arity from the slash in the key string.
-- IR kinds added: `IR_PL_BUILTIN`, `IR_PL_VAR`, `IR_PL_ATOM`, `IR_PL_ARITH` in `IR.h`; executors in `ir_exec.c`.
-- `pl_bb_env_push(n)` / `pl_bb_env_pop(saved)` in `pl_runtime.c/.h`; wired in `sm_interp.c SM_BB_ONCE_PROC`.
-- `lower_pl_clause_body`: inserts `IR_PL_UNIFY(IR_PL_VAR(i), head_term_i)` for each head arg.
+- `libgc-dev` needed: `apt-get install -y libgc-dev`.
+- IR_t union: `ival`, `dval`, `sval` all alias. Always use `ival2` for integer fields on nodes that also carry `sval`.
+- tree_t.v union: `sval`, `ival`, `dval` alias. Last write wins. `lower_clause` writes sval then dval then ival — so only `ival` (= n_vars) survives. Arity must be passed explicitly or extracted from sval key.
+- TT_FNC(">" / "<" / ">=" / "<=" / "=:=" / "=\\=") are how Prolog comparison goals appear — NOT TT_GT/TT_LT. lower_pl_stmt_node generic FNC handler must intercept these before falling to IR_PL_CALL.
+- IR_PL_UNIFY executor needs to handle IR_LIT_I/IR_LIT_F on RHS (for head-arg matching like count(0)).
+- IR_PL_CHOICE (multi-clause): currently iterates all clauses eagerly. For backtracking (clause test), need pump mode — IR_PL_CALL should use IR_exec_pump or drive IR_PL_CHOICE as generator.
 
-**NEXT (PJ-5/6 fix):** Add `IR_PL_ALT` to `IR.h` (new kind, inline two-branch disjunction). In `ir_exec.c`: `IR_PL_ALT` drives `c[0]` directly (as IR_t*, no opaque); on fail, drives `c[1]`. Keep `IR_PL_CHOICE` for multi-clause only (c[i]->opaque=IR_block_t*). In `lower_pl.c`: change ';' case in `lower_pl_stmt_node` to emit `IR_PL_ALT` (not `IR_PL_CHOICE`). After this fix main/0 with ';' will lower, smoke_prolog clause+recursion should PASS → 5/5.
+**NEXT (PJ-5 continuation — smoke_prolog 5/5):**
+1. In `lower_pl_stmt_node`: add TT_FNC(">") / TT_FNC("<") / TT_FNC(">=") / TT_FNC("<=") / TT_FNC("=:=") / TT_FNC("=\\=") cases — emit IR_PL_BUILTIN with sval=op and two term children (same as TT_GT branch already added for non-FNC path).
+2. In `ir_exec.c` IR_PL_UNIFY: add handling for IR_LIT_I/IR_LIT_F on RHS when LHS is IR_PL_VAR (unify slot with integer/float literal).
+3. For `recursion` test: with fixes (1) and (2), count/1 IR should build and N>0 should work. Verify count(0):-! fires the cut correctly via IR_PL_CHOICE first-clause match.
+4. For `clause` test: requires backtracking pump over fact/1 clauses driven by fail. May need IR_PL_CALL to drive IR_PL_CHOICE as a generator on repeated calls from parent fail.
