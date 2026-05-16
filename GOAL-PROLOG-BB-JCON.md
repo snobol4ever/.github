@@ -81,7 +81,7 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # cross-language honest 
 ## Watermark
 
 ```
-one4all: 86880dfc (PJ-7)  corpus: 1fe096c
+one4all: 79cbd699 (PJ-7)  corpus: 1fe096c
 smoke_prolog: 5/5 ✅ (write_atom+unify+arith+clause+recursion all PASS)
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
 honest gates: prolog 124/0/0, icon 277/0/0 (no regression; baseline also 124)
