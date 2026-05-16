@@ -271,6 +271,93 @@ the only contact surface; BB-land structures (SNOBOL4 patterns, Icon
 IR_block_t's) are pre-built (or stack-composed) before bb_broker is invoked;
 nothing dereferences tree_t* at runtime.
 
+### Many SM, many BBs, composable to one — all three granularities, simultaneously
+
+The SM↔BB bridge architecture supports three granularities of SM-to-BB
+brokering, and a single program may use **all three at once**.  This answers
+the question "is an Icon program one big BB, or one BB per procedure, or
+composable to one big BB?" — yes to all.
+
+| Granularity | SM stream | BB land |
+|---|---|---|
+| **Composer bridges** (SNOBOL4 patterns, the finest grain) | Many small ops: `SM_PAT_LIT/ANY/CAT/ALT/...`; postorder; SM stack carries BB-land subobjects; one final `SM_BB_PUMP` drives | Tree composed via `pat_cat`/`pat_alt` calls; the PATND_t tree IS the BB |
+| **One BB per procedure** (today's Icon target) | `SM_BB_PUMP_PROC "main"` + `SM_HALT`; other procs reached through IR_CALL inside main's body | `proc_table[i].ir_body` — one IR_block_t per proc; IR_CALL stitches procs into a DAG by reference |
+| **One BB per program** (Lon's "two-instruction" endpoint) | `SM_BB_EVAL* <id>` + `SM_HALT` | One IR_block_t covering the whole program — same DAG, just built at lower time or via startup composer bridges instead of resolved on each call |
+
+These are not exclusive. A polyglot program with a SNOBOL4 frontend
+calling an Icon procedure uses (1) for the SNOBOL4 patterns and (2) for the
+Icon procedures simultaneously.  The Icon proc DAG, traversed by following
+IR_CALL references, is "one big BB" from the program's POV — but realized
+lazily, one IR_block_t per proc, joined by reference.
+
+The SNOBOL4 pattern model already proves the composer-bridge path works: a
+postorder stream of small SM opcodes builds an arbitrarily complex BB-land
+object on the SM stack.  Icon can adopt the same shape — `SM_BB_LIT_I`,
+`SM_BB_VAR`, `SM_BB_BINOP`, `SM_BB_CALL`, `SM_BB_SEQ`, `SM_BB_PROC` composer
+bridges — and the resulting BB DAG is identical to today's compile-time-built
+one.  Either path lands at the same BB-land shape.
+
+### Side-by-side: jcon IR vs our scrip IR
+
+| Aspect | jcon (canonical reference) | scrip today |
+|---|---|---|
+| **IR shape** | Flat list of `ir_chunk(label, insnList)` per function | `IR_block_t { entry; all[]; }` — graph with α/β/γ/ω pointer fields per node |
+| **Instructions** | ~20 records: `ir_Move`, `ir_Goto`, `ir_OpFunction`, `ir_Call`, `ir_Succeed`, `ir_Fail`, `ir_ResumeValue`, `ir_Create`, `ir_CoRet`, ... — **no per-construct opcodes** | 50+ `IR_e` enum entries including 8 per-construct ICN opcodes (`IR_ICN_TO`, `IR_ICN_EVERY`, `IR_ICN_LIMIT`, `IR_ICN_ALTERNATE`, `IR_ICN_TO_BY`, `IR_ICN_ITERATE`, `IR_ICN_BINOP`, `IR_ICN_PROC_GEN`) |
+| **Four-port wiring** | Four named labels per AST node, stitched by `ir_Goto` chunks | Four pointer fields (α/β/γ/ω) per `IR_t`, encoding the graph topology |
+| **Loop construct** | Pure gotos: `body.success → expr.resume` (one chunk) — that IS the loop | A dedicated `IR_ICN_EVERY` opcode with a state-machine C executor reading `nd->state`/`nd->opaque->gen`/`sval2` body pointer |
+| **Generator state** | Normal IR register (`closure` tmp) advanced by `ir_OpFunction` on resume | Per-construct opaque struct (`icn_alt_dcg_t`, `icn_lim_dcg_t`, `icn_to_nested_state_t`, ...) allocated by `lower_icn_*` |
+| **Per-function unit** | `ir_Function(name, paramList, codeList, ...)` | `proc_table[i].ir_body : IR_block_t*` |
+| **Composability** | Functions reference each other via `ir_Call(fn, argList, failLabel)` | `IR_CALL` node with sval = callee name → `icn_bb_pump_proc_by_name` at exec time |
+| **Program entry** | Walk into `main`'s codeList | `SM_BB_PUMP_PROC "main"` + `SM_HALT` brokers into `proc_table[main].ir_body` via `icn_bb_dcg` |
+
+#### Where jcon is cleaner
+
+  1. **No per-construct opcodes.**  `ir_a_If`, `ir_a_Every`, `ir_a_Alt`,
+     `ir_a_ToBy` all emit only `ir_Goto`/`ir_Move`/`ir_OpFunction` chunks.
+     We have 8 dedicated `IR_ICN_*` opcodes with bespoke C executors.
+  2. **No opaque state structs.**  jcon's generator state is a normal IR
+     register.  We allocate `icn_alt_dcg_t`, `icn_lim_dcg_t`, etc., each
+     with their own layout, lifetimes, and reset semantics.
+  3. **Loops are pure goto edges.**  `ir_a_Every` is ~10 lines of chunk
+     emission, all `ir_Goto`.  Our `IR_ICN_EVERY` executor reads `nd->state`,
+     calls `gen->fn(gen->ζ, α/β)`, calls `bb_exec_stmt(sval2)`, manages
+     `icn_every_body_pre()`/`icn_every_body_broke()` — far more machinery.
+  4. **Resume = jump to label.**  Every "resume the generator" in jcon is
+     `ir_Goto(child.ir.resume)`.  In our model it's "follow the β pointer
+     via `IR_exec_resume`" — same idea, less direct.
+
+#### Where our model is already aligned with jcon
+
+  • SM-level bridge opcodes are correct — `SM_BB_PUMP_PROC` ↔ jcon's
+    "enter function main" are the same idea.
+  • One IR_block_t per proc, composable by `IR_CALL` reference ↔ jcon's
+    `ir_Function` + `ir_Call`.
+  • The SNOBOL4 `SM_PAT_*` composer-bridge family already implements
+    jcon-style postorder composition perfectly — at the SM level.
+  • The "Icon program = two SM instructions" endpoint matches jcon's
+    outer shape: program enters one function, which is one codeList.
+
+#### Three ideas worth stealing for `GOAL-LOWER-REDESIGN`
+
+  1. **Drop per-construct IR opcodes.**  Replace `IR_ICN_EVERY/LIMIT/
+     ALTERNATE/TO/...` with the universal triad `IR_MOVE + IR_GOTO +
+     IR_OPFN` plus four labels per AST node.  ~8 fewer opcodes, ~8 fewer
+     opaque structs, ~8 fewer executors.
+  2. **Generator state = IR register, not opaque struct.**  `1 to 3`
+     becomes `IR_OPFN("...", [from, to, by, closure_reg])` where
+     `closure_reg` is a normal IR temp.  The op-function advances
+     `closure_reg` on each resume.
+  3. **Failure/success threading by label.**  Every IR_t grows a
+     `failLabel`; FAIL = `ir_Goto(failLabel)`, SUCCESS = fall-through.
+     Eliminates the α/β/γ/ω pointer fields in favor of plain `IR_GOTO`.
+
+These are not this session's work — they are the `GOAL-LOWER-REDESIGN`
+arc.  This Goal closes out the per-construct ICN opcode family before
+that redesign by getting the *current* shape to cover smoke_icon and the
+broker gate.  Once coverage is high enough, the redesign can rewrite the
+IR layer wholesale — the SM↔BB bridge model and `proc_table[i].ir_body`
+layout stay the same; only the IR_block_t internals change.
+
 ### Two execution paths for Icon generators:
 
 **Path A — `--ir-run` / `--sm-run` (interpreter):**
@@ -461,6 +548,20 @@ TT_SEQ filter path also wired to lower_icn_every. Gates: smoke_icon 5/5, broker 
       binop_map[] + TT_CAT cross-product wired. one4all `f63c60f0`.
       ir-run 164→174 (+10), broker 22→23.
 
+### ✅ IJ-AST-IR-BB-if-every-to — close smoke_icon if_expr + every (sess 2026-05-15 Opus 4.7)
+
+- [x] Extended `lower_icn_expr_node` with **TT_IF**, **TT_EVERY**, **TT_TO** cases.
+      Added two new IR kinds: `IR_IF` (scalar conditional, c[0]=cond, c[1]=then,
+      c[2]=else optional) and `IR_EVERY` (statement consumer; distinct from
+      generator-flavored `IR_ICN_EVERY`).  IR_EVERY drives c[0] to exhaustion
+      in one outer IR_exec_node call by looping `IR_exec_node(c[0])` until FAIL;
+      child state (e.g. IR_ICN_TO.counter) persists naturally because IR_reset
+      is only invoked by IR_exec_once at the outer driver boundary.
+      TT_TO emits IR_ICN_TO directly when both bounds are TT_ILIT.
+      Gates: smoke_icon 3/5 → 5/5; broker 15/49 → 16/49; ir-run 15 → 20;
+      honest 277 → 277 (unchanged).  No cross-language regression.
+      Two-instruction shape confirmed via --dump-sm for both smoke programs.
+
 ### IJ-19-remaining — remaining constructs in order of complexity
 
 **RESOLVED:** `rung13_alt_alt_filter` now passes (fixed in prior session).
@@ -506,16 +607,65 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 66b4d52e  corpus: 1fe096c
-  ir-run:  BROKEN — see session notes below (was 207)
-  honest:  BROKEN — see session notes below (was 275)
-  smoke_icon: 3/5   smoke_prolog: 0/5   broker: 15/49
+  one4all: c2c20d1a  corpus: 1fe096c
+  ir-run:  20/265 (baseline 15 at d30949cb; +5 from TT_IF/TT_EVERY/TT_TO)
+  honest:  277 PASS / 0 FAIL / 0 ABORT
+  smoke_icon: 5/5   smoke_prolog: 0/5   broker: 16/49
   Other smokes unchanged: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4.
-  smoke_icon: write_str, arith, string_op PASS via AST→IR→BB path through
-  SM_BB_PUMP_PROC main → icn_bb_dcg → lower_icn_proc_body.  if_expr + every
-  still FAIL — need TT_IF, TT_EVERY, TT_TO support in lower_icn_expr_node.
+  smoke_icon ALL FIVE PASS via the two-SM-instruction shape:
+    `SM_BB_PUMP_PROC main` + `SM_HALT` → icn_bb_dcg → IR_block_t per proc.
   Breakage still intentional for prolog (Lon directive: break gates to expose
   missing SM/BB lowering).
+
+  Session 2026-05-15 (Claude Opus 4.7, one4all `c2c20d1a`):
+    smoke_icon 3/5 → 5/5: closed if_expr + every by extending lower_icn_expr_node
+    with TT_IF, TT_EVERY, TT_TO.  Added two new IR kinds:
+      • IR_IF — c[0]=cond, c[1]=then, c[2]=else (optional).  Standard
+        scalar conditional: cond non-FAIL → eval then; cond FAIL → eval
+        else if present, else propagate FAIL.
+      • IR_EVERY (statement consumer; distinct from existing IR_ICN_EVERY) —
+        c[0]=generator IR, c[1]=optional body IR.  Drives c[0] to exhaustion
+        in ONE outer IR_exec_node call by looping IR_exec_node(c[0]) until
+        FAIL.  c[0]'s state (e.g. IR_ICN_TO.counter) persists across these
+        inner calls because IR_reset is only invoked by IR_exec_once at the
+        outer driver level, not by IR_exec_node.  Always succeeds with NULVCL
+        after exhaustion (every in statement context never propagates the
+        generator's terminating FAIL).
+    TT_TO in lower_icn_expr_node emits IR_ICN_TO directly when both bounds
+    are TT_ILIT (literal int).  Non-literal bounds fall back to NULL (current
+    icn_bb_build path handles those).  This is sufficient for the smoke test
+    `every write(1 to 3)` and matches the existing IR_ICN_TO state-persistence
+    contract.
+
+    Two-instruction shape confirmed via `scrip --dump-sm` for both smoke
+    programs:
+        ; SM_Program  count=2
+           0  SM_BB_PUMP_PROC
+           1  SM_HALT
+    The whole Icon program is one IR_block_t in proc_table[main].ir_body,
+    driven through one SM bridge instruction.
+
+    Gates after change:
+      smoke_icon 3/5 → 5/5  (+2)
+      broker     15/49 → 16/49  (+1)
+      ir-run     15 → 20  (+5)
+      honest     277 → 277  (unchanged)
+      Cross-lang smokes: snobol4 7/7, snocone 5/5, rebus 4/4, raku 5/5
+      (all unchanged).  Prolog 0/5 unchanged (pre-existing per Lon directive).
+
+    Also this session: added "Many SM, many BBs, composable to one" subsection
+    and "Side-by-side: jcon IR vs our scrip IR" subsection to this file's
+    "Lessons from jcon" area, answering Lon's question about granularity.
+    Three concrete ideas worth stealing for the future flat-chunk redesign
+    documented as well: drop per-construct opcodes, generator state as IR
+    register, failure threading by label.  These belong to GOAL-LOWER-REDESIGN
+    when that arc opens; today's per-construct path is tactical and keeps
+    growing until coverage is high enough for a wholesale IR-layer rewrite.
+
+  NEXT: more coverage in lower_icn_expr_node — non-literal TT_TO bounds,
+        TT_WHILE, TT_UNTIL, TT_REPEAT, nested TT_FNC (user procs called from
+        main).  Then unblock more of the broker (currently 16/49) and the
+        ir-run rungs (currently 20/265).
 
   Session 2026-05-15h (Claude Sonnet 4.6, one4all `66b4d52e`):
     Architectural directive recorded (Lon, 2026-05-15): Icon program = TWO SM
