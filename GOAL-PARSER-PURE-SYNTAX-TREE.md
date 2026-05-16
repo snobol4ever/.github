@@ -420,17 +420,25 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
-            Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅
+            Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
-head: .github = pending bump (post-commit)
+head: .github = 58866ec4
        one4all = 9ed3c99b (PST-SN4-1c)
        corpus  = 99d422f (PST-SN4-1c SCRIP mirror)
-next: PST-ICN-2a — read icon_parse.c AND corpus/SCRIP/parser_icon.sc; list violations
+session 30/58 completed: PST-SN4-1a, PST-SN4-1b, PST-SN4-1d (C+SCRIP), PST-SN4-1c (C+SCRIP).
+  Three concurrent goal files created for parallel work:
+    GOAL-PARSER-PURE-SYNTAX-TREE.md — SNOBOL4 (Step 1) + Snocone (Step 4)  ← this file
+    GOAL-PST-ICN-RAKU.md            — Icon (Step 2) + Raku (Step 3)
+    GOAL-PST-REBUS-PROLOG.md        — Rebus (Step 5) + Prolog (Step 6)
+  NOTE FOR NEXT SESSION: goal file restructure is INCOMPLETE. The three concurrent
+  files each need exactly 2 languages. GOAL-PST-ICN-RAKU.md and GOAL-PST-REBUS-PROLOG.md
+  currently duplicate steps already in this file. Next session must fix the split
+  so each concurrent file truly owns its two languages, then proceed with PST-ICN-2a.
+next: FIX goal file split (2 languages per file, no overlap), then PST-ICN-2a
 mirror gaps: (none)
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
-mirror gaps: (none)
 shift/reduce endpoint: once both invariants (pure-tree + left-to-right) hold across all six C frontends,
   every corpus/SCRIP/parser_*.sc collapses to a dispatch table + Shift/Reduce in ShiftReduce.sc.
 ```
