@@ -96,12 +96,12 @@ with no existing equivalent.
   at link/runtime — that's expected until 5d).
   SCRIP mirror: `parser_rebus.sc` produces the same `tree_t` shape.
 
-- [ ] **PST-RB-5c** — Delete `RExpr` / `RStmt` / `RProgram` structs and
+- [x] **PST-RB-5c** — Delete `RExpr` / `RStmt` / `RProgram` structs and
   helpers: `rexpr_new`, `SAL`, `EAL`, `STAL`, and any `rexpr_free` /
   `rprogram_free` functions. `rebus.h` shrinks to the `TT_*` mapping and
   any remaining lexer helpers.
 
-- [ ] **PST-RB-5d** — Update downstream consumers to `tree_t`:
+- [x] **PST-RB-5d** — Update downstream consumers to `tree_t`:
   `rebus_lower.c`, `rebus_emit.c`, `rebus_print.c`. Each walks `tree_t`
   nodes by `t` (kind) instead of `REKind`. `rebus_lower.c` will grow
   significantly — it now handles all the control-flow lowering that the
@@ -210,8 +210,8 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-RB-5b complete 2026-05-16 (session 30/58)
-next: PST-RB-5c — delete RExpr*/RStmt*/RProgram* structs and helpers (rexpr_new, SAL, EAL, STAL, rexpr_free/rprogram_free). rebus.h shrinks to TT_* mapping + lexer helpers.
+watermark: PST-RB-5d complete 2026-05-16 (session 30/58)
+next: PST-PL-6a — verify Prolog kind-mapping against corpus edge cases; read prolog_parse.c AND corpus/SCRIP/parser_prolog.sc in full; check for any TT_* gaps. No code changes.
 mirror gaps: (none)
 ```
 
