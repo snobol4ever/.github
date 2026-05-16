@@ -429,7 +429,7 @@ count PASS / FAIL / ABORT.
 
 ### PJ-1 — pl_bb_dcg + dcg_table skeleton
 
-- [ ] Add `pl_bb_dcg` infrastructure bridge (C function, but NOT a Byrd box —
+- [x] Add `pl_bb_dcg` infrastructure bridge (C function, but NOT a Byrd box —
       it's a DCG driver, same exemption as `icn_bb_dcg`).
       Add `g_dcg_table[]` registry (mirror of `proc_table`).
       Build: clean. Gates: unchanged.  Commit.
@@ -535,19 +535,33 @@ count PASS / FAIL / ABORT.
 
 ## Watermark
 
-  one4all: b974e111  corpus: 1fe096c
-  smoke_prolog: 0/5  (all five stub on SM_BB_ONCE_PROC NO-AST)
+  one4all: e6af028c  corpus: 1fe096c
+  smoke_prolog: 0/5  (all five stub on SM_BB_ONCE_PROC NO-AST — unchanged; PJ-1 is skeleton-only)
   Other smokes unchanged: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5.
   honest icon-suite: 277 PASS / 0 FAIL / 0 ABORT.
   broker: 16/49.
 
-  Session 2026-05-15 (Claude Opus 4.7, one4all `c2c20d1a`):
-    File created mirroring GOAL-ICON-BB-JCON.md exactly, with Prolog port
-    semantics substituted throughout.  The architectural model — SM↔BB
-    bridge per language, one IR_block_t per top-level definition (predicate
-    here, procedure for Icon), composability by reference via IR_PL_CALL —
-    is identical between the two Goals.  The CROSS-LANGUAGE absolute rule
-    is reproduced verbatim and listed in the invariants.
+  Session 2026-05-15 followup #4 (Claude Opus 4.7, one4all PJ-1 commit):
+    PJ-1 closed.  Added `pl_bb_dcg` infrastructure bridge to `pl_runtime.c`
+    mirroring `icn_bb_dcg` byte-for-byte — same `pl_dcg_state_t { IR_block_t *cfg;
+    int first; }` shape, same α-resets-first / IR_exec_once-then-IR_exec_resume
+    dispatch.  Added `g_dcg_table[PL_DCG_TABLE_MAX]` registry + `g_dcg_count`
+    with helpers `pl_dcg_lookup(name, arity)` and `pl_dcg_register(name, arity,
+    ir_body)` (idempotent on key collision).  New types `PlScopeEnt` / `PlScope`
+    in `pl_runtime.h` mirror `IcnScopeEnt` / `IcnScope`; `Pl_PredEntry_BB`
+    mirrors `IcnProcEntry` (minus the `tree_t* proc` / `entry_pc` / `nparams`
+    fields — BB-land registry is AST-free per the NO-AST-WALK rule).  Added
+    `#include "../../lower/ir_exec.h"` in pl_runtime.c.  Header gets `bb_broker.h`
+    + `IR.h` includes so callers see `DESCR_t` and `IR_block_t`.
+    Build: clean.  All smokes unchanged.  Broker 16/49 unchanged.
+    No consumers wired yet — registry is empty and `pl_bb_dcg` is dead code until
+    PJ-2/PJ-3 populate `g_dcg_table[].ir_body` and wire `SM_BB_ONCE_PROC` through it.
+
+    Environmental note: `libgc-dev` was missing in this container at session start
+    (`#include <gc/gc.h>` fatal in snobol4.c).  `apt-get install -y libgc-dev`
+    fixed it.  The relevant install script `scripts/install_system_packages.sh`
+    already lists libgc-dev in PKGS — Session Setup may benefit from running it
+    when the build comes up dirty.
 
     Prereq is GOAL-PROLOG-BB-COMPLETE at one4all `c9b7428d` (PB-8 honest
     111/294 FAIL=0 ABORT=0).  Sister Goal is GOAL-ICON-BB-JCON at one4all
@@ -555,6 +569,8 @@ count PASS / FAIL / ABORT.
     same session).  This file picks up where PB-8 left off and follows
     the Icon JCON pattern.
 
-  NEXT: PJ-1 — add `pl_bb_dcg` infrastructure bridge and `g_dcg_table[]`
-        registry skeleton.  Mirror of Icon `icn_bb_dcg` / `proc_table` in
-        every byte — only names change.
+  NEXT: PJ-2 — create `src/lower/lower_pl.c` + `lower_pl.h`.  Implement
+        `lower_pl_predicate(tree_t *pred)` returning NULL initially as a
+        placeholder; wire `lower()` to populate `g_dcg_table[i].ir_body = NULL`
+        for each Prolog predicate at proc-table-skeleton emission time.
+        Mirror of `lower_icn_proc_body` in lower_icn.c.
