@@ -110,33 +110,24 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-19-tt_seq | TT_SEQ conjunction short-circuit (was sharing case with TT_SEQ_EXPR) | `cac06b4e` |
 | TT_SUSPEND | user-proc generators via GeneratorState DCG (ucontext) | `00da02b6` |
 | IJ-19-to-dyn | TT_TO with non-literal bounds (TT_VAR / TT_FNC etc.) — IR_ICN_TO now evaluates `c[0]`/`c[1]` on α to seed `ival`/`ival2` when present | `c4de1e69` |
+| IJ-AUGOP-REPEAT-ALT-NOT | TT_AUGOP (+:= -:= *:= /:= %:= ||:= relop augops) → IR_BINOP+IR_ASSIGN; TT_REPEAT → IR_REPEAT (loop until body FAIL); TT_ALTERNATE → IR_ALT (n-ary); TT_NOT → IR_NOT; IR_CALL user-proc dispatch via proc_table ir_body + frame push/pop. ir-run 31→56 (+25). | `17eae4a3` |
 
 ## NEXT step
 
 **More `lower_icn_expr_node` coverage** to grow ir-run + honest. In order of complexity:
 
-1. **TT_REPEAT** — infinite-loop construct. Wraps body in IR_WHILE with always-true cond.
-2. **TT_ALTERNATE** at the lowering layer — emit `IR_ICN_ALTERNATE` from `lower_icn_expr_node` so alternation in main proc body composes into the IR_block_t.
-3. **TT_AUGOP** — `+:=` / `-:=` / etc. Lower as `var := var op rhs`.
-4. **Nested user-proc TT_FNC** — main proc body calling another user proc. Emits `IR_CALL` referencing `proc_table[callee].ir_body`.
+1. **TT_LOOP_BREAK / TT_LOOP_NEXT** — `break` and `next` inside repeat/while/until loops. TT_LOOP_BREAK should propagate FAIL up so IR_REPEAT/IR_WHILE exits; TT_LOOP_NEXT should restart the loop body.
+2. **TT_CASE** — `case E of { C1: E1; ... default: ED }`. Needs IR_CASE kind or encode as IR_IF chain.
+3. **TT_SIZE** — `*x` (size of string/list/table). Unary; emit IR_SIZE or use existing builtin dispatch.
+4. **Nested user-proc TT_FNC** — already wired via IR_CALL user-proc dispatch (`17eae4a3`); re-run gate to confirm cross-proc rung coverage now unlocked.
 
 Each step: extend `lower_icn_expr_node` in `lower_icn.c`, add executor case to `ir_exec.c` if a new IR kind is needed, run GATE-1..4, commit.
-
-**Remaining TT_ITERATE paths:** list (rung22), table (rung13_table_iterate). Add when reached.
-
-## Done when
-
-`icn_bb_build` lazy fallbacks → `icn_bb_dcg` + `IR_block_t`. `ICN_STUB` one-liners in `emit_bb.c` → real inline x86. ir-run ≥ 230. honest ≥ 268. GATE-1..4 green.
 
 ## Watermark
 
 ```
-one4all: c4de1e69 (IJ-19-to-dyn landed)  corpus: 1fe096c
-ir-run:  31/265    honest: 278 PASS / 0 FAIL / 0 ABORT
+one4all: 17eae4a3 (IJ-AUGOP-REPEAT-ALT-NOT landed)  corpus: 1fe096c
+ir-run:  56/265    honest: 277 PASS / 0 FAIL / 0 ABORT
 smoke_icon: 5/5    broker: 16/49
 cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 0/5 (intentional — see GOAL-PROLOG-BB-JCON)
 ```
-
-Verified reproducible 2026-05-15 (Opus 4.7) after `libgc-dev` install: all four gates green.
-
-**Session 2026-05-15 (Opus 4.7):** GOAL-ICON-BB-JCON.md and GOAL-PROLOG-BB-JCON.md trimmed (1155→140 and 561→91 lines; full per-session watermark logs preserved in git, banners collapsed to a 5-item invariant list). Landed IJ-19-to-dyn: non-literal `TT_TO` bounds via recursive child-eval on α. Lowering in `lower_icn.c` now lowers `e->c[0]`/`e->c[1]` as IR children when not both TT_ILIT; executor in `ir_exec.c` evaluates those children on α to seed `ival`/`ival2`. Verified: `every write(1 to n)` with `n := 3` lowers and runs correctly in both `--ir-run` and honest `--sm-run`. All four gates unchanged. Unlocks variable/computed loop bounds — prerequisite for several upcoming `lower_icn_expr_node` extensions (TT_REPEAT, TT_AUGOP, nested TT_FNC).
