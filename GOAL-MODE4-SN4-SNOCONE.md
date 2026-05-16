@@ -57,7 +57,7 @@
 | crosscheck_snobol4 | `test_crosscheck_snobol4.sh` | 6/6 ✅ | 6/6 |
 | crosscheck_snocone | `test_crosscheck_snocone.sh` | 8/8 ✅ | 8/8 |
 | gate_em8_snocone | `test_gate_em8_snocone_jit_emit.sh` | 5/5 ✅ | 5/5 |
-| broad corpus SNOBOL4 | `test_mode4_broad_corpus_snobol4.sh` | 241/280 | ≥250 |
+| broad corpus SNOBOL4 | `test_mode4_broad_corpus_snobol4.sh` | 242/280 | ≥250 |
 | beauty self-host | `test_gate_sn7_beauty_self_host.sh` | — | PASS |
 
 ---
@@ -68,7 +68,7 @@
 
 ### M4SN-4 — Broad corpus SNOBOL4: sm-run parity in mode-4
 
-- [ ] **M4SN-4b** — Run and triage failures by category. Fix mode-4-specific failures only. Current: 240/280 (target ≥250). Live diagnostics for the next two fixes in the **Watermark** section below (1016_eval EVAL segfault; 1114_item ITEM_SET routing via `_usercall_hook` + `rt_chunk_lookup` export).
+- [ ] **M4SN-4b** — Run and triage failures by category. Fix mode-4-specific failures only. Current: 242/280 (target ≥250). Sess 2026-05-15h closed 1016_eval EVAL fnptr scheme (see Watermark). Next: `*Fn(args)` deferred-call-capture family (`expr_eval`, `140_pat_eval_double_fn_trick`, `141_pat_eval_double_fn_arbno`) — different mechanism (`pat_assign_callcap` / `XCALLCAP` BBs), not PUSH_EXPRESSION.
 - [ ] **M4SN-4c** — Target: mode-4 broad corpus PASS ≥ sm-run PASS. No regression vs sm-run.
 
 ### M4SN-5 — Full regression: test_regression_full_corpus.sh MODE=x64 with libscrip_rt pipeline
@@ -117,18 +117,26 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `5edb6b1e` · Baselines: smoke 7/7 ✅, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus **241/280**.
+**HEAD** one4all `d30949cb` · Baselines: smoke 7/7 ✅, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus **242/280**.
 
-Sess 2026-05-15f (Claude Opus 4.7): M4SN-4b — **1114_item PASS** (`+1`, 240→241/280). Root cause: `rt_call()` in `src/runtime/rt/rt.c` had branches for `"IDX_SET"` but not `"ITEM_SET"`. The lowerer (`lower.c:461`) emits `SM_CALL_FN "ITEM_SET"` for `ITEM(arr,idx) = val`, not `"IDX_SET"`. In mode-4, that became `call rt_call@PLT` with name=`"ITEM_SET"`, fell past the existing branches to `INVOKE_fn("ITEM_SET",...)` which has no registered handler → `Error 5: Undefined function or operation`. Fix: added `"ITEM_SET"` branch mirroring `"IDX_SET"` (nargs==3 → `subscript_set`; nargs>=4 → `subscript_set2`). Also widened the existing `"IDX_SET"` branch's `nargs == 4` → `nargs >= 4` for the 4D-bracket case (`ama<2,1,2,1> = 2121`). The runtime only has 1D/2D subscript primitives; multi-dim writes degenerate to first-two-indices, matching `_usercall_hook` (interp_hooks.c:38-39) and `_ITEM_` builtin (snobol4.c) — same semantics sm-run uses.
+Sess 2026-05-15h (Claude Opus 4.7): M4SN-4b — **1016_eval PASS** (`+1`, 241→242/280). Implemented Option A (fnptr scheme) from prior watermark, with the rsp-alignment refinement noted below.
 
-**Previous-session watermark note about exposing `rt_chunk_lookup` for `_usercall_hook` was a misdiagnosis** — `_usercall_hook` (interp_hooks.c) is never installed in mode-4. `rt_init()` sets `g_user_call_hook = _rt_usercall` (rt.c:323). The actual gap was the missing `"ITEM_SET"` arm in `rt_call`'s big strcmp ladder. Fix lives in rt.c.
+Changes:
+1. `sm_macros.s` `PUSH_EXPRESSION` macro: `movabs rdi, \entry` → `lea rdi, [rip + .L\entry]`, and `mov esi, \arity` → `mov esi, 2` (hardcode the slen=2 fnptr sentinel — arity is unused upstream and the only way DT_E can arrive at EXPVAL_fn under this new shape is via this macro).
+2. `src/emitter/emit_sm.c` (`SM_TPL_PUSH_EXPRESSION` macro-definition emit, lines ~745-753): updated to match the new `lea`/hardcoded-`2` shape so mode-4 text output uses the same expansion as the in-place `sm_macros.s`. The args-column emitter (`build_args_col`) was unchanged — the bare integer is still emitted; the `.L` prefix is supplied by the macro template.
+3. `src/runtime/rt/rt.c`: exported two new helpers, `int rt_vstack_depth(void)` and `DESCR_t rt_vstack_pop(void)`, used only by the slen==2 dispatch below. The existing module-static `vstack_pop`/`vstack_depth` (which thread through `g_ops->`) are kept private; the new exports trivially wrap them.
+4. `src/runtime/snobol4/eval_code.c` `EXPVAL_fn` (line 401): new `slen == 2` branch. Calls the thunk through a small inline-asm trampoline: `mov rsp→rbx ; and rsp,-16 ; sub rsp,8 ; call *fn ; mov rbx→rsp`. The `sub rsp,8` step is required: the thunk does NOT establish a C frame (it's just `PUSH_*`/`CALL_FN`/`RETURN(=ret)`), and its nested `call rt_*@PLT` invocations expect the thunk's entry rsp to be 16-aligned (so the nested callee sees rsp ≡ 8 mod 16 on entry, per System V ABI). Without the `sub rsp,8`, the thunk's nested SSE-using helpers (`snprintf` inside `VARVAL_fn(DT_I)`) crash on `MOVAPS`/`__printf_buffer_init`.
 
-Gates: smoke 7/7 ✅, beauty 15/17 unchanged (ShiftReduce_driver/counter_driver still diff, pre-existing), crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, broad corpus **240→241**/280. Zero regressions.
+**Important alignment lesson**: an `and rsp,-16` alone is not enough; the thunk acts as a callee that itself does further calls, so it must receive a 16-aligned rsp at entry, which means the trampoline's `call *fn` site must satisfy `(rsp + 8) ≡ 0 mod 16` — i.e. rsp ≡ 8 mod 16 at the `call` instruction. `and -16` puts rsp at 0; the additional `sub rsp,8` moves it to 8. After the call's push of 8 bytes, the thunk sees rsp ≡ 0 mod 16, which is what it needs for its nested ABI-compliant calls.
+
+Verified all three EVAL assertions in 1016_eval (`*('abc' 'def')`, `*q`, `*IDENT(1, 2)` deferral that fails) execute correctly via the fnptr path. Mode-1 (`--ir-run`) and mode-2 (`--sm-run`) untouched and still PASS.
+
+Gates: smoke 7/7 ✅, beauty 15/17 unchanged (ShiftReduce_driver/counter_driver still diff, pre-existing), crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, broad corpus **241→242**/280. Zero regressions.
 
 **Live diagnostics for next session** (not yet fixed):
 
-1. **1016_eval EVAL segfault.** Unchanged from prior watermark. Mode-4 emits `PUSH_EXPRESSION entry, 0` where `entry` is an integer label index → stored as `d.i` with `d.slen=0` → `EXPVAL_fn` falls into `slen==0` branch and calls `eval_node((tree_t*)expr_d.ptr)` → segfault. Plan (option A — fnptr scheme): (a) change `sm_macros.s`'s PUSH_EXPRESSION macro from `movabs rdi, \entry` to `lea rdi, [rip + \entry]`; (b) change `emit_sm_push_expression()` in `src/emitter/emit_sm.c:337` to emit the lea form (currently calls `emit_seq_movabs_rdi`); (c) add new `slen==2` branch to `EXPVAL_fn` (`src/runtime/snobol4/eval_code.c:401`) that invokes the fnptr; (d) the thunk bodies emitted in mode-4 lack a C prologue (no `push rbp`) so their inner `call rt_*@PLT` will misalign rsp — wrap the call through a small inline-asm trampoline in eval_code.c that does `push rbp; mov rbp,rsp; and rsp,-16; call *fn; mov rsp,rbp; pop rbp` before invoking. Expected +1 to +2 (1016_eval and probably one or two related EVAL/CODE tests).
+1. **expr_eval, 140_pat_eval_double_fn_trick, 141_pat_eval_double_fn_arbno**: these involve `*Fn(args)` deferred-call captures inside patterns, NOT plain `PUSH_EXPRESSION`. 140/141 do not emit any `PUSH_EXPRESSION` instructions — they go through `pat_assign_callcap` / `bb_callcap_emit_binary` (cf. SL-13c in GOAL-SNOCONE-SM-LOWER) — different mechanism, different fix. `expr_eval` still segfaults under mode-4 even after this session's fix; it heavily uses `*Push()` deferred calls inside patterns plus EVAL, so likely the same `pat_callcap` family bug. Triage these together next session.
 
-2. **`_usercall_hook` mode-4 routing.** Previously believed needed for 1114_item — actually NOT NEEDED. `_usercall_hook` is only installed in the interp/sm code paths; mode-4 uses `_rt_usercall` set in `rt_init()`. The 1114_item failure was unrelated. Strike this from the active diagnostic list. If a future bug DOES require `rt_chunk_lookup` to be public, the exposure work is still valid plumbing, but no test currently demands it.
+2. (Closed) `_usercall_hook` mode-4 routing — was a misdiagnosis in prior watermarks; struck.
 
-**Strategy for next session:** tackle (1) only. Expected gain: +1 to +2. Combined with this session's +1, that brings broad corpus into the 242–243 zone, still 7-8 below the ≥250 target — additional triage work needed on the remaining 34 fails after that.
+**Strategy for next session:** investigate the `*Fn(args)` deferred-call-capture path under mode-4. The SL-13c fix in `eval_code.c` (`TT_CAPT_COND_ASGN`/`TT_CAPT_IMMED_ASGN` → `pat_assign_callcap`) and the `bb_flat.c` `flat_is_eligible` XCALLCAP exclusion both already exist; the mode-4 specific issue may be in how `XCALLCAP` BBs are emitted as native code vs. SM. Expected gain: +3 to +5 (`expr_eval`, `140_pat_eval_double_fn_trick`, `141_pat_eval_double_fn_arbno`, and probably one or two of the `word*` / `cross` failures that exercise similar mechanisms).
