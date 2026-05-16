@@ -89,26 +89,71 @@ EVAL, etc.).  Those bridges hand pre-built IR_block_t*'s to bb_broker.  The
 IR_block_t* registry is BB-land state, indexed by the bridge opcode's operand
 (eval-id, proc-id, etc.).  Nothing at runtime dereferences a tree_t*.
 
-### ⚡ Target shape: Icon program = TWO SM instructions
+### ⚡ Target shape: composition by SM bridges (SNOBOL4 pattern parallel)
 
-The end-state for Icon (Lon, 2026-05-15):
+End-state for Icon (Lon, 2026-05-15h refinement):
 
-```
-SM_BB_EVAL*  (eval-id → IR_block_t* covering the WHOLE program)
-SM_HALT
-```
+Not "one giant monolithic BB built entirely at lower time" — that loses the
+SNOBOL4 parallel.  The actual target shape is:
 
-That's it.  One bridge instruction brokers into BB land; HALT exits.  No
-per-statement, per-expression, per-proc bridge opcodes scattered through the
-SM_Program.  The entire Icon program lowers, at compile time, to a single
-IR_block_t* registered in the BB-land IR registry.  SM_BB_EVAL* pops the
-eval-id, looks up the IR_block_t*, hands it to bb_broker via icn_bb_dcg.
+  • Each Icon procedure compiles to **one IR_block_t* per proc**, registered
+    in BB-land by name (proc_table[i].ir_body).  This is the natural unit.
+  • Procs are **composable**: an IR_CALL node inside one proc's body holds
+    a reference (by name or by direct pointer) to another proc's IR_block_t.
+  • The whole program ends up as one BB DAG in BB-land — but the DAG is
+    *built by the SM stream postorder-style*, exactly like SNOBOL4 patterns.
 
-This is the inverse of the SNOBOL4 granularity: SNOBOL4 has many small
-SM_PAT_* bridges that compose on the SM stack; Icon has ONE big bridge that
-hands BB-land a pre-composed IR DAG covering the whole program.  Both shapes
-respect the same invariants (SM is the entry, bridges are the only contact
-surface, nothing derefs tree_t* at runtime).
+SNOBOL4 already does this.  Many small SM_PAT_* bridge calls each build a
+small BB-land object and push it on the SM stack; composer bridges
+(SM_PAT_CAT, SM_PAT_ALT) pop their operands, call BB-land's pat_cat /
+pat_alt, push the composed result.  The SM stream itself encodes the
+postorder traversal that builds the BB DAG.  Then one final bridge
+(SM_PAT_MATCH) takes the top-of-stack pattern and drives bb_broker.
+
+The Icon mapping:
+
+  SM bridge instruction          → BB-land composer / driver
+  ───────────────────────────────────────────────────────────────────────
+  SM_BB_LIT_I  <int>             → push IR_block_t for IR_LIT_I
+  SM_BB_LIT_S  <str>             → push IR_block_t for IR_LIT_S
+  SM_BB_VAR    <name>            → push IR_block_t for IR_VAR
+  SM_BB_BINOP  <kind>            → pop 2, push ir_binop_compose(L, R, kind)
+  SM_BB_CALL   <name> <nargs>    → pop nargs, push ir_call_compose(name, args)
+  SM_BB_SEQ    <nstmts>          → pop nstmts, push ir_seq_compose(stmts)
+  SM_BB_PROC   <name>            → pop 1 body, register proc by name
+  SM_BB_DRIVE                    → pop 1 IR_block_t*, drive via icn_bb_dcg
+
+Each proc body is one IR_block_t* (one BB per proc); procs reference each
+other through IR_CALL nodes; the whole program is one composable BB DAG.
+The composer helpers `lower_icn_binop`, `lower_icn_alternate`, `lower_icn_to`,
+`lower_icn_limit`, `lower_icn_iterate` already exist in lower_icn.c — they
+take BB-land operands (bb_node_t / int64_t) and return composed IR_block_t*.
+They are the Icon-side analogue of pat_cat / pat_alt / pat_arbno.
+
+What's missing: the SM bridge opcodes that drive composition postorder.
+Today's `lower()` emits piecemeal `SM_BB_EVAL <eval_id>` instructions that
+carry tree_t* references through every_table — the wrong shape.  The right
+shape is the SNOBOL4 postorder composition above.
+
+Per-proc IR_block_t* is already produced by `lower_icn_proc_body` and
+stored in `proc_table[i].ir_body`.  `SM_BB_PUMP_PROC "main"` is already the
+"drive the main proc" bridge.  What's left is to extend coverage of
+`lower_icn_expr_node` (and `lower_icn_proc_body`) until enough programs
+parse end-to-end without falling back to legacy SM emission — at which
+point the next step (replacing piecemeal SM_BB_EVAL emissions with
+postorder composer bridges) becomes a cleanup, not a re-architecture.
+
+### Earlier directive (preserved): Icon program = TWO SM instructions
+
+Original framing (Lon, 2026-05-15): an Icon program compiles to just two
+SM instructions — `SM_BB_EVAL* <id>` covering the whole program and
+`SM_HALT`.  This is the *driving* shape after composition is complete:
+once main's body is one IR_block_t*, the program reduces to `SM_BB_DRIVE`
+(or its equivalent `SM_BB_PUMP_PROC "main"`) plus `SM_HALT`.  Composition
+of that IR_block_t* happens either at lower time (today's path via
+`lower_icn_proc_body`) or at startup via composer bridges (SNOBOL4-style).
+Both are valid endpoints; the SNOBOL4-style composition path keeps the
+SM stream involved in the build.
 
 ### Same pattern as SNOBOL4 — only the granularity differs
 
@@ -410,6 +455,19 @@ Next DCGs to implement (highest ir-run yield first):
             main-body IR_block_t.
         (3) TT_EVERY — IR_EVERY executor covering the loop semantics.
         (4) Eventually: non-builtin TT_FNC (user procs called from main).
+
+        Architectural framing for the SNOBOL4 parallel (refined this session):
+        each Icon proc = one IR_block_t* (one BB per proc); procs compose
+        through IR_CALL references; the whole program is one composable BB
+        DAG.  SNOBOL4 builds its DAG at startup via postorder SM_PAT_* bridge
+        ops; Icon can do the same with SM_BB_LIT_I / VAR / BINOP / CALL / SEQ
+        / PROC / DRIVE composer bridges.  Composer helpers (lower_icn_binop,
+        lower_icn_alternate, lower_icn_to, lower_icn_limit, lower_icn_iterate)
+        already exist and have the right SNOBOL4-pat_cat shape; what's missing
+        is the SM postorder-composition bridge opcodes.  Today's path
+        (lower_icn_proc_body at compile time → proc_table[i].ir_body →
+        SM_BB_PUMP_PROC main + SM_HALT) reaches the same endpoint via a
+        different composition path — both are valid.
 
   Architectural correction (recorded after Lon clarified, 2026-05-15):
     The first wedge attempt this session had SM_BB_EVAL call IR_exec_once
