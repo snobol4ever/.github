@@ -1,5 +1,19 @@
 # SJ4-JS-3/4 Continuation Guide — Scalar IR Emission for JavaScript
 
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║  Sess 2026-05-15g removed all tree_t* dereferences from sm_interp.c (mode 2) and                ║
+║  sm_jit_interp.c (mode 3). Stubs print [NO-AST] <opcode> on stderr.                              ║
+║                                                                                                  ║
+║  If a gate breaks with [NO-AST] FOO — write fresh SM/BB lowering for FOO.                       ║
+║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
+║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
+║                                                                                                  ║
+║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
 **Status:** SJ4-JS-1 ✅ (19 BB emitters complete) + SJ4-JS-2 ✅ (SM API complete)  
 **Blocked:** SJ4-JS-3/4 pending scalar IR emission  
 **Estimated effort:** 2–3 sessions (complex codegen task)
