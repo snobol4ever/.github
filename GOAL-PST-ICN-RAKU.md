@@ -141,7 +141,7 @@ should be inline `reduce` actions.
        Large scope; tackle after R1-R4 hard violations fixed.
   NOT violations (confirmed clean): lines 1917-1919 are post-parse driver output, not grammar actions.
 
-- [ ] **PST-RAKU-5b** — Eliminate `flatten_*` violations: replace with always-wrap
+- [x] **PST-RAKU-5b** — Eliminate `flatten_*` violations: replace with always-wrap
   `reduce` (produces right-leaning chain, correct per PST rules). Update C `raku.y`
   if any parallel flatten logic exists there. Gates: `smoke_raku`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
@@ -167,7 +167,8 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
 ```
 watermark: 2026-05-16 (session 30/60)
-next: PST-RAKU-5b — fix R1 (flatten_*→reduce) + R2/R3/R4 hard violations in parser_raku.sc
+next: PST-RAKU-5c — eliminate ~98 push_*/finish_* named-function reduce equivalents
+PST-RAKU-5b ✅ corpus@31cc6f2: R1 flatten_* deleted; R2 finish_given t(val) removed; R3 finish_class t(item)/v() removed; R4 finish_for_range desugaring→TT_FOR node.
 PST-ICN-4a ✅ one4all@c52b724c: TT_MATCH_UNARY, TT_FIELD child layout, ICN_FIELD_NAME macro.
 PST-ICN-4b ✅ corpus@0ecae06: parser_icon.sc 525→381 lines, 9 structural helpers → reduce, 5 PST-allowed leaf-push functions retained.
   C-side fixes from PST-ICN-2b did not propagate to SCRIP mirrors. parser_icon.sc has 13
