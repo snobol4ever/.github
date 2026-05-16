@@ -74,31 +74,33 @@ Steady-state climb of the SNOBOL4 corpus ladder (csnobol4-suite + snobol4/demo +
 - `284310c8` `_builtin_pat_global()` helper + real `CONVERT` for INTEGER/REAL/NUMERIC/STRING. 42→43.
 - `e795385d` Removed FAIL/SUCCEED/ABORT/FENCE/ARB/REM/BAL from `_kw_store` — they were `''` placeholders shadowing the real pattern objects and breaking `S BAL . B` capture. Newly passing: any, bal, case2, conv2, factor, len, loop, repl, space, trim0, trim1, words, f14_dyn_opt, longrec. 43→44 (script counter).
 
-**Open sub-rungs (in order of expected leverage):**
-- [ ] **pat-refname** — `*H` deferred-eval fails to match. Pattern is built correctly (`SEQ[DEFERRED, ELLO]`) but `DEFERRED/proceed` in `sno_engine.js` returns concede when the closure resolves H. Blocks `uneval`, `uneval2`, several DEFINE tests.
-- [ ] **pattern-backtrack** — `pat $ output FAIL` should backtrack to enumerate matches. Engine doesn't loop on top-level fail. Blocks `any` second-stage and `breakx`.
-- [ ] **name-stringify** — `.Q1` should stringify as `"Q1"` when printed. Blocks `comment.sno` family.
+**Closed sub-rungs (this session, 2026-05-16, Claude Sonnet 4.6):**
+- `ad035b1c` DEFERRED/succeed fix + ORD + VDIFFER builtins. Fixed critical missing case in sno_engine.js: DEFERRED/succeed wasn't propagating child-pattern success upward, silently failing all *H (variable reference in pattern) matches. Added ORD() builtin (ASCII value of first char), VDIFFER() builtin (conditional differ by value). Ladder: 44 → 47 → 49. uneval.sno, vdiffer.sno, ord.sno now PASS.
+- `e19a3f87` LABEL(name) builtin added (checks if label exists, returns name or FAIL). No ladder gain — indicates label.sno is semantically complex beyond just missing builtin.
+
+**Remaining open sub-rungs (in order of expected leverage):**
+- [ ] **pattern-backtrack** — `pat $ output FAIL` should backtrack to enumerate matches. Engine doesn't loop on top-level fail. Blocks `breakx` (2nd line missing) and variants.
+- [ ] **comment.sno semantics** — certain patterns matching when they shouldn't (e.g., Q1 matching ' *' when it should not). Pattern matching semantic gap, not name-stringify.
 - [ ] **eval-code** — `EVAL()` / `CODE()` not implemented. Needs JS-side SNOBOL4-expression evaluator.
-- [ ] **setexit** — SPITBOL `SETEXIT()` trap.
+- [ ] **setexit** — SPITBOL `SETEXIT()` error-trap extension (6-7 tests).
 - [ ] **table-sort** — `TABLE()`, `SORT()`, `RSORT()`, `CONVERT(t,"array")` stubs only. Blocks `tab.sno`, `dump.sno`.
-- [ ] **SJ4-JS-4e (scanerr segfault)** — Compiler-side, not runtime. Doesn't block the safe runner.
+- [ ] **file I/O** — `-include`, `LOAD`, `UNLOAD`, file operations. Test runner also has issue with custom-named `.in` files vs `.input`.
+- [ ] **SJ4-JS-4e (scanerr segfault)** — Compiler-side emit error, not runtime. Doesn't block the safe runner.
 
 ---
 
-## State (Session 2026-05-15 handoff)
+## State (Session 2026-05-16 handoff)
 
 ```
-watermark: SJ4-JS-4d (ladder climbing, "pat-refname" next)
-head:      one4all e795385d
-ladder:    PASS=44 FAIL=85 TOTAL=129 (safe runner, script counter)
-trajectory: handoff baseline 10 → session start 31 → end 44
+watermark: SJ4-JS-4d (ladder climbing, "pattern-backtrack" next)
+head:      one4all e19a3f87
+ladder:    PASS=49 FAIL=80 TOTAL=129 (safe runner, script counter)
+trajectory: prior session end 44 → this session 49 (+5 tests)
 ```
 
-Session commit trail (newest last):
-1. `a6c9b0e8` — INPUT/_FAIL propagation/_last_ok/runner-stdin (31→41)
-2. `04d01f7d` — arith fail-instead-of-throw (41→42)
-3. `284310c8` — pat-globals helper + real CONVERT (42→43)
-4. `e795385d` — pattern globals out of _kw_store (43→44 + 14 newly-passing programs)
+Session commit trail (this session):
+1. `e19a3f87` — LABEL(name) builtin (investigation, no gain)
+2. `ad035b1c` — DEFERRED/succeed fix + ORD + VDIFFER builtins (44→49)
 
 ---
 
