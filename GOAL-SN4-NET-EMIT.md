@@ -306,7 +306,7 @@ SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" 
 
 #### SN4-NET-5c — Parameter binding and frame save/restore
 
-- [ ] **SN4-NET-5c** — Make user-function calls bind their argument values into the parameter names' globals, mirroring SPITBOL semantics. The h_call function in `src/processor/sm_jit_interp.c` is the reference implementation; this step ports its parameter binding loop to the .NET emit path.
+- [x] **SN4-NET-5c** — Make user-function calls bind their argument values into the parameter names' globals, mirroring SPITBOL semantics. The h_call function in `src/processor/sm_jit_interp.c` is the reference implementation; this step ports its parameter binding loop to the .NET emit path.
 
   ##### Step 1: Parse parameter list from DEFINE literal
   
@@ -393,49 +393,76 @@ SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" 
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c parameter binding ✅, frame save/restore ⏳)
-head: one4all bb77ac29 (main) + sn4-net-5c-wip branch 06576570
-session: 2026-05-16 (Claude Opus 4.7) — partial close on 5c
+watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c ✅ — parameter binding + frame save/restore)
+head: one4all b3c0527d (main) — sn4-net-5c-wip merged
+session: 2026-05-15 (Claude Opus 4.7) — SN4-NET-5c closed
 progress:
   SN4-NET-1 ✅ SnoRt.il scalar runtime;
   SN4-NET-2 ✅ 19 BB emitters in emit_net.c;
   SN4-NET-3 ✅ SM walker + --target=net wiring;
-  SN4-NET-4 ✅ smoke 7/7 PASS (now 8/8 with define_simple);
+  SN4-NET-4 ✅ smoke 9/9 PASS (now with define_simple + define_recursive);
   SN4-NET-5a ✅ control-flow / comment / runtime fixes (one4all eb74b9a5);
   SN4-NET-5b ✅ user-function dispatch — call/return without param
     binding via pre-scan name→pc table + push/pop_ret_pc on _ret stack
     (one4all bb77ac29);
-  SN4-NET-5c ⏳ on branch sn4-net-5c-wip (06576570):
-    Parameter binding: ✅ Steps 1, 2, 4 working — non-recursive DEFINEs
-      with single or multi-param call/return correctly. Greet(who),
-      Add(a,b), nested Add(Add(...)) all pass.
-    Frame save/restore: ⏳ Step 3 still needed — recursive Fact(n)
-      corrupts caller's n and runs away.
-  SN4-NET-5d — SM_PAT_* opcode wiring to pat_*_* BB classes.
+  SN4-NET-5c ✅ parameter binding + frame save/restore (one4all 64a89740, merged b3c0527d).
+    Step 1: parse param list from DEFINE literal ✅
+    Step 2: emit param binding (reverse pop) at function entry ✅
+    Step 3: frame save/restore — frame_push + frame_save(name) at
+      define_entry; frame_exit() at all RETURN/NRETURN/FRETURN sites
+      AND on null-name SM_CALL_FN implicit return. Recursive Fact(5)=120 ✅
+    Step 4: return-value via push_var(fname) on RETURN ✅
+  SN4-NET-5d ⏳ SM_PAT_* opcode wiring to pat_*_* BB classes — NEXT.
   SN4-NET-5z — byte-identical beauty closeout.
   SN4-NET-6 — broad SNOBOL4 corpus ladder.
 
-session 2026-05-16 gates (on sn4-net-5c-wip @ 06576570):
-  smoke_snobol4_net    8/8 PASS  (was 7/7; +define_simple regression catcher)
+session 2026-05-15 gates (on main @ b3c0527d):
+  smoke_snobol4_net    9/9 PASS  (was 8/8; +define_recursive)
   smoke_snobol4        7/7 PASS  (unchanged)
   smoke_snocone        5/5 PASS  (unchanged)
   smoke_icon           5/5 PASS  (unchanged)
-  unified_broker      23/49 PASS (was 14/35 on main; +9 PASS, no regressions)
+  smoke_prolog         5/5 PASS  (unchanged)
+  smoke_rebus          4/4 PASS  (unchanged)
+  unified_broker      23/49 PASS (unchanged vs sn4-net-5c-wip baseline)
   all_modes            2/3 PASS  (--jit-emit --net failure pre-existing on main)
-
-The fix was a two-character filter change in emit_net.c second-pass scan:
-the previous WIP checked ins->op != SM_SUSPEND_VALUE to find DEFINE
-pseudo-calls and extract param prototypes, but scrip's SNOBOL4 lowering
-emits ALL named calls as SM_CALL_FN (including DEFINE). The dump-time
-names[] array in sm_prog.c has a spurious "SM_GEN_TICK" entry that
-shifts the printed labels by one starting at SM_SUSPEND_VALUE — the dump
-displays SM_CALL_FN as "SM_SUSPEND_VALUE" and SM_RETURN as "SM_CALL_FN".
-This led the previous session to believe a null-name SM_CALL_FN was the
-implicit return marker. In fact :(RETURN) lowers to SM_RETURN (op=67)
-correctly; the dump just mislabels it. The actual fix:
-    -if (ins->op != SM_SUSPEND_VALUE) continue;
-    +if (ins->op != SM_CALL_FN && ins->op != SM_SUSPEND_VALUE) continue;
 ```
+
+## Step 3 implementation notes (closed)
+
+Three SnoRt.il methods added between push_ret_pc/pop_ret_pc and the push helpers:
+
+- `frame_push()` — push new empty `Dictionary<string,object>` onto `_frames`.
+- `frame_save(string name)` — peek top frame, lookup `_vars[name]` via
+  `ContainsKey + get_Item` (avoids `TryGetValue` because mono ilasm
+  rejects `ldloca` against `[mscorlib]System.Object` ref params with
+  generic instantiations in this pattern), default to `""` if not
+  present, store into top frame under `name`.
+- `frame_exit()` — pop top frame, materialize its keys via
+  `List<string>::.ctor(IEnumerable<T>)` taking the
+  `Dictionary`2/KeyCollection<!0,!1>` directly. Loop the list by
+  integer index and restore each var from the frame dict. Note the
+  type syntax `Dictionary`2/KeyCollection<!0,!1>` (parameters on the
+  nested type) is the form mono ilasm accepts; the alternative
+  `Dictionary`2<!0,!1>/KeyCollection` form parses but generates code
+  that throws `MissingMethodException` at runtime, and casting to
+  `IEnumerable<T>` or `ICollection<T>` directly fails the same way.
+
+Emitter changes in `emit_net.c`:
+
+- `SM_LABEL define_entry`: after the existing last_ok=true, emit
+  `frame_push()`, then `frame_save(fname)` for the function name and
+  `frame_save(param_i)` for each parameter, then the existing reverse-
+  pop `store_var` loop. Order matters: save before store.
+- `SM_RETURN/_S/_F`, `SM_FRETURN/_S/_F`, `SM_NRETURN/_S/_F`: emit
+  `frame_exit()` before the existing `pop_ret_pc + stloc _pc + br
+  NET_DISPATCH` sequence. `frame_exit` pops AFTER `push_var(fname)`
+  has read the return value, so the return value survives the frame
+  pop.
+- `SM_CALL_FN` with null/empty `a[0].s` inside a function body (i.e.
+  `pc_to_fn[i] >= 0`): treat as implicit `:(RETURN)`. Emit
+  `push_var(fname) + frame_exit + do_return + pop_ret_pc + br
+  NET_DISPATCH`. This is the trailer that the SNOBOL4 lowering emits
+  at the end of every DEFINE body to handle fall-through.
 
 ## Hand-off — frame save/restore remaining (SN4-NET-5c step 3)
 
