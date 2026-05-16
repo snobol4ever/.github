@@ -1,63 +1,60 @@
-# HANDOFF — Session 2026-05-16f (SNOBOL4 PST session)
+# HANDOFF — Session 2026-05-16f
 
-**Goal:** GOAL-PARSER-PURE-SYNTAX-TREE.md — SNOBOL4 session
-**Step completed:** PST-SN4-2 — parser_snobol4.sc pure syntax tree, zero worker functions
-
----
-
-## What was done
-
-### corpus @ 9cc4587 — parser_snobol4.sc + lower.sc
-
-**parser_snobol4.sc** (341 → 254 lines):
-- Deleted `push_qlit` / `Push_qlit`; replaced `*String Push_qlit` with `*String shift(str_body, "'TT_QLIT'")` inline
-- Deleted `strip_parens`, `make_goto_slot`, `pp_stmt`
-- Redesigned `Stmt` rule: now emits `TT_STMT` directly via `nPush`/`nInc` counter
-- Children in source order: `TT_LABEL?` subject? `TT_PAT(pat)?` `TT_EQ(repl?)?` `TT_GOTO_U/S/F*`
-- New sub-rules: `StmtLabel` (shifts as `TT_LABEL`), `StmtRepl` (reduces as `TT_EQ`)
-- `Command` no longer wraps `Stmt` in `reduce('Stmt', 7)` — `TT_STMT` comes straight through
-- Driver loop: `Lower_collect(cmd)` directly on `TT_STMT` nodes; no cooking; no `prev_label_only`
-- Only permitted functions remaining: `sn_match`, `sn_upr` (pure tokenizer helpers, zero tree building)
-
-**lower.sc**:
-- Deleted `sno_strip_parens`, `sno_make_goto_slot`, `sno_pp_stmt` (added this session, then superseded)
-- Added `lower_sno_unpack`: walks `TT_STMT` children by kind, populates `lower_stmt` locals
-- `lower_stmt`: new `TT_STMT` branch uses `lower_sno_unpack`; legacy `STMT` attr-tag branch kept for test harnesses
-
-### .github @ 245927a6
-
-- `GOAL-PARSER-PURE-SYNTAX-TREE.md`: state block updated, PST-SN4-2 marked
-- `PLAN.md`: SNOBOL4+Snocone row updated
+**Goal:** PST-REBUS-PROLOG (`GOAL-PST-REBUS-PROLOG.md`)
+**Repos:** one4all @ `c927ee91`, .github @ `0ddbc7bf`
 
 ---
 
-## Gates (all baseline-identical)
+## What was done this session
 
-| Gate | Result |
-|------|--------|
-| smoke_snobol4 | PASS=7 FAIL=0 |
-| crosscheck_snobol4 | PASS=6 FAIL=0 |
-| smoke_scrip_all_modes | PASS=2 FAIL=0 |
-| beauty_self_host | PASS=29 FAIL=22 (baseline) |
+### PST-RB-5a ✅ (read-only analysis)
+- Full `REKind → TT_*` and `RSKind → TT_*` mapping established
+- One new `TT_*` identified: `TT_FOR`
+- Key finding: comparators now emit `TT_EQ`/`TT_LT` etc. directly from parser; `lower_tree_expr` converts to `TT_FNC("EQ",...)` etc.
+- `RE_UNLESS` → `TT_IF(TT_NOT(cond), body)` — no new `TT_UNLESS` needed
+
+### PST-RB-5b ✅ (one4all `b647bd5a` / pushed `c927ee91`)
+- `ast.h`: `TT_FOR` added to enum + name table (`v.sval=var, c[0]=from, c[1]=to, c[2]=by_or_NUL, c[3]=body`)
+- `rebus.h`: `guard_tree`/`body_tree` added to `RCase`; `initial_tree`/`body_tree` added to `RDecl`; gains `#include "../../ast/ast.h"`
+- `rebus.y`: fully rewritten — all `rexpr_new`/`rstmt_new` grammar actions replaced with `ast_node_new(TT_*)` + `expr_add_child`; `EAL`/`STAL` replaced by `TAL` (tree_t dynamic array); `rebus.tab.c` + `rebus.tab.h` regenerated with `bison --warnings=none -d`
+- `rebus_lower.c`: new `lower_tree_expr` + `lower_tree_stmt` walk `tree_t` directly; `lower_decl` updated to use `body_tree`/`initial_tree`
+- Gates: smoke_rebus PASS=4/4 ✅, crosscheck_snobol4 PASS=6/6 ✅, smoke_scrip_all_modes PASS=2/0 ✅
 
 ---
 
-## State
+## What is NOT done yet
 
+### PST-RB-5c — next step
+Delete the now-dead old IR:
+- `RExpr` / `RStmt` / `RProgram` struct definitions from `rebus.h`
+- Helper functions: `rexpr_new`, `rstmt_new`, `rdecl_new` (keep `rdecl_new` — `RDecl` still used), `rcase_new` (keep — `RCase` still used for caselist), old `lower_expr(RebLow*, RExpr*)`, old `lower_stmt(RebLow*, RStmt*)`
+- `SAL` / `EAL` / `STAL` typedefs and helpers in `rebus.y` preamble (already gone from grammar actions; the typedefs remain in the `%{` block)
+- `rebus_print.c` — currently walks `RExpr*`/`RStmt*`; either update to walk `tree_t` or delete (it's only used for `-p` debug printing)
+- `rebus_emit.c` — walks `RExpr*`/`RStmt*` and emits SNOBOL4; check if still referenced; if not, delete or stub
+
+### PST-RB-5d — downstream consumers
+- `rebus_lower.c`: the old `lower_expr(RebLow*, RExpr*)` and `lower_stmt(RebLow*, RStmt*)` are still present but no longer called from `lower_decl`. Delete them after 5c.
+
+### PST-PL-6a through 6g — Prolog rewrite
+- Not started. Read `prolog_parse.c` and `corpus/SCRIP/parser_prolog.sc`; verify Term→tree_t mapping.
+
+---
+
+## Key file locations
+- `one4all/src/include/ast.h` — `TT_FOR` is at line 26
+- `one4all/src/frontend/rebus/rebus.h` — `RCase` has `guard_tree`/`body_tree`; `RDecl` has `initial_tree`/`body_tree`
+- `one4all/src/frontend/rebus/rebus.y` — fully PST; `rebus.tab.c`/`.h` committed
+- `one4all/src/frontend/rebus/rebus_lower.c` — `lower_tree_expr` at ~line 390; `lower_tree_stmt` at ~line 472; old `lower_expr`/`lower_stmt` still present below them
+
+## Baselines at session end
+- smoke_rebus: PASS=4 FAIL=0
+- smoke_prolog: PASS=3 FAIL=2 (pre-existing, not regressed)
+- crosscheck_snobol4: PASS=6 FAIL=0
+
+## Session setup for next session
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/one4all/scripts/test_smoke_rebus.sh        # expect PASS=4
+bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh # expect PASS=6
 ```
-one4all = 9ed3c99b  (unchanged — no C-side changes this session)
-corpus  = 9cc4587   (PST-SN4-2)
-.github = 245927a6  (PST-SN4-2 handoff)
-```
-
----
-
-## Next steps
-
-**SNOBOL4 parser is done.** `parser_snobol4.sc` is a pure syntax tree parser with only `Shift`/`Reduce` primitives and zero worker functions. Step 1 of GOAL-PARSER-PURE-SYNTAX-TREE.md is complete.
-
-**Next session should be Snocone (PST-SC-4a):**
-- Move `TT_AUGOP` expansion from `snocone_parse.y` into `lower.c`
-- Mirror in `corpus/SCRIP/parser_snocone.sc` + `corpus/SCRIP/lower.sc`
-
-**Note:** This session did NOT touch C-side (`src/frontend/snobol4/snobol4.y` or `src/lower/lower.c`). The C-side SNOBOL4 parser was already clean from PST-SN4-1a through 1d. Only the SCRIP mirror (`parser_snobol4.sc`) was brought to purity this session.
