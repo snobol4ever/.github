@@ -136,7 +136,7 @@ On completion, update Step 2 and Step 3 checkboxes in the Frontend status table 
 
 Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green. **SCRIP mirror:** every rung in this step touches both `src/frontend/snocone/snocone_parse.y` / `src/lower/lower.c` AND `corpus/SCRIP/parser_snocone.sc` / `corpus/SCRIP/lower.sc` in the same commit. The post-parse `tree_t` produced by both parsers must match for the snocone smoke corpus at the end of each rung.
 
-- [ ] **PST-SC-4a** — Lower handles `TT_AUGOP`. Parser emits `TT_AUGOP` tagged with `AUGOP_*` enum instead of expanding `+=` etc.
+- [x] **PST-SC-4a** ✅ (2026-05-16, one4all `3c09f91d`, corpus `67eaa51`) — Parser emits `TT_AUGOP(lhs, rhs)` with `v.ival = TK_AUG*`; `lower_augop` already handled it. `sc_clone_expr_simple` deleted. SCRIP mirror: `reduce_augmented` → `reduce_augop(op)`, `TK_AUGPOW=1007` added to `lower.sc` and `parser_snocone.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, smoke_scrip_all_modes PASS=2/0.
 - [ ] **PST-SC-4b** — Lower handles `TT_IF(cond, then, else?)`. Parser replaces `sc_if_head_new`/`sc_finalize_if_*` with single `TT_IF`. `IfHead` deleted.
 - [ ] **PST-SC-4c** — `TT_WHILE(cond, body)`. `WhileHead`/`sc_finalize_while` deleted.
 - [ ] **PST-SC-4d** — `TT_REPEAT` / do-while. `DoHead`/`sc_finalize_do_while` deleted.
@@ -378,28 +378,18 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
+            Stage 1 Step 4 — PST-SC-4a ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
 head: .github = (this commit)
-       one4all = 9ed3c99b (PST-SN4-1c — unchanged this session)
-       corpus  = 9cc4587 (PST-SN4-2)
-session 30/58 completed: PST-SN4-1a, PST-SN4-1b, PST-SN4-1d (C+SCRIP), PST-SN4-1c (C+SCRIP).
-  Three concurrent goal files created for parallel work:
-    GOAL-PARSER-PURE-SYNTAX-TREE.md — SNOBOL4 (Step 1) + Snocone (Step 4)  ← this file
-    GOAL-PST-ICN-RAKU.md            — Icon (Step 2) + Raku (Step 3)
-    GOAL-PST-REBUS-PROLOG.md        — Rebus (Step 5) + Prolog (Step 6)
-  NOTE FOR NEXT SESSION: goal file restructure is INCOMPLETE. The three concurrent
-  files each need exactly 2 languages. GOAL-PST-ICN-RAKU.md and GOAL-PST-REBUS-PROLOG.md
-  currently duplicate steps already in this file. Next session must fix the split
-  so each concurrent file truly owns its two languages, then proceed with PST-ICN-2a.
-next: PST-SC-4a — TT_AUGOP: move augop expansion from snocone parser to lower (Snocone session)
-      SNOBOL4 parser_snobol4.sc: Step 1 complete — pure syntax tree, no worker functions
+       one4all = 3c09f91d (PST-SC-4a)
+       corpus  = 67eaa51  (PST-SC-4a SCRIP mirror)
+session 30/59 completed: PST-SC-4a — TT_AUGOP node emitted by Snocone parser; lower absorbs expansion. SCRIP mirror in same commit. Gates baseline-identical.
+next: PST-SC-4b — TT_IF(cond, then, else?): parser replaces sc_if_head_new/sc_finalize_if_* with single TT_IF node. IfHead deleted.
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4a next) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4b next) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
-shift/reduce endpoint: once both invariants (pure-tree + left-to-right) hold across all six C frontends,
-  every corpus/SCRIP/parser_*.sc collapses to a dispatch table + Shift/Reduce in ShiftReduce.sc.
 ```
 
 ### Note for next session — bison regen behavior
