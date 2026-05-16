@@ -2,7 +2,7 @@
 
 **Repo:** one4all + corpus + .github
 **Parent goal:** `GOAL-PARSER-PURE-SYNTAX-TREE.md` (Steps 2 and 3)
-**Status:** Active — PST-ICN-2a next
+**Status:** Active — PST-ICN-4a next (SCRIP mirror helper elimination)
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► IR_sm_t[]  ──┐
@@ -77,13 +77,73 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
 
 ---
 
+## Step 4 — SCRIP mirror helper elimination (Icon)
+
+**Finding (2026-05-16, session re-audit):** `parser_icon.sc` still carries 13 helper
+functions that perform tree Pop/inspect/reassemble instead of pure `shift`/`reduce`.
+The C-side violations were fixed in PST-ICN-2b but the SCRIP mirror was not brought
+to `{shift, reduce}` only — it retained the old helper pattern.  The parent goal
+(`GOAL-PARSER-PURE-SYNTAX-TREE.md`) requires every frontend's SCRIP mirror to be
+expressible as shift + reduce with no helpers that inspect previously-built children.
+
+**Violations in `corpus/SCRIP/parser_icon.sc`:**
+
+| Helper | Violation | Fix |
+|--------|-----------|-----|
+| `push_subscript` | Pops idx+lhs, inspects order | Replace with `reduce('TT_IDX', 2)` (already used in same rule) |
+| `push_section` (`:` case) | Pops hi/lo/lhs | Replace with `reduce('TT_SECTION', 3)` |
+| `decompose_proc` | `TopCounter()`+loop+`Append` | Inline `nPush/nInc/reduce('TT_FNC','nTop()')/nPop` + STMT wrapper |
+| `push_record` | same loop pattern | `reduce('TT_RECORD', 'nTop()')` inline |
+| `push_global_top` | same loop pattern | `reduce('TT_GLOBAL', 'nTop()')` inline |
+| `push_local_stmt` | same loop pattern | `reduce('TT_LOCAL', 'nTop()')` inline |
+| `push_static_stmt` | same loop pattern | `reduce('TT_STATIC_DECL', 'nTop()')` inline |
+| `push_field` | calls `v()` on child to extract sval | `reduce('TT_FIELD', 2)` with `[lhs, TT_VAR(fname)]` children; update `lower_icn.c` to read `e->c[1]->v.sval`; update C parser; update `.ref` files |
+| `push_match` | synthesizes `TT_VAR('match')` not in source | Add `TT_MATCH_UNARY` to `ast.h`, handle in `lower_icn.c`; `reduce('TT_MATCH_UNARY', 1)` |
+| `push_qlit` | named function wrapping a leaf push | Inline as pattern action or `shift` |
+| `push_cset` | named function wrapping a leaf push | Inline |
+| `push_flit` | named function + `REAL()` computation | Inline (REAL from token is allowed) |
+| `push_kw` | named function + `'&' kwname` concat | Inline |
+
+**C-side changes required (SCRIP mirror invariant — same commit):**
+- `ast.h`: add `TT_MATCH_UNARY`
+- `icon_parse.c`: unary `=` emits `TT_MATCH_UNARY(inner)` instead of `TT_FNC(TT_VAR('match'), inner)`; `TT_FIELD` stores name as `c[1]` (TT_VAR) not `v.sval`
+- `lower_icn.c`: handle `TT_MATCH_UNARY`; read field name from `e->c[1]->v.sval` in `TT_FIELD` case
+- `.ref` files: regenerate for `field_access`, `subscript_field`, `match_expr`, and any other affected fixtures
+
+- [ ] **PST-ICN-4a** — Infrastructure: add `TT_MATCH_UNARY` to `ast.h`; update `icon_parse.c` unary `=` and `TT_FIELD` construction; update `lower_icn.c` for both new kinds; regenerate `.ref` files for affected fixtures. Gates: `smoke_icon`, `crosscheck_snobol4`.
+
+- [ ] **PST-ICN-4b** — SCRIP mirror: eliminate all 13 helpers from `parser_icon.sc`; replace with inline `shift`/`reduce` actions. Both C and SCRIP committed together. Gates: `smoke_icon`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
+
+## Step 5 — SCRIP mirror helper elimination (Raku)
+
+**Finding (2026-05-16, session re-audit):** `corpus/SCRIP/parser_raku.sc` carries ~80
+helper functions (`push_*`, `finish_*`, `flatten_*`). The `flatten_*` functions
+(flatten_add, flatten_sub, flatten_mul, flatten_div, flatten_cat) actively inspect
+previously-built subtrees and mutate them — a direct violation of the left-to-right
+child order invariant. The `finish_*` functions do Pop/reassemble equivalent to what
+should be inline `reduce` actions.
+
+- [ ] **PST-RAKU-5a** — Audit `parser_raku.sc` fully: catalogue all `flatten_*` as
+  child-inspection violations and all `finish_*` that inspect `->kind` of prior nodes.
+  Record findings in State block.
+
+- [ ] **PST-RAKU-5b** — Eliminate `flatten_*` violations: replace with always-wrap
+  `reduce` (produces right-leaning chain, correct per PST rules). Update C `raku.y`
+  if any parallel flatten logic exists there. Gates: `smoke_raku`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
+
+- [ ] **PST-RAKU-5c** — Eliminate remaining `finish_*` and `push_*` helpers: replace
+  with inline `shift`/`reduce`. Gates: all four goal gates green.
+
 ## Done criterion for this goal
 
 1. PST-ICN-2a/2b checked [x].
 2. PST-RAKU-3a/3b checked [x].
-3. All gate scripts green at baseline.
-4. Beauty self-host byte-identical (Milestone 1 protected).
-5. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 checked [x].
+3. PST-ICN-4a/4b checked [ ].
+4. PST-RAKU-5a/5b/5c checked [ ].
+5. All gate scripts green at baseline.
+6. Beauty self-host byte-identical (Milestone 1 protected).
+7. `parser_icon.sc` and `parser_raku.sc` contain zero helper functions that Pop/inspect/reassemble trees — only `shift` and `reduce` actions.
+8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
@@ -92,8 +152,13 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-16 (session 30/59)
-next: DONE — all PST-ICN and PST-RAKU steps complete
+watermark: 2026-05-16 (session 30/60)
+next: PST-ICN-4a — TT_MATCH_UNARY + TT_FIELD child fix (C + SCRIP mirror)
+REOPENED 2026-05-16 session 30/60: SCRIP mirror files never brought to shift/reduce-only.
+  C-side fixes from PST-ICN-2b did not propagate to SCRIP mirrors. parser_icon.sc has 13
+  helper functions that Pop/inspect/reassemble trees; parser_raku.sc has ~80. flatten_* in
+  parser_raku.sc violate left-to-right child order invariant. PST-RAKU-3b was marked done
+  prematurely — finish_*/flatten_*/push_* helpers remain throughout.
 audit findings Icon (PST-ICN-2a/2b complete):
   V1 FIXED: TT_AUGOP v.ival now stores AUGOP_* (was raw IcnTkKind). lower.c, lower_icn.c, interp_eval.c, icn_value.c all updated.
   V2 FIXED: TT_LOCAL / TT_STATIC_DECL node kinds added to ast.h. Parser, lower, interp, icn_runtime all updated.
