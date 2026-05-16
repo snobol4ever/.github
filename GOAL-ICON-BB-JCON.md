@@ -41,36 +41,38 @@
 
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
-║  ⛔ ABSOLUTE RULE — CROSS-LANGUAGE CALLS GO SM↔SM OR BB↔BB, NEVER SM↔BB                         ║
+║  ⛔ ABSOLUTE RULE — CROSS-LANGUAGE: SM↔SM VIA HOOK, BB↔BB VIA UNIVERSAL FOUR-PORT CONTRACT       ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                                  ║
-║  Each language owns its own SM↔BB bridge contract WITHIN that language:                         ║
-║    • Icon:   `SM_BB_PUMP_PROC` / `icn_bb_dcg` / `proc_table[i].ir_body`                          ║
+║  SM-instruction-brokers-BB is the normal mode within a language — every language has its own    ║
+║  SM bridge family pumping its own BB-land:                                                       ║
+║    • Icon:    `SM_BB_PUMP_PROC` / `icn_bb_dcg` / `proc_table[i].ir_body`                        ║
 ║    • SNOBOL4: `SM_PAT_*` composer family / `pat_cat`/`pat_alt` / PATND_t tree                   ║
-║    • Prolog: `SM_PL_CHOICE`-family / `pl_bb_dcg` / `dcg_table[i].ir_body`                       ║
+║    • Prolog:  `SM_BB_ONCE_PROC` / `pl_bb_dcg` / `dcg_table[i].ir_body`                          ║
 ║                                                                                                  ║
-║  The α/β/γ/ω port semantics differ per language: Icon "β" advances a generator's internal       ║
-║  counter; Prolog "β" pops a choice-point and tries the next clause; SNOBOL4 "β" backtracks      ║
-║  along the pattern's anchor chain.  These contracts are NOT interchangeable.                    ║
+║  Cross-language flow uses two paths, BOTH allowed:                                              ║
 ║                                                                                                  ║
-║  When polyglot code crosses a language boundary, the call MUST land at the same level it       ║
-║  left from:                                                                                      ║
+║    SM(A) ──→ SM(B)   via name-dispatch hook (`g_user_call_hook` today; SM_XCALL conceptually).  ║
+║                      Caller pushes args, names callee, target language receives at its SM       ║
+║                      entry point and handles its own SM↔BB internally.                          ║
 ║                                                                                                  ║
-║    SM(lang_A) ──→ SM(lang_B)    via top-level dispatch (SM_CALL_FN, frontend emission)          ║
-║    BB(lang_A) ──→ BB(lang_B)    via a registered BB callee at the same level                    ║
+║    BB(A) ──→ BB(B)   via the universal α/β/γ/ω four-port contract.  Caller holds a reference   ║
+║                      to a BB object owned by language B (e.g. a bb_node_t with fn=pl_bb_dcg),  ║
+║                      pumps it with α/β, receives γ/ω back.  Backtracking flows naturally       ║
+║                      across this boundary because both sides agree on the four-port discipline.║
+║                      Per-language internal semantics (Icon advances a generator counter; Prolog║
+║                      unwinds the trail; SNOBOL4 backtracks anchors) are encapsulated inside    ║
+║                      B's BB-land object — the caller doesn't see them.                         ║
 ║                                                                                                  ║
-║  NEVER:                                                                                          ║
+║  WHAT IS FORBIDDEN: invoking a language-A SM-bridge handler with a language-B BB-land object   ║
+║  as its operand.  Specifically, the handler for Icon's `SM_BB_PUMP_PROC` is hardcoded to drive  ║
+║  `proc_table[i].ir_body` with Icon's frame/scope/generator semantics — it must not be passed   ║
+║  `dcg_table[i].ir_body` (Prolog's trail-aware DCG).  The handler doesn't know how to set up    ║
+║  Prolog's trail, so cross-wiring corrupts state.  Cross-language calls go up to SM-level        ║
+║  dispatch first via `g_user_call_hook`, never reach across at the bridge-handler level.        ║
 ║                                                                                                  ║
-║    SM(lang_A) ──→ BB(lang_B)    direct reach-across — DIFFERENT port semantics                  ║
-║    BB(lang_A) ──→ SM(lang_B)    direct reach-up — bypasses the bridge contract                  ║
-║                                                                                                  ║
-║  The SM↔BB bridge inside any one language is the ONLY place SM-level and BB-level code         ║
-║  meet, and that bridge is owned by — and meaningful only for — that one language.               ║
-║                                                                                                  ║
-║  Polyglot composability is structural, not semantic.  Cutting and pasting BBs across            ║
-║  languages produces a syntactically valid graph that runs nonsense.  Composition WITHIN a       ║
-║  language is plug-and-play; composition ACROSS languages requires a deliberate ABI bridge at   ║
-║  the SM↔SM or BB↔BB level that translates port semantics.                                       ║
+║  Polyglot composability is genuine: BB(A) ↔ BB(B) at the universal four-port level, and        ║
+║  SM(A) ↔ SM(B) at the name-dispatch level.  Just don't mix levels across languages.            ║
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
