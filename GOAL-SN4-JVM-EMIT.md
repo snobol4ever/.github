@@ -164,16 +164,18 @@ The following demo SNOBOL4 programs are emitted to JVM Jasmin and stored in `cor
    - `java -jar /home/claude/one4all/src/backend/jasmin.jar *.j -d .`
    - `java -cp . Prog` and verify output matches expected
 
-**Current checksums** (as of session 2026-05-15d, after SM_COERCE_NUM arithmetic fix):
+**Current checksums** (as of session 2026-05-15f, after SM control flow + builtins):
 ```
-hello.j:        0bb216fca7e77ec37486ef7eb140e033 (22 lines)
-counter.j:      77364710c58e6ee05ed33ecd41b7479d (53 lines)
-pattern_test.j: 1e1843144e4956b7427ee02a4bb728f7 (36 lines)
-arithmetic.j:   0bbd509431a2dfea99531b673093b222 (83 lines, validates coerce_num opcode firing)
-beauty.j:       226c5bac25dd7fd69f297dfdcfdf327c (12343 lines, comprehensive test)
+hello.j:        1e25de83489d43eda42675de8a063394 (31 lines)
+counter.j:      2fe94749ed12f7ed44fea1874a336634 (86 lines)
+pattern_test.j: 56d32ac9829bb6c6a606e9f693890983 (54 lines)
+arithmetic.j:   849210cc9fdf374b757c87bf9d82224c (123 lines)
+beauty.j:       e1c3184a5eaea1ea2d01081fcb28956c (13384 lines, comprehensive test)
 ```
 
-**Why checksums matter:** SM instruction changes affect the emitted Jasmin only if those instructions fire for the demo. Arithmetic.j uses integer literals (SM_PUSH_LIT_I), so coerce opcodes don't appear in its output. Beauty.j uses variables (SM_PUSH_VAR) and will reflect coercion changes. Update checksums here when lower.c/emit_jvm.c changes propagate to the demos.
+Note: checksums changed in session 2026-05-15f because SM control flow added per-PC labels
+(`sm_pc_N:`) and goto_w instructions for SM_JUMP/JUMP_S/JUMP_F. All 5 demos still assemble
+cleanly with jasmin.jar.
 
 ---
 
