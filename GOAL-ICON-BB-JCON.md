@@ -74,6 +74,47 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — FOUR PORTS HARD-WIRED WITH DIRECT POINTERS — NO IMPLICIT ZERO-INIT          ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Every IR_t carries four port fields:                                                            ║
+║                                                                                                  ║
+║      IR_t * α;      // entry (first attempt)                                                     ║
+║      IR_t * β;      // resume (re-entry to produce next value)                                   ║
+║      IR_t * γ;      // success continuation                                                      ║
+║      IR_t * ω;      // failure continuation                                                      ║
+║                                                                                                  ║
+║  These MUST be set to concrete values by `IR_node_alloc`, NOT left as zero-init NULL.            ║
+║  The current SCRIP convention (matches every existing single-node generator builder):            ║
+║                                                                                                  ║
+║      α = nd        // self-loop on entry — node re-enters itself                                ║
+║      β = nd        // self-loop on resume — node advances its own state                         ║
+║      γ = NULL      // success ⇒ return value to driver (terminator marker)                      ║
+║      ω = NULL      // failure ⇒ return FAIL to driver (terminator marker)                       ║
+║                                                                                                  ║
+║  γ = NULL and ω = NULL are EXPLICIT terminator pointers under the driver protocol:               ║
+║  IR_exec_once / IR_exec_resume terminate when IR_exec_node returns NULL, returning nd->value.    ║
+║  This is hard-wiring with direct pointer semantics — NULL is the terminator value, set           ║
+║  deliberately, never relied upon as zero-init coincidence.                                        ║
+║                                                                                                  ║
+║  Compound nodes (IR_IF, IR_EVERY, IR_SEQ, IR_BINOP, IR_CALL, IR_ASSIGN, IR_VAR, the literals,    ║
+║  and the existing single-node generators IR_ICN_TO, IR_ICN_TO_BY, IR_ICN_UPTO, IR_ICN_ITERATE,   ║
+║  IR_ICN_ALTERNATE, IR_ICN_LIMIT, IR_ICN_BINOP, IR_ICN_TO_NESTED, IR_ICN_PROC_GEN, IR_ICN_EVERY)  ║
+║  all follow this convention.  `IR_node_alloc` (scrip_ir.c) bakes the default at allocation       ║
+║  time so no caller can produce a zero-init port.                                                  ║
+║                                                                                                  ║
+║  Future flat-chunk redesign (GOAL-LOWER-REDESIGN) may rewire γ/ω to point at successor nodes    ║
+║  (jcon's pure label-threaded model).  Until that arc lands, the self-loop α/β + NULL-terminator  ║
+║  γ/ω convention IS the four-port wiring contract — and `IR_node_alloc` enforces it.              ║
+║                                                                                                  ║
+║  Verified 2026-05-15 (Claude Opus 4.7, one4all post-c2c20d1a (commit 927e0296)): zero call sites in src/ depend   ║
+║  on NULL α/β as a sentinel.  Switching `IR_node_alloc` to α=β=nd default is invariant-           ║
+║  preserving across every gate (smoke_icon 5/5, broker 16/49, honest 277, ir-run 20, cross-lang   ║
+║  smokes all unchanged).                                                                          ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-ICON-BB-NATIVE ✅ `7efdf09a`
 
@@ -642,7 +683,7 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: c2c20d1a  corpus: 1fe096c
+  one4all: 927e0296  corpus: 1fe096c
   ir-run:  20/265 (baseline 15 at d30949cb; +5 from TT_IF/TT_EVERY/TT_TO)
   honest:  277 PASS / 0 FAIL / 0 ABORT
   smoke_icon: 5/5   smoke_prolog: 0/5   broker: 16/49
@@ -731,6 +772,39 @@ Next DCGs to implement (highest ir-run yield first):
     stub on `SM_BB_ONCE_PROC` NO-AST currently.
 
     PLAN.md row for "Prolog BB JCON triage" added pointing at the new Goal.
+
+  Session 2026-05-15 followup #2 (Claude Opus 4.7, one4all `927e0296`):
+    Lon directive: four ports must be hard-wired with direct pointers, not
+    left to zero-init coincidence.  Audit found that the new compound
+    nodes added in IJ-AST-IR-BB-if-every-to (IR_IF, IR_EVERY) plus the
+    earlier IR_VAR/IR_ASSIGN/IR_CALL/IR_SEQ/IR_BINOP and the literal nodes
+    all left α/β/γ/ω as NULL after IR_node_alloc — execution worked only
+    because NULL happens to be the driver's terminator marker.
+
+    Fix: bake the SCRIP four-port default into IR_node_alloc itself —
+    α = nd, β = nd, γ = NULL, ω = NULL.  Now every node has hard-wired
+    direct port pointers at the moment of allocation, regardless of what
+    the caller does next.  The 10 legacy single-node generator builders'
+    explicit assignments remain — now redundant but self-documenting.
+
+    α=nd, β=nd is the SCRIP self-loop convention: 'entering this node =
+    run this node again'; 'resuming this node = run this node again,
+    advance state via nd->state / nd->counter'.  γ=NULL, ω=NULL are the
+    EXPLICIT terminator pointers under the driver protocol — IR_exec_once
+    / IR_exec_resume return nd->value when IR_exec_node yields NULL.
+
+    Added prominent banner box at top of this file recording the
+    convention.  Same banner reproduced in GOAL-PROLOG-BB-JCON.md.
+
+    Future flat-chunk redesign (GOAL-LOWER-REDESIGN) may rewire γ/ω to
+    point at successor nodes (jcon pure label-threaded model).  Until
+    that arc lands, the self-loop α/β + NULL-terminator γ/ω convention
+    IS the four-port wiring contract — and IR_node_alloc now enforces it.
+
+    Verified invariant-preserving: zero call sites in src/ depend on NULL
+    α/β as a sentinel (grep confirmed).  All gates unchanged:
+      smoke_icon 5/5; broker 16/49; honest 277/0/0; ir-run 20/265;
+      cross-lang smokes all unchanged.
 
   Session 2026-05-15h (Claude Sonnet 4.6, one4all `66b4d52e`):
     Architectural directive recorded (Lon, 2026-05-15): Icon program = TWO SM
