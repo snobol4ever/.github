@@ -3,11 +3,19 @@
 **Repo:** one4all + .github
 **Reason:** Previous implementation violated RULES.md § "NO AST WALKING IN MODES 2/3/4" by embedding an interpreter (sno_engine.js, pattern interpreter path in sno_runtime.js). Pattern matching must emit actual Byrd-box factories in JavaScript, matching the semantics of x86/JVM/.NET emitters.
 
-**⛔ PERMANENT RULE (added to RULES.md):**
-- **NEVER restore deleted interpreter code** (sno_engine.js, sno_runtime.js pattern-matching sections)
-- Pattern matching MUST emit Byrd-box-style closures that implement α/β/γ/ω semantics
-- Every SM_PAT_* opcode builds pattern factories (functions), not data structures
-- SM_EXEC_STMT wires factories into a runtime harness that steps through ports
+**⚠️ CORRECTION (2026-05-16, session after BB0):**
+BB0 (deletion of sno_engine.js) was a mistake caused by Claude confusing two separate concerns:
+- `sno_engine.js` is the **runtime pattern-match engine** — it runs the emitted JS output. It is NOT an AST-walking interpreter of SNOBOL4 source. It must be preserved.
+- The rule against "AST walking" / "interpreter code" applies to `scrip` compiling SNOBOL4 source — not to the JS runtime that executes already-compiled output.
+- **`sno_engine.js` has been RESTORED** from git history (commit `a3eabfc9`).
+- The pattern-interpreter sections deleted from `sno_runtime.js` should also be reviewed for restoration.
+
+**⛔ CORRECTED PERMANENT RULE:**
+- **DO NOT delete sno_engine.js** — it is the compiled-JS pattern execution runtime, not a SNOBOL4 source interpreter
+- Pattern matching in the JS *emitter* (emit_js.c) MUST emit Byrd-box-style factory calls
+- The emitted factories run *inside* the sno_engine.js / sno_runtime.js runtime harness
+- Every SM_PAT_* opcode in emit_js.c builds emitted pattern factory code, not data structures
+- SM_EXEC_STMT emits JS code that calls the harness — the harness itself lives in sno_engine.js
 - **This rule is non-negotiable and applies to all emitters** (JS, JVM, .NET, WASM)
 
 ---
@@ -57,15 +65,19 @@ function bb_lit(lit) {
 
 ---
 
-## Step 0 — Delete All Interpreter Code ✅ (COMPLETE 2026-05-16)
+## Step 0 — ⚠️ REVERTED (2026-05-16, session after BB0)
 
-- [x] SJ4-JS-BB0a — Delete sno_engine.js entirely
-- [x] SJ4-JS-BB0b — Delete pattern-interpreter sections from sno_runtime.js
-- [x] SJ4-JS-BB0c — Replace deleted sections with stubs that throw "NOT IMPLEMENTED"
-- [x] SJ4-JS-BB0d — Update RULES.md to add permanent rule
-- [x] SJ4-JS-BB0e — Commit and push
+BB0 was based on a misunderstanding. sno_engine.js is NOT a SNOBOL4 source interpreter — it is the
+pattern execution runtime for compiled JS output. It must NOT be deleted.
 
-**Status:** PASS=0 FAIL=129 (expected — no pattern matching implemented yet)
+- [x] SJ4-JS-BB0a — ~~Delete sno_engine.js entirely~~ **REVERTED — sno_engine.js restored from a3eabfc9**
+- [x] SJ4-JS-BB0b — ~~Delete pattern-interpreter sections from sno_runtime.js~~ **NEEDS REVIEW for restoration**
+- [x] SJ4-JS-BB0c — ~~Replace deleted sections with stubs~~ **Stubs now redundant — engine restored**
+- [x] SJ4-JS-BB0d — ~~Update RULES.md to add permanent rule~~ **RULES.md rule was wrong — see correction above**
+- [ ] SJ4-JS-BB0e-FIX — Restore sno_runtime.js deleted pattern sections (review what was lost)
+- [ ] SJ4-JS-BB0f-FIX — Commit restoration with note that BB0 was confused about compiled vs interpreter
+
+**Status after restoration:** sno_engine.js back at 620 lines. sno_runtime.js pattern stubs still need review.
 
 ---
 
