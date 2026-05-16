@@ -266,7 +266,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
   **Gate:** ladder reports PASS ≥ 100 with no scrip segfaults during emission. (Beauty self-host is no longer the closing gate; deferred to a later goal.)
 
-  **Status (sess 2026-05-15, Claude Opus 4.7, one4all `9c2c26a5`):** ladder baseline PASS=11 FAIL=118 of 129 programs (8.5%). Currently passing: `cat`, `collect`, `end`, `hello`, `loop`, `noexec`, `openo`, `punch`, `sleep`, `space2`, `str`. One emission-time scrip segfault observed during the batch — fix is in 5d-pre.
+  **Status (sess 2026-05-15, Claude Opus 4.7, one4all `8e303b91`):** ladder PASS=16 FAIL=112 SKIP=1 of 129 programs (12.4%). Currently passing (16): `cat`, `collect`, `end`, `hello`, `loop`, `noexec`, `openo`, `punch`, `sleep`, `space2`, `str` (baseline 11) + four added by silent-halt fix + one added by &MAXINT keyword fast-path. Skip: `scanerr` (upstream frontend bug, see 5d). One emission-time scrip segfault, now skip-listed.
 
 #### Sub-steps for SN4-WASM-5
 
@@ -278,9 +278,9 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 - [x] **SN4-WASM-5-LADDER ✅** — Add `scripts/test_sn4_wasm_ladder_safe.sh` mirroring the JS ladder structure. Baseline PASS=11/129.
 
-- [ ] **SN4-WASM-5d** — Fix or skip the scrip emission-time segfault on `corpus/programs/csnobol4-suite/scanerr.sno`. This is a **pre-existing scrip frontend bug** — confirmed against the JS ladder which segfaults on the same program (SESSION-2026-05-15-HANDOFF.md, sec 2). Not WASM-specific. Two options: (a) fix the upstream frontend bug, (b) skip `scanerr.sno` in the ladder script with a documented one-line guard until upstream is fixed.
+- [x] **SN4-WASM-5d ✅** — `scanerr.sno` is an **upstream scrip frontend bug**, not WASM-specific. Backtrace under gdb (session 2026-05-15, Opus 4.7) pinpoints `lower.c:304` in `emit_pat_capture()`: `strdup(0x1)` because `var_node->v.sval` is uninitialised for the unary-`*` deferred-expression pattern operator (`*TAB(X)`, `*ANY(X)`, `*LEN(X)`). Fires on every target including `--sm-run` / `--ir-run`. Per RULES.md skip-with-doc the right move: ladder script gained a `SKIP_LIST` guard and now reports `PASS / FAIL / SKIP / TOTAL`. Upstream fix is a separate session.
 
-- [ ] **SN4-WASM-5e** — Implement remaining single-arg / 2-arg scalar builtins in `$sno_call`: SIZE, INTEGER, STRING, CONVERT, DATATYPE, TRIM, DUPL, SUBSTR, REPLACE, REVERSE, ITEM. Each adds a `(data ...)` name segment and a dispatch branch. Should unlock ~20-40 ladder programs.
+- [ ] **SN4-WASM-5e — partial 🔄** — Implement remaining single-arg / 2-arg / 3-arg scalar builtins in `$sno_call`. **Done this session (Opus 4.7):** silent `$sno_halt_tos` (was printing residual TOS, polluting outputs of pattern-match statements whose orphan stack values came from still-stubbed SM_PAT_*); `&KEYWORD` fast-path in `$sno_push_var` for MAXINT/MAXLNGTH/STCOUNT/STLIMIT/ERRLIMIT/TRIM; 1-arg builtins SIZE/INTEGER/CHAR/ORD/TRIM/REVERSE; 3-arg SUBSTR. **Remaining:** DATATYPE, STRING, CONVERT, DUPL, REPLACE, REMDR; string-valued keywords ALPHABET/DIGITS/UCASE/LCASE (need static-data byte segments for their values). Should unlock ~10-20 more programs alone, more in combination with 5f.
 
 - [ ] **SN4-WASM-5f** — Implement user-defined functions: SM_DEFINE (build name→PC table), SM_CALL_FN for user procs (push return-PC, jump), SM_DO_RETURN (pop return-PC, jump). Needs a return-PC stack in linear memory and the `$main` dispatch loop to accept indirect PC writes (it already does, since the loop reads `$pc` mutably each iteration). Should unlock another large batch of programs that use DEFINE.
 
@@ -307,16 +307,23 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-WASM-5d NEXT (5a/5b/5c/5-LADDER ✅ this session; 1-4 ✅ prior sessions)
-head: one4all <to-be-set-by-handoff>; .github <to-be-set-by-handoff>
-session: 2026-05-15 (Claude Opus 4.7) — SN4-WASM-5 partial progress; goal pivot beauty → ladder
-progress: prereqs (IEP-1..6) ✅; SN4-WASM-1 ✅; SN4-WASM-2 ✅; SN4-WASM-3 ✅ (scrip.c dispatch wired);
-          SN4-WASM-4 ✅ (smoke 7/7 holding); SN4-WASM-5a/5b/5c ✅; SN4-WASM-5-LADDER ✅ (baseline 11/129);
-          SN4-WASM-5d-h remaining.
-gate this session: ladder PASS=11 FAIL=118 / 129; smoke_snobol4_wasm 7/7 holding;
+watermark: SN4-WASM-5f NEXT (DEFINE/RETURN — 34 programs use DEFINE, biggest remaining lever)
+          (5a/5b/5c/5-LADDER/5d ✅; 5e partial — see step body for remaining builtins;
+          1-4 ✅ prior sessions)
+head: one4all 8e303b91; .github <to-be-set-by-handoff>
+session: 2026-05-15 (Claude Opus 4.7) — three commits this session pushing SN4-WASM-5 forward
+progress: prereqs (IEP-1..6) ✅; SN4-WASM-1 ✅; SN4-WASM-2 ✅; SN4-WASM-3 ✅; SN4-WASM-4 ✅;
+          SN4-WASM-5a/5b/5c ✅; SN4-WASM-5-LADDER ✅; SN4-WASM-5d ✅ (scanerr skip-listed);
+          SN4-WASM-5e 🔄 partial (silent halt, kw fast-path, 7 scalar builtins; rest pending);
+          SN4-WASM-5f-h remaining.
+gate this session: ladder PASS=16 FAIL=112 SKIP=1 / 129 (up from 11 baseline);
+                   smoke_snobol4_wasm 7/7 holds throughout;
                    smoke_snobol4 7/7, smoke_snocone 5/5,
                    crosscheck_snobol4 6/6, crosscheck_snocone 8/8,
                    broker 23/49 (unchanged baseline).
-goal pivot: closing gate is ladder PASS ≥ 100, not beauty self-host.
-            beauty deferred to a later goal that depends on the full ladder + EVAL fallback.
+goal pivot (kept): closing gate is ladder PASS ≥ 100, not beauty self-host.
+this session's commits on one4all:
+  204e4fb8 SN4-WASM-5-LADDER: add test_sn4_wasm_ladder_safe.sh; baseline PASS=11/129
+  9c2c26a5 SN4-WASM-5a/5b/5c: wire scrip dispatch + fix memory layout + basic builtins
+  8e303b91 SN4-WASM-5d/5e: skip-list scanerr.sno; silent halt; kw fast-path; scalar builtins
 ```
