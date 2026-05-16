@@ -59,7 +59,7 @@ Lon names a goal. You:
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
 | **⚡ PST: SNOBOL4 + Snocone** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SC-4a** — Snocone: TT_AUGOP to lower. SN4: 1a ✅ 1b ✅ 1d ✅ 1c ✅ PST-SN4-2 ✅ (2026-05-16): parser_snobol4.sc pure syntax tree, zero worker functions. |
-| **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **PST-RAKU-3a** — read raku.y + parser_raku.sc; list violations. PST-ICN-2a/2b ✅ 2026-05-16. |
+| **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **PST-RAKU-3b** — fix raku.y violations (AST_t rename, CODE_t strip, SUB_TAG, for_stmt, when_list); regenerate raku.tab.c. PST-ICN-2a/2b ✅ PST-RAKU-3a ✅ 2026-05-16. |
 | **⚡ PST: Rebus + Prolog** | `GOAL-PST-REBUS-PROLOG.md` | one4all+corpus+.github | **PST-RB-5a** — read rebus.y + downstream; complete REKind→TT_* mapping. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
