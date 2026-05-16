@@ -535,7 +535,7 @@ count PASS / FAIL / ABORT.
 
 ## Watermark
 
-  one4all: 927e0296  corpus: 1fe096c
+  one4all: b974e111  corpus: 1fe096c
   smoke_prolog: 0/5  (all five stub on SM_BB_ONCE_PROC NO-AST)
   Other smokes unchanged: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5.
   honest icon-suite: 277 PASS / 0 FAIL / 0 ABORT.
