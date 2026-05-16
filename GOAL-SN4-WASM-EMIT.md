@@ -280,7 +280,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 - [x] **SN4-WASM-5d ✅** — `scanerr.sno` is an **upstream scrip frontend bug**, not WASM-specific. Backtrace under gdb (session 2026-05-15, Opus 4.7) pinpoints `lower.c:304` in `emit_pat_capture()`: `strdup(0x1)` because `var_node->v.sval` is uninitialised for the unary-`*` deferred-expression pattern operator (`*TAB(X)`, `*ANY(X)`, `*LEN(X)`). Fires on every target including `--sm-run` / `--ir-run`. Per RULES.md skip-with-doc the right move: ladder script gained a `SKIP_LIST` guard and now reports `PASS / FAIL / SKIP / TOTAL`. Upstream fix is a separate session.
 
-- [x] **SN4-WASM-5e ✅** — Implement remaining single-arg / 2-arg / 3-arg scalar builtins in `$sno_call`. **Closed sess 2026-05-15h (Claude Opus 4.7):** silent `$sno_halt_tos`; `&KEYWORD` fast-path in `$sno_push_var` for MAXINT/MAXLNGTH/STCOUNT/STLIMIT/ERRLIMIT/TRIM; 1-arg builtins SIZE/INTEGER/CHAR/ORD/TRIM/REVERSE; 3-arg SUBSTR. **Also closed this session:** string-valued keywords ALPHABET/DIGITS/UCASE/LCASE — added `(data)` segments at 0x31300 (256-byte \\00..\\FF ALPHABET), 0x31400 (DIGITS), 0x31410 (UCASE), 0x31430 (LCASE) with corresponding fast-paths in `$sno_push_var`.  Failure sentinel propagation: unknown-builtin fallback now pushes `TAG_FAIL` (was TAG_NULL) with `last_ok=0`; failed comparisons (LT/GT/EQ/NE/GE/LE/IDENT/DIFFER) push `TAG_FAIL` (was TAG_NULL); `$sno_concat` short-circuits to FAIL if either operand is FAIL; `$sno_store_var` no-ops when TOS is FAIL.  Remaining for a future session: DATATYPE, STRING, CONVERT, DUPL, REPLACE, REMDR, and float-to-string in `$tos_to_str`.
+- [x] **SN4-WASM-5e ✅** — Implement remaining single-arg / 2-arg / 3-arg scalar builtins in `$sno_call`. **Closed sess 2026-05-15h (Claude Opus 4.7):** silent `$sno_halt_tos`; `&KEYWORD` fast-path in `$sno_push_var` for MAXINT/MAXLNGTH/STCOUNT/STLIMIT/ERRLIMIT/TRIM; 1-arg builtins SIZE/INTEGER/CHAR/ORD/TRIM/REVERSE; 3-arg SUBSTR. **Also closed this session:** string-valued keywords ALPHABET/DIGITS/UCASE/LCASE — added `(data)` segments at 0x31300 (256-byte \\00..\\FF ALPHABET), 0x31400 (DIGITS), 0x31410 (UCASE), 0x31430 (LCASE) with corresponding fast-paths in `$sno_push_var`.  Failure sentinel propagation: unknown-builtin fallback now pushes `TAG_FAIL` (was TAG_NULL) with `last_ok=0`; failed comparisons (LT/GT/EQ/NE/GE/LE/IDENT/DIFFER) push `TAG_FAIL` (was TAG_NULL); `$sno_concat` short-circuits to FAIL if either operand is FAIL; `$sno_store_var` no-ops when TOS is FAIL.  **5e-extensions (same session):** additional keyword fast-paths STNO/FNCLEVEL/ANCHOR/FULLSCAN/CASE at 0x31250..0x31280; float-to-string conversion via new `host.format_real` JS host import (reconstructs f64 from `(ival=lo32, len=hi32)` slot, calls host; host implements SNOBOL4 conventions like `1.0`→`"1."`, `1e-6`→`"1e-06"` with zero-padded exponent for `|v| < 1e-3` or `|v| >= 1e16`); real arithmetic in `$sno_arith` (when either operand is `TAG_REAL`, do f64 ops and re-encode result as TAG_REAL slot) with FAIL propagation.  Remaining for a future session: DATATYPE, STRING, CONVERT, DUPL, REPLACE, REMDR.
 
 - [x] **SN4-WASM-5f ✅** — User-defined function support implemented in both emitter and runtime.
   - **Runtime additions** (`src/runtime/wasm/sno_runtime.wat`): call-stack region at 0x70000 (32-byte frames, 1024 max) + saved-bindings region at 0x78000.  Seven new helpers: `$sno_call_frame_push(ret_pc, retname_ptr, retname_len) → fr`, `$sno_call_frame_close`, `$sno_save_var(fr, name_ptr, name_len)`, `$sno_clear_var`, `$sno_set_var_from_tos`, `$sno_pop_to_null`, `$sno_fn_return(kind, cond) → ret_pc | -1 (cond fail) | -2 (halt)`.  Frame layout: `+0 ret_pc, +4 retname_ptr, +8 retname_len, +12 saved_start_off, +16 saved_count, +20 caller_sp`.  Saved-var entry layout (20 B): name_ptr, name_len, tag, ival, len.  Restoration walks entries in reverse order to correctly handle duplicate-name saves.
@@ -311,20 +311,22 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-WASM-5g NEXT (pattern matching — wire SM_EXEC_GEN through BB arena;
-          α/β bodies already in bb_boxes.wat, plumbing only)
+watermark: SN4-WASM-5g NEXT (pattern matching — implement JS-style pattern stack
+          + recursive matcher in WAT; defer BB-arena α/β approach to a later pass)
           (5a/5b/5c/5-LADDER/5d/5e/5f ✅; 1-4 ✅ prior sessions)
-head: one4all d67f50f3; .github &lt;to-be-set-by-handoff&gt;
+head: one4all dad748e7; .github &lt;to-be-set-by-handoff&gt;
 session: 2026-05-15h (Claude Opus 4.7) — SN4-WASM-5f closed + 5e finished
+         + 5e-extensions (more keyword fast-paths, float-to-string, real arithmetic)
 progress: prereqs (IEP-1..6) ✅; SN4-WASM-1 ✅; SN4-WASM-2 ✅; SN4-WASM-3 ✅; SN4-WASM-4 ✅;
           SN4-WASM-5a/5b/5c ✅; SN4-WASM-5-LADDER ✅; SN4-WASM-5d ✅ (scanerr skip-listed);
-          SN4-WASM-5e ✅ (kw fast-paths for ALPHABET/DIGITS/UCASE/LCASE + FAIL propagation);
+          SN4-WASM-5e ✅ (kw fast-paths for ALPHABET/DIGITS/UCASE/LCASE + FAIL propagation
+            + STNO/FNCLEVEL/ANCHOR/FULLSCAN/CASE + float-to-string + real arithmetic);
           SN4-WASM-5f ✅ (user-defined functions with full save/restore — fact.sno recursive
           factorial validates byte-identical to C interpreter);
           SN4-WASM-5g-h remaining.
-gate this session: ladder PASS=22 FAIL=106 SKIP=1 / 129 (up from 16 baseline; +6 this sess);
-                   gained: char, digits, fact, longline, ord, reverse, space2;
-                   lost: noexec, sleep (regressions — see notes below);
+gate this session: ladder PASS=24 FAIL=104 SKIP=1 / 129 (up from 16 baseline; +8 this sess);
+                   gained: char, contin, digits, fact, float, longline, ord, reverse, space2;
+                   lost: noexec, sleep (spurious previous passes — see notes below);
                    smoke_snobol4_wasm 7/7 holds throughout;
                    smoke_snobol4 7/7 (no regression).
 goal pivot (kept): closing gate is ladder PASS ≥ 100, not beauty self-host.
@@ -334,4 +336,11 @@ regressions noted: `noexec.sno` and `sleep.sno` previously "passed" because they
                    pragma is not honored at WASM emit time — emitter emits the code anyway).
                    These were spurious passes; fixing them requires honoring the `-NOEXECUTE`
                    directive in scrip's emit path or in the ladder script's emission step.
+next-session note: SN4-WASM-5g (pattern matching) — the JS-style stack-of-objects model
+                   (per src/runtime/js/sno_runtime.js lines 745-851 + src/emitter/emit_js.c
+                   lines 440-502) is a ~200-400 line port to WAT and unlocks ~30-50 corpus
+                   programs that use simple patterns.  The BB-arena α/β approach described
+                   in the goal preamble is cleaner architecturally but requires ~3× more
+                   wiring; recommendation is to implement the JS-style approach first for
+                   ladder PASS gain, defer the BB-arena model to a later optimization pass.
 ```
