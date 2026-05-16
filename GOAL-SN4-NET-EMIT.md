@@ -393,38 +393,142 @@ SN4-NET-5 covers everything needed to take beauty.sno from "assembles and runs" 
 ## State
 
 ```
-watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c next)
-head: one4all bb77ac29
-session: 2026-05-15 (Claude Opus 4.7)
+watermark: SN4-NET-5 ⏳ (5a ✅, 5b ✅, 5c in progress — see hand-off below)
+head: one4all bb77ac29 (main) + sn4-net-5c-wip branch cfd678db
+session: 2026-05-15 (Claude Opus 4.7) — hand-off
 progress:
   SN4-NET-1 ✅ SnoRt.il scalar runtime;
   SN4-NET-2 ✅ 19 BB emitters in emit_net.c;
   SN4-NET-3 ✅ SM walker + --target=net wiring;
   SN4-NET-4 ✅ smoke 7/7 PASS;
-  SN4-NET-5a ✅ control-flow / comment / runtime fixes — beauty.il assembles
-    and runs to completion on mono (one4all eb74b9a5).
-  SN4-NET-5b ✅ user-function dispatch (call/return without param binding)
-    via pre-scan name→pc table, push/pop_ret_pc on _ret stack
-    (one4all bb77ac29).
-  SN4-NET-5c ⏳ NEXT — parameter binding & frame save/restore (see step
-    detail above for 4-substep plan: parse param list from DEFINE literal,
-    emit per-param store_var at entry, frame save/restore via _frames,
-    return-value handling).
+  SN4-NET-5a ✅ control-flow / comment / runtime fixes (one4all eb74b9a5);
+  SN4-NET-5b ✅ user-function dispatch — call/return without param
+    binding via pre-scan name→pc table + push/pop_ret_pc on _ret stack
+    (one4all bb77ac29);
+  SN4-NET-5c ⏳ in progress on branch `sn4-net-5c-wip` (cfd678db).
   SN4-NET-5d — SM_PAT_* opcode wiring to pat_*_* BB classes.
   SN4-NET-5z — byte-identical beauty closeout.
   SN4-NET-6 — broad SNOBOL4 corpus ladder.
 
 test baseline (this session, /tmp/test_results/REPORT.md):
-  31 SNOBOL4 + Snocone test scripts run. All shared gates green:
+  31 SNOBOL4 + Snocone test scripts run on main @ bb77ac29. All shared
+  gates green:
     smoke_snobol4 7/7, smoke_net 7/7, jit-parity 180-prog,
     crosscheck_snobol4 6/6, crosscheck_snocone 8/8, smoke_snocone 5/5,
     sj4jvm1 19/19, sj4jvm2 5/5.
   All other failures pre-existing (verified by stash + rebuild + rerun):
   snocone parse_a..j (C compile errors against renamed AST/STMT types),
   hand_suite, parser_fixtures, wasm smoke banner pollution.
+```
 
-beauty status @ bb77ac29:
-  emits 58407 lines of valid MSIL → ilasm clean → mono exit 0;
-  produces 628 stdout lines (oracle 622), 1 non-blank;
-  param-binding gap means function bodies see uninitialized params.
+## Hand-off — SN4-NET-5c in progress on branch `sn4-net-5c-wip` (cfd678db)
+
+This session got most of SN4-NET-5c built but the integration of the
+function-body-end return is wrong. Smoke 7/7 still passes on the branch
+because none of the smoke programs use DEFINE.
+
+### What the WIP branch contains
+
+`emit_net.c`:
+- `net_parse_define_proto()` helper that parses `"Name(p1,p2,...)"` from
+  the `SM_PUSH_LIT_S` that precedes `SM_SUSPEND_VALUE s="DEFINE"`.
+- Pre-scan extended to a 3-pass walk:
+  1. Collect `SM_LABEL define_entry=1` → `(name, entry_pc)`
+  2. Link param lists to function entries via the prototype parse
+  3. Build `pc_to_fn[]` map: each PC → which function (if any) it
+     belongs to, computed via the `SM_JUMP`-around target.
+- `SM_LABEL define_entry` case: emit `set_last_ok(true)` followed by
+  per-parameter `store_var()` in reverse-pop order.
+- `SM_RETURN/NRETURN` family: push function-name's value via `push_var`
+  before `do_return + pop_ret_pc`.
+- Conditional `SM_RETURN_S/SM_RETURN_F` (and NRETURN/FRETURN `_S/_F`
+  variants): now conditional on `last_ok` (`_S` branches to next PC if
+  `!last_ok`, `_F` if `last_ok`). Was unconditional before — that was
+  a separate bug from SN4-NET-5b worth fixing on its own.
+
+`SnoRt.il`:
+- `_vars`: `Dictionary<string,object>` static field (was missing — real
+  variable storage replaces stubs).
+- `push_var` now does `Dictionary.TryGetValue` lookup, falling back to
+  empty string on miss. Still INPUT-special-cased.
+- `store_var` now does `Dictionary.set_Item` for non-OUTPUT names. Was
+  a complete no-op for non-OUTPUT before — which the smoke tests didn't
+  catch because they're all literal-only.
+- `_vars` initialized in `.cctor` and `_init`.
+
+### Why it doesn't work yet
+
+Test program `def_test.sno`:
+```
+        DEFINE('Greet(who)')                          :(end_g)
+Greet   Greet = 'Hello, ' who                         :(RETURN)
+end_g   OUTPUT = Greet('World')
+END
+```
+
+Expected output: `Hello, World`
+Actual .NET output: `Hello, ` then `World` on two lines.
+
+Diagnosis: looking at the SM dump, PC 12 in `def_test.sno` is
+`SM_CALL_FN` with **no `a[0].s` and no `a[1].i`** — appearing to be a
+synthetic "implicit fall-through return" marker that scrip's JIT
+handles somehow. In the .NET emit path, this `SM_CALL_FN` with
+empty/null name falls through to `sno_call` default-handler (pushes
+`""`, sets `last_ok=false`), then the auto-trailer moves to PC 13 =
+`end_g` label, then PC 14, PC 15, and the program calls `Greet`
+AGAIN — but now `who` is already bound to `"World"` from the first
+(partial) call, so the inner call's body prints `"Hello, World"`,
+then the OUTER `OUTPUT = Greet('World')` evaluates Greet again and
+prints `"World"` (or some leftover). Either way, the function body
+is effectively being inlined into the surrounding program.
+
+### Fix paths for next session
+
+1. **Look at how the JIT distinguishes** — `h_call` in
+   `src/processor/sm_jit_interp.c` at line 699+ shows the dispatch
+   logic. When `name` is `NULL`, what code path does it take? There
+   must be a special case (maybe `INVOKE_fn(NULL, ...)` crashes
+   cleanly and last_ok=false, which is then a guard for a separate
+   compile-time-synthesized return). Read until the answer is clear,
+   then mirror it.
+
+2. **Likely fix in `emit_net.c`**: at the `SM_CALL_FN`/`SM_SUSPEND_VALUE`
+   case, when `instr->a[0].s` is NULL or empty AND `pc_to_fn[i] >= 0`
+   (we're inside a function body), treat it as an implicit return:
+   emit `push_null; pop_ret_pc; stloc _pc; br NET_DISPATCH`.
+
+3. **Strengthen the smoke gate** so future iterations catch this:
+   add a `define_simple` smoke program to `test_smoke_snobol4_net.sh`
+   that exercises `DEFINE(Greet(who))` → `Greet = 'Hello, ' who` →
+   `:(RETURN)` → `OUTPUT = Greet('World')`. With it in the gate, this
+   regression class can't slip through.
+
+4. **After fixing the implicit return**, re-run the 31-script test
+   harness to confirm no regressions, then commit `sn4-net-5c-wip`
+   onto main and mark `SN4-NET-5c ✅`.
+
+### Recipe to resume
+
+```bash
+cd /home/claude/one4all
+git fetch origin
+git checkout sn4-net-5c-wip
+bash scripts/build_scrip.sh
+
+# Quick verify reproduction:
+cd /tmp
+cat > def_test.sno <<'EOF'
+        DEFINE('Greet(who)')                          :(end_g)
+Greet   Greet = 'Hello, ' who                         :(RETURN)
+end_g   OUTPUT = Greet('World')
+END
+EOF
+/home/claude/one4all/scrip --sm-emit --target=net def_test.sno > def_test.il
+ilasm /output:def_test.exe def_test.il /home/claude/one4all/src/runtime/net/SnoRt.il
+mono def_test.exe        # currently prints "Hello, \nWorld\n"
+                         # expected: "Hello, World\n"
+
+# Also dump SM to inspect:
+/home/claude/one4all/scrip --sm-run --dump-sm def_test.sno
+```
 ```
