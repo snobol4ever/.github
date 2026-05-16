@@ -84,12 +84,12 @@ with no existing equivalent.
 
 ### Rungs
 
-- [ ] **PST-RB-5a** — Map `REKind` → `TT_*` equivalents. Read `rebus.y`,
+- [x] **PST-RB-5a** — Map `REKind` → `TT_*` equivalents. Read `rebus.y`,
   `rebus.h`, `rebus_lower.c`, `rebus_emit.c`, `rebus_print.c` in full.
   Complete the mapping table above. Add any missing `TT_*` to `ast.h`.
   Record findings in State block. **No code changes yet.**
 
-- [ ] **PST-RB-5b** — Action bodies in `rebus.y` build `tree_t` directly.
+- [x] **PST-RB-5b** — Action bodies in `rebus.y` build `tree_t` directly.
   For each grammar rule currently building `RExpr*` / `RStmt*`:
   replace with `ast_node_new(TT_*)` + `expr_add_child` calls.
   Keep `RExpr*` downstream consumers unchanged for now (they will break
@@ -210,8 +210,8 @@ commit and push HQ.
 ## State
 
 ```
-watermark: created 2026-05-16 (session 30/58)
-next: PST-RB-5a — read rebus.y + rebus.h + downstream consumers; complete REKind→TT_* mapping
+watermark: PST-RB-5b complete 2026-05-16 (session 30/58)
+next: PST-RB-5c — delete RExpr*/RStmt*/RProgram* structs and helpers (rexpr_new, SAL, EAL, STAL, rexpr_free/rprogram_free). rebus.h shrinks to TT_* mapping + lexer helpers.
 mirror gaps: (none)
 ```
 
