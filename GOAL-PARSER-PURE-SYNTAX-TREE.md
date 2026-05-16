@@ -120,7 +120,7 @@ The pre-existing entries `PST-SC-4l` (`sc_split_subject_pattern` → lower) and 
 
 - [x] **PST-SN4-1a** ✅ (2026-05-16, one4all `544a6de0`) — EXPORT/IMPORT special-case removed from `sno4_stmt_commit_go`. Finding: no consumer reads `prog->exports` / `prog->imports`; the original "move to lower/driver" was moot. Bundled in the same commit: synced stale `snobol4.y` to canonical `tree_t` / `TT_*` names (`AST_t`→`tree_t`, `AST_e`→`tree_e`, `AST_<KIND>`→`TT_<KIND>` for 48 kinds, `expr_new`→`ast_node_new`, field renames `nchildren/children/kind/sval/ival/dval/nalloc` → `n/c/t/v.sval/v.ival/v.dval/_nalloc`). Without the sync, any bison regen reverts the codebase to pre-rename names and breaks the build. Gates: smoke 7/0 (baseline 7/0), beauty self-host 29/22 (baseline-identical).
 - [x] **PST-SN4-1b** ✅ (2026-05-16) — Removed `TT_SCAN`-unpacking and `TT_SEQ`-splitting from `sno4_stmt_commit_go` in `snobol4.y`. Equivalent logic added to `src/lower/lower.c` just before `if (pattern)`. **SCRIP mirror (same commit):** stripped `TT_ALT`-rewiring arm and `TT_SEQ`-splitting arm from `corpus/SCRIP/parser_snobol4.sc:pp_stmt`; added `TT_SCAN`-unpack + `TT_SEQ`-split to `corpus/SCRIP/lower.sc:lower_stmt`. Gates: crosscheck_snobol4 PASS=6 FAIL=0, beauty_self_host PASS=29 FAIL=22, smoke_scrip_all_modes PASS=2 — all baseline-identical.
-- [ ] **PST-SN4-1c** — Lift goto fields (`goto_u`, `goto_s`, `goto_f` and `_expr` variants) off `STMT_t` onto `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children. Lower then walks these children to emit `IR_SM_JUMP`/`IR_SM_JUMP_S`/`IR_SM_JUMP_F`.
+- [x] **PST-SN4-1c** ✅ (2026-05-16) — Lifted goto fields off `STMT_t` onto `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children. `stmt_ast.c`: `make_goto_attr(tag, label, expr)` replaced by `make_goto_node(kind, label, expr)`; literal labels get a `TT_QLIT` child, computed gotos get the expression tree as child. `scrip_cc.h`: added `stmt_goto_find`, `goto_node_str`, `goto_node_expr` helpers. Five consumers updated: `lower.c`, `interp_exec.c`, `interp_call.c`, `interp_hooks.c`, `eval_code.c`. SCRIP mirror: `E_goS/F/U` in `parser_snobol4.sc` renamed to `TT_GOTO_S/F/U` (same commit). Gates: crosscheck_snobol4 PASS=6 FAIL=0, smoke_scrip_all_modes PASS=2 FAIL=0, smoke_snobol4 PASS=7 FAIL=0.
 - [x] **PST-SN4-1d** ✅ (2026-05-16, C side) — Fixed three left-to-right child-order violations in `snobol4.y`: `goto_expr T_CONCAT goto_atom` (line 103), `expr3 T_2PIPE expr4` (line 120), `expr4 T_CONCAT expr5` (line 123). All now always-wrap-binary: `tree_t*s=ast_node_new(TT_SEQ); expr_add_child(s,$1); expr_add_child(s,$3); $$=s;`. Produces right-leaning chains; re-flattening is downstream. SCRIP mirror: ✅ PST-SN4-1d-SCRIP (same session). Gates: crosscheck_snobol4 PASS=6 FAIL=0, beauty_self_host PASS=29 FAIL=22 — baseline-identical.
 - [x] **PST-SN4-1d-SCRIP** ✅ (2026-05-16) — Closed MIRROR-GAP-001. Replaced flat n-ary `nPush/nInc/nPop/reduce(GT(nTop(),1))` form in `Expr3`/`X3`/`Expr4`/`X4` with left-recursive binary always-wrap form. `X3` and `X4` deleted; replaced by `Expr3tail`/`Expr4tail`. Produces right-leaning chains: `a b c => TT_SEQ(TT_SEQ(a,b),c)`, `a|b|c => TT_ALT(TT_ALT(a,b),c)`. Mirrors snobol4.y PST-SN4-1d exactly. Gates: pending run (smoke_scrip_all_modes, crosscheck_snobol4).
 
@@ -424,9 +424,9 @@ watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
 head: .github = pending bump (post-commit)
-       one4all = pending bump (post-commit, from 7013a856)
-       corpus  = 66094c8 (unchanged this session)
-next: PST-SN4-1c — lift goto fields off STMT_t onto TT_STMT as TT_GOTO_U/S/F children
+       one4all = 9ed3c99b (PST-SN4-1c)
+       corpus  = 99d422f (PST-SN4-1c SCRIP mirror)
+next: PST-ICN-2a — read icon_parse.c AND corpus/SCRIP/parser_icon.sc; list violations
 mirror gaps: (none)
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
