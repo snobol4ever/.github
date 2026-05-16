@@ -113,21 +113,26 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-AUGOP-REPEAT-ALT-NOT | TT_AUGOP (+:= -:= *:= /:= %:= ||:= relop augops) → IR_BINOP+IR_ASSIGN; TT_REPEAT → IR_REPEAT (loop until body FAIL); TT_ALTERNATE → IR_ALT (n-ary); TT_NOT → IR_NOT; IR_CALL user-proc dispatch via proc_table ir_body + frame push/pop. ir-run 31→56 (+25). | `17eae4a3` |
 
 | IJ-SEQ-SIZE-CASE-STRRELOP-RETURN | TT_SEQ (conjunction → IR_IF); TT_SIZE → IR_SIZE; TT_CASE → IR_CASE (selector+key/val+default); TT_LLT/LLE/LGT/LGE/LEQ/LNE → IR_BINOP with ICN_BINOP_S* string relop kinds; TT_RETURN → IR_RETURN with FRAME.returning early-exit propagation through IR_SEQ and IR_CALL user-proc dispatch. ir-run 56→74 (+18). | `14211966` |
+| IJ-BREAK-NEXT-IDENTICAL-NULL-RANDOM | TT_LOOP_BREAK/IR_BREAK, TT_LOOP_NEXT/IR_NEXT (loop_break/loop_next save+restore in IR_EVERY/WHILE/UNTIL/REPEAT); TT_PROC_FAIL→IR_FAIL; TT_IDENTICAL/IR_IDENTICAL; TT_NULL/IR_NULL_TEST + TT_NULL no-arg→IR_LIT_NUL; TT_NONNULL/IR_NONNULL; TT_RANDOM/IR_RANDOM. ir-run 74→79 (+5). | `301fcd49` |
+| IJ-NEG-POS | TT_MNS/IR_NEG and TT_PLS/IR_POS unary arith; executor reuses icn_binop_apply(SUB/ADD, INTVAL(0), v) for free int/real/string-coerce. ir-run 79→81 (+2). | `80497128` |
 
 ## NEXT step
 
-**More `lower_icn_expr_node` coverage** to grow ir-run. In order of complexity:
+Failing-rung survey (sess 2026-05-16d) found three categories driving remaining FAILs:
 
-1. **TT_LOOP_BREAK / TT_LOOP_NEXT** — `break` and `next` inside repeat/while/until. Set `FRAME.loop_break` / `FRAME.loop_next`; IR_WHILE/IR_UNTIL/IR_REPEAT check these flags.
-2. **TT_PROC_FAIL** — `fail` statement in a proc body. Emit IR_FAIL (already exists).
-3. **TT_IDENTICAL / TT_NULL / TT_NONNULL** — `===`, `\x` (null test), `\x` (nonnull). Simple unary/binary IR nodes.
-4. **TT_RANDOM** — `?E` (random element). Unary.
+1. **Pattern-scan ops** (`any` / `many` / `upto` / `match` / `move` / `find`) — currently emit `[NO-AST] SM_BB_EVAL stub`. Affects rung05_scan_*, rung06_cset_*, rung08_strbuiltins_*. Likely +10–15 rungs. **Highest-yield next target.**
+2. **Generator cross-product in plain (non-augop) binops** — `(1 to 3) * (1 to 2)` returns only `1, 4` instead of all six pairs. Affects paper §2 examples (rung01_paper_*), rung02_arith_gen_*. Likely an IR_BINOP issue: needs to act as generator when either operand is a generator (same role IR_ICN_BINOP plays for augop). Likely +5–8 rungs.
+3. **`every write(fact(5))` over-iteration anomaly** — emits `120` five times instead of once. Suggests user-proc generator (IR_ICN_PROC_GEN / TT_SUSPEND) re-yields when it shouldn't, or `every` doesn't break on first proc return. Affects rung02_proc_* and rung03_suspend_*.
+
+Older simpler targets still applicable if pattern-scan blocks:
+- **TT_CSET_COMPL** (`~cset`) — unary, simple, parallel to TT_NEG.
+- **TT_CSET_DIFF** (`cset1 -- cset2`) — already an AST kind; binop on csets.
 
 ## Watermark
 
 ```
-one4all: 14211966 (IJ-SEQ-SIZE-CASE-STRRELOP-RETURN landed)  corpus: 1fe096c
-ir-run:  74/265    honest: 277 PASS / 0 FAIL / 0 ABORT
-smoke_icon: 5/5    broker: 16/49
+one4all: 80497128 (IJ-NEG-POS landed)  corpus: 1fe096c
+ir-run:  81/265    honest: 278 PASS / 0 FAIL / 0 ABORT
+smoke_icon: 5/5    broker: 18/49
 cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 0/5 (intentional)
 ```
