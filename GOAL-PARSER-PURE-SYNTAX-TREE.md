@@ -119,7 +119,7 @@ The pre-existing entries `PST-SC-4l` (`sc_split_subject_pattern` → lower) and 
 ### Step 1 — SNOBOL4 cleanup
 
 - [x] **PST-SN4-1a** ✅ (2026-05-16, one4all `544a6de0`) — EXPORT/IMPORT special-case removed from `sno4_stmt_commit_go`. Finding: no consumer reads `prog->exports` / `prog->imports`; the original "move to lower/driver" was moot. Bundled in the same commit: synced stale `snobol4.y` to canonical `tree_t` / `TT_*` names (`AST_t`→`tree_t`, `AST_e`→`tree_e`, `AST_<KIND>`→`TT_<KIND>` for 48 kinds, `expr_new`→`ast_node_new`, field renames `nchildren/children/kind/sval/ival/dval/nalloc` → `n/c/t/v.sval/v.ival/v.dval/_nalloc`). Without the sync, any bison regen reverts the codebase to pre-rename names and breaks the build. Gates: smoke 7/0 (baseline 7/0), beauty self-host 29/22 (baseline-identical).
-- [ ] **PST-SN4-1b** — Remove `TT_SCAN`-unpacking (`snobol4.y` lines ~227–231) and `TT_SEQ`-splitting (lines ~232–246) subject/pattern rearrangement from `sno4_stmt_commit_go`. Equivalent logic moves into `src/lower/lower.c` just before the `if (pattern) { ... }` branch (~line 1014), so it operates on the `:subj`/`:pat` attributes after `stmt_to_ast`. **SCRIP mirror (same commit):** strip the equivalent split blocks from `corpus/SCRIP/parser_snobol4.sc:pp_stmt` (lines ~287–314 — the `TT_ALT`/`TT_SEQ` split arms inside the `if (DIFFER(t(ppPatrn)))` and the `if (IDENT(t(subj_ir), 'TT_SEQ') ... IDENT(t(c(subj_ir)[1]), 'TT_VAR'))` arms) and add the same logic to `corpus/SCRIP/lower.sc` in the `:subj`/`:pat` path. Gate: post-parse `tree_t` shape bit-identical between C frontend and SCRIP frontend for the smoke corpus; beauty self-host byte-identical.
+- [x] **PST-SN4-1b** ✅ (2026-05-16) — Removed `TT_SCAN`-unpacking and `TT_SEQ`-splitting from `sno4_stmt_commit_go` in `snobol4.y`. Equivalent logic added to `src/lower/lower.c` just before `if (pattern)`. **SCRIP mirror (same commit):** stripped `TT_ALT`-rewiring arm and `TT_SEQ`-splitting arm from `corpus/SCRIP/parser_snobol4.sc:pp_stmt`; added `TT_SCAN`-unpack + `TT_SEQ`-split to `corpus/SCRIP/lower.sc:lower_stmt`. Gates: crosscheck_snobol4 PASS=6 FAIL=0, beauty_self_host PASS=29 FAIL=22, smoke_scrip_all_modes PASS=2 — all baseline-identical.
 - [ ] **PST-SN4-1c** — Lift goto fields (`goto_u`, `goto_s`, `goto_f` and `_expr` variants) off `STMT_t` onto `TT_STMT` tree as `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F` children. Lower then walks these children to emit `IR_SM_JUMP`/`IR_SM_JUMP_S`/`IR_SM_JUMP_F`.
 - [ ] **PST-SN4-1d** — Document `snobol4.y` header as reference for pure-syntax-tree style.
 
@@ -419,15 +419,16 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
-            Stage 1 Step 1 — PST-SN4-1a ✅
+            Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
-head: .github = 85032755 (pre this amendment) → pending bump after this commit
-       one4all = 544a6de0 + uncommitted PST-SN4-1b work in progress
-       corpus = unchanged
-next: finish PST-SN4-1b — SCRIP mirror in corpus/SCRIP/parser_snobol4.sc:pp_stmt + corpus/SCRIP/lower.sc
-       then audit snobol4.y for left-to-right violations (the goto_expr T_CONCAT goto_atom rule
-       is a known offender; likely 3-5 more).
+head: .github = pending bump (post-commit)
+       one4all = pending bump (post-commit, from 05097be3)
+       corpus  = pending bump (post-commit, from a926a4f)
+next: PST-SN4-1c — lift goto fields (goto_u/s/f and _expr variants) off STMT_t onto TT_STMT tree
+       as TT_GOTO_U/TT_GOTO_S/TT_GOTO_F children; lower walks them to emit IR_SM_JUMP*.
+       Also: audit snobol4.y for left-to-right child-order violations — the
+       goto_expr T_CONCAT goto_atom in-place-mutation rule is a known offender (likely 3-5 more).
 ladder Stage 1: SN4 cleanup → Icon/Raku audit → Snocone rewrite → Rebus → Prolog → invariants
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 mirror gaps: (none)
