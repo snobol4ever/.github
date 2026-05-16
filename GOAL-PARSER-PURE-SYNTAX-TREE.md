@@ -378,18 +378,20 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
-            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅  PST-SC-4c ⏳ (parser done, lower bug)
+            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅  PST-SC-4c ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
 head: .github = (this commit)
-       one4all = 4aa8727b (PST-SC-4b, pushed) + working-tree PST-SC-4c parser changes (uncommitted)
-       corpus  = a939309  (PST-SC-4b SCRIP mirror, pushed)
-session 2026-05-16g completed: PST-SC-4b ✅. PST-SC-4c parser side done; lower.c has break-in-while
-  stack underflow bug. Full fix documented in HANDOFF_SESSION_2026-05-16g.md.
-next: Apply lower.c Fix A (lower_while_until TT_PROGRAM dispatch) + Fix B (lower_if_stmt) from handoff,
-  then Fix D (delete dead code), Fix E (SCRIP mirror), commit both repos. Then PST-SC-4d (do-while).
+       one4all = e95a5c2e (PST-SC-4c ✅, pushed)
+       corpus  = a8e957b  (PST-SC-4c SCRIP mirror ✅, pushed)
+session 2026-05-16h: PST-SC-4c ✅. WhileHead deleted; while_head→<expr>; sc_finalize_while_pst
+  builds TT_WHILE(cond,TT_PROGRAM(body),QLIT(cont),QLIT(end)). lower.c: lower_while_until
+  TT_PROGRAM-aware (break-safe, labtab_define at cont/end). lower_if_stmt added for
+  TT_PROGRAM if-bodies. lower.sc mirrored. snobol4.l AST_t→tree_t (3 occurrences) also done.
+next: PST-SC-4d (do-while) — TT_DO_WHILE(body, cond, cont_lbl, end_lbl) pure syntax node.
+  Mirror DoHead→expr snapshot pattern from WhileHead. Then PST-SC-4e (TT_FOR).
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4c bug-fix next) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4d do-while next) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
