@@ -89,6 +89,27 @@ EVAL, etc.).  Those bridges hand pre-built IR_block_t*'s to bb_broker.  The
 IR_block_t* registry is BB-land state, indexed by the bridge opcode's operand
 (eval-id, proc-id, etc.).  Nothing at runtime dereferences a tree_t*.
 
+### ⚡ Target shape: Icon program = TWO SM instructions
+
+The end-state for Icon (Lon, 2026-05-15):
+
+```
+SM_BB_EVAL*  (eval-id → IR_block_t* covering the WHOLE program)
+SM_HALT
+```
+
+That's it.  One bridge instruction brokers into BB land; HALT exits.  No
+per-statement, per-expression, per-proc bridge opcodes scattered through the
+SM_Program.  The entire Icon program lowers, at compile time, to a single
+IR_block_t* registered in the BB-land IR registry.  SM_BB_EVAL* pops the
+eval-id, looks up the IR_block_t*, hands it to bb_broker via icn_bb_dcg.
+
+This is the inverse of the SNOBOL4 granularity: SNOBOL4 has many small
+SM_PAT_* bridges that compose on the SM stack; Icon has ONE big bridge that
+hands BB-land a pre-composed IR DAG covering the whole program.  Both shapes
+respect the same invariants (SM is the entry, bridges are the only contact
+surface, nothing derefs tree_t* at runtime).
+
 ### Same pattern as SNOBOL4 — only the granularity differs
 
 SNOBOL4 pattern handling in sm_interp.c uses exactly this same SM↔BB bridge
@@ -348,28 +369,47 @@ Next DCGs to implement (highest ir-run yield first):
 
 ## Watermark
 
-  one4all: 7fd70c00  corpus: 1fe096c
+  one4all: 66b4d52e  corpus: 1fe096c
   ir-run:  BROKEN — see session notes below (was 207)
   honest:  BROKEN — see session notes below (was 275)
-  smoke_icon: 1/5   smoke_prolog: 0/5   broker: 14/49
+  smoke_icon: 3/5   smoke_prolog: 0/5   broker: 15/49
   Other smokes unchanged: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4.
-  smoke_icon: write_str now PASS via new AST→IR→BB path (see 2026-05-15 wedge notes).
-  Breakage still intentional for the other four icon smokes + prolog (Lon directive:
-  break gates to expose missing SM/BB lowering).
-  NEXT: keep SM_BB_EVAL (and the other SM_BB_XXX) IN the SM stream as the
-        SM↔BB bridge. Rewrite the handlers to broker via bb_broker driving
-        icn_bb_dcg over a pre-built IR_block_t* registered at lower time by
-        eval-id (in a BB-land registry — NOT every_table which holds tree_t*).
-        The current wedge only handles proc *entry* (SM_BB_PUMP_PROC routes
-        via icn_bb_pump_proc_by_name → icn_bb_dcg).  The general fix for
-        SM_BB_EVAL is to do the same shape: at lower time, build an
-        IR_block_t* for each expression and store it in a BB-land
-        ir_eval_registry[eval_id]; SM_BB_EVAL pops the id, calls
-        bb_broker(node{icn_bb_dcg, dz{cfg=ir_eval_registry[id]}, 0}, BB_ONCE,
-        body, NULL), pushes the result.
-        Then expand lower_icn_expr_node to TT_BINOP (closes arith/string_op/
-        if_expr), then TT_IF, then non-builtin TT_FNC.
-        For Prolog: same shape for PL_BUILTIN / PL_UNIFY stubs.
+  smoke_icon: write_str, arith, string_op PASS via AST→IR→BB path through
+  SM_BB_PUMP_PROC main → icn_bb_dcg → lower_icn_proc_body.  if_expr + every
+  still FAIL — need TT_IF, TT_EVERY, TT_TO support in lower_icn_expr_node.
+  Breakage still intentional for prolog (Lon directive: break gates to expose
+  missing SM/BB lowering).
+
+  Session 2026-05-15h (Claude Sonnet 4.6, one4all `66b4d52e`):
+    Architectural directive recorded (Lon, 2026-05-15): Icon program = TWO SM
+    instructions — `SM_BB_EVAL*` (covering whole program via pre-built
+    IR_block_t*) + `SM_HALT`.  That single bridge instruction brokers into BB
+    land.  HQ updated: GOAL-ICON-BB-JCON.md added "Target shape: Icon program
+    = TWO SM instructions" section.
+
+    The earlier hypothesis in this watermark (build per-expression
+    ir_eval_registry keyed by SM eval-id) is the WRONG abstraction under the
+    two-instruction directive — those piecemeal SM_BB_EVAL emissions shouldn't
+    exist in the final state.  Instead: keep growing lower_icn_proc_body
+    coverage so main()'s body lowers to a single IR_block_t*, driven by the
+    one `SM_BB_PUMP_PROC "main"` bridge that `lower()` already emits.  That
+    IS the target two-instruction shape.
+
+    Landing wedge: extended lower_icn_expr_node with TT_ADD/SUB/MUL/DIV/MOD/
+    LT/LE/GT/GE/EQ/NE/CAT → IR_BINOP.  Added IR_BINOP executor in ir_exec.c
+    using icn_binop_apply.  Added public lower_icn_expr_top() wrapper for
+    future single-expr callers.
+
+    Gates moved: smoke_icon 1/5 → 3/5 (+arith, +string_op); broker 14/49 →
+    15/49.  No regressions.  Remaining smoke_icon fails: if_expr (TT_IF),
+    every (TT_EVERY + TT_TO).
+
+  NEXT: extend lower_icn_expr_node further to close the remaining smokes:
+        (1) TT_IF — emit IR conditional (executor case + lowering).
+        (2) TT_TO — wrap IR_ICN_TO state into IR DAG nested inside the
+            main-body IR_block_t.
+        (3) TT_EVERY — IR_EVERY executor covering the loop semantics.
+        (4) Eventually: non-builtin TT_FNC (user procs called from main).
 
   Architectural correction (recorded after Lon clarified, 2026-05-15):
     The first wedge attempt this session had SM_BB_EVAL call IR_exec_once
