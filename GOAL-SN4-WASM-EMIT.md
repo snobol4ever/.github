@@ -311,20 +311,56 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-WASM-5g WIP (pattern matching — recursive matcher in WAT, infrastructure complete)
+watermark: SN4-WASM-5g WIP (next: fix emit_wasm.c:780 SM_EXEC_STMT call-site wiring)
           (5a/5b/5c/5-LADDER/5d/5e/5f ✅; 1-4 ✅ prior sessions)
-head: one4all c85ee7fe; .github &lt;to-be-updated-on-handoff&gt;
-session: 2026-05-16 (Claude Sonnet 4.6) — SN4-WASM-5g pattern system infrastructure added
-         + memory layout (PAT_HEAP/PAT_STACK), node allocators, recursive matcher, SM wiring
+head: one4all c85ee7fe (unchanged this session); .github &lt;to-be-updated-on-handoff&gt;
+session: 2026-05-16b (Claude Sonnet 4.7) — investigation-only; no code changes
+         this session.  Re-measured baseline, traced two pattern programs,
+         identified emitter call-site fix as next concrete step.
 progress: prereqs (IEP-1..6) ✅; SN4-WASM-1 ✅; SN4-WASM-2 ✅; SN4-WASM-3 ✅; SN4-WASM-4 ✅;
           SN4-WASM-5a/5b/5c ✅; SN4-WASM-5-LADDER ✅; SN4-WASM-5d ✅ (scanerr skip-listed);
           SN4-WASM-5e ✅ (kw fast-paths + FAIL propagation + real arithmetic);
           SN4-WASM-5f ✅ (user-defined functions + recursive calls);
           SN4-WASM-5g WIP (pattern infrastructure complete, recursive matcher needs testing).
-gate this session: ladder PASS=20 FAIL=108 SKIP=1 / 129 (regression during pattern debug);
-                   smoke_snobol4_wasm 7/7 PASS (no regression);
-                   pattern system: infrastructure complete, matcher untested/debugging.
-goal pivot (NEW): **closing gate is all test suites passing** (ladder + smoke + bench)
+gate this session: ladder PASS=23 FAIL=105 SKIP=1 / 129 (+3 from prior watermark of 20 —
+                   verified on rebuild this session; the prior 20 was a debug-state regression,
+                   the committed code now yields 23/129);
+                   smoke_snobol4_wasm 7/7 PASS (no regression).
+session: 2026-05-16b (Claude Sonnet 4.7) — investigation-only handoff. No code changes
+         committed. Re-ran baselines, traced pattern execution end-to-end for `any.sno`
+         and a minimal `LEN(3) $ out` reproducer.
+findings (failure taxonomy on 105 ladder FAILs):
+         - [diff] 79 programs — emit & wat2wasm OK, node runs to completion but stdout
+           differs from .ref. Many use patterns; likely root cause is emitter's
+           SM_EXEC_STMT handler at emit_wasm.c:780 which hard-codes
+           `(call $sno_exec_stmt (i32.const 0) (i32.const 0) (i32.const 0))` — i.e.
+           subj_var_ptr=0, subj_var_len=0, has_repl=0 unconditionally. When the source
+           statement has a replacement (`pat = repl`) or an lvalue subject, the runtime
+           cannot write back to the subject variable. Needs SM_Program inspection at
+           emit time to identify the actual subject varname and has_repl flag, threading
+           them as i32 constants into the call.
+         - [node] 25 programs — node hangs or traps. Includes file-I/O programs
+           (openi, openo2, rewind1, spit) which need host file imports (out of scope
+           for ladder gate), plus pattern-heavy programs (alt1, match4, words, sudoku)
+           that likely trigger infinite loops in $sno_match_node. Critically:
+           `any.sno` also segfaults under `--sm-run` upstream — its `$ output fail`
+           idiom is a known upstream issue, not WASM-specific.
+         - [wat2wasm] 1 program (ftrace) — WAT syntax error during assembly.
+recommended next step (SN4-WASM-5g continuation):
+         1. Fix emit_wasm.c:780 SM_EXEC_STMT to pass real (subj_var_ptr, subj_var_len,
+            has_repl). Walk SM_Program backward from SM_EXEC_STMT to find the
+            originating SM_STORE_VAR / SM_PUSH_VAR pair that identifies the subject
+            lvalue; intern the varname into the string table; emit it as i32 consts.
+            Mirror approach in emit_js.c which already handles this for the JS target.
+         2. Re-measure ladder; expect [diff] count to drop substantially. Programs that
+            still differ are likely separate bugs (pattern engine semantics, missing
+            builtins, etc.) and should be triaged one cluster at a time.
+         3. The pattern runtime in sno_runtime.wat (lines 1061-1944) appears
+            structurally complete: $sno_match_node handles all 25 PAT_* tags,
+            $sno_exec_stmt has the scan loop + replacement logic. Do NOT rewrite it;
+            fix the call-site wiring first and only return to the runtime if specific
+            programs identify specific matcher bugs.
+goal pivot (carried): **closing gate is all test suites passing** (ladder + smoke + bench)
                   **excluding beauty.sno** (requires EVAL/CODE which are out-of-scope for WASM).
                   Target: ladder PASS ≥ 100/129 (programs without EVAL/CODE/advanced features).
 out-of-scope programs: beauty.sno requires EVAL/CODE for self-hosting meta-programming;
@@ -336,13 +372,9 @@ regressions noted: `noexec.sno` and `sleep.sno` previously "passed" because they
                    pragma is not honored at WASM emit time — emitter emits the code anyway).
                    These were spurious passes; fixing them requires honoring the `-NOEXECUTE`
                    directive in scrip's emit path or in the ladder script's emission step.
-next-session note: SN4-WASM-5g (pattern matching) — the JS-style stack-of-objects model
-                   (per src/runtime/js/sno_runtime.js lines 745-851 + src/emitter/emit_js.c
-                   lines 440-502) is a ~200-400 line port to WAT and unlocks ~30-50 corpus
-                   programs that use simple patterns.  The BB-arena α/β approach described
-                   in the goal preamble is cleaner architecturally but requires ~3× more
-                   wiring; recommendation is to implement the JS-style approach first for
-                   ladder PASS gain, defer the BB-arena model to a later optimization pass.
+deferred upstream note: `any.sno` segfaults under `--sm-run` — the `$ output fail` idiom
+                   triggers a frontend/SM-lowering bug that affects all targets, not just WASM.
+                   Tracked here for visibility; upstream fix is a separate session.
 ```
 
 ---
