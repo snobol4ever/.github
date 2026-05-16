@@ -58,7 +58,7 @@ Lon names a goal. You:
 | **Prolog BB JCON triage** | `GOAL-PROLOG-BB-JCON.md` | one4all+corpus+.github | **PJ-7** — backtracking pump for `clause` test. PJ-5a ✅ (entry-point fix + IR_PL_SEQ + cut barrier): smoke_prolog 4/5 (was 3/5), recursion PASS, broker 19/49. |
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
-| **⚡ PST: SNOBOL4 + Snocone** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SC-4a** — Snocone: TT_AUGOP to lower. SN4: 1a ✅ 1b ✅ 1d ✅ 1c ✅ (2026-05-16). |
+| **⚡ PST: SNOBOL4 + Snocone** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SC-4a** — Snocone: TT_AUGOP to lower. SN4: 1a ✅ 1b ✅ 1d ✅ 1c ✅ PST-SN4-2 ✅ (2026-05-16): parser_snobol4.sc pure syntax tree, zero worker functions. |
 | **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **PST-ICN-2a** — read icon_parse.c + parser_icon.sc; list violations. |
 | **⚡ PST: Rebus + Prolog** | `GOAL-PST-REBUS-PROLOG.md` | one4all+corpus+.github | **PST-RB-5a** — read rebus.y + downstream; complete REKind→TT_* mapping. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
