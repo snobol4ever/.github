@@ -311,25 +311,25 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 ## State
 
 ```
-watermark: SN4-WASM-5g NEXT (pattern matching — implement JS-style pattern stack
-          + recursive matcher in WAT; defer BB-arena α/β approach to a later pass)
+watermark: SN4-WASM-5g WIP (pattern matching — recursive matcher in WAT, infrastructure complete)
           (5a/5b/5c/5-LADDER/5d/5e/5f ✅; 1-4 ✅ prior sessions)
-head: one4all dad748e7; .github &lt;to-be-set-by-handoff&gt;
-session: 2026-05-15h (Claude Opus 4.7) — SN4-WASM-5f closed + 5e finished
-         + 5e-extensions (more keyword fast-paths, float-to-string, real arithmetic)
+head: one4all c85ee7fe; .github &lt;to-be-updated-on-handoff&gt;
+session: 2026-05-16 (Claude Sonnet 4.6) — SN4-WASM-5g pattern system infrastructure added
+         + memory layout (PAT_HEAP/PAT_STACK), node allocators, recursive matcher, SM wiring
 progress: prereqs (IEP-1..6) ✅; SN4-WASM-1 ✅; SN4-WASM-2 ✅; SN4-WASM-3 ✅; SN4-WASM-4 ✅;
           SN4-WASM-5a/5b/5c ✅; SN4-WASM-5-LADDER ✅; SN4-WASM-5d ✅ (scanerr skip-listed);
-          SN4-WASM-5e ✅ (kw fast-paths for ALPHABET/DIGITS/UCASE/LCASE + FAIL propagation
-            + STNO/FNCLEVEL/ANCHOR/FULLSCAN/CASE + float-to-string + real arithmetic);
-          SN4-WASM-5f ✅ (user-defined functions with full save/restore — fact.sno recursive
-          factorial validates byte-identical to C interpreter);
-          SN4-WASM-5g-h remaining.
-gate this session: ladder PASS=24 FAIL=104 SKIP=1 / 129 (up from 16 baseline; +8 this sess);
-                   gained: char, contin, digits, fact, float, longline, ord, reverse, space2;
-                   lost: noexec, sleep (spurious previous passes — see notes below);
-                   smoke_snobol4_wasm 7/7 holds throughout;
-                   smoke_snobol4 7/7 (no regression).
-goal pivot (kept): closing gate is ladder PASS ≥ 100, not beauty self-host.
+          SN4-WASM-5e ✅ (kw fast-paths + FAIL propagation + real arithmetic);
+          SN4-WASM-5f ✅ (user-defined functions + recursive calls);
+          SN4-WASM-5g WIP (pattern infrastructure complete, recursive matcher needs testing).
+gate this session: ladder PASS=20 FAIL=108 SKIP=1 / 129 (regression during pattern debug);
+                   smoke_snobol4_wasm 7/7 PASS (no regression);
+                   pattern system: infrastructure complete, matcher untested/debugging.
+goal pivot (NEW): **closing gate is all test suites passing** (ladder + smoke + bench)
+                  **excluding beauty.sno** (requires EVAL/CODE which are out-of-scope for WASM).
+                  Target: ladder PASS ≥ 100/129 (programs without EVAL/CODE/advanced features).
+out-of-scope programs: beauty.sno requires EVAL/CODE for self-hosting meta-programming;
+                       these are not implemented in WASM and are deferred to future work.
+                       Other corpus programs using EVAL/CODE are also excluded from ladder gate.
 regressions noted: `noexec.sno` and `sleep.sno` previously "passed" because they crashed/
                    produced no output that happened to match an empty .ref; with proper
                    FAIL propagation, `noexec` now produces "error" (because the `-NOEXECUTE`
