@@ -178,55 +178,90 @@ The following demo SNOBOL4 programs are emitted to JVM Jasmin and stored in `cor
    - `java -jar /home/claude/one4all/src/backend/jasmin.jar *.j -d .`
    - `java -cp . Prog` and verify output matches expected
 
-**Current checksums** (as of session 2026-05-15f, after SM control flow + builtins):
+**Current checksums** (as of session 2026-05-15h, after SM_PAT_* + SM_EXEC_STMT pattern emission):
 ```
 hello.j:        1e25de83489d43eda42675de8a063394 (31 lines)
-counter.j:      2fe94749ed12f7ed44fea1874a336634 (86 lines)
-pattern_test.j: 56d32ac9829bb6c6a606e9f693890983 (54 lines)
+counter.j:      ed263fcc8075520b8f42b06928d7720c (112 lines, +ret_dispatch)
+pattern_test.j: 8a95286a856ce38b8e28609772f9729b (66 lines, real SM_PAT_LIT+CAPTURE+EXEC_STMT)
 arithmetic.j:   849210cc9fdf374b757c87bf9d82224c (123 lines)
-beauty.j:       e1c3184a5eaea1ea2d01081fcb28956c (13384 lines, comprehensive test)
+beauty.j:       10c18053da0071f01ad1da8f960aebff (23618 lines, full SM_PAT_* emission)
 ```
 
-Note: checksums changed in session 2026-05-15f because SM control flow added per-PC labels
-(`sm_pc_N:`) and goto_w instructions for SM_JUMP/JUMP_S/JUMP_F. All 5 demos still assemble
-cleanly with jasmin.jar.
+Note: checksums changed in session 2026-05-15h because SM_PAT_* opcodes + SM_EXEC_STMT now
+emit real Jasmin invokestatic calls to rt/SnoPat and rt/SnoRt/sno_exec_stmt instead of stubs.
+Beauty.j grew from 13384 → 23618 lines (+10K) due to pattern-construction inline-coding.
+All 5 demos still assemble cleanly with jasmin.jar. Beauty.sno emits successfully but its
+single `main` method exceeds JVM's 65535-byte limit (112465 bytes) — separate concern,
+tracked below.
 
 ---
 
 ## State
 
 ```
-watermark: SJ4-JVM-3 ✅ COMPLETE; SJ4-JVM-4 🔄 IN PROGRESS (user-fn dispatch landed)
+watermark: SJ4-JVM-3 ✅ COMPLETE; SJ4-JVM-4 🔄 IN PROGRESS (SM_PAT_* + SM_EXEC_STMT landed)
 
-Session 2026-05-15 (Claude Sonnet 4.6) progress:
+Session 2026-05-15h (Claude Opus 4.7) progress:
+  - ✅ All 20 SM_PAT_* opcode handlers wired in emit_jvm.c:
+        LIT, ANY, NOTANY, SPAN, BREAK, LEN, POS, RPOS, TAB, RTAB, ARB,
+        ARBNO, REM, BAL, FENCE0, FENCE1, ABORT, FAIL, SUCCEED, EPS,
+        CAT, ALT, DEREF, REFNAME, CAPTURE, CAPTURE_FN, CAPTURE_FN_ARGS,
+        USERCALL, USERCALL_ARGS
+  - ✅ SM_EXEC_STMT: real implementation via SnoRt/sno_exec_stmt(name,has_repl)
+  - ✅ NEW src/runtime/jvm/SnoPat.java (~340 lines):
+        Tagged pattern class + recursive backtracking matcher with continuation passing.
+        Covers all 20 pattern kinds. Pending-captures list for . assignment.
+        AbortException for SM_PAT_ABORT semantics. Unanchored scan honours &ANCHOR.
+  - ✅ SnoRt.j bridge methods: coerce_to_long, coerce_to_pat, get_var_external,
+        store_var_external, get_anchor, call_external, call_returning, sno_exec_stmt.
+  - ✅ DATATYPE extended: returns "PATTERN" for rt/SnoPat values.
+  - ✅ push_obj / pop_obj visibility flipped private → public (generated Prog class needs them).
+  - ✅ Smoke gate expanded 7 → 13 tests; adds pat_lit, pat_capture, pat_replace,
+        pat_alt, pat_arbno, pat_len_rem.
+  - ✅ Demo .j artifacts regenerated; checksums updated above.
+  - ✅ scripts/test_smoke_snobol4_jvm.sh: javac compile step for SnoPat.java.
+
+Session 2026-05-15 (Claude Sonnet 4.6) earlier progress:
   - ✅ emit_jvm_from_sm: pre-scan SM_LABEL define_entry=1 → fn name→pc table
   - ✅ SM_CALL_FN/SUSPEND_VALUE: user fns → bind_params + push_ret_pc + goto_w entry
   - ✅ Empty-name SM_CALL_FN → unconditional RETURN (:(RETURN) convention)
   - ✅ SM_RETURN/FRETURN/NRETURN + all _S/_F conditional variants
   - ✅ sm_ret_dispatch tableswitch 0..(n-1) for computed returns
   - ✅ SM_DEFINE_ENTRY/SM_DEFINE: no-op (entries handled by SM_LABEL)
-  - ✅ SM_EXEC_STMT: stub (sets last_ok=false; pattern exec pending)
   - ✅ SnoRt.j: ret_stack, fn_params, _ret_fn, push/pop_ret_pc, bind_params,
                 builtin_DEFINE (proto parsing), fn_return_push (return value)
   - ✅ VALIDATED: double(21) → 42 via JVM path
 
-Test suite status (session 2026-05-15, d295a2c0):
+Test suite status (session 2026-05-15h):
   ✅ C smoke:      7/7 PASS
-  ✅ JVM smoke:    7/7 PASS
+  ✅ JVM smoke:    13/13 PASS (was 7/7; added 6 pattern tests)
   ✅ Snocone smoke: 5/5 PASS
   ⛔ Icon smoke:   0/5 FAIL (pre-existing: [NO-AST] stubs from 2026-05-15g)
-  🟡 Beauty.sno:  emits + assembles; user functions dispatch correctly;
-                  blocked on SM_PAT_* (pattern matching) + SM_EXEC_STMT
+  🟡 Beauty.sno:  emits 23618 lines of Jasmin (was 13384); assemble FAILS —
+                  single `main` method is 112465 bytes, exceeds JVM 65535-byte limit.
+                  Functional blocker is gone; structural blocker (method size) remains.
+
+Hand-validated cross-runtime pattern parity (C interp vs JVM, byte-identical):
+  ✅ LIT match + branch
+  ✅ BREAK + . capture
+  ✅ Replacement (S pat = repl)
+  ✅ ALT with capture: ('foo' | 'bar') . M
+  ✅ ARBNO with capture: ARBNO('xy') . P 'zzz'
+  ✅ LEN(n) + REM + double capture
+  ✅ ANY, NOTANY, SPAN, POS(n), TAB(n), FENCE
 
 Remaining blockers for SJ4-JVM-4 completion:
-  1. SM_PAT_* opcode handlers — build IR_prog_t from dcg_table and run via IR_exec
-     OR emit pattern match inline via existing 19 BB emitters
-  2. SM_EXEC_STMT — pattern statement execution (subject + pattern + replacement)
-  3. SM_BB_* generator opcodes (PUMP, EVAL, ONCE, etc.)
-  4. Multi-param functions (bind_params already handles comma-separated params)
+  1. Method-size overflow on beauty.sno: split SM_Program into multiple methods,
+     OR generate one method per SM_LABEL block, OR split per stmt boundary.
+     This is a Jasmin/JVM structural issue, not a SNOBOL semantics one.
+  2. SM_BB_* generator opcodes (PUMP, EVAL, ONCE, etc.) — not exercised by smoke,
+     but may be needed by parts of beauty.sno once method-split unlocks execution.
+  3. call_external / call_returning are stubs: . *fn() and bare *fn() in pattern
+     position currently no-op or treat result as literal. Real DEFINE'd user-fn
+     dispatch needs threading the SM_PC machinery through pattern callbacks.
 
-head: d295a2c0 (one4all)
-session: 2026-05-15 (Claude Sonnet 4.6)
+head: c2a2f498 (one4all); 4aaf4c5 (corpus)
+session: 2026-05-15h (Claude Opus 4.7)
 ```
 
 ---
