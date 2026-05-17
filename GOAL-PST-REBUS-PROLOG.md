@@ -152,7 +152,7 @@ Both must change: `Term*` → `tree_t`, slot assignment → pre-lower pass.
   structural equivalence between the `Term*` tree and the `tree_t` tree.
   Run across the Prolog corpus. Fix any shape mismatches.
 
-- [ ] **PST-PL-6d** — Switch downstream consumers to `tree_t` one at a time:
+- [x] **PST-PL-6d** — Switch downstream consumers to `tree_t` one at a time:
   `prolog_lower.c` first, then `prolog_unify.c`, `prolog_builtin.c`,
   `prolog_driver.c`. Each switches from walking `Term*` to walking `tree_t`.
   Gate after each switch.
@@ -210,8 +210,8 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-PL-6c complete 2026-05-16 (session 30/59)
-next: PST-PL-6d — switch downstream consumers to tree_t: prolog_lower.c first, then prolog_unify.c, prolog_builtin.c, prolog_driver.c.
+watermark: PST-PL-6d complete 2026-05-16 (session 30/59)
+next: PST-PL-6e — move variable-slot allocation to pre-lower pass in prolog_lower.c; delete slot assignment from scope_get/scope_find.
 findings-6a:
   - All required TT_* already in ast.h. No new kinds needed.
   - [] atom → TT_MAKELIST; TT_MAKELIST v.ival=1 marks explicit | tail.
@@ -229,6 +229,13 @@ findings-6c:
   - PlProgram.tree_mismatches; prolog_program_tree_mismatches() accessor.
   - Bug fixes: [] TK_ATOM → TT_MAKELIST; v.ival tail flag; TT_FNC(",") 2-child → (seq); TT_FNC("{}") 0-child → (atom "{}"); ser_term_conj_flat for directive body; pt_maybe_ifthenelse flattens then/else.
   - Result: 366 non-SWI/non-gnu corpus files → 0 mismatches. 7 in SWI string-interpolation (out of scope).
+  - Gates: smoke_prolog PASS=5, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
+findings-6d:
+  - lower_clause_from_tree(): TRSlotMap assigns sequential v.ival to TT_VAR by name. Anonymous "_" always fresh slot.
+  - key_of_head_tree(): derives PredKey from TT_FNC/TT_QLIT head.
+  - tr_assign_slots(): pre-lower slot walk.
+  - prolog_lower() main loop: uses tree_t path when cl->tr != NULL. DCG (cl->tr == NULL) falls back to Term* path.
+  - Directive loop: uses goal_tr (tree_t body[0]) when available.
   - Gates: smoke_prolog PASS=5, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
 mirror gaps: (none — parser_prolog.sc already produces tree_t shapes)
 ```
