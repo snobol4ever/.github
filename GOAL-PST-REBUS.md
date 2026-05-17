@@ -95,6 +95,22 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
   old `RStmt` struct carried implicitly.
   SCRIP mirror: `lower.sc` handles Rebus `tree_t` lowering.
 
+- [x] **PST-RB-5e** — `parser_rebus.sc` reduced to pure-syntax statements
+  only: 696 → 266 lines, **zero functions**. Tree is built solely from
+  `shift`, `reduce`, plus the counter primitives `nPush`/`nInc`/`nPop`/
+  `nTop`. All helper functions (`push_qlit`, `Push_qlit`, `decompose_call`,
+  `decompose_sub`, `push_call_id`, `push_keyword`, `push_cursor` and their
+  `Push_*` / `Decompose_*` wrappers) deleted; all SCRIP-side lowering
+  (`lower_atom`, `lower_stmt`, `lower_function_decl`, `lower_record_decl`,
+  `lower_case`, `lower_decl`, `new_label`, `emit_subj`, `emit_go`,
+  `emit_lbl`, `emit_assign`, `emit_match`, `emit_subj_goSF`,
+  `emit_subj_goS`, `emit_replace`) deleted. Driver replaced with simple
+  `TDump` walk over the parse-root children (mirrors `parser_prolog.sc`
+  / `parser_snocone.sc`). String body extracted by consuming the
+  delimiting quote before `shift`, so `shift(*DQ_body, 'TT_QLIT')`
+  captures the body alone. Uppercase normalization of identifiers
+  dropped from parser; the future IR_SM/IR_BB lowering will handle case.
+
 Gates per rung: `smoke_rebus`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
 ---
@@ -120,8 +136,8 @@ Gates per rung: `smoke_rebus`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 ## State
 
 ```
-watermark: PST-RB-5d complete (session prior to 2026-05-16)
-status: ALL RUNGS DONE. Step 5 complete.
+watermark: PST-RB-5e complete 2026-05-17
+status: ALL RUNGS DONE. Step 5 complete. parser_rebus.sc is shift/reduce only.
 next: nothing — this goal is closed. See GOAL-PST-PROLOG.md for Step 6 (Prolog).
 findings-5a:
   - Mapping table above verified against rebus.y, rebus.h, rebus_lower.c.
@@ -136,8 +152,35 @@ findings-5d:
   - rebus_lower.c, rebus_emit.c, rebus_print.c all walk tree_t by t (kind).
   - lower.sc updated for Rebus tree_t lowering.
   - Gates: smoke_rebus green, smoke_scrip_all_modes green, crosscheck_snobol4 PASS=6.
+findings-5e (2026-05-17):
+  - parser_rebus.sc: 696 → 266 lines, zero functions, tree built solely via
+    shift/reduce + counter primitives nPush/nInc/nPop/nTop.
+  - parser_snobol4.sc: Lower_collect/Lower_run calls replaced by TDump for
+    pure AST output (Snocone, Icon, Prolog, Raku, Rebus already AST-only).
+  - corpus/SCRIP/lower.sc DELETED — will be re-translated from lower.c
+    (which is changing rapidly) to produce IR_SM array and IR_BB tree.
+  - corpus/SCRIP/lower_driver.sc DELETED — dead wrapper around removed lower().
+  - one4all/src/frontend/prolog/prolog_lower.c: fixed missing
+    `CODE_t *prolog_lower(PlProgram *pl_prog) {` function header on line 352
+    that was orphaned by commit 8fee1957 (PST-PL-6d). Without this fix `make
+    scrip` did not build.
+  - Gates: NOT RUN. scrip rebuilds cleanly with the prolog_lower.c fix, but
+    all six SCRIP-hosted parsers (snobol4, snocone, icon, prolog, raku, rebus)
+    fail at the SCRIP runtime layer:
+      * Without qize.sc loaded: Error 5 — Undefined SQize, called from
+        _qtag in semantic.sc whenever reduce(<bare-identifier>, n) is invoked.
+      * With qize.sc loaded: SCRIP Snocone runtime aborts with
+        double-free heap corruption — pre-existing bug noted in the
+        production run_scrip_parser.sh comment, tracked as SL-2.
+    Empirical AST dump per language NOT produced this session. Changes are
+    syntactically valid SCRIP but un-validated through the runtime.
+    Recommend a future session fix the qize-corruption SL-2 issue first,
+    then re-run the parsers to gate.
+  - Hand-off commit message includes the qize runtime blockage so the
+    next session can pick up the actual gating.
 ```
 
 ## Authorship
 
 Drafted by Claude Sonnet 4.6, 2026-05-16.
+PST-RB-5e + helpers by Claude Opus 4.7, 2026-05-17.
