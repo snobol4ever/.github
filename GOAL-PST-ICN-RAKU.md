@@ -112,7 +112,7 @@ expressible as shift + reduce with no helpers that inspect previously-built chil
 
 - [x] **PST-ICN-4a** — Infrastructure: add `TT_MATCH_UNARY` to `ast.h`; update `icon_parse.c` unary `=` and `TT_FIELD` construction; update `lower_icn.c` for both new kinds; regenerate `.ref` files for affected fixtures. Gates: `smoke_icon`, `crosscheck_snobol4`.
 
-- [x] **PST-ICN-4b** — SCRIP mirror: eliminate all 13 helpers from `parser_icon.sc`; replace with inline `shift`/`reduce` actions. Both C and SCRIP committed together. Gates: `smoke_icon`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
+- [x] **PST-ICN-4b** — SCRIP mirror: remove all 13 helpers from `parser_icon.sc`; replace structural assemblers with inline `shift`/`reduce` actions. 5 PST-allowed leaf-push helpers (`push_qlit`, `push_cset`, `push_flit`, `push_kw`, plus `notmatch` redef) **moved to a sidecar `icon_helpers.sc`** loaded by `run_scrip_parser.sh` alongside the parser — they will be inlined or absorbed into runtime once `notmatch` / `match.sc` is settled. Both C and SCRIP committed together. Gates: `smoke_icon`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
 ## Step 5 — SCRIP mirror helper elimination (Raku)
 
@@ -156,7 +156,26 @@ should be inline `reduce` actions.
 4. PST-RAKU-5a/5b/5c checked [ ].
 5. All gate scripts green at baseline.
 6. Beauty self-host byte-identical (Milestone 1 protected).
-7. `parser_icon.sc` and `parser_raku.sc` contain zero helper functions that Pop/INSPECT/reassemble trees. Icon: 5 PST-allowed leaf-push functions. Raku: leaf constructors + pure-reassemble-without-inspect helpers (no child-kind inspection). Hard violations (R1-R4) eliminated. ✅
+7. `parser_icon.sc` and `parser_raku.sc` contain zero in-file helper functions
+   that Pop/INSPECT/reassemble trees. **Sidecar helper files remain**:
+     - `icon_helpers.sc` — 5 functions: 4 PST-allowed leaf-push helpers
+       (`push_qlit`, `push_cset`, `push_flit`, `push_kw`) plus a `notmatch`
+       redefinition that duplicates `match.sc`.
+     - `raku_helpers.sc` — 11 functions: `push_interp_str`, `dq_unescape`,
+       and 9 `finish_*` variable-arity assemblers (counter-based, no
+       child-kind inspection — they cannot be expressed as a single
+       inline `reduce`).
+   These helpers are loaded by `run_scrip_parser.sh` for the relevant
+   language. They will be removed in a follow-on pass once the SCRIP
+   runtime stabilises enough to absorb them or once the grammar admits
+   their inlining. Hard violations (R1-R4) eliminated. ✅
+   **Sub-claim correction (2026-05-17, Lon-flagged):** earlier wording
+   in this file and in `GOAL-PST-REBUS.md` State implied parser_icon.sc
+   and parser_raku.sc were "zero functions" *full stop*. That is true
+   only of the parser files in isolation; the helper sidecars carry the
+   functions, so total per-language function counts are 5 (icon) and
+   11 (raku), not 0. Only `parser_rebus.sc` is currently 0/0 (no
+   sidecar exists).
 8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
@@ -169,12 +188,18 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 watermark: 2026-05-16 (session 30/60)
 next: DONE — parser_raku.sc complete rewrite corpus@3cb7ada
 PST-RAKU-5b ✅ corpus@31cc6f2: R1-R4 hard violations fixed.
-PST-RAKU-5c ✅ corpus@3cb7ada: complete rewrite 1788→953 lines, 95→39 functions.
-  All finish_* tree-assembly helpers eliminated. 55 Push_fn_* leaf-literal vars.
-  10 remaining finish_* are counter-based variable-arity assemblers (TopCounter+
-  loop, no child-kind inspection, cannot be single reduce). All gates green.
+PST-RAKU-5c ✅ corpus@3cb7ada: parser_raku.sc rewrite 1788→607 lines (parser file only).
+  All in-file finish_* tree-assembly helpers removed from parser_raku.sc.
+  **11 functions** (push_interp_str, dq_unescape, 9 finish_* counter-based
+  variable-arity assemblers) **relocated to corpus/SCRIP/raku_helpers.sc**
+  (231 lines). They are loaded by run_scrip_parser.sh alongside the parser.
+  Earlier wording "95→39 functions" referred to parser_raku.sc in isolation;
+  total parser+helpers function count today is 11. All gates green.
 PST-ICN-4a ✅ one4all@c52b724c: TT_MATCH_UNARY, TT_FIELD child layout, ICN_FIELD_NAME macro.
-PST-ICN-4b ✅ corpus@0ecae06: parser_icon.sc 525→381 lines, 9 structural helpers → reduce, 5 PST-allowed leaf-push functions retained.
+PST-ICN-4b ✅ corpus@0ecae06: parser_icon.sc 525→381 lines, 9 structural helpers
+  replaced with inline reduce; **5 PST-allowed leaf-push functions relocated
+  to corpus/SCRIP/icon_helpers.sc** (push_qlit, push_cset, push_flit, push_kw,
+  notmatch). Helpers are loaded by run_scrip_parser.sh alongside the parser.
   C-side fixes from PST-ICN-2b did not propagate to SCRIP mirrors. parser_icon.sc has 13
   helper functions that Pop/inspect/reassemble trees; parser_raku.sc has ~80. flatten_* in
   parser_raku.sc violate left-to-right child order invariant. PST-RAKU-3b was marked done
