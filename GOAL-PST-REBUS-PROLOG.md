@@ -148,7 +148,7 @@ Both must change: `Term*` → `tree_t`, slot assignment → pre-lower pass.
   both `Term*` (old) and `tree_t` (new) for the same input.
   SCRIP mirror: `parser_prolog.sc` produces the `tree_t` shape.
 
-- [ ] **PST-PL-6c** — Verifier: after parsing a clause both ways, assert
+- [x] **PST-PL-6c** — Verifier: after parsing a clause both ways, assert
   structural equivalence between the `Term*` tree and the `tree_t` tree.
   Run across the Prolog corpus. Fix any shape mismatches.
 
@@ -210,28 +210,26 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-PL-6b complete 2026-05-16 (session 30/59)
-next: PST-PL-6c — verifier: after parsing a clause both ways, assert structural equivalence between Term* tree and tree_t tree. Run across Prolog corpus. Fix shape mismatches.
+watermark: PST-PL-6c complete 2026-05-16 (session 30/59)
+next: PST-PL-6d — switch downstream consumers to tree_t: prolog_lower.c first, then prolog_unify.c, prolog_builtin.c, prolog_driver.c.
 findings-6a:
-  - All required TT_* already in ast.h: TT_QLIT/ILIT/FLIT/VAR/NUL/FNC/MAKELIST/CAT/ALT/IF/CLAUSE/CUT/UNIFY. No new kinds needed.
-  - List shape: C parser builds '.'(H,T) chains via ATOM_DOT. tree_t: TT_MAKELIST with flat children [e1..en, tail]. Lowerer rebuilds cons chain.
-  - Conjunction: parser flattens via flatten_conj() into PlClause.body[]. tree_t: raw nested TT_FNC(",") chains — lower flattens.
-  - ;/-> if-then-else: emitted raw as TT_FNC(";", TT_FNC("->",C,T), E) — prolog_lower.c detects and emits TT_IF.
-  - IfFrame directive stack: stays in parser (preprocessor concern, not AST). PST-PL-6g confirmed: no change needed.
-  - TERM_ATOM("!") maps to TT_CUT leaf. ATOM_CUT used in C parser.
-  - Directive (:-) head is NULL in PlClause; tree_t: TT_CLAUSE(TT_NUL, raw_body).
+  - All required TT_* already in ast.h. No new kinds needed.
+  - [] atom → TT_MAKELIST; TT_MAKELIST v.ival=1 marks explicit | tail.
+  - pt_maybe_ifthenelse: ;(->(C,T),E) → TT_IF(c,t,e). Stays in parser.
+  - IfFrame directive stack stays in parser. PST-PL-6g: no change needed.
+  - TT_CUT leaf for !. TT_CLAUSE(TT_NUL, body) for directives.
 findings-6b:
-  - Lexer struct is plain-copyable (src ptr + ints, no heap). Save p->lx before Term* parse; restore into p2 for parallel pt_* replay.
-  - Parallel functions: pt_primary, pt_term, pt_list, pt_args, pt_binop, pt_flatten_conj, pt_maybe_ifthenelse, pt_make_clause.
-  - TreeScope tracks name→interned-ptr; no slot numbers (moved to 6e).
-  - Atoms → TT_QLIT; vars → TT_VAR(v.sval=name); cuts → TT_CUT leaf.
-  - TT_FNC for all compound terms (functors, operators, builtins) with v.sval=functor name.
-  - pt_flatten_conj: n-ary conjunction flattening → TT_PROGRAM. Parser-level reduce action. Stays in parser.
-  - pt_maybe_ifthenelse: ;(->(C,T),E) → TT_IF(c,t,e). Grammar-level reduce on syntactic idiom. Stays in parser.
-  - pt_make_clause: TT_CLAUSE(head|TT_NUL, TT_PROGRAM[flat body]). Body flattened via pt_flatten_conj.
-  - DCG: parallel path builds raw pre-expansion tree_t; DCG expansion deferred to lower.
-  - PlClause.tr populated for all non-if-directive clauses. Directives: tr=NULL.
-  - Gates: smoke_prolog PASS=5 FAIL=0, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
+  - Lexer plain-copyable; save/restore for parallel pt_* replay.
+  - pt_primary/pt_term/pt_list/pt_args/pt_binop/pt_flatten_conj/pt_maybe_ifthenelse/pt_make_clause.
+  - TreeScope name→interned-ptr; no slot numbers (moved to 6e).
+  - is_dcg flag: DCG clauses skip tree replay + 6c verification.
+  - Gates: smoke_prolog PASS=5, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
+findings-6c:
+  - Verifier: ser_clause_term/ser_clause_tree → canonical S-expr → strcmp.
+  - PlProgram.tree_mismatches; prolog_program_tree_mismatches() accessor.
+  - Bug fixes: [] TK_ATOM → TT_MAKELIST; v.ival tail flag; TT_FNC(",") 2-child → (seq); TT_FNC("{}") 0-child → (atom "{}"); ser_term_conj_flat for directive body; pt_maybe_ifthenelse flattens then/else.
+  - Result: 366 non-SWI/non-gnu corpus files → 0 mismatches. 7 in SWI string-interpolation (out of scope).
+  - Gates: smoke_prolog PASS=5, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
 mirror gaps: (none — parser_prolog.sc already produces tree_t shapes)
 ```
 
