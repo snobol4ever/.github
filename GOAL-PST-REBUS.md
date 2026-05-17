@@ -111,6 +111,46 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
   captures the body alone. Uppercase normalization of identifiers
   dropped from parser; the future IR_SM/IR_BB lowering will handle case.
 
+- [x] **PST-RB-5g** — Snocone-port subsystem suite triage.  Two runtime
+  bugs fixed at one4all that were blocking the test_*.sc subsystem suite
+  from passing.  Suite went from 13/20 to 15/20.
+
+  **Bug 1 (sm_prog.c opnames[] table)**: a spurious `"SM_GEN_TICK"` entry
+  at array position 65 shifted every name from position 65 onwards by 1.
+  All `--dump-sm` output for `SM_CALL_FN` printed as `SM_SUSPEND_VALUE`,
+  for `SM_RETURN` as `SM_CALL_FN`, for `SM_NRETURN` as `SM_FRETURN`, etc.
+  This had been documented as "cosmetic" in `emit_net.c` but was
+  actively misleading diagnosis.  Fix: remove the spurious entry; update
+  the stale comment in emit_net.c.
+
+  **Bug 2 (lower.c lower_name)**: `.fn(args)` lowered as
+  `NAME_PUSH("fn")` instead of evaluating the call.  AST shape
+  `(TT_NAME (TT_FNC value (TT_INDIRECT "@S")))` was being treated as
+  if it were `(TT_NAME (TT_VAR foo))`, ignoring the function call.
+  Effect: `Top = .value($'@S'); nreturn;` returned the *literal string
+  "value"* wrapped as a NAMEVAL instead of dereferencing through the
+  field accessor.  Fix: when the TT_NAME child is TT_FNC, lower as a
+  plain call; the nreturn deref path then handles the value correctly.
+  This is the minimum-viable fix — a fuller "function-result name
+  handle" encoding (so `.fn(x) = newval` properly writes back through
+  the field) is left for future work.
+
+  Subsystem suite at HEAD after fix:
+    PASS: global, case, assign, counter, stack, tree, ShiftReduce,
+          TDump, ReadWrite, XDump, omega, arith, roman, strings, fence
+          (15/20)
+    FAIL: match (`notmatch` returns success on miss),
+          Gen (statement-limit hit — likely real infinite loop),
+          Qize (pre-existing SKIP via SL-3 SQize infinite loop),
+          semantic (tests 5/6/8 — nInc/nTop interaction),
+          trace (single-line output diff: `0  upd` vs `0? pd`)
+          (5/20)
+
+  Smoke gates protected: `smoke_rebus` 4/0, `smoke_scrip_all_modes` 2/0.
+
+  one4all files touched: `src/lower/sm_prog.c`, `src/lower/lower.c`,
+  `src/emitter/emit_net.c`.
+
 Gates per rung: `smoke_rebus`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 
 ---
@@ -136,9 +176,9 @@ Gates per rung: `smoke_rebus`, `smoke_scrip_all_modes`, `crosscheck_snobol4`.
 ## State
 
 ```
-watermark: PST-RB-5e complete 2026-05-17
-status: ALL RUNGS DONE. Step 5 complete. parser_rebus.sc is shift/reduce only.
-next: nothing — this goal is closed. See GOAL-PST-PROLOG.md for Step 6 (Prolog).
+watermark: PST-RB-5g complete 2026-05-17 (third session)
+status: PST rungs 5a-5e ✅; 5g ✅ (opnames + lower_name fixes). Snocone subsystem suite 15/20 PASS at HEAD. SL-2 closed. SL-3/4/5 still open. Parser_*.sc still don't emit usable AST (SL-5).
+next: per findings-5g "Next session" list — SPITBOL-test the 5 remaining subsystem failures (match, Gen, semantic, trace; Qize gated by SL-3), fix SCRIP source for each, then 6-function trace on parser_rebus.sc, then INCLUDE in Snocone parser.
 findings-5a:
   - Mapping table above verified against rebus.y, rebus.h, rebus_lower.c.
   - No new TT_* kinds needed — all existing ast.h entries sufficient.
@@ -236,6 +276,100 @@ findings-5f (2026-05-17, second session, Claude Opus 4.7 — SL-2 closed):
 
   Hand-off commit author: LCherryholmes (per RULES.md).
   Hand-off authored by: Claude Opus 4.7.
+
+findings-5g (2026-05-17, Claude Opus 4.7 — Snocone subsystem suite triage):
+  Strategy shift: instead of debugging the full parser_*.sc load stack
+  end-to-end, get the smaller, self-contained Snocone-port subsystem test
+  suite (~20 files at corpus/programs/snocone/demo/beauty/test/) green
+  first.  Each test_<subsys>.sc inlines its own copies of the helpers it
+  needs, so it isolates true runtime bugs from load-order issues.
+
+  Baseline at HEAD: 13/20 PASS via
+    bash scripts/test_beauty_snocone_subsystems.sh <subsys> ...
+
+  Diagnosed and fixed two runtime bugs (see rung PST-RB-5g above):
+    1. opnames[] table mis-aligned by spurious "SM_GEN_TICK" entry —
+       every dumped opcode name from position 65 onwards was wrong.
+       Documented as "cosmetic" in emit_net.c but actively misleading.
+    2. lower_name treated TT_NAME(TT_FNC ...) the same as TT_NAME(TT_VAR),
+       ignoring the function call entirely.  Caused .value($'@S') to
+       lower as NAME_PUSH("value") instead of evaluating value($'@S').
+
+  After fix: 15/20 PASS.  stack and ShiftReduce flipped from FAIL to PASS.
+
+  Remaining failures (5):
+    - match: notmatch test mis-classifies misses as PASS (negation bug).
+    - Gen: statement-limit exceeded (suspected infinite loop in Gen body).
+    - Qize: pre-existing — test_Qize.ref IS the SKIP placeholder for
+            SL-3 (SQize infinite loop on apostrophe-free input).
+    - semantic: nInc/nTop interaction tests 5/6/8 wrong; nTop type drift.
+    - trace: single output diff: '0  upd' vs '0? pd' — likely a string
+             escape / newline normalization quirk.
+
+  Smoke gates protected: smoke_rebus 4/0, smoke_scrip_all_modes 2/0.
+
+  Strategy for the parser_*.sc files: once the subsystem suite is fully
+  green (or its remaining failures are diagnosed and isolated from the
+  parser code path), instrument the 6 critical primitives —
+  shift, reduce, nPush, nInc, nTop, nPop — with stderr trace lines
+  (gated by SCRIP_DEBUG_PARSE env var) and run each parser against
+  trivial input to watch the parse in action.  Then promote the
+  multi-file load to a single file via an INCLUDE statement in the
+  Snocone parser (parallel to SNOBOL4's -INCLUDE), removing the load-
+  order question entirely.
+
+  ⛔ RULE (binding on all future SCRIP/subsystem work in this goal):
+  Never edit corpus .sc or .sno source to work around a SCRIP behavior.
+  These programs have been working under SPITBOL for decades and are the
+  oracle.  Workflow for every behavior question:
+    1. Write the construct as a SPITBOL .sno program and run it under
+       qemu-i386-static /home/claude/sbl32 prog.sno (install via
+       one4all/scripts/install_spitbol_x32_runner.sh; needs
+       qemu-user-static and libc6-i386).
+    2. SPITBOL's output is the canonical truth.
+    3. If SCRIP differs, fix SCRIP source in one4all (parser, lowering,
+       SM interpreter, runtime — never the corpus).
+  Both PST-RB-5g fixes were verified this way:
+    • SPITBOL test /tmp/spitbol_test2.sno confirmed
+      Top = .value($'@S'); :(NRETURN) returns INTEGER 42 to caller; my
+      lower_name fix produces the same observable behavior in SCRIP.
+    • Searched corpus for any `.fn(args) = rhs` write-side use of the
+      name-handle form: zero hits.  So the minimum-viable read-side fix
+      covers all corpus needs today.
+
+  SPITBOL parity for the simpler `Top = value($'@S'); :(NRETURN)`
+  (no leading dot): SPITBOL returns empty STRING; SCRIP at HEAD returns
+  INTEGER 42.  SCRIP's nreturn handler is more lenient (passes non-name
+  values through unchanged).  This existing divergence is unrelated to
+  PST-RB-5g — no code in the corpus relies on it.  Flagged here for
+  future SPITBOL-strict-mode work if Lon wants exact parity.
+
+  one4all files touched (committed in PST-RB-5g hand-off):
+    src/lower/sm_prog.c       — drop spurious "SM_GEN_TICK"
+    src/lower/lower.c         — lower_name handles TT_FNC child
+    src/emitter/emit_net.c    — update stale "cosmetic mismatch" comment
+
+  Next session, in priority order:
+    1. SPITBOL-test the 5 remaining subsystem failures and fix SCRIP for
+       each:
+         - match:    notmatch returns success on miss (negation logic).
+         - Gen:      statement-limit exceeded; likely infinite loop in
+                     Gen body — find the divergent loop.
+         - semantic: nInc/nTop interaction tests 5/6/8 wrong; nTop type
+                     drift (STRING vs INTEGER).
+         - trace:    single output diff '0  upd' vs '0? pd' — likely a
+                     newline/escape quirk in trace.sc output formatting.
+         - Qize:     blocked by SL-3 (SQize infinite loop on
+                     apostrophe-free input) — separate ticket.
+    2. With suite at 19/20 (Qize still SL-3), apply the 6-function trace
+       to parser_rebus.sc with tiny input; confirm AST emerges.
+    3. Roll the trace to parser_snobol4 / snocone / icon / prolog / raku.
+    4. Add INCLUDE statement support to the Snocone parser (mirror of
+       SNOBOL4's -INCLUDE) so beauty.sc and parser_*.sc can replace the
+       run_scrip_parser.sh load list with a single source file.
+
+  Hand-off authored by: Claude Opus 4.7.
+  Hand-off commit author: LCherryholmes (per RULES.md).
 ```
 
 ## Authorship
@@ -243,3 +377,4 @@ findings-5f (2026-05-17, second session, Claude Opus 4.7 — SL-2 closed):
 Drafted by Claude Sonnet 4.6, 2026-05-16.
 PST-RB-5e + helpers by Claude Opus 4.7, 2026-05-17.
 SL-2 fix + sidecar-claim corrections + _qtag SL-3/4 workaround by Claude Opus 4.7, 2026-05-17 (second session).
+PST-RB-5g (opnames + lower_name, Snocone subsystem suite 13→15) by Claude Opus 4.7, 2026-05-17 (third session).
