@@ -11,7 +11,7 @@
 
 Before touching any code in this goal, the session must:
 
-1. **Clone the standard three repos** (`.github`, `corpus`, `one4all`) per the global `PLAN.md` protocol. Optional: clone `harness` if you need the SPITBOL build recipe, and clone `x64` if you need to build SPITBOL itself. See "How-to: clone and bring up a fresh session" below for one-shot commands.
+1. **Clone the standard three repos** (`.github`, `corpus`, `one4all`) per the global `PLAN.md` protocol, **plus `snobol4ever/x64` to `/home/claude/x64`** for the SPITBOL oracle. `x64` contains a prebuilt binary at `/home/claude/x64/bin/sbl` — no build step required for routine validation work; just clone and the oracle is live. Only clone `harness` if you need the build recipe (`oracles/spitbol/BUILD.md`) to rebuild SPITBOL from source — not needed for this goal's day-to-day work. See "How-to: clone and bring up a fresh session" below for one-shot commands.
 2. **Extract the SPITBOL manual** to plain text and consult the verified map: `pdftotext /mnt/user-data/uploads/spitbol-manual-v3_7.pdf /tmp/spitbol.txt`. Then read using the **§"SPITBOL Manual Reading Index & Map"** in this file (below) — line numbers there are verified against the actual PDF, not the stale numbers that lived in older goal files. Required minimum:
    - Ch 14 — Statement form (line 9017+)
    - Ch 15 — Operator priority table (line 9540+)
@@ -332,7 +332,14 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
   ```
   Acceptance: monitor reports either PASS or first divergence with line numbers.
 
-- [ ] **SCT-2 — `parser_rebus.sc` → `parser_rebus.sno`.**
+- [~] **SCT-2 — `parser_rebus.sc` → `parser_rebus.sno`.** 🔄 PARTIAL 2026-05-17 (Opus 4.7).
+  Transpile is clean: 953 lines, zero `?TT_` placeholders, SCRIP front-end accepts (7,371 SM instructions on `--dump-sm`).
+  SPITBOL execution: starts the parser, runs 299 statements, then hits **ERROR 171 at line 473** ("null or unequally long 2nd, 3rd args to replace") in transpiled `qtag` function — from `corpus/SCRIP/semantic.sc` line ~21: `IDENT(REPLACE(t, "'", ""), t)`. SPITBOL `REPLACE` is character mapping (requires `SIZE(X) == SIZE(Y)`), not substring substitution.
+  Same error reproduces on `parser_icon.sno` line 473 and `parser_raku.sno` line 473 — all three share the `qtag` runtime, so the fix is one source edit in `semantic.sc`.
+  Suggested fix (next session): replace `REPLACE(t, "'", "")` with pattern-strip `tmp = t; LSTRP tmp "'" =  :S(LSTRP) ; IDENT(tmp, t)` — portable SNOBOL4. Open question for Lon: do we fix in `semantic.sc` source (cleanest) or detect in transpiler (more general)? Recommended: source fix; the constraint "transpiled .sno must run on SPITBOL" applies to the runtime source too.
+  Also discovered: `--sm-run` segfaults on this and all transpiled parsers via `rt_bb_arbno` → `bb_deferred_var` rebuild path (rt.c:1217 / stmt_exec.c:303). This is the exact bug-class GOAL-PARSER-SC-TRANSPILE was designed to ROUTE AROUND via SPITBOL oracle, not fix here — see Architectural Insight. Owned by GOAL-PST-REBUS.
+  Cosmetic finding: `lower_sno.c` emits `&FULLSCAN = 1` twice when source also emits it (prelude + passthrough). Harmless no-op pair under SPITBOL. Worth a 3-line dedup in `lower_sno.c::tree_to_sno`.
+
   Same as SCT-1 but for Rebus parser. New constructs to handle in transpiler: `OPSYN`, `&FULLSCAN` setter (pass through verbatim), `epsilon` (already known), counter idioms (`nPush/nInc/nTop/nPop` → SNOBOL4 stack manipulation already in `counter.inc`). Sample: `corpus/programs/rebus/parser/paren.reb`.
 
 - [ ] **SCT-3 — `parser_snocone.sc` → `parser_snocone.sno`.**
@@ -346,6 +353,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 
 - [ ] **SCT-6 — `parser_prolog.sc` → `parser_prolog.sno`.**
   Independent of GOAL-PST-PROLOG's frontend work. The Prolog parser_*.sc is largest at 1040 lines; some constructs may need `lower.c` fixes. Sample: `corpus/programs/prolog/rung01_hello_hello.pl`.
+  **Pre-finding (Opus 4.7, 2026-05-17):** transpile is clean (1753 lines, 0 placeholders) but SPITBOL rejects `parser_prolog.sno` at parse time: `(766,27) : ERROR 230 -- syntax error: illegal character`. This is **NOT a runtime issue** — SPITBOL refuses to compile the file. Likely a transpiler emission bug (some character in source `parser_prolog.sc` that lower_sno.c isn't escaping properly). Triage: `view /tmp/parser_prolog.sno line 766 col 27` and inspect what `emit_expr` or `emit_stmt` produced there. Whatever the character is, it survived through `emit` without being quoted or escaped; SNOBOL4 has no `\\` escapes so the fix is likely "emit via `CHAR(N)` concatenation when the literal contains an unprintable or control char".
 
 ### Phase 2 — Two-way harness
 
@@ -382,23 +390,43 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 ## 📊 State
 
 ```
-status:    SCT-1e ✅ 2026-05-17 (Opus 4.7).
-           SCT-1/1b/1c/1d/1e all landed. All six parser_*.sc transpile
-           cleanly (zero placeholders).  parser_snobol4.sc → 885 lines
-           of SNOBOL4 that SPITBOL accepts end-to-end with NO runtime
-           errors on real input (atom_id.sno, arith_add_mul.sno).
-           The single ERROR 041 at line 873 that blocked SCT-1f turned
-           out to be a transpiler bug: TT_SCAN in expression position
-           was emitting CONCAT instead of explicit `?`.  Fixed; pattern
-           match now actually happens.
+status:    SCT-2 🔄 PARTIAL 2026-05-17 (Opus 4.7 ~late afternoon).
+           Cross-parser SPITBOL sweep delivered 3 findings:
+             (1) snobol4 + snocone parsers run to clean exit under
+                 SPITBOL — no errors at all.  Both produce only blank
+                 OUTPUT lines (label-padding artifact) because the
+                 SPITBOL parse-loop didn't recognise the sample input
+                 and hit the source's "Parse Error" else branch — that
+                 IS a clean exit per source semantics; deeper validation
+                 (SCT-9: matching --dump-ast reference) is the real bar.
+             (2) rebus + icon + raku parsers all hit IDENTICAL
+                 ERROR 171 at line 473 ("REPLACE 2nd/3rd args unequal
+                 length") in transpiled qtag() — single runtime-source
+                 bug in corpus/SCRIP/semantic.sc:21.  Three-for-one fix.
+             (3) prolog parser hits ERROR 230 (illegal character) at
+                 line 766 col 27.  Transpiler-side emission bug, not
+                 runtime.  Needs lower_sno.c triage of literal-char
+                 escaping (SNOBOL4 has no \\ escapes; control chars
+                 in QLITs must come out as CHAR(N) concatenations).
+           Path opened: GOAL doc updated to direct sessions to clone
+           snobol4ever/x64 directly (prebuilt sbl binary; no build step).
+           This session removes the "SPITBOL not built" stop-gap that
+           blocked SCT-1f for two prior sessions.
 
-watermark: scrip --dump-sno <runtime> parser_<lang>.sc → all six clean:
-              snobol4=885  snocone=1824  rebus=953
-              icon=971     raku=1431     prolog=1753
-           Explicit-`?`-operator emissions per parser (TT_SCAN sites in
-           expression context): 9..15.  Zero `?TT_` placeholders across
-           all six.  SPITBOL runs parser_snobol4.sno to clean exit on
-           sample inputs.
+           Prior SCT-1e ✅ stands: all six transpile cleanly; explicit-`?`
+           fix in TT_SCAN case verified; parser_snobol4.sno accepted
+           end-to-end by SPITBOL.
+
+watermark: All 6 transpile clean.  Sample-input run under SPITBOL:
+              snobol4    exit=0  (clean — empty AST; parser hit source's Parse-Error branch)
+              snocone    exit=0  (clean — same shape as snobol4)
+              rebus      exit=0 with ERROR 171 @line 473 (qtag REPLACE)
+              icon       exit=0 with ERROR 171 @line 473 (qtag REPLACE)
+              raku       exit=0 with ERROR 171 @line 473 (qtag REPLACE)
+              prolog     exit=231 with ERROR 230 @line 766,27 (illegal char)
+           SCRIP --sm-run still segfaults on all 6 via rt_bb_arbno →
+           bb_deferred_var path (rt.c:1217 / stmt_exec.c:303).  Owned
+           by GOAL-PST-REBUS; this goal routes around via SPITBOL oracle.
 
 landed:
   - src/lower/lower_sno.{c,h}     (~360 lines + SCT-1b/c/d/e deltas)
@@ -406,16 +434,22 @@ landed:
   - Makefile                      (lower_sno.c entry + compile rule)
   - scripts/run_parser_sync_monitor.sh   (SCT-7 wrapper)
   - corpus/SCRIP/semantic.sc      (_qtag → qtag rename, SCT-1d)
+  - .github/GOAL-PARSER-SC-TRANSPILE.md  (SCT-2 partial; SPITBOL clone
+                                          path canonicalised — clone
+                                          snobol4ever/x64 to /home/claude/x64,
+                                          prebuilt sbl at bin/sbl)
 
-next:      SCT-1f — drive the 2-way sync-monitor.  Now that SPITBOL
-           runs the transpiled parser cleanly, side-by-side with SCRIP
-           `--sm-run` should produce identical traces.  Wrapper script
-           already exists at scripts/run_parser_sync_monitor.sh.
-           Requires SPITBOL IPC patch (SN-26-spl-bridge, x64 session
-           #27).  Then SCT-2..SCT-6 for the other five parsers in turn.
+next:      Fix qtag's REPLACE in corpus/SCRIP/semantic.sc (1-line source
+           edit using portable pattern-strip).  That unblocks rebus +
+           icon + raku validation in one move.  Then triage prolog's
+           ERROR 230 at line 766 col 27 in lower_sno.c.  Then SCT-1f
+           (2-way sync monitor) — still requires SN-26-spl-bridge patch
+           in x64 repo before the monitor wire activates, but the
+           non-monitor SPITBOL-only oracle path is now live and useful.
 
 authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
            SCT-1 through SCT-1e landed same day, Opus 4.7.
+           SCT-2 partial + clone-path canonicalisation, same day, Opus 4.7.
 ```
 
 ---
@@ -448,14 +482,19 @@ git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
 git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
 
-# Optional fourth — only needed if you're touching cross-engine infra or
-# want SPITBOL build instructions on hand:
-git clone https://TOKEN@github.com/snobol4ever/harness  /home/claude/harness
+# Required fourth — SPITBOL oracle.  Clone to /home/claude/x64 (NOT
+# /home/claude/spitbol-x64 — the latter is wrong, all scripts and the
+# RULES.md "Oracles" section assume /home/claude/x64).  The repo ships
+# with a prebuilt binary already at bin/sbl, so this clone IS the
+# install — no build step needed for routine validation:
+git clone https://TOKEN@github.com/snobol4ever/x64      /home/claude/x64
+ls -la /home/claude/x64/bin/sbl     # → prebuilt SPITBOL, ready to use
+/home/claude/x64/bin/sbl -b some_file.sno   # invocation form
 
-# SPITBOL x64 source lives in its own repo (NOT bundled with harness):
-git clone https://TOKEN@github.com/snobol4ever/x64      /home/claude/spitbol-x64
-# In Lon's environment the built binary is at /home/claude/x64/bin/sbl ;
-# our scripts default to that path.  See "Building SPITBOL" below.
+# Optional fifth — only needed if you're touching cross-engine infra
+# OR if you specifically need to rebuild SPITBOL from source.  Routine
+# transpiler work does NOT need this:
+git clone https://TOKEN@github.com/snobol4ever/harness  /home/claude/harness
 
 # Required packages on a fresh Ubuntu sandbox (one4all needs libgc):
 apt-get install -y libgc-dev libgc1 build-essential
@@ -566,20 +605,27 @@ bash scripts/run_parser_sync_monitor.sh snobol4 corpus/programs/snobol4/parser/a
 
 The monitor compares **NAME / READY / GO** records on a binary wire defined in `scripts/monitor_wire.h`. Per `test_monitor_3way_sync_step_auto.sh` header, **no source preprocessing** — the .sno runs unmodified; both runtimes emit catch-all trace records inline.
 
-### How-to: build SPITBOL x64 (if not already built)
+### How-to: build SPITBOL x64 (rare — almost always unnecessary)
 
-Source repo: **`github.com/snobol4ever/x64`** (separate repo, not bundled with `harness`).
-Build recipe lives in `harness/oracles/spitbol/BUILD.md`. Summary:
+**The `snobol4ever/x64` repo ships with a prebuilt `sbl` binary** at `bin/sbl`.  Just clone the repo to `/home/claude/x64` and the oracle is live.  See the "How-to: clone" section above.  You only need to rebuild SPITBOL when:
+
+- The shipped binary is broken on your platform (rare — it's an x86-64 ELF).
+- You're patching the SPITBOL runtime itself (e.g. SN-26-spl-bridge for the IPC monitor wire).
+- The source-of-truth files (`sbl.min`, `asm.sbl`, `lex.sbl`, `err.sbl`) have been edited.
+
+Rebuild recipe (only if needed):
 
 ```bash
-git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/spitbol-x64
+# Already cloned to /home/claude/x64 per "How-to: clone".  If not yet:
+git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 apt-get install -y build-essential nasm
 
-cd /home/claude/spitbol-x64
+cd /home/claude/x64
 # Apply systm.c patch — clock_gettime nanoseconds → milliseconds.
 # See harness/oracles/spitbol/BUILD.md for the exact PATCH heredoc.
 make
-cp sbl /usr/local/bin/spitbol     # or /home/claude/x64/bin/sbl per Lon's layout
+# The Makefile writes the binary to bin/sbl, which is the canonical
+# path every script and RULES.md "Oracles" reference expects.
 ```
 
 **Important compatibility notes from harness BUILD.md:**
@@ -587,7 +633,8 @@ cp sbl /usr/local/bin/spitbol     # or /home/claude/x64/bin/sbl per Lon's layout
 - SPITBOL has NO `LOAD()` (EXTFUN=0)
 - SPITBOL has NO `LABELCODE()`
 - SPITBOL `DATA()` returns lowercase type names; CSNOBOL4 returns uppercase
-- Invocation: `spitbol -b program.sno` (the `-b` suppresses the banner, required for clean stdout diff)
+- Invocation: `/home/claude/x64/bin/sbl -b program.sno` (the `-b` suppresses the banner, required for clean stdout diff)
+- String literals: SPITBOL accepts both `'...'` and `"..."` but they have *different* semantics (single-quoted = literal, double-quoted = pattern with `*` deferred eval).  The transpiler emits single-quoted literals to keep the literal interpretation; double-quoted strings in source `.sc` translate to whatever the AST already encoded.
 
 **For the monitor:** SPITBOL needs the SN-26-spl-bridge patch (landed in `x64` session #27). Without it the binary is silently no-op on the wire. The bridge activates only when `MONITOR_READY_PIPE` is set in env.
 
