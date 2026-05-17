@@ -157,36 +157,75 @@ Rationale: session overhead (clone, orient, build, gate-baseline) is fixed
 cost. Amortizing it across three landings instead of one is ~3× throughput
 at the same correctness floor.
 
-## Casing belongs at the ingress layer, not at lookup — **one4all only**
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — SCRIP IS CASE-SENSITIVE. NO FOLDING. ANYWHERE. — Lon, 2026-05-17            ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  All six SCRIP-supported languages are case-sensitive: SNOBOL4, Snocone, Rebus, Icon, Prolog,    ║
+║  Raku. This is the cross-language compatibility story we tell the community.                    ║
+║                                                                                                  ║
+║  Historical SNOBOL4 programs that rely on automatic case-folding (`&CASE = 0`, `CASECL`,         ║
+║  GTNVR folding, etc.) are NOT supported by SCRIP directly. A separate, standalone               ║
+║  pre-processing tool is the right answer for those users — it will canonicalize identifiers     ║
+║  before SCRIP sees them. SCRIP itself does ZERO folding.                                        ║
+║                                                                                                  ║
+║  Forbidden inside `one4all`:                                                                    ║
+║    • Calls to `sno_fold_name`, `fold_strbuf`, or any equivalent on identifier paths             ║
+║    • `strcasecmp` / `strncasecmp` for identifier comparison                                     ║
+║    • `tolower` / `toupper` loops in lookup, register_fn, label resolution, DATA registration,   ║
+║      OPSYN handling, _usercall_hook label-uppercase fallback (interp_hooks.c lines 64-68),      ║
+║      sc_dat_find_type / sc_dat_find_field, or any function-table / variable-table site         ║
+║    • `--case-sensitive` and `--fold-case` CLI flags — both removed. Case-sensitive is the      ║
+║      only mode. No flag, no toggle, no keyword. `sno_fold_on` and its companion functions      ║
+║      (`sno_set_case_sensitive`, `sno_get_case_sensitive`) are removed.                          ║
+║    • `&CASE` keyword in scrip — assignment to `&CASE` is a no-op or an error                   ║
+║                                                                                                  ║
+║  SPITBOL (x64, x32) and CSNOBOL4 are exempt — those are legacy reference runtimes for           ║
+║  oracle comparison, owned upstream, NEVER patched in one4all. See the "Source-of-truth"        ║
+║  table at the end of this rule.                                                                 ║
+║                                                                                                  ║
+║  Cross-language imports: When SCRIP's Snocone or Rebus or Icon code references something       ║
+║  declared in another language, the identifier must match byte-for-byte. No transparent         ║
+║  rewrite. No silent fold. If the case is wrong, it's a compile error.                          ║
+║                                                                                                  ║
+║  Rationale: 60 years of SNOBOL4 case-folding has been a continuous source of bugs at the       ║
+║  boundary between languages, between user code and runtime, between hand-typed source and       ║
+║  EVAL'd strings, between the lex layer and the runtime layer. Snocone, Rebus, Icon, Prolog,    ║
+║  and Raku are all natively case-sensitive. Folding only existed to placate one ancestor.       ║
+║  The cost of supporting it crosses every codebase boundary; the benefit is zero modern         ║
+║  programs that couldn't be served by a 50-line preprocessor.                                    ║
+║                                                                                                  ║
+║  Violation: any commit that re-introduces folding logic in one4all = rejection.                ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-⛔ In **one4all**, do not apply case folding at identifier-lookup
-sites. Casing decisions belong at two boundaries only:
+### Implementation sweep (one rung's work, owned by next session)
 
-1. **Lexical / parse layer** — when the scanner identifies a token
-   and decides what canonical form to hand downstream.
-2. **User input strings used as names** — `CONVERT(x, 'NAME')`,
-   indirection via `$`, and `&` assignments that interpret a user-
-   supplied string as an identifier.
+The pivot above is binding immediately. The code sweep to enforce it is its
+own rung; until that rung lands, existing fold call sites continue to exist
+as no-ops (they have been no-ops under default `--case-sensitive` mode
+anyway since SN-31). Sites to remove, by file:
 
-Keyword-table lookup, hash-chain walks, variable resolution via
-already-parsed identifiers — these are **pure comparison sites** in
-one4all. The identifier's case must already be canonical by the
-time it reaches them. Folding at a lookup site pays cost on every
-call, couples policy ("keywords are case-insensitive") with
-mechanism ("how do I compare two byte strings"), and makes case
-behavior invisible to code reading the source.
+| File | Sites |
+|------|-------|
+| `src/frontend/snobol4/snobol4.l` | `sno_fold_on`, `sno_set_case_sensitive`, `sno_get_case_sensitive`, `sno_fold_name`, `fold_strbuf`, every call into them. The lex layer hands identifiers downstream verbatim. |
+| `src/runtime/snobol4/snobol4.c` | Every `sno_fold_name` call in `_DATA_` / `sno_DATA_register` (lines ~1502, 1518, 1527), `_VALUE_` (line ~1671), and the function-table population path (line ~2793, ~2805). |
+| `src/runtime/snobol4/eval_code.c` | `sno_fold_name` calls at lines 118, 129, 239, 281. |
+| `src/runtime/rt/rt.c` | `sno_fold_name` calls at lines 933, 940, 962, 976, 1109. |
+| `src/driver/interp_data.c` | `_builtin_DATA` — already done; remaining: change `strcasecmp` to `strcmp` in `sc_dat_find_type` and `sc_dat_find_field` (lines 48, 55). |
+| `src/driver/interp_hooks.c` | `_usercall_hook` uppercase-fallback at lines 64-68. Delete the toupper loop and the second `label_lookup(_uf)`. |
+| `src/driver/scrip.c` | Remove `--case-sensitive` and `--fold-case` argument parsing and the `sno_set_case_sensitive(opt_case_sensitive)` call. |
+| `src/runtime/snobol4/snobol4.c` keyword `&CASE` | Remove `&CASE` from the keyword set or make assignment a no-op with a one-time stderr warning. |
 
-### SPITBOL and CSNOBOL4 are exempt
+After sweep, `grep -rn "sno_fold_name\|strcasecmp\|fold_case\|case_sensitive" src/` returns ONLY:
+* References inside SPITBOL/CSNOBOL4 oracle build directories (exempt).
+* The removal commit's own comment trail saying "removed per ABSOLUTE RULE — SCRIP is case-sensitive."
 
-SPITBOL (x64, x32) and CSNOBOL4 fold inside `GTNVR` / `GENVUP`,
-gated on the `&case` / `CASECL` keyword.  That is how they have
-always worked and how they will continue to work.  We do **not**
-retrofit these legacy runtimes to the ingress-at-lex technique.
+### Source-of-truth for legacy oracle runtimes (unchanged)
 
-### Source-of-truth if a legacy patch is ever justified
-
-If a future bug in SPITBOL or CSNOBOL4 ever warrants a patch,
-patch the source of truth, not the generated artifact:
+SPITBOL and CSNOBOL4 are reference oracles for byte-identity comparison.
+We do not patch them. If a future bug in them ever warrants a patch,
+patch the source of truth, never the generated artifact:
 
 | Runtime | Source of truth | Never patch |
 |---------|----------------|-------------|
