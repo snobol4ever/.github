@@ -126,6 +126,7 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-CSET-BINOPS | TT_CSET_UNION/DIFF/INTER (Icon `E1++E2`/`E1--E2`/`E1**E2`) lowered to IR_CSET_UNION/DIFF/INTER. Three coherent edits paralleling IJ-CSET-COMPL: (1) `src/include/IR.h` adds three IR_e entries after `IR_CSET_COMPL`. (2) `src/lower/ir_exec.c` adds a shared fall-through case `IR_CSET_UNION:`/`IR_CSET_DIFF:`/`IR_CSET_INTER:` mirroring the matching `bb_eval_value` cases in `icn_value.c`: eval both children, coerce int/real → string via `descr_to_str_icn`, dispatch by `nd->t` to `icn_cset_union/diff/inter`, run through `icn_cset_canonical` for sort+dedup, wrap as `CSETVAL`. FAIL/null propagate cleanly. (3) `src/lower/lower_icn.c` adds shared `TT_CSET_UNION:`/`TT_CSET_DIFF:`/`TT_CSET_INTER:` case: lower both operands, map AST kind → IR kind, allocate node with n=2. Sanity-tested: `'aeiou' ++ 'xyz'` → `'aeiouxyz'` (8 chars); `'abcdef' -- 'bd'` → `'acef'` (4); `'abcdef' ** 'cdefgh'` → `'cdef'` (4); `~'aeiou' -- '0123456789'` → 112 chars. ir-run 111/265 unchanged (same downstream gating). Gates: smoke_icon 5/5, broker 20/49, honest 277/0/0, cross-lang smokes unchanged. | `0b931361` |
 | IJ-SCAN-NULSAFE | `scan_builtins.c::any/many/upto/bal` made `\0`-safe. Added `cset_resolve(DESCR_t, &ptr, &len)` helper that consults `icn_kw_cset_len(ptr)` for keyword-cset storage (`&cset`/`&ascii`/`&lcase`/...) whose canonical-form buffer is null-prefixed (`stable[0]='\0'`, real chars follow), falling back to `strlen` for regular csets and strings. Added `cset_has(cv, clen, ch)` using `memchr` instead of `strchr` so cset membership tests are length-aware. Refactored `any` (line 14), `many` (line 35), `upto` (line 56), `bal` (line 127) — each cset argument now flows through `cset_resolve` + `cset_has` rather than `VARVAL_fn` + `strchr`. Eliminates silent truncation when scan builtins receive csets containing `\0` (kw csets) or when `~cset` complement results flow through scan ladder. ir-run 111/265 unchanged: no rung flips because cset-complement-driven rungs (`rung36_jcon_*`) gate on additional missing constructs beyond `\0`-safe scan, but the silent-truncation correctness floor is now solid for downstream work. Also restored missing `CODE_t *prolog_lower(PlProgram *)` function header in `src/frontend/prolog/prolog_lower.c` — commit `8fee1957` (PST-PL-6d) had left orphaned function body after helper additions; HEAD `0b931361` would not build from clean clone without this fix. Gates: smoke_icon 5/5, honest 277/0/0. | `068a7054` |
 | IJ-FLIT | TT_FLIT real-literal lowering for Icon. `lower_icn_expr_node` (src/lower/lower_icn.c) was handling TT_ILIT but not TT_FLIT, so real literals in expression position fell through to ICN_BB_EVAL → `[NO-AST] SM_BB_EVAL` stub at runtime. Added TT_FLIT case mirroring TT_ILIT: `IR_node_alloc(IR_LIT_F)`, `nd->dval = e->v.dval`. IR_LIT_F executor in ir_exec.c already does `REALVAL(nd->dval)`. probe: `write(3.14)` → `3.14` (was `[NO-AST]` stub). **ir-run 111→125 (+14).** **Honest regression 277→272 (−5):** unmasked 5 programs (rung18_real_relop_real_relop_goal, rung36_jcon_arith/checkfpx/ck/mathfunc) that previously exited 0 with empty output (silently wrong) now timeout — they exercise real-typed binops/relops that IR_BINOP_GEN's binop_map doesn't yet handle for double operands. Net correctness improvement (visible failures > hidden failures); separate ticket needed for IR_BINOP_GEN real-typed arithmetic. | `48d797fa` |
+| IJ-IRALLOC-OVERFLOW | IR_block_t gains `max` field; IR_node_alloc bounds-checked (returns NULL on overflow instead of stomping heap); lower_icn_proc_body IR_alloc 128→4096 — proc bodies with complex IR (real-typed relops over alternates, every-loops) were overflowing the 128-node cap and corrupting adjacent heap, manifesting as infinite loops under --ir-run. Also: IR_ICN_BINOP β outer loop missing `return nd->ω` when right.α also fails after left advances. **honest 272→276 (+4). broker 17→19 (+2). smoke 5/5.** | `6ddb9584` |
 | IJ-TO-GEN | IR_ICN_TO operand re-pumping when bounds are generators. Mirrors IR_BINOP_GEN's cross-product β-pump: when counter > ival2, if c[1] (hi) is a generator, advance it; if c[1] exhausts and c[0] (lo) is a generator, reset c[1] and advance c[0]; only fail when both operand generators are exhausted. Inlined IR_IS_GEN_KIND_TO macro (same set as BINOP_GEN). Fixes rung01_paper_nested_to: `every write((1 to 2) to (2 to 3))` now produces full 8-value cross product 1,2,1,2,3,2,2,3 (was only 1,2). **ir-run 125→126 (+1).** Gates: smoke_icon 5/5. Honest neutral. | `92bfffd9` |
 
 ## NEXT step
@@ -153,16 +154,16 @@ Next candidates in descending value:
 ## Watermark
 
 ```
-one4all: 92bfffd9 (IJ-FLIT + IJ-TO-GEN landed; first 3-construct session, 2 of 3 used)
+one4all: 6ddb9584 (IJ-IRALLOC-OVERFLOW: IR_block_t bounds-checked; lower_icn_proc_body 128→4096; IR_ICN_BINOP beta fix)
 corpus:  a9393091
-ir-run:  126/265   honest: 272 PASS / 0 FAIL / 0 ABORT  (was 277; −5 unmasked by IJ-FLIT)
-smoke_icon: 5/5    broker: 17/49
-cross-lang smokes: snocone 5/5 PASS, prolog 0/5 (pre-existing at watermark — 068a7054 also 0/5)
+ir-run:  126/265   honest: 276 PASS / 0 FAIL / 0 ABORT  (+4 from 272; real-relop/alternate programs unblocked)
+smoke_icon: 5/5    broker: 19/49  (+2 from 17)
+cross-lang smokes: snocone 5/5 PASS, prolog 0/5 (pre-existing)
 ```
 
-Latent bugs (pre-existing or unmasked at watermark, separate tickets):
-- IR_BINOP_GEN doesn't handle real-typed operands → 5 rungs now hang under `--ir-run` (unmasked by IJ-FLIT).
-- Prolog smoke 0/5 — pre-existing at `068a7054`. Prior handoff (IJ-SUSPEND-PUMP-WIRE `fe4a3168`) claimed "prolog smoke 4/5→5/5 (bonus)" but that was stale/different oracle.
+Latent bugs (pre-existing or unblocked, separate tickets):
+- rung18/rung36 real-typed binop rungs still xfail — IR_BINOP_GEN real-typed arithmetic not yet wired (no hang now; clean FAILDESCR exit).
+- Prolog smoke 0/5 — pre-existing.
 - `every (s := "" | "a") do write(s)` infinite-loops in IR mode.
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
 
