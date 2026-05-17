@@ -92,7 +92,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh
   DCG clauses fall back to Term* path. `TRSlotMap` pre-lower slot assignment added.
   SCRIP mirror: `lower.sc` updated for Prolog `tree_t` shape.
 
-- [ ] **PST-PL-6e** — Move variable-slot allocation to a pre-lower pass in
+- [x] **PST-PL-6e** — Move variable-slot allocation to a pre-lower pass in
   `prolog_lower.c`: walk each clause's `tree_t`, collect all `TT_VAR` names,
   assign sequential integer slots, attach `ival` during lowering for
   `IR_PL_VAR`. Delete slot assignment from `scope_get` / `scope_find`.
@@ -145,8 +145,8 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-PL-6d complete 2026-05-16 (session 30/59)
-next: PST-PL-6e — promote TRSlotMap as canonical slot mechanism; remove next_slot from VarScope; delete scope_get slot assignment.
+watermark: PST-PL-6e complete 2026-05-16 (session 30/60)
+next: PST-PL-6f — Delete all Term*-returning code paths from prolog_parse.c; remove lower_term() call sites replaced by tree_t path in 6d.
 findings-6a:
   - All required TT_* already in ast.h. No new kinds needed.
   - [] atom → TT_MAKELIST (empty). TT_MAKELIST v.ival=1 marks explicit | tail.
@@ -177,6 +177,16 @@ findings-6d:
   - Directive loop: uses goal_tr (tree_t body[0]) when available.
   - Gates: smoke_prolog PASS=5, crosscheck_snobol4 PASS=6, smoke_scrip PASS=2.
 mirror gaps: (none — parser_prolog.sc already produces tree_t shapes)
+findings-6e:
+  - Removed next_slot from VarScope; scope_get now assigns saved_slot=-1 for all new vars.
+  - Added var_names/var_terms/nvar snapshot fields to PlClause (prolog_parse.h).
+  - parse_clause() copies VarScope entries into cl->var_names/var_terms/nvar after parse.
+  - lower_clause(): named-var pre-pass assigns sequential saved_slot from cl->var_names/var_terms;
+    ASSIGN_ANON walk fills remaining -1 slots (anonymous vars) above named slots.
+  - assign_clause_anon_slots(): same pattern (for plunit test path).
+  - lower_clause_from_tree() + tr_assign_slots(): unchanged — TRSlotMap is canonical for tree_t.
+  - lower.sc: no change needed (slot assignment is internal C lowering; tree_t shape unchanged).
+  - Gates: smoke_prolog PASS=5, crosscheck_prolog PASS=127, crosscheck_snobol4 PASS=6.
 ```
 
 ## Authorship
