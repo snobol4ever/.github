@@ -114,7 +114,120 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   Sweep also landed: `snocone_parse.y` AST_* → TT_* (29 names, 89 occurrences; bridge `#define`s deleted from regenerated `.tab.c`); `snocone_lex.c` AST_* goto-labels → LX_* (45 names, 101 occurrences — they were lexer-state labels, never AST kinds).
   Watermark: one4all `1e6557c1`. Gates green (smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 6/1 baseline with pre-existing `pattern` test fail unrelated to this rung, crosscheck_snobol4 4/2 baseline, unified_broker 19/30 baseline).
 
-- [ ] **⛔ PST-RB-5i-PRE — CASE-SENSITIVE-ONLY sweep (BLOCKS 5i finish). NEXT SESSION STARTS HERE.**
+- [x] **PST-RB-5i-PRE — CASE-SENSITIVE-ONLY sweep.** ✅ 2026-05-17 (Opus 4.7, emergency handoff)
+  one4all `d432ed6f`. CSO-1..CSO-7 landed as a single commit (emergency
+  handoff — combined what was intended as two orthogonal commits). All
+  gates held at baseline floor: smoke_rebus 4/0, smoke_scrip 2/0,
+  smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 6/1, crosscheck 4/2,
+  beauty_snocone_subsystems 19/1.
+  - **CSO-1** ✅ baseline snapshot captured.
+  - **CSO-2** ✅ fold infra deleted in snobol4.l + scrip_cc.h.
+  - **CSO-3** ✅ sno_fold_name() calls stripped from rt.c, eval_code.c,
+    snobol4.c, interp_{ref,call,exec,eval}.c, prolog_driver.c,
+    rebus_lower.c, raku_driver.c, icon_driver.c, sm_jit_interp.c,
+    sm_interp.c (47 changes).
+  - **CSO-4** ✅ strcasecmp/strncasecmp → strcmp/strncmp across all
+    identifier-shaped comparisons: snobol4.y (pat_prim_kind),
+    snobol4_stmt_rt.c, raku_builtins.c, icn_value.c,
+    interp_{call,eval,data}.c, CMPILE.c (now archived), prolog_lower.c,
+    rebus.l (else/do/then keyword check), icon_lex.c (IMPORT/EXPORT),
+    icn_main.c (import/IMPORT directive), sm_jit_interp.c (_SET suffix),
+    lower.c (return-kind dispatch, ITEM, RETURN/FRETURN/NRETURN),
+    polyglot.c (polyglot block tags). resolve_include_path's
+    case-insensitive directory-walk fallback deleted entirely (was
+    identifier-folding at the filesystem boundary).
+  - **CSO-5** ✅ _usercall_hook uppercase-fallback (toupper loop at
+    interp_hooks.c:64-68) deleted.
+  - **CSO-6** ✅ --case-sensitive becomes a no-op (still accepted for
+    backward-compat in test scripts); --fold-case is rejected with a
+    stderr message; opt_case_sensitive var and sno_set_case_sensitive()
+    call removed; help text cleaned.
+  - **CSO-7** ✅ &CASE is read-only (per Lon directive 2026-05-17):
+    reads return INTVAL(0) [polarity per SPITBOL Ch.16 line 7891:
+    &CASE=1 means folding ON, 0 means folding OFF — scrip is
+    permanently folding-OFF]. Writes raise Error 10 ('&CASE is
+    read-only; SCRIP is case-sensitive only'). kw_case global fully
+    deleted (snobol4.{c,h}, snobol4_argval.c VARVUP_fn simplified,
+    polyglot.c kw_case=1 init removed).
+  - **CSO-8** ✅ rebuild + gate sweep + push. CMPILE.c/CMPILE.h moved
+    to archive/frontend/snobol4/ alongside util_compare_cmpile_vs_bison_ir.sh
+    (CMPILE was already disconnected from the build; util script
+    invoked a non-existent --dump-ir-cmpile flag).
+  Generated .tab.c/.lex.c regenerated via
+  regenerate_parser_and_lexer_from_sources.sh (bison 3.8.2, flex 2.6.4).
+  VERIFIED zero strcasecmp/strncasecmp/sno_fold_*/fold_strbuf/kw_case
+  remain in src/.
+
+- [ ] **PST-RB-5i-PRE-CORPUS — Corpus case-canonicalization sweep. NEXT.**
+  Lon prediction 2026-05-17: 'I bet now you must fix a slew of *.sno,
+  *.inc, and *.sc files which fail due to the case restriction.'
+  Sweep every .sno/.inc/.sc/.icn/.pl/.reb/.raku in SCRIP-owned corpus
+  paths (corpus/programs/snobol4/{beauty,demo,crosscheck},
+  corpus/programs/snocone/demo/beauty, etc.). Any file triggering
+  Error 5 (Undefined function or operation) or Error 7 (Unknown
+  keyword) post-CSO is a candidate. Triage rule: (a) if SPITBOL
+  `sbl -bf` runs it cleanly, the identifier reference is already
+  case-consistent — re-run scrip to confirm; (b) if SPITBOL with `-bf`
+  also fails, source uses mixed-case references that worked only under
+  &CASE=1 folding — canonicalize to one consistent case at every use
+  site, preferring whichever case the definition site uses. Never
+  tolerate &CASE=0 in source (now a no-op at runtime); &CASE=1
+  assignments raise Error 10 at runtime (correct — caller must remove).
+  Acceptance: gates at floor, no .sno/.inc/.sc triggers Error-5-from-
+  fold-loss, new test_corpus_case_audit.sh lands.
+  Known specifics already surfaced:
+  - beauty.sno + Qize.inc/case.inc/global.inc: `:F(error)`,
+    `:F(err)` references where no `error`/`err`/`ERROR` label is
+    defined. SPITBOL tolerates these (F-branch never taken in normal
+    runs); scrip's labtab_resolve is more pessimistic. See PST-RB-NEXT-LABTAB.
+
+- [ ] **PST-RB-NEXT-BB-CACHE — Cache pattern EXEC blocks; separate
+    DATA allocation; never re-emit BB sequences for `*Var`, `*(expr)`,
+    EXPRESSION, CODE datatypes.**
+  Lon directive 2026-05-17. Root cause of Qize subsystem failure:
+  bb_build_flat / bb_build_brokered (emit_bb.c:1658-1685) allocate
+  FLAT_BUF_MAX=256KB per pattern compilation from a non-recyclable
+  bump pool (bb_pool.c). They are called from stmt_exec.c every time
+  a statement executes — including inside while-loops with pattern
+  matches — so 256MB pool / 256KB = 256-pattern hard cap. Qize's
+  while-loop bodies hit this. SPITBOL on Qize_driver.sno gives the
+  canonical 5-PASS output; the test_Qize.ref had been quietly edited
+  to print 'SKIP: blocked by SB-6.E.7-H rollback bug' (a corpus
+  workaround that violates 'fix SCRIP not the corpus' rule).
+
+  Two-phase fix:
+  - **Phase A** — Add structural-hash cache for pattern ASTs in
+    emit_bb.c. bb_build_flat/bb_build_brokered consult cache first
+    (key = recursive hash of kind + child count + child hashes +
+    literal values). Hit → return cached bb_box_fn + freshly allocate
+    only a DESCR_t scratchpad; miss → emit/seal/insert. Per-statement
+    re-execution reuses EXEC; only scratch is new.
+  - **Phase B** — For the four named datatypes (`*PATRN_var`,
+    `*(expr)`, EXPRESSION, CODE), route to a dedicated builder that
+    knows the EXEC template is type-fixed, takes the value's DESCR_t
+    as an argument, and allocates only the local data slots. Avoid
+    the pattern-emitter path entirely. Rationale (per Lon):
+    'all they need is new local allocations, not both EXEC and DATA
+    parts recreated.'
+
+  Acceptance: Qize subsystem passes 5/5 under restored canonical
+  test_Qize.ref; subsystem suite 20/20; bb_pool headroom >50% on full
+  beauty self-host; Milestone 1 byte-identity preserved (or improved).
+
+- [ ] **PST-RB-NEXT-LABTAB — labtab_resolve undefined-label policy.**
+  lower_ctx.c:50-64 (labtab_resolve) routes undefined-label patches
+  to `p->count - 1` (end-of-program) and warns. SPITBOL with `-bf`
+  on the same corpus produces correct output despite the same
+  undefined labels because the F-branch is never taken in practice
+  (the labels exist as 'this should never happen' fail-throughs).
+  scrip should either: (a) route to a runtime-failure trap that
+  matches SPITBOL semantics, or (b) defer the label-undefined error
+  to first execution rather than at lower-time. Surfaced during
+  Milestone 1 verification on beauty.sno self-host post-CSO; scrip
+  produces 0 lines whereas SPITBOL produces 622. Pre-existing
+  breakage (GOAL-LANG-SNOBOL4.md lines 270-285), not a CSO regression.
+
+
   Lon command 2026-05-17, recorded as ABSOLUTE RULE in `RULES.md` ("SCRIP IS CASE-SENSITIVE. NO FOLDING. ANYWHERE."). Execute this sweep before resuming any further parser_*.sc work — the `rt_bb_arbno` ζ corruption that blocks 5i acceptance lives downstream of pattern-matcher code that may itself touch fold paths during EVAL, and a clean case-only baseline removes a class of noise from that diagnosis.
 
   **Done when:**
@@ -224,15 +337,29 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 ## State
 
 ```
-watermark:  PST-RB-5i partial committed 2026-05-17 (one4all PENDING, .github PENDING)
-status:     Subsystem suite 19/20 at HEAD (Qize SKIP under SL-3 — acceptance met).
-            SL-5 root cause fixed: _builtin_DATA/_DATA_ split-registration.
-            Parser_*.sc now load past Error 5 and begin executing Src ? Compiland,
-            but segfault in BB pattern runtime (rt_bb_arbno with corrupted ζ).
-            C-side `--dump-ast` now works for all six frontends (was lang_snocone only).
-            BB pattern buffer caps raised: FLAT_BUF_MAX 16K→256K, BB_POOL_SIZE 4MB→64MB.
-next:       **PST-RB-5i-PRE (CASE-SENSITIVE-ONLY sweep, CSO-1..CSO-8 inline above). MUST RUN BEFORE PST-RB-5i finish.**
-            After CSO-8: PST-RB-5i finish (debug rt_bb_arbno ζ corruption) → 5j (6-fn trace) → 5k.
+watermark:  PST-RB-5i-PRE landed 2026-05-17 (one4all d432ed6f)
+status:     Subsystem suite 19/1 (Qize fails on bb_pool exhaustion — bug
+            diagnosed; tracked as PST-RB-NEXT-BB-CACHE).
+            CSO sweep CSO-1..CSO-8 complete in one combined commit
+            (emergency handoff): zero fold infrastructure remains;
+            zero strcasecmp/strncasecmp in src/; &CASE read-only
+            returning 0 (folding-OFF per SPITBOL Ch.16 spec); writes
+            raise Error 10.
+            CMPILE.[ch] + util_compare_cmpile_vs_bison_ir.sh archived
+            (already disconnected from build; util script invoked
+            non-existent flag).
+            Milestone 1: scrip+beauty.sno produces 0 lines post-CSO,
+            but this is PRE-EXISTING breakage tracked in
+            GOAL-LANG-SNOBOL4.md lines 270-285 — not a CSO regression.
+            SPITBOL produces 622 lines / md5 9cddff2534472b822438801d8db58a99
+            from the current corpus.
+next:       **PST-RB-5i-PRE-CORPUS (corpus case-canonicalization sweep)**
+            then PST-RB-NEXT-BB-CACHE (pattern EXEC cache + four-datatype
+            short-circuit — highest-leverage remaining bug)
+            then PST-RB-NEXT-LABTAB (labtab_resolve undefined-label
+            policy alignment with SPITBOL)
+            then PST-RB-5i finish (debug rt_bb_arbno ζ corruption)
+            → 5j (6-fn trace) → 5k.
 
 SL-2 closed. SL-5 partial (downstream BB runtime crash). SL-3/4 open.
 
@@ -240,5 +367,6 @@ Authors:
   5a–5d            Sonnet 4.6  2026-05-16
   5e–5g            Opus 4.7    2026-05-17 (three sessions)
   5h               Opus 4.7    2026-05-17
-  5i partial       Opus 4.7    2026-05-17 (this session)
+  5i partial       Opus 4.7    2026-05-17
+  5i-PRE           Opus 4.7    2026-05-17 (this session, emergency handoff)
 ```
