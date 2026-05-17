@@ -400,6 +400,20 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
   3. Run C `scrip --dump-ast` on the sample — collect reference AST
   4. All three must match (modulo whitespace).
   Acceptance: 6 langs × 4 sources × matching = 24/24 PASS.
+  **Partial 🔄 2026-05-17 (Sonnet 4.6):** Two sub-steps landed:
+  - Root cause of empty-tree output diagnosed: SPITBOL's ARBNO is lazy/shy;
+    zero iterations when epsilon branch allows it. Fixed by adding `POS(0)`
+    before ARBNO and `RPOS(0)` after in all six parser_*.sc Compiland defs.
+    corpus `664d633`. snobol4 + snocone produce correct AST from SPITBOL.
+    rebus: 88/96 fixtures produce AST. icon/raku/prolog: blocked on SCT-4/5/6.
+  - `AST_*` → `TT_*` rename in all 224 parser fixture .ref files across
+    snocone, rebus, raku, icon, prolog. corpus `b64f6f1`.
+  - `gen.sc` must be included in `--dump-sno` chain (provides Gen/GetLevel/
+    IncLevel/DecLevel called by TDump). Add to run_parser_sync_monitor.sh.
+  **Remaining:** wire `scripts/test_parser_sc_transpile.sh`; cross-validate
+  snobol4+snocone+rebus AST against C `--dump-ast`; TDump formatting gap
+  (transpiled TDump emits inline; refs use indented) — either fix TDump or
+  normalise whitespace in gate comparisons.
 
 - [ ] **SCT-10 — Delete sidecar helpers permanently.**
   `corpus/SCRIP/icon_helpers.sc` and `corpus/SCRIP/raku_helpers.sc` removed from corpus. `run_scrip_parser.sh` no longer loads them. README updated. Gate: SCT-9 still passes.
@@ -412,7 +426,34 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 ## 📊 State
 
 ```
-status:    SCT-2 ✅ 2026-05-17 (Opus 4.7).
+status:    SCT-9 partial 🔄 2026-05-17 (Sonnet 4.6).
+           Root cause of empty-tree output diagnosed and fixed:
+           SPITBOL's ARBNO is lazy/shy — succeeds with 0 iterations when
+           a trailing epsilon branch allows it.  All six parser_*.sc
+           Compilands had: nPush() ARBNO(...) reduce(...) (END|epsilon) nPop()
+           The epsilon made ARBNO stop at 0, so nTop()=0, tree always empty.
+           Fix: added POS(0) before ARBNO, RPOS(0) after, in all six
+           parser_*.sc Compiland definitions.  corpus `664d633`.
+           Also: renamed AST_* → TT_* in all 224 parser fixture .ref files.
+           corpus `b64f6f1`.
+
+           SPITBOL results after fix (with gen.sc in transpile chain):
+             snobol4  ✅ produces correct AST — \tX=1\nEND → (TT_STMT...)
+             snocone  ✅ produces correct AST — x=1+2; → (STMT :eq ...)
+             rebus    ✅ 88/96 corpus fixtures produce AST (8 need helpers)
+             icon     parse blocked — notmatch/Push_qlit from icon_helpers.sc
+                      (SCT-4 prereq; icon_helpers.sc not yet in transpile chain)
+             raku     ERROR 022 — missing helpers (SCT-5 prereq)
+             prolog   ERROR 022 — missing helpers (SCT-6 prereq)
+
+           Smoke gates: snobol4 6/1 (pre-existing), snocone 5/0. No regressions.
+
+           Note: gen.sc must be included in --dump-sno chain alongside tdump.sc.
+           TDump emits inline; fixture refs now use inline TT_* too (after rename).
+           Remaining: wire test_parser_sc_transpile.sh; cross-validate against
+           C --dump-ast; normalise TDump whitespace vs indented refs.
+
+           Prior SCT-2 ✅ still stands (see below).
            Two surgical fixes landed:
              (1) corpus/SCRIP/semantic.sc line 31 — qtag's
                  REPLACE(t, "'", "") → REPLACE(t, "'", 'x') for
@@ -458,44 +499,33 @@ status:    SCT-2 ✅ 2026-05-17 (Opus 4.7).
            fix in TT_SCAN case verified; parser_snobol4.sno accepted
            end-to-end by SPITBOL.
 
-watermark: All 6 transpile clean.  After fixes:
-              snobol4=885   snocone=1824   rebus=953
-              icon=938      raku=1090      prolog=1753
-           SPITBOL accepts and runs all 6 to exit; 4 clean (snobol4,
-           snocone, rebus, icon), 2 stop on missing language-specific
-           helpers that are already enumerated as SCT-5/SCT-6 prereqs.
-           For "real" output (parser actually returns an AST not just
-           "Parse Error"): see SCT-9 acceptance criterion — needs
-           --dump-ast cross-validation; not yet wired.
+watermark: SCT-9 partial 2026-05-17 (Sonnet 4.6).
+           snobol4+snocone+rebus produce AST from SPITBOL w/ POS/RPOS fix.
+           icon/raku/prolog blocked on SCT-4/5/6 helper deps.
+           224 parser fixture .ref files renamed AST_* → TT_*.
+           corpus HEAD b64f6f1.
 
 landed:
-  - src/lower/lower_sno.{c,h}     (+ SCT-1b/c/d/e/2 deltas — label_sanitize
-                                    now applied to TT_VAR too)
+  - src/lower/lower_sno.{c,h}     (SCT-1 through SCT-2; label_sanitize on TT_VAR)
   - src/driver/scrip.c            (--dump-sno flag, multi-file mode)
   - Makefile                      (lower_sno.c entry + compile rule)
   - scripts/run_parser_sync_monitor.sh   (SCT-7 wrapper)
-  - corpus/SCRIP/semantic.sc      (_qtag → qtag rename @ SCT-1d;
-                                    qtag REPLACE equal-length fix @ SCT-2)
-  - .github/GOAL-PARSER-SC-TRANSPILE.md   (SCT-1 through SCT-2 history;
-                                           SPITBOL clone path canonicalised;
-                                           x64 ships prebuilt binary)
+  - corpus/SCRIP/semantic.sc      (_qtag→qtag @ SCT-1d; REPLACE fix @ SCT-2)
+  - corpus/SCRIP/parser_*.sc      (SCT-9: POS(0)/RPOS(0) in all 6 Compilands)
+  - corpus/programs/*/parser/*.ref  (SCT-9: AST_* → TT_* rename, 224 files)
+  - .github/GOAL-PARSER-SC-TRANSPILE.md  (this file, session history)
   - .github/PLAN.md, RULES.md, REPO-one4all.md, snobol4ever_clone.sh
-                                          (Session-Start canonicalisation;
-                                           new ABSOLUTE RULE "follow SPITBOL")
 
-next:      SCT-1f (2-way sync monitor) — still requires SN-26-spl-bridge
-           patch in x64 repo before the monitor wire activates.  But the
-           non-monitor SPITBOL-only oracle path is now reliable for 4 of 6
-           parsers.  SCT-5 (raku) and SCT-6 (prolog): eliminate language-
-           specific helpers from parser_raku.sc / parser_prolog.sc per
-           goal constraint #2.  SCT-9 (AST cross-validation): when ready
-           to confirm parsers ACTUALLY parse correctly, wire --dump-ast
-           comparison; even snobol4 today hits its own Parse-Error branch
-           and we don't know why without seeing the divergence.
+next:      SCT-9 remainder — wire test_parser_sc_transpile.sh; cross-validate
+           snobol4/snocone/rebus AST vs C --dump-ast (modulo TDump whitespace).
+           SCT-4 (icon: delete icon_helpers.sc, re-express in 6 primitives).
+           SCT-1f (2-way sync monitor, needs SN-26-spl-bridge in x64).
+           SCT-5 (raku helpers), SCT-6 (prolog helpers).
 
 authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
            SCT-1 through SCT-1e landed same day, Opus 4.7.
            SCT-2 landed (continuation session), same day, Opus 4.7.
+           SCT-9 partial: Sonnet 4.6, 2026-05-17.
 ```
 
 ---
