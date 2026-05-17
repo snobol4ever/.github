@@ -141,41 +141,39 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-**Three orthogonal constructs landed this session (2026-05-17d, Opus 4.7): IJ-SWAP, IJ-SEQEXPR, IJ-INITIAL. ir-run 185→191 (+6), zero regressions.**
+**Three orthogonal constructs landed this session (2026-05-17e, Opus 4.7): IJ-LCONCAT, IJ-FIND-GEN, IJ-SEQ-GEN. ir-run 191→194 (+3), zero regressions.**
 
-Surveying remaining 39 fails:
-1. **rung31 sort** (3 remaining) — sort_basic/sort_every still fail; sort_already_sorted now passes.
-2. **rung06 cset/upto** (1) — upto_basic; likely cset generator interaction.
-3. **rung08 strbuiltins find_gen** (1) — find() as generator.
-4. **rung13 alt_filter** (1) — alt vs filter interaction.
-5. **rung15 lconcat** (1) — `|||` operator (only remaining rung15 fail).
-6. **rung30 builtins_misc_seq** (1).
-7. **rung36 jcon** survey (32 remaining) — file I/O, co-expressions, complex programs.
+Surveying remaining 36 fails:
+1. **rung31 sort** (3) — sort_basic/sort_every; need list comparison + generator interaction.
+2. **rung06 cset/upto** (1) — upto_basic; cset generator interaction under scan.
+3. **rung13 alt_filter** (1) — `every (x := (1|2|3|4|5)) > 2 & write(x)` — assignment+conjunction+filter.
+4. **rung36 jcon** survey (32 remaining) — file I/O, co-expressions, complex programs.
 
-## Completed steps (session 2026-05-17d, Opus 4.7)
+## Completed steps (session 2026-05-17e, Opus 4.7)
 
 | Step | Description | Commit |
 |------|-------------|--------|
-| IJ-SWAP | TT_SWAP (`x :=: y`) lowered to new IR_SWAP. Three coherent edits: (1) `src/include/IR.h` adds `IR_SWAP` after IR_ICN_KEY_GEN. (2) `src/lower/ir_exec.c` adds IR_SWAP executor case right after IR_ASSIGN — evaluates both operands as IR_VAR reads (which fall through frame-slot to global-NV when local slot empty), then writes rv into lhs-slot, lv into rhs-slot via the same scope_get/NV_SET_fn pattern as IR_ASSIGN. (3) `src/lower/lower_icn.c` adds TT_SWAP case parallel to TT_ASSIGN — rejects keyword vars and non-TT_VAR forms. Plus IR_SWAP kind_name in scrip_ir.c. **ir-run 185→187 (+2). rung15 swap_basic, swap_str PASS.** smoke_icon 5/5. | `acb9f200` |
-| IJ-SEQEXPR | TT_SEQ_EXPR lowered to new IR_SEQ_EXPR (was IR_SEQ which always returns FAILDESCR — correct for proc-body fall-off but wrong for `x := (1;2;3)`). Four coherent edits: (1) `src/include/IR.h` adds IR_SEQ_EXPR. (2) `src/lower/ir_exec.c` adds IR_SEQ_EXPR executor with α/β generator semantics: α runs head statements left-to-right (any FAIL ⇒ ω), then drives tail fresh; β resumes tail ONLY, head never re-fires. This preserves side-effect-once / pump-last needed by `every (x := x+10; "a"|"b"|"c")` (rung16 verified). (3) `src/lower/lower_icn.c` TT_SEQ_EXPR lowering switched IR_SEQ → IR_SEQ_EXPR (proc bodies unaffected — those are wrapped by lower_icn_proc_body in IR_SEQ directly, not via TT_SEQ_EXPR). (4) Loop drivers IR_EVERY, IR_WHILE, IR_UNTIL now do `nd->c[1]->state = 0` before each body call so statement-context bodies fully re-execute each iteration (caught & fixed: rung35 block_body_every_do_block, while_do_block). Plus IR_SEQ_EXPR kind_name. **ir-run 187→189 (+2). rung20 seqexpr_basic, seqexpr_side PASS.** smoke_icon 5/5, crosscheck_icon 4/0. | `3f23d132` |
-| IJ-INITIAL | TT_INITIAL split out of the TT_GLOBAL/TT_LOCAL/TT_STATIC_DECL bucket (all four previously emitted IR_SUCCEED so `initial expr` was silently dropped). Four coherent edits: (1) `src/include/IR.h` adds IR_INITIAL. (2) `src/lower/ir_exec.c` adds IR_INITIAL executor right after IR_SUCCEED — uses `nd->ival3` as has-run flag, specifically chosen because ival3 is the one per-node mutable field that IR_reset does NOT clear AND IR_snapshot_state/IR_restore_state do NOT copy. (3) `src/lower/lower_icn.c` splits TT_INITIAL — lowers c[0] and wraps in IR_INITIAL with ival3=0. (4) Persistence across calls relies on existing `build_proc_scope` logic (lower.c lines 1497-1513) which already removes initial-assigned vars from FRAME.sc — combined with one-shot IR_INITIAL, this yields the static-like 11/12/13 sequence in rung21 (call 1 writes 10 then 11 to NV; call 2 reads NV=11 writes 12; call 3 reads NV=12 writes 13). Plus IR_INITIAL kind_name. **ir-run 189→191 (+2). rung21 initial_once, rung25 initial_once PASS.** All gates hold. | `1fb213db` |
+| IJ-LCONCAT | TT_LCONCAT (`E1 ||| E2`) lowered to new IR_ICN_LCONCAT. Four coherent edits: (1) `src/include/IR.h` adds IR_ICN_LCONCAT after IR_INITIAL. (2) `src/runtime/interp/icn_value.{c,h}` factors reusable `icn_str_concat_d(DESCR_t,DESCR_t)` + `icn_lconcat_d(DESCR_t,DESCR_t)` out of the existing tree_t*-taking bb_str_concat / TT_LCONCAT block — list-list builds fresh icnlist, otherwise falls back to string concat with coercion. (3) `src/lower/ir_exec.c` includes icn_value.h and adds IR_ICN_LCONCAT executor calling icn_lconcat_d. Single-shot — NOT generator-kind (Icon spec does not cross-product over `\|\|\|`). (4) `src/lower/lower_icn.c` adds TT_LCONCAT lowering case after TT_CAT/binop block. Plus kind_name. **ir-run 191→192 (+1). rung15_real_swap_lconcat PASS.** smoke_icon 5/5. | `e8edc709` |
+| IJ-FIND-GEN | TT_FNC `find()` 2/3/4-arg lowered to new IR_ICN_FIND_GEN (true generator). Five coherent edits: (1) `src/include/IR.h` adds IR_ICN_FIND_GEN after IR_ICN_LCONCAT. (2) `src/lower/ir_exec.c` adds IR_ICN_FIND_GEN executor with α (eval needle, hay, optional start/stop; normalize 0/neg bounds; cache strings + stop in GC_malloc'd struct in opaque; counter = 0-based search-from position) and β (strstr from counter; on hit yield 1-based pos and advance counter, on miss/past-stop FAIL via ω). Empty-needle case yields each 1..stop position once. (3) Same file adds IR_ICN_FIND_GEN to ir_is_single_shot exclusion + IR_IS_GEN_KIND macro + ALT_IS_GEN macro. (4) `src/lower/lower_icn.c` adds find() special-case in TT_FNC after key() — only 2/3/4-arg forms; 1-arg (scan-context) still routes through IR_CALL. Plus kind_name. **ir-run 192→193 (+1). rung08_strbuiltins_find_gen PASS** (`every write(find("a","banana"))` yields 2, 4, 6). smoke_icon 5/5. **Carry-forward:** start/stop bounds normalization (zero=end, negative=from-end) written but untested against jcon corner cases — may surface in rung36 4-arg find usage. | `158144eb` |
+| IJ-SEQ-GEN | TT_FNC `seq()` 0/1/2-arg lowered to new IR_ICN_SEQ_GEN (true generator). Five coherent edits paralleling IJ-FIND-GEN: (1) `src/include/IR.h` adds IR_ICN_SEQ_GEN. (2) `src/lower/ir_exec.c` adds IR_ICN_SEQ_GEN executor with α (read optional start [default 1] + step [default 1]; int-coerce from real if needed; zero step bumped to 1 to avoid no-progress; cache step in ival, start in counter; yield start) and β (counter += ival; yield). No upper bound — relies on IR_LIMIT (`\N`) or every-break for termination. (3) Same file adds IR_ICN_SEQ_GEN to ir_is_single_shot exclusion + IR_IS_GEN_KIND + ALT_IS_GEN macros. (4) `src/lower/lower_icn.c` adds seq() lowering after find() — handles 0/1/2-arg forms. Plus kind_name. **ir-run 193→194 (+1). rung30_builtins_misc_seq PASS** (`every write(seq(1) \ 3)` yields 1, 2, 3). All gates hold. | `f81302ca` |
 
 ## Watermark
 
 ```
-one4all: 1fb213db (IJ-INITIAL: rung21/rung25 initial_once PASS)
+one4all: f81302ca (IJ-SEQ-GEN: rung30 PASS)
 corpus:  490f4c7
-ir-run:  191/265   honest: (not re-run this session — gates held)
+ir-run:  194/265   honest: (not re-run this session — gates held)
 smoke_icon: 5/5    crosscheck_icon: 4/0
 smoke_prolog: 5/5  smoke_raku: 5/5  smoke_rebus: 4/0  smoke_snocone: 5/0
 smoke_scrip_all_modes: 2/0    crosscheck_snocone: 8/0
-smoke_unified_broker: 21/49 (was 20/49 — +1)
-smoke_snobol4: 6/1 (pattern FAIL pre-existing — verified by git-stash pre-test)
+smoke_unified_broker: 21/49
+smoke_snobol4: 6/1 (pattern FAIL pre-existing)
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
-- rung15 lconcat (`|||`) — TT_LCONCAT not lowered; runtime helper exists in bb_eval_value but needs an IR_ICN_LCONCAT bridge. Deferred from this session (4th construct would exceed ceiling).
-- rung36 jcon programs: many xfail — file I/O, co-expressions, string builtins missing.
+- rung36 jcon programs: many xfail — file I/O, co-expressions, complex programs.
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
+- IR_ICN_FIND_GEN start/stop normalization untested for jcon corner cases (see IJ-FIND-GEN row above).
+- IR_ICN_SEQ_GEN ignores zero step silently — Icon spec is to fail; pragmatic choice for now.
 
-Session note (2026-05-17d, Opus 4.7): three IR additions, three commits, each with a single isolated semantic concern. IJ-SEQEXPR found and fixed a latent regression (rung35 block_body_every_do_block) by adding body-state-reset to all three loop drivers — orthogonal but caught in the gate sweep. IJ-INITIAL's `ival3` choice exploited a pre-existing field invariant (not cleared by reset, not in snapshot struct) without changing any of the surrounding infrastructure. The cleanest insight: build_proc_scope was ALREADY doing the right thing for initial-assigned vars, so persistence "just worked" once IR_INITIAL stopped being a no-op.
+Session note (2026-05-17e, Opus 4.7): all three constructs are "builtin → IR generator" promotions. The pattern is identical: (a) add IR_ICN_<FOO>_GEN enum, (b) write α/β executor with state-machine in nd->state, with arg-cache in opaque to prevent side-effect re-fire on β, (c) add to the three gen-kind tables (ir_is_single_shot, IR_IS_GEN_KIND, ALT_IS_GEN), (d) special-case the builtin name in lower_icn.c's TT_FNC dispatch. IJ-LCONCAT was simpler — just a single-shot binop using an existing runtime helper factored to take DESCR_t inputs. The shared DESCR_t-helper refactor in icn_value.c keeps the AST-walk and IR paths in lock-step semantically.
