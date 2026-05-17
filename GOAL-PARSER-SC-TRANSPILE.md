@@ -313,9 +313,17 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 
   Result on `scrip --dump-sno <runtime> parser_snobol4.sc`: 885 lines, **SPITBOL accepts end-to-end with zero parse errors**, single runtime ERROR 041 at line 873 (`n(ptree)` on non-tree value — downstream parsing-execution, not transpile). SCRIP `--sm-run` segfaults during execution (also downstream).
 
-- [ ] **SCT-1e — Investigate the single SPITBOL runtime ERROR 041.**
-  At line 873 of the transpiled `full_snobol4.sno`: `nk = n(ptree)` fails because `ptree = Pop()` returned a non-tree value. The Compiland match preceding it succeeded (we entered the `:F` else branch). Three plausible causes: (a) `parser_snobol4.sc`'s Compiland actually fails on the chosen input but a different control-flow path returns a non-tree via `Pop()`; (b) the runtime functions `Tree`/`Pop`/`MakeNode` from `tree.sc`+`stack.sc` don't transpile correctly somewhere (audit needed); (c) `&FULLSCAN`/`-CASE 0` interaction subtly changes pattern-match semantics for one construct.
-  Approach: produce a 5-line minimal repro by progressively trimming `parser_snobol4.sc` until `Pop()` still returns wrong; that delimits whether the bug is in the transpiler, in a runtime `.sc` file, or in the test input.
+- [x] **SCT-1e — Investigate the single SPITBOL runtime ERROR 041.** ✅ 2026-05-17 (Opus 4.7).
+  **Root cause: transpiler bug in `lower_sno.c::emit_expr` TT_SCAN case** (option (a) from the original three candidates — but the actual misbehavior was inside the transpiler, not the source `.sc`). The case emitted `(SUBJ PAT)` (space-as-concat) instead of `(SUBJ ? PAT)` (explicit match operator). The author's comment claimed "space-as-match for standard-SNOBOL4 compatibility," which is wrong: inside an expression context, space is the binary CONCAT operator (SPITBOL Manual Ch.15 priority 4), NOT pattern-match. The match operator at expression level is the explicit `?` (Ch.15 priority 1).
+  Consequently `if (Src ? Compiland)` was lowering to `if (Src CONCAT Compiland)`: the parens evaluated to a pattern value (Src concatenated with the Compiland pattern) which was then discarded. **No actual pattern-match ever happened.** The `:F` branch never fired (a pattern-valued expression as a statement-subject doesn't fail-by-default; it just evaluates and continues), so control fell into the "succeeded" path. `ptree = Pop()` then retrieved whatever stale value was on the runtime stack (most likely a counter return from a previous `nPop()`), and `n(stale_value)` triggered ERROR 041.
+  **Fix:** changed the TT_SCAN expression-case emission from `(SUBJ PAT)` to `(SUBJ ? PAT)` with whitespace on both sides of `?` (required by SCRIP's lexer rule `{W}"?"{W}` → `T_2QUEST`, and by SPITBOL). Verified accepted as a binary expression operator by SCRIP's `snobol4.y:114` and by SPITBOL. The statement-form TT_SCAN path (handled separately via TT_STMT's `:subj` + `:pat` attribute tags in `emit_stmt`) is unaffected.
+  **Verified:**
+  - All six parsers transpile cleanly with the change (zero `?TT_` placeholders).
+  - Each parser's transpiled `.sno` contains 9–15 explicit `?` operator emissions (snobol4=10, snocone=11, rebus=9, icon=10, raku=15, prolog=9).
+  - `parser_snobol4.sno` under SPITBOL with various sample inputs (`atom_id.sno`, `arith_add_mul.sno`, hand-written) now runs to clean exit with no diagnostic. Previously failed at stmt 869 / line 873 with ERROR 041.
+  - SNOBOL4 smoke gate: PASS=6 FAIL=1 (the FAIL is pre-existing `pattern (got: abc)`, present on baseline before fix).
+  - Snocone smoke gate: PASS=5 FAIL=0.
+  Two-line code change in `src/lower/lower_sno.c` plus comment rewrite.
 
 - [ ] **SCT-1f — Drive the 2-way sync-monitor.**
   Requires SPITBOL IPC patch (SN-26-spl-bridge in x64 session #27 per goal-file Notes). With ERROR 041 above ironed out (or even with it present — the monitor's job is to FIND divergences), run:
@@ -374,37 +382,40 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 ## 📊 State
 
 ```
-status:    SCT-1 PARTIAL ✅ (2026-05-17, Opus 4.7).
-           CLI flag + lower_sno.c skeleton + harness wrapper landed.
-           parser_snobol4.sc transpiles to 126 lines of SNOBOL4 that
-           parse and begin executing under `scrip --sm-run`.
-           First runtime divergence at stmt 63 (Error 5: undefined
-           function/operation) — this is the entry point for SCT-1b
-           and the sync-step monitor.
+status:    SCT-1e ✅ 2026-05-17 (Opus 4.7).
+           SCT-1/1b/1c/1d/1e all landed. All six parser_*.sc transpile
+           cleanly (zero placeholders).  parser_snobol4.sc → 885 lines
+           of SNOBOL4 that SPITBOL accepts end-to-end with NO runtime
+           errors on real input (atom_id.sno, arith_add_mul.sno).
+           The single ERROR 041 at line 873 that blocked SCT-1f turned
+           out to be a transpiler bug: TT_SCAN in expression position
+           was emitting CONCAT instead of explicit `?`.  Fixed; pattern
+           match now actually happens.
 
-watermark: scrip --dump-sno parser_snobol4.sc → 126 lines, 4 TT_*
-           placeholders (TT_IF, TT_WHILE, TT_RETURN-in-expr-pos),
-           parses cleanly, begins exec, fails at stmt 63 with Error 5.
+watermark: scrip --dump-sno <runtime> parser_<lang>.sc → all six clean:
+              snobol4=885  snocone=1824  rebus=953
+              icon=971     raku=1431     prolog=1753
+           Explicit-`?`-operator emissions per parser (TT_SCAN sites in
+           expression context): 9..15.  Zero `?TT_` placeholders across
+           all six.  SPITBOL runs parser_snobol4.sno to clean exit on
+           sample inputs.
 
-landed (SCT-1 in-progress):
-  - src/lower/lower_sno.h, src/lower/lower_sno.c     (~360 lines)
-  - src/driver/scrip.c                               (--dump-sno flag,
-                                                      4 insertion points)
-  - Makefile                                          (lower_sno.c entry +
-                                                      compile rule)
-  - scripts/run_parser_sync_monitor.sh                (SCT-7 wrapper)
+landed:
+  - src/lower/lower_sno.{c,h}     (~360 lines + SCT-1b/c/d/e deltas)
+  - src/driver/scrip.c            (--dump-sno flag, multi-file mode)
+  - Makefile                      (lower_sno.c entry + compile rule)
+  - scripts/run_parser_sync_monitor.sh   (SCT-7 wrapper)
+  - corpus/SCRIP/semantic.sc      (_qtag → qtag rename, SCT-1d)
 
-next:      SCT-1b — handle TT_IF / TT_WHILE / TT_RETURN as
-           statement-position nodes (currently emit '?TT_NN?' string
-           placeholders).  These are the three remaining unhandled
-           tags in parser_snobol4.sc.  Implement per ARCH-SNOCONE.md
-           "Lowering map" — TT_IF lowers to `cond :F(after) / body /
-           after`, TT_WHILE to `top  cond :F(after) / body / :(top) /
-           after`, TT_RETURN in statement position to assignment +
-           :(RETURN).
+next:      SCT-1f — drive the 2-way sync-monitor.  Now that SPITBOL
+           runs the transpiled parser cleanly, side-by-side with SCRIP
+           `--sm-run` should produce identical traces.  Wrapper script
+           already exists at scripts/run_parser_sync_monitor.sh.
+           Requires SPITBOL IPC patch (SN-26-spl-bridge, x64 session
+           #27).  Then SCT-2..SCT-6 for the other five parsers in turn.
 
 authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
-           SCT-1 partial landed same day, Opus 4.7.
+           SCT-1 through SCT-1e landed same day, Opus 4.7.
 ```
 
 ---
