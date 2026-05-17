@@ -141,40 +141,41 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-**Three constructs landed this session (2026-05-17 part 3). Next session: continue rung survey for remaining FAILs.**
+**Three orthogonal constructs landed this session (2026-05-17d, Opus 4.7): IJ-SWAP, IJ-SEQEXPR, IJ-INITIAL. ir-run 185→191 (+6), zero regressions.**
 
-Surveying remaining 45 fails (down from 59), strongest clusters:
-1. **rung31 sort** (3 remaining) — sort_basic/sort_every still fail; sort_already_sorted now passes. sortf_field1/field2 pass. Remaining: sort_basic needs list comparison; sort_every needs generator interaction.
+Surveying remaining 39 fails:
+1. **rung31 sort** (3 remaining) — sort_basic/sort_every still fail; sort_already_sorted now passes.
 2. **rung06 cset/upto** (1) — upto_basic; likely cset generator interaction.
 3. **rung08 strbuiltins find_gen** (1) — find() as generator.
-4. **rung15 swap/real** (3) — swap, lconcat, real_swap cluster.
-5. **rung20 seqexpr** (2) — IR_SEQ_EXPR vs IR_SEQ_STMT distinction (x := (1;2;3) should bind 3).
-6. **rung21/25 global/initial** (2) — global/initial declarations.
-7. **rung30 builtins_misc_seq** (1).
-8. **rung36 jcon** survey — file I/O, co-expressions, complex programs.
+4. **rung13 alt_filter** (1) — alt vs filter interaction.
+5. **rung15 lconcat** (1) — `|||` operator (only remaining rung15 fail).
+6. **rung30 builtins_misc_seq** (1).
+7. **rung36 jcon** survey (32 remaining) — file I/O, co-expressions, complex programs.
 
-## Completed steps (this session 2026-05-17 part 3)
+## Completed steps (session 2026-05-17d, Opus 4.7)
 
 | Step | Description | Commit |
 |------|-------------|--------|
-| IJ-MAKELIST+IJ-BANG-LIST | TT_MAKELIST→IR_CALL(MAKELIST); TT_ITERATE→IR_ICN_LIST_BANG generator (α caches collection, β advances; supports lists/tables/records/strings); IR_SIZE extended to dispatch DT_DATA lists (frame_size), DT_T tables (bucket count), records (nfields). ir-run 157→171 (+14). rung22 5/5 PASS. | `cf894517` |
-| IJ-RECORDS | TT_RECORD→IR_ICN_RECORD_DEF (DEFDAT+sc_dat_register once); TT_FIELD read→IR_ICN_FIELD_GET (data_field_ptr); TT_FIELD lhs→IR_ICN_FIELD_SET; TT_ASSIGN extended to handle TT_FIELD and TT_IDX lhs variants; record constructor fallback added to icn_try_call_builtin_by_name via sc_dat_find_type. ir-run 171→178 (+7). rung24 5/5 PASS. | `ed3fe750` |
-| IJ-TABLES | TT_ASSIGN(TT_IDX lhs)→IR_ICN_IDX_SET (subscript_set); key(t)→IR_ICN_KEY_GEN true generator (bucket-walk, ival tracks flat entry index, cache in opaque); table/insert/delete/member/sort all route through existing IR_CALL→icn_try_call_builtin_by_name. ir-run 178→185 (+7). rung13/23/35 tables 12/12 PASS. | `60852022` |
+| IJ-SWAP | TT_SWAP (`x :=: y`) lowered to new IR_SWAP. Three coherent edits: (1) `src/include/IR.h` adds `IR_SWAP` after IR_ICN_KEY_GEN. (2) `src/lower/ir_exec.c` adds IR_SWAP executor case right after IR_ASSIGN — evaluates both operands as IR_VAR reads (which fall through frame-slot to global-NV when local slot empty), then writes rv into lhs-slot, lv into rhs-slot via the same scope_get/NV_SET_fn pattern as IR_ASSIGN. (3) `src/lower/lower_icn.c` adds TT_SWAP case parallel to TT_ASSIGN — rejects keyword vars and non-TT_VAR forms. Plus IR_SWAP kind_name in scrip_ir.c. **ir-run 185→187 (+2). rung15 swap_basic, swap_str PASS.** smoke_icon 5/5. | `acb9f200` |
+| IJ-SEQEXPR | TT_SEQ_EXPR lowered to new IR_SEQ_EXPR (was IR_SEQ which always returns FAILDESCR — correct for proc-body fall-off but wrong for `x := (1;2;3)`). Four coherent edits: (1) `src/include/IR.h` adds IR_SEQ_EXPR. (2) `src/lower/ir_exec.c` adds IR_SEQ_EXPR executor with α/β generator semantics: α runs head statements left-to-right (any FAIL ⇒ ω), then drives tail fresh; β resumes tail ONLY, head never re-fires. This preserves side-effect-once / pump-last needed by `every (x := x+10; "a"|"b"|"c")` (rung16 verified). (3) `src/lower/lower_icn.c` TT_SEQ_EXPR lowering switched IR_SEQ → IR_SEQ_EXPR (proc bodies unaffected — those are wrapped by lower_icn_proc_body in IR_SEQ directly, not via TT_SEQ_EXPR). (4) Loop drivers IR_EVERY, IR_WHILE, IR_UNTIL now do `nd->c[1]->state = 0` before each body call so statement-context bodies fully re-execute each iteration (caught & fixed: rung35 block_body_every_do_block, while_do_block). Plus IR_SEQ_EXPR kind_name. **ir-run 187→189 (+2). rung20 seqexpr_basic, seqexpr_side PASS.** smoke_icon 5/5, crosscheck_icon 4/0. | `3f23d132` |
+| IJ-INITIAL | TT_INITIAL split out of the TT_GLOBAL/TT_LOCAL/TT_STATIC_DECL bucket (all four previously emitted IR_SUCCEED so `initial expr` was silently dropped). Four coherent edits: (1) `src/include/IR.h` adds IR_INITIAL. (2) `src/lower/ir_exec.c` adds IR_INITIAL executor right after IR_SUCCEED — uses `nd->ival3` as has-run flag, specifically chosen because ival3 is the one per-node mutable field that IR_reset does NOT clear AND IR_snapshot_state/IR_restore_state do NOT copy. (3) `src/lower/lower_icn.c` splits TT_INITIAL — lowers c[0] and wraps in IR_INITIAL with ival3=0. (4) Persistence across calls relies on existing `build_proc_scope` logic (lower.c lines 1497-1513) which already removes initial-assigned vars from FRAME.sc — combined with one-shot IR_INITIAL, this yields the static-like 11/12/13 sequence in rung21 (call 1 writes 10 then 11 to NV; call 2 reads NV=11 writes 12; call 3 reads NV=12 writes 13). Plus IR_INITIAL kind_name. **ir-run 189→191 (+2). rung21 initial_once, rung25 initial_once PASS.** All gates hold. | `1fb213db` |
 
 ## Watermark
 
 ```
-one4all: 60852022 (IJ-TABLES: rung13/23/35 tables 12/12 PASS)
+one4all: 1fb213db (IJ-INITIAL: rung21/rung25 initial_once PASS)
 corpus:  490f4c7
-ir-run:  185/265   honest: (not re-run this session — gates held)
-smoke_icon: 5/5    crosscheck_icon: 4/4
+ir-run:  191/265   honest: (not re-run this session — gates held)
+smoke_icon: 5/5    crosscheck_icon: 4/0
+smoke_prolog: 5/5  smoke_raku: 5/5  smoke_rebus: 4/0  smoke_snocone: 5/0
+smoke_scrip_all_modes: 2/0    crosscheck_snocone: 8/0
+smoke_unified_broker: 21/49 (was 20/49 — +1)
+smoke_snobol4: 6/1 (pattern FAIL pre-existing — verified by git-stash pre-test)
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
+- rung15 lconcat (`|||`) — TT_LCONCAT not lowered; runtime helper exists in bb_eval_value but needs an IR_ICN_LCONCAT bridge. Deferred from this session (4th construct would exceed ceiling).
 - rung36 jcon programs: many xfail — file I/O, co-expressions, string builtins missing.
-- Prolog smoke was 0/5 at last watermark; this session still shows 5/5.
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
-- `every (s := "" | "a") do write(s)` — needs re-verification now that ALT beta is fixed.
-- **IR_SEQ in expression context**: `x := (1; 2; 3)` should bind x to 3 (last value), but IR_SEQ always returns FAILDESCR (correct for proc body fall-off, wrong for expression context). Blocks rung20 seqexpr_basic and seqexpr_side. Likely fix: distinguish IR_SEQ_STMT (current behavior) from IR_SEQ_EXPR (value-of-last).
 
-Session note: All three IR additions follow the same minimal pattern — one new enum entry (or reuse of existing for IR_LIMIT), one executor case calling existing rt helpers (subscript_get / subscript_get2), one lowering case in lower_icn_expr_node. Key insight: lower_icn_proc_body returns NULL if ANY statement fails to lower, so adding a single missing IR kind can unblock entire proc bodies that contained the construct anywhere — that explains the +1 bonus rung23_table_table_insert_delete from IJ-LIMIT (its t[1] subscript was the blocker, but the test got tagged to the table cluster). For IJ-SECTION, deciding to share one IR kind (IR_ICN_SECTION) across the three TT_SECTION/PLUS/MINUS AST variants with ival as a discriminator keeps the executor compact; subscript_get2 expects RANGE form so PLUS/MINUS bounds are normalized in the executor before the call.
+Session note (2026-05-17d, Opus 4.7): three IR additions, three commits, each with a single isolated semantic concern. IJ-SEQEXPR found and fixed a latent regression (rung35 block_body_every_do_block) by adding body-state-reset to all three loop drivers — orthogonal but caught in the gate sweep. IJ-INITIAL's `ival3` choice exploited a pre-existing field invariant (not cleared by reset, not in snapshot struct) without changing any of the surrounding infrastructure. The cleanest insight: build_proc_scope was ALREADY doing the right thing for initial-assigned vars, so persistence "just worked" once IR_INITIAL stopped being a no-op.
