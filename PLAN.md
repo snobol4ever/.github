@@ -61,7 +61,7 @@ Lon names a goal. You:
 | **⚡ PST: SNOBOL4 + Snocone** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SC-4j** — return/freturn/nreturn → TT_RETURN kinds. SN4: 1a ✅ 1b ✅ 1d ✅ 1c ✅ PST-SN4-2 ✅ PST-SC-4a…4i ✅ (2026-05-16). |
 | **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **DONE** PST-RAKU-5c ✅ 2026-05-16. parser_raku.sc complete rewrite: 1788→953 lines, 95→39 functions. corpus@16b799c, one4all@c52b724c. |
 | **⚡ PST: Rebus** | `GOAL-PST-REBUS.md` | one4all+corpus+.github | **DONE** PST-RB-5a-5d ✅. Rebus rewrite complete. |
-| **⚡ PST: Prolog** | `GOAL-PST-PROLOG.md` | one4all+corpus+.github | **PST-PL-6e** — promote TRSlotMap; remove VarScope.next_slot; delete scope_get slot assignment. PST-PL-6a-6d ✅ 2026-05-16. |
+| **⚡ PST: Prolog** | `GOAL-PST-PROLOG.md` | one4all+corpus+.github | **PST-PL-6f** — Delete Term*-returning parse paths; remove lower_term() sites replaced by 6d. PST-PL-6a-6e ✅ 2026-05-16. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
 | **SN4 JVM Emitter** | `GOAL-SN4-JVM-EMIT.md` | one4all+.github | **SJ4-JVM-4** 🔄 — method-split `e01e17eb` ✅. Beauty.sno halts at "Parse Error" (semantic). smoke 13/13. |
