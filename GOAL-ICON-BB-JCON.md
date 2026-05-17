@@ -121,6 +121,7 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-CALL-SNAPSHOT | Snapshot/restore (value, counter, state) of callee's `ir_body` across `IR_exec_once` in `IR_CALL` user-proc dispatch. Recursive proc calls share the IR graph; the inner `IR_reset` was wiping the caller's mid-evaluation per-node state. Visible victim: `IR_BINOP_GEN` reads `nd->c[0]->value` after both children eval'd — when c[1] is a recursive call, c[0]'s value was FAILDESCR. Fixed value of `write(fact(5))` → `120` (was blank). Does NOT flip rung02_proc_fact PASS because `every write(fact(5))` still pumps (single-shot proc returns NOT FAIL → IR_EVERY can't tell it's done; Category 3 / Fix #2). Gates flat at watermark. | `398776da` |
 | IJ-EVERY-SINGLESHOT | Fix #2 landed. proc_table.is_generator bit set at lower time by scanning lowered ir_body->all[] for IR_SUSPEND (src/lower/lower.c). New recursive classifier ir_is_single_shot(IR_t*) in src/lower/ir_exec.c: generator IR kinds (IR_ICN_*, IR_BINOP_GEN, IR_ALT, IR_ALTERNATE, IR_SUSPEND, IR_REPEAT, IR_TO_BY, IR_LIMIT, IR_ICN_SCAN) → 0; IR_CALL → recurse through proc_table.is_generator for user procs / small generator-builtin whitelist (find/upto/any/many/bal/key/seq) for builtins / all-args-single-shot otherwise; default → walk children. IR_EVERY consults it for c[0]; if single-shot, break after one iteration. Flips rung02_proc_fact, rung02_proc_add_proc. ir-run 105→107 (+2). Gates: smoke_icon 5/5, broker 19/49, honest 277/0/0. | `b1ed4117` |
 | IJ-BINOP-GEN-VAR-RERED | In IR_BINOP_GEN β-pump, re-evaluate the non-generator side when it's a pure-variable read (IR_VAR / IR_ICN_KEYWORD). Fixes `every total := total + (1 to 5)` returning 5 instead of 15: the LHS `total` had been captured once at α and never re-read, so the binop computed 0+1, 0+2, …, 0+5. The augop form `total +:= (1 to 5)` already worked because TT_AUGOP lowers to plain IR_BINOP. Pure-var-only restriction protects side-effecting IR_CALL etc. from re-firing. Flips rung02_proc_locals. ir-run 107→108 (+1). | `304e9476` |
+| IJ-SUSPEND-PUMP-WIRE | User-defined generator procs (TT_SUSPEND in body) now yield across IR_EVERY pumps. Three coherent edits: (1) `src/lower/lower.c` introduces `g_in_gen_proc_body`; the `ICN_BB_EVAL` macro skips its AST-register shortcut when set so the SM body emits real instructions (LOAD/STORE_FRAME, SUSPEND, …) rather than `[NO-AST] SM_BB_EVAL` stubs; `lower_proc_skeletons` walks the proc AST at lower time to set `proc_table[pi].is_generator=1` whenever TT_SUSPEND appears, regardless of whether `lower_icn_proc_body` succeeded. (2) `src/lower/ir_exec.c::IR_CALL` checks user-defined generator procs BEFORE `icn_try_call_builtin_by_name` (the `upto` builtin's scan-context guard `scan_pos > 0 \|\| nargs >= 2` was trivially true because `polyglot.c` initializes `scan_pos=1`, shadowing user-defined `upto`); when matched, builds `GeneratorState` via `generator_state_new_proc`, drives via `bb_broker_drive_sm_one`, persists across IR_EVERY pumps via `nd->opaque` + `nd->state==1`. (3) `src/runtime/interp/icn_runtime.c::icn_bb_pump_proc_by_name` mirrors the same routing for top-level proc calls. No AST walking at runtime — reads the bit set at lower time. Flips rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter. ir-run 108→111 (+3). broker 19→20 (+1). prolog smoke 4/5→5/5 (bonus). | `fe4a3168` |
 
 ## NEXT step
 
@@ -134,20 +135,22 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-Fix #2 landed. Next candidate targets in descending value:
-- **`rung03_suspend_gen`** — user-defined generator via `suspend ... do ...` (TT_SUSPEND with `do` body) yields empty output even at watermark; IR_SUSPEND likely missing the post-yield resume edge. Affects rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter (3 rungs).
+Fix #2 landed. rung03_suspend_gen* (3 rungs) landed via IJ-SUSPEND-PUMP-WIRE.
+Next candidate targets in descending value:
 - **TT_CSET_COMPL** (`~cset`) — unary, simple, parallel to TT_NEG.
 - **TT_CSET_DIFF** (`cset1 -- cset2`) — already an AST kind; binop on csets.
+- **Latent: SM dump display bug** (cosmetic) — `opnames[]` in `src/lower/sm_prog.c` is 2 entries short of `SM_OPCODE_COUNT` (missing `SM_EXEC_BB`, `SM_PUMP_BB`), causing `SM_STORE_FRAME` to display as "SM_LOAD_FRAME" in `--dump-sm`. Emitted opcode values are correct; pure display.
+- **Latent: `every (s := "" | "a") do write(s)`** infinite-loops in IR mode (pre-existing).
 
 ## Watermark
 
 ```
-one4all: 304e9476 (IJ-BINOP-GEN-VAR-RERED landed)  corpus: 1fe096c
-ir-run:  108/265   honest: 277 PASS / 0 FAIL / 0 ABORT
-smoke_icon: 5/5    broker: 19/49
-cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 4/5
+one4all: fe4a3168 (IJ-SUSPEND-PUMP-WIRE landed)  corpus: a9393091
+ir-run:  111/265   honest: 277 PASS / 0 FAIL / 0 ABORT
+smoke_icon: 5/5    broker: 20/49
+cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 5/5
 ```
 
-Latent bug (pre-existing at watermark, separate ticket):
+Latent bugs (pre-existing at watermark, separate tickets):
 - `every (s := "" | "a") do write(s)` infinite-loops in IR mode.
-- `rung03_suspend_gen*` (3 rungs) — TT_SUSPEND-with-do-body empty-output bug.
+- SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
