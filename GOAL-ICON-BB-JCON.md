@@ -10,7 +10,7 @@
 2. **Zero C Byrd-box functions.** A C BB is `DESCR_t foo(void *zeta, int entry)` implementing α/β/γ/ω in C. None may exist. All BBs are x86 emitted at runtime, or `IR_block_t` DCGs driven by `icn_bb_dcg`. Exceptions: `icn_lazy_box` and `icn_bb_dcg` (infrastructure shims).
 3. **Cross-language: SM↔SM via hook, BB↔BB via universal four-port contract.** Within a language: SM bridge opcodes broker that language's BB-land (Icon=`SM_BB_PUMP_PROC`/`icn_bb_dcg`/`proc_table`, SNOBOL4=`SM_PAT_*`/`pat_cat`/PATND_t, Prolog=`SM_BB_ONCE_PROC`/`pl_bb_dcg`/`dcg_table`). Cross-language: SM(A)→SM(B) via `g_user_call_hook`; BB(A)→BB(B) via the universal α/β/γ/ω contract. **Forbidden:** invoking language-A's SM-bridge handler with a language-B BB object (semantics are hardcoded per language).
 4. **Four ports hard-wired with direct pointers.** `IR_node_alloc` bakes the SCRIP default: `α=nd` (self-loop entry), `β=nd` (self-loop resume), `γ=NULL` (terminator = return value to driver), `ω=NULL` (terminator = return FAIL). Hard-wired direct pointers, not zero-init coincidence. Verified `927e0296`: zero call sites in src/ depend on NULL α/β as sentinel.
-5. One construct per commit (or small coherent batch). No corpus source modified to work around runtime bugs.
+5. **Up to three orthogonal constructs per session, separate commits, single gate run at end** (Lon, sess 2026-05-16). Three is a ceiling, not a target. Orthogonal means: different IR kinds, different rung clusters, no shared β-pump or descriptor-tag work. If a gate breaks, `git bisect` across the three commits (3 steps max). Handoff records one row per construct in the Completed steps table with its own rung delta. No corpus source modified to work around runtime bugs.
 
 ## Session Setup
 
@@ -125,6 +125,8 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-CSET-COMPL | TT_CSET_COMPL (`~E` Icon cset complement) lowered to IR_CSET_COMPL. Three coherent edits: (1) `src/include/IR.h` adds `IR_CSET_COMPL` after `IR_POS` in the IR_e enum. (2) `src/lower/ir_exec.c` adds executor case mirroring `TT_CSET_COMPL` in `icn_value.c::bb_eval_value`: eval c[0], coerce int/real → string via `descr_to_str_icn` (new include `"coerce.h"`), call `icn_cset_complement(cs)` against the 256-char universal cset, wrap result in `CSETVAL`. Handles FAIL/null/numeric coercion paths. (3) `src/lower/lower_icn.c` adds `TT_CSET_COMPL` case before default, parallel structure to `TT_MNS`/`TT_PLS`: recurse into c[0], allocate IR_CSET_COMPL node, wire single child. `[NO-AST] SM_BB_EVAL` stub for `~cset` expressions in `--ir-run` is now eliminated; `~'aeiou'` produces correct CSETVAL with type=cset. ir-run 111/265 unchanged (rung36_jcon_* integration tests gate on additional missing constructs: `&cset`/`&ascii` keywords + `\0`-safe scan builtins). Gates: smoke_icon 5/5, broker 20/49, honest 277/0/0, cross-lang smokes (sn4/raku/snocone/rebus/prolog) unchanged. | `0b931361` |
 | IJ-CSET-BINOPS | TT_CSET_UNION/DIFF/INTER (Icon `E1++E2`/`E1--E2`/`E1**E2`) lowered to IR_CSET_UNION/DIFF/INTER. Three coherent edits paralleling IJ-CSET-COMPL: (1) `src/include/IR.h` adds three IR_e entries after `IR_CSET_COMPL`. (2) `src/lower/ir_exec.c` adds a shared fall-through case `IR_CSET_UNION:`/`IR_CSET_DIFF:`/`IR_CSET_INTER:` mirroring the matching `bb_eval_value` cases in `icn_value.c`: eval both children, coerce int/real → string via `descr_to_str_icn`, dispatch by `nd->t` to `icn_cset_union/diff/inter`, run through `icn_cset_canonical` for sort+dedup, wrap as `CSETVAL`. FAIL/null propagate cleanly. (3) `src/lower/lower_icn.c` adds shared `TT_CSET_UNION:`/`TT_CSET_DIFF:`/`TT_CSET_INTER:` case: lower both operands, map AST kind → IR kind, allocate node with n=2. Sanity-tested: `'aeiou' ++ 'xyz'` → `'aeiouxyz'` (8 chars); `'abcdef' -- 'bd'` → `'acef'` (4); `'abcdef' ** 'cdefgh'` → `'cdef'` (4); `~'aeiou' -- '0123456789'` → 112 chars. ir-run 111/265 unchanged (same downstream gating). Gates: smoke_icon 5/5, broker 20/49, honest 277/0/0, cross-lang smokes unchanged. | `0b931361` |
 | IJ-SCAN-NULSAFE | `scan_builtins.c::any/many/upto/bal` made `\0`-safe. Added `cset_resolve(DESCR_t, &ptr, &len)` helper that consults `icn_kw_cset_len(ptr)` for keyword-cset storage (`&cset`/`&ascii`/`&lcase`/...) whose canonical-form buffer is null-prefixed (`stable[0]='\0'`, real chars follow), falling back to `strlen` for regular csets and strings. Added `cset_has(cv, clen, ch)` using `memchr` instead of `strchr` so cset membership tests are length-aware. Refactored `any` (line 14), `many` (line 35), `upto` (line 56), `bal` (line 127) — each cset argument now flows through `cset_resolve` + `cset_has` rather than `VARVAL_fn` + `strchr`. Eliminates silent truncation when scan builtins receive csets containing `\0` (kw csets) or when `~cset` complement results flow through scan ladder. ir-run 111/265 unchanged: no rung flips because cset-complement-driven rungs (`rung36_jcon_*`) gate on additional missing constructs beyond `\0`-safe scan, but the silent-truncation correctness floor is now solid for downstream work. Also restored missing `CODE_t *prolog_lower(PlProgram *)` function header in `src/frontend/prolog/prolog_lower.c` — commit `8fee1957` (PST-PL-6d) had left orphaned function body after helper additions; HEAD `0b931361` would not build from clean clone without this fix. Gates: smoke_icon 5/5, honest 277/0/0. | `068a7054` |
+| IJ-FLIT | TT_FLIT real-literal lowering for Icon. `lower_icn_expr_node` (src/lower/lower_icn.c) was handling TT_ILIT but not TT_FLIT, so real literals in expression position fell through to ICN_BB_EVAL → `[NO-AST] SM_BB_EVAL` stub at runtime. Added TT_FLIT case mirroring TT_ILIT: `IR_node_alloc(IR_LIT_F)`, `nd->dval = e->v.dval`. IR_LIT_F executor in ir_exec.c already does `REALVAL(nd->dval)`. probe: `write(3.14)` → `3.14` (was `[NO-AST]` stub). **ir-run 111→125 (+14).** **Honest regression 277→272 (−5):** unmasked 5 programs (rung18_real_relop_real_relop_goal, rung36_jcon_arith/checkfpx/ck/mathfunc) that previously exited 0 with empty output (silently wrong) now timeout — they exercise real-typed binops/relops that IR_BINOP_GEN's binop_map doesn't yet handle for double operands. Net correctness improvement (visible failures > hidden failures); separate ticket needed for IR_BINOP_GEN real-typed arithmetic. | `48d797fa` |
+| IJ-TO-GEN | IR_ICN_TO operand re-pumping when bounds are generators. Mirrors IR_BINOP_GEN's cross-product β-pump: when counter > ival2, if c[1] (hi) is a generator, advance it; if c[1] exhausts and c[0] (lo) is a generator, reset c[1] and advance c[0]; only fail when both operand generators are exhausted. Inlined IR_IS_GEN_KIND_TO macro (same set as BINOP_GEN). Fixes rung01_paper_nested_to: `every write((1 to 2) to (2 to 3))` now produces full 8-value cross product 1,2,1,2,3,2,2,3 (was only 1,2). **ir-run 125→126 (+1).** Gates: smoke_icon 5/5. Honest neutral. | `92bfffd9` |
 
 ## NEXT step
 
@@ -138,25 +140,29 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-IJ-SCAN-NULSAFE landed. Next candidates in descending value (unchanged from prior session, less the now-completed `\0`-safe scan builtins item):
+Three-construct sessions are now the working default (RULES.md). Two constructs landed this session (IJ-FLIT, IJ-TO-GEN); third deferred for a future session.
 
-- **Re-test `rung36_jcon_*` family** — with `\0`-safe scan ladder now in place, `~cset`-driven scan rungs (any/many/upto with complement csets, &cset, &ascii keyword csets) may flip PASS without further code. Run `bash scripts/test_icon_ir_all_rungs.sh` and inspect any new PASSes among the rung36 set.
-- **Broker baseline revalidation** — watermark recorded `broker 20/49` at `0b931361`, but `0b931361` does not build from a clean clone (PST-PL-6d broke `prolog_lower.c` by deleting the function header; this session restored it). Post-fix broker is `17/49`. Either: (a) bisect `8fee1957..0b931361` to find when broker dropped from 20→17 (unlikely — both commits are in the broken-build window); (b) accept `17/49` as the true post-fix baseline (likely correct) and update HQ PLAN.md to match.
-- **Latent: SM dump display bug** (cosmetic) — `opnames[]` in `src/lower/sm_prog.c` is 2 entries short of `SM_OPCODE_COUNT` (missing `SM_EXEC_BB`, `SM_PUMP_BB`), causing `SM_STORE_FRAME` to display as "SM_LOAD_FRAME" in `--dump-sm`. Emitted opcode values are correct; pure display.
+Next candidates in descending value:
+
+- **IR_BINOP_GEN real-typed arithmetic** — *new ticket from IJ-FLIT unmask.* `binop_map[]` in IR_BINOP_GEN executor handles int+int → int but not real-or-mixed operands. Five rungs now hang (rung18_real_relop_real_relop_goal, rung36_jcon_arith/checkfpx/ck/mathfunc) — previously exit-0-with-empty-output (silently wrong, oracle let them PASS), now they exercise the real-binop path and loop. Fix: extend the binop apply helper to coerce per Icon rules (int+real→real, all comparisons promote). Recovers the −5 honest hit and likely flips several rung18/rung36 PASS.
+- **Re-test `rung36_jcon_*` family** — with `\0`-safe scan ladder now in place, `~cset`-driven scan rungs may flip PASS without further code. Run `bash scripts/test_icon_ir_all_rungs.sh` and inspect any new PASSes among the rung36 set.
+- **Broker baseline revalidation** — true post-fix baseline is `17/49` at `068a7054` (was `20/49` in pre-breakage doc).
+- **Latent: SM dump display bug** (cosmetic) — `opnames[]` in `src/lower/sm_prog.c` is 2 entries short of `SM_OPCODE_COUNT`.
 - **Latent: `every (s := "" | "a") do write(s)`** infinite-loops in IR mode (pre-existing).
 
 ## Watermark
 
 ```
-one4all: 068a7054 (IJ-SCAN-NULSAFE landed; prolog_lower header restored)   corpus: a9393091
-ir-run:  111/265   honest: 277 PASS / 0 FAIL / 0 ABORT
-smoke_icon: 5/5    broker: 17/49 (post-prolog_lower fix; was 20/49 in pre-breakage doc)
-cross-lang smokes: not re-run this session
+one4all: 92bfffd9 (IJ-FLIT + IJ-TO-GEN landed; first 3-construct session, 2 of 3 used)
+corpus:  a9393091
+ir-run:  126/265   honest: 272 PASS / 0 FAIL / 0 ABORT  (was 277; −5 unmasked by IJ-FLIT)
+smoke_icon: 5/5    broker: 17/49
+cross-lang smokes: snocone 5/5 PASS, prolog 0/5 (pre-existing at watermark — 068a7054 also 0/5)
 ```
 
-Note: build now succeeds from clean clone (was broken at `0b931361` since `8fee1957` PST-PL-6d).
-
-Latent bugs (pre-existing at watermark, separate tickets):
+Latent bugs (pre-existing or unmasked at watermark, separate tickets):
+- IR_BINOP_GEN doesn't handle real-typed operands → 5 rungs now hang under `--ir-run` (unmasked by IJ-FLIT).
+- Prolog smoke 0/5 — pre-existing at `068a7054`. Prior handoff (IJ-SUSPEND-PUMP-WIRE `fe4a3168`) claimed "prolog smoke 4/5→5/5 (bonus)" but that was stale/different oracle.
 - `every (s := "" | "a") do write(s)` infinite-loops in IR mode.
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
 

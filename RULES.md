@@ -133,6 +133,30 @@ at the top of the commit message and leave the incomplete step as `- [ ]`
 with a note below it. Still push everything — a broken push is better than
 no push.
 
+## Three-construct sessions — amends "one per commit"
+
+(Lon, sess 2026-05-16.) "One construct per commit" has been the working
+default. New ceiling: **up to three orthogonal constructs per session**,
+each as its own commit, single gate run at the end. Three is a ceiling,
+not a target. Rules:
+
+- **Orthogonal** means different IR kinds, different rung clusters, no
+  shared β-pump edits, no shared descriptor-tag work. If two of the three
+  touch the same function or depend on the same new IR kind, they collapse
+  back into one commit.
+- **Separate commits** — each construct gets its own commit message and
+  its own row in the Goal file's "Completed steps" table with its own
+  rung delta. Bisectability is preserved.
+- **Single gate run at end** — run smoke + broker + ir-all-rungs + honest
+  once across all three. If green, push. If a gate breaks, `git bisect`
+  across the three commits (3 steps max).
+- **Applies to every language session** — Icon, SNOBOL4, Snocone, Prolog,
+  Rebus, Raku. Not Icon-specific.
+
+Rationale: session overhead (clone, orient, build, gate-baseline) is fixed
+cost. Amortizing it across three landings instead of one is ~3× throughput
+at the same correctness floor.
+
 ## Casing belongs at the ingress layer, not at lookup — **one4all only**
 
 ⛔ In **one4all**, do not apply case folding at identifier-lookup
