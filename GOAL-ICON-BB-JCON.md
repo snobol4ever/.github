@@ -141,26 +141,34 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-**Must land ≥2 constructs next session (RULES.md minimum).**
+**Three constructs landed this session (2026-05-17). Next session: continue rung survey for remaining FAILs.**
 
-1. **Finish rung18 hang** — IR_EVERY loops despite ir_body set and 4096 alloc. The IJ-IRALLOC-OVERFLOW commit fixed the alloc but rung18 still hangs under `--ir-run`. During session diagnosis: adding a debug `fprintf` in IR_SEQ caused rc=0; removing it → hang. Classic heap-corruption-mask-by-debug symptom. The real corruption source is elsewhere — likely another `IR_alloc` call with a small cap that overflows during lowering of the real-typed alternate/relop tree. Next session: add `fprintf(stderr, ...)` to `IR_node_alloc`'s overflow branch to catch which cfg overflows, then fix that caller.
+1. **rung36 jcon programs** — many still fail due to missing constructs (file I/O, co-expressions, string formatting). Survey which are closest to passing.
+2. **IR_ALT with generator children** — now that single-shot beta is fixed, verify `every (1 to 3 | 4 to 6)` (generator-child alt) still works correctly.
+3. **augop pow** — `x ^:= 2` now wired via AUGOP_POW; confirm with rung37_augop_pow if present.
 
-2. **IR_BINOP_GEN real-typed arithmetic** — once rung18 exits cleanly, the output will be wrong (empty). `binop_map[]` in `icn_runtime.c` `icn_bb_build` handles relops but the IR_BINOP_GEN executor in `ir_exec.c` may not coerce real operands before applying the relop. Verify with a clean rung18 run, then fix.
+## Completed steps (this session 2026-05-17)
+
+| Step | Description | Commit |
+|------|-------------|--------|
+| IJ-ALT-BETA-SINGLESHOT | IR_ALT β-path: single-shot (non-generator) children treated as exhausted after first yield; ALT_IS_GEN() macro guards β-resume. Root cause of rung18 infinite hang confirmed: literal nodes (IR_LIT_F etc.) always succeed, trapping IR_BINOP_GEN relop-retry forever. rung18: 0/5 → 5/5. | `66dc3582` |
+| IJ-POW | TT_POW (`^`) lowering to IR_BINOP/IR_BINOP_GEN via ICN_BINOP_POW. Added to IcnBinopKind enum, icn_binop_apply (always DT_R result per Icon semantics), lowering switch, augop switch. math.h added to lower_icn.c. rung19 pow: 0/3 → 3/3. | `6f3e9690` |
+| IJ-TOBY-REAL | TT_TO_BY lowering added (was falling to [NO-AST] stub). IR_TO_BY executor rewritten with real-typed path: DT_R bounds detected on α, counter in nd->dval, step bits stored in nd->ival3 via memcpy, epsilon-guard comparison. Semantics verified against jcon vBigInt.ToBy and Icon omisc.r (JCON extension — classic Icon requires integer coercion). rung19 to-by: 0/2 → 2/2. | `66dc3582` + `6f3e9690` |
 
 ## Watermark
 
 ```
-one4all: 6ddb9584 (IJ-IRALLOC-OVERFLOW: IR_block_t bounds-checked; lower_icn_proc_body 128→4096; IR_ICN_BINOP beta fix)
-corpus:  a9393091
-ir-run:  126/265   honest: 276 PASS / 0 FAIL / 0 ABORT  (+4 from 272; real-relop/alternate programs unblocked)
-smoke_icon: 5/5    broker: 19/49  (+2 from 17)
-cross-lang smokes: snocone 5/5 PASS, prolog 0/5 (pre-existing)
+one4all: 6f3e9690 (IJ-POW: rung18+rung19 complete)
+corpus:  490f4c7
+ir-run:  148/281   honest: 276 PASS / 0 FAIL / 0 ABORT  (rung18 5/5 ✅  rung19 5/5 ✅)
+smoke_icon: 5/5    broker: 19/49 (not re-run this session — too slow)
+cross-lang smokes: snobol4 6/7 (1 pre-existing), snocone 5/5, prolog 5/5, raku 5/5
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
-- rung18/rung36 real-typed binop rungs still xfail — IR_BINOP_GEN real-typed arithmetic not yet wired (no hang now; clean FAILDESCR exit).
-- Prolog smoke 0/5 — pre-existing.
-- `every (s := "" | "a") do write(s)` infinite-loops in IR mode.
+- rung36 jcon programs: many xfail — file I/O, co-expressions, string builtins missing.
+- Prolog smoke was 0/5 at last watermark; this session shows 5/5 (possibly fixed upstream).
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
+- `every (s := "" | "a") do write(s)` — needs re-verification now that ALT beta is fixed.
 
-Session note: IR_ICN_KEYWORD already delegates to `icn_kw_read` in `interp_eval.c` (handles &cset, &ascii, &lcase, &ucase, &letters, &digits, &e, &pi, ...). The earlier "fall through to global lookup" comment was misread — that path only fires for unknown keywords.
+Session note: IJ-ALT-BETA-SINGLESHOT root cause confirmed by tracing IR_BINOP_GEN → IR_ALT β → IR_LIT_F (always succeeds) → infinite relop-retry. Fix is minimal (one guard in IR_ALT β-path). Icon and JCON ToBy semantics verified: Icon classic requires integer coercion; JCON (vBigInt.ToBy) extends to reals via NLessEq. Our implementation follows JCON semantics with epsilon guard for float accumulation tolerance.
