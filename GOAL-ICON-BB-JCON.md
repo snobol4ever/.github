@@ -124,6 +124,7 @@ GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh        # honest PASS >= prev
 | IJ-SUSPEND-PUMP-WIRE | User-defined generator procs (TT_SUSPEND in body) now yield across IR_EVERY pumps. Three coherent edits: (1) `src/lower/lower.c` introduces `g_in_gen_proc_body`; the `ICN_BB_EVAL` macro skips its AST-register shortcut when set so the SM body emits real instructions (LOAD/STORE_FRAME, SUSPEND, …) rather than `[NO-AST] SM_BB_EVAL` stubs; `lower_proc_skeletons` walks the proc AST at lower time to set `proc_table[pi].is_generator=1` whenever TT_SUSPEND appears, regardless of whether `lower_icn_proc_body` succeeded. (2) `src/lower/ir_exec.c::IR_CALL` checks user-defined generator procs BEFORE `icn_try_call_builtin_by_name` (the `upto` builtin's scan-context guard `scan_pos > 0 \|\| nargs >= 2` was trivially true because `polyglot.c` initializes `scan_pos=1`, shadowing user-defined `upto`); when matched, builds `GeneratorState` via `generator_state_new_proc`, drives via `bb_broker_drive_sm_one`, persists across IR_EVERY pumps via `nd->opaque` + `nd->state==1`. (3) `src/runtime/interp/icn_runtime.c::icn_bb_pump_proc_by_name` mirrors the same routing for top-level proc calls. No AST walking at runtime — reads the bit set at lower time. Flips rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter. ir-run 108→111 (+3). broker 19→20 (+1). prolog smoke 4/5→5/5 (bonus). | `fe4a3168` |
 | IJ-CSET-COMPL | TT_CSET_COMPL (`~E` Icon cset complement) lowered to IR_CSET_COMPL. Three coherent edits: (1) `src/include/IR.h` adds `IR_CSET_COMPL` after `IR_POS` in the IR_e enum. (2) `src/lower/ir_exec.c` adds executor case mirroring `TT_CSET_COMPL` in `icn_value.c::bb_eval_value`: eval c[0], coerce int/real → string via `descr_to_str_icn` (new include `"coerce.h"`), call `icn_cset_complement(cs)` against the 256-char universal cset, wrap result in `CSETVAL`. Handles FAIL/null/numeric coercion paths. (3) `src/lower/lower_icn.c` adds `TT_CSET_COMPL` case before default, parallel structure to `TT_MNS`/`TT_PLS`: recurse into c[0], allocate IR_CSET_COMPL node, wire single child. `[NO-AST] SM_BB_EVAL` stub for `~cset` expressions in `--ir-run` is now eliminated; `~'aeiou'` produces correct CSETVAL with type=cset. ir-run 111/265 unchanged (rung36_jcon_* integration tests gate on additional missing constructs: `&cset`/`&ascii` keywords + `\0`-safe scan builtins). Gates: smoke_icon 5/5, broker 20/49, honest 277/0/0, cross-lang smokes (sn4/raku/snocone/rebus/prolog) unchanged. | `0b931361` |
 | IJ-CSET-BINOPS | TT_CSET_UNION/DIFF/INTER (Icon `E1++E2`/`E1--E2`/`E1**E2`) lowered to IR_CSET_UNION/DIFF/INTER. Three coherent edits paralleling IJ-CSET-COMPL: (1) `src/include/IR.h` adds three IR_e entries after `IR_CSET_COMPL`. (2) `src/lower/ir_exec.c` adds a shared fall-through case `IR_CSET_UNION:`/`IR_CSET_DIFF:`/`IR_CSET_INTER:` mirroring the matching `bb_eval_value` cases in `icn_value.c`: eval both children, coerce int/real → string via `descr_to_str_icn`, dispatch by `nd->t` to `icn_cset_union/diff/inter`, run through `icn_cset_canonical` for sort+dedup, wrap as `CSETVAL`. FAIL/null propagate cleanly. (3) `src/lower/lower_icn.c` adds shared `TT_CSET_UNION:`/`TT_CSET_DIFF:`/`TT_CSET_INTER:` case: lower both operands, map AST kind → IR kind, allocate node with n=2. Sanity-tested: `'aeiou' ++ 'xyz'` → `'aeiouxyz'` (8 chars); `'abcdef' -- 'bd'` → `'acef'` (4); `'abcdef' ** 'cdefgh'` → `'cdef'` (4); `~'aeiou' -- '0123456789'` → 112 chars. ir-run 111/265 unchanged (same downstream gating). Gates: smoke_icon 5/5, broker 20/49, honest 277/0/0, cross-lang smokes unchanged. | `0b931361` |
+| IJ-SCAN-NULSAFE | `scan_builtins.c::any/many/upto/bal` made `\0`-safe. Added `cset_resolve(DESCR_t, &ptr, &len)` helper that consults `icn_kw_cset_len(ptr)` for keyword-cset storage (`&cset`/`&ascii`/`&lcase`/...) whose canonical-form buffer is null-prefixed (`stable[0]='\0'`, real chars follow), falling back to `strlen` for regular csets and strings. Added `cset_has(cv, clen, ch)` using `memchr` instead of `strchr` so cset membership tests are length-aware. Refactored `any` (line 14), `many` (line 35), `upto` (line 56), `bal` (line 127) — each cset argument now flows through `cset_resolve` + `cset_has` rather than `VARVAL_fn` + `strchr`. Eliminates silent truncation when scan builtins receive csets containing `\0` (kw csets) or when `~cset` complement results flow through scan ladder. ir-run 111/265 unchanged: no rung flips because cset-complement-driven rungs (`rung36_jcon_*`) gate on additional missing constructs beyond `\0`-safe scan, but the silent-truncation correctness floor is now solid for downstream work. Also restored missing `CODE_t *prolog_lower(PlProgram *)` function header in `src/frontend/prolog/prolog_lower.c` — commit `8fee1957` (PST-PL-6d) had left orphaned function body after helper additions; HEAD `0b931361` would not build from clean clone without this fix. Gates: smoke_icon 5/5, honest 277/0/0. | `068a7054` |
 
 ## NEXT step
 
@@ -137,26 +138,26 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-Fix #2 landed. rung03_suspend_gen* (3 rungs) landed via IJ-SUSPEND-PUMP-WIRE.
-TT_CSET_COMPL landed via IJ-CSET-COMPL. TT_CSET_UNION/DIFF/INTER landed via IJ-CSET-BINOPS.
-The Icon cset operator family is now complete in IR-run mode (no `[NO-AST]` stubs for cset expressions).
-No rung flips from cset family alone — downstream consumers (`upto`/`many`/`any` in scan_builtins.c) use `strchr` which terminates on `\0` bytes that complement csets contain. Next candidate targets in descending value:
-- **`\0`-safe scan builtins** — replace `strchr(cv, s[p])` with explicit bounded `memchr` walks in `scan_builtins.c::upto/many/any`. Enables `~cset` semantics to flow through scan ladder; unblocks cset-complement-driven jcon rungs. NOTE: a partial in-tree attempt was present on the work tree at session end (introducing `icn_cset_resolve` helper to distinguish keyword-cset storage from string-cset storage). It was reverted out of caution (provenance unclear, gates not re-validated against it). Re-do cleanly with named step.
+IJ-SCAN-NULSAFE landed. Next candidates in descending value (unchanged from prior session, less the now-completed `\0`-safe scan builtins item):
+
+- **Re-test `rung36_jcon_*` family** — with `\0`-safe scan ladder now in place, `~cset`-driven scan rungs (any/many/upto with complement csets, &cset, &ascii keyword csets) may flip PASS without further code. Run `bash scripts/test_icon_ir_all_rungs.sh` and inspect any new PASSes among the rung36 set.
+- **Broker baseline revalidation** — watermark recorded `broker 20/49` at `0b931361`, but `0b931361` does not build from a clean clone (PST-PL-6d broke `prolog_lower.c` by deleting the function header; this session restored it). Post-fix broker is `17/49`. Either: (a) bisect `8fee1957..0b931361` to find when broker dropped from 20→17 (unlikely — both commits are in the broken-build window); (b) accept `17/49` as the true post-fix baseline (likely correct) and update HQ PLAN.md to match.
 - **Latent: SM dump display bug** (cosmetic) — `opnames[]` in `src/lower/sm_prog.c` is 2 entries short of `SM_OPCODE_COUNT` (missing `SM_EXEC_BB`, `SM_PUMP_BB`), causing `SM_STORE_FRAME` to display as "SM_LOAD_FRAME" in `--dump-sm`. Emitted opcode values are correct; pure display.
 - **Latent: `every (s := "" | "a") do write(s)`** infinite-loops in IR mode (pre-existing).
 
 ## Watermark
 
 ```
-one4all: 0b931361 (IJ-CSET-COMPL + IJ-CSET-BINOPS landed)  corpus: a9393091
+one4all: 068a7054 (IJ-SCAN-NULSAFE landed; prolog_lower header restored)   corpus: a9393091
 ir-run:  111/265   honest: 277 PASS / 0 FAIL / 0 ABORT
-smoke_icon: 5/5    broker: 20/49
-cross-lang smokes: snobol4 7/7, raku 5/5, snocone 5/5, rebus 4/4, prolog 5/5
+smoke_icon: 5/5    broker: 17/49 (post-prolog_lower fix; was 20/49 in pre-breakage doc)
+cross-lang smokes: not re-run this session
 ```
+
+Note: build now succeeds from clean clone (was broken at `0b931361` since `8fee1957` PST-PL-6d).
 
 Latent bugs (pre-existing at watermark, separate tickets):
 - `every (s := "" | "a") do write(s)` infinite-loops in IR mode.
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
-- `scan_builtins.c::upto/many/any` use `strchr` → terminate on `\0` in cset operands (visible after IJ-CSET-COMPL; complements containing `\0` silently fail downstream).
 
 Session note: IR_ICN_KEYWORD already delegates to `icn_kw_read` in `interp_eval.c` (handles &cset, &ascii, &lcase, &ucase, &letters, &digits, &e, &pi, ...). The earlier "fall through to global lookup" comment was misread — that path only fires for unknown keywords.
