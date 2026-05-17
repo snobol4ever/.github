@@ -173,14 +173,14 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 The order is **callers first, leaves last** — never delete a definition while any caller exists. Run `bash scripts/build_scrip.sh` after every step; build must stay green throughout.
 
-- [x] **DAI-1 ✅ 2026-05-17 (Opus 4.7) — Remove IR_ICN_EVERY entirely.** **Audit finding:** `IR_ICN_EVERY` was reached *only* from inside the Icon AST walker chain — both callers of `lower_icn_every` lived in `icn_runtime.c::icn_bb_build`. The proper IR-lowering path uses language-agnostic `IR_EVERY` with body pre-lowered via `lower_icn_expr_node` (see `lower_icn.c::TT_EVERY` ~line 529). `IR_ICN_EVERY` and `lower_icn_every` were dead-on-the-vine. **Action taken:** deleted case in `ir_exec.c`, deleted `lower_icn_every` from `lower_icn.c` + declaration, deleted `IR_ICN_EVERY` enum from `IR.h`. Two AST-walker callers in `icn_runtime.c` stubbed. **Result:** ir-run 194/265 unchanged. Commit `9d4da318`.
+- [x] **DAI-1 ✅ 2026-05-17 (Opus 4.7) — Remove IR_ICN_EVERY entirely.** **Audit finding:** `IR_ICN_EVERY` was reached *only* from inside the Icon AST walker chain — both callers of `lower_icn_every` lived in `icn_runtime.c::icn_bb_build`. The proper IR-lowering path uses language-agnostic `IR_EVERY` with body pre-lowered via `lower_icn_expr_node` (see `lower_icn.c::TT_EVERY` ~line 529). `IR_ICN_EVERY` and `lower_icn_every` were dead-on-the-vine. **Action taken:** deleted case in `ir_exec.c`, deleted `lower_icn_every` from `lower_icn.c` + declaration, deleted `IR_ICN_EVERY` enum from `IR.h`. Two AST-walker callers in `icn_runtime.c` stubbed. **Result:** ir-run 194/265 unchanged. Commit `b3e08fe8`.
 
 - [x] **DAI-2 ✅ 2026-05-17 (Opus 4.7) — Amputate the three Icon AST walker entry points: bb_eval_value, bb_exec_stmt, icn_bb_build.** Per Lon directive ("just remove the actual AST walkers, leave stub bombs everywhere the calls to mode 1 hung"), each function body was replaced with a loud bomb that prints `[DAI-BOMB] <name> called ... tree tag=N` to stderr and exits with status 78. **Surprising result:** Icon `--ir-run` held at 194/265, zero regression, **zero bomb fires across all 265 rungs**. The three AST-walker functions were already silently dead for the rung suite — mode-1 Icon was routing through `interp_eval` + `ir_exec.c` (which walks `IR_block_t`, not `tree_t*`), never through the Icon-specific walker. **Net amputation: −1641 LOC** across three files:
   - `src/runtime/interp/icn_value.c` 1239→336 (preserved DESCR_t helpers used by ir_exec.c)
   - `src/runtime/interp/icn_stmt.c`  149→ 22
   - `src/runtime/interp/icn_runtime.c` 1743→1166 (preserved icn_bb_dcg, proc_table, icn_every_body_pre/broke — all used by modes 2/3/4)
 
-  Commit `41b6ef24`. Caller cleanup (DAI-3 through DAI-5 below) **deferred** to next session — the bombs make any latent caller fire loudly and visibly, so urgency is now zero.
+  Commit `3e1fc9cd`. Caller cleanup (DAI-3 through DAI-5 below) **deferred** to next session — the bombs make any latent caller fire loudly and visibly, so urgency is now zero.
 
 - [ ] **DAI-3 — Drop ICN branches in `interp_eval.c`** *(deferred — bombs make this cosmetic for now)*. The 9 `(g_lang==LANG_ICN)?bb_eval_value(...):interp_eval(...)` sites in `src/driver/interp_eval.c` (lines 136-163): replace ternary with plain `interp_eval(...)`. After DAI-2 the ICN branch routes to the bomb, but the dead ternary is a maintenance smell. **Low risk** — confirmed bombs do not fire in rung suite.
 
@@ -216,13 +216,13 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 | Step | Description | Commit |
 |------|-------------|--------|
-| DAI-1 | Remove dead-on-vine IR_ICN_EVERY: was reachable only via Icon AST-walker (icn_bb_build → lower_icn_every → ir_exec.c IR_ICN_EVERY case → bb_exec_stmt(tree_t*)). Mode-2/3/4 use language-agnostic IR_EVERY with body pre-lowered to IR. Three files edited (IR.h enum, ir_exec.c case, lower_icn.{c,h} function+decl); two AST-walker callers in icn_runtime.c stubbed. ir-run 194/265 unchanged. | `9d4da318` |
-| DAI-2 | Amputate the three Icon AST walker entry points: `bb_eval_value` (icn_value.c, 1239→336 LOC), `bb_exec_stmt` (icn_stmt.c, 149→22 LOC), `icn_bb_build` (icn_runtime.c, 1743→1166 LOC). Each body replaced with `[DAI-BOMB]` stub that prints to stderr + exit(78). Preserved DESCR_t-input helpers (icn_str_concat_d, icn_lconcat_d, cset_resolve, builtin tables) in icn_value.c head; preserved icn_bb_dcg/proc_table/icn_every_body_pre+broke in icn_runtime.c head. **Net −1641 LOC. Icon --ir-run 194/265 unchanged. Zero bomb fires across 265 rungs** — proves the Icon AST walker was already silently dead for the rung suite; mode-1 Icon executes via interp_eval+ir_exec (IR_block_t walker), never the Icon-specific tree_t* walker. All smoke gates hold floor. | `41b6ef24` |
+| DAI-1 | Remove dead-on-vine IR_ICN_EVERY: was reachable only via Icon AST-walker (icn_bb_build → lower_icn_every → ir_exec.c IR_ICN_EVERY case → bb_exec_stmt(tree_t*)). Mode-2/3/4 use language-agnostic IR_EVERY with body pre-lowered to IR. Three files edited (IR.h enum, ir_exec.c case, lower_icn.{c,h} function+decl); two AST-walker callers in icn_runtime.c stubbed. ir-run 194/265 unchanged. | `b3e08fe8` |
+| DAI-2 | Amputate the three Icon AST walker entry points: `bb_eval_value` (icn_value.c, 1239→336 LOC), `bb_exec_stmt` (icn_stmt.c, 149→22 LOC), `icn_bb_build` (icn_runtime.c, 1743→1166 LOC). Each body replaced with `[DAI-BOMB]` stub that prints to stderr + exit(78). Preserved DESCR_t-input helpers (icn_str_concat_d, icn_lconcat_d, cset_resolve, builtin tables) in icn_value.c head; preserved icn_bb_dcg/proc_table/icn_every_body_pre+broke in icn_runtime.c head. **Net −1641 LOC. Icon --ir-run 194/265 unchanged. Zero bomb fires across 265 rungs** — proves the Icon AST walker was already silently dead for the rung suite; mode-1 Icon executes via interp_eval+ir_exec (IR_block_t walker), never the Icon-specific tree_t* walker. All smoke gates hold floor. | `3e1fc9cd` |
 
 ## Watermark
 
 ```
-one4all: 41b6ef24 (DAI-2: Icon AST walker amputated, -1641 LOC, gates hold)
+one4all: 3e1fc9cd (DAI-2: Icon AST walker amputated, -1641 LOC, gates hold)
 corpus:  490f4c7 (unchanged this session)
 ir-run:  194/265   honest: (not re-run this session — gates held)
 smoke_icon: 5/5    crosscheck_icon: not re-run
