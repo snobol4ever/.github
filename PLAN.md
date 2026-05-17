@@ -59,7 +59,7 @@ Lon names a goal. You:
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
 | **⚡ PST: SNOBOL4 + Snocone** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | **PST-SC-4a** — Snocone: TT_AUGOP to lower. SN4: 1a ✅ 1b ✅ 1d ✅ 1c ✅ PST-SN4-2 ✅ (2026-05-16): parser_snobol4.sc pure syntax tree, zero worker functions. |
-| **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **DONE** PST-RAKU-5c ✅ 2026-05-16. parser_raku.sc complete rewrite: 1788→953 lines, 95→39 functions. corpus@3cb7ada, one4all@c52b724c. |
+| **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **DONE** PST-RAKU-5c ✅ 2026-05-16. parser_raku.sc complete rewrite: 1788→953 lines, 95→39 functions. corpus@16b799c, one4all@c52b724c. |
 | **⚡ PST: Rebus + Prolog** | `GOAL-PST-REBUS-PROLOG.md` | one4all+corpus+.github | **PST-PL-6c** — verifier: assert structural equivalence Term* ↔ tree_t across Prolog corpus. PST-RB-5a-5d ✅ PST-PL-6a ✅ PST-PL-6b ✅ 2026-05-16. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
