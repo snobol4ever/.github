@@ -378,21 +378,20 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
-            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅  PST-SC-4c ✅  PST-SC-4d ✅
+            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅  PST-SC-4c ✅  PST-SC-4d ✅  PST-SC-4e ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
 head: .github = (this commit)
-       one4all = 0c51b493 (PST-SC-4d ✅, pushed)
-       corpus  = 36d3d44  (PST-SC-4d SCRIP mirror ✅, pushed)
-session 2026-05-16h: PST-SC-4c ✅ PST-SC-4d ✅. snobol4.l AST_t→tree_t also done.
-  4d: TT_DO_WHILE added to ast.h. DoHead/sc_do_head_new/sc_finalize_do_while deleted.
-  do_head snapshots do_before_body; sc_finalize_do_while_pst builds
-  TT_DO_WHILE(TT_PROGRAM(body), cond, QLIT(cont), QLIT(end)). lower_do_while in
+       one4all = c276b48c (PST-SC-4e ✅, pushed)
+       corpus  = d4b3f6b  (PST-SC-4e SCRIP mirror ✅, pushed)
+session 2026-05-16h: PST-SC-4c/4d/4e ✅. snobol4.l AST_t→tree_t also done.
+  4e: ForHead slimmed to {cond,step}; sc_finalize_for_pst builds
+  TT_FOR(cond, step, TT_PROGRAM(body), QLIT(cont), QLIT(end)). lower_for in
   lower.c and lower.sc. All mirrors in sync.
-next: PST-SC-4e (TT_FOR) — for(init;cond;step) body → pure tree node.
-  ForHead still old-style; same pattern as 4c/4d.
+next: PST-SC-4f — switch/case. sc_finalize_switch uses SwitchHead; same delete pattern.
+  Then PST-SC-4g — invariants audit (shift/reduce-only check on parser_snocone.sc).
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4e for-loop next) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4f switch next) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
