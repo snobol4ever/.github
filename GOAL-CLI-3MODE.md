@@ -27,12 +27,12 @@ Three execution modes, one orthogonal BB strategy axis (under `--interp` only):
 - [x] **CLI-3M-3** — Reject `--bb=brokered` under `--run` and `--compile`. Default-resolve: `--interp` → brokered, `--run`/`--compile` → wired. *Commit `00dc6cd7`.*
 - [x] **CLI-3M-4** — Tty-only deprecation warnings on legacy flags. `SCRIP_NO_DEPRECATION=1` silences; `SCRIP_DEPRECATION=1` forces on. *Commit `4aadcf1e`.*
 - [x] **CLI-3M-5** — Audit AST-interp dependencies. *See findings below.*
-- [ ] **CLI-3M-6** — Close blockers from CLI-3M-5 (Prolog + Rebus lower.c gaps).
+- [x] **CLI-3M-6** — Triage CLI-3M-5 findings. *Result: no closures needed; see "CLI-3M-6 resolution" below.*
 - [ ] **CLI-3M-7** — Decide `--monitor` fate (delete vs salvage as sm-vs-jit comparator).
-- [ ] **CLI-3M-8** — Delete `--ast-run` / `--ir-run` flags. Variable `mode_ir_run` goes.
+- [ ] **CLI-3M-8** — Delete `--ast-run` / `--ir-run` flags. Variable `mode_ir_run` goes. **Includes removing the `scrip --ir-run` test case in `test_smoke_sn26_label_flow.sh` (lines 88-90).**
 - [ ] **CLI-3M-9** — Delete `interp_eval.c` / `interp_exec.c` / `interp_call.c` / `interp_ref.c` / `interp_label.c` / `interp_data.c` / `interp_hooks.c` / `interp_globals.c` / `interp_private.h` / `interp.h`. Possibly `stmt_ast.c`. Big rip — link failures surface remaining hidden dependencies.
 - [ ] **CLI-3M-10** — Delete deprecated aliases (`--sm-run` / `--jit-run` / `--jit-emit` / `--bb-driver` / `--bb-live`). One name per concept.
-- [ ] **CLI-3M-11** — Update PLAN.md, RULES.md (especially the "Mode 1 stays" rule in the third box), ARCH-SCRIP.md, REPO files, all forward HANDOFF-*.md.
+- [ ] **CLI-3M-11** — Update PLAN.md, RULES.md (especially the "Mode 1 stays" rule in the third box), ARCH-SCRIP.md, REPO files, all forward HANDOFF-*.md. **Bulk sed remaining `--ir-run` mentions in 26 docs files.**
 - [ ] **CLI-3M-12** — Update AR-3 framing (IR↔AST rename can proceed once mode-1 is gone).
 
 ---
@@ -89,6 +89,22 @@ The PLAN's PST-RB Bug #2 sketch ("mode-1 interp_exec missing SUBJ-PAT split that
 1. Triage `sn26_label_flow`: 1 extra LABEL record in mode 2. Either fix mode 2 to emit one fewer label, or update the test to expect 4. Probably the latter (mode-2 is the future).
 2. Audit the `--ir-run` invocations in the 27 multi-mode scripts and the 1 Python script — verify each is safe to convert. The single-mode 57 scripts and 26 docs files convert by bulk sed.
 3. Decision on `--monitor` (CLI-3M-7) — its 3-way comparator becomes a 2-way comparator without mode 1, or it dies.
+
+## CLI-3M-6 resolution (session 2026-05-17, Claude Opus 4.7)
+
+**Result: no closures needed.** Investigating the items above showed each is benign:
+
+1. **sn26_label_flow "regression" is not real.** Reading `test_smoke_sn26_label_flow.sh` (lines 88-94) shows the test explicitly encodes three independent SCRIP assertions: `--ir-run` expects 3 LABELs, `--interp` expects 5 LABELs, `--run` expects 5 LABELs. Baseline (1/2) was: mode 1 passes its 3-label expectation, modes 2/3 each fail their 5-label expectation (both currently emit 4). The "0/3" result under sed-rewrite is just that the rewrite turned line 90's mode-1 case into a mode-2 case (still expects 3, but mode-2 emits 4). When CLI-3M-8 deletes `--ir-run`, the right edit is to *remove lines 88-90 entirely* — not to patch any runtime semantics. Net change to smoke-tier totals: **−1 passing test case** for this gate, traded for **+1** each in `test_smoke_snobol4.sh` and `test_smoke_unified_broker.sh`. **Net: +1.**
+
+2. **Multi-mode script audit (27 scripts).** All follow one of two patterns:
+   - `for mode in --ir-run --interp --run; do ...; done` — 3-way iteration. CLI-3M-8 removes the `--ir-run` slot mechanically.
+   - Independent invocations: `ir=$(scrip --ir-run ...)`, `sm=$(scrip --interp ...)`, `jit=$(scrip --run ...)`. CLI-3M-8 deletes the `ir=` line and any consumer.
+   
+   Both patterns are mechanical to handle in CLI-3M-8. No script has a *semantic* dependency on mode 1 beyond using it as one of several reference comparators.
+
+3. **`test/beauty_subexpr_gen.py`** — Two subprocess calls use `--ir-run` (lines 235, 621). Both are generator workflows that could equivalently use `--interp`. Mechanical edit in CLI-3M-8.
+
+**CLI-3M-6 closed. CLI-3M-7 is next.**
 
 ### Non-empirical observations
 
