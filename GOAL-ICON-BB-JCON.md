@@ -141,34 +141,39 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-**Three constructs landed this session (2026-05-17). Next session: continue rung survey for remaining FAILs.**
+**Three constructs landed this session (2026-05-17 part 2). Next session: continue rung survey for remaining FAILs.**
 
-1. **rung36 jcon programs** — many still fail due to missing constructs (file I/O, co-expressions, string formatting). Survey which are closest to passing.
-2. **IR_ALT with generator children** — now that single-shot beta is fixed, verify `every (1 to 3 | 4 to 6)` (generator-child alt) still works correctly.
-3. **augop pow** — `x ^:= 2` now wired via AUGOP_POW; confirm with rung37_augop_pow if present.
+Surveying remaining 73 fails (down from 87), strongest clusters:
+1. **rung13 table** (4) + **rung23 table** (4) + **rung35 table_str_str** (2) — Icon table builtin (table(0), insert, member, key, etc.). Single coherent cluster, likely one IR_ICN_TABLE_LOOKUP + table builtin path.
+2. **rung22 lists** (5) — list builtins (push, put, get, pull, !L). Distinct from tables.
+3. **rung24 records** (5) — Icon record types (record/field-access lowering missing).
+4. **rung31 sort** (5) — sort() / sortf() builtins on tables/lists.
+5. **rung15 real_swap / iterate_string** (4) — swap / multi-assign / iterate over strings.
+6. **rung36 jcon** survey still open for closest-to-passing programs.
 
-## Completed steps (this session 2026-05-17)
+## Completed steps (this session 2026-05-17 part 2)
 
 | Step | Description | Commit |
 |------|-------------|--------|
-| IJ-ALT-BETA-SINGLESHOT | IR_ALT β-path: single-shot (non-generator) children treated as exhausted after first yield; ALT_IS_GEN() macro guards β-resume. Root cause of rung18 infinite hang confirmed: literal nodes (IR_LIT_F etc.) always succeed, trapping IR_BINOP_GEN relop-retry forever. rung18: 0/5 → 5/5. | `66dc3582` |
-| IJ-POW | TT_POW (`^`) lowering to IR_BINOP/IR_BINOP_GEN via ICN_BINOP_POW. Added to IcnBinopKind enum, icn_binop_apply (always DT_R result per Icon semantics), lowering switch, augop switch. math.h added to lower_icn.c. rung19 pow: 0/3 → 3/3. | `6f3e9690` |
-| IJ-TOBY-REAL | TT_TO_BY lowering added (was falling to [NO-AST] stub). IR_TO_BY executor rewritten with real-typed path: DT_R bounds detected on α, counter in nd->dval, step bits stored in nd->ival3 via memcpy, epsilon-guard comparison. Semantics verified against jcon vBigInt.ToBy and Icon omisc.r (JCON extension — classic Icon requires integer coercion). rung19 to-by: 0/2 → 2/2. | `66dc3582` + `6f3e9690` |
+| IJ-IDX | TT_IDX (s[i] subscript) lowered to IR_ICN_IDX. New IR_e entry; executor calls subscript_get (already in use by rt.c and snobol4/eval_code.c); lower_icn case after TT_SIZE. Rung16 5/5 flips PASS. ir-run 143→148 (+5). | `431f96d2` |
+| IJ-SECTION | TT_SECTION/PLUS/MINUS (s[i:j], s[i+:n], s[i-:n]) lowered to IR_ICN_SECTION. New IR_e entry; executor evaluates three operands, transforms PLUS/MINUS forms to absolute bounds before subscript_get2; lower_icn shared case. Rung20 section_basic/full/var flip PASS (3/3); seqexpr_basic/side remain FAIL (different bug: IR_SEQ proc-body-fall-off vs expression-value-of-last). ir-run 148→151 (+3). | `63669447` |
+| IJ-LIMIT | TT_LIMIT (gen \\ N) lowered to IR_LIMIT. Existing enum entry; new executor (state machine: alpha evaluates N once, beta pumps c[0] up to N times, fails on counter>=max or child fail, N<=0 fails immediately); lower_icn case after TT_ALTERNATE. Rung14 5/5 flips PASS plus bonus rung23_table_table_insert_delete (was blocked by inner t[1] subscript not lowering). Pre-existing single-shot classifier and ALT_IS_GEN / IR_IS_GEN_KIND macros already classify IR_LIMIT as a generator. ir-run 151→157 (+6). broker 19→20 (+1). | `d51fc518` |
 
 ## Watermark
 
 ```
-one4all: 6f3e9690 (IJ-POW: rung18+rung19 complete)
+one4all: d51fc518 (IJ-LIMIT: rung14 5/5 + bonus rung23_insert_delete)
 corpus:  490f4c7
-ir-run:  148/281   honest: 276 PASS / 0 FAIL / 0 ABORT  (rung18 5/5 ✅  rung19 5/5 ✅)
-smoke_icon: 5/5    broker: 19/49 (not re-run this session — too slow)
-cross-lang smokes: snobol4 6/7 (1 pre-existing), snocone 5/5, prolog 5/5, raku 5/5
+ir-run:  157/265   honest: 280 PASS / 1 FAIL / 0 ABORT
+smoke_icon: 5/5    broker: 20/49
+cross-lang smokes: snobol4 6/7 (1 pre-existing), snocone 5/5, prolog 5/5, raku 5/5, rebus 4/4
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
 - rung36 jcon programs: many xfail — file I/O, co-expressions, string builtins missing.
-- Prolog smoke was 0/5 at last watermark; this session shows 5/5 (possibly fixed upstream).
+- Prolog smoke was 0/5 at last watermark; this session still shows 5/5.
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
 - `every (s := "" | "a") do write(s)` — needs re-verification now that ALT beta is fixed.
+- **IR_SEQ in expression context**: `x := (1; 2; 3)` should bind x to 3 (last value), but IR_SEQ always returns FAILDESCR (correct for proc body fall-off, wrong for expression context). Blocks rung20 seqexpr_basic and seqexpr_side. Likely fix: distinguish IR_SEQ_STMT (current behavior) from IR_SEQ_EXPR (value-of-last).
 
-Session note: IJ-ALT-BETA-SINGLESHOT root cause confirmed by tracing IR_BINOP_GEN → IR_ALT β → IR_LIT_F (always succeeds) → infinite relop-retry. Fix is minimal (one guard in IR_ALT β-path). Icon and JCON ToBy semantics verified: Icon classic requires integer coercion; JCON (vBigInt.ToBy) extends to reals via NLessEq. Our implementation follows JCON semantics with epsilon guard for float accumulation tolerance.
+Session note: All three IR additions follow the same minimal pattern — one new enum entry (or reuse of existing for IR_LIMIT), one executor case calling existing rt helpers (subscript_get / subscript_get2), one lowering case in lower_icn_expr_node. Key insight: lower_icn_proc_body returns NULL if ANY statement fails to lower, so adding a single missing IR kind can unblock entire proc bodies that contained the construct anywhere — that explains the +1 bonus rung23_table_table_insert_delete from IJ-LIMIT (its t[1] subscript was the blocker, but the test got tagged to the table cluster). For IJ-SECTION, deciding to share one IR kind (IR_ICN_SECTION) across the three TT_SECTION/PLUS/MINUS AST variants with ival as a discriminator keeps the executor compact; subscript_get2 expects RANGE form so PLUS/MINUS bounds are normalized in the executor before the call.
