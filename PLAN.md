@@ -41,7 +41,7 @@ Lon names a goal. You:
 6. **If goal is `MODE3-EMIT` or `MODE4-EMIT` — read `ARCH-x86.md` AND `ARCH-SCRIP.md` first, in full.**
 7. Open the Goal file. Open that repo's REPO file.
 8. Run the Goal file's `## Session Setup` scripts (fallback: `REPO-one4all.md`).
-9. Find the first incomplete Step (`- [ ]`). Do it.
+9. Find the first incomplete Step (`- [ ]`). Do it. Up to three orthogonal constructs per session (see `RULES.md` → "Three-construct sessions").
 
 ---
 
@@ -51,7 +51,7 @@ Lon names a goal. You:
 |------|------|------|------|
 | **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17g-irrun-execution** — routes `--ir-run` non-SNO through sm_preamble+sm_run_with_recovery. 2026-05-10 probe-and-revert: step 2 causes 177→105 Icon regression; root cause = SM_CALL_FN from Icon proc bodies doesn't reach icn_call_builtin via _usercall_hook. Prereqs: CH-17g-irrun-prep + CH-17i-table-mutators + CH-17i-icn-list-mutators. |
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | same as CHUNKS row |
-| **Icon BB JCON triage** | `GOAL-ICON-BB-JCON.md` | one4all+corpus+.github | IJ-SCAN-NULSAFE landed: `cset_resolve` + `cset_has` (memchr-based) in `scan_builtins.c::any/many/upto/bal`; eliminates silent truncation on `\0` in kw-cset storage (`&cset`/`&ascii`) and `~cset` complement values. Also restored missing `prolog_lower()` function header in `prolog_lower.c` (commit `8fee1957` had left orphaned body, breaking clean builds at watermark). ir-run 111/265 unchanged. Gates: smoke_icon 5/5, honest 277/0/0. NEXT: re-test rung36_jcon_* with `\0`-safe scan + revalidate broker baseline (17/49 post-fix vs 20/49 pre-breakage doc). |
+| **Icon BB JCON triage** | `GOAL-ICON-BB-JCON.md` | one4all+corpus+.github | IJ-FLIT + IJ-TO-GEN landed (first 3-construct session, 2 of 3 used). IJ-FLIT (`48d797fa`): TT_FLIT → IR_LIT_F lowering for Icon; ir-run 111→125 (+14). Unmasked 5 honest rungs (real-typed binops in IR_BINOP_GEN — new ticket). IJ-TO-GEN (`92bfffd9`): IR_ICN_TO operand re-pump for generator bounds; rung01_paper_nested_to flips PASS; ir-run 125→126 (+1). Watermark: one4all `92bfffd9` · ir-run 126/265 · honest 272 (was 277, −5 from IJ-FLIT unmask) · smoke 5/5 · broker 17/49. NEXT: IR_BINOP_GEN real-typed arithmetic (recovers honest hit + flips rung18/rung36 reals). |
 | **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ sm-run 223/280 ✅. See `BUG_CATEGORIZATION_20260516.md`. |
 | **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
 | **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |
