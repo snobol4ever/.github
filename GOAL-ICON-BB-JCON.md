@@ -141,15 +141,11 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-Three-construct sessions are now the working default (RULES.md). Two constructs landed this session (IJ-FLIT, IJ-TO-GEN); third deferred for a future session.
+**Must land ≥2 constructs next session (RULES.md minimum).**
 
-Next candidates in descending value:
+1. **Finish rung18 hang** — IR_EVERY loops despite ir_body set and 4096 alloc. The IJ-IRALLOC-OVERFLOW commit fixed the alloc but rung18 still hangs under `--ir-run`. During session diagnosis: adding a debug `fprintf` in IR_SEQ caused rc=0; removing it → hang. Classic heap-corruption-mask-by-debug symptom. The real corruption source is elsewhere — likely another `IR_alloc` call with a small cap that overflows during lowering of the real-typed alternate/relop tree. Next session: add `fprintf(stderr, ...)` to `IR_node_alloc`'s overflow branch to catch which cfg overflows, then fix that caller.
 
-- **IR_BINOP_GEN real-typed arithmetic** — *new ticket from IJ-FLIT unmask.* `binop_map[]` in IR_BINOP_GEN executor handles int+int → int but not real-or-mixed operands. Five rungs now hang (rung18_real_relop_real_relop_goal, rung36_jcon_arith/checkfpx/ck/mathfunc) — previously exit-0-with-empty-output (silently wrong, oracle let them PASS), now they exercise the real-binop path and loop. Fix: extend the binop apply helper to coerce per Icon rules (int+real→real, all comparisons promote). Recovers the −5 honest hit and likely flips several rung18/rung36 PASS.
-- **Re-test `rung36_jcon_*` family** — with `\0`-safe scan ladder now in place, `~cset`-driven scan rungs may flip PASS without further code. Run `bash scripts/test_icon_ir_all_rungs.sh` and inspect any new PASSes among the rung36 set.
-- **Broker baseline revalidation** — true post-fix baseline is `17/49` at `068a7054` (was `20/49` in pre-breakage doc).
-- **Latent: SM dump display bug** (cosmetic) — `opnames[]` in `src/lower/sm_prog.c` is 2 entries short of `SM_OPCODE_COUNT`.
-- **Latent: `every (s := "" | "a") do write(s)`** infinite-loops in IR mode (pre-existing).
+2. **IR_BINOP_GEN real-typed arithmetic** — once rung18 exits cleanly, the output will be wrong (empty). `binop_map[]` in `icn_runtime.c` `icn_bb_build` handles relops but the IR_BINOP_GEN executor in `ir_exec.c` may not coerce real operands before applying the relop. Verify with a clean rung18 run, then fix.
 
 ## Watermark
 
