@@ -338,6 +338,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 
 ```
 watermark:  PST-RB-5i-PRE landed 2026-05-17 (one4all d432ed6f)
+            parser_icon.sc head restore 2026-05-17 (corpus pending push)
 status:     Subsystem suite 19/1 (Qize fails on bb_pool exhaustion — bug
             diagnosed; tracked as PST-RB-NEXT-BB-CACHE).
             CSO sweep CSO-1..CSO-8 complete in one combined commit
@@ -353,13 +354,78 @@ status:     Subsystem suite 19/1 (Qize fails on bb_pool exhaustion — bug
             GOAL-LANG-SNOBOL4.md lines 270-285 — not a CSO regression.
             SPITBOL produces 622 lines / md5 9cddff2534472b822438801d8db58a99
             from the current corpus.
-next:       **PST-RB-5i-PRE-CORPUS (corpus case-canonicalization sweep)**
-            then PST-RB-NEXT-BB-CACHE (pattern EXEC cache + four-datatype
-            short-circuit — highest-leverage remaining bug)
-            then PST-RB-NEXT-LABTAB (labtab_resolve undefined-label
-            policy alignment with SPITBOL)
-            then PST-RB-5i finish (debug rt_bb_arbno ζ corruption)
-            → 5j (6-fn trace) → 5k.
+
+            ⚠ EMERGENCY HANDOFF 2026-05-17 (Opus 4.7 #2): parser_*.sc
+            verification across all six samples — none produce a tree
+            dump yet. Detailed failure surface measured:
+
+              snobol4  unary_not.sno       segfault
+              snocone  sc1_literals.sc     segfault
+              icon     fail_stmt.icn       silent timeout (NEW —
+                                          progressed from "syntax error
+                                          line 3" to "loads but no
+                                          output" after parser_icon.sc
+                                          head restore)
+              prolog   rung01_hello.pl    bb_emit_byte overflow at
+                                          pos=262144 size=262144
+              raku     str_chars.raku     Error 5 (Undefined fn) twice
+                                          then bb_emit_byte overflow
+              rebus    paren.reb           segfault
+
+            parser_icon.sc fix landed this session: commit 16b799c
+            ("PST: zero functions in parser_icon.sc and parser_raku.sc")
+            extracted the `notmatch` function to icon_helpers.sc but
+            accidentally deleted the lexer-prologue `white = ( SPAN(...)`
+            opening line along with it, leaving an orphaned continuation
+            `| '#' BREAK(nl) nl` starting at line 2. Restored from
+            commit 0ecae06 (PST-ICN-4b) which has the canonical
+            prologue. parser_icon.sc now parses past load.
+
+            Diagnostic findings on bb_emit_byte overflow (prolog
+            rung01_hello, brokered call #43): under BB_TRACE=1 traced
+            80 bb_build calls in a 2-line file, 78 of which succeed
+            (total 14,790 bytes emitted, largest single 1,438 bytes),
+            then call #43 — a single XFNCE wrapping XOR-of-10 — runs
+            away by itself, emitting >256K in one call.  Each of the
+            10 XOR alternatives carries the SAME XOR-of-20 subtree
+            (identical structural fingerprint fe93d1376bd7d53c
+            repeated 10 times verbatim). Tree-to-DAG materialization
+            (somewhere in lower / IR_bb / bb_deferred_var) is
+            replicating a shared subtree by value instead of brokering
+            it. Likely also the root of rebus/snocone segfaults
+            (oversize emission corrupting bb_pool state). FLAT_BUF_MAX
+            was raised 16K→256K in PST-RB-5i; further bump would mask
+            but not fix. Correct fix lives at IR_bb / lower boundary,
+            not at FLAT_BUF_MAX or bb_pool sizing.
+
+            qize.sc workaround precedent (_qtag in semantic.sc, corpus
+            commit 88bcf21) is the model: corpus-side fast-path to
+            avoid the pathological SCRIP-runtime case. The analogous
+            fix here would identify which named pattern in
+            parser_prolog/raku is being inlined instead of brokered
+            and wrap it with explicit deferred-eval; deferred to a
+            future session as it requires tracing through the actual
+            lowering of these patterns.
+
+next:       **PST-RB-5i continuation**: triage the three classes of
+            failure separately:
+              (a) parser_icon.sc silent-timeout — likely runs
+                  unify_expr loop forever; instrument with
+                  SCRIP_DEBUG_PARSE per PST-RB-5j framing.
+              (b) bb_emit_byte overflow on prolog/raku — find the
+                  parser_*.sc named pattern whose body is being
+                  inlined into a parent BB compilation; either wrap
+                  with explicit deferred-eval at corpus side, or fix
+                  IR_bb materialization to share subtrees.
+              (c) segfault on snobol4/snocone/rebus — run under gdb
+                  to validate prior session's rt_bb_arbno ζ-corruption
+                  finding; if still that signature, work the BB
+                  runtime triage queued from PST-RB-5i-prior.
+
+            Original queue PST-RB-5i-PRE-CORPUS → PST-RB-NEXT-BB-CACHE
+            → PST-RB-NEXT-LABTAB → 5i finish → 5j → 5k stands; the
+            five-PARSER triage above is the practical "next step" of
+            5i itself.
 
 SL-2 closed. SL-5 partial (downstream BB runtime crash). SL-3/4 open.
 
@@ -368,5 +434,7 @@ Authors:
   5e–5g            Opus 4.7    2026-05-17 (three sessions)
   5h               Opus 4.7    2026-05-17
   5i partial       Opus 4.7    2026-05-17
-  5i-PRE           Opus 4.7    2026-05-17 (this session, emergency handoff)
+  5i-PRE           Opus 4.7    2026-05-17 (emergency handoff)
+  parser_icon
+    head restore   Opus 4.7    2026-05-17 (this session, emergency handoff)
 ```
