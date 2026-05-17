@@ -107,6 +107,42 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 
 ## Active rungs
 
+- [~] **PST-RB-PRE-BEAUTY — Fix beauty.sno self-host blockers (Milestone 1 unblock).**
+  Lon directive 2026-05-17: "If beauty.sno demo does not work first, then you are wasting your time probably. Check it first and get it running first."
+  
+  **Status:** PARTIAL — first bug fixed (Opus 4.7 this session, 2026-05-17).
+  
+  **Bug #1 (FIXED, one4all `bad0fffd`): `upr(upr)` shadow-parameter recursion.**
+  `interp_eval.c:2847` TT_VAR fall-through called `APPLY_fn(name, NULL, 0)` when `NV_GET_fn(name)` returned NULVCL. This broke the SNOBOL4 idiom `DEFINE('upr(upr)')` (function name = parameter name): when parameter set to NULVCL on entry, the fallback recursively called the outer function with no args → infinite recursion → segfault in beauty.sno self-host.
+  Fix: added `is_current_frame_local()` helper in `interp_call.c` walking `CallFrame::saved_names[]` (which already records retname + params + locals). interp_eval suppresses the function-call fallback when the TT_VAR name is a current-frame param/local. Declared in `interp_private.h`. Total diff: +30 lines, 3 files.
+  Verification: `upr('hello')` returns `HELLO`; `upr('')` returns empty. All gates hold floor at HEAD: smoke_snobol4 6/1, smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_prolog 5/0, smoke_raku 5/0, crosscheck_snobol4 4/2, subsystem_suite 19/1.
+  Beauty self-host: still 0 lines, but the crash signature changed from segfault to infinite loop downstream (Bug #2). Net progress: the `upr` recursion no longer blocks beauty.
+  
+  **Bug #2 (DIAGNOSED, FIX SKETCHED, NOT LANDED): mode-1 interp_exec does not perform SUBJ-PAT split.**
+  PST-SN4-1b (2026-05-16) moved the SUBJ-PAT-REPL statement layout split out of the SNOBOL4 parser and into `lower.c`. But that split runs only in modes 2/3/4 (SM/JIT/emit). Mode 1 (`--ir-run`, `interp_exec.c`) reads `:pat` directly from the AST and never recognizes the parser's TT_SEQ-with-pattern-as-tail shape. Result: statements like
+  ```snobol4
+  S = 'abc'
+  S 'b' = 'X'        /* parses as :subj=TT_SEQ(S, 'b'), :repl='X', :pat=NULL */
+  OUTPUT = S         /* prints "abc" instead of "aXc" */
+  ```
+  ...silently no-op for pattern match in mode 1. This is **the** root cause of:
+  - `smoke_snobol4` `pattern` test failing (gives the 6/1 baseline)
+  - beauty's `icase()` loop running forever (`str POS(0) ANY(&UCASE &LCASE) . letter =` never modifies `str`)
+  - SN-7 gate's 22/29 result (case_driver, match_driver, semantic_driver, etc. all hit the same shape)
+  
+  Fix (sketched, ~30 lines): mirror lower.c's PST-SN4-1b logic in interp_exec.c right after reading `:subj`/`:pat`. The branch was sketched in this session but reverted untested before commit; next session lands it as commit-1 of this rung.
+  
+  **Bug #3+ (UNKNOWN):** Likely additional issues will surface after Bug #2 lands. SN-7 gate baseline this session start: 22/29. Goal: strictly increase.
+  
+  **Acceptance criteria for PST-RB-PRE-BEAUTY:**
+  1. beauty.sno self-host (`scrip --ir-run beauty.sno < beauty.sno`) produces >0 lines of output.
+  2. SN-7 gate `test_gate_sn7_beauty_self_host.sh` PASS count strictly increases from baseline 22/29.
+  3. All PST-REBUS gates green at floor: smoke gates above + subsystem suite ≥19/1 + crosscheck 4/2.
+  4. Milestone 1 byte-identity remains the long-term target (not gated here; this rung is "unblock to non-zero output").
+  
+  **Beauty test suite — explicit programs:**
+  `corpus/programs/snobol4/demo/beauty/` contains 17 `*_driver.sno` programs + `beauty.sno` itself. Driver list: assign, case, counter, Gen, match, omega, Qize, ReadWrite, semantic, ShiftReduce, stack, TDump, trace, tree, XDump, global. The SN-7 gate (`test_gate_sn7_beauty_self_host.sh`) runs each × 3 modes (ir/sm/jit) = 51 total. Mode-4 (emit) is tracked separately via `test_gate_em_beauty_subsystems_mode4.sh`.
+
 - [x] **PST-RB-5h — Snocone-port subsystem suite to 19/20.** ✅ 2026-05-17 (Opus 4.7)
   15/20 → **19/20** PASS (Qize stays SKIPped under SL-3 as designed). The narrative "5 separate failures" (match, Gen, semantic, trace, Qize) collapsed: **one root cause flipped 4 of them.**
   Root cause: `lower_scan` in `src/lower/lower.c` unconditionally emitted Icon scanning-environment opcodes (`ICN_SCAN_PUSH`/`ICN_SCAN_POP`) for `TT_SCAN`. Both Icon and Snocone parsers reduce `?` to `TT_SCAN` — but Snocone `s ? pat` is **SNOBOL4 pattern matching** per SPITBOL Ch. 18 (binary op priority 1, left-assoc), not Icon scan-env. Wrong dialect meant `if (s ? p)` never set `last_ok`, so the subsequent `SM_JUMP_F` always fell through.
