@@ -19,6 +19,8 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/claude/x64
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude/csnobol4
 ```
 
+**Note on `x64`:** `snobol4ever/x64` ships with a prebuilt SPITBOL binary at `bin/sbl`. The clone above IS the install — no build step needed for routine validation. `build_spitbol_oracle.sh` (listed in every Session Setup category below) detects the prebuilt binary and SKIPs the build, so it's safe to keep in the setup pipeline; it only ever rebuilds if you've intentionally removed the binary to patch SPITBOL itself.
+
 **Build — run exactly what your goal's `## Session Setup` section lists. No more.**
 
 All scripts are in `/home/claude/one4all/scripts/`. Each is idempotent.

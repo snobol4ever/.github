@@ -43,6 +43,17 @@ Lon names a goal. You:
 8. Run the Goal file's `## Session Setup` scripts (fallback: `REPO-one4all.md`).
 9. Find the first incomplete Step (`- [ ]`). Do it. Up to three orthogonal constructs per session (see `RULES.md` → "Three-construct sessions").
 
+### Clone the SPITBOL oracle alongside the standard repos
+
+SPITBOL is the **primary oracle** for every SCRIP language (SNOBOL4, Snocone, Rebus, Icon, Prolog, Raku) — no day-to-day SCRIP work should be without it. Clone `snobol4ever/x64` to `/home/claude/x64` whenever you clone the standard repos. The repo **ships a prebuilt `sbl` binary at `/home/claude/x64/bin/sbl`** — cloning IS the install; no build step required for routine work. The `interp` profile in `.github/snobol4ever_clone.sh` already includes `x64`; if you're cloning by hand instead, add it:
+
+```bash
+git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
+/home/claude/x64/bin/sbl -b file.sno     # canonical invocation
+```
+
+Only rebuild SPITBOL from source (`bash one4all/scripts/build_spitbol_oracle.sh`) when patching the SPITBOL runtime itself (e.g. SN-26-spl-bridge for the IPC monitor wire). RULES.md → "Oracles" has the full SPITBOL invocation guide.
+
 ---
 
 ## Active Goals
@@ -62,7 +73,7 @@ Lon names a goal. You:
 | **⚡ PST: Icon + Raku** | `GOAL-PST-ICN-RAKU.md` | one4all+corpus+.github | **DONE (with sidecar caveat)** PST-RAKU-5c ✅ 2026-05-16. parser_raku.sc rewrite: 1788→607 lines in parser file; **11 functions relocated to `raku_helpers.sc` (231 lines)**, not eliminated. parser_icon.sc 525→381 lines; **5 functions relocated to `icon_helpers.sc`**. Helpers loaded by `run_scrip_parser.sh` alongside the parser. Cleanup pass deferred until runtime stabilises. corpus@16b799c, one4all@c52b724c. |
 | **⚡ PST: Rebus** | `GOAL-PST-REBUS.md` | one4all+corpus+.github | **PST-RB-PRE-BEAUTY Bug #1 ✅** 2026-05-17 (Opus 4.7, one4all `bad0fffd`): upr(upr) shadow-param recursion fixed in interp_eval.c via is_current_frame_local() helper in interp_call.c. 30 LOC, 3 files. All gates hold floor. Beauty self-host no longer segfaults but still 0 lines (now hangs in icase due to Bug #2: mode-1 interp_exec missing SUBJ-PAT split that lower.c does for modes 2/3/4). NEXT: PST-RB-PRE-BEAUTY Bug #2 (~30 lines sketched, untested). Then 5i triage queues from emergency handoff #2 (icon hang, prolog/raku BB overflow, three segfaulters), then PST-RB-5i-PRE-CORPUS → PST-RB-NEXT-BB-CACHE → PST-RB-NEXT-LABTAB → 5i finish → 5j → 5k. |
 | **⚡ PST: Prolog** | `GOAL-PST-PROLOG.md` | one4all+corpus+.github | **PST-PL-6f** — Delete Term*-returning parse paths; remove lower_term() sites replaced by 6d. PST-PL-6a-6e ✅ 2026-05-16. |
-| **⚡ Parser-SC Transpile (2-way harness via Snocone→SNOBOL4)** | `GOAL-PARSER-SC-TRANSPILE.md` | one4all+corpus+.github | **SCT-1e ✅** 2026-05-17 (Opus 4.7). SCT-1/1b/1c/1d/1e landed. Root cause of the ERROR 041 at line 873 was a transpiler bug in `lower_sno.c::emit_expr` TT_SCAN case: emitted `(SUBJ PAT)` (CONCAT) instead of `(SUBJ ? PAT)` (explicit match). Fixed. All six parsers transpile cleanly (zero placeholders); `parser_snobol4.sno` now runs under SPITBOL to clean exit on real input. snobol4 smoke 6/1 (1 pre-existing baseline FAIL), snocone smoke 5/0. **NEXT: SCT-1f** — drive the 2-way sync-monitor (requires SPITBOL IPC patch SN-26-spl-bridge in x64 sess #27). |
+| **⚡ Parser-SC Transpile (2-way harness via Snocone→SNOBOL4)** | `GOAL-PARSER-SC-TRANSPILE.md` | one4all+corpus+.github | **SCT-2 🔄 PARTIAL** 2026-05-17 (Opus 4.7). All six parsers transpile cleanly (0 placeholders). SPITBOL sweep: snobol4+snocone exit 0 (clean, source's parse-error branch); rebus+icon+raku all hit identical ERROR 171 @line 473 — qtag's `REPLACE(t,"'","")` requires equal-length args in SPITBOL; 1-line fix in `corpus/SCRIP/semantic.sc`. prolog hits ERROR 230 (illegal char) @line 766,27 — transpiler emission bug in `lower_sno.c`. **Path opened:** GOAL doc canonicalised — clone `snobol4ever/x64` to `/home/claude/x64`; prebuilt sbl ships at `bin/sbl`, no build needed. SCT-1e ✅ stands. **NEXT:** fix `qtag` source, triage prolog 766,27, then SCT-1f (needs SN-26-spl-bridge in x64). |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
 | **SN4 JVM Emitter** | `GOAL-SN4-JVM-EMIT.md` | one4all+.github | **SJ4-JVM-4** 🔄 — method-split `e01e17eb` ✅. Beauty.sno halts at "Parse Error" (semantic). smoke 13/13. |

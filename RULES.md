@@ -158,6 +158,55 @@ cost. Amortizing it across three landings instead of one is ~3× throughput
 at the same correctness floor.
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — SCRIP'S SNOBOL4 AND SNOCONE SEMANTICS FOLLOW SPITBOL — Lon, 2026-05-17       ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  **We strive to be like SPITBOL.** SCRIP's SNOBOL4 frontend and runtime, and SCRIP's Snocone     ║
+║  frontend and runtime, follow SPITBOL semantics wherever a semantic choice exists. The case-    ║
+║  sensitivity rule below is one specific instance of this principle; the principle applies to    ║
+║  every choice of operator priority, built-in function argument validation, keyword behavior,    ║
+║  pattern primitive semantics, data type coercion, and runtime error reporting.                  ║
+║                                                                                                  ║
+║  Why SPITBOL and not CSNOBOL4 / standard SNOBOL4: SPITBOL is the fastest, most polished, and    ║
+║  most actively-used SNOBOL4 variant in the modern era. It is also our primary oracle (see       ║
+║  "Oracles" section below). Aligning runtime semantics with the oracle keeps the byte-identity   ║
+║  test honest and avoids divergence-by-design.                                                   ║
+║                                                                                                  ║
+║  Operational rules:                                                                              ║
+║    • When SCRIP and SPITBOL produce different output on the same input AND we believe SCRIP is   ║
+║      "right" by some other criterion, the burden of proof is on the other criterion. Default    ║
+║      answer: fix SCRIP to match SPITBOL.                                                        ║
+║    • When SCRIP's runtime behavior differs from SPITBOL because of an explicit design choice,   ║
+║      that choice must be documented as a row in this rule's "Permitted divergences" table       ║
+║      below. Undocumented divergences are bugs.                                                  ║
+║    • When SPITBOL itself has a documented bug (Appendix D of the manual) and SCRIP fixes it,    ║
+║      that's a permitted divergence — but the bug ID and the fix rationale must appear in        ║
+║      "Permitted divergences" too.                                                               ║
+║    • Library code shared across languages (e.g. `corpus/SCRIP/semantic.sc`) MUST be portable to  ║
+║      SPITBOL — if the code only runs on SCRIP's Snocone runtime but errors out under SPITBOL,   ║
+║      the code is wrong. (Example: 2026-05-17 — `qtag()` called `REPLACE(t, "'", "")` with       ║
+║      unequal-length args; works in SCRIP's `REPLACE` but is ERROR 171 in SPITBOL. Source        ║
+║      fix required: rewrite using portable pattern-strip idiom.)                                 ║
+║                                                                                                  ║
+║  Permitted divergences (must be enumerated explicitly; this list is the only authority):       ║
+║    • DATATYPE case — see "DATATYPE case" section below. Open SN-27 will unify on UPPERCASE.    ║
+║    • Case sensitivity — SCRIP is always case-sensitive (no `&CASE`); SPITBOL defaults to fold-  ║
+║      to-upper. See the next ABSOLUTE RULE for the binding cross-language story.                 ║
+║    • TBD: add rows as new divergences are explicitly chosen.                                    ║
+║                                                                                                  ║
+║  Languages OUTSIDE this rule: Icon, Prolog, Rebus, Raku follow their own native semantics       ║
+║  (ISO Prolog, Icon Programming Language reference, etc.) — SPITBOL conformance applies only to  ║
+║  the SNOBOL4 lineage and Snocone (which lowers to a SNOBOL4-shaped runtime). The transpiler     ║
+║  output for ALL six languages is portable SNOBOL4 and therefore inherits SPITBOL semantics by   ║
+║  transitivity, per GOAL-PARSER-SC-TRANSPILE.md.                                                 ║
+║                                                                                                  ║
+║  Violation: a commit that introduces non-SPITBOL semantics in SCRIP's SNOBOL4 or Snocone        ║
+║  runtime without an entry in "Permitted divergences" = rejection.                               ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — SCRIP IS CASE-SENSITIVE. NO FOLDING. ANYWHERE. — Lon, 2026-05-17            ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                                  ║
@@ -306,7 +355,10 @@ runtime — fix the runtime, not the source.
 /home/claude/x64/bin/sbl          # binary
 /home/claude/x64/                 # repo (snobol4ever/x64)
 ```
-Build: `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`
+
+**Install: clone the repo. That's it.** `snobol4ever/x64` **ships with a prebuilt `sbl` binary at `bin/sbl`** — `git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64` and the oracle is live. No build step required for routine validation work. The standard `interp` profile in `.github/snobol4ever_clone.sh` already includes x64; PLAN.md "Session Start" lists this as required alongside the standard three repos.
+
+Rebuild from source only when patching SPITBOL itself (e.g. SN-26-spl-bridge for the IPC monitor wire, or systm.c clock change): `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`. The script is idempotent and SKIPs when `bin/sbl` already exists, so it's safe to run as part of any setup pipeline.
 
 Always invoke with `-b` to suppress the version banner:
 ```bash

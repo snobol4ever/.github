@@ -43,7 +43,11 @@ ALL_REPOS=(
 )
 
 # ── Profiles ──────────────────────────────────────────────────────────────────
-profile_interp()  { echo ".github one4all harness corpus"; }
+# `interp` includes x64 because SPITBOL is the primary oracle for every
+# SCRIP language (SNOBOL4, Snocone, Rebus, Icon, Prolog, Raku) — no
+# day-to-day SCRIP work should be without it.  The repo ships a prebuilt
+# `sbl` binary at /home/claude/x64/bin/sbl, so cloning IS the install.
+profile_interp()  { echo ".github one4all harness corpus x64"; }
 profile_jvm()     { echo ".github snobol4jvm harness corpus"; }
 profile_dotnet()  { echo ".github snobol4dotnet harness corpus"; }
 profile_spitbol() { echo ".github one4all harness corpus x64"; }
