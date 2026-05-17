@@ -182,7 +182,9 @@ The order is **callers first, leaves last** — never delete a definition while 
 
   Commit `3e1fc9cd`. Caller cleanup (DAI-3 through DAI-5 below) **deferred** to next session — the bombs make any latent caller fire loudly and visibly, so urgency is now zero.
 
-- [ ] **DAI-3 — Drop ICN branches in `interp_eval.c`** *(deferred — bombs make this cosmetic for now)*. The 9 `(g_lang==LANG_ICN)?bb_eval_value(...):interp_eval(...)` sites in `src/driver/interp_eval.c` (lines 136-163): replace ternary with plain `interp_eval(...)`. After DAI-2 the ICN branch routes to the bomb, but the dead ternary is a maintenance smell. **Low risk** — confirmed bombs do not fire in rung suite.
+- [x] **DAI-3 ✅ 2026-05-17f (Opus 4.7) — Disable ICN_BB_EVAL shortcut in `src/lower/lower.c:34`.** Macro was emitting `SM_BB_EVAL <every_table_index>` for Icon expressions outside gen-proc bodies, deferring BB construction to runtime via `icn_bb_build(tree_t*)`. After DAI-2 that runtime resolver is a `[DAI-BOMB]` stub; the `SM_BB_EVAL` handler in `sm_jit_interp.c` was already `NULL`. Macro replaced with no-op; Icon expressions outside gen-proc bodies now lower through the standard SM emitter (`SM_PUSH_LIT_S`/`SM_PUSH_LIT_I`/`SM_PUSH_VAR`/etc.) like every other language. Commit `a2365c5f`.
+
+  **Major measurement landed with this step:** ran the rung ladder under `--sm-run` (mode 2) for the first time. **Result: `--sm-run` 194/265 = `--ir-run` 194/265, identical pass and fail sets.** Mode-2 is at parity with mode-1. The 36 failing rungs fail in *both* modes — they are real IR/BB/SM gaps, not mode-2 immaturity. This is the strongest possible validation of the IJ-DEL-ICN-AST surgery: there is no mode-1 advantage left to preserve.
 
 - [ ] **DAI-4 — Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`.** Replace the 3 sites with `NO_AST_WALK_GUARD("icn_bb_build/<tag>")`. Remove the extern in `sm_jit_interp.c`. **Gate:** as DAI-3.
 
@@ -218,17 +220,19 @@ The order is **callers first, leaves last** — never delete a definition while 
 |------|-------------|--------|
 | DAI-1 | Remove dead-on-vine IR_ICN_EVERY: was reachable only via Icon AST-walker (icn_bb_build → lower_icn_every → ir_exec.c IR_ICN_EVERY case → bb_exec_stmt(tree_t*)). Mode-2/3/4 use language-agnostic IR_EVERY with body pre-lowered to IR. Three files edited (IR.h enum, ir_exec.c case, lower_icn.{c,h} function+decl); two AST-walker callers in icn_runtime.c stubbed. ir-run 194/265 unchanged. | `b3e08fe8` |
 | DAI-2 | Amputate the three Icon AST walker entry points: `bb_eval_value` (icn_value.c, 1239→336 LOC), `bb_exec_stmt` (icn_stmt.c, 149→22 LOC), `icn_bb_build` (icn_runtime.c, 1743→1166 LOC). Each body replaced with `[DAI-BOMB]` stub that prints to stderr + exit(78). Preserved DESCR_t-input helpers (icn_str_concat_d, icn_lconcat_d, cset_resolve, builtin tables) in icn_value.c head; preserved icn_bb_dcg/proc_table/icn_every_body_pre+broke in icn_runtime.c head. **Net −1641 LOC. Icon --ir-run 194/265 unchanged. Zero bomb fires across 265 rungs** — proves the Icon AST walker was already silently dead for the rung suite; mode-1 Icon executes via interp_eval+ir_exec (IR_block_t walker), never the Icon-specific tree_t* walker. All smoke gates hold floor. | `3e1fc9cd` |
+| DAI-3 | Disable ICN_BB_EVAL shortcut in `src/lower/lower.c:34` — macro was emitting `SM_BB_EVAL <every_table_index>` for Icon expressions outside gen-proc bodies, deferring BB construction to runtime via `icn_bb_build` (now a [DAI-BOMB] stub). `SM_BB_EVAL` handler in sm_jit_interp.c was already NULL. Macro now a no-op; Icon expressions lower through standard SM (`SM_PUSH_LIT_S/I/F`, `SM_PUSH_VAR`) like every other language. **Major measurement: `--sm-run` 194/265 = `--ir-run` 194/265, identical sets.** Mode-2 at parity with mode-1; the 36 fails are real IR/BB/SM gaps, not mode-2 immaturity. | `a2365c5f` |
 
 ## Watermark
 
 ```
-one4all: 3e1fc9cd (DAI-2: Icon AST walker amputated, -1641 LOC, gates hold)
+one4all: a2365c5f (DAI-3: ICN_BB_EVAL no-op; mode-2 confirmed at parity with mode-1)
 corpus:  490f4c7 (unchanged this session)
-ir-run:  194/265   honest: (not re-run this session — gates held)
-smoke_icon: 5/5    crosscheck_icon: not re-run
-smoke_prolog: 5/5  smoke_raku: 5/5  smoke_rebus: 4/0  smoke_snocone: 5/0
+ir-run:  194/265
+sm-run:  194/265  ← NEW: identical pass/fail sets to ir-run
+smoke_icon: 5/5    smoke_prolog: 5/5  smoke_raku: 5/5
+smoke_rebus: 4/0   smoke_snocone: 5/0
 smoke_snobol4: 6/1 (pattern FAIL pre-existing)
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (not re-run this commit)
 DAI-BOMB fires: 0
 ```
 
