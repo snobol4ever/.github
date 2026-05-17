@@ -47,6 +47,64 @@ bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh \
 
 ---
 
+## 📖 SPITBOL manual — navigation cheatsheet (`spitbol-manual-v3_7.pdf`, 368 pp)
+
+The manual is **scanned-quality TOC, clean body**. Extracting the whole thing wastes context. Use this map.
+
+**One-time extraction:**
+```bash
+pdftotext -layout spitbol-manual-v3_7.pdf /tmp/spitbol.txt   # ~15k lines
+```
+
+**TOC lives at lines 147–290.** Ignore the page numbers in the TOC — they refer to printed pages, not text lines. Use the section-name jumps below instead.
+
+**Where the actually-useful content sits in `/tmp/spitbol.txt`:**
+
+| Need this | Section / Chapter | Anchor line(s) | grep query |
+|---|---|---:|---|
+| Operator priority tables (THE one canonical reference) | Ch 15 Operators | 7757, 7774 | `grep -n "Operator      Association"` |
+| Unary `?` interrogation, `~` negation semantics | Ch 9 Unary Operators | ~5741 | `grep -n "Other Unary Operators"` |
+| Pattern primitives (ABORT, ARB, BAL, FAIL, FENCE, REM, SUCCEED) | Ch 18 | 8683 | `grep -n "^Primitive Patterns$"` |
+| Pattern-match algorithm + bead diagram | Ch 18 | 8718–8814 | `grep -n "Pattern-match.*algorithm"` |
+| `&FULLSCAN`, `&ANCHOR`, `&MAXLNGTH`, etc. keyword effects | Ch 16 | 8074, 8141 | `grep -n "Unprotected Keywords"` |
+| SUBJ ? PAT = REPL statement layout (SNOBOL4 column form) | Ch 14 | 7695 | `grep -n "Pattern-match"` |
+| Pattern functions (ANY/ARBNO/BREAK/BREAKX/LEN/NOTANY/POS/RPOS/RTAB/SPAN/TAB) | Ch 19 | search by name | `grep -n "^      [A-Z]*$"` then narrow |
+| Goto field `:S(LBL)` / `:F(LBL)` semantics | Ch 14 | 7768 | `grep -n "Goto field"` |
+| EVAL/CODE run-time compile rules | Ch 9 | ~5187 | `grep -n "EVAL function"` |
+| Data-type conversion matrix (string↔pattern↔code↔name) | Ch 17 | 8509+ | `grep -n "String Ü"` (Ü = arrow glyph) |
+| Operator extensions: `A = B = C`, embedded `(B ? C = D)`, alt-eval `(LT(I,J) I, GT(I,J) J)` | Ch 15 tail | ~7820 | `grep -n "Operator.*Extensions"` |
+| `Differences from SNOBOL4+` (gotchas) | Appendix C | 14580+ | `grep -n "Features Implemented Differently"` |
+
+**Operator priority (memorize this; it's THE table the parser cascade must mirror):**
+
+| Pri | Op | Assoc | Meaning |
+|---:|---|:---:|---|
+| 0 | `=` | right | Assignment |
+| 1 | `?` | left | **Pattern match** |
+| 2 | `&` | left | OPSYN-able |
+| 3 | `|` | right | Pattern alternation |
+| 4 | space | right | Concatenation / pattern subsequent |
+| 5 | `@` | right | OPSYN-able |
+| 6 | `+`, `-` | left | Add / subtract |
+| 7 | `#` | left | OPSYN-able |
+| 8 | `/` | left | Divide |
+| 9 | `*` | left | Multiply |
+| 10 | `%` | left | OPSYN-able |
+| 11 | `^`, `!`, `**` | right | Exponentiation |
+| 12 | `$`, `.` | left | Immediate / conditional pattern-assign |
+| 13 | `~` | right | OPSYN-able |
+
+Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*`, `$`, `.`, `!`, `%`, `/`, `#`, `@`.
+
+**Rules of thumb:**
+- For an operator/precedence question: jump to the Ch 15 table at line 7757 and stop. Don't re-read prose.
+- For pattern semantics: Ch 18 short prose at 8683 + algorithm at 8718. Don't reload the bead diagram unless you forgot what backtracking looks like.
+- For "does SPITBOL have feature X": Appendix C first (it's terse); body text only if Appendix C doesn't say.
+- For a keyword's effect: Ch 16 (8074+) is denser than Ch 9's narrative.
+- Skip Chapters 1–2 (installation), 10–11 (debugging/closing), 13 (running spitbol from a shell), 20 (perf notes), and the giant Appendix sections D–G unless you have a specific reason.
+
+---
+
 ## Active rungs
 
 - [x] **PST-RB-5h — Snocone-port subsystem suite to 19/20.** ✅ 2026-05-17 (Opus 4.7)
@@ -56,14 +114,30 @@ bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh \
   Sweep also landed: `snocone_parse.y` AST_* → TT_* (29 names, 89 occurrences; bridge `#define`s deleted from regenerated `.tab.c`); `snocone_lex.c` AST_* goto-labels → LX_* (45 names, 101 occurrences — they were lexer-state labels, never AST kinds).
   Watermark: one4all `1e6557c1`. Gates green (smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 6/1 baseline with pre-existing `pattern` test fail unrelated to this rung, crosscheck_snobol4 4/2 baseline, unified_broker 19/30 baseline).
 
-- [ ] **PST-RB-5i — Parser AST validation: parser_*.sc dump matches C-side tree_t dump.**
-  For each of the six parsers (`snobol4`, `snocone`, `rebus`, `icon`, `prolog`, `raku`):
-  1. Pick a tiny representative source file for that language (≤10 lines) from `corpus/programs/<lang>/`.
-  2. Run the C-side reference: `./scrip --dump-ast <source>` → record canonical `tree_t` output.
-  3. Run `bash scripts/run_scrip_parser.sh <lang> <source>` → SCRIP-hosted parser's dump.
-  4. Diff. They must match modulo whitespace/printer differences. Document any acceptable divergence in a small allow-list in this file.
-  5. If they diverge in shape, the parser's `shift`/`reduce` wiring is wrong; fix the SCRIP runtime or the `.sc` parser only if SPITBOL agrees the parser is right. Otherwise fix SCRIP source in `one4all`.
-  Acceptance: each parser emits a `tree_t`-shape-equivalent dump for its chosen sample. Validation script `scripts/test_parser_ast_match.sh` lands as part of this rung.
+- [ ] **PST-RB-5i 🔄 — Parser AST validation: parser_*.sc dump matches C-side tree_t dump.**
+  **Status (2026-05-17, Opus 4.7):** SL-5 root cause identified and partially fixed; downstream parser-runtime crash blocks acceptance.
+  Landed this session:
+  1. **C-side `--dump-ast`** now works for rebus / icon / prolog / raku / snocone / snobol4 (was lang_snocone only at `scrip.c:273`). With this fix, 5 of 6 frontends emit usable canonical `tree_t` trees. Prolog frontend segfaults on `:- initialization(...)` / `findall` files — separate frontend bug, not 5i. `rung01_hello_hello.pl` is the working prolog sample.
+  2. **BB pattern buffer caps raised** so parser_*.sc compound patterns fit:
+     - `FLAT_BUF_MAX` 16K → 256K (`src/emitter/emit_bb.c`).
+     - `BB_POOL_SIZE`  4MB → 64MB (`src/processor/bb_pool.h`).
+     Without these, `parser_snocone.sc` hits `bb_emit_byte: buffer overflow at pos=16384` at load.
+  3. **SL-5 ROOT CAUSE: `_builtin_DATA` did not register field-accessor functions.**
+     `_builtin_DATA` (`src/driver/interp_data.c`) populates `sc_dat_types[]` only. `_DATA_` in `src/runtime/snobol4/snobol4.c` populates `_func_buckets[]` (the SNOBOL4 function table) with each field-accessor closure. Both are registered as the `"DATA"` builtin via `register_fn` — `_builtin_DATA` wins because `scrip.c:327` runs after `SNO_INIT_fn()`. Net effect: `struct link_counter { next, value }` registered `value` in sc_dat_types[] only, while `APPLY_fn` (called from SM_CALL_FN) searches `_func_buckets[]` first. Hence "Error 5: Undefined function or operation" with `name='value'` from every `IncCounter()` invocation in parser_*.sc.
+     Fix: extracted `_DATA_`'s body into non-static `sno_DATA_register` and chained `_builtin_DATA` through it. Both tables now populated. `value()` resolves. Per RULES "casing belongs at the ingress layer" the `sno_fold_name(spec)` at `_builtin_DATA` ingress was also removed; the remaining `sno_fold_name` calls in `sno_DATA_register` are no-ops under default `--case-sensitive` mode (the project default since SN-31) and left in place pending broader audit.
+  4. **APPLY_fn diagnostic** added: `SCRIP_DEBUG_APPLY=1 ./scrip ...` prints `[apply-err5] unresolved '<name>' (nargs=N)` before raising Error 5. Stays silent under normal runs. (`src/runtime/snobol4/snobol4.c`).
+  Remaining wall (not fixed this session — separate rung):
+  - **parser_rebus.sc / parser_snocone.sc segfault in BB pattern runtime** during `Src ? Compiland` match. Crash signature: `rt_bb_arbno` called with garbage `zeta` after `bb_deferred_var → bb_build_brokered → emit_label_initf → __vsnprintf_internal` on a corrupted ζ struct. The Error-5 cliff was hiding this — it is now visible because patterns execute further. Either ARBNO state-machine reentry, or BB pattern descriptor corruption when the brokered builder runs on a top-level compound pattern referenced via `*` deferred eval. Needs Byrd-box runtime triage.
+  - Steps 1–5 of original 5i procedure still TBD: with the runtime crash, no parser_*.sc emits a tree yet for diff against C-side `--dump-ast`. Sample picks (≤10-line each) recorded for future session:
+    | Lang | Sample | C-side `--dump-ast` |
+    |---|---|---|
+    | rebus | `corpus/programs/rebus/parser/paren.reb` | ✅ 13-line tree |
+    | snobol4 | `corpus/programs/snobol4/parser/unary_not.sno` | ✅ 2-line tree |
+    | snocone | `corpus/programs/snocone/corpus/sc1_literals.sc` | ✅ 3-line tree |
+    | icon | `corpus/programs/icon/parser/fail_stmt.icn` | ✅ 11-line tree |
+    | prolog | `corpus/programs/prolog/rung01_hello_hello.pl` | ✅ 2-line tree (avoid `findall`/`initialization` files — segfault prolog_compile) |
+    | raku | `corpus/programs/raku/parser/str_chars.raku` | ✅ 15-line tree |
+  Acceptance unchanged: each parser_*.sc emits a `tree_t`-shape-equivalent dump for its chosen sample, validation script `scripts/test_parser_ast_match.sh` lands.
 
 - [ ] **PST-RB-5j — 6-function parser trace.**
   Instrument the six critical primitives — `shift`, `reduce`, `nPush`, `nInc`, `nTop`, `nPop` — with stderr trace lines gated by env `SCRIP_DEBUG_PARSE`. Implement once in `corpus/SCRIP/semantic.sc` (`shift`, `reduce`) and `corpus/SCRIP/counter.sc` (`nPush`/`nInc`/`nTop`/`nPop`). Run each parser against trivial input with `SCRIP_DEBUG_PARSE=1` and watch the parse unfold; this is the diagnostic foundation for fixing remaining parser_*.sc bugs once subsystem suite is green.
@@ -79,7 +153,7 @@ bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh \
 
 - **SL-3** — `SQize` infinite loop on apostrophe-free input. Loop condition + replacement interaction in `corpus/SCRIP/qize.sc:46-58` doesn't reduce `str`. Workaround: `_qtag` fast-path bypasses for the parser tag idiom. Real fix belongs in SCRIP runtime if SPITBOL handles this correctly (check first).
 - **SL-4** — SCRIP runtime pattern-matcher spuriously succeeds on `BREAK("'")` / `ARB "'"` / `ARB ANY("'")` when input contains no apostrophe. Workaround: use `REPLACE` for apostrophe-presence checks. SPITBOL-oracle this first.
-- **SL-5** — Parser AST dumps not yet correct. Each `parser_*.sc` finishes loading after SL-2 fix but emits Error 5 ("Undefined function or operation") at load and/or fails to push a tree onto the value stack. Likely shift/reduce wiring or EVAL-scope issue in `semantic.sc`'s `shift()` builder. **Closing SL-5 = passing PST-RB-5i.**
+- **SL-5 partial 🔄 (2026-05-17)** — _Root cause identified and fixed._ "Error 5: Undefined function or operation" with `name='value'` was a `_builtin_DATA` vs `_DATA_` split-registration bug: only `sc_dat_types[]` was populated, not `_func_buckets[]`. Fix: `_builtin_DATA` now chains through `sno_DATA_register`. Downstream issue remaining: parser_rebus.sc and parser_snocone.sc now load and start executing `Src ? Compiland` but segfault in BB pattern runtime (`rt_bb_arbno` with corrupted ζ). Tracked as a separate runtime ticket — see PST-RB-5i remaining wall.
 
 ---
 
@@ -107,19 +181,20 @@ bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh \
 ## State
 
 ```
-watermark:  PST-RB-5h committed 2026-05-17 (one4all 1e6557c1, .github pending)
+watermark:  PST-RB-5i partial committed 2026-05-17 (one4all PENDING, .github PENDING)
 status:     Subsystem suite 19/20 at HEAD (Qize SKIP under SL-3 — acceptance met).
-            Parser_*.sc still don't emit usable AST (SL-5).
-next:       PST-RB-5i (parser AST validation) → 5j (6-fn trace) → 5k (Snocone INCLUDE).
+            SL-5 root cause fixed: _builtin_DATA/_DATA_ split-registration.
+            Parser_*.sc now load past Error 5 and begin executing Src ? Compiland,
+            but segfault in BB pattern runtime (rt_bb_arbno with corrupted ζ).
+            C-side `--dump-ast` now works for all six frontends (was lang_snocone only).
+            BB pattern buffer caps raised: FLAT_BUF_MAX 16K→256K, BB_POOL_SIZE 4MB→64MB.
+next:       PST-RB-5i finish (debug rt_bb_arbno ζ corruption) → 5j (6-fn trace) → 5k.
 
-SL-2 closed. SL-3/4/5 open and explicitly blocking 5i.
-SL-4 generalized: TT_SCAN expression-position dispatch (5h) fixed the
-SNOBOL4 pattern-match success/failure signalling in if-context; the
-original SL-4 phrasing ("BREAK/ARB/ARB ANY spurious match") was a
-symptom of the same root cause and may be partially or fully resolved.
+SL-2 closed. SL-5 partial (downstream BB runtime crash). SL-3/4 open.
 
 Authors:
-  5a–5d   Sonnet 4.6  2026-05-16
-  5e–5g   Opus 4.7   2026-05-17 (three sessions)
-  5h      Opus 4.7   2026-05-17 (this session)
+  5a–5d            Sonnet 4.6  2026-05-16
+  5e–5g            Opus 4.7    2026-05-17 (three sessions)
+  5h               Opus 4.7    2026-05-17
+  5i partial       Opus 4.7    2026-05-17 (this session)
 ```
