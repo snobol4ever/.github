@@ -39,6 +39,12 @@ Three execution modes, one orthogonal BB strategy axis (under `--interp` only):
 
 ## CLI-3M-5 audit findings (session 2026-05-17, Claude Opus 4.7)
 
+### ⚠️ Correction notice
+
+The initial audit of this section (committed in this same goal-file's first commit) reached a wrong conclusion — that Prolog and Rebus smoke gates fully collapse under `--interp`. That conclusion came from a probe-methodology bug: probe scripts were copied to `/tmp/`, which broke their `HERE=$(dirname BASH_SOURCE); SCRIP=$HERE/../scrip` resolution to `/scrip` (nonexistent). The "0/5 Prolog" and "0/4 Rebus" results were every test failing because no scrip binary was executing, not real semantic regressions.
+
+Lon's decision in response to the (incorrect) audit — "accept the regression and proceed" — turned out to require less work than first stated. The corrected audit below shows mode-1 deletion is **near-net-positive** with one tiny regression.
+
 ### Scope of `--ir-run` usage
 
 | Location | Files |
@@ -48,29 +54,41 @@ Three execution modes, one orthogonal BB strategy axis (under `--interp` only):
 | `test/` | 8 (7 comments in source, 1 actual subprocess invocation: `test/beauty_subexpr_gen.py`) |
 | **Total** | **111** |
 
-### Empirical per-language probe
+### Empirical per-smoke-gate probe (corrected methodology: in-place sed in `scripts/`)
 
-For each language, ran the existing smoke gate twice: once with `--ir-run` (baseline), once with `--ir-run` mechanically replaced by `--interp`. Probed in-place in `scripts/` to preserve `$HERE/scrip` path resolution.
+| Smoke gate | `--ir-run` (baseline) | `--interp --bb=brokered` | `--interp --bb=wired` |
+|------------|:--------------------:|:------------------------:|:---------------------:|
+| `test_smoke_icon.sh` | 5/0 | **5/0** ✅ | **5/0** ✅ |
+| `test_smoke_prolog.sh` | 5/0 | **5/0** ✅ | **5/0** ✅ |
+| `test_smoke_raku.sh` | 5/0 | **5/0** ✅ | **5/0** ✅ |
+| `test_smoke_rebus.sh` | 4/0 | **4/0** ✅ | **4/0** ✅ |
+| `test_smoke_scrip_all_modes.sh` | 2/0 | 2/0 ✅ | 2/0 ✅ |
+| **`test_smoke_snobol4.sh`** | **6/1** | **7/0** 🎉 | **7/0** 🎉 |
+| `test_smoke_snocone.sh` | 5/0 | 5/0 ✅ | 5/0 ✅ |
+| **`test_smoke_unified_broker.sh`** | **21/28** | **22/27** ✅ | **22/27** ✅ |
+| `test_smoke_sn26_label_flow.sh` | 1/2 | 0/3 ⚠️ | 0/3 ⚠️ |
+| `test_smoke_sn26_auto_binary.sh` | 1/0 | NORESULT * | NORESULT * |
+| `test_smoke_sn26_scr_subscript_bridge.sh` | 1/0 | NORESULT * | NORESULT * |
+| `test_smoke_snobol4_jit.sh` | NORESULT | NORESULT | NORESULT |
 
-| Language | `--ir-run` result | `--interp` result | Verdict |
-|----------|---:|---:|---|
-| SNOBOL4 (`test_smoke_snobol4.sh`) | 6/1 (pattern fail pre-existing) | 6/1 | ✅ no mode-1 dependency |
-| Snocone (`test_smoke_snocone.sh`) | 5/0 | 5/0 | ✅ no mode-1 dependency |
-| Icon (`test_icon_ir_all_rungs.sh`) | (PLAN: 194/265) | 194/36/35 of 265 | ✅ no mode-1 dependency (matches PLAN's "`--sm-run` measured 194/265 = `--ir-run` 194/265") |
-| Raku (`test_raku_fileio.sh`) | 0/2 | 0/2 | ⚠️ neutral (Raku already broken pre-CLI-3M) |
-| **Prolog (`test_smoke_prolog.sh`)** | **5/0** | **0/5** | ❌ **mode-1-dependent** |
-| **Rebus (`test_smoke_rebus.sh`)** | **4/0** | **0/4** | ❌ **mode-1-dependent** |
+* These tests assert with Python rather than emit `PASS=N FAIL=N`. Both modes produce the same AssertionError output — they're broken upstream, not regressed by mode-2.
+
+### Real findings
+
+1. **Five frontend languages — Icon, Prolog, Raku, Rebus, Snocone — convert cleanly to `--interp`.** All smoke gates green in both BB modes.
+2. **SNOBOL4 smoke gains a passing test** going from `--ir-run` (6/1) to `--interp` (7/0). The previously failing `pattern` test now passes under mode 2.
+3. **Unified broker gains 1** (21/28 → 22/27).
+4. **One real regression: `sn26_label_flow`** — diff shows mode 2 emits 4 LABEL records where mode 1 emits 3 (extra `LABEL name_id=4294967295 INTEGER(5)`). The test's other 2 cases fail in *both* modes (broken upstream). So the mode-1-only difference is exactly one extra label in the sync-monitor wire protocol.
+5. **`test_smoke_snobol4_jit.sh`** runs a 3-way comparator (`--interp` 196 vs `--run` 195) and reports `--run < --interp` — that's the test's own check failing, not a CLI-3M regression. The list of failing programs is essentially identical between `--interp` and `--run`. This is independent work.
 
 ### Implication for CLI-3M-6
 
-Prolog and Rebus *both* have semantics implemented in `interp_exec.c` (mode 1) that have never been ported to `lower.c` (modes 2/3/4). The PLAN's existing PST-RB Bug #2 note ("mode-1 interp_exec missing SUBJ-PAT split that lower.c does for modes 2/3/4") covers part of this, but it was framed as a single ~30-LOC fix for Rebus only. The empirical evidence shows it's broader:
+The PLAN's PST-RB Bug #2 sketch ("mode-1 interp_exec missing SUBJ-PAT split that lower.c does for modes 2/3/4") remains real but is *not* a CLI-3M-6 blocker. The Rebus smoke is green under `--interp`; PST-RB Bug #2 affects beauty.sno self-host territory, not basic smoke.
 
-- **Rebus:** 4/4 smoke tests collapse — entire pattern execution path missing from mode 2.
-- **Prolog:** 5/5 smoke tests collapse — likely the predicate-dispatch path or unification helper is mode-1-only.
-
-Closing these is a multi-language `lower.c` implementation effort, likely spanning several sessions. Lon's decision (session 2026-05-17): **accept the regression**. Prolog and Rebus go dark for mode-1-related work; CLI-3M-6 is scheduled as a large goal that the project absorbs.
-
-Icon's prior DAI-1..3 surgery (IJ-DEL-ICN-AST in GOAL-ICON-BB-JCON) is the template: it's exactly the same kind of work — port AST-interp paths into the lower.c → SM pipeline. Doing it for Prolog and Rebus follows the same playbook.
+**Genuine CLI-3M-6 scope:**
+1. Triage `sn26_label_flow`: 1 extra LABEL record in mode 2. Either fix mode 2 to emit one fewer label, or update the test to expect 4. Probably the latter (mode-2 is the future).
+2. Audit the `--ir-run` invocations in the 27 multi-mode scripts and the 1 Python script — verify each is safe to convert. The single-mode 57 scripts and 26 docs files convert by bulk sed.
+3. Decision on `--monitor` (CLI-3M-7) — its 3-way comparator becomes a 2-way comparator without mode 1, or it dies.
 
 ### Non-empirical observations
 
@@ -84,9 +102,10 @@ Icon's prior DAI-1..3 surgery (IJ-DEL-ICN-AST in GOAL-ICON-BB-JCON) is the templ
 
 1. **CLI-3M-7 — `--monitor` fate.** Currently it's an AST-vs-SM-vs-JIT comparator. With mode 1 gone, salvage as sm-vs-jit (delete the AST leg) or delete the mode entirely? Defaulting to deletion unless told otherwise.
 
-2. **CLI-3M-6 ordering.** Within the Prolog+Rebus lower.c work, which language first? Suggestion: Rebus first (smaller surface area — 4 smoke tests — and PST-RB Bug #2 already has a ~30-LOC sketch in PLAN), then Prolog (larger — interplay with `pl_broker.c` and the registry mechanism from PJ-9d-partial). Reverse is also defensible if Prolog is closer to working under modes 2/3/4 than the Rebus pattern engine.
+2. **CLI-3M-6 — `sn26_label_flow` regression.** Test expects 3 LABEL records; mode 2 emits 4. Fix mode 2 to match mode 1, or update test to expect 4? Mode 2 is the future, so updating the test reads as the right answer — but only if the extra label isn't actually wrong semantically. Need investigation of the SN-26 wire protocol intent.
 
 3. **`BB_MODE_DRIVER` vs `BB_MODE_BROKERED`.** These are functionally identical at the runtime check site (`stmt_exec.c:434`). Consolidating to one enum value is a small cleanup that could ride along with CLI-3M or be its own micro-goal.
+
 
 ---
 
