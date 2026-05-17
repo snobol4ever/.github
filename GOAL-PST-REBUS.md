@@ -114,8 +114,15 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   Sweep also landed: `snocone_parse.y` AST_* → TT_* (29 names, 89 occurrences; bridge `#define`s deleted from regenerated `.tab.c`); `snocone_lex.c` AST_* goto-labels → LX_* (45 names, 101 occurrences — they were lexer-state labels, never AST kinds).
   Watermark: one4all `1e6557c1`. Gates green (smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 6/1 baseline with pre-existing `pattern` test fail unrelated to this rung, crosscheck_snobol4 4/2 baseline, unified_broker 19/30 baseline).
 
+- [ ] **⛔ PST-RB-5i-PRE — CASE-SENSITIVE-ONLY sweep (BLOCKS 5i finish).** **NEXT SESSION STARTS HERE.**
+  Lon command 2026-05-17 (recorded as ABSOLUTE RULE in `RULES.md`, full plan in `GOAL-CASE-SENSITIVE-ONLY.md`): SCRIP supports zero case-folding across all six languages. Execute the CSO sweep before resuming any further parser_*.sc work, because the `rt_bb_arbno` ζ corruption (the wall that blocks 5i acceptance) lives downstream of pattern-matcher code that may itself touch fold paths during EVAL, and a clean case-only baseline removes a class of noise from that diagnosis.
+  - Read `GOAL-CASE-SENSITIVE-ONLY.md` (rungs CSO-1 through CSO-8). Execute in order.
+  - Default since SN-31 is already case-sensitive, so most sites are no-ops — sweep is primarily structural cleanup. Two sites are NOT no-ops and may surface test regressions for triage: `strcasecmp` → `strcmp` in `sc_dat_find_type`/`sc_dat_find_field` (CSO-4) and the `_usercall_hook` toupper-fallback at `interp_hooks.c:64-68` (CSO-5).
+  - Milestone 1 byte-identity (beauty.sno md5 `abfd19a7a834484a96e824851caee159`, 646 lines) MUST hold across every CSO rung — that is the invariant.
+  - When CSO-8 lands, return to PST-RB-5i (below) and resume rt_bb_arbno triage.
+
 - [ ] **PST-RB-5i 🔄 — Parser AST validation: parser_*.sc dump matches C-side tree_t dump.**
-  **Status (2026-05-17, Opus 4.7):** SL-5 root cause identified and partially fixed; downstream parser-runtime crash blocks acceptance.
+  **Status (2026-05-17, Opus 4.7):** SL-5 root cause identified and partially fixed; downstream parser-runtime crash blocks acceptance. **BLOCKED behind PST-RB-5i-PRE (CSO sweep).**
   Landed this session:
   1. **C-side `--dump-ast`** now works for rebus / icon / prolog / raku / snocone / snobol4 (was lang_snocone only at `scrip.c:273`). With this fix, 5 of 6 frontends emit usable canonical `tree_t` trees. Prolog frontend segfaults on `:- initialization(...)` / `findall` files — separate frontend bug, not 5i. `rung01_hello_hello.pl` is the working prolog sample.
   2. **BB pattern buffer caps raised** so parser_*.sc compound patterns fit:
@@ -188,7 +195,8 @@ status:     Subsystem suite 19/20 at HEAD (Qize SKIP under SL-3 — acceptance m
             but segfault in BB pattern runtime (rt_bb_arbno with corrupted ζ).
             C-side `--dump-ast` now works for all six frontends (was lang_snocone only).
             BB pattern buffer caps raised: FLAT_BUF_MAX 16K→256K, BB_POOL_SIZE 4MB→64MB.
-next:       PST-RB-5i finish (debug rt_bb_arbno ζ corruption) → 5j (6-fn trace) → 5k.
+next:       **PST-RB-5i-PRE (CASE-SENSITIVE-ONLY sweep — see GOAL-CASE-SENSITIVE-ONLY.md, rungs CSO-1..CSO-8). MUST RUN BEFORE PST-RB-5i finish.**
+            After CSO-8: PST-RB-5i finish (debug rt_bb_arbno ζ corruption) → 5j (6-fn trace) → 5k.
 
 SL-2 closed. SL-5 partial (downstream BB runtime crash). SL-3/4 open.
 
