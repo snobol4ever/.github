@@ -280,3 +280,136 @@ These are not bugs — each language has its own spec — but the cross-table mu
 - `one4all/src/frontend/snocone/snocone_parse.y` @ one4all HEAD `96d39c05`
 
 §§2-6 awaiting spec documents from Lon (see each section's "Request to Lon").
+
+---
+
+## §2 — SNOBOL4
+
+**Status:** ✅ Completed 2026-05-17 (Claude Sonnet 4.6).
+**Inputs:** SPITBOL Manual v3.7 Ch.15 (lines 9540–9900, `/tmp/spitbol.txt`) + `corpus/SCRIP/parser_snobol4.sc` @ corpus HEAD `1b24df4` + `one4all/src/frontend/snobol4/snobol4.y` @ one4all HEAD `96d39c05`.
+
+### Methodology
+
+Same as §1: Ch.15 is the spec; grammar shape (left-recursive Bison rule = left-assoc; right-recursive PEG FENCE rule = right-assoc; foldop+cont loop = left-fold) determines associativity; live `sbl` is the oracle. The SNOBOL4 `.sc` grammar uses a different idiom from the snocone one: instead of plain right-recursion it uses a **foldop+cont pattern** for left-associative operators, which correctly produces left-to-right folding. This is a significant structural improvement over `parser_snocone.sc`.
+
+**`foldop` semantics:** pops the top two stack items and reduces to a binary node. `Expr6cont` loops via tail-recursion and calls `foldop` after each new RHS, producing `reduce(reduce(a,b),c)` = left-fold.
+
+**SNOBOL4 note:** SNOBOL4 has no comparison-operator sugar (`==`, `!=`, etc.) and no compound assignment (`+=`, etc.). It uses SPITBOL built-in functions (`EQ()`, `NE()`, `LT()`, etc.) for numeric comparisons. The operator set is exactly the Ch.15 table.
+
+---
+
+### Binary operator table
+
+| Op | Pri | Assoc (Manual) | C grammar (`snobol4.y`) | `.sc` grammar (`parser_snobol4.sc`) | Status |
+|----|----:|----------------|------------------------|--------------------------------------|--------|
+| `=` | 0 | right | `expr0 : expr2 T_2EQUAL expr0` — right-assoc ✓ | `Expr0 = Expr1 FENCE($'=' Expr0 reduce(2)\|epsilon)` — right-assoc ✓ | ✅ |
+| `?` | 1 | **left** | `expr0 : expr2 T_2QUEST expr0` — right-assoc (shared with `=` in expr0) ⚠ | `Expr1 = Expr2 FENCE($'?' Expr1 reduce_opsyn('?',2)\|epsilon)` — right-assoc ⚠ | ⚠ **both right-assoc**; Manual says left. `a?b?c` is obscure enough that practical impact is nil. Note: .sc gives `?` its own level (Expr1); C grammar conflates `?` and `=` at expr0 — a minor structural difference with no semantic impact since `?` and `=` cannot chain together. |
+| `&` | 2 | **left** | `expr2 : expr2 T_2AMP expr3` — left-recursive ✓ | `Expr2 = Expr3 FENCE($'&' Expr2 reduce_opsyn('&',2)\|epsilon)` — right-recursive ❌ | ❌ **`.sc` right-assoc; Manual+C say left**. `&` is an OPSYN slot — no SNOBOL4 standard program uses it as a binary operator unless user-defined. Low practical impact; tree-shape divergence exists. |
+| `\|` | 3 | **right** | `expr3 : expr3 T_2PIPE expr4` — left-recursive (left-assoc) ⚠ | `Expr3 = Expr4 FENCE($'\|' Expr4 reduce(2) Expr3tail\|epsilon)` + `Expr3tail` loop — **left-fold** ⚠ | ⚠ **both left-assoc**; Manual says right. `a\|b\|c` = `TT_ALT(TT_ALT(a,b),c)` in both. Pattern alternation is operationally associative (first-match wins regardless of grouping), but tree shape differs from spec. C and `.sc` agree with each other. |
+| *space* | 4 | **right** | `expr4 : expr4 T_CONCAT expr5` — left-recursive (left-assoc) ⚠ | `Expr4 = Expr5 FENCE($'  ' Expr5 reduce(2) Expr4tail\|epsilon)` + `Expr4tail` loop — **left-fold** ⚠ | ⚠ **both left-assoc**; Manual says right. `a b c` = `TT_SEQ(TT_SEQ(a,b),c)`. Concat is associative for string values; tree shape differs from spec for pattern sequences. C and `.sc` agree. |
+| `@` | 5 | **right** | `expr5 : expr5 T_2AT expr6` — left-recursive ❌ | `Expr5 = Expr6 FENCE($'@' Expr5 reduce_opsyn('@',2)\|epsilon)` — right-recursive ✓ | ❌ **C is left-assoc (wrong)**; Manual+`.sc` say right. `@` captures cursor position to its operand — an OPSYN slot, rarely chained. `.sc` is correct; C grammar has a bug. |
+| `+` | 6 | **left** | `expr6 : expr6 T_2PLUS expr7` — left-recursive ✓ | `Expr6 = Expr7 FENCE($'+' Expr7 foldop('TT_ADD') Expr6cont\|\$'-' Expr7 foldop('TT_SUB') Expr6cont\|epsilon)` + `Expr6cont` loop — **left-fold** ✓ | ✅ both correct |
+| `-` | 6 | **left** | `expr6 : expr6 T_2MINUS expr7` — left-recursive ✓ | (same Expr6 rule as `+`) — left-fold ✓ | ✅ both correct |
+| `#` | 7 | **left** | `expr7 : expr7 T_2POUND expr8` — left-recursive ✓ | `Expr7 = Expr8 FENCE($'#' Expr7 foldop('TT_MUL')\|epsilon)` — right-recursive (no `cont` loop) ❌ | ❌ **`.sc` right-assoc; Manual+C say left**. `#` is a user-OPSYN slot (available at pri 7 left per Manual). No standard SNOBOL4 program uses `#` as binary. Low practical impact. |
+| `/` | 8 | **left** | `expr8 : expr8 T_2SLASH expr9` — left-recursive ✓ | `Expr8 = Expr9 FENCE($'/' Expr9 foldop('TT_DIV') Expr8cont\|epsilon)` + `Expr8cont` loop — left-fold ✓ | ✅ both correct |
+| `*` | 9 | **left** | `expr9 : expr9 T_2STAR expr10` — left-recursive ✓ | `Expr9 = Expr10 FENCE($'*' Expr10 foldop('TT_MUL') Expr9cont\|epsilon)` + `Expr9cont` loop — left-fold ✓ | ✅ both correct |
+| `%` | 10 | **left** | `expr10 : expr10 T_2PERCENT expr11` — left-recursive ✓ | `Expr10 = Expr11 FENCE($'%' Expr10 foldop('TT_DIV')\|epsilon)` — right-recursive (no `cont` loop) ❌ | ❌ **`.sc` right-assoc; Manual+C say left**. `%` is a user-OPSYN slot. No standard SNOBOL4 program uses `%` as binary. Low practical impact. |
+| `^ ! **` | 11 | **right** | `expr11 : expr12 T_2CARET expr11` — right-recursive ✓ | `Expr11 = Expr12 FENCE(($'^'\|$'!'\|$'**') Expr12 foldop('TT_POW') Expr11cont\|epsilon)` + `Expr11cont` loop — **left-fold** ❌ | ❌ **`.sc` left-assoc; Manual+C say right**. `2^3^2` under `.sc` = `(2^3)^2 = 64`; under C and SPITBOL = `2^(3^2) = 512`. **This is a value disagreement for chained exponentiation.** |
+| `$` | 12 | **left** | `expr12 : expr12 T_2DOLLAR expr13` — left-recursive ✓ | `Expr12 = Expr13 FENCE($'$' Expr13 reduce(2) Expr12tail_immed\|…)` + `Expr12tail_immed` loop — left-fold ✓ | ✅ both correct |
+| `.` | 12 | **left** | `expr12 : expr12 T_2DOT expr13` — left-recursive ✓ | (same Expr12 rule as `$`) + `Expr12tail_cond` loop — left-fold ✓ | ✅ both correct |
+| `~` | 13 | **right** | `expr13 : expr14 T_2TILDE expr13` — right-recursive ✓ | `Expr13 = Expr14 FENCE($'~' Expr13 reduce_opsyn('~',2)\|epsilon)` — right-recursive ✓ | ✅ both correct |
+
+---
+
+### Notable structural observation: `foldop+cont` vs plain right-recursion
+
+`parser_snobol4.sc` uses a different pattern from `parser_snocone.sc` for left-associative operators:
+
+```
+* snobol4 .sc (correct for +/-):
+Expr6     = *Expr7 FENCE($'+' *Expr7 foldop("'TT_ADD'") *Expr6cont | ... | epsilon);
+Expr6cont = FENCE($'+' *Expr7 foldop("'TT_ADD'") *Expr6cont | ... | epsilon);
+
+* snocone .sc (WRONG for +/-):
+Expr6 = *Expr7 FENCE($'+' *Expr6 reduce("'TT_ADD'", 2) | ... | epsilon);  ← right-recursive!
+```
+
+The `cont` helper makes `foldop` fire after each new RHS is pushed, iterating left-to-right. This is the correct idiom for left-associative operators in the SCRIP PEG framework. **`parser_snobol4.sc` applies this correctly for `+`, `-`, `/`, `*` and `$`, `.`** — these all have `cont` loops.
+
+The bug is that `#` (Expr7) and `%` (Expr10) have `foldop` but **no `cont` loop** — they are single-application foldop into a right-recursive descent. And `^` (Expr11) has a `cont` loop but uses `foldop`, making it left-fold when it should be right-recursive.
+
+---
+
+### Findings summary for SNOBOL4
+
+**Major (value disagrees with SPITBOL):**
+
+| Expression | SPITBOL value | C tree | `.sc` tree | Impact |
+|------------|---------------|--------|------------|--------|
+| `2 ^ 3 ^ 2` | `512` (right-assoc: 2^9) | `TT_POW(2, TT_POW(3,2))` ✓ | `TT_POW(TT_POW(2,3), 2)` ❌ | **Numeric disagreement on chained exponentiation** |
+
+**Minor (OPSYN operators — no standard program chains them):**
+
+| Bug | Description | Practical impact |
+|-----|-------------|-----------------|
+| `&` right-assoc in `.sc` (should left) | `a & b & c` → `.sc`: `TT_OPSYN(a, TT_OPSYN(b,c))`; C: `TT_OPSYN(TT_OPSYN(a,b),c)` | OPSYN slot, never standard-used as binary |
+| `@` left-assoc in C (should right) | `a @ b @ c` → C: `TT_OPSYN(TT_OPSYN(a,b),c)`; `.sc`: `TT_OPSYN(a, TT_OPSYN(b,c))` | OPSYN slot cursor-assign, rarely chained |
+| `#` right-assoc in `.sc` (should left) | `a # b # c` → `.sc` right-fold; C left-fold | OPSYN slot, never standard-used |
+| `%` right-assoc in `.sc` (should left) | same | OPSYN slot, never standard-used |
+
+**Cosmetic (C and `.sc` agree but both diverge from Manual):**
+
+| Issue | Manual | Both grammars | Impact |
+|-------|--------|---------------|--------|
+| `?` right-assoc | Manual says left | Both right-assoc | Chained scan `a?b?c` is obscure; same finding as §1 |
+| `\|` left-assoc | Manual says right | Both left-assoc | Tree shape: `TT_ALT(TT_ALT(a,b),c)` vs `TT_ALT(a,TT_ALT(b,c))`; first-match semantics unaffected |
+| space left-assoc | Manual says right | Both left-assoc | Concat associative for strings; pattern sequences may differ |
+
+---
+
+### Recommended fixes
+
+**Fix 1 (required — value bug): `Expr11` exponentiation in `parser_snobol4.sc`**
+
+Replace the `foldop+cont` (left-fold) pattern with a plain right-recursive descent, matching the C grammar and the Manual:
+
+```
+* BEFORE (wrong — left-fold):
+Expr11     = *Expr12 FENCE(($'^' | $'!' | $'**') *Expr12 foldop("'TT_POW'") *Expr11cont | epsilon);
+Expr11cont = FENCE(($'^' | $'!' | $'**') *Expr12 foldop("'TT_POW'") *Expr11cont | epsilon);
+
+* AFTER (correct — right-assoc):
+Expr11 = *Expr12 FENCE(($'^' | $'!' | $'**') *Expr11 reduce("'TT_POW'", 2) | epsilon);
+```
+
+This mirrors the C grammar `expr11 : expr12 T_2CARET expr11` exactly. `2^3^2` will produce `TT_POW(2, TT_POW(3,2))` = 512 ✓.
+
+**Fix 2 (minor — OPSYN `#` and `%` consistency): Add `cont` loops to `Expr7` and `Expr10`**
+
+```
+* BEFORE Expr7 (wrong — single foldop, right-assoc):
+Expr7  = *Expr8 FENCE($'#' *Expr7 foldop("'TT_MUL'") | epsilon);
+
+* AFTER (correct — foldop+cont, left-fold):
+Expr7     = *Expr8 FENCE($'#' *Expr8 foldop("'TT_MUL'") *Expr7cont | epsilon);
+Expr7cont = FENCE($'#' *Expr8 foldop("'TT_MUL'") *Expr7cont | epsilon);
+
+* Same fix for Expr10 (%):
+Expr10     = *Expr11 FENCE($'%' *Expr11 foldop("'TT_DIV'") *Expr10cont | epsilon);
+Expr10cont = FENCE($'%' *Expr11 foldop("'TT_DIV'") *Expr10cont | epsilon);
+```
+
+**Fix 3 (minor — `&` right-assoc in `.sc`):** Change `Expr2` from `FENCE($'&' *Expr2 …)` to `FENCE($'&' *Expr3 foldop(…) *Expr2cont …)`. Low priority — no SNOBOL4 program uses `&` as a binary operator without an OPSYN definition, and even then chaining it is exotic.
+
+**Do not fix:** `?`, `|`, space left/right discrepancies — C and `.sc` agree with each other, both grammars intentionally produce binary-chain trees (left-associative), and the functional impact is nil for the transpiler's current corpus.
+
+**Do not fix in C grammar:** `@` left-assoc in C (`expr5 : expr5 T_2AT expr6`). This is a pre-existing C grammar bug (Manual says right-assoc); `.sc` is accidentally correct. Fixing the C grammar requires a Bison grammar change. Lon decision required.
+
+---
+
+### Authors
+
+§2 (SNOBOL4) audited by Claude Sonnet 4.6 on 2026-05-17, against:
+- SPITBOL Manual v3.7 (Catspaw 2000), Ch.15 (lines 9540–9900 in `/tmp/spitbol.txt`)
+- `corpus/SCRIP/parser_snobol4.sc` @ corpus HEAD `1b24df4`
+- `one4all/src/frontend/snobol4/snobol4.y` @ one4all HEAD `96d39c05`
