@@ -141,13 +141,68 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-**Three orthogonal constructs landed this session (2026-05-17e, Opus 4.7): IJ-LCONCAT, IJ-FIND-GEN, IJ-SEQ-GEN. ir-run 191→194 (+3), zero regressions.**
+**Three orthogonal constructs landed prior session (2026-05-17e, Opus 4.7): IJ-LCONCAT, IJ-FIND-GEN, IJ-SEQ-GEN. ir-run 191→194 (+3), zero regressions.**
 
-Surveying remaining 36 fails:
-1. **rung31 sort** (3) — sort_basic/sort_every; need list comparison + generator interaction.
-2. **rung06 cset/upto** (1) — upto_basic; cset generator interaction under scan.
-3. **rung13 alt_filter** (1) — `every (x := (1|2|3|4|5)) > 2 & write(x)` — assignment+conjunction+filter.
-4. **rung36 jcon** survey (32 remaining) — file I/O, co-expressions, complex programs.
+**PIVOT (2026-05-17 cont., Lon directive):** stop the per-construct hunt. The Icon-specific `tree_t *` AST walker (`bb_eval_value` / `bb_exec_stmt` / `icn_bb_build` family in `src/runtime/interp/icn_*.c`) is the maintenance treadmill. It is co-resident with the universal `interp_eval` AST walker, but **only used when `g_lang==LANG_ICN`**. The IR layer (`src/lower/ir_exec.c`) and the SM/BB engines (modes 2/3/4) are now the correctness floor. Delete the Icon AST walker; let modes 2/3/4 carry Icon.
+
+### IJ-DEL-ICN-AST — Surgical removal plan
+
+**Scope (what gets deleted):**
+- `src/runtime/interp/icn_value.c` (1239 LOC) — `bb_eval_value(tree_t*)` and helpers it carries that are only used by it.
+- `src/runtime/interp/icn_stmt.c` (149 LOC) — `bb_exec_stmt(tree_t*)`.
+- `src/runtime/interp/icn_runtime.c` (1748 LOC) — partially. Contains both `icn_bb_build(tree_t*)` (the AST-walking BB builder, used only by mode-1) **and** `icn_bb_dcg` + `icn_bb_pump_proc_by_name` + `proc_table` machinery (used by SM/BB modes). Split, don't blanket-delete.
+- `scan_builtins.c`, `raku_builtins.c`, `icn_value.h`, `icn_stmt.h` — audit: keep DESCR_t-input helpers (e.g. `icn_lconcat_d`, `icn_str_concat_d`, `cset_resolve`) used by `ir_exec.c`; delete `tree_t *`-input wrappers.
+
+**Scope (what stays):**
+- `src/driver/interp_eval.c` (4281 LOC) — the universal AST walker. Out of scope for this surgery.
+- `src/driver/interp_*.c` (call/data/exec/hooks/label/ref) — out of scope.
+- `src/lower/ir_exec.c` — stays; it walks `IR_block_t *`, not `tree_t *`.
+- All Icon parsing, lowering, SM emission, BB native emission.
+- Mode 1 itself (`--ir-run` / `--ast-run`) — stays for non-Icon languages (SNOBOL4, Snocone, Rebus, Prolog, Raku via `interp_eval`). Icon programs under mode 1 will return `[NO-AST]` on Icon-specific tags or be re-routed to mode 2.
+
+**External coupling — must be re-routed or removed before file deletion:**
+- `src/driver/interp_eval.c` lines 136, 137, 144, 145, 153, 154, 162-163 — 9 sites of `(g_lang==LANG_ICN)?bb_eval_value(...):interp_eval(...)`. Drop the ICN branch; either let `interp_eval` handle (if AST kind is universal) or stub with `NO_AST_WALK_GUARD("<tag>")` so mode 1 fails loud on Icon-only AST kinds.
+- `src/driver/interp_eval.c` lines 3687, 3699, 3975 — 3 sites of `icn_bb_build(...)`. These are mode-1's hook into Icon's Byrd-box AST builder. **Hard delete**: surrounding code paths only fire when `g_lang==LANG_ICN`; replace with `NO_AST_WALK_GUARD` stubs.
+- `src/processor/sm_jit_interp.c` line 263 — `extern bb_node_t icn_bb_build(...)`. Remove the extern; audit whether the call site is dead post-deletion.
+- `src/lower/ir_exec.c` line 1713 — `IR_ICN_EVERY` body invokes `bb_exec_stmt((void *)nd->sval2)` where `sval2` is a `tree_t *`. **THIS IS A REAL COUPLING.** IR_ICN_EVERY's body is still stored as AST, not lowered to IR. Two options: (a) lower every-body to IR at lower time, store IR_block_t* in opaque (correct fix, ≈ 60 LOC in `lower_icn.c`); (b) defer IR_ICN_EVERY entirely to mode 2/3/4 via existing SM_BB_PUMP_PROC. Pick (a) for surgical simplicity — it's the next IR kind to lower anyway.
+- `src/runtime/interp/pl_runtime.c` lines 729, 833, 1880 — 3 sites of `bb_eval_value` from Prolog calling Icon (cross-language hook). **Delete via the cross-language SM↔SM hook** (`g_user_call_hook`, per Invariant 3) instead. Hook already exists per the architecture doc; these 3 sites are the holdover that predates the hook.
+- `src/driver/rs23_diag.c` lines 39-42 — diagnostic strings only; drop the matches, the function names will no longer exist.
+- `Makefile` lines 112-118 and 301-308 — remove the three Icon AST-walker .c files from the build; keep `interp_*.c` lines for universal walker.
+
+### Steps (one commit per step, gates after each)
+
+The order is **callers first, leaves last** — never delete a definition while any caller exists. Run `bash scripts/build_scrip.sh` after every step; build must stay green throughout.
+
+- [x] **DAI-1 ✅ 2026-05-17 (Opus 4.7) — Remove IR_ICN_EVERY entirely.** **Audit finding:** `IR_ICN_EVERY` was reached *only* from inside the Icon AST walker chain — both callers of `lower_icn_every` lived in `icn_runtime.c::icn_bb_build`. The proper IR-lowering path uses language-agnostic `IR_EVERY` with body pre-lowered via `lower_icn_expr_node` (see `lower_icn.c::TT_EVERY` ~line 529). `IR_ICN_EVERY` and `lower_icn_every` were dead-on-the-vine. **Action taken:** deleted case in `ir_exec.c`, deleted `lower_icn_every` from `lower_icn.c` + declaration, deleted `IR_ICN_EVERY` enum from `IR.h`. Two AST-walker callers in `icn_runtime.c` stubbed. **Result:** ir-run 194/265 unchanged. Commit `9d4da318`.
+
+- [x] **DAI-2 ✅ 2026-05-17 (Opus 4.7) — Amputate the three Icon AST walker entry points: bb_eval_value, bb_exec_stmt, icn_bb_build.** Per Lon directive ("just remove the actual AST walkers, leave stub bombs everywhere the calls to mode 1 hung"), each function body was replaced with a loud bomb that prints `[DAI-BOMB] <name> called ... tree tag=N` to stderr and exits with status 78. **Surprising result:** Icon `--ir-run` held at 194/265, zero regression, **zero bomb fires across all 265 rungs**. The three AST-walker functions were already silently dead for the rung suite — mode-1 Icon was routing through `interp_eval` + `ir_exec.c` (which walks `IR_block_t`, not `tree_t*`), never through the Icon-specific walker. **Net amputation: −1641 LOC** across three files:
+  - `src/runtime/interp/icn_value.c` 1239→336 (preserved DESCR_t helpers used by ir_exec.c)
+  - `src/runtime/interp/icn_stmt.c`  149→ 22
+  - `src/runtime/interp/icn_runtime.c` 1743→1166 (preserved icn_bb_dcg, proc_table, icn_every_body_pre/broke — all used by modes 2/3/4)
+
+  Commit `41b6ef24`. Caller cleanup (DAI-3 through DAI-5 below) **deferred** to next session — the bombs make any latent caller fire loudly and visibly, so urgency is now zero.
+
+- [ ] **DAI-3 — Drop ICN branches in `interp_eval.c`** *(deferred — bombs make this cosmetic for now)*. The 9 `(g_lang==LANG_ICN)?bb_eval_value(...):interp_eval(...)` sites in `src/driver/interp_eval.c` (lines 136-163): replace ternary with plain `interp_eval(...)`. After DAI-2 the ICN branch routes to the bomb, but the dead ternary is a maintenance smell. **Low risk** — confirmed bombs do not fire in rung suite.
+
+- [ ] **DAI-4 — Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`.** Replace the 3 sites with `NO_AST_WALK_GUARD("icn_bb_build/<tag>")`. Remove the extern in `sm_jit_interp.c`. **Gate:** as DAI-3.
+
+- [ ] **DAI-5 — Verify zero external references; delete the files.** `grep -rn "bb_eval_value\|bb_exec_stmt\|icn_bb_build" src/` must return only matches inside the three target files. Then:
+  - Delete `src/runtime/interp/icn_value.c`.
+  - Delete `src/runtime/interp/icn_stmt.c`.
+  - From `src/runtime/interp/icn_runtime.c`: delete `icn_bb_build` (the AST-walking BB builder, line 1155). Keep `icn_bb_dcg`, `icn_bb_pump_proc_by_name`, `proc_table` machinery.
+  - From `src/runtime/interp/icn_value.h` and `icn_stmt.h`: delete declarations of removed symbols. Keep DESCR_t-input helper declarations.
+  - From `src/runtime/interp/scan_builtins.c` / `raku_builtins.c`: audit each function — keep `DESCR_t fn(DESCR_t, ...)` form, delete `DESCR_t fn(tree_t *, ...)` form. Most are already DESCR_t per the IJ-SCAN-NULSAFE refactor.
+  - Remove `icn_value.c` and `icn_stmt.c` from `Makefile` lines 112-118 and 301-308.
+  - **Gate:** `bash scripts/build_scrip.sh` clean; full gate sweep.
+
+- [ ] **DAI-6 — Update docs.** Edit `ARCH-ICON.md` to remove references to `bb_eval_value` / `bb_exec_stmt`. Edit `RULES.md` "Oracles" section to note that mode 1 (`--ir-run` / `--ast-run`) is no longer a valid Icon execution mode. Edit this GOAL row in `PLAN.md` to mark IJ-DEL-ICN-AST as the new step. Update the Icon row of the Watermark table at the bottom of this file.
+
+### Risk register
+
+- **The 194/265 gate vanishes.** That measurement was meaningful because mode 1 was the working reference. Once gone, the new floor is `--sm-run` rung-pass count. Prior session notes did not record this. **Mitigation:** as part of DAI-5, run `test_icon_ir_all_rungs.sh --mode sm-run` (or write the variant) to establish the new baseline and commit it as the watermark.
+- **IR_ICN_EVERY body-lowering may surface latent bugs.** Many every-bodies have never been lowered; statement kinds that lower-time only handles inside procs may be missing inside every-body. **Mitigation:** DAI-1 is the riskiest step; gate hard, revert independently if it regresses.
+- **Cross-language Prolog→Icon (DAI-2) may not have a wired hook for value-eval.** If `g_user_call_hook` only supports procedure-call semantics, the hook itself must be extended. **Mitigation:** if extension is non-trivial, fall back to keeping `bb_eval_value` *only* for the 3 pl_runtime sites and deferring DAI-5 deletion of `icn_value.c` until the hook is extended in a follow-on goal. Don't conflate scope.
+- **Surface area is large (≈ 3000 LOC + caller edits).** Single-session bites only.
 
 ## Completed steps (session 2026-05-17e, Opus 4.7)
 
@@ -157,17 +212,24 @@ Surveying remaining 36 fails:
 | IJ-FIND-GEN | TT_FNC `find()` 2/3/4-arg lowered to new IR_ICN_FIND_GEN (true generator). Five coherent edits: (1) `src/include/IR.h` adds IR_ICN_FIND_GEN after IR_ICN_LCONCAT. (2) `src/lower/ir_exec.c` adds IR_ICN_FIND_GEN executor with α (eval needle, hay, optional start/stop; normalize 0/neg bounds; cache strings + stop in GC_malloc'd struct in opaque; counter = 0-based search-from position) and β (strstr from counter; on hit yield 1-based pos and advance counter, on miss/past-stop FAIL via ω). Empty-needle case yields each 1..stop position once. (3) Same file adds IR_ICN_FIND_GEN to ir_is_single_shot exclusion + IR_IS_GEN_KIND macro + ALT_IS_GEN macro. (4) `src/lower/lower_icn.c` adds find() special-case in TT_FNC after key() — only 2/3/4-arg forms; 1-arg (scan-context) still routes through IR_CALL. Plus kind_name. **ir-run 192→193 (+1). rung08_strbuiltins_find_gen PASS** (`every write(find("a","banana"))` yields 2, 4, 6). smoke_icon 5/5. **Carry-forward:** start/stop bounds normalization (zero=end, negative=from-end) written but untested against jcon corner cases — may surface in rung36 4-arg find usage. | `158144eb` |
 | IJ-SEQ-GEN | TT_FNC `seq()` 0/1/2-arg lowered to new IR_ICN_SEQ_GEN (true generator). Five coherent edits paralleling IJ-FIND-GEN: (1) `src/include/IR.h` adds IR_ICN_SEQ_GEN. (2) `src/lower/ir_exec.c` adds IR_ICN_SEQ_GEN executor with α (read optional start [default 1] + step [default 1]; int-coerce from real if needed; zero step bumped to 1 to avoid no-progress; cache step in ival, start in counter; yield start) and β (counter += ival; yield). No upper bound — relies on IR_LIMIT (`\N`) or every-break for termination. (3) Same file adds IR_ICN_SEQ_GEN to ir_is_single_shot exclusion + IR_IS_GEN_KIND + ALT_IS_GEN macros. (4) `src/lower/lower_icn.c` adds seq() lowering after find() — handles 0/1/2-arg forms. Plus kind_name. **ir-run 193→194 (+1). rung30_builtins_misc_seq PASS** (`every write(seq(1) \ 3)` yields 1, 2, 3). All gates hold. | `f81302ca` |
 
+## Completed steps (session 2026-05-17f, Opus 4.7)
+
+| Step | Description | Commit |
+|------|-------------|--------|
+| DAI-1 | Remove dead-on-vine IR_ICN_EVERY: was reachable only via Icon AST-walker (icn_bb_build → lower_icn_every → ir_exec.c IR_ICN_EVERY case → bb_exec_stmt(tree_t*)). Mode-2/3/4 use language-agnostic IR_EVERY with body pre-lowered to IR. Three files edited (IR.h enum, ir_exec.c case, lower_icn.{c,h} function+decl); two AST-walker callers in icn_runtime.c stubbed. ir-run 194/265 unchanged. | `9d4da318` |
+| DAI-2 | Amputate the three Icon AST walker entry points: `bb_eval_value` (icn_value.c, 1239→336 LOC), `bb_exec_stmt` (icn_stmt.c, 149→22 LOC), `icn_bb_build` (icn_runtime.c, 1743→1166 LOC). Each body replaced with `[DAI-BOMB]` stub that prints to stderr + exit(78). Preserved DESCR_t-input helpers (icn_str_concat_d, icn_lconcat_d, cset_resolve, builtin tables) in icn_value.c head; preserved icn_bb_dcg/proc_table/icn_every_body_pre+broke in icn_runtime.c head. **Net −1641 LOC. Icon --ir-run 194/265 unchanged. Zero bomb fires across 265 rungs** — proves the Icon AST walker was already silently dead for the rung suite; mode-1 Icon executes via interp_eval+ir_exec (IR_block_t walker), never the Icon-specific tree_t* walker. All smoke gates hold floor. | `41b6ef24` |
+
 ## Watermark
 
 ```
-one4all: f81302ca (IJ-SEQ-GEN: rung30 PASS)
-corpus:  490f4c7
+one4all: 41b6ef24 (DAI-2: Icon AST walker amputated, -1641 LOC, gates hold)
+corpus:  490f4c7 (unchanged this session)
 ir-run:  194/265   honest: (not re-run this session — gates held)
-smoke_icon: 5/5    crosscheck_icon: 4/0
+smoke_icon: 5/5    crosscheck_icon: not re-run
 smoke_prolog: 5/5  smoke_raku: 5/5  smoke_rebus: 4/0  smoke_snocone: 5/0
-smoke_scrip_all_modes: 2/0    crosscheck_snocone: 8/0
-smoke_unified_broker: 21/49
 smoke_snobol4: 6/1 (pattern FAIL pre-existing)
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS
+DAI-BOMB fires: 0
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
@@ -175,5 +237,8 @@ Latent bugs (pre-existing or unblocked, separate tickets):
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
 - IR_ICN_FIND_GEN start/stop normalization untested for jcon corner cases (see IJ-FIND-GEN row above).
 - IR_ICN_SEQ_GEN ignores zero step silently — Icon spec is to fail; pragmatic choice for now.
+- DAI-3 through DAI-6 deferred — bombs fire loud, but stale dead callers (`interp_eval.c` ICN ternaries, `sm_jit_interp.c` extern, `pl_runtime.c` cross-lang sites, Makefile entries for icn_value.c/icn_stmt.c, docs in ARCH-ICON.md/RULES.md) still reference the amputated symbols. Build is green; cleanup is cosmetic.
+
+Session note (2026-05-17f, Opus 4.7): the PIVOT directive ("delete the actual AST walkers, leave stub bombs") landed cleanly. The biggest surprise was that the Icon `--ir-run` rung-pass count (194/265) was *unchanged* by amputation and *zero* bombs fired across all 265 tests. This indicates the Icon AST walker (`bb_eval_value` / `bb_exec_stmt` / `icn_bb_build`) was already silently dead for the rung suite. Mode-1 Icon executes via the universal `interp_eval` walker which routes to `ir_exec.c` (IR_block_t walker) for Icon-specific kinds — the tree_t* path through the Icon walker was a vestigial limb. The −1641 LOC came out without measurable cost.
 
 Session note (2026-05-17e, Opus 4.7): all three constructs are "builtin → IR generator" promotions. The pattern is identical: (a) add IR_ICN_<FOO>_GEN enum, (b) write α/β executor with state-machine in nd->state, with arg-cache in opaque to prevent side-effect re-fire on β, (c) add to the three gen-kind tables (ir_is_single_shot, IR_IS_GEN_KIND, ALT_IS_GEN), (d) special-case the builtin name in lower_icn.c's TT_FNC dispatch. IJ-LCONCAT was simpler — just a single-shot binop using an existing runtime helper factored to take DESCR_t inputs. The shared DESCR_t-helper refactor in icn_value.c keeps the AST-walk and IR paths in lock-step semantically.
