@@ -324,6 +324,14 @@ on Lon's call AND on -i/-j convergence).
 ### SN-30 — UPPERCASE keyword case for SPITBOL x64 (mostly closed)
 SN-30a..e and SN-30g landed; x64 @ `cc68516` accepts UPPERCASE keywords under `-bf` and self-hosts beauty to byte-identical output with CSNOBOL4. Open: SN-30f (explicit regression sweep of SN-7=51/51, Broad=225/225, SN-9c=207/207/207 under new sbl). Supersedes SN-25.
 
+### SN-REPLACE-EQ — tighten SCRIP's REPLACE to SPITBOL's equal-length semantics (opened 2026-05-17)
+**Discovered:** by SCT-2 in GOAL-PARSER-SC-TRANSPILE. `parser_rebus.sc`, `parser_icon.sc`, `parser_raku.sc` all transpiled to SNOBOL4 calling `REPLACE(t, "'", "")` (via `corpus/SCRIP/semantic.sc`'s `qtag`). SPITBOL hit ERROR 171 at every site: SPITBOL's `REPLACE(s, X, Y)` is a character-mapping translation requiring `SIZE(X) == SIZE(Y)`. SCRIP's `REPLACE` today accepts unequal-length 2nd/3rd args and behaves as substring substitution.
+**Done-when:** `scrip --ir-run` and `scrip --sm-run` reject `REPLACE(t, "'", "")` with the same ERROR 171 SPITBOL emits. The character-mapping semantics applies: SCRIP's REPLACE becomes a translation operation, not a substring-substitution operation. Add a regression test under `corpus/programs/snobol4/spitbol-conformance/replace_eq.sno` that round-trips through SPITBOL and SCRIP and confirms identical error behavior.
+**Workaround landed (SCT-2):** `corpus/SCRIP/semantic.sc` now uses equal-length `REPLACE(t, "'", 'x')`. That keeps the parser corpus portable today; SN-REPLACE-EQ closes the divergence at the runtime level.
+**Rationale:** per RULES.md ABSOLUTE RULE "SCRIP's SNOBOL4 and Snocone semantics follow SPITBOL" — listed in the rule's "Known OPEN divergences" subsection.
+**Risk:** LOW. The substring-substitution capability isn't lost — a separate function name (e.g. `STRREPLACE` or pattern-strip via `BREAK`+assign) can serve users who need substring removal. The change is "rename existing behavior, restore strict SPITBOL behavior to REPLACE". Audit corpus for current REPLACE callers first to scope the rename.
+**Dependencies:** none. Independent of SN-26, SN-27, SN-28, SN-30.
+
 ### SN-31 — scrip default case-sensitive [CLOSED 2026-04-24]
 `sno_fold_on` flipped 1→0 in `snobol4.l:60`; `opt_case_sensitive` default flipped to 1 in `scrip.c:137`; `--case-sensitive` now a no-op (back-compat). Smoke=7, Broker=49.
 
