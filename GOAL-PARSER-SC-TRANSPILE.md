@@ -451,32 +451,105 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
       the `$'(' = pattern` token-slot bug (SPITBOL can't assign through
       indirect to special-char names). Owned by SCT-9h below.
 
-  - [ ] **SCT-9g — Precedence and associativity audit against SPITBOL Manual
-    Ch.15.** (Lon directive 2026-05-17.) The shift/reduce action layout
-    forces children to arrive left-to-right in token order — we cannot
-    reorder them. We CAN choose when to flatten n-ary, and we MUST ensure
-    grammar precedence and associativity match the SPITBOL Manual Ch.15
-    operator table verbatim. Action items:
-    1. Enumerate every binary operator in `snocone_parse.y` and confirm its
-       precedence + associativity vs Ch.15 line 9830+ (assoc left/right, pri 0–12).
-    2. Cross-check `parser_snocone.sc` Expr0..Expr17 against the same.
+  - **SCT-9g — Precedence and associativity audit across ALL SIX languages.**
+    (Lon directive 2026-05-17, scope-expanded 2026-05-17 Opus 4.7.) The
+    transpiler covers six frontends (snobol4, snocone, rebus, icon, raku,
+    prolog), each with a C-side parser in `src/frontend/<lang>/` AND a
+    Snocone-side `parser_<lang>.sc`. Both sides must produce the same
+    `tree_t` shape AND that shape must match the language's authoritative
+    spec (SPITBOL Manual for snobol4/snocone, language reference for the
+    others). Action items per language:
+    1. Enumerate every binary operator in the C grammar and confirm its
+       precedence + associativity vs the language spec.
+    2. Cross-check `parser_<lang>.sc` against the same.
     3. For each operator, list the canonical 3-arg test (`a OP b OP c`) and
        the expected n-ary-flattened tree. Both grammars must produce the
        same shape after flatten.
-    4. POW is right-assoc binary (Ch.15 pri 11) — never flattened. Confirm
-       a^b^c → (TT_POW a (TT_POW b c)) in BOTH C and .sc.
-    5. CAPT_IMMED_ASGN ($) and CAPT_COND_ASGN (.) are left-assoc pri 12 —
-       confirm a.b.c shape matches.
-    6. Mixed-op chains (e.g. `a + b - c`, `a * b + c`) — these are NOT
-       flattened (different tags). Confirm both grammars produce the same
-       left-or-right-assoc shape per Ch.15. **Current divergence noted:**
-       C produces `(TT_SUB (TT_ADD a b) c)` (left-assoc); .sc produces
-       `(TT_ADD a (TT_SUB b c))` (right-assoc grammar shape). Ch.15 says
-       priorities 6/6 left-assoc → C is correct, .sc is wrong. Either fix
-       .sc grammar to be left-assoc, or accept the divergence with a
-       documented exception. Lon decision required.
-    7. Output: `.github/PRECEDENCE-AUDIT.md` table + commits to whichever
-       grammar(s) need correction.
+    4. Document divergences in `.github/PRECEDENCE-AUDIT.md` (one section
+       per language). Commit grammar-correction patches per Lon decision.
+
+    Sub-rungs (one per language; each independent):
+
+    - [x] **SCT-9g-snocone** ✅ 2026-05-17 (Opus 4.7).
+      Spec: SPITBOL Manual v3.7 Ch.15 (operator priority table at line 9830+).
+      Oracle: live `sbl` at `/home/claude/x64/bin/sbl`, verified by
+      `probe_assoc.sno` and `mixed_op_truth.sno` (manual matches binary
+      throughout). **Findings:**
+      - `+ - * /` (pri 6/6/9/8) are LEFT-assoc per Manual + oracle. **C frontend
+        (`snocone_parse.y`) is correct.** **`.sc` (`parser_snocone.sc`) is
+        right-recursive — wrong** for mixed-op chains (`a+b-c` produces
+        `(TT_ADD a (TT_SUB b c))` instead of `(TT_SUB (TT_ADD a b) c)`).
+        Smoking-gun: `20 - 5 + 2` — SPITBOL = 17, C path = 17, `.sc` direct-exec
+        path = 13.
+      - POW (pri 11) correctly RIGHT-assoc in both.
+      - CAPT `$` `.` (pri 12) LEFT-assoc in C; `.sc` hand-rolled 2-deep FENCE
+        (accepts max `a.b.c`, rejects `a.b.c.d`). Low impact for current corpus.
+      - `?` (pri 1) is right-assoc in both; Manual says LEFT. Low impact.
+      - Snocone-extension binary `# % & ~ @` present only in `.sc`. C
+        grammar-coverage gap.
+      **Deliverable:** `.github/PRECEDENCE-AUDIT.md` (Snocone section in place).
+      **Recommended fix:** Bring `.sc` to match SPITBOL Manual + C frontend
+      (rewrite Expr6..Expr11 right-recursion to n-ary left-folding). **Lon
+      decision required** before applying.
+      **Bonus fix landed:** `src/lower/lower_sno.c::emit_expr` TT_ADD/SUB/MUL/DIV
+      cases were emitting only `c[0] op c[1]`, silently dropping n-ary children
+      `c[2..n-1]`. Rewrote as left-folded n-ary emission. Verified end-to-end:
+      `--dump-sno | sbl` of `20-5+2` → 17 (was 5); `100-30+10-5` → 75 (was 65).
+      Snocone fixture gate: 60/7/0 pre = 60/7/0 post (no regressions; the 7
+      FAILs are pre-existing augmented_* and break_for/continue_for).
+      Followup: `.sc` grammar fix per Lon decision.
+
+    - [ ] **SCT-9g-snobol4** — Audit `parser_snobol4.sc` and `src/frontend/snobol4/`
+      against SPITBOL Manual v3.7 (already in `spitbol-manual-v3_7.pdf`,
+      authoritative for SNOBOL4 too via App C deltas). Same procedure as
+      9g-snocone. Spec already on disk — no new doc needed from Lon.
+      Anchor: Ch.15 operator table (manual line 9830+) and App C
+      "Differences from SNOBOL4" (line 13651+).
+
+    - [ ] **SCT-9g-rebus** — Audit `parser_rebus.sc` and `src/frontend/rebus/`.
+      **Spec document needed from Lon.** Rebus is Mark Emmer's preprocessor;
+      no public spec is on disk (the SPITBOL Manual line 9388 mentions
+      "preprocessors such as Rebus and Snocone" but no grammar). Without
+      a reference, the audit can only enumerate what's accepted, not what's
+      *intended*. Ask Lon for a Rebus syntax/operator reference document.
+
+    - [ ] **SCT-9g-icon** — Audit `parser_icon.sc` and `src/frontend/icon/`
+      against the Icon Programming Language reference (Griswold's book or
+      its operator-precedence table). **Spec document needed from Lon.**
+      Icon's operator system differs substantially from SPITBOL/SNOBOL4
+      (e.g. `:=` assignment, `<-` reversible assignment, `|` alternation
+      with generator semantics rather than pattern alternation, augmented
+      ops like `+:=`, comparison operators that return their second
+      operand or fail). The audit must cite the Icon spec, not the SPITBOL
+      manual.
+
+    - [ ] **SCT-9g-raku** — Audit `parser_raku.sc` and `src/frontend/raku/`
+      against Raku's operator table. **Spec document needed from Lon.**
+      Raku has the richest operator system of the six (chained operators,
+      hyper operators, meta operators, custom precedence levels). The
+      current `parser_raku.sc` likely implements a subset; the audit must
+      identify which Raku operators are in scope.
+
+    - [ ] **SCT-9g-prolog** — Audit `parser_prolog.sc` and `src/frontend/prolog/`
+      against the Prolog operator table (`op/3` declarations: standard
+      operators like `,` (1000, xfy), `;` (1100, xfy), `:-` (1200, xfx),
+      `is` (700, xfx), `=` (700, xfx), comparison ops, arithmetic).
+      **Spec document needed from Lon.** ISO Prolog standard or
+      SWI-Prolog operator table acceptable. Note: Prolog operator
+      declarations come in three flavours (xfx, xfy, yfx) which encode
+      both arity and associativity; the audit must cover all three.
+
+    - [ ] **SCT-9g-cross — Cross-language consistency sweep.**
+      After the six per-language audits land, sweep `.github/PRECEDENCE-AUDIT.md`
+      for cases where the same operator appears in multiple languages with
+      different precedence/associativity. Flag any cross-language symbol
+      that needs a consistency call from Lon. Examples: `.` is unary
+      "name" in SPITBOL/Snocone, member-access in Raku, list-cons in
+      Prolog; `|` is pattern-alt in SPITBOL/Snocone, generator-alt in
+      Icon, disjunction in Prolog; `,` is comma in argument lists in
+      all but is also Prolog's high-priority conjunction operator. These
+      are not bugs (each language has its own spec) but the cross-table
+      must be explicit to avoid surprise in the transpiler.
 
   - [ ] **SCT-9h — Token-slot mangling: `$'(' = pat` → legal SNOBOL4 names.**
     SPITBOL can't assign through indirection to variables whose names contain
@@ -649,14 +722,22 @@ status:    SCT-9 partial 🔄 2026-05-17 (Opus 4.7, continuation of Sonnet 4.6).
            fix in TT_SCAN case verified; parser_snobol4.sno accepted
            end-to-end by SPITBOL.
 
-watermark: SCT-9c+9d+9e+9f ✅ 2026-05-17 (Opus 4.7).
-           C scrip --dump-ast and SPITBOL TDump produce byte-identical
-           output for working snocone fixtures.  24/26 PASS, 2 structural
-           do-while fail (SCT-9i), 41 token-slot skip (SCT-9h).
-           one4all HEAD 96d39c05.  corpus HEAD 1b24df4.
+watermark: SCT-9g-snocone ✅ partial + n-ary arith emission fix ✅ 2026-05-17 (Opus 4.7).
+           SCT-9g now per-language sub-rungs (a-f + cross).  Snocone audit
+           landed as .github/PRECEDENCE-AUDIT.md.  Other five languages
+           await spec documents from Lon (rebus/icon/raku/prolog) and
+           require their own audit passes (snobol4 covered by SPITBOL
+           manual already on disk).
+           Bonus: lower_sno.c n-ary arith emission fixed (was binary-only;
+           dropped c[2..n-1] silently).  End-to-end verified: SPITBOL
+           value of `20-5+2`=17, `100-30+10-5`=75 match C-frontend tree
+           and SPITBOL native evaluation.  Snocone fixture gate 60/7/0
+           pre = 60/7/0 post (no regressions; 7 FAILs pre-existing).
+           one4all HEAD 96d39c05+local-WIP.  corpus HEAD 1b24df4.
 
 landed:
-  - src/lower/lower_sno.{c,h}     (SCT-1 through SCT-2; label_sanitize on TT_VAR)
+  - src/lower/lower_sno.{c,h}     (SCT-1 through SCT-2; label_sanitize on TT_VAR;
+                                   SCT-9g n-ary arith TT_ADD/SUB/MUL/DIV emission)
   - src/driver/scrip.c            (--dump-sno flag, multi-file mode; --dump-width N)
   - src/driver/interp.h           (ir_set_print_width / ir_get_print_width)
   - src/ast/ast_print.c           (SCT-9c: flat_length + TLump-matching threshold)
@@ -670,13 +751,20 @@ landed:
   - corpus/SCRIP/qize.sc          (SCT-9e: dead LEQ function deleted)
   - corpus/programs/*/parser/*.ref       (SCT-9b: AST_* → TT_* rename, 224 files)
   - corpus/programs/snocone/parser-fixtures/*.ref  (SCT-9f: regenerated, 60 files)
-  - .github/GOAL-PARSER-SC-TRANSPILE.md  (this file, session history)
+  - .github/GOAL-PARSER-SC-TRANSPILE.md  (this file, session history;
+                                          SCT-9g split into per-language sub-rungs)
+  - .github/PRECEDENCE-AUDIT.md   (SCT-9g-snocone deliverable, 2026-05-17 Opus 4.7)
   - .github/PLAN.md, RULES.md, REPO-one4all.md, snobol4ever_clone.sh
 
-next:      SCT-9g  Precedence/associativity audit vs SPITBOL Manual Ch.15.
-                   (Lon: shift/reduce action order is fixed by token arrival,
-                    but n-ary flatten timing AND op precedence/assoc must
-                    match the manual exactly.  Manual is the oracle.)
+next:      SCT-9g-snobol4   SPITBOL manual already on disk; can proceed.
+           SCT-9g-rebus     Awaiting Rebus syntax spec doc from Lon.
+           SCT-9g-icon      Awaiting Icon reference doc from Lon.
+           SCT-9g-raku      Awaiting Raku operator-table doc from Lon.
+           SCT-9g-prolog    Awaiting Prolog op/3 table doc from Lon (ISO
+                            or SWI acceptable).
+           SCT-9g-cross     After per-language audits land, cross-table sweep.
+           SCT-9g-fix-sc    Apply .sc grammar fix per Lon decision (snocone
+                            +-*/  right-rec → n-ary left-fold).
            SCT-9h  Token-slot mangling in lower_sno.c — unblocks 40 fixtures.
            SCT-9i  do-while PST alignment (C TT_DO_WHILE tree vs .sc lowered).
            SCT-9j  Wire scripts/test_parser_sc_transpile.sh now byte-diff works.
@@ -690,6 +778,8 @@ authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
            SCT-2 landed (continuation session), same day, Opus 4.7.
            SCT-9a/9b partial: Sonnet 4.6, 2026-05-17.
            SCT-9c/9d/9e/9f landed: Opus 4.7, 2026-05-17 (continuation).
+           SCT-9g scoped + snocone audit + n-ary emission fix: Opus 4.7,
+                  2026-05-17 (this session).
 ```
 
 ---
