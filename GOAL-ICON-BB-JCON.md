@@ -141,32 +141,33 @@ Failing-rung survey (sess 2026-05-16d) found three categories driving remaining 
 
 ## NEXT step
 
-**Three constructs landed this session (2026-05-17 part 2). Next session: continue rung survey for remaining FAILs.**
+**Three constructs landed this session (2026-05-17 part 3). Next session: continue rung survey for remaining FAILs.**
 
-Surveying remaining 73 fails (down from 87), strongest clusters:
-1. **rung13 table** (4) + **rung23 table** (4) + **rung35 table_str_str** (2) — Icon table builtin (table(0), insert, member, key, etc.). Single coherent cluster, likely one IR_ICN_TABLE_LOOKUP + table builtin path.
-2. **rung22 lists** (5) — list builtins (push, put, get, pull, !L). Distinct from tables.
-3. **rung24 records** (5) — Icon record types (record/field-access lowering missing).
-4. **rung31 sort** (5) — sort() / sortf() builtins on tables/lists.
-5. **rung15 real_swap / iterate_string** (4) — swap / multi-assign / iterate over strings.
-6. **rung36 jcon** survey still open for closest-to-passing programs.
+Surveying remaining 45 fails (down from 59), strongest clusters:
+1. **rung31 sort** (3 remaining) — sort_basic/sort_every still fail; sort_already_sorted now passes. sortf_field1/field2 pass. Remaining: sort_basic needs list comparison; sort_every needs generator interaction.
+2. **rung06 cset/upto** (1) — upto_basic; likely cset generator interaction.
+3. **rung08 strbuiltins find_gen** (1) — find() as generator.
+4. **rung15 swap/real** (3) — swap, lconcat, real_swap cluster.
+5. **rung20 seqexpr** (2) — IR_SEQ_EXPR vs IR_SEQ_STMT distinction (x := (1;2;3) should bind 3).
+6. **rung21/25 global/initial** (2) — global/initial declarations.
+7. **rung30 builtins_misc_seq** (1).
+8. **rung36 jcon** survey — file I/O, co-expressions, complex programs.
 
-## Completed steps (this session 2026-05-17 part 2)
+## Completed steps (this session 2026-05-17 part 3)
 
 | Step | Description | Commit |
 |------|-------------|--------|
-| IJ-IDX | TT_IDX (s[i] subscript) lowered to IR_ICN_IDX. New IR_e entry; executor calls subscript_get (already in use by rt.c and snobol4/eval_code.c); lower_icn case after TT_SIZE. Rung16 5/5 flips PASS. ir-run 143→148 (+5). | `431f96d2` |
-| IJ-SECTION | TT_SECTION/PLUS/MINUS (s[i:j], s[i+:n], s[i-:n]) lowered to IR_ICN_SECTION. New IR_e entry; executor evaluates three operands, transforms PLUS/MINUS forms to absolute bounds before subscript_get2; lower_icn shared case. Rung20 section_basic/full/var flip PASS (3/3); seqexpr_basic/side remain FAIL (different bug: IR_SEQ proc-body-fall-off vs expression-value-of-last). ir-run 148→151 (+3). | `63669447` |
-| IJ-LIMIT | TT_LIMIT (gen \\ N) lowered to IR_LIMIT. Existing enum entry; new executor (state machine: alpha evaluates N once, beta pumps c[0] up to N times, fails on counter>=max or child fail, N<=0 fails immediately); lower_icn case after TT_ALTERNATE. Rung14 5/5 flips PASS plus bonus rung23_table_table_insert_delete (was blocked by inner t[1] subscript not lowering). Pre-existing single-shot classifier and ALT_IS_GEN / IR_IS_GEN_KIND macros already classify IR_LIMIT as a generator. ir-run 151→157 (+6). broker 19→20 (+1). | `d51fc518` |
+| IJ-MAKELIST+IJ-BANG-LIST | TT_MAKELIST→IR_CALL(MAKELIST); TT_ITERATE→IR_ICN_LIST_BANG generator (α caches collection, β advances; supports lists/tables/records/strings); IR_SIZE extended to dispatch DT_DATA lists (frame_size), DT_T tables (bucket count), records (nfields). ir-run 157→171 (+14). rung22 5/5 PASS. | `cf894517` |
+| IJ-RECORDS | TT_RECORD→IR_ICN_RECORD_DEF (DEFDAT+sc_dat_register once); TT_FIELD read→IR_ICN_FIELD_GET (data_field_ptr); TT_FIELD lhs→IR_ICN_FIELD_SET; TT_ASSIGN extended to handle TT_FIELD and TT_IDX lhs variants; record constructor fallback added to icn_try_call_builtin_by_name via sc_dat_find_type. ir-run 171→178 (+7). rung24 5/5 PASS. | `ed3fe750` |
+| IJ-TABLES | TT_ASSIGN(TT_IDX lhs)→IR_ICN_IDX_SET (subscript_set); key(t)→IR_ICN_KEY_GEN true generator (bucket-walk, ival tracks flat entry index, cache in opaque); table/insert/delete/member/sort all route through existing IR_CALL→icn_try_call_builtin_by_name. ir-run 178→185 (+7). rung13/23/35 tables 12/12 PASS. | `60852022` |
 
 ## Watermark
 
 ```
-one4all: d51fc518 (IJ-LIMIT: rung14 5/5 + bonus rung23_insert_delete)
+one4all: 60852022 (IJ-TABLES: rung13/23/35 tables 12/12 PASS)
 corpus:  490f4c7
-ir-run:  157/265   honest: 280 PASS / 1 FAIL / 0 ABORT
-smoke_icon: 5/5    broker: 20/49
-cross-lang smokes: snobol4 6/7 (1 pre-existing), snocone 5/5, prolog 5/5, raku 5/5, rebus 4/4
+ir-run:  185/265   honest: (not re-run this session — gates held)
+smoke_icon: 5/5    crosscheck_icon: 4/4
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
