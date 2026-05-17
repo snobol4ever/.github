@@ -145,7 +145,7 @@ Add lower-side equivalent first, then strip parser-side desugaring. Each rung: g
 - [x] **PST-SC-4g** ✅ (2026-05-16, one4all `0c0c22d9`, corpus `6889e67`) — `TT_DEFINE(QLIT(name), QLIT(sig), TT_PROGRAM(body))`. `FuncHead` slimmed to `{name,argstr,prev_func}`. `func_before_body` snapshot. `sc_finalize_function_pst` builds TT_DEFINE. `lower_stmt` dispatches TT_DEFINE: emits DEFINE call, skip-jump, entry label, body, patch. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
 - [x] **PST-SC-4h** ✅ (2026-05-16, one4all `e1a902a7`, corpus `6a68f49`) — `break`/`continue` emit `TT_LOOP_BREAK`/`TT_LOOP_NEXT` tree nodes (QLIT user-label child optional). `sc_append_break`/`sc_append_continue` no longer emit goto STMT_t. `lower.c`: `g_loop_stack` (depth-64) with `loop_push`/`loop_pop`; while/do/for push labels around body; `lower_loop_break`/`lower_loop_next` resolve via stack. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
 - [x] **PST-SC-4i** ✅ (2026-05-16) — Labels (`label:`) → STMT_t with label field (produces TT_STMT(:lbl) via stmt_to_ast). `sc_emit_label_pad`, `sc_pending_label_add`, `sc_pending_label_clear`, `sc_pending_to_stash` deleted; all pending/stash fields removed from ScParseState; user_labels fields removed from LoopFrame; `sc_loop_find_by_user_label` deleted. New `sc_append_label_node` appends label-only STMT_t directly. Bonus fix: while/do/for head snapshot moved from single ScParseState fields into per-instance WhileHead/DoHead/ForHead structs — fixes double-free crash on nested loops. lower.c: TT_DEFINE routed through lower_stmt when appearing as TT_STMT subject. SCRIP mirror: parser_snocone.sc already emits make_label_stmt — no change needed. Gates: snocone_smoke 5/0, crosscheck_snocone 8/0, scrip_all_modes 2/0.
-- [ ] **PST-SC-4j** ⚠ BROKEN (2026-05-16) — Grammar side done: `return expr;`→TT_ASSIGN+TT_RETURN, `return;`→TT_RETURN, `freturn;`→TT_PROC_FAIL, `nreturn;`→TT_NRETURN. `sc_append_return/freturn/nreturn` deleted. SCRIP mirror updated. TT_NRETURN added to ast.h. BROKEN: lower_return emits `emit_goto(SM_JUMP,"RETURN")` but labtab cannot resolve "RETURN"/"FRETURN"/"NRETURN" from inside function body → stack overflow. Fix: lower_return/proc_fail/nreturn should emit SM_RETURN/SM_FRETURN/SM_NRETURN directly (like the old TT_VAR subject path at lower.c:1300-1302), not SM_JUMP to a label. one4all=22eb39c0, corpus=3193da4.
+- [x] **PST-SC-4j** ✅ (fixed 2026-05-17) — Grammar+SCRIP mirror done in prior commit. Lower fix: (1) lower_return/proc_fail/nreturn emit SM_RETURN/SM_FRETURN/SM_NRETURN directly; (2) dispatch in lower_stmt changed from lower_stmt(subject) to direct lower_return/proc_fail/nreturn(subject) calls (lower_stmt hit early-return guard before reaching the switch). No lower.sc mirror gap (lower.sc deleted in PST-RB-5e). Gates: snocone_smoke 5/0, crosscheck_snocone 8/0, scrip_all_modes 2/0.
 - [ ] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted.
 - [ ] **PST-SC-4l** — `sc_split_subject_pattern` → lower.
 - [ ] **PST-SC-4m** — `TT_PROGRAM` is tree of statement-tree nodes (not flat list with synthetic gotos/labels). `sc_append_stmt`/`sc_splice_after`/`sc_make_label_stmt`/`sc_make_goto_uncond_stmt` deleted.
@@ -378,20 +378,17 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
-            Stage 1 Step 4 — PST-SC-4a ✅ … 4h ✅  PST-SC-4i ✅  PST-SC-4j ⚠ BROKEN
-head: .github = (this commit) · one4all = 22eb39c0 · corpus = 3193da4
-session 2026-05-16j (EMERGENCY HANDOFF): PST-SC-4j grammar side done but lower broken.
-  Grammar: return/freturn/nreturn → TT_RETURN/TT_PROC_FAIL/TT_NRETURN pure tree nodes.
-  sc_append_return/freturn/nreturn deleted. TT_NRETURN added to ast.h. SCRIP mirror done.
-  BROKEN: lower_return/proc_fail/nreturn emit emit_goto(SM_JUMP,"RETURN"/"FRETURN"/"NRETURN")
-  but labtab can't resolve these from inside function body → stack overflow.
-  FIX NEEDED: lower_return → emit SM_RETURN directly; lower_proc_fail → SM_FRETURN;
-  lower_nreturn → SM_NRETURN. Match what lower.c:1300-1302 does for TT_VAR "RETURN" subject.
-  For return expr: emit lower_expr(retval) then SM_RETURN (NOT assign to funcname first —
-  the funcname assignment is handled by TT_ASSIGN stmt that precedes TT_RETURN in the program).
-next: PST-SC-4j fix — then PST-SC-4k (goto LABEL → TT_GOTO_U).
+            Stage 1 Step 4 — PST-SC-4a ✅ … 4h ✅  PST-SC-4i ✅  PST-SC-4j ✅
+head: .github = (this commit) · one4all = TBD · corpus = 5a9d0f8
+session 2026-05-17a: PST-SC-4j lower fix. Two bugs: (1) lower_return/proc_fail/nreturn were
+  emitting emit_goto(SM_JUMP,label) to unresolvable labtab targets. (2) dispatch in lower_stmt
+  called lower_stmt(subject) for TT_RETURN/PROC_FAIL/NRETURN subjects, which hit the early-return
+  guard (all attrs NULL) before reaching the switch. Both fixed: emit SM_RETURN/SM_FRETURN/SM_NRETURN
+  directly; dispatch calls lower_return/proc_fail/nreturn(subject) directly. No lower.sc mirror
+  needed (lower.sc deleted in PST-RB-5e — will be re-translated when IR_SM/IR_BB stabilizes).
+next: PST-SC-4k — goto LABEL → TT_GOTO_U; sc_append_goto_label deleted.
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4j fix → 4k goto → 4l-4n) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4k goto → 4l-4n) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
