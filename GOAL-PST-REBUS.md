@@ -114,12 +114,48 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   Sweep also landed: `snocone_parse.y` AST_* → TT_* (29 names, 89 occurrences; bridge `#define`s deleted from regenerated `.tab.c`); `snocone_lex.c` AST_* goto-labels → LX_* (45 names, 101 occurrences — they were lexer-state labels, never AST kinds).
   Watermark: one4all `1e6557c1`. Gates green (smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 6/1 baseline with pre-existing `pattern` test fail unrelated to this rung, crosscheck_snobol4 4/2 baseline, unified_broker 19/30 baseline).
 
-- [ ] **⛔ PST-RB-5i-PRE — CASE-SENSITIVE-ONLY sweep (BLOCKS 5i finish).** **NEXT SESSION STARTS HERE.**
-  Lon command 2026-05-17 (recorded as ABSOLUTE RULE in `RULES.md`, full plan in `GOAL-CASE-SENSITIVE-ONLY.md`): SCRIP supports zero case-folding across all six languages. Execute the CSO sweep before resuming any further parser_*.sc work, because the `rt_bb_arbno` ζ corruption (the wall that blocks 5i acceptance) lives downstream of pattern-matcher code that may itself touch fold paths during EVAL, and a clean case-only baseline removes a class of noise from that diagnosis.
-  - Read `GOAL-CASE-SENSITIVE-ONLY.md` (rungs CSO-1 through CSO-8). Execute in order.
-  - Default since SN-31 is already case-sensitive, so most sites are no-ops — sweep is primarily structural cleanup. Two sites are NOT no-ops and may surface test regressions for triage: `strcasecmp` → `strcmp` in `sc_dat_find_type`/`sc_dat_find_field` (CSO-4) and the `_usercall_hook` toupper-fallback at `interp_hooks.c:64-68` (CSO-5).
-  - Milestone 1 byte-identity (beauty.sno md5 `abfd19a7a834484a96e824851caee159`, 646 lines) MUST hold across every CSO rung — that is the invariant.
-  - When CSO-8 lands, return to PST-RB-5i (below) and resume rt_bb_arbno triage.
+- [ ] **⛔ PST-RB-5i-PRE — CASE-SENSITIVE-ONLY sweep (BLOCKS 5i finish). NEXT SESSION STARTS HERE.**
+  Lon command 2026-05-17, recorded as ABSOLUTE RULE in `RULES.md` ("SCRIP IS CASE-SENSITIVE. NO FOLDING. ANYWHERE."). Execute this sweep before resuming any further parser_*.sc work — the `rt_bb_arbno` ζ corruption that blocks 5i acceptance lives downstream of pattern-matcher code that may itself touch fold paths during EVAL, and a clean case-only baseline removes a class of noise from that diagnosis.
+
+  **Done when:**
+  1. `grep -rn "sno_fold_name\|sno_fold_on\|fold_strbuf\|strcasecmp\|strncasecmp\|sno_set_case_sensitive\|sno_get_case_sensitive\|--case-sensitive\|--fold-case" src/` returns only legacy oracle directories (SPITBOL, CSNOBOL4 — exempt) and removal commit's own comment trail.
+  2. `&CASE` keyword assignment is rejected or no-op-with-warning; reads return 1 sentinel.
+  3. All gates green: smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 ≥6/1 baseline, crosscheck_snobol4 4/2 baseline, beauty_snocone_subsystems 19/20.
+  4. **Milestone 1 invariant** — beauty.sno self-host byte-identical, md5 `abfd19a7a834484a96e824851caee159`, 646 lines. MUST hold across every sub-rung.
+
+  **Sites to sweep** (file → action):
+  - `src/frontend/snobol4/snobol4.l` — delete `sno_fold_on`, `sno_set_case_sensitive`, `sno_get_case_sensitive`, `sno_fold_name`, `fold_strbuf` and every call site. Lex passes identifiers through verbatim.
+  - `src/runtime/snobol4/snobol4.c` — delete `sno_fold_name` calls in `sno_DATA_register` (~lines 1506, 1518, 1527), `_VALUE_` (~1671), `register_fn` path (~2793, 2805).
+  - `src/runtime/snobol4/eval_code.c` — delete `sno_fold_name` calls at lines 118, 129, 239, 281.
+  - `src/runtime/rt/rt.c` — delete `sno_fold_name` calls at lines 933, 940, 962, 976, 1109.
+  - `src/driver/interp_data.c` — `strcasecmp` → `strcmp` in `sc_dat_find_type` (line 48), `sc_dat_find_field` (line 55). **First non-no-op site; may surface test regressions for triage.**
+  - `src/driver/interp_hooks.c` — delete `_usercall_hook` uppercase-fallback at lines 64-68 (toupper loop + second `label_lookup(_uf)`). **Second non-no-op site; same triage rule.**
+  - `src/driver/scrip.c` — delete `--case-sensitive` arg parsing (line 115), `--fold-case` arg parsing (line 116), `sno_set_case_sensitive(opt_case_sensitive)` call (line 119), the `opt_case_sensitive` variable (line 88), help text mentioning these (line 176).
+  - `&CASE` keyword in `src/runtime/snobol4/snobol4.c` — assignment becomes no-op-with-warning; reads return 1 sentinel.
+
+  Also incidentally:
+  ```bash
+  grep -rn 'toupper\|tolower' src/ | grep -v 'UCASE\|LCASE\|alphabet\|test_\|demo_'
+  ```
+  Triage each; delete loops operating on identifier-shaped strings (keep ones building `&UCASE`/`&LCASE` keyword values — those are legitimate strings).
+
+  **Sub-rungs (execute in order, single commit each):**
+  1. CSO-1 — snapshot baseline gates. The numbers are the floor; sweep must hold them.
+  2. CSO-2 — delete fold infrastructure in `snobol4.l`. Rebuild. Gates expected green (default was already `sno_fold_on=0` since SN-31).
+  3. CSO-3 — delete `sno_fold_name` calls in `snobol4.c`, `eval_code.c`, `rt.c`. Rebuild. Gates.
+  4. CSO-4 — `strcasecmp` → `strcmp` in `interp_data.c`. **Real behavior change.** Gates; triage failures (corpus tests using mixed-case field references either get case-corrected or moved to a future `legacy/` subdir).
+  5. CSO-5 — delete `_usercall_hook` uppercase-fallback in `interp_hooks.c`. **Real behavior change.** Same triage.
+  6. CSO-6 — delete `--case-sensitive`/`--fold-case` CLI in `scrip.c`. Update help text. Gates.
+  7. CSO-7 — `&CASE` keyword: assignment no-op-with-warning, reads return 1.
+  8. CSO-8 — final acceptance: full gate sweep, **beauty.sno byte-identity check** (the invariant), push.
+
+  **Risks:**
+  - **EVAL'd strings with mixed-case identifiers** — `EVAL("foo() + Foo()")` is now two distinct names. Search corpus for EVAL with embedded identifiers; canonicalize at source.
+  - **Cross-language polyglot statements** — a `.sno` block calling a Snocone `foo()` as `FOO()` was fold-resolved; now it's a missing-name error. Build-time grep + manual triage.
+  - **Milestone 1** is the must-not-break invariant. beauty.sno corpus has been running case-sensitive since SN-31, so it should hold — but verify at CSO-8.
+
+  After CSO-8 lands → return to PST-RB-5i below and resume rt_bb_arbno ζ-corruption triage.
+
 
 - [ ] **PST-RB-5i 🔄 — Parser AST validation: parser_*.sc dump matches C-side tree_t dump.**
   **Status (2026-05-17, Opus 4.7):** SL-5 root cause identified and partially fixed; downstream parser-runtime crash blocks acceptance. **BLOCKED behind PST-RB-5i-PRE (CSO sweep).**
@@ -195,7 +231,7 @@ status:     Subsystem suite 19/20 at HEAD (Qize SKIP under SL-3 — acceptance m
             but segfault in BB pattern runtime (rt_bb_arbno with corrupted ζ).
             C-side `--dump-ast` now works for all six frontends (was lang_snocone only).
             BB pattern buffer caps raised: FLAT_BUF_MAX 16K→256K, BB_POOL_SIZE 4MB→64MB.
-next:       **PST-RB-5i-PRE (CASE-SENSITIVE-ONLY sweep — see GOAL-CASE-SENSITIVE-ONLY.md, rungs CSO-1..CSO-8). MUST RUN BEFORE PST-RB-5i finish.**
+next:       **PST-RB-5i-PRE (CASE-SENSITIVE-ONLY sweep, CSO-1..CSO-8 inline above). MUST RUN BEFORE PST-RB-5i finish.**
             After CSO-8: PST-RB-5i finish (debug rt_bb_arbno ζ corruption) → 5j (6-fn trace) → 5k.
 
 SL-2 closed. SL-5 partial (downstream BB runtime crash). SL-3/4 open.
