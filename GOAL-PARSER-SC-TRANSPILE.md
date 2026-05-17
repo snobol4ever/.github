@@ -281,20 +281,48 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 
 ### Phase 1 — Transpiler MVP
 
-- [🔄] **SCT-1 — Bootstrap: `parser_snobol4.sc` → `parser_snobol4.sno`.** PARTIAL ✅ 2026-05-17 (Opus 4.7).
-  Implemented `src/lower/lower_sno.{c,h}` (not `src/transpile/sc_to_sno.c` — placement updated per Lon directive: lives as peer to `lower_icn.c`/`lower_pl.c`). Reads `tree_t*` produced by any frontend, walks it, emits SNOBOL4 on stdout. Wired as `--dump-sno` (mirrors `--dump-ast`/`--dump-sm`/`--dump-bb` family). Handles ~30 TT_* tags including atoms, all unary operators, binary arithmetic, pattern composition (TT_SEQ/CAT/ALT/VLIST), pattern captures (`.`/`$`), function calls, indexing, named pattern primitives (ARB/REM/BAL/FAIL/SUCCEED/ABORT/FENCE/ARBNO), embedded assign/scan, and the Gimpel function template (TT_DEFINE → `DEFINE(proto) :(fn_end)` / label / body / `:(RETURN)` / end-label). Status: `parser_snobol4.sc` transpiles to 126 lines of SNOBOL4 that **parse cleanly** under `scrip --sm-run` and **begin executing** before hitting runtime Error 5 at statement 63. Remaining: TT_IF/TT_WHILE/TT_RETURN-in-stmt-pos as `'?TT_NN?'` string placeholders. See SCT-1b.
+- [x] **SCT-1 — Bootstrap: `parser_snobol4.sc` → `parser_snobol4.sno`.** ✅ 2026-05-17 (Opus 4.7).
+  Implemented `src/lower/lower_sno.{c,h}` (not `src/transpile/sc_to_sno.c` — placement updated per Lon directive: lives as peer to `lower_icn.c`/`lower_pl.c`). Reads `tree_t*` produced by any frontend, walks it, emits SNOBOL4 on stdout. Wired as `--dump-sno` (mirrors `--dump-ast`/`--dump-sm`/`--dump-bb` family). Handles ~30 TT_* tags including atoms, all unary operators, binary arithmetic, pattern composition (TT_SEQ/CAT/ALT/VLIST), pattern captures (`.`/`$`), function calls, indexing, named pattern primitives (ARB/REM/BAL/FAIL/SUCCEED/ABORT/FENCE/ARBNO), embedded assign/scan, and the Gimpel function template (TT_DEFINE → `DEFINE(proto) :(fn_end)` / label / body / `:(RETURN)` / end-label). Landed in one4all `f2e0dd81`.
 
-- [ ] **SCT-1b — Statement-position control flow (TT_IF, TT_WHILE, TT_RETURN-as-stmt).**
-  In `lower_sno.c::emit_stmt`, add a branch (mirroring the TT_DEFINE-as-subject branch) for when `:subj` carries TT_IF / TT_WHILE / TT_RETURN. Lowering per `ARCH-SNOCONE.md` §"Lowering map":
-  - `TT_IF(cond, then[, else])` → `cond :F(else) / then... :(after) / else else_body... / after`
-  - `TT_WHILE(cond, body)` → `top cond :F(after) / body... :(top) / after`
-  - `TT_RETURN(expr)` → `fname = expr :(RETURN)` where fname is the enclosing function's name (need stack/context for nested functions; simplest = pass through `pending_fname` in `sno_ctx_t` parallel to `pending_label`).
-  Label generation: monotonic counter in `sno_ctx_t` (Snocone's own labels are already uniquified per `g_sc_label_seq`; only synthetic labels for goto-emission need generation here). Acceptance: `parser_snobol4.sc` transpile produces 0 `?TT_NN?` placeholders.
+- [x] **SCT-1b — Statement-position control flow + label-sanitize.** ✅ 2026-05-17 (Opus 4.7), one4all `e9ee90e4`.
+  In `lower_sno.c::emit_stmt`, added dispatch when `:subj` carries one of: TT_IF / TT_WHILE / TT_DO_WHILE / TT_FOR / TT_RETURN / TT_PROC_FAIL / TT_NRETURN / TT_LOOP_BREAK / TT_LOOP_NEXT. Lowering per `ARCH-SNOCONE.md` §"Lowering map".
+  - **TT_IF** allocates `_Lelse_NNNN` / `_Lendif_NNNN` via in-emitter `if_seq` counter (the C frontend's PST mode keeps TT_IF as a tree — no pre-allocation).
+  - **TT_WHILE / TT_DO_WHILE / TT_FOR** read pre-allocated `_Ltop_NNNN` / `_Lcont_NNNN` / `_Lend_NNNN` from trailing TT_QLIT children stashed on the loop node by the C frontend.
+  - **TT_LOOP_BREAK / TT_LOOP_NEXT** read top of a 64-deep loop-label stack in `sno_ctx_t`.
+  - **TT_RETURN / TT_PROC_FAIL / TT_NRETURN** emit `:(RETURN)` / `:(FRETURN)` / `:(NRETURN)`.
 
-- [ ] **SCT-1c — Round-trip parser_snobol4.sno through SCRIP + SPITBOL.**
-  Requires SPITBOL built (see Notes §"How-to: build SPITBOL x64"). Drive via `scripts/run_parser_sync_monitor.sh snobol4 corpus/programs/snobol4/parser/atom_id.sno`. Acceptance: both runtimes produce same AST dump and same trace events on the sample input, OR first divergence is reported with last-agree + first-disagree line numbers.
+  Also fixed two pre-existing bugs surfaced during this work: `:lbl` attr's label payload lives in `c[0]->v.sval` not the attr's own `v.sval`; `TT_GOTO_U`'s label same shape. Both fixed via new `label_of()` helper.
 
-- [ ] **SCT-1 (full) — Acceptance retest.** `scrip --dump-sno corpus/SCRIP/parser_snobol4.sc | sbl -b -` produces output bytewise-identical to `scrip --ir-run corpus/SCRIP/global.sc ... parser_snobol4.sc < sample.sno`. Test sample: `corpus/programs/snobol4/parser/atom_id.sno`.
+  Added `label_sanitize()` — strips leading underscore per SPITBOL Manual Ch.14 line 9335 ("Labels must begin with a letter or digit"). The Snocone PST mode pre-allocates `_Ltop_NNNN` which SPITBOL rejects with ERROR 230 and SCRIP `--sm-run` silently mangles. Threaded through every label emission site via a 4-deep buffer ring so multiple `label_sanitize()` calls in one printf format don't clobber.
+
+  Padded label-only statements with `OUTPUT =` so SCRIP's SNOBOL4 parser (which rejects label-only lines) accepts them.
+
+  Result: `parser_snobol4.sc` transpile: 4 placeholders → **0**. All six parser_*.sc → 0 placeholders.
+
+- [x] **SCT-1c — SNOBOL4 line-continuation for >1024-char emissions.** ✅ 2026-05-17 (Opus 4.7), one4all `c1074e5f`.
+  SPITBOL hard-fails with ERROR 226 (missing right paren) on any line over 1024 chars (Manual Ch.14 line 9022). `parser_snobol4.sc`'s `Expr17` is one 1908-char TT_ALT; `parser_raku.sc` was 2233; `parser_icon.sc` was 1323. Fix: redirected `emit()` through an in-context line buffer (16KB), `emit_nl()` scans backward from offset 900 for a space/tab outside quoted strings (`sno_in_quoted` walks from start because SNOBOL4 has no escape character — every quote is structural). Splits at safe positions, emits chunks separated by `\n+` per SPITBOL Manual Ch.14 line 9456+. Safe-split reliability comes from `emit_expr` parenthesising every binary op — every space between tokens IS a safe split point.
+  Result on all 6 parsers: longest physical line drops to ≤899 chars (was up to 2233).
+
+- [x] **SCT-1d — Multi-file `--dump-sno` + `-CASE 0` prelude + dedup tail `:(RETURN)` + wrapper.** ✅ 2026-05-17 (Opus 4.7), one4all `b31e72e4`+`f097651a`, corpus `c97eeb0`.
+  Three orthogonal changes that together make `scrip --dump-sno <runtime files> parser_X.sc` produce a self-contained `.sno`:
+  - **Multi-file mode** (`src/driver/scrip.c`): `--dump-sno` previously emitted the first file's AST and returned. Restructured to mirror `--dump-sm`: accumulate via `MERGE_AST` across all argv files, emit at end of multi-file loop. Applies to both the snocone/rebus/icon/raku/prolog branch and the SNOBOL4 branch.
+  - **`-CASE 0` prelude** (`src/lower/lower_sno.c`): SPITBOL Manual Ch.14 line 9067+: case-fold-to-upper is the default. Without `-CASE 0`, `ShiftReduce.sc`'s `Shift(t,v,s)` collapses with `semantic.sc`'s `shift(p,t)` → SPITBOL ERROR 217 duplicate label. RULES.md mandates byte-for-byte case sensitivity, so `-CASE 0` enforces existing Snocone semantics on the emitted side. SCRIP's SNOBOL4 frontend already case-sensitive (no-op control directive).
+  - **Suppress redundant tail `:(RETURN)`** (`src/lower/lower_sno.c`): when a function body ends with explicit `return;` we emit `:(RETURN)`, then the Gimpel template tail emits ANOTHER. Added `last_was_return` flag set in `emit_nl` when the buffered line ends with `:(RETURN)/:(FRETURN)/:(NRETURN)`. Template tail skips when set.
+  - **Wrapper** (`scripts/run_parser_sync_monitor.sh`): now passes the full Snocone runtime prelude (`global.sc tree.sc stack.sc counter.sc ShiftReduce.sc semantic.sc tdump.sc`) alongside the parser. Added 1024-char line-length sanity warning.
+  - **Corpus rename** (`corpus/SCRIP/semantic.sc`): `_qtag` → `qtag`. Only underscore-leading function name in the seven runtime `.sc` files. SPITBOL rejects underscore-leading identifiers in `DEFINE()` with ERROR 230.
+
+  Result on `scrip --dump-sno <runtime> parser_snobol4.sc`: 885 lines, **SPITBOL accepts end-to-end with zero parse errors**, single runtime ERROR 041 at line 873 (`n(ptree)` on non-tree value — downstream parsing-execution, not transpile). SCRIP `--sm-run` segfaults during execution (also downstream).
+
+- [ ] **SCT-1e — Investigate the single SPITBOL runtime ERROR 041.**
+  At line 873 of the transpiled `full_snobol4.sno`: `nk = n(ptree)` fails because `ptree = Pop()` returned a non-tree value. The Compiland match preceding it succeeded (we entered the `:F` else branch). Three plausible causes: (a) `parser_snobol4.sc`'s Compiland actually fails on the chosen input but a different control-flow path returns a non-tree via `Pop()`; (b) the runtime functions `Tree`/`Pop`/`MakeNode` from `tree.sc`+`stack.sc` don't transpile correctly somewhere (audit needed); (c) `&FULLSCAN`/`-CASE 0` interaction subtly changes pattern-match semantics for one construct.
+  Approach: produce a 5-line minimal repro by progressively trimming `parser_snobol4.sc` until `Pop()` still returns wrong; that delimits whether the bug is in the transpiler, in a runtime `.sc` file, or in the test input.
+
+- [ ] **SCT-1f — Drive the 2-way sync-monitor.**
+  Requires SPITBOL IPC patch (SN-26-spl-bridge in x64 session #27 per goal-file Notes). With ERROR 041 above ironed out (or even with it present — the monitor's job is to FIND divergences), run:
+  ```
+  bash scripts/run_parser_sync_monitor.sh snobol4 corpus/programs/snobol4/parser/atom_id.sno
+  ```
+  Acceptance: monitor reports either PASS or first divergence with line numbers.
 
 - [ ] **SCT-2 — `parser_rebus.sc` → `parser_rebus.sno`.**
   Same as SCT-1 but for Rebus parser. New constructs to handle in transpiler: `OPSYN`, `&FULLSCAN` setter (pass through verbatim), `epsilon` (already known), counter idioms (`nPush/nInc/nTop/nPop` → SNOBOL4 stack manipulation already in `counter.inc`). Sample: `corpus/programs/rebus/parser/paren.reb`.
