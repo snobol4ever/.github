@@ -400,20 +400,123 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
   3. Run C `scrip --dump-ast` on the sample — collect reference AST
   4. All three must match (modulo whitespace).
   Acceptance: 6 langs × 4 sources × matching = 24/24 PASS.
-  **Partial 🔄 2026-05-17 (Sonnet 4.6):** Two sub-steps landed:
-  - Root cause of empty-tree output diagnosed: SPITBOL's ARBNO is lazy/shy;
-    zero iterations when epsilon branch allows it. Fixed by adding `POS(0)`
-    before ARBNO and `RPOS(0)` after in all six parser_*.sc Compiland defs.
-    corpus `664d633`. snobol4 + snocone produce correct AST from SPITBOL.
-    rebus: 88/96 fixtures produce AST. icon/raku/prolog: blocked on SCT-4/5/6.
-  - `AST_*` → `TT_*` rename in all 224 parser fixture .ref files across
-    snocone, rebus, raku, icon, prolog. corpus `b64f6f1`.
-  - `gen.sc` must be included in `--dump-sno` chain (provides Gen/GetLevel/
-    IncLevel/DecLevel called by TDump). Add to run_parser_sync_monitor.sh.
-  **Remaining:** wire `scripts/test_parser_sc_transpile.sh`; cross-validate
-  snobol4+snocone+rebus AST against C `--dump-ast`; TDump formatting gap
-  (transpiled TDump emits inline; refs use indented) — either fix TDump or
-  normalise whitespace in gate comparisons.
+
+  **Sub-rungs (work-in-progress):**
+
+  - [x] **SCT-9a** ✅ ARBNO lazy-iteration fix — added `POS(0)`/`RPOS(0)`
+    sentinels to all six parser_*.sc Compilands. corpus `664d633`.
+    snobol4 + snocone produce correct AST from SPITBOL.
+
+  - [x] **SCT-9b** ✅ `AST_*` → `TT_*` rename across all 224 parser fixture
+    .ref files. corpus `b64f6f1`.
+
+  - [x] **SCT-9c** ✅ 2026-05-17 (Opus 4.7) — TDump-matching C formatter.
+    Replaced `ast_print.c::print_node` always-multiline-for-n>=2 rule with
+    TDump/TLump-equivalent length-budget rule. New helper `flat_length(e, b)`
+    computes inline width; node prints inline if it fits in `ast_print_width
+    - depth*2` chars (matches `TLump(x, 140 - GetLevel())`), multiline
+    otherwise. New globals `ir_set_print_width(w)` / `ir_get_print_width()`
+    plus `--dump-width N` flag in `scrip.c` for runtime tuning (default 140).
+    one4all `616a372b`. Done so sessions can use checksum/simple diff instead
+    of writing a tree-pattern matcher.
+
+  - [x] **SCT-9d** ✅ 2026-05-17 (Opus 4.7) — n-ary flattening in C snocone
+    frontend. Added `sc_flatten_arith(op, left, right)` in `snocone_parse.y`
+    that absorbs the left child when it carries the same tag (left-recursive
+    grammar's mirror of `parser_snocone.sc::flatten_arith`'s right-recursive
+    unfold). Wired for TT_ADD/SUB/MUL/DIV (the `sc_flatten_ops` set in
+    parser_snocone.sc line 243), plus TT_SEQ (concat) and TT_ALT (alternation)
+    which are built n-ary natively in the .sc grammar via ARBNO counter loops.
+    TT_POW stays binary right-assoc. Bison regenerated `snocone_parse.tab.c`.
+    one4all `616a372b`.
+
+  - [x] **SCT-9e** ✅ 2026-05-17 (Opus 4.7) — qize.sc `LEQ` dead-function
+    purged. The user-defined `LEQ` in `qize.sc` (a string-min helper) shadowed
+    SPITBOL's built-in `LEQ` lexicographic predicate, causing ERROR 248 at
+    runtime when transpiled `.sno` included qize.sc. The function was never
+    called outside qize.sc (omega.sc and sm_interp.sc use the SPITBOL builtin
+    `LEQ` as a predicate, not the qize string-min). Removed entirely. corpus
+    `1b24df4`. Result: parser_snocone.sno + qize.sc now runs CQize cleanly
+    under SPITBOL, so TT_QLIT/TT_CSET nodes print properly via TDump.
+
+  - [x] **SCT-9f** ✅ 2026-05-17 (Opus 4.7) — regenerate all 60 snocone
+    parser-fixture .ref files from `scrip --dump-ast` after SCT-9c+9d landed.
+    corpus `1b24df4`. Snocone fixture gate: PASS=24 FAIL=2 SKIP=41:
+    - 24 pass: C --dump-ast and SPITBOL TDump produce byte-identical output
+      via simple `diff`.
+    - 2 fail: do_simple, do_with_stmt — C PST emits TT_DO_WHILE as a tree
+      node; .sc parser emits lowered STMT sequence. Structural, not
+      formatting. Either C PST or .sc parser needs alignment; see SCT-9i.
+    - 41 skip: control-flow / function-call / switch fixtures blocked by
+      the `$'(' = pattern` token-slot bug (SPITBOL can't assign through
+      indirect to special-char names). Owned by SCT-9h below.
+
+  - [ ] **SCT-9g — Precedence and associativity audit against SPITBOL Manual
+    Ch.15.** (Lon directive 2026-05-17.) The shift/reduce action layout
+    forces children to arrive left-to-right in token order — we cannot
+    reorder them. We CAN choose when to flatten n-ary, and we MUST ensure
+    grammar precedence and associativity match the SPITBOL Manual Ch.15
+    operator table verbatim. Action items:
+    1. Enumerate every binary operator in `snocone_parse.y` and confirm its
+       precedence + associativity vs Ch.15 line 9830+ (assoc left/right, pri 0–12).
+    2. Cross-check `parser_snocone.sc` Expr0..Expr17 against the same.
+    3. For each operator, list the canonical 3-arg test (`a OP b OP c`) and
+       the expected n-ary-flattened tree. Both grammars must produce the
+       same shape after flatten.
+    4. POW is right-assoc binary (Ch.15 pri 11) — never flattened. Confirm
+       a^b^c → (TT_POW a (TT_POW b c)) in BOTH C and .sc.
+    5. CAPT_IMMED_ASGN ($) and CAPT_COND_ASGN (.) are left-assoc pri 12 —
+       confirm a.b.c shape matches.
+    6. Mixed-op chains (e.g. `a + b - c`, `a * b + c`) — these are NOT
+       flattened (different tags). Confirm both grammars produce the same
+       left-or-right-assoc shape per Ch.15. **Current divergence noted:**
+       C produces `(TT_SUB (TT_ADD a b) c)` (left-assoc); .sc produces
+       `(TT_ADD a (TT_SUB b c))` (right-assoc grammar shape). Ch.15 says
+       priorities 6/6 left-assoc → C is correct, .sc is wrong. Either fix
+       .sc grammar to be left-assoc, or accept the divergence with a
+       documented exception. Lon decision required.
+    7. Output: `.github/PRECEDENCE-AUDIT.md` table + commits to whichever
+       grammar(s) need correction.
+
+  - [ ] **SCT-9h — Token-slot mangling: `$'(' = pat` → legal SNOBOL4 names.**
+    SPITBOL can't assign through indirection to variables whose names contain
+    special characters (segfaults on `($'(') = …`). Even legal-identifier
+    keyword slots like `($'if') = …` segfault. Fix in `lower_sno.c`: when
+    emitting a `TT_INDIRECT(TT_QLIT "str")` node in either expression or
+    LHS-of-assignment position, mangle the QLIT body into a legal SNOBOL4
+    identifier (`sc_tok_LPAREN`, `sc_tok_IF`, etc.) and emit that bare name
+    instead of `($'str')`. The mangling table must be deterministic across
+    all six parsers so the same token slot maps to the same name everywhere.
+    Estimated impact: unblocks ~40 of the 41 currently-skipped snocone
+    fixtures plus most rebus/icon/raku/prolog fixtures.
+
+  - [ ] **SCT-9i — do/while PST structural alignment (C vs .sc).**
+    Two snocone fixtures (`do_simple`, `do_with_stmt`) fail because:
+    - C frontend (PST mode) emits `(STMT :subj (TT_DO_WHILE cond body))` —
+      tree-shape, finalize_do lowering deferred to LOWER pass.
+    - `.sc` parser (`finalize_do` in parser_snocone.sc line 363) emits a
+      lowered STMT sequence: `(STMT :lbl Ltop)`, body stmts, `(STMT :subj
+      cond :goS Ltop)`, `(STMT :lbl Lend)`.
+    Decision needed: which is canonical? Likely C PST should also keep
+    TT_DO_WHILE as a tree (matching TT_WHILE/TT_FOR which already do), and
+    `.sc` should defer lowering. Lon decision required. Once aligned, both
+    `do_*` fixtures pass.
+
+  - [ ] **SCT-9j — Wire `scripts/test_parser_sc_transpile.sh`.**
+    Per-language fixture gate. For each `(lang, fixture)`:
+    1. Transpile parser_<lang>.sc → /tmp/parser_<lang>.sno via `scrip --dump-sno`
+    2. Run fixture through SPITBOL with the transpiled parser → SPITBOL TDump output
+    3. Run fixture through `scrip --dump-ast` → C reference output
+    4. Compare via byte-identical `diff` (now possible after SCT-9c).
+    Goal acceptance criterion: 24/24 PASS across (snobol4, snocone, rebus,
+    icon, raku, prolog) × 4 sample fixtures each.
+
+  - [ ] **SCT-9k — Cross-validate snobol4/rebus parsers' TDump output vs C.**
+    The snobol4 transpiled parser currently produces `(TT_STMT () (TT_LABEL)
+    (TT_EQ ...))` — different tree shape than C's `(STMT :eq :subj ...)`.
+    This is the snobol4 parser's tree-construction itself, not formatting.
+    Diagnose: is parser_snobol4.sc producing the canonical STMT shape, or
+    a transitional form? Align before declaring SCT-9 complete.
 
 - [ ] **SCT-10 — Delete sidecar helpers permanently.**
   `corpus/SCRIP/icon_helpers.sc` and `corpus/SCRIP/raku_helpers.sc` removed from corpus. `run_scrip_parser.sh` no longer loads them. README updated. Gate: SCT-9 still passes.
@@ -426,15 +529,62 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 ## 📊 State
 
 ```
-status:    SCT-9 partial 🔄 2026-05-17 (Sonnet 4.6).
-           Root cause of empty-tree output diagnosed and fixed:
-           SPITBOL's ARBNO is lazy/shy — succeeds with 0 iterations when
-           a trailing epsilon branch allows it.  All six parser_*.sc
-           Compilands had: nPush() ARBNO(...) reduce(...) (END|epsilon) nPop()
-           The epsilon made ARBNO stop at 0, so nTop()=0, tree always empty.
-           Fix: added POS(0) before ARBNO, RPOS(0) after, in all six
-           parser_*.sc Compiland definitions.  corpus `664d633`.
-           Also: renamed AST_* → TT_* in all 224 parser fixture .ref files.
+status:    SCT-9 partial 🔄 2026-05-17 (Opus 4.7, continuation of Sonnet 4.6).
+
+           NEW THIS SESSION — Six sub-rungs landed; six more queued.
+
+           SCT-9c ✅ TDump-matching C formatter (ast_print.c).  flat_length()
+           + budget = ast_print_width - depth*2 inline threshold.  Default
+           140 matches TLump(x, 140 - GetLevel()).  Runtime-configurable
+           via ir_set_print_width() / --dump-width N.  one4all `616a372b`.
+
+           SCT-9d ✅ n-ary flattening in snocone_parse.y.  sc_flatten_arith()
+           absorbs left child when same op (left-recursive grammar mirror
+           of parser_snocone.sc's right-recursive flatten_arith).  Wired
+           for TT_ADD/SUB/MUL/DIV/SEQ/ALT.  TT_POW stays binary right-assoc.
+           Bison regenerated.  one4all `616a372b`.
+
+           SCT-9e ✅ qize.sc LEQ dead-function purged.  Was shadowing
+           SPITBOL's built-in LEQ predicate, causing ERROR 248.  Never
+           called outside qize.sc.  corpus `1b24df4`.
+
+           SCT-9f ✅ All 60 snocone parser-fixture .ref files regenerated
+           from `scrip --dump-ast`.  corpus `1b24df4`.
+
+           Snocone fixture gate after SCT-9c/d/e/f:
+             PASS=24  FAIL=2  SKIP=41   (was: PASS=6 FAIL=54 in last session)
+             FAIL=2: do_simple, do_with_stmt  (TT_DO_WHILE structural; SCT-9i)
+             SKIP=41: control-flow / call / switch fixtures, blocked by
+                      $'(' = pattern token-slot bug under SPITBOL.  SCT-9h.
+
+           QUEUED THIS SESSION (Lon directives):
+             SCT-9g  Precedence/associativity audit vs SPITBOL Manual Ch.15.
+                     Tree-children-by-shift-order is fixed; ordering of when
+                     to flatten and the operator priority/assoc are NOT.
+                     Output: .github/PRECEDENCE-AUDIT.md.
+                     Known divergence: mixed-op `a+b-c` — C left-assoc
+                     (TT_SUB (TT_ADD a b) c), .sc right-assoc grammar shape
+                     (TT_ADD a (TT_SUB b c)).  Ch.15 says left-assoc for
+                     pri 6 → C is correct.  .sc grammar needs fixing OR
+                     documented exception.  Lon decision required.
+             SCT-9h  Token-slot mangling in lower_sno.c.  Map
+                     TT_INDIRECT(TT_QLIT "(") → bare name "sc_tok_LPAREN".
+                     Unblocks ~40 fixtures.
+             SCT-9i  do/while PST structural alignment between C and .sc.
+                     Either C PST keeps TT_DO_WHILE tree (matching
+                     TT_WHILE/TT_FOR), or .sc defers lowering.  Lon decision.
+             SCT-9j  Wire scripts/test_parser_sc_transpile.sh (per-lang
+                     fixture gate).  Now byte-diff possible after SCT-9c.
+             SCT-9k  Cross-validate snobol4 parser TDump shape vs C.
+                     Currently snobol4 transpiled emits (TT_STMT () (TT_LABEL)
+                     (TT_EQ ...)) — different tree shape from C's STMT-attr
+                     shape.  Diagnose and align.
+
+           Prior partial work this date (Sonnet 4.6) carried forward:
+           - SCT-9a (POS(0)/RPOS(0) ARBNO fix). corpus 664d633.
+           - SCT-9b (AST_* → TT_* rename, 224 .ref files). corpus b64f6f1.
+
+           Prior SCT-2 ✅ still stands.  Two surgical fixes landed:
            corpus `b64f6f1`.
 
            SPITBOL results after fix (with gen.sc in transpile chain):
@@ -499,33 +649,47 @@ status:    SCT-9 partial 🔄 2026-05-17 (Sonnet 4.6).
            fix in TT_SCAN case verified; parser_snobol4.sno accepted
            end-to-end by SPITBOL.
 
-watermark: SCT-9 partial 2026-05-17 (Sonnet 4.6).
-           snobol4+snocone+rebus produce AST from SPITBOL w/ POS/RPOS fix.
-           icon/raku/prolog blocked on SCT-4/5/6 helper deps.
-           224 parser fixture .ref files renamed AST_* → TT_*.
-           corpus HEAD b64f6f1.
+watermark: SCT-9c+9d+9e+9f ✅ 2026-05-17 (Opus 4.7).
+           C scrip --dump-ast and SPITBOL TDump produce byte-identical
+           output for working snocone fixtures.  24/26 PASS, 2 structural
+           do-while fail (SCT-9i), 41 token-slot skip (SCT-9h).
+           one4all HEAD 96d39c05.  corpus HEAD 1b24df4.
 
 landed:
   - src/lower/lower_sno.{c,h}     (SCT-1 through SCT-2; label_sanitize on TT_VAR)
-  - src/driver/scrip.c            (--dump-sno flag, multi-file mode)
+  - src/driver/scrip.c            (--dump-sno flag, multi-file mode; --dump-width N)
+  - src/driver/interp.h           (ir_set_print_width / ir_get_print_width)
+  - src/ast/ast_print.c           (SCT-9c: flat_length + TLump-matching threshold)
+  - src/frontend/snocone/snocone_parse.y  (SCT-9d: sc_flatten_arith for
+                                           ADD/SUB/MUL/DIV/SEQ/ALT)
+  - src/frontend/snocone/snocone_parse.tab.c (regenerated by bison 3.8.2)
   - Makefile                      (lower_sno.c entry + compile rule)
   - scripts/run_parser_sync_monitor.sh   (SCT-7 wrapper)
   - corpus/SCRIP/semantic.sc      (_qtag→qtag @ SCT-1d; REPLACE fix @ SCT-2)
-  - corpus/SCRIP/parser_*.sc      (SCT-9: POS(0)/RPOS(0) in all 6 Compilands)
-  - corpus/programs/*/parser/*.ref  (SCT-9: AST_* → TT_* rename, 224 files)
+  - corpus/SCRIP/parser_*.sc      (SCT-9a: POS(0)/RPOS(0) in all 6 Compilands)
+  - corpus/SCRIP/qize.sc          (SCT-9e: dead LEQ function deleted)
+  - corpus/programs/*/parser/*.ref       (SCT-9b: AST_* → TT_* rename, 224 files)
+  - corpus/programs/snocone/parser-fixtures/*.ref  (SCT-9f: regenerated, 60 files)
   - .github/GOAL-PARSER-SC-TRANSPILE.md  (this file, session history)
   - .github/PLAN.md, RULES.md, REPO-one4all.md, snobol4ever_clone.sh
 
-next:      SCT-9 remainder — wire test_parser_sc_transpile.sh; cross-validate
-           snobol4/snocone/rebus AST vs C --dump-ast (modulo TDump whitespace).
-           SCT-4 (icon: delete icon_helpers.sc, re-express in 6 primitives).
-           SCT-1f (2-way sync monitor, needs SN-26-spl-bridge in x64).
-           SCT-5 (raku helpers), SCT-6 (prolog helpers).
+next:      SCT-9g  Precedence/associativity audit vs SPITBOL Manual Ch.15.
+                   (Lon: shift/reduce action order is fixed by token arrival,
+                    but n-ary flatten timing AND op precedence/assoc must
+                    match the manual exactly.  Manual is the oracle.)
+           SCT-9h  Token-slot mangling in lower_sno.c — unblocks 40 fixtures.
+           SCT-9i  do-while PST alignment (C TT_DO_WHILE tree vs .sc lowered).
+           SCT-9j  Wire scripts/test_parser_sc_transpile.sh now byte-diff works.
+           SCT-9k  Snobol4 parser tree-shape alignment vs C.
+           SCT-4   icon helpers elimination.
+           SCT-1f  2-way sync monitor (needs SN-26-spl-bridge in x64).
+           SCT-5/6 raku/prolog helper elimination.
 
 authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
            SCT-1 through SCT-1e landed same day, Opus 4.7.
            SCT-2 landed (continuation session), same day, Opus 4.7.
-           SCT-9 partial: Sonnet 4.6, 2026-05-17.
+           SCT-9a/9b partial: Sonnet 4.6, 2026-05-17.
+           SCT-9c/9d/9e/9f landed: Opus 4.7, 2026-05-17 (continuation).
 ```
 
 ---
