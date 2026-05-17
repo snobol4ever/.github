@@ -167,13 +167,12 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
 ```
 watermark: 2026-05-16 (session 30/60)
-next: DONE — all hard PST violations fixed; goal criterion met
+next: DONE — parser_raku.sc complete rewrite corpus@3cb7ada
 PST-RAKU-5b ✅ corpus@31cc6f2: R1-R4 hard violations fixed.
-PST-RAKU-5c ✅ corpus@6ae646d: finish_not/mns→reduce; parse_closure_expr deleted.
-  Remaining ~95 push_*/finish_* are PST-allowed: leaf constructors from token
-  captures OR pure-reassemble-without-inspect (structurally correct reduce
-  equivalents; no child-kind inspection). Hard violations (R1-R4) all fixed.
-  Done criterion met: zero Pop/inspect/reassemble violations remain.
+PST-RAKU-5c ✅ corpus@3cb7ada: complete rewrite 1788→953 lines, 95→39 functions.
+  All finish_* tree-assembly helpers eliminated. 55 Push_fn_* leaf-literal vars.
+  10 remaining finish_* are counter-based variable-arity assemblers (TopCounter+
+  loop, no child-kind inspection, cannot be single reduce). All gates green.
 PST-ICN-4a ✅ one4all@c52b724c: TT_MATCH_UNARY, TT_FIELD child layout, ICN_FIELD_NAME macro.
 PST-ICN-4b ✅ corpus@0ecae06: parser_icon.sc 525→381 lines, 9 structural helpers → reduce, 5 PST-allowed leaf-push functions retained.
   C-side fixes from PST-ICN-2b did not propagate to SCRIP mirrors. parser_icon.sc has 13
