@@ -144,7 +144,7 @@ Add lower-side equivalent first, then strip parser-side desugaring. Each rung: g
 - [x] **PST-SC-4f** ✅ (2026-05-16) — `TT_CASE(disc, val1, TT_PROGRAM(body1), ..., QLIT(end))`. `CaseEntry.before_body` snapshot added. `sc_switch_case_label`/`sc_switch_default_label` snapshot instead of emitting labels. `sc_finalize_switch_pst` collects bodies in reverse order, builds TT_CASE. `lower_case` updated for Snocone TT_PROGRAM arm bodies (QLIT-last detection). SCRIP mirror updated.
 - [x] **PST-SC-4g** ✅ (2026-05-16, one4all `0c0c22d9`, corpus `6889e67`) — `TT_DEFINE(QLIT(name), QLIT(sig), TT_PROGRAM(body))`. `FuncHead` slimmed to `{name,argstr,prev_func}`. `func_before_body` snapshot. `sc_finalize_function_pst` builds TT_DEFINE. `lower_stmt` dispatches TT_DEFINE: emits DEFINE call, skip-jump, entry label, body, patch. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
 - [x] **PST-SC-4h** ✅ (2026-05-16, one4all `e1a902a7`, corpus `6a68f49`) — `break`/`continue` emit `TT_LOOP_BREAK`/`TT_LOOP_NEXT` tree nodes (QLIT user-label child optional). `sc_append_break`/`sc_append_continue` no longer emit goto STMT_t. `lower.c`: `g_loop_stack` (depth-64) with `loop_push`/`loop_pop`; while/do/for push labels around body; `lower_loop_break`/`lower_loop_next` resolve via stack. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
-- [ ] **PST-SC-4i** — Labels (`label:`) → `TT_STMT` with label attribute or sibling `TT_GOTO_U` target. `sc_emit_label_pad` and pending-label tracking deleted.
+- [x] **PST-SC-4i** ✅ (2026-05-16) — Labels (`label:`) → STMT_t with label field (produces TT_STMT(:lbl) via stmt_to_ast). `sc_emit_label_pad`, `sc_pending_label_add`, `sc_pending_label_clear`, `sc_pending_to_stash` deleted; all pending/stash fields removed from ScParseState; user_labels fields removed from LoopFrame; `sc_loop_find_by_user_label` deleted. New `sc_append_label_node` appends label-only STMT_t directly. Bonus fix: while/do/for head snapshot moved from single ScParseState fields into per-instance WhileHead/DoHead/ForHead structs — fixes double-free crash on nested loops. lower.c: TT_DEFINE routed through lower_stmt when appearing as TT_STMT subject. SCRIP mirror: parser_snocone.sc already emits make_label_stmt — no change needed. Gates: snocone_smoke 5/0, crosscheck_snocone 8/0, scrip_all_modes 2/0.
 - [ ] **PST-SC-4j** — `return`/`freturn`/`nreturn` → `TT_RETURN` and dedicated kinds. `sc_append_return/*freturn/*nreturn` deleted.
 - [ ] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted.
 - [ ] **PST-SC-4l** — `sc_split_subject_pattern` → lower.
@@ -378,13 +378,15 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
-            Stage 1 Step 4 — PST-SC-4a ✅ … 4h ✅
-head: .github = (this commit) · one4all = e1a902a7 · corpus = 6a68f49
-session 2026-05-16h: PST-SC-4c…4h ✅. snobol4.l AST_t→tree_t also done.
-  4h: break/continue emit TT_LOOP_BREAK/NEXT. lower.c loop stack. lower.sc mirrored.
-next: PST-SC-4i — labels (label:) → TT_STMT with label or sibling TT_GOTO_U target.
+            Stage 1 Step 4 — PST-SC-4a ✅ … 4h ✅  PST-SC-4i ✅
+head: .github = (this commit) · one4all = (this commit) · corpus = 6a68f49
+session 2026-05-16i: PST-SC-4i ✅. label: → STMT_t(:lbl) pure path. Pending-label machinery deleted.
+  Bonus: while/do/for head snapshots moved into per-instance structs (WhileHead/DoHead/ForHead),
+  fixing double-free crash on nested loops. lower.c: TT_DEFINE routed via lower_stmt when
+  appearing as TT_STMT subject. SCRIP mirror already correct — no change needed.
+next: PST-SC-4j — return/freturn/nreturn → TT_RETURN and dedicated kinds.
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4g function next) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4j return next) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
