@@ -194,6 +194,16 @@ at the same correctness floor.
 ║      to-upper. See the next ABSOLUTE RULE for the binding cross-language story.                 ║
 ║    • TBD: add rows as new divergences are explicitly chosen.                                    ║
 ║                                                                                                  ║
+║  Known OPEN divergences (bugs to close — distinct from permitted divergences):                  ║
+║    • REPLACE 2nd/3rd-arg length — SCRIP's `REPLACE(s, X, Y)` today accepts unequal-length X     ║
+║      and Y (e.g. `REPLACE(t, "'", "")` removes apostrophes). SPITBOL's REPLACE is a character-   ║
+║      mapping translation that requires `SIZE(X) == SIZE(Y)` and ERROR 171s on mismatch.         ║
+║      Discovered 2026-05-17 by SCT-2 via parser_rebus.sc/parser_icon.sc/parser_raku.sc all       ║
+║      breaking on transpiled `qtag`'s REPLACE call.  Workaround landed in corpus/SCRIP/          ║
+║      semantic.sc (use `REPLACE(t, "'", 'x')` — same length).  Permanent fix needed: tighten     ║
+║      SCRIP's REPLACE to match SPITBOL's character-mapping semantics and ERROR 171 on            ║
+║      unequal lengths.  Tracked as GOAL-LANG-SNOBOL4 follow-up SN-REPLACE-EQ.                    ║
+║                                                                                                  ║
 ║  Languages OUTSIDE this rule: Icon, Prolog, Rebus, Raku follow their own native semantics       ║
 ║  (ISO Prolog, Icon Programming Language reference, etc.) — SPITBOL conformance applies only to  ║
 ║  the SNOBOL4 lineage and Snocone (which lowers to a SNOBOL4-shaped runtime). The transpiler     ║

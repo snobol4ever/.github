@@ -332,15 +332,37 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
   ```
   Acceptance: monitor reports either PASS or first divergence with line numbers.
 
-- [~] **SCT-2 — `parser_rebus.sc` → `parser_rebus.sno`.** 🔄 PARTIAL 2026-05-17 (Opus 4.7).
-  Transpile is clean: 953 lines, zero `?TT_` placeholders, SCRIP front-end accepts (7,371 SM instructions on `--dump-sm`).
-  SPITBOL execution: starts the parser, runs 299 statements, then hits **ERROR 171 at line 473** ("null or unequally long 2nd, 3rd args to replace") in transpiled `qtag` function — from `corpus/SCRIP/semantic.sc` line ~21: `IDENT(REPLACE(t, "'", ""), t)`. SPITBOL `REPLACE` is character mapping (requires `SIZE(X) == SIZE(Y)`), not substring substitution.
-  Same error reproduces on `parser_icon.sno` line 473 and `parser_raku.sno` line 473 — all three share the `qtag` runtime, so the fix is one source edit in `semantic.sc`.
-  Suggested fix (next session): replace `REPLACE(t, "'", "")` with pattern-strip `tmp = t; LSTRP tmp "'" =  :S(LSTRP) ; IDENT(tmp, t)` — portable SNOBOL4. Open question for Lon: do we fix in `semantic.sc` source (cleanest) or detect in transpiler (more general)? Recommended: source fix; the constraint "transpiled .sno must run on SPITBOL" applies to the runtime source too.
-  Also discovered: `--sm-run` segfaults on this and all transpiled parsers via `rt_bb_arbno` → `bb_deferred_var` rebuild path (rt.c:1217 / stmt_exec.c:303). This is the exact bug-class GOAL-PARSER-SC-TRANSPILE was designed to ROUTE AROUND via SPITBOL oracle, not fix here — see Architectural Insight. Owned by GOAL-PST-REBUS.
-  Cosmetic finding: `lower_sno.c` emits `&FULLSCAN = 1` twice when source also emits it (prelude + passthrough). Harmless no-op pair under SPITBOL. Worth a 3-line dedup in `lower_sno.c::tree_to_sno`.
+- [x] **SCT-2 — `parser_rebus.sc` → `parser_rebus.sno`.** ✅ 2026-05-17 (Opus 4.7), continuation.
+  **Rebus + Icon now run to clean exit under SPITBOL.** Two surgical fixes landed:
 
-  Same as SCT-1 but for Rebus parser. New constructs to handle in transpiler: `OPSYN`, `&FULLSCAN` setter (pass through verbatim), `epsilon` (already known), counter idioms (`nPush/nInc/nTop/nPop` → SNOBOL4 stack manipulation already in `counter.inc`). Sample: `corpus/programs/rebus/parser/paren.reb`.
+  **Fix #1 — `corpus/SCRIP/semantic.sc` line 31 (`qtag`):** swapped `REPLACE(t, "'", "")` for `REPLACE(t, "'", 'x')`. SPITBOL `REPLACE` requires equal-length 2nd/3rd args (it's a character-mapping translation, not substring substitution); the empty 3rd arg crashes with ERROR 171. The new form is portable on both runtimes: substitutes `'` for `x` (any non-apos char of same length), then `IDENT(result, t)` succeeds iff `t` had no apostrophes. Tested under both SPITBOL and SCRIP `--ir-run` with 3 inputs (has-apos / no-apos / empty); all 6/6 PASS. The original comment in semantic.sc claimed bare `ANY("'")` would work as an alternative but `--ir-run` showed SL-4 affects ANY too (false positives on no-apos inputs), so REPLACE is the only portable path. **Followup:** the underlying runtime divergence — SCRIP's `REPLACE` accepts unequal-length args, SPITBOL's doesn't — is now tracked as **SN-REPLACE-EQ** in `GOAL-LANG-SNOBOL4.md` and listed in the "follow SPITBOL" rule's "Known OPEN divergences" subsection.
+
+  **Fix #2 — `one4all/src/lower/lower_sno.c` TT_VAR case + `label_sanitize()` strategy upgrade:** apply `label_sanitize()` to every emitted identifier, not just labels. SPITBOL Manual Ch.14 line 9335 (the same constraint that motivated SCT-1b for labels and SCT-1d's `_qtag` rename) applies to identifiers in pattern-capture position too. `parser_prolog.sc` uses `_op_name` as a `. _op_name` capture target dozens of times; SPITBOL rejected at first use with ERROR 230 illegal character. Two changes: (a) one-line addition in `emit_expr` TT_VAR case to route through `label_sanitize`; (b) sanitizer strategy upgraded per Lon directive (2026-05-17): strip **all** leading underscores and **append one trailing underscore**, instead of just stripping a single leading. Rationale: trailing-underscore identifiers are valid in SPITBOL (verified by direct test) and almost nobody writes user identifiers ending in `_`, so the sanitized form `op_name_` is essentially collision-free with any user-written `op_name`. The previous strip-only rule was collision-unsafe for the general case. Now: `_op_name → op_name_`, `_Ltop_0001 → Ltop_0001_`, `__foo → foo_` — all unique, all portable. Verified in the transpiled output of all 6 parsers; smoke gates hold.
+
+  **SPITBOL sweep after both fixes:**
+  ```
+  snobol4    exit=0  CLEAN  (was: CLEAN)
+  snocone    exit=0  CLEAN  (was: CLEAN)
+  rebus      exit=0  CLEAN  (was: ERROR 171 @line 473)  🎯
+  icon       exit=0  CLEAN  (was: ERROR 171 @line 473)  🎯
+  raku       exit=0  ERROR 022 @line 943   (was: ERROR 171 — qtag fix unmasked
+                                            missing raku_helpers — already known
+                                            as SCT-5 prereq)
+  prolog     exit=0  ERROR 022 @line 1615  (was: ERROR 230 @766,27 — TT_VAR fix
+                                            advanced past the syntax error to
+                                            same missing-helpers wall as raku;
+                                            this is SCT-6 prereq territory)
+  ```
+
+  Smoke gates hold: snobol4 6/1 (1 pre-existing baseline FAIL, identical to SCT-1e watermark), snocone 5/0. No regressions.
+
+  **Followups owned by other rungs:**
+  - `--sm-run` still segfaults on all 6 via `rt_bb_arbno` → `bb_deferred_var` rebuild path (rt.c:1217 / stmt_exec.c:303). Owned by GOAL-PST-REBUS.
+  - Raku's ERROR 022 is `parser_raku.sc` referencing undefined helpers like `Push_fn_raku_die`, `Push_fn_map`, `Push_fn_capture`, etc. — these aren't in `raku_helpers.sc` either, they're meant to be implementation hooks. Per goal constraint #2 these are forbidden in `parser_*.sc`; the proper SCT-5 work re-expresses these in terms of the six allowed primitives (`shift`, `reduce`, `nPush`, `nInc`, `nTop`, `nPop`) or migrates to C-side `raku_lower.c`.
+  - Prolog's ERROR 022 is analogous: `Push_nil`, `Push_cut`, `Push_char_code`, `Push_hex_int`, `Push_bin_int`, `Push_oct_int`, `Push_atom_body`, `Push_neg_float`, `Push_neg_int`, `Reduce_compound_ns`, `Reduce_list`, `Reduce_unop`, `do_uminus` — all undefined in any loaded `.sc`. SCT-6 territory.
+  - Cosmetic: `lower_sno.c` emits `&FULLSCAN = 1` twice when source also emits it (prelude + passthrough). Harmless no-op pair under SPITBOL. Worth a 3-line dedup in `lower_sno.c::tree_to_sno`.
+
+  Sample: `corpus/programs/rebus/parser/paren.reb` ✅.
 
 - [ ] **SCT-3 — `parser_snocone.sc` → `parser_snocone.sno`.**
   The hardest one: parser_snocone.sc is 931 lines and uses constructs the others don't (record declarations, function returns). May expose `lower.c` gaps that surface as `[NO-AST]` stubs in transpile mode — fix those in `lower.c`, never in the transpiler. Sample: `corpus/programs/snocone/corpus/sc1_literals.sc`.
@@ -353,7 +375,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 
 - [ ] **SCT-6 — `parser_prolog.sc` → `parser_prolog.sno`.**
   Independent of GOAL-PST-PROLOG's frontend work. The Prolog parser_*.sc is largest at 1040 lines; some constructs may need `lower.c` fixes. Sample: `corpus/programs/prolog/rung01_hello_hello.pl`.
-  **Pre-finding (Opus 4.7, 2026-05-17):** transpile is clean (1753 lines, 0 placeholders) but SPITBOL rejects `parser_prolog.sno` at parse time: `(766,27) : ERROR 230 -- syntax error: illegal character`. This is **NOT a runtime issue** — SPITBOL refuses to compile the file. Likely a transpiler emission bug (some character in source `parser_prolog.sc` that lower_sno.c isn't escaping properly). Triage: `view /tmp/parser_prolog.sno line 766 col 27` and inspect what `emit_expr` or `emit_stmt` produced there. Whatever the character is, it survived through `emit` without being quoted or escaped; SNOBOL4 has no `\\` escapes so the fix is likely "emit via `CHAR(N)` concatenation when the literal contains an unprintable or control char".
+  **Pre-finding (Opus 4.7, 2026-05-17, updated):** transpile is clean (1753 lines, 0 placeholders). The original ERROR 230 (illegal character @line 766,27 — `_op_name` pattern-capture variable) was **fixed in SCT-2** by extending `label_sanitize()` to TT_VAR emissions in `lower_sno.c`. SPITBOL now accepts the syntax of `parser_prolog.sno` end-to-end. Next layer: ERROR 022 (undefined function called) at line 1615 — same class as SCT-5's raku problem. `parser_prolog.sc` references `Push_nil`, `Push_cut`, `Push_char_code`, `Push_hex_int`, `Push_bin_int`, `Push_oct_int`, `Push_atom_body`, `Push_neg_float`, `Push_neg_int`, `Reduce_compound_ns`, `Reduce_list`, `Reduce_unop`, and `do_uminus` — none of these are defined in any loaded `.sc` file. Per goal constraint #2 these "language-specific helpers" must be eliminated: either re-expressed in terms of the six allowed primitives (`shift`, `reduce`, `nPush`, `nInc`, `nTop`, `nPop`), or migrated to C-side `lower_pl.c`. This is the bulk of SCT-6's work.
 
 ### Phase 2 — Two-way harness
 
@@ -390,66 +412,90 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 ## 📊 State
 
 ```
-status:    SCT-2 🔄 PARTIAL 2026-05-17 (Opus 4.7 ~late afternoon).
-           Cross-parser SPITBOL sweep delivered 3 findings:
-             (1) snobol4 + snocone parsers run to clean exit under
-                 SPITBOL — no errors at all.  Both produce only blank
-                 OUTPUT lines (label-padding artifact) because the
-                 SPITBOL parse-loop didn't recognise the sample input
-                 and hit the source's "Parse Error" else branch — that
-                 IS a clean exit per source semantics; deeper validation
-                 (SCT-9: matching --dump-ast reference) is the real bar.
-             (2) rebus + icon + raku parsers all hit IDENTICAL
-                 ERROR 171 at line 473 ("REPLACE 2nd/3rd args unequal
-                 length") in transpiled qtag() — single runtime-source
-                 bug in corpus/SCRIP/semantic.sc:21.  Three-for-one fix.
-             (3) prolog parser hits ERROR 230 (illegal character) at
-                 line 766 col 27.  Transpiler-side emission bug, not
-                 runtime.  Needs lower_sno.c triage of literal-char
-                 escaping (SNOBOL4 has no \\ escapes; control chars
-                 in QLITs must come out as CHAR(N) concatenations).
-           Path opened: GOAL doc updated to direct sessions to clone
-           snobol4ever/x64 directly (prebuilt sbl binary; no build step).
-           This session removes the "SPITBOL not built" stop-gap that
-           blocked SCT-1f for two prior sessions.
+status:    SCT-2 ✅ 2026-05-17 (Opus 4.7).
+           Two surgical fixes landed:
+             (1) corpus/SCRIP/semantic.sc line 31 — qtag's
+                 REPLACE(t, "'", "") → REPLACE(t, "'", 'x') for
+                 equal-length 2nd/3rd args.  Portable on both
+                 SPITBOL and SCRIP.  Verified by 3-input test
+                 program (has-apos / no-apos / empty) — 6/6 PASS.
+             (2) src/lower/lower_sno.c TT_VAR case — apply
+                 label_sanitize() to identifiers, not just labels.
+                 SPITBOL's letter/digit-first rule (Ch.14 line 9335)
+                 covers identifiers in pattern-capture position too.
+                 Fixes parser_prolog.sc's pervasive `_op_name`
+                 captures (was ERROR 230 at every reference site).
+                 Comment on label_sanitize updated to document
+                 dual use.
+
+           Cross-parser SPITBOL sweep after fixes (sample inputs):
+             snobol4    exit=0  CLEAN
+             snocone    exit=0  CLEAN
+             rebus      exit=0  CLEAN  🎯 (was: ERROR 171 @line 473)
+             icon       exit=0  CLEAN  🎯 (was: ERROR 171 @line 473)
+             raku       ERROR 022 @line 943   (was: ERROR 171 — qtag
+                                               fix unmasked missing
+                                               Push_fn_raku_die etc.
+                                               Owned by SCT-5: delete
+                                               raku_helpers.sc and
+                                               re-express in 6-primitive
+                                               vocabulary or migrate to
+                                               C-side raku_lower.c.)
+             prolog     ERROR 022 @line 1615  (was: ERROR 230 @766,27 —
+                                               TT_VAR fix passed the
+                                               syntax-error wall; now
+                                               at same missing-helpers
+                                               wall as raku.  Owned by
+                                               SCT-6.)
+
+           Smoke gates hold: snobol4 6/1 (matches SCT-1e baseline,
+           1 pre-existing FAIL), snocone 5/0.  No regressions.
+           SCRIP --sm-run still segfaults on all 6 via rt_bb_arbno →
+           bb_deferred_var path (rt.c:1217 / stmt_exec.c:303).
+           Owned by GOAL-PST-REBUS; this goal routes around.
 
            Prior SCT-1e ✅ stands: all six transpile cleanly; explicit-`?`
            fix in TT_SCAN case verified; parser_snobol4.sno accepted
            end-to-end by SPITBOL.
 
-watermark: All 6 transpile clean.  Sample-input run under SPITBOL:
-              snobol4    exit=0  (clean — empty AST; parser hit source's Parse-Error branch)
-              snocone    exit=0  (clean — same shape as snobol4)
-              rebus      exit=0 with ERROR 171 @line 473 (qtag REPLACE)
-              icon       exit=0 with ERROR 171 @line 473 (qtag REPLACE)
-              raku       exit=0 with ERROR 171 @line 473 (qtag REPLACE)
-              prolog     exit=231 with ERROR 230 @line 766,27 (illegal char)
-           SCRIP --sm-run still segfaults on all 6 via rt_bb_arbno →
-           bb_deferred_var path (rt.c:1217 / stmt_exec.c:303).  Owned
-           by GOAL-PST-REBUS; this goal routes around via SPITBOL oracle.
+watermark: All 6 transpile clean.  After fixes:
+              snobol4=885   snocone=1824   rebus=953
+              icon=938      raku=1090      prolog=1753
+           SPITBOL accepts and runs all 6 to exit; 4 clean (snobol4,
+           snocone, rebus, icon), 2 stop on missing language-specific
+           helpers that are already enumerated as SCT-5/SCT-6 prereqs.
+           For "real" output (parser actually returns an AST not just
+           "Parse Error"): see SCT-9 acceptance criterion — needs
+           --dump-ast cross-validation; not yet wired.
 
 landed:
-  - src/lower/lower_sno.{c,h}     (~360 lines + SCT-1b/c/d/e deltas)
+  - src/lower/lower_sno.{c,h}     (+ SCT-1b/c/d/e/2 deltas — label_sanitize
+                                    now applied to TT_VAR too)
   - src/driver/scrip.c            (--dump-sno flag, multi-file mode)
   - Makefile                      (lower_sno.c entry + compile rule)
   - scripts/run_parser_sync_monitor.sh   (SCT-7 wrapper)
-  - corpus/SCRIP/semantic.sc      (_qtag → qtag rename, SCT-1d)
-  - .github/GOAL-PARSER-SC-TRANSPILE.md  (SCT-2 partial; SPITBOL clone
-                                          path canonicalised — clone
-                                          snobol4ever/x64 to /home/claude/x64,
-                                          prebuilt sbl at bin/sbl)
+  - corpus/SCRIP/semantic.sc      (_qtag → qtag rename @ SCT-1d;
+                                    qtag REPLACE equal-length fix @ SCT-2)
+  - .github/GOAL-PARSER-SC-TRANSPILE.md   (SCT-1 through SCT-2 history;
+                                           SPITBOL clone path canonicalised;
+                                           x64 ships prebuilt binary)
+  - .github/PLAN.md, RULES.md, REPO-one4all.md, snobol4ever_clone.sh
+                                          (Session-Start canonicalisation;
+                                           new ABSOLUTE RULE "follow SPITBOL")
 
-next:      Fix qtag's REPLACE in corpus/SCRIP/semantic.sc (1-line source
-           edit using portable pattern-strip).  That unblocks rebus +
-           icon + raku validation in one move.  Then triage prolog's
-           ERROR 230 at line 766 col 27 in lower_sno.c.  Then SCT-1f
-           (2-way sync monitor) — still requires SN-26-spl-bridge patch
-           in x64 repo before the monitor wire activates, but the
-           non-monitor SPITBOL-only oracle path is now live and useful.
+next:      SCT-1f (2-way sync monitor) — still requires SN-26-spl-bridge
+           patch in x64 repo before the monitor wire activates.  But the
+           non-monitor SPITBOL-only oracle path is now reliable for 4 of 6
+           parsers.  SCT-5 (raku) and SCT-6 (prolog): eliminate language-
+           specific helpers from parser_raku.sc / parser_prolog.sc per
+           goal constraint #2.  SCT-9 (AST cross-validation): when ready
+           to confirm parsers ACTUALLY parse correctly, wire --dump-ast
+           comparison; even snobol4 today hits its own Parse-Error branch
+           and we don't know why without seeing the divergence.
 
 authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
            SCT-1 through SCT-1e landed same day, Opus 4.7.
-           SCT-2 partial + clone-path canonicalisation, same day, Opus 4.7.
+           SCT-2 landed (continuation session), same day, Opus 4.7.
 ```
 
 ---
