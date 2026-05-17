@@ -164,23 +164,82 @@ findings-5e (2026-05-17):
     `CODE_t *prolog_lower(PlProgram *pl_prog) {` function header on line 352
     that was orphaned by commit 8fee1957 (PST-PL-6d). Without this fix `make
     scrip` did not build.
-  - Gates: NOT RUN. scrip rebuilds cleanly with the prolog_lower.c fix, but
-    all six SCRIP-hosted parsers (snobol4, snocone, icon, prolog, raku, rebus)
-    fail at the SCRIP runtime layer:
-      * Without qize.sc loaded: Error 5 — Undefined SQize, called from
-        _qtag in semantic.sc whenever reduce(<bare-identifier>, n) is invoked.
-      * With qize.sc loaded: SCRIP Snocone runtime aborts with
-        double-free heap corruption — pre-existing bug noted in the
-        production run_scrip_parser.sh comment, tracked as SL-2.
-    Empirical AST dump per language NOT produced this session. Changes are
-    syntactically valid SCRIP but un-validated through the runtime.
-    Recommend a future session fix the qize-corruption SL-2 issue first,
-    then re-run the parsers to gate.
-  - Hand-off commit message includes the qize runtime blockage so the
-    next session can pick up the actual gating.
+
+findings-5f (2026-05-17, second session, Claude Opus 4.7 — SL-2 closed):
+  SL-2 root cause was MISDIAGNOSED in 5e.  The earlier note "SCRIP Snocone
+  runtime aborts with double-free heap corruption" pointed at the wrong
+  layer.  The actual bug was a **heap use-after-free in snocone_parse.y's
+  if-statement reduction**.  `sc_finalize_if_else_pst` read its CODE_t
+  snapshot from `st->if_before_body` — a single shared slot on ScParseState
+  that every nested `if_head` reduction overwrote.  With 3+ chained
+  `else if` clauses (qize.sc's Qize function being the trigger that any
+  parser loading qize.sc would crash on), the outer reduction's
+  `sc_collect_body` walked STMTs that the inner reduction had already
+  freed.  ASan pinned it at snocone_parse.y:840.  Fix: every `if_head`
+  now allocates its own `struct IfHead` (via the already-existing
+  `sc_if_head_new`), bison `%type <expr> if_head` → `%type <ifhead>`,
+  finalizers read `h->cond` / `h->before_body` and free `h` on exit.
+  Bison-regenerated `snocone_parse.tab.c`.
+
+  `scripts/run_scrip_parser.sh` updated: qize.sc re-included, dead
+  lower.sc / lower_driver.sc refs dropped, the stale "Append-through-
+  function-parameter" comment replaced with the accurate post-mortem.
+
+  Gates re-run: smoke_rebus 4/0, smoke_scrip_all_modes 2/0,
+  crosscheck_snobol4 4/2.  The 4/2 is baseline — pattern_replace and
+  beauty_omega fail without my changes too, confirmed via git-stash.
+
+  AST dumps probe (Lon Q): all six SCRIP-hosted parsers were
+  found to **hang silently at load time**, not error.  Bisected to
+  `_qtag` (semantic.sc) falling through to SQize on identifier-shaped
+  tag strings like 'TT_VAR' / 'TT_NUL' — and SQize has an infinite
+  loop on inputs containing no apostrophe.  Fix: `_qtag` gained a
+  fast-path `if (IDENT(REPLACE(t, "'", ""), t)) { _qtag = "'" t "'";
+  return; }` that detects identifier-shape and wraps directly, bypassing
+  SQize for the parser tag idiom.  REPLACE-based detection avoids a
+  second SCRIP runtime bug (SL-4 below) where BREAK("'") / ARB "'" /
+  ARB ANY("'") spuriously succeed on apostrophe-free input.
+
+  After the `_qtag` fix all six parsers finish loading in under a
+  second.  They do NOT yet produce valid AST dumps — snobol4/rebus/
+  prolog/raku now emit "Error 5: Undefined function or operation" at
+  load (1–10 occurrences depending on parser); snocone matches input
+  but Pop returns null (no tree built by Shift/Reduce);
+  parser_icon.sc:3 has a separate pre-existing snocone parse error.
+  These remaining issues are downstream of SL-2 / SL-3, separate
+  tickets.
+
+  Sidecar audit (Lon Q): "zero functions" claims in this file and in
+  GOAL-PST-ICN-RAKU.md were technically true of parser_*.sc files in
+  isolation but misleading — icon_helpers.sc carries 5 functions
+  (4 leaf-push + a notmatch redef), raku_helpers.sc carries 11
+  (push_interp_str, dq_unescape, 9 finish_* counter-based assemblers).
+  Today only parser_rebus.sc is genuinely sidecar-free.  Fixed wording
+  in GOAL-PST-ICN-RAKU.md (rung PST-ICN-4b, §7 done-criterion, State),
+  PLAN.md (PST: Icon+Raku row), and corpus/SCRIP/README.md (new
+  "Per-language helper sidecars (transitional)" section).
+
+  Three new SL tickets opened (in commit message + this State):
+    SL-3: SQize infinite loop on apostrophe-free input
+          (corpus/SCRIP/qize.sc:46-58).  Loop condition + replacement
+          interaction doesn't reduce `str`.  Workaround: _qtag's new
+          fast-path avoids triggering it for the common parser case.
+    SL-4: SCRIP runtime pattern-matcher spuriously succeeds on
+          BREAK("'") / ARB "'" / ARB ANY("'") when input contains no
+          apostrophe.  Workaround: use REPLACE for apos-presence checks.
+    SL-5: Parser AST dumps not yet correct.  Each parser_*.sc finishes
+          loading after SL-2 fix but emits Error 5 ("Undefined function
+          or operation") at load and/or fails to push a tree onto the
+          value stack.  Likely shift/reduce wiring or EVAL-scope issue
+          in semantic.sc's shift() builder.  No parser produces a
+          usable AST dump today.
+
+  Hand-off commit author: LCherryholmes (per RULES.md).
+  Hand-off authored by: Claude Opus 4.7.
 ```
 
 ## Authorship
 
 Drafted by Claude Sonnet 4.6, 2026-05-16.
 PST-RB-5e + helpers by Claude Opus 4.7, 2026-05-17.
+SL-2 fix + sidecar-claim corrections + _qtag SL-3/4 workaround by Claude Opus 4.7, 2026-05-17 (second session).
