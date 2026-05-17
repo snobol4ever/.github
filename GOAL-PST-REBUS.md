@@ -49,14 +49,12 @@ bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh \
 
 ## Active rungs
 
-- [ ] **PST-RB-5h — Snocone-port subsystem suite to 19/20.**
-  Currently 15/20 PASS at one4all `4df6933b`. The 5 remaining failures all live at `corpus/programs/snocone/demo/beauty/test/test_<subsys>.{sc,ref}`. For each, SPITBOL-oracle the failing construct first; if SPITBOL says the corpus is right, fix SCRIP in `one4all`.
-    - **match**: `notmatch` mis-classifies misses as PASS (tests 2, 3, 9). Negation logic.
-    - **Gen**: Error 22 "Limit on statement execution exceeded" at stmt 39. Suspected infinite loop in `Gen` body.
-    - **semantic**: tests 5, 6 (nInc/nTop interaction) and 8 (`nTop INTEGER` returns STRING) — type drift.
-    - **trace**: one-line output diff (`0  upd` vs `0? pd`) — likely whitespace/escape quirk in trace.sc output formatter.
-    - **Qize**: blocked by SL-3 (SQize infinite loop on apostrophe-free input). The `.ref` file IS the SKIP placeholder. Resolve under SL-3 ticket, not here.
-  Acceptance: 19/20 PASS (Qize remains SKIP under SL-3). All other gates green.
+- [x] **PST-RB-5h — Snocone-port subsystem suite to 19/20.** ✅ 2026-05-17 (Opus 4.7)
+  15/20 → **19/20** PASS (Qize stays SKIPped under SL-3 as designed). The narrative "5 separate failures" (match, Gen, semantic, trace, Qize) collapsed: **one root cause flipped 4 of them.**
+  Root cause: `lower_scan` in `src/lower/lower.c` unconditionally emitted Icon scanning-environment opcodes (`ICN_SCAN_PUSH`/`ICN_SCAN_POP`) for `TT_SCAN`. Both Icon and Snocone parsers reduce `?` to `TT_SCAN` — but Snocone `s ? pat` is **SNOBOL4 pattern matching** per SPITBOL Ch. 18 (binary op priority 1, left-assoc), not Icon scan-env. Wrong dialect meant `if (s ? p)` never set `last_ok`, so the subsequent `SM_JUMP_F` always fell through.
+  Fix: dispatch on `g_lang` in `lower_scan`. Icon keeps `ICN_SCAN_PUSH/POP`; non-Icon mirrors the statement-level match path at `lower_stmt` line ~1306 (`SM_EXEC_STMT` with pattern DCG), then pushes an empty placeholder so `lower_if_stmt`'s `SM_VOID_POP` has something to consume. Flipped: match (3 tests), trace (1 test), Gen (used `?` internally, hit same wrong-branch path), semantic (same). Subsystems passing: 16 → 19.
+  Sweep also landed: `snocone_parse.y` AST_* → TT_* (29 names, 89 occurrences; bridge `#define`s deleted from regenerated `.tab.c`); `snocone_lex.c` AST_* goto-labels → LX_* (45 names, 101 occurrences — they were lexer-state labels, never AST kinds).
+  Watermark: one4all `1e6557c1`. Gates green (smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_snobol4 6/1 baseline with pre-existing `pattern` test fail unrelated to this rung, crosscheck_snobol4 4/2 baseline, unified_broker 19/30 baseline).
 
 - [ ] **PST-RB-5i — Parser AST validation: parser_*.sc dump matches C-side tree_t dump.**
   For each of the six parsers (`snobol4`, `snocone`, `rebus`, `icon`, `prolog`, `raku`):
@@ -109,13 +107,19 @@ bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh \
 ## State
 
 ```
-watermark:  PST-RB-5g committed 2026-05-17 (one4all 4df6933b, .github 5f65c35d)
-status:     Subsystem suite 15/20 at HEAD. Parser_*.sc still don't emit usable AST (SL-5).
-next:       PST-RB-5h (subsystem suite to 19/20) → 5i (parser AST validation) → 5j (6-fn trace) → 5k (Snocone INCLUDE).
+watermark:  PST-RB-5h committed 2026-05-17 (one4all 1e6557c1, .github pending)
+status:     Subsystem suite 19/20 at HEAD (Qize SKIP under SL-3 — acceptance met).
+            Parser_*.sc still don't emit usable AST (SL-5).
+next:       PST-RB-5i (parser AST validation) → 5j (6-fn trace) → 5k (Snocone INCLUDE).
 
 SL-2 closed. SL-3/4/5 open and explicitly blocking 5i.
+SL-4 generalized: TT_SCAN expression-position dispatch (5h) fixed the
+SNOBOL4 pattern-match success/failure signalling in if-context; the
+original SL-4 phrasing ("BREAK/ARB/ARB ANY spurious match") was a
+symptom of the same root cause and may be partially or fully resolved.
 
 Authors:
   5a–5d   Sonnet 4.6  2026-05-16
   5e–5g   Opus 4.7   2026-05-17 (three sessions)
+  5h      Opus 4.7   2026-05-17 (this session)
 ```
