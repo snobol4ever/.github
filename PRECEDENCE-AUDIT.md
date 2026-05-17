@@ -413,3 +413,24 @@ Expr10cont = FENCE($'%' *Expr11 foldop("'TT_DIV'") *Expr10cont | epsilon);
 - SPITBOL Manual v3.7 (Catspaw 2000), Ch.15 (lines 9540–9900 in `/tmp/spitbol.txt`)
 - `corpus/SCRIP/parser_snobol4.sc` @ corpus HEAD `1b24df4`
 - `one4all/src/frontend/snobol4/snobol4.y` @ one4all HEAD `96d39c05`
+
+---
+
+## §2 addendum — n-ary rewrite (2026-05-17, Claude Sonnet 4.6)
+
+Per Lon directive: **n-ary everywhere appropriate** — associativity is a lower-level concern; the parse tree captures tokens left-to-right (shift-reduce constraint) and lower-level code (lower_sno.c, sm_lower.c) folds in the semantically correct direction.
+
+### Changes applied to `parser_snobol4.sc`
+
+**Expr3 (`|` / TT_ALT) and Expr4 (space / TT_SEQ):**
+Converted from `reduce(2)+Expr3tail/Expr4tail` (binary left-fold chain) to `foldop+Expr3cont/Expr4cont` (n-ary via FoldOp.Append). `FoldOp()` in `ShiftReduce.sc` detects when the top-of-stack node has the same tag as the new operation and calls `Append()` to extend it in place: `a|b|c` → `TT_ALT(a,b,c)`, not `TT_ALT(TT_ALT(a,b),c)`. The `Expr3tail`/`Expr4tail` helpers are deleted; replaced by `Expr3cont`/`Expr4cont` (consistent naming with `Expr6cont`…`Expr10cont`).
+
+**Expr11 (`^`/`!`/`**` / TT_POW):**
+Converted from binary right-recursive `reduce(2)` to flat n-ary via `nPush()/X11/reduce(nTop)/nPop()` pattern (same as snocone's `Expr3`/`Expr4` with X3/X4 helpers). `a^b^c` → `TT_POW(a,b,c)`. The lower-level code right-folds this to `a^(b^c)`. The X11 helper recurses right to collect all operands into the counter frame before reducing.
+
+**Unchanged (stay binary or are already n-ary):**
+- `=` (Expr0), `?` (Expr1): inherently binary; right-assoc semantics require it.
+- `&`/`@`/`~` OPSYN slots (Expr2, Expr5, Expr13): different-op OPSYN nodes can't be merged (FoldOp merges by tag only); stay binary.
+- `+`/`-` (Expr6), `/` (Expr8), `*` (Expr9): already n-ary via `foldop+cont` (homogeneous runs); mixed-tag runs (e.g. `a+b-c`) produce left-fold binary chain where tags change — this is the best achievable without a new `TT_ARITH_RUN` composite node.
+- `#` (Expr7), `%` (Expr10): already `foldop+cont` from the SCT-9g-snobol4 fixes above.
+- `$`/`.` (Expr12): different tags; can't merge. Stay binary-chain. Left to lower-level.
