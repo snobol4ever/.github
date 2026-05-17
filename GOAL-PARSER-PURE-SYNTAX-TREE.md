@@ -138,10 +138,10 @@ Add lower-side equivalent first, then strip parser-side desugaring. Each rung: g
 
 - [x] **PST-SC-4a** ✅ (2026-05-16, one4all `3c09f91d`, corpus `67eaa51`) — Parser emits `TT_AUGOP(lhs, rhs)` with `v.ival = TK_AUG*`; `lower_augop` already handled it. `sc_clone_expr_simple` deleted. SCRIP mirror: `reduce_augmented` → `reduce_augop(op)`, `TK_AUGPOW=1007` added to `lower.sc` and `parser_snocone.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, smoke_scrip_all_modes PASS=2/0.
 - [x] **PST-SC-4b** ✅ (2026-05-16, one4all `4aa8727b`, corpus `a939309`) — Parser emits `TT_IF(cond, TT_PROGRAM(then_stmts), TT_PROGRAM(else_stmts))` as a single `TT_STMT(:subj TT_IF(...))`. `IfHead`/`sc_if_head_new`/`sc_finalize_if_no_else`/`sc_finalize_if_else` deleted. `sc_collect_body()` extracts CODE_t stmt range into `TT_PROGRAM` subtree. `if_before_body` snapshot field added to `ScParseState`. ALT/SEQ always-wrap-binary fixes bundled (Snocone equivalent of PST-SN4-1d). `lower.c`: `case TT_PROGRAM` added to `lower_expr_inner`. SCRIP mirror: `finalize_if`/`finalize_if_else` rewritten; `lower_program_block` added to `lower.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, scrip_all_modes PASS=2/0 — baseline-identical.
-- [ ] **PST-SC-4c** ⏳ — `TT_WHILE(cond, body)`. `WhileHead`/`sc_finalize_while` deleted. **WORKING TREE has parser changes done; lower.c partially done. Bug: stack underflow when `break` fires inside while body.** Fix documented in `HANDOFF_SESSION_2026-05-16g.md`. Need: `lower_while_until` TT_PROGRAM body dispatch (iterate via `lower_stmt`, no stack value); `lower_if_stmt` for TT_PROGRAM if-bodies; same fix in `lower.sc`. See handoff for full fix recipe.
-- [ ] **PST-SC-4d** — `TT_REPEAT` / do-while. `DoHead`/`sc_finalize_do_while` deleted.
-- [ ] **PST-SC-4e** — `TT_FOR(init, cond, step, body)`. `ForHead`/`sc_finalize_for` deleted.
-- [ ] **PST-SC-4f** — `TT_CASE` (switch). `SwitchHead`/`CaseEntry`/`sc_finalize_switch` deleted.
+- [x] **PST-SC-4c** ✅ (2026-05-16, one4all `e95a5c2e`, corpus `a8e957b`) — `TT_WHILE(cond, TT_PROGRAM(body), QLIT(cont), QLIT(end))`. `WhileHead`/`sc_while_head_new`/`sc_finalize_while` deleted. `while_before_body` snapshot. `lower_while_until` TT_PROGRAM-aware (break-safe, labtab_define). `lower_if_stmt` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
+- [x] **PST-SC-4d** ✅ (2026-05-16, one4all `0c51b493`, corpus `36d3d44`) — `TT_DO_WHILE(TT_PROGRAM(body), cond, QLIT(cont), QLIT(end))`. `DoHead`/`sc_do_head_new`/`sc_finalize_do_while` deleted. `do_before_body` snapshot. `lower_do_while` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
+- [x] **PST-SC-4e** ✅ (2026-05-16, one4all `c276b48c`, corpus `d4b3f6b`) — `TT_FOR(cond, step, TT_PROGRAM(body), QLIT(cont), QLIT(end))`. `ForHead` slimmed to `{cond,step}`. `for_before_body` snapshot. `lower_for` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
+- [x] **PST-SC-4f** ✅ (2026-05-16) — `TT_CASE(disc, val1, TT_PROGRAM(body1), ..., QLIT(end))`. `CaseEntry.before_body` snapshot added. `sc_switch_case_label`/`sc_switch_default_label` snapshot instead of emitting labels. `sc_finalize_switch_pst` collects bodies in reverse order, builds TT_CASE. `lower_case` updated for Snocone TT_PROGRAM arm bodies (QLIT-last detection). SCRIP mirror updated.
 - [ ] **PST-SC-4g** — `TT_DEFINE` (function). `FuncHead`/`sc_finalize_function` deleted.
 - [ ] **PST-SC-4h** — `break`/`continue` → `TT_LOOP_BREAK`/`TT_LOOP_NEXT` with optional user-label string only. Loop-frame resolution → lower. `LoopFrame`/`sc_loop_push`/`sc_loop_pop`/`sc_loop_find_by_user_label` deleted.
 - [ ] **PST-SC-4i** — Labels (`label:`) → `TT_STMT` with label attribute or sibling `TT_GOTO_U` target. `sc_emit_label_pad` and pending-label tracking deleted.
@@ -378,20 +378,20 @@ bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
 watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 rename plan locked ✅
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
-            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅  PST-SC-4c ✅  PST-SC-4d ✅  PST-SC-4e ✅
+            Stage 1 Step 4 — PST-SC-4a ✅  PST-SC-4b ✅  PST-SC-4c ✅  PST-SC-4d ✅  PST-SC-4e ✅  PST-SC-4f ✅
             SCRIP mirror invariant added to goal 2026-05-16 (session 30/58)
             Left-to-right child-order invariant added to goal 2026-05-16 (session 30/58)
 head: .github = (this commit)
-       one4all = c276b48c (PST-SC-4e ✅, pushed)
-       corpus  = d4b3f6b  (PST-SC-4e SCRIP mirror ✅, pushed)
-session 2026-05-16h: PST-SC-4c/4d/4e ✅. snobol4.l AST_t→tree_t also done.
-  4e: ForHead slimmed to {cond,step}; sc_finalize_for_pst builds
-  TT_FOR(cond, step, TT_PROGRAM(body), QLIT(cont), QLIT(end)). lower_for in
-  lower.c and lower.sc. All mirrors in sync.
-next: PST-SC-4f — switch/case. sc_finalize_switch uses SwitchHead; same delete pattern.
-  Then PST-SC-4g — invariants audit (shift/reduce-only check on parser_snocone.sc).
+       one4all = (PST-SC-4f commit, see below)
+       corpus  = (PST-SC-4f SCRIP mirror, see below)
+session 2026-05-16h: PST-SC-4c/4d/4e/4f ✅. snobol4.l AST_t→tree_t also done.
+  4f: CaseEntry gains before_body snapshot. sc_switch_case_label/default no longer emit
+  label stmts. sc_finalize_switch_pst collects bodies in reverse, builds
+  TT_CASE(disc, val, TT_PROGRAM(body), ..., QLIT(end)). lower_case updated for
+  Snocone QLIT-last detection and TT_PROGRAM arm bodies. lower.sc mirrored.
+next: PST-SC-4g — function definitions. FuncHead/sc_finalize_function → TT_DEFINE tree node.
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4f switch next) → invariants
+ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4g function next) → invariants
          (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
