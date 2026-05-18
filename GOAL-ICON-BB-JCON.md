@@ -186,7 +186,7 @@ The order is **callers first, leaves last** — never delete a definition while 
 
   **Major measurement landed with this step:** ran the rung ladder under `--sm-run` (mode 2) for the first time. **Result: `--sm-run` 194/265 = `--ir-run` 194/265, identical pass and fail sets.** Mode-2 is at parity with mode-1. The 36 failing rungs fail in *both* modes — they are real IR/BB/SM gaps, not mode-2 immaturity. This is the strongest possible validation of the IJ-DEL-ICN-AST surgery: there is no mode-1 advantage left to preserve.
 
-- [ ] **DAI-4 — Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`.** Replace the 3 sites with `NO_AST_WALK_GUARD("icn_bb_build/<tag>")`. Remove the extern in `sm_jit_interp.c`. **Gate:** as DAI-3.
+- [x] **DAI-4 ✅ 2026-05-17g (Opus 4.7) — Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`.** Replaced the 3 sites (TT_EVERY-assign-rhs, TT_EVERY-gen, TT_AUGOP-suspend-rhs) with `NO_AST_WALK_GUARD("icn_bb_build/<tag>")` + `[DAI-BOMB]` fingerprint + `exit(78)`. Removed dangling extern in `sm_jit_interp.c:263`. interp_eval.c −31 lines net. **Gates: ir-run 194/265 unchanged. Zero bombs fired across rung suite + all 5 frontends' smokes** — empirical confirmation that mode-1 Icon never reaches these `interp_eval`/TT_EVERY/TT_AUGOP branches (they're lowered to IR_EVERY/IR_AUGOP at lower time and dispatched through `ir_exec.c`).
 
 - [ ] **DAI-5 — Verify zero external references; delete the files.** `grep -rn "bb_eval_value\|bb_exec_stmt\|icn_bb_build" src/` must return only matches inside the three target files. Then:
   - Delete `src/runtime/interp/icn_value.c`.
@@ -222,17 +222,23 @@ The order is **callers first, leaves last** — never delete a definition while 
 | DAI-2 | Amputate the three Icon AST walker entry points: `bb_eval_value` (icn_value.c, 1239→336 LOC), `bb_exec_stmt` (icn_stmt.c, 149→22 LOC), `icn_bb_build` (icn_runtime.c, 1743→1166 LOC). Each body replaced with `[DAI-BOMB]` stub that prints to stderr + exit(78). Preserved DESCR_t-input helpers (icn_str_concat_d, icn_lconcat_d, cset_resolve, builtin tables) in icn_value.c head; preserved icn_bb_dcg/proc_table/icn_every_body_pre+broke in icn_runtime.c head. **Net −1641 LOC. Icon --ir-run 194/265 unchanged. Zero bomb fires across 265 rungs** — proves the Icon AST walker was already silently dead for the rung suite; mode-1 Icon executes via interp_eval+ir_exec (IR_block_t walker), never the Icon-specific tree_t* walker. All smoke gates hold floor. | `3e1fc9cd` |
 | DAI-3 | Disable ICN_BB_EVAL shortcut in `src/lower/lower.c:34` — macro was emitting `SM_BB_EVAL <every_table_index>` for Icon expressions outside gen-proc bodies, deferring BB construction to runtime via `icn_bb_build` (now a [DAI-BOMB] stub). `SM_BB_EVAL` handler in sm_jit_interp.c was already NULL. Macro now a no-op; Icon expressions lower through standard SM (`SM_PUSH_LIT_S/I/F`, `SM_PUSH_VAR`) like every other language. **Major measurement: `--sm-run` 194/265 = `--ir-run` 194/265, identical sets.** Mode-2 at parity with mode-1; the 36 fails are real IR/BB/SM gaps, not mode-2 immaturity. | `a2365c5f` |
 
+## Completed steps (session 2026-05-17g, Opus 4.7)
+
+| Step | Description | Commit |
+|------|-------------|--------|
+| DAI-4 | Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`. The 3 sites (TT_EVERY-assign-rhs at ~3683, TT_EVERY-gen at ~3698, TT_AUGOP-suspend-rhs at ~3974) replaced with `NO_AST_WALK_GUARD("icn_bb_build/<tag>") + [DAI-BOMB] fprintf + exit(78)`. Dangling `extern bb_node_t icn_bb_build(tree_t *e);` at `sm_jit_interp.c:263` removed. Net: interp_eval.c −31 lines, sm_jit_interp.c −2 lines. **ir-run 194/265 unchanged. Zero DAI-BOMs fired across rung suite.** smoke_icon 5/0, smoke_prolog 5/0, smoke_raku 5/0, smoke_rebus 4/0, smoke_snocone 5/0, smoke_snobol4 6/1 (pre-existing pattern FAIL). Empirical confirmation that mode-1 Icon never reaches these `interp_eval` TT_EVERY/TT_AUGOP branches — they're lowered to IR_EVERY/IR_AUGOP at lower time and dispatched through `ir_exec.c`. | `e3c803ea` |
+
 ## Watermark
 
 ```
-one4all: a2365c5f (DAI-3: ICN_BB_EVAL no-op; mode-2 confirmed at parity with mode-1)
+one4all: e3c803ea (DAI-4: icn_bb_build callers replaced with NO_AST_WALK_GUARD + DAI-BOMB)
 corpus:  490f4c7 (unchanged this session)
 ir-run:  194/265
-sm-run:  194/265  ← NEW: identical pass/fail sets to ir-run
-smoke_icon: 5/5    smoke_prolog: 5/5  smoke_raku: 5/5
+sm-run:  194/265  ← from DAI-3, not re-measured this session
+smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0
 smoke_rebus: 4/0   smoke_snocone: 5/0
 smoke_snobol4: 6/1 (pattern FAIL pre-existing)
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (not re-run this commit)
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (not re-run this session)
 DAI-BOMB fires: 0
 ```
 
@@ -241,7 +247,9 @@ Latent bugs (pre-existing or unblocked, separate tickets):
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
 - IR_ICN_FIND_GEN start/stop normalization untested for jcon corner cases (see IJ-FIND-GEN row above).
 - IR_ICN_SEQ_GEN ignores zero step silently — Icon spec is to fail; pragmatic choice for now.
-- DAI-3 through DAI-6 deferred — bombs fire loud, but stale dead callers (`interp_eval.c` ICN ternaries, `sm_jit_interp.c` extern, `pl_runtime.c` cross-lang sites, Makefile entries for icn_value.c/icn_stmt.c, docs in ARCH-ICON.md/RULES.md) still reference the amputated symbols. Build is green; cleanup is cosmetic.
+- DAI-5 and DAI-6 deferred — bombs fire loud, but stale dead callers (`pl_runtime.c` cross-lang sites at lines 729/833/1880, `raku_builtins.c` ~80 `bb_eval_value(tree_t*)` calls, `interp_eval.c` `bb_eval_value` ternaries at lines 136-163, Makefile entries for icn_value.c/icn_stmt.c, docs in ARCH-ICON.md/RULES.md) still reference the amputated symbols. Build is green; cleanup is cosmetic.
+
+Session note (2026-05-17g, Opus 4.7): DAI-4 cleanup of stale `icn_bb_build` callers. As predicted by DAI-2's measurement (zero bombs across 265 rungs), these 3 call sites in `interp_eval.c` and the dangling extern in `sm_jit_interp.c` were stage-set dead code — the underlying `icn_bb_build` was already a `[DAI-BOMB]` stub, and mode-1 Icon never reached the TT_EVERY/TT_AUGOP-suspend-rhs branches (lowered to IR_EVERY / IR_AUGOP). Net 33 lines deleted; 10 inserted for the guard+bomb fingerprints. ir-run 194/265 unchanged; smoke matrix unchanged. Surface area for DAI-5 is wider than originally scoped — at least three additional consumer files (`pl_runtime.c`, `raku_builtins.c`, `interp_eval.c`'s `bb_eval_value` ternaries at lines 136-163) carry `bb_eval_value(tree_t*)` calls that DAI-5 file-deletion will force-resolve.
 
 Session note (2026-05-17f, Opus 4.7): the PIVOT directive ("delete the actual AST walkers, leave stub bombs") landed cleanly. The biggest surprise was that the Icon `--ir-run` rung-pass count (194/265) was *unchanged* by amputation and *zero* bombs fired across all 265 tests. This indicates the Icon AST walker (`bb_eval_value` / `bb_exec_stmt` / `icn_bb_build`) was already silently dead for the rung suite. Mode-1 Icon executes via the universal `interp_eval` walker which routes to `ir_exec.c` (IR_block_t walker) for Icon-specific kinds — the tree_t* path through the Icon walker was a vestigial limb. The −1641 LOC came out without measurable cost.
 
