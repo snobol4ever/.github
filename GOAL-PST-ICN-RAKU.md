@@ -163,11 +163,14 @@ should be inline `reduce` actions.
        `(epsilon . *Shift('TT_*', var))` directly in `parser_icon.sc`.
        `run_scrip_parser.sh` guards with `[ -f ]` — no loader change needed.
        Icon is now 0/0 (zero functions, zero sidecar). ✅
-     - `raku_helpers.sc` — 11 functions remain: `push_interp_str`, `dq_unescape`,
-       and 9 `finish_*` variable-arity assemblers (counter-based, no
-       child-kind inspection — they cannot be expressed as a single
-       inline `reduce`). Removal deferred until SCRIP runtime stabilises.
-   **Icon function count: 0. Raku function count: 11 (sidecar only).**
+     - `raku_helpers.sc` — **DELETED 2026-05-18**: all 11 functions
+       (push_interp_str, dq_unescape, finish_given, finish_sub_body,
+       finish_method_body, finish_class_body, finish_gather_body,
+       finish_call_body, finish_mcall_body, finish_main_body, finish_new_body)
+       moved inline into parser_raku.sc. Finish_* uppercase aliases replaced
+       with (epsilon . *finish_*()); Push_ilit(n) → shift_val(n,'TT_ILIT');
+       Store_for_iter → shift_val(capff capfr,'TT_VAR').
+   **Icon function count: 0/0. Raku function count: 0/0. Both sidecars deleted.** ✅
 8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
@@ -179,12 +182,14 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ```
 watermark: 2026-05-18 (session handoff)
 next: raku_helpers.sc elimination (11 functions remain; deferred until runtime stabilises)
-PST-ICN-SIDECAR-ELIM ✅ corpus@3789cba 2026-05-18 (Claude Sonnet 4.6):
-  push_qlit/push_cset/push_flit/push_kw inlined as (epsilon . *Shift('TT_*', var))
-  directly in parser_icon.sc Expr11. icon_helpers.sc deleted entirely.
-  run_scrip_parser.sh unchanged (guards with [ -f ]).
-  Gates: smoke_icon 5/5, scrip_all_modes 2/0, crosscheck 5/1 (beauty_omega pre-existing).
-  Icon is now 0/0: zero helper functions, zero sidecar file.
+PST-RAKU-sidecar-elim ✅ corpus@78c1b4a 2026-05-18 (Claude Sonnet 4.6):
+  All 11 functions from raku_helpers.sc inlined into parser_raku.sc.
+  Finish_* uppercase aliases → (epsilon . *finish_*()); Push_ilit(n) →
+  shift_val(n,'TT_ILIT'); Store_for_iter → shift_val(capff capfr,'TT_VAR').
+  raku_helpers.sc deleted. run_scrip_parser.sh unchanged (guards with [ -f ]).
+  Gates: smoke_raku 5/5, smoke_icon 5/5, scrip_all_modes 2/0, crosscheck 5/1 (pre-existing).
+  Raku is now 0/0: zero helper functions, zero sidecar file.
+  GOAL COMPLETE: both icon_helpers.sc and raku_helpers.sc eliminated.
 PST-RAKU-5b ✅ corpus@31cc6f2: R1-R4 hard violations fixed.
 PST-RAKU-5c ✅ corpus@3cb7ada: parser_raku.sc rewrite 1788→607 lines (parser file only).
   All in-file finish_* tree-assembly helpers removed from parser_raku.sc.
