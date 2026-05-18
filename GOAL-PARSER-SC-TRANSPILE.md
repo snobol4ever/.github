@@ -722,7 +722,91 @@ status:    SCT-9 partial 🔄 2026-05-17 (Opus 4.7, continuation of Sonnet 4.6).
            fix in TT_SCAN case verified; parser_snobol4.sno accepted
            end-to-end by SPITBOL.
 
-watermark: SCT-9g-snocone ✅ partial + n-ary arith emission fix ✅ 2026-05-17 (Opus 4.7).
+watermark: SCT-9-notmatch-dedup ✅ + fixture-gate rebaseline ✅ 2026-05-18 (Opus 4.7).
+           Duplicate `notmatch` function definitions in parser_snocone.sc and
+           icon_helpers.sc triggered SPITBOL ERROR 217 (duplicate label) when
+           the transpiled .sno was run under SPITBOL with match.sc included
+           in the runtime prelude (match.sc IS the canonical home of notmatch
+           — both other sites were redundant redefinitions).  Two one-line
+           deletions: parser_snocone.sc line 7 and icon_helpers.sc line 2.
+           Cross-language transpile-and-SPITBOL sweep result moved from
+           3-of-6 clean (snobol4/snocone/rebus) to **4-of-6 clean**
+           (+ icon).  raku/prolog still hit SCT-5/6 helper-elimination walls
+           (ERROR 022 at lines 1660/2065 respectively; previously documented
+           at 943/1615 — line numbers shifted as the runtime chain settled).
+
+           POLICY NOTE (Lon, 2026-05-18): `match` and `notmatch` are NOT
+           counted as Compiland tree-building functions per the six-primitive
+           constraint.  They are shared infrastructure utilities (like `Push`/
+           `Pop`/`Top`), not language-specific helpers.  The match.sc
+           canonical home stands.
+
+           FIXTURE-GATE REBASELINE: prior watermark documented snocone
+           parser-fixture gate as PASS=24 FAIL=2 SKIP=41.  Actual current
+           state at this HEAD is **PASS=60 FAIL=0 SEGV=7 SKIP=0**.  The 41
+           SKIPs are gone (all .ref files exist).  The 7 SEGVs are pre-
+           existing C-frontend bugs in `scrip --dump-ast` on augmented_*
+           and break_for/continue_for — they segfault, they don't FAIL
+           against a .ref.  Unrelated to this goal.  SCT-9c/d/e/f effects
+           were larger than the prior watermark recorded.
+
+           SCT-9h VERIFY-OR-CLOSE: the goal documented `($'(') = pat`
+           assignment-through-indirect as triggering a SPITBOL segfault.
+           Cannot reproduce against /home/claude/x64/bin/sbl 4.0f — tested
+           with special-char names (`$'('`), legal-keyword names
+           (`$'if'`), and pattern-valued RHS forms; all run cleanly under
+           SPITBOL.  Either the bug was fixed elsewhere, was previously
+           misdiagnosed, or the reproducer needs to be a full
+           multi-statement runtime context that I haven't constructed yet.
+           SCT-9h is downgraded to **VERIFY-OR-CLOSE** pending a concrete
+           reproducer.  The 41-fixture-unblock impact claim is also moot
+           because those fixtures aren't skipped today.
+
+           THE REAL CURRENT WALL: with the duplicate-label fix in place,
+           transpiled parser_snocone.sno runs cleanly under SPITBOL on
+           arith_add.sc, but produces **zero output**.  No "Parse Error"
+           (so the `if (Src ? Compiland)` match succeeded) but also no
+           TDump emissions (so `ptree = Pop()` returned something that
+           DIFFER(ptree) rejected, or `n(ptree) = 0`).  Candidate root
+           causes (no fix attempted this session):
+             (a) The shift/reduce stack is in a bad state at end-of-match
+                 — Compiland did `nPush()` then `nPop()` but the actual
+                 tree push from `reduce_prim(E_Parse)` may not be landing.
+             (b) `Pop()` is returning something but `DIFFER` rejects it
+                 (e.g. null, integer 0, or empty pattern).
+             (c) `c(ptree)[i]` indexing is returning null/undefined.
+           Diagnostic next session: add a one-line `OUTPUT = 'ptree=' ptree
+           '/ n=' n(ptree) '/ t=' t(ptree)` before the while loop, re-run,
+           inspect.
+
+           Sweep results after notmatch fix (with empty stdin to see
+           startup-clean state):
+             snobol4    clean exit=0
+             snocone    clean exit=0  ← NEW vs prior 3-of-6
+             rebus      clean exit=0
+             icon       clean exit=0  ← NEW vs prior 3-of-6
+             raku       ERROR 022 @line 1660 (SCT-5 wall; was 943)
+             prolog     ERROR 246 stack overflow @line 2065 (SCT-6 wall;
+                                                              was ERROR 022 @1615)
+
+           Gates hold floor:
+             test_smoke_snobol4.sh:  PASS=7 FAIL=0 (matches prior)
+             test_smoke_snocone.sh:  PASS=5 FAIL=0 (matches prior)
+             test_snocone_parser_fixtures.sh: PASS=60 FAIL=0 SEGV=7 (vs
+               revert-corpus-only baseline of same PASS=60 FAIL=0 SEGV=7 —
+               this session's corpus edits don't move this gate)
+             test_smoke_unified_broker.sh: PASS=22 FAIL=27 (pre-existing
+               state at HEAD 996f03e0; below RULES.md's documented
+               "PASS=49 FAIL=0" target — flag for separate triage, NOT a
+               regression caused by this session)
+
+           one4all HEAD 996f03e0 (no touch this session).
+           corpus  HEAD 92e103f  + two-file edit (this session).
+           .github HEAD c4b53001 + this watermark update.
+
+           PRIOR (preserved):
+
+           SCT-9g-snocone ✅ partial + n-ary arith emission fix ✅ 2026-05-17 (Opus 4.7).
            SCT-9g now per-language sub-rungs (a-f + cross).  Snocone audit
            landed as .github/PRECEDENCE-AUDIT.md.  Other five languages
            await spec documents from Lon (rebus/icon/raku/prolog) and
@@ -747,16 +831,25 @@ landed:
   - Makefile                      (lower_sno.c entry + compile rule)
   - scripts/run_parser_sync_monitor.sh   (SCT-7 wrapper)
   - corpus/SCRIP/semantic.sc      (_qtag→qtag @ SCT-1d; REPLACE fix @ SCT-2)
+  - corpus/SCRIP/parser_snocone.sc (notmatch dedup @ SCT-9-notmatch-dedup 2026-05-18)
+  - corpus/SCRIP/icon_helpers.sc  (notmatch dedup @ SCT-9-notmatch-dedup 2026-05-18)
   - corpus/SCRIP/parser_*.sc      (SCT-9a: POS(0)/RPOS(0) in all 6 Compilands)
   - corpus/SCRIP/qize.sc          (SCT-9e: dead LEQ function deleted)
   - corpus/programs/*/parser/*.ref       (SCT-9b: AST_* → TT_* rename, 224 files)
   - corpus/programs/snocone/parser-fixtures/*.ref  (SCT-9f: regenerated, 60 files)
   - .github/GOAL-PARSER-SC-TRANSPILE.md  (this file, session history;
-                                          SCT-9g split into per-language sub-rungs)
+                                          SCT-9g split into per-language sub-rungs;
+                                          2026-05-18 watermark rebaseline + notmatch dedup)
   - .github/PRECEDENCE-AUDIT.md   (SCT-9g-snocone deliverable, 2026-05-17 Opus 4.7)
   - .github/PLAN.md, RULES.md, REPO-one4all.md, snobol4ever_clone.sh
 
-next:      SCT-9g-snobol4   SPITBOL manual already on disk; can proceed.
+next:      SCT-9-zero-output    Diagnose why transpiled parser_snocone.sno
+                                produces no output on a valid fixture
+                                despite matching Compiland (no Parse Error).
+                                Likely a stack-state or TDump-rendering
+                                question.  One diagnostic OUTPUT + run.
+                                This is the actual current blocker.
+           SCT-9g-snobol4   SPITBOL manual already on disk; can proceed.
            SCT-9g-rebus     Awaiting Rebus syntax spec doc from Lon.
            SCT-9g-icon      Awaiting Icon reference doc from Lon.
            SCT-9g-raku      Awaiting Raku operator-table doc from Lon.
@@ -765,11 +858,17 @@ next:      SCT-9g-snobol4   SPITBOL manual already on disk; can proceed.
            SCT-9g-cross     After per-language audits land, cross-table sweep.
            SCT-9g-fix-sc    Apply .sc grammar fix per Lon decision (snocone
                             +-*/  right-rec → n-ary left-fold).
-           SCT-9h  Token-slot mangling in lower_sno.c — unblocks 40 fixtures.
+           SCT-9h  VERIFY-OR-CLOSE: bug not reproducible against current
+                   SPITBOL; need concrete reproducer or close-out.
            SCT-9i  do-while PST alignment (C TT_DO_WHILE tree vs .sc lowered).
-           SCT-9j  Wire scripts/test_parser_sc_transpile.sh now byte-diff works.
+           SCT-9j  Wire scripts/test_parser_sc_transpile.sh now byte-diff
+                   works.  Note: 60-of-67 fixtures pass `--dump-ast` ref check
+                   already; SCT-9j wires the transpile-then-SPITBOL leg —
+                   currently blocked by SCT-9-zero-output above.
            SCT-9k  Snobol4 parser tree-shape alignment vs C.
-           SCT-4   icon helpers elimination.
+           SCT-4   icon helpers elimination (notmatch already gone; 4 more
+                   leaf-push helpers + their Push_* deferred-pattern wrappers
+                   to relocate or eliminate).
            SCT-1f  2-way sync monitor (needs SN-26-spl-bridge in x64).
            SCT-5/6 raku/prolog helper elimination.
 
@@ -779,7 +878,10 @@ authors:   Goal authored by Lon Cherryholmes + Opus 4.7, 2026-05-17.
            SCT-9a/9b partial: Sonnet 4.6, 2026-05-17.
            SCT-9c/9d/9e/9f landed: Opus 4.7, 2026-05-17 (continuation).
            SCT-9g scoped + snocone audit + n-ary emission fix: Opus 4.7,
-                  2026-05-17 (this session).
+                  2026-05-17.
+           SCT-9-notmatch-dedup + fixture-gate rebaseline + SCT-9h
+                  verify-or-close + zero-output wall identified: Opus 4.7,
+                  2026-05-18.
 ```
 
 ---
