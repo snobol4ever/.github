@@ -321,7 +321,7 @@ The order is **callers first, leaves last** — never delete a definition while 
   - **Wired blob `r10=&Δ` register convention** must be respected on entry to the blob. Hello-world has no closure state (`ζ=NULL`, `r10` ignored), so the simplest entry preamble suffices: `push rbp / mov rbp,rsp` plus a single `call rt_call_fn` for `write`. ARCH-x86.md "Flat-BB ABI" section is the binding spec.
   - **`SM_BB_PUMP_PROC` may still appear in the SM stream** even after IJ-HELLO-3 lands the wired path. The CLI guard could be tightened to error if a `SM_BB_PUMP_PROC` appears under `--compile` without a corresponding wired blob, OR the lowerer could be changed to skip emitting `SM_BB_PUMP_PROC` entirely under `--compile` and substitute a direct-`jmp` SM opcode. Either is acceptable; pick at IJ-HELLO-3b implementation.
 
-- [ ] **DAI-8 — Eliminate ALL dead code from SCRIP's executable source.** **PAUSED 2026-05-18 (Lon directive):** *"Get all six languages to say hello world before we continue mass dead code removal."* DAI-8 cluster 2 is blocked behind `IJ-MODE4-HELLO-ALL-LANGS` closing (6/6 wired-mode-4 hello-world matrix green). The methodology, ledger, all-modes regression gate, and tier-1 candidate enumeration below remain authoritative once unpaused. **Lon directive (2026-05-17):** *"Everything that is not reachable from SCRIP's `main` in some way is unreachable and therefore we want deleted. I'll be analyzing the code base and do not want to waste my time on code that does not matter."* This is a whole-codebase sweep, not the conservative tier-1 scope DAI-7 used.
+- [ ] **DAI-8 — Eliminate ALL dead code from SCRIP's executable source.** **UNPAUSED 2026-05-18 (IJ-HELLO-5 closed; hello-world matrix 6/6 wired)** — cluster work resumed. C1 + C2 + C3a + C3b landed; cluster 3+ candidates remain (see watermark). **Lon directive (2026-05-17):** *"Everything that is not reachable from SCRIP's `main` in some way is unreachable and therefore we want deleted. I'll be analyzing the code base and do not want to waste my time on code that does not matter."* This is a whole-codebase sweep, not the conservative tier-1 scope DAI-7 used.
 
   **Definition of dead:** a function, type, global, macro, or whole source file is *dead* iff it cannot be reached on any path from `main` in the built `scrip` binary, across every CLI mode SCRIP currently exposes (`--interp`, `--run`, `--compile`, `--compile-x86`, `--bb={brokered,wired}`, `--monitor`, all language frontends). Reachability is the union over all modes. If a symbol is reachable from `main` in any one mode, it stays.
 
@@ -394,6 +394,8 @@ The order is **callers first, leaves last** — never delete a definition while 
 |---|---|---|---|---|---|
 | **C1 — `emit_bb.c` dead-fn sweep** (2026-05-18, Opus 4.7) | 75 functions (627 lines from `emit_bb.c` + 4 inline helpers from `emit_form.h` + 22 dead decls in `emit_bb.h` + 15 dead decls in `emit_templates.h`) — full list in commit body. Headlines: 44 obsolete `emit_bb_icon_*` STUB functions (BB-side stubs that emit "STUB" banners and jump-to-fail; no callers anywhere), `emit_flat_*` text-emit helper chain (only reachable from each other and from `__attribute__((unused))`-flagged dead bodies), `patnd_buf_*` / `patnd_to_sno_*` chain (PATND→string formatter, only mutual callers), `ICN_NQ` + `ICN_EMIT2` macros and all 16 `icon_*_new()` static-inline factory helpers reachable only from those macros, six dead emit_bb_x* ports (xabrt, xcat, xor, xvar, xsucf, xbal), and 4 dead x86 instruction wrappers (emit_add_eax_imm32, emit_mov_rdi_rax, emit_mov_rdx_imm64, emit_mov_rsi_imm64). | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 990 sections removed, 732 `.text` sections, filtered to 583 hand-written-file candidates, refined via @PLT-aware string-literal filter to 512 truly-dead. | Method 6 (per-name grep for callers + address-takings + emit-string-literals); `__attribute__((unused))` developer annotations on `emit_flat_lit` / `emit_flat_charset_call` confirmed the developer's earlier read | `a4fe1c21` (one4all) | **Mode 2 only:** all gates held floor exactly — `Icon --interp 194/265`, smoke ×6 unchanged, `unified_broker 22/27`, `crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS`. **Modes 3 / 4 NOT validated** — this is the cluster-1 regression debt called out in the all-modes regression gate below. Most deletions sit in `IS_TEXT`/`flat_*` mode-4 territory, so mode-4 in particular needs retroactive validation as the first action of the next session. Net `−666 LOC` across four files. |
 | **C2 — `emit_core.c` + `emit_sm.c` byte-emit family sweep** (2026-05-18, Opus 4.7) | ~198 functions across 3 files. From `emit_core.c` (1787→1198 LOC): 138 functions (47 `bb_insn_*`, 24 `insn_*`, 47 `emit_*` helpers including the `emit_bb_x*` port family DAI-7 left, `emit_seq_*` coupled callers, the `emit_test_rax_rax`/`emit_mov_esi_imm32` family) plus 58 single-decl lines in `emit_core.h`. From `emit_sm.c` (3315→3085): 59 named byte-emit fns (`emit_sm_push_lit_s`, `emit_sm_call_fn`, `emit_sm_halt`, `emit_sm_jump_*`, `emit_sm_pat_*` family, `emit_sm_arith*`/`emit_sm_neg`/`emit_sm_op`, `emit_sm_bb_*` family — full list in commit body) plus the dead `static emit_sm_pat_str` helper. **Architectural reason:** the `EMIT_BINARY` (byte-emit) shape in `emit_core.c` predates the `--compile` pivot to text-asm output. `--run` uses `sm_codegen_x64_emit.c` for in-memory JIT; `--compile` uses the `emit_sm_*_dispatch` text-emit family (which lives on, ~3000 LOC of `emit_sm.c` retained). Nothing reaches the byte-emit primitives anymore. The cluster is coherent: emit_sm.c byte-emit fns are the only callers of most x86-instruction primitives in emit_core.c; deleting one without the other strands link-time references. | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 661 `.text` discards, 572 after generated-file exclusion (added `lex.rebus.o` to the filter), 472 after @PLT-aware string-literal rescue. emit_core.o 143 candidates, emit_sm.o 73, plus 10 emit_core "problem" fns whose callers were themselves all in the emit_sm.c GC-dead set (cross-call audit). | Method 6 (per-name grep with refined audit excluding `.h` declarations) — 132 emit_core fns had zero `.c` callers outside emit_core; 10 had only-GC-dead emit_sm.c callers; 1 (`emitter_init_macro_def`) preserved because called by `demo_template_productions.c` standalone demo. Methods 4 + 5 not needed — methods 1 + 6 were conclusive and gate matrix confirmed empirically. | `895ab323` (one4all) | **Held floor across all gates:** hello-world matrix `PASS=6 FAIL=0 ROWS_DRIFT=0`; modes 2/3/4 hello matrix 6/5/6 (mode-3 raku preexisting); smoke ×6 unchanged (5/0,5/0,5/0,4/0,5/0,7/0); Icon ladder `--interp 194/36/35/265`; crosscheck_prolog `128/0/4SKIP/11ORACLE_MISS`; scrip_all_modes `PASS=2 FAIL=0`. **Bonus:** unified_broker `22→23 (+1)`. Net `−877 LOC` across 3 files. |
+| **C3a — `emit_form.h` dead-inline triplet+ + `emit_core.c::ef_greek_port`** (2026-05-18, Opus 4.7) | 14 functions across 2 files. From `emit_form.h` (67→55 LOC): 13 dead `static inline` wrappers (`emit_mov_r10_imm64`, `emit_mov_rax_imm64`, `emit_mov_rcx_imm64`, `emit_sub_eax_imm32`, `emit_cmp_eax_imm32`, `emit_cmp_esi_imm8`, `emit_mov_ecx_eax`, `emit_cmp_eax_ecx`, `emit_mov_eax_rcxmem`, `emit_cmp_eax_rcxmem`, `emit_mov_eax_r10mem`, `emit_call_rax`, `emit_inc_mem_r13_disp8`). C2's note nominated 3; the full sweep found 13. The remaining 8 inlines either have live callers in `emit_core.c::emit_sigma_plus_delta`/`emit_store_delta`/`emit_load_sigma` chain or in `emit_bb.c::emit_flat_body` (live). From `emit_core.c` (1198→1189 LOC): `ef_greek_port` static debug-port display helper for α/β/γ/ω; zero callers after C2 byte-emit deletion. | Method 1 (linker `--gc-sections` + @PLT-aware filter) was the original C2 watermark text's cluster-3 nomination (3 inlines + `ef_greek_port`). Re-running the same audit produced 13 inlines, not 3. | Method 6 (per-name grep with rt.c-internal-caller filter) — confirmed every deleted symbol has zero callers anywhere in src/. The 8 retained inlines had exactly 1 live caller each, traced and confirmed. | `c3af9e23` (one4all) | All gates held floor: hello-world 6/6 ROWS_DRIFT=0; smoke ×6 (7/0,5/0,5/0,5/0,4/0,5/0); Icon `--interp` 194/36/35/265; scrip_all_modes 2/0; unified_broker 23/26; crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS. Net `−23 LOC` across 2 files. |
+| **C3b — `rt.c` dead-public-fn sweep** (2026-05-18, Opus 4.7) | 7 functions in `rt.c` + 7 matching decls in `rt.h`. Deletions: `rt_set_vstack_backend`, `rt_get_default_vstack_backend`, `rt_patch_cap_fn`, `rt_halt`, `rt_pop_descr`, `rt_push_real`, `rt_flush_pending_captures` — every refs=2 (decl + def only). | Method 1 (linker `--gc-sections` + @PLT-aware filter) nominated 100 dead `.text` sections in `rt.o`; @PLT rescue rescued 71 emit-string-referenced `rt_*` symbols leaving 29 candidates. | Method 6 (per-name caller audit) refined 29 → 7 truly-deletable. The other 22 split into: (a) static helpers (`vstack_*`, etc.) called by @PLT-rescued public fns — alive transitively via `libscrip_rt.so` path; (b) `_rt_IDENT`/`_rt_DIFFER`/`_rt_usercall` registered as function pointers via `register_fn`/`g_user_call_hook` in `rt_init`; (c) `sm_call_expression`/`sm_opcode_name`/`_is_pat_fnc_name`/`_expr_is_pat` are weak rt.c defaults overridden by strong defs in `eval_code.c`/`sm_prog.c`/`eval_pat.c`/`interp_eval.c` (rt.c weak symbols ARE dead but their `__attribute__((weak))` delivery needs header-side audit first); (d) `rt_in_native_chunk` has weak duplicate in `stmt_exec.c` suggesting dlsym pattern. | `a7259b9b` (one4all) | All gates held floor: hello-world 6/6 ROWS_DRIFT=0; smoke ×6 unchanged; Icon `--interp` 194/36/35/265; scrip_all_modes 2/0; unified_broker 23/26; crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS. Net `−43 LOC` across 2 files (rt.c -36, rt.h -7). |
 
 ### DAI-8 methodology note (added 2026-05-18, Opus 4.7)
 
@@ -424,6 +426,36 @@ log. Two critical filters MUST be applied before treating a discard as
    superset of what is reachable from `scrip` — relying on .so dead-ness
    would over-preserve. The criterion is **`scrip`-side linker GC + @PLT
    string-literal filter**, full stop.
+
+4. **Static-helper-of-@PLT-rescued edge case** (discovered C3b 2026-05-18).
+   When a public function `X` is rescued by the @PLT string-literal filter,
+   any **`static` helper** in the same translation unit called by `X` (or
+   transitively by another helper reached from `X`) is also alive in the
+   .so via that path — even though linker-GC of `scrip` correctly marks it
+   dead in scrip-side reachability. Example: `vstack_push` is static in
+   `rt.c`, called only by `rt_pat_len` (which is @PLT-rescued). The two
+   options for handling this are (a) extend the rescue list with a
+   **transitive caller-graph closure pass** rooted at @PLT-rescued public
+   fns within each TU, or (b) accept that static helpers can only be
+   deleted when their direct callers are themselves in the truly-dead
+   public set. C3b chose option (b) — only public functions with `refs=2`
+   (decl + def, no callers anywhere) were deleted. Option (a) is the
+   correct long-term fix and is queued as a methodology improvement.
+
+5. **Function-pointer dispatch tables hide callers from grep** (recurring
+   from DAI-8 risk register). `register_fn("IDENT", _rt_IDENT, 1, 2)` inside
+   `rt_init` keeps `_rt_IDENT` alive via the runtime fn-ptr lookup table,
+   invisible to grep-based caller audit. The reliable detector is the
+   address-of audit (`&fn_name`). C3b caught `_rt_IDENT`, `_rt_DIFFER`,
+   `_rt_usercall` this way before deletion.
+
+6. **Weak/strong override pattern**. A `__attribute__((weak))` definition
+   in rt.c becomes dead when any non-weak strong definition exists in
+   another TU. The rt.c weak version is genuinely deletable, but `weak`
+   plumbing requires header-side audit first — otherwise a future strong
+   def deletion silently re-arms the now-deleted weak as the fallback.
+   C3b's four weak-default candidates (`sm_call_expression`, `sm_opcode_name`,
+   `_is_pat_fnc_name`, `_expr_is_pat`) deferred for this reason.
 
 ### DAI-8 all-modes regression gate (MANDATORY per cluster) — Lon directive 2026-05-18
 
@@ -552,7 +584,9 @@ the gate and the goal advance together.
 ## Watermark
 
 ```
-one4all: 895ab323     (DAI-8 C2: emit_core.c + emit_sm.c byte-emit sweep — −877 LOC, ~198 fns)
+one4all: a7259b9b     (DAI-8 C3b: rt.c 7 dead public fns + 7 rt.h decls — −43 LOC)
+         c3af9e23     (DAI-8 C3a: emit_form.h 13 inlines + emit_core.c::ef_greek_port — −23 LOC)
+         895ab323     (DAI-8 C2: emit_core.c + emit_sm.c byte-emit sweep — −877 LOC, ~198 fns)
          8a6a5204     (IJ-HELLO-4c: delete rt_bb_once_proc — bb_broker path structurally impossible for Prolog)
          796d688e     (IJ-HELLO-4b: SM_BB_ONCE_PROC wired via rt_pl_once; no bb_broker import)
          411d041c     (IJ-HELLO-4a-fix: soften abort to [NO-AST] stub for unrecognized PL directives)
@@ -562,38 +596,47 @@ one4all: 895ab323     (DAI-8 C2: emit_core.c + emit_sm.c byte-emit sweep — −
          996f03e0     (IJ-HELLO-2a: rt_call icn-builtin fallback ladder)
          cf568c35     (IJ-HELLO-1: baseline-locking compile-hello-all-langs gate)
 corpus:  92e103f      (unchanged — no corpus edits this session)
-.github: this commit  (DAI-8 C2 ledger row added; watermark refreshed; emitter-wiring audit results)
+.github: this commit  (DAI-8 C3a + C3b ledger rows added; methodology refinements #4/5/6 recorded; watermark refreshed)
 test_smoke_compile_hello_all_langs: PASS=6 FAIL=0 ROWS_MATCH=6 ROWS_DRIFT=0  (held at IJ-HELLO-5 floor)
 --interp:    194/265  (Icon rung ladder, unchanged — held)
 modes 2/3/4 hello matrix: 6/5/6   (mode-3 raku preexisting from prior session; see latent below)
 smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 — held)
 smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 — held)
 smoke_snobol4: 7/0                                       (mode 2 — held)
-unified_broker: 23/26 (+1 vs prior 22/27 — BONUS, not a regression; subset reordering)
+unified_broker: 23/26 (held; same as post-C2 watermark)
 crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS  (held at baseline)
 scrip_all_modes: PASS=2 FAIL=0 (NET skipped — no ilasm — modes 2/3/4 SNOBOL4 hello validated)
 DAI-BOMB fires: 0
 
-✅ DAI-8 cluster 2 is COMPLETE. emit_core.c + emit_sm.c byte-emit family
-  swept. The EMIT_BINARY shape in emit_core.c (predating the --compile
-  pivot to text-asm output) is gone. --run uses sm_codegen_x64_emit.c
-  (in-memory JIT, retained); --compile uses emit_sm_*_dispatch text
-  family (~3000 LOC of emit_sm.c retained). Cluster 1's modes-3/4
-  regression debt is implicitly cleared as a side-effect of cluster 2's
-  full gate matrix validation — every mode passed.
+✅ DAI-8 cluster 3a + 3b COMPLETE. Combined deliverable this session
+  (Opus 4.7, 2026-05-18 4th sub-session): 22 functions deleted, −66 LOC
+  across 4 files (emit_form.h, emit_core.c, rt.c, rt.h). All gates held
+  floor across two orthogonal commits per RULES "Three-construct sessions"
+  cadence; cluster 3a was the emitter-helper layer, cluster 3b the runtime
+  helper layer. No cross-cluster coupling.
 
-Cluster 3 candidate areas (Method 1 GC log, after C2 deletions):
-  - emit_form.h: static-inline emit_cmp_eax_rcxmem / emit_mov_eax_r10mem
-    / emit_mov_eax_rcxmem (transitively dead after C2; need header surgery)
-  - emit_core.c: ef_greek_port (static fn, transitively dead after C2)
-  - emit_core.h: multi-decl lines with deleted-fn references (cosmetic)
-  - rt.c: 31 candidates from the original GC log
+Cluster 3 work continues — candidates remaining (Method 1 GC log, after
+C3a+C3b deletions):
+  - rt.c: ~22 candidates remain (static helpers reached transitively via
+    @PLT-rescued public fns; need methodology refinement #4 closure pass)
   - icon_runtime.c (frontend): 25 candidates
   - emit_wasm.c: 22 candidates
   - prolog_builtin.c: 20 candidates
   - icn_runtime.c (interp): 18 candidates
   - snobol4_pattern.c: 16 candidates
   - stmt_exec.c: 15 candidates
+
+Methodology refinements discovered this session (recorded in methodology
+note above as items #4, #5, #6):
+  - Static-helper-of-@PLT-rescued edge case (#4): needs transitive
+    caller-graph closure pass rooted at @PLT-rescued public fns, OR
+    conservative "refs=2 only" rule like C3b adopted.
+  - Function-pointer dispatch tables (#5): register_fn("NAME", &fn, ...)
+    inside rt_init hides callers from grep; address-of audit catches them.
+  - Weak/strong override pattern (#6): rt.c weak defaults whose strong
+    overrides exist elsewhere ARE dead, but deletion needs header-side
+    audit first (4 such candidates queued: sm_call_expression,
+    sm_opcode_name, _is_pat_fnc_name, _expr_is_pat).
 
 Latent (separate tickets):
   - IJ-HELLO-MODE3-RAKU: mode-3 (--run / in-memory JIT) raku hello prints
