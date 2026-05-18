@@ -101,7 +101,7 @@ Set by each frontend:
 - Icon: `icon_driver.c` sets `st->lang = LANG_ICN` for every Icon statement.
 - Prolog: `prolog_lower.c` sets `s->lang = LANG_PL` at both lowering sites.
 
-The `lang` field is the sole discriminator used by `execute_program` and
+The `lang` field is the sole discriminator used by `sm_lower` and
 `polyglot_init` to dispatch each statement to the correct runtime.
 
 ### polyglot_init — unified initialisation (U-14)
@@ -118,20 +118,14 @@ Single walk over `prog->head`. Populates all three runtime tables at once:
 | LANG_ICN | zero icn_* state; collect `E_FNC` subjects → `icn_proc_table` |
 | LANG_PL  | `prolog_atom_init`; `trail_init`; collect `E_CHOICE`/`E_CLAUSE` → `g_pl_pred_table`; set `g_pl_active=1` if any PL stmts present |
 
-All three entry points (`--interp`, `--interp`, single-language modes) call
-`polyglot_init`. Individual per-language init sequences have been removed.
+All entry points (`--interp`, `--run`, `--compile`) call `polyglot_init`
+via `sm_preamble`. Mode 1 (`execute_program`, `interp_eval`) is deleted
+(CLI-3M-9, 2026-05-18).
 
-### execute_program dispatch (U-15)
+### sm_lower dispatch (U-15, updated CLI-3M-9)
 
-Inside the statement loop, `st->lang` selects the execution path:
-
-```
-LANG_SNO → existing SNOBOL4 path (subject / pattern / replacement / goto)
-LANG_ICN → skip inline (E_FNC defs registered by polyglot_init);
-            call icn_call_proc(main) after the loop
-LANG_PL  → call interp_eval(st->subject) with g_pl_active=1;
-            call pl main/0 after the loop if present
-```
+`sm_lower` uses `st->lang` to select lowering path per statement. The
+old mode-1 `execute_program` dispatch table is gone.
 
 ---
 

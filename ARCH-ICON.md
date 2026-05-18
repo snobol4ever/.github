@@ -122,12 +122,9 @@ zero callers of the three amputated symbols remain in `src/`.
 Pre-CLI-3M-10, mode 1 (`--ast-run` / `--ir-run` flags) and mode 2
 (`--interp` flag) were at empirical full parity on the Icon rung
 ladder (both 194/265, byte-identical PASS/FAIL sets per DAI-3 and
-DAI-5c-trans). CLI-3M-10 (2026-05-17j) deleted the mode-1 flags
-entirely; the dead `interp_*.c` C files remain pending CLI-3M-9. The
-Icon reference path is now **`--interp` (mode 2)** at PASS=194 FAIL=36
-XFAIL=35 TOTAL=265. The other five languages (SNOBOL4, Snocone,
-Rebus, Prolog, Raku) historically used mode 1 as their reference path
-via the universal `interp_eval` walker; CLI-3M-10 has also taken that
-flag away from them — their canonical mode is now `--interp` / `--run`
-/ `--compile` exactly like Icon, with the still-on-disk `interp_*.c`
-unreachable until CLI-3M-9 deletes it.
+DAI-5c-trans). CLI-3M-10 (2026-05-17j) deleted the mode-1 flags.
+CLI-3M-9 (2026-05-18) completed the deletion: `interp_exec.c` deleted,
+`interp_eval()` deleted, `interp_eval.c` deleted — contents redistributed
+to `icn_runtime.c`, `interp_globals.c`, `interp_hooks.c`, `interp_data.c`.
+Mode 1 no longer exists in the codebase or binary. The Icon reference
+path is **`--interp` (mode 2)** at PASS=194 FAIL=36 XFAIL=35 TOTAL=265.
