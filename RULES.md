@@ -69,12 +69,11 @@
 ║  Do NOT route through proc_table_call, _usercall_hook AST fallback, or any other                 ║
 ║  back-door that hands a tree_t* to mode-2/3/4 code.                                              ║
 ║                                                                                                  ║
-║  Mode 1 (`--ast-run` / `--ir-run`) was the standalone AST interpreter (interp_eval.c +           ║
-║  interp_exec.c + interp_call.c). Its flag is deleted (CLI-3M-10, 2026-05-17). The C code is     ║
-║  still in src/driver/interp_*.c but is unreachable from any CLI flag; it lingers as dead code   ║
-║  pending CLI-3M-9's big rip. AST walking inside those files is therefore moot — no user-facing  ║
-║  path reaches them. Modes 2/3/4 remain AST-free, as before. The `--interp` flag is mode 2       ║
-║  (SM dispatch loop), not mode 1.                                                                ║
+║  Mode 1 (`--ast-run` / `--ir-run`) is DELETED (CLI-3M-9, 2026-05-18). Flag deleted CLI-3M-10.   ║
+║  interp_exec.c deleted. interp_eval() deleted. interp_eval.c deleted — contents moved to        ║
+║  icn_runtime.c (builtins/kw), interp_globals.c, interp_hooks.c, interp_data.c.                  ║
+║  Mode 1 no longer exists in the codebase or binary. Modes 2/3/4 remain AST-free.                ║
+║  The `--interp` flag is mode 2 (SM dispatch loop). There is no mode 1.                          ║
 ║                                                                                                  ║
 ║  This rule applies to every language session — Icon, Prolog, Snocone, SNOBOL4, Rebus, Raku.     ║
 ║  No language-specific exception. If your frontend lowers to SM_Program / IR_block_t, that       ║
@@ -82,19 +81,15 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-### Icon-specific addendum (2026-05-17, IJ-DEL-ICN-AST + CLI-3M-10)
+### Icon-specific addendum (2026-05-17, IJ-DEL-ICN-AST + CLI-3M-10; updated CLI-3M-9 2026-05-18)
 
 The Icon-specific `tree_t *` AST walker (`bb_eval_value` /
-`bb_exec_stmt` / `icn_bb_build`) is amputated; pre-CLI-3M-10 mode-1
-Icon was already routing through the universal `interp_eval` walker
-(then through `ir_exec.c`'s `IR_block_t` walker). DAI-5c-trans
-confirmed mode-1 and mode-2 were at full empirical parity for the
-Icon rung ladder (both 194/265, byte-identical PASS/FAIL sets) before
-the mode-1 flag was deleted by CLI-3M-10. Reference path for Icon is
-now `--interp` (mode 2) — the only flag-reachable execution mode
-besides `--run` (JIT) and `--compile` (x86 asm). Icon rung floor is
-`scripts/test_icon_all_rungs.sh` under `--interp` at PASS=194 FAIL=36
-XFAIL=35 TOTAL=265.
+`bb_exec_stmt` / `icn_bb_build`) is amputated. Mode 1 (`interp_eval`)
+is deleted (CLI-3M-9, 2026-05-18) — `interp_eval.c` no longer exists.
+Reference path for Icon is `--interp` (mode 2) — the only flag-reachable
+execution mode besides `--run` (JIT) and `--compile` (x86 asm). Icon
+rung floor is `scripts/test_icon_all_rungs.sh` under `--interp` at
+PASS=194 FAIL=36 XFAIL=35 TOTAL=265.
 
 
 ## Where rules belong
