@@ -196,3 +196,21 @@ mirror gaps: MIRROR-GAP-W1 (pending Phase 2)
 
 Extracted from `GOAL-PARSER-PURE-SYNTAX-TREE.md` by Claude Sonnet 4.6,
 2026-05-18. Parent goal Step 1 history preserved above.
+
+### Handoff note — 2026-05-18 (Sonnet 4.6)
+
+Session goal: HQ work. Created this file by extracting SNOBOL4 content
+from parent goal. Clarified that PST-SN4-2 (marked ✅ in watermark) referred
+to the Icon audit step, not a SNOBOL4 wart fix. The three warts in
+sno4_stmt_commit_go (->t==TT_QLIT inspection for goto routing) were never
+fixed — now tracked here as PST-SN4-W1.
+
+Key finding this session: SNOBOL4 is NOT fully shift/reduce ready. The
+->t inspection in sno4_stmt_commit_go is a parser-action child inspection
+violation. stmt_to_ast does convert correctly to TT_GOTO_U/S/F tree nodes
+downstream, so the output is correct — but the action is not pure.
+
+Two-phase rule now in effect across all PST goals:
+Phase 1 = C only, Phase 2 = SCRIP mirrors as dedicated SNOBOL4 session.
+
+.github @ 1a8d2e6d
