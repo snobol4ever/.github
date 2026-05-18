@@ -16,7 +16,56 @@ continues in the same session as SNOBOL4 cleanup.
 
 ---
 
-## ⛔ Pure-syntax rules (binding)
+## ⛔ Separation of concerns (binding 2026-05-18) — THE governing principle
+
+The parser's only job is to **transcribe surface syntax into `tree_t`**. The tree
+is a faithful, almost photographic image of the source. The parser does not
+reason about the meaning of what it parsed. Every semantic decision belongs to
+**lower**; every code-generation decision belongs to the **emitter**.
+
+```
+parser  : source                ──►  tree_t (pure syntax mirror, source order)
+lower   : tree_t                ──►  SM_Program (semantic decisions, name-fountains, hoisting, desugaring)
+emitter : SM_Program            ──►  native code or interpreter step
+```
+
+Things the parser **MUST NOT** do (each is a lower-time concern):
+
+- Inspect a child's `t` to choose an operator kind (e.g. `TT_QLIT → TT_LEQ` else `TT_EQ`) — emit children as-is, let lower pick.
+- Synthesize names not present in source (e.g. `__gather_N`, `__case_topic__`) — let lower fountain them.
+- Hoist sub/method/class/gather definitions into a separate output queue — let lower walk the program and lift.
+- Wrap nodes in `STMT(:subj(...))` envelopes for output staging — wrapping is a lower decision.
+- Rename methods to `Class__method` form — lower renames during class lowering.
+- Desugar control flow (`for-range` → `for-iter`, `unless` → `if not`, etc.) — lower desugars.
+- Assign `_id` / `SUB_TAG` / hoist-flag slots — lower flags.
+- Re-order children to encode positional semantics — children stay in source order.
+
+Things the parser **MAY** do (each is pure transcription):
+
+- `shift`/`reduce` to build `tree_t` nodes in source order.
+- Set `v.sval`/`v.ival`/`v.dval` from token text.
+- Leaf-only pusher stubs in `*_stubs.sc` that `Push(tree('TT_*', token))` (no `Append`, no tree-of-trees, no inspection of prior pushes).
+- Counter-stack discipline (`nPush`/`nInc`/`nTop`/`nPop`) to count source children for variable-arity reduces.
+- Pre-pass string transformations on captured tokens (e.g. `dq_unescape` converting `\n` escapes to actual `nl`) — only when the result is fed to a leaf push.
+- Source-order capture variables (`captured_name`, etc.) set via `.` for use by the next leaf push.
+
+**Corollary — parser_*.sc helper count.** A `parser_*.sc` file should contain
+**zero `function` bodies that build trees**. Pure pre-pass string transformers
+(no `Push`/`Append`/`tree()`/`Pop`) are permitted as helpers in the parser file.
+Everything else lives in `*_stubs.sc` as leaf-pushers or in lower.
+
+**Applying this principle (the standing parser refactor goal).** Any parser
+that currently violates these rules — `parser_raku.sc`'s sub/class/gather
+hoisting, `parser_prolog.sc`'s and `parser_rebus.sc`'s semantic helpers,
+`raku.y`'s `add_proc`/`SUB_TAG`/method-renaming — is a target for cleanup
+under this goal. The work is: move the violation out of the parser and into
+lower.c (or `lower_*.c`), regenerate `.ref` files, hold all gate scripts.
+
+---
+
+
+
+### Pure-syntax rules — quick reference
 
 **Allowed:** `ast_node_new(TT_*)`, `expr_new`, `expr_unary`, `expr_binary`,
 `ast_push`, `expr_add_child`. Setting `v.sval/v.ival/v.dval` from token.
@@ -243,40 +292,81 @@ pattern-action aliases.
   as first child + `reduce('TT_FNC','nTop()') + Push_stmt_subj`.
   New stubs: `push_main_var`, `push_stmt_subj`. Gates hold.
 
-- [ ] **PRF-8** — `finish_given`: `GivenStmt` restructure. `finish_given` uses
-  `TopCounter()` to count `when` pairs but each pair pushes 3 nodes (cmpkind
-  TT_ILIT + val + body), counted as 1 `nInc` per pair in `WhenClause`.
-  **Strategy:** change `WhenClause` to `nInc() nInc() nInc()` (one per node)
-  and use `reduce('TT_CASE', 'nTop() + 1')` with topic pushed before `nPush`.
-  Default clause: `DefaultClause` currently sets `given_has_def` flag and pushes
-  def_body; inline by adding 2 more `nInc` for the `TT_NUL + def_body` pair
-  when default is present — or restructure into two alternations.
-  C mirror: `given_stmt` in `raku.y` already builds `TT_CASE` correctly; verify
-  child layout matches after inlining.
+- [x] **PRF-8** — `finish_given` eliminated. `WhenClause = Expr nInc() Block nInc()`,
+  `DefaultClause = Push_nul Block nInc() nInc()`, `GivenStmt` uses `nPush()` after topic
+  and `reduce('TT_CASE', 'nTop() + 1')` so topic becomes `c[0]` one slot below the counter
+  frame. **TT_CASE shape changed to 2-per-arm: `[topic, val0, body0, val1, body1, ..., (TT_NUL, body_def)?]`.**
+  cmpkind moved to lower.c — derived from `val->t` (TT_QLIT → TT_LEQ, else TT_EQ). Paired
+  `raku.y` and `lower.c` raku-branch changes (gated on `g_lang == LANG_RAKU`). No `.ref`
+  regen needed (no given fixtures in `.ref` set). Gates: smoke_raku 5/0, smoke_icon 5/0,
+  scrip_all_modes 2/0, crosscheck_snobol4 5/1 (pre-existing), crosscheck_raku 21/12
+  unchanged, rk_given + rk_given18 still PASS.
 
-- [ ] **PRF-9** — `finish_gather_body`: two-phase — emits def `TT_FNC` to sub_list
-  AND pushes a zero-arg call `TT_FNC` to the parse stack. Auto-generates name
-  `'__gather_' gather_seq`. **Strategy:** split into two inline actions:
-  (1) `reduce('TT_FNC','nTop()') + Emit_to_sub_list` for the def (keeping
-  `gather_seq` increment in a side-effect stub), then (2) a `Push_gather_call`
-  stub that constructs the call node using the same `gname` — but `gname` must
-  be consistent between the two. Requires a `gather_name` capture variable set
-  by a `Set_gather_name` stub before `nPush`. C mirror: `expr: KW_GATHER block`
-  in `raku.y` uses `add_proc(def)` + pushes call; verify shapes match.
+- [x] **PRF-9 (transitional)** — `finish_gather_body` eliminated from `parser_raku.sc`.
+  `GatherBlock` now uses two `nPush/reduce('TT_FNC',n)/nPop` blocks sharing a fresh
+  `__gather_N` name via `Set_gather_name` + `Push_gather_name_var` stubs in
+  `raku_stubs.sc`. **NOTE — VIOLATES separation-of-concerns principle**: the name
+  fountain and the def/call hoist-to-sub_list both belong in lower, not in the parser.
+  This commit matches the existing `raku.y` violation (parser synthesizes `__gather_N`
+  and calls `add_proc` to hoist). Cleanup tracked as PRF-12 below — the proper PST
+  answer is `TT_GATHER[block]` with lower doing the fountain + hoist.
 
-- [ ] **PRF-10** — `push_interp_str`: PST-clean by definition (no tree child
-  inspection — string processing only). Reclassify as allowed, or inline the
-  interpolation loop as a SCRIP pattern if feasible. Decision: **leave as-is**
-  unless Lon directs otherwise.
+- [x] **PRF-10** — `push_interp_str` eliminated. New leaf-only stub
+  `push_interp_leaves` in `raku_stubs.sc` walks `capstr` and pushes one TT_QLIT or
+  TT_VAR leaf per interpolation chunk, calling `IncCounter()` per push. NO `Append`,
+  NO tree-of-trees. `LitStrDQ` use site wrapped with `nPush() ... Push_interp_leaves
+  reduce('TT_CAT', r_nTop) nPop()` so single-leaf strings (no `$var`) skip the TT_CAT
+  wrap (`r_nTop = '*(GT(nTop(),1) nTop())'` returns failure when count<=1). Pure
+  transcription: leaves match source chunks, no semantic decision. Gates hold;
+  `rk_interp` and `rk_strings` unchanged.
 
-- [ ] **PRF-11** — `dq_unescape`: PST-clean by definition (string processing only,
-  no Pop/Push/Append/tree()). **Leave as-is.**
+- [ ] **PRF-11** — `dq_unescape` is PST-clean (pure string processor: takes `capstr`,
+  applies `\n`/`\t`/`\"`/`\\` escapes, stores back to `capstr`; no `tree()`/`Push`/
+  `Append`). Permitted in `parser_raku.sc` under the principle as a pre-pass string
+  transformer feeding a leaf push. **Leave as-is.**
 
-### Done criterion for this goal (updated)
+- [ ] **PRF-12 — Separation-of-concerns cleanup queue (multi-session).** The following
+  C-side raku.y violations propagate to the SCRIP mirror and must move to lower:
+    - **`KW_GATHER block`**: parser synthesizes `__gather_N`, builds two TT_FNCs,
+      calls `add_proc`. PST tree should be `TT_GATHER[stmt0, stmt1, ...]`. Lower
+      fountains name, lifts def to procedure table, emits call in place.
+      Add `TT_GATHER` to `ast.h`; write `lower_gather` in lower.c; update raku.y
+      and `parser_raku.sc` (remove Set_gather_name, Push_gather_name_var, Emit_to_sub_list
+      from gather path).
+    - **`sub_decl` / `KW_SUB`**: parser builds `TT_FNC` with `_id = SUB_TAG_ID`
+      hoist-flag, splices block body's children into the TT_FNC, calls `add_proc`.
+      PST tree should be `TT_SUB_DECL[TT_VAR(name), TT_PARAMS[...], TT_BLOCK[...]]`.
+      Lower walks `TT_PROGRAM` and hoists `TT_SUB_DECL` into the procedure table.
+      In SCRIP: remove `Push_sub_name_var`, `Emit_to_sub_list` from `SubStmt`.
+    - **`class_decl` / `KW_CLASS`**: parser renames methods to `Cls__methodname`,
+      calls `raku_meth_register`, mutates `item->v.sval` and child TT_VAR `v.sval`.
+      PST tree should be `TT_CLASS_DECL[TT_VAR(cname), method0, method1, ...]`.
+      Lower handles renaming during class lowering.
+    - **`program` / `Compiland`**: parser wraps everything in a `main` TT_FNC plus
+      `STMT(:subj(...))` envelopes; uses two output queues (`sub_list` slink + main
+      body). PST tree should be `TT_PROGRAM[stmt0, stmt1, ...]` with subs/classes
+      as ordinary children. Lower walks the program and lifts.
+    - **method body**: `method_decl` injects implicit `self` parameter as `c[1]`.
+      PST: method has only its declared parameters; lower inserts `self`.
+    - **for-range desugar**: `for_stmt` handler in raku.y detects `iter->t == OP_RANGE`
+      and rewrites to indexed for-loop. PST: emit `TT_FOR[var, iter, body]`; lower
+      desugars.
 
-Zero `function` bodies in `parser_raku.sc` that call `Pop()`, `TopCounter()`,
-`Append()`, or `tree()` — i.e. functions that do tree assembly. String-processing
-functions (`push_interp_str`, `dq_unescape`) are PST-clean and may remain.
+  Each bullet is a discrete session. Order suggested above (gather first because
+  isolated; sub/class are the deeper rip; program last because it's the umbrella).
+  Each requires: new TT_* kind in ast.h (sometimes), new `lower_*` function,
+  raku.y rewrite, parser_raku.sc rewrite, `.ref` regen, gates green.
+
+### Done criterion for this goal (updated 2026-05-18)
+
+**Phase A — helper elimination (parser_raku.sc form):** Zero `function` bodies in
+`parser_raku.sc` that call `Push()`, `Append()`, or `tree()`. Pure string
+transformers (no tree ops) permitted. **Status: 1 helper left** (`dq_unescape`,
+pure string processor — permitted).
+
+**Phase B — separation-of-concerns (parser_raku.sc + raku.y semantics):** Parser
+emits only pure syntax tree mirroring source. Every semantic decision documented
+in PRF-12 has been moved to lower. **Status: in queue, multi-session.**
 
 ---
 
@@ -312,18 +402,49 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-18 (session handoff — PRF-1 through PRF-7 complete)
-next: PRF-8 (finish_given) then PRF-9 (finish_gather_body)
-functions remaining in parser_raku.sc: 4
-  push_interp_str  — PST-clean (string processing, no tree ops) — leave
-  dq_unescape      — PST-clean (string processing, no tree ops) — leave
-  finish_given     — PRF-8: restructure WhenClause nInc×3 + reduce('TT_CASE','nTop()+1')
-  finish_gather_body — PRF-9: split into Set_gather_name + reduce + Emit_to_sub_list + Push_gather_call
-lower.c change this session: lower_record updated for convention-2 (empty v.sval → read cname from c[0])
-new stubs in raku_stubs.sc: push_fn_raku_mcall, push_mcall_mth_qlit, push_fn_raku_new,
-  push_cls_qlit, push_sub_name_var, push_mth_name_var, push_self_var, push_cls_name_var,
-  push_main_var, emit_to_sub_list, push_stmt_subj (and their Push_*/Emit_* aliases)
-gates at handoff: smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0, crosscheck 5/1 (pre-existing)
+watermark: 2026-05-18 (PRF-8/9/10 landed; separation-of-concerns principle adopted)
+next: PRF-12 cleanup queue — start with gather (isolated), then sub, class, program, method-body, for-range
+functions remaining in parser_raku.sc: 1
+  dq_unescape  — PST-clean pre-pass string processor (no tree ops, no Push, no Append) — leave
+PRF-10 (push_interp_str) ✅ 2026-05-18 (Claude Opus 4.7): Eliminated. New leaf-only
+  stub `push_interp_leaves` in raku_stubs.sc walks capstr post-dq_unescape, pushes one
+  TT_QLIT or TT_VAR leaf per chunk + IncCounter() per push. NO Append, NO tree-of-trees.
+  LitStrDQ use site wrapped: nPush() LitStrDQ Dq_unescape Push_interp_leaves
+  reduce('TT_CAT', r_nTop) nPop(). r_nTop idiom skips wrap when count<=1.
+  Gates: smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0, crosscheck_snobol4 5/1
+  (pre-existing), crosscheck_raku 21/12 unchanged (rk_interp + rk_strings stable).
+PRF-9 (finish_gather_body) ✅ 2026-05-18 (Claude Opus 4.7): TRANSITIONAL — see PRF-12.
+  Eliminated from parser_raku.sc. GatherBlock uses two nPush/reduce('TT_FNC',n)/nPop
+  with new stubs Set_gather_name (bumps gather_seq, captures '__gather_N' in
+  cap_gather_name) and Push_gather_name_var (pushes TT_VAR with captured name).
+  Stubs in raku_stubs.sc. Mirrors existing raku.y violation; both move to lower
+  under PRF-12. Gates: all green at floor, rk_gather FAIL unchanged (pre-existing).
+PRF-8 (finish_given) ✅ 2026-05-18 (Claude Opus 4.7): Eliminated.
+  WhenClause = Expr nInc() Block nInc(); DefaultClause = Push_nul Block nInc()×2;
+  GivenStmt nPush()/reduce('TT_CASE','nTop()+1')/nPop with topic below frame.
+  **TT_CASE shape changed**: 2-per-arm `[topic, val, body, ..., (TT_NUL, body_def)?]`,
+  cmpkind moved to lower.c (derived from val->t at lower time, gated LANG_RAKU).
+  Paired raku.y + lower.c + parser_raku.sc commits.
+  Gates: smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0, crosscheck_snobol4 5/1,
+  crosscheck_raku 21/12 unchanged, rk_given + rk_given18 still PASS.
+separation-of-concerns principle (binding 2026-05-18): documented at top of this
+  goal file. Parser transcribes; lower decides semantics; emitter walks SM. The
+  pre-existing helper-count criterion (zero tree-building functions in parser_*.sc)
+  is the *form* test; the principle is the *substance* test. Helpers that match
+  the principle (leaf-only pushers, pre-pass string transformers) are permitted
+  in stubs files; everything else moves to lower. PRF-12 queues the existing
+  raku.y violations for migration.
+lower.c change PRF-8: lower_case raku branch reshaped to 2-per-arm with cmpkind
+  derived from val->t (TT_QLIT → TT_LEQ, else TT_EQ). Gated on g_lang==LANG_RAKU.
+lower.c change PRF-6 (earlier): lower_record updated for convention-2 (empty
+  v.sval → read cname from c[0]).
+new stubs in raku_stubs.sc this session: set_gather_name + push_gather_name_var
+  (PRF-9, transitional); push_interp_leaves (PRF-10, leaf-only). Plus prior:
+  push_fn_raku_mcall, push_mcall_mth_qlit, push_fn_raku_new, push_cls_qlit,
+  push_sub_name_var, push_mth_name_var, push_self_var, push_cls_name_var,
+  push_main_var, emit_to_sub_list, push_stmt_subj (and Push_*/Emit_* aliases).
+gates at handoff: smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0,
+  crosscheck_snobol4 5/1 (pre-existing), crosscheck_raku 21/12 unchanged.
 PRF-7 (finish_main_body) ✅ 2026-05-18 (Claude Sonnet 4.6): Compiland inline.
 PRF-6 (finish_class_body) ✅ 2026-05-18: ClassDecl inline + lower_record convention-2.
 PRF-5 (finish_method_body) ✅ 2026-05-18: MethodDef inline.
