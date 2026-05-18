@@ -7,7 +7,7 @@
 ## Invariants (READ FIRST)
 
 1. **No AST walking in modes 2/3/4.** Modes 2 (sm_interp) and 3 (sm_jit_interp) print `[NO-AST] <opcode>` on stderr if a tree_t* would be dereferenced. If a gate breaks with `[NO-AST] FOO`, write fresh SM/BB lowering for FOO — do not restore the AST-walking call. Mode 1 (`--interp` AST interp) is the reference path and unchanged.
-2. **Zero C Byrd-box functions.** A C BB is `DESCR_t foo(void *zeta, int entry)` implementing α/β/γ/ω in C. None may exist. All BBs are x86 emitted at runtime, or `IR_block_t` DCGs driven by `icn_bb_dcg`. Exceptions: `icn_lazy_box` and `icn_bb_dcg` (infrastructure shims).
+2. **Zero C Byrd-box functions.** A C BB is `DESCR_t foo(void *zeta, int entry)` implementing α/β/γ/ω in C. None may exist. All BBs are x86 emitted at runtime, or `IR_block_t` DCGs driven by `icn_bb_dcg`. Exception: `icn_bb_dcg` (infrastructure DCG driver). (`icn_lazy_box`, previously listed here, was empirically dead and removed in DAI-7b on 2026-05-17.)
 3. **Cross-language: SM↔SM via hook, BB↔BB via universal four-port contract.** Within a language: SM bridge opcodes broker that language's BB-land (Icon=`SM_BB_PUMP_PROC`/`icn_bb_dcg`/`proc_table`, SNOBOL4=`SM_PAT_*`/`pat_cat`/PATND_t, Prolog=`SM_BB_ONCE_PROC`/`pl_bb_dcg`/`dcg_table`). Cross-language: SM(A)→SM(B) via `g_user_call_hook`; BB(A)→BB(B) via the universal α/β/γ/ω contract. **Forbidden:** invoking language-A's SM-bridge handler with a language-B BB object (semantics are hardcoded per language).
 4. **Four ports hard-wired with direct pointers.** `IR_node_alloc` bakes the SCRIP default: `α=nd` (self-loop entry), `β=nd` (self-loop resume), `γ=NULL` (terminator = return value to driver), `ω=NULL` (terminator = return FAIL). Hard-wired direct pointers, not zero-init coincidence. Verified `927e0296`: zero call sites in src/ depend on NULL α/β as sentinel.
 5. **Up to three orthogonal constructs per session, separate commits, single gate run at end** (Lon, sess 2026-05-16). Three is a ceiling, not a target. Orthogonal means: different IR kinds, different rung clusters, no shared β-pump or descriptor-tag work. If a gate breaks, `git bisect` across the three commits (3 steps max). Handoff records one row per construct in the Completed steps table with its own rung delta. No corpus source modified to work around runtime bugs.
@@ -247,49 +247,47 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 ## Open step
 
-- [ ] **DAI-7 — Dead-code sweep across `src/runtime/interp/icn_runtime.c` and the wider `src/`.** After IJ-DEL-ICN-AST + CLI-3M-10 a substantial volume of C code is provably unreachable from any flag-reachable CLI path, but still on disk:
+- [x] **DAI-7 ✅ 2026-05-17 (Opus 4.7) — Dead-code sweep: 14 dead Icon C-BB zeta-fns + 3 [DAI-BOMB] stubs + icn_lazy_box + find_leaf_suspendable deleted.** Tier-1 scope completed in two orthogonal commits per RULES three-construct rule. **Tooling used:** grep-based dead-symbol audit (method 5) cross-referenced with the DAI-5a empirical trace history (method 4); static tools (cppcheck/--gc-sections) deferred — the manual audit was conclusive and the gate matrix is the final authority. **CLI-3M-9 territory (interp_*.c rip) deliberately not entered — separate goal step.**
 
-  **Tier 1 (high-confidence dead code):**
-  - The three file-local `static` `[DAI-BOMB]` stubs in `icn_runtime.c` (`bb_eval_value`, `icn_bb_build`, `bb_exec_stmt`) — empirically unreachable per DAI-5a's full-gate trace (zero fires across smoke ×6 + Icon rungs + Prolog/Raku/Icon crosschecks).
-  - The ~25 surviving Icon zeta-fn bodies in `icn_runtime.c` that call those stubs (`icn_lazy_box` plus the cluster DAI-2 preserved as "infrastructure"). If the stubs are dead, every function that ONLY calls into the stubs is also dead — a transitive sweep should fall out of the stub deletion.
-  - `src/driver/execute_program(const tree_t *)` in `interp_exec.c` — after CLI-3M-10 deleted the `--ast-run`/`--ir-run` flags, the final-else fallthrough `else { execute_program(ast_prog); }` in `scrip.c` is structurally unreachable (the default-when-no-flag is now `mode_run = 1`, set before dispatch). Same logic transitively kills `interp_eval.c`, `interp_call.c`, `interp_exec.c`, `interp_ref.c`, `interp_label.c`, `interp_data.c`, `interp_hooks.c` to the extent they're only called from `execute_program` or each other. This is CLI-3M-9 territory — the big rip Lon planned for after CLI-3M-10. DAI-7 is a controlled scout for it.
+  **DAI-7a (commit `254dedb9`)** — Deleted 14 empirically-dead Icon C Byrd-box functions in `icn_runtime.c` (each `DESCR_t foo(void *zeta, int entry)`, all violations of the absolute "ZERO C BYRD BOX FUNCTIONS" rule that DAI-2 had preserved as "infrastructure"):
+  - `icn_bb_fnc_multi`, `icn_bb_assign_lhs_iter`, `icn_assign_write`, `icn_bb_assign_gen`, `icn_bb_assign_cat`, `icn_bb_assign_lhs_gen`, `icn_bb_revassign_lhs_gen`, `icn_bb_revassign`, `icn_bb_revswap`, `icn_bb_mutual`, `icn_bb_cat`, `icn_bb_scan_gen`, `icn_bb_bang_binary`, `icn_bb_seq_expr`, `icn_bb_identical_gen`
+  - Plus internal helpers `icn_revswap_write`, `icn_revswap_read`
+  - Plus 10 self-contained state structs (the structs externally referenced by `emit_bb.c`/`icon_gen.h` were preserved).
+  - **Net: −560 LOC.** `icn_runtime.c` 1259 → 698. All gates held floor.
 
-  **Tooling (multiple complementary methods — use at least two for confidence):**
-  1. **`cppcheck --enable=unusedFunction --project=...`** — fastest first pass; reports defined-but-never-called across the whole project. No recompile needed. Likely false positives on function-pointer callbacks (`g_user_call_hook`, `_usercall_hook`, etc.) — cross-check before deleting.
-  2. **GCC linker `-Wl,--gc-sections -Wl,--print-gc-sections`** + `-ffunction-sections -fdata-sections` — authoritative for "could the linker reach this from `main`?" Add the flags to a probe build target (`make scrip GC=1` or similar); the linker prints every `.text.<name>` section it discards. This catches the transitive closure that cppcheck misses.
-  3. **`cflow src/**/*.c`** — static call-graph builder; nodes with no incoming edges (besides `main`) are dead. Useful for understanding *why* something's reachable when the first two disagree.
-  4. **DAI-BOMB stub technique** (already proven in DAI-2/DAI-4/DAI-5a) — for each tier-1 candidate, replace its body with a `[DAI-7-BOMB]` stub that prints to stderr + `exit(78)`. Run full gate matrix. Zero fires = empirically dead = safe to delete in a follow-on commit.
-  5. **`grep -rn "<symbol>" src/`** — final cross-check before deletion. Catches calls through string-based lookup tables (e.g. `proc_table[i].name` dispatch) that the static tools miss.
+  **DAI-7b (commit `ff3d100a`)** — Deleted all three `[DAI-BOMB]` stubs (`bb_eval_value`, `icn_bb_build`, `bb_exec_stmt`) plus `icn_lazy_box` plus `find_leaf_suspendable`. Lon directive ("delete bb_eval_value anyway if it truly dead, we'll find out later") — the empirical truth was that `icn_lazy_box` (the surviving caller of `bb_eval_value` and a RULES.md-named permitted shim) had zero external callers itself; the named exception was reserving a slot for an inhabitant that wasn't there. RULES.md and the Invariant-2 entry in this file updated to drop `icn_lazy_box` from the named-survivor list — only `icn_bb_dcg` remains. **Net: −47 LOC `icn_runtime.c`, −10 `icon_gen.h`, −8 `emit_bb.c`, −2 `icn_runtime.h`.** `icn_runtime.c` 698 → 651. All gates held floor.
 
-  **Scope (this rung, conservative):**
-  - Target only Tier 1 deletions in this step. CLI-3M-9's broader `interp_*.c` rip is a separate goal-file step (`GOAL-CLI-3MODE` CLI-3M-9).
-  - Per RULES.md "Three-construct sessions": three orthogonal deletions max per session, each its own commit.
-  - Function-pointer hooks (`g_user_call_hook`, `_usercall_hook`, `bb_user_proc_dispatch`, etc.) must be hand-audited — `grep` for the variable name and trace assignments.
+  **Combined DAI-7 net: −608 LOC in `icn_runtime.c` (1259 → 651), −10 in `icon_gen.h`, −8 in `emit_bb.c`, −2 in `icn_runtime.h`.** Zero `[DAI-BOMB]` fires (the stubs no longer exist to fire). Icon `--interp` 194/265 unchanged. Smoke ×6 unchanged. broker 22/27 unchanged. crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS unchanged.
 
-  **Done when:**
-  - `cppcheck --enable=unusedFunction src/` reports zero unused functions outside known function-pointer-callback registries, OR documents each remaining warning with a one-line rationale below.
-  - `nm -u scrip` (undefined references) shows zero entries pointing at amputated DAI-BOMB stubs.
-  - Three DAI-BOMB stubs in `icn_runtime.c` deleted; transitive dead bodies they were protecting also deleted.
-  - All gates hold floor: Icon `--interp` 194/265, smoke ×6, unified_broker 22/27, crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS.
+  **What this closes:** the IJ-DEL-ICN-AST surgery (DAI-1 through DAI-7) is now structurally complete. The Icon-specific tree_t* AST walker is gone (DAI-2), all callers are routed through `interp_eval` (DAI-3/4/5a), the file-deletion sweep is complete (DAI-5b), the canonical reference path is `--interp` at 194/265 (DAI-5c), and the dead-zeta-fn/stub sweep is done (DAI-7). The Icon BB world is now: SM stream → IR_block_t (per proc) → `icn_bb_dcg` (one infrastructure shim) → x86-emitted Byrd boxes or `ir_exec.c` IR walker.
 
-  **Risk:**
-  - SCRIP's heavy use of function-pointer dispatch (per-frontend `_usercall_hook`, the `proc_table`, the `g_user_call_hook` cross-language bridge) means static tools will report false-positive deads. The grep+bomb technique catches these.
-  - `interp_*.c` may have hidden cross-references via `extern` declarations that the linker resolves but no one calls. The `--gc-sections` linker pass IS the authority here.
+  **What's NEXT — CLI-3M-9 big rip in `interp_*.c`:** the broader sweep across `src/driver/interp_eval.c`, `interp_call.c`, `interp_exec.c`, `interp_ref.c`, `interp_label.c`, `interp_data.c`, `interp_hooks.c` is now unblocked. The DAI-7-tier-3 sketch in this file points at it; CLI-3M-9 is the authoritative goal-file row in `GOAL-CLI-3MODE.md`.
+
+## Completed steps (session 2026-05-17 cont., Opus 4.7) — DAI-7
+
+| Step | Description | Commit |
+|------|-------------|--------|
+| DAI-7a | Delete 14 dead Icon C-BB zeta-fns + 10 self-contained state structs from `icn_runtime.c`. Each function is `DESCR_t foo(void *zeta, int entry)` violating the ZERO-C-BYRD-BOX absolute rule, preserved by DAI-2 as "infrastructure". Manual audit (grep for external refs, cross-ref with DAI-5a trace history) confirmed all dead. Functions: `icn_bb_fnc_multi`, `icn_bb_assign_lhs_iter`, `icn_assign_write`, `icn_bb_assign_gen`, `icn_bb_assign_cat`, `icn_bb_assign_lhs_gen`, `icn_bb_revassign_lhs_gen`, `icn_bb_revassign`, `icn_bb_revswap`, `icn_bb_mutual`, `icn_bb_cat`, `icn_bb_scan_gen`, `icn_bb_bang_binary`, `icn_bb_seq_expr`, `icn_bb_identical_gen` + helpers `icn_revswap_write`, `icn_revswap_read`. State structs preserved if referenced from `emit_bb.c` factory wrappers (`icn_seq_state_t`, `icn_limit_state_t`, `icn_scan_gen_state_t`, `icn_mutual_state_t`, `icn_bang_binary_state_t`, `icn_cat_gen_state_t`); deleted if self-contained (`icn_fnc_multi_gen_state_t`, `icn_fnc_multi_frag_t`, `icn_assign_*_state_t` family, `icn_revassign_state_t`, `icn_revassign_lhs_gen_state_t`, `icn_revswap_state_t`, `icn_identical_gen_state_t`). −560 LOC. Build green. Icon --interp 194/265 unchanged, smoke ×6 unchanged. | `254dedb9` |
+| DAI-7b | Per Lon directive: delete bb_eval_value stub + icn_lazy_box together. After DAI-7a, the only `bb_eval_value` caller was `icn_lazy_box`, which had zero external callers itself. RULES.md ABSOLUTE RULE listed `icn_lazy_box` as a permitted infrastructure-shim exception — empirically the named slot was reserving space for a non-inhabitant. Deleted in `icn_runtime.c`: all 3 `[DAI-BOMB]` stubs (`bb_eval_value`, `icn_bb_build`, `bb_exec_stmt`), `icn_lazy_box`, `icn_lazy_state_t`, `find_leaf_suspendable`. Deleted decls: `find_leaf_suspendable` from `icn_runtime.h`; 5 zeta-fn prototypes (`icn_bb_scan_gen`, `icn_bb_mutual`, `icn_bb_bang_binary`, `icn_bb_seq_expr`, `icn_bb_cat`) from `icon_gen.h` (state structs kept — referenced by `emit_bb.c` factory wrappers); 4 dead externs from `emit_bb.c` (`icn_bb_bang_binary`, `icn_bb_cat`, `icn_bb_seq_expr`, `icn_bb_scan_gen`). RULES.md + this file's Invariant 2 also updated to drop `icn_lazy_box` from the named-survivor list — only `icn_bb_dcg` remains as a permitted C-BB infrastructure shim. −47 LOC `icn_runtime.c`, −10 `icon_gen.h`, −8 `emit_bb.c`, −2 `icn_runtime.h`. Build green. Full gate matrix held floor. | `ff3d100a` |
+
+## Open step
+
+(none — DAI-7 closed the IJ-DEL-ICN-AST arc. Next active row for this goal will be opened as new Icon work, or referred out to `GOAL-CLI-3MODE.md` CLI-3M-9 for the `interp_*.c` big rip.)
 
 ## Watermark
 
 ```
-one4all: 730da38e (CLI-3M-10: scrip.c alias removal + var rename to match mode names)
-corpus:  92e103f  (CLI-3M-10: docs sweep)
-.github: this commit (CLI-3M-7 done + CLI-3M-10 docs sweep + DAI-5c/6 done + DAI-7 added + parallel-gating rule)
---interp:    194/265   (Icon rung ladder, post-DAI-5c rebaseline at canonical mode flag)
+one4all: ff3d100a (DAI-7b: stubs + icn_lazy_box + find_leaf_suspendable deleted)
+corpus:  92e103f  (unchanged — no corpus edits this session)
+.github: this commit (DAI-7 done; RULES.md Invariant 2 + GOAL Invariant 2 updated)
+--interp:    194/265   (Icon rung ladder, unchanged from DAI-5c floor)
 smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0
 smoke_rebus: 4/0   smoke_snocone: 5/0
-smoke_snobol4: 7/0 (was 6/1; +1 from CLI-3M-10 alias removal; matches CLI-3M-6 prediction)
-smoke_unified_broker: 22/27 (was 21/28; +1 from CLI-3M-10; matches CLI-3M-6 prediction)
+smoke_snobol4: 7/0
+smoke_unified_broker: 22/27
 crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (unchanged)
-DAI-BOMB fires: 0
-Gate-suite wall-clock: ~90s parallel (was ~6 min serial); see RULES.md parallel-gating idiom.
+DAI-BOMB fires: 0 (the stubs no longer exist)
+Gate-suite wall-clock: ~90s parallel.
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
