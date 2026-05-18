@@ -404,23 +404,24 @@ for this goal — it lives elsewhere (or as a follow-on goal).
 
 **Acceptance:**
 
-- [ ] **PRF-S7-1** — Catalogue every stub in `raku_stubs.sc` and classify each as
+- [x] **PRF-S7-1** — Catalogue every stub in `raku_stubs.sc` and classify each as
   (a) inline-able via `shift`/`shift_val`/`assign`, (b) move to lower (composite tree
   builders), or (c) pure string pre-pass (keep, but move into parser_raku.sc since
   it's PST-clean per the principle).
-- [ ] **PRF-S7-2** — Apply (a) class: rewrite every `Push_*` pattern-action site in
+- [x] **PRF-S7-2** — Apply (a) class: rewrite every `Push_*` pattern-action site in
   parser_raku.sc to inline `shift_val(...)` / `assign(...)`. Delete the stub from
   raku_stubs.sc as each is replaced. Commit small, gate after each batch.
-- [ ] **PRF-S7-3** — Resolve (b) class (emit_to_sub_list, push_stmt_subj): either
+- [x] **PRF-S7-3** — Resolve (b) class (emit_to_sub_list, push_stmt_subj): either
   move to lower (Phase B residue) or leave as PST-allowed construction helpers in
   raku_stubs.sc with explicit rationale comment. Lon decision required.
-- [ ] **PRF-S7-4** — Move (c) class (push_interp_leaves, any other pre-pass) into
+- [x] **PRF-S7-4** — Move (c) class (push_interp_leaves, any other pre-pass) into
   parser_raku.sc next to dq_unescape (the precedent permitted function there).
-- [ ] **PRF-S7-5** — `rm corpus/SCRIP/raku_stubs.sc`. Update `run_scrip_parser.sh`
+- [x] **PRF-S7-5** — `rm corpus/SCRIP/raku_stubs.sc`. Update `run_scrip_parser.sh`
   if it references the file (it does not currently load `raku_stubs.sc`, only
   `${LANG}_helpers.sc` — so likely a no-op). Gates: smoke_raku, smoke_icon,
   scrip_all_modes, crosscheck_snobol4, crosscheck_raku — all hold at floor.
 - [ ] **PRF-S7-6** — Update Done criterion below + State block + PLAN.md row.
+  (partially done this session — state block updated, PLAN.md next)
   Commit and push all three repos.
 
 ---
@@ -463,7 +464,7 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-18 (Step 7 scoped: eliminate raku_stubs.sc — only remaining work)
+watermark: 2026-05-18 (PRF-S7 complete: raku_stubs.sc deleted, zero tree-building functions)
 next: Step 7 — delete raku_stubs.sc; inline each stub as shift/shift_val/assign at use sites in parser_raku.sc. PRF-12 / Phase B / convergence with raku.y is OUT OF SCOPE for this goal (lives elsewhere).
 session 2026-05-18 (Opus 4.7) — GOAL CONVERGENCE CLARIFIED by Lon:
   The C parser (raku.y → raku.tab.c → tree_t) and the SCRIP parser
