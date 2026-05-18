@@ -343,14 +343,57 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 | Cluster | Symbols deleted | Method that nominated | Method that confirmed | Commit | Gate delta |
 |---|---|---|---|---|---|
-| _(empty — DAI-8 not yet started)_ | | | | | |
+| **C1 — `emit_bb.c` dead-fn sweep** (2026-05-18, Opus 4.7) | 75 functions (627 lines from `emit_bb.c` + 4 inline helpers from `emit_form.h` + 22 dead decls in `emit_bb.h` + 15 dead decls in `emit_templates.h`) — full list in commit body. Headlines: 44 obsolete `emit_bb_icon_*` STUB functions (BB-side stubs that emit "STUB" banners and jump-to-fail; no callers anywhere), `emit_flat_*` text-emit helper chain (only reachable from each other and from `__attribute__((unused))`-flagged dead bodies), `patnd_buf_*` / `patnd_to_sno_*` chain (PATND→string formatter, only mutual callers), `ICN_NQ` + `ICN_EMIT2` macros and all 16 `icon_*_new()` static-inline factory helpers reachable only from those macros, six dead emit_bb_x* ports (xabrt, xcat, xor, xvar, xsucf, xbal), and 4 dead x86 instruction wrappers (emit_add_eax_imm32, emit_mov_rdi_rax, emit_mov_rdx_imm64, emit_mov_rsi_imm64). | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 990 sections removed, 732 `.text` sections, filtered to 583 hand-written-file candidates, refined via @PLT-aware string-literal filter to 512 truly-dead. | Method 6 (per-name grep for callers + address-takings + emit-string-literals); `__attribute__((unused))` developer annotations on `emit_flat_lit` / `emit_flat_charset_call` confirmed the developer's earlier read | `a4fe1c21` (one4all) | All gates held floor exactly — `Icon --interp 194/265`, smoke ×6 unchanged, `unified_broker 22/27`, `crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS`, zero new errors. Net `−666 LOC` across four files. |
+
+### DAI-8 methodology note (added 2026-05-18, Opus 4.7)
+
+Method 1 (linker `--gc-sections`) is the authoritative nominator. Rebuild
+with `-ffunction-sections -fdata-sections -Wl,--gc-sections
+-Wl,--print-gc-sections` and parse `.text.<name>` discards from the link
+log. Two critical filters MUST be applied before treating a discard as
+"truly dead":
+
+1. **Generated-file exclusion.** Discards from `*.lex.c`, `*.tab.c`,
+   `snobol4.c` (generated from `v311.sil`) are ignored — those files are
+   regenerated.
+
+2. **`@PLT`-aware string-literal rescue.** The emit_*.c family writes
+   `name@PLT` strings (e.g. `"rt_init@PLT"`) into emitted asm. The linker
+   cannot see these references because they're string-templating, not C
+   calls. The filter regex MUST be `"NAME(@PLT)?"`, not `"NAME"`. Skipping
+   `@PLT` falsely flagged 13 critical functions (`rt_init`, `rt_finalize`,
+   `rt_halt`, `rt_register_expressions`, `rt_register_predicates_pl`,
+   `rt_init_arbno`, `rt_init_cap`, `rt_init_cap_call`, `rt_match_blob`,
+   `rt_pl_b_begin/end_register/entry/kids/node`) as dead when they are in
+   fact part of the emitted-binary calling convention.
+
+3. **`libscrip_rt.so` intersection is NOT a valid filter.** Shared library
+   linking keeps all non-static functions in the export table by default
+   (no `-fvisibility=hidden`), so `--gc-sections` on the .so reports far
+   fewer dead functions than are actually dead. The .so's "live" set is a
+   superset of what is reachable from `scrip` — relying on .so dead-ness
+   would over-preserve. The criterion is **`scrip`-side linker GC + @PLT
+   string-literal filter**, full stop.
+
+Tier-1 distribution (after the @PLT rescue, 512 truly-dead candidates):
+`emit_core.c` 143, `emit_bb.c` 75 (cluster 1 — landed), `emit_sm.c` 72,
+`rt.c` 31, `icon_runtime.c` (frontend) 25, `emit_wasm.c` 22,
+`prolog_builtin.c` 20, `icn_runtime.c` (interp runtime) 18,
+`snobol4_pattern.c` 16, `stmt_exec.c` 15, plus 23 more files with
+smaller counts. **The CLI-3M-9 expectation that `interp_*.c` files
+would contain a giant dead cluster was empirically false** — the
+universal `interp_eval` walker is kept live by `pl_runtime.c`,
+`raku_builtins.c`, and `polyglot.c` callers (the DAI-5a swap). Total
+deletions across `src/driver/interp_*.c`: 2 functions (not the expected
+several thousand LOC). The dead code is concentrated in the emitter
+helper layer, not the interp driver.
 
 ## Watermark
 
 ```
-one4all: ff3d100a (DAI-7b: stubs + icn_lazy_box + find_leaf_suspendable deleted)
+one4all: a4fe1c21 (DAI-8 cluster 1: emit_bb.c dead-fn sweep — 75 functions, −666 LOC)
 corpus:  92e103f  (unchanged — no corpus edits this session)
-.github: this commit (DAI-7 done; RULES.md Invariant 2 + GOAL Invariant 2 updated)
+.github: this commit (DAI-8 cluster 1 landed; ledger + methodology added)
 --interp:    194/265   (Icon rung ladder, unchanged from DAI-5c floor)
 smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0
 smoke_rebus: 4/0   smoke_snocone: 5/0
