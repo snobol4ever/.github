@@ -450,3 +450,26 @@ ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower →
 ## Authorship
 
 Drafted by Claude Opus 4.7, 2026-05-16. Stage 2 split-IR design same session. Stage 2 bulk-rename plan (`SM_*`→`IR_SM_*`, `IR_*`→`IR_BB_*`) added 2026-05-16 (this session, with Lon). SCRIP self-host mirror invariant added 2026-05-16 (same session, with Lon) — requires every PST-* rung to update `corpus/SCRIP/parser_*.sc` and `corpus/SCRIP/lower.sc` alongside the C-side change in the same commit. Left-to-right child-order invariant added 2026-05-16 (same session, with Lon) — the children of every AST node must appear in the same order as their tokens in the source, enabling each `corpus/SCRIP/parser_*.sc` to collapse to a dispatch table plus the two-primitive `Shift` / `Reduce` core.
+
+### Handoff note — 2026-05-18 (Sonnet 4.6)
+
+Session goal: HQ work — assess all six C parsers for L-to-R readiness, update goal files with two-phase rule.
+
+**Two-phase rule added (supersedes same-commit pairing):**
+Phase 1 = all C parsers clean (tree_t, L-to-R, no synthesis). Phase 2 = one dedicated SNOBOL4/Snocone session per parser_*.sc. Never both in the same session.
+
+**C parser status at handoff:**
+- Icon ✅ Phase 1 complete
+- SNOBOL4 ✅ Phase 1 complete
+- Raku ⏳ PRF-12 C side (5 rungs: gather, sub, class, program, for-range)
+- Snocone ⏳ PST-SC-4k→4n (4 rungs: goto→TT_GOTO_U, split→lower, TT_PROGRAM stmt list, ScParseState shrink)
+- Rebus ⏳ RB-C-1 (stmt_list_ne always-wrap in rebus.y)
+- Prolog ⏳ PST-PL-6f (delete Term* returning paths from prolog_parse.c)
+
+**Files modified this session:**
+- GOAL-PARSER-PURE-SYNTAX-TREE.md — two-phase rule, readiness table, SCRIP orientation block, Snocone Step 4 Phase 1 annotation
+- GOAL-PST-REBUS.md — RB-C-1 rung added, SCRIP orientation block, Phase 1 annotation
+- GOAL-PST-ICN-RAKU.md — PRF-12 C sequencing (5 ordered bullets), SCRIP orientation block, Phase 1 annotation
+- GOAL-PST-PROLOG.md — SCRIP orientation block added
+
+**Next session:** pick any one of the four remaining Phase 1 C tasks. Suggest PST-SC-4k (Snocone goto→TT_GOTO_U) as it is the most clearly defined and has existing lower.c infrastructure ready.
