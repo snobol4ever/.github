@@ -26,9 +26,9 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all + corpus
-**Done when:** `scrip --ir-run claws5.sc < claws5.input` produces output
+**Done when:** `scrip --interp claws5.sc < claws5.input` produces output
 matching `claws5.ref` exactly (diff zero), all three modes
-(--ir-run, --sm-run, --jit-run).
+(--interp, --interp, --run).
 
 **Oracle:** `csnobol4 -bf claws5.sno < claws5.input` matches `claws5.ref`.
 claws5.sno is the reference implementation. claws5.sc must match it.
@@ -71,9 +71,9 @@ corpus/programs/snobol4/demo/CLAWS5inTASA.dat — full corpus (989 lines, needs 
 
 ```
 claws5.sc → snocone_compile() → CODE_t* [LANG_SNO]
-    --ir-run  → execute_program() → interp_eval()
-    --sm-run  → sm_lower() → SM_Program → sm_interp_run()
-    --jit-run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
+    --interp  → execute_program() → interp_eval()
+    --interp  → sm_lower() → SM_Program → sm_interp_run()
+    --run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
 
 Key pattern construct:
     ARBNO( (header . *new_sent()) | (token . *add_tok()) )
@@ -96,7 +96,7 @@ side-effect firing).
 ## Step ladder
 
 - [ ] **CL-1** — Diagnose SC-26 for claws5.sc.
-  Run `scrip --ir-run claws5.sc < claws5.input` and capture error.
+  Run `scrip --interp claws5.sc < claws5.input` and capture error.
   Identify which `(PAT . var) . *fn(var)` call fails first.
   Write a minimal isolated test case in `test/snocone/test_capture_call.sc`.
   Gate: understand exactly where arg value goes wrong in bb_boxes.c / snobol4_pattern.c.
@@ -106,15 +106,15 @@ side-effect firing).
   Gate: `test/snocone/test_capture_call.sc` PASS all 3 modes.
   Gate: `test_smoke_snocone.sh` PASS=5.
 
-- [ ] **CL-3** — claws5.sc PASS --ir-run.
-  `scrip --ir-run claws5.sc < claws5.input | diff - claws5.ref` → empty.
+- [ ] **CL-3** — claws5.sc PASS --interp.
+  `scrip --interp claws5.sc < claws5.input | diff - claws5.ref` → empty.
   Gate: zero diff.
 
-- [ ] **CL-4** — claws5.sc PASS --sm-run and --jit-run.
+- [ ] **CL-4** — claws5.sc PASS --interp and --run.
   Gate: zero diff both modes.
 
 - [ ] **CL-5** — Full corpus smoke: claws5.sc on CLAWS5inTASA.dat.
-  `scrip --ir-run -P 34000 claws5.sc < CLAWS5inTASA.dat` — no crash, sane output.
+  `scrip --interp -P 34000 claws5.sc < CLAWS5inTASA.dat` — no crash, sane output.
   (No ref for full corpus — just verify no errors and output count is reasonable.)
 
 ---
@@ -150,14 +150,14 @@ lowering bug.
       - test_smoke_unified_broker.sh  PASS=49  FAIL=0 (unchanged)
       - test_interp_broad_corpus_and_beauty.sh PASS=172 FAIL=56
         (same as pre-patch — zero regressions from this fix)
-      - demo_claws5: claws5.sno --ir-run still byte-matches claws5.ref
+      - demo_claws5: claws5.sno --interp still byte-matches claws5.ref
         (diff=0) on full 989-line CLAWS5inTASA.dat — C5-4 preserved.
 
 **Observation during probe (not part of this fix).** When `_EQ_`
 raises soft error 1 inside a Snocone `if (EQ(s,t)) {A} else {B}`
 block, neither A nor B runs — AND statements after the if do not run
 either. The driver's `execute_program` setjmp loop in interp.c:4024
-should take `:F` and continue, but in Snocone `--ir-run` the longjmp
+should take `:F` and continue, but in Snocone `--interp` the longjmp
 appears to abandon the tail of the program. Worth investigating when
 attacking Bug A — means users currently must call IDENT() explicitly
 for string equality inside an if, not rely on `==` to gracefully fail.

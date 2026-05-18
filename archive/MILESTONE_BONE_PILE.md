@@ -2778,7 +2778,7 @@ correctness/performance reference.
 | `scrip-interp` (pre-built, 647KB) | removed | replaced by `scrip --interp` |
 | `scrip-interp-dbg` (pre-built) | removed | replaced by `scrip --interp` + debug flags |
 | `scrip-interp-s` (pre-built) | removed | replaced by `scrip --interp` stripped |
-| `scrip-cc` (Makefile target) | removed | replaced by `scrip --jit-run` / `--jit-emit` |
+| `scrip-cc` (Makefile target) | removed | replaced by `scrip --run` / `--compile` |
 | *(none)* | **`scrip`** | new unified binary |
 | *(future)* | `scrip-jvm` | JVM interpreter (separate milestone) |
 | *(future)* | `scrip-js` | JS interpreter (separate milestone) |
@@ -2903,23 +2903,23 @@ code. Dead code is archived. Gaps are milestoned.
 
 | Switch | Status | Notes |
 |--------|--------|-------|
-| `--ir-run` | ✅ **WIRED** | `execute_program()` in scrip.c — full, PASS=178 |
-| `--sm-run` | ✅ **WIRED** | `sm_lower()` + `sm_interp_run()` — full, PASS=178 |
-| `--jit-run` | ✅ **WIRED** | `sm_codegen()` + `sm_jit_run()` — threaded-call JIT, PASS=178 |
-| `--jit-emit` | ⬜ **STUB** | flag parsed, `(void)` suppressed — no codegen |
+| `--interp` | ✅ **WIRED** | `execute_program()` in scrip.c — full, PASS=178 |
+| `--interp` | ✅ **WIRED** | `sm_lower()` + `sm_interp_run()` — full, PASS=178 |
+| `--run` | ✅ **WIRED** | `sm_codegen()` + `sm_jit_run()` — threaded-call JIT, PASS=178 |
+| `--compile` | ⬜ **STUB** | flag parsed, `(void)` suppressed — no codegen |
 
 ### Byrd Box pattern mode
 
 | Switch | Status | Notes |
 |--------|--------|-------|
-| `--bb-driver` | ✅ **WIRED** | `exec_stmt()` → BB-DRIVER → BB-GRAPH — works with all exec modes |
-| `--bb-live` | ✅ **WIRED** | `g_bb_mode = BB_MODE_LIVE` → `bb_build_binary_node()` with PATND cache |
+| `--bb=brokered` | ✅ **WIRED** | `exec_stmt()` → BB-DRIVER → BB-GRAPH — works with all exec modes |
+| `--bb=wired` | ✅ **WIRED** | `g_bb_mode = BB_MODE_LIVE` → `bb_build_binary_node()` with PATND cache |
 
-### Targets (for `--jit-emit`)
+### Targets (for `--compile`)
 
 | Switch | Status | Emitter file | Notes |
 |--------|--------|-------------|-------|
-| `--x64` | ⚠️ **OLD EMITTER** | `emit_x64.c` (5827 lines) | Sub-box text emitter; emits `.s` → disk → nasm → ld. Not SM-based. Keep linked, archive-label. |
+| `--target=x86` | ⚠️ **OLD EMITTER** | `emit_x64.c` (5827 lines) | Sub-box text emitter; emits `.s` → disk → nasm → ld. Not SM-based. Keep linked, archive-label. |
 | `--jvm` | ⚠️ **OLD EMITTER** | `emit_jvm.c` (4953 lines) + `emit_jvm_icon.c` + `emit_jvm_prolog.c` | Jasmin text emitter. Not SM-based. Keep linked, archive-label. |
 | `--net` | ⚠️ **OLD EMITTER** | `emit_net.c` (2841 lines) | IL text emitter. Not SM-based. Keep linked, archive-label. |
 | `--js` | ⚠️ **OLD EMITTER** | `emit_js.c` (1125 lines) | JS text emitter. Not SM-based. Keep linked, archive-label. |
@@ -2930,14 +2930,14 @@ code. Dead code is archived. Gaps are milestoned.
 
 | Switch | Status | Notes |
 |--------|--------|-------|
-| `--dump-ir` | ✅ **WIRED** | `ir_dump_program()` — works |
+| `--dump-ast` | ✅ **WIRED** | `ir_dump_program()` — works |
 | `--dump-sm` | ✅ **WIRED** | `sm_prog_print(sm, stdout)` after `sm_lower()` |
 | `--dump-bb` | ✅ **WIRED** | `g_opt_dump_bb` — prints PATND tree before each match |
 | `--trace` | ✅ **WIRED** | `g_opt_trace` — prints statement number to stderr |
 | `--bench` | ✅ **WIRED** | `clock_gettime(CLOCK_MONOTONIC)` wraps execution dispatch |
 | `--dump-parse` | ✅ **WIRED** | `cmpile_print()` — works |
 | `--dump-parse-flat` | ✅ **WIRED** | works |
-| `--dump-ir-bison` | ✅ **WIRED** | old Bison/Flex path — works |
+| `--dump-ast-bison` | ✅ **WIRED** | old Bison/Flex path — works |
 
 ---
 
@@ -2959,9 +2959,9 @@ code. Dead code is archived. Gaps are milestoned.
 ### Archive-label (keep linked, mark as reference)
 
 These are the **old sub-box emitters**. They still compile and produce correct
-output via the old pipeline (`--jit-emit` dispatches to them as a stopgap until
+output via the old pipeline (`--compile` dispatches to them as a stopgap until
 new SM-based emitters are written). They are **not dead yet** — they are the
-stopgap implementation of `--jit-emit`. But they are superseded by design and
+stopgap implementation of `--compile`. But they are superseded by design and
 will be replaced milestone by milestone.
 
 | File | Label |
@@ -2987,8 +2987,8 @@ will be replaced milestone by milestone.
 ## Gap Milestones
 
 
-### M-JITEM-X64 — New SM-based `--jit-emit --x64` emitter
-**Switch:** `--jit-emit --x64`
+### M-JITEM-X64 — New SM-based `--compile` emitter
+**Switch:** `--compile`
 
 Replace `emit_x64.c` (sub-box text emitter) with SM_Program → x86 `.s` walker.
 One box emitted at a time (3-column output: label / instruction / comment).
@@ -2997,52 +2997,52 @@ This is the new architecture: SM instruction → blob description → text.
 - New file: `src/backend/emit_sm_x64.c`
 - Walk `SM_Program`; for each instruction emit corresponding x86 text blobs
 - 3-column output format (supersedes old flat emit style)
-- **Gate:** `scrip --jit-emit --x64 corpus/001.sno` produces correct `.s`; assemble+run passes
+- **Gate:** `scrip --compile corpus/001.sno` produces correct `.s`; assemble+run passes
 
 ---
 
-### M-JITEM-JVM — New SM-based `--jit-emit --jvm` emitter
-**Switch:** `--jit-emit --jvm`
+### M-JITEM-JVM — New SM-based `--compile --jvm` emitter
+**Switch:** `--compile --jvm`
 
 Replace `emit_jvm.c` with SM_Program → Jasmin `.j` walker.
 
 - New file: `src/backend/emit_sm_jvm.c`
-- **Gate:** PASS=165 via `scrip --jit-emit --jvm` (current JVM baseline)
+- **Gate:** PASS=165 via `scrip --compile --jvm` (current JVM baseline)
 
 ---
 
-### M-JITEM-NET — New SM-based `--jit-emit --net` emitter
-**Switch:** `--jit-emit --net`
+### M-JITEM-NET — New SM-based `--compile --net` emitter
+**Switch:** `--compile --net`
 
 Replace `emit_net.c` with SM_Program → IL `.il` walker.
 
 - New file: `src/backend/emit_sm_net.c`
-- **Gate:** PASS=170 via `scrip --jit-emit --net` (current .NET baseline)
+- **Gate:** PASS=170 via `scrip --compile --net` (current .NET baseline)
 
 ---
 
-### M-JITEM-JS — New SM-based `--jit-emit --js` emitter
-**Switch:** `--jit-emit --js`
+### M-JITEM-JS — New SM-based `--compile --js` emitter
+**Switch:** `--compile --js`
 
 Replace `emit_js.c` with SM_Program → JavaScript walker.
 
 - New file: `src/backend/emit_sm_js.c`
-- **Gate:** PASS=174 via `scrip --jit-emit --js` (current JS baseline)
+- **Gate:** PASS=174 via `scrip --compile --js` (current JS baseline)
 
 ---
 
-### M-JITEM-C — New SM-based `--jit-emit --c` emitter
-**Switch:** `--jit-emit --c`
+### M-JITEM-C — New SM-based `--compile --c` emitter
+**Switch:** `--compile --c`
 
 Replace `emit_byrd_c.c` + `emit_cnode.c` with SM_Program → C walker.
 
 - New file: `src/backend/emit_sm_c.c`
-- **Gate:** `scrip --jit-emit --c corpus/001.sno` produces C that compiles and runs correctly
+- **Gate:** `scrip --compile --c corpus/001.sno` produces C that compiles and runs correctly
 
 ---
 
-### M-JITEM-WASM — New SM-based `--jit-emit --wasm` emitter
-**Switch:** `--jit-emit --wasm`
+### M-JITEM-WASM — New SM-based `--compile --wasm` emitter
+**Switch:** `--compile --wasm`
 
 Replace `emit_wasm.c` with SM_Program → WAT walker.
 
@@ -3057,7 +3057,7 @@ Replace `emit_wasm.c` with SM_Program → WAT walker.
 2. ~~**M-BB-LIVE-WIRE**~~ ✅ done 2026-04-07
 3. ~~**M-DYN-B13**~~ ✅ done 2026-04-07
 4. ~~**M-JIT-RUN**~~ ✅ done 2026-04-07
-5. **M-DYN-BENCH-X86** — benchmark `--bb-live` vs `--bb-driver`; fill results table
+5. **M-DYN-BENCH-X86** — benchmark `--bb=wired` vs `--bb=brokered`; fill results table
 6. **M-JITEM-X64** — new 3-column SM-based text emitter replaces emit_x64.c
 7. **M-JITEM-JVM / NET / JS / C / WASM** — parallel, lower priority
 

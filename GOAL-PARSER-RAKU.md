@@ -32,7 +32,7 @@
 ## ⚡ PIVOT — session 2026-05-07 (post-RK-27)
 
 **Old goal (RK-0 .. RK-27):** match the existing C frontend (`src/frontend/raku/`)
-`--dump-ir` output byte-for-byte. That goal is **CLOSED at PASS=147 FAIL=0**;
+`--dump-ast` output byte-for-byte. That goal is **CLOSED at PASS=147 FAIL=0**;
 ~95% of `raku.y` productions are covered. The remaining 5% (sort-with-closure,
 `:=` bind operator, etc.) is no longer the priority.
 
@@ -55,7 +55,7 @@ Goal is *parse coverage*, not *execution semantics*.
 **Done when:** every program in a curated "real Raku" corpus parses to
 completion without `Parse Error`, and the dumped tree is structurally
 sane (every node has a known E_* kind; no orphan whitespace; no dangling
-captures). Cross-check with `--dump-ir` is **best-effort**: where the C
+captures). Cross-check with `--dump-ast` is **best-effort**: where the C
 oracle accepts a program, our tree should still match it (regression
 guard); where the C oracle rejects, we accept and emit a placeholder.
 
@@ -435,15 +435,15 @@ with `\` or embedded `"` in a string now renders correctly.
 ## Invariants (post-PIVOT, session 2026-05-07)
 
 - **Coverage over conformance.** A parsed-and-trees program is a win,
-  even if the tree differs from `--dump-ir`. A Parse Error is a loss.
+  even if the tree differs from `--dump-ast`. A Parse Error is a loss.
 - **No more LANG-ladder gating.** Pre-pivot, "PAT-RK does not race ahead
   of the LANG ladder" was the rule. Post-pivot, PAT-RK leads: when we
   parse a Raku construct the C frontend doesn't, we emit a placeholder
   tree (`(E_FNC raku_<name> args...)`) and move on. The C frontend may
   catch up later or never; that's a LANG-ladder problem, not ours.
-- **Best-effort oracle parity.** Where `--dump-ir` succeeds, our tree
+- **Best-effort oracle parity.** Where `--dump-ast` succeeds, our tree
   should still match it (regression guard — the existing 147 fixtures
-  stay green). Where `--dump-ir` fails, we accept and emit a tree;
+  stay green). Where `--dump-ast` fails, we accept and emit a tree;
   the gate just checks "did it parse and produce a non-empty tree".
 - Test programs in `corpus/programs/raku/parser/` (oracle-matching) are
   owned by PAT-RK; new programs in `corpus/programs/raku/parser-coverage/`
@@ -1643,7 +1643,7 @@ official-grammar coverage**, **RK-28-A coverage gate infra LANDED**,
 ### What changed this session
 
 **Strategic pivot (top of GOAL file):** old goal of byte-for-byte oracle
-parity with `--dump-ir` was CLOSED at PASS=147 (~95% of `raku.y`).  New
+parity with `--dump-ast` was CLOSED at PASS=147 (~95% of `raku.y`).  New
 goal is full coverage of the OFFICIAL Raku grammar (`rakudo/Grammar.nqp`,
 5933 lines, 759 productions, 495 unique non-terminals).  Real-world Raku
 programs use features the C frontend has never seen — for those, we

@@ -58,7 +58,7 @@ GOAL-LANG-* ladders feed parts; this Goal integrates them.
 
 ## Why this Goal exists
 
-The session-#61 win — `--ir-run`, `--sm-run`, `--jit-run` all
+The session-#61 win — `--interp`, `--interp`, `--run` all
 byte-identical to SPITBOL on `beauty.sno < beauty.sno` — closed
 **Milestone 1**. SCRIP's SNOBOL4 frontend self-hosts a SNOBOL4
 program. But SCRIP itself is still C; the meta-circular loop is
@@ -220,9 +220,9 @@ layer's bottom row into a four-port matrix.
 
 | Mode | Where it lives today | What it is |
 |------|----------------------|------------|
-| **IR interp** (--ir-run) | `bb_boxes.c` body of `bb_len()` | The C function above, called from the tree-walk via `bb_box_fn` pointer |
-| **SM in-mem** (--jit-run) | `bb_build.c` `bb_len_emit_binary()` | Same logic, manually emitted as machine-code bytes into a buffer |
-| **SM interp** (--sm-run) | `sm_interp.c` SM_BB_LEN handler + `bb_len()` body | Reuses the IR body via the SM dispatch loop |
+| **IR interp** (--interp) | `bb_boxes.c` body of `bb_len()` | The C function above, called from the tree-walk via `bb_box_fn` pointer |
+| **SM in-mem** (--run) | `bb_build.c` `bb_len_emit_binary()` | Same logic, manually emitted as machine-code bytes into a buffer |
+| **SM interp** (--interp) | `sm_interp.c` SM_BB_LEN handler + `bb_len()` body | Reuses the IR body via the SM dispatch loop |
 | **SM text-gen** (AOT, future) | not yet emitted | Same logic again, emitted as ahead-of-time source for non-x86 backends |
 
 The first three already exist.  The fourth is the deterministic
@@ -451,9 +451,9 @@ deliverable.  Today's three modes are all in-memory:
 
 | Mode | Output | Used by |
 |------|--------|---------|
-| IR-interp | tree-walk on `EXPR_t` | `--ir-run`; `bb_*` boxes called from `interp.c` |
-| SM-interp | dispatch loop on `SM_Instr[]` | `--sm-run`; `bb_*` boxes called from `sm_interp.c` |
-| SM in-mem JIT | x86 bytes via `bb_emit.c` EMIT_BINARY | `--jit-run`; `bb_*_emit_binary` from `bb_build.c` |
+| IR-interp | tree-walk on `EXPR_t` | `--interp`; `bb_*` boxes called from `interp.c` |
+| SM-interp | dispatch loop on `SM_Instr[]` | `--interp`; `bb_*` boxes called from `sm_interp.c` |
+| SM in-mem JIT | x86 bytes via `bb_emit.c` EMIT_BINARY | `--run`; `bb_*_emit_binary` from `bb_build.c` |
 | **SM text codegen** | source text in target language | (NEW) — emits `.c` / `.js` / `.cs` / `.il` / `.j` / `.wat` ahead of time |
 
 The 4th mode is exactly what the old `runtime/boxes/<box>/<lang>`
@@ -481,8 +481,8 @@ forms of the same template.
 
 The CB-7 ordering in the sub-rung list (above) leads with **CB-7a
 (template grammar)** and **CB-7e (text codegen, 4th mode)** as
-the unifying first deliverables — `--ir-run` / `--sm-run` /
-`--jit-run` modes (CB-7b/c/d) are then specialisations of the
+the unifying first deliverables — `--interp` /
+`--run` modes (CB-7b/c/d) are then specialisations of the
 same template targeted at different in-memory execution
 substrates.  Specifically:
 
@@ -724,7 +724,7 @@ bash /home/claude/one4all/scripts/test_smoke_snobol4.sh        # PASS=7
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh # PASS=49
 # Plus: beauty self-host across all three modes byte-identical.
 BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-for mode in --ir-run --sm-run --jit-run; do
+for mode in --interp --interp --run; do
     SNO_LIB=$BEAUTY /home/claude/one4all/scrip $mode \
         $BEAUTY/beauty.sno < $BEAUTY/beauty.sno \
         | md5sum  # must be abfd19a7a834484a96e824851caee159
@@ -782,7 +782,7 @@ ones if the partition allows parallel work):**
   of the SN-26 / SN-32 work landed). The tree-walk interpreter
   in SNOBOL4 itself. **Gate:** the SNOBOL4-language interp,
   compiled by Stage-1, runs `beauty.sno < beauty.sno` byte-identical
-  to today's `--ir-run` output.
+  to today's `--interp` output.
 
 - [ ] **CB-5 — Runtime support: snobol4*.c, name_t.c → SNOBOL4.**
   `comm_var`, `comm_call`, `NV_SET_fn`, `NV_name_from_ptr`, the
@@ -1096,8 +1096,8 @@ assembly → assemble → link → execute) must be proven correct on
 SNOBOL4 before it can be trusted as the unification point for CB-7e
 and the entire backend grid. The ladder proves correctness by
 ascending through smoke, demos, beauty test suite, and finally
-beauty self-host — the same proof sequence used for --ir-run and
---sm-run before them.
+beauty self-host — the same proof sequence used for --interp and
+--interp before them.
 
 The dual-mode emitter infrastructure already exists in `bb_emit.c`
 (`EMIT_TEXT` / `EMIT_BINARY`) but `--text-run` is not yet wired
@@ -1108,12 +1108,12 @@ correct names are documented in ARCH-x86.md. Summary:
 
 | Old name | New name | What it actually does |
 |----------|----------|-----------------------|
-| `--ir-run` | `--ir-walk` | IR tree-walk, C interpreter |
-| `--sm-run` | `--sm-interp` | SM dispatch loop, C interpreter |
-| `--jit-run` | `--sm-native` | SM → x86 bytes → mmap → jump in |
-| `--jit-emit` | `--sm-emit --target=x64` | SM → NASM text → nasm → ld → exec |
+| `--interp` | `--ir-walk` | IR tree-walk, C interpreter |
+| `--interp` | `--sm-interp` | SM dispatch loop, C interpreter |
+| `--run` | `--sm-native` | SM → x86 bytes → mmap → jump in |
+| `--compile` | `--compile --target=x64` | SM → NASM text → nasm → ld → exec |
 
-The 4th mode (`--sm-emit`) is not x64-only. The `--target` flag
+The 4th mode (`--compile`) is not x64-only. The `--target` flag
 selects the output language: `x64` (NASM), `js`, `wasm` (WAT),
 `jvm` (Jasmin), `msil`, `c`. The same SM_Program walks to whichever
 emitter `--target` selects; the target's toolchain assembles/links/runs
@@ -1127,62 +1127,62 @@ CB-0 works with the new names throughout.
   The very first program to see as emitted target text is
   `corpus/programs/csnobol4-suite/roman.sno`. This sub-step is
   emit-only — no assemble, no link, no execute. Wire
-  `--sm-emit --target=x64` into `src/driver/scrip.c`: set
+  `--compile --target=x64` into `src/driver/scrip.c`: set
   `bb_emit_mode = EMIT_TEXT`, run SM lowering, write the NASM `.s`
   to stdout (or a named file). Inspect the output by eye — verify
   the LABEL/ACTION/GOTO three-column structure is present, that
   the Byrd boxes roman.sno exercises (LIT, BREAK, RPOS, LEN,
   REPLACE pattern) appear correctly formed, and that the `.s` is
   well-structured enough to hand to `nasm`.
-  **Gate:** `scrip --sm-emit --target=x64 roman.sno` produces
+  **Gate:** `scrip --compile --target=x64 roman.sno` produces
   non-empty NASM text without crashing. Capture the `.s` to
   `one4all/artifacts/roman.s` and commit it as the first
   human-readable proof of the 4th mode.
 
-- [ ] **CB-0b-wire — Wire full `--sm-emit` pipeline for x64.**
+- [ ] **CB-0b-wire — Wire full `--compile` pipeline for x64.**
   Extend CB-0a's emit path: after writing the `.s` to a temp file,
   shell out to `nasm -f elf64 -o /tmp/roman.o /tmp/roman.s` then
   `cc -o /tmp/roman /tmp/roman.o -lgc` (or equivalent link line),
-  then exec and stream stdout. The flag `--sm-emit --target=x64`
+  then exec and stream stdout. The flag `--compile --target=x64`
   is mutually exclusive with `--ir-walk`, `--sm-interp`, `--sm-native`.
-  **Gate:** `scrip --sm-emit --target=x64 roman.sno` runs to
+  **Gate:** `scrip --compile --target=x64 roman.sno` runs to
   completion and produces output byte-identical to
   `scrip --sm-interp roman.sno` — roman numeral table 1–100 plus
   spot-check ranges (149–151, 480–520, 1900–2100).
 
-- [ ] **CB-0c — Smoke suite passes under `--sm-emit --target=x64`.**
-  Run `test_smoke_snobol4.sh` with `--sm-emit --target=x64` as the
+- [ ] **CB-0c — Smoke suite passes under `--compile --target=x64`.**
+  Run `test_smoke_snobol4.sh` with `--compile --target=x64` as the
   execution mode. All 7 cases must pass. Add
   `test_smoke_snobol4_emit_x64.sh` committed alongside this rung.
   **Gate:** PASS=7, FAIL=0, exits 0 in < 15s.
 
-- [ ] **CB-0d — Demo programs pass under `--sm-emit --target=x64`.**
+- [ ] **CB-0d — Demo programs pass under `--compile --target=x64`.**
   Run the SNOBOL4 demo programs from
-  `corpus/programs/snobol4/demo/` through `--sm-emit --target=x64`
+  `corpus/programs/snobol4/demo/` through `--compile --target=x64`
   and diff against the `--sm-interp` (oracle) output. Demos include
   at minimum: `expression.sno`, `porter.sno`, `claws5.sno`,
   `treebank-list.sno`. Any demo passing `--sm-interp` must produce
-  byte-identical output under `--sm-emit --target=x64`.
+  byte-identical output under `--compile --target=x64`.
   **Gate:** zero diffs across all passing demos; no new failures.
   Commit `test_smoke_snobol4_emit_x64_demos.sh`.
 
-- [ ] **CB-0e — Beauty test suite passes under `--sm-emit --target=x64`.**
-  Run the beauty test suite fixtures under `--sm-emit --target=x64`
+- [ ] **CB-0e — Beauty test suite passes under `--compile --target=x64`.**
+  Run the beauty test suite fixtures under `--compile --target=x64`
   and diff against `--sm-interp`. The beauty program is
   pattern-intensive — every Byrd box that EMIT_TEXT emits must fire
   correctly.
   **Gate:** all beauty suite fixtures byte-identical between
-  `--sm-emit --target=x64` and `--sm-interp`. Commit
+  `--compile --target=x64` and `--sm-interp`. Commit
   `test_smoke_beauty_emit_x64.sh`.
 
-- [ ] **CB-0f — Beauty self-host byte-identical under `--sm-emit --target=x64`.**
+- [ ] **CB-0f — Beauty self-host byte-identical under `--compile --target=x64`.**
   ```bash
   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-  SNO_LIB=$BEAUTY scrip --sm-emit --target=x64 \
+  SNO_LIB=$BEAUTY scrip --compile --target=x64 \
       $BEAUTY/beauty.sno < $BEAUTY/beauty.sno | md5sum
   # must be abfd19a7a834484a96e824851caee159
   ```
-  This is the 4th-mode proof. When this gate is green, `--sm-emit`
+  This is the 4th-mode proof. When this gate is green, `--compile`
   is trustworthy as the unification point for CB-7e and the
   BB-template generator ladder. Other targets (`--target=js`,
   `--target=jvm`, etc.) follow from here as CB-13..16.
@@ -1202,7 +1202,7 @@ unification design (see "Historical record: `runtime/boxes/`" above):
    templates.  Use BB-GEN-LANG.md's Three-Column Law as the design
    reference.  Settling the grammar early prevents re-shaping after
    pilots.
-3. **CB-7e** (text codegen, `--sm-emit`) — generator emits the
+3. **CB-7e** (text codegen, `--compile`) — generator emits the
    C cell (`bb_boxes.c`) round-trip byte-identical to today's
    hand-written file.  The same generator, with surface-syntax
    modules added per `--target`, then emits `.s` / `.cs` / `.il` /
@@ -1221,7 +1221,7 @@ The 4th-mode-first ordering is the key sequencing decision.  Prior
 work (`runtime/boxes/` April 2026) tried the opposite — write each
 target independently, then unify.  That produced 27×8 = 216 hand-
 written files and the maintenance burden that motivated this Goal.
-`--sm-emit` with a pluggable `--target` flag means every target's
+`--compile` with a pluggable `--target` flag means every target's
 box runtime becomes a generator output from day one.
 
 ---

@@ -18,7 +18,7 @@
 
 **Diagnosis.** The 2026-05-16d failing-rung survey grouped 6+ FAIL categories under "pattern-scan ops need fresh SM/BB lowering": rung05_scan_*, rung06_cset_any/many/upto, rung08_strbuiltins_find/match/move/tab, plus rung11/14/15/17/32 string-related FAILs. Tracing the actual code path:
 
-- `--ir-run` on Icon goes through `sm_preamble` → `sm_interp_run` → `SM_BB_PUMP_PROC` → `icn_bb_pump_proc_by_name`. When a proc has an `ir_body`, execution flows into `IR_exec_node` on the IR.
+- `--interp` on Icon goes through `sm_preamble` → `sm_interp_run` → `SM_BB_PUMP_PROC` → `icn_bb_pump_proc_by_name`. When a proc has an `ir_body`, execution flows into `IR_exec_node` on the IR.
 - `IR_CALL` (built from `TT_FNC`) dispatches via `icn_try_call_builtin_by_name` (interp_eval.c:205).
 - **`any`/`many`/`upto`/`match`/`move`/`find`/`tab` are all already fully implemented there** (lines 900–1004), using the global `scan_subj`/`scan_pos` set by the `?` operator.
 

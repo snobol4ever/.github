@@ -26,7 +26,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all
-**Done when:** All 14 Snocone beauty-sc subsystems PASS under `scrip --ir-run`,
+**Done when:** All 14 Snocone beauty-sc subsystems PASS under `scrip --interp`,
 including pattern match (`subject ? pattern`) wired through `bb_broker(BB_SCAN)`.
 
 ---
@@ -34,7 +34,7 @@ including pattern match (`subject ? pattern`) wired through `bb_broker(BB_SCAN)`
 ## Motivation
 
 Snocone compiles to the shared IR (EXPR_t / STMT_t) via `snocone_compile()`.
-The `--ir-run` path calls `execute_program(prog)` — the SNOBOL4 interpreter — which
+The `--interp` path calls `execute_program(prog)` — the SNOBOL4 interpreter — which
 handles the IR nodes Snocone's lower emits (E_ADD, E_CAT, E_FNC, E_VAR, etc.).
 That works for scalar / arithmetic / string programs. Two gaps remain:
 
@@ -144,7 +144,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 - [ ] **SC-6** — Lower conditional capture `.` and immediate capture `$` in pattern context.
   `E_CAPT_COND_ASGN` and `E_CAPT_IMMED_ASGN` already exist in the IR.
-  Verify `stmt_exec` interprets them correctly under `--ir-run`.
+  Verify `stmt_exec` interprets them correctly under `--interp`.
   Gate: `bash test/beauty-sc/run_beauty_sc_subsystem.sh strings` PASS.
 
 ---
@@ -194,7 +194,7 @@ call APPLY_fn unconditionally (remove/bypass FNCEX_fn gate at line ~1766 scrip.c
 
 **Next session: fix FNCEX_fn gate.** Search for `FNCEX_fn(e->sval)` in scrip.c,
 remove the guard so APPLY_fn is always called when no body label found.
-Gate: `./scrip --ir-run /tmp/test_struct2.sc` → outputs 3 and 4.
+Gate: `./scrip --interp /tmp/test_struct2.sc` → outputs 3 and 4.
 Then: beauty-sc stack/trace/counter/arith improving from 3/14 baseline.
 
 ---

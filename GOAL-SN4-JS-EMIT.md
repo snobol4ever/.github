@@ -109,7 +109,7 @@ Session commit trail (this session):
 - **Reads IR_t for BB factories; walks SM_Program for scalars.** Never re-derefs the AST in modes 2/3/4.
 - **19 BB kinds, all pre-implemented** in `src/runtime/js/bb_boxes.js`. Read the JS reference before writing any C emitter.
 - **Switch/dispatch loop is mandatory.** SNOBOL4 GOTO can jump backward.
-- **Flag:** `--target=js` (NOT `--jit-emit --js`).
+- **Flag:** `--target=js` (NOT `--compile --js`).
 - **Runtime location:** `src/runtime/js/sno_runtime.js`. Emitted JS hardcodes the absolute path in the require() prologue.
 
 ---

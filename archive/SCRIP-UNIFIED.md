@@ -19,10 +19,10 @@ That pipeline has 4 disk round-trips and 3 process invocations before the progra
 **The new model:** one executable, two execution modes, zero disk round-trips for code.
 
 ```
-scrip [--ir-run]   source.sno      ← Mode I: IR tree-walk (correctness reference)
-scrip [--sm-run]   source.sno      ← Mode II: SM dispatch loop  [DEFAULT]
-scrip [--jit-run]  source.sno      ← Mode III: x86 bytes → mmap slab → jump in
-scrip              source.sno      ← defaults to --sm-run
+scrip [--interp]   source.sno      ← Mode I: IR tree-walk (correctness reference)
+scrip [--interp]   source.sno      ← Mode II: SM dispatch loop  [DEFAULT]
+scrip [--run]  source.sno      ← Mode III: x86 bytes → mmap slab → jump in
+scrip              source.sno      ← defaults to --interp
 ```
 
 Mode I and Mode G are **the same program**. Same frontend, same IR, same runtime.
@@ -148,7 +148,7 @@ SM instruction kind.
 - `src/driver/scrip.c` unified driver with new switch set
 - `src/Makefile`: `BIN = ../scrip`
 - Pre-built binaries removed: `scrip-interp`, `scrip-interp-dbg`, `scrip-interp-s`
-- Default mode: `--sm-run` (SM dispatch loop, was `--ir-run`)
+- Default mode: `--interp` (SM dispatch loop, was `--interp`)
 - Gate: PASS=178 with `scrip` binary; harness `INTERP=scrip` works
 
 ### Phase U1 — Segment allocator (M-SCRIP-U1)
@@ -164,21 +164,21 @@ SM instruction kind.
 - Initially: `SM_PUSH_LIT_S`, `SM_PUSH_VAR`, `SM_STORE_VAR`, `SM_ADD`, `SM_JUMP`
 - Gate: hand-coded mini-program (push 1, push 2, add, print) runs via jump-in
 
-### Phase U3 — SM-LOWER + `--jit-run` codegen (M-SCRIP-U3)
+### Phase U3 — SM-LOWER + `--run` codegen (M-SCRIP-U3)
 - Write SM-LOWER: IR → SM_Program (replaces tree-walk)
 - Write `scrip_codegen()`: SM_Program → segment 2 bytes
-- `--jit-run` activated for simple programs (no pattern match)
-- Gate: arith_loop, var_access, fibonacci benchmarks pass in `--jit-run`; ~10× speedup
+- `--run` activated for simple programs (no pattern match)
+- Gate: arith_loop, var_access, fibonacci benchmarks pass in `--run`; ~10× speedup
 
 ### Phase U4 — Pattern integration (M-SCRIP-U4)
-- SM_EXEC_STMT in `--jit-run` calls `bb_build_binary_node()` (M-DYN-B* blobs)
-- Full corpus in `--jit-run --bb-driver`
-- Gate: PASS=178 via `--jit-run`; pattern_bt / string_pattern within 2× of SPITBOL
+- SM_EXEC_STMT in `--run` calls `bb_build_binary_node()` (M-DYN-B* blobs)
+- Full corpus in `--run --bb=brokered`
+- Gate: PASS=178 via `--run`; pattern_bt / string_pattern within 2× of SPITBOL
 
 ### Phase U5 — M-DYN-BENCH-X86 (M-SCRIP-U5)
 - Run 13-program benchmark suite in all modes
 - Fill M-DYN-BENCH-X86 results table
-- Gate: ≥10× speedup on control benchmarks vs `--ir-run`; pattern ≥5×
+- Gate: ≥10× speedup on control benchmarks vs `--interp`; pattern ≥5×
 
 ---
 
@@ -186,18 +186,18 @@ SM instruction kind.
 
 ```bash
 # Mode I (IR tree-walk) vs SPITBOL oracle:
-SNO_TRACE=1 scrip --ir-run  /tmp/x.sno 2>/tmp/ir.trace
+SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/ir.trace
 SNO_TRACE=1 /home/claude/x64/bin/spitbol /tmp/x.sno 2>/tmp/spitbol.trace
 diff /tmp/ir.trace /tmp/spitbol.trace | head -30
 
 # SM dispatch vs IR tree-walk (isolate SM bugs from semantic bugs):
-SNO_TRACE=1 scrip --ir-run  /tmp/x.sno 2>/tmp/ir.trace
-SNO_TRACE=1 scrip --sm-run  /tmp/x.sno 2>/tmp/sm.trace
+SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/ir.trace
+SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/sm.trace
 diff /tmp/ir.trace /tmp/sm.trace | head -30
 
 # JIT vs SM dispatch (isolate codegen bugs):
-SNO_TRACE=1 scrip --sm-run  /tmp/x.sno 2>/tmp/sm.trace
-SNO_TRACE=1 scrip --jit-run /tmp/x.sno 2>/tmp/jit.trace
+SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/sm.trace
+SNO_TRACE=1 scrip --run /tmp/x.sno 2>/tmp/jit.trace
 diff /tmp/sm.trace /tmp/jit.trace | head -30
 ```
 
@@ -242,38 +242,38 @@ diff /tmp/sm.trace /tmp/jit.trace | head -30
 
 SCRIP runs in **four modes** (two implemented, two stub):
 
-### Mode I — IR tree-walk (`--ir-run`)
+### Mode I — IR tree-walk (`--interp`)
 C tree-walk over IR. Correctness reference. Baseline for all benchmarks.
 
-### Mode II — SM dispatch (`--sm-run`) ← DEFAULT
+### Mode II — SM dispatch (`--interp`) ← DEFAULT
 Pure FORTH-style SM dispatch over SM_Program.
 Flat DESCR_t value stack. No frames. No activation records.
 fetch → execute → pc++. C stack only at SM_CALL and SM_EXEC_STMT boundary.
 BB-DRIVER handles pattern matching (phase 3).
 
-### Mode III — JIT run (`--jit-run`)
+### Mode III — JIT run (`--run`)
 SM_Program lowered to x86 bytes → mmap slab → mprotect RX → jump in.
-`--bb-driver` (default): BB-DRIVER called for pattern phase.
-`--bb-live`: BB blobs wired inline (M-DYN-B* work, future).
+`--bb=brokered` (default): BB-DRIVER called for pattern phase.
+`--bb=wired`: BB blobs wired inline (M-DYN-B* work, future).
 
-### Mode IV — JIT emit (`--jit-emit`)
+### Mode IV — JIT emit (`--compile`)
 SM_Program → emit to file. Target flag selects format:
-`--x64` (default), `--jvm`, `--net`, `--js`, `--wasm`.
+`--target=x86` (default), `--jvm`, `--net`, `--js`, `--wasm`.
 
 ### Benchmark plan
 Run 13-program M-DYN-BENCH suite + SPITBOL:
 
 | Column | Mode |
 |---|---|
-| scrip `--ir-run` | IR tree-walk baseline |
-| scrip `--sm-run` | SM dispatch (current default) |
-| scrip `--jit-run --bb-driver` | JIT + broker pattern |
-| scrip `--jit-run --bb-live` | JIT + inline blobs |
+| scrip `--interp` | IR tree-walk baseline |
+| scrip `--interp` | SM dispatch (current default) |
+| scrip `--run --bb=brokered` | JIT + broker pattern |
+| scrip `--run --bb=wired` | JIT + inline blobs |
 | SPITBOL | oracle |
 
 ### Development sequence
 - U1: segment allocator (mmap slabs)
 - U2: SM dispatch table blobs
-- U3: SM-LOWER + `--jit-run` codegen; arith/control programs only
-- U4: pattern integration (`--jit-run --bb-driver`); PASS=178
-- U5: `--bb-live` path; M-DYN-BENCH-X86 all columns filled
+- U3: SM-LOWER + `--run` codegen; arith/control programs only
+- U4: pattern integration (`--run --bb=brokered`); PASS=178
+- U5: `--bb=wired` path; M-DYN-BENCH-X86 all columns filled

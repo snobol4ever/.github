@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -558,7 +558,7 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 **LR-13** — Mode-3 JIT: emit x86 from IR_t nodes
 - bb_flat.c / emit_bb.c: walk IR_t instead of tree_t*
 - Each IR_kind_t maps to x86 emission
-- GATE: --jit-run ≥ --sm-run PASS counts. Commit.
+- GATE: --run ≥ --interp PASS counts. Commit.
 
 **LR-14** — Mode-4 JIT: stateful x86 from IR_t
 - GATE: mode-4 parity with mode-3. Commit.
@@ -628,7 +628,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
   LR-10:     smoke_prolog + broker (Prolog additive)
   LR-11:     smoke_prolog + broker (Prolog clean break)
   LR-12:     smoke_snocone
-  LR-13:     --jit-run >= --sm-run PASS counts
+  LR-13:     --run >= --interp PASS counts
   LR-14:     mode-4 parity with mode-3
   LR-15:     all gates (cleanup — no behavior change)
   LR-16:     smoke_raku
@@ -697,7 +697,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
   LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all 917dbae9):
         Fix ASSIGN_IMM/COND wiring (CAT/ALT wrapper nodes removed — return first child).
         Add LEN/NOTANY/POS/RPOS/TAB/RTAB to IR_exec_node and build_node.
-        Wire IR_exec_pat into sm_jit_interp.c h_exec_stmt (default mode is --jit-run).
+        Wire IR_exec_pat into sm_jit_interp.c h_exec_stmt (default mode is --run).
         broad corpus 128→145/280. smoke_snobol4 7/7, all six languages 5/5.
   LR-S1b ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 8ff71978):
         All IR-achievable patterns implemented. broad corpus 161/280.
@@ -804,14 +804,14 @@ DCG (IR_t)     — directed cyclic graph, language-neutral
   ├──▶ SM emitter     — walks acyclic subgraphs → SM array
   │         │            cyclic subgraphs → SM_EXEC_GEN(IR_t* subgraph)
   │         ▼
-  │       SM array → sm_interp (--sm-run)
-  │                → JIT mode-3 x86 emission (--jit-run)
+  │       SM array → sm_interp (--interp)
+  │                → JIT mode-3 x86 emission (--run)
   │                → JIT mode-4 stateful x86 (--mode4-run)
   │
   └──▶ BB emitter     — walks cyclic subgraphs → IR_t execution nodes
-            │            (for --ir-run: ir_exec drives the graph directly)
+            │            (for --interp: ir_exec drives the graph directly)
             ▼
-          BB graph  → ir_exec (--ir-run)
+          BB graph  → ir_exec (--interp)
                     → JIT x86 direct from DCG nodes
 ```
 

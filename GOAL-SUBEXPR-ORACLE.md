@@ -28,7 +28,7 @@
 **Repo:** one4all + corpus
 **Done when:** Generator produces ≥200 isolated snippet tests across beauty
 subsystem files; all pass under SPITBOL self-check; suite runs under
-scrip --ir-run and pinpoints divergences in the failing drivers.
+scrip --interp and pinpoints divergences in the failing drivers.
 
 ---
 
@@ -203,7 +203,7 @@ python3 test/beauty_subexpr_gen.py \
     --out /home/claude/corpus/programs/snobol4/subexpr/ \
     --samples 20 --verbose
 
-# Run suite under scrip --ir-run:
+# Run suite under scrip --interp:
 python3 test/beauty_subexpr_gen.py --run \
     --out /home/claude/corpus/programs/snobol4/subexpr/
 ```
@@ -256,7 +256,7 @@ python3 test/beauty_subexpr_gen.py --run \
   For each: pick 5-10 statements with interesting expressions (not just DEFINE).
   Gate: SPITBOL self-check PASS=N FAIL=0 for all generated tests.
 
-- [ ] **S-5** — Run suite under scrip --ir-run.
+- [ ] **S-5** — Run suite under scrip --interp.
   Gate: suite runs without crash; PASS/FAIL counts per test.
   First FAILs pinpoint exact expression nodes broken in scrip.
 

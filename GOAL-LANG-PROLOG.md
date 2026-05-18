@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -44,7 +44,7 @@
 across all sections, verified by per-section capability rungs (PR-13 through
 PR-24) AND by ≥80% pass on at least two upstream conformance suites
 (SWI-Prolog `Tests/core`, GNU Prolog `TestsPl`, or equivalent), under all
-three modes (--ir-run, --sm-run, --jit-run).
+three modes (--interp, --interp, --run).
 
 **Cross-pollination:** pl_runtime.c fixes (trail, unify, pred table) benefit
 interp.c's E_CHOICE/E_CLAUSE/E_UNIFY handling shared with all frontends.
@@ -157,16 +157,16 @@ bash /home/claude/one4all/scripts/test_prolog_swi_suite.sh              # PR-30 
 
 SWI suite script options:
 ```bash
-bash scripts/test_prolog_swi_suite.sh                    # full suite, --ir-run
+bash scripts/test_prolog_swi_suite.sh                    # full suite, --interp
 bash scripts/test_prolog_swi_suite.sh --verbose          # show raw output for failures
 bash scripts/test_prolog_swi_suite.sh --file test_bips   # single file
-bash scripts/test_prolog_swi_suite.sh --mode --sm-run    # alternate mode
+bash scripts/test_prolog_swi_suite.sh --mode --interp    # alternate mode
 ```
 
 Diagnostic (per-file detail):
 ```bash
 bash scripts/util_diagnose_prolog_swi.sh test_bips
-bash scripts/util_diagnose_prolog_swi.sh test_arith --mode --sm-run
+bash scripts/util_diagnose_prolog_swi.sh test_arith --mode --interp
 ```
 
 Corpus plunit.pl patch (one-time, idempotent):
@@ -201,9 +201,9 @@ Both scripts are idempotent. If corpus already present, skip clone. Print SKIP.
 
 ```
 .pl → prolog_compile() → CODE_t* [LANG_PL]
-    --ir-run  → execute_program() → interp_eval() E_CHOICE/E_CLAUSE/E_UNIFY
-    --sm-run  → sm_lower() → SM_BB_ONCE per stmt → bb_broker(BB_ONCE)
-    --jit-run → sm_lower() → SM_BB_ONCE → sm_codegen() → sm_jit_run()
+    --interp  → execute_program() → interp_eval() E_CHOICE/E_CLAUSE/E_UNIFY
+    --interp  → sm_lower() → SM_BB_ONCE per stmt → bb_broker(BB_ONCE)
+    --run → sm_lower() → SM_BB_ONCE → sm_codegen() → sm_jit_run()
 
 Backtracking: BB_ONCE mode — pl_box_choice is the OR-box.
 Trail: g_pl_trail (global in pl_runtime.c).
@@ -214,13 +214,13 @@ Pred table: g_pl_pred_table (global in pl_runtime.c).
 
 ## Rung ladder — all modes, x86
 
-Current baseline: rung01–30 PASS --ir-run (PL-1 through PL-11). PL-12 is
+Current baseline: rung01–30 PASS --interp (PL-1 through PL-11). PL-12 is
 deprecated as a single monolithic gate; superseded by Phase 2 ISO ladder
 (PR-13 onward) and downstream conformance gates (PR-30+).
 
 ### Phase 1 — IR-run builtin ladder (rung 12–30) — DONE
 
-- [x] **PL-1** — rung01–11: 14/14 PASS --ir-run. (done)
+- [x] **PL-1** — rung01–11: 14/14 PASS --interp. (done)
 
 - [x] **PL-2** — Install SWI + GNU test suites.
   Write `scripts/install_swi_prolog_tests.sh` and
@@ -359,39 +359,39 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
 
 ### Phase 3 — Downstream conformance gates (PR-30+)
 
-- [ ] **PR-30** — SWI-Prolog `Tests/core` suite ≥80% under --ir-run.
+- [ ] **PR-30** — SWI-Prolog `Tests/core` suite ≥80% under --interp.
   Script: `scripts/test_prolog_swi_suite.sh`. This is the old PL-12
   metric, demoted to a downstream consequence of Phase 2. Expected to
   cross the 80% threshold somewhere around PR-19c/PR-14/PR-16 landing.
 
-- [ ] **PR-31** — GNU Prolog `TestsPl` suite ≥80% under --ir-run.
+- [ ] **PR-31** — GNU Prolog `TestsPl` suite ≥80% under --interp.
   Script: `scripts/test_prolog_gnu_suite.sh` (write at PR-31 if not yet).
 
 - [ ] **PR-32** — Logtalk `lgtunit` ISO subset (optional, defers).
 
 ### Phase 4 — SM-run (BB_ONCE via Byrd boxes, x86)
 
-- [ ] **PR-40** — rung01–30 under --sm-run.
+- [ ] **PR-40** — rung01–30 under --interp.
   Each stmt routes via SM_BB_ONCE → icn_eval_gen (PL path) → bb_broker(BB_ONCE).
   Gate: 14/14 PASS.
 
-- [ ] **PR-41** — rung31–46 under --sm-run.
+- [ ] **PR-41** — rung31–46 under --interp.
   Fix sm_lower.c gaps for Prolog EKinds as needed.
-  Gate: all rungs passing under --ir-run also pass under --sm-run.
+  Gate: all rungs passing under --interp also pass under --interp.
 
-- [ ] **PR-42** — Conformance suites (PR-30, PR-31) under --sm-run.
-  Gate: PASS count matches --ir-run baseline.
+- [ ] **PR-42** — Conformance suites (PR-30, PR-31) under --interp.
+  Gate: PASS count matches --interp baseline.
 
 ### Phase 5 — JIT-run (x86 in-memory code gen)
 
-- [ ] **PR-50** — rung01–30 under --jit-run.
+- [ ] **PR-50** — rung01–30 under --run.
   Gate: 14/14 PASS.
 
-- [ ] **PR-51** — rung31–46 under --jit-run.
-  Gate: all diffs vs --sm-run empty.
+- [ ] **PR-51** — rung31–46 under --run.
+  Gate: all diffs vs --interp empty.
 
-- [ ] **PR-52** — Conformance suites under --jit-run.
-  Gate: PASS count matches --sm-run baseline.
+- [ ] **PR-52** — Conformance suites under --run.
+  Gate: PASS count matches --interp baseline.
 
 ---
 
@@ -406,7 +406,7 @@ PASS=0; FAIL=0
 for f in "$CORPUS/rungNN"/*.pl; do
     ref="${f%.pl}.ref"
     [ -f "$ref" ] || continue
-    actual=$(timeout 8 "$SCRIP" --ir-run "$f" < /dev/null 2>/dev/null)
+    actual=$(timeout 8 "$SCRIP" --interp "$f" < /dev/null 2>/dev/null)
     expected=$(cat "$ref")
     if [ "$actual" = "$expected" ]; then
         echo "  PASS $(basename $f)"; PASS=$((PASS+1))
@@ -518,7 +518,7 @@ DIVERGE at stmt N [label: LABEL, line LL]
 4. Re-run `--monitor` to confirm divergence is gone.
 5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
 
-**Note:** `--monitor` is incompatible with `--ir-run`/`--sm-run`/`--jit-run`
+**Note:** `--monitor` is incompatible with `--interp`/`--run`
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
@@ -539,7 +539,7 @@ PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% (41/57). Baseline uncha
 | `scripts/util_swi_report.py` | MISS/HIT reporter (called by suite runner) |
 | `scripts/util_patch_plunit.sh` | Corpus plunit.pl patch — idempotent, sentinel PATCHED:v2 |
 
-### Confirmed per-file status (test_prolog_swi_suite.sh, mode=--ir-run):
+### Confirmed per-file status (test_prolog_swi_suite.sh, mode=--interp):
 
 | File | match | MISS suites |
 |------|-------|-------------|
@@ -698,7 +698,7 @@ which throws — and plunit's `pj_do_fail` treats a thrown goal as
 "succeeded"; this is a separate plunit bug). Net gain: **+1 suite
 (string_bytes)**.
 
-### Per-file SWI status (mode=--ir-run, tests now ACTUALLY RUN inside suites)
+### Per-file SWI status (mode=--interp, tests now ACTUALLY RUN inside suites)
 
 | File | match | MISS suites |
 |------|-------|-------------|

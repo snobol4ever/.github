@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -41,7 +41,7 @@
 
 **Repo:** one4all
 **Done when:** Icon standard library procedures pass under all three modes
-(--ir-run, --sm-run, --jit-run). Rung ladder reaches rung-36. Icon generator
+(--interp, --interp, --run). Rung ladder reaches rung-36. Icon generator
 boxes (E_TO, E_EVERY, E_SUSPEND, E_BANG, E_ALT_GEN) work under SM+BB.
 
 **Cross-pollination:** icn_runtime.c, icon_gen.c improvements benefit
@@ -64,7 +64,7 @@ Gate after setup:
 bash /home/claude/one4all/scripts/test_smoke_icon.sh             # PASS=5
 bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=45
 bash /home/claude/one4all/scripts/test_crosscheck_icon.sh        # PASS=4 (3-mode divergence check)
-bash /home/claude/one4all/scripts/test_icon_ir_all_rungs.sh      # rung01-36; --rung RUNG to target one
+bash /home/claude/one4all/scripts/test_icon_all_rungs.sh      # rung01-36; --rung RUNG to target one
 # Per-rung gates for IC-7:
 bash /home/claude/one4all/scripts/test_icon_ir_rung_30.sh        # abs/max/min/sqrt/seq
 bash /home/claude/one4all/scripts/test_icon_ir_rung_31.sh        # sort/sortf
@@ -81,9 +81,9 @@ bash /home/claude/one4all/scripts/test_icon_ir_rung_36.sh        # JCON suite (x
 
 ```
 .icn → icon_parse() → CODE_t* [LANG_ICN]   (no AST layer — FI-2 done)
-    --ir-run  → execute_program() → interp_eval() with ICN_CUR frame stack
-    --sm-run  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
-    --jit-run → sm_lower() → SM_BB_PUMP → sm_codegen() → sm_jit_run()
+    --interp  → execute_program() → interp_eval() with ICN_CUR frame stack
+    --interp  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
+    --run → sm_lower() → SM_BB_PUMP → sm_codegen() → sm_jit_run()
 
 Generator boxes in icon_gen.c:
     E_TO       → icn_bb_to       (lo/hi/cur)
@@ -97,12 +97,12 @@ Generator boxes in icon_gen.c:
 
 ## Rung ladder — all modes, x86
 
-Current baseline: rung01–11 59/59 PASS under --ir-run (GOAL-ICN-BROKER done).
+Current baseline: rung01–11 59/59 PASS under --interp (GOAL-ICN-BROKER done).
 Rung 12–36 are the ladder for this goal.
 
 ### Phase 1 — IR-run rung ladder (rung 12–36)
 
-- [x] **IC-1** — rung01–11: 59/59 PASS --ir-run. (done, GOAL-ICN-BROKER)
+- [x] **IC-1** — rung01–11: 59/59 PASS --interp. (done, GOAL-ICN-BROKER)
 
 - [x] **IC-2b** — Complete ALL goal-directed-evaluation ops as BB boxes in `icon_gen.c`
   and wire into `icn_eval_gen()`. No rung work until every GDE op has a box.
@@ -164,14 +164,14 @@ Rung 12–36 are the ladder for this goal.
   re-calls icn_call_proc with the substituted scalar via icn_call_builtin's
   user-proc dispatch each tick. Non-suspending procs run-to-completion per
   tick; existing suspend coroutine path preserved for procs without gen args.
-  Gate scripts (all rewritten for --ir-run, self-contained, xfail-aware):
+  Gate scripts (all rewritten for --interp, self-contained, xfail-aware):
     `bash scripts/test_icon_ir_rung_30.sh`  — abs/max/min/sqrt/seq builtins
     `bash scripts/test_icon_ir_rung_31.sh`  — sort(L) / sortf(L,n)
     `bash scripts/test_icon_ir_rung_32.sh`  — string-return-value in every
     `bash scripts/test_icon_ir_rung_33.sh`  — case/of/default expressions
     `bash scripts/test_icon_ir_rung_34.sh`  — null test (\x, \=x)
     `bash scripts/test_icon_ir_rung_35.sh`  — block bodies + table str/str (PASS=7/7 already)
-  Overall gate: `bash scripts/test_icon_ir_all_rungs.sh` — now covers rung01–36,
+  Overall gate: `bash scripts/test_icon_all_rungs.sh` — now covers rung01–36,
     xfail-aware, --rung/--scrip/--corpus switches, timeout 30s for rung36.
   All IC-7 rungs PASS 32/32 (5+5+5+5+5+7). smoke PASS=5, broker PASS=49,
   crosscheck PASS=4. one4all HEAD `8fbdd080` (rung32 fix), advanced to
@@ -301,7 +301,7 @@ Rung 12–36 are the ladder for this goal.
 
   Gate: `bash scripts/test_icon_ir_rung_36.sh` — current PASS=5/40/30/75.
   Goal: reduce FAIL toward 0; XFAIL is acceptable but should ideally
-  shrink too. Note: test_icon_ir_rung_36.sh rewritten for --ir-run by
+  shrink too. Note: test_icon_ir_rung_36.sh rewritten for --interp by
   session #16 (was JVM-era jasmin script).
 
   Session #17 final state (clean rebuild, all gates clean):
@@ -480,26 +480,26 @@ Install the standard Icon ilib procedures as .icn files and wire them:
   Gate: files present, scrip parses them without error.
 
 - [ ] **IC-13** — `strings.icn`: `center/left/right`, `trim`, `map`, `repl`, `reverse`.
-  Write test file `test/icon/test_strings_lib.icn`. Run under --ir-run.
+  Write test file `test/icon/test_strings_lib.icn`. Run under --interp.
   Gate: all 6 procs produce correct output vs Icon reference.
 
 - [ ] **IC-14** — `lists.icn`: `lsort`, `lreverse`, `lmap`, `lfind`.
   Write test file `test/icon/test_lists_lib.icn`.
-  Gate: PASS under --ir-run.
+  Gate: PASS under --interp.
 
 - [ ] **IC-15** — `tables.icn`: `keylist`, `vallist`, `tmerge`.
   Write test file `test/icon/test_tables_lib.icn`.
-  Gate: PASS under --ir-run.
+  Gate: PASS under --interp.
 
 ### Phase 3 — SM-run (BB_PUMP over generators, x86)
 
-- [ ] **IC-16** — rung01–11 under --sm-run.
+- [ ] **IC-16** — rung01–11 under --interp.
   Each stmt routes via SM_BB_PUMP → icn_eval_gen → bb_broker.
   Gate: 59/59 PASS.
 
-- [ ] **IC-17** — rung12–20 under --sm-run.
+- [ ] **IC-17** — rung12–20 under --interp.
   Fix any sm_lower.c or bb_broker gaps revealed.
-  Gate: all passing rungs under --ir-run also pass under --sm-run.
+  Gate: all passing rungs under --interp also pass under --interp.
 
 - [ ] **IC-18** — E_EVERY, E_ALT_GEN, E_BANG, E_LIMIT box implementations.
   Write missing BB boxes in icon_gen.c:
@@ -507,15 +507,15 @@ Install the standard Icon ilib procedures as .icn files and wire them:
     `icn_bb_alt_gen`  — alternation: try first gen then second
     `icn_bb_bang`     — `!list` — iterate list elements
     `icn_bb_limit`    — `gen \ n` — limit to n ticks
-  Gate: every/bang/limit tests pass under --sm-run and --ir-run.
+  Gate: every/bang/limit tests pass under --interp and --interp.
 
 ### Phase 4 — JIT-run (x86 in-memory code gen)
 
-- [ ] **IC-19** — rung01–11 under --jit-run.
+- [ ] **IC-19** — rung01–11 under --run.
   Gate: 59/59 PASS.
 
-- [ ] **IC-20** — rung12–20 under --jit-run.
-  Gate: all diffs vs --sm-run empty.
+- [ ] **IC-20** — rung12–20 under --run.
+  Gate: all diffs vs --interp empty.
 
 ---
 
@@ -554,7 +554,7 @@ Register in `icn_eval_gen()` switch.
 | `src/frontend/icon/icon_gen.h` | Box declarations + state typedefs |
 | `src/runtime/interp/icn_runtime.c` | Frame stack, proc table, icn_eval_gen |
 | `src/runtime/interp/icn_runtime.h` | Public interface |
-| `scripts/test_icon_ir_all_rungs.sh` | Full rung sweep |
+| `scripts/test_icon_all_rungs.sh` | Full rung sweep |
 | `scripts/test_icon_ir_rung_NN.sh` | Per-rung gates |
 | `corpus/programs/icon/` | Icon corpus |
 
@@ -639,7 +639,7 @@ DIVERGE at stmt N [label: LABEL, line LL]
 4. Re-run `--monitor` to confirm divergence is gone.
 5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
 
-**Note:** `--monitor` is incompatible with `--ir-run`/`--sm-run`/`--jit-run`
+**Note:** `--monitor` is incompatible with `--interp`/`--run`
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
@@ -913,7 +913,7 @@ Fixes this session (rung12-29: 79→154 PASS, +75):
 12. icn_binop_apply: relops return actual rv DESCR_t (not INTVAL cast). Fixes: rung18 real_relop_goal.
 13. icn_binop_apply: real-aware arithmetic. Fixes: rung17 real_arith.
 14. E_EVERY: E_SEQ conjunction special case added. Partial fix for rung13 filter.
-15. test_icon_ir_all_rungs.sh: extended to rung01-29; added .stdin support. Fixes: rung27 ×4.
+15. test_icon_all_rungs.sh: extended to rung01-29; added .stdin support. Fixes: rung27 ×4.
 
 OPEN (2 failures, next session IC-6 priority):
 
@@ -963,7 +963,7 @@ rung19 pow(1), rung28 trim_map(1), rung29 image(1).
 IC-6 DONE: rung01-29 PASS=156/156 confirmed with corpus. Broker PASS=45 FAIL=0. Smoke PASS=5.
 Crosscheck PASS=4. All suspected IC-6 failures were already fixed from session 13.
 
-Scripts rewritten/extended this session (all in one4all/scripts/, self-contained, --ir-run):
+Scripts rewritten/extended this session (all in one4all/scripts/, self-contained, --interp):
   test_icon_ir_rung_30.sh  — abs/max/min/sqrt/seq   (was JVM/jasmin stub)
   test_icon_ir_rung_31.sh  — sort/sortf              (was JVM/jasmin stub)
   test_icon_ir_rung_32.sh  — string retval every     (was JVM/jasmin stub)
@@ -971,7 +971,7 @@ Scripts rewritten/extended this session (all in one4all/scripts/, self-contained
   test_icon_ir_rung_34.sh  — null/nonnull test       (was JVM/jasmin stub)
   test_icon_ir_rung_35.sh  — block bodies + str/str  (was JVM/jasmin stub)
   test_icon_ir_rung_36.sh  — JCON suite 75 tests     (was JVM/jasmin stub)
-  test_icon_ir_all_rungs.sh — extended rung01-36, xfail-aware, --rung/--scrip/--corpus switches
+  test_icon_all_rungs.sh — extended rung01-36, xfail-aware, --rung/--scrip/--corpus switches
 
 IC-7 baseline (rung30-35):
   rung30 0/5 — abs/max/min/sqrt/seq missing from E_FNC dispatch
@@ -1108,7 +1108,7 @@ only the legitimate match prints.
 - test_smoke_icon.sh: PASS=5/5
 - test_smoke_unified_broker.sh: PASS=49/0
 - test_crosscheck_icon.sh: PASS=4/0
-- test_icon_ir_all_rungs.sh: PASS=188 FAIL=45 XFAIL=30 TOTAL=263 (unchanged)
+- test_icon_all_rungs.sh: PASS=188 FAIL=45 XFAIL=30 TOTAL=263 (unchanged)
 
 PASS count is unchanged because the rung36 tests these fixes affect have
 multiple unrelated unimplemented features and stay .xfail. The fixes are
@@ -1203,7 +1203,7 @@ record of who left them; previous session likely.
 - test_smoke_icon.sh: PASS=5/0 (unchanged)
 - test_smoke_unified_broker.sh: PASS=49/0 (unchanged)
 - test_crosscheck_icon.sh: PASS=4/0 SKIP=0 (unchanged)
-- test_icon_ir_all_rungs.sh: PASS=188 FAIL=45 XFAIL=30 (unchanged)
+- test_icon_all_rungs.sh: PASS=188 FAIL=45 XFAIL=30 (unchanged)
 - test_icon_ir_rung_36.sh: PASS=5 FAIL=40 XFAIL=30 (unchanged)
 - per-test PASS/FAIL/XFAIL list: byte-identical to pre-fix (`diff -q`)
 
@@ -1333,7 +1333,7 @@ No regression — just a different sequence.
 - `test_smoke_icon.sh`: PASS=5/5
 - `test_smoke_unified_broker.sh`: PASS=49/0
 - `test_crosscheck_icon.sh`: PASS=4/0 SKIP=0
-- `test_icon_ir_all_rungs.sh`: PASS=188 FAIL=45 XFAIL=30 TOTAL=263
+- `test_icon_all_rungs.sh`: PASS=188 FAIL=45 XFAIL=30 TOTAL=263
 - `test_icon_ir_rung_36.sh`: PASS=5 FAIL=40 XFAIL=30 TOTAL=75
 
 ### Working-tree pollution (cleaned again)
@@ -1473,7 +1473,7 @@ test_icon_ir_rung_36 PASS=5 → 6, FAIL=40 → 39.  All other gates unchanged.
 - `test_smoke_icon.sh`             PASS=5/0    (unchanged)
 - `test_smoke_unified_broker.sh`   PASS=49/0   (unchanged)
 - `test_crosscheck_icon.sh`        PASS=4/0    SKIP=0 (unchanged)
-- `test_icon_ir_all_rungs.sh`      **PASS=189** FAIL=44 XFAIL=30 TOTAL=263 (+1)
+- `test_icon_all_rungs.sh`      **PASS=189** FAIL=44 XFAIL=30 TOTAL=263 (+1)
 - `test_icon_ir_rung_36.sh`        **PASS=6**  FAIL=39 XFAIL=30 TOTAL=75  (+1)
 
 ### Remaining IC-8 / IC-9 candidates (next-session pivot)

@@ -91,7 +91,7 @@ Program *prog  = cmpile_string(src);      // returns Program* directly
 ### Step 6 — Update `scrip.c` dispatch
 
 `--dump-cmpile` (formerly `--dump-parse`) now dumps `Program*` via
-`ir_dump_program()` — same output format as `--dump-ir`. The only difference
+`ir_dump_program()` — same output format as `--dump-ast`. The only difference
 is which frontend produced it. Rename the flag accordingly.
 
 `--dump-cmpile-flat` is deleted (it dumped `CMPILE_t` one-per-line; no
@@ -121,10 +121,10 @@ Once all callers are updated, remove both struct definitions and all associated
 | Flag | Parser | Output |
 |------|--------|--------|
 | `--dump-cmpile` | CMPILE (one-pass) | `Program*` IR via `ir_dump_program()` |
-| `--dump-ir` | Bison/Flex | `Program*` IR via `ir_dump_program()` |
-| `--dump-ir-bison` | Bison/Flex | alias for `--dump-ir` |
+| `--dump-ast` | Bison/Flex | `Program*` IR via `ir_dump_program()` |
+| `--dump-ast-bison` | Bison/Flex | alias for `--dump-ast` |
 
-`--dump-parse`, `--dump-parse-flat`, `--dump-ir-cmpile` are all deleted —
+`--dump-parse`, `--dump-parse-flat`, `--dump-ast-cmpile` are all deleted —
 they were artifacts of the two-tree design.
 
 ---
@@ -137,7 +137,7 @@ make 2>&1 | grep "error:" | wc -l   # → 0
 
 # CMPILE and Bison/Flex produce identical IR for a sample program:
 diff <(./scrip --dump-cmpile corpus/programs/snobol4/demo/hello.sno) \
-     <(./scrip --dump-ir     corpus/programs/snobol4/demo/hello.sno)
+     <(./scrip --dump-ast     corpus/programs/snobol4/demo/hello.sno)
 # → empty diff
 
 # beauty suite unaffected:

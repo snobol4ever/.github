@@ -1,4 +1,4 @@
-# GOAL-ICON-IR-RUN — Get Icon Working in scrip --ir-run
+# GOAL-ICON-IR-RUN — Get Icon Working in scrip --interp
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all
-**Done when:** `.icn` files run correctly via `scrip --ir-run file.icn`, passing
+**Done when:** `.icn` files run correctly via `scrip --interp file.icn`, passing
 rung01–rung11 of the Icon corpus ladder.
 
 ---
@@ -243,7 +243,7 @@ infrastructure.
 
 - [ ] **S-15** — Wire Icon IR through sm_lower.c.
 - [ ] **S-16** — Wire Icon IR through sm_codegen.c (x86 JIT).
-- [ ] **S-17** — Run full rung ladder on --jit-run.
+- [ ] **S-17** — Run full rung ladder on --run.
 
 ---
 
