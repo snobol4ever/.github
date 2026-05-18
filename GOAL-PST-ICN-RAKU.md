@@ -101,7 +101,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
 
 **C side must be clean before parser_raku.sc mirror work proceeds beyond Phase A.** `parser_raku.sc` Phase A (zero function bodies with tree ops) is complete. Phase B (PRF-12: `add_proc`/`SUB_TAG_ID` hoisting, gather, class renaming → lower) requires the C side to move those semantics to `lower.c` first. Do not write Phase B SCRIP changes until the matching C rung is committed.
 
-**PRF-12 C-side sequencing** — each bullet below is one C rung that must precede its SCRIP mirror:
+**PRF-12 C-side sequencing** — each bullet below is one Phase 1 C rung. Do not write SCRIP mirror changes until Phase 2 (all six C parsers clean). Record `⚠ MIRROR-GAP` in State after each C rung:
 1. **Gather** → add `TT_GATHER` to `ast.h`; write `lower_gather` in `lower.c`; rewrite `KW_GATHER` rule in `raku.y` to emit pure `TT_GATHER[stmts...]`. Then mirror in `parser_raku.sc`.
 2. **Sub decl** → add `TT_SUB_DECL` to `ast.h`; write `lower_sub_decl`; rewrite `sub_decl` rule in `raku.y` to emit `TT_SUB_DECL[name, params, block]`; delete `add_proc`/`SUB_TAG_ID` from sub path. Then mirror.
 3. **Class decl** → add `TT_CLASS_DECL`; write `lower_class_decl`; rewrite `class_decl` rule; delete `raku_meth_register`/method rename from parser. Then mirror.

@@ -124,7 +124,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   ```
   Produces a right-leaning chain; re-flattening is a lower concern.
   Also verify `RDecl` fully replaced by `tree_t` (PST-RB-5b claim — confirm no `RDecl*` remains as parser output).
-  SCRIP mirror: `parser_rebus.sc` stmt list rules must mirror the always-wrap form in the same commit.
+  **Phase 1 only — no `parser_rebus.sc` changes in this rung.** Record `⚠ MIRROR-GAP-RB-C-1` in State.
   Gates: `test_smoke_rebus.sh` 4/0, `test_smoke_scrip_all_modes.sh` 2/0, `test_crosscheck_snobol4.sh` 4/2.
 
 - [~] **PST-RB-PRE-BEAUTY — Fix beauty.sno self-host blockers (Milestone 1 unblock).**
