@@ -37,12 +37,8 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Open step
 
 - [x] **DAI-8 C8 — `icn_runtime.c` (interp) dead-fn sweep.** 17 fns deleted, −185 LOC. `881d1a60` 2026-05-18.
-- [x] **DAI-8 C15 — `bb_pool`+`lower`+`polyglot`+`snocone_lex` sweep.** 10 fns, −75 LOC. `06ea32b0` 2026-05-18.
-- [ ] **DAI-8 C16+ — Continue dead-code sweep.** Remaining clusters:
-  - `sm_interp.c` — `every_table_lookup` deferred (file has embedded null bytes; binary-safe edit needed).
-  - `rebus_emit.c`, `rebus_print.c`, `sm_image.c` — all confirmed live.
-  - `scrip_ir.c`, `ast_clone.c`, `ast_print.c`, `snobol4_argval.c` — all confirmed live (external callers).
-  - `rt.c` cluster anchored live; `snobol4.c` excluded (CSNOBOL4-generated, --monitor).
+- [x] **DAI-8 C16 — `sm_interp.c` `every_table_lookup` (binary-safe).** −324 bytes. `f82a34c9` 2026-05-18.
+- [x] **DAI-8 sweep DONE.** All audited non-generated non-live fns deleted. Remaining GC-dead sections are: (a) `rt.c` cluster anchored via `_rt_usercall`→`g_user_call_hook` + `rt_call` asm-string; (b) `rebus_emit/rebus_print/sm_image` confirmed live (asm string refs/internal callers); (c) `scrip_ir/ast_clone/prolog_parse/snobol4_argval` confirmed live (3–9 external callers each); (d) `scan_builtins` fns live (IS_FAIL_fn has 334 callers); (e) `snobol4.c` excluded (CSNOBOL4-generated, --monitor). Linker GC cannot reach zero for these because call paths go through function pointers or emitted asm text.
 
   **Process per cluster:** Method 1 nominates → Method 6 confirms zero callers + zero address-of → delete → gate. See DAI-8 methodology note below.
 
@@ -79,11 +75,12 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 | **C13** `prolog_*`+`raku_re.c` 18 fns | −234 LOC | `947ecd7a` | floor held |
 | **C14** `icon_runtime`+`sm_interp`+`sm_jit_interp`+`stmt_exec` 20 fns | −168 LOC | `50e025f6` | floor held |
 | **C15** `bb_pool`+`lower`+`polyglot`+`snocone_lex` 10 fns | −75 LOC | `06ea32b0` | floor held |
+| **C16** `sm_interp.c` `every_table_lookup` (binary-safe) | −324 bytes | `f82a34c9` | floor held |
 
 ## Watermark
 
 ```
-one4all: 06ea32b0     (DAI-8 C15: bb_pool+lower+polyglot+snocone_lex 10 fns −75 LOC)
+one4all: f82a34c9     (DAI-8 C16: sm_interp every_table_lookup binary-safe −324 bytes)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
