@@ -396,6 +396,7 @@ The order is **callers first, leaves last** — never delete a definition while 
 | **C2 — `emit_core.c` + `emit_sm.c` byte-emit family sweep** (2026-05-18, Opus 4.7) | ~198 functions across 3 files. From `emit_core.c` (1787→1198 LOC): 138 functions (47 `bb_insn_*`, 24 `insn_*`, 47 `emit_*` helpers including the `emit_bb_x*` port family DAI-7 left, `emit_seq_*` coupled callers, the `emit_test_rax_rax`/`emit_mov_esi_imm32` family) plus 58 single-decl lines in `emit_core.h`. From `emit_sm.c` (3315→3085): 59 named byte-emit fns (`emit_sm_push_lit_s`, `emit_sm_call_fn`, `emit_sm_halt`, `emit_sm_jump_*`, `emit_sm_pat_*` family, `emit_sm_arith*`/`emit_sm_neg`/`emit_sm_op`, `emit_sm_bb_*` family — full list in commit body) plus the dead `static emit_sm_pat_str` helper. **Architectural reason:** the `EMIT_BINARY` (byte-emit) shape in `emit_core.c` predates the `--compile` pivot to text-asm output. `--run` uses `sm_codegen_x64_emit.c` for in-memory JIT; `--compile` uses the `emit_sm_*_dispatch` text-emit family (which lives on, ~3000 LOC of `emit_sm.c` retained). Nothing reaches the byte-emit primitives anymore. The cluster is coherent: emit_sm.c byte-emit fns are the only callers of most x86-instruction primitives in emit_core.c; deleting one without the other strands link-time references. | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 661 `.text` discards, 572 after generated-file exclusion (added `lex.rebus.o` to the filter), 472 after @PLT-aware string-literal rescue. emit_core.o 143 candidates, emit_sm.o 73, plus 10 emit_core "problem" fns whose callers were themselves all in the emit_sm.c GC-dead set (cross-call audit). | Method 6 (per-name grep with refined audit excluding `.h` declarations) — 132 emit_core fns had zero `.c` callers outside emit_core; 10 had only-GC-dead emit_sm.c callers; 1 (`emitter_init_macro_def`) preserved because called by `demo_template_productions.c` standalone demo. Methods 4 + 5 not needed — methods 1 + 6 were conclusive and gate matrix confirmed empirically. | `895ab323` (one4all) | **Held floor across all gates:** hello-world matrix `PASS=6 FAIL=0 ROWS_DRIFT=0`; modes 2/3/4 hello matrix 6/5/6 (mode-3 raku preexisting); smoke ×6 unchanged (5/0,5/0,5/0,4/0,5/0,7/0); Icon ladder `--interp 194/36/35/265`; crosscheck_prolog `128/0/4SKIP/11ORACLE_MISS`; scrip_all_modes `PASS=2 FAIL=0`. **Bonus:** unified_broker `22→23 (+1)`. Net `−877 LOC` across 3 files. |
 | **C3a — `emit_form.h` dead-inline triplet+ + `emit_core.c::ef_greek_port`** (2026-05-18, Opus 4.7) | 14 functions across 2 files. From `emit_form.h` (67→55 LOC): 13 dead `static inline` wrappers (`emit_mov_r10_imm64`, `emit_mov_rax_imm64`, `emit_mov_rcx_imm64`, `emit_sub_eax_imm32`, `emit_cmp_eax_imm32`, `emit_cmp_esi_imm8`, `emit_mov_ecx_eax`, `emit_cmp_eax_ecx`, `emit_mov_eax_rcxmem`, `emit_cmp_eax_rcxmem`, `emit_mov_eax_r10mem`, `emit_call_rax`, `emit_inc_mem_r13_disp8`). C2's note nominated 3; the full sweep found 13. The remaining 8 inlines either have live callers in `emit_core.c::emit_sigma_plus_delta`/`emit_store_delta`/`emit_load_sigma` chain or in `emit_bb.c::emit_flat_body` (live). From `emit_core.c` (1198→1189 LOC): `ef_greek_port` static debug-port display helper for α/β/γ/ω; zero callers after C2 byte-emit deletion. | Method 1 (linker `--gc-sections` + @PLT-aware filter) was the original C2 watermark text's cluster-3 nomination (3 inlines + `ef_greek_port`). Re-running the same audit produced 13 inlines, not 3. | Method 6 (per-name grep with rt.c-internal-caller filter) — confirmed every deleted symbol has zero callers anywhere in src/. The 8 retained inlines had exactly 1 live caller each, traced and confirmed. | `c3af9e23` (one4all) | All gates held floor: hello-world 6/6 ROWS_DRIFT=0; smoke ×6 (7/0,5/0,5/0,5/0,4/0,5/0); Icon `--interp` 194/36/35/265; scrip_all_modes 2/0; unified_broker 23/26; crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS. Net `−23 LOC` across 2 files. |
 | **C3b — `rt.c` dead-public-fn sweep** (2026-05-18, Opus 4.7) | 7 functions in `rt.c` + 7 matching decls in `rt.h`. Deletions: `rt_set_vstack_backend`, `rt_get_default_vstack_backend`, `rt_patch_cap_fn`, `rt_halt`, `rt_pop_descr`, `rt_push_real`, `rt_flush_pending_captures` — every refs=2 (decl + def only). | Method 1 (linker `--gc-sections` + @PLT-aware filter) nominated 100 dead `.text` sections in `rt.o`; @PLT rescue rescued 71 emit-string-referenced `rt_*` symbols leaving 29 candidates. | Method 6 (per-name caller audit) refined 29 → 7 truly-deletable. The other 22 split into: (a) static helpers (`vstack_*`, etc.) called by @PLT-rescued public fns — alive transitively via `libscrip_rt.so` path; (b) `_rt_IDENT`/`_rt_DIFFER`/`_rt_usercall` registered as function pointers via `register_fn`/`g_user_call_hook` in `rt_init`; (c) `sm_call_expression`/`sm_opcode_name`/`_is_pat_fnc_name`/`_expr_is_pat` are weak rt.c defaults overridden by strong defs in `eval_code.c`/`sm_prog.c`/`eval_pat.c`/`interp_eval.c` (rt.c weak symbols ARE dead but their `__attribute__((weak))` delivery needs header-side audit first); (d) `rt_in_native_chunk` has weak duplicate in `stmt_exec.c` suggesting dlsym pattern. | `a7259b9b` (one4all) | All gates held floor: hello-world 6/6 ROWS_DRIFT=0; smoke ×6 unchanged; Icon `--interp` 194/36/35/265; scrip_all_modes 2/0; unified_broker 23/26; crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS. Net `−43 LOC` across 2 files (rt.c -36, rt.h -7). |
+| **C4 — `stmt_exec.c` dead-fn sweep + C-BB violation removal** (2026-05-18, Opus 4.7, third sub-session) | 10 functions + 1 typedef + supporting statics, all in `stmt_exec.c`. Deletions: `patnd_is_invariant` (recursive-only-callers static), `cache_get_fresh` (zero-callers static), `cache_stats` (only-called-by-dead-`cache_test_run`), **`bb_usercall`** (zero-callers static, **C BB ABSOLUTE RULE violation** — `DESCR_t bb_usercall(void *zeta, int entry)` signature), `usercall_t` typedef (orphaned after `bb_usercall` deletion), `cache_test_run` (zero external callers), `nv_set_str` (only-called-by-dead `deferred_var_test`/`anchor_test`), `nv_get` (zero callers — Prolog whitelist hit at `pl_runtime.c:504`/`pl_broker.c:204` is a Prolog-predicate-name string, dispatches to `NV_GET_fn` not the stmt_exec.c static — false positive), `deferred_var_test` (test-harness, zero external callers), `anchor_test` (test-harness, zero external callers), `exec_stmt_args` + its forward decl (only-called-by-`anchor_test`). Plus supporting statics: `g_nv_table` / `g_nv_count` / `g_nv_cap` / `NV_INIT` macro / `_nv_entry_t` typedef (the dead nv table). Kept: `descr_match_span`/`descr_match` (static inline in `bb_box.h` — per-TU artifact, not deletable), `rt_in_native_chunk` (weak/strong override pattern — methodology #6 deferred), `exec_stmt_pool_reset` (called from `rt.c:697`), `exec_stmt_blob` (called from `rt.c:511`), `xkind_name` (dead-in-its-TU but duplicate at `snobol4_pattern.c:903` — conservative keep). | Method 1 (linker `--gc-sections` + @PLT-aware filter) nominated 17 dead `.text` sections in `stmt_exec.o`. | Method 6 (per-name caller audit, refined with **internal-caller chain analysis** — methodology refinement #7 below): traced `cache_stats`/`nv_set_str`/`exec_stmt_args` to their only-called-by-dead status, forming a closed dead-set with the public test entry points. **Bonus: C BB violation eliminated** — `bb_usercall` was the last surviving C Byrd-box in stmt_exec.c (RULES.md ABSOLUTE RULE: only `icn_bb_dcg` permitted as a C-BB infrastructure shim). | `de6e7b77` (one4all) | All gates held floor: smoke ×6 (icon 5/0, prolog 5/0, raku 5/0, rebus 4/0, snocone 5/0, snobol4 7/0); hello-world matrix `PASS=6 FAIL=0 ROWS_MATCH=6 ROWS_DRIFT=0`; Icon `--interp` 194/36/35/265; unified_broker 23/26; crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS; scrip_all_modes 2/0. SM dump md5 stable for representative `.sno`/`.icn`/`.pl` inputs. Zero DAI-8-BOMB fires. Net `−248 LOC` in 1 file (stmt_exec.c 680→432). |
 
 ### DAI-8 methodology note (added 2026-05-18, Opus 4.7)
 
@@ -456,6 +457,23 @@ log. Two critical filters MUST be applied before treating a discard as
    def deletion silently re-arms the now-deleted weak as the fallback.
    C3b's four weak-default candidates (`sm_call_expression`, `sm_opcode_name`,
    `_is_pat_fnc_name`, `_expr_is_pat`) deferred for this reason.
+
+7. **Internal-caller chain analysis** (discovered C4 2026-05-18).
+   When linker-GC nominates a public function as dead, an
+   internal-only-callers function can be deletable *together with its
+   callers* as a closed sub-graph, even though Method 6's external-only
+   grep audit shows refs > 0. Example: `cache_stats` was called only
+   from `cache_test_run` (also dead). Independent deletion of
+   `cache_stats` is blocked by Method 6's "ref count > 0" check, but
+   joint deletion of `{cache_test_run, cache_stats}` is correct.
+   Similarly `{anchor_test, exec_stmt_args}` and `{deferred_var_test,
+   anchor_test, nv_set_str, nv_get}` — each pair/triplet is a closed
+   dead sub-graph. The audit pattern: for each linker-GC-dead public
+   function F, examine every function F calls; if every caller of
+   each is itself in the linker-GC-dead set, the whole sub-graph is
+   deletable. Distinguishes from static-helper-rescue (#4) which
+   requires the @PLT-rescued caller to be alive; this case has the
+   caller dead too.
 
 ### DAI-8 all-modes regression gate (MANDATORY per cluster) — Lon directive 2026-05-18
 
@@ -584,7 +602,8 @@ the gate and the goal advance together.
 ## Watermark
 
 ```
-one4all: a7259b9b     (DAI-8 C3b: rt.c 7 dead public fns + 7 rt.h decls — −43 LOC)
+one4all: de6e7b77     (DAI-8 C4: stmt_exec.c 10 fns + 1 typedef — −248 LOC; bonus: C BB violation removed)
+         a7259b9b     (DAI-8 C3b: rt.c 7 dead public fns + 7 rt.h decls — −43 LOC)
          c3af9e23     (DAI-8 C3a: emit_form.h 13 inlines + emit_core.c::ef_greek_port — −23 LOC)
          895ab323     (DAI-8 C2: emit_core.c + emit_sm.c byte-emit sweep — −877 LOC, ~198 fns)
          8a6a5204     (IJ-HELLO-4c: delete rt_bb_once_proc — bb_broker path structurally impossible for Prolog)
@@ -596,7 +615,7 @@ one4all: a7259b9b     (DAI-8 C3b: rt.c 7 dead public fns + 7 rt.h decls — −4
          996f03e0     (IJ-HELLO-2a: rt_call icn-builtin fallback ladder)
          cf568c35     (IJ-HELLO-1: baseline-locking compile-hello-all-langs gate)
 corpus:  92e103f      (unchanged — no corpus edits this session)
-.github: this commit  (DAI-8 C3a + C3b ledger rows added; methodology refinements #4/5/6 recorded; watermark refreshed)
+.github: this commit  (DAI-8 C4 ledger row added; methodology refinement #7 internal-caller-chain recorded; watermark refreshed)
 test_smoke_compile_hello_all_langs: PASS=6 FAIL=0 ROWS_MATCH=6 ROWS_DRIFT=0  (held at IJ-HELLO-5 floor)
 --interp:    194/265  (Icon rung ladder, unchanged — held)
 modes 2/3/4 hello matrix: 6/5/6   (mode-3 raku preexisting from prior session; see latent below)
@@ -608,26 +627,34 @@ crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS  (held at baseline)
 scrip_all_modes: PASS=2 FAIL=0 (NET skipped — no ilasm — modes 2/3/4 SNOBOL4 hello validated)
 DAI-BOMB fires: 0
 
-✅ DAI-8 cluster 3a + 3b COMPLETE. Combined deliverable this session
-  (Opus 4.7, 2026-05-18 4th sub-session): 22 functions deleted, −66 LOC
-  across 4 files (emit_form.h, emit_core.c, rt.c, rt.h). All gates held
-  floor across two orthogonal commits per RULES "Three-construct sessions"
-  cadence; cluster 3a was the emitter-helper layer, cluster 3b the runtime
-  helper layer. No cross-cluster coupling.
+✅ DAI-8 cluster 4 COMPLETE. Single-construct dead-code-sweep cluster
+  (Opus 4.7, 2026-05-18 5th sub-session, single commit `de6e7b77`):
+  10 functions + 1 typedef + supporting statics deleted from
+  `src/runtime/snobol4/stmt_exec.c` (680 → 432 LOC, −248 LOC).
+  **Bonus structural fix:** `bb_usercall` (a `DESCR_t fn(void *zeta,
+  int entry)` static helper, never called) eliminated — the last
+  surviving C Byrd-box outside the permitted `icn_bb_dcg`
+  infrastructure shim. Zero C BB functions now in stmt_exec.c (modulo
+  `bb_deferred_var` which has live callers — verified). RULES.md
+  ABSOLUTE RULE "ZERO C BYRD BOX FUNCTIONS" now closer to fully
+  enforced across the codebase.
 
-Cluster 3 work continues — candidates remaining (Method 1 GC log, after
-C3a+C3b deletions):
-  - rt.c: ~22 candidates remain (static helpers reached transitively via
+Cluster 5+ candidates remaining (Method 1 GC log, after C4 deletions):
+  - rt.c: ~22 candidates (static helpers reached transitively via
     @PLT-rescued public fns; need methodology refinement #4 closure pass)
   - icon_runtime.c (frontend): 25 candidates
   - emit_wasm.c: 22 candidates
   - prolog_builtin.c: 20 candidates
   - icn_runtime.c (interp): 18 candidates
   - snobol4_pattern.c: 16 candidates
-  - stmt_exec.c: 15 candidates
+  - stmt_exec.c: ~0 remaining (this cluster cleared it; re-run linker
+    GC after rebuild to confirm. The `descr_match_span`/`descr_match`
+    static-inline-header artifacts and `rt_in_native_chunk`
+    weak/strong override remain conservative keeps per methodology
+    notes #4/#6.)
 
-Methodology refinements discovered this session (recorded in methodology
-note above as items #4, #5, #6):
+Methodology refinements discovered to date (recorded in methodology
+note above as items #4 through #7):
   - Static-helper-of-@PLT-rescued edge case (#4): needs transitive
     caller-graph closure pass rooted at @PLT-rescued public fns, OR
     conservative "refs=2 only" rule like C3b adopted.
@@ -637,6 +664,11 @@ note above as items #4, #5, #6):
     overrides exist elsewhere ARE dead, but deletion needs header-side
     audit first (4 such candidates queued: sm_call_expression,
     sm_opcode_name, _is_pat_fnc_name, _expr_is_pat).
+  - Internal-caller chain analysis (#7, new in C4): linker-GC-dead
+    public functions whose callers are ALSO linker-GC-dead form closed
+    dead sub-graphs deletable together; the C4 test-harness tail
+    (`cache_test_run`+`cache_stats`; `{deferred_var_test, anchor_test,
+    nv_set_str, nv_get, exec_stmt_args}`) is the canonical example.
 
 Latent (separate tickets):
   - IJ-HELLO-MODE3-RAKU: mode-3 (--run / in-memory JIT) raku hello prints
