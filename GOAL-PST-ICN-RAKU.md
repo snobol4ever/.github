@@ -152,30 +152,22 @@ should be inline `reduce` actions.
 
 1. PST-ICN-2a/2b checked [x].
 2. PST-RAKU-3a/3b checked [x].
-3. PST-ICN-4a/4b checked [ ].
-4. PST-RAKU-5a/5b/5c checked [ ].
+3. PST-ICN-4a/4b checked [x].
+4. PST-RAKU-5a/5b/5c checked [x].
 5. All gate scripts green at baseline.
 6. Beauty self-host byte-identical (Milestone 1 protected).
 7. `parser_icon.sc` and `parser_raku.sc` contain zero in-file helper functions
-   that Pop/INSPECT/reassemble trees. **Sidecar helper files remain**:
-     - `icon_helpers.sc` — 5 functions: 4 PST-allowed leaf-push helpers
-       (`push_qlit`, `push_cset`, `push_flit`, `push_kw`) plus a `notmatch`
-       redefinition that duplicates `match.sc`.
-     - `raku_helpers.sc` — 11 functions: `push_interp_str`, `dq_unescape`,
+   that Pop/INSPECT/reassemble trees. **Sidecar status**:
+     - `icon_helpers.sc` — **DELETED 2026-05-18**: all 4 leaf-push helpers
+       (`push_qlit`, `push_cset`, `push_flit`, `push_kw`) inlined as
+       `(epsilon . *Shift('TT_*', var))` directly in `parser_icon.sc`.
+       `run_scrip_parser.sh` guards with `[ -f ]` — no loader change needed.
+       Icon is now 0/0 (zero functions, zero sidecar). ✅
+     - `raku_helpers.sc` — 11 functions remain: `push_interp_str`, `dq_unescape`,
        and 9 `finish_*` variable-arity assemblers (counter-based, no
        child-kind inspection — they cannot be expressed as a single
-       inline `reduce`).
-   These helpers are loaded by `run_scrip_parser.sh` for the relevant
-   language. They will be removed in a follow-on pass once the SCRIP
-   runtime stabilises enough to absorb them or once the grammar admits
-   their inlining. Hard violations (R1-R4) eliminated. ✅
-   **Sub-claim correction (2026-05-17, Lon-flagged):** earlier wording
-   in this file and in `GOAL-PST-REBUS.md` State implied parser_icon.sc
-   and parser_raku.sc were "zero functions" *full stop*. That is true
-   only of the parser files in isolation; the helper sidecars carry the
-   functions, so total per-language function counts are 5 (icon) and
-   11 (raku), not 0. Only `parser_rebus.sc` is currently 0/0 (no
-   sidecar exists).
+       inline `reduce`). Removal deferred until SCRIP runtime stabilises.
+   **Icon function count: 0. Raku function count: 11 (sidecar only).**
 8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
@@ -185,8 +177,14 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-16 (session 30/60)
-next: DONE — parser_raku.sc complete rewrite corpus@3cb7ada
+watermark: 2026-05-18 (session handoff)
+next: raku_helpers.sc elimination (11 functions remain; deferred until runtime stabilises)
+PST-ICN-SIDECAR-ELIM ✅ corpus@3789cba 2026-05-18 (Claude Sonnet 4.6):
+  push_qlit/push_cset/push_flit/push_kw inlined as (epsilon . *Shift('TT_*', var))
+  directly in parser_icon.sc Expr11. icon_helpers.sc deleted entirely.
+  run_scrip_parser.sh unchanged (guards with [ -f ]).
+  Gates: smoke_icon 5/5, scrip_all_modes 2/0, crosscheck 5/1 (beauty_omega pre-existing).
+  Icon is now 0/0: zero helper functions, zero sidecar file.
 PST-RAKU-5b ✅ corpus@31cc6f2: R1-R4 hard violations fixed.
 PST-RAKU-5c ✅ corpus@3cb7ada: parser_raku.sc rewrite 1788→607 lines (parser file only).
   All in-file finish_* tree-assembly helpers removed from parser_raku.sc.
