@@ -281,7 +281,7 @@ The order is **callers first, leaves last** — never delete a definition while 
 ```
 one4all: 730da38e (CLI-3M-10: scrip.c alias removal + var rename to match mode names)
 corpus:  92e103f  (CLI-3M-10: docs sweep)
-.github: TBD     (CLI-3M-10 docs sweep + DAI-5c/6 + DAI-7 added — hash filled by handoff push)
+.github: this commit (CLI-3M-7 done + CLI-3M-10 docs sweep + DAI-5c/6 done + DAI-7 added + parallel-gating rule)
 --interp:    194/265   (Icon rung ladder, post-DAI-5c rebaseline at canonical mode flag)
 smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0
 smoke_rebus: 4/0   smoke_snocone: 5/0
@@ -289,6 +289,7 @@ smoke_snobol4: 7/0 (was 6/1; +1 from CLI-3M-10 alias removal; matches CLI-3M-6 p
 smoke_unified_broker: 22/27 (was 21/28; +1 from CLI-3M-10; matches CLI-3M-6 prediction)
 crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (unchanged)
 DAI-BOMB fires: 0
+Gate-suite wall-clock: ~90s parallel (was ~6 min serial); see RULES.md parallel-gating idiom.
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
