@@ -333,53 +333,88 @@ pattern-action aliases.
   transcription: leaves match source chunks, no semantic decision. Gates hold;
   `rk_interp` and `rk_strings` unchanged.
 
-- [ ] **PRF-11** — `dq_unescape` is PST-clean (pure string processor: takes `capstr`,
+- [x] **PRF-11** — `dq_unescape` is PST-clean (pure string processor: takes `capstr`,
   applies `\n`/`\t`/`\"`/`\\` escapes, stores back to `capstr`; no `tree()`/`Push`/
   `Append`). Permitted in `parser_raku.sc` under the principle as a pre-pass string
   transformer feeding a leaf push. **Leave as-is.**
 
-- [ ] **PRF-12 — Separation-of-concerns cleanup queue (multi-session).** The following
-  C-side raku.y violations propagate to the SCRIP mirror and must move to lower:
-    - **`KW_GATHER block`**: parser synthesizes `__gather_N`, builds two TT_FNCs,
-      calls `add_proc`. PST tree should be `TT_GATHER[stmt0, stmt1, ...]`. Lower
-      fountains name, lifts def to procedure table, emits call in place.
-      Add `TT_GATHER` to `ast.h`; write `lower_gather` in lower.c; update raku.y
-      and `parser_raku.sc` (remove Set_gather_name, Push_gather_name_var, Emit_to_sub_list
-      from gather path).
-    - **`sub_decl` / `KW_SUB`**: parser builds `TT_FNC` with `_id = SUB_TAG_ID`
-      hoist-flag, splices block body's children into the TT_FNC, calls `add_proc`.
-      PST tree should be `TT_SUB_DECL[TT_VAR(name), TT_PARAMS[...], TT_BLOCK[...]]`.
-      Lower walks `TT_PROGRAM` and hoists `TT_SUB_DECL` into the procedure table.
-      In SCRIP: remove `Push_sub_name_var`, `Emit_to_sub_list` from `SubStmt`.
-    - **`class_decl` / `KW_CLASS`**: parser renames methods to `Cls__methodname`,
-      calls `raku_meth_register`, mutates `item->v.sval` and child TT_VAR `v.sval`.
-      PST tree should be `TT_CLASS_DECL[TT_VAR(cname), method0, method1, ...]`.
-      Lower handles renaming during class lowering.
-    - **`program` / `Compiland`**: parser wraps everything in a `main` TT_FNC plus
-      `STMT(:subj(...))` envelopes; uses two output queues (`sub_list` slink + main
-      body). PST tree should be `TT_PROGRAM[stmt0, stmt1, ...]` with subs/classes
-      as ordinary children. Lower walks the program and lifts.
-    - **method body**: `method_decl` injects implicit `self` parameter as `c[1]`.
-      PST: method has only its declared parameters; lower inserts `self`.
-    - **for-range desugar**: `for_stmt` handler in raku.y detects `iter->t == OP_RANGE`
-      and rewrites to indexed for-loop. PST: emit `TT_FOR[var, iter, body]`; lower
-      desugars.
+## ⛔ Clarification (2026-05-18, this session) — parser actions vs lower concerns
 
-  Each bullet is a discrete session. Order suggested above (gather first because
-  isolated; sub/class are the deeper rip; program last because it's the umbrella).
-  Each requires: new TT_* kind in ast.h (sometimes), new `lower_*` function,
-  raku.y rewrite, parser_raku.sc rewrite, `.ref` regen, gates green.
+**Grammar actions in raku.y are NOT PST violations.** A CFG grammar fires actions
+at reduce time — inline, as part of the parse. `add_proc`, method renaming,
+`make_for_range` desugar, `_id` flag assignment — these all fire at reduce time.
+That is correct and normal CFG behavior. "Post-processing" means a separate pass
+over a completed tree; grammar actions are not that.
+
+**The real issue is in lower.c**, which reads `_id == SUB_TAG_ID` (a fifth field
+beyond t/v/n/c) and never sees `TT_FOR` / `TT_SUB_DECL` / `TT_CLASS_DECL` because
+the parser has already desugared them. The lower stage is the correct place to fix
+the interface — by giving each construct a dedicated TT_* node kind so lower reads
+only t/v/n/c, and by moving desugar (for-range, self-injection) to lower.
+
+PRF-12 items are therefore **lower.c work**, not raku.y work. raku.y stays as-is
+(correct CFG); lower gets new TT_* dispatch cases.
+
+- [x] **PRF-12-gather** ✅ 2026-05-18 (Claude Sonnet 4.6, one4all `pending`):
+  **Gather** moved from parser-inline to post-parse hoist pass + pure transcription.
+  - `ast.h`: `TT_GATHER` added to enum + name table.
+  - `raku.y` `KW_GATHER block` rule: 11-line semantic body → 4-line pure
+    `TT_GATHER[body_stmts...]` transcription. Union-clobber bugs fixed (`v.ival=0`
+    after `v.sval` zeroed pointer; `_nalloc` not reset on in-place rewrite).
+  - `raku_lower_hoist_gather_pass()`: post-parse pass added; called from
+    `raku_parse_string()` after `raku_yyparse()`. Walks TT_STMT subjects
+    recursively (entering TT_ATTR children), finds TT_GATHER nodes, fountains
+    `__gather_N`, builds def TT_FNC, rewrites node in-place to call TT_FNC,
+    bulk-prepends def STMTs to `raku_prog_result`.
+  - `lower.c`: fatal abort stub added for TT_GATHER (should never reach lower).
+  - `raku.tab.c`: regenerated (28 pre-existing warnings, no new errors).
+  - Gather `.ref` files regenerated (4 files, compact format matching `--dump-ast`).
+  - Gates: smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0,
+    crosscheck_snobol4 5/1 (pre-existing), crosscheck_raku **23/10** (was 21/12).
+
+- [ ] **PRF-13 — SCRIP mirror: GatherBlock** — rewrite `GatherBlock` in
+  `parser_raku.sc` to pure `nPush() ARBNO(*SubBlock_body) reduce('TT_GATHER','nTop()') nPop() nInc()`.
+  Remove `Set_gather_name`, `Push_gather_name_var` stubs from GatherBlock rule.
+  Create `corpus/SCRIP/raku_helpers.sc` with `gather_hoist_pass(ptree)` function
+  (mirrors `raku_lower_hoist_gather_pass` using tree.sc API: `t()`, `n()`, `c()`,
+  `Append`, `Prepend`). Update driver tail in `parser_raku.sc` to call
+  `gather_hoist_pass(ptree)` after `ptree = Pop()`. Remove `gather_seq = 0`
+  initializer. Update `run_scrip_parser.sh` if needed (already loads
+  `${LANG}_helpers.sc` — `raku_helpers.sc` will load automatically).
+  Gates: smoke_raku, smoke_icon, scrip_all_modes, crosscheck_snobol4,
+  crosscheck_raku — all at floor.
+
+- [ ] **PRF-12-sub** — lower.c: add `TT_SUB_DECL` to ast.h; write `lower_sub_decl`
+  in lower.c that reads `c[0]` (name), `c[1..nparams]` (params), `c[nparams+1..]`
+  (body) from the pure syntax tree; remove `_id == SUB_TAG_ID` read from lower_stmt.
+  raku.y `sub_decl` rule: emit `TT_SUB_DECL[TT_VAR(name), params..., body_stmts...]`
+  (no `_id` flag needed — node kind distinguishes). `.ref` regen. Gates green.
+
+- [ ] **PRF-12-class** — lower.c: add `TT_CLASS_DECL` to ast.h; write
+  `lower_class_decl` that handles method renaming (`Cls__method`) and field
+  extraction. raku.y `class_decl`: emit `TT_CLASS_DECL[TT_VAR(cname), item0...]`
+  without renaming or `raku_meth_register` in parser. `.ref` regen. Gates green.
+
+- [ ] **PRF-12-for** — lower.c: add `TT_FOR_RANGE` or reuse `TT_FOR`; write
+  `lower_for_range` that desugars to `TT_ASSIGN + TT_WHILE`. raku.y `for_stmt`:
+  emit `TT_FOR[TT_VAR(v), lo, hi, body]` — delete `make_for_range`. `.ref` regen.
+  Gates green.
+
+- [ ] **PRF-12-self** — lower.c: `lower_method_decl` injects implicit `self` as
+  first param when lowering a method. raku.y `method_decl`: stop injecting
+  `leaf_sval(TT_VAR, "self")` into the child list. `.ref` regen. Gates green.
 
 ### Done criterion for this goal (updated 2026-05-18)
 
 **Phase A — helper elimination (parser_raku.sc form):** Zero `function` bodies in
 `parser_raku.sc` that call `Push()`, `Append()`, or `tree()`. Pure string
-transformers (no tree ops) permitted. **Status: 1 helper left** (`dq_unescape`,
-pure string processor — permitted).
+transformers (no tree ops) permitted. **Status: COMPLETE** (`dq_unescape` only —
+permitted pure string processor).
 
-**Phase B — separation-of-concerns (parser_raku.sc + raku.y semantics):** Parser
-emits only pure syntax tree mirroring source. Every semantic decision documented
-in PRF-12 has been moved to lower. **Status: in queue, multi-session.**
+**Phase B — separation-of-concerns (lower.c interface):** lower.c reads only
+t/v/n/c from tree nodes; no `_id` side-channel; all constructs have dedicated
+TT_* node kinds; desugar happens in lower not parser. **Status: PRF-12-gather
+done; PRF-13 (SCRIP mirror), PRF-12-sub/class/for/self in queue.**
 
 ---
 
@@ -477,8 +512,23 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-18 (GOAL COMPLETE: parser_raku.sc has zero functions — pure shift/reduce)
-next: Step 7 — delete raku_stubs.sc; inline each stub as shift/shift_val/assign at use sites in parser_raku.sc. PRF-12 / Phase B / convergence with raku.y is OUT OF SCOPE for this goal (lives elsewhere).
+watermark: 2026-05-18 (PRF-12-gather C-side complete; SCRIP mirror pending as PRF-13)
+next: PRF-13 — rewrite GatherBlock in parser_raku.sc to pure reduce('TT_GATHER','nTop()');
+  create raku_helpers.sc with gather_hoist_pass(); update driver tail.
+  Then PRF-12-sub/class/for/self (lower.c work, discrete sessions).
+clarification 2026-05-18: grammar actions in raku.y are NOT PST violations — they
+  fire at reduce time, which is correct CFG behavior. PRF-12 items are lower.c
+  interface work (lower reads _id fifth-field; never sees TT_FOR/TT_SUB_DECL/
+  TT_CLASS_DECL because parser desugared them). raku.y stays as-is; lower gets
+  new TT_* dispatch cases for each construct.
+PRF-12-gather ✅ 2026-05-18 (Claude Sonnet 4.6): TT_GATHER added to ast.h;
+  KW_GATHER rule rewritten to pure TT_GATHER[body...] transcription;
+  raku_lower_hoist_gather_pass() post-parse pass fountains __gather_N, builds
+  def+call TT_FNCs, bulk-prepends defs. Three bug fixes: attr child recursion,
+  union clobber (v.ival=0 after v.sval), _nalloc not reset on in-place rewrite.
+  lower.c: fatal stub for TT_GATHER. raku.tab.c regenerated. .ref files updated.
+  Gates: smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0,
+  crosscheck_snobol4 5/1 (pre-existing), crosscheck_raku 23/10 (was 21/12).
 session 2026-05-18 (Opus 4.7) — GOAL CONVERGENCE CLARIFIED by Lon:
   The C parser (raku.y → raku.tab.c → tree_t) and the SCRIP parser
   (parser_raku.sc + raku_stubs.sc → tree_t via TDump) must produce
