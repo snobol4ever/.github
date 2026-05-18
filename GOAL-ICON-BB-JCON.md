@@ -188,14 +188,11 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 - [x] **DAI-4 ✅ 2026-05-17g (Opus 4.7) — Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`.** Replaced the 3 sites (TT_EVERY-assign-rhs, TT_EVERY-gen, TT_AUGOP-suspend-rhs) with `NO_AST_WALK_GUARD("icn_bb_build/<tag>")` + `[DAI-BOMB]` fingerprint + `exit(78)`. Removed dangling extern in `sm_jit_interp.c:263`. interp_eval.c −31 lines net. **Gates: ir-run 194/265 unchanged. Zero bombs fired across rung suite + all 5 frontends' smokes** — empirical confirmation that mode-1 Icon never reaches these `interp_eval`/TT_EVERY/TT_AUGOP branches (they're lowered to IR_EVERY/IR_AUGOP at lower time and dispatched through `ir_exec.c`).
 
-- [ ] **DAI-5 — Verify zero external references; delete the files.** `grep -rn "bb_eval_value\|bb_exec_stmt\|icn_bb_build" src/` must return only matches inside the three target files. Then:
-  - Delete `src/runtime/interp/icn_value.c`.
-  - Delete `src/runtime/interp/icn_stmt.c`.
-  - From `src/runtime/interp/icn_runtime.c`: delete `icn_bb_build` (the AST-walking BB builder, line 1155). Keep `icn_bb_dcg`, `icn_bb_pump_proc_by_name`, `proc_table` machinery.
-  - From `src/runtime/interp/icn_value.h` and `icn_stmt.h`: delete declarations of removed symbols. Keep DESCR_t-input helper declarations.
-  - From `src/runtime/interp/scan_builtins.c` / `raku_builtins.c`: audit each function — keep `DESCR_t fn(DESCR_t, ...)` form, delete `DESCR_t fn(tree_t *, ...)` form. Most are already DESCR_t per the IJ-SCAN-NULSAFE refactor.
-  - Remove `icn_value.c` and `icn_stmt.c` from `Makefile` lines 112-118 and 301-308.
-  - **Gate:** `bash scripts/build_scrip.sh` clean; full gate sweep.
+- [x] **DAI-5a ✅ 2026-05-17h (Opus 4.7) — Swap stale `bb_eval_value` callers → `interp_eval`.** Empirically traced (instrument + revert) all `bb_eval_value` call sites: zero fires across smoke (all 6 frontends), Icon rungs (265), prolog/raku/icon crosschecks. Confirmed dead — same finding as DAI-2 had for `icn_bb_build`. Replaced each site with `interp_eval` (universal AST walker, mode-1 reference path; already carries `NO_AST_WALK_GUARD` at its top). `pl_runtime.c`: 3 sites + added `extern DESCR_t interp_eval(tree_t *e);` next to existing forward decls. `raku_builtins.c`: 46 sites via sed; decl transitively visible through `interp_private.h → interp.h`. `interp_eval.c::icn_string_section_assign`: 7 `(g_lang==LANG_ICN)?bb_eval_value(...):interp_eval(...)` ternaries collapsed to `interp_eval(...)`; removed local extern at line 162. **Net: zero non-stub callers of `bb_eval_value` remain in src/.** Diagnostic strings in `rs23_diag.c` (backtrace fingerprint detectors) and DAI-4 bomb messages preserved. Commit `f7c9cfeb`.
+
+- [ ] **DAI-5b — Delete `icn_value.c` / `icn_stmt.c` files; gut `icn_bb_build` body.** Relocate three preserved helpers out of `icn_value.c` to `icn_runtime.c` first: `icn_str_concat_d` (used internally by `icn_lconcat_d`), `icn_lconcat_d` (used externally by `ir_exec.c:426`), `icn_proc_as_value` (used externally by `interp_eval.c:478` and `lower.c:122`). The other 7 statics in `icn_value.c` (`bb_arith`, `bb_numrel`, `bb_strrel`, `bb_str_concat`, `bb_section`, `bb_augop_compute`, `bb_augop_writeback`) are only callable from the bomb stub and go with the file. Then: delete `src/runtime/interp/icn_value.c`, delete `src/runtime/interp/icn_stmt.c`, delete `bb_eval_value`/`bb_exec_stmt`/`icn_bb_build` decls from `icn_value.h` / `icn_stmt.h` / `icn_runtime.h` / `icon_gen.h:160`, delete `icn_bb_build` body from `icn_runtime.c` (~12 lines stub), remove `icn_value.c` and `icn_stmt.c` from Makefile lines 112-118 and 301-308. **Gate:** full sweep + DAI-5c re-baseline.
+
+- [ ] **DAI-5c — Re-baseline.** Run `test_icon_ir_all_rungs.sh --mode sm-run` (or write the variant — current script is `--ir-run` only) to establish the new floor at sm-run, since after DAI-5b the 194/265 `--ir-run` measurement still holds (mode-1 universal walker still works) but per the risk register the post-amputation reference path is sm-run.
 
 - [ ] **DAI-6 — Update docs.** Edit `ARCH-ICON.md` to remove references to `bb_eval_value` / `bb_exec_stmt`. Edit `RULES.md` "Oracles" section to note that mode 1 (`--ir-run` / `--ast-run`) is no longer a valid Icon execution mode. Edit this GOAL row in `PLAN.md` to mark IJ-DEL-ICN-AST as the new step. Update the Icon row of the Watermark table at the bottom of this file.
 
@@ -228,17 +225,23 @@ The order is **callers first, leaves last** — never delete a definition while 
 |------|-------------|--------|
 | DAI-4 | Drop `icn_bb_build` callers in `interp_eval.c` + `sm_jit_interp.c`. The 3 sites (TT_EVERY-assign-rhs at ~3683, TT_EVERY-gen at ~3698, TT_AUGOP-suspend-rhs at ~3974) replaced with `NO_AST_WALK_GUARD("icn_bb_build/<tag>") + [DAI-BOMB] fprintf + exit(78)`. Dangling `extern bb_node_t icn_bb_build(tree_t *e);` at `sm_jit_interp.c:263` removed. Net: interp_eval.c −31 lines, sm_jit_interp.c −2 lines. **ir-run 194/265 unchanged. Zero DAI-BOMs fired across rung suite.** smoke_icon 5/0, smoke_prolog 5/0, smoke_raku 5/0, smoke_rebus 4/0, smoke_snocone 5/0, smoke_snobol4 6/1 (pre-existing pattern FAIL). Empirical confirmation that mode-1 Icon never reaches these `interp_eval` TT_EVERY/TT_AUGOP branches — they're lowered to IR_EVERY/IR_AUGOP at lower time and dispatched through `ir_exec.c`. | `e3c803ea` |
 
+## Completed steps (session 2026-05-17h, Opus 4.7)
+
+| Step | Description | Commit |
+|------|-------------|--------|
+| DAI-5a | Swap stale `bb_eval_value(tree_t*)` callers → `interp_eval(tree_t*)` (universal AST walker). Empirical trace pass first: instrumented all 56 sites across `pl_runtime.c` (3), `raku_builtins.c` (46), `interp_eval.c::icn_string_section_assign` (7); ran full smoke + Icon rungs + prolog/raku/icon crosschecks; **zero trace fires** — confirming all sites are dead, same finding as DAI-2 had for `icn_bb_build`. Trace edits reverted, then swapped each site to `interp_eval` (which already carries `NO_AST_WALK_GUARD` at its top so any future reachability bug from modes 2/3/4 still aborts loudly). Forward decl added in `pl_runtime.c` next to existing externs; `raku_builtins.c` gets the decl transitively via `interp_private.h → interp.h`. Collapsed 7 `(g_lang==LANG_ICN)?bb_eval_value(...):interp_eval(...)` ternaries in `icn_string_section_assign` to plain `interp_eval(...)` and removed the local `extern bb_eval_value` at line 162. **Zero non-stub callers of `bb_eval_value` remain in src/.** Net: 58 insertions / 57 deletions across 3 files. Gates: ir-run 194/265 unchanged. smoke_icon 5/0, smoke_prolog 5/0, smoke_raku 5/0, smoke_rebus 4/0, smoke_snocone 5/0, smoke_snobol4 6/1 (pre-existing pattern FAIL). crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS unchanged. Zero DAI-BOMs fired. | `f7c9cfeb` |
+
 ## Watermark
 
 ```
-one4all: e3c803ea (DAI-4: icn_bb_build callers replaced with NO_AST_WALK_GUARD + DAI-BOMB)
+one4all: f7c9cfeb (DAI-5a: stale bb_eval_value callers swapped to interp_eval)
 corpus:  490f4c7 (unchanged this session)
 ir-run:  194/265
 sm-run:  194/265  ← from DAI-3, not re-measured this session
 smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0
 smoke_rebus: 4/0   smoke_snocone: 5/0
 smoke_snobol4: 6/1 (pattern FAIL pre-existing)
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (not re-run this session)
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (re-run this session, unchanged)
 DAI-BOMB fires: 0
 ```
 
@@ -247,7 +250,9 @@ Latent bugs (pre-existing or unblocked, separate tickets):
 - SM dump display labels `SM_STORE_FRAME` as "SM_LOAD_FRAME" (cosmetic).
 - IR_ICN_FIND_GEN start/stop normalization untested for jcon corner cases (see IJ-FIND-GEN row above).
 - IR_ICN_SEQ_GEN ignores zero step silently — Icon spec is to fail; pragmatic choice for now.
-- DAI-5 and DAI-6 deferred — bombs fire loud, but stale dead callers (`pl_runtime.c` cross-lang sites at lines 729/833/1880, `raku_builtins.c` ~80 `bb_eval_value(tree_t*)` calls, `interp_eval.c` `bb_eval_value` ternaries at lines 136-163, Makefile entries for icn_value.c/icn_stmt.c, docs in ARCH-ICON.md/RULES.md) still reference the amputated symbols. Build is green; cleanup is cosmetic.
+- DAI-5b, DAI-5c, DAI-6 deferred — bombs still in place but unreachable (all non-stub callers swapped to `interp_eval` in DAI-5a). Remaining: relocate three preserved helpers (`icn_str_concat_d`, `icn_lconcat_d`, `icn_proc_as_value`) out of `icn_value.c` to `icn_runtime.c`, then delete the file + `icn_stmt.c` + `icn_bb_build` body in `icn_runtime.c`, prune headers (`icn_value.h`, `icn_stmt.h`, `icn_runtime.h`, `icon_gen.h:160`), drop the two .c entries from `Makefile` lines 112-118 / 301-308. Then doc cleanup (`ARCH-ICON.md`, `RULES.md` Oracles section). Build is green; cleanup is cosmetic.
+
+Session note (2026-05-17h, Opus 4.7): DAI-5a — cleared all `bb_eval_value` callers from `src/`. Adopted same empirical methodology that worked for DAI-2/DAI-4: instrument all 56 caller sites with `[DAI-5-TRACE]` fprintfs, run the full gate matrix (smoke ×6 frontends + Icon rungs + crosscheck_prolog + crosscheck_raku + crosscheck_icon), confirm zero fires, then swap every site to `interp_eval` (the universal mode-1 walker). All gates held at baseline. The risk register's hedged "fall back to keeping `bb_eval_value` only for the 3 pl_runtime sites" mitigation proved unnecessary — those sites were dead too. DAI-5b file deletion is now unblocked but needs careful helper relocation (`icn_str_concat_d`, `icn_lconcat_d`, `icn_proc_as_value` move from `icn_value.c` to `icn_runtime.c` before file deletion) — not a one-line edit.
 
 Session note (2026-05-17g, Opus 4.7): DAI-4 cleanup of stale `icn_bb_build` callers. As predicted by DAI-2's measurement (zero bombs across 265 rungs), these 3 call sites in `interp_eval.c` and the dangling extern in `sm_jit_interp.c` were stage-set dead code — the underlying `icn_bb_build` was already a `[DAI-BOMB]` stub, and mode-1 Icon never reached the TT_EVERY/TT_AUGOP-suspend-rhs branches (lowered to IR_EVERY / IR_AUGOP). Net 33 lines deleted; 10 inserted for the guard+bomb fingerprints. ir-run 194/265 unchanged; smoke matrix unchanged. Surface area for DAI-5 is wider than originally scoped — at least three additional consumer files (`pl_runtime.c`, `raku_builtins.c`, `interp_eval.c`'s `bb_eval_value` ternaries at lines 136-163) carry `bb_eval_value(tree_t*)` calls that DAI-5 file-deletion will force-resolve.
 
