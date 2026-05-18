@@ -420,7 +420,7 @@ for this goal — it lives elsewhere (or as a follow-on goal).
   if it references the file (it does not currently load `raku_stubs.sc`, only
   `${LANG}_helpers.sc` — so likely a no-op). Gates: smoke_raku, smoke_icon,
   scrip_all_modes, crosscheck_snobol4, crosscheck_raku — all hold at floor.
-- [ ] **PRF-S7-6** — Update Done criterion below + State block + PLAN.md row.
+- [x] **PRF-S7-6** — Update Done criterion below + State block + PLAN.md row.
   (partially done this session — state block updated, PLAN.md next)
   Commit and push all three repos.
 
@@ -464,7 +464,7 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-18 (PRF-S7 complete: raku_stubs.sc deleted, zero tree-building functions)
+watermark: 2026-05-18 (GOAL COMPLETE: parser_raku.sc has zero functions — pure shift/reduce)
 next: Step 7 — delete raku_stubs.sc; inline each stub as shift/shift_val/assign at use sites in parser_raku.sc. PRF-12 / Phase B / convergence with raku.y is OUT OF SCOPE for this goal (lives elsewhere).
 session 2026-05-18 (Opus 4.7) — GOAL CONVERGENCE CLARIFIED by Lon:
   The C parser (raku.y → raku.tab.c → tree_t) and the SCRIP parser
