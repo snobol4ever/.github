@@ -370,6 +370,61 @@ in PRF-12 has been moved to lower. **Status: in queue, multi-session.**
 
 ---
 
+## Step 7 — Eliminate raku_stubs.sc (only remaining step in this goal)
+
+**Binding scope (2026-05-18, Lon):** the only remaining work in this goal is to delete
+`corpus/SCRIP/raku_stubs.sc` entirely and replace every stub's functionality with inline
+`shift` / `reduce` / `assign` (and any other built-in runtime primitive) directly in
+`parser_raku.sc`. PRF-12 / Phase B / semantic convergence with raku.y is **out of scope**
+for this goal — it lives elsewhere (or as a follow-on goal).
+
+**Technique catalogue:**
+
+- Leaf pusher `Push(tree('TT_VAR', capvf capvr))` → inline as
+  `(epsilon . *Shift('TT_VAR', capvf capvr))` or whatever the SCRIP `shift_val`/`shift`
+  primitive form requires. Prior precedent: `Push_ilit(n)` was already replaced by
+  `shift_val(n, 'TT_ILIT')` (see PST-RAKU-sidecar-elim 78c1b4a). `Store_for_iter` was
+  replaced by `shift_val(capff capfr, 'TT_VAR')` in the same commit.
+- Constant-name pusher like `push_fn_say_fh` that pushes `tree('TT_VAR', 'raku_say_fh')`
+  → inline at every use site as `shift_val('raku_say_fh', 'TT_VAR')` (or the equivalent
+  literal-string form the SCRIP runtime supports).
+- Flag setter like `set_stdin` (sets `capidx = 0`) → inline via the assign primitive:
+  `(epsilon . *assign(.capidx, 0))` (already a well-used pattern elsewhere in the
+  parsers — see parser_snocone.sc `*assign(.captured_call_name, token)`).
+- Composite stubs like `emit_to_sub_list` and `push_stmt_subj` build STMT(:subj(nd))
+  envelopes — these are tree-of-trees construction. They cannot become a single
+  `shift`/`reduce`/`assign`. **If they cannot be inlined as pure shift/reduce, they
+  must move to lower** (this is the small Phase-B residue that overlaps with PRF-12
+  step 7 = program, but only for these two helpers).
+- `push_interp_leaves` walks a captured DQ string and pushes one TT_VAR/TT_QLIT leaf
+  per interpolation chunk. Each push is leaf-only. The walk itself is pure string
+  scanning; if SCRIP has no inline grammar form for "ARBNO over a captured string",
+  this stays as a pure pre-pass string transformer (analogous to `dq_unescape`) and
+  is permitted under the principle.
+
+**Acceptance:**
+
+- [ ] **PRF-S7-1** — Catalogue every stub in `raku_stubs.sc` and classify each as
+  (a) inline-able via `shift`/`shift_val`/`assign`, (b) move to lower (composite tree
+  builders), or (c) pure string pre-pass (keep, but move into parser_raku.sc since
+  it's PST-clean per the principle).
+- [ ] **PRF-S7-2** — Apply (a) class: rewrite every `Push_*` pattern-action site in
+  parser_raku.sc to inline `shift_val(...)` / `assign(...)`. Delete the stub from
+  raku_stubs.sc as each is replaced. Commit small, gate after each batch.
+- [ ] **PRF-S7-3** — Resolve (b) class (emit_to_sub_list, push_stmt_subj): either
+  move to lower (Phase B residue) or leave as PST-allowed construction helpers in
+  raku_stubs.sc with explicit rationale comment. Lon decision required.
+- [ ] **PRF-S7-4** — Move (c) class (push_interp_leaves, any other pre-pass) into
+  parser_raku.sc next to dq_unescape (the precedent permitted function there).
+- [ ] **PRF-S7-5** — `rm corpus/SCRIP/raku_stubs.sc`. Update `run_scrip_parser.sh`
+  if it references the file (it does not currently load `raku_stubs.sc`, only
+  `${LANG}_helpers.sc` — so likely a no-op). Gates: smoke_raku, smoke_icon,
+  scrip_all_modes, crosscheck_snobol4, crosscheck_raku — all hold at floor.
+- [ ] **PRF-S7-6** — Update Done criterion below + State block + PLAN.md row.
+  Commit and push all three repos.
+
+---
+
 ## Done criterion for this goal
 
 1. PST-ICN-2a/2b checked [x].
@@ -392,7 +447,13 @@ in PRF-12 has been moved to lower. **Status: in queue, multi-session.**
        moved inline into parser_raku.sc. Finish_* uppercase aliases replaced
        with (epsilon . *finish_*()); Push_ilit(n) → shift_val(n,'TT_ILIT');
        Store_for_iter → shift_val(capff capfr,'TT_VAR').
-   **Icon function count: 0/0. Raku function count: 0/0. Both sidecars deleted.** ✅
+     - `raku_stubs.sc` — **NOT YET DELETED** (only remaining work in this goal —
+       see Step 7 above). Contains ~90 leaf-only push stubs and a few utility
+       nodes. Done criterion for this goal now requires this file to be
+       eliminated by inlining each stub as `shift` / `shift_val` / `assign` at
+       its use site in parser_raku.sc.
+   **Icon function count: 0/0 (sidecar deleted). Raku function count: 1/1+stubs
+   (raku_stubs.sc still present; deletion is the only remaining work).**
 8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
@@ -402,8 +463,8 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-18 (PRF-12 step 1 plan validated; goal convergence clarified)
-next: PRF-12 step 1 (gather) — execute the validated plan recorded below
+watermark: 2026-05-18 (Step 7 scoped: eliminate raku_stubs.sc — only remaining work)
+next: Step 7 — delete raku_stubs.sc; inline each stub as shift/shift_val/assign at use sites in parser_raku.sc. PRF-12 / Phase B / convergence with raku.y is OUT OF SCOPE for this goal (lives elsewhere).
 session 2026-05-18 (Opus 4.7) — GOAL CONVERGENCE CLARIFIED by Lon:
   The C parser (raku.y → raku.tab.c → tree_t) and the SCRIP parser
   (parser_raku.sc + raku_stubs.sc → tree_t via TDump) must produce
