@@ -593,6 +593,31 @@ sections; the language spec itself lives in ARCH-SNOCONE.md.
 Run the gate for your goal before committing. Do not commit broken builds.
 The gate is defined in the Goal file or REPO file.
 
+### Parallel-gating idiom (Lon directive, 2026-05-17j)
+
+Multiple independent gate scripts can run in parallel — they share the
+`scrip` binary and read disjoint corpus subtrees, so there's no
+contention. The full smoke matrix (icon, prolog, raku, rebus, snocone,
+snobol4, unified_broker, crosscheck_prolog) plus `test_icon_all_rungs.sh`
+runs in roughly the wall-clock time of the slowest single gate (~icon
+rung ladder, 60–90s) instead of the sum. Pattern:
+
+```bash
+cd /home/claude/one4all
+( cd /home/claude/one4all && bash scripts/test_smoke_icon.sh > /tmp/g1.out 2>&1 ) &
+( cd /home/claude/one4all && bash scripts/test_smoke_prolog.sh > /tmp/g2.out 2>&1 ) &
+# ... etc, one '&' per gate ...
+wait
+for i in /tmp/g*.out; do echo "=== $i ==="; tail -1 "$i"; done
+```
+
+Each subshell needs its own `cd` — `&`-detached jobs don't reliably
+inherit a `cd` from a chained `&&` in the parent shell. Use absolute
+paths or repeat the `cd` inside each subshell.
+
+Do NOT parallelize the flaky gate (see below) — measure that one
+serially with 3-5 runs.
+
 ---
 
 ## Flaky gates — measure by median, not single runs
