@@ -299,7 +299,7 @@ The order is **callers first, leaves last** — never delete a definition while 
 
   ### Sub-rungs (each its own commit, RULES "Three-construct sessions" applies)
 
-  - [ ] **IJ-HELLO-1 — `test_smoke_compile_hello_all_langs.sh`** added and committed first, asserting the baseline (3 PASS / 3 FAIL: snobol4, snocone, rebus pass; icon, prolog (brokered), raku fail). The brokered check on prolog flips its row from PASS to FAIL. This sub-rung doesn't fix anything — it makes the failure surface auditable and observable in CI before any change. Provides the regression floor for the rest of the step.
+  - [x] **IJ-HELLO-1 — `test_smoke_compile_hello_all_langs.sh`** added and committed first, asserting the baseline (3 PASS / 3 FAIL: snobol4, snocone, rebus pass; icon, prolog (brokered), raku fail). The brokered check on prolog flips its row from PASS to FAIL. This sub-rung doesn't fix anything — it makes the failure surface auditable and observable in CI before any change. Provides the regression floor for the rest of the step. **✅ 2026-05-18 (Opus 4.7).** Gate landed; observed baseline at `a4fe1c21` is `PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0` and exits 0. Observed failure fingerprints differ from this goal-file's pre-recorded baseline matrix; see **Baseline-discrepancy findings (IJ-HELLO-1)** below for the three rows that shifted shape and the implications for IJ-HELLO-2/3/4.
 
   - [ ] **IJ-HELLO-2 — Raku hello-world via mode 4.** Diagnose why `sub main() { say('hello world'); }` emits, assembles, links, and runs cleanly but prints nothing. Likely candidates: `say` builtin not registered in libscrip_rt's expression-table path; or Raku frontend's lower emits an SM opcode whose mode-4 codegen is stubbed. Confirm with `--dump-sm` + `nm` audit. Fix at the smallest place that turns this into the correct character sequence on stdout. Constraint: no `bb_broker` import in resulting binary.
 
@@ -499,24 +499,54 @@ deletions across `src/driver/interp_*.c`: 2 functions (not the expected
 several thousand LOC). The dead code is concentrated in the emitter
 helper layer, not the interp driver.
 
+## Baseline-discrepancy findings (IJ-HELLO-1, 2026-05-18 Opus 4.7)
+
+The IJ-HELLO-1 gate captures the actually-observed behavior at HEAD
+`a4fe1c21`.  Three rows shifted shape vs the pre-recorded matrix earlier
+in this file; the gate encodes the observed behavior (not the documented
+one) so the regression floor is honest.  Root causes audited so the
+follow-on sub-rungs know what they're actually fixing:
+
+| Lang | Documented baseline | Observed at `a4fe1c21` | Root cause |
+|------|---------------------|------------------------|------------|
+| Icon | `[NO-AST] SM_BB_PUMP_PROC stub` printed at compile time | Compiles + links clean; runtime trap **`unhandled SM opcode 61`** (= `SM_BB_PUMP_PROC`) from emitted binary | `g_sm_templates[]` in `src/emitter/emit_sm.c:563` routes `SM_BB_PUMP_PROC` to `rt_unhandled_sm` (template `SM_TPL_ARITH`). The `[NO-AST]` stub is the interpreter-side message; the asm-side equivalent is the `rt_unhandled_sm` trap fingerprint. Same root cause: no real mode-4 codegen for `SM_BB_PUMP_PROC`. IJ-HELLO-3's intent (inline wired Icon-main blob, no rt-helper) is unchanged. |
+| Prolog | runs `Hello, World!` via brokered `rt_bb_once_proc` | **Assemble fails**: `Error: no such instruction: 'push_expr ptr'` on `.s` line containing macro-call `PUSH_EXPR ptr` | `emit_sm_push_expr` (`emit_sm.c:328`) emits a `PUSH_EXPR` macro call, but **`SM_PUSH_EXPR` is missing from `g_sm_templates[]`** — only `SM_PUSH_EXPRESSION` is registered. `sm_macros.s` therefore never receives a `.macro PUSH_EXPR` body, and GAS rejects the call site. Triggered by the `:- initialization(main, main).` directive, which lowers to a frozen-expression `tree_t*` push. Bare `main :- write(...).` (no directive) assembles cleanly but the SM dispatcher reaches `SM_HALT` without invoking `main`, so it prints nothing — that's the second-order shape of the same bug. **Implication for IJ-HELLO-4:** the brokered-vs-wired conversion is blocked by an upstream macro-library bug.  Either (a) fix the missing macro first as a precondition, or (b) re-anchor the canonical Prolog hello to a form that doesn't need `SM_PUSH_EXPR` (which means changing how directives lower under `--compile`). |
+| Raku | "Runs but prints nothing" | Runs with **`** Error 5 in statement 0` / "Undefined function or operation"`** on stderr, rc=1 | `--dump-sm` shows the lowered stream: `SM_PUSH_VAR "write"` then `SM_CALL_FN "write" nargs=2`.  The Raku frontend lowers `say(...)` to a `write` *variable lookup* (then call), but `write` is not bound to a builtin descriptor in the Raku runtime's name-value table on entry. Mode 2 (`--interp`) hits this same path with no Error 5 because the SM dispatcher's `_usercall_hook` falls back to language-specific builtin tables for Raku; the mode-4 emit path (PLT-call to `rt_call`) goes through a different lookup that doesn't include the fallback. IJ-HELLO-2's "say builtin not registered in libscrip_rt's expression-table path" hypothesis matches this observation. |
+
+The gate's row labels are `PASS-wired / FAIL-compile / FAIL-link /
+FAIL-run / FAIL-wrong-out / FAIL-brokered`.  Each language's expected
+row is documented inline in the script and any drift (improvement or
+regression) trips `ROWS_DRIFT > 0` and the gate exits 1.  When
+IJ-HELLO-2/3/4 lands, the fix commit edits the row's expected bucket in
+the script alongside the runtime/emitter change in the same commit, so
+the gate and the goal advance together.
+
+## Completed steps (session 2026-05-18 Opus 4.7)
+
+| Step | Description | Commit |
+|------|-------------|--------|
+| IJ-HELLO-1 | `scripts/test_smoke_compile_hello_all_langs.sh` added.  Drives the canonical hello program in each of the six SCRIP-supported languages through `scrip --compile → gcc -no-pie -lscrip_rt → run → diff stdout`, plus an `nm` audit on each emitted binary for brokered imports (`bb_broker`/`rt_bb_once_proc`/`rt_bb_pump_proc`).  Six per-row buckets: `PASS-wired / FAIL-compile / FAIL-link / FAIL-run / FAIL-wrong-out / FAIL-brokered`.  Each row's expected bucket is locked to the observed `a4fe1c21` behavior; the gate fails loudly on either improvement or regression.  Observed baseline locked at `PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0` (snobol4/snocone/rebus PASS-wired; icon FAIL-run/SM_BB_PUMP_PROC; prolog FAIL-link/PUSH_EXPR macro; raku FAIL-run/Error 5).  Gate exits 0 at baseline.  Three baseline-discrepancy rows recorded in section above so IJ-HELLO-2/3/4 know exactly what's broken vs what the prior baseline assumed. | `cf568c35` |
+
 ## Watermark
 
 ```
-one4all: a4fe1c21 (DAI-8 cluster 1: emit_bb.c dead-fn sweep — 75 functions, −666 LOC)
+one4all: cf568c35 (IJ-HELLO-1: baseline-locking compile-hello-all-langs gate landed)
 corpus:  92e103f  (unchanged — no corpus edits this session)
-.github: this commit (DAI-8 cluster 1 landed; ledger + methodology + all-modes regression gate added)
+.github: this commit (IJ-HELLO-1 ✅; baseline-discrepancy findings recorded; IJ-HELLO-2/3/4 root causes audited)
+test_smoke_compile_hello_all_langs: PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0  (NEW gate)
 --interp:    194/265   (Icon rung ladder, unchanged from DAI-5c floor — mode 2)
-smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 only)
-smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 only)
-smoke_snobol4: 7/0                                       (mode 2 only)
-smoke_unified_broker: 22/27
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (unchanged — 3-mode but Prolog-only)
+smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 only — unchanged)
+smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 only — unchanged)
+smoke_snobol4: 7/0                                       (mode 2 only — unchanged)
+smoke_unified_broker: 22/27                              (unchanged)
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (NOT re-measured this session — IJ-HELLO-1 is gate-add only)
 DAI-BOMB fires: 0 (the stubs no longer exist)
 
 ⚠ Modes 3 (--run / in-memory JIT) and 4 (--compile / GAS asm text) NOT
   validated for cluster 1. Next session MUST run the full all-modes
   matrix (see "DAI-8 all-modes regression gate" section above) before
-  proceeding to cluster 2.
+  proceeding to cluster 2.  IJ-HELLO-5 will close this once the 6/6
+  matrix is green.
 Gate-suite wall-clock: ~90s parallel.
 ```
 
