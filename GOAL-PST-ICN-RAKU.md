@@ -402,8 +402,65 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-18 (PRF-8/9/10 landed; separation-of-concerns principle adopted)
-next: PRF-12 cleanup queue — start with gather (isolated), then sub, class, program, method-body, for-range
+watermark: 2026-05-18 (PRF-12 step 1 plan validated; goal convergence clarified)
+next: PRF-12 step 1 (gather) — execute the validated plan recorded below
+session 2026-05-18 (Opus 4.7) — GOAL CONVERGENCE CLARIFIED by Lon:
+  The C parser (raku.y → raku.tab.c → tree_t) and the SCRIP parser
+  (parser_raku.sc + raku_stubs.sc → tree_t via TDump) must produce
+  BYTE-IDENTICAL tree_t for the same source — one-to-one with language
+  constructs. The "shift/reduce only" form-rule on the SCRIP side and
+  the "no semantics in parser" rule on the C side are both means to the
+  same end: convergence. PRF-12 is exactly where the two sides diverge
+  from each other AND from source structure, so PRF-12 is the convergence
+  work, not optional polish.
+PRF-12 step 1 (gather) — validated plan, not committed (session ran out of context):
+  C-side:
+    1. ast.h: add TT_GATHER to enum + name table (last in list).
+    2. raku.y gather rule (line 472): replace 11-line semantic body
+       (name fountain + def/call TT_FNC + add_proc) with 4-line pure
+       transcription: ast_node_new(TT_GATHER); splice block body's
+       children in via expr_add_child. Verified compiles + holds gates.
+    3. Post-parse hoist pass in raku.y: raku_lower_hoist_gather_pass()
+       walks subjects of raku_prog_result, finds TT_GATHER, fountains
+       __gather_N, builds def TT_FNC (SUB_TAG_ID), COLLECTS def stmts
+       in source-encounter order, BULK-INSERTS at front of
+       raku_prog_result (single-prepend reverses multi-gather order —
+       use collect-then-bulk). Rewrites TT_GATHER node in place to
+       TT_FNC{c[0]=TT_VAR(gname)}. Call from raku_parse_string after
+       raku_yyparse().
+    4. Regenerate raku.tab.c: `bison -d -o raku.tab.c raku.y` from
+       src/frontend/raku/ (NO -p; api.prefix is already in the .y).
+       Pre-existing 28 shift/reduce warnings are not errors.
+  SCRIP mirror:
+    5. parser_raku.sc GatherBlock: replace with pure
+       `( $'{' nPush() ARBNO( *SubBlock_body ) $'}' reduce('TT_GATHER','nTop()') nPop() )`
+       Remove Set_gather_name, Push_gather_name_var, Emit_to_sub_list
+       from this rule. Remove `gather_seq = 0` initializer.
+    6. raku_stubs.sc: remove set_gather_name, push_gather_name_var,
+       cap_gather_name. Add gather_hoist_pass(ptree) + helpers using
+       tree.sc API: t(g)='TT_FNC'; v(g)=gname; n(g)=0; c(g)=NULL;
+       Append(g, tree('TT_VAR',gname)). Build def via Tree() / Append,
+       wrap in STMT(:subj(def)), Insert at front of sub_list snapshot.
+    7. parser_raku.sc driver tail: invoke gather_hoist_pass(ptree)
+       right after `ptree = Pop()` and before sub_rev/dump walks.
+  Gotchas to handle:
+    - run_scrip_parser.sh loads ${LANG}_helpers.sc but NOT raku_stubs.sc.
+      Either rename raku_stubs.sc → raku_helpers.sc (history says this
+      file was previously deleted by PST-RAKU-sidecar-elim 78c1b4a;
+      reviving the name is fine since PRF-12 changes the contents),
+      or update run_scrip_parser.sh to also load raku_stubs.sc.
+    - gather_take_var.ref shows `(TT_FNC __gather_0 ...)` with bare name,
+      but C-side --dump-ast (pre-existing) emits `(TT_FNC (TT_VAR __gather_0) ...)`
+      with v.sval="". Pre-existing divergence between .ref author and
+      current ir_dump_program. Convergence work needs to first decide
+      canonical side, then regenerate .ref files. Likely C-side wins
+      since gates measure against it.
+  Validated this session: steps 1-2 of C-side compiled cleanly, steps 3-7
+  applied cleanly to working tree, all five gates held at floor exactly
+  (smoke_raku 5/0, smoke_icon 5/0, scrip_all_modes 2/0, crosscheck_snobol4 5/1
+  pre-existing, crosscheck_raku 21/12 unchanged). REVERTED for clean handoff
+  because session was at 88% context window and Lon clarified mid-session;
+  next session should redo from clean tree with full attention.
 functions remaining in parser_raku.sc: 1
   dq_unescape  — PST-clean pre-pass string processor (no tree ops, no Push, no Append) — leave
 PRF-10 (push_interp_str) ✅ 2026-05-18 (Claude Opus 4.7): Eliminated. New leaf-only
