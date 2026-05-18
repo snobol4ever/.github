@@ -48,6 +48,12 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
 bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh
 ```
 
+## ⛔ SCRIP mirror work — Prolog orientation
+
+**C side must be clean before `parser_prolog.sc` mirror work.** PST-PL-6f (delete all `Term*`-returning paths from `prolog_parse.c`) must be complete first. Until then the C frontend's output is `Term*`, which has no direct representation as pure `tree_t` shift/reduce in the SCRIP mirror.
+
+**When starting `parser_prolog.sc` mirror work:** Read `SNOBOL4-SNOCONE-PRIMER.md` in full. Learn Snocone expression syntax from the SPITBOL manual and control-flow syntax from `corpus/SCRIP/parser_snocone.sc`. The goal is pure `shift`/`reduce` — no `Push`, `Pop`, `Append`, `Tree`, or helper functions that inspect children. Variable slot assignment must NOT appear in `parser_prolog.sc`; slot allocation is a lower-time concern (handled by the C `prolog_lower.c` pre-lower pass from PST-PL-6e).
+
 ---
 
 ## Term → tree_t mapping (verified in 6a)

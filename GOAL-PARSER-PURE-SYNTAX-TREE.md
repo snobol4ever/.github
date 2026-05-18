@@ -136,6 +136,8 @@ On completion, update Step 2 and Step 3 checkboxes in the Frontend status table 
 
 Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green. **SCRIP mirror:** every rung in this step touches both `src/frontend/snocone/snocone_parse.y` / `src/lower/lower.c` AND `corpus/SCRIP/parser_snocone.sc` / `corpus/SCRIP/lower.sc` in the same commit. The post-parse `tree_t` produced by both parsers must match for the snocone smoke corpus at the end of each rung.
 
+**⛔ SCRIP mirror session requirement for 4k–4n:** When writing `parser_snocone.sc` mirror changes, read `SNOBOL4-SNOCONE-PRIMER.md` in full first. Learn exact Snocone expression semantics and syntax from the SPITBOL manual (`pdftotext -layout spitbol-manual-v3_7.pdf /tmp/spitbol.txt`; use the nav map in `GOAL-PST-REBUS.md`). Learn exact Snocone statement and control-flow syntax from `corpus/SCRIP/parser_snocone.sc` itself. The endpoint for `parser_snocone.sc` is: every grammar production expressed as `shift`/`shift_val` leaf pushes plus one `reduce(TT_KIND, n)` call — no helper functions that build trees, no `Push`/`Pop`/`Append`/`Tree` inside function bodies. The counter discipline (`nPush`/`nInc`/`nTop`/`nPop`) in grammar rules for variable-arity reduces is permitted. Pure string preprocessors (no tree ops) are permitted.
+
 - [x] **PST-SC-4a** ✅ (2026-05-16, one4all `3c09f91d`, corpus `67eaa51`) — Parser emits `TT_AUGOP(lhs, rhs)` with `v.ival = TK_AUG*`; `lower_augop` already handled it. `sc_clone_expr_simple` deleted. SCRIP mirror: `reduce_augmented` → `reduce_augop(op)`, `TK_AUGPOW=1007` added to `lower.sc` and `parser_snocone.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, smoke_scrip_all_modes PASS=2/0.
 - [x] **PST-SC-4b** ✅ (2026-05-16, one4all `4aa8727b`, corpus `a939309`) — Parser emits `TT_IF(cond, TT_PROGRAM(then_stmts), TT_PROGRAM(else_stmts))` as a single `TT_STMT(:subj TT_IF(...))`. `IfHead`/`sc_if_head_new`/`sc_finalize_if_no_else`/`sc_finalize_if_else` deleted. `sc_collect_body()` extracts CODE_t stmt range into `TT_PROGRAM` subtree. `if_before_body` snapshot field added to `ScParseState`. ALT/SEQ always-wrap-binary fixes bundled (Snocone equivalent of PST-SN4-1d). `lower.c`: `case TT_PROGRAM` added to `lower_expr_inner`. SCRIP mirror: `finalize_if`/`finalize_if_else` rewritten; `lower_program_block` added to `lower.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, scrip_all_modes PASS=2/0 — baseline-identical.
 - [x] **PST-SC-4c** ✅ (2026-05-16, one4all `e95a5c2e`, corpus `a8e957b`) — `TT_WHILE(cond, TT_PROGRAM(body), QLIT(cont), QLIT(end))`. `WhileHead`/`sc_while_head_new`/`sc_finalize_while` deleted. `while_before_body` snapshot. `lower_while_until` TT_PROGRAM-aware (break-safe, labtab_define). `lower_if_stmt` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
@@ -370,6 +372,28 @@ For Step 4 (Snocone) and Step 7 (invariants):
 ```bash
 bash /home/claude/one4all/scripts/build_snocone_smoke.sh
 ```
+
+## ⛔ SCRIP mirror work — mandatory orientation for every session touching parser_*.sc
+
+**C side must be clean first.** Do not attempt SCRIP mirror work for a language until its C parser is left-to-right child-order clean and produces only `tree_t`. Status per language (update this table as rungs complete):
+
+| Language | C parser L-to-R ready? | SCRIP mirror ready to start? |
+|---|---|---|
+| Icon | ✅ yes (PST-ICN-4b) | ✅ yes |
+| SNOBOL4 | ✅ yes (PST-SN4-1d) | ✅ yes |
+| Raku | ⏳ PRF-12 C side pending | no — wait for PRF-12 |
+| Snocone | ⏳ PST-SC-4k→4n pending | no — wait for 4n |
+| Rebus | ⏳ always-wrap stmt list pending | no — wait for RB-C-1 |
+| Prolog | ⏳ PST-PL-6f pending | no — wait for 6f |
+
+**When starting SCRIP mirror work for any language, orient as follows:**
+
+To code as an expert in Snocone, you must learn the language from two sources before writing a single line:
+1. Learn exact Snocone expression semantics and syntax from the SPITBOL manual (`spitbol-manual-v3_7.pdf`). Extract with `pdftotext -layout spitbol-manual-v3_7.pdf /tmp/spitbol.txt` and read chapters on pattern matching, operator precedence, `$`/`.`/`*` operators, FENCE/ARBNO/BREAK. Use the navigation map in `GOAL-PST-REBUS.md ## SPITBOL manual navigation cheatsheet`.
+2. Learn exact Snocone statement and control-flow syntax from `corpus/SCRIP/parser_snocone.sc` — it is the authoritative Snocone grammar definition.
+3. Read `SNOBOL4-SNOCONE-PRIMER.md` in full — every failure mode listed there has already cost sessions. Do not repeat them.
+
+**The goal for every parser_*.sc:** Replace all tree-building functions with pure `shift` and `reduce` calls only — no `Push`, `Pop`, `Append`, `Tree`, `nPush/nPop/nInc/nTop` inside function bodies, no helper functions that inspect previously-built children. Every grammar production becomes: zero or more `shift`/`shift_val` calls for leaf tokens, one `reduce(TT_KIND, n)` call. The `nPush`/`nInc`/`nTop`/`nPop` counter discipline for variable-arity reduces is permitted in grammar rules (not inside functions). `dq_unescape` and similar pure string preprocessors with no tree operations are permitted.
 
 ---
 

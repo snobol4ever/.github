@@ -105,7 +105,27 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 
 ---
 
+## ⛔ SCRIP mirror work — Rebus orientation
+
+**C side must be clean before parser_rebus.sc mirror work.** The outstanding C violation is the in-place stmt_list append in `rebus.y` (see RB-C-1 below). Complete that rung first.
+
+**When starting parser_rebus.sc mirror work:** Read `SNOBOL4-SNOCONE-PRIMER.md` in full. Learn Snocone expression syntax from the SPITBOL manual and control-flow syntax from `corpus/SCRIP/parser_snocone.sc`. The goal is to replace every tree-building function in `parser_rebus.sc` with pure `shift`/`reduce` calls only — no `Push`, `Pop`, `Append`, `Tree`, or helper functions that inspect children. Every grammar production: leaf tokens → `shift`/`shift_val`, then one `reduce(TT_KIND, n)`. Counter discipline (`nPush`/`nInc`/`nTop`/`nPop`) is permitted in grammar rules for variable-arity reduces.
+
+---
+
 ## Active rungs
+
+- [ ] **RB-C-1 — Fix `stmt_list_ne` in-place append in `rebus.y` (C-side L-to-R prerequisite).**
+  `stmt_list_ne` currently mutates `$1` in place: the `stmt_list_ne compound_stmt` arm strips children from `$2` and appends them to `$1` via `expr_add_child($1, $2->c[i])` — a direct violation of the left-to-right always-wrap invariant.
+  Fix: change both `stmt_list_ne` arms to always-wrap — every reduction produces a fresh `TT_PROGRAM` node wrapping the previous list and the new statement:
+  ```c
+  stmt_list_ne stmt ';'        { tree_t*p=ast_node_new(TT_PROGRAM); expr_add_child(p,$1); expr_add_child(p,$2); $$=p; }
+  stmt_list_ne compound_stmt   { tree_t*p=ast_node_new(TT_PROGRAM); expr_add_child(p,$1); expr_add_child(p,$2); $$=p; }
+  ```
+  Produces a right-leaning chain; re-flattening is a lower concern.
+  Also verify `RDecl` fully replaced by `tree_t` (PST-RB-5b claim — confirm no `RDecl*` remains as parser output).
+  SCRIP mirror: `parser_rebus.sc` stmt list rules must mirror the always-wrap form in the same commit.
+  Gates: `test_smoke_rebus.sh` 4/0, `test_smoke_scrip_all_modes.sh` 2/0, `test_crosscheck_snobol4.sh` 4/2.
 
 - [~] **PST-RB-PRE-BEAUTY — Fix beauty.sno self-host blockers (Milestone 1 unblock).**
   Lon directive 2026-05-17: "If beauty.sno demo does not work first, then you are wasting your time probably. Check it first and get it running first."

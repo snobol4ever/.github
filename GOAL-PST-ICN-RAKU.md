@@ -97,6 +97,19 @@ bash /home/claude/one4all/scripts/test_smoke_scrip_all_modes.sh
 bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guard
 ```
 
+## ⛔ SCRIP mirror work — Raku orientation
+
+**C side must be clean before parser_raku.sc mirror work proceeds beyond Phase A.** `parser_raku.sc` Phase A (zero function bodies with tree ops) is complete. Phase B (PRF-12: `add_proc`/`SUB_TAG_ID` hoisting, gather, class renaming → lower) requires the C side to move those semantics to `lower.c` first. Do not write Phase B SCRIP changes until the matching C rung is committed.
+
+**PRF-12 C-side sequencing** — each bullet below is one C rung that must precede its SCRIP mirror:
+1. **Gather** → add `TT_GATHER` to `ast.h`; write `lower_gather` in `lower.c`; rewrite `KW_GATHER` rule in `raku.y` to emit pure `TT_GATHER[stmts...]`. Then mirror in `parser_raku.sc`.
+2. **Sub decl** → add `TT_SUB_DECL` to `ast.h`; write `lower_sub_decl`; rewrite `sub_decl` rule in `raku.y` to emit `TT_SUB_DECL[name, params, block]`; delete `add_proc`/`SUB_TAG_ID` from sub path. Then mirror.
+3. **Class decl** → add `TT_CLASS_DECL`; write `lower_class_decl`; rewrite `class_decl` rule; delete `raku_meth_register`/method rename from parser. Then mirror.
+4. **Program/Compiland** → rewrite program rule to emit `TT_PROGRAM[stmts...]` flat; delete `sub_list` slink, `STMT(:subj(...))` envelopes, dual-queue logic. Then mirror.
+5. **For-range desugar** → rewrite `for_stmt` to emit `TT_FOR[var, iter, body]`; move range-to-index desugar to `lower.c`. Then mirror.
+
+**When starting parser_raku.sc mirror work:** Read `SNOBOL4-SNOCONE-PRIMER.md` in full. Learn Snocone expression syntax from the SPITBOL manual and control-flow syntax from `corpus/SCRIP/parser_snocone.sc`. The goal is pure `shift`/`reduce` — no `Push`, `Pop`, `Append`, `Tree`, or helper functions that inspect children. `dq_unescape` (pure string processor) is the only permitted helper.
+
 ---
 
 ## Step 2 — Icon audit
