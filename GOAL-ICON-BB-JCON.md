@@ -302,6 +302,8 @@ The order is **callers first, leaves last** — never delete a definition while 
   - [x] **IJ-HELLO-1 — `test_smoke_compile_hello_all_langs.sh`** added and committed first, asserting the baseline (3 PASS / 3 FAIL: snobol4, snocone, rebus pass; icon, prolog (brokered), raku fail). The brokered check on prolog flips its row from PASS to FAIL. This sub-rung doesn't fix anything — it makes the failure surface auditable and observable in CI before any change. Provides the regression floor for the rest of the step. **✅ 2026-05-18 (Opus 4.7).** Gate landed; observed baseline at `a4fe1c21` is `PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0` and exits 0. Observed failure fingerprints differ from this goal-file's pre-recorded baseline matrix; see **Baseline-discrepancy findings (IJ-HELLO-1)** below for the three rows that shifted shape and the implications for IJ-HELLO-2/3/4.
 
   - [ ] **IJ-HELLO-2 — Raku hello-world via mode 4.** Diagnose why `sub main() { say('hello world'); }` emits, assembles, links, and runs cleanly but prints nothing. Likely candidates: `say` builtin not registered in libscrip_rt's expression-table path; or Raku frontend's lower emits an SM opcode whose mode-4 codegen is stubbed. Confirm with `--dump-sm` + `nm` audit. Fix at the smallest place that turns this into the correct character sequence on stdout. Constraint: no `bb_broker` import in resulting binary.
+    - **2a (Bug 1: write-lookup fallback) ✅ 2026-05-18 (Opus 4.7).** `rt_call` in `src/runtime/rt/rt.c` now mirrors `sm_interp.c`'s SM_CALL_FN fallback ladder: chains `icn_try_call_builtin_by_name` (Icon-builtin table that handles `write`, `writes`, `integer`, `image`, list ops, etc.) before falling to `INVOKE_fn`. The Raku frontend lowers `say(x)` to `SM_CALL_FN "write"`; modes 2/3 hit `icn_try_call_builtin_by_name` via the SM_CALL_FN handler; mode 4's PLT-call to `rt_call` was skipping it. `Hello, World!` now reaches stdout under `--compile`. one4all `996f03e0`. **Side-effect free for non-Icon names** (`icn_try_*` returns 0 on miss without writing `*out`); SNOBOL4/Snocone/Rebus PASS-wired rows held; smoke ×6 unchanged; crosscheck snobol4 5/1, icon 4/0, raku 21/12, rebus 4/0, snocone 8/0 — all at baseline.
+    - [ ] **2b (Bug 2: proc-def wrapper trailing CALL_FN).** Raku top-level `sub main() {...}` arrives at `lower_stmt` as `TT_STMT{:subj=TT_FNC{ival=nparams, c[0]=TT_VAR(name), c[1..nparams]=params, c[nparams+1..]=body}}`. **The wrapper FN's parent `sval` is NULL** because `tree_t.v` is a union: case-57 in `raku.tab.c:2006` sets `e->v.ival = nparams` *after* `leaf_sval` had set `e->v.sval`, zeroing the latter. The name marker lives in `c[0]` only. So the pattern is structurally indistinguishable from a regular expression-context call (`write(x)` has the same shape). Path forward (B): preserve `_id == SUB_TAG_ID` through `add_proc` — currently cleared at `raku.tab.c:1614` `e->_id = 0;` (mirror in raku.y:201). Audit shows `_id` post-parse is consumed ONLY by Icon-specific paths (`polyglot.c:121` reads `proc->_id` solely under `s_lang == LANG_ICN`; `interp_eval.c:122 et al` are mode-1/Icon paths). Then `lower_stmt`'s LANG_RAKU branch checks `subject->_id == SUB_TAG_ID` and lowers body children (`c[nparams+1..]`) directly via `lower_expr` + `SM_VOID_POP`, skipping the wrapping CALL_FN emit. The synthetic-main wrapper from `raku.tab.c:1620-1626` (when there are loose top-level stmts without a user `sub main`) currently does NOT set SUB_TAG_ID — it would need the same tag set on `mf` for symmetry, since the same `lower_fnc`-as-call hazard applies. Define `SUB_TAG_ID` in `frontend/raku/raku_driver.h` (visible to both raku.tab.c and lower.c) or use a documented magic int. After fix, edit `test_smoke_compile_hello_all_langs.sh:182` to expect `PASS-wired` for raku and update `HW_EXPECTED_PASS=4 HW_EXPECTED_FAIL=2` in the same commit.
 
   - [ ] **IJ-HELLO-3 — Icon hello-world via mode 4, wired.** This is the architectural workhorse. Today the trivial `procedure main(); write("hello icon"); end` lowers to two SM opcodes: `SM_BB_PUMP_PROC "main"` + `SM_HALT`. The `--bb=wired` mandate plus `bb_broker` forbidden means the emitter must inline the Icon main proc's flat blob into the `.s` file (no `rt_bb_pump_proc(name)` callback), then `jmp .Licn_main_blob` from main's prologue. Implementation breakdown (further-divisible if it sprawls):
     - **3a:** new emitter helper `emit_icn_proc_flat_blob(out, proc_idx, ir_body)` — walks `IR_block_t *`, emits inline x86 for each `IR_t` node (initial scope: `IR_VAR`, `IR_LIT_S`, `IR_CALL` with builtin-name dispatch, `IR_SEQ`). Hello-world specifically needs `IR_CALL "write" (IR_LIT_S "hello icon")` — three nodes.
@@ -526,20 +528,22 @@ the gate and the goal advance together.
 | Step | Description | Commit |
 |------|-------------|--------|
 | IJ-HELLO-1 | `scripts/test_smoke_compile_hello_all_langs.sh` added.  Drives the canonical hello program in each of the six SCRIP-supported languages through `scrip --compile → gcc -no-pie -lscrip_rt → run → diff stdout`, plus an `nm` audit on each emitted binary for brokered imports (`bb_broker`/`rt_bb_once_proc`/`rt_bb_pump_proc`).  Six per-row buckets: `PASS-wired / FAIL-compile / FAIL-link / FAIL-run / FAIL-wrong-out / FAIL-brokered`.  Each row's expected bucket is locked to the observed `a4fe1c21` behavior; the gate fails loudly on either improvement or regression.  Observed baseline locked at `PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0` (snobol4/snocone/rebus PASS-wired; icon FAIL-run/SM_BB_PUMP_PROC; prolog FAIL-link/PUSH_EXPR macro; raku FAIL-run/Error 5).  Gate exits 0 at baseline.  Three baseline-discrepancy rows recorded in section above so IJ-HELLO-2/3/4 know exactly what's broken vs what the prior baseline assumed. | `cf568c35` |
+| IJ-HELLO-2a | `rt_call` in `src/runtime/rt/rt.c` now chains `icn_try_call_builtin_by_name` (Icon-builtin fallback table) before `INVOKE_fn`, mirroring `sm_interp.c`'s SM_CALL_FN handler.  Raku's `say(x)` lowers to `SM_PUSH_VAR "write"` + `SM_CALL_FN "write" nargs=2`; modes 2/3 found `write` via this fallback; mode 4 was reaching `INVOKE_fn` directly and tripping "Error 5 Undefined function".  Direct verification: stdout of compiled `sub main(){say('Hello, World!');}` now contains the expected string (rc=1 still due to Bug 2, see IJ-HELLO-2b).  +26 LOC single file.  Baseline regression check: snobol4/snocone/rebus PASS-wired rows held, smoke ×6 unchanged (snobol4 7/0, snocone 5/0, icon 5/0, prolog 5/0, raku 5/0, rebus 4/0), crosscheck snobol4 5/1, icon 4/0, raku 21/12, rebus 4/0, snocone 8/0 — all at baseline.  Gate row for raku still FAIL-run because rc=1 from Bug 2 (trailing CALL_FN "main" on the proc-def wrapper TT_FNC).  IJ-HELLO-2b carries forward to next session for the full row flip. | `996f03e0` |
 
 ## Watermark
 
 ```
-one4all: cf568c35 (IJ-HELLO-1: baseline-locking compile-hello-all-langs gate landed)
-corpus:  92e103f  (unchanged — no corpus edits this session)
-.github: this commit (IJ-HELLO-1 ✅; baseline-discrepancy findings recorded; IJ-HELLO-2/3/4 root causes audited)
-test_smoke_compile_hello_all_langs: PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0  (NEW gate)
+one4all: 996f03e0 (IJ-HELLO-2a: rt_call icn-builtin fallback ladder)
+         cf568c35      (IJ-HELLO-1: baseline-locking compile-hello-all-langs gate)
+corpus:  92e103f       (unchanged — no corpus edits this session)
+.github: this commit   (IJ-HELLO-2a ✅; IJ-HELLO-2b carry-forward documented)
+test_smoke_compile_hello_all_langs: PASS=3 FAIL=3 ROWS_MATCH=6 ROWS_DRIFT=0  (held at baseline)
 --interp:    194/265   (Icon rung ladder, unchanged from DAI-5c floor — mode 2)
 smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 only — unchanged)
 smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 only — unchanged)
 smoke_snobol4: 7/0                                       (mode 2 only — unchanged)
-smoke_unified_broker: 22/27                              (unchanged)
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (NOT re-measured this session — IJ-HELLO-1 is gate-add only)
+crosscheck_snobol4: 5/1   crosscheck_icon: 4/0   crosscheck_raku: 21/12   (held at baseline)
+crosscheck_rebus:   4/0   crosscheck_snocone: 8/0                         (held at baseline)
 DAI-BOMB fires: 0 (the stubs no longer exist)
 
 ⚠ Modes 3 (--run / in-memory JIT) and 4 (--compile / GAS asm text) NOT
@@ -547,6 +551,17 @@ DAI-BOMB fires: 0 (the stubs no longer exist)
   matrix (see "DAI-8 all-modes regression gate" section above) before
   proceeding to cluster 2.  IJ-HELLO-5 will close this once the 6/6
   matrix is green.
+
+⚠ IJ-HELLO-2 is PARTIAL.  Bug 1 (icn-builtin fallback) fixed; Bug 2
+  (Raku proc-def TT_FNC wrapper emits trailing SM_CALL_FN to its own
+  name with no registered target in mode-4 runtime) is diagnosed and
+  documented under IJ-HELLO-2b above.  Path (B) — preserve _id=SUB_TAG_ID
+  through add_proc, match in lower_stmt's LANG_RAKU branch — is the
+  recommended next-session approach.  Discriminator-by-AST-shape was
+  attempted and rejected: the wrapper FN's parent v.sval is always NULL
+  (union-overwrite when v.ival is set), so its shape is structurally
+  identical to a regular call-expression TT_FNC.  A tag is required.
+
 Gate-suite wall-clock: ~90s parallel.
 ```
 
