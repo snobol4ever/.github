@@ -290,3 +290,11 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 **Hangs (pre-existing, not regressions):** All four of snobol4/snocone/rebus/icon hang on complex multi-statement fixtures — ARBNO infinite loop in pattern matching. Next session: diagnose hang root cause.
 
 **Gates held:** crosscheck_snocone PASS=8/0, crosscheck_snobol4 PASS=5 FAIL=1 (beauty_omega pre-existing), test_smoke_snocone PASS=5/0.
+
+## Post-session check 2026-05-18
+
+**Hang check:** Zero hangs. All six exit rc=0 within timeout.
+
+**Tree output check:** None of the six produce tree output under `scrip --interp` directly — all return "Parse Error" or empty. This is **pre-existing** (confirmed by testing before our commit). The `scrip --interp` + `parser_*.sc` path has never produced tree output in this session; the SPITBOL transpile path (PASS=29 for snocone) remains the working oracle path.
+
+**Next session goal:** Diagnose why `scrip --interp` + `parser_snocone.sc` produces "Parse Error" on `x = 1 + 2;` — a fixture that passes cleanly under SPITBOL. Likely cause: BB pattern matching behaves differently from SPITBOL for some construct in the snocone grammar (ARBNO, FENCE, deferred-var interactions). Start with snocone since it has the fixture baseline (PASS=29 under SPITBOL).
