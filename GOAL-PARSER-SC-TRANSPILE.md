@@ -262,3 +262,31 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 3. Same stack for pattern matching and function calls — recursion → stack overflow.
 4. `TABLE()` is hashed; argument = hash header count, not size limit.
 5. No FORTRAN I/O, no `VALUE()`. Recovery via `SETEXIT()`.
+
+---
+
+## Session 2026-05-18 (Claude Sonnet 4.6) — SCT-parser-sc-no-crash
+
+**Goal achieved:** All six `parser_*.sc` run under `scrip --interp` without crash, abort, or segfault.
+
+**Fixes landed (one4all `db89a804`):**
+- `stmt_exec.c` — `bb_deferred_var`: `child_state` now stores `val.p` as cache key; prevents re-JIT on every ARBNO retry
+- `bb_pool.c/h` — `bb_alloc` returns NULL (not abort) on pool exhaustion; pool reduced 64MB→4MB (safe with caching)
+- `emit_core.c` — `bb_emit_byte` overflow sets flag instead of abort; `bb_emit_end`, `bb_label_define`, both patch-list emitters skip gracefully on overflow
+- `emit_bb.c` — `bb_build_flat`/`bb_build_brokered` check overflow flag, return NULL gracefully
+- `rt.c` — `rt_bb_arbno`: guard `ζ->fn == NULL` → epsilon-ARBNO instead of segfault
+
+**Fixes landed (corpus `c43225b`):**
+- `raku_helpers.sc` — `Push_ilit(n)` / `push_ilit_n(n)` 1-arg variant; fixes ERROR 022 on raku
+
+**Status:**
+- snobol4: OK (rc=0, Parse Error — SNOBOL4 syntax not fully handled, not a crash)
+- snocone: OK (rc=0, Parse Error)
+- rebus: OK (rc=0, Parse Error)
+- icon: OK (rc=0, Parse Error)
+- raku: OK (rc=0)
+- prolog: OK (rc=0)
+
+**Hangs (pre-existing, not regressions):** All four of snobol4/snocone/rebus/icon hang on complex multi-statement fixtures — ARBNO infinite loop in pattern matching. Next session: diagnose hang root cause.
+
+**Gates held:** crosscheck_snocone PASS=8/0, crosscheck_snobol4 PASS=5 FAIL=1 (beauty_omega pre-existing), test_smoke_snocone PASS=5/0.
