@@ -37,10 +37,10 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Open step
 
 - [x] **DAI-8 C8 — `icn_runtime.c` (interp) dead-fn sweep.** 17 fns deleted, −185 LOC. `881d1a60` 2026-05-18.
-- [x] **DAI-8 C13 — `prolog_*` + `raku_re.c` dead-fn sweep.** 18 fns, −234 LOC. `947ecd7a` 2026-05-18.
-- [ ] **DAI-8 C14+ — Continue dead-code sweep.** Remaining non-generated clusters (from last audit):
-  - `rebus_emit.c` ~8, `rebus_print.c` ~4, `sm_image.c` ~6 — confirmed live (asm string refs / callers)
-  - `lex.rebus.o` ~21, `icon_runtime.o` ~13, `stmt_exec.o` ~5, `sm_jit_interp.o` ~4 — not yet audited
+- [x] **DAI-8 C14 — `icon_runtime`+`sm_interp`+`sm_jit_interp`+`stmt_exec` sweep.** 20 fns, −168 LOC. `50e025f6` 2026-05-18.
+- [ ] **DAI-8 C15+ — Continue dead-code sweep.** Remaining non-generated clusters:
+  - `lex.rebus.o` ~21, `scrip_ir.o` ~3, `bb_pool.o` ~3, `ast_clone.o` ~3, `lower.o` ~4 — not yet audited
+  - `snobol4_argval.o` ~2 — not yet audited
   - `rt.c` cluster anchored live; `snobol4.c` excluded (generated, --monitor).
 
   **Process per cluster:** Method 1 nominates → Method 6 confirms zero callers + zero address-of → delete → gate. See DAI-8 methodology note below.
@@ -76,11 +76,12 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 | **C11** `lower_icn.c` 9 fns (7 IR constructors + expr_top + fail_box) | −136 LOC | `04679f20` | floor held |
 | **C12** `bb_boxes.c`+`emit_sm.c`+`scan_builtins.c` 20 fns | −157 LOC | `5e854341` | floor held |
 | **C13** `prolog_*`+`raku_re.c` 18 fns | −234 LOC | `947ecd7a` | floor held |
+| **C14** `icon_runtime`+`sm_interp`+`sm_jit_interp`+`stmt_exec` 20 fns | −168 LOC | `50e025f6` | floor held |
 
 ## Watermark
 
 ```
-one4all: 947ecd7a     (DAI-8 C13: prolog_*+raku_re 18 fns −234 LOC)
+one4all: 50e025f6     (DAI-8 C14: icon_runtime+sm_interp+sm_jit_interp+stmt_exec 20 fns −168 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
