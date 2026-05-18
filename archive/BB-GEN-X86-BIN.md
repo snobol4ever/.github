@@ -204,7 +204,7 @@ END
 | **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
 | **M-DYN-B-SPITBOL** ✅ | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Results below. | Comparison table in HQ | ✅ RT-121 |
 | **M-DYN-BENCH-C** ✅ | Full 13-program baseline: scrip-interp (C BB) vs SPITBOL. All corpus benchmark categories: pattern, string, eval, control, TABLE, recursion. Median of 3 runs. See §M-DYN-BENCH-C below. | Results table in HQ; PASS=178 | ✅ RT-124 |
-| **M-DYN-B0** ✅ | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. `g_bb_mode=BB_MODE_DRIVER` default; `--bb-live` sets `BB_MODE_LIVE`. | PASS=161 (container baseline) | ✅ 2026-04-07 |
+| **M-DYN-B0** ✅ | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. `g_bb_mode=BB_MODE_DRIVER` default; `--bb=wired` sets `BB_MODE_LIVE`. | PASS=161 (container baseline) | ✅ 2026-04-07 |
 | **M-DYN-B1** ✅ | `bb_fail_emit_binary()` — 5-byte blob. | PASS=161 | ✅ 2026-04-07 |
 | **M-DYN-B2** ✅ | `bb_eps_emit_binary()` | PASS=161 | ✅ 2026-04-07 |
 | **M-DYN-B3** ✅ | `bb_pos_emit_binary(n)`, `bb_rpos_emit_binary(n)` | PASS=161 | ✅ 2026-04-07 |
@@ -218,7 +218,7 @@ END
 | **M-DYN-B11** ✅ | `bb_atp_emit_binary(varname)`, `bb_dsar_emit_binary(name)` | PASS=161 | ✅ 2026-04-07 |
 | **M-DYN-B12** ✅ | `bb_arbn_emit_binary(p)` | PASS=161 | ✅ 2026-04-07 |
 | **M-DYN-B13** ✅ | Coverage audit ≥95% DT_P nodes via binary path. 50-file corpus sweep: DT_P hits=20 misses=1 coverage=95.2%. Known fallbacks: XABRT, XSUCF, XBAL, XVAR (rare/not in corpus). `BINARY_AUDIT=1` env-var trigger wired (SNO_BINARY_BOXES=1 legacy alias). BIN_MISS log now prints symbolic names. WASM removed from scrip build. | PASS=49/50 (1 timeout); coverage=95.2% | ✅ 2026-04-08 |
-| **M-DYN-BENCH-X86** | Full 13-program run after inline blobs with `--bb-live`. Compare x86/C speedup. See §M-DYN-BENCH-X86 below. | ≥10% speedup on pattern_bt + string_pattern; PASS=161 | ⬜ |
+| **M-DYN-BENCH-X86** | Full 13-program run after inline blobs with `--bb=wired`. Compare x86/C speedup. See §M-DYN-BENCH-X86 below. | ≥10% speedup on pattern_bt + string_pattern; PASS=161 | ⬜ |
 
 ---
 
@@ -555,7 +555,7 @@ All other conditions identical (same machine, same 13 programs, same RUNS=3 medi
 - **Control group (no patterns): ≤6% noise** — confirming blobs add zero overhead to non-pattern execution. Exactly as predicted.
 - **vs SPITBOL:** pattern_bt gap closes from 11.1× (C BB) to **5.5×** — inline dispatch eliminates one layer of indirection. Remaining gap is the interp-loop overhead (phases 1/2/4/5), which SM-LOWER targets.
 - **Bottleneck identified:** `arith_loop` 17.4× and `op_dispatch` 29.0× behind SPITBOL with *zero* pattern work — pure interp-loop cost. SM dispatch (M-SCRIP-U3) directly addresses this.
-- **Next:** M-SCRIP-U3 (SM-LOWER) — compile IR → SM_Program; `--sm-run` path active; target PASS=178 via SM dispatch.
+- **Next:** M-SCRIP-U3 (SM-LOWER) — compile IR → SM_Program; `--interp` path active; target PASS=178 via SM dispatch.
 
 ---
 

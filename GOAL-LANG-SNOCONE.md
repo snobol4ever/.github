@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -41,7 +41,7 @@
 
 **Repo:** one4all
 **Done when:** All 14 beauty-sc subsystems PASS under all three modes
-(--ir-run, --sm-run, --jit-run). Control-flow lowering complete.
+(--interp, --interp, --run). Control-flow lowering complete.
 Pattern match `subject ? pattern` wired through BB_SCAN.
 
 **Cross-pollination:** Snocone lowers to the same IR as SNOBOL4. Every
@@ -76,9 +76,9 @@ bash /home/claude/one4all/scripts/test_crosscheck_snocone.sh       # 3-mode dive
 ```
 .sc → snocone_compile() → CODE_t* [LANG_SNO]
     (Snocone lowers to LANG_SNO — same IR as SNOBOL4)
-    --ir-run  → execute_program() → interp_eval()
-    --sm-run  → sm_lower() → SM_Program → sm_interp_run()
-    --jit-run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
+    --interp  → execute_program() → interp_eval()
+    --interp  → sm_lower() → SM_Program → sm_interp_run()
+    --run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
 
 Pattern match: subject ? pattern → STMT_t with subject+pattern fields
     → bb_broker(BB_SCAN) — identical path to SNOBOL4
@@ -115,7 +115,7 @@ Oracle for .ref: run the equivalent .sno under SPITBOL.
   (a) Run `porter.sno` under oracle to confirm `.ref` is current.
   (b) Translate `porter.sno` → `porter.sc` in
       `corpus/programs/snobol4/demo/porter.sc`.
-  (c) Gate: `cat porter.input | scrip --ir-run porter.sc | diff - porter.ref`
+  (c) Gate: `cat porter.input | scrip --interp porter.sc | diff - porter.ref`
       zero diff.
   (d) Do not patch corpus source to work around runtime bugs (per RULES.md).
 
@@ -123,7 +123,7 @@ Oracle for .ref: run the equivalent .sno under SPITBOL.
   `claws5.sc` already exists (82 lines) but fails.
   Oracle: CSNOBOL4 `-bf` (SPITBOL `-f` broken on x64 build).
   Reference: `claws5.ref` (95 lines, trimmed to match `claws5.input`).
-  Gate: `cat claws5.input | scrip --ir-run claws5.sc | diff - claws5.ref`
+  Gate: `cat claws5.input | scrip --interp claws5.sc | diff - claws5.ref`
   zero diff.
 
 - [ ] **D-3** — treebank-list: `treebank-list.sc` PASS.
@@ -131,14 +131,14 @@ Oracle for .ref: run the equivalent .sno under SPITBOL.
   The `.sno` equivalent passes both oracles and scrip.
   Oracle: CSNOBOL4 `-bf`.
   Reference: `treebank-list.ref`.
-  Gate: `cat treebank.input | scrip --ir-run treebank-list.sc | diff - treebank-list.ref`
+  Gate: `cat treebank.input | scrip --interp treebank-list.sc | diff - treebank-list.ref`
   zero diff.
 
 - [ ] **D-4** — treebank-array: `treebank-array.sc` PASS.
   `treebank-array.sc` already exists (140 lines) but fails.
   Oracle: CSNOBOL4 `-bf`.
   Reference: `treebank-array.ref`.
-  Gate: `cat treebank.input | scrip --ir-run treebank-array.sc | diff - treebank-array.ref`
+  Gate: `cat treebank.input | scrip --interp treebank-array.sc | diff - treebank-array.ref`
   zero diff.
 
 ---
@@ -185,7 +185,7 @@ SC-16 done: quicksort.sc all 3 modes. Commit: 995f1294
 
 ### GOAL COMPLETE — all 22 steps done, all phases PASS
 
-### Next: SC-19 — all 14 beauty-sc subsystems under --sm-run (14/14 PASS)
+### Next: SC-19 — all 14 beauty-sc subsystems under --interp (14/14 PASS)
 
 ### Known deferred issue
 beauty_global sm-run: UTF indirect EM_DASH FAIL — root cause is subscript_get2
@@ -235,7 +235,7 @@ DIVERGE at stmt N [label: LABEL, line LL]
 4. Re-run `--monitor` to confirm divergence is gone.
 5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
 
-**Note:** `--monitor` is incompatible with `--ir-run`/`--sm-run`/`--jit-run`
+**Note:** `--monitor` is incompatible with `--interp`/`--run`
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
@@ -720,9 +720,9 @@ sketch — to be written up as `GOAL-LANG-SCRIPT.md` in a future session.
 **Session work (pushed):**
 - corpus HEAD 293eab6: trimmed `claws5.ref` from 5622 → 95 lines to match
   `claws5.input` (16 lines, 4 sentences); removed stale `treebank.ref`.
-  All three .sno programs verified zero-diff between scrip --ir-run and
+  All three .sno programs verified zero-diff between scrip --interp and
   CSNOBOL4 -bf under the trimmed refs.
-- one4all HEAD 78e6e337: wired `--dump-ir` for Snocone .sc files in
+- one4all HEAD 78e6e337: wired `--dump-ast` for Snocone .sc files in
   `src/driver/scrip.c`. Investigation aid — used in this session to confirm
   that Snocone parser is behaving per spec (requires explicit && per Koenig
   reference implementation `snocone.sc` with 104 && occurrences).
@@ -730,7 +730,7 @@ sketch — to be written up as `GOAL-LANG-SCRIPT.md` in a future session.
 **SC-26 reframed by session findings:**
 The original SC-26 hypothesis was a runtime pattern-engine bug in
 `(PAT . var) . *fn(var)` arg evaluation. That hypothesis is **wrong**:
-the identical pattern works correctly under scrip --ir-run for .sno
+the identical pattern works correctly under scrip --interp for .sno
 programs (verified with /tmp/cap.sno: `show_arg=foo` correctly).
 
 Under current Snocone spec (`&&` required), the three .sc demo programs
@@ -759,7 +759,7 @@ uses mixed-case labels (Push_list vs push_list) that collide under
 SPITBOL's default fold mode, and SC-25 documents that `-f` (case-sensitive)
 is broken on the x64 build. **CSNOBOL4 -bf is the sole working oracle
 for these three programs.** All three .sno programs run with zero diff
-between scrip --ir-run and CSNOBOL4 -bf.
+between scrip --interp and CSNOBOL4 -bf.
 
 **Parser/grammar analysis:**
 - Confirmed via `/home/claude/SNOCONE_docs/SNOCONE/snocone.sc` (Koenig-style
@@ -780,7 +780,7 @@ D-1 IN PROGRESS: porter.sc exists (342 lines, committed e13b336). D-1(a) verifie
 SPITBOL x64 running porter.sno < porter.input gives zero diff vs porter.ref (23531 lines).
 Ref is current.
 
-D-1(c) BLOCKED: `scrip --case-sensitive --ir-run porter.sc` hangs before producing
+D-1(c) BLOCKED: `scrip --case-sensitive --interp porter.sc` hangs before producing
 any IR output. Bisected: hang triggered by user-defined labels (`mV1:`, `mV:`, etc.)
 inside procedures — porter.sc has 7 such labels across cons(), m(), and neighbors.
 
@@ -834,11 +834,11 @@ Recommended path forward for D-1:
    - Keep procedure locals syntax clean (use `,` form to avoid SC-28):
      DEFINE('foo(x)local1,local2') path — in Snocone this means NOT using
      `(locals)` paren-wrapper if that syntax is still broken; check first.
-6. Gate: `timeout 300 scrip --case-sensitive --ir-run porter.sc < porter.input
+6. Gate: `timeout 300 scrip --case-sensitive --interp porter.sc < porter.input
    | diff - porter.ref`  must be zero.
 7. If performance inadequate on 23531-line input, consider:
-   - `scrip --case-sensitive --sm-run` (faster than --ir-run)
-   - `scrip --case-sensitive --jit-run` (fastest)
+   - `scrip --case-sensitive --interp` (faster than --interp)
+   - `scrip --case-sensitive --run` (fastest)
    per the goal's three-mode requirement.
 
 ## Current state (2026-04-18 session 3, one4all HEAD 5535b229, corpus HEAD e13b336)
@@ -892,10 +892,10 @@ called for was in fact done in-place before/during that commit.
 With the architectural fix landed, SC-27 is no longer on the critical
 path for D-1 — porter.sc has no user labels anywhere to trip it.
 
-**NEW D-1 bugs found this session (under `scrip --ir-run porter.sc`, no flags):**
+**NEW D-1 bugs found this session (under `scrip --interp porter.sc`, no flags):**
 
 On full `porter.input` (23531 lines): process runs until 4 GiB container OOM.
-On first-20-word prefix via `head -20 porter.input | scrip --ir-run porter.sc`:
+On first-20-word prefix via `head -20 porter.input | scrip --interp porter.sc`:
   - timeout at 30s (RC=124) after producing ~340 KB of output
   - output first 20 lines: `a aaron abaissiez abandon abandon abas abash ab ab abat abat ab abbess abbei abbei abbomin abbot abbot abbrevi ab`
   - SPITBOL running `porter.sno` on the same 20-line input: zero diff vs `porter.ref`, 120 bytes, instant
@@ -927,7 +927,7 @@ lowering.
 4. `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
 5. Gate: `bash /home/claude/one4all/scripts/test_smoke_snocone.sh` — must PASS=5
 6. Debug D-1 correctness/perf bug in porter.sc:
-   (a) Feed 1 word at a time: `echo caresses | scrip --ir-run porter.sc`.
+   (a) Feed 1 word at a time: `echo caresses | scrip --interp porter.sc`.
        Expected output "caress". Check each helper individually if wrong.
    (b) Add OUTPUT debugging inside each helper (`cons`, `m`, `vowelinstem`,
        `doublec`, `cvc`) to trace entry/exit and argument values.
@@ -938,11 +938,11 @@ lowering.
        The p1a/p1b/etc. tables use `RTAB(k) @ "stem" + σ('...') + ...`
        form — if `stem` is set during a trial alternative that later
        backtracks, subsequent guards see the wrong stem. Check whether
-       `scrip --ir-run porter.sno` exhibits the same bug (isolates .sc
+       `scrip --interp porter.sno` exhibits the same bug (isolates .sc
        lowering vs shared runtime issue).
    (e) Once correct on a single word: test on head -20, head -100, then full.
-7. Goal gate: `scrip --ir-run porter.sc < porter.input | diff - porter.ref` zero.
-8. After D-1 green, also verify `--sm-run` and `--jit-run` per goal spec.
+7. Goal gate: `scrip --interp porter.sc < porter.input | diff - porter.ref` zero.
+8. After D-1 green, also verify `--interp` and `--run` per goal spec.
 
 ### Known follow-ups (file as issues when touched)
 - **SC-27**: labels inside procedures mis-lowered and/or hang parser.

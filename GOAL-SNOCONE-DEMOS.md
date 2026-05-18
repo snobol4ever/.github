@@ -26,7 +26,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all
-**Done when:** all four programs pass oracle diff under --ir-run, --sm-run, --jit-run.
+**Done when:** all four programs pass oracle diff under --interp, --interp, --run.
 
 ---
 
@@ -83,10 +83,10 @@ See how beauty.sno handles recursive pattern references.
 ## Steps
 
 - [ ] **SD-1** — Fix treebank.sno: -INCLUDE stack.sno/counter.sno, fix *group recursion.
-  Gate: scrip --ir-run treebank.sno < treebank.input matches treebank.ref.
+  Gate: scrip --interp treebank.sno < treebank.input matches treebank.ref.
 
 - [ ] **SD-2** — Write treebank.sc.
-  Gate: scrip --ir-run stack.sc counter.sc treebank.sc < treebank.input matches ref.
+  Gate: scrip --interp stack.sc counter.sc treebank.sc < treebank.input matches ref.
 
 - [ ] **SD-3** — Verify claws5.sno passes oracle.
 

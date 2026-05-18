@@ -97,7 +97,7 @@ This goal only modifies `.sc` files in `corpus/SCRIP/` and `corpus/programs/prol
 Run the gate ONLY after fixing a SCRIP bug (C source change). For `.sc`-only changes, verify
 by running a single representative file manually:
 ```bash
-echo 'foo(X) :- X is 1.' | timeout 8 /home/claude/one4all/scrip --ir-run \
+echo 'foo(X) :- X is 1.' | timeout 8 /home/claude/one4all/scrip --interp \
   /home/claude/corpus/SCRIP/global.sc \
   /home/claude/corpus/SCRIP/tree.sc \
   /home/claude/corpus/SCRIP/stack.sc \
@@ -338,7 +338,7 @@ is head arity alone.
 - **Sibling LANG rungs:** PR-10..PR-12.
 - **Gate:** PASS≥24. ✅
 
-#### Oracle IR shapes (verified via `--dump-ir`)
+#### Oracle IR shapes (verified via `--dump-ast`)
 
 | Source | IR shape |
 |---|---|
@@ -371,7 +371,7 @@ All have verified oracle output.
 #### Critical Snocone gotchas (sessions ending 2026-05-03)
 
 ⚠️ **`*func()` immediate evaluations inside ARBNO arms only fire on the
-FIRST iteration in `--ir-run` mode.** Verified empirically:
+FIRST iteration in `--interp` mode.** Verified empirically:
 `ARBNO( ws_opt tk_comma ws_opt simple_goal . *inc_body_count() )` — the
 ARBNO correctly iterates and `simple_goal` pushes goals to the stack on
 every iteration, but `*inc_body_count()` only fires once. The cursor
@@ -591,7 +591,7 @@ frontend merges them into ONE STMT containing one E_CHOICE node with
 multiple E_CLAUSE children — and reorders so directives come first (in
 source order) and clause-groups come after (in first-encounter order).
 
-#### Oracle behavior (verified via `--dump-ir`)
+#### Oracle behavior (verified via `--dump-ast`)
 
 | Source | Output |
 |---|---|
@@ -758,7 +758,7 @@ Gate PASS=65 FAIL=0.
 - [x] `push_char_code`: `ch=$varname; val=ascii_table[ch]; Push(tree('E_ILIT',val))`.
 - [x] Fixtures: `charcode_lower` (97), `charcode_upper` (65), `charcode_space` (32), `charcode_arith` (`0'a+1`), `charcode_digit` (`0'0`=48).
 - **Gate:** PASS=98 FAIL=0 (+5 over PR-10). ✅
-- **Gotcha-21 (SCRIP/Snocone):** `REPLACE(raw, "0'", '')` inside a Snocone function returns `''` when `raw="0'a"` in full `--ir-run` pipeline. Fix: capture just the char so no REPLACE is needed.
+- **Gotcha-21 (SCRIP/Snocone):** `REPLACE(raw, "0'", '')` inside a Snocone function returns `''` when `raw="0'a"` in full `--interp` pipeline. Fix: capture just the char so no REPLACE is needed.
 
 **PR-12 — ✅ LANDED (PASS=103 FAIL=0, 2026-05-05 session): name-stack fix + `=..` univ.**
 
@@ -848,7 +848,7 @@ Correctness failures remain for all new operators. The `->` handling also needs 
 
 #### Key gotcha (Gotcha-25)
 
-**SCRIP-BUG-DEFERRED-PATTERN-CIRCULAR:** In `--ir-run` mode, pattern variable assignment captures the current VALUE of referenced variables. If the captured pattern (transitively via deferred `*X` refs) calls back into the variable being defined, the match-time call stack loops infinitely (SIGKILL). Fix: use `*VarName` (deferred ref) for any arm that creates a recursive or mutually-recursive pattern path. The pattern object itself stays finite; the recursion is bounded at match time by the input.
+**SCRIP-BUG-DEFERRED-PATTERN-CIRCULAR:** In `--interp` mode, pattern variable assignment captures the current VALUE of referenced variables. If the captured pattern (transitively via deferred `*X` refs) calls back into the variable being defined, the match-time call stack loops infinitely (SIGKILL). Fix: use `*VarName` (deferred ref) for any arm that creates a recursive or mutually-recursive pattern path. The pattern object itself stays finite; the recursion is bounded at match time by the input.
 
 **PR-13 FULLY LANDED (PASS=122 FAIL=0, 2026-05-06 session #2).**
 All ladder rungs PR-0..PR-13 landed.
@@ -923,7 +923,7 @@ bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
   (since `\+` is a valid atom in the oracle). But `Atom` currently matches only
   lowercase letters via `ANY(&LCASE) SPAN(alnum_)`. The `\` character is NOT in
   `&LCASE`. So `\+` needs either a special token or `Atom` extended.
-  **Check first:** does `echo "foo :- \+(bar)." | scrip --dump-ir` work?
+  **Check first:** does `echo "foo :- \+(bar)." | scrip --dump-ast` work?
   If oracle parses `\+` as a functor, its atom lexing accepts `\+`.
   Our `Atom` pattern would need to match `\+` — extend or add special case.
 
@@ -1001,7 +1001,7 @@ Tokens defined (early section, lines 46–63):
 
 #### SCRIP bug discovered and documented
 
-**`OUTPUT 'literal'` silently fails in Snocone `--ir-run` mode.**
+**`OUTPUT 'literal'` silently fails in Snocone `--interp` mode.**
 In Snocone, `OUTPUT 'string'` is parsed as a pattern-match statement
 (subject=OUTPUT, pattern='string') — it fails when the current OUTPUT buffer
 doesn't contain that literal. Only `OUTPUT = 'string'` (assignment form)
@@ -1127,19 +1127,19 @@ bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
 # 3. Add debug OUTPUT to build_dcg:
 #    OUTPUT 'build_dcg fired, head_name=' head_name ' head_arity=' head_arity
 #    OUTPUT 'body_tree tag=' t(body_tree) ' val=' v(body_tree)
-# Run: echo "a --> []." | scrip --ir-run [all sc files] 2>/dev/null
+# Run: echo "a --> []." | scrip --interp [all sc files] 2>/dev/null
 # If no debug output: build_dcg is not firing — problem is in grammar / match
 # If debug output appears: problem is in expand_dcg_body or Tree construction
 ```
 
 #### Oracle IR shapes verified (all 10 fixtures)
 
-All 10 oracle outputs were captured during this session. The `--dump-ir`
+All 10 oracle outputs were captured during this session. The `--dump-ast`
 output for each fixture is the ground truth. The DCG transformation algorithm
 in `expand_dcg_body` mirrors `prolog_parse.c::dcg_expand_body` exactly.
 
 **Var naming in oracle:** hidden DCG vars in oracle use `_Sk` names internally
-but appear as `_Vk` in `--dump-ir` output (after `assign_clause_vars` renaming).
+but appear as `_Vk` in `--dump-ast` output (after `assign_clause_vars` renaming).
 Our `dcg_fresh_var()` allocates through `var_next` and names them `_Vk` directly
 — matching the oracle output slot numbering, since DCG hidden vars follow
 explicitly-named vars in allocation order (and for 0-arg head, named vars = 0,
@@ -1157,7 +1157,7 @@ so `_V0` = `s0`, `_V1` = `s1`).
 
 ### Symptom
 
-`scrip --ir-run parser_prolog.sc` exits with `snocone parse error: syntax error`
+`scrip --interp parser_prolog.sc` exits with `snocone parse error: syntax error`
 at the line where a `//` comment contains a non-ASCII byte (e.g. UTF-8 em-dash
 `\xe2\x80\x94` = U+2014 `—`).  The parser stops at the *first non-ASCII byte*
 encountered, even inside a comment, making the file un-parseable.
@@ -1284,7 +1284,7 @@ bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
 ### Key gotchas for next session
 
 - **SCRIP-BUG-NESTED-ARBNO:** `White = white ARBNO(white)` breaks nested patterns. Use `White = white` only.
-- **Gotcha-24 (_op_name timing):** Token `$'op' = $' ' 'op' . _op_name $' '` sets `_op_name` at token-match time. Verify it's still set when `Reduce_binop` fires. Test: `echo 'foo(X,Y) :- Z is X mod Y.' | scrip --ir-run *.sc` — should give `(E_FNC mod ...)`.
+- **Gotcha-24 (_op_name timing):** Token `$'op' = $' ' 'op' . _op_name $' '` sets `_op_name` at token-match time. Verify it's still set when `Reduce_binop` fires. Test: `echo 'foo(X,Y) :- Z is X mod Y.' | scrip --interp *.sc` — should give `(E_FNC mod ...)`.
 - **Performance:** each extra ARBNO+FENCE nesting level adds ~2s load time. Keep bit-ops folded into add_expr, not as separate layers.
 - **`//` vs `/\`:** `$'//'` is defined before `$'/\'`; the FENCE in mul_expr tries `$'//'` first. This is correct — `//` is integer div (E_DIV), `/\` is bitand (E_FNC).
 
@@ -1311,7 +1311,7 @@ bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
 - `arith_bitnot.pl`
 - `cmp_atge.pl` `cmp_atgt.pl` `cmp_atle.pl` `cmp_atlt.pl`
 
-All 14 verified PASS against oracle (`scrip --dump-ir` reference).
+All 14 verified PASS against oracle (`scrip --dump-ast` reference).
 
 ### What was deferred — `->` if-then BLOCKED
 
@@ -1520,7 +1520,7 @@ failures. Write `test_smoke_parser_prolog_full.sh`.
 
 - [ ] **PR-17-smoke** Write `one4all/scripts/test_smoke_parser_prolog_full.sh`:
   finds all `corpus/programs/prolog/**/*.pl`, runs each through
-  `timeout 8 scrip --ir-run [sc files]`, FAILs if output is empty or exit nonzero.
+  `timeout 8 scrip --interp [sc files]`, FAILs if output is empty or exit nonzero.
   Reports `PASS N / TOTAL M`.
 
 - [ ] **PR-17-triage** Run smoke, collect failures, categorize:
@@ -1718,14 +1718,14 @@ SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc \
     $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
 
 # Pipe .pl file as stdin -- do NOT pass .pl as a file argument:
-timeout 7 $SCRIP --ir-run $SC < file.pl 2>/dev/null
+timeout 7 $SCRIP --interp $SC < file.pl 2>/dev/null
 ```
 
 **⛔ Do NOT omit `gen.sc` or `assign.sc`.** Without `gen.sc`, TDump silently
 produces zero output (Gen() undefined). Without `assign.sc`, some patterns
 that use `assign()` fail when they should not, causing incorrect parse results.
 
-**⛔ Do NOT pass the `.pl` file as a positional arg.** `scrip --ir-run *.sc file.pl`
+**⛔ Do NOT pass the `.pl` file as a positional arg.** `scrip --interp *.sc file.pl`
 routes `file.pl` through the C Prolog frontend, not `parser_prolog.sc`. Always
 pipe via stdin.
 
@@ -1777,7 +1777,7 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 SCRIP=/home/claude/one4all/scrip
 SRC=/home/claude/corpus/SCRIP
 SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
-timeout 7 $SCRIP --ir-run $SC < /home/claude/corpus/programs/prolog/rung11_findall_findall_basic.pl 2>/dev/null | grep -c "^(STMT"
+timeout 7 $SCRIP --interp $SC < /home/claude/corpus/programs/prolog/rung11_findall_findall_basic.pl 2>/dev/null | grep -c "^(STMT"
 # expected: 3
 ```
 

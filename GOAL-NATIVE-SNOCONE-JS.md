@@ -32,7 +32,7 @@ Step 11 (session #62, 2026-05-05).
 
 **Done when:** the in-tree JS SNOBOL4 host (`src/driver/js/sno-interp.js`)
 parses and runs Snocone source files (`.sc`). `scrip.sc` runs
-end-to-end on Node and produces output matching `scrip --sm-run
+end-to-end on Node and produces output matching `scrip --interp
 scrip.sc` against the same input. Provides **bootstrap path D**
 for `scrip.sc` — independent of the SCRIP host process and of
 the in-tree .NET / JVM hosts.
@@ -175,7 +175,7 @@ Snocone corpus subset PASS for the rung's coverage
 
 - [ ] **Step JS-4 — Snocone smoke 5/5 in Node.**  Five
   smoke_snocone programs run end-to-end on sno-interp.js via
-  Node. Output matches `scrip --sm-run` exactly.
+  Node. Output matches `scrip --interp` exactly.
 
 - [ ] **Step JS-5 — Snocone corpus subset.**  Same curated
   subset as DN-5 / JV-5 wherever possible. All pass in Node.
@@ -183,7 +183,7 @@ Snocone corpus subset PASS for the rung's coverage
 
 - [ ] **Step JS-6 — `scrip.sc` runs end-to-end (Node).**
   `node src/driver/js/sno-interp.js scrip.sc < beauty.sno`
-  produces output identical to `scrip --sm-run scrip.sc <
+  produces output identical to `scrip --interp scrip.sc <
   beauty.sno`. M3-JS milestone close.
 
 - [ ] **Step JS-7 — Package + docs.**

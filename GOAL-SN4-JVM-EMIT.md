@@ -5,7 +5,7 @@
 ⛔ **Read before any source file:** ARCH-IR.md, ARCH-JVM.md, ARCH-EMITTER.md.
 
 **Repo:** one4all + .github
-**Goal:** `scrip --sm-emit --target=jvm file.sno` emits Jasmin; assembled + run by java produces correct output.
+**Goal:** `scrip --compile --target=jvm file.sno` emits Jasmin; assembled + run by java produces correct output.
 **Done when:** beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`, 646 lines).
 
 ---
@@ -83,7 +83,7 @@ All closed in prior sessions. See "Closed rungs trail" below.
 
 `hello.j`, `counter.j`, `pattern_test.j`, `arithmetic.j`, `beauty.j`.
 
-Regenerate: `for prog in hello counter pattern_test arithmetic beauty; do scrip --sm-emit --target=jvm $prog.sno > $prog.j; done`
+Regenerate: `for prog in hello counter pattern_test arithmetic beauty; do scrip --compile --target=jvm $prog.sno > $prog.j; done`
 Verify: `jasmin.jar *.j` produces .class without errors; `md5sum *.j` and update checksums.
 
 **Current checksums** (will change after sess 2026-05-16 method-split; not yet regenerated):
@@ -136,7 +136,7 @@ head: c2a2f498 (one4all, pre-session — sess 2026-05-16 changes uncommitted);
 - **19 BB kinds, all pre-implemented in Jasmin.** Read `bb_boxes.j` first.
 - **Jasmin labels: no leading dot.** Use `L0`, `Lalpha`, `Lbeta`.
 - **`.limit stack` and `.limit locals` required** in every method (16/4 for sno_body/sno_fn_*).
-- **Flag:** `--sm-emit --target=jvm`.
+- **Flag:** `--compile --target=jvm`.
 - **JVM 65535-byte method limit** is the reason for method-split — every emitted method must stay under it.
 - **`call_external` / `call_returning` are stubs** in SnoRt for `. *fn()` and bare `*fn()` in pattern position. Real DEFINE'd user-fn dispatch through pattern callbacks not yet wired.
 

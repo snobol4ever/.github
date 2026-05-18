@@ -31,7 +31,7 @@ and GOAL-SNO-CLAWS5. All three sessions share main — pull --rebase before ever
 Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
 
 **Done when:** `demo_treebank-list` passes in `test_interp_broad_corpus_and_beauty.sh`;
-output matches `corpus/programs/snobol4/demo/treebank-list.ref` under `--ir-run`.
+output matches `corpus/programs/snobol4/demo/treebank-list.ref` under `--interp`.
 
 ---
 
@@ -64,7 +64,7 @@ Oracle: CSNOBOL4 -bf -P 500k  (double-function trick; SPITBOL -f is broken)
 Run to test:
 ```bash
 DEMO=/home/claude/corpus/programs/snobol4/demo
-timeout 30 /home/claude/one4all/scrip --ir-run $DEMO/treebank-list.sno \
+timeout 30 /home/claude/one4all/scrip --interp $DEMO/treebank-list.sno \
     < $DEMO/VBGinTASA.dat 2>/dev/null | diff - $DEMO/treebank-list.ref
 ```
 
@@ -98,7 +98,7 @@ likely because push/pop mis-dispatch (same root as treebank-array).
   GOAL-SNO-TREEBANK-ARRAY session). If not, apply it: change `strcasecmp` to
   `strcmp` in `label_lookup` in `src/driver/interp.c`. Rebuild. Run smoke + broker.
 
-- [x] **TL-2** — DONE. `scrip --ir-run treebank-list.sno < treebank.input`
+- [x] **TL-2** — DONE. `scrip --interp treebank-list.sno < treebank.input`
   produces byte-identical output to `treebank-list.ref` (24/24 lines).
   Fix landed in `bb_arbno` (nam_mark checkpoint per trial) + `NAM_mark`/
   `NAM_rollback_to` (frame-identity guard) + `aframe_t` shadow-struct sync
@@ -146,7 +146,7 @@ resolution (HEAD `9a43cddd`). This session:
    vector the oracle can't complete either; it is NOT the TL-2 blocker.
 3. **Attempted fix: add NAM_mark/NAM_rollback_to to `bb_arbno` in
    `src/runtime/x86/bb_boxes.c`** (mirror of the existing `bb_alt` pattern).
-   Treebank-list PASSED byte-for-byte under `scrip --ir-run` on `treebank.input`.
+   Treebank-list PASSED byte-for-byte under `scrip --interp` on `treebank.input`.
    Smoke=7 ✓, Broker=49 ✓.  BUT: `demo_claws5` regressed from PASS to crash (172→171
    in broad gate). Fix has been **reverted**; working tree is clean at HEAD
    `9a43cddd`. The fix shape is correct but the rollback is over-aggressive for
@@ -216,10 +216,10 @@ scrip and oracle BOTH produce:
 
 ### Remaining divergence — heap corruption on full treebank-list
 
-`treebank-list.sno < VBGinTASA.dat` under `--ir-run` still fails:
+`treebank-list.sno < VBGinTASA.dat` under `--interp` still fails:
 
 ```
-$ ./scrip --ir-run $DEMO/treebank-list.sno < $DEMO/VBGinTASA.dat
+$ ./scrip --interp $DEMO/treebank-list.sno < $DEMO/VBGinTASA.dat
 corrupted size vs. prev_size
 Aborted
 ```
@@ -331,7 +331,7 @@ body.  Rollback at three sites:
 
 ### Result
 
-- `scrip --ir-run treebank-list.sno < treebank.input` diffs **byte-clean** vs.
+- `scrip --interp treebank-list.sno < treebank.input` diffs **byte-clean** vs.
   `treebank-list.ref` (24/24 lines) ✓
 - `test_smoke_snobol4.sh` — PASS=7 ✓
 - `test_smoke_unified_broker.sh` — PASS=49 ✓
@@ -521,19 +521,19 @@ The prior "Aborted" crash was also heap corruption, but from the same
 shadow-struct mismatch — not from stale-frame writes in NAM_rollback_to.
 Adding the mark field to `arbno_frame_t` without syncing `aframe_t`
 guaranteed a crash in any program that used ARBNO through the stmt_exec
-path (i.e., all --ir-run users). The frame-identity guard in NAM_mark is
+path (i.e., all --interp users). The frame-identity guard in NAM_mark is
 still a worthwhile defensive improvement, but it was not the missing piece.
 
 ### Verification
 
 ```
 DEMO=/home/claude/corpus/programs/snobol4/demo
-scrip --ir-run $DEMO/treebank-list.sno < $DEMO/treebank.input \
+scrip --interp $DEMO/treebank-list.sno < $DEMO/treebank.input \
     | diff - $DEMO/treebank-list.ref
 # (empty — 24/24 lines byte-identical)
 ```
 
-claws5 `--ir-run` on the full input no longer crashes; it produces 95 valid
+claws5 `--interp` on the full input no longer crashes; it produces 95 valid
 lines then stops early (sentences 1–4). That early-stop is **pre-existing**
 behavior — verified by stashing my patch, rebuilding, and confirming
 identical 95-line / 5531-line-diff output against baseline HEAD 9a43cddd.
@@ -546,7 +546,7 @@ gate exercises a different path and is unaffected.
 - `test_smoke_unified_broker.sh` — PASS=49 FAIL=0 ✓
 - `test_interp_broad_corpus_and_beauty.sh` — PASS=172 FAIL=56 (228 total),
   identical to baseline — zero regression, and treebank-list is now in the
-  pass set though the label will surface only when broad uses `--ir-run`
+  pass set though the label will surface only when broad uses `--interp`
   (currently doesn't include this program explicitly).
 
 ### State at end of session

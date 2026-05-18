@@ -501,7 +501,7 @@ locked convention) lands, every emitted blob must satisfy:
 
 Pass criteria: smoke 7/7, unified_broker 49/49 hold; the canonical
 multi-statement arithmetic reproducer (from ME-4 emergency handoff)
-runs byte-identical `--jit-run` vs `--sm-run`; per-blob size shrinks
+runs byte-identical `--run` vs `--interp`; per-blob size shrinks
 measurably from current ad-hoc emission.
 
 ---

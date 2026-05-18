@@ -199,8 +199,8 @@ Adapt, don't copy verbatim — one4all uses Boehm GC + 64-bit; silly uses arena 
 
 | Flag | Mode |
 |------|------|
-| `scrip --ir-run file.sno` | IR tree-walk interpreter |
-| `scrip --sm-run file.sno` | Stack machine (default) |
+| `scrip --interp file.sno` | IR tree-walk interpreter |
+| `scrip --interp file.sno` | Stack machine (default) |
 | `scrip --gen file.sno` | In-memory x86 generation |
 
 ---

@@ -12,9 +12,9 @@ substrate. They differ in how they walk and dispatch the program.
 
 | # | Mode | Flag | Purpose | Pipeline |
 |---|------|------|---------|----------|
-| 1 | AST interp | `--ast-run` | correctness reference; in-memory tree walk | IR → `execute_program` |
-| 2 | SM gen / interp | `--sm-run` (default) | program in final SM/BB form, dispatched in C | IR → `sm_lower` → `sm_interp_run` |
-| 3 | SM gen / exec | `--jit-run` | speed without asm/link/process overhead | IR → `sm_lower` → `sm_codegen` → `sm_jit_run` |
+| 1 | AST interp | `--interp` | correctness reference; in-memory tree walk | IR → `execute_program` |
+| 2 | SM gen / interp | `--interp` (default) | program in final SM/BB form, dispatched in C | IR → `sm_lower` → `sm_interp_run` |
+| 3 | SM gen / exec | `--run` | speed without asm/link/process overhead | IR → `sm_lower` → `sm_codegen` → `sm_jit_run` |
 | 4 | SM gen / asm / link / exec | future | full native binary path | IR → `sm_lower` → asm-emit → link → exec |
 
 ## Shared substrate (all four modes)
@@ -72,6 +72,6 @@ The IR-only entry points must never be called from SM-mode code paths.
 Two helpers in `src/driver/scrip_sm.{c,h}`:
 
 - `sm_preamble(prog) -> SM_Program*` — `label_table_build` + `prescan_defines` + `g_sno_err_active = 1` + `sm_lower` + `g_current_sm_prog = sm` + `code_free` + `label_table_clear_stmts`. Returns NULL on failure.
-- `sm_run_with_recovery(sm, runner)` — initialises `SM_State`, drives a `setjmp(g_sno_err_jmp)` loop calling `runner(sm, &st)` until normal halt or fatal error. Used by both `--sm-run` and `--jit-run`.
+- `sm_run_with_recovery(sm, runner)` — initialises `SM_State`, drives a `setjmp(g_sno_err_jmp)` loop calling `runner(sm, &st)` until normal halt or fatal error. Used by both `--interp` and `--run`.
 
 Mode 4 uses both helpers verbatim — the runner step is replaced by walking the same SM_Program through `src/emitter/*.c` templates with `bb_emit_mode = EMIT_TEXT`.

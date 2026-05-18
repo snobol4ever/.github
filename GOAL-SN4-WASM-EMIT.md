@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -25,9 +25,9 @@
 ⛔ **Prereq:** GOAL-IR-EMITTER-PREREQ.md must be complete (IEP-1 through IEP-6 all ✅).
 
 **Repo:** one4all + .github
-**Goal:** scrip --sm-emit --target=wasm file.sno emits a .wat file; wat2wasm + node host runs it correctly.
+**Goal:** scrip --compile --target=wasm file.sno emits a .wat file; wat2wasm + node host runs it correctly.
 **Done when:** `bash scripts/test_sn4_wasm_ladder_safe.sh` runs the ~157-program corpus ladder
-(csnobol4-suite + snobol4/demo + snobol4/feat) over `scrip --sm-emit --target=wasm` + wat2wasm
+(csnobol4-suite + snobol4/demo + snobol4/feat) over `scrip --compile --target=wasm` + wat2wasm
 + node host, and reports **PASS ≥ 100** with no segfaults during emission. Beauty self-host
 remains a downstream goal (tracked separately) but is no longer the closing gate here.
 
@@ -246,15 +246,15 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SN4-WASM-3 — Scalar emitter (SM_Program walker) + wire into scrip.c
 
-- [x] **SN4-WASM-3 ✅** — Create `src/emitter/emit_wasm.c` with `emit_wasm_from_sm(SM_Program *prog, FILE *out)` and `emit_wasm_program(tree_t *tree, FILE *out)` entry point. The SM walker converts SM opcodes to `call $sno_NAME` WAT instructions, wrapped in a `$main` function using `block`/`br_table` dispatch (actually implemented as nested if-else dispatch — same semantics, simpler to emit). Prepend bb_boxes.wat and sno_runtime.wat content (or reference them via WAT module linking). Wire `--sm-emit --target=wasm` in `scrip.c`.
+- [x] **SN4-WASM-3 ✅** — Create `src/emitter/emit_wasm.c` with `emit_wasm_from_sm(SM_Program *prog, FILE *out)` and `emit_wasm_program(tree_t *tree, FILE *out)` entry point. The SM walker converts SM opcodes to `call $sno_NAME` WAT instructions, wrapped in a `$main` function using `block`/`br_table` dispatch (actually implemented as nested if-else dispatch — same semantics, simpler to emit). Prepend bb_boxes.wat and sno_runtime.wat content (or reference them via WAT module linking). Wire `--compile --target=wasm` in `scrip.c`.
 
   **Closed:** prior session 2026-05-15 commit `685183c1` for emit_wasm.c.  scrip.c `--target=wasm` dispatch wiring was missing from that commit (target was falling through to the IR-block stub, producing empty output) — **wired up this session**: extern declaration + dispatch branch in scrip.c + Makefile entry + duplicate `g_emit_vtable_wasm` removed from emit_wasm.c (it lives in emit_ir_targets.c).
 
-  **Gate:** `scrip --sm-emit --target=wasm hello.sno > hello.wat && wat2wasm hello.wat -o hello.wasm && node sno_host.mjs hello.wasm` prints `Hello World`. ✅
+  **Gate:** `scrip --compile --target=wasm hello.sno > hello.wat && wat2wasm hello.wat -o hello.wasm && node sno_host.mjs hello.wasm` prints `Hello World`. ✅
 
 ### SN4-WASM-4 — Smoke 7/7
 
-- [x] **SN4-WASM-4 ✅** — Write `scripts/test_smoke_snobol4_wasm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=wasm`, assemble with wat2wasm, run with node + sno_host.mjs, compare output to oracle `.ref` files.
+- [x] **SN4-WASM-4 ✅** — Write `scripts/test_smoke_snobol4_wasm.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --compile --target=wasm`, assemble with wat2wasm, run with node + sno_host.mjs, compare output to oracle `.ref` files.
 
   **Closed:** prior session 2026-05-15 commit `685183c1`. Verified holding this session after memory-layout repairs: PASS=7 FAIL=0.
 
@@ -262,7 +262,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SN4-WASM-5 — Corpus ladder coverage (PASS ≥ 100 / ~157)
 
-- [ ] **SN4-WASM-5** — Achieve PASS ≥ 100 on `scripts/test_sn4_wasm_ladder_safe.sh`, the per-program corpus ladder over csnobol4-suite, snobol4/demo, and snobol4/feat. Each `.sno` is emitted via `scrip --sm-emit --target=wasm`, assembled with wat2wasm, run under `node sno_host.mjs`, and its stdout diffed against the co-located `.ref` oracle. Fresh process per program (so one bad program can't take the batch down).
+- [ ] **SN4-WASM-5** — Achieve PASS ≥ 100 on `scripts/test_sn4_wasm_ladder_safe.sh`, the per-program corpus ladder over csnobol4-suite, snobol4/demo, and snobol4/feat. Each `.sno` is emitted via `scrip --compile --target=wasm`, assembled with wat2wasm, run under `node sno_host.mjs`, and its stdout diffed against the co-located `.ref` oracle. Fresh process per program (so one bad program can't take the batch down).
 
   **Gate:** ladder reports PASS ≥ 100 with no scrip segfaults during emission. (Beauty self-host is no longer the closing gate; deferred to a later goal.)
 
@@ -278,7 +278,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 - [x] **SN4-WASM-5-LADDER ✅** — Add `scripts/test_sn4_wasm_ladder_safe.sh` mirroring the JS ladder structure. Baseline PASS=11/129.
 
-- [x] **SN4-WASM-5d ✅** — `scanerr.sno` is an **upstream scrip frontend bug**, not WASM-specific. Backtrace under gdb (session 2026-05-15, Opus 4.7) pinpoints `lower.c:304` in `emit_pat_capture()`: `strdup(0x1)` because `var_node->v.sval` is uninitialised for the unary-`*` deferred-expression pattern operator (`*TAB(X)`, `*ANY(X)`, `*LEN(X)`). Fires on every target including `--sm-run` / `--ir-run`. Per RULES.md skip-with-doc the right move: ladder script gained a `SKIP_LIST` guard and now reports `PASS / FAIL / SKIP / TOTAL`. Upstream fix is a separate session.
+- [x] **SN4-WASM-5d ✅** — `scanerr.sno` is an **upstream scrip frontend bug**, not WASM-specific. Backtrace under gdb (session 2026-05-15, Opus 4.7) pinpoints `lower.c:304` in `emit_pat_capture()`: `strdup(0x1)` because `var_node->v.sval` is uninitialised for the unary-`*` deferred-expression pattern operator (`*TAB(X)`, `*ANY(X)`, `*LEN(X)`). Fires on every target including `--interp`. Per RULES.md skip-with-doc the right move: ladder script gained a `SKIP_LIST` guard and now reports `PASS / FAIL / SKIP / TOTAL`. Upstream fix is a separate session.
 
 - [x] **SN4-WASM-5e ✅** — Implement remaining single-arg / 2-arg / 3-arg scalar builtins in `$sno_call`. **Closed sess 2026-05-15h (Claude Opus 4.7):** silent `$sno_halt_tos`; `&KEYWORD` fast-path in `$sno_push_var` for MAXINT/MAXLNGTH/STCOUNT/STLIMIT/ERRLIMIT/TRIM; 1-arg builtins SIZE/INTEGER/CHAR/ORD/TRIM/REVERSE; 3-arg SUBSTR. **Also closed this session:** string-valued keywords ALPHABET/DIGITS/UCASE/LCASE — added `(data)` segments at 0x31300 (256-byte \\00..\\FF ALPHABET), 0x31400 (DIGITS), 0x31410 (UCASE), 0x31430 (LCASE) with corresponding fast-paths in `$sno_push_var`.  Failure sentinel propagation: unknown-builtin fallback now pushes `TAG_FAIL` (was TAG_NULL) with `last_ok=0`; failed comparisons (LT/GT/EQ/NE/GE/LE/IDENT/DIFFER) push `TAG_FAIL` (was TAG_NULL); `$sno_concat` short-circuits to FAIL if either operand is FAIL; `$sno_store_var` no-ops when TOS is FAIL.  **5e-extensions (same session):** additional keyword fast-paths STNO/FNCLEVEL/ANCHOR/FULLSCAN/CASE at 0x31250..0x31280; float-to-string conversion via new `host.format_real` JS host import (reconstructs f64 from `(ival=lo32, len=hi32)` slot, calls host; host implements SNOBOL4 conventions like `1.0`→`"1."`, `1e-6`→`"1e-06"` with zero-padded exponent for `|v| < 1e-3` or `|v| >= 1e16`); real arithmetic in `$sno_arith` (when either operand is `TAG_REAL`, do f64 ops and re-encode result as TAG_REAL slot) with FAIL propagation.  Remaining for a future session: DATATYPE, STRING, CONVERT, DUPL, REPLACE, REMDR.
 
@@ -303,7 +303,7 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 - **All strings in linear memory data segments.** The emitter maintains a string table; identical strings share one `(data ...)` entry. String base address: `0x1000`, growing upward.
 - **Arena base: `0x50000`.** Each box slot: 32 bytes. Arena grows upward from base. Never overwrite the bb_boxes.wat arena layout.
 - **EVAL/CODE limitation acknowledged.** Use `host.eval_fallback` import for beauty self-host. Not a blocker; fallback is correct, just slow.
-- **Flag:** `--sm-emit --target=wasm` (not `--jit-emit --wasm`).
+- **Flag:** `--compile --target=wasm` (not `--compile --wasm`).
 - **Build tool:** `wat2wasm` from wabt. Validate with `wasm-validate` before running.
 
 ---
@@ -343,7 +343,7 @@ findings (failure taxonomy on 105 ladder FAILs):
            (openi, openo2, rewind1, spit) which need host file imports (out of scope
            for ladder gate), plus pattern-heavy programs (alt1, match4, words, sudoku)
            that likely trigger infinite loops in $sno_match_node. Critically:
-           `any.sno` also segfaults under `--sm-run` upstream — its `$ output fail`
+           `any.sno` also segfaults under `--interp` upstream — its `$ output fail`
            idiom is a known upstream issue, not WASM-specific.
          - [wat2wasm] 1 program (ftrace) — WAT syntax error during assembly.
 recommended next step (SN4-WASM-5g continuation):
@@ -372,7 +372,7 @@ regressions noted: `noexec.sno` and `sleep.sno` previously "passed" because they
                    pragma is not honored at WASM emit time — emitter emits the code anyway).
                    These were spurious passes; fixing them requires honoring the `-NOEXECUTE`
                    directive in scrip's emit path or in the ladder script's emission step.
-deferred upstream note: `any.sno` segfaults under `--sm-run` — the `$ output fail` idiom
+deferred upstream note: `any.sno` segfaults under `--interp` — the `$ output fail` idiom
                    triggers a frontend/SM-lowering bug that affects all targets, not just WASM.
                    Tracked here for visibility; upstream fix is a separate session.
 ```

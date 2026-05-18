@@ -212,7 +212,7 @@ The original Snocone (Mark Emmer's, the source of `sb.sno` etc.) was **a Snocone
 **Once we have a transpiler:**
 
 - **A Snocone oracle exists for the first time.** Currently SCRIP is the only thing that can run Snocone — there is nothing to compare against. Post-transpiler, the same `.sc` file produces SNOBOL4 that SPITBOL runs, and SPITBOL becomes a Snocone oracle by transitivity.
-- **The 2-way sync-step monitor (already built) becomes a Snocone debugger.** `parser_<lang>.sc → parser_<lang>.sno → SPITBOL + SCRIP --sm-run/--jit-run side by side`, divergence reported at the first differing CALL/RETURN/VALUE event. Each bug in SCRIP's Snocone runtime shows up as a clean divergence with a 5-line repro.
+- **The 2-way sync-step monitor (already built) becomes a Snocone debugger.** `parser_<lang>.sc → parser_<lang>.sno → SPITBOL + SCRIP --interp/--run side by side`, divergence reported at the first differing CALL/RETURN/VALUE event. Each bug in SCRIP's Snocone runtime shows up as a clean divergence with a 5-line repro.
 - **The transpiler itself stress-tests `lower.c`.** Each construct in parser_*.sc forces a Snocone→AST→SNOBOL4 path that today only roundtrips Snocone→AST→IR. Bugs found in lower.c during transpiler development feed back into the main GOAL-PST-REBUS work.
 - **We trust the LOWER step.** Per Lon: "we must just trust our LOWER step, and find bugs in lower while we are at it going along." LOWER produces the `tree_t` we transpile from. If LOWER is correct, the transpiler emits semantically-faithful SNOBOL4. If the transpiled SNOBOL4 diverges from SCRIP's direct execution of the .sc, the bug is in **one of**: LOWER, SM/BB runtime, transpiler. Sync-monitor tells us which.
 
@@ -229,7 +229,7 @@ Per Lon directive 2026-05-17:
 3. **`pop`, `foldop`, `nDec`, `reduce_opsyn`, `reduce_prim`, `reduce_call`, `nPushName`** — currently exported by `semantic.sc` — must NOT be called from any `parser_*.sc`. Their use in current grammars must be replaced with combinations of the six allowed.
 4. **No `*Var` deferred references**, where Var is itself a Snocone function. Pattern composition is allowed (`*Letter *Letter`), but `*foo()` constructs that defer call-time evaluation must be re-expressed using the shift/reduce stack and counter primitives. Rationale: per GOAL-PST-REBUS.md remaining wall, `*Var` deferred references trigger `bb_deferred_var` rebuild paths and the JIT-stack pointer bug — eliminating them removes that bug from the parser-side surface entirely.
 5. **The transpiler's output is portable SNOBOL4.** No SPITBOL-only extensions. The transpiled `.sno` must run on:
-   - SCRIP `--ir-run`, `--sm-run`, `--jit-run` (all three modes)
+   - SCRIP `--interp`, `--interp`, `--run` (all three modes)
    - SPITBOL x64 (`/home/claude/x64/bin/sbl -bf`)
    - CSNOBOL4 (only if Silly target, otherwise not required)
 
@@ -268,7 +268,7 @@ For the SCRIP side, the input is **transpiled to SNOBOL4** rather than executed 
 - Validates LOWER end-to-end (LOWER → tree_t → transpile → SNOBOL4 must match SPITBOL).
 - Allows running the parser through SPITBOL today (no Snocone runtime in SPITBOL world).
 
-A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus/SCRIP/...` chain), and compares its output to the transpiled `.sno`-via-SPITBOL output. That's the **outer** Snocone-runtime oracle. The sync-monitor handles the **inner** divergence-when-running-the-same-.sno cross-mode test.
+A separate path runs the original `.sc` through SCRIP directly (`--interp corpus/SCRIP/...` chain), and compares its output to the transpiled `.sno`-via-SPITBOL output. That's the **outer** Snocone-runtime oracle. The sync-monitor handles the **inner** divergence-when-running-the-same-.sno cross-mode test.
 
 ---
 
@@ -293,7 +293,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 
   Also fixed two pre-existing bugs surfaced during this work: `:lbl` attr's label payload lives in `c[0]->v.sval` not the attr's own `v.sval`; `TT_GOTO_U`'s label same shape. Both fixed via new `label_of()` helper.
 
-  Added `label_sanitize()` — strips leading underscore per SPITBOL Manual Ch.14 line 9335 ("Labels must begin with a letter or digit"). The Snocone PST mode pre-allocates `_Ltop_NNNN` which SPITBOL rejects with ERROR 230 and SCRIP `--sm-run` silently mangles. Threaded through every label emission site via a 4-deep buffer ring so multiple `label_sanitize()` calls in one printf format don't clobber.
+  Added `label_sanitize()` — strips leading underscore per SPITBOL Manual Ch.14 line 9335 ("Labels must begin with a letter or digit"). The Snocone PST mode pre-allocates `_Ltop_NNNN` which SPITBOL rejects with ERROR 230 and SCRIP `--interp` silently mangles. Threaded through every label emission site via a 4-deep buffer ring so multiple `label_sanitize()` calls in one printf format don't clobber.
 
   Padded label-only statements with `OUTPUT =` so SCRIP's SNOBOL4 parser (which rejects label-only lines) accepts them.
 
@@ -311,7 +311,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
   - **Wrapper** (`scripts/run_parser_sync_monitor.sh`): now passes the full Snocone runtime prelude (`global.sc tree.sc stack.sc counter.sc ShiftReduce.sc semantic.sc tdump.sc`) alongside the parser. Added 1024-char line-length sanity warning.
   - **Corpus rename** (`corpus/SCRIP/semantic.sc`): `_qtag` → `qtag`. Only underscore-leading function name in the seven runtime `.sc` files. SPITBOL rejects underscore-leading identifiers in `DEFINE()` with ERROR 230.
 
-  Result on `scrip --dump-sno <runtime> parser_snobol4.sc`: 885 lines, **SPITBOL accepts end-to-end with zero parse errors**, single runtime ERROR 041 at line 873 (`n(ptree)` on non-tree value — downstream parsing-execution, not transpile). SCRIP `--sm-run` segfaults during execution (also downstream).
+  Result on `scrip --dump-sno <runtime> parser_snobol4.sc`: 885 lines, **SPITBOL accepts end-to-end with zero parse errors**, single runtime ERROR 041 at line 873 (`n(ptree)` on non-tree value — downstream parsing-execution, not transpile). SCRIP `--interp` segfaults during execution (also downstream).
 
 - [x] **SCT-1e — Investigate the single SPITBOL runtime ERROR 041.** ✅ 2026-05-17 (Opus 4.7).
   **Root cause: transpiler bug in `lower_sno.c::emit_expr` TT_SCAN case** (option (a) from the original three candidates — but the actual misbehavior was inside the transpiler, not the source `.sc`). The case emitted `(SUBJ PAT)` (space-as-concat) instead of `(SUBJ ? PAT)` (explicit match operator). The author's comment claimed "space-as-match for standard-SNOBOL4 compatibility," which is wrong: inside an expression context, space is the binary CONCAT operator (SPITBOL Manual Ch.15 priority 4), NOT pattern-match. The match operator at expression level is the explicit `?` (Ch.15 priority 1).
@@ -335,7 +335,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 - [x] **SCT-2 — `parser_rebus.sc` → `parser_rebus.sno`.** ✅ 2026-05-17 (Opus 4.7), continuation.
   **Rebus + Icon now run to clean exit under SPITBOL.** Two surgical fixes landed:
 
-  **Fix #1 — `corpus/SCRIP/semantic.sc` line 31 (`qtag`):** swapped `REPLACE(t, "'", "")` for `REPLACE(t, "'", 'x')`. SPITBOL `REPLACE` requires equal-length 2nd/3rd args (it's a character-mapping translation, not substring substitution); the empty 3rd arg crashes with ERROR 171. The new form is portable on both runtimes: substitutes `'` for `x` (any non-apos char of same length), then `IDENT(result, t)` succeeds iff `t` had no apostrophes. Tested under both SPITBOL and SCRIP `--ir-run` with 3 inputs (has-apos / no-apos / empty); all 6/6 PASS. The original comment in semantic.sc claimed bare `ANY("'")` would work as an alternative but `--ir-run` showed SL-4 affects ANY too (false positives on no-apos inputs), so REPLACE is the only portable path. **Followup:** the underlying runtime divergence — SCRIP's `REPLACE` accepts unequal-length args, SPITBOL's doesn't — is now tracked as **SN-REPLACE-EQ** in `GOAL-LANG-SNOBOL4.md` and listed in the "follow SPITBOL" rule's "Known OPEN divergences" subsection.
+  **Fix #1 — `corpus/SCRIP/semantic.sc` line 31 (`qtag`):** swapped `REPLACE(t, "'", "")` for `REPLACE(t, "'", 'x')`. SPITBOL `REPLACE` requires equal-length 2nd/3rd args (it's a character-mapping translation, not substring substitution); the empty 3rd arg crashes with ERROR 171. The new form is portable on both runtimes: substitutes `'` for `x` (any non-apos char of same length), then `IDENT(result, t)` succeeds iff `t` had no apostrophes. Tested under both SPITBOL and SCRIP `--interp` with 3 inputs (has-apos / no-apos / empty); all 6/6 PASS. The original comment in semantic.sc claimed bare `ANY("'")` would work as an alternative but `--interp` showed SL-4 affects ANY too (false positives on no-apos inputs), so REPLACE is the only portable path. **Followup:** the underlying runtime divergence — SCRIP's `REPLACE` accepts unequal-length args, SPITBOL's doesn't — is now tracked as **SN-REPLACE-EQ** in `GOAL-LANG-SNOBOL4.md` and listed in the "follow SPITBOL" rule's "Known OPEN divergences" subsection.
 
   **Fix #2 — `one4all/src/lower/lower_sno.c` TT_VAR case + `label_sanitize()` strategy upgrade:** apply `label_sanitize()` to every emitted identifier, not just labels. SPITBOL Manual Ch.14 line 9335 (the same constraint that motivated SCT-1b for labels and SCT-1d's `_qtag` rename) applies to identifiers in pattern-capture position too. `parser_prolog.sc` uses `_op_name` as a `. _op_name` capture target dozens of times; SPITBOL rejected at first use with ERROR 230 illegal character. Two changes: (a) one-line addition in `emit_expr` TT_VAR case to route through `label_sanitize`; (b) sanitizer strategy upgraded per Lon directive (2026-05-17): strip **all** leading underscores and **append one trailing underscore**, instead of just stripping a single leading. Rationale: trailing-underscore identifiers are valid in SPITBOL (verified by direct test) and almost nobody writes user identifiers ending in `_`, so the sanitized form `op_name_` is essentially collision-free with any user-written `op_name`. The previous strip-only rule was collision-unsafe for the general case. Now: `_op_name → op_name_`, `_Ltop_0001 → Ltop_0001_`, `__foo → foo_` — all unique, all portable. Verified in the transpiled output of all 6 parsers; smoke gates hold.
 
@@ -357,7 +357,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
   Smoke gates hold: snobol4 6/1 (1 pre-existing baseline FAIL, identical to SCT-1e watermark), snocone 5/0. No regressions.
 
   **Followups owned by other rungs:**
-  - `--sm-run` still segfaults on all 6 via `rt_bb_arbno` → `bb_deferred_var` rebuild path (rt.c:1217 / stmt_exec.c:303). Owned by GOAL-PST-REBUS.
+  - `--interp` still segfaults on all 6 via `rt_bb_arbno` → `bb_deferred_var` rebuild path (rt.c:1217 / stmt_exec.c:303). Owned by GOAL-PST-REBUS.
   - Raku's ERROR 022 is `parser_raku.sc` referencing undefined helpers like `Push_fn_raku_die`, `Push_fn_map`, `Push_fn_capture`, etc. — these aren't in `raku_helpers.sc` either, they're meant to be implementation hooks. Per goal constraint #2 these are forbidden in `parser_*.sc`; the proper SCT-5 work re-expresses these in terms of the six allowed primitives (`shift`, `reduce`, `nPush`, `nInc`, `nTop`, `nPop`) or migrates to C-side `raku_lower.c`.
   - Prolog's ERROR 022 is analogous: `Push_nil`, `Push_cut`, `Push_char_code`, `Push_hex_int`, `Push_bin_int`, `Push_oct_int`, `Push_atom_body`, `Push_neg_float`, `Push_neg_int`, `Reduce_compound_ns`, `Reduce_list`, `Reduce_unop`, `do_uminus` — all undefined in any loaded `.sc`. SCT-6 territory.
   - Cosmetic: `lower_sno.c` emits `&FULLSCAN = 1` twice when source also emits it (prelude + passthrough). Harmless no-op pair under SPITBOL. Worth a 3-line dedup in `lower_sno.c::tree_to_sno`.
@@ -382,7 +382,7 @@ A separate path runs the original `.sc` through SCRIP directly (`--ir-run corpus
 - [ ] **SCT-7 — Build the harness driver `scripts/run_parser_sync_monitor.sh`.**
   Wraps the existing IPC infrastructure (`monitor_sync_bin.py`, `monitor_ipc_bin_csn.c`, `x64/monitor_ipc_bin_spl.c`). Inputs: `<lang> <sample-file>`. Runs:
   1. `scrip --sc-to-sno parser_<lang>.sc > /tmp/parser_<lang>.sno`
-  2. SCRIP side: `scrip --sm-run /tmp/parser_<lang>.sno < <sample>` with `MONITOR_READY_PIPE` set
+  2. SCRIP side: `scrip --interp /tmp/parser_<lang>.sno < <sample>` with `MONITOR_READY_PIPE` set
   3. SPITBOL side: `sbl -bf /tmp/parser_<lang>.sno < <sample>` with `MONITOR_READY_PIPE` set (requires SPITBOL IPC patch — separate sub-rung if not yet landed)
   4. `monitor_sync_bin.py` orchestrates step-comparison
   
@@ -714,7 +714,7 @@ status:    SCT-9 partial 🔄 2026-05-17 (Opus 4.7, continuation of Sonnet 4.6).
 
            Smoke gates hold: snobol4 6/1 (matches SCT-1e baseline,
            1 pre-existing FAIL), snocone 5/0.  No regressions.
-           SCRIP --sm-run still segfaults on all 6 via rt_bb_arbno →
+           SCRIP --interp still segfaults on all 6 via rt_bb_arbno →
            bb_deferred_var path (rt.c:1217 / stmt_exec.c:303).
            Owned by GOAL-PST-REBUS; this goal routes around.
 
@@ -855,7 +855,7 @@ If you add a new C file under `src/lower/`, you must update **two** places in `M
 
 # Sanity self-test (round-trip):
 ./scrip --dump-sno foo.sc > /tmp/foo.sno
-echo "" | ./scrip --sm-run /tmp/foo.sno
+echo "" | ./scrip --interp /tmp/foo.sno
 # If exit is 0 and no '** Error' lines, the transpile produced valid SNOBOL4.
 
 # Count remaining unhandled node kinds in a given input:
@@ -974,7 +974,7 @@ make
 # Quick smoke (don't drive SPITBOL yet, just see if SCRIP's own SNOBOL4 frontend
 # accepts the output):
 ./scrip --dump-sno corpus/SCRIP/parser_<lang>.sc > /tmp/p.sno
-echo "" | ./scrip --sm-run /tmp/p.sno 2>&1 | head -5
+echo "" | ./scrip --interp /tmp/p.sno 2>&1 | head -5
 
 # Expected progressions on SCT-1 work:
 #   a) "parse error: syntax error"      → emitter bug, syntax we generate

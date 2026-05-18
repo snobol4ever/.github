@@ -76,7 +76,7 @@ All three are solved the same way: the script itself handles it.
   | `test_smoke_scrip_all_modes.sh` | **Stdin** — no `< /dev/null` on scrip calls | Add `< /dev/null` + `timeout 8` to sm-run and ir-run calls |
   | `test_csnobol4_budne_suite.sh` | **Env vars** — `CORPUS`, `INTERP`, `TIMEOUT`, `SUITE`, `FENCE` set via `:-` defaults only; no auto-clone if corpus missing | Derive paths from `$0`; add corpus SKIP-or-clone guard |
   | `test_interp_broad_corpus_and_beauty.sh` | **Env vars** + **Stdin** — `INTERP`, `CORPUS`, `INC`, `BEAUTY`, `DEMO` via `:-` only; `run_test` does not pass `< /dev/null` when no input file given | Derive paths from `$0`; add `< /dev/null` to all no-input scrip calls |
-  | `test_icon_ir_all_rungs.sh` | **Env vars** — uses `CORPUS_REPO` (non-standard); exits with error if corpus missing | Switch to `$0`-derived default; degrade to SKIP if corpus absent |
+  | `test_icon_all_rungs.sh` | **Env vars** — uses `CORPUS_REPO` (non-standard); exits with error if corpus missing | Switch to `$0`-derived default; degrade to SKIP if corpus absent |
   | `test_smoke_unified_broker.sh` | ✅ already self-contained — model for all others | none |
   | `scripts/build_*.sh`, `scripts/install_*.sh` | SC-7 audit pending | see SC-7 |
 
@@ -89,7 +89,7 @@ All three are solved the same way: the script itself handles it.
 - [x] **SC-4** — Fix `test_interp_broad_corpus_and_beauty.sh` — hardcode paths from `$0`, corpus SKIP guard, `< /dev/null` on all no-input scrip calls.
   Gate: ✅ runs from repo root, no setup, no hang.
 
-- [x] **SC-5** — Fix `test_icon_ir_all_rungs.sh` — `$0`-derived defaults, SKIP (not error) if scrip or corpus absent. Timeout raised to 8s.
+- [x] **SC-5** — Fix `test_icon_all_rungs.sh` — `$0`-derived defaults, SKIP (not error) if scrip or corpus absent. Timeout raised to 8s.
   Gate: ✅ runs from repo root, no setup.
 
 - [x] **SC-6** — Write `test_broad_unified_broker.sh` (replaces deleted broken version).
@@ -125,7 +125,7 @@ Verified scrip stdin behavior: scrip blocks on stdin only when the running *prog
 | `scripts/test_smoke_scrip_all_modes.sh` | ✅ SC-2 fixed |
 | `scripts/test_csnobol4_budne_suite.sh` | ✅ SC-3 fixed |
 | `scripts/test_interp_broad_corpus_and_beauty.sh` | ✅ SC-4 fixed |
-| `scripts/test_icon_ir_all_rungs.sh` | ✅ SC-5 fixed |
+| `scripts/test_icon_all_rungs.sh` | ✅ SC-5 fixed |
 | `scripts/test_broad_unified_broker.sh` | ✅ SC-6 written |
 | `scripts/build_parse_expr_unit_test.sh` | ✅ SC-7 fixed |
 | `scripts/build_*.sh`, `scripts/install_*.sh` | ✅ SC-7 audited — all idempotent |

@@ -139,18 +139,18 @@ One binary. `scrip-interp` and `scrip-cc` names are retired. Harness passes `INT
 scrip [mode] [bb] [--target=T] [options] source.sno [-- program-args...]
 
 Execution modes (default: --sm-interp):
-  --ast-run        interpret via AST tree-walk (correctness reference)
+  --interp        interpret via AST tree-walk (correctness reference)
   --sm-interp      interpret SM_Program via dispatch loop  [DEFAULT]
   --sm-native      SM_Program -> x86 bytes -> mmap slab -> jump in
                    (implies --target=x64; no emit to disk)
-  --sm-emit        SM_Program -> emit target-language text -> toolchain -> run
+  --compile        SM_Program -> emit target-language text -> toolchain -> run
                    (target selects output language; see --target below)
 
 Byrd Box pattern mode (default: --bb-brokered):
   --bb-brokered    pattern matching via bb_broker() driver
   --bb-flat        flat inlined blob in exec memory (no broker call overhead)
 
-Target (for --sm-emit; default: x64):
+Target (for --compile; default: x64):
   --target=x64     emit NASM .s  -> nasm -> ld -> exec
   --target=js      emit JS       -> node -> exec
   --target=wasm    emit WAT      -> wat2wasm -> node -> exec
@@ -159,14 +159,14 @@ Target (for --sm-emit; default: x64):
   --target=c       emit C        -> cc -> exec
 
 Legacy aliases (deprecated, map to new names):
-  --ir-run    -> --ast-run
-  --dump-ir        -> --dump-ast
-  --dump-ir-bison  -> --dump-ast-bison
-  --sm-run    -> --sm-interp
-  --jit-run   -> --sm-native
-  --jit-emit  -> --sm-emit --target=x64
-  --bb-driver -> --bb-brokered
-  --bb-live   -> --bb-flat
+  --interp    -> --interp
+  --dump-ast        -> --dump-ast
+  --dump-ast-bison  -> --dump-ast-bison
+  --interp    -> --sm-interp
+  --run   -> --sm-native
+  --compile  -> --compile --target=x64
+  --bb=brokered -> --bb-brokered
+  --bb=wired   -> --bb-flat
 
 Diagnostic options:
   --dump-ast       print AST after frontend
@@ -186,13 +186,13 @@ and does not use the `--target` flag.
 
 |                | x64 | js | wasm | jvm | msil | c |
 |----------------|:---:|:--:|:----:|:---:|:----:|:-:|
-| `--ast-run`    | ✓   | —  | —    | —   | —    | — |
+| `--interp`    | ✓   | —  | —    | —   | —    | — |
 | `--sm-interp`  | ✓   | —  | —    | —   | —    | — |
 | `--sm-native`  | ✓   | —  | —    | —   | —    | — |
-| `--sm-emit`    | ✓   | ✓  | ✓    | ✓   | ✓    | ✓ |
+| `--compile`    | ✓   | ✓  | ✓    | ✓   | ✓    | ✓ |
 
-`--ast-run` and `--sm-interp` always run in the C host process;
-target is irrelevant. `--sm-emit` is the universal text-codegen path —
+`--interp` and `--sm-interp` always run in the C host process;
+target is irrelevant. `--compile` is the universal text-codegen path —
 the same SM_Program walks to a target-language emitter, the emitter
 writes source text, and the target's toolchain assembles/compiles/runs it.
 

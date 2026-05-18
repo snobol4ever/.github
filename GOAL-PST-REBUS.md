@@ -119,7 +119,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   Beauty self-host: still 0 lines, but the crash signature changed from segfault to infinite loop downstream (Bug #2). Net progress: the `upr` recursion no longer blocks beauty.
   
   **Bug #2 (DIAGNOSED, FIX SKETCHED, NOT LANDED): mode-1 interp_exec does not perform SUBJ-PAT split.**
-  PST-SN4-1b (2026-05-16) moved the SUBJ-PAT-REPL statement layout split out of the SNOBOL4 parser and into `lower.c`. But that split runs only in modes 2/3/4 (SM/JIT/emit). Mode 1 (`--ir-run`, `interp_exec.c`) reads `:pat` directly from the AST and never recognizes the parser's TT_SEQ-with-pattern-as-tail shape. Result: statements like
+  PST-SN4-1b (2026-05-16) moved the SUBJ-PAT-REPL statement layout split out of the SNOBOL4 parser and into `lower.c`. But that split runs only in modes 2/3/4 (SM/JIT/emit). Mode 1 (`--interp`, `interp_exec.c`) reads `:pat` directly from the AST and never recognizes the parser's TT_SEQ-with-pattern-as-tail shape. Result: statements like
   ```snobol4
   S = 'abc'
   S 'b' = 'X'        /* parses as :subj=TT_SEQ(S, 'b'), :repl='X', :pat=NULL */
@@ -135,7 +135,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   **Bug #3+ (UNKNOWN):** Likely additional issues will surface after Bug #2 lands. SN-7 gate baseline this session start: 22/29. Goal: strictly increase.
   
   **Acceptance criteria for PST-RB-PRE-BEAUTY:**
-  1. beauty.sno self-host (`scrip --ir-run beauty.sno < beauty.sno`) produces >0 lines of output.
+  1. beauty.sno self-host (`scrip --interp beauty.sno < beauty.sno`) produces >0 lines of output.
   2. SN-7 gate `test_gate_sn7_beauty_self_host.sh` PASS count strictly increases from baseline 22/29.
   3. All PST-REBUS gates green at floor: smoke gates above + subsystem suite ≥19/1 + crosscheck 4/2.
   4. Milestone 1 byte-identity remains the long-term target (not gated here; this rung is "unblock to non-zero output").
@@ -188,7 +188,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   - **CSO-8** ✅ rebuild + gate sweep + push. CMPILE.c/CMPILE.h moved
     to archive/frontend/snobol4/ alongside util_compare_cmpile_vs_bison_ir.sh
     (CMPILE was already disconnected from the build; util script
-    invoked a non-existent --dump-ir-cmpile flag).
+    invoked a non-existent --dump-ast-cmpile flag).
   Generated .tab.c/.lex.c regenerated via
   regenerate_parser_and_lexer_from_sources.sh (bison 3.8.2, flex 2.6.4).
   VERIFIED zero strcasecmp/strncasecmp/sno_fold_*/fold_strbuf/kw_case

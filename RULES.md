@@ -68,14 +68,32 @@
 ║  Do NOT route through proc_table_call, _usercall_hook AST fallback, or any other                 ║
 ║  back-door that hands a tree_t* to mode-2/3/4 code.                                              ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp, interp_eval.c + interp_exec.c + interp_call.c)        ║
-║  is the ONLY place AST walking is permitted. Mode 1 stays; it is the reference path.            ║
+║  Mode 1 (`--ast-run` / `--ir-run`) was the standalone AST interpreter (interp_eval.c +           ║
+║  interp_exec.c + interp_call.c). Its flag is deleted (CLI-3M-10, 2026-05-17). The C code is     ║
+║  still in src/driver/interp_*.c but is unreachable from any CLI flag; it lingers as dead code   ║
+║  pending CLI-3M-9's big rip. AST walking inside those files is therefore moot — no user-facing  ║
+║  path reaches them. Modes 2/3/4 remain AST-free, as before. The `--interp` flag is mode 2       ║
+║  (SM dispatch loop), not mode 1.                                                                ║
 ║                                                                                                  ║
 ║  This rule applies to every language session — Icon, Prolog, Snocone, SNOBOL4, Rebus, Raku.     ║
 ║  No language-specific exception. If your frontend lowers to SM_Program / IR_block_t, that       ║
 ║  lowered form is what mode 2/3/4 sees; the AST is invisible to them.                            ║
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+### Icon-specific addendum (2026-05-17, IJ-DEL-ICN-AST + CLI-3M-10)
+
+The Icon-specific `tree_t *` AST walker (`bb_eval_value` /
+`bb_exec_stmt` / `icn_bb_build`) is amputated; pre-CLI-3M-10 mode-1
+Icon was already routing through the universal `interp_eval` walker
+(then through `ir_exec.c`'s `IR_block_t` walker). DAI-5c-trans
+confirmed mode-1 and mode-2 were at full empirical parity for the
+Icon rung ladder (both 194/265, byte-identical PASS/FAIL sets) before
+the mode-1 flag was deleted by CLI-3M-10. Reference path for Icon is
+now `--interp` (mode 2) — the only flag-reachable execution mode
+besides `--run` (JIT) and `--compile` (x86 asm). Icon rung floor is
+`scripts/test_icon_all_rungs.sh` under `--interp` at PASS=194 FAIL=36
+XFAIL=35 TOTAL=265.
 
 
 ## Where rules belong
@@ -588,13 +606,9 @@ deltas, on both the before-SHA and after-SHA.
 
 | Gate | Variance | Centered on | Likely cause |
 |------|----------|-------------|--------------|
-| `test_icon_sm_no_ast_walk.sh` (GATE-4 of GOAL-ICON-BB-NATIVE) | ~6 PASS points across 5 runs at the same SHA | `rung24_records_*`, some `rung36_jcon_*` segfault intermittently | 8-second timeout under load and/or Boehm-GC nondeterminism on record allocation |
+| _(none currently; `test_icon_sm_no_ast_walk.sh` was the documented flake — deleted 2026-05-17j as part of IJ-DEL-ICN-AST / CLI-3M-10)_ | | | |
 
-Verified 2026-05-12 (Claude Opus 4.7) — flake reproduces on
-unmodified one4all 7be3c8e0 baseline, so it pre-exists any single
-session's changes.  Do not chase a 1-2 point single-run delta as if
-it were signal; do not attribute single-run regressions to a session's
-code changes without re-measuring on the unmodified baseline first.
+Historical note: `test_icon_sm_no_ast_walk.sh` carried ~6 PASS-point variance across 5 runs at the same SHA (`rung24_records_*`, some `rung36_jcon_*` segfaulted intermittently under 8s timeout / Boehm-GC nondeterminism). The gate was deleted after the Icon AST walker was amputated: ABORT semantics ("mode-2 secretly calling the Icon walker") became structurally impossible. Mode-1/mode-2 parity is now measured by `test_icon_all_rungs.sh` under `--interp`, which uses a more generous timeout and a smaller variance window.
 
 ---
 

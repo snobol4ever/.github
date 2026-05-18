@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -25,7 +25,7 @@
 ⛔ **Prereq:** GOAL-IR-EMITTER-PREREQ.md must be complete (IEP-1 through IEP-6 all ✅).
 
 **Repo:** one4all + .github
-**Goal:** scrip --sm-emit --target=net file.sno emits a .il file; ilasm + mono/dotnet runs it correctly.
+**Goal:** scrip --compile --target=net file.sno emits a .il file; ilasm + mono/dotnet runs it correctly.
 **Done when:** smoke_snobol4_net + broader SNOBOL4 corpus test suites pass (pattern matching complete). NOTE: beauty.sno removed as finality requirement — beauty contains EVAL/CODE which require mode-1 AST evaluation; .NET emitter focusing on deterministic pattern + arithmetic + function paths.
 
 ---
@@ -260,13 +260,13 @@ All steps here build on top of GOAL-IR-EMITTER-PREREQ (IEP-1..6). The visitor in
 
 ### SN4-NET-3 — Scalar emitter (SM_Program walker) + wire into scrip.c
 
-- [x] **SN4-NET-3** — Create `src/emitter/emit_net.c` with `emit_net_from_sm(SM_Program *prog, FILE *out)` and `emit_net_program(tree_t *tree, FILE *out)` entry point. The SM walker converts SM opcodes to MSIL invokestatic/callvirt calls to SnoRt static methods, wrapping everything in a `switch (_pc)` dispatch loop using MSIL's `switch` instruction. Emit `.assembly`, `.module`, `.class Prog`, and `Main()` wrapper. Wire `--sm-emit --target=net` in `scrip.c`.
+- [x] **SN4-NET-3** — Create `src/emitter/emit_net.c` with `emit_net_from_sm(SM_Program *prog, FILE *out)` and `emit_net_program(tree_t *tree, FILE *out)` entry point. The SM walker converts SM opcodes to MSIL invokestatic/callvirt calls to SnoRt static methods, wrapping everything in a `switch (_pc)` dispatch loop using MSIL's `switch` instruction. Emit `.assembly`, `.module`, `.class Prog`, and `Main()` wrapper. Wire `--compile --target=net` in `scrip.c`.
 
-  **Gate:** `scrip --sm-emit --target=net hello.sno > hello.il && ilasm hello.il && mono hello.exe` prints `Hello World`.
+  **Gate:** `scrip --compile --target=net hello.sno > hello.il && ilasm hello.il && mono hello.exe` prints `Hello World`.
 
 ### SN4-NET-4 — Smoke 7/7
 
-- [x] **SN4-NET-4** — Write `scripts/test_smoke_snobol4_net.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=net`, assemble with ilasm, run with mono (or dotnet), compare output to oracle `.ref` files.
+- [x] **SN4-NET-4** — Write `scripts/test_smoke_snobol4_net.sh`. Run all 7 SNOBOL4 smoke programs via `scrip --compile --target=net`, assemble with ilasm, run with mono (or dotnet), compare output to oracle `.ref` files.
 
   **Gate:** 7/7 PASS.
 
@@ -424,9 +424,9 @@ Session 2026-05-16d (Claude Sonnet 4.5): **Correct architecture — emit flat, w
 
 ### SN4-NET-6 — Cross-check ladder against SNOBOL4 corpus
 
-- [ ] **SN4-NET-6** — After beauty self-hosts, run the broader SNOBOL4 corpus (≈260 programs in `corpus/crosscheck/`) through `scrip --sm-emit --target=net` and diff each against the JIT-mode reference. Mirrors the JS ladder (`test_sn4_js_ladder_safe.sh` 10/129) and the JIT-mode crosscheck (180-program parity).
+- [ ] **SN4-NET-6** — After beauty self-hosts, run the broader SNOBOL4 corpus (≈260 programs in `corpus/crosscheck/`) through `scrip --compile --target=net` and diff each against the JIT-mode reference. Mirrors the JS ladder (`test_sn4_js_ladder_safe.sh` 10/129) and the JIT-mode crosscheck (180-program parity).
 
-  Build the test runner script `scripts/test_sn4_net_ladder.sh` following the pattern of `test_sn4_js_ladder_safe.sh`: for each .sno in the corpus, emit + assemble + run, diff output to the .ref oracle, count PASS/FAIL/SKIP. Use the existing `--jit-run` as the secondary reference for programs without .ref files.
+  Build the test runner script `scripts/test_sn4_net_ladder.sh` following the pattern of `test_sn4_js_ladder_safe.sh`: for each .sno in the corpus, emit + assemble + run, diff output to the .ref oracle, count PASS/FAIL/SKIP. Use the existing `--run` as the secondary reference for programs without .ref files.
 
   **Gate:** ≥ JS ladder's PASS count, ideally ≥ JIT-mode parity baseline (180). Document remaining failures and their root causes (typically missing built-ins, pattern features, or extensions beauty doesn't exercise).
 
@@ -439,7 +439,7 @@ Session 2026-05-16d (Claude Sonnet 4.5): **Correct architecture — emit flat, w
 - **MSIL label naming: UPPERCASE_PORT format.** `PAT_5_3_A_FAIL`, `PAT_5_3_B_EXIT` — matching the style in ARCH-NET.md.
 - **`.maxstack` and `.locals init` required** in every method. Start with `.maxstack 8`.
 - **`boxes.dll` is pre-built** at `src/runtime/net/boxes.dll`. The emitter references it via `.assembly extern boxes {}`. Do not rebuild it unless a BB implementation is changed.
-- **Flag:** `--sm-emit --target=net` (not `--jit-emit --net`).
+- **Flag:** `--compile --target=net` (not `--compile --net`).
 - **Build tool:** `ilasm` from mono-complete. Always check with `ilasm /dll` for library classes, `ilasm` (no flag) for executables.
 - **Always `-p:EnableWindowsTargeting=true`** when using `dotnet build` on a Linux host.
 
@@ -660,12 +660,12 @@ Greet   Greet = 'Hello, ' who                         :(RETURN)
 end_g   OUTPUT = Greet('World')
 END
 EOF
-/home/claude/one4all/scrip --sm-emit --target=net def_test.sno > def_test.il
+/home/claude/one4all/scrip --compile --target=net def_test.sno > def_test.il
 ilasm /output:def_test.exe def_test.il /home/claude/one4all/src/runtime/net/SnoRt.il
 mono def_test.exe        # currently prints "Hello, \nWorld\n"
                          # expected: "Hello, World\n"
 
 # Also dump SM to inspect:
-/home/claude/one4all/scrip --sm-run --dump-sm def_test.sno
+/home/claude/one4all/scrip --interp --dump-sm def_test.sno
 ```
 ```

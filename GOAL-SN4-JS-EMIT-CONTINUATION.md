@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -24,7 +24,7 @@
 
 ### SJ4-JS-3 — Smoke 7/7
 Write test script: `scripts/test_smoke_snobol4_js.sh`
-- Run 7 SNOBOL4 smoke programs via `scrip --sm-emit --target=js file.sno`
+- Run 7 SNOBOL4 smoke programs via `scrip --compile --target=js file.sno`
 - Execute JS output with `node`
 - Compare to oracle
 

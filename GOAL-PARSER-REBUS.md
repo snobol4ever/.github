@@ -697,7 +697,7 @@ Compiland = nPush() ARBNO(*Command) reduce("'Parse'", 'nTop()') nPop();
 
 ## Rebus tree shapes (existing frontend, taken as oracle)
 
-| Construct | Oracle `--dump-ir` (single-line form) |
+| Construct | Oracle `--dump-ast` (single-line form) |
 |-----------|---------------------------------------|
 | `function f() ... end` | `(STMT :subj (E_FNC DEFINE (E_QLIT "F()")))` then per-body STMTs, then `:go RETURN` `:lbl rb_N` |
 | `record R(f1, f2)` | `(STMT :subj (E_FNC DATA (E_QLIT "R(F1,F2)")))` |
@@ -1730,7 +1730,7 @@ New emitters:
   label, `(E_NUL)` test, success label, recursive lower of cond,
   jump back to top, exit label.  **Body intentionally not emitted**
   to match oracle bug-for-bug (the existing C frontend's while
-  lowering drops the body in --dump-ir for the test fixtures).
+  lowering drops the body in --dump-ast for the test fixtures).
 
 ### Tag globals added
 
@@ -1783,7 +1783,7 @@ Six-parser status at end of session, all 100%:
    in the tag-constants block.
 
 3. **Oracle bug-for-bug matching.**  The while-lowering in the
-   existing C frontend drops the body in --dump-ir output.  Rather
+   existing C frontend drops the body in --dump-ast output.  Rather
    than fight or fix this upstream, the parser_rebus.sc lowering
    matches it exactly (drops body in the lowering walk).  This
    keeps the gate clean and surfaces upstream divergence as its
@@ -1814,7 +1814,7 @@ resolved.
 
 At session start the gate was PASS=35 FAIL=3 (alt_assign_three,
 alt_body_three, alt_match_three).  Upstream corpus had advanced to
-`61d825d` which changed the existing Rebus frontend's --dump-ir to
+`61d825d` which changed the existing Rebus frontend's --dump-ast to
 emit n-ary flat `(E_ALT a b c)` for three-way alternation.
 parser_rebus.sc's `alt_expr` used binary left-fold
 `ARBNO(FENCE($'|' *atom reduce(ALT, 2)))` producing nested
@@ -2054,7 +2054,7 @@ Committed `one4all/parser` @ `deeae350`.
 - Parser: `corpus/SCRIP/parser_rebus.sc`
 - Fixtures: `corpus/programs/rebus/parser/*.reb` and `.ref`
 - Test script: `one4all/scripts/test_parser_rebus.sh`
-- Oracle: `one4all/scrip --dump-ir <file.reb>`
+- Oracle: `one4all/scrip --dump-ast <file.reb>`
 - Bug fix: `one4all/src/frontend/rebus/rebus_lower.c` (BUG-RB-1 already committed)
 
 Context at handoff: ~90%.
@@ -2532,7 +2532,7 @@ commits.
 **RB-FW-10: multi-arg subscript `a[i, j, ...]`**
 
 `postfix_expr` only handled single-arg subscript `a[i]`.  The Rebus grammar
-allows `a[i, j]` (n-ary, maps to `E_IDX(a, i, j)` per `--dump-ir`).
+allows `a[i, j]` (n-ary, maps to `E_IDX(a, i, j)` per `--dump-ast`).
 
 Three bugs found and fixed:
 
@@ -2734,14 +2734,14 @@ Open territory:
 
 ### New objective
 
-**Previous goal:** parser_rebus.sc produces trees byte-identical to `scrip --dump-ir`
+**Previous goal:** parser_rebus.sc produces trees byte-identical to `scrip --dump-ast`
 for each fixture.  Gate = `tree_equal` against existing Rebus frontend.
 
 **New goal:** parser_rebus.sc parses **full, real Rebus programs** — the three
 corpus programs (`syntax_exercise.reb`, `word_count.reb`, `binary_trees.reb`)
 and any other valid `.reb` source — and emits **simplified, stripped-down
 trees** that are syntactically correct (no parse abort, no "Parse Error" output)
-for every construct in the Rebus grammar.  Tree fidelity to `--dump-ir` is
+for every construct in the Rebus grammar.  Tree fidelity to `--dump-ast` is
 **no longer required**.  The gate is: every target program parses to completion
 and emits at least one tree node per top-level declaration.
 
@@ -2788,12 +2788,12 @@ bash scripts/test_full_rebus.sh
 ```
 
 New script: for each of `syntax_exercise.reb`, `word_count.reb`,
-`binary_trees.reb`, pipe through `parser_rebus.sc` via `--ir-run` and verify:
+`binary_trees.reb`, pipe through `parser_rebus.sc` via `--interp` and verify:
 - Exit 0 (no crash / timeout)
 - Output is non-empty (at least one tree node)
 - Output does NOT contain "Parse Error"
 
-No `--dump-ir` comparison.  PASS = all three programs parse cleanly.
+No `--dump-ast` comparison.  PASS = all three programs parse cleanly.
 
 ### Rung
 

@@ -26,7 +26,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all
-**Done when:** All three execution modes (--ir-run, --sm-run, --jit-run) can
+**Done when:** All three execution modes (--interp, --interp, --run) can
 be driven synchronously within a single process, comparing variable state,
 label/PC, and success/fail flag after every statement. First divergence is
 reported immediately with the statement number, label, and differing variables.

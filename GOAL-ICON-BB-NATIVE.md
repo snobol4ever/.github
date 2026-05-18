@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -124,8 +124,8 @@ per-box law, replacing the ad-hoc SM coroutine / SM_BB_PUMP_AST paths.
    in src/runtime/x86/templates/ following the Law of Template Functions.
 2. lower.c replaces SM coroutine opcodes and SM_BB_PUMP_AST fallthrough with
    proper lowering that routes through the new templates.
-3. SCRIP_NO_AST_WALK=1 ./scrip --sm-run == ./scrip --ir-run for every
-   program in the --ir-run PASS set (honest gate).
+3. SCRIP_NO_AST_WALK=1 ./scrip --interp == ./scrip --interp for every
+   program in the --interp PASS set (honest gate).
 4. --ir-emit byte-identical to pre-goal baseline for every corpus program.
 5. --sm-native (mode 3 JIT) produces identical output to --sm-interp for
    every honest-passing program (JIT crosscheck gate).
@@ -200,8 +200,8 @@ JCON reference: jcon-master/tran/irgen.icn ir_a_* procedures.
 
   GATE-1  bash scripts/test_smoke_icon.sh                # must be PASS=5
   GATE-2  bash scripts/test_smoke_unified_broker.sh      # must be PASS=49
-  GATE-3  bash scripts/test_icon_ir_all_rungs.sh         # must be 185/48/30
-  GATE-4  bash scripts/test_icon_sm_no_ast_walk.sh       # honest count must not decrease
+  GATE-3  bash scripts/test_icon_all_rungs.sh         # must be 185/48/30
+  GATE-4  bash scripts/test_icon_all_rungs.sh       # honest count must not decrease
   GATE-5  ./scrip --sm-native <anchor> == ./scrip --sm-interp <anchor>  (JIT crosscheck)
   GATE-6  ./scrip --dump-sm <anchor> | grep -c SM_BB_PUMP_AST  # must be 0 for migrated construct
   GATE-7  ./scrip --ir-emit <anchor> == baseline ir-emit  (byte-identical, diff must be empty)

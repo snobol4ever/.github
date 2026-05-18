@@ -18,7 +18,7 @@ SESSION-snobol4-x64.md, SCRIP-SM.md.
 The SM instruction set is the universal IR. All backends walk the same
 SM_Program array. One switch, one case per opcode.
 
-For text-asm output (--jit-emit --x64):
+For text-asm output (--compile):
 - Each opcode group maps to ONE named GNU-as macro in sm_macros.s
 - The macro expands to actual inline x86 (not a PLT call per tiny op)
 - Flat macro call per opcode -- NO three-column formatting:

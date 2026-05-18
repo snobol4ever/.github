@@ -52,7 +52,7 @@ The BB-DRIVER, bb_*.c boxes, and bb_pool are correct and reusable as-is.
 
 ## Corpus Status
 
-With the tree-walking `scrip --ir-run` (wrong architecture, but same runtime):
+With the tree-walking `scrip --interp` (wrong architecture, but same runtime):
 - Broad corpus: **177p/1f** (DYN-81, 2026-04-04)
 
 This number proves the BB-DRIVER and boxes are correct.
@@ -157,7 +157,7 @@ Replace the entire scan-loop + emit_pat_node() + capture block with:
 
 ## Static .s Path Must Use Five Phases
 
-The static `.s` file (output of `scrip --jit-emit --x64`) is a valid output mode —
+The static `.s` file (output of `scrip --compile`) is a valid output mode —
 **but it must call `stmt_exec_dyn()` at runtime for each pattern statement.**
 
 The pattern must NOT be baked inline as NASM Byrd box code. Instead the

@@ -118,7 +118,7 @@ Single walk over `prog->head`. Populates all three runtime tables at once:
 | LANG_ICN | zero icn_* state; collect `E_FNC` subjects → `icn_proc_table` |
 | LANG_PL  | `prolog_atom_init`; `trail_init`; collect `E_CHOICE`/`E_CLAUSE` → `g_pl_pred_table`; set `g_pl_active=1` if any PL stmts present |
 
-All three entry points (`--ir-run`, `--sm-run`, single-language modes) call
+All three entry points (`--interp`, `--interp`, single-language modes) call
 `polyglot_init`. Individual per-language init sequences have been removed.
 
 ### execute_program dispatch (U-15)
@@ -148,7 +148,7 @@ SM_BB_ONCE    →  bb_broker(root, BB_ONCE, NULL, NULL)             Prolog
 Defined in `src/runtime/x86/sm_prog.h`. Handled in `src/runtime/x86/sm_interp.c`.
 
 `SM_BB_PUMP` and `SM_BB_ONCE` are stubbed in the interpreter (set `last_ok=0`)
-pending full `sm_lower` support — the `--ir-run` path is the active polyglot path.
+pending full `sm_lower` support — the `--interp` path is the active polyglot path.
 `BB_SCAN` is already fully wired via `SM_EXEC_STMT` → `exec_stmt` → `bb_broker(BB_SCAN)`.
 
 ### BrokerMode — the three drive modes

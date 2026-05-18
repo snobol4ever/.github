@@ -33,7 +33,7 @@ Step 10 (session #62, 2026-05-05).
 **Done when:** the in-tree JVM SNOBOL4 host (`src/driver/jvm/`,
 written in **Java**) parses and runs Snocone source files
 (`.sc`). `scrip.sc` runs end-to-end on the JVM interpreter and
-produces output matching `scrip --sm-run scrip.sc` against the
+produces output matching `scrip --interp scrip.sc` against the
 same input. Provides **bootstrap path C** for `scrip.sc` —
 independent of the SCRIP host process and of the in-tree .NET / JS
 hosts.
@@ -159,7 +159,7 @@ Snocone corpus subset PASS for the rung's coverage
 
 - [ ] **Step JV-4 — Snocone smoke 5/5.**  Five smoke_snocone
   programs run end-to-end on `src/driver/jvm/`. Output matches
-  `scrip --sm-run` exactly.
+  `scrip --interp` exactly.
 
 - [ ] **Step JV-5 — Snocone corpus subset.**  Same curated
   subset as DN-5 / JS-5 wherever possible. All pass. Document
@@ -167,7 +167,7 @@ Snocone corpus subset PASS for the rung's coverage
 
 - [ ] **Step JV-6 — `scrip.sc` runs end-to-end.**
   Invoking the JVM host on `scrip.sc` produces output identical
-  to `scrip --sm-run scrip.sc < beauty.sno`. M3-JVM milestone
+  to `scrip --interp scrip.sc < beauty.sno`. M3-JVM milestone
   close.
 
 - [ ] **Step JV-7 — Package + docs.**

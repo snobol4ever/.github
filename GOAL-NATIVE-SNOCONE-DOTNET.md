@@ -33,7 +33,7 @@ Step 9 (session #62, 2026-05-05).
 **Done when:** the in-tree .NET SNOBOL4 host (`src/driver/net/`,
 the C# `scrip-interp` project) parses and runs Snocone source
 files (`.sc`). `scrip.sc` runs end-to-end on the .NET interpreter
-and produces output matching `scrip --sm-run scrip.sc` against
+and produces output matching `scrip --interp scrip.sc` against
 the same input. Provides **bootstrap path B** for `scrip.sc` —
 independent of the SCRIP host process.
 
@@ -168,7 +168,7 @@ Snocone corpus subset PASS for the rung's coverage
 
 - [ ] **Step DN-4 — Snocone smoke 5/5.**  The five smoke_snocone
   programs run end-to-end on `src/driver/net/`. Output matches
-  `scrip --sm-run` exactly.
+  `scrip --interp` exactly.
 
 - [ ] **Step DN-5 — Snocone corpus subset.**  Pick a curated
   subset of corpus Snocone programs (~10–20) that exercise the
@@ -180,7 +180,7 @@ Snocone corpus subset PASS for the rung's coverage
 
 - [ ] **Step DN-6 — `scrip.sc` runs end-to-end.**
   `dotnet run --project src/driver/net -- scrip.sc < beauty.sno`
-  produces output identical to `scrip --sm-run scrip.sc <
+  produces output identical to `scrip --interp scrip.sc <
   beauty.sno`. M3-DOTNET milestone close.
 
 - [ ] **Step DN-7 — Package + docs.**

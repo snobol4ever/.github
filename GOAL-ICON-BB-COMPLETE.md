@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -44,13 +44,13 @@
 **Carved:** 2026-05-10
 
 **Done when:**
-1. Every AST kind reachable from a `--ir-run` PASS Icon program lowers via `lower.c` to pure SM — no `emit_push_expr + SM_BB_PUMP` legacy fallthrough fires. Legacy block physically deleted.
+1. Every AST kind reachable from a `--interp` PASS Icon program lowers via `lower.c` to pure SM — no `emit_push_expr + SM_BB_PUMP` legacy fallthrough fires. Legacy block physically deleted.
 2. `--ir-emit` byte-identical to pre-rung baseline for every corpus program.
-3. `SCRIP_NO_AST_WALK=1 ./scrip --sm-run` == `./scrip --ir-run` for every program in the `--ir-run` PASS set (the *honest* gate).
+3. `SCRIP_NO_AST_WALK=1 ./scrip --interp` == `./scrip --interp` for every program in the `--interp` PASS set (the *honest* gate).
 4. Every SM opcode emitted by Icon lowering has a `sm_codegen_x64` mirror.
 5. `is_suspendable` / `coro_eval` not reachable from SM dispatch under `SCRIP_NO_AST_WALK=1`.
 
-⛔ **"Cheating":** `--sm-run` silently calls `coro_eval` for un-migrated kinds. `SCRIP_NO_AST_WALK=1` aborts on this. Output equality alone is not sufficient.
+⛔ **"Cheating":** `--interp` silently calls `coro_eval` for un-migrated kinds. `SCRIP_NO_AST_WALK=1` aborts on this. Output equality alone is not sufficient.
 
 ---
 
@@ -59,10 +59,10 @@
 ```
 .icn → icon_parse() → AST_t*
   --ir-emit  → ir_print_program()                        Mode 1
-  --ir-run   → execute_program() → interp_eval()         Mode 2  (AST walker)
-  --sm-run   → lower() → SM_Program → sm_interp_run()   Mode 3
-  --jit-run  → lower() → sm_codegen_x64() → run         Mode 3.5
-  --jit-emit → lower() → sm_codegen_x64() → binary      Mode 4
+  --interp   → execute_program() → interp_eval()         Mode 2  (AST walker)
+  --interp   → lower() → SM_Program → sm_interp_run()   Mode 3
+  --run  → lower() → sm_codegen_x64() → run         Mode 3.5
+  --compile → lower() → sm_codegen_x64() → binary      Mode 4
 ```
 
 Proebsting four-port template (start/resume/succeed/fail) → `SM_SUSPEND_VALUE` + goto wiring.
@@ -84,8 +84,8 @@ Baseline gates (all green before picking up next rung):
 bash scripts/test_smoke_icon.sh                 # PASS=5
 bash scripts/test_smoke_unified_broker.sh       # PASS=49
 bash scripts/test_isolation_ir_sm.sh            # PASS
-bash scripts/test_icon_ir_all_rungs.sh          # 185/48/30
-bash scripts/test_icon_sm_no_ast_walk.sh        # honest dial (224/~39/0 at sess 2026-05-11c)
+bash scripts/test_icon_all_rungs.sh          # 185/48/30
+bash scripts/test_icon_all_rungs.sh        # honest dial (224/~39/0 at sess 2026-05-11c)
 ```
 
 ⚠️ `test_icon_sm_no_ast_walk.sh` uses 8s timeouts — some long-running programs register as FAIL. Run a manual sweep with 10s+ timeouts to get accurate count.
@@ -97,7 +97,7 @@ bash scripts/test_icon_sm_no_ast_walk.sh        # honest dial (224/~39/0 at sess
 Probe helpers in `scripts/icon_bb_probes.sh`: `bb_probe_detect`, `bb_probe_complete`, `bb_probe_scoreboard`.
 Baseline md5: `baselines/icon-bb/sm-run-honest.md5` (created sess 2026-05-11c).
 
-A rung is **honestly complete** iff: (a) output matches `--ir-run`, (b) passes under `SCRIP_NO_AST_WALK=1`, (c) audit counter zero for kind, (d) smokes unchanged, (e) ≥1 program flipped honest.
+A rung is **honestly complete** iff: (a) output matches `--interp`, (b) passes under `SCRIP_NO_AST_WALK=1`, (c) audit counter zero for kind, (d) smokes unchanged, (e) ≥1 program flipped honest.
 
 ---
 
@@ -176,7 +176,7 @@ Next: rung15 AST_ITERATE (`!E`) — Phase A4.
 ## Invariants
 
 1. Mode 1 (`--ir-emit`) byte-identical at every rung.
-2. Icon `--ir-run` corpus 185/48/30 byte-identical until CH-17g-irrun-execution lands.
+2. Icon `--interp` corpus 185/48/30 byte-identical until CH-17g-irrun-execution lands.
 3. No `EXPR_t*` in SM bytecode — BB-pump opcodes take integer registry IDs.
 4. Fallthrough delete (A6) is one-way: future generative kinds must add their own lowering.
 5. `is_suspendable` stays in sync with lowering rungs.

@@ -1,4 +1,4 @@
-# GOAL-MODE4-EMIT.md — Mode 4 x86 backend (`--jit-emit --x64`)
+# GOAL-MODE4-EMIT.md — Mode 4 x86 backend (`--compile`)
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -41,7 +41,7 @@
 
 ⛔ **Read before any source file:** `ARCH-x86.md` then `ARCH-SCRIP.md` then `ARCH-EMITTER.md`.
 
-**Repo:** one4all. **Done when:** `scrip --jit-emit --x64 file.{sno,sc}` → standalone binary output identical to `--sm-run`. Binary links `libscrip_rt.so`. M5 extends to Icon/Raku/Prolog/Rebus.
+**Repo:** one4all. **Done when:** `scrip --compile file.{sno,sc}` → standalone binary output identical to `--interp`. Binary links `libscrip_rt.so`. M5 extends to Icon/Raku/Prolog/Rebus.
 
 **Mode-4 is mode-3's SEG_CODE dumped to `.s`.** One shared emitter; no parallel text-emitter.
 
@@ -77,7 +77,7 @@ After any session touching emitter files or `rt.c`, regenerate and commit:
 DEMO=/home/claude/corpus/programs/snobol4/demo; SCRIP=/home/claude/one4all/scrip
 cd $DEMO
 for f in roman wordcount claws5 treebank-list treebank-array; do
-    $SCRIP --jit-emit --x64 $f.sno > $f.s 2>/dev/null; done
+    $SCRIP --compile $f.sno > $f.s 2>/dev/null; done
 for s in roman.s wordcount.s claws5.s treebank-list.s treebank-array.s; do
     gcc -c "$s" -o /tmp/$(basename "$s" .s).o 2>/tmp/as_err.txt \
         && echo "OK $s" || { echo "FAIL $s"; cat /tmp/as_err.txt; exit 1; }; done
@@ -115,7 +115,7 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 
 ## EM-ICN-FLAT — Convert all 44 ICN_* RTCALL boxes to flat DATA-in-glob emit
 
-**Baseline (sess 2026-05-14):** Icon ir-run PASS=191 FAIL=44; honest (SCRIP_NO_AST_WALK=1 --sm-run) PASS=275 FAIL=2; broker 23/49. smoke_icon 5/5.
+**Baseline (sess 2026-05-14):** Icon ir-run PASS=191 FAIL=44; honest (SCRIP_NO_AST_WALK=1 --interp) PASS=275 FAIL=2; broker 23/49. smoke_icon 5/5.
 
 Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode emits `N` zeroed `.quad` slots in `.data` then routes the α and β ports through `emit_seq_port_call_rip`. That is correct but routes through an abstraction that will be deleted once ARBNO/CALLCAP/CHARSET are also flat. The ICN flat work converts each `emit_bb_icon_*` from the `emit_bb_stateful` wrapper to the canonical two-path pattern: `if (IS_TEXT) { emit_bb_icn_text_data(nquads, zlbl); emit_seq_port_call_rip(...port0...); emit_label_define(b); emit_seq_port_call_rip(...port1...); return; } emit_seq_port_call(...port0...); emit_label_define(b); emit_seq_port_call(...port1...);` — identical semantics, no abstraction layer.
 

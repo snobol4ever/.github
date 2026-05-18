@@ -9,7 +9,7 @@ one4all `6ddb9584` pushed to main.
 Root cause: `lower_icn_proc_body` called `IR_alloc(128, IR_LANG_ICN)`. Programs with complex
 lowered IR (e.g. `every write(3.0 < (2.5 | 3.5 | 4.5))`) need more than 128 IR nodes. The
 unbounded `cfg->all[cfg->n++] = nd` write in `IR_node_alloc` stomped adjacent heap, corrupting
-sibling IR_t nodes' `c`/`n` fields. Manifested as infinite loops under `--ir-run` and `--sm-run`.
+sibling IR_t nodes' `c`/`n` fields. Manifested as infinite loops under `--interp` and `--interp`.
 
 Four changes in one commit:
 | File | Change |
@@ -47,6 +47,6 @@ pass without further code changes.
 
 ## Addendum — post-push finding
 
-rung18 (`every write(3.0 < (2.5 | 3.5 | 4.5))`) still hangs under `--ir-run` after the IJ-IRALLOC-OVERFLOW commit. The 4096 alloc is in place and verified. During session the hang disappeared only when a debug `fprintf` was present in IR_SEQ — classic heap-corruption-masked-by-debug. Another `IR_alloc(N)` call with a small cap is overflowing during lowering of the real-typed alternate/relop subtree and corrupting the IR_EVERY node. Not yet identified.
+rung18 (`every write(3.0 < (2.5 | 3.5 | 4.5))`) still hangs under `--interp` after the IJ-IRALLOC-OVERFLOW commit. The 4096 alloc is in place and verified. During session the hang disappeared only when a debug `fprintf` was present in IR_SEQ — classic heap-corruption-masked-by-debug. Another `IR_alloc(N)` call with a small cap is overflowing during lowering of the real-typed alternate/relop subtree and corrupting the IR_EVERY node. Not yet identified.
 
 **Next session start:** add overflow debug to `IR_node_alloc` (print when `cfg->n >= cfg->max`), run rung18, find which cfg overflows, fix that caller. Then proceed to IR_BINOP_GEN real-typed arithmetic. Must land ≥2 constructs.

@@ -43,17 +43,17 @@ JCON (.j) and SPITBOL (.s) artifacts, not source.  Source is `.icn`.
 
 ## Runners
 
-**Icon corpus (`--ir-run`):**
+**Icon corpus (`--interp`):**
 ```bash
-bash /home/claude/one4all/scripts/test_icon_ir_all_rungs.sh
+bash /home/claude/one4all/scripts/test_icon_all_rungs.sh
 # Defaults: SCRIP=/home/claude/one4all/scrip
 #           CORPUS=/home/claude/corpus/programs/icon
 # Reports: PASS=N FAIL=N XFAIL=N TOTAL=263
 # As of 2026-05-09: 177 / 56 / 30
 ```
 
-The runner is **hardcoded to `--ir-run`** (line 58 / 60 of the
-script).  There is no `--sm-run` flag.  To run the corpus in
+The runner is **hardcoded to `--interp`** (line 58 / 60 of the
+script).  There is no `--interp` flag.  To run the corpus in
 mode 3 today, copy or wrap the runner — see "Per-mode runner"
 below.
 
@@ -67,15 +67,15 @@ see `scripts/test_icon_ir_rung_*.sh`.
 **Per-program manual:**
 ```bash
 cd /home/claude/one4all
-./scrip --ir-run /home/claude/corpus/programs/icon/rung01_paper_mult.icn
+./scrip --interp /home/claude/corpus/programs/icon/rung01_paper_mult.icn
 ```
 
 ## Per-mode runner — write one, do not embed paths
 
-A goal that needs `--sm-run` and `--jit-run` results across the
+A goal that needs `--interp` and `--run` results across the
 corpus should add a sibling script (e.g.
 `scripts/test_icon_sm_all_rungs.sh`) that copies
-`test_icon_ir_all_rungs.sh` and changes the mode flag.  Do **not**
+`test_icon_all_rungs.sh` and changes the mode flag.  Do **not**
 write per-rung mode probes that embed `/home/claude/corpus/...`
 paths — read from `$CORPUS` with this file's default.
 
@@ -87,8 +87,8 @@ paths — read from `$CORPUS` with this file's default.
 here so corpus runners and goal probes apply it consistently.)
 
 A program "works in mode 3" iff:
-1. `./scrip --sm-run <prog>` exits 0
-2. Output is byte-identical to `--ir-run` (the oracle)
+1. `./scrip --interp <prog>` exits 0
+2. Output is byte-identical to `--interp` (the oracle)
 3. **No AST walker is reached during SM dispatch.**  Specifically:
    - `coro_eval` not called from `sm_interp_run`'s call graph
    - `interp_eval` / `interp_eval_pat` / `interp_eval_ref` /
@@ -105,7 +105,7 @@ honest" from "mode 3 with mode 2 fallback under the hood."  The
 isolation gate (`scripts/test_isolation_ir_sm.sh`) and the
 SCRIP_EXPRS_AUDIT counter together witness (3).
 
-A program "works in mode 2 honestly" iff `--ir-run` walks the
+A program "works in mode 2 honestly" iff `--interp` walks the
 AST tree without secretly delegating to SM dispatch.  Less
 contested than mode 3 today, but worth naming so goal files
 don't accidentally ship a "mode 2 = mode 3 in disguise" cheat

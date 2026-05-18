@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--ir-run` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -77,9 +77,9 @@ inside SM."
 
 ## Architecture reminders
 
-- **Four modes.**  Mode 1 = `--ir-run` (IR tree-walk via `interp_eval`).
-  Modes 2/3 = `--sm-run` / `--jit-run` (SM_Program via `sm_interp_run` /
-  `sm_jit_run`).  Mode 4 = `--jit-emit --x64` (asm/link/exec).
+- **Four modes.**  Mode 1 = `--interp` (IR tree-walk via `interp_eval`).
+  Modes 2/3 = `--interp` / `--run` (SM_Program via `sm_interp_run` /
+  `sm_jit_run`).  Mode 4 = `--compile` (asm/link/exec).
 - **Isolation gate.**  `scripts/test_isolation_ir_sm.sh` greps SM-mode
   runtime files for IR-only symbol calls.  Currently in scope:
   `sm_*.c`, `bb_*.c`, `name_t.c`, `stmt_exec.c`, `snobol4_*.c`,
@@ -109,7 +109,7 @@ Detail for each rung lives in its commit message.  Open the hash in
 | RS-8   | f71394a4, 63ad2b31, 1ab3574e | Rename `icn_*/ICN_*` → `coro_*/frame_*/scope_*/scan_*/proc_*`. |
 | RS-9a  | fa723793   | SM-native call frames (`SmCallFrame` in `sm_interp.h`). |
 | RS-9b  | fa723793   | `code_free()` after `sm_lower`; eliminate raw `EXPR_t*` from SM. |
-| RS-9c  | a4264a8f   | SM call frames for `--jit-run`; fix 6 foundational SM bugs. |
+| RS-9c  | a4264a8f   | SM call frames for `--run`; fix 6 foundational SM bugs. |
 | RS-10  | bc4d8722   | `_usercall_hook` guard severs IR tree-walk from SM execution. |
 | RS-11  | 93d2fbdd   | Pattern-context `*func()` in SM mode; `kw_rtntype` from SM returns. |
 | RS-12  | 16d1e243   | Investigate IR walker in `EVAL(string)` — confirmed safe by construction. |
@@ -517,7 +517,7 @@ have native handlers as of RS-23.
   smoke {snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5,
   rebus 4/4} = 31/31, unified_broker 49/0, Icon corpus 186/47/30
   (no delta), isolation gate PASS, smoke_icon in
-  `--ir-run`/`--sm-run`/`--jit-run` = 5/5/5 = 15/15.  Zero hardening
+  `--interp`/`--run` = 5/5/5 = 15/15.  Zero hardening
   guards fire.
 
 - [x] **RS-24b — LANDED (session 2026-05-05 cont., conservative variant) @ `296ef139`:**
@@ -651,7 +651,7 @@ real-vs-string mismatch.  Forcing string coercion via `fval = '' v(x)` resolves
 the IDENT issue.
 
 The positional predicate failure (`RPOS`, `LEN`) is a separate issue: in the
-`--ir-run` context with an active outer pattern subject (`Src`), positional
+`--interp` context with an active outer pattern subject (`Src`), positional
 anchors inside a function resolve against `Src` rather than the local variable
 being matched.
 
@@ -664,7 +664,7 @@ if (DIFFER(pre) IDENT(SIZE(pre) + 1, SIZE(fval))) fval = pre;  // strip trailing
 This avoids both RPOS/LEN and IDENT type mismatch entirely.
 
 - [ ] **RS-27a** — Confirm repro: run the minimal script above with
-  `scrip --ir-run`, verify `NO_MATCH` (bad) vs `MATCHED` (good).
+  `scrip --interp`, verify `NO_MATCH` (bad) vs `MATCHED` (good).
 - [ ] **RS-27b** — Identify root cause in `sm_interp.c` / `interp_eval.c`:
   trace how pattern cursor / subject are set up when entering a dot-star
   function call; find where `LEN(k)` resolves its anchor.

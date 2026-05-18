@@ -104,9 +104,30 @@ and the ucontext machinery — this path is correct and should be completed.
 
 ## Active goal
 
-GOAL-ICON-BB-NATIVE.md — implement Icon generator constructs as flat BB
-template functions. 11 rungs (IB-0 through IB-10). IB-0..IB-9 closed;
-IB-10 (purge SM coroutine opcodes from Icon path) currently open.
-The IB ladder migrates 8 of the 43 JCON BBs (ToBy, iterate, Alt, Every,
-Limitation, bang-Binop, lconcat, Mutual-seq); the remaining 35 stay on
-the statement-level SM_BB_PUMP_AST path until later ladders.
+GOAL-ICON-BB-JCON.md — Icon: BB emitters + lower_icn DCG. Succeeded
+GOAL-ICON-BB-NATIVE (closed `7efdf09a`). Current rung: closed
+2026-05-17j — IJ-DEL-ICN-AST + CLI-3M-10 docs trailer (see below).
+
+## Post-amputation note (2026-05-17, IJ-DEL-ICN-AST + CLI-3M-10)
+
+The Icon-specific `tree_t *` AST walker (`bb_eval_value` /
+`bb_exec_stmt` / `icn_bb_build` family in `src/runtime/interp/icn_*.c`)
+has been amputated. Files `icn_value.c`, `icn_stmt.c`, `icn_stmt.h`
+are deleted. Three file-local `static` `[DAI-BOMB]` stubs remain in
+`icn_runtime.c` to protect ~25 residual internal call sites inside
+surviving Icon zeta-fn bodies (`icn_lazy_box` plus others) —
+empirically unreachable, but link-resolvable. Outside `icn_runtime.c`,
+zero callers of the three amputated symbols remain in `src/`.
+
+Pre-CLI-3M-10, mode 1 (`--ast-run` / `--ir-run` flags) and mode 2
+(`--interp` flag) were at empirical full parity on the Icon rung
+ladder (both 194/265, byte-identical PASS/FAIL sets per DAI-3 and
+DAI-5c-trans). CLI-3M-10 (2026-05-17j) deleted the mode-1 flags
+entirely; the dead `interp_*.c` C files remain pending CLI-3M-9. The
+Icon reference path is now **`--interp` (mode 2)** at PASS=194 FAIL=36
+XFAIL=35 TOTAL=265. The other five languages (SNOBOL4, Snocone,
+Rebus, Prolog, Raku) historically used mode 1 as their reference path
+via the universal `interp_eval` walker; CLI-3M-10 has also taken that
+flag away from them — their canonical mode is now `--interp` / `--run`
+/ `--compile` exactly like Icon, with the still-on-disk `interp_*.c`
+unreachable until CLI-3M-9 deletes it.
