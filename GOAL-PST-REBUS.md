@@ -393,7 +393,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 ## State
 
 ```
-watermark:  RB-C-1 landed 2026-05-18 (one4all 0da9ec20, Sonnet 4.6)
+watermark:  RB-C-1b landed 2026-05-18 (one4all ed3f8efc, Sonnet 4.6)
             parser_icon.sc head restore 2026-05-17 (corpus pending push)
 status:     Subsystem suite 19/1 (Qize fails on bb_pool exhaustion — bug
             diagnosed; tracked as PST-RB-NEXT-BB-CACHE).
