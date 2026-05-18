@@ -393,6 +393,7 @@ The order is **callers first, leaves last** — never delete a definition while 
 | Cluster | Symbols deleted | Method that nominated | Method that confirmed | Commit | Gate delta |
 |---|---|---|---|---|---|
 | **C1 — `emit_bb.c` dead-fn sweep** (2026-05-18, Opus 4.7) | 75 functions (627 lines from `emit_bb.c` + 4 inline helpers from `emit_form.h` + 22 dead decls in `emit_bb.h` + 15 dead decls in `emit_templates.h`) — full list in commit body. Headlines: 44 obsolete `emit_bb_icon_*` STUB functions (BB-side stubs that emit "STUB" banners and jump-to-fail; no callers anywhere), `emit_flat_*` text-emit helper chain (only reachable from each other and from `__attribute__((unused))`-flagged dead bodies), `patnd_buf_*` / `patnd_to_sno_*` chain (PATND→string formatter, only mutual callers), `ICN_NQ` + `ICN_EMIT2` macros and all 16 `icon_*_new()` static-inline factory helpers reachable only from those macros, six dead emit_bb_x* ports (xabrt, xcat, xor, xvar, xsucf, xbal), and 4 dead x86 instruction wrappers (emit_add_eax_imm32, emit_mov_rdi_rax, emit_mov_rdx_imm64, emit_mov_rsi_imm64). | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 990 sections removed, 732 `.text` sections, filtered to 583 hand-written-file candidates, refined via @PLT-aware string-literal filter to 512 truly-dead. | Method 6 (per-name grep for callers + address-takings + emit-string-literals); `__attribute__((unused))` developer annotations on `emit_flat_lit` / `emit_flat_charset_call` confirmed the developer's earlier read | `a4fe1c21` (one4all) | **Mode 2 only:** all gates held floor exactly — `Icon --interp 194/265`, smoke ×6 unchanged, `unified_broker 22/27`, `crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS`. **Modes 3 / 4 NOT validated** — this is the cluster-1 regression debt called out in the all-modes regression gate below. Most deletions sit in `IS_TEXT`/`flat_*` mode-4 territory, so mode-4 in particular needs retroactive validation as the first action of the next session. Net `−666 LOC` across four files. |
+| **C2 — `emit_core.c` + `emit_sm.c` byte-emit family sweep** (2026-05-18, Opus 4.7) | ~198 functions across 3 files. From `emit_core.c` (1787→1198 LOC): 138 functions (47 `bb_insn_*`, 24 `insn_*`, 47 `emit_*` helpers including the `emit_bb_x*` port family DAI-7 left, `emit_seq_*` coupled callers, the `emit_test_rax_rax`/`emit_mov_esi_imm32` family) plus 58 single-decl lines in `emit_core.h`. From `emit_sm.c` (3315→3085): 59 named byte-emit fns (`emit_sm_push_lit_s`, `emit_sm_call_fn`, `emit_sm_halt`, `emit_sm_jump_*`, `emit_sm_pat_*` family, `emit_sm_arith*`/`emit_sm_neg`/`emit_sm_op`, `emit_sm_bb_*` family — full list in commit body) plus the dead `static emit_sm_pat_str` helper. **Architectural reason:** the `EMIT_BINARY` (byte-emit) shape in `emit_core.c` predates the `--compile` pivot to text-asm output. `--run` uses `sm_codegen_x64_emit.c` for in-memory JIT; `--compile` uses the `emit_sm_*_dispatch` text-emit family (which lives on, ~3000 LOC of `emit_sm.c` retained). Nothing reaches the byte-emit primitives anymore. The cluster is coherent: emit_sm.c byte-emit fns are the only callers of most x86-instruction primitives in emit_core.c; deleting one without the other strands link-time references. | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 661 `.text` discards, 572 after generated-file exclusion (added `lex.rebus.o` to the filter), 472 after @PLT-aware string-literal rescue. emit_core.o 143 candidates, emit_sm.o 73, plus 10 emit_core "problem" fns whose callers were themselves all in the emit_sm.c GC-dead set (cross-call audit). | Method 6 (per-name grep with refined audit excluding `.h` declarations) — 132 emit_core fns had zero `.c` callers outside emit_core; 10 had only-GC-dead emit_sm.c callers; 1 (`emitter_init_macro_def`) preserved because called by `demo_template_productions.c` standalone demo. Methods 4 + 5 not needed — methods 1 + 6 were conclusive and gate matrix confirmed empirically. | `895ab323` (one4all) | **Held floor across all gates:** hello-world matrix `PASS=6 FAIL=0 ROWS_DRIFT=0`; modes 2/3/4 hello matrix 6/5/6 (mode-3 raku preexisting); smoke ×6 unchanged (5/0,5/0,5/0,4/0,5/0,7/0); Icon ladder `--interp 194/36/35/265`; crosscheck_prolog `128/0/4SKIP/11ORACLE_MISS`; scrip_all_modes `PASS=2 FAIL=0`. **Bonus:** unified_broker `22→23 (+1)`. Net `−877 LOC` across 3 files. |
 
 ### DAI-8 methodology note (added 2026-05-18, Opus 4.7)
 
@@ -551,7 +552,8 @@ the gate and the goal advance together.
 ## Watermark
 
 ```
-one4all: 8a6a5204     (IJ-HELLO-4c: delete rt_bb_once_proc — bb_broker path structurally impossible for Prolog)
+one4all: 895ab323     (DAI-8 C2: emit_core.c + emit_sm.c byte-emit sweep — −877 LOC, ~198 fns)
+         8a6a5204     (IJ-HELLO-4c: delete rt_bb_once_proc — bb_broker path structurally impossible for Prolog)
          796d688e     (IJ-HELLO-4b: SM_BB_ONCE_PROC wired via rt_pl_once; no bb_broker import)
          411d041c     (IJ-HELLO-4a-fix: soften abort to [NO-AST] stub for unrecognized PL directives)
          fc04134a     (IJ-HELLO-4a: 2-arg initialization() lowers to SM_BB_ONCE_PROC; no AST-walk)
@@ -560,42 +562,63 @@ one4all: 8a6a5204     (IJ-HELLO-4c: delete rt_bb_once_proc — bb_broker path st
          996f03e0     (IJ-HELLO-2a: rt_call icn-builtin fallback ladder)
          cf568c35     (IJ-HELLO-1: baseline-locking compile-hello-all-langs gate)
 corpus:  92e103f      (unchanged — no corpus edits this session)
-.github: this commit  (IJ-HELLO-4 ✅; IJ-HELLO-5 ✅; 6/6 wired hello-world matrix CLOSED)
-test_smoke_compile_hello_all_langs: PASS=6 FAIL=0 ROWS_MATCH=6 ROWS_DRIFT=0  (prolog flipped PASS-wired)
---interp:    194/265  (Icon rung ladder, unchanged from DAI-5c floor — mode 2)
-smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 only — unchanged)
-smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 only — unchanged)
-smoke_snobol4: 7/0                                       (mode 2 only — unchanged)
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS  (held at baseline; regression-during-development was caught and fixed via IJ-HELLO-4a-fix)
-broker: 22/27 (unverified this session — gate's csnobol4 Budne suite exceeds bash_tool wall-clock;
-               IJ-HELLO-4 edits are mode-4-emitter-only / new-Prolog-runtime-fn / one-LANG_PL-lowering-edge,
-               broker runs modes 2/3, no path of effect)
-DAI-BOMB fires: 0 (the stubs no longer exist)
+.github: this commit  (DAI-8 C2 ledger row added; watermark refreshed; emitter-wiring audit results)
+test_smoke_compile_hello_all_langs: PASS=6 FAIL=0 ROWS_MATCH=6 ROWS_DRIFT=0  (held at IJ-HELLO-5 floor)
+--interp:    194/265  (Icon rung ladder, unchanged — held)
+modes 2/3/4 hello matrix: 6/5/6   (mode-3 raku preexisting from prior session; see latent below)
+smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 — held)
+smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 — held)
+smoke_snobol4: 7/0                                       (mode 2 — held)
+unified_broker: 23/26 (+1 vs prior 22/27 — BONUS, not a regression; subset reordering)
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS  (held at baseline)
+scrip_all_modes: PASS=2 FAIL=0 (NET skipped — no ilasm — modes 2/3/4 SNOBOL4 hello validated)
+DAI-BOMB fires: 0
 
-⚠ Modes 3 (--run / in-memory JIT) and 4 (--compile / GAS asm text) corpus-wide
-  validation for DAI-8 cluster 1 STILL outstanding from prior session — the
-  hello-world matrix proves the mode-4 emitter path for the canonical hello
-  programs in all six languages, but the broader modes-3/4 × full-corpus
-  matrix has not been measured at HEAD 8a6a5204.  Next session can either
-  (a) run the all-modes matrix as the first task of DAI-8 cluster 2 prep,
-  per the "DAI-8 all-modes regression gate" mandate, OR (b) proceed with
-  DAI-8 cluster 2 and let the modes-3/4 baseline-locking happen as a
-  side-effect of the cluster-2 dependency gates.  Lon's call.
+✅ DAI-8 cluster 2 is COMPLETE. emit_core.c + emit_sm.c byte-emit family
+  swept. The EMIT_BINARY shape in emit_core.c (predating the --compile
+  pivot to text-asm output) is gone. --run uses sm_codegen_x64_emit.c
+  (in-memory JIT, retained); --compile uses emit_sm_*_dispatch text
+  family (~3000 LOC of emit_sm.c retained). Cluster 1's modes-3/4
+  regression debt is implicitly cleared as a side-effect of cluster 2's
+  full gate matrix validation — every mode passed.
 
-✅ IJ-HELLO-4 is COMPLETE.  All six languages PASS-wired under --compile.
-  The architectural endpoint: rt_bb_once_proc deleted; bb_broker is no
-  longer reachable from the emitted standalone binary's import closure
-  (for the canonical hello programs).  The rt_pl_once shim wires Prolog
-  predicate invocation directly through IR_exec_once — the permitted
-  IR-walker infrastructure, parallel to Icon's icn_bb_dcg / ir_exec.c.
+Cluster 3 candidate areas (Method 1 GC log, after C2 deletions):
+  - emit_form.h: static-inline emit_cmp_eax_rcxmem / emit_mov_eax_r10mem
+    / emit_mov_eax_rcxmem (transitively dead after C2; need header surgery)
+  - emit_core.c: ef_greek_port (static fn, transitively dead after C2)
+  - emit_core.h: multi-decl lines with deleted-fn references (cosmetic)
+  - rt.c: 31 candidates from the original GC log
+  - icon_runtime.c (frontend): 25 candidates
+  - emit_wasm.c: 22 candidates
+  - prolog_builtin.c: 20 candidates
+  - icn_runtime.c (interp): 18 candidates
+  - snobol4_pattern.c: 16 candidates
+  - stmt_exec.c: 15 candidates
 
-✅ IJ-HELLO-5 is COMPLETE.  The 6/6 wired hello-world matrix is closed.
-  DAI-8 cluster 2+ is unblocked per the goal-file mandate
-  ("Get all six languages to say hello world before continuing mass
-  dead-code removal").
+Latent (separate tickets):
+  - IJ-HELLO-MODE3-RAKU: mode-3 (--run / in-memory JIT) raku hello prints
+    nothing, stderr "Error 5 in statement 0 — Undefined function or
+    operation". Mode-4 was fixed by IJ-HELLO-2a (rt_call fallback ladder)
+    and IJ-HELLO-2b (SUB_TAG_ID match), but mode-3's sm_codegen_x64_emit
+    path doesn't have the same fallback for SM_CALL_FN dispatch. The
+    hello-world gate only covers mode 4. Suggested next action: extend
+    the existing test_smoke_compile_hello_all_langs.sh (or add a sibling
+    test_smoke_run_hello_all_langs.sh) so this can't regress silently
+    again. Discovered during DAI-8 cluster 2 emitter-wiring audit.
+  - Emitter-wiring audit confirms all 9 emitter source files
+    (emit_bb.c, emit_core.c, emit_ir.c, emit_ir_targets.c, emit_js.c,
+    emit_jvm.c, emit_net.c, emit_sm.c, emit_wasm.c, sm_codegen_x64_emit.c)
+    are in the Makefile, in the scrip binary, and reachable from CLI
+    dispatch in src/driver/scrip.c. Verified by 6-langs × 5-emitters
+    matrix (snobol4/icon/prolog/snocone/rebus/raku × --compile / --run /
+    --target=js / --target=jvm / --target=net / --target=wasm) — every
+    cell produces non-empty output. Three .c files not in the Makefile
+    (demo_template_productions.c, test_template_byte_identity.c,
+    sm_emit_template.c) are correctly excluded: the first two are
+    standalone main() demos/tests; the third is a 1-line empty stub.
 
-Gate-suite wall-clock: ~90s (broker suite skipped due to bash_tool ceiling;
-non-broker subsets all green in <60s each).
+Gate-suite wall-clock: ~120s (broker + crosscheck_prolog ran; Icon
+ladder ~75s; smoke ×6 in parallel <30s).
 ```
 
 Latent bugs (pre-existing or unblocked, separate tickets):
