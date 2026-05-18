@@ -343,7 +343,7 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 | Cluster | Symbols deleted | Method that nominated | Method that confirmed | Commit | Gate delta |
 |---|---|---|---|---|---|
-| **C1 — `emit_bb.c` dead-fn sweep** (2026-05-18, Opus 4.7) | 75 functions (627 lines from `emit_bb.c` + 4 inline helpers from `emit_form.h` + 22 dead decls in `emit_bb.h` + 15 dead decls in `emit_templates.h`) — full list in commit body. Headlines: 44 obsolete `emit_bb_icon_*` STUB functions (BB-side stubs that emit "STUB" banners and jump-to-fail; no callers anywhere), `emit_flat_*` text-emit helper chain (only reachable from each other and from `__attribute__((unused))`-flagged dead bodies), `patnd_buf_*` / `patnd_to_sno_*` chain (PATND→string formatter, only mutual callers), `ICN_NQ` + `ICN_EMIT2` macros and all 16 `icon_*_new()` static-inline factory helpers reachable only from those macros, six dead emit_bb_x* ports (xabrt, xcat, xor, xvar, xsucf, xbal), and 4 dead x86 instruction wrappers (emit_add_eax_imm32, emit_mov_rdi_rax, emit_mov_rdx_imm64, emit_mov_rsi_imm64). | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 990 sections removed, 732 `.text` sections, filtered to 583 hand-written-file candidates, refined via @PLT-aware string-literal filter to 512 truly-dead. | Method 6 (per-name grep for callers + address-takings + emit-string-literals); `__attribute__((unused))` developer annotations on `emit_flat_lit` / `emit_flat_charset_call` confirmed the developer's earlier read | `a4fe1c21` (one4all) | All gates held floor exactly — `Icon --interp 194/265`, smoke ×6 unchanged, `unified_broker 22/27`, `crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS`, zero new errors. Net `−666 LOC` across four files. |
+| **C1 — `emit_bb.c` dead-fn sweep** (2026-05-18, Opus 4.7) | 75 functions (627 lines from `emit_bb.c` + 4 inline helpers from `emit_form.h` + 22 dead decls in `emit_bb.h` + 15 dead decls in `emit_templates.h`) — full list in commit body. Headlines: 44 obsolete `emit_bb_icon_*` STUB functions (BB-side stubs that emit "STUB" banners and jump-to-fail; no callers anywhere), `emit_flat_*` text-emit helper chain (only reachable from each other and from `__attribute__((unused))`-flagged dead bodies), `patnd_buf_*` / `patnd_to_sno_*` chain (PATND→string formatter, only mutual callers), `ICN_NQ` + `ICN_EMIT2` macros and all 16 `icon_*_new()` static-inline factory helpers reachable only from those macros, six dead emit_bb_x* ports (xabrt, xcat, xor, xvar, xsucf, xbal), and 4 dead x86 instruction wrappers (emit_add_eax_imm32, emit_mov_rdi_rax, emit_mov_rdx_imm64, emit_mov_rsi_imm64). | Method 1 (linker `--gc-sections` with `-ffunction-sections -fdata-sections`) — 990 sections removed, 732 `.text` sections, filtered to 583 hand-written-file candidates, refined via @PLT-aware string-literal filter to 512 truly-dead. | Method 6 (per-name grep for callers + address-takings + emit-string-literals); `__attribute__((unused))` developer annotations on `emit_flat_lit` / `emit_flat_charset_call` confirmed the developer's earlier read | `a4fe1c21` (one4all) | **Mode 2 only:** all gates held floor exactly — `Icon --interp 194/265`, smoke ×6 unchanged, `unified_broker 22/27`, `crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS`. **Modes 3 / 4 NOT validated** — this is the cluster-1 regression debt called out in the all-modes regression gate below. Most deletions sit in `IS_TEXT`/`flat_*` mode-4 territory, so mode-4 in particular needs retroactive validation as the first action of the next session. Net `−666 LOC` across four files. |
 
 ### DAI-8 methodology note (added 2026-05-18, Opus 4.7)
 
@@ -375,6 +375,66 @@ log. Two critical filters MUST be applied before treating a discard as
    would over-preserve. The criterion is **`scrip`-side linker GC + @PLT
    string-literal filter**, full stop.
 
+### DAI-8 all-modes regression gate (MANDATORY per cluster) — Lon directive 2026-05-18
+
+⛔ The cluster-1 commit (`a4fe1c21`) was validated against `--interp`
+(mode 2) only — the smoke ×6 + Icon ladder + unified_broker + crosscheck
+matrix all run under `--interp`. That is **insufficient for DAI-8**.
+Most of the deleted code (`emit_bb_icon_*` STUBs, `emit_flat_*` text
+helpers, `IS_TEXT` branches, the `flat_*` family) lives in
+**mode 3 (in-memory x86 JIT, `--run`)** and **mode 4 (GAS asm text,
+`--compile`)** — not mode 2. The cluster-1 gate matrix didn't exercise
+those modes. Cluster 1 is therefore landed but its mode-3 / mode-4
+regression is **outstanding**.
+
+**Whopper deletion deserves whopper regression.** Every DAI-8 cluster
+from cluster 2 onward MUST run the full matrix below before commit, and
+cluster 1's mode-3 / mode-4 status MUST be retroactively validated as
+the first task of the next session.
+
+#### Required per-cluster regression matrix
+
+A cluster cannot land until ALL of these hold floor:
+
+| Gate | Script | Purpose | Modes covered |
+|------|--------|---------|---------------|
+| Icon ladder under --interp | `scripts/test_icon_all_rungs.sh` | Largest mode-2 surface | mode 2 |
+| Smoke ×6 | `scripts/test_smoke_{icon,prolog,raku,rebus,snocone,snobol4}.sh` | Per-frontend smoke (mode 2 today) | mode 2 |
+| All scrip modes | `scripts/test_smoke_scrip_all_modes.sh` | Every CLI mode | modes 2 / 3 / 4 |
+| All frontend × backend matrix | `scripts/test_smoke_all_frontend_backend_matrix.sh` | Cartesian product | modes 2 / 3 / 4 × 6 frontends |
+| Compile-mode smoke | `scripts/test_smoke_compile.sh` | `--compile` (mode 4) emitted-asm path | mode 4 |
+| All backends crosscheck | `scripts/test_crosscheck_all_backends.sh` | Cross-mode agreement | modes 2 / 3 / 4 |
+| Unified broker | `scripts/test_smoke_unified_broker.sh` | β-pump + descriptor-tag | shared |
+| Crosscheck Prolog | `scripts/test_crosscheck_prolog.sh` | 3-mode agreement for Prolog | modes 2 / 3 / 4 |
+
+Plus at minimum one **dump round-trip** sanity check per cluster:
+
+* `scrip --dump-sm test.sno` produces identical output before / after the cluster.
+* `scrip --dump-bb test.sno` produces identical output before / after the cluster.
+* `scrip --dump-ir test.sno` produces identical output before / after the cluster.
+
+(Pick a representative input per frontend; a single canonical `test.sno`
+/ `test.icn` / `test.pl` per language is sufficient — full matrix not
+required for dumps, byte-diff is the floor.)
+
+#### Failure handling
+
+If any gate breaks under modes 3 or 4, the rollback target is the
+parent commit (cluster 1 rollback = `ff3d100a`; subsequent clusters
+roll back to whichever was last green across the full matrix). The
+goal-file ledger row for the failed cluster gets a Gate delta column
+filled in with the exact gate name + delta, and the cluster is
+re-attempted with the failing symbols audited (DAI-BOMB technique
+recommended for the specific symbol that broke it).
+
+#### Baseline locked under all-modes matrix (TO BE CAPTURED)
+
+The first task of the next session is to run the full all-modes matrix
+against HEAD `a4fe1c21` and record the post-cluster-1 floor. If any
+gate is below the pre-DAI-8 baseline (which itself was never measured
+under modes 3/4 to my knowledge — confirm), that delta is the
+cluster-1 regression debt and must be triaged before cluster 2 lands.
+
 Tier-1 distribution (after the @PLT rescue, 512 truly-dead candidates):
 `emit_core.c` 143, `emit_bb.c` 75 (cluster 1 — landed), `emit_sm.c` 72,
 `rt.c` 31, `icon_runtime.c` (frontend) 25, `emit_wasm.c` 22,
@@ -393,14 +453,19 @@ helper layer, not the interp driver.
 ```
 one4all: a4fe1c21 (DAI-8 cluster 1: emit_bb.c dead-fn sweep — 75 functions, −666 LOC)
 corpus:  92e103f  (unchanged — no corpus edits this session)
-.github: this commit (DAI-8 cluster 1 landed; ledger + methodology added)
---interp:    194/265   (Icon rung ladder, unchanged from DAI-5c floor)
-smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0
-smoke_rebus: 4/0   smoke_snocone: 5/0
-smoke_snobol4: 7/0
+.github: this commit (DAI-8 cluster 1 landed; ledger + methodology + all-modes regression gate added)
+--interp:    194/265   (Icon rung ladder, unchanged from DAI-5c floor — mode 2)
+smoke_icon: 5/0    smoke_prolog: 5/0  smoke_raku: 5/0    (mode 2 only)
+smoke_rebus: 4/0   smoke_snocone: 5/0                    (mode 2 only)
+smoke_snobol4: 7/0                                       (mode 2 only)
 smoke_unified_broker: 22/27
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (unchanged)
+crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS (unchanged — 3-mode but Prolog-only)
 DAI-BOMB fires: 0 (the stubs no longer exist)
+
+⚠ Modes 3 (--run / in-memory JIT) and 4 (--compile / GAS asm text) NOT
+  validated for cluster 1. Next session MUST run the full all-modes
+  matrix (see "DAI-8 all-modes regression gate" section above) before
+  proceeding to cluster 2.
 Gate-suite wall-clock: ~90s parallel.
 ```
 
