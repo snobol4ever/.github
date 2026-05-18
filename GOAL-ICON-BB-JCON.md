@@ -272,7 +272,78 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 ## Open step
 
-(none — DAI-7 closed the IJ-DEL-ICN-AST arc. Next active row for this goal will be opened as new Icon work, or referred out to `GOAL-CLI-3MODE.md` CLI-3M-9 for the `interp_*.c` big rip.)
+- [ ] **DAI-8 — Eliminate ALL dead code from SCRIP's executable source.** **Lon directive (2026-05-17):** *"Everything that is not reachable from SCRIP's `main` in some way is unreachable and therefore we want deleted. I'll be analyzing the code base and do not want to waste my time on code that does not matter."* This is a whole-codebase sweep, not the conservative tier-1 scope DAI-7 used.
+
+  **Definition of dead:** a function, type, global, macro, or whole source file is *dead* iff it cannot be reached on any path from `main` in the built `scrip` binary, across every CLI mode SCRIP currently exposes (`--interp`, `--run`, `--compile`, `--compile-x86`, `--bb={brokered,wired}`, `--monitor`, all language frontends). Reachability is the union over all modes. If a symbol is reachable from `main` in any one mode, it stays.
+
+  **Scope (no carve-outs):**
+  - All `.c` files under `src/`
+  - All `.h` files under `src/`
+  - All decls in headers that name symbols with zero call sites
+  - All `extern` decls in `.c` files that name symbols with zero call sites
+  - All typedef'd structs whose only reference is their own typedef
+  - All `#define` macros never expanded
+  - Whole files where every defined symbol is dead (delete the file, prune the Makefile)
+  - **No "infrastructure" exemption.** DAI-7 showed that the "infrastructure" carve-out (`icn_lazy_box`) was reserving a slot for a non-inhabitant. If a future feature needs a deleted symbol, `git log` recovers it; the live tree must contain only reachable code.
+
+  **Out of scope (do not delete):**
+  - Code reached through function-pointer dispatch tables (`g_user_call_hook`, `_usercall_hook`, the `proc_table` family, lex/yacc generated callbacks, builtin lookup tables). These look unreachable to static tools but are reachable at runtime. **Audit method:** for each suspect symbol, `grep` for its address-of (`&fn_name`) and its mention in any `static const` table; if either matches, the symbol is live.
+  - SIL-family function definitions in `runtime/snobol4/*.c` (`APPLY_fn`, `FINDEX_fn`, etc.) called through indirect SIL dispatch — same address-of audit applies.
+  - Generated parser/lexer files (`*.tab.c`, `*.lex.c`) — bison/flex output is regenerated, not edited.
+  - The two oracles (`snobol4ever/x64`, `snobol4ever/csnobol4`) — those are separate repos, owned upstream, never patched in `one4all`.
+
+  **Methodology (must use at least three independent methods, cross-checked):**
+
+  1. **Linker garbage collection (authoritative).** Add a `make scrip GC=1` target that builds with `-ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,--print-gc-sections`. The linker prints every section it discards. Discarded `.text.<fn_name>` sections are *empirically dead*: the linker has proven `main` can't reach them. This is the gold standard — the linker sees through function-pointer tables that static tools miss only if the address-of is actually taken somewhere reachable.
+
+  2. **`cppcheck --enable=unusedFunction --project=...`** — fast first pass. Likely overreports (false positives on function-pointer callbacks, weak symbols, generated code). Use as a candidate generator, not as a deletion authority.
+
+  3. **`cflow src/**/*.c | grep -v main`** — static call graph. Nodes with no incoming edges (and not in a function-pointer table) are dead. Useful for *understanding* why something's reachable when the first two disagree.
+
+  4. **`nm -u scrip` + `nm --defined-only scrip`** — list undefined references (should be only libc/libgc) and defined symbols. After deletion, neither set should change in unexpected ways.
+
+  5. **DAI-BOMB stub technique** (proven in DAI-2/4/5a/7) — replace suspect bodies with `[DAI-8-BOMB] <fn_name>` stubs that print to stderr + `exit(78)`, then run the full gate matrix. Zero fires = empirically dead = safe to delete in a follow-on commit. This is the only method that catches symbols reachable through obscure runtime paths (`dlsym`, embedded VM hooks).
+
+  6. **`grep -rn "&<symbol>\|<symbol>(" src/`** — final cross-check before deletion. Catches calls through `static const` dispatch tables, label-as-value GCC extensions, and computed-goto interpreters.
+
+  **Process per candidate symbol:**
+  1. Methods 1 + 2 + 3 nominate it.
+  2. Method 6 confirms zero call sites or address-of references.
+  3. Method 5 stubs it with a DAI-8-BOMB.
+  4. Run full parallel gate matrix (smoke ×6, broker, crosscheck_prolog, `test_icon_all_rungs.sh`).
+  5. Zero fires → delete in a follow-on commit. Any fires → restore the body, document why it's reachable in a comment, move on.
+
+  **Commit cadence:** orthogonal-clusters-per-session per RULES "Three-construct sessions." Each commit deletes one cluster (e.g. "all unreachable Icon helpers", "all unreachable SNOBOL4 SIL helpers", "all unreachable Prolog runtime helpers", "all unreachable emit_bb factory wrappers", "all unreachable `interp_*.c` from CLI-3M-9 territory", etc.). Bisectable: if a gate breaks N commits later, `git bisect` finds the bad commit within log₂(N) steps. Commit messages must list every deleted symbol so analysts can `git log -S<symbol_name>` to recover anything they need.
+
+  **Done when:**
+  - `make scrip GC=1 2>&1 | grep -c removing` returns 0 (no section the linker would discard remains in the object files).
+  - `cppcheck --enable=unusedFunction src/` reports zero unused functions, OR each remaining warning is documented in a `## DAI-8 cppcheck false positives` table in this file with a one-line rationale (typically: "address taken at `<file>:<line>` for `<table_name>` dispatch").
+  - Every `extern` decl in every `.c` and `.h` file under `src/` names a symbol that exists and has at least one caller.
+  - Every typedef'd struct under `src/` is referenced by at least one piece of live code (`grep -rn "<struct_name>" src/ --include=*.c --include=*.h` shows more than just its own typedef line).
+  - All gates hold floor: Icon `--interp` 194/265, smoke ×6 unchanged, smoke_unified_broker 22/27, crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS, zero DAI-8-BOMB fires across the full gate matrix.
+  - This file's "## DAI-8 deletions ledger" section lists every deleted symbol with its commit hash and one-line justification.
+
+  **Anti-pattern (do not do this):**
+  - Don't keep code "because it might be useful later." `git log` is the archive. The live tree contains reachable code only.
+  - Don't keep typedefs whose only consumer was a deleted function. The typedef goes too.
+  - Don't keep state structs in `icon_gen.h` whose only consumer was a now-deleted `emit_bb.c` factory wrapper (DAI-7a preserved a handful of these on the conservative scope; DAI-8 finishes the job).
+  - Don't preserve "infrastructure" exceptions. DAI-7b proved the named exceptions had no inhabitants; assume the same of any new candidate until empirically refuted.
+
+  **Risk register:**
+  - **Function-pointer dispatch tables are the main false-positive source.** Per-frontend `_usercall_hook`, `proc_table`, the `g_user_call_hook` cross-language bridge, lex/yacc action tables — all of these reach code through `static const` arrays of function pointers. The address-of audit (method 6) catches these. When in doubt, DAI-8-BOMB the candidate and let the gate matrix vote.
+  - **Macros are harder to audit than functions.** `grep -rn "<MACRO_NAME>"` is the only tool; if zero non-definition hits, the macro is dead.
+  - **Generated files (`*.tab.c`, `*.lex.c`, `snobol4.c`) are large and contain lots of "unused" symbols that are part of the parser's state machine.** Treat generated files as black boxes — don't touch them. Bison/flex are the source of truth; if a generated symbol is dead, the `.y`/`.l` source is what gets edited.
+  - **CLI-3M-9 territory (`src/driver/interp_*.c`) is the largest expected deletion cluster.** Per the prior DAI-7 spec, after CLI-3M-10 deleted the `--ast-run`/`--ir-run` flags, every function only reachable from those flags is dead. The cluster likely spans 7 files (`interp_eval.c`, `interp_call.c`, `interp_exec.c`, `interp_ref.c`, `interp_label.c`, `interp_data.c`, `interp_hooks.c`) and several thousand LOC. Bite into it in commit-sized clusters, never one giant rip.
+
+  **What "done" feels like:** when an outsider reads any `.c` file under `src/`, every function they see is reachable from `main` and matters to at least one user-facing mode. No archaeological layers, no infrastructure-that-isn't, no defensive prototypes. The tree is what runs.
+
+## DAI-8 deletions ledger
+
+(populated as DAI-8 commits land — one row per deleted symbol cluster)
+
+| Cluster | Symbols deleted | Method that nominated | Method that confirmed | Commit | Gate delta |
+|---|---|---|---|---|---|
+| _(empty — DAI-8 not yet started)_ | | | | | |
 
 ## Watermark
 
