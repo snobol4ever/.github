@@ -37,11 +37,11 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Open step
 
 - [x] **DAI-8 C8 — `icn_runtime.c` (interp) dead-fn sweep.** 17 fns deleted, −185 LOC. `881d1a60` 2026-05-18.
-- [x] **DAI-8 C11 — `lower_icn.c` dead-fn sweep.** 9 fns deleted, −136 LOC. `04679f20` 2026-05-18.
-- [ ] **DAI-8 C12+ — Continue dead-code sweep.** Remaining non-generated clusters:
-  - `rt.c` — entire cluster live: `_rt_usercall` (→`g_user_call_hook`) + `rt_call` (asm string in emit_sm.c) anchor all vstack/chunk fns. Deferred.
-  - `bb_boxes.c` ~9, `emit_sm.c` ~13, `scan_builtins.c` ~7 — next audit targets.
-  - `snobol4.c` (CSNOBOL4-generated, linked for --monitor) — excluded per RULES.md; internal self-calls appear dead to linker GC.
+- [x] **DAI-8 C12 — `bb_boxes.c` + `emit_sm.c` + `scan_builtins.c` dead-fn sweep.** 20 fns, −157 LOC. `5e854341` 2026-05-18.
+- [ ] **DAI-8 C13+ — Continue dead-code sweep.** Next audit targets from non-generated files:
+  - `rebus_emit.c` ~8, `rebus_print.c` ~4, `raku_re.c` ~6, `sm_image.c` ~6, `prolog_*` ~12
+  - `rt.c` cluster confirmed live (anchored by `_rt_usercall`→`g_user_call_hook` and `rt_call` asm-string in emit_sm.c).
+  - `snobol4.c` (CSNOBOL4-generated, linked for --monitor) — excluded per RULES.md.
 
   **Process per cluster:** Method 1 nominates → Method 6 confirms zero callers + zero address-of → delete → gate. See DAI-8 methodology note below.
 
@@ -74,11 +74,12 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 | **C9** `rt.c` `rt_pop_int` | −12 LOC | `ff9ee063` | floor held |
 | **C10** `emit_wasm.c` 22 fns (20 bb_* + generator + scalar) | −175 LOC | `533c17c3` | floor held |
 | **C11** `lower_icn.c` 9 fns (7 IR constructors + expr_top + fail_box) | −136 LOC | `04679f20` | floor held |
+| **C12** `bb_boxes.c`+`emit_sm.c`+`scan_builtins.c` 20 fns | −157 LOC | `5e854341` | floor held |
 
 ## Watermark
 
 ```
-one4all: 04679f20     (DAI-8 C11: lower_icn.c 9 fns −136 LOC)
+one4all: 5e854341     (DAI-8 C12: bb_boxes+emit_sm+scan_builtins 20 fns −157 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
