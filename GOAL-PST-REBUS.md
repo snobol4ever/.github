@@ -115,7 +115,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 
 ## Active rungs
 
-- [ ] **RB-C-1 — Fix `stmt_list_ne` in-place append in `rebus.y` (C-side L-to-R prerequisite).**
+- [x] **RB-C-1 — Fix `stmt_list_ne` in-place append in `rebus.y` (C-side L-to-R prerequisite).** ✅ 2026-05-18 (Sonnet 4.6, one4all `0da9ec20`)
   `stmt_list_ne` currently mutates `$1` in place: the `stmt_list_ne compound_stmt` arm strips children from `$2` and appends them to `$1` via `expr_add_child($1, $2->c[i])` — a direct violation of the left-to-right always-wrap invariant.
   Fix: change both `stmt_list_ne` arms to always-wrap — every reduction produces a fresh `TT_PROGRAM` node wrapping the previous list and the new statement:
   ```c
@@ -393,7 +393,7 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 ## State
 
 ```
-watermark:  PST-RB-5i-PRE landed 2026-05-17 (one4all d432ed6f)
+watermark:  RB-C-1 landed 2026-05-18 (one4all 0da9ec20, Sonnet 4.6)
             parser_icon.sc head restore 2026-05-17 (corpus pending push)
 status:     Subsystem suite 19/1 (Qize fails on bb_pool exhaustion — bug
             diagnosed; tracked as PST-RB-NEXT-BB-CACHE).
