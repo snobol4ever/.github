@@ -272,7 +272,58 @@ The order is **callers first, leaves last** — never delete a definition while 
 
 ## Open step
 
-- [ ] **DAI-8 — Eliminate ALL dead code from SCRIP's executable source.** **Lon directive (2026-05-17):** *"Everything that is not reachable from SCRIP's `main` in some way is unreachable and therefore we want deleted. I'll be analyzing the code base and do not want to waste my time on code that does not matter."* This is a whole-codebase sweep, not the conservative tier-1 scope DAI-7 used.
+- [ ] **IJ-MODE4-HELLO-ALL-LANGS — Hello-world `--compile` (mode 4) works end-to-end for all six languages, wired-only.** **Lon directive (2026-05-18):** *"Ensure the compiled Icon and Prolog programs use flat/wired BBs. Do not use brokered BBs in `--compile` mode. Get all six languages to say hello world before continuing mass dead-code removal."* This step gates DAI-8 cluster 2+: no further dead-code sweep until the hello-world × wired-mode-4 matrix is 6/6 green.
+
+  **Mandate:** mode 4 (`--compile`) must use **wired** Byrd boxes only — no `bb_broker` call from any emitted binary, no `rt_bb_once_proc`-style brokered shim from `libscrip_rt.so`. The `scrip.c` CLI guard already forces `g_bb_mode = BB_MODE_LIVE` under `--compile` (src/driver/scrip.c:128-148); honoring it at the runtime / emit level is what this step finishes. RULES.md "ZERO C BYRD BOX FUNCTIONS" remains in force — wired blobs are emitted x86, not C functions.
+
+  **Wired vs brokered, the precise architectural shape** (from `.github/ARCH-x86.md`):
+  - **Wired (`EMIT_BINARY_WIRED`):** one contiguous blob per pattern/proc, boxes `jmp` directly to each other's α/β/γ/ω labels. Broker calls the blob ONCE at α entry (`esi=0`); backtracking is internal `jmp`. Preamble loads `r10=&Δ` (RIP-relative); `rdi=ζ` is ignored (ζ=NULL). Jump in, jump out.
+  - **Brokered (`EMIT_BINARY_BROKERED`):** per-box blobs with full C ABI. Broker calls `fn(ζ, port)` for each port transition.
+
+  In mode 4, the emitted standalone binary cannot use brokered shape, because (a) per the CLI guard wired is mandated, and (b) brokered requires a runtime broker structure that's natural for the interpreter but absent from the asm-emit path. The emitted `.s` must inline the wired blob and `jmp` into it from main.
+
+  **Baseline matrix (captured 2026-05-18, Opus 4.7, HEAD `a4fe1c21`):**
+
+  | Lang     | `--interp` mode 2 | `--compile` emit | as | ld | run | Notes |
+  |----------|:-:|:-:|:-:|:-:|:-:|---|
+  | SNOBOL4  | ✓ | ✓ | ✓ | ✓ | ✓ | wired-clean: emitted binary imports zero `bb_broker` / `rt_bb_*_proc`. Pattern BBs use `bb_build_flat` path (`src/runtime/snobol4/stmt_exec.c:412`). |
+  | Icon     | ✓ | ✓ | ✓ | ✓ | ✗ | aborts: `[NO-AST] SM_BB_PUMP_PROC stub: needs fresh SM/BB lowering`. `proc_table` empty in emitted binary's process. Cluster-1-validated unrelated. |
+  | Prolog   | ✓ | ✓ | ✓ | ✓ | ✓-but-brokered | **violates wired mandate** — emitted binary imports `rt_bb_once_proc`, which calls `bb_broker(node, BB_ONCE, …)`. Output happens to be correct; path is wrong. |
+  | Snocone  | ✓ | ✓ | ✓ | ✓ | ✓ | wired-clean (same SNOBOL4 lineage). |
+  | Rebus    | ✓ | ✓ | ✓ | ✓ | ✓ | wired-clean (lowers to SNOBOL4-shape SM). |
+  | Raku     | ✓ | ✓ | ✓ | ✓ | ✗ | runs but prints nothing. `say` builtin path appears unwired in mode 4. Diagnose at first sub-rung. |
+
+  **Done when:** all six rows of the matrix above show `compile=✓ as=✓ ld=✓ run=✓` AND `nm <emitted_binary> | grep -E " U (bb_broker|rt_bb_once_proc|rt_bb_pump_proc)\b"` returns empty (no brokered dependency). All existing gates hold floor: Icon `--interp` 194/265, smoke ×6 mode-2 unchanged, smoke_unified_broker 22/27, crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS, mode4_broad_corpus_snobol4 202/75/3 SKIP.
+
+  **Gate (one new script):** `scripts/test_smoke_compile_hello_all_langs.sh` — drives each of the six canonical hello programs through the full `scrip --compile → gcc -c → gcc -lscrip_rt → run` pipeline, then runs `nm` on each binary to assert zero brokered imports. Must return `PASS=6 FAIL=0`.
+
+  ### Sub-rungs (each its own commit, RULES "Three-construct sessions" applies)
+
+  - [ ] **IJ-HELLO-1 — `test_smoke_compile_hello_all_langs.sh`** added and committed first, asserting the baseline (3 PASS / 3 FAIL: snobol4, snocone, rebus pass; icon, prolog (brokered), raku fail). The brokered check on prolog flips its row from PASS to FAIL. This sub-rung doesn't fix anything — it makes the failure surface auditable and observable in CI before any change. Provides the regression floor for the rest of the step.
+
+  - [ ] **IJ-HELLO-2 — Raku hello-world via mode 4.** Diagnose why `sub main() { say('hello world'); }` emits, assembles, links, and runs cleanly but prints nothing. Likely candidates: `say` builtin not registered in libscrip_rt's expression-table path; or Raku frontend's lower emits an SM opcode whose mode-4 codegen is stubbed. Confirm with `--dump-sm` + `nm` audit. Fix at the smallest place that turns this into the correct character sequence on stdout. Constraint: no `bb_broker` import in resulting binary.
+
+  - [ ] **IJ-HELLO-3 — Icon hello-world via mode 4, wired.** This is the architectural workhorse. Today the trivial `procedure main(); write("hello icon"); end` lowers to two SM opcodes: `SM_BB_PUMP_PROC "main"` + `SM_HALT`. The `--bb=wired` mandate plus `bb_broker` forbidden means the emitter must inline the Icon main proc's flat blob into the `.s` file (no `rt_bb_pump_proc(name)` callback), then `jmp .Licn_main_blob` from main's prologue. Implementation breakdown (further-divisible if it sprawls):
+    - **3a:** new emitter helper `emit_icn_proc_flat_blob(out, proc_idx, ir_body)` — walks `IR_block_t *`, emits inline x86 for each `IR_t` node (initial scope: `IR_VAR`, `IR_LIT_S`, `IR_CALL` with builtin-name dispatch, `IR_SEQ`). Hello-world specifically needs `IR_CALL "write" (IR_LIT_S "hello icon")` — three nodes.
+    - **3b:** main-prologue dispatch — change `SM_BB_PUMP_PROC` emission in `emit_sm.c` to *not* call any rt-helper. Instead, before the SM dispatch loop, emit one `call .Licn_<proc_name>_blob` per proc, or threaded entry via a tiny in-text dispatch table. Either way: zero brokered shim, zero `bb_broker` dependency.
+    - **3c:** asm-side `write` builtin in libscrip_rt: today `libscrip_rt` already exports `rt_call("write", …)` for SM mode; reuse it from the wired blob via PLT call. Confirm it routes to the same output path as mode-2's Icon `write` builtin.
+    - **3d:** delete the `rt_bb_pump_proc` runtime helper and the brokered template plumbing landed by IJ-MODE4-BB-PUMP-PROC (un-pushed work in this session) — no brokered Icon shim survives.
+
+  - [ ] **IJ-HELLO-4 — Prolog hello-world via mode 4, wired.** Existing Prolog mode 4 works but uses brokered `rt_bb_once_proc`. Convert the Prolog `SM_BB_ONCE_PROC` emit path to the same wired shape as Icon (IJ-HELLO-3). The Prolog builder framework (`rt_pl_b_begin/node/kids/entry/end_register`, `.Lpl_builder_<i>`, `.Lpl_registry`, `rt_register_predicates_pl`) is reusable for the IR_block_t reconstruction but the `bb_broker` invocation inside `rt_bb_once_proc` must be replaced by a wired entry. Same shape as Icon: inline blob in `.s`, `jmp .Lpl_<pred>_blob` from caller, no broker. Delete `rt_bb_once_proc`.
+
+  - [ ] **IJ-HELLO-5 — Full matrix regression + wired-only audit.** `test_smoke_compile_hello_all_langs.sh` returns 6/0. `nm` audit on each binary returns no brokered imports. All existing gate matrix holds floor (Icon `--interp` 194/265, smoke ×6, broker 22/27, crosscheck_prolog 128/0/4SKIP/11ORACLE_MISS, mode4_broad_corpus_snobol4 202/75/3 SKIP). Watermark updated; this step closes; DAI-8 cluster 2+ unblocked.
+
+  **Anti-pattern (do not do this):**
+  - Don't land brokered `rt_bb_*_proc` shims as "scaffolding". The asm side must be the wire — no detour through `bb_broker`. Today's in-session `rt_bb_pump_proc` work was modeled on the brokered Prolog template and is the example of what NOT to ship: it routes Icon mode 4 through `bb_broker` exactly the way `rt_bb_once_proc` does for Prolog, and that's the architecture violation this step is designed to remove.
+  - Don't paper over Raku's silent-output bug by emitting a hard-coded `puts("hello world")` in the asm — diagnose what the lowered SM stream actually contains and fix at the missing rung.
+  - Don't expand IR_t kind coverage beyond what hello-world demands (IJ-HELLO-3a). The minimum-IR-set discipline keeps the wired blob emitter bounded; subsequent rungs (post hello-world matrix close) extend it construct-by-construct.
+
+  **Risk register:**
+  - **Icon's per-construct `IR_ICN_*` family** is wider than Prolog's. Hello-world only exercises `IR_LIT_S` + `IR_CALL` + `IR_SEQ` (three node kinds); a real Icon program reaches into ~20 `IR_ICN_*` kinds for generators, ranges, scans, etc. **Hello-world is the scope of this step, not full Icon coverage.** The wired blob emitter starts with the three kinds; subsequent rungs (closing this goal long-term) extend it.
+  - **Wired blob `r10=&Δ` register convention** must be respected on entry to the blob. Hello-world has no closure state (`ζ=NULL`, `r10` ignored), so the simplest entry preamble suffices: `push rbp / mov rbp,rsp` plus a single `call rt_call_fn` for `write`. ARCH-x86.md "Flat-BB ABI" section is the binding spec.
+  - **`SM_BB_PUMP_PROC` may still appear in the SM stream** even after IJ-HELLO-3 lands the wired path. The CLI guard could be tightened to error if a `SM_BB_PUMP_PROC` appears under `--compile` without a corresponding wired blob, OR the lowerer could be changed to skip emitting `SM_BB_PUMP_PROC` entirely under `--compile` and substitute a direct-`jmp` SM opcode. Either is acceptable; pick at IJ-HELLO-3b implementation.
+
+- [ ] **DAI-8 — Eliminate ALL dead code from SCRIP's executable source.** **PAUSED 2026-05-18 (Lon directive):** *"Get all six languages to say hello world before we continue mass dead code removal."* DAI-8 cluster 2 is blocked behind `IJ-MODE4-HELLO-ALL-LANGS` closing (6/6 wired-mode-4 hello-world matrix green). The methodology, ledger, all-modes regression gate, and tier-1 candidate enumeration below remain authoritative once unpaused. **Lon directive (2026-05-17):** *"Everything that is not reachable from SCRIP's `main` in some way is unreachable and therefore we want deleted. I'll be analyzing the code base and do not want to waste my time on code that does not matter."* This is a whole-codebase sweep, not the conservative tier-1 scope DAI-7 used.
 
   **Definition of dead:** a function, type, global, macro, or whole source file is *dead* iff it cannot be reached on any path from `main` in the built `scrip` binary, across every CLI mode SCRIP currently exposes (`--interp`, `--run`, `--compile`, `--compile-x86`, `--bb={brokered,wired}`, `--monitor`, all language frontends). Reachability is the union over all modes. If a symbol is reachable from `main` in any one mode, it stays.
 
