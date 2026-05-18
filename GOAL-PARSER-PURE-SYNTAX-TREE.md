@@ -469,3 +469,34 @@ Phase 1 = all C parsers clean (tree_t, L-to-R, no synthesis). Phase 2 = one dedi
 - GOAL-PST-PROLOG.md — SCRIP orientation block added
 
 **Next session:** pick any one of the four remaining Phase 1 C tasks. Suggest PST-SC-4k (Snocone goto→TT_GOTO_U) as it is the most clearly defined and has existing lower.c infrastructure ready.
+
+### Handoff note — 2026-05-18 session 2 (Sonnet 4.6)
+
+**What was done this session (HQ work):**
+
+1. Audited all six C parsers for L-to-R shift/reduce readiness.
+2. Added two-phase sequencing rule (supersedes old same-commit pairing):
+   Phase 1 = all C parsers clean, Phase 2 = SCRIP mirrors as dedicated
+   SNOBOL4 sessions. Never both in one session.
+3. Added RB-C-1 rung to GOAL-PST-REBUS.md (stmt_list_ne always-wrap).
+4. Added PRF-12 C sequencing (5 bullets) to GOAL-PST-ICN-RAKU.md.
+5. Added SCRIP orientation blocks to PST-REBUS, PST-ICN-RAKU, PST-PROLOG.
+6. Created GOAL-PST-SNOBOL4.md — sibling goal for SNOBOL4, carrying
+   completed 1a-1d and new PST-SN4-W1 rung (remove ->t==TT_QLIT
+   inspection from sno4_stmt_commit_go).
+7. Corrected false belief that SNOBOL4 was fully ready — it has one
+   remaining Phase 1 wart (PST-SN4-W1).
+
+**Phase 1 C status at handoff:**
+- Icon     ✅ complete
+- SNOBOL4  ⏳ PST-SN4-W1 (one wart: ->t inspection in sno4_stmt_commit_go)
+- Snocone  ⏳ PST-SC-4k→4n (4 rungs)
+- Raku     ⏳ PRF-12 (5 rungs: gather, sub, class, program, for-range)
+- Rebus    ⏳ RB-C-1 (stmt_list_ne always-wrap)
+- Prolog   ⏳ PST-PL-6f (delete Term* paths)
+
+**Recommended next session:** PST-SN4-W1 or PST-SC-4k — both small,
+well-defined, self-contained. Do not attempt Phase 2 SCRIP mirror work
+until all six Phase 1 tasks above are checked.
+
+.github @ b93f9d62
