@@ -36,10 +36,11 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 ## Open step
 
-- [ ] **DAI-8 C8+ — Continue dead-code sweep.** Remaining Method-1 candidates after C7:
-  - `snobol4.c` ~25 (largest remaining cluster)
-  - `icn_runtime.c` (interp) ~10
-  - `rt.c` ~3 truly deletable (`rt_pop_int` confirmed zero callers; `rt_in_native_chunk` weak/strong pattern — deferred)
+- [x] **DAI-8 C8 — `icn_runtime.c` (interp) dead-fn sweep.** 17 fns deleted, −185 LOC. `881d1a60` 2026-05-18.
+- [x] **DAI-8 C9 — `rt.c` `rt_pop_int` deleted.** −12 LOC. `ff9ee063` 2026-05-18.
+- [ ] **DAI-8 C10+ — Continue dead-code sweep.** Remaining Method-1 candidates:
+  - `snobol4.c` ~25 — excluded from Method 1 (self-referencing runtime); needs different approach
+  - `rt.c` — `chunk_reg_lookup`/`call_native_chunk` deferred (Method 7 sub-graph); `rt_in_native_chunk` weak/strong pattern — deferred
   - `emit_wasm.c` ~22 (not yet audited post-C2)
 
   **Process per cluster:** Method 1 nominates → Method 6 confirms zero callers + zero address-of → delete → gate. See DAI-8 methodology note below.
@@ -69,10 +70,13 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 | **C6** `prolog_builtin.c` 15 fns + 14 decls | −75 LOC | `607b6aac` | floor held |
 | **C7** `icon_runtime.c` (frontend) 12 fns + 2 globals | −118 LOC | `2b7081c5` | floor held |
 
+| **C8** `icn_runtime.c` (interp) 17 fns + state structs | −185 LOC | `881d1a60` | floor held |
+| **C9** `rt.c` `rt_pop_int` | −12 LOC | `ff9ee063` | floor held |
+
 ## Watermark
 
 ```
-one4all: 2b7081c5     (DAI-8 C7: icon_runtime.c frontend 12 fns − 118 LOC)
+one4all: ff9ee063     (DAI-8 C9: rt.c rt_pop_int − 12 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
