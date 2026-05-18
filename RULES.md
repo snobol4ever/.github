@@ -36,9 +36,10 @@
 ║  ALL Byrd boxes are x86 ASSEMBLY emitted at runtime by the emitter.                             ║
 ║  If you want a BB, you EMIT it. You do not write a C function for it.                           ║
 ║                                                                                                  ║
-║  The only permitted C functions with (void *zeta, int entry) signature are:                     ║
-║    • icn_lazy_box  — infrastructure shim, not a generator                                       ║
+║  The only permitted C function with (void *zeta, int entry) signature is:                       ║
 ║    • icn_bb_dcg    — infrastructure DCG driver, not a generator                                 ║
+║  (icn_lazy_box, formerly named here as a permitted shim, was deleted in DAI-7b 2026-05-17       ║
+║   after empirical proof of zero callers — the reservation outlived its inhabitant.)             ║
 ║                                                                                                  ║
 ║  If you just wrote DESCR_t foo(void *zeta, int entry) { ... } — DELETE IT.                     ║
 ║  Implement it as an IR_block_t DCG (ir_exec.c + lower_icn.c) driven by icn_bb_dcg.             ║
