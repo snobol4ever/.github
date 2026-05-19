@@ -348,6 +348,27 @@ findings-6e:
   - Gates: smoke_prolog PASS=5, crosscheck_prolog PASS=127, crosscheck_snobol4 PASS=6.
 ```
 
+### Session-end note — 2026-05-19 (Sonnet 4.6)
+
+Goal: PST-PL-6h — move three parser helpers to prolog_lower.c.
+
+**What landed:**
+- `pt_flatten_conj` → `pl_flatten_conj` in `prolog_lower.c`
+- `pt_maybe_ifthenelse` → `pl_maybe_ifthenelse` in `prolog_lower.c`
+- `pt_make_clause` + body-wrap → `pl_make_clause` in `prolog_lower.c`
+- Parser now emits raw `TT_FNC(",")` chains and raw `TT_FNC(";")` nodes in source-token order. No structural inspection in parse phase.
+- `lower_clause_from_tree`: updated to call `pl_flatten_conj` + `pl_maybe_ifthenelse` on raw body from parser.
+- Directive detection loop (`begin_tests`/`end_tests` and `initialization`/`export`): updated for raw body shape.
+- All three parse-clause call sites (`pt_make_clause(NULL,body)`, `pt_make_clause(head,body)`, `pt_make_clause(head,NULL)`) replaced with inline `TT_CLAUSE` building (head child + raw body child).
+
+**Gates at hand-off:** smoke_prolog PASS=5, crosscheck_prolog PASS=128, smoke_scrip_all_modes PASS=2, crosscheck_snobol4 PASS=5 FAIL=1 (beauty_omega pre-existing).
+
+**Phase 1 C status: COMPLETE.** All rungs 6a–6h checked [x].
+**Phase 2 SCRIP mirror: BLOCKED** until all six C parsers Phase 1 clean.
+**Next unblocked rung:** PST-PL-SC-1 (unblocks when other five parsers land Phase 1).
+
+one4all @ `06cadffb` · .github @ `d8659efa`
+
 ## Authorship
 
 Drafted by Claude Sonnet 4.6, 2026-05-16.
