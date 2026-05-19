@@ -67,7 +67,7 @@ Pure string preprocessors with **no tree ops** (no `Push`/`Pop`/`Tree`/
 `tree`/`Append`/`reduce`) are also permitted as `function` definitions:
 `dq_unescape`, `unescape_q`, `sn_match`, `sn_upr`, `notmatch`.
 
-**Forbidden:** `shift_val`, `foldop`, `reduce_call`, `reduce_prim`,
+**Forbidden:** `shift_value`, `foldop`, `reduce_call`, `reduce_prim`,
 `reduce_opsyn`, `Push`, `Pop`, `Tree`, `tree`, `Append`, `IncCounter`,
 `TopCounter`, `Body` wrapper, and every `function X() { ... }` that
 calls any of those.
@@ -137,8 +137,8 @@ session**.
 later sessions benefit from the idioms established in earlier ones):
 
 1. PST-RB-SC (verify-and-stamp; confirms framework works)
-2. PST-ICN-SC (4 × `shift_val`; teaches `assign+shift` idiom)
-3. PRF-13 Raku (111 × `shift_val`; bulk mechanical)
+2. PST-ICN-SC (4 × `shift_value`; teaches `assign+shift` idiom)
+3. PRF-13 Raku (111 × `shift_value`; bulk mechanical)
 4. PST-SN4-SC (`foldop`/`reduce_prim`/`reduce_opsyn`/`reduce_call`;
    introduces n-ary collect)
 5. PST-PL-SC (delete ~64 helpers)
@@ -244,8 +244,8 @@ No code changes to one4all or corpus.
 | # | rung | file | session size | first step |
 |---|------|------|-------------:|------------|
 | 1 | PST-RB-SC  | parser_rebus.sc   | 10 min  | RB-SC-1 grep verify |
-| 2 | PST-ICN-SC | parser_icon.sc    | 30–60 m | ICN-SC-1 four `shift_val → assign+shift` rewrites |
-| 3 | PRF-13     | parser_raku.sc    | 2–3 h   | PRF-13-1 read file + locate 111 `shift_val` |
+| 2 | PST-ICN-SC | parser_icon.sc    | 30–60 m | ICN-SC-1 four `shift_value → assign+shift` rewrites |
+| 3 | PRF-13     | parser_raku.sc    | 2–3 h   | PRF-13-1 read file + locate 111 `shift_value` |
 | 4 | PST-SN4-SC | parser_snobol4.sc | 1.5 h   | SN4-SC-1 twelve `reduce_prim` rewrites |
 | 5 | PST-PL-SC  | parser_prolog.sc  | 4–6 h   | PL-SC-1 delete ~64 helpers + state |
 | 6 | PST-SC-SC  | parser_snocone.sc | 4–6 h   | SC-SC-1 delete ~110 helpers + state |

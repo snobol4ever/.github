@@ -35,7 +35,7 @@ classify or rewrite a captured string.
 | `IncCounter()` | `nInc()` |
 | `TopCounter()` | `nTop()` |
 | `Body(var)` helper wrapper | inline `nPush() ARBNO(*Command) ... nPop()` per rule |
-| `shift_val(value, kind)` | `assign(.tmp, value) shift(tmp, kind)` |
+| `shift_value(value, kind)` | `assign(.tmp, value) shift(tmp, kind)` |
 | `foldop(tag)` | `nPush() ... nInc() ... reduce(tag, 'nTop()') nPop()` (n-ary collect) |
 | `reduce_call()` | `reduce('TT_FNC', 'nTop()')` |
 | `reduce_prim('TT_X')` | `reduce('TT_X', 'nTop()')` |
@@ -52,16 +52,16 @@ grammar action surface.** A single `Pop()` to retrieve the root for
 
 ### `parser_icon.sc` (373 lines) — VERY CLOSE TO CLEAN
 
-**Violations:** 4 × `shift_val`.
+**Violations:** 4 × `shift_value`.
 
 **Lines:**
-- 188: `$' ' cset_pat shift_val(csetbody, 'TT_CSET')`
-- 189: `$' ' str_pat  shift_val(strbody,  'TT_QLIT')`
-- 190: `$' ' real_pat . rval shift_val(REAL(rval), 'TT_FLIT')`
-- 192: `$' ' '&' id_pat . kwname shift_val('&' kwname, 'TT_VAR')`
+- 188: `$' ' cset_pat shift_value(csetbody, 'TT_CSET')`
+- 189: `$' ' str_pat  shift_value(strbody,  'TT_QLIT')`
+- 190: `$' ' real_pat . rval shift_value(REAL(rval), 'TT_FLIT')`
+- 192: `$' ' '&' id_pat . kwname shift_value('&' kwname, 'TT_VAR')`
 
 **Fix:** in each case, the source-text capture already lands in a `. var`
-binding; replace `shift_val(VALUE, KIND)` with `assign(.tmp, VALUE)
+binding; replace `shift_value(VALUE, KIND)` with `assign(.tmp, VALUE)
 shift(tmp, KIND)`. Or for cases where the pattern itself names the
 captured text, restructure to use `shift(pat, KIND)` directly so the
 matched-text becomes the leaf value via `shift`'s built-in capture.
@@ -188,24 +188,24 @@ Verify by reading:
 
 ### `parser_raku.sc` (680 lines) — MODERATE (one mechanical pattern, many sites)
 
-**Violations:** 111 × `shift_val`. Helper function `dq_unescape` is
+**Violations:** 111 × `shift_value`. Helper function `dq_unescape` is
 permitted (pure string preprocessor).
 
 **The pattern** appears in every form:
 
 ```
-shift_val(EXPR, KIND)
+shift_value(EXPR, KIND)
 ```
 
 where `EXPR` can be:
-- a literal string: `shift_val('raku_mcall', 'TT_VAR')`
-- a concatenation: `shift_val(capvf capvr, 'TT_VAR')`
-- a function value: `shift_val(REAL(rval), 'TT_FLIT')` (none in Raku, but conceptually similar)
+- a literal string: `shift_value('raku_mcall', 'TT_VAR')`
+- a concatenation: `shift_value(capvf capvr, 'TT_VAR')`
+- a function value: `shift_value(REAL(rval), 'TT_FLIT')` (none in Raku, but conceptually similar)
 
 **Mechanical replacement template:**
 
 ```
-shift_val(EXPR, KIND)
+shift_value(EXPR, KIND)
 ↓
 assign(.t_imm, EXPR) shift(t_imm, KIND)
 ```
@@ -218,13 +218,13 @@ Each call site is independent, so this is line-by-line sed-with-care
 work. Examples:
 
 ```
-shift_val('die', 'TT_VAR')
+shift_value('die', 'TT_VAR')
 → assign(.t_imm, 'die') shift(t_imm, 'TT_VAR')
 
-shift_val(capvf capvr, 'TT_VAR')
+shift_value(capvf capvr, 'TT_VAR')
 → assign(.t_imm, capvf capvr) shift(t_imm, 'TT_VAR')
 
-shift_val(capstr, 'TT_FLIT')
+shift_value(capstr, 'TT_FLIT')
 → assign(.t_imm, capstr) shift(t_imm, 'TT_FLIT')
 ```
 
@@ -658,17 +658,17 @@ Per `GOAL-PARSER-PURE-SYNTAX-TREE.md § Phase 2 ordering`:
 
 | # | session | size | scope |
 |---|---------|------|-------|
-| 1 | PRF-13 (Raku) | 2–3 h | 111 mechanical `shift_val` → `assign+shift` |
+| 1 | PRF-13 (Raku) | 2–3 h | 111 mechanical `shift_value` → `assign+shift` |
 | 2 | PST-SN4-SC (SNOBOL4) | 1.5 h | `foldop`/`reduce_prim`/`reduce_opsyn`/`reduce_call` rewrites |
 | 3 | PST-SC-SC (Snocone) | 4–6 h | major rewrite — delete ~110 functions |
 | 4 | PST-RB-SC (Rebus) | 10 min | verify-and-stamp; already clean |
 | 5 | PST-PL-SC (Prolog) | 4–6 h | delete ~64 helpers, replace with shift/reduce |
-| 6 | PST-ICN-SC (Icon) | 30–60 min | 4 × `shift_val` rewrites |
+| 6 | PST-ICN-SC (Icon) | 30–60 min | 4 × `shift_value` rewrites |
 
 **Recommended actual ordering for human review reasons:**
 
 1. **PST-RB-SC** (10 min, stamp it) — confirms the audit's permitted-primitive set works at scale.
-2. **PST-ICN-SC** (30–60 min) — smallest mechanical change; teaches the `shift_val → assign+shift` idiom.
+2. **PST-ICN-SC** (30–60 min) — smallest mechanical change; teaches the `shift_value → assign+shift` idiom.
 3. **PRF-13 (Raku)** (2–3 h) — same idiom, 111 sites; reference for bulk mechanical work.
 4. **PST-SN4-SC** (1.5 h) — `foldop`/`reduce_prim`/`reduce_opsyn` rewrites; introduces the n-ary-collect idiom.
 5. **PST-PL-SC** (4–6 h) — big delete-and-rewrite; needs an expert hand.

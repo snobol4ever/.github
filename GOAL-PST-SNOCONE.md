@@ -311,7 +311,7 @@ need tweaks:
 
 - [x] **SC-SC-4** — Grep verify:
   ```
-  grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_snocone.sc
+  grep -nE 'shift_value|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_snocone.sc
   grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_snocone.sc
   grep -nE '^function ' parser_snocone.sc
   ```
