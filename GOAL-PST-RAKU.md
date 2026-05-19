@@ -179,7 +179,7 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [x] **PRF-12-capture** *(audit R25)* ✅ 2026-05-19 (Sonnet 4.6, one4all `7d4ad4ee`, corpus `b31045b`) — `TT_CAPTURE`/`TT_NAMED_CAPTURE` added; `VAR_CAPTURE`/`VAR_NAMED_CAPTURE` productions rewritten; lower dispatches to `raku_capture`/`raku_named_capture`; 3 corpus `.ref` files regenerated. Gates held.
 
-- [ ] **PRF-12-twigil** *(audit R26)* — `$.foo` / `$!foo` should produce `TT_TWIGIL_FIELD(sval=name)` with no synthesized `self` child. `lower_twigil` attaches the `self` reference and dispatches to the field-access helper.
+- [x] **PRF-12-twigil** *(audit R26)* ✅ 2026-05-19 (Sonnet 4.6, one4all `5047950e`, corpus `a9b1240`) — `TT_TWIGIL_FIELD` added (sval=name, no children); `VAR_TWIGIL` production rewritten; lower read path: `SM_PUSH_VAR self` + `PUSH_LIT_S name` + `FIELD_GET 2`; write path: same + `FIELD_SET 3`; 2 corpus `.ref` files regen. Gates held.
 
 ### Subset 3 — body-splicing cleanup (audit R15, R19, R27)
 
@@ -264,13 +264,14 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b .github (this commit)
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-twigil ✅ HANDOFF; one4all 5047950e corpus a9b1240 .github (this commit)
+           2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b
            2026-05-19 (Sonnet 4.6) — PRF-12-hof ✅; one4all 3fa3b227 corpus 46187d3
            2026-05-19 (Sonnet 4.6) — PRF-12-mcall ✅; one4all a404f896 corpus 82347f8
            2026-05-19 (Sonnet 4.6) — PRF-12-new ✅; one4all 9700c0c3 corpus 2e6e6bd
            2026-05-19 (Sonnet 4.6) — PRF-12-smatch ✅; one4all 0e526760 corpus 810795a
            2026-05-19 (Sonnet 4.6) — PRF-12-self ✅; one4all 95a24fdf corpus 7da85d5
-status: ⏳ Phase 1 NOT clean — 5 §⛔ violations remaining
+status: ⏳ Phase 1 NOT clean — 4 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -296,6 +297,7 @@ prior closed rungs (preserved for history):
   PRF-12-mcall ✅ 2026-05-19 (Sonnet 4.6, one4all a404f896, corpus 82347f8)
   PRF-12-hof ✅ 2026-05-19 (Sonnet 4.6, one4all 3fa3b227, corpus 46187d3)
   PRF-12-capture ✅ 2026-05-19 (Sonnet 4.6, one4all 088ac03c, corpus b31045b)
+  PRF-12-twigil ✅ 2026-05-19 (Sonnet 4.6, one4all 5047950e, corpus a9b1240)
 audit findings (27 original, 18 closed):
   R1   ✅ closed PRF-12-program
   R2   ✅ closed PRF-12-my-type
@@ -315,17 +317,17 @@ audit findings (27 original, 18 closed):
   R23  ✅ closed PRF-12-die
   R24  ✅ closed PRF-12-hof
   R25  ✅ closed PRF-12-capture
-  R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
+  R26  ✅ closed PRF-12-twigil
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-twigil (R26) — `$.foo`/`$!foo` → TT_TWIGIL_FIELD(sval=name); lower attaches self reference.
-             PRF-12-gather-splice (R19) — verify/fix KW_GATHER block child-stealing.
-             PRF-12-gather-hoist (R27) — move raku_lower_hoist_gather_pass from parser to lower.c.
-             Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch; (3) rewrite raku.y action;
+next:        PRF-12-gather-splice (R19) — verify KW_GATHER block child-stealing; current PRF-12-gather may already be clean (check and tick if so).
+             PRF-12-gather-hoist (R27) — move raku_lower_hoist_gather_pass entirely to lower.c; parser leaves TT_GATHER nodes untouched.
+             PRF-13 — SCRIP mirror for PRF-12-gather (Phase 2, gated on all 6 C parsers clean).
+             Per-rung recipe: (1) add TT_* to ast.h if needed; (2) lower dispatch; (3) rewrite raku.y;
              (4) bison -d raku.y -o raku.tab.c; (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 088ac03c · corpus @ b31045b
+heads:       .github @ (this commit) · one4all @ 5047950e · corpus @ a9b1240
 ```
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
@@ -369,7 +371,7 @@ audit findings (27 original, 12 closed):
   R23  ✅ closed PRF-12-die
   R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
   R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
-  R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
+  R26  ✅ closed PRF-12-twigil
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
 next:        PRF-12-try (R10, TT_TRY) or PRF-12-unless (R11, TT_UNLESS)
@@ -397,7 +399,7 @@ heads:       .github @ (this commit) · one4all @ e645ab4b · corpus @ e6f7504
   R23  ✅ closed PRF-12-die
   R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
   R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
-  R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
+  R26  ✅ closed PRF-12-twigil
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
 next:        PRF-12-for (R12-13, TT_FOR_RANGE desugar) or PRF-12-try (R10)
