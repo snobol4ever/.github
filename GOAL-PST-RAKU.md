@@ -141,7 +141,7 @@ PRF-S7-1..6 ✅ 2026-05-18. `corpus/SCRIP/raku_stubs.sc` **DELETED**. All 94 stu
 
 - [x] **PRF-12-sub** ✅ 2026-05-19 (Sonnet 4.6, one4all `96a7ca59`, corpus `39af2e1`) — `TT_SUB_DECL` added; raku.y `sub_decl` emits `TT_SUB_DECL` (no `_id`, no body-splicing); `program` rule detects `TT_SUB_DECL`; `_id == SUB_TAG_ID` removed from `lower.c`. Gather heap-corruption fixed (`free(prog->c)` → prefix-aware free). 62 corpus `.ref` files regenerated. PST-FIELD-2 Raku-side prerequisite satisfied. PRF-12-body-splice subsumed.
 
-- [ ] **PRF-12-class** — lower.c: add `TT_CLASS_DECL`; write `lower_class_decl` handling method renaming (`Cls__method`) and field extraction. raku.y `class_decl`: emit `TT_CLASS_DECL[TT_VAR(cname), item0...]` without renaming or `raku_meth_register` in parser. Stops returning `TT_NUL` from the action.
+- [x] **PRF-12-class** ✅ 2026-05-19 (Sonnet 4.6, one4all 17a4dc45, corpus 21a4fc1) — `TT_CLASS_DECL` added; `class_decl` emits `TT_CLASS_DECL[TT_VAR(cname), fields..., methods(TT_SUB_DECL)...]`; `lower_class_decl` renames methods to `Cls__method`, registers in lower-side meth table, lowers bodies, emits RECORD_MAKE; `class_body_list` method actions use `ast_node_new(TT_SUB_DECL)` to avoid stale `v.sval` after `v.ival` overwrite; `ast_print.c` excludes `TT_SUB_DECL`/`TT_PROC_DECL` from `v.sval` print (name in `c[0]`); 75 corpus `.ref` files regenerated. Gates held.
 
 - [ ] **PRF-12-for** *(renamed from PRF-12-for-range)* — lower.c: add `TT_FOR_RANGE` (or reuse `TT_FOR`); write `lower_for_range` desugaring to `TT_ASSIGN + TT_WHILE`. raku.y `for_stmt`: emit `TT_FOR[TT_VAR(v), lo, hi, body]` — delete `make_for_range`. Also: stop inspecting `$2->t==TT_VAR` to conditionally wrap in `TT_ITERATE` (audit R13); always emit a pure-syntax shape and let lower decide.
 
@@ -264,11 +264,10 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-arr-hash-ops ✅; one4all ac0e48f3 corpus 9f4e7af
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-class ✅; one4all 17a4dc45 corpus 21a4fc1
+           2026-05-19 (Sonnet 4.6) — PRF-12-arr-hash-ops ✅; one4all ac0e48f3 corpus 9f4e7af
            2026-05-19 (Sonnet 4.6) — PRF-12-die ✅; one4all c596462d corpus adfdbb6
-           2026-05-19 (Sonnet 4.6) — PRF-12-sub ✅; PRF-12-body-splice ✅ (subsumed)
-           2026-05-19 (Sonnet 4.6) — gather heap-corruption fixed (one4all 96a7ca59)
-status: ⏳ Phase 1 NOT clean — 21 §⛔ violations remaining
+status: ⏳ Phase 1 NOT clean — 20 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -281,47 +280,43 @@ prior closed rungs (preserved for history):
   PRF-S7-1..6 ✅ 2026-05-18 — raku_stubs.sc DELETED; 94 stubs inlined
   PRF-12-say ✅ 2026-05-19 (Sonnet 4.6) — TT_SAY / TT_SAY_FH
   PRF-12-print ✅ 2026-05-19 (Sonnet 4.6) — TT_PRINT / TT_PRINT_FH
-  PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, one4all 96a7ca59, corpus 39af2e1):
-    TT_SUB_DECL added; _id==SUB_TAG_ID removed from lower.c;
-    gather heap-corruption fixed (free(prog->c) prefix offset);
-    62 corpus .ref files regenerated. PST-FIELD-2 Raku prereq satisfied.
-  PRF-12-die ✅ 2026-05-19 (Sonnet 4.6, one4all c596462d, corpus adfdbb6):
-    TT_DIE added; raku.y emits TT_DIE[expr]; lower dispatches SM_CALL_FN raku_die;
-    sm_interp+sm_jit_interp handle from stack. Gates held.
+  PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, one4all 96a7ca59, corpus 39af2e1)
+  PRF-12-die ✅ 2026-05-19 (Sonnet 4.6, one4all c596462d, corpus adfdbb6)
   PRF-12-body-splice ✅ subsumed by PRF-12-sub
-  PRF-12-arr-hash-ops ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af):
-    TT_ARR_GET/ARR_SET/HASH_GET/HASH_SET/HASH_DELETE/HASH_EXISTS added;
-    9 raku.y actions rewritten; lower.c dispatches to runtime helpers;
-    10 corpus .ref files regenerated; rk_arr_get baseline hash updated. Gates held.
-audit findings (27 original, 7 closed):
+  PRF-12-arr-hash-ops ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af)
+  PRF-12-class ✅ 2026-05-19 (Sonnet 4.6, one4all 17a4dc45, corpus 21a4fc1):
+    TT_CLASS_DECL; lower_class_decl (rename+register+lower); class_body_list
+    uses ast_node_new; ast_print.c TT_SUB_DECL/TT_PROC_DECL excluded from v.sval print;
+    75 corpus .ref files regenerated. Gates held.
+audit findings (27 original, 9 closed):
   R1   program synthesizes 'main' (owned: PRF-12-program)
   R2   KW_MY IDENT VAR_* discards type annotation (owned: PRF-12-my-type)
-  R3-6 ✅ KW_SAY/KW_PRINT desugar — closed PRF-12-say/print
-  R7-9 ✅ arr/hash op desugar — closed PRF-12-arr-hash-ops
+  R3-6 ✅ closed PRF-12-say/print
+  R7-9 ✅ closed PRF-12-arr-hash-ops
   R10  KW_TRY/KW_CATCH desugar (owned: PRF-12-try)
   R11  KW_UNLESS desugar (owned: PRF-12-unless)
   R12-13 for_stmt desugar + inspect-kind (owned: PRF-12-for)
   R14  given_stmt pair wrap/unwrap (owned: PRF-12-given)
-  R15  ✅ sub_decl child-stealing — closed PRF-12-sub/PRF-12-body-splice
-  R16-17 class_decl in-place mutation + TT_NUL return (owned: PRF-12-class)
+  R15  ✅ closed PRF-12-sub/PRF-12-body-splice
+  R16-17 ✅ closed PRF-12-class
   R18  method_decl synth-self (owned: PRF-12-self)
   R19  KW_GATHER child-stealing (owned: PRF-12-gather-splice)
   R20  OP_SMATCH desugar (owned: PRF-12-smatch)
   R21  KW_NEW desugar (owned: PRF-12-new)
   R22  atom.method() desugar (owned: PRF-12-mcall)
-  R23  ✅ KW_DIE desugar — closed PRF-12-die
+  R23  ✅ closed PRF-12-die
   R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
   R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-class (R16-17, TT_CLASS_DECL) or PRF-12-program (R1, TT_PROGRAM main synth)
+next:        PRF-12-program (R1, main synthesis) or PRF-12-for (R12-13)
              Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
              (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
              (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ ac0e48f3 · corpus @ 9f4e7af
+heads:       .github @ (this commit) · one4all @ 17a4dc45 · corpus @ 21a4fc1
 ```
 
 ---
