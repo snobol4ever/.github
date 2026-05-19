@@ -159,7 +159,7 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [x] **PRF-12-print** *(audit R5, R6)* ✅ 2026-05-19 (Sonnet 4.6) — `TT_PRINT[expr]` / `TT_PRINT_FH[fh,expr]` added; same session as PRF-12-say.
 
-- [ ] **PRF-12-arr-hash-ops** *(audit R7, R8, R9 + atom-side at R29-related)* — index/element ops (`@a[i]`, `@a[i] = v`, `%h<k>`, `%h{k} = v`, `delete %h<k>`, `exists %h<k>`) should produce explicit `TT_IDX_GET` / `TT_IDX_SET` / `TT_HASH_GET` / `TT_HASH_SET` / `TT_HASH_DELETE` / `TT_HASH_EXISTS` kinds. Lower picks `arr_set` / `hash_set` / etc. runtime helpers. This rung covers ~7 grammar sites.
+- [x] **PRF-12-arr-hash-ops** *(audit R7, R8, R9 + atom-side at R29-related)* ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af) — `TT_ARR_GET`, `TT_ARR_SET`, `TT_HASH_GET`, `TT_HASH_SET`, `TT_HASH_DELETE`, `TT_HASH_EXISTS` added to ast.h; lower.c dispatches SM_CALL_FN to arr_get/arr_set/hash_get/hash_set/hash_delete/hash_exists; 9 raku.y actions rewritten to ast_node_new+ast_push; raku.tab.c regenerated; 10 corpus .ref files regenerated. lower_baseline.txt rk_arr_get hash updated. Gates held.
 
 - [ ] **PRF-12-try** *(audit R10)* — `try { } catch { }` should produce `TT_TRY[body, opt_catch_body]` kind. `lower_try` selects `raku_try` runtime helper.
 
@@ -264,10 +264,11 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-die ✅; one4all c596462d corpus adfdbb6
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-arr-hash-ops ✅; one4all ac0e48f3 corpus 9f4e7af
+           2026-05-19 (Sonnet 4.6) — PRF-12-die ✅; one4all c596462d corpus adfdbb6
            2026-05-19 (Sonnet 4.6) — PRF-12-sub ✅; PRF-12-body-splice ✅ (subsumed)
            2026-05-19 (Sonnet 4.6) — gather heap-corruption fixed (one4all 96a7ca59)
-status: ⏳ Phase 1 NOT clean — 22 §⛔ violations remaining
+status: ⏳ Phase 1 NOT clean — 21 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -288,11 +289,15 @@ prior closed rungs (preserved for history):
     TT_DIE added; raku.y emits TT_DIE[expr]; lower dispatches SM_CALL_FN raku_die;
     sm_interp+sm_jit_interp handle from stack. Gates held.
   PRF-12-body-splice ✅ subsumed by PRF-12-sub
-audit findings (27 original, 4 closed):
+  PRF-12-arr-hash-ops ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af):
+    TT_ARR_GET/ARR_SET/HASH_GET/HASH_SET/HASH_DELETE/HASH_EXISTS added;
+    9 raku.y actions rewritten; lower.c dispatches to runtime helpers;
+    10 corpus .ref files regenerated; rk_arr_get baseline hash updated. Gates held.
+audit findings (27 original, 7 closed):
   R1   program synthesizes 'main' (owned: PRF-12-program)
   R2   KW_MY IDENT VAR_* discards type annotation (owned: PRF-12-my-type)
   R3-6 ✅ KW_SAY/KW_PRINT desugar — closed PRF-12-say/print
-  R7-9 arr/hash op desugar (owned: PRF-12-arr-hash-ops)
+  R7-9 ✅ arr/hash op desugar — closed PRF-12-arr-hash-ops
   R10  KW_TRY/KW_CATCH desugar (owned: PRF-12-try)
   R11  KW_UNLESS desugar (owned: PRF-12-unless)
   R12-13 for_stmt desugar + inspect-kind (owned: PRF-12-for)
@@ -304,19 +309,19 @@ audit findings (27 original, 4 closed):
   R20  OP_SMATCH desugar (owned: PRF-12-smatch)
   R21  KW_NEW desugar (owned: PRF-12-new)
   R22  atom.method() desugar (owned: PRF-12-mcall)
-  R23  KW_DIE desugar (owned: PRF-12-die)
+  R23  ✅ KW_DIE desugar — closed PRF-12-die
   R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
   R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-class (R16-17, TT_CLASS_DECL) or PRF-12-arr-hash-ops (R7-9)
+next:        PRF-12-class (R16-17, TT_CLASS_DECL) or PRF-12-program (R1, TT_PROGRAM main synth)
              Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
              (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
              (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ c596462d · corpus @ adfdbb6
+heads:       .github @ (this commit) · one4all @ ac0e48f3 · corpus @ 9f4e7af
 ```
 
 ---
