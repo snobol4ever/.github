@@ -38,7 +38,14 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 ## Open step
 
-**DAI-8 C18** — next dead-code cluster. Top candidates from Method 1 audit: `icn_runtime.c` (2 safe: `static_get`, `static_set`), `rt.c` (1 safe: `rt_set_last_ok`), `emit_core.c`/`emit_sm.c` (header-declared inlines — need per-symbol address-of check). See session audit log.
+**DAI-8 C18 AUDIT COMPLETE — no safe deletions.** All remaining GC-dead symbols are anchored live:
+- `static_get`/`static_set` in `icn_runtime.c`: called from `sm_call_proc` (live via `icn_runtime.h`). Method 7 chain — internal callers are live.
+- `rt_set_last_ok` in `rt.c`: called from `rt_match_blob` (PLT-live in emit_sm.c). Method 7 chain — anchored.
+- `emit_core.c` 98 symbols: all have real call sites in `emit_bb.c`/`emit_sm.c`. GC-sections false positive caused by `emit_bb.c` compile failure in the audit build.
+
+**DAI-8 sweep is complete.** All auditable dead code removed in C1–C17. Remaining dead-looking symbols are live.
+
+**NEXT goal options (per PLAN.md):** IR-RN-0 (bulk IR rename), EC-2 (emitter consolidation next BB kind), or new goal per Lon.
 
 
 ## DAI-8 methodology note
