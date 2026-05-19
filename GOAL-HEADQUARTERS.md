@@ -57,7 +57,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3d ✅ (one4all `f478df98`, 2026-05-19, Sonnet 4.6):** `sm_ctx.h` + `sm_control.c`: 4 fns (sm_jump/s/f, sm_halt) via sm_ctx_t; 12 silo arms → one-liners. +125/-89 LOC.
 
-**NEXT (EC-3e — RETURN/FRETURN/NRETURN):** Extend sm_ctx_t with `pc_to_fn[]` + `fn_names[]`; lift 9 RETURN/FRETURN/NRETURN variants into `sm_control.c`.
+**EC-3e ✅ (one4all `87c1be66`, 2026-05-19, Sonnet 4.6):** sm_return/freturn/nreturn (9 variants → 3 fns). Extend sm_ctx_t with pc_to_fn[]/fn_names[]/fn_count. 27 silo arms → 3 grouped one-liners. +123/-161 LOC.
+
+**NEXT (EC-3f):** Remaining arms — SM_CALL_FN/SUSPEND_VALUE, SM_PAT_* family, SM_EXEC_STMT.
 
 
 ## DAI-8 methodology note
@@ -97,7 +99,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: f478df98     (EC-3d: sm_control.c — SM_JUMP/S/F + SM_HALT unified via sm_ctx_t; EC-3a–3d total: 72 silo arms → template calls)
+one4all: 87c1be66     (EC-3e: sm_return/freturn/nreturn 9 variants unified; EC-3a–3e total: 99 silo arms → template calls)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
