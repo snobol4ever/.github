@@ -53,7 +53,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3b ✅ (one4all `774c1e0e`, 2026-05-19, Sonnet 4.6):** `sm_arith.c`: 9 unified arithmetic functions (`sm_concat`, `sm_neg`, `sm_coerce_num`, `sm_exp`, `sm_add/sub/mul/div/mod`) with `IS_JVM/IS_JS/IS_NET` dispatch. Replace 3×9=27 parallel case arms. +65 LOC. Gates held: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36.
 
-**NEXT (EC-3c — comparison + jump family):** Lift `SM_ACOMP`, `SM_LCOMP`, `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F` from each silo into `SM_templates/sm_control.c`. These involve label references (string operands for jump targets) — wire with the same `IS_JVM/IS_JS/IS_NET` pattern.
+**EC-3c ✅ (one4all `53f2ef4f`, 2026-05-19, Sonnet 4.6):** `sm_compare.c`: 3 unified functions (`sm_stno`, `sm_acomp`, `sm_lcomp`). 9 silo arms → one-liners. +37/−24 LOC. Gates: 5/0·23/26·194/36.
+
+**NEXT (EC-3d — JUMP/RETURN/HALT with sm_ctx_t):** Factor per-instruction context (`i`, `n`, `in_body`, `has_continue`, `in_my_method[]`) into `sm_ctx_t` struct; lift JUMP/S/F, RETURN/FRETURN/NRETURN (×3 variants each), SM_HALT into `SM_templates/sm_control.c`.
 
 
 ## DAI-8 methodology note
@@ -93,7 +95,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 774c1e0e     (EC-3b: sm_arith.c — SM_CONCAT/NEG/COERCE_NUM/EXP/ADD/SUB/MUL/DIV/MOD unified; EC-3a: sm_push_pop_lits.c 7 fns, SM_templates/ created; +231 LOC total across EC-3a+3b)
+one4all: 53f2ef4f     (EC-3c: sm_compare.c — SM_STNO/ACOMP/LCOMP unified; EC-3a+3b+3c total: 60 silo arms → one-liners across 3 template files)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
