@@ -175,6 +175,47 @@ Add lower-side equivalent first, then strip parser-side desugaring. Each rung: g
 
 Gates: snocone_smoke, snocone broad corpus, scrip_all_modes.
 
+### Step 4 Phase 2 — Snocone SCRIP mirror (after all Phase 1 complete)
+
+**Do not start until PST-SC-4k through 4n all checked [x] AND all six C parsers satisfy Phase 1.**
+
+- [ ] **PST-SC-SC-1 — Audit `parser_snocone.sc` for Aspect 1 and Aspect 2 violations.**
+
+  **Aspect 2** — `Append()` in-place tree mutation:
+  Three sites in `parser_snocone.sc` call `Append(r, arr[i])` or similar
+  to build up a node by inserting children one at a time into an existing
+  `tree_t` node. `Append` calls `Insert` which rewrites `n(x)` and `c(x)`
+  in place. This is a post-construction tree mutation — forbidden in the
+  pure-parse phase.
+
+  **Where:** `parser_snocone.sc` lines ~221, ~400, ~608.
+  - Line ~221: inside a helper that builds a list node by appending into `r`.
+  - Line ~400: inside a helper building a call node from `kids` array.
+  - Line ~608: inside a helper building a varlist node from `kids` array.
+
+  **Fix for each:** Replace the pre-allocate + loop-Append pattern with
+  counter discipline — `nPush`/`nInc` each child, then `Reduce(tag, nTop())`.
+  The `kids` working array is a local scratch variable, not a tree node, and
+  is permitted as a local accumulator before the final `Reduce`.
+
+  No code changes in this rung — document findings and line numbers.
+
+- [ ] **PST-SC-SC-2 — Replace all `Append`-based node building in `parser_snocone.sc` with `Reduce`.**
+
+  **What:** For each of the three `Append` sites (lines ~221, ~400, ~608):
+  1. Remove the pre-allocated result node (`r = tree(...)`).
+  2. Push each element with `Push(arr[i])` and `nInc()`.
+  3. Replace the final return/push with `Reduce(tag, nTop())`.
+  4. The local `kids` / `arr` working array may be retained as scratch
+     to collect children before pushing — it is not a tree node.
+
+  **Why:** `Append` is structurally `Reduce-after-the-fact`. Once a node
+  exists, its children must be immutable in the parse phase. The only
+  permitted moment to set children is inside `Reduce`, which creates the
+  node atomically from the top N stack elements.
+
+  Gates: `snocone_smoke`, `crosscheck_snocone`, `smoke_scrip_all_modes`.
+
 ### Step 5 — Rebus rewrite + Step 6 — Prolog rewrite
 
 Owned by **`GOAL-PST-REBUS-PROLOG.md`**. Work those steps there.
