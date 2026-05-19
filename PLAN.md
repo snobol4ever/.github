@@ -73,7 +73,7 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles" f
 | **⚡ PST: Icon** | `GOAL-PST-ICON.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PST-ICN-SC ready** (30–60 min): rewrite 4 × `shift_val → assign+shift` in Expr11. |
 | **⚡ PST: Raku** | `GOAL-PST-RAKU.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PRF-13 ready** (2–3 h, reference rung): 111 × `shift_val → assign+shift`. Steps embedded. |
 | **⚡ PST: Prolog** | `GOAL-PST-PROLOG.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PST-PL-SC ready** (4–6 h): delete ~64 helper functions incl. all DCG expansion + slot allocation. Lower handles. Steps embedded. |
-| **⚡ PST: Rebus** | `GOAL-PST-REBUS.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PST-RB-SC ready** (10 min): verify-and-stamp; file is already shift/reduce-pure. |
+| **⚡ PST: Rebus** | `GOAL-PST-REBUS.md` | one4all+corpus+.github | ✅ COMPLETE 2026-05-19 — stamped + smoke PASS=4 FAIL=0. corpus @ d1c08ff. |
 | **⚡ Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | one4all+corpus+.github | **NEXT: SCT-9-arbno-fence** — FENCE each `Command` alternative so backtrack can't re-enter `nPush`/`nPop`. Root cause of 29 brace-bearing failures. PASS=29 FAIL=38. |
 | **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
 | **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | BLOCKED on CHUNKS. IEP-8 can proceed. |
