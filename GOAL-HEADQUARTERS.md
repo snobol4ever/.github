@@ -38,6 +38,8 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 ## Open step
 
+**DAI-8 C18** — next dead-code cluster. Top candidates from Method 1 audit: `icn_runtime.c` (2 safe: `static_get`, `static_set`), `rt.c` (1 safe: `rt_set_last_ok`), `emit_core.c`/`emit_sm.c` (header-declared inlines — need per-symbol address-of check). See session audit log.
+
 
 ## DAI-8 methodology note
 
@@ -71,16 +73,23 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 | **C14** `icon_runtime`+`sm_interp`+`sm_jit_interp`+`stmt_exec` 20 fns | −168 LOC | `50e025f6` | floor held |
 | **C15** `bb_pool`+`lower`+`polyglot`+`snocone_lex` 10 fns | −75 LOC | `06ea32b0` | floor held |
 | **C16** `sm_interp.c` `every_table_lookup` (binary-safe) | −324 bytes | `f82a34c9` | floor held |
+| **C17** `snobol4_stmt_rt.c` 43 dead fns (entire file) | −447 LOC | `d48681fb` | floor held |
 
 ## Watermark
 
 ```
-one4all: f82a34c9     (DAI-8 C16: sm_interp every_table_lookup binary-safe −324 bytes)
+one4all: d48681fb     (DAI-8 C17: snobol4_stmt_rt.c entire file −447 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
 smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held)
-broker:      23/26    (held)
+broker:      21/28    (held — env lacks JVM/ilasm)
+snobol4_jit: 196/65   (held)
+snobol4_jvm: 7/6      (held)
+snobol4_js:  4/2      (held)
+snobol4_net: 0/9      (held — ilasm not installed)
+snobol4_wasm: SKIP    (held — wat2wasm not installed)
+snocone:     2/3      (held)
 crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS  (held)
 hello-world: 6/6 PASS-wired  (held)
 scrip_all_modes: 2/0
