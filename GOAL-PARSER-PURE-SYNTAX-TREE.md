@@ -746,4 +746,4 @@ Both have line-level fix sketches in the audit / goal files.
 all six Phase 1 audits are complete and verified.** The session 4 handoff
 was clear that Phase 2 SCRIP mirror work is downstream of this audit.
 
-.github @ <will be set at push>
+.github @ 3a40d133
