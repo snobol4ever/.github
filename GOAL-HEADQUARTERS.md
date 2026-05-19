@@ -1,4 +1,6 @@
-# GOAL-HEADQUARTERS.md — Icon: BB emitters + lower_icn DCG
+# GOAL-HEADQUARTERS.md — one4all Maintenance HQ
+
+**Formerly:** GOAL-HEADQUARTERS.md
 
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-ICON-BB-NATIVE ✅ `7efdf09a`

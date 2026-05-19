@@ -2,11 +2,11 @@
 
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-PROLOG-BB-COMPLETE ✅ `c9b7428d` (PB-8 honest 111/294 FAIL=0 ABORT=0)
-**Sister:** GOAL-ICON-BB-JCON.md — mirror; only port semantics and names differ.
+**Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
 
 ## Invariants (READ FIRST)
 
-The five invariants from GOAL-ICON-BB-JCON.md apply verbatim with names substituted:
+The five invariants from GOAL-HEADQUARTERS.md apply verbatim with names substituted:
 Icon `proc_table` ↔ Prolog `dcg_table`; `icn_bb_dcg` ↔ `pl_bb_dcg`; `SM_BB_PUMP_PROC` ↔ `SM_BB_ONCE_PROC`. **Cross-language semantics differ per port** — Icon β advances a generator counter; Prolog β pops a choice-point + unwinds the trail; SNOBOL4 β backtracks the pattern anchor. Never invoke language-A's SM-bridge handler with language-B's BB object.
 
 ## Session Setup
@@ -113,7 +113,7 @@ Mode-4 broken: multi-clause (test5 factorial silent vs Mode-2 "120").
 | Prolog   | No  | No  | pl_unified_term_from_expr + pl_pred_table_lookup + interp_exec_pl_builtin probes silent across 5 smoke + 124 honest + 128 crosscheck |
 | Raku     | No  | No  | bb_exec_stmt + bb_eval_value probes silent across 5 smoke (raku_try_call_builtin reached only from Mode-1 paths) |
 
-(The "actively being fixed" framing for Icon is reflected in the `lower_proc_skeletons` rebuild story under GOAL-ICON-BB-JCON.md — that's about completing the IR_PL_*-style lowering coverage, not about residual AST walks per se. RULES.md compliance verified clean for all six languages in the gates that ship.)
+(The "actively being fixed" framing for Icon is reflected in the `lower_proc_skeletons` rebuild story under GOAL-HEADQUARTERS.md — that's about completing the IR_PL_*-style lowering coverage, not about residual AST walks per se. RULES.md compliance verified clean for all six languages in the gates that ship.)
 
 **Files changed this session (one4all):** `src/runtime/rt/rt.h`, `src/runtime/rt/rt.c`, `src/emitter/emit_sm.c`, `scripts/run_prolog_via_x86_backend.sh` (new). No changes to `corpus` or other repos.
 
