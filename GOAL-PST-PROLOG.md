@@ -2,8 +2,7 @@
 
 **Repo:** one4all + corpus + .github
 **Parent goal:** `GOAL-PARSER-PURE-SYNTAX-TREE.md` (Step 6)
-**Split from:** `GOAL-PST-REBUS-PROLOG.md` — Prolog half only
-**Status:** Active — PST-PL-6e next
+**Status:** Active — PST-PL-6h next (see State block at end of file for current step)
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► IR_sm_t[]  ──┐
