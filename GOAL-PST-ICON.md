@@ -249,25 +249,25 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — PST-ICN-LR-1 COMPLETE (1a–1g). PST-FIELD-1 COMPLETE.
-status:       ✅ Phase 1 CLEAN — PST-ICN-LR-1 closed. PST-FIELD-1/2 cross-cutting (not yet started).
+watermark:    2026-05-19 (Sonnet 4.6 — hand off session).
+status:       ✅ Phase 1 CLEAN. PST-ICN-LR-1 ✅ PST-FIELD-1 ✅ PRF-12-sub ✅ (cross-goal).
 prior closed:
-  PST-ICN-2a/2b ✅ ; PST-ICN-4a ✅ 2026-05-16 (TT_MATCH_UNARY) ; PST-ICN-4b ✅
-  2026-05-16 (13 helpers removed) ; icon_helpers.sc DELETED 2026-05-18.
-  PST-ICN-LR-1a–1g ✅ 2026-05-19 (Sonnet 4.6).
-PST-ICN-LR-1 summary:
-  Added TT_PROC_DECL to tree_e and name table (ast.h).
-  parse_proc now emits TT_PROC_DECL[TT_VAR(name), TT_VLIST(params), TT_PROGRAM(body)].
-  proc->_id = nparams line deleted from icon_parse.c.
-  lower_icn.c lower_icn_proc_body: accepts TT_PROC_DECL, reads c[2] for body.
-  lower.c build_proc_scope + lower_proc_skeletons: use c[1] for params, c[2] for body.
-  icn_runtime.c: two proc-dispatch blocks updated to use c[2] body node.
-  polyglot.c: accepts TT_PROC_DECL, reads c[1]->n for nparams.
-  25 Icon parser .ref files regenerated (augop_cset_union/str_concat pre-existing segfault, unchanged).
-gates:        smoke_icon 5/0 ✅ · smoke_scrip_all_modes 2/0 ✅ · crosscheck FAIL=1 (pre-existing) ✅ · icon rungs PASS=194 FAIL=36 ✅
+  PST-ICN-2a/2b ✅ ; PST-ICN-4a ✅ 2026-05-16 ; PST-ICN-4b ✅ 2026-05-16.
+  icon_helpers.sc DELETED 2026-05-18.
+  PST-ICN-LR-1a–1g ✅ 2026-05-19 (Sonnet 4.6) — TT_PROC_DECL, proc->_id gone.
+  PST-FIELD-1 ✅ 2026-05-19 (Sonnet 4.6) — _nalloc removed from tree_t;
+    prefix-word capacity; 4 free(e->c) sites fixed (ast_clone, pl_runtime,
+    polyglot, scrip); beauty self-host no longer heap-aborts.
+  PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, cross-goal) — TT_SUB_DECL replaces
+    TT_FNC+_id=SUB_TAG_ID in raku.y; lower.c _id==SUB_TAG_ID check removed;
+    one4all @ 3375a0ea.
+gates:        smoke_icon 5/0 ✅ · smoke_raku 5/0 ✅ · smoke_snobol4 7/0 ✅ · smoke_scrip_all_modes 2/0 ✅ · crosscheck FAIL=1 (pre-existing) ✅ · icon rungs PASS=194 FAIL=36 ✅
 mirror gaps:  ⚠ MIRROR-GAP-ICN-LR-1 — parser_icon.sc Phase 2 mirror BLOCKED until all six C parsers Phase 1 clean.
-next:         PST-FIELD-2 (remove _id from tree_t) — BLOCKED on PRF-12-sub (GOAL-PST-RAKU.md). Interpreter slot/env sites remain.
-heads:        .github @ (pending) · one4all @ (pending) · corpus @ (pending)
+next:         PST-FIELD-2 (remove _id from tree_t) — prerequisites now met (Icon:
+    PST-ICN-LR-1 ✅, Raku: PRF-12-sub ✅). Remaining blocker: interpreter
+    slot/env _id in icn_runtime.c (TT_VAR slot index — use v.ival or side table).
+    Also: raku_driver.h SUB_TAG_ID definition is now dead code — delete.
+heads:        .github @ (pending) · one4all @ 3375a0ea · corpus @ a9e9328
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
