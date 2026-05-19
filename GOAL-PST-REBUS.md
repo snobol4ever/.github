@@ -651,22 +651,40 @@ typedef struct {
 ## State
 
 ```
-watermark:    2026-05-19 (audit re-grade + PST-RB-DECL ladder added)
+watermark:    2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+              2026-05-19 (Opus 4.7 session 3) — RB-C-2/3/4/5 promoted as step entries.
+              2026-05-19 (audit re-grade + PST-RB-DECL ladder added).
 status:       ⏳ Phase 1 NOT clean — 6 §⛔ violations per PST-LR-AUDIT.md § Scan 5
               (RB-C-1 ✅; RB-C-2/3/4/5 open) + PST-RB-DECL-1..5 (eliminate RDecl /
               RCase / RProgram outer wrapper — all info passes inside tree).
-next:         RB-C-2 (unless desugar — small) or PST-RB-DECL-1 (add TT_FUNCTION /
-              TT_RECORD_DECL kinds — prerequisite for DECL-2..4).
-prior closed: PST-RB-5a–5e (REKind→TT_*, RExpr/RStmt/RProgram(outer) deleted),
-              5f (SL-2 closed: heap UAF in sc_finalize_if_else_pst per-if_head alloc),
-              5g (sm_prog.c opnames + lower.c TT_FNC-in-TT_NAME fixes), 5h (subsystem
-              suite 19/20: lower_scan g_lang dispatch, Snocone TT_SCAN→stmt-level
-              match path), 5i-PRE (CSO-1..CSO-7 case-sensitive sweep), RB-C-1 (flat
-              stmt_list_ne), PRE-BEAUTY Bug #1 (upr(upr) shadow-param recursion fix
-              via is_current_frame_local()). PRE-BEAUTY Bug #2 landed 2026-05-18.
-mirror gaps:  ⚠ MIRROR-GAP-RB-C-1 (parser_rebus.sc SC mirror lagging — Phase 2 work)
-              Will record ⚠ MIRROR-GAP-RB-DECL-1..5 as each lands.
+next:         **RB-C-2** (smallest, well-defined) — `unless cond then body` currently
+              builds `TT_IF(TT_NOT(cond), then)` at `rebus.y:317–328`. Fix: add
+              TT_UNLESS kind to tree_e; rule becomes
+                `unless_stmt : T_UNLESS stmt T_THEN opt_semi stmt_body
+                   { tree_t *n=ast_node_new(TT_UNLESS); expr_add_child(n,$2);
+                     expr_add_child(n,$5); $$=n; }`
+              Add lower_unless arm (or extend lower_stmt switch) to desugar to
+              negated branch at IR emit time.
+              Alternative: **PST-RB-DECL-1** (add TT_FUNCTION / TT_RECORD_DECL kinds
+              — prerequisite for DECL-2..4 and the bigger RDecl elimination).
+prior closed: PST-RB-5a–5h, 5i-PRE, RB-C-1 ✅. See git log for details
+              (handoff trimmed 2026-05-19 per RULES.md).
+mirror gaps:  ⚠ MIRROR-GAP-RB-C-1 (parser_rebus.sc SC mirror lagging — Phase 2 work).
+              Will record ⚠ MIRROR-GAP-RB-C-2/3/4/5 + ⚠ MIRROR-GAP-RB-DECL-1..5
+              as each lands. Phase 2 SCRIP mirror BLOCKED until all six C parsers
+              Phase 1 clean.
+heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
 ```
+
+### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+
+HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
+PST goal files. No Rebus-specific code changes this session. Next session:
+open `rebus.y:317–328`, apply RB-C-2 fix sketch above (add TT_UNLESS kind +
+lower arm), regenerate `.tab.c`, run gates (smoke_rebus 4/0, smoke_scrip 2/0,
+crosscheck_snobol4 4/2). Rebus's heavy F1 lift is the PST-RB-DECL ladder
+(eliminate off-tree RDecl/RCase) — but RB-C-2..5 are smaller wins to
+sequence first.
 
 ## Authorship
 

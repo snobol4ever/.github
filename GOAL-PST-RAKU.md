@@ -306,10 +306,31 @@ audit findings 2026-05-19 (PST-LR-AUDIT.md § Scan 4, 27 violations):
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
   Phase 1 status reverted from ✅ to ⏳ (was claimed complete; audit revision).
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather)
-next: pick any single PRF-12 sub-rung from the active list above. Smallest scope:
-      PRF-12-say or PRF-12-die (single keyword, single dedicated kind, ~3 sites).
-      PRF-12-sub is structurally most important (unblocks PST-FIELD-2 for Raku side).
+next:        pick any single PRF-12 sub-rung. Recommended orderings:
+             - Smallest scope (any single keyword): **PRF-12-say** or **PRF-12-die**
+               or **PRF-12-print** — each is ~3 sites, single dedicated kind, no
+               structural cleanup. Good warm-up rung.
+             - Highest structural value: **PRF-12-sub** — unblocks PST-FIELD-2
+               (Raku side). Adds TT_SUB_DECL, removes _id == SUB_TAG_ID lookups
+               from lower_stmt. Bigger scope but clears a cross-cutting blocker.
+             Per-rung recipe (5 steps): (1) add TT_* kind to ast.h; (2) write
+             lower_* dispatch in lower.c (or lower_raku.c pre-pass); (3) rewrite
+             raku.y action to pure tree transcription with new kind; (4) regen
+             .ref files; (5) run gates (smoke_raku, smoke_scrip, crosscheck).
+             After every PRF-12 sub-rung: smoke_raku must remain at floor.
+watermark:   2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+heads:       .github @ 58869b7e · one4all (no changes) · corpus (no changes)
 ```
+
+---
+
+### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+
+HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
+PST goal files. No Raku-specific code changes this session. Next session:
+pick one PRF-12 sub-rung from the audit-promoted list (lines 150–186 in this
+file each have the line-level fix sketch). Note Raku is a primary `_id`
+consumer via `SUB_TAG_ID` — PST-FIELD-2 closure depends on PRF-12-sub landing.
 
 ---
 

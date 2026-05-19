@@ -196,11 +196,29 @@ C parsers are clean (see parent goal readiness table).**
 ## State
 
 ```
-watermark:    2026-05-19 — W1/W2/W3 (orig scope) ✅; W2-AUDIT/W3-AUDIT (re-graded) ⏳
-status:       ⏳ Phase 1 NOT clean — 2 audit-promoted rungs per PST-LR-AUDIT.md § Scan 3
-next:         PST-SN4-W2-AUDIT (goto_expr always-fresh-wrap) — single grammar rule, narrow scope
-mirror gaps:  MIRROR-GAP-W1/W2/W3 (Phase 2 — parser_snobol4.sc unchanged)
+watermark:    2026-05-19 — W1 ✅ ; W2 ⏳ ; W3 ⏳
+              Three-facet block added 2026-05-19 (Opus 4.7 session 4) — F1/F2/F3 stated.
+status:       ⏳ Phase 1 NOT clean — 2 §⛔ violations per PST-LR-AUDIT.md § Scan 3
+next:         PST-SN4-W2 — canonical §⛔ example. snobol4.y:211
+              `goto_expr T_CONCAT goto_atom { expr_add_child($1,$3); $$=$1; }`
+              mutates $1 (a TT_QLIT/TT_VAR leaf) in place. Fix: always wrap fresh —
+              `tree_t*s=ast_node_new(TT_SEQ); expr_add_child(s,$1); expr_add_child(s,$3); $$=s;`
+              Right-leaning chain is correct (re-flatten in lower if ever needed).
+              After W2 lands: smoke_snobol4 must remain green, beauty self-host
+              must remain md5 abfd19a7a834484a96e824851caee159.
+              Then W3 — expr15/expr17 g_cur mid-rule pattern (6 append sites,
+              counter-discipline refactor).
+mirror gaps:  ⚠ MIRROR-GAP-SN4-W2/W3 — parser_snobol4.sc unchanged until W2+W3 land.
+              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
 ```
+
+### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+
+HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
+PST goal files (commits `8afa078e`, `58869b7e`). No SNOBOL4-specific code
+changes this session. Next session: open `snobol4.y:211`, apply the fix
+sketch in W2 above, regenerate `.tab.c`, run gates, commit.
 
 ## Authorship
 

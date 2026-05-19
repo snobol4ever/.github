@@ -263,8 +263,49 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-PL-6g complete 2026-05-18 (Sonnet 4.6) — ALL RUNGS 6a–6g COMPLETE
-next: parser_prolog.sc mirror work (separate session — read SNOBOL4-SNOCONE-PRIMER.md first).
+watermark: 2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+           2026-05-19 — audit findings (PST-LR-AUDIT.md § Scan 6): 4 §⛔ violations
+             (Pl1–Pl4) all owned by PST-PL-6h. Pl5 (DCG → tree_t) is non-§⛔ scope,
+             owned by PST-PL-6f (in progress).
+           PST-PL-6g complete 2026-05-18 (Sonnet 4.6) — ALL RUNGS 6a–6g COMPLETE
+           PST-PL-6f partial 2026-05-18 — non-DCG path fully on tree_t.
+status:    ⏳ Phase 1 NOT clean. PST-PL-6f (DCG → tree_t) in progress;
+           PST-PL-6h (move pt_flatten_conj + pt_maybe_ifthenelse + pt_make_clause
+           body-wrap to prolog_lower.c) open; PST-PL-SC-1/2/3 (move
+           assign_anon_slots to lower — F2 prerequisite) open.
+           **⛔ Earlier "next: parser_prolog.sc mirror" was wrong** — Phase 2
+           SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+next:      **PST-PL-6h** — move three helpers to prolog_lower.c:
+           (1) pt_flatten_conj (prolog_parse.c:508–516) — n-ary flattening of
+               TT_FNC(",") chains. Move verbatim to prolog_lower.c as
+               pl_flatten_conj; lower_clause body-wrap calls it.
+           (2) pt_maybe_ifthenelse (prolog_parse.c:521–538) — detects
+               ;(->(C,T),E) and collapses to TT_IF. Move verbatim to
+               prolog_lower.c as pl_maybe_ifthenelse; lower_term recognizes
+               TT_FNC(";") at consumption time and calls it.
+           (3) pt_make_clause body-wrap (prolog_parse.c:540–552) — the
+               TT_PROGRAM(body) wrap + flatten_conj step. Move to
+               prolog_lower.c; parser emits TT_CLAUSE[head_or_TT_NUL, raw_body]
+               with no wrap.
+           After 6h lands: parser is structurally pure (raw `;`/`->`/`,`
+           TT_FNC chains in tree); lower recognizes idioms at consumption.
+           Gates: smoke_prolog 5/0, crosscheck_prolog floor, smoke_scrip 2/0.
+           Alternative: **PST-PL-6f-finish** — complete the DCG path. Or
+           **PST-PL-SC-1/2/3** — move assign_anon_slots to lower (F2 closure
+           for Prolog _id consumer).
+mirror gaps: ⚠ MIRROR-GAP-PL-6h will record when 6h commits. Phase 2 SCRIP
+             mirror BLOCKED until all six C parsers Phase 1 clean.
+heads:     .github @ 58869b7e · one4all (no changes) · corpus (no changes)
+```
+
+### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+
+HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
+PST goal files. No Prolog-specific code changes this session. Next session:
+follow PST-PL-6h fix sketch above (three helpers move verbatim from
+`prolog_parse.c` to `prolog_lower.c`). Note Prolog is the third primary
+`_id` consumer via `assign_anon_slots` — PST-FIELD-2 closure depends on
+PST-PL-SC-1/2/3 landing (slot assignment moves to lower).
 findings-6f:
   - parse_clause() rewritten: pt_term() is now the sole parse path for non-DCG clauses.
   - Lexer snapshot retained only for DCG path (Term* dcg_expand_clause still needs it).
