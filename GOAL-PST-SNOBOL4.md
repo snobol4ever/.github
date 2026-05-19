@@ -149,8 +149,8 @@ The PST-SN4-W2 and W3 rungs above were closed in 2026-05-18 sessions under the l
 
 **Two new active rungs added below** for these audit-promoted findings.
 
-- [ ] **PST-SN4-W2-AUDIT** *(audit W2 / S8)* — Rewrite `goto_expr T_CONCAT goto_atom` to always-fresh-wrap. Replace the in-place `expr_add_child($1,$3); $$=$1;` with `tree_t*s = ast_node_new(TT_SEQ); expr_add_child(s,$1); expr_add_child(s,$3); $$=s;`. Produces a right-leaning `TT_SEQ(prev, atom)` chain. Re-flattening (if ever wanted) is downstream. `lower_goto` updated if it currently assumes flat n-ary.
-- [ ] **PST-SN4-W3-AUDIT** *(audit W3 / S6)* — Replace `g_cur_push`/`g_cur_top_`/`g_cur_pop` pattern with bison-local TAL accumulation. Each of `idx_args`/`fnc_args`/`vlist_args` collects child pointers into a `TAL` via reductions; the outer `expr15`/`expr17` rule builds the TT_IDX/TT_FNC/TT_VLIST fresh after `T_RPAREN` with all children pushed in one batch. `g_cur_stack` global deleted.
+- [x] **PST-SN4-W2-AUDIT** *(audit W2 / S8)* ✅ 2026-05-19 (Sonnet 4.6, one4all `f7e4b15e`) — `goto_expr T_CONCAT goto_atom` rewritten to always-fresh-wrap. `expr_add_child($1,$3); $$=$1;` → `tree_t*s=ast_node_new(TT_SEQ);expr_add_child(s,$1);expr_add_child(s,$3);$$=s;`. Stale W3-era comment removed. `lower.c` unaffected (computed goto already stubbed). Gates: smoke_snobol4 7/0, crosscheck_snobol4 5/1(pre-existing), scrip_all_modes 2/0.
+- [x] **PST-SN4-W3-AUDIT** *(audit W3 / S6)* ✅ 2026-05-19 (Sonnet 4.6, one4all `af40cf6f`) — `g_cur_push`/`g_cur_top_`/`g_cur_pop` global eliminated. TAL (temporary arg list) counter-discipline: `g_tal[]` accumulates child pointers; `g_tal_base[]/g_tal_depth` track nesting. Parent node (TT_IDX/TT_FNC/TT_VLIST) built fresh at close-bracket reduce after all children known. Parallel `g_tal_kind[]/g_tal_sval[]` + `tal_fnc_open/tal_fnc_close` carry kind+name for TT_FNC/pattern-primitive builds. `g_cur_stack` global deleted — zero g_cur references remain in snobol4.y. Tree shape preserved; children land L→R. Gates: smoke_snobol4 7/0, crosscheck_snobol4 5/1(pre-existing), scrip_all_modes 2/0.
 
 Gates for both: `smoke_snobol4`, `crosscheck_snobol4`, `scrip_all_modes`, `beauty_self_host` 29/22.
 
@@ -196,29 +196,22 @@ C parsers are clean (see parent goal readiness table).**
 ## State
 
 ```
-watermark:    2026-05-19 — W1 ✅ ; W2 ⏳ ; W3 ⏳
-              Three-facet block added 2026-05-19 (Opus 4.7 session 4) — F1/F2/F3 stated.
-status:       ⏳ Phase 1 NOT clean — 2 §⛔ violations per PST-LR-AUDIT.md § Scan 3
-next:         PST-SN4-W2 — canonical §⛔ example. snobol4.y:211
-              `goto_expr T_CONCAT goto_atom { expr_add_child($1,$3); $$=$1; }`
-              mutates $1 (a TT_QLIT/TT_VAR leaf) in place. Fix: always wrap fresh —
-              `tree_t*s=ast_node_new(TT_SEQ); expr_add_child(s,$1); expr_add_child(s,$3); $$=s;`
-              Right-leaning chain is correct (re-flatten in lower if ever needed).
-              After W2 lands: smoke_snobol4 must remain green, beauty self-host
-              must remain md5 abfd19a7a834484a96e824851caee159.
-              Then W3 — expr15/expr17 g_cur mid-rule pattern (6 append sites,
-              counter-discipline refactor).
-mirror gaps:  ⚠ MIRROR-GAP-SN4-W2/W3 — parser_snobol4.sc unchanged until W2+W3 land.
-              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
-heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
+watermark:    2026-05-19 — W1 ✅ ; W2-AUDIT ✅ ; W3-AUDIT ✅
+              Phase 1 CLEAN — all §⛔ violations resolved.
+status:       ✅ Phase 1 COMPLETE — 0 §⛔ violations per PST-LR-AUDIT.md § Scan 3
+next:         Phase 2 SCRIP mirror (PST-SN4-SC-1 audit + PST-SN4-SC-2 rewrite).
+              BLOCKED until all six C parsers Phase 1 clean (see parent goal readiness table).
+mirror gaps:  ⚠ MIRROR-GAP-SN4-W2/W3 — parser_snobol4.sc unchanged; Phase 2 BLOCKED.
+heads:        .github @ (pending push) · one4all @ af40cf6f · corpus (no changes)
 ```
 
-### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+### Session-end note — 2026-05-19 (Sonnet 4.6)
 
-HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
-PST goal files (commits `8afa078e`, `58869b7e`). No SNOBOL4-specific code
-changes this session. Next session: open `snobol4.y:211`, apply the fix
-sketch in W2 above, regenerate `.tab.c`, run gates, commit.
+PST-SN4-W2-AUDIT and PST-SN4-W3-AUDIT both closed this session.
+W2: `goto_expr T_CONCAT goto_atom` → always-fresh-wrap TT_SEQ (commit `f7e4b15e`).
+W3: `g_cur_stack` global eliminated; TAL counter-discipline with `tal_open/push/count/child/close`
+and `tal_fnc_open/tal_fnc_close` for TT_FNC kind+name threading (commit `af40cf6f`).
+Phase 1 is now clean for SNOBOL4. Phase 2 (parser_snobol4.sc mirror) blocked on other parsers.
 
 ## Authorship
 
