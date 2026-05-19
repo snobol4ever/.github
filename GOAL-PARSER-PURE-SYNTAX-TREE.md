@@ -106,10 +106,21 @@ Status per language:
 |---|---|---|
 | Icon | ✅ yes | — |
 | SNOBOL4 | ✅ yes | — |
-| Raku | ⏳ no | PRF-12: gather, sub, class, program, for-range → lower |
+| Raku | ⏳ no | PRF-12: gather✅ sub, class, program, for-range → lower; PST-FIELD-1, PST-FIELD-2 |
 | Snocone | ⏳ no | PST-SC-4k→4n: goto, split, TT_PROGRAM, ScParseState shrink |
 | Rebus | ⏳ no | RB-C-1: stmt_list_ne always-wrap |
 | Prolog | ⏳ no | PST-PL-6f: delete Term* paths |
+
+**Cross-cutting Phase 1 rungs** (owned by `GOAL-PST-ICN-RAKU.md`):
+
+- **PST-FIELD-1** — Remove `_nalloc` from `tree_t` struct (`src/include/ast.h`).
+  `_nalloc` is allocator bookkeeping — not a semantic field. Switch `ast_push`
+  to count-then-fill or hidden prefix. Update `ast_clone.c`.
+
+- **PST-FIELD-2** — Remove `_id` from `tree_t` struct. Three uses to migrate:
+  Raku `SUB_TAG_ID` → `TT_SUB_DECL` node kind (blocked on PRF-12-sub);
+  Icon param count → `v.ival`; interpreter slot/env index → side table or `v.ival`.
+  Full detail in `GOAL-PST-ICN-RAKU.md § PST-FIELD rungs`.
 
 ### Phase 2 — SCRIP mirrors (after all Phase 1 complete)
 
