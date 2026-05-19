@@ -49,7 +49,11 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3-prep ✅ (one4all `d9295c19`, 2026-05-19, Opus 4.7):** Installs `emit_mode_set(EMIT_JVM/JS/NET, out)` at the top of `emit_jvm_program` / `emit_js_program` / `emit_net_program`, with save/restore around each. Pure infrastructure — silos hardcode per-target output and don't currently read `bb_emit_mode`, so the change is byte-identical (verified via md5sum across .j and .js output). Unblocks future EC-3 sub-commits that will move SM instruction families into `SM_templates/` files with internal `IS_JVM/IS_JS/IS_NET` dispatch. Gates floor across all 12 measured paths. +26 LOC.
 
-**NEXT (EC-3 first instruction family, push/pop literals):** With mode-set in place, the first SM_templates sub-commit can lift `SM_PUSH_LIT_I` + `SM_PUSH_LIT_S` + `SM_PUSH_LIT_F` + `SM_PUSH_NULL` + `SM_PUSH_NULL_NOFLIP` + `SM_VOID_POP` from each silo's switch into single-source-of-truth functions under `src/emitter/SM_templates/`. Each silo's case arm becomes a one-line call. The model is `BB_templates/bb_lit.c` (one file per kind, internal `IS_JVM`/`IS_JS`/`IS_NET` dispatch). Helpers to relocate alongside: `jvm_push_int2` (the corrected variant — `jvm_push_int` has an iconst_m1 bug, see emit_jvm.c:89), `js_escape_string`, `net_push_i4` (already in emit_core.c).
+**EC-3a ✅ (one4all `519ed55f` → rebased `774c1e0e`, 2026-05-19, Sonnet 4.6):** Create `SM_templates/` + `sm_template_common.h`. Promote `jvm_push_int2` + `jvm_emit_ldc_string` from static→`emit_core.c`. `sm_push_pop_lits.c`: 7 unified functions (`sm_push_lit_i/s/f`, `sm_push_null`, `sm_void_pop`, `sm_push_var`, `sm_store_var`) with `IS_JVM/IS_JS/IS_NET` dispatch. Replace 3×7=21 parallel case arms with one-line calls. +166/−159 LOC.
+
+**EC-3b ✅ (one4all `774c1e0e`, 2026-05-19, Sonnet 4.6):** `sm_arith.c`: 9 unified arithmetic functions (`sm_concat`, `sm_neg`, `sm_coerce_num`, `sm_exp`, `sm_add/sub/mul/div/mod`) with `IS_JVM/IS_JS/IS_NET` dispatch. Replace 3×9=27 parallel case arms. +65 LOC. Gates held: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36.
+
+**NEXT (EC-3c — comparison + jump family):** Lift `SM_ACOMP`, `SM_LCOMP`, `SM_JUMP`, `SM_JUMP_S`, `SM_JUMP_F` from each silo into `SM_templates/sm_control.c`. These involve label references (string operands for jump targets) — wire with the same `IS_JVM/IS_JS/IS_NET` pattern.
 
 
 ## DAI-8 methodology note
@@ -89,7 +93,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: d9295c19     (EC-3-prep: emit_mode_set EMIT_JVM/JS/NET in silo entry points; pure infrastructure, byte-identical output; +26 LOC)
+one4all: 774c1e0e     (EC-3b: sm_arith.c — SM_CONCAT/NEG/COERCE_NUM/EXP/ADD/SUB/MUL/DIV/MOD unified; EC-3a: sm_push_pop_lits.c 7 fns, SM_templates/ created; +231 LOC total across EC-3a+3b)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
