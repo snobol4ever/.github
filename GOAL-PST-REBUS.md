@@ -133,11 +133,11 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   **Phase 1 only — no `parser_rebus.sc` changes in this rung.** Record `⚠ MIRROR-GAP-RB-C-1` in State.
   Gates: `test_smoke_rebus.sh` 4/0, `test_smoke_scrip_all_modes.sh` 2/0, `test_crosscheck_snobol4.sh` 4/2.
 
-- [ ] **RB-C-2 — `unless_stmt` synthesizes TT_NOT-wrapped condition (audit Rb3).**
+- [x] **RB-C-2 — `unless_stmt` synthesizes TT_NOT-wrapped condition (audit Rb3).** ✅ 2026-05-19 (Sonnet 4.6, one4all `83bc4ab3`)
   `rebus.y:317–328` builds `TT_IF(TT_NOT(cond), then)` from `unless cond then body`. The `TT_NOT` wrap is a synthesized kind — no `T_NOT` source token exists. Strict reading of §⛔ rule 3: synthesized non-source-token kind.
   **Fix:** introduce a dedicated `TT_UNLESS` kind in `tree_e` and produce `TT_UNLESS[cond, then]` directly. Let `lower_unless` (or a `lower.c` switch arm) desugar to negated branch at IR emit time. Parser stays syntax-faithful: the source token `unless` becomes the node kind directly.
   Same pattern as Raku R11 (PRF-12-unless).
-  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-2` in State.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Records `⚠ MIRROR-GAP-RB-C-2` in State.
 
 - [ ] **RB-C-3 — `case_stmt` synthesizes TT_IF per clause (audit Rb4).**
   `rebus.y:388–407` walks the off-tree `RCase` linked list and builds a fresh `TT_IF` node per clause: `TT_CASE[expr, TT_IF(guard, body), TT_IF(guard, body), …, TT_IF(TT_NUL, body_default)]`. Each `TT_IF` wrapper is synthesized — the source had only `guard:body` per clause (no `if`/`then` source tokens).
@@ -651,29 +651,21 @@ typedef struct {
 ## State
 
 ```
-watermark:    2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+watermark:    2026-05-19 (Sonnet 4.6) — RB-C-2 ✅ (TT_UNLESS added; unless desugar moved to lower).
+              2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
               2026-05-19 (Opus 4.7 session 3) — RB-C-2/3/4/5 promoted as step entries.
               2026-05-19 (audit re-grade + PST-RB-DECL ladder added).
-status:       ⏳ Phase 1 NOT clean — 6 §⛔ violations per PST-LR-AUDIT.md § Scan 5
-              (RB-C-1 ✅; RB-C-2/3/4/5 open) + PST-RB-DECL-1..5 (eliminate RDecl /
+status:       ⏳ Phase 1 NOT clean — 5 §⛔ violations remain
+              (RB-C-1 ✅; RB-C-2 ✅; RB-C-3/4/5 open) + PST-RB-DECL-1..5 (eliminate RDecl /
               RCase / RProgram outer wrapper — all info passes inside tree).
-next:         **RB-C-2** (smallest, well-defined) — `unless cond then body` currently
-              builds `TT_IF(TT_NOT(cond), then)` at `rebus.y:317–328`. Fix: add
-              TT_UNLESS kind to tree_e; rule becomes
-                `unless_stmt : T_UNLESS stmt T_THEN opt_semi stmt_body
-                   { tree_t *n=ast_node_new(TT_UNLESS); expr_add_child(n,$2);
-                     expr_add_child(n,$5); $$=n; }`
-              Add lower_unless arm (or extend lower_stmt switch) to desugar to
-              negated branch at IR emit time.
-              Alternative: **PST-RB-DECL-1** (add TT_FUNCTION / TT_RECORD_DECL kinds
-              — prerequisite for DECL-2..4 and the bigger RDecl elimination).
-prior closed: PST-RB-5a–5h, 5i-PRE, RB-C-1 ✅. See git log for details
-              (handoff trimmed 2026-05-19 per RULES.md).
+next:         **RB-C-3** — case_stmt synthesizes TT_IF per clause. Fix: flat alternating
+              TT_CASE[expr, guard0, body0, guard1, body1, …] shape.
 mirror gaps:  ⚠ MIRROR-GAP-RB-C-1 (parser_rebus.sc SC mirror lagging — Phase 2 work).
-              Will record ⚠ MIRROR-GAP-RB-C-2/3/4/5 + ⚠ MIRROR-GAP-RB-DECL-1..5
+              ⚠ MIRROR-GAP-RB-C-2 (parser_rebus.sc mirror for TT_UNLESS — Phase 2 work).
+              Will record ⚠ MIRROR-GAP-RB-C-3/4/5 + ⚠ MIRROR-GAP-RB-DECL-1..5
               as each lands. Phase 2 SCRIP mirror BLOCKED until all six C parsers
               Phase 1 clean.
-heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
+heads:        .github @ (pending push) · one4all @ 83bc4ab3 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
