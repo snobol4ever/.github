@@ -77,7 +77,7 @@ Each rung gated `snocone_smoke 5/0`, `crosscheck_snocone 8/0`, `scrip_all_modes 
 
 ### From the original Step 4 ladder
 
-- [ ] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted. Audit-row V11; the active rung named in PLAN.md. Parser currently bypasses the tree by writing `STMT_t.goto_u` directly; should produce `TT_GOTO_U(TT_QLIT(target))` routed through `sc_append_stmt`.
+- [x] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted. one4all `4017b525` 2026-05-19. ⚠ MIRROR-GAP-SC-4k.
 
 - [ ] **PST-SC-4l** — `sc_split_subject_pattern` → lower. The parser builds `TT_SCAN(subj, pat)` fresh ✅ (audit V14 withdrawn); the **downstream split** into separate STMT_t fields is parser-side consumer logic that belongs in `lower.c`. Remove `sc_split_subject_pattern` from the parser-side `sc_append_stmt`; introduce `lower_subj_pat_split` instead.
 
@@ -125,31 +125,15 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+watermark:    2026-05-19 (Claude Sonnet 4.6) — PST-SC-4k landed. one4all 4017b525.
+              2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
               2026-05-19 (file split from parent) — Step 4 content owned here now.
-status:       ⏳ Phase 1 NOT clean — 11 §⛔ violations per PST-LR-AUDIT.md § Scan 1.
-              Active: PST-SC-4k (1) + audit-promoted PST-SC-FLATTEN (7 sites) +
-              PST-SC-LABELS + PST-SC-RET-IN-FN + PST-SC-FOR-INIT.
-next:         PST-SC-4k — goto LABEL → TT_GOTO_U. Smallest scope; lower.c
-              infrastructure for TT_GOTO_U already in place from 4h's g_loop_stack.
-              `snocone_parse.y:398`: `T_GOTO T_IDENT T_SEMICOLON
-                                       { sc_append_goto_label(st, $2); free($2); }`
-              currently writes STMT_t.goto_u directly (label not a tree child).
-              Fix: build `tree_t *g = ast_node_new(TT_GOTO_U);
-                          g->v.sval = strdup($2); sc_append_stmt(st, g); free($2);`
-              Then delete `sc_append_goto_label` function entirely if no other
-              caller. Verify stmt_to_ast promotes TT_GOTO_U correctly under
-              TT_STMT in --dump-ast.
-              After PST-SC-4k lands: smoke_snocone must remain green and beauty
-              self-host must remain md5 abfd19a7a834484a96e824851caee159.
-              Beauty regression on Snocone is the highest risk in Phase 1 work —
-              run beauty smoke before commit.
-              Then any of PST-SC-FLATTEN (smallest is exprlist_ne fix alone),
-              PST-SC-RET-IN-FN, PST-SC-FOR-INIT, or PST-SC-LABELS.
-mirror gaps:  PST-SC-4a..4j had paired SCRIP-mirror updates (pre-two-phase rule).
-              New Phase 1 rungs record ⚠ MIRROR-GAP-SC-* as each lands.
-              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
-heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
+status:       ⏳ Phase 1 NOT clean — 10 §⛔ violations remaining (was 11).
+              PST-SC-4k ✅. Active: PST-SC-4l (sc_split_subject_pattern → lower).
+next:         PST-SC-4l — sc_split_subject_pattern: parser calls it from sc_append_stmt;
+              move to lower_snocone_stmt / lower.c lower_subj_pat_split.
+mirror gaps:  ⚠ MIRROR-GAP-SC-4k. Phase 2 SCRIP mirror BLOCKED.
+heads:        .github @ (post-commit) · one4all @ 4017b525 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
