@@ -674,6 +674,14 @@ next:         Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean
               When unblocked: parser_rebus.sc mirror for RB-C-1..5 + DECL-2/3.
 mirror gaps:  ⚠ MIRROR-GAP-RB-C-1..5, ⚠ MIRROR-GAP-RB-DECL-2, ⚠ MIRROR-GAP-RB-DECL-3.
 heads:        .github @ (pending push) · one4all @ 90658061 · corpus (no changes)
+
+**PST-SC-SCRIP-AUDIT 2026-05-19 (Sonnet 4.6):** parser_rebus.sc scanned against
+strict permitted list (shift, reduce, nPush, nInc, nPop, nTop, assign only).
+✅ CLEAN — zero violations. No forbidden calls (shift_val, foldop, reduce_call,
+reduce_prim, reduce_opsyn, Push, Pop, Append, Tree, tree). No function definitions.
+All nPush/nPop are counter discipline in grammar rules. Pop() in driver is result
+extraction. parser_rebus.sc is already at the Phase 2 endpoint.
+Session PST-RB-SC action: verify gates pass, stamp as complete. Smallest Phase 2 job.
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)

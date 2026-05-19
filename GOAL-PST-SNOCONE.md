@@ -138,6 +138,65 @@ next:         Phase 2 SCRIP mirror (PST-SC-SC-1/PST-SC-SC-2) — BLOCKED until a
               Remaining Phase 2 gate blockers per PLAN.md: PRF-12-R15-DISPOSITION (PST-RAKU).
 mirror gaps:  ⚠ MIRROR-GAP-SC-4k/4l/4m/4n/FLATTEN/LABELS/RET-IN-FN/FOR-INIT/SWITCH-LABELS. Phase 2 BLOCKED.
 heads:        .github @ (pending push) · one4all @ 648b7d24 · corpus (no changes)
+
+**PST-SC-SCRIP-AUDIT 2026-05-19 (Sonnet 4.6):** parser_snocone.sc scanned against
+strict permitted list (shift, reduce, nPush, nInc, nPop, nTop, assign only).
+VIOLATIONS FOUND — MAJOR. ~110 forbidden functions + reduce_prim in Compiland.
+This is the largest Phase 2 rewrite job. All helper infrastructure must be deleted.
+
+Functions to DELETE (complete list by category):
+• Label synthesis: new_label, while_head_alloc, do_head_alloc, switch_head_alloc,
+  Switch_head_alloc, switch_case_label, Switch_case_label, switch_default_label,
+  Switch_default_label, for_head_alloc, For_head_alloc
+• Control-flow body collection: save_cond, pop_cond, save_nbody, save_if_nthen,
+  restore_if_nthen, Save_cond, Save_if_nthen, Restore_if_nthen, pop_body, Body, BodyFn
+• Break/continue stacks: push_break, pop_break, top_break_label, push_continue,
+  pop_continue, top_continue_label, emit_break, emit_break_label, emit_continue,
+  emit_continue_label, Emit_break, Emit_break_label, Emit_continue, Emit_continue_label
+• Finalization: finalize_if, finalize_if_else, finalize_while, finalize_do,
+  finalize_for, finalize_switch, finalize_function, Finalize_if, Finalize_if_else,
+  Finalize_while, Finalize_do, Finalize_for, Finalize_switch, Finalize_function
+• Statement decomposition: decompose_stmt, Decompose_stmt, split_subj_pat,
+  build_seq_or_single, flatten_arith, is_name_like
+• Call decomposition: decompose_call, Decompose_call, push_call_name_var, Push_call_name_var
+• STMT/goto/label emission: make_cond_stmt, make_goto_stmt, make_label_stmt,
+  make_define_stmt, goto_emit, Goto_emit, label_emit, Label_emit, emit_struct, Emit_struct
+• Paren/augop/idx: paren_reduce, Paren_reduce, reduce_augop, Reduce_augop,
+  push_idx, Push_idx, push_mns, Push_mns, push_cmp, Push_cmp
+• Atom pushers: push_qlit, Push_qlit, push_keyword, Push_keyword, push_ident,
+  Push_ident, push_flit, Push_flit, push_ilit, Push_ilit, push_empty_str, Push_empty_str
+• Return emitters: emit_return_value, Emit_return_value, emit_return_void,
+  Emit_return_void, emit_freturn, Emit_freturn, emit_nreturn, Emit_nreturn
+• Struct/param/field savers: func_head_save_name, Func_head_save_name,
+  save_param_first, Save_param_first, save_param_rest, Save_param_rest,
+  save_struct_field_first, Save_struct_field_first, save_struct_field_rest,
+  Save_struct_field_rest, Save_nbody
+
+Grammar rule replacements:
+• stmt_body     → nPush() nInc() *Expr0 ($';'|epsilon) reduce('TT_STMT',1) nPop()
+• if_cmd        → reduce('TT_IF', 2 or 3) wrapping cond + TT_PROGRAM(then) [+ TT_PROGRAM(else)]
+• while_cmd     → reduce('TT_WHILE', 2): cond + TT_PROGRAM(body)
+• do_cmd        → reduce('TT_DO_WHILE', 2): TT_PROGRAM(body) + cond
+• for_cmd       → reduce('TT_FOR', 4): init + cond + step + TT_PROGRAM(body)
+• switch_cmd    → nPush()/nInc() per arm / reduce('TT_CASE', nTop())
+• func_cmd      → reduce('TT_DEFINE', 3): QLIT(name) + QLIT(sig) + TT_PROGRAM(body)
+• return_cmd    → reduce('TT_RETURN', 1) or reduce('TT_RETURN', 0)
+• freturn_cmd   → reduce('TT_PROC_FAIL', 0)
+• nreturn_cmd   → reduce('TT_NRETURN', 0)
+• goto_cmd      → shift(*Ident,'TT_GOTO_U') (no reduce needed — leaf)
+• label_prefix  → shift(*Ident,'TT_LABEL')
+• break_cmd     → reduce('TT_LOOP_BREAK', 0 or 1)
+• continue_cmd  → reduce('TT_LOOP_NEXT', 0 or 1)
+• struct_cmd    → nPush()/nInc()/reduce('TT_STRUCT', nTop())/nPop()
+• Call          → nPush() shift(name,'TT_VAR') nInc() args reduce('TT_FNC',nTop()) nPop()
+• Expr17 atoms  → shift(*String,'TT_QLIT'), shift(*Real,'TT_FLIT'), shift(*Integer,'TT_ILIT'),
+                   shift(*Keyword,'TT_KEYWORD'), shift(*Ident,'TT_VAR')
+• Expr14 unary  → reduce('TT_MNS',1) etc. (inline, no helper)
+• Expr5 cmp     → shift('EQ','TT_VAR') nInc() reduce('TT_FNC',2) etc.
+• Expr0 augop   → assign(.sc_augop, TK_AUGPLUS) reduce('TT_AUGOP',2) etc.
+• Expr15/16 idx → reduce('TT_IDX',2) (inline)
+• Expr17 paren  → nPush() nInc() *Expr0 ARBNO($',' nInc() *Expr0) reduce('TT_VLIST',nTop()) nPop()
+• Compiland     → replace reduce_prim(E_Parse) with reduce(E_Parse,'nTop()')
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 PST-LR-AUDIT-2)

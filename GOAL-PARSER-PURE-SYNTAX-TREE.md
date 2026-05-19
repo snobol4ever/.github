@@ -578,6 +578,56 @@ ladder Stage 1 (this file): six per-language goal files (one per language); each
          Raku → GOAL-PST-RAKU.md  |  Snocone → GOAL-PST-SNOCONE.md
          Rebus → GOAL-PST-REBUS.md  |  Prolog → GOAL-PST-PROLOG.md
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
+
+**PST-SC-SCRIP-AUDIT ✅ COMPLETE 2026-05-19 (Sonnet 4.6)** — full scan of all six
+  corpus/SCRIP/parser_*.sc files against the strict permitted-primitive list:
+  shift, reduce, nPush, nInc, nPop, nTop, assign (plus pure string helpers
+  with zero tree ops: dq_unescape, sn_match, sn_upr, unescape_q).
+  NOT permitted: shift_val, foldop, reduce_call, reduce_prim, reduce_opsyn,
+  Push, Pop, Append, Tree, tree — even if from ShiftReduce.sc library.
+
+  Results per file:
+  • parser_rebus.sc   ✅ CLEAN — zero violations. Phase 2 ready.
+  • parser_snobol4.sc ❌ foldop (many, Expr3–Expr10), reduce_opsyn (4: Expr1/2/5/13),
+                          reduce_prim (12: all pattern primitives in Expr17),
+                          reduce_call (2: Expr17 function calls). ~35 call sites.
+  • parser_icon.sc    ❌ shift_val (4: cset_pat, str_pat, real_pat, kw '&'kwname).
+  • parser_raku.sc    ❌ shift_val (many: every literal/var push, synthesized names).
+  • parser_snocone.sc ❌ MAJOR — ~110 forbidden functions + reduce_prim in Compiland.
+                          All helper infrastructure must be deleted (label synthesis,
+                          body collection, control-flow finalization, decompose_stmt,
+                          flatten_arith, split_subj_pat, push_*/emit_* atoms,
+                          paren_reduce, reduce_augop, push_cmp, push_idx, etc.)
+                          Grammar rules rewritten to pure shift/reduce.
+  • parser_prolog.sc  ❌ MAJOR — 64 forbidden functions, 151 Push/Pop/Tree/Append hits.
+                          All except unescape_q must be deleted. DCG expansion
+                          (dcg_*) → reduce('TT_DCG_RULE', N), lower handles expansion.
+
+  Replacement rules:
+  • shift_val(val, kind)  → assign(.sc_tmp, val) shift(sc_tmp, kind)
+                            (where val is a pre-computed string/variable)
+  • foldop('TT_X')        → nPush()/nInc()/cont-rule/reduce('TT_X', nTop())/nPop()
+                            pattern (same as Expr11/X11 already in snobol4.sc)
+  • reduce_opsyn(op, N)   → reduce('TT_KIND', N) with TT_KIND = the kind the
+                            C parser emits for that OPSYN slot
+  • reduce_prim('TT_X')   → reduce('TT_X', nTop()) (already inside nPush/nPop frame)
+  • reduce_call()         → reduce('TT_FNC', nTop())
+  • Push(tree('TT_X', v)) → shift(v, 'TT_X')  (inline in grammar rule)
+  • Append(node, child)   → child already on stack; reduce wraps N children
+  • All helper functions  → delete; inline as shift/reduce in the grammar rule
+
+  Phase 2 session order (unchanged, but now informed by audit):
+  1. PRF-13       — Raku SCRIP mirror (reference rung; shift_val → assign+shift)
+  2. PST-SN4-SC   — SNOBOL4 SCRIP mirror (foldop/reduce_opsyn/reduce_prim/reduce_call)
+  3. PST-SC-SC    — Snocone SCRIP mirror (major rewrite)
+  4. PST-RB-SC    — Rebus SCRIP mirror (already clean — verify and stamp)
+  5. PST-PL-SC    — Prolog SCRIP mirror (major rewrite)
+  6. PST-ICN-SC   — Icon SCRIP mirror (shift_val × 4)
+
+  ⚠ SESSION START REQUIREMENT (Phase 2): every session MUST re-scan its target
+  parser_*.sc with grep for shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn|
+  Push(|Pop(|Append(|Tree(|tree( before writing any code, to confirm the current
+  violation list (files may have changed between sessions).
 ```
 
 ### Note for next session — bison regen behavior

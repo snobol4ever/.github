@@ -276,6 +276,37 @@ next:      **PST-PL-SC-1** — audit parser_prolog.sc for Aspect 1 (assign_anon_
 mirror gaps: ⚠ MIRROR-GAP-PL-6h will record when 6h commits. Phase 2 SCRIP
              mirror BLOCKED until all six C parsers Phase 1 clean.
 heads:     .github @ (updating) · one4all @ 06cadffb · corpus (no changes)
+
+**PST-SC-SCRIP-AUDIT 2026-05-19 (Sonnet 4.6):** parser_prolog.sc scanned against
+strict permitted list (shift, reduce, nPush, nInc, nPop, nTop, assign only).
+VIOLATIONS FOUND — 64 forbidden functions, 151 Push/Pop/Tree/Append call sites.
+Permitted exception: unescape_q (pure string transform, zero tree ops).
+All other 63 functions must be deleted and their call sites replaced with
+inline shift/reduce in the grammar rules.
+
+Key function categories and replacements:
+• Variable scope: resolve_var/push_var/Push_var/assign_anon_slots — slot assignment
+  is lower.c work (PST-PL-6h already moved this in C). SCRIP: replace push_var
+  call sites with shift(varname, 'TT_VAR'). assign_anon_slots deleted entirely.
+• Atom/literal pushers (push_atom_body, push_nil, push_neg_int, push_neg_float,
+  push_char_code, push_graphic_sym_val, push_radix_hex/bin/oct, push_skip,
+  push_cut, Push_* uppercase wrappers) — replace all with shift(val, 'TT_KIND').
+• Binary/unary reducers (reduce_binop, reduce_unop, reduce_univ, reduce_is,
+  reduce_ifthen, reduce_cmp_op, do_cmp_ge/le/gt/lt/eqq/id/ne1/ne2/ne3,
+  do_uminus, reduce_pfx, reduce_naf) — replace with reduce('TT_FNC', 2) or
+  reduce('TT_KIND', N) inline in grammar rules.
+• List/compound/conj/disj builders (reduce_list, reduce_compound, Reduce_compound,
+  reduce_compound_ns, reduce_conj, reduce_disj) — replace with nPush/nInc/reduce/nPop.
+• Clause building: build_clause → reduce('TT_CLAUSE', N); build_directive →
+  reduce('TT_DIRECTIVE', 1); flatten_conj_into → handled by lower (PST-PL-6h).
+• merge_choices: stays in driver post-processing loop (not a grammar function).
+  It restructures the final tree — legal in the driver, not in grammar rules.
+• snapshot_head/mark_body — delete; head and body collected as direct children
+  of TT_CLAUSE by the grammar rule.
+• DCG expansion (dcg_fresh_var, dcg_append_tail, dcg_make_unify, dcg_var_tree,
+  dcg_call_nt, dcg_build_conj, expand_dcg_body, build_dcg, push_dcg_inline) —
+  replace with reduce('TT_DCG_RULE', N); prolog_lower.c handles DCG expansion.
+  This is the PST-PL-6f non-§⛔ block; for the SCRIP mirror, use a single reduce.
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)

@@ -277,6 +277,20 @@ next:         Done criteria 1–9 all checked. Done criterion 10: update parent 
     GOAL-PARSER-PURE-SYNTAX-TREE.md Step 2. Phase 2 SCRIP mirror work BLOCKED
     until all six C parsers Phase 1 clean.
 heads:        .github @ (pending) · one4all @ b8091a9b · corpus @ a9e9328
+
+**PST-SC-SCRIP-AUDIT 2026-05-19 (Sonnet 4.6):** parser_icon.sc scanned against
+strict permitted list (shift, reduce, nPush, nInc, nPop, nTop, assign only).
+VIOLATIONS FOUND — 4 shift_val calls (Expr11 primary atom arms):
+  • shift_val(csetbody, 'TT_CSET')   — csetbody captured via '. csetbody' earlier.
+  • shift_val(strbody,  'TT_QLIT')   — strbody captured via '. strbody' earlier.
+  • shift_val(REAL(rval), 'TT_FLIT') — rval captured via '. rval'; value computed.
+  • shift_val('&' kwname, 'TT_VAR')  — kwname captured via '. kwname'; concatenated.
+Fix for all four: assign(.sc_tmp, <value>) shift(sc_tmp, 'TT_KIND')
+  e.g. shift_val(REAL(rval), 'TT_FLIT')
+    → (epsilon . *assign(.sc_tmp_icon, REAL(rval))) shift(sc_tmp_icon, 'TT_FLIT')
+  e.g. shift_val('&' kwname, 'TT_VAR')
+    → (epsilon . *assign(.sc_tmp_icon, '&' kwname)) shift(sc_tmp_icon, 'TT_VAR')
+Session work: 4 mechanical one-line replacements in Expr11. Smallest Phase 2 job.
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)

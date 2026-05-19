@@ -203,6 +203,24 @@ next:         Phase 2 SCRIP mirror (PST-SN4-SC-1 audit + PST-SN4-SC-2 rewrite).
               BLOCKED until all six C parsers Phase 1 clean (see parent goal readiness table).
 mirror gaps:  ⚠ MIRROR-GAP-SN4-W2/W3 — parser_snobol4.sc unchanged; Phase 2 BLOCKED.
 heads:        .github @ (pending push) · one4all @ af40cf6f · corpus (no changes)
+
+**PST-SC-SCRIP-AUDIT 2026-05-19 (Sonnet 4.6):** parser_snobol4.sc scanned against
+strict permitted list (shift, reduce, nPush, nInc, nPop, nTop, assign only).
+VIOLATIONS FOUND — ~35 call sites:
+  • foldop('TT_ALT'/'TT_SEQ'/'TT_ADD'/'TT_SUB'/'TT_MUL'/'TT_DIV') — Expr3–Expr10.
+    Fix: replace each foldop chain with nPush()/nInc()/cont-rule/reduce('TT_X',nTop())/nPop().
+    Model: Expr11/X11 already in the file uses this exact pattern.
+  • reduce_opsyn('?',2) Expr1, reduce_opsyn('&',2) Expr2, reduce_opsyn('@',2) Expr5,
+    reduce_opsyn('~',2) Expr13.
+    Fix: replace with reduce('TT_SCAN',2), reduce('TT_SEQ',2), reduce('TT_CAPT_CURSOR',2),
+    reduce('TT_NOT',2) — the TT_* kinds the C parser emits for those OPSYN slots.
+  • reduce_prim('TT_LEN'/'TT_BREAK'/'TT_SPAN'/'TT_ANY'/'TT_NOTANY'/'TT_FENCE'/
+    'TT_ARBNO'/'TT_POS'/'TT_RPOS'/'TT_TAB'/'TT_RTAB'/'TT_BREAKX') — 12 in Expr17.
+    Fix: replace with reduce('TT_X', nTop()) — already inside correct nPush/nPop frame.
+  • reduce_call() — 2 in Expr17 function call arms.
+    Fix: replace with reduce('TT_FNC', nTop()).
+Session work: rewrite Expr1/2/5/13 (reduce_opsyn), Expr3–Expr10 (foldop→cont),
+Expr17 (reduce_prim→reduce, reduce_call→reduce). All purely mechanical.
 ```
 
 ### Session-end note — 2026-05-19 (Sonnet 4.6)
