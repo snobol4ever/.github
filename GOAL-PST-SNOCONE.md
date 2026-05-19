@@ -97,6 +97,26 @@ These are the 10 unowned audit violations. Each maps to a clear fix; group them 
 
 - [x] **PST-SC-FOR-INIT** *(audit V8)* ✅ 2026-05-19 (Sonnet 4.6, one4all `b6558370`) — `for_head` called `sc_append_stmt(st, $3)` to emit init as a preceding stmt. TT_FOR had no init child. Fix: `init` is now `c[0]` of TT_FOR; TT_FOR shape = `[init|NUL, cond, step, body]`. `lower_for` emits init before the loop top label. `ForHead` struct carries `init` field. `sc_for_head_new_pst` takes init param.
 
+### Promoted from `PST-LR-AUDIT-2.md § Scan 1 outstanding` (2026-05-19, Opus 4.7)
+
+- [ ] **PST-SC-SWITCH-LABELS** *(audit V13-switch — AUDIT-2 finding)* — PST-SC-LABELS closed V13 for `while`/`do`/`for` but missed the `switch` finalizer. **Current state (snocone_parse.y):**
+  - `sc_switch_head_new` (lines 868–882) still calls `sc_label_new(st, "_Lend")` and `sc_label_new(st, "_Ldefault")` at lines 873–874.
+  - `sc_finalize_switch_pst` (lines 918–949) still pushes `TT_QLIT(end_label)` as the **last child** of TT_CASE at lines 927/938. TT_CASE shape is currently `[disc, val0, body0, …, TT_QLIT(_Lend_NNNN)]`.
+  
+  **Fix sketch:** mirror PST-SC-LABELS for while/do/for —
+  1. Remove the two `sc_label_new` calls from `sc_switch_head_new` (set `h->end_label=NULL; h->default_label=NULL`).
+  2. Remove the `tree_t *qlit_e = ast_node_new(TT_QLIT); qlit_e->sval = strdup(h->end_label);` and the trailing `ast_push(node, qlit_e);` from `sc_finalize_switch_pst`. TT_CASE shape becomes `[disc, val0, body0, val1, body1, …]` only.
+  3. Update `sc_loop_push(st, strdup(h->end_label), strdup(h->end_label), 0)` at line 879 to pass `NULL` for both labels (consistent with how while/do/for now work; lower.c mints break labels via `lower_fresh_label` + `g_loop_label_seq`).
+  4. In `lower.c`, the existing `lower_case`/switch handler must already use `lower_fresh_label()` (or be updated to); the break-target label needs to be created in lower and registered in the labtab so `TT_LOOP_BREAK` children resolve to it.
+  
+  **Gates:** smoke_snocone at floor; crosscheck_snocone at floor; beauty.sno self-host md5 byte-identical; smoke_scrip_all_modes at floor. **Blocks PST-SC-SC** (Phase 2 SCRIP mirror).
+
+- [ ] **PST-SC-DOC-CLEANUP** *(audit V8/V13 doc nit — AUDIT-2 finding)* — Stale docstrings reference the old (removed) TT_QLIT-label tree shape:
+  - `snocone_parse.y:756` — `sc_finalize_while_pst` docstring (lines 750–756): "Builds TT_WHILE(cond, TT_PROGRAM(body), TT_QLIT(Ltop), TT_QLIT(Lend))" — should be `TT_WHILE(cond, body)`.
+  - `snocone_parse.y:770–772` — `sc_finalize_do_while_pst` docstring: same fix, shape is `TT_DO_WHILE(body, cond)`.
+  - `snocone_parse.y:785–788` — `sc_finalize_for_pst` docstring: same fix, shape is `TT_FOR(init, cond, step, body)`. Plus line 787 says "Init was already appended as a preceding statement" — opposite of PST-SC-FOR-INIT; remove this line.
+  - **No code change**; pure doc cleanup. Can land in same commit as PST-SC-SWITCH-LABELS.
+
 ### Snapshot of Snocone after Phase 1
 
 By end of Phase 1, `snocone_parse.y` should: (a) build only `tree_t`; (b) use no synthesized labels; (c) keep every source token represented in the tree (no lifting to sibling statements); (d) wrap fresh on every reduce (no mutate-prior); (e) `ScParseState` carries only lexer + filename + error count.
@@ -125,21 +145,25 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — RET-IN-FN ✅ e2dfed5f, FOR-INIT ✅ b6558370. Phase 1 C COMPLETE.
-status:       ✅ Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6) — 0 §⛔ violations.
-              4k–4n ✅ FLATTEN ✅ LABELS ✅ RET-IN-FN ✅ FOR-INIT ✅.
-next:         Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+watermark:    2026-05-19 (Opus 4.7 PST-LR-AUDIT-2) — V13-switch REOPENED; PST-SC-SWITCH-LABELS added.
+status:       ⚠ Phase 1 C INCOMPLETE — 10 of 11 §⛔ violations closed.
+              V13-switch (sc_finalize_switch_pst pushes TT_QLIT(_Lend) as last TT_CASE child) reopened by AUDIT-2.
+              4k–4n ✅ FLATTEN ✅ LABELS ✅ (while/do/for only) RET-IN-FN ✅ FOR-INIT ✅.
+              Outstanding: PST-SC-SWITCH-LABELS, PST-SC-DOC-CLEANUP.
+next:         Open PST-SC-SWITCH-LABELS. Fix sketch above. Plus optional PST-SC-DOC-CLEANUP same commit.
+              Phase 2 SCRIP mirror BLOCKED until V13-switch closed.
 mirror gaps:  ⚠ MIRROR-GAP-SC-4k/4l/4m/4n/FLATTEN/LABELS/RET-IN-FN/FOR-INIT. Phase 2 BLOCKED.
 heads:        .github @ (pending push) · one4all @ b6558370 · corpus (no changes)
 ```
 
-### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+### Session-end note — 2026-05-19 (Opus 4.7 PST-LR-AUDIT-2)
 
-HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
-PST goal files. No Snocone-specific code changes this session. Next session:
-open `snocone_parse.y:398`, apply PST-SC-4k fix sketch above. **Critical
-gate:** beauty.sno self-host (Milestone 1) — never commit a Snocone change
-without confirming beauty md5 is preserved.
+AUDIT-2 trust-but-verify scan found `sc_finalize_switch_pst` was missed
+during PST-SC-LABELS. The fix is straightforward (mirror what was already
+done for while/do/for), but the work requires touching lower.c too —
+the break-target label currently comes via `strdup(h->end_label)` into
+`sc_loop_push`, and that path must mint the label in lower instead.
+Beauty self-host md5 protection applies as usual.
 
 ---
 
