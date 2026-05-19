@@ -2,7 +2,8 @@
 
 **Repo:** one4all + .github
 **Status:** Stage 1 active — SNOBOL4 Step 1 nearly done; Snocone Step 4 next
-**Concurrent goals:** `GOAL-PST-ICON.md` (Icon) · `GOAL-PST-RAKU.md` (Raku) · `GOAL-PST-REBUS-PROLOG.md` (Rebus+Prolog)
+**Concurrent goals (one per language — Phase 1 C work only this round):**
+`GOAL-PST-SNOBOL4.md` · `GOAL-PST-ICON.md` · `GOAL-PST-RAKU.md` · `GOAL-PST-SNOCONE.md` · `GOAL-PST-REBUS.md` · `GOAL-PST-PROLOG.md`
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► IR_sm_t[]  ──┐
@@ -216,72 +217,16 @@ On completion, update Step 2 and Step 3 checkboxes in the Frontend status table 
 
 ### Step 4 — Snocone rewrite (bulk of the work)
 
-Add lower-side equivalent first, then strip parser-side desugaring. Each rung: gates green. **Phase 1 only — no SCRIP mirror changes during these rungs.** Record `⚠ MIRROR-GAP` in State for each rung completed without a SCRIP mirror; the mirror is addressed in Phase 2 as a dedicated session.
+Owned by **`GOAL-PST-SNOCONE.md`**. Work those steps there. Closed rungs 4a–4j and active rungs 4k–4n + audit-promoted (PST-SC-FLATTEN, PST-SC-LABELS, PST-SC-RET-IN-FN, PST-SC-FOR-INIT) are tracked in that file.
+On completion, update Step 4 checkbox in the Frontend status table above.
 
-**⛔ SCRIP mirror session requirement for 4k–4n (Phase 2 only):** When writing `parser_snocone.sc` mirror changes, read `SNOBOL4-SNOCONE-PRIMER.md` in full first. Learn exact Snocone expression semantics and syntax from the SPITBOL manual (`pdftotext -layout spitbol-manual-v3_7.pdf /tmp/spitbol.txt`; use the nav map in `GOAL-PST-REBUS.md`). Learn exact Snocone statement and control-flow syntax from `corpus/SCRIP/parser_snocone.sc` itself. The endpoint for `parser_snocone.sc` is: every grammar production expressed as `shift`/`shift_val` leaf pushes plus one `reduce(TT_KIND, n)` call — no helper functions that build trees, no `Push`/`Pop`/`Append`/`Tree` inside function bodies. The counter discipline (`nPush`/`nInc`/`nTop`/`nPop`) in grammar rules for variable-arity reduces is permitted. Pure string preprocessors (no tree ops) are permitted.
+### Step 5 — Rebus rewrite
 
-- [x] **PST-SC-4a** ✅ (2026-05-16, one4all `3c09f91d`, corpus `67eaa51`) — Parser emits `TT_AUGOP(lhs, rhs)` with `v.ival = TK_AUG*`; `lower_augop` already handled it. `sc_clone_expr_simple` deleted. SCRIP mirror: `reduce_augmented` → `reduce_augop(op)`, `TK_AUGPOW=1007` added to `lower.sc` and `parser_snocone.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, smoke_scrip_all_modes PASS=2/0.
-- [x] **PST-SC-4b** ✅ (2026-05-16, one4all `4aa8727b`, corpus `a939309`) — Parser emits `TT_IF(cond, TT_PROGRAM(then_stmts), TT_PROGRAM(else_stmts))` as a single `TT_STMT(:subj TT_IF(...))`. `IfHead`/`sc_if_head_new`/`sc_finalize_if_no_else`/`sc_finalize_if_else` deleted. `sc_collect_body()` extracts CODE_t stmt range into `TT_PROGRAM` subtree. `if_before_body` snapshot field added to `ScParseState`. ALT/SEQ always-wrap-binary fixes bundled (Snocone equivalent of PST-SN4-1d). `lower.c`: `case TT_PROGRAM` added to `lower_expr_inner`. SCRIP mirror: `finalize_if`/`finalize_if_else` rewritten; `lower_program_block` added to `lower.sc`. Gates: snocone_smoke PASS=5/0, crosscheck_snocone PASS=8/0, scrip_all_modes PASS=2/0 — baseline-identical.
-- [x] **PST-SC-4c** ✅ (2026-05-16, one4all `e95a5c2e`, corpus `a8e957b`) — `TT_WHILE(cond, TT_PROGRAM(body), QLIT(cont), QLIT(end))`. `WhileHead`/`sc_while_head_new`/`sc_finalize_while` deleted. `while_before_body` snapshot. `lower_while_until` TT_PROGRAM-aware (break-safe, labtab_define). `lower_if_stmt` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
-- [x] **PST-SC-4d** ✅ (2026-05-16, one4all `0c51b493`, corpus `36d3d44`) — `TT_DO_WHILE(TT_PROGRAM(body), cond, QLIT(cont), QLIT(end))`. `DoHead`/`sc_do_head_new`/`sc_finalize_do_while` deleted. `do_before_body` snapshot. `lower_do_while` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
-- [x] **PST-SC-4e** ✅ (2026-05-16, one4all `c276b48c`, corpus `d4b3f6b`) — `TT_FOR(cond, step, TT_PROGRAM(body), QLIT(cont), QLIT(end))`. `ForHead` slimmed to `{cond,step}`. `for_before_body` snapshot. `lower_for` added. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
-- [x] **PST-SC-4f** ✅ (2026-05-16) — `TT_CASE(disc, val1, TT_PROGRAM(body1), ..., QLIT(end))`. `CaseEntry.before_body` snapshot added. `sc_switch_case_label`/`sc_switch_default_label` snapshot instead of emitting labels. `sc_finalize_switch_pst` collects bodies in reverse order, builds TT_CASE. `lower_case` updated for Snocone TT_PROGRAM arm bodies (QLIT-last detection). SCRIP mirror updated.
-- [x] **PST-SC-4g** ✅ (2026-05-16, one4all `0c0c22d9`, corpus `6889e67`) — `TT_DEFINE(QLIT(name), QLIT(sig), TT_PROGRAM(body))`. `FuncHead` slimmed to `{name,argstr,prev_func}`. `func_before_body` snapshot. `sc_finalize_function_pst` builds TT_DEFINE. `lower_stmt` dispatches TT_DEFINE: emits DEFINE call, skip-jump, entry label, body, patch. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
-- [x] **PST-SC-4h** ✅ (2026-05-16, one4all `e1a902a7`, corpus `6a68f49`) — `break`/`continue` emit `TT_LOOP_BREAK`/`TT_LOOP_NEXT` tree nodes (QLIT user-label child optional). `sc_append_break`/`sc_append_continue` no longer emit goto STMT_t. `lower.c`: `g_loop_stack` (depth-64) with `loop_push`/`loop_pop`; while/do/for push labels around body; `lower_loop_break`/`lower_loop_next` resolve via stack. SCRIP mirror updated. Gates: 5/0, 8/0, 2/0.
-- [x] **PST-SC-4i** ✅ (2026-05-16) — Labels (`label:`) → STMT_t with label field (produces TT_STMT(:lbl) via stmt_to_ast). `sc_emit_label_pad`, `sc_pending_label_add`, `sc_pending_label_clear`, `sc_pending_to_stash` deleted; all pending/stash fields removed from ScParseState; user_labels fields removed from LoopFrame; `sc_loop_find_by_user_label` deleted. New `sc_append_label_node` appends label-only STMT_t directly. Bonus fix: while/do/for head snapshot moved from single ScParseState fields into per-instance WhileHead/DoHead/ForHead structs — fixes double-free crash on nested loops. lower.c: TT_DEFINE routed through lower_stmt when appearing as TT_STMT subject. SCRIP mirror: parser_snocone.sc already emits make_label_stmt — no change needed. Gates: snocone_smoke 5/0, crosscheck_snocone 8/0, scrip_all_modes 2/0.
-- [x] **PST-SC-4j** ✅ (fixed 2026-05-17) — Grammar+SCRIP mirror done in prior commit. Lower fix: (1) lower_return/proc_fail/nreturn emit SM_RETURN/SM_FRETURN/SM_NRETURN directly; (2) dispatch in lower_stmt changed from lower_stmt(subject) to direct lower_return/proc_fail/nreturn(subject) calls (lower_stmt hit early-return guard before reaching the switch). No lower.sc mirror gap (lower.sc deleted in PST-RB-5e). Gates: snocone_smoke 5/0, crosscheck_snocone 8/0, scrip_all_modes 2/0.
-- [ ] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted.
-- [ ] **PST-SC-4l** — `sc_split_subject_pattern` → lower.
-- [ ] **PST-SC-4m** — `TT_PROGRAM` is tree of statement-tree nodes (not flat list with synthetic gotos/labels). `sc_append_stmt`/`sc_splice_after`/`sc_make_label_stmt`/`sc_make_goto_uncond_stmt` deleted.
-- [ ] **PST-SC-4n** — `ScParseState` shrunk to lexer + filename + error count. Audit complete.
+Owned by **`GOAL-PST-REBUS.md`**. Closed rungs PST-RB-5a–5g; active rungs include RB-C-2/3/4/5 (audit-promoted) and PST-RB-DECL-1..5 (`RDecl`/`RCase`/`RProgram` elimination).
 
-Gates: snocone_smoke, snocone broad corpus, scrip_all_modes.
+### Step 6 — Prolog rewrite
 
-### Step 4 Phase 2 — Snocone SCRIP mirror (after all Phase 1 complete)
-
-**Do not start until PST-SC-4k through 4n all checked [x] AND all six C parsers satisfy Phase 1.**
-
-- [ ] **PST-SC-SC-1 — Audit `parser_snocone.sc` for Aspect 1 and Aspect 2 violations.**
-
-  **Aspect 2** — `Append()` in-place tree mutation:
-  Three sites in `parser_snocone.sc` call `Append(r, arr[i])` or similar
-  to build up a node by inserting children one at a time into an existing
-  `tree_t` node. `Append` calls `Insert` which rewrites `n(x)` and `c(x)`
-  in place. This is a post-construction tree mutation — forbidden in the
-  pure-parse phase.
-
-  **Where:** `parser_snocone.sc` lines ~221, ~400, ~608.
-  - Line ~221: inside a helper that builds a list node by appending into `r`.
-  - Line ~400: inside a helper building a call node from `kids` array.
-  - Line ~608: inside a helper building a varlist node from `kids` array.
-
-  **Fix for each:** Replace the pre-allocate + loop-Append pattern with
-  counter discipline — `nPush`/`nInc` each child, then `Reduce(tag, nTop())`.
-  The `kids` working array is a local scratch variable, not a tree node, and
-  is permitted as a local accumulator before the final `Reduce`.
-
-  No code changes in this rung — document findings and line numbers.
-
-- [ ] **PST-SC-SC-2 — Replace all `Append`-based node building in `parser_snocone.sc` with `Reduce`.**
-
-  **What:** For each of the three `Append` sites (lines ~221, ~400, ~608):
-  1. Remove the pre-allocated result node (`r = tree(...)`).
-  2. Push each element with `Push(arr[i])` and `nInc()`.
-  3. Replace the final return/push with `Reduce(tag, nTop())`.
-  4. The local `kids` / `arr` working array may be retained as scratch
-     to collect children before pushing — it is not a tree node.
-
-  **Why:** `Append` is structurally `Reduce-after-the-fact`. Once a node
-  exists, its children must be immutable in the parse phase. The only
-  permitted moment to set children is inside `Reduce`, which creates the
-  node atomically from the top N stack elements.
-
-  Gates: `snocone_smoke`, `crosscheck_snocone`, `smoke_scrip_all_modes`.
-
-### Step 5 — Rebus rewrite + Step 6 — Prolog rewrite
-
-Owned by **`GOAL-PST-REBUS-PROLOG.md`**. Work those steps there.
-On completion, update Step 5 and Step 6 checkboxes in the Frontend status table above.
+Owned by **`GOAL-PST-PROLOG.md`**. Active rungs: PST-PL-6f (DCG → tree_t conversion) and PST-PL-6h (move pt_flatten_conj / pt_maybe_ifthenelse / pt_make_clause body-wrap to prolog_lower.c).
 
 ### Step 7 — Invariant tests
 
@@ -535,8 +480,11 @@ session 2026-05-17a: PST-SC-4j lower fix. Two bugs: (1) lower_return/proc_fail/n
   needed (lower.sc deleted in PST-RB-5e — will be re-translated when IR_SM/IR_BB stabilizes).
 next: PST-SC-4k — goto LABEL → TT_GOTO_U; sc_append_goto_label deleted.
 mirror gaps: (none)
-ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4k goto → 4l-4n) → invariants
-         (Icon → GOAL-PST-ICON.md  |  Raku → GOAL-PST-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
+ladder Stage 1 (this file): six per-language goal files (one per language); each does
+         Phase 1 C-parser work only and stops at the Phase 2 SCRIP-mirror rung.
+         SNOBOL4 → GOAL-PST-SNOBOL4.md  |  Icon → GOAL-PST-ICON.md
+         Raku → GOAL-PST-RAKU.md  |  Snocone → GOAL-PST-SNOCONE.md
+         Rebus → GOAL-PST-REBUS.md  |  Prolog → GOAL-PST-PROLOG.md
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
 
