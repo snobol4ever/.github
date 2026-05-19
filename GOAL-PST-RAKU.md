@@ -155,9 +155,9 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [ ] **PRF-12-my-type** *(audit R2)* — `my Type $var = expr;`: the `IDENT` (type annotation) is currently `free()`'d in the action (lines 229–240 of `raku.y`). Either preserve as a child of `TT_ASSIGN`, or add a side-channel-free `TT_DECL[TT_VAR(type), TT_VAR(name), expr]` kind. Lower selects runtime behavior (type is documentation-only in current SCRIP, but the parser must not destroy the source token).
 
-- [ ] **PRF-12-say** *(audit R3, R4)* — `say` keyword should produce a dedicated `TT_SAY[expr]` or `TT_SAY_FH[fh, expr]` kind, NOT `TT_FNC("write")` synthesized in parser. `lower_say` selects the runtime helper. Same for `say(fh, expr)`.
+- [x] **PRF-12-say** *(audit R3, R4)* ✅ 2026-05-19 (Sonnet 4.6) — `TT_SAY[expr]` / `TT_SAY_FH[fh,expr]` added to ast.h; raku.y actions emit pure tree; lower.c dispatches to `write`/`raku_say_fh`; 35 .ref files regenerated.
 
-- [ ] **PRF-12-print** *(audit R5, R6)* — `print`/`print(fh, expr)` should produce `TT_PRINT[expr]` / `TT_PRINT_FH[fh, expr]`. `lower_print` selects runtime helper.
+- [x] **PRF-12-print** *(audit R5, R6)* ✅ 2026-05-19 (Sonnet 4.6) — `TT_PRINT[expr]` / `TT_PRINT_FH[fh,expr]` added; same session as PRF-12-say.
 
 - [ ] **PRF-12-arr-hash-ops** *(audit R7, R8, R9 + atom-side at R29-related)* — index/element ops (`@a[i]`, `@a[i] = v`, `%h<k>`, `%h{k} = v`, `delete %h<k>`, `exists %h<k>`) should produce explicit `TT_IDX_GET` / `TT_IDX_SET` / `TT_HASH_GET` / `TT_HASH_SET` / `TT_HASH_DELETE` / `TT_HASH_EXISTS` kinds. Lower picks `arr_set` / `hash_set` / etc. runtime helpers. This rung covers ~7 grammar sites.
 
@@ -264,9 +264,8 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (file created by splitting GOAL-PST-ICN-RAKU.md)
-status: ⏳ Phase 1 NOT clean — 27 §⛔ violations per audit, 5 owned (PRF-12 family),
-        22 new PRF-12 sub-rungs. PST-FIELD-1/2 cross-cutting.
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-say/print ✅; PST-FIELD-1 ✅
+status: ⏳ Phase 1 NOT clean — 25 §⛔ violations remaining (R3-R6 closed by PRF-12-say/print)
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6, dates from combo-file history) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
