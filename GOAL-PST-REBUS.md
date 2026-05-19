@@ -138,19 +138,8 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   Verification: `upr('hello')` returns `HELLO`; `upr('')` returns empty. All gates hold floor at HEAD: smoke_snobol4 6/1, smoke_rebus 4/0, smoke_scrip 2/0, smoke_icon 5/0, smoke_snocone 5/0, smoke_prolog 5/0, smoke_raku 5/0, crosscheck_snobol4 4/2, subsystem_suite 19/1.
   Beauty self-host: still 0 lines, but the crash signature changed from segfault to infinite loop downstream (Bug #2). Net progress: the `upr` recursion no longer blocks beauty.
   
-  **Bug #2 (DIAGNOSED, FIX SKETCHED, NOT LANDED): mode-1 interp_exec does not perform SUBJ-PAT split.**
-  PST-SN4-1b (2026-05-16) moved the SUBJ-PAT-REPL statement layout split out of the SNOBOL4 parser and into `lower.c`. But that split runs only in modes 2/3/4 (SM/JIT/emit). Mode 1 (`--interp`, `interp_exec.c`) reads `:pat` directly from the AST and never recognizes the parser's TT_SEQ-with-pattern-as-tail shape. Result: statements like
-  ```snobol4
-  S = 'abc'
-  S 'b' = 'X'        /* parses as :subj=TT_SEQ(S, 'b'), :repl='X', :pat=NULL */
-  OUTPUT = S         /* prints "abc" instead of "aXc" */
-  ```
-  ...silently no-op for pattern match in mode 1. This is **the** root cause of:
-  - `smoke_snobol4` `pattern` test failing (gives the 6/1 baseline)
-  - beauty's `icase()` loop running forever (`str POS(0) ANY(&UCASE &LCASE) . letter =` never modifies `str`)
-  - SN-7 gate's 22/29 result (case_driver, match_driver, semantic_driver, etc. all hit the same shape)
-  
-  Fix (sketched, ~30 lines): mirror lower.c's PST-SN4-1b logic in interp_exec.c right after reading `:subj`/`:pat`. The branch was sketched in this session but reverted untested before commit; next session lands it as commit-1 of this rung.
+  **Bug #2 (REFRAMED CLI-3M-9 2026-05-18): SUBJ-PAT split for mode 2.**
+  PST-SN4-1b (2026-05-16) moved the SUBJ-PAT-REPL statement layout split out of the SNOBOL4 parser and into `lower.c`. This runs in modes 2/3/4 (SM/JIT/emit). Mode 1 (`interp_exec.c`) is now **deleted** (CLI-3M-9). The fix no longer needs to mirror `lower.c` logic in `interp_exec.c` — that file doesn't exist. The real question is whether mode 2's `lower.c` SUBJ-PAT split correctly handles the `TT_SEQ-with-pattern-as-tail` shape in all cases. If `smoke_snobol4 pattern` still fails under `--interp`, the bug is in `lower.c`'s split logic or `sm_interp.c`'s handling of the lowered SM opcodes — not in a dead mode-1 path.
   
   **Bug #3+ (UNKNOWN):** Likely additional issues will surface after Bug #2 lands. SN-7 gate baseline this session start: 22/29. Goal: strictly increase.
   

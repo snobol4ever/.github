@@ -54,7 +54,7 @@ will rip them out.
 - [x] **CLI-3M-9** — `interp_exec.c` deleted (`188475d7`). `interp_eval()` AST walker deleted (`9aeede7d`). `interp_eval.c` deleted — contents moved to proper homes: icn_runtime.c (builtins+kw), interp_globals.c (rs24_diag+set_and_trace), interp_hooks.c (PAT_FNC_NAMES+_is_pat_fnc_name+_expr_is_pat), interp_data.c (data_field_ptr) (`8c799b2e`). Mode 1 is genuinely gone from the binary and from the codebase. 2026-05-18.
 - [x] **CLI-3M-10** — Delete deprecated aliases (`--ast-run` / `--ir-run` / `--sm-run` / `--jit-run` / `--jit-emit` / `--sm-emit` / `--bb-driver` / `--bb-live` / `--dump-ir` / `--dump-ir-bison` / `--x64`). One name per concept. scrip.c internal variables renamed to match CLI flag names (`mode_sm_run` → `mode_interp`, `mode_jit_run` → `mode_run`, `opt_jit_emit`+`opt_emit_x64` → `mode_compile`+`mode_compile_x86`, `dump_ir` → `dump_ast`). 104 files swept in `b65882ea`; argv parser rewritten in `730da38e`. *Commits `b65882ea` + `730da38e`, 2026-05-17j (Opus 4.7).*
 - [x] **CLI-3M-11** — RULES.md, ARCH-SCRIP.md, ARCH-ICON.md, ARCH-IR.md updated for CLI-3M-9 completion. `test_isolation_ir_sm.sh` updated. 2026-05-18.
-- [ ] **CLI-3M-12** — Update AR-3 framing (IR↔AST rename can proceed once mode-1 is gone).
+- [x] **CLI-3M-12** — AR-3 framing updated. Mode-1 deletion (CLI-3M-9) unblocks: (1) `tree_t`→`PARSE_t` rename (no longer an execution vehicle, purely compile-time); (2) PST-REBUS Bug #2 is now moot — the `interp_exec.c` SUBJ-PAT split fix was sketched against a file that no longer exists; the SNOBOL4 beauty path goes through mode 2 (`--interp`) exclusively. 2026-05-18.
 
 ---
 
