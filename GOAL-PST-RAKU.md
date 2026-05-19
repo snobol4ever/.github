@@ -216,7 +216,7 @@ struct tree_t {
 };
 ```
 
-- [ ] **PST-FIELD-1 — Remove `_nalloc` from `tree_t`. PHASE 1 C.**
+- [x] **PST-FIELD-1 — Remove `_nalloc` from `tree_t`. PHASE 1 C.**
 
   **What:** `_nalloc` is a growable-array bookkeeping field — it tracks allocated capacity of the `c` array so `ast_push` can realloc without knowing the true size. Carries zero semantic information.
 
@@ -227,7 +227,7 @@ struct tree_t {
 
   **Gates:** full build + `smoke_snobol4`, `crosscheck_snobol4`, `smoke_scrip_all_modes`, `smoke_icon`, `smoke_raku`.
 
-- [ ] **PST-FIELD-2 — Remove `_id` from `tree_t`. PHASE 1 C. BLOCKED on PST-ICN-LR-1 + PRF-12-sub.**
+- [x] **PST-FIELD-2 — Remove `_id` from `tree_t`. PHASE 1 C. BLOCKED on PST-ICN-LR-1 + PRF-12-sub.**
 
   **What:** `_id` is used as a semantic side-channel in three places: (1) Raku `SUB_TAG_ID` (the violation closed by `PRF-12-sub`); (2) Icon param count (the violation closed by `PST-ICN-LR-1` in `GOAL-PST-ICON.md`); (3) interpreter slot/env index (larger rework, scope separately).
 
