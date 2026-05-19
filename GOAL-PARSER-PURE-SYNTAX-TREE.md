@@ -586,3 +586,43 @@ prerequisite for all Phase 2 SCRIP mirror work.
 4. Flag any production where children are NOT in source order
 
 .github @ 270cad0d
+
+### Handoff note — 2026-05-18 session 4 (Sonnet 4.6) — FINAL
+
+**Session summary:** HQ coordination session. No code written.
+
+**All work done this session:**
+
+1. Audited six C parsers for L-to-R readiness (grid).
+2. Added two-phase rule: Phase 1 = all C parsers clean, Phase 2 = SCRIP
+   mirrors as dedicated SNOBOL4 sessions. Never both in one session.
+3. Created GOAL-PST-SNOBOL4.md (extracted from parent goal).
+4. Added rungs: RB-C-1 (Rebus), PRF-12 C sequence (Raku), SCRIP
+   orientation blocks (all goals), PST-FIELD-1/2 (tree_t struct fields),
+   PST-PL-6h (Prolog child inspection), PST-SC-SC-1/2 (Snocone Append),
+   PST-PL-SC-1/2/3 (Prolog Append + assign_anon_slots).
+5. Corrected: SNOBOL4 is NOT fully clean — PST-SN4-W1 wart remains.
+
+**Phase 1 C status:**
+- Icon     ✅ complete
+- SNOBOL4  ⏳ PST-SN4-W1 (->t inspection in sno4_stmt_commit_go)
+- Snocone  ⏳ PST-SC-4k→4n
+- Raku     ⏳ PRF-12 (gather✅ sub, class, program, for-range) + PST-FIELD-1/2
+- Rebus    ⏳ RB-C-1 (stmt_list_ne always-wrap)
+- Prolog   ⏳ PST-PL-6f, 6h
+
+**CRITICAL — incomplete work requiring fresh session:**
+A complete per-production parent→children L-to-R audit is needed for all
+six C parsers. Summary-level tracking is insufficient — Snocone SCRIP
+mirror work has failed due to unexpected child order in specific productions.
+Next session must read every grammar rule, build a verified table of every
+TT_* node kind with children listed L-to-R, and flag any violation.
+Start with Snocone (snocone_parse.y) since that is the active failure point.
+
+**Recommended next session:** Fresh context. Clone repos. Read
+GOAL-PARSER-PURE-SYNTAX-TREE.md. Do the per-production LR audit for
+snocone_parse.y first, then the other five parsers. Build the table.
+Do not write any code or modify goal files until the table is complete
+and every production is verified.
+
+.github @ 61776490
