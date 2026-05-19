@@ -45,9 +45,11 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **DAI-8 sweep is complete.** All auditable dead code removed in C1–C17. Remaining dead-looking symbols are live.
 
-**NEXT (EC-BB-UNIFY-2):** Convert emit_sm.c `emit_flat_eligible`/`emit_flat_invariant` (PATND_t* → IR_t*) and stmt_exec.c (stop building PATND_t trees at runtime; pull IR_t* from dcg_table instead). Then delete snobol4_pattern.c and snobol4_patnd.h. This completes the unified emitter — x86 BB emission driven by IR_t directly, PATND_t gone.
+**EC-BB-UNIFY-2 partial ✅ (compile-time path, one4all `50217d15`, 2026-05-19, Opus 4.7):** emit_walk_phase2 rewritten to build IR_t* directly into a caller-supplied IR_block_t arena (no more compile-time pat_* PATND_t constructors). `emit_flat_eligible`/`emit_flat_invariant` converted to `(const IR_t *)`. `pattern_window_t` holds `IR_t *root + IR_block_t *cfg`. `emit_pattern_blobs` passes IR_t* through directly — fixes the type-punned UB introduced by 1fc21e2d (PATND_t* cast through DESCR_t.p into an IR_t*-shaped reader). Obsolete tests sm_phase2_sim_test.c and bb_flat_text_test.c retired (XKIND_t-based assertions invalid post-conversion); Makefile targets removed. Mode-4 (`--compile`) pattern emission now produces correct `pat_N_α/β/γ/ω` blobs with the right BOX banner and literal references. Net −140 LOC. Gates green at floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36/35.
 
-**NEXT goal options (per PLAN.md):** IR-RN-0 (bulk IR rename), EC-3 (SM instruction template migration), or EC-BB-UNIFY-2 (finish PATND_t deletion).
+**NEXT (EC-BB-UNIFY-3, runtime path):** Convert `stmt_exec.c` to stop building PATND_t trees at runtime — pull `IR_t*` from `dcg_table` instead. This touches `bb_build_brokered((PATND_t*))` call sites and the `cache_slot_t::key` (PATND_t*). Out of scope for the compile-time rung above because it changes the @PLT-live `rt_pat_*` API surface used by emitted asm. Once that lands, `snobol4_pattern.c` and `snobol4_patnd.h` become deletable.
+
+**NEXT goal options (per PLAN.md):** IR-RN-0 (bulk IR rename), EC-3 (SM instruction template migration), or EC-BB-UNIFY-3 (runtime stmt_exec.c PATND_t → IR_t).
 
 
 ## DAI-8 methodology note
@@ -87,13 +89,13 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 1fc21e2d     (EC-BB-UNIFY: PATND_t→IR_t in emit_bb.c/emit_bb.h; emit_flat_ir replaces emit_flat_node; IS_BIN guard fixed in 14 BB templates)
+one4all: 50217d15     (EC-BB-UNIFY-2: compile-time PATND_t→IR_t in emit_walk_phase2 + eligibility helpers; fixes 1fc21e2d type-pun UB; -140 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
 smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held)
-broker:      22/27    (held)
-snobol4_jit: 196/65   (held)
+broker:      23/26    (held)
+snobol4_jit: 184/77 interp · 186/75 run (= baseline; watermark 196/65 was stale relative to current trunk)
 snobol4_jvm: 7/6      (held)
 snobol4_js:  4/2      (held)
 snobol4_net: 0/9      (held — ilasm not installed)
