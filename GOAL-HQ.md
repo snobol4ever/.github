@@ -1,4 +1,6 @@
-# GOAL-PARSER-PURE-SYNTAX-TREE.md — Six Frontends, One Pure tree_t
+# GOAL-HQ.md — one4all Maintenance HQ
+
+**Formerly:** GOAL-PARSER-PURE-SYNTAX-TREE.md (Six Frontends, One Pure tree_t)
 
 **Repo:** one4all + .github
 **Status:** Stage 1 active — SNOBOL4 Step 1 nearly done; Snocone Step 4 next
