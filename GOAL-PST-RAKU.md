@@ -2,103 +2,109 @@
 
 **Repo:** one4all + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
-**Status:** ✅ Phase 1 C COMPLETE 2026-05-19. Phase 2 ready
-(reference rung for all Phase 2 sessions).
+**Status:** ✅ Phase 1 C COMPLETE. Phase 2 OPEN — PRF-14 ready.
 
 ---
 
-## Phase 2 — `corpus/SCRIP/parser_raku.sc` (680 LOC)
+## Phase 2 — `corpus/SCRIP/parser_raku.sc`
 
-**Rung:** `PRF-13` — bulk mechanical `shift_val → assign+shift`, 111
-sites. Estimated 2–3 h. **This is the reference rung for the
-`shift_val` idiom** — every other parser's `shift_val` work follows
-the same template.
+**Rung:** `PRF-14` — complete rewrite from scratch. Estimated 4–6 h.
 
-Per `PST-SCRIP-AUDIT.md § parser_raku.sc`: 111 `shift_val` calls. One
-helper `dq_unescape` is permitted (pure string preprocessor — touches
-zero tree state). No other function bodies exist that build tree state.
+**Why a full rewrite, not a mechanical substitution:**
+PRF-13 (2026-05-19) attempted to replace every `shift_val(EXPR, KIND)`
+with `assign(.t_imm, EXPR) shift(t_imm, KIND)`. This was wrong.
+`shift_val` in `semantic.sc` is `epsilon . *Shift(KIND, v)` — it pushes
+a computed value without consuming input. `shift(p, KIND)` matches
+pattern `p` against the source and pushes the *matched text* — a
+fundamentally different operation. There is no one-line substitution.
+The architecture of the file must change so that `shift` can do the
+work directly. **Do not invent the approach — derive it from the
+sources listed in the steps below.**
 
-### Permitted primitives (binding)
+---
 
-`shift(p, kind)` · `reduce(kind, n)` · `nPush()` · `nInc()` · `nPop()` ·
-`nTop()` · `assign(.var, val)`. Pure string preprocessors like
-`dq_unescape` also permitted. Forbidden: `shift_val` (all other
-forbidden primitives too — verify nothing else has crept in).
+## Steps
 
-### The mechanical pattern
+- [ ] **PRF-14-1 — Read sources. No coding yet.**
 
-Every `shift_val(EXPR, KIND)` becomes:
+  Read all four in this order:
 
-```
-assign(.t_imm, EXPR) shift(t_imm, KIND)
-```
+  1. `corpus/SCRIP/semantic.sc` — understand exactly what `shift`,
+     `reduce`, `nPush`, `nPop`, `nInc`, `nTop`, `assign` do at the
+     Snocone/SPITBOL level. Do not assume. Read the code.
 
-where `EXPR` may be a literal string, concatenation, or function call.
-`t_imm` is a single shared parser-scratch variable. Avoid name
-collisions with existing captures: `capstr`, `capvf`, `capvr`, `capmf`,
-`capmr`, `capclsf`, `capclsr`, `capncname`, `capidx`, `capkey`,
-`capnamedkey`, `capmtf`, `capmtr`, `captwf`, `captwr`, `colnmf`,
-`colnmr`.
+  2. `corpus/SCRIP/parser_snocone.sc` — the largest clean parser.
+     Study how it pushes leaf values: what patterns feed `shift`,
+     how token text is captured, how computed names are handled.
 
-### Examples
+  3. `corpus/SCRIP/parser_snobol4.sc` — another clean parser with
+     different leaf-value patterns. Note specifically how string
+     literals and identifiers become `TT_QLIT` / `TT_VAR` nodes
+     without `shift_val`.
 
-```
-shift_val('die', 'TT_VAR')
-→ assign(.t_imm, 'die') shift(t_imm, 'TT_VAR')
+  4. `one4all/src/frontend/raku/raku.y` — the Phase 1 C parser.
+     This is the ground truth for every tree shape PRF-14 must
+     reproduce. Every node kind, every child count, every value
+     field. The SCRIP rewrite must match this exactly.
 
-shift_val(capvf capvr, 'TT_VAR')
-→ assign(.t_imm, capvf capvr) shift(t_imm, 'TT_VAR')
+  Only after reading all four: look at `corpus/SCRIP/parser_raku.sc`
+  and understand what each `shift_val` site is actually doing in terms
+  of the tree node it produces.
 
-shift_val(capstr, 'TT_FLIT')
-→ assign(.t_imm, capstr) shift(t_imm, 'TT_FLIT')
+- [ ] **PRF-14-2 — Identify the structural problem and the fix.**
 
-shift_val('raku_arr_get', 'TT_VAR')  shift_val(colnmf colnmr, 'TT_VAR')
-→ assign(.t_imm, 'raku_arr_get') shift(t_imm, 'TT_VAR')
-  assign(.t_imm, colnmf colnmr) shift(t_imm, 'TT_VAR')
-```
+  From the reading in PRF-14-1, determine:
 
-The `assign` lifetime ends in the very next match step, so `t_imm`
-reuse across adjacent sites is safe.
+  - Which `shift_val` sites push a string literal (`'die'`,
+    `'raku_write'`, etc.) vs. a runtime-captured variable
+    (`capvf capvr`, `colnmf colnmr`, etc.).
+  - What the clean parsers do in analogous situations.
+  - What restructuring (if any) of the token-capture patterns
+    (`VarScalar`, `VarArray`, `BareIdent`, etc.) is needed so
+    `shift` can capture the right value directly.
 
-### Steps
+  Write nothing yet. Document the findings as a comment block at
+  the top of the new file in PRF-14-3.
 
-- [x] **PRF-13-1** — Read `parser_raku.sc` end to end. Locate every
-  `shift_val` site:
-  ```
-  grep -nE 'shift_val' parser_raku.sc
-  ```
-  Expected: 111 hits (or close — count may include 1–2 comments).
+- [ ] **PRF-14-3 — Rewrite `parser_raku.sc` from scratch.**
 
-- [x] **PRF-13-2** — Rewrite every site using the template above.
-  Sweep linearly through the file; don't try to skip ahead.
+  Using the approach determined in PRF-14-2 and the tree shapes
+  from `raku.y`, write a new `parser_raku.sc` that:
 
-- [x] **PRF-13-3** — Grep verify:
+  - Uses only permitted primitives: `shift`, `reduce`, `nPush`,
+    `nPop`, `nInc`, `nTop`, `assign`. Pure string preprocessors
+    (`dq_unescape`) permitted.
+  - Produces identical tree shapes to the C parser for every
+    construct.
+  - Contains zero `shift_val`, `foldop`, `reduce_call`,
+    `reduce_prim`, `reduce_opsyn`.
+  - Contains zero `function` definitions that call `Push`, `Pop`,
+    `Tree`, `tree`, `Append`.
+
+  Do not preserve the old file's structure out of habit. If the
+  token-capture layer needs to change, change it. Follow the
+  evidence from PRF-14-1 and PRF-14-2.
+
+- [ ] **PRF-14-4 — Grep verify.**
+
   ```
   grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_raku.sc
-  ```
-  Expected: zero hits (except possibly comments that mention `shift_val`
-  in the deletion log — those can be left as historical references or
-  cleaned up).
-
-- [x] **PRF-13-4** — Confirm `dq_unescape` is the only `function`
-  definition remaining:
-  ```
+  grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_raku.sc
   grep -nE '^function ' parser_raku.sc
   ```
-  Expected: one hit (`dq_unescape`).
 
-- [x] **PRF-13-5** — Run smoke test:
+  First two: zero hits (comments excepted).
+  Third: only `dq_unescape` (or zero if eliminated).
+
+- [ ] **PRF-14-5 — Smoke test.**
+
   ```
-  bash /home/claude/one4all/scripts/test_parser_raku.sh
+  bash /home/claude/one4all/scripts/test_smoke_raku.sh
   ```
-  If passes, commit. If fails, file `⚠ MIRROR-GAP-PRF-13-5` and commit
-  the rewrite anyway — debug in a separate session per the audit's
-  strict rule.
 
-### Done
-
-`parser_raku.sc` is pure shift/reduce; per-language goal closed; the
-mechanical template is now battle-tested for use in PST-ICN-SC.
+  If passes, commit. If fails, file `⚠ MIRROR-GAP-PRF-14-5` and
+  commit anyway — debug in a separate session. Record exact failure
+  output in the State block.
 
 ---
 
@@ -110,17 +116,17 @@ hof, capture, twigil, sub, class, for, gather, self, gather-splice
 (R19), gather-hoist (R27). R15 rescoped 2026-05-19 as parser-local-
 scratch idiom (PRF-12-R15-DISPOSITION).
 
+PRF-13 (2026-05-19, Sonnet 4.6): REVERTED. assign+shift approach wrong.
+corpus restored to 380da41 (111 × shift_val intact). See above.
+
 ---
 
 ## State
 
 ```
-watermark:   Phase 2 PRF-13 ✅ COMPLETE (2026-05-19, Sonnet 4.6, corpus @ 70c063c).
-             111 × shift_val → assign(.t_imm,…) shift(t_imm,…). Added t_imm = ''.
-             PRF-13-3: zero live shift_val. PRF-13-4: dq_unescape only. ✅
-             ⚠ MIRROR-GAP-PRF-13-5: scrip binary not buildable in container
-             (EC-3f pre-existing build failure). Smoke deferred; rewrite clean.
-next:        All 6 Phase 2 SCRIP mirrors complete. Stage 2 (lower rename) ready.
-             See GOAL-PARSER-PURE-SYNTAX-TREE.md § Stage 2 (PST-LR-0..5).
-heads:       one4all @ 50dee1c2 · corpus @ 70c063c
+watermark:   PRF-13 reverted (2026-05-19, Sonnet 4.6). corpus @ 8dea9a9.
+             PRF-14 written: full rewrite, derive approach from sources.
+next:        PRF-14-1 — read semantic.sc, parser_snocone.sc,
+             parser_snobol4.sc, raku.y. No coding until PRF-14-2 done.
+heads:       one4all @ 50dee1c2 · corpus @ 8dea9a9
 ```
