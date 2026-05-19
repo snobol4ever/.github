@@ -350,6 +350,244 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 
 ---
 
+## ⛔ PST-RB-DECL — Convert `RDecl` / `RCase` info fully into the tree
+
+**Audit reference:** `PST-LR-AUDIT.md § Scan 5 (Rebus)`, sections 5.1 (off-tree machinery) and 5.4 (case_stmt synthesizing TT_IF per clause).
+
+**The §⛔ principle (binding 2026-05-19):** **all information must pass inside the tree — no side hustles.** The parser's output is `tree_t` and only `tree_t`. Auxiliary structs that carry parser-output data (off-tree linked lists, RDecl chains, RCase clause lists, name+arity+local+initial+body strung together as struct fields) are side channels — they violate the principle. They must be eliminated, with every field's information re-encoded as `tree_t` children or `v.sval/ival/dval` value-decoding at a fresh leaf.
+
+**Background — what was closed in PST-RB-5a–5d (2026-05-16):**
+
+| Removed | How info moved into the tree |
+|---------|------------------------------|
+| `RExpr*` | All expression productions now build `tree_t` directly via `ast_node_new(TT_*)` / `expr_add_child`. |
+| `RStmt*` | All statement productions now build `tree_t`. |
+| `RProgram*` (the outer-most type — distinct from the **inner** `RProgram` struct that survives as the off-tree wrapper around the decl list — see below) | Statements emit `tree_t` directly. |
+
+**What still survives off-tree** (per `rebus.h`):
+
+```c
+typedef struct RCase RCase;
+struct RCase {
+    int       is_default;
+    tree_t   *guard_tree;
+    tree_t   *body_tree;
+    RCase    *next;
+};
+
+typedef struct RDecl RDecl;
+struct RDecl {
+    RDKind    kind;        /* RD_FUNCTION | RD_RECORD */
+    int       lineno;
+    char     *name;
+    char    **params;      /* off-tree string array */
+    int       nparams;
+    char    **locals;      /* off-tree string array */
+    int       nlocals;
+    tree_t   *initial_tree;
+    tree_t   *body_tree;
+    char    **fields;      /* off-tree string array */
+    int       nfields;
+    RDecl    *next;
+};
+
+typedef struct {
+    RDecl  *decls;
+    int     ndecls;
+} RProgram;
+```
+
+**Three §⛔ violations against the "all info in the tree" principle:**
+
+1. **RDecl** carries `name`/`params[]`/`locals[]`/`fields[]`/`initial_tree`/`body_tree`/`lineno` as separate C struct fields. Those are source-token-derived facts that must live as `tree_t` children (or `v.sval` value-decoding) on a single decl node.
+2. **RCase** carries `guard_tree`/`body_tree`/`is_default`/`next` — a linked-list spine and a default-arm marker, both off-tree. `case_stmt` builds these per clause then **synthesizes a `TT_IF` per clause** at the case_stmt reduction (line 388–406 of `rebus.y`) — audit violation Rb4 ("each clause wrapped in synthesized TT_IF where the source had only `guard:body`").
+3. **RProgram** is the outer linked-list spine of decls. Each decl in the list lives off-tree. There is no top-level `TT_PROGRAM` produced by the parser — `rebus_parse_init` allocates a `RProgram*` and stores it in the global `rebus_parsed_program`.
+
+**The fix:** eliminate all three. The parser outputs **one** `tree_t` (a top-level `TT_PROGRAM`) and nothing else. `rebus_parsed_program` becomes `tree_t *`. Every downstream consumer (`rebus_driver.c`, `rebus_lower.c`, `rebus_emit.c`, `rebus_print.c`) reads only `tree_t` — no `RProgram*` / `RDecl*` / `RCase*` types referenced.
+
+### Sub-rung ladder
+
+- [ ] **PST-RB-DECL-1 — Add new TT_* kinds and confirm naming with parent goal.**
+
+  Add to `tree_e` in `src/include/ast.h` (and the name table):
+  - `TT_FUNCTION` — function declaration. **Children L→R:** `[TT_VAR(name), TT_VLIST(params), TT_VLIST(locals), TT_PROGRAM(initial) | TT_NUL, TT_PROGRAM(body)]`. Lineno carried in `v.ival` (or as a `TT_ATTR(:line)` sibling — match the chosen convention for other frontends, document the decision).
+  - `TT_RECORD_DECL` — record declaration. **Children L→R:** `[TT_VAR(name), TT_VAR(field1), TT_VAR(field2), ...]`. If Icon's `TT_RECORD` shape (name in `v.sval`, fields in `c[]`) is reused, document the kind divergence between Rebus and Icon explicitly — the choice is the parser's freedom (kind selection rule from `GOAL-PARSER-PURE-SYNTAX-TREE.md § ⛔ Left-to-right child order`), but cross-frontend uniformity is a separate desideratum.
+
+  Verify no other frontend already uses these names. **Gates:** full build only — no behavior change yet.
+
+- [ ] **PST-RB-DECL-2 — Eliminate `RDecl` from `rebus.y`. Phase 1 C.**
+
+  **Where (`rebus.y` lines 152–187, 189–203, 231–239):**
+
+  Replace the `record_decl` action (lines 152–163):
+  ```c
+  /* Currently — off-tree RDecl */
+  RDecl *d   = rdecl_new(RD_RECORD, yylineno);
+  d->name    = $2;
+  SAL *sl    = $4;
+  d->fields  = sl->a;
+  d->nfields = sl->n;
+  free(sl);
+  $$ = d;
+  ```
+  with a `tree_t` build:
+  ```c
+  tree_t *rec = ast_node_new(TT_RECORD_DECL);
+  expr_add_child(rec, leaf_sval(TT_VAR, $2));   /* name */
+  SAL *sl = $4;
+  for (int i = 0; i < sl->n; i++) expr_add_child(rec, leaf_sval(TT_VAR, sl->a[i]));
+  free(sl->a); free(sl);
+  $$ = rec;
+  ```
+
+  Replace the `function_decl` action (lines 165–187):
+  ```c
+  tree_t *fn = ast_node_new(TT_FUNCTION);
+  fn->v.ival = yylineno;                                  /* or TT_ATTR(":line") */
+  expr_add_child(fn, leaf_sval(TT_VAR, $2));              /* name */
+  /* params */
+  tree_t *params_node = ast_node_new(TT_VLIST);
+  SAL *ps = (SAL*)$4;
+  for (int i = 0; i < ps->n; i++) expr_add_child(params_node, leaf_sval(TT_VAR, ps->a[i]));
+  free(ps->a); free(ps);
+  expr_add_child(fn, params_node);
+  /* locals */
+  tree_t *locals_node = ast_node_new(TT_VLIST);
+  SAL *ls = (SAL*)$7;
+  for (int i = 0; i < ls->n; i++) expr_add_child(locals_node, leaf_sval(TT_VAR, ls->a[i]));
+  free(ls->a); free(ls);
+  expr_add_child(fn, locals_node);
+  /* initial — TT_NUL filler if absent */
+  expr_add_child(fn, $8 ? $8 : ast_node_new(TT_NUL));
+  /* body */
+  expr_add_child(fn, $9);
+  $$ = fn;
+  ```
+
+  **Yacc declarations** (`%type` block, line 90): change `%type <decl> decl function_decl record_decl` to `%type <tree> decl function_decl record_decl`. Remove `RDecl *decl;` from the `%union`.
+
+  **Update consumers:**
+  - `rebus.h`: delete `RDecl`, `RDKind`, `rdecl_new`. Keep `SAL` (still useful as a parser-local string accumulator for params/locals/fields).
+  - `rebus_driver.c`, `rebus_lower.c`, `rebus_emit.c`, `rebus_print.c`: switch from `RDecl*` traversal to `tree_t` traversal by kind. Every loop `for (RDecl *d = prog->decls; d; d = d->next)` becomes `for (int i = 0; i < prog->n; i++) { tree_t *d = prog->c[i]; switch (d->t) { case TT_FUNCTION: ...; case TT_RECORD_DECL: ...; } }`.
+
+  Phase 1 only — record `⚠ MIRROR-GAP-RB-DECL-2` in State.
+
+  **Gates:** `smoke_rebus` 4/0, `scrip_all_modes` 2/0, `crosscheck_snobol4` floor.
+
+- [ ] **PST-RB-DECL-3 — Eliminate `RCase` from `rebus.y`. Phase 1 C.**
+
+  **Where (`rebus.y` lines 388–433):**
+
+  Replace the `case_stmt` action (which currently walks the `RCase` linked list and synthesizes a `TT_IF` per clause — audit Rb4) with direct `TT_CASE` construction:
+
+  ```c
+  case_stmt
+      : T_CASE expr T_OF '{' caselist '}'
+          {
+              /* Children L→R: [discriminant, guard0, body0, guard1, body1, ..., (TT_NUL, body_default)?] */
+              tree_t *cs = ast_node_new(TT_CASE);
+              expr_add_child(cs, $2);
+              for (RCase *c = $5; c; c = c->next) {
+                  if (c->is_default)
+                      expr_add_child(cs, ast_node_new(TT_NUL));
+                  else
+                      expr_add_child(cs, c->guard_tree);
+                  expr_add_child(cs, c->body_tree);
+              }
+              $$ = cs;
+          }
+      ;
+  ```
+
+  Note this still uses `RCase` as a parser-local accumulator inside the `caselist` reduction. That is **acceptable as a working-stage scratch type** (same as `SAL` for string arrays and `TAL` for `tree_t*` arrays) **provided no `RCase*` survives in the output tree.** After the `case_stmt` reduction completes, every `RCase` node must be freed.
+
+  Add the free loop at the end of the case_stmt action:
+  ```c
+  RCase *c = $5; while (c) { RCase *next = c->next; free(c); c = next; }
+  ```
+
+  **Then either:**
+
+  **Option A — keep RCase as a local scratch.** Document explicitly in `rebus.h` and the audit that RCase is a parser-internal accumulator with no off-tree output role. SAL and TAL are accepted on the same grounds.
+
+  **Option B — eliminate RCase entirely.** Replace the `caselist` accumulator with a `TAL` of alternating `tree_t*` items (guard, body, guard, body, ..., or NULL-marker followed by body for default), so the linked-list spine is gone. The case_stmt action then unpacks the TAL into TT_CASE children directly.
+
+  **Recommended: Option A** for minimal scope. Option B is a follow-on cleanup.
+
+  **The §⛔ violation closed by this rung is the synthesized TT_IF per clause** (audit Rb4) — that goes away regardless of which option. The principle "all info in the tree" is satisfied because the **output** of the case_stmt reduction is a single TT_CASE with all children in source order; whatever happened in the intermediate `caselist` accumulator is parser-local scratch.
+
+  **Update `rebus.h`:** under Option A, add an explicit comment that RCase is parser-local scratch and **must not survive in any tree_t output**. Under Option B, delete RCase, rcase_new.
+
+  Phase 1 only — record `⚠ MIRROR-GAP-RB-DECL-3` in State.
+
+  **Gates:** `smoke_rebus`, `scrip_all_modes`, `crosscheck_snobol4`.
+
+- [ ] **PST-RB-DECL-4 — Eliminate `RProgram` outer wrapper. Phase 1 C.**
+
+  **Where (`rebus.y` lines 120–140, 632–635):**
+
+  Replace `RProgram *prog` global and `rebus_parse_init` allocator with `tree_t *prog` (a `TT_PROGRAM` node). Rewrite the `program` and `decl_list` rules:
+
+  ```c
+  program
+      : decl_list             { }    /* nothing — prog is built incrementally in decl_list */
+      ;
+
+  decl_list
+      :                        { prog = ast_node_new(TT_PROGRAM); }
+      | decl_list decl         { if ($2) expr_add_child(prog, $2); }
+      | decl_list ';'          { }
+      | decl_list error ';'    { yyerrok; }
+      ;
+  ```
+
+  Change the global declaration at the top of `rebus.y`:
+  ```c
+  static tree_t *prog;
+  extern tree_t *rebus_parsed_program;
+  ```
+
+  Update `rebus_parse_init`:
+  ```c
+  void rebus_parse_init(void) {
+      prog = NULL;                 /* allocated lazily by first decl_list reduction */
+      rebus_parsed_program = NULL;
+  }
+  ```
+
+  And the post-parse fixup (or use `%initial-action`): assign `rebus_parsed_program = prog` after `yyparse()` returns.
+
+  **Delete from `rebus.h`:** `RProgram` struct entirely.
+
+  **Update consumers:** `rebus_driver.c` (`rebus_parsed_program` is now `tree_t*`); `rebus_lower.c`, `rebus_emit.c`, `rebus_print.c` — switch from `prog->decls` linked-list walk to `prog->c[]` tree-children walk.
+
+  Phase 1 only — record `⚠ MIRROR-GAP-RB-DECL-4` in State.
+
+  **Gates:** `smoke_rebus`, `scrip_all_modes`, `crosscheck_snobol4`.
+
+- [ ] **PST-RB-DECL-5 — Audit cleanup.**
+
+  After 1–4 land, re-grade `PST-LR-AUDIT.md § Scan 5`:
+  - The "off-tree machinery (5.1)" table should shrink to **zero rows** (or SAL/TAL/RCase-as-scratch only, with explicit rationale).
+  - Violation Rb4 (case_stmt synthesizing TT_IF per clause) → closed.
+  - The "Net Rebus status" line drops to **5 violations** (RB-C-1 ✅ already, plus RB-C-2/3/4/5 still open).
+
+  Update audit-row entries with new line numbers post-refactor. Update `GOAL-PARSER-PURE-SYNTAX-TREE.md` Phase 1 status table for Rebus.
+
+  **No code changes — audit-update only.**
+
+### Done criterion for PST-RB-DECL family
+
+1. `RDecl`, `RProgram` (outer wrapper) **deleted** from `rebus.h`.
+2. `RCase` either deleted (Option B) or explicitly documented as parser-local scratch with audit confirmation that no RCase pointer escapes the case_stmt reduction (Option A).
+3. `rebus_parsed_program` is `tree_t *` of kind `TT_PROGRAM`.
+4. Every `RDecl*` / `RProgram*` reference in `rebus_driver.c`, `rebus_lower.c`, `rebus_emit.c`, `rebus_print.c` gone.
+5. **No information that was carried as an `RDecl` / `RProgram` field is still off-tree.** Every name, every param string, every local string, every field string, every initial-block, every body-block of every decl now lives somewhere as a `tree_t` child or `v.sval` value-decoded leaf.
+6. Audit re-grade (DECL-5) signed off.
+7. Gate floors held throughout.
+
+---
+
 ## Open SL tickets (blocking parser_*.sc)
 
 - **SL-3** — `SQize` infinite loop on apostrophe-free input. Loop condition + replacement interaction in `corpus/SCRIP/qize.sc:46-58` doesn't reduce `str`. Workaround: `_qtag` fast-path bypasses for the parser tag idiom. Real fix belongs in SCRIP runtime if SPITBOL handles this correctly (check first).
@@ -370,12 +608,13 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 ## Done criterion (parent goal)
 
 1. PST-RB-5a–5e all ✅, 5g ✅, 5h/5i/5j/5k all `[x]`.
-2. `rebus.y` builds only `tree_t` — `RExpr*`/`RStmt*`/`RProgram*` gone. ✅
-3. Subsystem suite 19/20 PASS (Qize SKIP under SL-3).
-4. All six parser_*.sc emit `tree_t`-shape-equivalent AST dumps matching `--dump-ast` C reference.
-5. Snocone `INCLUDE` statement lands; `parser_*.sc` loaded as single source.
-6. Beauty self-host byte-identical (Milestone 1 protected).
-7. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Step 5 ✅.
+2. `rebus.y` builds only `tree_t` — `RExpr*`/`RStmt*`/`RProgram*` (outer) gone. ✅
+3. **PST-RB-DECL-1..5 all `[x]`** — `RDecl`/`RProgram` (the lingering inner decl wrapper) eliminated; `RCase` either deleted (Option B) or documented as parser-local scratch with no off-tree output (Option A); all decl info passes inside the tree.
+4. Subsystem suite 19/20 PASS (Qize SKIP under SL-3).
+5. All six parser_*.sc emit `tree_t`-shape-equivalent AST dumps matching `--dump-ast` C reference.
+6. Snocone `INCLUDE` statement lands; `parser_*.sc` loaded as single source.
+7. Beauty self-host byte-identical (Milestone 1 protected).
+8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Step 5 ✅.
 
 ---
 

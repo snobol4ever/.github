@@ -2,7 +2,7 @@
 
 **Repo:** one4all + .github
 **Status:** Stage 1 active — SNOBOL4 Step 1 nearly done; Snocone Step 4 next
-**Concurrent goals:** `GOAL-PST-ICN-RAKU.md` (Icon+Raku) · `GOAL-PST-REBUS-PROLOG.md` (Rebus+Prolog)
+**Concurrent goals:** `GOAL-PST-ICON.md` (Icon) · `GOAL-PST-RAKU.md` (Raku) · `GOAL-PST-REBUS-PROLOG.md` (Rebus+Prolog)
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► IR_sm_t[]  ──┐
@@ -121,12 +121,12 @@ unowned violations.
 - [x] **LR-AUDIT-1b** — Scan 1: Snocone (`snocone_parse.y`). 12 violations after correctly-scoped re-grade. 2026-05-19.
 - [x] **LR-AUDIT-1c** — Scan 2: Icon (`icon_parse.c`). 1 violation. 2026-05-19.
 - [x] **LR-AUDIT-1d** — Scan 3: SNOBOL4 (`snobol4.y`). 3 violations including the canonical §⛔ violation (`goto_expr` in-place mutate) and pack-and-defuse of `subj ? pat`. 2026-05-19.
-- [ ] **LR-AUDIT-1e** — Scan 4: Raku (`src/frontend/raku/raku.y`).
-- [ ] **LR-AUDIT-1f** — Scan 5: Rebus (`src/frontend/rebus/*`).
-- [ ] **LR-AUDIT-1g** — Scan 6: Prolog (`src/frontend/prolog/prolog_parse.c`).
+- [x] **LR-AUDIT-1e** — Scan 4: Raku (`src/frontend/raku/raku.y`). 27 violations after correctly-scoped re-grade. 2026-05-19. Five owned by PRF-12 family (program, sub, class, for-range, gather); 22 unowned, listed as proposed new PRF-12 sub-rungs in `PST-LR-AUDIT.md § Raku-rungs`.
+- [x] **LR-AUDIT-1f** — Scan 5: Rebus (`src/frontend/rebus/rebus.y`). 6 violations after correctly-scoped re-grade (tree productions only; off-tree `RDecl`/`RCase`/`RProgram` decl machinery owned by separate PST-RB rungs). 2026-05-19. RB-C-1 already owns Rb1, Rb2; four new rungs RB-C-2/3/4/5 proposed.
+- [x] **LR-AUDIT-1g** — Scan 6: Prolog (`src/frontend/prolog/prolog_parse.c`). 4 violations after correctly-scoped re-grade. 2026-05-19. All four (Pl1–Pl4) owned by **PST-PL-6h** (already named — pt_flatten_conj + pt_maybe_ifthenelse + pt_make_clause body-wrap → lower). Pl5 (DCG → tree_t conversion) is non-§⛔ scope, owned by PST-PL-6f.
 - [ ] **LR-AUDIT-1h** — Second pass over all six scans: re-verify every `(line, production, children-L→R)` row against the source one more time. Mark any row that has shifted or is wrong.
 - [ ] **LR-AUDIT-1i** — Cross-check named rungs ↔ audit rows: every step listed in any GOAL-PST-*.md file should correspond to at least one audit row; every unowned audit violation should have a proposed new rung name (the audit's rollup section is the source).
-- [ ] **LR-AUDIT-1j** — Promote proposed new rungs into their owning goal files: PST-SC-FLATTEN, PST-SC-LABELS, PST-SC-RET-IN-FN, PST-SC-FOR-INIT, PST-SC-SUBJ-PAT into this file's step ladder; PST-SN4-W2/W3/W5 into `GOAL-PST-SNOBOL4.md` (already drafted); PST-ICN-LR-1 into `GOAL-PST-ICN-RAKU.md`; analogous for any Raku/Rebus/Prolog findings.
+- [ ] **LR-AUDIT-1j** — Promote proposed new rungs into their owning goal files: PST-SC-FLATTEN, PST-SC-LABELS, PST-SC-RET-IN-FN, PST-SC-FOR-INIT, PST-SC-SUBJ-PAT into this file's step ladder; PST-SN4-W2/W3/W5 into `GOAL-PST-SNOBOL4.md` (already drafted); PST-ICN-LR-1 into `GOAL-PST-ICON.md` (✅ done 2026-05-19 when combo split); the 22 new PRF-12 sub-rungs into `GOAL-PST-RAKU.md` (✅ done 2026-05-19 when combo split); RB-C-2/3/4/5 + RDecl/RCase elimination steps into `GOAL-PST-REBUS.md`; PST-PL-6h sub-detail into `GOAL-PST-PROLOG.md`.
 
 **Done when:** all six scans complete, second-pass verified, every named rung in the audit has a step entry in some goal file, every step entry in some goal file has an audit row backing it.
 
@@ -146,10 +146,10 @@ Status per language (updated 2026-05-19 per `PST-LR-AUDIT.md`, scans 1–3,
 |---|---|---|
 | Icon | ⏳ no (was ✅; audit revision) | PST-ICN-LR-1 (proc-decl `_id` removal blocks PST-FIELD-2) |
 | SNOBOL4 | ⏳ no (was ✅; audit revision) | PST-SN4-W1 ✅; **PST-SN4-W2** (goto_expr in-place mutate at snobol4.y:211 — canonical §⛔ violation); **PST-SN4-W3** (g_cur mid-rule tree mutation in expr15/expr17 — six append sites) |
-| Raku | ⏳ no | PRF-12: sub, class, program, for-range → lower; PST-FIELD-1, PST-FIELD-2 (pending LR-AUDIT-1e scan 4) |
+| Raku | ⏳ no | PRF-12: sub, class, program, for-range, gather → lower; PST-FIELD-1, PST-FIELD-2; **plus 14 new PRF-12 sub-rungs** from LR-AUDIT-1e (R2–R11, R20–R26): my-type, say, print, arr-hash-ops, try, unless, given, smatch, new, mcall, die, hof, capture, twigil — see `PST-LR-AUDIT.md § Raku-rungs` for line-level fix sketches |
 | Snocone | ⏳ no | **PST-SC-4k** (active — `goto LABEL` to `TT_GOTO_U`); **PST-SC-FLATTEN** (`sc_flatten_arith` + `exprlist_ne` mutate-in-place: 7 sites); 4l, 4m, 4n; **PST-SC-LABELS** (parser-side label synthesis in while/do/for/switch); **PST-SC-RET-IN-FN** (return-rewrite as ASSIGN+RETURN inside func); **PST-SC-FOR-INIT** (init lifted to sibling stmt) |
-| Rebus | ⏳ no | RB-C-1: stmt_list_ne always-wrap (pending LR-AUDIT-1f scan 5) |
-| Prolog | ⏳ no | PST-PL-6f: delete Term* paths; PST-PL-6h (pending LR-AUDIT-1g scan 6) |
+| Rebus | ⏳ no | **RB-C-1** ✅ (stmt_list_ne always-wrap — closes Rb1, Rb2); **RB-C-2** (unless desugaring); **RB-C-3** (case TT_IF wrapping — Rb4 — covered by PST-RB-DECL-3); **RB-C-4** (augop desugaring — Rb5); **RB-C-5** (postfix-call inspect-kind-and-rearrange — Rb6); **PST-RB-DECL-1..5** (eliminate `RDecl`/`RProgram` outer wrapper / `RCase` off-tree usage — see `GOAL-PST-REBUS.md`). |
+| Prolog | ⏳ no | **PST-PL-6h** (covers all four §⛔ violations: pt_flatten_conj + pt_maybe_ifthenelse + pt_make_clause body-wrap → lower); **PST-PL-6f** (DCG → tree_t conversion, non-§⛔ scope but blocks Phase 1) — see `PST-LR-AUDIT.md § Prolog-rungs` |
 
 **Audit reference:** `PST-LR-AUDIT.md` (per-production left-to-right child
 order audit for all six parsers). Scans 1–3 (Snocone, Icon, SNOBOL4)
@@ -161,16 +161,17 @@ those are **not** §⛔ rules and have been withdrawn from the audit. Only
 the three stated rules are enforced now: L→R child order, no mutate-prior,
 no source token lifted out of the tree.
 
-**Cross-cutting Phase 1 rungs** (owned by `GOAL-PST-ICN-RAKU.md`):
+**Cross-cutting Phase 1 rungs** (owned by `GOAL-PST-ICON.md` and `GOAL-PST-RAKU.md` — duplicated in both files for session self-containment):
 
 - **PST-FIELD-1** — Remove `_nalloc` from `tree_t` struct (`src/include/ast.h`).
   `_nalloc` is allocator bookkeeping — not a semantic field. Switch `ast_push`
   to count-then-fill or hidden prefix. Update `ast_clone.c`.
 
 - **PST-FIELD-2** — Remove `_id` from `tree_t` struct. Three uses to migrate:
-  Raku `SUB_TAG_ID` → `TT_SUB_DECL` node kind (blocked on PRF-12-sub);
-  Icon param count → `v.ival`; interpreter slot/env index → side table or `v.ival`.
-  Full detail in `GOAL-PST-ICN-RAKU.md § PST-FIELD rungs`.
+  Raku `SUB_TAG_ID` → `TT_SUB_DECL` node kind (blocked on PRF-12-sub in `GOAL-PST-RAKU.md`);
+  Icon param count → restructure via TT_PROC_DECL (blocked on PST-ICN-LR-1 in `GOAL-PST-ICON.md`);
+  interpreter slot/env index → side table or `v.ival`.
+  Full detail in `GOAL-PST-ICON.md § PST-FIELD rungs` and `GOAL-PST-RAKU.md § PST-FIELD rungs`.
 
 ### Phase 2 — SCRIP mirrors (after all Phase 1 complete)
 
@@ -210,7 +211,7 @@ Remaining: PST-SN4-W1 (remove `->t==TT_QLIT` inspection from `sno4_stmt_commit_g
 
 ### Step 2 — Icon audit + Step 3 — Raku audit
 
-Owned by **`GOAL-PST-ICN-RAKU.md`**. Work those steps there.
+Owned by **`GOAL-PST-ICON.md`** (Step 2) and **`GOAL-PST-RAKU.md`** (Step 3) — split from `GOAL-PST-ICN-RAKU.md` on 2026-05-19 after audit findings diverged sharply in scope (Icon: 1 violation; Raku: 27). Work those steps in their respective files.
 On completion, update Step 2 and Step 3 checkboxes in the Frontend status table above.
 
 ### Step 4 — Snocone rewrite (bulk of the work)
@@ -535,7 +536,7 @@ session 2026-05-17a: PST-SC-4j lower fix. Two bugs: (1) lower_return/proc_fail/n
 next: PST-SC-4k — goto LABEL → TT_GOTO_U; sc_append_goto_label deleted.
 mirror gaps: (none)
 ladder Stage 1 (this file): SN4 cleanup ✓ → Snocone rewrite (4k goto → 4l-4n) → invariants
-         (Icon+Raku → GOAL-PST-ICN-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
+         (Icon → GOAL-PST-ICON.md  |  Raku → GOAL-PST-RAKU.md  |  Rebus+Prolog → GOAL-PST-REBUS-PROLOG.md)
 ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
 ```
 
@@ -745,3 +746,84 @@ all six Phase 1 audits are complete and verified.** The session 4 handoff
 was clear that Phase 2 SCRIP mirror work is downstream of this audit.
 
 .github @ 3a40d133
+
+### Handoff note — 2026-05-19 session 2 (Opus 4.7)
+
+**Session goal:** continue PST-LR-AUDIT-1 — complete the three remaining
+scans (Raku, Rebus, Prolog) and update goal-file claims accordingly.
+
+**What was done:**
+
+1. **LR-AUDIT-1e ✅** — Scan 4: Raku (`src/frontend/raku/raku.y`, 695 lines).
+   27 violations under correctly-scoped rules. The dominant pattern is
+   **parser-side desugaring of Raku-specific syntactic sugar to runtime
+   helper calls** (~18 of 27): `say` → `write`, `@arr[i] = v` →
+   `arr_set`, `Foo.new` → `raku_new`, `try` → `raku_try`, `~~` →
+   `raku_match`, `unless` → `if (not ...)`, etc. The remaining 9 are
+   **child stealing** (block body children moved into TT_FNC for
+   sub_decl, into TT_GATHER for gather, into a fresh TT_PROGRAM by the
+   post-parse hoist pass) and **post-construction mutation** (class
+   method renaming, gather hoist rewriting). Already-named rungs
+   (PRF-12 gather/sub/class/program/for-range) cover 5 of 27; 22 new
+   PRF-12 sub-rungs proposed: my-type, say, print, arr-hash-ops, try,
+   unless, given, smatch, new, mcall, die, hof, capture, twigil.
+2. **LR-AUDIT-1f ✅** — Scan 5: Rebus (`src/frontend/rebus/rebus.y`,
+   635 lines). 6 violations under §⛔ scope (tree-only — off-tree
+   `RDecl`/`RCase`/`RProgram` not graded). RB-C-1 (already named)
+   covers stmt_list_ne always-wrap (2 sites: Rb1, Rb2). New rungs:
+   RB-C-2 (unless desugar), RB-C-3 (case TT_IF wrapping), RB-C-4
+   (augop desugar), RB-C-5 (postfix-call inspect-kind-and-rearrange).
+3. **LR-AUDIT-1g ✅** — Scan 6: Prolog (`prolog_parse.c`, 1166 lines,
+   focused on tree-building functions). 4 violations under §⛔ scope.
+   **All four owned by existing PST-PL-6h** — `pt_flatten_conj` +
+   `pt_maybe_ifthenelse` + `pt_make_clause` body-wrap form a single
+   n-ary-flattening pipeline that does inspect-kind, child-stealing,
+   and structure-conversion. Moving the three helpers to
+   `prolog_lower.c` closes all four. PST-PL-6f (DCG → tree_t) is
+   tracked separately as non-§⛔ scope.
+4. **Rollup table** updated: total 51 §⛔ violations across all six
+   parsers. 12 owned by named rungs (1 Snocone, 5 Raku, 2 Rebus,
+   4 Prolog). 39 unowned (10 Snocone, 1 Icon, 2 SNOBOL4, 22 Raku,
+   4 Rebus, 0 Prolog).
+
+**Files modified this session:**
+- `.github/PST-LR-AUDIT.md` — Scans 4, 5, 6 added; rollup expanded;
+  new-rung proposals appended for Raku, Rebus, Prolog.
+- `.github/GOAL-PARSER-PURE-SYNTAX-TREE.md` — sub-steps 1e, 1f, 1g
+  marked ✅; per-language status table updated for Raku, Rebus,
+  Prolog (line-level fix sketches now reference PST-LR-AUDIT.md).
+- No code changes. No `.sc` files touched. No build, no gate run
+  needed (HQ-only session).
+
+**State at handoff:**
+- LR-AUDIT-1 sub-steps: 1a/1b/1c/1d/1e/1f/1g all ✅. Remaining: 1h
+  (second-pass verification of all six scans), 1i (cross-check
+  named rungs ↔ audit rows), 1j (promote unowned violations into
+  per-language goal files as named steps with line numbers).
+- Phase 1 C parser status (all ⏳, none ✅):
+  Snocone (11 viol), Icon (1), SNOBOL4 (2), Raku (27), Rebus (6),
+  Prolog (4).
+- ⛔ Phase 2 SCRIP mirror work remains blocked until all 51 of
+  these violations are closed and audit is verified.
+
+**Recommended next session:**
+
+Option A — **LR-AUDIT-1h (second-pass verification):** open each of
+the six scans, walk every row against the current source line numbers,
+mark any row that has shifted. Highest-value rung to finish the audit.
+
+Option B — **LR-AUDIT-1j (rung promotion):** for each of the 39
+unowned violations, draft a named step in its owning goal file with
+the line number, fix sketch, and reference back to the audit row.
+This produces the actionable Phase 1 worklist.
+
+Option C — **work a flagged violation:** pick an owned rung from the
+table. Smallest-scope candidates: PST-SC-4k (Snocone goto → TT_GOTO_U,
+1 site), PST-SN4-W2 (SNOBOL4 goto_expr in-place mutate, 1 site),
+RB-C-1 (Rebus stmt_list_ne always-wrap, 2 sites), PST-PL-6h (Prolog
+flatten/ifthenelse → lower, 3 helpers but unified pattern).
+
+**⛔ Do not work on `parser_*.sc` files** until all 51 violations are
+closed and the audit is fully verified.
+
+.github @ (this commit)
