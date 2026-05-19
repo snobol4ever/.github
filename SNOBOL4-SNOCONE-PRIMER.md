@@ -468,6 +468,358 @@ work. Set both at the top of every parser file.
 
 ---
 
+## Phase 2 SCRIP authoring addendum — library primitives every parser uses
+
+The sections above cover the SPITBOL/Snocone pattern-matching mental
+model. The sections below cover the **library primitives** that every
+`parser_*.sc` depends on. Read this before writing or editing a parser.
+
+### Library load order (what's already in scope)
+
+When a parser_X.sc starts executing, the runtime has already loaded:
+
+```
+global.sc      tree.sc        stack.sc       counter.sc
+semantic.sc    ShiftReduce.sc qize.sc        gen.sc
+tdump.sc       assign.sc      match.sc       parser_X.sc
+```
+
+(plus `omega.sc` only when tracing is on, plus `trace.sc` for hooks).
+
+So these names are pre-defined and ready to use:
+
+| name | source | purpose |
+|---|---|---|
+| `shift(p, t)`, `reduce(t, n)` | semantic.sc | Phase-2 primitives — wrap `Shift`/`Reduce` via `EVAL` so they're pattern-typed |
+| `nPush()`, `nPop()`, `nInc()`, `nTop()` | semantic.sc | counter-frame stack via `epsilon . *fn()` deferred-call wrappers |
+| `Shift(t, v)`, `Reduce(t, n)` | ShiftReduce.sc | the actual workers — push leaf / pop-and-wrap-n |
+| `Push(x)`, `Pop()` / `Pop(.var)`, `Top()` | stack.sc | tree stack (parser builds onto this) |
+| `InitCounter()`, `InitStack()` | counter.sc, stack.sc | call ONCE before `Compiland` runs |
+| `PushCounter()`, `PopCounter()`, `IncCounter()`, `TopCounter()`, `DecCounter()` | counter.sc | the workers behind `nPush`/`nPop`/etc. |
+| `tree(t, v)`, `tree(t, v, n, c)`, `Tree(t, v, n, c1, c2, ...)` | tree.sc | tree-node constructors (lowercase = 2-arg or 4-arg; capitalized = variadic up to 8 kids) |
+| `t(x)`, `v(x)`, `n(x)`, `c(x)` | tree.sc | field accessors via `struct tree { t, v, n, c }` |
+| `Append(x, y)`, `Prepend(x, y)`, `Insert(x, y, pos)`, `Remove(x, pos)` | tree.sc | child-mutation helpers (NOT permitted in Phase 2 grammar rules) |
+| `Equal(x, y)`, `Equiv(x, y)`, `Find(xn, y, f)`, `Visit(x, fnc)` | tree.sc | tree comparison / walk |
+| `assign(name, expr)` | assign.sc | `$name = expr` (or `$name = EVAL(expr)` if `expr` is an EXPRESSION-type) |
+| `match(subj, pat)`, `notmatch(subj, pat)` | match.sc | success-or-failure wrappers around `subj ? pat` |
+| `Qize(s)`, `SQize(s)`, `DQize(s)` | qize.sc | quote-escape a string for embedding in EVAL strings |
+| `TDump(x)` | tdump.sc | recursive tree dumper to OUTPUT (driver tail uses it) |
+| `epsilon`, `nl`, `tab`, `bs`, `cr`, `ff`, `bSlash` | global.sc | predefined character constants |
+| `digits`, `hex_digits`, `bin_digits`, `oct_digits` | global.sc | predefined cset strings |
+| `TRUE`, `FALSE` | global.sc | `1` and `0` |
+| `&FULLSCAN`, `&MAXLNGTH`, `&ALPHABET`, `&UCASE`, `&LCASE` | global.sc | SPITBOL keywords pre-configured |
+
+**Forbidden for Phase 2 grammar rules** (these EXIST in the library
+but must not be called from `Compiland` or any reduced grammar rule):
+`Push`, `Pop`, `Top`, `Tree`, `tree`, `Append`, `Prepend`, `Insert`,
+`Remove`, `IncCounter`, `TopCounter`, `shift_val`, `foldop`,
+`reduce_call`, `reduce_prim`, `reduce_opsyn`. Permitted only in the
+driver tail's root-retrieval `Pop()` and the library-internal code.
+
+### Function-return mechanics — four shapes, not three
+
+| shape | use when | example |
+|---|---|---|
+| `Fnc = value; return;` | normal success returning a value | `qtag = "''"; return;` |
+| `Fnc = .dummy; nreturn;` | success returning a NAME (so the call can appear after `*` in a pattern) | `assign = .dummy; nreturn;` |
+| `Fnc = value; nreturn;` | success returning a name AND setting `Fnc`'s slot to a specific value (rare; used by `Pop` and `TopCounter`) | `Pop = value($'@S'); ... nreturn;` |
+| `freturn;` | failure (caller's pattern fails or `if (~fn(...))` succeeds) | `if (~DIFFER($'@S')) { freturn; }` |
+
+Critical rules:
+
+- **`nreturn` requires `Fnc = something` first.** The "name" returned is
+  the function-name variable. If you forget to assign before `nreturn`,
+  the previous value of that name lingers.
+- **`freturn` overrides any pending value.** Whether or not you assigned
+  to `Fnc`, `freturn` causes the caller's match to fail at the call site.
+- **Functions used after `*` in a pattern MUST return a name** (i.e.
+  end in `nreturn`, or `return` after `Fnc = .dummy`). The deferred-eval
+  operator `*fn()` expects a NAME-typed result it can re-enter pattern
+  space with. A pure-value `return` from a `*fn()` site is wrong.
+- **Functions used as predicates (in `if`, `while`)** can use either
+  return form. `freturn` is the failure signal that `~fn(...)` inverts.
+
+Reading exercise: `Shift` in `ShiftReduce.sc` ends with both
+`if (Shift = IDENT(v) .v(s)) { nreturn; }` and `Shift = DIFFER(v) .dummy; nreturn;` —
+two paths, both `nreturn`-ing a name (one captures into `s`'s value, the
+other returns `.dummy`).
+
+### Unary `.` (name operator) vs binary `.` (conditional assignment)
+
+These look identical but operate at completely different times.
+
+- **Binary `.` (pattern operator):** `PAT . VAR` — captures matched
+  text into VAR if the whole match succeeds. Post-match, value-typed.
+- **Unary `.` (value operator):** `.var` — returns the NAME of `var`.
+  Evaluated immediately, returns a NAME data type. Used as:
+  - argument to indirection: `$(.foo)` ≡ `foo` ≡ `$'foo'`
+  - target of `nreturn`: `Fnc = .dummy; nreturn;`
+  - first arg to `assign`: `assign(.captured_name, token)` — the `.`
+    makes `captured_name` a NAME so `assign` can do `$name = expr`
+    indirection on it.
+
+Mental shortcut: **left of a pattern `.` is a pattern; left of unary
+`.` is nothing (it's prefix); right of unary `.` is a variable name**.
+Manual ref: SPITBOL ch.7 p.86; ch.15 p.181.
+
+### `$varname` — indirect assignment / read
+
+`$expr` evaluates `expr` to a string, then accesses the variable whose
+name is that string. Used pervasively:
+
+- **Library-internal:** `$'@S'` (stack head), `$'#N'` (counter top),
+  `$'@B'` / `$'@E'` (begin/end-tag stacks) — variable names that
+  contain non-identifier characters (literal `@`, `#`) must be reached
+  via `$'…'` because regular Snocone idents can't have those characters.
+- **Parser-internal:** `$varname = TopCounter();` (parser_snocone.sc) —
+  write into the variable whose **name is the string held in `varname`**.
+- **Read form:** `n = $nthen_v;` — read the variable named by `nthen_v`.
+
+Two ways to write `$x`:
+- `$x` — when `x` is a variable already holding the target name.
+- `$'literal_name'` — when the target name is a fixed string.
+
+Both produce the same indirect access. Both are the same `$` unary
+operator; the second form's `'literal_name'` is just a string literal
+fed to `$`.
+
+### `assign` — the indirect-write helper, and why `.captured_X` precedes it
+
+```snocone
+assign = function assign(name, expression) { ...; $name = expression; nreturn; }
+```
+
+A call like `*assign(.captured_name, token)` fires this at match time
+and writes the current value of `token` into `captured_name`. The
+`.captured_name` is **the unary-`.` form** that turns the identifier
+`captured_name` into a NAME data type so `$name = expression` works as
+indirect assignment.
+
+**Why use `assign` instead of writing `$varname = expr;` directly?**
+Because `*func()` is the only way to fire arbitrary code mid-match. You
+can't put `$varname = expr;` directly inside a pattern — patterns are
+expressions, not statements. So you wrap the assignment in a function
+and fire it via `*`. The `assign` library function is the canonical
+generic form.
+
+### `OPSYN` — `~` is `shift`, `&` is `reduce`
+
+`semantic.sc` opens with:
+
+```snocone
+OPSYN('~', 'shift', 2);
+OPSYN('&', 'reduce', 2);
+```
+
+This means inside every parser, the **infix forms `~` and `&` are
+direct calls to `shift` and `reduce`**:
+
+```snocone
+*Integer ~ 'TT_ILIT'          // ≡ shift(*Integer, 'TT_ILIT')
+('TT_ADD' & 2)                // ≡ reduce('TT_ADD', 2)
+```
+
+The longhand `shift(...)` / `reduce(...)` function-call form and the
+infix `~` / `&` form are interchangeable. Phase 2 goals accept either.
+Most existing parser_*.sc files use the function-call form for clarity.
+
+### `EVAL(...)` — building patterns at run-time from captured arguments
+
+When a build-time helper needs to embed the **current value** of a
+variable into the pattern it's returning, `EVAL` is required. Example
+(parser_snocone.sc):
+
+```snocone
+function Save_nbody(var) {
+    Save_nbody = EVAL("epsilon . thx . *save_nbody('" var "')");
+    return;
+}
+```
+
+Why EVAL? At the moment `Save_nbody('if_nthen')` is **called**, `var`
+holds `'if_nthen'`. We want the resulting pattern to embed that exact
+string, not a reference to `var`. EVAL takes the assembled string and
+compiles it to a pattern, baking in the current value.
+
+Without EVAL, the returned pattern would call `save_nbody(var)` at match
+time, but by then `var` may be reused with a different value.
+
+Phase 2 goals require this idiom less often than Phase 1 helpers did —
+because grammar rules now embed values via `assign(.tmp, val) shift(tmp, kind)`
+instead of `shift_val(val, kind)`. But the parsers still use EVAL inside
+their token-aliasing layer at the top of the file. Leave that alone.
+
+### `epsilon . *fn()` — the canonical fire-side-effect pattern
+
+```snocone
+Some_helper = epsilon . *some_helper();
+```
+
+Reads as: match the empty string (always succeeds, doesn't move
+cursor), then conditionally assign the matched empty text into the
+name returned by `some_helper()` (which is `.dummy`, a throwaway).
+
+The **side effect is the body of `some_helper`** firing at match time.
+The `.` here is binary conditional-assignment — it fires after the
+whole enclosing match succeeds. The empty-string capture is discarded.
+
+This is **how every library helper that needs to fire mid-pattern wraps
+its match-time worker**. The pattern produced by `nPush()`,
+`nInc()`, `nPop()` etc. is exactly this shape.
+
+For mid-match firing (not waiting until enclosing-match success), the
+form is `epsilon $ *fn()` — same idea but using immediate `$`.
+
+### Multi-assign-in-condition idiom (SPITBOL extension)
+
+Every loop and conditional in the library uses this shape:
+
+```snocone
+while (i = GT(i, 1) i - 1) { ... }          // counter.sc
+while (v = DIFFER(b) value(b)) { ... }      // begin-tag dump
+if (~(t = EVAL(t))) { nreturn; }            // ShiftReduce.sc
+```
+
+How it parses: `=` is low-precedence, right-associative. The RHS is
+evaluated as a **value-and-predicate** chain. Reading
+`i = GT(i, 1) i - 1`:
+
+1. Evaluate `GT(i, 1)` — predicate. If false → whole expression fails,
+   `i` is **not** assigned, `while` sees failure, loop exits.
+2. If true, `GT(i, 1)` returns `i` (its first arg).
+3. Concatenate with `i - 1` — string concat producing the new value.
+   Wait, no: SNOBOL4's `GT` returns its second arg on success. Read
+   the manual: `GT(a, b)` succeeds and returns `a` if `a > b`. So
+   `GT(i, 1) i - 1` is "GT-test, then if succeeded value is `i - 1`".
+4. Assign the result to `i`. Now `i` holds `i_old - 1`.
+5. The `while`'s condition is the value of the whole `=` — non-null,
+   so loop continues.
+
+The pattern: **predicate at the start of the value gates the assign**.
+If the predicate fails, no side effect; loop exits cleanly. Manual ch.9
+"Binary Operator Extensions" p.128.
+
+This appears everywhere in library code. When reading library code,
+parse `=` first, then read the RHS as "predicate-gate then value".
+
+### Alternative-evaluation `(e1, e2, e3)`
+
+A parenthesized comma-list is **NOT** a tuple. It's a fall-through
+evaluator: try `e1`; if it succeeds, that's the result; otherwise try
+`e2`; etc. If all fail, the whole list fails.
+
+Used pervasively:
+
+```snocone
+OUTPUT = GT(xTrace, 4) (DIFFER($'@B') value($'@B'), 'FAIL') ...
+// → if @B non-null, output its value; else output 'FAIL'
+
+Tree = tree(t, v, (GT(nc, 0) nc, NULL), (GT(nc, 0) ARRAY('1:' nc), NULL));
+// → if nc > 0, use nc and ARRAY(...); else use NULL for both fields
+```
+
+Manual ch.9 p.128, ch.15 p.183. The SNOBOL4 equivalent of expression-
+level `||`-with-fallback.
+
+### `struct foo { f1, f2 }` Snocone sugar
+
+Snocone adds a struct keyword on top of SNOBOL4's `DATA` function:
+
+```snocone
+struct tree { t, v, n, c }
+```
+
+Is exactly:
+
+```snocone
+DATA('tree(t,v,n,c)')
+```
+
+Creates:
+- Constructor function `tree(v1, v2, v3, v4)` returning a new instance.
+- Field accessors `t(obj)`, `v(obj)`, `n(obj)`, `c(obj)`.
+- Field setters via accessor-on-left: `n(obj) = newval;`.
+
+All four core types — `tree`, `link` (stack), `link_counter`,
+`link_tag` — are declared this way in their library files.
+
+### `Pop()` vs `Pop(.var)` — dual signature
+
+`stack.sc` defines `function Pop(var)` with two operating modes:
+
+- **`Pop()`** — no arg; returns the popped value via `Pop = value(...)
+  ; return;`. Use in expression position: `x = Pop();`.
+- **`Pop(.var)`** — one NAME arg; returns `.dummy` and writes the value
+  into `$var` indirectly; ends with `nreturn`. Use in pattern position:
+  `*Pop(.dummy)` or via `pop = epsilon . *Pop(.dummy);` to discard.
+
+Phase 2 grammar rules don't call `Pop` directly (that's forbidden); the
+dual signature matters only for **reading library code**, and for the
+driver tail's root-retrieval after `Compiland`.
+
+### `$' '`, `$'  '`, `$'token'` — variable names that are punctuation
+
+A literal string after `$` becomes the name of a variable. So:
+
+```snocone
+$'  '   = White;     // variable whose name is two spaces holds the White pattern
+$' '    = Gray;      // variable whose name is one space holds the Gray pattern
+$'+'    = $'  ' '+' $'  ';  // variable named '+' holds the token-with-ws pattern
+$'if'   = $' ' Id $ tx *IDENT(tx, 'if') $' ';  // keyword token
+```
+
+In grammar rules, `$'+'` reads as "the value of the variable whose name
+is `+`" — which is the pattern. So `$'+' *Expr` reads as "match the +
+token (with whitespace envelope) then match `*Expr`". The `$` here is
+unary indirection — exactly the same operator as in `$varname`, just
+applied to a string literal.
+
+### `upr` / `lwr` — runtime-builtin, NOT library
+
+These appear in `omega.sc` (`LEQ(upr(tx), 'NAME')`) but are NOT
+defined in any `.sc` file. They're SPITBOL/Snocone runtime built-ins
+returning uppercase / lowercase versions of a string.
+
+Most parsers define their own equivalent inline. parser_snobol4.sc:
+
+```snocone
+function sn_upr(s) { sn_upr = REPLACE(s, &LCASE, &UCASE); return; }
+```
+
+Use a local pure-string preprocessor like `sn_upr` rather than
+assuming `upr`/`lwr` exist — they may behave differently between SCRIP
+and SPITBOL, and the local form is portable.
+
+### Cheat for Phase 2 grammar-rule writing
+
+Inside any grammar rule, the only permitted primitives are:
+
+```
+shift(p, kind)              // match pat p, push leaf of kind
+shift(p, '')                // match-and-discard
+reduce(kind, n)             // pop n items, wrap, push
+reduce(kind, 'nTop()')      // variable arity from counter
+nPush() / nPop()            // counter frame
+nInc()                      // bump counter (one per L→R sibling)
+nTop()                      // read counter
+assign(.var, val)           // set parser-scratch var; usually as *assign(.x, v)
+```
+
+Pure string preprocessors (functions with **no** tree-state ops) also
+permitted: `dq_unescape`, `unescape_q`, `sn_match`, `sn_upr`, `notmatch`,
+`match`, `Qize`, `SQize`, `DQize`.
+
+Forbidden everywhere except library-internal and driver tail:
+`Push`, `Pop` (in rules), `Tree`, `tree`, `Append`, `Prepend`, `Insert`,
+`Remove`, `IncCounter`, `TopCounter`, `shift_val`, `foldop`,
+`reduce_call`, `reduce_prim`, `reduce_opsyn`, every `function X()
+{ Push/Pop/Tree/Append/... }`.
+
+The driver tail (after `if (Src ? Compiland) {`) is permitted to
+call `Pop()` once to retrieve the root tree for `TDump`.
+
+---
+
 ## Snocone-specific gotchas (vs SNOBOL4)
 
 These bite repeatedly. See `ARCH-SNOCONE.md` for the canonical spec.
