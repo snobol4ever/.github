@@ -47,9 +47,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-BB-UNIFY-2 partial ✅ (compile-time path, one4all `50217d15`, 2026-05-19, Opus 4.7):** emit_walk_phase2 rewritten to build IR_t* directly into a caller-supplied IR_block_t arena (no more compile-time pat_* PATND_t constructors). `emit_flat_eligible`/`emit_flat_invariant` converted to `(const IR_t *)`. `pattern_window_t` holds `IR_t *root + IR_block_t *cfg`. `emit_pattern_blobs` passes IR_t* through directly — fixes the type-punned UB introduced by 1fc21e2d (PATND_t* cast through DESCR_t.p into an IR_t*-shaped reader). Obsolete tests sm_phase2_sim_test.c and bb_flat_text_test.c retired (XKIND_t-based assertions invalid post-conversion); Makefile targets removed. Mode-4 (`--compile`) pattern emission now produces correct `pat_N_α/β/γ/ω` blobs with the right BOX banner and literal references. Net −140 LOC. Gates green at floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36/35.
 
-**NEXT (EC-BB-UNIFY-3, runtime path):** Convert `stmt_exec.c` to stop building PATND_t trees at runtime — pull `IR_t*` from `dcg_table` instead. This touches `bb_build_brokered((PATND_t*))` call sites and the `cache_slot_t::key` (PATND_t*). Out of scope for the compile-time rung above because it changes the @PLT-live `rt_pat_*` API surface used by emitted asm. Once that lands, `snobol4_pattern.c` and `snobol4_patnd.h` become deletable.
+**EC-3-prep ✅ (one4all `d9295c19`, 2026-05-19, Opus 4.7):** Installs `emit_mode_set(EMIT_JVM/JS/NET, out)` at the top of `emit_jvm_program` / `emit_js_program` / `emit_net_program`, with save/restore around each. Pure infrastructure — silos hardcode per-target output and don't currently read `bb_emit_mode`, so the change is byte-identical (verified via md5sum across .j and .js output). Unblocks future EC-3 sub-commits that will move SM instruction families into `SM_templates/` files with internal `IS_JVM/IS_JS/IS_NET` dispatch. Gates floor across all 12 measured paths. +26 LOC.
 
-**NEXT goal options (per PLAN.md):** IR-RN-0 (bulk IR rename), EC-3 (SM instruction template migration), or EC-BB-UNIFY-3 (runtime stmt_exec.c PATND_t → IR_t).
+**NEXT (EC-3 first instruction family, push/pop literals):** With mode-set in place, the first SM_templates sub-commit can lift `SM_PUSH_LIT_I` + `SM_PUSH_LIT_S` + `SM_PUSH_LIT_F` + `SM_PUSH_NULL` + `SM_PUSH_NULL_NOFLIP` + `SM_VOID_POP` from each silo's switch into single-source-of-truth functions under `src/emitter/SM_templates/`. Each silo's case arm becomes a one-line call. The model is `BB_templates/bb_lit.c` (one file per kind, internal `IS_JVM`/`IS_JS`/`IS_NET` dispatch). Helpers to relocate alongside: `jvm_push_int2` (the corrected variant — `jvm_push_int` has an iconst_m1 bug, see emit_jvm.c:89), `js_escape_string`, `net_push_i4` (already in emit_core.c).
 
 
 ## DAI-8 methodology note
@@ -89,15 +89,15 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 50217d15     (EC-BB-UNIFY-2: compile-time PATND_t→IR_t in emit_walk_phase2 + eligibility helpers; fixes 1fc21e2d type-pun UB; -140 LOC)
+one4all: d9295c19     (EC-3-prep: emit_mode_set EMIT_JVM/JS/NET in silo entry points; pure infrastructure, byte-identical output; +26 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
 smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held)
 broker:      23/26    (held)
-snobol4_jit: 184/77 interp · 186/75 run (= baseline; watermark 196/65 was stale relative to current trunk)
-snobol4_jvm: 7/6      (held)
-snobol4_js:  4/2      (held)
+snobol4_jit: 184/77 interp · 186/75 run (held = baseline)
+snobol4_jvm: 7/6      (held — byte-identical .j output verified)
+snobol4_js:  4/2      (held — byte-identical .js output verified)
 snobol4_net: 0/9      (held — ilasm not installed)
 snobol4_wasm: SKIP    (held — wat2wasm not installed)
 snocone:     2/3      (held)
