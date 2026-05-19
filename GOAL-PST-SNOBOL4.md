@@ -2,7 +2,10 @@
 
 **Repo:** one4all + corpus + .github
 **Parent goal:** `GOAL-PARSER-PURE-SYNTAX-TREE.md` (Step 1)
-**Status:** Active — PST-SN4-W1 next (remove goto field inspection from sno4_stmt_commit_go)
+**Status:** Active — **PST-SN4-W1 ✅ landed; audit 2026-05-19 (`PST-LR-AUDIT.md`)
+revealed two additional Phase 1 warts: W2 (`goto_expr T_CONCAT goto_atom`
+mutate-in-place — line 211; canonical §⛔ violation example) and W3 (g_cur
+mid-rule tree mutation in `expr15`/`expr17` n-ary builders).**
 
 ```
 (source) ──► PARSER ──► (tree_t — pure syntax) ──► LOWER ──► IR_sm_t[]  ──┐
@@ -10,10 +13,13 @@
                                                           └──► IR_bb_t  ──┘
 ```
 
-Steps 1a–1d and PST-SN4-2 (Icon audit) are complete. One residual wart
-remains in `sno4_stmt_commit_go`: it inspects `->t == TT_QLIT` to route
-goto expressions into `STMT_t` string fields rather than holding them as
-pure `tree_t` children. This is Phase 1 C-only work.
+Steps 1a–1d and PST-SN4-2 (Icon audit) and PST-SN4-W1 are complete. **Two
+new warts surfaced by per-production audit on 2026-05-19:**
+
+- **PST-SN4-W2** — `goto_expr T_CONCAT goto_atom { expr_add_child($1,$3); $$=$1; }` at `snobol4.y:211` mutates `$1` in place; `$1` is a TT_QLIT/TT_VAR leaf, not even a TT_SEQ. This is the canonical violation example named in `GOAL-PARSER-PURE-SYNTAX-TREE.md § "⛔ Left-to-right child order"`. Fix: always wrap fresh — `tree_t*s=ast_node_new(TT_SEQ); expr_add_child(s,$1); expr_add_child(s,$3); $$=s;`. Right-leaning chain is correct.
+- **PST-SN4-W3** — `expr15`/`expr17` build `TT_IDX`/`TT_VLIST`/`TT_FNC` via mid-rule action that pushes the node on `g_cur_stack`, then `idx_args`/`vlist_args`/`fnc_args` call `expr_add_child(g_cur_top_(), …)` for each child. **Each `expr_add_child` mutates a previously-built tree node** (changes its `n` and `c[]`). Children land L→R ✅ but the mechanism violates rule 2. Fix: counter-discipline — count children during args-list parse, then a single `ast_node_new(TT_IDX|TT_VLIST|TT_FNC)` + N `ast_push` at the close-bracket reduce. C analog of the SCRIP mirror's `nPush`/`nInc`/`nPop`/`reduce` pattern.
+
+**Note:** earlier audit drafts flagged a W4 (goto_label_expr stringification of `$IDENT`) and a W5 (TT_SCAN pack-and-defuse) — both withdrawn 2026-05-19 as value-decoding-at-fresh-leaf and shift/reduce-ready respectively. Neither is a §⛔ violation.
 
 **Phase 2 (SCRIP mirror for `parser_snobol4.sc`) is a separate session.**
 Do not touch `corpus/SCRIP/parser_snobol4.sc` during Phase 1 rungs.

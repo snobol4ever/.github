@@ -97,19 +97,69 @@ Do only C work. No `corpus/SCRIP/parser_*.sc` changes. Each C rung may record a 
 Phase 1 is complete when all six C parsers satisfy:
 - Outputs only `tree_t` (no `Term*`, `RExpr*`, `RStmt*`, `RProgram*`)
 - All children in left-to-right source token order
-- No in-place child inspection or mutation in parser actions
+- No in-place mutation of previously-built tree nodes (always wrap fresh)
+- No source token lifted out of the tree (synthesized into a sibling statement, written to a STMT_t field instead of a tree child, packed-and-defused with another token across stages)
 - No synthetic labels, goto splicing, or control-flow lowering in the parser
 
-Status per language:
+### ⛔ ACTIVE HQ rung — `PST-LR-AUDIT-1` (binding gate for all six parsers)
+
+**Owner:** HQ session — this rung is the **prerequisite for every other
+Phase 1 C rung and for every Phase 2 SCRIP mirror session.** Until this
+audit is complete and verified, the per-language status entries below
+are provisional.
+
+**The audit file** `PST-LR-AUDIT.md` (in the session workspace) builds a
+per-production table for every grammar rule / parse function in all six
+parsers. Each row is `(line, production, parent kind, children L→R, OK?,
+notes)`. Each scan finishes with a per-frontend violations list grading
+against the three §⛔ rules **only**, plus proposed new rung names for
+unowned violations.
+
+**Steps:**
+
+- [x] **LR-AUDIT-1a** — Scope statement at top of `PST-LR-AUDIT.md`: enumerate the three §⛔ rules and what is explicitly **not** enforced (TT_* kind reuse, cross-frontend convention divergence, value decoding at fresh leaves). 2026-05-19.
+- [x] **LR-AUDIT-1b** — Scan 1: Snocone (`snocone_parse.y`). 12 violations after correctly-scoped re-grade. 2026-05-19.
+- [x] **LR-AUDIT-1c** — Scan 2: Icon (`icon_parse.c`). 1 violation. 2026-05-19.
+- [x] **LR-AUDIT-1d** — Scan 3: SNOBOL4 (`snobol4.y`). 3 violations including the canonical §⛔ violation (`goto_expr` in-place mutate) and pack-and-defuse of `subj ? pat`. 2026-05-19.
+- [ ] **LR-AUDIT-1e** — Scan 4: Raku (`src/frontend/raku/raku.y`).
+- [ ] **LR-AUDIT-1f** — Scan 5: Rebus (`src/frontend/rebus/*`).
+- [ ] **LR-AUDIT-1g** — Scan 6: Prolog (`src/frontend/prolog/prolog_parse.c`).
+- [ ] **LR-AUDIT-1h** — Second pass over all six scans: re-verify every `(line, production, children-L→R)` row against the source one more time. Mark any row that has shifted or is wrong.
+- [ ] **LR-AUDIT-1i** — Cross-check named rungs ↔ audit rows: every step listed in any GOAL-PST-*.md file should correspond to at least one audit row; every unowned audit violation should have a proposed new rung name (the audit's rollup section is the source).
+- [ ] **LR-AUDIT-1j** — Promote proposed new rungs into their owning goal files: PST-SC-FLATTEN, PST-SC-LABELS, PST-SC-RET-IN-FN, PST-SC-FOR-INIT, PST-SC-SUBJ-PAT into this file's step ladder; PST-SN4-W2/W3/W5 into `GOAL-PST-SNOBOL4.md` (already drafted); PST-ICN-LR-1 into `GOAL-PST-ICN-RAKU.md`; analogous for any Raku/Rebus/Prolog findings.
+
+**Done when:** all six scans complete, second-pass verified, every named rung in the audit has a step entry in some goal file, every step entry in some goal file has an audit row backing it.
+
+**Why this is an HQ rung, not a per-language rung:** the audit's value is
+cross-cutting — it catches violations that any single language's session
+would miss (the SNOBOL4 pack-and-defuse, the Snocone consumer-side
+`sc_split_subject_pattern`, the cross-frontend pattern that the same
+"pack subj+pat, split downstream" is happening in both SNOBOL4 production
+and Snocone consumption). It also catches **goal-file claims that are
+out of date** — Icon and SNOBOL4 were both marked Phase 1 ✅ before the
+audit; both are actually ⏳.
+
+Status per language (updated 2026-05-19 per `PST-LR-AUDIT.md`, scans 1–3,
+**provisional pending LR-AUDIT-1e/f/g/h**):
 
 | Language | Phase 1 complete? | Remaining C work |
 |---|---|---|
-| Icon | ✅ yes | — |
-| SNOBOL4 | ✅ yes | — |
-| Raku | ⏳ no | PRF-12: gather✅ sub, class, program, for-range → lower; PST-FIELD-1, PST-FIELD-2 |
-| Snocone | ⏳ no | PST-SC-4k→4n: goto, split, TT_PROGRAM, ScParseState shrink |
-| Rebus | ⏳ no | RB-C-1: stmt_list_ne always-wrap |
-| Prolog | ⏳ no | PST-PL-6f: delete Term* paths |
+| Icon | ⏳ no (was ✅; audit revision) | PST-ICN-LR-1 (proc-decl `_id` removal blocks PST-FIELD-2) |
+| SNOBOL4 | ⏳ no (was ✅; audit revision) | PST-SN4-W1 ✅; **PST-SN4-W2** (goto_expr in-place mutate at snobol4.y:211 — canonical §⛔ violation); **PST-SN4-W3** (g_cur mid-rule tree mutation in expr15/expr17 — six append sites) |
+| Raku | ⏳ no | PRF-12: sub, class, program, for-range → lower; PST-FIELD-1, PST-FIELD-2 (pending LR-AUDIT-1e scan 4) |
+| Snocone | ⏳ no | **PST-SC-4k** (active — `goto LABEL` to `TT_GOTO_U`); **PST-SC-FLATTEN** (`sc_flatten_arith` + `exprlist_ne` mutate-in-place: 7 sites); 4l, 4m, 4n; **PST-SC-LABELS** (parser-side label synthesis in while/do/for/switch); **PST-SC-RET-IN-FN** (return-rewrite as ASSIGN+RETURN inside func); **PST-SC-FOR-INIT** (init lifted to sibling stmt) |
+| Rebus | ⏳ no | RB-C-1: stmt_list_ne always-wrap (pending LR-AUDIT-1f scan 5) |
+| Prolog | ⏳ no | PST-PL-6f: delete Term* paths; PST-PL-6h (pending LR-AUDIT-1g scan 6) |
+
+**Audit reference:** `PST-LR-AUDIT.md` (per-production left-to-right child
+order audit for all six parsers). Scans 1–3 (Snocone, Icon, SNOBOL4)
+complete; scans 4–6 (Raku, Rebus, Prolog) pending. Each scan enumerates
+every grammar production and grades it against the three goal §⛔ rules.
+**Re-grading after scope correction 2026-05-19:** earlier audit revisions
+flagged TT_* kind reuse and parser-side semantic dispatch as violations;
+those are **not** §⛔ rules and have been withdrawn from the audit. Only
+the three stated rules are enforced now: L→R child order, no mutate-prior,
+no source token lifted out of the tree.
 
 **Cross-cutting Phase 1 rungs** (owned by `GOAL-PST-ICN-RAKU.md`):
 
@@ -626,3 +676,74 @@ Do not write any code or modify goal files until the table is complete
 and every production is verified.
 
 .github @ 61776490
+
+### Handoff note — 2026-05-19 (Opus 4.7)
+
+**Session goal:** HQ work — per-production left-to-right audit of all six
+C parsers (the work the 2026-05-18 session 3/4 handoffs said was incomplete
+and the prerequisite for every downstream Phase 1 and Phase 2 rung).
+
+**What was done:**
+
+1. **`PST-LR-AUDIT.md` created** (in session workspace; available via download
+   link in handoff for next session): per-production table for Snocone
+   (`snocone_parse.y`), Icon (`icon_parse.c`), and SNOBOL4 (`snobol4.y`).
+   Every grammar rule / parse function that produces a `tree_t` node has a
+   row with `(line, production, parent kind, children L→R, OK?, notes)`.
+
+2. **Three scope corrections** through iterative refinement with Lon:
+   - Rule 2 (no mutate-in-place) applies to **trees**, not values. Value
+     decoding at fresh leaves (e.g. `TT_QLIT("$IDENT")` composed from `$`
+     + identifier tokens) is allowed.
+   - TT_* kind reuse is permitted (parser's choice). `TT_POW` for unary `!`,
+     `TT_MUL` for `#`, `TT_DIV` for both binary `/` and unary `/x` — not
+     §⛔ violations.
+   - A parser node built from N source positions (e.g. `TT_SCAN(subj,pat)`
+     for `subj ? pat`) is fine — fresh wrap, L→R, shift/reduce-ready. The
+     downstream split into separate STMT_t fields is a consumer concern,
+     not a parser-rule violation.
+
+3. **Final violation counts (only §⛔ rules enforced):**
+   - Snocone: 11 violations (1 owned by PST-SC-4k, 10 unowned).
+   - Icon: 1 violation (PST-ICN-LR-1, blocks PST-FIELD-2).
+   - SNOBOL4: 2 violations (PST-SN4-W2 — canonical §⛔ example
+     `goto_expr T_CONCAT goto_atom`; PST-SN4-W3 — `g_cur` mid-rule mutation
+     in `expr15`/`expr17`).
+   - Scans 4–6 (Raku, Rebus, Prolog) **not done**.
+
+4. **Goal-file corrections:**
+   - Icon and SNOBOL4 moved from ✅ to ⏳ in Phase 1 status table (both
+     had been claimed complete; both have violations).
+   - `GOAL-PST-SNOBOL4.md` updated with W2 and W3.
+   - `PLAN.md` Active Goals table updated.
+   - **PST-LR-AUDIT-1 added as active HQ rung** in this file's Phase 1
+     section, with sub-steps 1a–1j tracking what's done and what's left
+     (scans 4–6, second-pass verification, rung promotion).
+
+**State at handoff:**
+- one4all: no code changes this session (HQ-only work).
+- corpus: no code changes this session.
+- `.github`: this file + `GOAL-PST-SNOBOL4.md` + `PLAN.md` modified.
+- `PST-LR-AUDIT.md` lives in session workspace; download link provided
+  to Lon. **Next session must either re-download or recreate it from
+  scans of the .y/.c files.** Scans 1–3 can be regenerated by re-reading
+  `snocone_parse.y`, `icon_parse.c`, `snobol4.y` and re-applying the
+  three §⛔ rules.
+
+**Recommended next session:**
+
+Option A — **continue PST-LR-AUDIT-1:** download or regenerate the audit;
+do scans 4 (Raku/raku.y), 5 (Rebus/*), 6 (Prolog/prolog_parse.c); then
+1h (second-pass verification of all six against source); 1i (cross-check
+named rungs ↔ audit rows); 1j (promote unowned violations into per-
+language goal files as named steps with line numbers and fix sketches).
+
+Option B — **work a flagged violation:** pick PST-SC-4k (active Snocone
+rung, narrow scope) or PST-SN4-W2 (canonical §⛔ example, small change).
+Both have line-level fix sketches in the audit / goal files.
+
+**⛔ Do not work on `parser_*.sc` files this session or any session until
+all six Phase 1 audits are complete and verified.** The session 4 handoff
+was clear that Phase 2 SCRIP mirror work is downstream of this audit.
+
+.github @ <will be set at push>
