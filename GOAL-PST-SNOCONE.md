@@ -79,7 +79,7 @@ Each rung gated `snocone_smoke 5/0`, `crosscheck_snocone 8/0`, `scrip_all_modes 
 
 - [x] **PST-SC-4k** — `goto LABEL` → `TT_GOTO_U`. `sc_append_goto_label` deleted. one4all `4017b525` 2026-05-19. ⚠ MIRROR-GAP-SC-4k.
 
-- [ ] **PST-SC-4l** — `sc_split_subject_pattern` → lower. The parser builds `TT_SCAN(subj, pat)` fresh ✅ (audit V14 withdrawn); the **downstream split** into separate STMT_t fields is parser-side consumer logic that belongs in `lower.c`. Remove `sc_split_subject_pattern` from the parser-side `sc_append_stmt`; introduce `lower_subj_pat_split` instead.
+- [x] **PST-SC-4l** — `sc_split_subject_pattern` → lower. `lower_subj_pat_split` added to `lower.c`; call removed from `sc_append_stmt`. one4all `a70cb5df` 2026-05-19. ⚠ MIRROR-GAP-SC-4l.
 
 - [ ] **PST-SC-4m** — `TT_PROGRAM` is a tree of statement-tree nodes (not flat list with synthetic gotos/labels). Delete `sc_append_stmt`, `sc_splice_after`, `sc_make_label_stmt`, `sc_make_goto_uncond_stmt`. After 4k–4l, the only `sc_append_*` left should be a thin push onto a tree-shaped accumulator that produces a final `TT_PROGRAM`.
 
@@ -125,15 +125,14 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (Claude Sonnet 4.6) — PST-SC-4k landed. one4all 4017b525.
-              2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
-              2026-05-19 (file split from parent) — Step 4 content owned here now.
-status:       ⏳ Phase 1 NOT clean — 10 §⛔ violations remaining (was 11).
-              PST-SC-4k ✅. Active: PST-SC-4l (sc_split_subject_pattern → lower).
-next:         PST-SC-4l — sc_split_subject_pattern: parser calls it from sc_append_stmt;
-              move to lower_snocone_stmt / lower.c lower_subj_pat_split.
-mirror gaps:  ⚠ MIRROR-GAP-SC-4k. Phase 2 SCRIP mirror BLOCKED.
-heads:        .github @ (post-commit) · one4all @ 4017b525 · corpus (no changes)
+watermark:    2026-05-19 (Claude Sonnet 4.6) — PST-SC-4k+4l landed. one4all a70cb5df.
+status:       ⏳ Phase 1 NOT clean — 9 §⛔ violations remaining (was 11).
+              PST-SC-4k ✅ PST-SC-4l ✅. Active: PST-SC-4m (delete sc_append_stmt etc).
+next:         PST-SC-4m — delete sc_append_stmt, sc_splice_after, sc_make_label_stmt,
+              sc_make_goto_uncond_stmt. After 4k+4l, only sc_make_cond_fail/succ_stmt
+              still call sc_split_subject_pattern; those are PST-SC-4m scope.
+mirror gaps:  ⚠ MIRROR-GAP-SC-4k ⚠ MIRROR-GAP-SC-4l. Phase 2 BLOCKED.
+heads:        .github @ (post-commit) · one4all @ a70cb5df · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
