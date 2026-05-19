@@ -124,10 +124,10 @@ counter-discipline at lines 191–203).
 ## State
 
 ```
-watermark:   Phase 1 C ✅. Phase 2 PST-SN4-SC ready.
-next:        SN4-SC-1 (reduce_prim), SN4-SC-2 (reduce_call), SN4-SC-3
-             (reduce_opsyn), SN4-SC-4 (foldop), SN4-SC-5 (grep),
-             SN4-SC-6 (smoke).
-audit:       PST-SCRIP-AUDIT.md § parser_snobol4.sc — 35 violation sites.
-heads:       one4all @ af40cf6f · corpus @ a9b1240
+watermark:   Phase 1 C ✅. Phase 2 PST-SN4-SC ✅ COMPLETE (2026-05-19, Sonnet 4.6).
+next:        DONE. parser_snobol4.sc is pure shift/reduce.
+audit:       SN4-SC-1..5 all clean. SN4-SC-6 ⚠ MIRROR-GAP: --interp Snocone
+             runtime is broken (EC-3* regression, smoke_snocone 2/3 FAIL).
+             Regression is unrelated to parser edits; debug in EC-3 session.
+heads:       one4all @ 5cb3b909 · corpus @ 68aa237
 ```

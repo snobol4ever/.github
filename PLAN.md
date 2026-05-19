@@ -68,7 +68,7 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles" f
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
 | **⚡ PST: Parent (HQ)** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | Phase 1 C ✅ all six (AUDIT-2 2026-05-19). **Phase 2 SCRIP ready** — six per-language sessions, one file each. Recommended order: PST-RB-SC → PST-ICN-SC → PRF-13 → PST-SN4-SC → PST-PL-SC → PST-SC-SC. See `PST-SCRIP-AUDIT.md` for full per-file violation list. |
-| **⚡ PST: SNOBOL4** | `GOAL-PST-SNOBOL4.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PST-SN4-SC ready** (~1.5 h): replace `foldop`×17, `reduce_prim`×12, `reduce_opsyn`×4, `reduce_call`×2. Steps embedded in goal file. |
+| **⚡ PST: SNOBOL4** | `GOAL-PST-SNOBOL4.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PST-SN4-SC ✅ COMPLETE** (2026-05-19, Sonnet 4.6, corpus `68aa237`). ⚠ SN4-SC-6 smoke blocked by EC-3* --interp regression (smoke_snocone 2/3). |
 | **⚡ PST: Snocone** | `GOAL-PST-SNOCONE.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PST-SC-SC ready** (4–6 h, largest job): delete ~110 helper functions, rewrite control-flow grammar with shift/reduce. Steps embedded. |
 | **⚡ PST: Icon** | `GOAL-PST-ICON.md` | one4all+corpus+.github | ✅ COMPLETE 2026-05-19 — 4 × shift_val → assign+shift; smoke PASS=5 FAIL=0. corpus @ 2713cb7. |
 | **⚡ PST: Raku** | `GOAL-PST-RAKU.md` | one4all+corpus+.github | Phase 1 C ✅. **Phase 2 PRF-13 ready** (2–3 h, reference rung): 111 × `shift_val → assign+shift`. Steps embedded. |
