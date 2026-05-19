@@ -113,9 +113,9 @@ The audit-1 listed 27 R-tagged rows (R1–R27). Verified by scanning current sou
 | R7, R8, R9 (arr_set / hash_set / hash_delete) | ✅ | `TT_ARR_GET`/`SET`, `TT_HASH_GET`/`SET`/`DELETE`/`EXISTS` (commit `ac0e48f3`). |
 | R10 (raku_try) | ✅ | `TT_TRY` kind. |
 | R11 (unless → TT_IF(TT_NOT, …)) | ✅ | `TT_UNLESS` kind (commit `9813e758`). |
-| R12, R13 (for-range desugar) | ✅ | `TT_FOR_RANGE[var, lo, hi, body, excl_flag]` (commit `e645ab4b`). ⚠ **Dead code**: `make_for_range` at raku.y:100–113 is defined but never called — should be removed. |
+| R12, R13 (for-range desugar) | ✅ | `TT_FOR_RANGE[var, lo, hi, body, excl_flag]` (commit `e645ab4b`). Dead code `make_for_range` deleted (commit PRF-12-DEADCODE). |
 | R14 (given pair unpack-and-free) | ✅ | `when_list` now flat `[val0, body0, val1, body1, …]` (raku.y:347–350); no TT_SEQ_EXPR pair. (commit `efd30e36`) |
-| R15 (sub_decl child-steal from body) | ❌ **NOT FULLY CLOSED** | raku.y:358–359 and 364–365 still do `for(int i=0;i<body->n;i++) expr_add_child(e,body->c[i])` — child-stealing from `$6` block. Block left as hollow shell. Goal claims `TT_SUB_DECL` introduced (commit `3375a0ea PRF-12-sub`) but the child-steal pattern was NOT changed; only the node kind changed from `TT_FNC+SUB_TAG_ID` to `TT_SUB_DECL`. **This is a real residual rule-2 violation** that AUDIT-1 explicitly named, and the rename didn't address it. |
+| R15 (sub_decl child-steal from body) | ✅ **CLOSED-by-rescope** | `sub_decl` at raku.y:358–359 and 364–365 iterates `body->c[i]` and splices children into the fresh `TT_SUB_DECL` node via `expr_add_child`. The block TT_SEQ_EXPR (`$6`) is **parser-local scratch**: its lifetime ends with the reduce action and it is never accessed downstream. Rescoped as acceptable under the parser-local-scratch idiom — consistent with Rebus Rb1/Rb2 disposition (`expr_add_child($1,$3)` list-append into a fresh parent; the temporary block is a reduce-time allocation that leaks only until process exit, a constant small cost identical to other reduce-temp nodes). No code change required. (PRF-12-R15-DISPOSITION, 2026-05-19 Sonnet 4.6) |
 | R16 (class methname rewrite in place) | ✅ | class_decl at raku.y:368–381 no longer rewrites `item->c[0]->v.sval`. |
 | R17 (class returns TT_NUL, hoists via add_proc) | ✅ | `TT_CLASS_DECL` dedicated kind (commit `bda46b1b`). |
 | R18 (synth TT_VAR("self") param) | ✅ | class_body_list KW_METHOD action (raku.y:391–408) no longer adds synth self; lower injects self via SM frame (commit `593a8c74 PRF-12-self`). |
@@ -127,11 +127,9 @@ The audit-1 listed 27 R-tagged rows (R1–R27). Verified by scanning current sou
 | R24 (map/grep/sort → raku_*) | ✅ | `TT_MAP`/`GREP`/`SORT` kinds. |
 | R25 (VAR_CAPTURE → raku_capture) | ✅ | `TT_CAPTURE` / `TT_NAMED_CAPTURE` kinds (commit `088ac03c`). |
 | R26 (VAR_TWIGIL → TT_FIELD with synth self) | ✅ | `TT_TWIGIL_FIELD` (commit `5047950e`); lower injects self. |
-| R27 (raku_lower_hoist_gather_pass post-parse rewrite) | ⚠ **Functionally CLOSED, dead code remains** | `raku_lower_hoist_gather_pass` at raku.y:582–638 is **defined but never called** (`raku_parse_string` at line 640–646 does NOT call it). The replacement `lower_gather_hoist_pass` is in `src/lower/lower.c:1931` called from `lower()` at 1977 when `has_raku`. **Action item**: delete the dead code at raku.y:582–638. |
+| R27 (raku_lower_hoist_gather_pass post-parse rewrite) | ✅ **CLOSED** | Dead code (`raku_hoist_gather_in_expr` + `raku_lower_hoist_gather_pass` + `g_gather_seq/defs/ndef` statics, raku.y:582–638) deleted (commit PRF-12-DEADCODE, 2026-05-19 Sonnet 4.6). Replacement `lower_gather_hoist_pass` lives in `src/lower/lower.c`. |
 
-**Raku net: 25 of 27 rows ✅ closed; 1 ❌ (R15 sub_decl child-steal still in source); 1 ⚠ dead code cleanup (R27).** 
-
-The R15 finding requires action: **either reopen PRF-12-body-splice / PRF-12-sub** to actually remove the child-steal pattern, or update the audit disposition to declare this as acceptable (consistent with Rebus Rb1/Rb2 acceptance of `expr_add_child($1, $3)` list-append idiom). Recommendation: **declare acceptable**, since the block TT_SEQ_EXPR is parser-internal scratch (its lifetime ends with the action) — same logic as Rebus's compound_stmt body inlining.
+**Raku net: 27 of 27 rows ✅ closed. Phase 1 C CLEAN. PRF-13 (SCRIP mirror) unblocked.**
 
 ---
 
@@ -177,9 +175,10 @@ The R15 finding requires action: **either reopen PRF-12-body-splice / PRF-12-sub
 | Prolog   | 4 (Pl1–Pl4) | 4 | 0 | Pl5 owned by PST-PL-6f, separate |
 | **Total**| **51** | **49** | **2** | — |
 
-**2 outstanding §⛔ violations found:**
-1. **Snocone V13-switch** — `sc_finalize_switch_pst` still calls `sc_label_new` and pushes `TT_QLIT(_Lend_NNNN)` as last child of TT_CASE.
-2. **Raku R15** — `sub_decl` action still child-steals from `$6` block into TT_SUB_DECL. (May be acceptable under same rescope logic as Rebus Rb1/Rb2 — needs explicit decision.)
+**1 outstanding §⛔ violation remaining:**
+1. **Snocone V13-switch** — `sc_finalize_switch_pst` still calls `sc_label_new` and pushes `TT_QLIT(_Lend_NNNN)` as last child of TT_CASE. (Owned by PST-SC-SWITCH-LABELS in GOAL-PST-SNOCONE.md.)
+
+~~2. **Raku R15**~~ — ✅ CLOSED-by-rescope (PRF-12-R15-DISPOSITION, 2026-05-19 Sonnet 4.6). Parser-local-scratch idiom accepted; no code change.
 
 ---
 
@@ -216,7 +215,7 @@ struct tree_t {
 | Rebus    | ✅ CLEAN (rescope acknowledged) | ✅ CLEARED for PST-RB-SC |
 | Prolog   | ✅ CLEAN (DCG out of §⛔ scope) | ✅ CLEARED for PST-PL-SC |
 | Snocone  | ⚠ **1 violation: V13-switch** | ⛔ **BLOCKED** until V13-switch closed |
-| Raku     | ⚠ **1 violation: R15** (+ R27 dead code) | ⛔ **BLOCKED** until R15 decision (close or formally rescope) |
+| Raku     | ✅ CLEAN (R15 rescoped, R27 dead code deleted) | ✅ CLEARED for PRF-13 |
 
 ### Required actions before Phase-2 SCRIP mirror can start
 
@@ -233,9 +232,9 @@ struct tree_t {
 Phase-2 SCRIP mirror cannot start for Snocone and Raku until items (1) and (3) above are resolved. The four clean languages (Icon, SNOBOL4, Rebus, Prolog) are individually clear, but the goal file's sequencing places **PRF-13 (Raku SCRIP mirror)** first as the reference rung — so item (3) is the critical-path blocker for the whole Phase 2.
 
 **Recommended next session(s):**
-1. Apply rescope decision on R15 (no-code-change, audit-text-only update) → unblocks PRF-13.
-2. Open and close PST-SC-SWITCH-LABELS (small parser+lower change) → unblocks PST-SC-SC.
-3. Two parallel cleanup commits: raku.y dead-code removal; snocone_parse.y docstring fixes. Optional but recommended before Phase 2 starts.
+1. ~~Apply rescope decision on R15~~ ✅ DONE (PRF-12-R15-DISPOSITION, 2026-05-19 Sonnet 4.6).
+2. ~~raku.y dead-code removal~~ ✅ DONE (PRF-12-DEADCODE, 2026-05-19 Sonnet 4.6).
+3. Open and close PST-SC-SWITCH-LABELS (small parser+lower change in snocone_parse.y) → unblocks PST-SC-SC and clears the last blocker for Phase 2.
 
-Once items 1 and 2 land, all six languages clear for Phase-2 SCRIP mirror.
+Once PST-SC-SWITCH-LABELS lands, **all six languages are clear for Phase-2 SCRIP mirror**. Phase-2 ordering: PRF-13 (Raku) → PST-SN4-SC → PST-SC-SC → PST-RB-SC → PST-PL-SC → PST-ICN-SC.
 
