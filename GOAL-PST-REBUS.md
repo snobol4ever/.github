@@ -22,6 +22,12 @@
 4. **Pure-syntax allowed**: `ast_node_new(TT_*)`, `expr_new`, `expr_unary`, `expr_binary`, `ast_push`, `expr_add_child`. Setting `v.sval/v.ival/v.dval` from token.
    **Forbidden**: building `RExpr*`/`RStmt*`/`RProgram*`; scope lookup during parse; child reordering for positional semantics.
 
+**⛔ Three Phase-1 facets** (per `GOAL-PARSER-PURE-SYNTAX-TREE.md § "The three Phase-1 facets"`):
+
+- **F1 — `tree_t` is the sole information channel.** Rebus has the heaviest historical F1 burden of the six frontends: it built `RProgram` / `RDecl` / `RCase` / `RExpr` / `RStmt` C-structs as parser output, never touching `tree_t` in early designs. The PST-RB-5 / PST-RB-DECL-1..5 ladder has eliminated most of this; what remains is **all information must pass inside the tree — no side hustles** (binding 2026-05-19, see § PST-RB-DECL section below). RDecl/RCase still carry name/params[]/locals[]/initial/body as separate C struct fields; those must move onto `tree_t` children. The four audit-promoted rungs RB-C-2 (unless), RB-C-3 (case-IF wrapping), RB-C-4 (augop desugar), RB-C-5 (postfix-call inspect-and-mutate) are also F1 fixes — each replaces parser-side desugaring or kind-inspection with a pure tree shape.
+- **F2 — `tree_t` has exactly four fields `t`, `v`, `n`, `c`.** Cross-cutting `PST-FIELD-1`/`PST-FIELD-2`. Rebus is not a primary `_id` consumer (no Rebus production sets `node->_id`), so PST-FIELD-2 is not gated on Rebus.
+- **F3 — Children L→R in source-token order.** RB-C-1 ✅ (stmt_list_ne always-wrap). RB-C-5 (postfix-call inspect-`$1->t`-and-mutate-or-wrap) is F3-rule-2 violation — same fix pattern.
+
 ---
 
 ## Session Setup

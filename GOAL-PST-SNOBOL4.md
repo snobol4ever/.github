@@ -38,8 +38,11 @@ rules.
 Cloning subtrees. Building non-`tree_t` IR. Routing values into `STMT_t`
 string fields (`goto_u`, `goto_s`, `goto_f`) based on child kind.
 
-**⛔ Left-to-right child order:** All children in source token order.
-No reordering. (Already achieved in 1a–1d.)
+**⛔ Three Phase-1 facets** (per `GOAL-PARSER-PURE-SYNTAX-TREE.md § "The three Phase-1 facets"`):
+
+- **F1 — `tree_t` is the sole information channel.** All parser-output facts live on the tree (kind, value, child position). No STMT_t goto-string fields, no `prog->exports`/`prog->imports`, no globals (`g_cur_stack` mutates prior nodes — see PST-SN4-W3). SNOBOL4-specific: the `STMT_t` chain itself is a parser-side IR layer that ultimately becomes TT_STMT via `stmt_to_ast`; long-term elimination of STMT_t in favor of direct `TT_STMT` construction is a separate Stage 2 concern, but **no new information channel may be introduced** in any Phase-1 rung.
+- **F2 — `tree_t` has exactly four fields `t`, `v`, `n`, `c`.** Cross-cutting `PST-FIELD-1` (remove `_nalloc`) and `PST-FIELD-2` (remove `_id`) own this — SNOBOL4 has no SNOBOL4-specific use of `_id` so it is not a primary `_id` consumer; verify after Icon and Raku close their `_id` uses.
+- **F3 — Children L→R in source-token order.** Already achieved in 1a–1d for the cleaned productions; W2 (`goto_expr T_CONCAT goto_atom`) and W3 (`expr15`/`expr17` g_cur pattern) are the two remaining rule-2 mutations.
 
 ---
 

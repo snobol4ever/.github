@@ -36,6 +36,21 @@ Result: `lower` is asymmetric — for SNOBOL4 it does real lowering; for Snocone
 
 Simplest rule: **if the action body reads or writes anything other than its own RHS values, it's doing something other than building the syntax tree.**
 
+### ⛔ The three Phase-1 facets (binding for every PST-* rung)
+
+Every Phase-1 C rung in every per-language goal file is judged against these three facets. They are the complete acceptance criterion for the C parser side of this goal.
+
+**F1 — `tree_t` is the sole information channel between parse and lower.**
+The parser's *only* output is a `tree_t` graph rooted at one node per source file. **Every fact derived from the source must live on that tree**, either as a node kind (`t`), as a value at a fresh leaf (`v.sval` / `v.ival` / `v.dval`), or as a child position in `c[]`. **No information may be passed forward to Stage 2 `lower` by any other channel** — no parser-side global stacks (`g_cur_stack`, `sc_break_stk`, `sc_continue_stk`, `g_loop_stack`), no STMT_t string fields holding gotos or labels, no off-tree linked lists (`RDecl`, `RProgram`, `RCase`, `Term*`), no slot-allocation side tables, no `_id`-coded semantic flags, no `prog->exports` / `prog->imports` arrays that nobody reads, no synthesizing of facts that were not in the source (synthetic labels, synthesized LHS names like `func_name` for `return EXPR`, synthesized `self` for twigils). **Test:** if `lower` and every downstream emitter were given only the `tree_t` root and the `ast.h` definitions, could they recover everything needed? If the answer is "no, they also need to know what was in the parser's globals at the time," that's F1 failure.
+
+**F2 — `tree_t` is exactly four fields: `t`, `v`, `n`, `c`.**
+The struct in `src/include/ast.h` is `{ tree_e t; union v; int n; tree_t** c; }` — nothing else. The today-extant `_nalloc` (allocator bookkeeping) and `_id` (semantic side-channel for Icon `parse_proc` param count, Raku `SUB_TAG_ID`, interpreter slot/env indices) are **not semantic fields** and must be removed. Allocator state, if needed, goes in a hidden prefix or a separate side-table keyed by node pointer; **it does not appear on the public struct.** F2 is the structural enforcement of F1: with only four fields, there is nowhere on a `tree_t` for a non-source fact to hide. Owned cross-cutting rungs: **PST-FIELD-1** (`_nalloc`) and **PST-FIELD-2** (`_id`) in this file and duplicated in `GOAL-PST-ICON.md` and `GOAL-PST-RAKU.md`.
+
+**F3 — All children of every node in left-to-right source-token order.**
+The full statement of this rule and its rationale is in the next sub-section (added 2026-05-16). In short: a reduce `RHS_1 RHS_2 … RHS_n → LHS` produces `node.c = [RHS_1, RHS_2, …, RHS_n]` in exactly that order (skipping pure-layout tokens), always wrapping fresh, never mutating a previously-built child node in place.
+
+The three facets are interlocking: F2 makes F1 enforceable (no fifth field for sneaking facts past the tree), F3 makes the Shift/Reduce SCRIP mirror possible (no reorderings or kind-inspections to port). All three together produce the Phase-1 contract: a `tree_t` graph in source-token order with all parse-time information on the tree and no other channel to Stage 2.
+
 ### ⛔ Left-to-right child order (added 2026-05-16, session 30/58)
 
 **The children of every node must appear in the same left-to-right order in which their tokens are read from the source.** No reordering for "convenience," no swapping operand positions to match a runtime calling convention, no promoting a particular child to a distinguished slot because it's the "real" subject. The tree is a direct geometric record of the token stream's bracketed structure — nothing else.

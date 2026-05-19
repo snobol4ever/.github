@@ -31,6 +31,12 @@ in parser; scope lookup during parse; child reordering for positional semantics.
 
 **⛔ Left-to-right child order:** All children in source token order.
 
+**⛔ Three Phase-1 facets** (per `GOAL-PARSER-PURE-SYNTAX-TREE.md § "The three Phase-1 facets"`):
+
+- **F1 — `tree_t` is the sole information channel.** Prolog has two F1 violations: (a) the DCG `-->` path still returns `Term*` (the historical Prolog parser-output type) instead of `tree_t` — owned by `PST-PL-6f`; (b) `assign_anon_slots` runs during parse and writes slot indices into `_id` — a side-channel; owned by `PST-PL-SC-1/2/3` (slot assignment moves to lower). The remaining four §⛔ violations (Pl1–Pl4) are all inspect-kind-and-rearrange / structure-detect in `pt_flatten_conj`/`pt_maybe_ifthenelse`/`pt_make_clause` — these are F3 problems (rule 2 mutation / kind inspection), but moving the three helpers to `prolog_lower.c` (owned by `PST-PL-6h`) is also an F1 cleanup: the parser then emits the raw `;`/`->`/`,` `TT_FNC` chains and lower flattens, eliminating parser-side structure synthesis.
+- **F2 — `tree_t` has exactly four fields `t`, `v`, `n`, `c`.** Cross-cutting `PST-FIELD-1`/`PST-FIELD-2`. Prolog is the third primary `_id` consumer (after Icon and Raku) via `assign_anon_slots` storing slot indices into `_id` on `TT_VAR` nodes. PST-PL-SC-1/2/3 (move slot assignment to lower) is the Prolog-side prerequisite for PST-FIELD-2 closing.
+- **F3 — Children L→R in source-token order.** Pratt-style `pt_term` loop is clean (always wraps fresh via `pt_binop`). The four §⛔ violations all flow through `pt_maybe_ifthenelse` / `pt_flatten_conj` / `pt_make_clause` — all owned by `PST-PL-6h`.
+
 ---
 
 ## Session Setup
