@@ -2,7 +2,7 @@
 
 **Repo:** one4all + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
-**Status:** ✅ Phase 1 C COMPLETE (AUDIT-2 verified 2026-05-19). Phase 2 ready.
+**Status:** ✅ COMPLETE — Phase 1 C + Phase 2 PST-RB-SC (2026-05-19).
 
 ---
 
@@ -23,7 +23,7 @@ ops also permitted.
 
 ### Steps
 
-- [ ] **RB-SC-1** — Read `corpus/SCRIP/parser_rebus.sc` and confirm no
+- [x] **RB-SC-1** — Read `corpus/SCRIP/parser_rebus.sc` and confirm no
   helper functions, no forbidden primitives. Grep:
   ```
   grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_rebus.sc
@@ -33,12 +33,12 @@ ops also permitted.
   Expected: zero non-substring hits (only `nPush(`/`nPop(` and the
   driver-tail `Pop()`).
 
-- [ ] **RB-SC-2** — Add stamp comment at top:
+- [x] **RB-SC-2** — Add stamp comment at top:
   ```
   /* PST-RB-SC ✅ 2026-05-19 — already shift/reduce-pure; verified zero violations. */
   ```
 
-- [ ] **RB-SC-3** — Run the smoke test:
+- [x] **RB-SC-3** — Run the smoke test:
   ```
   bash /home/claude/one4all/scripts/test_parser_rebus.sh
   ```
@@ -64,8 +64,8 @@ RB-C-5 (postfix-call) ✅, DECL-1/2/3 (RDecl/RProgram/RCase) ✅.
 ## State
 
 ```
-watermark:   Phase 1 C ✅. Phase 2 PST-RB-SC ready.
-next:        RB-SC-1 (verify), RB-SC-2 (stamp), RB-SC-3 (smoke).
+watermark:   Phase 2 PST-RB-SC ✅ COMPLETE 2026-05-19.
+next:        PST-ICN-SC (next recommended rung).
 audit:       PST-SCRIP-AUDIT.md § parser_rebus.sc — "ALREADY CLEAN".
-heads:       one4all @ 2a9aa511 · corpus @ a9b1240
+heads:       one4all @ 2a9aa511 · corpus @ d1c08ff
 ```
