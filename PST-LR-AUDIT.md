@@ -932,7 +932,7 @@ wrap and L→R — consumer-side splits are not parser-rule violations.)
 
 | Frontend  | Violations | Owned by named rungs | Unowned (need new rungs) |
 |-----------|-----------:|---------------------:|-------------------------:|
-| Snocone   | 11         | 1 (PST-SC-4k → V11)  | 10                       |
+| Snocone   | 11         | 11 ✅ ALL CLOSED 2026-05-19 (Sonnet 4.6) | 0 — Phase 1 C COMPLETE |
 | Icon      | 1          | 1 ✅ (PST-ICN-LR-1 → I5, 2026-05-19) | 0 — Phase 1 C COMPLETE |
 | SNOBOL4   | 2          | 0                    | 2 (PST-SN4-W2, W3)       |
 | Raku      | 27         | 5 (PRF-12 family: program, sub, class, for-range, gather) | 22 (new PRF-12 sub-rungs listed in §4.10) |

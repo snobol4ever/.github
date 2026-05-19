@@ -93,9 +93,9 @@ These are the 10 unowned audit violations. Each maps to a clear fix; group them 
 
 - [x] **PST-SC-LABELS** *(audit V13)* ✅ 2026-05-19 (Sonnet 4.6, one4all `6a880716`) — `while_head` / `do_head` / `for_head` grammar actions: `sc_label_new` calls removed; `sc_loop_push(st, NULL, NULL, 1)`. Finalize functions: QLIT label children removed from TT_WHILE/TT_DO_WHILE/TT_FOR. lower.c: `lower_fresh_label()` helper + `g_loop_label_seq` counter; `lower_while_until`/`lower_do_while`/`lower_for` generate labels internally via `labtab_define`. Gates: smoke_snocone 2/3 floor (pre-existing LE segfault), scrip_all_modes 2/0, crosscheck 5/1.
 
-- [ ] **PST-SC-RET-IN-FN** *(audit V9)* — `simple_stmt: T_RETURN expr0 T_SEMICOLON` inside a function currently synthesizes two statements: a `TT_ASSIGN(TT_VAR(func_name), $2)` plus a bare `TT_RETURN`. The LHS `TT_VAR(func_name)` is read from `st->cur_func_name` — not a source token. **Fix:** emit one `TT_RETURN($2)` and let `lower_return` perform the func-name assign as part of the function-call epilogue lowering.
+- [x] **PST-SC-RET-IN-FN** *(audit V9)* ✅ 2026-05-19 (Sonnet 4.6, one4all `e2dfed5f`) — `T_RETURN expr0`: was two stmts (TT_ASSIGN(funcname,$2) + bare TT_RETURN). Now: `TT_RETURN(c[0]=$2)`. `lower.c`: `g_sc_func_name` global tracks current function; `lower_return` emits `SM_STORE_VAR(funcname) + SM_RETURN` when c[0] present.
 
-- [ ] **PST-SC-FOR-INIT** *(audit V8)* — `for_head` (`snocone_parse.y:332`) calls `sc_append_stmt(st, $3)` to lift `init` as a free-standing statement before the loop. The TT_FOR node then has only `[cond, step, body]` — `init` is missing. **Fix:** restore `init` as `c[0]` of TT_FOR so its shape is `[init, cond, step, body]`. `lower_for` emits the init assignment, the head label, the cond test, body, step, back-edge, end label.
+- [x] **PST-SC-FOR-INIT** *(audit V8)* ✅ 2026-05-19 (Sonnet 4.6, one4all `b6558370`) — `for_head` called `sc_append_stmt(st, $3)` to emit init as a preceding stmt. TT_FOR had no init child. Fix: `init` is now `c[0]` of TT_FOR; TT_FOR shape = `[init|NUL, cond, step, body]`. `lower_for` emits init before the loop top label. `ForHead` struct carries `init` field. `sc_for_head_new_pst` takes init param.
 
 ### Snapshot of Snocone after Phase 1
 
@@ -125,14 +125,12 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — PST-SC-LABELS ✅ one4all 6a880716.
-status:       ⏳ Phase 1 NOT clean — 2 §⛔ violations remaining (was 3).
-              PST-SC-4k ✅ PST-SC-4l ✅ PST-SC-4m ✅ PST-SC-4n ✅ PST-SC-FLATTEN ✅ PST-SC-LABELS ✅.
-              Active: PST-SC-RET-IN-FN (next smallest).
-next:         PST-SC-RET-IN-FN — simple_stmt T_RETURN emits one TT_RETURN($2) not two
-              synthesized stmts; lower_return handles func-name assign.
-mirror gaps:  ⚠ MIRROR-GAP-SC-4k/4l/4m/4n/FLATTEN/LABELS. Phase 2 BLOCKED.
-heads:        .github @ (pending push) · one4all @ 6a880716 · corpus (no changes)
+watermark:    2026-05-19 (Sonnet 4.6) — RET-IN-FN ✅ e2dfed5f, FOR-INIT ✅ b6558370. Phase 1 C COMPLETE.
+status:       ✅ Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6) — 0 §⛔ violations.
+              4k–4n ✅ FLATTEN ✅ LABELS ✅ RET-IN-FN ✅ FOR-INIT ✅.
+next:         Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+mirror gaps:  ⚠ MIRROR-GAP-SC-4k/4l/4m/4n/FLATTEN/LABELS/RET-IN-FN/FOR-INIT. Phase 2 BLOCKED.
+heads:        .github @ (pending push) · one4all @ b6558370 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
