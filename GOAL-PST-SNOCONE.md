@@ -22,6 +22,12 @@ Children of every node in source token order. No in-place append to an existing 
 
 **Forbidden:** `sc_label_new`; `sc_clone_*`; splicing labels/gotos into the CODE chain; inspecting a previously-built child's kind to decide what to wrap; mutate-in-place via `sc_flatten_arith` (audit V1–V6).
 
+**⛔ Three Phase-1 facets** (per `GOAL-PARSER-PURE-SYNTAX-TREE.md § "The three Phase-1 facets"`):
+
+- **F1 — `tree_t` is the sole information channel between Snocone parse and Stage 2 lower.** Snocone is the worst Phase-1 offender on this axis: it historically did all control-flow lowering in parser actions, with synthetic labels (`_Ltop_NNNN` / `_Lend_NNNN` / `_Lcont_NNNN`), break/continue stacks (`sc_break_stk`/`sc_continue_stk`), if-then-stack (`sc_if_nthen_stk`), switch state (`sc_sw_*`), and for-loop state (`for_step_expr`, `for_cond_expr`, `for_lcont`, `for_lend`, `sc_for_cont_used`) all carried in `ScParseState` — none of which is on the tree. The audit-promoted rungs **PST-SC-LABELS** (mint labels in `lower.c`, not parser), **PST-SC-FOR-INIT** (lift `init` back into `TT_FOR.c[0]`), and **PST-SC-RET-IN-FN** (one `TT_RETURN($2)` not two synthesized statements) are F1 work — each one moves a fact that currently lives in `ScParseState` back onto the tree. **Test:** after all 4k–4n + audit-promoted rungs close, deleting every field from `ScParseState` except the absolute minimum (tree-root, cursor) should not lose any information that reaches lower.
+- **F2 — `tree_t` has exactly four fields `t`, `v`, `n`, `c`.** Cross-cutting `PST-FIELD-1`/`PST-FIELD-2` own this. Snocone is not a primary `_id` consumer (no Snocone production sets `proc->_id`) so PST-FIELD-2 has no Snocone-specific blocking site — it unblocks once Icon and Raku close their `_id` uses. PST-FIELD-1 (`_nalloc`) is purely allocator bookkeeping; no Snocone production reads it.
+- **F3 — Children L→R in source-token order.** Audit-detected violations: PST-SC-4k (goto LABEL via STMT_t field — label is not a tree child), PST-SC-FLATTEN (V1–V7: `sc_flatten_arith` and `exprlist_ne` mutate prior nodes — children land in source order but mechanism violates rule 2).
+
 **⛔ Phase 1 / Phase 2 sequencing (binding 2026-05-18):** C parser work (this file) and SCRIP mirror work (`parser_snocone.sc`) **never** in the same session. Record `⚠ MIRROR-GAP` for each Phase 1 rung whose SCRIP mirror lags. Phase 2 is blocked on **all six** C parsers being Phase 1 clean.
 
 ---

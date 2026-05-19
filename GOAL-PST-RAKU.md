@@ -53,6 +53,12 @@ Things the parser **MAY** do (each is pure transcription):
 
 **⛔ Left-to-right child order (binding 2026-05-16):** Children of every node in source token order. No in-place append to an existing subtree inspected by kind.
 
+**⛔ Three Phase-1 facets** (per `GOAL-PARSER-PURE-SYNTAX-TREE.md § "The three Phase-1 facets"`):
+
+- **F1 — `tree_t` is the sole information channel.** Raku is the heaviest Phase-1 offender (27 §⛔ violations) but the F1 family of failures has a single common shape: **parser-side desugaring of Raku-specific syntactic sugar to runtime helper calls baked into `v.sval` of TT_FNC** (`say` → `"write"`, `@arr[i] = v` → `"arr_set"`, `Foo.new` → `"raku_new"`, `try { } catch { }` → `"raku_try"`, `~~ /re/` → `"raku_match"`, `obj.meth(args)` → `"raku_mcall"`, `die expr` → `"raku_die"`, `map`/`grep`/`sort` → `"raku_map"`/`"raku_grep"`/`"raku_sort"`, etc.). The runtime-helper name is a non-source-token fact that the parser invents. **Every PRF-12 sub-rung's F1 fix is the same shape:** add a dedicated `TT_*` kind for the source construct (`TT_SAY`, `TT_INDEX_SET`, `TT_NEW`, `TT_TRY`, `TT_SMATCH`, `TT_METHCALL`, `TT_DIE`, `TT_MAP/GREP/SORT`, etc.), let lower (or `lower_raku.c`) select the runtime helper. Plus child-stealing in `sub_decl`/`gather`/`class_decl` (Raku-specific Phase-1 family).
+- **F2 — `tree_t` has exactly four fields `t`, `v`, `n`, `c`.** Raku is a primary `_id` consumer via `SUB_TAG_ID` (sub_decl marks subs with `_id == SUB_TAG_ID` and lower reads that flag to dispatch). `PRF-12-sub` is the Raku-side prerequisite for `PST-FIELD-2`: once `TT_SUB_DECL` is a dedicated kind, lower reads `t` instead of `_id`, and `_id` can be removed from the struct. `PST-FIELD-1`/`PST-FIELD-2` are duplicated in this file and `GOAL-PST-ICON.md`.
+- **F3 — Children L→R in source-token order.** Most Raku expression-cascade productions are clean. The F3-flavored violations cluster in child-stealing (R15 `sub_decl`, R19 `gather`, R27 `gather_hoist_pass` in-place rewrite of node kind) — owned by `PRF-12-sub`, `PRF-12-gather`, `PRF-12-gather-hoist`.
+
 **⛔ Phase 1 / Phase 2 sequencing (binding 2026-05-18):** C parser work (Phase 1) and SCRIP mirror work (Phase 2) **never** in the same session. Record `⚠ MIRROR-GAP` in State for each Phase 1 rung whose SCRIP mirror lags. Phase 2 work is gated on **all six** C parsers being Phase 1 clean — not just this one.
 
 ---

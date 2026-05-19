@@ -51,6 +51,12 @@ Things the parser **MAY** do (each is pure transcription):
 
 **⛔ Left-to-right child order (binding 2026-05-16):** Children of every node in source token order. No in-place append to an existing subtree inspected by kind.
 
+**⛔ Three Phase-1 facets** (per `GOAL-PARSER-PURE-SYNTAX-TREE.md § "The three Phase-1 facets"`):
+
+- **F1 — `tree_t` is the sole information channel.** Icon is among the cleanest C parsers on this axis after PST-ICN-4a/4b closed; the remaining F1 violation is `parse_proc` packing `nparams` into `_id` as an out-of-band separator between params and body in a flat n-ary child list — owned by `PST-ICN-LR-1`. Once that rung lands (param/body separated into `TT_VLIST`/`TT_PROGRAM` children), Icon's parser output is purely tree-borne.
+- **F2 — `tree_t` has exactly four fields `t`, `v`, `n`, `c`.** Icon is a primary `_id` consumer via `parse_proc` (`proc->_id = nparams`). PST-ICN-LR-1 is the Icon-side prerequisite for closing `PST-FIELD-2` (struct-level removal of `_id`). `PST-FIELD-1` / `PST-FIELD-2` are duplicated in this file and in `GOAL-PST-RAKU.md` for session self-containment.
+- **F3 — Children L→R in source-token order.** Icon's hand-rolled recursive-descent parser is the clean reference shape (`parse_and`, `parse_alt`, `parse_mul`/`parse_add` all build fresh n-ary or left-leaning chains with no mutate-prior). The only audit-flagged Icon row (I5, `parse_proc`) is technically an F1/F2 issue, not an F3 one.
+
 **⛔ Phase 1 / Phase 2 sequencing (binding 2026-05-18):** C parser work (Phase 1) and SCRIP mirror work (Phase 2) **never** in the same session. Record `⚠ MIRROR-GAP` in State for each Phase 1 rung whose SCRIP mirror lags. Phase 2 work is gated on **all six** C parsers being Phase 1 clean — not just this one.
 
 ---
