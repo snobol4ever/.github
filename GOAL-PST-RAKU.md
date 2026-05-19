@@ -173,7 +173,7 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [ ] **PRF-12-mcall** *(audit R22)* — `obj.method(args)` should produce `TT_METHCALL[obj, TT_QLIT("method"), args]` kind. `lower_mcall` selects `raku_mcall` runtime helper.
 
-- [ ] **PRF-12-die** *(audit R23)* — `die expr` should produce `TT_DIE[expr]` kind. `lower_die` selects `raku_die`.
+- [x] **PRF-12-die** *(audit R23)* ✅ 2026-05-19 (Sonnet 4.6, one4all `c596462d`, corpus `adfdbb6`) — `TT_DIE[expr]` kind added; raku.y emits pure tree; lower.c dispatches SM_CALL_FN "raku_die" 1; sm_interp+sm_jit_interp handle raku_die from stack (sets g_raku_exception, pushes FAILDESCR). Gates held.
 
 - [ ] **PRF-12-hof** *(audit R24)* — `map`/`grep`/`sort` should produce `TT_MAP` / `TT_GREP` / `TT_SORT` kinds with the closure as first child, iterable as second. `lower_hof` selects runtime helper.
 
@@ -264,9 +264,10 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-sub ✅; PRF-12-body-splice ✅ (subsumed)
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-die ✅; one4all c596462d corpus adfdbb6
+           2026-05-19 (Sonnet 4.6) — PRF-12-sub ✅; PRF-12-body-splice ✅ (subsumed)
            2026-05-19 (Sonnet 4.6) — gather heap-corruption fixed (one4all 96a7ca59)
-status: ⏳ Phase 1 NOT clean — 23 §⛔ violations remaining
+status: ⏳ Phase 1 NOT clean — 22 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -283,6 +284,9 @@ prior closed rungs (preserved for history):
     TT_SUB_DECL added; _id==SUB_TAG_ID removed from lower.c;
     gather heap-corruption fixed (free(prog->c) prefix offset);
     62 corpus .ref files regenerated. PST-FIELD-2 Raku prereq satisfied.
+  PRF-12-die ✅ 2026-05-19 (Sonnet 4.6, one4all c596462d, corpus adfdbb6):
+    TT_DIE added; raku.y emits TT_DIE[expr]; lower dispatches SM_CALL_FN raku_die;
+    sm_interp+sm_jit_interp handle from stack. Gates held.
   PRF-12-body-splice ✅ subsumed by PRF-12-sub
 audit findings (27 original, 4 closed):
   R1   program synthesizes 'main' (owned: PRF-12-program)
@@ -306,24 +310,24 @@ audit findings (27 original, 4 closed):
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-die (R23, ~3 sites, TT_DIE) or PRF-12-class (R16-17, TT_CLASS_DECL)
+next:        PRF-12-class (R16-17, TT_CLASS_DECL) or PRF-12-arr-hash-ops (R7-9)
              Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
              (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
              (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 96a7ca59 · corpus @ 39af2e1
+heads:       .github @ (this commit) · one4all @ c596462d · corpus @ adfdbb6
 ```
 
 ---
 
 ### Session-end note — 2026-05-19 (Sonnet 4.6)
 
-PRF-12-sub complete. `TT_SUB_DECL` is the dedicated kind for Raku sub
-declarations — no more `_id == SUB_TAG_ID` side-channel. PST-FIELD-2
-Raku prerequisite satisfied. Also fixed a pre-existing heap-corruption in
-the gather hoist pass (`free(prog->c)` without the `sizeof(size_t)` prefix
-offset). 23 §⛔ violations remain; next: PRF-12-die or PRF-12-class.
+PRF-12-die complete. `TT_DIE` is the dedicated kind for Raku `die` expressions —
+parser emits pure `TT_DIE[expr]`; lower selects `SM_CALL_FN "raku_die"`; both
+sm_interp and sm_jit_interp handle `raku_die` from the SM stack (pop msg,
+set `g_raku_exception`, push FAILDESCR). 22 §⛔ violations remain; next:
+PRF-12-class or PRF-12-arr-hash-ops.
 
 ---
 
