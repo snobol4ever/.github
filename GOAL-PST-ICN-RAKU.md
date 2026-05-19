@@ -503,9 +503,98 @@ for this goal — it lives elsewhere (or as a follow-on goal).
        its use site in parser_raku.sc.
    **Icon function count: 0/0 (sidecar deleted). Raku function count: 1/1+stubs
    (raku_stubs.sc still present; deletion is the only remaining work).**
-8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
+8. **`tree_t` has exactly four fields: `t`, `v`, `n`, `c`.** (See PST-FIELD-1 and PST-FIELD-2 below.)
+9. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
+
+---
+
+## PST-FIELD rungs — strip extra fields from `tree_t` struct (Phase 1 C)
+
+These are cross-cutting C rungs owned here because Icon and Raku are the
+primary `_id` consumers. `src/include/ast.h` is the single change point for
+the struct itself; consumers are spread across several files.
+
+**Current struct** (`src/include/ast.h` lines ~62–73):
+```c
+struct tree_t {
+    tree_e      t;       /* kind — KEEP */
+    union { char *sval; long long ival; double dval; } v;  /* value — KEEP */
+    int         n;       /* child count — KEEP */
+    tree_t   ** c;       /* children — KEEP */
+    int         _nalloc; /* allocator bookkeeping — REMOVE */
+    int         _id;     /* semantic side-channel — REMOVE */
+};
+```
+
+- [ ] **PST-FIELD-1 — Remove `_nalloc` from `tree_t`. PHASE 1 C.**
+
+  **What:** `_nalloc` is a growable-array bookkeeping field — it tracks
+  allocated capacity of the `c` array so `ast_push` can realloc without
+  knowing the true size. It carries zero semantic information and must never
+  be read by lower or the interpreter.
+
+  **Where:**
+  - `src/include/ast.h`: remove `int _nalloc` from struct. Update
+    `ast_push` (inline in ast.h) to use a sentinel: store capacity in
+    `c[-1]` as a hidden prefix word, or switch to a two-pass build
+    (count children first, allocate exact, fill). Simplest: count-then-fill.
+    Parser actions that call `ast_push` incrementally must switch to
+    `expr_add_child` after a pre-sized allocation, or use a local
+    `tree_t*` with the count known from the grammar rule arity.
+  - `src/lower/ast_clone.c` line ~13: remove `c->_nalloc = e->_nalloc`.
+  - Any other file that reads or writes `_nalloc` directly (grep confirms
+    only `ast.h` and `ast_clone.c`).
+
+  **Why:** The struct must have exactly four semantic fields. Allocator
+  state is an implementation detail; it belongs in a wrapper or as a
+  hidden prefix, not as a named field on the public struct.
+
+  Gates: full build + `smoke_snobol4`, `crosscheck_snobol4`,
+  `smoke_scrip_all_modes`.
+
+- [ ] **PST-FIELD-2 — Remove `_id` from `tree_t`. PHASE 1 C.**
+
+  **What:** `_id` is used as a semantic side-channel in three places:
+  1. **Raku** (`raku.y`, `raku_driver.h`): `SUB_TAG_ID` sentinel stamped
+     on `TT_FNC` nodes to distinguish sub-declaration nodes from call
+     nodes. Read in `raku.y` actions and in `lower.c:1306`.
+  2. **Icon** (`icon_parse.c:755`, `lower_icn.c:1002`, `icn_runtime.c`):
+     param count stored on `TT_FNC` proc nodes.
+  3. **Interpreter** (`interp_eval.c`): slot index, env index, clone copy.
+
+  **Fix — Raku SUB_TAG:** Replace `_id == SUB_TAG_ID` tag with a dedicated
+  node kind. Add `TT_SUB_DECL` to `tree_e` in `ast.h` (this is already
+  planned in PRF-12-sub). A `TT_SUB_DECL` node is unambiguously a sub
+  declaration — no tag needed. Remove all `e->_id = SUB_TAG_ID` writes and
+  `e->_id == SUB_TAG_ID` reads. This rung is therefore **blocked on
+  PRF-12-sub completing first**.
+
+  **Fix — Icon param count:** Move `nparams` into the `v.ival` field of
+  the `TT_FNC` proc node. `icon_parse.c:755`: `proc->v.ival = nparams`
+  instead of `proc->_id = nparams`. `lower_icn.c:1002`,
+  `icn_runtime.c:198,229`, `polyglot.c:121`: read `proc->v.ival` instead
+  of `proc->_id`. Verify `v.ival` is not already used for something else
+  on these nodes (it is not — `v.sval` holds the name; `v.ival` is free).
+
+  **Fix — interpreter slot/env index:** `interp_eval.c` uses `_id` for
+  slot and env indices on `TT_VAR` and `TT_FNC` nodes at runtime. These
+  are runtime annotations set by lower/eval, not parse-time fields.
+  Correct fix: move runtime annotations out of `tree_t` entirely into
+  a parallel side table indexed by node pointer or node sequence number.
+  This is larger work — scope it separately if needed. Alternative (smaller):
+  encode as `v.ival` where `v.sval` is not needed at runtime (safe for
+  `TT_VAR` nodes whose name is already resolved). Audit each `_id` write
+  in `interp_eval.c` and decide per site.
+
+  **Sequencing:** Do Icon param count move first (2 files, trivial).
+  Then Raku SUB_TAG (after PRF-12-sub). Then interpreter slots (largest).
+  Remove `int _id` from struct only after all write sites are gone.
+  Remove `c->_id = e->_id` from `ast_clone.c`.
+
+  Gates: full build + `smoke_icon`, `smoke_snobol4`, `crosscheck_snobol4`,
+  `smoke_scrip_all_modes`, `beauty_self_host` 29/22.
 
 ---
 
