@@ -191,6 +191,18 @@ These are **child-stealing** violations distinct from the runtime-helper-name de
 
 - [x] **PRF-12-gather-hoist** *(audit R27)* ✅ 2026-05-19 (Sonnet 4.6, one4all `5d326aa2`) — `raku_lower_hoist_gather_pass()` removed from `raku_parse_string()` parser epilogue. Re-implemented as `lower_gather_hoist_pass()` in `lower.c`, called from `lower()` before main traversal when any `LANG_RAKU` stmt present. Descends into `TT_GATHER.c[0]` (the `TT_SEQ_EXPR` block) for body stmts. Parser leaves `TT_GATHER` nodes untouched. Gates held.
 
+### Subset 4 — AUDIT-2 follow-ups (2026-05-19 Opus 4.7)
+
+AUDIT-2 (`PST-LR-AUDIT-2.md`) trust-but-verify scan found:
+
+- [ ] **PRF-12-R15-DISPOSITION** *(audit R15 rescope)* — `sub_decl` action at `raku.y:358–359` and `364–365` still child-steals from `$6` (the block TT_SEQ_EXPR): `for(int i=0;i<body->n;i++) expr_add_child(e,body->c[i])`. Commit `3375a0ea PRF-12-sub` introduced `TT_SUB_DECL` but did NOT change the child-steal pattern. **Decision required:** either (a) actually fix the child-steal so the block is preserved as a single subtree child of TT_SUB_DECL, or (b) **declare this acceptable** under the parser-local-scratch idiom (consistent with Rebus Rb1/Rb2 disposition: list-building of TT_PROGRAM via successive `expr_add_child($1, …)` is accepted because the block's lifetime ends with the action and the hollowed TT_SEQ_EXPR is never accessed downstream). **Recommendation: (b)** — text-only audit update, no code change. The block TT_SEQ_EXPR has no remaining references after the reduce; only its leaked allocation is technically still on the heap until process exit (small constant, like other reduce-temp nodes). Action: update PST-LR-AUDIT-2.md row R15 to ✅-CLOSED-by-rescope and add a sentence to GOAL-PARSER-PURE-SYNTAX-TREE.md §⛔ rules clarifying that "list-building of a node by successive `expr_add_child` calls into a freshly-allocated parent — even when the children are sourced from a previously-built temporary parser-internal block — is permitted." **Blocks PRF-13.**
+
+- [ ] **PRF-12-DEADCODE** *(audit dead-code cleanup)* — Two functions are defined but never called in `raku.y`; should be removed:
+  1. `raku.y:582–638` — `raku_hoist_gather_in_expr` and `raku_lower_hoist_gather_pass`. Replaced by `lower_gather_hoist_pass` in `src/lower/lower.c:1931` (called from `lower()` at line 1977). No caller remains in raku.y or anywhere else (verified by `grep -rn "raku_lower_hoist_gather_pass\|raku_hoist_gather_in_expr" src/`).
+  2. `raku.y:100–113` — `make_for_range`. Replaced by `TT_FOR_RANGE` direct emission at `raku.y:307–316`. No caller remains.
+  
+  Pure deletion; no behavior change. Can be one commit. **Optional but recommended** to land before Phase-2 mirror to keep PRF-13's source-of-truth clean.
+
 ### Done criteria
 
 **Phase A — helper elimination (`parser_raku.sc` form):** ✅ COMPLETE. Zero `function` bodies in `parser_raku.sc` that call `Push()`, `Append()`, or `tree()`. Pure string transformers (no tree ops) permitted (`dq_unescape` only).
@@ -264,9 +276,10 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-gather-splice ✅ PRF-12-gather-hoist ✅ HANDOFF; one4all 5d326aa2 corpus a9b1240 .github (this commit)
-           2026-05-19 (Sonnet 4.6) — PRF-12-twigil ✅ HANDOFF; one4all 5047950e corpus a9b1240 .github (prior commit)
-status: ⏳ Phase 1 NOT clean — 2 §⛔ violations remaining (PRF-13 Phase 2 gated; PST-FIELD cross-cutting)
+watermark: 2026-05-19 (Opus 4.7) — PST-LR-AUDIT-2 trust-but-verify scan; R15 REOPENED, R27 dead-code flagged
+           2026-05-19 (Sonnet 4.6) — PRF-12-gather-splice ✅ PRF-12-gather-hoist ✅ HANDOFF; one4all 5d326aa2 corpus a9b1240 .github (prior)
+           2026-05-19 (Sonnet 4.6) — PRF-12-twigil ✅ HANDOFF; one4all 5047950e corpus a9b1240 .github (prior)
+status: ⏳ Phase 1 NOT clean — R15 audit finding reopened by AUDIT-2; awaiting PRF-12-R15-DISPOSITION (text-only rescope or actual code fix)
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -295,16 +308,20 @@ prior closed rungs (preserved for history):
   PRF-12-twigil ✅ 2026-05-19 (Sonnet 4.6, one4all 5047950e, corpus a9b1240)
   PRF-12-gather-splice ✅ 2026-05-19 (Sonnet 4.6, one4all 20a6f03c) — R19 closed
   PRF-12-gather-hoist ✅ 2026-05-19 (Sonnet 4.6, one4all 5d326aa2) — R27 closed
-audit findings (27 original, ALL 27 CLOSED for Phase B C-side):
-  R1-R18,R20-R27 ✅ all closed (see prior watermarks)
+audit findings (27 original, 25 verified by AUDIT-2; 2 open):
+  R1-R14,R16-R26 ✅ all closed (see prior watermarks)
+  R15  ⚠ REOPENED by AUDIT-2 — child-steal in sub_decl unchanged from baseline; needs PRF-12-R15-DISPOSITION
   R19  ✅ closed PRF-12-gather-splice (one4all 20a6f03c)
-  R27  ✅ closed PRF-12-gather-hoist (one4all 5d326aa2)
-mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated on all six C parsers Phase 1 clean
-next:        PRF-13 — SCRIP mirror for PRF-12-gather (Phase 2, gated).
-             PST-FIELD-1/PST-FIELD-2 — cross-cutting struct cleanup (coordinate with GOAL-PST-ICON.md).
-             Phase 1 C is now COMPLETE for Raku — 0 §⛔ violations remaining on C side.
+  R27  ✅ closed PRF-12-gather-hoist (functional); dead code remains at raku.y:582-638 — needs PRF-12-DEADCODE
+mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated on R15 disposition
+next:        PRF-12-R15-DISPOSITION — text-only rescope decision (likely declare R15 acceptable
+             as parser-local scratch idiom, consistent with Rebus Rb1/Rb2). Once R15 disposition
+             lands, Raku Phase 1 C is fully clean → unblocks PRF-13.
+             PRF-12-DEADCODE — delete dead raku.y:100–113 (make_for_range) and 582–638
+             (raku_lower_hoist_gather_pass). Optional but recommended pre-Phase 2.
+             PST-FIELD-1/PST-FIELD-2 — already closed (verified by AUDIT-2 §2i).
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 5d326aa2 · corpus @ a9b1240
+heads:       .github @ (this commit, PST-LR-AUDIT-2) · one4all @ 5d326aa2 · corpus @ a9b1240
 ```
            2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b
            2026-05-19 (Sonnet 4.6) — PRF-12-hof ✅; one4all 3fa3b227 corpus 46187d3
