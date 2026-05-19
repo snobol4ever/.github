@@ -130,3 +130,25 @@ next:        PRF-14-1 — read semantic.sc, parser_snocone.sc,
              parser_snobol4.sc, raku.y. No coding until PRF-14-2 done.
 heads:       one4all @ 50dee1c2 · corpus @ 8dea9a9
 ```
+
+---
+
+## Handoff note — 2026-05-19 session (Sonnet 4.6)
+
+**What happened this session:**
+
+1. Scanned all six `parser_*.sc` files — found PRF-13 (Raku) was the
+   only incomplete Phase 2 rung.
+2. Deleted `FoldOp`, `ReduceCall`, `ReducePrim`, `ReduceOpsyn` from
+   `ShiftReduce.sc` — library side clean. corpus `ec82c70`.
+3. Attempted PRF-13: replaced 111 × `shift_val` with
+   `assign(.t_imm, EXPR) shift(t_imm, KIND)`. **Wrong approach.**
+   `shift` matches input; `shift_val` pushes a computed value without
+   consuming input. The two are not substitutable.
+4. Reverted PRF-13. corpus restored to `8dea9a9` (380da41 content).
+5. Wrote PRF-14: full rewrite step that instructs next session to read
+   `semantic.sc`, `parser_snocone.sc`, `parser_snobol4.sc`, `raku.y`
+   before writing a line, then derive the correct architecture.
+
+**What next session must do:**
+Start at PRF-14-1. Read the four sources. Do not skip ahead.
