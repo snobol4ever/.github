@@ -180,8 +180,8 @@ is invoked with the mode already set via `emit_mode_set()`.
 
 ### Step ladder
 
-- [ ] **EC-0** — Add `EMIT_JVM`, `EMIT_JS`, `EMIT_NET` to `bb_emit_mode_t` in `emit_core.h`. Add `IS_JVM` / `IS_JS` / `IS_NET` macros. No functional change. Gates green.
-- [ ] **EC-1** — Inventory pass. For every `emit_jvm_bb_*` / `emit_js_bb_*` / `emit_net_bb_*` function, identify the corresponding template function in `emit_templates.h`. Produce mapping table (jvm/js/net function → template function). Document any BB kinds present in silos but absent from templates (gap list).
+- [x] **EC-0** ✅ `emit_core.h`: `EMIT_JVM=5`, `EMIT_JS=6`, `EMIT_NET=7` added; `IS_JVM`/`IS_JS`/`IS_NET` macros. `6ad870bf` 2026-05-18.
+- [x] **EC-1** ✅ Inventory complete. BB kinds in silos: 18 JVM, 17 JS, 18 NET. All 18 SNOBOL4 pattern kinds present in templates. GAP: `assign_imm`/`assign_cond` (JS only, BB-only path, no x86 template). Integration point: `emit_*_generator` dispatch switch in each silo → replace with unified `emit_bb_node(IR_t*, FILE*)` in `emit_core.c` with `IS_JVM`/`IS_JS`/`IS_NET` mode dispatch per `IR_PAT_*` case. `6ad870bf` 2026-05-18.
 - [ ] **EC-2** — For each BB box kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One BB kind per sub-commit. Order: `IR_PAT_LIT` first (simplest), then remaining SNOBOL4 pattern leaves, then composers, then Icon, then Prolog.
 - [ ] **EC-3** — For each SM instruction kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One SM family per sub-commit. Order: push/pop literals → variables → arithmetic → control flow → calls → pattern bridge → return family.
 - [ ] **EC-4** — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
