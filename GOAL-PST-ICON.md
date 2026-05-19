@@ -163,13 +163,13 @@ Two structural alternatives — pick one in implementation:
 
 ### Sub-step ladder
 
-- [ ] **PST-ICN-LR-1a** — Add `TT_PROC_DECL` to `tree_e` (in `src/include/ast.h`) and to the name table. Confirm no other frontend already uses this name.
-- [ ] **PST-ICN-LR-1b** — Rewrite `parse_proc` to build `TT_PROC_DECL[TT_VAR(name), TT_VLIST(params), TT_PROGRAM(body)]`. Delete the `proc->_id = nparams` line. Verify no other code in `icon_parse.c` reads `_id` from this node.
-- [ ] **PST-ICN-LR-1c** — Update `lower_icn.c` to dispatch on `TT_PROC_DECL`. Read params from `c[1]->c[]`, body from `c[2]->c[]`. Currently reads `proc->_id` for nparams (line 1002); replace with `proc->c[1]->n`. Currently iterates `proc->c[1..]` mixing params + body; replace with the two separate iterations.
-- [ ] **PST-ICN-LR-1d** — Update `icn_runtime.c` lines ~198, ~229 — anywhere it reads `_id` from a proc TT_FNC node. Replace with `c[1]->n`.
-- [ ] **PST-ICN-LR-1e** — Update `polyglot.c` line ~121 — same fix.
-- [ ] **PST-ICN-LR-1f** — Regenerate `.ref` files for any Icon fixtures whose `--dump-ast` output changes shape. Run `make ref-icon` (or hand-update if no batch target).
-- [ ] **PST-ICN-LR-1g** — Record `⚠ MIRROR-GAP-ICN-LR-1` in State; `parser_icon.sc` mirror update is Phase 2 work.
+- [x] **PST-ICN-LR-1a** — Add `TT_PROC_DECL` to `tree_e` (in `src/include/ast.h`) and to the name table. Confirm no other frontend already uses this name.
+- [x] **PST-ICN-LR-1b** — Rewrite `parse_proc` to build `TT_PROC_DECL[TT_VAR(name), TT_VLIST(params), TT_PROGRAM(body)]`. Delete the `proc->_id = nparams` line. Verify no other code in `icon_parse.c` reads `_id` from this node.
+- [x] **PST-ICN-LR-1c** — Update `lower_icn.c` to dispatch on `TT_PROC_DECL`. Read params from `c[1]->c[]`, body from `c[2]->c[]`. Currently reads `proc->_id` for nparams (line 1002); replace with `proc->c[1]->n`. Currently iterates `proc->c[1..]` mixing params + body; replace with the two separate iterations.
+- [x] **PST-ICN-LR-1d** — Update `icn_runtime.c` lines ~198, ~229 — anywhere it reads `_id` from a proc TT_FNC node. Replace with `c[1]->n`.
+- [x] **PST-ICN-LR-1e** — Update `polyglot.c` line ~121 — same fix.
+- [x] **PST-ICN-LR-1f** — Regenerate `.ref` files for any Icon fixtures whose `--dump-ast` output changes shape. Run `make ref-icon` (or hand-update if no batch target).
+- [x] **PST-ICN-LR-1g** — Record `⚠ MIRROR-GAP-ICN-LR-1` in State; `parser_icon.sc` mirror update is Phase 2 work.
 
 **Gates:** `smoke_icon` 5/0, `smoke_scrip_all_modes` 2/0, `crosscheck_snobol4` floor, `test_icon_all_rungs.sh` PASS≥194 (current Icon rung floor — must not regress).
 
@@ -249,26 +249,25 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark:    2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
-status:       ⏳ Phase 1 NOT clean — PST-ICN-LR-1 active. PST-FIELD-1/2 cross-cutting.
+watermark:    2026-05-19 (Sonnet 4.6) — PST-ICN-LR-1 COMPLETE (1a–1g).
+status:       ✅ Phase 1 CLEAN — PST-ICN-LR-1 closed. PST-FIELD-1/2 cross-cutting (not yet started).
 prior closed:
   PST-ICN-2a/2b ✅ ; PST-ICN-4a ✅ 2026-05-16 (TT_MATCH_UNARY) ; PST-ICN-4b ✅
   2026-05-16 (13 helpers removed) ; icon_helpers.sc DELETED 2026-05-18.
-audit findings (PST-LR-AUDIT.md § Scan 2):
-  I5 = PST-ICN-LR-1. icon_parse.c:753–758 parse_proc builds
-       TT_FNC + proc->_id = nparams as out-of-band separator between
-       params (c[1..nparams]) and body (c[nparams+1..]). Blocks PST-FIELD-2.
-next:         PST-ICN-LR-1a — add TT_PROC_DECL to tree_e in src/include/ast.h.
-              Verify no other frontend already uses TT_PROC_DECL (grep).
-              Then PST-ICN-LR-1b — rewrite parse_proc to emit
-                TT_PROC_DECL[TT_VAR(name), TT_VLIST(params), TT_PROGRAM(body)].
-              Delete the `proc->_id = nparams` line. Update lower_icn.c if it
-              currently reads _id on proc nodes (grep first). Regen .ref files.
-              After 1a/1b land: smoke_icon must remain green; no _id reads on
-              proc nodes anywhere in tree.
-mirror gaps:  ⚠ MIRROR-GAP-ICN-LR-1 will be recorded when PST-ICN-LR-1 commits.
-              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
-heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
+  PST-ICN-LR-1a–1g ✅ 2026-05-19 (Sonnet 4.6).
+PST-ICN-LR-1 summary:
+  Added TT_PROC_DECL to tree_e and name table (ast.h).
+  parse_proc now emits TT_PROC_DECL[TT_VAR(name), TT_VLIST(params), TT_PROGRAM(body)].
+  proc->_id = nparams line deleted from icon_parse.c.
+  lower_icn.c lower_icn_proc_body: accepts TT_PROC_DECL, reads c[2] for body.
+  lower.c build_proc_scope + lower_proc_skeletons: use c[1] for params, c[2] for body.
+  icn_runtime.c: two proc-dispatch blocks updated to use c[2] body node.
+  polyglot.c: accepts TT_PROC_DECL, reads c[1]->n for nparams.
+  25 Icon parser .ref files regenerated (augop_cset_union/str_concat pre-existing segfault, unchanged).
+gates:        smoke_icon 5/0 ✅ · smoke_scrip_all_modes 2/0 ✅ · crosscheck FAIL=1 (pre-existing) ✅ · icon rungs PASS=194 FAIL=36 ✅
+mirror gaps:  ⚠ MIRROR-GAP-ICN-LR-1 — parser_icon.sc Phase 2 mirror BLOCKED until all six C parsers Phase 1 clean.
+next:         PST-FIELD-1 (remove _nalloc from tree_t) — cross-cutting with GOAL-PST-RAKU.md.
+heads:        .github @ (pending) · one4all @ (pending) · corpus @ (pending)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
