@@ -552,3 +552,37 @@ well-defined, self-contained. Do not attempt Phase 2 SCRIP mirror work
 until all six Phase 1 tasks above are checked.
 
 .github @ b93f9d62
+
+### Handoff note — 2026-05-18 session 3 (Sonnet 4.6)
+
+**What was done this session (HQ work):**
+
+Audited both SCRIP parsers and C parsers for three aspects:
+- Aspect 1: tree_t complete (all info forward-passable from tree alone)
+- Aspect 2: tree_t has only four fields t, v, n, c
+- Aspect 3: all children in L-to-R source order, no child inspection in parser
+
+Added rungs:
+- PST-PL-SC-1/2/3 (GOAL-PST-PROLOG): assign_anon_slots mutation → lower;
+  Append() calls → Reduce discipline
+- PST-SC-SC-1/2 (this file): Append() calls in parser_snocone.sc → Reduce
+- PST-FIELD-1/2 (GOAL-PST-ICN-RAKU): remove _nalloc and _id from tree_t struct
+- PST-PL-6h (GOAL-PST-PROLOG): pt_maybe_ifthenelse + pt_flatten_conj
+  child inspection → prolog_lower.c
+
+**INCOMPLETE — requires fresh session:**
+A complete per-production parent→children audit for all six C parsers is
+needed. The existing Aspect 3 tracking is summary-level only — not a
+verified production-by-production list. This matters because Snocone
+parser_*.sc mirror work has failed due to unexpected child order. A
+complete table (every TT_* node kind, verified children L-to-R) is the
+prerequisite for all Phase 2 SCRIP mirror work.
+
+**Next session must:**
+1. Read every grammar production in all six .y/.c files
+2. For each TT_* node kind: list parent type, children in order, verify
+   each child corresponds to a source token left-to-right
+3. Add the verified table to this goal file or a new GOAL-PST-LR-AUDIT.md
+4. Flag any production where children are NOT in source order
+
+.github @ 270cad0d
