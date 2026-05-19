@@ -85,21 +85,18 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: d48681fb     (DAI-8 C17: snobol4_stmt_rt.c entire file −447 LOC)
+one4all: 8b8af8cc     (EC-2: 5/18 BB kinds in emit_bb_node; ANY/NOTANY/SPAN/BREAK added)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
 smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held)
-broker:      21/28    (held — env lacks JVM/ilasm)
+broker:      23/26    (held)
 snobol4_jit: 196/65   (held)
 snobol4_jvm: 7/6      (held)
 snobol4_js:  4/2      (held)
 snobol4_net: 0/9      (held — ilasm not installed)
 snobol4_wasm: SKIP    (held — wat2wasm not installed)
 snocone:     2/3      (held)
-crosscheck_prolog: 128/0/4SKIP/11ORACLE_MISS  (held)
-hello-world: 6/6 PASS-wired  (held)
-scrip_all_modes: 2/0
 DAI-BOMB fires: 0
 ```
 
@@ -198,7 +195,7 @@ is invoked with the mode already set via `emit_mode_set()`.
 
 - [x] **EC-0** ✅ `emit_core.h`: `EMIT_JVM=5`, `EMIT_JS=6`, `EMIT_NET=7` added; `IS_JVM`/`IS_JS`/`IS_NET` macros. `6ad870bf` 2026-05-18.
 - [x] **EC-1** ✅ Inventory complete. BB kinds in silos: 18 JVM, 17 JS, 18 NET. All 18 SNOBOL4 pattern kinds present in templates. GAP: `assign_imm`/`assign_cond` (JS only, BB-only path, no x86 template). Integration point: `emit_*_generator` dispatch switch in each silo → replace with unified `emit_bb_node(IR_t*, FILE*)` in `emit_core.c` with `IS_JVM`/`IS_JS`/`IS_NET` mode dispatch per `IR_PAT_*` case. `6ad870bf` 2026-05-18.
-- [ ] **EC-2** — For each BB box kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One BB kind per sub-commit. Order: `IR_PAT_LIT` first (simplest), then remaining SNOBOL4 pattern leaves, then composers, then Icon, then Prolog.
+- [ ] **EC-2** 🔄 — For each BB box kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One BB kind per sub-commit. Order: `IR_PAT_LIT` first (simplest), then remaining SNOBOL4 pattern leaves, then composers, then Icon, then Prolog. **5/18 done (LIT ✅ `12e4ab86`, ANY/NOTANY/SPAN/BREAK ✅ `8b8af8cc`). NEXT: ARB, ARBNO, CAT, ALT, LEN, POS/RPOS, TAB/RTAB, REM, FENCE, ABORT, ASSIGN_IMM, ASSIGN_COND.**
 - [ ] **EC-3** — For each SM instruction kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One SM family per sub-commit. Order: push/pop literals → variables → arithmetic → control flow → calls → pattern bridge → return family.
 - [ ] **EC-4** — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
 - [ ] **EC-5** — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`. Move IR walk infrastructure from `emit_ir.c` into `emit_core.c`. Delete `emit_ir.c` / `emit_ir.h`. Delete `IR_emit_vtable_t`. Gates green.
