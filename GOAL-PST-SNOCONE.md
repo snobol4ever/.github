@@ -91,7 +91,7 @@ These are the 10 unowned audit violations. Each maps to a clear fix; group them 
 
 - [x] **PST-SC-FLATTEN** *(audit V1–V7)* — `sc_flatten_arith` deleted; `exprlist_ne` fresh-copy on each reduction. V1 TT_ALT, V2 TT_SEQ, V3 TT_ADD, V4 TT_SUB, V5 TT_MUL, V6 TT_DIV: `expr_binary(OP,$1,$3)`. V7 exprlist_ne: fresh TT_NUL + copy $1 children + append $3. one4all `678d7b9e` 2026-05-19. ⚠ MIRROR-GAP-SC-FLATTEN.
 
-- [ ] **PST-SC-LABELS** *(audit V13)* — `while_head` / `do_head` / `for_head` / `switch_head` mint synthetic label strings via `sc_label_new` and stash them as `TT_QLIT` children of TT_WHILE/DO_WHILE/FOR/CASE. Move label allocation to `lower.c` — parser emits TT_WHILE etc. with **no** label children. `lower_while`/`lower_do_while`/`lower_for`/`lower_case` allocate `_Ltop_`/`_Lcont_`/`_Lend_` labels via labtab as needed. Coordinates with 4h's `g_loop_stack`.
+- [x] **PST-SC-LABELS** *(audit V13)* ✅ 2026-05-19 (Sonnet 4.6, one4all `6a880716`) — `while_head` / `do_head` / `for_head` grammar actions: `sc_label_new` calls removed; `sc_loop_push(st, NULL, NULL, 1)`. Finalize functions: QLIT label children removed from TT_WHILE/TT_DO_WHILE/TT_FOR. lower.c: `lower_fresh_label()` helper + `g_loop_label_seq` counter; `lower_while_until`/`lower_do_while`/`lower_for` generate labels internally via `labtab_define`. Gates: smoke_snocone 2/3 floor (pre-existing LE segfault), scrip_all_modes 2/0, crosscheck 5/1.
 
 - [ ] **PST-SC-RET-IN-FN** *(audit V9)* — `simple_stmt: T_RETURN expr0 T_SEMICOLON` inside a function currently synthesizes two statements: a `TT_ASSIGN(TT_VAR(func_name), $2)` plus a bare `TT_RETURN`. The LHS `TT_VAR(func_name)` is read from `st->cur_func_name` — not a source token. **Fix:** emit one `TT_RETURN($2)` and let `lower_return` perform the func-name assign as part of the function-call epilogue lowering.
 
@@ -125,16 +125,14 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (Claude Sonnet 4.6) — PST-SC-4m+4n+FLATTEN landed. one4all 678d7b9e.
-status:       ⏳ Phase 1 NOT clean — 3 §⛔ violations remaining (was 9).
-              PST-SC-4k ✅ PST-SC-4l ✅ PST-SC-4m ✅ PST-SC-4n ✅ PST-SC-FLATTEN ✅.
-              Active: PST-SC-LABELS (mint labels in lower.c, not parser).
-next:         PST-SC-LABELS — remove sc_label_new calls from while_head/do_head/for_head/
-              switch_head grammar actions; move label allocation into lower_while/lower_do_while/
-              lower_for/lower_case. Parser emits TT_WHILE/DO_WHILE/FOR/CASE with no QLIT label children.
-mirror gaps:  ⚠ MIRROR-GAP-SC-4k ⚠ MIRROR-GAP-SC-4l ⚠ MIRROR-GAP-SC-4m ⚠ MIRROR-GAP-SC-4n
-              ⚠ MIRROR-GAP-SC-FLATTEN. Phase 2 BLOCKED.
-heads:        .github @ (post-commit) · one4all @ 678d7b9e · corpus (no changes)
+watermark:    2026-05-19 (Sonnet 4.6) — PST-SC-LABELS ✅ one4all 6a880716.
+status:       ⏳ Phase 1 NOT clean — 2 §⛔ violations remaining (was 3).
+              PST-SC-4k ✅ PST-SC-4l ✅ PST-SC-4m ✅ PST-SC-4n ✅ PST-SC-FLATTEN ✅ PST-SC-LABELS ✅.
+              Active: PST-SC-RET-IN-FN (next smallest).
+next:         PST-SC-RET-IN-FN — simple_stmt T_RETURN emits one TT_RETURN($2) not two
+              synthesized stmts; lower_return handles func-name assign.
+mirror gaps:  ⚠ MIRROR-GAP-SC-4k/4l/4m/4n/FLATTEN/LABELS. Phase 2 BLOCKED.
+heads:        .github @ (pending push) · one4all @ 6a880716 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
