@@ -187,9 +187,9 @@ These are **child-stealing** violations distinct from the runtime-helper-name de
 
 - [x] **PRF-12-body-splice** *(audit R15)* ✅ **Subsumed by PRF-12-sub.**
 
-- [ ] **PRF-12-gather-splice** *(audit R19)* — `expr : KW_GATHER block` splices block children into `TT_GATHER` (lines 472–477). Same fix: keep body as a single child of `TT_GATHER`. **Subsumed by PRF-12-gather follow-up** — current PRF-12-gather may already do this correctly; verify and check the box if so.
+- [x] **PRF-12-gather-splice** *(audit R19)* ✅ 2026-05-19 (Sonnet 4.6, one4all `20a6f03c`) — `KW_GATHER block` production rewritten: no longer child-steals `TT_SEQ_EXPR` children. Now emits `TT_GATHER[TT_SEQ_EXPR]` — single child, source order. Gates held.
 
-- [ ] **PRF-12-gather-hoist** *(audit R27)* — `raku_lower_hoist_gather_pass` rewrites every `TT_GATHER` node's `t` / `v.sval` / `n` / `c` in place (lines 647–653) and splices new TT_STMTs into `prog->c[]` (lines 671–685). This is a parser-internal post-pass — strictly, both the rewrite and the prepend are rule 2 violations. Fix: move the entire hoist pass to `lower.c` as `lower_gather_hoist_pass`, called by `lower` before its main traversal. The parser leaves `TT_GATHER` nodes untouched in the program tree.
+- [x] **PRF-12-gather-hoist** *(audit R27)* ✅ 2026-05-19 (Sonnet 4.6, one4all `5d326aa2`) — `raku_lower_hoist_gather_pass()` removed from `raku_parse_string()` parser epilogue. Re-implemented as `lower_gather_hoist_pass()` in `lower.c`, called from `lower()` before main traversal when any `LANG_RAKU` stmt present. Descends into `TT_GATHER.c[0]` (the `TT_SEQ_EXPR` block) for body stmts. Parser leaves `TT_GATHER` nodes untouched. Gates held.
 
 ### Done criteria
 
@@ -264,7 +264,48 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-twigil ✅ HANDOFF; one4all 5047950e corpus a9b1240 .github (this commit)
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-gather-splice ✅ PRF-12-gather-hoist ✅ HANDOFF; one4all 5d326aa2 corpus a9b1240 .github (this commit)
+           2026-05-19 (Sonnet 4.6) — PRF-12-twigil ✅ HANDOFF; one4all 5047950e corpus a9b1240 .github (prior commit)
+status: ⏳ Phase 1 NOT clean — 2 §⛔ violations remaining (PRF-13 Phase 2 gated; PST-FIELD cross-cutting)
+prior closed rungs (preserved for history):
+  PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
+  PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
+  PRF-1..PRF-7 ✅ 2026-05-18 — finish bodies inlined
+  PRF-8 ✅ 2026-05-18 (Opus 4.7) — finish_given; TT_CASE 2-per-arm; cmpkind → lower
+  PRF-9 ✅ 2026-05-18 (Opus 4.7) — finish_gather_body replaced by PRF-12-gather
+  PRF-10 ✅ 2026-05-18 (Opus 4.7) — push_interp_str; LitStrDQ nPush/reduce/nPop
+  PRF-11 ✅ 2026-05-18 — dq_unescape PST-clean, retained
+  PRF-12-gather ✅ 2026-05-18 (Sonnet 4.6) — TT_GATHER; raku_lower_hoist_gather_pass()
+  PRF-S7-1..6 ✅ 2026-05-18 — raku_stubs.sc DELETED; 94 stubs inlined
+  PRF-12-say ✅ 2026-05-19 (Sonnet 4.6) — TT_SAY / TT_SAY_FH
+  PRF-12-print ✅ 2026-05-19 (Sonnet 4.6) — TT_PRINT / TT_PRINT_FH
+  PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, one4all 96a7ca59, corpus 39af2e1)
+  PRF-12-die ✅ 2026-05-19 (Sonnet 4.6, one4all c596462d, corpus adfdbb6)
+  PRF-12-body-splice ✅ subsumed by PRF-12-sub
+  PRF-12-arr-hash-ops ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af)
+  PRF-12-class ✅ 2026-05-19 (Sonnet 4.6, one4all 17a4dc45, corpus 21a4fc1)
+  PRF-12-program ✅ 2026-05-19 (Sonnet 4.6, one4all 2fed81d3, corpus 47a8845)
+  PRF-12-for ✅ 2026-05-19 (Sonnet 4.6, one4all e645ab4b, corpus e6f7504)
+  PRF-12-self ✅ 2026-05-19 (Sonnet 4.6, one4all 95a24fdf, corpus 7da85d5)
+  PRF-12-smatch ✅ 2026-05-19 (Sonnet 4.6, one4all 0e526760, corpus 810795a)
+  PRF-12-new ✅ 2026-05-19 (Sonnet 4.6, one4all 9700c0c3, corpus 2e6e6bd)
+  PRF-12-mcall ✅ 2026-05-19 (Sonnet 4.6, one4all a404f896, corpus 82347f8)
+  PRF-12-hof ✅ 2026-05-19 (Sonnet 4.6, one4all 3fa3b227, corpus 46187d3)
+  PRF-12-capture ✅ 2026-05-19 (Sonnet 4.6, one4all 088ac03c, corpus b31045b)
+  PRF-12-twigil ✅ 2026-05-19 (Sonnet 4.6, one4all 5047950e, corpus a9b1240)
+  PRF-12-gather-splice ✅ 2026-05-19 (Sonnet 4.6, one4all 20a6f03c) — R19 closed
+  PRF-12-gather-hoist ✅ 2026-05-19 (Sonnet 4.6, one4all 5d326aa2) — R27 closed
+audit findings (27 original, ALL 27 CLOSED for Phase B C-side):
+  R1-R18,R20-R27 ✅ all closed (see prior watermarks)
+  R19  ✅ closed PRF-12-gather-splice (one4all 20a6f03c)
+  R27  ✅ closed PRF-12-gather-hoist (one4all 5d326aa2)
+mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated on all six C parsers Phase 1 clean
+next:        PRF-13 — SCRIP mirror for PRF-12-gather (Phase 2, gated).
+             PST-FIELD-1/PST-FIELD-2 — cross-cutting struct cleanup (coordinate with GOAL-PST-ICON.md).
+             Phase 1 C is now COMPLETE for Raku — 0 §⛔ violations remaining on C side.
+gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
+heads:       .github @ (this commit) · one4all @ 5d326aa2 · corpus @ a9b1240
+```
            2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b
            2026-05-19 (Sonnet 4.6) — PRF-12-hof ✅; one4all 3fa3b227 corpus 46187d3
            2026-05-19 (Sonnet 4.6) — PRF-12-mcall ✅; one4all a404f896 corpus 82347f8
