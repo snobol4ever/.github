@@ -63,7 +63,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-4 ✅ COMPLETE 2026-05-19 (Sonnet 4.6, one4all `8890d685`).** emit_prologue/emit_epilogue unified in emit_core.c; IS_JVM/IS_JS/IS_NET dispatch; emit_ir_block calls unified fns. Static silo fns retained for EC-5 vtable. +71/-13 LOC.
 
-**NEXT: EC-5** — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`. Move IR walk from `emit_ir.c` → `emit_core.c`. Delete `IR_emit_vtable_t`, `emit_ir.c`, `emit_ir.h`.
+**EC-5 ✅ COMPLETE 2026-05-19 (Sonnet 4.6, one4all `e1c8a4ac`).** emit_jvm.c/emit_js.c/emit_net.c/emit_ir.c/emit_ir_targets.c/emit_ir.h(shim) deleted. IR walk (ir_node_id/ir_is_generator/ir_walk) + three SM-walk loops (emit_jvm_from_sm/emit_js_from_sm/emit_net_from_sm) + helpers (jvm_sanitize_name/net_parse_define_proto) moved to emit_core.c. Unified emit_program(ast_prog,out,mode) replaces 3 per-target entry points. IR_emit_vtable_t deleted. src/include/emit_ir.h stripped. Net −2077 LOC. Gates floor: 5/0·23/26·194/36.
+
+**NEXT: EC-6** — Audit `emit_wasm.c`: same pattern — move its per-node functions into template arms. Delete `emit_wasm.c` after move. (WASM already partially cleaned by DAI-8 C10.)
 
 
 ## DAI-8 methodology note
@@ -103,15 +105,15 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 8890d685     (EC-4: emit_prologue/emit_epilogue unified in emit_core.c; EC-3+4 complete: 5 SM_templates files, 63 fns, ~157 arms + unified prologue/epilogue)
+one4all: e1c8a4ac     (EC-5: delete emit_jvm.c/emit_js.c/emit_net.c/emit_ir.c/emit_ir_targets.c; IR walk + SM walks to emit_core.c; unified emit_program(); IR_emit_vtable_t deleted; net −2077 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
 smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held)
 broker:      23/26    (held)
 snobol4_jit: 184/77 interp · 186/75 run (held = baseline)
-snobol4_jvm: 7/6      (held — byte-identical .j output verified)
-snobol4_js:  4/2      (held — byte-identical .js output verified)
+snobol4_jvm: 7/6      (held)
+snobol4_js:  4/2      (held)
 snobol4_net: 0/9      (held — ilasm not installed)
 snobol4_wasm: SKIP    (held — wat2wasm not installed)
 snocone:     2/3      (held)
@@ -218,7 +220,7 @@ is invoked with the mode already set via `emit_mode_set()`.
 - [x] **EC-2c** ✅ COMPLETE (commit eea3f916) — Extract each bb_<kind> function into BB_templates/bb_<kind>.c (one file per box). Strip ec_ prefix from all BB and helper symbols (ec_bb_lit → bb_lit, ec_jvm_class_hdr → jvm_class_hdr, etc.). SM_templates/ directory created, empty, ready for SM opcode groups. emit_core.c: 2287 → 1360 lines. Gates: 5/0 · 23/26 · 194/36.
 - [ ] **EC-3** — For each SM instruction kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One SM family per sub-commit. Order: push/pop literals → variables → arithmetic → control flow → calls → pattern bridge → return family.
 - [x] **EC-4** ✅ (one4all `8890d685`, 2026-05-19, Sonnet 4.6) — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
-- [ ] **EC-5** — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`. Move IR walk infrastructure from `emit_ir.c` into `emit_core.c`. Delete `emit_ir.c` / `emit_ir.h`. Delete `IR_emit_vtable_t`. Gates green.
+- [x] **EC-5** ✅ (one4all `e1c8a4ac`, 2026-05-19, Sonnet 4.6) — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`, `emit_ir.c`, `emit_ir_targets.c`, `emit_ir.h` shim. Move IR walk (`ir_node_id`/`ir_is_generator`/`ir_walk`) + three SM-walk loops (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`) + helpers (`jvm_sanitize_name`, `net_parse_define_proto`) into `emit_core.c`. Unified `emit_program(ast_prog, out, mode)` replaces three per-target entry points. `IR_emit_vtable_t` deleted. `src/include/emit_ir.h` stripped to IR walk signatures only. `scrip.c` updated to call `emit_program(EMIT_JVM/JS/NET)`. Gates floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36. Net −2077 LOC.
 - [ ] **EC-6** — Audit `emit_wasm.c`: same pattern — move its per-node functions into template arms. Delete `emit_wasm.c` after move. (WASM already partially cleaned by DAI-8 C10.)
 - [ ] **EC-7** — Gate run: all six frontends, broker, smoke, beauty. Confirm no regression. Update `ARCH-IR.md` to document the unified template model. Close EC rung.
 
