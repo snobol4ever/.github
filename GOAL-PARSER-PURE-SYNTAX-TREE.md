@@ -128,7 +128,7 @@ session**.
 |----------|-----------|---------------|-------------------|
 | SNOBOL4 | ✅ | ⏳ PST-SN4-SC | `GOAL-PST-SNOBOL4.md` |
 | Icon    | ✅ | ⏳ PST-ICN-SC | `GOAL-PST-ICON.md` |
-| Raku    | ✅ | ⏳ PRF-13     | `GOAL-PST-RAKU.md` |
+| Raku    | ✅ | ✅ PRF-14     | `GOAL-PST-RAKU.md` |
 | Snocone | ✅ | ⏳ PST-SC-SC  | `GOAL-PST-SNOCONE.md` |
 | Rebus   | ✅ | ⏳ PST-RB-SC  | `GOAL-PST-REBUS.md` |
 | Prolog  | ✅ | ⏳ PST-PL-SC  | `GOAL-PST-PROLOG.md` |
@@ -166,21 +166,20 @@ restored as a fresh `GOAL-LOWER-REDESIGN.md` once Phase 2 lands.
 ## State
 
 ```
-watermark:   2026-05-19 (Opus 4.7, HQ session) — Phase 1 C ✅ all six.
-             Phase 2 ready (6 sessions). PRIMER expanded with Phase 2
-             SCRIP authoring addendum (350 lines covering library
-             primitives, function-return mechanics, OPSYN/EVAL/assign,
-             multi-assign-in-condition, alt-eval, struct sugar,
-             load order, permitted-vs-forbidden cheat).
-             All seven goal files terse, audit steps embedded.
-next:        Six per-language goal files carry the Phase 2 ladders.
-             Pick the one Lon names; read its steps; do them.
-             Recommended order: PST-RB-SC → PST-ICN-SC → PRF-13 →
-             PST-SN4-SC → PST-PL-SC → PST-SC-SC.
-audit ref:   PST-SCRIP-AUDIT.md (per-file violation list — already
-             embedded as steps in each per-language file).
-heads:       .github @ (this commit) · one4all @ 5d326aa2 ·
-             corpus @ a9b1240 (parser_*.sc STALE — Phase 2 work).
+watermark:   2026-05-19 (Opus 4.7) — Phase 1 C ✅ all six. Phase 2:
+             PST-RB-SC ✅, PST-ICN-SC ✅, PRF-14 (Raku) ✅ (this session),
+             PST-SN4-SC ✅, PST-SC-SC ✅. PST-PL-SC remains ⏳ ready
+             (only outstanding Phase 2 rewrite). Smoke tests for PRF-14
+             and PST-SC-SC blocked by pre-existing container &ALPHABET
+             segfault — debug-in-separate-session per audit's strict
+             rule.
+next:        PST-PL-SC (the last Phase 2 sibling), OR debug the
+             container &ALPHABET segfault to unblock PRF-14-5 and
+             PST-SC-SC-5 smoke simultaneously, OR Stage 2 PST-LR-0
+             bulk rename SM_*→IR_SM_*, IR_*→IR_BB_*. Whichever Lon names.
+audit ref:   PST-SCRIP-AUDIT.md (per-file violation list).
+heads:       .github @ (this commit) · one4all @ e1c8a4ac ·
+             corpus @ 87f99f6.
 ```
 
 ---
