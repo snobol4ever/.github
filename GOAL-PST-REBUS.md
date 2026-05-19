@@ -393,8 +393,14 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
 ## State
 
 ```
-watermark:  RB-C-1b landed 2026-05-18 (one4all ed3f8efc, Sonnet 4.6)
+watermark:  PST-RB-PRE-BEAUTY Bug #2 landed 2026-05-18 (one4all a7900857, Sonnet 4.6)
+            RB-C-1b (flat stmt_list_ne) landed 2026-05-18 (one4all ed3f8efc, Sonnet 4.6)
             parser_icon.sc head restore 2026-05-17 (corpus pending push)
+⚠ MIRROR-GAP-RB-C-1: parser_rebus.sc SC mirror not yet updated to match
+            flat stmt_list_ne accumulation. Next session: SC mirror work.
+            Read SNOBOL4-SNOCONE-PRIMER.md first (parser_*.sc protocol).
+C-SIDE COMPLETE: stmt_list_ne flat ✅  tree_t bodies ✅  mode-1 SUBJ-PAT split ✅
+            All smoke gates green: rebus 4/0 icon 5/0 prolog 5/0 raku 5/0 snobol4 7/0 snocone 5/0
 status:     Subsystem suite 19/1 (Qize fails on bb_pool exhaustion — bug
             diagnosed; tracked as PST-RB-NEXT-BB-CACHE).
             CSO sweep CSO-1..CSO-8 complete in one combined commit
