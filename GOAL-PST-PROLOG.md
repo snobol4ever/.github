@@ -76,13 +76,13 @@ lower expands.
 
 ### Steps
 
-- [ ] **PL-SC-1** — Delete every function listed above. Keep
+- [x] **PL-SC-1** — Delete every function listed above. Keep
   `unescape_q`. Delete `var_table`, `var_next`, `dcg_svar_count`,
   `head_name`, `head_arity`, `body_present`, `ascii_table` init block
   (lower handles char-code conversion too — or keep as parser-scratch
   if `Push_char_code` rewrite needs it; see PL-SC-2).
 
-- [ ] **PL-SC-2** — Rewrite leaf-pushing grammar sites. The C parser's
+- [x] **PL-SC-2** — Rewrite leaf-pushing grammar sites. The C parser's
   target tree kinds (per `prolog_parse.c` Phase 1 clean):
   - variable name → `TT_VAR(name_text)` — name only, no slot
   - atom (lowercase ident) → `TT_FNC(name)` for nullary functor
@@ -111,7 +111,7 @@ lower expands.
   pattern. Capture into `. var` first when post-processing is needed
   (negation, radix-decode), then `assign` and `shift`.
 
-- [ ] **PL-SC-3** — Rewrite binary/unary op reducers. Each
+- [x] **PL-SC-3** — Rewrite binary/unary op reducers. Each
   `Reduce_X` becomes a literal `reduce(kind, n)`. The functor-name
   variants used a captured `_op_name`; replace with explicit kinds.
   Target kinds (confirm against `prolog_parse.c`):
@@ -142,7 +142,7 @@ lower expands.
   `v.sval` of the produced node. If the C parser uses `TT_FNC(op_name)`
   for these instead, match its shape exactly.
 
-- [ ] **PL-SC-4** — Rewrite list/compound/conj/disj n-ary reducers:
+- [x] **PL-SC-4** — Rewrite list/compound/conj/disj n-ary reducers:
 
   ```
   Reduce_list      →  reduce("'TT_LIST'",     'nTop()+1')   /* +1 for tail */
@@ -154,7 +154,7 @@ lower expands.
   (Or match exact C-parser kinds — likely `TT_FNC` with v=`,` / `;` for
   conj/disj. Confirm.)
 
-- [ ] **PL-SC-5** — Rewrite clause/directive/DCG-rule:
+- [x] **PL-SC-5** — Rewrite clause/directive/DCG-rule:
 
   ```
   clause     = *head FENCE($':-' *body | epsilon) $'.' reduce("'TT_CLAUSE'", 2);
@@ -166,7 +166,7 @@ lower expands.
   assignment, no DCG expansion, no clause merging. Lower handles all
   three. The `head_name`/`head_arity`/`body_present` state vanishes.
 
-- [ ] **PL-SC-6** — Driver tail. Today the driver calls `merge_choices`
+- [x] **PL-SC-6** — Driver tail. Today the driver calls `merge_choices`
   before dumping. After deletion, the driver just dumps every child of
   the root in source order — lower groups them. Replace:
 
@@ -183,7 +183,7 @@ lower expands.
 
   Delete the `merge_choices(ptree);` call.
 
-- [ ] **PL-SC-7** — Grep verify:
+- [x] **PL-SC-7** — Grep verify:
   ```
   grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_prolog.sc
   grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_prolog.sc
@@ -193,7 +193,7 @@ lower expands.
   (`unescape_q`). Substring matches on `nPush(`/`nPop(` allowed. The
   driver-tail `Pop()` allowed.
 
-- [ ] **PL-SC-8** — Run smoke test:
+- [~] **PL-SC-8** ⚠ MIRROR-GAP-PL-SC-8 — Run smoke test:
   ```
   bash /home/claude/one4all/scripts/test_parser_prolog.sh
   ```
@@ -218,7 +218,8 @@ All rungs 6a–6h ✅. `pt_flatten_conj`, `pt_maybe_ifthenelse`,
 ## State
 
 ```
-watermark:   Phase 1 C ✅. Phase 2 PST-PL-SC ready.
+watermark:   Phase 1 C ✅. Phase 2 PST-PL-SC ✅ PL-SC-1..7 done (2026-05-19, corpus 1280f67).
+             ⚠ MIRROR-GAP-PL-SC-8: scrip segfaults in env; smoke deferred.
 next:        PL-SC-1 (delete ~64 fns + state), PL-SC-2 (leaf shifts),
              PL-SC-3 (binops), PL-SC-4 (n-ary), PL-SC-5 (clause/dcg),
              PL-SC-6 (driver), PL-SC-7 (grep), PL-SC-8 (smoke).
