@@ -121,9 +121,98 @@ Gates per rung: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`,
 
 ---
 
+## Phase 2 rungs — SCRIP mirror (after Phase 1 complete: 6f, 6g done)
+
+**Do not start until all six C parsers satisfy Phase 1 and PST-PL-6f is checked [x].**
+
+- [ ] **PST-PL-SC-1 — Audit `parser_prolog.sc` for Aspect 1 and Aspect 2 violations.**
+
+  **Aspect 1** (tree_t is complete — all info forward-passable from tree alone):
+  `assign_anon_slots()` currently walks the built tree post-construction and
+  mutates `TT_VAR` nodes in place, replacing `v = '_ANON'` with `v = '_V<n>'`.
+  This is a post-build tree mutation inside the parse phase. The mutation
+  writes slot numbers into the `v` field — the info ends up in the tree, but
+  the act of mutation happens after `Reduce`. This is a violation of the
+  pure-parse rule: the parser must not walk and rewrite its own output.
+
+  **Where:** `parser_prolog.sc`, function `assign_anon_slots` (lines ~102–114)
+  and its call sites at lines ~456, 462, 475.
+
+  **Fix:** Remove `assign_anon_slots` from the parse phase entirely. Anonymous
+  variables `_` should be emitted as `TT_VAR` with `v = '_ANON'` and left
+  that way. Lower assigns distinct slot names to each `_ANON` occurrence —
+  it can do this by walking the tree post-parse, which is where tree-walking
+  belongs. Add a `prolog_lower_anon_slots(tree_t*)` pass to `prolog_lower.c`
+  (or `lower.c`) that renames each `_ANON` to a unique `_V<n>` in pre-lower.
+
+  **Aspect 2** (tree_t has only t, v, n, c — no in-place mutation):
+  `Append(fnc_node, lhs)` / `Append(fnc_node, rhs)` calls throughout
+  `parser_prolog.sc` (lines ~200–261) mutate an already-pushed `tree_t`
+  node by inserting additional children. `Append` calls `Insert` which
+  rewrites `n(x)` and `c(x)` in place. This is forbidden in the pure-parse
+  phase — a `reduce` call must gather all children first, then create the
+  node atomically.
+
+  **Where:** `parser_prolog.sc` lines ~200–261 in operator-building helpers
+  (`build_binop`, `build_unop`, `build_if`, `build_list`, `build_op261`).
+
+  **Fix:** Rewrite each helper to use `nPush`/`nInc`/`nPop` counter
+  discipline instead of `Append`. Each child is `Push`-ed individually;
+  the helper ends with `Reduce('TT_FNC', n)` or `Reduce(tag, n)`. No node
+  is created until all children are on the stack.
+
+  No code changes in this rung — audit and document findings only.
+
+- [ ] **PST-PL-SC-2 — Remove `assign_anon_slots` from parse phase.**
+
+  **What:** Delete the three call sites of `assign_anon_slots` from
+  `parser_prolog.sc` (lines ~456, 462, 475). Delete the function body.
+  All `_ANON` occurrences remain as `TT_VAR('_ANON')` in the tree.
+
+  **Where in lower:** Add `prolog_lower_anon_slots(tree_t *clause)` to
+  `src/lower/prolog_lower.c`. It walks the clause tree, finds each
+  `TT_VAR` node with `v.sval == "_ANON"`, assigns a unique `_V<n>` name
+  using a local counter. Call it at the top of `lower_prolog_clause()`.
+
+  **Why:** The tree must be complete and immutable after `Reduce`. Walking
+  and rewriting it inside the parser phase violates the two-phase contract.
+  Slot naming is a lower-time semantic concern — it requires knowing all
+  anonymous variables in a clause, which lower already traverses.
+
+  Gates: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`.
+
+- [ ] **PST-PL-SC-3 — Replace `Append`-based node building with `Reduce`.**
+
+  **What:** Rewrite all operator/compound-building helpers in
+  `parser_prolog.sc` that use `Append(node, child)` to instead use the
+  stack counter discipline:
+  - Push each child onto the parse stack with `Push(child)` / `nInc()`.
+  - End with `Reduce('TT_FNC', nTop())` or `Reduce(tag, n)`.
+  - Delete the pre-allocated `fnc_node = tree(...)` + `Append` pattern.
+
+  **Specifically** (lines ~200–261): `build_binop`, `build_unop`,
+  `build_if` (or equivalent local helpers), plus any anonymous helper
+  blocks that call `Append`.
+
+  **Why:** `Append` mutates `n(x)` and `c(x)` of an existing node.
+  The only permitted tree-building operations in the parse phase are
+  `Shift(t, v)` (create leaf, push) and `Reduce(t, n)` (pop n, create
+  node with n children, push). `Append` is structurally identical to
+  calling `Reduce` after the fact — it must not exist in the parse phase.
+
+  Gates: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`,
+  `crosscheck_snobol4`.
+
+---
+
 ## Done criterion
 
-1. PST-PL-6a through 6g all checked [x].
+1. PST-PL-6a through 6g all checked [x] (Phase 1 C complete).
+2. PST-PL-SC-1 through SC-3 checked [x] (Phase 2 SCRIP mirror complete).
+3. `parser_prolog.sc` contains zero `Append()` calls.
+4. `parser_prolog.sc` contains no post-build tree-walking or mutation.
+5. `assign_anon_slots` does not exist in `parser_prolog.sc`.
+6. All gate scripts green at baseline.
 2. `prolog_parse.c` produces only `tree_t` — `Term*` gone as parser output.
 3. Variable-slot assignment lives exclusively in `prolog_lower.c` pre-lower pass.
 4. All gate scripts green at baseline.
