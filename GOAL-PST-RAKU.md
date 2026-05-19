@@ -139,7 +139,7 @@ PRF-S7-1..6 ✅ 2026-05-18. `corpus/SCRIP/raku_stubs.sc` **DELETED**. All 94 stu
 
 - [ ] **PRF-13** — SCRIP mirror for PRF-12-gather. Rewrite `GatherBlock` in `parser_raku.sc` to pure `nPush() ARBNO(*SubBlock_body) reduce('TT_GATHER','nTop()') nPop() nInc()`. Create `corpus/SCRIP/raku_helpers.sc` with `gather_hoist_pass(ptree)` (mirrors `raku_lower_hoist_gather_pass` using `tree.sc` API: `t()`, `n()`, `c()`, `Append`, `Prepend`). Update driver tail to call `gather_hoist_pass(ptree)` after `ptree = Pop()`. **Phase 2 — blocked on all six C parsers being Phase 1 clean.**
 
-- [ ] **PRF-12-sub** — lower.c: add `TT_SUB_DECL` to ast.h; write `lower_sub_decl` reading `c[0]` (name), `c[1..nparams]` (params), `c[nparams+1..]` (body). raku.y `sub_decl` rule: emit `TT_SUB_DECL[TT_VAR(name), params..., body_stmts...]` — no `_id` flag. Removes `_id == SUB_TAG_ID` reads from `lower_stmt`. **Unblocks PST-FIELD-2.**
+- [x] **PRF-12-sub** ✅ 2026-05-19 (Sonnet 4.6, one4all `96a7ca59`, corpus `39af2e1`) — `TT_SUB_DECL` added; raku.y `sub_decl` emits `TT_SUB_DECL` (no `_id`, no body-splicing); `program` rule detects `TT_SUB_DECL`; `_id == SUB_TAG_ID` removed from `lower.c`. Gather heap-corruption fixed (`free(prog->c)` → prefix-aware free). 62 corpus `.ref` files regenerated. PST-FIELD-2 Raku-side prerequisite satisfied. PRF-12-body-splice subsumed.
 
 - [ ] **PRF-12-class** — lower.c: add `TT_CLASS_DECL`; write `lower_class_decl` handling method renaming (`Cls__method`) and field extraction. raku.y `class_decl`: emit `TT_CLASS_DECL[TT_VAR(cname), item0...]` without renaming or `raku_meth_register` in parser. Stops returning `TT_NUL` from the action.
 
@@ -185,7 +185,7 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 These are **child-stealing** violations distinct from the runtime-helper-name desugaring. The pattern: a wrapper node is built fresh, then the children of one of its inputs (typically a block / TT_SEQ_EXPR) are stolen and re-parented under the wrapper, leaving the input as a hollow shell.
 
-- [ ] **PRF-12-body-splice** *(audit R15)* — `sub_decl` currently splices the block body's children into the `TT_FNC` node (lines 379–380, 385–386 of `raku.y`). Fix: keep the body as a single `TT_SEQ_EXPR` child of `TT_SUB_DECL` (via PRF-12-sub), not spliced. Lower flattens at consumption time. **Subsumed by PRF-12-sub** when that lands.
+- [x] **PRF-12-body-splice** *(audit R15)* ✅ **Subsumed by PRF-12-sub.**
 
 - [ ] **PRF-12-gather-splice** *(audit R19)* — `expr : KW_GATHER block` splices block children into `TT_GATHER` (lines 472–477). Same fix: keep body as a single child of `TT_GATHER`. **Subsumed by PRF-12-gather follow-up** — current PRF-12-gather may already do this correctly; verify and check the box if so.
 
@@ -264,35 +264,36 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-say/print ✅; PST-FIELD-1 ✅
-           2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
-status: ⏳ Phase 1 NOT clean — 25 §⛔ violations remaining (R3-R6 closed by PRF-12-say/print)
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-sub ✅; PRF-12-body-splice ✅ (subsumed)
+           2026-05-19 (Sonnet 4.6) — gather heap-corruption fixed (one4all 96a7ca59)
+status: ⏳ Phase 1 NOT clean — 23 §⛔ violations remaining
 prior closed rungs (preserved for history):
-  PST-RAKU-3a/3b ✅ (Sonnet 4.6, dates from earlier history) — V1..V6 fixed
+  PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
-  PRF-1..PRF-7 ✅ 2026-05-18 — finish_call_body / finish_new_body / finish_mcall_body
-    / finish_sub_body / finish_method_body / finish_class_body / finish_main_body inlined
-  PRF-8 (finish_given) ✅ 2026-05-18 (Opus 4.7) — TT_CASE shape changed to 2-per-arm;
-    cmpkind moved to lower.c
-  PRF-9 (finish_gather_body, transitional) ✅ 2026-05-18 (Opus 4.7) — replaced by
-    PRF-12-gather
-  PRF-10 (push_interp_str) ✅ 2026-05-18 (Opus 4.7) — push_interp_leaves leaf-only stub
-    in parser_raku.sc; LitStrDQ wrapped with nPush/reduce('TT_CAT',r_nTop)/nPop
-  PRF-11 (dq_unescape) ✅ 2026-05-18 — PST-clean pre-pass string processor, retained
-  PRF-12-gather ✅ 2026-05-18 (Sonnet 4.6, one4all 'pending') — TT_GATHER added;
-    KW_GATHER rule pure transcription; raku_lower_hoist_gather_pass() post-parse
-  PRF-S7-1..6 ✅ 2026-05-18 — raku_stubs.sc DELETED; 94 stubs inlined as
-    shift_val/shift/assign at use sites
-audit findings 2026-05-19 (PST-LR-AUDIT.md § Scan 4, 27 violations):
+  PRF-1..PRF-7 ✅ 2026-05-18 — finish bodies inlined
+  PRF-8 ✅ 2026-05-18 (Opus 4.7) — finish_given; TT_CASE 2-per-arm; cmpkind → lower
+  PRF-9 ✅ 2026-05-18 (Opus 4.7) — finish_gather_body replaced by PRF-12-gather
+  PRF-10 ✅ 2026-05-18 (Opus 4.7) — push_interp_str; LitStrDQ nPush/reduce/nPop
+  PRF-11 ✅ 2026-05-18 — dq_unescape PST-clean, retained
+  PRF-12-gather ✅ 2026-05-18 (Sonnet 4.6) — TT_GATHER; raku_lower_hoist_gather_pass()
+  PRF-S7-1..6 ✅ 2026-05-18 — raku_stubs.sc DELETED; 94 stubs inlined
+  PRF-12-say ✅ 2026-05-19 (Sonnet 4.6) — TT_SAY / TT_SAY_FH
+  PRF-12-print ✅ 2026-05-19 (Sonnet 4.6) — TT_PRINT / TT_PRINT_FH
+  PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, one4all 96a7ca59, corpus 39af2e1):
+    TT_SUB_DECL added; _id==SUB_TAG_ID removed from lower.c;
+    gather heap-corruption fixed (free(prog->c) prefix offset);
+    62 corpus .ref files regenerated. PST-FIELD-2 Raku prereq satisfied.
+  PRF-12-body-splice ✅ subsumed by PRF-12-sub
+audit findings (27 original, 4 closed):
   R1   program synthesizes 'main' (owned: PRF-12-program)
   R2   KW_MY IDENT VAR_* discards type annotation (owned: PRF-12-my-type)
-  R3-6 KW_SAY/KW_PRINT desugar (owned: PRF-12-say, PRF-12-print)
+  R3-6 ✅ KW_SAY/KW_PRINT desugar — closed PRF-12-say/print
   R7-9 arr/hash op desugar (owned: PRF-12-arr-hash-ops)
   R10  KW_TRY/KW_CATCH desugar (owned: PRF-12-try)
   R11  KW_UNLESS desugar (owned: PRF-12-unless)
-  R12-13 for_stmt desugar + inspect-kind-and-rearrange (owned: PRF-12-for)
+  R12-13 for_stmt desugar + inspect-kind (owned: PRF-12-for)
   R14  given_stmt pair wrap/unwrap (owned: PRF-12-given)
-  R15  sub_decl child-stealing (owned: PRF-12-sub / PRF-12-body-splice)
+  R15  ✅ sub_decl child-stealing — closed PRF-12-sub/PRF-12-body-splice
   R16-17 class_decl in-place mutation + TT_NUL return (owned: PRF-12-class)
   R18  method_decl synth-self (owned: PRF-12-self)
   R19  KW_GATHER child-stealing (owned: PRF-12-gather-splice)
@@ -304,32 +305,25 @@ audit findings 2026-05-19 (PST-LR-AUDIT.md § Scan 4, 27 violations):
   R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
-  Phase 1 status reverted from ✅ to ⏳ (was claimed complete; audit revision).
-mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather)
-next:        pick any single PRF-12 sub-rung. Recommended orderings:
-             - Smallest scope (any single keyword): **PRF-12-say** or **PRF-12-die**
-               or **PRF-12-print** — each is ~3 sites, single dedicated kind, no
-               structural cleanup. Good warm-up rung.
-             - Highest structural value: **PRF-12-sub** — unblocks PST-FIELD-2
-               (Raku side). Adds TT_SUB_DECL, removes _id == SUB_TAG_ID lookups
-               from lower_stmt. Bigger scope but clears a cross-cutting blocker.
-             Per-rung recipe (5 steps): (1) add TT_* kind to ast.h; (2) write
-             lower_* dispatch in lower.c (or lower_raku.c pre-pass); (3) rewrite
-             raku.y action to pure tree transcription with new kind; (4) regen
-             .ref files; (5) run gates (smoke_raku, smoke_scrip, crosscheck).
-             After every PRF-12 sub-rung: smoke_raku must remain at floor.
-heads:       .github @ 58869b7e · one4all (no changes) · corpus (no changes)
+mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
+next:        PRF-12-die (R23, ~3 sites, TT_DIE) or PRF-12-class (R16-17, TT_CLASS_DECL)
+             Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
+             (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
+             (5) regen .ref files; (6) run gates.
+             ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
+gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
+heads:       .github @ (this commit) · one4all @ 96a7ca59 · corpus @ 39af2e1
 ```
 
 ---
 
-### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+### Session-end note — 2026-05-19 (Sonnet 4.6)
 
-HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
-PST goal files. No Raku-specific code changes this session. Next session:
-pick one PRF-12 sub-rung from the audit-promoted list (lines 150–186 in this
-file each have the line-level fix sketch). Note Raku is a primary `_id`
-consumer via `SUB_TAG_ID` — PST-FIELD-2 closure depends on PRF-12-sub landing.
+PRF-12-sub complete. `TT_SUB_DECL` is the dedicated kind for Raku sub
+declarations — no more `_id == SUB_TAG_ID` side-channel. PST-FIELD-2
+Raku prerequisite satisfied. Also fixed a pre-existing heap-corruption in
+the gather hoist pass (`free(prog->c)` without the `sizeof(size_t)` prefix
+offset). 23 §⛔ violations remain; next: PRF-12-die or PRF-12-class.
 
 ---
 
