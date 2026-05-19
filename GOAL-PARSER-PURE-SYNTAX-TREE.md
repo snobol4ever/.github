@@ -160,7 +160,7 @@ Status per language (updated 2026-05-19 per `PST-LR-AUDIT.md`, scans 1–3,
 
 | Language | Phase 1 complete? | Remaining C work |
 |---|---|---|
-| Icon | ⏳ no (was ✅; audit revision) | PST-ICN-LR-1 (proc-decl `_id` removal blocks PST-FIELD-2) |
+| Icon | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | PST-ICN-LR-1 ✅ (TT_PROC_DECL); PST-FIELD-1 ✅; PST-FIELD-2 ✅ (one4all @ b8091a9b). _id removed from tree_t struct; icn_scope_patch simplified to pure scope_add; slot lookup via live scope_get at use-sites. Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean. |
 | SNOBOL4 | ⏳ no (was ✅; audit revision) | PST-SN4-W1 ✅; **PST-SN4-W2** (goto_expr in-place mutate at snobol4.y:211 — canonical §⛔ violation); **PST-SN4-W3** (g_cur mid-rule tree mutation in expr15/expr17 — six append sites) |
 | Raku | ⏳ no | PRF-12: sub, class, program, for-range, gather → lower; PST-FIELD-1, PST-FIELD-2; **plus 14 new PRF-12 sub-rungs** from LR-AUDIT-1e (R2–R11, R20–R26): my-type, say, print, arr-hash-ops, try, unless, given, smatch, new, mcall, die, hof, capture, twigil — see `PST-LR-AUDIT.md § Raku-rungs` for line-level fix sketches |
 | Snocone | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | 4k–4n ✅, FLATTEN ✅ `8f60b3e2`, LABELS ✅ `6a880716`, RET-IN-FN ✅ `e2dfed5f`, FOR-INIT ✅ `b6558370`. All 11 §⛔ violations closed. Phase 2 SCRIP mirror BLOCKED. |

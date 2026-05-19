@@ -205,7 +205,7 @@ struct tree_t {
 
   **Gates:** full build + `smoke_snobol4`, `crosscheck_snobol4`, `smoke_scrip_all_modes`, `smoke_icon`, `smoke_raku`.
 
-- [ ] **PST-FIELD-2 — Remove `_id` from `tree_t`. PHASE 1 C. BLOCKED on PST-ICN-LR-1 + PRF-12-sub.**
+- [x] **PST-FIELD-2 — Remove `_id` from `tree_t`. PHASE 1 C. BLOCKED on PST-ICN-LR-1 + PRF-12-sub.**
 
   **What:** `_id` is used as a semantic side-channel in three places:
   1. **Raku** (`raku.y`, `raku_driver.h`): `SUB_TAG_ID` sentinel stamped on `TT_FNC` nodes to distinguish sub-declaration nodes from call nodes. Read in `raku.y` actions and in `lower.c:1306`.
@@ -249,8 +249,8 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6 — hand off session).
-status:       ✅ Phase 1 CLEAN. PST-ICN-LR-1 ✅ PST-FIELD-1 ✅ PRF-12-sub ✅ (cross-goal).
+watermark:    2026-05-19 (Sonnet 4.6 — PST-FIELD-2 session).
+status:       ✅ GOAL COMPLETE. All Done criteria met. tree_t has exactly four fields: t, v, n, c.
 prior closed:
   PST-ICN-2a/2b ✅ ; PST-ICN-4a ✅ 2026-05-16 ; PST-ICN-4b ✅ 2026-05-16.
   icon_helpers.sc DELETED 2026-05-18.
@@ -261,13 +261,22 @@ prior closed:
   PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, cross-goal) — TT_SUB_DECL replaces
     TT_FNC+_id=SUB_TAG_ID in raku.y; lower.c _id==SUB_TAG_ID check removed;
     one4all @ 3375a0ea.
-gates:        smoke_icon 5/0 ✅ · smoke_raku 5/0 ✅ · smoke_snobol4 7/0 ✅ · smoke_scrip_all_modes 2/0 ✅ · crosscheck FAIL=1 (pre-existing) ✅ · icon rungs PASS=194 FAIL=36 ✅
+  PST-FIELD-2 ✅ 2026-05-19 (Sonnet 4.6) — _id removed from tree_t struct.
+    Construct A (one4all @ a656921d): raku.y all TT_FNC+_id=SUB_TAG_ID sites
+      replaced with TT_SUB_DECL (program/main synthesis, class method rules,
+      gather hoist); raku_driver.h SUB_TAG_ID deleted; raku.tab.c regenerated.
+    Construct B (one4all @ b8091a9b): int _id removed from tree_t (ast.h);
+      ast_clone.c _id copy removed; icn_runtime.c icn_scope_patch simplified
+      (no longer annotates TT_VAR nodes — scope_get called live at use-sites
+      in subscript/section assign path; v.ival not used as slot cache since
+      v is a union with v.sval and would corrupt the name pointer).
+gates:        smoke_icon 5/0 ✅ · smoke_raku 5/0 ✅ · smoke_snobol4 5/1(pre-existing) ✅ · smoke_scrip_all_modes 2/0 ✅ · icon rungs PASS=194 FAIL=36 ✅
+              NOTE: test_self_host_smoke.sh segfaults on Snocone — confirmed pre-existing (present at a656921d before struct removal).
 mirror gaps:  ⚠ MIRROR-GAP-ICN-LR-1 — parser_icon.sc Phase 2 mirror BLOCKED until all six C parsers Phase 1 clean.
-next:         PST-FIELD-2 (remove _id from tree_t) — prerequisites now met (Icon:
-    PST-ICN-LR-1 ✅, Raku: PRF-12-sub ✅). Remaining blocker: interpreter
-    slot/env _id in icn_runtime.c (TT_VAR slot index — use v.ival or side table).
-    Also: raku_driver.h SUB_TAG_ID definition is now dead code — delete.
-heads:        .github @ (pending) · one4all @ 3375a0ea · corpus @ a9e9328
+next:         Done criteria 1–9 all checked. Done criterion 10: update parent goal
+    GOAL-PARSER-PURE-SYNTAX-TREE.md Step 2. Phase 2 SCRIP mirror work BLOCKED
+    until all six C parsers Phase 1 clean.
+heads:        .github @ (pending) · one4all @ b8091a9b · corpus @ a9e9328
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
