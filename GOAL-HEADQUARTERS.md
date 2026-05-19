@@ -144,3 +144,54 @@ Two confusingly-named prefixes exist today. `IR_t` and `IR_block_t` are the Byrd
 - [ ] **IR-RN-3** — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`) — new names throughout.
 - [ ] **IR-RN-4** — Update all arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`, `GOAL-HEADQUARTERS.md`) to use new names.
 - [ ] **IR-RN-5** — Cross-language gate run: all six frontends + broker + smoke + beauty. Close rung.
+
+---
+
+## Emitter Consolidation (EC) — move JVM/JS/.NET into per-instruction template functions
+
+### Problem
+
+`emit_jvm.c`, `emit_js.c`, `emit_net.c` are parallel silos. Each reimplements its own
+scalar/generator dispatch loop and its own per-node functions. The SM instruction and BB box
+logic for each target is invisible to the others. Adding a new SM opcode or BB box kind
+requires touching N files.
+
+### Target architecture
+
+One function per SM instruction and one function per BB box kind, in `emit_templates.h` /
+`emit_core.c`. Each function dispatches on `bb_emit_mode` internally:
+
+```c
+void emit_sm_halt(void) {
+    switch (bb_emit_mode) {
+        case EMIT_TEXT:          /* x86 GAS text — existing */
+        case EMIT_BINARY_WIRED:  /* x86 binary — existing */
+        case EMIT_JVM:           /* JVM Jasmin — moved from emit_jvm.c */
+        case EMIT_JS:            /* JavaScript — moved from emit_js.c */
+        case EMIT_NET:           /* MSIL .NET — moved from emit_net.c */
+        case EMIT_WASM:          /* WASM — moved from emit_wasm.c */
+    }
+}
+```
+
+The vtable (`IR_emit_vtable_t` / `emit_ir_block`) and the three silo files are deleted.
+`emit_ir.c` / `emit_ir.h` collapse — the walk infrastructure moves into `emit_core.c` and
+is invoked with the mode already set via `emit_mode_set()`.
+
+### Step ladder
+
+- [ ] **EC-0** — Add `EMIT_JVM`, `EMIT_JS`, `EMIT_NET` to `bb_emit_mode_t` in `emit_core.h`. Add `IS_JVM` / `IS_JS` / `IS_NET` macros. No functional change. Gates green.
+- [ ] **EC-1** — Inventory pass. For every `emit_jvm_bb_*` / `emit_js_bb_*` / `emit_net_bb_*` function, identify the corresponding template function in `emit_templates.h`. Produce mapping table (jvm/js/net function → template function). Document any BB kinds present in silos but absent from templates (gap list).
+- [ ] **EC-2** — For each BB box kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One BB kind per sub-commit. Order: `IR_PAT_LIT` first (simplest), then remaining SNOBOL4 pattern leaves, then composers, then Icon, then Prolog.
+- [ ] **EC-3** — For each SM instruction kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One SM family per sub-commit. Order: push/pop literals → variables → arithmetic → control flow → calls → pattern bridge → return family.
+- [ ] **EC-4** — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
+- [ ] **EC-5** — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`. Move IR walk infrastructure from `emit_ir.c` into `emit_core.c`. Delete `emit_ir.c` / `emit_ir.h`. Delete `IR_emit_vtable_t`. Gates green.
+- [ ] **EC-6** — Audit `emit_wasm.c`: same pattern — move its per-node functions into template arms. Delete `emit_wasm.c` after move. (WASM already partially cleaned by DAI-8 C10.)
+- [ ] **EC-7** — Gate run: all six frontends, broker, smoke, beauty. Confirm no regression. Update `ARCH-IR.md` to document the unified template model. Close EC rung.
+
+### Invariant
+
+After EC-5: every SM instruction and every BB box kind has exactly one function in
+`emit_core.c`. Adding a new backend = adding one `case EMIT_NEW_TARGET:` arm per
+function. Adding a new SM opcode = adding one function with arms for all backends.
+No per-target silo files. No vtable dispatch.
