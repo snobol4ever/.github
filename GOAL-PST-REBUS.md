@@ -511,7 +511,11 @@ typedef struct {
 
   **Gates:** `smoke_rebus` 4/0, `scrip_all_modes` 2/0, `crosscheck_snobol4` floor.
 
-- [ ] **PST-RB-DECL-3 — Eliminate `RCase` from `rebus.y`. Phase 1 C.**
+- [x] **PST-RB-DECL-3 — Eliminate `RCase` from `rebus.y`. Phase 1 C.** ✅ 2026-05-19 (Sonnet 4.6, one4all `90658061`)
+
+  §⛔ violation (synthesized TT_IF per clause) already closed by RB-C-3 `ccc11220`.
+  This rung: added free loop `{ RCase *c = $5; while (c) { RCase *nx = c->next; free(c); c = nx; } }` at end of case_stmt action. Updated comment: "parser-local scratch only — freed here, never escapes." Stale '5c will remove it' comment replaced with Option A rationale. `rebus.h` RCase doc comment updated.
+  **Phase 1 only.** Records `⚠ MIRROR-GAP-RB-DECL-3`.
 
   **Where (`rebus.y` lines 388–433):**
 
@@ -559,7 +563,11 @@ typedef struct {
 
   **Gates:** `smoke_rebus`, `scrip_all_modes`, `crosscheck_snobol4`.
 
-- [ ] **PST-RB-DECL-4 — Eliminate `RProgram` outer wrapper. Phase 1 C.**
+- [x] **PST-RB-DECL-4 — Eliminate `RProgram` outer wrapper. Phase 1 C.** ✅ superseded by DECL-2 `8af2e2e1`
+
+  All DECL-4 goals accomplished as part of DECL-2: `prog` global is `tree_t*`, `rebus_parse_init` allocates `TT_PROGRAM`, `rebus_parsed_program` is `tree_t*`, all consumers use `prog->c[]` tree-walk. `RProgram` struct deleted from `rebus.h`. Records `⚠ MIRROR-GAP-RB-DECL-4`.
+
+- [x] **PST-RB-DECL-5 — Audit cleanup.** ✅ 2026-05-19 (Sonnet 4.6)
 
   **Where (`rebus.y` lines 120–140, 632–635):**
 
@@ -602,14 +610,11 @@ typedef struct {
 
   **Gates:** `smoke_rebus`, `scrip_all_modes`, `crosscheck_snobol4`.
 
-- [ ] **PST-RB-DECL-5 — Audit cleanup.**
+- [x] **PST-RB-DECL-5 — Audit cleanup.** ✅ 2026-05-19 (Sonnet 4.6)
 
-  After 1–4 land, re-grade `PST-LR-AUDIT.md § Scan 5`:
-  - The "off-tree machinery (5.1)" table should shrink to **zero rows** (or SAL/TAL/RCase-as-scratch only, with explicit rationale).
-  - Violation Rb4 (case_stmt synthesizing TT_IF per clause) → closed.
-  - The "Net Rebus status" line drops to **5 violations** (RB-C-1 ✅ already, plus RB-C-2/3/4/5 still open).
-
-  Update audit-row entries with new line numbers post-refactor. Update `GOAL-PARSER-PURE-SYNTAX-TREE.md` Phase 1 status table for Rebus.
+  `PST-LR-AUDIT.md § Scan 5` re-graded: all 6 Rb violations marked ✅ with commit hashes.
+  "Net Rebus status" updated to 0 retained violations, Phase 1 C COMPLETE.
+  `GOAL-PARSER-PURE-SYNTAX-TREE.md` Phase 1 table: Rebus row updated to ✅.
 
   **No code changes — audit-update only.**
 
@@ -658,16 +663,17 @@ typedef struct {
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — DECL-1 ✅ b4bb0a9c, DECL-2 ✅ 8af2e2e1.
-              RDecl/RDKind/RProgram eliminated. Parser output is tree_t* throughout.
-status:       ⏳ Phase 1 NOT clean — PST-RB-DECL-3..5 open.
-              All RB-C §⛔ violations closed. DECL-2 closed (RDecl eliminated).
-next:         **PST-RB-DECL-3** — RCase: document as parser-local scratch (Option A already
-              implemented in RB-C-3); add free loop for RCase nodes post case_stmt;
-              update rebus.h comment; re-grade audit Scan 5.
-mirror gaps:  ⚠ MIRROR-GAP-RB-C-1..5, ⚠ MIRROR-GAP-RB-DECL-2 recorded.
-              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
-heads:        .github @ (pending push) · one4all @ 8af2e2e1 · corpus (no changes)
+watermark:    2026-05-19 (Sonnet 4.6) — Phase 1 C COMPLETE. All §⛔ violations closed.
+              DECL-3 ✅ 90658061 (RCase freed; Option A documented).
+              DECL-4 superseded by DECL-2 (RProgram already eliminated).
+              DECL-5 ✅ (PST-LR-AUDIT.md Scan 5 re-graded; parent goal table updated).
+status:       ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)**
+              0 §⛔ violations. RDecl/RDKind/RProgram deleted. RCase is parser-local scratch.
+              rebus_parsed_program is tree_t* of kind TT_PROGRAM.
+next:         Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+              When unblocked: parser_rebus.sc mirror for RB-C-1..5 + DECL-2/3.
+mirror gaps:  ⚠ MIRROR-GAP-RB-C-1..5, ⚠ MIRROR-GAP-RB-DECL-2, ⚠ MIRROR-GAP-RB-DECL-3.
+heads:        .github @ (pending push) · one4all @ 90658061 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)

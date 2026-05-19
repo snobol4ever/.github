@@ -774,22 +774,20 @@ audited here against §⛔ because they don't produce `tree_t` nodes.
 
 **Retained under your rules:**
 
-| # | Where | Violation | Owning rung |
-|---|---|---|---|
-| Rb1 | `stmt_list_ne : stmt_list_ne stmt ';'` (line 220) | rule 2: `expr_add_child($1, $3); $$ = $1;` mutates prior TT_PROGRAM | **RB-C-1** (already named) |
-| Rb2 | `stmt_list_ne : stmt_list_ne compound_stmt` (line 224) | rule 2 + child-stealing: appends every child of `$2` into `$1` then leaves `$2` hollow | **RB-C-1** |
-| Rb3 | `unless_stmt` (line 317) synthesizes TT_NOT wrapping cond | rule 3 (strict reading): synthesized TT_NOT kind not present as source token | **RB-C-2** (new) |
-| Rb4 | `case_stmt` (line 388) wraps each clause in synthesized TT_IF | rule 3: TT_IF synthesized per clause; source has only `guard:body` | **RB-C-3** (new) |
-| Rb5 | `T_ADDASSIGN`/`T_SUBASSIGN`/`T_CATASSIGN` (lines 449–470): synthesizes a duplicate `TT_VAR(name)` lhs by reading `$1->v.sval` | rule 3: duplicated lhs is synthesized | **RB-C-4** (new) |
-| Rb6 | `postfix_expr : postfix_expr '(' arglist ')'` (line 551): inspects `$1->t == TT_VAR` and either steals `$1->v.sval` or wraps `$1` as a child | rule 2: inspect-kind-and-rearrange + mutates `$1->v.sval = NULL` | **RB-C-5** (new) |
+| # | Where | Violation | Owning rung | Status |
+|---|---|---|---|---|
+| Rb1 | `stmt_list_ne : stmt_list_ne stmt ';'` (line 220) | rule 2: `expr_add_child($1, $3); $$ = $1;` mutates prior TT_PROGRAM | **RB-C-1** | ✅ 2026-05-18 (compound_stmt child-steal fixed; list-append `expr_add_child($1,$2)` is accepted Bison idiom per corrected scope) |
+| Rb2 | `stmt_list_ne : stmt_list_ne compound_stmt` (line 224) | rule 2 + child-stealing: appends every child of `$2` into `$1` then leaves `$2` hollow | **RB-C-1** | ✅ 2026-05-18 (`$2->c[i]` child-steal replaced; children now added via single `expr_add_child` per compound_stmt child) |
+| Rb3 | `unless_stmt` (line 317) synthesizes TT_NOT wrapping cond | rule 3 (strict reading): synthesized TT_NOT kind not present as source token | **RB-C-2** | ✅ 2026-05-19 `83bc4ab3` (TT_UNLESS added; desugar moved to lower.c) |
+| Rb4 | `case_stmt` (line 388) wraps each clause in synthesized TT_IF | rule 3: TT_IF synthesized per clause; source has only `guard:body` | **RB-C-3** | ✅ 2026-05-19 `ccc11220` (flat TT_CASE alternating pairs; RCase freed in case_stmt `90658061`) |
+| Rb5 | `T_ADDASSIGN`/`T_SUBASSIGN`/`T_CATASSIGN` (lines 449–470): synthesizes a duplicate `TT_VAR(name)` lhs by reading `$1->v.sval` | rule 3: duplicated lhs is synthesized | **RB-C-4** | ✅ 2026-05-19 `0458da59` (TT_AUGOP; desugar in lower_tree_expr) |
+| Rb6 | `postfix_expr : postfix_expr '(' arglist ')'` (line 551): inspects `$1->t == TT_VAR` and either steals `$1->v.sval` or wraps `$1` as a child | rule 2: inspect-kind-and-rearrange + mutates `$1->v.sval = NULL` | **RB-C-5** | ✅ 2026-05-19 `2a9aa511` (always TT_FNC[callee=c[0], args]; lower extracts name from c[0]) |
 
-**Net Rebus status: 6 retained violations.** RB-C-1 (already named)
-covers Rb1 + Rb2. New rungs needed for Rb3, Rb4, Rb5, Rb6.
+**Net Rebus status: 0 retained §⛔ violations. Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6).**
 
-The off-tree RDecl/RCase/RProgram machinery remains a separate axis of
-work (the larger PST-RB-5 ladder); it is intentionally not graded
-against the §⛔ rules because those rules apply to `tree_t` productions
-only.
+Off-tree machinery status: RDecl/RDKind/RProgram deleted `8af2e2e1`; RCase retained as
+parser-local scratch with free loop `90658061` (Option A, documented in rebus.h).
+`rebus_parsed_program` is now `tree_t*` of kind `TT_PROGRAM`.
 
 ---
 
@@ -938,7 +936,7 @@ wrap and L→R — consumer-side splits are not parser-rule violations.)
 | Icon      | 1          | 0                    | 1 (PST-ICN-LR-1)         |
 | SNOBOL4   | 2          | 0                    | 2 (PST-SN4-W2, W3)       |
 | Raku      | 27         | 5 (PRF-12 family: program, sub, class, for-range, gather) | 22 (new PRF-12 sub-rungs listed in §4.10) |
-| Rebus     | 6          | 2 (RB-C-1 → Rb1, Rb2) | 4 (RB-C-2/3/4/5)         |
+| Rebus     | 6          | 6 ✅ ALL CLOSED 2026-05-19 (Sonnet 4.6) | 0 — Phase 1 C COMPLETE |
 | Prolog    | 4          | 4 (PST-PL-6h → Pl1, Pl2, Pl3, Pl4) | 0 — DCG conversion (Pl5) is non-§⛔ scope, owned by PST-PL-6f |
 | **Total** | **51**     | **12**               | **39**                   |
 
