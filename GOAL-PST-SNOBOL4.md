@@ -137,6 +137,20 @@ reduces. Pure string preprocessors (no tree ops) are permitted.
   `goto_expr` also fixed: was building binary-skewed `TT_SEQ` on each
   `T_CONCAT`; now extends the first node in-place (commit `76dd71bd`).
 
+### ⛔ Reconciliation note 2026-05-19 — audit re-grade
+
+The PST-SN4-W2 and W3 rungs above were closed in 2026-05-18 sessions under the looser scope active at that time. `PST-LR-AUDIT.md § Scan 3` (2026-05-19) re-graded SNOBOL4 under the corrected three §⛔ rules and re-flagged:
+
+- **W2 (audit)** — `goto_expr T_CONCAT goto_atom` (`snobol4.y:211`): `expr_add_child($1,$3); $$=$1;` mutates the prior-built TT_QLIT/TT_VAR/TT_SEQ leaf. This is the canonical §⛔ rule 2 violation called out in the parent goal. The W3-era "extends the first node in-place" fix is **the violation** — it must become always-fresh-wrap (right-leaning chain).
+- **W3 (audit)** — `expr15`/`expr17` `g_cur_push`/`g_cur_top_` pattern: the mid-rule action creates TT_IDX/TT_FNC/TT_VLIST at the opening token, then `idx_args`/`fnc_args`/`vlist_args` reductions call `expr_add_child(g_cur_top_(), $)` — **mutating the previously-built node by changing its `n` and `c[]` across multiple reductions**. Children land L→R ✅ but the mechanism is rule-2 mutation. The fix is to switch to a counter-based bison pattern (accumulate children on a local TAL during the arg-list reductions, then build the parent node fresh after `T_RPAREN`).
+
+**Two new active rungs added below** for these audit-promoted findings.
+
+- [ ] **PST-SN4-W2-AUDIT** *(audit W2 / S8)* — Rewrite `goto_expr T_CONCAT goto_atom` to always-fresh-wrap. Replace the in-place `expr_add_child($1,$3); $$=$1;` with `tree_t*s = ast_node_new(TT_SEQ); expr_add_child(s,$1); expr_add_child(s,$3); $$=s;`. Produces a right-leaning `TT_SEQ(prev, atom)` chain. Re-flattening (if ever wanted) is downstream. `lower_goto` updated if it currently assumes flat n-ary.
+- [ ] **PST-SN4-W3-AUDIT** *(audit W3 / S6)* — Replace `g_cur_push`/`g_cur_top_`/`g_cur_pop` pattern with bison-local TAL accumulation. Each of `idx_args`/`fnc_args`/`vlist_args` collects child pointers into a `TAL` via reductions; the outer `expr15`/`expr17` rule builds the TT_IDX/TT_FNC/TT_VLIST fresh after `T_RPAREN` with all children pushed in one batch. `g_cur_stack` global deleted.
+
+Gates for both: `smoke_snobol4`, `crosscheck_snobol4`, `scrip_all_modes`, `beauty_self_host` 29/22.
+
 ---
 
 ## Phase 2 rungs — SCRIP mirror (after Phase 1 complete)
@@ -179,66 +193,12 @@ C parsers are clean (see parent goal readiness table).**
 ## State
 
 ```
-watermark: updated 2026-05-18 (Sonnet 4.6)
-           PST-SN4-1a/1b/1c/1d all complete (from parent goal)
-           PST-SN4-W1/W2/W3 all complete — C parser Phase 1 DONE
-next: PST-SN4-SC-1 — audit parser_snobol4.sc for non-pure-syntax actions (Phase 2)
-one4all: 76dd71bd
-mirror gaps: MIRROR-GAP-W1/W2/W3 (pending Phase 2 — parser_snobol4.sc unchanged)
+watermark:    2026-05-19 — W1/W2/W3 (orig scope) ✅; W2-AUDIT/W3-AUDIT (re-graded) ⏳
+status:       ⏳ Phase 1 NOT clean — 2 audit-promoted rungs per PST-LR-AUDIT.md § Scan 3
+next:         PST-SN4-W2-AUDIT (goto_expr always-fresh-wrap) — single grammar rule, narrow scope
+mirror gaps:  MIRROR-GAP-W1/W2/W3 (Phase 2 — parser_snobol4.sc unchanged)
 ```
 
 ## Authorship
 
-Extracted from `GOAL-PARSER-PURE-SYNTAX-TREE.md` by Claude Sonnet 4.6,
-2026-05-18. Parent goal Step 1 history preserved above.
-
-### Handoff note — 2026-05-18 (Sonnet 4.6)
-
-Session goal: HQ work. Created this file by extracting SNOBOL4 content
-from parent goal. Clarified that PST-SN4-2 (marked ✅ in watermark) referred
-to the Icon audit step, not a SNOBOL4 wart fix. The three warts in
-sno4_stmt_commit_go (->t==TT_QLIT inspection for goto routing) were never
-fixed — now tracked here as PST-SN4-W1.
-
-Key finding this session: SNOBOL4 is NOT fully shift/reduce ready. The
-->t inspection in sno4_stmt_commit_go is a parser-action child inspection
-violation. stmt_to_ast does convert correctly to TT_GOTO_U/S/F tree nodes
-downstream, so the output is correct — but the action is not pure.
-
-Two-phase rule now in effect across all PST goals:
-Phase 1 = C only, Phase 2 = SCRIP mirrors as dedicated SNOBOL4 session.
-
-.github @ 1a8d2e6d
-
-### Handoff note — 2026-05-18 (Sonnet 4.6)
-
-Session goal: PST-SN4 Phase 1 — clean the C SNOBOL4 parser.
-
-**C parser is now fully clean. Evidence:**
-
-Three commits to `one4all`, all pushed to `snobol4ever/one4all` main:
-
-| Commit | What |
-|--------|------|
-| `0233171d` | PST-SN4-W1: remove `->t==TT_QLIT` goto routing wart from `.tab.c` |
-| `cf3d2b06` | PST-SN4-W1+W2: sync fix to canonical `.y`; delete dead `is_pat`/`fixup_val` |
-| `76dd71bd` | PST-SN4-W3: eliminate `TT_NUL` accumulator; build `TT_IDX`/`TT_FNC`/`TT_VLIST` left-to-right via `g_cur_stack` |
-
-**What "clean" means for the C parser:**
-- Only `ast_node_new`, `expr_binary`, `expr_unary`, `expr_add_child` used as tree builders in grammar actions — no other tree construction
-- All nodes built left-to-right as tokens arrive — no post-hoc splicing of intermediate structures
-- No values routed into non-`tree_t` fields (`STMT_t` string fields) based on node kind
-- No dead tree-walking code in parser actions
-- `.y` canonical source and generated `.tab.c` are consistent (bison -d regenerated)
-
-**Gates at handoff (all at baseline, no regressions):**
-- `smoke_snobol4` 7/0 ✅
-- `crosscheck_snobol4` 5P/1F (beauty_omega pre-existing) ✅
-- `beauty_self_host` 23/28 (pre-existing failures) ✅
-- `scrip_all_modes` 2/0 ✅
-
-**Next session:** PST-SN4-SC-1 — audit `parser_snobol4.sc` for non-pure-syntax actions (Phase 2). Read `SNOBOL4-SNOCONE-PRIMER.md` first per goal file instructions.
-
-⚠ MIRROR-GAP-W1/W2/W3: `parser_snobol4.sc` not yet updated to match C changes.
-
-.github @ (see commit below)
+Extracted from `GOAL-PARSER-PURE-SYNTAX-TREE.md` by Claude Sonnet 4.6, 2026-05-18. W2-AUDIT and W3-AUDIT rungs added by Claude Opus 4.7, 2026-05-19, after `PST-LR-AUDIT.md § Scan 3` re-graded SNOBOL4 under the corrected three §⛔ rules. Verbose handoff notes trimmed 2026-05-19 per Lon directive — git log carries session history.
