@@ -127,6 +127,30 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   **Phase 1 only — no `parser_rebus.sc` changes in this rung.** Record `⚠ MIRROR-GAP-RB-C-1` in State.
   Gates: `test_smoke_rebus.sh` 4/0, `test_smoke_scrip_all_modes.sh` 2/0, `test_crosscheck_snobol4.sh` 4/2.
 
+- [ ] **RB-C-2 — `unless_stmt` synthesizes TT_NOT-wrapped condition (audit Rb3).**
+  `rebus.y:317–328` builds `TT_IF(TT_NOT(cond), then)` from `unless cond then body`. The `TT_NOT` wrap is a synthesized kind — no `T_NOT` source token exists. Strict reading of §⛔ rule 3: synthesized non-source-token kind.
+  **Fix:** introduce a dedicated `TT_UNLESS` kind in `tree_e` and produce `TT_UNLESS[cond, then]` directly. Let `lower_unless` (or a `lower.c` switch arm) desugar to negated branch at IR emit time. Parser stays syntax-faithful: the source token `unless` becomes the node kind directly.
+  Same pattern as Raku R11 (PRF-12-unless).
+  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-2` in State.
+
+- [ ] **RB-C-3 — `case_stmt` synthesizes TT_IF per clause (audit Rb4).**
+  `rebus.y:388–407` walks the off-tree `RCase` linked list and builds a fresh `TT_IF` node per clause: `TT_CASE[expr, TT_IF(guard, body), TT_IF(guard, body), …, TT_IF(TT_NUL, body_default)]`. Each `TT_IF` wrapper is synthesized — the source had only `guard:body` per clause (no `if`/`then` source tokens).
+  **Fix:** produce a flat alternating `TT_CASE[expr, guard0, body0, guard1, body1, …, TT_NUL, body_default]` shape — same convention as Snocone TT_CASE post-PST-SC-4j and the proposed Raku PRF-12-given fix. Eliminates the synthesized TT_IF per clause.
+  Eventual elimination of the off-tree `RCase` list itself is owned by separate `PST-RB-DECL-3` rung — this rung only fixes the tree-shape violation.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-3` in State.
+
+- [ ] **RB-C-4 — Augmented-assignment operators desugar in parser (audit Rb5).**
+  `rebus.y:449–470` — `+:=` / `-:=` / `||:=` actions each build `TT_ASSIGN[TT_VAR(strdup($1->v.sval)), TT_ADD/SUB/CAT($1, $3)]`. Three violations: (a) the LHS appears twice — once as `$1` under TT_ADD/SUB/CAT, once as a synthesized `lhs2` TT_VAR — duplicated non-source occurrence; (b) the synthesis assumes `$1->v.sval` is a name, fragile for non-TT_VAR LHS; (c) parser-side desugaring of augmented assignment when the canonical clean shape is `TT_AUGOP(lhs, rhs)` with `v.ival = AugOp_e` (Snocone TK_AUG* / Icon convention).
+  **Fix:** replace each action with `tree_t *n = ast_node_new(TT_AUGOP); n->v.ival = AUG_PLUS / AUG_MINUS / AUG_CAT; expr_add_child(n, $1); expr_add_child(n, $3); $$ = n;`. Lower handles the augmented expansion (cloning LHS once and building `TT_ASSIGN(lhs, TT_<op>(lhs', rhs))` — already named as Stage 2 PST-LR-2a in `GOAL-PARSER-PURE-SYNTAX-TREE.md`).
+  Verify `AUG_CAT` (or equivalent) is in `AugOp_e` in `src/include/ast.h`; if not, add it.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-4` in State.
+
+- [ ] **RB-C-5 — `postfix_expr '(' arglist ')'` inspects $1 kind and mutates $1 (audit Rb6).**
+  `rebus.y:551–569` — the action inspects `$1->t == TT_VAR` and forks: (a) for TT_VAR callee, builds `TT_FNC` with `f->v.sval = $1->v.sval` and **`$1->v.sval = NULL`** — in-place mutation of a previously-built tree node (rule 2 violation); (b) for non-TT_VAR callee, builds `TT_FNC` with `$1` as `c[0]`. Two different tree shapes for the same source operator `(...)`, depending on what the parser inspected of `$1`. The §⛔ rules forbid "inspect-kind-and-rearrange".
+  **Fix:** always produce `TT_FNC[callee, arg0, arg1, …]` with `$1` as `c[0]` regardless of `$1->t`. Drop the sval-stealing branch entirely. `lower.c` reads `c[0]` and dispatches to built-in (when `c[0]->t == TT_VAR`) vs indirect (otherwise) — Icon's clean reference shape.
+  Same fix pattern as Icon `parse_postfix` (line 174–189) which always builds `TT_FNC[callee, args…]` cleanly.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-5` in State.
+
 - [~] **PST-RB-PRE-BEAUTY — Fix beauty.sno self-host blockers (Milestone 1 unblock).**
   Lon directive 2026-05-17: "If beauty.sno demo does not work first, then you are wasting your time probably. Check it first and get it running first."
   
