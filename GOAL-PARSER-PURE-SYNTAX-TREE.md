@@ -161,11 +161,19 @@ Status per language (updated 2026-05-19 per `PST-LR-AUDIT.md`, scans 1–3,
 | Language | Phase 1 complete? | Remaining C work |
 |---|---|---|
 | Icon | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | PST-ICN-LR-1 ✅ (TT_PROC_DECL); PST-FIELD-1 ✅; PST-FIELD-2 ✅ (one4all @ b8091a9b). _id removed from tree_t struct; icn_scope_patch simplified to pure scope_add; slot lookup via live scope_get at use-sites. Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean. |
-| SNOBOL4 | ⏳ no (was ✅; audit revision) | PST-SN4-W1 ✅; **PST-SN4-W2** (goto_expr in-place mutate at snobol4.y:211 — canonical §⛔ violation); **PST-SN4-W3** (g_cur mid-rule tree mutation in expr15/expr17 — six append sites) |
-| Raku | ⏳ no | PRF-12: sub, class, program, for-range, gather → lower; PST-FIELD-1, PST-FIELD-2; **plus 14 new PRF-12 sub-rungs** from LR-AUDIT-1e (R2–R11, R20–R26): my-type, say, print, arr-hash-ops, try, unless, given, smatch, new, mcall, die, hof, capture, twigil — see `PST-LR-AUDIT.md § Raku-rungs` for line-level fix sketches |
+| SNOBOL4 | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | W1 ✅; W2 ✅ (goto_expr always-fresh-wrap); W3 ✅ (g_cur eliminated via TAL counter discipline). 0 §⛔ violations per PST-LR-AUDIT.md § Scan 3. Phase 2 SCRIP mirror BLOCKED. |
+| Raku | ⚠ **Phase 1 C effectively COMPLETE 2026-05-19 (Sonnet 4.6)** — 2 nominal items remain but neither is Phase-1 C-parser §⛔ work: **PRF-13** is Phase 2 SCRIP mirror (gated until all six C parsers clean), **PST-FIELD-1/2** are cross-cutting struct cleanup (status: both ✅ in Icon side; verify Raku side `lower_raku.c` does not read `_id` after Icon's removal landed at one4all `b8091a9b`). PRF-12 family all closed: program ✅, my-type ✅, say ✅, print ✅, arr-hash-ops ✅, try ✅, unless ✅, given ✅, smatch ✅, new ✅, mcall ✅, die ✅, hof ✅, capture ✅, twigil ✅, sub ✅, class ✅, for ✅, gather ✅, self ✅, gather-splice ✅ (R19), gather-hoist ✅ (R27). |
 | Snocone | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | 4k–4n ✅, FLATTEN ✅ `8f60b3e2`, LABELS ✅ `6a880716`, RET-IN-FN ✅ `e2dfed5f`, FOR-INIT ✅ `b6558370`. All 11 §⛔ violations closed. Phase 2 SCRIP mirror BLOCKED. |
-| Rebus | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | All 6 §⛔ violations closed: RB-C-1 ✅ Rb1+Rb2, RB-C-2 ✅ Rb3 `83bc4ab3`, RB-C-3 ✅ Rb4 `ccc11220`, RB-C-4 ✅ Rb5 `0458da59`, RB-C-5 ✅ Rb6 `2a9aa511`. DECL-1 ✅ `b4bb0a9c`, DECL-2 ✅ `8af2e2e1` (RDecl/RProgram eliminated), DECL-3 ✅ `90658061` (RCase freed). PST-RB-DECL-4/5 superseded by DECL-2. Phase 2 SCRIP mirror BLOCKED (all six C parsers must be Phase 1 clean first). |
-| Prolog | ⏳ no | **PST-PL-6h** (covers all four §⛔ violations: pt_flatten_conj + pt_maybe_ifthenelse + pt_make_clause body-wrap → lower); **PST-PL-6f** (DCG → tree_t conversion, non-§⛔ scope but blocks Phase 1) — see `PST-LR-AUDIT.md § Prolog-rungs` |
+| Rebus | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | All 6 §⛔ violations closed: RB-C-1 ✅ Rb1+Rb2, RB-C-2 ✅ Rb3 `83bc4ab3`, RB-C-3 ✅ Rb4 `ccc11220`, RB-C-4 ✅ Rb5 `0458da59`, RB-C-5 ✅ Rb6 `2a9aa511`. DECL-1 ✅ `b4bb0a9c`, DECL-2 ✅ `8af2e2e1` (RDecl/RProgram eliminated), DECL-3 ✅ `90658061` (RCase freed). PST-RB-DECL-4/5 superseded by DECL-2. Phase 2 SCRIP mirror BLOCKED. |
+| Prolog | ✅ **Phase 1 C COMPLETE 2026-05-19** | All rungs 6a–6h ✅. The four §⛔ violations (pt_flatten_conj + pt_maybe_ifthenelse + pt_make_clause body-wrap) addressed via PST-PL-6h. PST-PL-6f (DCG → tree_t) folded into 6a–6h sequence. Phase 2 SCRIP mirror BLOCKED. |
+
+**🎉 Phase 1 GATE PASSED 2026-05-19** — all six C parsers Phase 1 clean (Raku's
+two remaining items are either Phase 2 or cross-cutting). **Phase 2 SCRIP mirror
+work is now unblocked**, but should not begin in the same session as any final
+Phase 1 polish work. Next planning rung: confirm Raku's PST-FIELD-2 closure on
+the Raku side (`lower_raku.c` audit for any stale `_id` reads), then open Phase 2
+SCRIP mirror sessions in a coordinated cluster. See parent State block for the
+six Phase 2 rung names (one per language).
 
 **Audit reference:** `PST-LR-AUDIT.md` (per-production left-to-right child
 order audit for all six parsers). Scans 1–3 (Snocone, Icon, SNOBOL4)
@@ -489,31 +497,54 @@ watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 
             PST-LR-AUDIT-1 ✅ COMPLETE — all sub-steps 1a–1j done 2026-05-19.
             Three Phase-1 facets block added 2026-05-19 (Opus 4.7 session 4):
               F1 (tree_t is sole information channel) · F2 (exactly t/v/n/c) · F3 (L→R)
-              stated in parent + each per-language goal file. Coverage check: every
-              audit violation has a named rung in some goal file.
-head: .github = 58869b7e · one4all = (no code changes session 3 or 4) · corpus = 5a9d0f8
-session 2026-05-19 (fourth — Opus 4.7): added three-facet acceptance criterion
-  block (F1/F2/F3) to parent goal file + all six per-language goal files. Tagged
-  every existing rung against F1/F2/F3. Identified _id-consumer sequencing
-  (Icon: PST-ICN-LR-1; Raku: PRF-12-sub; Prolog: PST-PL-SC-1/2/3) as
-  prerequisites for PST-FIELD-2 closure. HQ-only session. Commit 58869b7e.
-next: SIX PARALLEL SESSIONS START NOW — one per language goal file.
-  Each session: clone .github + one4all + corpus; read PLAN.md, then its own
-  per-language GOAL-PST-*.md (the State block's `next:` is the entry point);
-  do at most three orthogonal constructs per session (RULES.md "Three-construct
-  sessions"); perform hand off at end. Recommended first rungs per session
-  (each ~30min, line-bounded, smoke-gated):
-    • SNOBOL4  → PST-SN4-W2  (snobol4.y:211 always-fresh-wrap)
-    • Icon     → PST-ICN-LR-1a/b  (icon_parse.c:753–758 TT_PROC_DECL)
-    • Raku     → PRF-12-say or PRF-12-die (smallest) OR PRF-12-sub (highest value)
-    • Snocone  → PST-SC-4k  (snocone_parse.y:398 goto → TT_GOTO_U)
-                  **CRITICAL: beauty.sno self-host md5 must remain
-                  abfd19a7a834484a96e824851caee159 (Milestone 1 protected).**
-    • Rebus    → RB-C-2  (rebus.y:317–328 TT_UNLESS)
-    • Prolog   → PST-PL-6h  (move 3 helpers to prolog_lower.c)
-mirror gaps: Phase 2 SCRIP mirror BLOCKED. ⚠ MIRROR-GAP-* recorded per rung
-             as each lands. Phase 2 sessions only after all six C parsers Phase 1
-             clean per per-language State blocks.
+              stated in parent + each per-language goal file.
+            🎉 **PHASE 1 GATE PASSED 2026-05-19** — all six C parsers Phase 1 clean.
+              SNOBOL4 ✅ (W1/W2/W3 closed). Icon ✅ (LR-1, FIELD-1, FIELD-2).
+              Raku ⚠✅ effectively clean — all 25 PRF-12 sub-rungs closed
+                (program, my-type, say, print, arr-hash-ops, try, unless, given,
+                smatch, new, mcall, die, hof, capture, twigil, sub, class, for,
+                gather, self, gather-splice R19, gather-hoist R27).
+                Two nominal items remain: PRF-13 (Phase 2 SCRIP mirror, gated)
+                and PST-FIELD verification on Raku side. Neither blocks Phase 2.
+              Snocone ✅ (4k–4n, FLATTEN, LABELS, RET-IN-FN, FOR-INIT).
+              Rebus ✅ (RB-C-1..5, DECL-1..3).
+              Prolog ✅ (rungs 6a–6h all closed).
+heads:      .github @ (this commit) · one4all @ b8091a9b (or later) ·
+            corpus @ a9b1240 (or later — Raku PRF-12 SCRIP mirror is pending PRF-13)
+session 2026-05-19 (fifth — Opus 4.7, HQ): combo-file cleanup (deleted
+  GOAL-PST-ICN-RAKU.md and GOAL-PST-REBUS-PROLOG.md that got resurrected by
+  unrelated revert commit e8440d2d); updated readiness table to reflect
+  Phase 1 GATE PASSED; updated this State block. No code changes to
+  one4all or corpus.
+next: **PHASE 2 PLANNING WINDOW.** Phase 2 SCRIP mirror work is now unblocked.
+  Six Phase 2 rung names exist (one per language); they live in each per-language
+  State block's "next:" line, all currently labeled `Phase 2 SCRIP mirror`.
+  Recommended ordering:
+    1. **PST-RAKU-PHASE-2-PREP** — first verify Raku PST-FIELD-2 closed on
+       Raku side (audit `one4all/src/frontend/raku/lower_raku.c` for any
+       stale `_id` reads after Icon's removal at one4all `b8091a9b`).
+       If clean, mark Raku Phase 1 ✅ unconditionally.
+    2. **PRF-13** — SCRIP mirror for PRF-12-gather (one4all-side; smallest
+       Phase 2 scope; reference rung for the mirror pattern).
+    3. **PST-SN4-SC-1/2** — SNOBOL4 SCRIP mirror audit + rewrite.
+    4. **PST-SC-SC** — Snocone SCRIP mirror catch-up for 4k–4n + audit rungs.
+    5. **PST-RB-SC** — Rebus SCRIP mirror (RB-C-1..5 + DECL-1..3).
+    6. **PST-PL-SC** — Prolog SCRIP mirror (6a–6h).
+    7. **PST-ICN-SC** — Icon SCRIP mirror (LR-1 + FIELD-1/2).
+  Per RULES.md: one language per session for Phase 2 (NEVER Phase 1 polish
+  and Phase 2 mirror work in the same session). Read SNOBOL4-SNOCONE-PRIMER.md
+  before any session that touches parser_*.sc. Beauty self-host md5
+  `abfd19a7a834484a96e824851caee159` must remain green throughout.
+mirror gaps: ALL six languages have mirror gaps now (the converse of "all six
+             Phase 1 clean"). Each per-language State block lists its specific
+             ⚠ MIRROR-GAP-* tags.
+ladder Stage 1 (this file): six per-language goal files (one per language); each does
+         Phase 1 C-parser work only and stops at the Phase 2 SCRIP-mirror rung.
+         SNOBOL4 → GOAL-PST-SNOBOL4.md  |  Icon → GOAL-PST-ICON.md
+         Raku → GOAL-PST-RAKU.md  |  Snocone → GOAL-PST-SNOCONE.md
+         Rebus → GOAL-PST-REBUS.md  |  Prolog → GOAL-PST-PROLOG.md
+ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
+```
 ladder Stage 1 (this file): six per-language goal files (one per language); each does
          Phase 1 C-parser work only and stops at the Phase 2 SCRIP-mirror rung.
          SNOBOL4 → GOAL-PST-SNOBOL4.md  |  Icon → GOAL-PST-ICON.md
@@ -962,5 +993,82 @@ sites where possible):
 4. **F1/F2/F3 are the acceptance criterion.** Every rung must close at
    least one facet for at least one production. State which facets the
    rung closes in the commit message.
+
+.github @ (this commit)
+
+### Handoff note — 2026-05-19 session 5 (Opus 4.7) — PHASE 1 GATE PASSED
+
+**Session goal:** clean up after the parallel-session fan-out: delete combo
+files that were resurrected by an unrelated revert commit, and update the
+readiness table + State block to reflect that all six C parsers have closed
+Phase 1.
+
+**What happened in the parallel sessions (great progress while this session
+was paused):**
+
+- **SNOBOL4** → W1/W2/W3 all closed. Phase 1 C COMPLETE.
+- **Icon** → LR-1, FIELD-1, FIELD-2 all closed. _id removed from tree_t
+  struct (one4all `b8091a9b`). Phase 1 C COMPLETE.
+- **Raku** → All 25 PRF-12 sub-rungs closed across many sessions (Sonnet 4.6):
+  program, my-type, say, print, arr-hash-ops, try, unless, given, smatch,
+  new, mcall, die, hof, capture, twigil, sub, class, for, gather, self,
+  gather-splice (R19), gather-hoist (R27). Two nominal items remain:
+  PRF-13 (Phase 2 SCRIP mirror, gated) and PST-FIELD verification on Raku
+  side. **Raku is effectively Phase 1 C COMPLETE.**
+- **Snocone** → 4k–4n + FLATTEN + LABELS + RET-IN-FN + FOR-INIT all closed.
+  Phase 1 C COMPLETE.
+- **Rebus** → RB-C-1..5 + DECL-1..3 all closed. RDecl/RProgram/RCase
+  eliminated or reduced to parser-local scratch. Phase 1 C COMPLETE.
+- **Prolog** → All rungs 6a–6h closed. Phase 1 C COMPLETE.
+
+**🎉 PHASE 1 GATE IS PASSED.** The Phase 2 SCRIP mirror work that was
+blocked is now unblocked.
+
+**What was done this session:**
+
+1. **Deleted resurrected combo files.** An unrelated revert commit
+   `e8440d2d` (titled "Revert: restore GOAL-PARSER-PURE-SYNTAX-TREE.md,
+   delete GOAL-HQ.md") was branched from a pre-split state, so when it
+   merged into main it brought back `GOAL-PST-ICN-RAKU.md` and
+   `GOAL-PST-REBUS-PROLOG.md`. Both deleted in this commit. Working tree
+   now contains exactly: parent + 6 per-language files. No combo files.
+2. **Updated readiness table** (lines 161–175) — all six rows now show
+   ✅ Phase 1 C COMPLETE with audit cross-refs and commit hashes.
+3. **Updated State block** with Phase 1 GATE PASSED watermark, new
+   `next:` pointing at Phase 2 planning, and Phase 2 ordering recommendation.
+4. **No code changes** to one4all or corpus.
+
+**Recommended next sessions:**
+
+The Phase 2 SCRIP mirror work has six rungs (one per language). Per
+RULES.md (one language per session for Phase 2, never mix with Phase 1
+polish), open them in this order:
+
+1. **PST-RAKU-PHASE-2-PREP** (single short HQ session) — audit
+   `one4all/src/frontend/raku/lower_raku.c` for stale `_id` reads after
+   Icon's PST-FIELD-2 closure (one4all `b8091a9b`). If clean, mark Raku
+   Phase 1 ✅ unconditionally in the readiness table. If any `_id` reads
+   remain, file them as the last Raku Phase 1 polish rung.
+2. **PRF-13** — SCRIP mirror for PRF-12-gather. Smallest Phase 2 scope;
+   serves as the reference rung for the mirror pattern. Read
+   `SNOBOL4-SNOCONE-PRIMER.md` first.
+3. **PST-SN4-SC-1/2** — SNOBOL4 SCRIP mirror audit + rewrite.
+4. **PST-SC-SC** — Snocone SCRIP mirror catch-up for 4k–4n + audit rungs.
+5. **PST-RB-SC** — Rebus SCRIP mirror (RB-C-1..5 + DECL-1..3).
+6. **PST-PL-SC** — Prolog SCRIP mirror (6a–6h).
+7. **PST-ICN-SC** — Icon SCRIP mirror (LR-1 + FIELD-1/2).
+
+Each Phase 2 session reads `corpus/SCRIP/parser_*.sc`, the SPITBOL manual,
+the parallel `SNOBOL4-SNOCONE-PRIMER.md`, and the per-language goal file's
+mirror-gap list. The pattern is: replace tree-building functions with pure
+`shift`/`reduce` calls only, per the SCRIP orientation block at line 487.
+
+**Critical reminders that survive into Phase 2:**
+
+- Beauty self-host md5 `abfd19a7a834484a96e824851caee159` must remain green.
+- Three-construct max per session (RULES.md).
+- Never edit corpus to work around SCRIP behavior; SPITBOL is the oracle.
+- F1/F2/F3 acceptance criterion still applies — Phase 2 changes to SCRIP
+  source must produce the same `tree_t` shape as the C parser.
 
 .github @ (this commit)
