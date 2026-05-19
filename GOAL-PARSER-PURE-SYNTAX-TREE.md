@@ -487,20 +487,33 @@ watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 
             Stage 1 Step 1 — PST-SN4-1a ✅  PST-SN4-1b ✅  PST-SN4-1d ✅  PST-SN4-1d-SCRIP ✅  PST-SN4-1c ✅  PST-SN4-2 ✅
             Stage 1 Step 4 — PST-SC-4a ✅ … 4h ✅  PST-SC-4i ✅  PST-SC-4j ✅
             PST-LR-AUDIT-1 ✅ COMPLETE — all sub-steps 1a–1j done 2026-05-19.
-              1a–1g (scope statement + six scans) ✅; 1h (second-pass verify all six against live source) ✅;
-              1i (cross-check named rungs ↔ audit rows) ✅; 1j (rung promotion — RB-C-2/3/4/5 promoted into
-              GOAL-PST-REBUS.md this session, completing the last unowned violations of the 51 total).
-head: .github = (this commit) · one4all = (no code changes) · corpus = 5a9d0f8
-session 2026-05-19 (third — Opus 4.7): completed PST-LR-AUDIT-1 by spot-verifying all audit line
-  numbers against the live `.y`/`.c` sources (no rows shifted), cross-checking named rungs across goal
-  files (all 12 named rungs have entries in their owning goal files), and promoting the four Rebus
-  audit-detected unowned violations (Rb3–Rb6) into named step entries (RB-C-2/3/4/5) in
-  GOAL-PST-REBUS.md with line-level fix sketches and audit cross-refs. HQ-only session — no code
-  changes to one4all or corpus; only .github edits.
-next: pick any Phase 1 C rung. Smallest scope candidates: PST-SC-4k (Snocone goto → TT_GOTO_U,
-  1 site), PST-SN4-W2 (SNOBOL4 goto_expr in-place mutate, 1 site, canonical §⛔ example), RB-C-2
-  (Rebus unless → TT_UNLESS, 1 site). All have line-level fix sketches.
-mirror gaps: (none — Phase 2 SCRIP mirror work remains blocked until all 51 violations close)
+            Three Phase-1 facets block added 2026-05-19 (Opus 4.7 session 4):
+              F1 (tree_t is sole information channel) · F2 (exactly t/v/n/c) · F3 (L→R)
+              stated in parent + each per-language goal file. Coverage check: every
+              audit violation has a named rung in some goal file.
+head: .github = 58869b7e · one4all = (no code changes session 3 or 4) · corpus = 5a9d0f8
+session 2026-05-19 (fourth — Opus 4.7): added three-facet acceptance criterion
+  block (F1/F2/F3) to parent goal file + all six per-language goal files. Tagged
+  every existing rung against F1/F2/F3. Identified _id-consumer sequencing
+  (Icon: PST-ICN-LR-1; Raku: PRF-12-sub; Prolog: PST-PL-SC-1/2/3) as
+  prerequisites for PST-FIELD-2 closure. HQ-only session. Commit 58869b7e.
+next: SIX PARALLEL SESSIONS START NOW — one per language goal file.
+  Each session: clone .github + one4all + corpus; read PLAN.md, then its own
+  per-language GOAL-PST-*.md (the State block's `next:` is the entry point);
+  do at most three orthogonal constructs per session (RULES.md "Three-construct
+  sessions"); perform hand off at end. Recommended first rungs per session
+  (each ~30min, line-bounded, smoke-gated):
+    • SNOBOL4  → PST-SN4-W2  (snobol4.y:211 always-fresh-wrap)
+    • Icon     → PST-ICN-LR-1a/b  (icon_parse.c:753–758 TT_PROC_DECL)
+    • Raku     → PRF-12-say or PRF-12-die (smallest) OR PRF-12-sub (highest value)
+    • Snocone  → PST-SC-4k  (snocone_parse.y:398 goto → TT_GOTO_U)
+                  **CRITICAL: beauty.sno self-host md5 must remain
+                  abfd19a7a834484a96e824851caee159 (Milestone 1 protected).**
+    • Rebus    → RB-C-2  (rebus.y:317–328 TT_UNLESS)
+    • Prolog   → PST-PL-6h  (move 3 helpers to prolog_lower.c)
+mirror gaps: Phase 2 SCRIP mirror BLOCKED. ⚠ MIRROR-GAP-* recorded per rung
+             as each lands. Phase 2 sessions only after all six C parsers Phase 1
+             clean per per-language State blocks.
 ladder Stage 1 (this file): six per-language goal files (one per language); each does
          Phase 1 C-parser work only and stops at the Phase 2 SCRIP-mirror rung.
          SNOBOL4 → GOAL-PST-SNOBOL4.md  |  Icon → GOAL-PST-ICON.md
@@ -862,5 +875,92 @@ fix sketches in their goal files):
 
 Each is a clean 30-min change; all three close violations on the Phase 1
 worklist and reduce the 51-total count.
+
+.github @ (this commit)
+
+### Handoff note — 2026-05-19 session 4 (Opus 4.7) — FAN-OUT TO SIX SESSIONS
+
+**Session goal:** scan all six goal files for explicit coverage of three
+facets and ensure each has the information needed for an independent
+session to start.
+
+**What was done:**
+
+1. **Added "⛔ The three Phase-1 facets" block** to this parent goal file
+   (lines 39–52) — a single canonical statement of:
+   - **F1** tree_t is the sole information channel between parse and lower.
+   - **F2** tree_t has exactly four fields t, v, n, c (no `_nalloc`, no `_id`).
+   - **F3** All children L→R in source-token order.
+   The three facets are explicitly interlocking: F2 makes F1 enforceable
+   (no fifth field to hide non-source facts); F3 makes Shift/Reduce SCRIP
+   mirror possible (no reorderings or kind-inspections to port).
+2. **Back-referenced the three-facet block from every per-language goal file**
+   with a language-specific F1/F2/F3 tagging that names which rungs close
+   which facet's violations:
+   - SNOBOL4: F1 (W3 g_cur globals), F2 (not primary _id consumer), F3 (W2, W3).
+   - Icon: F1 (PST-ICN-LR-1 _id-as-separator), F2 (Icon is primary _id consumer;
+     PST-ICN-LR-1 prerequisite for PST-FIELD-2), F3 (clean reference shape).
+   - Raku: F1 (27 sub-rungs, each adds dedicated TT_* kind), F2 (Raku primary
+     _id consumer via SUB_TAG_ID; PRF-12-sub prerequisite for PST-FIELD-2),
+     F3 (PRF-12-sub/gather/gather-hoist).
+   - Snocone: F1 (worst — ScParseState carries synthetic labels, break/continue
+     stacks, switch state, for-state; closed by PST-SC-LABELS/-FOR-INIT/
+     -RET-IN-FN/-4k), F2 (not primary _id consumer), F3 (PST-SC-4k, FLATTEN).
+   - Rebus: F1 (heaviest historical — RProgram/RDecl/RCase elimination via
+     PST-RB-5 + PST-RB-DECL-1..5 + RB-C-2/3/4/5), F2 (not primary _id consumer),
+     F3 (RB-C-1 ✅, RB-C-5 remaining).
+   - Prolog: F1 (DCG returns Term* via PST-PL-6f; assign_anon_slots side-channel
+     via PST-PL-SC-1/2/3; pt_flatten_conj/pt_maybe_ifthenelse via PST-PL-6h),
+     F2 (Prolog third primary _id consumer; PST-PL-SC-1/2/3 prerequisite for
+     PST-FIELD-2), F3 (PST-PL-6h).
+3. **Updated each per-language State block** with:
+   - Current watermark including the three-facet block addition.
+   - Crisp `next:` step with line-level fix sketch and gate requirements.
+   - `mirror gaps:` line noting Phase 2 still blocked.
+   - Session-end note pointing the next session at its entry point.
+4. **Updated this parent file's State block** with consolidated next-step
+   guidance for all six parallel sessions.
+
+**Files modified this session:** all 7 PST goal files (`GOAL-PARSER-PURE-
+SYNTAX-TREE.md`, `GOAL-PST-SNOBOL4.md`, `GOAL-PST-ICON.md`, `GOAL-PST-RAKU.md`,
+`GOAL-PST-SNOCONE.md`, `GOAL-PST-REBUS.md`, `GOAL-PST-PROLOG.md`). No code
+changes to `one4all` or `corpus`.
+
+**Six parallel sessions can now start.** Each session reads:
+1. `PLAN.md` (orientation)
+2. `RULES.md` (full)
+3. Its own `GOAL-PST-<LANG>.md` (entry point: State block's `next:` line)
+4. Cross-cutting docs as needed: `SNOBOL4-SNOCONE-PRIMER.md` (if any pattern
+   work), `CORPUS-LOCATIONS.md` (paths), `PST-LR-AUDIT.md` (the audit findings
+   that drove the violations).
+5. SPITBOL manual + `corpus/SCRIP/parser_snocone.sc` ONLY if the session
+   reaches Phase 2 SCRIP mirror work — Phase 1 (current phase for all six)
+   does NOT touch parser_*.sc files.
+
+**Recommended first rungs per session** (small scope, line-bounded, single
+sites where possible):
+
+| Session | First rung | Site | Scope |
+|---|---|---|---|
+| SNOBOL4 | PST-SN4-W2 | snobol4.y:211 | 1-line action change + always-fresh-wrap |
+| Icon | PST-ICN-LR-1a/b | icon_parse.c:753–758 | Add TT_PROC_DECL kind; rewrite parse_proc |
+| Raku | PRF-12-say (smallest) OR PRF-12-sub (highest value) | raku.y multiple sites | Add TT_SAY kind + lower_say; unblocks PST-FIELD-2 if -sub |
+| Snocone | PST-SC-4k | snocone_parse.y:398 | Replace sc_append_goto_label with TT_GOTO_U |
+| Rebus | RB-C-2 | rebus.y:317–328 | Add TT_UNLESS kind + lower_unless |
+| Prolog | PST-PL-6h | prolog_parse.c:508/521/540 | Move 3 helpers to prolog_lower.c |
+
+**⛔ Critical reminders for every Phase 1 session:**
+
+1. **Phase 2 SCRIP mirror work is BLOCKED.** Do NOT touch any
+   `corpus/SCRIP/parser_*.sc` file. Record `⚠ MIRROR-GAP-<rung>` in the
+   State block when committing.
+2. **Beauty self-host (Milestone 1) is sacred.** beauty.sno must continue
+   to produce md5 `abfd19a7a834484a96e824851caee159`. Snocone changes are
+   the highest risk; SNOBOL4 changes are second.
+3. **Three-construct max per session** (RULES.md). Pick a focused rung,
+   land it, commit, hand off.
+4. **F1/F2/F3 are the acceptance criterion.** Every rung must close at
+   least one facet for at least one production. State which facets the
+   rung closes in the commit message.
 
 .github @ (this commit)

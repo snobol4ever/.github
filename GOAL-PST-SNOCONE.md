@@ -125,15 +125,40 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (file created by extracting Snocone material from parent goal)
-status:       ⏳ Phase 1 NOT clean — 4 from-Step-4 rungs + 4 audit-promoted = 8 Phase 1 rungs remain
-next:         PST-SC-4k (smallest scope, well-defined, lower.c infrastructure already in place
-              from 4h's g_loop_stack)
-mirror gaps:  PST-SC-4a..4j already have SCRIP-mirror updates in parser_snocone.sc (paired
-              commits in the original Step 4 work) — those mirror changes pre-date the new
-              two-phase rule and are kept. New Phase 1 rungs (4k–4n + audit-promoted) record
-              ⚠ MIRROR-GAP-SC-* in State as each lands.
+watermark:    2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+              2026-05-19 (file split from parent) — Step 4 content owned here now.
+status:       ⏳ Phase 1 NOT clean — 11 §⛔ violations per PST-LR-AUDIT.md § Scan 1.
+              Active: PST-SC-4k (1) + audit-promoted PST-SC-FLATTEN (7 sites) +
+              PST-SC-LABELS + PST-SC-RET-IN-FN + PST-SC-FOR-INIT.
+next:         PST-SC-4k — goto LABEL → TT_GOTO_U. Smallest scope; lower.c
+              infrastructure for TT_GOTO_U already in place from 4h's g_loop_stack.
+              `snocone_parse.y:398`: `T_GOTO T_IDENT T_SEMICOLON
+                                       { sc_append_goto_label(st, $2); free($2); }`
+              currently writes STMT_t.goto_u directly (label not a tree child).
+              Fix: build `tree_t *g = ast_node_new(TT_GOTO_U);
+                          g->v.sval = strdup($2); sc_append_stmt(st, g); free($2);`
+              Then delete `sc_append_goto_label` function entirely if no other
+              caller. Verify stmt_to_ast promotes TT_GOTO_U correctly under
+              TT_STMT in --dump-ast.
+              After PST-SC-4k lands: smoke_snocone must remain green and beauty
+              self-host must remain md5 abfd19a7a834484a96e824851caee159.
+              Beauty regression on Snocone is the highest risk in Phase 1 work —
+              run beauty smoke before commit.
+              Then any of PST-SC-FLATTEN (smallest is exprlist_ne fix alone),
+              PST-SC-RET-IN-FN, PST-SC-FOR-INIT, or PST-SC-LABELS.
+mirror gaps:  PST-SC-4a..4j had paired SCRIP-mirror updates (pre-two-phase rule).
+              New Phase 1 rungs record ⚠ MIRROR-GAP-SC-* as each lands.
+              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
 ```
+
+### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+
+HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
+PST goal files. No Snocone-specific code changes this session. Next session:
+open `snocone_parse.y:398`, apply PST-SC-4k fix sketch above. **Critical
+gate:** beauty.sno self-host (Milestone 1) — never commit a Snocone change
+without confirming beauty md5 is preserved.
 
 ---
 

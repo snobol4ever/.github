@@ -249,20 +249,35 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (file created by splitting GOAL-PST-ICN-RAKU.md)
-status: ⏳ Phase 1 NOT clean — PST-ICN-LR-1 active. PST-FIELD-1/2 cross-cutting.
-prior closed rungs (preserved for history):
-  PST-ICN-2a/2b ✅ (Sonnet 4.6, dates lost in combo-file history)
-  PST-ICN-4a   ✅ 2026-05-16 — TT_MATCH_UNARY added; icon_parse.c + lower_icn.c updated; .ref regen
-  PST-ICN-4b   ✅ 2026-05-16 — 13 helpers removed from parser_icon.sc
-  icon_helpers.sc DELETED 2026-05-18 — 4 leaf-push helpers inlined as (epsilon . *Shift(...))
-audit findings 2026-05-19 (PST-LR-AUDIT.md § Scan 2):
-  I5 (= PST-ICN-LR-1): parse_proc uses _id=nparams to delimit params from body inside one
-    flat n-ary child list. Without _id, tree is undecodable. Blocks PST-FIELD-2.
-  Phase 1 status reverted from ✅ to ⏳ (was claimed complete; audit revision).
-mirror gaps: (none yet — PST-ICN-LR-1 will record one when committed)
-next: PST-ICN-LR-1a (add TT_PROC_DECL to tree_e)
+watermark:    2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
+status:       ⏳ Phase 1 NOT clean — PST-ICN-LR-1 active. PST-FIELD-1/2 cross-cutting.
+prior closed:
+  PST-ICN-2a/2b ✅ ; PST-ICN-4a ✅ 2026-05-16 (TT_MATCH_UNARY) ; PST-ICN-4b ✅
+  2026-05-16 (13 helpers removed) ; icon_helpers.sc DELETED 2026-05-18.
+audit findings (PST-LR-AUDIT.md § Scan 2):
+  I5 = PST-ICN-LR-1. icon_parse.c:753–758 parse_proc builds
+       TT_FNC + proc->_id = nparams as out-of-band separator between
+       params (c[1..nparams]) and body (c[nparams+1..]). Blocks PST-FIELD-2.
+next:         PST-ICN-LR-1a — add TT_PROC_DECL to tree_e in src/include/ast.h.
+              Verify no other frontend already uses TT_PROC_DECL (grep).
+              Then PST-ICN-LR-1b — rewrite parse_proc to emit
+                TT_PROC_DECL[TT_VAR(name), TT_VLIST(params), TT_PROGRAM(body)].
+              Delete the `proc->_id = nparams` line. Update lower_icn.c if it
+              currently reads _id on proc nodes (grep first). Regen .ref files.
+              After 1a/1b land: smoke_icon must remain green; no _id reads on
+              proc nodes anywhere in tree.
+mirror gaps:  ⚠ MIRROR-GAP-ICN-LR-1 will be recorded when PST-ICN-LR-1 commits.
+              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+heads:        .github @ 58869b7e · one4all (no changes) · corpus (no changes)
 ```
+
+### Session-end note — 2026-05-19 (Opus 4.7 session 4)
+
+HQ session — PST-LR-AUDIT-1 closed and three-facet block added across all six
+PST goal files. No Icon-specific code changes this session. Next session:
+open `icon_parse.c:753–758`, follow PST-ICN-LR-1a/1b fix sketches above.
+Note Icon is a primary `_id` consumer — PST-FIELD-2 cannot close until this
+rung lands.
 
 ---
 
