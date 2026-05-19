@@ -45,7 +45,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **DAI-8 sweep is complete.** All auditable dead code removed in C1–C17. Remaining dead-looking symbols are live.
 
-**NEXT goal options (per PLAN.md):** IR-RN-0 (bulk IR rename), EC-2 (emitter consolidation next BB kind), or new goal per Lon.
+**NEXT (EC-BB-UNIFY-2):** Convert emit_sm.c `emit_flat_eligible`/`emit_flat_invariant` (PATND_t* → IR_t*) and stmt_exec.c (stop building PATND_t trees at runtime; pull IR_t* from dcg_table instead). Then delete snobol4_pattern.c and snobol4_patnd.h. This completes the unified emitter — x86 BB emission driven by IR_t directly, PATND_t gone.
+
+**NEXT goal options (per PLAN.md):** IR-RN-0 (bulk IR rename), EC-3 (SM instruction template migration), or EC-BB-UNIFY-2 (finish PATND_t deletion).
 
 
 ## DAI-8 methodology note
@@ -85,7 +87,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 0e523e74     (EC-2 COMPLETE: all 18 BB kinds in emit_bb_node; emit_core.c unified)
+one4all: 1fc21e2d     (EC-BB-UNIFY: PATND_t→IR_t in emit_bb.c/emit_bb.h; emit_flat_ir replaces emit_flat_node; IS_BIN guard fixed in 14 BB templates)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
