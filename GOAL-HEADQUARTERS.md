@@ -105,7 +105,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: e1c8a4ac     (EC-5: delete emit_jvm.c/emit_js.c/emit_net.c/emit_ir.c/emit_ir_targets.c; IR walk + SM walks to emit_core.c; unified emit_program(); IR_emit_vtable_t deleted; net −2077 LOC)
+one4all: 7c33121c     (EC-6: delete emit_wasm.c; move WASM walk + state into emit_core.c; EMIT_WASM=8 + IS_WASM; scrip.c uses emit_program(EMIT_WASM); net −427 LOC)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
@@ -221,7 +221,7 @@ is invoked with the mode already set via `emit_mode_set()`.
 - [ ] **EC-3** — For each SM instruction kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One SM family per sub-commit. Order: push/pop literals → variables → arithmetic → control flow → calls → pattern bridge → return family.
 - [x] **EC-4** ✅ (one4all `8890d685`, 2026-05-19, Sonnet 4.6) — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
 - [x] **EC-5** ✅ (one4all `e1c8a4ac`, 2026-05-19, Sonnet 4.6) — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`, `emit_ir.c`, `emit_ir_targets.c`, `emit_ir.h` shim. Move IR walk (`ir_node_id`/`ir_is_generator`/`ir_walk`) + three SM-walk loops (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`) + helpers (`jvm_sanitize_name`, `net_parse_define_proto`) into `emit_core.c`. Unified `emit_program(ast_prog, out, mode)` replaces three per-target entry points. `IR_emit_vtable_t` deleted. `src/include/emit_ir.h` stripped to IR walk signatures only. `scrip.c` updated to call `emit_program(EMIT_JVM/JS/NET)`. Gates floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36. Net −2077 LOC.
-- [ ] **EC-6** — Audit `emit_wasm.c`: same pattern — move its per-node functions into template arms. Delete `emit_wasm.c` after move. (WASM already partially cleaned by DAI-8 C10.)
+- [x] **EC-6** ✅ (one4all `7c33121c`, 2026-05-19, Sonnet 4.6) — delete `emit_wasm.c`; move WASM string table + user-fn table + `emit_wasm_from_sm` into `emit_core.c`; add `EMIT_WASM=8` + `IS_WASM` to `emit_core.h`; add WASM arms to `emit_prologue`/`emit_epilogue`/`emit_program`; `scrip.c` calls `emit_program(EMIT_WASM)`. Net −427 LOC. Gates: 5/0·23/26·194/36.
 - [ ] **EC-7** — Gate run: all six frontends, broker, smoke, beauty. Confirm no regression. Update `ARCH-IR.md` to document the unified template model. Close EC rung.
 
 ### Invariant
