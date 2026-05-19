@@ -170,3 +170,66 @@ and Prolog clause boxes are all `bb_node_t` nodes returning `DESCR_t`.
 The broker does not know or care which language built the box graph —
 cross-language box composition works at the IR level without any special
 casing. See `test/cross_lang.scrip` for a working end-to-end demonstration.
+
+---
+
+## Unified Emitter Model (EC series, 2026-05-19)
+
+All code-generation backends share a single set of per-instruction template
+functions in `emit_core.c`. There are no per-target silo files.
+
+### Mode enum
+
+```c
+typedef enum {
+    EMIT_TEXT = 0,           /* x86 GAS text (--compile) */
+    EMIT_BINARY_WIRED = 1,   /* x86 binary in-memory JIT (--run) */
+    EMIT_BINARY_BROKERED = 2,
+    EMIT_MACRO_DEF = 3,
+    EMIT_TEXT_INLINE = 4,
+    EMIT_JVM  = 5,           /* JVM Jasmin text */
+    EMIT_JS   = 6,           /* JavaScript */
+    EMIT_NET  = 7,           /* .NET MSIL (ilasm) */
+    EMIT_WASM = 8,           /* WebAssembly WAT text */
+} bb_emit_mode_t;
+```
+
+Macros `IS_JVM`, `IS_JS`, `IS_NET`, `IS_WASM` (in `emit_core.h`) test the
+current mode. Every template function dispatches on these macros internally.
+
+### Entry point
+
+```c
+int emit_program(const tree_t *ast_prog, FILE *out, bb_emit_mode_t mode);
+```
+
+Single function in `emit_core.c`. Calls `sm_preamble`, `emit_mode_set`,
+`emit_prologue`, the per-target walk, then `emit_epilogue`. Replaces the
+former per-target `emit_jvm_program` / `emit_js_program` / `emit_net_program`
+/ `emit_wasm_program` entry points (all deleted EC-2 through EC-6).
+
+### Adding a new backend
+
+1. Add `EMIT_NEW = N` to the enum in `emit_core.h`. Add `IS_NEW` macro.
+2. Add `case EMIT_NEW:` arms to `emit_prologue` and `emit_epilogue`.
+3. Add `else if (IS_NEW) emit_new_from_sm(sm, out);` in `emit_program`.
+4. Write `emit_new_from_sm` in `emit_core.c` (or a new `SM_templates/` file).
+5. Update `scrip.c` to call `emit_program(ast_prog, out, EMIT_NEW)`.
+
+### Adding a new SM opcode
+
+Add one function with arms for every `IS_*` mode. Zero per-target files touched.
+
+### File map (post-EC series)
+
+| File | Role |
+|------|------|
+| `src/emitter/emit_core.c` | All template functions; `emit_program`; WASM state |
+| `src/emitter/emit_core.h` | Mode enum + macros; public API |
+| `src/emitter/emit_sm.c` | x86 binary SM dispatch (EMIT_BINARY_WIRED) |
+| `src/emitter/emit_bb.c` | x86 binary BB node emission |
+| `src/emitter/BB_templates/` | One `.c` per BB box kind (JVM/JS/NET arms inline) |
+| `src/emitter/SM_templates/` | Grouped SM instruction families (push/arith/control/…) |
+
+Deleted in EC series: `emit_jvm.c`, `emit_js.c`, `emit_net.c`, `emit_ir.c`,
+`emit_ir_targets.c`, `emit_wasm.c`, `emit_ir.h` (shim), `IR_emit_vtable_t`.
