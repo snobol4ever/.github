@@ -440,15 +440,492 @@ TT_SEQ) but missed `goto_expr` (W2) and the mid-rule g_cur pattern (W3).
 
 ---
 
-## SCAN 4 — Raku — pending
+## SCAN 4 — Raku (`src/frontend/raku/raku.y`)
 
-## SCAN 5 — Rebus — pending
+Bison grammar, 695 lines. Token-bearing actions build `tree_t` nodes via
+`expr_binary`, `expr_unary`, `expr_add_child`, `make_call`, `make_seq`,
+`leaf_sval`, `var_node`. Statement-list growth uses a parser-private
+`ExprList` accumulator (`exprlist_new` / `exprlist_append`) — that is a
+**local scratch container**, not a tree node, so accumulating into it is
+not a tree mutation. The container's items are spliced into a fresh
+`TT_SEQ_EXPR` or `TT_FNC` at the parent production. Verified for each
+site.
 
-## SCAN 6 — Prolog — pending
+The grammar productions that build `tree_t` nodes are surveyed below in
+file order. Productions whose action is `$$ = $1` (pure pass-through) are
+omitted — they build no node.
+
+### 4.1 Top level
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 193–217 | `program : stmt_list` | (no node directly — drives `add_proc` for each `stmt_list` item) | — | ⚠ | Top-level walks `stmt_list`, picks out items where `t==TT_FNC && _id==SUB_TAG_ID` and calls `add_proc(e)`; remaining items are wrapped into a synthetic `main` `TT_FNC` (lines 206–212). **FLAG: synthetic `main` proc minted by the parser.** No source token `main` exists — it is named from a literal in `leaf_sval(TT_FNC,"main")`. Rule 3 violation: a `TT_FNC` node appears in the tree with no corresponding source-token origin. Owned by **PRF-12-program** (already named in `GOAL-PST-RAKU.md`). |
+| 116–125 | `add_proc(e)` helper (called from program action and from class_decl method emission, and from gather-hoist pass) | `TT_STMT` | `[TT_ATTR(":lang"), TT_ATTR(":line"), TT_ATTR(":stno"), TT_ATTR(":subj"〈e〉)]` | ⚠ | Same shape as Icon's TT_STMT (audit 1.3) — attr-tagged children. Not L→R-by-source-tokens (the `:lang` attr is not a source token at all). Treated identically to Icon's wrapper — convention-tagged, not subject to §⛔ rule 1 per primer. |
+
+### 4.2 Statement productions
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 222–228 | `stmt : KW_MY VAR_SCALAR/ARRAY/HASH '=' expr ';'` (three rules) | `TT_ASSIGN` | `[TT_VAR(name), 〈$4〉]` | ✅ | `var_node($2)` strips sigil and builds a fresh `TT_VAR` leaf — value decoding from one source token. Fresh wrap. |
+| 229–234 | `stmt : KW_MY IDENT VAR_SCALAR/ARRAY/HASH '=' expr ';'` (three rules) | `TT_ASSIGN` | `[TT_VAR($3-name), 〈$5〉]` | ⚠ | The `IDENT $2` source token is **discarded** (`free($2)`). It is the type-annotation in `my Int $x = ...`. **FLAG: source token lifted out — type annotation has no tree analog.** Rule 3 violation: a source token that bore identifier content (the type name) was thrown away. Goal §⛔ rule 3 forbids this. Owned: queue under **PRF-12-my-type** (proposed new rung). |
+| 235–240 | `stmt : KW_MY IDENT VAR_SCALAR/ARRAY/HASH ';'` (no init) | `TT_ASSIGN` | `[TT_VAR($3-name), TT_QLIT("")]` | ⚠ | Same as above — `IDENT $2` (type) discarded. Empty-string filler in rhs position is the convention for omitted init, ✅ per primer. The type-discard remains the rule 3 violation. |
+| 241–242 | `stmt : KW_SAY expr ';'` | `TT_FNC` (sval="write") | `[TT_VAR("write"), 〈$2〉]` | ⚠ | **Parser-side desugar: `say` keyword → `write(...)` call.** The source keyword `say` is replaced by a synthetic call-name `"write"`. Rule 3 violation: source token `say` has no tree analog — it is recoded into a string literal `"write"` baked into the parser. (Same family of parser-side desugar as Snocone's `struct → DATA(...)`.) Owned: **PRF-12-say** (proposed new rung). |
+| 243–245 | `stmt : KW_SAY '(' expr ',' expr ')' ';'` | `TT_FNC` (sval="raku_say_fh") | `[TT_VAR("raku_say_fh"), 〈$3〉, 〈$5〉]` | ⚠ | Same `say`-token-discard plus synthetic `raku_say_fh` name. **PRF-12-say.** |
+| 246–247 | `stmt : KW_PRINT expr ';'` | `TT_FNC` (sval="writes") | `[TT_VAR("writes"), 〈$2〉]` | ⚠ | Same: `print` → `writes`. **PRF-12-print.** |
+| 248–250 | `stmt : KW_PRINT '(' expr ',' expr ')' ';'` | `TT_FNC` (sval="raku_print_fh") | `[TT_VAR("raku_print_fh"), 〈$3〉, 〈$5〉]` | ⚠ | Same. **PRF-12-print.** |
+| 251–252 | `stmt : KW_TAKE expr ';'` | `TT_SUSPEND` | `[〈$2〉]` | ✅ | parser chose TT_SUSPEND as kind for `take` — permitted (rule 1 of "kind selection"). Source token `take` becomes the node kind. Clean. |
+| 253–256 | `stmt : KW_RETURN expr ';'` / `KW_RETURN ';'` | `TT_RETURN` | `[〈$2〉]` or `[]` | ✅ | clean |
+| 257–258 | `stmt : VAR_SCALAR '=' expr ';'` | `TT_ASSIGN` | `[TT_VAR(name), 〈$3〉]` | ✅ | clean |
+| 259–263 | `stmt : VAR_SCALAR '.' IDENT '=' expr ';'` | `TT_ASSIGN` | `[TT_FIELD(sval=$3, c=[TT_VAR($1)]), 〈$5〉]` | ✅ | `TT_FIELD` is fresh-built; outer `TT_ASSIGN` is fresh. Field name in `v.sval`, recipient (`$1`) in `c[0]` of TT_FIELD — that is the field-access convention. L→R source order: `$1` `.` `$3` `=` `$5` → tree has `$1` at FIELD's c[0], `$3` at FIELD's `v.sval`, `$5` at ASSIGN's c[1]. Same shape as Icon's `TT_FIELD` (audit 2.x). Clean. |
+| 264–266 | `stmt : VAR_ARRAY '[' expr ']' '=' expr ';'` | `TT_FNC` (sval="arr_set") | `[TT_VAR("arr_set"), TT_VAR($1), 〈$3〉, 〈$6〉]` | ⚠ | **Parser-side desugar: `@arr[idx] = val` → `arr_set(arr, idx, val)`.** Source tokens `[ ] =` are all discarded; the `arr_set` call-name is synthesized. Rule 3 violation. **PRF-12-arr-hash-ops.** |
+| 267–272 | `stmt : VAR_HASH '<' IDENT '>' '=' expr ';'` / `VAR_HASH '{' expr '}' '=' expr ';'` | `TT_FNC` (sval="hash_set") | `[TT_VAR("hash_set"), TT_VAR($1), TT_QLIT($3) or 〈$3〉, 〈$6〉]` | ⚠ | Same desugar — `%h<k> = v` → `hash_set(h, "k", v)`. **PRF-12-arr-hash-ops.** |
+| 273–278 | `stmt : KW_DELETE VAR_HASH '<' IDENT '>' ';'` / `KW_DELETE VAR_HASH '{' expr '}' ';'` | `TT_FNC` (sval="hash_delete") | `[TT_VAR("hash_delete"), TT_VAR($2), TT_QLIT($4) or 〈$4〉]` | ⚠ | Same family. **PRF-12-arr-hash-ops.** |
+| 279 | `stmt : expr ';'` | passthrough | — | ✅ | layout-only `;` discarded — permitted |
+| 280–294 | `stmt : if_stmt \| while_stmt \| for_stmt \| given_stmt \| ...` | passthrough | — | ✅ | |
+| 284–289 | `stmt : KW_TRY block` / `KW_TRY block KW_CATCH block` | `TT_FNC` (sval="raku_try") | `[TT_VAR("raku_try"), 〈$2〉]` or `[TT_VAR("raku_try"), 〈$2〉, 〈$4〉]` | ⚠ | **Parser-side desugar: `try { } catch { }` → `raku_try(blk, catch_blk)`.** Source keywords `try`/`catch` have no tree node-kind analog. **PRF-12-try.** |
+
+### 4.3 Control-flow productions
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 296–303 | `if_stmt : KW_IF '(' expr ')' block [KW_ELSE block]` (3 variants) | `TT_IF` | `[cond, then]` or `[cond, then, else]` | ✅ | Source order matches. Pass-through of `else if_stmt` recursion in third alt also L→R ✅. Clean. |
+| 304–306 | `while_stmt : KW_WHILE '(' expr ')' block` | `TT_WHILE` | `[cond, body]` | ✅ | clean |
+| 308–312 | `unless_stmt : KW_UNLESS '(' expr ')' block [KW_ELSE block]` | `TT_IF` | `[TT_NOT(cond), then]` or `[TT_NOT(cond), then, else]` | ⚠ | **Parser-side desugar: `unless` → `if (not ...)`.** Source token `unless` has no tree-kind analog; the parser builds a `TT_IF` whose first child is `TT_NOT(cond)`. The wrap is fresh (no mutation) and L→R-sensible (the negation appears at the cond slot where the cond would have appeared). **Rule 3:** the source keyword `unless` has no analog — the parser chose `TT_IF` for it. **This is at the borderline:** the parser-kind-choice freedom (rule 1 of permissions) lets the parser pick TT_IF; the synthesized TT_NOT introduces an extra node not present in the source. Strict reading: rule 3 violation (one extra `TT_NOT` synthesized). Loose reading: TT_NOT IS the structural rendering of `unless`. **FLAG ⚠ for explicit decision.** |
+| 314–316 | `until_stmt : KW_UNTIL '(' expr ')' block` | `TT_UNTIL` | `[cond, body]` | ✅ | parser uses TT_UNTIL kind — clean |
+| 318–320 | `repeat_stmt : KW_REPEAT block` | `TT_REPEAT` | `[body]` | ✅ | clean |
+| 322–334 | `for_stmt` (4 variants) | varies — see below | — | ❌ | Three sub-cases: |
+| 323–326 | `for_stmt : KW_FOR add_expr OP_RANGE[/_EX] add_expr OP_ARROW VAR_SCALAR block` → `make_for_range` (line 100–113) | `TT_SEQ_EXPR` containing `[TT_ASSIGN(init), TT_WHILE(cond, body2)]`, where `body2 = TT_SEQ_EXPR([orig_body_children..., TT_ASSIGN(incr)])` | — | ❌ | **Massive parser-side desugar.** `for 1..10 -> $i { BODY }` is unrolled in the parser into: `i = 1; while (i <= 10) { BODY; i = i + 1; }`. Synthesized nodes: a TT_ASSIGN(init), a TT_LE comparison, a TT_ADD with TT_ILIT(1), an inner TT_ASSIGN(incr), a TT_WHILE wrapper, an outer TT_SEQ_EXPR. **None** of these structural pieces are source tokens. The body's children are also spliced into a freshly-built `body2` — that is splicing children OUT of `$7`'s original TT_SEQ_EXPR. Rule 3 violation (massive). Owned: **PRF-12-for-range** (already named). |
+| 327–331 | `for_stmt : KW_FOR expr OP_ARROW VAR_SCALAR block` | `TT_EVERY` | `[TT_ITERATE(〈$2〉) with v.sval=$4-name, 〈$5〉]` | ⚠ | The loop variable's name is **stored in `v.sval` of the TT_ITERATE node**, not as a child. Source order `for EXPR -> VAR BLOCK` → `[ITERATE-wrapping-EXPR, BLOCK]`. The VAR sits inside TT_ITERATE's `v.sval`. Rule 3: source token `$4` (the var) appears in `v.sval`, not as a child. Per current scope corrections (value decoding at fresh leaves is allowed), this is **permitted** — the VAR contributes to a node value, the data is preserved on the node. ✅ under corrected scope. Borderline ⚠ for record. |
+| 332–334 | `for_stmt : KW_FOR expr block` | `TT_EVERY` | `[〈$2〉 wrapped in TT_ITERATE iff $2->t==TT_VAR, 〈$3〉]` | ⚠ | **Parser inspects `$2->t` and conditionally wraps it.** `if ($2->t == TT_VAR) wrap_in_TT_ITERATE else use $2 directly`. **This is "inspect-kind-and-rearrange" — flagged in the goal §⛔ as a forbidden parser-action shape.** Rule 2 violation in spirit: the parser reads the kind of an existing child and produces a different tree shape based on it. Strictly, it's not mutating $2 — it's wrapping it conditionally, which is rule-compliant on its face. But it's the exact "inspect-kind-and-decide" pattern the goal §⛔ tells us to flag. **FLAG ⚠.** |
+
+### 4.4 `given`/`when`
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 336–350 | `given_stmt : KW_GIVEN expr '{' when_list '}'` | `TT_CASE` | `[disc, val0, body0, val1, body1, …]` | ❌ | The `when_list` is an `ExprList` of `TT_SEQ_EXPR` pairs (built at lines 367–371). The action **unpacks each pair** by reading `pair->c[0]` and `pair->c[1]` and appending them individually to the TT_CASE. **Rule 2:** unpacking `pair` by reading its children and then `exprlist_free(whens)` frees the pair nodes — the pair TT_SEQ_EXPR is built, its children are stolen, then it is freed. This is functionally **dismantling a previously-built node** to repurpose its children. While the children themselves end up in source-order in TT_CASE ✅, the pair node has been destroyed. **FLAG ❌ rule 2.** (Strict reading.) Alternative: build each (val,body) pair directly as two ExprList items rather than wrapping them, then the freelist is just a working scratch. Owned: **PRF-12-given** (proposed). |
+| 351–363 | `given_stmt : KW_GIVEN expr '{' when_list KW_DEFAULT block '}'` | `TT_CASE` | `[disc, val0, body0, …, TT_NUL, $6]` | ❌ | Same unpack-and-free. Plus default arm appends `TT_NUL` placeholder for the "value" position then `$6` for the body. The `TT_NUL` placeholder for default's value slot is the same Snocone convention (audit 1.2 row 7). |
+| 365–371 | `when_list : when_list KW_WHEN expr block` | `TT_SEQ_EXPR` (pair, never reaches lower) | `[val, body]` | ✅ | pair node is fresh-built and L→R; ultimately consumed by `given_stmt` action |
+
+### 4.5 Subroutine and class declarations
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 373–387 | `sub_decl : KW_SUB IDENT '(' [param_list] ')' block` | `TT_FNC` (sval=name, _id=SUB_TAG_ID, ival=nparams) | `[TT_VAR(name), param1, param2, …, body_child1, body_child2, …]` | ❌ | **Two violations:** (1) `_id` (= `SUB_TAG_ID`) is used to tag this node as a subroutine declaration, and `v.ival` carries `nparams`. Without those, the tree is undecodable — same I5-family issue as Icon's `parse_proc`. (2) The block `$6` is a TT_SEQ_EXPR; its children are **spliced** into `e` via `for (...) expr_add_child(e, body->c[i])` — **the block's children are removed from $6 and re-parented into $e**. The TT_SEQ_EXPR `body` node itself becomes a hollow shell (its `c[]` still holds pointers but those nodes now also live elsewhere). This is **transferring children out of a previously-built node** — rule 2 violation in spirit (the structure of `body` has been altered post-construction). **FLAG: PRF-12-sub already names this; PST-FIELD-1/2 covers `_nalloc`/`_id`.** Plus the child-stealing is a separate concern. |
+| 389–419 | `class_decl : KW_CLASS IDENT '{' class_body_list '}'` | `TT_RECORD` (sval=cname) plus side-effects to `add_proc` and `raku_meth_register` and final `$$ = TT_NUL` | `TT_RECORD` children = `[TT_VAR(field1), TT_VAR(field2), …]` (only the `TT_VAR` items from class_body_list) | ❌ | **Heavy parser-side desugar:** (1) class body's `TT_FNC` items (methods, recognized by `_id==SUB_TAG_ID`) are **removed from class_body_list** and pushed to `add_proc` as standalone top-level procs — same family as the auto-hoisted gather defs. (2) Method names are **rewritten in place** (`item->v.sval = (char *)fname` line 407, `item->c[0]->v.sval = (char *)fname` line 409) — this is direct **mutation of a previously-built TT_FNC node** — rule 2 violation. (3) The `class_decl` action returns `TT_NUL` (line 418) instead of the record — the record was already added via `add_proc`. So a `class` statement leaves an empty TT_NUL in the stmt_list, and the actual record + methods land elsewhere via side-effect. Rule 3 violation: source tokens for the class declaration have no surviving tree position. **FLAG: PRF-12-class already names this.** |
+| 421–448 | `class_body_list` (4 variants — has-field, method-with-args, method-no-args) | (returns an ExprList of mixed TT_VAR and TT_FNC items) | — | ⚠ | The TT_FNC items built here (lines 429–448) carry `_id=SUB_TAG_ID, ival=np+1` and embed a synthetic `TT_VAR("self")` param. **The synthetic "self" param is rule 3-flag worthy**: there is no source token `self` in `method foo(...)`, the parser invents it. **FLAG: PRF-12-class (synth-self).** |
+| 450–458 | `named_arg_list` (2 variants) | (returns an ExprList of alternating `TT_QLIT(key)` + `〈val〉` items) | — | ✅ | local accumulator, L→R clean |
+| 460–462 | `param_list` (2 variants) | (returns an ExprList of TT_VAR nodes) | — | ✅ | clean |
+| 464–466 | `block : '{' stmt_list '}'` | `TT_SEQ_EXPR` (via `make_seq`) | `[stmt0, stmt1, …]` | ✅ | `make_seq` (line 66) builds fresh TT_SEQ_EXPR and `expr_add_child`s each ExprList item. Layout `{ }` discarded — permitted. Clean. |
+| 467–469 | `closure : '{' expr '}'` | passthrough of $2 | — | ✅ | layout `{}` discarded |
+
+### 4.6 Expression cascade
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 470–479 | `expr : VAR_SCALAR '=' expr` | `TT_ASSIGN` | `[TT_VAR($1), 〈$3〉]` | ✅ | clean |
+| 472–477 | `expr : KW_GATHER block` | `TT_GATHER` | `[blk->c[0], blk->c[1], …]` | ❌ | **Splices block's children out of `$2` into the new TT_GATHER**, then `$2` (a TT_SEQ_EXPR) is left as a hollow shell. Same child-stealing as `sub_decl`. **Rule 2 (in spirit).** Plus: `TT_GATHER` is then **rewritten in place to `TT_FNC`** by `raku_hoist_gather_in_expr` (lines 636–654) in the post-parse pass — but that pass runs after parsing completes, so it is technically a separate-phase mutation. The parser's own rule 2 violation is the splicing. Owned: **PRF-12-gather** (proposed). |
+| 481–482 | `cmp_expr : cmp_expr OP_AND/OP_OR add_expr` | `TT_SEQ` / `TT_ALT` | `[〈$1〉, 〈$3〉]` per reduce | ✅ | **Fresh wrap, right-leaning binary chain** — NOT flattened. Same canonical shape as Icon's `parse_mul`, SNOBOL4's post-PST-SN4-1d `expr3`/`expr4`. Contrasts with Snocone's `sc_flatten_arith` (V1–V6). **Clean.** |
+| 483–490 | `cmp_expr : add_expr OP_EQ/NE/'<'/'>'/LE/GE/SEQ/SNE add_expr` | `TT_EQ/NE/LT/GT/LE/GE/LEQ/LNE` | `[〈$1〉, 〈$3〉]` | ✅ | clean |
+| 491–508 | `cmp_expr : add_expr OP_SMATCH LIT_REGEX/MATCH_GLOBAL/SUBST` (3 variants) | `TT_FNC` (sval="raku_match"/"raku_match_global"/"raku_subst") | `[TT_VAR(name), 〈$1〉, TT_QLIT(regex_src)]` | ⚠ | **Parser-side desugar: `~~ /regex/` → `raku_match(...)`.** Source operator `~~` and the LIT_REGEX token are baked into a call. Plus the regex source string is stuffed into a TT_QLIT (value decoding at fresh leaf — permitted per scope correction). The **rule 3** issue is the `~~` operator and the `m//`/`s///` markers having no tree-kind analog. **FLAG: PRF-12-smatch** (proposed). |
+| 511–514 | `range_expr` (2 variants) | `TT_TO` | `[〈$1〉, 〈$3〉]` | ⚠ | **Both `OP_RANGE` (`..`) and `OP_RANGE_EX` (`..^`) reduce to the same `TT_TO` kind** — the inclusive/exclusive distinction is lost. Per scope correction (kind choice is permitted, ONE kind for two operators is the parser's choice), this is ✅ under the corrected rules. But: the **source distinction is lost** — `1..10` and `1..^10` produce identical trees. **Rule 3 (loose):** the `^` (or its absence) source-token information has no tree analog. Stricter than "value decoding at fresh leaves" because the distinction is operator-semantic, not just a leaf payload. **FLAG ⚠ for explicit decision.** |
+| 516–520 | `add_expr` (3 variants — `+`/`-`/`~`) | `TT_ADD/SUB/CAT` | `[〈$1〉, 〈$3〉]` | ✅ | **Fresh wrap, left-leaning binary chain via bison left-recursion** — clean. Same canonical shape as Icon. |
+| 522–527 | `mul_expr` (4 variants — `*`/`/`/`%`/OP_DIV) | `TT_MUL/DIV/MOD/DIV` | `[〈$1〉, 〈$3〉]` | ⚠ | `/` and `OP_DIV` (= `div` keyword) **both reduce to TT_DIV** — same operator-fold issue as range_expr. Per scope correction: ✅ (kind choice). |
+| 529–532 | `unary_expr : '-'/'!'  unary_expr` | `TT_MNS` / `TT_NOT` | `[〈$2〉]` | ✅ | clean |
+| 534 | `postfix_expr : call_expr` | passthrough | — | ✅ | |
+
+### 4.7 Call and field
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 535–540 | `call_expr : IDENT '(' arg_list ')'` | `TT_FNC` (sval=$1) | `[TT_VAR($1), arg0, arg1, …]` | ✅ | `make_call` (line 59) builds fresh TT_FNC with TT_VAR(name) at c[0]. Args spliced from local ExprList — local accumulator, not a tree node. Clean. |
+| 541 | `call_expr : IDENT '(' ')'` | `TT_FNC` (sval=$1) | `[TT_VAR($1)]` | ✅ | clean |
+| 542–551 | `call_expr : IDENT '.' KW_NEW '(' [named_arg_list] ')'` | `TT_FNC` (sval="raku_new") | `[TT_VAR("raku_new"), TT_QLIT($1), key0, val0, key1, val1, …]` | ⚠ | **Parser-side desugar: `Foo.new(k => v)` → `raku_new("Foo", "k", v, ...)`.** Source `.new(` syntax has no tree node-kind analog; the class name becomes a TT_QLIT arg, not a tree-position parent. **PRF-12-new** (proposed). |
+| 552–563 | `call_expr : atom '.' IDENT '(' [arg_list] ')'` | `TT_FNC` (sval="raku_mcall") | `[TT_VAR("raku_mcall"), 〈$1〉, TT_QLIT($3), arg0, arg1, …]` | ⚠ | **Parser-side desugar: `obj.method(args)` → `raku_mcall(obj, "method", args)`.** Method-call syntax baked into a call to a runtime dispatch helper. **PRF-12-mcall** (proposed). |
+| 564–568 | `call_expr : atom '.' IDENT` (field, no parens) | `TT_FIELD` (sval=$3) | `[〈$1〉]` | ✅ | field name in `v.sval`, recipient in c[0]. Same shape as line 259. Clean. |
+| 569–571 | `call_expr : KW_DIE expr` | `TT_FNC` (sval="raku_die") | `[TT_VAR("raku_die"), 〈$2〉]` | ⚠ | `die` → `raku_die(...)` desugar. **PRF-12-die** (proposed). |
+| 572–583 | `call_expr : KW_MAP/GREP/SORT closure expr` etc. | `TT_FNC` (sval="raku_map"/"raku_grep"/"raku_sort") | `[TT_VAR(name), 〈closure〉, 〈expr〉]` | ⚠ | **Parser-side desugar: higher-order builtins.** `map { ... } @arr` → `raku_map(closure, arr)`. Same family. **PRF-12-hof** (proposed). |
+| 584 | `call_expr : atom` | passthrough | — | ✅ | |
+
+### 4.8 Atoms
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 591 | `atom : LIT_INT` | `TT_ILIT` (ival) | (none) | ✅ | |
+| 592 | `atom : LIT_FLOAT` | `TT_FLIT` (dval) | (none) | ✅ | |
+| 593 | `atom : LIT_STR` | `TT_QLIT` (sval) | (none) | ✅ | |
+| 594 | `atom : LIT_INTERP_STR` → `lower_interp_str` (75–98) | `TT_CAT` (right-leaning chain) or `TT_QLIT` | for `"a $x b"`: `TT_CAT(TT_CAT(TT_QLIT("a "), TT_VAR("x")), TT_QLIT(" b"))` | ⚠ | **Parser-side string interpolation lowering** — single source token `LIT_INTERP_STR` is **decomposed into multiple tree nodes** representing the literal/var alternation. Per scope correction "value decoding at fresh leaves is permitted" — but `lower_interp_str` is value decoding into a **multi-node tree structure**, not a single leaf. **Borderline case:** the decomposition is fresh-wrap, L→R-by-string-position-within-the-LIT_INTERP_STR-token, no in-place mutation. The decomposition replaces one source token with a fresh structural tree — but parser-kind freedom (rule 1 permission) lets the parser pick the shape for `LIT_INTERP_STR`. **Decision:** treat as **permitted** (analogous to choosing a node kind for an operator; the "operator" here is the interpolation syntax itself). **FLAG ⚠ for record only — not a violation.** |
+| 595–597 | `atom : VAR_SCALAR/VAR_ARRAY/VAR_HASH` | `TT_VAR` (sval, sigil stripped) | (none) | ✅ | sigil-strip is value decoding at a fresh leaf — permitted |
+| 598–602 | `atom : VAR_CAPTURE` (`$0`, `$1`, …) | `TT_FNC` (sval="raku_capture") | `[TT_VAR("raku_capture"), TT_ILIT(idx)]` | ⚠ | desugar **PRF-12-capture** (proposed) |
+| 603–606 | `atom : VAR_NAMED_CAPTURE` (`$<name>`) | `TT_FNC` (sval="raku_named_capture") | `[TT_VAR("raku_named_capture"), TT_QLIT(name)]` | ⚠ | desugar **PRF-12-capture** |
+| 607–608 | `atom : VAR_ARRAY '[' expr ']'` | `TT_FNC` (sval="arr_get") | `[TT_VAR("arr_get"), TT_VAR(name), 〈$3〉]` | ⚠ | indexing desugar — **PRF-12-arr-hash-ops** |
+| 609–612 | `atom : VAR_HASH '<' IDENT '>'` / `VAR_HASH '{' expr '}'` | `TT_FNC` (sval="hash_get") | `[TT_VAR("hash_get"), TT_VAR(name), TT_QLIT($3) or 〈$3〉]` | ⚠ | **PRF-12-arr-hash-ops** |
+| 613–616 | `atom : KW_EXISTS VAR_HASH …` | `TT_FNC` (sval="hash_exists") | `[TT_VAR("hash_exists"), TT_VAR(name), key]` | ⚠ | **PRF-12-arr-hash-ops** |
+| 617 | `atom : IDENT` | `TT_VAR` (sval) | (none) | ✅ | clean |
+| 618–622 | `atom : VAR_TWIGIL` (`$.foo`, `$!foo`) | `TT_FIELD` (sval=$1, sigil-bearing or stripped) | `[TT_VAR("self")]` | ⚠ | **Parser-synthesizes `self` reference** from a non-source token. Source token `$.foo` is a twigil — its semantic IS "field access on self" — so the parser bakes that in by adding `TT_VAR("self")` as the field recipient. Rule 3: `self` is not in the source. **FLAG ⚠** — but same kind of "the twigil's meaning IS this expansion" justification as `unless`. Strict reading: violation. Loose reading: structural rendering of the twigil. **PRF-12-twigil** (proposed). |
+| 623 | `atom : '(' expr ')'` | passthrough | — | ✅ | layout-only parens discarded |
+
+### 4.9 Post-parse passes (gather hoist)
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 632–686 | `raku_lower_hoist_gather_pass` (called at end of `raku_parse_string`, line 693) | (mutates the entire `raku_prog_result` tree post-parse) | — | ❌ | **This is a parser-internal post-pass that walks the tree and rewrites every TT_GATHER node into a TT_FNC reference plus emits a hoisted def at top level.** Specifically lines 647–653: `e->t = TT_FNC; e->v.sval = intern(gname); e->n = 0; e->c = NULL; e->_nalloc = 0;` — **direct in-place rewrite of the tree node's kind, sval, and child array** (after the parse phase but before the parser returns the tree). And lines 671–685: it splices new TT_STMT records into `prog->c[]` at the front by reallocating prog->c. **Rule 2 violation, multiple sites.** Strictly this happens post-parse, but it is inside `raku_parse_string` and is the parser's responsibility to do, so it is in scope. Owned: **PRF-12-gather** (proposed, same rung as the in-grammar `KW_GATHER block` action). |
+
+### 4.10 Raku — re-scoped to ONLY the goal §⛔ rules
+
+Under the three rules (L→R order, no mutate-prior, no source token lifted
+out), Raku has **substantial work** but the violations are all of a
+common shape: parser-side desugaring to runtime calls. The work item
+**PRF-12** in `GOAL-PST-RAKU.md` already covers most of it.
+
+**Withdrawn (not violations under your rules):**
+- TT_TO for both `..` and `..^` (kind choice, parser's freedom).
+- TT_DIV for both `/` and `div` (kind choice).
+- TT_SUSPEND for `take` (kind choice — parser maps keyword to kind).
+- TT_UNTIL for `until`, TT_REPEAT for `repeat` (kind choice).
+- `lower_interp_str` decomposing LIT_INTERP_STR into TT_CAT chain (value decoding of one source token — analogous to operator-kind choice).
+- TT_FIELD with name in `v.sval` (value decoding at fresh leaf).
+- `var_node` sigil-strip (value decoding).
+- Local ExprList accumulators (`stmt_list`, `arg_list`, `param_list`, `class_body_list`, `named_arg_list`, `when_list`) — not tree nodes.
+
+**Retained under your rules:**
+
+| # | Where | Violation | Owning rung |
+|---|---|---|---|
+| R1 | `program` synthesizes `main` TT_FNC wrapping orphan statements (lines 206–212) | rule 3: `main` is not a source token | PRF-12-program |
+| R2 | `KW_MY IDENT VAR_*` (lines 229–240): the `IDENT` (type annotation) is `free()`'d | rule 3: source token discarded | PRF-12-my-type (new) |
+| R3 | `KW_SAY expr ';'` → `TT_FNC("write")` (line 241) | rule 3: keyword `say` not in tree; "write" synthesized | PRF-12-say |
+| R4 | `KW_SAY '(' expr ',' expr ')'` → `TT_FNC("raku_say_fh")` (line 243) | rule 3: keyword `say` not in tree; "raku_say_fh" synthesized | PRF-12-say |
+| R5 | `KW_PRINT expr ';'` → `TT_FNC("writes")` (line 246) | rule 3 | PRF-12-print |
+| R6 | `KW_PRINT '(' expr ',' expr ')'` → `TT_FNC("raku_print_fh")` (line 248) | rule 3 | PRF-12-print |
+| R7 | `VAR_ARRAY '[' expr ']' '=' expr` → `arr_set` call (line 264) | rule 3: assignment-to-index syntax desugared | PRF-12-arr-hash-ops (new) |
+| R8 | `VAR_HASH '<' IDENT '>' '=' expr` and `VAR_HASH '{' expr '}' '=' expr` → `hash_set` (lines 267, 270) | rule 3 | PRF-12-arr-hash-ops |
+| R9 | `KW_DELETE VAR_HASH …` → `hash_delete` (lines 273, 276) | rule 3 | PRF-12-arr-hash-ops |
+| R10 | `KW_TRY block [KW_CATCH block]` → `raku_try` call (lines 284, 287) | rule 3 | PRF-12-try (new) |
+| R11 | `unless` → `TT_IF(TT_NOT(cond), …)` (lines 308–312) | rule 3 (borderline) | PRF-12-unless (new) — flag for decision |
+| R12 | `for ... ` 1..N variant → `make_for_range` builds TT_SEQ_EXPR(TT_ASSIGN, TT_WHILE(...))` with synthesized init/incr/cond (lines 100–113, 323–326) | rule 3 (massive) + rule 2 (block children spliced into fresh body2) | PRF-12-for-range |
+| R13 | `for EXPR block` inspects `$2->t==TT_VAR` and conditionally wraps in TT_ITERATE (lines 332–334) | rule 2 (in spirit — inspect-kind-and-rearrange) | PRF-12-for-range |
+| R14 | `given_stmt` unpacks `when_list` pair nodes then frees them (lines 343–349, 355–361) | rule 2: pair TT_SEQ_EXPR built then dismantled and freed | PRF-12-given (new) |
+| R15 | `sub_decl` splices block body's children into the TT_FNC node (lines 379–380, 385–386) | rule 2: `body` TT_SEQ_EXPR is hollowed out by child stealing | PRF-12-sub |
+| R16 | `class_decl` rewrites method TT_FNC's `v.sval` and `c[0]->v.sval` in place (lines 407, 409) | rule 2: prior-built TT_FNC node mutated post-construction | PRF-12-class |
+| R17 | `class_decl` hoists methods to top level via `add_proc`, returns `TT_NUL` (lines 411, 418) | rule 3: class declaration produces TT_NUL in stmt_list; the actual class+methods land via side-effect | PRF-12-class |
+| R18 | `class_body_list KW_METHOD ...` synthesizes `TT_VAR("self")` param (lines 434, 444) | rule 3: `self` is not a source token | PRF-12-class (synth-self) |
+| R19 | `expr : KW_GATHER block` splices block children into TT_GATHER (lines 472–477) | rule 2: `block` TT_SEQ_EXPR hollowed by child stealing | PRF-12-gather (new) |
+| R20 | `OP_SMATCH LIT_REGEX/MATCH_GLOBAL/SUBST` → `raku_match`/`raku_match_global`/`raku_subst` calls (lines 491–508) | rule 3: `~~` operator has no tree-kind analog | PRF-12-smatch (new) |
+| R21 | `IDENT '.' KW_NEW '(' …` → `raku_new` call (lines 542–551) | rule 3: `.new(` syntax baked into a runtime call | PRF-12-new (new) |
+| R22 | `atom '.' IDENT '(' …` → `raku_mcall` (lines 552–563) | rule 3: method-call syntax baked | PRF-12-mcall (new) |
+| R23 | `KW_DIE expr` → `raku_die` (lines 569–571) | rule 3 | PRF-12-die (new) |
+| R24 | `KW_MAP/GREP/SORT closure expr` → `raku_map`/grep/sort (lines 572–583) | rule 3 | PRF-12-hof (new) |
+| R25 | `VAR_CAPTURE` → `raku_capture(idx)`; `VAR_NAMED_CAPTURE` → `raku_named_capture(name)` (lines 598–606) | rule 3 | PRF-12-capture (new) |
+| R26 | `VAR_TWIGIL` → `TT_FIELD(sval=$1, c=[TT_VAR("self")])` (lines 618–622) | rule 3: `self` synthesized | PRF-12-twigil (new) |
+| R27 | `raku_lower_hoist_gather_pass` rewrites every `TT_GATHER` node's `t`/`v.sval`/`n`/`c` in place (lines 647–653) and splices new TT_STMTs into `prog->c[]` (lines 671–685) | rule 2: in-place rewrite of node kind + child array; rule 3: synthesized def stmts | PRF-12-gather |
+
+**Net Raku status: 27 retained violations under the corrected scope.**
+That is much more than Snocone's 11. **PRF-12** in `GOAL-PST-RAKU.md`
+already names five rungs (gather, sub, class, program, for-range);
+expanding to cover all 27 sites needs additional sub-rungs as listed
+above. The rung naming preserves the existing `PRF-12-*` convention.
+
+**Recurring theme:** ~18 of 27 violations are **parser-side desugaring of
+Raku-specific syntactic sugar to runtime helper calls** (`say` → `write`,
+`@arr[i] = v` → `arr_set`, `Foo.new` → `raku_new`, `try` → `raku_try`,
+etc.). These belong in `lower.c` (or a `lower_raku.c` pre-pass). The
+parser should produce a syntax-faithful tree (e.g. `TT_SAY(arg)`,
+`TT_INDEX_SET(arr, idx, val)`, `TT_NEW(cls, args)`) and `lower` should
+recognize those kinds and emit calls to the right runtime helpers.
+
+The other ~9 violations are **child stealing** (block body children
+moved into TT_FNC for sub_decl, into TT_GATHER for gather, into
+TT_GATHER then rewritten by hoist pass) and **post-construction
+mutation** (class method renaming, gather hoist rewriting). Both
+are structural — fix patterns are: build the wrapper fresh from the
+captured-but-not-spliced child references; defer hoisting/renaming
+to lower.
 
 ---
 
-## Rollup — scans 1–3 (Snocone, Icon, SNOBOL4) — final corrected counts
+## SCAN 5 — Rebus (`src/frontend/rebus/rebus.y`)
+
+Bison grammar, 635 lines. **Hybrid state:** declaration-level structure
+(records, function decls, case clause list) still uses `RDecl` /
+`RProgram` / `RCase` C-struct types — these are **off-tree**, not
+`tree_t`. Expressions and statements are `tree_t` (PST-RB-5b).
+Per `GOAL-PST-REBUS.md`, the off-tree decl machinery is still owned by
+the larger PST-RB family; the goal for this audit is the **tree-building
+productions only** under the three §⛔ rules. Off-tree decl/case
+plumbing is recorded but not graded against the §⛔ rules — those rules
+apply to `tree_t` productions only.
+
+Two parser-private dynamic accumulator types are used: `SAL` (string-array
+list — used for record fields, function params/locals) and `TAL`
+(`tree_t*`-array list — used for function-call/index arg lists). Neither
+is a tree node; growing them in-place is not a tree mutation.
+
+### 5.1 Off-tree decl machinery (not graded against §⛔ — recorded only)
+
+| Loc | Production | Off-tree output | Notes |
+|-----|------------|-----------------|-------|
+| 120–122 | `program : decl_list` | sets `prog` (a `RProgram`) | top-level wrapper not built as `tree_t` |
+| 124–140 | `decl_list` (3 rules) | appends `RDecl`s to `prog->decls` linked list | not a tree; pure list construction |
+| 142–145 | `decl : function_decl \| record_decl` | passthrough of `RDecl*` | — |
+| 152–163 | `record_decl : T_RECORD T_IDENT '(' opt_idlist ')'` | `RDecl{kind=RD_RECORD, name=$2, fields=$4->a}` | `name` and `fields` live on `RDecl`, not in `tree_t`. **Off-tree by design.** |
+| 165–187 | `function_decl : T_FUNCTION T_IDENT '(' opt_params ')' opt_locals opt_initial stmt_list T_END` | `RDecl{kind=RD_FUNCTION, name=$2, params=$4->a, locals=$7->a, initial_tree=$8, body_tree=$9}` | name/params/locals are off-tree strings; `initial_tree` and `body_tree` are `tree_t` references. **Off-tree wrapper around tree_t children.** |
+| 189–192, 194–197, 236–239 | `opt_params`/`opt_locals`/`opt_idlist` | builds `SAL` of strings | off-tree |
+| 199–203 | `opt_initial : T_INITIAL compound_stmt \| T_INITIAL stmt ';' \| ε` | passthrough of `tree_t*` or NULL | feeds `RDecl.initial_tree` |
+| 231–234 | `idlist_ne` | builds `SAL` | off-tree |
+| 409–416 | `caselist` | builds linked list of `RCase` | each `RCase` carries `guard_tree` and `body_tree` which ARE `tree_t`, but the list-spine is off-tree |
+| 418–433 | `caseclause` (2 variants) | `RCase{is_default, guard_tree, body_tree}` | guard_tree, body_tree are `tree_t`. The `is_default` flag and linked list ARE off-tree. |
+| 619–628 | `arglist`/`arglist_ne` | builds `TAL` of `tree_t*` | local accumulator; not a tree node |
+
+**This is the PST-RB ladder's remaining off-tree work** — owned by
+`GOAL-PST-REBUS.md` rungs PST-RB-5* (decl/case plumbing rewrite). Not
+audited here against §⛔ because they don't produce `tree_t` nodes.
+
+### 5.2 stmt_list productions (in-place tree mutation candidates)
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 205–211 | `stmt_list : ε \| stmt_list_ne` | `TT_PROGRAM` (empty) or passthrough | `[]` empty, or passthrough | ⚠ | The empty case builds fresh empty `TT_PROGRAM`; the non-empty case passes through `stmt_list_ne` which itself does in-place mutation (see below). The fresh-TT_PROGRAM-on-empty case is ✅. |
+| 213–218 | `stmt_list_ne : stmt ';'` | `TT_PROGRAM` | `[$1]` | ✅ | initial 1-child TT_PROGRAM, fresh wrap |
+| 219 | `stmt_list_ne : compound_stmt` | passthrough of the TT_PROGRAM that compound_stmt built | — | ✅ | |
+| 220–223 | `stmt_list_ne : stmt_list_ne stmt ';'` | mutates `$1` (a TT_PROGRAM) by `expr_add_child($1, $2)` | flat n-ary; **appends into prior** | ❌ | **Rule 2 violation — `expr_add_child($1, $3); $$ = $1;` mutates the previously-built TT_PROGRAM by adding a child.** Same exact pattern as Snocone's `exprlist_ne` (V7 in scan 1) and SNOBOL4's `goto_expr T_CONCAT goto_atom` (W2 in scan 3). This is the canonical §⛔ rule 2 example. Owned: **RB-C-1** (already named in `GOAL-PST-REBUS.md`). |
+| 224–227 | `stmt_list_ne : stmt_list_ne compound_stmt` | mutates `$1` (a TT_PROGRAM) by appending each child of `$2` (also a TT_PROGRAM) into it | flat n-ary; **dismantles $2 (child-stealing) + appends into $1 (in-place)** | ❌ | **Double violation of rule 2:** (a) mutates `$1` by appending; (b) the loop `for (int i = 0; i < $2->n; i++) expr_add_child($1, $2->c[i])` steals every child of `$2` (the compound's TT_PROGRAM) and re-parents them under `$1`. `$2` is left as a hollow TT_PROGRAM with `n` unchanged but all its `c[]` pointers now also live under `$1`. Same "child stealing" pattern as Raku's `sub_decl` (R15). Owned: **RB-C-1**. |
+| 228 | `stmt_list_ne : stmt_list_ne error ';'` | passthrough of `$1` after `yyerrok` | — | ✅ | error recovery, no tree work |
+
+### 5.3 Statement productions
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 241–249 | `stmt : expr_as_stmt \| if_stmt \| ...` | passthrough | — | ✅ | |
+| 250 | `stmt : T_EXIT` | `TT_LOOP_BREAK` | `[]` | ✅ | parser uses TT_LOOP_BREAK kind for Rebus `exit` keyword — permitted kind choice |
+| 251 | `stmt : T_NEXT` | `TT_LOOP_NEXT` | `[]` | ✅ | |
+| 252 | `stmt : T_FAIL` | `TT_PROC_FAIL` | `[]` | ✅ | |
+| 253 | `stmt : T_STOP` | `TT_END` | `[]` | ✅ | clean |
+| 254–258 | `stmt : T_RETURN opt_expr` | `TT_RETURN` | `[]` or `[〈$2〉]` | ✅ | clean |
+| 259 | `stmt : compound_stmt` | passthrough (TT_PROGRAM from compound_stmt) | — | ✅ | |
+| 262–263 | `expr_as_stmt : expr` | passthrough | — | ✅ | |
+| 264–270 | `expr_as_stmt : expr '?' pat_expr` | `TT_SCAN` | `[subj, pat]` | ✅ | Fresh wrap, source order ✅. **Same pattern as SNOBOL4's TT_SCAN — permitted under corrected scope (a parser node built from N source positions is fine as long as fresh-wrap + L→R).** Withdrawn from earlier audit's flag list. |
+| 271–278 | `expr_as_stmt : expr '?' pat_expr T_ARROW expr` | `TT_SCAN` | `[subj, pat, repl]` | ✅ | 3-child variant for replacement. Fresh wrap, L→R ✅. The downstream split into separate consumer fields is consumer-side. |
+| 279–286 | `expr_as_stmt : expr T_QUESTMINUS pat_expr` | `TT_SCAN` | `[subj, pat, TT_NUL]` | ✅ | replace-with-null variant. TT_NUL as filler for "no replacement" is the same convention as Snocone empty-value slots — permitted. |
+| 289–291 | `compound_stmt : '{' stmt_list '}'` | passthrough of TT_PROGRAM | — | ✅ | layout braces discarded — permitted |
+| 293–295 | `stmt_body : stmt` | passthrough | — | ✅ | |
+
+### 5.4 Control-flow productions
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 297–305 | `if_stmt : T_IF stmt T_THEN opt_semi stmt_body` | `TT_IF` | `[cond, then]` | ✅ | fresh wrap, L→R ✅ |
+| 306–314 | `if_stmt : T_IF stmt T_THEN opt_semi stmt_body T_ELSE opt_semi stmt_body` | `TT_IF` | `[cond, then, else]` | ✅ | clean |
+| 317–328 | `unless_stmt : T_UNLESS stmt T_THEN opt_semi stmt_body` | `TT_IF` | `[TT_NOT(cond), then]` | ⚠ | **Parser-side desugar: `unless` → `TT_IF(TT_NOT(...))`.** Same case as Raku R11. The `TT_NOT` wrap node is synthesized — no `T_NOT` source token. Comment in the action itself acknowledges: `/* unless cond then body == if ~cond then body */`. **FLAG ⚠ (rule 3 — strict) / ✅ (loose, kind choice).** New rung name: **RB-C-2 unless** (proposed). |
+| 331–340 | `while_stmt : T_WHILE stmt T_DO opt_semi stmt_body` | `TT_WHILE` | `[cond, body]` | ✅ | clean |
+| 342–351 | `until_stmt : T_UNTIL stmt T_DO opt_semi stmt_body` | `TT_UNTIL` | `[cond, body]` | ✅ | clean — TT_UNTIL is its own kind |
+| 353–361 | `repeat_stmt : T_REPEAT opt_semi stmt_body` | `TT_REPEAT` | `[body]` | ✅ | clean |
+| 363–374 | `for_stmt : T_FOR T_IDENT T_FROM expr T_TO expr T_DO opt_semi stmt_body` | `TT_FOR` (sval=loop_var) | `[from, to, TT_NUL, body]` | ⚠ | The loop variable name lives in `v.sval` (value decoding — permitted) not as a child. The omitted `by` slot is filled with `TT_NUL` placeholder — same convention as Rebus replace-with-null, ✅. Source order is `for VAR from FROM to TO do BODY` → children `[from, to, TT_NUL, body]`. **The order in the tree is from, to, by, body — which is the SOURCE-CLAUSE order, but the parser inserts TT_NUL for the missing `by`.** ✅ under corrected scope (TT_NUL filler is permitted). |
+| 375–385 | `for_stmt : T_FOR T_IDENT T_FROM expr T_TO expr T_BY expr T_DO opt_semi stmt_body` | `TT_FOR` (sval=loop_var) | `[from, to, by, body]` | ✅ | clean — 4 children all from source |
+| 388–406 | `case_stmt : T_CASE expr T_OF '{' caselist '}'` | `TT_CASE` | `[expr, TT_IF(guard,body), TT_IF(guard,body), …, TT_IF(TT_NUL,body), …]` | ❌ | **Two violations.** (a) The action **walks the off-tree RCase linked list ($5) and builds fresh TT_IF nodes per clause** — `tree_t *clause = ast_node_new(TT_IF); expr_add_child(clause, c->guard_tree); expr_add_child(clause, c->body_tree)`. This is creating tree structure from non-tree data. While the **child order in TT_CASE is L→R** ✅ (clauses appear in source order), each clause is a **synthesized TT_IF wrapper** — there is no `if`/`then` source token at each clause. Rule 3 violation: synthesized TT_IF kind wraps each clause where the source had only `guard:body`. (b) For the default arm, `expr_add_child(clause, ast_node_new(TT_NUL))` synthesizes a TT_NUL placeholder for the missing guard. This is **permitted** as a filler convention (per Snocone audit V14 withdrawal). The TT_IF wrapper is the violation. New rung: **RB-C-3 case-clause** (proposed) — should produce `TT_CASE(expr, guard0, body0, guard1, body1, …, TT_NUL, body_default)` flat n-ary alternating like Raku does (R14 / PRF-12-given), eliminating the TT_IF wrapper. |
+
+### 5.5 Expression cascade
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 441–444 | `assign_expr : alt_expr T_ASSIGN assign_expr` | `TT_ASSIGN` | `[〈$1〉, 〈$3〉]` | ✅ | fresh wrap |
+| 445–448 | `T_EXCHANGE` | `TT_SWAP` | `[〈$1〉, 〈$3〉]` | ✅ | |
+| 449–456 | `T_ADDASSIGN` (`+:=`) | `TT_ASSIGN` | `[TT_VAR(strdup($1->v.sval)), TT_ADD($1, $3)]` | ❌ | **Massive set of violations.** (a) `lhs2 = ast_node_new(TT_VAR); lhs2->v.sval = strdup($1->v.sval ? $1->v.sval : "")` — reads the lhs's `v.sval` and builds a **second, synthesized** TT_VAR leaf with the same name. **The lhs appears twice in the tree** — once as `$1` (under TT_ADD) and once as the synthesized `lhs2` (under TT_ASSIGN). Rule 3: the lhs's second occurrence is a synthesized non-source-token leaf. (b) The assumption that `$1->v.sval` exists is fragile — `$1` could be any expression (`alt_expr` can be a complex expression), but the action assumes `$1` is a TT_VAR with a name. For non-TT_VAR lhs, this produces a malformed tree (an empty-name TT_VAR is created). (c) This is **parser-side desugaring** of augmented assignment — should produce `TT_AUGOP` with ival=op as Snocone and Icon do. Goal §⛔ rule 3 violation. New rung: **RB-C-4 augop** (proposed) — replace `+:=`/`-:=`/`||:=` desugaring with `TT_AUGOP(lhs, rhs)` carrying the operator in `ival`. |
+| 457–463 | `T_SUBASSIGN` (`-:=`) | `TT_ASSIGN` | `[TT_VAR(synth), TT_SUB($1, $3)]` | ❌ | Same as above. |
+| 464–470 | `T_CATASSIGN` (`\|\|:=`) | `TT_ASSIGN` | `[TT_VAR(synth), TT_CAT($1, $3)]` | ❌ | Same. |
+| 473–479 | `alt_expr : alt_expr '\|' cat_expr` | `TT_ALT` | `[〈$1〉, 〈$3〉]` | ✅ | **Fresh wrap, right-leaning chain — clean.** Same canonical shape as Icon/Raku, contrasts with Snocone's `sc_flatten_arith`. |
+| 481–491 | `cat_expr : cat_expr T_STRCAT/'&' cmp_expr` (2 rules, both reduce to TT_CAT) | `TT_CAT` | `[〈$1〉, 〈$3〉]` | ✅ | Two source operators (`\|\|` and `&`) reduce to same `TT_CAT` kind — kind choice, permitted. Source info partially lost: `&` and `\|\|` are not the same operator (one concatenates always, the other does so with whitespace handling — or something Rebus-specific). **Borderline:** like Raku's TT_TO for `..`/`..^`. Per corrected scope: ✅ (kind choice). |
+| 493–507 | `cmp_expr : cmp_expr OP add_expr` (11 ops: `=` `T_NE` `<` `T_LE` `>` `T_GE` `T_SEQ` `T_SNE` `T_SLT` `T_SLE` `T_SGT` `T_SGE`) | `TT_EQ/NE/LT/LE/GT/GE/LEQ/LNE/LLT/LLE/LGT/LGE` | `[〈$1〉, 〈$3〉]` | ✅ | each fresh wrap |
+| 509–513 | `add_expr : add_expr '+'/'-' mul_expr` | `TT_ADD/SUB` | `[〈$1〉, 〈$3〉]` | ✅ | fresh wrap, left-leaning binary chain via left-recursion. Clean. |
+| 515–520 | `mul_expr : mul_expr '*'/'/'/'%'` | `TT_MUL/DIV/MOD` | `[〈$1〉, 〈$3〉]` | ✅ | |
+| 522–526 | `pow_expr : unary_expr '^'/T_STARSTAR pow_expr` (2 rules → TT_POW) | `TT_POW` | `[〈$1〉, 〈$3〉]` | ✅ | both `^` and `**` reduce to TT_POW. Kind choice — ✅. Right-associative via right-recursion. |
+| 528–547 | `unary_expr` (10 unary prefixes) | TT_MNS/NOT/NONNULL/ITERATE/CAPT_CURSOR/INDIRECT/CAPT_COND_ASGN | `[〈$2〉]` (or special cases) | mostly ✅ | |
+| 530 | `'-' unary_expr` | `TT_MNS` | `[〈$2〉]` | ✅ | |
+| 531 | `'+' unary_expr` | passthrough (`$$ = $2`) | — | ⚠ | **Unary plus is silently dropped** — the source `+x` becomes `x` with no tree analog for the `+` operator. Comment: `/* unary plus is identity */`. Rule 3 (strict): source token `+` lifted out of the tree. Loose: arithmetic identity, no information lost. **FLAG ⚠** — borderline like `unless`. |
+| 532–533 | `'~' unary_expr` and `'\' unary_expr` | `TT_NOT` | `[〈$2〉]` | ⚠ | **Two different source operators (`~` and `\`) both reduce to TT_NOT**. Kind choice — ✅ per corrected scope, but source distinction lost. (`~` is likely string-not, `\` is structural-not — semantically distinct in Rebus.) Borderline. |
+| 534 | `'/' unary_expr` | `TT_NONNULL` | `[〈$2〉]` | ✅ | clean |
+| 535 | `'!' unary_expr` | `TT_ITERATE` | `[〈$2〉]` | ✅ | clean — parser maps `!x` to iterate kind |
+| 536–539 | `'@' T_IDENT` | `TT_CAPT_CURSOR` (sval=$2) | (none, name in `v.sval`) | ⚠ | The `T_IDENT` token name is captured as `v.sval` rather than as a `TT_VAR` child. Value decoding at a fresh leaf — **permitted** under corrected scope. Borderline ⚠ for record. Note: `@` followed by an arbitrary IDENT is restricted at the parser level; other unaries take `unary_expr`. |
+| 540 | `'$' unary_expr` | `TT_INDIRECT` | `[〈$2〉]` | ✅ | |
+| 541–546 | `'.' unary_expr` | `TT_CAPT_COND_ASGN` | `[TT_NUL, 〈$2〉]` | ⚠ | **Parser synthesizes TT_NUL placeholder for the implicit subject.** Comment: `/* prefix dot = conditional capture with implicit subject */`. Rule 3 (strict): the implicit subject has no source token — but TT_NUL placeholders are explicitly permitted as filler convention (Snocone V14 withdrawal). Per corrected scope: ✅. |
+
+### 5.6 Postfix and primary
+
+| Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|------------|-------------|--------------|---------|-------|
+| 551–569 | `postfix_expr : postfix_expr '(' arglist ')'` | `TT_FNC` | `[arg0, arg1, …]` or `[$1, arg0, arg1, …]` | ❌ | **Three violations.** (a) **Parser inspects `$1->t == TT_VAR`** to decide whether to put the name in `v.sval` or to put `$1` as `c[0]` — this is the §⛔ "inspect-kind-and-rearrange" forbidden pattern. **Rule 2 in spirit.** (b) For the TT_VAR case, the action does `$1->v.sval = NULL` after "stealing" the name — **mutating the previously-built TT_VAR node by clearing its sval** (line 559). **Rule 2 violation: in-place mutation of a built node.** (Worse, `$1` may then be unreachable as a leaf but still hold an empty-name TT_VAR that's leaked or freed inconsistently.) (c) The two-branch shape gives **TT_FNC two different tree shapes depending on callee type** — for `foo(args)` you get `TT_FNC(sval="foo")[args]`, for `(expr)(args)` you get `TT_FNC()[expr, args]`. Asymmetric child layout depending on parser-side kind inspection. **Owned: new rung RB-C-5 postfix-call** (proposed) — always produce `TT_FNC[callee, args...]` with callee as `c[0]` (Icon convention), and lower.c reads `c[0]` to dispatch built-in vs indirect call. |
+| 570–579 | `postfix_expr : postfix_expr '[' arglist ']'` | `TT_IDX` | `[$1, arg0, arg1, …]` | ✅ | Source order matches; TT_NUL fillers for omitted args (line 576) are permitted; arglist TAL is freed. Clean. |
+| 580–588 | `postfix_expr : postfix_expr '[' expr T_PLUSCOLON expr ']'` (section `[i +: len]`) | `TT_IDX` | `[$1, $3, $5]` | ⚠ | **Same kind (`TT_IDX`) used for both subscript `a[i,j,k]` and section `a[i +: len]`** — kind reuse for two distinct operators. Per corrected scope: ✅ (kind choice — Icon uses TT_SECTION_PLUS instead, but kind divergence between frontends is permitted). Borderline ⚠ for record. |
+| 589–593 | `postfix_expr '.' primary` | `TT_CAPT_COND_ASGN` | `[〈$1〉, 〈$3〉]` | ✅ | clean |
+| 594–598 | `postfix_expr '$' primary` | `TT_CAPT_IMMED_ASGN` | `[〈$1〉, 〈$3〉]` | ✅ | clean |
+| 601–608 | `primary` (6 variants — STR, INT, REAL, KEYWORD, IDENT, parens) | TT_QLIT/ILIT/FLIT/KEYWORD/TT_VAR or passthrough | (none for leaves, or `$2` for parens) | ✅ | clean — paren passthrough discards layout, all others are fresh leaves with value decoding at a single source token. Note: `strdup($1)` (line 602–606) — fresh allocation of string content, not a "lifted token" concern. |
+| 610–612 | `pat_expr : expr` | passthrough | — | ✅ | |
+| 614–617 | `opt_expr : ε \| expr` | NULL or passthrough | — | ✅ | |
+
+### 5.7 Rebus — re-scoped to ONLY the goal §⛔ rules
+
+**Withdrawn (not violations under your rules):**
+- TT_NUL fillers for omitted slots in `for` (no `by`), `case` (default guard), prefix-dot (implicit subject) — permitted convention.
+- Two-source-operator-one-kind cases: `^`/`**` → TT_POW, `&`/`\|\|` → TT_CAT, `~`/`\` → TT_NOT (kind choice, permitted).
+- TT_SCAN with 2 or 3 children for `subj ? pat` / `subj ? pat -> repl` / `subj ?- pat` — fresh wrap, L→R, consumer-side split is not a parser concern.
+- Loop variable name in `v.sval` of TT_FOR (value decoding).
+- `@T_IDENT` capturing identifier name in `v.sval` of TT_CAPT_CURSOR (value decoding).
+- TT_IDX used for both subscript and section (kind reuse — kind choice).
+- `'+' unary_expr` is identity passthrough — borderline; arithmetic identity loses no semantic info. Could be flagged but is the same shape as paren-passthrough.
+
+**Retained under your rules:**
+
+| # | Where | Violation | Owning rung |
+|---|---|---|---|
+| Rb1 | `stmt_list_ne : stmt_list_ne stmt ';'` (line 220) | rule 2: `expr_add_child($1, $3); $$ = $1;` mutates prior TT_PROGRAM | **RB-C-1** (already named) |
+| Rb2 | `stmt_list_ne : stmt_list_ne compound_stmt` (line 224) | rule 2 + child-stealing: appends every child of `$2` into `$1` then leaves `$2` hollow | **RB-C-1** |
+| Rb3 | `unless_stmt` (line 317) synthesizes TT_NOT wrapping cond | rule 3 (strict reading): synthesized TT_NOT kind not present as source token | **RB-C-2** (new) |
+| Rb4 | `case_stmt` (line 388) wraps each clause in synthesized TT_IF | rule 3: TT_IF synthesized per clause; source has only `guard:body` | **RB-C-3** (new) |
+| Rb5 | `T_ADDASSIGN`/`T_SUBASSIGN`/`T_CATASSIGN` (lines 449–470): synthesizes a duplicate `TT_VAR(name)` lhs by reading `$1->v.sval` | rule 3: duplicated lhs is synthesized | **RB-C-4** (new) |
+| Rb6 | `postfix_expr : postfix_expr '(' arglist ')'` (line 551): inspects `$1->t == TT_VAR` and either steals `$1->v.sval` or wraps `$1` as a child | rule 2: inspect-kind-and-rearrange + mutates `$1->v.sval = NULL` | **RB-C-5** (new) |
+
+**Net Rebus status: 6 retained violations.** RB-C-1 (already named)
+covers Rb1 + Rb2. New rungs needed for Rb3, Rb4, Rb5, Rb6.
+
+The off-tree RDecl/RCase/RProgram machinery remains a separate axis of
+work (the larger PST-RB-5 ladder); it is intentionally not graded
+against the §⛔ rules because those rules apply to `tree_t` productions
+only.
+
+---
+
+## SCAN 6 — Prolog (`src/frontend/prolog/prolog_parse.c`)
+
+Hand-rolled recursive-descent (Pratt-style operator-precedence) parser.
+Tree-producing functions are `pt_primary`, `pt_term`, `pt_list`,
+`pt_args`, `pt_binop`, `pt_make_clause`, `pt_flatten_conj`,
+`pt_maybe_ifthenelse`. Each parses a chunk of source tokens and returns
+a `tree_t*` (or, for `pt_args`, attaches children to an externally-built
+parent).
+
+**Hybrid state:** the non-DCG path is fully `tree_t` (post-PST-PL-6f); the
+DCG path (`-->` clauses) still re-parses via `Term*` (`parse_term`,
+`dcg_expand_clause`) and produces an off-tree `Term*` for `cl->head` and
+`cl->body`. The audit grades the tree_t path only; the DCG/Term* path
+is a separate axis owned by `GOAL-PST-PROLOG.md` rung **PST-PL-6f**
+(in-progress) and beyond.
+
+The top-level `prolog_parse` (line 1112) iterates clauses and builds a
+linked list of `PlClause` structs. Each PlClause carries a `cl->tr`
+(`tree_t*`) holding the clause's `pt_make_clause` result. **There is no
+top-level TT_PROGRAM tree** — the program is the off-tree linked list.
+This is a known mirror gap covered by `GOAL-PST-PROLOG.md` rungs
+PST-PL-7* (tree-only program shape).
+
+### 6.1 Off-tree machinery (not graded against §⛔ — recorded only)
+
+| Loc | Function | Off-tree output | Notes |
+|-----|----------|-----------------|-------|
+| 1026–1110 | `parse_clause` | `PlClause{tr=tree_t*, head/body=Term* if DCG, nvar/var_names/var_terms if DCG, lineno}` | `cl->tr` is `tree_t*` (built via `pt_make_clause`). For DCG (`-->`) clauses, `cl->head` and `cl->body` are `Term*` (off-tree) and `cl->tr=NULL`. **Hybrid by design.** |
+| 1112–1155 | `prolog_parse` | `PlProgram{head, tail, nclauses, nerrors}` linked list | not a `tree_t`. Owned: PST-PL-7. |
+| 400–402 | `TreeScope` struct (`TSEntry e[256]`, `n`) | parser-local var name table | local working state, not in tree |
+
+### 6.2 `ts_get` — variable interning
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 408–429 | `ts_get(ts, name)` | `TT_VAR` (sval=interned-name) | (none) | ✅ | **Fresh TT_VAR each call** — comment line 411–412: `/* Return a fresh TT_VAR node aliased to the same name; structural equivalence checked by name in 6c. */`. The `TreeScope` itself is parser-local working state (variable interning to share a string pointer between multiple TT_VAR occurrences within a clause). The tree has multiple TT_VAR leaves with `v.sval` pointing to the same interned string, which is value sharing — not tree sharing. Clean. |
+
+### 6.3 `pt_list` — list literal `[e1, e2, ..., en | tail]`
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 436–469 | `pt_list` | `TT_MAKELIST` (v.ival=0 for proper list, =1 if `|tail` present) | `[e1, e2, …, en]` or `[e1, …, en, tail]` | ✅ | **Fresh wrap, L→R, `ast_push` is the standard tree append (not a mutation of a prior tree node).** The `v.ival=1` marker for "has explicit tail" is value decoding at the fresh leaf — permitted under corrected scope. Empty list (no elements, `]` immediately) builds a fresh empty TT_MAKELIST — ✅. Clean. |
+
+### 6.4 `pt_args` — comma-separated arguments
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 471–489 | `pt_args(p, ts, parent)` | (no node — attaches to existing `parent`) | appends each parsed `tree_t*` child to `parent` via `ast_push(parent, a)` | ⚠ | **`pt_args` mutates `parent` by appending children to it.** This is **NOT** a §⛔ rule 2 violation — `parent` was created **fresh in the caller's frame** and is then immediately populated. The caller pattern is `tree_t *fnc = ast_node_new(TT_FNC); fnc->v.sval = strdup(...); pt_args(p, ts, fnc); return fnc;` — the node is created, populated, returned, in one contiguous logical step. Children are appended in source-token order ✅. This is **build-time population**, not **post-construction mutation of a prior child**. Distinguishing the two is what the goal §⛔ rule 2 is about. **Clean** under corrected scope. (Compare to Snocone's `expr_add_child($1, $3); $$=$1;` where `$1` is a node built in an earlier reduction.) |
+
+### 6.5 `pt_binop` — binary operator reduce
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 493–499 | `pt_binop(op, lhs, rhs)` | `TT_FNC` (sval=op) | `[lhs, rhs]` | ✅ | **The canonical pure reduce.** Comment line 491–492: `/* Pure reduce action: wrap lhs and rhs as children of TT_FNC(op). No structural reasoning — just node(kind, children-in-source-order). */`. Fresh TT_FNC, op-name as sval (value decoding), lhs at c[0], rhs at c[1] in source token order. **Clean — this is the reference shape every other parser's binary-op productions should match.** |
+
+### 6.6 `pt_flatten_conj` — n-ary conjunction flattening
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 508–516 | `pt_flatten_conj(t, prog)` | (no new node — populates an existing `prog` TT_PROGRAM) | recurses into `t`; if `t` is `TT_FNC(",")`, walks its children; else appends `t` to `prog` | ⚠ | **Inspects `t->t == TT_FNC && strcmp(t->v.sval, ",") == 0` to decide whether to recurse or just append.** This is the §⛔ "inspect-kind-and-decide" pattern, used **after construction** of the conjunction node. **Critical decision point:** is this a violation? **The pattern is a tree-walk consumer that reads child kinds to flatten n-ary structure — but it is called from `pt_make_clause` (line 549) and `pt_maybe_ifthenelse` (lines 530, 532), which are parser-internal helpers that produce final clause/IF nodes.** Strictly: the parser is reading `t->t` and `t->v.sval` to decide whether to unpack `t`. That is exactly what the goal §⛔ rule 2 forbids ("No reduction action may 'look inside' a previously-built child and decide to attach to it instead of wrapping it"). Although `pt_flatten_conj` does not **mutate** `t` (it leaves the comma-FNC node intact, just walks its children for the flatten), it does **dismantle structure built by `pt_binop`** — the comma-FNC nodes are walked and their children re-parented into `prog`. **The original comma-TT_FNC node and any intermediate comma-TT_FNCs in the chain are orphaned** (still allocated, but with their c[] children now also under `prog`). This is **child-stealing** — the same family as Raku's `sub_decl` (R15) and Rebus's `stmt_list_ne compound_stmt` (Rb2). **Rule 2 violation.** This is exactly what the existing rung **PST-PL-6h** in `GOAL-PST-PROLOG.md` flags. |
+
+### 6.7 `pt_maybe_ifthenelse` — `;(->(C,T),E)` → TT_IF
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 521–538 | `pt_maybe_ifthenelse(semi_node)` | `TT_IF` (or passthrough of input) | input → if recognized: `[cond, then, else]`; else passthrough | ❌ | **Multiple violations in one function:** (a) **inspects `semi_node->t == TT_FNC`, `semi_node->v.sval == ";"`, `left->v.sval == "->"`** — three layers of inspect-kind-and-shape. (b) **`pt_flatten_conj` is called on `left->c[1]` and on `right`** — child stealing from the previously-built `;` and `->` nodes (Rule 2 — same as 6.6). (c) **The `;`-TT_FNC node and the `->`-TT_FNC node are both abandoned** (not deallocated, but orphaned). The resulting TT_IF takes `left->c[0]` (cond from the `->` node) and the two flattened TT_PROGRAMs as children. Strictly, the source tokens `;` and `->` are **lifted out of the tree** entirely — replaced by TT_IF. Rule 3 violation. (d) **Lines 535–536** then do conditional unwrap: `then_prog->n == 1 ? then_prog->c[0] : then_prog`. **This is "inspect-kind-and-rearrange"** post-construction. Even if it's the new node's own freshly-built child, **the choice between "use the child directly" and "use the wrapper" is made by reading `n`**. Owned: **PST-PL-6h** (already named in `GOAL-PST-PROLOG.md`). |
+
+### 6.8 `pt_make_clause` — TT_CLAUSE wrapper
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 540–552 | `pt_make_clause(head_tr, body_tr)` | `TT_CLAUSE` | `[head_or_TT_NUL, TT_PROGRAM(body_flat...)]` | ⚠ | **Two concerns:** (a) Directive clauses (no head) → `head_tr=NULL` → ast_pushes `TT_NUL` as a filler. **TT_NUL placeholder is permitted** under corrected scope ✅. (b) **Body is wrapped in a fresh TT_PROGRAM and `pt_flatten_conj` is called to flatten the comma-tree into n-ary children.** This is the child-stealing from 6.6 — the parser disassembles the comma-TT_FNC chain that `pt_term` already built and re-builds it as a TT_PROGRAM. **Rule 2 violation by transitivity through `pt_flatten_conj`.** A clean alternative: keep the comma-TT_FNC chain intact under TT_CLAUSE's c[1]; lower.c flattens at consumption time. **Owned: PST-PL-6h.** |
+
+### 6.9 `pt_primary` — leaves and parenthesized expressions
+
+| Loc | Token kind handled | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|--------------------|-------------|--------------|---------|-------|
+| 557–558 | `TK_VAR` | `TT_VAR` (via `ts_get`) | (none) | ✅ | |
+| 559–563 | `TK_ANON` (`_`) | `TT_VAR` (sval=`"_"`) | (none) | ✅ | each anonymous `_` is a **fresh** unique TT_VAR — but they all share the literal string `"_"` via `strdup`. **Note:** this is **not** PST-PL-SC-3 territory; that was about how slot assignment treated them. Per scope correction this is value decoding. Clean. |
+| 564–578 | `TK_INT`/`TK_FLOAT`/`TK_STRING` | `TT_ILIT`/`FLIT`/`QLIT` | (none) | ✅ | clean |
+| 579–615 | `TK_ATOM` (atom or compound term `atom(...)`) | `TT_FNC` if `(`, special-directive atoms also `TT_FNC`, `TT_MAKELIST` for `[]`, else `TT_QLIT` | for compound: `[arg0, arg1, …]`; for bare atom: (none) | ⚠ | **Two subtle issues:** (a) **Parser inspects upcoming token (`TK_LPAREN`?) and decides whether to build a TT_FNC (compound) or TT_QLIT (atom).** This is **legitimate parser decision-making** — picking a node kind based on source-token lookahead is the parser's job. ✅ (rule 1 permission). (b) Lines 590–608: **the parser hardcodes a set of special directive atoms** (`dynamic`, `discontiguous`, `multifile`, `module_transparent`, `meta_predicate`, `use_module`, `ensure_loaded`, `mode`) that are recognized as "directive atom with one argument" even **without** following `(`. This is **parser-side semantic dispatch by identifier text** — analogous to SNOBOL4's `pat_prim_kind` (audit line 408). Per corrected scope, that pattern was **explicitly permitted** ("parser-side semantic dispatch by identifier text" — `pat_prim_kind` picking TT_ANY/TT_SPAN/… is the parser's free choice). **By the same rule, prolog's directive-atom-with-arg dispatch is also permitted.** ✅ under corrected scope. |
+| 609–611 | `tk.text == "[]"` | `TT_MAKELIST` | (none) | ✅ | empty list atom |
+| 616–617 | `TK_CUT` | `TT_CUT` | (none) | ✅ | clean |
+| 619–627 | `TK_LPAREN expr TK_RPAREN` | passthrough of inner expr | — | ✅ | layout-only parens discarded |
+| 628–629 | `TK_LBRACKET` → `pt_list` | TT_MAKELIST (from pt_list) | (see 6.3) | ✅ | |
+| 630–644 | `TK_COMMA`/`TK_SEMI` as primary | `TT_FNC` (sval="," or ";") with explicit `(...)` args | `[arg0, arg1, …]` | ✅ | `,(a,b)` and `;(a,b)` written explicitly. Clean. The bare-comma/bare-semi case returns NULL. |
+| 645–708 | `TK_OP` (binary or unary prefix operator used in prefix position or followed by `(`) | `TT_FNC` (sval=op-text) with various arities, or `TT_ILIT`/`FLIT` for unary minus/plus folding | varies | ⚠ | **Numeric folding:** `-NUM` and `-FLOAT` and `+NUM` and `+FLOAT` (lines 660–692) are **folded into the literal** at parse time. E.g. `-42` produces a single `TT_ILIT(v.ival=-42)`, NOT `TT_FNC("-")[TT_ILIT(42)]`. **This collapses two source tokens (`-` and `42`) into one fresh leaf via value decoding.** Per corrected scope: **value decoding at a fresh leaf is permitted** (the scope correction explicitly allows `$IDENT` → `TT_QLIT("$IDENT")` as multi-token value decoding). Clean. The non-folding cases (e.g. `\+ goal`, `\ x`, `- expr`, `+ expr` where expr is not a numeric literal) build `TT_FNC(op)[arg]` — fresh wrap, L→R, ✅. |
+| 645–708 (cont.) | `TK_OP` followed by `(...)` — `op(args)` | `TT_FNC` (sval=op-text) | `[arg0, arg1, …]` | ✅ | clean |
+| 645–708 (cont.) | `TK_OP` bare (no `(`, not handled above) | `TT_QLIT` (sval=op-text) | (none) | ⚠ | **An operator atom used as a quoted atom value.** `like(+, -)` in Prolog source — the bare `+` becomes a `TT_QLIT("+")`. Per corrected scope: value decoding at fresh leaf. ✅. (Borderline — the operator-atom-as-value distinction is part of Prolog's operator-quoting semantics, properly handled at the parse level.) |
+| 709–724 | `TK_LBRACE` curly braces `{...}` | `TT_FNC` (sval=`"{}"`) | `[inner]` (or 0 children for empty `{}`) | ⚠ | **The `{}` notation is encoded as a TT_FNC named `"{}"`.** This is the standard Prolog convention (DCG pushback). Source order: `{ inner }` → tree `TT_FNC("{}")[inner]`. The braces become a node kind (via the sval naming) — not lifted out. Per corrected scope: kind choice + value decoding. ✅. |
+
+### 6.10 `pt_term` — operator-precedence loop
+
+| Loc | Function | Parent kind | Children L→R | L→R OK? | Notes |
+|-----|----------|-------------|--------------|---------|-------|
+| 730–757 | `pt_term(p, ts, max_prec)` | varies (TT_FNC via pt_binop, or TT_IF via pt_maybe_ifthenelse) | `[lhs, rhs]` per binary; TT_IF replaces semi-and-arrow chain | ❌ | The loop is a **Pratt-style operator-precedence parser**: read `lhs`, then iteratively consume operators and `rhs` operands while operator precedence is in range. The action **always wraps lhs+rhs via `pt_binop`** — fresh wrap, L→R ✅. **But** lines 752–753 then **call `pt_maybe_ifthenelse(node)` on `;`-shaped nodes** — which performs the structure-detecting collapse documented in 6.7. **The `pt_maybe_ifthenelse` call is the violation site**, not `pt_term` itself. The `pt_term` loop itself is clean. **Owned: PST-PL-6h** (move pt_maybe_ifthenelse to lower). |
+
+### 6.11 Prolog — re-scoped to ONLY the goal §⛔ rules
+
+**Withdrawn (not violations under your rules):**
+- `ts_get` returning fresh TT_VAR per call with shared interned name pointer (value sharing, not tree sharing).
+- `pt_args` populating a parent that was created in the immediate caller (build-time population is not post-construction mutation).
+- Numeric folding `-NUM` / `+NUM` → single TT_ILIT/FLIT leaf (value decoding at fresh leaf).
+- Bare operator atom → `TT_QLIT(opname)` (value decoding).
+- `{...}` → `TT_FNC("{}")[...]` (kind choice + value decoding).
+- Empty list `[]` → `TT_MAKELIST` (kind choice).
+- Directive atoms (`dynamic`, `multifile`, etc.) without `(` taking a single arg as a TT_FNC (parser-side semantic dispatch — explicitly permitted per scope correction).
+- TT_NUL filler for missing head in directive clause (permitted).
+- TT_FNC(",") / TT_FNC(";") as binary-op nodes via `pt_binop` (the canonical clean shape).
+
+**Retained under your rules:**
+
+| # | Where | Violation | Owning rung |
+|---|---|---|---|
+| Pl1 | `pt_flatten_conj` (line 508–516): walks a TT_FNC(",") node and steals its children to populate a sibling TT_PROGRAM | rule 2 (in spirit): child stealing from a previously-built comma-FNC chain | **PST-PL-6h** (already named) |
+| Pl2 | `pt_maybe_ifthenelse` (line 521–538): inspects `semi_node->t==TT_FNC && v.sval==";"`, then `left->t==TT_FNC && left->v.sval=="->"`; on match, builds TT_IF from `left->c[0]`, `left->c[1]`, `right`; abandons the `;`-FNC and `->`-FNC nodes | rule 2: inspect-kind-and-rearrange; rule 3: `;` and `->` source tokens replaced by TT_IF kind | **PST-PL-6h** |
+| Pl3 | `pt_maybe_ifthenelse` lines 535–536: `then_prog->n == 1 ? then_prog->c[0] : then_prog` — conditional unwrap of a just-built TT_PROGRAM based on its child count | rule 2 in spirit: inspect-and-rearrange (even though it's the new node's own child) | **PST-PL-6h** |
+| Pl4 | `pt_make_clause` (line 540–552): always wraps body in TT_PROGRAM and calls `pt_flatten_conj` to populate it with comma-chain children — transitive child-stealing | rule 2 (transitive via Pl1) | **PST-PL-6h** (covers both 6.6 and 6.8) |
+| Pl5 | `parse_clause` DCG path (lines 1069–1101): re-parses head and body as `Term*` via `parse_term` + `dcg_expand_clause`; `cl->tr = NULL` | non-`tree_t` output — out of §⛔ scope, but the larger Phase-1 cleanup goal requires DCG to also produce `tree_t` | **PST-PL-6f** (in-progress) covers this |
+
+**Net Prolog status: 4 retained §⛔ violations**, all clustered in
+`pt_flatten_conj` + `pt_maybe_ifthenelse` + `pt_make_clause` (the
+n-ary flattening pipeline). **PST-PL-6h already names this exact
+work** — move all three helpers to `prolog_lower.c` and let the parser
+emit the raw `;`/`->`/`,` `TT_FNC` chains. Lower flattens and recognizes
+if-then-else at consumption time.
+
+Additionally, **PST-PL-6f** continues to own the DCG → tree_t conversion
+(Pl5), which is non-§⛔ scope but blocks Phase 1 completion for Prolog.
+
+---
+
+## Rollup — scans 1–6 (all six C parsers) — final corrected counts
 
 (Re-graded 2026-05-19 after three scope corrections: TT_* kind reuse is
 permitted, value decoding at fresh leaves is permitted, and a parser
@@ -460,6 +937,10 @@ wrap and L→R — consumer-side splits are not parser-rule violations.)
 | Snocone   | 11         | 1 (PST-SC-4k → V11)  | 10                       |
 | Icon      | 1          | 0                    | 1 (PST-ICN-LR-1)         |
 | SNOBOL4   | 2          | 0                    | 2 (PST-SN4-W2, W3)       |
+| Raku      | 27         | 5 (PRF-12 family: program, sub, class, for-range, gather) | 22 (new PRF-12 sub-rungs listed in §4.10) |
+| Rebus     | 6          | 2 (RB-C-1 → Rb1, Rb2) | 4 (RB-C-2/3/4/5)         |
+| Prolog    | 4          | 4 (PST-PL-6h → Pl1, Pl2, Pl3, Pl4) | 0 — DCG conversion (Pl5) is non-§⛔ scope, owned by PST-PL-6f |
+| **Total** | **51**     | **12**               | **39**                   |
 
 ### Proposed new rungs (Phase 1 only — no SCRIP mirror work)
 
@@ -471,11 +952,44 @@ wrap and L→R — consumer-side splits are not parser-rule violations.)
 - **PST-SC-FOR-INIT** — `for_head` lifts `init` as a sibling statement; move to `c[0]` of TT_FOR.
 
 **Icon:**
-- **PST-ICN-LR-1** — `parse_proc` uses `_id=nparams` to separate params from body. Rebuild so structure is in the tree alone. Blocks PST-FIELD-2.
+**Icon** (in `GOAL-PST-ICON.md`):
+- **PST-ICN-LR-1** — `parse_proc` uses `_id=nparams` to separate params from body. Rebuild via `TT_PROC_DECL[name, TT_VLIST(params), TT_PROGRAM(body)]` so structure is in the tree alone. Blocks PST-FIELD-2.
 
 **SNOBOL4** (in `GOAL-PST-SNOBOL4.md`):
 - **PST-SN4-W2** — `goto_expr T_CONCAT goto_atom` mutates $1.
 - **PST-SN4-W3** — `expr15`/`expr17` g_cur mid-rule pattern mutates the prior-built TT_IDX/TT_VLIST/TT_FNC across reductions.
+
+**Raku** (extending `PRF-12` in `GOAL-PST-RAKU.md`):
+
+Already-named sub-rungs (PRF-12-gather, sub, class, program, for-range) cover R1, R12, R13, R15, R16, R17, R18, R19, R27. New sub-rungs needed for the remaining 18 violations:
+
+- **PRF-12-my-type** — drop the type-annotation token of `my Type $var = expr;` (R2): either preserve as a child or move to a side-table; do not `free()` it silently.
+- **PRF-12-say** — `say` keyword should produce `TT_SAY(expr)` or `TT_SAY_FH(fh, expr)`, lower to runtime call (R3, R4).
+- **PRF-12-print** — same for `print`/`print(fh, expr)` (R5, R6).
+- **PRF-12-arr-hash-ops** — index/element ops (`@a[i]`, `@a[i]=v`, `%h<k>`, `%h{k}=v`, `delete %h<k>`, `exists %h<k>`) should produce explicit `TT_IDX_GET`/`TT_IDX_SET`/`TT_HASH_GET`/`TT_HASH_SET`/`TT_HASH_DELETE`/`TT_HASH_EXISTS` kinds, lower to runtime calls (R7, R8, R9 + R24-set, R25, R26, R27, R28). [R7–R9 in statement section; R29-related atoms in §4.8.]
+- **PRF-12-try** — `try`/`catch` should produce `TT_TRY(body, opt_catch_body)`, lower to runtime call (R10).
+- **PRF-12-unless** — explicit decision: keep `unless` → `TT_IF(TT_NOT(...))` or introduce `TT_UNLESS` (R11). Goal sub-rung opens the discussion.
+- **PRF-12-given** — `given_stmt` should build TT_CASE children directly from `when_list`, never wrapping pairs in TT_SEQ_EXPR for the parser's own use, never freeing tree nodes during the parse (R14).
+- **PRF-12-smatch** — `~~ /regex/` should produce `TT_SMATCH(subj, regex_qlit, flavor)` kind, lower to runtime call (R20).
+- **PRF-12-new** — `Foo.new(...)` should produce `TT_NEW(TT_QLIT("Foo"), args)`, lower to runtime call (R21).
+- **PRF-12-mcall** — `obj.method(args)` should produce `TT_METHCALL(obj, TT_QLIT("method"), args)`, lower to runtime call (R22).
+- **PRF-12-die** — `die expr` should produce `TT_DIE(expr)`, lower to runtime call (R23).
+- **PRF-12-hof** — `map`/`grep`/`sort` should produce `TT_MAP/GREP/SORT` kinds with closure as first child, lower to runtime call (R24).
+- **PRF-12-capture** — `$N` and `$<name>` should produce `TT_CAPTURE(TT_ILIT(N))` and `TT_NAMED_CAPTURE(TT_QLIT(name))` kinds (R25).
+- **PRF-12-twigil** — `$.foo`/`$!foo` should produce `TT_TWIGIL_FIELD(sval=name)` kind with no synthesized `self` child; lower attaches the `self` reference (R26).
+
+**Rebus** (in `GOAL-PST-REBUS.md`):
+
+- **RB-C-1** (already named) — `stmt_list_ne` always-wrap. Fix both `stmt_list_ne stmt ';'` (Rb1) and `stmt_list_ne compound_stmt` (Rb2) to build fresh TT_PROGRAM each reduce instead of mutating `$1`. (Right-leaning TT_PROGRAM chain is correct.)
+- **RB-C-2** (new) — `unless_stmt` should produce its own `TT_UNLESS` kind, not desugar to `TT_IF(TT_NOT(...))`. Lower can pick the runtime shape.
+- **RB-C-3** (new) — `case_stmt` should build TT_CASE with flat n-ary alternating `[expr, guard0, body0, guard1, body1, ...]` (Raku/Snocone convention), not wrap each clause in synthesized TT_IF. Convert off-tree `RCase` list to TT_CASE child sequence directly. (Eventual removal of `RCase` is owned by separate PST-RB rung.)
+- **RB-C-4** (new) — `+:=`/`-:=`/`||:=` should produce `TT_AUGOP(lhs, rhs)` carrying operator in `v.ival` (Snocone TK_AUG* convention), not synthesize a duplicated `TT_VAR(lhs-name)` and a desugared `TT_ASSIGN(TT_VAR, TT_OP(...))`. Lower handles the augmented expansion.
+- **RB-C-5** (new) — `postfix_expr '(' arglist ')'` should always produce `TT_FNC[callee, args...]` with `$1` as `c[0]` regardless of `$1->t`. Stop inspecting `$1->t == TT_VAR`; stop mutating `$1->v.sval = NULL`. Lower.c reads `c[0]` to dispatch built-in (when `c[0]->t == TT_VAR`) vs indirect (otherwise).
+
+**Prolog** (in `GOAL-PST-PROLOG.md`):
+
+- **PST-PL-6h** (already named) — covers all four §⛔ violations (Pl1–Pl4): move `pt_flatten_conj`, `pt_maybe_ifthenelse`, and the TT_PROGRAM body-wrap from `pt_make_clause` to `prolog_lower.c`. Parser emits raw `;`/`->`/`,` TT_FNC chains; lower flattens and recognizes if-then-else at consumption time. Net effect: `pt_make_clause` becomes `TT_CLAUSE[head_or_TT_NUL, raw_body_tree]` with no flattening or wrap.
+- **PST-PL-6f** (in-progress, non-§⛔ scope) — convert the DCG (`-->`) path from `Term*` to `tree_t`. Blocks Phase 1 completion for Prolog. Out of §⛔-rule scope but blocks downstream.
 
 ### Goal-file updates landed this session (2026-05-19)
 
