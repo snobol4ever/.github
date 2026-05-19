@@ -167,9 +167,9 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [x] **PRF-12-given** *(audit R14)* ✅ 2026-05-19 (Sonnet 4.6, one4all `1787f2f9`, corpus `84e80db`) — `when_list` now pushes val+body directly into ExprList (flat); `given_stmt` iterates the flat list directly into `TT_CASE`. No intermediate `TT_SEQ_EXPR` pair node created or destroyed. 5 corpus `.ref` files added. Gates held. Note: pre-existing crash in `SM_BB_PUMP_CASE` Raku path for given-in-called-sub is outside this rung's scope.
 
-- [ ] **PRF-12-smatch** *(audit R20)* — `~~ /regex/` should produce `TT_SMATCH[subj, regex_qlit, flavor]` kind (where `flavor` is one of `TT_QLIT("match")` / `TT_QLIT("match_global")` / `TT_QLIT("subst")` — encoded as kind-or-value, decided in implementation). `lower_smatch` selects runtime helper.
+- [x] **PRF-12-smatch** *(audit R20)* ✅ 2026-05-19 (Sonnet 4.6, one4all `0e526760`, corpus `810795a`) — `TT_SMATCH` added; 3 OP_SMATCH productions emit `TT_SMATCH[subj, regex_qlit, TT_QLIT(flavor)]`; `lower.c` dispatches flavor→`raku_match`/`raku_match_global`/`raku_subst`; 10 new corpus `.ref` files. Gates held.
 
-- [ ] **PRF-12-new** *(audit R21)* — `Foo.new(...)` should produce `TT_NEW[TT_QLIT("Foo"), args]` kind. `lower_new` selects `raku_new` runtime helper.
+- [x] **PRF-12-new** *(audit R21)* ✅ 2026-05-19 (Sonnet 4.6, one4all `9700c0c3`, corpus `2e6e6bd`) — `TT_NEW` added; 2 `IDENT.KW_NEW` productions emit `TT_NEW[TT_QLIT(classname), named_args...]`; `lower.c` case pushes all children then `SM_CALL_FN "raku_new" n`; 5 corpus `.ref` files updated/added. Gates held.
 
 - [ ] **PRF-12-mcall** *(audit R22)* — `obj.method(args)` should produce `TT_METHCALL[obj, TT_QLIT("method"), args]` kind. `lower_mcall` selects `raku_mcall` runtime helper.
 
@@ -264,8 +264,9 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-self ✅; one4all 95a24fdf corpus 7da85d5 .github (this commit)
-           2026-05-19 (Sonnet 4.6) — HANDOFF — PRF-12-given ✅; one4all efd30e36 corpus 84e80db .github 69967d0b
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-new ✅; one4all 9700c0c3 corpus 2e6e6bd .github (this commit)
+           2026-05-19 (Sonnet 4.6) — PRF-12-smatch ✅; one4all 0e526760 corpus 810795a
+           2026-05-19 (Sonnet 4.6) — PRF-12-self ✅; one4all 95a24fdf corpus 7da85d5 .github (prior commit)
            2026-05-19 (Sonnet 4.6) — PRF-12-given ✅ flat when_list; one4all 1787f2f9 corpus 84e80db
            2026-05-19 (Sonnet 4.6) — PRF-12-my-type ✅ TT_DECL; one4all 74160514 corpus 1c5ce89
            2026-05-19 (Sonnet 4.6) — PRF-12-try ✅ verified (was stale checkbox)
@@ -273,7 +274,7 @@ watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-self ✅; one4all 95a24fdf corpus 
            2026-05-19 (Sonnet 4.6) — PRF-12-unless PARTIAL (parser done, lower pending); one4all 510ad7be
            2026-05-19 (Sonnet 4.6) — PRF-12-for ✅; one4all e645ab4b corpus e6f7504
            2026-05-19 (Sonnet 4.6) — PRF-12-program ✅; one4all 2fed81d3 corpus 47a8845
-status: ⏳ Phase 1 NOT clean — 10 §⛔ violations remaining
+status: ⏳ Phase 1 NOT clean — 8 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -294,21 +295,23 @@ prior closed rungs (preserved for history):
   PRF-12-program ✅ 2026-05-19 (Sonnet 4.6, one4all 2fed81d3, corpus 47a8845)
   PRF-12-for ✅ 2026-05-19 (Sonnet 4.6, one4all e645ab4b, corpus e6f7504)
   PRF-12-self ✅ 2026-05-19 (Sonnet 4.6, one4all 95a24fdf, corpus 7da85d5)
-audit findings (27 original, 13 closed):
+  PRF-12-smatch ✅ 2026-05-19 (Sonnet 4.6, one4all 0e526760, corpus 810795a)
+  PRF-12-new ✅ 2026-05-19 (Sonnet 4.6, one4all 9700c0c3, corpus 2e6e6bd)
+audit findings (27 original, 15 closed):
   R1   ✅ closed PRF-12-program
   R2   ✅ closed PRF-12-my-type
   R3-6 ✅ closed PRF-12-say/print
   R7-9 ✅ closed PRF-12-arr-hash-ops
-  R10  ✅ closed PRF-12-try (lower_try already implemented; stale checkbox)
-  R11  ✅ closed PRF-12-unless (lower_unless; regen unless_*.ref)
+  R10  ✅ closed PRF-12-try
+  R11  ✅ closed PRF-12-unless
   R12-13 ✅ closed PRF-12-for
-  R14  ✅ closed PRF-12-given (flat when_list; no TT_SEQ_EXPR pair wrapper)
+  R14  ✅ closed PRF-12-given
   R15  ✅ closed PRF-12-sub/PRF-12-body-splice
   R16-17 ✅ closed PRF-12-class
-  R18  ✅ closed PRF-12-self (self removed from tree; v.ival stays np+1 for SM frame)
+  R18  ✅ closed PRF-12-self
   R19  KW_GATHER child-stealing (owned: PRF-12-gather-splice)
-  R20  OP_SMATCH desugar (owned: PRF-12-smatch)
-  R21  KW_NEW desugar (owned: PRF-12-new)
+  R20  ✅ closed PRF-12-smatch
+  R21  ✅ closed PRF-12-new
   R22  atom.method() desugar (owned: PRF-12-mcall)
   R23  ✅ closed PRF-12-die
   R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
@@ -316,14 +319,12 @@ audit findings (27 original, 13 closed):
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-smatch (R20) — `~~ /regex/` → TT_SMATCH[subj, regex_qlit, flavor]; lower selects helper.
-             Or PRF-12-new (R21) — `Foo.new(...)` → TT_NEW[TT_QLIT("Foo"), args]; lower selects raku_new.
+next:        PRF-12-mcall (R22) — obj.method(args) → TT_METHCALL[obj, TT_QLIT(method), args...]; lower selects raku_mcall.
              Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch; (3) rewrite raku.y action;
              (4) bison -d raku.y -o raku.tab.c; (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
-             ⚠ ast_print.c: TT_SUB_DECL/TT_PROC_DECL excluded from v.sval print (PRF-12-class fix).
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 95a24fdf · corpus @ 7da85d5
+heads:       .github @ (this commit) · one4all @ 9700c0c3 · corpus @ 2e6e6bd
 ```
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
