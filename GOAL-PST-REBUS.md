@@ -139,23 +139,20 @@ Unaries: all equal priority, higher than any binary. Set: `?`, `~`, `+`, `-`, `*
   Same pattern as Raku R11 (PRF-12-unless).
   **Phase 1 only — no `parser_rebus.sc` changes.** Records `⚠ MIRROR-GAP-RB-C-2` in State.
 
-- [ ] **RB-C-3 — `case_stmt` synthesizes TT_IF per clause (audit Rb4).**
+- [x] **RB-C-3 — `case_stmt` synthesizes TT_IF per clause (audit Rb4).** ✅ 2026-05-19 (Sonnet 4.6, one4all `ccc11220`)
   `rebus.y:388–407` walks the off-tree `RCase` linked list and builds a fresh `TT_IF` node per clause: `TT_CASE[expr, TT_IF(guard, body), TT_IF(guard, body), …, TT_IF(TT_NUL, body_default)]`. Each `TT_IF` wrapper is synthesized — the source had only `guard:body` per clause (no `if`/`then` source tokens).
-  **Fix:** produce a flat alternating `TT_CASE[expr, guard0, body0, guard1, body1, …, TT_NUL, body_default]` shape — same convention as Snocone TT_CASE post-PST-SC-4j and the proposed Raku PRF-12-given fix. Eliminates the synthesized TT_IF per clause.
-  Eventual elimination of the off-tree `RCase` list itself is owned by separate `PST-RB-DECL-3` rung — this rung only fixes the tree-shape violation.
-  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-3` in State.
+  **Fix:** flat alternating `TT_CASE[expr, guard0, body0, guard1, body1, …, TT_NUL, body_default]` shape. Lowerer stride-2 loop. Verified: named/default dispatch correct at runtime.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Records `⚠ MIRROR-GAP-RB-C-3`.
 
-- [ ] **RB-C-4 — Augmented-assignment operators desugar in parser (audit Rb5).**
-  `rebus.y:449–470` — `+:=` / `-:=` / `||:=` actions each build `TT_ASSIGN[TT_VAR(strdup($1->v.sval)), TT_ADD/SUB/CAT($1, $3)]`. Three violations: (a) the LHS appears twice — once as `$1` under TT_ADD/SUB/CAT, once as a synthesized `lhs2` TT_VAR — duplicated non-source occurrence; (b) the synthesis assumes `$1->v.sval` is a name, fragile for non-TT_VAR LHS; (c) parser-side desugaring of augmented assignment when the canonical clean shape is `TT_AUGOP(lhs, rhs)` with `v.ival = AugOp_e` (Snocone TK_AUG* / Icon convention).
-  **Fix:** replace each action with `tree_t *n = ast_node_new(TT_AUGOP); n->v.ival = AUG_PLUS / AUG_MINUS / AUG_CAT; expr_add_child(n, $1); expr_add_child(n, $3); $$ = n;`. Lower handles the augmented expansion (cloning LHS once and building `TT_ASSIGN(lhs, TT_<op>(lhs', rhs))` — already named as Stage 2 PST-LR-2a in `GOAL-PARSER-PURE-SYNTAX-TREE.md`).
-  Verify `AUG_CAT` (or equivalent) is in `AugOp_e` in `src/include/ast.h`; if not, add it.
-  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-4` in State.
+- [x] **RB-C-4 — Augmented-assignment operators desugar in parser (audit Rb5).** ✅ 2026-05-19 (Sonnet 4.6, one4all `0458da59`)
+  `rebus.y:449–470` — `+:=` / `-:=` / `||:=` actions each build `TT_ASSIGN[TT_VAR(strdup($1->v.sval)), TT_ADD/SUB/CAT($1, $3)]`. Three violations: LHS duplicated; sval stolen from `$1`; parser-side desugaring.
+  **Fix:** `TT_AUGOP(lhs, rhs)` with `v.ival = AUGOP_ADD/SUB/CONCAT`. `lower_tree_expr` TT_AUGOP arm clones lhs and builds `TT_ASSIGN(lhs, TT_op(lhs_clone, rhs))`. Verified: `x+=5`, `x-=3`, `s||=' world'` all correct.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Records `⚠ MIRROR-GAP-RB-C-4`.
 
-- [ ] **RB-C-5 — `postfix_expr '(' arglist ')'` inspects $1 kind and mutates $1 (audit Rb6).**
-  `rebus.y:551–569` — the action inspects `$1->t == TT_VAR` and forks: (a) for TT_VAR callee, builds `TT_FNC` with `f->v.sval = $1->v.sval` and **`$1->v.sval = NULL`** — in-place mutation of a previously-built tree node (rule 2 violation); (b) for non-TT_VAR callee, builds `TT_FNC` with `$1` as `c[0]`. Two different tree shapes for the same source operator `(...)`, depending on what the parser inspected of `$1`. The §⛔ rules forbid "inspect-kind-and-rearrange".
-  **Fix:** always produce `TT_FNC[callee, arg0, arg1, …]` with `$1` as `c[0]` regardless of `$1->t`. Drop the sval-stealing branch entirely. `lower.c` reads `c[0]` and dispatches to built-in (when `c[0]->t == TT_VAR`) vs indirect (otherwise) — Icon's clean reference shape.
-  Same fix pattern as Icon `parse_postfix` (line 174–189) which always builds `TT_FNC[callee, args…]` cleanly.
-  **Phase 1 only — no `parser_rebus.sc` changes.** Record `⚠ MIRROR-GAP-RB-C-5` in State.
+- [x] **RB-C-5 — `postfix_expr '(' arglist ')'` inspects $1 kind and mutates $1 (audit Rb6).** ✅ 2026-05-19 (Sonnet 4.6, one4all `2a9aa511`)
+  `rebus.y:551–569` — inspects `$1->t == TT_VAR` and forks: steals `$1->v.sval` for named-call path; different tree shapes for same source operator `(...)`.
+  **Fix:** always `TT_FNC[callee=$1, arg0, arg1, ...]`. `lower_tree_expr` TT_FNC arm: when `v.sval=NULL` and `c[0]` is TT_VAR, extracts name and skips `c[0]` in children — preserving named-call semantics. Verified: `add(3,4)→7`, `SIZE("hello")→5`.
+  **Phase 1 only — no `parser_rebus.sc` changes.** Records `⚠ MIRROR-GAP-RB-C-5`.
 
 - [~] **PST-RB-PRE-BEAUTY — Fix beauty.sno self-host blockers (Milestone 1 unblock).**
   Lon directive 2026-05-17: "If beauty.sno demo does not work first, then you are wasting your time probably. Check it first and get it running first."
@@ -651,21 +648,17 @@ typedef struct {
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — RB-C-2 ✅ (TT_UNLESS added; unless desugar moved to lower).
+watermark:    2026-05-19 (Sonnet 4.6) — RB-C-2/3/4/5 ✅ all closed. 0 §⛔ violations remain from audit Rb3–Rb6.
               2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
-              2026-05-19 (Opus 4.7 session 3) — RB-C-2/3/4/5 promoted as step entries.
               2026-05-19 (audit re-grade + PST-RB-DECL ladder added).
-status:       ⏳ Phase 1 NOT clean — 5 §⛔ violations remain
-              (RB-C-1 ✅; RB-C-2 ✅; RB-C-3/4/5 open) + PST-RB-DECL-1..5 (eliminate RDecl /
-              RCase / RProgram outer wrapper — all info passes inside tree).
-next:         **RB-C-3** — case_stmt synthesizes TT_IF per clause. Fix: flat alternating
-              TT_CASE[expr, guard0, body0, guard1, body1, …] shape.
-mirror gaps:  ⚠ MIRROR-GAP-RB-C-1 (parser_rebus.sc SC mirror lagging — Phase 2 work).
-              ⚠ MIRROR-GAP-RB-C-2 (parser_rebus.sc mirror for TT_UNLESS — Phase 2 work).
-              Will record ⚠ MIRROR-GAP-RB-C-3/4/5 + ⚠ MIRROR-GAP-RB-DECL-1..5
-              as each lands. Phase 2 SCRIP mirror BLOCKED until all six C parsers
-              Phase 1 clean.
-heads:        .github @ (pending push) · one4all @ 83bc4ab3 · corpus (no changes)
+status:       ⏳ Phase 1 NOT clean — PST-RB-DECL-1..5 (eliminate RDecl/RCase/RProgram outer wrapper)
+              remain open. All audit Rb3–Rb6 §⛔ violations now closed.
+next:         **PST-RB-DECL-1** — add TT_FUNCTION / TT_RECORD_DECL tree kinds.
+              Prerequisite for DECL-2..4 (eliminate RDecl fields off-tree).
+mirror gaps:  ⚠ MIRROR-GAP-RB-C-1..5 (parser_rebus.sc SC mirror lagging — Phase 2 work).
+              ⚠ MIRROR-GAP-RB-DECL-1..5 pending as each lands.
+              Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
+heads:        .github @ (pending push) · one4all @ 2a9aa511 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
