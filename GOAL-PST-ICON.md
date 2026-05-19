@@ -192,7 +192,7 @@ struct tree_t {
 };
 ```
 
-- [ ] **PST-FIELD-1 — Remove `_nalloc` from `tree_t`. PHASE 1 C.**
+- [x] **PST-FIELD-1 — Remove `_nalloc` from `tree_t`. PHASE 1 C.**
 
   **What:** `_nalloc` is a growable-array bookkeeping field — it tracks allocated capacity of the `c` array so `ast_push` can realloc without knowing the true size. It carries zero semantic information and must never be read by lower or the interpreter.
 
@@ -249,7 +249,7 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — PST-ICN-LR-1 COMPLETE (1a–1g).
+watermark:    2026-05-19 (Sonnet 4.6) — PST-ICN-LR-1 COMPLETE (1a–1g). PST-FIELD-1 COMPLETE.
 status:       ✅ Phase 1 CLEAN — PST-ICN-LR-1 closed. PST-FIELD-1/2 cross-cutting (not yet started).
 prior closed:
   PST-ICN-2a/2b ✅ ; PST-ICN-4a ✅ 2026-05-16 (TT_MATCH_UNARY) ; PST-ICN-4b ✅
@@ -266,7 +266,7 @@ PST-ICN-LR-1 summary:
   25 Icon parser .ref files regenerated (augop_cset_union/str_concat pre-existing segfault, unchanged).
 gates:        smoke_icon 5/0 ✅ · smoke_scrip_all_modes 2/0 ✅ · crosscheck FAIL=1 (pre-existing) ✅ · icon rungs PASS=194 FAIL=36 ✅
 mirror gaps:  ⚠ MIRROR-GAP-ICN-LR-1 — parser_icon.sc Phase 2 mirror BLOCKED until all six C parsers Phase 1 clean.
-next:         PST-FIELD-1 (remove _nalloc from tree_t) — cross-cutting with GOAL-PST-RAKU.md.
+next:         PST-FIELD-2 (remove _id from tree_t) — BLOCKED on PRF-12-sub (GOAL-PST-RAKU.md). Interpreter slot/env sites remain.
 heads:        .github @ (pending) · one4all @ (pending) · corpus @ (pending)
 ```
 
