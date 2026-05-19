@@ -59,7 +59,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3e ✅ (one4all `87c1be66`, 2026-05-19, Sonnet 4.6):** sm_return/freturn/nreturn (9 variants → 3 fns). Extend sm_ctx_t with pc_to_fn[]/fn_names[]/fn_count. 27 silo arms → 3 grouped one-liners. +123/-161 LOC.
 
-**NEXT (EC-3f):** Remaining arms — SM_CALL_FN/SUSPEND_VALUE, SM_PAT_* family, SM_EXEC_STMT.
+**EC-3f ✅ (one4all `5cb3b909`, 2026-05-19, Sonnet 4.6):** sm_pat.c: 30 unified fns — full SM_PAT_* + SM_EXEC_STMT. 58 silo arms → one-liners. +260/-232 LOC. NET PAT is stub (no-op for IS_NET).
+
+**EC-3 COMPLETE.** EC-3a–3f: 5 SM_templates files, 63 unified fns, ~157 silo arms → one-line template calls. NEXT: EC-4 prologue/epilogue consolidation.
 
 
 ## DAI-8 methodology note
@@ -99,7 +101,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 87c1be66     (EC-3e: sm_return/freturn/nreturn 9 variants unified; EC-3a–3e total: 99 silo arms → template calls)
+one4all: 5cb3b909     (EC-3f: sm_pat.c — full SM_PAT_* + SM_EXEC_STMT unified; EC-3 COMPLETE: 5 files, 63 fns, ~157 arms consolidated)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
