@@ -116,6 +116,23 @@ bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh
   parser (answer from 6a: yes — it is a preprocessor concern, not
   control-flow lowering). Document in `prolog_parse.c` comment. Close rung.
 
+- [ ] **PST-PL-6h — Move `pt_maybe_ifthenelse` and `pt_flatten_conj` child inspection to lower. PHASE 1 C.**
+
+  **The violation (Aspect 3):** `pt_maybe_ifthenelse` (`prolog_parse.c` line ~507
+  and ~1198) inspects `->t` and `->v.sval` of already-built child nodes to detect
+  the `';'('->'(Cond,Then), Else)` idiom and collapse it to `TT_IF`. This is the
+  parser reading back what it just built to make a structural decision — forbidden.
+  `pt_flatten_conj` similarly walks a conjunction tree during parse, inspecting
+  `->t == TT_FNC && strcmp(->v.sval, ",")` recursively.
+
+  **Fix:** Emit raw from grammar rules: `TT_FNC(';', [...])` and `TT_FNC(',', [A,B])`
+  exactly as parsed, left-to-right, no inspection. Move both rewrites to
+  `prolog_lower.c`: a pre-lower pass rewrites `';'('->'(...), ...)` → `TT_IF`;
+  another flattens `','`-chains → n-ary `TT_PROGRAM`. Parser emits faithfully;
+  lower interprets.
+
+  Gates: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`.
+
 Gates per rung: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`,
 `crosscheck_snobol4`.
 
@@ -123,7 +140,7 @@ Gates per rung: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`,
 
 ## Phase 2 rungs — SCRIP mirror (after Phase 1 complete: 6f, 6g done)
 
-**Do not start until all six C parsers satisfy Phase 1 and PST-PL-6f is checked [x].**
+**Do not start until all six C parsers satisfy Phase 1 and PST-PL-6f, 6h are checked [x].**
 
 - [ ] **PST-PL-SC-1 — Audit `parser_prolog.sc` for Aspect 1 and Aspect 2 violations.**
 
@@ -207,7 +224,7 @@ Gates per rung: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`,
 
 ## Done criterion
 
-1. PST-PL-6a through 6g all checked [x] (Phase 1 C complete).
+1. PST-PL-6a through 6h all checked [x] (Phase 1 C complete).
 2. PST-PL-SC-1 through SC-3 checked [x] (Phase 2 SCRIP mirror complete).
 3. `parser_prolog.sc` contains zero `Append()` calls.
 4. `parser_prolog.sc` contains no post-build tree-walking or mutation.
