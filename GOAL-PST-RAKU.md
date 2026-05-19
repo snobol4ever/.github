@@ -264,7 +264,8 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-given ✅ flat when_list; one4all 1787f2f9 corpus 84e80db
+watermark: 2026-05-19 (Sonnet 4.6) — HANDOFF — PRF-12-given ✅; one4all efd30e36 corpus 84e80db .github 69967d0b
+           2026-05-19 (Sonnet 4.6) — PRF-12-given ✅ flat when_list; one4all 1787f2f9 corpus 84e80db
            2026-05-19 (Sonnet 4.6) — PRF-12-my-type ✅ TT_DECL; one4all 74160514 corpus 1c5ce89
            2026-05-19 (Sonnet 4.6) — PRF-12-try ✅ verified (was stale checkbox)
            2026-05-19 (Sonnet 4.6) — PRF-12-unless ✅ (lower_unless + regen .ref); one4all 3d4225d0 corpus f0e9cf4
@@ -297,7 +298,9 @@ audit findings (27 original, 12 closed):
   R3-6 ✅ closed PRF-12-say/print
   R7-9 ✅ closed PRF-12-arr-hash-ops
   R10  KW_TRY/KW_CATCH desugar (owned: PRF-12-try)
+  R10  ✅ closed PRF-12-try (lower_try already implemented; stale checkbox)
   R11  ✅ closed PRF-12-unless (lower_unless; regen unless_*.ref)
+  R14  ✅ closed PRF-12-given (flat when_list; no TT_SEQ_EXPR pair wrapper)
   R12-13 ✅ closed PRF-12-for
   R14  given_stmt pair wrap/unwrap (owned: PRF-12-given)
   R15  ✅ closed PRF-12-sub/PRF-12-body-splice
@@ -313,17 +316,18 @@ audit findings (27 original, 12 closed):
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-unless (R11) — FIRST PRIORITY: add lower_unless in lower.c
-             (desugar TT_UNLESS[cond,then,?else] → lower_if_stmt with negated cond),
-             regen unless_*.ref, run gates, commit corpus + one4all + .github.
-             Then PRF-12-try (R10, TT_TRY).
-             Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
-             (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
-             (5) regen .ref files; (6) run gates.
+next:        PRF-12-self (R18) — move self-injection from raku.y method_decl to lower_class_decl.
+             Caution: lower_class_decl uses item->v.ival (= nparams incl. self) to navigate children.
+             Fix: (1) stop injecting self in raku.y (remove leaf_sval(TT_VAR,"self") from
+             class_body_list method actions, decrement v.ival by 1); (2) in lower_class_decl
+             inject self as first SM param at lowering time. Regen affected .ref files. Run gates.
+             Then PRF-12-smatch (R20, TT_SMATCH) or PRF-12-new (R21, TT_NEW).
+             Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch; (3) rewrite raku.y action;
+             (4) bison -d raku.y -o raku.tab.c; (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
              ⚠ ast_print.c: TT_SUB_DECL/TT_PROC_DECL excluded from v.sval print (PRF-12-class fix).
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 510ad7be · corpus @ e6f7504
+heads:       .github @ 69967d0b · one4all @ efd30e36 · corpus @ 84e80db
 ```
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
