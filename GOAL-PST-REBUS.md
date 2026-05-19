@@ -434,15 +434,25 @@ typedef struct {
 
 ### Sub-rung ladder
 
-- [ ] **PST-RB-DECL-1 — Add new TT_* kinds and confirm naming with parent goal.**
+- [x] **PST-RB-DECL-1 — Add new TT_* kinds and confirm naming with parent goal.** ✅ 2026-05-19 (Sonnet 4.6, one4all `b4bb0a9c`)
 
-  Add to `tree_e` in `src/include/ast.h` (and the name table):
-  - `TT_FUNCTION` — function declaration. **Children L→R:** `[TT_VAR(name), TT_VLIST(params), TT_VLIST(locals), TT_PROGRAM(initial) | TT_NUL, TT_PROGRAM(body)]`. Lineno carried in `v.ival` (or as a `TT_ATTR(:line)` sibling — match the chosen convention for other frontends, document the decision).
-  - `TT_RECORD_DECL` — record declaration. **Children L→R:** `[TT_VAR(name), TT_VAR(field1), TT_VAR(field2), ...]`. If Icon's `TT_RECORD` shape (name in `v.sval`, fields in `c[]`) is reused, document the kind divergence between Rebus and Icon explicitly — the choice is the parser's freedom (kind selection rule from `GOAL-PARSER-PURE-SYNTAX-TREE.md § ⛔ Left-to-right child order`), but cross-frontend uniformity is a separate desideratum.
+  Added to `tree_e` in `src/include/ast.h` and name table:
+  - `TT_FUNCTION` — Rebus function decl. Children L→R: `[TT_VAR(name), TT_VLIST(params), TT_VLIST(locals), TT_PROGRAM(initial) | TT_NUL, TT_PROGRAM(body)]`. `v.ival` = lineno.
+  - `TT_RECORD_DECL` — Rebus record decl. Children L→R: `[TT_VAR(name), TT_VAR(field1), TT_VAR(field2), ...]`.
+  Divergence note: `TT_RECORD` (Icon/Raku) and `TT_DEFINE` (Snocone) already exist; Rebus-specific kinds avoid collision. Build-only gate.
 
-  Verify no other frontend already uses these names. **Gates:** full build only — no behavior change yet.
+- [x] **PST-RB-DECL-2 — Eliminate `RDecl` from `rebus.y`. Phase 1 C.** ✅ 2026-05-19 (Sonnet 4.6, one4all `8af2e2e1`)
 
-- [ ] **PST-RB-DECL-2 — Eliminate `RDecl` from `rebus.y`. Phase 1 C.**
+  **Files changed:** `rebus.h`, `rebus.y`, `rebus.l`, `rebus_lower.h`, `rebus_lower.c`, `rebus_print.c`, `rebus_emit.c`, `rebus_main.c` + generated `rebus.tab.c/.h`, `lex.rebus.c`.
+
+  `rebus.h`: `RDecl`, `RDKind`, `RProgram`, `rdecl_new` deleted. `rebus_parse()` return type → `tree_t*`. `rebus_print()` sig → `tree_t*`. `RCase` kept as parser-local scratch (Option A).
+
+  `rebus.y`: `prog` global `RProgram*` → `tree_t*`. `%union` `decl` field removed. `%type <decl>` → `%type <tree>`. `decl_list` appends `tree_t` children. `function_decl`/`record_decl` → `TT_FUNCTION`/`TT_RECORD_DECL`. `rebus_parse_init` allocates `TT_PROGRAM`.
+
+  `rebus_lower.c`: `lower_decl(RDecl*)` → `lower_decl(tree_t*)`, switches on `d->t`. `rebus_lower` iterates `prog->c[i]`. `rebus_compile` uses `tree_t* rp`.
+
+  **Phase 1 only.** Records `⚠ MIRROR-GAP-RB-DECL-2`.
+  **Gates:** smoke_rebus 4/0, scrip_all_modes 2/0, crosscheck baseline held.
 
   **Where (`rebus.y` lines 152–187, 189–203, 231–239):**
 
@@ -648,17 +658,16 @@ typedef struct {
 ## State
 
 ```
-watermark:    2026-05-19 (Sonnet 4.6) — RB-C-2/3/4/5 ✅ all closed. 0 §⛔ violations remain from audit Rb3–Rb6.
-              2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
-              2026-05-19 (audit re-grade + PST-RB-DECL ladder added).
-status:       ⏳ Phase 1 NOT clean — PST-RB-DECL-1..5 (eliminate RDecl/RCase/RProgram outer wrapper)
-              remain open. All audit Rb3–Rb6 §⛔ violations now closed.
-next:         **PST-RB-DECL-1** — add TT_FUNCTION / TT_RECORD_DECL tree kinds.
-              Prerequisite for DECL-2..4 (eliminate RDecl fields off-tree).
-mirror gaps:  ⚠ MIRROR-GAP-RB-C-1..5 (parser_rebus.sc SC mirror lagging — Phase 2 work).
-              ⚠ MIRROR-GAP-RB-DECL-1..5 pending as each lands.
+watermark:    2026-05-19 (Sonnet 4.6) — DECL-1 ✅ b4bb0a9c, DECL-2 ✅ 8af2e2e1.
+              RDecl/RDKind/RProgram eliminated. Parser output is tree_t* throughout.
+status:       ⏳ Phase 1 NOT clean — PST-RB-DECL-3..5 open.
+              All RB-C §⛔ violations closed. DECL-2 closed (RDecl eliminated).
+next:         **PST-RB-DECL-3** — RCase: document as parser-local scratch (Option A already
+              implemented in RB-C-3); add free loop for RCase nodes post case_stmt;
+              update rebus.h comment; re-grade audit Scan 5.
+mirror gaps:  ⚠ MIRROR-GAP-RB-C-1..5, ⚠ MIRROR-GAP-RB-DECL-2 recorded.
               Phase 2 SCRIP mirror BLOCKED until all six C parsers Phase 1 clean.
-heads:        .github @ (pending push) · one4all @ 2a9aa511 · corpus (no changes)
+heads:        .github @ (pending push) · one4all @ 8af2e2e1 · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
