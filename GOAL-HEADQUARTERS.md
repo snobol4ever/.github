@@ -55,7 +55,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3c ✅ (one4all `53f2ef4f`, 2026-05-19, Sonnet 4.6):** `sm_compare.c`: 3 unified functions (`sm_stno`, `sm_acomp`, `sm_lcomp`). 9 silo arms → one-liners. +37/−24 LOC. Gates: 5/0·23/26·194/36.
 
-**NEXT (EC-3d — JUMP/RETURN/HALT with sm_ctx_t):** Factor per-instruction context (`i`, `n`, `in_body`, `has_continue`, `in_my_method[]`) into `sm_ctx_t` struct; lift JUMP/S/F, RETURN/FRETURN/NRETURN (×3 variants each), SM_HALT into `SM_templates/sm_control.c`.
+**EC-3d ✅ (one4all `f478df98`, 2026-05-19, Sonnet 4.6):** `sm_ctx.h` + `sm_control.c`: 4 fns (sm_jump/s/f, sm_halt) via sm_ctx_t; 12 silo arms → one-liners. +125/-89 LOC.
+
+**NEXT (EC-3e — RETURN/FRETURN/NRETURN):** Extend sm_ctx_t with `pc_to_fn[]` + `fn_names[]`; lift 9 RETURN/FRETURN/NRETURN variants into `sm_control.c`.
 
 
 ## DAI-8 methodology note
@@ -95,7 +97,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 53f2ef4f     (EC-3c: sm_compare.c — SM_STNO/ACOMP/LCOMP unified; EC-3a+3b+3c total: 60 silo arms → one-liners across 3 template files)
+one4all: f478df98     (EC-3d: sm_control.c — SM_JUMP/S/F + SM_HALT unified via sm_ctx_t; EC-3a–3d total: 72 silo arms → template calls)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
