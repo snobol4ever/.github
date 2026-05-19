@@ -61,7 +61,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3f ✅ (one4all `5cb3b909`, 2026-05-19, Sonnet 4.6):** sm_pat.c: 30 unified fns — full SM_PAT_* + SM_EXEC_STMT. 58 silo arms → one-liners. +260/-232 LOC. NET PAT is stub (no-op for IS_NET).
 
-**EC-3 COMPLETE.** EC-3a–3f: 5 SM_templates files, 63 unified fns, ~157 silo arms → one-line template calls. NEXT: EC-4 prologue/epilogue consolidation.
+**EC-4 ✅ COMPLETE 2026-05-19 (Sonnet 4.6, one4all `8890d685`).** emit_prologue/emit_epilogue unified in emit_core.c; IS_JVM/IS_JS/IS_NET dispatch; emit_ir_block calls unified fns. Static silo fns retained for EC-5 vtable. +71/-13 LOC.
+
+**NEXT: EC-5** — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`. Move IR walk from `emit_ir.c` → `emit_core.c`. Delete `IR_emit_vtable_t`, `emit_ir.c`, `emit_ir.h`.
 
 
 ## DAI-8 methodology note
@@ -101,7 +103,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 5cb3b909     (EC-3f: sm_pat.c — full SM_PAT_* + SM_EXEC_STMT unified; EC-3 COMPLETE: 5 files, 63 fns, ~157 arms consolidated)
+one4all: 8890d685     (EC-4: emit_prologue/emit_epilogue unified in emit_core.c; EC-3+4 complete: 5 SM_templates files, 63 fns, ~157 arms + unified prologue/epilogue)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
@@ -215,7 +217,7 @@ is invoked with the mode already set via `emit_mode_set()`.
 - [x] **EC-2b** ✅ COMPLETE (commit eea3f916) — Collapse each BB kind's three per-backend helpers into one function per kind with internal mode dispatch. Today EC-2 produced `ec_bb_fence_jvm` + `ec_bb_fence_js` + `ec_bb_fence_net` (×18 kinds = 54 functions) called from `emit_bb_node`. Target: one `ec_bb_fence(IR_t*, FILE*)` per kind, dispatching on `IS_JVM`/`IS_JS`/`IS_NET` internally. `emit_bb_node` switch arms become single calls. One BB kind per sub-commit. All 18 kinds done = rung closed.
 - [x] **EC-2c** ✅ COMPLETE (commit eea3f916) — Extract each bb_<kind> function into BB_templates/bb_<kind>.c (one file per box). Strip ec_ prefix from all BB and helper symbols (ec_bb_lit → bb_lit, ec_jvm_class_hdr → jvm_class_hdr, etc.). SM_templates/ directory created, empty, ready for SM opcode groups. emit_core.c: 2287 → 1360 lines. Gates: 5/0 · 23/26 · 194/36.
 - [ ] **EC-3** — For each SM instruction kind, add the JVM / JS / .NET arms to the corresponding template function in `emit_core.c`. One SM family per sub-commit. Order: push/pop literals → variables → arithmetic → control flow → calls → pattern bridge → return family.
-- [ ] **EC-4** — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
+- [x] **EC-4** ✅ (one4all `8890d685`, 2026-05-19, Sonnet 4.6) — Move `emit_jvm_prologue` / `emit_jvm_epilogue` (and JS/.NET equivalents) into `emit_core.c` as mode arms of `emit_prologue()` / `emit_epilogue()`. Delete the vtable struct and `emit_ir_block()` dispatch.
 - [ ] **EC-5** — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`. Move IR walk infrastructure from `emit_ir.c` into `emit_core.c`. Delete `emit_ir.c` / `emit_ir.h`. Delete `IR_emit_vtable_t`. Gates green.
 - [ ] **EC-6** — Audit `emit_wasm.c`: same pattern — move its per-node functions into template arms. Delete `emit_wasm.c` after move. (WASM already partially cleaned by DAI-8 C10.)
 - [ ] **EC-7** — Gate run: all six frontends, broker, smoke, beauty. Confirm no regression. Update `ARCH-IR.md` to document the unified template model. Close EC rung.
