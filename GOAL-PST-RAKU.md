@@ -147,7 +147,7 @@ PRF-S7-1..6 ✅ 2026-05-18. `corpus/SCRIP/raku_stubs.sc` **DELETED**. All 94 stu
 
 - [ ] **PRF-12-self** — lower.c: `lower_method_decl` injects implicit `self` as first param when lowering a method. raku.y `method_decl`: stop injecting `leaf_sval(TT_VAR, "self")` into the child list (audit R18).
 
-- [ ] **PRF-12-program** — lower.c: `lower_program` synthesizes `main` wrapping orphan statements. raku.y `program` action: stop synthesizing `main` `TT_FNC`; emit pure `TT_PROGRAM[stmt0, stmt1, ...]` (audit R1).
+- [x] **PRF-12-program** ✅ 2026-05-19 (Sonnet 4.6, one4all 2fed81d3, corpus 47a8845) — `program` action now calls `add_proc(item)` for all stmt_list items unconditionally; no `main` synthesis, no `TT_SUB_DECL` discrimination. All items emit flat as `TT_STMT` children of `raku_prog_result`. Lower handles `TT_SUB_DECL`/`TT_CLASS_DECL` subjects; orphan stmts run inline. 71 corpus `.ref` files regenerated. Gates held.
 
 ### Subset 2 — new from PST-LR-AUDIT-1e (2026-05-19, 14 new sub-rungs)
 
@@ -264,10 +264,10 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-class ✅; one4all 17a4dc45 corpus 21a4fc1
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-program ✅; one4all 2fed81d3 corpus 47a8845
+           2026-05-19 (Sonnet 4.6) — PRF-12-class ✅; one4all 17a4dc45 corpus 21a4fc1
            2026-05-19 (Sonnet 4.6) — PRF-12-arr-hash-ops ✅; one4all ac0e48f3 corpus 9f4e7af
-           2026-05-19 (Sonnet 4.6) — PRF-12-die ✅; one4all c596462d corpus adfdbb6
-status: ⏳ Phase 1 NOT clean — 20 §⛔ violations remaining
+status: ⏳ Phase 1 NOT clean — 19 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -288,8 +288,11 @@ prior closed rungs (preserved for history):
     TT_CLASS_DECL; lower_class_decl (rename+register+lower); class_body_list
     uses ast_node_new; ast_print.c TT_SUB_DECL/TT_PROC_DECL excluded from v.sval print;
     75 corpus .ref files regenerated. Gates held.
-audit findings (27 original, 9 closed):
-  R1   program synthesizes 'main' (owned: PRF-12-program)
+  PRF-12-program ✅ 2026-05-19 (Sonnet 4.6, one4all 2fed81d3, corpus 47a8845):
+    program action: unconditional add_proc for all items; no main synthesis;
+    71 corpus .ref files regenerated. Gates held.
+audit findings (27 original, 10 closed):
+  R1   ✅ closed PRF-12-program
   R2   KW_MY IDENT VAR_* discards type annotation (owned: PRF-12-my-type)
   R3-6 ✅ closed PRF-12-say/print
   R7-9 ✅ closed PRF-12-arr-hash-ops
@@ -310,13 +313,9 @@ audit findings (27 original, 9 closed):
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-program (R1, main synthesis) or PRF-12-for (R12-13)
-             Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
-             (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
-             (5) regen .ref files; (6) run gates.
-             ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
+next:        PRF-12-for (R12-13, TT_FOR_RANGE desugar) or PRF-12-try (R10)
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 17a4dc45 · corpus @ 21a4fc1
+heads:       .github @ (this commit) · one4all @ 2fed81d3 · corpus @ 47a8845
 ```
 
 ---
