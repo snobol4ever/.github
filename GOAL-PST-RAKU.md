@@ -171,13 +171,13 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [x] **PRF-12-new** *(audit R21)* ✅ 2026-05-19 (Sonnet 4.6, one4all `9700c0c3`, corpus `2e6e6bd`) — `TT_NEW` added; 2 `IDENT.KW_NEW` productions emit `TT_NEW[TT_QLIT(classname), named_args...]`; `lower.c` case pushes all children then `SM_CALL_FN "raku_new" n`; 5 corpus `.ref` files updated/added. Gates held.
 
-- [ ] **PRF-12-mcall** *(audit R22)* — `obj.method(args)` should produce `TT_METHCALL[obj, TT_QLIT("method"), args]` kind. `lower_mcall` selects `raku_mcall` runtime helper.
+- [x] **PRF-12-mcall** *(audit R22)* ✅ 2026-05-19 (Sonnet 4.6, one4all `a404f896`, corpus `82347f8`) — `TT_METHCALL` added; 2 `atom.IDENT()` productions → `TT_METHCALL[obj, TT_QLIT(method), args...]`; lower dispatches to `raku_mcall`; 6 corpus `.ref` files updated/added. Gates held.
 
 - [x] **PRF-12-die** *(audit R23)* ✅ 2026-05-19 (Sonnet 4.6, one4all `c596462d`, corpus `adfdbb6`) — `TT_DIE[expr]` kind added; raku.y emits pure tree; lower.c dispatches SM_CALL_FN "raku_die" 1; sm_interp+sm_jit_interp handle raku_die from stack (sets g_raku_exception, pushes FAILDESCR). Gates held.
 
-- [ ] **PRF-12-hof** *(audit R24)* — `map`/`grep`/`sort` should produce `TT_MAP` / `TT_GREP` / `TT_SORT` kinds with the closure as first child, iterable as second. `lower_hof` selects runtime helper.
+- [x] **PRF-12-hof** *(audit R24)* ✅ 2026-05-19 (Sonnet 4.6, one4all `3fa3b227`, corpus `46187d3`) — `TT_MAP`/`TT_GREP`/`TT_SORT` added; 4 KW_MAP/GREP/SORT productions rewritten; lower dispatches to `raku_map`/`grep`/`sort`; 6 corpus `.ref` files regenerated. Gates held.
 
-- [ ] **PRF-12-capture** *(audit R25)* — `$N` and `$<name>` should produce `TT_CAPTURE[TT_ILIT(N)]` and `TT_NAMED_CAPTURE[TT_QLIT(name)]` kinds. Lower selects `raku_capture` / `raku_named_capture`.
+- [x] **PRF-12-capture** *(audit R25)* ✅ 2026-05-19 (Sonnet 4.6, one4all `7d4ad4ee`, corpus `b31045b`) — `TT_CAPTURE`/`TT_NAMED_CAPTURE` added; `VAR_CAPTURE`/`VAR_NAMED_CAPTURE` productions rewritten; lower dispatches to `raku_capture`/`raku_named_capture`; 3 corpus `.ref` files regenerated. Gates held.
 
 - [ ] **PRF-12-twigil** *(audit R26)* — `$.foo` / `$!foo` should produce `TT_TWIGIL_FIELD(sval=name)` with no synthesized `self` child. `lower_twigil` attaches the `self` reference and dispatches to the field-access helper.
 
@@ -264,17 +264,13 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-new ✅; one4all 9700c0c3 corpus 2e6e6bd .github (this commit)
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b .github (this commit)
+           2026-05-19 (Sonnet 4.6) — PRF-12-hof ✅; one4all 3fa3b227 corpus 46187d3
+           2026-05-19 (Sonnet 4.6) — PRF-12-mcall ✅; one4all a404f896 corpus 82347f8
+           2026-05-19 (Sonnet 4.6) — PRF-12-new ✅; one4all 9700c0c3 corpus 2e6e6bd
            2026-05-19 (Sonnet 4.6) — PRF-12-smatch ✅; one4all 0e526760 corpus 810795a
-           2026-05-19 (Sonnet 4.6) — PRF-12-self ✅; one4all 95a24fdf corpus 7da85d5 .github (prior commit)
-           2026-05-19 (Sonnet 4.6) — PRF-12-given ✅ flat when_list; one4all 1787f2f9 corpus 84e80db
-           2026-05-19 (Sonnet 4.6) — PRF-12-my-type ✅ TT_DECL; one4all 74160514 corpus 1c5ce89
-           2026-05-19 (Sonnet 4.6) — PRF-12-try ✅ verified (was stale checkbox)
-           2026-05-19 (Sonnet 4.6) — PRF-12-unless ✅ (lower_unless + regen .ref); one4all 3d4225d0 corpus f0e9cf4
-           2026-05-19 (Sonnet 4.6) — PRF-12-unless PARTIAL (parser done, lower pending); one4all 510ad7be
-           2026-05-19 (Sonnet 4.6) — PRF-12-for ✅; one4all e645ab4b corpus e6f7504
-           2026-05-19 (Sonnet 4.6) — PRF-12-program ✅; one4all 2fed81d3 corpus 47a8845
-status: ⏳ Phase 1 NOT clean — 8 §⛔ violations remaining
+           2026-05-19 (Sonnet 4.6) — PRF-12-self ✅; one4all 95a24fdf corpus 7da85d5
+status: ⏳ Phase 1 NOT clean — 5 §⛔ violations remaining
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -297,7 +293,10 @@ prior closed rungs (preserved for history):
   PRF-12-self ✅ 2026-05-19 (Sonnet 4.6, one4all 95a24fdf, corpus 7da85d5)
   PRF-12-smatch ✅ 2026-05-19 (Sonnet 4.6, one4all 0e526760, corpus 810795a)
   PRF-12-new ✅ 2026-05-19 (Sonnet 4.6, one4all 9700c0c3, corpus 2e6e6bd)
-audit findings (27 original, 15 closed):
+  PRF-12-mcall ✅ 2026-05-19 (Sonnet 4.6, one4all a404f896, corpus 82347f8)
+  PRF-12-hof ✅ 2026-05-19 (Sonnet 4.6, one4all 3fa3b227, corpus 46187d3)
+  PRF-12-capture ✅ 2026-05-19 (Sonnet 4.6, one4all 088ac03c, corpus b31045b)
+audit findings (27 original, 18 closed):
   R1   ✅ closed PRF-12-program
   R2   ✅ closed PRF-12-my-type
   R3-6 ✅ closed PRF-12-say/print
@@ -312,19 +311,21 @@ audit findings (27 original, 15 closed):
   R19  KW_GATHER child-stealing (owned: PRF-12-gather-splice)
   R20  ✅ closed PRF-12-smatch
   R21  ✅ closed PRF-12-new
-  R22  atom.method() desugar (owned: PRF-12-mcall)
+  R22  ✅ closed PRF-12-mcall
   R23  ✅ closed PRF-12-die
-  R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
-  R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
+  R24  ✅ closed PRF-12-hof
+  R25  ✅ closed PRF-12-capture
   R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
   R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
 mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
-next:        PRF-12-mcall (R22) — obj.method(args) → TT_METHCALL[obj, TT_QLIT(method), args...]; lower selects raku_mcall.
+next:        PRF-12-twigil (R26) — `$.foo`/`$!foo` → TT_TWIGIL_FIELD(sval=name); lower attaches self reference.
+             PRF-12-gather-splice (R19) — verify/fix KW_GATHER block child-stealing.
+             PRF-12-gather-hoist (R27) — move raku_lower_hoist_gather_pass from parser to lower.c.
              Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch; (3) rewrite raku.y action;
              (4) bison -d raku.y -o raku.tab.c; (5) regen .ref files; (6) run gates.
              ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit) · one4all @ 9700c0c3 · corpus @ 2e6e6bd
+heads:       .github @ (this commit) · one4all @ 088ac03c · corpus @ b31045b
 ```
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
