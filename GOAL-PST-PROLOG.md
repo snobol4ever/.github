@@ -106,7 +106,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh
   canonical slot-assignment mechanism; remove `next_slot` from `VarScope`.
   SCRIP mirror: `lower.sc` pre-lower slot-allocation pass.
 
-- [ ] **PST-PL-6f** — Delete all `Term*`-returning code paths from
+- [x] **PST-PL-6f** — Delete all `Term*`-returning code paths from
   `prolog_parse.c`. Delete slot-assignment from `scope_get`. `Term` type
   survives only as a runtime type (for unification), not as a parse output.
   Remove `VarScope.next_slot`. Remove `lower_term()` call sites that were
@@ -151,8 +151,27 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-PL-6e complete 2026-05-16 (session 30/60)
-next: PST-PL-6f — Delete all Term*-returning code paths from prolog_parse.c; remove lower_term() call sites replaced by tree_t path in 6d.
+watermark: PST-PL-6f complete 2026-05-18 (Sonnet 4.6)
+next: PST-PL-6g — Document IfFrame stays in parser; close rung.
+findings-6f:
+  - parse_clause() rewritten: pt_term() is now the sole parse path for non-DCG clauses.
+  - Lexer snapshot retained only for DCG path (Term* dcg_expand_clause still needs it).
+  - eval_if_condition / try_handle_if_directive ported to tree_t (eval_if_condition_tree,
+    try_handle_if_directive_tree); old Term* versions deleted.
+  - PST-PL-6c verifier (PLS/ser_term*/ser_tree*/pl_verify_clause_tree) deleted — ~300 LOC.
+  - count_conj / flatten_conj deleted; DCG-only versions (dcg_count_conj / dcg_flatten_conj)
+    kept for dcg_expand_body.
+  - term_pretty / prolog_program_pretty deleted; prolog_program_pretty removed from .h.
+  - PlProgram.tree_mismatches field removed; prolog_program_tree_mismatches() removed.
+  - Parser.tree_mismatches field removed.
+  - prolog_lower.c: begin_tests/end_tests detection ported to tree_t.
+  - prolog_lower.c: directive loop ported to tree_t; export detection uses tree_t.
+  - prolog_lower.c: predicate loop guard changed from `cl->head != NULL` to
+    `is_rule || is_dcg` (tree_t head c[0]->t != TT_NUL discriminates rule vs directive).
+  - Bug fix: both loops guarded to avoid double-processing non-DCG rules as directives.
+  - lower_term() call sites for directive path removed; goal_tr always set post-6f.
+  - Gates: smoke_prolog PASS=5, crosscheck_prolog PASS=128, crosscheck_snobol4 PASS=5 FAIL=1
+    (beauty_omega pre-existing), smoke_scrip_all_modes PASS=2.
 findings-6a:
   - All required TT_* already in ast.h. No new kinds needed.
   - [] atom → TT_MAKELIST (empty). TT_MAKELIST v.ival=1 marks explicit | tail.
