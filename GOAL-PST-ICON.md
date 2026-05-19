@@ -2,7 +2,7 @@
 
 **Repo:** one4all + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
-**Status:** ✅ Phase 1 C COMPLETE (AUDIT-2 verified 2026-05-19). Phase 2 ready.
+**Status:** ✅ COMPLETE — Phase 1 C + Phase 2 PST-ICN-SC (2026-05-19).
 
 ---
 
@@ -23,7 +23,7 @@ Four `shift_val` sites in `Expr11`. No helper functions exist.
 
 ### Steps
 
-- [ ] **ICN-SC-1** — Rewrite the four `shift_val` sites in `Expr11`
+- [x] **ICN-SC-1** — Rewrite the four `shift_val` sites in `Expr11`
   (lines ~188–192):
 
   | today | rewrite |
@@ -36,14 +36,14 @@ Four `shift_val` sites in `Expr11`. No helper functions exist.
   Pick a parser-scratch name (`t_imm` suggested) that doesn't collide
   with existing captures (`rval`, `kwname`, `csetbody`, `strbody`).
 
-- [ ] **ICN-SC-2** — Grep verify:
+- [x] **ICN-SC-2** — Grep verify:
   ```
   grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_icon.sc
   grep -nE '^function ' parser_icon.sc
   ```
   Expected: zero hits.
 
-- [ ] **ICN-SC-3** — Run smoke test:
+- [x] **ICN-SC-3** — Run smoke test:
   ```
   bash /home/claude/one4all/scripts/test_parser_icon.sh
   ```
@@ -67,9 +67,8 @@ PST-FIELD-2 ✅. `tree_t` verified `{t, v, n, c}` exactly per AUDIT-2 §2i
 ## State
 
 ```
-watermark:   Phase 1 C ✅. Phase 2 PST-ICN-SC ready.
-next:        ICN-SC-1 (4 × shift_val → assign+shift), ICN-SC-2 (verify),
-             ICN-SC-3 (smoke).
-audit:       PST-SCRIP-AUDIT.md § parser_icon.sc — 4 violations.
-heads:       one4all @ b8091a9b · corpus @ a9b1240
+watermark:   Phase 2 PST-ICN-SC ✅ COMPLETE 2026-05-19.
+next:        PRF-13 (Raku, next recommended rung).
+audit:       PST-SCRIP-AUDIT.md § parser_icon.sc — 4 violations fixed.
+heads:       one4all @ b8091a9b · corpus @ 2713cb7
 ```
