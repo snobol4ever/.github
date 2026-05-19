@@ -112,7 +112,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_prolog.sh
   Remove `VarScope.next_slot`. Remove `lower_term()` call sites that were
   replaced by tree_t path in 6d.
 
-- [ ] **PST-PL-6g** — Decide whether `IfFrame` directive-stack stays in
+- [x] **PST-PL-6g** — Decide whether `IfFrame` directive-stack stays in
   parser (answer from 6a: yes — it is a preprocessor concern, not
   control-flow lowering). Document in `prolog_parse.c` comment. Close rung.
 
@@ -151,8 +151,8 @@ commit and push HQ.
 ## State
 
 ```
-watermark: PST-PL-6f complete 2026-05-18 (Sonnet 4.6)
-next: PST-PL-6g — Document IfFrame stays in parser; close rung.
+watermark: PST-PL-6g complete 2026-05-18 (Sonnet 4.6) — ALL RUNGS 6a–6g COMPLETE
+next: parser_prolog.sc mirror work (separate session — read SNOBOL4-SNOCONE-PRIMER.md first).
 findings-6f:
   - parse_clause() rewritten: pt_term() is now the sole parse path for non-DCG clauses.
   - Lexer snapshot retained only for DCG path (Term* dcg_expand_clause still needs it).
