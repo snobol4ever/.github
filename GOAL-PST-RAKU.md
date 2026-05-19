@@ -265,9 +265,10 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
 ```
 watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-say/print ✅; PST-FIELD-1 ✅
+           2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
 status: ⏳ Phase 1 NOT clean — 25 §⛔ violations remaining (R3-R6 closed by PRF-12-say/print)
 prior closed rungs (preserved for history):
-  PST-RAKU-3a/3b ✅ (Sonnet 4.6, dates from combo-file history) — V1..V6 fixed
+  PST-RAKU-3a/3b ✅ (Sonnet 4.6, dates from earlier history) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
   PRF-1..PRF-7 ✅ 2026-05-18 — finish_call_body / finish_new_body / finish_mcall_body
     / finish_sub_body / finish_method_body / finish_class_body / finish_main_body inlined
@@ -317,7 +318,6 @@ next:        pick any single PRF-12 sub-rung. Recommended orderings:
              raku.y action to pure tree transcription with new kind; (4) regen
              .ref files; (5) run gates (smoke_raku, smoke_scrip, crosscheck).
              After every PRF-12 sub-rung: smoke_raku must remain at floor.
-watermark:   2026-05-19 (Opus 4.7 session 4) — Three-facet block added; F1/F2/F3 stated.
 heads:       .github @ 58869b7e · one4all (no changes) · corpus (no changes)
 ```
 
