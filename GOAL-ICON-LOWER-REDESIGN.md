@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all + .github
-**Prereq:** GOAL-ICON-BB-JCON (ir-run target met), GOAL-ICON-BB-NATIVE ✅
+**Prereq:** GOAL-HEADQUARTERS (ir-run target met), GOAL-ICON-BB-NATIVE ✅
 
 ---
 

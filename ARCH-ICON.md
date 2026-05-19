@@ -104,7 +104,7 @@ and the ucontext machinery — this path is correct and should be completed.
 
 ## Active goal
 
-GOAL-ICON-BB-JCON.md — Icon: BB emitters + lower_icn DCG. Succeeded
+GOAL-HEADQUARTERS.md — Icon: BB emitters + lower_icn DCG. Succeeded
 GOAL-ICON-BB-NATIVE (closed `7efdf09a`). Current rung: closed
 2026-05-17j — IJ-DEL-ICN-AST + CLI-3M-10 docs trailer (see below).
 

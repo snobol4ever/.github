@@ -10,7 +10,7 @@ scrip.c argv-parser rewrite). The deprecated alias surface is now
 GONE from the entire codebase except for historical text in this and
 related goal files. Variable `mode_ir_run` deleted from scrip.c.
 `test_icon_sm_no_ast_walk.sh` deleted. CLI-3M-9 (`interp_*.c` big
-rip) remains open and is now the next major step — see GOAL-ICON-BB-JCON
+rip) remains open and is now the next major step — see GOAL-HEADQUARTERS
 DAI-7 for a scout-tier dead-code sweep that informs CLI-3M-9 scope.
 
 NOTE: in the text below, sed-mangling collapsed many `--ast-run`,
