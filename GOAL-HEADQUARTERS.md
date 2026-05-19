@@ -38,13 +38,6 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 ## Open step
 
-- [x] **DAI-8 C8 — `icn_runtime.c` (interp) dead-fn sweep.** 17 fns deleted, −185 LOC. `881d1a60` 2026-05-18.
-- [x] **DAI-8 C16 — `sm_interp.c` `every_table_lookup` (binary-safe).** −324 bytes. `f82a34c9` 2026-05-18.
-- [x] **DAI-8 sweep DONE.** All audited non-generated non-live fns deleted. Remaining GC-dead sections are: (a) `rt.c` cluster anchored via `_rt_usercall`→`g_user_call_hook` + `rt_call` asm-string; (b) `rebus_emit/rebus_print/sm_image` confirmed live (asm string refs/internal callers); (c) `scrip_ir/ast_clone/prolog_parse/snobol4_argval` confirmed live (3–9 external callers each); (d) `scan_builtins` fns live (IS_FAIL_fn has 334 callers); (e) `snobol4.c` excluded (CSNOBOL4-generated, --monitor). Linker GC cannot reach zero for these because call paths go through function pointers or emitted asm text.
-
-  **Process per cluster:** Method 1 nominates → Method 6 confirms zero callers + zero address-of → delete → gate. See DAI-8 methodology note below.
-
-  **Done when:** `make scrip GC=1 | grep removing` returns 0; all gates hold floor.
 
 ## DAI-8 methodology note
 
