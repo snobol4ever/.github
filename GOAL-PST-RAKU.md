@@ -316,6 +316,20 @@ next:        PRF-13 — SCRIP mirror for PRF-12-gather. Rewrite GatherBlock in p
              Phase 2 — requires all six C parsers Phase 1 clean (Snocone PST-SC-SWITCH-LABELS still open).
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
 heads:       .github @ (this commit) · one4all @ 50dee1c2 · corpus @ a9b1240
+
+**PST-SC-SCRIP-AUDIT 2026-05-19 (Sonnet 4.6):** parser_raku.sc scanned against
+strict permitted list (shift, reduce, nPush, nInc, nPop, nTop, assign only).
+VIOLATIONS FOUND — shift_val used extensively throughout (every literal/var/
+synthesized-name push). dq_unescape (pure string, no tree ops) is permitted.
+Fix for ALL shift_val occurrences: shift_val(val, kind) → assign(.sc_tmp, val) shift(sc_tmp, kind)
+Where val is a string literal: shift_val('raku_mcall', 'TT_VAR')
+  → (epsilon . *assign(.sc_tmp_rk, 'raku_mcall')) shift(sc_tmp_rk, 'TT_VAR')
+Where val is a concatenated capture: shift_val(capmf capmr, 'TT_QLIT')
+  → (epsilon . *assign(.sc_tmp_rk, capmf capmr)) shift(sc_tmp_rk, 'TT_QLIT')
+Where val is a computed expr: shift_val(capstr, 'TT_FLIT')
+  → (epsilon . *assign(.sc_tmp_rk, capstr)) shift(sc_tmp_rk, 'TT_FLIT')
+Use a single scratch variable sc_tmp_rk per arm (each arm is sequential, no overlap).
+Session work: mechanical find-and-replace of all shift_val calls in the file.
 ```
            2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b
            2026-05-19 (Sonnet 4.6) — PRF-12-hof ✅; one4all 3fa3b227 corpus 46187d3
