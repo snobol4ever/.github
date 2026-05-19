@@ -81,15 +81,15 @@ Each rung gated `snocone_smoke 5/0`, `crosscheck_snocone 8/0`, `scrip_all_modes 
 
 - [x] **PST-SC-4l** — `sc_split_subject_pattern` → lower. `lower_subj_pat_split` added to `lower.c`; call removed from `sc_append_stmt`. one4all `a70cb5df` 2026-05-19. ⚠ MIRROR-GAP-SC-4l.
 
-- [ ] **PST-SC-4m** — `TT_PROGRAM` is a tree of statement-tree nodes (not flat list with synthetic gotos/labels). Delete `sc_append_stmt`, `sc_splice_after`, `sc_make_label_stmt`, `sc_make_goto_uncond_stmt`. After 4k–4l, the only `sc_append_*` left should be a thin push onto a tree-shaped accumulator that produces a final `TT_PROGRAM`.
+- [x] **PST-SC-4m** — Delete dead cluster (`sc_make_label_stmt`, `sc_make_cond_fail_stmt`, `sc_make_goto_uncond_stmt`, `sc_splice_after`, `sc_finalize_if_no_else`, `sc_finalize_if_else`, `sc_make_cond_succ_stmt`, `sc_split_subject_pattern`). Thin `sc_append_stmt`: TT_ASSIGN unpack removed; just `stmt_new()+s->subject=top+sc_append_chain`. one4all `e7c907a5` 2026-05-19. ⚠ MIRROR-GAP-SC-4m.
 
-- [ ] **PST-SC-4n** — `ScParseState` shrunk to lexer + filename + error count. After 4m, the parse-state struct should hold only what the lexer and error reporter need. All `*_before_body` snapshot fields removed (each finalize-helper is self-contained per its `Head` struct after 4b–4g).
+- [x] **PST-SC-4n** — `ScParseState` shrunk. Removed `label_seq`, `if_before_body`, `func_before_body`. `func_before_body` moved into `FuncHead.before_body`. `ScParseState` now: ctx, code, filename, nerrors, cur_func_name, loop_top, cur_switch. (cur_func_name stays pending PST-SC-RET-IN-FN.) one4all `b79b93b2` 2026-05-19. ⚠ MIRROR-GAP-SC-4n.
 
 ### Promoted from `PST-LR-AUDIT.md § Scan 1` (2026-05-19)
 
 These are the 10 unowned audit violations. Each maps to a clear fix; group them by mechanism. Audit-row IDs in parens.
 
-- [ ] **PST-SC-FLATTEN** *(audit V1–V7)* — eliminate `sc_flatten_arith` (`snocone_parse.y:976`) and `exprlist_ne`-style in-place append (line 533). **7 sites total:** `expr3` (TT_ALT), `expr4` (TT_SEQ), `expr6 T_2PLUS` (TT_ADD), `expr6 T_2MINUS` (TT_SUB), `expr9 T_2STAR` (TT_MUL), `expr9 T_2SLASH` (TT_DIV), and `exprlist_ne` (TT_NUL container). All currently mutate `$1` by appending. **Fix:** always fresh-wrap (right-leaning binary chain). Re-flattening — if ever desired — is a lower concern. Reference shape: SNOBOL4 post-PST-SN4-1d (also Icon `parse_and`/`parse_alt`).
+- [x] **PST-SC-FLATTEN** *(audit V1–V7)* — `sc_flatten_arith` deleted; `exprlist_ne` fresh-copy on each reduction. V1 TT_ALT, V2 TT_SEQ, V3 TT_ADD, V4 TT_SUB, V5 TT_MUL, V6 TT_DIV: `expr_binary(OP,$1,$3)`. V7 exprlist_ne: fresh TT_NUL + copy $1 children + append $3. one4all `678d7b9e` 2026-05-19. ⚠ MIRROR-GAP-SC-FLATTEN.
 
 - [ ] **PST-SC-LABELS** *(audit V13)* — `while_head` / `do_head` / `for_head` / `switch_head` mint synthetic label strings via `sc_label_new` and stash them as `TT_QLIT` children of TT_WHILE/DO_WHILE/FOR/CASE. Move label allocation to `lower.c` — parser emits TT_WHILE etc. with **no** label children. `lower_while`/`lower_do_while`/`lower_for`/`lower_case` allocate `_Ltop_`/`_Lcont_`/`_Lend_` labels via labtab as needed. Coordinates with 4h's `g_loop_stack`.
 
@@ -125,14 +125,16 @@ Phase 2 (`parser_snocone.sc` mirror) is a separate goal-file rung gated on all s
 ## State
 
 ```
-watermark:    2026-05-19 (Claude Sonnet 4.6) — PST-SC-4k+4l landed. one4all a70cb5df.
-status:       ⏳ Phase 1 NOT clean — 9 §⛔ violations remaining (was 11).
-              PST-SC-4k ✅ PST-SC-4l ✅. Active: PST-SC-4m (delete sc_append_stmt etc).
-next:         PST-SC-4m — delete sc_append_stmt, sc_splice_after, sc_make_label_stmt,
-              sc_make_goto_uncond_stmt. After 4k+4l, only sc_make_cond_fail/succ_stmt
-              still call sc_split_subject_pattern; those are PST-SC-4m scope.
-mirror gaps:  ⚠ MIRROR-GAP-SC-4k ⚠ MIRROR-GAP-SC-4l. Phase 2 BLOCKED.
-heads:        .github @ (post-commit) · one4all @ a70cb5df · corpus (no changes)
+watermark:    2026-05-19 (Claude Sonnet 4.6) — PST-SC-4m+4n+FLATTEN landed. one4all 678d7b9e.
+status:       ⏳ Phase 1 NOT clean — 3 §⛔ violations remaining (was 9).
+              PST-SC-4k ✅ PST-SC-4l ✅ PST-SC-4m ✅ PST-SC-4n ✅ PST-SC-FLATTEN ✅.
+              Active: PST-SC-LABELS (mint labels in lower.c, not parser).
+next:         PST-SC-LABELS — remove sc_label_new calls from while_head/do_head/for_head/
+              switch_head grammar actions; move label allocation into lower_while/lower_do_while/
+              lower_for/lower_case. Parser emits TT_WHILE/DO_WHILE/FOR/CASE with no QLIT label children.
+mirror gaps:  ⚠ MIRROR-GAP-SC-4k ⚠ MIRROR-GAP-SC-4l ⚠ MIRROR-GAP-SC-4m ⚠ MIRROR-GAP-SC-4n
+              ⚠ MIRROR-GAP-SC-FLATTEN. Phase 2 BLOCKED.
+heads:        .github @ (post-commit) · one4all @ 678d7b9e · corpus (no changes)
 ```
 
 ### Session-end note — 2026-05-19 (Opus 4.7 session 4)
