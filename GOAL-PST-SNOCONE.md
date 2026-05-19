@@ -346,9 +346,14 @@ PST-SC-DOC-CLEANUP ✅.
 
 ```
 watermark:   Phase 1 C ✅ (11/11 §⛔ closed). Phase 2 SC-SC ✅ (SC-SC-1..5 done).
-             ⚠ MIRROR-GAP-SC-SC-5: scrip --interp multi-file segfaults pre-exist
-             in container; smoke deferred. Rewrite is structurally complete.
-next:        SC-SC-5 smoke debug (separate session, working SCRIP runtime).
+             ⚠ MIRROR-GAP-SC-SC-5: scrip --interp segfaults on global.sc line 3:
+             `&ALPHABET ? (POS(0) LEN(1) . nul);`
+             Pattern match on `&ALPHABET` keyword crashes SM interp in this
+             container build (one4all @ ccf095bb, EC-3f). Pre-exists our rewrite.
+             Root cause: SM_EXEC_STMT or keyword `&ALPHABET` handling in --interp
+             mode. Fix in separate session: debug sm_interp.c keyword path.
+next:        SC-SC-5 smoke debug — fix &ALPHABET segfault in --interp, then
+             run test_parser_snocone.sh. Update .ref files to PST tree shapes.
 audit:       PST-SCRIP-AUDIT.md § parser_snocone.sc — COMPLETE (pure shift/reduce).
 heads:       one4all @ 904aa2bd · corpus @ 1d0539c
 ```
