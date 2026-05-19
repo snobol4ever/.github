@@ -264,10 +264,63 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-for ✅; one4all e645ab4b corpus e6f7504
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-unless PARTIAL (parser done, lower pending); one4all 510ad7be
+           2026-05-19 (Sonnet 4.6) — PRF-12-for ✅; one4all e645ab4b corpus e6f7504
            2026-05-19 (Sonnet 4.6) — PRF-12-program ✅; one4all 2fed81d3 corpus 47a8845
-           2026-05-19 (Sonnet 4.6) — PRF-12-class ✅; one4all 17a4dc45 corpus 21a4fc1
 status: ⏳ Phase 1 NOT clean — 18 §⛔ violations remaining
+prior closed rungs (preserved for history):
+  PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
+  PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
+  PRF-1..PRF-7 ✅ 2026-05-18 — finish bodies inlined
+  PRF-8 ✅ 2026-05-18 (Opus 4.7) — finish_given; TT_CASE 2-per-arm; cmpkind → lower
+  PRF-9 ✅ 2026-05-18 (Opus 4.7) — finish_gather_body replaced by PRF-12-gather
+  PRF-10 ✅ 2026-05-18 (Opus 4.7) — push_interp_str; LitStrDQ nPush/reduce/nPop
+  PRF-11 ✅ 2026-05-18 — dq_unescape PST-clean, retained
+  PRF-12-gather ✅ 2026-05-18 (Sonnet 4.6) — TT_GATHER; raku_lower_hoist_gather_pass()
+  PRF-S7-1..6 ✅ 2026-05-18 — raku_stubs.sc DELETED; 94 stubs inlined
+  PRF-12-say ✅ 2026-05-19 (Sonnet 4.6) — TT_SAY / TT_SAY_FH
+  PRF-12-print ✅ 2026-05-19 (Sonnet 4.6) — TT_PRINT / TT_PRINT_FH
+  PRF-12-sub ✅ 2026-05-19 (Sonnet 4.6, one4all 96a7ca59, corpus 39af2e1)
+  PRF-12-die ✅ 2026-05-19 (Sonnet 4.6, one4all c596462d, corpus adfdbb6)
+  PRF-12-body-splice ✅ subsumed by PRF-12-sub
+  PRF-12-arr-hash-ops ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af)
+  PRF-12-class ✅ 2026-05-19 (Sonnet 4.6, one4all 17a4dc45, corpus 21a4fc1)
+  PRF-12-program ✅ 2026-05-19 (Sonnet 4.6, one4all 2fed81d3, corpus 47a8845)
+  PRF-12-for ✅ 2026-05-19 (Sonnet 4.6, one4all e645ab4b, corpus e6f7504)
+audit findings (27 original, 12 closed):
+  R1   ✅ closed PRF-12-program
+  R2   KW_MY IDENT VAR_* discards type annotation (owned: PRF-12-my-type)
+  R3-6 ✅ closed PRF-12-say/print
+  R7-9 ✅ closed PRF-12-arr-hash-ops
+  R10  KW_TRY/KW_CATCH desugar (owned: PRF-12-try)
+  R11  KW_UNLESS desugar (owned: PRF-12-unless) — PARSER DONE (510ad7be); lower pending
+  R12-13 ✅ closed PRF-12-for
+  R14  given_stmt pair wrap/unwrap (owned: PRF-12-given)
+  R15  ✅ closed PRF-12-sub/PRF-12-body-splice
+  R16-17 ✅ closed PRF-12-class
+  R18  method_decl synth-self (owned: PRF-12-self)
+  R19  KW_GATHER child-stealing (owned: PRF-12-gather-splice)
+  R20  OP_SMATCH desugar (owned: PRF-12-smatch)
+  R21  KW_NEW desugar (owned: PRF-12-new)
+  R22  atom.method() desugar (owned: PRF-12-mcall)
+  R23  ✅ closed PRF-12-die
+  R24  KW_MAP/GREP/SORT desugar (owned: PRF-12-hof)
+  R25  VAR_CAPTURE / VAR_NAMED_CAPTURE desugar (owned: PRF-12-capture)
+  R26  VAR_TWIGIL synth-self (owned: PRF-12-twigil)
+  R27  gather hoist in-place rewrite (owned: PRF-12-gather-hoist)
+mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated
+next:        PRF-12-unless (R11) — FIRST PRIORITY: add lower_unless in lower.c
+             (desugar TT_UNLESS[cond,then,?else] → lower_if_stmt with negated cond),
+             regen unless_*.ref, run gates, commit corpus + one4all + .github.
+             Then PRF-12-try (R10, TT_TRY).
+             Per-rung recipe: (1) add TT_* to ast.h; (2) lower dispatch in lower.c;
+             (3) rewrite raku.y action; (4) bison -d raku.y -o raku.tab.c;
+             (5) regen .ref files; (6) run gates.
+             ⚠ ALWAYS regen raku.tab.c — build does NOT auto-regen from raku.y.
+             ⚠ ast_print.c: TT_SUB_DECL/TT_PROC_DECL excluded from v.sval print (PRF-12-class fix).
+gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
+heads:       .github @ (this commit) · one4all @ 510ad7be · corpus @ e6f7504
+```
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
