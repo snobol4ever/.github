@@ -167,13 +167,21 @@ Status per language (updated 2026-05-19 per `PST-LR-AUDIT.md`, scans 1–3,
 | Rebus | ✅ **Phase 1 C COMPLETE 2026-05-19 (Sonnet 4.6)** | All 6 §⛔ violations closed: RB-C-1 ✅ Rb1+Rb2, RB-C-2 ✅ Rb3 `83bc4ab3`, RB-C-3 ✅ Rb4 `ccc11220`, RB-C-4 ✅ Rb5 `0458da59`, RB-C-5 ✅ Rb6 `2a9aa511`. DECL-1 ✅ `b4bb0a9c`, DECL-2 ✅ `8af2e2e1` (RDecl/RProgram eliminated), DECL-3 ✅ `90658061` (RCase freed). PST-RB-DECL-4/5 superseded by DECL-2. Phase 2 SCRIP mirror BLOCKED. |
 | Prolog | ✅ **Phase 1 C COMPLETE 2026-05-19** | All rungs 6a–6h ✅. The four §⛔ violations (pt_flatten_conj + pt_maybe_ifthenelse + pt_make_clause body-wrap) addressed via PST-PL-6h. PST-PL-6f (DCG → tree_t) folded into 6a–6h sequence. Phase 2 SCRIP mirror BLOCKED. |
 
-**🎉 Phase 1 GATE PASSED 2026-05-19** — all six C parsers Phase 1 clean (Raku's
-two remaining items are either Phase 2 or cross-cutting). **Phase 2 SCRIP mirror
-work is now unblocked**, but should not begin in the same session as any final
-Phase 1 polish work. Next planning rung: confirm Raku's PST-FIELD-2 closure on
-the Raku side (`lower_raku.c` audit for any stale `_id` reads), then open Phase 2
-SCRIP mirror sessions in a coordinated cluster. See parent State block for the
-six Phase 2 rung names (one per language).
+**⚠ Phase 1 GATE CLAIMED PASSED 2026-05-19 — NOT YET INDEPENDENTLY VERIFIED.**
+All six C parsers self-reported Phase 1 clean during their parallel sessions,
+but the sessions did not cross-check each other. The next required step is
+**PST-LR-AUDIT-2** — a second LR-audit, methodology identical to AUDIT-1,
+against the post-session source and the three facets (F1/F2/F3). Do **not**
+start Phase 2 SCRIP mirror work until AUDIT-2 signs off all six languages
+🟢 go. See parent State block § `next:` for the 2a–2j sub-step ladder.
+
+Once AUDIT-2 signs off, the planned Phase 2 ordering is:
+1. **PRF-13** — SCRIP mirror for PRF-12-gather (reference rung).
+2. **PST-SN4-SC-1/2** — SNOBOL4 SCRIP mirror.
+3. **PST-SC-SC**     — Snocone SCRIP mirror.
+4. **PST-RB-SC**     — Rebus SCRIP mirror.
+5. **PST-PL-SC**     — Prolog SCRIP mirror.
+6. **PST-ICN-SC**    — Icon SCRIP mirror.
 
 **Audit reference:** `PST-LR-AUDIT.md` (per-production left-to-right child
 order audit for all six parsers). Scans 1–3 (Snocone, Icon, SNOBOL4)
@@ -498,14 +506,21 @@ watermark: Stage 1 Step 0 (diagnosis) ✅  Stage 2 split-IR design ✅  Stage 2 
             Three Phase-1 facets block added 2026-05-19 (Opus 4.7 session 4):
               F1 (tree_t is sole information channel) · F2 (exactly t/v/n/c) · F3 (L→R)
               stated in parent + each per-language goal file.
-            🎉 **PHASE 1 GATE PASSED 2026-05-19** — all six C parsers Phase 1 clean.
+            🎉 **PHASE 1 GATE CLAIMED PASSED 2026-05-19** — all six C parsers
+              self-reported Phase 1 clean by their parallel sessions. ⚠ NOT YET
+              INDEPENDENTLY VERIFIED. The parallel sessions ran without
+              cross-checking each other and may have closed rungs they didn't
+              fully meet. **PST-LR-AUDIT-2 (a second LR-audit, methodology
+              identical to AUDIT-1, against the post-session source) is the
+              gate before any Phase 2 work begins.**
+              Self-report summary:
               SNOBOL4 ✅ (W1/W2/W3 closed). Icon ✅ (LR-1, FIELD-1, FIELD-2).
               Raku ⚠✅ effectively clean — all 25 PRF-12 sub-rungs closed
                 (program, my-type, say, print, arr-hash-ops, try, unless, given,
                 smatch, new, mcall, die, hof, capture, twigil, sub, class, for,
                 gather, self, gather-splice R19, gather-hoist R27).
                 Two nominal items remain: PRF-13 (Phase 2 SCRIP mirror, gated)
-                and PST-FIELD verification on Raku side. Neither blocks Phase 2.
+                and PST-FIELD verification on Raku side.
               Snocone ✅ (4k–4n, FLATTEN, LABELS, RET-IN-FN, FOR-INIT).
               Rebus ✅ (RB-C-1..5, DECL-1..3).
               Prolog ✅ (rungs 6a–6h all closed).
@@ -516,21 +531,71 @@ session 2026-05-19 (fifth — Opus 4.7, HQ): combo-file cleanup (deleted
   unrelated revert commit e8440d2d); updated readiness table to reflect
   Phase 1 GATE PASSED; updated this State block. No code changes to
   one4all or corpus.
-next: **PHASE 2 PLANNING WINDOW.** Phase 2 SCRIP mirror work is now unblocked.
-  Six Phase 2 rung names exist (one per language); they live in each per-language
-  State block's "next:" line, all currently labeled `Phase 2 SCRIP mirror`.
-  Recommended ordering:
-    1. **PST-RAKU-PHASE-2-PREP** — first verify Raku PST-FIELD-2 closed on
-       Raku side (audit `one4all/src/frontend/raku/lower_raku.c` for any
-       stale `_id` reads after Icon's removal at one4all `b8091a9b`).
-       If clean, mark Raku Phase 1 ✅ unconditionally.
-    2. **PRF-13** — SCRIP mirror for PRF-12-gather (one4all-side; smallest
-       Phase 2 scope; reference rung for the mirror pattern).
-    3. **PST-SN4-SC-1/2** — SNOBOL4 SCRIP mirror audit + rewrite.
-    4. **PST-SC-SC** — Snocone SCRIP mirror catch-up for 4k–4n + audit rungs.
-    5. **PST-RB-SC** — Rebus SCRIP mirror (RB-C-1..5 + DECL-1..3).
-    6. **PST-PL-SC** — Prolog SCRIP mirror (6a–6h).
-    7. **PST-ICN-SC** — Icon SCRIP mirror (LR-1 + FIELD-1/2).
+next: **PST-LR-AUDIT-2 — TRUST-BUT-VERIFY AUDIT (gating step before Phase 2).**
+  The parallel sessions ran without cross-checking each other. Self-reported
+  ✅ marks must be independently verified against the post-session source
+  before Phase 2 begins. Methodology identical to PST-LR-AUDIT-1 (which
+  produced `PST-LR-AUDIT.md`), applied to the current `.y`/`.c` sources
+  and against the **three facets** (F1/F2/F3 from § "The three Phase-1
+  facets" near the top of this file). Sub-steps:
+    • **2a — Scope statement.** State that the audit is a re-audit of all
+      six C parsers against F1/F2/F3 (the three §⛔ rules). Reuse AUDIT-1's
+      formatting conventions in a new file `PST-LR-AUDIT-2.md` (or update
+      `PST-LR-AUDIT.md` with a "Post-Phase-1 re-audit" section).
+    • **2b — Scan Snocone** (`one4all/src/frontend/snocone/snocone_parse.y`).
+      For every grammar production, check: F3 (children L→R), F2 (no `_id`
+      or `_nalloc` semantic use), F1 (no parser-side globals, no
+      `ScParseState` fields carrying facts not on the tree). Report rows
+      `(line, production, children-L→R)` plus violation kind.
+    • **2c — Scan Icon** (`one4all/src/frontend/icon/icon_parse.c`).
+      Hand-rolled recursive-descent; check every `parse_*` function.
+      Verify `parse_proc` no longer uses `_id` (the LR-1 closure). Verify
+      tree_t struct has exactly t/v/n/c (open `src/include/ast.h` and
+      grep for `_nalloc`/`_id`).
+    • **2d — Scan SNOBOL4** (`one4all/src/frontend/snobol4/snobol4.y`).
+      Verify W1/W2/W3 closures: `goto_expr T_CONCAT goto_atom` builds a
+      fresh wrapper; `expr15`/`expr17` no longer use `g_cur` globals.
+    • **2e — Scan Raku** (`one4all/src/frontend/raku/raku.y`). Largest
+      surface — 27 prior violations. Verify every PRF-12 sub-rung closed:
+      no `TT_FNC` baked with `v.sval = "raku_*"` runtime helper names
+      (paste a grep of `raku_` literal strings in raku.y action bodies).
+      Verify `sub_decl` no longer uses `_id == SUB_TAG_ID`.
+    • **2f — Scan Rebus** (`one4all/src/frontend/rebus/rebus.y`). Verify
+      `RDecl`, `RProgram`, `RDKind` struct types are deleted entirely
+      (grep one4all/src/frontend/rebus/ for `RDecl`/`RProgram` —
+      should return 0 hits in the parser path, or only the scratch type
+      `RCase` which is parser-local). Verify `stmt_list_ne` always-fresh.
+    • **2g — Scan Prolog** (`one4all/src/frontend/prolog/prolog_parse.c`).
+      Verify `pt_flatten_conj`, `pt_maybe_ifthenelse`, `pt_make_clause`
+      have been moved to `prolog_lower.c` (grep for these names in
+      prolog_parse.c — should return 0 hits, or only callers). Verify
+      `assign_anon_slots` is in lower, not parse.
+    • **2h — Rollup.** Compare scan results against AUDIT-1's 51-violation
+      baseline. Categorize each AUDIT-1 row as `✅ verified closed`,
+      `⚠ regressed`, or `❌ never actually closed`. Categorize any
+      new violation (introduced by parallel-session work) as `🆕 new`.
+      State the net violation count and produce a per-language go/no-go
+      verdict for Phase 2.
+    • **2i — Tree-T struct verification.** Open `src/include/ast.h` and
+      paste the current `struct tree_t` definition into the audit. Verify
+      F2 directly: four semantic fields `t`, `v`, `n`, `c`. The audit must
+      state explicitly whether `_nalloc` and `_id` have been removed or
+      remain. If they remain, F2 is not met regardless of any individual
+      language's Phase 1 claim.
+    • **2j — Sign-off.** Either: (a) all six languages 🟢 go → unblock
+      Phase 2 and document the Phase 2 ordering; or (b) some language has
+      🔴 violations → file new rungs in the offending per-language goal
+      file with line-level fix sketches (same workflow as AUDIT-1 1j).
+  **⛔ Do NOT start any Phase 2 SCRIP mirror session until 2j signs off.**
+  An optimistic session that proceeds on self-reports risks compounding
+  errors that are far harder to find once the SCRIP mirror is also wrong.
+  Phase 2 ordering (already drafted, gated on 2j):
+    1. PRF-13 — SCRIP mirror for PRF-12-gather (reference rung).
+    2. PST-SN4-SC-1/2 — SNOBOL4 SCRIP mirror.
+    3. PST-SC-SC     — Snocone SCRIP mirror catch-up.
+    4. PST-RB-SC     — Rebus SCRIP mirror (RB-C-1..5 + DECL-1..3).
+    5. PST-PL-SC     — Prolog SCRIP mirror (6a–6h).
+    6. PST-ICN-SC    — Icon SCRIP mirror (LR-1 + FIELD-1/2).
   Per RULES.md: one language per session for Phase 2 (NEVER Phase 1 polish
   and Phase 2 mirror work in the same session). Read SNOBOL4-SNOCONE-PRIMER.md
   before any session that touches parser_*.sc. Beauty self-host md5
@@ -538,13 +603,6 @@ next: **PHASE 2 PLANNING WINDOW.** Phase 2 SCRIP mirror work is now unblocked.
 mirror gaps: ALL six languages have mirror gaps now (the converse of "all six
              Phase 1 clean"). Each per-language State block lists its specific
              ⚠ MIRROR-GAP-* tags.
-ladder Stage 1 (this file): six per-language goal files (one per language); each does
-         Phase 1 C-parser work only and stops at the Phase 2 SCRIP-mirror rung.
-         SNOBOL4 → GOAL-PST-SNOBOL4.md  |  Icon → GOAL-PST-ICON.md
-         Raku → GOAL-PST-RAKU.md  |  Snocone → GOAL-PST-SNOCONE.md
-         Rebus → GOAL-PST-REBUS.md  |  Prolog → GOAL-PST-PROLOG.md
-ladder Stage 2: bulk rename (SM_*→IR_SM_*, IR_*→IR_BB_*) → audit lower → per-construct lowering → cross-lang audit
-```
 ladder Stage 1 (this file): six per-language goal files (one per language); each does
          Phase 1 C-parser work only and stops at the Phase 2 SCRIP-mirror rung.
          SNOBOL4 → GOAL-PST-SNOBOL4.md  |  Icon → GOAL-PST-ICON.md
@@ -1070,5 +1128,81 @@ mirror-gap list. The pattern is: replace tree-building functions with pure
 - Never edit corpus to work around SCRIP behavior; SPITBOL is the oracle.
 - F1/F2/F3 acceptance criterion still applies — Phase 2 changes to SCRIP
   source must produce the same `tree_t` shape as the C parser.
+
+.github @ (this commit)
+
+### Handoff note — 2026-05-19 session 6 (Opus 4.7) — TRUST-BUT-VERIFY GATE
+
+**Session goal:** Lon (human) raised a sound concern — the parallel sessions
+self-reported Phase 1 ✅ without cross-checking each other. Install a
+verification gate before any Phase 2 work proceeds.
+
+**What was done this session:**
+
+1. **Reframed Phase 1 status** from "GATE PASSED" to "GATE CLAIMED PASSED
+   — NOT YET INDEPENDENTLY VERIFIED" throughout:
+   - State block watermark (this file).
+   - Readiness table summary (this file, after table).
+   - PLAN.md PST parent row.
+2. **Promoted PST-LR-AUDIT-2 to be the gating next step** with explicit
+   sub-step ladder 2a–2j:
+   - 2a Scope statement; 2b Scan Snocone; 2c Scan Icon; 2d Scan SNOBOL4;
+     2e Scan Raku; 2f Scan Rebus; 2g Scan Prolog; 2h Rollup; 2i Tree-T
+     struct verification; 2j Sign-off.
+   - Each scan checks F1/F2/F3 against the current `.y`/`.c` source.
+   - 2i is a direct struct check (open `src/include/ast.h`, paste current
+     definition, verify exactly `{t, v, n, c}` — `_nalloc` and `_id` gone).
+3. **⛔ Hard rule installed:** do NOT start any Phase 2 SCRIP mirror
+   session until AUDIT-2 sub-step 2j signs off all six languages.
+4. **Cleaned up duplicate `ladder Stage 1` block** that had ended up
+   outside the fenced State code block from a prior edit.
+
+**Why this matters:**
+
+Even with the audit pattern firmly in place, six parallel sessions over
+one day produced ~50 commits with no cross-session review. Closing a
+rung "based on the spec" can drift from closing it correctly in code,
+especially when (a) one session's change affects a struct another
+session is also editing (the tree_t {t, v, n, c} cleanup), (b) parallel
+sessions can introduce 🆕 new violations while closing old ones (e.g.
+a desugaring fix that synthesizes a new non-source-token TT_* kind), and
+(c) self-reports tend to compound — once one session claims ✅, others
+treat that as ground truth.
+
+The original PST-LR-AUDIT-1 found 51 violations against the same
+methodology. AUDIT-2 may find that some were not actually closed, that
+some closures were partial, or that new violations have been introduced.
+Better to find that now than after the SCRIP mirror is also reflecting
+the same problems.
+
+**Methodology for the next session (PST-LR-AUDIT-2):**
+
+- Open `PST-LR-AUDIT.md` and copy its format conventions for the new file
+  `PST-LR-AUDIT-2.md`.
+- For each language, walk every grammar production / function body and
+  produce `(line, production, children-L→R)` rows + violation kind
+  (F1 / F2 / F3 / or ✅).
+- Cross-reference each AUDIT-1 row in `PST-LR-AUDIT.md`: was it actually
+  closed? Categorize as `✅ verified closed`, `⚠ regressed`, or
+  `❌ never actually closed`.
+- Flag any 🆕 new violation introduced by the parallel sessions.
+- Net count → per-language go/no-go for Phase 2.
+
+**Recommended split for AUDIT-2 work:**
+
+If audit-2 is opened as a single session (one Claude doing all six scans),
+it will be a long session — likely 4–6 commits. Alternative: fan out the
+six scans to six audit-only sessions, then a seventh rollup/sign-off
+session. Either is fine; the rollup must be done by one Claude with the
+full picture (rung 2h).
+
+**Files modified this session:**
+- `GOAL-PARSER-PURE-SYNTAX-TREE.md`: State block watermark, `next:` ladder,
+  readiness-table summary, session 6 handoff note (here).
+- `PLAN.md`: PST parent row updated.
+- No code changes to one4all or corpus.
+
+**Heads:** .github @ (this commit) · one4all @ b8091a9b (or later) ·
+corpus @ a9b1240 (or later).
 
 .github @ (this commit)
