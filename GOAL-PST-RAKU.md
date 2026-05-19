@@ -195,19 +195,15 @@ These are **child-stealing** violations distinct from the runtime-helper-name de
 
 AUDIT-2 (`PST-LR-AUDIT-2.md`) trust-but-verify scan found:
 
-- [ ] **PRF-12-R15-DISPOSITION** *(audit R15 rescope)* — `sub_decl` action at `raku.y:358–359` and `364–365` still child-steals from `$6` (the block TT_SEQ_EXPR): `for(int i=0;i<body->n;i++) expr_add_child(e,body->c[i])`. Commit `3375a0ea PRF-12-sub` introduced `TT_SUB_DECL` but did NOT change the child-steal pattern. **Decision required:** either (a) actually fix the child-steal so the block is preserved as a single subtree child of TT_SUB_DECL, or (b) **declare this acceptable** under the parser-local-scratch idiom (consistent with Rebus Rb1/Rb2 disposition: list-building of TT_PROGRAM via successive `expr_add_child($1, …)` is accepted because the block's lifetime ends with the action and the hollowed TT_SEQ_EXPR is never accessed downstream). **Recommendation: (b)** — text-only audit update, no code change. The block TT_SEQ_EXPR has no remaining references after the reduce; only its leaked allocation is technically still on the heap until process exit (small constant, like other reduce-temp nodes). Action: update PST-LR-AUDIT-2.md row R15 to ✅-CLOSED-by-rescope and add a sentence to GOAL-PARSER-PURE-SYNTAX-TREE.md §⛔ rules clarifying that "list-building of a node by successive `expr_add_child` calls into a freshly-allocated parent — even when the children are sourced from a previously-built temporary parser-internal block — is permitted." **Blocks PRF-13.**
+- [x] **PRF-12-R15-DISPOSITION** *(audit R15 rescope)* ✅ 2026-05-19 (Sonnet 4.6) — Declared acceptable under parser-local-scratch idiom. `sub_decl` body splice (raku.y:358–359, 364–365) is a reduce-time allocation whose lifetime ends with the action; hollowed TT_SEQ_EXPR never accessed downstream. Consistent with Rebus Rb1/Rb2. PST-LR-AUDIT-2.md R15 updated to ✅-CLOSED-by-rescope. GOAL-PARSER-PURE-SYNTAX-TREE.md §⛔ rules updated with parser-local-scratch idiom clarification. **Unblocks PRF-13.**
 
-- [ ] **PRF-12-DEADCODE** *(audit dead-code cleanup)* — Two functions are defined but never called in `raku.y`; should be removed:
-  1. `raku.y:582–638` — `raku_hoist_gather_in_expr` and `raku_lower_hoist_gather_pass`. Replaced by `lower_gather_hoist_pass` in `src/lower/lower.c:1931` (called from `lower()` at line 1977). No caller remains in raku.y or anywhere else (verified by `grep -rn "raku_lower_hoist_gather_pass\|raku_hoist_gather_in_expr" src/`).
-  2. `raku.y:100–113` — `make_for_range`. Replaced by `TT_FOR_RANGE` direct emission at `raku.y:307–316`. No caller remains.
-  
-  Pure deletion; no behavior change. Can be one commit. **Optional but recommended** to land before Phase-2 mirror to keep PRF-13's source-of-truth clean.
+- [x] **PRF-12-DEADCODE** *(audit dead-code cleanup)* ✅ 2026-05-19 (Sonnet 4.6, one4all `50dee1c2`) — Deleted `make_for_range` (raku.y:100–113) and `raku_hoist_gather_in_expr` + `raku_lower_hoist_gather_pass` + statics (raku.y:582–638). raku.tab.c regenerated. Gates held: smoke_raku 5/0, scrip_all_modes 2/0, crosscheck_snobol4 5/1, smoke_icon 5/0.
 
 ### Done criteria
 
 **Phase A — helper elimination (`parser_raku.sc` form):** ✅ COMPLETE. Zero `function` bodies in `parser_raku.sc` that call `Push()`, `Append()`, or `tree()`. Pure string transformers (no tree ops) permitted (`dq_unescape` only).
 
-**Phase B — separation-of-concerns (`lower.c` interface):** lower.c reads only `t/v/n/c` from tree nodes; no `_id` side-channel; all constructs have dedicated `TT_*` node kinds; desugar happens in lower not parser. **Status:** PRF-12-gather done; ~18 sub-rungs remaining (`PRF-12-sub`, `-class`, `-for`, `-self`, `-program`, `-my-type`, `-say`, `-print`, `-arr-hash-ops`, `-try`, `-unless`, `-given`, `-smatch`, `-new`, `-mcall`, `-die`, `-hof`, `-capture`, `-twigil`, `-body-splice`, `-gather-splice`, `-gather-hoist`).
+**Phase B — separation-of-concerns (`lower.c` interface):** ✅ COMPLETE. lower.c reads only `t/v/n/c` from tree nodes; no `_id` side-channel; all constructs have dedicated `TT_*` node kinds; desugar happens in lower not parser. All 19 PRF-12 sub-rungs complete. Dead code deleted (PRF-12-DEADCODE). R15 rescoped (PRF-12-R15-DISPOSITION).
 
 ---
 
@@ -276,10 +272,11 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Opus 4.7) — PST-LR-AUDIT-2 trust-but-verify scan; R15 REOPENED, R27 dead-code flagged
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-R15-DISPOSITION ✅ PRF-12-DEADCODE ✅ HANDOFF; one4all 50dee1c2 corpus a9b1240 .github (this commit)
+           2026-05-19 (Opus 4.7) — PST-LR-AUDIT-2 trust-but-verify scan; R15 REOPENED, R27 dead-code flagged
            2026-05-19 (Sonnet 4.6) — PRF-12-gather-splice ✅ PRF-12-gather-hoist ✅ HANDOFF; one4all 5d326aa2 corpus a9b1240 .github (prior)
            2026-05-19 (Sonnet 4.6) — PRF-12-twigil ✅ HANDOFF; one4all 5047950e corpus a9b1240 .github (prior)
-status: ⏳ Phase 1 NOT clean — R15 audit finding reopened by AUDIT-2; awaiting PRF-12-R15-DISPOSITION (text-only rescope or actual code fix)
+status: ✅ Phase 1 C COMPLETE — all 27 R-rows closed (R15 rescoped, R27 dead code deleted). PRF-13 (SCRIP mirror) unblocked.
 prior closed rungs (preserved for history):
   PST-RAKU-3a/3b ✅ (Sonnet 4.6) — V1..V6 fixed
   PST-RAKU-5a/5b/5c ✅ 2026-05-16 — flatten_* and finish_* removed
@@ -310,18 +307,15 @@ prior closed rungs (preserved for history):
   PRF-12-gather-hoist ✅ 2026-05-19 (Sonnet 4.6, one4all 5d326aa2) — R27 closed
 audit findings (27 original, 25 verified by AUDIT-2; 2 open):
   R1-R14,R16-R26 ✅ all closed (see prior watermarks)
-  R15  ⚠ REOPENED by AUDIT-2 — child-steal in sub_decl unchanged from baseline; needs PRF-12-R15-DISPOSITION
+  R15  ✅ CLOSED-by-rescope (PRF-12-R15-DISPOSITION, 2026-05-19 Sonnet 4.6) — parser-local-scratch idiom accepted
   R19  ✅ closed PRF-12-gather-splice (one4all 20a6f03c)
-  R27  ✅ closed PRF-12-gather-hoist (functional); dead code remains at raku.y:582-638 — needs PRF-12-DEADCODE
-mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, gated on R15 disposition
-next:        PRF-12-R15-DISPOSITION — text-only rescope decision (likely declare R15 acceptable
-             as parser-local scratch idiom, consistent with Rebus Rb1/Rb2). Once R15 disposition
-             lands, Raku Phase 1 C is fully clean → unblocks PRF-13.
-             PRF-12-DEADCODE — delete dead raku.y:100–113 (make_for_range) and 582–638
-             (raku_lower_hoist_gather_pass). Optional but recommended pre-Phase 2.
-             PST-FIELD-1/PST-FIELD-2 — already closed (verified by AUDIT-2 §2i).
+  R27  ✅ closed PRF-12-gather-hoist + PRF-12-DEADCODE (dead code deleted, one4all 50dee1c2)
+mirror gaps: PRF-13 (SCRIP mirror for PRF-12-gather) — Phase 2, NOW UNBLOCKED
+next:        PRF-13 — SCRIP mirror for PRF-12-gather. Rewrite GatherBlock in parser_raku.sc to pure
+             nPush/ARBNO/reduce/nPop; create corpus/SCRIP/raku_helpers.sc with gather_hoist_pass(ptree).
+             Phase 2 — requires all six C parsers Phase 1 clean (Snocone PST-SC-SWITCH-LABELS still open).
 gates (baseline): smoke_raku 5/0 · scrip_all_modes 2/0 · crosscheck_snobol4 5/1 · smoke_icon 5/0
-heads:       .github @ (this commit, PST-LR-AUDIT-2) · one4all @ 5d326aa2 · corpus @ a9b1240
+heads:       .github @ (this commit) · one4all @ 50dee1c2 · corpus @ a9b1240
 ```
            2026-05-19 (Sonnet 4.6) — PRF-12-capture ✅; one4all 088ac03c corpus b31045b
            2026-05-19 (Sonnet 4.6) — PRF-12-hof ✅; one4all 3fa3b227 corpus 46187d3
