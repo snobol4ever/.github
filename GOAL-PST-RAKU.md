@@ -153,7 +153,7 @@ PRF-S7-1..6 ✅ 2026-05-18. `corpus/SCRIP/raku_stubs.sc` **DELETED**. All 94 stu
 
 Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See that file for line numbers and current parser shape.
 
-- [ ] **PRF-12-my-type** *(audit R2)* — `my Type $var = expr;`: the `IDENT` (type annotation) is currently `free()`'d in the action (lines 229–240 of `raku.y`). Either preserve as a child of `TT_ASSIGN`, or add a side-channel-free `TT_DECL[TT_VAR(type), TT_VAR(name), expr]` kind. Lower selects runtime behavior (type is documentation-only in current SCRIP, but the parser must not destroy the source token).
+- [x] **PRF-12-my-type** *(audit R2)* ✅ 2026-05-19 (Sonnet 4.6, one4all `74160514`, corpus `1c5ce89`) — `TT_DECL[TT_VAR(type), TT_VAR(name), ?expr]` added to ast.h; 6 `my Type $var` raku.y productions rewritten to emit `TT_DECL` (type preserved as c[0] instead of `free()`'d); `lower_decl()` in lower.c assigns init or empty string; raku.tab.c regenerated; 8 corpus `.ref` files regenerated. Gates held.
 
 - [x] **PRF-12-say** *(audit R3, R4)* ✅ 2026-05-19 (Sonnet 4.6) — `TT_SAY[expr]` / `TT_SAY_FH[fh,expr]` added to ast.h; raku.y actions emit pure tree; lower.c dispatches to `write`/`raku_say_fh`; 35 .ref files regenerated.
 
@@ -161,11 +161,11 @@ Each maps to one of the 27 §⛔ violations in `PST-LR-AUDIT.md § 4.10`. See th
 
 - [x] **PRF-12-arr-hash-ops** *(audit R7, R8, R9 + atom-side at R29-related)* ✅ 2026-05-19 (Sonnet 4.6, one4all ac0e48f3, corpus 9f4e7af) — `TT_ARR_GET`, `TT_ARR_SET`, `TT_HASH_GET`, `TT_HASH_SET`, `TT_HASH_DELETE`, `TT_HASH_EXISTS` added to ast.h; lower.c dispatches SM_CALL_FN to arr_get/arr_set/hash_get/hash_set/hash_delete/hash_exists; 9 raku.y actions rewritten to ast_node_new+ast_push; raku.tab.c regenerated; 10 corpus .ref files regenerated. lower_baseline.txt rk_arr_get hash updated. Gates held.
 
-- [ ] **PRF-12-try** *(audit R10)* — `try { } catch { }` should produce `TT_TRY[body, opt_catch_body]` kind. `lower_try` selects `raku_try` runtime helper.
+- [x] **PRF-12-try** *(audit R10)* ✅ (prior session, lower_try implemented; checkbox was stale) — `TT_TRY[body, opt_catch_body]`; `lower_try` uses `raku_exc_clear`/`raku_exc_check`/`raku_exc_get` inline SM helpers. Verified working 2026-05-19 (Sonnet 4.6).
 
-- [ ] **PRF-12-unless** *(audit R11)* — explicit decision needed: (a) keep `unless` → `TT_IF(TT_NOT(...))` (synthesized TT_NOT not in source), or (b) introduce `TT_UNLESS` kind and let lower desugar. Decision: prefer (b) for purity (source token `unless` becomes the node kind directly).
+- [x] **PRF-12-unless** *(audit R11)* ✅ 2026-05-19 (Sonnet 4.6, one4all `3d4225d0`, corpus `f0e9cf4`) — `TT_UNLESS` kind already in ast.h; parser (510ad7be) already emitting pure `TT_UNLESS[cond, then_body, ?else_body]`; `lower_unless()` added to lower.c: SM_JUMP_S skips then-body when cond succeeds (falsy→run then, truthy→run else). 2 corpus `.ref` files regenerated (`unless_basic`, `unless_else`). Gates held.
 
-- [ ] **PRF-12-given** *(audit R14)* — `given_stmt` should build `TT_CASE` children directly from the `when_list` accumulator items (without wrapping each `(val,body)` pair in a temporary `TT_SEQ_EXPR` that is immediately dismantled and freed). Build pattern: each `when` reduction `expr_add_child(case_node, val); expr_add_child(case_node, body);` directly. No intermediate pair node. (The current `when_list` returns an ExprList ✅ — only the wrap-then-unwrap is the violation.)
+- [x] **PRF-12-given** *(audit R14)* ✅ 2026-05-19 (Sonnet 4.6, one4all `1787f2f9`, corpus `84e80db`) — `when_list` now pushes val+body directly into ExprList (flat); `given_stmt` iterates the flat list directly into `TT_CASE`. No intermediate `TT_SEQ_EXPR` pair node created or destroyed. 5 corpus `.ref` files added. Gates held. Note: pre-existing crash in `SM_BB_PUMP_CASE` Raku path for given-in-called-sub is outside this rung's scope.
 
 - [ ] **PRF-12-smatch** *(audit R20)* — `~~ /regex/` should produce `TT_SMATCH[subj, regex_qlit, flavor]` kind (where `flavor` is one of `TT_QLIT("match")` / `TT_QLIT("match_global")` / `TT_QLIT("subst")` — encoded as kind-or-value, decided in implementation). `lower_smatch` selects runtime helper.
 
@@ -264,7 +264,11 @@ On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 ## State
 
 ```
-watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-unless PARTIAL (parser done, lower pending); one4all 510ad7be
+watermark: 2026-05-19 (Sonnet 4.6) — PRF-12-given ✅ flat when_list; one4all 1787f2f9 corpus 84e80db
+           2026-05-19 (Sonnet 4.6) — PRF-12-my-type ✅ TT_DECL; one4all 74160514 corpus 1c5ce89
+           2026-05-19 (Sonnet 4.6) — PRF-12-try ✅ verified (was stale checkbox)
+           2026-05-19 (Sonnet 4.6) — PRF-12-unless ✅ (lower_unless + regen .ref); one4all 3d4225d0 corpus f0e9cf4
+           2026-05-19 (Sonnet 4.6) — PRF-12-unless PARTIAL (parser done, lower pending); one4all 510ad7be
            2026-05-19 (Sonnet 4.6) — PRF-12-for ✅; one4all e645ab4b corpus e6f7504
            2026-05-19 (Sonnet 4.6) — PRF-12-program ✅; one4all 2fed81d3 corpus 47a8845
 status: ⏳ Phase 1 NOT clean — 18 §⛔ violations remaining
@@ -293,7 +297,7 @@ audit findings (27 original, 12 closed):
   R3-6 ✅ closed PRF-12-say/print
   R7-9 ✅ closed PRF-12-arr-hash-ops
   R10  KW_TRY/KW_CATCH desugar (owned: PRF-12-try)
-  R11  KW_UNLESS desugar (owned: PRF-12-unless) — PARSER DONE (510ad7be); lower pending
+  R11  ✅ closed PRF-12-unless (lower_unless; regen unless_*.ref)
   R12-13 ✅ closed PRF-12-for
   R14  given_stmt pair wrap/unwrap (owned: PRF-12-given)
   R15  ✅ closed PRF-12-sub/PRF-12-body-splice
