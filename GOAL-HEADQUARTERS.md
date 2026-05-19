@@ -103,3 +103,51 @@ All IJ-* and DAI-1 through DAI-7 steps ✅. IJ-HELLO-1 through IJ-HELLO-5 ✅ (6
 - Icon AST walker (`bb_eval_value`/`bb_exec_stmt`/`icn_bb_build`) fully amputated (DAI-1 through DAI-7).
 - Hello-world matrix 6/6 wired: SNOBOL4/Snocone/Rebus always passing; Icon via `SM_BB_PUMP_PROC → call .L<entry_pc>`; Prolog via `rt_pl_once` (no broker); Raku via `SUB_TAG_ID` lower_stmt fix.
 - `rt_bb_once_proc` deleted; `rt_bb_pump_proc` never existed. Only `rt_pl_once` + `icn_bb_dcg` remain as bridge shims.
+
+---
+
+## IR Rename (moved from GOAL-PARSER-PURE-SYNTAX-TREE Stage 2, 2026-05-18)
+
+### Why
+
+Two confusingly-named prefixes exist today. `IR_t` and `IR_block_t` are the Byrd-box DCG nodes; `SM_Instr` and `SM_Program` are the stack-machine instruction stream. Both are IR. Neither name says what it is. The rename makes them symmetric and self-describing.
+
+### Legacy → renamed map
+
+| Today | After rename |
+|-------|--------------|
+| `SM_*` opcode names (`SM_HALT`, `SM_JUMP`, `SM_PUSH_LIT_S`, …) | **`IR_SM_*`** |
+| `sm_opcode_t` | `IR_sm_op_t` |
+| `sm_operand_t` | `IR_sm_arg_t` |
+| `SM_Instr` | `IR_sm_t` |
+| `SM_Program` | `IR_sm_program_t` |
+| `SmExpression_t` | `IR_sm_expr_t` |
+| `sm_*` API (`sm_emit*`, `sm_label*`, `sm_patch_jump`, `sm_prog_new`, …) | `ir_sm_*` |
+| `g_current_sm_prog` | `g_current_ir_sm_prog` |
+| `IR_*` enum (`IR_LIT_I`, `IR_PAT_*`, `IR_PL_*`, `IR_ICN_*`, …) | **`IR_BB_*`** |
+| `IR_e` | `IR_bb_op_t` |
+| `IR_t` | `IR_bb_t` |
+| `IR_block_t` | `IR_bb_block_t` |
+| `IR_alloc / IR_node_alloc / IR_reset / IR_free` | `IR_bb_alloc / IR_bb_node_alloc / IR_bb_reset / IR_bb_free` |
+| `IR_LANG_*` constants | stay as-is |
+
+### Must NOT rename
+
+- `BB_*` in `bb_box.h`, `bb_broker.h`, `bb_pool.h` — runtime Byrd-box engine
+- `SM_INTERP_*`, `SM_CALL_STACK_MAX`, `SM_GEN_LOCAL_MAX`, `SM_MAX_OPERANDS`, `SM_INTERP_SUSPENDED` — runtime/interpreter constants (exception: `SM_MAX_OPERANDS` → `IR_SM_MAX_OPERANDS`)
+- Header guards (`SM_INTERP_H`, `BB_BOX_H`, etc.)
+- Emitter-internal helper names (references to IR opcodes rename automatically via sed)
+
+### Rename step ladder
+
+- [ ] **IR-RN-0** — **Bulk rename** (single rung). Mechanical sed. No structural change. Gates must pass before commit.
+    - 0.1 — `scripts/audit_ir_names.sh`: print every renamed identifier, every preserved name, every ambiguous name needing manual review.
+    - 0.2 — `scripts/rename_ir_to_ir_bb.sh` and `scripts/rename_sm_to_ir_sm.sh`: explicit per-pattern sed rules, never blind global replace.
+    - 0.3 — Apply in two ordered passes: `IR_*`→`IR_BB_*` first, then `SM_*`→`IR_SM_*` (avoids collision).
+    - 0.4 — Split `sm_prog.h` and `IR.h` into `IR_sm.h` / `IR_bb.h`; old headers become one-line `#include` shims, deleted at end of rung.
+    - 0.5 — Gates green: build, all smoke tests, beauty self-host byte-identical.
+- [ ] **IR-RN-1** — Audit `lower.c` post-rename; confirm all lowering call sites use new names correctly.
+- [ ] **IR-RN-2** — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`, `emit_wasm.c`, `emit_net.c`) — all IR opcode references renamed; no old-name leakage.
+- [ ] **IR-RN-3** — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`) — new names throughout.
+- [ ] **IR-RN-4** — Update all arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`, `GOAL-HEADQUARTERS.md`) to use new names.
+- [ ] **IR-RN-5** — Cross-language gate run: all six frontends + broker + smoke + beauty. Close rung.
