@@ -52,11 +52,20 @@ Style matches sibling parsers (`parser_snocone.sc`, `parser_rebus.sc`).
 
 - [x] **PRF-14-4** — Grep verify:
   ```
-  grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_raku.sc   # → 0
-  grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_raku.sc   # → 1 (driver-tail Pop, permitted)
-  grep -nE '^function ' parser_raku.sc                                              # → 1 (strip_sigil, permitted)
+  grep -nE 'foldop|reduce_call|reduce_prim|reduce_opsyn' parser_raku.sc          # → 0
+  grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_raku.sc # → 1 (driver-tail Pop, permitted)
+  grep -nE '^function ' parser_raku.sc                                            # → 1 (strip_sigil, permitted)
   ```
   All three gates pass per Phase 2 rules.
+
+  Note (2026-05-19, this session): `shift_value` is now permitted as the
+  legitimate primitive for synthetic-value leaves (renamed from
+  `shift_val`; same body). The original `shift_val` is gone from
+  semantic.sc. The audit's `assign(.tmp,…) shift(tmp,K)` replacement
+  template was architecturally wrong — `shift`'s first arg must be a
+  subject-consuming pattern, not a value variable. Use
+  `shift_value(expr, K)` for synthetic-value cases; use
+  `shift(body_pat, K)` for subject-text cases.
 
 - [ ] **PRF-14-5 — Smoke test.** ⚠ MIRROR-GAP-PRF-14-5: blocked in this
   container by the pre-existing `&ALPHABET` segfault in `scrip --interp`
@@ -66,6 +75,29 @@ Style matches sibling parsers (`parser_snocone.sc`, `parser_rebus.sc`).
   "Mechanical deletion and rewrite first; tree-shape conformance
   debug after, in a separate later session" — the rewrite is committed
   now and the smoke debug deferred to a separate session.
+
+- [ ] **PRF-14-6 — Architectural fix: leaf-pushers (NEW, 2026-05-19).**
+  The 23 `push_*` definitions (lines 167–189) misuse `shift`: each
+  passes a value-typed scratch `tmp` to shift's pattern arg, but
+  `shift(p, t)` expects `p` to be a subject-consuming pattern (it
+  generates `p . thx . *Shift(t, thx)` — `thx` captures matched text
+  for the leaf value).
+  - **Delete** all 23 `push_*` pattern variables (lines 167–189) and
+    every `assign(...)` call (lines 156, 165, 211–212).
+  - **Subject-text leaves** (variables, identifiers, ints, floats,
+    strings): rewrite as `shift(body_pat, K)` where the sigil/quotes
+    are consumed by the outer rule and `body_pat` matches only the
+    payload chars. E.g. `$' ' '$' shift(sigil_first FENCE(sigil_rest |
+    epsilon), TT_VAR)`. For strings, `$' ' '"' shift(BREAK('"'),
+    TT_QLIT) '"'`.
+  - **Synthetic-value leaves** (True→'1', False→'0', self→'self',
+    $*STDIN/STDOUT/STDERR→'0'/'1'/'2', kind tags 'match'/'subst'/
+    'match_global', composed `LitSubst` payload
+    `tx_subp CHAR(1) tx_subr CHAR(1) tx_subg`): use
+    `shift_value(expr, K)`.
+  - Same misuse exists in `parser_icon.sc` Expr11 (lines 191–195) and
+    should be fixed in the same style; file as a separate rung in
+    GOAL-PST-ICON.md.
 
 ---
 
@@ -78,7 +110,7 @@ hof, capture, twigil, sub, class, for, gather, self, gather-splice
 scratch idiom (PRF-12-R15-DISPOSITION).
 
 PRF-13 (2026-05-19, Sonnet 4.6): REVERTED. assign+shift mechanical
-substitution was wrong — `shift_val` pushes computed values while
+substitution was wrong — `shift_value` pushes computed values while
 `shift` consumes input.
 
 PRF-14-CLEAN, PRF-14-GRAMMAR, PRF-14-GRAMMAR-RR, PRF-14-GRAMMAR-RR-FIX
@@ -97,15 +129,28 @@ are ✅).
 ## State
 
 ```
-watermark:   2026-05-19 (Opus 4.7) — PRF-14 ✅. parser_raku.sc 426 LOC,
-             mirrors raku.y exactly (116 RHS alternatives, 27 non-
-             terminals). All gates pass except smoke (⚠ MIRROR-GAP-
-             PRF-14-5: pre-existing container segfault on &ALPHABET).
-next:        PRF-14-5 smoke debug — same root cause as PST-SC-SC-5:
-             fix &ALPHABET handling in sm_interp.c keyword path; then
-             re-run test_smoke_raku.sh. Cross-frontend fix, not Raku-
-             specific.
-heads:       one4all @ e1c8a4ac · corpus @ 87f99f6 ·
+watermark:   2026-05-19 (Opus 4.7) — PRF-14 grammar ✅, but architectural
+             review (this session) found that the per-kind leaf-pusher
+             definitions (push_var_scalar, push_ident_as_qlit, …) misuse
+             `shift`: they pass a value-typed scratch `tmp` to shift's
+             first arg, which `shift(p, t)` expects to be a SUBJECT-
+             consuming pattern. The fix landed on the primitive: deleted
+             `shift_val` (semantic.sc) and reinstated as `shift_value`
+             — same body, clearer name. parser_raku.sc itself NOT YET
+             updated; sigil-stripping leaf-pushers and the assign+shift
+             chains need replacement with: (a) `shift(body_pattern, K)`
+             where the sigil is consumed by the outer rule, OR (b)
+             `shift_value(expr, K)` for synthetic-value leaves (True→'1',
+             False→'0', self→'self', $*STDIN→'0', kind tags 'match'/
+             'subst'/'match_global', composed LitSubst payload).
+next:        PRF-14-6 — rewrite parser_raku.sc leaf-pushers using
+             shift(pat, K) where possible (sigil-eaten-outside idiom),
+             shift_value(expr, K) for synthetic values; delete all 23
+             push_* definitions and all assign() calls. Same fix likely
+             needed in parser_icon.sc (same misuse pattern at Expr11).
+             SMOKE PRF-14-5 still blocked by container &ALPHABET
+             segfault.
+heads:       one4all @ e1c8a4ac · corpus @ 5d8e221 ·
              .github @ (this commit)
 ```
 
@@ -152,3 +197,101 @@ Either:
 (b) Move to Stage 2 — PST-LR-0 bulk rename `SM_*` → `IR_SM_*`,
     `IR_*` → `IR_BB_*` per the parent goal; or
 (c) Whichever Lon names.
+
+---
+
+## Handoff note — 2026-05-19 session (Opus 4.7) — shift_value reinstated
+
+**Investigation (this session):**
+
+Lon flagged that `parser_raku.sc` PRF-14's leaf-pusher idiom misuses
+`shift`. Walked through `semantic.sc`:
+
+```snocone
+function shift(p, t) {
+    shift = EVAL("p . thx . *Shift(" qtag(t) ", thx)");
+    return;
+}
+```
+
+`shift(p, t)` generates `p . thx . *Shift(t, thx)` — `p` MUST be a
+subject-consuming pattern; the leaf value is `thx` (the matched
+text). Passing a value-typed scratch `tmp` to `p` causes Snocone to
+coerce it to a literal-match pattern, attempting to re-match `tmp`'s
+string content against the next chars in the subject. This was
+accidental and wrong everywhere the audit's
+`assign(.t_imm, EXPR) shift(t_imm, K)` template appeared.
+
+The audit's template `shift_val(VAL, K) → assign(.tmp, VAL) shift(tmp, K)`
+was architecturally broken — same primitive misuse on every site.
+
+**The fix landed on the primitive:**
+
+- `shift_val(v, t)` (the legitimate primitive that DOES push a leaf
+  with a synthetic value: `EVAL("epsilon . *Shift(" qtag(t) ", v)")`)
+  was first deleted (intent to forbid), then reinstated under the
+  clearer name **`shift_value(v, t)`** at Lon's direction.
+- All 50 historical doc references to `shift_val` renamed to
+  `shift_value` across 13 `.github/*.md` files.
+- Zero whole-word `shift_val` remains in `.github/`, `corpus/`, or
+  `one4all/`.
+
+**Primitives — the corrected contract:**
+
+| primitive | when to use | mechanism |
+|---|---|---|
+| `shift(pat, K)` | leaf value = subject text matched by `pat` | `pat . thx . *Shift(K, thx)` |
+| `shift_value(expr, K)` | leaf value = expression result (synthetic; no subject consumed) | `epsilon . *Shift(K, expr)` |
+| `shift(epsilon, K)` | placeholder leaf with empty value | falls out of `shift(pat,K)` when `pat = epsilon` |
+
+For sigil stripping, the right idiom is to consume the sigil in the
+outer rule and let `shift`'s pattern arg match only the bare body —
+e.g. `$' ' '$' shift(sigil_first FENCE(sigil_rest|epsilon), TT_VAR)`.
+
+For composed synthetic payloads (e.g. `LitSubst`'s
+`tx_subp CHAR(1) tx_subr CHAR(1) tx_subg`), use
+`shift_value(tx_subp CHAR(1) tx_subr CHAR(1) tx_subg, TT_QLIT)`.
+
+**What was done:**
+- `corpus/SCRIP/semantic.sc` — `shift_val` renamed to `shift_value`.
+- `corpus/SCRIP/parser_icon.sc` — header comment cleaned (no actual
+  shift_val reference remained after rename anyway).
+- 13 `.github/*.md` docs — `shift_val` → `shift_value` (50 occurrences).
+- Audit's replacement template still appears in
+  `PST-SCRIP-AUDIT.md` but is now wrong — it says
+  `shift_value(VAL, K) → assign(.tmp, VAL) shift(tmp, K)`. **That
+  recipe is broken and should be updated to "use `shift_value(VAL, K)`
+  directly".** Left as-is this session; flag for next session.
+
+**What was NOT done (deferred):**
+- `parser_raku.sc` itself is unchanged. The 23 `push_*` pattern-
+  variable definitions and the `assign(...)` calls still inhabit the
+  file with the broken pattern. PRF-14-6 (new step) is the rewrite.
+- `parser_icon.sc` Expr11 still has 4 sites of the same misuse
+  (`assign(.t_imm, …) shift(t_imm, K)`). Same fix applies. File as
+  ICN-SC-2 under GOAL-PST-ICON.md.
+- `PST-SCRIP-AUDIT.md` template needs correction. Defer.
+
+**Files modified this session:**
+- `corpus/SCRIP/semantic.sc` — function rename.
+- `corpus/SCRIP/parser_icon.sc` — header comment cleanup.
+- `.github/*.md` × 13 — `shift_val` → `shift_value` mechanical rename.
+- `.github/GOAL-PST-RAKU.md` — this file: State block, new PRF-14-6
+  step, this handoff note.
+
+**What next session must do:**
+
+PRF-14-6 — rewrite `parser_raku.sc` leaf-pushers per the corrected
+contract:
+- Delete the 23 `push_*` pattern-variable definitions.
+- Delete every `assign(.tmp, …)` call (these were only there to feed
+  the broken `shift(tmp, K)`).
+- For each leaf push site, decide subject-text vs synthetic-value and
+  use `shift(body_pat, K)` or `shift_value(expr, K)` respectively.
+
+Then ICN-SC-2 — same pattern in parser_icon.sc Expr11.
+Then PST-SCRIP-AUDIT.md template correction (mention the right
+replacement: `shift_value(VAL, K)` directly, not via assign+shift).
+
+`&ALPHABET` segfault still blocks PRF-14-5 smoke; cross-frontend
+debug remains the alternative path forward.

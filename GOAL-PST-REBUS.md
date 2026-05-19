@@ -26,7 +26,7 @@ ops also permitted.
 - [x] **RB-SC-1** — Read `corpus/SCRIP/parser_rebus.sc` and confirm no
   helper functions, no forbidden primitives. Grep:
   ```
-  grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_rebus.sc
+  grep -nE 'shift_value|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_rebus.sc
   grep -nE '^function ' parser_rebus.sc
   grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_rebus.sc
   ```

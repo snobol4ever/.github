@@ -512,7 +512,7 @@ So these names are pre-defined and ready to use:
 **Forbidden for Phase 2 grammar rules** (these EXIST in the library
 but must not be called from `Compiland` or any reduced grammar rule):
 `Push`, `Pop`, `Top`, `Tree`, `tree`, `Append`, `Prepend`, `Insert`,
-`Remove`, `IncCounter`, `TopCounter`, `shift_val`, `foldop`,
+`Remove`, `IncCounter`, `TopCounter`, `shift_value`, `foldop`,
 `reduce_call`, `reduce_prim`, `reduce_opsyn`. Permitted only in the
 driver tail's root-retrieval `Pop()` and the library-internal code.
 
@@ -646,7 +646,7 @@ time, but by then `var` may be reused with a different value.
 
 Phase 2 goals require this idiom less often than Phase 1 helpers did —
 because grammar rules now embed values via `assign(.tmp, val) shift(tmp, kind)`
-instead of `shift_val(val, kind)`. But the parsers still use EVAL inside
+instead of `shift_value(val, kind)`. But the parsers still use EVAL inside
 their token-aliasing layer at the top of the file. Leave that alone.
 
 ### `epsilon . *fn()` — the canonical fire-side-effect pattern
@@ -811,7 +811,7 @@ permitted: `dq_unescape`, `unescape_q`, `sn_match`, `sn_upr`, `notmatch`,
 
 Forbidden everywhere except library-internal and driver tail:
 `Push`, `Pop` (in rules), `Tree`, `tree`, `Append`, `Prepend`, `Insert`,
-`Remove`, `IncCounter`, `TopCounter`, `shift_val`, `foldop`,
+`Remove`, `IncCounter`, `TopCounter`, `shift_value`, `foldop`,
 `reduce_call`, `reduce_prim`, `reduce_opsyn`, every `function X()
 { Push/Pop/Tree/Append/... }`.
 

@@ -24,7 +24,7 @@ calls instead**. This is the core reason PRF-13 was reverted and PRF-14 is neede
 
 ### B. Raku-specific kinds raku.y emits that the old SC parser didn't
 
-The old SC parser was lowering these to `shift_val('raku_xxx', 'TT_VAR') ... reduce('TT_FNC', n)`
+The old SC parser was lowering these to `shift_value('raku_xxx', 'TT_VAR') ... reduce('TT_FNC', n)`
 — a generic indirect-call shape. The C parser uses **dedicated** node kinds. The rewrite
 must follow the C parser's choice; `lower_raku.c` will consume the dedicated kinds.
 
@@ -64,7 +64,7 @@ must follow the C parser's choice; `lower_raku.c` will consume the dedicated kin
 The old SC parser had `BEGIN`/`END`/`INIT`/`CHECK`/`ENTER`/`LEAVE`/`KEEP`/`UNDO`/`FIRST`/
 `NEXT`/`LAST`/`PRE`/`POST`/`CLOSE`/`TEMP`/`CATCH`/`CONTROL`/`QUIT`/`do`/`once`/`start`/
 `supply`/`react`/`quietly`/`race`/`hyper`/`lazy`/`eager`/`sink`/`whenever`/`without`
-phaser/control statements, each lowered as `shift_val('raku_BEGIN', 'TT_VAR') ... reduce('TT_FNC', 2)`.
+phaser/control statements, each lowered as `shift_value('raku_BEGIN', 'TT_VAR') ... reduce('TT_FNC', 2)`.
 
 **raku.y does not parse any of these.** Either:
 - Decision A: drop them from the SC parser (match raku.y exactly).

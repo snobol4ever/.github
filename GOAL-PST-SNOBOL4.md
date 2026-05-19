@@ -21,7 +21,7 @@ classifiers used in token recognition; no tree ops).
 
 `shift(p, kind)` · `reduce(kind, n)` · `nPush()` · `nInc()` · `nPop()` ·
 `nTop()` · `assign(.var, val)`. Plus pure string preprocessors:
-`sn_match`, `sn_upr`. Forbidden: `shift_val`, `foldop`, `reduce_call`,
+`sn_match`, `sn_upr`. Forbidden: `shift_value`, `foldop`, `reduce_call`,
 `reduce_prim`, `reduce_opsyn`, `Push`, `Pop`, `Tree`, `tree`, `Append`,
 `IncCounter`, `TopCounter`.
 
@@ -91,7 +91,7 @@ classifiers used in token recognition; no tree ops).
 
 - [ ] **SN4-SC-5** — Grep verify:
   ```
-  grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_snobol4.sc
+  grep -nE 'shift_value|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_snobol4.sc
   ```
   Expected: zero hits.
 

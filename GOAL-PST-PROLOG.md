@@ -185,7 +185,7 @@ lower expands.
 
 - [x] **PL-SC-7** — Grep verify:
   ```
-  grep -nE 'shift_val|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_prolog.sc
+  grep -nE 'shift_value|foldop|reduce_call|reduce_prim|reduce_opsyn' parser_prolog.sc
   grep -nE '\b(Push|Pop|Tree|tree|Append|IncCounter|TopCounter)\(' parser_prolog.sc
   grep -nE '^function ' parser_prolog.sc
   ```
