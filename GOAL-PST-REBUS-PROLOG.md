@@ -1,7 +1,7 @@
 # GOAL-PST-REBUS-PROLOG.md — Pure Syntax Tree: Rebus + Prolog Rewrite
 
 **Repo:** one4all + corpus + .github
-**Parent goal:** `GOAL-HQ.md` (Steps 5 and 6)
+**Parent goal:** `GOAL-PARSER-PURE-SYNTAX-TREE.md` (Steps 5 and 6)
 **Status:** Active — PST-RB-5a next
 
 ```
@@ -186,7 +186,7 @@ Gates per rung: `smoke_prolog`, `crosscheck_prolog`, `smoke_scrip_all_modes`,
 5. Variable-slot assignment lives exclusively in `prolog_lower.c` pre-lower pass.
 6. All gate scripts green at baseline.
 7. Beauty self-host byte-identical (Milestone 1 protected).
-8. Parent goal `GOAL-HQ.md` Steps 5 and 6 checked [x].
+8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 5 and 6 checked [x].
 
 On completion: update parent goal's step ladder, bump watermark,
 commit and push HQ.

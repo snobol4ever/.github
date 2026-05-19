@@ -1,7 +1,7 @@
 # GOAL-PST-ICN-RAKU.md — Pure Syntax Tree: Icon + Raku Audit
 
 **Repo:** one4all + corpus + .github
-**Parent goal:** `GOAL-HQ.md` (Steps 2 and 3)
+**Parent goal:** `GOAL-PARSER-PURE-SYNTAX-TREE.md` (Steps 2 and 3)
 **Status:** Active — PST-ICN-4a next (SCRIP mirror helper elimination)
 
 ```
@@ -11,7 +11,7 @@
 ```
 
 Icon and Raku are expected mostly clean — targeted audits only.
-Snocone rewrite (Step 4) lives in `GOAL-HQ.md` and
+Snocone rewrite (Step 4) lives in `GOAL-PARSER-PURE-SYNTAX-TREE.md` and
 continues in the same session as SNOBOL4 cleanup.
 
 ---
@@ -145,7 +145,7 @@ bash /home/claude/one4all/scripts/test_crosscheck_snobol4.sh   # regression guar
 functions that perform tree Pop/inspect/reassemble instead of pure `shift`/`reduce`.
 The C-side violations were fixed in PST-ICN-2b but the SCRIP mirror was not brought
 to `{shift, reduce}` only — it retained the old helper pattern.  The parent goal
-(`GOAL-HQ.md`) requires every frontend's SCRIP mirror to be
+(`GOAL-PARSER-PURE-SYNTAX-TREE.md`) requires every frontend's SCRIP mirror to be
 expressible as shift + reduce with no helpers that inspect previously-built children.
 
 **Violations in `corpus/SCRIP/parser_icon.sc`:**
@@ -503,7 +503,7 @@ for this goal — it lives elsewhere (or as a follow-on goal).
        its use site in parser_raku.sc.
    **Icon function count: 0/0 (sidecar deleted). Raku function count: 1/1+stubs
    (raku_stubs.sc still present; deletion is the only remaining work).**
-8. Parent goal `GOAL-HQ.md` Steps 2 and 3 updated.
+8. Parent goal `GOAL-PARSER-PURE-SYNTAX-TREE.md` Steps 2 and 3 updated.
 
 On completion: update parent goal step ladder, bump watermark, commit + push HQ.
 
