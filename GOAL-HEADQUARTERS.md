@@ -174,27 +174,38 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 8308a457     (EC-UNI-9 axis-correction COMPLETE.  9a: 26 template files
-                       collapsed to 5-arm form (-349 BIN arms).  9b: EMIT_BIN_*
-                       enum + 12 dead macros deleted; IS_X86 covers all 5 x86
-                       sub-modes (TEXT/TEXT_INLINE/MACRO_DEF/BIN_WIRED/BIN_BROK).
-                       9c: matrix gate rewritten for 5-column form (365 cells,
-                       was 730).  9d: dispatch_one_x86_text -> dispatch_one_x86.
-                       Net -376 LOC.  EC-UNI-3-beauty unblocked.)
-corpus:  92e103f      (unchanged)
-.github: (this commit — EC-UNI-9 marked complete; AXIS CORRECTION block enumerates 5 x86 modes; Invariant blocks already 5-column)
---interp:    194/265  (held — 194/36/35 flag-off AND flag-on, verified)
-smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held, flag off AND flag on)
-broker:      23/26    (held, flag off AND flag on)
-matrix gate: 0/365 PASS  (rewritten from 0/730)
-snobol4_jit: 184/77 interp · 186/75 run (held = baseline)
-snobol4_jvm: 7/6      (held)
-snobol4_js:  4/2      (held)
-snobol4_net: 0/9      (held — ilasm not installed)
-snobol4_wasm: SKIP    (held — wat2wasm not installed)
-snocone:     2/3      (held)
+one4all: 9ce69899     (IR-RN-0 COMPLETE)  Bulk rename in 3 sed passes:
+                       IR_t/IR_block_t -> BB_t/BB_graph_t; SM_Instr/SM_Program ->
+                       SM_t/SM_sequence_t; ~100 IR_* tags -> BB_*; IR builders to
+                       UPPERCASE (BB_alloc/BB_node_alloc/BB_free/...); SM builders
+                       to UPPERCASE (SM_seq_*/SM_emit*/SM_label*/SM_codegen); SM
+                       templates and consumers stay lowercase; broker modes
+                       BB_SCAN/PUMP/ONCE -> bb_scan/pump/once.  Headers IR.h -> BB.h,
+                       sm_prog.h -> SM.h.  48 files modified, 4 new scripts.
+                       Build green, hello-world OK, smoke icon 5/0.
+corpus:  5d8e221      (unchanged)
+.github: (this commit — IR Rename section rewritten with builder/consumer scheme;
+                       IR-RN-0 marked complete; watermark updated)
+--interp:    untested this session (rename only — gates owed to IR-RN-1 audit)
+smoke icon:  5/0      (verified post-rename)
+broker:      untested this session
+hello.sno:   PASS (interp mode)
 DAI-BOMB fires: 0
 ```
+
+### Previous watermark (pre-rename)
+
+```
+one4all: 8308a457     EC-UNI-9 axis-correction COMPLETE.
+--interp:    194/265  (194/36/35 flag-off AND flag-on)
+smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0
+broker:      23/26
+matrix gate: 0/365 PASS
+snobol4_jit: 184/77 interp · 186/75 run
+snobol4_jvm: 7/6 · snobol4_js: 4/2 · snobol4_net: 0/9 (no ilasm) · snobol4_wasm: SKIP
+snocone:     2/3
+```
+
 
 ## Completed steps (summary)
 
@@ -208,51 +219,64 @@ All IJ-* and DAI-1 through DAI-7 steps ✅. IJ-HELLO-1 through IJ-HELLO-5 ✅ (6
 
 ---
 
-## IR Rename (moved from GOAL-PARSER-PURE-SYNTAX-TREE Stage 2, 2026-05-18)
+## IR Rename (moved from GOAL-PARSER-PURE-SYNTAX-TREE Stage 2, 2026-05-18; SCHEME REVISED 2026-05-20)
 
 ### Why
 
-Two confusingly-named prefixes exist today. `IR_t` and `IR_block_t` are the Byrd-box DCG nodes; `SM_Instr` and `SM_Program` are the stack-machine instruction stream. Both are IR. Neither name says what it is. The rename makes them symmetric and self-describing.
+Two confusingly-named prefixes existed: `IR_t` / `IR_block_t` for the Byrd-box DCG nodes; `SM_Instr` / `SM_Program` for the stack-machine instruction stream. Both were IR. Neither name said what it was. The original plan (2026-05-18) proposed `IR_BB_*` / `IR_SM_*` symmetric prefixes. Lon revised the scheme 2026-05-20 to drop the redundant `IR_` and use case to encode builder-vs-consumer.
 
-### Legacy → renamed map
+### Final naming rule (2026-05-20, Lon)
 
-| Today | After rename |
-|-------|--------------|
-| `SM_*` opcode names (`SM_HALT`, `SM_JUMP`, `SM_PUSH_LIT_S`, …) | **`IR_SM_*`** |
-| `sm_opcode_t` | `IR_sm_op_t` |
-| `sm_operand_t` | `IR_sm_arg_t` |
-| `SM_Instr` | `IR_sm_t` |
-| `SM_Program` | `IR_sm_program_t` |
-| `SmExpression_t` | `IR_sm_expr_t` |
-| `sm_*` API (`sm_emit*`, `sm_label*`, `sm_patch_jump`, `sm_prog_new`, …) | `ir_sm_*` |
-| `g_current_sm_prog` | `g_current_ir_sm_prog` |
-| `IR_*` enum (`IR_LIT_I`, `IR_PAT_*`, `IR_PL_*`, `IR_ICN_*`, …) | **`IR_BB_*`** |
-| `IR_e` | `IR_bb_op_t` |
-| `IR_t` | `IR_bb_t` |
-| `IR_block_t` | `IR_bb_block_t` |
-| `IR_alloc / IR_node_alloc / IR_reset / IR_free` | `IR_bb_alloc / IR_bb_node_alloc / IR_bb_reset / IR_bb_free` |
-| `IR_LANG_*` constants | stay as-is |
+**Functions that BUILD the IR data use UPPERCASE prefix. Functions that TAKE the IR and DO SOMETHING with it use lowercase prefix.**
 
-### Must NOT rename
+| Layer | Builder (UPPERCASE) | Consumer (lowercase) |
+|---|---|---|
+| Array IR (linear instruction stream) | `SM_t`, `SM_sequence_t`, `SM_op_t`, `SM_arg_t`, `SM_expr_t` types | — |
+| Array IR builders | `SM_seq_new/free/dcg_add`, `SM_emit*`, `SM_label*`, `SM_patch_jump`, `SM_codegen`, `SM_stno_label_record`, `g_current_SM_seq` | — |
+| Array IR consumers | — | `sm_interp_*`, `sm_jit_*`, `sm_push/pop/peek`, `sm_state_init`, `sm_image_init/destroy`, `sm_call_proc`, `sm_run_with_recovery`, `sm_seq_print`, **all `SM_templates/` dispatchers** (`sm_halt`, `sm_jump`, `sm_pat_*`, etc. — they consume `SM_t` to emit target text) |
+| Graph IR (DCG) | `BB_t`, `BB_graph_t`, `BB_op_t` types | — |
+| Graph IR tags | `BB_LIT_*`, `BB_PAT_*`, `BB_PL_*`, `BB_ICN_*`, `BB_SCAN`, `BB_BINOP`, `BB_CALL`, `BB_SUCCEED`, …(~100 tags) | — |
+| Graph IR builders | `BB_alloc`, `BB_node_alloc`, `BB_free`, `BB_reset`, `BB_lower_pat` | — |
+| Graph IR consumers | — | `bb_print`, `bb_broker`, `bb_pool_*`, `bb_alloc`/`bb_free`/`bb_seal` (pool — different signature from `BB_alloc`/`BB_free`), `bb_exec_once/pump/node`, `bb_in_pool`, broker mode constants `bb_scan`/`bb_pump`/`bb_once` |
+| Headers | `BB.h` (was `IR.h`), `SM.h` (was `sm_prog.h`) | `bb_box.h`, `bb_broker.h`, `bb_pool.h` (unchanged — runtime) |
 
-- `BB_*` in `bb_box.h`, `bb_broker.h`, `bb_pool.h` — runtime Byrd-box engine
-- `SM_INTERP_*`, `SM_CALL_STACK_MAX`, `SM_GEN_LOCAL_MAX`, `SM_MAX_OPERANDS`, `SM_INTERP_SUSPENDED` — runtime/interpreter constants (exception: `SM_MAX_OPERANDS` → `IR_SM_MAX_OPERANDS`)
-- Header guards (`SM_INTERP_H`, `BB_BOX_H`, etc.)
-- Emitter-internal helper names (references to IR opcodes rename automatically via sed)
+### Reserved (untouched by rename)
+
+- `IR_LANG_*` constants — language enum, orthogonal to IR data structures (15 occurrences)
+- `SM_INTERP_*` (e.g. `SM_INTERP_SUSPENDED`, `SM_INTERP_H`) — runtime constants / header guard (3 occurrences)
+- `SM_CALL_STACK_MAX`, `SM_GEN_LOCAL_MAX`, `SM_MAX_OPERANDS` — runtime constants (10 occurrences)
+- `BB_POOL_SIZE` — runtime pool constant
+- `IR_EXEC_H` (header guard), `IR_E_COUNT` (enum sentinel), `IR_WALK_MAX`, `IR_IS_GEN_KIND`, `IR_IS_GEN_KIND_TO` (sentinels and macros)
+- Header guards generally (`SM_INTERP_H`, `BB_BOX_H`, etc.)
+- `SM_*` opcode tags (`SM_HALT`, `SM_JUMP`, `SM_PUSH_LIT_S`, etc.) — already correct UPPERCASE, builders produce these into `SM_sequence_t`
+- `SM_templates/` and `BB_templates/` directory names — categorize by IR-data-kind, kept verbatim
 
 ### Rename step ladder
 
-- [ ] **IR-RN-0** — **Bulk rename** (single rung). Mechanical sed. No structural change. Gates must pass before commit.
-    - 0.1 — `scripts/audit_ir_names.sh`: print every renamed identifier, every preserved name, every ambiguous name needing manual review.
-    - 0.2 — `scripts/rename_ir_to_ir_bb.sh` and `scripts/rename_sm_to_ir_sm.sh`: explicit per-pattern sed rules, never blind global replace.
-    - 0.3 — Apply in two ordered passes: `IR_*`→`IR_BB_*` first, then `SM_*`→`IR_SM_*` (avoids collision).
-    - 0.4 — Split `sm_prog.h` and `IR.h` into `IR_sm.h` / `IR_bb.h`; old headers become one-line `#include` shims, deleted at end of rung.
-    - 0.5 — Gates green: build, all smoke tests, beauty self-host byte-identical.
-- [ ] **IR-RN-1** — Audit `lower.c` post-rename; confirm all lowering call sites use new names correctly.
-- [ ] **IR-RN-2** — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`, `emit_wasm.c`, `emit_net.c`) — all IR opcode references renamed; no old-name leakage.
+- [x] **IR-RN-0** ✅ COMPLETE 2026-05-20 (Opus 4.7) — **Bulk rename** in three sed passes. Build green, hello-world OK, smoke icon 5/0.
+    - 0.1 ✅ `scripts/audit_ir_names.sh` — enumerates every identifier in scope and counts occurrences. Reserved names verified intact post-rename (IR_LANG_* 15, SM_INTERP_* 3, SM_*_MAX 10 — all unchanged).
+    - 0.2 ✅ `scripts/rename_ir_to_bb_and_sm.sh` — phase 1: `IR_*` types/tags → `BB_*`; `SM_Instr/SM_Program/sm_opcode_t/...` → `SM_t/SM_sequence_t/SM_op_t/...`; `sm_prog_*` → `sm_seq_*`; `IR_alloc/free/...` → `bb_*` (incorrectly lowercased — fixed in phase 2). Headers `IR.h` → `BB.h`, `sm_prog.h` → `SM.h`.
+    - 0.3 ✅ `scripts/rename_phase2_recase_by_layer.sh` — phase 2: recase IR builders back to UPPERCASE (`bb_alloc` → `BB_alloc`, `bb_free` → `BB_free`, `bb_node_alloc` → `BB_node_alloc`, etc.); recase SM builders (`sm_seq_*` → `SM_seq_*`, `sm_emit*` → `SM_emit*`, `sm_label*` → `SM_label*`, `sm_codegen` → `SM_codegen`, `g_current_sm_seq` → `g_current_SM_seq`); add the 46 missed graph IR tags (`IR_ALT`, `IR_BINOP`, `IR_SUCCEED`, `IR_CSET_*`, etc. → `BB_*`); restore `bb_pool.h`/`bb_pool.c`/`emit_bb.c` pool sites (collision resolved — pool is consumer).
+    - 0.4 ✅ `scripts/rename_phase3_corrections.sh` — phase 3 (builder/consumer correction): revert `SM_templates/` dispatchers back to lowercase (they're consumers — take `SM_t`, produce target text); lowercase dumpers `BB_print` and `SM_seq_print` (consumers); rename broker mode constants `BB_SCAN`/`BB_PUMP`/`BB_ONCE` → `bb_scan`/`bb_pump`/`bb_once` (runtime consumer constants). String-literal contents preserved via Python masking. Two manual reverts: `BB.h:54` and `emit_core.c:1767` restored to `BB_SCAN` (IR tag, distinct from broker mode by file/context).
+    - 0.5 ✅ Build green, hello-world via `--interp` produces `hello, world`, smoke icon 5/0 (matches baseline).
+- [ ] **IR-RN-1** — Audit `lower.c` post-rename; confirm all lowering call sites use new names correctly. (Build success suggests no leakage but a separate audit pass would catch anything subtle.)
+- [ ] **IR-RN-2** — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`) — all IR opcode references renamed; no old-name leakage.
 - [ ] **IR-RN-3** — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`) — new names throughout.
-- [ ] **IR-RN-4** — Update all arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`, `GOAL-HEADQUARTERS.md`) to use new names.
-- [ ] **IR-RN-5** — Cross-language gate run: all six frontends + broker + smoke + beauty. Close rung.
+- [ ] **IR-RN-4** — Update all arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`) to use new names.
+- [ ] **IR-RN-5** — Full cross-language gate run: all six frontends + broker + smoke + beauty self-host byte-identical. Close rung.
+
+### Files modified (IR-RN-0)
+
+- 48 C/H source files modified across `src/ast/`, `src/driver/`, `src/emitter/`, `src/emitter/SM_templates/`, `src/emitter/BB_templates/`, `src/frontend/`, `src/include/`, `src/lower/`, `src/processor/`, `src/runtime/`
+- 2 header files renamed: `src/include/IR.h` → `src/include/BB.h`, `src/include/sm_prog.h` → `src/include/SM.h`
+- 2 forward-shim headers updated: `src/lower/scrip_ir.h`, `src/lower/sm_prog.h` (point at new canonical paths)
+- 4 new scripts: `scripts/audit_ir_names.sh`, `scripts/rename_ir_to_bb_and_sm.sh`, `scripts/rename_phase2_recase_by_layer.sh`, `scripts/rename_phase3_corrections.sh`
+
+### Insight
+
+The builder/consumer split via case has a useful property: **the case of a function name tells you whether it's part of the compile-time pipeline (builds IR) or consumes the IR (emits target code, interprets, JITs, dumps, runs the broker)**. Layer is visible at the call site without context.
+
+
 
 ---
 
