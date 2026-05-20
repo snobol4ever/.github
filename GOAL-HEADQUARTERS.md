@@ -135,7 +135,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 42908963     (EC-UNI-3 partial: feature-flag-gated unified dispatch hook in emit_walk_codegen — g_emit_use_unified_dispatch + SCRIP_UNIFIED_DISPATCH env var + dispatch_one_x86_text covering all 52 templated opcodes. Mode-set invariant surfaced and fixed. Flag-off and flag-on both pass smoke + broker + icon rungs at floor; hello.sno --compile diff is GAS-comment-only EC-UNI-2b SrcLines drift. EC-UNI-3-beauty owed: byte-identity gate on beauty.sno.)
+one4all: eca7cc34     (EC-UNI-8.2 SM+BB matrix expansion: emit_core.h gets IS_JVM_TEXT/IS_JVM_BIN/IS_JS_TEXT/IS_JS_BIN/IS_NET_TEXT/IS_NET_BIN/IS_WASM_TEXT/IS_WASM_BIN macros; every fn in 5 SM_templates files + 16 BB_templates files carries explicit arm or n/a comment per cell. Byte-identity by construction — _TEXT macros evaluate to the same predicate the bare IS_* macros did. _BIN arms unreachable today; EC-UNI-7 wires bytes. Promotion scripts ec_uni_8_promote*.py in scripts/. Gates floor flag-off AND flag-on: 5/0·23/26·194/36/35. EC-UNI-3-beauty still owed.)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held, flag-irrelevant)
@@ -311,10 +311,41 @@ EMIT_BIN_WASM = 11,  /* future: binary WASM bytes       */
 - [ ] **EC-UNI-5** — Wire JVM/JS/NET inline switch arms in `emit_core.c` (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`) to call SM_template functions instead of inlining opcode logic. Confirm output byte-identical. Delete the three inline switch bodies. `emit_sm_dispatch` now handles JVM/JS/NET/WASM and x86 — single walk for all backends. Full gate run.
 - [ ] **EC-UNI-6** — x86 binary arms: `IS_X86_BIN` stubs in all template functions, wired through `emit_sm_dispatch(EMIT_BINARY_WIRED)`. Byte-identity vs existing `--run` path. (Prerequisite for future binary-JVM etc.)
 - [ ] **EC-UNI-7** — Audit + close: remove any remaining per-backend silo logic; verify `IS_BIN_JVM/NET/WASM` stubs are clean no-ops; full gate run across all six frontends + broker + icon rung ladder. Update ARCH-IR.md. Rung closed.
+- [ ] **EC-UNI-8** — **Full unified template matrix.** Tighten EC-UNI-5/6/7 to the strictest form: exactly **one** C function per BB graph kind in `BB_templates/`, exactly **one** C function per SM opcode in `SM_templates/`, with **every backend × every mode-of-operation** handled as an arm inside the single function. No grouped-by-family multi-fn files. No silo helpers carrying backend-specific switches outside the template.
+    - 8.1 — **Granularity normalisation.** Split the SM_templates family files into one-file-per-opcode (mirror BB_templates layout). Today `sm_push_pop_lits.c` holds 7 fns, `sm_arith.c` holds 9, `sm_compare.c` 3, `sm_control.c` 7 (incl. return family), `sm_pat.c` 31 — total 57 fns across 5 files. Target: 57 files. `SM_templates/sm_templates.h` lists every fn. `sm_template_common.h` stays shared.
+    - 8.2 ✅ **Mode-of-operation axis explicit** (one4all `4b430ebb`/`c8b0686d`/`eca7cc34`, 2026-05-19, Opus 4.7). `IS_JVM_TEXT`/`IS_JVM_BIN`/`IS_JS_TEXT`/`IS_JS_BIN` (canonical n/a)/`IS_NET_TEXT`/`IS_NET_BIN`/`IS_WASM_TEXT`/`IS_WASM_BIN` macros landed in `emit_core.h`. All 5 SM_templates files (sm_push_pop_lits, sm_arith, sm_compare, sm_control, sm_pat — 57 fns) and all 16 BB_templates files promoted via `scripts/ec_uni_8_promote*.py`. Each fn body now carries an arm or n/a comment per cell. Byte-identity: the renamed `_TEXT` macros are equivalent to the bare `IS_*` macros (`EMIT_JVM` etc are text-mode by definition); `_BIN` arms are unreachable today (no caller sets `EMIT_BIN_*`). Gates floor flag-off AND flag-on: 5/0·23/26·194/36/35.
+    - 8.3 — **Matrix-completeness gate.** Write `scripts/test_gate_em_template_matrix.sh`. For every file in `SM_templates/sm_*.c` and `BB_templates/bb_*.c` it asserts: (a) exactly one non-static fn defined; (b) the fn body contains an arm or n/a-comment for each of the 10 (backend × mode) cells; (c) no backend-specific helper outside the template carries an opcode-discriminating switch (regex check on `emit_core.c`, `emit_sm.c`, `emit_bb.c`). Wire into `scripts/build_scrip.sh` post-build check. Failing cell prints `[MATRIX-MISS] sm_jump.c IS_NET_BIN`.
+    - 8.4 — **Silo audit.** With matrix gate green, grep `emit_core.c` for any remaining `switch (instr->op)` or `switch (nd->op)` outside `emit_sm_dispatch`/`emit_bb_node`. Each remaining switch is either deleted (logic moved into a template) or whitelisted with a one-line comment naming the non-opcode discriminator (e.g. mode-set, label-patch). Zero unjustified opcode switches outside dispatch.
+    - 8.5 — **Add-a-backend test.** As regression scaffold, add `EMIT_NULL` = 99 to `emit_core.h` and `IS_NULL`/`IS_NULL_TEXT`/`IS_NULL_BIN` macros. Walk every template; add `if (IS_NULL_TEXT) { fputs("/*null*/", out); return; }` and `if (IS_NULL_BIN) return;` arms via mechanical patch. `emit_program(ast, out, EMIT_NULL)` produces `/*null*/` per instruction. Gate: adding the backend touched exactly N template files + 1 header — no other code. Then revert (the test proves the property, not the backend).
+    - 8.6 — **Add-an-opcode test.** Same regression scaffold: add `SM_NOP` opcode and `SM_templates/sm_nop.c` with 10 arms (or n/a). Lower a synthetic AST node that emits `SM_NOP`. Confirm every backend produces correct output. Gate: adding the opcode touched exactly 1 new template file + opcode enum — no per-backend silo edits. Then revert.
+    - 8.7 — **Documentation + close.** Update `ARCH-IR.md` and `ARCH-SCRIP.md` with the full matrix invariant. Update this file's "Invariant (EC-UNI)" block. Rung closed.
 
 ### Invariant (EC-UNI)
 
 After EC-UNI-5: there is exactly one SM walk function (`emit_sm_dispatch`). Every SM opcode has exactly one template function. Every backend adds exactly one arm per function. `emit_walk_codegen`, `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm` do not exist.
+
+### Invariant (EC-UNI-8: full matrix)
+
+After EC-UNI-8 the emitter is a 2D Cartesian product:
+
+```
+                    | X86 | JVM | JS  | NET | WASM |
+                    | T B | T B | T - | T B | T  B |
+--------------------+-----+-----+-----+-----+------+
+SM_PUSH_LIT_I       | sm_push_lit_i.c — ONE function, 10 arms (1 n/a) |
+SM_PUSH_LIT_S       | sm_push_lit_s.c — ONE function, 10 arms (1 n/a) |
+...  (57 SM ops)    | ...                                              |
+--------------------+--------------------------------------------------+
+BB_LIT              | bb_lit.c — ONE function, 10 arms (1 n/a)         |
+BB_ANY              | bb_any.c — ONE function, 10 arms (1 n/a)         |
+...  (18 BB kinds)  | ...                                              |
+```
+
+- **One file = one template fn.** No SM/BB logic outside its own file.
+- **Adding a backend** = N template-file edits (mechanical `IS_NEW_TEXT`/`IS_NEW_BIN` arms) + 1 header enum + 1 macro pair. Zero silo files touched.
+- **Adding an opcode** = 1 new template file + 1 enum value. Zero silo files touched.
+- **Removing a backend** = strip its arms from every template (mechanical). Zero silo files to find.
+- **Matrix gate** (`scripts/test_gate_em_template_matrix.sh`) makes the property machine-checked: any cell missing without an `n/a` annotation fails the build.
 
 ### Invariant
 
