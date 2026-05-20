@@ -57,15 +57,15 @@ Mode 2 (`--interp`) is the reference path for Icon at 194/265. Mode 4 (`--compil
 ```
 GATE-1  bash scripts/test_smoke_icon.sh                        # PASS=5
 GATE-2  bash scripts/test_smoke_unified_broker.sh              # PASS >= 23
-GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
+GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--interp by default)
 ```
 
 ## Watermark
 
 ```
-one4all: 498a2eed    (EC-UNI-13(d) ✅ — SM_BB_ONCE_PROC/SM_BB_PUMP_PROC → sm_bb_calls.c)
+one4all: 8c01a32c    (EC-UNI-13(e) ✅ — bb_pl.c, four Prolog BB templates as honest no-op stubs)
 corpus:  b10933c
-.github: (this commit — GOAL prune; EC-UNI-13(e) bb_pl.c remains NEXT)
+.github: (this commit — 13(e) → completed; new EC-UNI-14-PREREQ sub-rung; doc fixes)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
@@ -74,6 +74,7 @@ matrix gate:   0/365 PASS
 firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate)
 beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (882901 bytes, baseline 2026-05-20)
 emit_io self-test: 6/6 PASS
+unified-dispatch divergence: see EC-UNI-14-PREREQ — flipping `g_emit_use_unified_dispatch=1` produces non-equivalent output (beauty.s 188416 bytes md5 `8edb301a9a720f30b53709bd797fe2e8`; beauty.o md5 `bd090e88a02c24e47bf4e8d2390159d1` 132696 bytes vs legacy `3adbb73f88edcc5416d38baade6faf97` 494336 bytes). Flag stays default-OFF until PREREQ closes.
 ```
 
 ---
@@ -108,12 +109,13 @@ emit_io self-test: 6/6 PASS
 - [x] EC-UNI-13(b) `8514facf` — `SM_templates/sm_calls.c` (SM_CALL_FN + SM_SUSPEND_VALUE).
 - [x] EC-UNI-13(c) `ab2888bf` — `SM_templates/sm_defines.c` (SM_DEFINE_ENTRY + SM_DEFINE).
 - [x] EC-UNI-13(d) `498a2eed` 2026-05-20 — `SM_templates/sm_bb_calls.c` (SM_BB_ONCE_PROC + SM_BB_PUMP_PROC). IS_X86 arms call existing dispatchers (now public) as black boxes — `sm_bb_once_proc` routes to PJ-9c's rt_pl_once; `sm_bb_pump_proc` does the `g_stage2.proc_table[]` entry_pc lookup and emits `call .L<entry_pc>` via SM_CALL_EXPRESSION (IJ-HELLO-3). IS_JVM/JS/NET/WASM are honest no-op stubs matching today's `default: break;` fallthrough. Phase B will fill those arms when frontends emit these opcodes.
+- [x] EC-UNI-13(e) `8c01a32c` 2026-05-20 — `BB_templates/bb_pl.c` with `bb_pl_arith`/`bb_pl_atom`/`bb_pl_builtin`/`bb_pl_call`. Honest no-op stubs across all five backends — no frontend lowers a Prolog BB graph to native today; Prolog execution is via `IR_exec_node` in `src/lower/ir_exec.c` (runtime path). Even the x86 arm is a no-op because no `emit_bb_pl_*_dispatch` helper exists in `emit_sm.c` to delegate to (the spec's pointer to "case BB_PL_*: arms in emit_sm.c" was stale — those labels live in the `pl_ir_kind_uses_sval` type-classification predicate only). Not wired into `emit_bb_node` switch — wiring no-op stubs would silently swallow the existing `; [emit_bb_node: kind=%d unhandled]` warning that today correctly flags these as unhandled-for-emission. Wiring happens in EC-UNI-14 alongside silo-walker deletions.
 
 #### Open sub-rungs
 
-- [ ] **EC-UNI-13(e) (NEXT)** — `BB_templates/bb_pl.c`: `bb_pl_arith()`, `bb_pl_atom()`, `bb_pl_builtin()`, `bb_pl_call()`. Bodies pulled from the four `case BB_PL_*:` arms in `emit_sm.c` (re-locate after 13(d) renumbering).
+- [ ] **EC-UNI-14-PREREQ (NEXT)** — close the divergence between `dispatch_one_x86` (template path, behind `g_emit_use_unified_dispatch`) and the legacy switch in `emit_walk_codegen`. Discovery 2026-05-20: flipping the flag default to ON produces beauty.sno output that is **not byte-identical** to baseline — neither at the .s level (882901 → 188416 bytes, md5 `40df9e0…` → `8edb301…`) nor after assembling (.o files 494336 vs 132696 bytes, different md5s). The HQ note on EC-UNI-3 ("Byte-identical by construction since both paths terminate at the same dispatcher fn") was an optimistic prediction, not a measured property. Real situation today: the template path emits a compact macro-name form (`PUSH_INT 178`, `CALL_FN .S28, 1`, `CONCAT`) while the legacy switch emits expanded x86 mov/call/push sequences inline; the assembler does macro expansion in the first case but **the two object files are still substantively different sizes**, so it's not just textual representation drift. **Open architectural question:** which output is canonical — macro-form short emission (relies on `sm_macros.s` expansion) or inlined-long emission (legacy switch)? Both assemble to something runnable; today only the legacy form is on the gate path. First sub-step: per-opcode diff sweep — for each of the 52 SM templates, generate both forms and record where they differ and why. Until this rung closes, EC-UNI-14 cannot land because flipping the flag breaks GATE-1. Owner: next session.
 
-- [ ] **EC-UNI-14** — single dispatcher `emit_sm_dispatch(void)` in `emit_core.c`: one 91-arm switch on `g_emit.instr->op`, each calling `sm_<name>()`. Expand `emit_bb_node(void)` to all 21 BB kinds. Delete `emit_walk_codegen`/`emit_jvm_one_instr`/`emit_js_from_sm`/`emit_net_from_sm`/`emit_wasm_from_sm`/`dispatch_one_x86` + ~30 `emit_sm_<op>_dispatch` helpers. Flip `SCRIP_UNIFIED_DISPATCH=1` to always-on, then delete the flag. Net LOC: −2500 to −3500. Beauty byte-identical.
+- [ ] **EC-UNI-14** — single dispatcher `emit_sm_dispatch(void)` in `emit_core.c`: one 91-arm switch on `g_emit.instr->op`, each calling `sm_<name>()`. Expand `emit_bb_node(void)` to all 21 BB kinds (includes wiring the four `bb_pl_*` from 13(e)). Delete `emit_walk_codegen`/`emit_jvm_one_instr`/`emit_js_from_sm`/`emit_net_from_sm`/`emit_wasm_from_sm`/`dispatch_one_x86` + ~30 `emit_sm_<op>_dispatch` helpers. Flip `SCRIP_UNIFIED_DISPATCH=1` to always-on, then delete the flag. Net LOC: −2500 to −3500. **BLOCKED on EC-UNI-14-PREREQ** — today's template path is not equivalent to today's legacy switch (2026-05-20 measurement). Either close the gap (each template emits exactly what the legacy switch emitted) or formally re-baseline the gate to a new canonical form before deleting silos. The "Beauty byte-identical" promise survives only after PREREQ resolves.
 
 - [ ] **EC-UNI-15** — top-level shape: each template fn is a verbose `if (IS_<BE>)` five-arm switch, one screen per fn. Done family-by-family per RULES.md three-construct (one commit per family file). Multi-statement arms fine; no helper extraction yet.
 
@@ -137,7 +139,7 @@ emit_io self-test: 6/6 PASS
 GATE-1  beauty.sno --compile  →  md5 40df9e004c3e963c99af716c65f2c970  (882901 bytes)
 GATE-2  bash scripts/test_smoke_icon.sh                                  # PASS=5
 GATE-3  bash scripts/test_smoke_unified_broker.sh                        # PASS≥23
-GATE-4  bash scripts/test_icon_all_rungs.sh --interp                     # PASS=194/36/35
+GATE-4  bash scripts/test_icon_all_rungs.sh                              # PASS=194/36/35 (--interp by default; flag rejected)
 GATE-5  bash scripts/test_smoke_{snobol4,snocone,prolog,rebus,raku}.sh   # 7/0 5/0 5/0 4/0 5/0
 ```
 
