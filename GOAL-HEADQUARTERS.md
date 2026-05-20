@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 92417a85     (IR-RN-2 COMPLETE — emitter audit + ir_*→bb_* consumer rename)
+one4all: b4859b69     (IEP-PKG — ParserOutput struct names parser→lower contract)
 corpus:  5d8e221
-.github: (this commit — IR-RN-1 + IR-RN-2 marked complete; NEXT = IR-RN-3)
+.github: (this commit — IEP-PKG recorded; watermark advanced)
 --interp:      PASS (hello.sno)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
