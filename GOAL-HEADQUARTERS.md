@@ -105,7 +105,7 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: 7c33121c     (EC-6: delete emit_wasm.c; move WASM walk + state into emit_core.c; EMIT_WASM=8 + IS_WASM; scrip.c uses emit_program(EMIT_WASM); net −427 LOC)
+one4all: 268619c1     (EC-WASM-SM: IS_WASM arms in all 5 SM_templates; emit_wasm_from_sm delegates to template fns; sm_templates.h; one fn per opcode all modes)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
 --interp:    194/265  (held)
@@ -223,6 +223,7 @@ is invoked with the mode already set via `emit_mode_set()`.
 - [x] **EC-5** ✅ (one4all `e1c8a4ac`, 2026-05-19, Sonnet 4.6) — Delete `emit_jvm.c`, `emit_js.c`, `emit_net.c`, `emit_ir.c`, `emit_ir_targets.c`, `emit_ir.h` shim. Move IR walk (`ir_node_id`/`ir_is_generator`/`ir_walk`) + three SM-walk loops (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`) + helpers (`jvm_sanitize_name`, `net_parse_define_proto`) into `emit_core.c`. Unified `emit_program(ast_prog, out, mode)` replaces three per-target entry points. `IR_emit_vtable_t` deleted. `src/include/emit_ir.h` stripped to IR walk signatures only. `scrip.c` updated to call `emit_program(EMIT_JVM/JS/NET)`. Gates floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36. Net −2077 LOC.
 - [x] **EC-6** ✅ (one4all `7c33121c`, 2026-05-19, Sonnet 4.6) — delete `emit_wasm.c`; move WASM string table + user-fn table + `emit_wasm_from_sm` into `emit_core.c`; add `EMIT_WASM=8` + `IS_WASM` to `emit_core.h`; add WASM arms to `emit_prologue`/`emit_epilogue`/`emit_program`; `scrip.c` calls `emit_program(EMIT_WASM)`. Net −427 LOC. Gates: 5/0·23/26·194/36.
 - [x] **EC-7** ✅ (2026-05-19, Sonnet 4.6) — Full gate run: all six frontends + broker + icon rung ladder all at floor. ARCH-IR.md updated with unified emitter model documentation. EC rung closed.
+- [x] **EC-WASM-SM** ✅ (one4all `268619c1`, 2026-05-19, Sonnet 4.6) — IS_WASM arms added to all 5 SM_templates (push_pop_lits, arith, compare, control, pat). `sm_templates.h` created. `emit_wasm_from_sm` rewritten to call SM_template functions — one fn per opcode, all modes dispatched via IS_WASM/IS_JVM/IS_JS/IS_NET. `wasm_intern_str`/`wasm_intern_name` promoted from static. Gates: 7/0·5/0·23/26·194/36.
 
 ### Invariant
 
