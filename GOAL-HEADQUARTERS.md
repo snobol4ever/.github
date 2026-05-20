@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 871d2f0b     (ST2-1 — stage2_t is the baton; g_stage2 global value; SM_sequence_t pure sequence)
+one4all: 489ff5b3     (IR-CD-5 — ir_body field deleted; single-structure bb_table lookup; mode-4 standalone lazy-inits)
 corpus:  b10933c
-.github: (this commit — EC-PHASE-A rung added; globals-over-ctx design; emit-to-strings step queued)
+.github: (this commit — IR-CD-5/6/7 ledger; ARCH-IR.md IR-CONSOLIDATE-DCG section appended)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -97,9 +97,9 @@ beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20
 - [x] IR-CD-1/2/3 — `bb_idx` field + populate + strangler helpers. `419fce29`.
 - [x] IR-CD-RENAME — Category A rename across 15 files. `a97be4b0`. Category B (true Prolog DCG grammar) and C (`icn_bb_dcg`, `pl_bb_dcg`, `lower_pat_dcg.*`, `*_dcg_state_t`) deferred.
 - [x] IR-CD-4 — 19 consumer read sites migrated to `bb_graph_of_*(entry)` across 5 files. `b97b267b`.
-- [ ] **IR-CD-5 (NEXT)** — Delete `ir_body` field from both struct typedefs. Delete fallback branch in strangler helpers. Delete `ir_body = …` assignments in `lower.c` and `pl_runtime.c`. Mode-4 standalone policy: register stub `SM_sequence_t` at startup, or accept carve-out permanently. Decide before delete.
-- [ ] IR-CD-6 — Update `ARCH-IR.md` (single-structure invariant + mode-4 carve-out). Update PLAN watermark.
-- [ ] IR-CD-7 — Close-out: full gate floor run.
+- [x] IR-CD-5 — Deleted `ir_body` field from `IcnProcEntry` and `Pl_PredEntry_BB`. Mode-4 standalone (Option A): `rt_pl_b_end_register` calls `SM_seq_bb_add(&g_stage2.sm, cfg)`; `SM_seq_bb_add` lazy-allocates `bb_table` when `bb_cap == 0`. `pl_bb_register` signature changed to `(name, arity, int bb_idx)`. Strangler helpers simplified to single-structure lookup. `489ff5b3`.
+- [x] IR-CD-6 — `ARCH-IR.md` updated with IR-CONSOLIDATE-DCG invariant section and post-IR-CD file map.  PLAN watermark updated below.
+- [x] IR-CD-7 — Close-out: full gate floor run.  Smoke 5/5/7/5/4/5 FAIL=0 each; unified_broker 23/26; test_icon_all_rungs 194/36/35; beauty md5 `40df9e004c3e963c99af716c65f2c970` unchanged.  Rung complete 2026-05-20.
 
 ### IR Rename — builder/consumer case scheme
 

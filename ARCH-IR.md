@@ -233,3 +233,50 @@ Add one function with arms for every `IS_*` mode. Zero per-target files touched.
 
 Deleted in EC series: `emit_jvm.c`, `emit_js.c`, `emit_net.c`, `emit_ir.c`,
 `emit_ir_targets.c`, `emit_wasm.c`, `emit_ir.h` (shim), `IR_emit_vtable_t`.
+
+## IR consolidation — single-structure lowering output (IR-CONSOLIDATE-DCG, 2026-05-20)
+
+**Invariant.** Every BB graph produced by lowering reaches engines through one
+storage location: `g_stage2.sm.bb_table[bb_idx]`. The proc/predicate registry
+entries (`IcnProcEntry`, `Pl_PredEntry_BB`) carry an `int bb_idx` and nothing
+else for graph access — no duplicate `BB_graph_t*` pointer.
+
+Strangler helpers `bb_graph_of_proc` and `bb_graph_of_pred` do the lookup:
+
+```c
+if (e->bb_idx >= 0 && e->bb_idx < g_stage2.sm.bb_count)
+    return g_stage2.sm.bb_table[e->bb_idx];
+return NULL;
+```
+
+**Producer (scrip).** `lower()` builds each BB graph, calls `SM_seq_bb_add(g_p,
+cfg)` to attach it to the embedded SM sequence, and stores the returned index
+into the registry entry's `bb_idx`. `g_stage2.sm` is initialized by
+`stage2_reset()` at the top of every lower() pass.
+
+**Producer (mode-4 standalone-binary).** Standalone binaries link against the
+runtime but never call `lower()` — `g_stage2.sm` is left zero-initialized in
+.bss. `rt_pl_b_end_register` performs the same `SM_seq_bb_add(&g_stage2.sm,
+cfg)` call to obtain a `bb_idx`. `SM_seq_bb_add` lazy-allocates `bb_table`
+when `bb_cap == 0`, so the standalone case needs no special init step.
+
+This is "Option A" of the IR-CD-5 design question. The alternative ("Option
+B" — permanent `ir_body` carve-out for standalone) was rejected because it
+would have prevented the field deletion that the rung exists to perform.
+
+**What this replaces.** Pre-IR-CD-5, `IcnProcEntry` and `Pl_PredEntry_BB`
+each carried a `BB_graph_t *ir_body` field alongside the `bb_idx`. The
+field was a duplicate pointer maintained during the migration. Consumers
+went through a strangler helper that preferred `bb_idx` and fell back to
+`ir_body`. The fallback covered the mode-4 standalone path until that
+path was switched to use the lazy-init pathway.
+
+## File map (post-IR-CD)
+
+| File | Role |
+|------|------|
+| `src/include/stage2.h` | `stage2_t`, `IcnProcEntry`, `Pl_PredTable` typedefs; `g_stage2` decl |
+| `src/lower/sm_prog.c` | `SM_seq_bb_add` (lazy-init bb_table) |
+| `src/runtime/interp/icn_runtime.h` | `bb_graph_of_proc` strangler (now single-path) |
+| `src/runtime/interp/pl_runtime.h` | `bb_graph_of_pred` strangler (now single-path) |
+| `src/runtime/rt/rt.c` | `rt_pl_b_end_register` (standalone Prolog registration) |
