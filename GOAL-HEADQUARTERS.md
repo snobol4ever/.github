@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 489ff5b3     (IR-CD-5 — ir_body field deleted; single-structure bb_table lookup; mode-4 standalone lazy-inits)
+one4all: 4f5d0512     (ST2-1b two sub-steps — g_registry shim deleted; label_table/label_count shims deleted)
 corpus:  b10933c
-.github: (this commit — IR-CD-5/6/7 ledger; ARCH-IR.md IR-CONSOLIDATE-DCG section appended)
+.github: (this commit — ST2-1b sub-step ledger; two of five shims burned down)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -84,7 +84,11 @@ beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20
 **Authorship history (ST2-1, this session, 2026-05-20):** Lon walked Claude through three honest pivots — first an additive `s2_*` fields kludge ("populate at end" — kludgy, retracted), then a `typedef stage2_t = SM_sequence_t` alias (two pointers to synchronize — retracted), finally the right shape: `SM_sequence_t` stays the pure opcode array as originally designed, `stage2_t` is its own struct that embeds the SM sequence and owns the sidecars, and `g_stage2` is a global value not a pointer.  RULES.md SR-15c lesson respected throughout — lower's internal pass state stays file-scope `static`; ST2 addresses output-side handoff only.
 
 - [x] **ST2-1** — `stage2_t` is the baton; `g_stage2` is a global value.  `SM_sequence_t` restored to its sequence-only shape.  Six reader shim macros (label_table, proc_table, g_pl_pred_table, g_registry, label_count, proc_count) redirect legacy names into `g_stage2`.  `polyglot_init` takes a `stage2_t *s2` parameter (currently `(void)s2;` ignored — body writes via shim).  Canonical struct typedefs consolidated into `stage2.h`.  Renames: `ScripModule.proc_count` → `nprocs`; lower-internal `LabelEntry` → `LabTabEntry`.  `g_current_SM_seq` dissolved (40 sites).  All gates at baseline.  `871d2f0b`.
-- [ ] **ST2-1b (NEXT)** — Burn down the six reader shim macros: sweep readers to take `stage2_t *s2` directly; delete each macro after its last reader migrates.  Drop the `(void)s2;` parameter ignoring in `polyglot_init` / `label_table_build` — make them write into `g_stage2` directly (or pass the struct through honestly).  Update `ARCH-IR.md` and PLAN watermark.
+- [ ] **ST2-1b (IN PROGRESS)** — Burn down the six reader shim macros: sweep readers to take `stage2_t *s2` directly; delete each macro after its last reader migrates.  Drop the `(void)s2;` parameter ignoring in `polyglot_init` / `label_table_build` — make them write into `g_stage2` directly (or pass the struct through honestly).  Update `ARCH-IR.md` and PLAN watermark.
+  - [x] **g_registry sub-step** (2026-05-20, `14655275`): swept 11 sites in `polyglot_init` to `s2->module_registry`; shim macro deleted from `interp.h`.  Single-file scope (only reader was `polyglot_init`).  Five shims remain.
+  - [x] **label_table / label_count sub-step** (2026-05-20, `4f5d0512`): `label_table_build` threads `s2->label_table` / `s2->label_count`; `label_lookup` reads `g_stage2` literally (called from interp_call.c × 4 and interp_hooks.c × 2 — sites that don't carry `s2`; threading through them is a separate larger refactor).  Shim macros deleted from `interp.h`.  Four shims remain.
+  - [ ] **g_pl_pred_table sub-step** — 20 sites across 7 files (`pl_runtime.c`, `polyglot.c`, `interp_hooks.c`, `scrip_sm.c`, `lower.c`).
+  - [ ] **proc_table / proc_count sub-step** — largest: 76 / 37 sites across 14 / 12 files (icon_runtime.c, raku_builtins.c, emit_sm.c, sm_interp.c, ir_exec.c, lower_icn.c, lower.c, polyglot.c, interp_hooks.c, scrip_sm.c, sm_prog.c).  Likely needs a dedicated session.
 - [ ] **ST2-1c** — Convert `label_table[STAGE2_LABEL_MAX]` and `proc_table[STAGE2_PROC_TABLE_MAX]` from fixed-size inline arrays to dynamically-grown arrays (same `_grow` pattern as `SM_sequence_t.instrs`).  Today's caps (4096 labels, 256 procs) are hard limits and ~150KB of .bss for hello.sno; not worth the constraint.  Shim macros unchanged (`g_stage2.label_table` is a pointer either way).
 - [ ] **ST2-2** — Honest scope: this still does not give us a `stage2_isolation` link-time gate analogous to ISO-7.  After ST2-1b lands, write `scripts/test_gate_stage2_isolation.sh` that catches residual external reads of the old global names — mirror of the existing parse/runtime firewall gates.
 
