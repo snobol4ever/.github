@@ -61,13 +61,24 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-3f ✅ (one4all `5cb3b909`, 2026-05-19, Sonnet 4.6):** sm_pat.c: 30 unified fns — full SM_PAT_* + SM_EXEC_STMT. 58 silo arms → one-liners. +260/-232 LOC. NET PAT is stub (no-op for IS_NET).
 
-**EC-UNI-2d ✅ (one4all this commit, 2026-05-19, Opus 4.7):** `IS_X86_TEXT` arms in `sm_pat.c` — all 31 fns carry x86 text arms (30 SM_PAT_* + SM_EXEC_STMT, with `sm_pat_any`/`sm_pat_any_i` variant pair). Un-staticed 22 uniform pat dispatchers (`emit_sm_pat_span_dispatch`..`emit_sm_pat_deref_dispatch`) so templates call them directly. Introduced 8 public shims for the non-uniform dispatchers (`emit_sm_pat_lit_template`, `_refname_template`, `_capture_template`, `_capture_fn_template`, `_capture_fn_args_template`, `_usercall_template`, `_usercall_args_template`, `emit_sm_exec_stmt_template`) that keep the private types (`sm_op_template_t`, `emit_sm_args_t`, `pat_arg_label`) inside `emit_sm.c` — same pattern as EC-UNI-2b/2c's `emit_sm_stno_template` / `emit_sm_return_template`. All 31 template arms call the dispatcher/shim directly → byte-identity by construction. `emit_sm_dispatch` still returns −1; new arms are reachable but unreached. EC-UNI-3 wires them. Gates floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36/35; smoke prolog 5/0, raku 5/0, rebus 4/0, snobol4 7/0, snocone 2/3.
+**EC-UNI-2d ✅ (one4all `b1711529`, 2026-05-19, Opus 4.7):** `IS_X86_TEXT` arms in `sm_pat.c` — all 31 fns carry x86 text arms (30 SM_PAT_* + SM_EXEC_STMT, with `sm_pat_any`/`sm_pat_any_i` variant pair). Un-staticed 22 uniform pat dispatchers (`emit_sm_pat_span_dispatch`..`emit_sm_pat_deref_dispatch`) so templates call them directly. Introduced 8 public shims for the non-uniform dispatchers (`emit_sm_pat_lit_template`, `_refname_template`, `_capture_template`, `_capture_fn_template`, `_capture_fn_args_template`, `_usercall_template`, `_usercall_args_template`, `emit_sm_exec_stmt_template`) that keep the private types (`sm_op_template_t`, `emit_sm_args_t`, `pat_arg_label`) inside `emit_sm.c` — same pattern as EC-UNI-2b/2c's `emit_sm_stno_template` / `emit_sm_return_template`. All 31 template arms call the dispatcher/shim directly → byte-identity by construction. `emit_sm_dispatch` still returns −1; new arms are reachable but unreached. EC-UNI-3 wires them. Gates floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36/35; smoke prolog 5/0, raku 5/0, rebus 4/0, snobol4 7/0, snocone 2/3.
 
 **EC-4 ✅ COMPLETE 2026-05-19 (Sonnet 4.6, one4all `8890d685`).** emit_prologue/emit_epilogue unified in emit_core.c; IS_JVM/IS_JS/IS_NET dispatch; emit_ir_block calls unified fns. Static silo fns retained for EC-5 vtable. +71/-13 LOC.
 
 **EC-5 ✅ COMPLETE 2026-05-19 (Sonnet 4.6, one4all `e1c8a4ac`).** emit_jvm.c/emit_js.c/emit_net.c/emit_ir.c/emit_ir_targets.c/emit_ir.h(shim) deleted. IR walk (ir_node_id/ir_is_generator/ir_walk) + three SM-walk loops (emit_jvm_from_sm/emit_js_from_sm/emit_net_from_sm) + helpers (jvm_sanitize_name/net_parse_define_proto) moved to emit_core.c. Unified emit_program(ast_prog,out,mode) replaces 3 per-target entry points. IR_emit_vtable_t deleted. src/include/emit_ir.h stripped. Net −2077 LOC. Gates floor: 5/0·23/26·194/36.
 
-**NEXT: EC-UNI-3** — Wire `emit_sm_dispatch` for x86 text. When mode is `EMIT_TEXT`/`EMIT_TEXT_INLINE`, walk SM_Program calling template functions (now x86-capable across `sm_push_pop_lits.c`, `sm_arith.c`, `sm_compare.c`, `sm_control.c`, `sm_pat.c`). Then byte-identity check: `sm_codegen_text` output vs `emit_sm_dispatch(EMIT_TEXT)` output must be identical (md5 match on beauty.sno). All 5 SM_template files (52 fns total) now carry `IS_X86_TEXT` arms; the unified walk is structurally feasible.
+**EC-UNI-3 partial 🔄 (one4all `42908963`, 2026-05-19, Opus 4.7):** wired feature-flag-gated unified dispatch into `emit_walk_codegen`. Added `g_emit_use_unified_dispatch` (env var `SCRIP_UNIFIED_DISPATCH`) and `dispatch_one_x86_text(out, ins, pc)` covering all 52 templated opcodes. Hook runs after pattern-window check, before the legacy switch; falls through to legacy on -1.
+
+  **Mode-set invariant surfaced during validation (binding on EC-UNI-4):** `bb_emit_mode` defaults to `EMIT_BINARY_WIRED` at process start. Legacy `emit_walk_codegen` relies on individual dispatchers calling `emitter_init_text` to flip into `EMIT_TEXT`. The unified hook runs BEFORE those dispatchers, so without an explicit mode set, `IS_X86_TEXT` is false on the first iteration and templates fall through all backend arms producing no output. Fix landed in same commit: `dispatch_one_x86_text` calls `emit_mode_set(TEXT_MODE(), out)` at entry. **EC-UNI-4 invariant: the unified dispatch entry point owns mode-setting; individual dispatchers can remain idempotent.**
+
+  Validation:
+   - Flag OFF (default): all gates floor, no regression — hot path costs one predictable-not-taken compare per iteration.
+   - Flag ON: all smoke + broker + icon rungs floor. `hello.sno --compile` byte diff vs flag-off is GAS-comments only (EC-UNI-2b SrcLines degradation in SM_STNO banner — machine code byte-identical).
+
+  **NEXT: EC-UNI-3-beauty** — close the rung by running the byte-identity gate on beauty.sno. SPITBOL x64 cloned to `/home/claude/x64`. Two paths:
+  1. Write `scripts/test_gate_em_ec_uni_3_beauty.sh` that compiles beauty.sno both ways and md5-compares modulo SrcLines drift (filter `# stmt` comment lines).
+  2. Promote SrcLines into `sm_ctx_t` so the unified path carries source lines through — md5 matches exactly without filtering.
+  Approach #2 is cleaner; #1 unblocks EC-UNI-4 faster.
 
 **Recent progress this session (Opus 4.7, 2026-05-19):**
 - EC-UNI-0  (one4all `f29c95e9`): scaffold + macros + enum stubs
@@ -75,14 +86,16 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 - EC-UNI-2a (one4all `fc9d0122`): `sm_arith.c` 9 fns
 - EC-UNI-2b (one4all `609dac51`): `sm_compare.c` 3 fns + `emit_sm_stno_template` shim
 - EC-UNI-2c (one4all `bfa65968`): `sm_control.c` 7 fns + `emit_sm_return_template` shim
-- EC-UNI-2d (one4all this commit): `sm_pat.c` 31 fns + 8 non-uniform pat shims
+- EC-UNI-2d (one4all `b1711529`): `sm_pat.c` 31 fns + 8 non-uniform pat shims
+- EC-UNI-3  (one4all `42908963`) partial: `dispatch_one_x86_text` + feature flag; mode-set invariant surfaced and fixed; beauty.sno gate still owed.
 
-All 52 SM_template fns across 5 files now carry `IS_X86_TEXT` arms. After EC-UNI-2d closes, EC-UNI-3 can wire `emit_sm_dispatch(EMIT_TEXT)` and run beauty.sno byte-identity check vs SPITBOL oracle.
+All 52 SM_template fns across 5 files carry `IS_X86_TEXT` arms and are reachable via `SCRIP_UNIFIED_DISPATCH=1`. EC-UNI-3-beauty (the byte-identity gate on beauty.sno) closes the rung.
 
 **Architectural decisions established this session:**
 1. **Byte-identity by construction** — template `IS_X86_TEXT` arms call exactly the dispatcher fns the existing `emit_walk_codegen` switch calls. Not parallel reimplementations.
 2. **Private types stay private** — when a dispatcher takes private state (`SrcLines`, `SM_Program *prog`), expose a thin shim that passes NULL. The minor degradation (comment annotations only) is GAS-comment-only — machine code unaffected. EC-UNI-3 can promote these into `sm_ctx_t`.
 3. **`emit_sm_dispatch` returns −1** until EC-UNI-3. New arms are reachable but unreached today; bisectable by construction.
+4. **Unified dispatch owns mode-setting** (EC-UNI-3, 2026-05-19) — `bb_emit_mode` defaults to `EMIT_BINARY_WIRED`; legacy dispatchers each set `EMIT_TEXT` themselves via `emitter_init_text` (or rely on a prior dispatcher having done so). The unified-dispatch entry point must call `emit_mode_set(TEXT_MODE(), out)` at the top of every per-opcode iteration. Individual dispatchers remain idempotent — they can still call `emit_mode_set` themselves with no harm. **Binding on EC-UNI-4** when `emit_walk_codegen` is deleted and the unified dispatch becomes the sole entry.
 
 
 ## DAI-8 methodology note
@@ -122,12 +135,12 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: b1711529     (EC-UNI-2d: IS_X86_TEXT arms in sm_pat.c — un-static 22 uniform pat dispatchers; 8 public shims for non-uniform LIT/REFNAME/CAPTURE/CAPTURE_FN/CAPTURE_FN_ARGS/USERCALL/USERCALL_ARGS/EXEC_STMT dispatchers keep private types inside emit_sm.c. All 52 SM_template fns across 5 files now carry IS_X86_TEXT arms; emit_sm_dispatch still returns -1, no x86 callers yet. EC-UNI-3 next.)
+one4all: 42908963     (EC-UNI-3 partial: feature-flag-gated unified dispatch hook in emit_walk_codegen — g_emit_use_unified_dispatch + SCRIP_UNIFIED_DISPATCH env var + dispatch_one_x86_text covering all 52 templated opcodes. Mode-set invariant surfaced and fixed. Flag-off and flag-on both pass smoke + broker + icon rungs at floor; hello.sno --compile diff is GAS-comment-only EC-UNI-2b SrcLines drift. EC-UNI-3-beauty owed: byte-identity gate on beauty.sno.)
 corpus:  92e103f      (unchanged)
 .github: (this commit)
---interp:    194/265  (held)
-smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held)
-broker:      23/26    (held)
+--interp:    194/265  (held, flag-irrelevant)
+smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held, flag off AND flag on)
+broker:      23/26    (held, flag off AND flag on)
 snobol4_jit: 184/77 interp · 186/75 run (held = baseline)
 snobol4_jvm: 7/6      (held)
 snobol4_js:  4/2      (held)
@@ -293,7 +306,7 @@ EMIT_BIN_WASM = 11,  /* future: binary WASM bytes       */
 - [x] **EC-UNI-2b** ✅ (one4all `609dac51`, 2026-05-19, Opus 4.7) — `IS_X86_TEXT` arms in `sm_compare.c` (3 fns: stno, acomp, lcomp). Introduced `emit_sm_stno_template` shim (private `SrcLines` type stays inside `emit_sm.c`; shim passes NULL ⇒ no source-line comment in GAS, machine code byte-identical).
 - [x] **EC-UNI-2c** ✅ (one4all `bfa65968`, 2026-05-19, Opus 4.7) — `IS_X86_TEXT` arms in `sm_control.c` (7 fns: jump/s/f, halt, return/freturn/nreturn). Un-staticed `emit_halt_line` + 3 jump dispatchers + 2 return dispatchers. Introduced `emit_sm_return_template` shim that dispatches plain SM_RETURN → `emit_sm_return_dispatch` (handles `g_in_define_body`); other 8 variants → `emit_sm_return_variant_dispatch` with `prog=NULL` (NRETURN function-name annotation degrades to generic banner; machine code byte-identical).
 - [x] **EC-UNI-2d** ✅ (one4all this commit, 2026-05-19, Opus 4.7) — `IS_X86_TEXT` arms in `sm_pat.c` (31 fns: full SM_PAT_* + SM_EXEC_STMT, including `sm_pat_any`/`sm_pat_any_i` pair). Un-staticed 22 uniform pat dispatchers (`emit_sm_pat_span_dispatch`..`emit_sm_pat_deref_dispatch`) called directly from templates. Introduced 8 public shims for non-uniform dispatchers (LIT/REFNAME/CAPTURE/CAPTURE_FN/CAPTURE_FN_ARGS/USERCALL/USERCALL_ARGS/EXEC_STMT) keeping private types (`sm_op_template_t`, `emit_sm_args_t`, `pat_arg_label`) inside `emit_sm.c`. Templates call shims/dispatchers directly → byte-identity by construction. Gates floor.
-- [ ] **EC-UNI-3** — Wire `emit_sm_dispatch` for x86 text: if mode is `EMIT_TEXT`/`EMIT_TEXT_INLINE`, walk SM_Program calling template functions (now x86-capable). Run byte-identity check: `sm_codegen_text` output vs `emit_sm_dispatch(EMIT_TEXT)` output must be identical (md5 match on beauty.sno). Gates held.
+- [ ] **EC-UNI-3** 🔄 partial (one4all `42908963`, 2026-05-19, Opus 4.7) — feature-flag-gated unified dispatch wired into `emit_walk_codegen`. `g_emit_use_unified_dispatch` (env `SCRIP_UNIFIED_DISPATCH`); `dispatch_one_x86_text` covers all 52 templated opcodes. Mode-set invariant fixed at hook entry. Flag-off and flag-on both pass smoke + broker + icon rungs at floor; `hello.sno --compile` diff is comment-only (EC-UNI-2b SrcLines degradation). **Rung closes when `test_gate_em_ec_uni_3_beauty.sh` md5-matches beauty.sno output flag-off vs flag-on (modulo or absent SrcLines drift).**
 - [ ] **EC-UNI-4** — Delete `emit_walk_codegen` / `sm_codegen_text` / `emit_sm_template` / `sm_op_template_t` table from `emit_sm.c`. Update `scrip.c`: x86 compile path calls `emit_program(ast, out, EMIT_TEXT)` (routes through `emit_sm_dispatch`). Gate: beauty.sno still produces byte-identical output vs SPITBOL oracle. Net LOC delta estimated −1 500.
 - [ ] **EC-UNI-5** — Wire JVM/JS/NET inline switch arms in `emit_core.c` (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`) to call SM_template functions instead of inlining opcode logic. Confirm output byte-identical. Delete the three inline switch bodies. `emit_sm_dispatch` now handles JVM/JS/NET/WASM and x86 — single walk for all backends. Full gate run.
 - [ ] **EC-UNI-6** — x86 binary arms: `IS_X86_BIN` stubs in all template functions, wired through `emit_sm_dispatch(EMIT_BINARY_WIRED)`. Byte-identity vs existing `--run` path. (Prerequisite for future binary-JVM etc.)
