@@ -60,67 +60,6 @@ beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20
 
 ## Active rungs
 
-### ISOLATION — parse->lower / parse->runtime boundary firewalls
-
-**Goal:** lex/parse produces exactly `tree_t *` and nothing else.  Two boundaries to enforce: parse->lower (consumed by `lower()`) and parse->runtime (referenced by interpreters and emitters).  Today the boundaries are partially porous; ratchet shrinks the porosity.
-
-- [x] **ISO-1** — `lower()` signature `lower(const tree_t *prog)`.  `ParserOutput` struct + `parser_output.{c,h}` deleted; sidecar build (`label_table_build`, `prescan_defines`, `polyglot_init`) folded into the top of `lower()`.  Callers (`scrip.c` `dump_sm`/`mode_monitor`, `scrip_sm.c` `sm_preamble`, `sync_monitor_run`) simplified.  `261ff13d`.
-- [x] **ISO-2** — `scripts/test_gate_lower_isolation.sh`: header firewall enforcing no `#include` from `src/lower/` into `src/frontend/` except via allowlist.  Initial state: 10 includes / 7 allowlist entries, each entry documenting why it exists and an owning relocation goal.  `1691f44f`.
-- [x] **ISO-3** — Relocate `icon_gen.h` (pure Icon Byrd-box generator runtime) from `src/frontend/icon/` to `src/runtime/interp/`.  Lower firewall: 10/7 → 9/6.  Add companion `scripts/test_gate_runtime_isolation.sh` (no `src/runtime/` include into `src/frontend/` except allowlist).  Initial state: 16 includes / 8 allowlist entries.  `cb1738f6`.
-- [ ] **ISO-4 (NEXT)** — `scrip_parse` subprocess: break six parsers out into a separate executable.  `scrip_parse` reads stdin (source) and writes stdout (TDump/TLump S-expression, 120 max line length).  SCRIP forks/execs and reads back, then deserializes the S-exp into a `tree_t` to pass to `lower()`.  Hardest unsolved sub-question: TDump format (defined) but no C-side *deserializer* exists yet — that has to be written.  Other sub-question: where exactly the sidecar build runs after the split (in parent after deser, or replayed via S-exp on the wire).  Recommended first sub-step: write the deserializer + roundtrip self-test on existing programs.  Do NOT introduce the process boundary until roundtrip is proven.
-- [ ] **ISO-5** — Shrink lower firewall allowlist toward 0:
-  - `frontend/icon/icon_lex.h` — extract `IcnTkKind` enum to `src/include/icon_tk.h`.
-  - `frontend/raku/raku_driver.h` — split into `raku_parse.h` (stays) + `raku_runtime.h` (move to `src/runtime/`).
-  - `frontend/prolog/{term,prolog_runtime,prolog_atom}.h` — relocate to `src/runtime/interp/prolog/`.
-  - `frontend/snobol4/scrip_cc.h` — rename + relocate to `src/include/scrip_lang.h` (54 includers tree-wide; mechanical move).
-- [ ] **ISO-6** — Shrink runtime firewall allowlist toward 0: same headers; coordinated with ISO-5 since they overlap.
-- [ ] **ISO-7** — Stronger guarantee than the header firewall: link-time isolation test (`lower.o` + `lower_*.o` linked against a tree with all `src/frontend/*.o` absent).  Any unresolved symbol = real leakage.  Deferred from this session — proxies (signature + firewall) are weaker than a real link test, and we should be honest about that until ISO-7 lands.
-
-**Honest scope statement (recorded so the next session does not over-trust the gates):** the firewalls are *header* firewalls.  They catch direct `#include` regressions in seconds.  They do **not** prove that `lower` reads only the AST passed to it; symbols reachable through an allowlisted header (most acutely through `scrip_cc.h`) are not detected.  ISO-7 closes that gap.
-
-### ST2 — Stage 2 handoff (lower → interp/emit) is a named struct, not a pile of globals
-
-**Goal:** the output of lower() is one struct, `stage2_t`, containing the SM opcode array PLUS the category-B sidecars (label_table, proc_table, pl_pred_table, module_registry, lang) that interp/emit previously read from process globals.  The struct is the global value `g_stage2` — single, .bss-resident, no allocator dance, no pointer to track.  Mirror of ISO on the output side.
-
-**Authorship history (ST2-1, this session, 2026-05-20):** Lon walked Claude through three honest pivots — first an additive `s2_*` fields kludge ("populate at end" — kludgy, retracted), then a `typedef stage2_t = SM_sequence_t` alias (two pointers to synchronize — retracted), finally the right shape: `SM_sequence_t` stays the pure opcode array as originally designed, `stage2_t` is its own struct that embeds the SM sequence and owns the sidecars, and `g_stage2` is a global value not a pointer.  RULES.md SR-15c lesson respected throughout — lower's internal pass state stays file-scope `static`; ST2 addresses output-side handoff only.
-
-- [x] **ST2-1** — `stage2_t` is the baton; `g_stage2` is a global value.  `SM_sequence_t` restored to its sequence-only shape.  Six reader shim macros (label_table, proc_table, g_pl_pred_table, g_registry, label_count, proc_count) redirect legacy names into `g_stage2`.  `polyglot_init` takes a `stage2_t *s2` parameter (currently `(void)s2;` ignored — body writes via shim).  Canonical struct typedefs consolidated into `stage2.h`.  Renames: `ScripModule.proc_count` → `nprocs`; lower-internal `LabelEntry` → `LabTabEntry`.  `g_current_SM_seq` dissolved (40 sites).  All gates at baseline.  `871d2f0b`.
-- [x] **ST2-1b ✅ COMPLETE** (2026-05-20) — All six reader shim macros burned down across four sub-steps.  Pattern: producers (s2-bearing) thread `s2->`; readers (deep dispatch, no s2) use `g_stage2.` literally; shim macros deleted after last reader migrates.
-  - [x] **g_registry sub-step** (2026-05-20, `14655275`): swept 11 sites in `polyglot_init` to `s2->module_registry`; shim macro deleted from `interp.h`.  Single-file scope (only reader was `polyglot_init`).  Five shims remain.
-  - [x] **label_table / label_count sub-step** (2026-05-20, `4f5d0512`): `label_table_build` threads `s2->label_table` / `s2->label_count`; `label_lookup` reads `g_stage2` literally (called from interp_call.c × 4 and interp_hooks.c × 2 — sites that don't carry `s2`; threading through them is a separate larger refactor).  Shim macros deleted from `interp.h`.  Four shims remain.
-  - [x] **g_pl_pred_table sub-step** (2026-05-20, `d73cded0`): 17 sites across 5 files migrated.  polyglot.c (2) threads `s2->pl_pred_table`; pl_runtime.c (10), scrip_sm.c (1), interp_hooks.c (1), lower.c (1) read `g_stage2.pl_pred_table` literally.  Shim macro deleted from `pl_runtime.h`.  Three shims remain (proc_table/proc_count is the only remaining cluster).
-  - [x] **proc_table / proc_count sub-step** (2026-05-20, this commit): 127 sites across 10 files migrated.  Producers (s2-bearing): polyglot.c (10 sites) threads `s2->proc_table` / `s2->proc_count`; scrip_sm.c sm_resolve_proc_entry_pcs signature changed from `(SM_sequence_t *p)` to `(stage2_t *s2)` and threads s2 (4 sites).  Readers (deep dispatch, no s2): lower.c (12 sites: emit_var_load × 2, lower_proc_skeletons × 10), sm_interp.c (21 sites), ir_exec.c (15 sites), emit_sm.c (10 sites), icn_runtime.c (32 sites), interp_hooks.c (2 sites: _usercall_hook), raku_builtins.c (3 sites: builtin call path) read `g_stage2.proc_table` / `g_stage2.proc_count` literally.  Both shim macros deleted from `icn_runtime.h`.  All gates at baseline (smoke 5/0×5+4/0+7/0; broker 23/26; icon-rungs 194/36/35; beauty.sno --compile md5 `40df9e004c3e963c99af716c65f2c970` byte-identical).
-- [x] **ST2-1c ✅ COMPLETE** (2026-05-20, `b42b7979`) — `label_table` and `proc_table` in `stage2_t` converted from fixed-size inline arrays to dynamically-grown pointers + cap (mirror of `SM_sequence_t.instrs` `_grow` pattern).  `stage2_reset()` allocates the initial buffers at `STAGE2_LABEL_MAX` / `STAGE2_PROC_TABLE_MAX` (kept as initial-capacity hints, no longer hard limits).  `stage2_label_grow` / `stage2_proc_grow` helpers replace the writer-side cap checks at the two append sites (`polyglot.c` proc-table, `interp_label.c` label-table).  Reader sites unaffected — all use `[i]` indexing.  Net: ~150KB .bss freed; programs with >4096 labels or >256 procs no longer silently truncate.  All gates at baseline; beauty.sno --compile byte-identical.
-- [x] **ST2-2 ✅ COMPLETE** (2026-05-20, `b733dd13`) — `scripts/test_gate_stage2_isolation.sh` written.  Token firewall: each of the six former ST2-1 shim-macro names (`g_registry`, `label_table`, `label_count`, `g_pl_pred_table`, `proc_table`, `proc_count`) must appear in source only as a qualified field reference (`.` or `->` prefix).  Allowlist of 10 entries covers `stage2.h` field declarations × 6, `interp_private.h` doc comment × 3, `scrip_sm.c` printf format string × 1.  Mirror of `test_gate_lower_isolation.sh` / `test_gate_runtime_isolation.sh` (same `ALLOW` array + grep style).  Honest scope statement in header records that it's a token firewall — link-time isolation analogous to ISO-7 remains a future rung.
-
-**ST2 rung COMPLETE** (2026-05-20): ST2-1 / ST2-1b / ST2-1c / ST2-2 all landed.  `stage2_t` is the single named struct lower() hands to interp/emit, with no global shim macros, dynamically-grown sidecars, and a regression-catching firewall gate.
-
-**Authors recorded per RULES.md "Three-construct" exception (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
-
-### IR-CONSOLIDATE-DCG — single-structure lowering output
-
-**Goal:** all BB graphs produced by lowering reach engines via the single `SM_sequence_t`. Carve-out: mode-4 standalone binaries keep `ir_body` fallback (no `SM_sequence_t` at runtime; `pl_dcg_register` wires predicates at standalone startup).
-
-- [x] IR-CD-1/2/3 — `bb_idx` field + populate + strangler helpers. `419fce29`.
-- [x] IR-CD-RENAME — Category A rename across 15 files. `a97be4b0`. Category B (true Prolog DCG grammar) and C (`icn_bb_dcg`, `pl_bb_dcg`, `lower_pat_dcg.*`, `*_dcg_state_t`) deferred.
-- [x] IR-CD-4 — 19 consumer read sites migrated to `bb_graph_of_*(entry)` across 5 files. `b97b267b`.
-- [x] IR-CD-5 — Deleted `ir_body` field from `IcnProcEntry` and `Pl_PredEntry_BB`. Mode-4 standalone (Option A): `rt_pl_b_end_register` calls `SM_seq_bb_add(&g_stage2.sm, cfg)`; `SM_seq_bb_add` lazy-allocates `bb_table` when `bb_cap == 0`. `pl_bb_register` signature changed to `(name, arity, int bb_idx)`. Strangler helpers simplified to single-structure lookup. `489ff5b3`.
-- [x] IR-CD-6 — `ARCH-IR.md` updated with IR-CONSOLIDATE-DCG invariant section and post-IR-CD file map.  PLAN watermark updated below.
-- [x] IR-CD-7 — Close-out: full gate floor run.  Smoke 5/5/7/5/4/5 FAIL=0 each; unified_broker 23/26; test_icon_all_rungs 194/36/35; beauty md5 `40df9e004c3e963c99af716c65f2c970` unchanged.  Rung complete 2026-05-20.
-
-### IR Rename — builder/consumer case scheme
-
-**Rule:** UPPERCASE builds IR (`SM_t`, `BB_t`, `SM_seq_new`, `BB_alloc`). lowercase consumes (`sm_interp_*`, `bb_print`, `bb_broker`, all `SM_templates/` dispatchers). Case at the call site tells you which side of the pipeline you're on.
-
-- [x] IR-RN-0 — Bulk rename in 3 sed passes. 48 files. Headers `IR.h`→`BB.h`, `sm_prog.h`→`SM.h`. `9ce69899`.
-- [x] IR-RN-1 — Audit `lower.c` post-rename. `c710506f`. Single finding: `sm_pat_capture_fn_arg_names` (builder helper, lowercase by mistake from IR-RN-0 Phase 3 sm_pat_* lowercase sweep) → `SM_pat_capture_fn_arg_names`. File-local, 2 sites. Sibling `lower_*.c` files clean.
-- [x] IR-RN-2 — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`). `92417a85`. Single cluster: 4 stale `ir_*` consumers (`ir_node_id`, `ir_is_generator`, `ir_walk`, `ir_walk_rec`) → `bb_*` (consume `BB_t`/`BB_graph_t`/`BB_op_t`). 18 files, 32 call sites + 1 header (`src/include/emit_ir.h`) + 4 defs. emit_bb.c and emit_sm.c clean. Apparent builder calls in emit_sm.c (BB_alloc/BB_node_alloc/BB_free, SM_seq_free) are legitimate pattern-window IR construction + destructors.
-- [x] IR-RN-3 — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`).  Two findings: `SM_label_pc_lookup` → `sm_label_pc_lookup` (read-only PC lookup; consumer disguised as builder by UPPERCASE; 13 call sites across 4 files + def in `sm_prog.c` + decl in `SM.h`) and `BB_reset` → `bb_reset` (per-node state reset; consumer-side runtime reset; 5 call sites in `ir_exec.c` + def in `scrip_ir.c` + decl in `BB.h`).  `SM_codegen` audited and kept UPPERCASE (codegen entry point, named-pipeline infrastructure; renaming would ripple beyond rung scope).  `4a1fcc63`.
-- [ ] **IR-RN-4 (NEXT)** — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
-- [ ] IR-RN-5 — Full cross-language gate run; close rung.
-
-Reserved (untouched): `IR_LANG_*`, `SM_INTERP_*`, `SM_CALL_STACK_MAX`/`SM_GEN_LOCAL_MAX`/`SM_MAX_OPERANDS`, `BB_POOL_SIZE`, header guards, `SM_*` opcode tags, `SM_templates/`/`BB_templates/` dir names.
-
 ### EC-UNI — x86 text/binary into SM_templates; unify all walkers
 
 **Target:** one fn per SM opcode, one fn per BB kind; each carries one arm per backend (5 cols: X86/JVM/JS/NET/WASM). Text-vs-binary hides inside the encoder below the dispatcher. `emit_walk_codegen`, `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm` all delete.
@@ -323,6 +262,39 @@ The five existing per-backend GOAL files (JS/JVM/NET/WASM) all describe "fix bac
 
 ---
 
+### ISOLATION — parse->lower / parse->runtime boundary firewalls
+
+**Goal:** lex/parse produces exactly `tree_t *` and nothing else.  Two boundaries to enforce: parse->lower (consumed by `lower()`) and parse->runtime (referenced by interpreters and emitters).  Today the boundaries are partially porous; ratchet shrinks the porosity.
+
+- [x] **ISO-1** — `lower()` signature `lower(const tree_t *prog)`.  `ParserOutput` struct + `parser_output.{c,h}` deleted; sidecar build (`label_table_build`, `prescan_defines`, `polyglot_init`) folded into the top of `lower()`.  Callers (`scrip.c` `dump_sm`/`mode_monitor`, `scrip_sm.c` `sm_preamble`, `sync_monitor_run`) simplified.  `261ff13d`.
+- [x] **ISO-2** — `scripts/test_gate_lower_isolation.sh`: header firewall enforcing no `#include` from `src/lower/` into `src/frontend/` except via allowlist.  Initial state: 10 includes / 7 allowlist entries, each entry documenting why it exists and an owning relocation goal.  `1691f44f`.
+- [x] **ISO-3** — Relocate `icon_gen.h` (pure Icon Byrd-box generator runtime) from `src/frontend/icon/` to `src/runtime/interp/`.  Lower firewall: 10/7 → 9/6.  Add companion `scripts/test_gate_runtime_isolation.sh` (no `src/runtime/` include into `src/frontend/` except allowlist).  Initial state: 16 includes / 8 allowlist entries.  `cb1738f6`.
+- [ ] **ISO-4 (NEXT)** — `scrip_parse` subprocess: break six parsers out into a separate executable.  `scrip_parse` reads stdin (source) and writes stdout (TDump/TLump S-expression, 120 max line length).  SCRIP forks/execs and reads back, then deserializes the S-exp into a `tree_t` to pass to `lower()`.  Hardest unsolved sub-question: TDump format (defined) but no C-side *deserializer* exists yet — that has to be written.  Other sub-question: where exactly the sidecar build runs after the split (in parent after deser, or replayed via S-exp on the wire).  Recommended first sub-step: write the deserializer + roundtrip self-test on existing programs.  Do NOT introduce the process boundary until roundtrip is proven.
+- [ ] **ISO-5** — Shrink lower firewall allowlist toward 0:
+  - `frontend/icon/icon_lex.h` — extract `IcnTkKind` enum to `src/include/icon_tk.h`.
+  - `frontend/raku/raku_driver.h` — split into `raku_parse.h` (stays) + `raku_runtime.h` (move to `src/runtime/`).
+  - `frontend/prolog/{term,prolog_runtime,prolog_atom}.h` — relocate to `src/runtime/interp/prolog/`.
+  - `frontend/snobol4/scrip_cc.h` — rename + relocate to `src/include/scrip_lang.h` (54 includers tree-wide; mechanical move).
+- [ ] **ISO-6** — Shrink runtime firewall allowlist toward 0: same headers; coordinated with ISO-5 since they overlap.
+- [ ] **ISO-7** — Stronger guarantee than the header firewall: link-time isolation test (`lower.o` + `lower_*.o` linked against a tree with all `src/frontend/*.o` absent).  Any unresolved symbol = real leakage.  Deferred from this session — proxies (signature + firewall) are weaker than a real link test, and we should be honest about that until ISO-7 lands.
+
+**Honest scope statement (recorded so the next session does not over-trust the gates):** the firewalls are *header* firewalls.  They catch direct `#include` regressions in seconds.  They do **not** prove that `lower` reads only the AST passed to it; symbols reachable through an allowlisted header (most acutely through `scrip_cc.h`) are not detected.  ISO-7 closes that gap.
+
+### IR Rename — builder/consumer case scheme
+
+**Rule:** UPPERCASE builds IR (`SM_t`, `BB_t`, `SM_seq_new`, `BB_alloc`). lowercase consumes (`sm_interp_*`, `bb_print`, `bb_broker`, all `SM_templates/` dispatchers). Case at the call site tells you which side of the pipeline you're on.
+
+- [x] IR-RN-0 — Bulk rename in 3 sed passes. 48 files. Headers `IR.h`→`BB.h`, `sm_prog.h`→`SM.h`. `9ce69899`.
+- [x] IR-RN-1 — Audit `lower.c` post-rename. `c710506f`. Single finding: `sm_pat_capture_fn_arg_names` (builder helper, lowercase by mistake from IR-RN-0 Phase 3 sm_pat_* lowercase sweep) → `SM_pat_capture_fn_arg_names`. File-local, 2 sites. Sibling `lower_*.c` files clean.
+- [x] IR-RN-2 — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`). `92417a85`. Single cluster: 4 stale `ir_*` consumers (`ir_node_id`, `ir_is_generator`, `ir_walk`, `ir_walk_rec`) → `bb_*` (consume `BB_t`/`BB_graph_t`/`BB_op_t`). 18 files, 32 call sites + 1 header (`src/include/emit_ir.h`) + 4 defs. emit_bb.c and emit_sm.c clean. Apparent builder calls in emit_sm.c (BB_alloc/BB_node_alloc/BB_free, SM_seq_free) are legitimate pattern-window IR construction + destructors.
+- [x] IR-RN-3 — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`).  Two findings: `SM_label_pc_lookup` → `sm_label_pc_lookup` (read-only PC lookup; consumer disguised as builder by UPPERCASE; 13 call sites across 4 files + def in `sm_prog.c` + decl in `SM.h`) and `BB_reset` → `bb_reset` (per-node state reset; consumer-side runtime reset; 5 call sites in `ir_exec.c` + def in `scrip_ir.c` + decl in `BB.h`).  `SM_codegen` audited and kept UPPERCASE (codegen entry point, named-pipeline infrastructure; renaming would ripple beyond rung scope).  `4a1fcc63`.
+- [ ] **IR-RN-4 (NEXT)** — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
+- [ ] IR-RN-5 — Full cross-language gate run; close rung.
+
+Reserved (untouched): `IR_LANG_*`, `SM_INTERP_*`, `SM_CALL_STACK_MAX`/`SM_GEN_LOCAL_MAX`/`SM_MAX_OPERANDS`, `BB_POOL_SIZE`, header guards, `SM_*` opcode tags, `SM_templates/`/`BB_templates/` dir names.
+
+---
+
 ## Completed ledgers (audit trail)
 
 ### IJ-* / DAI-1..7 / IJ-HELLO matrix
@@ -371,6 +343,23 @@ All auditable dead code removed across C1–C17. Remaining dead-looking symbols 
 ### IR-RN-0
 - [x] Bulk rename in 3 sed passes. Builder/consumer case rule established. `9ce69899`.
 
-### IR-CONSOLIDATE-DCG 1–4
+### IR-CONSOLIDATE-DCG 1–7 — COMPLETE 2026-05-20
 - [x] IR-CD-1/2/3 (`419fce29`), IR-CD-RENAME (`a97be4b0`), IR-CD-4 (`b97b267b`). Side-finding `pl_broker.c:364` stale extern fixed in `a97be4b0`.
+- [x] IR-CD-5 (`489ff5b3`) — Deleted `ir_body` field from `IcnProcEntry` and `Pl_PredEntry_BB`. Mode-4 standalone (Option A): `rt_pl_b_end_register` calls `SM_seq_bb_add(&g_stage2.sm, cfg)`; `SM_seq_bb_add` lazy-allocates `bb_table` when `bb_cap == 0`. `pl_bb_register` signature changed to `(name, arity, int bb_idx)`. Strangler helpers simplified to single-structure lookup.
+- [x] IR-CD-6 — `ARCH-IR.md` updated with IR-CONSOLIDATE-DCG invariant section and post-IR-CD file map.
+- [x] IR-CD-7 — Close-out full gate floor run. Smoke 5/5/7/5/4/5 FAIL=0 each; unified_broker 23/26; test_icon_all_rungs 194/36/35; beauty md5 `40df9e004c3e963c99af716c65f2c970` unchanged. Carve-out: mode-4 standalone binaries keep `ir_body` fallback (no `SM_sequence_t` at runtime; `pl_dcg_register` wires predicates at standalone startup).
+
+### ST2 — Stage 2 handoff is a named struct — COMPLETE 2026-05-20
+`stage2_t` is the single named struct lower() hands to interp/emit, with no global shim macros, dynamically-grown sidecars, and a regression-catching firewall gate. Authorship history (ST2-1): Lon walked Claude through three honest pivots — additive `s2_*` fields kludge (retracted), `typedef stage2_t = SM_sequence_t` alias (retracted), finally the right shape: `SM_sequence_t` stays the pure opcode array, `stage2_t` is its own struct that embeds the SM sequence and owns the sidecars, `g_stage2` is a global value not a pointer. RULES.md SR-15c respected — lower's internal pass state stays file-scope `static`; ST2 addresses output-side handoff only.
+
+- [x] **ST2-1** (`871d2f0b`) — `stage2_t` is the baton; `g_stage2` is a global value. `SM_sequence_t` restored to its sequence-only shape. Six reader shim macros (label_table, proc_table, g_pl_pred_table, g_registry, label_count, proc_count) redirect legacy names into `g_stage2`. `polyglot_init` takes `stage2_t *s2`. Canonical typedefs consolidated into `stage2.h`. Renames: `ScripModule.proc_count` → `nprocs`; lower-internal `LabelEntry` → `LabTabEntry`. `g_current_SM_seq` dissolved (40 sites).
+- [x] **ST2-1b** — All six reader shim macros burned down across four sub-steps. Producers (s2-bearing) thread `s2->`; readers (deep dispatch, no s2) use `g_stage2.` literally; shim macros deleted after last reader migrates.
+  - g_registry (`14655275`): 11 sites in polyglot_init → `s2->module_registry`; shim deleted.
+  - label_table / label_count (`4f5d0512`): `label_table_build` threads `s2->`; `label_lookup` reads `g_stage2` literally (interp_call.c × 4, interp_hooks.c × 2). Shims deleted from `interp.h`.
+  - g_pl_pred_table (`d73cded0`): 17 sites across 5 files. polyglot.c (2) threads; pl_runtime.c (10), scrip_sm.c (1), interp_hooks.c (1), lower.c (1) literal. Shim deleted from `pl_runtime.h`.
+  - proc_table / proc_count (`27ad177b`): 127 sites across 10 files. Producers: polyglot.c (10), scrip_sm.c sm_resolve_proc_entry_pcs signature changed to `(stage2_t *s2)` (4 sites). Readers literal: lower.c (12), sm_interp.c (21), ir_exec.c (15), emit_sm.c (10), icn_runtime.c (32), interp_hooks.c (2), raku_builtins.c (3). Both shims deleted from `icn_runtime.h`.
+- [x] **ST2-1c** (`b42b7979`) — `label_table` and `proc_table` in `stage2_t` converted from fixed-size inline arrays to dynamically-grown pointers + cap (mirror of `SM_sequence_t.instrs._grow` pattern). `stage2_reset()` allocates initial buffers at `STAGE2_LABEL_MAX` / `STAGE2_PROC_TABLE_MAX` (now initial-capacity hints). `stage2_label_grow` / `stage2_proc_grow` helpers replace cap checks at the two append sites (`polyglot.c` proc-table, `interp_label.c` label-table). Net: ~150KB .bss freed; programs with >4096 labels or >256 procs no longer silently truncate.
+- [x] **ST2-2** (`b733dd13`) — `scripts/test_gate_stage2_isolation.sh` written. Token firewall: each of the six former ST2-1 shim-macro names (`g_registry`, `label_table`, `label_count`, `g_pl_pred_table`, `proc_table`, `proc_count`) must appear in source only as a qualified field reference (`.` or `->` prefix). Allowlist of 10 entries: `stage2.h` field declarations × 6, `interp_private.h` doc comment × 3, `scrip_sm.c` printf format string × 1. Mirror of `test_gate_lower_isolation.sh` / `test_gate_runtime_isolation.sh`. Honest scope: token firewall — link-time isolation analogous to ISO-7 remains a future rung.
+
+**Authors per RULES.md "Three-construct" exception (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
 
