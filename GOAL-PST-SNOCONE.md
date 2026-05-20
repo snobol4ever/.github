@@ -345,8 +345,8 @@ PST-SC-DOC-CLEANUP ✅.
 ## State
 
 ```
-watermark:   2026-05-20 (Sonnet 4.6) — Phase 2 SC-SC ✅. Three C-layer bugs fixed.
-             PASS=0 FAIL=67 — MIRROR-GAP-SC-SC-5 still open; root cause now clear.
+watermark:   2026-05-20 (Sonnet 4.6 session 2) — diagnostic only, no code changes.
+             MIRROR-GAP-SC-SC-5 root cause fully traced.
 
 ROOT CAUSE OF MIRROR-GAP-SC-SC-5 (not &ALPHABET — that was a symptom):
   1. snocone_parse.y: free(node->c) heap corruption (4 sites) — fixed one4all @ 3824560c.
@@ -359,15 +359,41 @@ ROOT CAUSE OF MIRROR-GAP-SC-SC-5 (not &ALPHABET — that was a symptom):
      instead of SM_PAT_*. Fixed: intercepted in both value and pattern context.
   4. lower.c lower_scan (×2): dcg_idx now -1 when IR_lower_pat returns null entry.
 
-REMAINING BLOCKER: variable-stored patterns via SM_PAT_REFNAME.
+REMAINING BLOCKER: variable-stored patterns via SM_PAT_REFNAME / XDSAR.
   Id = ANY(&UCASE &LCASE '_')  then  *Id  in patterns uses:
-    SM_PAT_REFNAME "Id" → pat_ref("Id") → XDSAR PATND_t → bb_build_brokered(XDSAR)
-  bb_build_brokered does not handle XDSAR (runtime variable-name lookup) → fails.
-  Fix target: src/runtime/snobol4/bb_broker.c or bb_boxes.c — add XDSAR case that
-  looks up the variable by name at match time, gets DT_P, delegates to the actual pattern node.
+    SM_PAT_REFNAME "Id" → h_pat_refname → pat_ref("Id") → XDSAR PATND_t
+    → stored as DT_P → bb_deferred_var (stmt_exec.c) at match time calls:
+    bb_build_brokered((PATND_t*)val.p)
+  BUT bb_build_brokered (emit_bb.c) takes IR_t*, not PATND_t*.
+  PATND_t.kind and IR_t.t are both first-field ints, but enum values do NOT align:
+    XDSAR=21 maps to IR_REPEAT=21 → default:→fail in emit_flat_ir().
+  ALL PATND kinds fall to default→fail. Pattern matching via bb_deferred_var
+  is entirely broken in --interp mode for variable-stored patterns.
 
-next:        Fix XDSAR in bb_build_brokered. Then rerun test_parser_snocone.sh.
+ACTUAL FIX TARGET (clarified this session):
+  bb_deferred_var() in stmt_exec.c already correctly:
+    - looks up variable by name at match time (NV_GET_fn)
+    - gets DT_P value (the resolved PATND_t*)
+    - calls bb_build_brokered((PATND_t*)val.p)
+  The bug is that bb_build_brokered() cannot handle PATND_t* nodes.
+  Two valid fix approaches:
+    A) Add a parallel bb_build_brokered_patnd(PATND_t*) in stmt_exec.c or
+       a new snobol4_bb_build.c that switches on XKIND_t and maps to the
+       same emit_bb_x* primitives (emit_bb_xchr, emit_bb_xspnc, etc.).
+       Call it instead of bb_build_brokered() in bb_deferred_var().
+    B) Add IR_PAT_REFNAME to IR_e enum + handle in lower.c + emit_flat_ir,
+       so XDSAR never reaches bb_build_brokered as a PATND_t directly.
+  Approach A is self-contained in the runtime layer; B requires IR changes.
+  Approach A recommended: add snobol4_bb_build.c with:
+    bb_box_fn bb_build_patnd(PATND_t *nd);   /* switch on nd->kind */
+  and replace all (PATND_t*) casts in stmt_exec.c with calls to bb_build_patnd().
+
+next:        Implement bb_build_patnd() covering XCHR/XSPNC/XBRKC/XANYC/XNNYC/
+             XLNTH/XPOSI/XRPSI/XTB/XRTB/XFARB/XARBN/XSTAR/XFNCE/XFAIL/XABRT/
+             XEPS/XCAT/XOR/XDSAR/XFNME/XNME/XBRKX.
+             XDSAR case: allocate a bb_dvar_bin_new(nd->STRVAL_fn) and return
+             bb_build_brokered_from_fn(bb_deferred_var_exported, ζ).
+             Then rerun test_parser_snocone.sh.
              Expect PASS > 0 once *Id/*White/*Ident patterns work.
-             Also: parser_snobol4.sc " fix committed corpus @ b10933c.
-heads:       one4all @ 3824560c · corpus @ b10933c
+heads:       one4all @ 3824560c · corpus @ b10933c · .github @ (this commit)
 ```
