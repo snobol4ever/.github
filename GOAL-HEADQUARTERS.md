@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 8514facf    (EC-UNI-13(a)+(b) ✅ — bb_pat consolidation + SM_CALL_FN/SM_SUSPEND_VALUE → sm_calls.c; gate floor unchanged at every commit; constructs (c)/(d)/(e) deferred to next session as EC-UNI-13c)
+one4all: ab2888bf    (EC-UNI-13(c) ✅ — SM_DEFINE_ENTRY/SM_DEFINE → SM_templates/sm_defines.c; verbatim union of 5 silo arms; helpers emit_sm_define_entry_dispatch/emit_sm_define_dispatch + g_in_define_body exposed; SM_EXEC_STMT on NET preserved; gate floor unchanged)
 corpus:  b10933c
-.github: (this commit — EC-UNI-13(a)+(b) close-out ledger; EC-UNI-13(c) sm_defines advanced to NEXT)
+.github: (this commit — EC-UNI-13(c) close-out ledger; EC-UNI-13(d) sm_bb_calls.c advanced to NEXT)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -162,9 +162,16 @@ This ordering is the explicit lesson from the x86 path: extracting helpers *befo
 
 - [x] **EC-UNI-13(b) ✅ COMPLETE 2026-05-20** — `SM_templates/sm_calls.c` collect: `sm_call_fn(void)` and `sm_suspend_value(void)`.  Bodies are verbatim union of arms pulled from five silo paths (x86 `emit_sm_call_dispatch`, JVM/JS/NET/WASM inline bodies), wrapped in `if (IS_X86)/IS_JVM/IS_JS/IS_NET/IS_WASM`.  Return value follows the sm_jump/sm_halt convention (1 = arm produced terminal jump consuming silo per-iter fallthrough; 0 = walker emits next-pc itself).  Silo wiring: JVM/JS/NET/WASM walkers' `case SM_CALL_FN[/case SM_SUSPEND_VALUE]:` arms route to the new templates.  Legacy x86 walker (`emit_walk_codegen`) still calls `emit_sm_call_dispatch` directly — that's the legacy path, untouched per EC-UNI-13 scope ("silos not deleted yet — that's EC-UNI-14").  Unified-dispatch path (`dispatch_one_x86`) gains both opcodes.  Helper exposure: `jvm_sanitize_name`, `js_escape_string`, `wasm_userfn_find`, `emit_sm_call_dispatch` all promoted from `static` to public; `WasmUserFn` typedef + `WASM_USERFNS_MAX`/`WASM_MAX_PARAMS` added to `sm_template_common.h`; `g_emit.fn_pcs` added (NET arm needs PC value; JVM gates on `>= 0`; walkers set it from local `fn_pcs`).  Commit `8514facf`.
 
-- [ ] **EC-UNI-13(c) (NEXT)** — `SM_templates/sm_defines.c`: `sm_define_entry()` and `sm_define()`.  Inventory: JVM/JS = no-op; WASM routes to `sm_exec_stmt()`; NET shares body with SM_EXEC_STMT (heavy block — `pop / pop / pop / push_var / set_omega / set_sigma / set_delta / set_last_ok`); x86 = current `emit_sm_define_entry_dispatch` (emits noop+annotation, then `push rbp`/`mov rbp,rsp`, sets `g_in_define_body = 1`) and `emit_sm_define_dispatch` (noop with name annotation).  Build: drop `static` from both x86 dispatchers, expose `g_in_define_body` extern, write verbatim union template, route the 5 silo arms.  Optional: pull NET's `SM_LABEL`-with-funcname-prologue (frame_push / frame_save / param binding) into a third template fn — but that requires `fn_params` / `fn_nparams` in `g_emit`; recommend deferring to EC-UNI-13(c') or absorbing in EC-UNI-14 silo delete.
+- [x] **EC-UNI-13(c) ✅ COMPLETE 2026-05-20** — `SM_templates/sm_defines.c`: `sm_define_entry()` and `sm_define()`.  Bodies are verbatim union of arms from five silo paths (commit `ab2888bf`):
+  - **x86:** call existing `emit_sm_define_entry_dispatch` / `emit_sm_define_dispatch` as black boxes (their `static` was dropped, `g_in_define_body` made extern, all three exposed via `emit_sm.h`).
+  - **JVM:** no-op (matches existing arm).
+  - **JS:** no-op (matches existing `SM_DEFINE_ENTRY: break;`; `SM_DEFINE` previously fell through to `default: break;` and is now routed explicitly through the template — IS_JS arm is also no-op).
+  - **NET:** verbatim heavy block lifted from the shared `SM_DEFINE_ENTRY/SM_DEFINE/SM_EXEC_STMT` case (`pop/pop/pop` + `push_var subj` + `set_omega/set_sigma/set_delta/set_last_ok=0`).  The `SM_EXEC_STMT` arm keeps its inline body unchanged — out of scope here because `sm_exec_stmt()` template's IS_NET arm is a stub today (folding `SM_EXEC_STMT` into that template would lose the heavy block; that's an EC-UNI-13(c') or EC-UNI-14 concern).
+  - **WASM:** routes to `sm_exec_stmt()` (matches existing arm).  `SM_EXEC_STMT` case in `emit_wasm_from_sm` now calls `sm_exec_stmt()` alone (was a shared `case SM_EXEC_STMT: case SM_DEFINE_ENTRY: case SM_DEFINE: sm_exec_stmt(); break;`); the two SM_DEFINE arms route through their own template, which dispatches to `sm_exec_stmt()` internally — byte-identical.
 
-- [ ] **EC-UNI-13(d)** — `SM_templates/sm_bb_calls.c`: `sm_bb_once_proc()` and `sm_bb_pump_proc()`.  Today these only exist as x86 dispatchers (`emit_sm_bb_once_proc_dispatch`, `emit_sm_bb_pump_proc_dispatch`); JVM/JS/NET/WASM have no arms.  Template structure is IS_X86 arm only with stubs for other backends.
+  Unified-dispatch path (`dispatch_one_x86`) gains both opcodes per EC-UNI-13(b) precedent.  Legacy x86 walker (`emit_walk_codegen`) still calls `emit_sm_define_entry_dispatch` / `emit_sm_define_dispatch` directly — that's the legacy path, untouched per EC-UNI-13 scope (silos delete at EC-UNI-14).  Gate floor unchanged at every commit (beauty md5 `40df9e004c3e963c99af716c65f2c970`, 882901 bytes; smoke 5/7/5/5/4/5; broker 23/26; icon all-rungs 194/36/35).
+
+- [ ] **EC-UNI-13(d) (NEXT)** — `SM_templates/sm_bb_calls.c`: `sm_bb_once_proc()` and `sm_bb_pump_proc()`.  Today these only exist as x86 dispatchers (`emit_sm_bb_once_proc_dispatch`, `emit_sm_bb_pump_proc_dispatch`); JVM/JS/NET/WASM have no arms.  Template structure is IS_X86 arm only with stubs for other backends.
 
 - [ ] **EC-UNI-13(e)** — `BB_templates/bb_pl.c`: `bb_pl_arith()`, `bb_pl_atom()`, `bb_pl_builtin()`, `bb_pl_call()`.  Bodies pulled from the four `case BB_PL_*:` arms in `emit_sm.c` (lines 1407-1410 today; that's pre-EC-UNI-13(b) numbering — re-check after this commit).
 
