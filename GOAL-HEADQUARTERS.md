@@ -174,6 +174,41 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
+one4all: a97be4b0     (IR-CD-RENAME Category A COMPLETE)
+                       Renamed BB-graph-table machinery dcg_* -> bb_* across 15 src/
+                       files (134 ins, 91 del). Token map:
+                         dcg_table->bb_table, dcg_count->bb_count, dcg_cap->bb_cap,
+                         dcg_idx->bb_idx, g_dcg_table->g_pl_bb_table,
+                         pl_dcg_register/lookup->pl_bb_register/lookup,
+                         SM_seq_dcg_add->SM_seq_bb_add,
+                         PL_DCG_TABLE_MAX->PL_BB_TABLE_MAX, pat_dcg->pat_bb.
+                       Idempotent drive script committed:
+                         scripts/rename_ir_cd_category_a.sh.
+                       Category B (prolog_parse.{c,h}, prolog_lower.c — true DCG
+                         grammar) untouched.
+                       Category C (icn_bb_dcg, pl_bb_dcg, lower_pat_dcg.{c,h},
+                         *_dcg_state_t) deferred.
+                       Side-finding pl_broker.c:364 stale extern fixed in same
+                         commit via #include "SM.h".
+                       Unblocks IR-CD-4 (consumer migration to final names).
+corpus:  5d8e221      (unchanged)
+.github: (this commit — IR-CD-1/2/3 marked complete in step ladder, IR-CD-RENAME
+                       marked complete, side-finding marked resolved, watermark
+                       updated)
+--interp:    PASS (hello.sno)
+smoke icon:    5/0
+smoke prolog:  5/0
+smoke rebus:   4/0
+smoke raku:    5/0
+smoke snobol4: 7/0
+smoke snocone: 5/0     (bumped from baseline 2/3 — incidental, not investigated)
+broker:        23/26
+DAI-BOMB fires: 0
+```
+
+### Previous watermark (IR-CONSOLIDATE-DCG 1-3)
+
+```
 one4all: 419fce29     (IR-CONSOLIDATE-DCG steps 1-3 COMPLETE)  Additive prep:
                        + int dcg_idx field on IcnProcEntry and Pl_PredEntry_BB,
                        + populate during lowering after each lower_icn_proc_body /
@@ -184,17 +219,6 @@ one4all: 419fce29     (IR-CONSOLIDATE-DCG steps 1-3 COMPLETE)  Additive prep:
                        Verified empirically: g_p->dcg_table[entry->dcg_idx] ==
                        entry->ir_body across Icon hello and Prolog palindrome.
                        5 files, +42 -4.
-corpus:  5d8e221      (unchanged)
-.github: (this commit — IR-CONSOLIDATE-DCG ladder section added with Category A/B/C
-                       rename survey; watermark updated)
---interp:    PASS (hello.sno)
-smoke icon:  5/0
-smoke prolog: 5/0
-smoke rebus:  4/0
-smoke raku:   5/0
-broker:      23/26
-hello.sno:   PASS (--interp)
-DAI-BOMB fires: 0
 ```
 
 ### Previous watermark (IR-RN-0)
@@ -310,18 +334,18 @@ The `--compile` x86 binary runs without an `SM_sequence_t` at runtime — `pl_dc
 
 ### Steps
 
-- [ ] **IR-CD-1** — Add `int dcg_idx` field to `IcnProcEntry` and `Pl_PredEntry_BB`. Initialize to `-1` at all entry-creation sites (`polyglot.c` for procs, `pl_dcg_register` for preds). Purely additive.
-- [ ] **IR-CD-2** — Populate `dcg_idx` during lowering: in `lower.c` after `lower_icn_proc_body` (Icon) and after `lower_pl_predicate` (Prolog), call `SM_seq_dcg_add(g_p, ir_body)` and store the returned index. Both `ir_body` and `dcg_idx` valid in this state. Verified empirically via temporary `SCRIP_VERIFY_DCG_IDX` env-flag diagnostic: `g_p->dcg_table[entry->dcg_idx] == entry->ir_body` in every case.
-- [ ] **IR-CD-3** — Strangler inline helpers in headers: `bb_graph_of_proc(IcnProcEntry*)` and `bb_graph_of_pred(Pl_PredEntry_BB*)`. Prefer `g_current_SM_seq->dcg_table[dcg_idx]`, fall back to `ir_body` when no sequence is bound (mode-4 standalone). Also clean conflicting local `extern void *g_current_SM_seq` forward declarations exposed when `SM.h` enters the header transitive includes.
-- [ ] **IR-CD-RENAME** — DCG → BB naming alignment. Survey complete: 119 Category-A occurrences (BB-graph-table machinery, misnamed — `dcg_table` doesn't hold Definite Clause Grammars, it holds `BB_graph_t *`); 48 Category-B occurrences in `prolog_parse.c`/`prolog_lower.c` are true Prolog DCG grammar expansion (`dcg_make_unify`, `dcg_expand_clause`) — **leave alone**; 32 Category-C occurrences are infrastructure-driver names (`icn_bb_dcg`, `pl_bb_dcg`, `*_dcg_state_t`, `lower_pat_dcg.{c,h}`) — judgment call, lean rename but RULES.md mentions `icn_bb_dcg` by name so a coordinated update is needed. Proposed map for Category A: `dcg_table`→`bb_table`, `dcg_idx`→`bb_idx`, `g_dcg_table`→`g_pl_bb_table`, `pl_dcg_register/lookup`→`pl_bb_register/lookup`, `SM_seq_dcg_add`→`SM_seq_bb_add`, `PL_DCG_TABLE_MAX`→`PL_BB_TABLE_MAX`, `pat_dcg`→`pat_bb`. Plus ~125 mentions in `.github/GOAL-*.md` (heaviest: `GOAL-PARSER-PROLOG.md` — but those are mostly Category B). **Do this rename BEFORE IR-CD-4** so Step 4 migrates to the final names, not interim ones.
+- [x] **IR-CD-1** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `419fce29`) — `int dcg_idx` field added to `IcnProcEntry` and `Pl_PredEntry_BB`, initialized to `-1` at all entry-creation sites.
+- [x] **IR-CD-2** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `419fce29`) — `dcg_idx` populated during lowering in `lower.c` after `lower_icn_proc_body` (Icon) and after `lower_pl_predicate` (Prolog). Verified empirically: `g_p->dcg_table[entry->dcg_idx] == entry->ir_body` in every case.
+- [x] **IR-CD-3** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `419fce29`) — Strangler inline helpers `bb_graph_of_proc` / `bb_graph_of_pred` installed in `icn_runtime.h` / `pl_runtime.h`. Prefer `g_current_SM_seq->dcg_table[dcg_idx]`, fall back to `ir_body` for mode-4 standalone.
+- [x] **IR-CD-RENAME** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `a97be4b0`) — Category A renamed across 15 src/ files: `dcg_table`→`bb_table`, `dcg_count`→`bb_count`, `dcg_cap`→`bb_cap`, `dcg_idx`→`bb_idx`, `g_dcg_table`→`g_pl_bb_table`, `pl_dcg_register/lookup`→`pl_bb_register/lookup`, `SM_seq_dcg_add`→`SM_seq_bb_add`, `PL_DCG_TABLE_MAX`→`PL_BB_TABLE_MAX`, `pat_dcg`→`pat_bb`. Idempotent drive script committed: `scripts/rename_ir_cd_category_a.sh`. Category B (true Prolog DCG grammar in `prolog_parse.{c,h}` / `prolog_lower.c`) untouched. Category C (`icn_bb_dcg`, `pl_bb_dcg`, `lower_pat_dcg.{c,h}`, `*_dcg_state_t`) deferred — judgment call, RULES.md mentions `icn_bb_dcg` by name, needs coordinated update. ~125 doc mentions in `.github/GOAL-*.md` (mostly Category B) also untouched. Side-finding (stale `extern void *g_current_SM_seq;` in `pl_broker.c:364`) fixed in the same commit via `#include "SM.h"`. Gates floor: GATE-1 5/0, GATE-2 23/26, all six smoke gates floor (snocone bumped 2/3 → 5/0).
 - [ ] **IR-CD-4** — Migrate ~56 consumer call sites from `entry->ir_body` to `bb_graph_of_*(entry)` (or post-rename: `bb_graph_of_*`). Order: `icn_runtime.c` → `pl_runtime.c` → `ir_exec.c` → `emit_sm.c` → `rt.c`. Floor after each engine.
 - [ ] **IR-CD-5** — Delete the `ir_body` field from both struct typedefs once Step 4 is green. Delete the fallback branch in the strangler helpers. Delete the `ir_body = …` assignments in `lower.c` and `pl_runtime.c` (compile-time site only; the mode-4 `rt.c` path keeps `ir_body` lookup via a different mechanism — TBD: probably register a stub `SM_sequence_t` at standalone-binary startup, or accept the mode-4 carve-out permanently).
 - [ ] **IR-CD-6** — Update docs: `ARCH-IR.md` (or equivalent) to record the single-structure invariant and the mode-4 carve-out. Update `PLAN.md` watermark.
 - [ ] **IR-CD-7** — Close-out: full gate floor run (smoke ×6, broker, beauty self-host).
 
-### Side-finding (latent inconsistency)
+### Side-finding (latent inconsistency) — RESOLVED 2026-05-20
 
-`src/frontend/prolog/pl_broker.c:364` has `extern void *g_current_SM_seq;` — same type mismatch as the two I cleaned in `pl_runtime.c` during IR-CD-3. Doesn't break the build because that file doesn't include `pl_runtime.h`. Fix as a one-line cleanup whenever convenient.
+`src/frontend/prolog/pl_broker.c:364` had `extern void *g_current_SM_seq;` — same type mismatch as the two cleaned in `pl_runtime.c` during IR-CD-3. Fixed in same commit as IR-CD-RENAME (one4all `a97be4b0`): added `#include "SM.h"` and removed the stale forward declaration.
 
 
 
