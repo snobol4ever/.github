@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 6cf60afa    (EC-UNI-12 ✅ COMPLETE — mechanical fprintf→emit_textf sweep across 862 template call sites; passthrough mode preserves byte identity; buffered mode awaits EC-UNI-13/14 helper migration)
+one4all: 8514facf    (EC-UNI-13(a)+(b) ✅ — bb_pat consolidation + SM_CALL_FN/SM_SUSPEND_VALUE → sm_calls.c; gate floor unchanged at every commit; constructs (c)/(d)/(e) deferred to next session as EC-UNI-13c)
 corpus:  b10933c
-.github: (this commit — EC-UNI-11 close-out ledger; EC-UNI-12 advanced to NEXT)
+.github: (this commit — EC-UNI-13(a)+(b) close-out ledger; EC-UNI-13(c) sm_defines advanced to NEXT)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -158,17 +158,15 @@ This ordering is the explicit lesson from the x86 path: extracting helpers *befo
 
   **Files touched (one4all):** `src/emitter/emit_io.h` (mode flag declarations), `src/emitter/emit_io.c` (passthrough branches in all four primitives), `src/emitter/test_emit_io.c` (set buffered=1 explicitly for the buffered-mode coverage), `src/emitter/SM_templates/sm_template_common.h` (+`#include "emit_io.h"`), `src/emitter/BB_templates/bb_template_common.h` (+`#include "emit_io.h"`), all 26 template `.c` files (mechanical fprintf→emit_textf sweep).
 
-- [ ] **EC-UNI-13 (NEXT)** — collect: pull all remaining template code into `SM_templates/` and `BB_templates/`.
+- [x] **EC-UNI-13(a) ✅ COMPLETE 2026-05-20** — `BB_templates/bb_pat.c` consolidation.  16 single-file PAT templates (`bb_lit.c` .. `bb_capture.c`) merged into one TU; function bodies byte-identical to per-file originals (verified by diff); only the leading `#include` deduplicated, blank lines stripped per RULES.md C-style, 200-col separators inserted between functions.  Forward decls in `BB_templates/bb_templates.h` unchanged.  Makefile: 16 SRCS lines and 16 compile rules → one each.  Commit `106f26a2`.
 
-  Inventory: `emit_sm.c` (151955 bytes) contains ~30 `emit_sm_<op>_dispatch` helpers and the per-op `case` arms of `dispatch_one_x86` that emit GAS lines directly.  `emit_core.c` (76646 bytes) contains the four silo walkers (`emit_jvm_one_instr`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm`) plus inline switch bodies for JVM/JS/NET.  `emit_bb.c` contains four `case BB_PL_*:` arms with ad-hoc dispatch.
+- [x] **EC-UNI-13(b) ✅ COMPLETE 2026-05-20** — `SM_templates/sm_calls.c` collect: `sm_call_fn(void)` and `sm_suspend_value(void)`.  Bodies are verbatim union of arms pulled from five silo paths (x86 `emit_sm_call_dispatch`, JVM/JS/NET/WASM inline bodies), wrapped in `if (IS_X86)/IS_JVM/IS_JS/IS_NET/IS_WASM`.  Return value follows the sm_jump/sm_halt convention (1 = arm produced terminal jump consuming silo per-iter fallthrough; 0 = walker emits next-pc itself).  Silo wiring: JVM/JS/NET/WASM walkers' `case SM_CALL_FN[/case SM_SUSPEND_VALUE]:` arms route to the new templates.  Legacy x86 walker (`emit_walk_codegen`) still calls `emit_sm_call_dispatch` directly — that's the legacy path, untouched per EC-UNI-13 scope ("silos not deleted yet — that's EC-UNI-14").  Unified-dispatch path (`dispatch_one_x86`) gains both opcodes.  Helper exposure: `jvm_sanitize_name`, `js_escape_string`, `wasm_userfn_find`, `emit_sm_call_dispatch` all promoted from `static` to public; `WasmUserFn` typedef + `WASM_USERFNS_MAX`/`WASM_MAX_PARAMS` added to `sm_template_common.h`; `g_emit.fn_pcs` added (NET arm needs PC value; JVM gates on `>= 0`; walkers set it from local `fn_pcs`).  Commit `8514facf`.
 
-  For every SM opcode currently emitted by any silo walker but lacking a template fn: create the template fn in the appropriate `SM_templates/sm_<family>.c` (new families: `sm_calls.c`, `sm_defines.c`, `sm_bb_calls.c`, possibly `sm_suspend.c`).  Body is **verbatim union of the four silo arms** wrapped in `if (IS_X86) { ... } if (IS_JVM) { ... } if (IS_JS) { ... } if (IS_NET) { ... } if (IS_WASM) { ... }`.  No refactor.  No helper extraction.  Pure motion.  Verbose by intent.
+- [ ] **EC-UNI-13(c) (NEXT)** — `SM_templates/sm_defines.c`: `sm_define_entry()` and `sm_define()`.  Inventory: JVM/JS = no-op; WASM routes to `sm_exec_stmt()`; NET shares body with SM_EXEC_STMT (heavy block — `pop / pop / pop / push_var / set_omega / set_sigma / set_delta / set_last_ok`); x86 = current `emit_sm_define_entry_dispatch` (emits noop+annotation, then `push rbp`/`mov rbp,rsp`, sets `g_in_define_body = 1`) and `emit_sm_define_dispatch` (noop with name annotation).  Build: drop `static` from both x86 dispatchers, expose `g_in_define_body` extern, write verbatim union template, route the 5 silo arms.  Optional: pull NET's `SM_LABEL`-with-funcname-prologue (frame_push / frame_save / param binding) into a third template fn — but that requires `fn_params` / `fn_nparams` in `g_emit`; recommend deferring to EC-UNI-13(c') or absorbing in EC-UNI-14 silo delete.
 
-  For every BB kind currently in an `emit_sm.c` `case BB_PL_*:` arm: create `BB_templates/bb_pl.c` with `bb_pl_arith`, `bb_pl_atom`, `bb_pl_builtin`, `bb_pl_call`.  Bodies copied verbatim.
+- [ ] **EC-UNI-13(d)** — `SM_templates/sm_bb_calls.c`: `sm_bb_once_proc()` and `sm_bb_pump_proc()`.  Today these only exist as x86 dispatchers (`emit_sm_bb_once_proc_dispatch`, `emit_sm_bb_pump_proc_dispatch`); JVM/JS/NET/WASM have no arms.  Template structure is IS_X86 arm only with stubs for other backends.
 
-  Consolidate the 16 single-file PAT BB templates into `BB_templates/bb_pat.c` (one file, same fn names; deletes 16 files; the directory hierarchy stays the same — `BB_templates/`).
-
-  At end of step: every template fn exists in `SM_templates/` or `BB_templates/`.  `emit_sm.c` and `emit_core.c` still call them via the old silo walkers (silos not deleted yet — that's EC-UNI-14).  Gate floor unchanged.
+- [ ] **EC-UNI-13(e)** — `BB_templates/bb_pl.c`: `bb_pl_arith()`, `bb_pl_atom()`, `bb_pl_builtin()`, `bb_pl_call()`.  Bodies pulled from the four `case BB_PL_*:` arms in `emit_sm.c` (lines 1407-1410 today; that's pre-EC-UNI-13(b) numbering — re-check after this commit).
 
 - [ ] **EC-UNI-14** — single dispatcher.  Build `emit_sm_dispatch(void)` in `emit_core.c`: one switch on `g_emit.instr->op`, 91 arms, each calling `sm_<name>()`.  No backend conditional at the dispatcher level — that's inside each template.  Expand `emit_bb_node(void)` to cover all 21 BB kinds reachable today.  The per-iteration loop in `emit_program` becomes: set `g_emit.*` per iteration, call `emit_sm_dispatch()`.
 
