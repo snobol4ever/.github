@@ -174,36 +174,41 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: a97be4b0     (IR-CD-RENAME Category A COMPLETE)
-                       Renamed BB-graph-table machinery dcg_* -> bb_* across 15 src/
-                       files (134 ins, 91 del). Token map:
-                         dcg_table->bb_table, dcg_count->bb_count, dcg_cap->bb_cap,
-                         dcg_idx->bb_idx, g_dcg_table->g_pl_bb_table,
-                         pl_dcg_register/lookup->pl_bb_register/lookup,
-                         SM_seq_dcg_add->SM_seq_bb_add,
-                         PL_DCG_TABLE_MAX->PL_BB_TABLE_MAX, pat_dcg->pat_bb.
-                       Idempotent drive script committed:
-                         scripts/rename_ir_cd_category_a.sh.
-                       Category B (prolog_parse.{c,h}, prolog_lower.c — true DCG
-                         grammar) untouched.
-                       Category C (icn_bb_dcg, pl_bb_dcg, lower_pat_dcg.{c,h},
-                         *_dcg_state_t) deferred.
-                       Side-finding pl_broker.c:364 stale extern fixed in same
-                         commit via #include "SM.h".
-                       Unblocks IR-CD-4 (consumer migration to final names).
+one4all: b97b267b     (IR-CD-4 COMPLETE — consumer call-site migration)
+                       Migrated 19 read sites across 5 files from entry->ir_body
+                       to bb_graph_of_*(entry) in the prescribed engine order:
+                         icn_runtime.c (2), pl_runtime.c (2), ir_exec.c (8),
+                         emit_sm.c (6 + new pl_runtime.h include), rt.c (1).
+                       Strangler helpers (icn_runtime.h:48, pl_runtime.h:26)
+                       route compile-time pipeline through
+                       g_current_SM_seq->bb_table[bb_idx]; mode-4 standalone
+                       binary still falls back to entry->ir_body.
+                       Carve-out remains until IR-CD-5 policy decision.
+                       Cluster sites captured into local _cfg/_bcfg/_rcfg in
+                       ir_exec.c to avoid repeated helper calls in hot paths.
+                       5 files, +36 -27 LOC.
 corpus:  5d8e221      (unchanged)
-.github: (this commit — IR-CD-1/2/3 marked complete in step ladder, IR-CD-RENAME
-                       marked complete, side-finding marked resolved, watermark
-                       updated)
+.github: (this commit — IR-CD-4 marked complete in step ladder, watermark)
 --interp:    PASS (hello.sno)
 smoke icon:    5/0
 smoke prolog:  5/0
 smoke rebus:   4/0
 smoke raku:    5/0
 smoke snobol4: 7/0
-smoke snocone: 5/0     (bumped from baseline 2/3 — incidental, not investigated)
+smoke snocone: 5/0
 broker:        23/26
+icon rungs:    194/36/35
 DAI-BOMB fires: 0
+```
+
+### Previous watermark (IR-CD-RENAME)
+
+```
+one4all: a97be4b0     (IR-CD-RENAME Category A COMPLETE)
+                       Renamed BB-graph-table machinery dcg_* -> bb_* across 15 src/
+                       files (134 ins, 91 del). Idempotent drive script committed:
+                         scripts/rename_ir_cd_category_a.sh.
+                       Side-finding pl_broker.c:364 fixed in same commit.
 ```
 
 ### Previous watermark (IR-CONSOLIDATE-DCG 1-3)
@@ -338,7 +343,7 @@ The `--compile` x86 binary runs without an `SM_sequence_t` at runtime — `pl_dc
 - [x] **IR-CD-2** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `419fce29`) — `dcg_idx` populated during lowering in `lower.c` after `lower_icn_proc_body` (Icon) and after `lower_pl_predicate` (Prolog). Verified empirically: `g_p->dcg_table[entry->dcg_idx] == entry->ir_body` in every case.
 - [x] **IR-CD-3** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `419fce29`) — Strangler inline helpers `bb_graph_of_proc` / `bb_graph_of_pred` installed in `icn_runtime.h` / `pl_runtime.h`. Prefer `g_current_SM_seq->dcg_table[dcg_idx]`, fall back to `ir_body` for mode-4 standalone.
 - [x] **IR-CD-RENAME** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `a97be4b0`) — Category A renamed across 15 src/ files: `dcg_table`→`bb_table`, `dcg_count`→`bb_count`, `dcg_cap`→`bb_cap`, `dcg_idx`→`bb_idx`, `g_dcg_table`→`g_pl_bb_table`, `pl_dcg_register/lookup`→`pl_bb_register/lookup`, `SM_seq_dcg_add`→`SM_seq_bb_add`, `PL_DCG_TABLE_MAX`→`PL_BB_TABLE_MAX`, `pat_dcg`→`pat_bb`. Idempotent drive script committed: `scripts/rename_ir_cd_category_a.sh`. Category B (true Prolog DCG grammar in `prolog_parse.{c,h}` / `prolog_lower.c`) untouched. Category C (`icn_bb_dcg`, `pl_bb_dcg`, `lower_pat_dcg.{c,h}`, `*_dcg_state_t`) deferred — judgment call, RULES.md mentions `icn_bb_dcg` by name, needs coordinated update. ~125 doc mentions in `.github/GOAL-*.md` (mostly Category B) also untouched. Side-finding (stale `extern void *g_current_SM_seq;` in `pl_broker.c:364`) fixed in the same commit via `#include "SM.h"`. Gates floor: GATE-1 5/0, GATE-2 23/26, all six smoke gates floor (snocone bumped 2/3 → 5/0).
-- [ ] **IR-CD-4** — Migrate ~56 consumer call sites from `entry->ir_body` to `bb_graph_of_*(entry)` (or post-rename: `bb_graph_of_*`). Order: `icn_runtime.c` → `pl_runtime.c` → `ir_exec.c` → `emit_sm.c` → `rt.c`. Floor after each engine.
+- [x] **IR-CD-4** ✅ COMPLETE 2026-05-20 (Opus 4.7, one4all `b97b267b`) — Migrated ~19 consumer read sites (in 5 files) from `entry->ir_body` to `bb_graph_of_*(entry)`. Files in prescribed order: `icn_runtime.c` (2 sites) → `pl_runtime.c` (2 read sites; registration writes stay) → `ir_exec.c` (8 sites in 3 clusters; captured into locals to avoid repeated helper calls) → `emit_sm.c` (6 sites in `emit_pl_builder_fn` / `pl_pre_intern_pred_names` / `emit_pl_predicate_registry`; added `#include "pl_runtime.h"`) → `rt.c` (1 site in `rt_pl_once`, exercises mode-4 carve-out via the helper's `ir_body` fallback). Gates floor: GATE-1 5/0, GATE-2 23/26, GATE-3 194/36/35, all six smoke gates floor.
 - [ ] **IR-CD-5** — Delete the `ir_body` field from both struct typedefs once Step 4 is green. Delete the fallback branch in the strangler helpers. Delete the `ir_body = …` assignments in `lower.c` and `pl_runtime.c` (compile-time site only; the mode-4 `rt.c` path keeps `ir_body` lookup via a different mechanism — TBD: probably register a stub `SM_sequence_t` at standalone-binary startup, or accept the mode-4 carve-out permanently).
 - [ ] **IR-CD-6** — Update docs: `ARCH-IR.md` (or equivalent) to record the single-structure invariant and the mode-4 carve-out. Update `PLAN.md` watermark.
 - [ ] **IR-CD-7** — Close-out: full gate floor run (smoke ×6, broker, beauty self-host).
