@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: b4859b69     (IEP-PKG — ParserOutput struct names parser→lower contract)
-corpus:  5d8e221
-.github: (this commit — IEP-PKG recorded; watermark advanced)
+one4all: cb1738f6     (PARSE-TO-LOWER A/B/C — parse->lower carries only tree_t*; firewall gates land)
+corpus:  b10933c
+.github: (this commit — watermark advanced; new ISOLATION rung recorded below)
 --interp:      PASS (hello.sno)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -50,11 +50,31 @@ broker:        23/26
 icon rungs:    194/36/35
 matrix gate:   0/365 PASS
 DAI-BOMB fires: 0
+firewall lower:   9 includes / 6 allowlisted
+firewall runtime: 16 includes / 8 allowlisted
 ```
 
 ---
 
 ## Active rungs
+
+### ISOLATION — parse->lower / parse->runtime boundary firewalls
+
+**Goal:** lex/parse produces exactly `tree_t *` and nothing else.  Two boundaries to enforce: parse->lower (consumed by `lower()`) and parse->runtime (referenced by interpreters and emitters).  Today the boundaries are partially porous; ratchet shrinks the porosity.
+
+- [x] **ISO-1** — `lower()` signature `lower(const tree_t *prog)`.  `ParserOutput` struct + `parser_output.{c,h}` deleted; sidecar build (`label_table_build`, `prescan_defines`, `polyglot_init`) folded into the top of `lower()`.  Callers (`scrip.c` `dump_sm`/`mode_monitor`, `scrip_sm.c` `sm_preamble`, `sync_monitor_run`) simplified.  `261ff13d`.
+- [x] **ISO-2** — `scripts/test_gate_lower_isolation.sh`: header firewall enforcing no `#include` from `src/lower/` into `src/frontend/` except via allowlist.  Initial state: 10 includes / 7 allowlist entries, each entry documenting why it exists and an owning relocation goal.  `1691f44f`.
+- [x] **ISO-3** — Relocate `icon_gen.h` (pure Icon Byrd-box generator runtime) from `src/frontend/icon/` to `src/runtime/interp/`.  Lower firewall: 10/7 → 9/6.  Add companion `scripts/test_gate_runtime_isolation.sh` (no `src/runtime/` include into `src/frontend/` except allowlist).  Initial state: 16 includes / 8 allowlist entries.  `cb1738f6`.
+- [ ] **ISO-4 (NEXT)** — `scrip_parse` subprocess: break six parsers out into a separate executable.  `scrip_parse` reads stdin (source) and writes stdout (TDump/TLump S-expression, 120 max line length).  SCRIP forks/execs and reads back, then deserializes the S-exp into a `tree_t` to pass to `lower()`.  Hardest unsolved sub-question: TDump format (defined) but no C-side *deserializer* exists yet — that has to be written.  Other sub-question: where exactly the sidecar build runs after the split (in parent after deser, or replayed via S-exp on the wire).  Recommended first sub-step: write the deserializer + roundtrip self-test on existing programs.  Do NOT introduce the process boundary until roundtrip is proven.
+- [ ] **ISO-5** — Shrink lower firewall allowlist toward 0:
+  - `frontend/icon/icon_lex.h` — extract `IcnTkKind` enum to `src/include/icon_tk.h`.
+  - `frontend/raku/raku_driver.h` — split into `raku_parse.h` (stays) + `raku_runtime.h` (move to `src/runtime/`).
+  - `frontend/prolog/{term,prolog_runtime,prolog_atom}.h` — relocate to `src/runtime/interp/prolog/`.
+  - `frontend/snobol4/scrip_cc.h` — rename + relocate to `src/include/scrip_lang.h` (54 includers tree-wide; mechanical move).
+- [ ] **ISO-6** — Shrink runtime firewall allowlist toward 0: same headers; coordinated with ISO-5 since they overlap.
+- [ ] **ISO-7** — Stronger guarantee than the header firewall: link-time isolation test (`lower.o` + `lower_*.o` linked against a tree with all `src/frontend/*.o` absent).  Any unresolved symbol = real leakage.  Deferred from this session — proxies (signature + firewall) are weaker than a real link test, and we should be honest about that until ISO-7 lands.
+
+**Honest scope statement (recorded so the next session does not over-trust the gates):** the firewalls are *header* firewalls.  They catch direct `#include` regressions in seconds.  They do **not** prove that `lower` reads only the AST passed to it; symbols reachable through an allowlisted header (most acutely through `scrip_cc.h`) are not detected.  ISO-7 closes that gap.
 
 ### IR-CONSOLIDATE-DCG — single-structure lowering output
 
