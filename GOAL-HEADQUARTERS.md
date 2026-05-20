@@ -65,7 +65,7 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 **EC-5 ✅ COMPLETE 2026-05-19 (Sonnet 4.6, one4all `e1c8a4ac`).** emit_jvm.c/emit_js.c/emit_net.c/emit_ir.c/emit_ir_targets.c/emit_ir.h(shim) deleted. IR walk (ir_node_id/ir_is_generator/ir_walk) + three SM-walk loops (emit_jvm_from_sm/emit_js_from_sm/emit_net_from_sm) + helpers (jvm_sanitize_name/net_parse_define_proto) moved to emit_core.c. Unified emit_program(ast_prog,out,mode) replaces 3 per-target entry points. IR_emit_vtable_t deleted. src/include/emit_ir.h stripped. Net −2077 LOC. Gates floor: 5/0·23/26·194/36.
 
-**NEXT: EC-6** — Audit `emit_wasm.c`: same pattern — move its per-node functions into template arms. Delete `emit_wasm.c` after move. (WASM already partially cleaned by DAI-8 C10.)
+**NEXT: EC-UNI-0** — Add `IS_X86`/`IS_X86_TEXT`/`IS_X86_BIN` macros to `emit_core.h`; add `EMIT_BIN_JVM/NET/WASM` enum stubs; scaffold `emit_sm_dispatch`; add empty `IS_X86` stub arms to all 5 SM_template files. See EC-UNI step ladder below.
 
 
 ## DAI-8 methodology note
@@ -224,6 +224,64 @@ is invoked with the mode already set via `emit_mode_set()`.
 - [x] **EC-6** ✅ (one4all `7c33121c`, 2026-05-19, Sonnet 4.6) — delete `emit_wasm.c`; move WASM string table + user-fn table + `emit_wasm_from_sm` into `emit_core.c`; add `EMIT_WASM=8` + `IS_WASM` to `emit_core.h`; add WASM arms to `emit_prologue`/`emit_epilogue`/`emit_program`; `scrip.c` calls `emit_program(EMIT_WASM)`. Net −427 LOC. Gates: 5/0·23/26·194/36.
 - [x] **EC-7** ✅ (2026-05-19, Sonnet 4.6) — Full gate run: all six frontends + broker + icon rung ladder all at floor. ARCH-IR.md updated with unified emitter model documentation. EC rung closed.
 - [x] **EC-WASM-SM** ✅ (one4all `268619c1`, 2026-05-19, Sonnet 4.6) — IS_WASM arms added to all 5 SM_templates (push_pop_lits, arith, compare, control, pat). `sm_templates.h` created. `emit_wasm_from_sm` rewritten to call SM_template functions — one fn per opcode, all modes dispatched via IS_WASM/IS_JVM/IS_JS/IS_NET. `wasm_intern_str`/`wasm_intern_name` promoted from static. Gates: 7/0·5/0·23/26·194/36.
+
+## Emitter Unification (EC-UNI) — x86 text/binary into SM_templates; wire all walkers through templates
+
+### Problem
+
+The SM_template functions (`sm_push_lit_i`, `sm_halt`, `sm_jump`, etc.) dispatch on `IS_JVM/IS_JS/IS_NET/IS_WASM` but have **no x86 arms**. The x86 text path (`EMIT_TEXT`) and x86 binary path (`EMIT_BINARY_WIRED`) go through a completely separate 3 000-line system: `emit_walk_codegen()` → `emit_sm_template()` → `sm_op_template_t` table (macro-expansion, string-table, label patching — all x86-only). The JVM/JS/NET walkers in `emit_core.c` also still carry their own inline opcode switch bodies instead of calling the template functions.
+
+**Target:** one template function per SM opcode, one template function per BB box kind. Every backend — x86 text, x86 binary, binary-JVM, binary-.NET, JVM bytecode, JS, .NET IL, WASM — adds exactly one arm per function. Adding a new backend = add one enum value and one `IS_NEW` arm per function. Adding a new SM opcode = add one function with arms for every backend. Zero per-backend silo walkers. Zero parallel switch trees.
+
+### Architecture after EC-UNI
+
+```
+SM_Program
+    |
+    v
+emit_sm_dispatch(sm, out, mode)          ← single walk for ALL backends
+    |
+    for each SM_Instr:
+        sm_<opcode>(instr, out)           ← one template fn per opcode
+            IS_TEXT / IS_BIN  → x86 GAS text  / binary wired
+            IS_JVM            → JVM Jasmin text
+            IS_JS             → JavaScript text
+            IS_NET            → MSIL .NET text
+            IS_WASM           → WAT text
+            IS_BIN_JVM        → (future) binary JVM class bytes
+            IS_BIN_NET        → (future) binary .NET IL bytes
+            IS_BIN_WASM       → (future) binary WASM bytes
+```
+
+`emit_walk_codegen` (x86), `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm` are all deleted. A single `emit_sm_dispatch(SM_Program *, FILE *, bb_emit_mode_t)` replaces all five.
+
+### Enum additions required
+
+```c
+/* emit_core.h — add after EMIT_WASM = 8 */
+EMIT_BIN_JVM  = 9,   /* future: binary JVM .class bytes */
+EMIT_BIN_NET  = 10,  /* future: binary .NET IL bytes    */
+EMIT_BIN_WASM = 11,  /* future: binary WASM bytes       */
+
+#define IS_X86_TEXT  (bb_emit_mode == EMIT_TEXT || bb_emit_mode == EMIT_TEXT_INLINE)
+#define IS_X86_BIN   (bb_emit_mode == EMIT_BINARY_WIRED || bb_emit_mode == EMIT_BINARY_BROKERED)
+#define IS_X86       (IS_X86_TEXT || IS_X86_BIN)
+```
+
+### Step ladder
+
+- [ ] **EC-UNI-0** — Inventory and scaffolding. (a) Add `IS_X86` / `IS_X86_TEXT` / `IS_X86_BIN` macros to `emit_core.h`; add `EMIT_BIN_JVM/NET/WASM` enum stubs (no-op arms, compile-time guard only). (b) Add empty `IS_X86` stub arms to all 5 SM_template files — each function gains `if (IS_X86) { return; }` so x86 callers don't crash when wired in EC-UNI-1. (c) Wire a new `emit_sm_dispatch(SM_Program *, FILE *, bb_emit_mode_t)` in `emit_core.c` that sets mode and walks the SM_Program calling the template functions — no x86 logic yet (returns −1 for IS_X86). Gates green throughout.
+- [ ] **EC-UNI-1** — x86 text arms: `sm_push_pop_lits.c`. For each of the 7 functions (`sm_push_lit_i/s/f`, `sm_push_null`, `sm_void_pop`, `sm_push_var`, `sm_store_var`): add `IS_X86_TEXT` arm that emits the equivalent GAS macro call (drawn from `emit_walk_codegen`'s existing `emit_sm_template` / `sm_op_template_t` expansion). One sub-commit per function family. Gates held throughout.
+- [ ] **EC-UNI-2** — x86 text arms: `sm_arith.c` (9 fns), `sm_compare.c` (3 fns), `sm_control.c` (4 fns: jump/s/f, halt), `sm_pat.c` (30 fns: SM_PAT_* + SM_EXEC_STMT), `sm_return` family (9 variants). One sub-commit per file. Gates held.
+- [ ] **EC-UNI-3** — Wire `emit_sm_dispatch` for x86 text: if mode is `EMIT_TEXT`/`EMIT_TEXT_INLINE`, walk SM_Program calling template functions (now x86-capable). Run byte-identity check: `sm_codegen_text` output vs `emit_sm_dispatch(EMIT_TEXT)` output must be identical (md5 match on beauty.sno). Gates held.
+- [ ] **EC-UNI-4** — Delete `emit_walk_codegen` / `sm_codegen_text` / `emit_sm_template` / `sm_op_template_t` table from `emit_sm.c`. Update `scrip.c`: x86 compile path calls `emit_program(ast, out, EMIT_TEXT)` (routes through `emit_sm_dispatch`). Gate: beauty.sno still produces byte-identical output vs SPITBOL oracle. Net LOC delta estimated −1 500.
+- [ ] **EC-UNI-5** — Wire JVM/JS/NET inline switch arms in `emit_core.c` (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`) to call SM_template functions instead of inlining opcode logic. Confirm output byte-identical. Delete the three inline switch bodies. `emit_sm_dispatch` now handles JVM/JS/NET/WASM and x86 — single walk for all backends. Full gate run.
+- [ ] **EC-UNI-6** — x86 binary arms: `IS_X86_BIN` stubs in all template functions, wired through `emit_sm_dispatch(EMIT_BINARY_WIRED)`. Byte-identity vs existing `--run` path. (Prerequisite for future binary-JVM etc.)
+- [ ] **EC-UNI-7** — Audit + close: remove any remaining per-backend silo logic; verify `IS_BIN_JVM/NET/WASM` stubs are clean no-ops; full gate run across all six frontends + broker + icon rung ladder. Update ARCH-IR.md. Rung closed.
+
+### Invariant (EC-UNI)
+
+After EC-UNI-5: there is exactly one SM walk function (`emit_sm_dispatch`). Every SM opcode has exactly one template function. Every backend adds exactly one arm per function. `emit_walk_codegen`, `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm` do not exist.
 
 ### Invariant
 
