@@ -174,6 +174,32 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
+one4all: 419fce29     (IR-CONSOLIDATE-DCG steps 1-3 COMPLETE)  Additive prep:
+                       + int dcg_idx field on IcnProcEntry and Pl_PredEntry_BB,
+                       + populate during lowering after each lower_icn_proc_body /
+                         lower_pl_predicate via SM_seq_dcg_add(g_p, ir_body),
+                       + strangler inlines bb_graph_of_proc / bb_graph_of_pred in
+                         icn_runtime.h / pl_runtime.h (prefer SM_sequence_t.dcg_table,
+                         fall back to ir_body for mode-4 standalone carve-out).
+                       Verified empirically: g_p->dcg_table[entry->dcg_idx] ==
+                       entry->ir_body across Icon hello and Prolog palindrome.
+                       5 files, +42 -4.
+corpus:  5d8e221      (unchanged)
+.github: (this commit — IR-CONSOLIDATE-DCG ladder section added with Category A/B/C
+                       rename survey; watermark updated)
+--interp:    PASS (hello.sno)
+smoke icon:  5/0
+smoke prolog: 5/0
+smoke rebus:  4/0
+smoke raku:   5/0
+broker:      23/26
+hello.sno:   PASS (--interp)
+DAI-BOMB fires: 0
+```
+
+### Previous watermark (IR-RN-0)
+
+```
 one4all: 9ce69899     (IR-RN-0 COMPLETE)  Bulk rename in 3 sed passes:
                        IR_t/IR_block_t -> BB_t/BB_graph_t; SM_Instr/SM_Program ->
                        SM_t/SM_sequence_t; ~100 IR_* tags -> BB_*; IR builders to
@@ -183,14 +209,6 @@ one4all: 9ce69899     (IR-RN-0 COMPLETE)  Bulk rename in 3 sed passes:
                        BB_SCAN/PUMP/ONCE -> bb_scan/pump/once.  Headers IR.h -> BB.h,
                        sm_prog.h -> SM.h.  48 files modified, 4 new scripts.
                        Build green, hello-world OK, smoke icon 5/0.
-corpus:  5d8e221      (unchanged)
-.github: (this commit — IR Rename section rewritten with builder/consumer scheme;
-                       IR-RN-0 marked complete; watermark updated)
---interp:    untested this session (rename only — gates owed to IR-RN-1 audit)
-smoke icon:  5/0      (verified post-rename)
-broker:      untested this session
-hello.sno:   PASS (interp mode)
-DAI-BOMB fires: 0
 ```
 
 ### Previous watermark (pre-rename)
@@ -275,6 +293,35 @@ Two confusingly-named prefixes existed: `IR_t` / `IR_block_t` for the Byrd-box D
 ### Insight
 
 The builder/consumer split via case has a useful property: **the case of a function name tells you whether it's part of the compile-time pipeline (builds IR) or consumes the IR (emits target code, interprets, JITs, dumps, runs the broker)**. Layer is visible at the call site without context.
+
+
+
+---
+
+## IR-CONSOLIDATE-DCG — single-structure lowering output (started 2026-05-20)
+
+### Why
+
+`lower()` returns one `SM_sequence_t *`, but its `dcg_table[]` (the BB-graph side-table) is only populated for SNOBOL4 pattern DCGs. Icon procedure bodies (`BB_graph_t *`) live in a parallel global `proc_table[].ir_body`, and Prolog predicate bodies live in another parallel global `g_dcg_table[].ir_body`. Both engines (`--interp` and the x86 `--compile`) consume from all three places. The invariant we want: **all BB graphs produced by lowering reach the engines through the single `SM_sequence_t`.**
+
+### Carve-out: mode-4 standalone binaries
+
+The `--compile` x86 binary runs without an `SM_sequence_t` at runtime — `pl_dcg_register` is called from `rt.c` to wire up predicates at standalone startup. For that path, `dcg_idx` stays `-1` and the strangler helper falls back to `ir_body`. The "single-structure" invariant is a **compile-time pipeline** property (lower → interp, lower → x86 codegen). The runtime side of standalone binaries is a separate world.
+
+### Steps
+
+- [ ] **IR-CD-1** — Add `int dcg_idx` field to `IcnProcEntry` and `Pl_PredEntry_BB`. Initialize to `-1` at all entry-creation sites (`polyglot.c` for procs, `pl_dcg_register` for preds). Purely additive.
+- [ ] **IR-CD-2** — Populate `dcg_idx` during lowering: in `lower.c` after `lower_icn_proc_body` (Icon) and after `lower_pl_predicate` (Prolog), call `SM_seq_dcg_add(g_p, ir_body)` and store the returned index. Both `ir_body` and `dcg_idx` valid in this state. Verified empirically via temporary `SCRIP_VERIFY_DCG_IDX` env-flag diagnostic: `g_p->dcg_table[entry->dcg_idx] == entry->ir_body` in every case.
+- [ ] **IR-CD-3** — Strangler inline helpers in headers: `bb_graph_of_proc(IcnProcEntry*)` and `bb_graph_of_pred(Pl_PredEntry_BB*)`. Prefer `g_current_SM_seq->dcg_table[dcg_idx]`, fall back to `ir_body` when no sequence is bound (mode-4 standalone). Also clean conflicting local `extern void *g_current_SM_seq` forward declarations exposed when `SM.h` enters the header transitive includes.
+- [ ] **IR-CD-RENAME** — DCG → BB naming alignment. Survey complete: 119 Category-A occurrences (BB-graph-table machinery, misnamed — `dcg_table` doesn't hold Definite Clause Grammars, it holds `BB_graph_t *`); 48 Category-B occurrences in `prolog_parse.c`/`prolog_lower.c` are true Prolog DCG grammar expansion (`dcg_make_unify`, `dcg_expand_clause`) — **leave alone**; 32 Category-C occurrences are infrastructure-driver names (`icn_bb_dcg`, `pl_bb_dcg`, `*_dcg_state_t`, `lower_pat_dcg.{c,h}`) — judgment call, lean rename but RULES.md mentions `icn_bb_dcg` by name so a coordinated update is needed. Proposed map for Category A: `dcg_table`→`bb_table`, `dcg_idx`→`bb_idx`, `g_dcg_table`→`g_pl_bb_table`, `pl_dcg_register/lookup`→`pl_bb_register/lookup`, `SM_seq_dcg_add`→`SM_seq_bb_add`, `PL_DCG_TABLE_MAX`→`PL_BB_TABLE_MAX`, `pat_dcg`→`pat_bb`. Plus ~125 mentions in `.github/GOAL-*.md` (heaviest: `GOAL-PARSER-PROLOG.md` — but those are mostly Category B). **Do this rename BEFORE IR-CD-4** so Step 4 migrates to the final names, not interim ones.
+- [ ] **IR-CD-4** — Migrate ~56 consumer call sites from `entry->ir_body` to `bb_graph_of_*(entry)` (or post-rename: `bb_graph_of_*`). Order: `icn_runtime.c` → `pl_runtime.c` → `ir_exec.c` → `emit_sm.c` → `rt.c`. Floor after each engine.
+- [ ] **IR-CD-5** — Delete the `ir_body` field from both struct typedefs once Step 4 is green. Delete the fallback branch in the strangler helpers. Delete the `ir_body = …` assignments in `lower.c` and `pl_runtime.c` (compile-time site only; the mode-4 `rt.c` path keeps `ir_body` lookup via a different mechanism — TBD: probably register a stub `SM_sequence_t` at standalone-binary startup, or accept the mode-4 carve-out permanently).
+- [ ] **IR-CD-6** — Update docs: `ARCH-IR.md` (or equivalent) to record the single-structure invariant and the mode-4 carve-out. Update `PLAN.md` watermark.
+- [ ] **IR-CD-7** — Close-out: full gate floor run (smoke ×6, broker, beauty self-host).
+
+### Side-finding (latent inconsistency)
+
+`src/frontend/prolog/pl_broker.c:364` has `extern void *g_current_SM_seq;` — same type mismatch as the two I cleaned in `pl_runtime.c` during IR-CD-3. Doesn't break the build because that file doesn't include `pl_runtime.h`. Fix as a one-line cleanup whenever convenient.
 
 
 
