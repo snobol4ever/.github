@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: b733dd13    (ST2-2 stage2 isolation firewall gate; ST2 rung COMPLETE — ST2-1/1b/1c/2 all landed this session)
+one4all: 3088dcba    (EC-UNI-10 ✅ COMPLETE — three orthogonal commits 7835fb9d/5e607294/3088dcba: g_emit single global struct + parameterless SM/BB templates)
 corpus:  b10933c
-.github: (this commit — ST2 rung close-out ledger)
+.github: (this commit — EC-UNI-10 close-out ledger; EC-UNI-11 advanced to NEXT)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -124,48 +124,15 @@ This ordering is the explicit lesson from the x86 path: extracting helpers *befo
 
 #### Active rungs (EC-UNI-10 onward)
 
-- [ ] **EC-UNI-10 (NEXT)** — `g_emit` single global struct; templates are parameterless.  Create `src/emitter/emit_globals.{c,h}` defining `sm_emit_t` and the single `g_emit` instance.  Shape (one flat struct — mirrors Snocone `DATA(...)` shape):
+- [x] **EC-UNI-10 ✅ COMPLETE 2026-05-20** — `g_emit` single global struct; templates are parameterless.  Three commits per RULES.md "Three-construct":
 
-  ```c
-  typedef struct {
-      /* Pass-wide */
-      int                          backend;       /* EMIT_X86 / EMIT_JVM / ... drives IS_* macros */
-      int                          is_binary;     /* TEXT (0) vs BIN (1) — today only x86 has both */
-      FILE *                       out;           /* output sink (dissolves in EC-UNI-11/12) */
-      /* SM per-instruction */
-      int                          i;             /* current PC */
-      int                          n;             /* total instruction count */
-      const SM_t *                 instr;         /* current SM instruction */
-      /* BB per-node */
-      BB_t *                       node;          /* current BB node */
-      int                          sid;           /* statement id (today: 0) */
-      int                          nid;           /* node id = bb_node_id(node) */
-      /* JVM body/method gate */
-      int                          in_body;       /* 1 if emitting function body method */
-      const char *                 in_my_method;  /* byte[n]: 1 if PC i belongs to current method */
-      /* NET/JVM function table */
-      const int *                  pc_to_fn;      /* PC → fn index, -1 if none */
-      const char **                fn_names;      /* fn index → name */
-      int                          fn_count;      /* size of fn_names */
-      /* Pending EC-UNI-3-beauty fields, now globals */
-      const struct SM_sequence_t * prog;          /* full SM sequence (NRETURN/STNO need it) */
-      const struct SrcLines *      srclines;      /* source-line annotations for x86 GAS */
-  } sm_emit_t;
-  extern sm_emit_t g_emit;
-  ```
+  - **EC-UNI-10(a)** `7835fb9d` — Created `src/emitter/emit_globals.{c,h}` defining `sm_emit_t` and the single `g_emit` instance.  Field layout mirrors the Snocone `DATA('Sm_emit(BACKEND, IS_BINARY, OUT, I, N, INSTR, NODE, SID, NID, IN_BODY, IN_MY_METHOD, PC_TO_FN, FN_NAMES, FN_COUNT, PROG, SRCLINES)')` shape.  `emit_program()` populates pass-wide fields at entry; save/restore for re-entrancy.  No template body changes.
+  - **EC-UNI-10(b)** `5e607294` — Migrated the 7 ctx-bearing SM templates (`sm_jump`/`sm_jump_s`/`sm_jump_f`/`sm_halt`/`sm_return`/`sm_freturn`/`sm_nreturn`) to parameterless `int sm_<name>(void)` reading from `g_emit`.  Layer-2 helpers `jvm_ret_guard`/`net_ret_guard` updated to read `g_emit.out` / `g_emit.i` (keep op/sfx as call-site variants).  Producer call sites updated in 5 dispatchers (`emit_wasm_from_sm`, `emit_jvm_one_instr`, `emit_js_from_sm`, `emit_net_from_sm`, `dispatch_one_x86`).  `sm_ctx.h` deleted.  The EC-UNI-3-beauty deliverable is structurally absorbed — `g_emit.prog`/`srclines` are real globals now.
+  - **EC-UNI-10(c)** `3088dcba` — Migrated all 16 BB templates (parameterless `void bb_<kind>(void)`, `bb_capture(int imm)` keeps `imm` as a genuine per-call-site discriminator) and the 7 remaining SM template family files (~40 fns across `sm_arith`/`sm_compare`/`sm_push_pop_lits`/`sm_pat_anchors`/`sm_pat_combine`/`sm_pat_control`/`sm_pat_position`).  The 4 previously-i-bearing pat templates (`sm_pat_any_i`/`sm_pat_notany`/`sm_pat_span`/`sm_pat_break`) become `void(void)` reading `g_emit.i`.  Forward decls in `sm_templates.h`/`bb_templates.h`/`emit_core.h` updated.  ~113 call sites rewritten across `emit_core.c`/`emit_sm.c`/`emit_bb.c`.  `emit_bb_node` sets `g_emit.node`/`out`/`sid`/`nid` before each call.
 
-  Snocone shape comment block in the header records the eventual `DATA('Sm_emit(BACKEND,IS_BINARY,OUT,I,N,INSTR,NODE,SID,NID,IN_BODY,IN_MY_METHOD,PC_TO_FN,FN_NAMES,FN_COUNT,PROG,SRCLINES)')` declaration.
+  Watermark: `3088dcba`.  Beauty md5: `40df9e004c3e963c99af716c65f2c970` (unchanged at every commit).  Smoke 5/5/5/4/7/5; broker 23/26; icon all-rungs 194/36/35.  ARCH-IR.md and Phase-B GOAL files not yet updated — that's EC-UNI-22.
 
-  Drop `const sm_ctx_t *ctx` from the 7 ctx-bearing SM templates (`sm_jump`/`sm_jump_s`/`sm_jump_f`/`sm_halt`/`sm_return`/`sm_freturn`/`sm_nreturn`).  Drop `BB_t *nd` and `FILE *out` from every BB template.  Drop `FILE *out` from every other SM template.  All template signatures become `void sm_<name>(void)` / `void bb_<name>(void)` (and `int` returns where they exist today).  `IS_*` macros stay shape `(g_emit.backend == EMIT_<BE>)`.  Producer sites (`emit_core.c` per-instr loops + `emit_sm.c` `dispatch_one_x86` + `emit_bb_node`) set `g_emit.*` fields before each call.  The pending `prog`/`srclines` (the old EC-UNI-3-beauty fix) drop in for free — set once before the loop.  Delete `src/emitter/SM_templates/sm_ctx.h`.
-
-  Three orthogonal commits per RULES.md "Three-construct":
-    (a) add `emit_globals.{c,h}`, populate `g_emit.backend` at the entry of `emit_program`, no template changes;
-    (b) migrate the 7 ctx-bearing SM templates + their producer call sites; delete `sm_ctx.h`;
-    (c) migrate BB templates and the remaining `FILE *out`-bearing SM templates.
-
-  **Includes the EC-UNI-3-beauty deliverable** — write `scripts/test_gate_em_ec_uni_3_beauty.sh` here (compile beauty.sno --compile flag-off vs flag-on, `diff -q` identical; passes trivially after (b) lands because `prog`/`srclines` are now real values from globals instead of NULL through the shim).
-
-- [ ] **EC-UNI-11** — emit primitives.  Add `src/emitter/emit_io.{c,h}` with `emit_text(const char *)`, `emit_textf(const char *fmt, ...)`, `emit_byte(unsigned char)`, `emit_bytes(const unsigned char *, int len)`.  Per-backend buffers internally (`g_text_buf`, `g_bin_buf`).  Flush hook in `emit_program` writes the buffer to `g_emit.out` at completion.  Self-test that round-trips a synthetic byte stream.  No template body changes yet.  Gates unchanged.
+- [ ] **EC-UNI-11 (NEXT)** — emit primitives.  Add `src/emitter/emit_io.{c,h}` with `emit_text(const char *)`, `emit_textf(const char *fmt, ...)`, `emit_byte(unsigned char)`, `emit_bytes(const unsigned char *, int len)`.  Per-backend buffers internally (`g_text_buf`, `g_bin_buf`).  Flush hook in `emit_program` writes the buffer to `g_emit.out` at completion.  Self-test that round-trips a synthetic byte stream.  No template body changes yet.  Gates unchanged.
 
 - [ ] **EC-UNI-12** — sweep `fprintf(g_emit.out, ...)` → `emit_textf(...)` across all current templates.  Mechanical text-only sweep over `SM_templates/*.c` and `BB_templates/*.c`.  Every direct `fputc`/`fwrite` in binary-x86 arms → `emit_byte`/`emit_bytes`.  Drop `g_emit.out` reads inside templates entirely; the buffer abstraction owns the sink.  Gate: byte-identical beauty.sno after final flush.  Full smoke.
 
