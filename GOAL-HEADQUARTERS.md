@@ -42,7 +42,7 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ```
 one4all: 871d2f0b     (ST2-1 — stage2_t is the baton; g_stage2 global value; SM_sequence_t pure sequence)
 corpus:  b10933c
-.github: (this commit — ST2 rung added; ISO updated)
+.github: (this commit — EC-PHASE-A rung added; globals-over-ctx design; emit-to-strings step queued)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -52,6 +52,7 @@ matrix gate:   0/365 PASS
 DAI-BOMB fires: 0
 firewall lower:   9 includes / 6 allowlisted
 firewall runtime: 16 includes / 8 allowlisted
+beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20, 882901 bytes)
 ```
 
 ---
@@ -146,6 +147,65 @@ Completed: EC-UNI-0 through EC-UNI-9d. 52 SM_template fns across 5 files carry `
 - [ ] EC-UNI-8.7 — Docs + close: ARCH-IR.md, ARCH-SCRIP.md, this file's invariant block.
 
 **Invariant (post EC-UNI):** one SM walk fn (`emit_sm_dispatch`). Every SM opcode = one template fn. Every backend adds exactly one arm per fn. Adding a backend = N template edits + 1 header enum + 1 macro. Adding an opcode = 1 new file + 1 enum value. Adding a new output format to an existing backend = encoder-layer change only, zero template edits.
+
+### EC-PHASE-A — emitter refactor to 100% template coverage of currently-emitted ops
+
+**Goal:** every opcode currently emitted by any of the five backend walkers (x86, JVM, JS, NET, WASM) is emitted *only* through its template function.  After Phase A: zero ad-hoc switches outside `emit_sm_dispatch` and `emit_bb_node`; the five walker fns are deleted; every backend arm lives explicitly inside its template, side-by-side with the others.  No new codegen.  Behavior-preserving.
+
+**Phase A scope (measured 2026-05-20):**
+- SM: 76 opcodes touched by at least one walker.  56 templates exist → **20 to add** (many are *_S/*_F variants foldable into kind-arg fns; ~10 truly new fns).
+- BB: 21 opcodes touched.  16 templates exist (PAT_* via one-file-per-op) → **4 new templates** (BB_PL_ARITH/ATOM/BUILTIN/CALL absorbing ad-hoc arms in `emit_sm.c`) + reorg of 16 single-file PAT templates into one `bb_pat.c`.
+- Walkers to delete after coverage lands: `emit_walk_codegen` (x86 legacy switch), `emit_jvm_one_instr` + `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm`, `dispatch_one_x86`.
+
+**Phase A then unlocks Phase B:** five per-backend GOAL files (one per column) — GOAL-SN4-X86-EMIT (new), GOAL-SN4-JVM-EMIT, GOAL-SN4-JS-EMIT, GOAL-SN4-NET-EMIT, GOAL-SN4-WASM-EMIT.  Each fills the IS_<BE> arms across the full opcode set, including ops nobody emits today (BB_AUGOP, BB_GOTO, BB_UNOP, BB_PROC, BB_SCAN, BB_INTERROGATE, BB_PAT_CALLOUT, BB_ICN_EVERY).
+
+**Design decisions taken up front (so they're not re-litigated step by step):**
+
+1. **Context via globals, not threaded parameters.**  Snocone is the bootstrap target.  Threading a `ctx` struct through every template fn parameter in C means threading it through every Snocone fn parameter once translated — pure overhead that the bootstrap doesn't earn.  Snocone has globals; the emitter system uses them.  Each backend's per-instruction loop sets file-scope globals (`g_emit_pc`, `g_emit_n_total`, `g_jvm_in_body`, `g_jvm_in_my_method`, `g_jvm_fn_names`, `g_jvm_fn_count`, `g_net_pc_to_fn`, `g_net_fn_names`, `g_net_fn_count`, `g_emit_prog`, `g_emit_srclines`) before invoking the template; each template arm reads only the globals it cares about.  Eliminates the `const sm_ctx_t *ctx` parameter from every template signature.  The existing `sm_ctx_t` struct is removed; the field names live on as global names.
+
+2. **Globals are still structured names that survive the Snocone port.**  Groups of related globals are documented as logical structs in `src/emitter/emit_globals.h`, with a comment block declaring the eventual Snocone shape `DATA('Sm_ctx_jvm(IN_BODY, IN_MY_METHOD, FN_NAMES, FN_COUNT)')` etc.  When the Snocone bootstrap runs, the C globals become Snocone globals one-to-one; the struct grouping translates to a single `DATA(...)` declaration that the Snocone code shapes around.  The grouping is for human reasoning; it has no C-level enforcement.
+
+3. **File grouping.**  SM templates stay grouped by family (10 files today, expanding to ~12).  BB templates collapse from 16 single-file PAT templates into family files: `bb_pat.c` (17 fns), `bb_pl.c` (10 fns when Phase B fills them — Phase A populates 4), `bb_icn.c` (22 fns, mostly Phase B), `bb_core.c` (the 35 universal kinds — lit/var/assign/call/if/seq/every/while/…, mostly Phase B), `bb_cset.c` (4 cset fns).  `bb_templates.h` holds all forward decls.  Phase A creates `bb_pat.c` (consolidating the 16 existing files) and `bb_pl.c` (the 4 new fns); the remaining BB family files are Phase B work.
+
+4. **`emit_sm_dispatch` is the only SM walker.**  Built fresh in `emit_core.c`.  Single switch, 91 arms.  All five backend silo walkers delete; `emit_program`'s SM walk becomes one loop that sets the per-iteration globals (PC, instruction index, etc.) then calls `emit_sm_dispatch(ins, out)`.
+
+5. **`emit_bb_node` is the only BB walker.**  Already exists, expand to all 21 Phase A arms (later 98 in Phase B).
+
+6. **Verbatim move, no behavior change.**  Every Phase A step preserves byte-identical beauty.sno and the full smoke matrix.  No optimization, no cleanup, no "while we're here" — those are Phase B.
+
+7. **Emit-to-strings comes right after Phase A.**  Today every template arm calls `fprintf(out, ...)` directly.  EC-PA-8 redirects all template emission through two emit primitives — `emit_text(const char *)` for text backends (x86 GAS, JVM jasmin, JS, .NET ilasm, WASM wat) and `emit_byte(unsigned char)` / `emit_bytes(const unsigned char *, int len)` for binary x86 — both accumulating into per-backend buffers.  Buffer-to-FILE flush happens at the end of each `emit_program` call (or at SM/BB boundaries if memory pressure dictates).  This makes the templates a pure source-to-bytes function with no I/O side effects, which is what the Snocone bootstrap needs.
+
+**Rungs (orthogonal, separate commits per RULES.md "Three-construct"):**
+
+- [ ] **EC-PA-1 (NEXT)** — globals-based ctx.  Create `src/emitter/emit_globals.{c,h}` with the documented global set and the `DATA(...)` shape comments.  Delete `src/emitter/SM_templates/sm_ctx.h` (the struct, not the file — replace contents with a fwd-include of `emit_globals.h` for transition, or delete and update includers).  Drop the `const sm_ctx_t *ctx` parameter from every template fn that takes it today (`sm_jump`, `sm_jump_s`, `sm_jump_f`, `sm_halt`, `sm_return`, `sm_freturn`, `sm_nreturn`).  Each template arm reads `g_emit_pc`, `g_emit_n_total`, etc., directly.  Producer sites (four silo walkers in `emit_core.c` + `dispatch_one_x86` in `emit_sm.c`) set the globals before each template call.  Gates: full smoke + broker + beauty byte-identical.
+
+- [ ] **EC-PA-2** — BB template file reorg.  Create `BB_templates/bb_pat.c` consolidating the 17 PAT fns (16 existing + new `bb_pat_callout` stub).  Delete the 16 single-file PAT templates.  Update `bb_templates.h` (no API change — same fn names).  `Makefile` glob already picks up `BB_templates/*.c`.  Gates: same.
+
+- [ ] **EC-PA-3** — BB Prolog templates.  Create `BB_templates/bb_pl.c` with `bb_pl_arith`, `bb_pl_atom`, `bb_pl_builtin`, `bb_pl_call` — bodies moved verbatim from the four `case BB_PL_*:` arms in `emit_sm.c`.  Add to `bb_templates.h`.  Expand `emit_bb_node` switch.  Delete the arms from `emit_sm.c`.  Gates: same.
+
+- [ ] **EC-PA-4** — Missing SM templates.  Add the ~10 new fns into existing family files (no new files unless natural): `sm_call_fn`/`sm_call_expression` → new `sm_calls.c`; `sm_incr`/`sm_decr` → `sm_arith.c`; `sm_define`/`sm_define_entry` → new `sm_defines.c`; `sm_push_expr`/`sm_push_expression`/`sm_push_null_noflip`/`sm_push_lit_cs`/`sm_label` → `sm_push_pop_lits.c`; `sm_suspend_value` → `sm_returns.c` or new `sm_suspend.c`; `sm_bb_once_proc`/`sm_bb_pump_proc` → new `sm_bb_calls.c`.  Variants `*_S/*_F` etc. fold into base fns via instruction-opcode discrimination (existing pattern in `sm_returns.c`).  Bodies copied verbatim from the union of all five walker arms — each new fn carries all five IS_<BE> arms it needs.  Gates: same.
+
+- [ ] **EC-PA-5** — Build `emit_sm_dispatch` for real.  Single function in `emit_core.c`, 91-arm switch, each arm calls `sm_<name>(ins, out)` (no ctx param — globals carry context).  Caller in `emit_program` (or its delegates) sets the per-iteration globals (PC, N, opcode, etc.) for the active mode, then calls `emit_sm_dispatch(ins, out)`.  At this step, the five silo walkers still exist but are no longer called.  Gates: same — flip via `SCRIP_UNIFIED_DISPATCH=1` for one full gate run; default still off.
+
+- [ ] **EC-PA-6** — Delete the silo walkers.  Remove `emit_walk_codegen`, `emit_jvm_one_instr`, `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm`, `dispatch_one_x86`, plus the per-op `emit_sm_*_dispatch` helpers in `emit_sm.c` that the legacy switch routes through (~30 helpers).  Switch `g_emit_use_unified_dispatch` to always-on, then delete the flag.  Caller in `emit_program` now unconditionally goes through `emit_sm_dispatch`.  Net LOC: estimated −2500 to −3500.  Gates: full smoke + broker + beauty byte-identical.
+
+- [ ] **EC-PA-7** — Templates emit through `emit_text` / `emit_byte`, not `fprintf`.  Add `src/emitter/emit_io.{c,h}` with the four primitives: `emit_text(const char *)`, `emit_textf(const char *fmt, ...)` (sprintf wrapper for the existing fprintf-style call sites), `emit_byte(unsigned char)`, `emit_bytes(const unsigned char *, int len)`.  Internally each writes to a per-backend buffer (`g_text_buf`, `g_bin_buf`).  Sweep every template fn body: replace `fprintf(out, fmt, …)` → `emit_textf(fmt, …)`; replace any direct `fputc`/`fwrite` in binary x86 arms → `emit_byte`/`emit_bytes`.  Drop the `FILE *out` parameter from every template signature (after the sweep — `emit_io` flushes the buffer to whatever FILE* the caller wants at the end of `emit_program`).  This is the largest mechanical sweep of Phase A; do it as its own three-commit batch (text sweep / binary sweep / signature change).  Gates: same — beauty.sno byte-identical, all smoke green.
+
+- [ ] **EC-PA-8** — Phase B handoff.  Create `GOAL-SN4-X86-EMIT.md` and update the four existing per-backend GOAL files to point at the now-stable template ABI (no `ctx`, no `FILE *out`, just globals + `emit_text`/`emit_byte`).  ARCH-SCRIP.md + ARCH-IR.md updated to reflect single-dispatcher + emit-primitive reality.  Mark EC-UNI rung complete; EC-PHASE-A rung complete; Phase B rungs become active.
+
+**Phase A gate (must pass at every step):**
+
+```
+GATE-A1  beauty.sno --compile  →  md5 40df9e004c3e963c99af716c65f2c970  (882901 bytes; current baseline 2026-05-20; the M1 oracle md5 abfd19a7a834484a96e824851caee159 from 2026-04-28 has since drifted but the watermark below tracks current)
+GATE-A2  bash scripts/test_smoke_icon.sh                                  # PASS=5
+GATE-A3  bash scripts/test_smoke_unified_broker.sh                        # PASS=23 (current; rung tracks regression only)
+GATE-A4  bash scripts/test_icon_all_rungs.sh --interp                     # PASS=194 (per HQ watermark)
+GATE-A5  bash scripts/test_smoke_{snobol4,snocone,prolog,rebus,raku}.sh   # 7/0 5/0 5/0 4/0 5/0
+```
+
+**Why this is worth doing before Phase B:** the five existing per-backend GOAL files (JS/JVM/NET/WASM) all describe "fix backend X" work, but today there's no clean place to put that fix — it has to thread through a silo walker, ad-hoc dispatchers, and partial template arms.  After Phase A, "fix backend X for opcode Y" is literally "open `sm_<y>.c`, find the IS_X arm, edit it."  Single file, single fn, side-by-side with the four other backends' working code.
+
+**Authors recorded per RULES.md "Three-construct" exception (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
 
 ---
 
