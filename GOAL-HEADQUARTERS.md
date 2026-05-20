@@ -38,6 +38,26 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 
 ## Open step
 
+### ✅ EC-UNI-9 axis-correction COMPLETE (2026-05-19, Opus 4.7)
+
+Rung closed in 4 commits — one4all `63708215`, `7d792c59`, `073f3711`, `8308a457`.
+
+- **9a `63708215`** — collapsed `IS_<BE>_TEXT`/`IS_<BE>_BIN` arms to `IS_<BE>` in 26 template files (10 SM + 16 BB). 349 BIN arms deleted, 349 TEXT→BE rewrites, net -349 LOC. Script `scripts/ec_uni_9a_collapse.py` is idempotent and committed.
+- **9b `7d792c59`** — deleted `EMIT_BIN_{JVM,NET,WASM}` enum values + 12 dead macros from `emit_core.h`. `IS_X86` redefined as the union of all five x86 sub-modes (`EMIT_TEXT`, `EMIT_TEXT_INLINE`, `EMIT_MACRO_DEF`, `EMIT_BINARY_WIRED`, `EMIT_BINARY_BROKERED`).
+- **9c `073f3711`** — rewrote matrix gate for 5-column form. `scripts/test_gate_em_template_matrix.{py,sh}` now enforces 365 cells (57 SM × 5 + 16 BB × 4) instead of the false-axis 730. Pass: 0/365.
+- **9d `8308a457`** — renamed `dispatch_one_x86_text` → `dispatch_one_x86`; expanded the `IS_X86` comment in `emit_core.h` to enumerate all five x86 sub-modes explicitly so the next reader sees the architectural point.
+- **9e** — HQ doc updates (this block + AXIS CORRECTION block + watermark + Invariant rewrite landed in `.github` before code work).
+
+Gates floor flag-off AND flag-on across all rungs:
+- GATE-1 (smoke icon): 5/0
+- GATE-2 (broker): 23/26
+- GATE-3 (icon all-rungs `--interp`): 194/36/35
+- matrix gate: 0/365 PASS
+
+**NEXT: EC-UNI-3-beauty** (unblocked). Write `scripts/test_gate_em_ec_uni_3_beauty.sh` that compiles `beauty.sno` flag-off and flag-on and md5-compares. The text/binary collapse means byte-identity is by construction once the single `IS_X86` arm is correct — the gate should pass directly modulo any residual SrcLines comment drift in GAS output. After 3-beauty closes, EC-UNI-4 deletes `emit_walk_codegen`.
+
+---
+
 **DAI-8 C18 AUDIT COMPLETE — no safe deletions.** All remaining GC-dead symbols are anchored live:
 - `static_get`/`static_set` in `icn_runtime.c`: called from `sm_call_proc` (live via `icn_runtime.h`). Method 7 chain — internal callers are live.
 - `rt_set_last_ok` in `rt.c`: called from `rt_match_blob` (PLT-live in emit_sm.c). Method 7 chain — anchored.
@@ -135,12 +155,19 @@ Method 7 (internal-caller chain): if linker-GC-dead public fn F only calls other
 ## Watermark
 
 ```
-one4all: af370d45     (EC-UNI-8.3-fixup: hand-promoted 4 sm_pat_* files' one-liner fns to canonical multi-line matrix form; added NET-PAT n/a sentinels in sm_pat_*, X86_BIN stubs in sm_halt/sm_jumps/sm_returns, WASM n/a sentinels in 16 BB_templates. Matrix gate now passes 0/730. Gates floor flag-off AND flag-on: 5/0·23/26·194/36/35. EC-UNI-3-beauty still owed.)
+one4all: 8308a457     (EC-UNI-9 axis-correction COMPLETE.  9a: 26 template files
+                       collapsed to 5-arm form (-349 BIN arms).  9b: EMIT_BIN_*
+                       enum + 12 dead macros deleted; IS_X86 covers all 5 x86
+                       sub-modes (TEXT/TEXT_INLINE/MACRO_DEF/BIN_WIRED/BIN_BROK).
+                       9c: matrix gate rewritten for 5-column form (365 cells,
+                       was 730).  9d: dispatch_one_x86_text -> dispatch_one_x86.
+                       Net -376 LOC.  EC-UNI-3-beauty unblocked.)
 corpus:  92e103f      (unchanged)
-.github: (this commit)
---interp:    194/265  (held, flag-irrelevant)
+.github: (this commit — EC-UNI-9 marked complete; AXIS CORRECTION block enumerates 5 x86 modes; Invariant blocks already 5-column)
+--interp:    194/265  (held — 194/36/35 flag-off AND flag-on, verified)
 smoke ×6:    5/0 5/0 5/0 4/0 5/0 7/0  (held, flag off AND flag on)
 broker:      23/26    (held, flag off AND flag on)
+matrix gate: 0/365 PASS  (rewritten from 0/730)
 snobol4_jit: 184/77 interp · 186/75 run (held = baseline)
 snobol4_jvm: 7/6      (held)
 snobol4_js:  4/2      (held)
@@ -257,6 +284,69 @@ is invoked with the mode already set via `emit_mode_set()`.
 
 ## Emitter Unification (EC-UNI) — x86 text/binary into SM_templates; wire all walkers through templates
 
+### ⚠ AXIS CORRECTION (2026-05-19, Opus 4.7, ratified by Lon)
+
+EC-UNI-0..8.3 introduced a **false text-vs-binary axis** in the template matrix. The split was wrong:
+
+- `IS_X86_TEXT` / `IS_X86_BIN` are not two backends. They are **two output formats of one backend (x86)**. In fact x86 has FIVE output sub-modes — all flow through the single `IS_X86` arm:
+  - `EMIT_TEXT` — GAS text (normal invocation)
+  - `EMIT_TEXT_INLINE` — GAS text (inline form for hot paths)
+  - `EMIT_MACRO_DEF` — GAS macro-definition pass
+  - `EMIT_BINARY_WIRED` — binary machine code, wired BBs
+  - `EMIT_BINARY_BROKERED` — binary machine code, brokered BBs
+- The template function emits a *logical* instruction. The decision "write `movq $0x1, %rax` (GAS text)" vs "write `\x48\xc7\xc0\x01\x00\x00\x00` (binary machine code)" — and the choice between regular GAS, inline GAS, or macro-definition emission — is made **below** the template, in the encoder/serializer/dispatcher layer (consulting `bb_emit_mode` and `TEXT_MODE()`). The template doesn't know or care.
+- The same correction applies to JVM (Jasmin text vs `.class` bytes), .NET (ilasm text vs IL bytes), and WASM (WAT text vs binary bytes). JS has no binary form.
+
+**Correct matrix is 5 columns, not 10.**
+
+```
+                | X86 | JVM | JS  | NET | WASM |
+----------------+-----+-----+-----+-----+------+
+SM_PUSH_LIT_I   |  1  |  1  |  1  |  1  |  1   |   ← 5 arms per template fn
+...             | ... | ... | ... | ... | ...  |
+```
+
+Text-vs-binary is **hidden inside each backend's output layer**, not exposed as a matrix dimension.
+
+### Corrected template shape
+
+```c
+void sm_halt(SM_Instr *ins, FILE *out) {
+    if (IS_X86)  { emit_sm_halt_dispatch(ins, out); return; }   // text OR binary, same call
+    if (IS_JVM)  { ... }
+    if (IS_JS)   { ... }
+    if (IS_NET)  { ... }
+    if (IS_WASM) { ... }
+}
+```
+
+The serializer below `emit_sm_halt_dispatch` consults `bb_emit_mode` (or the `FILE *` writer's underlying sink) to choose GAS text vs binary bytes. Same for JVM/NET/WASM.
+
+### Implications for the ladder
+
+- `IS_X86_TEXT` / `IS_X86_BIN` / `IS_JVM_TEXT` / `IS_JVM_BIN` / `IS_NET_TEXT` / `IS_NET_BIN` / `IS_WASM_TEXT` / `IS_WASM_BIN` macros → **collapse to** `IS_X86` / `IS_JVM` / `IS_NET` / `IS_WASM`. `IS_JS` already correct.
+- `EMIT_BIN_JVM = 9` / `EMIT_BIN_NET = 10` / `EMIT_BIN_WASM = 11` enum stubs → **deleted**. They were the symptom of the false axis. Binary modes for those backends, when they land, are output-format choices inside the existing `EMIT_JVM` / `EMIT_NET` / `EMIT_WASM` arms.
+- `dispatch_one_x86_text` → renamed `dispatch_one_x86`. Legacy `emit_walk_codegen`'s binary path flows through the same unified dispatch as text.
+- Matrix-completeness gate count: **730 cells → 365 cells** (57 SM × 5 + 16 BB × 5).
+- The 213 fixups in EC-UNI-8.3-fixup (NET-PAT n/a, X86_BIN stubs, WASM n/a in BB_templates) — most were filling cells that never should have existed. Real n/a entries (NET-PAT genuinely stubbed; BB WASM never landed) survive as honest 5-column gaps.
+- EC-UNI-3-beauty's byte-identity gate becomes simpler: text and binary share a function, so identity is by construction once the single `IS_X86` arm is correct.
+
+### Remediation steps (added to ladder below as EC-UNI-9 series)
+
+- **EC-UNI-9a** ✅ (one4all `63708215`, 2026-05-19, Opus 4.7) — Collapse `IS_<BE>_TEXT`/`IS_<BE>_BIN` to `IS_<BE>` everywhere. 26 template files (10 SM + 16 BB), 349 BIN arms deleted, 349 TEXT→BE rewrites, -349 net LOC. Mechanical via `scripts/ec_uni_9a_collapse.py` (idempotent, committed).
+- **EC-UNI-9b** ✅ (one4all `7d792c59`, 2026-05-19, Opus 4.7) — Deleted `EMIT_BIN_{JVM,NET,WASM}` enum values + 12 dead macros (`IS_X86_TEXT/BIN`, `IS_BIN_{JVM,NET,WASM}`, `IS_{JVM,JS,NET,WASM}_{TEXT,BIN}`) from `emit_core.h`. `IS_X86` redefined as union of all five x86 sub-modes (`EMIT_TEXT`, `EMIT_TEXT_INLINE`, `EMIT_MACRO_DEF`, `EMIT_BINARY_WIRED`, `EMIT_BINARY_BROKERED`).
+- **EC-UNI-9c** ✅ (one4all `073f3711`, 2026-05-19, Opus 4.7) — Rewrote `scripts/test_gate_em_template_matrix.{py,sh}` for 5-column matrix. Gate passes 0/365 (was 0/730). Drop `_TEXT`/`_BIN` cell parsing; BB still auto-skips X86 row.
+- **EC-UNI-9d** ✅ (one4all `8308a457`, 2026-05-19, Opus 4.7) — Renamed `dispatch_one_x86_text` → `dispatch_one_x86` (3 sites in `emit_sm.c`). `IS_X86` comment in `emit_core.h` expanded to enumerate the 5 x86 sub-modes explicitly so future readers understand the architectural point: text/binary/macro-def output is chosen by the dispatcher and serializer layer below the template, not by the template itself.
+- **EC-UNI-9e** ✅ (this commit) — HQ doc updates: Open-step pointer marked complete with commit ledger; Watermark refreshed; Invariant (EC-UNI-8) block already rewritten to 5-column form during AXIS CORRECTION (pre-EC-UNI-9a); AXIS CORRECTION block enumerates 5 x86 modes explicitly.
+
+EC-UNI-9 must land **before** EC-UNI-4 (delete `emit_walk_codegen`), because EC-UNI-4 will introduce the second caller of the unified dispatch (x86 binary), and that caller must hit the same `IS_X86` arm — not a separate `IS_X86_BIN` arm.
+
+### Historical record
+
+Sub-steps EC-UNI-0..2d, 8.1..8.4 below were written under the 10-cell assumption. They are kept verbatim as audit trail. The work itself (un-staticing dispatchers, building template arms, wiring the feature flag) all stands — the labels just collapse from `IS_X86_TEXT` → `IS_X86` under EC-UNI-9a.
+
+---
+
 ### Problem
 
 The SM_template functions (`sm_push_lit_i`, `sm_halt`, `sm_jump`, etc.) dispatch on `IS_JVM/IS_JS/IS_NET/IS_WASM` but have **no x86 arms**. The x86 text path (`EMIT_TEXT`) and x86 binary path (`EMIT_BINARY_WIRED`) go through a completely separate 3 000-line system: `emit_walk_codegen()` → `emit_sm_template()` → `sm_op_template_t` table (macro-expansion, string-table, label patching — all x86-only). The JVM/JS/NET walkers in `emit_core.c` also still carry their own inline opcode switch bodies instead of calling the template functions.
@@ -325,28 +415,31 @@ EMIT_BIN_WASM = 11,  /* future: binary WASM bytes       */
 
 After EC-UNI-5: there is exactly one SM walk function (`emit_sm_dispatch`). Every SM opcode has exactly one template function. Every backend adds exactly one arm per function. `emit_walk_codegen`, `emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm` do not exist.
 
-### Invariant (EC-UNI-8: full matrix)
+### Invariant (EC-UNI-8: full matrix) — REVISED 2026-05-19
 
-After EC-UNI-8 the emitter is a 2D Cartesian product:
+After EC-UNI-8 (post EC-UNI-9 collapse) the emitter is a 2D Cartesian product with **one column per backend, not per output format**:
 
 ```
                     | X86 | JVM | JS  | NET | WASM |
-                    | T B | T B | T - | T B | T  B |
 --------------------+-----+-----+-----+-----+------+
-SM_PUSH_LIT_I       | sm_push_lit_i.c — ONE function, 10 arms (1 n/a) |
-SM_PUSH_LIT_S       | sm_push_lit_s.c — ONE function, 10 arms (1 n/a) |
-...  (57 SM ops)    | ...                                              |
---------------------+--------------------------------------------------+
-BB_LIT              | bb_lit.c — ONE function, 10 arms (1 n/a)         |
-BB_ANY              | bb_any.c — ONE function, 10 arms (1 n/a)         |
-...  (18 BB kinds)  | ...                                              |
+SM_PUSH_LIT_I       | sm_push_lit_i.c — ONE function, 5 arms             |
+SM_PUSH_LIT_S       | sm_push_lit_s.c — ONE function, 5 arms             |
+...  (57 SM ops)    | ...                                                 |
+--------------------+-----------------------------------------------------+
+BB_LIT              | bb_lit.c — ONE function, 5 arms (WASM n/a)         |
+BB_ANY              | bb_any.c — ONE function, 5 arms (WASM n/a)         |
+...  (18 BB kinds)  | ...                                                 |
 ```
 
+Text-vs-binary is **not** a matrix column. It is a serializer choice **inside** each `IS_X86` / `IS_JVM` / `IS_NET` / `IS_WASM` arm, made by the encoder layer below the dispatcher. JS has no binary form, so `IS_JS` is single-format by construction.
+
 - **One file = one template fn.** No SM/BB logic outside its own file.
-- **Adding a backend** = N template-file edits (mechanical `IS_NEW_TEXT`/`IS_NEW_BIN` arms) + 1 header enum + 1 macro pair. Zero silo files touched.
+- **One arm per backend.** Each arm calls a dispatcher; the dispatcher emits either GAS text or binary bytes based on `bb_emit_mode` — the template does not branch on output format.
+- **Adding a backend** = N template-file edits (one `IS_NEW` arm per fn) + 1 header enum + 1 macro. Zero silo files touched.
 - **Adding an opcode** = 1 new template file + 1 enum value. Zero silo files touched.
 - **Removing a backend** = strip its arms from every template (mechanical). Zero silo files to find.
-- **Matrix gate** (`scripts/test_gate_em_template_matrix.sh`) makes the property machine-checked: any cell missing without an `n/a` annotation fails the build.
+- **Adding a new output format to an existing backend** (e.g. WASM binary alongside WAT text) = zero template-file edits. Encoder-layer change only.
+- **Matrix gate** (`scripts/test_gate_em_template_matrix.sh`) machine-checks 5-cell coverage per fn: any cell missing without an `n/a` annotation fails the build. **Gate count: 365 cells** (57 SM × 5 + 16 BB × 5), down from the (incorrect) 730.
 
 ### Invariant
 
