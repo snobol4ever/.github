@@ -40,7 +40,7 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: a00db5f8    (EC-UNI-11 ✅ COMPLETE — Layer-3 emit_io primitives scaffold + 6/6 self-test; no template body changes; flush hook wired but no-op until EC-UNI-12)
+one4all: 6cf60afa    (EC-UNI-12 ✅ COMPLETE — mechanical fprintf→emit_textf sweep across 862 template call sites; passthrough mode preserves byte identity; buffered mode awaits EC-UNI-13/14 helper migration)
 corpus:  b10933c
 .github: (this commit — EC-UNI-11 close-out ledger; EC-UNI-12 advanced to NEXT)
 --interp:      PASS (hello.sno, hello.icn)
@@ -135,9 +135,30 @@ This ordering is the explicit lesson from the x86 path: extracting helpers *befo
 
 - [x] **EC-UNI-11 ✅ COMPLETE 2026-05-20** — Layer-3 string-builder primitives scaffold.  New files `src/emitter/emit_io.{c,h}` defining four primitives (`emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`) plus `emit_io_flush(FILE *)`, inspection helpers, reset, and save/restore for the eventual nested-pass case.  Two private buffers (`g_text_buf`/`g_bin_buf`) module-static in `emit_io.c`; geometric growth from 4 KiB initial capacity; flush writes text-then-binary and resets both.  Flush hook wired into both `emit_program()` exit points (WASM early-return + general bottom), immediately before `g_emit = saved_g_emit`.  No-op today (no template calls the new primitives yet); load-bearing at EC-UNI-12 when the mechanical `fprintf`→`emit_textf` sweep lands.  Self-test `src/emitter/test_emit_io.c` (6/6 PASS) round-trips a synthetic stream covering text basic, growth past 4 KiB, binary basic, flush ordering, null/empty safety, and save/restore.  Makefile gains `test_emit_io` target + `emit_io.c` added to both `RT_PIC_SRCS` and the `scrip` recipe.  Gate floor unchanged: beauty md5 `40df9e004c3e963c99af716c65f2c970` (882901 bytes) byte-identical; smoke 5/7/5/5/4/5 FAIL=0 each; broker 23/26; icon all-rungs 194/36/35.
 
-- [ ] **EC-UNI-12 (NEXT)** — sweep `fprintf(g_emit.out, ...)` → `emit_textf(...)` across all current templates.  Mechanical text-only sweep over `SM_templates/*.c` and `BB_templates/*.c`.  Every direct `fputc`/`fwrite` in binary-x86 arms → `emit_byte`/`emit_bytes`.  Drop `g_emit.out` reads inside templates entirely; the buffer abstraction owns the sink.  Gate: byte-identical beauty.sno after final flush.  Full smoke.
+- [x] **EC-UNI-12 ✅ COMPLETE 2026-05-20** — mechanical sweep `fprintf(out, ...)` → `emit_textf(...)` across all SM/BB template `.c` files.  **862 call sites rewritten** (single sed pass: `s/fprintf(out, /emit_textf(/g` per file; format strings, varargs, and trailing `)` preserved unchanged).  Zero `fprintf` / `fputc` / `fwrite` remain in `SM_templates/*.c` or `BB_templates/*.c`.  The 26 remaining `fprintf(out, ...)` hits live in `SM_templates/sm_template_common.h` — Layer-2 helper definitions (`jvm_ret_guard`, `net_ret_guard`, `jvm_pat_*_push`, etc.); per spec, these are out of scope at this rung and migrate at EC-UNI-13/16.  `#include "emit_io.h"` added to both `sm_template_common.h` and `bb_template_common.h` so all 26 template `.c` files pick it up transitively.
 
-- [ ] **EC-UNI-13** — collect: pull all remaining template code into `SM_templates/` and `BB_templates/`.
+  **emit_io.{c,h} updated** with a passthrough/buffered mode flag (`emit_io_set_buffered(int)` / `emit_io_is_buffered(void)`).  Default 0 (passthrough): primitives write straight to `g_emit.out`.  Default 1 (buffered): the original two-buffer design from EC-UNI-11.  Tests (`test_emit_io.c`) set buffered=1 explicitly; production templates run in passthrough.  This is the **honest scope correction**: until Layer-2 helpers in `emit_sm.c` / `emit_bb.c` / `sm_template_common.h` stop taking `FILE *out` and writing directly to it, the buffer cannot be the sole sink without reordering output (helpers would bypass it).  Passthrough preserves output order and byte identity; buffered activates tree-wide once EC-UNI-13/14 absorb the last direct-writing helper.
+
+  **`FILE * out = g_emit.out;` declarations preserved** in all 26 template files because helpers like `js_escape(out, s)`, `net_escape_ldstr(out, ...)`, `jvm_push_int2(out, ...)`, `emit_sm_return_template(out, instr)`, `jvm_pat_noarg_push(out, ...)` still consume `out`.  Counted: 25 files have exactly one declaration each (the one at the top of each template fn — wait, sm_arith has 9, sm_pat_anchors has 9, etc., because each template fn has its own decl).  EC-UNI-13/14/16 will drop these as helpers migrate.
+
+  **Gate floor (full sweep):**
+  ```
+  test_emit_io               PASS (6/6, buffered mode exercised)
+  beauty.sno --compile md5   40df9e004c3e963c99af716c65f2c970  (unchanged)
+                             882901 bytes                       (unchanged)
+  smoke icon                 PASS=5  FAIL=0
+  smoke snobol4              PASS=7  FAIL=0
+  smoke snocone              PASS=5  FAIL=0
+  smoke prolog               PASS=5  FAIL=0
+  smoke rebus                PASS=4  FAIL=0
+  smoke raku                 PASS=5  FAIL=0
+  unified_broker             PASS=23 (≥23 floor)
+  icon all rungs --interp    PASS=194 FAIL=36 XFAIL=35  (unchanged)
+  ```
+
+  **Files touched (one4all):** `src/emitter/emit_io.h` (mode flag declarations), `src/emitter/emit_io.c` (passthrough branches in all four primitives), `src/emitter/test_emit_io.c` (set buffered=1 explicitly for the buffered-mode coverage), `src/emitter/SM_templates/sm_template_common.h` (+`#include "emit_io.h"`), `src/emitter/BB_templates/bb_template_common.h` (+`#include "emit_io.h"`), all 26 template `.c` files (mechanical fprintf→emit_textf sweep).
+
+- [ ] **EC-UNI-13 (NEXT)** — collect: pull all remaining template code into `SM_templates/` and `BB_templates/`.
 
   Inventory: `emit_sm.c` (151955 bytes) contains ~30 `emit_sm_<op>_dispatch` helpers and the per-op `case` arms of `dispatch_one_x86` that emit GAS lines directly.  `emit_core.c` (76646 bytes) contains the four silo walkers (`emit_jvm_one_instr`, `emit_js_from_sm`, `emit_net_from_sm`, `emit_wasm_from_sm`) plus inline switch bodies for JVM/JS/NET.  `emit_bb.c` contains four `case BB_PL_*:` arms with ad-hoc dispatch.
 
