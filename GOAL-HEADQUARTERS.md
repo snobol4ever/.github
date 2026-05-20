@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 3088dcba    (EC-UNI-10 ✅ COMPLETE — three orthogonal commits 7835fb9d/5e607294/3088dcba: g_emit single global struct + parameterless SM/BB templates)
+one4all: a00db5f8    (EC-UNI-11 ✅ COMPLETE — Layer-3 emit_io primitives scaffold + 6/6 self-test; no template body changes; flush hook wired but no-op until EC-UNI-12)
 corpus:  b10933c
-.github: (this commit — EC-UNI-10 close-out ledger; EC-UNI-11 advanced to NEXT)
+.github: (this commit — EC-UNI-11 close-out ledger; EC-UNI-12 advanced to NEXT)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -54,6 +54,7 @@ firewall lower:   9 includes / 6 allowlisted
 firewall runtime: 16 includes / 8 allowlisted
 firewall stage2:  10 allowlist entries (token gate; honest-scope: not link-time)
 beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20, 882901 bytes)
+emit_io self-test: 6/6 PASS  (text basic, growth past 4 KiB, bin basic, flush ordering, null/empty safety, save/restore)
 ```
 
 ---
@@ -132,9 +133,9 @@ This ordering is the explicit lesson from the x86 path: extracting helpers *befo
 
   Watermark: `3088dcba`.  Beauty md5: `40df9e004c3e963c99af716c65f2c970` (unchanged at every commit).  Smoke 5/5/5/4/7/5; broker 23/26; icon all-rungs 194/36/35.  ARCH-IR.md and Phase-B GOAL files not yet updated — that's EC-UNI-22.
 
-- [ ] **EC-UNI-11 (NEXT)** — emit primitives.  Add `src/emitter/emit_io.{c,h}` with `emit_text(const char *)`, `emit_textf(const char *fmt, ...)`, `emit_byte(unsigned char)`, `emit_bytes(const unsigned char *, int len)`.  Per-backend buffers internally (`g_text_buf`, `g_bin_buf`).  Flush hook in `emit_program` writes the buffer to `g_emit.out` at completion.  Self-test that round-trips a synthetic byte stream.  No template body changes yet.  Gates unchanged.
+- [x] **EC-UNI-11 ✅ COMPLETE 2026-05-20** — Layer-3 string-builder primitives scaffold.  New files `src/emitter/emit_io.{c,h}` defining four primitives (`emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`) plus `emit_io_flush(FILE *)`, inspection helpers, reset, and save/restore for the eventual nested-pass case.  Two private buffers (`g_text_buf`/`g_bin_buf`) module-static in `emit_io.c`; geometric growth from 4 KiB initial capacity; flush writes text-then-binary and resets both.  Flush hook wired into both `emit_program()` exit points (WASM early-return + general bottom), immediately before `g_emit = saved_g_emit`.  No-op today (no template calls the new primitives yet); load-bearing at EC-UNI-12 when the mechanical `fprintf`→`emit_textf` sweep lands.  Self-test `src/emitter/test_emit_io.c` (6/6 PASS) round-trips a synthetic stream covering text basic, growth past 4 KiB, binary basic, flush ordering, null/empty safety, and save/restore.  Makefile gains `test_emit_io` target + `emit_io.c` added to both `RT_PIC_SRCS` and the `scrip` recipe.  Gate floor unchanged: beauty md5 `40df9e004c3e963c99af716c65f2c970` (882901 bytes) byte-identical; smoke 5/7/5/5/4/5 FAIL=0 each; broker 23/26; icon all-rungs 194/36/35.
 
-- [ ] **EC-UNI-12** — sweep `fprintf(g_emit.out, ...)` → `emit_textf(...)` across all current templates.  Mechanical text-only sweep over `SM_templates/*.c` and `BB_templates/*.c`.  Every direct `fputc`/`fwrite` in binary-x86 arms → `emit_byte`/`emit_bytes`.  Drop `g_emit.out` reads inside templates entirely; the buffer abstraction owns the sink.  Gate: byte-identical beauty.sno after final flush.  Full smoke.
+- [ ] **EC-UNI-12 (NEXT)** — sweep `fprintf(g_emit.out, ...)` → `emit_textf(...)` across all current templates.  Mechanical text-only sweep over `SM_templates/*.c` and `BB_templates/*.c`.  Every direct `fputc`/`fwrite` in binary-x86 arms → `emit_byte`/`emit_bytes`.  Drop `g_emit.out` reads inside templates entirely; the buffer abstraction owns the sink.  Gate: byte-identical beauty.sno after final flush.  Full smoke.
 
 - [ ] **EC-UNI-13** — collect: pull all remaining template code into `SM_templates/` and `BB_templates/`.
 
