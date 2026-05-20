@@ -117,7 +117,7 @@ Steps 2 and 3 only if Step 1 shows DIVERGE.
 make -C /home/claude/one4all scrip-monitor
 
 # Step 1 -- ALWAYS (2-way harness, csn participant disabled):
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor --no-csn \
     $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
 
@@ -159,7 +159,7 @@ Full detail for closed rungs lives in the git log. Search by rung id
 ### SN-33 — Beauty subsystem suite restoration in all four modes (opened 2026-05-10)
 
 **Done-when:** all 17 `*_driver.sno` programs in
-`corpus/programs/snobol4/beauty/` produce output byte-identical to
+`corpus/programs/snobol4/beauty_suite/` produce output byte-identical to
 their `.ref` file under modes 1, 2, 3 AND mode 4 — i.e. **68/68
 PASS**, extending the historical SN-7 = 51/51 baseline to the new
 mode-4 emit-link-run path.

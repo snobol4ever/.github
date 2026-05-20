@@ -27,7 +27,7 @@ dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>
 
 # One-time: symlink demo/inc into beauty/ so drivers find include files
 ln -sf /home/claude/corpus/programs/snobol4/demo/inc/* \
-       /home/claude/corpus/programs/snobol4/beauty/ 2>/dev/null || true
+       /home/claude/corpus/programs/snobol4/beauty_suite/ 2>/dev/null || true
 ```
 
 **Always pass `-p:EnableWindowsTargeting=true`.** Required for cross-platform build.
@@ -47,7 +47,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 ```bash
 export PATH=/usr/local/dotnet10:$PATH
 SNO4=/home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll
-cd /home/claude/corpus/programs/snobol4/beauty
+cd /home/claude/corpus/programs/snobol4/beauty_suite
 PASS=0; FAIL=0
 for driver in beauty_*_driver.sno; do
     name="${driver%_driver.sno}"

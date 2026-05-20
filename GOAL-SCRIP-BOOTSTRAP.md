@@ -1037,8 +1037,11 @@ CB-0a starts adding emitted artifacts. Problems today:
 - `programs/csnobol4-suite/` is a flat `.sno`+`.ref` dump with no
   sub-organization by language feature or capability
 - `programs/beauty/` (19 beauty drivers) and
-  `programs/snobol4/beauty/` (compiled/oracle variants) are two
-  separate directories with overlapping names — confusing
+  `programs/snobol4/beauty_suite/` (compiled/oracle variants) are two
+  separate directories with formerly overlapping names — the
+  one-time `programs/snobol4/beauty/` was renamed to `_suite` 2026-05-20
+  to disambiguate from the self-host program at
+  `programs/snobol4/demo/beauty/`.
 - `programs/gimpel/` is a flat dump of classic SNOBOL4 programs
   with no README or organization
 - `benchmarks/` mixes benchmark harness files with plain `.sno`
@@ -1076,7 +1079,7 @@ corpus/
 - `programs/csnobol4-suite/*.sno` → sorted into `programs/snobol4/feat/`
   by feature (patterns, strings, functions, data, control, etc.)
   with a `README.md` mapping each file to corpus rung
-- `programs/beauty/` → merged into `programs/snobol4/beauty/`
+- `programs/beauty/` → merged into `programs/snobol4/beauty_suite/`
   (one canonical location; remove duplication)
 - `programs/gimpel/` → `programs/snobol4/demo/gimpel/` with README
 - Add `crosscheck/README.md` documenting what each rung tests

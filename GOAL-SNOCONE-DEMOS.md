@@ -107,5 +107,5 @@ bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
 ## Invariants
 
 - Gate = PASS=48 FAIL=0 on test_smoke_unified_broker.sh after every commit.
-- SPITBOL oracle: /home/claude/x64/bin/sbl (run from corpus/programs/snobol4/beauty/ so -INCLUDEs resolve)
+- SPITBOL oracle: /home/claude/x64/bin/sbl (run from corpus/programs/snobol4/beauty_suite/ so -INCLUDEs resolve)
 - Commit identity: LCherryholmes / lcherryh@yahoo.com.

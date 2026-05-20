@@ -212,7 +212,7 @@ SPITBOL is primary oracle; CSNOBOL4 is second oracle (added as participant 5 bel
 
 ```bash
 INC=/home/claude/corpus/programs/snobol4/demo/inc
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 bash test/monitor/run_monitor_2way.sh $BEAUTY/beauty_trace_driver.sno
 ```
 

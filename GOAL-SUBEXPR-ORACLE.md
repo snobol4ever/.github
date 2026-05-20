@@ -192,14 +192,14 @@ cd /home/claude/one4all
 
 # One statement — Gen.sno line 45:
 python3 test/beauty_subexpr_gen.py \
-    --source /home/claude/corpus/programs/snobol4/beauty/Gen.sno \
-    --driver /home/claude/corpus/programs/snobol4/beauty/beauty_Gen_driver.sno \
+    --source /home/claude/corpus/programs/snobol4/beauty_suite/Gen.sno \
+    --driver /home/claude/corpus/programs/snobol4/beauty_suite/beauty_Gen_driver.sno \
     --line 45 \
     --out /home/claude/corpus/programs/snobol4/subexpr/ --verbose
 
 # Random sampling across all subsystem files:
 python3 test/beauty_subexpr_gen.py \
-    --beauty /home/claude/corpus/programs/snobol4/beauty \
+    --beauty /home/claude/corpus/programs/snobol4/beauty_suite \
     --out /home/claude/corpus/programs/snobol4/subexpr/ \
     --samples 20 --verbose
 

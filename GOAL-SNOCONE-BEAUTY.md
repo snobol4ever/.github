@@ -93,9 +93,9 @@ scrip handles mixed-extension multi-file linkage natively. Pass subsystem
 
 ```bash
 ./scrip --interp \
-    corpus/programs/snobol4/beauty/global.sno \
+    corpus/programs/snobol4/beauty_suite/global.sno \
     ... \
-    corpus/programs/snobol4/beauty/trace.sno \
+    corpus/programs/snobol4/beauty_suite/trace.sno \
     test/beauty-sc/beauty/beauty.sc < input.sno
 ```
 
