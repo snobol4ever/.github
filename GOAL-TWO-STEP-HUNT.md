@@ -35,7 +35,7 @@ Find first diverging test. Identify which subsystem line causes it.
 
 ```bash
 cd /home/claude/one4all
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
     > /tmp/spitbol.out
 SNO_LIB=$BEAUTY timeout 10 ./scrip --interp $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \

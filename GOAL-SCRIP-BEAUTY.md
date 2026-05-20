@@ -87,7 +87,7 @@ Update pass count here.
 
 ```bash
 cd /home/claude/one4all
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty
+BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 INC=/home/claude/corpus/programs/snobol4/demo/inc
 PASS=0; FAIL=0
 for sno in "$BEAUTY"/beauty_*_driver.sno; do

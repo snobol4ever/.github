@@ -127,7 +127,7 @@ beauty_Gen, beauty_Qize, beauty_TDump, beauty_XDump, beauty_assign, beauty_case,
 ```bash
 export PATH=/usr/local/dotnet10:$PATH
 SNO4=/home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll
-cd /home/claude/corpus/programs/snobol4/beauty
+cd /home/claude/corpus/programs/snobol4/beauty_suite
 PASS=0; FAIL=0
 for driver in beauty_*_driver.sno; do
     name="${driver%_driver.sno}"
