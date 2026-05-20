@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 27ad177b    (ST2-1b proc_table/proc_count sub-step — last of six shim macros retired; ST2-1b COMPLETE)
+one4all: b733dd13    (ST2-2 stage2 isolation firewall gate; ST2 rung COMPLETE — ST2-1/1b/1c/2 all landed this session)
 corpus:  b10933c
-.github: (this commit — ST2-1b ledger; next ST rung is ST2-1c dynamic arrays)
+.github: (this commit — ST2 rung close-out ledger)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -52,6 +52,7 @@ matrix gate:   0/365 PASS
 DAI-BOMB fires: 0
 firewall lower:   9 includes / 6 allowlisted
 firewall runtime: 16 includes / 8 allowlisted
+firewall stage2:  10 allowlist entries (token gate; honest-scope: not link-time)
 beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20, 882901 bytes)
 ```
 
@@ -89,8 +90,10 @@ beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20
   - [x] **label_table / label_count sub-step** (2026-05-20, `4f5d0512`): `label_table_build` threads `s2->label_table` / `s2->label_count`; `label_lookup` reads `g_stage2` literally (called from interp_call.c × 4 and interp_hooks.c × 2 — sites that don't carry `s2`; threading through them is a separate larger refactor).  Shim macros deleted from `interp.h`.  Four shims remain.
   - [x] **g_pl_pred_table sub-step** (2026-05-20, `d73cded0`): 17 sites across 5 files migrated.  polyglot.c (2) threads `s2->pl_pred_table`; pl_runtime.c (10), scrip_sm.c (1), interp_hooks.c (1), lower.c (1) read `g_stage2.pl_pred_table` literally.  Shim macro deleted from `pl_runtime.h`.  Three shims remain (proc_table/proc_count is the only remaining cluster).
   - [x] **proc_table / proc_count sub-step** (2026-05-20, this commit): 127 sites across 10 files migrated.  Producers (s2-bearing): polyglot.c (10 sites) threads `s2->proc_table` / `s2->proc_count`; scrip_sm.c sm_resolve_proc_entry_pcs signature changed from `(SM_sequence_t *p)` to `(stage2_t *s2)` and threads s2 (4 sites).  Readers (deep dispatch, no s2): lower.c (12 sites: emit_var_load × 2, lower_proc_skeletons × 10), sm_interp.c (21 sites), ir_exec.c (15 sites), emit_sm.c (10 sites), icn_runtime.c (32 sites), interp_hooks.c (2 sites: _usercall_hook), raku_builtins.c (3 sites: builtin call path) read `g_stage2.proc_table` / `g_stage2.proc_count` literally.  Both shim macros deleted from `icn_runtime.h`.  All gates at baseline (smoke 5/0×5+4/0+7/0; broker 23/26; icon-rungs 194/36/35; beauty.sno --compile md5 `40df9e004c3e963c99af716c65f2c970` byte-identical).
-- [ ] **ST2-1c** — Convert `label_table[STAGE2_LABEL_MAX]` and `proc_table[STAGE2_PROC_TABLE_MAX]` from fixed-size inline arrays to dynamically-grown arrays (same `_grow` pattern as `SM_sequence_t.instrs`).  Today's caps (4096 labels, 256 procs) are hard limits and ~150KB of .bss for hello.sno; not worth the constraint.  Shim macros unchanged (`g_stage2.label_table` is a pointer either way).
-- [ ] **ST2-2** — Honest scope: this still does not give us a `stage2_isolation` link-time gate analogous to ISO-7.  After ST2-1b lands, write `scripts/test_gate_stage2_isolation.sh` that catches residual external reads of the old global names — mirror of the existing parse/runtime firewall gates.
+- [x] **ST2-1c ✅ COMPLETE** (2026-05-20, `b42b7979`) — `label_table` and `proc_table` in `stage2_t` converted from fixed-size inline arrays to dynamically-grown pointers + cap (mirror of `SM_sequence_t.instrs` `_grow` pattern).  `stage2_reset()` allocates the initial buffers at `STAGE2_LABEL_MAX` / `STAGE2_PROC_TABLE_MAX` (kept as initial-capacity hints, no longer hard limits).  `stage2_label_grow` / `stage2_proc_grow` helpers replace the writer-side cap checks at the two append sites (`polyglot.c` proc-table, `interp_label.c` label-table).  Reader sites unaffected — all use `[i]` indexing.  Net: ~150KB .bss freed; programs with >4096 labels or >256 procs no longer silently truncate.  All gates at baseline; beauty.sno --compile byte-identical.
+- [x] **ST2-2 ✅ COMPLETE** (2026-05-20, `b733dd13`) — `scripts/test_gate_stage2_isolation.sh` written.  Token firewall: each of the six former ST2-1 shim-macro names (`g_registry`, `label_table`, `label_count`, `g_pl_pred_table`, `proc_table`, `proc_count`) must appear in source only as a qualified field reference (`.` or `->` prefix).  Allowlist of 10 entries covers `stage2.h` field declarations × 6, `interp_private.h` doc comment × 3, `scrip_sm.c` printf format string × 1.  Mirror of `test_gate_lower_isolation.sh` / `test_gate_runtime_isolation.sh` (same `ALLOW` array + grep style).  Honest scope statement in header records that it's a token firewall — link-time isolation analogous to ISO-7 remains a future rung.
+
+**ST2 rung COMPLETE** (2026-05-20): ST2-1 / ST2-1b / ST2-1c / ST2-2 all landed.  `stage2_t` is the single named struct lower() hands to interp/emit, with no global shim macros, dynamically-grown sidecars, and a regression-catching firewall gate.
 
 **Authors recorded per RULES.md "Three-construct" exception (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
 
