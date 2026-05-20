@@ -68,6 +68,7 @@ source → parser → tree_t + shared tables (label_table, proc_table, g_pl_pred
 - [x] **IEP-INCLUDE** — src/include/ with 6 stage-boundary headers; forward shims. ✅ `b77d3729`
 - [x] **IEP-RENAME** — scrip_ir.h → src/include/IR.h; mass-replace. ✅ `1e7a7f5e`
 - [x] **IEP-4** — SM_EXEC_STMT and SM_EXEC_BB: IR_block_t* → dcg_table integer index. ✅ `d9dff43a`
+- [x] **IEP-PKG** — ParserOutput struct + parser_output_build(): single place that names the parser→lower contract. ✅ `b4859b69`. Design B (named contract; globals stay in place). Three call sites (sm_preamble, --dump-sm, sync_monitor_run) updated. Groundwork for Design A (move label_table / proc_table / g_pl_pred_table into the struct as fields — ~121 read sites — once IR-CD-5 lands) and for IEP-7 (cannot delete tree_t* after lower returns without first reifying the boundary).
 
 ---
 
@@ -139,9 +140,9 @@ Fix: lower must fully lower Icon proc bodies and Prolog clause trees to `IR_bloc
 ## State
 
 ```
-watermark: IEP-4 (IEP-5/6 deferred to CHUNKS; IEP-7/8/9 blocked on CHUNKS + proc_table/pl_pred_table GOAL)
-head: d9dff43a
-session: 2026-05-15 (Claude Sonnet 4.6)
+watermark: IEP-PKG (IEP-5/6 deferred to CHUNKS; IEP-7/8/9 blocked on CHUNKS + proc_table/pl_pred_table GOAL)
+head: b4859b69
+session: 2026-05-20 (Claude Opus 4.7)
 ```
 
 ---
