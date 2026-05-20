@@ -54,7 +54,26 @@ Gates floor flag-off AND flag-on across all rungs:
 - GATE-3 (icon all-rungs `--interp`): 194/36/35
 - matrix gate: 0/365 PASS
 
-**NEXT: EC-UNI-3-beauty** (unblocked). Write `scripts/test_gate_em_ec_uni_3_beauty.sh` that compiles `beauty.sno` flag-off and flag-on and md5-compares. The text/binary collapse means byte-identity is by construction once the single `IS_X86` arm is correct — the gate should pass directly modulo any residual SrcLines comment drift in GAS output. After 3-beauty closes, EC-UNI-4 deletes `emit_walk_codegen`.
+**NEXT: EC-UNI-3-beauty** (unblocked, partially investigated). Probe ran end of session — the HQ doc's prediction that flag-off vs flag-on diff would be "GAS-comments only" turned out to be **wrong**.  Real divergences found:
+
+| Macro emitted | Flag OFF | Flag ON | Why |
+|---|---|---|---|
+| `SM_NRETURN[_S/_F]` | `NRETURN_VAR fname_lbl, cond, pc` | `RETURN_VARIANT 2, cond, 0` | `emit_sm_return_template` passes `prog=NULL` and `pc=0` to `emit_sm_return_variant_dispatch`; the `kind==2 && prog` branch (lines 2109–2122 of `emit_sm.c`) never fires → falls through to the generic `emit_sm_ret_var`. **Different GAS macro.** |
+| `SM_FRETURN[_S/_F]`, `SM_RETURN_[S/F]` | `RETURN_VARIANT k, c, pc` | `RETURN_VARIANT k, c, 0` | Same shim → same `pc=0`. Macro is the same but third operand differs. **Real divergence — pc is not annotational, it's a macro arg used at GAS-assembly time.** |
+| `SM_STNO` annotation | `# stmt N (line M): SOURCE_TEXT` | `# stmt N (line M)` | `emit_sm_stno_template` passes `SrcLines=NULL`. Comment drift only — as predicted. |
+
+**Root cause:** two shims (`emit_sm_return_template` in `emit_sm.c:2132`, `emit_sm_stno_template` in `emit_sm.c:2027`) pass NULL for the private state (`SM_Program *`, `SrcLines *`) and `0` for `pc`. The clean fix is approach #2 from earlier: **promote `prog` + `srclines` into `sm_ctx_t`** (extension to the existing struct in `SM_templates/sm_ctx.h`) and have `dispatch_one_x86` populate them. Then the shims forward `ctx->i`, `ctx->prog`, `ctx->srclines`. WIP was laid in but reverted at handoff for cleanliness.
+
+**Concrete EC-UNI-3-beauty plan for next session:**
+1. Extend `sm_ctx_t` (in `src/emitter/SM_templates/sm_ctx.h`) with `const struct SM_Program * prog;` and `const void * srclines;` (opaque — `SrcLines` is private to `emit_sm.c`).
+2. Add `#include "SM_templates/sm_ctx.h"` to `emit_sm.h` (currently only `sm_template_common.h` pulls it in).
+3. Change signatures: `emit_sm_return_template(out, ins, ctx)`, `emit_sm_stno_template(out, ins, ctx)`. Pass `ctx->i` as pc, `(SM_Program*)ctx->prog`, `(SrcLines*)ctx->srclines`.
+4. Promote `sm_stno` template to take `const sm_ctx_t *ctx` (mirrors `sm_jump`/`sm_halt`/`sm_return`).
+5. Update `dispatch_one_x86` signature to receive `prog` and `sl` from `emit_walk_codegen` (currently file-scope locals at `emit_sm.c:3032–3033`). Fill `ctx.prog = prog; ctx.srclines = sl_loaded ? &sl : NULL;`.
+6. Build, gate, write `scripts/test_gate_em_ec_uni_3_beauty.sh`: compile `corpus/programs/snobol4/demo/beauty/beauty.sno --compile` flag-off and flag-on, `diff -q` should report identical. SPITBOL oracle (`/home/claude/x64`) only needed if we want to also verify against Milestone 1's byte-identity — `EC-UNI-3-beauty` itself just needs self-identity.
+7. After 3-beauty closes, **EC-UNI-4** deletes `emit_walk_codegen`.
+
+The 5 affected files (uncommitted WIP, reverted at handoff): `src/emitter/SM_templates/sm_ctx.h`, `src/emitter/SM_templates/sm_returns.c`, `src/emitter/SM_templates/sm_templates.h`, `src/emitter/emit_sm.c`, `src/emitter/emit_sm.h`. About 60% of the work was done before revert; reproducing should take an hour.
 
 ---
 
