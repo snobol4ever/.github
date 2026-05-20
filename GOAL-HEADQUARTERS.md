@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: d73cded0     (ST2-1b three sub-steps — g_registry / label_table+label_count / g_pl_pred_table shims deleted)
+one4all: 4a1fcc63     (IR-RN-3 — SM_label_pc_lookup→sm_, BB_reset→bb_; two consumer-misclassified UPPERCASE names corrected)
 corpus:  b10933c
-.github: (this commit — ST2-1b sub-step ledger; three of five shims burned down; proc_table/proc_count cluster remains)
+.github: (this commit — IR-RN-3 ledger; rung advances to IR-RN-4 docs)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -112,8 +112,8 @@ beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20
 - [x] IR-RN-0 — Bulk rename in 3 sed passes. 48 files. Headers `IR.h`→`BB.h`, `sm_prog.h`→`SM.h`. `9ce69899`.
 - [x] IR-RN-1 — Audit `lower.c` post-rename. `c710506f`. Single finding: `sm_pat_capture_fn_arg_names` (builder helper, lowercase by mistake from IR-RN-0 Phase 3 sm_pat_* lowercase sweep) → `SM_pat_capture_fn_arg_names`. File-local, 2 sites. Sibling `lower_*.c` files clean.
 - [x] IR-RN-2 — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`). `92417a85`. Single cluster: 4 stale `ir_*` consumers (`ir_node_id`, `ir_is_generator`, `ir_walk`, `ir_walk_rec`) → `bb_*` (consume `BB_t`/`BB_graph_t`/`BB_op_t`). 18 files, 32 call sites + 1 header (`src/include/emit_ir.h`) + 4 defs. emit_bb.c and emit_sm.c clean. Apparent builder calls in emit_sm.c (BB_alloc/BB_node_alloc/BB_free, SM_seq_free) are legitimate pattern-window IR construction + destructors.
-- [ ] **IR-RN-3 (NEXT)** — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`).
-- [ ] IR-RN-4 — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
+- [x] IR-RN-3 — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`).  Two findings: `SM_label_pc_lookup` → `sm_label_pc_lookup` (read-only PC lookup; consumer disguised as builder by UPPERCASE; 13 call sites across 4 files + def in `sm_prog.c` + decl in `SM.h`) and `BB_reset` → `bb_reset` (per-node state reset; consumer-side runtime reset; 5 call sites in `ir_exec.c` + def in `scrip_ir.c` + decl in `BB.h`).  `SM_codegen` audited and kept UPPERCASE (codegen entry point, named-pipeline infrastructure; renaming would ripple beyond rung scope).  `4a1fcc63`.
+- [ ] **IR-RN-4 (NEXT)** — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
 - [ ] IR-RN-5 — Full cross-language gate run; close rung.
 
 Reserved (untouched): `IR_LANG_*`, `SM_INTERP_*`, `SM_CALL_STACK_MAX`/`SM_GEN_LOCAL_MAX`/`SM_MAX_OPERANDS`, `BB_POOL_SIZE`, header guards, `SM_*` opcode tags, `SM_templates/`/`BB_templates/` dir names.
