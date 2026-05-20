@@ -73,9 +73,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: ab2888bf    (EC-UNI-13(c) ✅ — SM_DEFINE_ENTRY/SM_DEFINE → SM_templates/sm_defines.c; verbatim union of 5 silo arms; helpers emit_sm_define_entry_dispatch/emit_sm_define_dispatch + g_in_define_body exposed; SM_EXEC_STMT on NET preserved; gate floor unchanged)
+one4all: 498a2eed    (EC-UNI-13(d) ✅ — SM_BB_ONCE_PROC/SM_BB_PUMP_PROC → SM_templates/sm_bb_calls.c; IS_X86 arms call existing dispatchers as black boxes; IS_JVM/JS/NET/WASM arms are honest no-op stubs matching `default: break;` fallthrough; helpers emit_sm_bb_once_proc_dispatch/emit_sm_bb_pump_proc_dispatch promoted static→public and exposed via emit_sm.h; gate floor unchanged)
 corpus:  b10933c
-.github: (this commit — EC-UNI-13(c) close-out ledger; EC-UNI-13(d) sm_bb_calls.c advanced to NEXT)
+.github: (this commit — EC-UNI-13(d) close-out ledger; EC-UNI-13(e) bb_pl.c advanced to NEXT)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -204,9 +204,13 @@ This ordering is the explicit lesson from the x86 path: extracting helpers *befo
 
   Unified-dispatch path (`dispatch_one_x86`) gains both opcodes per EC-UNI-13(b) precedent.  Legacy x86 walker (`emit_walk_codegen`) still calls `emit_sm_define_entry_dispatch` / `emit_sm_define_dispatch` directly — that's the legacy path, untouched per EC-UNI-13 scope (silos delete at EC-UNI-14).  Gate floor unchanged at every commit (beauty md5 `40df9e004c3e963c99af716c65f2c970`, 882901 bytes; smoke 5/7/5/5/4/5; broker 23/26; icon all-rungs 194/36/35).
 
-- [ ] **EC-UNI-13(d) (NEXT)** — `SM_templates/sm_bb_calls.c`: `sm_bb_once_proc()` and `sm_bb_pump_proc()`.  Today these only exist as x86 dispatchers (`emit_sm_bb_once_proc_dispatch`, `emit_sm_bb_pump_proc_dispatch`); JVM/JS/NET/WASM have no arms.  Template structure is IS_X86 arm only with stubs for other backends.
+- [x] **EC-UNI-13(d) ✅ COMPLETE 2026-05-20** — `SM_templates/sm_bb_calls.c`: `sm_bb_once_proc()` and `sm_bb_pump_proc()`.  Bodies are the verbatim union of arms:
+  - **x86:** call existing `emit_sm_bb_once_proc_dispatch` / `emit_sm_bb_pump_proc_dispatch` as black boxes (their `static` was dropped, both exposed via `emit_sm.h`).  `sm_bb_once_proc` routes to PJ-9c's rt_pl_once template (Prolog predicate invocation, mode-4 wired path).  `sm_bb_pump_proc` does the `g_stage2.proc_table[]` entry_pc lookup and emits `call .L<entry_pc>` via SM_CALL_EXPRESSION (IJ-HELLO-3 Icon proc direct call), falling back to `rt_unhandled_sm` if the proc was not registered.
+  - **JVM/JS/NET/WASM:** honest no-op stubs.  Today these backends never receive SM_BB_ONCE_PROC or SM_BB_PUMP_PROC — both Icon-proc-direct-call and Prolog rt_pl_once are x86-mode-4 wirings.  In each silo walker the opcodes fall through `default: break;` (JVM/JS/NET) or `default: fprintf(\";; unhandled SM opcode %d\");` (WASM).  Phase B per-backend goals will fill these arms when their frontends start emitting these opcodes.
 
-- [ ] **EC-UNI-13(e)** — `BB_templates/bb_pl.c`: `bb_pl_arith()`, `bb_pl_atom()`, `bb_pl_builtin()`, `bb_pl_call()`.  Bodies pulled from the four `case BB_PL_*:` arms in `emit_sm.c` (lines 1407-1410 today; that's pre-EC-UNI-13(b) numbering — re-check after this commit).
+  Unified-dispatch path (`dispatch_one_x86`) gains both opcodes per EC-UNI-13(b)/(c) precedent.  Legacy x86 walker (`emit_walk_codegen`) still calls `emit_sm_bb_once_proc_dispatch` / `emit_sm_bb_pump_proc_dispatch` directly — that's the legacy path, untouched per EC-UNI-13 scope (silos delete at EC-UNI-14).  Gate floor unchanged (beauty md5 `40df9e004c3e963c99af716c65f2c970`, 882901 bytes; smoke 5/7/5/5/4/5; broker 23/26).  Pre-existing divergence between default and SCRIP_UNIFIED_DISPATCH=1 modes (`40df9e0...` vs `8edb301...`) confirmed identical to prior HEAD — not introduced by 13(d).
+
+- [ ] **EC-UNI-13(e) (NEXT)** — `BB_templates/bb_pl.c`: `bb_pl_arith()`, `bb_pl_atom()`, `bb_pl_builtin()`, `bb_pl_call()`.  Bodies pulled from the four `case BB_PL_*:` arms in `emit_sm.c` (case-label positions to be re-checked after this commit's renumbering).
 
 - [ ] **EC-UNI-14** — single dispatcher.  Build `emit_sm_dispatch(void)` in `emit_core.c`: one switch on `g_emit.instr->op`, 91 arms, each calling `sm_<name>()`.  No backend conditional at the dispatcher level — that's inside each template.  Expand `emit_bb_node(void)` to cover all 21 BB kinds reachable today.  The per-iteration loop in `emit_program` becomes: set `g_emit.*` per iteration, call `emit_sm_dispatch()`.
 
