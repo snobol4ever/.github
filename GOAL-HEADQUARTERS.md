@@ -40,10 +40,10 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: cb1738f6     (PARSE-TO-LOWER A/B/C — parse->lower carries only tree_t*; firewall gates land)
+one4all: 871d2f0b     (ST2-1 — stage2_t is the baton; g_stage2 global value; SM_sequence_t pure sequence)
 corpus:  b10933c
-.github: (this commit — watermark advanced; new ISOLATION rung recorded below)
---interp:      PASS (hello.sno)
+.github: (this commit — ST2 rung added; ISO updated)
+--interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
@@ -75,6 +75,19 @@ firewall runtime: 16 includes / 8 allowlisted
 - [ ] **ISO-7** — Stronger guarantee than the header firewall: link-time isolation test (`lower.o` + `lower_*.o` linked against a tree with all `src/frontend/*.o` absent).  Any unresolved symbol = real leakage.  Deferred from this session — proxies (signature + firewall) are weaker than a real link test, and we should be honest about that until ISO-7 lands.
 
 **Honest scope statement (recorded so the next session does not over-trust the gates):** the firewalls are *header* firewalls.  They catch direct `#include` regressions in seconds.  They do **not** prove that `lower` reads only the AST passed to it; symbols reachable through an allowlisted header (most acutely through `scrip_cc.h`) are not detected.  ISO-7 closes that gap.
+
+### ST2 — Stage 2 handoff (lower → interp/emit) is a named struct, not a pile of globals
+
+**Goal:** the output of lower() is one struct, `stage2_t`, containing the SM opcode array PLUS the category-B sidecars (label_table, proc_table, pl_pred_table, module_registry, lang) that interp/emit previously read from process globals.  The struct is the global value `g_stage2` — single, .bss-resident, no allocator dance, no pointer to track.  Mirror of ISO on the output side.
+
+**Authorship history (ST2-1, this session, 2026-05-20):** Lon walked Claude through three honest pivots — first an additive `s2_*` fields kludge ("populate at end" — kludgy, retracted), then a `typedef stage2_t = SM_sequence_t` alias (two pointers to synchronize — retracted), finally the right shape: `SM_sequence_t` stays the pure opcode array as originally designed, `stage2_t` is its own struct that embeds the SM sequence and owns the sidecars, and `g_stage2` is a global value not a pointer.  RULES.md SR-15c lesson respected throughout — lower's internal pass state stays file-scope `static`; ST2 addresses output-side handoff only.
+
+- [x] **ST2-1** — `stage2_t` is the baton; `g_stage2` is a global value.  `SM_sequence_t` restored to its sequence-only shape.  Six reader shim macros (label_table, proc_table, g_pl_pred_table, g_registry, label_count, proc_count) redirect legacy names into `g_stage2`.  `polyglot_init` takes a `stage2_t *s2` parameter (currently `(void)s2;` ignored — body writes via shim).  Canonical struct typedefs consolidated into `stage2.h`.  Renames: `ScripModule.proc_count` → `nprocs`; lower-internal `LabelEntry` → `LabTabEntry`.  `g_current_SM_seq` dissolved (40 sites).  All gates at baseline.  `871d2f0b`.
+- [ ] **ST2-1b (NEXT)** — Burn down the six reader shim macros: sweep readers to take `stage2_t *s2` directly; delete each macro after its last reader migrates.  Drop the `(void)s2;` parameter ignoring in `polyglot_init` / `label_table_build` — make them write into `g_stage2` directly (or pass the struct through honestly).  Update `ARCH-IR.md` and PLAN watermark.
+- [ ] **ST2-1c** — Convert `label_table[STAGE2_LABEL_MAX]` and `proc_table[STAGE2_PROC_TABLE_MAX]` from fixed-size inline arrays to dynamically-grown arrays (same `_grow` pattern as `SM_sequence_t.instrs`).  Today's caps (4096 labels, 256 procs) are hard limits and ~150KB of .bss for hello.sno; not worth the constraint.  Shim macros unchanged (`g_stage2.label_table` is a pointer either way).
+- [ ] **ST2-2** — Honest scope: this still does not give us a `stage2_isolation` link-time gate analogous to ISO-7.  After ST2-1b lands, write `scripts/test_gate_stage2_isolation.sh` that catches residual external reads of the old global names — mirror of the existing parse/runtime firewall gates.
+
+**Authors recorded per RULES.md "Three-construct" exception (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
 
 ### IR-CONSOLIDATE-DCG — single-structure lowering output
 
