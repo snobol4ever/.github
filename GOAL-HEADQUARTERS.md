@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: 4f5d0512     (ST2-1b two sub-steps — g_registry shim deleted; label_table/label_count shims deleted)
+one4all: d73cded0     (ST2-1b three sub-steps — g_registry / label_table+label_count / g_pl_pred_table shims deleted)
 corpus:  b10933c
-.github: (this commit — ST2-1b sub-step ledger; two of five shims burned down)
+.github: (this commit — ST2-1b sub-step ledger; three of five shims burned down; proc_table/proc_count cluster remains)
 --interp:      PASS (hello.sno, hello.icn)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -87,7 +87,7 @@ beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (baseline 2026-05-20
 - [ ] **ST2-1b (IN PROGRESS)** — Burn down the six reader shim macros: sweep readers to take `stage2_t *s2` directly; delete each macro after its last reader migrates.  Drop the `(void)s2;` parameter ignoring in `polyglot_init` / `label_table_build` — make them write into `g_stage2` directly (or pass the struct through honestly).  Update `ARCH-IR.md` and PLAN watermark.
   - [x] **g_registry sub-step** (2026-05-20, `14655275`): swept 11 sites in `polyglot_init` to `s2->module_registry`; shim macro deleted from `interp.h`.  Single-file scope (only reader was `polyglot_init`).  Five shims remain.
   - [x] **label_table / label_count sub-step** (2026-05-20, `4f5d0512`): `label_table_build` threads `s2->label_table` / `s2->label_count`; `label_lookup` reads `g_stage2` literally (called from interp_call.c × 4 and interp_hooks.c × 2 — sites that don't carry `s2`; threading through them is a separate larger refactor).  Shim macros deleted from `interp.h`.  Four shims remain.
-  - [ ] **g_pl_pred_table sub-step** — 20 sites across 7 files (`pl_runtime.c`, `polyglot.c`, `interp_hooks.c`, `scrip_sm.c`, `lower.c`).
+  - [x] **g_pl_pred_table sub-step** (2026-05-20, `d73cded0`): 17 sites across 5 files migrated.  polyglot.c (2) threads `s2->pl_pred_table`; pl_runtime.c (10), scrip_sm.c (1), interp_hooks.c (1), lower.c (1) read `g_stage2.pl_pred_table` literally.  Shim macro deleted from `pl_runtime.h`.  Three shims remain (proc_table/proc_count is the only remaining cluster).
   - [ ] **proc_table / proc_count sub-step** — largest: 76 / 37 sites across 14 / 12 files (icon_runtime.c, raku_builtins.c, emit_sm.c, sm_interp.c, ir_exec.c, lower_icn.c, lower.c, polyglot.c, interp_hooks.c, scrip_sm.c, sm_prog.c).  Likely needs a dedicated session.
 - [ ] **ST2-1c** — Convert `label_table[STAGE2_LABEL_MAX]` and `proc_table[STAGE2_PROC_TABLE_MAX]` from fixed-size inline arrays to dynamically-grown arrays (same `_grow` pattern as `SM_sequence_t.instrs`).  Today's caps (4096 labels, 256 procs) are hard limits and ~150KB of .bss for hello.sno; not worth the constraint.  Shim macros unchanged (`g_stage2.label_table` is a pointer either way).
 - [ ] **ST2-2** — Honest scope: this still does not give us a `stage2_isolation` link-time gate analogous to ISO-7.  After ST2-1b lands, write `scripts/test_gate_stage2_isolation.sh` that catches residual external reads of the old global names — mirror of the existing parse/runtime firewall gates.
