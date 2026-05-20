@@ -40,9 +40,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh --interp           # PASS=194
 ## Watermark
 
 ```
-one4all: b97b267b     (IR-CD-4 COMPLETE — consumer call-site migration)
+one4all: 92417a85     (IR-RN-2 COMPLETE — emitter audit + ir_*→bb_* consumer rename)
 corpus:  5d8e221
-.github: (this commit — HQ pruned)
+.github: (this commit — IR-RN-1 + IR-RN-2 marked complete; NEXT = IR-RN-3)
 --interp:      PASS (hello.sno)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
@@ -72,9 +72,9 @@ DAI-BOMB fires: 0
 **Rule:** UPPERCASE builds IR (`SM_t`, `BB_t`, `SM_seq_new`, `BB_alloc`). lowercase consumes (`sm_interp_*`, `bb_print`, `bb_broker`, all `SM_templates/` dispatchers). Case at the call site tells you which side of the pipeline you're on.
 
 - [x] IR-RN-0 — Bulk rename in 3 sed passes. 48 files. Headers `IR.h`→`BB.h`, `sm_prog.h`→`SM.h`. `9ce69899`.
-- [ ] IR-RN-1 — Audit `lower.c` post-rename.
-- [ ] IR-RN-2 — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`).
-- [ ] IR-RN-3 — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`).
+- [x] IR-RN-1 — Audit `lower.c` post-rename. `c710506f`. Single finding: `sm_pat_capture_fn_arg_names` (builder helper, lowercase by mistake from IR-RN-0 Phase 3 sm_pat_* lowercase sweep) → `SM_pat_capture_fn_arg_names`. File-local, 2 sites. Sibling `lower_*.c` files clean.
+- [x] IR-RN-2 — Audit emitters (`emit_bb.c`, `emit_sm.c`, `emit_core.c`). `92417a85`. Single cluster: 4 stale `ir_*` consumers (`ir_node_id`, `ir_is_generator`, `ir_walk`, `ir_walk_rec`) → `bb_*` (consume `BB_t`/`BB_graph_t`/`BB_op_t`). 18 files, 32 call sites + 1 header (`src/include/emit_ir.h`) + 4 defs. emit_bb.c and emit_sm.c clean. Apparent builder calls in emit_sm.c (BB_alloc/BB_node_alloc/BB_free, SM_seq_free) are legitimate pattern-window IR construction + destructors.
+- [ ] **IR-RN-3 (NEXT)** — Audit runtime (`sm_interp.c`, `sm_jit_interp.c`, `ir_exec.c`).
 - [ ] IR-RN-4 — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
 - [ ] IR-RN-5 — Full cross-language gate run; close rung.
 
