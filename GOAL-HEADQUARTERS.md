@@ -16,8 +16,41 @@
 
 ## Session Setup
 
-```
-cd /home/claude/one4all && bash scripts/build_scrip.sh
+Run this exact block at the start of every session.  Each step is idempotent.
+The three recurring friction points this addresses (recorded so the lesson
+sticks):
+
+1. **Boehm GC missing.**  The container ships without `libgc-dev`; the build
+   fails at `snobol4.h:8: fatal error: gc/gc.h`.  `install_system_packages.sh`
+   installs it (and bison/flex/nasm/wabt/libgmp-dev/m4), and is idempotent.
+2. **`tail -3` hides build errors.**  `scripts/build_scrip.sh` pipes `make`
+   through `tail -3`, which truncates the actual compiler error.  Invoke
+   `make` directly and log the full output so the error is one `grep` away.
+3. **`set -euo pipefail`** in `build_scrip.sh` combined with the `tail -3`
+   pipe means a real compile failure exits non-zero with three useless
+   lines of output.  Bypass the wrapper.
+
+```bash
+# (1) System packages — installs libgc-dev (Boehm GC), bison, flex, nasm,
+#     wabt, libgmp-dev, m4.  Idempotent: SKIPs if all present.
+bash /home/claude/one4all/scripts/install_system_packages.sh
+
+# (2) Build scrip directly with FULL build output captured.  On failure
+#     `grep -E "error:|fatal error" /tmp/build_full.log` shows the cause.
+cd /home/claude/one4all && make -j4 scrip > /tmp/build_full.log 2>&1
+if [ ! -x /home/claude/one4all/scrip ]; then
+    echo "BUILD FAILED — first error:"; grep -E "error:|fatal error" /tmp/build_full.log | head -5
+    exit 1
+fi
+echo "OK scrip built"
+
+# (3) Git identity (every repo, per RULES.md).
+for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
+done
+
+# (4) SPITBOL oracle clone (ships with prebuilt bin/sbl — no build step).
+[ -d /home/claude/x64 ] || git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 ```
 
 ## Architecture
