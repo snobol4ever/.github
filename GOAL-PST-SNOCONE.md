@@ -345,15 +345,29 @@ PST-SC-DOC-CLEANUP ✅.
 ## State
 
 ```
-watermark:   Phase 1 C ✅ (11/11 §⛔ closed). Phase 2 SC-SC ✅ (SC-SC-1..5 done).
-             ⚠ MIRROR-GAP-SC-SC-5: scrip --interp segfaults on global.sc line 3:
-             `&ALPHABET ? (POS(0) LEN(1) . nul);`
-             Pattern match on `&ALPHABET` keyword crashes SM interp in this
-             container build (one4all @ ccf095bb, EC-3f). Pre-exists our rewrite.
-             Root cause: SM_EXEC_STMT or keyword `&ALPHABET` handling in --interp
-             mode. Fix in separate session: debug sm_interp.c keyword path.
-next:        SC-SC-5 smoke debug — fix &ALPHABET segfault in --interp, then
-             run test_parser_snocone.sh. Update .ref files to PST tree shapes.
-audit:       PST-SCRIP-AUDIT.md § parser_snocone.sc — COMPLETE (pure shift/reduce).
-heads:       one4all @ 904aa2bd · corpus @ 1d0539c
+watermark:   2026-05-20 (Sonnet 4.6) — Phase 2 SC-SC ✅. Three C-layer bugs fixed.
+             PASS=0 FAIL=67 — MIRROR-GAP-SC-SC-5 still open; root cause now clear.
+
+ROOT CAUSE OF MIRROR-GAP-SC-SC-5 (not &ALPHABET — that was a symptom):
+  1. snocone_parse.y: free(node->c) heap corruption (4 sites) — fixed one4all @ 3824560c.
+     Any function-with-args crashed at parse. Now fixed.
+  2. lower_pat_dcg.c build_node: TT_FNC fell to default→NULL, so IR_lower_pat()
+     returned cfg with NULL entry. SM_EXEC_STMT silently used null DCG → all
+     Snocone pattern matches failed. Fixed: TT_FNC case added for SPAN/ANY/BREAK/
+     NOTANY/LEN/POS/TAB/ARBNO/FENCE. one4all @ 3824560c.
+  3. lower.c lower_fnc/lower_pat_expr: SPAN()/ANY()/etc. lowered to SM_CALL_FN
+     instead of SM_PAT_*. Fixed: intercepted in both value and pattern context.
+  4. lower.c lower_scan (×2): dcg_idx now -1 when IR_lower_pat returns null entry.
+
+REMAINING BLOCKER: variable-stored patterns via SM_PAT_REFNAME.
+  Id = ANY(&UCASE &LCASE '_')  then  *Id  in patterns uses:
+    SM_PAT_REFNAME "Id" → pat_ref("Id") → XDSAR PATND_t → bb_build_brokered(XDSAR)
+  bb_build_brokered does not handle XDSAR (runtime variable-name lookup) → fails.
+  Fix target: src/runtime/snobol4/bb_broker.c or bb_boxes.c — add XDSAR case that
+  looks up the variable by name at match time, gets DT_P, delegates to the actual pattern node.
+
+next:        Fix XDSAR in bb_build_brokered. Then rerun test_parser_snocone.sh.
+             Expect PASS > 0 once *Id/*White/*Ident patterns work.
+             Also: parser_snobol4.sc " fix committed corpus @ b10933c.
+heads:       one4all @ 3824560c · corpus @ b10933c
 ```
