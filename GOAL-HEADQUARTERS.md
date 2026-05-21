@@ -138,6 +138,43 @@ Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
 ## Watermark
 
 ```
+one4all: 9b905d26   (EC-UNI-PER-KIND-DIFF: honest 5-backend × submode geometry.
+                     Refactored audit harness directory layout from <be>/<KIND>.<ext>
+                     to <backend>/<submode>/<KIND>.<ext>.  Per Lon directive
+                     2026-05-21: 5 backends total (x86, jvm, net, js, wasm); x86
+                     has 3 sub-modes (text, binary_wired, text_macro_def); JVM
+                     and .NET may grow binary sub-modes later; JS and WASM are
+                     text-only by design.  Brokered entry/exit emissions are
+                     a separate fixup layer, not a per-template concern.
+
+                     Coverage at this commit:
+                       BB:  97 kinds × 7 cells = 679 cells.
+                            Cells per kind: x86/{text,binary,text_macro} +
+                            jvm/text + net/text + js/text + wasm/text.
+                       SM:  76 dispatcher-covered opcodes × 5 backend text cells = 380.
+                       Total: 1059 cells per run.
+
+                     Baseline at one4all 9b905d26:
+                       PASS=399  STUB=660  FAIL=0  NEW=0  GONE=0
+                       Footprint 3.4 MB (1.6 MB .raw + 1.6 MB .norm + 200 KB
+                       manifest/asm-md5/stub overhead).
+
+                     Per backend/submode size:
+                       x86/text       748 KB (346 files)
+                       x86/binary      84 KB (194 files)
+                       x86/text_macro 132 KB (194 files)  ← new this commit
+                       jvm/text       688 KB (346 files)
+                       net/text       472 KB (346 files)
+                       js/text        672 KB (346 files)
+                       wasm/text      568 KB (346 files)
+
+                     Regression detection verified empirically in new layout:
+                       Inject ';canary' in emit_core.c bipush path →
+                       FAIL=1 (jvm/text/SM_PUSH_LIT_I.j), exit=1.
+                       Restore → FAIL=0, exit=0.
+
+                     Predecessor one4all bb04e8e1 — same harness, flat
+                     <be>/<KIND>.<ext> layout (now superseded).)
 one4all: bb04e8e1   (EC-UNI-PER-KIND-DIFF harness landed.  tools/emit_per_kind_audit.c
                      plus scripts/{freeze_per_kind_baseline,test_per_kind_diff,normalize_per_kind_cell}
                      plus baselines/per_kind/ (3.3 MB committed).  scrip gains
