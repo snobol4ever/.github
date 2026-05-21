@@ -147,25 +147,6 @@ at the top of the commit message and leave the incomplete step as `- [ ]`
 with a note below it. Still push everything — a broken push is better than
 no push.
 
-## Constructs per session — no ceiling
-
-(Lon, sess 2026-05-20.) Earlier rule capped sessions at three orthogonal
-constructs. That ceiling was set for Icon BB triage where each construct
-involved deep IR-kind work; it does not generalize. **Ceiling removed.**
-
-Working defaults:
-
-- **Orthogonal constructs land in separate commits** when they're genuinely
-  independent. Bisectability is the only reason to keep them apart; if A
-  depends on B, fold them.
-- **One gate run at the end** of the session covers everything. If a gate
-  breaks, `git bisect` across commits.
-- **Pre-existing bugs surfaced during recon** are fair game to fix in the
-  same session, separate commits.
-
-The earlier rationale (amortizing session overhead) still applies — the
-amortization just has no fixed multiplier.
-
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — SCRIP'S SNOBOL4 AND SNOCONE SEMANTICS FOLLOW SPITBOL — Lon, 2026-05-17       ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣

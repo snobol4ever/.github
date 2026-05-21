@@ -9,7 +9,7 @@
 2. **Zero C Byrd-box functions.** No `DESCR_t foo(void *zeta, int entry)`. Only permitted: `icn_bb_dcg`.
 3. **Cross-language:** SM↔SM via `g_user_call_hook`; BB↔BB via universal α/β/γ/ω contract. Never cross language-A SM-bridge with language-B BB object.
 4. **Four ports hard-wired.** `BB_node_alloc` bakes α=nd, β=nd, γ=NULL, ω=NULL.
-5. **Three orthogonal constructs per session max**, separate commits, single gate run at end.
+5. **Single gate run at end of session.**
 6. **Builder/consumer case rule.** UPPERCASE builds IR (`SM_*`, `BB_*`). lowercase consumes (`sm_*`, `bb_*`).
 7. **EC-UNI matrix.** Backends are columns (X86/JVM/JS/NET/WASM). Text-vs-binary lives inside each `IS_<BE>` arm — never as a matrix dimension.
 8. **Unified dispatch owns mode-setting.** Per-opcode iteration calls `emit_mode_set(TEXT_MODE(), out)` at entry. Individual dispatchers stay idempotent.
@@ -63,20 +63,20 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: 66cf8506   (EC-UNI-14(a): emit_sm_dispatch shared across WASM/JS/NET silos; sm_op_is_dispatched helper; EC-UNI-0 scaffold deleted; byte-identical across all targets.  Prior 9630b549 — WASM/JVM SUSPEND_VALUE routing fix.  Prior d6e5c8f1 — EC-UNI-14-PREREQ closed (dispatch_one_x86 plumbs prog+srclines).  Prior 1544362a beauty artifacts cleanup; c01ac05f retargeted beauty.sno paths.)
+one4all: fe195613   (EC-UNI-14(b)(3): dispatch_one_x86 → emit_sm_dispatch with SM_LABEL + SM_PUSH_NULL_NOFLIP exclusions.  Prior 5dc52dd4 — EC-UNI-14(b)(2): emit_jvm_one_instr → emit_sm_dispatch + SM_EXEC_STMT JVM override.  Prior dc4e6a9d — EC-UNI-14(b)(1): SM_BB_ONCE_PROC/SM_BB_PUMP_PROC added to dispatcher.  Prior 66cf8506 — EC-UNI-14(a) shared dispatcher across WASM/JS/NET silos.  Prior 9630b549 — WASM/JVM SUSPEND_VALUE routing fix.  Prior d6e5c8f1 — EC-UNI-14-PREREQ closed.)
 corpus:  5fc1427    (deleted feature-rich stray demo/beauty.sno; prior be6f478 renamed beauty/ → beauty_suite/)
-.github: (this commit — PLAN row + watermark + EC-UNI ladder updates for EC-UNI-14(a) landing + RULES three-construct ceiling removed; prior 3bb96980 PLAN+watermark for EC-UNI-14-PREREQ; prior 0236e579 GOAL-NET-BEAUTY-SELF + 13(e) handoff)
+.github: (this commit — PLAN row + watermark + EC-UNI-14(b) ladder closed; RULES "Constructs per session" rule removed (Lon, 2026-05-21); GOAL-HEADQUARTERS Invariant #5 simplified.  Prior c624ce75 EC-UNI-14(a) landing + SUSPEND_VALUE fix + three-construct ceiling removed.)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
 icon rungs:    194/36/35
 matrix gate:   0/365 PASS
 firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate)
-beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (882901 bytes, baseline 2026-05-20; identical under SCRIP_UNIFIED_DISPATCH=1)
+beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (882901 bytes, baseline 2026-05-20; identical under SCRIP_UNIFIED_DISPATCH={0,1})
 beauty.sno --compile assembled .o md5: 3adbb73f88edcc5416d38baade6faf97  (494336 bytes; identical under both flag settings)
 emit_io self-test: 6/6 PASS
-unified-dispatch divergence: CLOSED 2026-05-20 (EC-UNI-14-PREREQ, one4all@d6e5c8f1).  EC-UNI-14 ladder progressing: EC-UNI-14(a) shared dispatcher landed 2026-05-20 (one4all@66cf8506); EC-UNI-14(b) NEXT (fold JVM and x86 walkers into the shared dispatcher); EC-UNI-14 proper (delete the silo walkers) blocks on 14(b).
-byte-identity sweep coverage (2026-05-20, EC-UNI-14(a) landing): all SNOBOL4 smoke programs × {jvm, js, wasm, net} backends + all Snocone smoke programs × x86 backend — zero drift vs pre-change baseline.
+unified-dispatch divergence: CLOSED 2026-05-20 (EC-UNI-14-PREREQ, one4all@d6e5c8f1).  EC-UNI-14 ladder: EC-UNI-14(a) shared dispatcher landed 2026-05-20 (one4all@66cf8506); EC-UNI-14(b) CLOSED 2026-05-21 (JVM + x86 walkers folded — dc4e6a9d / 5dc52dd4 / fe195613).  EC-UNI-14 proper (delete the silo walkers + dispatch_one_x86 wrapper + retire SCRIP_UNIFIED_DISPATCH flag) is NEXT.
+byte-identity sweep coverage (2026-05-21, EC-UNI-14(b) landing): six SNOBOL4 programs × JVM backend pre/post construct (2) — zero drift.  All language smokes × default-flag + UNIFIED_DISPATCH=1 — zero pass-count drift.  beauty.s + beauty.o md5 stable across both flag settings.
 beauty.sno files in corpus: ONE — `programs/snobol4/demo/beauty/beauty.sno` (627 lines, md5 5be1de188af42be42e15e6d9a552f759, self-contained with 16 .inc includes per RULES.md line 912). Feature-rich stray at `programs/snobol4/demo/beauty.sno` deleted 2026-05-20 (corpus@5fc1427). Subsystem test apparatus at `programs/snobol4/beauty_suite/` (renamed from `programs/snobol4/beauty/` for clarity, corpus@be6f478).
 ```
 
