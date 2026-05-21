@@ -105,6 +105,22 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 2187693e  (INLINE-4a slice 22: 9 RETURN-family templates inlined to bare
+                     emit_textf form. sm_return handles plain SM_RETURN
+                     (g_in_define_body guard + insn_pop_rbp + "RETURN") and
+                     SM_RETURN_S/F (RETURN_VARIANT 0, cond, pc # opname).
+                     sm_freturn emits RETURN_VARIANT 1, cond, pc # opname.
+                     sm_nreturn walks prog->instrs for SM_LABEL; emits
+                     NRETURN_VAR fname_lbl, cond, pc # opname if found,
+                     else RETURN_VARIANT 2, cond, pc # opname.
+                     codegen_intern_str promoted from file-static to
+                     public Layer-3 registry accessor (declared in
+                     sm_template_common.h, same category as strtab_label /
+                     wasm_intern_str). emit_sm_return_template +
+                     emit_sm_return_dispatch + emit_sm_return_variant_dispatch +
+                     emit_sm_ret + emit_sm_ret_var + emit_sm_ret_nreturn now
+                     have zero template callers — orphans for INLINE-4b sweep.
+                     Baselines refrozen. GATE-PK PASS=420 FAIL=0 STUB=639.)
 one4all: 2e33f0fd  (INLINE-4a slice 21: 6 PAT-family + EXEC_STMT templates inlined to
                      bare emit_textf form. sm_pat_capture, sm_pat_capture_fn,
                      sm_pat_capture_fn_args, sm_pat_usercall, sm_pat_usercall_args,
@@ -249,18 +265,26 @@ Grouped templates landed (slices 13-18):
   sm_incr_decr     2 opcodes  SM_INCR/SM_DECR                               (slice 18)
   (41 opcodes in 6 grouped fns; previously 41 separate fns plus dispatcher trail.)
 
-Pending-INLINE-4a-inline (current dispatchers in emit_sm.c go through emit_sm_<op>_dispatch -> emit_sm_lblopt -> sm_template_lookup -> renderer; need inlining into each template's IS_X86 arm using bb3c_format + sprintf-on-globals — NOT header promotion; renderer machinery to be DELETED, not exposed):
-  sm_pat_string_arg group: SM_PAT_LIT, REFNAME, USERCALL                   (LBLOPT shape)
-  sm_pat_capture   group: SM_PAT_CAPTURE                                   (LBLOPT_INT32 shape)
-                          SM_PAT_CAPTURE_FN, CAPTURE_FN_ARGS               (LBLOPT3 / LBLOPT_I_I shapes)
-                          SM_PAT_USERCALL_ARGS                             (LBLOPT_INT32 shape)
-  sm_exec_stmt     standalone                                              (EXEC_VAR shape)
-  sm_push_lit_s    (sm_push_pop_lits.c)                                    (LBL_INT32 shape)
-  sm_push_var / sm_store_var                                               (LBL shape)
-  sm_define / sm_define_entry                                              (NOOP shape)
-  sm_call_fn / sm_suspend_value                                            (LBL_INT32 + RET shape)
-  sm_bb_once_proc / sm_bb_pump_proc                                        (LBL_INT32 shape)
-  sm_push_expression / sm_call_expression                                  (PCREF shapes)
+Pending-INLINE-4a-inline (current dispatchers in emit_sm.c go through emit_sm_<op>_dispatch -> emit_sm_lblopt -> sm_template_lookup -> renderer; need inlining into each template's IS_X86 arm using bare emit_textf — NOT header promotion of renderer machinery; renderer machinery to be DELETED, not exposed):
+  COMPLETED (slices 19-22):
+    sm_pat_lit                          (slice 19, 29319ad7)
+    sm_pat_refname                      (slice 20, 043be429)
+    sm_pat_usercall, sm_pat_capture,
+      sm_pat_capture_fn,
+      sm_pat_capture_fn_args,
+      sm_pat_usercall_args,
+      sm_exec_stmt                      (slice 21, 2e33f0fd)
+    sm_return, sm_freturn, sm_nreturn
+      (9 opcodes; codegen_intern_str
+       promoted to Layer-3 accessor)    (slice 22, 2187693e)
+  REMAINING (~13 templates):
+    sm_push_lit_s    (sm_push_pop_lits.c)                                    (LBL_INT32 shape; needs render_str_preview inline or Layer-3 promotion)
+    sm_push_var / sm_store_var                                               (LBL shape)
+    sm_define / sm_define_entry                                              (NOOP shape; sm_define_entry also emits push rbp/mov rbp,rsp via insn_*)
+    sm_call_fn / sm_suspend_value                                            (LBL_INT32 + RET shape)
+    sm_bb_once_proc / sm_bb_pump_proc                                        (LBL_INT32 shape)
+    sm_push_expression / sm_call_expression                                  (PCREF shapes)
+    sm_stno          (special — reads SrcLines + builds banner; defer)
 ```
 
 ---
@@ -375,7 +399,7 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
       5. `bash scripts/freeze_per_kind_baseline.sh` to capture the new baseline.
       6. Confirm `test_per_kind_diff.sh` shows 0 FAIL/NEW/GONE.
       7. Commit template + baseline files together. Move to next opcode.
-      Expected pace: **~10 minutes per template** (open dispatcher, paste bare text, build, refreeze, commit, repeat). 16 templates remain. One session should sweep most.
+      Expected pace: **~10 minutes per template** (open dispatcher, paste bare text, build, refreeze, commit, repeat). ~13 templates remain (counting opcode families: push_lit_s, push_var, store_var, define, define_entry, call_fn, suspend_value, bb_once_proc, bb_pump_proc, push_expression, call_expression, stno). One session should sweep most.
       **What NOT to do (mistakes already made):** do NOT create new public headers exposing template machinery. Do NOT route templates through `bb3c_format`/`pat_arg_label`/`emit_sm_lblopt`/`sm_template_lookup` — those are the helpers being **deleted**. Do NOT try to construct a SNOBOL4 program that exercises the opcode just to capture its output — the per-kind audit dump already has every cell. Do NOT use `%-24s%-16s` printf format to recreate column alignment — Lon explicitly abandoned column alignment due to agent limitations forcing it back in. Emit bare text and refreeze.
       **Reference for what to delete from emit_sm.c (per template):**
         `emit_sm_<op>_dispatch` (e.g. `emit_sm_pat_lit_dispatch`) — the per-opcode arg-setup that calls into the renderer.
@@ -387,65 +411,44 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
         ✅ `sm_pat_usercall`, `sm_pat_capture`, `sm_pat_capture_fn`,
            `sm_pat_capture_fn_args`, `sm_pat_usercall_args`, `sm_exec_stmt`
            (slice 21, `2e33f0fd`).
-        **NEXT SESSION PICKUP — sm_returns family (9 opcodes):**
-           sm_return, sm_freturn, sm_nreturn (each handles 3 variants:
-           plain/_S/_F via `instr->op` switch in their existing bodies).
-           Current: all three IS_X86 arms call `emit_sm_return_template(out, instr)`,
-           which dispatches:
-             - SM_RETURN  → emit_sm_return_dispatch (handles g_in_define_body:
-               emits insn_pop_rbp byte, then emit_sm_ret(SM_RETURN, NULL)).
-             - 8 other variants → emit_sm_return_variant_dispatch which:
-                 * computes kind (0=RETURN, 1=FRETURN, 2=NRETURN) and
-                   cond (0=plain, 1=_S, 2=_F) from op.
-                 * For NRETURN-kind: walks back through prog->instrs from
-                   pc-1 looking for SM_LABEL to find fname, then emits
-                   NRETURN_VAR macro line via emit_sm_ret_nreturn (text:
-                   "RETURN_VARIANT %d, %d, %d # %s" via bb3c_format).
-                 * Otherwise emits RETURN_VARIANT macro via emit_sm_ret_var.
-           Bare baselines per audit harness today:
-             SM_RETURN          → "RETURN\n"
-             SM_RETURN_S/F      → "RETURN_VARIANT %d, %d, %d # %s\n" (0,cond,0,op-name)
-             SM_FRETURN_*       → same, kind=1
-             SM_NRETURN_*       → same, kind=2 (but NRETURN_VAR variant only when
-                                  prog walk finds fname; audit harness has no
-                                  prog so it falls through to RETURN_VARIANT path)
-           Inline plan (per fn):
-             sm_return: if (IS_X86) {
-               if (g_in_define_body) { emit_mode_set(TEXT_MODE(),out); insn_pop_rbp(); }
-               emit_textf("RETURN\n");
-               return 1;
-             }
-             sm_freturn/sm_nreturn: if (IS_X86) {
-               int op = (int)instr->op;
-               int kind = (op==SM_FRETURN||op==SM_FRETURN_S||op==SM_FRETURN_F)?1:
-                          (op==SM_NRETURN||op==SM_NRETURN_S||op==SM_NRETURN_F)?2:0;
-               int cond = (op==SM_RETURN_S||op==SM_FRETURN_S||op==SM_NRETURN_S)?1:
-                          (op==SM_RETURN_F||op==SM_FRETURN_F||op==SM_NRETURN_F)?2:0;
-               // NRETURN_VAR fname-walk: only when prog has callable instrs.
-               // For now: emit RETURN_VARIANT bare; NRETURN_VAR special-case
-               // can be added when audit harness exposes it.
-               emit_textf("RETURN_VARIANT %d, %d, %d # %s\n",
-                          kind, cond, g_emit.i, sm_opcode_name((SM_op_t)op));
-               return 1;
-             }
-        **After sm_returns: sm_push_lit_s / sm_push_var / sm_store_var** (LBL family).
-           Pure text dispatchers (strtab_label + snprintf preview + emit_sm_lbl_int32/lbl).
-           Bare form:
-             PUSH_STR  → "PUSH_STR %s, %d # \"<preview>\"\n"
-             PUSH_VAR  → "PUSH_VAR %s # %s\n"
-             STORE_VAR → "STORE_VAR %s # %s\n"
-           preview helper: `render_str_preview` already in emit_sm.c — needs
-           Layer-3 promotion (declare in sm_template_common.h, drop static) or
-           inline its 40-char-with-ellipsis logic into the template.
+        ✅ `sm_return`, `sm_freturn`, `sm_nreturn` (9 opcodes, slice 22, `2187693e`).
+           Plain SM_RETURN: `g_in_define_body` guard + `insn_pop_rbp()` + `emit_textf("RETURN\n")`.
+           Variants S/F: `emit_textf("RETURN_VARIANT %d, %d, %d # %s\n", kind, cond, g_emit.i, sm_opcode_name(op))`.
+           NRETURN special: prog-walk for SM_LABEL → `emit_textf("NRETURN_VAR %s, %d, %d # %s\n", fname_lbl, cond, pc, opname)` if found.
+           `codegen_intern_str` promoted from file-static to public Layer-3
+           registry accessor (declared in `sm_template_common.h`).
+        **NEXT SESSION PICKUP — sm_push_lit_s / sm_push_var / sm_store_var** (LBL family).
+           Current path: `emit_sm_push_lit_s_dispatch` / `emit_sm_push_var_dispatch` /
+           `emit_sm_store_var_dispatch` in `emit_sm.c` route through
+           `strtab_label` + `render_str_preview` (for PUSH_STR) + `emit_sm_lbl_int32` /
+           `emit_sm_lbl`. Bare form (audit baselines):
+             PUSH_STR  → `PUSH_STR %s, %d # "<preview>"\n`     (label, len, 40-char-with-ellipsis preview)
+             PUSH_VAR  → `PUSH_VAR %s # %s\n`                  (label, name)
+             STORE_VAR → `STORE_VAR %s # %s\n`                 (label, name)
+           For PUSH_STR's preview: `render_str_preview` is currently static in
+           `emit_sm.c`. Options:
+             (a) Promote to Layer-3 (declare in `sm_template_common.h` like
+                 `strtab_label`); cleanest, matches slice 22 pattern for
+                 `codegen_intern_str`.
+             (b) Inline the 40-char-with-ellipsis logic into the template
+                 directly (5-6 lines).
+           Either is fine — Lon's choice. (a) is consistent with how slice 22
+           handled `codegen_intern_str`. For PUSH_VAR / STORE_VAR: no preview,
+           just `strtab_label` lookup + `emit_textf`. Confirm baseline shape
+           by running `./scrip --audit-per-kind /tmp/aud && cat
+           baselines/per_kind/x86/text/SM_PUSH_STR.s.norm` before starting.
+        **After push_lit_s/var/store_var: sm_define / sm_define_entry** (NOOP shape).
+           Note: `sm_define_entry` also emits `push rbp / mov rbp, rsp` byte
+           sequence — keep by calling `insn_push_rbp()` / `insn_*` from
+           `emit_core.h`. Sets `g_in_define_body = 1` at end (preserves
+           the flag used by `sm_return` plain-RETURN arm).
         **Remaining LBL_INT32 + RET family:**
            sm_call_fn, sm_suspend_value (CALL_FN bare),
            sm_bb_once_proc, sm_bb_pump_proc (BB_ONCE_PROC/BB_PUMP_PROC bare).
            Each via emit_sm_lbl_int32 + RET-chain. Likely needs pending-pc-label
            consume — inspect dispatcher when starting.
-        **NOOP/EXEC_VAR/PCREF:**
-           sm_define, sm_define_entry (NOOP shape; sm_define_entry also emits
-             "push rbp / mov rbp, rsp" — keep byte sequence by calling insn_*).
-           sm_push_expression, sm_call_expression (PCREF).
+        **PCREF:**
+           sm_push_expression, sm_call_expression.
         **STNO (special):** sm_stno reads SrcLines + builds banner. Defer
            until simpler templates are done; it does not share the simple
            printf-of-globals shape.
