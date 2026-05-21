@@ -104,6 +104,11 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 0ef0f7fc  (EC-UNI-NAMEKEY-BIN: IS_BIN arms for 14 live BB kinds.
+                     lbl_succ/fail/back_p added to g_emit; templates
+                     use them for binary patch-back. Audit fix: static
+                     audit labels in binary cells. GATE-PK 411/0.
+                     --run PASS=186. emit_bb_x* callers gone from switch.)
 one4all: 1b83cb1f  (EC-UNI-REWIRE complete: all 14 live simple BB kinds
                      route through emit_bb_node (IS_TEXT). ARBNO/CAP_IMM/
                      CAP_COND slow-path wired. flat_fill_and_call +
@@ -230,7 +235,8 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 ### ⚡ Open EC-UNI rungs
 
 - [ ] **EC-UNI-REFAITH** — re-lift FAILing kinds byte-faithfully against per-kind diff baseline. Gate must show 100% PASS.
-- [x] **EC-UNI-REWIRE-ALL** (CLOSED 2026-05-21 session #7, IS_TEXT path). 14 live simple BB kinds in emit_flat_ir now dispatch via emit_bb_node. CAT/ALT/FENCE recursive helpers remain (structural). `1b83cb1f`.
+- [x] **EC-UNI-REWIRE-ALL** (CLOSED 2026-05-21 sessions #7/#8). IS_TEXT + IS_BIN both route through emit_bb_node. NAMEKEY-BIN complete: lbl_succ/fail/back_p in g_emit; all 14 live BB kind templates have IS_BIN arms. `0ef0f7fc`.
+- [x] **EC-UNI-NAMEKEY-BIN** (CLOSED 2026-05-21 session #8, `0ef0f7fc`). g_emit.lbl_*_p for binary patch-back. Audit static labels fix. emit_bb_x* callers gone from switch.
 - [ ] **EC-UNI-NAMEKEY-BIN** — name-keyed binary primitives for `--run`; rewire binary; delete `emit_bb_x*` originals.
 - [ ] **EC-UNI-17** (deferred) — Layer-3 primitives audit. Parked.
 - [ ] **EC-UNI-18** — table-driven dispatch where it earns its keep. Extend x86's `g_sm_nullary` / `g_sm_arith` pattern to JVM/NET/JS/WASM for nullary + arith.
@@ -340,7 +346,7 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
 - **PPV-8** — `ddd08f01`. bb_abort IS_X86 arm; dead IS_BIN guard removal; beauty gate suspended.
 - **PPV-8 WASM** — `3e3b67b1`. IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. GATE-PK PASS=411 FAIL=0 STUB=648.
-- **EC-UNI-REWIRE** — `fcb86d2e` + `1b83cb1f`. All 14 live simple BB kinds in emit_flat_ir switch now route through emit_bb_node (IS_TEXT). GATE-PK 411/0, GATE-M 855/855, GATE-E 8/9 (beauty suspended).
+- **EC-UNI-REWIRE + NAMEKEY-BIN** — `0ef0f7fc`. IS_TEXT + IS_BIN both routed through emit_bb_node. lbl_*_p binary patch-back. 14 BB kind templates have IS_BIN arms. emit_bb_x* switch-callers eliminated.
 - **IR-RN-4/5** — `.github 08e9e188`. ARCH-IR/SCRIP/ICON updated to post-IR-RN-0 names. Cross-language gates all green. IR Rename rung COMPLETE.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
