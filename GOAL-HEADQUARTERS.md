@@ -176,35 +176,24 @@ only the expected cells moved.
 ## Watermark
 
 ```
-.github: (this commit — pat-keyword reachability probe REVISED per Lon directive.
-                     Initial framing wrong: REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL
-                     are pre-bound PATTERN-typed VARIABLES in both SPITBOL and
-                     scrip (verified via DATATYPE — both oracles match exactly).
-                     Bare `'hello' REM` is the canonical portable form, correctly
-                     handled via PAT_DEREF runtime path; invariant optimizer
-                     correctly skips it (variant by definition).
-                     No grammar divergence; no parser bug.
-                     Real findings retained:
-                     - HQ-BUG-RPOS-COMPILE-SEGFAULT (--compile crashes on RPOS(0))
-                     - HQ-BUG-RTAB-COMPILE-SEGFAULT (--compile crashes on RTAB(0))
-                     - HQ-BUG-PROTECTED-PATTERN-VARS (scrip allows REM = 'x';
-                       SPITBOL errors 042; new tracking item).
-                     - KEYWORD() parens form is a real scrip-only syntax
-                       (SPITBOL ERROR 022); maps to TT_<kind> via pat_prim_kind.
-                       Open question for Lon whether to permit in corpus.
-                     EC-UNI-COVER-PAT path: portable corpus file using ONLY
-                     POS/LEN/TAB/ANY/SPAN/BREAK/NOTANY/ARBNO (8 kinds, function-call
-                     constructors valid in both runtimes).  REM/ARB/FENCE/FAIL/
-                     SUCCEED/ABORT/BAL remain reachable to BB-lower only via
-                     scrip extension; their lifted template bodies are
-                     structurally dead from SNOBOL4 frontend without that
-                     extension being corpus-permitted.
-                     Gates clean at one4all 9b905d26: PK PASS=399 FAIL=0
-                     STUB=660 NEW=0 GONE=0.  Documentation commit only.)
+.github: (this commit — EC-UNI-PROTECTED-PAT-VARS rung added per Lon directive.
+                     7 sub-steps PPV-0..PPV-7 documented for later session.
+                     Resolves HQ-BUG-PROTECTED-PATTERN-VARS and unlocks BB-lower
+                     coverage for REM/ARB/FENCE/ABORT from portable SNOBOL4
+                     source (4 → 8 active pat-kinds projected).
+                     Hand off per RULES.md.  one4all 9b905d26 unchanged;
+                     PK PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0 throughout.)
+.github: c450ad2a   (pat-keyword reachability framing corrected — REM/ARB/FENCE/
+                     FAIL/SUCCEED/ABORT/BAL are pre-bound PATTERN-typed VARIABLES
+                     in both SPITBOL and scrip.  Bare `'hello' REM` is canonical
+                     portable form, handled via PAT_DEREF runtime path.  No
+                     grammar divergence; no parser bug.  3 real bugs tracked:
+                     HQ-BUG-RPOS-COMPILE-SEGFAULT, HQ-BUG-RTAB-COMPILE-SEGFAULT,
+                     HQ-BUG-PROTECTED-PATTERN-VARS.)
 .github: 9887a030   (FIRST attempt at pat-keyword reachability documentation —
-                     SUPERSEDED by next commit.  Misframed REM/ARB as parse-time
+                     SUPERSEDED by c450ad2a.  Misframed REM/ARB as parse-time
                      keywords; they're actually PATTERN-typed variables.  Bugs
-                     tracked there (RPOS/RTAB --compile segfault) carry forward.)
+                     tracked there carry forward.)
 .github: 2e81cc23   (gate cadence change: per-kind-diff is the new primary
                      per-slice invariant; matrix + beauty demoted to session-end /
                      escalation per Lon directive 2026-05-21.  Verified clean at
@@ -759,6 +748,59 @@ The 7 zero-arg pat-keyword kinds (REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL) remain r
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost.
 
 - [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariant block to reflect three-layer cake + `g_emit`. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens.
+
+- [ ] **EC-UNI-PROTECTED-PAT-VARS** (new, 2026-05-21 session #3, Lon directive) — Recognize REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL as **protected PATTERN-typed names** (matching SPITBOL's ERROR 042 semantics), unlocking BB-lower coverage for 7 currently-dead pat-kinds from portable SNOBOL4 source.
+
+  **The two-part problem this solves:**
+  - HQ-BUG-PROTECTED-PATTERN-VARS — scrip allows `REM = 'x'`; SPITBOL errors 042.  Real undocumented divergence.
+  - The 7 zero-arg pat-keyword BB-lower templates (slices 1-7) are structurally dead from the SNOBOL4 frontend because bare `REM` lexes as `T_IDENT` → `TT_VAR` → `SM_PUSH_VAR` + `SM_PAT_DEREF`, which the invariant optimizer correctly marks variant.
+
+  **The unified solution:** if REM/ARB/etc. are **guaranteed never to be reassigned** (protected, like SPITBOL), the compiler can statically substitute the pattern primitive at the bare-name site — turning `'hello' REM` into `SM_PAT_REM` (compile-time-known) instead of `SM_PUSH_VAR + SM_PAT_DEREF` (runtime).  The invariant optimizer then sees a fully-literal stack and bakes the BB-lower path.  Bare `REM` becomes portable AND BB-lower-reachable.
+
+  **The pat-name set (7 names, all PATTERN-typed, all zero-arg):**
+
+  | Name      | Existing TT_*    | Existing SM_PAT_*   | Existing BB_PAT_*  | Lifted template       |
+  |-----------|------------------|---------------------|--------------------|-----------------------|
+  | REM       | TT_REM (exists)  | SM_PAT_REM (exists) | BB_PAT_REM (exists)| `bb_rem.c` (slice 1)  |
+  | ARB       | TT_ARB           | SM_PAT_ARB          | BB_PAT_ARB         | `bb_arb.c` / `bb_farb.c` |
+  | FENCE     | TT_FENCE         | SM_PAT_FENCE0       | BB_PAT_FENCE       | `bb_fence.c`          |
+  | FAIL      | TT_FAIL          | SM_PAT_FAIL         | (variant — no BB)  | (Phase B work)        |
+  | SUCCEED   | TT_SUCCEED       | SM_PAT_SUCCEED      | (variant — no BB)  | (Phase B work)        |
+  | ABORT     | TT_ABORT         | SM_PAT_ABORT        | BB_PAT_ABORT       | `bb_abort.c`          |
+  | BAL       | TT_BAL           | SM_PAT_BAL          | (variant — no BB)  | (Phase B work)        |
+
+  All seven `TT_*` / `SM_PAT_*` enums already exist (used today only via the `KEYWORD()` parens form per snobol4.y:44 + pat_prim_kind).  This rung wires the **bare-name** path to reach the same SM opcodes.
+
+  **Implementation steps (rung sub-tasks):**
+
+  - [ ] **PPV-0** — Inventory check.  Read `src/include/SM.h` enum SM_op_t, `src/include/BB.h` enum BB_op_t, `src/frontend/snobol4/snobol4.y` tree_e enum, `src/lower/lower.c::lower_pat_expr` switch.  Confirm all seven TT_/SM_PAT_/BB_PAT_ enums are present (3 already known: TT_REM, SM_PAT_REM, BB_PAT_REM via slice 1 lift).  Note any missing enum (especially `BB_PAT_ARB` may be aliased to `BB_PAT_FARB`; `BB_PAT_SUCCEED`/`BB_PAT_BAL` likely absent and out-of-scope here — Phase B).
+
+  - [ ] **PPV-1** — Protected-name table.  Add to `src/runtime/x86/snobol4.c` (or similar runtime entry-point) a static const string array `g_protected_pat_names[] = {"REM","ARB","FENCE","FAIL","SUCCEED","ABORT","BAL"}` + helper `int is_protected_pat_name(const char *name)`.  Runtime hook: on any `SM_STORE_VAR` / `rt_var_set` site, check `is_protected_pat_name(name)`; if matched, raise ERROR 042 ("attempt to change value of protected variable").  Test: scrip running `REM = 'x'` should ERROR 042; previously silently succeeded.  Cross-check: SPITBOL behavior matches.
+
+  - [ ] **PPV-2** — Lower-time recognition.  In `src/lower/lower.c`, find the path that handles `TT_VAR` in pattern context (the dispatch from `lower_pat_expr` and `lower_pat_atom`).  When the variable name is one of the 7 protected pat-names, emit `SM_PAT_<KIND>` directly instead of `SM_PUSH_VAR` + (implicit) `SM_PAT_DEREF`.  Concretely: add a check at the TT_VAR arm of `lower_pat_expr`/`lower_pat_atom` — `if (sval && is_protected_pat_name(sval)) { SM_emit(g_p, SM_PAT_<by_name>); return; }`.  Implementation: a small static lookup `static const struct {const char*name; SM_op_t op;} g_pat_name_op[] = {{"REM",SM_PAT_REM},{"ARB",SM_PAT_ARB},...}`.
+
+  - [ ] **PPV-3** — Symmetric general-expression handling.  When the same 7 names appear in **general expression context** (not pattern context — e.g., the RHS of `x = REM`), keep the current behavior (variable lookup that returns the PATTERN value).  Important: PPV-2 only changes pattern-context lowering, not general expression.  In SPITBOL, `x = REM` legally copies the pattern value into x; that must keep working.  Verify by reading `lower_expr` arms vs `lower_pat_expr` arms; the change goes only in the latter.
+
+  - [ ] **PPV-4** — Bare-name probe verification.  Run `'hello' REM` under `--compile`, confirm `# BOX REM()` banner now appears.  Repeat for ARB, FENCE, ABORT (the four with BB-lower templates).  For FAIL, SUCCEED, BAL — confirm SM_PAT_<kind> emission happens; BB-lower will mark variant (correct — these have no BB templates today, Phase B work).  Per-kind-diff gate: should now show real exercise of those 4 BB pat-kinds across the SNOBOL4 corpus.
+
+  - [ ] **PPV-5** — Beauty.sno & gate impact assessment.  Run `bash scripts/test_gate_ec_uni_complete.sh`.  Beauty.sno md5 will likely change — beauty contains bare `REM` references that previously went through PAT_DEREF and will now go through SM_PAT_REM + invariant-bake.  Two paths: (a) accept new beauty md5 as new baseline (record old + new in EC-UNI-21-followup); (b) verify the new emission is byte-equivalent assembly (`.o` md5 unchanged); document the source-text drift as cosmetic-equivalent-assembly.  Lon decision; (b) is preferable if the assembled object is identical.
+
+  - [ ] **PPV-6** — Documentation.
+    - Update RULES.md "Permitted divergences" table: REMOVE the proposed `KEYWORD()` divergence (no longer needed — bare names now suffice).
+    - Update RULES.md SPITBOL block: scrip NOW matches SPITBOL on protected-pat-vars (ERROR 042).  HQ-BUG-PROTECTED-PATTERN-VARS marked CLOSED.
+    - Update PLAN.md row for GOAL-HEADQUARTERS reflecting the coverage gain.
+    - Update the empirical-probe block in this file to mark its conclusion superseded by PPV completion.
+
+  - [ ] **PPV-7** — Bug closeouts (post-PPV-4).
+    - HQ-BUG-PROTECTED-PATTERN-VARS — closed by PPV-1.
+    - HQ-BUG-RPOS-COMPILE-SEGFAULT — still open; PPV doesn't touch RPOS/RTAB (they're function-call constructors, not protected vars).  Track separately.
+    - HQ-BUG-RTAB-COMPILE-SEGFAULT — still open; same as above.
+
+  **Coverage delta (projected after PPV-5):** 4 BB pat-kinds → 8 BB pat-kinds exercised by portable SNOBOL4 corpus (REM/ARB/FENCE/ABORT added to POS/LEN/SPAN/ANY currently active).  Sets up EC-UNI-REFAITH with double the meaningful exercise.
+
+  **Why this is not part of EC-UNI proper:** EC-UNI's scope is the *emitter unification* — one template per opcode/kind, dispatch through `emit_bb_node`/`emit_sm_dispatch`.  PPV-* changes the *frontend lowering* and *runtime protection*, then exposes pre-existing SM_PAT_/BB_PAT_ opcodes to a wider source-syntax footprint.  It's a coverage-gain rung that runs in parallel with EC-UNI-REFAITH/REWIRE-ALL, not a dependency.
+
+  **Sequencing:** PPV-* is independent of EC-UNI-REFAITH/REWIRE-ALL/NAMEKEY-BIN and can be picked up by any session.  Recommended order: PPV-0 (no-op inventory) → PPV-1 (runtime protection, gates green) → PPV-2 (lower-time substitution, beauty md5 changes) → PPV-3 (verify general-expression context unchanged) → PPV-4 (probe verification) → PPV-5 (gate impact + Lon decision on beauty md5) → PPV-6/7 (docs + bug closeouts).  Each step a separate commit; each commit gates on `test_per_kind_diff.sh` clean + matrix 855/855 + (PPV-5 onward) beauty md5 explicitly accepted or assembled-`.o` md5 verified.
 
 - [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline.  Choose one:
   (a) **Re-converge**: find the regression between M1 (oracle md5 `abfd19a7...`,
