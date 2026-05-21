@@ -102,6 +102,11 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: f6e4968a  (PPV-7: fix RPOS/RTAB --compile segfault. emit_flat_invariant
+                     + pre_build_children_text + pre_build_children all walked
+                     nd->c[i] for i<nd->n without guarding nd->c==NULL.
+                     pat_node_intarg sets nd->n=1 as reverse-flag, not child
+                     count. Guard: if (!nd->c) return. All gates unchanged.)
 one4all: 1c47a59a   (PPV-2: lower-time SM_PAT_* substitution for protected names
                      in lower_pat_expr TT_VAR arm.  Also: normalize_per_kind_cell.py
                      normalizer hole fixed (lookahead in sid_nid regex); baseline
@@ -252,7 +257,7 @@ Sites (PPV-0):
 - [x] **PPV-4** (CLOSED 2026-05-21 session #6) — All 7 names via `--dump-sm` emit `SM_PAT_*` directly (no `SM_PUSH_VAR`). `--compile` shows `# BOX REM/ARB/FENCE`; ABORT shows `# BOX FAIL()` (pre-existing: dispatches to `emit_bb_xfail`, not a regression). FAIL/SUCCEED/BAL: `SM_PAT_*` confirmed via `--dump-sm`.
 - [x] **PPV-5** (CLOSED 2026-05-21 session #6) — Path (a) taken: new beauty md5 `6bf2e9daa777f54f04c8f7160da435d1` (882524 bytes, was `40df9e004c3e963c99af716c65f2c970` 882901 bytes). Assembled `.o` md5 changed (`01eda5b76d0641ad5db76edde694ef92` ← `3adbb73f88edcc5416d38baade6faf97`) — intentional: PPV-2 removes `SM_PUSH_VAR+SM_PAT_DEREF` pair for protected names, replacing with single `SM_PAT_*`. Gate script baseline updated. GATE-E 9/9 ✓.
 - [x] **PPV-6** (CLOSED 2026-05-21 session #6) — Docs. GOAL-HEADQUARTERS.md updated. PLAN.md updated. RULES.md: HQ-BUG-PROTECTED-PATTERN-VARS was already marked CLOSED in PPV-1; no further change needed.
-- [ ] **PPV-7 (NEXT)** — Bug closeouts. HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT still open; PPV doesn't touch them.
+- [x] **PPV-7** (CLOSED 2026-05-21 session #6) — Bug closeouts. HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT both fixed. Root cause: `pat_node_intarg()` sets `nd->n = 1` as a reverse flag (RPOS/RTAB vs POS/TAB) but never allocates `nd->c[]`. Three callers walked `nd->c[i]` for `i < nd->n` without guarding `nd->c`: `emit_flat_invariant` (emit_sm.c), `pre_build_children_text` (emit_bb.c), `pre_build_children` (emit_bb.c). Fix: add `if (!nd->c) return;` guard before each loop. GATE-PK 399/0, GATE-M 855/855, GATE-E 9/9, --run 186 unchanged.
 
 **Coverage delta projected after PPV-5:** 4 → 8 BB pat-kinds exercised from portable SNOBOL4 corpus.
 
@@ -313,5 +318,6 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-0** — `afa893a0`. Inventory.
 - **PPV-1** — `44a5f9a5`. Runtime protection ERROR 042. Closes HQ-BUG-PROTECTED-PATTERN-VARS.
 - **PPV-2..6** — `1c47a59a`. Lower-time SM_PAT_* substitution in lower_pat_expr TT_VAR arm. Normalizer fix (sid_nid lookahead). Beauty md5 → 6bf2e9daa777f54f04c8f7160da435d1. GATE-PK 399/0, GATE-M 855/855, GATE-E 9/9.
+- **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
