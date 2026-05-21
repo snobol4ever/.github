@@ -237,16 +237,18 @@ Grouped templates landed (slices 13-18):
   sm_incr_decr     2 opcodes  SM_INCR/SM_DECR                               (slice 18)
   (41 opcodes in 6 grouped fns; previously 41 separate fns plus dispatcher trail.)
 
-Still-blocked-on-INLINE-4 (need sm_op_template_t machinery promoted from emit_sm.c):
-  sm_pat_string_arg group: SM_PAT_LIT, REFNAME, USERCALL
-  sm_pat_capture   group: SM_PAT_CAPTURE, CAPTURE_FN, CAPTURE_FN_ARGS, USERCALL_ARGS
-  sm_exec_stmt     standalone
-  sm_push_lit_s    (sm_push_pop_lits.c)
-  sm_push_var / sm_store_var
-  sm_define / sm_define_entry
-  sm_call_fn / sm_suspend_value
-  sm_bb_once_proc / sm_bb_pump_proc
-  sm_push_expression / sm_call_expression
+Pending-INLINE-4a-inline (current dispatchers in emit_sm.c go through emit_sm_<op>_dispatch -> emit_sm_lblopt -> sm_template_lookup -> renderer; need inlining into each template's IS_X86 arm using bb3c_format + sprintf-on-globals — NOT header promotion; renderer machinery to be DELETED, not exposed):
+  sm_pat_string_arg group: SM_PAT_LIT, REFNAME, USERCALL                   (LBLOPT shape)
+  sm_pat_capture   group: SM_PAT_CAPTURE                                   (LBLOPT_INT32 shape)
+                          SM_PAT_CAPTURE_FN, CAPTURE_FN_ARGS               (LBLOPT3 / LBLOPT_I_I shapes)
+                          SM_PAT_USERCALL_ARGS                             (LBLOPT_INT32 shape)
+  sm_exec_stmt     standalone                                              (EXEC_VAR shape)
+  sm_push_lit_s    (sm_push_pop_lits.c)                                    (LBL_INT32 shape)
+  sm_push_var / sm_store_var                                               (LBL shape)
+  sm_define / sm_define_entry                                              (NOOP shape)
+  sm_call_fn / sm_suspend_value                                            (LBL_INT32 + RET shape)
+  sm_bb_once_proc / sm_bb_pump_proc                                        (LBL_INT32 shape)
+  sm_push_expression / sm_call_expression                                  (PCREF shapes)
 ```
 
 ---
@@ -305,7 +307,7 @@ Still-blocked-on-INLINE-4 (need sm_op_template_t machinery promoted from emit_sm
 
 **Lift queue status (amended further at session #N+2):**
 
-- **SM-side grouped** (slices 13-18): 41 opcodes in 6 grouped fns (`sm_arith`, `sm_compare`, `sm_pat_nullary`, `sm_jump_group`, `sm_misc_nullary`, `sm_incr_decr`). All HQ-listed "ready to group" entries cleared. Still-blocked-on-INLINE-4: capture / usercall / lit / refname / push_var / store_var / define / call / bb_calls / push_expression / call_expression / exec_stmt — all need `sm_op_template_t` machinery promoted from `emit_sm.c`.
+- **SM-side grouped** (slices 13-18): 41 opcodes in 6 grouped fns (`sm_arith`, `sm_compare`, `sm_pat_nullary`, `sm_jump_group`, `sm_misc_nullary`, `sm_incr_decr`). All HQ-listed "ready to group" entries cleared. **Remaining ~16 opcodes pending INLINE-4a-inline:** dispatchers in `emit_sm.c` still go through the table-driven renderer (`emit_sm_<op>_dispatch` → `emit_sm_lblopt` → `sm_template_lookup` → renderer). Per Lon's directive on end-state — zero template helpers; each template owns full sprintf-on-`g_emit` body — the renderer machinery is to be **inlined into each template** and then **deleted**, NOT promoted to a public header. See INLINE-4 substep below for the corrected reframing.
 - **BB-side:** unchanged from session #9 — body of all 17 pat-level `emit_bb_x*` fns physically in `BB_templates/` (slice 7, `045baf4a`). REOPENED for INLINE-ALL: remaining x86 in `emit_bb.c` (dispatcher trio `emit_flat_ir_alt`/`_cat`/`_fence`) to be inlined into `bb_pat_alt.c`/`bb_pat_cat.c`/`bb_fence.c` (INLINE-3). After x86 inlining: **INLINE-3-GROUP** — BB-side grouping pass mirroring SM-side slices 13/14/15. Candidate groups: `bb_pat_anchor_group` (POS/RPOS/TAB/RTAB/LEN), `bb_pat_charset_group` (ANY/NOTANY/SPAN/BREAK), `bb_pat_nullary_group` (REM/ARB/ABORT/FENCE), `bb_pat_combine_group` (ALT/CAT). One slice per group; GATE-PK PASS=420 FAIL=0 STUB=639 between each.
 
 **Verification per commit:** `GATE-PK PASS=420 FAIL=0 STUB=639` (byte-identical at per-kind-diff). Beauty md5 suspended throughout.
@@ -348,7 +350,10 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
         - **`bb_pat_string_arg_group`** — LIT (currently solo; group if INLINE-4 promotion exposes more string-arg kinds).
         - **`bb_pat_combine_group`** — ALT/CAT (2 kinds; child-walking pat, share children-pre-build + alt/cat dispatch shape; lifted from `emit_flat_ir_alt`/`_cat` post-INLINE-3).
       Per slice: identify candidate set → confirm shape match across all 5 backend arms (X86 text + bin, JVM, NET, JS, WASM) → create / reuse `BB_templates/bb_<group>.c` → single `void bb_<group>(void)` reading `g_emit.bb_node->kind` → one per-backend block with inner `switch (kind)` selecting only varying tokens → update `bb_templates.h` decls (delete N add 1) → update master BB dispatch in `emit_bb.c` (all N cases call `bb_<group>()`) → delete old per-kind fns from their files → stub empty .c with comment for Makefile → `make -j4 scrip` + `test_per_kind_diff.sh` → commit. One group per commit. **Stop condition same as SM-side:** if shape diverges beyond a `switch` on a few tokens, do NOT group — leave the kinds individual. Grouping must earn its keep via shared shape, not aesthetic preference. Expected LOC delta similar to `sm_pat_nullary` (~−300 net per ~20-kind group, ~−80 net per ~5-kind group).
-    - [ ] **INLINE-4** — Promote file-private SM machinery (`sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line`) to a public header **only if** any template's inlined body still references them — otherwise delete with the table. This unblocks the ~13 remaining SM templates that use `*_template` shims (LIT, REFNAME, CAPTURE family, USERCALL family, EXEC_STMT, PUSH_LIT_S, PUSH_VAR, STORE_VAR, DEFINE, DEFINE_ENTRY, CALL_FN, BB_ONCE_PROC, BB_PUMP_PROC, PUSH_EXPRESSION, CALL_EXPRESSION). After promotion, these likely group into 3-4 grouped templates (sm_pat_string_arg, sm_pat_capture, sm_var, sm_call, sm_define, etc.).
+    - [ ] **INLINE-4** ⚠ **REFRAMED 2026-05-21 session #N+3 by Lon: NOT a header promotion.** Earlier reading (promote `sm_op_template_t` + lookups + wrappers to a public header) was wrong: that re-exposes the very table-driven machinery EC-UNI-INLINE-ALL is **deleting**. End-state per Lon: **zero template helpers**. Each template owns its full body — `sprintf`-style concats of `g_emit.*` global state straight into `emit_textf`/`emit_text`/`bb3c_format`. The renderer (`emit_sm_template`, `render_call_line`, `render_macro_body`, `build_args_col`) is dead weight to be **deleted**, not promoted. The Layer-3 line (per Layer 3 doc above) is `emit_io` + `insn_*`/`bb_insn_*` + `bb3c_format` + per-backend intern registries (`wasm_intern_str`, `strtab_label`/`g_strtab[]`) — these are "irreducible bottom", same category. Templates call them directly.
+    - [ ] **INLINE-4a** — Inline `emit_sm_<op>_dispatch` bodies into each template's IS_X86 arm. Each dispatcher today does: `pat_arg_label(buf,sz,s)` → `emit_sm_lblopt(out, sm_template_lookup(SM_X), l, anno)` → renderer. Inline expands to: build `lbl_col` via `emit_sm_consume_pc_label()`, build `argsb` via inline sprintf using the kind-specific shape (LBLOPT = `arg=%s` if non-NULL else empty), build `col3` via inline sprintf joining argsb + anno, then `bb3c_format(out, lbl_col, "MACRO_NAME", col3)`. **Targets:** sm_pat_lit, sm_pat_refname, sm_pat_usercall (all SM_TPL_LBLOPT shape — simplest); then sm_pat_capture (LBLOPT_INT32); then capture_fn/fn_args (LBLOPT3 / LBLOPT_I_I); then push_lit_s/push_var/store_var/define/call_fn/bb_once/bb_pump/push_expression/call_expression/exec_stmt. **Prerequisite:** make `strtab_label` (or `g_strtab[]` + `g_strtab_n`) accessible to templates — either via a tiny `emit_strtab.h` Layer-3 header exposing just the registry accessor (recommended; mirrors `wasm_intern_str` pattern) or by inlining the lookup loop. Lon to confirm preference before INLINE-4a starts.
+    - [ ] **INLINE-4b** — Once all dispatchers inlined, delete `emit_sm_<op>_dispatch`, `emit_sm_<op>_template`, the renderer (`emit_sm_template` + `render_*` + `build_args_col`), `sm_template_lookup`, the `g_sm_templates[]` table, and the `sm_op_template_t` typedef. Result: `emit_sm.c` drops to a small core of intern-table + macro-library emit only. Maps 1:1 to flat `DATA('Sm_emit(...)')` in the Snocone bootstrap (the "slap in the generated code after injecting concats of globals" model — each template is a literal sprintf concat sequence).
+    - [ ] **INLINE-4c** — After 4a+4b, the still-blocked groups can land: `sm_pat_string_arg` (LIT/REFNAME/USERCALL), `sm_pat_capture` (CAPTURE/CAPTURE_FN/CAPTURE_FN_ARGS/USERCALL_ARGS), `sm_var` (PUSH_VAR/STORE_VAR), `sm_define` (DEFINE/DEFINE_ENTRY), `sm_call` (CALL_FN/SUSPEND_VALUE), `sm_bb_calls` (BB_ONCE_PROC/BB_PUMP_PROC), `sm_expression` (PUSH_EXPRESSION/CALL_EXPRESSION). Each grouped template now has fully inlined X86 sprintf body in its TU.
     - [ ] **INLINE-5** — DEPRECATED by grouped-template directive. Original ("one file per opcode for SM, matching BB") was the duplication-maximalist position; grouped templates supersede it. SM_templates/ now organized by GROUP, not opcode. Files like `sm_pat_control.c` and `sm_pat_position.c` are stubs after slice 15 — pending cleanup to actually delete (currently kept as empty .c files for Makefile compatibility).
     - [ ] **INLINE-6** — Delete `emit_sm.c` machinery surviving INLINE-1..5; should drop from 182 KB → ~minimal. `emit_bb.c` drops similarly after INLINE-3.
     - [ ] **INLINE-7** — Per-kind diff baseline re-frozen at each substep. Beauty md5 expected to shift; gate suspended per Lon directive until INLINE-ALL closes. GATE-PK is binding throughout.
