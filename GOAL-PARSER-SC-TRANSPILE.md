@@ -411,12 +411,25 @@ Both `--interp` and `--run` remain broken for tree-building parsers (pre-existin
 **Documentation:**
 - Added `⚠ Case-sensitive mode — mandatory everywhere` section to this file: `-f` disables SPITBOL case-folding; canonical invocation `sbl -bf`. Two `sbl -b` occurrences fixed to `sbl -bf` in How-to and Build sections.
 
-**NEXT SESSION SCT-BEAUTY-SC-PARSE:**
-Find the remaining divergence between beauty.sno and beauty.sc grammar build. The trace is the clue: oracle does `Push(Id)` immediately after `Shift(Label, )`, beauty.sc transpile doesn't. Candidates to inspect:
-1. Pattern-build statement ORDER in beauty.sc — are Expr0/Expr1/.../Expr17 assignments executed in source order at runtime so the patterns reference later-defined variables via deferred-eval `*X` correctly?
-2. Snocone's pattern operator precedence vs SNOBOL4 (e.g. `A B | C` — does `|` bind looser than concat in Snocone exactly as in SPITBOL?).
-3. `Stmt` outer FENCE inner-FENCE arity: trace via running the transpiled `.sno` with `xTrace = 7` (deeper detail) to see whether White succeeds and where Expr14 fails. Inject `OUTPUT = 'pre-Stmt'` before *Stmt in Command's third FENCE alt to confirm reach.
-4. ShiftReduce.sc `tree(t, '', n, c)` literal '' — try changing to faithful skipped-arg form via lower_sno.c emit of `tree(t,,n,c)` or via direct .sc edit (Snocone may not allow skipped positional args, in which case stay with '' and accept the divergence).
+**NEXT SESSION SCT-BEAUTY-SC-PARSE — ROOT CAUSE FOUND (session 2026-05-21d):**
+
+**Root cause:** `shift(p, t)` in beauty.sc lowers to a function call whose body does:
+```
+shift = EVAL('p . thx . *Shift(' qtag(t) ', thx)')
+```
+`EVAL` runs in **global scope**, so `p` in the EVAL string is the **global variable `p`** (undefined = null), NOT the local parameter. The resulting pattern is `epsilon . thx . *Shift(tag, thx)` instead of the actual sub-pattern. This makes every `shift(pat, 'TAG')` in Expr17 etc. match **epsilon** (the empty string) and immediately commit the surrounding FENCE — the correct alternatives are never tried. Expr14, Expr17, XList all broken the same way.
+
+**Why beauty.sno works:** Uses `*Function ~ 'Function'` where binary `~` is `OPSYN('~','shift',2)` from semantic.sc. Binary `~` passes operands directly — no EVAL, no scope issue. Pattern built correctly.
+
+**Note:** Cannot simply use `~` in beauty.sc's transpile: `OPSYN('~','shift',2)` fires at line 875 but `DEFINE('shift')` is at line 897 (OPSYN would bind to undefined). `~` is also Snocone NOT elsewhere.
+
+**The fix — two options (Lon to decide):**
+
+**Option A (beauty.sc source fix):** Replace every `shift(pat, 'TAG')` in beauty.sc's expression grammar with the inlined form `pat . thx . *Shift('TAG', thx)`. This is exactly what beauty.sno's `pat ~ 'TAG'` expands to. Touches: all `shift(...)` calls in `XList`, `Expr14`, `Expr17`.
+
+**Option B (lower_sno.c fix):** When lowering a Snocone `TT_FNC` call to `shift(arg, tag)` where tag is a string literal, emit the inlined form `arg . thx . *Shift(tag, thx)` directly instead of a function call. Fixes the transpiler for all six `parser_*.sc` files automatically and is the more robust fix.
+
+**Verify:** after fix, `scrip --dump-sno beauty.sc | sbl -bf` on `x = 5\nEND\n` must produce `Push(Id) Shift(Id, x)` (not Parse Error).
 
 Commits this session:
 - one4all `01577f1a` — SCT-LOWER-FOR-IDX
