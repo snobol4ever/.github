@@ -2,7 +2,7 @@
 
 ## Frontend
 
-SCRIP. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
+SCRIP. Produces shared IR (tree_t/STMT_t). See ARCH-IR.md.
 
 ## Execution modes (RS-15, updated CLI-3M-9 2026-05-18)
 
@@ -21,8 +21,8 @@ These are the components every mode reaches through:
 - `INVOKE_fn` / `APPLY_fn` (`snobol4_invoke.c`, `snobol4.c`) — builtin dispatch
 - `NV_GET_fn` / `NV_SET_fn` — name-value table
 - `exec_stmt` / `bb_build` / `bb_broker` / `bb_boxes` (`stmt_exec.c`, `bb_*.c`) — pattern engine
-- `sm_lower` (`sm_lower.c`) — IR → SM_Program lowering
-- `sm_prog` / `SM_Program` (`sm_prog.c`) — flat instruction array
+- `sm_lower` (`sm_lower.c`) — IR → SM_sequence_t lowering
+- `sm_prog` / `SM_sequence_t` (`sm_prog.c`) — flat instruction array
 - `eval_node` (`eval_code.c`) — value-context expression evaluator
 - `coerce.c` — DESCR_t coercion helpers
 - `_usercall_hook` (`interp_hooks.c`) — single user-function dispatch hook for all modes
@@ -53,7 +53,7 @@ No mode 2/3/4 code path may walk the AST (`tree_t *` / `STMT_t`).
 
 **State markers:**
 
-- `g_current_sm_prog` — set by `sm_preamble()` to the live `SM_Program*`.
+- `g_current_sm_prog` — set by `sm_preamble()` to the live `SM_sequence_t *`.
 - `label_table_clear_stmts()` — called by `sm_preamble()` after `code_free()`.
 
 ## Mode-specific notes
@@ -62,11 +62,11 @@ No mode 2/3/4 code path may walk the AST (`tree_t *` / `STMT_t`).
 
 **Mode 3 (SM gen / exec):** `sm_preamble()` followed by `sm_codegen(sm)` followed by `sm_run_with_recovery(sm, sm_jit_run)`.
 
-**Mode 4 (SM gen / emit):** `sm_preamble()` followed by emit through `src/emitter/*.c` templates with `bb_emit_mode = EMIT_TEXT` — produces GAS assembly text. Same SM_Program, same template bodies as mode 3.
+**Mode 4 (SM gen / emit):** `sm_preamble()` followed by emit through `src/emitter/*.c` templates with `bb_emit_mode = EMIT_TEXT` — produces GAS assembly text. Same SM_sequence_t, same template bodies as mode 3.
 
 ## Driver helpers (RS-14)
 
 Two helpers in `src/driver/scrip_sm.{c,h}`:
 
-- `sm_preamble(prog) -> SM_Program*` — `label_table_build` + `prescan_defines` + `g_sno_err_active = 1` + `sm_lower` + `g_current_sm_prog = sm` + `code_free` + `label_table_clear_stmts`. Returns NULL on failure.
+- `sm_preamble(prog) -> SM_sequence_t *` — `label_table_build` + `prescan_defines` + `g_sno_err_active = 1` + `sm_lower` + `g_current_sm_prog = sm` + `code_free` + `label_table_clear_stmts`. Returns NULL on failure.
 - `sm_run_with_recovery(sm, runner)` — initialises `SM_State`, drives a `setjmp(g_sno_err_jmp)` loop calling `runner(sm, &st)` until normal halt or fatal error. Used by both `--interp` and `--run`.

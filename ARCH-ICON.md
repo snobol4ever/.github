@@ -96,7 +96,7 @@ legitimate Icon features that use ucontext-based coroutines in coro_runtime.c. T
 NOT Byrd boxes — they are a separate suspension mechanism for user-defined generators.
 
 What remains banned: implementing Byrd box constructs (TT_TO, TT_ALTERNATE, etc.) as
-`DESCR_t foo(void *zeta, int entry)` C functions. Those must be IR_block_t DCGs.
+`DESCR_t foo(void *zeta, int entry)` C functions. Those must be BB_graph_t DCGs.
 Co-expressions and TT_SUSPEND use their own separate call path via icn_bb_suspend
 and the ucontext machinery — this path is correct and should be completed.
 

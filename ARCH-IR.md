@@ -1,44 +1,48 @@
 # ARCH-IR.md — Intermediate Representation
 
 The shared IR produced by all frontends. Every frontend compiles to this.
-SM-LOWER compiles this IR to SM_Program instructions.
+SM-LOWER compiles the IR to `SM_sequence_t` instructions (IR-RN-0, 2026-05-20).
 
-## EXPR_t — the node
+## tree_t — the expression node
+
+Current names (post IR-RN-0). Source of truth: `src/include/ast.h`.
 
 ```c
-struct EXPR_t {
-    EKind    kind;       /* node type */
-    char    *sval;       /* string: E_QLIT text, E_VAR/E_FNC/E_IDX name */
-    long     ival;       /* integer: E_ILIT value */
-    double   dval;       /* float: E_FLIT value */
-    EXPR_t **children;
-    int      nchildren;
+/* tree_t — AST node for expressions (was EXPR_t pre IR-RN-0) */
+struct tree_t {
+    tree_e   t;          /* node kind (was EKind/e_kind) */
+    char    *v.sval;     /* string: TT_QLIT text, TT_VAR/TT_FNC/TT_IDX name */
+    long     v.ival;     /* integer: TT_ILIT value */
+    double   v.dval;     /* float: TT_FLIT value */
+    tree_t **c;          /* children array */
+    int      n;          /* child count */
 };
-// Accessors: expr_left(e), expr_right(e), expr_arg(e,i), expr_nargs(e)
+// Accessors: ast_left(e), ast_right(e), ast_arg(e,i), ast_nargs(e)
+// Builder:   ast_node_new(kind), ast_push(parent, child)
 ```
 
-## EKind — node kinds
+## tree_e — node kinds
 
-**Leaves:** E_QLIT, E_ILIT, E_FLIT, E_NUL, E_VAR, E_KEYWORD
-**Unary:** E_MNS, E_NOT, E_IND (indirect $), E_NAME (.), E_ATP (@), E_STR (*), E_TILDE
-**Binary:** E_ADD, E_SUB, E_MUL, E_DIV, E_EXP, E_SEQ, E_CAT, E_ALT, E_CAPT_COND_ASGN, E_CAPT_IMM_ASGN, E_IDX, E_CHOICE (Icon/Prolog), E_CLAUSE (Prolog), E_UNIFY (Prolog), E_CUT (Prolog)
-**N-ary:** E_FNC (function call), E_CONCAT (string concat chain), E_LIST, E_APPLY
-**Pattern:** E_ARBNO, E_ARBN, E_SCAN, E_POS, E_RPOS, E_LEN, E_RLEN
+**Leaves:** TT_QLIT, TT_ILIT, TT_FLIT, TT_NUL, TT_VAR, TT_KEYWORD
+**Unary:** TT_MNS, TT_NOT, TT_IND (indirect $), TT_NAME (.), TT_ATP (@), TT_STR (*), TT_TILDE
+**Binary:** TT_ADD, TT_SUB, TT_MUL, TT_DIV, TT_EXP, TT_SEQ, TT_CAT, TT_ALT, TT_CAPT_COND_ASGN, TT_CAPT_IMM_ASGN, TT_IDX, TT_CHOICE (Icon/Prolog), TT_CLAUSE (Prolog), TT_UNIFY (Prolog), TT_CUT (Prolog)
+**N-ary:** TT_FNC (function call), TT_CONCAT (string concat chain), TT_LIST, TT_APPLY
+**Pattern:** TT_ARBNO, TT_ARBN, TT_SCAN, TT_POS, TT_RPOS, TT_LEN, TT_RLEN, TT_REM, TT_ARB, TT_FENCE, TT_FAIL, TT_SUCCEED, TT_ABORT, TT_BAL
 
 ## STMT_t — the statement
 
-⚠️ Field names vary across doc versions — verify against `src/ir/ir.h`
-before coding.  Older internal docs used `replacement` and
-`SnoGoto *go`; current ir.h is the source of truth.
+Source of truth: `src/frontend/snobol4/scrip_cc.h`.
 
 ```c
 struct STMT_t {
     char    *label;
-    EXPR_t  *subject;
-    EXPR_t  *pattern;
-    EXPR_t  *replacement;  /* NULL if no replacement */
-    EXPR_t  *goto_s;       /* :S(label) — verify field name in ir.h */
-    EXPR_t  *goto_f;       /* :F(label) — verify field name in ir.h */
+    tree_t  *subject;
+    tree_t  *pattern;
+    tree_t  *replacement;   /* NULL if no replacement */
+    tree_t  *goto_s_expr;   /* :S(label) */
+    tree_t  *goto_f_expr;   /* :F(label) */
+    tree_t  *goto_u_expr;   /* unconditional goto */
+    int      lineno, stno, is_end, has_eq, lang;
     STMT_t  *next;
 };
 ```
