@@ -64,15 +64,12 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: 44e41588   (EC-UNI LIFT Snocone-shape slices 1+2+3+4.  CORRAL COMPLETE
-                     on BB-side: all 14 emit_bb_x* function bodies (xstar, xlnth,
-                     xposi+xrpsi, xfail, xfarb, xtb+xrtb, xchr, xfnce, xcallcap,
-                     xfnme, xnme, xdsar, xatp, charset) are now physically in
-                     BB_templates/ files.  Live path UNCHANGED — emit_bb_node
-                     does not yet fill g_emit fields, so originals in emit_bb.c
-                     are still the live path.  Beauty byte-identical proves no
-                     harm.  Now everything is in its proper place; the next
-                     sweep can wire the dispatcher and delete originals.
+one4all: 3e2d982f   (EC-UNI LIFT Snocone-shape slices 1+2+3+4+5.  CORRAL of the
+                     14 emit_bb_x* fns COMPLETE at 44e41588; slice 5 extends the
+                     corral to a 15th pat-level fn — emit_bb_xarbn → bb_arbno.c
+                     IS_X86 arm.  Live path UNCHANGED — emit_bb_node does not
+                     yet fill g_emit fields, so originals in emit_bb.c are still
+                     the live path.  Beauty byte-identical proves no harm.
 
                      Slice 4 (44e41588) added:
                        - g_emit fields: child_fn (void *), op_name1, op_name2,
@@ -98,20 +95,44 @@ one4all: 44e41588   (EC-UNI LIFT Snocone-shape slices 1+2+3+4.  CORRAL COMPLETE
                          existing bb_atp(void *,int) runtime fn in bb_box.h.
                        - Makefile updated for the three new .c files.
 
-                     Status: 14/14 BB-x86 fn bodies corraled.  Matrix gate
-                     grew 830 -> 845 (new templates × 5 backends).  Beauty
-                     md5 stays 0c192b2f... throughout.
+                     Slice 5 (3e2d982f) added:
+                       - bb_arbno.c IS_X86 arm filled — body lifted from
+                         emit_bb.c::emit_bb_xarbn.  Both IS_TEXT and IS_BIN
+                         sub-branches mirrored (emit_seq_port_call_rip for text,
+                         emit_seq_port_call for binary).  Reads g_emit.child_fn
+                         (bb_box_fn cast as void *) plus the three lbl_* name
+                         strings.  Includes added: bb_box.h, emit_bb.h,
+                         runtime/rt/rt.h.  No Makefile change — bb_arbno.c was
+                         already listed (had JVM/JS/NET arms; just no IS_X86).
+                         No g_emit field additions needed — child_fn was already
+                         in place from slice 4.
+
+                     Status: 15/15+ BB-x86 fn bodies corraled (14 pat-level from
+                     slices 1-4 + xarbn from slice 5).  Three pat-level fns
+                     remain in emit_bb.c with no template mirror yet:
+                       - emit_bb_xeps     (one-liner; null-pattern EPS path)
+                       - emit_bb_xbrkx    (dead — declared, never called)
+                       - emit_flat_ir_alt / _cat / _fence (file-static control-
+                         flow assembly, not Byrd-box bodies; corral candidates
+                         for a future control-flow slice).
+
+                     Matrix gate after slice 5: 845/845 (unchanged — no new
+                     templates added).  Beauty stays at md5
+                     0c192b2f26fd1288e19c21614af95218 (--interp) and
+                     40df9e004c3e963c99af716c65f2c970 (--compile).
 
                      Slice trail: 9b5ba0b6 -> 869b397a -> 56b5afb6 -> b496198c
                      -> 8b2f65e1 -> a6a3b736 -> 99630c7e -> 71bd8b6f -> 1a9571fe
-                     -> 90235416 -> 87d11afc -> 44e41588.
+                     -> 90235416 -> 87d11afc -> 44e41588 -> 3e2d982f.
 
                      NEXT: wire emit_bb_node to fill g_emit fields per node
                      kind, then call the template fn (which now contains the
                      proper x86 body).  Once the template path emits byte-for-
                      byte identical output, delete the originals in emit_bb.c.
                      Then mirror this whole sweep on the SM side
-                     (~70 SM fns from emit_sm.c into sm_*.c templates).)
+                     (~70 SM fns from emit_sm.c into sm_*.c templates).
+                     Optional smaller next slice: lift emit_bb_xeps into a new
+                     bb_eps.c template (one-liner, low risk).)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
 .github: (this commit — record EC-UNI LIFT PATTERN block + watermark refresh + handoff)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
