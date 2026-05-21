@@ -147,29 +147,24 @@ at the top of the commit message and leave the incomplete step as `- [ ]`
 with a note below it. Still push everything — a broken push is better than
 no push.
 
-## Three-construct sessions — amends "one per commit"
+## Constructs per session — no ceiling
 
-(Lon, sess 2026-05-16.) "One construct per commit" has been the working
-default. New ceiling: **up to three orthogonal constructs per session**,
-each as its own commit, single gate run at the end. Three is a ceiling,
-not a target. Rules:
+(Lon, sess 2026-05-20.) Earlier rule capped sessions at three orthogonal
+constructs. That ceiling was set for Icon BB triage where each construct
+involved deep IR-kind work; it does not generalize. **Ceiling removed.**
 
-- **Orthogonal** means different IR kinds, different rung clusters, no
-  shared β-pump edits, no shared descriptor-tag work. If two of the three
-  touch the same function or depend on the same new IR kind, they collapse
-  back into one commit.
-- **Separate commits** — each construct gets its own commit message and
-  its own row in the Goal file's "Completed steps" table with its own
-  rung delta. Bisectability is preserved.
-- **Single gate run at end** — run smoke + broker + ir-all-rungs + honest
-  once across all three. If green, push. If a gate breaks, `git bisect`
-  across the three commits (3 steps max).
-- **Applies to every language session** — Icon, SNOBOL4, Snocone, Prolog,
-  Rebus, Raku. Not Icon-specific.
+Working defaults:
 
-Rationale: session overhead (clone, orient, build, gate-baseline) is fixed
-cost. Amortizing it across three landings instead of one is ~3× throughput
-at the same correctness floor.
+- **Orthogonal constructs land in separate commits** when they're genuinely
+  independent. Bisectability is the only reason to keep them apart; if A
+  depends on B, fold them.
+- **One gate run at the end** of the session covers everything. If a gate
+  breaks, `git bisect` across commits.
+- **Pre-existing bugs surfaced during recon** are fair game to fix in the
+  same session, separate commits.
+
+The earlier rationale (amortizing session overhead) still applies — the
+amortization just has no fixed multiplier.
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — SCRIP'S SNOBOL4 AND SNOCONE SEMANTICS FOLLOW SPITBOL — Lon, 2026-05-17       ║
