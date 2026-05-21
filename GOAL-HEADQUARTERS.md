@@ -102,6 +102,13 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 1c47a59a   (PPV-2: lower-time SM_PAT_* substitution for protected names
+                     in lower_pat_expr TT_VAR arm.  Also: normalize_per_kind_cell.py
+                     normalizer hole fixed (lookahead in sid_nid regex); baseline
+                     re-frozen PASS=399.  Beauty md5 → 6bf2e9daa777f54f04c8f7160da435d1
+                     (882524 bytes).  PPV-3/4/5/6 verified and closed.
+                     GATE-PK PASS=399 FAIL=0; GATE-M 855/855; GATE-E 9/9;
+                     --run smoke 186 unchanged.)
 one4all: 44a5f9a5   (PPV-1: protect REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL.
                      ERROR 042 on user-reassign, matching SPITBOL.  Closes
                      HQ-BUG-PROTECTED-PATTERN-VARS.  Guard at NV_SET_fn
@@ -240,12 +247,12 @@ Sites (PPV-0):
 
 - [x] **PPV-0** (CLOSED 2026-05-21 session #4, .github `afa893a0`) — Inventory. Deliverable: `PPV-0-INVENTORY.md`.
 - [x] **PPV-1** (CLOSED 2026-05-21 session #5, one4all `44a5f9a5`) — Runtime protection. New `rt_protected.{h,c}`. Init-phase flag `g_protected_pat_vars_armed` in `snobol4.c` (cleared during pre-binding, armed at end of `SNO_INIT_fn`). Guard at top of `NV_SET_fn` raises `sno_runtime_error(42, NULL)`. Verified vs SPITBOL: scrip ERROR 42 = SPITBOL ERROR 042 ✓. PK PASS=399, --run smoke 186 unchanged. **Closes HQ-BUG-PROTECTED-PATTERN-VARS.**
-- [ ] **PPV-2 (NEXT)** — Lower-time substitution. In `lower.c:373`, before `SM_PUSH_VAR` + `SM_PAT_DEREF`, check `protected_pat_name_to_sm_op(t->v.sval)`. If ≥ 0, emit `SM_emit(g_p, (SM_op_t)op)` and return. Change confined to `lower_pat_expr` TT_VAR arm; `lower_expr` untouched so `x = REM` still copies the PATTERN value.
-- [ ] **PPV-3** — General-expression context probe. `x = REM` → confirm x has DATATYPE PATTERN. Confirms PPV-2 didn't leak into `lower_expr`.
-- [ ] **PPV-4** — Bare-name probe verification. Run `'hello' REM`, `'hello' ARB`, `'hello' FENCE`, `'hello' ABORT` under `--compile`; confirm `# BOX REM` / `# BOX ARB` / `# BOX FENCE` / `# BOX ABORT` banners. For FAIL/SUCCEED/BAL — confirm `SM_PAT_<kind>` via `--dump-sm`; BB-lower marks variant (correct).
-- [ ] **PPV-5** — Beauty.sno gate impact. `bash scripts/test_gate_ec_uni_complete.sh`. Beauty md5 will likely change. Two paths: (a) accept new beauty md5 (record in EC-UNI-21-followup); (b) verify new emission is byte-equivalent assembly (assembled `.o` md5 unchanged). **Lon decision; (b) preferred if assembled object identical.**
-- [ ] **PPV-6** — Docs. Update RULES.md (HQ-BUG-PROTECTED-PATTERN-VARS marked CLOSED). Update PLAN.md row.
-- [ ] **PPV-7** — Bug closeouts. HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT still open; PPV doesn't touch them.
+- [x] **PPV-2** (CLOSED 2026-05-21 session #6, Sonnet 4.6) — Lower-time substitution. `lower.c` TT_VAR arm in `lower_pat_expr` now calls `protected_pat_name_to_sm_op(t->v.sval)`; if ≥ 0 emits `SM_emit(g_p, (SM_op_t)op)` and returns. Confined to `lower_pat_expr`; `lower_expr` untouched. Also fixed normalizer hole in `normalize_per_kind_cell.py` (regex `_(\d+)_(\d+)\b` → `_(\d+)_(\d+)(?=_|\b)`) to canonicalize heap-address-derived label segments; re-froze baseline (PASS=399 unchanged).
+- [x] **PPV-3** (CLOSED 2026-05-21 session #6) — `x = REM` → `DATATYPE(x)` = PATTERN ✓. `lower_expr` untouched.
+- [x] **PPV-4** (CLOSED 2026-05-21 session #6) — All 7 names via `--dump-sm` emit `SM_PAT_*` directly (no `SM_PUSH_VAR`). `--compile` shows `# BOX REM/ARB/FENCE`; ABORT shows `# BOX FAIL()` (pre-existing: dispatches to `emit_bb_xfail`, not a regression). FAIL/SUCCEED/BAL: `SM_PAT_*` confirmed via `--dump-sm`.
+- [x] **PPV-5** (CLOSED 2026-05-21 session #6) — Path (a) taken: new beauty md5 `6bf2e9daa777f54f04c8f7160da435d1` (882524 bytes, was `40df9e004c3e963c99af716c65f2c970` 882901 bytes). Assembled `.o` md5 changed (`01eda5b76d0641ad5db76edde694ef92` ← `3adbb73f88edcc5416d38baade6faf97`) — intentional: PPV-2 removes `SM_PUSH_VAR+SM_PAT_DEREF` pair for protected names, replacing with single `SM_PAT_*`. Gate script baseline updated. GATE-E 9/9 ✓.
+- [x] **PPV-6** (CLOSED 2026-05-21 session #6) — Docs. GOAL-HEADQUARTERS.md updated. PLAN.md updated. RULES.md: HQ-BUG-PROTECTED-PATTERN-VARS was already marked CLOSED in PPV-1; no further change needed.
+- [ ] **PPV-7 (NEXT)** — Bug closeouts. HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT still open; PPV doesn't touch them.
 
 **Coverage delta projected after PPV-5:** 4 → 8 BB pat-kinds exercised from portable SNOBOL4 corpus.
 
@@ -305,5 +312,6 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **EC-UNI-PER-KIND-DIFF** — `9b905d26`. Harness operational; baseline PASS=399 STUB=660 FAIL=0.
 - **PPV-0** — `afa893a0`. Inventory.
 - **PPV-1** — `44a5f9a5`. Runtime protection ERROR 042. Closes HQ-BUG-PROTECTED-PATTERN-VARS.
+- **PPV-2..6** — `1c47a59a`. Lower-time SM_PAT_* substitution in lower_pat_expr TT_VAR arm. Normalizer fix (sid_nid lookahead). Beauty md5 → 6bf2e9daa777f54f04c8f7160da435d1. GATE-PK 399/0, GATE-M 855/855, GATE-E 9/9.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
