@@ -46,8 +46,11 @@ emits no `error ` lines on stderr — matching the SPITBOL `-bf` baseline.
    `SNO_LIB` flag on any runtime. See RULES.md "No duplicate corpus
    source files → Exception — self-contained demo programs" for the
    duplication policy.
-   Do **not** use `/home/claude/corpus/programs/snobol4/demo/beauty.sno`
-   (different program — uses `-INCLUDE 'global.sno'` and lives next to demo siblings).
+   (Historical note: a feature-rich variant once lived at
+   `/home/claude/corpus/programs/snobol4/demo/beauty.sno` with CLI
+   profile switches and an `--auto` two-pass mode. It was deleted
+   2026-05-20 as a play-toy, not a production demo. To be revisited
+   later as its own properly-versioned program.)
 
 2. **Invocation flag is `-bf` (not `-b`).** beauty.sno relies on
    case-sensitive labels (`shift` vs `Shift`, `reduce` vs `Reduce`, etc.)
