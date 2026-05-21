@@ -156,3 +156,19 @@ NEXT:  G5 — bb_cat/alt/arbno/assign/capture (compound/recursive; in-arm format
 Approach confirmed: take raw baseline text verbatim, splice `%s`/`%d` for variable parts
 (labels, integers, node ids). One `emit_textf` per instruction line. No padding/width math.
 G3/G4 partial because `emit_seq_port_call_rip`/`insn_*` are not `bb3c_format` wrappers.
+
+## Session #8 watermark (2026-05-21, Sonnet 4.6)
+
+```
+one4all: 6ee301e9
+GATE-PK: PASS=407 FAIL=0 STUB=652
+Matrix:  855/855
+
+G5 ✅  bb_arbno banner, bb_capture 2 banners -> emit_textf
+G6 ✅  bb_fail banner+jmps, bb_dsar banner, bb_brkx 30+ bb3c_format -> emit_textf
+sweep ✅ bb_atp_template, bb_eps last banners -> emit_textf
+
+Zero emit_bb_box_banner, zero bb3c_format in all BB_templates/ and SM_templates/.
+emit_text_jmp stays in bb_pos/bb_lit (fused cjmp output, cannot be emit_textf).
+NEXT: G7 — survey JVM arms; G8 NET; G9 JS per plan.
+```
