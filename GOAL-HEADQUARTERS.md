@@ -241,48 +241,53 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 ### ⚡ EC-UNI LIFT PATTERN — read this before touching any template
 
-**Lon directive (2026-05-20, verbatim):**
-> *"You do know you can just lift the entire 3-layer cake and drop it in I suspect.  Then wire it with globals.  We'll do the expansion at the next step."*
-> *"Put the helpers anywhere you want because we are about to delete 90% of them."*
-> *"What I am saying is you drop that into the new template location and wire it up.  Put the helpers anywhere you want because we are about to delete 90% of them."*
+**Lon directive (2026-05-21, supersedes 2026-05-20):** *"I will stand down on my directive to slap the code in.  If you feel there is a better way go back to that.  It was just too slow before, but now I think it was due to too much regression testing.  Go back to doing your methodical approach which you had before I redirected you to start slapping one around."*
 
-**The job:** for each x86 codegen fn still living in `src/emitter/emit_sm.c` or `src/emitter/emit_bb.c`, **copy-paste its body verbatim** into the matching template's `IS_X86` arm.  That's it.  No refactoring, no helper extraction, no factoring across templates, no design conversation.
+**Root cause of prior slow pace identified:** the per-slice work itself was fine; the friction was running the full regression suite per slice when only the fast-cycle gates (build + matrix + beauty md5) were needed.  The per-slice fast cycle directive (above) addresses that.  The pace problem was a gate-cadence problem, not a methodology problem.
+
+**The job (restored methodical form):** for each x86 codegen fn still living in `src/emitter/emit_sm.c` or `src/emitter/emit_bb.c`, lift it into the matching template's `IS_X86` arm in a way that respects existing abstraction boundaries.  Where a fn's body is self-contained (calls only widely-visible helpers like `insn_*`, `emit_label_define`, `emit_outf`, `bb3c_format`), copy-paste the body verbatim — that path is canonical for the BB-side slices 1-7.  Where a fn's body depends on file-static plumbing (e.g. `render_call_line`, `sm_template_lookup`, `emit_sm_args_t` inside `emit_sm.c`), do NOT un-static the dependencies just to fit the verbatim-paste recipe — those file-static helpers ARE the abstraction the template is supposed to call through, and the existing one-line wrapper (`if (IS_X86) return emit_sm_jump_line(out, instr, 0);`) is the correct shape.  In that case, recognize the lift has already happened: the template owns the dispatch decision, and the named C function is the helper, not the body.
 
 **Mechanical recipe (per fn):**
 
 1. Identify the fn.  Examples: `emit_bb_xstar` (BB_PAT_REM), `emit_bb_xlnth` (BB_PAT_LEN), `emit_bb_xchr` (BB_PAT_LIT), `emit_bb_charset` (BB_PAT_SPAN/ANY/BREAK/NOTANY), `emit_sm_concat_dispatch` (SM_CONCAT), `emit_sm_jump_line` (SM_JUMP), etc.
-2. Find the matching template file: `BB_templates/bb_<kind>.c` or `SM_templates/sm_<op>.c`.  The stub line `if (IS_BIN) return; /* x86 binary: emit_flat_body path, not emit_bb_node */` (BB templates) or the `if (IS_X86) return emit_sm_<op>_dispatch(out, instr, 0);` line (SM templates) marks where the lifted body lands.
-3. **Copy the entire fn body verbatim** into the template's `if (IS_X86) { ... return; }` arm.  Preserve the original local variable names; just rewrite parameters as reads from `g_emit`:
+2. **Inspect the body before lifting.**  Does it call only file-public helpers and standard runtime functions?  If yes — proceed to verbatim copy-paste (steps 3-6 below).  Does it call file-`static` helpers in the same `emit_sm.c` / `emit_bb.c`?  If yes — the wrapper is the abstraction; mark the fn as "already-lifted-as-helper" and move on to the next.  Do NOT un-static the file-private machinery to force a verbatim paste.
+3. Find the matching template file: `BB_templates/bb_<kind>.c` or `SM_templates/sm_<op>.c`.  The stub line `if (IS_BIN) return; /* x86 binary: emit_flat_body path, not emit_bb_node */` (BB templates) or the `if (IS_X86) return emit_sm_<op>_dispatch(out, instr, 0);` line (SM templates) marks where the lifted body lands.
+4. **Copy the entire fn body** into the template's `if (IS_X86) { ... return; }` arm.  Preserve the original local variable names; just rewrite parameters as reads from `g_emit`:
    - `s`/`f`/`b` (succ/fail/back labels) → `g_emit.lbl_succ` / `g_emit.lbl_fail` / `g_emit.lbl_back`
    - `n` (LEN/TAB count) → `nd->ival` (where `nd = g_emit.node`)
    - `lit` (PAT_LIT string) → `nd->sval`
    - `out` → `g_emit.out` (or local `FILE * o = emit_outf();` as the lifted body already does)
-4. **Helpers stay where they are.**  `emit_bb_box_banner`, `bb3c_format`, `emit_outf`, `emit_label_define`, `insn_*`, `emit_store_delta`, `emit_jmp`, `emit_seq_bounds_len`, `emit_add_delta_imm`, `TEMPLATE_ADDR_SIGLEN`, `JMP_*` — all stay in their current files.  ~90% of them will be deleted in the next pass anyway.  **Do not move helpers.  Do not extract helpers.  Do not factor across templates.**  Just link against them.
-5. Leave the original fn in `emit_bb.c` / `emit_sm.c` for now.  The dispatcher (`emit_flat_ir` or `emit_walk_codegen`) still calls the old fn; two paths coexist temporarily.  Rewire/delete happens after the lift sweep is complete.
-6. Build → matrix gate (`scripts/test_gate_em_template_matrix.sh`) → beauty md5 check (`./scrip --compile .../beauty.sno | md5sum` should still be `40df9e004c3e963c99af716c65f2c970`) → commit.  Each slice is 1–10 fns; small commits, often.
+5. **Helpers stay where they are.**  `emit_bb_box_banner`, `bb3c_format`, `emit_outf`, `emit_label_define`, `insn_*`, `emit_store_delta`, `emit_jmp`, `emit_seq_bounds_len`, `emit_add_delta_imm`, `TEMPLATE_ADDR_SIGLEN`, `JMP_*` — all stay in their current files.  Many will be deleted in the next pass anyway.  **Do not move helpers.  Do not extract helpers.  Do not factor across templates.**  Just link against them.
+6. Leave the original fn in `emit_bb.c` / `emit_sm.c` for now.  The dispatcher (`emit_flat_ir` or `emit_walk_codegen`) still calls the old fn; two paths coexist temporarily.  Rewire/delete happens after the lift sweep is complete.
+7. Per-slice fast cycle ONLY: `make -j4 scrip` → `scripts/test_gate_em_template_matrix.sh` → `scripts/test_gate_ec_uni_complete.sh`.  Commit.  Full regression at session-end only.
 
 **Canonical example landed:** one4all `71bd8b6f` lifted `emit_bb_xstar` → `bb_rem` IS_X86 arm and `emit_bb_xlnth` → `bb_len` IS_X86 arm.  `g_emit` gained three label fields: `lbl_succ`, `lbl_fail`, `lbl_back` (in `src/emitter/emit_globals.h`).  Read those files for the canonical shape.
 
-**What NOT to do (mistakes made before this directive landed; do not repeat):**
+**What NOT to do (mistakes recorded across both directives; do not repeat):**
 - Do NOT extract a `static` helper inside a template that collapses two opcodes into one body (slice 1, reverted in `8b2f65e1`).
 - Do NOT add Layer-2 helpers in `emit_core.c` that factor a common pattern across multiple templates (slice 2, reverted).
 - Do NOT enforce or measure "fn fits on a screen" — that rule was removed (2026-05-20).
-- Do NOT pause to ask design questions about helpers, file structure, or which fn to do first.  Just pick any unmoved `emit_bb_x*` or `emit_sm_*` and lift it.
+- Do NOT un-static file-private machinery in `emit_sm.c` / `emit_bb.c` just to fit the verbatim-paste recipe — the wrapper IS the lift in that case.  (Added 2026-05-21.)
+- Do NOT run the full regression suite per slice.  The fast cycle (build + matrix + beauty md5) is the per-slice gate; full crosscheck/smoke gates are session-end only.  (Added 2026-05-21 — this was the source of slow pace, not the methodology.)
 - Do NOT touch the matrix gate's same-file-helper-delegation logic — there are no template-local helpers in the consolidation phase.
 
-**What "complete" means here:** every x86 codegen fn that lives in `emit_bb.c` or `emit_sm.c` has been copy-pasted into its matching template's `IS_X86` arm.  After the lift sweep, the rewire/delete pass will:
+**What "complete" means here:** every x86 codegen fn that lives in `emit_bb.c` or `emit_sm.c` is either (a) copy-pasted into its matching template's `IS_X86` arm, or (b) recognized as an already-extracted file-public helper that the template calls through.  After the lift sweep, the rewire/delete pass will:
 - Update `emit_flat_ir` / `emit_walk_codegen` to call the templates directly (via `emit_bb_node` and `emit_sm_dispatch`).
-- Delete the original `emit_bb_x*` / `emit_sm_*_dispatch` fns from `emit_bb.c` and `emit_sm.c`.
-- Trim 90% of the now-unreachable helpers.
+- Delete the originals that were case (a); keep the helpers from case (b).
+- Trim now-unreachable helpers.
 - That's "Phase B" expansion (one-source-line-per-output-line) territory.
 
-**Lift queue, approximate** — see `git grep -nE '^(void|int) emit_(bb_x|sm_)\w+_(dispatch|template|line|x\w+)\s*\(' src/emitter/emit_bb.c src/emitter/emit_sm.c` for the live list:
+**Lift queue, after 2026-05-21 audit:**
 
-BB-side (in `emit_bb.c`): `emit_bb_xchr`, `emit_bb_xfarb`, `emit_bb_charset` (× SPAN/ANY/BREAK/NOTANY), `emit_bb_xposi`, `emit_bb_xrpsi`, `emit_bb_xtb`, `emit_bb_xrtb`, `emit_bb_xfail`, `emit_bb_xeps`, `emit_flat_ir_fence`, `emit_flat_ir_cat`, `emit_flat_ir_alt`, etc.
+**BB-side (in `emit_bb.c`): COMPLETE through slice 7 (one4all `045baf4a`).**  All 17 pat-level `emit_bb_x*` fns physically inside `BB_templates/` files.  Remaining x86 emission in `emit_bb.c` is the dispatcher-style control-flow trio `emit_flat_ir_alt` / `emit_flat_ir_cat` / `emit_flat_ir_fence`; these are NOT Byrd-box bodies and belong to a separate control-flow-assembly slice, not the lift sweep.
 
-SM-side (in `emit_sm.c`): ~62 distinct `emit_sm_*_dispatch` / `_template` / `_line` fns.  Most are 1–10 lines.  Source list available via `grep -n '^int  emit_sm_\|^void emit_sm_' src/emitter/emit_sm.c`.
+**SM-side (in `emit_sm.c`): the apparent "~62 unmoved fns" was a 2026-05-20 mis-classification.**  Audit (2026-05-21) of the 36 `emit_sm_*_(dispatch|line|template)` fns by body size and dependency:
+- 31 are 1-11 line wrappers that marshal args from `SM_t *ins` into `emit_sm_args_t` and call `render_call_line(out, sm_template_lookup(SM_<OP>), &a)` (or `emit_sm_noop` / `emit_sm_int64` / `emit_sm_lbl` family).  All depend on `emit_sm.c`'s file-private machinery: `sm_op_template_t` type, `emit_sm_args_t` type, `sm_template_lookup`, `render_call_line`, `build_args_col`, `g_pending_pc_label`, `bb3c_format`.
+- 5 are larger (18-77 line) bodies — `emit_sm_exec_stmt_template`, `emit_sm_return_variant_dispatch`, `emit_sm_bb_pump_proc_dispatch`, `emit_sm_define_dispatch`, `emit_sm_define_entry_dispatch`.  Same dependency on file-private machinery.
 
-**Verification per commit:** matrix gate stays at 830/830; beauty.sno --compile md5 stays at `40df9e004c3e963c99af716c65f2c970` (byte-identical — the lifts add code paths but don't change output until the dispatcher is rewired).
+The `sm_op_template_t` type and `render_call_line` machinery in `emit_sm.c` IS the SM-side macro-rendering abstraction; the templates' `if (IS_X86) return emit_sm_<op>_dispatch(out, instr, 0)` line IS the lift.  These fns are already-lifted-as-helper per the criterion above; no SM-side body lifting work remains.
+
+**Verification per commit:** matrix gate stays at 855/855; beauty.sno --compile md5 stays at `40df9e004c3e963c99af716c65f2c970` (byte-identical — the lifts add code paths but don't change output until the dispatcher is rewired).
 
 ---
 
