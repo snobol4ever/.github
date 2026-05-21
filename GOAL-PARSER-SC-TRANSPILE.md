@@ -374,3 +374,50 @@ corpus/SCRIP/parser_snobol4.sc:
 Fix: rename `c` field to `ch` throughout corpus/SCRIP/tree.sc and all callers (TDump, Insert,
 Remove, Tree, Equal, Equiv, Find, Visit — ~20 sites). This is clean corpus surgery with no
 runtime behaviour change. 24 Parse Errors are a separate issue (pattern fixtures).
+
+## Session 2026-05-21c (Claude Opus 4.7) — SCT-BEAUTY-SC + SCT-LOWER-FOR-IDX
+
+**Goal pivot:** Get the Snocone beauty.sc working under SCRIP transpiler (`--dump-sno` → SPITBOL). Carry over constructs verbatim from beauty.sno where the .sc translation diverged.
+
+**Triage of all three execution modes for parser-driven .sc:**
+
+| Mode | Result |
+|------|--------|
+| `scrip --interp` | Infinite "Error 5 Undefined function or operation" at stmt 14 (Shift/nPush not resolved by interpreter). Times out. |
+| `scrip --run` | Same Error 5 loop, 54k stderr lines, timeout. |
+| `scrip --dump-sno` → SPITBOL `-bf` | **Working path.** Transpiles, runs to completion. |
+
+Both `--interp` and `--run` remain broken for tree-building parsers (pre-existing per session 2026-05-18 notes). Only transpile path is viable.
+
+**lower_sno.c fixes landed (one4all, this session):**
+- **TT_FOR**: was rejecting current PST 4-child shape (init, cond, step, body), emitting `?TT_FOR?` placeholders. Fixed to accept both PST 4-child (synthesize labels, emit init then Ltop/cond/body/Lcont/step/Ltop/Lend) AND legacy 5+ form (Lcont/Lend pre-allocated QLITs). Eliminates 14 placeholders in beauty.sc transpile.
+- **TT_IDX**: (a) n-ary subscripts `a[i,j]` were emitting `ITEM(a, i)` only (single dim, second arg lost). Now emit single `ITEM(a, i, j, ...)` per SPITBOL Ch.19. (b) `TT_INDIRECT` base (`$a[i]`) was emitting invalid `ITEM(($a), i)`. Now unwraps to `$ITEM(a, i)`.
+
+**beauty.sc / Qize.sc fixes landed (corpus, this session):**
+- Stmt/XList/Expr17/Goto: `epsilon . ''` and `'=' . ''` (Snocone conditional-assign to empty-string variable — nonsensical) replaced with `shift(epsilon, '')` and `shift('=', '=')`. These are the faithful carry-over of beauty.sno's `epsilon ~ ''` and `'=' ~ '='` (where `~` = OPSYN'd to `shift`). Stmt needs 7 children for `reduce('Stmt', 7)`; without the shifts, the right number wasn't pushed.
+- TxInList: `EVAL('upr(tx)')` (build-time eval, unbound tx) → `*upr(tx)` (deferred call) per beauty.sno line 75.
+- Qize.sc: removed bogus `DEFINE('LEQ')` (LEQ is SPITBOL built-in, redefinition is ERROR 248) and `DEFINE('Ucvt')` (unreachable in self-host; not defined in oracle either).
+
+**Result after fixes:**
+- Transpile: 2158 lines, **0 placeholders** (was 14 `?TT_FOR?`).
+- SPITBOL `-bf`: runs to completion with **zero errors** (was ERROR 248 LEQ, before that ERROR 236 wrong subscripts, before that ERROR 239 indirection).
+- BUT: parser reports "Parse Error" on `        x = 5\nEND\n` (simplest fixture).
+- Trace shows `PushCounter() / 1=IncCounter() / Push(Label) / Shift(Label, ) / Parse Error`. Oracle on same input produces the next expected step `Push(Id) / Shift(Id, x)` etc.
+- Divergence point: Stmt's outer FENCE branch `*White *Expr14 ...` doesn't fire after `*Label` succeeds. Either *White or *Expr14 silently fails in beauty.sc but not in beauty.sno.
+
+**Other audit findings (no fix yet — possible drift):**
+- `ShiftReduce.sc` Reduce: `tree(t, '', n, c)` vs oracle's `tree(t,, n, c)` — explicit `''` (non-NULL empty) vs skipped arg (NULL/unset). May affect downstream tree predicate behavior. Comment in source already flags this as a known issue ("TODO SB-6.E.7-K — faithful is tree(t,,n,c)").
+
+**Documentation:**
+- Added `⚠ Case-sensitive mode — mandatory everywhere` section to this file: `-f` disables SPITBOL case-folding; canonical invocation `sbl -bf`. Two `sbl -b` occurrences fixed to `sbl -bf` in How-to and Build sections.
+
+**NEXT SESSION SCT-BEAUTY-SC-PARSE:**
+Find the remaining divergence between beauty.sno and beauty.sc grammar build. The trace is the clue: oracle does `Push(Id)` immediately after `Shift(Label, )`, beauty.sc transpile doesn't. Candidates to inspect:
+1. Pattern-build statement ORDER in beauty.sc — are Expr0/Expr1/.../Expr17 assignments executed in source order at runtime so the patterns reference later-defined variables via deferred-eval `*X` correctly?
+2. Snocone's pattern operator precedence vs SNOBOL4 (e.g. `A B | C` — does `|` bind looser than concat in Snocone exactly as in SPITBOL?).
+3. `Stmt` outer FENCE inner-FENCE arity: trace via running the transpiled `.sno` with `xTrace = 7` (deeper detail) to see whether White succeeds and where Expr14 fails. Inject `OUTPUT = 'pre-Stmt'` before *Stmt in Command's third FENCE alt to confirm reach.
+4. ShiftReduce.sc `tree(t, '', n, c)` literal '' — try changing to faithful skipped-arg form via lower_sno.c emit of `tree(t,,n,c)` or via direct .sc edit (Snocone may not allow skipped positional args, in which case stay with '' and accept the divergence).
+
+Commits this session:
+- one4all `01577f1a` — SCT-LOWER-FOR-IDX
+- corpus  `f3b8afb`  — SCT-BEAUTY-SC-CARRYOVER
