@@ -351,6 +351,23 @@ Same finding applies to `emit_text_label` vs `emit_label_define`: original uses 
 
 **Net:** Path (a.2) likely.  But Lon must choose between (a.1 — re-lift faithfully) / (a.2 — re-baseline gate) / (b — name-keyed binary primitives first, side-stepping the question) before code lands.
 
+**⚠ Coverage finding (2026-05-21 PM, deepens the rewire blocker).**
+
+Empirical inspection of beauty.sno's `--compile` output (882901 bytes) shows **only ONE `# BOX` banner total: `# BOX POS(0)`**.  The other 16 BB pat-level kinds (REM, LEN, ARB, CAT, ARBNO, etc.) produce zero banners in beauty's output despite REM and other pattern primitives appearing in the source.
+
+Root cause: `--compile` lowers most pattern uses to SM macro calls (`PAT_REM`, `PAT_LEN` text macros + `PUSH_VAR .S430 # REM` keyword lookups), NOT to BB graphs that flow through `emit_flat_ir` → `emit_bb_xstar`.  BB-lowering is gated by the invariant-pattern optimizer in `emit_sm.c` (`g_pat_windows[i].is_invariant`) — it fires only for patterns the compiler can statically prove are runtime-invariant.  In beauty.sno, that's just one POS(0).
+
+Implications:
+1. **The EC-UNI-21 gate (beauty md5) has been structurally insensitive to 16/17 BB-side LIFT slices**.  Slices 1-6 lifted bodies for REM, LEN, CAT, ARB, FENCE, ARBNO, FAIL, FARB, TB, RTB, LIT, capture-family, charset, DSAR, ATP, EPS — none of these are exercised by beauty.sno's --compile output.  Only `bb_pos` (slice that lifted POS) is in the actually-tested set.
+2. **The matrix gate (855/855) confirms templates EXIST but does NOT confirm they EMIT CORRECT bytes** — the lifted code paths are dead for all 16 non-POS kinds.  The matrix gate is a structural invariant (no missing arm), not a behavioral one.
+3. **The rewire under any path (a.1/a.2/b) needs a coverage gate that actually exercises the BB-lower path for each pat-level kind**.  Without it, a "byte-identical" verification is misleading: the rewire could leave 16 kinds silently broken in `--compile` and the gate would still pass.
+
+**Possible next pre-rewire rung:** `EC-UNI-COVER-PAT` — author a `corpus/programs/snobol4/feat/invariant_patterns.sno` that forces invariant lowering of REM, LEN, ARB, CAT, ARBNO, etc., one pattern per statement.  Run under `--compile` and `--run`; record `.s` md5 and assembled `.o` md5 per kind.  This becomes the actual regression gate for the rewire.  Without this, any "passes the gate" claim about the rewire is empty.
+
+Alternative: scan `corpus/crosscheck/` for existing `.sno` files that already exercise enough BB-lowering to be useful — `test_crosscheck_x86_full_corpus.sh` does end-to-end execute/diff testing, but its `.ref` comparison is on stdout, not on emitted `.s` text.  It catches semantic regressions, not text format drift.  Likely useful for verifying Path (b) once name-keyed primitives exist, less useful for verifying Path (a.x).
+
+**Net (revised):** the rewire is blocked on TWO open questions: (1) Lon's choice between (a.1)/(a.2)/(b), and (2) a coverage gate that actually exercises the 17 lifted paths.  Both should be answered before code lands.
+
 ---
 
 #### Open sub-rungs
