@@ -298,6 +298,38 @@ The `sm_op_template_t` type and `render_call_line` machinery in `emit_sm.c` IS t
 Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..7), 15, 16 (closed-by-supersession), 21.
 See git log for per-commit detail.
 
+---
+
+### ⚡ EC-UNI-REWIRE — BB-side: route x86 through emit_bb_node, not direct emit_bb_x* (2026-05-21)
+
+**Status:** OPEN — substantive design question requires Lon direction before code lands.
+
+**Context.**  BB-side LIFT (slices 1-7) is complete: all 17 pat-level `emit_bb_x*` fn bodies are physically in `BB_templates/bb_*.c` IS_X86 arms.  The watermarked NEXT step is to *use* them — route x86 emission through `emit_bb_node` instead of `emit_flat_ir` → `emit_bb_x*` direct calls.
+
+**Today's live path for x86:**
+- `emit_flat_body(nd, prefix, ...)` (in `emit_bb.c`) is the x86 driver.  Computes `bb_label_t lbl_succ`/`lbl_fail`/`lbl_β` on the stack.
+- Calls `emit_flat_ir(nd, &lbl_succ, &lbl_fail, &lbl_β)`.
+- `emit_flat_ir` switches on `nd->t` and calls `emit_bb_xstar(lbl_succ, lbl_fail, lbl_β)` / `emit_bb_xlnth(...)` / etc. — passing `bb_label_t *` directly.
+- Templates' IS_X86 arms are dormant: they reconstruct `bb_label_t` from `g_emit.lbl_*` names via `bb_label_from_name()`.
+
+**The fork: text mode vs binary mode in JIT.**
+
+The deliberate design choice in `emit_globals.h:44-50` is that `g_emit.lbl_*` are **name strings**, not `bb_label_t *` pointers.  Rationale: "the label *name* is the Snocone-translatable identity, since in Snocone a label is identified by a name string and its offset is looked up in a name-keyed table.  C strings are the one admitted pointer type here because Snocone strings transliterate to const char *."
+
+Text mode (`--compile`) tolerates name-only labels: offsets are resolved by name in a later assembler pass.  Binary mode (`--run` / JIT) does NOT — it patches `bb_label_t` struct offsets in place during emission.  `bb_label_from_name()` creates a fresh stack-local struct; the patching is lost (`bb_template_common.h:21-23` documents this explicitly: *"Side-effects on the bb_label_t (offset patching) survive only within text-mode templates; binary-mode handling will need name-keyed primitives in a future sweep."*).
+
+**Two paths forward, Lon's choice:**
+
+**Path (a) — Text-first staged rewire.**  Rewire `emit_flat_ir` to fill `g_emit.lbl_*` names + `g_emit.child_fn` + call `emit_bb_node` ONLY when `IS_TEXT` (i.e. `--compile`).  Keep binary mode (`--run`) on the legacy direct-call path until name-keyed binary primitives exist.  Cost: temporary two-path code (text via template / binary via legacy) — explicit, time-boxed.  Verification: beauty.sno --compile md5 byte-identical; `--run` corpus unchanged because the binary path is untouched.  Unblocks: deleting the text-half of the original `emit_bb_x*` fns once the rewire lands.  Does NOT unblock final deletion of `emit_bb_x*` until path (b) also lands.
+
+**Path (b) — Name-keyed binary primitives first.**  Build a name-keyed analog to the offset-patching binary primitives (e.g. `emit_seq_port_call_by_name`, `emit_jmp_by_name`).  Then rewire `emit_flat_ir` for BOTH modes in one go.  Cost: substantial new binary-emit primitive work BEFORE any visible progress on the rewire; the offset-patching state machine in `bb_label_t` is intricate.  Unblocks: clean single-path rewire and full deletion of `emit_bb_x*` originals.
+
+**Recommendation pending Lon decision:** Path (a).  Text-mode rewire is byte-identical-verifiable via the existing EC-UNI-21 gate (`scripts/test_gate_ec_uni_complete.sh`); binary-mode work can proceed in parallel as a separate rung (`EC-UNI-NAMEKEY-BIN`) without blocking text-mode progress.  The two-path interlude is small and the rewire dependency graph becomes a DAG instead of a single critical path.
+
+**Why this is NEXT and not a slice 8 lift:** the SM-side audit (2026-05-21) confirmed no SM body-lifting remains; all `emit_sm_*_(dispatch|line|template)` fns are already-lifted-as-helper.  The BB-side LIFT is complete through slice 7.  The next step IS the rewire — there's no more lift work to delay it with.
+
+---
+
 #### Open sub-rungs
 
 - [x] **EC-UNI-14 proper (SM-side + BB-side, CLOSED 2026-05-20)** — Ladder of six commits
