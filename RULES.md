@@ -906,7 +906,7 @@ instead.
 
 ## C code style — 200-character line width (all one4all C/H files)
 
-**The goal:** every function fits on a screen page. Wide lines, no wasted vertical space, no wasted horizontal space.
+**The goal:** wide lines, no wasted vertical space, no wasted horizontal space.
 
 ### Line width
 - **200 characters maximum.** Wrap only when a line would exceed 200.
