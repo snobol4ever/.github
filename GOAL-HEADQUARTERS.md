@@ -104,7 +104,10 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
-one4all: ddd08f01  (PPV-8: bb_abort IS_X86 arm added; dead IS_BIN guards
+one4all: 3e3b67b1  (PPV-8: IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort.
+                     Each emits (call $bb_<kind>_new). Baselines re-frozen.
+                     GATE-PK PASS=411 FAIL=0 STUB=648. Beauty gate suspended.)
+one4all: ddd08f01  (PPV-8 prev: bb_abort IS_X86 arm added; dead IS_BIN guards
                      removed from bb_rem/bb_arb/bb_fence; WASM comments
                      normalized to "deferred". GATE-PK PASS=401 FAIL=0
                      STUB=658. Beauty gate suspended per Lon directive.)
@@ -238,12 +241,12 @@ Recognize REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL as protected PATTERN-typed names 
 
 | Name    | TT_*      | SM_PAT_*      | BB_PAT_*     | Template     | IS_X86 | IS_JVM | IS_NET | IS_JS | IS_WASM |
 |---------|-----------|---------------|--------------|--------------|--------|--------|--------|-------|---------|
-| REM     | TT_REM    | SM_PAT_REM    | BB_PAT_REM   | `bb_rem.c`   | ✅      | ✅      | ✅      | ✅     | ⏳      |
-| ARB     | TT_ARB    | SM_PAT_ARB    | BB_PAT_ARB   | `bb_arb.c`   | ✅      | ✅      | ✅      | ✅     | ⏳      |
-| FENCE   | TT_FENCE  | SM_PAT_FENCE0 | BB_PAT_FENCE | `bb_fence.c` | ✅      | ✅      | ✅      | ✅     | ⏳      |
+| REM     | TT_REM    | SM_PAT_REM    | BB_PAT_REM   | `bb_rem.c`   | ✅      | ✅      | ✅      | ✅     | ✅      |
+| ARB     | TT_ARB    | SM_PAT_ARB    | BB_PAT_ARB   | `bb_arb.c`   | ✅      | ✅      | ✅      | ✅     | ✅      |
+| FENCE   | TT_FENCE  | SM_PAT_FENCE0 | BB_PAT_FENCE | `bb_fence.c` | ✅      | ✅      | ✅      | ✅     | ✅      |
 | FAIL    | TT_FAIL   | SM_PAT_FAIL   | (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
 | SUCCEED | TT_SUCCEED| SM_PAT_SUCCEED| (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
-| ABORT   | TT_ABORT  | SM_PAT_ABORT  | BB_PAT_ABORT | `bb_abort.c` | ✅      | ✅      | ✅      | ✅     | ⏳      |
+| ABORT   | TT_ABORT  | SM_PAT_ABORT  | BB_PAT_ABORT | `bb_abort.c` | ✅      | ✅      | ✅      | ✅     | ✅      |
 | BAL     | TT_BAL    | SM_PAT_BAL    | (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
 
 IS_X86 covers both text and binary modes (IS_BIN is a strict subset; dead IS_BIN guards after IS_X86 were removed in session #6). WASM BB emission not yet implemented for any pat kind (⏳ = deferred, not n/a).
@@ -266,7 +269,8 @@ Sites (PPV-0):
 - [x] **PPV-5** (CLOSED 2026-05-21 session #6) — ⚠ Beauty gate now **SUSPENDED** (see above). Original path-(a) accepted at time of commit; beauty md5 no longer binding.
 - [x] **PPV-6** (CLOSED 2026-05-21 session #6) — Docs. GOAL-HEADQUARTERS.md updated. PLAN.md updated.
 - [x] **PPV-7** (CLOSED 2026-05-21 session #6) — HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT fixed. `nd->c` null-deref guard in 3 sites.
-- [ ] **PPV-8 (NEXT)** — BB template completeness for 4 live BB kinds (REM/ARB/FENCE/ABORT): add IS_X86 arm to `bb_abort.c` ✅ done session #6 (PASS=401); remove dead IS_BIN guards from bb_rem/bb_arb/bb_fence ✅ done session #6. Remaining: IS_WASM arms for all 4. Phase B (FAIL/SUCCEED/BAL BB kinds) deferred until WASM BB general infrastructure lands.
+- [x] **PPV-8** (CLOSED 2026-05-21 session #7, Sonnet 4.6) — IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. Each emits `(call $bb_<kind>_new)`. Baselines re-frozen. GATE-PK PASS=411 FAIL=0 STUB=648.
+- [ ] **PPV-9 (NEXT)** — EC-UNI-REFAITH: audit remaining STUB cells; identify any that should be live (not genuinely deferred). Then EC-UNI-REWIRE-ALL path-a/b decision from Lon.
 
 **Coverage:** GATE-PK PASS=401 FAIL=0 STUB=658 (was 399/0/660). Two new ABORT x86 cells live.
 
@@ -329,5 +333,6 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-2..6** — `1c47a59a`. Lower-time SM_PAT_* substitution in lower_pat_expr TT_VAR arm. Normalizer fix (sid_nid lookahead). Beauty md5 → 6bf2e9daa777f54f04c8f7160da435d1. GATE-PK 399/0, GATE-M 855/855, GATE-E 9/9.
 - **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
 - **PPV-8** — `ddd08f01`. bb_abort IS_X86 arm; dead IS_BIN guard removal; beauty gate suspended.
+- **PPV-8 WASM** — `3e3b67b1`. IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. GATE-PK PASS=411 FAIL=0 STUB=648.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
