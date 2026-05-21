@@ -64,10 +64,16 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: 266fc28a   (BB_templates one-file-per-Byrd-Box restored; bb_pat.c split into 16,
-                     bb_pl.c split into 4.  Prior fe195613 — EC-UNI-14(b) closed.)
+one4all: c081758f   (EC-UNI-14(c)(1..6) closed: SCRIP_UNIFIED_DISPATCH default ON then deleted;
+                     sm_push_null split into +_noflip variant; sm_label() template; all 5 residual
+                     opcodes (PUSH_EXPR, PUSH_EXPRESSION, CALL_EXPRESSION, INCR, DECR) covered;
+                     legacy switch + dispatch_one_x86 wrapper + flag deleted; emit_walk_codegen
+                     per-PC body collapsed to ~12 lines; bb_pl_{arith,atom,builtin,call} wired
+                     into emit_bb_node.  Ladder: 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
+                     862f817a -> c081758f.  Net LOC across rung: roughly -130.  Prior 266fc28a
+                     — BB_templates one-file-per-Byrd-Box restored.)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
-.github: (this commit — record BB_templates rule + reversion; bump watermark)
+.github: (this commit — record EC-UNI-14(c)(1..6) close + revised goal text below)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
@@ -76,10 +82,13 @@ matrix gate:   0/365 PASS
 firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate)
 beauty.sno --compile md5:           40df9e004c3e963c99af716c65f2c970  (882901 bytes)
 beauty.sno --compile assembled .o:  3adbb73f88edcc5416d38baade6faf97  (494336 bytes)
-                                    both identical under SCRIP_UNIFIED_DISPATCH={0,1}
+                                    EC-UNI-14(c)(5) — flag removed; one path only.
 emit_io self-test: 6/6 PASS
-EC-UNI-14 ladder: 14-PREREQ d6e5c8f1 → 14(a) 66cf8506 → 14(b) dc4e6a9d/5dc52dd4/fe195613.
-                  14 proper NEXT (delete silo walkers + dispatch_one_x86 + retire flag).
+EC-UNI-14 ladder closed: 14-PREREQ d6e5c8f1 -> 14(a) 66cf8506 -> 14(b) dc4e6a9d/5dc52dd4/fe195613.
+                  EC-UNI-14(c)(1..6): 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
+                                       862f817a -> c081758f.
+                  EC-UNI-14 proper SM-side + BB-side: CLOSED.  Remaining: EC-UNI-21 gate matrix
+                  + M1 oracle md5 reconciliation + EC-UNI-22 doc updates.
 beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines,
                             md5 5be1de188af42be42e15e6d9a552f759, self-contained).
                             Subsystem apparatus at programs/snobol4/beauty_suite/.
@@ -104,11 +113,50 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 **Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `GOAL-SN4-JVM-EMIT`, `GOAL-SN4-JS-EMIT`, `GOAL-SN4-NET-EMIT`, `GOAL-SN4-WASM-EMIT`).
 
-Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b). See git log for per-commit detail.
+Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..6).
+See git log for per-commit detail.
 
 #### Open sub-rungs
 
-- [ ] **EC-UNI-14 proper (NEXT)** — delete the five silo walkers + `dispatch_one_x86` wrapper + ~30 `emit_sm_<op>_dispatch` helpers; flip `SCRIP_UNIFIED_DISPATCH` default-ON then delete the flag. Expand `emit_bb_node(void)` to all 21 BB kinds (includes wiring the four `bb_pl_*` from 13(e)). Open follow-up: split `sm_push_null()` template into `sm_push_null()` and `sm_push_null_noflip()` so x86 doesn't need the exclusion list in `dispatch_one_x86` (other backends collapse the two; x86 distinguishes the emitted mnemonic). Net LOC at full close: −2500 to −3500.
+- [x] **EC-UNI-14 proper (SM-side + BB-side, CLOSED 2026-05-20)** — Ladder of six commits
+  (`90557fbe -> 098a03ba -> c599bbab -> 46e8c531 -> 862f817a -> c081758f`):
+
+  | step | commit | what |
+  |------|--------|------|
+  | (c)(1) | `90557fbe` | flip SCRIP_UNIFIED_DISPATCH default 0 -> 1 |
+  | (c)(2) | `098a03ba` | split sm_push_null() into sm_push_null + sm_push_null_noflip; lift PUSH_NULL_NOFLIP exclusion from dispatch_one_x86 |
+  | (c)(3) | `c599bbab` | sm_label() template; lift last (SM_LABEL) exclusion |
+  | (c)(4) | `46e8c531` | cover last 5 opcodes (PUSH_EXPR/PUSH_EXPRESSION/CALL_EXPRESSION/INCR/DECR) via new SM_templates/sm_expr_incr.c; drop JS PUSH_EXPRESSION and WASM INCR/DECR walker overrides |
+  | (c)(5) | `862f817a` | delete legacy switch + dispatch_one_x86 + SCRIP_UNIFIED_DISPATCH flag; emit_walk_codegen per-PC body collapsed to ~12 lines |
+  | (c)(6) | `c081758f` | wire bb_pl_{arith,atom,builtin,call} into emit_bb_node (now total over 21 BB kinds) |
+
+  **Original goal text framing correction:** the goal said "delete the five silo walkers";
+  in practice only `dispatch_one_x86` was a silo and was deleted.  The four backend
+  frame-emitters (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`,
+  `emit_wasm_from_sm`) survive because they own per-backend file structure that's above
+  the opcode level — JVM method-split, JS switch frame, .NET class scaffolding, WASM
+  block-loop.  They're already thin (each routes opcode bodies through emit_sm_dispatch),
+  and cannot dissolve into per-opcode templates without conflating frame structure with
+  opcode routing.
+
+  Net LOC across the rung: roughly -130 (Step (c)(5) alone was -136 in emit_sm.c).
+
+  **Side effects identified, queued as separate rungs:**
+  - **emit_push_expr in lower.c is dead in practice** — called by TT_UNIFY / TT_CUT /
+    TT_LIMIT arms that are unreachable across all observed gates (Prolog uses lower_pl.c
+    BB path, Icon \\limit goes through lower_limit_every).  sm_push_expr() template kept
+    for safety.  Standalone cleanup rung's worth.
+  - **SM_INCR / SM_DECR are vestigial** — emitted only by `sm_interp_test.c`; no live
+    frontend lowers either today.  Could be deleted entirely in a sibling rung.
+  - **NET's inline SM_LABEL function-prologue handling** could move into `sm_label()`'s
+    NET arm.  Needs walker-local `fn_params`/`fn_nparams` in `g_emit` — EC-UNI-15 Layer-2
+    extraction territory.
+
+- [ ] **EC-UNI-21 (NEXT)** — beauty.sno byte-identity gate matrix.
+  `scripts/test_gate_ec_uni_complete.sh` runs all five gates + baseline md5
+  (`40df9e004c3e963c99af716c65f2c970`) + M1 oracle md5
+  (`abfd19a7a834484a96e824851caee159`, drifted at last check).  Re-converge to M1
+  oracle md5 or formally retire M1.  This is the formal close gate for EC-UNI-14.
 
 - [ ] **EC-UNI-15** — top-level shape: each template fn is a verbose `if (IS_<BE>)` five-arm switch, one screen per fn. Done family-by-family (one commit per family file). Multi-statement arms fine; no helper extraction yet.
 
@@ -121,8 +169,6 @@ Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 1
 - [ ] **EC-UNI-19** — add-a-backend test (`EMIT_NULL=99`). Mechanical patch + revert. Records LOC cost.
 
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost.
-
-- [ ] **EC-UNI-21** — beauty.sno byte-identity gate matrix. `scripts/test_gate_ec_uni_complete.sh` runs all five gates + baseline md5 + M1 oracle md5 (`abfd19a7a834484a96e824851caee159`, currently drifted). Re-converge or formally retire M1.
 
 - [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariant block to reflect three-layer cake + `g_emit`. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens.
 
