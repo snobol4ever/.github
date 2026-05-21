@@ -94,7 +94,7 @@ EC-UNI-14 ladder closed: 14-PREREQ d6e5c8f1 -> 14(a) 66cf8506 -> 14(b) dc4e6a9d/
                   scripts/test_gate_ec_uni_complete.sh, 9/9 PASS on HEAD).  M1 oracle DRIFTED
                   (current md5 9cddff2534472b822438801d8db58a99, 622 lines, vs M1 baseline
                   abfd19a7..., 646 lines) — EC-UNI-21-followup tracks reconcile vs retire.
-                  Remaining open in EC-UNI: EC-UNI-16/17/18/19/20/21-followup/22.
+                  Remaining open in EC-UNI: EC-UNI-17/18/19/20/21-followup/22.
 beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines,
                             md5 5be1de188af42be42e15e6d9a552f759, self-contained).
                             Subsystem apparatus at programs/snobol4/beauty_suite/.
@@ -110,7 +110,7 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 **Three-layer cake:**
 - **Layer 1** — top-level templates `SM_templates/sm_<op>.c` / `BB_templates/bb_<kind>.c`. Signature `void sm_<op>(void)` / `void bb_<kind>(void)`. Reads `g_emit.*`. Branches ONLY on `IS_<BE>`. Verbose and explicit — literal output strings visible in every arm.
-- **Layer 2** — per-backend `static` helpers in the same file. Hides cross-mode logic (TEXT/BIN, body/method gates, fallbacks) — never formatting shortcuts. Extract only at EC-UNI-16, with sharp justification.
+- **Layer 2** — per-backend `static` helpers in the same file.  **Deferred.**  Per Lon directive (2026-05-20), templates currently carry raw output with no static helpers and no cross-template factoring (beyond pre-EC-UNI helpers like `jvm_class_hdr`/`net_alpha_hdr` that predate this work).  Layer 2 extraction was previously planned at EC-UNI-16; that rung is closed-by-supersession.  Future expansion to one-source-line-per-output-line happens after the whole template body is in place (Phase B), not as a REDUCE phase.
 - **Layer 3** — string-builder primitives in `src/emitter/emit_io.{c,h}`: `emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`. Funnel for all output.
 
 **`g_emit` single global** (in `emit_globals.{c,h}`) carries all per-template state. Not re-entrant. Snocone bootstrap maps 1:1 to flat `DATA('Sm_emit(...)')` declaration.
@@ -119,7 +119,7 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 **Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `GOAL-SN4-JVM-EMIT`, `GOAL-SN4-JS-EMIT`, `GOAL-SN4-NET-EMIT`, `GOAL-SN4-WASM-EMIT`).
 
-Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..7), 15, 21.
+Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..7), 15, 16 (closed-by-supersession), 21.
 See git log for per-commit detail.
 
 #### Open sub-rungs
@@ -156,8 +156,8 @@ See git log for per-commit detail.
   - **SM_INCR / SM_DECR are vestigial** — emitted only by `sm_interp_test.c`; no live
     frontend lowers either today.  Could be deleted entirely in a sibling rung.
   - **NET's inline SM_LABEL function-prologue handling** could move into `sm_label()`'s
-    NET arm.  Needs walker-local `fn_params`/`fn_nparams` in `g_emit` — EC-UNI-15 Layer-2
-    extraction territory.
+    NET arm.  Needs walker-local `fn_params`/`fn_nparams` in `g_emit`.  Not part of EC-UNI
+    any longer (Layer-2 deferred per Lon directive); standalone rung if pursued.
 
 - [x] **EC-UNI-21 (CLOSED 2026-05-20)** — beauty.sno byte-identity gate matrix.
   `scripts/test_gate_ec_uni_complete.sh` runs all five gates + baseline md5
@@ -169,20 +169,19 @@ See git log for per-commit detail.
   Re-converge to oracle parity OR formally retire M1 — tracked as
   **EC-UNI-21-followup** in this file.
 
-- [x] **EC-UNI-15 (CLOSED 2026-05-20)** — top-level shape: every template fn is a verbose `if (IS_<BE>)` five-arm switch.  Evidence: `scripts/test_gate_em_template_matrix.sh` reports **450/450 cells covered** across 34 files / 90 fns (0 misses).  New audit script `scripts/test_gate_ec_uni_15_audit.sh` re-runs the matrix gate and additionally records the fn-size distribution: **71 fns < 30 lines, 11 fns 30-59 lines, 8 fns >= 60 lines**.  The 8 oversized fns (`bb_arbno` 111, `bb_lit` 98, `sm_suspend_value` 87, `bb_cat` 87, `sm_call_fn` 86, `bb_tab` 80, `bb_alt` 75, `bb_capture` 66) are queued as the EC-UNI-16 candidate list — that rung extracts Layer-2 helpers per the "justified iff carries a real conditional ..." rule.  The matrix gate plus per-fn size inventory together establish that no fn is missing a backend arm and the remaining largeness is documented work, not hidden silos.
+- [x] **EC-UNI-15 (CLOSED 2026-05-20)** — top-level shape: every template fn is a verbose `if (IS_<BE>)` five-arm switch.  Evidence: `scripts/test_gate_em_template_matrix.sh` reports **450/450 cells covered** across 34 files / 90 fns (0 misses).  The matrix gate establishes that no fn is missing a backend arm.  No fn-size / "one screen per fn" criterion is enforced; per Lon directive (2026-05-20) the guideline is removed — the goal of the templates is to **carry the raw output** for each opcode/kind across each backend.  Consolidation first; expansion to one-source-line-per-output-line comes after the whole body is in place (Phase B work, not EC-UNI work).
 
-- [ ] **EC-UNI-16 (in progress)** — REDUCE phase. Extract Layer-2 helpers, rule: **justified iff carries a real conditional (IS_TEXT/IS_BIN, body/method gate, fallback) OR de-duplicates non-trivial computation in ≥2 templates. String-concat shortening NOT a reason.** Justified: `jvm_jump_to_pc(target)`, `jvm_ret_guard(op,sfx)`, `net_ret_guard(op)`. NOT: `jvm_invokestatic(class,method,sig)`.
+- [x] **EC-UNI-16 (CLOSED 2026-05-20 — superseded by Lon directive)** — original framing was a REDUCE phase: extract Layer-2 helpers where they carried real conditionals or de-duplicated ≥2 templates.  Two slices landed and were reverted in commit `8b2f65e1` per Lon directive (2026-05-20):
+  - Slice 1: `sm_calls.c` byte-near-duplicate pair `sm_call_fn` + `sm_suspend_value` collapsed via `sm_call_or_suspend(int suspend)` static helper.  Reverted.
+  - Slice 2: `jvm_alpha_method_hdr(stack, locals)` / `jvm_beta_method_hdr(stack, locals)` helpers added to `emit_core.c`, used by 30 sites across 15 BB templates.  Reverted.
 
-  **Slice 1 ✅** (one4all `56b5afb6`) — `sm_calls.c` byte-near-duplicate pair (`sm_call_fn` 86 lines, `sm_suspend_value` 87 lines) collapsed to a shared static helper `sm_call_or_suspend(int suspend)`.  Across all five backend arms the two opcodes differed in exactly one line (JS arm of suspend emits `rt.set_last_ok(!rt._is_fail(rt._peek()));` after `call_or_jump`); the helper takes a `suspend` flag.  Wrappers `sm_call_fn(void) { return sm_call_or_suspend(0); }` / `sm_suspend_value(void) { return sm_call_or_suspend(1); }`.  File went 188 → 112 lines (net −76, ~85 lines of duplicate body eliminated).  Matrix gate extended to follow same-file static-helper delegation; still 450/450 cells PASS.
+  **Directive (verbatim):** *"Leave the SM and BB templates without any helpers for now ... We will be breaking these into one function line per one output line after the consolidation is finished.  So remove the rule.  It serves no purpose any longer.  The goal now is to get the raw output into each template.  We will collapse once we know what all we have to work with from the entire body of source."*
 
-  **Slice 2 ✅** (one4all `b496198c`) — `jvm_alpha_method_hdr(stack, locals)` and `jvm_beta_method_hdr(stack, locals)` helpers added to `emit_core.c`, declared in `BB_templates/bb_template_common.h`.  Substituted 30 sites across 15 BB templates (12+12 mass-substitute, 6 concatenated cases hand-split).  Justification: carries a real (stack, locals) conditional AND dedupes across 15 templates.  Matches existing `net_alpha_hdr` / `net_beta_hdr` precedent.  Net LOC delta small (+19 gross), but 30 sites now flow through 2 named entry points — future per-target tweaks become a one-place edit.  JVM emission byte-identical for test fixture before/after.
+  The REDUCE phase is therefore closed-by-supersession.  SM and BB templates carry the raw output verbatim; no static helpers within template files; no cross-template factoring helpers beyond the long-standing ones that predate EC-UNI (e.g., `jvm_class_hdr`, `net_alpha_hdr`, `net_class_hdr` — these stay; they're not the subject of this directive, which targets new EC-UNI-16-style extractions).
 
-  **Remaining slices** (6 fns ≥60 lines, all BB pattern templates — each a single-fn slice that needs per-backend judgment about whether arms factor into helpers cleanly):
-  - `bb_arbno` 111 lines, `bb_lit` 98, `bb_cat` 87, `bb_tab` 80, `bb_alt` 75, `bb_capture` 66.
+  Future "expand to one-source-line-per-output-line" work happens *after* all templates are in (Phase B territory), not as a REDUCE phase.
 
-  These are EC-UNI-16 slice-3+ work.  Each is a single fn; the per-fn duplication is heavy *within* the JVM and NET arms (e.g., `bb_arbno`'s NET arm has 13 `ldfld _depth` occurrences in similar `aload_0; ldfld ...; ldc.i4 ...; stelem.i4` 4-instruction sequences).  Heuristic: look for shared multi-line patterns within the fn that could become same-file static helpers (the slice-1 pattern but at finer grain).  The JVM `aload_0; getfield <class>/<field> <type>` single-instruction wrapper is explicitly NOT justified per the rule — it's `jvm_invokestatic`-style string-concat shortening.
-
-- [ ] **EC-UNI-17** — Layer-3 primitives audit. Add only if multi-line pattern recurs in ≥3 sites across ≥2 backends. Skipping is the expected answer.
+- [ ] **EC-UNI-17 (deferred)** — Layer-3 primitives audit.  Original framing: add new universal output primitives (beyond `emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`) only if a multi-line pattern recurs in ≥3 sites across ≥2 backends.  Per Lon directive (2026-05-20), all such audits are deferred until after the whole template body is in place.  Skipping is the expected answer; this rung is informational/parked.
 
 - [ ] **EC-UNI-18** — table-driven dispatch where it earns its keep. x86's `g_sm_nullary`/`g_sm_arith` work; extend to JVM/NET/JS/WASM for nullary + arith only.
 
