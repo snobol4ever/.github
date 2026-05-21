@@ -12,43 +12,25 @@
 5. **Single gate run at end of session.**
 6. **Builder/consumer case rule.** UPPERCASE builds IR (`SM_*`, `BB_*`). lowercase consumes (`sm_*`, `bb_*`).
 7. **EC-UNI matrix.** Backends are columns (X86/JVM/JS/NET/WASM). Text-vs-binary lives inside each `IS_<BE>` arm — never as a matrix dimension.
-8. **Unified dispatch owns mode-setting.** Per-opcode iteration calls `emit_mode_set(TEXT_MODE(), out)` at entry. Individual dispatchers stay idempotent.
-9. **One file per Byrd Box in `BB_templates/`.** Each Byrd Box (`bb_lit`, `bb_any`, ..., `bb_capture`, `bb_pl_arith`, ...) lives in its own `bb_<name>.c`. No consolidated multi-BB TUs. EC-UNI-13(a) and 13(e) violated this and were reversed at one4all@266fc28a.
+8. **Unified dispatch owns mode-setting.** Per-opcode iteration calls `emit_mode_set(TEXT_MODE(), out)` at entry.
+9. **One file per Byrd Box in `BB_templates/`.** Each lives in its own `bb_<name>.c`. No consolidated multi-BB TUs.
 
 ## Session Setup
 
-Every session container hits the same three friction points. The block below installs around them; each step is idempotent.
-
 ```bash
-# (1) System packages — installs libgc-dev (Boehm GC, fixes the recurring
-#     'fatal error: gc/gc.h: No such file or directory'), bison, flex, nasm,
-#     wabt, libgmp-dev, m4. SKIPs when present.
-bash /home/claude/one4all/scripts/install_system_packages.sh
+bash /home/claude/one4all/scripts/install_system_packages.sh   # libgc-dev, bison, flex, nasm, wabt, libgmp-dev, m4 (idempotent)
 
-# (2) Build scrip with FULL output to log (the build_scrip.sh wrapper's
-#     'tail -3' truncates real errors; bypass it). On failure, grep for
-#     the cause in one line.
 cd /home/claude/one4all && make -j4 scrip > /tmp/build_full.log 2>&1
-if [ ! -x /home/claude/one4all/scrip ]; then
-    echo "BUILD FAILED — first error:"; grep -E "error:|fatal error" /tmp/build_full.log | head -5
-    exit 1
-fi
-echo "OK scrip built"
+[ -x /home/claude/one4all/scrip ] || { grep -E "error:|fatal error" /tmp/build_full.log | head -5; exit 1; }
 
-# (3) Git identity in all three repos (per RULES.md).
 for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
 
-# (4) SPITBOL oracle (ships with prebuilt bin/sbl).
 [ -d /home/claude/x64 ] || git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
-# (5) Per-kind diff baseline check (EC-UNI-PER-KIND-DIFF, primary invariant
-#     since one4all 9b905d26).  Replaces the matrix + beauty + smoke session-
-#     start sweep.  ~5–10s for 1059 cells.
 bash /home/claude/one4all/scripts/test_per_kind_diff.sh
-# Expect: PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0  (at one4all 9b905d26).
-# If FAIL>0 or GONE>0: prior session left damage; investigate before cutting.
+# Expect: PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0  (at one4all 44a5f9a5).
 ```
 
 ## Architecture
@@ -62,365 +44,92 @@ Mode 2 (`--interp`) is the reference path for Icon at 194/265. Mode 4 (`--compil
 
 ## Gates
 
-### Directive: ALWAYS test in --run mode for emitter work
+### ALWAYS test in --run for emitter work
 
-**`--run` is the only mode that exercises the x86 emitter through the JIT path
-(`SM_sequence_t → x86 bytes → mmap → jump in`).  `--interp` runs the SM
-dispatch interpreter and NEVER touches the x86 emission code at all.**
+`--run` is the only mode that exercises the x86 emitter through the JIT path. `--interp` runs the SM dispatch interpreter and NEVER touches x86 emission. For work touching `emit_bb.c`, `emit_sm.c`, `BB_templates/`, `sm_*.c` templates, x86 lowering, or byte-emission primitives: test under `--run` (or `--compile` for byte-identity), not `--interp`.
 
-For ANY work touching `emit_bb.c`, `emit_sm.c`, `BB_templates/`, `sm_*.c` templates,
-the x86 lowering, the byte-emission primitives, or anything else that ends up in
-JIT-emitted code: test under `--run` (or `--compile` for byte-identity), not
-`--interp`.  An `--interp` pass on emitter changes is a blank test — it confirms
-the interpreter still works while telling you nothing about whether your edit
-broke the emitter.
+Use for emitter work:
+- `scripts/test_crosscheck_icon.sh` — three modes including `--run` (JIT).
+- `scripts/test_smoke_snobol4_jit.sh` — three-mode parity, `--run` baseline 186.
+- `scripts/test_gate_ec_uni_complete.sh` — beauty.sno `--compile` md5 + 9-gate roll-up.
+- `scripts/test_gate_em_template_matrix.sh` — structural invariant.
 
-**Use these gate scripts for emitter work:**
-- `scripts/test_crosscheck_icon.sh` — cross-checks Icon corpus under all three modes including `--run` (JIT).
-- `scripts/test_smoke_snobol4_jit.sh` — SNOBOL4 corpus three-mode parity, explicit `--run PASS` baseline (currently 186).
-- `scripts/test_gate_ec_uni_complete.sh` — beauty.sno `--compile` md5 (this DOES exercise the x86 emitter; that's why it has been catching things).
-- `scripts/test_gate_em_template_matrix.sh` — static structural invariant.
+### Cadence (per Lon, 2026-05-21)
 
-**Avoid for emitter work:** any `*_smoke_icon.sh` / `*_smoke_unified_broker.sh` /
-`*_icon_all_rungs.sh` that defaults to `--interp` — those scripts run the
-interpreter and are valid for INTERPRETER work, not emitter work.
+Per-kind diff is the **primary per-slice invariant** (~5–10s, 1059 cells, byte-level filter+diff). Subsumes most of what matrix + beauty caught indirectly. Legacy gates are session-end / escalation only.
 
-### Directive: emitter-refactor session pace (revised 2026-05-21 Lon)
-
-**The per-kind filter-diff harness (EC-UNI-PER-KIND-DIFF, one4all `9b905d26`)
-is the new primary per-slice invariant.**  It is ~5–10 seconds end-to-end,
-covers all 1059 (SM op × BB kind) × (backend × submode) cells, and detects
-byte-level drift through a filter-then-diff pipeline that strips known-OK
-variability (compiler-generated label numbers, rodata pointer addresses,
-node ids).  This subsumes most of what the legacy matrix + beauty + smoke
-gates were catching indirectly.
-
-The legacy gates remain useful for **escalation scenarios** — see "When to
-escalate" below — but are no longer required per-slice.
-
-Use this tiered cadence:
-
-**Per-slice fast cycle (the new default — use this for every slice):**
+**Per-slice fast cycle:**
 ```
-make -j4 scrip                                                # must build clean
-bash scripts/test_per_kind_diff.sh                            # PRIMARY invariant: 1059 cells, ~5–10s
+make -j4 scrip
+bash scripts/test_per_kind_diff.sh
 ```
-Exit 0 = slice is good.  Commit + push.
 
-**Session-start gate (run ONCE at session start):**
+**Session-end:**
 ```
-make -j4 scrip                                                # confirm clean build
-bash scripts/test_per_kind_diff.sh                            # confirm prior session's baseline still passes
+bash scripts/test_per_kind_diff.sh
+bash scripts/test_gate_em_template_matrix.sh
+bash scripts/test_gate_ec_uni_complete.sh
 ```
-If both pass, start cutting.  No need to re-run the legacy matrix/beauty
-gates unless your work crosses one of the escalation triggers below.
 
-**Session-end gate (run ONCE at handoff):**
-```
-bash scripts/test_per_kind_diff.sh                            # primary
-bash scripts/test_gate_em_template_matrix.sh                  # confirm structural invariant (matrix N×7 cells)
-bash scripts/test_gate_ec_uni_complete.sh                     # beauty.sno --compile md5 + 9-gate roll-up
-```
-The matrix + beauty gates here are belt-and-suspenders coverage of paths
-that DON'T flow through emit_bb_node / emit_sm_dispatch (e.g. emit_flat_ir
-direct calls, dispatchers themselves).  If per-kind-diff is clean, these
-will be clean too in nearly all cases; if not, the divergence itself is
-informative.
-
-**Escalate to full legacy gates mid-session ONLY when:**
-- Per-kind-diff reports a FAIL or GONE — the diff names the cell; before
-  fixing, run the legacy gate that exercises that cell's live path to
-  confirm the same regression is visible there too.
-- The slice touches LIVE PATH dispatchers (`emit_flat_ir`, `emit_walk_codegen`,
-  `dispatch_one_x86`, the WASM/JS/NET silo walkers) — these are NOT
-  exercised by the synthetic single-node audit, so per-kind-diff can't see
-  their regressions.  Run `test_crosscheck_icon.sh` + `test_smoke_snobol4_jit.sh`
-  to cover the dispatcher path.
-- The slice changes `g_emit` shape (new fields, renamed fields) — re-run
-  full to confirm no follow-on damage to fields you didn't touch.
-- The slice deletes any `emit_bb_x*` / `emit_sm_*` function — confirm the
-  live path still resolves.
+**Escalate mid-session ONLY when:** per-kind-diff reports FAIL/GONE; the slice touches LIVE PATH dispatchers (`emit_flat_ir`, `emit_walk_codegen`, `dispatch_one_x86`, WASM/JS/NET silo walkers); the slice changes `g_emit` shape; the slice deletes any `emit_bb_x*` / `emit_sm_*` fn.
 
 ### Gate commands
 
 ```
-GATE-PK bash scripts/test_per_kind_diff.sh                     # PRIMARY: per-(SM op × BB kind × backend × submode) byte-identity (per-slice)
-GATE-M  bash scripts/test_gate_em_template_matrix.sh           # matrix structural invariant            (session-end / escalation)
-GATE-E  bash scripts/test_gate_ec_uni_complete.sh              # beauty md5 + 9-gate roll-up             (session-end / escalation)
-GATE-J  bash scripts/test_crosscheck_icon.sh                   # Icon three-mode incl. --run             (escalation: live-path dispatcher edits)
-GATE-S  bash scripts/test_smoke_snobol4_jit.sh                 # SNOBOL4 three-mode --run≥186            (escalation: live-path dispatcher edits)
+GATE-PK bash scripts/test_per_kind_diff.sh                # PRIMARY per-slice
+GATE-M  bash scripts/test_gate_em_template_matrix.sh      # session-end
+GATE-E  bash scripts/test_gate_ec_uni_complete.sh         # session-end
+GATE-J  bash scripts/test_crosscheck_icon.sh              # escalation
+GATE-S  bash scripts/test_smoke_snobol4_jit.sh            # escalation
 ```
 
-Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
+Legacy --interp gates (interpreter work only):
 ```
-        bash scripts/test_smoke_icon.sh                        # PASS=5            --interp; INTERPRETER coverage only
-        bash scripts/test_smoke_unified_broker.sh              # PASS≥23           --interp; INTERPRETER coverage only
-        bash scripts/test_icon_all_rungs.sh                    # PASS=194          --interp; INTERPRETER coverage only
+bash scripts/test_smoke_icon.sh                  # PASS=5
+bash scripts/test_smoke_unified_broker.sh        # PASS≥23
+bash scripts/test_icon_all_rungs.sh              # PASS=194
 ```
 
 ### Re-freezing the per-kind baseline
 
-When a change is INTENTIONAL — refactoring template output, adding a new
-backend cell, fixing a known-wrong emission — the per-kind diff will FAIL
-because the baseline is stale.  In that case:
+When a change is INTENTIONAL (refactoring, new backend cell, fix to a known-wrong emission), per-kind diff will FAIL because the baseline is stale:
 ```
-bash scripts/freeze_per_kind_baseline.sh                       # records current scrip output as the new oracle
-bash scripts/test_per_kind_diff.sh                             # confirm post-freeze: PASS=N FAIL=0 NEW=0 GONE=0
+bash scripts/freeze_per_kind_baseline.sh
+bash scripts/test_per_kind_diff.sh                # confirm PASS=N FAIL=0 NEW=0 GONE=0
 ```
-Commit the regenerated `baselines/per_kind/` along with the source change.
-The diff between old and new baseline IS the regression-test record of
-what was intentionally changed — read it before committing to confirm
-only the expected cells moved.
-
+Commit `baselines/per_kind/` with the source change. The diff IS the regression-test record of what intentionally moved.
 
 ## Watermark
 
 ```
-.github: (this commit — PPV-0 inventory complete, 2026-05-21 session #4, Opus 4.7.
-                     Deliverable: PPV-0-INVENTORY.md (read-only inventory of the 7
-                     pat-name TT_/SM_PAT_/BB_PAT_ enums + substitution sites in
-                     lower.c:373 and rt.c:467 + error primitive sno_runtime_error
-                     code 42 + helper module shape proposal).  No code changes.
-                     Gate state unchanged: PK PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0
-                     at one4all 9b905d26.  NEXT: PPV-1 — runtime protection in
-                     rt_nv_set; first real code change of the rung.)
-.github: 658dc549   (EC-UNI-PROTECTED-PAT-VARS rung added per Lon directive.
-                     7 sub-steps PPV-0..PPV-7 documented for later session.
-                     Resolves HQ-BUG-PROTECTED-PATTERN-VARS and unlocks BB-lower
-                     coverage for REM/ARB/FENCE/ABORT from portable SNOBOL4
-                     source (4 → 8 active pat-kinds projected).
-                     Hand off per RULES.md.  one4all 9b905d26 unchanged;
-                     PK PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0 throughout.)
-.github: c450ad2a   (pat-keyword reachability framing corrected — REM/ARB/FENCE/
-                     FAIL/SUCCEED/ABORT/BAL are pre-bound PATTERN-typed VARIABLES
-                     in both SPITBOL and scrip.  Bare `'hello' REM` is canonical
-                     portable form, handled via PAT_DEREF runtime path.  No
-                     grammar divergence; no parser bug.  3 real bugs tracked:
-                     HQ-BUG-RPOS-COMPILE-SEGFAULT, HQ-BUG-RTAB-COMPILE-SEGFAULT,
-                     HQ-BUG-PROTECTED-PATTERN-VARS.)
-.github: 9887a030   (FIRST attempt at pat-keyword reachability documentation —
-                     SUPERSEDED by c450ad2a.  Misframed REM/ARB as parse-time
-                     keywords; they're actually PATTERN-typed variables.  Bugs
-                     tracked there carry forward.)
-.github: 2e81cc23   (gate cadence change: per-kind-diff is the new primary
-                     per-slice invariant; matrix + beauty demoted to session-end /
-                     escalation per Lon directive 2026-05-21.  Verified clean at
-                     one4all 9b905d26: PK PASS=399 FAIL=0, matrix 855/855,
-                     EC-UNI-21 9/9.  Session Setup now includes a per-kind-diff
-                     verification step.)
-one4all: 9b905d26   (EC-UNI-PER-KIND-DIFF: honest 5-backend × submode geometry.
-                     Refactored audit harness directory layout from <be>/<KIND>.<ext>
-                     to <backend>/<submode>/<KIND>.<ext>.  Per Lon directive
-                     2026-05-21: 5 backends total (x86, jvm, net, js, wasm); x86
-                     has 3 sub-modes (text, binary_wired, text_macro_def); JVM
-                     and .NET may grow binary sub-modes later; JS and WASM are
-                     text-only by design.  Brokered entry/exit emissions are
-                     a separate fixup layer, not a per-template concern.
-
-                     Coverage at this commit:
-                       BB:  97 kinds × 7 cells = 679 cells.
-                            Cells per kind: x86/{text,binary,text_macro} +
-                            jvm/text + net/text + js/text + wasm/text.
-                       SM:  76 dispatcher-covered opcodes × 5 backend text cells = 380.
-                       Total: 1059 cells per run.
-
-                     Baseline at one4all 9b905d26:
-                       PASS=399  STUB=660  FAIL=0  NEW=0  GONE=0
-                       Footprint 3.4 MB (1.6 MB .raw + 1.6 MB .norm + 200 KB
-                       manifest/asm-md5/stub overhead).
-
-                     Per backend/submode size:
-                       x86/text       748 KB (346 files)
-                       x86/binary      84 KB (194 files)
-                       x86/text_macro 132 KB (194 files)  ← new this commit
-                       jvm/text       688 KB (346 files)
-                       net/text       472 KB (346 files)
-                       js/text        672 KB (346 files)
-                       wasm/text      568 KB (346 files)
-
-                     Regression detection verified empirically in new layout:
-                       Inject ';canary' in emit_core.c bipush path →
-                       FAIL=1 (jvm/text/SM_PUSH_LIT_I.j), exit=1.
-                       Restore → FAIL=0, exit=0.
-
-                     Predecessor one4all bb04e8e1 — same harness, flat
-                     <be>/<KIND>.<ext> layout (now superseded).)
-one4all: bb04e8e1   (EC-UNI-PER-KIND-DIFF harness landed.  tools/emit_per_kind_audit.c
-                     plus scripts/{freeze_per_kind_baseline,test_per_kind_diff,normalize_per_kind_cell}
-                     plus baselines/per_kind/ (3.3 MB committed).  scrip gains
-                     --audit-per-kind <dir> subcommand; short-circuits the normal
-                     compile pipeline and writes one file per (SM_op × backend) +
-                     (BB_kind × backend) cell.
-
-                     Coverage:
-                       BB: 97 kinds × 6 backends (x86_text, x86_bin, JVM, JS, NET, WASM) = 582 cells.
-                       SM: 76 dispatcher-covered opcodes × 5 text backends = 380 cells.
-                       Total: 962 cells per run.
-
-                     Baseline freeze at THIS commit:
-                       PASS=384  STUB=578  FAIL=0  NEW=0  GONE=0
-                       (384 of 962 cells emit real content today; 578 are
-                       honest no-op stubs — both sides agree they emit nothing.)
-
-                     Filter-then-diff pipeline (Lon directive 2026-05-21):
-                       scripts/normalize_per_kind_cell.py canonicalizes per-cell
-                       text output (strip comments, .L<digits>→.Lxxx,
-                       _<sid>_<nid>→_S_N, large rodata-pointer decimals→ADDR).
-                       Both raw and normalized form committed under
-                       baselines/per_kind/<be>/<KIND>.<ext>.{raw,norm}.
-
-                     Assemble-then-md5 (Lon's second idea):
-                       baselines/per_kind/x86_text_assembled_md5.txt records
-                       `as`-assembled .o md5 per x86_text cell where assembly
-                       succeeds (17 of 22 PAT cells).  Cells that fail to
-                       assemble due to synthetic-single-node unresolved label
-                       refs are recorded as NOASM — honest limitation.
-
-                     x86_bin special case: process-local addresses (memcmp@PLT,
-                     rodata literal pointers) get baked into binary-mode
-                     emission; ASLR randomizes them every run.  Bit-identity is
-                     impossible by construction.  test_per_kind_diff.sh applies
-                     a STRUCTURAL comparison for x86_bin cells — same byte
-                     count = same instruction sequence shape.  Full byte-level
-                     comparison for x86 should use the assembled-md5 path on
-                     x86_text cells instead.
-
-                     Regression detection verified empirically:
-                       - inject `;canary` in jvm_push_int2 bipush path →
-                         FAIL=3 (SM_PUSH_LIT_I, SM_PAT_CAPTURE_FN_ARGS,
-                         SM_PAT_USERCALL_ARGS all reach bipush 42).
-                         exit=1.
-                       - restore → FAIL=0, exit=0.
-
-                     This supersedes PLAN.md's EC-UNI-PER-KIND-DIFF row.
-                     The harness exists; the next rung is EC-UNI-REFAITH —
-                     for any kind whose live emit_bb_x* output differs from
-                     the lifted template's output, re-lift byte-faithfully.
-                     Coverage gate now exists; refaith work can proceed
-                     against it.
-
-                     NEXT after this watermark:
-                     1. EC-UNI-REFAITH — re-lift FAILing kinds byte-faithfully
-                        (the harness will tell us which).
-                     2. EC-UNI-REWIRE-ALL — route emit_flat_ir through
-                        emit_bb_node for IS_TEXT once per-kind diff is
-                        100% PASS for the live path.
-                     3. EC-UNI-NAMEKEY-BIN — name-keyed binary primitives;
-                        delete emit_bb_x* originals.
-
-                     Completeness over format-faithfulness: end state is one
-                     template per kind for ALL kinds, dormant or not.)
-one4all: d2b6dac3   (EC-UNI-REWIRE coverage audit landed.  scripts/test_audit_bb_x86_
-                     exercise.sh walks corpus/programs/snobol4/ under --compile and
-                     counts `# BOX <KIND>` banners per BB pat-kind.  Result across 177
-                     files (1 segfault, 176 compile OK): LIT=9 files=8, SPAN=3 files=3,
-                     POS=3 files=3, ANY=3 files=1, all other 13 kinds zero.  Audit
-                     proves 4 of 17 BB pat-kinds flow through emit_bb_xstar/etc. in
-                     current corpus; 13 are dormant.
-
-                     Slice 1-7 history (045baf4a — see preceding watermark):
-                     all 17 pat-level emit_bb_x* fn bodies physically inside
-                     BB_templates/ files.  Live path UNCHANGED — emit_bb_node
-                     does not yet fill g_emit fields, so emit_bb.c originals run.
-                     Beauty byte-identical and matrix gate 855/855 throughout.
-
-                     NEXT (Lon directive 2026-05-21 evening):
-                     1. EC-UNI-PER-KIND-DIFF — author tools/emit_per_kind_audit.c +
-                        scripts/test_per_kind_diff.sh: for each SM opcode and each
-                        BB kind, synthetically construct an instance, emit via
-                        legacy path AND template path, diff.  Per-kind PASS/FAIL
-                        table replaces "hope corpus triggers kind" coverage.
-                     2. EC-UNI-REFAITH — re-lift FAILing kinds byte-faithfully.
-                     3. EC-UNI-REWIRE-ALL — route emit_flat_ir through emit_bb_node
-                        for IS_TEXT once per-kind diff is 100% PASS.
-                     4. EC-UNI-NAMEKEY-BIN — name-keyed binary primitives;
-                        delete emit_bb_x* originals.
-
-                     Completeness over format-faithfulness: end state is one
-                     template per kind for ALL kinds, dormant or not.  Dead-code
-                     deletion (Path c) ruled out by Lon directive.)
-one4all: 045baf4a   (EC-UNI LIFT Snocone-shape slices 1-7.  CORRAL of all
-                     known pat-level emit_bb_x* bodies COMPLETE.  Slices 1-4
-                     (44e41588) corraled the 14 active emit_bb_x* fns.  Slices
-                     5-7 (3e2d982f → 5ad56a4b → 045baf4a) finish the trailing
-                     three: xarbn, xeps, xbrkx (dead).  Live path UNCHANGED —
-                     emit_bb_node does not yet fill g_emit fields, so originals
-                     in emit_bb.c are still the live path.  Beauty byte-identical
-                     proves no harm at every step.
-
-                     Slice 5 (3e2d982f) — bb_arbno.c IS_X86 arm filled with
-                       emit_bb_xarbn body.  Reads g_emit.child_fn + lbl_*.
-                       No new template file; bb_arbno.c already had JVM/JS/NET
-                       arms.  Both IS_TEXT and IS_BIN sub-branches mirrored.
-                     Slice 6 (5ad56a4b) — new bb_eps.c, corrals one-line
-                       emit_bb_xeps.  No BB_op_t dispatch slot (EPS is the
-                       NULL-node case in emit_flat_ir, like bb_charset_helper).
-                       Matrix 845 → 850.
-                     Slice 7 (045baf4a) — new bb_brkx.c, corrals emit_bb_xbrkx
-                       (dead in both places — declared but uncalled).  IS_TEXT
-                       only, no IS_BIN fork (mirrors original).  Matrix 850 → 855.
-
-                     Slice 4 inventory (held over for reference):
-                       - g_emit fields: child_fn (void *), op_name1, op_name2,
-                         op_kind — per-op parameters from emit_bb_x* signatures.
-                       - un-static of emit_bb_ptr_slot, child_cache_get_lbl,
-                         g_cap_fixup_cb in emit_bb.c.
-                       - bb_label_from_name() scaffolding in bb_template_common.h.
-                       - bb_charset_helper.c (emit_bb_charset).
-                       - bb_capture.c (xcallcap/xfnme/xnme combined).
-                       - bb_fence.c (xfnce).
-                       - bb_dsar.c (xdsar / DEREF).
-                       - bb_atp_template.c (xatp / USERPAT).
-
-                     Status: 17/17 pat-level BB-x86 fn bodies physically in
-                     templates (14 active from slices 1-4 + xarbn + xeps + dead
-                     xbrkx).  Matrix gate 855/855 after slice 7.  Beauty stays
-                     at md5 0c192b2f26fd1288e19c21614af95218 (--interp) and
-                     40df9e004c3e963c99af716c65f2c970 (--compile) throughout.
-
-                     Remaining pat-level x86 emission not yet in BB_templates/:
-                       - emit_flat_ir_alt  (file-static control-flow helper)
-                       - emit_flat_ir_cat  (file-static control-flow helper)
-                       - emit_flat_ir_fence (file-static control-flow helper)
-                     These three are dispatcher-style helpers, not Byrd-box
-                     bodies; corraling them belongs to a separate slice when
-                     we tackle control-flow assembly extraction.
-
-                     Slice trail: 9b5ba0b6 → 869b397a → 56b5afb6 → b496198c →
-                     8b2f65e1 → a6a3b736 → 99630c7e → 71bd8b6f → 1a9571fe →
-                     90235416 → 87d11afc → 44e41588 → 3e2d982f → 5ad56a4b →
-                     045baf4a.
-
-                     NEXT: wire emit_bb_node to fill g_emit fields per BB node
-                     kind, then call the template fn (which now contains the
-                     proper x86 body).  Once the template path emits byte-for-
-                     byte identical output, delete the originals in emit_bb.c.
-                     Then mirror this whole sweep on the SM side
-                     (~70 SM fns from emit_sm.c into sm_*.c templates).)
+one4all: 44a5f9a5   (PPV-1: protect REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL.
+                     ERROR 042 on user-reassign, matching SPITBOL.  Closes
+                     HQ-BUG-PROTECTED-PATTERN-VARS.  Guard at NV_SET_fn
+                     chokepoint with init-phase flag g_protected_pat_vars_armed.
+                     New helper module src/runtime/rt/rt_protected.{h,c}.
+                     Discovery: --interp h_store_var calls NV_SET_fn
+                     directly, bypassing rt_nv_set — NV_SET_fn is the
+                     only universal chokepoint.  PK PASS=399 unchanged;
+                     SNOBOL4 smoke --run 186 unchanged.)
+.github: afa893a0   (PPV-0 inventory.  Deliverable: PPV-0-INVENTORY.md.
+                     7 pat-name enums confirmed.  Substitution site
+                     lower.c:373; protection site NV_SET_fn:2462.)
+one4all: 9b905d26   (EC-UNI-PER-KIND-DIFF harness.  5 backends × submode:
+                     x86/{text,binary,text_macro}+jvm+net+js+wasm text.
+                     1059 cells.  Baseline PASS=399 STUB=660 FAIL=0.
+                     baselines/per_kind/ 3.4 MB committed.  Regression
+                     detection verified empirically.)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
-.github: (this commit — record EC-UNI LIFT PATTERN block + watermark refresh + handoff)
-smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
-smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
-broker:        23/26
-icon rungs:    194/36/35
-matrix gate:   830/830 PASS  (was 450/450 pre-99630c7e; now 110 files / 166 fns / 830 cells)
-firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate)
+
+smoke icon: 5/0    smoke prolog: 5/0   smoke rebus: 4/0
+smoke raku: 5/0    smoke snobol4: 7/0  smoke snocone: 5/0
+broker: 23/26      icon rungs: 194/36/35
+matrix gate: 855/855 PASS
 beauty.sno --compile md5:           40df9e004c3e963c99af716c65f2c970  (882901 bytes)
 beauty.sno --compile assembled .o:  3adbb73f88edcc5416d38baade6faf97  (494336 bytes)
-                                    EC-UNI-14(c)(5) — flag removed; one path only.
-emit_io self-test: 6/6 PASS
-EC-UNI-14 ladder closed: 14-PREREQ d6e5c8f1 -> 14(a) 66cf8506 -> 14(b) dc4e6a9d/5dc52dd4/fe195613.
-                  EC-UNI-14(c)(1..7): 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
-                                       862f817a -> c081758f -> 9b5ba0b6.
-                  EC-UNI-14 proper SM-side + BB-side: CLOSED.  EC-UNI-21 CLOSED (close gate
-                  scripts/test_gate_ec_uni_complete.sh, 9/9 PASS on HEAD).  M1 oracle DRIFTED
-                  (current md5 9cddff2534472b822438801d8db58a99, 622 lines, vs M1 baseline
-                  abfd19a7..., 646 lines) — EC-UNI-21-followup tracks reconcile vs retire.
-                  Remaining open in EC-UNI: EC-UNI LIFT sweep (~70 SM + ~12 BB fns still
-                  unmoved), then EC-UNI-17/18/19/20/21-followup/22.
-beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines,
-                            md5 5be1de188af42be42e15e6d9a552f759, self-contained).
-                            Subsystem apparatus at programs/snobol4/beauty_suite/.
+EC-UNI-21 9/9 PASS.  M1 oracle DRIFTED (9cddff25, 622 lines vs M1 abfd19a7, 646 lines).
+beauty.sno in corpus: programs/snobol4/demo/beauty/beauty.sno (627 lines,
+  md5 5be1de188af42be42e15e6d9a552f759, self-contained).
 ```
 
 ---
@@ -429,404 +138,124 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 ### EC-UNI — unify all walkers; one fn per opcode/kind, one arm per backend
 
-**Target:** one fn per SM opcode, one fn per BB kind, each with five `if (IS_<BE>)` arms (X86/JVM/JS/NET/WASM). Text-vs-binary hides inside each arm. After completion, `emit_walk_codegen`/`emit_jvm_from_sm`/`emit_js_from_sm`/`emit_net_from_sm`/`emit_wasm_from_sm`/`dispatch_one_x86` all delete. "Fix backend X for opcode Y" becomes "open `sm_<y>.c`, edit the `IS_X` arm."
+**Target:** one fn per SM opcode, one fn per BB kind, each with five `if (IS_<BE>)` arms (X86/JVM/JS/NET/WASM). Text-vs-binary hides inside each arm. After completion, `emit_walk_codegen` / `emit_jvm_from_sm` / `emit_js_from_sm` / `emit_net_from_sm` / `emit_wasm_from_sm` / `dispatch_one_x86` all delete.
 
-**Three-layer cake:**
-- **Layer 1** — top-level templates `SM_templates/sm_<op>.c` / `BB_templates/bb_<kind>.c`. Signature `void sm_<op>(void)` / `void bb_<kind>(void)`. Reads `g_emit.*`. Branches ONLY on `IS_<BE>`. Verbose and explicit — literal output strings visible in every arm.
-- **Layer 2** — per-backend `static` helpers in the same file.  **Deferred.**  Per Lon directive (2026-05-20), templates currently carry raw output with no static helpers and no cross-template factoring (beyond pre-EC-UNI helpers like `jvm_class_hdr`/`net_alpha_hdr` that predate this work).  Layer 2 extraction was previously planned at EC-UNI-16; that rung is closed-by-supersession.  Future expansion to one-source-line-per-output-line happens after the whole template body is in place (Phase B), not as a REDUCE phase.
-- **Layer 3** — string-builder primitives in `src/emitter/emit_io.{c,h}`: `emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`. Funnel for all output.
+**Three layers:**
+- **Layer 1** — `SM_templates/sm_<op>.c` / `BB_templates/bb_<kind>.c`. `void sm_<op>(void)` / `void bb_<kind>(void)`. Reads `g_emit.*`. Branches ONLY on `IS_<BE>`.
+- **Layer 2** — Deferred (Lon, 2026-05-20). No static helpers in templates, no cross-template factoring. Future "one-source-line-per-output-line" expansion is Phase B.
+- **Layer 3** — `src/emitter/emit_io.{c,h}`: `emit_text` / `emit_textf` / `emit_byte` / `emit_bytes`. Funnel for all output.
 
-**`g_emit` single global** (in `emit_globals.{c,h}`) carries all per-template state. Not re-entrant. Snocone bootstrap maps 1:1 to flat `DATA('Sm_emit(...)')` declaration.
-
----
-
-### ⚡ EC-UNI LIFT PATTERN — read this before touching any template
-
-**Lon directive (2026-05-21, supersedes 2026-05-20):** *"I will stand down on my directive to slap the code in.  If you feel there is a better way go back to that.  It was just too slow before, but now I think it was due to too much regression testing.  Go back to doing your methodical approach which you had before I redirected you to start slapping one around."*
-
-**Root cause of prior slow pace identified:** the per-slice work itself was fine; the friction was running the full regression suite per slice when only the fast-cycle gates (build + matrix + beauty md5) were needed.  The per-slice fast cycle directive (above) addresses that.  The pace problem was a gate-cadence problem, not a methodology problem.
-
-**The job (restored methodical form):** for each x86 codegen fn still living in `src/emitter/emit_sm.c` or `src/emitter/emit_bb.c`, lift it into the matching template's `IS_X86` arm in a way that respects existing abstraction boundaries.  Where a fn's body is self-contained (calls only widely-visible helpers like `insn_*`, `emit_label_define`, `emit_outf`, `bb3c_format`), copy-paste the body verbatim — that path is canonical for the BB-side slices 1-7.  Where a fn's body depends on file-static plumbing (e.g. `render_call_line`, `sm_template_lookup`, `emit_sm_args_t` inside `emit_sm.c`), do NOT un-static the dependencies just to fit the verbatim-paste recipe — those file-static helpers ARE the abstraction the template is supposed to call through, and the existing one-line wrapper (`if (IS_X86) return emit_sm_jump_line(out, instr, 0);`) is the correct shape.  In that case, recognize the lift has already happened: the template owns the dispatch decision, and the named C function is the helper, not the body.
-
-**Mechanical recipe (per fn):**
-
-1. Identify the fn.  Examples: `emit_bb_xstar` (BB_PAT_REM), `emit_bb_xlnth` (BB_PAT_LEN), `emit_bb_xchr` (BB_PAT_LIT), `emit_bb_charset` (BB_PAT_SPAN/ANY/BREAK/NOTANY), `emit_sm_concat_dispatch` (SM_CONCAT), `emit_sm_jump_line` (SM_JUMP), etc.
-2. **Inspect the body before lifting.**  Does it call only file-public helpers and standard runtime functions?  If yes — proceed to verbatim copy-paste (steps 3-6 below).  Does it call file-`static` helpers in the same `emit_sm.c` / `emit_bb.c`?  If yes — the wrapper is the abstraction; mark the fn as "already-lifted-as-helper" and move on to the next.  Do NOT un-static the file-private machinery to force a verbatim paste.
-3. Find the matching template file: `BB_templates/bb_<kind>.c` or `SM_templates/sm_<op>.c`.  The stub line `if (IS_BIN) return; /* x86 binary: emit_flat_body path, not emit_bb_node */` (BB templates) or the `if (IS_X86) return emit_sm_<op>_dispatch(out, instr, 0);` line (SM templates) marks where the lifted body lands.
-4. **Copy the entire fn body** into the template's `if (IS_X86) { ... return; }` arm.  Preserve the original local variable names; just rewrite parameters as reads from `g_emit`:
-   - `s`/`f`/`b` (succ/fail/back labels) → `g_emit.lbl_succ` / `g_emit.lbl_fail` / `g_emit.lbl_back`
-   - `n` (LEN/TAB count) → `nd->ival` (where `nd = g_emit.node`)
-   - `lit` (PAT_LIT string) → `nd->sval`
-   - `out` → `g_emit.out` (or local `FILE * o = emit_outf();` as the lifted body already does)
-5. **Helpers stay where they are.**  `emit_bb_box_banner`, `bb3c_format`, `emit_outf`, `emit_label_define`, `insn_*`, `emit_store_delta`, `emit_jmp`, `emit_seq_bounds_len`, `emit_add_delta_imm`, `TEMPLATE_ADDR_SIGLEN`, `JMP_*` — all stay in their current files.  Many will be deleted in the next pass anyway.  **Do not move helpers.  Do not extract helpers.  Do not factor across templates.**  Just link against them.
-6. Leave the original fn in `emit_bb.c` / `emit_sm.c` for now.  The dispatcher (`emit_flat_ir` or `emit_walk_codegen`) still calls the old fn; two paths coexist temporarily.  Rewire/delete happens after the lift sweep is complete.
-7. Per-slice fast cycle ONLY: `make -j4 scrip` → `scripts/test_gate_em_template_matrix.sh` → `scripts/test_gate_ec_uni_complete.sh`.  Commit.  Full regression at session-end only.
-
-**Canonical example landed:** one4all `71bd8b6f` lifted `emit_bb_xstar` → `bb_rem` IS_X86 arm and `emit_bb_xlnth` → `bb_len` IS_X86 arm.  `g_emit` gained three label fields: `lbl_succ`, `lbl_fail`, `lbl_back` (in `src/emitter/emit_globals.h`).  Read those files for the canonical shape.
-
-**What NOT to do (mistakes recorded across both directives; do not repeat):**
-- Do NOT extract a `static` helper inside a template that collapses two opcodes into one body (slice 1, reverted in `8b2f65e1`).
-- Do NOT add Layer-2 helpers in `emit_core.c` that factor a common pattern across multiple templates (slice 2, reverted).
-- Do NOT enforce or measure "fn fits on a screen" — that rule was removed (2026-05-20).
-- Do NOT un-static file-private machinery in `emit_sm.c` / `emit_bb.c` just to fit the verbatim-paste recipe — the wrapper IS the lift in that case.  (Added 2026-05-21.)
-- Do NOT run the full regression suite per slice.  The fast cycle (build + matrix + beauty md5) is the per-slice gate; full crosscheck/smoke gates are session-end only.  (Added 2026-05-21 — this was the source of slow pace, not the methodology.)
-- Do NOT touch the matrix gate's same-file-helper-delegation logic — there are no template-local helpers in the consolidation phase.
-
-**What "complete" means here:** every x86 codegen fn that lives in `emit_bb.c` or `emit_sm.c` is either (a) copy-pasted into its matching template's `IS_X86` arm, or (b) recognized as an already-extracted file-public helper that the template calls through.  After the lift sweep, the rewire/delete pass will:
-- Update `emit_flat_ir` / `emit_walk_codegen` to call the templates directly (via `emit_bb_node` and `emit_sm_dispatch`).
-- Delete the originals that were case (a); keep the helpers from case (b).
-- Trim now-unreachable helpers.
-- That's "Phase B" expansion (one-source-line-per-output-line) territory.
-
-**Lift queue, after 2026-05-21 audit:**
-
-**BB-side (in `emit_bb.c`): COMPLETE through slice 7 (one4all `045baf4a`).**  All 17 pat-level `emit_bb_x*` fns physically inside `BB_templates/` files.  Remaining x86 emission in `emit_bb.c` is the dispatcher-style control-flow trio `emit_flat_ir_alt` / `emit_flat_ir_cat` / `emit_flat_ir_fence`; these are NOT Byrd-box bodies and belong to a separate control-flow-assembly slice, not the lift sweep.
-
-**SM-side (in `emit_sm.c`): the apparent "~62 unmoved fns" was a 2026-05-20 mis-classification.**  Audit (2026-05-21) of the 36 `emit_sm_*_(dispatch|line|template)` fns by body size and dependency:
-- 31 are 1-11 line wrappers that marshal args from `SM_t *ins` into `emit_sm_args_t` and call `render_call_line(out, sm_template_lookup(SM_<OP>), &a)` (or `emit_sm_noop` / `emit_sm_int64` / `emit_sm_lbl` family).  All depend on `emit_sm.c`'s file-private machinery: `sm_op_template_t` type, `emit_sm_args_t` type, `sm_template_lookup`, `render_call_line`, `build_args_col`, `g_pending_pc_label`, `bb3c_format`.
-- 5 are larger (18-77 line) bodies — `emit_sm_exec_stmt_template`, `emit_sm_return_variant_dispatch`, `emit_sm_bb_pump_proc_dispatch`, `emit_sm_define_dispatch`, `emit_sm_define_entry_dispatch`.  Same dependency on file-private machinery.
-
-The `sm_op_template_t` type and `render_call_line` machinery in `emit_sm.c` IS the SM-side macro-rendering abstraction; the templates' `if (IS_X86) return emit_sm_<op>_dispatch(out, instr, 0)` line IS the lift.  These fns are already-lifted-as-helper per the criterion above; no SM-side body lifting work remains.
-
-**Verification per commit:** matrix gate stays at 855/855; beauty.sno --compile md5 stays at `40df9e004c3e963c99af716c65f2c970` (byte-identical — the lifts add code paths but don't change output until the dispatcher is rewired).
+`g_emit` (`emit_globals.{c,h}`) carries all per-template state. Not re-entrant. Maps 1:1 to flat `DATA('Sm_emit(...)')` in Snocone bootstrap.
 
 ---
 
-**Scope inventory:** SM has 91 opcodes in the enum, 76 dispatched by `emit_sm_dispatch` (the other 15 are runtime/sentinel — BB-bridge `_PROC` variants, frame/global ops, compare aliases, `SM_SUSPEND`/`SM_OPCODE_COUNT` — not template work).  BB has 97 kinds in `BB_op_t`; **all 97 are dispatched by `emit_bb_node` and have template slots** as of one4all `99630c7e` (21 pattern + Prolog kinds carry real code, 76 are honest no-op stubs awaiting Phase B per-backend codegen).  Walkers delete after coverage lands: net −2500 to −3500 LOC.
+### ⚡ EC-UNI LIFT PATTERN
 
-**Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `GOAL-SN4-JVM-EMIT`, `GOAL-SN4-JS-EMIT`, `GOAL-SN4-NET-EMIT`, `GOAL-SN4-WASM-EMIT`).
+**Lon directive (2026-05-21):** Methodical lift, respect existing abstraction boundaries. Friction was gate cadence, not methodology.
 
-Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..7), 15, 16 (closed-by-supersession), 21.
-See git log for per-commit detail.
+**Job:** For each x86 codegen fn still in `emit_sm.c` / `emit_bb.c`, lift into its template's `IS_X86` arm. Self-contained body (calls only widely-visible helpers) → verbatim paste. Body depending on file-static plumbing (`render_call_line`, `sm_template_lookup`, `emit_sm_args_t`, etc.) → DO NOT un-static; the existing one-line wrapper IS the lift.
 
----
+**Recipe:**
+1. Identify fn.
+2. Inspect body. Public helpers only → step 3-6. File-static deps → "already-lifted-as-helper", next.
+3. Find matching template.
+4. Copy body into `if (IS_X86) { ... return; }`. Rewrite parameters as `g_emit` reads: `s/f/b` → `g_emit.lbl_succ/lbl_fail/lbl_back`; `n` → `nd->ival`; `lit` → `nd->sval`; `out` → `g_emit.out`.
+5. Helpers stay. Do not move, extract, or factor.
+6. Leave original. Dispatcher still calls it; two paths coexist.
+7. Fast cycle: `make -j4 scrip` → `test_per_kind_diff.sh`. Commit.
 
-### ⚡ EC-UNI-REWIRE — BB-side: route x86 through emit_bb_node, not direct emit_bb_x* (2026-05-21)
+**Canonical example:** `71bd8b6f` lifted `emit_bb_xstar` → `bb_rem` IS_X86 arm and `emit_bb_xlnth` → `bb_len` IS_X86 arm. `g_emit` gained `lbl_succ` / `lbl_fail` / `lbl_back`.
 
-**Status:** OPEN — substantive design question requires Lon direction before code lands.
+**Mistakes to avoid:**
+- Static helpers inside templates collapsing opcodes (slice 1, reverted).
+- Layer-2 helpers in `emit_core.c` factoring across templates (slice 2, reverted).
+- "Fn fits on a screen" — rule removed.
+- Un-static file-private machinery to fit verbatim paste.
+- Running full regression per slice (cadence problem, not methodology).
 
-**Context.**  BB-side LIFT (slices 1-7) is complete: all 17 pat-level `emit_bb_x*` fn bodies are physically in `BB_templates/bb_*.c` IS_X86 arms.  The watermarked NEXT step is to *use* them — route x86 emission through `emit_bb_node` instead of `emit_flat_ir` → `emit_bb_x*` direct calls.
+**Lift queue status:**
 
-**Today's live path for x86:**
-- `emit_flat_body(nd, prefix, ...)` (in `emit_bb.c`) is the x86 driver.  Computes `bb_label_t lbl_succ`/`lbl_fail`/`lbl_β` on the stack.
-- Calls `emit_flat_ir(nd, &lbl_succ, &lbl_fail, &lbl_β)`.
-- `emit_flat_ir` switches on `nd->t` and calls `emit_bb_xstar(lbl_succ, lbl_fail, lbl_β)` / `emit_bb_xlnth(...)` / etc. — passing `bb_label_t *` directly.
-- Templates' IS_X86 arms are dormant: they reconstruct `bb_label_t` from `g_emit.lbl_*` names via `bb_label_from_name()`.
+- **BB-side: COMPLETE** through slice 7 (one4all `045baf4a`). All 17 pat-level `emit_bb_x*` fn bodies physically in `BB_templates/`. Remaining x86 in `emit_bb.c` is dispatcher trio `emit_flat_ir_alt` / `_cat` / `_fence` — control-flow-assembly slice, not lift sweep.
+- **SM-side: COMPLETE.** All 36 `emit_sm_*_(dispatch|line|template)` fns are already-lifted-as-helper (31 small wrappers + 5 larger bodies, all depending on `emit_sm.c`'s file-private machinery: `sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line`).
 
-**The fork: text mode vs binary mode in JIT.**
+**Verification per commit:** matrix 855/855; beauty.sno --compile md5 `40df9e004c3e963c99af716c65f2c970`.
 
-The deliberate design choice in `emit_globals.h:44-50` is that `g_emit.lbl_*` are **name strings**, not `bb_label_t *` pointers.  Rationale: "the label *name* is the Snocone-translatable identity, since in Snocone a label is identified by a name string and its offset is looked up in a name-keyed table.  C strings are the one admitted pointer type here because Snocone strings transliterate to const char *."
+**Scope:** SM has 91 opcodes in enum, 76 dispatched (15 runtime/sentinel — not template work). BB has 97 kinds, all dispatched by `emit_bb_node` (21 pat+Prolog carry real code, 76 honest no-op stubs awaiting Phase B). Walkers delete after coverage lands: net −2500 to −3500 LOC.
 
-Text mode (`--compile`) tolerates name-only labels: offsets are resolved by name in a later assembler pass.  Binary mode (`--run` / JIT) does NOT — it patches `bb_label_t` struct offsets in place during emission.  `bb_label_from_name()` creates a fresh stack-local struct; the patching is lost (`bb_template_common.h:21-23` documents this explicitly: *"Side-effects on the bb_label_t (offset patching) survive only within text-mode templates; binary-mode handling will need name-keyed primitives in a future sweep."*).
+**Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `-JVM-`, `-JS-`, `-NET-`, `-WASM-`).
 
-**Two paths forward, Lon's choice:**
-
-**Path (a) — Text-first staged rewire.**  Rewire `emit_flat_ir` to fill `g_emit.lbl_*` names + `g_emit.child_fn` + call `emit_bb_node` ONLY when `IS_TEXT` (i.e. `--compile`).  Keep binary mode (`--run`) on the legacy direct-call path until name-keyed binary primitives exist.  Cost: temporary two-path code (text via template / binary via legacy) — explicit, time-boxed.  Verification: beauty.sno --compile md5 byte-identical; `--run` corpus unchanged because the binary path is untouched.  Unblocks: deleting the text-half of the original `emit_bb_x*` fns once the rewire lands.  Does NOT unblock final deletion of `emit_bb_x*` until path (b) also lands.
-
-**Path (b) — Name-keyed binary primitives first.**  Build a name-keyed analog to the offset-patching binary primitives (e.g. `emit_seq_port_call_by_name`, `emit_jmp_by_name`).  Then rewire `emit_flat_ir` for BOTH modes in one go.  Cost: substantial new binary-emit primitive work BEFORE any visible progress on the rewire; the offset-patching state machine in `bb_label_t` is intricate.  Unblocks: clean single-path rewire and full deletion of `emit_bb_x*` originals.
-
-**Recommendation pending Lon decision:** Path (a).  Text-mode rewire is byte-identical-verifiable via the existing EC-UNI-21 gate (`scripts/test_gate_ec_uni_complete.sh`); binary-mode work can proceed in parallel as a separate rung (`EC-UNI-NAMEKEY-BIN`) without blocking text-mode progress.  The two-path interlude is small and the rewire dependency graph becomes a DAG instead of a single critical path.
-
-**Why this is NEXT and not a slice 8 lift:** the SM-side audit (2026-05-21) confirmed no SM body-lifting remains; all `emit_sm_*_(dispatch|line|template)` fns are already-lifted-as-helper.  The BB-side LIFT is complete through slice 7.  The next step IS the rewire — there's no more lift work to delay it with.
-
-**⚠ Format-drift finding (2026-05-21, blocks Path (a) execution).**
-
-Even Path (a) (text-only rewire) does NOT produce byte-identical text output today.  Verified by direct read of the lifted vs original code paths for `BB_PAT_REM`:
-
-- Original `emit_bb_xstar` IS_TEXT path emits jumps via `bb3c_format(out, "", "jmp", target)` — action column 2 gets "jmp", goto column 3 gets the target name.  `bb3c_write_line` pads L=24, A=16, then writes target into col 3.
-- Template `bb_rem` IS_X86 emits jumps via `emit_text_jmp(target, JMP_JMP)` → `bb3c_emit_jmp(out, "jmp", target)` (`emit_core.c:589`).  That function builds `rest = pad("", 27) + "jmp " + target` and calls `bb3c_format(out, "", "", rest)` — action column is EMPTY, all of "jmp <target>" goes into col 3.
-
-The two paths produce **demonstrably different column layouts** for every jump.  Empirical confirmation: beauty.sno only exercises POS among the pat-level emissions (one `# BOX POS(0)` in 882901 bytes of output), but the same `emit_text_jmp` substitution exists across all 17 lifted templates — so a fuller corpus (programs that exercise REM/LEN/CAT/etc.) would surface the drift even if beauty.sno alone might be lucky.
-
-Same finding applies to `emit_text_label` vs `emit_label_define`: original uses `emit_label_define(b)` which patches the offset into the `bb_label_t` struct AND writes the label line in text mode.  Template uses `emit_text_label(name)` which writes a text label line but cannot patch the struct (because the template only has the name).  Text output may still be byte-identical IF `bb3c_format(out, label_col, "", "")` writes identical bytes to whatever `emit_label_define` does in text — needs verification per-helper.
-
-**This means Path (a) requires one of:**
-
-**Path (a.1)** — Re-lift the templates preserving the EXACT original `bb3c_format(out, "", "jmp", target)` calls verbatim (and `emit_label_define` calls verbatim, taking a reconstructed `bb_label_t` via `bb_label_from_name`).  The templates' current `emit_text_jmp`/`emit_text_label` substitution is a faithful refactoring that nonetheless changed bytes.  Pure mechanical: the lifted bodies become byte-faithful to the originals at the cost of reading less cleanly.
-
-**Path (a.2)** — Re-baseline the EC-UNI-21 gate's expected md5 to the post-rewire output, with a one-time documented drift commit.  This makes the rewire visible (md5 changes) but accepts the new output as canonical.  The change is purely cosmetic (jmp/label column layout); semantically identical assembly is produced and the assembled `.o` md5 should be unchanged.  EC-UNI-21 gate already tracks both source md5 AND assembled `.o` md5 (`3adbb73f88edcc5416d38baade6faf97`); the assembled md5 is the semantic ground truth.
-
-**Recommendation:** Path (a.2).  The assembled `.o` md5 is what actually matters for correctness; the text md5 is a useful invariant but ultimately a presentation choice.  One-shot re-baselining keeps the rewire small and forward-progress; re-lifting all 17 templates to preserve text format would re-do existing work for cosmetic reasons.  Confirm with Lon before re-baselining.
-
-**Why this finding only surfaces now:** the templates' IS_X86 arms have been dormant since slice 1 (`9b5ba0b6`).  The matrix gate (`test_gate_em_template_matrix.sh`) confirms each backend arm EXISTS but does not check byte-identity of output (because the templates aren't called).  EC-UNI-21 confirms the LIVE path (legacy `emit_bb_x*`) byte-output, which has been unchanged.  The drift was structurally invisible until someone read the lifted templates against the originals — which this session is the first to do for the rewire purpose.
-
-**Net:** Path (a.2) likely.  But Lon must choose between (a.1 — re-lift faithfully) / (a.2 — re-baseline gate) / (b — name-keyed binary primitives first, side-stepping the question) before code lands.
-
-**⚠ Coverage finding (2026-05-21 PM, deepens the rewire blocker).**
-
-Empirical inspection of beauty.sno's `--compile` output (882901 bytes) shows **only ONE `# BOX` banner total: `# BOX POS(0)`**.  The other 16 BB pat-level kinds (REM, LEN, ARB, CAT, ARBNO, etc.) produce zero banners in beauty's output despite REM and other pattern primitives appearing in the source.
-
-Root cause: `--compile` lowers most pattern uses to SM macro calls (`PAT_REM`, `PAT_LEN` text macros + `PUSH_VAR .S430 # REM` keyword lookups), NOT to BB graphs that flow through `emit_flat_ir` → `emit_bb_xstar`.  BB-lowering is gated by the invariant-pattern optimizer in `emit_sm.c` (`g_pat_windows[i].is_invariant`) — it fires only for patterns the compiler can statically prove are runtime-invariant.  In beauty.sno, that's just one POS(0).
-
-Implications:
-1. **The EC-UNI-21 gate (beauty md5) has been structurally insensitive to 16/17 BB-side LIFT slices**.  Slices 1-6 lifted bodies for REM, LEN, CAT, ARB, FENCE, ARBNO, FAIL, FARB, TB, RTB, LIT, capture-family, charset, DSAR, ATP, EPS — none of these are exercised by beauty.sno's --compile output.  Only `bb_pos` (slice that lifted POS) is in the actually-tested set.
-2. **The matrix gate (855/855) confirms templates EXIST but does NOT confirm they EMIT CORRECT bytes** — the lifted code paths are dead for all 16 non-POS kinds.  The matrix gate is a structural invariant (no missing arm), not a behavioral one.
-3. **The rewire under any path (a.1/a.2/b) needs a coverage gate that actually exercises the BB-lower path for each pat-level kind**.  Without it, a "byte-identical" verification is misleading: the rewire could leave 16 kinds silently broken in `--compile` and the gate would still pass.
-
-**Possible next pre-rewire rung:** `EC-UNI-COVER-PAT` — author a `corpus/programs/snobol4/feat/invariant_patterns.sno` that forces invariant lowering of REM, LEN, ARB, CAT, ARBNO, etc., one pattern per statement.  Run under `--compile` and `--run`; record `.s` md5 and assembled `.o` md5 per kind.  This becomes the actual regression gate for the rewire.  Without this, any "passes the gate" claim about the rewire is empty.
-
-Alternative: scan `corpus/crosscheck/` for existing `.sno` files that already exercise enough BB-lowering to be useful — `test_crosscheck_x86_full_corpus.sh` does end-to-end execute/diff testing, but its `.ref` comparison is on stdout, not on emitted `.s` text.  It catches semantic regressions, not text format drift.  Likely useful for verifying Path (b) once name-keyed primitives exist, less useful for verifying Path (a.x).
-
-**Net (revised):** the rewire is blocked on TWO open questions: (1) Lon's choice between (a.1)/(a.2)/(b), and (2) a coverage gate that actually exercises the 17 lifted paths.  Both should be answered before code lands.
-
-**⚠ Deeper coverage finding (2026-05-21 evening, deepens the prior coverage finding).**
-
-Empirical probe: a minimal test program `S = 'hello world' \n S POS(0) REM :F(FAIL)` (REM in general-expression context with no `.` capture) compiles via `--compile` without segfault, but its output uses `PUSH_VAR .S2 # REM` followed by `PAT_DEREF` — NOT `SM_PAT_REM`.  The runtime keyword-lookup machinery handles REM at execution time via the variable name, not the parser's `TT_REM` token.
-
-Investigation in `src/lower/lower.c:375` shows `case TT_REM: SM_emit(g_p, SM_PAT_REM)` lives inside `lower_pat_expr` — a function called only when the AST node is **already known to be a pattern context**.  The parser+lexer mostly emit REM as a general variable lookup (`TT_VAR` with name "REM"), which the runtime keyword machinery dispatches.  Only AST nodes that the parser explicitly marks as pattern-expression children flow through `lower_pat_expr` and reach `SM_PAT_REM`.
-
-Result: across simple SNOBOL4 programs that name REM, the `SM_PAT_REM` opcode emission path is rare.  And since `--compile` then needs the invariant-pattern optimizer in `emit_walk_phase2` to fire (which requires all stack values be non-variant), the cascade is: source must hit the pattern-expression AST → must hit `SM_PAT_REM` opcode → must be in a window where no `PUSH_VAR` flagged the window as variant → must pass `emit_flat_invariant` check.  That's a narrow gate.
-
-**This means `emit_bb_xstar` may be near-dead in practice for current SNOBOL4 corpus.**  Same likely holds for `emit_bb_xlnth`, `emit_bb_xtb`, etc.  The previous "1 of 17 BB kinds exercised in beauty.sno" finding is even more dramatic in light of this: it may be more like "1 of 17 BB kinds exercised across all current SNOBOL4 corpus under --compile".
-
-**Implications for EC-UNI work:**
-- The matrix gate (855/855) confirms templates exist; the EC-UNI-21 gate confirms beauty.sno's --compile output (which uses ≤1 BB kind).  Together they offer little coverage of the BB-x86 lifted bodies.
-- The slices that lifted bodies for REM/LEN/CAT/ARBNO/etc. may have introduced bugs that no current gate detects, because no current corpus program reaches those code paths.
-- An accurate `EC-UNI-COVER-PAT` corpus is harder to author than initially proposed: it must construct programs that the SNOBOL4 parser+lower will recognize as pattern-expression contexts (e.g., via explicit `&PATTERN` declarations or specific syntactic forms), then exercise each BB pat-kind through that path, then trip the invariant optimizer.  Each of those is a separate constraint.
-
-**Lon-decision matrix expanded:**
-- Path (a.1) — re-lift faithfully — possible but unverifiable without `EC-UNI-COVER-PAT`.
-- Path (a.2) — re-baseline gate — same: re-baselined to what? Beauty.sno output that exercises 1 kind?
-- Path (b) — name-keyed binary primitives first — also unverifiable without coverage.
-- **Path (c) — newly visible** — investigate first WHETHER `emit_bb_xstar` etc. are actually live anywhere.  If they're vestigial relative to the current SNOBOL4 frontend, the rewire question changes shape: there may be no rewire to do, just dead-code removal.  This is the GOAL-HEADQUARTERS analogue of the SN_INCR/SN_DECR observation in EC-UNI-14(c)(5)'s side-effects list ("vestigial — emitted only by sm_interp_test.c; no live frontend lowers either today").
-
-Recommendation: pause the rewire entirely.  Author a coverage probe instead — `scripts/test_audit_bb_x86_exercise.sh` that runs each `corpus/` SNOBOL4 program under `--compile` and counts `# BOX ` banners by kind.  This reveals empirically which BB pat-kinds reach `emit_bb_xstar` etc.  Decision (a.x vs b vs c) becomes data-driven from that audit.
-
-**Audit landed and run (one4all `d2b6dac3`, 2026-05-21 evening).**
-
-Across 177 .sno files in `corpus/programs/snobol4/` (1 segfault, 176 compile OK), only 4 of 17 BB pat-kinds emit any `# BOX` banner: LIT (9), SPAN (3), POS (3), ANY (3).  The other 13 — REM, LEN, CAT, ARBNO, ARB, BREAK, NOTANY, RPOS, TAB, RTAB, FENCE, ABORT, ASSIGN_IMM, ASSIGN_COND — emit zero banners.  Their lifted bodies in `BB_templates/` are dormant in current corpus exercise.
-
-**Lon directive 2026-05-21 evening — the end state is one template per kind for ALL kinds, dormant or not.**  Completeness is the priority, not format-faithfulness.  The 13 dormant kinds stay in `BB_templates/` and get rewired through `emit_bb_node` like the 4 live ones; corpus exercise level is not the criterion for which kinds get a template.  This rules out Path (c) (vestigial deletion) — even dormant code needs to flow through the unified template path.
-
-**The verification problem this leaves:** the existing gates (EC-UNI-21 = beauty, smoke tests, JIT corpus) only naturally exercise 4 of 17 BB kinds in the source corpus.  How do we verify that the rewire of the 13 dormant kinds produces correct emission?
-
-**Lon directive 2026-05-21 evening (verification):** *"Emit all SM and BB once and just compare the outputs."*
-
-**Plan: per-kind unit regression `EC-UNI-PER-KIND-DIFF`.**  Author a test program (likely `tools/emit_per_kind_audit.c` driven by `scripts/test_per_kind_diff.sh`) that, for every SM opcode and every BB kind:
-
-1. Constructs a minimal synthetic instance: a `BB_t` of the right kind with stub child/`ival`/`sval`/`value` fields filled, OR an `SM_t` of the right opcode with stub `a[]` operands.
-2. Runs the **legacy path** (`emit_bb_xstar` / `emit_sm_*_dispatch` called directly with synthetic `bb_label_t` and `FILE *`) and captures the text output to `/tmp/legacy_<kind>.s`.
-3. Runs the **template path** (fill `g_emit.lbl_*` / `g_emit.node` / `g_emit.instr`, call `emit_bb_node(nd, out)` or `sm_<op>()` directly) and captures to `/tmp/template_<kind>.s`.
-4. `diff` the two; record per-kind PASS/FAIL.
-
-Output: a 91-row SM table + a 17-row BB pat-kind table (plus the 76 stub BB kinds, expected uniformly empty-vs-empty PASS) showing per-kind byte-identity.  The 4 live kinds are exercised redundantly by EC-UNI-21 + smoke + crosscheck; the 13 dormant kinds are exercised for the FIRST time here.  Per-kind failures pinpoint exactly which template bodies drifted from their originals.
-
-This gate replaces the "hope a corpus program triggers the kind" approach with **direct per-kind exercise**.  Coverage becomes total over the SM × BB opcode × kind matrix, not a function of what corpus happens to exist.
-
-**Implementation sketch (subject to refinement):**
-
-- `tools/emit_per_kind_audit.c` — a standalone C program linked against the emitter / runtime, no SNOBOL4 frontend.  For each kind:
-  - Build synthetic instance with placeholder operands (constant strings "TEST", labels "L_succ" / "L_fail" / "L_back", `ival=0`, etc.).
-  - Save current `g_emit` snapshot.  Set `bb_emit_mode = EMIT_TEXT`.
-  - Call legacy fn → `/tmp/per_kind/legacy_<kind>.s` (closing the FILE).
-  - Reset `g_emit`.  Call template fn (via `emit_bb_node` for BB, direct `sm_<op>()` for SM with `g_emit.instr` set).
-  - `/tmp/per_kind/template_<kind>.s`.
-  - Restore `g_emit`.
-- `scripts/test_per_kind_diff.sh` — runs the C audit, diffs each pair, reports PASS/FAIL counts, writes per-kind .diff files for inspection.
-- One-time baseline run records expected drift per kind in `tools/per_kind_baseline.csv` (commit-tracked).  Subsequent runs compare against baseline — any new drift fails the gate.
-
-**Sequencing of next rungs:**
-
-1. **`EC-UNI-PER-KIND-DIFF` (proposed, NEXT)** — author the per-kind unit audit.  Run it on `045baf4a` baseline to measure existing drift per kind.  Result: a per-kind PASS/FAIL table that documents the *current* template-vs-original divergence for each of the 17 BB pat-kinds and 91 SM opcodes.  Many will FAIL on text-format drift (template uses `emit_text_jmp`, original uses `bb3c_format(out,"","jmp",t)`); a few may FAIL on substantive bugs that have been invisible until now.
-2. **`EC-UNI-REFAITH` (proposed, post-DIFF)** — re-lift the FAILing kinds to byte-faithfully match the original.  No format-drift acceptance, no gate re-baselining — the per-kind diff is the gate, and the gate must show 100% PASS.  This is Path (a.1) from the earlier matrix, but now scoped to *exactly the kinds that need it* per the DIFF result.
-3. **`EC-UNI-REWIRE-ALL`** — with per-kind diff at 100% PASS, route `emit_flat_ir` through `emit_bb_node` for all kinds in IS_TEXT mode.  Routine: same code path goes through templates from now on.
-4. **`EC-UNI-NAMEKEY-BIN`** — name-keyed binary primitives for `--run` mode; rewire binary too; delete `emit_bb_x*` originals.
+Closed sub-rungs: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE, 14(a)(b)(c)(1..7), 15, 16, 21. See git log for per-commit detail.
 
 ---
 
-#### ⚡ Empirical pat-keyword coverage probe (2026-05-21 evening session #2, Opus 4.7) — REVISED session #3
+### ⚡ EC-UNI-PER-KIND-DIFF (one4all `9b905d26`)
 
-**Initial framing was wrong; correction below.**  Lon caught the mistake: REM, ARB, FENCE, FAIL, SUCCEED, ABORT, BAL are **pre-bound PATTERN-typed variables** in both SPITBOL and scrip, not parse-time keywords.  Verified with `DATATYPE`:
+Harness: `tools/emit_per_kind_audit.c` + `scripts/{freeze_per_kind_baseline,test_per_kind_diff,normalize_per_kind_cell}` + `baselines/per_kind/`.
 
-```
-=== SPITBOL ===                          === scrip --interp ===
-REM type: PATTERN                        REM type: PATTERN
-ARB type: PATTERN                        ARB type: PATTERN
-POS type: STRING                         POS type: STRING       (function — needs args)
-LEN type: STRING                         LEN type: STRING
-FAIL type: PATTERN                       FAIL type: PATTERN
-FENCE type: PATTERN                      FENCE type: PATTERN
-SUCCEED type: PATTERN                    SUCCEED type: PATTERN
-ABORT type: PATTERN                      ABORT type: PATTERN
-```
+For every (SM op × backend) and every (BB kind × backend × submode) cell, audit constructs synthetic instance, emits via current path, captures text/binary, normalizes (strips label numbers, addresses, node ids), diffs against frozen baseline. 1059 cells per run; baseline PASS=399 STUB=660 FAIL=0.
 
-Both oracles match exactly.  Bare `'hello' REM` is **the canonical, portable form** in both runtimes — it's a pattern match where the pattern comes from a variable lookup at runtime.
-
-**Real grammar story (corrected):**  The frontend emits `PUSH_VAR .S<n> # REM` → `SM_PAT_DEREF` → `EXEC_STMT_VARIANT`.  The window is correctly classified as **variant** by `emit_walk_phase2` (emit_sm.c:2509-2515) because `SM_PAT_DEREF` reads a runtime value — by definition not invariant.  The invariant-bake optimizer skips it; the runtime handles it via `rt_pat_deref`.  This is correct behavior, not a bug.
-
-**Protected-variable divergence (NEW finding, real):**  SPITBOL protects REM with `ERROR 042 -- attempt to change value of protected variable`; scrip allows `REM = 'string'` reassignment.  This IS a real undocumented divergence.  Filed for tracking: **HQ-BUG-PROTECTED-PATTERN-VARS** — scrip should ERROR 042 on assignment to REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL.  Severity low (overwriting these in real programs is unusual); not blocking.
-
-**`KEYWORD()` parens form is a real scrip-only extension:**
-
-| Source form     | --compile (scrip)        | SPITBOL                     |
-|-----------------|---------------------------|------------------------------|
-| `'hello' REM`     | runtime PAT_DEREF (correct) | runtime variable lookup ✓  |
-| `'hello' REM()`   | invariant-bake → `# BOX REM()` ✓ | ERROR 022 -- undefined function |
-| `'abc' POS(0)`    | invariant-bake → `# BOX POS(0)` ✓ | function call returns pattern ✓ |
-| `'abc' RPOS(0)`   | **--compile segfault** (real bug) | function call returns pattern ✓ |
-| `'abc' RTAB(0)`   | **--compile segfault** (real bug) | function call returns pattern ✓ |
-
-For zero-arg pat-keywords (REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL), scrip's `pat_prim_kind` (snobol4.y:44) maps the function-call form `KEYWORD()` to `TT_<kind>` AST nodes, which lower to `SM_PAT_<kind>` opcodes — exposing them to the invariant-bake optimizer and the BB-lower path.  SPITBOL has no analogous mapping; it treats `REM()` as a user-function call that finds no definition → ERROR 022.
-
-**Two real bugs still tracked:**
-
-- **HQ-BUG-RPOS-COMPILE-SEGFAULT** — `'abc' RPOS(0)` under `--compile` segfaults immediately, 0 lines of output.  `--interp` runs fine.  Source: SM_PAT_RPOS path in `emit_walk_phase2` (emit_sm.c:2438) sets `nd->n = 1` (reverse flag) before calling `pat_node_alloc(cfg, BB_PAT_POS)`.  POS(0) compiles cleanly; only reverse variant crashes.  Likely NULL-deref in invariant-bake or `emit_bb_xrpsi`.
-- **HQ-BUG-RTAB-COMPILE-SEGFAULT** — same shape, `'abc' RTAB(0)` segfaults `--compile`.  POS/TAB both work; symptom specific to reverse variants.
-
-**Implication for EC-UNI sequencing (corrected):**
-
-- The previous concern that "10 of 17 BB pat-kinds are unreachable from portable SNOBOL4 source" was based on a misunderstanding.  Pattern matching against bare `REM`/`ARB`/etc. IS portable and correct; it just doesn't go through the BB invariant-bake path (and shouldn't — runtime dereference is the right semantics).
-- The BB-lower path for REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL only fires under the scrip-only `KEYWORD()` syntax, which makes the lifted template bodies for those kinds *structurally dead from the SNOBOL4 frontend* unless that syntax becomes corpus-permitted.
-- POS/LEN/TAB/ANY/SPAN/BREAK/NOTANY/ARBNO/RPOS/RTAB are function-call constructors in both runtimes — portable syntax IS exercising them when literal args make the window invariant-eligible.  Coverage gain for those 10 kinds is achievable in portable corpus.
-- Lon's three-pat completeness directive ("one template per kind for ALL kinds, dormant or not") still stands; this finding doesn't change the work, only clarifies the reachability situation.
-
-**EC-UNI-COVER-PAT corpus path (revised):**
-
-Author `feat/f21_invariant_patterns.sno` using ONLY the portable function-call forms — POS(0), LEN(3), TAB(2), ANY('abc'), SPAN('abc'), BREAK('z'), NOTANY('z'), ARBNO(LEN(1)).  These are valid in both SPITBOL and scrip.  Exclude REM(), ARB(), FENCE(), FAIL(), SUCCEED(), ABORT() — those are scrip-only.  Document HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT in a known-bad comment block; the file's `.ref` covers only the working subset.  This delivers 8 portable BB pat-kinds exercised under invariant-bake — double the current corpus coverage of 4.
-
-The 7 zero-arg pat-keyword kinds (REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL) remain reachable only via scrip extension; their template bodies are structurally dead from the SNOBOL4 frontend without an explicit Lon directive permitting the scrip syntax in corpus.
+**Live path notes:**
+- BB-side: `emit_flat_ir` → direct `emit_bb_x*` calls is still the live path; `emit_bb_node` does not yet fill `g_emit` fields, so templates' IS_X86 arms are dormant. This is the structural invariant the next rungs (REFAITH, REWIRE-ALL) operate on.
+- x86_bin: process-local addresses (memcmp@PLT, rodata literal pointers) get baked in; ASLR randomizes. Bit-identity impossible. Per-kind-diff applies structural comparison for x86_bin (same byte count = same shape); full byte-level via assembled-md5 path on x86_text.
 
 ---
 
-#### Open sub-rungs
+### ⚡ Open EC-UNI rungs
 
-- [x] **EC-UNI-14 proper (SM-side + BB-side, CLOSED 2026-05-20)** — Ladder of six commits
-  (`90557fbe -> 098a03ba -> c599bbab -> 46e8c531 -> 862f817a -> c081758f`):
-
-  | step | commit | what |
-  |------|--------|------|
-  | (c)(1) | `90557fbe` | flip SCRIP_UNIFIED_DISPATCH default 0 -> 1 |
-  | (c)(2) | `098a03ba` | split sm_push_null() into sm_push_null + sm_push_null_noflip; lift PUSH_NULL_NOFLIP exclusion from dispatch_one_x86 |
-  | (c)(3) | `c599bbab` | sm_label() template; lift last (SM_LABEL) exclusion |
-  | (c)(4) | `46e8c531` | cover last 5 opcodes (PUSH_EXPR/PUSH_EXPRESSION/CALL_EXPRESSION/INCR/DECR) via new SM_templates/sm_expr_incr.c; drop JS PUSH_EXPRESSION and WASM INCR/DECR walker overrides |
-  | (c)(5) | `862f817a` | delete legacy switch + dispatch_one_x86 + SCRIP_UNIFIED_DISPATCH flag; emit_walk_codegen per-PC body collapsed to ~12 lines |
-  | (c)(6) | `c081758f` | wire bb_pl_{arith,atom,builtin,call} into emit_bb_node (now total over 21 BB kinds) |
-  | (c)(7) | `9b5ba0b6` | **emergency build fix** — `46e8c531` had pushed a broken HEAD: (a) name collision `void sm_call_expression(void)` (new template) vs `DESCR_t sm_call_expression(int)` (long-standing runtime helper) prevented `emit_core.c` from compiling; (b) `sm_expr_incr.c` was never added to the Makefile, so its 5 templates link-undefined even with the collision fixed.  Resolution: rename runtime `sm_call_expression(int)` → `sm_eval_subexpr(int)` (5 files, ~12 call sites; preserves the structural `sm_<OPCODE>` template convention); add `sm_expr_incr.c` to the Makefile source list + compile rule.  All watermark numbers reproduce post-fix (beauty md5 byte-identical at `40df9e004...`, broker 23/26, icon rungs 194/36/35, all smoke 5/0..7/0).  Lesson: future (c)(*) rungs that add new template files MUST verify `make scrip` from a clean tree before commit; the build was broken at HEAD `c081758f` between push and this session. |
-
-  **Original goal text framing correction:** the goal said "delete the five silo walkers";
-  in practice only `dispatch_one_x86` was a silo and was deleted.  The four backend
-  frame-emitters (`emit_jvm_from_sm`, `emit_js_from_sm`, `emit_net_from_sm`,
-  `emit_wasm_from_sm`) survive because they own per-backend file structure that's above
-  the opcode level — JVM method-split, JS switch frame, .NET class scaffolding, WASM
-  block-loop.  They're already thin (each routes opcode bodies through emit_sm_dispatch),
-  and cannot dissolve into per-opcode templates without conflating frame structure with
-  opcode routing.
-
-  Net LOC across the rung: roughly -130 (Step (c)(5) alone was -136 in emit_sm.c).
-
-  **Side effects identified, queued as separate rungs:**
-  - **emit_push_expr in lower.c is dead in practice** — called by TT_UNIFY / TT_CUT /
-    TT_LIMIT arms that are unreachable across all observed gates (Prolog uses lower_pl.c
-    BB path, Icon \\limit goes through lower_limit_every).  sm_push_expr() template kept
-    for safety.  Standalone cleanup rung's worth.
-  - **SM_INCR / SM_DECR are vestigial** — emitted only by `sm_interp_test.c`; no live
-    frontend lowers either today.  Could be deleted entirely in a sibling rung.
-  - **NET's inline SM_LABEL function-prologue handling** could move into `sm_label()`'s
-    NET arm.  Needs walker-local `fn_params`/`fn_nparams` in `g_emit`.  Not part of EC-UNI
-    any longer (Layer-2 deferred per Lon directive); standalone rung if pursued.
-
-- [x] **EC-UNI-21 (CLOSED 2026-05-20)** — beauty.sno byte-identity gate matrix.
-  `scripts/test_gate_ec_uni_complete.sh` runs all five gates + baseline md5
-  (`40df9e004c3e963c99af716c65f2c970`) + M1 oracle md5
-  (`abfd19a7a834484a96e824851caee159`).  9/9 cells PASS on HEAD after the
-  (c)(7) build fix.  **M1 status: DRIFTED.**  Current SPITBOL oracle output on
-  beauty.sno is md5 `9cddff2534472b822438801d8db58a99` (622 lines), not the
-  `abfd19a7...` baseline (646 lines).  Reported by the gate, not enforced.
-  Re-converge to oracle parity OR formally retire M1 — tracked as
-  **EC-UNI-21-followup** in this file.
-
-- [x] **EC-UNI-15 (CLOSED 2026-05-20)** — top-level shape: every template fn is a verbose `if (IS_<BE>)` five-arm switch.  Evidence: `scripts/test_gate_em_template_matrix.sh` reports **450/450 cells covered** across 34 files / 90 fns (0 misses).  The matrix gate establishes that no fn is missing a backend arm.  No fn-size / "one screen per fn" criterion is enforced; per Lon directive (2026-05-20) the guideline is removed — the goal of the templates is to **carry the raw output** for each opcode/kind across each backend.  Consolidation first; expansion to one-source-line-per-output-line comes after the whole body is in place (Phase B work, not EC-UNI work).
-
-- [x] **EC-UNI-16 (CLOSED 2026-05-20 — superseded by Lon directive)** — original framing was a REDUCE phase: extract Layer-2 helpers where they carried real conditionals or de-duplicated ≥2 templates.  Two slices landed and were reverted in commit `8b2f65e1` per Lon directive (2026-05-20):
-  - Slice 1: `sm_calls.c` byte-near-duplicate pair `sm_call_fn` + `sm_suspend_value` collapsed via `sm_call_or_suspend(int suspend)` static helper.  Reverted.
-  - Slice 2: `jvm_alpha_method_hdr(stack, locals)` / `jvm_beta_method_hdr(stack, locals)` helpers added to `emit_core.c`, used by 30 sites across 15 BB templates.  Reverted.
-
-  **Directive (verbatim):** *"Leave the SM and BB templates without any helpers for now ... We will be breaking these into one function line per one output line after the consolidation is finished.  So remove the rule.  It serves no purpose any longer.  The goal now is to get the raw output into each template.  We will collapse once we know what all we have to work with from the entire body of source."*
-
-  The REDUCE phase is therefore closed-by-supersession.  SM and BB templates carry the raw output verbatim; no static helpers within template files; no cross-template factoring helpers beyond the long-standing ones that predate EC-UNI (e.g., `jvm_class_hdr`, `net_alpha_hdr`, `net_class_hdr` — these stay; they're not the subject of this directive, which targets new EC-UNI-16-style extractions).
-
-  Future "expand to one-source-line-per-output-line" work happens *after* all templates are in (Phase B territory), not as a REDUCE phase.
-
-- [ ] **EC-UNI-17 (deferred)** — Layer-3 primitives audit.  Original framing: add new universal output primitives (beyond `emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`) only if a multi-line pattern recurs in ≥3 sites across ≥2 backends.  Per Lon directive (2026-05-20), all such audits are deferred until after the whole template body is in place.  Skipping is the expected answer; this rung is informational/parked.
-
-- [ ] **EC-UNI-18** — table-driven dispatch where it earns its keep. x86's `g_sm_nullary`/`g_sm_arith` work; extend to JVM/NET/JS/WASM for nullary + arith only.
-
+- [ ] **EC-UNI-REFAITH** — re-lift FAILing kinds byte-faithfully against per-kind diff baseline. Gate must show 100% PASS.
+- [ ] **EC-UNI-REWIRE-ALL** — with per-kind diff 100% PASS, route `emit_flat_ir` through `emit_bb_node` for all kinds in IS_TEXT. **Path-a/b decision required from Lon:** (a) text-first staged (cheap, dual-path interlude), (b) name-keyed binary primitives first (one rewire for both modes).
+- [ ] **EC-UNI-NAMEKEY-BIN** — name-keyed binary primitives for `--run`; rewire binary; delete `emit_bb_x*` originals.
+- [ ] **EC-UNI-17** (deferred) — Layer-3 primitives audit. Parked.
+- [ ] **EC-UNI-18** — table-driven dispatch where it earns its keep. Extend x86's `g_sm_nullary` / `g_sm_arith` pattern to JVM/NET/JS/WASM for nullary + arith.
 - [ ] **EC-UNI-19** — add-a-backend test (`EMIT_NULL=99`). Mechanical patch + revert. Records LOC cost.
-
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost.
+- [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline. Choose (a) re-converge to `abfd19a7...` (646 lines), or (b) retire M1, record new baseline `9cddff25...` (622 lines), re-stamp Milestone 1.
+- [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariants. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens.
 
-- [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariant block to reflect three-layer cake + `g_emit`. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens.
+---
 
-- [ ] **EC-UNI-PROTECTED-PAT-VARS** (new, 2026-05-21 session #3, Lon directive) — Recognize REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL as **protected PATTERN-typed names** (matching SPITBOL's ERROR 042 semantics), unlocking BB-lower coverage for 7 currently-dead pat-kinds from portable SNOBOL4 source.
+### ⚡ EC-UNI-PROTECTED-PAT-VARS (PPV) — in progress
 
-  **The two-part problem this solves:**
-  - HQ-BUG-PROTECTED-PATTERN-VARS — scrip allows `REM = 'x'`; SPITBOL errors 042.  Real undocumented divergence.
-  - The 7 zero-arg pat-keyword BB-lower templates (slices 1-7) are structurally dead from the SNOBOL4 frontend because bare `REM` lexes as `T_IDENT` → `TT_VAR` → `SM_PUSH_VAR` + `SM_PAT_DEREF`, which the invariant optimizer correctly marks variant.
+Recognize REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL as protected PATTERN-typed names (SPITBOL ERROR 042) and substitute `SM_PAT_<KIND>` at lower-time for bare names in pattern context. Unlocks BB-lower coverage 4→8 active pat-kinds from portable corpus.
 
-  **The unified solution:** if REM/ARB/etc. are **guaranteed never to be reassigned** (protected, like SPITBOL), the compiler can statically substitute the pattern primitive at the bare-name site — turning `'hello' REM` into `SM_PAT_REM` (compile-time-known) instead of `SM_PUSH_VAR + SM_PAT_DEREF` (runtime).  The invariant optimizer then sees a fully-literal stack and bakes the BB-lower path.  Bare `REM` becomes portable AND BB-lower-reachable.
+| Name      | TT_*        | SM_PAT_*       | BB_PAT_*    | Template          |
+|-----------|-------------|-----------------|-------------|-------------------|
+| REM       | TT_REM      | SM_PAT_REM      | BB_PAT_REM  | `bb_rem.c`        |
+| ARB       | TT_ARB      | SM_PAT_ARB      | BB_PAT_ARB  | `bb_arb.c`        |
+| FENCE     | TT_FENCE    | SM_PAT_FENCE0   | BB_PAT_FENCE| `bb_fence.c`      |
+| FAIL      | TT_FAIL     | SM_PAT_FAIL     | (no BB pat) | (Phase B)         |
+| SUCCEED   | TT_SUCCEED  | SM_PAT_SUCCEED  | (no BB pat) | (Phase B)         |
+| ABORT     | TT_ABORT    | SM_PAT_ABORT    | BB_PAT_ABORT| `bb_abort.c`      |
+| BAL       | TT_BAL      | SM_PAT_BAL      | (no BB pat) | (Phase B)         |
 
-  **The pat-name set (7 names, all PATTERN-typed, all zero-arg):**
+(Bare `FENCE` → `SM_PAT_FENCE0`; 1-arg variant uses `SM_PAT_FENCE1` per existing `TT_FENCE` arm in `lower.c`.)
 
-  | Name      | Existing TT_*    | Existing SM_PAT_*   | Existing BB_PAT_*  | Lifted template       |
-  |-----------|------------------|---------------------|--------------------|-----------------------|
-  | REM       | TT_REM (exists)  | SM_PAT_REM (exists) | BB_PAT_REM (exists)| `bb_rem.c` (slice 1)  |
-  | ARB       | TT_ARB           | SM_PAT_ARB          | BB_PAT_ARB         | `bb_arb.c` / `bb_farb.c` |
-  | FENCE     | TT_FENCE         | SM_PAT_FENCE0       | BB_PAT_FENCE       | `bb_fence.c`          |
-  | FAIL      | TT_FAIL          | SM_PAT_FAIL         | (variant — no BB)  | (Phase B work)        |
-  | SUCCEED   | TT_SUCCEED       | SM_PAT_SUCCEED      | (variant — no BB)  | (Phase B work)        |
-  | ABORT     | TT_ABORT         | SM_PAT_ABORT        | BB_PAT_ABORT       | `bb_abort.c`          |
-  | BAL       | TT_BAL           | SM_PAT_BAL          | (variant — no BB)  | (Phase B work)        |
+Sites (PPV-0):
+- Substitution: `src/lower/lower.c:373` — sole TT_VAR pat-context arm.
+- Runtime protection: `src/runtime/snobol4/snobol4.c::NV_SET_fn` (universal chokepoint; --interp h_store_var calls it directly, bypassing rt_nv_set).
+- Helper: `src/runtime/rt/rt_protected.{h,c}` — `is_protected_pat_name(name)`, `protected_pat_name_to_sm_op(name)`. Single source of truth for the 7-name → SM_op_t table.
+- Error: `sno_runtime_error(42, NULL)`.
 
-  All seven `TT_*` / `SM_PAT_*` enums already exist (used today only via the `KEYWORD()` parens form per snobol4.y:44 + pat_prim_kind).  This rung wires the **bare-name** path to reach the same SM opcodes.
+**Steps:**
 
-  **Implementation steps (rung sub-tasks):**
+- [x] **PPV-0** (CLOSED 2026-05-21 session #4, .github `afa893a0`) — Inventory. Deliverable: `PPV-0-INVENTORY.md`.
+- [x] **PPV-1** (CLOSED 2026-05-21 session #5, one4all `44a5f9a5`) — Runtime protection. New `rt_protected.{h,c}`. Init-phase flag `g_protected_pat_vars_armed` in `snobol4.c` (cleared during pre-binding, armed at end of `SNO_INIT_fn`). Guard at top of `NV_SET_fn` raises `sno_runtime_error(42, NULL)`. Verified vs SPITBOL: scrip ERROR 42 = SPITBOL ERROR 042 ✓. PK PASS=399, --run smoke 186 unchanged. **Closes HQ-BUG-PROTECTED-PATTERN-VARS.**
+- [ ] **PPV-2 (NEXT)** — Lower-time substitution. In `lower.c:373`, before `SM_PUSH_VAR` + `SM_PAT_DEREF`, check `protected_pat_name_to_sm_op(t->v.sval)`. If ≥ 0, emit `SM_emit(g_p, (SM_op_t)op)` and return. Change confined to `lower_pat_expr` TT_VAR arm; `lower_expr` untouched so `x = REM` still copies the PATTERN value.
+- [ ] **PPV-3** — General-expression context probe. `x = REM` → confirm x has DATATYPE PATTERN. Confirms PPV-2 didn't leak into `lower_expr`.
+- [ ] **PPV-4** — Bare-name probe verification. Run `'hello' REM`, `'hello' ARB`, `'hello' FENCE`, `'hello' ABORT` under `--compile`; confirm `# BOX REM` / `# BOX ARB` / `# BOX FENCE` / `# BOX ABORT` banners. For FAIL/SUCCEED/BAL — confirm `SM_PAT_<kind>` via `--dump-sm`; BB-lower marks variant (correct).
+- [ ] **PPV-5** — Beauty.sno gate impact. `bash scripts/test_gate_ec_uni_complete.sh`. Beauty md5 will likely change. Two paths: (a) accept new beauty md5 (record in EC-UNI-21-followup); (b) verify new emission is byte-equivalent assembly (assembled `.o` md5 unchanged). **Lon decision; (b) preferred if assembled object identical.**
+- [ ] **PPV-6** — Docs. Update RULES.md (HQ-BUG-PROTECTED-PATTERN-VARS marked CLOSED). Update PLAN.md row.
+- [ ] **PPV-7** — Bug closeouts. HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT still open; PPV doesn't touch them.
 
-  - [x] **PPV-0 (CLOSED 2026-05-21 session #4, Opus 4.7)** — Inventory check complete.  Deliverable: `PPV-0-INVENTORY.md`.  Findings:
-    - All 7 `TT_*` mappings present (snobol4.y:47-51 pat_prim_kind table) — REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL.
-    - All 7 `SM_PAT_*` opcodes present (SM.h:44-52).  Note: bare `FENCE` → `SM_PAT_FENCE0` (not `SM_PAT_FENCE`).
-    - 5 of 7 `BB_PAT_*` present: ARB, ARBNO, REM, FENCE, ABORT (BB.h:62-74).  FAIL/SUCCEED/BAL have no BB pat-variant (`BB_FAIL`/`BB_SUCCEED` exist but are generic control-flow, not the SNOBOL4 pat-line — confirmed by reading `bb_fail.c`/`bb_succeed.c`).  No `BB_BAL` in any form.
-    - **Substitution site:** `src/lower/lower.c:373` — single line `case TT_VAR:   SM_emit_s(g_p, SM_PUSH_VAR, t->v.sval); SM_emit(g_p, SM_PAT_DEREF); return;` is the sole bare-name pattern-context lowering site.  No separate `lower_pat_atom` exists.
-    - **Runtime-protection site:** `src/runtime/rt/rt.c:467` — `rt_nv_set(const char *name)` is the universal store-var entry point, called by all 5 backends via `emit_sm.c:342` `SM_STORE_VAR` → `"rt_nv_set"` template binding.
-    - **Error primitive:** `sno_runtime_error(int code, const char *msg)` declared `snobol4.h:349`, already used throughout `snobol4_pattern.c`.  ERROR 042 is the SPITBOL-matching code for "protected variable".
-    - Recommendation: new helper module `src/runtime/rt/rt_protected.{c,h}` with `is_protected_pat_name(const char *)` + `{name, SM_op_t} g_protected_pat_op[]` lookup table — shared by PPV-1 (rt.c) and PPV-2 (lower.c).
+**Coverage delta projected after PPV-5:** 4 → 8 BB pat-kinds exercised from portable SNOBOL4 corpus.
 
-  - [ ] **PPV-1** — Protected-name table.  Add to `src/runtime/x86/snobol4.c` (or similar runtime entry-point) a static const string array `g_protected_pat_names[] = {"REM","ARB","FENCE","FAIL","SUCCEED","ABORT","BAL"}` + helper `int is_protected_pat_name(const char *name)`.  Runtime hook: on any `SM_STORE_VAR` / `rt_var_set` site, check `is_protected_pat_name(name)`; if matched, raise ERROR 042 ("attempt to change value of protected variable").  Test: scrip running `REM = 'x'` should ERROR 042; previously silently succeeded.  Cross-check: SPITBOL behavior matches.
+**Sequencing:** PPV-* independent of EC-UNI-REFAITH / REWIRE-ALL / NAMEKEY-BIN. Per-slice gate: `test_per_kind_diff.sh` + matrix; beauty md5 explicitly accepted or assembled-`.o` md5 verified at PPV-5.
 
-  - [ ] **PPV-2** — Lower-time recognition.  In `src/lower/lower.c`, find the path that handles `TT_VAR` in pattern context (the dispatch from `lower_pat_expr` and `lower_pat_atom`).  When the variable name is one of the 7 protected pat-names, emit `SM_PAT_<KIND>` directly instead of `SM_PUSH_VAR` + (implicit) `SM_PAT_DEREF`.  Concretely: add a check at the TT_VAR arm of `lower_pat_expr`/`lower_pat_atom` — `if (sval && is_protected_pat_name(sval)) { SM_emit(g_p, SM_PAT_<by_name>); return; }`.  Implementation: a small static lookup `static const struct {const char*name; SM_op_t op;} g_pat_name_op[] = {{"REM",SM_PAT_REM},{"ARB",SM_PAT_ARB},...}`.
+**Why not part of EC-UNI proper:** EC-UNI's scope is emitter unification. PPV changes frontend lowering + runtime protection, then exposes pre-existing SM_PAT_/BB_PAT_ opcodes to wider source-syntax footprint. Parallel coverage-gain rung, not a dependency.
 
-  - [ ] **PPV-3** — Symmetric general-expression handling.  When the same 7 names appear in **general expression context** (not pattern context — e.g., the RHS of `x = REM`), keep the current behavior (variable lookup that returns the PATTERN value).  Important: PPV-2 only changes pattern-context lowering, not general expression.  In SPITBOL, `x = REM` legally copies the pattern value into x; that must keep working.  Verify by reading `lower_expr` arms vs `lower_pat_expr` arms; the change goes only in the latter.
+---
 
-  - [ ] **PPV-4** — Bare-name probe verification.  Run `'hello' REM` under `--compile`, confirm `# BOX REM()` banner now appears.  Repeat for ARB, FENCE, ABORT (the four with BB-lower templates).  For FAIL, SUCCEED, BAL — confirm SM_PAT_<kind> emission happens; BB-lower will mark variant (correct — these have no BB templates today, Phase B work).  Per-kind-diff gate: should now show real exercise of those 4 BB pat-kinds across the SNOBOL4 corpus.
-
-  - [ ] **PPV-5** — Beauty.sno & gate impact assessment.  Run `bash scripts/test_gate_ec_uni_complete.sh`.  Beauty.sno md5 will likely change — beauty contains bare `REM` references that previously went through PAT_DEREF and will now go through SM_PAT_REM + invariant-bake.  Two paths: (a) accept new beauty md5 as new baseline (record old + new in EC-UNI-21-followup); (b) verify the new emission is byte-equivalent assembly (`.o` md5 unchanged); document the source-text drift as cosmetic-equivalent-assembly.  Lon decision; (b) is preferable if the assembled object is identical.
-
-  - [ ] **PPV-6** — Documentation.
-    - Update RULES.md "Permitted divergences" table: REMOVE the proposed `KEYWORD()` divergence (no longer needed — bare names now suffice).
-    - Update RULES.md SPITBOL block: scrip NOW matches SPITBOL on protected-pat-vars (ERROR 042).  HQ-BUG-PROTECTED-PATTERN-VARS marked CLOSED.
-    - Update PLAN.md row for GOAL-HEADQUARTERS reflecting the coverage gain.
-    - Update the empirical-probe block in this file to mark its conclusion superseded by PPV completion.
-
-  - [ ] **PPV-7** — Bug closeouts (post-PPV-4).
-    - HQ-BUG-PROTECTED-PATTERN-VARS — closed by PPV-1.
-    - HQ-BUG-RPOS-COMPILE-SEGFAULT — still open; PPV doesn't touch RPOS/RTAB (they're function-call constructors, not protected vars).  Track separately.
-    - HQ-BUG-RTAB-COMPILE-SEGFAULT — still open; same as above.
-
-  **Coverage delta (projected after PPV-5):** 4 BB pat-kinds → 8 BB pat-kinds exercised by portable SNOBOL4 corpus (REM/ARB/FENCE/ABORT added to POS/LEN/SPAN/ANY currently active).  Sets up EC-UNI-REFAITH with double the meaningful exercise.
-
-  **Why this is not part of EC-UNI proper:** EC-UNI's scope is the *emitter unification* — one template per opcode/kind, dispatch through `emit_bb_node`/`emit_sm_dispatch`.  PPV-* changes the *frontend lowering* and *runtime protection*, then exposes pre-existing SM_PAT_/BB_PAT_ opcodes to a wider source-syntax footprint.  It's a coverage-gain rung that runs in parallel with EC-UNI-REFAITH/REWIRE-ALL, not a dependency.
-
-  **Sequencing:** PPV-* is independent of EC-UNI-REFAITH/REWIRE-ALL/NAMEKEY-BIN and can be picked up by any session.  Recommended order: PPV-0 (no-op inventory) → PPV-1 (runtime protection, gates green) → PPV-2 (lower-time substitution, beauty md5 changes) → PPV-3 (verify general-expression context unchanged) → PPV-4 (probe verification) → PPV-5 (gate impact + Lon decision on beauty md5) → PPV-6/7 (docs + bug closeouts).  Each step a separate commit; each commit gates on `test_per_kind_diff.sh` clean + matrix 855/855 + (PPV-5 onward) beauty md5 explicitly accepted or assembled-`.o` md5 verified.
-
-- [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline.  Choose one:
-  (a) **Re-converge**: find the regression between M1 (oracle md5 `abfd19a7...`,
-  646 lines) and current (`9cddff25...`, 622 lines), fix it in the SNOBOL4 runtime
-  or beauty.sno source, restore byte-identity to the oracle baseline.  (b) **Retire
-  M1**: declare the M1 oracle md5 obsolete in the THREE-MILESTONE AUTHORSHIP
-  AGREEMENT (PLAN.md), record the new baseline md5 (`9cddff2534472b822438801d8db58a99`,
-  622 lines) and re-stamp Milestone 1 with the current state.  Lon's choice; this
-  rung blocks formal "Milestone 1 = oracle parity" claims until resolved.
-
-#### EC-UNI gate (every step from EC-UNI-10 on)
+### EC-UNI gate (every step from EC-UNI-10 on)
 
 ```
 GATE-1  beauty.sno --compile  →  md5 40df9e004c3e963c99af716c65f2c970  (882901 bytes)
@@ -838,39 +267,43 @@ GATE-5  bash scripts/test_smoke_{snobol4,snocone,prolog,rebus,raku}.sh   # 7/0 5
 
 ---
 
-### ISOLATION — parse->lower / parse->runtime boundary firewalls
+### ISOLATION — parse→lower / parse→runtime boundary firewalls
 
 **Goal:** lex/parse produces exactly `tree_t *`. Two boundaries: parse→lower (consumed by `lower()`) and parse→runtime. Today partially porous; ratchet shrinks the gap.
 
 Completed: ISO-1 `261ff13d` (`lower(const tree_t *)`, ParserOutput deleted), ISO-2 `1691f44f` (lower firewall 10/7), ISO-3 `cb1738f6` (relocated `icon_gen.h`; lower 9/6, runtime firewall 16/8).
 
-- [ ] **ISO-4 (NEXT)** — `scrip_parse` subprocess: parsers in a separate executable, stdin = source, stdout = TDump/TLump S-expression. SCRIP forks/execs, deserializes back to `tree_t`. Unsolved: no C-side TDump deserializer exists yet. **First sub-step:** write deserializer + roundtrip self-test before introducing the process boundary.
-- [ ] **ISO-5** — Shrink lower firewall allowlist toward 0: extract `IcnTkKind` to `src/include/icon_tk.h`; split `raku_driver.h` → `raku_parse.h` + `raku_runtime.h` (relocate); relocate `frontend/prolog/{term,prolog_runtime,prolog_atom}.h` to `src/runtime/interp/prolog/`; rename `scrip_cc.h` → `src/include/scrip_lang.h` (54 includers, mechanical).
+- [ ] **ISO-4 (NEXT)** — `scrip_parse` subprocess: parsers in a separate executable, stdin = source, stdout = TDump/TLump S-expression. SCRIP forks/execs, deserializes back to `tree_t`. First sub-step: write deserializer + roundtrip self-test before introducing the process boundary.
+- [ ] **ISO-5** — Shrink lower firewall allowlist toward 0: extract `IcnTkKind` to `src/include/icon_tk.h`; split `raku_driver.h` → `raku_parse.h` + `raku_runtime.h`; relocate `frontend/prolog/{term,prolog_runtime,prolog_atom}.h` to `src/runtime/interp/prolog/`; rename `scrip_cc.h` → `src/include/scrip_lang.h` (54 includers).
 - [ ] **ISO-6** — Shrink runtime firewall allowlist toward 0 (overlaps ISO-5).
-- [ ] **ISO-7** — Link-time isolation test: `lower.o` + `lower_*.o` linked against a tree with all `src/frontend/*.o` absent. Any unresolved symbol = real leakage. **Honest scope:** today's firewalls are header-level; ISO-7 closes the symbol-reachability gap (most acutely through `scrip_cc.h`).
+- [ ] **ISO-7** — Link-time isolation test.
 
 ### IR Rename — builder/consumer case scheme
 
-UPPERCASE builds IR (`SM_t`, `BB_t`, `SM_seq_new`, `BB_alloc`). lowercase consumes (`sm_interp_*`, `bb_print`, `bb_broker`, all `SM_templates/` dispatchers). Case at the call site = side of the pipeline.
+UPPERCASE builds IR (`SM_t`, `BB_t`, `SM_seq_new`, `BB_alloc`). lowercase consumes (`sm_interp_*`, `bb_print`, `bb_broker`, `SM_templates/` dispatchers).
 
-Completed: IR-RN-0 `9ce69899` (bulk rename, 48 files), IR-RN-1 `c710506f` (lower.c audit; `SM_pat_capture_fn_arg_names` fix), IR-RN-2 `92417a85` (emitter audit; 4 stale `ir_*` consumers → `bb_*`), IR-RN-3 `4a1fcc63` (runtime audit; `SM_label_pc_lookup`→`sm_label_pc_lookup`, `BB_reset`→`bb_reset`; `SM_codegen` kept UPPERCASE).
+Completed: IR-RN-0 `9ce69899`, IR-RN-1 `c710506f`, IR-RN-2 `92417a85`, IR-RN-3 `4a1fcc63`.
 
 - [ ] **IR-RN-4 (NEXT)** — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
-- [ ] IR-RN-5 — Full cross-language gate run; close rung.
+- [ ] **IR-RN-5** — Full cross-language gate run; close rung.
 
-Reserved (untouched): `IR_LANG_*`, `SM_INTERP_*`, `SM_CALL_STACK_MAX`/`SM_GEN_LOCAL_MAX`/`SM_MAX_OPERANDS`, `BB_POOL_SIZE`, header guards, `SM_*` opcode tags, `SM_templates/`/`BB_templates/` dir names.
+Reserved: `IR_LANG_*`, `SM_INTERP_*`, `SM_CALL_STACK_MAX`/`SM_GEN_LOCAL_MAX`/`SM_MAX_OPERANDS`, `BB_POOL_SIZE`, header guards, `SM_*` opcode tags, `SM_templates/`/`BB_templates/` dir names.
 
 ---
 
 ## Completed ledgers (audit trail)
 
-Full per-cluster detail lives in commit messages (git log is authority per RULES.md). This list is one-line summaries only.
+Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 
-- **IJ-* / DAI-1..7 / IJ-HELLO matrix** — 6/6 wired hello-world matrix closed 2026-05-18. Icon `--interp` (mode 2) = `--ast-run` (mode 1) at 194/265; mode 1 deleted. Icon AST walker amputated. `rt_bb_once_proc` deleted; bridge shims = `rt_pl_once` + `icn_bb_dcg`.
-- **DAI-8 dead-code sweep C1–C17** — ~2700 LOC removed across 17 clusters. Final cluster C17 `d48681fb`. Methodology (kept for future audits): linker-GC + `@PLT` regex filter; grep + `&NAME` audit; Method-7 sub-graph deletion.
-- **EC (emitter consolidation) 0..WASM-SM** — three silo files + emit_ir.c + emit_ir_targets.c deleted. Unified `emit_program(ast_prog, out, mode)`. Net −2504 LOC. Final commits `8890d685`/`e1c8a4ac`/`7c33121c`/`268619c1`.
-- **EC-UNI 0..9d** — 52 SM templates with IS_X86 arms; matrix gate 0/365. Axis correction (false 10-cell text/binary axis → 5-cell backend matrix).
-- **IR-CONSOLIDATE-DCG 1..7** — `ir_body` field deleted; mode-4 standalone uses `SM_seq_bb_add` lazy-alloc. ARCH-IR updated. Carve-out: mode-4 standalone binaries keep `ir_body` fallback (no `SM_sequence_t` at runtime). Final commit `489ff5b3` + close-out gate run.
-- **ST2 — Stage 2 handoff as named struct** — `stage2_t` embeds `SM_sequence_t` and owns sidecars; `g_stage2` is a global value. Six reader shim macros burned down (`14655275`/`4f5d0512`/`d73cded0`/`27ad177b`). Dynamic-grow `label_table`/`proc_table` (`b42b7979`); ~150KB .bss freed; >4096 labels or >256 procs no longer truncate. Token firewall gate `b733dd13`. Honest scope: token-level, link-time analog deferred.
+- **IJ-* / DAI-1..7 / IJ-HELLO matrix** — 6/6 wired hello-world matrix closed 2026-05-18. Icon `--interp` (mode 2) = `--ast-run` (mode 1) at 194/265; mode 1 deleted.
+- **DAI-8 dead-code sweep C1–C17** — ~2700 LOC removed across 17 clusters. Final cluster C17 `d48681fb`.
+- **EC (emitter consolidation) 0..WASM-SM** — three silo files + emit_ir.c + emit_ir_targets.c deleted. Unified `emit_program(ast_prog, out, mode)`. Net −2504 LOC.
+- **EC-UNI 0..9d** — 52 SM templates with IS_X86 arms; matrix gate 0/365.
+- **IR-CONSOLIDATE-DCG 1..7** — `ir_body` field deleted; mode-4 standalone uses `SM_seq_bb_add` lazy-alloc.
+- **ST2** — `stage2_t` embeds `SM_sequence_t`; dynamic-grow tables; ~150KB .bss freed.
+- **EC-UNI LIFT slices 1-7** — `045baf4a`. All 17 pat-level `emit_bb_x*` in `BB_templates/`. Matrix 855/855.
+- **EC-UNI-PER-KIND-DIFF** — `9b905d26`. Harness operational; baseline PASS=399 STUB=660 FAIL=0.
+- **PPV-0** — `afa893a0`. Inventory.
+- **PPV-1** — `44a5f9a5`. Runtime protection ERROR 042. Closes HQ-BUG-PROTECTED-PATTERN-VARS.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
