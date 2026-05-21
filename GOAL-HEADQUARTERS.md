@@ -104,6 +104,9 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 794b9435  (PPV-9: IS_WASM arms for bb_any/arbno/break/len/lit/notany/
+                     pos/span/tab. Each emits (call $bb_<kind>_new). Baselines
+                     re-frozen. GATE-PK PASS=420 FAIL=0 STUB=639.)
 one4all: 0ef0f7fc  (EC-UNI-NAMEKEY-BIN: IS_BIN arms for 14 live BB kinds.
                      lbl_succ/fail/back_p added to g_emit; templates
                      use them for binary patch-back. Audit fix: static
@@ -261,7 +264,7 @@ Recognize REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL as protected PATTERN-typed names 
 | ABORT   | TT_ABORT  | SM_PAT_ABORT  | BB_PAT_ABORT | `bb_abort.c` | ✅      | ✅      | ✅      | ✅     | ✅      |
 | BAL     | TT_BAL    | SM_PAT_BAL    | (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
 
-IS_X86 covers both text and binary modes (IS_BIN is a strict subset; dead IS_BIN guards after IS_X86 were removed in session #6). WASM BB emission not yet implemented for any pat kind (⏳ = deferred, not n/a).
+IS_X86 covers both text and binary modes (IS_BIN is a strict subset; dead IS_BIN guards after IS_X86 were removed in session #6). WASM pat-kind BB emission: REM/ARB/FENCE/ABORT ✅ (PPV-8); ANY/ARBNO/BREAK/LEN/LIT/NOTANY/POS/SPAN/TAB ✅ (PPV-9). FAIL/SUCCEED/BAL have no BB kind (Phase B).
 
 (Bare `FENCE` → `SM_PAT_FENCE0`; 1-arg variant uses `SM_PAT_FENCE1` per existing `TT_FENCE` arm in `lower.c`.)
 
@@ -282,7 +285,7 @@ Sites (PPV-0):
 - [x] **PPV-6** (CLOSED 2026-05-21 session #6) — Docs. GOAL-HEADQUARTERS.md updated. PLAN.md updated.
 - [x] **PPV-7** (CLOSED 2026-05-21 session #6) — HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT fixed. `nd->c` null-deref guard in 3 sites.
 - [x] **PPV-8** (CLOSED 2026-05-21 session #7, Sonnet 4.6) — IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. Each emits `(call $bb_<kind>_new)`. Baselines re-frozen. GATE-PK PASS=411 FAIL=0 STUB=648.
-- [ ] **PPV-9 (NEXT)** — EC-UNI-REFAITH: audit remaining STUB cells; identify any that should be live (not genuinely deferred). Then EC-UNI-REWIRE-ALL path-a/b decision from Lon.
+- [x] **PPV-9** (CLOSED 2026-05-21 session #9, Sonnet 4.6, one4all `794b9435`) — EC-UNI-REFAITH audit: all 639 remaining STUBs confirmed genuinely deferred (Phase B Icon/Prolog BB kinds + FAIL/SUCCEED/BAL pending BB). IS_WASM arms added for bb_any/arbno/break/len/lit/notany/pos/span/tab. Baselines re-frozen. GATE-PK PASS=420 FAIL=0 STUB=639.
 
 **Coverage:** GATE-PK PASS=401 FAIL=0 STUB=658 (was 399/0/660). Two new ABORT x86 cells live.
 
@@ -346,6 +349,7 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
 - **PPV-8** — `ddd08f01`. bb_abort IS_X86 arm; dead IS_BIN guard removal; beauty gate suspended.
 - **PPV-8 WASM** — `3e3b67b1`. IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. GATE-PK PASS=411 FAIL=0 STUB=648.
+- **PPV-9** — `794b9435`. IS_WASM arms for bb_any/arbno/break/len/lit/notany/pos/span/tab. EC-UNI-REFAITH audit confirms remaining 639 STUBs are genuinely deferred (Phase B). GATE-PK PASS=420 FAIL=0 STUB=639.
 - **EC-UNI-REWIRE + NAMEKEY-BIN** — `0ef0f7fc`. IS_TEXT + IS_BIN both routed through emit_bb_node. lbl_*_p binary patch-back. 14 BB kind templates have IS_BIN arms. emit_bb_x* switch-callers eliminated.
 - **IR-RN-4/5** — `.github 08e9e188`. ARCH-IR/SCRIP/ICON updated to post-IR-RN-0 names. Cross-language gates all green. IR Rename rung COMPLETE.
 
