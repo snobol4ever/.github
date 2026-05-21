@@ -55,14 +55,37 @@ Mode 2 (`--interp`) is the reference path for Icon at 194/265. Mode 4 (`--compil
 
 ## Gates
 
+### Directive: ALWAYS test in --run mode for emitter work
+
+**`--run` is the only mode that exercises the x86 emitter through the JIT path
+(`SM_sequence_t → x86 bytes → mmap → jump in`).  `--interp` runs the SM
+dispatch interpreter and NEVER touches the x86 emission code at all.**
+
+For ANY work touching `emit_bb.c`, `emit_sm.c`, `BB_templates/`, `sm_*.c` templates,
+the x86 lowering, the byte-emission primitives, or anything else that ends up in
+JIT-emitted code: test under `--run` (or `--compile` for byte-identity), not
+`--interp`.  An `--interp` pass on emitter changes is a blank test — it confirms
+the interpreter still works while telling you nothing about whether your edit
+broke the emitter.
+
+**Use these gate scripts for emitter work:**
+- `scripts/test_crosscheck_icon.sh` — cross-checks Icon corpus under all three modes including `--run` (JIT).
+- `scripts/test_smoke_snobol4_jit.sh` — SNOBOL4 corpus three-mode parity, explicit `--run PASS` baseline (currently 186).
+- `scripts/test_gate_ec_uni_complete.sh` — beauty.sno `--compile` md5 (this DOES exercise the x86 emitter; that's why it has been catching things).
+- `scripts/test_gate_em_template_matrix.sh` — static structural invariant.
+
+**Avoid for emitter work:** any `*_smoke_icon.sh` / `*_smoke_unified_broker.sh` /
+`*_icon_all_rungs.sh` that defaults to `--interp` — those scripts run the
+interpreter and are valid for INTERPRETER work, not emitter work.
+
 ### Directive: emitter-refactor session pace
 
 **During CORRAL / lift / template-physical-placement work where the LIVE PATH IS
 UNCHANGED, the full gate matrix at session start is wasteful and slow.**  These
 slices are byte-identical by construction — the originals in `emit_bb.c` / `emit_sm.c`
 still run; the template arms are dormant code waiting for `emit_bb_node` /
-`emit_program` to be wired.  Re-running the same 194-rung Icon suite three times
-per slice tells us nothing the build + matrix gate didn't already.
+`emit_program` to be wired.  Re-running large corpus suites per slice tells us
+nothing the build + matrix gate + beauty-md5 gate didn't already.
 
 Use this tiered cadence:
 
@@ -72,18 +95,16 @@ make -j4 scrip                                               # must build clean
 bash scripts/test_gate_em_template_matrix.sh                 # invariant; matrix grows N×5 per new template
 bash scripts/test_gate_ec_uni_complete.sh                    # beauty.sno --compile md5 byte-identity (THE byte-identical proof)
 ```
-If both gates pass, the slice is good.  Commit + push.  No Icon-all-rungs.
-No smoke_broker.  No smoke_icon.
+If both gates pass, the slice is good.  Commit + push.
 
 **Session-end gate (run ONCE at handoff, not per slice):**
 ```
-bash scripts/test_smoke_icon.sh                              # PASS=5
-bash scripts/test_smoke_unified_broker.sh                    # PASS >= 23
-bash scripts/test_icon_all_rungs.sh                          # PASS=194 --interp
+bash scripts/test_crosscheck_icon.sh                         # all three modes incl. --run
+bash scripts/test_smoke_snobol4_jit.sh                       # SNOBOL4 three-mode parity (--run PASS≥186)
 ```
 
 **Session-start gate (run ONCE at session start, NOT before each slice):**
-The session-end gate from the prior session is your baseline; if it was clean on
+The session-end gate from the prior session is your baseline.  If it was clean on
 the watermarked commit, you do not need to re-establish it before your first
 edit.  Just `make -j4 scrip` to confirm the build, then start cutting.
 
@@ -100,11 +121,17 @@ For pure physical-placement CORRAL slices like 5/6/7, the fast cycle is sufficie
 ### Gate commands
 
 ```
-GATE-1  bash scripts/test_smoke_icon.sh                        # PASS=5            (session-end only)
-GATE-2  bash scripts/test_smoke_unified_broker.sh              # PASS >= 23        (session-end only)
-GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194          (session-end only)
-GATE-M  bash scripts/test_gate_em_template_matrix.sh           # matrix invariant  (per-slice)
-GATE-E  bash scripts/test_gate_ec_uni_complete.sh              # beauty md5 + 9-gate roll-up (per-slice)
+GATE-M  bash scripts/test_gate_em_template_matrix.sh           # matrix invariant            (per-slice)
+GATE-E  bash scripts/test_gate_ec_uni_complete.sh              # beauty md5 + 9-gate roll-up (per-slice; exercises --compile)
+GATE-J  bash scripts/test_crosscheck_icon.sh                   # Icon three-mode incl. --run (session-end / live-path edits)
+GATE-S  bash scripts/test_smoke_snobol4_jit.sh                 # SNOBOL4 three-mode --run≥186 (session-end / live-path edits)
+```
+
+Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
+```
+        bash scripts/test_smoke_icon.sh                        # PASS=5            --interp; INTERPRETER coverage only
+        bash scripts/test_smoke_unified_broker.sh              # PASS≥23           --interp; INTERPRETER coverage only
+        bash scripts/test_icon_all_rungs.sh                    # PASS=194          --interp; INTERPRETER coverage only
 ```
 
 
