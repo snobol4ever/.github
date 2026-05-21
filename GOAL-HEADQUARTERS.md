@@ -176,7 +176,19 @@ only the expected cells moved.
 ## Watermark
 
 ```
-.github: (this commit — gate cadence change: per-kind-diff is the new primary
+.github: (this commit — pat-keyword reachability probe + portability finding +
+                     two NEW bug entries (HQ-BUG-RPOS-COMPILE-SEGFAULT,
+                     HQ-BUG-RTAB-COMPILE-SEGFAULT) recorded.  Empirical block
+                     added under EC-UNI sequencing.  Gates clean at one4all
+                     9b905d26: PK PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0.
+                     No code change in one4all this session — documentation
+                     commit only.  EC-UNI-COVER-PAT remains BLOCKED on Lon
+                     directive: (a) record `KEYWORD()` as Permitted divergence
+                     vs SPITBOL ERROR 022, or (b) treat scrip's parens-keyword
+                     mapping as a bug and remove it.  Without (a), there's no
+                     portable corpus pathway to reach 10 of 17 BB pat-kinds
+                     from SNOBOL4 source.)
+.github: 2e81cc23   (gate cadence change: per-kind-diff is the new primary
                      per-slice invariant; matrix + beauty demoted to session-end /
                      escalation per Lon directive 2026-05-21.  Verified clean at
                      one4all 9b905d26: PK PASS=399 FAIL=0, matrix 855/855,
@@ -605,6 +617,52 @@ This gate replaces the "hope a corpus program triggers the kind" approach with *
 2. **`EC-UNI-REFAITH` (proposed, post-DIFF)** — re-lift the FAILing kinds to byte-faithfully match the original.  No format-drift acceptance, no gate re-baselining — the per-kind diff is the gate, and the gate must show 100% PASS.  This is Path (a.1) from the earlier matrix, but now scoped to *exactly the kinds that need it* per the DIFF result.
 3. **`EC-UNI-REWIRE-ALL`** — with per-kind diff at 100% PASS, route `emit_flat_ir` through `emit_bb_node` for all kinds in IS_TEXT mode.  Routine: same code path goes through templates from now on.
 4. **`EC-UNI-NAMEKEY-BIN`** — name-keyed binary primitives for `--run` mode; rewire binary too; delete `emit_bb_x*` originals.
+
+---
+
+#### ⚡ Empirical pat-keyword coverage probe (2026-05-21 evening session #2, Opus 4.7)
+
+Direct probing extended the earlier "1 of 17 / 4 of 17 BB pat-kinds exercised" audit with the question: **what source syntax actually triggers `SM_PAT_<kind>` → BB-lowering at all?**  Result is data, not opinion:
+
+**Grammar finding (lower.c + snobol4.y + snobol4.l):**  The SNOBOL4 frontend only emits `SM_PAT_<kind>` via the `T_FUNCTION T_LPAREN` grammar production (snobol4.y:203) → `pat_prim_kind()` (snobol4.y:44).  The lexer rule `<BODY>{ALPHA}{IDCONT}*/"("` (snobol4.l:173) classifies an identifier as `T_FUNCTION` **only when followed by `(`**.  Bare `REM`, `POS`, `LEN` etc. lex as `T_IDENT` → `TT_VAR` → `SM_PUSH_VAR` → runtime keyword lookup, NOT BB-lowering.  This is why corpus programs that write `'x' REM` produce zero `# BOX REM` banners — the lowering layer never sees a `TT_REM` AST node.
+
+**Probe matrix (single-statement invariant form, no leading anchor, --compile output):**
+
+| Source form     | --compile | --interp | --compile `# BOX` banner |
+|-----------------|:---------:|:--------:|--------------------------|
+| `'hello' REM()`     | ✅       | PASS    | `REM()`            |
+| `'ab' ARB()`        | ✅       | PASS    | `ARB()`            |
+| `'abc' FENCE()`     | ✅       | PASS    | `FENCE()`          |
+| `'hello' LEN(3)`    | ✅       | PASS    | `LEN(3)`           |
+| `'abc' POS(0)`      | ✅       | PASS    | `POS(0)`           |
+| `'abc' TAB(2)`      | ✅       | PASS    | `TAB(2)`           |
+| `'abc' ANY('abc')`  | ✅       | PASS    | `ANY(abc)`         |
+| `'abc' SPAN('abc')` | ✅       | PASS    | `SPAN(abc)`        |
+| `'abc' BREAK('z')`  | ✅       | PASS    | `BREAK(z)`         |
+| `'abc' NOTANY('z')` | ✅       | PASS    | `NOTANY(z)`        |
+| `'abc' RPOS(0)`     | ❌ **segfault** | PASS | — |
+| `'abc' RTAB(0)`     | ❌ **segfault** | PASS | — |
+
+10 of 12 pat-keywords trigger invariant BB-bake and emit `# BOX <KIND>(...)` banners when written in the `KEYWORD()` form.  All 12 work under `--interp` — the runtime path is fine; the bugs are in `--compile` BB-lower for the reverse variants.
+
+**⚠ Portability finding (SPITBOL):**  SPITBOL **rejects** `REM()` with `ERROR 022 -- undefined function called`.  SPITBOL treats parenthesized pat-keywords as user-function calls, not pattern primitives.  Per the SPITBOL-semantics ABSOLUTE RULE, `KEYWORD()` syntax is an **undocumented divergence** of scrip from SPITBOL.  Two options:
+
+(a) **Add to "Permitted divergences"** in RULES.md SPITBOL block — record that scrip recognizes `REM()`, `ARB()`, `FENCE()`, etc. as pattern keywords for the explicit purpose of enabling BB-lowering of invariant patterns the parser otherwise couldn't reach.  This is the directive Lon would need to make.
+
+(b) **Treat as bug** — fix scrip's `pat_prim_kind` to NOT map `REM`/`ARB`/`FENCE` (the zero-arg keywords) to `TT_<kind>` when invoked as `T_FUNCTION`, matching SPITBOL.  Side effect: `SM_PAT_REM`/`SM_PAT_ARB`/`SM_PAT_FENCE0` opcodes become unreachable from SNOBOL4 frontend, and the BB-pat templates for REM/ARB/FENCE become structurally dead.  Their lifted bodies (slices 1-7) stay, but never exercised.
+
+Recommendation: (a) — pat-keywords with parens are reasonable scrip extensions; SPITBOL's ERROR 022 is a parser limitation, not a semantic constraint we should mirror.  But this is a Lon directive call.
+
+**Two NEW bug entries surfaced for tracking:**
+
+- **HQ-BUG-RPOS-COMPILE-SEGFAULT** — `'abc' RPOS(0)` under `--compile` segfaults immediately, producing 0 lines of output.  `--interp` runs fine.  Source: SM_PAT_RPOS path in `emit_walk_phase2` (emit_sm.c:2438) — sets `nd->n = 1` (reverse flag) before calling `pat_node_alloc(cfg, BB_PAT_POS)`.  POS(0) compiles cleanly; only the reverse variant crashes.  Likely a NULL-deref in the invariant-bake or in `emit_bb_xrpsi` itself.
+- **HQ-BUG-RTAB-COMPILE-SEGFAULT** — same shape, `'abc' RTAB(0)` segfaults under `--compile`.  POS/TAB both work, so the symptom is specific to the reverse variants.
+
+Both filed for future repair, not blocking the EC-UNI sequencing.  They likely trip a code path the EC-UNI-COVER-PAT corpus would exercise (when authored), giving the per-kind-diff gate the kinds-exercised diversity it currently lacks.
+
+**Implication for EC-UNI-COVER-PAT:**
+
+The corpus file `feat/f21_invariant_bb_lowering.sno` proposed in the previous block is **non-portable to SPITBOL** by construction (REM() form), so it doesn't belong in `feat/` (which by convention is portable).  Defer the corpus file authoring until Lon decides between (a) "Permitted divergence" recording in RULES.md + new corpus subtree (e.g. `programs/snobol4/scrip_ext/`), and (b) keep coverage at "4 kinds exercised" until SPITBOL parity story changes.  In the meantime, the empirical data above stands as the per-kind reachability map.
 
 ---
 
