@@ -63,9 +63,9 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: 8c01a32c    (EC-UNI-13(e) ✅ — bb_pl.c, four Prolog BB templates as honest no-op stubs)
-corpus:  b10933c
-.github: (this commit — 13(e) → completed; new EC-UNI-14-PREREQ sub-rung; doc fixes)
+one4all: (this commit — beauty artifacts cleanup; prior c01ac05f retargeted beauty.sno paths)
+corpus:  5fc1427    (deleted feature-rich stray demo/beauty.sno; prior be6f478 renamed beauty/ → beauty_suite/)
+.github: 0236e579   (prior — GOAL-NET-BEAUTY-SELF note + 13(e) handoff)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
@@ -75,6 +75,7 @@ firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate
 beauty.sno --compile md5: 40df9e004c3e963c99af716c65f2c970  (882901 bytes, baseline 2026-05-20)
 emit_io self-test: 6/6 PASS
 unified-dispatch divergence: see EC-UNI-14-PREREQ — flipping `g_emit_use_unified_dispatch=1` produces non-equivalent output (beauty.s 188416 bytes md5 `8edb301a9a720f30b53709bd797fe2e8`; beauty.o md5 `bd090e88a02c24e47bf4e8d2390159d1` 132696 bytes vs legacy `3adbb73f88edcc5416d38baade6faf97` 494336 bytes). Flag stays default-OFF until PREREQ closes.
+beauty.sno files in corpus: ONE — `programs/snobol4/demo/beauty/beauty.sno` (627 lines, md5 5be1de188af42be42e15e6d9a552f759, self-contained with 16 .inc includes per RULES.md line 912). Feature-rich stray at `programs/snobol4/demo/beauty.sno` deleted 2026-05-20 (corpus@5fc1427). Subsystem test apparatus at `programs/snobol4/beauty_suite/` (renamed from `programs/snobol4/beauty/` for clarity, corpus@be6f478).
 ```
 
 ---
