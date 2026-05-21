@@ -143,7 +143,7 @@ SD=/home/claude/corpus/SCRIP
     $SD/parser_snocone.sc \
   > /tmp/p_snocone.sno
 
-cat fixture.sc | /home/claude/x64/bin/sbl -b /tmp/p_snocone.sno 2>&1 | grep -v '^$'
+cat fixture.sc | /home/claude/x64/bin/sbl -bf /tmp/p_snocone.sno 2>&1 | grep -v '^$'
 ```
 
 ### `--dump-sno` lower_sno.c structure
@@ -177,9 +177,19 @@ import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
 - TT_QLIT with both `'` and `"`: emit `'...'/*BOTH-QUOTES*/` and let runtime use `CHAR(34)`/`CHAR(39)`.
 - Quoted-string scan in `emit_nl` line-break: walk from line start (no SNOBOL4 escape character; every quote is structural).
 
+### ⚠ Case-sensitive mode — mandatory everywhere
+
+**SNOBOL4, Snocone, and SPITBOL are all run in case-sensitive mode.** The flag is `-f` ("don't fold source code case"). Always use `-bf` together:
+
+```
+/home/claude/x64/bin/sbl -bf file.sno
+```
+
+`-b` suppresses the signon banner. `-f` disables case-folding so that `x` and `X` are distinct identifiers. Omitting `-f` silently folds all names to upper-case and breaks every parser that uses lower-case identifiers (which is all of them). This applies to every SPITBOL invocation in this project — scripts, manual runs, and transpile gates.
+
 ### Build SPITBOL from source (rare)
 
-`/home/claude/x64/bin/sbl` ships prebuilt. Only rebuild if patching the runtime (e.g. SN-26-spl-bridge IPC wire). Recipe in `harness/oracles/spitbol/BUILD.md`. SPITBOL compatibility notes: no `&STNO` (use `&LASTNO`), no `LOAD()`, no `LABELCODE()`, `DATA()` returns lowercase type names. Invocation: `/home/claude/x64/bin/sbl -b file.sno`.
+`/home/claude/x64/bin/sbl` ships prebuilt. Only rebuild if patching the runtime (e.g. SN-26-spl-bridge IPC wire). Recipe in `harness/oracles/spitbol/BUILD.md`. SPITBOL compatibility notes: no `&STNO` (use `&LASTNO`), no `LOAD()`, no `LABELCODE()`, `DATA()` returns lowercase type names. Invocation: `/home/claude/x64/bin/sbl -bf file.sno`.
 
 ---
 
