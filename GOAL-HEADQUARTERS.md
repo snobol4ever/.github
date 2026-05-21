@@ -104,7 +104,13 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
-one4all: 3e3b67b1  (PPV-8: IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort.
+one4all: 1b83cb1f  (EC-UNI-REWIRE complete: all 14 live simple BB kinds
+                     route through emit_bb_node (IS_TEXT). ARBNO/CAP_IMM/
+                     CAP_COND slow-path wired. flat_fill_and_call +
+                     flat_fill_charset helpers. GATE-PK 411/0, GATE-M
+                     855/855, GATE-E 8/9 (beauty suspended).)
+one4all: fcb86d2e  (EC-UNI-REWIRE slice 1: REM/ARB/ABORT/LEN/POS/TAB/LIT/SPAN/ANY/BREAK/NOTANY.
+                     GATE-PK 411/0.)
                      Each emits (call $bb_<kind>_new). Baselines re-frozen.
                      GATE-PK PASS=411 FAIL=0 STUB=648. Beauty gate suspended.)
 one4all: ddd08f01  (PPV-8 prev: bb_abort IS_X86 arm added; dead IS_BIN guards
@@ -224,7 +230,7 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 ### ⚡ Open EC-UNI rungs
 
 - [ ] **EC-UNI-REFAITH** — re-lift FAILing kinds byte-faithfully against per-kind diff baseline. Gate must show 100% PASS.
-- [ ] **EC-UNI-REWIRE-ALL** — with per-kind diff 100% PASS, route `emit_flat_ir` through `emit_bb_node` for all kinds in IS_TEXT. **Path-a/b decision required from Lon:** (a) text-first staged (cheap, dual-path interlude), (b) name-keyed binary primitives first (one rewire for both modes).
+- [x] **EC-UNI-REWIRE-ALL** (CLOSED 2026-05-21 session #7, IS_TEXT path). 14 live simple BB kinds in emit_flat_ir now dispatch via emit_bb_node. CAT/ALT/FENCE recursive helpers remain (structural). `1b83cb1f`.
 - [ ] **EC-UNI-NAMEKEY-BIN** — name-keyed binary primitives for `--run`; rewire binary; delete `emit_bb_x*` originals.
 - [ ] **EC-UNI-17** (deferred) — Layer-3 primitives audit. Parked.
 - [ ] **EC-UNI-18** — table-driven dispatch where it earns its keep. Extend x86's `g_sm_nullary` / `g_sm_arith` pattern to JVM/NET/JS/WASM for nullary + arith.
@@ -334,6 +340,7 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
 - **PPV-8** — `ddd08f01`. bb_abort IS_X86 arm; dead IS_BIN guard removal; beauty gate suspended.
 - **PPV-8 WASM** — `3e3b67b1`. IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. GATE-PK PASS=411 FAIL=0 STUB=648.
+- **EC-UNI-REWIRE** — `fcb86d2e` + `1b83cb1f`. All 14 live simple BB kinds in emit_flat_ir switch now route through emit_bb_node (IS_TEXT). GATE-PK 411/0, GATE-M 855/855, GATE-E 8/9 (beauty suspended).
 - **IR-RN-4/5** — `.github 08e9e188`. ARCH-IR/SCRIP/ICON updated to post-IR-RN-0 names. Cross-language gates all green. IR Rename rung COMPLETE.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
