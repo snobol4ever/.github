@@ -176,7 +176,15 @@ only the expected cells moved.
 ## Watermark
 
 ```
-.github: (this commit — EC-UNI-PROTECTED-PAT-VARS rung added per Lon directive.
+.github: (this commit — PPV-0 inventory complete, 2026-05-21 session #4, Opus 4.7.
+                     Deliverable: PPV-0-INVENTORY.md (read-only inventory of the 7
+                     pat-name TT_/SM_PAT_/BB_PAT_ enums + substitution sites in
+                     lower.c:373 and rt.c:467 + error primitive sno_runtime_error
+                     code 42 + helper module shape proposal).  No code changes.
+                     Gate state unchanged: PK PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0
+                     at one4all 9b905d26.  NEXT: PPV-1 — runtime protection in
+                     rt_nv_set; first real code change of the rung.)
+.github: 658dc549   (EC-UNI-PROTECTED-PAT-VARS rung added per Lon directive.
                      7 sub-steps PPV-0..PPV-7 documented for later session.
                      Resolves HQ-BUG-PROTECTED-PATTERN-VARS and unlocks BB-lower
                      coverage for REM/ARB/FENCE/ABORT from portable SNOBOL4
@@ -773,7 +781,14 @@ The 7 zero-arg pat-keyword kinds (REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL) remain r
 
   **Implementation steps (rung sub-tasks):**
 
-  - [ ] **PPV-0** — Inventory check.  Read `src/include/SM.h` enum SM_op_t, `src/include/BB.h` enum BB_op_t, `src/frontend/snobol4/snobol4.y` tree_e enum, `src/lower/lower.c::lower_pat_expr` switch.  Confirm all seven TT_/SM_PAT_/BB_PAT_ enums are present (3 already known: TT_REM, SM_PAT_REM, BB_PAT_REM via slice 1 lift).  Note any missing enum (especially `BB_PAT_ARB` may be aliased to `BB_PAT_FARB`; `BB_PAT_SUCCEED`/`BB_PAT_BAL` likely absent and out-of-scope here — Phase B).
+  - [x] **PPV-0 (CLOSED 2026-05-21 session #4, Opus 4.7)** — Inventory check complete.  Deliverable: `PPV-0-INVENTORY.md`.  Findings:
+    - All 7 `TT_*` mappings present (snobol4.y:47-51 pat_prim_kind table) — REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL.
+    - All 7 `SM_PAT_*` opcodes present (SM.h:44-52).  Note: bare `FENCE` → `SM_PAT_FENCE0` (not `SM_PAT_FENCE`).
+    - 5 of 7 `BB_PAT_*` present: ARB, ARBNO, REM, FENCE, ABORT (BB.h:62-74).  FAIL/SUCCEED/BAL have no BB pat-variant (`BB_FAIL`/`BB_SUCCEED` exist but are generic control-flow, not the SNOBOL4 pat-line — confirmed by reading `bb_fail.c`/`bb_succeed.c`).  No `BB_BAL` in any form.
+    - **Substitution site:** `src/lower/lower.c:373` — single line `case TT_VAR:   SM_emit_s(g_p, SM_PUSH_VAR, t->v.sval); SM_emit(g_p, SM_PAT_DEREF); return;` is the sole bare-name pattern-context lowering site.  No separate `lower_pat_atom` exists.
+    - **Runtime-protection site:** `src/runtime/rt/rt.c:467` — `rt_nv_set(const char *name)` is the universal store-var entry point, called by all 5 backends via `emit_sm.c:342` `SM_STORE_VAR` → `"rt_nv_set"` template binding.
+    - **Error primitive:** `sno_runtime_error(int code, const char *msg)` declared `snobol4.h:349`, already used throughout `snobol4_pattern.c`.  ERROR 042 is the SPITBOL-matching code for "protected variable".
+    - Recommendation: new helper module `src/runtime/rt/rt_protected.{c,h}` with `is_protected_pat_name(const char *)` + `{name, SM_op_t} g_protected_pat_op[]` lookup table — shared by PPV-1 (rt.c) and PPV-2 (lower.c).
 
   - [ ] **PPV-1** — Protected-name table.  Add to `src/runtime/x86/snobol4.c` (or similar runtime entry-point) a static const string array `g_protected_pat_names[] = {"REM","ARB","FENCE","FAIL","SUCCEED","ABORT","BAL"}` + helper `int is_protected_pat_name(const char *name)`.  Runtime hook: on any `SM_STORE_VAR` / `rt_var_set` site, check `is_protected_pat_name(name)`; if matched, raise ERROR 042 ("attempt to change value of protected variable").  Test: scrip running `REM = 'x'` should ERROR 042; previously silently succeeded.  Cross-check: SPITBOL behavior matches.
 
