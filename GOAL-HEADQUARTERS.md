@@ -64,14 +64,17 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: c081758f   (EC-UNI-14(c)(1..6) closed: SCRIP_UNIFIED_DISPATCH default ON then deleted;
+one4all: 9b5ba0b6   (this session: build fix + EC-UNI-21 gate landed; sm_call_expression(int)
+                     runtime helper renamed to sm_eval_subexpr(int); sm_expr_incr.c added to
+                     Makefile; scripts/test_gate_ec_uni_complete.sh created.
+                     EC-UNI-14(c)(1..7) closed: SCRIP_UNIFIED_DISPATCH default ON then deleted;
                      sm_push_null split into +_noflip variant; sm_label() template; all 5 residual
                      opcodes (PUSH_EXPR, PUSH_EXPRESSION, CALL_EXPRESSION, INCR, DECR) covered;
                      legacy switch + dispatch_one_x86 wrapper + flag deleted; emit_walk_codegen
                      per-PC body collapsed to ~12 lines; bb_pl_{arith,atom,builtin,call} wired
                      into emit_bb_node.  Ladder: 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
-                     862f817a -> c081758f.  Net LOC across rung: roughly -130.  Prior 266fc28a
-                     — BB_templates one-file-per-Byrd-Box restored.)
+                     862f817a -> c081758f -> 9b5ba0b6.  Net LOC across rung: roughly -130.
+                     Prior 266fc28a — BB_templates one-file-per-Byrd-Box restored.)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
 .github: (this commit — record EC-UNI-14(c)(1..6) close + revised goal text below)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
@@ -85,10 +88,13 @@ beauty.sno --compile assembled .o:  3adbb73f88edcc5416d38baade6faf97  (494336 by
                                     EC-UNI-14(c)(5) — flag removed; one path only.
 emit_io self-test: 6/6 PASS
 EC-UNI-14 ladder closed: 14-PREREQ d6e5c8f1 -> 14(a) 66cf8506 -> 14(b) dc4e6a9d/5dc52dd4/fe195613.
-                  EC-UNI-14(c)(1..6): 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
-                                       862f817a -> c081758f.
-                  EC-UNI-14 proper SM-side + BB-side: CLOSED.  Remaining: EC-UNI-21 gate matrix
-                  + M1 oracle md5 reconciliation + EC-UNI-22 doc updates.
+                  EC-UNI-14(c)(1..7): 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
+                                       862f817a -> c081758f -> 9b5ba0b6.
+                  EC-UNI-14 proper SM-side + BB-side: CLOSED.  EC-UNI-21 CLOSED (close gate
+                  scripts/test_gate_ec_uni_complete.sh, 9/9 PASS on HEAD).  M1 oracle DRIFTED
+                  (current md5 9cddff2534472b822438801d8db58a99, 622 lines, vs M1 baseline
+                  abfd19a7..., 646 lines) — EC-UNI-21-followup tracks reconcile vs retire.
+                  Remaining open in EC-UNI: EC-UNI-15/16/17/18/19/20/21-followup/22.
 beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines,
                             md5 5be1de188af42be42e15e6d9a552f759, self-contained).
                             Subsystem apparatus at programs/snobol4/beauty_suite/.
@@ -129,6 +135,7 @@ See git log for per-commit detail.
   | (c)(4) | `46e8c531` | cover last 5 opcodes (PUSH_EXPR/PUSH_EXPRESSION/CALL_EXPRESSION/INCR/DECR) via new SM_templates/sm_expr_incr.c; drop JS PUSH_EXPRESSION and WASM INCR/DECR walker overrides |
   | (c)(5) | `862f817a` | delete legacy switch + dispatch_one_x86 + SCRIP_UNIFIED_DISPATCH flag; emit_walk_codegen per-PC body collapsed to ~12 lines |
   | (c)(6) | `c081758f` | wire bb_pl_{arith,atom,builtin,call} into emit_bb_node (now total over 21 BB kinds) |
+  | (c)(7) | `9b5ba0b6` | **emergency build fix** — `46e8c531` had pushed a broken HEAD: (a) name collision `void sm_call_expression(void)` (new template) vs `DESCR_t sm_call_expression(int)` (long-standing runtime helper) prevented `emit_core.c` from compiling; (b) `sm_expr_incr.c` was never added to the Makefile, so its 5 templates link-undefined even with the collision fixed.  Resolution: rename runtime `sm_call_expression(int)` → `sm_eval_subexpr(int)` (5 files, ~12 call sites; preserves the structural `sm_<OPCODE>` template convention); add `sm_expr_incr.c` to the Makefile source list + compile rule.  All watermark numbers reproduce post-fix (beauty md5 byte-identical at `40df9e004...`, broker 23/26, icon rungs 194/36/35, all smoke 5/0..7/0).  Lesson: future (c)(*) rungs that add new template files MUST verify `make scrip` from a clean tree before commit; the build was broken at HEAD `c081758f` between push and this session. |
 
   **Original goal text framing correction:** the goal said "delete the five silo walkers";
   in practice only `dispatch_one_x86` was a silo and was deleted.  The four backend
@@ -152,11 +159,15 @@ See git log for per-commit detail.
     NET arm.  Needs walker-local `fn_params`/`fn_nparams` in `g_emit` — EC-UNI-15 Layer-2
     extraction territory.
 
-- [ ] **EC-UNI-21 (NEXT)** — beauty.sno byte-identity gate matrix.
+- [x] **EC-UNI-21 (CLOSED 2026-05-20)** — beauty.sno byte-identity gate matrix.
   `scripts/test_gate_ec_uni_complete.sh` runs all five gates + baseline md5
   (`40df9e004c3e963c99af716c65f2c970`) + M1 oracle md5
-  (`abfd19a7a834484a96e824851caee159`, drifted at last check).  Re-converge to M1
-  oracle md5 or formally retire M1.  This is the formal close gate for EC-UNI-14.
+  (`abfd19a7a834484a96e824851caee159`).  9/9 cells PASS on HEAD after the
+  (c)(7) build fix.  **M1 status: DRIFTED.**  Current SPITBOL oracle output on
+  beauty.sno is md5 `9cddff2534472b822438801d8db58a99` (622 lines), not the
+  `abfd19a7...` baseline (646 lines).  Reported by the gate, not enforced.
+  Re-converge to oracle parity OR formally retire M1 — tracked as
+  **EC-UNI-21-followup** in this file.
 
 - [ ] **EC-UNI-15** — top-level shape: each template fn is a verbose `if (IS_<BE>)` five-arm switch, one screen per fn. Done family-by-family (one commit per family file). Multi-statement arms fine; no helper extraction yet.
 
@@ -171,6 +182,15 @@ See git log for per-commit detail.
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost.
 
 - [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariant block to reflect three-layer cake + `g_emit`. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens.
+
+- [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline.  Choose one:
+  (a) **Re-converge**: find the regression between M1 (oracle md5 `abfd19a7...`,
+  646 lines) and current (`9cddff25...`, 622 lines), fix it in the SNOBOL4 runtime
+  or beauty.sno source, restore byte-identity to the oracle baseline.  (b) **Retire
+  M1**: declare the M1 oracle md5 obsolete in the THREE-MILESTONE AUTHORSHIP
+  AGREEMENT (PLAN.md), record the new baseline md5 (`9cddff2534472b822438801d8db58a99`,
+  622 lines) and re-stamp Milestone 1 with the current state.  Lon's choice; this
+  rung blocks formal "Milestone 1 = oracle parity" claims until resolved.
 
 #### EC-UNI gate (every step from EC-UNI-10 on)
 
