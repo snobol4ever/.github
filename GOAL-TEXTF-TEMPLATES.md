@@ -138,3 +138,21 @@ GATE-PK: PASS=401 FAIL=0 STUB=658
 ## Authors
 
 Plan drafted Sonnet 4.6, 2026-05-21 session #6. Three-developer agreement: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet.
+
+## Session #7 watermark (2026-05-21, Sonnet 4.6)
+
+```
+one4all: 1974df8a
+GATE-PK: PASS=406 FAIL=0 STUB=653
+Matrix:  855/855
+
+G1 ✅  bb_abort/fence/rem/arb IS_X86 → emit_textf verbatim text + %s/%d splices
+G2 ✅  bb_len/pos/tab IS_X86 → emit_textf (bb_pos insn_* helpers unchanged; banner converted)
+G3 ✅  bb_charset_helper data-section preamble → emit_textf (emit_seq_port_call_rip unchanged)
+G4 ✅  bb_lit banner + mov-rdx line → emit_textf (insn_*/emit_seq_*/emit_text_jmp unchanged)
+NEXT:  G5 — bb_cat/alt/arbno/assign/capture (compound/recursive; in-arm formatting only)
+```
+
+Approach confirmed: take raw baseline text verbatim, splice `%s`/`%d` for variable parts
+(labels, integers, node ids). One `emit_textf` per instruction line. No padding/width math.
+G3/G4 partial because `emit_seq_port_call_rip`/`insn_*` are not `bb3c_format` wrappers.
