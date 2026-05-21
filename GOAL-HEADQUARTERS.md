@@ -14,6 +14,7 @@
 7. **EC-UNI matrix.** Backends are columns (X86/JVM/JS/NET/WASM). Text-vs-binary lives inside each `IS_<BE>` arm — never as a matrix dimension.
 8. **Unified dispatch owns mode-setting.** Per-opcode iteration calls `emit_mode_set(TEXT_MODE(), out)` at entry.
 9. **One file per Byrd Box in `BB_templates/`.** Each lives in its own `bb_<name>.c`. No consolidated multi-BB TUs.
+10. **Grouped templates allowed (Lon directive, session #N+2).** Where N opcodes share emit shape, a single `sm_<group>()` / `bb_<group>()` template fn handles all of them — opcode communicated via `g_emit.instr->op` and dispatched by per-backend `switch(op)`. All emission code stays inside that one TU. **No external helpers, no cross-template calls.** Locality first; grouping reduces duplication only when it earns its keep via shared shape. Examples landed: `sm_arith` (5 opcodes), `sm_compare` (2), `sm_pat_nullary` (22). This SUPERSEDES the prior pure-duplication / one-fn-per-opcode reading of INLINE-ALL.
 
 ## Session Setup
 
@@ -104,6 +105,40 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 6a806546  (EC-UNI-INLINE-GROUP slice 15: 22 simple-nullary pat
+                     opcodes -> sm_pat_nullary(). 9 files changed, 537
+                     deletions vs 233 insertions (net -304 LOC). Largest
+                     grouping yet; demonstrates that grouped templates
+                     reduce LOC without breaking locality.)
+one4all: 2ad1896d  (EC-UNI-INLINE-GROUP slice 14: sm_acomp+sm_lcomp -> sm_compare().)
+one4all: 710b2fd5  (EC-UNI-INLINE-GROUP slice 13: sm_add/sub/mul/div/mod
+                     -> sm_arith(). FIRST grouped template — Lon directive
+                     this session: ONE template per opcode-group, opcode
+                     dispatched via g_emit.instr->op in per-backend switch.
+                     Replaces pure one-fn-per-opcode INLINE-ALL reading.
+                     5 files changed, 92 insertions / 102 deletions.)
+one4all: 16e0515f  (INLINE-1 slice 12: sm_push_lit_f + sm_push_expr.)
+one4all: 39f67bc3  (INLINE-2 slice 11: sm_add/sub/mul/div/mod first table
+                     elimination — g_sm_arith table_lookup folded into
+                     literal macro strings. Pre-grouping; later merged
+                     into sm_arith() at slice 13.)
+one4all: 2021de8e  (INLINE-1 slice 10: sm_incr + sm_decr.)
+one4all: 39b9f0f6  (INLINE-1 slice 9: sm_acomp + sm_lcomp (with IS_TEXT fork
+                     preserved); pre-grouping, merged at slice 14.)
+one4all: 74ba8f11  (INLINE-1 slice 8: sm_label.)
+one4all: 8097af13  (INLINE-1 slice 7: sm_push_null + push_null_noflip + void_pop.)
+one4all: 877dd549  (INLINE-1 slice 6: sm_concat + neg + coerce_num + exp.)
+one4all: af013804  (INLINE-1 slice 5: sm_pat_cat + sm_pat_alt; pre-grouping,
+                     merged into sm_pat_nullary at slice 15.)
+one4all: eb6c2e62  (INLINE-1 slice 4: sm_pat_{fence0,fence1,abort,fail,
+                     succeed,arbno}; pre-grouping, merged at slice 15.)
+one4all: b28f0577  (INLINE-1 slice 3: sm_pat_{len,pos,rpos,tab,rtab,rem,
+                     bal,eps}; pre-grouping, merged at slice 15.)
+one4all: 2bd3f069  (INLINE-1 slice 2: sm_pat_{any,any_i,notany,span,break,
+                     deref}; pre-grouping, merged at slice 15.)
+one4all: 43923af9  (INLINE-1 slice 1: sm_pat_arb FIRST inline-from-dispatcher.
+                     Header promotions: emit_sm_consume_pc_label + TEXT_MODE()
+                     macro to emit_sm.h.)
 one4all: 794b9435  (PPV-9: IS_WASM arms for bb_any/arbno/break/len/lit/notany/
                      pos/span/tab. Each emits (call $bb_<kind>_new). Baselines
                      re-frozen. GATE-PK PASS=420 FAIL=0 STUB=639.)
@@ -160,11 +195,35 @@ smoke icon: 5/0    smoke prolog: 5/0   smoke rebus: 4/0
 smoke raku: 5/0    smoke snobol4: 7/0  smoke snocone: 5/0
 broker: 23/26      icon rungs: 194/36/35
 matrix gate: 855/855 PASS
-beauty.sno --compile md5:           40df9e004c3e963c99af716c65f2c970  (882901 bytes)
-beauty.sno --compile assembled .o:  3adbb73f88edcc5416d38baade6faf97  (494336 bytes)
+beauty.sno --compile md5:           SUSPENDED per Lon directive (consolidation)
+beauty.sno --compile assembled .o:  SUSPENDED per Lon directive (consolidation)
 EC-UNI-21 9/9 PASS.  M1 oracle DRIFTED (9cddff25, 622 lines vs M1 abfd19a7, 646 lines).
 beauty.sno in corpus: programs/snobol4/demo/beauty/beauty.sno (627 lines,
   md5 5be1de188af42be42e15e6d9a552f759, self-contained).
+
+Grouped templates landed this session (slices 13/14/15):
+  sm_arith         5 opcodes  SM_ADD/SUB/MUL/DIV/MOD
+  sm_compare       2 opcodes  SM_ACOMP/SM_LCOMP
+  sm_pat_nullary  22 opcodes  SM_PAT_{ARB,ARBNO,REM,FENCE0,FENCE1,FAIL,SUCCEED,
+                              ABORT,BAL,EPS,DEREF,ANY,NOTANY,SPAN,BREAK,LEN,
+                              POS,RPOS,TAB,RTAB,CAT,ALT}
+  (29 opcodes in 3 grouped fns; previously 29 separate fns plus dispatcher trail.)
+
+Remaining individual templates ready to group (next sessions):
+  sm_jump_group    SM_JUMP/JUMP_S/JUMP_F  (sm_jumps.c)
+  sm_misc_nullary  SM_CONCAT/NEG/COERCE_NUM/EXP/PUSH_NULL/PUSH_NULL_NOFLIP/VOID_POP
+  sm_incr_decr     SM_INCR/SM_DECR
+
+Still-blocked-on-INLINE-4 (need sm_op_template_t machinery promoted from emit_sm.c):
+  sm_pat_string_arg group: SM_PAT_LIT, REFNAME, USERCALL
+  sm_pat_capture   group: SM_PAT_CAPTURE, CAPTURE_FN, CAPTURE_FN_ARGS, USERCALL_ARGS
+  sm_exec_stmt     standalone
+  sm_push_lit_s    (sm_push_pop_lits.c)
+  sm_push_var / sm_store_var
+  sm_define / sm_define_entry
+  sm_call_fn / sm_suspend_value
+  sm_bb_once_proc / sm_bb_pump_proc
+  sm_push_expression / sm_call_expression
 ```
 
 ---
@@ -186,36 +245,49 @@ beauty.sno in corpus: programs/snobol4/demo/beauty/beauty.sno (627 lines,
 
 ### ⚡ EC-UNI LIFT PATTERN
 
-**Lon directive (2026-05-21 session #9):** Lift methodology amended for EC-UNI-INLINE-ALL. The earlier "respect existing abstraction boundaries — already-lifted-as-helper is the final state" guidance (2026-05-21 sessions #1–#8) is superseded: helpers are no longer the destination. The destination is **the body of the helper, pasted into the template arm, with file-private supporting types promoted to a public header as needed**.
+**Lon directive (2026-05-21 session #N+2): GROUPED TEMPLATES — the perfect middle ground.** The EC-UNI-INLINE-ALL session #9 directive of "one C template fn per opcode/kind with literal inline bodies" is **amended**: where N opcodes share emit shape, they collapse into a SINGLE template fn `sm_<group>()` / `bb_<group>()`. Opcode is communicated via `g_emit.instr->op`. Each backend arm contains a per-opcode `switch` inside; the shared per-shape body (e.g. macro_begin/call/end/pad) appears once per backend. **All emission code stays inside the template TU — no external helpers, no cross-template calls, no shared types in public headers.** Locality preserved 100%; duplication only where shape actually diverges.
 
-**Job:** For each remaining x86/JVM/JS/NET/WASM codegen call sequence still routed through `emit_sm_<op>_dispatch` / `emit_sm_op` / `emit_bb_x*` / table-drivers, paste the literal call sequence into the template's per-backend arm. Promote `sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line` and any other formerly file-private machinery to public headers when (and only when) the inlined body still references them.
+**Three grouped templates landed this session as canonical examples** (commits `710b2fd5`, `2ad1896d`, `6a806546`):
 
-**Recipe:**
-1. Identify fn.
-2. Inspect body. Public helpers (Layer 3 — `emit_text*`/`emit_byte*`/`insn_*`) only → step 3-6. File-static deps → un-static into a public header in the same commit, then proceed.
-3. Find matching template.
-4. Copy body into `if (IS_X86) { ... return; }`. Rewrite parameters as `g_emit` reads: `s/f/b` → `g_emit.lbl_succ/lbl_fail/lbl_back`; `n` → `nd->ival`; `lit` → `nd->sval`; `out` → `g_emit.out`.
-5. Helpers stay. Do not move, extract, or factor.
-6. Leave original. Dispatcher still calls it; two paths coexist.
-7. Fast cycle: `make -j4 scrip` → `test_per_kind_diff.sh`. Commit.
+- **`sm_arith`** — SM_ADD/SUB/MUL/DIV/MOD (5 opcodes, 1 fn). Per-backend switch on op selects macro name string; NET/JVM MOD irregularities preserved verbatim. Replaces `g_sm_arith` table.
+- **`sm_compare`** — SM_ACOMP/SM_LCOMP (2 opcodes, 1 fn). IS_TEXT-vs-binary fork preserved inside X86 arm.
+- **`sm_pat_nullary`** — 22 SM_PAT_* opcodes (1 fn). The simple `edp4_label_then` 7-line shape body appears once in X86; JVM dispatches on 5 emission-helper shapes via switch; JS/WASM straight switch-on-string.
 
-**Canonical example:** `71bd8b6f` lifted `emit_bb_xstar` → `bb_rem` IS_X86 arm and `emit_bb_xlnth` → `bb_len` IS_X86 arm. `g_emit` gained `lbl_succ` / `lbl_fail` / `lbl_back`.
+**LOC reduction is real and locality-preserving:** `sm_pat_nullary` deleted 304 net lines (537 removed vs 233 added) while keeping every opcode's emit code inside one TU. Each opcode still owns 100% of its emit code (it's right there in the switch).
 
-**Mistakes to avoid:**
-- Static helpers inside templates collapsing opcodes (slice 1, reverted).
-- Layer-2 helpers in `emit_core.c` factoring across templates (slice 2, reverted). Still a mistake — Layer-2 is what INLINE-ALL is dismantling, not creating.
-- "Fn fits on a screen" — rule removed.
-- ⚠ **REVERSED 2026-05-21 session #9** — "Un-static file-private machinery to fit verbatim paste" was a mistake under the lift-as-helper era; under EC-UNI-INLINE-ALL it is **required** — promote `sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line` to public headers when an inlined template body needs them, then delete them along with the table-driver they used to support.
-- Running full regression per slice (cadence problem, not methodology). Per-kind-diff is the per-slice gate; full gates are session-end / escalation.
+**Why this is NOT "shared helpers":**
+- Shared helpers live in `emit_core.c`/`emit_sm.c` and are called from many templates.
+- Grouped templates own their entire emit code in their own TU; the "shared" body is inside one fn, used only for opcodes that share shape.
+- Two parallel sessions can't conflict because each group is one fn in one file.
 
-**Lift queue status (amended 2026-05-21 session #9 by EC-UNI-INLINE-ALL):**
+**Recipe for grouping:**
+1. Identify opcodes with same emit shape (same number of args, same call sequence pattern, only string names varying).
+2. Create / reuse `sm_<group>.c` template file.
+3. Single `void sm_<group>(void)` reading `g_emit.instr->op`.
+4. One per-backend block (`if (IS_X86)` etc.). Inside: `switch (op)` selecting only the varying parts (macro_name string, rt_fn string, helper-method string, JVM/NET emit literal).
+5. Update `sm_templates.h` decls (delete N decls, add 1).
+6. Update `emit_core.h` decls (same).
+7. Update master dispatch in `emit_core.c` (all N cases call `sm_<group>()`).
+8. Delete old per-opcode fns from their files. If a file becomes empty, stub it with a comment (keeps Makefile happy).
+9. `make -j4 scrip` + `test_per_kind_diff.sh` — gate must show 0 FAIL.
+10. Commit. One group per commit.
 
-- **BB-side:** body of all 17 pat-level `emit_bb_x*` fns physically in `BB_templates/` (slice 7, `045baf4a`). **REOPENED for INLINE-ALL:** remaining x86 in `emit_bb.c` (dispatcher trio `emit_flat_ir_alt` / `_cat` / `_fence`) must be inlined into `bb_pat_alt.c` / `bb_pat_cat.c` / `bb_fence.c` per INLINE-3.
-- **SM-side:** all 36 `emit_sm_*_(dispatch|line|template)` fns were previously closed as "already-lifted-as-helper" — wrapper-shape only. **REOPENED for INLINE-ALL:** wrappers inline their bodies per INLINE-1/2; shims, `emit_sm_op`, `g_sm_nullary`, `g_sm_arith` and the line/template machinery all delete.
+**SUPERSEDED methodology:** The earlier per-slice rule "leave the dispatcher alive; INLINE-8 deletes orphans LAST" still applies for the underlying `emit_sm_<op>_dispatch` / `edp4_label_then` family. After grouping, the per-opcode `sm_<op>()` fns deleted in the group commit ARE the orphans for that opcode family — the master dispatch no longer references them. The lower-layer dispatchers in `emit_sm.c` remain alive (still called by edp4_label_then in the few non-grouped opcodes) until INLINE-4 promotes machinery and INLINE-8 sweeps.
 
-**Verification per commit:** matrix 855/855; beauty.sno --compile md5 `40df9e004c3e963c99af716c65f2c970`.
+**Mistakes to avoid (carried over from sessions #1-9):**
+- Static helpers inside templates collapsing opcodes — that was the bad pattern; grouped templates don't introduce statics, just an inline switch in one fn.
+- Layer-2 helpers in `emit_core.c` factoring across templates — still rejected. Grouped templates do NOT live in `emit_core.c`.
+- "Fn fits on a screen" — still removed as a rule.
+- Running full regression per slice — per-kind-diff is the binding gate; full gates session-end only.
 
-**Scope:** SM has 91 opcodes in enum, 76 dispatched (15 runtime/sentinel — not template work). BB has 97 kinds, all dispatched by `emit_bb_node` (21 pat+Prolog carry real code, 76 honest no-op stubs awaiting Phase B). Walkers delete after coverage lands: net −2500 to −3500 LOC.
+**Lift queue status (amended further at session #N+2):**
+
+- **SM-side grouped** (slices 13-15): 29 opcodes in 3 grouped fns. Remaining individual templates ready to group: `sm_jump_group` (SM_JUMP/JUMP_S/JUMP_F), `sm_misc_nullary` (concat/neg/coerce_num/exp/push_null/push_null_noflip/void_pop), `sm_incr_decr`. Still-blocked-on-INLINE-4: capture / usercall / lit / refname / push_var / store_var / define / call / bb_calls / push_expression / call_expression / exec_stmt — all need `sm_op_template_t` machinery promoted from `emit_sm.c`.
+- **BB-side:** unchanged from session #9 — body of all 17 pat-level `emit_bb_x*` fns physically in `BB_templates/` (slice 7, `045baf4a`). REOPENED for INLINE-ALL: remaining x86 in `emit_bb.c` (dispatcher trio `emit_flat_ir_alt`/`_cat`/`_fence`) to be inlined into `bb_pat_alt.c`/`bb_pat_cat.c`/`bb_fence.c`. After x86 inlining: BB-side grouping pass — likely targets `bb_pat_anchor_group` and `bb_pat_position_group` along similar lines to SM-side.
+
+**Verification per commit:** `GATE-PK PASS=420 FAIL=0 STUB=639` (byte-identical at per-kind-diff). Beauty md5 suspended throughout.
+
+**Scope (amended):** SM has 91 opcodes; 29 of them now in 3 grouped fns + ~13 in individual fns still inlined-but-not-yet-grouped + ~20 still blocked on INLINE-4. BB unchanged (97 kinds).
 
 **Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `-JVM-`, `-JS-`, `-NET-`, `-WASM-`).
 
@@ -242,16 +314,16 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 - [x] **EC-UNI-NAMEKEY-BIN** (CLOSED 2026-05-21 session #8, `0ef0f7fc`). g_emit.lbl_*_p for binary patch-back. Audit static labels fix. emit_bb_x* callers gone from switch.
 - [ ] **EC-UNI-NAMEKEY-BIN** — name-keyed binary primitives for `--run`; rewire binary; delete `emit_bb_x*` originals.
 - [ ] **EC-UNI-17** (deferred) — Layer-3 primitives audit. Parked.
-- [ ] **EC-UNI-INLINE-ALL** ⚡ — **Lon directive, 2026-05-21 session #9: one and only one C template function per SM opcode and per BB kind, with all backend code emission explicit and inline.** Every IS_X86/IS_JVM/IS_NET/IS_JS/IS_WASM arm contains the literal `emit_text*`/`emit_byte*` calls for that backend — no `emit_sm_<op>_dispatch` shims, no `emit_sm_op(SM_*)` table-driver, no `emit_bb_x*` indirection. Helpers stay only at Layer 3 (`emit_text`, `emit_textf`, `emit_byte`, `emit_bytes` — the IO funnel) and at the truly-shared instruction primitives (`insn_*`, `bb_insn_*` in `emit_core.c`). Cost accepted: net LOC will rise, code duplication is the point. **Substeps:**
-    - [ ] **INLINE-1** — Inline-expand `emit_sm_<op>_dispatch` callers in `SM_templates/*.c`. Each IS_X86 arm becomes `emit_mode_set(TEXT_MODE(), g_emit.out); emit_macro_begin("<MACRO>", NULL, 0); emit_call_sym_plt("<rt_fn>", 0); emit_macro_end(); emit_pad_to_blob_size();` (the body of `emit_sm_nullary_rt`). Read literal MACRO_NAME and rt_fn strings from `g_sm_nullary` once, paste them inline per opcode. After: `emit_sm_<op>_dispatch` shims delete; `emit_sm_op` deletes; `g_sm_nullary` table deletes. Repeat for `g_sm_arith` and the line/template family.
-    - [ ] **INLINE-2** — Same treatment for `g_sm_arith`: each arithmetic opcode (`SM_ADD/SUB/MUL/DIV/REM/EQ/NE/GE/LE/GT/LT/AND/OR`) gets its IS_X86 arm inlined verbatim. `emit_sm_arith_rt` and the table delete.
-    - [ ] **INLINE-3** — BB-side: remaining `emit_bb_x*` helpers (`emit_flat_ir_alt`, `_cat`, `_fence`) — the "control-flow-assembly" dispatcher trio — inlined into `bb_pat_alt.c` / `bb_pat_cat.c` / `bb_fence.c` IS_X86 arms. Helpers delete.
-    - [ ] **INLINE-4** — Promote file-private SM machinery (`sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line`) to a public header **only if** any template's inlined body still references them — otherwise delete with the table.
-    - [ ] **INLINE-5** — Refactor `SM_templates/` so each opcode has its own file (`sm_<opcode>.c`), matching `BB_templates/` granularity. Current grouping (`sm_arith.c` with 9 fns, `sm_pat_anchors.c` with 9 fns) → 76 single-fn files. RULES.md "One file per Byrd Box" already binds BB-side; this extends it to SM.
-    - [ ] **INLINE-6** — Delete `emit_sm.c` machinery surviving INLINE-1..5; should drop from 182 KB → ~minimal (just the master dispatch switch + state). `emit_bb.c` drops similarly after INLINE-3.
+- [ ] **EC-UNI-INLINE-ALL** ⚡ — **Lon directive (session #9, AMENDED session #N+2): grouped templates. Where N opcodes share emit shape, ONE template fn handles all of them via per-backend `switch(g_emit.instr->op)`.** No more one-fn-per-opcode duplication. No external helpers. All emission code stays inside the template TU. Locality 100% preserved; LOC reduction occurs naturally where shape is shared. **Three grouped templates landed (slices 13/14/15) as canonical examples.** **Substeps:**
+    - [x] **INLINE-1** (slices 1-12, partial) — body of `emit_sm_<op>_dispatch` callers inlined into individual templates. **42 opcodes inlined** before grouping directive arrived. Slices 13/14/15 then GROUPED 29 of those 42. Remaining individual templates ready to group: SM_JUMP family, sm_misc_nullary (concat/neg/coerce_num/exp/push_null/etc.), sm_incr_decr.
+    - [x] **INLINE-2** (slice 11) — `g_sm_arith` table use folded into literal strings for SM_ADD/SUB/MUL/DIV/MOD. Pre-grouping; merged into `sm_arith()` at slice 13.
+    - [ ] **INLINE-3** — BB-side: remaining `emit_bb_x*` helpers (`emit_flat_ir_alt`, `_cat`, `_fence`) inlined into `bb_pat_alt.c` / `bb_pat_cat.c` / `bb_fence.c` IS_X86 arms. After SM-side grouping pattern proven, expect BB-side to also group (likely `bb_pat_anchor_group`, `bb_pat_position_group`).
+    - [ ] **INLINE-4** — Promote file-private SM machinery (`sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line`) to a public header **only if** any template's inlined body still references them — otherwise delete with the table. This unblocks the ~13 remaining SM templates that use `*_template` shims (LIT, REFNAME, CAPTURE family, USERCALL family, EXEC_STMT, PUSH_LIT_S, PUSH_VAR, STORE_VAR, DEFINE, DEFINE_ENTRY, CALL_FN, BB_ONCE_PROC, BB_PUMP_PROC, PUSH_EXPRESSION, CALL_EXPRESSION). After promotion, these likely group into 3-4 grouped templates (sm_pat_string_arg, sm_pat_capture, sm_var, sm_call, sm_define, etc.).
+    - [ ] **INLINE-5** — DEPRECATED by grouped-template directive. Original ("one file per opcode for SM, matching BB") was the duplication-maximalist position; grouped templates supersede it. SM_templates/ now organized by GROUP, not opcode. Files like `sm_pat_control.c` and `sm_pat_position.c` are stubs after slice 15 — pending cleanup to actually delete (currently kept as empty .c files for Makefile compatibility).
+    - [ ] **INLINE-6** — Delete `emit_sm.c` machinery surviving INLINE-1..5; should drop from 182 KB → ~minimal. `emit_bb.c` drops similarly after INLINE-3.
     - [ ] **INLINE-7** — Per-kind diff baseline re-frozen at each substep. Beauty md5 expected to shift; gate suspended per Lon directive until INLINE-ALL closes. GATE-PK is binding throughout.
-    - [ ] **INLINE-8** ⚡ — **Orphan sweep (runs LAST, after INLINE-1..7).** Once every live emit-path goes through `SM_templates/sm_<op>(void)` and `BB_templates/bb_<kind>(void)`, any `emit_bb_x*` / `emit_sm_*` function whose body has been moved into the templates is by definition orphaned. Delete orphans in dependency order — leafmost first. Per deletion: `make -j4 scrip` (catches missed callers); GATE-PK PASS=420 FAIL=0 (behaviour unchanged because what's deleted is unreachable). One commit per logical group. **Stop condition:** any deletion that breaks the build means the static caller-grep missed an indirect path (function pointer, macro expansion, generated stub) — restore the fn, re-audit, find the surviving call site, route IT through a template too, then resume. **Do NOT delete ahead of INLINE-1..7.** Earlier audit (session #9) showed 14 of 14 `emit_bb_x*` and 71 of 103 `emit_sm_*` with zero external callers — but the live emit path still flows through some of them via dispatcher-internal calls (e.g. `emit_bb_xeps` is called at `emit_bb.c:920` as the null-node fallback inside `emit_bb_node`, which IS the live walker). Until that fallback is itself routed through a `bb_eps` template arm, the "dead" label is unsafe to act on. INLINE-8 is the sweep that runs only when the templates have absorbed every emit path.
-    - [ ] **INLINE-8-stale-comments** — Stale "lift trail" comments inside `BB_templates/bb_atp_template.c`, `bb_dsar.c`, `bb_capture.c`, `bb_rem.c` claim "Live path remains emit_bb.c::emit_bb_xatp called from emit_bb.c's own walker." Update or remove during INLINE-8 (when the claim becomes true-via-deletion rather than stale): "Inlined from former emit_bb.c::emit_bb_x* during EC-UNI-INLINE-0/8."
+    - [ ] **INLINE-8** ⚡ — **Orphan sweep (runs LAST, after INLINE-1..7 + grouping).** Once every live emit-path goes through SM template fns (grouped or individual) and BB templates, any `emit_bb_x*` / `emit_sm_*` function whose body has been absorbed becomes orphaned. Delete in dependency order. Per deletion: `make -j4 scrip` (catches missed callers); GATE-PK PASS=420 FAIL=0 (behaviour unchanged because what's deleted is unreachable). **Stop condition:** any deletion that breaks the build means the static caller-grep missed an indirect path — restore the fn, re-audit, route through a template, then resume.
+    - [ ] **INLINE-8-stale-comments** — Stale "lift trail" comments inside BB_templates need updating during INLINE-8.
 - [ ] **EC-UNI-18** ⚠ SUPERSEDED by EC-UNI-INLINE-ALL — was: table-driven dispatch where it earns its keep, extend x86's `g_sm_nullary` / `g_sm_arith` pattern to JVM/NET/JS/WASM for nullary + arith. Lon's 2026-05-21 directive reverses direction: tables go away, inlining wins.
 - [ ] **EC-UNI-19** — add-a-backend test (`EMIT_NULL=99`). Mechanical patch + revert. Records LOC cost. Re-run after EC-UNI-INLINE-ALL to measure new cost (expected: 76 SM × 1 line + 97 BB × 1 line ≈ +173 lines per backend, all in templates).
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost. Post-INLINE-ALL cost: 1 new template file with 5 inlined arms.
