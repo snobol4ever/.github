@@ -81,7 +81,7 @@ smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
 icon rungs:    194/36/35
-matrix gate:   0/365 PASS
+matrix gate:   450/450 PASS
 firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate)
 beauty.sno --compile md5:           40df9e004c3e963c99af716c65f2c970  (882901 bytes)
 beauty.sno --compile assembled .o:  3adbb73f88edcc5416d38baade6faf97  (494336 bytes)
@@ -94,7 +94,7 @@ EC-UNI-14 ladder closed: 14-PREREQ d6e5c8f1 -> 14(a) 66cf8506 -> 14(b) dc4e6a9d/
                   scripts/test_gate_ec_uni_complete.sh, 9/9 PASS on HEAD).  M1 oracle DRIFTED
                   (current md5 9cddff2534472b822438801d8db58a99, 622 lines, vs M1 baseline
                   abfd19a7..., 646 lines) — EC-UNI-21-followup tracks reconcile vs retire.
-                  Remaining open in EC-UNI: EC-UNI-15/16/17/18/19/20/21-followup/22.
+                  Remaining open in EC-UNI: EC-UNI-16/17/18/19/20/21-followup/22.
 beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines,
                             md5 5be1de188af42be42e15e6d9a552f759, self-contained).
                             Subsystem apparatus at programs/snobol4/beauty_suite/.
@@ -119,7 +119,7 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 **Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `GOAL-SN4-JVM-EMIT`, `GOAL-SN4-JS-EMIT`, `GOAL-SN4-NET-EMIT`, `GOAL-SN4-WASM-EMIT`).
 
-Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..6).
+Closed sub-rungs trail: EC-UNI-10..13(e), 14-PREREQ, SUSPEND_VALUE fix, 14(a), 14(b), 14(c)(1..7), 15, 21.
 See git log for per-commit detail.
 
 #### Open sub-rungs
@@ -169,9 +169,9 @@ See git log for per-commit detail.
   Re-converge to oracle parity OR formally retire M1 — tracked as
   **EC-UNI-21-followup** in this file.
 
-- [ ] **EC-UNI-15** — top-level shape: each template fn is a verbose `if (IS_<BE>)` five-arm switch, one screen per fn. Done family-by-family (one commit per family file). Multi-statement arms fine; no helper extraction yet.
+- [x] **EC-UNI-15 (CLOSED 2026-05-20)** — top-level shape: every template fn is a verbose `if (IS_<BE>)` five-arm switch.  Evidence: `scripts/test_gate_em_template_matrix.sh` reports **450/450 cells covered** across 34 files / 90 fns (0 misses).  New audit script `scripts/test_gate_ec_uni_15_audit.sh` re-runs the matrix gate and additionally records the fn-size distribution: **71 fns < 30 lines, 11 fns 30-59 lines, 8 fns >= 60 lines**.  The 8 oversized fns (`bb_arbno` 111, `bb_lit` 98, `sm_suspend_value` 87, `bb_cat` 87, `sm_call_fn` 86, `bb_tab` 80, `bb_alt` 75, `bb_capture` 66) are queued as the EC-UNI-16 candidate list — that rung extracts Layer-2 helpers per the "justified iff carries a real conditional ..." rule.  The matrix gate plus per-fn size inventory together establish that no fn is missing a backend arm and the remaining largeness is documented work, not hidden silos.
 
-- [ ] **EC-UNI-16** — REDUCE phase. Extract Layer-2 helpers, rule: **justified iff carries a real conditional (IS_TEXT/IS_BIN, body/method gate, fallback) OR de-duplicates non-trivial computation in ≥2 templates. String-concat shortening NOT a reason.** Justified: `jvm_jump_to_pc(target)`, `jvm_ret_guard(op,sfx)`, `net_ret_guard(op)`. NOT: `jvm_invokestatic(class,method,sig)`.
+- [ ] **EC-UNI-16** — REDUCE phase. Extract Layer-2 helpers, rule: **justified iff carries a real conditional (IS_TEXT/IS_BIN, body/method gate, fallback) OR de-duplicates non-trivial computation in ≥2 templates. String-concat shortening NOT a reason.** Justified: `jvm_jump_to_pc(target)`, `jvm_ret_guard(op,sfx)`, `net_ret_guard(op)`. NOT: `jvm_invokestatic(class,method,sig)`.  **Candidate list** (8 fns ≥60 lines, from `scripts/test_gate_ec_uni_15_audit.sh`): `bb_arbno` 111, `bb_lit` 98, `sm_suspend_value` 87, `bb_cat` 87, `sm_call_fn` 86, `bb_tab` 80, `bb_alt` 75, `bb_capture` 66.  Note: `sm_suspend_value` and `sm_call_fn` are byte-near-duplicates of each other across all five arms — likely the single biggest justified-helper opportunity in this list.
 
 - [ ] **EC-UNI-17** — Layer-3 primitives audit. Add only if multi-line pattern recurs in ≥3 sites across ≥2 backends. Skipping is the expected answer.
 
