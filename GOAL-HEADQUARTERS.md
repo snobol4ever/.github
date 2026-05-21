@@ -64,60 +64,54 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: 87d11afc   (EC-UNI LIFT Snocone-shape slices 1+2+3.  Slice 1 71bd8b6f
-                     left build broken — TEMPLATE_ADDR_SIGLEN was emit_bb.c-local
-                     and BB_templates/ couldn't see it.
+one4all: 44e41588   (EC-UNI LIFT Snocone-shape slices 1+2+3+4.  CORRAL COMPLETE
+                     on BB-side: all 14 emit_bb_x* function bodies (xstar, xlnth,
+                     xposi+xrpsi, xfail, xfarb, xtb+xrtb, xchr, xfnce, xcallcap,
+                     xfnme, xnme, xdsar, xatp, charset) are now physically in
+                     BB_templates/ files.  Live path UNCHANGED — emit_bb_node
+                     does not yet fill g_emit fields, so originals in emit_bb.c
+                     are still the live path.  Beauty byte-identical proves no
+                     harm.  Now everything is in its proper place; the next
+                     sweep can wire the dispatcher and delete originals.
 
-                     SNOCONE DISCIPLINE clarified (Lon 2026-05-20): variables
-                     used inside template functions (and the helpers they call)
-                     must be scalars, strings, or collections of values in
-                     g_emit.  Pointer-to-struct is non-translatable.  C strings
-                     (const char *) are the admitted exception.  bb_label_t *
-                     in g_emit was wrong; corrected to label-NAME strings.
+                     Slice 4 (44e41588) added:
+                       - g_emit fields: child_fn (void *), op_name1, op_name2,
+                         op_kind — the per-op parameters from emit_bb_x*
+                         signatures, now corraled in g_emit.
+                       - un-static of emit_bb_ptr_slot, child_cache_get_lbl,
+                         g_cap_fixup_cb in emit_bb.c (declared in emit_bb.h).
+                       - bb_label_from_name() scaffolding helper in
+                         bb_template_common.h — transient bb_label_t built from
+                         name string so legacy pointer-taking helpers can be
+                         called from templates without re-polluting g_emit.
+                       - bb_charset_helper.c (lifted emit_bb_charset body),
+                         called from bb_span/any/break/notany IS_X86 arms after
+                         they set g_emit.op_name1 (chars), op_name2 (rt fn name),
+                         op_kind (banner).
+                       - bb_capture.c lifted xcallcap/xfnme/xnme combined
+                         (dispatch via g_emit.op_name1 + imm + op_name2).
+                       - bb_fence.c lifted xfnce (uses emit_text_jmp /
+                         emit_text_label primitives).
+                       - bb_dsar.c new — DEREF body (xdsar) corraled.
+                       - bb_atp_template.c new — USERPAT body (xatp) corraled;
+                         renamed from bb_atp.c to avoid colliding with the
+                         existing bb_atp(void *,int) runtime fn in bb_box.h.
+                       - Makefile updated for the three new .c files.
 
-                     1a9571fe (slice 1 Snocone-shape):
-                       - TEMPLATE_ADDR_SIGMA/SIGLEN macros + Σ/Σlen externs moved
-                         from emit_bb.c into emit_globals.h (fixes build).
-                       - g_emit.lbl_succ/lbl_fail/lbl_back: bb_label_t * -> const char *.
-                       - bb_rem, bb_len, bb_pos, bb_fail IS_X86 arms rewritten:
-                         read values + name strings from g_emit, write asm text
-                         via bb3c_format / scalar-only insn_* helpers.
+                     Status: 14/14 BB-x86 fn bodies corraled.  Matrix gate
+                     grew 830 -> 845 (new templates × 5 backends).  Beauty
+                     md5 stays 0c192b2f... throughout.
 
-                     90235416 (slice 2): bb_arb (xfarb), bb_tab (xtb+xrtb) lifted
-                         under the same discipline.
+                     Slice trail: 9b5ba0b6 -> 869b397a -> 56b5afb6 -> b496198c
+                     -> 8b2f65e1 -> a6a3b736 -> 99630c7e -> 71bd8b6f -> 1a9571fe
+                     -> 90235416 -> 87d11afc -> 44e41588.
 
-                     87d11afc (slice 3):
-                       - New name-taking primitives in emit_core.c:
-                           emit_text_jmp(const char *target_name, jmp_kind_t kind)
-                           emit_text_label(const char *lbl_name)
-                         Single home for format-mode-aware label/jump emission;
-                         mirrors what a single Snocone proc will do.  Pointer
-                         shims emit_jmp / emit_label_define stay for non-template
-                         callers, forwarding to the name path via lbl->name.
-                       - fmt_label_save / fmt_flush_jmp split into name-taking
-                         cores; pointer-taking originals become one-line shims.
-                       - emit_flat_intern_str accessor added — string-in/string-out
-                         wrapper over the static g_flat_intern_str fn-pointer;
-                         lets bb_lit ask for an interned label name without
-                         seeing the fn-pointer.
-                       - bb_lit IS_X86 arm lifted from emit_bb.c::emit_bb_xchr.
-                       - All six previously-lifted templates refactored to use
-                         emit_text_jmp / emit_text_label everywhere control-flow
-                         strings appear.
-
-                     Status: 8 of 14 emit_bb_x* fns lifted to BB_templates.
-                     Remaining: xcallcap, xfnce, xfnme, xnme, xdsar, xatp, plus
-                     emit_bb_charset (multi-op).
-
-                     Live path unchanged: emit_bb_node does not yet fill
-                     g_emit.lbl_*, so IS_X86 arms in templates are shape-only.
-                     Beauty md5 byte-identical to HEAD baseline (0c192b2f...,
-                     not the stale 40df9e0... in this watermark below).  Matrix
-                     830/830 throughout.
-
-                     Trail: 9b5ba0b6 -> 869b397a -> 56b5afb6 -> b496198c ->
-                     8b2f65e1 -> a6a3b736 -> 99630c7e -> 71bd8b6f -> 1a9571fe ->
-                     90235416 -> 87d11afc.)
+                     NEXT: wire emit_bb_node to fill g_emit fields per node
+                     kind, then call the template fn (which now contains the
+                     proper x86 body).  Once the template path emits byte-for-
+                     byte identical output, delete the originals in emit_bb.c.
+                     Then mirror this whole sweep on the SM side
+                     (~70 SM fns from emit_sm.c into sm_*.c templates).)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
 .github: (this commit — record EC-UNI LIFT PATTERN block + watermark refresh + handoff)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
