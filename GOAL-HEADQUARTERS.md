@@ -42,6 +42,13 @@ done
 
 # (4) SPITBOL oracle (ships with prebuilt bin/sbl).
 [ -d /home/claude/x64 ] || git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
+
+# (5) Per-kind diff baseline check (EC-UNI-PER-KIND-DIFF, primary invariant
+#     since one4all 9b905d26).  Replaces the matrix + beauty + smoke session-
+#     start sweep.  ~5–10s for 1059 cells.
+bash /home/claude/one4all/scripts/test_per_kind_diff.sh
+# Expect: PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0  (at one4all 9b905d26).
+# If FAIL>0 or GONE>0: prior session left damage; investigate before cutting.
 ```
 
 ## Architecture
@@ -78,53 +85,70 @@ broke the emitter.
 `*_icon_all_rungs.sh` that defaults to `--interp` — those scripts run the
 interpreter and are valid for INTERPRETER work, not emitter work.
 
-### Directive: emitter-refactor session pace
+### Directive: emitter-refactor session pace (revised 2026-05-21 Lon)
 
-**During CORRAL / lift / template-physical-placement work where the LIVE PATH IS
-UNCHANGED, the full gate matrix at session start is wasteful and slow.**  These
-slices are byte-identical by construction — the originals in `emit_bb.c` / `emit_sm.c`
-still run; the template arms are dormant code waiting for `emit_bb_node` /
-`emit_program` to be wired.  Re-running large corpus suites per slice tells us
-nothing the build + matrix gate + beauty-md5 gate didn't already.
+**The per-kind filter-diff harness (EC-UNI-PER-KIND-DIFF, one4all `9b905d26`)
+is the new primary per-slice invariant.**  It is ~5–10 seconds end-to-end,
+covers all 1059 (SM op × BB kind) × (backend × submode) cells, and detects
+byte-level drift through a filter-then-diff pipeline that strips known-OK
+variability (compiler-generated label numbers, rodata pointer addresses,
+node ids).  This subsumes most of what the legacy matrix + beauty + smoke
+gates were catching indirectly.
+
+The legacy gates remain useful for **escalation scenarios** — see "When to
+escalate" below — but are no longer required per-slice.
 
 Use this tiered cadence:
 
-**Per-slice fast cycle (default — use this for every CORRAL slice):**
+**Per-slice fast cycle (the new default — use this for every slice):**
 ```
-make -j4 scrip                                               # must build clean
-bash scripts/test_gate_em_template_matrix.sh                 # invariant; matrix grows N×5 per new template
-bash scripts/test_gate_ec_uni_complete.sh                    # beauty.sno --compile md5 byte-identity (THE byte-identical proof)
+make -j4 scrip                                                # must build clean
+bash scripts/test_per_kind_diff.sh                            # PRIMARY invariant: 1059 cells, ~5–10s
 ```
-If both gates pass, the slice is good.  Commit + push.
+Exit 0 = slice is good.  Commit + push.
 
-**Session-end gate (run ONCE at handoff, not per slice):**
+**Session-start gate (run ONCE at session start):**
 ```
-bash scripts/test_crosscheck_icon.sh                         # all three modes incl. --run
-bash scripts/test_smoke_snobol4_jit.sh                       # SNOBOL4 three-mode parity (--run PASS≥186)
+make -j4 scrip                                                # confirm clean build
+bash scripts/test_per_kind_diff.sh                            # confirm prior session's baseline still passes
 ```
+If both pass, start cutting.  No need to re-run the legacy matrix/beauty
+gates unless your work crosses one of the escalation triggers below.
 
-**Session-start gate (run ONCE at session start, NOT before each slice):**
-The session-end gate from the prior session is your baseline.  If it was clean on
-the watermarked commit, you do not need to re-establish it before your first
-edit.  Just `make -j4 scrip` to confirm the build, then start cutting.
+**Session-end gate (run ONCE at handoff):**
+```
+bash scripts/test_per_kind_diff.sh                            # primary
+bash scripts/test_gate_em_template_matrix.sh                  # confirm structural invariant (matrix N×7 cells)
+bash scripts/test_gate_ec_uni_complete.sh                     # beauty.sno --compile md5 + 9-gate roll-up
+```
+The matrix + beauty gates here are belt-and-suspenders coverage of paths
+that DON'T flow through emit_bb_node / emit_sm_dispatch (e.g. emit_flat_ir
+direct calls, dispatchers themselves).  If per-kind-diff is clean, these
+will be clean too in nearly all cases; if not, the divergence itself is
+informative.
 
-**When to escalate to full gates mid-session:**
-- The slice touches the LIVE PATH (changes `emit_bb.c` / `emit_sm.c` / dispatchers).
-- The slice removes a function (delete originals after wire-up).
-- The slice changes `g_emit` shape (new fields, renamed fields).
-- The build broke and was fixed — re-run full to confirm no follow-on damage.
-- An unfamiliar template kind is being filled for the first time (e.g. first SM-side
-  slice after BB-side is done).
-
-For pure physical-placement CORRAL slices like 5/6/7, the fast cycle is sufficient.
+**Escalate to full legacy gates mid-session ONLY when:**
+- Per-kind-diff reports a FAIL or GONE — the diff names the cell; before
+  fixing, run the legacy gate that exercises that cell's live path to
+  confirm the same regression is visible there too.
+- The slice touches LIVE PATH dispatchers (`emit_flat_ir`, `emit_walk_codegen`,
+  `dispatch_one_x86`, the WASM/JS/NET silo walkers) — these are NOT
+  exercised by the synthetic single-node audit, so per-kind-diff can't see
+  their regressions.  Run `test_crosscheck_icon.sh` + `test_smoke_snobol4_jit.sh`
+  to cover the dispatcher path.
+- The slice changes `g_emit` shape (new fields, renamed fields) — re-run
+  full to confirm no follow-on damage to fields you didn't touch.
+- The slice deletes any `emit_bb_x*` / `emit_sm_*` function — confirm the
+  live path still resolves.
 
 ### Gate commands
 
 ```
-GATE-M  bash scripts/test_gate_em_template_matrix.sh           # matrix invariant            (per-slice)
-GATE-E  bash scripts/test_gate_ec_uni_complete.sh              # beauty md5 + 9-gate roll-up (per-slice; exercises --compile)
-GATE-J  bash scripts/test_crosscheck_icon.sh                   # Icon three-mode incl. --run (session-end / live-path edits)
-GATE-S  bash scripts/test_smoke_snobol4_jit.sh                 # SNOBOL4 three-mode --run≥186 (session-end / live-path edits)
+GATE-PK bash scripts/test_per_kind_diff.sh                     # PRIMARY: per-(SM op × BB kind × backend × submode) byte-identity (per-slice)
+GATE-M  bash scripts/test_gate_em_template_matrix.sh           # matrix structural invariant            (session-end / escalation)
+GATE-E  bash scripts/test_gate_ec_uni_complete.sh              # beauty md5 + 9-gate roll-up             (session-end / escalation)
+GATE-J  bash scripts/test_crosscheck_icon.sh                   # Icon three-mode incl. --run             (escalation: live-path dispatcher edits)
+GATE-S  bash scripts/test_smoke_snobol4_jit.sh                 # SNOBOL4 three-mode --run≥186            (escalation: live-path dispatcher edits)
 ```
 
 Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
@@ -134,10 +158,30 @@ Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
         bash scripts/test_icon_all_rungs.sh                    # PASS=194          --interp; INTERPRETER coverage only
 ```
 
+### Re-freezing the per-kind baseline
+
+When a change is INTENTIONAL — refactoring template output, adding a new
+backend cell, fixing a known-wrong emission — the per-kind diff will FAIL
+because the baseline is stale.  In that case:
+```
+bash scripts/freeze_per_kind_baseline.sh                       # records current scrip output as the new oracle
+bash scripts/test_per_kind_diff.sh                             # confirm post-freeze: PASS=N FAIL=0 NEW=0 GONE=0
+```
+Commit the regenerated `baselines/per_kind/` along with the source change.
+The diff between old and new baseline IS the regression-test record of
+what was intentionally changed — read it before committing to confirm
+only the expected cells moved.
+
 
 ## Watermark
 
 ```
+.github: (this commit — gate cadence change: per-kind-diff is the new primary
+                     per-slice invariant; matrix + beauty demoted to session-end /
+                     escalation per Lon directive 2026-05-21.  Verified clean at
+                     one4all 9b905d26: PK PASS=399 FAIL=0, matrix 855/855,
+                     EC-UNI-21 9/9.  Session Setup now includes a per-kind-diff
+                     verification step.)
 one4all: 9b905d26   (EC-UNI-PER-KIND-DIFF: honest 5-backend × submode geometry.
                      Refactored audit harness directory layout from <be>/<KIND>.<ext>
                      to <backend>/<submode>/<KIND>.<ext>.  Per Lon directive
