@@ -138,6 +138,35 @@ Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
 ## Watermark
 
 ```
+one4all: d2b6dac3   (EC-UNI-REWIRE coverage audit landed.  scripts/test_audit_bb_x86_
+                     exercise.sh walks corpus/programs/snobol4/ under --compile and
+                     counts `# BOX <KIND>` banners per BB pat-kind.  Result across 177
+                     files (1 segfault, 176 compile OK): LIT=9 files=8, SPAN=3 files=3,
+                     POS=3 files=3, ANY=3 files=1, all other 13 kinds zero.  Audit
+                     proves 4 of 17 BB pat-kinds flow through emit_bb_xstar/etc. in
+                     current corpus; 13 are dormant.
+
+                     Slice 1-7 history (045baf4a — see preceding watermark):
+                     all 17 pat-level emit_bb_x* fn bodies physically inside
+                     BB_templates/ files.  Live path UNCHANGED — emit_bb_node
+                     does not yet fill g_emit fields, so emit_bb.c originals run.
+                     Beauty byte-identical and matrix gate 855/855 throughout.
+
+                     NEXT (Lon directive 2026-05-21 evening):
+                     1. EC-UNI-PER-KIND-DIFF — author tools/emit_per_kind_audit.c +
+                        scripts/test_per_kind_diff.sh: for each SM opcode and each
+                        BB kind, synthetically construct an instance, emit via
+                        legacy path AND template path, diff.  Per-kind PASS/FAIL
+                        table replaces "hope corpus triggers kind" coverage.
+                     2. EC-UNI-REFAITH — re-lift FAILing kinds byte-faithfully.
+                     3. EC-UNI-REWIRE-ALL — route emit_flat_ir through emit_bb_node
+                        for IS_TEXT once per-kind diff is 100% PASS.
+                     4. EC-UNI-NAMEKEY-BIN — name-keyed binary primitives;
+                        delete emit_bb_x* originals.
+
+                     Completeness over format-faithfulness: end state is one
+                     template per kind for ALL kinds, dormant or not.  Dead-code
+                     deletion (Path c) ruled out by Lon directive.)
 one4all: 045baf4a   (EC-UNI LIFT Snocone-shape slices 1-7.  CORRAL of all
                      known pat-level emit_bb_x* bodies COMPLETE.  Slices 1-4
                      (44e41588) corraled the 14 active emit_bb_x* fns.  Slices
@@ -367,6 +396,69 @@ Implications:
 Alternative: scan `corpus/crosscheck/` for existing `.sno` files that already exercise enough BB-lowering to be useful — `test_crosscheck_x86_full_corpus.sh` does end-to-end execute/diff testing, but its `.ref` comparison is on stdout, not on emitted `.s` text.  It catches semantic regressions, not text format drift.  Likely useful for verifying Path (b) once name-keyed primitives exist, less useful for verifying Path (a.x).
 
 **Net (revised):** the rewire is blocked on TWO open questions: (1) Lon's choice between (a.1)/(a.2)/(b), and (2) a coverage gate that actually exercises the 17 lifted paths.  Both should be answered before code lands.
+
+**⚠ Deeper coverage finding (2026-05-21 evening, deepens the prior coverage finding).**
+
+Empirical probe: a minimal test program `S = 'hello world' \n S POS(0) REM :F(FAIL)` (REM in general-expression context with no `.` capture) compiles via `--compile` without segfault, but its output uses `PUSH_VAR .S2 # REM` followed by `PAT_DEREF` — NOT `SM_PAT_REM`.  The runtime keyword-lookup machinery handles REM at execution time via the variable name, not the parser's `TT_REM` token.
+
+Investigation in `src/lower/lower.c:375` shows `case TT_REM: SM_emit(g_p, SM_PAT_REM)` lives inside `lower_pat_expr` — a function called only when the AST node is **already known to be a pattern context**.  The parser+lexer mostly emit REM as a general variable lookup (`TT_VAR` with name "REM"), which the runtime keyword machinery dispatches.  Only AST nodes that the parser explicitly marks as pattern-expression children flow through `lower_pat_expr` and reach `SM_PAT_REM`.
+
+Result: across simple SNOBOL4 programs that name REM, the `SM_PAT_REM` opcode emission path is rare.  And since `--compile` then needs the invariant-pattern optimizer in `emit_walk_phase2` to fire (which requires all stack values be non-variant), the cascade is: source must hit the pattern-expression AST → must hit `SM_PAT_REM` opcode → must be in a window where no `PUSH_VAR` flagged the window as variant → must pass `emit_flat_invariant` check.  That's a narrow gate.
+
+**This means `emit_bb_xstar` may be near-dead in practice for current SNOBOL4 corpus.**  Same likely holds for `emit_bb_xlnth`, `emit_bb_xtb`, etc.  The previous "1 of 17 BB kinds exercised in beauty.sno" finding is even more dramatic in light of this: it may be more like "1 of 17 BB kinds exercised across all current SNOBOL4 corpus under --compile".
+
+**Implications for EC-UNI work:**
+- The matrix gate (855/855) confirms templates exist; the EC-UNI-21 gate confirms beauty.sno's --compile output (which uses ≤1 BB kind).  Together they offer little coverage of the BB-x86 lifted bodies.
+- The slices that lifted bodies for REM/LEN/CAT/ARBNO/etc. may have introduced bugs that no current gate detects, because no current corpus program reaches those code paths.
+- An accurate `EC-UNI-COVER-PAT` corpus is harder to author than initially proposed: it must construct programs that the SNOBOL4 parser+lower will recognize as pattern-expression contexts (e.g., via explicit `&PATTERN` declarations or specific syntactic forms), then exercise each BB pat-kind through that path, then trip the invariant optimizer.  Each of those is a separate constraint.
+
+**Lon-decision matrix expanded:**
+- Path (a.1) — re-lift faithfully — possible but unverifiable without `EC-UNI-COVER-PAT`.
+- Path (a.2) — re-baseline gate — same: re-baselined to what? Beauty.sno output that exercises 1 kind?
+- Path (b) — name-keyed binary primitives first — also unverifiable without coverage.
+- **Path (c) — newly visible** — investigate first WHETHER `emit_bb_xstar` etc. are actually live anywhere.  If they're vestigial relative to the current SNOBOL4 frontend, the rewire question changes shape: there may be no rewire to do, just dead-code removal.  This is the GOAL-HEADQUARTERS analogue of the SN_INCR/SN_DECR observation in EC-UNI-14(c)(5)'s side-effects list ("vestigial — emitted only by sm_interp_test.c; no live frontend lowers either today").
+
+Recommendation: pause the rewire entirely.  Author a coverage probe instead — `scripts/test_audit_bb_x86_exercise.sh` that runs each `corpus/` SNOBOL4 program under `--compile` and counts `# BOX ` banners by kind.  This reveals empirically which BB pat-kinds reach `emit_bb_xstar` etc.  Decision (a.x vs b vs c) becomes data-driven from that audit.
+
+**Audit landed and run (one4all `d2b6dac3`, 2026-05-21 evening).**
+
+Across 177 .sno files in `corpus/programs/snobol4/` (1 segfault, 176 compile OK), only 4 of 17 BB pat-kinds emit any `# BOX` banner: LIT (9), SPAN (3), POS (3), ANY (3).  The other 13 — REM, LEN, CAT, ARBNO, ARB, BREAK, NOTANY, RPOS, TAB, RTAB, FENCE, ABORT, ASSIGN_IMM, ASSIGN_COND — emit zero banners.  Their lifted bodies in `BB_templates/` are dormant in current corpus exercise.
+
+**Lon directive 2026-05-21 evening — the end state is one template per kind for ALL kinds, dormant or not.**  Completeness is the priority, not format-faithfulness.  The 13 dormant kinds stay in `BB_templates/` and get rewired through `emit_bb_node` like the 4 live ones; corpus exercise level is not the criterion for which kinds get a template.  This rules out Path (c) (vestigial deletion) — even dormant code needs to flow through the unified template path.
+
+**The verification problem this leaves:** the existing gates (EC-UNI-21 = beauty, smoke tests, JIT corpus) only naturally exercise 4 of 17 BB kinds in the source corpus.  How do we verify that the rewire of the 13 dormant kinds produces correct emission?
+
+**Lon directive 2026-05-21 evening (verification):** *"Emit all SM and BB once and just compare the outputs."*
+
+**Plan: per-kind unit regression `EC-UNI-PER-KIND-DIFF`.**  Author a test program (likely `tools/emit_per_kind_audit.c` driven by `scripts/test_per_kind_diff.sh`) that, for every SM opcode and every BB kind:
+
+1. Constructs a minimal synthetic instance: a `BB_t` of the right kind with stub child/`ival`/`sval`/`value` fields filled, OR an `SM_t` of the right opcode with stub `a[]` operands.
+2. Runs the **legacy path** (`emit_bb_xstar` / `emit_sm_*_dispatch` called directly with synthetic `bb_label_t` and `FILE *`) and captures the text output to `/tmp/legacy_<kind>.s`.
+3. Runs the **template path** (fill `g_emit.lbl_*` / `g_emit.node` / `g_emit.instr`, call `emit_bb_node(nd, out)` or `sm_<op>()` directly) and captures to `/tmp/template_<kind>.s`.
+4. `diff` the two; record per-kind PASS/FAIL.
+
+Output: a 91-row SM table + a 17-row BB pat-kind table (plus the 76 stub BB kinds, expected uniformly empty-vs-empty PASS) showing per-kind byte-identity.  The 4 live kinds are exercised redundantly by EC-UNI-21 + smoke + crosscheck; the 13 dormant kinds are exercised for the FIRST time here.  Per-kind failures pinpoint exactly which template bodies drifted from their originals.
+
+This gate replaces the "hope a corpus program triggers the kind" approach with **direct per-kind exercise**.  Coverage becomes total over the SM × BB opcode × kind matrix, not a function of what corpus happens to exist.
+
+**Implementation sketch (subject to refinement):**
+
+- `tools/emit_per_kind_audit.c` — a standalone C program linked against the emitter / runtime, no SNOBOL4 frontend.  For each kind:
+  - Build synthetic instance with placeholder operands (constant strings "TEST", labels "L_succ" / "L_fail" / "L_back", `ival=0`, etc.).
+  - Save current `g_emit` snapshot.  Set `bb_emit_mode = EMIT_TEXT`.
+  - Call legacy fn → `/tmp/per_kind/legacy_<kind>.s` (closing the FILE).
+  - Reset `g_emit`.  Call template fn (via `emit_bb_node` for BB, direct `sm_<op>()` for SM with `g_emit.instr` set).
+  - `/tmp/per_kind/template_<kind>.s`.
+  - Restore `g_emit`.
+- `scripts/test_per_kind_diff.sh` — runs the C audit, diffs each pair, reports PASS/FAIL counts, writes per-kind .diff files for inspection.
+- One-time baseline run records expected drift per kind in `tools/per_kind_baseline.csv` (commit-tracked).  Subsequent runs compare against baseline — any new drift fails the gate.
+
+**Sequencing of next rungs:**
+
+1. **`EC-UNI-PER-KIND-DIFF` (proposed, NEXT)** — author the per-kind unit audit.  Run it on `045baf4a` baseline to measure existing drift per kind.  Result: a per-kind PASS/FAIL table that documents the *current* template-vs-original divergence for each of the 17 BB pat-kinds and 91 SM opcodes.  Many will FAIL on text-format drift (template uses `emit_text_jmp`, original uses `bb3c_format(out,"","jmp",t)`); a few may FAIL on substantive bugs that have been invisible until now.
+2. **`EC-UNI-REFAITH` (proposed, post-DIFF)** — re-lift the FAILing kinds to byte-faithfully match the original.  No format-drift acceptance, no gate re-baselining — the per-kind diff is the gate, and the gate must show 100% PASS.  This is Path (a.1) from the earlier matrix, but now scoped to *exactly the kinds that need it* per the DIFF result.
+3. **`EC-UNI-REWIRE-ALL`** — with per-kind diff at 100% PASS, route `emit_flat_ir` through `emit_bb_node` for all kinds in IS_TEXT mode.  Routine: same code path goes through templates from now on.
+4. **`EC-UNI-NAMEKEY-BIN`** — name-keyed binary primitives for `--run` mode; rewire binary too; delete `emit_bb_x*` originals.
 
 ---
 
