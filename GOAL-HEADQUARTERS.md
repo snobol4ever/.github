@@ -328,6 +328,29 @@ Text mode (`--compile`) tolerates name-only labels: offsets are resolved by name
 
 **Why this is NEXT and not a slice 8 lift:** the SM-side audit (2026-05-21) confirmed no SM body-lifting remains; all `emit_sm_*_(dispatch|line|template)` fns are already-lifted-as-helper.  The BB-side LIFT is complete through slice 7.  The next step IS the rewire — there's no more lift work to delay it with.
 
+**⚠ Format-drift finding (2026-05-21, blocks Path (a) execution).**
+
+Even Path (a) (text-only rewire) does NOT produce byte-identical text output today.  Verified by direct read of the lifted vs original code paths for `BB_PAT_REM`:
+
+- Original `emit_bb_xstar` IS_TEXT path emits jumps via `bb3c_format(out, "", "jmp", target)` — action column 2 gets "jmp", goto column 3 gets the target name.  `bb3c_write_line` pads L=24, A=16, then writes target into col 3.
+- Template `bb_rem` IS_X86 emits jumps via `emit_text_jmp(target, JMP_JMP)` → `bb3c_emit_jmp(out, "jmp", target)` (`emit_core.c:589`).  That function builds `rest = pad("", 27) + "jmp " + target` and calls `bb3c_format(out, "", "", rest)` — action column is EMPTY, all of "jmp <target>" goes into col 3.
+
+The two paths produce **demonstrably different column layouts** for every jump.  Empirical confirmation: beauty.sno only exercises POS among the pat-level emissions (one `# BOX POS(0)` in 882901 bytes of output), but the same `emit_text_jmp` substitution exists across all 17 lifted templates — so a fuller corpus (programs that exercise REM/LEN/CAT/etc.) would surface the drift even if beauty.sno alone might be lucky.
+
+Same finding applies to `emit_text_label` vs `emit_label_define`: original uses `emit_label_define(b)` which patches the offset into the `bb_label_t` struct AND writes the label line in text mode.  Template uses `emit_text_label(name)` which writes a text label line but cannot patch the struct (because the template only has the name).  Text output may still be byte-identical IF `bb3c_format(out, label_col, "", "")` writes identical bytes to whatever `emit_label_define` does in text — needs verification per-helper.
+
+**This means Path (a) requires one of:**
+
+**Path (a.1)** — Re-lift the templates preserving the EXACT original `bb3c_format(out, "", "jmp", target)` calls verbatim (and `emit_label_define` calls verbatim, taking a reconstructed `bb_label_t` via `bb_label_from_name`).  The templates' current `emit_text_jmp`/`emit_text_label` substitution is a faithful refactoring that nonetheless changed bytes.  Pure mechanical: the lifted bodies become byte-faithful to the originals at the cost of reading less cleanly.
+
+**Path (a.2)** — Re-baseline the EC-UNI-21 gate's expected md5 to the post-rewire output, with a one-time documented drift commit.  This makes the rewire visible (md5 changes) but accepts the new output as canonical.  The change is purely cosmetic (jmp/label column layout); semantically identical assembly is produced and the assembled `.o` md5 should be unchanged.  EC-UNI-21 gate already tracks both source md5 AND assembled `.o` md5 (`3adbb73f88edcc5416d38baade6faf97`); the assembled md5 is the semantic ground truth.
+
+**Recommendation:** Path (a.2).  The assembled `.o` md5 is what actually matters for correctness; the text md5 is a useful invariant but ultimately a presentation choice.  One-shot re-baselining keeps the rewire small and forward-progress; re-lifting all 17 templates to preserve text format would re-do existing work for cosmetic reasons.  Confirm with Lon before re-baselining.
+
+**Why this finding only surfaces now:** the templates' IS_X86 arms have been dormant since slice 1 (`9b5ba0b6`).  The matrix gate (`test_gate_em_template_matrix.sh`) confirms each backend arm EXISTS but does not check byte-identity of output (because the templates aren't called).  EC-UNI-21 confirms the LIVE path (legacy `emit_bb_x*`) byte-output, which has been unchanged.  The drift was structurally invisible until someone read the lifted templates against the originals — which this session is the first to do for the rewire purpose.
+
+**Net:** Path (a.2) likely.  But Lon must choose between (a.1 — re-lift faithfully) / (a.2 — re-baseline gate) / (b — name-keyed binary primitives first, side-stepping the question) before code lands.
+
 ---
 
 #### Open sub-rungs
