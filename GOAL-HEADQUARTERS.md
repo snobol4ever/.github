@@ -176,18 +176,35 @@ only the expected cells moved.
 ## Watermark
 
 ```
-.github: (this commit — pat-keyword reachability probe + portability finding +
-                     two NEW bug entries (HQ-BUG-RPOS-COMPILE-SEGFAULT,
-                     HQ-BUG-RTAB-COMPILE-SEGFAULT) recorded.  Empirical block
-                     added under EC-UNI sequencing.  Gates clean at one4all
-                     9b905d26: PK PASS=399 FAIL=0 STUB=660 NEW=0 GONE=0.
-                     No code change in one4all this session — documentation
-                     commit only.  EC-UNI-COVER-PAT remains BLOCKED on Lon
-                     directive: (a) record `KEYWORD()` as Permitted divergence
-                     vs SPITBOL ERROR 022, or (b) treat scrip's parens-keyword
-                     mapping as a bug and remove it.  Without (a), there's no
-                     portable corpus pathway to reach 10 of 17 BB pat-kinds
-                     from SNOBOL4 source.)
+.github: (this commit — pat-keyword reachability probe REVISED per Lon directive.
+                     Initial framing wrong: REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL
+                     are pre-bound PATTERN-typed VARIABLES in both SPITBOL and
+                     scrip (verified via DATATYPE — both oracles match exactly).
+                     Bare `'hello' REM` is the canonical portable form, correctly
+                     handled via PAT_DEREF runtime path; invariant optimizer
+                     correctly skips it (variant by definition).
+                     No grammar divergence; no parser bug.
+                     Real findings retained:
+                     - HQ-BUG-RPOS-COMPILE-SEGFAULT (--compile crashes on RPOS(0))
+                     - HQ-BUG-RTAB-COMPILE-SEGFAULT (--compile crashes on RTAB(0))
+                     - HQ-BUG-PROTECTED-PATTERN-VARS (scrip allows REM = 'x';
+                       SPITBOL errors 042; new tracking item).
+                     - KEYWORD() parens form is a real scrip-only syntax
+                       (SPITBOL ERROR 022); maps to TT_<kind> via pat_prim_kind.
+                       Open question for Lon whether to permit in corpus.
+                     EC-UNI-COVER-PAT path: portable corpus file using ONLY
+                     POS/LEN/TAB/ANY/SPAN/BREAK/NOTANY/ARBNO (8 kinds, function-call
+                     constructors valid in both runtimes).  REM/ARB/FENCE/FAIL/
+                     SUCCEED/ABORT/BAL remain reachable to BB-lower only via
+                     scrip extension; their lifted template bodies are
+                     structurally dead from SNOBOL4 frontend without that
+                     extension being corpus-permitted.
+                     Gates clean at one4all 9b905d26: PK PASS=399 FAIL=0
+                     STUB=660 NEW=0 GONE=0.  Documentation commit only.)
+.github: 9887a030   (FIRST attempt at pat-keyword reachability documentation —
+                     SUPERSEDED by next commit.  Misframed REM/ARB as parse-time
+                     keywords; they're actually PATTERN-typed variables.  Bugs
+                     tracked there (RPOS/RTAB --compile segfault) carry forward.)
 .github: 2e81cc23   (gate cadence change: per-kind-diff is the new primary
                      per-slice invariant; matrix + beauty demoted to session-end /
                      escalation per Lon directive 2026-05-21.  Verified clean at
@@ -620,49 +637,57 @@ This gate replaces the "hope a corpus program triggers the kind" approach with *
 
 ---
 
-#### ⚡ Empirical pat-keyword coverage probe (2026-05-21 evening session #2, Opus 4.7)
+#### ⚡ Empirical pat-keyword coverage probe (2026-05-21 evening session #2, Opus 4.7) — REVISED session #3
 
-Direct probing extended the earlier "1 of 17 / 4 of 17 BB pat-kinds exercised" audit with the question: **what source syntax actually triggers `SM_PAT_<kind>` → BB-lowering at all?**  Result is data, not opinion:
+**Initial framing was wrong; correction below.**  Lon caught the mistake: REM, ARB, FENCE, FAIL, SUCCEED, ABORT, BAL are **pre-bound PATTERN-typed variables** in both SPITBOL and scrip, not parse-time keywords.  Verified with `DATATYPE`:
 
-**Grammar finding (lower.c + snobol4.y + snobol4.l):**  The SNOBOL4 frontend only emits `SM_PAT_<kind>` via the `T_FUNCTION T_LPAREN` grammar production (snobol4.y:203) → `pat_prim_kind()` (snobol4.y:44).  The lexer rule `<BODY>{ALPHA}{IDCONT}*/"("` (snobol4.l:173) classifies an identifier as `T_FUNCTION` **only when followed by `(`**.  Bare `REM`, `POS`, `LEN` etc. lex as `T_IDENT` → `TT_VAR` → `SM_PUSH_VAR` → runtime keyword lookup, NOT BB-lowering.  This is why corpus programs that write `'x' REM` produce zero `# BOX REM` banners — the lowering layer never sees a `TT_REM` AST node.
+```
+=== SPITBOL ===                          === scrip --interp ===
+REM type: PATTERN                        REM type: PATTERN
+ARB type: PATTERN                        ARB type: PATTERN
+POS type: STRING                         POS type: STRING       (function — needs args)
+LEN type: STRING                         LEN type: STRING
+FAIL type: PATTERN                       FAIL type: PATTERN
+FENCE type: PATTERN                      FENCE type: PATTERN
+SUCCEED type: PATTERN                    SUCCEED type: PATTERN
+ABORT type: PATTERN                      ABORT type: PATTERN
+```
 
-**Probe matrix (single-statement invariant form, no leading anchor, --compile output):**
+Both oracles match exactly.  Bare `'hello' REM` is **the canonical, portable form** in both runtimes — it's a pattern match where the pattern comes from a variable lookup at runtime.
 
-| Source form     | --compile | --interp | --compile `# BOX` banner |
-|-----------------|:---------:|:--------:|--------------------------|
-| `'hello' REM()`     | ✅       | PASS    | `REM()`            |
-| `'ab' ARB()`        | ✅       | PASS    | `ARB()`            |
-| `'abc' FENCE()`     | ✅       | PASS    | `FENCE()`          |
-| `'hello' LEN(3)`    | ✅       | PASS    | `LEN(3)`           |
-| `'abc' POS(0)`      | ✅       | PASS    | `POS(0)`           |
-| `'abc' TAB(2)`      | ✅       | PASS    | `TAB(2)`           |
-| `'abc' ANY('abc')`  | ✅       | PASS    | `ANY(abc)`         |
-| `'abc' SPAN('abc')` | ✅       | PASS    | `SPAN(abc)`        |
-| `'abc' BREAK('z')`  | ✅       | PASS    | `BREAK(z)`         |
-| `'abc' NOTANY('z')` | ✅       | PASS    | `NOTANY(z)`        |
-| `'abc' RPOS(0)`     | ❌ **segfault** | PASS | — |
-| `'abc' RTAB(0)`     | ❌ **segfault** | PASS | — |
+**Real grammar story (corrected):**  The frontend emits `PUSH_VAR .S<n> # REM` → `SM_PAT_DEREF` → `EXEC_STMT_VARIANT`.  The window is correctly classified as **variant** by `emit_walk_phase2` (emit_sm.c:2509-2515) because `SM_PAT_DEREF` reads a runtime value — by definition not invariant.  The invariant-bake optimizer skips it; the runtime handles it via `rt_pat_deref`.  This is correct behavior, not a bug.
 
-10 of 12 pat-keywords trigger invariant BB-bake and emit `# BOX <KIND>(...)` banners when written in the `KEYWORD()` form.  All 12 work under `--interp` — the runtime path is fine; the bugs are in `--compile` BB-lower for the reverse variants.
+**Protected-variable divergence (NEW finding, real):**  SPITBOL protects REM with `ERROR 042 -- attempt to change value of protected variable`; scrip allows `REM = 'string'` reassignment.  This IS a real undocumented divergence.  Filed for tracking: **HQ-BUG-PROTECTED-PATTERN-VARS** — scrip should ERROR 042 on assignment to REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL.  Severity low (overwriting these in real programs is unusual); not blocking.
 
-**⚠ Portability finding (SPITBOL):**  SPITBOL **rejects** `REM()` with `ERROR 022 -- undefined function called`.  SPITBOL treats parenthesized pat-keywords as user-function calls, not pattern primitives.  Per the SPITBOL-semantics ABSOLUTE RULE, `KEYWORD()` syntax is an **undocumented divergence** of scrip from SPITBOL.  Two options:
+**`KEYWORD()` parens form is a real scrip-only extension:**
 
-(a) **Add to "Permitted divergences"** in RULES.md SPITBOL block — record that scrip recognizes `REM()`, `ARB()`, `FENCE()`, etc. as pattern keywords for the explicit purpose of enabling BB-lowering of invariant patterns the parser otherwise couldn't reach.  This is the directive Lon would need to make.
+| Source form     | --compile (scrip)        | SPITBOL                     |
+|-----------------|---------------------------|------------------------------|
+| `'hello' REM`     | runtime PAT_DEREF (correct) | runtime variable lookup ✓  |
+| `'hello' REM()`   | invariant-bake → `# BOX REM()` ✓ | ERROR 022 -- undefined function |
+| `'abc' POS(0)`    | invariant-bake → `# BOX POS(0)` ✓ | function call returns pattern ✓ |
+| `'abc' RPOS(0)`   | **--compile segfault** (real bug) | function call returns pattern ✓ |
+| `'abc' RTAB(0)`   | **--compile segfault** (real bug) | function call returns pattern ✓ |
 
-(b) **Treat as bug** — fix scrip's `pat_prim_kind` to NOT map `REM`/`ARB`/`FENCE` (the zero-arg keywords) to `TT_<kind>` when invoked as `T_FUNCTION`, matching SPITBOL.  Side effect: `SM_PAT_REM`/`SM_PAT_ARB`/`SM_PAT_FENCE0` opcodes become unreachable from SNOBOL4 frontend, and the BB-pat templates for REM/ARB/FENCE become structurally dead.  Their lifted bodies (slices 1-7) stay, but never exercised.
+For zero-arg pat-keywords (REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL), scrip's `pat_prim_kind` (snobol4.y:44) maps the function-call form `KEYWORD()` to `TT_<kind>` AST nodes, which lower to `SM_PAT_<kind>` opcodes — exposing them to the invariant-bake optimizer and the BB-lower path.  SPITBOL has no analogous mapping; it treats `REM()` as a user-function call that finds no definition → ERROR 022.
 
-Recommendation: (a) — pat-keywords with parens are reasonable scrip extensions; SPITBOL's ERROR 022 is a parser limitation, not a semantic constraint we should mirror.  But this is a Lon directive call.
+**Two real bugs still tracked:**
 
-**Two NEW bug entries surfaced for tracking:**
+- **HQ-BUG-RPOS-COMPILE-SEGFAULT** — `'abc' RPOS(0)` under `--compile` segfaults immediately, 0 lines of output.  `--interp` runs fine.  Source: SM_PAT_RPOS path in `emit_walk_phase2` (emit_sm.c:2438) sets `nd->n = 1` (reverse flag) before calling `pat_node_alloc(cfg, BB_PAT_POS)`.  POS(0) compiles cleanly; only reverse variant crashes.  Likely NULL-deref in invariant-bake or `emit_bb_xrpsi`.
+- **HQ-BUG-RTAB-COMPILE-SEGFAULT** — same shape, `'abc' RTAB(0)` segfaults `--compile`.  POS/TAB both work; symptom specific to reverse variants.
 
-- **HQ-BUG-RPOS-COMPILE-SEGFAULT** — `'abc' RPOS(0)` under `--compile` segfaults immediately, producing 0 lines of output.  `--interp` runs fine.  Source: SM_PAT_RPOS path in `emit_walk_phase2` (emit_sm.c:2438) — sets `nd->n = 1` (reverse flag) before calling `pat_node_alloc(cfg, BB_PAT_POS)`.  POS(0) compiles cleanly; only the reverse variant crashes.  Likely a NULL-deref in the invariant-bake or in `emit_bb_xrpsi` itself.
-- **HQ-BUG-RTAB-COMPILE-SEGFAULT** — same shape, `'abc' RTAB(0)` segfaults under `--compile`.  POS/TAB both work, so the symptom is specific to the reverse variants.
+**Implication for EC-UNI sequencing (corrected):**
 
-Both filed for future repair, not blocking the EC-UNI sequencing.  They likely trip a code path the EC-UNI-COVER-PAT corpus would exercise (when authored), giving the per-kind-diff gate the kinds-exercised diversity it currently lacks.
+- The previous concern that "10 of 17 BB pat-kinds are unreachable from portable SNOBOL4 source" was based on a misunderstanding.  Pattern matching against bare `REM`/`ARB`/etc. IS portable and correct; it just doesn't go through the BB invariant-bake path (and shouldn't — runtime dereference is the right semantics).
+- The BB-lower path for REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL only fires under the scrip-only `KEYWORD()` syntax, which makes the lifted template bodies for those kinds *structurally dead from the SNOBOL4 frontend* unless that syntax becomes corpus-permitted.
+- POS/LEN/TAB/ANY/SPAN/BREAK/NOTANY/ARBNO/RPOS/RTAB are function-call constructors in both runtimes — portable syntax IS exercising them when literal args make the window invariant-eligible.  Coverage gain for those 10 kinds is achievable in portable corpus.
+- Lon's three-pat completeness directive ("one template per kind for ALL kinds, dormant or not") still stands; this finding doesn't change the work, only clarifies the reachability situation.
 
-**Implication for EC-UNI-COVER-PAT:**
+**EC-UNI-COVER-PAT corpus path (revised):**
 
-The corpus file `feat/f21_invariant_bb_lowering.sno` proposed in the previous block is **non-portable to SPITBOL** by construction (REM() form), so it doesn't belong in `feat/` (which by convention is portable).  Defer the corpus file authoring until Lon decides between (a) "Permitted divergence" recording in RULES.md + new corpus subtree (e.g. `programs/snobol4/scrip_ext/`), and (b) keep coverage at "4 kinds exercised" until SPITBOL parity story changes.  In the meantime, the empirical data above stands as the per-kind reachability map.
+Author `feat/f21_invariant_patterns.sno` using ONLY the portable function-call forms — POS(0), LEN(3), TAB(2), ANY('abc'), SPAN('abc'), BREAK('z'), NOTANY('z'), ARBNO(LEN(1)).  These are valid in both SPITBOL and scrip.  Exclude REM(), ARB(), FENCE(), FAIL(), SUCCEED(), ABORT() — those are scrip-only.  Document HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT in a known-bad comment block; the file's `.ref` covers only the working subset.  This delivers 8 portable BB pat-kinds exercised under invariant-bake — double the current corpus coverage of 4.
+
+The 7 zero-arg pat-keyword kinds (REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL) remain reachable only via scrip extension; their template bodies are structurally dead from the SNOBOL4 frontend without an explicit Lon directive permitting the scrip syntax in corpus.
 
 ---
 
