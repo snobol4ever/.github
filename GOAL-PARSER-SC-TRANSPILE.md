@@ -299,6 +299,48 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 
 **Next session goal:** Diagnose why `scrip --interp` + `parser_snocone.sc` produces "Parse Error" on `x = 1 + 2;` — a fixture that passes cleanly under SPITBOL. Likely cause: BB pattern matching behaves differently from SPITBOL for some construct in the snocone grammar (ARBNO, FENCE, deferred-var interactions). Start with snocone since it has the fixture baseline (PASS=29 under SPITBOL).
 
+## Session 2026-05-21b (Claude Sonnet 4.6) — SCT-parser-sn4-nInc-fence ⚠ EMERGENCY HANDOFF
+
+**Goal:** Fix ERROR 041 on multi-stmt fixtures (SCT-SN4-ERR041). Root cause found and partially fixed.
+
+**Root cause confirmed (NOT the `c` field rename):**
+The `nInc()` in `Command` was OUTSIDE the `FENCE`, firing unconditionally before
+`FENCE(...)` attempts its alternates. When `ARBNO(*Command)` tries one final
+`Command` at end-of-input and `FENCE(...)` fails, `nInc()` had already fired —
+overcounting the Compiland-level counter by 1. This caused `reduce('Parse','nTop()')`
+to pop one extra empty string off the semantic stack, giving `child[1]=STRING` instead
+of a tree node.
+
+**Fix landed (corpus `255982f`, NOT yet committed):**
+`parser_snobol4.sc` Command rule: moved `nInc()` inside each FENCE alternate,
+after the first committed token:
+```
+Command = FENCE(
+   shift(*Comment, "'TT_COMMENT'") nInc() reduce("'TT_COMMENT'", 1) nl
+|  shift(*Control, "'TT_CONTROL'") nInc() reduce("'TT_CONTROL'", 1) (nl | ';')
+|  *Stmt nInc() (nl | ';')
+);
+```
+
+**⚠ BUT: This fix is NOT sufficient.** Multi-stmt ERROR 041 persists even after
+this change. DEEPER BUG found in `Stmt` itself:
+
+`reduce('TT_STMT', nTop())` inside `Stmt` pops 3 items but only 2 net items
+belong to the current stmt. The `nInc()` before `*StmtRepl` (in both branches
+of the inner FENCE) overcounts because `reduce('TT_EQ', 2)` inside StmtRepl
+already consumed `TT_VAR` (the Expr14 child, counted as item 2). So item 2 gets
+consumed and item 3 is TT_EQ — two counter slots for one net stack slot. The
+3rd pop then grabs a tree node from the PREVIOUS stmt off the shared semantic stack.
+
+Verified: `child[2] = TT_STMT(a=1)` swallowed inside `TT_STMT(b=2)` for 2-stmt input.
+
+**NEXT SESSION: Run beauty suite gate first (`bash scripts/test_gate_sn7_beauty_self_host.sh`),
+study beauty.sno's working `Stmt` + `Command` patterns (around line 229), and transplant
+the correct nInc placement into `parser_snobol4.sc`. beauty.sno's grammar is the oracle.**
+
+**Current scores:** PASS=49 PARSE_ERROR=24 OTHER_FAIL=15 / 88 total (unchanged).
+one4all unchanged. corpus has uncommitted diff on `SCRIP/parser_snobol4.sc`.
+
 ## Session 2026-05-21 (Claude Sonnet 4.6) — SCT-parser-sn4-spitbol
 
 **Goal:** Get parser_snobol4.sc transpiling to SNOBOL4 and running under SPITBOL.
