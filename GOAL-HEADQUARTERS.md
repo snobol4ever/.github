@@ -138,6 +138,71 @@ Legacy --interp-mode gates (KEEP for interpreter work, NOT for emitter work):
 ## Watermark
 
 ```
+one4all: bb04e8e1   (EC-UNI-PER-KIND-DIFF harness landed.  tools/emit_per_kind_audit.c
+                     plus scripts/{freeze_per_kind_baseline,test_per_kind_diff,normalize_per_kind_cell}
+                     plus baselines/per_kind/ (3.3 MB committed).  scrip gains
+                     --audit-per-kind <dir> subcommand; short-circuits the normal
+                     compile pipeline and writes one file per (SM_op × backend) +
+                     (BB_kind × backend) cell.
+
+                     Coverage:
+                       BB: 97 kinds × 6 backends (x86_text, x86_bin, JVM, JS, NET, WASM) = 582 cells.
+                       SM: 76 dispatcher-covered opcodes × 5 text backends = 380 cells.
+                       Total: 962 cells per run.
+
+                     Baseline freeze at THIS commit:
+                       PASS=384  STUB=578  FAIL=0  NEW=0  GONE=0
+                       (384 of 962 cells emit real content today; 578 are
+                       honest no-op stubs — both sides agree they emit nothing.)
+
+                     Filter-then-diff pipeline (Lon directive 2026-05-21):
+                       scripts/normalize_per_kind_cell.py canonicalizes per-cell
+                       text output (strip comments, .L<digits>→.Lxxx,
+                       _<sid>_<nid>→_S_N, large rodata-pointer decimals→ADDR).
+                       Both raw and normalized form committed under
+                       baselines/per_kind/<be>/<KIND>.<ext>.{raw,norm}.
+
+                     Assemble-then-md5 (Lon's second idea):
+                       baselines/per_kind/x86_text_assembled_md5.txt records
+                       `as`-assembled .o md5 per x86_text cell where assembly
+                       succeeds (17 of 22 PAT cells).  Cells that fail to
+                       assemble due to synthetic-single-node unresolved label
+                       refs are recorded as NOASM — honest limitation.
+
+                     x86_bin special case: process-local addresses (memcmp@PLT,
+                     rodata literal pointers) get baked into binary-mode
+                     emission; ASLR randomizes them every run.  Bit-identity is
+                     impossible by construction.  test_per_kind_diff.sh applies
+                     a STRUCTURAL comparison for x86_bin cells — same byte
+                     count = same instruction sequence shape.  Full byte-level
+                     comparison for x86 should use the assembled-md5 path on
+                     x86_text cells instead.
+
+                     Regression detection verified empirically:
+                       - inject `;canary` in jvm_push_int2 bipush path →
+                         FAIL=3 (SM_PUSH_LIT_I, SM_PAT_CAPTURE_FN_ARGS,
+                         SM_PAT_USERCALL_ARGS all reach bipush 42).
+                         exit=1.
+                       - restore → FAIL=0, exit=0.
+
+                     This supersedes PLAN.md's EC-UNI-PER-KIND-DIFF row.
+                     The harness exists; the next rung is EC-UNI-REFAITH —
+                     for any kind whose live emit_bb_x* output differs from
+                     the lifted template's output, re-lift byte-faithfully.
+                     Coverage gate now exists; refaith work can proceed
+                     against it.
+
+                     NEXT after this watermark:
+                     1. EC-UNI-REFAITH — re-lift FAILing kinds byte-faithfully
+                        (the harness will tell us which).
+                     2. EC-UNI-REWIRE-ALL — route emit_flat_ir through
+                        emit_bb_node for IS_TEXT once per-kind diff is
+                        100% PASS for the live path.
+                     3. EC-UNI-NAMEKEY-BIN — name-keyed binary primitives;
+                        delete emit_bb_x* originals.
+
+                     Completeness over format-faithfulness: end state is one
+                     template per kind for ALL kinds, dormant or not.)
 one4all: d2b6dac3   (EC-UNI-REWIRE coverage audit landed.  scripts/test_audit_bb_x86_
                      exercise.sh walks corpus/programs/snobol4/ under --compile and
                      counts `# BOX <KIND>` banners per BB pat-kind.  Result across 177
