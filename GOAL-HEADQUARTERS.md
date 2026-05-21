@@ -54,6 +54,8 @@ Use for emitter work:
 - `scripts/test_gate_ec_uni_complete.sh` — beauty.sno `--compile` md5 + 9-gate roll-up.
 - `scripts/test_gate_em_template_matrix.sh` — structural invariant.
 
+⛔ **BEAUTY GATE SUSPENDED** (Lon directive, 2026-05-21 session #6): beauty.sno `--compile` md5 is NOT a binding gate during BB template consolidation. Every IS_X86 arm completion changes compiled output. Re-enable and re-stamp when ALL BB templates are complete across all backends. GATE-E still run for smoke/matrix sub-gates; beauty md5 mismatch is expected and non-blocking until consolidation closes.
+
 ### Cadence (per Lon, 2026-05-21)
 
 Per-kind diff is the **primary per-slice invariant** (~5–10s, 1059 cells, byte-level filter+diff). Subsumes most of what matrix + beauty caught indirectly. Legacy gates are session-end / escalation only.
@@ -68,7 +70,7 @@ bash scripts/test_per_kind_diff.sh
 ```
 bash scripts/test_per_kind_diff.sh
 bash scripts/test_gate_em_template_matrix.sh
-bash scripts/test_gate_ec_uni_complete.sh
+# GATE-E sub-gates only: beauty md5 SUSPENDED — mismatch expected during consolidation
 ```
 
 **Escalate mid-session ONLY when:** per-kind-diff reports FAIL/GONE; the slice touches LIVE PATH dispatchers (`emit_flat_ir`, `emit_walk_codegen`, `dispatch_one_x86`, WASM/JS/NET silo walkers); the slice changes `g_emit` shape; the slice deletes any `emit_bb_x*` / `emit_sm_*` fn.
@@ -102,6 +104,10 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: ddd08f01  (PPV-8: bb_abort IS_X86 arm added; dead IS_BIN guards
+                     removed from bb_rem/bb_arb/bb_fence; WASM comments
+                     normalized to "deferred". GATE-PK PASS=401 FAIL=0
+                     STUB=658. Beauty gate suspended per Lon directive.)
 one4all: f6e4968a  (PPV-7: fix RPOS/RTAB --compile segfault. emit_flat_invariant
                      + pre_build_children_text + pre_build_children all walked
                      nd->c[i] for i<nd->n without guarding nd->c==NULL.
@@ -230,15 +236,17 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 
 Recognize REM/ARB/FENCE/FAIL/SUCCEED/ABORT/BAL as protected PATTERN-typed names (SPITBOL ERROR 042) and substitute `SM_PAT_<KIND>` at lower-time for bare names in pattern context. Unlocks BB-lower coverage 4→8 active pat-kinds from portable corpus.
 
-| Name      | TT_*        | SM_PAT_*       | BB_PAT_*    | Template          |
-|-----------|-------------|-----------------|-------------|-------------------|
-| REM       | TT_REM      | SM_PAT_REM      | BB_PAT_REM  | `bb_rem.c`        |
-| ARB       | TT_ARB      | SM_PAT_ARB      | BB_PAT_ARB  | `bb_arb.c`        |
-| FENCE     | TT_FENCE    | SM_PAT_FENCE0   | BB_PAT_FENCE| `bb_fence.c`      |
-| FAIL      | TT_FAIL     | SM_PAT_FAIL     | (no BB pat) | (Phase B)         |
-| SUCCEED   | TT_SUCCEED  | SM_PAT_SUCCEED  | (no BB pat) | (Phase B)         |
-| ABORT     | TT_ABORT    | SM_PAT_ABORT    | BB_PAT_ABORT| `bb_abort.c`      |
-| BAL       | TT_BAL      | SM_PAT_BAL      | (no BB pat) | (Phase B)         |
+| Name    | TT_*      | SM_PAT_*      | BB_PAT_*     | Template     | IS_X86 | IS_JVM | IS_NET | IS_JS | IS_WASM |
+|---------|-----------|---------------|--------------|--------------|--------|--------|--------|-------|---------|
+| REM     | TT_REM    | SM_PAT_REM    | BB_PAT_REM   | `bb_rem.c`   | ✅      | ✅      | ✅      | ✅     | ⏳      |
+| ARB     | TT_ARB    | SM_PAT_ARB    | BB_PAT_ARB   | `bb_arb.c`   | ✅      | ✅      | ✅      | ✅     | ⏳      |
+| FENCE   | TT_FENCE  | SM_PAT_FENCE0 | BB_PAT_FENCE | `bb_fence.c` | ✅      | ✅      | ✅      | ✅     | ⏳      |
+| FAIL    | TT_FAIL   | SM_PAT_FAIL   | (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
+| SUCCEED | TT_SUCCEED| SM_PAT_SUCCEED| (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
+| ABORT   | TT_ABORT  | SM_PAT_ABORT  | BB_PAT_ABORT | `bb_abort.c` | ✅      | ✅      | ✅      | ✅     | ⏳      |
+| BAL     | TT_BAL    | SM_PAT_BAL    | (no BB)      | (Phase B)    | —      | —      | —      | —     | —       |
+
+IS_X86 covers both text and binary modes (IS_BIN is a strict subset; dead IS_BIN guards after IS_X86 were removed in session #6). WASM BB emission not yet implemented for any pat kind (⏳ = deferred, not n/a).
 
 (Bare `FENCE` → `SM_PAT_FENCE0`; 1-arg variant uses `SM_PAT_FENCE1` per existing `TT_FENCE` arm in `lower.c`.)
 
@@ -254,14 +262,15 @@ Sites (PPV-0):
 - [x] **PPV-1** (CLOSED 2026-05-21 session #5, one4all `44a5f9a5`) — Runtime protection. New `rt_protected.{h,c}`. Init-phase flag `g_protected_pat_vars_armed` in `snobol4.c` (cleared during pre-binding, armed at end of `SNO_INIT_fn`). Guard at top of `NV_SET_fn` raises `sno_runtime_error(42, NULL)`. Verified vs SPITBOL: scrip ERROR 42 = SPITBOL ERROR 042 ✓. PK PASS=399, --run smoke 186 unchanged. **Closes HQ-BUG-PROTECTED-PATTERN-VARS.**
 - [x] **PPV-2** (CLOSED 2026-05-21 session #6, Sonnet 4.6) — Lower-time substitution. `lower.c` TT_VAR arm in `lower_pat_expr` now calls `protected_pat_name_to_sm_op(t->v.sval)`; if ≥ 0 emits `SM_emit(g_p, (SM_op_t)op)` and returns. Confined to `lower_pat_expr`; `lower_expr` untouched. Also fixed normalizer hole in `normalize_per_kind_cell.py` (regex `_(\d+)_(\d+)\b` → `_(\d+)_(\d+)(?=_|\b)`) to canonicalize heap-address-derived label segments; re-froze baseline (PASS=399 unchanged).
 - [x] **PPV-3** (CLOSED 2026-05-21 session #6) — `x = REM` → `DATATYPE(x)` = PATTERN ✓. `lower_expr` untouched.
-- [x] **PPV-4** (CLOSED 2026-05-21 session #6) — All 7 names via `--dump-sm` emit `SM_PAT_*` directly (no `SM_PUSH_VAR`). `--compile` shows `# BOX REM/ARB/FENCE`; ABORT shows `# BOX FAIL()` (pre-existing: dispatches to `emit_bb_xfail`, not a regression). FAIL/SUCCEED/BAL: `SM_PAT_*` confirmed via `--dump-sm`.
-- [x] **PPV-5** (CLOSED 2026-05-21 session #6) — Path (a) taken: new beauty md5 `6bf2e9daa777f54f04c8f7160da435d1` (882524 bytes, was `40df9e004c3e963c99af716c65f2c970` 882901 bytes). Assembled `.o` md5 changed (`01eda5b76d0641ad5db76edde694ef92` ← `3adbb73f88edcc5416d38baade6faf97`) — intentional: PPV-2 removes `SM_PUSH_VAR+SM_PAT_DEREF` pair for protected names, replacing with single `SM_PAT_*`. Gate script baseline updated. GATE-E 9/9 ✓.
-- [x] **PPV-6** (CLOSED 2026-05-21 session #6) — Docs. GOAL-HEADQUARTERS.md updated. PLAN.md updated. RULES.md: HQ-BUG-PROTECTED-PATTERN-VARS was already marked CLOSED in PPV-1; no further change needed.
-- [x] **PPV-7** (CLOSED 2026-05-21 session #6) — Bug closeouts. HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT both fixed. Root cause: `pat_node_intarg()` sets `nd->n = 1` as a reverse flag (RPOS/RTAB vs POS/TAB) but never allocates `nd->c[]`. Three callers walked `nd->c[i]` for `i < nd->n` without guarding `nd->c`: `emit_flat_invariant` (emit_sm.c), `pre_build_children_text` (emit_bb.c), `pre_build_children` (emit_bb.c). Fix: add `if (!nd->c) return;` guard before each loop. GATE-PK 399/0, GATE-M 855/855, GATE-E 9/9, --run 186 unchanged.
+- [x] **PPV-4** (CLOSED 2026-05-21 session #6) — All 7 names via `--dump-sm` emit `SM_PAT_*` directly (no `SM_PUSH_VAR`). `--compile` shows `# BOX REM/ARB/FENCE`; ABORT shows `# BOX FAIL()` (pre-existing: dispatches to `emit_bb_xfail`). FAIL/SUCCEED/BAL: `SM_PAT_*` confirmed via `--dump-sm`.
+- [x] **PPV-5** (CLOSED 2026-05-21 session #6) — ⚠ Beauty gate now **SUSPENDED** (see above). Original path-(a) accepted at time of commit; beauty md5 no longer binding.
+- [x] **PPV-6** (CLOSED 2026-05-21 session #6) — Docs. GOAL-HEADQUARTERS.md updated. PLAN.md updated.
+- [x] **PPV-7** (CLOSED 2026-05-21 session #6) — HQ-BUG-RPOS-COMPILE-SEGFAULT and HQ-BUG-RTAB-COMPILE-SEGFAULT fixed. `nd->c` null-deref guard in 3 sites.
+- [ ] **PPV-8 (NEXT)** — BB template completeness for 4 live BB kinds (REM/ARB/FENCE/ABORT): add IS_X86 arm to `bb_abort.c` ✅ done session #6 (PASS=401); remove dead IS_BIN guards from bb_rem/bb_arb/bb_fence ✅ done session #6. Remaining: IS_WASM arms for all 4. Phase B (FAIL/SUCCEED/BAL BB kinds) deferred until WASM BB general infrastructure lands.
 
-**Coverage delta projected after PPV-5:** 4 → 8 BB pat-kinds exercised from portable SNOBOL4 corpus.
+**Coverage:** GATE-PK PASS=401 FAIL=0 STUB=658 (was 399/0/660). Two new ABORT x86 cells live.
 
-**Sequencing:** PPV-* independent of EC-UNI-REFAITH / REWIRE-ALL / NAMEKEY-BIN. Per-slice gate: `test_per_kind_diff.sh` + matrix; beauty md5 explicitly accepted or assembled-`.o` md5 verified at PPV-5.
+**Sequencing:** PPV-* independent of EC-UNI-REFAITH / REWIRE-ALL / NAMEKEY-BIN. Beauty gate suspended for duration of consolidation.
 
 **Why not part of EC-UNI proper:** EC-UNI's scope is emitter unification. PPV changes frontend lowering + runtime protection, then exposes pre-existing SM_PAT_/BB_PAT_ opcodes to wider source-syntax footprint. Parallel coverage-gain rung, not a dependency.
 
@@ -319,5 +328,6 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-1** — `44a5f9a5`. Runtime protection ERROR 042. Closes HQ-BUG-PROTECTED-PATTERN-VARS.
 - **PPV-2..6** — `1c47a59a`. Lower-time SM_PAT_* substitution in lower_pat_expr TT_VAR arm. Normalizer fix (sid_nid lookahead). Beauty md5 → 6bf2e9daa777f54f04c8f7160da435d1. GATE-PK 399/0, GATE-M 855/855, GATE-E 9/9.
 - **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
+- **PPV-8** — `ddd08f01`. bb_abort IS_X86 arm; dead IS_BIN guard removal; beauty gate suspended.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
