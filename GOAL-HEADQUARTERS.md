@@ -309,8 +309,8 @@ UPPERCASE builds IR (`SM_t`, `BB_t`, `SM_seq_new`, `BB_alloc`). lowercase consum
 
 Completed: IR-RN-0 `9ce69899`, IR-RN-1 `c710506f`, IR-RN-2 `92417a85`, IR-RN-3 `4a1fcc63`.
 
-- [ ] **IR-RN-4 (NEXT)** — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
-- [ ] **IR-RN-5** — Full cross-language gate run; close rung.
+- [x] **IR-RN-4** (CLOSED 2026-05-21 session #7, .github `08e9e188`) — Update arch docs (`ARCH-IR.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`).
+- [x] **IR-RN-5** (CLOSED 2026-05-21 session #7) — GATE-PK 411/0, smokes: icon 5/0, broker 23/26, snobol4 7/0, snocone 5/0, prolog 5/0, raku 5/0, rebus 4/0. IR Rename rung COMPLETE.
 
 Reserved: `IR_LANG_*`, `SM_INTERP_*`, `SM_CALL_STACK_MAX`/`SM_GEN_LOCAL_MAX`/`SM_MAX_OPERANDS`, `BB_POOL_SIZE`, header guards, `SM_*` opcode tags, `SM_templates/`/`BB_templates/` dir names.
 
@@ -334,5 +334,6 @@ Per-cluster detail in git log (authority per RULES.md). One-line summaries:
 - **PPV-7** — `f6e4968a`. RPOS/RTAB --compile segfault. nd->c guard in 3 sites (emit_flat_invariant, pre_build_children_text, pre_build_children).
 - **PPV-8** — `ddd08f01`. bb_abort IS_X86 arm; dead IS_BIN guard removal; beauty gate suspended.
 - **PPV-8 WASM** — `3e3b67b1`. IS_WASM arms for bb_rem/bb_arb/bb_fence/bb_abort. GATE-PK PASS=411 FAIL=0 STUB=648.
+- **IR-RN-4/5** — `.github 08e9e188`. ARCH-IR/SCRIP/ICON updated to post-IR-RN-0 names. Cross-language gates all green. IR Rename rung COMPLETE.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
