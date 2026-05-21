@@ -13,6 +13,7 @@
 6. **Builder/consumer case rule.** UPPERCASE builds IR (`SM_*`, `BB_*`). lowercase consumes (`sm_*`, `bb_*`).
 7. **EC-UNI matrix.** Backends are columns (X86/JVM/JS/NET/WASM). Text-vs-binary lives inside each `IS_<BE>` arm — never as a matrix dimension.
 8. **Unified dispatch owns mode-setting.** Per-opcode iteration calls `emit_mode_set(TEXT_MODE(), out)` at entry. Individual dispatchers stay idempotent.
+9. **One file per Byrd Box in `BB_templates/`.** Each Byrd Box (`bb_lit`, `bb_any`, ..., `bb_capture`, `bb_pl_arith`, ...) lives in its own `bb_<name>.c`. No consolidated multi-BB TUs. EC-UNI-13(a) and 13(e) violated this and were reversed at one4all@266fc28a.
 
 ## Session Setup
 
@@ -63,9 +64,10 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: fe195613   (EC-UNI-14(b) closed — JVM + x86 walkers folded into emit_sm_dispatch)
+one4all: 266fc28a   (BB_templates one-file-per-Byrd-Box restored; bb_pat.c split into 16,
+                     bb_pl.c split into 4.  Prior fe195613 — EC-UNI-14(b) closed.)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
-.github: (this commit — HQ cleanup pass: trim closed-rung narratives in PLAN.md + HQ + GOAL files)
+.github: (this commit — record BB_templates rule + reversion; bump watermark)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
