@@ -115,7 +115,7 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 
 **`g_emit` single global** (in `emit_globals.{c,h}`) carries all per-template state. Not re-entrant. Snocone bootstrap maps 1:1 to flat `DATA('Sm_emit(...)')` declaration.
 
-**Scope inventory:** SM has 76 opcodes touched by walkers, 52 templates exist (carrying IS_X86), ~20 to add. BB has 21 opcodes touched, 16 templates exist (PAT_*), 4 new (`BB_PL_ARITH/ATOM/BUILTIN/CALL`). Walkers delete after coverage lands: net −2500 to −3500 LOC.
+**Scope inventory:** SM has 91 opcodes in the enum, 76 dispatched by `emit_sm_dispatch` (the other 15 are runtime/sentinel — BB-bridge `_PROC` variants, frame/global ops, compare aliases, `SM_SUSPEND`/`SM_OPCODE_COUNT` — not template work).  BB has 97 kinds in `BB_op_t`; **all 97 are dispatched by `emit_bb_node` and have template slots** as of one4all `99630c7e` (21 pattern + Prolog kinds carry real code, 76 are honest no-op stubs awaiting Phase B per-backend codegen).  Walkers delete after coverage lands: net −2500 to −3500 LOC.
 
 **Unblocks Phase B:** five per-backend GOAL files (`GOAL-SN4-X86-EMIT` [new], `GOAL-SN4-JVM-EMIT`, `GOAL-SN4-JS-EMIT`, `GOAL-SN4-NET-EMIT`, `GOAL-SN4-WASM-EMIT`).
 
