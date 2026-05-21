@@ -176,9 +176,9 @@ beauty.sno in corpus: programs/snobol4/demo/beauty/beauty.sno (627 lines,
 **Target:** one fn per SM opcode, one fn per BB kind, each with five `if (IS_<BE>)` arms (X86/JVM/JS/NET/WASM). Text-vs-binary hides inside each arm. After completion, `emit_walk_codegen` / `emit_jvm_from_sm` / `emit_js_from_sm` / `emit_net_from_sm` / `emit_wasm_from_sm` / `dispatch_one_x86` all delete.
 
 **Three layers:**
-- **Layer 1** — `SM_templates/sm_<op>.c` / `BB_templates/bb_<kind>.c`. `void sm_<op>(void)` / `void bb_<kind>(void)`. Reads `g_emit.*`. Branches ONLY on `IS_<BE>`.
-- **Layer 2** — Deferred (Lon, 2026-05-20). No static helpers in templates, no cross-template factoring. Future "one-source-line-per-output-line" expansion is Phase B.
-- **Layer 3** — `src/emitter/emit_io.{c,h}`: `emit_text` / `emit_textf` / `emit_byte` / `emit_bytes`. Funnel for all output.
+- **Layer 1** — `SM_templates/sm_<op>.c` / `BB_templates/bb_<kind>.c`. `void sm_<op>(void)` / `void bb_<kind>(void)`. Reads `g_emit.*`. Branches ONLY on `IS_<BE>`. **Per Lon 2026-05-21 session #9 (EC-UNI-INLINE-ALL): the body of each backend arm is the literal sequence of Layer-3 calls — no shims, no table-drivers, no `emit_sm_<op>_dispatch` indirection. One template C function per opcode/kind; all code emission explicit and inline. Cost — additional LOC and apparent duplication — is accepted as the price of locality.**
+- **Layer 2** — **REVERSED 2026-05-21 session #9 by EC-UNI-INLINE-ALL.** Previously: deferred (Lon, 2026-05-20) — no static helpers in templates, no cross-template factoring. Now stronger: the existing dispatch-shim layer (`emit_sm_<op>_dispatch`, `emit_sm_op` table-driver, `emit_bb_x*` helpers) is **scheduled for deletion** under EC-UNI-INLINE-ALL. Templates call Layer 3 directly.
+- **Layer 3** — `src/emitter/emit_io.{c,h}`: `emit_text` / `emit_textf` / `emit_byte` / `emit_bytes`. Funnel for all output. Plus truly-shared instruction primitives in `emit_core.c` (`insn_*`, `bb_insn_*`) — these are not Layer 2, they are x86 instruction encoders called once per emitted instruction, the irreducible bottom.
 
 `g_emit` (`emit_globals.{c,h}`) carries all per-template state. Not re-entrant. Maps 1:1 to flat `DATA('Sm_emit(...)')` in Snocone bootstrap.
 
@@ -186,13 +186,13 @@ beauty.sno in corpus: programs/snobol4/demo/beauty/beauty.sno (627 lines,
 
 ### ⚡ EC-UNI LIFT PATTERN
 
-**Lon directive (2026-05-21):** Methodical lift, respect existing abstraction boundaries. Friction was gate cadence, not methodology.
+**Lon directive (2026-05-21 session #9):** Lift methodology amended for EC-UNI-INLINE-ALL. The earlier "respect existing abstraction boundaries — already-lifted-as-helper is the final state" guidance (2026-05-21 sessions #1–#8) is superseded: helpers are no longer the destination. The destination is **the body of the helper, pasted into the template arm, with file-private supporting types promoted to a public header as needed**.
 
-**Job:** For each x86 codegen fn still in `emit_sm.c` / `emit_bb.c`, lift into its template's `IS_X86` arm. Self-contained body (calls only widely-visible helpers) → verbatim paste. Body depending on file-static plumbing (`render_call_line`, `sm_template_lookup`, `emit_sm_args_t`, etc.) → DO NOT un-static; the existing one-line wrapper IS the lift.
+**Job:** For each remaining x86/JVM/JS/NET/WASM codegen call sequence still routed through `emit_sm_<op>_dispatch` / `emit_sm_op` / `emit_bb_x*` / table-drivers, paste the literal call sequence into the template's per-backend arm. Promote `sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line` and any other formerly file-private machinery to public headers when (and only when) the inlined body still references them.
 
 **Recipe:**
 1. Identify fn.
-2. Inspect body. Public helpers only → step 3-6. File-static deps → "already-lifted-as-helper", next.
+2. Inspect body. Public helpers (Layer 3 — `emit_text*`/`emit_byte*`/`insn_*`) only → step 3-6. File-static deps → un-static into a public header in the same commit, then proceed.
 3. Find matching template.
 4. Copy body into `if (IS_X86) { ... return; }`. Rewrite parameters as `g_emit` reads: `s/f/b` → `g_emit.lbl_succ/lbl_fail/lbl_back`; `n` → `nd->ival`; `lit` → `nd->sval`; `out` → `g_emit.out`.
 5. Helpers stay. Do not move, extract, or factor.
@@ -203,15 +203,15 @@ beauty.sno in corpus: programs/snobol4/demo/beauty/beauty.sno (627 lines,
 
 **Mistakes to avoid:**
 - Static helpers inside templates collapsing opcodes (slice 1, reverted).
-- Layer-2 helpers in `emit_core.c` factoring across templates (slice 2, reverted).
+- Layer-2 helpers in `emit_core.c` factoring across templates (slice 2, reverted). Still a mistake — Layer-2 is what INLINE-ALL is dismantling, not creating.
 - "Fn fits on a screen" — rule removed.
-- Un-static file-private machinery to fit verbatim paste.
-- Running full regression per slice (cadence problem, not methodology).
+- ⚠ **REVERSED 2026-05-21 session #9** — "Un-static file-private machinery to fit verbatim paste" was a mistake under the lift-as-helper era; under EC-UNI-INLINE-ALL it is **required** — promote `sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line` to public headers when an inlined template body needs them, then delete them along with the table-driver they used to support.
+- Running full regression per slice (cadence problem, not methodology). Per-kind-diff is the per-slice gate; full gates are session-end / escalation.
 
-**Lift queue status:**
+**Lift queue status (amended 2026-05-21 session #9 by EC-UNI-INLINE-ALL):**
 
-- **BB-side: COMPLETE** through slice 7 (one4all `045baf4a`). All 17 pat-level `emit_bb_x*` fn bodies physically in `BB_templates/`. Remaining x86 in `emit_bb.c` is dispatcher trio `emit_flat_ir_alt` / `_cat` / `_fence` — control-flow-assembly slice, not lift sweep.
-- **SM-side: COMPLETE.** All 36 `emit_sm_*_(dispatch|line|template)` fns are already-lifted-as-helper (31 small wrappers + 5 larger bodies, all depending on `emit_sm.c`'s file-private machinery: `sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line`).
+- **BB-side:** body of all 17 pat-level `emit_bb_x*` fns physically in `BB_templates/` (slice 7, `045baf4a`). **REOPENED for INLINE-ALL:** remaining x86 in `emit_bb.c` (dispatcher trio `emit_flat_ir_alt` / `_cat` / `_fence`) must be inlined into `bb_pat_alt.c` / `bb_pat_cat.c` / `bb_fence.c` per INLINE-3.
+- **SM-side:** all 36 `emit_sm_*_(dispatch|line|template)` fns were previously closed as "already-lifted-as-helper" — wrapper-shape only. **REOPENED for INLINE-ALL:** wrappers inline their bodies per INLINE-1/2; shims, `emit_sm_op`, `g_sm_nullary`, `g_sm_arith` and the line/template machinery all delete.
 
 **Verification per commit:** matrix 855/855; beauty.sno --compile md5 `40df9e004c3e963c99af716c65f2c970`.
 
@@ -242,11 +242,19 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 - [x] **EC-UNI-NAMEKEY-BIN** (CLOSED 2026-05-21 session #8, `0ef0f7fc`). g_emit.lbl_*_p for binary patch-back. Audit static labels fix. emit_bb_x* callers gone from switch.
 - [ ] **EC-UNI-NAMEKEY-BIN** — name-keyed binary primitives for `--run`; rewire binary; delete `emit_bb_x*` originals.
 - [ ] **EC-UNI-17** (deferred) — Layer-3 primitives audit. Parked.
-- [ ] **EC-UNI-18** — table-driven dispatch where it earns its keep. Extend x86's `g_sm_nullary` / `g_sm_arith` pattern to JVM/NET/JS/WASM for nullary + arith.
-- [ ] **EC-UNI-19** — add-a-backend test (`EMIT_NULL=99`). Mechanical patch + revert. Records LOC cost.
-- [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost.
+- [ ] **EC-UNI-INLINE-ALL** ⚡ — **Lon directive, 2026-05-21 session #9: one and only one C template function per SM opcode and per BB kind, with all backend code emission explicit and inline.** Every IS_X86/IS_JVM/IS_NET/IS_JS/IS_WASM arm contains the literal `emit_text*`/`emit_byte*` calls for that backend — no `emit_sm_<op>_dispatch` shims, no `emit_sm_op(SM_*)` table-driver, no `emit_bb_x*` indirection. Helpers stay only at Layer 3 (`emit_text`, `emit_textf`, `emit_byte`, `emit_bytes` — the IO funnel) and at the truly-shared instruction primitives (`insn_*`, `bb_insn_*` in `emit_core.c`). Cost accepted: net LOC will rise, code duplication is the point. **Substeps:**
+    - [ ] **INLINE-1** — Inline-expand `emit_sm_<op>_dispatch` callers in `SM_templates/*.c`. Each IS_X86 arm becomes `emit_mode_set(TEXT_MODE(), g_emit.out); emit_macro_begin("<MACRO>", NULL, 0); emit_call_sym_plt("<rt_fn>", 0); emit_macro_end(); emit_pad_to_blob_size();` (the body of `emit_sm_nullary_rt`). Read literal MACRO_NAME and rt_fn strings from `g_sm_nullary` once, paste them inline per opcode. After: `emit_sm_<op>_dispatch` shims delete; `emit_sm_op` deletes; `g_sm_nullary` table deletes. Repeat for `g_sm_arith` and the line/template family.
+    - [ ] **INLINE-2** — Same treatment for `g_sm_arith`: each arithmetic opcode (`SM_ADD/SUB/MUL/DIV/REM/EQ/NE/GE/LE/GT/LT/AND/OR`) gets its IS_X86 arm inlined verbatim. `emit_sm_arith_rt` and the table delete.
+    - [ ] **INLINE-3** — BB-side: remaining `emit_bb_x*` helpers (`emit_flat_ir_alt`, `_cat`, `_fence`) — the "control-flow-assembly" dispatcher trio — inlined into `bb_pat_alt.c` / `bb_pat_cat.c` / `bb_fence.c` IS_X86 arms. Helpers delete.
+    - [ ] **INLINE-4** — Promote file-private SM machinery (`sm_op_template_t`, `emit_sm_args_t`, `sm_template_lookup`, `render_call_line`) to a public header **only if** any template's inlined body still references them — otherwise delete with the table.
+    - [ ] **INLINE-5** — Refactor `SM_templates/` so each opcode has its own file (`sm_<opcode>.c`), matching `BB_templates/` granularity. Current grouping (`sm_arith.c` with 9 fns, `sm_pat_anchors.c` with 9 fns) → 76 single-fn files. RULES.md "One file per Byrd Box" already binds BB-side; this extends it to SM.
+    - [ ] **INLINE-6** — Delete `emit_sm.c` machinery surviving INLINE-1..5; should drop from 182 KB → ~minimal (just the master dispatch switch + state). `emit_bb.c` drops similarly after INLINE-3.
+    - [ ] **INLINE-7** — Per-kind diff baseline re-frozen at each substep. Beauty md5 expected to shift; gate suspended per Lon directive until INLINE-ALL closes. GATE-PK is binding throughout.
+- [ ] **EC-UNI-18** ⚠ SUPERSEDED by EC-UNI-INLINE-ALL — was: table-driven dispatch where it earns its keep, extend x86's `g_sm_nullary` / `g_sm_arith` pattern to JVM/NET/JS/WASM for nullary + arith. Lon's 2026-05-21 directive reverses direction: tables go away, inlining wins.
+- [ ] **EC-UNI-19** — add-a-backend test (`EMIT_NULL=99`). Mechanical patch + revert. Records LOC cost. Re-run after EC-UNI-INLINE-ALL to measure new cost (expected: 76 SM × 1 line + 97 BB × 1 line ≈ +173 lines per backend, all in templates).
+- [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost. Post-INLINE-ALL cost: 1 new template file with 5 inlined arms.
 - [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline. Choose (a) re-converge to `abfd19a7...` (646 lines), or (b) retire M1, record new baseline `9cddff25...` (622 lines), re-stamp Milestone 1.
-- [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariants. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens.
+- [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariants. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens. **Sequence note:** EC-UNI-22 should follow EC-UNI-INLINE-ALL — closing docs describe the final inlined shape, not the intermediate table-driven shape.
 
 ---
 
