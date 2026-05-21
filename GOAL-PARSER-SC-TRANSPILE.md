@@ -298,3 +298,27 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 **Tree output check:** None of the six produce tree output under `scrip --interp` directly — all return "Parse Error" or empty. This is **pre-existing** (confirmed by testing before our commit). The `scrip --interp` + `parser_*.sc` path has never produced tree output in this session; the SPITBOL transpile path (PASS=29 for snocone) remains the working oracle path.
 
 **Next session goal:** Diagnose why `scrip --interp` + `parser_snocone.sc` produces "Parse Error" on `x = 1 + 2;` — a fixture that passes cleanly under SPITBOL. Likely cause: BB pattern matching behaves differently from SPITBOL for some construct in the snocone grammar (ARBNO, FENCE, deferred-var interactions). Start with snocone since it has the fixture baseline (PASS=29 under SPITBOL).
+
+## Session 2026-05-21 (Claude Sonnet 4.6) — SCT-parser-sn4-spitbol
+
+**Goal:** Get parser_snobol4.sc transpiling to SNOBOL4 and running under SPITBOL.
+
+**Fixes landed (one4all `4decab7d`, corpus `9dfe203`):**
+
+lower_sno.c:
+- TT_WHILE: n>=4 guard dropped; labels synthesized from if_seq (AST has only 2 children in PST mode)
+- TT_GOTO_U as :subj: emit `:(label)`; label_of() fixed to use node's own v.sval not c[0]
+- TT_ASSIGN(TT_SEQ(subj,pat),repl) as :subj: emit as `subj  pat  =  repl` not `(subj pat) = repl`
+- TT_IDX: emit ITEM(base,idx) — $'[' is OPSYN'd in parser_snobol4.sc; ITEM() is unaffected
+- -CASE 0 confirmed correct (N=0 = case-sensitive per SPITBOL Ch.14)
+
+corpus/SCRIP/parser_snobol4.sc:
+- Result loop uses ITEM(c(ptree),i) instead of c(ptree)[i] to survive $'[' OPSYN override
+
+**Result: PASS=49 PARSE_ERROR=24 OTHER_FAIL=15 / 88 total**
+
+**NEXT (SCT-SN4-ERR041):** 15 ERROR 041 on multi-stmt fixtures. Root cause confirmed:
+-CASE 0 folds `c` identifier globally, corrupting DATA('tree(t,v,n,c)') field accessor `c()`.
+Fix: rename `c` field to `ch` throughout corpus/SCRIP/tree.sc and all callers (TDump, Insert,
+Remove, Tree, Equal, Equiv, Find, Visit — ~20 sites). This is clean corpus surgery with no
+runtime behaviour change. 24 Parse Errors are a separate issue (pattern fixtures).
