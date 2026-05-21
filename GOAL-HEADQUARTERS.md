@@ -64,24 +64,23 @@ GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--int
 ## Watermark
 
 ```
-one4all: 9b5ba0b6   (this session: build fix + EC-UNI-21 gate landed; sm_call_expression(int)
-                     runtime helper renamed to sm_eval_subexpr(int); sm_expr_incr.c added to
-                     Makefile; scripts/test_gate_ec_uni_complete.sh created.
-                     EC-UNI-14(c)(1..7) closed: SCRIP_UNIFIED_DISPATCH default ON then deleted;
-                     sm_push_null split into +_noflip variant; sm_label() template; all 5 residual
-                     opcodes (PUSH_EXPR, PUSH_EXPRESSION, CALL_EXPRESSION, INCR, DECR) covered;
-                     legacy switch + dispatch_one_x86 wrapper + flag deleted; emit_walk_codegen
-                     per-PC body collapsed to ~12 lines; bb_pl_{arith,atom,builtin,call} wired
-                     into emit_bb_node.  Ladder: 90557fbe -> 098a03ba -> c599bbab -> 46e8c531 ->
-                     862f817a -> c081758f -> 9b5ba0b6.  Net LOC across rung: roughly -130.
-                     Prior 266fc28a — BB_templates one-file-per-Byrd-Box restored.)
+one4all: 71bd8b6f   (EC-UNI LIFT slice 1: emit_bb_xstar -> bb_rem IS_X86 arm,
+                     emit_bb_xlnth -> bb_len IS_X86 arm.  g_emit gained 3 label fields:
+                     lbl_succ, lbl_fail, lbl_back (BB Byrd-box ports).  Pattern: copy-paste
+                     fn body verbatim into matching template's IS_X86 arm; params from g_emit;
+                     helpers stay; dispatcher unchanged so two paths coexist until cleanup
+                     pass.  Beauty md5 byte-identical, matrix 830/830.  Trail: 9b5ba0b6 ->
+                     869b397a -> 56b5afb6 -> b496198c -> 8b2f65e1 (revert slices 1+2) ->
+                     a6a3b736 (delete audit script) -> 99630c7e (76 stubs added; BB layer
+                     total over BB_op_t) -> 71bd8b6f (this slice).  EC-UNI LIFT PATTERN
+                     block in goal file is the contract for the remaining sweep.)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
-.github: (this commit — record EC-UNI-14(c)(1..6) close + revised goal text below)
+.github: (this commit — record EC-UNI LIFT PATTERN block + watermark refresh + handoff)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
 smoke raku:    5/0    smoke snobol4: 7/0    smoke snocone: 5/0
 broker:        23/26
 icon rungs:    194/36/35
-matrix gate:   450/450 PASS
+matrix gate:   830/830 PASS  (was 450/450 pre-99630c7e; now 110 files / 166 fns / 830 cells)
 firewall lower:   9/6   firewall runtime: 16/8   firewall stage2: 10 (token gate)
 beauty.sno --compile md5:           40df9e004c3e963c99af716c65f2c970  (882901 bytes)
 beauty.sno --compile assembled .o:  3adbb73f88edcc5416d38baade6faf97  (494336 bytes)
@@ -94,7 +93,8 @@ EC-UNI-14 ladder closed: 14-PREREQ d6e5c8f1 -> 14(a) 66cf8506 -> 14(b) dc4e6a9d/
                   scripts/test_gate_ec_uni_complete.sh, 9/9 PASS on HEAD).  M1 oracle DRIFTED
                   (current md5 9cddff2534472b822438801d8db58a99, 622 lines, vs M1 baseline
                   abfd19a7..., 646 lines) — EC-UNI-21-followup tracks reconcile vs retire.
-                  Remaining open in EC-UNI: EC-UNI-17/18/19/20/21-followup/22.
+                  Remaining open in EC-UNI: EC-UNI LIFT sweep (~70 SM + ~12 BB fns still
+                  unmoved), then EC-UNI-17/18/19/20/21-followup/22.
 beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines,
                             md5 5be1de188af42be42e15e6d9a552f759, self-contained).
                             Subsystem apparatus at programs/snobol4/beauty_suite/.
@@ -114,6 +114,55 @@ beauty.sno in corpus: ONE — programs/snobol4/demo/beauty/beauty.sno (627 lines
 - **Layer 3** — string-builder primitives in `src/emitter/emit_io.{c,h}`: `emit_text`/`emit_textf`/`emit_byte`/`emit_bytes`. Funnel for all output.
 
 **`g_emit` single global** (in `emit_globals.{c,h}`) carries all per-template state. Not re-entrant. Snocone bootstrap maps 1:1 to flat `DATA('Sm_emit(...)')` declaration.
+
+---
+
+### ⚡ EC-UNI LIFT PATTERN — read this before touching any template
+
+**Lon directive (2026-05-20, verbatim):**
+> *"You do know you can just lift the entire 3-layer cake and drop it in I suspect.  Then wire it with globals.  We'll do the expansion at the next step."*
+> *"Put the helpers anywhere you want because we are about to delete 90% of them."*
+> *"What I am saying is you drop that into the new template location and wire it up.  Put the helpers anywhere you want because we are about to delete 90% of them."*
+
+**The job:** for each x86 codegen fn still living in `src/emitter/emit_sm.c` or `src/emitter/emit_bb.c`, **copy-paste its body verbatim** into the matching template's `IS_X86` arm.  That's it.  No refactoring, no helper extraction, no factoring across templates, no design conversation.
+
+**Mechanical recipe (per fn):**
+
+1. Identify the fn.  Examples: `emit_bb_xstar` (BB_PAT_REM), `emit_bb_xlnth` (BB_PAT_LEN), `emit_bb_xchr` (BB_PAT_LIT), `emit_bb_charset` (BB_PAT_SPAN/ANY/BREAK/NOTANY), `emit_sm_concat_dispatch` (SM_CONCAT), `emit_sm_jump_line` (SM_JUMP), etc.
+2. Find the matching template file: `BB_templates/bb_<kind>.c` or `SM_templates/sm_<op>.c`.  The stub line `if (IS_BIN) return; /* x86 binary: emit_flat_body path, not emit_bb_node */` (BB templates) or the `if (IS_X86) return emit_sm_<op>_dispatch(out, instr, 0);` line (SM templates) marks where the lifted body lands.
+3. **Copy the entire fn body verbatim** into the template's `if (IS_X86) { ... return; }` arm.  Preserve the original local variable names; just rewrite parameters as reads from `g_emit`:
+   - `s`/`f`/`b` (succ/fail/back labels) → `g_emit.lbl_succ` / `g_emit.lbl_fail` / `g_emit.lbl_back`
+   - `n` (LEN/TAB count) → `nd->ival` (where `nd = g_emit.node`)
+   - `lit` (PAT_LIT string) → `nd->sval`
+   - `out` → `g_emit.out` (or local `FILE * o = emit_outf();` as the lifted body already does)
+4. **Helpers stay where they are.**  `emit_bb_box_banner`, `bb3c_format`, `emit_outf`, `emit_label_define`, `insn_*`, `emit_store_delta`, `emit_jmp`, `emit_seq_bounds_len`, `emit_add_delta_imm`, `TEMPLATE_ADDR_SIGLEN`, `JMP_*` — all stay in their current files.  ~90% of them will be deleted in the next pass anyway.  **Do not move helpers.  Do not extract helpers.  Do not factor across templates.**  Just link against them.
+5. Leave the original fn in `emit_bb.c` / `emit_sm.c` for now.  The dispatcher (`emit_flat_ir` or `emit_walk_codegen`) still calls the old fn; two paths coexist temporarily.  Rewire/delete happens after the lift sweep is complete.
+6. Build → matrix gate (`scripts/test_gate_em_template_matrix.sh`) → beauty md5 check (`./scrip --compile .../beauty.sno | md5sum` should still be `40df9e004c3e963c99af716c65f2c970`) → commit.  Each slice is 1–10 fns; small commits, often.
+
+**Canonical example landed:** one4all `71bd8b6f` lifted `emit_bb_xstar` → `bb_rem` IS_X86 arm and `emit_bb_xlnth` → `bb_len` IS_X86 arm.  `g_emit` gained three label fields: `lbl_succ`, `lbl_fail`, `lbl_back` (in `src/emitter/emit_globals.h`).  Read those files for the canonical shape.
+
+**What NOT to do (mistakes made before this directive landed; do not repeat):**
+- Do NOT extract a `static` helper inside a template that collapses two opcodes into one body (slice 1, reverted in `8b2f65e1`).
+- Do NOT add Layer-2 helpers in `emit_core.c` that factor a common pattern across multiple templates (slice 2, reverted).
+- Do NOT enforce or measure "fn fits on a screen" — that rule was removed (2026-05-20).
+- Do NOT pause to ask design questions about helpers, file structure, or which fn to do first.  Just pick any unmoved `emit_bb_x*` or `emit_sm_*` and lift it.
+- Do NOT touch the matrix gate's same-file-helper-delegation logic — there are no template-local helpers in the consolidation phase.
+
+**What "complete" means here:** every x86 codegen fn that lives in `emit_bb.c` or `emit_sm.c` has been copy-pasted into its matching template's `IS_X86` arm.  After the lift sweep, the rewire/delete pass will:
+- Update `emit_flat_ir` / `emit_walk_codegen` to call the templates directly (via `emit_bb_node` and `emit_sm_dispatch`).
+- Delete the original `emit_bb_x*` / `emit_sm_*_dispatch` fns from `emit_bb.c` and `emit_sm.c`.
+- Trim 90% of the now-unreachable helpers.
+- That's "Phase B" expansion (one-source-line-per-output-line) territory.
+
+**Lift queue, approximate** — see `git grep -nE '^(void|int) emit_(bb_x|sm_)\w+_(dispatch|template|line|x\w+)\s*\(' src/emitter/emit_bb.c src/emitter/emit_sm.c` for the live list:
+
+BB-side (in `emit_bb.c`): `emit_bb_xchr`, `emit_bb_xfarb`, `emit_bb_charset` (× SPAN/ANY/BREAK/NOTANY), `emit_bb_xposi`, `emit_bb_xrpsi`, `emit_bb_xtb`, `emit_bb_xrtb`, `emit_bb_xfail`, `emit_bb_xeps`, `emit_flat_ir_fence`, `emit_flat_ir_cat`, `emit_flat_ir_alt`, etc.
+
+SM-side (in `emit_sm.c`): ~62 distinct `emit_sm_*_dispatch` / `_template` / `_line` fns.  Most are 1–10 lines.  Source list available via `grep -n '^int  emit_sm_\|^void emit_sm_' src/emitter/emit_sm.c`.
+
+**Verification per commit:** matrix gate stays at 830/830; beauty.sno --compile md5 stays at `40df9e004c3e963c99af716c65f2c970` (byte-identical — the lifts add code paths but don't change output until the dispatcher is rewired).
+
+---
 
 **Scope inventory:** SM has 91 opcodes in the enum, 76 dispatched by `emit_sm_dispatch` (the other 15 are runtime/sentinel — BB-bridge `_PROC` variants, frame/global ops, compare aliases, `SM_SUSPEND`/`SM_OPCODE_COUNT` — not template work).  BB has 97 kinds in `BB_op_t`; **all 97 are dispatched by `emit_bb_node` and have template slots** as of one4all `99630c7e` (21 pattern + Prolog kinds carry real code, 76 are honest no-op stubs awaiting Phase B per-backend codegen).  Walkers delete after coverage lands: net −2500 to −3500 LOC.
 
