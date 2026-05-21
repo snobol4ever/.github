@@ -56,9 +56,9 @@ Each group: read baseline `.raw` for the cells, identify variables, replace temp
 
 Survey first: how many JVM/NET/JS arms still use indirection vs. already use `emit_textf`?
 
-- [ ] **G7: JVM** — verify all JVM arms already use `emit_textf`; if any use indirection, convert.
-- [ ] **G8: NET** — same.
-- [ ] **G9: JS** — same.
+- [x] **G7: JVM** — verify all JVM arms already use `emit_textf`; if any use indirection, convert.
+- [x] **G8: NET** — same.
+- [x] **G9: JS** — same.
 - [ ] **G10: WASM** — currently all "deferred"; out of scope unless WASM lands.
 
 ### Phase 3 — rewire emit_flat_ir → emit_bb_node
@@ -170,5 +170,5 @@ sweep ✅ bb_atp_template, bb_eps last banners -> emit_textf
 
 Zero emit_bb_box_banner, zero bb3c_format in all BB_templates/ and SM_templates/.
 emit_text_jmp stays in bb_pos/bb_lit (fused cjmp output, cannot be emit_textf).
-NEXT: G7 — survey JVM arms; G8 NET; G9 JS per plan.
+NEXT: G11 — emit_flat_ir rewire (path-a/b decision from Lon required). G7/G8/G9 surveyed clean — all non-x86 arms already use emit_textf/ jvm_*/net_*/js_escape directly. No indirection to remove.
 ```
