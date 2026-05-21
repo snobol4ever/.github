@@ -55,84 +55,120 @@ Mode 2 (`--interp`) is the reference path for Icon at 194/265. Mode 4 (`--compil
 
 ## Gates
 
+### Directive: emitter-refactor session pace
+
+**During CORRAL / lift / template-physical-placement work where the LIVE PATH IS
+UNCHANGED, the full gate matrix at session start is wasteful and slow.**  These
+slices are byte-identical by construction — the originals in `emit_bb.c` / `emit_sm.c`
+still run; the template arms are dormant code waiting for `emit_bb_node` /
+`emit_program` to be wired.  Re-running the same 194-rung Icon suite three times
+per slice tells us nothing the build + matrix gate didn't already.
+
+Use this tiered cadence:
+
+**Per-slice fast cycle (default — use this for every CORRAL slice):**
 ```
-GATE-1  bash scripts/test_smoke_icon.sh                        # PASS=5
-GATE-2  bash scripts/test_smoke_unified_broker.sh              # PASS >= 23
-GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194 (--interp by default)
+make -j4 scrip                                               # must build clean
+bash scripts/test_gate_em_template_matrix.sh                 # invariant; matrix grows N×5 per new template
+bash scripts/test_gate_ec_uni_complete.sh                    # beauty.sno --compile md5 byte-identity (THE byte-identical proof)
 ```
+If both gates pass, the slice is good.  Commit + push.  No Icon-all-rungs.
+No smoke_broker.  No smoke_icon.
+
+**Session-end gate (run ONCE at handoff, not per slice):**
+```
+bash scripts/test_smoke_icon.sh                              # PASS=5
+bash scripts/test_smoke_unified_broker.sh                    # PASS >= 23
+bash scripts/test_icon_all_rungs.sh                          # PASS=194 --interp
+```
+
+**Session-start gate (run ONCE at session start, NOT before each slice):**
+The session-end gate from the prior session is your baseline; if it was clean on
+the watermarked commit, you do not need to re-establish it before your first
+edit.  Just `make -j4 scrip` to confirm the build, then start cutting.
+
+**When to escalate to full gates mid-session:**
+- The slice touches the LIVE PATH (changes `emit_bb.c` / `emit_sm.c` / dispatchers).
+- The slice removes a function (delete originals after wire-up).
+- The slice changes `g_emit` shape (new fields, renamed fields).
+- The build broke and was fixed — re-run full to confirm no follow-on damage.
+- An unfamiliar template kind is being filled for the first time (e.g. first SM-side
+  slice after BB-side is done).
+
+For pure physical-placement CORRAL slices like 5/6/7, the fast cycle is sufficient.
+
+### Gate commands
+
+```
+GATE-1  bash scripts/test_smoke_icon.sh                        # PASS=5            (session-end only)
+GATE-2  bash scripts/test_smoke_unified_broker.sh              # PASS >= 23        (session-end only)
+GATE-3  bash scripts/test_icon_all_rungs.sh                    # PASS=194          (session-end only)
+GATE-M  bash scripts/test_gate_em_template_matrix.sh           # matrix invariant  (per-slice)
+GATE-E  bash scripts/test_gate_ec_uni_complete.sh              # beauty md5 + 9-gate roll-up (per-slice)
+```
+
 
 ## Watermark
 
 ```
-one4all: 3e2d982f   (EC-UNI LIFT Snocone-shape slices 1+2+3+4+5.  CORRAL of the
-                     14 emit_bb_x* fns COMPLETE at 44e41588; slice 5 extends the
-                     corral to a 15th pat-level fn — emit_bb_xarbn → bb_arbno.c
-                     IS_X86 arm.  Live path UNCHANGED — emit_bb_node does not
-                     yet fill g_emit fields, so originals in emit_bb.c are still
-                     the live path.  Beauty byte-identical proves no harm.
+one4all: 045baf4a   (EC-UNI LIFT Snocone-shape slices 1-7.  CORRAL of all
+                     known pat-level emit_bb_x* bodies COMPLETE.  Slices 1-4
+                     (44e41588) corraled the 14 active emit_bb_x* fns.  Slices
+                     5-7 (3e2d982f → 5ad56a4b → 045baf4a) finish the trailing
+                     three: xarbn, xeps, xbrkx (dead).  Live path UNCHANGED —
+                     emit_bb_node does not yet fill g_emit fields, so originals
+                     in emit_bb.c are still the live path.  Beauty byte-identical
+                     proves no harm at every step.
 
-                     Slice 4 (44e41588) added:
+                     Slice 5 (3e2d982f) — bb_arbno.c IS_X86 arm filled with
+                       emit_bb_xarbn body.  Reads g_emit.child_fn + lbl_*.
+                       No new template file; bb_arbno.c already had JVM/JS/NET
+                       arms.  Both IS_TEXT and IS_BIN sub-branches mirrored.
+                     Slice 6 (5ad56a4b) — new bb_eps.c, corrals one-line
+                       emit_bb_xeps.  No BB_op_t dispatch slot (EPS is the
+                       NULL-node case in emit_flat_ir, like bb_charset_helper).
+                       Matrix 845 → 850.
+                     Slice 7 (045baf4a) — new bb_brkx.c, corrals emit_bb_xbrkx
+                       (dead in both places — declared but uncalled).  IS_TEXT
+                       only, no IS_BIN fork (mirrors original).  Matrix 850 → 855.
+
+                     Slice 4 inventory (held over for reference):
                        - g_emit fields: child_fn (void *), op_name1, op_name2,
-                         op_kind — the per-op parameters from emit_bb_x*
-                         signatures, now corraled in g_emit.
+                         op_kind — per-op parameters from emit_bb_x* signatures.
                        - un-static of emit_bb_ptr_slot, child_cache_get_lbl,
-                         g_cap_fixup_cb in emit_bb.c (declared in emit_bb.h).
-                       - bb_label_from_name() scaffolding helper in
-                         bb_template_common.h — transient bb_label_t built from
-                         name string so legacy pointer-taking helpers can be
-                         called from templates without re-polluting g_emit.
-                       - bb_charset_helper.c (lifted emit_bb_charset body),
-                         called from bb_span/any/break/notany IS_X86 arms after
-                         they set g_emit.op_name1 (chars), op_name2 (rt fn name),
-                         op_kind (banner).
-                       - bb_capture.c lifted xcallcap/xfnme/xnme combined
-                         (dispatch via g_emit.op_name1 + imm + op_name2).
-                       - bb_fence.c lifted xfnce (uses emit_text_jmp /
-                         emit_text_label primitives).
-                       - bb_dsar.c new — DEREF body (xdsar) corraled.
-                       - bb_atp_template.c new — USERPAT body (xatp) corraled;
-                         renamed from bb_atp.c to avoid colliding with the
-                         existing bb_atp(void *,int) runtime fn in bb_box.h.
-                       - Makefile updated for the three new .c files.
+                         g_cap_fixup_cb in emit_bb.c.
+                       - bb_label_from_name() scaffolding in bb_template_common.h.
+                       - bb_charset_helper.c (emit_bb_charset).
+                       - bb_capture.c (xcallcap/xfnme/xnme combined).
+                       - bb_fence.c (xfnce).
+                       - bb_dsar.c (xdsar / DEREF).
+                       - bb_atp_template.c (xatp / USERPAT).
 
-                     Slice 5 (3e2d982f) added:
-                       - bb_arbno.c IS_X86 arm filled — body lifted from
-                         emit_bb.c::emit_bb_xarbn.  Both IS_TEXT and IS_BIN
-                         sub-branches mirrored (emit_seq_port_call_rip for text,
-                         emit_seq_port_call for binary).  Reads g_emit.child_fn
-                         (bb_box_fn cast as void *) plus the three lbl_* name
-                         strings.  Includes added: bb_box.h, emit_bb.h,
-                         runtime/rt/rt.h.  No Makefile change — bb_arbno.c was
-                         already listed (had JVM/JS/NET arms; just no IS_X86).
-                         No g_emit field additions needed — child_fn was already
-                         in place from slice 4.
+                     Status: 17/17 pat-level BB-x86 fn bodies physically in
+                     templates (14 active from slices 1-4 + xarbn + xeps + dead
+                     xbrkx).  Matrix gate 855/855 after slice 7.  Beauty stays
+                     at md5 0c192b2f26fd1288e19c21614af95218 (--interp) and
+                     40df9e004c3e963c99af716c65f2c970 (--compile) throughout.
 
-                     Status: 15/15+ BB-x86 fn bodies corraled (14 pat-level from
-                     slices 1-4 + xarbn from slice 5).  Three pat-level fns
-                     remain in emit_bb.c with no template mirror yet:
-                       - emit_bb_xeps     (one-liner; null-pattern EPS path)
-                       - emit_bb_xbrkx    (dead — declared, never called)
-                       - emit_flat_ir_alt / _cat / _fence (file-static control-
-                         flow assembly, not Byrd-box bodies; corral candidates
-                         for a future control-flow slice).
+                     Remaining pat-level x86 emission not yet in BB_templates/:
+                       - emit_flat_ir_alt  (file-static control-flow helper)
+                       - emit_flat_ir_cat  (file-static control-flow helper)
+                       - emit_flat_ir_fence (file-static control-flow helper)
+                     These three are dispatcher-style helpers, not Byrd-box
+                     bodies; corraling them belongs to a separate slice when
+                     we tackle control-flow assembly extraction.
 
-                     Matrix gate after slice 5: 845/845 (unchanged — no new
-                     templates added).  Beauty stays at md5
-                     0c192b2f26fd1288e19c21614af95218 (--interp) and
-                     40df9e004c3e963c99af716c65f2c970 (--compile).
+                     Slice trail: 9b5ba0b6 → 869b397a → 56b5afb6 → b496198c →
+                     8b2f65e1 → a6a3b736 → 99630c7e → 71bd8b6f → 1a9571fe →
+                     90235416 → 87d11afc → 44e41588 → 3e2d982f → 5ad56a4b →
+                     045baf4a.
 
-                     Slice trail: 9b5ba0b6 -> 869b397a -> 56b5afb6 -> b496198c
-                     -> 8b2f65e1 -> a6a3b736 -> 99630c7e -> 71bd8b6f -> 1a9571fe
-                     -> 90235416 -> 87d11afc -> 44e41588 -> 3e2d982f.
-
-                     NEXT: wire emit_bb_node to fill g_emit fields per node
+                     NEXT: wire emit_bb_node to fill g_emit fields per BB node
                      kind, then call the template fn (which now contains the
                      proper x86 body).  Once the template path emits byte-for-
                      byte identical output, delete the originals in emit_bb.c.
                      Then mirror this whole sweep on the SM side
-                     (~70 SM fns from emit_sm.c into sm_*.c templates).
-                     Optional smaller next slice: lift emit_bb_xeps into a new
-                     bb_eps.c template (one-liner, low risk).)
+                     (~70 SM fns from emit_sm.c into sm_*.c templates).)
 corpus:  5fc1427    (demo/beauty/ canonical; beauty_suite/ apparatus separated)
 .github: (this commit — record EC-UNI LIFT PATTERN block + watermark refresh + handoff)
 smoke icon:    5/0    smoke prolog: 5/0    smoke rebus: 4/0
