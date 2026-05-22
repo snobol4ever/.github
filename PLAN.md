@@ -65,6 +65,7 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles" f
 | **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ sm-run 223/280 ✅. See `BUG_CATEGORIZATION_20260516.md`. |
 | **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
 | **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |
+| **BB Template Ladder — Icon + Prolog** | `GOAL-BB-TEMPLATE-LADDER.md` | one4all+corpus+.github | **NEW 2026-05-22.** Fill `BB_ICN_*` and `BB_PL_*` templates one rung at a time starting from infitesimal programs. PP-1..6 ✅ is prerequisite (done). **NEXT: ICN-T-1** (`bb_icn_to.c`, rung01 `1 to 5`). |
 | **Prolog BB JCON triage** | `GOAL-PROLOG-BB-JCON.md` | one4all+corpus+.github | **PJ-9d partial 🔄** Registry + simple-body Mode-4 working. **NEXT PJ-9e:** multi-clause predicates — per-clause bodies in `IR_PL_CHOICE` children not walked by builder yet. |
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
