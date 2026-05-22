@@ -377,6 +377,27 @@ emit_textf("... %d ...", (int)_.instr->a[1].i);
 - [ ] **SCE-6 — sm_pat_nullary, sm_push_pop_lits, sm_pat_anchors** — Same pattern: each switch selects a name token from a fixed set. Replace with name tables or ternaries. One commit per file. Build + GATE-PK each.
 - [ ] **SCE-7 — VERIFY** — `grep -rn "switch.*instr->op\|switch.*\bop\b" SM_templates/` — confirm only structurally-distinct switches remain (i.e. `sm_jumps` JVM arm where each case produces a different sequence). Zero name-only switches permitted. GATE-PK. Commit: `STYLE-SWITCH-TO-EXPR: all name-only op switches collapsed to ternary/table. GATE-PK 407/0/647.`
 
+### STYLE-NO-COMMENTS — remove all comments from SM_templates and BB_templates source
+
+**Rule:** No comments of any kind in `SM_templates/*.c`, `BB_templates/*.c`, `sm_template_common.h`, `bb_template_common.h`. The code must be self-explanatory through naming. Three forms to remove:
+
+1. **Separator lines** — `/*----...----*/` (200-char dashes) between functions. Remove the line entirely; functions abut directly.
+2. **Block comments** — `/* prose ... */` on their own line(s) before a function or section. Remove all lines from `/*` through closing `*/`.
+3. **Trailing inline comments** — `code; /* note */` or `code; // note` at end of a code line. Strip the comment suffix, preserve the code.
+
+**Note on sm_template_common.h / bb_template_common.h:** These headers have substantial block comments explaining the helper functions. Remove the block comment bodies; keep the declarations. The RULES.md comment style rule ("no inline or end-of-line comments; no comments inside function bodies; block comment on line after separator, before function signature") still applies to non-template files — this step applies only to the template directories.
+
+**Scope:** 13 SM_templates files + 2 common headers + 24 BB_templates files = 39 files total.
+
+**Steps:**
+
+- [ ] **SNC-1 — BB_templates separator lines** — Delete all `/*----...----*/` separator lines from all 24 `BB_templates/*.c` files. Build + GATE-PK. One commit.
+- [ ] **SNC-2 — BB_templates block comments** — Delete all `/* ... */` block comments (single-line and multi-line) that stand on their own line(s) in all 24 `BB_templates/*.c` files. Build + GATE-PK. One commit.
+- [ ] **SNC-3 — BB_templates trailing inline comments** — Strip trailing `/* ... */` and `// ...` suffixes from code lines in all 24 `BB_templates/*.c` files. Build + GATE-PK. One commit.
+- [ ] **SNC-4 — SM_templates separator + block comments** — Delete all separator lines and standalone block comments from all 13 `SM_templates/*.c` files. Build + GATE-PK. One commit.
+- [ ] **SNC-5 — SM_templates trailing inline comments** — Strip trailing `/* ... */` and `// ...` suffixes from code lines in all 13 `SM_templates/*.c` files. Build + GATE-PK. One commit.
+- [ ] **SNC-6 — sm_template_common.h + bb_template_common.h** — Remove all block comments and separator lines from both headers. Preserve declarations; remove explanatory prose. Build + GATE-PK. Commit: `STYLE-NO-COMMENTS: all comments removed from SM/BB template files. GATE-PK 407/0/647.`
+
 ## Watermark
 
 ```
