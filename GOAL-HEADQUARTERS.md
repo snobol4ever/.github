@@ -192,6 +192,18 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 
 **Why first:** Every subsequent STYLE step (SJ, SNS, STL, SOP, SCE, SNC) operates on template files. If emission escapes the template system, those style steps are incomplete — the code they clean up is not the whole picture.
 
+**New opcode class: `WR_*` / `wr_*` — Wiring**
+
+The structural emitters in `emit_core.c` and `emit_bb.c` fall into three subfamilies, all promoted under the `WR_` prefix:
+
+| Subfamily | Current names | Character | Example WR_ opcodes |
+|-----------|--------------|-----------|-------------------|
+| **Instructions** | `insn_mov_*`, `insn_cmp_*`, `insn_push_*`, `insn_call_plt`, `insn_jmp_*` | Single x86 instruction, text+binary dual output | `WR_MOV_EDI_I32`, `WR_PUSH_RBP`, `WR_CALL_PLT` |
+| **Sequences** | `emit_seq_port_call`, `emit_seq_port_call_rip`, `emit_seq_brokered_enter`, `emit_seq_cmp_delta_i`, `emit_seq_bounds_len`, `emit_seq_sigma_delta_rdi` | Multi-instruction trampolines and runtime glue | `WR_PORT_CALL`, `WR_PORT_CALL_RIP`, `WR_BROKERED_ENTER`, `WR_BOUNDS_LEN` |
+| **Scaffolding** | `emit_flat_data_section`, `emit_flat_text_section`, `emit_text_global`, `emit_flat_entry_dispatch`, `emit_bb_box_banner`, `emit_flat_data_string`, `emit_flat_data_quad` | Section directives, global declarations, banners — administrative output structure | `WR_DATA_SECTION`, `WR_TEXT_SECTION`, `WR_GLOBAL`, `WR_ENTRY_DISPATCH`, `WR_BOX_BANNER` |
+
+Template files live in `WR_templates/wr_*.c`. Header: `WR_templates/wr_template_common.h`. Opcode enum: `WR_t` in `src/include/WR.h`. Dispatch in `emit_core.c` alongside the SM and BB dispatchers.
+
 **Current violations (three sites):**
 
 | File | Function(s) | Emission type | Count |
@@ -202,12 +214,14 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 
 **Steps:**
 
-- [ ] **EAO-1 — AUDIT** — For every function in `emit_sm.c`, `emit_bb.c`, and `emit_core.c` that contains any emission call: document it in `docs/EMIT-ALL-FROM-OPCODES-AUDIT.md` with columns: function name / file / emission kind / called from (which SM or BB opcode, or "structural") / proposed disposition (new opcode / absorb into existing / infrastructure keep). Gate: doc only. Commit.
-- [ ] **EAO-2 — CLASSIFY INFRASTRUCTURE** — From the audit, identify functions that are pure emission infrastructure (not opcode-specific): `bb_emit_byte`, `bb_emit_u32`, `emit_io_*`, `emit_mode_set`, `emit_label_initf`, `emit_label_define`, `emit_label_define_bb`, `emit_jmp`, `emit_text_rawf`. These are the emission primitives — they stay. Mark them "KEEP-INFRA" in the audit doc. Everything else needs an opcode. Commit updated doc.
-- [ ] **EAO-3 — NEW SM OPCODES: emit_sm.c residuals** — For each non-infrastructure emission site in `emit_sm.c`: define a new SM opcode (e.g. `SM_EXEC_STMT_BLOB`, `SM_PAT_BAKED_COMMENT`, `SM_PC_LABEL`, `SM_MACRO_LIBRARY`) in `SM.h`; write its template function in a new `SM_templates/sm_<name>.c`; wire it into `emit_core.c` dispatch; replace the inline emission in `emit_sm.c` with a call to `SM_emit(SM_<NAME>)` or equivalent. Build + GATE-PK. One commit per new opcode.
-- [ ] **EAO-4 — NEW BB OPCODES: emit_bb.c residuals** — For each non-infrastructure emission site in `emit_bb.c`: define a new BB kind or SM opcode (e.g. `SM_DATA_SECTION`, `SM_TEXT_SECTION`, `SM_INTEL_SYNTAX`, `SM_ENTRY_DISPATCH`, `SM_DATA_STRING`, `SM_DATA_QUAD`, `BB_PTR_SLOT`); write its template function; wire dispatch; replace inline emission. Build + GATE-PK. One commit per new opcode.
-- [ ] **EAO-5 — NEW OPCODES: emit_core.c structural emitters** — For each `emit_seq_*`, `insn_*`, and `emit_text_*` function in `emit_core.c` that is called directly from template code or from `emit_bb.c`/`emit_sm.c` (not from another `insn_*`): promote to a named SM or BB opcode and template. The `insn_*` family (x86 binary instructions) become `SM_X86_INSN_*` opcodes each with a one-line template arm per backend. Build + GATE-PK. One commit per logical group.
-- [ ] **EAO-6 — VERIFY** — `grep -rn "emit_textf\|bb_emit_byte\|fprintf.*g_emit\|emit_seq_\|emit_text_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c src/emitter/emit_core.c` returns only KEEP-INFRA primitives. Zero opcode-specific emission outside template files. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all code emission routed through SM/BB opcode templates. GATE-PK N/0/647.`
+- [ ] **EAO-1 — AUDIT** — For every function in `emit_sm.c`, `emit_bb.c`, and `emit_core.c` that contains any emission call: document it in `docs/EMIT-ALL-FROM-OPCODES-AUDIT.md` with columns: function name / file / emission kind / called from (which SM or BB opcode, or "structural") / proposed disposition (new `WR_` opcode / absorb into existing SM/BB template / infrastructure keep). Gate: doc only. Commit.
+- [ ] **EAO-2 — CLASSIFY INFRASTRUCTURE** — From the audit, identify functions that are pure emission infrastructure (not opcode-specific): `bb_emit_byte`, `bb_emit_u32`, `emit_io_*`, `emit_mode_set`, `emit_label_initf`, `emit_label_define`, `emit_label_define_bb`, `emit_jmp`, `emit_text_rawf`. These are the emission primitives — they stay. Mark them "KEEP-INFRA" in the audit doc. Everything else gets a `WR_` opcode. Commit updated doc.
+- [ ] **EAO-3 — SCAFFOLD: WR_templates directory + WR.h** — Create `src/include/WR.h` with `WR_t` enum (initially empty). Create `src/emitter/WR_templates/` with `wr_template_common.h` and `wr_templates.h`. Wire a no-op `WR_emit(WR_t op)` dispatcher into `emit_core.c`. Build. Commit: `EAO-3: WR_templates scaffold + WR.h enum + dispatcher stub.`
+- [ ] **EAO-4 — INSTRUCTIONS: insn_* → WR_INSN_*** — Promote each `insn_*` function (~50) to a `WR_INSN_*` opcode with a one-line template in `WR_templates/wr_insn.c`. Wire dispatch. Replace every `insn_*()` call site in `emit_core.c`, `emit_bb.c`, `emit_sm.c` with `WR_emit(WR_INSN_*)`. Build + GATE-PK. Commit per logical group (mov, cmp, add/sub, push/pop, call/jmp).
+- [ ] **EAO-5 — SEQUENCES: emit_seq_* → WR_SEQ_*** — Promote each `emit_seq_*` function to a `WR_SEQ_*` opcode with a template in `WR_templates/wr_seq.c`. Wire dispatch. Replace call sites. Build + GATE-PK. Commit.
+- [ ] **EAO-6 — SCAFFOLDING: emit_flat_*/emit_text_* → WR_*** — Promote each scaffolding emitter to a `WR_*` opcode with a template in `WR_templates/wr_scaffold.c`. Wire dispatch. Replace call sites in `emit_bb.c` and `emit_sm.c`. Build + GATE-PK. Commit.
+- [ ] **EAO-7 — SM RESIDUALS: emit_sm.c remaining → SM_*** — For emission in `emit_sm.c` not covered by WR_ promotion (e.g. `emit_sm_exec_stmt_blob`, `SM_PC_LABEL`, `SM_MACRO_LIBRARY`): define new SM opcodes and templates. Replace inline emission. Build + GATE-PK. Commit.
+- [ ] **EAO-8 — VERIFY** — `grep -rn "emit_textf\|bb_emit_byte\|fprintf.*emit_outf\|emit_seq_\|emit_text_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c src/emitter/emit_core.c` returns only KEEP-INFRA primitives. Zero opcode-specific emission outside template files. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all emission routed through SM/BB/WR opcode templates. GATE-PK N/0/647.`
 
 **Goal:** every backend (X86/JVM/JS/NET/WASM) is fully wired in every SM and BB template — no silent `return;` stubs, no missing arms, no asymmetric coverage. Adding a new opcode means touching exactly one template file and filling all five `IS_<BE>` arms. Adding a new backend means adding one `IS_NEW` arm per template file.
 
