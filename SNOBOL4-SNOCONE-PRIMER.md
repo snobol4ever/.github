@@ -1189,3 +1189,49 @@ clobber (not a counter-frame depth issue as previous sessions suspected).
     else-branch started `idxI=2` but the first body iteration saw `idxI=3`, skipping
     the second arg of `a[2, 3]`.
 
+
+---
+
+## Assumption verification grid — SCT-SN4-ERR041 session (2026-05-21d, Opus 4.7)
+
+During the SCT-SN4-ERR041 fix, every SNOBOL4/SPITBOL/Snocone fact relied on was
+recorded, then verified against the SPITBOL Manual v3.7 (fetch:
+`https://raw.githubusercontent.com/spitbol/x32/master/docs/spitbol-manual-v3.7.pdf`),
+the library source in `corpus/SCRIP/`, and empirical runs under `sbl -bf`. Result:
+24 confirmed TRUE, 1 FALSE, 2 refined. Keep this grid — it is a vetted reference for
+the next parser session.
+
+| # | Fact | Verdict | Evidence |
+|---|------|---------|----------|
+| 1 | ERROR 041 = "FIELD function argument is wrong datatype" | ✅ TRUE | Manual App D (error-code table, code 41) |
+| 2 | `DATA('tree(t,v,n,c)')` makes field accessors `t/v/n/c` that demand the matching type, else ERROR 041 | ✅ TRUE | Manual Ch 8 (Program-Defined Data Types); empirical `t('not_a_tree')`→041 |
+| 3 | `OUTPUT = (failing-expr)` emits **no line at all** | ✅ TRUE | Empirical. (Earlier "blank lines" were `OUTPUT =` with empty RHS — null assignment — emitting a blank, NOT failing-RHS lines.) |
+| 4 | `reduce(t, n)` net stack change = −(n−1) | ✅ TRUE | ShiftReduce.sc: Pop loop ×n, Push ×1 |
+| 5 | `shift(p, t)` pushes `tree(t, matched_text)`, net +1 | ✅ TRUE | semantic.sc + ShiftReduce.sc |
+| 6 | nPush/nInc/nTop/nPop are a counter stack independent of the semantic stack | ✅ TRUE | counter.sc (link_counter linked list) |
+| 7 | `reduce('TT_STMT','nTop()')` uses the EXPRESSION-DATATYPE check inside `Reduce` | ❌ FALSE | The `'nTop()'` string is build-time-interpolated into the EVAL pattern as a bare `nTop()` call resolved at MATCH time, returning INTEGER. The EXPRESSION-DATATYPE branch in `Reduce` serves a different path. |
+| 8 | Counter is a contract: each `nInc()` ↔ one net item on the semantic stack at frame end | ✅ TRUE | The bug + fix proves it |
+| 9 | A `reduce(t,k)` inside a sub-pattern lowers the surrounding net count by k−1; grammar must account | ✅ TRUE | Bug analysis, validated by fix |
+| 10 | `POS(0)`/`RPOS(0)` are zero-width subject anchors (start/end) | ✅ TRUE | Manual Ch 6 (POS/RPOS) |
+| 11 | `ARBNO(P)` matches 0+ of P, shy | ✅ TRUE | Manual Ch 9 ("behaves like ( \"\" \| PAT \| PAT PAT \| … )") |
+| 12 | `FENCE(P)` matches P; backtracking from outside does not re-enter | ✅ TRUE | Manual Ch 9 + Ch 19 ("pass through pattern on rematch") |
+| 13 | `*expr` (unary star) defers evaluation to match time | ✅ TRUE | Manual Ch 7 (Unevaluated Expressions) |
+| 14 | `epsilon` matches the empty string, always succeeds | ✅ TRUE (refined) | NOT a SPITBOL primitive — a project convention: an undeclared var is null, and null in pattern context matches empty. Empirical: `DATATYPE(epsilon)=STRING`, `SIZE(epsilon)=0` |
+| 15 | `'literal'` and `"literal"` interchangeable | ✅ TRUE | Manual Ch 3 |
+| 16 | xTrace is a project-local global | ✅ TRUE | global.sc:29 |
+| 17 | `OUTPUT = expr` writes a line iff expr succeeds | ✅ TRUE | Empirical (see #3 for the empty-RHS caveat) |
+| 18 | `?` is binary pattern-match, priority 1 | ✅ TRUE | Manual Ch 15 priority table; Ch 9 |
+| 19 | Semantic stack `$'@S'` is one global linked list across the whole parse | ✅ TRUE | stack.sc |
+| 20 | Popping one too many reaches the previous statement's TT_STMT, producing a wrong-typed child | ✅ TRUE | xTrace walk + fix |
+| 21 | Driver tail iterates `c(ptree)[i]`; the type error surfaces at the iteration site | ✅ TRUE | Trace pinned it to `cmd = ITEM(c(ptree),i)` |
+| 22 | `OPSYN('~','shift',2)` and `OPSYN('&','reduce',2)` | ✅ TRUE | semantic.sc lines 1–2 |
+| 23 | `sbl -bf`: `-b` suppress sign-on, `-f` disable case-folding | ✅ TRUE | Manual Ch 13 option list |
+| 24 | `scrip --dump-sno` is the transpile entry; `lower_sno.c` walks the AST | ✅ TRUE | Verified by running |
+| 25 | `--dump-ast` (oracle) uses attribute form `(STMT :eq :subj …)`; candidate uses positional `(TT_STMT …)` | ✅ TRUE | Empirical, both run |
+| 26 | Implicit pattern-match by juxtaposition (`SUBJECT PATTERN`, whitespace = match) is standard SNOBOL4 | ✅ TRUE | Manual Ch 6 ("In SNOBOL4, a blank can signify a pattern match as well as concatenation") |
+| 27 | Counter-frame invariant: (pushes within frame) == nTop() at frame end | ✅ TRUE | Same as #8 |
+
+**Takeaway for future parser work:** #7's correction matters when reasoning about how
+`reduce(tag, 'nTop()')` resolves arity — it is a match-time `nTop()` call baked into the
+EVAL'd pattern string, not a datatype-dispatched re-evaluation. And #14: `epsilon` works
+only because undeclared variables are null; never assume it is a defined primitive.
