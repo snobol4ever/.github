@@ -120,13 +120,13 @@ All other fields in `g_emit` (backend, out, labels, etc.) remain global — thos
 - Dispatch: `emit_sm_dispatch(const SM_t * instr)` passes `instr` directly; `emit_bb_node(BB_t * nd, FILE * out)` passes `nd` directly (no longer sets `g_emit.node`).
 - `g_emit.instr` and `g_emit.node` fields **remain** for XA templates and any non-template code that still needs them; dispatch no longer sets them (or keeps setting them for backward compat during transition).
 
-- [ ] **PP-1** — Update `sm_templates.h`: change all SM template forward declarations from `void sm_foo(void)` / `int sm_foo(void)` to `void sm_foo(const SM_t * instr)` / `int sm_foo(const SM_t * instr)`. Update `emit_sm_dispatch(void)` → `emit_sm_dispatch(const SM_t * instr)` in `emit_core.h`. Build (expect errors). GATE-PK after all PP steps.
-- [ ] **PP-2** — Update `bb_templates.h`: change all BB template forward declarations from `void bb_foo(void)` / `int bb_foo(void)` to `void bb_foo(BB_t * node)` / `int bb_foo(BB_t * node)`. Update `emit_bb_node(BB_t * nd, FILE * out)` dispatch to pass `nd` directly. Build (expect errors). GATE-PK after all PP steps.
-- [ ] **PP-3** — Update `emit_sm_dispatch` body in `emit_core.c`: pass `instr` to each `sm_foo(instr)` call. Update `emit_walk_codegen` and `emit_wasm_from_sm` / `emit_js_from_sm` / `emit_net_from_sm` call sites to pass `ins` (already have it in scope). Build.
-- [ ] **PP-4** — Update `emit_bb_node` body in `emit_core.c`: pass `nd` to each `bb_foo(nd)` call. Remove `g_emit.node = nd` assignment (or keep as belt-and-suspenders during transition — Lon decides). Build.
-- [ ] **PP-5** — Update all SM_templates/*.c: replace `void sm_foo(void)` / `int sm_foo(void)` with `void sm_foo(const SM_t * instr)` / `int sm_foo(const SM_t * instr)`. Replace all `_.instr->` reads with `instr->` directly. Remove any `const SM_t * instr = _.instr;` shadow locals (STYLE-NO-SHADOW-LOCALS killed these anyway). Build.
-- [ ] **PP-6** — Update all BB_templates/*.c: replace `void bb_foo(void)` / `int bb_foo(void)` with `void bb_foo(BB_t * node)` / `int bb_foo(BB_t * node)`. Replace all `_.node->` reads with `node->` directly. Build.
-- [ ] **PP-7** — Update `sm_template_common.h` and `bb_template_common.h`: remove any helpers or macros that shadow `_.instr` / `_.node`. Confirm `#define _ g_emit` still valid for remaining global fields (`_.out`, `_.backend`, `_.lbl_succ`, etc.). GATE-PK 407/0/647. GATE-M.
+- [x] **PP-1** — Update `sm_templates.h`: all SM template declarations take `const SM_t * pSM`. `emit_sm_dispatch(const SM_t * pSM)` in `emit_core.h`. GATE-PK 407/0/647.
+- [x] **PP-2** — Update `bb_templates.h`: all BB template declarations take `BB_t * pBB`. `bb_capture(BB_t * pBB, int imm)`. GATE-PK 407/0/647.
+- [x] **PP-3** — `emit_sm_dispatch` body: signature `(const SM_t * pSM)`, switch on `pSM->op`, all `sm_foo(pSM)` calls. All four call sites pass local `ins`/`instr`. GATE-PK 407/0/647.
+- [x] **PP-4** — `emit_bb_node` body: all `bb_foo(nd)` calls pass `nd`. `bb_eps(NULL)` for the degenerate no-node case. GATE-PK 407/0/647.
+- [x] **PP-5** — All SM_templates/*.c: signatures `(const SM_t * pSM)`, `pSM->` throughout, shadow locals removed. GATE-PK 407/0/647.
+- [x] **PP-6** — All BB_templates/*.c: signatures `(BB_t * pBB)`, `pBB->` throughout. Internal `bb_charset_emit(pBB)` calls fixed. GATE-PK 407/0/647.
+- [ ] **PP-7** — Update `sm_template_common.h` and `bb_template_common.h`: remove any helpers or macros that shadow `_.instr` / `_.node`. Confirm `#define _ g_emit` still valid for remaining global fields (`_.out`, `_.backend`, `_.lbl_succ`, etc.). GATE-PK + GATE-M.
 
 ### ISO — parse→lower / parse→runtime firewalls
 
