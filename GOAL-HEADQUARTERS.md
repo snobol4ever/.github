@@ -186,42 +186,42 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 - [ ] **ISO-4** — `scrip_parse` subprocess: parsers in separate executable, stdin=source, stdout=TDump S-expression. Write deserializer + roundtrip self-test first.
 - [ ] ISO-5, ISO-6, ISO-7 — shrink firewall allowlists toward 0.
 
-### EMIT-ALL-FROM-OPCODES — audit and eliminate all code emission outside SM/BB opcode templates ⚡ PREREQUISITE FOR ALL STYLE STEPS
+### EMIT-ALL-FROM-OPCODES — every full asm block gets an opcode ⚡ PREREQUISITE FOR ALL STYLE STEPS
 
-**Rule:** No code is generated anywhere except by a template function called from the SM or BB opcode dispatch. Every `emit_textf`, `fprintf`, `bb_emit_byte`, `emit_text_*`, `emit_seq_*`, `insn_*`, and `emit_flat_*` call that fires outside `SM_templates/*.c` or `BB_templates/*.c` must be eliminated — either by promoting it to a new SM or BB opcode with its own template function, or by absorbing it into an existing template.
+**The problem:** Several full-bodied asm sequences exist in `emit_sm.c` and `emit_bb.c` that are emitted by C functions called directly — they have no SM or BB opcode naming them, no dispatch table entry, no template function. Examples:
 
-**Why first:** Every subsequent STYLE step (SJ, SNS, STL, SOP, SCE, SNC) operates on template files. If emission escapes the template system, those style steps are incomplete — the code they clean up is not the whole picture.
+- `emit_sm_exec_stmt_blob` — emits `lea rdi`, conditional `lea rsi`/`xor esi`, `mov edx`, `call rt_match_blob@PLT` — a 4-instruction pattern-match call sequence with no opcode
+- `emit_sm_macro_library` — emits the full `.intel_syntax` + all GAS macro definitions that prelude every compilation unit — a full asm block with no opcode
+- `emit_flat_entry_dispatch` — emits `cmp esi,0` / `je α_body` / `jmp β` — the Byrd-box entry trampoline, called from `emit_flat_body`, no opcode
+- `emit_flat_body` (prologue) — emits `.globl` declarations + `lea r10,[rip+Δ]` setup before routing to `emit_flat_ir` — no opcode
+- `emit_sm_stno` / `emit_sm_set_pc_label` — asm emission called from the SM walker outside the template dispatch path
 
-**New opcode class: `WR_*` / `wr_*` — Wiring**
+**The rule:** Every full asm block — every named multi-instruction sequence that constitutes a recognisable unit of generated code — must have an opcode in the dispatch table and a template function that owns it. No asm is emitted by C functions called directly outside the template system.
 
-The structural emitters in `emit_core.c` and `emit_bb.c` fall into three subfamilies, all promoted under the `WR_` prefix:
+**New opcode class: `AD_*` / `ad_*` — Administrative**
 
-| Subfamily | Current names | Character | Example WR_ opcodes |
-|-----------|--------------|-----------|-------------------|
-| **Instructions** | `insn_mov_*`, `insn_cmp_*`, `insn_push_*`, `insn_call_plt`, `insn_jmp_*` | Single x86 instruction, text+binary dual output | `WR_MOV_EDI_I32`, `WR_PUSH_RBP`, `WR_CALL_PLT` |
-| **Sequences** | `emit_seq_port_call`, `emit_seq_port_call_rip`, `emit_seq_brokered_enter`, `emit_seq_cmp_delta_i`, `emit_seq_bounds_len`, `emit_seq_sigma_delta_rdi` | Multi-instruction trampolines and runtime glue | `WR_PORT_CALL`, `WR_PORT_CALL_RIP`, `WR_BROKERED_ENTER`, `WR_BOUNDS_LEN` |
-| **Scaffolding** | `emit_flat_data_section`, `emit_flat_text_section`, `emit_text_global`, `emit_flat_entry_dispatch`, `emit_bb_box_banner`, `emit_flat_data_string`, `emit_flat_data_quad` | Section directives, global declarations, banners — administrative output structure | `WR_DATA_SECTION`, `WR_TEXT_SECTION`, `WR_GLOBAL`, `WR_ENTRY_DISPATCH`, `WR_BOX_BANNER` |
+These are **administrative** opcodes: prologues, epilogues, trampolines, dispatch stubs, and other named asm fragments that form the skeleton around the semantic SM/BB opcodes. They have no language-semantic meaning — they manage the runtime scaffold.
 
-Template files live in `WR_templates/wr_*.c`. Header: `WR_templates/wr_template_common.h`. Opcode enum: `WR_t` in `src/include/WR.h`. Dispatch in `emit_core.c` alongside the SM and BB dispatchers.
+```
+AD_MACRO_LIBRARY       — the full GAS macro-definition preamble (.intel_syntax + all .macro blocks)
+AD_EXEC_STMT_BLOB      — pattern-match call sequence (lea rdi/lea rsi|xor esi/mov edx/call rt_match_blob)
+AD_ENTRY_DISPATCH      — Byrd-box entry trampoline (cmp esi,0 / je α / jmp β)
+AD_FLAT_PROLOGUE       — .globl declarations + lea r10,[rip+Δ] before flat IR walk
+AD_STNO                — mov edi,N / call rt_set_stno@PLT (the stno emission currently in emit_sm_stno)
+AD_PC_LABEL            — pending-label flush (currently emit_sm_set_pc_label / emit_sm_consume_pc_label)
+```
 
-**Current violations (three sites):**
-
-| File | Function(s) | Emission type | Count |
-|------|-------------|--------------|-------|
-| `emit_sm.c` | `emit_sm_exec_stmt_blob`, `emit_sm_stno`, `emit_sm_set_pc_label`, `emit_sm_macro_library` | `emit_textf`, `emit_text_*` | ~115 call sites |
-| `emit_bb.c` | `emit_bb_ptr_slot`, `emit_flat_body`, `emit_flat_data_*`, `emit_flat_entry_dispatch`, `emit_flat_banner_rule`, `emit_text_global`, `emit_seq_*`, `emit_bb_box_banner` | `fprintf`, `emit_text_*`, `emit_seq_*`, `emit_flat_*` | ~61 call sites |
-| `emit_core.c` | `insn_*` (~50 functions), `emit_seq_*` (~12 functions), `emit_text_*`, `emit_label_*`, `emit_macro_*`, `emit_form_*`, `emit_jmp*`, `emit_banner_*` | `bb_emit_byte`, `emit_textf`, `fprintf` | ~385 call sites |
+Template files live in `AD_templates/ad_*.c`. Header: `AD_templates/ad_template_common.h`. Opcode enum: `AD_op_t` in `src/include/AD.h`. Dispatcher: `ad_dispatch()` in `emit_core.c`, same pattern as `emit_sm_dispatch()`.
 
 **Steps:**
 
-- [ ] **EAO-1 — AUDIT** — For every function in `emit_sm.c`, `emit_bb.c`, and `emit_core.c` that contains any emission call: document it in `docs/EMIT-ALL-FROM-OPCODES-AUDIT.md` with columns: function name / file / emission kind / called from (which SM or BB opcode, or "structural") / proposed disposition (new `WR_` opcode / absorb into existing SM/BB template / infrastructure keep). Gate: doc only. Commit.
-- [ ] **EAO-2 — CLASSIFY INFRASTRUCTURE** — From the audit, identify functions that are pure emission infrastructure (not opcode-specific): `bb_emit_byte`, `bb_emit_u32`, `emit_io_*`, `emit_mode_set`, `emit_label_initf`, `emit_label_define`, `emit_label_define_bb`, `emit_jmp`, `emit_text_rawf`. These are the emission primitives — they stay. Mark them "KEEP-INFRA" in the audit doc. Everything else gets a `WR_` opcode. Commit updated doc.
-- [ ] **EAO-3 — SCAFFOLD: WR_templates directory + WR.h** — Create `src/include/WR.h` with `WR_t` enum (initially empty). Create `src/emitter/WR_templates/` with `wr_template_common.h` and `wr_templates.h`. Wire a no-op `WR_emit(WR_t op)` dispatcher into `emit_core.c`. Build. Commit: `EAO-3: WR_templates scaffold + WR.h enum + dispatcher stub.`
-- [ ] **EAO-4 — INSTRUCTIONS: insn_* → WR_INSN_*** — Promote each `insn_*` function (~50) to a `WR_INSN_*` opcode with a one-line template in `WR_templates/wr_insn.c`. Wire dispatch. Replace every `insn_*()` call site in `emit_core.c`, `emit_bb.c`, `emit_sm.c` with `WR_emit(WR_INSN_*)`. Build + GATE-PK. Commit per logical group (mov, cmp, add/sub, push/pop, call/jmp).
-- [ ] **EAO-5 — SEQUENCES: emit_seq_* → WR_SEQ_*** — Promote each `emit_seq_*` function to a `WR_SEQ_*` opcode with a template in `WR_templates/wr_seq.c`. Wire dispatch. Replace call sites. Build + GATE-PK. Commit.
-- [ ] **EAO-6 — SCAFFOLDING: emit_flat_*/emit_text_* → WR_*** — Promote each scaffolding emitter to a `WR_*` opcode with a template in `WR_templates/wr_scaffold.c`. Wire dispatch. Replace call sites in `emit_bb.c` and `emit_sm.c`. Build + GATE-PK. Commit.
-- [ ] **EAO-7 — SM RESIDUALS: emit_sm.c remaining → SM_*** — For emission in `emit_sm.c` not covered by WR_ promotion (e.g. `emit_sm_exec_stmt_blob`, `SM_PC_LABEL`, `SM_MACRO_LIBRARY`): define new SM opcodes and templates. Replace inline emission. Build + GATE-PK. Commit.
-- [ ] **EAO-8 — VERIFY** — `grep -rn "emit_textf\|bb_emit_byte\|fprintf.*emit_outf\|emit_seq_\|emit_text_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c src/emitter/emit_core.c` returns only KEEP-INFRA primitives. Zero opcode-specific emission outside template files. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all emission routed through SM/BB/WR opcode templates. GATE-PK N/0/647.`
+- [ ] **EAO-1 — INVENTORY** — Read every C function in `emit_sm.c` and `emit_bb.c` that fires emission (any `emit_textf`, `fprintf(emit_outf()`, `emit_seq_*`, `emit_flat_*`, `insn_*`) and is **not** called through the SM/BB template dispatch. List each in `docs/AD-OPCODE-INVENTORY.md` with: function name / asm block description / call site(s) / proposed `AD_` opcode name. Gate: doc only. Commit.
+- [ ] **EAO-2 — SCAFFOLD** — Create `src/include/AD.h` (`AD_op_t` enum, initially empty). Create `src/emitter/AD_templates/` with `ad_template_common.h` and `ad_templates.h`. Add stub `ad_dispatch(AD_op_t op)` to `emit_core.c`. Build. Commit: `EAO-2: AD_templates scaffold + AD.h + dispatcher stub.`
+- [ ] **EAO-3 — AD_MACRO_LIBRARY** — Add `AD_MACRO_LIBRARY` opcode. Write `AD_templates/ad_macro_library.c` whose IS_X86 arm emits the `.intel_syntax` header then calls `emit_sm_dispatch()` for each macro-def representative (absorbing the loop from `emit_sm_macro_library`). Replace the `emit_sm_macro_library` call site with `ad_dispatch(AD_MACRO_LIBRARY)`. Build + GATE-PK. Commit.
+- [ ] **EAO-4 — AD_EXEC_STMT_BLOB** — Add `AD_EXEC_STMT_BLOB`. Write `AD_templates/ad_exec_stmt_blob.c` absorbing the 4-instruction sequence from `emit_sm_exec_stmt_blob`. Replace call site. Build + GATE-PK. Commit.
+- [ ] **EAO-5 — AD_ENTRY_DISPATCH + AD_FLAT_PROLOGUE** — Add both opcodes. Write `AD_templates/ad_flat.c` absorbing `emit_flat_entry_dispatch` and the `.globl`+`lea r10` prologue from `emit_flat_body`. Replace call sites. Build + GATE-PK. Commit.
+- [ ] **EAO-6 — AD_STNO + AD_PC_LABEL** — Add both opcodes. Write `AD_templates/ad_sm_misc.c` absorbing `emit_sm_stno` asm block and `emit_sm_set_pc_label`/`emit_sm_consume_pc_label`. Replace call sites. Build + GATE-PK. Commit.
+- [ ] **EAO-7 — VERIFY** — `grep -rn "emit_textf\|fprintf.*emit_outf\|emit_seq_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c` returns zero asm-emitting lines. All asm now owned by SM, BB, or AD template functions. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all asm blocks have AD_/SM_/BB_ opcodes. GATE-PK N/0/647.`
 
 **Goal:** every backend (X86/JVM/JS/NET/WASM) is fully wired in every SM and BB template — no silent `return;` stubs, no missing arms, no asymmetric coverage. Adding a new opcode means touching exactly one template file and filling all five `IS_<BE>` arms. Adding a new backend means adding one `IS_NEW` arm per template file.
 
