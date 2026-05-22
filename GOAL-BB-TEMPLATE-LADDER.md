@@ -114,8 +114,8 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 ## Ladder steps — Prolog
 
 - [ ] **PL-T-1** — `bb_pl_builtin.c`: `BB_PL_BUILTIN` x86 template (write/nl/halt). Verify rung01 `hello` PASS. GATE-PK.
-- [ ] **PL-T-2** — `bb_pl_unify.c` + `bb_pl_var.c` + `bb_pl_atom.c`. Verify rung02 unification PASS. GATE-PK.
-- [ ] **PL-T-3** — `bb_pl_arith.c` + `bb_pl_seq.c`. Verify rung03 arithmetic PASS. GATE-PK.
+- [x] **PL-T-2** ✅ — `bb_pl_var.c` + `bb_pl_atom.c` + `bb_pl_unify.c`; rt_pl_var_push/atom_push/unify_* helpers. GATE-PK 415/0/639→415/0/639. smoke 5/5.
+- [x] **PL-T-3** ✅ — `bb_pl_arith.c` + `bb_pl_seq.c`; rt_pl_arith + rt_pl_seq_exec. GATE-PK 419/0/635. smoke 5/5.
 - [ ] **PL-T-4** — `bb_pl_call.c`. Verify rung04 predicate call PASS. GATE-PK.
 - [ ] **PL-T-5** — `bb_pl_choice.c`. Verify rung05 multi-clause PASS. GATE-PK.
 - [ ] **PL-T-6** — `bb_pl_alt.c`. Verify rung06 disjunction PASS. GATE-PK.
