@@ -21,13 +21,19 @@
 
 ## Session State (2026-05-22, session ~25)
 
-**one4all HEAD: `683f73b6`** (pre-session) — new commits this session below.
+**one4all HEAD: `929d3177`** — PP-1..6 complete. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647.**
 
-**Completed this session:** EAO-BB-FIX ✅ (`xa_bb_ptr_slot.c` owns emit body; `emit_bb.c` zero `fprintf(out,...)`). EAO-11 ✅ (`XA_PROLOGUE` + `xa_prologue.c`, all four backend arms). EAO-12 ✅ (`XA_EPILOGUE` + `xa_epilogue.c`, all four arms; `wasm_emit_data_segments` non-static). GREEK-BB steps written.
+**Completed this session:**
+- EAO-BB-FIX ✅ — `xa_bb_ptr_slot.c` owns emit body; `emit_bb.c` zero `fprintf(out,...)`.
+- EAO-11 ✅ — `XA_PROLOGUE` + `xa_prologue.c`, all four backend arms (JVM/JS/NET/WASM).
+- EAO-12 ✅ — `XA_EPILOGUE` + `xa_epilogue.c`, all four arms; `wasm_emit_data_segments` non-static.
+- GREEK-BB steps written (GREEK-BB-1..4).
+- PARAM-PASS steps written (PP-1..7).
+- PP-1..6 ✅ — All SM templates take `const SM_t * pSM`; all BB templates take `BB_t * pBB`; `emit_sm_dispatch(const SM_t * pSM)`; shadow locals removed; `bb_eps(NULL)` for no-node case. 42 files changed.
 
-**NEXT: EAO-13** — `XA_WASM_MAIN_WRAPPER` + `XA_JS_LABEL_REGISTER`, then GREEK-BB-1.
+**NEXT: PP-7** — audit `sm_template_common.h` + `bb_template_common.h` for remaining `_.instr`/`_.node` shadow helpers; confirm `#define _ g_emit` clean; GATE-PK + GATE-M. Then EAO-13, then GREEK-BB-1.
 
 ## XA opcode plan (from EAO-1)
 
