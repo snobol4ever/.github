@@ -18,15 +18,31 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~16)
+## Session State (2026-05-22, session ~17)
 
 **one4all HEAD: `3afd5a72`** — INLINE-SPLIT-GROUPS ✅: 4 invalid group files dissolved into 13 per-opcode BB templates. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
+- **Step 12 SM-PAT-NULLARY-AUDIT**: audit `sm_pat_nullary` (22 opcodes). SM_PAT_DEREF, SM_PAT_EPS, SM_PAT_CAT, SM_PAT_ALT are structurally different from true nullaries (SM_PAT_FAIL, SM_PAT_SUCCEED, etc.) — check per-backend emit shape; split any that diverge, by same logic as INLINE-SPLIT-GROUPS.
 - **Step 10 STYLE-BASELINE-COMPRESS**: normalize `.s.raw` baselines to single-space tokens.
 - Any other active goal.
+
+## Session ~17 inventory (2026-05-22)
+
+BB template grid (23 functions, 98 opcodes total):
+- 1-opcode files: bb_lit, bb_pat_any, bb_pat_notany, bb_pat_span, bb_pat_break, bb_pat_arb, bb_arbno, bb_pat_cat, bb_pat_alt, bb_pat_len, bb_pat_rem, bb_pat_fence, bb_pat_abort, bb_fail (14 functions × 1)
+- 2-opcode files: bb_pat_pos(POS+RPOS), bb_pat_tab(TAB+RTAB), bb_capture(ASSIGN_IMM+ASSIGN_COND), bb_lit_scalar(×4 actually), sm_var (4 functions × 2)
+- Stub groups: bb_pl(10), bb_lit_scalar(4), bb_stub(28), bb_cset(20), bb_icn_stub(17)
+- Non-dispatch: bb_eps (null-node path), bb_charset_emit (x86 helper)
+
+SM template grid (28 functions, 82 opcodes total):
+- sm_pat_nullary: 22 opcodes — largest group; SM_PAT_DEREF/EPS/CAT/ALT may not share shape with true nullaries → audit candidate for Step 12.
+- sm_misc_nullary: 7 opcodes (PUSH_NULL, PUSH_NULL_NOFLIP, VOID_POP, CONCAT, NEG, COERCE_NUM, EXP)
+- sm_return/freturn/nreturn: 3 opcodes each (S/F/bare variants share shape ✓)
+- sm_jump_group: 3 (JUMP/JUMP_S/JUMP_F share shape ✓)
+- sm_arith: 5 (ADD/SUB/MUL/DIV/MOD share shape ✓)
 
 ## Step 11 — INLINE-SPLIT-GROUPS
 
