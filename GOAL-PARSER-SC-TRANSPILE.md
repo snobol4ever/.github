@@ -437,6 +437,28 @@ Commits this session:
 - one4all `01577f1a` — SCT-LOWER-FOR-IDX
 - corpus  `f3b8afb`  — SCT-BEAUTY-SC-CARRYOVER
 
+## Session 2026-05-21e (Claude Sonnet 4.6) — SCT-SN4-IMPLICIT-MATCH ✅ CLOSED
+
+**Goal achieved:** Implicit pattern-match-by-juxtaposition (`S 'a' | 'b'` with no `?`) now parses. PASS=64→88/88. Zero regressions.
+
+**Two changes landed (corpus `794dc0a`):**
+
+1. `parser_snobol4.sc` `Stmt` — restructured outer FENCE into two explicit branches:
+   - **Branch A** (explicit `?`): `$'  ' nInc() *Expr14 $'?' nInc() *Expr1 reduce("'TT_PAT'", 1) FENCE(*StmtRepl | epsilon)` — requires literal `?` token, only fires when `?` is present.
+   - **Branch B** (implicit/assign/bare): `$'  ' nInc() *Expr1 FENCE(*StmtRepl | epsilon)` — `*Expr1` (concat/alt level) consumes the full expression. `Expr1` stops before `=` (which is `Expr0`'s job), so `StmtRepl` still handles `= repl` correctly on top. Subsumed old `| *StmtRepl | epsilon` inner arms.
+
+2. `StmtRepl` second arm (null replacement `S 'a' =`): changed `$'='` (mandatory WS both sides = `White '=' White`) to `$'  ' '=' $' '` (mandatory WS before, **optional** after), because `=` at end-of-line has no trailing whitespace. Per SPITBOL Manual Ch.14: "If the equal sign is present but the replacement field is absent, the null string is assumed."
+
+**Key insight confirmed:** The C frontend (`--dump-ast`) treats implicit match as pure concatenation in the `:subj` field — `S 'a' | 'b'` becomes `TT_ALT(TT_SEQ(S,'a'),'b')` as a single subject expression, NOT split into `:subj`/`:pat`. So Branch B correctly uses one `nInc()` (not two) and emits no `TT_PAT` wrapper.
+
+**All 10 SNOBOL4/SPITBOL assumptions verified** against manual + code + SPITBOL oracle — all TRUE. See SNOBOL4-SNOCONE-PRIMER.md assumption grid for details (to be added next session).
+
+**Gates:** smoke 7/0, crosscheck 5/1 (beauty_omega pre-existing, unchanged).
+
+**Pre-existing issue noted (not caused by this fix):** `str_body` is always empty in SPITBOL transpile output (`TT_QLIT("")` instead of `TT_QLIT("a")`). This was present in the 64-fixture baseline — the PASS count only measures "not Parse Error", not byte-identical output. Tracked separately.
+
+**NEXT:** `SCT-1f` (wire 2-way sync-monitor, needs SN-26-spl-bridge in x64) or `SCT-BEAUTY-SC-PARSE` (Option A vs B for the `shift()` EVAL-global-scope bug in beauty.sc — awaiting Lon decision).
+
 ## Session 2026-05-21d (Claude Opus 4.7) — SCT-SN4-ERR041 ✅ CLOSED
 
 **Goal achieved:** ERROR 041 on multi-statement SNOBOL4 fixtures is fixed.
