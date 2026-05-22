@@ -1,4 +1,4 @@
-# GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
+# GOAL-PROLOG-BB-JCON.md — Prolog: BB-land DCG per predicate + lower_pl DCG
 
 **Repo:** one4all + corpus + .github
 **Prereq:** GOAL-PROLOG-BB-COMPLETE ✅ `c9b7428d` (PB-8 honest 111/294 FAIL=0 ABORT=0)
