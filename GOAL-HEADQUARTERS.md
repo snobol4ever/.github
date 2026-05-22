@@ -105,6 +105,93 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 65c5713f  (INLINE-4a slice 24: DEFINE-family X86 arms inlined to bare
+                     emit_textf. SM_DEFINE -> "DEFINE # name\n"; SM_DEFINE_ENTRY
+                     -> "DEFINE_ENTRY # prev-name\n" + emit_mode_set +
+                     insn_push_rbp + insn_mov_rbp_rsp + g_in_define_body=1.
+                     GATE-PK PASS=420 FAIL=0 STUB=639.)
+one4all: ef06a3e8  (INLINE-4a slice 23: LBL-family X86 arms inlined to bare
+                     emit_textf. PUSH_STR/PUSH_VAR/STORE_VAR. render_str_preview
+                     + STR_PREVIEW_MAX promoted to Layer-3 (sm_template_common.h).
+                     SM_PUSH_LIT_CS shares sm_push_lit_s. GATE-PK 420/0/639.)
+
+⛔⛔⛔ CRITICAL OPEN BUG — INLINE-4a-LABEL-DISPLACEMENT (NEXT SESSION FIRST) ⛔⛔⛔
+  Slices 23 & 24 (and likely 19-22) introduced a JUMP-TARGET LABEL DISPLACEMENT
+  regression. GATE-PK does NOT catch it (synthetic single-instruction audit has
+  no pc-labels). Diagnosis is COMPLETE; the fix is designed but NOT yet correct
+  for all templates. DO NOT inline more templates until this is fixed and the
+  golden diff is 0/153.
+
+  ROOT CAUSE: the dispatch loop (emit_program, emit_sm.c ~line 2981-2994) emits a
+  jump-target's ".L<pc>:" via bb3c_format(out, lbl, "", "") at the START of the
+  *next* instruction's iteration. bb3c_format (emit_core.c ~505) BUFFERS a
+  label-only call in g_bb3c_pending_label and attaches it to the next bb3c_format
+  carrying content (co-locating label with that instr's line). Bare-inlined
+  templates emit via emit_textf (raw fprintf) which does NOT flush that buffer —
+  so the buffered label slides forward onto the next renderer-based instruction,
+  addressing the WRONG pc. Real correctness bug for jump targets (a JUMP would
+  land one-or-more instructions late).
+
+  PARTIAL FIX (designed, verified for PUSH_*/STORE_VAR, NOT yet for others):
+  Layer-3 helper emit_pc_label_flush(out) { (void)out; bb3c_flush_pending(); }
+  added in emit_sm.c after emit_sm_consume_pc_label; declared in
+  sm_template_common.h. Called at top of each inlined X86 arm BEFORE first
+  emit_textf. For recursion.sno this gave a BYTE-FAITHFUL result vs slice 22
+  (256 lines, 0 semantic diff after normalizing whitespace + label-colocation).
+
+  STILL BROKEN (golden diff slice-18 8aa204c2 vs current = 13/153 mismatches):
+  DEFINE_ENTRY still displaces (.L6 lands AFTER push rbp instead of on
+  DEFINE_ENTRY) — flush ordering interacts with insn_push_rbp/mov + surrounding
+  LABEL/STNO. RETURN family, PAT_LIT, PAT_REFNAME, PAT_CAPTURE*, EXEC_STMT
+  (slices 19-22) ALSO need the flush and were never touched. Affected programs:
+  control/expr_eval, functions/083-090 define_*, keywords/100_roman_numeral,
+  library/test_case, patterns/053_pat_alt_commit, strings/cross.
+
+  GOLDEN-DIFF HARNESS (the gate this bug needs — per-kind audit is insufficient):
+  Build slice-18 reference: clone one4all to /tmp/one4all_pre, checkout 8aa204c2,
+  make scrip. Then /tmp/semdiff.py (recreate below) compiles every
+  test/snobol4/**/*.sno with both binaries, normalizes (strip leading ws, collapse
+  internal ws runs, merge standalone "^.Lxxx:$" label lines onto next line), and
+  reports mismatches. TARGET: 0/153.
+    --- /tmp/semdiff.py ---
+    import re,subprocess,glob
+    def normalize(p):
+      L=open(p).read().split('\n');o=[];i=0
+      while i<len(L):
+        s=L[i].strip();m=re.match(r'^(\.[A-Za-z0-9_]+:)$',s)
+        if m and i+1<len(L): o.append(re.sub(r'\s+',' ',m.group(1)+' '+L[i+1].strip()));i+=2;continue
+        o.append(re.sub(r'\s+',' ',s));i+=1
+      return o
+    G="/tmp/one4all_pre/scrip";C="./scrip"
+    mism=[]
+    for p in sorted(glob.glob("test/snobol4/**/*.sno",recursive=True)):
+      g=subprocess.run([G,"--compile",p],capture_output=True,text=True).stdout
+      c=subprocess.run([C,"--compile",p],capture_output=True,text=True).stdout
+      open("/tmp/g.s","w").write(g);open("/tmp/c.s","w").write(c)
+      if normalize("/tmp/g.s")!=normalize("/tmp/c.s"): mism.append(p)
+    print(f"checked {len(...)}; {len(mism)} mismatches"); [print(" ",m) for m in mism]
+    --- end ---
+
+  FIX PLAN (next session):
+  1. Recreate emit_pc_label_flush + declaration (was reverted in clean-up).
+  2. Add the flush to ALL inlined X86 arms: sm_push_pop_lits (3), sm_defines (2),
+     sm_calls (2), sm_returns (9), sm_pat_anchors (pat_lit/pat_refname),
+     sm_pat_combine, sm_compare, sm_expr_incr, sm_halt — any that emit via
+     emit_textf AND can sit at a target pc.
+  3. For DEFINE_ENTRY: flush must precede the DEFINE_ENTRY text AND the label must
+     not be re-buffered by the subsequent insn_push_rbp/mov_rbp_rsp. Investigate
+     whether insn_* (t3/bb3c) re-buffer; may need flush AFTER emit_mode_set or a
+     second flush. Trace with the [DBG] instrumentation pattern (set/leftover in
+     the loop; "[BB3C flush] buffered=" in bb3c_flush_pending).
+  4. Iterate against /tmp/semdiff.py until 0/153.
+  5. THEN freeze per-kind baseline, run GATE-PK (420/0/639), commit as
+     "INLINE-4a-LABELFIX: emit_pc_label_flush across all inlined templates".
+  6. Lon directive (this session): templates carry ZERO formatting — bare
+     emit_textf, single space between tokens, one line per emit, built by concat
+     of string literals + globals with conditional concats as needed. Regenerated
+     text must be byte-equal (via golden diff) to the pre-inline renderer output.
+⛔⛔⛔ END CRITICAL OPEN BUG ⛔⛔⛔
+
 one4all: 2187693e  (INLINE-4a slice 22: 9 RETURN-family templates inlined to bare
                      emit_textf form. sm_return: SM_RETURN -> "RETURN\n" with
                      g_in_define_body+insn_pop_rbp guard; SM_RETURN_S/F ->
