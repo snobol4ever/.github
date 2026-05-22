@@ -16,59 +16,24 @@
 9. **One file per Byrd Box in `BB_templates/`.** Each lives in its own `bb_<name>.c`. No consolidated multi-BB TUs.
 10. **Grouped templates allowed (Lon directive, session #N+2).** Where N opcodes share emit shape, a single `sm_<group>()` / `bb_<group>()` template fn handles all of them — opcode communicated via `g_emit.instr->op` and dispatched by per-backend `switch(op)`. All emission code stays inside that one TU. **No external helpers, no cross-template calls.** Locality first; grouping reduces duplication only when it earns its keep via shared shape. Examples landed: `sm_arith` (5 opcodes), `sm_compare` (2), `sm_pat_nullary` (22). This SUPERSEDES the prior pure-duplication / one-fn-per-opcode reading of INLINE-ALL.
 
-## ⚡ SESSION ACCOUNTING (2026-05-22, session ~9 of EC-UNI-INLINE-ALL)
+## ⚡ SESSION ACCOUNTING (2026-05-22, session ~10 of EC-UNI-INLINE-ALL)
 
-**Commits this session (5):**
-- `073e8e0d` INLINE-3-fence: promote `emit_flat_ir` to public; inline composite fence x86 into `bb_fence.c` IS_X86; delete `emit_flat_ir_fence`
-- `238cf161` INLINE-3-cat: inline `emit_flat_ir_cat` into `bb_cat.c` IS_X86; delete static; refreeze baseline
-- `6d13d966` INLINE-3-alt: inline `emit_flat_ir_alt` into `bb_alt.c` IS_X86; delete static; refreeze baseline
-- `d9265edb` INLINE-4b: delete `edp4_label_then` + 23 orphaned `emit_sm_pat_*_dispatch` fns
-- `d97faa8e` INLINE-4b cleanup: delete orphaned dispatcher decls from `emit_sm.h`
-- `75381c1d` INLINE-8 orphan sweep: delete `emit_sm_incr/decr/label/unhandled_op/push_lit_f/push_expr` bodies + dead fwd decls
+**Commits this session (4):**
+- `1318fede` INLINE-6: delete legacy `emit_sm_op/nullary/arith/int_arg/acomp/lcomp/pat_*` cluster + dead dispatch decls from emit_sm.h + emit_templates.h; −379 lines/decls
+- `2c4cc75c` INLINE-6 cleanup: dedup includes, stale comments/separators. emit_sm.c 1766→1414 (−352 total)
+- `845af881` INLINE-6: delete `emit_sm_op_*` dead decl family from emit_sm.h (−53 decls, no definitions existed)
+- `302a1207` INLINE-6: delete `emit_sm_selftest` dead decl; remove `sm_pat_control.c` + `sm_pat_position.c` stub files + Makefile entries (INLINE-5 cleanup)
 
-**INLINE-3-GROUP verdict:** charset group (ANY/NOTANY/SPAN/BREAK) attempted and **correctly rejected** — JVM/NET arms for SPAN/BREAK are loop-based, fundamentally diverging from ANY/NOTANY. Stop condition applied. No valid BB groups exist.
+**INLINE-6 complete.** All dead legacy wrappers, nullary/arith/int_arg clusters, orphaned dispatch decls, and stub template files deleted. emit_sm.c: 1766 → 1414 lines. emit_sm.h: −53+1 decls. emit_templates.h: −30 decls. SM_templates/: 15 → 13 files.
 
-**Gate entering next session: PASS=408 FAIL=0 STUB=651 (one4all `75381c1d`). No inherited bugs.**
+**What remains in EC-UNI-INLINE-ALL:**
+- `emit_bb.c` residue (`flat_fill_and_call`, `flat_fill_bin`, `flat_fill_charset`, `emit_flat_ir`) — all still live; deletion blocked by INLINE-3-GROUP (correctly rejected) and INLINE-5 (deprecated). Awaiting Lon directive on whether to retire or find alternate path.
+- EC-UNI-19/20/21/22 — add-backend/add-opcode tests + convergence doc (post-INLINE-ALL closure tasks).
 
-### Next session — INLINE-6 / remaining INLINE-4:
-**Step 1 — INLINE-4 survey:** confirm all IS_X86 arms in remaining SM templates (`sm_calls.c`, `sm_bb_calls.c`, `sm_expr_incr.c`) are bare `emit_textf` — they are, verified this session.
-**Step 2 — INLINE-6:** sweep remaining dead machinery from `emit_sm.c`: `emit_sm_acomp`, `emit_sm_lcomp`, `emit_sm_op` cluster, `emit_sm_coerce_num`/`emit_sm_concat`/`emit_sm_exp`/`emit_sm_neg` if dead, orphaned forward decls for pat family. Check each with grep for external callers before deleting.
-**Step 3 — emit_bb.c residue:** after INLINE-3 complete, `emit_bb.c` still has `flat_fill_and_call`, `flat_fill_bin`, `flat_fill_charset` + `emit_flat_ir` (now public). These are still live (called from `emit_flat_ir` dispatch for leaf nodes). Step 6 in GOAL plan requires INLINE-5 (DEPRECATED) and INLINE-3-GROUP (done/rejected) to precede — so emit_bb.c deletion waits.
+**Gate entering next session: PASS=408 FAIL=0 STUB=651 (one4all `302a1207`). No inherited bugs.**
 
-
-
-**130 commits in 2 days.** Breakdown:
-- ~40 commits: actual inlining slices (INLINE-1 slices 1–12, grouping slices 13–18, INLINE-4a slices 19–24, INLINE-4b, INLINE-4c slices 1–3, BB lift slices 1–7, UNION-BB-STUBS)
-- ~50 commits: infrastructure/pivots (EC-UNI-9 through 14, PIVOT formatter deletion, IS_MACRO_DEF wiring, REWIRE, NAMEKEY-BIN)
-- ~20 commits: repairs/reverts (label-displacement crisis, TEXTF sweeps, revert EC-UNI-13(a)+(e), REPAIR session today)
-- ~20 commits: adjacent work (PPV, ISO, IR-RN, ST2, SCT)
-
-**Estimated sessions so far on EC-UNI-INLINE-ALL: ~8. Lon is counting.**
-
-**Root cause of slow rate:** Each session burns 20–40% context on setup + repairing previous session's bugs. Session 2026-05-22: ~60% context spent diagnosing/repairing `48497c58` bugs before any forward progress.
-
-**What remains — ~1 clean session if no repairs needed:**
-
-| Step | Work | Blocker |
-|---|---|---|
-| 1 | `sm_stno` IS_X86: inline `emit_sm_stno_dispatch` chain; un-static `srclines_get` or inline its 8 lines directly | `srclines_get` static in emit_sm.c |
-| 2 | `sm_compare` IS_MACRO_DEF: `return 0` → `return` (1 line) | none |
-| 3 | Mass delete: 58 dead `emit_sm_*_dispatch` fns + `g_sm_templates[]` + `sm_template_lookup` + `sm_op_template_t` + `render_macro_body` + `build_args_col` + `render_call_line` + shim wrappers (emit_sm.c lines 2688–2695) + stale `#include "emit_sm.h"` from templates (~1000 LOC cut) | steps 1+2 done |
-| 4 | INLINE-3: move `emit_flat_ir_alt/cat/fence` from emit_bb.c into bb_pat_alt.c / bb_pat_cat.c / bb_fence.c IS_X86 arms | none |
-| 5 | BB grouping: 5 groups (anchor/charset/nullary/string-arg/combine) | step 4 done |
-| 6 | emit_bb.c residue deletion | steps 4+5 done |
-
-**Gate entering next session: PASS=408 FAIL=0 STUB=651 (one4all `75381c1d`). No inherited bugs. Start at INLINE-6 sweep of emit_sm.c dead machinery.**
-
-### This session completed (`1ec6d8fa`):
-- 2705 Step 1: `sm_stno` IS_X86 inlined; `emit_sm_stno_template` chain deleted
-- 2705 Step 2: `sm_compare` IS_MACRO_DEF `return 0` fixed
-- 2705 Step 3: **-1342 lines** — entire legacy SM dispatch machinery deleted. `emit_sm.c` 2808 2192 1870 lines.
-
-### Next session — steps 420136:
-**Step 4 — INLINE-3:** Move `emit_flat_ir_alt/cat/fence` from `emit_bb.c` into BB templates IS_X86 arms. GATE-PK after each.
-**Step 5 — BB grouping:** 5 groups (anchor/charset/nullary/string-arg/combine).
-**Step 6 — emit_bb.c deletion.**
+### Next session:
+INLINE-ALL is substantively complete. Remaining emit_bb.c deletion requires Lon decision (retire the blocker or find new path). Next productive work: **EC-UNI-22** (close: update ARCH-IR.md, ARCH-SCRIP.md, invariants, per-backend GOAL files, mark EC-UNI complete) — or pivot to another active goal (CHUNKS, PST, TEXTF).
 
 ## Session Setup
 
