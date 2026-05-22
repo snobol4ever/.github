@@ -39,6 +39,7 @@ Icon is 99% BB. Prolog is 99% BB. The SM shims (`SM_BB_PUMP_PROC`,
 4. Every new template takes `BB_t * pBB` — PP-2 contract.
 5. Gate after every rung: GATE-PK 407/0/647 must hold. Rung gate must improve or hold.
 6. Rung files live in corpus — flat files, `rung<NN>_<desc>.icn` / `.pl` + `.expected`.
+7. **All code emission goes through the template system.** Every SM opcode must have an `sm_*` template in `SM_templates/` and be covered by `sm_op_is_dispatched`. Every BB graph walk (XA-level) must be triggered via an `XA_*` opcode dispatched through `xa_dispatch` in `XA_templates/`. Do not emit GAS text directly from `emit_sm.c` or `emit_core.c` outside a template function.
 
 ## SM bridge hooks (already wired — do not touch)
 
@@ -98,7 +99,7 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 
 ## Ladder steps — Icon
 
-- [ ] **ICN-T-1** — `bb_icn_to.c`: `BB_ICN_TO` x86 template. Verify rung01 `1 to 5` PASS. GATE-PK.
+- [x] **ICN-T-1** — `bb_icn_to.c`: `BB_ICN_TO` x86 template. Verify rung01 `1 to 5` PASS. GATE-PK.
 - [ ] **ICN-T-2** — `bb_icn_to_by.c`: `BB_ICN_TO_BY`. Verify rung01 step variants PASS. GATE-PK.
 - [ ] **ICN-T-3** — `bb_icn_binop.c`: `BB_ICN_BINOP`. Verify rung01 arithmetic + relop PASS. GATE-PK.
 - [ ] **ICN-T-4** — `bb_icn_proc_gen.c`: `BB_ICN_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
@@ -159,10 +160,11 @@ GATE-ICN-SM bash scripts/test_smoke_icon.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 929d3177 (PP-1..6; BB/SM templates all have pSM/pBB params)
-Gate: PASS=407 FAIL=0 STUB=647
+one4all: 43b873a1 (ICN-T-1 merge complete)
+Gate: PASS=409 FAIL=0 STUB=645
 Icon --interp: PASS=194 FAIL=36 XFAIL=35
 Prolog smoke: PASS=5 FAIL=0
+NEXT: ICN-T-2 (bb_icn_to_by.c, BB_ICN_TO_BY x86 template, rung01 step variants)
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
