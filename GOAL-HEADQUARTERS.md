@@ -19,21 +19,18 @@
 12. **No shadow locals in templates.** Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals and computed values are fine.
 13. **Entry labels belong to their template.** Each XA/SM/BB template that begins a named asm block emits its own entry label on the first line. No separate `XA_PC_LABEL` opcode — the template owns its label.
 
-## Session State (2026-05-22, session ~25)
+## Session State (2026-05-22, session ~26)
 
-**one4all HEAD: `929d3177`** — PP-1..6 complete. GATE-PK 407/0/647.
+**one4all HEAD: `a3026409`** — PP-1..7 complete. GATE-PK 407/0/647. GATE-M 5 pre-existing misses (bb_charset IS_JVM/JS/NET/WASM, bb_pat_alt IS_WASM).
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647.**
 
 **Completed this session:**
-- EAO-BB-FIX ✅ — `xa_bb_ptr_slot.c` owns emit body; `emit_bb.c` zero `fprintf(out,...)`.
-- EAO-11 ✅ — `XA_PROLOGUE` + `xa_prologue.c`, all four backend arms (JVM/JS/NET/WASM).
-- EAO-12 ✅ — `XA_EPILOGUE` + `xa_epilogue.c`, all four arms; `wasm_emit_data_segments` non-static.
-- GREEK-BB steps written (GREEK-BB-1..4).
-- PARAM-PASS steps written (PP-1..7).
-- PP-1..6 ✅ — All SM templates take `const SM_t * pSM`; all BB templates take `BB_t * pBB`; `emit_sm_dispatch(const SM_t * pSM)`; shadow locals removed; `bb_eps(NULL)` for no-node case. 42 files changed.
+- EAO-BB-FIX ✅ EAO-11 ✅ EAO-12 ✅ (prior session)
+- PP-1..6 ✅ (prior session)
+- PP-7 ✅ — Removed stale `sm_foo(void)` decls from `emit_core.h` (conflicted with PP-1 `sm_templates.h` signatures). Fixed `pBB/bb_→bb/bb_` in 16 JVM BB templates (PP-6 sweep over-replaced JVM package prefix strings). Fixed 4 parameterless `emit_sm_dispatch()` call sites. Removed `pSM=pSM` self-assignment shadow in `sm_calls.c`. GATE-PK 407/0/647.
 
-**NEXT: PP-7** — audit `sm_template_common.h` + `bb_template_common.h` for remaining `_.instr`/`_.node` shadow helpers; confirm `#define _ g_emit` clean; GATE-PK + GATE-M. Then EAO-13, then GREEK-BB-1.
+**NEXT: EAO-13** — Add `XA_WASM_MAIN_WRAPPER` + `XA_JS_LABEL_REGISTER`. Then GREEK-BB-1.
 
 ## XA opcode plan (from EAO-1)
 
@@ -132,7 +129,7 @@ All other fields in `g_emit` (backend, out, labels, etc.) remain global — thos
 - [x] **PP-4** — `emit_bb_node` body: all `bb_foo(nd)` calls pass `nd`. `bb_eps(NULL)` for the degenerate no-node case. GATE-PK 407/0/647.
 - [x] **PP-5** — All SM_templates/*.c: signatures `(const SM_t * pSM)`, `pSM->` throughout, shadow locals removed. GATE-PK 407/0/647.
 - [x] **PP-6** — All BB_templates/*.c: signatures `(BB_t * pBB)`, `pBB->` throughout. Internal `bb_charset_emit(pBB)` calls fixed. GATE-PK 407/0/647.
-- [ ] **PP-7** — Update `sm_template_common.h` and `bb_template_common.h`: remove any helpers or macros that shadow `_.instr` / `_.node`. Confirm `#define _ g_emit` still valid for remaining global fields (`_.out`, `_.backend`, `_.lbl_succ`, etc.). GATE-PK + GATE-M.
+- [x] **PP-7** — Update `sm_template_common.h` and `bb_template_common.h`: remove any helpers or macros that shadow `_.instr` / `_.node`. Confirm `#define _ g_emit` still valid for remaining global fields (`_.out`, `_.backend`, `_.lbl_succ`, etc.). GATE-PK + GATE-M. `a3026409`.
 
 ### ISO — parse→lower / parse→runtime firewalls
 
