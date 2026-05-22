@@ -18,16 +18,19 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~17)
+## Session State (2026-05-22, session ~18)
 
-**one4all HEAD: `3afd5a72`** — INLINE-SPLIT-GROUPS ✅: 4 invalid group files dissolved into 13 per-opcode BB templates. GATE-PK 407/0/647.
+**one4all HEAD: `774c981f`** — STYLE-BASELINE-COMPRESS ✅ + INLINE-SPLIT-GROUPS ✅ + SM-PAT-NULLARY-AUDIT ✅ cleared. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
-- **Step 12 SM-PAT-NULLARY-AUDIT**: audit `sm_pat_nullary` (22 opcodes). SM_PAT_DEREF, SM_PAT_EPS, SM_PAT_CAT, SM_PAT_ALT are structurally different from true nullaries (SM_PAT_FAIL, SM_PAT_SUCCEED, etc.) — check per-backend emit shape; split any that diverge, by same logic as INLINE-SPLIT-GROUPS.
-- **Step 10 STYLE-BASELINE-COMPRESS**: normalize `.s.raw` baselines to single-space tokens.
+- **Step 13**: next HQ maintenance step — pick from active goals table or audit sm_misc_nullary (7 opcodes).
 - Any other active goal.
+
+**Step 10 STYLE-BASELINE-COMPRESS ✅ COMPLETE (session ~18):** freeze_per_kind_baseline.sh now writes .raw through normalizer. 165 files changed, raw==norm. GATE-PK 407/0/647. one4all HEAD 774c981f.
+
+**Step 12 SM-PAT-NULLARY-AUDIT ✅ CLEARED (session ~18, no code change):** sm_pat_nullary is a valid group. All 22 opcodes share the same outer emit shape in every backend: x86 = identical 7-line macro call body (only macro name differs), JS = rt.pat_<name>(); one-liner, WASM = (call $sno_pat_<name>) one-liner, NET = documented stub, JVM = internal switch over 5 helper fns but the outer structure is uniform. SM_PAT_DEREF/CAT/ALT do not break shape. No split warranted.
 
 ## Session ~17 inventory (2026-05-22)
 
