@@ -252,6 +252,51 @@ emit_textf(" aload_0\n getfield bb/bb_any/ms Lbb/bb_box$MatchState;\n");
 - [ ] **SNS-2 — sm_calls.c + sm_jumps.c** — Same removal in both files. Build + GATE-PK. Commit.
 - [ ] **SNS-3 — sm_template_common.h** — In `jvm_ret_guard` and `net_ret_guard`: remove `FILE * out = _.out`; replace `out` with `_.out` in the two `fprintf` calls in each helper. Build + GATE-PK. Commit: `STYLE-NO-SHADOW-LOCALS: remove FILE*/SM_t* aliases from SM templates. GATE-PK 407/0/647.`
 
+### STYLE-NO-TRANSFORM-LOCALS — no locals that are simple casts or one-shot computations on globals
+
+**Rule:** Do not declare a local whose sole purpose is to cast or trivially transform a global/field for use in one or a few call sites. Use the expression inline. Example:
+```c
+/* BEFORE */
+int lineno = (int)_.instr->a[1].i;
+emit_textf("... %d ...", lineno);
+
+/* AFTER */
+emit_textf("... %d ...", (int)_.instr->a[1].i);
+```
+
+**Classification — what is banned vs permitted:**
+
+| Local | File | Verdict | Reason |
+|-------|------|---------|--------|
+| `int sid = 0` | 13 BB files | **BANNED** — inline as literal `0` | always zero, no computation |
+| `int i = _.i` | `sm_template_common.h` | **BANNED** — inline `_.i` | direct alias of field |
+| `int lineno = (int)_.instr->a[1].i` | `sm_compare.c` | **BANNED** — used twice, inline both | trivial cast |
+| `int val = (int)_.instr->a[0].i` | `sm_compare.c` | **BANNED** — inline | trivial cast |
+| `int is_entry = (...)` | `sm_defines.c` | **BANNED** — inline | one boolean comparison |
+| `int pc = _.i` | `sm_defines.c` | **BANNED** — inline `_.i` | direct alias |
+| `int has_repl = (int)_.instr->a[1].i` | `sm_defines.c`, `sm_pat_combine.c` | **BANNED** — inline | trivial cast |
+| `int is_imm = (int)_.instr->a[1].i` | `sm_pat_combine.c` | **BANNED** — inline | trivial cast |
+| `int nargs = (int)_.instr->a[N].i` | `sm_pat_combine.c`, `sm_calls.c`, `sm_bb_calls.c` | **BANNED** — inline | trivial cast |
+| `int arity = (int)_.instr->a[1].i` | `sm_bb_calls.c` | **BANNED** — inline | trivial cast |
+| `int addr = wasm_intern_*(s)` | `sm_push_pop_lits.c`, `sm_pat_anchors.c`, `sm_pat_combine.c` | **BANNED** — inline into single `emit_textf` | one-shot, used immediately |
+| `int cond = (...)` | `sm_returns.c` (×3) | **BANNED** — inline both uses | used twice each, short expr |
+| `int fk = (...)` | `sm_returns.c`, `sm_calls.c` | **BANNED** — inline | used in one conditional |
+| `int nid = bb_node_id(_.node)` | all BB files | **PERMITTED** — keep | function call, used 4–39× |
+| `int rpos = (int)(_.node->ival2 != 0)` | `bb_pat_pos.c` | **PERMITTED** — keep | flag drives structural if, used 10× |
+| `int rtab = (int)(_.node->ival2 != 0)` | `bb_pat_tab.c` | **PERMITTED** — keep | same |
+| `const char * s = _.instr->a[0].s ? ... : ""` | SM files | **PERMITTED** — keep | null-guard conditional, not a simple cast |
+| `const char * fname = ...` (multi-expr) | `sm_returns.c`, `sm_calls.c` | **PERMITTED** — keep | real conditional computation |
+
+**Steps:**
+
+- [ ] **STL-1 — BB sid=0 sweep** — In all 13 BB_templates files that declare `int sid = 0`: remove the declaration; replace every use of `sid` with `0` inline. Files: `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`, `bb_pat_break`, `bb_pat_len`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_alt`, `bb_pat_cat`, `bb_pat_abort`, `bb_pat_rem`, `bb_pat_arb`, `bb_arbno`, `bb_capture`, `bb_lit`. Build + GATE-PK. One commit.
+- [ ] **STL-2 — sm_template_common.h `int i = _.i`** — Remove `int i = _.i` from `jvm_ret_guard` and `net_ret_guard`; replace `i` with `_.i` inline. Build + GATE-PK. Commit.
+- [ ] **STL-3 — sm_compare.c** — Inline `lineno` and `val`. Build + GATE-PK. Commit.
+- [ ] **STL-4 — sm_defines.c** — Inline `is_entry`, `pc`, `has_repl`. Build + GATE-PK. Commit.
+- [ ] **STL-5 — sm_returns.c** — Inline `cond` (×3 functions) and `fk` (×2 functions). Build + GATE-PK. Commit.
+- [ ] **STL-6 — sm_pat_combine.c + sm_calls.c + sm_bb_calls.c** — Inline `has_repl`, `is_imm`, `nargs`, `arity`, `fk`, `addr`. Build + GATE-PK. One commit per file.
+- [ ] **STL-7 — sm_push_pop_lits.c + sm_pat_anchors.c** — Inline `addr` into single `emit_textf` call site. Build + GATE-PK. Commit.
+
 ## Watermark
 
 ```
