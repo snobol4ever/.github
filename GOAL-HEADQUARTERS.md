@@ -18,15 +18,16 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~21)
+## Session State (2026-05-22, session ~22)
 
 **one4all HEAD: `6abafcb2`** — STYLE-NO-LOCAL-SHADOWS (sm_pat_nullary instr/op) + IS_X86-STRUCTURE fix + STYLE-BASELINE-COMPRESS ✅. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
-- **ISO-4** — `scrip_parse` subprocess: parsers in separate executable, stdin=source, stdout=TDump S-expression. Write deserializer + roundtrip self-test first. Needs one4all + .github.
-- Any other active goal from the table (CHUNKS Step 17, PST goals, etc.).
+- **EAO-1** — Inventory full asm blocks with no opcode in `emit_sm.c`/`emit_bb.c` → `docs/XA-OPCODE-INVENTORY.md`. Needs one4all + .github.
+- **ISO-4** — `scrip_parse` subprocess.
+- Any STYLE step (SJ/SNS/STL/SOP/SCE/SNC) — all depend on EAO completing first.
 
 ## Session ~21 full audit summary (2026-05-22)
 
