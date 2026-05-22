@@ -16,6 +16,41 @@
 9. **One file per Byrd Box in `BB_templates/`.** Each lives in its own `bb_<name>.c`. No consolidated multi-BB TUs.
 10. **Grouped templates allowed (Lon directive, session #N+2).** Where N opcodes share emit shape, a single `sm_<group>()` / `bb_<group>()` template fn handles all of them — opcode communicated via `g_emit.instr->op` and dispatched by per-backend `switch(op)`. All emission code stays inside that one TU. **No external helpers, no cross-template calls.** Locality first; grouping reduces duplication only when it earns its keep via shared shape. Examples landed: `sm_arith` (5 opcodes), `sm_compare` (2), `sm_pat_nullary` (22). This SUPERSEDES the prior pure-duplication / one-fn-per-opcode reading of INLINE-ALL.
 
+## ⚡ SESSION ACCOUNTING (2026-05-22, after session ~8 of EC-UNI-INLINE-ALL)
+
+**130 commits in 2 days.** Breakdown:
+- ~40 commits: actual inlining slices (INLINE-1 slices 1–12, grouping slices 13–18, INLINE-4a slices 19–24, INLINE-4b, INLINE-4c slices 1–3, BB lift slices 1–7, UNION-BB-STUBS)
+- ~50 commits: infrastructure/pivots (EC-UNI-9 through 14, PIVOT formatter deletion, IS_MACRO_DEF wiring, REWIRE, NAMEKEY-BIN)
+- ~20 commits: repairs/reverts (label-displacement crisis, TEXTF sweeps, revert EC-UNI-13(a)+(e), REPAIR session today)
+- ~20 commits: adjacent work (PPV, ISO, IR-RN, ST2, SCT)
+
+**Estimated sessions so far on EC-UNI-INLINE-ALL: ~8. Lon is counting.**
+
+**Root cause of slow rate:** Each session burns 20–40% context on setup + repairing previous session's bugs. Session 2026-05-22: ~60% context spent diagnosing/repairing `48497c58` bugs before any forward progress.
+
+**What remains — ~1 clean session if no repairs needed:**
+
+| Step | Work | Blocker |
+|---|---|---|
+| 1 | `sm_stno` IS_X86: inline `emit_sm_stno_dispatch` chain; un-static `srclines_get` or inline its 8 lines directly | `srclines_get` static in emit_sm.c |
+| 2 | `sm_compare` IS_MACRO_DEF: `return 0` → `return` (1 line) | none |
+| 3 | Mass delete: 58 dead `emit_sm_*_dispatch` fns + `g_sm_templates[]` + `sm_template_lookup` + `sm_op_template_t` + `render_macro_body` + `build_args_col` + `render_call_line` + shim wrappers (emit_sm.c lines 2688–2695) + stale `#include "emit_sm.h"` from templates (~1000 LOC cut) | steps 1+2 done |
+| 4 | INLINE-3: move `emit_flat_ir_alt/cat/fence` from emit_bb.c into bb_pat_alt.c / bb_pat_cat.c / bb_fence.c IS_X86 arms | none |
+| 5 | BB grouping: 5 groups (anchor/charset/nullary/string-arg/combine) | step 4 done |
+| 6 | emit_bb.c residue deletion | steps 4+5 done |
+
+**Gate entering next session: PASS=404 FAIL=0 STUB=655 (one4all `1ec6d8fa`). No inherited bugs. Start at step 4 (INLINE-3 BB side).**
+
+### This session completed (`1ec6d8fa`):
+- 2705 Step 1: `sm_stno` IS_X86 inlined; `emit_sm_stno_template` chain deleted
+- 2705 Step 2: `sm_compare` IS_MACRO_DEF `return 0` fixed
+- 2705 Step 3: **-1342 lines** — entire legacy SM dispatch machinery deleted. `emit_sm.c` 2808 2192 1870 lines.
+
+### Next session — steps 420136:
+**Step 4 — INLINE-3:** Move `emit_flat_ir_alt/cat/fence` from `emit_bb.c` into BB templates IS_X86 arms. GATE-PK after each.
+**Step 5 — BB grouping:** 5 groups (anchor/charset/nullary/string-arg/combine).
+**Step 6 — emit_bb.c deletion.**
+
 ## Session Setup
 
 ```bash
