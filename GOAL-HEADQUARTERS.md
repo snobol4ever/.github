@@ -186,7 +186,28 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 - [ ] **ISO-4** — `scrip_parse` subprocess: parsers in separate executable, stdin=source, stdout=TDump S-expression. Write deserializer + roundtrip self-test first.
 - [ ] ISO-5, ISO-6, ISO-7 — shrink firewall allowlists toward 0.
 
-### EMIT-UNIFY — Consolidated and unified emitters
+### EMIT-ALL-FROM-OPCODES — audit and eliminate all code emission outside SM/BB opcode templates ⚡ PREREQUISITE FOR ALL STYLE STEPS
+
+**Rule:** No code is generated anywhere except by a template function called from the SM or BB opcode dispatch. Every `emit_textf`, `fprintf`, `bb_emit_byte`, `emit_text_*`, `emit_seq_*`, `insn_*`, and `emit_flat_*` call that fires outside `SM_templates/*.c` or `BB_templates/*.c` must be eliminated — either by promoting it to a new SM or BB opcode with its own template function, or by absorbing it into an existing template.
+
+**Why first:** Every subsequent STYLE step (SJ, SNS, STL, SOP, SCE, SNC) operates on template files. If emission escapes the template system, those style steps are incomplete — the code they clean up is not the whole picture.
+
+**Current violations (three sites):**
+
+| File | Function(s) | Emission type | Count |
+|------|-------------|--------------|-------|
+| `emit_sm.c` | `emit_sm_exec_stmt_blob`, `emit_sm_stno`, `emit_sm_set_pc_label`, `emit_sm_macro_library` | `emit_textf`, `emit_text_*` | ~115 call sites |
+| `emit_bb.c` | `emit_bb_ptr_slot`, `emit_flat_body`, `emit_flat_data_*`, `emit_flat_entry_dispatch`, `emit_flat_banner_rule`, `emit_text_global`, `emit_seq_*`, `emit_bb_box_banner` | `fprintf`, `emit_text_*`, `emit_seq_*`, `emit_flat_*` | ~61 call sites |
+| `emit_core.c` | `insn_*` (~50 functions), `emit_seq_*` (~12 functions), `emit_text_*`, `emit_label_*`, `emit_macro_*`, `emit_form_*`, `emit_jmp*`, `emit_banner_*` | `bb_emit_byte`, `emit_textf`, `fprintf` | ~385 call sites |
+
+**Steps:**
+
+- [ ] **EAO-1 — AUDIT** — For every function in `emit_sm.c`, `emit_bb.c`, and `emit_core.c` that contains any emission call: document it in `docs/EMIT-ALL-FROM-OPCODES-AUDIT.md` with columns: function name / file / emission kind / called from (which SM or BB opcode, or "structural") / proposed disposition (new opcode / absorb into existing / infrastructure keep). Gate: doc only. Commit.
+- [ ] **EAO-2 — CLASSIFY INFRASTRUCTURE** — From the audit, identify functions that are pure emission infrastructure (not opcode-specific): `bb_emit_byte`, `bb_emit_u32`, `emit_io_*`, `emit_mode_set`, `emit_label_initf`, `emit_label_define`, `emit_label_define_bb`, `emit_jmp`, `emit_text_rawf`. These are the emission primitives — they stay. Mark them "KEEP-INFRA" in the audit doc. Everything else needs an opcode. Commit updated doc.
+- [ ] **EAO-3 — NEW SM OPCODES: emit_sm.c residuals** — For each non-infrastructure emission site in `emit_sm.c`: define a new SM opcode (e.g. `SM_EXEC_STMT_BLOB`, `SM_PAT_BAKED_COMMENT`, `SM_PC_LABEL`, `SM_MACRO_LIBRARY`) in `SM.h`; write its template function in a new `SM_templates/sm_<name>.c`; wire it into `emit_core.c` dispatch; replace the inline emission in `emit_sm.c` with a call to `SM_emit(SM_<NAME>)` or equivalent. Build + GATE-PK. One commit per new opcode.
+- [ ] **EAO-4 — NEW BB OPCODES: emit_bb.c residuals** — For each non-infrastructure emission site in `emit_bb.c`: define a new BB kind or SM opcode (e.g. `SM_DATA_SECTION`, `SM_TEXT_SECTION`, `SM_INTEL_SYNTAX`, `SM_ENTRY_DISPATCH`, `SM_DATA_STRING`, `SM_DATA_QUAD`, `BB_PTR_SLOT`); write its template function; wire dispatch; replace inline emission. Build + GATE-PK. One commit per new opcode.
+- [ ] **EAO-5 — NEW OPCODES: emit_core.c structural emitters** — For each `emit_seq_*`, `insn_*`, and `emit_text_*` function in `emit_core.c` that is called directly from template code or from `emit_bb.c`/`emit_sm.c` (not from another `insn_*`): promote to a named SM or BB opcode and template. The `insn_*` family (x86 binary instructions) become `SM_X86_INSN_*` opcodes each with a one-line template arm per backend. Build + GATE-PK. One commit per logical group.
+- [ ] **EAO-6 — VERIFY** — `grep -rn "emit_textf\|bb_emit_byte\|fprintf.*g_emit\|emit_seq_\|emit_text_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c src/emitter/emit_core.c` returns only KEEP-INFRA primitives. Zero opcode-specific emission outside template files. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all code emission routed through SM/BB opcode templates. GATE-PK N/0/647.`
 
 **Goal:** every backend (X86/JVM/JS/NET/WASM) is fully wired in every SM and BB template — no silent `return;` stubs, no missing arms, no asymmetric coverage. Adding a new opcode means touching exactly one template file and filling all five `IS_<BE>` arms. Adding a new backend means adding one `IS_NEW` arm per template file.
 
