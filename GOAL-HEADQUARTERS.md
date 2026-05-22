@@ -229,6 +229,29 @@ emit_textf(" aload_0\n getfield bb/bb_any/ms Lbb/bb_box$MatchState;\n");
 - [ ] **SJ-2 — SM sweep** — Same replacement in every `SM_templates/*.c` and `sm_template_common.h` inside `IS_JVM` arms. One commit per file. Gate after each. Files (12): `sm_arith`, `sm_compare`, `sm_jumps`, `sm_returns`, `sm_push_pop_lits`, `sm_pat_nullary`, `sm_pat_anchors`, `sm_pat_combine`, `sm_calls`, `sm_halt`, `sm_defines`, `sm_template_common.h`.
 - [ ] **SJ-3 — REFREEZE** — `bash scripts/freeze_per_kind_baseline.sh` for JVM cells only; verify `bash scripts/test_per_kind_diff.sh` returns PASS=407 FAIL=0 STUB=647. Commit: `STYLE-JVM-ONE-SPACE: refreeze JVM baselines. GATE-PK 407/0/647.`
 
+### STYLE-NO-SHADOW-LOCALS — no local aliases for g_emit fields in templates
+
+**Rule (from GOAL-HEADQUARTERS invariant #12):** No shadow locals in templates. Use `_.node`, `_.instr`, `_.out`, `_.i` inline everywhere. Never declare `BB_t * nd = _.node`, `const SM_t * instr = _.instr`, `FILE * out = _.out` — these are aliases that obscure the actual source of truth and were banned by STYLE-NO-LOCAL-SHADOWS.
+
+**Current violations (all that remain after prior STYLE sweeps):**
+
+| File | Shadow | Occurrences |
+|------|--------|-------------|
+| `SM_templates/sm_pat_combine.c` | `const SM_t * instr = _.instr` | 5 (one per function) |
+| `SM_templates/sm_calls.c` | `const SM_t * instr = _.instr` | 1 |
+| `SM_templates/sm_jumps.c` | `const SM_t * instr = _.instr` | 1 |
+| `SM_templates/sm_template_common.h` | `FILE * out = _.out` | 2 (in `jvm_ret_guard`, `net_ret_guard`) |
+
+**Exception — permitted locals (not shadows):** Loop counters (`int i`, `int j`, `int fk`), computed values (`int sid = _.sid`, `int nid = _.nid`, `const char * tag`), and function parameters that vary per call site are fine. Only direct re-aliases of `_.node` / `_.instr` / `_.out` are banned.
+
+**Note on `sm_template_common.h`:** `jvm_ret_guard` and `net_ret_guard` each declare `FILE * out = _.out` and `int i = _.i`. The `int i = _.i` is a computed copy (fine). The `FILE * out = _.out` is a shadow — replace with `_.out` inline in the two `fprintf` calls within each helper.
+
+**Steps:**
+
+- [ ] **SNS-1 — sm_pat_combine.c** — Remove `const SM_t * instr = _.instr` from all 5 functions; replace every `instr->` with `_.instr->` throughout. Build + GATE-PK. Commit.
+- [ ] **SNS-2 — sm_calls.c + sm_jumps.c** — Same removal in both files. Build + GATE-PK. Commit.
+- [ ] **SNS-3 — sm_template_common.h** — In `jvm_ret_guard` and `net_ret_guard`: remove `FILE * out = _.out`; replace `out` with `_.out` in the two `fprintf` calls in each helper. Build + GATE-PK. Commit: `STYLE-NO-SHADOW-LOCALS: remove FILE*/SM_t* aliases from SM templates. GATE-PK 407/0/647.`
+
 ## Watermark
 
 ```
