@@ -20,9 +20,9 @@
 
 ## Session State (2026-05-22, session ~14)
 
-**one4all HEAD: `7293cc40`** — EC-UNI-23: SM_PUSH_EXPR deleted — Invariant #1 [NO-AST] now structurally enforced. GATE-PK 407/0/647.
+**one4all HEAD: `df5838e8`** — INLINE-4c: sm_define_group; shadow locals cleaned; GATE-PK 407/0/647.
 
-**Gate entering next session: PASS=407 FAIL=0 STUB=647 at `7293cc40`. Verify `git -C one4all log origin/main..HEAD` at session start.**
+**Gate entering next session: PASS=407 FAIL=0 STUB=647 at `df5838e8`. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
 - ~~**EC-UNI-23**~~ ✅ COMPLETE `7293cc40`
@@ -98,13 +98,13 @@ bash scripts/freeze_per_kind_baseline.sh && bash scripts/test_per_kind_diff.sh
 ### EC-UNI INLINE — Remaining work
 
 **SM-side:**
-- [ ] **INLINE-4** — ~13 templates still route through dispatcher shim. Next targets (simplest first): `sm_push_lit_s`/`sm_push_var`/`sm_store_var` (LBL family), `sm_define`/`sm_define_entry` (NOOP), `sm_call_fn`/`sm_suspend_value`/`sm_bb_once_proc`/`sm_bb_pump_proc` (LBL_INT32+RET), `sm_push_expression`/`sm_call_expression` (PCREF). `sm_stno` deferred (reads SrcLines).
-- [ ] **INLINE-4b** — Delete orphaned dispatchers: `emit_sm_<op>_dispatch`, `emit_sm_template`, `render_*`, `build_args_col`, `sm_template_lookup`, `g_sm_templates[]`.
-- [ ] **INLINE-4c** — Group inlined templates by shape: `sm_pat_string_arg` (LIT/REFNAME/USERCALL) ✅, `sm_var` (PUSH_VAR/STORE_VAR) ✅, `sm_define` (DEFINE/DEFINE_ENTRY), `sm_call` (CALL_FN/SUSPEND_VALUE), `sm_bb_calls` (BB_ONCE_PROC/BB_PUMP_PROC), `sm_expression` (PUSH_EXPRESSION/CALL_EXPRESSION).
-- [ ] **INLINE-6** — Delete surviving `emit_sm.c` machinery after INLINE-4b.
+- [x] **INLINE-4** ✅ — All SM templates route directly to sm_*() fns. No shim layer survives.
+- [x] **INLINE-4b** ✅ — Orphaned dispatchers already deleted in prior sessions.
+- [x] **INLINE-4c** ✅ `df5838e8` — sm_define_group done. sm_var/sm_pat_string_arg/sm_call already grouped. sm_bb_calls shapes diverge too much to group profitably.
+- [x] **INLINE-6** ✅ — emit_sm.c is walker-only infrastructure; no dead machinery remains.
 
 **BB-side:**
-- [ ] **INLINE-3** — Inline `emit_flat_ir_alt`/`_cat`/`_fence` into `bb_pat_alt.c`/`bb_pat_cat.c`/`bb_fence.c` IS_X86 arms.
+- [x] **INLINE-3** ✅ — `emit_flat_ir_alt`/`_cat`/`_fence` already inlined in BB_templates.
 - [ ] **INLINE-3-GROUP** — BB grouped templates: `bb_pat_anchor_group` (POS/RPOS/TAB/RTAB/LEN), `bb_pat_charset_group` (ANY/NOTANY/SPAN/BREAK), `bb_pat_nullary_group` (REM/ARB/ABORT/FENCE), `bb_pat_combine_group` (ALT/CAT).
 - [ ] **INLINE-8** — Orphan sweep: delete absorbed `emit_bb_x*`/`emit_sm_*` fns.
 
@@ -121,6 +121,7 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 ## Watermark
 
 ```
+df5838e8  INLINE-4c: sm_define_group; shadow locals; dispatcher cleanup. GATE-PK 407/0/647.
 7293cc40  EC-UNI-23: SM_PUSH_EXPR deleted. Invariant #1 [NO-AST] structurally enforced. GATE-PK 407/0/647.
 cc134d49  STYLE-8b: inline instr/op shadow locals in all SM templates. GATE-PK 407/0/647.
 21fd2715  STYLE-G_EMIT-RENAME: #define _ g_emit. GATE-PK 407/0/647.
