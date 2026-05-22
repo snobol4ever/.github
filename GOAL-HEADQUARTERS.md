@@ -19,13 +19,15 @@
 12. **No shadow locals in templates.** Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals and computed values are fine.
 13. **Entry labels belong to their template.** Each XA/SM/BB template that begins a named asm block emits its own entry label on the first line. No separate `XA_PC_LABEL` opcode — the template owns its label.
 
-## Session State (2026-05-22, session ~24)
+## Session State (2026-05-22, session ~25)
 
-**one4all HEAD: `683f73b6`** — EAO COMPLETE: all 11 XA opcodes live; zero asm-emitting lines in emit_sm.c+emit_bb.c. GATE-PK 407/0/647.
+**one4all HEAD: `683f73b6`** (pre-session) — new commits this session below.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647.**
 
-**NEXT: STYLE steps** (all unblocked now that EAO is complete) — start with **STYLE-JVM-ONE-SPACE (SJ-1/2/3)**.
+**Completed this session:** EAO-BB-FIX ✅ (`xa_bb_ptr_slot.c` owns emit body; `emit_bb.c` zero `fprintf(out,...)`). EAO-11 ✅ (`XA_PROLOGUE` + `xa_prologue.c`, all four backend arms). EAO-12 ✅ (`XA_EPILOGUE` + `xa_epilogue.c`, all four arms; `wasm_emit_data_segments` non-static). GREEK-BB steps written.
+
+**NEXT: EAO-13** — `XA_WASM_MAIN_WRAPPER` + `XA_JS_LABEL_REGISTER`, then GREEK-BB-1.
 
 ## XA opcode plan (from EAO-1)
 
@@ -67,6 +69,40 @@ Every full asm block gets an opcode. No asm emitted by C functions called direct
 - [x] **EAO-8** — `XA_BB_PTR_SLOT`: `xa_bb_ptr_slot.c`. 5 call sites rewired. `g_emit.bb_ptr_slot_lbl`. `20dfd287`.
 - [x] **EAO-9** — `XA_ENTRY_DISPATCH` + `XA_FLAT_PROLOGUE`: `xa_flat.c`. `emit_flat_body` prologue rewired. `g_emit.flat_lbl_*`. Fix: `bb_label_from_name` → `emit_bb.h`. `683f73b6`.
 - [x] **EAO-10** — VERIFY: zero `emit_textf/fprintf/insn_` in `emit_sm.c`+`emit_bb.c`. GATE-PK 407/0/647. GATE-M 5 pre-existing STUB misses (bb_charset IS_JVM/JS/NET/WASM, bb_pat_alt IS_WASM — not introduced by EAO). `683f73b6`.
+
+### EAO-CONT — EMIT-ALL-FROM-OPCODES continuation (non-x86 backends + leftover)
+
+Extends EAO to cover violations found 2026-05-22: `emit_bb_ptr_slot()` body left in `emit_bb.c` (EAO-8 wired call sites but did not move impl), and `emit_prologue`/`emit_epilogue` in `emit_core.c` emitting raw code for JVM/JS/NET/WASM outside the template system.
+
+New opcodes:
+- `XA_PROLOGUE` — replaces `emit_prologue()`, all backend arms (JVM/JS/NET/WASM) in one template file `xa_prologue.c`
+- `XA_EPILOGUE` — replaces `emit_epilogue()`, all backend arms in `xa_epilogue.c`
+- `XA_WASM_MAIN_WRAPPER` — the inline `(func $main ...)` block emitted in `emit_program()` for WASM
+- `XA_JS_LABEL_REGISTER` — the `rt._register_label_pcs({...})` block emitted in `emit_program()` for JS
+
+- [x] **EAO-BB-FIX** — Move `emit_bb_ptr_slot()` body (4 raw `fprintf` lines) from `emit_bb.c:112-115` into `XA_templates/xa_bb_ptr_slot.c`. The function stub in `emit_bb.c` calls `xa_dispatch(XA_BB_PTR_SLOT)` instead. Verify `emit_bb.c` has zero `fprintf(out,...)` calls. GATE-PK 407/0/647.
+- [x] **EAO-11** — Add `XA_PROLOGUE` to `XA.h`. Create `XA_templates/xa_prologue.c` with all four backend arms (IS_JVM / IS_JS / IS_NET / IS_WASM) absorbing `emit_prologue()`. Delete `emit_prologue()`. Wire both call sites in `emit_program()` to `xa_dispatch(XA_PROLOGUE)`. GATE-PK 407/0/647.
+- [x] **EAO-12** — Add `XA_EPILOGUE` to `XA.h`. Create `XA_templates/xa_epilogue.c` absorbing `emit_epilogue()` all arms. Delete `emit_epilogue()`. Wire both call sites. GATE-PK 407/0/647.
+- [ ] **EAO-13** — Add `XA_WASM_MAIN_WRAPPER` + `XA_JS_LABEL_REGISTER` to `XA.h`. Create `XA_templates/xa_wasm_main.c` and `XA_templates/xa_js_label_register.c`. Absorb the two inline `fprintf` blocks in `emit_program()` (WASM `$main` wrapper lines ~1949-1956; JS label-register block lines ~1969-1980). Wire call sites. GATE-PK 407/0/647.
+- [ ] **EAO-CONT-VERIFY** — `grep -rn "fprintf(out\|emit_textf" src/emitter/emit_bb.c src/emitter/emit_core.c` for the absorbed sites only; confirm all four new XA opcodes + EAO-BB-FIX site are gone. GATE-PK + GATE-M.
+
+### GREEK-BB — One-letter Unicode Greek for all Byrd Box four-port names
+
+Replace every English-word use of the four Byrd Box ports with single Unicode Greek characters **in BB context only**: `α` (U+03B1), `β` (U+03B2), `γ` (U+03B3), `ω` (U+03C9). Scope: `BB_t` struct fields (already done), C identifiers derived from port names, labels emitted into generated code (asm, JVM, JS, .NET, WASM), and string literals naming the ports.
+
+`BB_t` fields `α`/`β`/`γ`/`ω` are already Greek (BB.h:146-149). No C struct change needed.
+
+Targets:
+- **C identifiers** — `lbl_α`, `ci_βs`, `ci_ωs`, `child_α_label`, `lbl_α_body`, `flat_lbl_alpha_body` in `emit_bb.c` and BB templates. All already Greek in most places. Audit and finish any stragglers.
+- **Generated JS method names** — all `emit_textf("alpha() {...")` / `emit_textf("beta() {...")` strings in BB_templates. These emit `alpha()` / `beta()` as JavaScript method names into factory objects. Replace with `α()` / `β()` — JS (ES6+) fully supports Unicode identifiers.
+- **Generated JVM field/label names** — `bb_box$MatchState/omega` field name in JVM `getfield` instructions across BB templates. Replace with `ω`.
+- **Generated .NET/WASM** — audit for any English port names in emitted strings.
+- **Comments and banners** — `emit_bb_box_banner`, `GOAL-HEADQUARTERS.md` Invariants, other docs: use Greek consistently.
+
+- [ ] **GREEK-BB-1** — Audit: `grep -rn "alpha\|beta\|gamma\|omega" src/emitter/BB_templates/ src/emitter/emit_bb.c src/emitter/XA_templates/ src/include/BB.h` — catalogue every remaining English occurrence, split by: (a) C identifier, (b) generated JS string, (c) generated JVM string, (d) other. Produce hit list. GATE-PK after.
+- [ ] **GREEK-BB-2** — Generated JS strings in BB_templates: replace all `alpha()` → `α()`, `beta()` → `β()`, `.alpha()` → `.α()`, `.beta()` → `.β()`, `.omega` → `.ω` inside every `emit_textf(...)` string. Files: `bb_pat_alt.c`, `bb_pat_len.c`, `bb_pat_cat.c`, `bb_pat_pos.c`, `bb_pat_notany.c`, `bb_pat_fence.c`, `bb_arbno.c`, `bb_lit.c`, `bb_pat_rem.c`, `bb_pat_break.c`, `bb_pat_any.c`, `bb_pat_abort.c`, `bb_pat_span.c`, `bb_capture.c`, `bb_pat_tab.c`, `bb_pat_arb.c`. Build. GATE-PK.
+- [ ] **GREEK-BB-3** — Generated JVM strings in BB_templates: replace `bb_box$MatchState/omega` → `bb_box$MatchState/ω` in all `getfield` emit strings. Coordinate with JVM runtime source if `MatchState.omega` field is defined there (rename field too). Build. GATE-PK.
+- [ ] **GREEK-BB-4** — C identifiers: finish any remaining English port-name C identifiers in `emit_bb.c`, `emit_globals.h`, `emit_core.c` (e.g. `flat_lbl_alpha_body` → `flat_lbl_α_body`, `child_α_label` already Greek). Build. GATE-PK + GATE-M.
 
 ### ISO — parse→lower / parse→runtime firewalls
 
