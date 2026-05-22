@@ -105,7 +105,7 @@ bash scripts/freeze_per_kind_baseline.sh && bash scripts/test_per_kind_diff.sh
 
 **BB-side:**
 - [x] **INLINE-3** ✅ — `emit_flat_ir_alt`/`_cat`/`_fence` already inlined in BB_templates.
-- [ ] **INLINE-3-GROUP** — BB grouped templates: `bb_pat_anchor_group` (POS/RPOS/TAB/RTAB/LEN), `bb_pat_charset_group` (ANY/NOTANY/SPAN/BREAK), `bb_pat_nullary_group` (REM/ARB/ABORT/FENCE), `bb_pat_combine_group` (ALT/CAT).
+- [x] **INLINE-3-GROUP** — BB grouped templates: `bb_pat_anchor_group` (POS/RPOS/TAB/RTAB/LEN), `bb_pat_charset_group` (ANY/NOTANY/SPAN/BREAK), `bb_pat_nullary_group` (REM/ARB/ABORT/FENCE), `bb_pat_combine_group` (ALT/CAT).
 - [ ] **INLINE-8** — Orphan sweep: delete absorbed `emit_bb_x*`/`emit_sm_*` fns.
 
 ### Step 10 — STYLE-BASELINE-COMPRESS
