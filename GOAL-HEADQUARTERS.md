@@ -297,6 +297,50 @@ emit_textf("... %d ...", (int)_.instr->a[1].i);
 - [ ] **STL-6 — sm_pat_combine.c + sm_calls.c + sm_bb_calls.c** — Inline `has_repl`, `is_imm`, `nargs`, `arity`, `fk`, `addr`. Build + GATE-PK. One commit per file.
 - [ ] **STL-7 — sm_push_pop_lits.c + sm_pat_anchors.c** — Inline `addr` into single `emit_textf` call site. Build + GATE-PK. Commit.
 
+### STYLE-NO-OUT-PARAM — remove FILE * out parameter from all emitter helpers; use g_emit.out globally
+
+**Rule:** No helper function in the emitter takes `FILE * out` as a parameter. The output sink is `g_emit.out` — a global. Every `fprintf(out, ...)` inside a helper becomes `emit_textf(...)` (or `emit_byte`/`fputc(b, g_emit.out)` for binary). Every call site drops the `_.out` argument. The parameter disappears from signatures and declarations.
+
+**Why:** `FILE * out` threading is ceremony — every caller passes `_.out`, every body uses it only for `fprintf`. Making `g_emit.out` implicit at the call site removes ~188 redundant argument slots and aligns with `emit_textf` already being parameterless.
+
+**Scope:** 20 helpers defined in `emit_core.c`, declared in `BB_templates/bb_template_common.h` and `SM_templates/sm_template_common.h`, called from 16 BB template files + SM template files + `emit_core.c` itself (188 call sites total).
+
+**Helpers to convert (all in `emit_core.c`):**
+
+| Helper | Change |
+|--------|--------|
+| `js_escape(FILE *out, const char *s)` | → `js_escape(const char *s)`; body: `fprintf(out,…)` → `emit_textf(…)` / `fputc(c, g_emit.out)` |
+| `js_escape_string(FILE *out, const char *s)` | same pattern |
+| `jvm_class_hdr(FILE *out, const char *name)` | → `jvm_class_hdr(const char *name)` |
+| `jvm_init_ms_only(FILE *out, const char *name)` | → `jvm_init_ms_only(const char *name)` |
+| `jvm_init_ms_int(FILE *out, const char *name, const char *field)` | → drop `out` |
+| `jvm_init_ms_str(FILE *out, const char *name, const char *field)` | → drop `out` |
+| `jvm_val_helper(FILE *out, const char *name)` | → drop `out` |
+| `net_class_hdr(FILE *out, int sid, int nid)` | → drop `out` |
+| `net_alpha_hdr(FILE *out)` | → `net_alpha_hdr(void)` |
+| `net_beta_hdr(FILE *out)` | → `net_beta_hdr(void)` |
+| `net_cursor_load(FILE *out)` | → `net_cursor_load(void)` |
+| `net_ms_length(FILE *out)` | → `net_ms_length(void)` |
+| `net_spec_of(FILE *out)` | → `net_spec_of(void)` |
+| `net_fail_ret(FILE *out)` | → `net_fail_ret(void)` |
+| `net_push_i4(FILE *out, int v)` | → `net_push_i4(int v)` |
+| `net_ctor_none(FILE *out, int sid, int nid)` | → drop `out` |
+| `net_spec_zw(FILE *out)` | → `net_spec_zw(void)` |
+| `net_escape_ldstr(FILE *out, const char *s)` | → drop `out`; `fputc(*p, out)` → `emit_byte(*p)` |
+| `net_charset_class(FILE *out, int sid, int nid, const char *tag)` | → drop `out` |
+| `jvm_pat_str_push(FILE *out, int i, …)` | → drop `out` (inline in sm_template_common.h) |
+| `jvm_pat_long_push(FILE *out, …)` | → drop `out` |
+| `jvm_pat_noarg_push(FILE *out, …)` | → drop `out` |
+| `jvm_pat_pat_push(FILE *out, …)` | → drop `out` |
+| `jvm_pat_2pat_push(FILE *out, …)` | → drop `out` |
+
+**Steps:**
+
+- [ ] **SOP-1 — Update declarations** — In `BB_templates/bb_template_common.h` and `SM_templates/sm_template_common.h`: remove `FILE *out` from every helper declaration. Remove `FILE * out` from inline body parameters (`jvm_pat_*`). Build only (no gate yet — call sites still pass `_.out`; compiler errors show remaining sites). Do not commit standalone.
+- [ ] **SOP-2 — Update definitions in emit_core.c** — Remove `FILE * out` parameter from all 20 helper signatures. Replace every `fprintf(out, ...)` with `emit_textf(...)`. Replace `fputc(b, out)` with `emit_byte(b)` (in `net_escape_ldstr`). Build. Do not commit standalone.
+- [ ] **SOP-3 — Update BB call sites** — In all 16 BB_templates files: remove `_.out` argument from every helper call. Build + GATE-PK. One commit: `STYLE-NO-OUT-PARAM: remove FILE*out from BB helpers. GATE-PK 407/0/647.`
+- [ ] **SOP-4 — Update SM call sites** — In SM_templates files and `emit_core.c` internal calls: remove `_.out` / `g_emit.out` argument from every helper call. Build + GATE-PK. Commit: `STYLE-NO-OUT-PARAM: remove FILE*out from SM helpers + emit_core internal calls. GATE-PK 407/0/647.`
+
 ## Watermark
 
 ```
