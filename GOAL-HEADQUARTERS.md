@@ -208,6 +208,27 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 - [ ] **EU-4 — BB-WASM-FILL** — Fill WASM arms in BB templates for composite patterns (`bb_pat_alt`, `bb_pat_cat`, `bb_capture`, `bb_fail`, `bb_arbno`). Each gets a real `(call $bb_<name>_new)` WASM text emission. Gate after each file.
 - [ ] **EU-5 — AUDIT-CLOSE** — Re-run audit; confirm zero silent stubs remain outside the known-incomplete sentinel group (`bb_stub`, `bb_pl`, `bb_lit_scalar`, `bb_icn_stub`, `bb_cset`). Update `docs/EMIT-UNIFY-AUDIT.md`. Freeze baseline. Commit: `EMIT-UNIFY: all SM/BB backends fully wired. GATE-PK N/0/647.`
 
+### STYLE-JVM-ONE-SPACE — one space before every JVM opcode in emit_textf strings
+
+**Problem:** JVM opcode strings inside `emit_textf()` calls use 4-space indent before each opcode token:
+```c
+emit_textf("    aload_0\n    getfield bb/bb_any/ms Lbb/bb_box$MatchState;\n");
+```
+Rule: **one space** before each opcode token, matching the one-space convention used everywhere else:
+```c
+emit_textf(" aload_0\n getfield bb/bb_any/ms Lbb/bb_box$MatchState;\n");
+```
+
+**Scope:** 28 files — 16 BB_templates + 11 SM_templates + sm_template_common.h. Total ~520 occurrences of `"    ` (4-space) prefix inside emit_textf string literals in JVM arms. NET strings (`.ldfld`, `.call`, etc.) are unaffected — they use their own indent convention. Only JVM opcodes (`aload_`, `getfield`, `invokestatic`, `invokevirtual`, `invokespecial`, `istore_`, `iload_`, `bipush`, `iconst_`, `iadd`, `isub`, `putfield`, `if_icmp*`, `goto`, `ireturn`, `areturn`, `aconst_null`, `dup`, `new`, etc.) are in scope.
+
+**Invariant:** GATE-PK PASS=407 FAIL=0 STUB=647 must hold after every file. The per-kind baselines for JVM cells will change — re-freeze after the sweep.
+
+**Steps:**
+
+- [ ] **SJ-1 — BB sweep** — In every `BB_templates/*.c` file, replace `"    ` → `" ` inside `emit_textf` string literals inside `IS_JVM` arms only. One commit per file. Gate after each. Files (16): `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`, `bb_pat_break`, `bb_pat_abort`, `bb_pat_rem`, `bb_pat_arb`, `bb_pat_fence`, `bb_pat_len`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_alt`, `bb_pat_cat`, `bb_arbno`, `bb_capture`, `bb_lit`.
+- [ ] **SJ-2 — SM sweep** — Same replacement in every `SM_templates/*.c` and `sm_template_common.h` inside `IS_JVM` arms. One commit per file. Gate after each. Files (12): `sm_arith`, `sm_compare`, `sm_jumps`, `sm_returns`, `sm_push_pop_lits`, `sm_pat_nullary`, `sm_pat_anchors`, `sm_pat_combine`, `sm_calls`, `sm_halt`, `sm_defines`, `sm_template_common.h`.
+- [ ] **SJ-3 — REFREEZE** — `bash scripts/freeze_per_kind_baseline.sh` for JVM cells only; verify `bash scripts/test_per_kind_diff.sh` returns PASS=407 FAIL=0 STUB=647. Commit: `STYLE-JVM-ONE-SPACE: refreeze JVM baselines. GATE-PK 407/0/647.`
+
 ## Watermark
 
 ```
