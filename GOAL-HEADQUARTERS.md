@@ -341,41 +341,41 @@ emit_textf("... %d ...", (int)_.instr->a[1].i);
 - [ ] **SOP-3 — Update BB call sites** — In all 16 BB_templates files: remove `_.out` argument from every helper call. Build + GATE-PK. One commit: `STYLE-NO-OUT-PARAM: remove FILE*out from BB helpers. GATE-PK 407/0/647.`
 - [ ] **SOP-4 — Update SM call sites** — In SM_templates files and `emit_core.c` internal calls: remove `_.out` / `g_emit.out` argument from every helper call. Build + GATE-PK. Commit: `STYLE-NO-OUT-PARAM: remove FILE*out from SM helpers + emit_core internal calls. GATE-PK 407/0/647.`
 
-### STYLE-SC-EXPR-EMIT — Rewrite C if-chain templates as Snocone expression sequences
+### STYLE-SWITCH-TO-EXPR — Collapse name-only op switches to ternary/table expressions
 
-**Problem:** Every SM and BB template function is a chain of `if (IS_X86) { ... return; } if (IS_JVM) { ... return; } ...` blocks. Each arm is a sequence of `emit_textf` / helper calls driven purely by the global state (`IS_X86`, `IS_JVM`, etc.). This is statement-oriented C control flow where expression-oriented Snocone would be cleaner, more uniform, and directly executable by the SCRIP interpreter.
+**Problem:** Every SM template that groups multiple opcodes has a `switch((int)_.instr->op)` per backend arm. In most cases every case produces the same call sequence with only one token (method name, macro name, integer constant) varying. This is a selection masquerading as control flow — the switch can be replaced by a single expression that selects the varying token inline, collapsing the switch entirely.
 
-**Target form:** Snocone template files (`.sc`) where each template is a flat sequence of emit expressions, backend discrimination expressed as inline conditionals:
-
-```snocone
-/* sm_arith.sc — SM_ADD/SUB/MUL/DIV/MOD */
-function sm_arith() {
-    emit(DIFFER(IS_X86, IS_MACRO_DEF) '.macro ADD_NUM n=0' NL 'mov edi, SM_ADD' NL 'call rt_arith@PLT' NL '.endm' NL
-         /* ... remaining macro defs ... */ ,
-         '');
-    emit(IS_X86  (op = SM_ADD '.ADD_NUM', op = SM_SUB '.SUB_NUM', ...) NL,
-         IS_JVM  (op = SM_ADD ' bipush 0' NL ' invokestatic rt/SnoRt/arith(I)V' NL, ...),
-         IS_JS   (op = SM_ADD 'rt.arith(''add''); ', ...),
-         IS_NET  (op = SM_ADD ' ldc.i4.1' NL ' call       void SnoRt::arith(int32)' NL, ...),
-         IS_WASM (op = SM_ADD '          (call $sno_arith (i32.const 0))' NL, ...));
-}
+**Rule:** If a `switch` on `_.instr->op` has N cases and every case is a single `emit_textf(fmt, ...)` or helper-then-`emit_textf` where only one argument string/int differs, replace with:
+```c
+/* 2-case: */ emit_textf("... %s ...\n", (int)_.instr->op == SM_A ? "nameA" : "nameB");
+/* N-case: */ static const char *nm[] = {"nameA","nameB","nameC",...};
+              emit_textf("... %s ...\n", nm[(int)_.instr->op - SM_BASE]);
 ```
+**Exception:** Structurally distinct cases (different number/sequence of emit calls per case — e.g. `sm_jumps` JVM arm) stay as switches.
 
-Each `emit(...)` call is a concatenation of terms; backend arms are `DIFFER(IS_BE) text` or `(IS_BE text1, text2)` Snocone conditionals. The sequence of `emit` calls replaces the sequence of `emit_textf` calls; the `if (IS_X86) { ... return; }` blocks disappear entirely.
-
-**Scope:** All SM_templates (13 files) and BB_templates (16 files). This is the long-horizon goal; steps below are ordered by complexity, simplest first.
-
-**Prerequisites:** SOP-1..SOP-4 complete (no `FILE *out` parameters remain — helpers use `g_emit.out` directly, which becomes an implicit global in the Snocone runtime too).
+**Scope:** SM_templates only. BB_templates have no op-dispatch switches (each file handles one opcode).
 
 **Steps:**
 
-- [ ] **SCE-1 — SPEC** — Write `docs/SC-EMIT-TEMPLATE-SPEC.md`: exact Snocone syntax for emit sequences, backend conditionals, opcode dispatch, helper calls, and the mapping from C constructs to Snocone. Define: how `IS_X86` maps to a Snocone global; how `switch((int)_.instr->op)` maps to Snocone pattern alternation; how `emit_textf(fmt, args...)` maps to `emit(fmt args...)`; how `DIFFER(IS_BE) text` expresses a guarded emit. Gate: doc only, no code. Commit.
-- [ ] **SCE-2 — PILOT: sm_pat_nullary.sc** — Rewrite the simplest multi-backend SM template (`sm_pat_nullary` — 22 nullary opcodes, uniform shape per backend) as a `.sc` file. Wire it into the build so the Snocone file compiles to C and replaces the `.c` file. GATE-PK must hold. Commit.
-- [ ] **SCE-3 — SM nullary group** — Rewrite `sm_misc_nullary.sc`, `sm_arith.sc`, `sm_compare.sc`, `sm_jumps.sc`, `sm_returns.sc` as `.sc` files. One commit per file, gate after each.
-- [ ] **SCE-4 — SM string/call group** — Rewrite `sm_push_pop_lits.sc`, `sm_pat_anchors.sc`, `sm_pat_combine.sc`, `sm_calls.sc`, `sm_bb_calls.sc`, `sm_defines.sc`, `sm_halt.sc`, `sm_expr_incr.sc`. One commit per file.
-- [ ] **SCE-5 — BB simple group** — Rewrite `bb_pat_abort.sc`, `bb_pat_rem.sc`, `bb_pat_arb.sc`, `bb_pat_fence.sc`, `bb_pat_len.sc`, `bb_pat_any.sc`, `bb_pat_notany.sc`, `bb_pat_span.sc`, `bb_pat_break.sc`. One commit per file.
-- [ ] **SCE-6 — BB complex group** — Rewrite `bb_pat_pos.sc`, `bb_pat_tab.sc`, `bb_pat_alt.sc`, `bb_pat_cat.sc`, `bb_arbno.sc`, `bb_capture.sc`, `bb_lit.sc`. One commit per file.
-- [ ] **SCE-7 — DELETE C originals** — After all `.sc` files are wired and gate is green: delete the original `.c` template files and their declarations from `sm_templates.h` / `bb_templates.h`. Confirm `grep -r 'IS_X86\|IS_JVM\|IS_NET\|IS_JS\|IS_WASM' SM_templates/ BB_templates/` returns zero results in `.c` files. GATE-PK + GATE-M. Commit: `STYLE-SC-EXPR-EMIT: all SM/BB templates rewritten as Snocone expression sequences. GATE-PK N/0/647.`
+- [ ] **SCE-1 — AUDIT** — Enumerate every `switch((int)_.instr->op)` across all SM_templates. Classify each as: (A) **name-only** — all cases have identical call structure, only one string/int token varies → collapse to ternary/table; (B) **structurally distinct** — cases produce different sequences of calls → keep as switch. Output: one-line entry per switch in `docs/SWITCH-EXPR-AUDIT.md`. Gate: doc only. Commit.
+- [ ] **SCE-2 — sm_compare** — Both switches are name-only (2-case): `"acomp"/"lcomp"` token varies, `jvm_push_int2`+`emit_textf` / `net_push_i4`+`emit_textf` / `emit_textf` calls are identical per backend. Replace each switch with an inline ternary on `(int)_.instr->op == SM_ACOMP`:
+  ```c
+  /* JVM: */ jvm_push_int2((long)_.instr->a[0].i);
+             emit_textf("    invokestatic rt/SnoRt/%s(I)V\n",
+                 (int)_.instr->op == SM_ACOMP ? "acomp" : "lcomp");
+  /* NET: */ net_push_i4((int)_.instr->a[0].i);
+             emit_textf("    call       void SnoRt::%s(int32)\n",
+                 (int)_.instr->op == SM_ACOMP ? "acomp" : "lcomp");
+  /* WASM: */ emit_textf("          (call $sno_%s (i32.const %lld))\n",
+                 (int)_.instr->op == SM_ACOMP ? "acomp" : "lcomp",
+                 (long long)_.instr->a[0].i);
+  ```
+  Build + GATE-PK. Commit.
+- [ ] **SCE-3 — sm_expr_incr** — X86 switch (2-case, name-only: `"INCR"/"DECR"`), WASM switch (2-case: constant `0`/`1`). Replace both with ternary on `(int)_.instr->op == SM_INCR`. Build + GATE-PK. Commit.
+- [ ] **SCE-4 — sm_arith** — Five switches (ADD/SUB/MUL/DIV/MOD, one per backend). X86/JS: name varies → `const char *nm[] = {"ADD_NUM","SUB_NUM","MUL_NUM","DIV_NUM","MOD_NUM"}; emit_textf("    %s\n", nm[op - SM_ADD])`. JVM/NET/WASM: index varies → `int idx = op - SM_ADD; emit_textf(...)`. MOD irregularity in JVM/NET is a structurally distinct case — keep its own branch, fold ADD..DIV only. Build + GATE-PK. Commit.
+- [ ] **SCE-5 — sm_misc_nullary** — Seven switches (one per backend, 7-case each). All name-only: the method/macro name is the sole varying token. Replace each switch with a `static const char *` name table indexed by `op - SM_CONCAT`. Build + GATE-PK. Commit.
+- [ ] **SCE-6 — sm_pat_nullary, sm_push_pop_lits, sm_pat_anchors** — Same pattern: each switch selects a name token from a fixed set. Replace with name tables or ternaries. One commit per file. Build + GATE-PK each.
+- [ ] **SCE-7 — VERIFY** — `grep -rn "switch.*instr->op\|switch.*\bop\b" SM_templates/` — confirm only structurally-distinct switches remain (i.e. `sm_jumps` JVM arm where each case produces a different sequence). Zero name-only switches permitted. GATE-PK. Commit: `STYLE-SWITCH-TO-EXPR: all name-only op switches collapsed to ternary/table. GATE-PK 407/0/647.`
 
 ## Watermark
 
