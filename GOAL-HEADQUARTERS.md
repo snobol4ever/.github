@@ -20,12 +20,12 @@
 
 ## Session State (2026-05-22, session ~14)
 
-**one4all HEAD: `cc134d49`** — STYLE-8b: all `instr`/`op` shadow locals removed from SM templates. GATE-PK 407/0/647.
+**one4all HEAD: `7293cc40`** — EC-UNI-23: SM_PUSH_EXPR deleted — Invariant #1 [NO-AST] now structurally enforced. GATE-PK 407/0/647.
 
-**Gate entering next session: PASS=407 FAIL=0 STUB=647 at `cc134d49`. Verify `git -C one4all log origin/main..HEAD` at session start.**
+**Gate entering next session: PASS=407 FAIL=0 STUB=647 at `7293cc40`. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
-- **EC-UNI-23** (stated priority): delete `SM_PUSH_EXPR` — the last AST escape hatch. Steps EC-23a–f below.
+- ~~**EC-UNI-23**~~ ✅ COMPLETE `7293cc40`
 - **Step 10 STYLE-BASELINE-COMPRESS**: normalize `.s.raw` baselines to single-space tokens.
 
 ## Session Setup
@@ -85,15 +85,15 @@ bash scripts/freeze_per_kind_baseline.sh && bash scripts/test_per_kind_diff.sh
 
 `SM_PUSH_EXPR` is the last AST escape hatch: `emit_push_expr()` in `lower.c` freezes a raw `tree_t*` into the instruction stream. No test program emits it (0/200), but 3 live lowering sites still produce it. Deleting it forces Icon LIMIT and Prolog UNIFY/CUT to build real BB graphs — the [NO-AST] invariant made unavoidable.
 
-- [ ] **EC-23a** — Survey 3 `emit_push_expr` callers; define BB-graph replacements:
+- [x] **EC-23a** — Survey 3 `emit_push_expr` callers; define BB-graph replacements:
   - `lower_limit` (TT_LIMIT ~1468): `emit_push_expr(t); SM_emit(SM_BB_PUMP)` → real generator BB graph + pump/count box.
   - TT_UNIFY (~1893): `emit_push_expr(t); SM_emit_si(SM_CALL_FN,"PL_UNIFY",0)` → `BB_PL_UNIFY` over lowered args.
   - TT_CUT (~1894): `emit_push_expr(t); SM_emit_si(SM_CALL_FN,"PL_CUT",0)` → `BB_PL_CUT`.
-- [ ] **EC-23b** — Add BB-graph smoke tests for LIMIT/UNIFY/CUT first (TDD). Gate: each runs in `--interp` and `--run`.
-- [ ] **EC-23c** — Rewire the 3 sites to build BB graphs; delete `emit_push_expr`.
-- [ ] **EC-23d** — Delete `SM_PUSH_EXPR` from `src/include/SM.h` enum. ⚠ Enum is index-aligned with `g_sm_op_names[]` and handler table — remove member + name-array slot + handler-table slot together; rebuild catches mismatches.
-- [ ] **EC-23e** — Delete orphaned `sm_push_expr` template arm, dispatch case (`emit_core.c:1360`), interp handler `h_push_expr`, doc comments.
-- [ ] **EC-23f** — GATE-PK + GATE-S + GATE-J. Prolog/Icon smoke must stay green. Freeze baseline. Commit.
+- [x] **EC-23b** — Add BB-graph smoke tests for LIMIT/UNIFY/CUT first (TDD). Gate: each runs in `--interp` and `--run`.
+- [x] **EC-23c** — Rewire the 3 sites to build BB graphs; delete `emit_push_expr`.
+- [x] **EC-23d** — Delete `SM_PUSH_EXPR` from `src/include/SM.h` enum. ⚠ Enum is index-aligned with `g_sm_op_names[]` and handler table — remove member + name-array slot + handler-table slot together; rebuild catches mismatches.
+- [x] **EC-23e** — Delete orphaned `sm_push_expr` template arm, dispatch case (`emit_core.c:1360`), interp handler `h_push_expr`, doc comments.
+- [x] **EC-23f** — GATE-PK + GATE-S + GATE-J. Prolog/Icon smoke must stay green. Freeze baseline. Commit.
 
 ### EC-UNI INLINE — Remaining work
 
@@ -121,6 +121,7 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 ## Watermark
 
 ```
+7293cc40  EC-UNI-23: SM_PUSH_EXPR deleted. Invariant #1 [NO-AST] structurally enforced. GATE-PK 407/0/647.
 cc134d49  STYLE-8b: inline instr/op shadow locals in all SM templates. GATE-PK 407/0/647.
 21fd2715  STYLE-G_EMIT-RENAME: #define _ g_emit. GATE-PK 407/0/647.
 8fe5f0a9  STYLE-NO-LOCAL-SHADOWS: remove FILE*/BB_t*/SM_t* aliases. GATE-PK 407/0/647.
@@ -142,7 +143,6 @@ Grouped templates landed:
   sm_returns (9 RETURN opcodes in 3 fns).
 
 **Known issues:**
-- `SM_PUSH_EXPR` + `emit_push_expr` + 3 callers still live — EC-UNI-23 retires them.
 - Normalizer gap: `normalize_per_kind_cell.py` strips `0x`+8+ hex digits; 6-digit addresses escape.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
