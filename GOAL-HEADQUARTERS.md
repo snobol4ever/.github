@@ -18,6 +18,8 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals and computed values are fine.
 13. **Entry labels belong to their template.** Each XA/SM/BB template that begins a named asm block emits its own entry label on the first line. No separate `XA_PC_LABEL` opcode — the template owns its label.
+14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
+15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
 ## Session State (2026-05-22, session ~26)
 
@@ -30,7 +32,9 @@
 - PP-1..6 ✅ (prior session)
 - PP-7 ✅ — Removed stale `sm_foo(void)` decls from `emit_core.h` (conflicted with PP-1 `sm_templates.h` signatures). Fixed `pBB/bb_→bb/bb_` in 16 JVM BB templates (PP-6 sweep over-replaced JVM package prefix strings). Fixed 4 parameterless `emit_sm_dispatch()` call sites. Removed `pSM=pSM` self-assignment shadow in `sm_calls.c`. GATE-PK 407/0/647.
 
-**NEXT: EAO-13** — Add `XA_WASM_MAIN_WRAPPER` + `XA_JS_LABEL_REGISTER`. Then GREEK-BB-1.
+**Also completed (session ~26 continued):** PL-T-1 ✅ — `bb_pl_builtin.c` (write/nl/halt); `rt_pl_write_atom`+`rt_pl_write_var`; baseline frozen. GATE-PK **409/0/645**. smoke_prolog 5/5.
+
+**NEXT: PL-T-2** — `bb_pl_var.c` + `bb_pl_atom.c` + `bb_pl_unify.c`. Then EAO-13. — Add `XA_WASM_MAIN_WRAPPER` + `XA_JS_LABEL_REGISTER`. Then GREEK-BB-1.
 
 ## XA opcode plan (from EAO-1)
 
