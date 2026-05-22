@@ -92,7 +92,7 @@ parser_<lang>_transpiled.sno
 - [x] **SCT-1e** explicit `?` operator fix in TT_SCAN expression case
 - [x] **SCT-2** parser_rebus.sc → .sno (qtag REPLACE eq-length fix + label_sanitize on TT_VAR)
 - [x] **SCT-SN4-ERR041** parser_snobol4.sc multi-stmt — deleted 2 stray `nInc()` before `*StmtRepl` in `Stmt`. PASS=49→64/88. (2026-05-21d, Opus 4.7)
-- [ ] **SCT-SN4-IMPLICIT-MATCH** parser_snobol4.sc — add implicit pattern-match-by-juxtaposition branch (`S 'a' | 'b'` with no `?`) to `Stmt` inner FENCE. Accounts for the remaining 24 PARSE errors. See session note 2026-05-21d below.
+- [x] **SCT-SN4-IMPLICIT-MATCH** parser_snobol4.sc — implicit pattern-match-by-juxtaposition. PASS 64→88/88. (2026-05-21e, Sonnet 4.6, corpus `794dc0a`). Stmt restructured into two branches: Branch A (explicit `?`) requires `$'  ' nInc() *Expr14 $'?' nInc() *Expr1 reduce('TT_PAT',1) FENCE(*StmtRepl|epsilon)`; Branch B (implicit/assign/bare) uses `$'  ' nInc() *Expr1 FENCE(*StmtRepl|epsilon)`. Also fixed StmtRepl second arm to use optional trailing whitespace `$' '` after `=` so null-replacement (`S 'a' =`) parses correctly.
 - [ ] **SCT-1f** drive 2-way sync-monitor — needs SN-26-spl-bridge in x64
 - [ ] **SCT-3** parser_snocone.sc — blocked on SCT-9-arbno-fence
 - [ ] **SCT-4** parser_icon.sc — eliminate icon_helpers.sc first. 4 trivial leaf-push helpers (`push_qlit`, `push_cset`, `push_flit`, `push_kw`) inline into Expr11 arms via `shift(..., 'TT_QLIT')` etc. `notmatch` already in match.sc.
