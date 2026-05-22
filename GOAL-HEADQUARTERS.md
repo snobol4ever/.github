@@ -17,24 +17,23 @@
 10. **Grouped templates allowed (Lon directive, session #N+2).** Where N opcodes share emit shape, a single `sm_<group>()` / `bb_<group>()` template fn handles all of them — opcode communicated via `g_emit.instr->op` and dispatched by per-backend `switch(op)`. All emission code stays inside that one TU. **No external helpers, no cross-template calls.** Locality first; grouping reduces duplication only when it earns its keep via shared shape. Examples landed: `sm_arith` (5 opcodes), `sm_compare` (2), `sm_pat_nullary` (22). This SUPERSEDES the prior pure-duplication / one-fn-per-opcode reading of INLINE-ALL.
 11. **INLINE-ALL complete (session ~10, 2026-05-22).** Every SM/BB code-generation path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. No wrapper functions, no table-driven dispatch, no per-opcode helpers outside template files. `emit_sm.c` carries only the walker, string-table, pattern-window, and pc-label infrastructure. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 
-## ⚡ SESSION ACCOUNTING (2026-05-22, session ~10 of EC-UNI-INLINE-ALL)
+## ⚡ SESSION ACCOUNTING (2026-05-22, session ~11 — EC-UNI-INLINE-8 sweep + BREAKX-1)
 
-**Commits this session (4):**
-- `1318fede` INLINE-6: delete legacy `emit_sm_op/nullary/arith/int_arg/acomp/lcomp/pat_*` cluster + dead dispatch decls from emit_sm.h + emit_templates.h; −379 lines/decls
-- `2c4cc75c` INLINE-6 cleanup: dedup includes, stale comments/separators. emit_sm.c 1766→1414 (−352 total)
-- `845af881` INLINE-6: delete `emit_sm_op_*` dead decl family from emit_sm.h (−53 decls, no definitions existed)
-- `302a1207` INLINE-6: delete `emit_sm_selftest` dead decl; remove `sm_pat_control.c` + `sm_pat_position.c` stub files + Makefile entries (INLINE-5 cleanup)
+**Commits this session (3, one4all):**
+- `87957d79` EC-UNI-INLINE-8: wire EPS NULL-node case through `bb_eps` template. `emit_flat_ir`'s NULL early-out called legacy `emit_bb_xeps` directly; now fills `g_emit.lbl_*` + calls `bb_eps()`, making the template the live path. Declared `bb_eps` in `bb_templates.h`; included it in `emit_bb.c`. Byte-faithful 153/153 snobol4 `--compile`.
+- `57c96cbd` EC-UNI-INLINE-8: sweep dead `emit_bb_x*` cluster + retire `SM_PUSH_EXPR` audit cell. Deleted all 18 `emit_bb_x*` defs + `emit_bb_jmp_pair` + `emit_bb_charset` (~600 LOC, kept `emit_bb_box_banner` — live in CAP_IMM/CAP_COND); deleted their decls from `emit_templates.h`; `git rm`'d 3 superseded orphan templates (`bb_atp_template.c`/`bb_brkx.c`/`bb_dsar.c` — functionally replaced by `SM_PAT_DEREF`/`bb_capture`/`SM_PAT_BREAK`) + Makefile entries. Removed `SM_PUSH_EXPR` from audit table (its x86 arm baked an unstable host `tree_t*` pointer → could never be a stable baseline cell) + 5 stale baseline cells + MANIFEST lines.
+- `3529f907` BREAKX-1: recreate `rt_bb_brkx` runtime + charset selection hook next to BREAK. Port 0 = BREAK scan; port 1 (β) EXTENDS past the halting break char to the next one (resumable cursor in `ζ->delta`) — the BREAK/BREAKX semantic difference. Added `bb_brkx`→`rt_bb_brkx` case in `bb_charset_emit`. Inert until a producer emits a BREAKX box (enum-wiring = BREAKX-2).
 
-**INLINE-6 complete.** All dead legacy wrappers, nullary/arith/int_arg clusters, orphaned dispatch decls, and stub template files deleted. emit_sm.c: 1766 → 1414 lines. emit_sm.h: −53+1 decls. emit_templates.h: −30 decls. SM_templates/: 15 → 13 files.
+**.github (this session):** added **EC-UNI-23 NO-AST-PUSH-EXPR** step (delete `SM_PUSH_EXPR` to force Icon/Prolog BB graphs); PLAN.md HEADQUARTERS row updated to HEAD `3529f907`.
 
-**What remains in EC-UNI-INLINE-ALL:**
-- `emit_bb.c` residue (`flat_fill_and_call`, `flat_fill_bin`, `flat_fill_charset`, `emit_flat_ir`) — all still live; deletion blocked by INLINE-3-GROUP (correctly rejected) and INLINE-5 (deprecated). Awaiting Lon directive on whether to retire or find alternate path.
-- EC-UNI-19/20/21/22 — add-backend/add-opcode tests + convergence doc (post-INLINE-ALL closure tasks).
+**Gate entering next session: PASS=407 FAIL=0 STUB=647 NEW=0 GONE=0 (one4all `3529f907`).** PASS 408→407 and STUB 651→647 are intentional (SM_PUSH_EXPR cells retired). GATE-S `--run` 186, GATE-J 4/0. No inherited bugs. **All 3 one4all commits + this .github commit NOT yet confirmed on remote at write time — verify `git log origin/main..HEAD` is empty in each repo.**
 
-**Gate entering next session: PASS=408 FAIL=0 STUB=651 (one4all `302a1207`). No inherited bugs.**
+### Next session — pick one:
+1. **EC-UNI-23 NO-AST-PUSH-EXPR** (Lon's priority — delete SM_PUSH_EXPR, force Icon LIMIT + Prolog UNIFY/CUT to grow BB graphs). TDD: add LIMIT/UNIFY/CUT BB-graph smoke tests FIRST. Steps EC-23a–f below.
+2. **BREAKX-2** — finish the enum-insertion chain so `lower.c` routes BREAKX→`rt_bb_brkx` (steps in `87957d79`/`3529f907` commit bodies; insert `SM_PAT_BREAKX`/`BB_PAT_BREAKX` at END of enums — mid-list renumbers index-aligned name arrays + audit).
+3. Per-backend Phase B GOAL files (post-INLINE-ALL).
 
-### Next session:
-INLINE-ALL is substantively complete. Remaining emit_bb.c deletion requires Lon decision (retire the blocker or find new path). Next productive work: **EC-UNI-22** (close: update ARCH-IR.md, ARCH-SCRIP.md, invariants, per-backend GOAL files, mark EC-UNI complete) — or pivot to another active goal (CHUNKS, PST, TEXTF).
+**Known issues flagged:** (a) `SM_PUSH_EXPR` opcode + `emit_push_expr` + 3 callers (`lower.c` TT_LIMIT/TT_UNIFY/TT_CUT) still live though 0/200 programs emit it — EC-UNI-23 retires them. (b) Normalizer gap: `normalize_per_kind_cell.py` strips `0x`+8+ hex digits, so 6-digit addresses escape — surfaced when code-size shift moved a baked address across the digit boundary.
 
 ## Session Setup
 
@@ -503,6 +502,19 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost. Post-INLINE-ALL cost: 1 new template file with 5 inlined arms.
 - [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline. Choose (a) re-converge to `abfd19a7...` (646 lines), or (b) retire M1, record new baseline `9cddff25...` (622 lines), re-stamp Milestone 1.
 - [x] **EC-UNI-22** ✅ — closed: `ARCH-IR.md` updated (new-opcode instructions reflect INLINE-ALL), invariant #11 added to HQ. Per-backend GOAL files clean (no stale refs). EC-UNI-INLINE-ALL complete; Phase B opens. (`302a1207`, session ~10, 2026-05-22)
+- [ ] **EC-UNI-23 — NO-AST-PUSH-EXPR (delete `SM_PUSH_EXPR`)** ⚡ **Runs DIRECTLY AFTER emitter consolidation (EC-UNI-22).** **Rationale (Lon, 2026-05-22):** `SM_PUSH_EXPR` is the last AST escape hatch in lowering — `emit_push_expr()` (`lower.c` ~74) does `SM_emit_ptr(g_p, SM_PUSH_EXPR, ast_gc_clone(t))`, freezing a raw `tree_t*` into the instruction stream so the runtime can fall back to AST interpretation. Deleting it is a **forcing function**: with no `PUSH_EXPR`, the Icon `LIMIT` and Prolog `UNIFY`/`CUT` lowering paths CANNOT defer to the AST and MUST grow real BB graphs. This is the [NO-AST] invariant (Invariant #1) made unavoidable — the correct control. Superseded in practice by `SM_PUSH_EXPRESSION` (`entry, arity` — a hoisted-thunk reference, no frozen AST). No test program emits `SM_PUSH_EXPR` today (0/200 surveyed), but 3 live dispatch sites still lower to it.
+    **Current state (session ~11, 2026-05-22):** audit cell already retired (`57c96cbd`) — the x86 arm emitted an unstable host pointer. Opcode + `emit_push_expr` + 3 callers remain.
+    **Steps:**
+    - [ ] **EC-23a** — Survey the 3 `emit_push_expr` callers and define their BB-graph replacement:
+        - `lower.c` `lower_limit` (`TT_LIMIT`, ~1468): currently `emit_push_expr(t); SM_emit(SM_BB_PUMP)`. Icon LIMIT(e,n) — must lower `e` to a real generator BB graph + a pump/count box, not a frozen AST thunk.
+        - `lower.c` `TT_UNIFY` (~1893): `emit_push_expr(t); SM_emit_si(SM_CALL_FN,"PL_UNIFY",0)`. Prolog `=/2` — must build `BB_PL_UNIFY` over lowered argument BB nodes.
+        - `lower.c` `TT_CUT` (~1894): `emit_push_expr(t); SM_emit_si(SM_CALL_FN,"PL_CUT",0)`. Prolog `!` — must build `BB_PL_CUT`.
+      Cross-ref `GOAL-PROLOG-BB-JCON.md` (PJ-9e multi-clause bodies) and `GOAL-LANG-ICON.md` (IC-9) — these are the sessions this deletion forces forward.
+    - [ ] **EC-23b** — Add BB-graph smoke tests for LIMIT / UNIFY / CUT FIRST (TDD: deletion must not silently break Prolog cut/unify — there is no current coverage). Gate: each runs correctly in `--interp` and `--run`.
+    - [ ] **EC-23c** — Rewire the 3 sites to build BB graphs (per EC-23a); delete `emit_push_expr` helper.
+    - [ ] **EC-23d** — Delete `SM_PUSH_EXPR` from `src/include/SM.h` enum. ⚠ **Delete in place is safe ONLY if it is the LAST member or removal is paired with a full rebuild** — but the SM opcode enum is index-aligned with the name array `sm_prog.c:242` (`g_sm_op_names[]`) and the interp handler table `sm_jit_interp.c:1009`. Removing a mid-enum member renumbers all subsequent opcodes. Either (a) remove the enum member AND the corresponding name-array slot AND handler-table slot together (all index-aligned, rebuild catches mismatches via the per-kind audit), or (b) if any serialized SM persists across the boundary, leave a `SM_PUSH_EXPR_DEAD` placeholder. Prefer (a).
+    - [ ] **EC-23e** — Delete the now-orphaned `sm_push_expr` template arm (`SM_templates/sm_expr_incr.c`), its dispatch case (`emit_core.c:1360`), the interp handler `h_push_expr` (`sm_jit_interp.c`), and the `SM.h` doc comments referencing `SM_PUSH_EXPR`. Build catches stragglers.
+    - [ ] **EC-23f** — GATE-PK + GATE-S + GATE-J. Prolog/Icon smoke must stay green (now via BB graphs, not AST). Freeze baseline. Commit.
 
 ---
 
