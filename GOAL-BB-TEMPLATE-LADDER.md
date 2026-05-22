@@ -1,0 +1,168 @@
+# GOAL-BB-TEMPLATE-LADDER.md — Fill BB and SM Templates: Icon + Prolog Ladder
+
+**Repo:** one4all + corpus + .github
+**Prereq:** GOAL-HEADQUARTERS.md PP-1..6 ✅ (`929d3177`) — pSM/pBB explicit params live.
+
+## What this goal is
+
+The PP rung gave every SM and BB template an explicit typed pointer (`const SM_t * pSM`,
+`BB_t * pBB`). The template system is now properly parameterized. The BB and SM template
+bodies for Icon and Prolog are honest stubs returning immediately. This goal fills them
+incrementally — one operation at a time, growing from the smallest infitesimal program
+toward full coverage — exactly how SNOBOL4, Icon, and Prolog were first developed.
+
+The prior Icon BB work (GOAL-ICON-BB-NATIVE, GOAL-ICON-BB-COMPLETE) predated the SM
+corral system (PP, EAO). Those goals built emitters outside the template system and are
+superseded. The template system is now the one true path.
+
+## Architecture reminder
+
+```
+Icon/Prolog source
+    → frontend (parser + lowerer)
+    → SM sequence (thin carrier: SM_BB_PUMP_PROC, SM_BB_ONCE_PROC, SM_BB_PUMP, ...)
+    → SM templates (sm_bb_calls.c — already wired for x86)
+    → BB graph (BB_ICN_*, BB_PL_* nodes)
+    → BB templates (bb_icn_stub.c, bb_pl.c — ALL STUBS TODAY)
+    → emitted x86 / JVM / JS / .NET / WASM
+```
+
+Icon is 99% BB. Prolog is 99% BB. The SM shims (`SM_BB_PUMP_PROC`,
+`SM_BB_ONCE_PROC`) are already wired in `sm_bb_calls.c` for x86. The gap is every
+`BB_ICN_*` and `BB_PL_*` template body.
+
+## Invariants (non-negotiable)
+
+1. One template file per BB kind — RULES.md. No grouped ICN or PL stubs.
+2. No C Byrd-box functions — RULES.md. Emit x86; do not write `DESCR_t foo(void*,int)`.
+3. No AST walking in modes 2/3/4 — RULES.md.
+4. Every new template takes `BB_t * pBB` — PP-2 contract.
+5. Gate after every rung: GATE-PK 407/0/647 must hold. Rung gate must improve or hold.
+6. Rung files live in corpus — flat files, `rung<NN>_<desc>.icn` / `.pl` + `.expected`.
+
+## SM bridge hooks (already wired — do not touch)
+
+| SM opcode | Handler | Used by |
+|-----------|---------|---------|
+| `SM_BB_PUMP_PROC` | `sm_bb_pump_proc()` in `sm_bb_calls.c` | Icon proc call |
+| `SM_BB_ONCE_PROC` | `sm_bb_once_proc()` in `sm_bb_calls.c` | Prolog predicate |
+| `SM_BB_PUMP` | stub — `[NO-AST]` | Icon expression pump (future) |
+| `SM_BB_ONCE` | stub — `[NO-AST]` | (future) |
+| `SM_BB_PUMP_EVERY` | stub — `[NO-AST]` | Icon `every` (future) |
+
+## BB kinds to fill — Icon
+
+Each gets its own `BB_templates/bb_icn_<name>.c`. Ordered by first rung that needs it.
+
+| BB kind | Rung needed | Semantics |
+|---------|------------|-----------|
+| `BB_ICN_TO` | rung01 | integer range generator `lo to hi`; α resets, β advances |
+| `BB_ICN_TO_BY` | rung01 | `lo to hi by step` |
+| `BB_ICN_BINOP` | rung01 | arith/relop with generative operands |
+| `BB_ICN_PROC_GEN` | rung02 | user proc call generator via GeneratorState |
+| `BB_ICN_UPTO` | rung03 | `suspend` body — yields up to N times |
+| `BB_ICN_ALTERNATE` | rung04 | `A \| B` — left first then right |
+| `BB_ICN_LIMIT` | rung05 | `gen \N` — yield up to N ticks |
+| `BB_ICN_ITERATE` | rung06 | `!list` iterate |
+| `BB_ICN_SCAN` | rung07 | `subj ? body` |
+| `BB_ICN_KEYWORD` | rung08 | `&subject`, `&pos` etc. |
+| `BB_ICN_LIST_BANG` | rung09 | `!L` list/table generator |
+| `BB_ICN_RECORD_DEF` | rung10 | `record T(f1,f2,...)` |
+| `BB_ICN_FIELD_GET` | rung11 | `obj.field` read |
+| `BB_ICN_FIELD_SET` | rung11 | `obj.field := rhs` |
+| `BB_ICN_IDX` | rung12 | `s[i]` subscript |
+| `BB_ICN_SECTION` | rung12 | `s[i:j]` section |
+| `BB_ICN_IDX_SET` | rung13 | `base[idx] := rhs` |
+| `BB_ICN_KEY_GEN` | rung14 | `key(t)` generator |
+| `BB_ICN_TO_NESTED` | rung15 | `(lo_gen) to (hi_gen)` cross-product |
+| `BB_ICN_FIND_GEN` | rung16 | find generator |
+| `BB_ICN_SEQ_GEN` | rung17 | seq generator |
+| `BB_ICN_LCONCAT` | rung18 | list concat |
+
+## BB kinds to fill — Prolog
+
+Each gets its own `BB_templates/bb_pl_<name>.c`.
+
+| BB kind | Rung needed | Semantics |
+|---------|------------|-----------|
+| `BB_PL_BUILTIN` | rung01 | `write/1`, `nl/0`, `halt/0` — direct C calls |
+| `BB_PL_UNIFY` | rung02 | `X = Y` — unification |
+| `BB_PL_VAR` | rung02 | variable slot read |
+| `BB_PL_ATOM` | rung02 | atom literal |
+| `BB_PL_ARITH` | rung03 | `Y is X+2` — arithmetic |
+| `BB_PL_SEQ` | rung03 | conjunction `A, B, C` |
+| `BB_PL_CALL` | rung04 | predicate call |
+| `BB_PL_CHOICE` | rung05 | multi-clause alternative |
+| `BB_PL_ALT` | rung06 | inline disjunction `;` |
+| `BB_PL_CUT` | rung07 | `!` cut |
+
+## Ladder steps — Icon
+
+- [ ] **ICN-T-1** — `bb_icn_to.c`: `BB_ICN_TO` x86 template. Verify rung01 `1 to 5` PASS. GATE-PK.
+- [ ] **ICN-T-2** — `bb_icn_to_by.c`: `BB_ICN_TO_BY`. Verify rung01 step variants PASS. GATE-PK.
+- [ ] **ICN-T-3** — `bb_icn_binop.c`: `BB_ICN_BINOP`. Verify rung01 arithmetic + relop PASS. GATE-PK.
+- [ ] **ICN-T-4** — `bb_icn_proc_gen.c`: `BB_ICN_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
+- [ ] **ICN-T-5** — `bb_icn_upto.c`: `BB_ICN_UPTO`. Verify rung03 suspend/generator PASS. GATE-PK.
+- [ ] **ICN-T-6** — `bb_icn_alternate.c`: `BB_ICN_ALTERNATE`. Verify rung04 `A|B` PASS. GATE-PK.
+- [ ] **ICN-T-7** — `bb_icn_limit.c`: `BB_ICN_LIMIT`. Verify rung05 `gen\N` PASS. GATE-PK.
+- [ ] **ICN-T-8** — `bb_icn_iterate.c`: `BB_ICN_ITERATE`. Verify rung06 `!list` PASS. GATE-PK.
+- [ ] **ICN-T-9** — `bb_icn_scan.c`: `BB_ICN_SCAN`. Verify rung07 scan PASS. GATE-PK.
+- [ ] **ICN-T-10** — `bb_icn_keyword.c`: `BB_ICN_KEYWORD`. Verify rung08 keywords PASS. GATE-PK.
+- [ ] **ICN-T-11..N** — remaining BB_ICN_* kinds, one per step, one rung per step.
+
+## Ladder steps — Prolog
+
+- [ ] **PL-T-1** — `bb_pl_builtin.c`: `BB_PL_BUILTIN` x86 template (write/nl/halt). Verify rung01 `hello` PASS. GATE-PK.
+- [ ] **PL-T-2** — `bb_pl_unify.c` + `bb_pl_var.c` + `bb_pl_atom.c`. Verify rung02 unification PASS. GATE-PK.
+- [ ] **PL-T-3** — `bb_pl_arith.c` + `bb_pl_seq.c`. Verify rung03 arithmetic PASS. GATE-PK.
+- [ ] **PL-T-4** — `bb_pl_call.c`. Verify rung04 predicate call PASS. GATE-PK.
+- [ ] **PL-T-5** — `bb_pl_choice.c`. Verify rung05 multi-clause PASS. GATE-PK.
+- [ ] **PL-T-6** — `bb_pl_alt.c`. Verify rung06 disjunction PASS. GATE-PK.
+- [ ] **PL-T-7** — `bb_pl_cut.c`. Verify rung07 cut PASS. GATE-PK.
+
+## Session Setup
+
+```bash
+bash /home/claude/one4all/scripts/install_system_packages.sh
+cd /home/claude/one4all && make -j4 scrip > /tmp/build_full.log 2>&1
+[ -x scrip ] || { grep -E "error:" /tmp/build_full.log | head -5; exit 1; }
+for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
+done
+bash /home/claude/one4all/scripts/test_per_kind_diff.sh
+# Expect: PASS=407 FAIL=0 STUB=647
+bash /home/claude/one4all/scripts/test_icon_all_rungs.sh 2>&1 | tail -3
+# Expect: PASS=194 FAIL=36 XFAIL=35
+bash /home/claude/one4all/scripts/test_smoke_prolog.sh
+# Expect: PASS=5 FAIL=0
+```
+
+## Gates
+
+```
+GATE-PK   bash scripts/test_per_kind_diff.sh          # always — 407/0/647
+GATE-ICN  bash scripts/test_icon_all_rungs.sh         # Icon rung count must improve
+GATE-PL   bash scripts/test_smoke_prolog.sh           # Prolog smoke must hold
+GATE-ICN-SM bash scripts/test_smoke_icon.sh           # smoke must hold
+```
+
+## How to write a BB template
+
+1. Read `ARCH-SCRIP.md` §"BB templates" and the existing `bb_lit.c` as the model.
+2. Create `src/emitter/BB_templates/bb_icn_<name>.c` (or `bb_pl_<name>.c`).
+3. Add `void bb_icn_<name>(BB_t * pBB)` (or `int`) to `BB_templates/bb_templates.h`.
+4. Wire into `emit_bb_node` switch in `emit_core.c` for the relevant `BB_ICN_*` / `BB_PL_*` kind.
+5. Add compile rule to Makefile.
+6. Start with IS_X86 arm only; IS_JVM/JS/NET/WASM stubs return immediately.
+7. Run rung gate. If rung count improves: commit.
+
+## Watermark
+
+```
+one4all: 929d3177 (PP-1..6; BB/SM templates all have pSM/pBB params)
+Gate: PASS=407 FAIL=0 STUB=647
+Icon --interp: PASS=194 FAIL=36 XFAIL=35
+Prolog smoke: PASS=5 FAIL=0
+```
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
