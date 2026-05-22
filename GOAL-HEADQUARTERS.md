@@ -18,15 +18,19 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~18)
+## Session State (2026-05-22, session ~19)
 
-**one4all HEAD: `774c981f`** — STYLE-BASELINE-COMPRESS ✅ + INLINE-SPLIT-GROUPS ✅ + SM-PAT-NULLARY-AUDIT ✅ cleared. GATE-PK 407/0/647.
+**one4all HEAD: `7681ac7b`** — IS_X86-STRUCTURE fix (bb_pat_alt/cat dead IS_BIN) + STYLE-BASELINE-COMPRESS ✅ + INLINE-SPLIT-GROUPS ✅. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
-- **Step 13**: next HQ maintenance step — pick from active goals table or audit sm_misc_nullary (7 opcodes).
+- **Step 14**: audit sm_var (SM_PUSH_VAR / SM_STORE_VAR) — JVM/JS/NET/WASM shapes diverge per opcode → likely invalid group.
 - Any other active goal.
+
+**sm_misc_nullary audit ✅ CLEARED (session ~19):** All 7 opcodes share identical outer shape in every backend (one-liner call). VOID_POP/PUSH_NULL_NOFLIP/NEG/EXP name-level irregularities preserved; outer structure uniform. No split.
+
+**IS_X86-STRUCTURE fix (session ~19):** bb_pat_alt.c and bb_pat_cat.c had dead top-level `if (IS_BIN) return;` inherited from combine_group. Removed. emit_flat_ir inside IS_X86 handles both TEXT and BIN. GATE-PK 407/0/647.
 
 **Step 10 STYLE-BASELINE-COMPRESS ✅ COMPLETE (session ~18):** freeze_per_kind_baseline.sh now writes .raw through normalizer. 165 files changed, raw==norm. GATE-PK 407/0/647. one4all HEAD 774c981f.
 
