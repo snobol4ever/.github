@@ -160,11 +160,14 @@ GATE-ICN-SM bash scripts/test_smoke_icon.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 43b873a1 (ICN-T-1 merge complete)
-Gate: PASS=409 FAIL=0 STUB=645
+one4all: 930df35a (PL-T-1..3 complete)
+Gate: PASS=419 FAIL=0 STUB=635
 Icon --interp: PASS=194 FAIL=36 XFAIL=35
 Prolog smoke: PASS=5 FAIL=0
-NEXT: ICN-T-2 (bb_icn_to_by.c, BB_ICN_TO_BY x86 template, rung01 step variants)
+PL-T-1 ✅ bb_pl_builtin.c (write/nl/halt)
+PL-T-2 ✅ bb_pl_var.c + bb_pl_atom.c + bb_pl_unify.c
+PL-T-3 ✅ bb_pl_arith.c + bb_pl_seq.c
+NEXT: PL-T-4 — bb_pl_call.c (rt_pl_call); then PL-T-5 choice, PL-T-6 alt, PL-T-7 cut
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
