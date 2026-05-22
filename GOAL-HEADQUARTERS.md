@@ -18,14 +18,13 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~14)
+## Session State (2026-05-22, session ~15)
 
-**one4all HEAD: `df5838e8`** — INLINE-4c: sm_define_group; shadow locals cleaned; GATE-PK 407/0/647.
+**one4all HEAD: `TBD-after-push`** — INLINE-3-GROUP + INLINE-8: 13 absorbed bb_*.c files deleted; 4 group templates own dispatch. GATE-PK 407/0/647.
 
-**Gate entering next session: PASS=407 FAIL=0 STUB=647 at `df5838e8`. Verify `git -C one4all log origin/main..HEAD` at session start.**
+**Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
-- ~~**EC-UNI-23**~~ ✅ COMPLETE `7293cc40`
 - **Step 10 STYLE-BASELINE-COMPRESS**: normalize `.s.raw` baselines to single-space tokens.
 
 ## Session Setup
@@ -106,7 +105,7 @@ bash scripts/freeze_per_kind_baseline.sh && bash scripts/test_per_kind_diff.sh
 **BB-side:**
 - [x] **INLINE-3** ✅ — `emit_flat_ir_alt`/`_cat`/`_fence` already inlined in BB_templates.
 - [x] **INLINE-3-GROUP** — BB grouped templates: `bb_pat_anchor_group` (POS/RPOS/TAB/RTAB/LEN), `bb_pat_charset_group` (ANY/NOTANY/SPAN/BREAK), `bb_pat_nullary_group` (REM/ARB/ABORT/FENCE), `bb_pat_combine_group` (ALT/CAT).
-- [ ] **INLINE-8** — Orphan sweep: delete absorbed `emit_bb_x*`/`emit_sm_*` fns.
+- [x] **INLINE-8** — Orphan sweep: delete absorbed `emit_bb_x*`/`emit_sm_*` fns.
 
 ### Step 10 — STYLE-BASELINE-COMPRESS
 
