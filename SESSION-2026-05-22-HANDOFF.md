@@ -1,89 +1,75 @@
-# Session Handoff: 2026-05-22 — INLINE-6 E3 Complete
+# SESSION HANDOFF — 2026-05-22 (session ~10, EC-UNI-INLINE-ALL closure)
 
-## Final State
-- **one4all:** `1ec6d8fa`
-- **GATE-PK:** PASS=404 FAIL=0 STUB=655 NEW=0 GONE=0
-- **No inherited bugs.** Gate is green. Start coding immediately.
+## Repos at handoff
 
-## What This Session Did (session ~9 of EC-UNI-INLINE-ALL)
+| Repo | HEAD |
+|------|------|
+| one4all | `302a1207` |
+| .github | `b3c84f08` |
+| corpus | unchanged from session start |
 
-### Repairs (inherited from `48497c58`)
-1. `sm_expr_incr.c` — IS_MACRO_DEF arms placed outside function bodies; `return 0` in void fns
-2. `emit_sm.c` line 1697 — stray `"` in fprintf string literal
-3. `emit_bb.c` line 488 — stray `else` without preceding `if`
-4. `emit_core.c` — `emit_jmp`/`emit_text_jmp`/`emit_text_label` deleted by PIVOT but BB templates still called them; restored as bare `fprintf` wrappers
+## Gate
 
-### Forward Progress (`1ec6d8fa`, -1342 lines)
-- **`sm_stno` IS_X86 arm** inlined: eliminated `emit_sm_stno_template` → `emit_sm_stno_dispatch` → `emit_sm_stno` chain. Uses `emit_text_stno_banner` + `emit_textf` directly. SrcLines inaccessible from template TU (internal to emit_sm.c) — NULL src text correct for audit/JIT path.
-- **`sm_compare` IS_MACRO_DEF** `return 0` → `return` fixed; IS_JVM guard restored.
-- **Mass delete** — entire legacy SM dispatch infrastructure gone from `emit_sm.c`:
-  - `sm_op_template_t` typedef + `sm_tpl_kind_t` enum
-  - `g_sm_templates[]`, `G_SM_TEMPLATES_N`, `g_tpl_unhandled`, `g_tpl_ret_var`
-  - `sm_template_lookup()`, `sm_template_unhandled()`, `sm_template_ret_var()`
-  - `render_macro_body()`, `build_args_col()`, `render_call_line()`
-  - `emit_sm_template()`, `emit_sm_rtcall()`, `emit_sm_noop()`, `emit_sm_int64()`
-  - `emit_sm_lbl()`, `emit_sm_lblopt()`, `emit_sm_lbl_int32()`, `emit_sm_lblopt_int32()`
-  - `emit_sm_ret()`, `emit_sm_ret_var()`, `emit_sm_ret_nreturn()`
-  - `emit_sm_capture_fn()`, `emit_sm_capture_fn_args()`
-  - 31 `emit_sm_*_dispatch` functions
-  - 8 shim wrappers (`emit_sm_pat_*_template`, `emit_sm_exec_stmt_template`)
-  - `emit_sm_args_t` typedef, `pat_arg_label()`, `edp4_sm_arith()`, `edp4_sm_unhandled()`
-  - `emit_sm_pat_baked()` inlined as direct `fprintf` in walk loop
-  - `edp4_sm_unhandled()` inlined as `fprintf("UNHANDLED %s\n", ...)` in walk loop
-- **`emit_sm.c`: 2808 → 1870 lines** (-938 lines of dead machinery)
+**PASS=408 FAIL=0 STUB=651** throughout. Zero regressions.
 
-## What Remains for EC-UNI-INLINE-ALL
+## What was done this session
 
-### Step 4 — INLINE-3: BB-side (do first, unblocks grouping)
-Move these 3 helpers from `emit_bb.c` into their BB template IS_X86 arms:
-- `emit_flat_ir_alt` → `BB_templates/bb_pat_alt.c` IS_X86 arm
-- `emit_flat_ir_cat` → `BB_templates/bb_pat_cat.c` IS_X86 arm  
-- `emit_flat_ir_fence` → `BB_templates/bb_fence.c` IS_X86 arm
+### INLINE-6 — full dead-machinery sweep of emit_sm.c + headers
 
-Recipe per function:
-1. Open `emit_bb.c`, find the function body
-2. Open the target BB template, paste into IS_X86 arm as bare `emit_textf` / `fprintf`
-3. `make -j4 scrip` + `bash scripts/test_per_kind_diff.sh` → expect FAIL on touched cells
-4. `bash scripts/freeze_per_kind_baseline.sh` → confirm PASS=N FAIL=0
-5. Delete from `emit_bb.c`, commit
+Four commits to one4all:
 
-### Step 5 — BB grouping (5 groups)
-After INLINE-3, collapse BB kinds with shared shape:
-- `bb_pat_anchor_group` — POS/RPOS/TAB/RTAB/LEN (offset-anchored, int arg)
-- `bb_pat_charset_group` — ANY/NOTANY/SPAN/BREAK (charset arg)
-- `bb_pat_nullary_group` — REM/ARB/ABORT/FENCE (zero arg)
-- `bb_pat_string_arg_group` — LIT (solo; group if more appear)
-- `bb_pat_combine_group` — ALT/CAT (post INLINE-3, child-walking)
+| Commit | Work | Net |
+|--------|------|-----|
+| `1318fede` | Delete `g_sm_nullary`, `emit_sm_nullary_rt`, `emit_sm_op`, all `emit_sm_pat_*` wrappers, `emit_sm_coerce_num/exp/neg`, `g_sm_arith`, `emit_sm_arith_op`, `emit_sm_int_arg`, `emit_sm_acomp/lcomp`; orphaned dispatch decls from `emit_sm.h` + `emit_templates.h` | −379 lines/decls |
+| `2c4cc75c` | Dedup 3 include clusters → 1, remove stale comment blocks | emit_sm.c 1766→1414 |
+| `845af881` | Delete `emit_sm_op_*` family from `emit_sm.h` (53 decls, no definitions anywhere) | −53 decls |
+| `302a1207` | Delete `emit_sm_selftest` dead decl; `git rm sm_pat_control.c sm_pat_position.c`; Makefile updated | −2 stub files |
 
-Recipe: same as SM-side grouping (see HQ Invariant #10 + LIFT PATTERN section).
+**emit_sm.c: 1766 → 1414 lines (−352). SM_templates/: 15 → 13 files.**
 
-### Step 6 — emit_bb.c residue deletion
-After steps 4+5, delete what remains of `emit_bb.c` emit logic.
-Current: 1197 lines. Target: minimal dispatcher shell only.
+### EC-UNI-22 — closure docs
 
-## Session Setup for Next Agent
+Two commits to .github:
+
+- `1ed9537a` — HQ SESSION ACCOUNTING updated (session ~10)
+- `b3c84f08` — EC-UNI-22 ✅: invariant #11 added to HQ, `ARCH-IR.md` new-opcode guide rewritten for INLINE-ALL world, EC-UNI-22 marked complete, Phase B opened
+
+## Architecture state (INLINE-ALL complete)
+
+Every SM/BB code-generation path now lives exclusively in:
+- `src/emitter/SM_templates/*.c` (13 files, grouped by opcode family)
+- `src/emitter/BB_templates/*.c` (one file per BB box kind)
+
+`emit_sm.c` carries only: walker, string-table, pattern-window, pc-label infrastructure, and `emit_sm_macro_library`.
+
+**No wrapper functions. No table-driven dispatch. No per-opcode helpers outside template files.**
+
+## Remaining EC-UNI work
+
+| Rung | Status | Notes |
+|------|--------|-------|
+| EC-UNI-REFAITH | Open (no current FAILs) | Repair protocol; activates if FAIL > 0 |
+| EC-UNI-19 | Open | Add-backend cost measurement (EMIT_NULL=99), patch+revert |
+| EC-UNI-20 | Open | Add-opcode cost measurement (SM_NOP), patch+revert |
+| EC-UNI-21 | Open | M1 baseline reconciliation — **awaits Lon decision** |
+| emit_bb.c residue | Blocked | `flat_fill_and_call/bin/charset + emit_flat_ir` still live; INLINE-3-GROUP rejected; **awaits Lon directive** |
+| Phase B | Open | Fill STUB=651 cells with real emission per backend/kind |
+
+## Decisions needed from Lon
+
+1. **EC-UNI-21:** Which M1 baseline? (a) re-converge to `abfd19a7` 646 lines, or (b) retire, stamp `9cddff25` 622 lines
+2. **emit_bb.c residue:** retire the INLINE-3-GROUP blocker, or find alternate path to delete `flat_fill_*` cluster
+3. **Next goal:** CHUNKS, PST, TEXTF, EC-UNI-19/20, or Phase B backend work?
+
+## Session start protocol for next session
 
 ```bash
+git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
+git clone https://TOKEN@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/corpus /home/claude/corpus
+# Read PLAN.md, RULES.md, then goal file
 bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip > /tmp/build_full.log 2>&1
-[ -x /home/claude/one4all/scrip ] || { grep -E "error:|fatal error" /tmp/build_full.log | head -5; exit 1; }
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
-    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
-done
-bash /home/claude/one4all/scripts/test_per_kind_diff.sh
-# Expect: PASS=404 FAIL=0 STUB=655 NEW=0 GONE=0  (one4all 1ec6d8fa)
+cd /home/claude/one4all && make -j4 scrip
+bash scripts/test_per_kind_diff.sh
+# Expect: PASS=408 FAIL=0 STUB=651 at one4all 302a1207
 ```
-
-## Key Lessons (do not repeat)
-
-1. **`SrcLines` is internal to `emit_sm.c`** — never try to access it from templates. Pass NULL for src text; the audit/JIT path doesn't have source lines anyway.
-2. **`emit_jmp`/`emit_text_jmp`/`emit_text_label` must exist in `emit_core.c`** — BB templates call them. PIVOT deleted them; they were restored this session as bare `fprintf`.
-3. **Python mass-delete leaves struct fragments** — after deleting `} sm_op_template_t;`, the open `typedef struct {` stays. Always scan for orphaned enum/struct bodies after a sweep.
-4. **PUSH_EXPR address in baseline is <8 hex digits** — normalizer threshold misses it; refreeze is correct, not a bug.
-5. **Lon is counting sessions. Target: close EC-UNI-INLINE-ALL in 1 more session.**
-
-## Accounting
-- Sessions so far on EC-UNI-INLINE-ALL: ~9
-- Commits in last 2 days: 130
-- `emit_sm.c` at session start: 2808 lines. Now: 1870. Target: ~1400 (after walk-loop cleanup).
-- `emit_bb.c` now: 1197 lines. Target: ~400 (dispatcher shell only).
