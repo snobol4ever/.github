@@ -1,4 +1,4 @@
-# GOAL-ICON-BB-COMPLETE.md — All Icon Byrd-Box constructs in modes 1/2/3 (then 4)
+# GOAL-ICON-BB-JCON.md — All Icon Byrd-Box constructs in modes 1/2/3 (then 4)
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
