@@ -105,17 +105,38 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
-one4all: 65c5713f  (INLINE-4a slice 24: DEFINE-family X86 arms inlined to bare
-                     emit_textf. SM_DEFINE -> "DEFINE # name\n"; SM_DEFINE_ENTRY
-                     -> "DEFINE_ENTRY # prev-name\n" + emit_mode_set +
-                     insn_push_rbp + insn_mov_rbp_rsp + g_in_define_body=1.
-                     GATE-PK PASS=420 FAIL=0 STUB=639.)
-one4all: ef06a3e8  (INLINE-4a slice 23: LBL-family X86 arms inlined to bare
-                     emit_textf. PUSH_STR/PUSH_VAR/STORE_VAR. render_str_preview
-                     + STR_PREVIEW_MAX promoted to Layer-3 (sm_template_common.h).
-                     SM_PUSH_LIT_CS shares sm_push_lit_s. GATE-PK 420/0/639.)
+one4all: 1bd95155  (PIVOT — FORMATTING LAYER DELETED, session 2026-05-22.
+                     Lon directive: templates/emitters carry ZERO formatting; do
+                     straight prints; comparison is FILTERED not byte-identity.
+                     emit_core.c: bb3c_format/bb3c_emit_jmp -> single-spaced
+                     straight prints; bb3c_write_line/pad_to_width/visual_width/
+                     is_cond_jmp + pending-state globals DELETED; flush fns no-op;
+                     t3/tf/T3C/tj -> fprintf. emit_sm.c: emit_three_column_line ->
+                     straight print; dispatch loop emits ".L<pc>:" standalone via
+                     fprintf (LOOP owns label placement, templates never touch it);
+                     invariant blobs exec_stmt/pat_baked bare. emit_bb.c:
+                     emit_flat_entry_dispatch splits cmp/je/jmp into 3 plain lines
+                     (no ;-fusion, no col-27 pad); data_buf_three_col + pend-label
+                     de-padded. Net -132 LOC. 60/60 run-parity vs c44c3db6;
+                     GATE-PK 420/0/639 (re-frozen, x86 baselines only); GATE-S 184
+                     three-mode; GATE-J 4/0. ⚠ NOT PUSHED if hand-off interrupted —
+                     verify `git -C one4all log origin/main..HEAD`.)
+one4all: c44c3db6  (pre-pivot baseline: INLINE-4a-LABELFIX via dispatch-loop label
+                     ownership + exec_stmt/pat_baked blobs as bare emit_textf.
+                     Superseded by the pivot above but kept as the run-parity
+                     reference binary. GATE-PK 420/0/639.)
 
-⛔⛔⛔ CRITICAL OPEN BUG — INLINE-4a-LABEL-DISPLACEMENT (NEXT SESSION FIRST) ⛔⛔⛔
+✅ RESOLVED — INLINE-4a-LABEL-DISPLACEMENT was a FORMATTING artifact, not a real
+   codegen bug. The renderer's bb3c layer co-located/suppressed pc-labels; bare
+   emit_textf emitted them verbatim. With bb3c deleted, the dispatch loop now owns
+   pc-label placement (prints ".L<pc>:" standalone before dispatch). A standalone
+   label resolves to the same address as the old fused placement (intervening SM
+   pseudos LABEL/DEFINE emit zero bytes). The OLD fix plan below (emit_pc_label_flush
+   threaded into every template) is OBSOLETE — it would have put formatting back into
+   templates. Comparison harness is /tmp/semdiff8.py (labels bind to next real instr,
+   whitespace collapsed). Historical bug analysis retained below for context only.
+
+⛔⛔⛔ (HISTORICAL — RESOLVED) INLINE-4a-LABEL-DISPLACEMENT ⛔⛔⛔
   Slices 23 & 24 (and likely 19-22) introduced a JUMP-TARGET LABEL DISPLACEMENT
   regression. GATE-PK does NOT catch it (synthetic single-instruction audit has
   no pc-labels). Diagnosis is COMPLETE; the fix is designed but NOT yet correct
