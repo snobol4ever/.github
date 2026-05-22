@@ -19,18 +19,13 @@
 12. **No shadow locals in templates.** Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals and computed values are fine.
 13. **Entry labels belong to their template.** Each XA/SM/BB template that begins a named asm block emits its own entry label on the first line. No separate `XA_PC_LABEL` opcode — the template owns its label.
 
-## Session State (2026-05-22, session ~22)
+## Session State (2026-05-22, session ~23)
 
-**one4all HEAD: `6abafcb2`** — STYLE-NO-LOCAL-SHADOWS + IS_X86-STRUCTURE fix + STYLE-BASELINE-COMPRESS ✅. GATE-PK 407/0/647.
-
-**EAO-1 complete: `60ca2353`** — `docs/XA-OPCODE-INVENTORY.md` written. 15 emission sites found; 2 dead-code deletions identified.
+**one4all HEAD: `5a77ec2e`** — EAO-3/4: xa_macro_library + xa_bb_macro_library live; emit_sm_macro_library + emit_bb_macro_library_to_path + bm_* deleted. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647.**
 
-**Next session — pick one:**
-- **EAO-dead** — Delete dead code found in EAO-1: `emit_sm_stno` (+ `emit_templates.h` decl) and `emit_sm_set_pc_label` / `emit_sm_consume_pc_label` / `g_pending_pc_label` (+ `emit_sm.h` decl). Build + GATE-PK. Commit.
-- **EAO-2** — Scaffold `src/include/XA.h` (`XA_op_t` enum, initially empty) + `src/emitter/XA_templates/` with `xa_template_common.h` + `xa_templates.h` + stub `xa_dispatch()` in `emit_core.c`. Build. Commit.
-- Any STYLE step — all depend on EAO completing first.
+**NEXT: EAO-5** — `XA_EXEC_STMT_BLOB`: write `xa_exec_stmt_blob.c`, absorb `emit_sm_exec_stmt_blob` (static in emit_sm.c, ~20 lines). Replace call site in `emit_walk_codegen`. Build + GATE-PK. Commit. Then EAO-6 through EAO-10.
 
 ## XA opcode plan (from EAO-1)
 
@@ -62,10 +57,10 @@ XA opcodes to create:
 
 Every full asm block gets an opcode. No asm emitted by C functions called directly outside the template system.
 
-- [ ] **EAO-dead** — Delete `emit_sm_stno`, `emit_sm_set_pc_label`, `emit_sm_consume_pc_label`, `g_pending_pc_label`. Remove decls from `emit_templates.h` and `emit_sm.h`. Build + GATE-PK. Commit.
-- [ ] **EAO-2** — Scaffold `src/include/XA.h` + `XA_templates/` dir + `xa_template_common.h` + `xa_templates.h` + stub `xa_dispatch()` in `emit_core.c`. Build. Commit.
-- [ ] **EAO-3** — `XA_MACRO_LIBRARY`: write `xa_macro_library.c`, absorb `emit_sm_macro_library` body. Replace call site in `emit_walk_codegen`. GATE-PK. Commit.
-- [ ] **EAO-4** — `XA_BB_MACRO_LIBRARY`: write `xa_bb_macro_library.c`, absorb `emit_bb_macro_library_to_path` body. Replace call site. GATE-PK. Commit.
+- [x] **EAO-dead** — Delete `emit_sm_stno`, `emit_sm_set_pc_label`, `emit_sm_consume_pc_label`, `g_pending_pc_label`. Remove decls from `emit_templates.h` and `emit_sm.h`. `c79e0758`.
+- [x] **EAO-2** — Scaffold `src/include/XA.h` + `XA_templates/` dir + `xa_template_common.h` + `xa_templates.h` + stub `xa_dispatch()` in `emit_core.c`. `42a3d222`.
+- [x] **EAO-3** — `XA_MACRO_LIBRARY`: `xa_macro_library.c`, absorb `emit_sm_macro_library`. `5a77ec2e`.
+- [x] **EAO-4** — `XA_BB_MACRO_LIBRARY`: `xa_bb_macro_library.c`, absorb `emit_bb_macro_library_to_path` + `bm_*`. `5a77ec2e`.
 - [ ] **EAO-5** — `XA_EXEC_STMT_BLOB`: write `xa_exec_stmt_blob.c`. Replace `emit_sm_exec_stmt_blob`. GATE-PK. Commit.
 - [ ] **EAO-6** — `XA_FILE_HEADER` + `XA_FILE_FOOTER`: write `xa_file_header.c`. Replace `emit_file_header` / `emit_file_footer`. GATE-PK. Commit.
 - [ ] **EAO-7** — `XA_RODATA_STRTAB` + `XA_EXPRESSION_REGISTRY` + `XA_PL_PREDICATE_REGISTRY`: write `xa_rodata.c` + `xa_expression_registry.c` + `xa_pl_registry.c`. Replace three static fns in `emit_sm.c`. GATE-PK. Commit.
@@ -124,11 +119,12 @@ Mode 2 (`--interp`) = reference. Mode 4 (`--compile`) emits wired x86.
 ## Watermark
 
 ```
+5a77ec2e  EAO-3/4: xa_macro_library + xa_bb_macro_library. Delete emit_sm_macro_library, bm_*. GATE-PK 407/0/647.
+42a3d222  EAO-2: XA_templates scaffold. XA.h, xa_dispatch(), xa_stubs.c. GATE-PK 407/0/647.
+c79e0758  EAO-dead: delete emit_sm_stno, emit_sm_set_pc_label, emit_sm_consume_pc_label. GATE-PK 407/0/647.
 60ca2353  EAO-1: XA-OPCODE-INVENTORY.md — 15 emission sites, 2 dead-code deletions identified.
 6abafcb2  STYLE-NO-LOCAL-SHADOWS (sm_pat_nullary instr/op) + IS_X86-STRUCTURE fix + STYLE-BASELINE-COMPRESS. GATE-PK 407/0/647.
 4541c4da  INLINE-8: 13 absorbed bb_*.c orphans deleted. GATE-PK 407/0/647.
-67da2a22  INLINE-3-GROUP: bb_pat_{charset,anchor,nullary,combine}_group. GATE-PK 407/0/647.
-7293cc40  EC-UNI-23: SM_PUSH_EXPR deleted. [NO-AST] structurally enforced. GATE-PK 407/0/647.
 ```
 
 smoke icon: 5/0  smoke prolog: 5/0  smoke rebus: 4/0
