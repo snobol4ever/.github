@@ -220,9 +220,21 @@ former per-target `emit_jvm_program` / `emit_js_program` / `emit_net_program`
 4. Write `emit_new_from_sm` in `emit_core.c` (or a new `SM_templates/` file).
 5. Update `scrip.c` to call `emit_program(ast_prog, out, EMIT_NEW)`.
 
-### Adding a new SM opcode
+### Adding a new SM opcode (post-INLINE-ALL)
 
-Add one function with arms for every `IS_*` mode. Zero per-target files touched.
+Every SM opcode lives in exactly one `SM_templates/*.c` file. No code generation
+logic exists outside these files or `BB_templates/*.c`. Steps:
+
+1. Define the opcode in `src/lower/SM.h` (`SM_op_t` enum).
+2. Add a case to `sm_op_is_dispatched()` in `src/emitter/sm_dispatch.c`.
+3. Create or extend one `SM_templates/<group>.c` file. Add arms for every
+   `IS_X86`, `IS_JVM`, `IS_JS`, `IS_NET`, `IS_WASM`, `IS_MACRO_DEF` — even
+   if some arms are empty stubs. **No other file is touched.**
+4. Add a lowering arm in `sm_lower.c` to emit the new opcode.
+5. GATE-PK — baseline must not regress.
+
+One template function per opcode (or per group where shapes are identical).
+Zero per-target silo files. Zero helper wrappers outside the template.
 
 ### File map (post-EC series)
 
