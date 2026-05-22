@@ -105,6 +105,36 @@ Commit `baselines/per_kind/` with the source change. The diff IS the regression-
 ## Watermark
 
 ```
+one4all: 48497c58  (Formatter deletion + IS_MACRO_DEF, session 2026-05-21.
+                     DELETED: bb3c_format (144 call sites→direct fprintf),
+                     bb3c_flush_pending*, bb3c_emit_jmp, emit_text_3col,
+                     emit_pad_to_blob_size, fmt_body_append, fmt_flush_jmp*,
+                     emit_three_column_line (86 refs), g_fmt_label, g_fmt_body,
+                     emit_bb_is_format_mode, fmt_label_save, g_bb_emit_format,
+                     g_in_text_macro_body, --bb-format flag. Net: ~-400 LOC.
+                     ADDED IS_MACRO_DEF to all 27 SM template fns; IS_X86
+                     narrowed to exclude EMIT_MACRO_DEF. emit_sm_macro_library
+                     rewired to call emit_sm_dispatch under EMIT_MACRO_DEF mode.
+                     GATE-PK 420/0/639.
+                     NEXT: delete render_macro_body + g_sm_templates[] +
+                     sm_template_lookup + sm_op_template_t + emit_sm_template +
+                     emit_sm_rtcall + emit_sm_noop + emit_sm_int64 + emit_sm_lbl
+                     + emit_sm_ret + build_args_col (INLINE-6 / phase E3).
+                     Then delete EMIT_MACRO_DEF/EMIT_TEXT_INLINE/emit_macro_begin
+                     /emit_macro_end from emit_core once all callers gone.)
+one4all: 70ac4ff9  (INLINE-4a+4b+4c slices 1-3, session 2026-05-21.
+                     INLINE-4a: all remaining 8 dispatcher-backed IS_X86 arms
+                     inlined to bare emit_textf — sm_halt, sm_push_lit_i,
+                     sm_push_expression, sm_call_expression, sm_call_fn,
+                     sm_suspend_value, sm_bb_once_proc, sm_bb_pump_proc.
+                     INLINE-4b: 15 orphaned dispatcher fns + 14 header decls
+                     deleted from emit_sm.c/h (-192 LOC net).
+                     INLINE-4c slices 1-3: sm_var (PUSH_VAR/STORE_VAR),
+                     sm_call (CALL_FN/SUSPEND_VALUE), sm_pat_string_arg
+                     (PAT_LIT/REFNAME/USERCALL) grouped into single template fns.
+                     GATE-PK 420/0/639. GATE-M 285/0. GATE-E 8/1 (beauty SUSPENDED).
+                     NEXT: sm_define grouping (DEFINE/DEFINE_ENTRY) or INLINE-3
+                     (BB-side: inline emit_flat_ir_alt/cat/fence into BB_templates).)
 one4all: 1bd95155  (PIVOT — FORMATTING LAYER DELETED, session 2026-05-22.
                      Lon directive: templates/emitters carry ZERO formatting; do
                      straight prints; comparison is FILTERED not byte-identity.
