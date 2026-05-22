@@ -186,6 +186,28 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 - [ ] **ISO-4** — `scrip_parse` subprocess: parsers in separate executable, stdin=source, stdout=TDump S-expression. Write deserializer + roundtrip self-test first.
 - [ ] ISO-5, ISO-6, ISO-7 — shrink firewall allowlists toward 0.
 
+### EMIT-UNIFY — Consolidated and unified emitters
+
+**Goal:** every backend (X86/JVM/JS/NET/WASM) is fully wired in every SM and BB template — no silent `return;` stubs, no missing arms, no asymmetric coverage. Adding a new opcode means touching exactly one template file and filling all five `IS_<BE>` arms. Adding a new backend means adding one `IS_NEW` arm per template file.
+
+**Current state (session ~21):**
+- SM templates: X86=27 arms, JVM=16, JS=11, NET=10, WASM=12. Net/JS lag X86 by ~15–17 arms.
+- BB templates: X86=19 arms, JVM/JS/NET=16 each, WASM=2 (almost entirely stub).
+- Stub sentinels (`bb_stub`, `bb_pl`, `bb_lit_scalar`, `bb_icn_stub`, `bb_cset`) return immediately in all backends — these are known-incomplete opcodes, not structural defects.
+- WASM BB coverage is the largest gap: only `bb_pat_span/any/break/notany/rem/len/fence/arb/arbno/lit` have real WASM arms; all composite-pattern BB nodes (`bb_pat_alt`, `bb_pat_cat`, `bb_capture`, `bb_arbno` wiring, `bb_fail`) are stubs.
+
+**Invariants (from GOAL-HEADQUARTERS #7, #11):**
+- EC-UNI matrix: backends are columns. Text-vs-binary is inside each `IS_<BE>` arm. Never a matrix dimension.
+- INLINE-ALL: all emission lives in `SM_templates/*.c` and `BB_templates/*.c`. No helpers outside.
+
+**Steps:**
+
+- [ ] **EU-1 — AUDIT** — For each SM template file, tabulate which backends have real arms vs silent stubs. Output: `docs/EMIT-UNIFY-AUDIT.md` table with columns SM-fn / X86 / JVM / JS / NET / WASM / notes. Gate: PASS=407 FAIL=0 STUB=647 throughout.
+- [ ] **EU-2 — SM-NET-FILL** — Fill missing IS_NET arms in SM templates (estimated ~17 gaps). Each gap gets a real `emit_textf` call matching the .NET IL calling convention (`SnoRt::` static methods). Gate after each file.
+- [ ] **EU-3 — SM-JS-FILL** — Fill missing IS_JS arms in SM templates (~15 gaps). Each gap gets a real `emit_textf` call matching the JS runtime (`rt.<method>()`). Gate after each file.
+- [ ] **EU-4 — BB-WASM-FILL** — Fill WASM arms in BB templates for composite patterns (`bb_pat_alt`, `bb_pat_cat`, `bb_capture`, `bb_fail`, `bb_arbno`). Each gets a real `(call $bb_<name>_new)` WASM text emission. Gate after each file.
+- [ ] **EU-5 — AUDIT-CLOSE** — Re-run audit; confirm zero silent stubs remain outside the known-incomplete sentinel group (`bb_stub`, `bb_pl`, `bb_lit_scalar`, `bb_icn_stub`, `bb_cset`). Update `docs/EMIT-UNIFY-AUDIT.md`. Freeze baseline. Commit: `EMIT-UNIFY: all SM/BB backends fully wired. GATE-PK N/0/647.`
+
 ## Watermark
 
 ```
