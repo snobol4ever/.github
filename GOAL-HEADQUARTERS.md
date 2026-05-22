@@ -198,30 +198,30 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 
 **The rule:** Every full asm block — every named multi-instruction sequence that constitutes a recognisable unit of generated code — must have an opcode in the dispatch table and a template function that owns it. No asm is emitted by C functions called directly outside the template system.
 
-**New opcode class: `AD_*` / `ad_*` — Administrative**
+**New opcode class: `XA_*` / `xa_*` — eXecution Administrative**
 
 These are **administrative** opcodes: prologues, epilogues, trampolines, dispatch stubs, and other named asm fragments that form the skeleton around the semantic SM/BB opcodes. They have no language-semantic meaning — they manage the runtime scaffold.
 
 ```
-AD_MACRO_LIBRARY       — the full GAS macro-definition preamble (.intel_syntax + all .macro blocks)
-AD_EXEC_STMT_BLOB      — pattern-match call sequence (lea rdi/lea rsi|xor esi/mov edx/call rt_match_blob)
-AD_ENTRY_DISPATCH      — Byrd-box entry trampoline (cmp esi,0 / je α / jmp β)
-AD_FLAT_PROLOGUE       — .globl declarations + lea r10,[rip+Δ] before flat IR walk
-AD_STNO                — mov edi,N / call rt_set_stno@PLT (the stno emission currently in emit_sm_stno)
-AD_PC_LABEL            — pending-label flush (currently emit_sm_set_pc_label / emit_sm_consume_pc_label)
+XA_MACRO_LIBRARY       — the full GAS macro-definition preamble (.intel_syntax + all .macro blocks)
+XA_EXEC_STMT_BLOB      — pattern-match call sequence (lea rdi/lea rsi|xor esi/mov edx/call rt_match_blob)
+XA_ENTRY_DISPATCH      — Byrd-box entry trampoline (cmp esi,0 / je α / jmp β)
+XA_FLAT_PROLOGUE       — .globl declarations + lea r10,[rip+Δ] before flat IR walk
+XA_STNO                — mov edi,N / call rt_set_stno@PLT (the stno emission currently in emit_sm_stno)
+XA_PC_LABEL            — pending-label flush (currently emit_sm_set_pc_label / emit_sm_consume_pc_label)
 ```
 
-Template files live in `AD_templates/ad_*.c`. Header: `AD_templates/ad_template_common.h`. Opcode enum: `AD_op_t` in `src/include/AD.h`. Dispatcher: `ad_dispatch()` in `emit_core.c`, same pattern as `emit_sm_dispatch()`.
+Template files live in `XA_templates/xa_*.c`. Header: `XA_templates/xa_template_common.h`. Opcode enum: `XA_op_t` in `src/include/XA.h`. Dispatcher: `xa_dispatch()` in `emit_core.c`, same pattern as `emit_sm_dispatch()`.
 
 **Steps:**
 
-- [ ] **EAO-1 — INVENTORY** — Read every C function in `emit_sm.c` and `emit_bb.c` that fires emission (any `emit_textf`, `fprintf(emit_outf()`, `emit_seq_*`, `emit_flat_*`, `insn_*`) and is **not** called through the SM/BB template dispatch. List each in `docs/AD-OPCODE-INVENTORY.md` with: function name / asm block description / call site(s) / proposed `AD_` opcode name. Gate: doc only. Commit.
-- [ ] **EAO-2 — SCAFFOLD** — Create `src/include/AD.h` (`AD_op_t` enum, initially empty). Create `src/emitter/AD_templates/` with `ad_template_common.h` and `ad_templates.h`. Add stub `ad_dispatch(AD_op_t op)` to `emit_core.c`. Build. Commit: `EAO-2: AD_templates scaffold + AD.h + dispatcher stub.`
-- [ ] **EAO-3 — AD_MACRO_LIBRARY** — Add `AD_MACRO_LIBRARY` opcode. Write `AD_templates/ad_macro_library.c` whose IS_X86 arm emits the `.intel_syntax` header then calls `emit_sm_dispatch()` for each macro-def representative (absorbing the loop from `emit_sm_macro_library`). Replace the `emit_sm_macro_library` call site with `ad_dispatch(AD_MACRO_LIBRARY)`. Build + GATE-PK. Commit.
-- [ ] **EAO-4 — AD_EXEC_STMT_BLOB** — Add `AD_EXEC_STMT_BLOB`. Write `AD_templates/ad_exec_stmt_blob.c` absorbing the 4-instruction sequence from `emit_sm_exec_stmt_blob`. Replace call site. Build + GATE-PK. Commit.
-- [ ] **EAO-5 — AD_ENTRY_DISPATCH + AD_FLAT_PROLOGUE** — Add both opcodes. Write `AD_templates/ad_flat.c` absorbing `emit_flat_entry_dispatch` and the `.globl`+`lea r10` prologue from `emit_flat_body`. Replace call sites. Build + GATE-PK. Commit.
-- [ ] **EAO-6 — AD_STNO + AD_PC_LABEL** — Add both opcodes. Write `AD_templates/ad_sm_misc.c` absorbing `emit_sm_stno` asm block and `emit_sm_set_pc_label`/`emit_sm_consume_pc_label`. Replace call sites. Build + GATE-PK. Commit.
-- [ ] **EAO-7 — VERIFY** — `grep -rn "emit_textf\|fprintf.*emit_outf\|emit_seq_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c` returns zero asm-emitting lines. All asm now owned by SM, BB, or AD template functions. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all asm blocks have AD_/SM_/BB_ opcodes. GATE-PK N/0/647.`
+- [ ] **EAO-1 — INVENTORY** — Read every C function in `emit_sm.c` and `emit_bb.c` that fires emission (any `emit_textf`, `fprintf(emit_outf()`, `emit_seq_*`, `emit_flat_*`, `insn_*`) and is **not** called through the SM/BB template dispatch. List each in `docs/XA-OPCODE-INVENTORY.md` with: function name / asm block description / call site(s) / proposed `XA_` opcode name. Gate: doc only. Commit.
+- [ ] **EAO-2 — SCAFFOLD** — Create `src/include/XA.h` (`XA_op_t` enum, initially empty). Create `src/emitter/XA_templates/` with `xa_template_common.h` and `xa_templates.h`. Add stub `xa_dispatch(XA_op_t op)` to `emit_core.c`. Build. Commit: `EAO-2: XA_templates scaffold + XA.h + dispatcher stub.`
+- [ ] **EAO-3 — XA_MACRO_LIBRARY** — Add `XA_MACRO_LIBRARY` opcode. Write `XA_templates/xa_macro_library.c` whose IS_X86 arm emits the `.intel_syntax` header then calls `emit_sm_dispatch()` for each macro-def representative (absorbing the loop from `emit_sm_macro_library`). Replace the `emit_sm_macro_library` call site with `xa_dispatch(XA_MACRO_LIBRARY)`. Build + GATE-PK. Commit.
+- [ ] **EAO-4 — XA_EXEC_STMT_BLOB** — Add `XA_EXEC_STMT_BLOB`. Write `XA_templates/xa_exec_stmt_blob.c` absorbing the 4-instruction sequence from `emit_sm_exec_stmt_blob`. Replace call site. Build + GATE-PK. Commit.
+- [ ] **EAO-5 — XA_ENTRY_DISPATCH + XA_FLAT_PROLOGUE** — Add both opcodes. Write `XA_templates/xa_flat.c` absorbing `emit_flat_entry_dispatch` and the `.globl`+`lea r10` prologue from `emit_flat_body`. Replace call sites. Build + GATE-PK. Commit.
+- [ ] **EAO-6 — XA_STNO + XA_PC_LABEL** — Add both opcodes. Write `XA_templates/xa_sm_misc.c` absorbing `emit_sm_stno` asm block and `emit_sm_set_pc_label`/`emit_sm_consume_pc_label`. Replace call sites. Build + GATE-PK. Commit.
+- [ ] **EAO-7 — VERIFY** — `grep -rn "emit_textf\|fprintf.*emit_outf\|emit_seq_\|insn_" src/emitter/emit_sm.c src/emitter/emit_bb.c` returns zero asm-emitting lines. All asm now owned by SM, BB, or AD template functions. GATE-PK + GATE-M. Commit: `EMIT-ALL-FROM-OPCODES: all asm blocks have XA_/SM_/BB_ opcodes. GATE-PK N/0/647.`
 
 **Goal:** every backend (X86/JVM/JS/NET/WASM) is fully wired in every SM and BB template — no silent `return;` stubs, no missing arms, no asymmetric coverage. Adding a new opcode means touching exactly one template file and filling all five `IS_<BE>` arms. Adding a new backend means adding one `IS_NEW` arm per template file.
 
