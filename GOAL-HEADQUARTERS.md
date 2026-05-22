@@ -598,3 +598,21 @@ Cluster pointers (search `git log --oneline --grep=<token>`):
 - **IR-RN-0..5** — see IR Rename section above.
 
 **Authors (Three-developer agreement, Milestone 1):** Lon Jones Cherryholmes · Claude Sonnet 4.7.
+
+<!-- SESSION ~13 HANDOFF BLOCK -->
+## ⚡ SESSION ACCOUNTING (2026-05-22, session ~13 — STYLE-NO-LOCAL-SHADOWS + STYLE-G_EMIT-RENAME)
+
+**Commits this session (2, both pushed):**
+- `8fe5f0a9` STYLE-NO-LOCAL-SHADOWS: remove FILE*/BB_t*/SM_t* shadow aliases from all SM+BB templates; fix sm_jumps `i`→`_.i` build break; re-freeze BB_PAT_REM/ABORT binary baselines (stale text from pre-IS_X86-STRUCTURE). GATE-PK 407/0/647.
+- `21fd2715` STYLE-G_EMIT-RENAME: `#define _ g_emit` in sm/bb_template_common.h; replace all `g_emit.` → `_.` in SM_templates/*.c + BB_templates/*.c. Walker files untouched. GATE-PK 407/0/647.
+
+**Gate entering next session: PASS=407 FAIL=0 STUB=647 at one4all `21fd2715`. Verify clean.**
+
+**Step 10 (new, Lon session ~13):** STYLE-BASELINE-COMPRESS — store per-kind baseline `.s.raw` files with all runs of whitespace collapsed to a single space (one blank between tokens), matching what the normalizer already does before diffing. The diff harness strips whitespace before compare anyway; storing pre-normalized baselines shrinks disk footprint and makes stored text human-readable at a glance. Steps: (a) post-process `freeze_per_kind_baseline.sh` output to run each `.s.raw` through the same normalization as `normalize_per_kind_cell.py`; (b) update `test_per_kind_diff.sh` diff path to compare normalized-current vs normalized-baseline directly (skip the extra normalize step since baseline is already normalized); (c) re-freeze; (d) GATE-PK PASS=N FAIL=0; (e) commit.
+
+**Remaining open from step 8:** `const SM_t *instr = _.instr` and `int op = (int)_.instr->op` shadow locals in SM templates — now trivial to inline since `_.instr->op` is compact. Sweep and delete in next session (call it step 8b).
+
+**Next session — pick one:**
+- Step 8b: inline remaining `instr`/`op` shadow locals (now short with `_` prefix)
+- Step 10: STYLE-BASELINE-COMPRESS
+- EC-UNI-23: delete SM_PUSH_EXPR (Lon's stated priority)
