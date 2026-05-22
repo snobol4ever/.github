@@ -20,7 +20,7 @@
 
 ## Session State (2026-05-22, session ~15)
 
-**one4all HEAD: `TBD-after-push`** — INLINE-3-GROUP + INLINE-8: 13 absorbed bb_*.c files deleted; 4 group templates own dispatch. GATE-PK 407/0/647.
+**one4all HEAD: `4541c4da`** — INLINE-3-GROUP + INLINE-8: 13 absorbed bb_*.c files deleted; 4 group templates own dispatch. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
@@ -120,6 +120,8 @@ Store per-kind baseline `.s.raw` files pre-normalized (whitespace collapsed). St
 ## Watermark
 
 ```
+4541c4da  INLINE-8: 13 absorbed bb_*.c orphans deleted; group templates own all BB dispatch. GATE-PK 407/0/647.
+67da2a22  INLINE-3-GROUP: bb_pat_{charset,anchor,nullary,combine}_group. GATE-PK 407/0/647.
 df5838e8  INLINE-4c: sm_define_group; shadow locals; dispatcher cleanup. GATE-PK 407/0/647.
 7293cc40  EC-UNI-23: SM_PUSH_EXPR deleted. Invariant #1 [NO-AST] structurally enforced. GATE-PK 407/0/647.
 cc134d49  STYLE-8b: inline instr/op shadow locals in all SM templates. GATE-PK 407/0/647.
