@@ -104,6 +104,30 @@ Targets:
 - [ ] **GREEK-BB-3** — Generated JVM strings in BB_templates: replace `bb_box$MatchState/omega` → `bb_box$MatchState/ω` in all `getfield` emit strings. Coordinate with JVM runtime source if `MatchState.omega` field is defined there (rename field too). Build. GATE-PK.
 - [ ] **GREEK-BB-4** — C identifiers: finish any remaining English port-name C identifiers in `emit_bb.c`, `emit_globals.h`, `emit_core.c` (e.g. `flat_lbl_alpha_body` → `flat_lbl_α_body`, `child_α_label` already Greek). Build. GATE-PK + GATE-M.
 
+### PARAM-PASS — Explicit SM_t* and BB_t* parameters to templates
+
+**Rationale:** SM templates currently receive the current instruction via `g_emit.instr` (global); BB templates receive the current node via `g_emit.node` (global). The Snocone DATA struct that mirrors `sm_emit_t` cannot express pointer fields portably. The only non-global state a template legitimately needs is:
+- SM templates: `const SM_t * instr` — the current instruction
+- BB templates: `BB_t * node` — the current BB node
+
+All other fields in `g_emit` (backend, out, labels, etc.) remain global — those are pass-wide or dispatcher-set scalars, not per-call pointers. This change makes the data-flow explicit, eliminates `_.instr` / `_.node` as global reads inside templates, and maps cleanly to Snocone function signatures.
+
+**Scope:** SM_templates/*.c, BB_templates/*.c, emit_core.c dispatch (`emit_sm_dispatch`, `emit_bb_node`), sm_templates.h, bb_templates.h, xa_templates.h (XA templates are unaffected — they have no per-instruction pointer).
+
+**New signatures:**
+- SM: `void sm_foo(const SM_t * instr)` / `int sm_foo(const SM_t * instr)`
+- BB: `void bb_foo(BB_t * node)` / `int bb_foo(BB_t * node)`
+- Dispatch: `emit_sm_dispatch(const SM_t * instr)` passes `instr` directly; `emit_bb_node(BB_t * nd, FILE * out)` passes `nd` directly (no longer sets `g_emit.node`).
+- `g_emit.instr` and `g_emit.node` fields **remain** for XA templates and any non-template code that still needs them; dispatch no longer sets them (or keeps setting them for backward compat during transition).
+
+- [ ] **PP-1** — Update `sm_templates.h`: change all SM template forward declarations from `void sm_foo(void)` / `int sm_foo(void)` to `void sm_foo(const SM_t * instr)` / `int sm_foo(const SM_t * instr)`. Update `emit_sm_dispatch(void)` → `emit_sm_dispatch(const SM_t * instr)` in `emit_core.h`. Build (expect errors). GATE-PK after all PP steps.
+- [ ] **PP-2** — Update `bb_templates.h`: change all BB template forward declarations from `void bb_foo(void)` / `int bb_foo(void)` to `void bb_foo(BB_t * node)` / `int bb_foo(BB_t * node)`. Update `emit_bb_node(BB_t * nd, FILE * out)` dispatch to pass `nd` directly. Build (expect errors). GATE-PK after all PP steps.
+- [ ] **PP-3** — Update `emit_sm_dispatch` body in `emit_core.c`: pass `instr` to each `sm_foo(instr)` call. Update `emit_walk_codegen` and `emit_wasm_from_sm` / `emit_js_from_sm` / `emit_net_from_sm` call sites to pass `ins` (already have it in scope). Build.
+- [ ] **PP-4** — Update `emit_bb_node` body in `emit_core.c`: pass `nd` to each `bb_foo(nd)` call. Remove `g_emit.node = nd` assignment (or keep as belt-and-suspenders during transition — Lon decides). Build.
+- [ ] **PP-5** — Update all SM_templates/*.c: replace `void sm_foo(void)` / `int sm_foo(void)` with `void sm_foo(const SM_t * instr)` / `int sm_foo(const SM_t * instr)`. Replace all `_.instr->` reads with `instr->` directly. Remove any `const SM_t * instr = _.instr;` shadow locals (STYLE-NO-SHADOW-LOCALS killed these anyway). Build.
+- [ ] **PP-6** — Update all BB_templates/*.c: replace `void bb_foo(void)` / `int bb_foo(void)` with `void bb_foo(BB_t * node)` / `int bb_foo(BB_t * node)`. Replace all `_.node->` reads with `node->` directly. Build.
+- [ ] **PP-7** — Update `sm_template_common.h` and `bb_template_common.h`: remove any helpers or macros that shadow `_.instr` / `_.node`. Confirm `#define _ g_emit` still valid for remaining global fields (`_.out`, `_.backend`, `_.lbl_succ`, etc.). GATE-PK 407/0/647. GATE-M.
+
 ### ISO — parse→lower / parse→runtime firewalls
 
 - [ ] **ISO-4** — `scrip_parse` subprocess: parsers in separate executable, stdin=source, stdout=TDump S-expression. Deserializer + roundtrip self-test first.
