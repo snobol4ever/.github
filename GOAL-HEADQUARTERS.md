@@ -18,14 +18,43 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~15)
+## Session State (2026-05-22, session ~16)
 
-**one4all HEAD: `4541c4da`** — INLINE-3-GROUP + INLINE-8: 13 absorbed bb_*.c files deleted; 4 group templates own dispatch. GATE-PK 407/0/647.
+**one4all HEAD: `3afd5a72`** — INLINE-SPLIT-GROUPS ✅: 4 invalid group files dissolved into 13 per-opcode BB templates. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
 - **Step 10 STYLE-BASELINE-COMPRESS**: normalize `.s.raw` baselines to single-space tokens.
+- Any other active goal.
+
+## Step 11 — INLINE-SPLIT-GROUPS
+
+**Why:** Invariant #10 permits grouping only when opcodes share emit shape across ALL backends.
+The four `bb_pat_*_group.c` files violate this: they bundle opcodes with entirely distinct
+x86 / JVM / JS / NET / WASM bodies, using `switch(op)` purely on opcode-family membership,
+not on shared emission shape. This makes each group file a maintenance hazard and obscures
+where code lives.
+
+**What:** Delete the 4 group `.c` files and the 4 group declarations from `bb_templates.h`.
+Replace with one `.c` file per logical opcode (14 total). Wire each new function in `emit_core.c`.
+
+| Group file deleted | New per-opcode files |
+|--------------------|----------------------|
+| `bb_pat_nullary_group.c` | `bb_pat_rem.c` `bb_pat_arb.c` `bb_pat_abort.c` `bb_pat_fence.c` |
+| `bb_pat_anchor_group.c`  | `bb_pat_pos.c` (POS+RPOS via ival2) `bb_pat_tab.c` (TAB+RTAB via ival2) `bb_pat_len.c` |
+| `bb_pat_charset_group.c` | `bb_pat_any.c` `bb_pat_notany.c` `bb_pat_span.c` `bb_pat_break.c` |
+| `bb_pat_combine_group.c` | `bb_pat_alt.c` `bb_pat_cat.c` |
+
+POS+RPOS in one file and TAB+RTAB in one file is permitted: within each pair, both backends
+and the x86 arm dispatch on a single `ival2` bit, so the two opcodes share emit shape globally.
+
+**Steps:**
+- [x] SPLIT-1: write `bb_pat_rem.c`, `bb_pat_arb.c`, `bb_pat_abort.c`, `bb_pat_fence.c`; delete `bb_pat_nullary_group.c`; update `bb_templates.h` + `emit_core.c`; gate green.
+- [x] SPLIT-2: write `bb_pat_pos.c` (POS+RPOS), `bb_pat_tab.c` (TAB+RTAB), `bb_pat_len.c`; delete `bb_pat_anchor_group.c`; update; gate green.
+- [x] SPLIT-3: write `bb_pat_any.c`, `bb_pat_notany.c`, `bb_pat_span.c`, `bb_pat_break.c`; delete `bb_pat_charset_group.c`; update; gate green.
+- [x] SPLIT-4: write `bb_pat_alt.c`, `bb_pat_cat.c`; delete `bb_pat_combine_group.c`; update; gate green.
+- [x] SPLIT-5: final gate: `bash scripts/test_per_kind_diff.sh` — PASS=407 FAIL=0 STUB=647. Commit: `BB-split: dissolve 4 invalid group files into 14 per-opcode templates`.
 
 ## Session Setup
 
