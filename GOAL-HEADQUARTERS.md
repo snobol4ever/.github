@@ -15,6 +15,7 @@
 8. **Unified dispatch owns mode-setting.** Per-opcode iteration calls `emit_mode_set(TEXT_MODE(), out)` at entry.
 9. **One file per Byrd Box in `BB_templates/`.** Each lives in its own `bb_<name>.c`. No consolidated multi-BB TUs.
 10. **Grouped templates allowed (Lon directive, session #N+2).** Where N opcodes share emit shape, a single `sm_<group>()` / `bb_<group>()` template fn handles all of them — opcode communicated via `g_emit.instr->op` and dispatched by per-backend `switch(op)`. All emission code stays inside that one TU. **No external helpers, no cross-template calls.** Locality first; grouping reduces duplication only when it earns its keep via shared shape. Examples landed: `sm_arith` (5 opcodes), `sm_compare` (2), `sm_pat_nullary` (22). This SUPERSEDES the prior pure-duplication / one-fn-per-opcode reading of INLINE-ALL.
+11. **INLINE-ALL complete (session ~10, 2026-05-22).** Every SM/BB code-generation path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. No wrapper functions, no table-driven dispatch, no per-opcode helpers outside template files. `emit_sm.c` carries only the walker, string-table, pattern-window, and pc-label infrastructure. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 
 ## ⚡ SESSION ACCOUNTING (2026-05-22, session ~10 of EC-UNI-INLINE-ALL)
 
@@ -501,7 +502,7 @@ For every (SM op × backend) and every (BB kind × backend × submode) cell, aud
 - [ ] **EC-UNI-19** — add-a-backend test (`EMIT_NULL=99`). Mechanical patch + revert. Records LOC cost. Re-run after EC-UNI-INLINE-ALL to measure new cost (expected: 76 SM × 1 line + 97 BB × 1 line ≈ +173 lines per backend, all in templates).
 - [ ] **EC-UNI-20** — add-an-opcode test (`SM_NOP`). Mechanical patch + revert. Records LOC cost. Post-INLINE-ALL cost: 1 new template file with 5 inlined arms.
 - [ ] **EC-UNI-21-followup** — reconcile or retire M1 oracle baseline. Choose (a) re-converge to `abfd19a7...` (646 lines), or (b) retire M1, record new baseline `9cddff25...` (622 lines), re-stamp Milestone 1.
-- [ ] **EC-UNI-22** — close: update `ARCH-IR.md`, `ARCH-SCRIP.md`, invariants. Update four per-backend GOAL files. Mark EC-UNI complete; Phase B opens. **Sequence note:** EC-UNI-22 should follow EC-UNI-INLINE-ALL — closing docs describe the final inlined shape, not the intermediate table-driven shape.
+- [x] **EC-UNI-22** ✅ — closed: `ARCH-IR.md` updated (new-opcode instructions reflect INLINE-ALL), invariant #11 added to HQ. Per-backend GOAL files clean (no stale refs). EC-UNI-INLINE-ALL complete; Phase B opens. (`302a1207`, session ~10, 2026-05-22)
 
 ---
 
