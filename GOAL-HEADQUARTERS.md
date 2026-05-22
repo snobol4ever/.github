@@ -18,16 +18,32 @@
 11. **INLINE-ALL complete.** Every SM/BB code-gen path lives exclusively in `SM_templates/*.c` and `BB_templates/*.c`. Adding a backend = adding `IS_NEW` arms inside existing template files only.
 12. **No shadow locals in templates.** No `const SM_t *instr = _.instr`, `FILE *out = _.out`, `int op = (int)_.instr->op`. Use `_.instr->`, `_.out`, `(int)_.instr->op` inline. Loop-counter locals (`int j`, `int fk`) are fine.
 
-## Session State (2026-05-22, session ~20)
+## Session State (2026-05-22, session ~21)
 
 **one4all HEAD: `6abafcb2`** — STYLE-NO-LOCAL-SHADOWS (sm_pat_nullary instr/op) + IS_X86-STRUCTURE fix + STYLE-BASELINE-COMPRESS ✅. GATE-PK 407/0/647.
 
 **Gate entering next session: PASS=407 FAIL=0 STUB=647. Verify `git -C one4all log origin/main..HEAD` at session start.**
 
 **Next session — pick one:**
-- **ISO-4** or any active goal from the table.
-- sm_var audit ✅ CLEARED (session ~20): PUSH_VAR/STORE_VAR differ only in symbol name, shape is globally identical. Valid group.
-- All SM/BB template shadow-local violations resolved.
+- **ISO-4** — `scrip_parse` subprocess: parsers in separate executable, stdin=source, stdout=TDump S-expression. Write deserializer + roundtrip self-test first. Needs one4all + .github.
+- Any other active goal from the table (CHUNKS Step 17, PST goals, etc.).
+
+## Session ~21 full audit summary (2026-05-22)
+
+All HQ maintenance steps for this cycle complete:
+
+| Step | Result |
+|------|--------|
+| INLINE-SPLIT-GROUPS (BB) | ✅ 4 group files → 13 per-opcode files |
+| STYLE-BASELINE-COMPRESS | ✅ .raw == .norm, 165 files normalized |
+| IS_X86-STRUCTURE (bb_pat_alt/cat) | ✅ dead top-level IS_BIN removed |
+| STYLE-NO-LOCAL-SHADOWS (sm_pat_nullary) | ✅ instr/op/i aliases removed |
+| sm_pat_nullary audit | ✅ valid group — all 22 opcodes share outer shape |
+| sm_misc_nullary audit | ✅ valid group — all 7 opcodes share outer shape |
+| sm_var audit | ✅ valid group — name-only variation |
+| nid/sid locals in BB templates | ✅ computed values, not g_emit aliases — OK |
+
+Gate: PASS=407 FAIL=0 STUB=647 throughout. one4all HEAD `6abafcb2`.
 
 **sm_misc_nullary audit ✅ CLEARED (session ~19):** All 7 opcodes share identical outer shape in every backend (one-liner call). VOID_POP/PUSH_NULL_NOFLIP/NEG/EXP name-level irregularities preserved; outer structure uniform. No split.
 
