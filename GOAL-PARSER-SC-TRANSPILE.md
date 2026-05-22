@@ -91,6 +91,8 @@ parser_<lang>_transpiled.sno
 - [x] **SCT-1d** multi-file `--dump-sno` + `-CASE 0` prelude + tail dedup
 - [x] **SCT-1e** explicit `?` operator fix in TT_SCAN expression case
 - [x] **SCT-2** parser_rebus.sc → .sno (qtag REPLACE eq-length fix + label_sanitize on TT_VAR)
+- [x] **SCT-SN4-ERR041** parser_snobol4.sc multi-stmt — deleted 2 stray `nInc()` before `*StmtRepl` in `Stmt`. PASS=49→64/88. (2026-05-21d, Opus 4.7)
+- [ ] **SCT-SN4-IMPLICIT-MATCH** parser_snobol4.sc — add implicit pattern-match-by-juxtaposition branch (`S 'a' | 'b'` with no `?`) to `Stmt` inner FENCE. Accounts for the remaining 24 PARSE errors. See session note 2026-05-21d below.
 - [ ] **SCT-1f** drive 2-way sync-monitor — needs SN-26-spl-bridge in x64
 - [ ] **SCT-3** parser_snocone.sc — blocked on SCT-9-arbno-fence
 - [ ] **SCT-4** parser_icon.sc — eliminate icon_helpers.sc first. 4 trivial leaf-push helpers (`push_qlit`, `push_cset`, `push_flit`, `push_kw`) inline into Expr11 arms via `shift(..., 'TT_QLIT')` etc. `notmatch` already in match.sc.
@@ -434,3 +436,52 @@ shift = EVAL('p . thx . *Shift(' qtag(t) ', thx)')
 Commits this session:
 - one4all `01577f1a` — SCT-LOWER-FOR-IDX
 - corpus  `f3b8afb`  — SCT-BEAUTY-SC-CARRYOVER
+
+## Session 2026-05-21d (Claude Opus 4.7) — SCT-SN4-ERR041 ✅ CLOSED
+
+**Goal achieved:** ERROR 041 on multi-statement SNOBOL4 fixtures is fixed.
+**Score: PASS=49 → PASS=64 / 88.** All 15 ERROR 041 failures eliminated, zero regressions.
+
+**Root cause (confirmed, NOT the `c`-field-folding theory from session 2026-05-21):**
+`Stmt` in parser_snobol4.sc had two stray `nInc()` calls immediately before
+`*StmtRepl`. The subject (`*Expr14` → TT_VAR) was counted by one `nInc()`, then
+`*StmtRepl`'s internal `reduce("'TT_EQ'", 2)` *consumed* that subject while pushing
+TT_EQ — net stack effect zero. But the extra `nInc()` made the counter believe a new
+item was added. So `reduce("'TT_STMT'", 'nTop()')` popped one item too many, reaching
+into the *previous* statement's TT_STMT node. The next statement's `n(ptree)`/`c(ptree)`
+in the driver tail then operated on a STRING instead of a tree → ERROR 041 at the
+`cmd = ITEM(c(ptree),i)` site.
+
+**Fix landed (corpus, this session — 2 lines):** parser_snobol4.sc `Stmt` rule — deleted
+the `nInc()` before `*StmtRepl` in both the `?`-pattern branch and the bare-`=` branch:
+```
+                     FENCE(*StmtRepl | epsilon)     # was: FENCE(nInc() *StmtRepl | epsilon)
+                  |  *StmtRepl                       # was: nInc() *StmtRepl
+```
+Counter discipline now holds for all four Stmt shapes (bare-expr / subj+= / subj+? +pat /
+subj+? +pat+=). Verified by xTrace=5 walk on a 2-stmt fixture.
+
+**Gates:** test_smoke_snobol4.sh PASS=7/0; test_crosscheck_snobol4.sh PASS=5 FAIL=1
+(beauty_omega — pre-existing baseline, unchanged). scrip --interp on parser_snobol4.sc
+still returns "Parse Error" with rc=0 (pre-existing, not a regression).
+
+**Remaining 24 PARSE errors** are a structurally distinct issue: implicit pattern-match
+by juxtaposition (`S 'a' | 'b'` with no explicit `?`). The Stmt grammar currently only
+handles the explicit-`?` form (`$'?' nInc() *Expr1 ...`); there is no production for a
+subject `*Expr14` followed directly by a pattern `*Expr1` when no `?` token is present.
+Manual Ch 6 (line 3230) confirms `SUBJECT PATTERN` with whitespace-as-match-operator is
+standard SNOBOL4. **NEXT (SCT-SN4-IMPLICIT-MATCH):** add an implicit-match branch to the
+inner FENCE in `Stmt`, between the `$'?' ...` branch and the bare-`*StmtRepl` branch,
+of shape roughly `nInc() *Expr1 reduce("'TT_PAT'", 1) FENCE(*StmtRepl | epsilon)`. Mind
+the subject/pattern boundary ambiguity (Manual line 3242: first complete statement element
+is the subject).
+
+**Assumption verification grid** appended to SNOBOL4-SNOCONE-PRIMER.md this session — 27
+SNOBOL4/SPITBOL/Snocone facts relied on during the fix, each verified against SPITBOL
+Manual v3.7 + library source + empirical runs. One falsified (#7 — the 'nTop()' string is
+build-time-interpolated into the EVAL pattern as a bare match-time call, NOT routed through
+Reduce's EXPRESSION-DATATYPE check); two refined (#3/#17 OUTPUT failure vs empty-RHS; #14
+epsilon is a null-variable convention, not a SPITBOL primitive). SPITBOL manual now
+fetchable at https://raw.githubusercontent.com/spitbol/x32/master/docs/spitbol-manual-v3.7.pdf
+
+**SCT-1 status:** Add new rung **SCT-SN4-IMPLICIT-MATCH** under Phase 1. SCT-SN4-ERR041 closed.
