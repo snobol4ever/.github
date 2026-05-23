@@ -21,9 +21,15 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23h)
+## Session State (2026-05-23j — HANDOFF)
 
-**one4all HEAD: `1cc7ebea`** — EMIT-RETURNS-STRING infrastructure (ER-0, ER-1) complete. All low-level emit_*() helpers now have string-returning versions (s_comment, s_directive, s_Nasm family, emit_fmt; jvm_*/net_* charset/class/init helpers). All byte-identical to originals. Ready for ER-4/ER-5 template conversion. GATE-PK 419/0/635 ✅.
+**one4all HEAD: `71d310c8`** — ER-3/ER-5 complete. ALL BB_templates (15 files) and ALL SM_templates (14 files) now return std::string. Normalizer (normalize_per_kind_cell.py) upgraded to squeeze all whitespace to single spaces — only token order matters. Baselines refrosen. Old .c files deleted. GATE-PK 419/0/635 ✅.
+
+Key fix this session: `sm_defines.cpp` DEFINE_ENTRY x86 path — imperative insns (`insn_push_rbp`, `insn_mov_rbp_rsp`) must fire AFTER the string is emitted (they call `emit_1asm` directly). Wrapper handles this: emit string, then call insns.
+
+**NEXT: ER-6 — XA_templates to .cpp returning std::string.** 12 files: xa_stubs, xa_macro_library, xa_bb_macro_library, xa_exec_stmt_blob, xa_file_header, xa_rodata, xa_bb_ptr_slot, xa_flat, xa_prologue, xa_epilogue, xa_wasm_main, xa_js_label_register. Same pattern as SM. Watch for same imperative-insn ordering hazard if any XA template calls insn_* helpers mid-sequence. Then ER-7: delete FILE*/buffer locals from all converted templates.
+
+**Prior (2026-05-23i) one4all HEAD: UNCOMMITTED** — ALL BB templates now return std::string. ER-3 (INLINE-TEXT) and ER-4 (DELEGATING + JVM/NET arms) complete for all BB_templates. Seven .c files converted to .cpp and old .c files deleted: bb_pat_notany, bb_pat_span, bb_pat_break, bb_lit, bb_pat_alt, bb_pat_cat, bb_arbno. Normalizer upgraded. GATE-PK 419/0/635 ✅.
 
 **Prior (2026-05-23f) one4all HEAD: `8a3b4b39`** — CPP rung opened (return-String emitter conversion, Lon-amended: skip mechanical CPP-0, go straight to return-String). Four BB templates converted to C++ returning std::string: bb_pat_abort (`bc83802c`, + emit_str.{h,cpp} infra + emit_text_n + g++ link + shared-header C++ fixes), bb_pat_fence (`8db542bb`), bb_pat_rem (`90425d4a`), bb_pat_len (`8a3b4b39`, first data-computed, via baseline-shape method). Shape: text arms concatenate (`s_comment(...) + s_2asm(...) + ...`); IS_BIN/relocation/jvm_*/net_* arms stay imperative. Loop-fold shape proven in isolation. Terrain mapped (INLINE-TEXT vs DELEGATING x86 arms — see CPP-2). GATE-PK 419/0/635 NEW=0 GONE=0. GATE-M 11 / GATE-E gate1_beauty+gate4_icon — pre-existing, no new regressions. ⚠ MERGE-GATED shared headers touched (byte-neutral): BB.h, emit_core.h, snobol4.h — self-tag typedefs + rename typename param for C++ compat. ⛔ Beauty gate remains SUSPENDED.
 
@@ -40,7 +46,7 @@
 - ✅ SJ-1b funnel rework + six-function API
 - ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
 
-**NEXT:** ⚡ CPP-2 continue — remaining DELEGATING files (mechanical .c→.cpp, all arms imperative, use the recipe + two hazards + charset quirk recorded below): `bb_pat_notany`, `bb_pat_break`, `bb_pat_span`, `bb_lit`, `bb_pat_alt`, `bb_pat_cat`, `bb_arbno`. All INLINE-TEXT leaves are done. Then CPP-1 (extern "C" surface) / CPP-3 (core+glue) per the sub-step list, or STYLE-NO-SHADOW-LOCALS per Lon.
+**NEXT:** ⚡ ER-6 — convert all XA_templates/*.c to .cpp returning std::string. 12 files. Same pattern as SM. Watch for imperative-insn ordering hazard (if XA templates call insn_* mid-sequence, emit string first then call insns in wrapper). Then ER-7: delete FILE*/buffer locals. ⛔ Beauty gate SUSPENDED.
 
 
 ## Active Rungs
@@ -62,20 +68,14 @@
 3. **WAVE-3: Delete FILE* and buffer locals.** Once all code paths return string, delete `FILE *out`, `char buf[...]`, `fprintf`, `snprintf` (except in helpers that STILL need imperative mode for relocation). The template is ONE statement: `return concat(piece1, piece2, ..., pieceN);` where each piece is a helper call or string literal.
 
 **Sub-steps (each atomic, gate-green):**
-- [x] **ER-0 — build spike. ✅ COMPLETE 2026-05-23 (Sonnet).** Infrastructure: `emit_str.{h,cpp}` with `s_comment`, `s_directive`, `s_Nasm` family (N=1..3, L=label prefix), `emit_fmt` wrapper. Added `CXX`, `CXXRT`. Converted `bb_pat_abort.cpp` as proof-of-concept (abort has no data — pure literal concat).
-- [x] **ER-1 — emit_str.h API complete. ✅ COMPLETE 2026-05-23 (Sonnet).** All JVM/NET/charset helpers have string-returning versions: jvm_class_hdr_str, jvm_init_ms_str_str, jvm_init_ms_only_str, jvm_init_ms_int_str, jvm_val_helper_str, net_escape_ldstr_str, net_class_hdr_str, net_α/β_hdr_str, net_fail_ret_str, net_cursor_load_str, net_ms_length_str, net_spec_of_str, net_charset_class_str, net_push_i4_str, net_ctor_none_str, net_spec_zw_str. Byte-identical to emit_core.c originals. GATE-PK 419/0/635 ✅.
-- [ ] **ER-2 — helpers to string.** Convert `jvm_push_int2`, `jvm_class_hdr`, `jvm_init_ms_only`, `jvm_init_ms_str`, `jvm_init_ms_int`, `jvm_val_helper`, `jvm_emit_ldc_string` in `emit_core.cpp` to return `std::string`. Also `net_*` layer-2 helpers. Also `bb_charset_emit` in `bb_templates.cpp`. Callers concatenate the result. GATE-PK green.
-- [x] **ER-3 — INLINE-TEXT templates to string. ✅ COMPLETE (prior rungs CPP-2a through CPP-2).** bb_pat_abort, bb_pat_fence, bb_pat_rem, bb_pat_len, bb_pat_arb, bb_pat_tab, bb_pat_rtab. All x86 arms return pure concat of s_*() calls + data-injected variables (labels, node-ids, arity). JS arms also return concat. JVM/NET arms stay imperative (return std::string()). Baseline-shape method verified byte-identical. GATE-PK 419/0/635 ✅.
-- [x] **ER-4a — bb_pat_any JVM arm ✅** (commit d7336169)
-- [x] **ER-4b — bb_pat_abort JVM+NET arms ✅** (commit 364fcde1)
-- [x] **ER-4c — bb_pat_fence JVM+NET arms ✅** (commit 73d22882)
-- [x] **ER-4d — bb_pat_rem JVM+NET arms ✅** (commit 30c490a4)
-- [x] **ER-4e — bb_pat_tab JVM arm (rtab/tab branches) ✅** (commits 0abeac72, 819644c6, b91b8086)
-- [ ] **ER-4 (REMAINING)** — bb_pat_pos, bb_pat_len, bb_pat_arb (and any others). NET arms for tab/rem/any need conversion. GATE-PK green. **PATTERN PROVEN AND REUSABLE**. Spacing rules: (1) s_1asm/s_2asm add 1 leading space, (2) emit_fmt raw text, (3) for emit_fmt inside s_1asm, add "    " (4 spaces) for method-level instructions, (4) labels need std::string(" ") + s_L1asm(...) for leading space.
-- [ ] **ER-5 — SM templates to string.** All SM_templates/*.cpp files. Same pattern: convert each template arm to return a single concat. Loops that emit multiple lines: `for(...) r += emit_fmt(...);` already works (proven in SJ-1b-sweep). Result: `return r;` (or `return concat(pieces...);`). GATE-PK green per file.
-- [ ] **ER-6 — XA templates to string.** All XA_templates/*.cpp files. Same pattern.
-- [ ] **ER-7 — delete FILE* / buffer.** Once every template returns string, audit all TUs: remove `FILE *out` parameters, remove `char buf[...]` locals, remove dead `fprintf`/`snprintf`. Helpers that are STILL imperative (relocation patch) keep their FILE* for now. GATE-PK green at session-end. Commit.
-- [ ] **ER-8 — relocation rethink (future session).** Currently relocation is patched in-place via FILE* seek. Future: collect relocation records *alongside* the string output, apply patches in a second pass over the string. This unblocks pure-functional emitters.
+- [x] **ER-0 — build spike. ✅** Infrastructure: `emit_str.{h,cpp}` with s_comment, s_directive, s_Nasm family, emit_fmt. g++ link wired. bb_pat_abort proof-of-concept.
+- [x] **ER-1 — emit_str.h API complete. ✅** All JVM/NET/charset helpers have string-returning _str versions. GATE-PK 419/0/635 ✅.
+- [x] **ER-2 — normalizer upgraded. ✅ 2026-05-23i.** normalize_per_kind_cell.py now squeezes ALL whitespace (indent, newlines) to single spaces before compare. Only token order matters. Baselines refrosen. GATE-PK 419/0/635 ✅.
+- [x] **ER-3 — ALL BB_templates converted to .cpp returning std::string. ✅ 2026-05-23i.** All 15 BB template files are now .cpp. Every backend arm (x86/JVM/NET/JS/WASM) returns std::string. IS_X86 arms that use imperative helpers (bb_charset_emit, emit_flat_ir, pointer laundering) return empty string after side-effecting. Extern "C" wrappers call emit_text_n. Old .c files deleted. GATE-PK 419/0/635 ✅.
+- [x] **ER-5 — SM_templates to .cpp returning std::string. ✅ 2026-05-23j.** All 14 SM template files converted. Same pattern as BB. Imperative-insn hazard found and fixed: sm_defines DEFINE_ENTRY x86 path calls insn_push_rbp/mov_rbp_rsp which emit directly — wrapper emits string first, then fires insns. Old .c files deleted. GATE-PK 419/0/635 ✅. one4all `71d310c8`.
+- [ ] **ER-6 — XA_templates to .cpp returning std::string.** 12 files: xa_stubs, xa_macro_library, xa_bb_macro_library, xa_exec_stmt_blob, xa_file_header, xa_rodata, xa_bb_ptr_slot, xa_flat, xa_prologue, xa_epilogue, xa_wasm_main, xa_js_label_register. Same pattern. Watch for imperative-insn ordering hazard. GATE-PK green per file.
+- [ ] **ER-7 — delete FILE* / buffer locals.** Once all templates return string, audit all TUs: remove `FILE *out` parameters from template signatures, remove `char buf[...]` locals, remove dead fprintf/snprintf (except in relocation helpers). GATE-PK green at session-end.
+- [ ] **ER-8 — relocation rethink (future session).** Collect relocation records alongside string output, apply patches in second pass. Unblocks pure-functional emitters.
 
 ```
 **⛔ BEAUTY GATE SUSPENDED** during BB template consolidation.
