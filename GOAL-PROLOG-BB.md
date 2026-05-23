@@ -85,76 +85,29 @@ GATE-4  bash scripts/test_icon_all_rungs.sh        # cross-language honest gate 
 ## Watermark
 
 ```
-one4all: PJ-9d partial (uncommitted at handoff; see session note)
+one4all: a02efe54 (PJ-9e partial)
 corpus:  1fe096c
 smoke_prolog: 5/5 ✅
 crosscheck_prolog: 128/0 ✅
 Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
 honest gates: prolog 124/0/0, icon 277/0/0 (no regression)
 broker: 20/49
-Mode-4 hello.pl: still assembles/links/runs hits [NO-AST] miss-arm
-  because `:- initialization(main, main)` (2-arg form) routes through
-  the unrelated PL_BUILTIN stub. Mode-4 1-arg form works end-to-end.
-Mode-4 working: greet (test2), multi-pred cross-call (test3),
-  arithmetic + arg-binding (test4 → "7"), mixed writes (test7).
-Mode-4 broken: multi-clause (test5 factorial silent vs Mode-2 "120").
-  Root cause located — per-clause bodies stored in opaque sub-cfgs
-  not walked by current builder (lower_pl.c:147 + ir_exec.c:1234).
+
+PJ-9e partial landed (a02efe54):
+- rt_pl_b_sub_begin/sub_end/set_opaque/sub_node/sub_kids added to rt.h/rt.c
+- emit_pl_sub_builder_fn added; emit_pl_builder_fn wires BB_SUCCEED->opaque
+- pl_pre_intern_pred_names interns sub-cfg strings
+- fprintf != 0 bug fixed to < 0 throughout Prolog emit section
+- sm_halt.c, sm_jumps.c: IS_MACRO_DEF moved before IS_X86
+
+OPEN for next session (PJ-9e not yet closed):
+1. sm_bb_calls.c: IS_MACRO_DEF ordering not fixed (BB_ONCE_PROC/BB_PUMP_PROC
+   macro defs unreachable -- same pattern as sm_halt/sm_jumps)
+2. xa_macro_library DOUBLE-DEFINITION BUG: inlines macros via xa_dispatch
+   AND emits .include "sm_macros.s" -- both fire, causing assembler errors.
+   Lon decision required: Option A (external only -- remove xa_dispatch calls,
+   keep .include; ship sm_macros.s) or Option B (inline only -- remove .include
+   lines, keep xa_dispatch; self-contained .s). IS_X86 has sub-modes:
+   IS_TEXT, IS_BINARY, IS_MACRO_DEF -- IS_MACRO_DEF is not IS_X86.
+3. Verify factorial prints 120 in Mode-4 end-to-end.
 ```
-
-**Session 2026-05-16i (Claude Opus 4.7, PJ-9d partial + cross-lang AST-walk audit):** Two deliverables. **(1) PJ-9d partial.** Registry mechanism (`rt_register_predicates_pl`, `rt_predicate_entry_t`, builder API `rt_pl_b_begin/_node/_kids/_entry/_end_register`) + emit pass (`emit_pl_predicate_registry`, builder-fn + kids-rodata + master-driver wiring) + end-to-end runner script (`scripts/run_prolog_via_x86_backend.sh`). Mode-4 Prolog `hello`-class programs print correct output via `rt_bb_once_proc → pl_dcg_lookup` driven by the populated `g_dcg_table`. Used Option C' (runtime builder helpers + emitted call sequences) rather than goal-file's Option C (emit direct `IR_new_*` calls) — the registry table layout is identical so a future switch back to C is purely emit-side. **Multi-clause gap identified and scoped** as PJ-9e candidate: `lower_pl.c:147` puts per-clause bodies in `IR_PL_CHOICE` child nodes' `opaque` field, pointing at separate `IR_block_t`s not in the parent `cfg->all[]`. Current builder only walks `cfg->all[]`, so it preserves the `IR_PL_CHOICE` skeleton but loses every clause body — Mode 4 factorial recursion produces empty output instead of `120`. Fix shape: recursive sub-cfg builder fns + a `rt_pl_b_set_opaque_cfg` helper. **(2) Cross-language AST-walking audit per Lon's question.** Instrumented `pl_unified_term_from_expr`, `pl_pred_table_lookup`, `interp_exec_pl_builtin` (Prolog), `bb_exec_stmt` (Icon-side, also reached by Raku via raku_try_call_builtin), and `bb_eval_value` (Icon-side, polyglot dispatcher). Ran probe-instrumented binary across all six languages' smoke gates (31 tests), broker (49), honest_prolog (124), honest_icon (277), crosscheck_prolog (128) — **609 tests total, zero AST-walk probes fired in Modes 2 or 3 for any language**. Probes removed before final commit per RULES.md "Diagnostic patches — never commit them". **Static-reachability findings** (some are existing facts not introduced this session): Mode 1 (`--interp`) is the only mode that reaches AST-walking helpers — Prolog via `interp_exec.c`/`interp_eval.c`, Icon via the same files. The `_usercall_hook` Prolog branch in `interp_hooks.c:81-104` has a PJ-8 gate `if (g_sm_dispatch_active && !g_ast_pump_active)` printing `[NO-AST]` — but **`g_sm_dispatch_active` is defined `=0` once (`icn_runtime.c:30`) and never set to 1 anywhere in the codebase**. The same flag gates the `NO_AST_WALK_GUARD` macro in `icn_runtime.c:19`. Both gates are dead defensive code — they would have caught any leakage but don't fire because the flag is never raised. The actual guarantee against AST walking in Modes 2/3 is **empirical** (probe doesn't fire) rather than enforced by the dead-gate static check. Recommend lifting `g_sm_dispatch_active=1` into Mode-2/3 entry points (e.g. `sm_interp_run`, `sm_jit_run`) as a follow-up; that activates the existing static guards and converts the empirical guarantee into an enforced one. Two existing `[NO-AST]` stubs remain reachable from real programs (already noted by PJ-9a findings): `SM_CALL_FN "PL_UNIFY"` for top-level `TT_UNIFY`; `SM_CALL_FN "PL_BUILTIN"` for top-level Prolog directives like `:- assertz(...)`. Those are correct stubs (they refuse to walk AST and print the fingerprint); the gap is frontend completeness, not AST hygiene. **Per-language summary:**
-
-| Language | Mode 2 AST walk? | Mode 3 AST walk? | Evidence |
-|----------|:----------------:|:----------------:|----------|
-| SNOBOL4  | No  | No  | bb_exec_stmt + bb_eval_value probes silent across 7 smoke tests |
-| Snocone  | No  | No  | bb_exec_stmt + bb_eval_value probes silent across 5 smoke tests |
-| Rebus    | No  | No  | bb_exec_stmt + bb_eval_value probes silent across 4 smoke tests |
-| Icon     | No  | No  | bb_exec_stmt + bb_eval_value probes silent across 5 smoke + 277 honest |
-| Prolog   | No  | No  | pl_unified_term_from_expr + pl_pred_table_lookup + interp_exec_pl_builtin probes silent across 5 smoke + 124 honest + 128 crosscheck |
-| Raku     | No  | No  | bb_exec_stmt + bb_eval_value probes silent across 5 smoke (raku_try_call_builtin reached only from Mode-1 paths) |
-
-(The "actively being fixed" framing for Icon is reflected in the `lower_proc_skeletons` rebuild story under GOAL-HEADQUARTERS.md — that's about completing the IR_PL_*-style lowering coverage, not about residual AST walks per se. RULES.md compliance verified clean for all six languages in the gates that ship.)
-
-**Files changed this session (one4all):** `src/runtime/rt/rt.h`, `src/runtime/rt/rt.c`, `src/emitter/emit_sm.c`, `scripts/run_prolog_via_x86_backend.sh` (new). No changes to `corpus` or other repos.
-
-**Session 2026-05-16 (Claude Opus 4.7, PJ-9c partial):** Three changes landed for Mode-4 (`--compile --target=x86`) Prolog dispatch wiring. (1) `src/runtime/rt/rt.c`: new `rt_bb_once_proc(name, arity)` mirroring `case SM_BB_ONCE_PROC` in `sm_interp.c:671`. Body: `pl_bb_once_proc_by_name → pl_bb_env_push → bb_broker(BB_ONCE) → pl_bb_env_pop`. Miss-arm prints `[NO-AST] SM_BB_ONCE_PROC stub` matching Modes 2/3 (PJ-9b convention). `pl_runtime.c` already in `RT_PIC_SRCS` so library link is clean. (2) `src/emitter/emit_sm.c:562`: `g_sm_templates[]` entry flipped from `SM_TPL_ARITH/rt_unhandled_sm` to `SM_TPL_LBL_INT32/rt_bb_once_proc` (same shape as `SM_CALL_FN`). (3) `src/emitter/emit_sm.c`: added `emit_sm_bb_once_proc_dispatch` (~10 lines, modeled on `emit_sm_call_dispatch`) and `case SM_BB_ONCE_PROC` in the master per-opcode switch at line 2956. Verified end-to-end: `scrip --compile --target=x86 hello.pl` now emits `BB_ONCE_PROC .S0, 0` (was `UNHANDLED 60`); assembles/links/runs without abort. **Honest limitation:** the produced standalone binary's `g_dcg_table` is empty because the Mode-4 emit doesn't include a Prolog predicate-registry initialization step (the Snocone path uses `rt_register_expressions` for the analogous role). Result: `rt_bb_once_proc` hits its miss-arm and prints the `[NO-AST]` stub. Dispatch shape correct; registry-population emit is **PJ-9d**. All other gates unchanged.
-
-**Pre-PJ-9c environment fix (also this session):** `apt-get install libgc-dev` was required before `make` would succeed. The package isn't preinstalled in fresh containers.
-
-**Session 2026-05-16 (Claude Opus 4.7, PJ-9b):** Aligned Mode 3 `[NO-AST]` stub fingerprints with Mode 2's opcode-name convention per RULES.md. Renamed four miss-arm fingerprints in `src/processor/sm_jit_interp.c`: `h_bb_pump → SM_BB_PUMP`, `h_bb_once → SM_BB_ONCE`, `h_bb_once_proc → SM_BB_ONCE_PROC`, `h_bb_pump_every → SM_BB_PUMP_EVERY`. The PL_UNIFY/PL_BUILTIN stubs at lines 804/828 already matched Mode 2. Extended `test_crosscheck_prolog.sh` to walk the flat-file rung corpus (it had been looking for nonexistent rung01/02/03 subdirectories, so only 4 hardcoded inline tests ran). Split the xcheck logic so the gate measures *mode-consistency* (the actual PJ-9a/9b invariant) separately from *oracle match* (reported as informational ORACLE_MISS). Result: crosscheck 4→**128 PASS** (124 corpus rungs verified 3-mode-consistent + 4 inline), FAIL=0, SKIP=4 (timeouts), ORACLE_MISS=11 (3 modes agree but differ from `.ref` — those are frontend completeness gaps unrelated to mode dispatch, principally rung29 float-arithmetic and rung30 DCG syntax). All other gates unchanged.
-
-**Session 2026-05-16 (Claude Opus 4.7):** PJ-9a landed. Mode-3 JIT dispatcher's `h_bb_once_proc` was a `[NO-AST]` stub at `src/processor/sm_jit_interp.c:288`; `--run` Prolog crosscheck was 0/4. Wired it through `pl_bb_once_proc_by_name` + `bb_broker` mirroring Mode 2's `sm_interp.c:671` body (push `pl_bb_env`, drive `bb_broker(node, BB_ONCE, NULL, NULL)`, pop env, set `STATE->last_ok`). On lookup miss the `[NO-AST]` print is retained. `test_crosscheck_prolog.sh` 0/4 → 4/4 (hello+backtrack+arith+recursion now agree across all three modes). Independently regenerated `snocone_parse.tab.h` (was stale from upstream PST-SC-4b commit `4aa8727b` which committed the `.y` change without regenerating headers — that broke every build since PJ-8). All other gates unchanged: smoke_prolog 5/5, honest_prolog 124/0/0, honest_icon 277/0/0, unified_broker 20/49.
-
-**Open findings (post-PJ-9a audit, same session):** Two `[NO-AST]` stubs in mode 2/3 dispatch are still reachable from legitimate programs and would be candidate rungs (PJ-9b? PJ-9c?):
-- `sm_interp.c:1266` and `sm_jit_interp.c:804` — `SM_CALL_FN "PL_UNIFY"` stub. Emitted by `lower.c:1185` for top-level `TT_UNIFY` (not in any current gate's expected-pass set, but reachable).
-- `sm_interp.c:1290` and `sm_jit_interp.c:828` — `SM_CALL_FN "PL_BUILTIN"` stub. Emitted by `lower.c:1018` for **top-level Prolog directives** like `:- assertz(color(red)).`. Verified reachable: `rung13_assertz_*.pl` programs fire this stub in both `--interp` and `--run`. The body-level path (predicates calling `write`, `is`, `assertz`, etc.) already goes through `IR_PL_BUILTIN` via `lower_pl.c`; the gap is *directive-level* lowering in shared `lower.c` not yet routed to the IR_PL_* pipeline. Honest gate doesn't catch it because `--interp` oracle also fails on these programs.
-- Mode 4 (x86 / .NET emit) `SM_BB_ONCE_PROC` is a no-op fallthrough in `emit_net.c:1108`; no `emit_x86.c` Prolog path. This is the "inline x86 emitters for Prolog primitives" item in Done-When.
-
-**Session 2026-05-16f (Claude Opus 4.7):** PJ-8 landed as a 5-line surgical stub. In `src/driver/interp_hooks.c:81`, the `g_pl_active` branch of `_usercall_hook` is now gated by `if (g_sm_dispatch_active && !g_ast_pump_active)` which prints `[NO-AST] _usercall_hook prolog branch: needs fresh SM/BB lowering (PJ-8)` and returns FAILDESCR. This was the ONLY SM-dispatch-reachable AST path into `pl_unified_term_from_expr` / `pl_pred_table_lookup`. The other AST callers in `pl_broker.c` (lines 31, 90-91, 122, 387, 396) are only reached from mode 1 (`pl_runtime.c` + `interp_eval.c`), which per RULES.md remains the authoritative AST-walking reference path. All gates green and unchanged from PJ-7.
-
-**Session 2026-05-16e (Claude Opus 4.7):** PJ-7 landed. Backtracking pump for Prolog conjunction works. Three coordinated changes in `src/lower/ir_exec.c`:
-
-(1) **`IR_PL_CHOICE` made stateful** — `nd->state` = next clause index to try (0=fresh). On re-entry via `IR_exec_resume`, the for-loop body `for (ci = nd->state; ci < nd->n; ci++)` skips clauses already tried. On success: `nd->state = ci+1`. On exhaustion: `nd->state = 0` and FAIL.
-
-(2) **`IR_PL_CALL` made resumable** — first call stores `PlCallSt{callee_env, saved_env, trail_mark, nslots}` in `nd->opaque` and sets `nd->state = 1`. The KEY insight: **shared-term propagation** — when caller arg is an unbound `IR_PL_VAR`, allocate one `term_new_var(ai)` and store the SAME pointer in both `callee_env[ai]` AND `saved_env[caller_slot]`. The callee's body unifies via `unify()` which trail-pushes binding. Caller reads `g_pl_env[slot]` and does `term_deref` to get current binding. Trail unwind correctly reveals next solution. Earlier attempt used `term_deref(callee_env[ai])` for propagation — that's WRONG because deref returns a fresh atom value that doesn't track future rebindings.
-
-(3) **`IR_PL_SEQ` made backtracking** — added `int backtrack_from` cursor. Forward: run goals 0..n-1; on success advance. On failure: set `backtrack_from = j` and enter backtrack loop. Backtrack scans left of `backtrack_from` for nearest goal with state==1 (resumable IR_PL_CALL or retryable IR_PL_ALT). For CALL: unwind trail to `cs->trail_mark`, swap `g_pl_env = cs->callee_env`, refresh trail mark, call `IR_exec_resume(rbb->ir_body)`. If yields: re-propagate shared terms, restart forward at `found+1`, `backtrack_from = -1`. If exhausted: free cs, opaque=NULL, state=0, `backtrack_from = found` (continue scanning further left). For ALT: set state=2 (signal to ALT case "skip left, run right"), execute c[1].
-
-(4) **`IR_PL_ALT` extended** — state==2 means "called from SEQ backtrack pump: skip left branch and run right directly." After taking right branch, state reset to 0.
-
-Key facts for next session:
-- `libgc-dev` needed: `apt-get install -y libgc-dev`.
-- IR_t union: `ival`, `dval`, `sval` all alias. Always use `ival2` for integer fields on nodes that also carry `sval`.
-- tree_t.v union: `sval`, `ival`, `dval` alias. Arity must be passed explicitly or extracted from sval key.
-- TT_FNC(">" / "<" / ">=" / "<=" / "=:=" / "=\\=") are how Prolog comparison goals appear. Already handled in lower_pl.c.
-- Atom arg-binding check is `av.v == DT_S && av.s && av.s[0]` (was `(DT_S || DT_SNUL) && av.s` — that wrongly created empty atom for NULVCL).
-- The `--interp` mode is the only place these IR_PL_* opcodes execute. Modes 2/3/4 (SM dispatch) currently route through `_usercall_hook` in `interp_hooks.c` which still calls AST-walking `pl_unified_term_from_expr` — PJ-8 cleans that up.
-
-**NEXT (PJ-8 — delete AST walking from modes 2/3/4):**
-Three callers outside mode 1 (interp_eval.c) need stubbing per RULES.md `[NO-AST]` template:
-- `src/driver/interp_hooks.c:88` — `_usercall_hook` Prolog branch calls `pl_unified_term_from_expr`. Replace with `[NO-AST] _usercall_hook prolog` stub + `st->last_ok = 0`. This routes mode-2/3/4 SM dispatch through fresh `g_dcg_table` lookup instead.
-- `src/frontend/prolog/pl_broker.c` — entire file is AST-walking legacy mode-2. Lines 31 (interp_exec_pl_builtin), 90-91 (pl_unified_term_from_expr), 122 (head-arg unify), 387 (pl_pred_table_lookup_global), 396 (caller_args). Stub each call site.
-
-Mode 1 reference path stays: `src/driver/interp_eval.c:3633-34` keeps calling `pl_unified_term_from_expr` (this is `--interp` standalone AST interp per RULES.md).
-
-Gate: smoke_prolog 5/5 must stay; honest_prolog 124/0/0 stays; broker baseline at 20/49 — some broker tests may shift if pl_broker.c stub triggers different paths.
