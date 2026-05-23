@@ -21,23 +21,21 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23p — GATE GREEN ✅)
+## Session State (2026-05-23q — GATE GREEN ✅)
 
-**one4all HEAD: `d60c890c`** ✅ GATE GREEN 442/0/612.
+**one4all HEAD: `3604d252`** ✅ GATE GREEN 442/0/612.
 
-**What was done (2026-05-23o/p):**
-- DM-7 prereq (`27347511`): all 17 remaining BB_templates `.c` → `.cpp`. IS_TEXT→!MEDIUM_BINARY, IS_BIN→MEDIUM_BINARY, IS_JVM/JS/NET/WASM→PLATFORM_*. Makefile updated. 15 text_macro baselines refrozen. PASS 433→442, STUB 621→612.
-- DM-7 (`d60c890c`): IS_TEXT/IS_BIN/IS_WIRED/IS_BROKERED/IS_X86/IS_MACRO_DEF/IS_JVM/IS_JS/IS_NET/IS_WASM shim macros deleted from emit_core.h. All template and emitter code now uses PLATFORM_xx/MEDIUM_xx exclusively. bb_emit_mode variable and enum retained (used internally by emit_mode_set, emitter_init_*, emit_jmp switches). GATE GREEN 442/0/612.
+**What was done (2026-05-23p/q):**
+- DM-7 (`d60c890c`): IS_* shim macros deleted from emit_core.h. All template code now uses PLATFORM_xx/MEDIUM_xx.
+- Nesting fix (`3604d252`): MEDIUM_MACRO_DEF nested inside PLATFORM_X86 in sm_jumps, sm_push_pop_lits, sm_returns. No output change. NEW=0 GONE=0.
 
 **DM rung status:**
-- [x] DM-1 through DM-7 ✅ complete — `d60c890c`
-- [ ] **DM-8 NEXT** — add `emit_text_and_binary_in_one()` in emit_str.h/.cpp: given opcode + args, returns string for macro-call (USE_SM_MACROS), raw-inline (!USE_SM_MACROS), or macro-def body (MEDIUM_MACRO_DEF). Migrate first SM template as proof-of-concept.
+- [x] DM-1 through DM-7 ✅ complete
+- [ ] **DM-8 NEXT** — add `emit_text_and_binary_in_one()`: given opcode + args, returns string for macro-call (USE_SM_MACROS), raw-inline (!USE_SM_MACROS), or macro-def body (MEDIUM_MACRO_DEF). Migrate first SM template as proof-of-concept.
 
 **ER rung status:**
 - [x] ER-0 through ER-7 ✅
-- [ ] ER-8 — relocation rethink (future session).
-
-⛔ Beauty gate SUSPENDED.
+- [ ] ER-8 — relocation rethink (future session). ⛔ Beauty gate SUSPENDED.
 
 **Prior (2026-05-23l) one4all HEAD: `ace2d3ba`** — DM-1+DM-2 clean. GATE-PK 419/0/635 ✅.
 
