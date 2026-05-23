@@ -21,25 +21,25 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23m — EMERGENCY HANDOFF ⚠️ GATE RED)
+## Session State (2026-05-23n — GATE GREEN ✅)
 
-**one4all HEAD: `e2fabcff`** ⚠️ BROKEN — DM-3/4/5 template sweep landed but audit segfaults. DO NOT BUILD ON THIS COMMIT without fixing first.
+**one4all HEAD: `d41e99a0`** ✅ GATE GREEN — DM-3/4/5 segfault fixed. GATE-PK 433/0/621.
 
-**Breakage:** `scrip --audit-per-kind` segfaults in BB cell loop. Root cause not fully isolated — candidates: (a) `emit_mode_set(be->mode, NULL)` in binary audit path writes `bb_emit_out=NULL` which some template then dereferences, (b) interaction between `emitter_init_binary` (sets `bb_emit_mode=EMIT_BINARY_WIRED` directly) and `emit_mode_set` called immediately after clobbering state, (c) null `g_emit` sub-struct field accessed by a predicate in a converted template.
+**What was fixed (2026-05-23n):**
+- DM-3/4/5 segfault root cause: `bb_arbno.cpp` had `if (MEDIUM_TEXT) { ... } else { ...binary arm... }`. The bare `else` caught `MEDIUM_MACRO_DEF` (not just `MEDIUM_BINARY`), routing it into the binary arm where `lbl_back_p=NULL` (audit only sets `_p` fields for `EMIT_BINARY_WIRED`). Fix: one line — `} else {` → `} if (MEDIUM_BINARY) {`.
+- Side effect: 14 `x86/text_macro` cells that previously crashed (registering as stubs) now correctly produce TEXT-arm output under MACRO_DEF. Baselines refrozen. STUB 635→621, PASS 419→433. NEW=0 GONE=0.
 
-**Clean baseline:** `ace2d3ba` (DM-1+DM-2, gate green 419/0/635). Safe to revert to this if needed.
+**DM rung status:**
+- [x] DM-1 ✅ `ace2d3ba`
+- [x] DM-2 ✅ `ace2d3ba`
+- [x] DM-3 ✅ `d41e99a0` (fixed)
+- [x] DM-4 ✅ `d41e99a0` (fixed)
+- [x] DM-5 ✅ `d41e99a0` (fixed)
+- [ ] DM-6 — migrate `emit_core.c` / `emit_sm.c` / `emit_bb.c` / `emit_io.c` helpers
+- [ ] DM-7 — delete `bb_emit_mode` shims
+- [ ] DM-8 — add `emit_text_and_binary_in_one()`
 
-**What was done this session (2026-05-23l/m):**
-- DECOMPOSE-MODE rung designed and documented (Lon directive)
-- DM-1 ✅: new enums `bb_platform_t`/`bb_medium_t`, globals `g_platform/g_medium/g_bb_brokered/g_use_sm_macros/g_use_bb_macros`, predicates `PLATFORM_*/MEDIUM_*/BB_BROKERED/BB_WIRED/USE_SM_MACROS/USE_BB_MACROS` added to `emit_core.h`
-- DM-2 ✅: globals defined in `emit_core.c`; `emit_mode_set()` updated to write all five atomically from old `bb_emit_mode_t` value
-- DM-3/4/5 ⚠️ BROKEN: mechanical `IS_*→PLATFORM_*/MEDIUM_*` sed sweep across all 41 template `.cpp` files; two direct `bb_emit_mode=` assignments in audit tool replaced with `emit_mode_set()` calls — but audit now segfaults
-
-**NEXT: fix audit segfault.** Strategy:
-1. Add `fprintf(stderr,...)` trace before each BB cell invocation in audit loop to isolate which kind/backend crashes
-2. Check `emit_mode_set(be->mode, NULL)` for binary path — `bb_emit_out=NULL` may be dereferenced inside a template's `MEDIUM_BINARY` arm that calls `g_emit.out`
-3. Consider: for binary audit path, call `emit_mode_set(EMIT_BINARY_WIRED, NULL)` then restore `bb_emit_out=NULL` after (since `emit_mode_set` sets `bb_emit_out=out`)
-4. Once segfault fixed, refreeeze baselines if output changed, then gate green
+**NEXT: DM-6** — sweep remaining `IS_*` / `bb_emit_mode ==` sites in non-template emitter files. ⛔ Beauty gate SUSPENDED.
 
 **Prior (2026-05-23l) one4all HEAD: `ace2d3ba`** — DM-1+DM-2 clean. GATE-PK 419/0/635 ✅.
 
