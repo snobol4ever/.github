@@ -21,13 +21,13 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23)
+## Session State (2026-05-23b)
 
-**one4all HEAD: `2ef4847f`** — SJ-1a funnel infrastructure landed (emit_Nasm/emit_Ndir). GREEK-BB-1..4 ✅ + EAO-13 ✅ (commit `db558a72`). EAO, EAO-CONT, GREEK-BB, PARAM-PASS rungs all complete and removed from this file.
+**one4all HEAD: `7932a0d0`** — SJ-1b funnel rework landed. Six-function instruction-line API + emit_directive now match the SPACING MODEL (corrected two bugs: the `2ef4847f` unconditional-leading-space, then a double-space in the first NULL-sentinel rework). Pilot `bb_pat_abort` x86 arm verified byte-correct (only delta vs baseline = intended one-space pad) then reverted to keep gate green. No template arm calls the funnels yet on `main`.
 
 **Gate entering next session: GATE-PK PASS=419 FAIL=0 STUB=635.** smoke_prolog 5/5.
 
-**NEXT: SJ-1b** — atomic JVM backend conversion (24 template arms + 7 jvm_* helpers through the funnels), then refreeze JVM cells, GATE-PK.
+**NEXT: SJ-1b-sweep** — route ALL ASM-type output (every backend, not just JVM — Lon directive 2026-05-23) through the funnels. ~1,168 `emit_textf` sites across 47 template files x 5 backends. Per-backend-atomic: convert one backend's arms fully, refreeze that backend's cells wholesale, GATE-PK 419/0/635, commit; then next backend. Start x86 (reference). The pilot pattern is proven — this is mechanical volume.
 
 ## Active Rungs
 
@@ -49,12 +49,29 @@
 
 `emit_1asm..emit_4asm` join N pre-formatted parts. No printf formatting inside funnels — callers `snprintf` any `%`-interpolation first. Conversion = classify each emitted line into label/opcode/operands/comment and place each in its slot; operand strings keep internal spaces as a single part.
 
-- [ ] **STYLE-JVM-ONE-SPACE (SJ-1)** — ✅ SJ-1a funnels landed (`2ef4847f`). 🔄 SJ-1b: convert all 24 JVM template arms + 7 jvm_* helpers via funnels, refreeze JVM cells, GATE-PK. (Verified correct on bb_pat_fence pilot.)
+- [ ] **STYLE-FUNNEL-ALL-ASM (SJ-1)** — ✅ SJ-1a funnels landed (`2ef4847f`). ✅ SJ-1b funnel rework + six-function API (this session). 🔄 SJ-1b-sweep: route ALL backends' ASM through the funnels.
 
-  **SJ-1b execution recipe (do as ONE atomic commit — helpers ripple to 37 cells; partial = red gate). FIRST rework funnels per the SPACING MODEL above (label is first part; leading space only when label absent; directives = no label slot at column 1).**
-  1. Convert the 7 whole-line `jvm_*` helpers in `emit_core.c`: `jvm_push_int2`, `jvm_class_hdr` (`.class`/`.super`/`.inner` = directives, column 1), `jvm_init_ms_only`, `jvm_init_ms_str`, `jvm_init_ms_int` (`.method`/`.limit` = directives column 1; aload/invokespecial/putfield/return = instructions, no-label→one-space pad; putfield operand keeps internal-space type descriptor as ONE part), `jvm_val_helper` (label `<name>_val_static:` = LABEL → column 1, no leading space; invokeinterface ...getAsInt()I 1 has a trailing arg-count part). Escape-builder `jvm_emit_ldc_string`: ONLY fix leading `"    ldc \""`→`" ldc \""` (do NOT funnelize the char loop — it serializes operand payload, not line structure).
-  2. Convert all 24 BB_templates JVM arms + ~20 SM_templates JVM arms: split each multi-line `emit_textf` blob into one funnel call per line; classify each line into label/opcode/operands/comment. Labels → column 1, no leading space. Directives → column 1, no leading space. Instructions with no label → one leading space (label-column placeholder) + opcode + operands + comment, single spaces between. Operand strings with internal spaces (type descriptors, `getfield a/b/c I`) stay ONE part.
-  3. `bash scripts/freeze_per_kind_baseline.sh` (wholesale — safe once ALL jvm cells converted; non-jvm cells regenerate identical). 4. GATE-PK must return 419/0/635. 5. Commit. The 37 rippled cells: BB_PAT_{ABORT,ANY,ARB,BREAK,FENCE,LEN,NOTANY,POS,REM,SPAN,TAB} + SM_{ACOMP,CALL_FN,FRETURN*,LCOMP,NRETURN*,PAT_CAPTURE*,PAT_LIT,PAT_REFNAME,PAT_USERCALL*,PUSH_LIT*,PUSH_VAR,RETURN*,STNO,STORE_VAR,SUSPEND_VALUE}.
+  **FUNNEL API (authoritative, in `emit_io.{c,h}`):**
+  - `emit_1asm(op)` / `emit_2asm(op,operand)` / `emit_3asm(op,operand,comment)` — UNLABELED instruction lines. One leading space holds the empty label column; opcode begins at the same column a labeled line's opcode would.
+  - `emit_L2asm(label,op)` / `emit_L3asm(label,op,operand)` / `emit_L4asm(label,op,operand,comment)` — LABELED lines. Label (incl. trailing `:`) at column 1, one space, then the rest.
+  - `emit_directive(line)` (in `emit.h`) — ALL directive lines AND comment banners. Whole line, column 1, internal spaces verbatim. Use for any line with more tokens than the part slots (e.g. `.inner class ... outer ...`, `# BOX FOO()`).
+  - Suffix number = count of REAL parts; `L` prefix = part 1 is a label. No NULL sentinels. Callers `snprintf` any `%`-interpolation (incl. building `label:`) into a local buffer first — funnels take final strings only.
+
+  **SPACING (unchanged from model):** labels & directives at column 1; unlabeled instructions get exactly ONE leading space (the absent-label placeholder). This DOES reformat x86 (currently column-0 instructions → column-1) and JVM (currently 4-space → 1-space). Refreeze bakes the new spacing as standard.
+
+  **SWEEP RECIPE (per backend, atomic — partial = red gate):**
+  1. In each template arm for that backend, split every multi-line `emit_textf` blob into one funnel call per line. Classify each line: directive/banner → `emit_directive`; labeled instruction → `emit_LNasm`; unlabeled instruction → `emit_Nasm`. Operand strings with internal spaces (type descriptors, `getfield a/b/c I`, `[rip + X]`) stay ONE part.
+  2. For shared helpers that emit asm (the 6 `jvm_*` in `emit_core.c`: `jvm_push_int2`, `jvm_class_hdr`, `jvm_init_ms_only`, `jvm_init_ms_str`, `jvm_init_ms_int`, `jvm_val_helper`; plus `jvm_emit_ldc_string` leading-space fix), convert together with the arms — they ripple across all cells sharing them.
+  3. `bash scripts/freeze_per_kind_baseline.sh` (wholesale; non-converted backends regenerate identical). 4. GATE-PK must return 419/0/635. 5. Commit. Then next backend.
+
+  **PROVEN PILOT** (`bb_pat_abort` x86, this session, reverted to keep gate green):
+  ```c
+  char lbl_back_c[128]; snprintf(lbl_back_c, sizeof lbl_back_c, "%s:", lbl_back);
+  emit_directive("# BOX ABORT()");
+  emit_2asm("jmp", lbl_fail);              /*  jmp L_fail_audit            */
+  emit_L3asm(lbl_back_c, "jmp", lbl_fail); /* L_back_audit: jmp L_fail_audit */
+  ```
+  Verified: only delta vs frozen baseline = the intended one-space pad. Order to do backends: x86 (reference) → JVM → NET → JS → WASM.
 - [ ] **STYLE-NO-SHADOW-LOCALS (SNS-1/2/3)** — Remove `const SM_t *instr`/`FILE *out` aliases from sm_pat_combine, sm_calls, sm_jumps, sm_template_common.h.
 - [ ] **STYLE-NO-TRANSFORM-LOCALS (STL-1..7)** — Inline trivial locals (`int sid=0`, `int lineno=`, `int val=`, etc.) across BB/SM templates.
 - [ ] **STYLE-NO-OUT-PARAM (SOP-1..4)** — Remove `FILE *out` from all 20+ emitter helpers in `emit_core.c`; replace `fprintf(out,…)` with `emit_textf(…)`.
