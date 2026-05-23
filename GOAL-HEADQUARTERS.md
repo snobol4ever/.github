@@ -23,7 +23,7 @@
 
 ## Session State (2026-05-23b)
 
-**one4all HEAD: `41e629e3`** — SJ-1b funnel rework landed. Six-function instruction-line API + emit_directive now match the SPACING MODEL (corrected two bugs: the `2ef4847f` unconditional-leading-space, then a double-space in the first NULL-sentinel rework). Pilot `bb_pat_abort` x86 arm verified byte-correct (only delta vs baseline = intended one-space pad) then reverted to keep gate green. No template arm calls the funnels yet on `main`.
+**one4all HEAD: `336cb7e1`** — SJ-1b funnel rework landed. Six-function instruction-line API + emit_directive now match the SPACING MODEL (corrected two bugs: the `2ef4847f` unconditional-leading-space, then a double-space in the first NULL-sentinel rework). Pilot `bb_pat_abort` x86 arm verified byte-correct (only delta vs baseline = intended one-space pad) then reverted to keep gate green. No template arm calls the funnels yet on `main`.
 
 **Gate entering next session: GATE-PK PASS=419 FAIL=0 STUB=635.** smoke_prolog 5/5.
 
@@ -53,7 +53,7 @@
 
   **FUNNEL API (authoritative, in `emit_io.{c,h}`):**
   - `emit_1asm(op)` / `emit_2asm(op,operand)` / `emit_3asm(op,operand,comment)` — UNLABELED instruction lines. One leading space holds the empty label column; opcode begins at the same column a labeled line's opcode would.
-  - `emit_L2asm(label,op)` / `emit_L3asm(label,op,operand)` / `emit_L4asm(label,op,operand,comment)` — LABELED lines. Label (incl. trailing `:`) at column 1, one space, then the rest.
+  - `emit_L1asm(label,op)` / `emit_L2asm(label,op,operand)` / `emit_L3asm(label,op,operand,comment)` — LABELED lines. Label (incl. trailing `:`) at column 1, one space, then the rest. The suffix counts parts AFTER the label (the `L` stands in for it), so `emit_1asm`/`emit_L1asm`, `emit_2asm`/`emit_L2asm` etc. line up — same part count past the label column.
   - `emit_directive(line)` (in `emit.h`) — ALL directive lines. Whole line, column 1, internal spaces verbatim (e.g. `.inner class ... outer ...`).
   - `emit_comment(line)` (in `emit.h`) — ALL comment/banner lines (e.g. `# BOX FOO()` GAS, `; ...` Jasmin). Whole line, column 1; caller supplies the marker.
   - Suffix number = count of REAL parts; `L` prefix = part 1 is a label. No NULL sentinels. Callers `snprintf` any `%`-interpolation (incl. building `label:`) into a local buffer first — funnels take final strings only.
@@ -70,7 +70,7 @@
   char lbl_back_c[128]; snprintf(lbl_back_c, sizeof lbl_back_c, "%s:", lbl_back);
   emit_comment("# BOX ABORT()");
   emit_2asm("jmp", lbl_fail);              /*  jmp L_fail_audit            */
-  emit_L3asm(lbl_back_c, "jmp", lbl_fail); /* L_back_audit: jmp L_fail_audit */
+  emit_L2asm(lbl_back_c, "jmp", lbl_fail); /* L_back_audit: jmp L_fail_audit */
   ```
   Verified: only delta vs frozen baseline = the intended one-space pad. Order to do backends: x86 (reference) → JVM → NET → JS → WASM.
 - [ ] **STYLE-NO-SHADOW-LOCALS (SNS-1/2/3)** — Remove `const SM_t *instr`/`FILE *out` aliases from sm_pat_combine, sm_calls, sm_jumps, sm_template_common.h.
