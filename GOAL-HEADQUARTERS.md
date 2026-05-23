@@ -23,7 +23,7 @@
 
 ## Session State (2026-05-23b)
 
-**one4all HEAD: `7932a0d0`** — SJ-1b funnel rework landed. Six-function instruction-line API + emit_directive now match the SPACING MODEL (corrected two bugs: the `2ef4847f` unconditional-leading-space, then a double-space in the first NULL-sentinel rework). Pilot `bb_pat_abort` x86 arm verified byte-correct (only delta vs baseline = intended one-space pad) then reverted to keep gate green. No template arm calls the funnels yet on `main`.
+**one4all HEAD: `41e629e3`** — SJ-1b funnel rework landed. Six-function instruction-line API + emit_directive now match the SPACING MODEL (corrected two bugs: the `2ef4847f` unconditional-leading-space, then a double-space in the first NULL-sentinel rework). Pilot `bb_pat_abort` x86 arm verified byte-correct (only delta vs baseline = intended one-space pad) then reverted to keep gate green. No template arm calls the funnels yet on `main`.
 
 **Gate entering next session: GATE-PK PASS=419 FAIL=0 STUB=635.** smoke_prolog 5/5.
 
@@ -54,20 +54,21 @@
   **FUNNEL API (authoritative, in `emit_io.{c,h}`):**
   - `emit_1asm(op)` / `emit_2asm(op,operand)` / `emit_3asm(op,operand,comment)` — UNLABELED instruction lines. One leading space holds the empty label column; opcode begins at the same column a labeled line's opcode would.
   - `emit_L2asm(label,op)` / `emit_L3asm(label,op,operand)` / `emit_L4asm(label,op,operand,comment)` — LABELED lines. Label (incl. trailing `:`) at column 1, one space, then the rest.
-  - `emit_directive(line)` (in `emit.h`) — ALL directive lines AND comment banners. Whole line, column 1, internal spaces verbatim. Use for any line with more tokens than the part slots (e.g. `.inner class ... outer ...`, `# BOX FOO()`).
+  - `emit_directive(line)` (in `emit.h`) — ALL directive lines. Whole line, column 1, internal spaces verbatim (e.g. `.inner class ... outer ...`).
+  - `emit_comment(line)` (in `emit.h`) — ALL comment/banner lines (e.g. `# BOX FOO()` GAS, `; ...` Jasmin). Whole line, column 1; caller supplies the marker.
   - Suffix number = count of REAL parts; `L` prefix = part 1 is a label. No NULL sentinels. Callers `snprintf` any `%`-interpolation (incl. building `label:`) into a local buffer first — funnels take final strings only.
 
   **SPACING (unchanged from model):** labels & directives at column 1; unlabeled instructions get exactly ONE leading space (the absent-label placeholder). This DOES reformat x86 (currently column-0 instructions → column-1) and JVM (currently 4-space → 1-space). Refreeze bakes the new spacing as standard.
 
   **SWEEP RECIPE (per backend, atomic — partial = red gate):**
-  1. In each template arm for that backend, split every multi-line `emit_textf` blob into one funnel call per line. Classify each line: directive/banner → `emit_directive`; labeled instruction → `emit_LNasm`; unlabeled instruction → `emit_Nasm`. Operand strings with internal spaces (type descriptors, `getfield a/b/c I`, `[rip + X]`) stay ONE part.
+  1. In each template arm for that backend, split every multi-line `emit_textf` blob into one funnel call per line. Classify each line: directive → `emit_directive`; comment/banner → `emit_comment`; labeled instruction → `emit_LNasm`; unlabeled instruction → `emit_Nasm`. Operand strings with internal spaces (type descriptors, `getfield a/b/c I`, `[rip + X]`) stay ONE part.
   2. For shared helpers that emit asm (the 6 `jvm_*` in `emit_core.c`: `jvm_push_int2`, `jvm_class_hdr`, `jvm_init_ms_only`, `jvm_init_ms_str`, `jvm_init_ms_int`, `jvm_val_helper`; plus `jvm_emit_ldc_string` leading-space fix), convert together with the arms — they ripple across all cells sharing them.
   3. `bash scripts/freeze_per_kind_baseline.sh` (wholesale; non-converted backends regenerate identical). 4. GATE-PK must return 419/0/635. 5. Commit. Then next backend.
 
   **PROVEN PILOT** (`bb_pat_abort` x86, this session, reverted to keep gate green):
   ```c
   char lbl_back_c[128]; snprintf(lbl_back_c, sizeof lbl_back_c, "%s:", lbl_back);
-  emit_directive("# BOX ABORT()");
+  emit_comment("# BOX ABORT()");
   emit_2asm("jmp", lbl_fail);              /*  jmp L_fail_audit            */
   emit_L3asm(lbl_back_c, "jmp", lbl_fail); /* L_back_audit: jmp L_fail_audit */
   ```
