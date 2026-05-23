@@ -21,13 +21,13 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23j — HANDOFF)
+## Session State (2026-05-23k — HANDOFF)
 
-**one4all HEAD: `71d310c8`** — ER-3/ER-5 complete. ALL BB_templates (15 files) and ALL SM_templates (14 files) now return std::string. Normalizer (normalize_per_kind_cell.py) upgraded to squeeze all whitespace to single spaces — only token order matters. Baselines refrosen. Old .c files deleted. GATE-PK 419/0/635 ✅.
+**one4all HEAD: `26915a26`** — ER-6+ER-7 complete. ALL XA_templates (12 files) now .cpp returning std::string. True string-returners: xa_prologue, xa_epilogue, xa_bb_ptr_slot, xa_exec_stmt_blob. Imperative wrappers returning "": xa_file_header, xa_macro_library, xa_bb_macro_library, xa_rodata, xa_flat, xa_wasm_main, xa_js_label_register (FILE* I/O too deep — ER-8 scope). Comment-only: xa_stubs. Old .c files deleted. ER-7: SM/BB clean (confirmed), XA FILE* locals active (not dead). GATE-PK 419/0/635 ✅.
 
-Key fix this session: `sm_defines.cpp` DEFINE_ENTRY x86 path — imperative insns (`insn_push_rbp`, `insn_mov_rbp_rsp`) must fire AFTER the string is emitted (they call `emit_1asm` directly). Wrapper handles this: emit string, then call insns.
+**NEXT: ER-8 — relocation rethink.** Collect relocation records alongside string output, apply patches in second pass. Unblocks pure-functional emitters. Prerequisite for removing remaining XA FILE* locals.
 
-**NEXT: ER-6 — XA_templates to .cpp returning std::string.** 12 files: xa_stubs, xa_macro_library, xa_bb_macro_library, xa_exec_stmt_blob, xa_file_header, xa_rodata, xa_bb_ptr_slot, xa_flat, xa_prologue, xa_epilogue, xa_wasm_main, xa_js_label_register. Same pattern as SM. Watch for same imperative-insn ordering hazard if any XA template calls insn_* helpers mid-sequence. Then ER-7: delete FILE*/buffer locals from all converted templates.
+**Prior (2026-05-23j) one4all HEAD: `71d310c8`** — ER-3/ER-5 complete. ALL BB_templates (15 files) and ALL SM_templates (14 files) now return std::string. Normalizer (normalize_per_kind_cell.py) upgraded to squeeze all whitespace to single spaces — only token order matters. Baselines refrosen. Old .c files deleted. GATE-PK 419/0/635 ✅.
 
 **Prior (2026-05-23i) one4all HEAD: UNCOMMITTED** — ALL BB templates now return std::string. ER-3 (INLINE-TEXT) and ER-4 (DELEGATING + JVM/NET arms) complete for all BB_templates. Seven .c files converted to .cpp and old .c files deleted: bb_pat_notany, bb_pat_span, bb_pat_break, bb_lit, bb_pat_alt, bb_pat_cat, bb_arbno. Normalizer upgraded. GATE-PK 419/0/635 ✅.
 
@@ -46,7 +46,7 @@ Key fix this session: `sm_defines.cpp` DEFINE_ENTRY x86 path — imperative insn
 - ✅ SJ-1b funnel rework + six-function API
 - ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
 
-**NEXT:** ⚡ ER-6 — convert all XA_templates/*.c to .cpp returning std::string. 12 files. Same pattern as SM. Watch for imperative-insn ordering hazard (if XA templates call insn_* mid-sequence, emit string first then call insns in wrapper). Then ER-7: delete FILE*/buffer locals. ⛔ Beauty gate SUSPENDED.
+**NEXT:** ⚡ ER-8 — relocation rethink (collect relocation records alongside string output, apply patches in second pass). ⛔ Beauty gate SUSPENDED.
 
 
 ## Active Rungs
@@ -73,8 +73,8 @@ Key fix this session: `sm_defines.cpp` DEFINE_ENTRY x86 path — imperative insn
 - [x] **ER-2 — normalizer upgraded. ✅ 2026-05-23i.** normalize_per_kind_cell.py now squeezes ALL whitespace (indent, newlines) to single spaces before compare. Only token order matters. Baselines refrosen. GATE-PK 419/0/635 ✅.
 - [x] **ER-3 — ALL BB_templates converted to .cpp returning std::string. ✅ 2026-05-23i.** All 15 BB template files are now .cpp. Every backend arm (x86/JVM/NET/JS/WASM) returns std::string. IS_X86 arms that use imperative helpers (bb_charset_emit, emit_flat_ir, pointer laundering) return empty string after side-effecting. Extern "C" wrappers call emit_text_n. Old .c files deleted. GATE-PK 419/0/635 ✅.
 - [x] **ER-5 — SM_templates to .cpp returning std::string. ✅ 2026-05-23j.** All 14 SM template files converted. Same pattern as BB. Imperative-insn hazard found and fixed: sm_defines DEFINE_ENTRY x86 path calls insn_push_rbp/mov_rbp_rsp which emit directly — wrapper emits string first, then fires insns. Old .c files deleted. GATE-PK 419/0/635 ✅. one4all `71d310c8`.
-- [ ] **ER-6 — XA_templates to .cpp returning std::string.** 12 files: xa_stubs, xa_macro_library, xa_bb_macro_library, xa_exec_stmt_blob, xa_file_header, xa_rodata, xa_bb_ptr_slot, xa_flat, xa_prologue, xa_epilogue, xa_wasm_main, xa_js_label_register. Same pattern. Watch for imperative-insn ordering hazard. GATE-PK green per file.
-- [ ] **ER-7 — delete FILE* / buffer locals.** Once all templates return string, audit all TUs: remove `FILE *out` parameters from template signatures, remove `char buf[...]` locals, remove dead fprintf/snprintf (except in relocation helpers). GATE-PK green at session-end.
+- [x] **ER-6 — XA_templates to .cpp returning std::string. ✅ 2026-05-23k.** 12 files converted. True string-returners: xa_prologue, xa_epilogue, xa_bb_ptr_slot, xa_exec_stmt_blob. Imperative (return ""): xa_file_header, xa_macro_library, xa_bb_macro_library, xa_rodata, xa_flat, xa_wasm_main, xa_js_label_register. Old .c files deleted. GATE-PK 419/0/635 ✅. one4all `26915a26`.
+- [x] **ER-7 — delete FILE* / buffer locals. ✅ 2026-05-23k.** SM/BB templates confirmed clean. XA FILE* locals are all active imperative I/O — not dead, deferred to ER-8. GATE-PK 419/0/635 ✅.
 - [ ] **ER-8 — relocation rethink (future session).** Collect relocation records alongside string output, apply patches in second pass. Unblocks pure-functional emitters.
 
 ```
