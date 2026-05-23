@@ -36,9 +36,26 @@
 - ✅ SJ-1b funnel rework + six-function API
 - ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
 
-**NEXT:** STYLE-NO-SHADOW-LOCALS (SNS-1/2/3) or next active goal per Lon. (SJ-1c ✅ done — JS/WASM defunneled.)
+**NEXT:** ⚡ CPP — C++ conversion of the emitters (FIRST rung; start at CPP-0 build spike). Then STYLE-NO-SHADOW-LOCALS (SNS-1/2/3) or per Lon. (SJ-1c ✅ done — JS/WASM defunneled.)
 
 ## Active Rungs
+
+### ⚡ CPP — C++ conversion of the emitters (FIRST / NEXT rung, 2026-05-23e Lon directive)
+
+Convert all emitter source under `src/emitter/` (currently ~69 `.c` + 18 `.h`, pure C, gcc) to C++. This is now the **first active rung** of GOAL-HEADQUARTERS — do it before ISO and before resuming the STYLE steps.
+
+**Why it's non-trivial:** the build is ONE linked program (`scrip`, 136 TUs via the Makefile's flat source list, `CC := gcc`). The emitter is not a standalone library — its TUs link directly against the C runtime / lower / processor. So this is not a per-file rename; it's: (a) make the emitter TUs compile as C++, (b) keep them linkable against the rest of the C program (extern "C" boundaries), (c) keep emitted bytes identical (GATE-PK 419/0/635 unchanged at every step).
+
+**INVARIANT (overrides nothing, adds one):** the C++ conversion must be **byte-output-neutral**. GATE-PK 419/0/635 NEW=0 GONE=0 after every committed sub-step. No emitted asm/JS/WASM byte may change. This is a source-language migration, not a behavior change.
+
+**Suggested sub-steps (next session refines; each atomic, gate-green):**
+- [ ] **CPP-0 — build spike.** Add `CXX := g++` and a C++ compile path in the Makefile for emitter TUs only. Rename ONE leaf emitter file (e.g. `emit_io.c` → `emit_io.cpp`), wrap its header decls the rest of the C program calls in `extern "C"`, compile that one TU with g++, link whole program, GATE-PK 419/0/635. Proves the toolchain boundary before bulk work. ⚠ Decide: `.cpp` extension vs compile-`.c`-as-C++ flag — recommend real `.cpp` rename so the language is explicit. ⚠ Decide with Lon: full C++ (allow classes/templates later) vs "C-with-g++" (compile-clean C++ first, idiomatic later). Default assumption pending Lon: stage 1 = compile-clean as C++ only, NO idiom changes, byte-identical; idiomatic C++ (replacing the `_.instr->`/`IS_X86` macro layer, the emit funnels, the per-opcode dispatch) is a SEPARATE later rung.
+- [ ] **CPP-1 — extern "C" surface.** Audit every emitter header included by non-emitter C TUs (`emit.h`, `emit_core.h`, `emit_sm.h`, `emit_bb.h`, `emit_io.h`, `emit_globals.h`, `emit_defs.h`, `emit_form.h`, `emit_templates.h`, `sil_macros.h`, `x86_opcodes.h`, `sm_codegen_x64_emit.h`). Add `#ifdef __cplusplus / extern "C" { ... }` guards so the C side links unchanged. GATE-PK green.
+- [ ] **CPP-2 — bulk rename, leaves first.** Rename `BB_templates/*.c`, `SM_templates/*.c`, `XA_templates/*.c` → `.cpp` in waves (BB, then SM, then XA), updating the Makefile source list each wave. C++ is stricter than C: expect `void*`→typed-cast errors, implicit-int, designated-init order, `α/β` UTF-8 identifier handling, and the `_` template-context struct. Fix to compile-clean WITHOUT changing emitted bytes. GATE-PK green per wave.
+- [ ] **CPP-3 — core + glue.** `emit_core.cpp`, `emit_sm.cpp`, `emit_bb.cpp`, `emit_globals.cpp`, `emit_io.cpp`, `sm_codegen_x64_emit.cpp`, `sm_emit_template.cpp`, the `test_*.c`, `demo_template_productions.c`. GATE-PK green; also run GATE-M / GATE-E to confirm no regression beyond the pre-existing (gate1_beauty SUSPENDED, gate4_icon).
+- [ ] **CPP-4 — warnings clean.** Build emitter TUs with `-Wall -Wextra` under g++ with zero warnings. Commit.
+
+**Gate for the whole rung:** GATE-PK 419/0/635 at every commit; full session-end GATE-M/GATE-E unchanged from `88cb6fe2` baseline (which has pre-existing GATE-M 11 misses, GATE-E gate1_beauty + gate4_icon). ⛔ Beauty gate stays SUSPENDED.
 
 ### ISO — parse→lower / parse→runtime firewalls
 
