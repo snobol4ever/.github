@@ -21,11 +21,13 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23d)
+## Session State (2026-05-23e)
 
-**one4all HEAD: `f6b0be23`** — SJ-1b-reindent: restored C source indentation in the 18 SM/BB/XA template files where SJ-1b-sweep split multi-line `emit_textf` blobs into per-line funnel calls but dropped leading whitespace (lines slammed to column 0 inside their blocks). Brace-depth 4-space re-indent, whitespace-only (every string arg byte-identical → emitted asm unchanged). Non-sweep-damaged emitter files left untouched (hand-aligned continuation lines preserved). 18 files, 1448 ins / 1448 del. GATE-PK 419/0/635 NEW=0 GONE=0. Helper scripts (`reindent.py`/`verify_ws.py`) NOT committed (diagnostic, per RULES "never commit diagnostic patches").
+**one4all HEAD: `88cb6fe2`** — SJ-1c: reverted SJ-1b-sweep's wrongful funnel conversion of IS_JS/IS_WASM arms (it had violated the x86-only directive — routed JS/WASM through asm funnels + sm_returns.c WASM_FNRET* macros, added spurious leading space, destroyed WASM 10-space indent, and changed sm_returns WASM bytes). Restored all JS/WASM arms to pre-sweep (336cb7e1) one-emit_textf-per-line form; restored js/wasm per-kind baselines from 336cb7e1; removed orphaned WASM_FNRET* macros. x86/JVM/NET funnel work preserved. 26 source files + 142 baseline cells. GATE-PK 419/0/635 NEW=0 GONE=0. GATE-M (11 misses) / GATE-E (gate1_beauty, gate4_icon) unchanged from f6b0be23 — pre-existing. ⛔ Beauty gate remains SUSPENDED (Lon directive 2026-05-23e: do not enable; snocone beauty self-host times out at 30s).
 
-**Prior (2026-05-23c) one4all HEAD: `326a4fac`** — SJ-1b-sweep COMPLETE. All emit_textf in SM_templates (14 files), BB_templates (22 files), XA_templates (4 files) converted to emit_io funnels (x86/JVM/NET; JS and WASM untouched per Lon directive). Baselines refrozen: 1-leading-space standard for unlabeled instructions. 593 files changed, 7679 ins / 6329 del.
+**Prior (2026-05-23d) one4all HEAD: `f6b0be23`** — SJ-1b-reindent: restored C source indentation in the 18 SM/BB/XA template files where SJ-1b-sweep split multi-line `emit_textf` blobs into per-line funnel calls but dropped leading whitespace. Brace-depth 4-space re-indent, whitespace-only. 18 files, 1448/1448. GATE-PK 419/0/635.
+
+**Prior (2026-05-23c) one4all HEAD: `326a4fac`** — SJ-1b-sweep COMPLETE. All emit_textf in SM_templates (14 files), BB_templates (22 files), XA_templates (4 files) converted to emit_io funnels (x86/JVM/NET; JS and WASM untouched per Lon directive — ⚠ but in fact JS/WASM WERE wrongly touched; fixed in SJ-1c). Baselines refrozen. 593 files changed, 7679 ins / 6329 del.
 
 **Gate: GATE-PK PASS=419 FAIL=0 STUB=635 ✅**
 
@@ -34,7 +36,7 @@
 - ✅ SJ-1b funnel rework + six-function API
 - ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
 
-**NEXT:** STYLE-NO-SHADOW-LOCALS (SNS-1/2/3) or next active goal per Lon.
+**NEXT:** STYLE-NO-SHADOW-LOCALS (SNS-1/2/3) or next active goal per Lon. (SJ-1c ✅ done — JS/WASM defunneled.)
 
 ## Active Rungs
 
@@ -57,6 +59,19 @@
 `emit_1asm..emit_4asm` join N pre-formatted parts. No printf formatting inside funnels — callers `snprintf` any `%`-interpolation first. Conversion = classify each emitted line into label/opcode/operands/comment and place each in its slot; operand strings keep internal spaces as a single part.
 
 - [x] **STYLE-FUNNEL-ALL-ASM (SJ-1)** — ✅ SJ-1a funnels landed (`2ef4847f`). ✅ SJ-1b funnel rework + six-function API. ✅ SJ-1b-sweep COMPLETE (`326a4fac`): all x86/JVM/NET arms in SM/BB/XA templates route through funnels; JS/WASM untouched; baselines refrozen; GATE-PK 419/0/635.
+
+- [x] **STYLE-JS-WASM-DEFUNNEL (SJ-1c)** — ✅ COMPLETE (`88cb6fe2`, 2026-05-23). Reverted SJ-1b-sweep's wrongful funnel conversion of IS_JS/IS_WASM arms (and sm_returns.c WASM_FNRET* macros) to pre-sweep one-emit_textf-per-line form; restored js/wasm baselines from 336cb7e1; removed orphaned macros. 26 source files + 142 baseline cells. GATE-PK 419/0/635. Decision taken: restored pre-sweep no-leading-space (JS/WASM have no label column). x86/JVM/NET funnel work preserved.
+
+  **TARGET (the "nice" form):** every emitted JS or WASM line = exactly ONE `emit_textf` call ending in `\n`. One emit call per emitted line — no funnels, no multi-line `\n`-cramming. This is *also* cleaner than the PRE-sweep state (`336cb7e1`), where some JS arms packed 3+ `\n`-separated lines into a single `emit_textf` (e.g. `bb_pat_fence.c` JS arm had `"α()...,\\nβ()...\\n}; return self; }\\n"` in one call). Split those too: one line, one call.
+
+  **SCOPE:** all `IS_JS` and `IS_WASM` arms in SM_templates / BB_templates / XA_templates. ~24 files contain contaminated funnel calls inside JS/WASM arms (per-file counts surveyed 2026-05-23d; xa_prologue.c 60, sm_arith.c 12, sm_calls.c 11, sm_push_pop_lits.c 8, bb_arbno.c 7, … down to bb_capture.c/xa_epilogue.c 2). Leave x86/JVM/NET funnel calls exactly as they are.
+
+  **RECIPE (per file):**
+  1. In each `if (IS_JS)` / `if (IS_WASM)` arm, replace every `emit_1asm/2asm/3asm/L*asm/emit_comment/emit_directive` call with a single `emit_textf("<exact line>\n", ...)` that reproduces the SAME emitted bytes. The funnels emit ` %s %s\n` (one leading space, single-space join) — so `emit_2asm("α()", "{ ... },")` currently emits ` α() { ... },\n`. Preserve those exact bytes in the `emit_textf` literal unless the byte output for JS/WASM should change — **decide leading-space policy with Lon** (JS/WASM previously had NO leading space pre-sweep; the funnels added one). If output bytes change, JS/WASM baselines must be refrozen.
+  2. Also split any pre-existing multi-`\n` `emit_textf` blobs in those arms into one call per line.
+  3. C source indentation: funnel-call lines in these arms were also slammed to col 0 by the sweep (SJ-1b-reindent `f6b0be23` fixed BB/SM/XA template indentation tree-wide, but verify JS/WASM arms read cleanly after rewrite).
+  4. `make scrip`; GATE-PK must stay 419/0/635 (JS/WASM are STUB in the gate, so PASS unchanged; confirm NEW=0 GONE=0). If JS/WASM byte output intentionally changed, refreeze JS/WASM baselines per `scripts/freeze_per_kind_baseline.sh` and re-run.
+  5. Commit per file or per backend (atomic). ⚠ OPEN DECISION FOR LON: leading-space policy on JS/WASM lines (keep sweep's added leading space, or restore pre-sweep no-leading-space). Default assumption pending Lon: restore pre-sweep no-leading-space, since JS/WASM have no label column.
 
   **FUNNEL API (authoritative, in `emit_io.{c,h}`):**
   - `emit_1asm(op)` / `emit_2asm(op,operand)` / `emit_3asm(op,operand,comment)` — UNLABELED instruction lines. One leading space holds the empty label column; opcode begins at the same column a labeled line's opcode would.
