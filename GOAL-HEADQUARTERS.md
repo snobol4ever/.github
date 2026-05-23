@@ -21,13 +21,18 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23b)
+## Session State (2026-05-23c)
 
-**one4all HEAD: `336cb7e1`** — SJ-1b funnel rework landed. Six-function instruction-line API + emit_directive now match the SPACING MODEL (corrected two bugs: the `2ef4847f` unconditional-leading-space, then a double-space in the first NULL-sentinel rework). Pilot `bb_pat_abort` x86 arm verified byte-correct (only delta vs baseline = intended one-space pad) then reverted to keep gate green. No template arm calls the funnels yet on `main`.
+**one4all HEAD: `326a4fac`** — SJ-1b-sweep COMPLETE. All emit_textf in SM_templates (14 files), BB_templates (22 files), XA_templates (4 files) converted to emit_io funnels (x86/JVM/NET; JS and WASM untouched per Lon directive). Baselines refrozen: 1-leading-space standard for unlabeled instructions. 593 files changed, 7679 ins / 6329 del.
 
-**Gate entering next session: GATE-PK PASS=419 FAIL=0 STUB=635.** smoke_prolog 5/5.
+**Gate: GATE-PK PASS=419 FAIL=0 STUB=635 ✅**
 
-**NEXT: SJ-1b-sweep** — route ALL ASM-type output (every backend, not just JVM — Lon directive 2026-05-23) through the funnels. ~1,168 `emit_textf` sites across 47 template files x 5 backends. Per-backend-atomic: convert one backend's arms fully, refreeze that backend's cells wholesale, GATE-PK 419/0/635, commit; then next backend. Start x86 (reference). The pilot pattern is proven — this is mechanical volume.
+**STYLE-FUNNEL-ALL-ASM (SJ-1) STATUS:**
+- ✅ SJ-1a funnels landed (`2ef4847f`)
+- ✅ SJ-1b funnel rework + six-function API
+- ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
+
+**NEXT:** STYLE-NO-SHADOW-LOCALS (SNS-1/2/3) or next active goal per Lon.
 
 ## Active Rungs
 
@@ -49,7 +54,7 @@
 
 `emit_1asm..emit_4asm` join N pre-formatted parts. No printf formatting inside funnels — callers `snprintf` any `%`-interpolation first. Conversion = classify each emitted line into label/opcode/operands/comment and place each in its slot; operand strings keep internal spaces as a single part.
 
-- [ ] **STYLE-FUNNEL-ALL-ASM (SJ-1)** — ✅ SJ-1a funnels landed (`2ef4847f`). ✅ SJ-1b funnel rework + six-function API (this session). 🔄 SJ-1b-sweep: route ALL backends' ASM through the funnels.
+- [x] **STYLE-FUNNEL-ALL-ASM (SJ-1)** — ✅ SJ-1a funnels landed (`2ef4847f`). ✅ SJ-1b funnel rework + six-function API. ✅ SJ-1b-sweep COMPLETE (`326a4fac`): all x86/JVM/NET arms in SM/BB/XA templates route through funnels; JS/WASM untouched; baselines refrozen; GATE-PK 419/0/635.
 
   **FUNNEL API (authoritative, in `emit_io.{c,h}`):**
   - `emit_1asm(op)` / `emit_2asm(op,operand)` / `emit_3asm(op,operand,comment)` — UNLABELED instruction lines. One leading space holds the empty label column; opcode begins at the same column a labeled line's opcode would.
