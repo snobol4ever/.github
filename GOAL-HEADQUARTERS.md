@@ -21,9 +21,11 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23c)
+## Session State (2026-05-23d)
 
-**one4all HEAD: `326a4fac`** — SJ-1b-sweep COMPLETE. All emit_textf in SM_templates (14 files), BB_templates (22 files), XA_templates (4 files) converted to emit_io funnels (x86/JVM/NET; JS and WASM untouched per Lon directive). Baselines refrozen: 1-leading-space standard for unlabeled instructions. 593 files changed, 7679 ins / 6329 del.
+**one4all HEAD: `f6b0be23`** — SJ-1b-reindent: restored C source indentation in the 18 SM/BB/XA template files where SJ-1b-sweep split multi-line `emit_textf` blobs into per-line funnel calls but dropped leading whitespace (lines slammed to column 0 inside their blocks). Brace-depth 4-space re-indent, whitespace-only (every string arg byte-identical → emitted asm unchanged). Non-sweep-damaged emitter files left untouched (hand-aligned continuation lines preserved). 18 files, 1448 ins / 1448 del. GATE-PK 419/0/635 NEW=0 GONE=0. Helper scripts (`reindent.py`/`verify_ws.py`) NOT committed (diagnostic, per RULES "never commit diagnostic patches").
+
+**Prior (2026-05-23c) one4all HEAD: `326a4fac`** — SJ-1b-sweep COMPLETE. All emit_textf in SM_templates (14 files), BB_templates (22 files), XA_templates (4 files) converted to emit_io funnels (x86/JVM/NET; JS and WASM untouched per Lon directive). Baselines refrozen: 1-leading-space standard for unlabeled instructions. 593 files changed, 7679 ins / 6329 del.
 
 **Gate: GATE-PK PASS=419 FAIL=0 STUB=635 ✅**
 
