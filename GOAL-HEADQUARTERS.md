@@ -78,6 +78,7 @@
   emit_L2asm(lbl_back_c, "jmp", lbl_fail); /* L_back_audit: jmp L_fail_audit */
   ```
   Verified: only delta vs frozen baseline = the intended one-space pad. Order to do backends: x86 (reference) → JVM → NET → JS → WASM.
+- [ ] **STYLE-CONCAT-BUILDER (SJ-2)** — Convert all SM/BB/XA template arms from funnel calls to C string concatenation, mirroring the future Snocone translation. **Rationale:** Snocone has the `.` concat operator; the right C intermediate is explicit string building (`" " . op . " " . operand . "\n"`) not fixed-arity funnels. The funnels (SJ-1) were the right intermediate to land clean spacing; SJ-2 replaces them with a single `emit_line(str)` primitive where `str` is built by concatenation. In C this means a variadic `scat(buf, sz, part1, part2, ..., NULL)` helper, so each template line reads `emit_line(scat(b, sz, " ", op, " ", operand, "\n", NULL))` — isomorphic to Snocone `emit(" " . op . " " . operand . "\n")`. **Gate:** GATE-PK 419/0/635 after refreeze. **Prereq:** SNS/STL/SOP/SCE/SNC complete (source clean before mechanical concat rewrite).
 - [ ] **STYLE-NO-SHADOW-LOCALS (SNS-1/2/3)** — Remove `const SM_t *instr`/`FILE *out` aliases from sm_pat_combine, sm_calls, sm_jumps, sm_template_common.h.
 - [ ] **STYLE-NO-TRANSFORM-LOCALS (STL-1..7)** — Inline trivial locals (`int sid=0`, `int lineno=`, `int val=`, etc.) across BB/SM templates.
 - [ ] **STYLE-NO-OUT-PARAM (SOP-1..4)** — Remove `FILE *out` from all 20+ emitter helpers in `emit_core.c`; replace `fprintf(out,…)` with `emit_textf(…)`.
