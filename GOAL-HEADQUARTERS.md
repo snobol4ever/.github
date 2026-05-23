@@ -21,25 +21,26 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23n — GATE GREEN ✅)
+## Session State (2026-05-23o — GATE GREEN ✅)
 
-**one4all HEAD: `d41e99a0`** ✅ GATE GREEN — DM-3/4/5 segfault fixed. GATE-PK 433/0/621.
+**one4all HEAD: `53445731`** ✅ GATE GREEN 433/0/621.
 
-**What was fixed (2026-05-23n):**
-- DM-3/4/5 segfault root cause: `bb_arbno.cpp` had `if (MEDIUM_TEXT) { ... } else { ...binary arm... }`. The bare `else` caught `MEDIUM_MACRO_DEF` (not just `MEDIUM_BINARY`), routing it into the binary arm where `lbl_back_p=NULL` (audit only sets `_p` fields for `EMIT_BINARY_WIRED`). Fix: one line — `} else {` → `} if (MEDIUM_BINARY) {`.
-- Side effect: 14 `x86/text_macro` cells that previously crashed (registering as stubs) now correctly produce TEXT-arm output under MACRO_DEF. Baselines refrozen. STUB 635→621, PASS 419→433. NEW=0 GONE=0.
+**What was done (2026-05-23n/o):**
+- DM-3/4/5 segfault fixed (`d41e99a0`): `bb_arbno.cpp` `} else {` → `} if (MEDIUM_BINARY) {`. The bare `else` was catching `MEDIUM_MACRO_DEF` and routing it into the binary arm where `lbl_back_p=NULL`. 14 text_macro baselines refrozen. PASS 419→433, STUB 635→621.
+- DM-6 complete (`0bfffb89`): `emit_core.c` + `emit_bb.c` — `IS_TEXT`→`!MEDIUM_BINARY`, `IS_BIN`→`MEDIUM_BINARY`, `IS_JVM/JS/NET/WASM`→`PLATFORM_*`, `bb_emit_mode==EMIT_MACRO_DEF`→`MEDIUM_MACRO_DEF`. 4 more text_macro baselines refrozen.
+- DM-6 cleanup (`53445731`): `bb_lit.cpp` `switch(bb_emit_mode)`→`if(MEDIUM_BINARY)`.
 
 **DM rung status:**
 - [x] DM-1 ✅ `ace2d3ba`
 - [x] DM-2 ✅ `ace2d3ba`
-- [x] DM-3 ✅ `d41e99a0` (fixed)
-- [x] DM-4 ✅ `d41e99a0` (fixed)
-- [x] DM-5 ✅ `d41e99a0` (fixed)
-- [ ] DM-6 — migrate `emit_core.c` / `emit_sm.c` / `emit_bb.c` / `emit_io.c` helpers
-- [ ] DM-7 — delete `bb_emit_mode` shims
-- [ ] DM-8 — add `emit_text_and_binary_in_one()`
+- [x] DM-3 ✅ `d41e99a0`
+- [x] DM-4 ✅ `d41e99a0`
+- [x] DM-5 ✅ `d41e99a0`
+- [x] DM-6 ✅ `53445731`
+- [ ] **DM-7 — delete `bb_emit_mode` shims. ⚠️ BLOCKED** on remaining `.c` BB templates still using `IS_*`: `bb_pl_builtin.c`, `bb_pl_seq.c`, `bb_pl_arith.c`, `bb_pl_var.c`, `bb_pl_atom.c`, `bb_pl.c`, `bb_cset.c`, `bb_lit_scalar.c`, `bb_icn_to.c`, `bb_icn_stub.c`. Options: (A) migrate in-place as `.c` (sed IS_*→new predicates, keep C), (B) convert to `.cpp` returning std::string. Lon decides.
+- [ ] DM-8 — add `emit_text_and_binary_in_one()`.
 
-**NEXT: DM-6** — sweep remaining `IS_*` / `bb_emit_mode ==` sites in non-template emitter files. ⛔ Beauty gate SUSPENDED.
+**NEXT: Lon decides DM-7 path (A vs B), then DM-7, then DM-8.** ⛔ Beauty gate SUSPENDED.
 
 **Prior (2026-05-23l) one4all HEAD: `ace2d3ba`** — DM-1+DM-2 clean. GATE-PK 419/0/635 ✅.
 
