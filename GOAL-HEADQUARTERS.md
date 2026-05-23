@@ -21,13 +21,13 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23k — HANDOFF)
+## Session State (2026-05-23l — HANDOFF)
 
-**one4all HEAD: `26915a26`** — ER-6+ER-7 complete. ALL XA_templates (12 files) now .cpp returning std::string. True string-returners: xa_prologue, xa_epilogue, xa_bb_ptr_slot, xa_exec_stmt_blob. Imperative wrappers returning "": xa_file_header, xa_macro_library, xa_bb_macro_library, xa_rodata, xa_flat, xa_wasm_main, xa_js_label_register (FILE* I/O too deep — ER-8 scope). Comment-only: xa_stubs. Old .c files deleted. ER-7: SM/BB clean (confirmed), XA FILE* locals active (not dead). GATE-PK 419/0/635 ✅.
+**one4all HEAD: `26915a26`** — ER-6+ER-7 complete. DECOMPOSE-MODE rung planned (see below): decompose `bb_emit_mode` single enum into orthogonal globals PLATFORM + MEDIUM + BB_BROKERED + USE_SM_MACROS + USE_BB_MACROS. New `emit_text_and_binary_in_one()` function. All templates migrate to `if (PLATFORM_X86) { ... } if (PLATFORM_JVM) { ... }` outer shell with flag-test predicates (no `==`). GATE-PK 419/0/635 ✅.
 
-**NEXT: ER-8 — relocation rethink.** Collect relocation records alongside string output, apply patches in second pass. Unblocks pure-functional emitters. Prerequisite for removing remaining XA FILE* locals.
+**NEXT: DM-1** — add new globals/enums/defines to emit_core.h alongside existing bb_emit_mode shims.
 
-**Prior (2026-05-23j) one4all HEAD: `71d310c8`** — ER-3/ER-5 complete. ALL BB_templates (15 files) and ALL SM_templates (14 files) now return std::string. Normalizer (normalize_per_kind_cell.py) upgraded to squeeze all whitespace to single spaces — only token order matters. Baselines refrosen. Old .c files deleted. GATE-PK 419/0/635 ✅.
+**Prior (2026-05-23k) one4all HEAD: `26915a26`** — ER-6+ER-7 complete. ALL XA_templates (12 files) now .cpp returning std::string. GATE-PK 419/0/635 ✅.
 
 **Prior (2026-05-23i) one4all HEAD: UNCOMMITTED** — ALL BB templates now return std::string. ER-3 (INLINE-TEXT) and ER-4 (DELEGATING + JVM/NET arms) complete for all BB_templates. Seven .c files converted to .cpp and old .c files deleted: bb_pat_notany, bb_pat_span, bb_pat_break, bb_lit, bb_pat_alt, bb_pat_cat, bb_arbno. Normalizer upgraded. GATE-PK 419/0/635 ✅.
 
@@ -46,7 +46,7 @@
 - ✅ SJ-1b funnel rework + six-function API
 - ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
 
-**NEXT:** ⚡ ER-8 — relocation rethink (collect relocation records alongside string output, apply patches in second pass). ⛔ Beauty gate SUSPENDED.
+**NEXT:** ⚡ DM-1 — add DECOMPOSE-MODE globals/enums/defines to emit_core.h. ⛔ Beauty gate SUSPENDED.
 
 
 ## Active Rungs
@@ -79,6 +79,68 @@
 
 ```
 **⛔ BEAUTY GATE SUSPENDED** during BB template consolidation.
+
+---
+
+### ⚡ DECOMPOSE-MODE — Replace bb_emit_mode with orthogonal globals (2026-05-23l Lon directive)
+
+**Goal:** Decompose the single `bb_emit_mode` enum into five orthogonal boolean-flag globals so template arms read `if (PLATFORM_X86) { ... }` instead of `if (bb_emit_mode == EMIT_TEXT || ...)`. Eliminates the conflation of platform, medium, and sub-switches into one integer.
+
+**Design (from Lon, 2026-05-23l session):**
+
+**5 platforms** (outer shell, mutually exclusive):
+- `PLATFORM_X86`, `PLATFORM_JVM`, `PLATFORM_NET`, `PLATFORM_JS`, `PLATFORM_WASM`
+
+**3 mediums** (orthogonal to platform; JS/WASM are TEXT-only — no BINARY or MACRO_DEF):
+- `MEDIUM_TEXT` — human-readable formatted assembly / bytecode text
+- `MEDIUM_BINARY` — raw machine/bytecode instructions
+- `MEDIUM_MACRO_DEF` — macro definition pass (preamble); parallel to TEXT/BINARY, same order across X86/JVM/NET
+
+**X86-only sub-switches:**
+- `BB_BROKERED` / `BB_WIRED` — BB connectivity mode
+- `USE_SM_MACROS` — true: SM opcodes emit a macro call (human-readable); false: raw inline instructions per opcode
+- `USE_BB_MACROS` — future: whole BB box gets one macro call (currently always false)
+
+**BB rule (current):** BBs never use a macro for the whole box, never use macros inside a box, always formatted so Lon can read them. `USE_BB_MACROS` is always false for now.
+
+**Key function:** `emit_text_and_binary_in_one(op, arg, ...)` — given an operation and arguments, produces:
+- macro call text when `USE_SM_MACROS`
+- raw instruction sequence when `!USE_SM_MACROS`
+- macro definition body when `MEDIUM_MACRO_DEF`
+All three representations live inside this one function — no gap between defining and calling macros.
+
+**Predicate style — NO `==`, single flag tests only:**
+```c
+if (PLATFORM_X86)    { ... }   // not: if (platform == PLATFORM_X86)
+if (MEDIUM_BINARY)   { ... }
+if (USE_SM_MACROS)   { ... }
+if (BB_BROKERED)     { ... }
+```
+
+**Old → new mapping:**
+| old `bb_emit_mode`      | PLATFORM  | MEDIUM     | USE_SM_MACROS | BB_BROKERED |
+|-------------------------|-----------|------------|---------------|-------------|
+| `EMIT_TEXT`             | X86       | TEXT       | false         | false       |
+| `EMIT_TEXT_INLINE`      | X86       | TEXT       | true          | false       |
+| `EMIT_MACRO_DEF`        | X86       | MACRO_DEF  | —             | —           |
+| `EMIT_BINARY_WIRED`     | X86       | BINARY     | —             | false       |
+| `EMIT_BINARY_BROKERED`  | X86       | BINARY     | —             | true        |
+| `EMIT_JVM`              | JVM       | TEXT       | —             | —           |
+| `EMIT_JS`               | JS        | TEXT       | —             | —           |
+| `EMIT_NET`              | NET       | TEXT       | —             | —           |
+| `EMIT_WASM`             | WASM      | TEXT       | —             | —           |
+
+**Invariant:** GATE-PK 419/0/635 NEW=0 GONE=0 after every committed sub-step. Output bytes unchanged throughout migration.
+
+**Sub-steps (each atomic, gate-green):**
+- [ ] **DM-1 — add new globals/enums/defines to emit_core.h.** New enums: `bb_platform_t` (5 values), `bb_medium_t` (3 values). New extern globals: `g_platform`, `g_medium`, `g_bb_brokered`, `g_use_sm_macros`, `g_use_bb_macros`. New predicates: `PLATFORM_X86/JVM/NET/JS/WASM`, `MEDIUM_TEXT/BINARY/MACRO_DEF`, `BB_BROKERED`, `BB_WIRED`, `USE_SM_MACROS`, `USE_BB_MACROS`. Old `bb_emit_mode` + `IS_*` macros kept as compatibility shims (derived from new globals). Define shim: `emit_mode_set()` writes both old and new globals atomically. GATE-PK green.
+- [ ] **DM-2 — implement globals + emit_mode_set() in emit_core.c.** Define `g_platform`, `g_medium`, `g_bb_brokered`, `g_use_sm_macros`, `g_use_bb_macros`. Update `emit_mode_set()` to write all five from the old `bb_emit_mode` value (backward-compat). GATE-PK green.
+- [ ] **DM-3 — migrate BB_templates to new predicates.** Replace `IS_X86`/`IS_JVM`/`IS_NET`/`IS_JS`/`IS_WASM`/`IS_BIN`/`IS_TEXT`/`IS_MACRO_DEF` with `PLATFORM_*/MEDIUM_*` in all 15 BB template `.cpp` files. One file at a time, gate-green per file.
+- [ ] **DM-4 — migrate SM_templates to new predicates.** Same sweep, 14 SM template `.cpp` files.
+- [ ] **DM-5 — migrate XA_templates to new predicates.** Same sweep, 12 XA template `.cpp` files.
+- [ ] **DM-6 — migrate emit_core.c / emit_sm.c / emit_bb.c / emit_io.c helpers.** All remaining `IS_*` / `bb_emit_mode ==` sites in non-template emitter files.
+- [ ] **DM-7 — delete bb_emit_mode shims.** Remove old enum values, old `IS_*` macros, old `bb_emit_mode` global. GATE-PK green. Build with `-Werror` to confirm no stragglers.
+- [ ] **DM-8 — add emit_text_and_binary_in_one().** New function in emit_str.h/.cpp: given opcode + args, returns string representing macro-call, raw-inline, or macro-def body based on `USE_SM_MACROS` + `MEDIUM_*`. Migrate first SM template to use it as proof-of-concept. GATE-PK green.
 
 ## Session Setup
 
