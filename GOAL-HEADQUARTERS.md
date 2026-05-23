@@ -96,29 +96,35 @@ bash /home/claude/one4all/scripts/test_per_kind_diff.sh
 
 ## ⚠️ CRITICAL RULE: UTF-8 Greek Letters in CPP String Literals (ER-4+)
 
-**NEVER use octal escape sequences for Greek letters in C++ string literals.** The pattern `\\316\\261` (meant to be UTF-8 α) is WRONG and will silently fail baseline comparison.
+**Source files are UTF-8.** When you write actual Greek letters in a UTF-8 C++ source file, the compiler encodes them as UTF-8 bytes in the string literal. This is correct and byte-identical to the baseline.
 
-**CORRECT:** Use the actual UTF-8 character directly in the source:
+**DO THIS:** Write actual UTF-8 Greek characters directly in the C++ source:
 ```cpp
-// RIGHT:
+// CORRECT — source is UTF-8, compiler sees actual bytes (0xCE 0xB1 for α):
 s_directive(".method public α()Lbb/bb_box$Spec;")
 s_1asm(emit_fmt("    if_icmpne %s_ω", tag))
 s_directive(".method public β()Lbb/bb_box$Spec;")
-
-// WRONG (will emit literal backslash-octal):
-s_directive(".method public \\316\\261()Lbb/bb_box$Spec;")  // outputs: \316\261 as raw text
 ```
 
-**Why:** C++ string literals interpret `\\` as a single backslash (not an octal escape context). The octal form `\316\261` is only valid in C string literals (as raw bytes), not in `\\` escaped form. The _str() helpers take `std::string` parameters, which carry the literal bytes — use UTF-8 directly.
+**DO NOT DO THIS:** Do not attempt octal escapes like `\316\261` (which only work in C with raw byte sequences). In C++, when you write `\\316\\261` in a string literal, you get a literal backslash followed by the digits `316261`, NOT the UTF-8 bytes:
+```cpp
+// WRONG — outputs literal backslash-digits "\316\261" in the text:
+s_directive(".method public \\316\\261()Lbb/bb_box$Spec;")
+// This emits: .method public \316\261()... (WRONG)
+```
 
-**Test:** After conversion, run `bash scripts/test_per_kind_diff.sh`. If a JVM/NET arm fails with diff showing literal `\316` or `\262` in output, this rule was violated.
+**Why the difference:** 
+- In **C string literals** with `const char*`, `\316` is an octal escape that the compiler interprets as a byte value.
+- In **C++ string literals** passed to `std::string`, when the source file is UTF-8, the UTF-8 bytes are preserved as-is by the compiler. Writing `\\` in source becomes a single backslash in the output string.
 
-**Affected characters in emit_str helpers:**
-- `α` (alpha) = U+03B1 → UTF-8 CE B1
-- `β` (beta) = U+03B2 → UTF-8 CE B2
-- `ω` (omega) = U+03C9 → UTF-8 CF 89
-- `Δ` (delta) = U+0394 → UTF-8 CE 94
-- `Σ` (sigma) = U+03A3 → UTF-8 CE A3
+**Test:** After conversion, run `bash scripts/test_per_kind_diff.sh`. If a JVM/NET arm fails with diff showing literal `\316` or `\262` characters in the output, this rule was violated — rewrite using actual UTF-8 characters.
+
+**Affected characters (write these directly in source):**
+- `α` (alpha) = U+03B1 = UTF-8 bytes `0xCE 0xB1`
+- `β` (beta) = U+03B2 = UTF-8 bytes `0xCE 0xB2`
+- `ω` (omega) = U+03C9 = UTF-8 bytes `0xCF 0x89`
+- `Δ` (delta) = U+0394 = UTF-8 bytes `0xCE 0x94`
+- `Σ` (sigma) = U+03A3 = UTF-8 bytes `0xCE 0xA3`
 
 ---
 
