@@ -21,13 +21,27 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23l — HANDOFF)
+## Session State (2026-05-23m — EMERGENCY HANDOFF ⚠️ GATE RED)
 
-**one4all HEAD: `26915a26`** — ER-6+ER-7 complete. DECOMPOSE-MODE rung planned (see below): decompose `bb_emit_mode` single enum into orthogonal globals PLATFORM + MEDIUM + BB_BROKERED + USE_SM_MACROS + USE_BB_MACROS. New `emit_text_and_binary_in_one()` function. All templates migrate to `if (PLATFORM_X86) { ... } if (PLATFORM_JVM) { ... }` outer shell with flag-test predicates (no `==`). GATE-PK 419/0/635 ✅.
+**one4all HEAD: `e2fabcff`** ⚠️ BROKEN — DM-3/4/5 template sweep landed but audit segfaults. DO NOT BUILD ON THIS COMMIT without fixing first.
 
-**NEXT: DM-1** — add new globals/enums/defines to emit_core.h alongside existing bb_emit_mode shims.
+**Breakage:** `scrip --audit-per-kind` segfaults in BB cell loop. Root cause not fully isolated — candidates: (a) `emit_mode_set(be->mode, NULL)` in binary audit path writes `bb_emit_out=NULL` which some template then dereferences, (b) interaction between `emitter_init_binary` (sets `bb_emit_mode=EMIT_BINARY_WIRED` directly) and `emit_mode_set` called immediately after clobbering state, (c) null `g_emit` sub-struct field accessed by a predicate in a converted template.
 
-**Prior (2026-05-23k) one4all HEAD: `26915a26`** — ER-6+ER-7 complete. ALL XA_templates (12 files) now .cpp returning std::string. GATE-PK 419/0/635 ✅.
+**Clean baseline:** `ace2d3ba` (DM-1+DM-2, gate green 419/0/635). Safe to revert to this if needed.
+
+**What was done this session (2026-05-23l/m):**
+- DECOMPOSE-MODE rung designed and documented (Lon directive)
+- DM-1 ✅: new enums `bb_platform_t`/`bb_medium_t`, globals `g_platform/g_medium/g_bb_brokered/g_use_sm_macros/g_use_bb_macros`, predicates `PLATFORM_*/MEDIUM_*/BB_BROKERED/BB_WIRED/USE_SM_MACROS/USE_BB_MACROS` added to `emit_core.h`
+- DM-2 ✅: globals defined in `emit_core.c`; `emit_mode_set()` updated to write all five atomically from old `bb_emit_mode_t` value
+- DM-3/4/5 ⚠️ BROKEN: mechanical `IS_*→PLATFORM_*/MEDIUM_*` sed sweep across all 41 template `.cpp` files; two direct `bb_emit_mode=` assignments in audit tool replaced with `emit_mode_set()` calls — but audit now segfaults
+
+**NEXT: fix audit segfault.** Strategy:
+1. Add `fprintf(stderr,...)` trace before each BB cell invocation in audit loop to isolate which kind/backend crashes
+2. Check `emit_mode_set(be->mode, NULL)` for binary path — `bb_emit_out=NULL` may be dereferenced inside a template's `MEDIUM_BINARY` arm that calls `g_emit.out`
+3. Consider: for binary audit path, call `emit_mode_set(EMIT_BINARY_WIRED, NULL)` then restore `bb_emit_out=NULL` after (since `emit_mode_set` sets `bb_emit_out=out`)
+4. Once segfault fixed, refreeeze baselines if output changed, then gate green
+
+**Prior (2026-05-23l) one4all HEAD: `ace2d3ba`** — DM-1+DM-2 clean. GATE-PK 419/0/635 ✅.
 
 **Prior (2026-05-23i) one4all HEAD: UNCOMMITTED** — ALL BB templates now return std::string. ER-3 (INLINE-TEXT) and ER-4 (DELEGATING + JVM/NET arms) complete for all BB_templates. Seven .c files converted to .cpp and old .c files deleted: bb_pat_notany, bb_pat_span, bb_pat_break, bb_lit, bb_pat_alt, bb_pat_cat, bb_arbno. Normalizer upgraded. GATE-PK 419/0/635 ✅.
 
@@ -46,7 +60,7 @@
 - ✅ SJ-1b funnel rework + six-function API
 - ✅ SJ-1b-sweep: ALL backends (x86/JVM/NET) routed through funnels; baselines refrozen
 
-**NEXT:** ⚡ DM-1 — add DECOMPOSE-MODE globals/enums/defines to emit_core.h. ⛔ Beauty gate SUSPENDED.
+**NEXT:** ⚠️ Fix audit segfault (DM-3/4/5 broken at `e2fabcff`) — trace which BB kind/backend crashes, fix `emit_mode_set(NULL)` binary path, then gate green. ⛔ Beauty gate SUSPENDED.
 
 
 ## Active Rungs
@@ -133,11 +147,11 @@ if (BB_BROKERED)     { ... }
 **Invariant:** GATE-PK 419/0/635 NEW=0 GONE=0 after every committed sub-step. Output bytes unchanged throughout migration.
 
 **Sub-steps (each atomic, gate-green):**
-- [ ] **DM-1 — add new globals/enums/defines to emit_core.h.** New enums: `bb_platform_t` (5 values), `bb_medium_t` (3 values). New extern globals: `g_platform`, `g_medium`, `g_bb_brokered`, `g_use_sm_macros`, `g_use_bb_macros`. New predicates: `PLATFORM_X86/JVM/NET/JS/WASM`, `MEDIUM_TEXT/BINARY/MACRO_DEF`, `BB_BROKERED`, `BB_WIRED`, `USE_SM_MACROS`, `USE_BB_MACROS`. Old `bb_emit_mode` + `IS_*` macros kept as compatibility shims (derived from new globals). Define shim: `emit_mode_set()` writes both old and new globals atomically. GATE-PK green.
-- [ ] **DM-2 — implement globals + emit_mode_set() in emit_core.c.** Define `g_platform`, `g_medium`, `g_bb_brokered`, `g_use_sm_macros`, `g_use_bb_macros`. Update `emit_mode_set()` to write all five from the old `bb_emit_mode` value (backward-compat). GATE-PK green.
-- [ ] **DM-3 — migrate BB_templates to new predicates.** Replace `IS_X86`/`IS_JVM`/`IS_NET`/`IS_JS`/`IS_WASM`/`IS_BIN`/`IS_TEXT`/`IS_MACRO_DEF` with `PLATFORM_*/MEDIUM_*` in all 15 BB template `.cpp` files. One file at a time, gate-green per file.
-- [ ] **DM-4 — migrate SM_templates to new predicates.** Same sweep, 14 SM template `.cpp` files.
-- [ ] **DM-5 — migrate XA_templates to new predicates.** Same sweep, 12 XA template `.cpp` files.
+- [x] **DM-1 — add new globals/enums/defines to emit_core.h. ✅ ace2d3ba.** New enums: `bb_platform_t` (5 values), `bb_medium_t` (3 values). New extern globals: `g_platform`, `g_medium`, `g_bb_brokered`, `g_use_sm_macros`, `g_use_bb_macros`. New predicates: `PLATFORM_X86/JVM/NET/JS/WASM`, `MEDIUM_TEXT/BINARY/MACRO_DEF`, `BB_BROKERED`, `BB_WIRED`, `USE_SM_MACROS`, `USE_BB_MACROS`. Old `bb_emit_mode` + `IS_*` macros kept as compatibility shims. GATE-PK 419/0/635 ✅.
+- [x] **DM-2 — implement globals + emit_mode_set() in emit_core.c. ✅ ace2d3ba.** All five globals defined. `emit_mode_set()` writes all five atomically from old `bb_emit_mode_t`. GATE-PK 419/0/635 ✅.
+- [ ] **DM-3 — migrate BB_templates to new predicates. ⚠️ BROKEN e2fabcff.** sed sweep done (15 files). Audit segfaults — fix before gate. See session state for debug strategy.
+- [ ] **DM-4 — migrate SM_templates to new predicates. ⚠️ BROKEN e2fabcff.** sed sweep done (14 files). Same commit as DM-3.
+- [ ] **DM-5 — migrate XA_templates to new predicates. ⚠️ BROKEN e2fabcff.** sed sweep done (12 files). Same commit as DM-3.
 - [ ] **DM-6 — migrate emit_core.c / emit_sm.c / emit_bb.c / emit_io.c helpers.** All remaining `IS_*` / `bb_emit_mode ==` sites in non-template emitter files.
 - [ ] **DM-7 — delete bb_emit_mode shims.** Remove old enum values, old `IS_*` macros, old `bb_emit_mode` global. GATE-PK green. Build with `-Werror` to confirm no stragglers.
 - [ ] **DM-8 — add emit_text_and_binary_in_one().** New function in emit_str.h/.cpp: given opcode + args, returns string representing macro-call, raw-inline, or macro-def body based on `USE_SM_MACROS` + `MEDIUM_*`. Migrate first SM template to use it as proof-of-concept. GATE-PK green.
