@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **NEXT: RP-1** (THE-RULE-ALL — full scan complete: 8 offender groups, 14 steps RP-1..14. Start with RP-10 quickest win, then RP-11/12, then RP-1..6 Prolog/expression registry XA templates, then RP-7/8/9). ⛔ Beauty gate SUSPENDED.
+**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `9d393273`** ✅ GATE-PK 442/0/612. RP-10/11/12 ✅. **NEXT: RP-1** (XA_EXPRESSION_REGISTRY). ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -181,7 +181,7 @@ Driver fills: `xa_pl_reg_names`, `xa_pl_reg_arities`, `xa_pl_reg_fn_labels`, `xa
 
 Two stray `fprintf(out, ".L%d:\n", pc)` and `fprintf(out, "UNHANDLED %s\n", ...)` in `codegen_sm_x86`. Replace with `emit_textf(".L%d:\n", pc)` and `emit_textf("UNHANDLED %s\n", ...)` — already inside the SM dispatch loop, so using `emit_textf` routes through the sanctioned primitive.
 
-- [ ] **RP-10** — replace 3 stray fprintf in `codegen_sm_x86` with `emit_textf`. GATE.
+- [x] **RP-10** — replace 3 stray fprintf in `codegen_sm_x86` with `emit_textf`. GATE.
 
 #### RP-11 — Delete fprintf variants of JVM/NET/JS helpers; use _str twins (G6)
 
@@ -189,13 +189,13 @@ Two stray `fprintf(out, ".L%d:\n", pc)` and `fprintf(out, "UNHANDLED %s\n", ...)
 
 Fix: replace the template call sites with their `_str` twins + `emit_text_n`. Delete the fprintf variants from `emit_core.c`. Walk-internal uses (`walk_sm_jvm` etc.) are handled in RP-13.
 
-- [ ] **RP-11** — replace 3 template call sites with `_str` + `emit_text_n`; delete fprintf variants that are only called from walk_* functions (defer walk-internal calls to RP-13). GATE.
+- [x] **RP-11** — replace 3 template call sites with `_str` + `emit_text_n`; delete fprintf variants that are only called from walk_* functions (defer walk-internal calls to RP-13). GATE.
 
 #### RP-12 — wasm_emit_data_segments → emit_textf (G7)
 
 Called from `xa_epilogue` template. Convert `fprintf` calls to `emit_textf` so output routes through the sanctioned primitive. Or extract into a `std::string`-returning function called from the template body.
 
-- [ ] **RP-12** — convert `wasm_emit_data_segments` fprintf → `emit_textf`; it is called from a template so this completes the chain. GATE.
+- [x] **RP-12** — convert `wasm_emit_data_segments` fprintf → `emit_textf`; it is called from a template so this completes the chain. GATE.
 
 #### RP-13 — Walk-internal fprintf (G8, future)
 
