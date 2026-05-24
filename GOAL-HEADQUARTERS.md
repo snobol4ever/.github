@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `9d393273`** ✅ GATE-PK 442/0/612. RP-10/11/12 ✅. **NEXT: RP-1** (XA_EXPRESSION_REGISTRY). ⛔ Beauty gate SUSPENDED.
+**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `7161b357`** ✅ GATE-PK 442/0/612. RP-10/11/12 ✅. RP-1 ✅ (XA_EXPRESSION_REGISTRY). **NEXT: RP-2..5** (Prolog XA templates). ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -127,7 +127,7 @@ sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 4
 
 Driver (`codegen_sm_x86`) walks `prog->instrs[]` collecting expression-label names + entry PCs into `g_emit` collection (`xa_expr_names`, `xa_expr_pcs`, `xa_expr_count`), then calls `xa_dispatch(XA_EXPRESSION_REGISTRY)`. Template `xa_expression_registry.cpp` emits the `.section .data` + `.Lexpression_registry:` + `.quad` pairs + sentinel. Delete `codegen_expression_registry`.
 
-- [ ] **RP-1** — implement; wire opcode; driver fills collection + `xa_dispatch`; delete `codegen_expression_registry`. GATE-PK 442/0/612 NEW=0 GONE=0.
+- [x] **RP-1** — implement; wire opcode; driver fills collection + `xa_dispatch`; delete `codegen_expression_registry`. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-2 — XA_PL_KIDS_RODATA (new opcode + template)
 
