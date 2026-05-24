@@ -21,6 +21,18 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
+## Session State (2026-05-24b — GATE GREEN ✅ — STRING-CONCAT-ALL rung opened, SC-0 done)
+
+**one4all HEAD: `0a906d83`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0.
+
+**NEXT: SC-1** — middle-layer text emitters → `_str` siblings (batch 1: `emit_text_jmp`, `emit_text_label`, `emit_comment`; 14/14/11 template callers). Add string-returning versions beside the void ones (void becomes a thin write-the-string wrapper); rewire BB callers in SC-2. See the STRING-CONCAT-ALL rung below for the full SC-0→SC-10 plan. Run `bash scripts/util_emit_inventory.sh` to regenerate the convert-vs-leave classification.
+
+**What was done (2026-05-24b):**
+- STRING-CONCAT-ALL rung added (Lon directive): finish the emitter consolidation — every low-level `emit_*()` returns std::string; callers rewired to `+` concat; walk up until every SM/BB/XA template arm is ONE `return <big concat>`; then delete all FILE*/char buf[]. One space everywhere (normalizer is whitespace-insensitive). Supersedes/completes ER wave. insn_*/reloc left for ER-8.
+- SC-0 ✅ (`0a906d83`): `scripts/util_emit_inventory.sh` classifies 18 TEXT-BUILDER fns to convert vs 52 insn_* to leave. ~380 fprintf/fputs sites: emit_core.c 268, emit_sm.c 105, emit_io.c 6, emit_bb.c 1. Sharp edge: `emit_jmp` appears in both text + binary contexts — SC-converter must split it.
+
+**Prior (2026-05-24a — THREE-MEDIUM COMPLETE) one4all HEAD: `a2324982`** ✅ 442/0/612. TM-1→TM-12 ✅. See below.
+
 ## Session State (2026-05-24 — GATE GREEN ✅ — THREE-MEDIUM rung COMPLETE)
 
 **one4all HEAD: `a2324982`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0. Prolog BB honest 124/0/0.
