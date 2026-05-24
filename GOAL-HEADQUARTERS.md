@@ -23,6 +23,25 @@
 
 ---
 
+## Session State (2026-05-25 — PP-A1..A5 COMPLETE)
+
+**one4all HEAD: `8b753864`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
+
+**PURE-PROJECTION (PP) rung OPEN.** Principle: templates are pure `state → one string` (CONCAT/IF/FOR
+off global scalars + collections); they are CALLED by drivers, never drive. This session de-drove the
+five self-driving / self-scanning templates:
+- bb_pat_cat/alt/fence x86 driving → `flat_drive_*` in emit_bb.c (shared `bb_kind_is_driver_owned()`).
+- sm_nreturn backward scan + sm_define neighbor read → driver-stamped `g_emit.enclosing_fname` /
+  `prev_instr_name` scalars; sm_exec_bb reads `_.i`.
+- Per-kind audit routes driver-owned x86 kinds through `emit_flat_ir`; SM audit primes new scalars.
+
+**NEXT: PP-A6** (Prolog operand derefs — RULING NEEDED: are `pBB->c[0]/c[1]` operand-children a legal
+FOR/index, or must the driver flatten them?), then PP-A7 audit, then PP-B (33 `.c_str()` locals),
+PP-C (`Σ`→std::string), PP-D (scope tighten + final audit). Tracker: `.github/TRACK-PURE-PROJECTION.md`.
+⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-25 — NO-SNPRINTF COMPLETE)
 
 **one4all HEAD: `3785ffd1`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN.
@@ -51,6 +70,50 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 ---
 
 ## Active Rungs
+
+### ⚡ PURE-PROJECTION (PP) — templates are pure CONCAT/IF/FOR — OPEN
+Tracker: `.github/TRACK-PURE-PROJECTION.md`.
+
+**Principle (Lon, 2026-05-25).** A template is a pure function `state → one string`, no side
+effects. Its body is ONE expression built from three constructs only:
+- **CONCAT** — `X_literal + Global + Y_literal + …`
+- **IF(cond, code1, code2)** — conditional emission inline in the concat; `cond` is a global SCALAR.
+- **FOR(i, lo, hi, … code … )** — iterate a global COLLECTION, concatenating per element.
+
+A template switches off global scalars and iterates global collections. It has NO knowledge of
+anything but "what switches my output" and "what lists of work I iterate." Templates are CALLED by
+drivers; they never drive. Forbidden in a template body: recursion, child-graph deref
+(`emit_flat_ir`, `pBB->c[i]` into sub-templates), label allocation, jump patching, backward/forward
+scans of `prog->instrs[]`, any `emit_*` call with a side effect, returning `std::string()` after
+doing work as side-effects.
+
+**Order: traversals/side-effects FIRST, then locals, then globals shape.**
+
+#### PP-A — DE-DRIVE the self-driving templates (the severe violators)
+The driver (`emit_flat_ir` / the BB-graph walker) must do the child-recursion + label minting +
+jump patching, land the resulting child-strings into a `g_emit` COLLECTION and the port/label names
+into `g_emit` SCALARS, THEN call the template. The template's x86 arm becomes CONCAT/IF/FOR over
+those — emitting label definitions and jumps as TEXT, not via `emit_label_define_bb`/`emit_jmp_label`.
+
+- [x] **PP-A0 — driver contract.** ✅ Carrier approach chosen: lift driving INTO the driver (`emit_bb.c` flat_drive_* fns) + shared predicate `bb_kind_is_driver_owned()`; scalar fields `enclosing_fname`/`prev_instr_name` added to `sm_emit_t` for SM neighbor reads.
+- [x] **PP-A1 — `bb_pat_cat`.** ✅ x86 driving → `flat_drive_cat`; template x86 arm deleted; audit routes driver-owned x86 kinds through `emit_flat_ir`. GATE-PK 442/0/612.
+- [x] **PP-A2 — `bb_pat_alt`.** ✅ → `flat_drive_alt`; shared predicate added. GATE.
+- [x] **PP-A3 — `bb_pat_fence`.** ✅ with-children traversal → `flat_drive_fence`; pure macro/zero-child emission stays in template. GATE.
+- [x] **PP-A4 — `sm_nreturn` backward scan.** ✅ scan lifted to SM driver loop → `g_emit.enclosing_fname`; dropped side-effecting `emit_mode_set` in template. smoke parity 184 / run 186/75.
+- [x] **PP-A5 — `sm_define` neighbor + `sm_exec_bb` self-pc.** ✅ `g_emit.prev_instr_name` scalar + `_.i`; SM audit primes new scalars (contamination-proof). GATE-PK 442/0/612, audit GREEN, prolog 124/0/0.
+- [ ] **PP-A6 — Prolog operand derefs (bb_pl_arith/unify/builtin `pBB->c[0]/c[1]`).** Ruling needed (PP-A0): are operand-children "the list of work I iterate" (legal FOR/index) or must the driver flatten them into a collection too? Resolve, apply, GATE.
+- [ ] **PP-A7 — audit.** grep templates for `emit_flat_ir`, `emit_label_define_bb`, `emit_jmp_label`, `emit_label_initf`, `alloca`, `prog->instrs`, `pBB->c[` → zero in active arms. No template returns `std::string()` after side-effects. GATE-PK 442/0/612.
+
+#### PP-B — R4 conversion-locals (after de-drive)
+Inline every `const char *x = x_s.c_str();` (33: 26 BB active x86, 7 SM stub arms). GATE.
+
+#### PP-C — R3 string-globals shape
+`Σ` (`const char *` + `Σlen`) → `std::string` for direct concat; preserve emitted-asm ABI for
+`&Σ`/`Σlen` (`TEMPLATE_ADDR_SIGMA`). Per Lon ruling. GATE.
+
+#### PP-D — R1/R2 scope tighten + final audit
+Each SM template reads only SM_t-fields + sanctioned globals; each BB template only BB_t-fields +
+sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 ### ⚡ OPCODE-OR-DELETE (OOD) — COMPLETE ✅
 All rungs OOD-1…14 gate-green. THE RULE holds.
