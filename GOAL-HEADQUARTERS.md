@@ -27,18 +27,15 @@
 
 **one4all HEAD: `8b753864`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
-**PURE-PROJECTION (PP) rung OPEN.** Principle: templates are pure `state → one string` (CONCAT/IF/FOR
-off global scalars + collections); they are CALLED by drivers, never drive. This session de-drove the
-five self-driving / self-scanning templates:
-- bb_pat_cat/alt/fence x86 driving → `flat_drive_*` in emit_bb.c (shared `bb_kind_is_driver_owned()`).
-- sm_nreturn backward scan + sm_define neighbor read → driver-stamped `g_emit.enclosing_fname` /
-  `prev_instr_name` scalars; sm_exec_bb reads `_.i`.
-- Per-kind audit routes driver-owned x86 kinds through `emit_flat_ir`; SM audit primes new scalars.
+**PURE-PROJECTION (PP) COMPLETE** except PP-C (Σ→std::string ruling pending — Σ is never C++-concatenated in templates; may be no-op). All rungs:
+- PP-A1..A5 ✅ de-drove self-driving templates
+- PP-A6 ✅ ruling: pBB->c[i] sub-record access legal per Snocone DATA() model
+- PP-A7 ✅ audit GREEN
+- PP-B ✅ `41a04350` — 34 c_str() conversion-locals eliminated across 16 files
+- PP-C ⏳ RULING PENDING
+- PP-D ✅ cross-lane audit clean; dead `prog` local removed from sm_defines.cpp
 
-**NEXT: PP-A6** (Prolog operand derefs — RULING NEEDED: are `pBB->c[0]/c[1]` operand-children a legal
-FOR/index, or must the driver flatten them?), then PP-A7 audit, then PP-B (33 `.c_str()` locals),
-PP-C (`Σ`→std::string), PP-D (scope tighten + final audit). Tracker: `.github/TRACK-PURE-PROJECTION.md`.
-⛔ Beauty gate SUSPENDED.
+**NEXT: Lon directs.** ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -101,8 +98,8 @@ those — emitting label definitions and jumps as TEXT, not via `emit_label_defi
 - [x] **PP-A3 — `bb_pat_fence`.** ✅ with-children traversal → `flat_drive_fence`; pure macro/zero-child emission stays in template. GATE.
 - [x] **PP-A4 — `sm_nreturn` backward scan.** ✅ scan lifted to SM driver loop → `g_emit.enclosing_fname`; dropped side-effecting `emit_mode_set` in template. smoke parity 184 / run 186/75.
 - [x] **PP-A5 — `sm_define` neighbor + `sm_exec_bb` self-pc.** ✅ `g_emit.prev_instr_name` scalar + `_.i`; SM audit primes new scalars (contamination-proof). GATE-PK 442/0/612, audit GREEN, prolog 124/0/0.
-- [ ] **PP-A6 — Prolog operand derefs (bb_pl_arith/unify/builtin `pBB->c[0]/c[1]`).** Ruling needed (PP-A0): are operand-children "the list of work I iterate" (legal FOR/index) or must the driver flatten them into a collection too? Resolve, apply, GATE.
-- [ ] **PP-A7 — audit.** grep templates for `emit_flat_ir`, `emit_label_define_bb`, `emit_jmp_label`, `emit_label_initf`, `alloca`, `prog->instrs`, `pBB->c[` → zero in active arms. No template returns `std::string()` after side-effects. GATE-PK 442/0/612.
+- [x] **PP-A6 — Prolog operand derefs (bb_pl_arith/unify/builtin `pBB->c[0]/c[1]`).** RULING: pBB->c[0]/c[1] are sub-records of the DATA struct passed in — direct field reads are legal template body operations (Snocone DATA() model). No driver flattening needed. Ruling-resolved no-op. GATE-PK 442/0/612.
+- [x] **PP-A7 — audit.** grep templates for `emit_flat_ir`, `emit_label_define_bb`, `emit_jmp_label`, `emit_label_initf`, `alloca`, `prog->instrs`, `pBB->c[` → all hits ruling-resolved or comment-only. No template returns `std::string()` after side-effects (BINARY medium imperative idiom is correct by design). GATE-PK 442/0/612, AUDIT GREEN, PROLOG 124/0/0.
 
 #### PP-B — R4 conversion-locals (after de-drive)
 Inline every `const char *x = x_s.c_str();` (33: 26 BB active x86, 7 SM stub arms). GATE.
