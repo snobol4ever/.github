@@ -1,178 +1,80 @@
-# HANDOFF: 2026-05-23 (Sonnet 4.6) — ER-4 INLINE-TEXT Conversions Complete
+# SESSION-2026-05-23-SONNET-HANDOFF.md
 
-**Time:** Session end 2026-05-23
-**Gate:** PASS=419 FAIL=0 STUB=635 NEW=0 GONE=0 ✅
-**Commits:** 2 conversion commits + 2 rule commits
-**Status:** Ready for ER-4c (bb_pat_arb) or ER-5 (SM templates)
+**Date:** 2026-05-23  
+**Goal:** GOAL-HEADQUARTERS.md — DM-8 / return-string refactor  
+**one4all HEAD:** `da01ecde`  
+**GATE:** PASS=441 FAIL=1 (pre-existing BB_PAT_LIT text_macro corrupt baseline) STUB=612 NEW=0 GONE=0
 
 ---
 
-## Summary of Work
+## What was done this session
 
-### Conversions Completed (This Session)
-1. **bb_pat_pos.cpp** — POS/RPOS: JVM+NET arms converted to pure string concat
-2. **bb_pat_len.cpp** — LEN: JVM+NET arms converted to pure string concat
+### Two commits landed:
 
-### Critical Discovery: UTF-8 Greek Escapes
-**Problem:** Repeated mistake of writing `\\316\\261` (octal escape syntax) in C++ string literals.
-- In C, `\316` is an octal escape that becomes a byte.
-- In C++, `\\` is an escape that becomes a single backslash in the string.
-- Result: `\\316\\261` emitted literal backslash-digits, not UTF-8 α.
+**1. `56e4fb6b`** — HQ: eliminate local-var temps + collapse to single return per platform arm in SM/BB templates.
 
-**Solution:** Write actual UTF-8 characters directly in the source file:
+All SM templates refactored — `sm_jumps`, `sm_compare`, `sm_exec_bb`, `sm_expr_incr`, `sm_push_pop_lits`, `sm_bb_calls`, `sm_pat_anchors`, `sm_pat_combine`, plus `bb_fail`, `bb_lit`.
+
+**2. `da01ecde`** — HQ: all BB/SM/XA template functions return string — no imperative emit calls remain.
+
+All remaining templates converted: `bb_eps`, `bb_pl_var/atom/seq/unify/arith/builtin`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_arb`, `bb_pat_any`, `xa_wasm_main`, `sm_exec_bb` comment. NET BB_PAT_TAB baseline refreshed (was frozen with snprintf null-lbl bug producing `(null)_S_N_FAIL` — now correctly `TAB_S_N_FAIL`).
+
+### Rule achieved:
+**Every `_str()` inner function in every BB/SM/XA template now returns `std::string`** — no direct calls to `emit_text_jmp`, `emit_text_label`, `emit_1asm`, `emit_2asm`, `emit_comment`, `emit_directive`, `emit_textf`, `js_escape(_.out,...)`, `jvm_class_hdr(_.out,...)`, `net_class_hdr(_.out,...)` etc. remaining inside `_str` functions.
+
+### Exception — intentionally kept imperative:
+The **BINARY mode** paths in `bb_pl_var/atom/seq/unify/arith/builtin` and `bb_pat_pos` still call `insn_*` byte emitters and `emit_call_sym_plt` — these produce raw machine bytes via side-effects that cannot be captured as strings without restructuring the relocation system (ER-8). The pattern: emit the text-comment prefix as a string first, then fire the imperative binary emitters, then return `""`.
+
+The recursive `emit_flat_ir` paths in `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence`, `bb_arbno`, `bb_capture`, `bb_charset_helper` remain imperative — these coordinate label allocation across recursive calls and cannot be string-ified without ER-8's relocation overhaul.
+
+---
+
+## NEXT: DM-8
+
+Per GOAL-HEADQUARTERS.md:
+
+> **DM-8** — add `emit_text_and_binary_in_one()`: given opcode + args, returns string for macro-call (USE_SM_MACROS), raw-inline (!USE_SM_MACROS), or macro-def body (MEDIUM_MACRO_DEF). Migrate first SM template as proof-of-concept. GATE-PK green.
+
+The function signature (from GOAL-HEADQUARTERS.md design):
 ```cpp
-// CORRECT (source is UTF-8):
-s_directive(".method public α()Lbb/bb_box$Spec;")
-
-// WRONG:
-s_directive(".method public \\316\\261()Lbb/bb_box$Spec;")  // emits: \316\261
+// In emit_str.h / emit_str.cpp:
+std::string emit_text_and_binary_in_one(const char *op, const char *arg, ...);
+// Given op + args, produces:
+//   USE_SM_MACROS:      "MACRO_NAME arg\n"       (macro call text)
+//   !USE_SM_MACROS:     raw inline asm sequence
+//   MEDIUM_MACRO_DEF:   macro definition body
 ```
 
-### Rule Added to GOAL-HEADQUARTERS.md
-New section: **"⚠️ CRITICAL RULE: UTF-8 Greek Letters in CPP String Literals (ER-4+)"**
-- Explains C++ vs C octal escape semantics
-- Lists affected characters (α β ω Δ Σ)
-- Provides test strategy (run gate, check for literal backslashes)
-- Commits: `09727842`, `2a10144e`
-
----
-
-## Architecture Pattern (Proven)
-
-Every INLINE-TEXT BB template `TEMPLATE_str()` follows this structure:
-
-```cpp
-static std::string bb_pat_FOO_str(BB_t * pBB) {
-    // ... 
-    if (IS_X86) {
-        if (IS_BIN) {
-            emit_jmp(...); emit_label_define(...);  // imperative, relocation-aware
-            return std::string();  // empty string (no text emitted)
-        }
-        // IS_TEXT arm:
-        return s_comment(...) + s_2asm(...) + s_1asm(...) + ...;  // pure concat
-    }
-    if (IS_JVM) {
-        return jvm_class_hdr_str(...) + s_directive(...) + s_1asm(...) + ...;  // pure concat
-    }
-    if (IS_NET) {
-        return net_class_hdr_str(...) + net_α_hdr_str() + s_1asm(...) + ...;  // pure concat
-    }
-    if (IS_JS) {
-        return emit_fmt(...) + "literal string" + ...;  // pure concat
-    }
-    if (IS_WASM) {
-        return emit_fmt("...\\n");  // pure concat
-    }
-    return std::string();
-}
-
-extern "C" void bb_pat_FOO(BB_t * pBB) {
-    std::string out = bb_pat_FOO_str(pBB);
-    if (!out.empty()) emit_text_n(out.data(), out.size());
+The BIG HUGE X86 arm described by Lon:
+```
+if (PLATFORM_X86) {
+    return (MEDIUM_MACRO_DEF ? emit_preamble() : "")
+         + (BB_BROKERED ? emit_extra() : "")
+         + emit_text_and_binary_in_one(MOV, RAX, arguments)
+         + ...;
 }
 ```
 
-**Key invariants:**
-- Every backend arm returns a single `std::string` (concat or empty)
-- Relocation-aware arms (IS_BIN) stay imperative, return empty
-- Text/bytecode arms (IS_TEXT/IS_JVM/IS_NET/IS_JS/IS_WASM) return pure concat
-- One write per opcode via `emit_text_n()`
+The remaining `sm_calls`, `sm_returns`, `sm_defines` still have complex imperative paths — `sm_defines` in particular has `insn_push_rbp/insn_mov_rbp_rsp` in the DEFINE_ENTRY wrapper that fires after string emission. These will feed naturally into DM-8.
 
 ---
 
-## INLINE-TEXT Boxes Status
+## Session Setup
 
-| Box | Status | Commits |
-|-----|--------|---------|
-| bb_pat_abort | ✅ Complete | prior session |
-| bb_pat_fence | ✅ Complete | prior session |
-| bb_pat_rem | ✅ Complete | prior session |
-| bb_pat_tab | ✅ Complete | prior session |
-| bb_pat_any | ✅ Complete | prior session |
-| bb_pat_pos | ✅ Complete (this session) | d964c628 |
-| bb_pat_len | ✅ Complete (this session) | f26ea72d |
-| bb_pat_arb | ⏳ TODO (ER-4c) | — |
-
-**Note:** `bb_pat_arb` is last INLINE-TEXT. No x86 arm yet (TODO).
-
----
-
-## What's NOT Done (Intentionally Deferred)
-
-**DELEGATING boxes** — recursive `emit_flat_ir()`, NOT simple pattern match:
-- bb_pat_alt
-- bb_pat_cat
-- bb_pat_break
-- bb_pat_span
-- bb_pat_notany
-- bb_pat_lit
-- bb_arbno
-
-**These require separate rung (CPP-2b)** — different conversion strategy (recursive dispatch, not simple concat).
-
----
-
-## Next Steps (Priority Order)
-
-1. **ER-4c:** Convert bb_pat_arb JVM+NET arms (identical pattern to pos/len)
-2. **ER-2:** Convert jvm_/net_ layer-2 helpers to return std::string
-3. **ER-5:** All SM_templates (sm_*.c → pure concat, identical pattern, mechanical)
-4. **ER-6:** All XA_templates (xa_*.c → pure concat, identical pattern, mechanical)
-5. **ER-7:** Delete FILE* and buffer locals once all templates return string
-
----
-
-## Testing Strategy (Locked In)
-
-After **every** file conversion:
 ```bash
-cd /home/claude/one4all
-make -j4 scrip >/dev/null 2>&1 && bash scripts/test_per_kind_diff.sh
-# Expect: PASS=419 FAIL=0 STUB=635 NEW=0 GONE=0
+git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
+git clone https://TOKEN@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/corpus /home/claude/corpus
+bash /home/claude/one4all/scripts/install_system_packages.sh
+cd /home/claude/one4all && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
+done
+cd /home/claude/one4all && make -j4 scrip
+bash scripts/test_per_kind_diff.sh
+# Expect: PASS=441 FAIL=1 (pre-existing BB_PAT_LIT) STUB=612
 ```
 
-If **any** JVM/NET/x86 arm differs:
-- Check for literal `\316`, `\262`, or other backslash-digits in output → UTF-8 rule violated
-- Check `.maxstack` / `.limit` precision → copy exact values from baseline
-- Run per-cell diff to see exact divergence
-
 ---
 
-## Code Quality Notes
-
-1. **UTF-8 Rule now enforced:** Future conversions must use actual Greek characters, not octal escapes
-2. **Baseline precision:** JVM/NET arms have exact `.maxstack`, `.limit`, `.locals` directives — must match
-3. **Spacing:** x86 has precise column alignment; s_1asm/s_2asm/s_L*asm helpers guarantee this
-4. **Pattern reuse:** Each new template follows the same structure — low cognitive load
-
----
-
-## Session Stats
-
-| Metric | Value |
-|--------|-------|
-| Conversions | 2 (pos, len) |
-| Files touched | 2 BB templates + 1 GOAL file |
-| Gate runs | 6 (all green) |
-| Commits | 4 (2 conversions + 2 rule clarifications) |
-| New rule | UTF-8 Greek escapes (critical for future) |
-| Context used | ~60% (Sonnet 4.6) |
-
----
-
-## Handoff Checklist
-
-- [x] Gate is green (PASS=419 FAIL=0 STUB=635)
-- [x] All commits pushed (one4all + .github)
-- [x] Rule documented in GOAL-HEADQUARTERS.md
-- [x] Pattern verified and replicable
-- [x] No uncommitted changes
-- [x] Next steps clear and prioritized
-
-**Ready for:** Next session or immediate ER-4c (bb_pat_arb).
-
----
-
-**Session by:** Claude Sonnet 4.6
-**Directed by:** Lon Jones Cherryholmes
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
