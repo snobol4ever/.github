@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **NEXT: Lon directs.** ⛔ Beauty gate SUSPENDED.
+**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **NEXT: RP-1** (THE-RULE-PL — `codegen_pl_*` and `codegen_expression_registry` violate THE RULE; must become XA templates). ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -105,6 +105,58 @@ Inline every `const char *x = x_s.c_str();` (33: 26 BB active x86, 7 SM stub arm
 #### PP-D — R1/R2 scope tighten + final audit
 Each SM template reads only SM_t-fields + sanctioned globals; each BB template only BB_t-fields +
 sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 442/0/612 NEW=0 GONE=0.
+
+### ⚡ THE-RULE-PL (RP) — bring codegen_pl_* and codegen_expression_registry under THE RULE — OPEN
+
+**Violation.** THE RULE states: no code is emitted unless it carries a BB, SM, or XA opcode. Every emitting function outside a template body MUST be deleted and its body inlined at every call site, or minted as a composable XA building-block.
+
+`codegen_expression_registry` and the entire `codegen_pl_*` family (`codegen_pl_predicate_registry`, `codegen_pl_builder_fn`, `codegen_pl_sub_builder_fn`, `codegen_pl_b_node_call`, `codegen_pl_b_kids_call`, `codegen_pl_kids_rodata_for_pred`) all emit x86 assembly text directly via `fprintf` with no BB, SM, or XA opcode in sight.
+
+**What they emit** (two distinct named units):
+
+1. **Expression registry** (`codegen_expression_registry`) — `.data` section table: `.Lexpression_registry:` with `.quad name / .quad fn_pc` pairs per expression label, terminated by `.quad 0 / .quad 0`.
+
+2. **Prolog predicate registry** (`codegen_pl_predicate_registry` + helpers) — for each predicate: rodata kids arrays, optional sub-builder functions, a builder function (`.Lpl_builder_N:`) that calls `rt_pl_b_begin/node/kids/entry/end_register@PLT`, plus a `.data` section registry table `.Lpl_registry:` with `name / arity / fn_ptr` quads.
+
+**Fix.** Each named emission unit becomes one or more XA templates called by the walker/driver. The `fprintf` emission moves into template bodies; the loop/traversal stays in the driver.
+
+#### RP-1 — XA_EXPRESSION_REGISTRY (new opcode + template)
+
+Driver (`codegen_sm_x86`) walks `prog->instrs[]` collecting expression-label names + entry PCs into `g_emit` scalars/collection, then calls `xa_dispatch(XA_EXPRESSION_REGISTRY)`. Template `xa_expression_registry.cpp` emits the `.section .data` + `.Lexpression_registry:` + `.quad` pairs + sentinel from `g_emit` collection. No `fprintf` in driver.
+
+Add to `sm_emit_t`: `xa_expr_names` (`const char **`), `xa_expr_pcs` (`int *`), `xa_expr_count` (`int`).
+
+- [ ] **RP-1** — implement `xa_expression_registry.cpp`; wire `XA_EXPRESSION_REGISTRY` opcode; driver fills collection, calls `xa_dispatch`; delete `codegen_expression_registry`. GATE-PK 442/0/612 NEW=0 GONE=0.
+
+#### RP-2 — XA_PL_KIDS_RODATA (new opcode + template)
+
+`codegen_pl_kids_rodata_for_pred` emits `.section .rodata` + `.align 4` + `.Lpl_kids_P_N:` labels + `.int child_idx` arrays + `.text`. Driver fills: `xa_pl_pred_idx`, `xa_pl_kids_labels` (array of label strings), `xa_pl_kids_arrays` (array of int arrays), `xa_pl_kids_counts` (array of lengths). Template emits the rodata block.
+
+- [ ] **RP-2** — implement `xa_pl_kids_rodata.cpp`; wire opcode; driver fills, calls `xa_dispatch`; delete `codegen_pl_kids_rodata_for_pred`. GATE.
+
+#### RP-3 — XA_PL_SUB_BUILDER (new opcode + template)
+
+`codegen_pl_sub_builder_fn` emits a sub-builder function body: optional rodata kids block + function label + `push rbp/push r12/mov rbp,rsp` prologue + `rt_pl_b_sub_begin/node/kids/end@PLT` call sequence + `ret`. Driver fills scalars: pred_idx, node_idx, sub-graph node list into collection. Template emits the function.
+
+- [ ] **RP-3** — implement `xa_pl_sub_builder.cpp`; wire opcode; driver fills, calls `xa_dispatch`; delete `codegen_pl_sub_builder_fn`. GATE.
+
+#### RP-4 — XA_PL_BUILDER (new opcode + template)
+
+`codegen_pl_builder_fn` emits the main per-predicate builder function: label + prologue + `rt_pl_b_begin/node/kids/entry/end_register@PLT` call sequence + epilogue. Driver fills: pred_idx, cfg node list, entry_idx, predicate name label, arity. Template emits the function body.
+
+- [ ] **RP-4** — implement `xa_pl_builder.cpp`; wire opcode; driver fills, calls `xa_dispatch`; delete `codegen_pl_builder_fn`, `codegen_pl_b_node_call`, `codegen_pl_b_kids_call`. GATE.
+
+#### RP-5 — XA_PL_REGISTRY_TABLE (new opcode + template)
+
+The trailing `.section .data` + `.Lpl_registry:` + `.quad name / .int arity / .int 0 / .quad fn@PLT` table in `codegen_pl_predicate_registry`. Driver fills: `xa_pl_reg_names`, `xa_pl_reg_arities`, `xa_pl_reg_fn_labels`, `xa_pl_reg_count`. Template emits the table.
+
+- [ ] **RP-5** — implement `xa_pl_registry_table.cpp`; wire opcode; driver fills, calls `xa_dispatch`; delete `codegen_pl_predicate_registry` (the loop wrapper becomes a pure walker). GATE.
+
+#### RP-6 — final audit
+
+`grep -rn "fprintf" src/emitter/emit_sm.c` returns zero emission `fprintf` calls (only infrastructure/error-check uses acceptable). All Prolog and expression registry emission goes through XA templates.
+
+- [ ] **RP-6** — audit grep; GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
 ### ⚡ CORRAL-EMIT (CE) — corral all emission into BB/SM/XA templates — OPEN
 
