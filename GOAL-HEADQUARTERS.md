@@ -20,8 +20,92 @@
 13. **Entry labels belong to their template.** Each XA/SM/BB template that begins a named asm block emits its own entry label on the first line. No separate `XA_PC_LABEL` opcode — the template owns its label.
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
+16. **THE RULE (2026-05-24q Lon directive — the sharp framing) — NO code is emitted (binary, text, OR macro) unless it carries a BB, SM, or XA opcode.** Every function that emits code (via `bb_emit_byte`/`bb_sink_str`, `fprintf(emit_outf…)`/`emit_textf`/`emit_text_n`/`emit_2asm`/`s_*asm`, or any byte/text/macro write) and is NOT itself a template body or KEEP-list infra MUST be deleted, and its body inlined verbatim at every call site. Deletion proceeds **bottom-up in reverse dependency order** (deepest leaf emitters first). When a call site has no opcode home — i.e. the caller is a driver/walker, not a template body — a **new composable template building-block** (a new `XA_*` opcode + `XA_templates/xa_<name>.cpp` + dispatch) is designed to host the emission, and the driver calls `xa_dispatch(XA_<NEW>)` instead. End state: 100% of code emission lives inside SM/BB/XA template bodies; the only non-template functions left are orchestrators (`emit_program`/`emit_bb_node`/`emit_sm_dispatch`/`bb_walk`/`xa_dispatch`) that *route* to templates, the relocation/patch infra (`emit_jmp`/`emit_label_define*`/`emit_label_initf`/`bb_label_define`), the byte/text sinks (`bb_emit_byte`/`bb_emit_u32/u64`/`emit_text`/`emit_text_n`/`emit_textf`), and the atomic string builders (`emit_fmt`/`bytes`/`u8`/`u32le`/`u64le`/`s_*asm`/`s_comment`/`s_directive`). The TSX-FORM-DELETE ladder is superseded by the **OPCODE-OR-DELETE ladder** below.
 
-## Session State (2026-05-24p — PLANNING: full emitter census + TSX-FORM-DELETE ladder authored — NO CODE CHANGE)
+## Session State (2026-05-24q — PIVOT: THE RULE reframed; OPCODE-OR-DELETE ladder authored; FD-A/0/1/2 landed)
+
+**one4all HEAD: `16517546`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, smoke 184 / `--run` 186/75, Prolog BB honest 124/0/0. **Lon's pivot (the sharp framing, Invariant 16):** *No code is emitted unless it carries a BB/SM/XA opcode.* Delete every emission function outside the template system bottom-up in reverse dependency order; inline each body at its call sites; where a call site is a driver (no opcode home) mint a new composable XA building-block. This SUPERSEDES TSX-FORM-DELETE's FD-A…FD-8 with the **OPCODE-OR-DELETE (OOD) ladder** below — same deletions, but reframed around the opcode rule and extended to cover the driver-level emitters (the program prologue/epilogue text, the `.data` flush, `flat3c`) that the FD ladder did not reach.
+
+**Landed this session (gate-green, smoke x3 each):**
+- **FD-A `6ed25a25`** — 13 Class-A ghost decls swept (zero def/caller). Gate-neutral.
+- **FD-0 `181ab2d5`** — `emit_ret` inlined at its 2 sites (both in `emit_flat_epilogue_xa`); fn deleted.
+- **FD-1 `662a7411`** — `emit_push_r10`/`emit_pop_r10` inlined in bb_lit text arm via `emit_2asm`; fns deleted.
+- **FD-2 `16517546`** — `emit_test_eax_eax` inlined at 3 sites; **finding: 2 were live MEDIUM_BINARY** (bb_pl_seq, bb_pl_unify, inlined as raw `85 C0` via `bb_sink_str`), 1 text (bb_lit). Fn deleted.
+
+These map onto the OOD ladder as OOD-1 (=FD-A) + OOD-2/3/4 (=FD-0/1/2) — already complete. **NEXT: OOD-5** (`emit_add_delta_imm`/`emit_sub_delta_imm`).
+
+---
+
+## OPCODE-OR-DELETE (OOD) ladder — delete every emitter outside the template system (2026-05-24q Lon directive — Invariant 16)
+
+**Goal:** Drive the emitter to the state where THE RULE holds: code is emitted only from a BB/SM/XA template body. Work **bottom-up in reverse dependency order** — leaf emitters (called by templates) first, then mid-layer, then the driver-level emitters that need new XA building-blocks. Each rung: delete one emitter (or a tight group), inline its body verbatim at every call site (raw bytes via `bb_sink_str`/`bb_emit_byte` in MEDIUM_BINARY arms; `emit_2asm`/`emit_fmt`/`fprintf` token-identical in MEDIUM_TEXT arms; macro text in MEDIUM_MACRO_DEF). Gate-green every rung.
+
+**Oracle (every rung):** GATE-PK 442/0/612 NEW=0 GONE=0 + `util_three_section_audit.sh` GREEN + `test_prolog_bb_honest.sh` 124/0/0 + **`test_smoke_snobol4_jit.sh` parity 184 / `--run` 186/75 stable x3** (smoke is the behavioral oracle the per-kind byte gate misses — W02 lesson; stash-bisect any drop before committing).
+
+**KEEP-list (NOT emitters — never delete):** orchestrators/routers that *dispatch* to templates (`emit_program`, `emit_bb_node`, `emit_sm_dispatch`, `sm_op_is_dispatched`, `bb_walk`, `xa_dispatch`, `emit_flat_ir`, `flat_fill_bin`/`flat_fill_and_call`, `emit_flat_build`); relocation/patch infra (`emit_jmp`, `emit_jmp_label`, `emit_text_jmp`, `emit_text_label`, `emit_label_define`, `emit_label_define_bb`, `emit_label_initf`, `bb_label_define`, `bb_label_from_name`); byte/text sinks (`bb_emit_byte`, `bb_emit_u32/u64/i32`, `bb_emit_begin/end`, `emit_text`, `emit_text_n`, `emit_textf`, `emit_byte`/`emit_bytes`, `emit_mode_set`, `emitter_init_*`, `emitter_end`, `emit_outf`); atomic builders (`emit_fmt`, `bytes`, `u8`, `u32le`, `u64le`, `bb_sink_str`, `s_*asm`, `s_comment`, `s_directive`, `ef_*`); non-emitting helpers (`bb_node_id`, `bb_is_generator`, `jvm_sanitize_name`, `wasm_intern_str`/`wasm_intern_name`).
+
+**The emitter census (2026-05-24q, empirical — `grep` caller counts) — deletion order is bottom-up:**
+
+### Tier 0 — leaf x86 emitters, all callers already in template `.cpp` (DONE or trivial)
+| Fn | callers | sites | rung |
+|----|---------|-------|------|
+| `emit_ret` | 2 | emit_flat_epilogue_xa (XA body) | OOD-2 ✅ FD-0 |
+| `emit_push_r10`/`emit_pop_r10` | 1+1 | bb_lit text | OOD-3 ✅ FD-1 |
+| `emit_test_eax_eax` | 3 | bb_pl_seq(bin), bb_pl_unify(bin), bb_lit(text) | OOD-4 ✅ FD-2 |
+| `emit_add_delta_imm`/`emit_sub_delta_imm` | 3+2 | bb_pat_len(bin), bb_lit(bin+text) | **OOD-5 NEXT** |
+
+### Tier 1 — relocation/PLT-bearing leaf emitters, callers in template `.cpp`
+| Fn | callers | sites | rung |
+|----|---------|-------|------|
+| `emit_sym_lea_rcx` | 3 | bb_lit (1 live text); 2 are comment-only refs | OOD-6 |
+| `emit_call_sym_plt` | 5 | bb_lit (2 live: line 45 bin, line 79 text); 3 comment-only | OOD-7 |
+| `emit_seq_port_call_rip` | 6 | bb_arbno(2), bb_capture(4) — all MEDIUM_TEXT | OOD-8 |
+
+### Tier 2 — the XA-body keystone (sigma/delta chain + emit_form_* wrappers)
+All converge on the two XA bodies in emit_bb.c. These ARE template bodies (they implement XA_FLAT_PROLOGUE / XA_FLAT_EPILOGUE) — inlining the chain INTO them satisfies THE RULE.
+| Fn | site | rung |
+|----|------|------|
+| `emit_sym_lea_r10` | emit_flat_prologue_xa | OOD-9 |
+| `emit_sigma_plus_delta`→`emit_load_sigma`→`emit_sym_lea_rcx`+`emit_mov_rax_rcxmem`+`emit_movsxd_rcx_r10mem`+`emit_lea_rax_raxrcx` | emit_flat_epilogue_xa | OOD-10 |
+| `emit_form_*` primitives (6) + emit_form.h inline wrappers (8: `emit_mov_eax_imm32`/`emit_mov_rdx_rax`/`emit_xor_edx_edx`/`emit_pop_rbp`/`emit_mov_rax_rcxmem`/`emit_mov_r10mem_eax`/`emit_movsxd_rcx_r10mem`/`emit_lea_rax_raxrcx`) | emit_flat_epilogue_xa (the consumer) | OOD-11 (keystone — highest risk; epilogue touches every box; stash-bisect mandatory) |
+
+### Tier 3 — DRIVER-level emitters with NO opcode home → mint new XA building-blocks
+These emit from drivers/walkers, not template bodies. Each needs a **new composable XA opcode**.
+| Emitter | driver | NEW building-block | rung |
+|---------|--------|--------------------|------|
+| `emit_text_global`×4 + `emit_flat_banner_rule`(`emit_text_rawf`) | emit_flat_prologue_xa | already an XA body — inline into it (no new opcode) | OOD-12 |
+| `.data` flush: `flat3c(".section",".data")` + `emit_text_rawf(data_buf)` + `flat3c(".section",".text")` | emit_flat_build (driver) | **new `XA_FLAT_DATA_SECTION`** (xa_flat_data.cpp) | OOD-13 |
+| `flat3c`/`flat3c_action` (driver-private 3-col text emitter) | emit_bb.c flat walker | fold into the XA bodies that use it; delete | OOD-14 |
+| `emit_prologue` program-frame text (JVM/JS/NET fprintf blocks) | emit_program driver | **new `XA_PROGRAM_PROLOGUE`** (xa_program_prologue.cpp, per-backend arms) | OOD-15 |
+| `emit_epilogue` program-frame text (JVM/JS/NET) | emit_program driver | **new `XA_PROGRAM_EPILOGUE`** (xa_program_epilogue.cpp) | OOD-16 |
+| `wasm_emit_data_segments`, `emit_wasm_from_sm`/`emit_js_from_sm` inline fprintf | backend drivers | **new `XA_WASM_DATA`** / fold into existing xa_wasm_main / xa_js_* | OOD-17 (x86 done first; non-x86 per Invariant 14 — opens only when Lon directs) |
+| `emit_banner_stno`/`emit_text_stno_banner` | sm_compare (1 caller, template) + SM walker | inline into sm template arm OR mint `XA_STNO_BANNER` if walker-driven | OOD-18 |
+
+### Rungs
+- [x] **OOD-1 ✅ `6ed25a25` (=FD-A)** — 13 ghost decls.
+- [x] **OOD-2 ✅ `181ab2d5` (=FD-0)** — emit_ret.
+- [x] **OOD-3 ✅ `662a7411` (=FD-1)** — emit_push_r10/emit_pop_r10.
+- [x] **OOD-4 ✅ `16517546` (=FD-2)** — emit_test_eax_eax.
+- [ ] **OOD-5 — emit_add_delta_imm/emit_sub_delta_imm (5 sites).** bb_pat_len(bin): 11-byte shape `41 8B 02`/`05`+u32/`41 89 02`. bb_lit has both a bin site (already inlined as comment per TSX-INLINE — verify) and a text site (3×`emit_2asm` mov/add/mov). Inline both; delete defs+decls. Oracle: `BB_PAT_LEN.bin` len + LIT + smoke x3.
+- [ ] **OOD-6 — emit_sym_lea_rcx.** Only 1 live caller (bb_lit text, line 67). Inline as `emit_2asm("lea", emit_fmt("rcx, [rip + %s]",sym))` (text) — note its current text form. The 2 other refs are dead comments. Delete def+decl. Oracle: LIT + smoke x3.
+- [ ] **OOD-7 — emit_call_sym_plt.** 2 live (bb_lit:45 bin → `48 B8`+u64+`FF D0`; bb_lit:79 text → `call memcmp@PLT`). Confirm fallback addr. Inline; delete def + both decls. ⚠ RELOCATION-bearing — the abs-addr fallback vs rel32 question is the open ER-8; inline preserves current behavior. Oracle: LIT + smoke x3.
+- [ ] **OOD-8 — emit_seq_port_call_rip (6 sites, all MEDIUM_TEXT).** bb_arbno(2)+bb_capture(4). Inline the 9-line GAS sequence via `emit_2asm`/`emit_fmt` into each text arm; keep `emit_jmp` (patch). Delete def+decl. Oracle: ARBNO + CAP*.bin + mode4 + smoke x3.
+- [ ] **OOD-9 — emit_sym_lea_r10 (1 site, emit_flat_prologue_xa).** Inline `49 BA`+u64 (bin) / `lea r10,[rip+SYM]` (text) into the XA prologue body. Verify opcode in def. Delete def+decl. Oracle: PK all + smoke x3.
+- [ ] **OOD-10 — sigma/delta chain (emit_flat_epilogue_xa).** Inline `emit_sigma_plus_delta`+`emit_load_sigma`+the 4 mem wrappers directly into the epilogue body as `bb_sink_str`/`emit_2asm`. Delete `emit_sigma_plus_delta`, `emit_load_sigma`. Oracle: PK all + audit + smoke x3.
+- [ ] **OOD-11 — emit_form_* primitives + emit_form.h wrappers (keystone).** Inline the remaining wrappers (`emit_mov_eax_imm32`/`emit_mov_rdx_rax`/`emit_xor_edx_edx`/`emit_pop_rbp` + the 4 mem wrappers if not gone in OOD-10) directly into emit_flat_epilogue_xa; delete the 6 `emit_form_*` primitives + all 8 emit_form.h inline wrappers. Epilogue becomes pure inline emission. ⚠ HIGHEST RISK — touches every box; smoke x3 + stash-bisect mandatory. Oracle: PK ALL kinds + audit + smoke x3 + Prolog BB.
+- [ ] **OOD-12 — emit_text_global×4 + emit_flat_banner_rule.** Inline `.global %s` text + the banner-rule loop directly into emit_flat_prologue_xa body. Delete `emit_text_global`, `emit_flat_banner_rule` (and `emit_text_rawf` if no other caller — check the OOD-13 site first). Oracle: PK + smoke x3.
+- [ ] **OOD-13 — NEW `XA_FLAT_DATA_SECTION`.** The `.data` flush in emit_flat_build (driver) is the first genuine new building-block: mint `XA_FLAT_DATA_SECTION` opcode (XA.h enum + xa_flat_data.cpp + xa_dispatch case + g_emit fields for the data buffer ptr/len), move the `flat3c(.data)`+`emit_text_rawf(buf)`+`flat3c(.text)` sequence into it, driver calls `xa_dispatch(XA_FLAT_DATA_SECTION)`. Oracle: mode-4 broad corpus + smoke x3.
+- [ ] **OOD-14 — flat3c/flat3c_action.** Once OOD-13 absorbs the driver use, fold remaining `flat3c` uses into their XA bodies; delete the driver-private emitter. Oracle: PK + smoke x3.
+- [ ] **OOD-15 — NEW `XA_PROGRAM_PROLOGUE`.** Mint opcode + xa_program_prologue.cpp with PLATFORM_{X86,JVM,JS,NET,WASM} arms (x86 first; non-x86 arms move the existing fprintf blocks verbatim). emit_program/emit_prologue driver calls `xa_dispatch(XA_PROGRAM_PROLOGUE)`. Oracle: per-backend smoke where available + PK.
+- [ ] **OOD-16 — NEW `XA_PROGRAM_EPILOGUE`.** Symmetric to OOD-15 for emit_epilogue. Oracle: same.
+- [ ] **OOD-17 — wasm/js data + segment emitters → XA blocks.** x86 is opcode-complete after OOD-16; the wasm/js inline fprintf are non-x86 (Invariant 14 — open only when Lon directs). Author the opcodes (`XA_WASM_DATA` etc.) but gate the bodies behind the x86-only directive. Oracle: PK (non-x86 arms are STUB until Lon opens).
+- [ ] **OOD-18 — emit_banner_stno + final audit.** Inline the STNO banner into sm_compare's template arm (its 1 template caller) — or mint `XA_STNO_BANNER` if the SM walker drives it. Then final sweep: `grep -rnE 'fprintf|fputs|fwrite|emit_textf|bb_emit_byte|bb_sink_str' src/emitter/*.c src/emitter/*.cpp` — confirm every hit is inside a template body, an orchestrator routing call, a sink, or relocation infra. Update Invariant 16 watermark: "THE RULE holds — 100% of code emission lives in BB/SM/XA template bodies." Oracle: full gate suite + smoke x3.
+
+**Out of scope:** ER-8 relocation rethink (abs-addr PLT fallback vs rel32 — OOD-7 preserves current behavior, does not resolve it). JVM/JS/NET/WASM body build-out beyond moving existing emission into opcodes (Invariant 14 — x86-only until Lon directs; OOD-15/16/17 mint the opcodes but non-x86 arms stay as-is / STUB).
+
+---
+
+
 
 **one4all HEAD: `1f034f2d`** (unchanged — planning session). GATE state as 2026-05-24o: GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, smoke 184 / `--run` 186/75, Prolog BB honest 124/0/0. **This session — Lon directive: scan for ALL remaining bare code-emission helpers (binary and/or text) of the same class as the 14 named, and author a complete deletion ladder.** Result: full emitter census found the complete universe (~36 fns/decls), ALL confined to emit_core.c (defs) + emit_form.h (inline wrappers + ghost decls); `ef_b1/ef_b2/ef_u32/ef_u64/ef_t3c` atomic builders confined to emit_core.c. **TSX-FORM-DELETE ladder written below (FD-A → FD-8, 10 rungs).**
 
