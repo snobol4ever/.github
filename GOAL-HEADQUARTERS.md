@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**NEXT: CE-1** (CORRAL-EMIT — scan and eliminate emit_* calls in driver files not reachable from template roots). ⛔ Beauty gate SUSPENDED.
+**NEXT: CE-1** (CORRAL-EMIT) and **RE-1** (RENAME-EMIT — reserve `emit_*` for template emission only; rename drivers→`codegen_*`, walkers→`walk_*`, flat-lower→`lower_flat_*`). ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -131,6 +131,87 @@ sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 4
 - [ ] **CE-3 — `emit_banner_stno`:** Called per-statement from SM walker. Wrap as `XA_BANNER_STNO`; driver primes `g_emit` scalars (stno, lineno, src_text), template emits the banner.
 - [ ] **CE-4 — `emit_bytes`:** Audit callers. If reachable only from test files, leave. If in driver emission paths, wrap or inline into template via `bb_sink_str`.
 - [ ] **CE-5 — gate.** GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0. All `emit_*` in driver files are infrastructure/orchestration only.
+
+### ⚡ RENAME-EMIT (RE) — reserve emit_* for template emission only — OPEN
+
+**Principle.** The `emit_*` prefix is reserved exclusively for functions reachable from a BB, SM, or XA template root (i.e., template entry points and the primitives they call). All other `emit_*` functions are renamed to one of three new prefixes:
+
+- **`codegen_*`** — top-level orchestrators and pass drivers (call walkers, dispatch templates, own a named code-generation unit)
+- **`walk_*`** — pure SM/BB/AST traversals (iterate structures, call codegen/templates per node)
+- **`lower_flat_*`** — flat-lowering helpers (eligibility, intern, reset — IR preparation, not emission)
+
+`emit_flat_intern_str` is called from BB templates — it stays `emit_*` but is renamed `emit_intern_str` (removes the misleading `flat_` coupling).
+
+#### RE-1 — `codegen_*` renames (orchestrators/drivers)
+
+| Old name | New name | File |
+|---|---|---|
+| `emit_walk_codegen` | `codegen_sm_x86` | `emit_sm.c` |
+| `emit_program` | `codegen_program` | `emit_core.c` |
+| `emit_prologue` | `codegen_prologue` | `emit_core.c` |
+| `emit_epilogue` | `codegen_epilogue` | `emit_core.c` |
+| `emit_flat_body` | `codegen_flat_body` | `emit_bb.c` |
+| `emit_flat_build` | `codegen_flat_build` | `emit_bb.c` |
+| `emit_sm_dispatch` | `codegen_sm_dispatch` | `emit_core.c` |
+| `emit_expression_registry` | `codegen_expression_registry` | `emit_sm.c` |
+| `emit_pl_predicate_registry` | `codegen_pl_predicate_registry` | `emit_sm.c` |
+| `emit_pl_builder_fn` | `codegen_pl_builder_fn` | `emit_sm.c` |
+| `emit_pl_sub_builder_fn` | `codegen_pl_sub_builder_fn` | `emit_sm.c` |
+| `emit_pl_b_node_call` | `codegen_pl_b_node_call` | `emit_sm.c` |
+| `emit_pl_b_kids_call` | `codegen_pl_b_kids_call` | `emit_sm.c` |
+| `emit_pl_kids_rodata_for_pred` | `codegen_pl_kids_rodata_for_pred` | `emit_sm.c` |
+| `emit_banner_stno` | `codegen_banner_stno` | `emit_core.c` |
+| `emit_cap_fixup_init_calls` | `codegen_cap_fixup_init_calls` | `emit_bb.c` |
+
+- [ ] **RE-1** — apply all `codegen_*` renames; update all call sites and headers. GATE-PK 442/0/612 NEW=0 GONE=0.
+
+#### RE-2 — `walk_*` renames (traversals)
+
+| Old name | New name | File |
+|---|---|---|
+| `emit_js_from_sm` | `walk_sm_js` | `emit_core.c` |
+| `emit_jvm_from_sm` | `walk_sm_jvm` | `emit_core.c` |
+| `emit_jvm_one_instr` | `walk_sm_jvm_instr` | `emit_core.c` |
+| `emit_jvm_sm_range` | `walk_sm_jvm_range` | `emit_core.c` |
+| `emit_net_from_sm` | `walk_sm_net` | `emit_core.c` |
+| `emit_wasm_from_sm` | `walk_sm_wasm` | `emit_core.c` |
+| `emit_flat_ir` | `walk_bb_flat` | `emit_bb.c` |
+| `emit_bb_node` | `walk_bb_node` | `emit_bb.c` |
+| `emit_bb_register_child_label` | `walk_bb_register_child_label` | `emit_bb.c` |
+| `emit_pattern_blobs` | `walk_bb_pattern_blobs` | `emit_sm.c` |
+| `strtab_emit_rodata` | `walk_strtab_rodata` | `emit_sm.c` |
+
+- [ ] **RE-2** — apply all `walk_*` renames; update all call sites and headers. GATE-PK 442/0/612 NEW=0 GONE=0.
+
+#### RE-3 — `lower_flat_*` renames + `emit_flat_intern_str` → `emit_intern_str`
+
+| Old name | New name | File |
+|---|---|---|
+| `emit_flat_eligible` | `lower_flat_eligible` | `emit_bb.c` |
+| `emit_flat_invariant` | `lower_flat_invariant` | `emit_bb.c` |
+| `emit_flat_reset` | `lower_flat_reset` | `emit_bb.c` |
+| `emit_flat_set_cap_fixup` | `lower_flat_set_cap_fixup` | `emit_bb.c` |
+| `emit_flat_set_intern_str` | `lower_flat_set_intern_str` | `emit_bb.c` |
+| `emit_flat_intern_str` | `emit_intern_str` | `emit_bb.c` |
+
+- [ ] **RE-3** — apply renames; update all call sites including BB templates that call `emit_flat_intern_str`. GATE-PK 442/0/612 NEW=0 GONE=0.
+
+#### RE-4 — header and file renames (cosmetic, post-code)
+
+Rename `emit_sm.h` → `codegen_sm.h`, `emit_bb.h` → `codegen_bb.h`, `emit_core.h` → `codegen.h` (or keep filenames stable and update only function names — Lon decides). Update `sm_templates.h` comment that references `emit_sm_dispatch`.
+
+- [ ] **RE-4** — Lon ruling on header renames. Apply or close as no-op. GATE.
+
+#### RE-5 — final audit
+
+`grep -rn "emit_" src/emitter/emit_bb.c src/emitter/emit_sm.c src/emitter/emit_core.c` returns only:
+- `emit_*` functions reachable from template roots (primitives, sinks)
+- `emit_io_*` infrastructure family
+- `#include` directives for header files
+
+No `emit_*` function *definitions* remain in driver/walker files except the sanctioned primitives.
+
+- [ ] **RE-5** — audit grep; confirm zero non-sanctioned `emit_*` defs in driver files. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
 ### ⚡ OPCODE-OR-DELETE (OOD) — COMPLETE ✅
 All rungs OOD-1…14 gate-green. THE RULE holds.
