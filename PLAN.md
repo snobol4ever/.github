@@ -61,7 +61,7 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles" f
 | **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | same as CHUNKS row |
 | **CLI 3-mode collapse + AST-interp delete** | `GOAL-CLI-3MODE.md` | one4all+.github | ✅ COMPLETE 2026-05-18. Mode 1 deleted. |
 | **TEXTF: literal emit_textf templates** | `GOAL-TEXTF-TEMPLATES.md` | one4all+.github | G1-G9 ✅. G7/G8/G9 surveyed: all non-x86 arms clean (emit_textf/jvm_*/net_*/js_* directly, no indirection). NEXT: G11 emit_flat_ir rewire — path-a/b decision from Lon. Beauty gate SUSPENDED. |
-| **SCRIP Head Quarters** | `GOAL-HEADQUARTERS.md` | one4all+corpus+(.github) | **one4all HEAD=`dcf9005a` ✅ GATE-PK 442/0/612 NEW=0 GONE=0. PP ✅. XA split ✅. RE-1..5 ✅ (32 fns renamed). CE-1 ✅ (7 dead aliases deleted). **NEXT: CE-2/CE-3.** ⛔ Beauty gate SUSPENDED. 
+| **SCRIP Head Quarters** | `GOAL-HEADQUARTERS.md` | one4all+corpus+(.github) | **one4all HEAD=`b27c5f66` ✅ GATE-PK 442/0/612 NEW=0 GONE=0. CORRAL-EMIT ✅. RENAME-EMIT ✅. emit_* reserved for templates only. **NEXT: Lon directs.** ⛔ Beauty gate SUSPENDED.
 | **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ sm-run 223/280 ✅. See `BUG_CATEGORIZATION_20260516.md`. |
 | **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
 | **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |
