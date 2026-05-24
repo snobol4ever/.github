@@ -249,6 +249,56 @@ SM templates with structural violations:
 
 - [x] **TM-12 ✅ `a2324982` — audit pass.** `grep -rn "MEDIUM_\|BB_WIRED\|BB_BROKERED\|USE_SM_MACROS"` across all template files; confirm zero hits outside a `PLATFORM_X86` block. GATE-PK green. Commit.
 
+---
+
+### ⚡ STRING-CONCAT-ALL — Every emit_*() returns string; every template is ONE concat per platform (2026-05-24 Lon directive)
+
+**Goal (Lon, verbatim intent):** Make a consolidated emitter system. Rewrite ALL low-level `emit_*()` functions that build code so they RETURN `std::string`. Refactor every caller to use them via the `+` string-concatenation operator. Walk UP the chain — convert leaf emitters first, then their callers, transitively — until every top-level SM/BB/XA template function returns a string. Once every `emit_*()` returns a string, DELETE all `FILE *out` parameters/locals and every `char buf[...]` that was being filled (the returned string replaces them). Each template's per-platform arm collapses to exactly ONE statement: `return <ONE BIG CONCAT of helpers + emit_fmt() + globals>`. Structure stays `if (PLATFORM_X86) { return BIGCONCAT; } if (PLATFORM_JVM) { return BIGCONCAT; } ...` — one return per platform arm, no locals, no intermediate buffers.
+
+**Formatting rule (Lon):** There is NO formatting to preserve. Do not worry about matching exact whitespace. ONE space wherever a space is needed, nothing more. The per-kind gate normalizer already squeezes all whitespace to single spaces (ER-2), so token order is the only invariant — NOT byte-exact spacing. This frees every step from whitespace-matching busywork.
+
+**Relationship to prior waves:** This SUPERSEDES and completes EMIT-RETURNS-STRING (ER-0→7 built the `s_*`/`emit_fmt` leaf helpers and converted the templates to `.cpp` returning string, but ~380 imperative FILE writes remain in emit_core.c / emit_io.c / emit_sm.c / emit_bb.c, and the templates still CALL imperative middle-layer emitters — `emit_text_jmp`, `emit_text_label`, `emit_seq_port_call*`, `emit_comment`, etc. — that side-effect to FILE and return void). STRING-CONCAT-ALL finishes the job from the leaves all the way up, then deletes the imperative machinery.
+
+**Two emitter populations — handle differently:**
+1. **Text/format emitters** (the ~380 fprintf/fputs/emit_text_* sites): these BUILD code text. They are the target — convert to return string.
+2. **Binary byte emitters** (`insn_*` family, 52 fns; relocation-patch writers): these patch a machine-code byte buffer for relocation. They are NOT text-builders. They stay imperative for now and are the ER-8 relocation-rethink concern. A MEDIUM_BINARY section may still call `insn_*` and `return std::string()`. Do NOT try to stringify binary byte emission in this rung.
+
+**Invariant:** GATE-PK 442/0/612 NEW=0 GONE=0 after every committed sub-step (normalizer is whitespace-insensitive, so only token content matters). Prolog BB honest 124/0/0 where touched.
+
+**Method — one piece at a time, leaves first:**
+- For each imperative text emitter `void emit_X(FILE*, args)`: add a sibling `std::string emit_X_str(args)` that returns the text it would have written. Keep the old `void emit_X(...)` as a thin wrapper: `void emit_X(FILE *f, args){ std::string s = emit_X_str(args); fwrite(s.data(),1,s.size(),f); }` — so existing callers keep working while migration proceeds.
+- Then rewrite each CALLER to use `emit_X_str(args)` inside its own returned concat, dropping the FILE* threading. When the last caller of an old `void emit_X` is gone, delete the wrapper.
+- Walk up: a function is "done" when it returns string and all the emitters it calls return string. The transitive frontier moves from leaves (emit_str.h — already done) through the middle layer (emit_text_*, emit_seq_*, emit_comment) up to the templates (already string-returning shells, but still calling imperative middle-layer fns).
+- Final collapse: once a template arm calls only string-returners, fold it into a single `return a + b + c + ... ;` with NO locals and NO `emit_text_n` side-effect call in the extern "C" wrapper beyond the final `emit_text_n(s.data(), s.size())`.
+
+**Sub-steps (each atomic, gate-green; commit after each):**
+
+- [ ] **SC-0 — inventory + classify.** Produce `scripts/util_emit_inventory.sh` (or a one-off audit) listing every `emit_*` / `s_*` symbol in emit_core.{c,h}, emit_io.{c,h}, emit_sm.{c,h}, emit_bb.{c,h}, emit_str.{h,cpp}, tagged TEXT-BUILDER (convert) vs BINARY/RELOC (leave). Output the call-graph depth so leaves are converted first. Commit the inventory doc. No code change. GATE-PK green (trivially).
+
+- [ ] **SC-1 — middle-layer text emitters → _str siblings (batch 1: jmp/label/comment).** Add `emit_text_jmp_str`, `emit_text_label_str`, `emit_comment_str` (returning string) beside the existing void versions (void becomes a wrapper that writes the string). No callers rewired yet. GATE-PK green.
+
+- [ ] **SC-2 — rewire BB template callers of batch-1 emitters.** In every BB template that calls `emit_text_jmp/label`+`emit_comment` inside a MEDIUM section, replace the side-effecting call with concatenation of the `_str` result into that section's single returned string. Delete the now-unused local string-then-emit_text_n patterns. GATE-PK green.
+
+- [ ] **SC-3 — port-call sequence emitters → _str (batch 2).** `emit_seq_port_call_str`, `emit_seq_port_call_rip_str`. These currently emit a multi-instruction sequence to FILE; the _str version returns the full text sequence. (The binary-mode counterpart still routes through insn_*/reloc — leave it.) Wrapper preserved. GATE-PK green.
+
+- [ ] **SC-4 — rewire arbno/capture/pl_* TEXT arms to batch-2 _str.** The MEDIUM_TEXT arms of bb_arbno, bb_capture, bb_pl_* currently call `emit_seq_port_call_rip` imperatively then `return std::string()`. Convert each to `return emit_seq_port_call_rip_str(...) + ...;` — one concat, no side-effect. MEDIUM_BINARY arms keep calling the imperative seq emitter (reloc). GATE-PK green. Prolog BB honest 124/0/0.
+
+- [ ] **SC-5 — emit_core.c text helpers → _str (batch 3).** `emit_text_global`, `emit_text_stno_banner`/`emit_banner_stno`, `emit_directive`, and the remaining EMIT_TEXT/EMIT_MACRO_DEF arms of the ~380 fprintf sites that build TEXT (NOT the binary/reloc arms). Each gets a `_str`. sm_stno's banner side-effect (flagged in TM-11) is resolved HERE: `return emit_banner_stno_str(...) + s_2asm(...) + ...;`. GATE-PK green.
+
+- [ ] **SC-6 — rewire SM template callers of batch-3.** All SM templates that still side-effect a banner/global/directive before returning: fold into the single returned concat. GATE-PK green.
+
+- [ ] **SC-7 — XA template text emitters → _str + rewire.** xa_file_header, xa_macro_library, xa_rodata, xa_flat, xa_wasm_main, xa_js_label_register currently return "" after imperative FILE writes. Convert the text-building ones to return string; rewire xa_dispatch and callers. (Any that emit binary/reloc stay imperative.) GATE-PK green.
+
+- [ ] **SC-8 — delete FILE* params/locals from converted paths.** Once a function and all it calls return string, remove its `FILE *out`/`FILE *f` parameter and any `char buf[...]`. Update signatures up the chain. The extern "C" wrapper is the ONLY place left that calls `emit_text_n(s.data(), s.size())`. Build with `-Werror=unused` to catch dead buffers. GATE-PK green.
+
+- [ ] **SC-9 — collapse each template arm to ONE concat.** Final pass: every `if (PLATFORM_X) { ... }` arm in every SM/BB/XA template is rewritten to a single `return PIECE1 + PIECE2 + ... + PIECEN;` statement. No locals except loop counters / computed scalars feeding emit_fmt. No intermediate std::string locals that are built up line-by-line — fold them into the concat. GATE-PK green.
+
+- [ ] **SC-10 — final audit + delete dead imperative emitters.** grep for any remaining `fprintf|fputs|fwrite` in emit_core/io/sm/bb OUTSIDE the binary/reloc paths and the single emit_text_n sink — confirm zero text-builder FILE writes remain. Delete every now-unused `void emit_X(FILE*,...)` wrapper. `insn_*` and relocation writers remain (ER-8 territory). GATE-PK green. Commit. RUNG COMPLETE → hands off to ER-8 (relocation rethink) for the binary side.
+
+**Out of scope (explicitly):** binary byte emission (`insn_*`), relocation patch lists — those are ER-8. JVM/JS/NET/WASM build-out — those are Milestone 3 / RULES x86-only directive (their arms already return string from the ER wave; this rung keeps them string-returning but does not expand them).
+
+---
+
 ## Session Setup
 
 ```bash
