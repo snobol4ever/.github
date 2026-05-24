@@ -736,3 +736,79 @@ AST --(lower)--> SM_sequence_t  [SM_BB_XXX bridge opcodes]
 Mode 2 (`--interp`) = reference. Mode 4 (`--compile`) emits wired x86.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
+
+---
+
+## OOD-PHASE-2: Move all emitting C functions INTO their template source files
+
+**THE RULE extended:** Not only must all code emission pass through a BB/SM/XA opcode — the *implementation body* of every emitting function must live inside a `BB_templates/`, `SM_templates/`, or `XA_templates/` `.cpp` file. No emitting logic in `emit_bb.c`, `emit_core.c`, `emit_sm.c`, or any supporting `.c` file.
+
+### The offenders (census 2026-05-24)
+
+These functions currently emit code but live OUTSIDE the template system:
+
+**In `emit_bb.c` — called from `xa_flat.cpp` as thin call-throughs:**
+| Function | Lines | Template home |
+|----------|-------|---------------|
+| `emit_flat_entry_dispatch` | ~15 | `xa_flat.cpp` → `xa_entry_dispatch_str()` |
+| `emit_entry_dispatch_xa` | ~5 | fold into `xa_entry_dispatch_str()` directly |
+| `emit_flat_prologue_xa` | ~35 | `xa_flat.cpp` → `xa_flat_prologue_str()` |
+| `emit_flat_epilogue_xa` | ~50 | `xa_flat.cpp` → `xa_flat_epilogue_str()` |
+
+**In `emit_sm.c` — called from `xa_rodata.cpp` via `_xa` shim wrappers:**
+| Function | Lines | Template home |
+|----------|-------|---------------|
+| `emit_expression_registry` (static) | ~55 | `xa_rodata.cpp` → `xa_expression_registry_str()` |
+| `emit_pl_b_node_call` (static) | ~20 | `xa_rodata.cpp` → helper in `xa_rodata.cpp` |
+| `emit_pl_b_kids_call` (static) | ~15 | `xa_rodata.cpp` → helper |
+| `emit_pl_kids_rodata_for_pred` (static) | ~35 | `xa_rodata.cpp` → helper |
+| `emit_pl_sub_builder_fn` (static) | ~75 | `xa_rodata.cpp` → helper |
+| `emit_pl_builder_fn` (static) | ~100 | `xa_rodata.cpp` → helper |
+| `emit_pl_predicate_registry` (static) | ~100 | `xa_rodata.cpp` → `xa_pl_predicate_registry_str()` |
+| `emit_rodata_strtab_xa` shim | ~1 | fold into `xa_rodata_strtab_str()` directly |
+| `emit_expression_registry_xa` shim | ~1 | delete; fold into template |
+| `emit_pl_predicate_registry_xa` shim | ~1 | delete; fold into template |
+
+**In `emit_sm.c` — called from `xa_stubs.cpp` or `xa_*.cpp`:**
+| Function | Lines | Template home |
+|----------|-------|---------------|
+| `emit_pattern_blobs` (static) | ~40 | audit call site → appropriate XA template |
+| `emit_cap_fixup_init_calls` | ~30 | audit call site → appropriate XA template |
+
+### Step sequence
+
+**P2-A — `xa_flat.cpp`: absorb emit_bb.c prologue/epilogue/dispatch bodies**
+
+1. Copy `emit_flat_entry_dispatch` body directly into `xa_entry_dispatch_str()` TEXT arm. Delete `emit_flat_entry_dispatch` and `emit_entry_dispatch_xa` from `emit_bb.c` + `emit_bb.h`.
+2. Copy `emit_flat_prologue_xa` body directly into `xa_flat_prologue_str()` TEXT arm. Delete from `emit_bb.c`.
+3. Copy `emit_flat_epilogue_xa` body directly into `xa_flat_epilogue_str()`. Delete from `emit_bb.c`.
+4. Any state they read via `g_emit.*` or static globals in `emit_bb.c`: expose via `emit_bb.h` as needed (pattern established in OOD-13 for `g_flat_data_*`).
+5. Gate: GATE-PK 442/0/612 + audit GREEN + smoke x3.
+
+**P2-B — `xa_rodata.cpp`: absorb emit_sm.c rodata/registry bodies**
+
+1. Move all static helpers (`emit_pl_b_node_call`, `emit_pl_b_kids_call`, `emit_pl_kids_rodata_for_pred`, `emit_pl_sub_builder_fn`, `emit_pl_builder_fn`) into `xa_rodata.cpp` as static C++ functions. They call `fprintf(out, ...)` — change `out` to `g_emit.out` or pass via `g_emit`.
+2. Move `emit_expression_registry` body into `xa_expression_registry_str()`. Delete `emit_expression_registry_xa` shim.
+3. Move `emit_pl_predicate_registry` body into `xa_pl_predicate_registry_str()`. Delete `emit_pl_predicate_registry_xa` shim.
+4. Move `emit_rodata_strtab_xa` body (calls `strtab_emit_rodata`) into `xa_rodata_strtab_str()`. Delete shim.
+5. Gate: GATE-PK + audit GREEN + smoke x3.
+
+**P2-C — remaining emitters in emit_sm.c: audit + assign**
+
+1. Audit `emit_pattern_blobs` and `emit_cap_fixup_init_calls` — find their call sites, identify which XA template dispatches to them, move bodies into that template.
+2. Audit `emit_banner_stno` in `emit_core.c` — find callers, determine correct SM or XA home.
+3. Gate: GATE-PK + audit GREEN + smoke x3.
+
+**P2-D — final verification**
+
+Run `grep -rn "fprintf\|emit_textf\|bb_emit_byte\|bb_sink_str\|fwrite" src/emitter/emit_bb.c src/emitter/emit_core.c src/emitter/emit_sm.c` — result must be zero emitting calls outside KEEP-list infra. If any remain, they are violations of THE RULE and get a new rung.
+
+### Oracle (every rung)
+GATE-PK 442/0/612 NEW=0 GONE=0 + `util_three_section_audit.sh` GREEN + `test_prolog_bb_honest.sh` 124/0/0 + `test_smoke_snobol4_jit.sh` parity 184 / `--run` 186/75 stable x3.
+
+### Steps
+- [ ] **P2-A** — absorb emit_flat_entry_dispatch + emit_flat_prologue_xa + emit_flat_epilogue_xa into xa_flat.cpp
+- [ ] **P2-B** — absorb emit_sm.c rodata/registry static helpers into xa_rodata.cpp
+- [ ] **P2-C** — absorb remaining emitters (emit_pattern_blobs, emit_cap_fixup_init_calls, emit_banner_stno)
+- [ ] **P2-D** — final grep verification: zero emitting calls outside template system
+
