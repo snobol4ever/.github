@@ -25,7 +25,7 @@
 
 ## Session State (2026-05-25 — NO-SNPRINTF COMPLETE)
 
-**one4all HEAD: `01123236`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN.
+**one4all HEAD: `3785ffd1`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN.
 
 **THE RULE holds. OOD ladder + OOD-PHASE-2 + NO-SNPRINTF all complete.**
 
@@ -79,20 +79,20 @@ Steps:
 - [x] **S200-E4** — wrap >200-col WASM/JS string literals at `\n` boundaries where possible.
 - [x] **S200-E5** — audit: zero blank lines, zero trailing comments, zero fixable >200-col lines.
 
-### ⚡ STRIP-INTERIOR-COMMENTS — Pending
+### ⚡ STRIP-INTERIOR-COMMENTS — COMPLETE ✅ `3785ffd1`
 Remove all `/* ... */` block comments that appear inside function bodies in emitter and template files.
 Scope: `src/emitter/*.c`, `src/emitter/*.h`, `src/emitter/*.cpp`, all `BB_templates/`, `SM_templates/`, `XA_templates/`.
 Keep: separator lines (`/*---*/`, `/*===*/`), file-header one-liners (line 1 of each file).
 Strip: TSX-*, OOD-*, P2-*, PIVOT, PST-*, FLAGGED notes, and all other interior block comments.
 Survey: ~472 interior comment lines across ~40 files.
 Steps:
-- [ ] **SIC-0** — inventory: count interior `/* */` lines per file, confirm separators excluded.
-- [ ] **SIC-1** — BB_templates/ (all .cpp).
-- [ ] **SIC-2** — SM_templates/ (all .cpp).
-- [ ] **SIC-3** — XA_templates/ (all .cpp).
-- [ ] **SIC-4** — emitter root: emit_bb.c, emit_sm.c, emit_core.c, emit_str.cpp, emit_io.c.
-- [ ] **SIC-5** — emitter headers: emit_*.h, x86_opcodes.h, sil_macros.h.
-- [ ] **SIC-6** — audit: grep for interior `/* */` returns zero (separators only remain).
+- [x] **SIC-0** — inventory: count interior `/* */` lines per file, confirm separators excluded.
+- [x] **SIC-1** — BB_templates/ (all .cpp).
+- [x] **SIC-2** — SM_templates/ (all .cpp).
+- [x] **SIC-3** — XA_templates/ (all .cpp).
+- [x] **SIC-4** — emitter root: emit_bb.c, emit_sm.c, emit_core.c, emit_str.cpp, emit_io.c.
+- [x] **SIC-5** — emitter headers: emit_*.h, x86_opcodes.h, sil_macros.h.
+- [x] **SIC-6** — audit: grep for interior `/* */` returns zero (separators only remain).
 ER-8: relocation rethink (abs-addr PLT fallback vs rel32 — future session).
 
 ### ⚡ DECOMPOSE-MODE (DM) — DM-1…7 COMPLETE ✅
