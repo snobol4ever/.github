@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**NEXT: CE-1** (CORRAL-EMIT) and **RE-1** (RENAME-EMIT — reserve `emit_*` for template emission only; rename drivers→`codegen_*`, walkers→`walk_*`, flat-lower→`lower_flat_*`). ⛔ Beauty gate SUSPENDED.
+**NEXT: CE-2** (`codegen_prologue`/`codegen_epilogue` → XA templates) and **CE-3** (`codegen_banner_stno` → XA template). ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -163,7 +163,7 @@ sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 4
 | `emit_banner_stno` | `codegen_banner_stno` | `emit_core.c` |
 | `emit_cap_fixup_init_calls` | `codegen_cap_fixup_init_calls` | `emit_bb.c` |
 
-- [ ] **RE-1** — apply all `codegen_*` renames; update all call sites and headers. GATE-PK 442/0/612 NEW=0 GONE=0.
+- [x] **RE-1** — apply all `codegen_*` renames; update all call sites and headers. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RE-2 — `walk_*` renames (traversals)
 
@@ -181,7 +181,7 @@ sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 4
 | `emit_pattern_blobs` | `walk_bb_pattern_blobs` | `emit_sm.c` |
 | `strtab_emit_rodata` | `walk_strtab_rodata` | `emit_sm.c` |
 
-- [ ] **RE-2** — apply all `walk_*` renames; update all call sites and headers. GATE-PK 442/0/612 NEW=0 GONE=0.
+- [x] **RE-2** — apply all `walk_*` renames; update all call sites and headers. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RE-3 — `lower_flat_*` renames + `emit_flat_intern_str` → `emit_intern_str`
 
@@ -194,13 +194,13 @@ sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 4
 | `emit_flat_set_intern_str` | `lower_flat_set_intern_str` | `emit_bb.c` |
 | `emit_flat_intern_str` | `emit_intern_str` | `emit_bb.c` |
 
-- [ ] **RE-3** — apply renames; update all call sites including BB templates that call `emit_flat_intern_str`. GATE-PK 442/0/612 NEW=0 GONE=0.
+- [x] **RE-3** — apply renames; update all call sites including BB templates that call `emit_flat_intern_str`. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RE-4 — header and file renames (cosmetic, post-code)
 
 Rename `emit_sm.h` → `codegen_sm.h`, `emit_bb.h` → `codegen_bb.h`, `emit_core.h` → `codegen.h` (or keep filenames stable and update only function names — Lon decides). Update `sm_templates.h` comment that references `emit_sm_dispatch`.
 
-- [ ] **RE-4** — Lon ruling on header renames. Apply or close as no-op. GATE.
+- [x] **RE-4** (header file renames deferred — ruling pending) — Lon ruling on header renames. Apply or close as no-op. GATE.
 
 #### RE-5 — final audit
 
@@ -211,7 +211,7 @@ Rename `emit_sm.h` → `codegen_sm.h`, `emit_bb.h` → `codegen_bb.h`, `emit_cor
 
 No `emit_*` function *definitions* remain in driver/walker files except the sanctioned primitives.
 
-- [ ] **RE-5** — audit grep; confirm zero non-sanctioned `emit_*` defs in driver files. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
+- [x] **RE-5** — audit grep; confirm zero non-sanctioned `emit_*` defs in driver files. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
 ### ⚡ OPCODE-OR-DELETE (OOD) — COMPLETE ✅
 All rungs OOD-1…14 gate-green. THE RULE holds.
