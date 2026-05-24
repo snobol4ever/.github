@@ -21,6 +21,22 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
+## Session State (2026-05-24p — PLANNING: full emitter census + TSX-FORM-DELETE ladder authored — NO CODE CHANGE)
+
+**one4all HEAD: `1f034f2d`** (unchanged — planning session). GATE state as 2026-05-24o: GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, smoke 184 / `--run` 186/75, Prolog BB honest 124/0/0. **This session — Lon directive: scan for ALL remaining bare code-emission helpers (binary and/or text) of the same class as the 14 named, and author a complete deletion ladder.** Result: full emitter census found the complete universe (~36 fns/decls), ALL confined to emit_core.c (defs) + emit_form.h (inline wrappers + ghost decls); `ef_b1/ef_b2/ef_u32/ef_u64/ef_t3c` atomic builders confined to emit_core.c. **TSX-FORM-DELETE ladder written below (FD-A → FD-8, 10 rungs).**
+
+**Census result — 4 classes:**
+- **Class A (13 GHOST decls, zero def + zero caller):** `emit_form_reg64_imm64`, `emit_form_alu_eax_imm32`, `emit_form_alu_esi_imm8`, `emit_form_mem2`, `emit_form_r13_disp8`, `emit_form_nullary2`, `emit_form_nullary3`, `emit_load_r10_delta_ptr`, `emit_load_siglen`, `emit_cmp_eax_siglen`, `emit_bb_port_label`, `emit_bb_port_jmp`, `emit_test_rax_rax`. Trivial gate-neutral sweep (FD-A).
+- **Class B (6 Tier-0 standalone):** `emit_ret`, `emit_push_r10`, `emit_pop_r10`, `emit_test_eax_eax`, `emit_add_delta_imm`, `emit_sub_delta_imm`.
+- **Class C (4 Tier-1 relocation):** `emit_call_sym_plt`(3), `emit_sym_lea_rcx`(3), `emit_sym_lea_r10`(1), `emit_seq_port_call_rip`(6, text-only). The ER-8 surface.
+- **Class D (keystone — all converge on `emit_flat_epilogue_xa`):** 6 live `emit_form_*` primitives + 8 emit_form.h inline wrappers + sigma/delta chain (`emit_sigma_plus_delta`→`emit_load_sigma`→sym_lea_rcx/mov_rax_rcxmem/movsxd/lea). One surgical rung (FD-7), highest risk.
+
+**KEY correction to 2026-05-24o "KEPT" note:** that note said the emit_form_*/sigma chain is "NOT dead, do not delete" — TRUE then (they ARE the live frame instructions). The TSX-FORM-DELETE plan does NOT contradict this: it deletes them by INLINING their emission into `emit_flat_epilogue_xa` (FD-7), not by removing functionality. End state = same bytes, emitted inline, zero helper functions.
+
+**NEXT: begin FD-A** (Class A ghost sweep — 13 decls, gate-neutral, mirrors `1f89ed04`), then FD-0…FD-8 in order. Each its own gate-green commit; **smoke x3 + stash-bisect mandatory every rung** (per the W02 lesson). ⛔ Beauty gate SUSPENDED. ⛔ PENDING Lon: TEMPLATE PURE-PROJECTION (FD-7 partially realizes it for the epilogue).
+
+---
+
 ## Session State (2026-05-24o — TSX-WIRE: BB flat γ/ω epilogue → XA_FLAT_EPILOGUE template + dead-decl sweep — GATE GREEN)
 
 **one4all HEAD: `1f034f2d`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0. Three-section audit GREEN. Prolog BB honest 124/0/0. smoke jit three-mode parity 184, `--run` 186/75 (stable x3). **This session — two commits, both gate-clean (Lon affirmed Invariant 15: 100% emission through BB/SM/XA templates despite cost):**
@@ -33,6 +49,54 @@
 **KEPT (verified LIVE, NOT dead — do not delete):** `emit_seq_port_call_rip` (6 mode-4 MEDIUM_TEXT callers). The `emit_form_*` family + sigma/delta chain (`emit_load_sigma`, `emit_sigma_plus_delta`, `emit_mov_rdx_rax`, `emit_mov_eax_imm32`, `emit_pop_rbp`, `emit_xor_edx_edx`, `emit_add_delta_imm`, `emit_sub_delta_imm`, `emit_push_r10`/`emit_pop_r10`, `emit_test_eax_eax`) — **NOT orphaned by TSX-WIRE.** They are now reached from `emit_flat_epilogue_xa` (the template body) instead of the inline epilogue — relocated, still live. NOTE a zero-caller .c-only scan FALSE-POSITIVES `emit_form_*` (callers are header-inline wrappers in emit_form.h).
 
 **NEXT candidates:** (a) **brokered-prologue template** — the 4-byte `55 48 89 E5` still inlined at `bb_build_brokered` (emit_bb.c ~line 521) is the last per-box frame emission outside a template; move it into an `XA_FLAT_BROKERED_PROLOGUE` opcode (or fold into XA_FLAT_PROLOGUE under a brokered flag). (b) **Then** the emit_form_*/sigma-delta chain only orphans if the epilogue is converted to emit inline bytes rather than helper calls — that is the PURE-PROJECTION direction (⛔ pending Lon ruling below), since the helpers are the real frame instructions, not dead code. (c) NO-SNPRINTF rung (71 snprintf in BB/SM/XA → emit_fmt concat; NS-0/NS-1, bb_capture has 19). (d) ER-8 relocation rethink (bb_lit memcmp-PLT / rip-rel-lea / rel32). ⛔ Beauty gate SUSPENDED.
+
+---
+
+## TSX-FORM-DELETE ladder (planned 2026-05-24p, full census) — delete ALL remaining bare code-emission helpers
+
+**Goal (Lon directive):** Delete every function that emits x86 binary and/or GAS text outside a template arm, inlining its emission at each call site, so 100% of code emission lives in template `MEDIUM_BINARY` (raw bytes via `bb_emit_byte`/`bb_sink_str`) and `MEDIUM_TEXT` (string builders / `emit_2asm`/`emit_fmt`/`fprintf`) arms. The 14 Lon-named functions are a subset; a full emitter scan (2026-05-24p) found the COMPLETE universe below. All x86 emission helpers live in emit_core.c (defs) + emit_form.h (inline wrappers + ghost decls); the `ef_b1/ef_b2/ef_u32/ef_u64/ef_t3c` atomic builders are confined to emit_core.c.
+
+**KEEP (infrastructure — NOT emission helpers, do NOT delete):** `bb_emit_byte`/`bb_emit_u32/u64/i32/begin/end` (the sink), `ef_b1/ef_b2/ef_u32/ef_u64/ef_t3c/ef_t3c_jmp` (atomic builders the inlined code will call directly), `emit_mode_set`, `emitter_init_binary/text`, `emitter_end`, `emit_label_define_bb`, `emit_jmp`/`emit_jmp_label`/`emit_text_jmp`/`emit_text_label` (relocation/patch infra), `emit_text_rawf`/`emit_text_global`, `emit_banner_stno`, `emit_bb_node`/`emit_program`/`emit_prologue`/`emit_epilogue` (orchestrators), and ALL jvm_*/js_*/net_*/wasm_* FILE* helpers (non-x86 backends, RULES x86-only-for-now).
+
+**Method (proven by TSX-DEL-FINAL + TSX-WIRE):** inline each helper's binary arm as raw bytes and text arm as string/fprintf token-identical to the body, then cascade-delete the orphaned helper + decl. Gate-green EVERY rung: `test_per_kind_diff.sh` 442/0/612 NEW=0 GONE=0 + `util_three_section_audit.sh` GREEN + `test_smoke_snobol4_jit.sh` parity 184 / `--run` 186/75 **stable x3** + `test_prolog_bb_honest.sh` 124/0/0. **⚠ smoke is the behavioral oracle the per-kind byte gate MISSES** (W02_seq_fail_propagate, 2026-05-24o) — run smoke x3 and stash-bisect any drop before committing.
+
+### Class A — GHOST DECLS (13, zero def + zero caller; one trivial gate-neutral rung like 1f89ed04)
+`emit_form_reg64_imm64`, `emit_form_alu_eax_imm32`, `emit_form_alu_esi_imm8`, `emit_form_mem2`, `emit_form_r13_disp8`, `emit_form_nullary2`, `emit_form_nullary3`, `emit_load_r10_delta_ptr`, `emit_load_siglen`, `emit_cmp_eax_siglen`, `emit_bb_port_label`, `emit_bb_port_jmp`, `emit_test_rax_rax` — all decl-only in emit_form.h (`emit_test_rax_rax` in emit_core.h), NO definition, NO caller. Verified ghosts.
+
+### Class B — TIER-0 STANDALONE (medium-aware switch in emit_core.c; inline + delete)
+| Fn | sites | location | bin shape | text |
+|----|------|----------|-----------|------|
+| `emit_ret` | 2 | emit_bb.c (was via XA epi? recount) | `bb_emit_byte(RET)` | `ret` |
+| `emit_push_r10` | 1 | bb_lit | `REX_B,REX_B_PUSH_R10` | `push r10` |
+| `emit_pop_r10` | 1 | bb_lit | `REX_B,REX_B_POP_R10` | `pop r10` |
+| `emit_test_eax_eax` | 3 | bb_lit, bb_pl_seq, bb_pl_unify | `TEST_RM_R,MODRM_EAX_EAX` | `test eax, eax` |
+| `emit_add_delta_imm` | 3 | bb_pat_len, bb_lit | 11B `41 8B 02`/`05`+u32/`41 89 02` | 3×fprintf mov/add/mov |
+| `emit_sub_delta_imm` | 2 | bb_lit | same w/ `2D` | mov/sub/mov |
+
+### Class C — TIER-1 RELOCATION-BEARING (the ER-8 surface; inline preserves behavior, rel32 redesign separate)
+| Fn | sites | location | note |
+|----|------|----------|------|
+| `emit_call_sym_plt` | 3 | bb_pl_atom, bb_lit, bb_pl_arith | bin `48 B8`+u64 fallback+`FF D0`; text `call sym@PLT`. Confirm each fallback addr before inlining. |
+| `emit_sym_lea_rcx` | 3 | bb_pl_atom, bb_lit, bb_pl_arith | bin `48 B9`+u64 addr; text `lea rcx,[rip+SYM]` |
+| `emit_sym_lea_r10` | 1 | emit_bb.c (XA_FLAT_PROLOGUE body) | bin `49 BA`?+u64; text `lea r10,[rip+SYM]` — verify opcode in def |
+| `emit_seq_port_call_rip` | 6 | bb_arbno, bb_capture | **TEXT-ONLY** (bin arm emptied @ TSX-WIRE-2); inline 9-line GAS seq, keep `emit_jmp` |
+
+### Class D — TIER-2 emit_form_* PRIMITIVES + the sigma/delta chain (the keystone — all converge on emit_flat_epilogue_xa)
+The 6 live `emit_form_*` primitives (`reg32_imm32`, `reg_reg2`, `reg_reg3`, `mem3`, `mem4`, `nullary1`) have ZERO direct template callers — reached only via emit_form.h `static inline` wrappers. The LIVE wrappers all converge on **one consumer, `emit_flat_epilogue_xa` in emit_bb.c** (created 2026-05-24o): `emit_mov_eax_imm32`(1)→reg32_imm32, `emit_mov_rdx_rax`(1)→reg_reg3, `emit_xor_edx_edx`(1)→reg_reg2, `emit_pop_rbp`(1)→nullary1. The sigma chain also lands there: `emit_sigma_plus_delta`(1 site, emit_bb.c)→`emit_load_sigma`→`emit_sym_lea_rcx`+`emit_mov_rax_rcxmem`+`emit_movsxd_rcx_r10mem`+`emit_lea_rax_raxrcx`. Four wrappers are zero-call (`emit_mov_rax_rcxmem`, `emit_mov_r10mem_eax`, `emit_movsxd_rcx_r10mem`, `emit_lea_rax_raxrcx`) once the sigma chain inlines.
+
+### Rungs (each its own gate-green commit)
+- [ ] **FD-A — Class A ghost sweep:** delete all 13 ghost decls from emit_form.h + emit_core.h. Gate-neutral (no defs, no callers). Oracle: build + PK.
+- [ ] **FD-0 — emit_ret:** recount sites (epilogue may route via XA now); inline `bb_emit_byte(RET)`/`ret`; delete def+decl.
+- [ ] **FD-1 — emit_push_r10/emit_pop_r10:** inline at bb_lit; delete. Oracle: `BB_PAT_LIT.bin` len + smoke.
+- [ ] **FD-2 — emit_test_eax_eax:** 3 sites; inline; delete. Oracle: LIT+PL kinds + Prolog BB honest + smoke.
+- [ ] **FD-3 — emit_add_delta_imm/emit_sub_delta_imm:** 5 sites; inline 11B shape / 3×fprintf; delete. Oracle: `BB_PAT_LEN.bin`+LIT+smoke.
+- [ ] **FD-4 — emit_sym_lea_rcx + emit_sym_lea_r10:** 3+1 sites; inline `48 B9`/`49 BA`+u64 / `lea …,[rip+SYM]`; delete. (Do before/with C since they're the same reloc family.) Oracle: PK all + smoke x3.
+- [ ] **FD-5 — emit_call_sym_plt (RELOCATION — careful):** 3 sites; inline `48 B8`+u64+`FF D0` / `call sym@PLT`; delete def + both decls. Confirm fallback addrs. Oracle: LIT+PL + Prolog BB honest + smoke x3.
+- [ ] **FD-6 — emit_seq_port_call_rip (TEXT-ONLY, 6 sites):** inline 9-line GAS seq into bb_arbno+bb_capture MEDIUM_TEXT via emit_2asm/emit_fmt; keep emit_jmp. Delete def+decl. Oracle: `BB_PAT_ARBNO.bin`+`BB_PAT_CAP*.bin`+mode4+smoke.
+- [ ] **FD-7 — sigma/delta chain + emit_form_* primitives (keystone):** in emit_flat_epilogue_xa (emit_bb.c), inline the 4 live wrappers + the `emit_sigma_plus_delta` chain directly as `ef_*`/`bb_emit_byte`/`emit_2asm` calls (the epilogue becomes pure inline emission). Then delete: `emit_sigma_plus_delta`, `emit_load_sigma`, the 6 `emit_form_*` primitives, all 8 emit_form.h inline wrappers, `emit_mov_rdx_rax`/`emit_mov_eax_imm32`/`emit_xor_edx_edx`/`emit_pop_rbp`. Oracle: PK ALL kinds (epilogue touches every box) + audit + smoke x3 + Prolog BB honest. ⚠ HIGHEST RISK — this is the frame closer; stash-bisect mandatory.
+- [ ] **FD-8 — verify + final sweep:** grep emit_core.c/emit_form.h for any surviving `emit_*` byte/text helper; confirm only KEEP-list infra remains. Update watermark: "zero bare emission helpers; 100% emission in template arms."
+
+**End state:** zero standalone byte/text emission helpers. All x86 emission is inline `bb_emit_byte`/`bb_sink_str` (binary) or `emit_2asm`/`emit_fmt`/`fprintf` (text) inside template arms (BB/SM/XA) + the epilogue/prologue XA bodies. Patch-bearing `emit_jmp`/`emit_label_define_bb` stay. **Open ER-8 question persists** (FD-5 abs-addr PLT fallback vs rel32 `E8` — separate redesign).
 
 ---
 
