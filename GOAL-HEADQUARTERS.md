@@ -79,7 +79,20 @@ Steps:
 - [x] **S200-E4** — wrap >200-col WASM/JS string literals at `\n` boundaries where possible.
 - [x] **S200-E5** — audit: zero blank lines, zero trailing comments, zero fixable >200-col lines.
 
-### ⚡ EMIT-RETURNS-STRING (ER) — ER-0…7 COMPLETE ✅, ER-8 pending
+### ⚡ STRIP-INTERIOR-COMMENTS — Pending
+Remove all `/* ... */` block comments that appear inside function bodies in emitter and template files.
+Scope: `src/emitter/*.c`, `src/emitter/*.h`, `src/emitter/*.cpp`, all `BB_templates/`, `SM_templates/`, `XA_templates/`.
+Keep: separator lines (`/*---*/`, `/*===*/`), file-header one-liners (line 1 of each file).
+Strip: TSX-*, OOD-*, P2-*, PIVOT, PST-*, FLAGGED notes, and all other interior block comments.
+Survey: ~472 interior comment lines across ~40 files.
+Steps:
+- [ ] **SIC-0** — inventory: count interior `/* */` lines per file, confirm separators excluded.
+- [ ] **SIC-1** — BB_templates/ (all .cpp).
+- [ ] **SIC-2** — SM_templates/ (all .cpp).
+- [ ] **SIC-3** — XA_templates/ (all .cpp).
+- [ ] **SIC-4** — emitter root: emit_bb.c, emit_sm.c, emit_core.c, emit_str.cpp, emit_io.c.
+- [ ] **SIC-5** — emitter headers: emit_*.h, x86_opcodes.h, sil_macros.h.
+- [ ] **SIC-6** — audit: grep for interior `/* */` returns zero (separators only remain).
 ER-8: relocation rethink (abs-addr PLT fallback vs rel32 — future session).
 
 ### ⚡ DECOMPOSE-MODE (DM) — DM-1…7 COMPLETE ✅
