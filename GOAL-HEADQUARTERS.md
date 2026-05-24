@@ -21,24 +21,25 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-24d — GATE GREEN ✅ — TSX-SM-1 done, capture_bytes infra landed)
+## Session State (2026-05-24d — GATE GREEN ✅ — TSX-SM-1/2/3 done)
 
-**one4all HEAD: `d0ab64e2`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0.
+**one4all HEAD: `dedca98f`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0.
 
-**⚡ RUNG PURPOSE (clarified by Lon 2026-05-24d): DELETE every binary-byte-emitting function.** The end state is NO `insn_*` family, NO `bb_emit_byte` sink, NO `emit_seq_*`/`emit_call_sym_plt`/`emit_sym_lea_*` — the raw bytes live inline as `std::string` data inside each template's `MEDIUM_BINARY` arm, exactly like text chars live in the TEXT arm. `capture_bytes()` is DISCOVER-phase scaffolding to read the byte sequences off the trusted encoders; it is deleted too (TSX-DELETE). See the TSX rung Goal block below.
+**⚡ RUNG PURPOSE (Lon 2026-05-24d): DELETE every binary-byte-emitting function.** End state: NO `insn_*`, NO `bb_emit_byte` sink, NO `emit_seq_*`/`emit_call_sym_plt`/`emit_sym_lea_*`. Raw bytes live inline as `std::string` data in each template's `MEDIUM_BINARY` arm. `capture_bytes()` is DISCOVER scaffolding, deleted at TSX-DELETE. See TSX rung Goal block.
 
-**NEXT: TSX-SM-2** — `sm_exec_bb` (also missing MACRO_DEF). Three-section X86 with `capture_bytes([&]{ insn_… })` scaffold in BINARY. Then TSX-SM-3 (sm_jumps/arith/bb_calls/compare). Run `bash scripts/util_three_section_audit.sh` for the live RED list (10 SM + XA + BB stragglers remain).
+**NEXT: TSX-SM-4** — three-x86 SM templates: `sm_defines`, `sm_expr_incr`, `sm_returns`. Same DISCOVER pattern (capture_bytes scaffold in BINARY, MACRO_DEF + TEXT guards, one return each). Then TSX-SM-5 (sm_push_pop_lits ×4, sm_pat_combine ×5). Run `bash scripts/util_three_section_audit.sh` for the live RED list.
 
-**What was done (2026-05-24d — TSX-SM-1, commits `734031de`+`d0ab64e2`):**
-- `capture_bytes()` added to emit_str.{h,cpp}: runs an `insn_*`-emitting lambda in EMIT_BINARY_WIRED against a thread-local scratch buffer, saves/restores emitter state, returns produced bytes as a length-counted std::string. DISCOVER scaffold only — slated for deletion in TSX-DELETE.
-- `sm_halt`, `sm_calls`, `sm_pat_anchors`, `sm_pat_nullary` → three-section X86 (md=1 bin=1 txt=1, one return per section). Bare TEXT returns wrapped in `if (MEDIUM_TEXT)`. Byte layout proven standalone: HALT = `48 B8 <addr-LE> FF D0` = mov rax,imm64; call rax.
-- ⚠ Flagged: `sm_calls` + the PAT_LIT/REFNAME/USERCALL anchors load a strtab string address into rdi via the macro's `lea rdi,[rip+lbl]`; that address isn't materialised in the JIT buffer yet — BINARY captures only the `call` bytes; rdi-load deferred to TSX-WIRE strtab work.
-- Arms are unreached (emit_sm.c still forces TEXT_MODE) → output unchanged, GATE-PK 442/0/612.
+**Done this session (TSX-SM-1/2/3):**
+- TSX-SM-1 (`734031de`+`d0ab64e2`): capture_bytes() infra in emit_str.{h,cpp} + sm_halt/calls/pat_anchors/pat_nullary three-section.
+- TSX-SM-2 (`c801…`/this session): sm_exec_bb three-section (MACRO_DEF stub added).
+- TSX-SM-3 (`dedca98f`): sm_jumps/arith/bb_calls/compare three-section.
+- ⚠ Flagged TSX-WIRE gaps (BINARY arms emit only determinable bytes or are flagged-empty): strtab `rdi` loads (sm_calls, pat_anchors, sm_bb_once_proc), code-label rel32 (sm_jumps JUMP*, sm_bb_pump_proc), .data state-ptr (sm_exec_bb). All explicitly commented, none silent.
+- Arms unreached (emit_sm.c forces TEXT_MODE) → output unchanged, GATE-PK 442/0/612 throughout.
+
+**Remaining in DISCOVER phase:** SM-4 (sm_defines/expr_incr/returns), SM-5 (push_pop_lits/pat_combine), B1 (BB stragglers), X1 (XA). Then TSX-AUDIT → TSX-INLINE → TSX-DELETE → TSX-WIRE.
 
 **What was found earlier (2026-05-24c — TSX-0):**
-- **The binary detour is real and located.** `emit_sm.c` forces `emit_mode_set(TEXT_MODE(), out)` before every SM dispatch (lines 1280/1298/1329/1344/1361) → SM templates run ONLY in MEDIUM_TEXT. The x86 *bytes* come from a separate path: `emit_bb.c` sets `EMIT_BINARY_BROKERED`/`EMIT_BINARY_WIRED` (lines 591/596) and drives the `insn_*` family in `emit_core.c`. SM templates contribute zero bytes today.
-- **Audit result:** all 14 SM templates were NO-BINARY + NO-TEXT-GUARD. Most XA templates have no medium structure. BB stragglers: `bb_pat_alt`/`bb_pat_cat` (no BINARY), `bb_pl_arith`/`bb_pl_builtin`/`bb_pl_unify` (no explicit TEXT guard), `bb_charset_helper` (helper — needs ruling).
-- **TM rung's "complete" was scoped to the BB pattern/charset/pl families only** — it never touched SM or XA, and never opened the `emit_sm.c` detour. Also: existing BB binary arms call `insn_*` directly, so they are INLINE+DELETE targets too.
+- **The binary detour is real and located.** `emit_sm.c` forces `emit_mode_set(TEXT_MODE(), out)` before every SM dispatch (lines 1280/1298/1329/1344/1361) → SM templates run ONLY in MEDIUM_TEXT. The x86 *bytes* come from a separate path: `emit_bb.c` sets `EMIT_BINARY_BROKERED`/`EMIT_BINARY_WIRED` (lines 591/596) and drives the `insn_*` family in `emit_core.c`.
 - Audit tool added: `scripts/util_three_section_audit.sh` (RED until every x86 block has all three sections).
 
 **What was done (2026-05-24b):**
@@ -381,8 +382,8 @@ The TSX-SM-*/B*/X* steps are the **DISCOVER** phase — they give every x86 arm 
 
 - [x] **TSX-0 — audit tooling + inventory. ✅** `scripts/util_three_section_audit.sh` written; full RED inventory captured above; detour root-caused to `emit_sm.c` forced `TEXT_MODE()` + separate `emit_bb.c` binary path. No code change beyond the audit script. GATE-PK unchanged 442/0/612.
 - [x] **TSX-SM-1 ✅ `734031de`+`d0ab64e2` — single-x86 SM templates + `capture_bytes()` infra.** Added `capture_bytes()` to emit_str.{h,cpp} (DISCOVER scaffold: runs an `insn_*` lambda in EMIT_BINARY_WIRED against a scratch buffer, returns produced bytes as std::string). `sm_halt`, `sm_calls`, `sm_pat_anchors`, `sm_pat_nullary` now three-section (md=1 bin=1 txt=1, one return each); TEXT arms wrapped in `if (MEDIUM_TEXT)`. Byte layout proven (HALT = `48 B8 <addr> FF D0`). `rt`-string-address `rdi` loads (sm_calls, anchors) flagged as TSX-WIRE strtab gap. Arms unreached → GATE-PK 442/0/612 unchanged.
-- [ ] **TSX-SM-2 — `sm_exec_bb`.** Also add the missing MACRO_DEF stub. Three sections, capture_bytes scaffold in BINARY. GATE-PK green.
-- [ ] **TSX-SM-3 — two-x86 SM templates.** `sm_jumps`, `sm_arith`, `sm_bb_calls`, `sm_compare`. Per-fn three-section split; the switch-on-op collapses to one return per section. GATE-PK green.
+- [x] **TSX-SM-2 ✅ `c-commit` — `sm_exec_bb`.** MACRO_DEF stub added; BINARY captures mov edi,bb_idx + call rt_exec_bb; rsi state-ptr + .data reservation flagged TSX-WIRE. TEXT guarded. GATE-PK 442/0/612.
+- [x] **TSX-SM-3 ✅ `dedca98f` — two-x86 SM templates.** `sm_jumps` (JUMP*/rel32→flagged-empty binary; sm_label structural no-bytes), `sm_arith` (misc_nullary rt-select + arith mov edi,SM_op; +SM.h), `sm_bb_calls` (once_proc capture mov esi+call rt_pl_once, rdi strtab gap flagged; pump_proc rel32→flagged-empty), `sm_compare` (sm_stno MACRO_DEF stub+capture, sm_compare mov edi,0+call). All four audit OK. GATE-PK 442/0/612.
 - [ ] **TSX-SM-4 — three-x86 SM templates.** `sm_defines`, `sm_expr_incr`, `sm_returns`. GATE-PK green.
 - [ ] **TSX-SM-5 — `sm_push_pop_lits` (4), `sm_pat_combine` (5).** Largest. GATE-PK green.
 - [ ] **TSX-B1 — BB stragglers.** `bb_pl_arith`/`bb_pl_builtin`/`bb_pl_unify` TEXT-guard wrap; `bb_pat_alt`/`bb_pat_cat` verify+add BINARY; rule on `bb_charset_helper` (helper exemption vs full structure). NOTE: the existing BB `MEDIUM_BINARY` arms already call `insn_*` directly (TM rung) — those become INLINE targets too in TSX-INLINE. GATE-PK green.
