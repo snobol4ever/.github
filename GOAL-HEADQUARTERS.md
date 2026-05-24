@@ -22,7 +22,23 @@
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 16. **THE RULE (2026-05-24q Lon directive — the sharp framing) — NO code is emitted (binary, text, OR macro) unless it carries a BB, SM, or XA opcode.** Every function that emits code (via `bb_emit_byte`/`bb_sink_str`, `fprintf(emit_outf…)`/`emit_textf`/`emit_text_n`/`emit_2asm`/`s_*asm`, or any byte/text/macro write) and is NOT itself a template body or KEEP-list infra MUST be deleted, and its body inlined verbatim at every call site. Deletion proceeds **bottom-up in reverse dependency order** (deepest leaf emitters first). When a call site has no opcode home — i.e. the caller is a driver/walker, not a template body — a **new composable template building-block** (a new `XA_*` opcode + `XA_templates/xa_<name>.cpp` + dispatch) is designed to host the emission, and the driver calls `xa_dispatch(XA_<NEW>)` instead. End state: 100% of code emission lives inside SM/BB/XA template bodies; the only non-template functions left are orchestrators (`emit_program`/`emit_bb_node`/`emit_sm_dispatch`/`bb_walk`/`xa_dispatch`) that *route* to templates, the relocation/patch infra (`emit_jmp`/`emit_label_define*`/`emit_label_initf`/`bb_label_define`), the byte/text sinks (`bb_emit_byte`/`bb_emit_u32/u64`/`emit_text`/`emit_text_n`/`emit_textf`), and the atomic string builders (`emit_fmt`/`bytes`/`u8`/`u32le`/`u64le`/`s_*asm`/`s_comment`/`s_directive`). The TSX-FORM-DELETE ladder is superseded by the **OPCODE-OR-DELETE ladder** below.
 
-## Session State (2026-05-24q — PIVOT: THE RULE reframed; OPCODE-OR-DELETE ladder authored; FD-A/0/1/2 landed)
+## Session State (2026-05-24 — OOD LADDER COMPLETE)
+
+**one4all HEAD: `d1d6e4a8`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, smoke 184 / `--run` 186/75, Prolog BB honest 124/0/0.
+
+**THE RULE now holds end-to-end.** All OOD rungs landed gate-green, smoke x3 each:
+- OOD-1 (FD-A): 13 ghost decls swept
+- OOD-2/3/4 (FD-0/1/2): emit_ret, emit_push/pop_r10, emit_test_eax_eax inlined
+- OOD-5: emit_add/sub_delta_imm inlined
+- OOD-9: emit_sym_lea_r10 inlined into XA prologue
+- OOD-10: sigma/delta chain inlined into XA epilogue
+- OOD-11: emit_form_* primitives + 8 inline wrappers deleted (KEYSTONE)
+- OOD-12: emit_text_global×4 + emit_flat_banner_rule inlined into prologue XA body
+- OOD-6+7: emit_sym_lea_rcx + emit_call_sym_plt inlined in bb_lit.cpp (BINARY+TEXT)
+- OOD-8: emit_seq_port_call_rip inlined at 6 TEXT sites (bb_arbno×2, bb_capture×4)
+- OOD-13+14: XA_FLAT_DATA_SECTION opcode minted; xa_flat_data_section_str owns .data flush; flat3c/flat3c_action deleted; emit_flat_entry_dispatch uses direct fprintf
+
+**NEXT: Lon directs.** ⛔ PENDING: TEMPLATE PURE-PROJECTION. ⛔ Beauty gate SUSPENDED.
 
 **one4all HEAD: `60c7dbfc`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, smoke 184 / `--run` 186/75, Prolog BB honest 124/0/0. **Lon's pivot (the sharp framing, Invariant 16):** *No code is emitted unless it carries a BB/SM/XA opcode.* Delete every emission function outside the template system bottom-up in reverse dependency order; inline each body at its call sites; where a call site is a driver (no opcode home) mint a new composable XA building-block. This SUPERSEDES TSX-FORM-DELETE's FD-A…FD-8 with the **OPCODE-OR-DELETE (OOD) ladder** below — same deletions, but reframed around the opcode rule and extended to cover the driver-level emitters (the program prologue/epilogue text, the `.data` flush, `flat3c`) that the FD ladder did not reach.
 
