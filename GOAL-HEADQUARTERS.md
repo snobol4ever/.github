@@ -25,17 +25,11 @@
 
 ## Session State (2026-05-25 — PP-A1..A5 COMPLETE)
 
-**one4all HEAD: `8b753864`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
+**one4all HEAD: `ae7e7abd`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
-**PURE-PROJECTION (PP) COMPLETE** except PP-C (Σ→std::string ruling pending — Σ is never C++-concatenated in templates; may be no-op). All rungs:
-- PP-A1..A5 ✅ de-drove self-driving templates
-- PP-A6 ✅ ruling: pBB->c[i] sub-record access legal per Snocone DATA() model
-- PP-A7 ✅ audit GREEN
-- PP-B ✅ `41a04350` — 34 c_str() conversion-locals eliminated across 16 files
-- PP-C ⏳ RULING PENDING
-- PP-D ✅ cross-lane audit clean; dead `prog` local removed from sm_defines.cpp
+**XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**NEXT: Lon directs.** ⛔ Beauty gate SUSPENDED.
+**NEXT: CE-1** (CORRAL-EMIT — scan and eliminate emit_* calls in driver files not reachable from template roots). ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -111,6 +105,32 @@ Inline every `const char *x = x_s.c_str();` (33: 26 BB active x86, 7 SM stub arm
 #### PP-D — R1/R2 scope tighten + final audit
 Each SM template reads only SM_t-fields + sanctioned globals; each BB template only BB_t-fields +
 sanctioned globals. Confirm CONCAT/IF/FOR-only across all active arms. GATE-PK 442/0/612 NEW=0 GONE=0.
+
+### ⚡ CORRAL-EMIT (CE) — corral all emission into BB/SM/XA templates — OPEN
+
+**Principle.** Every `emit_*()` call that produces output must be reachable from the root of a BB, SM, or XA template. Driver/walker files (`emit_bb.c`, `emit_sm.c`, `emit_core.c`, `emit_io.c`) may contain orchestration, traversal, and infrastructure — but zero direct emission.
+
+**Scan baseline (one4all `ae7e7abd`).** The following `emit_*` functions are defined in driver files and are NOT reachable from any template root. Each must either be wrapped in a new XA template (if it generates code that belongs to a named emission unit) or deleted (if it is dead or subsumed):
+
+| Function | File | Disposition |
+|---|---|---|
+| `emit_prologue()` | `emit_core.c` | New `XA_PROLOGUE_BROKERED` or fold into `xa_prologue` |
+| `emit_epilogue()` | `emit_core.c` | New `XA_EPILOGUE_BROKERED` or fold into `xa_epilogue` |
+| `emit_banner_stno()` | `emit_core.c` | New `XA_BANNER_STNO` (called per-statement in SM walker) |
+| `emit_byte()` | `emit_io.c` | Alias of `bb_emit_byte` — delete, use `bb_emit_byte` in templates |
+| `emit_bytes()` | `emit_io.c` | Low-level sink — fold into `bb_sink_str` or new XA |
+| `emit_text()` | `emit_io.c` | Alias of `emit_text_n` — delete, use `emit_text_n` in templates |
+| `emit_3asm()` | `emit_io.c` | Emission helper — move into template common or delete if unused |
+| `emit_L1asm()` | `emit_io.c` | Emission helper — same |
+| `emit_L2asm()` | `emit_io.c` | Emission helper — same |
+| `emit_L3asm()` | `emit_io.c` | Emission helper — same |
+
+**Steps:**
+- [ ] **CE-1 — verify dead/alias:** Confirm `emit_byte`, `emit_text`, `emit_3asm`, `emit_L1asm`, `emit_L2asm`, `emit_L3asm` have zero callers outside test files. Delete or alias-eliminate.
+- [ ] **CE-2 — `emit_prologue` / `emit_epilogue`:** Audit callers. If only called from non-template brokered path, wrap in XA opcodes; driver calls `xa_dispatch(XA_PROLOGUE_BROKERED)` etc. Templates emit the `fprintf` bodies.
+- [ ] **CE-3 — `emit_banner_stno`:** Called per-statement from SM walker. Wrap as `XA_BANNER_STNO`; driver primes `g_emit` scalars (stno, lineno, src_text), template emits the banner.
+- [ ] **CE-4 — `emit_bytes`:** Audit callers. If reachable only from test files, leave. If in driver emission paths, wrap or inline into template via `bb_sink_str`.
+- [ ] **CE-5 — gate.** GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0. All `emit_*` in driver files are infrastructure/orchestration only.
 
 ### ⚡ OPCODE-OR-DELETE (OOD) — COMPLETE ✅
 All rungs OOD-1…14 gate-green. THE RULE holds.
