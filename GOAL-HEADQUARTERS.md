@@ -390,6 +390,33 @@ SM templates with structural violations:
 
 ---
 
+### ⚡ NO-SNPRINTF — Remove all snprintf from BB/SM/XA templates; replace with `X + fmt(a,"%d") + Y` concat (2026-05-24n Lon directive)
+
+**Goal (Lon, verbatim intent):** Remove every `snprintf` statement in the BB/SM/XA templates and replace it with a proper string-concatenation construct: `X + emit_fmt(…, "%d", a) + Y` (or the equivalent `s_*` / `emit_fmt` builder). No `char buf[N]; snprintf(buf, …)` scratch buffers anywhere in a template. The interpolation of a runtime value becomes a single `emit_fmt("…%d…", v)` call folded into the surrounding string concat, exactly as `bb_lit`/`bb_pat_len` already do.
+
+**Why this matters:** completes the STRING-CONCAT-ALL philosophy down into the templates — a template arm should be one `return PIECE1 + emit_fmt("…", v) + PIECE3;` with no imperative scratch buffers, no fixed-size `char[N]` (which are silent-truncation + buffer-size-guess hazards), and no two-step "format into buf then pass buf to emitter". `emit_fmt()` (the `X + fmt(a,"%d") + Y` builder — already exists in `emit_str.{h,cpp}`, variadic `printf`-format → `std::string`) is the canonical replacement. Pure projection: the template names a value and a format; the builder produces the string.
+
+**Survey (2026-05-24n):** **71 snprintf** across 19 template files. Worst: `bb_capture.cpp` (19), `bb_pat_any.cpp` (9), `sm_returns.cpp` (7). Three shapes:
+1. **Inline-buf-to-emit (~49):** `{ char buf[N]; snprintf(buf, sizeof buf, "…%d…", x); emit_1asm(buf); }` → `emit_1asm(emit_fmt("…%d…", x).c_str());` (or fold into the section's returned concat: `… + s_1asm(emit_fmt("…%d…", x)) + …`).
+2. **Named-label reuse (~20):** `char lbl[80]; snprintf(lbl, sizeof lbl, ".L%d", id); … uses lbl …` → `std::string lbl = emit_fmt(".L%d", id);` then use `lbl` / `lbl.c_str()` at the call sites. (Keeps the variable; drops the fixed buffer.)
+3. **Loop/escape builders (a few, e.g. `bb_pat_any.cpp`'s `char esc[1024]` charset-escape loop):** NOT plain snprintf — these hand-build an escaped string char-by-char. Convert the accumulation to a `std::string` built with `+=` / `push_back`; the surrounding `snprintf` framing (if any) becomes `emit_fmt`. Handle these per-file with care; they are the only non-mechanical conversions.
+
+**Invariant:** GATE-PK 442/0/612 NEW=0 GONE=0 after every committed sub-step (normalizer is whitespace-insensitive — only token content matters, so `emit_fmt` output need only match tokens, not exact spacing). Prolog BB honest 124/0/0 where touched. Build clean.
+
+**Sub-steps (each atomic, gate-green; commit after each; order = easiest/highest-count first):**
+
+- [ ] **NS-0 — inventory + helper check.** Confirm `emit_fmt` signature covers all format specifiers used (`%d`/`%s`/`%u`/`%lld`/etc.) across the 71 sites; if any template uses a width/precision form `emit_fmt` can't pass through, note it. Produce the per-file/per-shape list (shapes 1/2/3 tagged). No code change. GATE-PK green (trivially).
+- [ ] **NS-1 — `bb_capture.cpp` (19).** Convert all 19: banner `# BOX %s(%s)` → `emit_comment(emit_fmt(...).c_str())`; the `combo` `%s|%s|%s|%s|%s` builder → `emit_fmt`; the `_etf` stfld/brtrue label-emits → `emit_1asm(emit_fmt(...).c_str())`. Drop every `char _banner[256]`/`char combo[…]`/`char _etf[512]`. GATE-PK green. Prolog BB 124/0/0.
+- [ ] **NS-2 — charset family: `bb_pat_any.cpp` (9), `bb_pat_span.cpp` (4), `bb_pat_break.cpp` (4), `bb_pat_notany.cpp` (4).** Shape-1 label snprintf → `emit_fmt`; the `esc[1024]` escape loop (shape 3) → `std::string` accumulation. These four share the escape pattern — convert once, mirror across all four. GATE-PK green.
+- [ ] **NS-3 — `sm_returns.cpp` (7), `sm_calls.cpp` (4), `sm_jumps.cpp` (2), `sm_defines.cpp` (2).** SM-side, mostly shape-1/2. GATE-PK green.
+- [ ] **NS-4 — XA: `xa_bb_macro_library.cpp` (4), `xa_bb_ptr_slot.cpp` (3).** XA scaffolding label/format snprintf → `emit_fmt`. GATE-PK green.
+- [ ] **NS-5 — remaining BB singletons: `bb_arbno.cpp` (2), `bb_pat_tab/pos/len/cat/arb/alt/lit.cpp` (1 each).** Mechanical shape-1/2. GATE-PK green.
+- [ ] **NS-6 — audit.** `grep -rn "snprintf" src/emitter/BB_templates src/emitter/SM_templates src/emitter/XA_templates` returns ZERO. Also confirm no leftover `char [0-9]*\[[0-9]+\]` scratch buffers that fed a deleted snprintf. GATE-PK green. RUNG COMPLETE.
+
+**Out of scope:** `snprintf` in the non-template emitter files (`emit_core.c`, `emit_bb.c`, `emit_sm.c`, `emit_io.c`) — those are STRING-CONCAT-ALL / driver concerns, handled there. This rung is templates only (`BB_templates/`, `SM_templates/`, `XA_templates/`).
+
+---
+
 ### ⚡ THREE-SECTION-X86 (TSX) — DELETE all binary-byte-emitting functions; raw bytes go inline in each template's MEDIUM_BINARY arm (2026-05-24c Lon directive, purpose clarified 2026-05-24d)
 
 **The defect (confirmed by audit 2026-05-24c):** THREE-MEDIUM (TM rung) closed having fixed the BB pattern/charset/pl families, but **the binary byte stream is detoured around the templates entirely.** Root cause in `emit_sm.c`: the SM walker hard-codes `emit_mode_set(TEXT_MODE(), out)` before EVERY dispatch (lines 1280/1298/1329/1344/1361), so SM templates are *only ever invoked in MEDIUM_TEXT.* The actual x86 bytes come from the separate `emit_bb.c` binary path (`EMIT_BINARY_BROKERED`/`EMIT_BINARY_WIRED`, lines 591/596) driving the `insn_*` family in `emit_core.c`. Consequence: **all 14 SM templates have a `MEDIUM_MACRO_DEF` section and a bare unguarded TEXT return, but ZERO `MEDIUM_BINARY` sections.** Most XA templates have no medium structure at all. A few BB templates also lack an explicit `MEDIUM_TEXT` guard or the charset binary section.
