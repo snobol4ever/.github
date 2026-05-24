@@ -21,11 +21,25 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-24b — GATE GREEN ✅ — STRING-CONCAT-ALL rung opened, SC-0 done)
+## Session State (2026-05-24d — GATE GREEN ✅ — TSX-SM-1 done, capture_bytes infra landed)
 
-**one4all HEAD: `0a906d83`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0.
+**one4all HEAD: `d0ab64e2`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0.
 
-**NEXT: SC-1** — middle-layer text emitters → `_str` siblings (batch 1: `emit_text_jmp`, `emit_text_label`, `emit_comment`; 14/14/11 template callers). Add string-returning versions beside the void ones (void becomes a thin write-the-string wrapper); rewire BB callers in SC-2. See the STRING-CONCAT-ALL rung below for the full SC-0→SC-10 plan. Run `bash scripts/util_emit_inventory.sh` to regenerate the convert-vs-leave classification.
+**⚡ RUNG PURPOSE (clarified by Lon 2026-05-24d): DELETE every binary-byte-emitting function.** The end state is NO `insn_*` family, NO `bb_emit_byte` sink, NO `emit_seq_*`/`emit_call_sym_plt`/`emit_sym_lea_*` — the raw bytes live inline as `std::string` data inside each template's `MEDIUM_BINARY` arm, exactly like text chars live in the TEXT arm. `capture_bytes()` is DISCOVER-phase scaffolding to read the byte sequences off the trusted encoders; it is deleted too (TSX-DELETE). See the TSX rung Goal block below.
+
+**NEXT: TSX-SM-2** — `sm_exec_bb` (also missing MACRO_DEF). Three-section X86 with `capture_bytes([&]{ insn_… })` scaffold in BINARY. Then TSX-SM-3 (sm_jumps/arith/bb_calls/compare). Run `bash scripts/util_three_section_audit.sh` for the live RED list (10 SM + XA + BB stragglers remain).
+
+**What was done (2026-05-24d — TSX-SM-1, commits `734031de`+`d0ab64e2`):**
+- `capture_bytes()` added to emit_str.{h,cpp}: runs an `insn_*`-emitting lambda in EMIT_BINARY_WIRED against a thread-local scratch buffer, saves/restores emitter state, returns produced bytes as a length-counted std::string. DISCOVER scaffold only — slated for deletion in TSX-DELETE.
+- `sm_halt`, `sm_calls`, `sm_pat_anchors`, `sm_pat_nullary` → three-section X86 (md=1 bin=1 txt=1, one return per section). Bare TEXT returns wrapped in `if (MEDIUM_TEXT)`. Byte layout proven standalone: HALT = `48 B8 <addr-LE> FF D0` = mov rax,imm64; call rax.
+- ⚠ Flagged: `sm_calls` + the PAT_LIT/REFNAME/USERCALL anchors load a strtab string address into rdi via the macro's `lea rdi,[rip+lbl]`; that address isn't materialised in the JIT buffer yet — BINARY captures only the `call` bytes; rdi-load deferred to TSX-WIRE strtab work.
+- Arms are unreached (emit_sm.c still forces TEXT_MODE) → output unchanged, GATE-PK 442/0/612.
+
+**What was found earlier (2026-05-24c — TSX-0):**
+- **The binary detour is real and located.** `emit_sm.c` forces `emit_mode_set(TEXT_MODE(), out)` before every SM dispatch (lines 1280/1298/1329/1344/1361) → SM templates run ONLY in MEDIUM_TEXT. The x86 *bytes* come from a separate path: `emit_bb.c` sets `EMIT_BINARY_BROKERED`/`EMIT_BINARY_WIRED` (lines 591/596) and drives the `insn_*` family in `emit_core.c`. SM templates contribute zero bytes today.
+- **Audit result:** all 14 SM templates were NO-BINARY + NO-TEXT-GUARD. Most XA templates have no medium structure. BB stragglers: `bb_pat_alt`/`bb_pat_cat` (no BINARY), `bb_pl_arith`/`bb_pl_builtin`/`bb_pl_unify` (no explicit TEXT guard), `bb_charset_helper` (helper — needs ruling).
+- **TM rung's "complete" was scoped to the BB pattern/charset/pl families only** — it never touched SM or XA, and never opened the `emit_sm.c` detour. Also: existing BB binary arms call `insn_*` directly, so they are INLINE+DELETE targets too.
+- Audit tool added: `scripts/util_three_section_audit.sh` (RED until every x86 block has all three sections).
 
 **What was done (2026-05-24b):**
 - STRING-CONCAT-ALL rung added (Lon directive): finish the emitter consolidation — every low-level `emit_*()` returns std::string; callers rewired to `+` concat; walk up until every SM/BB/XA template arm is ONE `return <big concat>`; then delete all FILE*/char buf[]. One space everywhere (normalizer is whitespace-insensitive). Supersedes/completes ER wave. insn_*/reloc left for ER-8.
@@ -308,6 +322,77 @@ SM templates with structural violations:
 - [ ] **SC-10 — final audit + delete dead imperative emitters.** grep for any remaining `fprintf|fputs|fwrite` in emit_core/io/sm/bb OUTSIDE the binary/reloc paths and the single emit_text_n sink — confirm zero text-builder FILE writes remain. Delete every now-unused `void emit_X(FILE*,...)` wrapper. `insn_*` and relocation writers remain (ER-8 territory). GATE-PK green. Commit. RUNG COMPLETE → hands off to ER-8 (relocation rethink) for the binary side.
 
 **Out of scope (explicitly):** binary byte emission (`insn_*`), relocation patch lists — those are ER-8. JVM/JS/NET/WASM build-out — those are Milestone 3 / RULES x86-only directive (their arms already return string from the ER wave; this rung keeps them string-returning but does not expand them).
+
+---
+
+### ⚡ THREE-SECTION-X86 (TSX) — DELETE all binary-byte-emitting functions; raw bytes go inline in each template's MEDIUM_BINARY arm (2026-05-24c Lon directive, purpose clarified 2026-05-24d)
+
+**The defect (confirmed by audit 2026-05-24c):** THREE-MEDIUM (TM rung) closed having fixed the BB pattern/charset/pl families, but **the binary byte stream is detoured around the templates entirely.** Root cause in `emit_sm.c`: the SM walker hard-codes `emit_mode_set(TEXT_MODE(), out)` before EVERY dispatch (lines 1280/1298/1329/1344/1361), so SM templates are *only ever invoked in MEDIUM_TEXT.* The actual x86 bytes come from the separate `emit_bb.c` binary path (`EMIT_BINARY_BROKERED`/`EMIT_BINARY_WIRED`, lines 591/596) driving the `insn_*` family in `emit_core.c`. Consequence: **all 14 SM templates have a `MEDIUM_MACRO_DEF` section and a bare unguarded TEXT return, but ZERO `MEDIUM_BINARY` sections.** Most XA templates have no medium structure at all. A few BB templates also lack an explicit `MEDIUM_TEXT` guard or the charset binary section.
+
+**Goal — THE PURPOSE IS DELETION:** The end state of this rung is that **every function that emits raw binary bytes is DELETED**, and at each former call site the **actual raw bytes themselves** appear inline as string-literal data folded into the template's `MEDIUM_BINARY` return concat. We do not want byte-emitting *functions* at all — not `insn_*`, not `bb_emit_byte`/`bb_emit_u32`/`bb_emit_u64`, not `emit_seq_port_call*`, not `emit_call_sym_plt`, not `emit_sym_lea_*`, not the binary arms of `emit_jmp`/`emit_label_define`. The binary form of an opcode is just *its bytes*, and bytes are data, so they belong in the string concat exactly like the text form's characters do — `MEDIUM_BINARY` returns a `std::string` of raw byte values, `MEDIUM_TEXT` returns a `std::string` of assembly characters, and they are the same kind of thing. When the rung completes, the entire `insn_*` family (52 functions per SC-0 inventory) and the byte-sink machinery underneath it are gone; the only place x86 bytes exist is as inline data inside the `MEDIUM_BINARY` arms of the templates.
+
+Every compiled template (`.cpp` only — the `.c` siblings are stale, not in the Makefile) that has a `PLATFORM_X86` block must contain, INSIDE that block, exactly three sections in this order, each with **ONE and ONLY ONE** `return`:
+```cpp
+if (PLATFORM_X86) {
+    if (MEDIUM_MACRO_DEF) { return <macro-def text concat>; }
+    if (MEDIUM_BINARY)    { return <RAW BYTES as a std::string>; }   // data, not function calls
+    if (MEDIUM_TEXT)      { return <s_*asm text concat>; }
+}
+```
+
+**Two-phase method to get there (per template arm):**
+1. **DISCOVER** (TSX-SM-*, TSX-B*, TSX-X*): temporarily express `MEDIUM_BINARY` as `return capture_bytes([&]{ insn_foo(); insn_bar(x); });`. `capture_bytes()` (emit_str.cpp) runs the existing `insn_*` emitters into a scratch buffer and hands back the produced bytes as a `std::string`. This is *scaffolding* — it lets us read off the exact byte sequence for each opcode using the already-trusted encoders, while keeping every step gate-green. It is NOT the destination.
+2. **INLINE + DELETE** (TSX-INLINE, then TSX-WIRE): replace each `capture_bytes([&]{ insn_… })` with the literal bytes it produces, expressed as inline `std::string` data (e.g. a `bytes("\x48\xB8…\xFF\xD0")` helper or `emit_fmt`-built byte string for the parts that interpolate an address/immediate). Once no template arm references any `insn_*` (or `capture_bytes`, or the byte sink), **DELETE all of them**: the whole `insn_*` family, `bb_emit_byte`/`bb_emit_u32`/`bb_emit_u64`/`bb_emit_begin`, `emit_seq_port_call*`, `emit_call_sym_plt`, `emit_sym_lea_*`, the binary arms of `emit_jmp`/`emit_label_define`, and finally `capture_bytes` itself. Build with `-Werror=unused` / linker to confirm nothing references them.
+
+**Addresses & immediates:** a raw-byte literal is fixed data EXCEPT where it embeds a runtime address (e.g. the 8-byte `rt_halt_tos` pointer in `mov rax,imm64`) or an instruction-relative displacement. Those bytes are produced by `emit_fmt`/byte-builder from the live value at emit time — still inline data construction in the template, still no helper function. (Relocation-style displacements that depend on final layout remain the ER-8/TSX-WIRE concern; flag them, do not invent a helper.)
+
+**Then the detour is opened (TSX-WIRE):** `emit_sm.c` stops forcing `TEXT_MODE()` so that in a binary mode the SM walker dispatches templates in `MEDIUM_BINARY` and the inline bytes ARE the output. The old `emit_bb.c` binary path that drove `insn_*` is deleted along with the functions.
+
+**Rules (inherit TM rules 1-6, plus):**
+1. ONE and ONLY ONE `return` per medium section. Multi-branch opcodes (switch on `op`) collapse to a single return whose value is computed by the switch — no early returns inside a section.
+2. **End state has NO byte-emitting functions.** During DISCOVER, `MEDIUM_BINARY` may call `capture_bytes(insn_*)` as scaffolding; by TSX-INLINE it must be raw inline byte data; by TSX-WIRE every `insn_*` and the byte sink are deleted. A stub-fail is permitted only where the runtime helper genuinely does not exist yet (e.g. `rt_bb_arb`) and must be explicitly flagged, never silent.
+3. MEDIUM_MACRO_DEF with no meaningful macro form: `return s_comment("# no macro form — NAME");`.
+4. No `MEDIUM_*`/`BB_*`/`USE_*` predicate outside a `PLATFORM_X86` block (TM rule 5).
+5. The bare unguarded TEXT return in every SM template (the `return {s_2asm(...)...}` after the MACRO_DEF block) must be wrapped in `if (MEDIUM_TEXT) { ... }`.
+6. **Invariant:** GATE-PK 442/0/612 NEW=0 GONE=0 after every committed sub-step. Output bytes unchanged (normalizer whitespace-insensitive). The binary path opening (TSX-WIRE) is the ONE step that can change emitted *binary* — gated separately by a mode-4 / byte-compare against the pre-deletion `insn_*` output, not GATE-PK text.
+
+**Audit tool:** `bash scripts/util_three_section_audit.sh` — lists every compiled template's section presence; exits RED until all x86 blocks have three sections. Run at start and end of every sub-step.
+
+**Work list (from audit 2026-05-24c — RED files only):**
+
+*SM templates (all 14 missing BINARY + TEXT-guard — the core of the detour):*
+- `sm_halt` (1 x86), `sm_calls` (1), `sm_pat_anchors` (1), `sm_pat_nullary` (1), `sm_exec_bb` (1, also missing MACRO_DEF)
+- `sm_jumps` (2), `sm_arith` (2), `sm_bb_calls` (2), `sm_compare` (2)
+- `sm_defines` (3), `sm_expr_incr` (3), `sm_returns` (3)
+- `sm_push_pop_lits` (4)
+- `sm_pat_combine` (5)
+
+*BB templates (partial):*
+- `bb_charset_helper` — missing MACRO_DEF + TEXT-guard (it is a helper, not a top-level op; may need exemption — decide in TSX-B1)
+- `bb_pat_alt`, `bb_pat_cat` — missing BINARY + TEXT-guard (they delegate to emit_flat_ir; verify the binary really flows)
+- `bb_pl_arith`, `bb_pl_builtin`, `bb_pl_unify` — have BINARY, missing explicit TEXT-guard (wrap bare TEXT return)
+
+*XA templates (missing all medium structure):*
+- `xa_macro_library` (has MACRO_DEF only), `xa_bb_macro_library`, `xa_bb_ptr_slot`, `xa_exec_stmt_blob`, `xa_file_header`, `xa_flat`, `xa_rodata` — these emit file-structural text/data, not per-opcode code; many are legitimately TEXT-or-MACRO_DEF-only. Each needs a ruling: does it participate in MEDIUM_BINARY at all? (XA = assembler-file scaffolding; likely most get a `MEDIUM_BINARY { return std::string(); }` no-op section + explicit TEXT guard, NOT real bytes.) Decide per-file in TSX-X.
+
+**Sub-steps (each atomic, gate-green; commit after each):**
+
+The TSX-SM-*/B*/X* steps are the **DISCOVER** phase — they give every x86 arm its three-section shape, with `MEDIUM_BINARY` expressed as `capture_bytes([&]{ insn_… })` scaffolding so the byte sequences are read off the trusted encoders while staying gate-green (the arms are unreached until TSX-WIRE, so output is unchanged). TSX-INLINE then turns that scaffolding into raw inline byte data, and TSX-DELETE removes every byte-emitting function. TSX-WIRE opens the detour so the inline bytes become the actual binary output.
+
+- [x] **TSX-0 — audit tooling + inventory. ✅** `scripts/util_three_section_audit.sh` written; full RED inventory captured above; detour root-caused to `emit_sm.c` forced `TEXT_MODE()` + separate `emit_bb.c` binary path. No code change beyond the audit script. GATE-PK unchanged 442/0/612.
+- [x] **TSX-SM-1 ✅ `734031de`+`d0ab64e2` — single-x86 SM templates + `capture_bytes()` infra.** Added `capture_bytes()` to emit_str.{h,cpp} (DISCOVER scaffold: runs an `insn_*` lambda in EMIT_BINARY_WIRED against a scratch buffer, returns produced bytes as std::string). `sm_halt`, `sm_calls`, `sm_pat_anchors`, `sm_pat_nullary` now three-section (md=1 bin=1 txt=1, one return each); TEXT arms wrapped in `if (MEDIUM_TEXT)`. Byte layout proven (HALT = `48 B8 <addr> FF D0`). `rt`-string-address `rdi` loads (sm_calls, anchors) flagged as TSX-WIRE strtab gap. Arms unreached → GATE-PK 442/0/612 unchanged.
+- [ ] **TSX-SM-2 — `sm_exec_bb`.** Also add the missing MACRO_DEF stub. Three sections, capture_bytes scaffold in BINARY. GATE-PK green.
+- [ ] **TSX-SM-3 — two-x86 SM templates.** `sm_jumps`, `sm_arith`, `sm_bb_calls`, `sm_compare`. Per-fn three-section split; the switch-on-op collapses to one return per section. GATE-PK green.
+- [ ] **TSX-SM-4 — three-x86 SM templates.** `sm_defines`, `sm_expr_incr`, `sm_returns`. GATE-PK green.
+- [ ] **TSX-SM-5 — `sm_push_pop_lits` (4), `sm_pat_combine` (5).** Largest. GATE-PK green.
+- [ ] **TSX-B1 — BB stragglers.** `bb_pl_arith`/`bb_pl_builtin`/`bb_pl_unify` TEXT-guard wrap; `bb_pat_alt`/`bb_pat_cat` verify+add BINARY; rule on `bb_charset_helper` (helper exemption vs full structure). NOTE: the existing BB `MEDIUM_BINARY` arms already call `insn_*` directly (TM rung) — those become INLINE targets too in TSX-INLINE. GATE-PK green.
+- [ ] **TSX-X1 — XA per-file rulings.** For each RED XA file, add explicit `MEDIUM_TEXT` guard and a `MEDIUM_BINARY { return std::string(); }` no-op (XA scaffolding emits no per-opcode bytes) OR real bytes where applicable. Document each ruling inline. GATE-PK green.
+- [ ] **TSX-AUDIT — green the audit.** `bash scripts/util_three_section_audit.sh` exits GREEN. Manual return-count review: confirm exactly one return per medium section in every touched file. GATE-PK green.
+- [ ] **TSX-INLINE — replace every `capture_bytes(insn_*)` and every direct `insn_*` call in a MEDIUM_BINARY arm with the RAW BYTES inline.** This is the heart of the rung's purpose. For each binary arm: read the captured byte sequence, express it as inline `std::string` data — fixed bytes as a byte-string literal, embedded addresses/immediates built with `emit_fmt`/a small `bytes()`/`u64le()` data-builder (NOT a byte-emitting function; pure string construction). After this step NO template arm calls `insn_*`, `capture_bytes`, `emit_seq_port_call*`, `emit_call_sym_plt`, `emit_sym_lea_*`, or the binary arm of `emit_jmp`/`emit_label_define`. Do it in batches mirroring TSX-SM-1..5/B1, gate-green each (still unreached → output unchanged). GATE-PK green.
+- [ ] **TSX-DELETE — delete every binary-byte-emitting function.** With zero references remaining: delete the entire `insn_*` family (52 fns, SC-0 inventory), `bb_emit_byte`/`bb_emit_u32`/`bb_emit_u64`/`bb_emit_i32`/`bb_emit_begin`/`bb_emit_end`/the `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size` sink, `emit_seq_port_call*`, `emit_call_sym_plt`, `emit_sym_lea_rcx`/`_r10`, the binary arms of `emit_jmp`/`emit_label_define`/`emit_store_delta`/`emit_add_delta_imm`, and `capture_bytes` itself. Remove `emit_str.cpp`'s `<functional>` include. Build clean with no unused-symbol/link errors. GATE-PK green (arms still unreached). This is the deletion the rung exists for.
+- [ ] **TSX-WIRE — open the detour (inline bytes become the output).** In `emit_sm.c`, replace the forced `emit_mode_set(TEXT_MODE())` so that in a binary mode the SM walker dispatches templates in `MEDIUM_BINARY`, and the inline byte data IS the emitted binary. Delete the old `emit_bb.c` binary-driver path. Verify the template-produced bytes are byte-identical to a capture of the pre-TSX-DELETE `insn_*` output (snapshot that byte stream BEFORE TSX-DELETE for the comparison). ⚠ Only step that changes binary origin; gate with the byte-diff harness, after TSX-AUDIT+INLINE+DELETE. Multi-session; strtab-address `rdi` loads (flagged in SM-1) resolved here.
+
+**Out of scope:** ER-8 relocation rethink for layout-dependent displacements; JVM/JS/NET/WASM binary (x86-only directive, rule 14). Note: snapshot the `insn_*` byte output for a mode-4 sample BEFORE TSX-DELETE so TSX-WIRE has a byte-identity oracle.
 
 ---
 
