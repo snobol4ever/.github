@@ -61,7 +61,6 @@ Every PLATFORM_X86 block has MEDIUM_MACRO_DEF + MEDIUM_BINARY + MEDIUM_TEXT sect
 ### ⚡ NO-SNPRINTF — COMPLETE ✅ `01123236`
 Remove all `snprintf` from BB/SM/XA templates; replace with `emit_fmt`/string concat.
 71 snprintf across 19 template files → 0. GATE-PK 442/0/612 NEW=0 GONE=0.
-
 Steps:
 - [x] **NS-0** — inventory + helper check.
 - [x] **NS-1** — `bb_capture.cpp` (19).
@@ -70,6 +69,15 @@ Steps:
 - [x] **NS-4** — XA: `xa_bb_macro_library.cpp` (4), `xa_bb_ptr_slot.cpp` (2 via emit_fmt+strncpy).
 - [x] **NS-5** — remaining BB singletons: bb_pat_pos/alt/len/cat/arb/tab/arbno/lit.
 - [x] **NS-6** — audit: grep snprintf in templates returns zero (comment only in xa_bb_ptr_slot).
+### ⚡ S200-EMITTER — COMPLETE ✅ `7857f6fc`
+200-col style pass: zero blank lines, zero trailing inline comments across all emitter and template files.
+Scope: `src/emitter/*.c`, `src/emitter/*.h`, `src/emitter/*.cpp`, all `BB_templates/`, `SM_templates/`, `XA_templates/`. Long JS/WASM string literals accepted as-is (semantically indivisible). GATE-PK 442/0/612 NEW=0 GONE=0.
+Steps:
+- [x] **S200-E1** — strip blank lines: 12 template files + emit_core.c, emit_str.cpp, emit_str_builders.h, sil_macros.h.
+- [x] **S200-E2** — strip trailing inline `/* */` comments: 30 files.
+- [x] **S200-E3** — replace UTF-8 box-drawing chars with ASCII in sil_macros.h.
+- [x] **S200-E4** — wrap >200-col WASM/JS string literals at `\n` boundaries where possible.
+- [x] **S200-E5** — audit: zero blank lines, zero trailing comments, zero fixable >200-col lines.
 
 ### ⚡ EMIT-RETURNS-STRING (ER) — ER-0…7 COMPLETE ✅, ER-8 pending
 ER-8: relocation rethink (abs-addr PLT fallback vs rel32 — future session).
