@@ -23,11 +23,11 @@
 
 ---
 
-## Session State (2026-05-25 — OOD-PHASE-2 COMPLETE)
+## Session State (2026-05-25 — NO-SNPRINTF COMPLETE)
 
-**one4all HEAD: `3edd387e`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, smoke 184/`--run` 186/75, Prolog BB 124/0/0.
+**one4all HEAD: `01123236`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN.
 
-**THE RULE holds end-to-end. OOD ladder + OOD-PHASE-2 both complete.**
+**THE RULE holds. OOD ladder + OOD-PHASE-2 + NO-SNPRINTF all complete.**
 
 ### OOD ladder (all rungs ✅)
 OOD-1…14 complete — all bare emission helpers deleted/inlined into SM/BB/XA template bodies. See prior session watermarks in git log for detail.
@@ -40,10 +40,6 @@ Goal: move emitting function *bodies* from `emit_bb.c`/`emit_sm.c` into their te
 - **P2-C+D ✅ `3edd387e`** — `emit_pattern_blobs` promoted + new `XA_PATTERN_BLOBS` opcode; `xa_pattern_blobs.cpp` owns the body; driver calls `xa_dispatch(XA_PATTERN_BLOBS)`. P2-D grep: `emit_bb.c` has only the pre-existing 4-byte brokered prologue inline (`bb_build_brokered` infra, KEEP-list). THE RULE verified.
 
 **NEXT: Lon directs.** ⛔ Beauty gate SUSPENDED. ⛔ PENDING Lon: TEMPLATE PURE-PROJECTION.
-
----
-
-## TEMPLATE PURE-PROJECTION (pending Lon directive)
 
 Every template fn must drive ONLY from `g_emit` global struct. No complicated traversals, no recursion, no pointer-chasing into AST/BB node graph inside a template. Known violators when this opens:
 1. `sm_nreturn` walks `prog->instrs[j]` backward for enclosing SM_LABEL.
@@ -62,18 +58,18 @@ All rungs OOD-1…14 gate-green. THE RULE holds.
 ### ⚡ THREE-MEDIUM — COMPLETE ✅
 Every PLATFORM_X86 block has MEDIUM_MACRO_DEF + MEDIUM_BINARY + MEDIUM_TEXT sections.
 
-### ⚡ NO-SNPRINTF — Pending
+### ⚡ NO-SNPRINTF — COMPLETE ✅ `01123236`
 Remove all `snprintf` from BB/SM/XA templates; replace with `emit_fmt`/string concat.
-Survey: 71 snprintf across 19 template files. Worst: `bb_capture.cpp` (19), `bb_pat_any.cpp` (9), `sm_returns.cpp` (7).
+71 snprintf across 19 template files → 0. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 Steps:
-- [ ] **NS-0** — inventory + helper check.
-- [ ] **NS-1** — `bb_capture.cpp` (19).
-- [ ] **NS-2** — charset family: any/span/break/notany (9+4+4+4).
-- [ ] **NS-3** — `sm_returns.cpp` (7), `sm_calls.cpp` (4), `sm_jumps.cpp` (2), `sm_defines.cpp` (2).
-- [ ] **NS-4** — XA: `xa_bb_macro_library.cpp` (4), `xa_bb_ptr_slot.cpp` (3).
-- [ ] **NS-5** — remaining BB singletons (1 each).
-- [ ] **NS-6** — audit: grep snprintf in templates returns zero.
+- [x] **NS-0** — inventory + helper check.
+- [x] **NS-1** — `bb_capture.cpp` (19).
+- [x] **NS-2** — charset family: any/span/break/notany (9+4+4+4). Also: esc[] char buffer → std::string.
+- [x] **NS-3** — `sm_returns.cpp` (7), `sm_calls.cpp` (4), `sm_jumps.cpp` (2), `sm_defines.cpp` (2).
+- [x] **NS-4** — XA: `xa_bb_macro_library.cpp` (4), `xa_bb_ptr_slot.cpp` (2 via emit_fmt+strncpy).
+- [x] **NS-5** — remaining BB singletons: bb_pat_pos/alt/len/cat/arb/tab/arbno/lit.
+- [x] **NS-6** — audit: grep snprintf in templates returns zero (comment only in xa_bb_ptr_slot).
 
 ### ⚡ EMIT-RETURNS-STRING (ER) — ER-0…7 COMPLETE ✅, ER-8 pending
 ER-8: relocation rethink (abs-addr PLT fallback vs rel32 — future session).
