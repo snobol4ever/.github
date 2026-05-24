@@ -23,25 +23,36 @@
 
 ## Session State (2026-05-23r — GATE GREEN ✅)
 
-**one4all HEAD: `3604d252`** ✅ GATE GREEN 442/0/612.
+**one4all HEAD: `22b2ad21`** ✅ GATE GREEN 444/0/610.
 
 **What was done (2026-05-23p/q):**
 - DM-7 (`d60c890c`): IS_* shim macros deleted from emit_core.h. All template code now uses PLATFORM_xx/MEDIUM_xx.
 - Nesting fix (`3604d252`): MEDIUM_MACRO_DEF nested inside PLATFORM_X86 in sm_jumps, sm_push_pop_lits, sm_returns. No output change. NEW=0 GONE=0.
 
-**What was done (2026-05-23r):**
-- THREE-MEDIUM rung opened (Lon directive). Plan written: every PLATFORM_X86 block gets exactly MEDIUM_MACRO_DEF + MEDIUM_BINARY + MEDIUM_TEXT sections, each with one return. Binary detour through templates eliminated. 12 steps surveyed across BB/SM templates. GOAL-HEADQUARTERS.md updated.
+**What was done (2026-05-23r — this session):**
+- THREE-MEDIUM rung opened (Lon directive). Plan written and committed: every PLATFORM_X86 block gets exactly MEDIUM_MACRO_DEF + MEDIUM_BINARY + MEDIUM_TEXT sections, each with one return. Binary detour through templates eliminated. 12 steps surveyed.
+- TM-1 (`21137875`): bb_eps, bb_fail — three-section structure + binary `insn_` wiring.
+- TM-2 (`ef1801d1`): bb_pat_abort, bb_pat_rem, bb_pat_pos — MACRO_DEF stubs; BINARY cleaned to label-pointer API (no text-banner-in-binary detour). Baselines refrozen.
+- TM-3 (`67262e23`): bb_pat_len, bb_pat_tab — real BINARY sections using `insn_*`/`emit_add_delta_imm`/`emit_store_delta`. Baselines refrozen.
+- TM-4 (`22b2ad21`): bb_pat_arb — removes `!MEDIUM_TEXT` bail; BINARY stub→fail (no rt_bb_arb yet). Baselines refrozen. GATE 444/0/610.
 
 **DM rung status:**
 - [x] DM-1 through DM-7 ✅ complete
-- [ ] **DM-8** — add `emit_text_and_binary_in_one()` (deferred; unblocked after TM rung lands)
+- [ ] DM-8 — add `emit_text_and_binary_in_one()` (deferred; unblocked after TM rung lands)
 
 **THREE-MEDIUM rung status:**
 - [x] **TM-1 ✅ `21137875`** — bb_eps, bb_fail.
 - [x] **TM-2 ✅ `ef1801d1`** — bb_pat_abort, bb_pat_rem, bb_pat_pos. Baselines refrozen.
-- [x] **TM-3 ✅ `67262e23`** — bb_pat_len, bb_pat_tab. Binary sections use insn_*/emit_add_delta_imm. Baselines refrozen.
-- [x] **TM-4 ✅ `22b2ad21`** — bb_pat_arb. Removes !MEDIUM_TEXT bail; BINARY stub→fail (rt_bb_arb future). Baselines refrozen. GATE 444/0/610.
-- [ ] **TM-5 NEXT** — bb_pat_fence (three-section split; BINARY path via emit_flat_ir).
+- [x] **TM-3 ✅ `67262e23`** — bb_pat_len, bb_pat_tab. Baselines refrozen.
+- [x] **TM-4 ✅ `22b2ad21`** — bb_pat_arb. Baselines refrozen. GATE 444/0/610.
+- [ ] **TM-5 NEXT** — bb_pat_fence: three-section split. BINARY: zero-children fast path → `emit_jmp(lbl_succ_p)` + `emit_label_define(lbl_back_p)` + `emit_jmp(lbl_fail_p)`; with-children path → `emit_flat_ir` already handles binary internally. Split on `pBB->n == 0` inside BINARY section.
+- [ ] TM-6 — bb_pat_break, bb_pat_span, bb_pat_any, bb_pat_notany (charset family via bb_charset_helper binary path).
+- [ ] TM-7 — bb_pat_cat, bb_pat_alt (structural split + single-return; BINARY via emit_flat_ir binary path).
+- [ ] TM-8 — bb_lit: merge naked top-level `if (MEDIUM_BINARY)` block into PLATFORM_X86 section.
+- [ ] TM-9 — bb_capture, bb_arbno: fix naked top-level guards; restructure X86 to three sections.
+- [ ] TM-10 — bb_pl_* family (bb_pl_var/atom/seq/arith/builtin/unify): add MACRO_DEF stubs; enforce single-return per section.
+- [ ] TM-11 — SM violations: sm_halt (top-level MACRO_DEF → nest inside PLATFORM_X86), sm_compare, sm_exec_bb.
+- [ ] TM-12 — audit pass: grep confirms zero MEDIUM_*/BB_WIRED/BB_BROKERED/USE_SM_MACROS outside PLATFORM_X86. GATE green. Commit.
 
 **ER rung status:**
 - [x] ER-0 through ER-7 ✅
