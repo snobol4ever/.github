@@ -21,9 +21,9 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-24d — GATE GREEN ✅ — TSX-SM-1/2/3 done)
+## Session State (2026-05-24d — HANDOFF ✅ — GATE GREEN — TSX-SM-1/2/3 done)
 
-**one4all HEAD: `dedca98f`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0.
+**one4all HEAD: `dedca98f`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0. Clean handoff: all repos committed + pushed, gate re-certified green at handoff. **Resume at TSX-SM-4.**
 
 **⚡ RUNG PURPOSE (Lon 2026-05-24d): DELETE every binary-byte-emitting function.** End state: NO `insn_*`, NO `bb_emit_byte` sink, NO `emit_seq_*`/`emit_call_sym_plt`/`emit_sym_lea_*`. Raw bytes live inline as `std::string` data in each template's `MEDIUM_BINARY` arm. `capture_bytes()` is DISCOVER scaffolding, deleted at TSX-DELETE. See TSX rung Goal block.
 
