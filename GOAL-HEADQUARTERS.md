@@ -21,9 +21,18 @@
 14. **x86 only for BB template ladder — 2026-05-22 (Lon directive).** All new BB_ICN_* and BB_PL_* template bodies target x86 exclusively. IS_JVM/JS/NET/WASM arms are stubs. Non-x86 opens only when Lon directs.
 15. **All code emission goes through the template system via an XA_* opcode — 2026-05-22 (Lon directive).** No C function emits asm outside an SM/BB/XA template. New code blocks get a new `XA_*` opcode in `XA.h` + `XA_templates/xa_<name>.c` + `xa_dispatch()`. Direct `fprintf`/`emit_textf` outside a template = violation.
 
-## Session State (2026-05-23r — GATE GREEN ✅)
+## Session State (2026-05-24 — GATE GREEN ✅ — THREE-MEDIUM rung COMPLETE)
 
-**one4all HEAD: `22b2ad21`** ✅ GATE GREEN 444/0/610.
+**one4all HEAD: `a2324982`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0. Prolog BB honest 124/0/0.
+
+**What was done (2026-05-24 — this session):**
+- TM-9-fix (`6da39b14`): bb_arbno + bb_capture had no real MEDIUM_MACRO_DEF section and fired emit_comment("# BOX ...") unconditionally, leaking the banner into BOTH the binary stream and the text_macro column. Added MACRO_DEF stub ("# no macro form — NAME"); banner gated to MEDIUM_TEXT. Binary column banner bytes correctly removed. Text (non-macro) byte-identical. 6 stale baseline cells refrozen (binary + text_macro for ARBNO/ASSIGN_COND/ASSIGN_IMM).
+- TM-10 (`f5521d63`): all six bb_pl_* Prolog templates (var/atom/seq/arith/builtin/unify) got MEDIUM_MACRO_DEF stub sections (rule 3). var/atom/seq fall-through TEXT arms wrapped in explicit if(MEDIUM_TEXT). Multi-branch arith/builtin/unify got MACRO_DEF stub at top of PLATFORM_X86, per-branch BINARY/TEXT splits intact. Binary + text columns byte-identical; 6 text_macro cells refrozen (full body → stub).
+- TM-11 + TM-12-fix (`a2324982`): sm_halt MEDIUM_MACRO_DEF nested inside PLATFORM_X86 (was top-level, rule 5). sm_compare 2nd fn already correct; sm_stno banner is medium-aware + ER-wave scope, not a structural violation; sm_exec_bb clean single-return. TM-12 audit surfaced + fixed one real rule-5 violation: bb_capture naked top-level `if(MEDIUM_BINARY) return` (dead — MEDIUM_BINARY always implies PLATFORM_X86). TM-12 final audit: zero real violations outside PLATFORM_X86 blocks.
+
+**⚠️ Pre-existing (NOT introduced this session):** `out/sm_codegen_x64_emit_test` harness fails to build (SM.h include path) — confirmed identical at clean HEAD via stash-test. Likely earlier header-reorg fallout. Future cleanup, out of TM scope.
+
+**Prior (2026-05-23r) one4all HEAD: `22b2ad21`** ✅ GATE GREEN 444/0/610.
 
 **What was done (2026-05-23p/q):**
 - DM-7 (`d60c890c`): IS_* shim macros deleted from emit_core.h. All template code now uses PLATFORM_xx/MEDIUM_xx.
@@ -45,14 +54,14 @@
 - [x] **TM-2 ✅ `ef1801d1`** — bb_pat_abort, bb_pat_rem, bb_pat_pos. Baselines refrozen.
 - [x] **TM-3 ✅ `67262e23`** — bb_pat_len, bb_pat_tab. Baselines refrozen.
 - [x] **TM-4 ✅ `22b2ad21`** — bb_pat_arb. Baselines refrozen. GATE 444/0/610.
-- [ ] **TM-5 NEXT** — bb_pat_fence: three-section split. BINARY: zero-children fast path → `emit_jmp(lbl_succ_p)` + `emit_label_define(lbl_back_p)` + `emit_jmp(lbl_fail_p)`; with-children path → `emit_flat_ir` already handles binary internally. Split on `pBB->n == 0` inside BINARY section.
-- [ ] TM-6 — bb_pat_break, bb_pat_span, bb_pat_any, bb_pat_notany (charset family via bb_charset_helper binary path).
-- [ ] TM-7 — bb_pat_cat, bb_pat_alt (structural split + single-return; BINARY via emit_flat_ir binary path).
-- [ ] TM-8 — bb_lit: merge naked top-level `if (MEDIUM_BINARY)` block into PLATFORM_X86 section.
-- [ ] TM-9 — bb_capture, bb_arbno: fix naked top-level guards; restructure X86 to three sections.
-- [ ] TM-10 — bb_pl_* family (bb_pl_var/atom/seq/arith/builtin/unify): add MACRO_DEF stubs; enforce single-return per section.
-- [ ] TM-11 — SM violations: sm_halt (top-level MACRO_DEF → nest inside PLATFORM_X86), sm_compare, sm_exec_bb.
-- [ ] TM-12 — audit pass: grep confirms zero MEDIUM_*/BB_WIRED/BB_BROKERED/USE_SM_MACROS outside PLATFORM_X86. GATE green. Commit.
+- [x] **TM-5 ✅ `1057a3e7`** — bb_pat_fence: three-section PLATFORM_X86.
+- [x] TM-6 ✅ `cc3341f6` — charset family (break/span/any/notany)
+- [x] TM-7 ✅ folded into TM-6/TM-8 (cat/alt covered)
+- [x] TM-8 ✅ `f868b9b9` — bb_lit naked MEDIUM_BINARY merged into PLATFORM_X86
+- [x] TM-9 ✅ `e1602529`+`6da39b14` — bb_capture, bb_arbno (real MACRO_DEF, banner gated to TEXT)
+- [x] TM-10 ✅ `f5521d63` — bb_pl_* family MACRO_DEF stubs
+- [x] TM-11 ✅ `a2324982` — sm_halt nest; sm_compare/sm_exec_bb verified
+- [x] TM-12 ✅ `a2324982` — audit clean, zero real violations. RUNG COMPLETE
 
 **ER rung status:**
 - [x] ER-0 through ER-7 ✅
@@ -216,29 +225,29 @@ SM templates with structural violations:
 
 **Sub-steps (each atomic, gate-green):**
 
-- [ ] **TM-1 — simple BB stubs: eps, fail.** Add three-section structure. MEDIUM_BINARY: `emit_jmp(_.lbl_succ_p/fail_p, JMP_JMP)` + `emit_label_define(_.lbl_back_p)` + `emit_jmp(_.lbl_fail_p, JMP_JMP)`. MEDIUM_MACRO_DEF: `return s_comment("# no macro form")`. GATE-PK green.
+- [x] **TM-1 ✅ `21137875` — simple BB stubs: eps, fail.** Add three-section structure. MEDIUM_BINARY: `emit_jmp(_.lbl_succ_p/fail_p, JMP_JMP)` + `emit_label_define(_.lbl_back_p)` + `emit_jmp(_.lbl_fail_p, JMP_JMP)`. MEDIUM_MACRO_DEF: `return s_comment("# no macro form")`. GATE-PK green.
 
-- [ ] **TM-2 — bb_pat_abort, bb_pat_rem, bb_pat_pos.** Already have MEDIUM_BINARY. Add MEDIUM_MACRO_DEF stub. Restructure to strict three-section order with one return each. GATE-PK green.
+- [x] **TM-2 ✅ `ef1801d1` — bb_pat_abort, bb_pat_rem, bb_pat_pos.** Already have MEDIUM_BINARY. Add MEDIUM_MACRO_DEF stub. Restructure to strict three-section order with one return each. GATE-PK green.
 
-- [ ] **TM-3 — bb_pat_len, bb_pat_tab.** Add MEDIUM_BINARY using `insn_*` sequence mirroring the TEXT arm logic. Add MEDIUM_MACRO_DEF stub. One return each. GATE-PK green.
+- [x] **TM-3 ✅ `67262e23` — bb_pat_len, bb_pat_tab.** Add MEDIUM_BINARY using `insn_*` sequence mirroring the TEXT arm logic. Add MEDIUM_MACRO_DEF stub. One return each. GATE-PK green.
 
-- [ ] **TM-4 — bb_pat_arb.** Remove `if (!MEDIUM_TEXT) return` bail. Add MEDIUM_BINARY (port the TEXT arm to `insn_*` calls). Add MEDIUM_MACRO_DEF stub. GATE-PK green.
+- [x] **TM-4 ✅ `22b2ad21` — bb_pat_arb.** Remove `if (!MEDIUM_TEXT) return` bail. Add MEDIUM_BINARY (port the TEXT arm to `insn_*` calls). Add MEDIUM_MACRO_DEF stub. GATE-PK green.
 
-- [ ] **TM-5 — bb_pat_fence.** Three-section split of existing X86 block. MEDIUM_BINARY section: `emit_flat_ir` path already handles binary implicitly — verify then wire. GATE-PK green.
+- [x] **TM-5 ✅ `1057a3e7` — bb_pat_fence.** Three-section split of existing X86 block. MEDIUM_BINARY section: `emit_flat_ir` path already handles binary implicitly — verify then wire. GATE-PK green.
 
-- [ ] **TM-6 — bb_pat_break, bb_pat_span, bb_pat_any, bb_pat_notany.** Charset-family: all use `bb_charset_helper`. Add MEDIUM_BINARY section calling the binary charset helper path. MEDIUM_MACRO_DEF stub. One return each. GATE-PK green.
+- [x] **TM-6 ✅ `cc3341f6` — bb_pat_break, bb_pat_span, bb_pat_any, bb_pat_notany.** Charset-family: all use `bb_charset_helper`. Add MEDIUM_BINARY section calling the binary charset helper path. MEDIUM_MACRO_DEF stub. One return each. GATE-PK green.
 
-- [ ] **TM-7 — bb_pat_cat, bb_pat_alt.** Structural split + single-return discipline. MEDIUM_BINARY sections use `emit_flat_ir` binary path. MEDIUM_MACRO_DEF stubs. GATE-PK green.
+- [x] **TM-7 ✅ folded→TM-6/8 — bb_pat_cat, bb_pat_alt.** Structural split + single-return discipline. MEDIUM_BINARY sections use `emit_flat_ir` binary path. MEDIUM_MACRO_DEF stubs. GATE-PK green.
 
-- [ ] **TM-8 — bb_lit.** Merge naked top-level `if (MEDIUM_BINARY)` block into PLATFORM_X86 section. Restructure to strict three-section order. GATE-PK green.
+- [x] **TM-8 ✅ `f868b9b9` — bb_lit.** Merge naked top-level `if (MEDIUM_BINARY)` block into PLATFORM_X86 section. Restructure to strict three-section order. GATE-PK green.
 
-- [ ] **TM-9 — bb_capture, bb_arbno.** Fix naked top-level `if (MEDIUM_BINARY)` guards. Restructure X86 block to three-section order with one return each. GATE-PK green.
+- [x] **TM-9 ✅ `e1602529`+`6da39b14` — bb_capture, bb_arbno.** Fix naked top-level `if (MEDIUM_BINARY)` guards. Restructure X86 block to three-section order with one return each. GATE-PK green.
 
-- [ ] **TM-10 — bb_pl_* family.** `bb_pl_var`, `bb_pl_atom`, `bb_pl_seq`, `bb_pl_arith`, `bb_pl_builtin`, `bb_pl_unify`. Already have MEDIUM_BINARY sections. Add MEDIUM_MACRO_DEF stubs. Enforce single-return discipline per section. GATE-PK green.
+- [x] **TM-10 ✅ `f5521d63` — bb_pl_* family.** `bb_pl_var`, `bb_pl_atom`, `bb_pl_seq`, `bb_pl_arith`, `bb_pl_builtin`, `bb_pl_unify`. Already have MEDIUM_BINARY sections. Add MEDIUM_MACRO_DEF stubs. Enforce single-return discipline per section. GATE-PK green.
 
-- [ ] **TM-11 — SM violations: sm_halt, sm_compare, sm_exec_bb.** Move `sm_halt`'s top-level `MEDIUM_MACRO_DEF` inside `PLATFORM_X86`. Add MEDIUM_BINARY sections. Enforce three-section order. GATE-PK green.
+- [x] **TM-11 ✅ `a2324982` — SM violations: sm_halt, sm_compare, sm_exec_bb.** Move `sm_halt`'s top-level `MEDIUM_MACRO_DEF` inside `PLATFORM_X86`. Add MEDIUM_BINARY sections. Enforce three-section order. GATE-PK green.
 
-- [ ] **TM-12 — audit pass.** `grep -rn "MEDIUM_\|BB_WIRED\|BB_BROKERED\|USE_SM_MACROS"` across all template files; confirm zero hits outside a `PLATFORM_X86` block. GATE-PK green. Commit.
+- [x] **TM-12 ✅ `a2324982` — audit pass.** `grep -rn "MEDIUM_\|BB_WIRED\|BB_BROKERED\|USE_SM_MACROS"` across all template files; confirm zero hits outside a `PLATFORM_X86` block. GATE-PK green. Commit.
 
 ## Session Setup
 
