@@ -23,6 +23,18 @@
 
 ---
 
+## Session State (2026-05-25 — LOCAL-PURGE rung added; SM_PUSH_EXPRESSION binary arm wired)
+
+**one4all commit this session: `2ca05956`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
+
+**SM_PUSH_EXPRESSION MEDIUM_BINARY ✅.** Wired binary arm in `sm_expr_incr.cpp`: `movabs rdi, entry_pc` + `mov esi, 2` + `movabs rax, &rt_push_expression_descr` + `call rax` (27 bytes). Mirrors `sm_incr_decr` / `sm_calls` movabs pattern. Baseline re-frozen: PASS moved 503→504, STUB 626→625. Binary scan confirmed: BB_PAT_CAT / BB_PAT_ALT binary stubs are correct — driver-owned in binary mode (20-byte baselines already gated green via `flat_drive_cat`/`flat_drive_alt`). XA binary stubs (14) need Lon ruling before action.
+
+**LOCAL-PURGE rung added to GOAL-HEADQUARTERS.md.** Full scan of all BB/SM/XA `_str()` functions: 33 files, 185 non-loop local declarations inventoried. Six sub-steps defined (LOCAL-PURGE-1..6): SM simple-inline + strtab → XA simple-inline → BB simple-inline → BB charset driver-lift → BB arbno/capture/lit driver-lift → final audit.
+
+**NEXT: LOCAL-PURGE-1** — eliminate all non-loop locals from SM `_str()` functions (simple-inline + strtab fixes). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-24 — IFT-7 COMPLETE ✅ — flat_drive_cat/alt/fence de-driven through BB templates)
 
 **one4all commit this session: `0870bd74` (IFT-7).** GATE-PK **503/0/626** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
