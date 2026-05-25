@@ -138,3 +138,25 @@ All three simultaneously: `v311.sil` + `snobol4.c` + `src/silly/sil_*.c`. Two-wa
 ## Sync-step monitor
 
 Instrumentation lives in C runtime only. User source never modified. Read only the last-agree and first-disagree records — bug lives between them.
+
+## BB/SM deletion is total — zero residue
+
+When any part of the BB or SM representation is deleted (freed, nulled, or dropped from a data
+structure), the deletion MUST be 100% complete.  No byte, pointer, index, or reference to the
+deleted object may survive anywhere in the process after the free call returns.  Specifically:
+
+- **No dangling pointers.**  Every pointer to the freed object — in tables, globals, side-tables,
+  caches, or on the stack — is set to NULL or overwritten before or immediately after the free.
+- **No stale indices.**  Any integer index (e.g. `bb_table[i]`, `a[2].i`) that referred to the
+  deleted slot is reset to -1 or the owning count field is zeroed so no code can re-derive the
+  pointer.
+- **No shadow copies.**  Side-tables, snapshots, or caches created to survive a partial free
+  (e.g. `g_exec_stmt_bbs[]`) are FORBIDDEN.  If a structure must survive execution it must NOT
+  be freed before execution.  Choose one: free early (before run) or free late (after run).
+  Never split the object across two free calls with a live alias in between.
+- **No partial frees.**  `stage2_free_bb_only` and similar "free some but not all" helpers are
+  FORBIDDEN.  There is exactly one correct moment to free the BB/SM graph: after the last
+  consumer has finished with it.  Identify that moment and free everything at once.
+- **Verification.**  After any free of BB or SM data, ASAN (`detect_use_after_free=1`) must
+  report zero errors on all smoke gates.  A smoke gate that passes without ASAN is not
+  sufficient proof of correct deletion.
