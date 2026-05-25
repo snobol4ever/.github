@@ -66,8 +66,7 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles" f
 | **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ sm-run 223/280 ✅. See `BUG_CATEGORIZATION_20260516.md`. |
 | **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
 | **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |
-| **BB Template Ladder — Icon + Prolog** | `GOAL-BB-TEMPLATE-LADDER.md` | one4all+corpus+.github | ICN-T-2 ✅. Phase F active `5871962e` — SM_BB_SWITCH, F-6a/b/c done. F-6d partial (BINOP/ARITH/UNIFY/BUILTIN/PL_ALT → α/β). See GOAL-BB-PORTCLEAN for full c[]/n eradication plan. |
-| **BB Port Clean — Eradicate c[]/n from BB_t** | `GOAL-BB-PORTCLEAN.md` | one4all+.github | **Step 0** — commit 2026-05-25 session work. Then Steps 1-9: add lhs/rhs/operand fields, migrate all BB kinds, delete c[]/n from struct. Rungs 153→≥169 recovery in Step 4. |
+| **BB Template Ladder — Icon + Prolog** | `GOAL-BB-TEMPLATE-LADDER.md` | one4all+corpus+.github | ICN-T-2 ✅. Phase F active — F-6a/b/c/d-partial done `bd6b0917`. Phase G (eradicate BB_t.c[]/n) added to `GOAL-ICON-BB.md`. **NEXT: G-1** add lhs/rhs/operand fields. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | one4all+corpus+.github | ✅ COMPLETE 2026-05-25 — PJ-12c ASAN verify clean. Mode 4 factorial working. All steps done. |
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
