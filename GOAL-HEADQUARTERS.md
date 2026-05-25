@@ -23,7 +23,21 @@
 
 ---
 
-## Session State (2026-05-26 — SM-BINARY-WIRE ⚠ UNVERIFIED, BUILD BLOCKED)
+## Session State (2026-05-26b — BUILD FIXED, SM-BINARY-WIRE ✅ VERIFIED)
+
+**one4all HEAD: `72902d76`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. smoke three-mode parity 188 / --run 190/71.
+
+**g++13 build break RESOLVED (TOOLCHAIN-MIGRATION).** Root cause was `<string>` parsed under C linkage in `emit_core.cpp` (extern "C" wrapping headers that transitively include `<string>`), NOT the emit_1asm/emit_2asm overloads the prior handoff suspected. Fix: pre-include C++-stdlib-bearing headers (emit_io.h/emit_str.h/emit_str_builders.h) OUTSIDE extern "C" so guards neutralize nested includes; wrap emit_1asm/emit_2asm/emit_comment std::string overloads in `extern "C++"` (survives enclosing extern "C" from all 63 template .cpp files).
+
+**Fixing the build UNMASKED 6 latent bugs** committed-but-never-compiled by PP-B / PP-PURE-1 / RE-3 (their commit messages claim GATE-PK green but the build was already broken, so those gates could not have run — earlier green-gate claims back to the toolchain drift are suspect): bb_capture .c_str() restore (2 cap_fixup callbacks); bb_pat_notany const-char*+literal arithmetic; sm_exec_bb missed pc→_.i rename; xa_exec_stmt_blob missing emit_bb.h; xa_pl_sub_builder stray `*/` in comment; bb_lit std::string-to-%s UB in `# BOX LIT(%s)` (was the single GATE-PK FAIL cell).
+
+**SM-BINARY-WIRE (emergency commit `f685ebaf`) is now VERIFIED** — builds clean, all structural gates green. The 9 wired SM MEDIUM_BINARY arms (sm_push_pop_lits ×4, sm_pat_combine ×5) compile and pass.
+
+**NEXT:** (b) freeze SM x86/binary baselines — `baselines/per_kind/x86/binary/` is currently BB-only, no SM_* cells exist yet — via `scripts/freeze_per_kind_baseline.sh`, confirm structural pass. (c) wire remaining empty SM binary arms: sm_incr_decr, sm_define_group, sm_bb_once_proc (add rdi=lbl); sm_call_expression + sm_bb_pump_proc need label/reloc machinery (relative `call .L<pc>`), not movabs. ⚠ TOKEN-ON-DISK: clone embedded ghp token in one4all/.git/config remote URL — scrub or use credential helper. ⛔ Beauty gate SUSPENDED.
+
+---
+
+## Session State (2026-05-26 — SM-BINARY-WIRE ⚠ UNVERIFIED, BUILD BLOCKED) [SUPERSEDED by 2026-05-26b above]
 
 **one4all working tree on `379376cf` + 4 modified files (NOT committed to a clean gate — build blocked, see below).**
 
