@@ -188,9 +188,35 @@ mechanical translation only. Map of C source → template status:
 | `BB_PL_UNIFY` | L1929 | `bb_pl_unify.cpp` | ✅ done PL-T-2 |
 | `BB_PL_BUILTIN` | L1959 | `bb_pl_builtin.cpp` | ✅ done PL-T-1 |
 
-**Pattern for each rung:** Read `case BB_ICN_<X>:` block in `ir_exec.c` → write x86 TEXT arm
-calling a runtime helper (declared extern in `emit_bb.c`, implemented in `icon_box_rt.c` or
-`icn_runtime.c`) → BINARY arm with raw bytes + `bb_bin_t` reloc sites → GATE-PK passes.
+**JCON irgen.icn cross-reference (jcon-master.zip, 2026-05-25):**
+`jcon/tran/irgen.icn` is the original Icon-to-IR compiler written in Icon itself. It maps
+directly to our BB kinds. Key correspondences:
+
+| jcon irgen procedure | jcon IR op | SCRIP BB kind | ir_exec.c line |
+|---------------------|-----------|--------------|---------------|
+| `ir_a_ToBy` | `ir_operator("...", 3)` | **`BB_TO_BY`** (not BB_ICN_TO_BY!) | L625 |
+| `ir_a_Scan` | `ir_opfn(":?", 2)` | `BB_ICN_SCAN` | L873 |
+| `ir_a_Limitation` | `">"` + counter | `BB_ICN_LIMIT` | L1689 |
+| `ir_a_Alt` | flow graph | `BB_ICN_ALTERNATE` | L1619 |
+| `ir_a_Every` | loop+resume | `BB_ICN_UPTO`/PUMP | L1523 |
+| `ir_a_Suspend` | `ir_Succeed`+label | `BB_SUSPEND` | — |
+| `ir_a_While` / `ir_a_Until` | loop | `BB_ICN_UPTO` | L1523 |
+| `ir_a_RepAlt` | indirect goto | `BB_ICN_ALTERNATE` | L1619 |
+| `ir_a_Binop` | `ir_opfn` | `BB_ICN_BINOP` | L1640 |
+| `ir_a_Call` | `ir_Call` | `BB_ICN_PROC_GEN` | L1705 |
+
+**CRITICAL CORRECTION — `BB_TO_BY` is not `BB_ICN_TO_BY`:**
+- `lower_icn.c` lowers `TT_TO_BY` to **`BB_TO_BY`** (shared SNOBOL4/Icon kind, L43 in BB.h),
+  NOT `BB_ICN_TO_BY`. `BB_TO_BY` supports integer AND real-typed bounds (IJ-TOBY-REAL).
+- `BB_ICN_TO_BY` (L89 in BB.h) is a separate simpler kind — integer-only, static step in `ival3`.
+  It is produced by a different lowering path. Verify which path rung01 tests actually exercise
+  before writing the template.
+- `BB_TO_BY` at L625 in ir_exec.c is the complete, real implementation to translate.
+
+**Pattern for each rung:** Read `case BB_ICN_<X>:` (or `BB_TO_BY:`, `BB_PL_<X>:`) block in
+`ir_exec.c` → write x86 TEXT arm calling a runtime helper (declared extern in `emit_bb.c`,
+implemented in `icon_box_rt.c` or `icn_runtime.c`) → BINARY arm with raw bytes + `bb_bin_t`
+reloc sites → GATE-PK passes.
 The `extern DESCR_t icn_bb_<x>(void *zeta, int entry)` declarations in `emit_bb.c` are the
 runtime entry points each template calls via `call icn_bb_<x>@PLT`.
 
