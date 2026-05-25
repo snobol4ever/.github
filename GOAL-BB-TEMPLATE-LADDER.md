@@ -40,6 +40,7 @@ Icon is 99% BB. Prolog is 99% BB. The SM shims (`SM_BB_PUMP_PROC`,
 5. Gate after every rung: GATE-PK 407/0/647 must hold. Rung gate must improve or hold.
 6. Rung files live in corpus — flat files, `rung<NN>_<desc>.icn` / `.pl` + `.expected`.
 7. **All code emission goes through the template system.** Every SM opcode must have an `sm_*` template in `SM_templates/` and be covered by `sm_op_is_dispatched`. Every BB graph walk (XA-level) must be triggered via an `XA_*` opcode dispatched through `xa_dispatch` in `XA_templates/`. Do not emit GAS text directly from `emit_sm.c` or `emit_core.c` outside a template function.
+8. **NO CALLS INTO RT FROM BB TEMPLATES.** The x86 Byrd-box blob is self-contained. All α/β/γ/ω port logic, state counters, and generator advance/reset live as inline x86 asm emitted by the template. The runtime (`icon_box_rt.c`, `icn_runtime.c`, etc.) provides only **pure stateless helpers** (e.g. `icn_binop_apply`, `icn_kw_read`) — never a function that implements port dispatch (`entry==0/1`) or touches `nd->state`/`nd->counter`. A template that calls `rt_foo(nd, entry)` violates this invariant; delete it and replace with inline `.data`-slot state + inline asm alpha/beta paths. Model: `bb_pat_arb.cpp` (`.Larb%d_z` in `.section .data`, alpha initializes, `lbl_back:` advances).
 
 ## SM bridge hooks (already wired — do not touch)
 
