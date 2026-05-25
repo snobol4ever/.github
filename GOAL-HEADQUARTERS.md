@@ -23,6 +23,26 @@
 
 ---
 
+## Session State (2026-05-29 — IFT-3 + IFT-4 + IFT-5 COMPLETE ✅ — SM templates _.out-free, all XA ruled)
+
+**one4all commits this session: `edae5eb0` (IFT-3+IFT-4) + IFT-5 (this commit).** GATE-PK **503/0/626** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. All output-preserving (byte-identical).
+
+**IFT-3 ✅ — sm_returns.cpp purified.** The lone impurity (SM_RETURN x86 TEXT arm `g_in_define_body` branch doing `emit_mode_set(TEXT_MODE(),_.out)` + `emit_text_n` mid-arm) folded to a pure CONCAT prepend: `pre = g_in_define_body ? s_2asm("pop","rbp") : ""` then `return {pre + s_1asm("RETURN"), 0}`. g_in_define_body is a global scalar (legal pure-template IF switch). The driver (`codegen_sm_x86` ~line 1173) already sets TEXT_MODE before every dispatch, so the in-template mode-set was redundant. Order preserved (pop rbp → RETURN).
+
+**IFT-4 ✅ — sm_template_common.h purified by DELETION.** The watermark estimated "2 helpers"; reality was 7 dead fprintf(_.out) inline helpers (jvm_ret_guard, net_ret_guard, jvm_pat_str_push, jvm_pat_long_push, jvm_pat_noarg_push, jvm_pat_pat_push, jvm_pat_2pat_push) — all ZERO callers tree-wide (ret_guard superseded by local _str twins in sm_returns.cpp; JVM pat-push helpers orphaned under X86-ONLY, no _str twins ever written). Deleted outright. **All SM templates are now _.out-free** (only a doc-comment field-list mentions _.out).
+
+**IFT-5 ✅ — all four XA _.out/fprintf templates ruled (Lon: pure-able ⇒ return strings; driver-really ⇒ keep as XA imperative).**
+- `xa_js_label_register` → PURE. FOR over g_emit.xa_label_names/pcs collection building the JS object literal via js_escape_string_str + emit_fmt. (JS path, X86-ONLY-stubbed but converted.)
+- `xa_epilogue` → PURE. WASM arm now concatenates new `wasm_emit_data_segments_str()`. **New twin added in emit_core.c** (the one helper lacking a _str twin): FOR over g_wasm_strtab (static to emit_core.c, so twin lives there), wrapped in `extern "C++"` to get C++ linkage despite emit_core.cpp's enclosing `extern "C"` include (mirrors the emit_1asm/2asm fix). Declared in emit_str.h; old `void wasm_emit_data_segments(FILE*)` decl removed from emit_core.h.
+- `xa_file_header` → PURE. The body `xa_file_header_str` was already pure; the impurity was in the dispatch WRAPPER (`codegen_cap_fixup_init_calls(g_emit.out)` + `emit_textf("call rt_init@PLT")`). DEMOTED that orchestration UP into the SM driver `codegen_sm_x86` right after `xa_dispatch(XA_FILE_HEADER)`. `codegen_cap_fixup_init_calls` is itself a genuine driver/walker (iterates g_cap_fixups[], primes g_emit scalars, dispatches XA_CAP_FIXUP per entry) — correct that it lives driver-side. Header emission order verified unchanged (main: push rbp → register_expressions → rt_init).
+- `xa_flat` (4 arms): `xa_entry_dispatch` → PURE string (3-line cmp/je/jmp from g_emit scalars). `xa_flat_prologue` / `xa_flat_epilogue` / `xa_flat_data_section` → **KEPT AS XA per Lon ruling** — sanctioned imperative bodies (raw bb_emit_byte binary emission, `g_emit_pos += 7` position bookkeeping meaningful in text mode via emitter_end, data-buffer flush/reset). Same sanctioned exception MEDIUM_BINARY arms hold everywhere. File header comment documents this so the advisory purity audit lists them by design, not as regression.
+
+**Advisory purity audit (util_template_purity_audit.sh) remaining violators after IFT-5:** bb_arbno, bb_capture, bb_lit (BB de-drive worklist — lift xa_dispatch(XA_BB_PTR_SLOT)+g_cap_fixup_cb to driver), xa_bb_macro_library, and xa_flat (now sanctioned-by-ruling). SM common + sm_returns + the three converted XA files are GONE from the list.
+
+**NEXT:** IFT-6 (remove `FILE* out` field from sm_emit_t once zero template reads remain — note xa_flat sanctioned arms still legitimately use bb_emit_out/emit_outf for the imperative binary path, so IFT-6 must confirm those are driver-layer reads, not template-body _.out reads, before deleting the field). OR the BB de-drive trio (bb_capture/bb_arbno/bb_lit text-arm purification, shared prereq: lift XA_BB_PTR_SLOT dispatch + cap-fixup cb to driver). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-28 — HQ item (c) COMPLETE ✅ — last 2 SM binary arms wired, fork resolved)
 
 **one4all commit this session: `c95634b9` (sm_call_expression + sm_bb_pump_proc MEDIUM_BINARY arms).** GATE-PK **503/0/626** NEW=0 GONE=0 (was 501/0/628 — +2 SM binary PASS, −2 STUB), AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
@@ -216,17 +236,17 @@ New `scripts/util_template_purity_audit.sh` codifies the IFT invariant machine-c
 
 **KEY FINDING:** the BB text-arm violations (capture, arbno) share ONE prerequisite — lifting `xa_dispatch(XA_BB_PTR_SLOT)` (returns `_.bb_ptr_slot_lbl` by global side-effect) + the `g_cap_fixup_cb` registration OUT of the TEXT arm into the driver. PP-A-style de-drive, not mechanical. Then both arms become pure concats like bb_pat_fence. `bb_lit` may be independently convertible (no xa_dispatch). XA bodies need Lon's template-vs-driver ruling (= IFT-5).
 
-#### IFT-3 — sm_returns.cpp g_in_define_body side-effect (NEXT mechanical)
-The `g_in_define_body` branch does `emit_mode_set(TEXT_MODE(), _.out)` then emits a `pop rbp` epilogue mid-template. This is a stateful side-effect, not a pure concat. Lift the mode-set to the driver (SM dispatch loop) or fold the epilogue into the returned string with the caller setting mode. Careful — touches define-body x86 emission.
+#### IFT-3 — sm_returns.cpp g_in_define_body side-effect ✅ (2026-05-29, `edae5eb0`)
+DONE. Folded to pure CONCAT prepend: `pre = g_in_define_body ? s_2asm("pop","rbp") : ""`; `return {pre + s_1asm("RETURN"), 0}`. g_in_define_body is a global scalar (legal IF switch). Driver already sets TEXT_MODE before every dispatch — the in-template mode-set was redundant. Order preserved.
 
-#### IFT-4 — sm_template_common.h ret-guard helpers → return strings
-`jvm_ret_guard`/`net_ret_guard` are `static inline` helpers that `fprintf(_.out,…)`. Convert to return `std::string` (callers concatenate). Removes the last two `FILE* out = _.out` reads in SM template common.
+#### IFT-4 — sm_template_common.h ret-guard helpers ✅ (2026-05-29, `edae5eb0`) — DELETED not converted
+DONE. 7 dead fprintf(_.out) helpers (jvm_ret_guard, net_ret_guard, jvm_pat_str_push/long_push/noarg_push/pat_push/2pat_push) had ZERO callers tree-wide. Deleted. SM templates now _.out-free.
 
-#### IFT-5 — XA templates: ruling needed
-`xa_epilogue`/`xa_file_header`/`xa_js_label_register` call driver-side `wasm_emit_data_segments`/`codegen_cap_fixup_init_calls`/iterate with `FILE* out = g_emit.out`. **Ruling for Lon:** are XA templates "templates" (must be I/O-free) or "drivers/orchestrators" (I/O-boundary allowed)? XA opcodes name emission UNITS that often wrap driver traversals (per RP-1..14 design), so they may legitimately be the I/O boundary. `wasm_emit_data_segments` is also the one helper with NO `_str` twin (would need one written). Defer pending ruling.
+#### IFT-5 — XA templates ✅ (2026-05-29) — Lon ruling: pure-able ⇒ strings; driver-really ⇒ keep as XA imperative
+DONE. xa_js_label_register + xa_epilogue + xa_file_header + xa_entry_dispatch → PURE strings. wasm_emit_data_segments_str twin written (emit_core.c, extern "C++"). xa_file_header cap-fixup+rt_init orchestration demoted to SM driver. xa_flat_prologue/epilogue/data_section KEPT AS XA (sanctioned imperative: bb_emit_byte / g_emit_pos / data-buffer — documented in file header). See 2026-05-29 watermark for detail.
 
-#### IFT-6 — remove _.out (and is_binary?) from sm_emit_t
-Once IFT-1..5 leave zero template reads of `_.out`, delete the `FILE* out` field from `sm_emit_t` (emit_globals.h) + every `g_emit.out =` assignment in drivers/audit; callers thread the sink locally. Confirm no buffer/memory-write field remains in the struct (none currently — binary path uses bb_emit_buf, separate). GATE.
+#### IFT-6 — remove _.out (and is_binary?) from sm_emit_t  ← NEXT
+Once IFT-1..5 leave zero template-body reads of `_.out`, delete the `FILE* out` field from `sm_emit_t` (emit_globals.h) + every `g_emit.out =` assignment in drivers/audit; callers thread the sink locally. Confirm no buffer/memory-write field remains in the struct (none currently — binary path uses bb_emit_buf, separate). **CAUTION (added 2026-05-29):** xa_flat sanctioned-imperative arms still read `bb_emit_out`/`emit_outf()` for the binary path — confirm those are driver-layer reads (they run inside dispatch, write the buffered binary sink), NOT template-body `_.out` reads, before deleting the field. GATE.
 
 
 
