@@ -105,6 +105,29 @@ The existing templates (`bb_builtin.cpp`, `bb_arith.cpp`, `bb_pl_seq.cpp`, etc.)
 5. **No `rt_*` port-logic helpers.** Permitted external calls: `trail_mark`, `trail_unwind`, `unify`, `prolog_atom_intern`, `term_new_int`, `term_new_atom` — utility functions with no port state.
 6. **Globals:** `g_pl_trail` and `g_pl_env` accessed via `lea rdi, [rip + g_pl_trail]` in TEXT.
 
+### ⛔ RULE: Port label names MUST derive from the Greek letter (single-letter suffixes only)
+
+Every local label inside a BB template TEXT block that marks a port entry or port exit **must** use the single-letter Greek-derived suffix. No descriptive alternatives (`scan`, `back`, `succ`, `fail`, `done`, `retry`, `exit`, etc.) are permitted for port labels.
+
+| Port | Role | Required suffix | Example label |
+|------|------|-----------------|---------------|
+| α (alpha) | fresh entry | `_a` | `.Lupto42_a:` |
+| β (beta) | resume/retry entry | `_b` | `.Lupto42_b:` |
+| γ (gamma) | success exit | `_g` | `.Lupto42_g:` |
+| ω (omega) | failure exit | `_w` | `.Lupto42_w:` |
+
+Applying this to `bb_upto.cpp`: the label `_.lbl_back` is β → rename to `_.lbl_b` (or emit `.Lupto<id>_b:`). The jump to `_.lbl_succ` is γ → `.Lupto<id>_g`. The jump to `_.lbl_fail` is ω → `.Lupto<id>_w`. Internal labels for the scan loop body (`.Lupto<id>_scan`, `.Lupto<id>_done`) are non-port internal labels — these may keep descriptive names since they are not port entries/exits.
+
+The struct fields `_.lbl_succ`, `_.lbl_fail`, `_.lbl_back` in `emit_globals.h` are the *infrastructure* names feeding in from the broker. The template TEXT itself must forward them to local labels with Greek-derived names immediately, so the emitted assembly is self-documenting at the four-port level. Pattern:
+
+```
+.Lfoo<id>_b:          /* β — retry entry: jump here from broker */
+    ...
+    jmp .Lfoo<id>_g   /* γ — success */
+    ...
+    jmp .Lfoo<id>_w   /* ω — failure */
+```
+
 ### BB_PL_SEQ data layout (conjunction engine)
 
 ```
