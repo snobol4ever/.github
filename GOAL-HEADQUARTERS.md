@@ -23,7 +23,25 @@
 
 ---
 
-## Session State (2026-05-25 — NB-2 bb_lit ✅ + NB-3a ✅ + NB-3b bb_lit ✅: buffer-family removal begun)
+## Session State (2026-05-25 — NB-3c + NB-3d ✅ + NB-3e buffer-fn deletion ✅: buffer family GONE from all templates)
+
+**one4all working tree (uncommitted at handoff — base `12ee08e0`).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
+
+**THE BUFFER FAMILY IS ELIMINATED.** `emit_jmp`/`emit_label_define`/`emit_text_jmp`/`emit_text_label`/`bb_sink_str` are DELETED — zero callers remained after NB-3c/3d converted the last six template files. Only `xa_flat.cpp` retains buffer-adjacent imperative emission (NB-3f, sanction now lifted — see ladder).
+
+**NB-3c ✅** — `bb_arbno` + `bb_capture` port loops unrolled to static `bb_bin_t` (back-label as `is_def` site at offset 52 between the two 52-byte port blobs). Byte-identical.
+
+**NB-3d ✅ (all four)** — `bb_pl_arith`/`bb_pl_builtin` byte-identical; `bb_pl_unify`/`bb_pl_seq` had latent text-in-binary / missing-jump bugs (`emit_text_jmp` no-ops in binary; `bb_pl_seq` baked ASCII comments into the binary stream). Fixed → real machine code; `BB_PL_UNIFY.bin` re-frozen 14→30, `BB_PL_SEQ.bin` re-frozen 117→34 (correct churn, NEW=0 GONE=0, same cells).
+
+**NB-3e PARTIAL ✅** — 5 buffer fns deleted (defs + decls + stale comment). REMAINING: collapse `bb_emit_asm_result` REPLAY bridge to direct page write. NOTE: `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size` STAY — they belong to the *patch* machinery (`bb_emit_byte`/`bb_label_define`/`bb_emit_patch_rel32`), which is NOT the buffer family and is still needed by the bridge.
+
+**NB-3f NEW** — xa_flat sanction LIFTED. Assessment in ladder: entry_dispatch already pure; prologue/epilogue are ordinary unconverted three-medium arms; ONLY `xa_flat_data_section`'s `g_flat_data_buf` fwrite is genuinely special (a data accumulation buffer — pair with the bridge collapse).
+
+**NEXT:** NB-3f (convert xa_flat prologue+epilogue mechanically; pair data_section with NB-3e bridge collapse). ⛔ Beauty gate SUSPENDED.
+
+---
+
+
 
 **one4all commit this session: `12ee08e0`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
 
@@ -87,9 +105,10 @@
 
 - [x] **NB-3a** — `bb_fail` ✅, `bb_eps` ✅, `bb_pat_arb` ✅ → `bb_bin_t` static 2-JMP+label_def return. GATE byte-identical (BB_PAT_ARB.bin / BB_FAIL.bin unchanged; BB_EPS has no audit cell).
 - [ ] **NB-3b** — `bb_lit` TEXT arm ✅ → pure `s_*` CONCAT (`emit_comment`/`emit_2asm`/`emit_text_jmp`/`emit_text_label` → `s_comment`/`s_2asm`/`s_1asm(lbl+":")`; `emit_intern_str` side-effect + `g_emit_pos += 7` preserved; leading-space diff normalized away by `.split()` in normalizer). `bb_lit` now FULLY off buffer family (BINARY=bb_bin_t, TEXT=s_*). REMAINING: `bb_pl_seq`/`bb_pl_unify` TEXT/mixed arms — `bb_pl_seq` BINARY arm emits text comments via `emit_text_n` INTO the binary stream (latent bug, baked into `BB_PL_SEQ.bin` baseline) + `emit_text_jmp` no-ops in binary (jumps MISSING from binary); proper fix removes text + adds jump bytes → baseline re-freeze → belongs in NB-3d. `pl_unify_tail_binary()` helper same mixed-mode bug. GATE 504/0/625 byte-identical.
-- [ ] **NB-3c** — `bb_capture`/`bb_arbno` port-loop driver-lift. GATE.
-- [ ] **NB-3d** — `bb_pl_arith`/`unify`/`builtin`/`seq` conditional-BINARY driver-lift (LP-5 intern prereq) + fix text-in-binary baked baselines (re-freeze expected). GATE.
-- [ ] **NB-3e** — delete buffer functions + page machinery; collapse bridge. GATE-PK NEW=0 GONE=0.
+- [x] **NB-3c** — `bb_capture`/`bb_arbno` port-loop → unrolled static `bb_bin_t` (back-label as is_def site between the two port blobs; arbno sites {43,48,52,95,100}, capture identical via `cap_bin` helper). `# BOX` comment kept as pre-`xa_dispatch` `emit_comment` to preserve byte order (XA_BB_PTR_SLOT side-effect ordering — purifies when that dispatch is lifted). GATE 504/0/625 byte-identical.
+- [x] **NB-3d** — all four converted. `bb_pl_arith` (conditional ls/rs/op_lbl preamble, sites from `b.size()`) byte-identical. `bb_pl_builtin` (5 cases, used binary-correct emit_jmp) byte-identical. `bb_pl_unify` — **latent bug fixed**: `pl_unify_tail_binary` used `emit_text_jmp` (no-op in binary) → JE/JMP/labeldef/JMP were MISSING; now emits 30-byte machine code; `BB_PL_UNIFY.bin` re-frozen 14→30. `bb_pl_seq` — **latent bug fixed**: BINARY arm emitted ASCII comment text + text `xor`s via `emit_text_n` into the binary stream + missing jumps; now pure 34-byte machine code; `BB_PL_SEQ.bin` re-frozen 117→34. Both re-freezes are correct churn (NEW=0/GONE=0 — same cells, corrected content). GATE 504/0/625.
+- [~] **NB-3e** — the 5 buffer fns (`emit_jmp`/`emit_label_define`/`emit_text_jmp`/`emit_text_label`/`bb_sink_str`) had ZERO callers once NB-3c/3d landed → DELETED (defs in emit_core.c/emit_str.cpp, decls in emit_core.h/emit_str.h, stale comment in bb_template_common.h). Build clean, GATE 504/0/625. **REMAINING for NB-3e**: collapse the `bb_emit_asm_result` REPLAY bridge to a direct page write, and decide whether `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size` can go (they are still used by `bb_emit_byte`/`bb_label_define`/`bb_emit_patch_rel32` — the *patch* machinery, NOT buffer family — so they likely STAY until the bridge is collapsed).
+- [ ] **NB-3f (NEW — xa_flat sanction LIFTED by Lon 2026-05-25)** — `xa_flat.cpp` is the last buffer-family-adjacent file. Honest assessment: it is NOT as special as "sanctioned" implied. `xa_entry_dispatch` is ALREADY pure. `xa_flat_prologue` (line 49 `fprintf "lea r10,[rip+Δ]"` + `g_emit_pos += 7`; lines 53-55 dispatch jumps) and `xa_flat_epilogue` (lines 68-95 imperative `if(g_is_text) emit_textf else bb_emit_byte` three-medium split; ADDR_SIGMA movabs is a baked abs-ptr like rt_bb_arbno) are ordinary unconverted arms — convert TEXT→`s_*` CONCAT, BINARY→`bb_bin_t`, preserve `g_emit_pos` bookkeeping as side-statements (NB-3b trick). The ONE genuinely special thing: **`xa_flat_data_section`** `fwrite(g_flat_data_buf, g_flat_data_len)` — a separate growable DATA accumulation buffer filled by the driver during the walk. This is a sibling of the code buffer-family but for data; converting it properly is the "write to page segment after the fact" design decision (same architectural question as the bridge collapse), NOT a mechanical `s_*` rewrite. Pair NB-3f data-section with the NB-3e bridge collapse.
 
 ---
 
