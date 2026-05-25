@@ -99,17 +99,17 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 
 ## Ladder steps — Icon
 
-- [x] **ICN-T-1** — `bb_icn_to.c`: `BB_ICN_TO` x86 template. Verify rung01 `1 to 5` PASS. GATE-PK.
-- [ ] **ICN-T-2** — `bb_icn_to_by.c`: `BB_ICN_TO_BY`. Verify rung01 step variants PASS. GATE-PK.
-- [ ] **ICN-T-3** — `bb_icn_binop.c`: `BB_ICN_BINOP`. Verify rung01 arithmetic + relop PASS. GATE-PK.
-- [ ] **ICN-T-4** — `bb_icn_proc_gen.c`: `BB_ICN_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
-- [ ] **ICN-T-5** — `bb_icn_upto.c`: `BB_ICN_UPTO`. Verify rung03 suspend/generator PASS. GATE-PK.
-- [ ] **ICN-T-6** — `bb_icn_alternate.c`: `BB_ICN_ALTERNATE`. Verify rung04 `A|B` PASS. GATE-PK.
-- [ ] **ICN-T-7** — `bb_icn_limit.c`: `BB_ICN_LIMIT`. Verify rung05 `gen\N` PASS. GATE-PK.
-- [ ] **ICN-T-8** — `bb_icn_iterate.c`: `BB_ICN_ITERATE`. Verify rung06 `!list` PASS. GATE-PK.
-- [ ] **ICN-T-9** — `bb_icn_scan.c`: `BB_ICN_SCAN`. Verify rung07 scan PASS. GATE-PK.
-- [ ] **ICN-T-10** — `bb_icn_keyword.c`: `BB_ICN_KEYWORD`. Verify rung08 keywords PASS. GATE-PK.
-- [ ] **ICN-T-11..N** — remaining BB_ICN_* kinds, one per step, one rung per step.
+- [x] **ICN-T-1** — `bb_icn_to.cpp`: `BB_TO` x86 template (stub; gate passes). GATE-PK.
+- [x] **ICN-T-2** ✅ — `bb_to_by.cpp` + `icn_to_by_rt` runtime: `BB_TO_BY` int+real x86 TEXT template. rung01 step variants PASS. GATE-PK 507/0/608. one4all `13f4c7d4`. Also: renamed all BB_ICN_* → BB_* (22 kinds), 5 collisions resolved (BB_GEN_ALT, BB_GEN_BINOP, BB_GEN_SCAN; BB_ICN_TO_BY+BB_ICN_LIMIT dead, merged into existing).
+- [ ] **ICN-T-3** — `bb_binop.cpp` (rename from bb_icn_binop): `BB_GEN_BINOP`. Verify rung01 arithmetic + relop PASS. GATE-PK.
+- [ ] **ICN-T-4** — `bb_proc_gen.cpp`: `BB_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
+- [ ] **ICN-T-5** — `bb_upto.cpp`: `BB_UPTO`. Verify rung03 suspend/generator PASS. GATE-PK.
+- [ ] **ICN-T-6** — `bb_gen_alt.cpp`: `BB_GEN_ALT`. Verify rung04 `A|B` PASS. GATE-PK.
+- [ ] **ICN-T-7** — `bb_limit.cpp`: `BB_LIMIT`. Verify rung05 `gen\N` PASS. GATE-PK.
+- [ ] **ICN-T-8** — `bb_iterate.cpp`: `BB_ITERATE`. Verify rung06 `!list` PASS. GATE-PK.
+- [ ] **ICN-T-9** — `bb_gen_scan.cpp`: `BB_GEN_SCAN`. Verify rung07 scan PASS. GATE-PK.
+- [ ] **ICN-T-10** — `bb_keyword.cpp`: `BB_KEYWORD`. Verify rung08 keywords PASS. GATE-PK.
+- [ ] **ICN-T-11..N** — remaining `BB_*` kinds, one per step, one rung per step.
 
 ## Ladder steps — Prolog
 
@@ -326,14 +326,21 @@ Each keyword variable read/write. `BB_ICN_KEYWORD` ir_exec L904.
 ## Watermark
 
 ```
-one4all: 930df35a (PL-T-1..3 complete)
-Gate: PASS=419 FAIL=0 STUB=635
-Icon --interp: PASS=194 FAIL=36 XFAIL=35
+one4all: 13f4c7d4 (ICN-T-2 + BB_ICN_* rename complete)
+Gate: PASS=507 FAIL=0 STUB=608
+Icon --interp: PASS=195 FAIL=36 XFAIL=35
 Prolog smoke: PASS=5 FAIL=0
-PL-T-1 ✅ bb_pl_builtin.c (write/nl/halt)
-PL-T-2 ✅ bb_pl_var.c + bb_pl_atom.c + bb_pl_unify.c
-PL-T-3 ✅ bb_pl_arith.c + bb_pl_seq.c
-NEXT: PL-T-4 — bb_pl_call.c (rt_pl_call); then PL-T-5 choice, PL-T-6 alt, PL-T-7 cut
+PL-T-1 ✅ bb_pl_builtin.cpp (write/nl/halt)
+PL-T-2 ✅ bb_pl_var.cpp + bb_pl_atom.cpp + bb_pl_unify.cpp
+PL-T-3 ✅ bb_pl_arith.cpp + bb_pl_seq.cpp
+ICN-T-2 ✅ bb_to_by.cpp + icn_to_by_rt (BB_TO_BY int+real TEXT arm)
+RENAME ✅ BB_ICN_* → BB_*: 22 kinds renamed, 5 collisions resolved
+  Collision alternates: BB_GEN_ALT (was BB_ICN_ALTERNATE)
+                        BB_GEN_BINOP (was BB_ICN_BINOP)
+                        BB_GEN_SCAN (was BB_ICN_SCAN)
+  Dead/merged: BB_ICN_TO_BY → BB_TO_BY, BB_ICN_LIMIT → BB_LIMIT
+NEXT: ICN-T-3 — bb_gen_binop.cpp (BB_GEN_BINOP, arithmetic+relop cross-product)
+      PL-T-4  — bb_pl_call.cpp (rt_pl_call)
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
