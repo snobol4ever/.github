@@ -23,7 +23,17 @@
 
 ---
 
-## Session State (2026-05-25 — LOCAL-PURGE-6 ✅ — pl_* intern driver-lifted, shared-buffer aliasing fixed)
+## Session State (2026-05-25 — LOCAL-PURGE COMPLETE ✅ — TEMPLATE-PURITY GREEN, every arm pure)
+
+**one4all HEAD: `7164247b`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. **TEMPLATE-PURITY GREEN.** Byte-identical.
+
+**LP-7-NONX86 ✅** — `bb_capture` JVM + JS arms converted to pure-return (the last two side-effecting template arms), matching the NET arm's idiom. Mechanical byte-identical substitution: `emit_directive→s_directive`, `emit_1asm/2asm→s_1asm/2asm`, `jvm_class_hdr_str` side-effect-wrap → direct concat, `emit_textf→emit_fmt`, `js_escape_string_str` inlined. `util_template_purity_audit.sh` is now **TEMPLATE-PURITY GREEN** (was 45 violations, all in bb_capture). **This completes LOCAL-PURGE / HQ Invariant 16 at 100%: every BB/SM/XA template arm — x86/JVM/JS/NET/WASM, every medium — is a pure `state → std::string`; only the `extern "C"` dispatch wrappers + the sanctioned MEDIUM_BINARY rel32 patch idiom touch a sink.** No regression: JVM smoke 7/6 + JS smoke 0/6 both identical to pre-change baseline (failures are pre-existing JVM/JS emitter-rewrite gaps — see SJ4-JVM-4 / SJ4-JS-BB1a goals). ⚠ x86-only restriction was lifted by Lon for this conversion. ⛔ Beauty gate SUSPENDED.
+
+**NEXT:** LOCAL-PURGE rung is CLOSED. Pick next HQ work or another active goal. The earlier LP-6 PL_ARITH 3-label coverage gap (below) remains an optional regression-cell task.
+
+---
+
+## Previous Session State (LOCAL-PURGE-6 ✅ — pl_* intern driver-lifted, shared-buffer aliasing fixed)
 
 **one4all HEAD: `07708564`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
 
@@ -61,15 +71,17 @@
 
 ## Active Rungs
 
-### ⚡ LOCAL-PURGE — eliminate all non-loop locals from every `_str()` function — CURRENT
+### ✅ LOCAL-PURGE — COMPLETE (every `_str()` arm pure; TEMPLATE-PURITY GREEN)
 
-**Principle.** Every `_str()` body has zero local declarations except loop indices. All inputs read inline from `g_emit`/`pBB`/`pSM`. Enforces Invariant 12 mechanically. **WHOLE-TEMPLATE** (Lon): every arm (X86/JVM/JS/NET/WASM, every MEDIUM), not just X86. Three fix classes: (1) simple-inline trivial aliases; (2) `char lbl[64]`→`strtab_label_s()`; (3) driver-lift side-effecting/allocating locals to a new `g_emit` field, then inline the pure read.
+**Principle.** Every template arm is a pure `state → std::string` — no side-effecting emission, no shared-buffer/aliasing locals. Enforces Invariants 11/12/16 mechanically. Done across ALL arms (X86/JVM/JS/NET/WASM, every MEDIUM).
 
 - **LP-1 ✅** SM simple-inline + strtab (sm_compare/expr_incr/defines/pat_anchors/pat_combine/push_pop_lits/returns/pat_nullary).
 - **LP-2 ✅** XA simple-inline (xa_pl_builder/kids_rodata/sub_builder/flat).
 - **LP-3 ✅** BB simple-inline (abort/rem/len/pos/tab/alt/cat/fence/pl_var). pl_atom/arith/unify/builtin DEFERRED → LP-6 (see below).
 - **LP-4 ✅** BB charset driver-lift (any/break/span/notany/arb) — `g_emit.bb_cs_id`/`bb_cs_zeta`, `rt_cs_new` ctor, `gas_escape_str`. `82fc7560`+`c793cca8`.
 - **LP-5 ✅** BB arbno/capture driver-lift — `bb_prepare_capture_arbno()` (emit_bb.c, X86-gated) lifts rt-obj/banner/XA_BB_PTR_SLOT/child-lbl/cap-fixup; new `g_emit.bb_rt_obj`+`bb_child_lbl`; bodies pure. CALLCAP branch was dead (op_name2 always NULL) — collapsed. `59e94d41`. GATE-PK 504/0/625, smoke 188/190-71.
+- **LP-6 ✅** BB pl_* intern driver-lift — `bb_prepare_pl()` (emit_bb.c, X86-gated) lifts ls/rs/op_lbl into distinct `g_emit.bb_pl_{ls,rs,op_lbl}` buffers, fixing the `emit_intern_str` `g_intern_str_buf` shared-buffer aliasing. `07708564`. Audit false-positive (xa_epilogue) fixed `f5fafb68`.
+- **LP-7-NONX86 ✅** bb_capture JVM + JS arms → pure-return (NET-arm idiom). Last side-effecting arms. `7164247b`. **TEMPLATE-PURITY GREEN.** x86-only restriction lifted by Lon for this conversion.
 
 #### LOCAL-PURGE-6 — pl_* driver-lift + final audit — NEXT
 - [x] `bb_pl_atom`/`bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin`: `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`) — `ls`/`rs`/`op_lbl` aliased it (latent bug: all three rendered the LAST operand's `.S` label). Driver-lifted into distinct `g_emit.bb_pl_ls`/`bb_pl_rs`/`bb_pl_op_lbl` (backed by `bb_pl_{ls,rs,op}_buf[64]`) via new `bb_prepare_pl(BB_t*)` (emit_bb.c, X86-gated), wired in `walk_bb_node` before each pl_* dispatch. All four bodies now hold ZERO `emit_intern_str` calls — pure reads of the lifted fields. (`bb_lit` already pure; `xa_epilogue` benign `_str` — sanctioned.)
