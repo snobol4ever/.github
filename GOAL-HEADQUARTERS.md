@@ -23,15 +23,20 @@
 
 ---
 
-## Session State (2026-05-25 — NB-1 ✅ bb_asm deleted → bb_bin_t; NB-2 partial ✅ abort/rem/fence/pos/tab converted)
+## Session State (2026-05-25 — NB-1 ✅ + NB-2 partial ✅: bb_bin_t sweep; Prolog binary arms fixed)
 
-**one4all commits this session: `b91fd3dd` (NB-1) + `c01959f4` (NB-2 partial).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
+**one4all commits this session: `b91fd3dd` (NB-1) + `c01959f4` (NB-2 partial) + `1dcbd29e` (NB-2 Prolog fix).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
 
-**NB-1 ✅** — deleted `struct bb_asm` and all chain methods. Added `bb_bin_t { vector<int> sites; vector<bb_label_t*> labels; vector<bool> is_def; }`. `bb_emit_asm_result(string, bb_bin_t)`. `_str` functions take `bb_bin_t&` second arg, set `bin={}` at top. `bb_pat_len` MEDIUM_BINARY arm: one `return` of raw bytes, `bin` set above with compile-time sites/labels/is_def. Proven byte-identical.
+**NB-1 ✅** — deleted `struct bb_asm` and all chain methods. Added `bb_bin_t { vector<int> sites; vector<bb_label_t*> labels; vector<bool> is_def; }`. `bb_emit_asm_result(string, bb_bin_t)`. `_str` functions take `bb_bin_t&` second arg, set `bin={}` at top. BINARY arm: set `bin` with compile-time sites/labels/is_def, return one pure bytes concat. `bb_pat_len` proven byte-identical.
 
-**NB-2 partial ✅** — `bb_pat_abort`, `bb_pat_rem`, `bb_pat_fence`, `bb_pat_pos` (pos+rpos), `bb_pat_tab` (tab+rtab) all converted to `bb_bin_t` single-return BINARY arms. Wrappers use `bb_emit_asm_result(str, bin)`. GATE-PK 504/0/625 NEW=0 GONE=0.
+**NB-2 partial ✅** — `bb_pat_abort`, `bb_pat_rem`, `bb_pat_fence`, `bb_pat_pos` (pos+rpos), `bb_pat_tab` (tab+rtab), `bb_pl_var`, `bb_pl_atom` fully converted to `bb_bin_t` single-return. Wrappers use `bb_emit_asm_result(str, bin)`.
 
-**NEXT: NB-2 remainder** — `bb_lit` (TEXT arm still imperative), bb_pl_arith/unify/builtin BINARY arms still use bb_sink_str+emit_jmp (LP-5 scope: conditional byte layout). NB-3: delete bb_sink_str/emit_jmp/emit_label_define/bb_emit_buf.
+**Prolog BINARY arms fixed ✅** — `bb_pl_var/atom/arith/unify/builtin` BINARY arms were emitting text comments (via `emit_text_n`) mixed into binary output. Stripped all text from BINARY arms — pure bytes only. Refreeze confirms clean binary baselines. `bb_pl_arith/unify/builtin` still use `bb_sink_str+emit_jmp` (LP-5: conditional byte layout, runtime sites).
+
+**NEXT:**
+- `bb_lit` BINARY + TEXT arms still imperative (`emit_2asm`, `bb_sink_str`, `emit_text_jmp`) — convert both.
+- `bb_pl_arith/unify/builtin` BINARY arms: need LP-5 driver-lift (conditional movabs sequences mean sites are not compile-time constants) before `bb_bin_t` conversion.
+- NB-3: once all arms off `bb_sink_str`/`emit_jmp`/`emit_label_define` → delete them + `bb_emit_buf`/`bb_emit_pos`/`bb_emit_patch_rel32`.
 
 **LP-3 continued ✅ (cat/alt/fence/pl_var).** `bb_pat_cat` / `bb_pat_alt`: X86 MEDIUM_TEXT `r`-accumulator → `emit_for` lambda; `nid`/`sid` declarations moved BELOW the X86 arm (non-X86 arms only, matches `bb_pat_len` convention). `bb_pat_fence`: with-children X86 TEXT branch `r`-accumulator → `emit_for`; zero-child branch unchanged. `bb_pl_var`: inlined `slot` → `(int)pBB->ival2` at all sites (incl. sanctioned binary `hdr`). **DEFERRED to LP-5:** `bb_pl_atom`/`arith`/`unify`/`builtin` — `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`); `ls`/`rs`/`op_lbl` alias the same buffer, so simple-inline is UNSAFE (latent bug already present, masked by test coverage: TEXT arm reads `ls`/`rs` after the buffer was overwritten by `op_lbl`). Requires driver-lift into distinct `g_emit` fields — LP-5 nature.
 
