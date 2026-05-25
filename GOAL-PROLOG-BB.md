@@ -118,57 +118,15 @@ Every reference to a port — in `g_emit` struct fields, emitter C/C++ code, and
 
 The current codebase uses `lbl_back`/`lbl_succ`/`lbl_fail` (and `_p` variants) in `emit_globals.h` and all 26 BB template files — **these are all wrong and must be renamed**. See step PJ-13 below.
 
-### Step PJ-13 — Mass rename lbl_back/succ/fail → lbl_β/γ/ω across all emitter files
+### Step PJ-13 ✅ — Mass rename lbl_back/succ/fail → lbl_β/γ/ω across all emitter files
 
-**Scope:** 34 files, ~170 occurrences. Struct fields in `emit_globals.h`, all `BB_templates/*.cpp`, `emit_bb.c/.h`, `emit.h`, `xa_*.cpp`, `xa_bb_macro_library.cpp`, `sm_template_common.h`, `emit_per_kind_audit.c`.
-
-**Rename map:**
-- `lbl_succ_p` → `lbl_γ_p`
-- `lbl_fail_p` → `lbl_ω_p`
-- `lbl_back_p` → `lbl_β_p`
-- `lbl_succ` → `lbl_γ`
-- `lbl_fail` → `lbl_ω`
-- `lbl_back` → `lbl_β`
-
-**Do NOT rename** `flat_lbl_succ` / `flat_lbl_fail` in `emit_globals.h` lines 70–71 — those are flat-path infrastructure names, not port names.
-
-**Gate:** build clean, smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5.
+34 files, 222 occurrences. Also `flat_lbl_succ`/`flat_lbl_fail` → `flat_lbl_γ`/`flat_lbl_ω`. Landed `6f4996f7`. Gates clean.
 
 ---
 
-### Step PJ-14 — Add lbl_α / lbl_α_p to g_emit; every box template emits its α label as the entry point
+### Step PJ-14 ✅ — Add lbl_α/lbl_α_p to g_emit; every BB template TEXT arm emits explicit α label
 
-**Problem:** α is the fresh-entry port. Every box must have a labelled α entry point so the broker can jump to it. Right now `g_emit` has `lbl_β`, `lbl_γ`, `lbl_ω` but NO `lbl_α`. The `EP_FILL` macro sets β/γ/ω in `g_emit` but never α. Templates have `_.lbl_β`, `_.lbl_γ`, `_.lbl_ω` available but no `_.lbl_α`. The broker has no label to jump to for a fresh call — the α entry is implicit (fall-through), which is wrong: the broker MUST jump to a named label. All four ports must be explicit, labelled, and jumpable.
-
-**Fix — three coordinated changes:**
-
-1. **`emit_globals.h`** — add to `g_emit_t` struct alongside the other three:
-   ```c
-   const char *              lbl_α;
-   struct bb_label_t *       lbl_α_p;
-   ```
-
-2. **`emit_bb.c` `EP_FILL` macro** — extend to also set `lbl_α`:
-   ```c
-   #define EP_FILL(nd,s,f,b,a) do { \
-       g_emit.lbl_γ=(s)->name; g_emit.lbl_ω=(f)->name; g_emit.lbl_β=(b)->name; g_emit.lbl_α=(a)->name; \
-       g_emit.lbl_γ_p=(s); g_emit.lbl_ω_p=(f); g_emit.lbl_β_p=(b); g_emit.lbl_α_p=(a); \
-       walk_bb_node((nd), emit_outf()); } while(0)
-   ```
-   Every `EP_FILL` call site must also pass the α label. In `walk_bb_flat` the α label for a node is its own entry — the label that `EP_DEF` or `EP_DEF_JMP` defines at the start of that node's block.
-
-3. **Every `BB_templates/bb_*.cpp` TEXT arm** — emit the α label as the first instruction of the box body:
-   ```asm
-   .Lfoo<id>_α:        /* α — fresh entry */
-       ...body...
-   .Lfoo<id>_β:        /* β — retry entry */
-       ...
-   ```
-   The template receives `_.lbl_α` (the broker's jump target) and must define it at the top of its TEXT output. β, γ, ω are defined/used as before.
-
-**Result:** Every emitted box has four explicitly-labelled ports. The broker jumps to `_.lbl_α` for a fresh call and `_.lbl_β` for a retry. No implicit fall-through entry.
-
-**Gate:** build clean, smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5.
+α was implicit (broker fell into box by position; no named entry label). Now all four ports are explicit and jumpable. Three changes landed `eff53b7e`: (1) `lbl_α`/`lbl_α_p` added to `g_emit_t`; (2) `bb_fill_alpha(BB_t*)` in `emit_bb.c` using static ring of 8 labels, called by `FILL`/`EP_FILL`/`walk_bb_flat` null-path, sets `g_emit.lbl_α = "bb<id>_α"`; (3) every BB template TEXT arm emits `s_1asm(emit_fmt("%s:", _.lbl_α))` first. Broker now does `jmp _.lbl_α` (fresh) and `jmp _.lbl_β` (retry). Gates: smoke_prolog 5/5 ✅ smoke_snobol4 7/7 ✅ smoke_icon 5/5 ✅ crosscheck_prolog 128/0 ✅.
 
 ### BB_PL_SEQ data layout (conjunction engine)
 
@@ -274,3 +232,13 @@ invoking scrip AND before invoking the assembler. Never use a temp dir as emit C
 - [x] PJ-12a — Add `stage2_free_sm_bb(stage2_t *s2)` in `scrip_sm.c`/`scrip_sm.h`: frees each `BB_graph_t*` in `bb_table[]`, then frees SM arrays (`instrs`, `stno_labels`, `bb_table`), zeroing all pointers and counts. Also adds `ast_tree_free()` inline to `src/include/ast.h` (recursive node+children free, sval not freed — may alias lexer buffers). Landed `d073acf9`.
 - [x] PJ-12b — Wire in `scrip.c`: `ast_tree_free(ast_prog)` after every `sm_preamble` call (tree_t no longer needed once SM+BB are built); `stage2_free_sm_bb(s2)` after `sm_codegen_text` (text emit path) and after `sm_jit_run` completes (JIT path — SM instrs still needed during JIT execution via `CUR_INS`). `--interp` path unchanged (SM walked at runtime). Landed `d073acf9`. smoke_prolog 5/5 ✅ crosscheck_prolog 128/0 ✅ crosscheck_snobol4 4/0 ✅ crosscheck_icon 4/0 ✅.
 - [x] PJ-12c — Verify with ASAN (`ASAN_OPTIONS=detect_use_after_free=1`) that no use-after-free fires after the SM+BB free. Zero UAF. Compiler-process leaks only (expected short-lived). ✅ 2026-05-25.
+
+one4all: eff53b7e (PJ-13 + PJ-14)
+.github: (this session)
+PJ-13: lbl_back/succ/fail → lbl_β/γ/ω, 34 files 222 occurrences ✅
+PJ-14: lbl_α/lbl_α_p added; every BB template TEXT arm emits α label first ✅
+smoke_prolog: 5/5 ✅
+crosscheck_prolog: 128/0 ✅
+smoke_snobol4: 7/7 ✅
+smoke_icon: 5/5 ✅
+```
