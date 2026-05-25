@@ -210,6 +210,7 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 - [ ] Each Icon proc becomes one `bb_node_t`. ζ holds param slots + array of statement boxes. α sequences statements; body-falls-off → ω. Replace SM sequence emission in `lower_proc_skeletons` with single `SM_BB_SWITCH`.
 
 #### F-6 — delete `BB_graph_t` / `BB_t` / `bb_exec_node` for Icon
+- [ ] Prerequisite: audit all `pBB->n` / `pBB->c` uses in emitter templates. New Icon BB nodes use α/β/γ/ω ports only — no `n`/`c`. Prolog/SN4 templates may keep `n`/`c` until their own Phase F equivalent. Remove `n`, `c`, `value`, `counter`, `state`, `opaque` from `BB_t` only when zero users remain.
 - [ ] Once F-1..F-5 land: `lower_icn_proc_body`, `lower_icn_expr_top`, `lower_icn_expr_node` deleted. `BB_graph_t` no longer built for Icon. `bb_exec_node` Icon cases removed.
 
 ---
