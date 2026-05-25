@@ -23,9 +23,15 @@
 
 ---
 
-## Session State (2026-05-25 — NO-BUFFERS: emit_io two-buffer removed ✅ + bb_asm binary mechanism proven ✅ + LP-3 cat/alt/fence/pl_var ✅)
+## Session State (2026-05-25 — NB-1 ✅ bb_asm deleted → bb_bin_t; NB-2 partial ✅ abort/rem/fence/pos/tab converted)
 
-**one4all commits this session: `cbcbee35` (LP-3) + `4c2be7a7` (NO-BUFFERS emit_io) + `c07acbb3` (bb_asm + bb_pat_len).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical throughout (incl. live JIT).
+**one4all commits this session: `b91fd3dd` (NB-1) + `c01959f4` (NB-2 partial).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
+
+**NB-1 ✅** — deleted `struct bb_asm` and all chain methods. Added `bb_bin_t { vector<int> sites; vector<bb_label_t*> labels; vector<bool> is_def; }`. `bb_emit_asm_result(string, bb_bin_t)`. `_str` functions take `bb_bin_t&` second arg, set `bin={}` at top. `bb_pat_len` MEDIUM_BINARY arm: one `return` of raw bytes, `bin` set above with compile-time sites/labels/is_def. Proven byte-identical.
+
+**NB-2 partial ✅** — `bb_pat_abort`, `bb_pat_rem`, `bb_pat_fence`, `bb_pat_pos` (pos+rpos), `bb_pat_tab` (tab+rtab) all converted to `bb_bin_t` single-return BINARY arms. Wrappers use `bb_emit_asm_result(str, bin)`. GATE-PK 504/0/625 NEW=0 GONE=0.
+
+**NEXT: NB-2 remainder** — `bb_lit`, `bb_pl_var`, `bb_pl_atom`, `bb_pl_arith`, `bb_pl_unify`, `bb_pl_builtin`. Then also TEXT arm cleanup (bb_lit TEXT still uses imperative emit_2asm), then NB-3 buffer deletion.
 
 **LP-3 continued ✅ (cat/alt/fence/pl_var).** `bb_pat_cat` / `bb_pat_alt`: X86 MEDIUM_TEXT `r`-accumulator → `emit_for` lambda; `nid`/`sid` declarations moved BELOW the X86 arm (non-X86 arms only, matches `bb_pat_len` convention). `bb_pat_fence`: with-children X86 TEXT branch `r`-accumulator → `emit_for`; zero-child branch unchanged. `bb_pl_var`: inlined `slot` → `(int)pBB->ival2` at all sites (incl. sanctioned binary `hdr`). **DEFERRED to LP-5:** `bb_pl_atom`/`arith`/`unify`/`builtin` — `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`); `ls`/`rs`/`op_lbl` alias the same buffer, so simple-inline is UNSAFE (latent bug already present, masked by test coverage: TEXT arm reads `ls`/`rs` after the buffer was overwritten by `op_lbl`). Requires driver-lift into distinct `g_emit` fields — LP-5 nature.
 
@@ -35,11 +41,10 @@
 
 **NO-BUFFERS binary mechanism ✅ PROVEN (`c07acbb3`).** New `bb_asm` fluent assembler in emit_str.h/.cpp: a MEDIUM_BINARY arm is one Snocone-style chained expression `bb_asm().b(bytes).jmp(lbl,kind).call(lbl).lbldef(lbl)....str()`. `.b()` appends literal bytes; `.jmp()`/`.call()` append opcode + 4-byte rel32 placeholder and push a `(site,length,label,REL32)` fixup; `.lbldef()` pushes a zero-length def fixup at the current offset. NO raw growable byte buffer in the template; bytes live in a `std::string`; fixups are a `std::vector<bb_fixup_t>` (module-static, single-threaded by construction). `bb_asm_apply(page,base)` writes label offsets + patches rel32 sites directly into an executable page (the "write after the fact" path). `bb_emit_asm_result(str)` is the dispatch-wrapper bridge: binary mode REPLAYS the arm's bytes + fixups through the EXISTING `bb_emit_buf`/`bb_label_define`/`bb_emit_patch_rel32` machinery (so byte-identity + cross-arm label resolution hold exactly during the transition); text mode → `emit_text_n`. **`bb_pat_len` MEDIUM_BINARY arm converted as the proof** — gate byte-identical incl. live JIT smoke.
 
-**NEXT (NO-BUFFERS binary sweep — RECOMMEND FRESH SESSION, high-risk JIT path):**
-1. Convert the remaining 12 MEDIUM_BINARY arms to the `bb_asm` chain + wire each wrapper to `bb_emit_asm_result`, gating each: `bb_lit`, `bb_capture`, `bb_arbno`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_rem`, `bb_pat_abort`, charset `bb_pat_any`/`break`/`span`/`notany`/`arb`, and `bb_pl_*` (atom/arith/unify/builtin — note LP-5 intern-aliasing applies to their TEXT arms, not the binary byte emission).
-2. FINAL buffer deletion: once all arms are off `bb_emit_byte`, switch `bb_emit_asm_result` + the JIT driver (`codegen_flat_body`/`bb_build_flat`/`bb_build_brokered` in emit_bb.c) to use `bb_asm_apply` directly — concat all node bytes into one string, `memcpy` to the page once, apply fixups — THEN delete `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_sink_str`/`emit_jmp`/`emit_label_define`/`bb_emit_patch_rel32`. `bb_asm_apply` is already written for this. This is the "completely remove buffers, write to page after the fact" end-state.
-3. THEN resume LP-3 remainder (bb_pl_* TEXT-arm driver-lift = LP-5) and LP-4 (charset driver-lift).
-
+**NEXT (NO-BUFFERS binary sweep):**
+- [x] **NB-1** Replace `bb_asm` fluent struct with `bb_bin_t`: `{ std::vector<int> sites; std::vector<bb_label_t*> labels; std::vector<bool> is_def; std::string bytes; }`. Delete `bb_asm` from `emit_str.h`/`emit_str.cpp`. `bb_emit_asm_result` takes `bb_bin_t`. Every MEDIUM_BINARY arm returns `{ {sites}, {labels}, {is_def}, bytes(...)+... }` — one `return` statement. Convert `bb_pat_len` first as proof. GATE-PK NEW=0 GONE=0.
+- [ ] **NB-2** Convert remaining (abort/rem/fence/pos/tab ✅):  MEDIUM_BINARY arms to `bb_bin_t` return: `bb_lit`, `bb_capture`, `bb_arbno`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_rem`, `bb_pat_abort`, charset `bb_pat_any`/`break`/`span`/`notany`/`arb`, `bb_pl_*`. Wire each wrapper to `bb_emit_asm_result(bb_bin_t)`. Gate each.
+- [ ] **NB-3** FINAL buffer deletion: delete `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_sink_str`/`emit_jmp`/`emit_label_define`/`bb_emit_patch_rel32`. GATE-PK NEW=0 GONE=0.
 ⛔ Beauty gate SUSPENDED. (Snocone `+`→`.` port is LATER, not this work — Lon.)
 
 ---
