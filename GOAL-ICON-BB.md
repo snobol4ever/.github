@@ -209,8 +209,41 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 #### F-5 — bb_node_t for proc body (replace `lower_icn_proc_body` / `BB_graph_t`)
 - [ ] Each Icon proc becomes one `bb_node_t`. ζ holds param slots + array of statement boxes. α sequences statements; body-falls-off → ω. Replace SM sequence emission in `lower_proc_skeletons` with single `SM_BB_SWITCH`.
 
-#### F-6 — delete `BB_graph_t` / `BB_t` / `bb_exec_node` for Icon
-- [ ] Prerequisite: audit all `pBB->n` / `pBB->c` uses in emitter templates. New Icon BB nodes use α/β/γ/ω ports only — no `n`/`c`. Prolog/SN4 templates may keep `n`/`c` until their own Phase F equivalent. Remove `n`, `c`, `value`, `counter`, `state`, `opaque` from `BB_t` only when zero users remain.
+#### F-6 — Make BB_t pure: remove `n`, `c`, `value`, `counter`, `state`, `opaque`
+
+**Goal:** `BB_t` has ONLY: `t` (kind), `α β γ ω` (port pointers), `sval`/`ival`/`sval2`/`ival2`/`ival3` (compile-time data). No runtime state, no child arrays. The emitter DFS follows ports; `bb_exec_node` / `bb_exec.c` deleted.
+
+Files using `nd->c` / `nd->n` today (must all be migrated first):
+- `lower/bb_exec.c` (302 uses) — entire file deleted in F-6g
+- `lower/lower_icn.c` (307 uses) — migrated to port wiring in F-6a..F-6e
+- `lower/lower.c` (202 uses) — tree_t `->c`/`->n`, NOT BB_t — unaffected
+- `emitter/emit_bb.c` (33 uses) — migrated to DFS port walker in F-6f
+- `emitter/BB_templates/bb_*.cpp` — each migrated when its kind is ported
+- `runtime/interp/icon_box_rt.c` (34 uses) — shims deleted after F-6g
+
+#### F-6a — port-wire `BB_LIST_BANG` (replace `c[0]` child with α port to evaluator node)
+- [ ] `lower_icn.c` TT_ITERATE: build two nodes — BB_EVAL_CHILD (α→evaluator) + BB_LIST_BANG. Wire α/β/γ/ω. No `c[]`.
+
+#### F-6b — port-wire `BB_TO` / `BB_TO_BY` (replace `c[0..2]` with bound data in sval/ival)
+- [ ] `lower_icn.c` TT_TO / TT_TO_BY: store bounds in `ival`/`dval`/`ival2`/`ival3`. No `c[]`.
+- [ ] `bb_to_by.cpp` template: read from `pBB->ival*` not `pBB->c[*]`.
+
+#### F-6c — port-wire `BB_ALT` / `BB_ALTERNATE` (replace `c[0..n]` with α/β chains)
+- [ ] Each alt arm is a BB_t node. Wire: BB_ALT.α→arm0.α; arm0.ω→arm1.α; armN.ω→BB_ALT.ω.
+
+#### F-6d — port-wire `BB_BINOP_GEN`, `BB_ARITH`, `BB_UNIFY` (replace `c[0..1]`)
+- [ ] Operand nodes wired via α/β ports. `bb_arith.cpp`, `bb_unify.cpp` read ports not children.
+
+#### F-6e — port-wire all remaining BB kinds in `lower_icn.c`
+- [ ] BB_CALL, BB_SEQ, BB_SEQ_EXPR, BB_PROC_GEN, BB_LIMIT, BB_KEY_GEN, BB_FIND_GEN etc.
+
+#### F-6f — replace `emit_bb.c` `walk_bb_flat` with DFS port walker
+- [ ] Emitter follows `α/β/γ/ω` pointers depth-first. `walk_bb_flat(pBB->c[i]…)` → `walk_bb_port(pBB->α…)` etc.
+
+#### F-6g — delete `bb_exec.c`, `bb_exec_node`, `bb_exec_once`, `bb_exec_resume`
+- [ ] All 302 uses gone after F-6a..F-6f. Delete file. Delete `BB_graph_t` traversal machinery.
+- [ ] Remove `n`, `c`, `value`, `counter`, `state`, `opaque` from `BB_t` struct.
+- [ ] Delete `icn_list_bang` / `icn_every_bb_state_t` interpreter shims (replaced by emitter).
 - [ ] Once F-1..F-5 land: `lower_icn_proc_body`, `lower_icn_expr_top`, `lower_icn_expr_node` deleted. `BB_graph_t` no longer built for Icon. `bb_exec_node` Icon cases removed.
 
 ---
