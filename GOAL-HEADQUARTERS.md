@@ -23,7 +23,11 @@
 
 ---
 
-## Session State (2026-05-27 — HQ item (c) PARTIAL + IFT-1/IFT-2 ✅ I/O-free templates begun)
+## Session State (2026-05-27 — HQ item (c) PARTIAL + IFT-1/IFT-2 ✅ + IFT-AUDIT-1 ✅)
+
+**one4all commits this session: `31dc3efe` (4 SM arms) + `d404e22c` (emit_call_label) + `963eb9f5` (IFT-1) + `933dc567` (IFT-2) + IFT-AUDIT-1 (purity audit script).** GATE-PK **501/0/628** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
+
+**IFT-AUDIT-1 (this step).** New `scripts/util_template_purity_audit.sh` (ADVISORY — not yet a hard gate) machine-checks the IFT invariant: non-binary template arms must be pure `std::string` returns; MEDIUM_BINARY is the one sanctioned imperative exception (rel32 patch idiom). Findings: 9 BB files verified text-arm-clean (binary-only side effects); real violations isolated to `bb_capture`/`bb_arbno` x86 TEXT (both blocked on the SAME de-drive: lift `xa_dispatch(XA_BB_PTR_SLOT)` + `g_cap_fixup_cb` to driver), `bb_lit` x86 TEXT (independently convertible — no xa_dispatch), `sm_returns` (IFT-3), and 4 XA files (IFT-5 ruling). See IFT-AUDIT-1 in the IFT rung for the worklist + IFT-AUDIT-2 (make brace-aware, then gate).
 
 **one4all commits this session: `31dc3efe` (4 SM arms) + `d404e22c` (emit_call_label) + `963eb9f5` (IFT-1) + `933dc567` (IFT-2).** GATE-PK **501/0/628** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
 
@@ -179,7 +183,23 @@ Converted the full NET arm (class hdr + .ctor + Alpha + Beta methods + newobj) f
 
 #### IFT-2-was — bb_capture.cpp NET arm → pure string (was NEXT)
 
-#### IFT-3 — sm_returns.cpp g_in_define_body side-effect
+#### IFT-AUDIT-1 — template-purity advisory audit + violation inventory ✅ (this session)
+New `scripts/util_template_purity_audit.sh` codifies the IFT invariant machine-checkably: every NON-binary template arm (MEDIUM_TEXT/MACRO_DEF, PLATFORM_JVM/JS/NET/WASM) must be a pure `std::string` return with zero emission side effects; the `MEDIUM_BINARY` arm is THE ONE sanctioned exception (rel32 jumps/calls via `emit_jmp`/`emit_call_label`/`emit_label_define` need the patch list writing into `bb_emit_buf`; `bb_sink_str(bytes(...))` is the sanctioned raw-byte binary sink). Status **ADVISORY** — the arm tracker is line-based (not brace-aware), so side-effects inside a MEDIUM_BINARY block NESTED in other conditionals can be over-counted. NOT yet wired into the session gate. **IFT-AUDIT-2**: make the tracker brace-depth-aware (push/pop MEDIUM_* scope on `{`/`}`) then add to gate.
+
+**Verified clean (binary-only side effects, sanctioned):** bb_pat_rem, bb_pat_fence, bb_pat_pos, bb_pat_len, bb_pat_tab, bb_pat_arb, bb_fail, bb_eps, bb_pat_abort — all already pure in every text arm.
+
+**Real text-arm violations (candidate worklist):**
+| File | Real issue | Blocked on |
+|---|---|---|
+| `bb_capture.cpp` x86 TEXT | `emit_2asm`/`emit_jmp(&L_s/&L_f)` brokered-call seq + `xa_dispatch(XA_BB_PTR_SLOT)` + `g_cap_fixup_cb` | **DE-DRIVE**: lift xa_dispatch+cb to driver, then arm → pure concat (model: bb_pat_fence/bb_pat_rem text arm) |
+| `bb_arbno.cpp` x86 TEXT | same brokered-call seq + `xa_dispatch` + `g_cap_fixup_cb` | same DE-DRIVE prereq |
+| `bb_lit.cpp` x86 TEXT | `emit_2asm` memcmp seq (line 66-78) | likely pure-concat-able (no xa_dispatch) — check for label deps |
+| `sm_returns.cpp` | `g_in_define_body`: `emit_mode_set(_.out)` + `emit_text_n` mid-arm | IFT-3 (stateful mode-set → driver) |
+| `xa_bb_macro_library/xa_epilogue/xa_flat/xa_js_label_register` | `fprintf(f,…)`/`emit_textf`/`wasm_emit_data_segments(g_emit.out)` | IFT-5 XA-as-driver RULING (are XA bodies templates or orchestrators?) |
+
+**KEY FINDING:** the BB text-arm violations (capture, arbno) share ONE prerequisite — lifting `xa_dispatch(XA_BB_PTR_SLOT)` (returns `_.bb_ptr_slot_lbl` by global side-effect) + the `g_cap_fixup_cb` registration OUT of the TEXT arm into the driver. PP-A-style de-drive, not mechanical. Then both arms become pure concats like bb_pat_fence. `bb_lit` may be independently convertible (no xa_dispatch). XA bodies need Lon's template-vs-driver ruling (= IFT-5).
+
+#### IFT-3 — sm_returns.cpp g_in_define_body side-effect (NEXT mechanical)
 The `g_in_define_body` branch does `emit_mode_set(TEXT_MODE(), _.out)` then emits a `pop rbp` epilogue mid-template. This is a stateful side-effect, not a pure concat. Lift the mode-set to the driver (SM dispatch loop) or fold the epilogue into the returned string with the caller setting mode. Careful — touches define-body x86 emission.
 
 #### IFT-4 — sm_template_common.h ret-guard helpers → return strings
