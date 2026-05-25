@@ -23,6 +23,16 @@
 
 ---
 
+## Session State (2026-05-27 — HQ item (c) PARTIAL + IFT-1/IFT-2 ✅ I/O-free templates begun)
+
+**one4all commits this session: `31dc3efe` (4 SM arms) + `d404e22c` (emit_call_label) + `963eb9f5` (IFT-1) + `933dc567` (IFT-2).** GATE-PK **501/0/628** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
+
+**IFT (IO-FREE-TEMPLATES) begun — templates → pure `state → string`, zero I/O.** Per Lon directive: remove `_.out` (FILE\*) coupling from template bodies; callers own the sink. IFT-1 (`bb_pat_any`) + IFT-2 (`bb_capture`) done — both NET arms converted from `net_*(_.out,…)` fprintf + `emit_*` side-effects to pure `net_*_str()`+`s_*asm` CONCAT returns; both output-preserving (gate byte-identical). 2 of 7 template files with `_.out` now clean. Remaining `_.out` uses: `sm_returns.cpp` (1, stateful g_in_define_body), `sm_template_common.h` (2 ret-guard inline helpers), `xa_epilogue/xa_file_header/xa_js_label_register` (3, XA-as-driver ruling needed). See IFT rung for ladder IFT-3..6. IFT-6 removes the `_.out` field from `sm_emit_t` once zero template reads remain.
+
+**HQ item (c) PARTIAL — 4 movabs-class SM binary arms wired + emit_call_label foundation.** (unchanged from earlier this session — see below for fork ruling needed on last 2 arms.)
+
+---
+
 ## Session State (2026-05-27 — HQ item (c) PARTIAL: 4 SM binary arms wired ✅ + emit_call_label foundation ✅)
 
 **one4all working tree (post-`fa232e9c`): commits `31dc3efe` (4 arms) + `d404e22c` (emit_call_label).** GATE-PK **501/0/628** NEW=0 GONE=0 (was 497/0/632 — +4 SM binary PASS, −4 STUB), AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
@@ -145,6 +155,43 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 ---
 
 ## Active Rungs
+
+### ⚡ IFT (IO-FREE-TEMPLATES) — templates return strings, zero I/O coupling — OPEN
+
+**Principle (Lon, 2026-05-27).** A template function is a pure `state → std::string`. It performs NO I/O: no `FILE*`, no `fprintf`, no buffered-byte sink, no reach into a global output handle. The CALLER decides what to do with the returned string — write it to memory, to a file, or discard it. Remove the `_.out` (FILE\*) global field from `sm_emit_t` and ensure no template reads it; likewise remove any buffer/memory-write field from the globals struct. Templates concatenate (`s_1asm`/`s_2asm`/`net_*_str`/`emit_fmt` + `+`) and RETURN; the thin `extern "C"` dispatch wrapper at the bottom of each template file is the ONLY place that touches a sink (`emit_text_n`), and that wrapper is driver-layer, not template-body.
+
+**Inventory at open (one4all `d404e22c`).** `grep _.out|g_emit.out` in BB/SM/XA template dirs:
+| File | Uses | Disposition |
+|---|---|---|
+| `bb_pat_any.cpp` | 9 (net_* + emit_1asm/2asm, ret std::string() after side-effects) | **IFT-1 ✅** → pure string return |
+| `bb_capture.cpp` | 6 net_*(_.out) | IFT-2 → net_*_str twins |
+| `sm_returns.cpp` | 1 (g_in_define_body: emit_mode_set(_.out)+emit_text_n) | IFT-3 → stateful epilogue, careful |
+| `sm_template_common.h` | 2 inline helpers (jvm_ret_guard/net_ret_guard fprintf _.out) | IFT-4 → return strings |
+| `xa_epilogue.cpp` | 1 wasm_emit_data_segments(g_emit.out) | IFT-5 → needs _str twin (only helper lacking one) + XA-as-template ruling |
+| `xa_file_header.cpp` | 1 codegen_cap_fixup_init_calls(g_emit.out) | IFT-5 → XA driver-layer ruling |
+| `xa_js_label_register.cpp` | 1 (FILE* out = g_emit.out) | IFT-5 → XA driver-layer ruling |
+
+#### IFT-1 — bb_pat_any.cpp NET arm → pure string ✅ (this session)
+Converted the entire NET arm from interleaved `net_*(_.out,…)` fprintf-helpers + `emit_1asm/2asm` side-effects (returning `std::string()`) to a single CONCAT of `net_*_str()` twins + `s_1asm/s_2asm`. WASM arm `emit_textf` → `return std::string(...)`. Zero `_.out` in file. GATE-PK 501/0/628 NEW=0 GONE=0 (normalized NET BB_PAT_ANY byte-identical — pure output-preserving refactor), AUDIT GREEN, prolog 124/0/0. All `net_*_str` twins already exist (RP-11). Dispatch wrapper unchanged (already `emit_text_n(out.data(),out.size())`).
+
+#### IFT-2 — bb_capture.cpp NET arm → pure string ✅ (this session)
+Converted the full NET arm (class hdr + .ctor + Alpha + Beta methods + newobj) from `net_*(_.out,…)` fprintf-helpers + `emit_directive`/`emit_1asm`/`emit_2asm` side-effects to a single CONCAT of `net_*_str()` twins + `s_directive`/`s_1asm`/`s_2asm`. Zero `_.out` in file. Fixed the dispatch wrapper (was DISCARDING `bb_capture_str`'s return — relied on side-effects) to `emit_text_n` the returned string. Side-effect note: that wrapper change surfaced a latent leak — the x86 MACRO_DEF arm returned `s_comment("# no macro form — CAPTURE")` which the old discarding wrapper swallowed; CAPTURE genuinely has no macro form, so changed it to `return std::string()` (BB_PAT_ASSIGN_COND/IMM x86/text_macro cells stay empty, matching baseline). GATE-PK 501/0/628 NEW=0 GONE=0 (output-preserving — NET BB_PAT_ASSIGN_COND/IMM 2947 B each byte-identical), AUDIT GREEN, prolog 124/0/0.
+
+#### IFT-2-was — bb_capture.cpp NET arm → pure string (was NEXT)
+
+#### IFT-3 — sm_returns.cpp g_in_define_body side-effect
+The `g_in_define_body` branch does `emit_mode_set(TEXT_MODE(), _.out)` then emits a `pop rbp` epilogue mid-template. This is a stateful side-effect, not a pure concat. Lift the mode-set to the driver (SM dispatch loop) or fold the epilogue into the returned string with the caller setting mode. Careful — touches define-body x86 emission.
+
+#### IFT-4 — sm_template_common.h ret-guard helpers → return strings
+`jvm_ret_guard`/`net_ret_guard` are `static inline` helpers that `fprintf(_.out,…)`. Convert to return `std::string` (callers concatenate). Removes the last two `FILE* out = _.out` reads in SM template common.
+
+#### IFT-5 — XA templates: ruling needed
+`xa_epilogue`/`xa_file_header`/`xa_js_label_register` call driver-side `wasm_emit_data_segments`/`codegen_cap_fixup_init_calls`/iterate with `FILE* out = g_emit.out`. **Ruling for Lon:** are XA templates "templates" (must be I/O-free) or "drivers/orchestrators" (I/O-boundary allowed)? XA opcodes name emission UNITS that often wrap driver traversals (per RP-1..14 design), so they may legitimately be the I/O boundary. `wasm_emit_data_segments` is also the one helper with NO `_str` twin (would need one written). Defer pending ruling.
+
+#### IFT-6 — remove _.out (and is_binary?) from sm_emit_t
+Once IFT-1..5 leave zero template reads of `_.out`, delete the `FILE* out` field from `sm_emit_t` (emit_globals.h) + every `g_emit.out =` assignment in drivers/audit; callers thread the sink locally. Confirm no buffer/memory-write field remains in the struct (none currently — binary path uses bb_emit_buf, separate). GATE.
+
+
 
 ### ⚡ PURE-PROJECTION (PP) — templates are pure CONCAT/IF/FOR — SUPERSEDED by PP-PURE
 See GOAL-PURE-TEMPLATES.md for the active pure-template ladder (PP-PURE-1..7).
