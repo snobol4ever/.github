@@ -134,6 +134,42 @@ The current codebase uses `lbl_back`/`lbl_succ`/`lbl_fail` (and `_p` variants) i
 
 **Gate:** build clean, smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5.
 
+---
+
+### Step PJ-14 — Add lbl_α / lbl_α_p to g_emit; every box template emits its α label as the entry point
+
+**Problem:** α is the fresh-entry port. Every box must have a labelled α entry point so the broker can jump to it. Right now `g_emit` has `lbl_β`, `lbl_γ`, `lbl_ω` but NO `lbl_α`. The `EP_FILL` macro sets β/γ/ω in `g_emit` but never α. Templates have `_.lbl_β`, `_.lbl_γ`, `_.lbl_ω` available but no `_.lbl_α`. The broker has no label to jump to for a fresh call — the α entry is implicit (fall-through), which is wrong: the broker MUST jump to a named label. All four ports must be explicit, labelled, and jumpable.
+
+**Fix — three coordinated changes:**
+
+1. **`emit_globals.h`** — add to `g_emit_t` struct alongside the other three:
+   ```c
+   const char *              lbl_α;
+   struct bb_label_t *       lbl_α_p;
+   ```
+
+2. **`emit_bb.c` `EP_FILL` macro** — extend to also set `lbl_α`:
+   ```c
+   #define EP_FILL(nd,s,f,b,a) do { \
+       g_emit.lbl_γ=(s)->name; g_emit.lbl_ω=(f)->name; g_emit.lbl_β=(b)->name; g_emit.lbl_α=(a)->name; \
+       g_emit.lbl_γ_p=(s); g_emit.lbl_ω_p=(f); g_emit.lbl_β_p=(b); g_emit.lbl_α_p=(a); \
+       walk_bb_node((nd), emit_outf()); } while(0)
+   ```
+   Every `EP_FILL` call site must also pass the α label. In `walk_bb_flat` the α label for a node is its own entry — the label that `EP_DEF` or `EP_DEF_JMP` defines at the start of that node's block.
+
+3. **Every `BB_templates/bb_*.cpp` TEXT arm** — emit the α label as the first instruction of the box body:
+   ```asm
+   .Lfoo<id>_α:        /* α — fresh entry */
+       ...body...
+   .Lfoo<id>_β:        /* β — retry entry */
+       ...
+   ```
+   The template receives `_.lbl_α` (the broker's jump target) and must define it at the top of its TEXT output. β, γ, ω are defined/used as before.
+
+**Result:** Every emitted box has four explicitly-labelled ports. The broker jumps to `_.lbl_α` for a fresh call and `_.lbl_β` for a retry. No implicit fall-through entry.
+
+**Gate:** build clean, smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5.
+
 ### BB_PL_SEQ data layout (conjunction engine)
 
 ```
