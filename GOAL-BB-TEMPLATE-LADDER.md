@@ -315,6 +315,17 @@ Each keyword variable read/write. `BB_ICN_KEYWORD` ir_exec L904.
 ### String/list subscript → `BB_ICN_IDX` / `BB_ICN_SECTION` (`oref.r` subsc/sect)
 `s[i]` one-char or element reference; `s[i:j]` section. ir_exec L977/L992.
 
+## ⛔ NO rt_* HELPERS FOR PL-T-4..7 (added 2026-05-25, Sonnet 4.6)
+
+**NEVER add `rt_pl_call_exec`, `rt_pl_choice_exec`, `rt_pl_alt_exec`, `rt_pl_cut_exec`, or any similar
+helper to `rt.c`/`rt.h` for implementing BB_PL_CALL, BB_CHOICE, BB_PL_ALT, or BB_CUT.**
+These are port-logic helpers (they implement α/β/γ/ω dispatch) — forbidden by RULES.md INVARIANT 9.
+The x86 TEXT template must emit the full port logic inline as GAS instructions.
+The only permitted external calls are to non-four-port utility functions already present:
+`trail_mark`, `trail_unwind`, `unify`, `prolog_atom_intern`, `term_new_int`, `term_new_atom`,
+`bb_exec_once`, `bb_exec_resume`, `bb_reset`, `pl_bb_lookup`, `bb_graph_of_pred` — called via `@PLT`.
+If you find yourself writing a new `rt_*` function to make a PL-T template work, DELETE IT.
+
 ## How to write a BB template
 
 1. Read `ARCH-SCRIP.md` §"BB templates" and the existing `bb_lit.c` as the model.
