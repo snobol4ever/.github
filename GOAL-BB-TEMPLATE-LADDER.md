@@ -147,6 +147,53 @@ GATE-PL   bash scripts/test_smoke_prolog.sh           # Prolog smoke must hold
 GATE-ICN-SM bash scripts/test_smoke_icon.sh           # smoke must hold
 ```
 
+## KEY OBSERVATION — ir_exec.c is the translation source (noted 2026-05-25, Sonnet 4.6)
+
+Every `BB_ICN_*` and `BB_PL_*` has a **complete, working C implementation** in `src/lower/ir_exec.c`.
+These are the exact semantics to translate into x86 text/binary templates. No logic to invent —
+mechanical translation only. Map of C source → template status:
+
+| BB kind | ir_exec.c line | Template file | Status |
+|---------|---------------|--------------|--------|
+| `BB_ICN_TO` | L1539 | `bb_icn_to.cpp` | stub — ICN-T-1 ✅ (GATE passes, template body not yet filled) |
+| `BB_ICN_TO_BY` | L1596 | `bb_icn_to_by.cpp` | stub — **ICN-T-2 NEXT** |
+| `BB_ICN_UPTO` | L1523 | *(missing)* | ICN-T-5 |
+| `BB_ICN_ITERATE` | L1606 | *(missing)* | ICN-T-8 |
+| `BB_ICN_ALTERNATE` | L1619 | *(missing)* | ICN-T-6 |
+| `BB_ICN_LIMIT` | L1689 | *(missing)* | ICN-T-7 |
+| `BB_ICN_BINOP` | L1640 | *(missing)* | ICN-T-3 |
+| `BB_ICN_TO_NESTED` | L1675 | *(missing)* | ICN-T-15 |
+| `BB_ICN_PROC_GEN` | L1705 | *(missing)* | ICN-T-4 |
+| `BB_ICN_SCAN` | L873 | *(missing)* | ICN-T-9 |
+| `BB_ICN_KEYWORD` | L904 | *(missing)* | ICN-T-10 |
+| `BB_ICN_IDX` | L977 | *(missing)* | ICN-T-12 |
+| `BB_ICN_SECTION` | L992 | *(missing)* | ICN-T-12 |
+| `BB_ICN_LIST_BANG` | L1018 | *(missing)* | ICN-T-9 |
+| `BB_ICN_RECORD_DEF` | L1091 | *(missing)* | ICN-T-10 |
+| `BB_ICN_FIELD_GET` | L1102 | *(missing)* | ICN-T-11 |
+| `BB_ICN_FIELD_SET` | L1113 | *(missing)* | ICN-T-11 |
+| `BB_ICN_IDX_SET` | L1129 | *(missing)* | ICN-T-13 |
+| `BB_ICN_KEY_GEN` | L1146 | *(missing)* | ICN-T-14 |
+| `BB_ICN_FIND_GEN` | L1179 | *(missing)* | ICN-T-16 |
+| `BB_ICN_SEQ_GEN` | L1247 | *(missing)* | ICN-T-17 |
+| `BB_ICN_LCONCAT` | L412 | *(missing)* | ICN-T-18 |
+| `BB_PL_SEQ` | L1715 | `bb_pl_seq.cpp` | ✅ done PL-T-3 |
+| `BB_PL_ALT` | L1791 | *(missing)* | PL-T-6 |
+| `BB_PL_CHOICE` | L1810 | *(missing)* | PL-T-5 |
+| `BB_PL_CALL` | L1841 | *(missing)* | **PL-T-4 NEXT** |
+| `BB_PL_CUT` | L1896 | *(missing)* | PL-T-7 |
+| `BB_PL_ATOM` | L1901 | `bb_pl_atom.cpp` | ✅ done PL-T-2 |
+| `BB_PL_VAR` | L1905 | `bb_pl_var.cpp` | ✅ done PL-T-2 |
+| `BB_PL_ARITH` | L1917 | `bb_pl_arith.cpp` | ✅ done PL-T-3 |
+| `BB_PL_UNIFY` | L1929 | `bb_pl_unify.cpp` | ✅ done PL-T-2 |
+| `BB_PL_BUILTIN` | L1959 | `bb_pl_builtin.cpp` | ✅ done PL-T-1 |
+
+**Pattern for each rung:** Read `case BB_ICN_<X>:` block in `ir_exec.c` → write x86 TEXT arm
+calling a runtime helper (declared extern in `emit_bb.c`, implemented in `icon_box_rt.c` or
+`icn_runtime.c`) → BINARY arm with raw bytes + `bb_bin_t` reloc sites → GATE-PK passes.
+The `extern DESCR_t icn_bb_<x>(void *zeta, int entry)` declarations in `emit_bb.c` are the
+runtime entry points each template calls via `call icn_bb_<x>@PLT`.
+
 ## How to write a BB template
 
 1. Read `ARCH-SCRIP.md` §"BB templates" and the existing `bb_lit.c` as the model.
