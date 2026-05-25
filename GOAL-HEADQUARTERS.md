@@ -25,7 +25,7 @@
 
 ## Session State (2026-05-25 — CAPS-CONCAT CC-1/CC-2 ✅; X86 arms folding into IF()-concat)
 
-**one4all HEAD: `a3d4fbe1`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4.
+**one4all HEAD: `b896bde8`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4 + bytes() arg-flip.
 
 **THIS SESSION:** CAPS-CONCAT rung (see Active Rungs). Added `IF(c,...)` (variadic — handles top-level commas, e.g. embedded `FOR(...)`) + `FOR(lo,hi,f)` macros to `emit_str.h`; `emit_for` kept as a thin alias of `FOR`. Collapsed the `PLATFORM_X86` block of **21 of 24** BB templates from a sequence of `if (MEDIUM_x){…return…}` into ONE `return IF(MEDIUM_MACRO_DEF,…)+IF(MEDIUM_BINARY,…)+IF(MEDIUM_TEXT,…);`, with `bin` set unconditionally (or via ternary) at the top of the X86 block. Branchy arms (`rpos`/`rtab`/`bb_pl_ls`/`n==0`/`xa_bb_ep_n>0`) folded via `?:` ternaries; charset-FOR family (`any`/`notany`/`break`/`span`) and `cat`/`alt`/`fence` use `FOR(...)`. Helper `scripts/consolidate_x86_arm.py` (brace-parser; SKIPs branchy arms). Every batch built + gated byte-identical.
 
