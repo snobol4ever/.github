@@ -23,6 +23,16 @@
 
 ---
 
+## Session State (2026-05-27 — HQ item (c) PARTIAL: 4 SM binary arms wired ✅)
+
+**one4all working tree (post-`fa232e9c`).** GATE-PK **501/0/628** NEW=0 GONE=0 (was 497/0/632 — +4 SM binary PASS, −4 STUB), AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
+
+**HQ item (c) PARTIAL — 4 movabs-pattern SM binary arms wired + re-frozen.** Wired the three movabs-class arms named in the prior NEXT (`sm_incr_decr` → 2 cells SM_INCR/SM_DECR, `sm_define_group` → 2 cells SM_DEFINE/SM_DEFINE_ENTRY). `sm_bb_once_proc` was found ALREADY wired (prior NEXT note was stale on it — its binary arm emits `mov esi,n; movabs rax,&rt_pl_once; call rax`, dropping the `lea rdi,[rip+lbl]` from the macro since label-address needs reloc, not movabs — honest partial). Encodings (disasm-verified): SM_INCR/DECR = `movabs rdi,n` (`48 BF`+imm64) + `movabs rax,&rt_incr|rt_decr` (`48 B8`+imm64) + `call rax` (`FF D0`) = 22 bytes; SM_DEFINE/DEFINE_ENTRY = `movabs rax,&rt_define|rt_define_entry` + `call rax` = 12 bytes (pure-call macro, no reg args). Added `#include "rt/rt.h"` to sm_expr_incr.cpp + sm_defines.cpp. Re-froze baseline (1129 cells, 505 non-empty, was 501); `.bin` normalizer masks the movabs imm64 operands → build-stable. Both diff sides use same normalizer; address-shift-immune.
+
+**NEXT:** HQ item (c) remainder — `sm_call_expression` + `sm_bb_pump_proc` still empty binary arms; both need label/relocation machinery (relative `call .L<pc>`), NOT movabs — the target is an emitted local label whose address isn't known at template time. Requires a reloc/patch path (see ER-8 relocation rethink: abs-addr PLT fallback vs rel32). RP-13 deferred (X86-ONLY). RE-4 awaits Lon ruling. ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-26c — CORRAL-EMIT ✅ + RP-8 ✅ + PP-C no-op ✅ + SM-X86-BINARY-BASELINE ✅)
 
 **one4all HEAD: `fa232e9c`.** GATE-PK **497/0/632** NEW=0 GONE=0 (was 442/0/612 — +55 SM x86/binary PASS, +20 SM binary STUB), AUDIT GREEN, prolog 124/0/0, test_emit_io 6/6, smoke parity 188 / run 190/71.
@@ -434,7 +444,7 @@ TSX-INLINE, TSX-DELETE, TSX-WIRE, TSX-CHARSET all done. insn_* family eliminated
 ---
 
 ## Oracle (every gate)
-`bash scripts/test_per_kind_diff.sh` → PASS=497 FAIL=0 STUB=632 NEW=0 GONE=0 (was 442/0/612 before SM x86/binary cells frozen 2026-05-26c)
+`bash scripts/test_per_kind_diff.sh` → PASS=501 FAIL=0 STUB=628 NEW=0 GONE=0 (was 497/0/632 before 4 SM movabs binary arms wired 2026-05-27; was 442/0/612 before SM x86/binary cells frozen 2026-05-26c)
 `bash scripts/util_three_section_audit.sh` → AUDIT GREEN
 `bash scripts/test_prolog_bb_honest.sh` → 124/0/0
 Smoke (`test_smoke_snobol4_jit.sh`) only when binary paths touched: parity 184 / `--run` 186/75.
