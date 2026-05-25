@@ -23,7 +23,25 @@
 
 ---
 
-## Session State (2026-05-25 — PP-A1..A5 COMPLETE)
+## Session State (2026-05-26 — SM-BINARY-WIRE ⚠ UNVERIFIED, BUILD BLOCKED)
+
+**one4all working tree on `379376cf` + 4 modified files (NOT committed to a clean gate — build blocked, see below).**
+
+**⚠ EMERGENCY HANDOFF — gate could not run. Pre-existing build break under g++ 13.**
+
+**SM-BINARY-WIRE (the real work, source-complete):**
+1. **Deleted three template-bypass functions** in `emit_bb.c`: `flat_fill_bin`, `flat_fill_and_call`, `flat_fill_charset`. All BB kinds in `walk_bb_flat` now route through the template dispatcher `walk_bb_node` via an inlined `FILL(nd,s,f,b)` macro that sets `lbl_succ_p/fail_p/back_p` unconditionally (binary templates need the pointer-form labels). Charset kinds (SPAN/ANY/BREAK/NOTANY) set `op_name1/op_name2/op_kind` inline before FILL. Fixed a dangling-block bug left by a mid-session ARBNO/ASSIGN_IMM deletion. `bb_lit` deleted then restored + re-wired in `walk_bb_node` dispatch + `bb_templates.h`.
+2. **Wired all 9 SM template MEDIUM_BINARY arms** (empty `return std::string()` stubs since TSX-SM-5 `39f95975`, flagged "⚠ FLAGGED for TSX-WIRE" — TSX-WIRE-1/2/3 only did BB, never these):
+   - `sm_push_pop_lits.cpp`: sm_push_lit_i, sm_push_lit_s, sm_push_lit_f, sm_var
+   - `sm_pat_combine.cpp`: sm_pat_capture, sm_pat_capture_fn, sm_pat_capture_fn_args, sm_pat_usercall_args, sm_exec_stmt
+   Pattern (mirrors each arm's own MACRO_DEF): `movabs rdi,(uintptr_t)str` for string args (live C pointer, no reloc — same trick bb_lit binary arm uses), `mov esi/edx imm` for int args, `movabs rax,rt_fn; call rax` (`\x48\xB8`+u64le+`\xFF\xD0`). Added `#include "rt/rt.h"` to both files. Braces verified balanced.
+
+**⛔ BUILD BLOCKER (pre-existing, reproduced at clean HEAD `379376cf`):** repo does not compile under this env's g++ 13. `emit_core.cpp` extern-"C"-wraps `emit_core.c`, pulling C++ `<string>` and the `emit_1asm`/`emit_2asm` `const char*` (extern "C") + `std::string` (C++ inline) overload pair inside `extern "C"` — illegal overloading that the repo's original (older) compiler tolerated. Also surfaces in BB template `.cpp` files via `bb_template_common.h → emit_io.h`. This is a TOOLCHAIN-MIGRATION task, NOT caused by the SM-wire edits. Two speculative fixes attempted (pre-include emit_io.h outside extern "C"; restructure emit_io.h linkage guards) — they cascade; reverted to keep tree clean. Deps installed this session: `libgc-dev flex nasm libgmp-dev m4`.
+
+**NEXT:** (a) Resolve g++ 13 build break — likely give `emit_1asm`/`emit_2asm` C++ overloads a non-extern-"C" path or rename, so emit_core.cpp + BB templates compile. THEN (b) build, run GATE-PK, freeze `SM_*` x86/binary baselines (none exist yet — `baselines/per_kind/x86/binary/` is BB-only) via `scripts/freeze_per_kind_baseline.sh`, confirm structural pass. THEN (c) wire remaining empty SM binary arms: sm_incr_decr, sm_define_group, sm_bb_once_proc (add rdi=lbl); the `call .L<pc>` relative-jump arms (sm_call_expression, sm_bb_pump_proc) need label/reloc machinery, not movabs. ⛔ Beauty gate SUSPENDED.
+
+---
+
 
 **one4all HEAD: `ae7e7abd`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
