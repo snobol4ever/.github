@@ -849,7 +849,10 @@ TSX-INLINE, TSX-DELETE, TSX-WIRE, TSX-CHARSET all done. insn_* family eliminated
 ---
 
 ## Oracle (every gate)
-`bash scripts/test_per_kind_diff.sh` → PASS=501 FAIL=0 STUB=628 NEW=0 GONE=0 (was 497/0/632 before 4 SM movabs binary arms wired 2026-05-27; was 442/0/612 before SM x86/binary cells frozen 2026-05-26c)
+
+**⚡ REMINDER (Lon, 2026-05-25): the per-kind baselines ALREADY EXIST for every BB/SM/XA kind. Do NOT hunt for a test program or build a `.sno` probe to prove byte-identity.** `baselines/per_kind/x86/text/<KIND>.s.{norm,raw}` and `baselines/per_kind/x86/binary/<KIND>.bin.{norm,raw}` are frozen for every kind (e.g. `BB_PAT_ANY`, `BB_PL_SEQ`, `SM_RETURN`…). `scripts/test_per_kind_diff.sh` emits each kind in ISOLATION via the per-kind audit harness and diffs against its frozen cell — so GATE-PK IS the byte-identity oracle for any template change. Workflow after editing a template: build → `test_per_kind_diff.sh` → if that kind's PASS holds and NEW=0 GONE=0, the change is byte-identical. Only reach for a real program (or the smoke suite) when a change touches the *driver/walker layer* or runtime (where no per-kind cell exists), or to exercise the live JIT (`--run`) for binary-path execution. `ls baselines/per_kind/x86/text/ | grep <KIND>` confirms a cell exists before assuming you must construct one.
+
+`bash scripts/test_per_kind_diff.sh` → PASS=504 FAIL=0 STUB=625 NEW=0 GONE=0
 `bash scripts/util_three_section_audit.sh` → AUDIT GREEN
 `bash scripts/test_prolog_bb_honest.sh` → 124/0/0
 Smoke (`test_smoke_snobol4_jit.sh`) only when binary paths touched: parity 184 / `--run` 186/75.
