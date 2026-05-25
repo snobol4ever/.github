@@ -220,6 +220,99 @@ reloc sites → GATE-PK passes.
 The `extern DESCR_t icn_bb_<x>(void *zeta, int entry)` declarations in `emit_bb.c` are the
 runtime entry points each template calls via `call icn_bb_<x>@PLT`.
 
+## Icon canonical semantics — original source reference (icon-master.zip, 2026-05-25)
+
+All generator semantics are in `src/runtime/` RTT (`.r`) files. RTT is a C extension with
+`suspend`/`fail`/`return` for generators; each `suspend` is one Byrd-box γ yield.
+Key findings for every BB kind we must implement:
+
+### `...` / `to by` → `BB_TO_BY` (`omisc.r` L146)
+```
+operator{*} ... toby(from, to, by)
+  // from/to/by must be C_integer — **integers only in original Icon**
+  if (by == 0) error 211
+  if (by > 0): for (; from <= to; from += by) suspend from
+  else:        for (; from >= to; from += by) suspend from
+  fail
+```
+**Note:** Original Icon `toby` is **integer-only**. SCRIP's `BB_TO_BY` adds real support
+(IJ-TOBY-REAL) — the `ival2` flag selects int vs real path. The x86 template must implement
+both int and real paths matching `ir_exec.c` L625–L671.
+
+### `...` / `to` (no by) → `BB_ICN_TO` (`omisc.r` L186)
+```
+operator{*} ... to(from, to)
+  // integers only
+  for (; from <= to; ++from) suspend from
+  fail
+```
+Simple int counter, no step. `BB_ICN_TO` in ir_exec.c L1539.
+
+### `!` bang → `BB_ICN_ITERATE` / `BB_ICN_LIST_BANG` (`oref.r` L8)
+```
+operator{*} ! bang(underef x -> dx)
+  string-variable: suspend 1-char tvsubs for each position
+  list:  chain lelem blocks, suspend struct_var for each slot
+  table/set: hgfirst/hgnext iterator, suspend each element
+  record: loop through fields, suspend struct_var
+  string: suspend 1-char substring for each position
+```
+SCRIP splits this: `BB_ICN_ITERATE` (string, ir_exec L1606) and `BB_ICN_LIST_BANG`
+(list/table/set, ir_exec L1018). Template must dispatch on descriptor type.
+
+### `\N` limitation → `BB_ICN_LIMIT` (`imisc.r` L96 + `interp.r` Op_Lsusp)
+```
+limit(count):
+  count must be integer; count < 0 → error; count == 0 → fail immediately
+  otherwise pass through; Op_Lsusp decrements counter each time inner expr suspends
+```
+Counter initialized to `count`, decremented on each resume; fail when reaches 0.
+SCRIP `BB_ICN_LIMIT` ir_exec L1689.
+
+### `|` alternation → `BB_ICN_ALTERNATE` (`irgen.icn` `ir_a_Alt`)
+```
+try eList[1]; if it suspends → yield, on resume try same branch again
+if branch exhausts → move to next branch
+last branch exhausts → fail
+```
+SCRIP `BB_ICN_ALTERNATE` ir_exec L1619.
+
+### `key(T)` → `BB_ICN_KEY_GEN` (`fstruct.r` L136)
+```
+function{*} key(t)  // t must be table
+  for (ep = hgfirst(BlkLoc(t), &state); ep; ep = hgnext(BlkLoc(t), &state, ep))
+    suspend ep->telem.tref    // the key, not the value
+  fail
+```
+SCRIP `BB_ICN_KEY_GEN` ir_exec L1146.
+
+### `find(s1, s2, i, j)` → `BB_ICN_FIND_GEN` (`fstranl.r` L133)
+```
+function{*} find(s1, s2, i, j)
+  loop cnv_i from i to (j - len(s1)):
+    if s2[cnv_i : cnv_i+len(s1)] == s1: suspend cnv_i
+  fail
+```
+SCRIP `BB_ICN_FIND_GEN` ir_exec L1179.
+
+### `seq(i, j)` → `BB_ICN_SEQ_GEN` (`fmisc.r` L523)
+```
+function{1,*} seq(from=1, by=1)
+  by == 0 → error 211
+  do { suspend from; from += by } while (in integer range)
+```
+Infinite (bounded only by integer overflow). SCRIP `BB_ICN_SEQ_GEN` ir_exec L1247.
+
+### `?` scanning → `BB_ICN_SCAN` (`imisc.r` bscan/escan + `irgen.icn` `ir_a_Scan`)
+Save `&subject` / `&pos`, set new subject, run body, restore on failure.
+`bscan` sets up new subject; `escan` restores old. SCRIP `BB_ICN_SCAN` ir_exec L873.
+
+### `&keyword` → `BB_ICN_KEYWORD` (`keyword.r`)
+Each keyword variable read/write. `BB_ICN_KEYWORD` ir_exec L904.
+
+### String/list subscript → `BB_ICN_IDX` / `BB_ICN_SECTION` (`oref.r` subsc/sect)
+`s[i]` one-char or element reference; `s[i:j]` section. ir_exec L977/L992.
+
 ## How to write a BB template
 
 1. Read `ARCH-SCRIP.md` §"BB templates" and the existing `bb_lit.c` as the model.
