@@ -101,7 +101,7 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 
 - [x] **ICN-T-1** — `bb_icn_to.cpp`: `BB_TO` x86 template (stub; gate passes). GATE-PK.
 - [x] **ICN-T-2** ✅ — `bb_to_by.cpp` + `icn_to_by_rt` runtime: `BB_TO_BY` int+real x86 TEXT template. rung01 step variants PASS. GATE-PK 507/0/608. one4all `13f4c7d4`. Also: renamed all BB_ICN_* → BB_* (22 kinds), 5 collisions resolved (BB_GEN_ALT, BB_GEN_BINOP, BB_GEN_SCAN; BB_ICN_TO_BY+BB_ICN_LIMIT dead, merged into existing).
-- [ ] **ICN-T-3** — `bb_binop.cpp` (rename from bb_icn_binop): `BB_GEN_BINOP`. Verify rung01 arithmetic + relop PASS. GATE-PK.
+- [x] **ICN-T-3** ✅ — `bb_binop_gen.cpp` + `rt_binop_gen` runtime: `BB_BINOP_GEN` x86 TEXT template (cross-product arith/relop). GATE-PK 516/0/599.
 - [ ] **ICN-T-4** — `bb_proc_gen.cpp`: `BB_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
 - [ ] **ICN-T-5** — `bb_upto.cpp`: `BB_UPTO`. Verify rung03 suspend/generator PASS. GATE-PK.
 - [ ] **ICN-T-6** — `bb_gen_alt.cpp`: `BB_GEN_ALT`. Verify rung04 `A|B` PASS. GATE-PK.
@@ -113,13 +113,13 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 
 ## Ladder steps — Prolog
 
-- [ ] **PL-T-1** — `bb_pl_builtin.c`: `BB_PL_BUILTIN` x86 template (write/nl/halt). Verify rung01 `hello` PASS. GATE-PK.
-- [x] **PL-T-2** ✅ — `bb_pl_var.c` + `bb_pl_atom.c` + `bb_pl_unify.c`; rt_pl_var_push/atom_push/unify_* helpers. GATE-PK 415/0/639→415/0/639. smoke 5/5.
-- [x] **PL-T-3** ✅ — `bb_pl_arith.c` + `bb_pl_seq.c`; rt_pl_arith + rt_pl_seq_exec. GATE-PK 419/0/635. smoke 5/5.
-- [ ] **PL-T-4** — `bb_pl_call.c`. Verify rung04 predicate call PASS. GATE-PK.
-- [ ] **PL-T-5** — `bb_pl_choice.c`. Verify rung05 multi-clause PASS. GATE-PK.
-- [ ] **PL-T-6** — `bb_pl_alt.c`. Verify rung06 disjunction PASS. GATE-PK.
-- [ ] **PL-T-7** — `bb_pl_cut.c`. Verify rung07 cut PASS. GATE-PK.
+- [x] **PL-T-1** ✅ — `bb_builtin.cpp` (renamed from bb_pl_builtin): `BB_BUILTIN` x86 template (write/nl/halt). Done.
+- [x] **PL-T-2** ✅ — `bb_pl_var.cpp` + `bb_atom.cpp` + `bb_unify.cpp`; rt_pl helpers. smoke 5/5.
+- [x] **PL-T-3** ✅ — `bb_arith.cpp` + `bb_pl_seq.cpp`; rt_pl_arith + rt_pl_seq_exec. smoke 5/5.
+- [ ] **PL-T-4** — `bb_call.cpp` (or `bb_pl_call.cpp`): `BB_CALL` Prolog predicate call. Verify rung04 PASS. GATE-PK.
+- [ ] **PL-T-5** — `bb_choice.cpp`: `BB_CHOICE`. Verify rung05 multi-clause PASS. GATE-PK.
+- [ ] **PL-T-6** — `bb_alt.cpp`: `BB_ALT` Prolog disjunction. Verify rung06 PASS. GATE-PK.
+- [ ] **PL-T-7** — `bb_cut.cpp`: `BB_CUT`. Verify rung07 PASS. GATE-PK.
 
 ## Session Setup
 
@@ -325,22 +325,20 @@ Each keyword variable read/write. `BB_ICN_KEYWORD` ir_exec L904.
 
 ## Watermark
 
+
 ```
-one4all: 13f4c7d4 (ICN-T-2 + BB_ICN_* rename complete)
-Gate: PASS=507 FAIL=0 STUB=608
+one4all: HEAD (ICN-T-3 + RULE: no template code in emit_core.c)
+Gate: PASS=516 FAIL=0 STUB=599
 Icon --interp: PASS=195 FAIL=36 XFAIL=35
 Prolog smoke: PASS=5 FAIL=0
-PL-T-1 ✅ bb_pl_builtin.cpp (write/nl/halt)
-PL-T-2 ✅ bb_pl_var.cpp + bb_pl_atom.cpp + bb_pl_unify.cpp
-PL-T-3 ✅ bb_pl_arith.cpp + bb_pl_seq.cpp
-ICN-T-2 ✅ bb_to_by.cpp + icn_to_by_rt (BB_TO_BY int+real TEXT arm)
-RENAME ✅ BB_ICN_* → BB_*: 22 kinds renamed, 5 collisions resolved
-  Collision alternates: BB_GEN_ALT (was BB_ICN_ALTERNATE)
-                        BB_GEN_BINOP (was BB_ICN_BINOP)
-                        BB_GEN_SCAN (was BB_ICN_SCAN)
-  Dead/merged: BB_ICN_TO_BY → BB_TO_BY, BB_ICN_LIMIT → BB_LIMIT
-NEXT: ICN-T-3 — bb_gen_binop.cpp (BB_GEN_BINOP, arithmetic+relop cross-product)
-      PL-T-4  — bb_pl_call.cpp (rt_pl_call)
+PL-T-1 ✅ bb_builtin.cpp (BB_BUILTIN write/nl/halt)
+PL-T-2 ✅ bb_pl_var.cpp + bb_atom.cpp + bb_unify.cpp
+PL-T-3 ✅ bb_arith.cpp + bb_pl_seq.cpp
+ICN-T-2 ✅ bb_to_by.cpp + icn_to_by_rt (BB_TO_BY int+real)
+ICN-T-3 ✅ bb_binop_gen.cpp + rt_binop_gen (BB_BINOP_GEN cross-product)
+RENAME ✅ BB_ICN_* → BB_* complete; RULE ✅ no template code in emit_core.c
+NEXT: ICN-T-4 — bb_proc_gen.cpp (BB_PROC_GEN rung02)
+      PL-T-4  — bb_call.cpp (BB_CALL rung04)
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
