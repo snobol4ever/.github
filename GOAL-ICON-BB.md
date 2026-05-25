@@ -248,7 +248,7 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h — A4 done 2026-05-25, one4all `7af3551d`) — F-6a/b/c done 2026-05-25 `5871962e`. NEXT: F-6d (BB_BINOP_GEN/ARITH/UNIFY)
+## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h — A4 done 2026-05-25, one4all `7af3551d`) — F-6a/b/c done 2026-05-25 `5871962e`. NEXT: F-6d (BB_BINOP_GEN/ARITH/UNIFY). ⚠ EMERGENCY: rename BB_t.ival → ival1 to match ival2/ival3 before touching any BB_t field. grep -rn "->ival\b" src/ for all sites.
 
 **NEXT: A5** — `AST_SEQ_EXPR` generative parens. Then A1 (bang_binary/lconcat).
 
