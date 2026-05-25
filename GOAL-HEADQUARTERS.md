@@ -23,6 +23,24 @@
 
 ---
 
+## Session State (2026-05-25 — LOCAL-PURGE-1/2/3 X86-arm sweep ✅ — SM + XA done, BB simple-inline partial; BIG-CONCAT reshape)
+
+**one4all this session.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN (no new violators), prolog 124/0/0. Byte-identical / output-preserving throughout (9 successive green gates).
+
+**Scope (Lon, this session):** remove every non-loop-iterator local from the PLATFORM_X86 arm of ALL BB/SM/XA templates AND reshape each X86 arm so the three medium blocks (`MEDIUM_MACRO_DEF` / `MEDIUM_BINARY` / `MEDIUM_TEXT`) each keep their own `if` but return a SINGLE BIG-CONCAT expression of the form `emitX + (cond ? emit1 : emit2) + emit_for(lo,hi,f) + emitZ`. Inner per-op `switch`es folded to ternary chains; `for`-built accumulators folded to `emit_for`.
+
+**SM templates — ALL DONE ✅.** `sm_compare` (`val`, binary `fn`→ternary), `sm_expr_incr` (`op`), `sm_pat_nullary` (binary `fn` switch→file-static `sm_pat_nullary_rt_fn`; TEXT switch→ternary), `sm_arith` (binary `fn`→file-static `sm_misc_nullary_rt_fn`; both TEXT switches→ternary), `sm_defines` (`is_entry`), `sm_jumps` (`op` rescoped to non-X86 arms; `sm_label` converted from direct-emit to `sm_label_str` `_str()` pattern), `sm_pat_anchors` (`s`/`op` inlined in X86; binary `fn`→file-static `sm_pat_string_arg_rt_fn`; `char lbl[64]`→`strtab_label_s()`; TEXT switch→ternary), `sm_pat_combine` (all 5 fns: `is_imm`/`char lbl|flbl|nlbl[64]`→inline+`strtab_label_s()`), `sm_push_pop_lits` (`char lbl[64]`/`preview`→`strtab_label_s()`+new `render_str_preview_s`; `double val`/`bits`→new file-static `f64_bits`), `sm_returns` (`cond`/`operand_s`/`comment`/`pre` folded inline in all 3 RETURN/FRETURN/NRETURN X86 TEXT arms; `op` kept for non-X86 arms).
+
+**New helpers added:** `strtab_label_s()` (already existed), `render_str_preview_s()` + `f64_bits()` (sm_template_common.h / sm_push_pop_lits.cpp), file-static `*_rt_fn()` op→fn-pointer mappers in sm_pat_nullary/sm_arith/sm_pat_anchors.
+
+**XA templates — builder trio + flat DONE ✅.** `xa_pl_builder` (`pred_idx`/`cfg_n`/`entry_idx`/`name_lbl`/`sv`/`nk` all inlined to direct `g_emit.*`; lambdas de-captured to `[]`), `xa_pl_kids_rodata` (`any`→file-static `xa_pl_any_kids`; `nk` inlined), `xa_pl_sub_builder` (`any_kids`→file-static `xa_pl_any_sub_kids`; all scalar aliases + `sv`/`nk` inlined; lambdas de-captured), `xa_flat` (`char buf[BB_BANNER_RULE_LEN+4]`→inline `std::string("#")+std::string(N,'=')`). Note: `xa_flat`/`xa_bb_macro_library`/`xa_epilogue` remain sanctioned-imperative XA (kept per prior Lon ruling); their flagged side-effects are NOT template-body X86-arm locals.
+
+**BB templates — simple-inline PARTIAL.** DONE ✅: `bb_pat_abort`, `bb_pat_rem`, `bb_pat_len` (all: `lbl_succ/fail/back`, `n` inlined), `bb_pat_pos` / `bb_pat_tab` (`n` inlined; `body`/`hdr`/`back` accumulators folded to ternary BIG-CONCAT; `rpos`/`rtab` kept for non-X86 arms). `nid`/`sid` left where only non-X86 arms read them.
+
+**NEXT (this goal continues): LOCAL-PURGE-3 remainder** — `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence` (eliminate `r` accumulator → single CONCAT/`emit_for` return; inline `nid`/`sid`/`tag_s`), `bb_pl_var`/`bb_pl_atom`/`bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin` (inline scalars + fold `hdr`/`pre`/`stub` accumulators). THEN **LOCAL-PURGE-4** (charset driver-lift: bb_pat_any/break/span/notany/arb — needs `g_emit.bb_cs_id` field + driver `id=g_flat_node_id++` lift) and **LOCAL-PURGE-5** (bb_lit/bb_arbno/bb_capture driver-lift — needs `g_emit.bb_rt_obj`/`bb_child_lbl` fields). These three BB driver-lift files are the same set the purity audit still flags (expected). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-25 — LOCAL-PURGE rung added; SM_PUSH_EXPRESSION binary arm wired)
 
 **one4all commit this session: `2ca05956`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
@@ -281,30 +299,30 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 
 **Order:** simple-inline and strtab fixes first (no driver changes, no gate impact). Driver-lift fixes last (require new `g_emit` fields + driver changes + gate re-freeze).
 
-#### LOCAL-PURGE-1 — SM simple-inline + strtab fixes ⬅ CURRENT STEP
-- [ ] `sm_compare`: inline `val` → `(int)pSM->a[0].i` at use site.
-- [ ] `sm_expr_incr`: inline `op` → `(int)pSM->op` at use site.
-- [ ] `sm_defines`: inline `is_entry`, `has_repl`, `subj_name`; eliminate `r` accumulator → single CONCAT return.
-- [ ] `sm_pat_anchors`: inline `s`, `op`; replace `char lbl[64]` → `strtab_label_s()`; eliminate `r` accumulator.
-- [ ] `sm_pat_combine`: inline `s`, `kind`, `fname`, `namelist`, `is_imm`, `nargs`, `sname`, `has_repl`; replace all `char lbl/flbl/nlbl[64]` → `strtab_label_s()`; eliminate `r` accumulators.
-- [ ] `sm_push_pop_lits`: inline `s`, `op`; replace `char lbl[64]` → `strtab_label_s()`; inline `val/bits` → union cast; eliminate `preview` → direct `emit_fmt`.
-- [ ] `sm_returns`: inline `i` → `_.i` at use site.
-- [ ] `sm_pat_nullary`: inline `i` → `_.i` at use site.
-- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+#### LOCAL-PURGE-1 — SM simple-inline + strtab fixes ✅ (2026-05-25)
+- [x] `sm_compare`: inline `val` → `(int)pSM->a[0].i` at use site.
+- [x] `sm_expr_incr`: inline `op` → `(int)pSM->op` at use site.
+- [x] `sm_defines`: inline `is_entry`, `has_repl`, `subj_name`; eliminate `r` accumulator → single CONCAT return.
+- [x] `sm_pat_anchors`: inline `s`, `op`; replace `char lbl[64]` → `strtab_label_s()`; eliminate `r` accumulator.
+- [x] `sm_pat_combine`: inline `s`, `kind`, `fname`, `namelist`, `is_imm`, `nargs`, `sname`, `has_repl`; replace all `char lbl/flbl/nlbl[64]` → `strtab_label_s()`; eliminate `r` accumulators.
+- [x] `sm_push_pop_lits`: inline `s`, `op`; replace `char lbl[64]` → `strtab_label_s()`; inline `val/bits` → union cast; eliminate `preview` → direct `emit_fmt`.
+- [x] `sm_returns`: inline `i` → `_.i` at use site.
+- [x] `sm_pat_nullary`: inline `i` → `_.i` at use site.
+- [x] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
 
-#### LOCAL-PURGE-2 — XA simple-inline fixes
-- [ ] `xa_pl_builder`: inline `pred_idx`, `cfg_n`, `entry_idx`, `name_lbl` → direct `g_emit.*` reads; inline `sv`, `nk` inside FOR body.
-- [ ] `xa_pl_kids_rodata`: inline `any` → ternary; inline `nk` → direct field read in FOR body.
-- [ ] `xa_pl_sub_builder`: inline all scalars → direct `g_emit.*` reads; inline `sv`, `nk` in FOR body; eliminate `any_kids` → ternary.
-- [ ] `xa_flat`: replace `char buf[…]` → `std::string(…)` inline.
-- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+#### LOCAL-PURGE-2 — XA simple-inline fixes ✅ (2026-05-25 — pl_builder/kids_rodata/sub_builder/flat)
+- [x] `xa_pl_builder`: inline `pred_idx`, `cfg_n`, `entry_idx`, `name_lbl` → direct `g_emit.*` reads; inline `sv`, `nk` inside FOR body.
+- [x] `xa_pl_kids_rodata`: inline `any` → ternary; inline `nk` → direct field read in FOR body.
+- [x] `xa_pl_sub_builder`: inline all scalars → direct `g_emit.*` reads; inline `sv`, `nk` in FOR body; eliminate `any_kids` → ternary.
+- [x] `xa_flat`: replace `char buf[…]` → `std::string(…)` inline.
+- [x] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
 
-#### LOCAL-PURGE-3 — BB simple-inline fixes (non-driver-lift)
-- [ ] `bb_pat_abort`: inline `lbl_fail`, `lbl_back`, `nid`, `sid`.
-- [ ] `bb_pat_rem`: inline `lbl_succ/fail/back`, `nid`, `sid`.
-- [ ] `bb_pat_len`: inline `n`, `lbl_succ/fail/back`, `nid`, `sid`; eliminate `tag_s`.
-- [ ] `bb_pat_pos`: inline `rpos`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `body`, `tag_s`.
-- [ ] `bb_pat_tab`: inline `rtab`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `back`, `tag_s`, `tag_fail`.
+#### LOCAL-PURGE-3 — BB simple-inline fixes (non-driver-lift) 🔄 PARTIAL (abort/rem/len/pos/tab ✅; alt/cat/fence/pl_* OPEN)
+- [x] `bb_pat_abort`: inline `lbl_fail`, `lbl_back`, `nid`, `sid`.
+- [x] `bb_pat_rem`: inline `lbl_succ/fail/back`, `nid`, `sid`.
+- [x] `bb_pat_len`: inline `n`, `lbl_succ/fail/back`, `nid`, `sid`; eliminate `tag_s`.
+- [x] `bb_pat_pos`: inline `rpos`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `body`, `tag_s`.
+- [x] `bb_pat_tab`: inline `rtab`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `back`, `tag_s`, `tag_fail`.
 - [ ] `bb_pat_alt` / `bb_pat_cat` / `bb_pat_fence`: eliminate `r` → single CONCAT/FOR return; inline `nid`, `sid`, `tag_s`.
 - [ ] `bb_pl_var`: inline `slot` → `(int)pBB->ival2`.
 - [ ] `bb_pl_atom`: inline `atom`, `lbl` → `pBB->sval` / `emit_intern_str(pBB->sval)` inline.
