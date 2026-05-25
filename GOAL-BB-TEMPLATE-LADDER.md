@@ -104,10 +104,10 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 - [x] **ICN-T-2** ✅ — `bb_to_by.cpp` + `icn_to_by_rt` runtime: `BB_TO_BY` int+real x86 TEXT template. rung01 step variants PASS. GATE-PK 507/0/608. one4all `13f4c7d4`. Also: renamed all BB_ICN_* → BB_* (22 kinds), 5 collisions resolved (BB_GEN_ALT, BB_GEN_BINOP, BB_GEN_SCAN; BB_ICN_TO_BY+BB_ICN_LIMIT dead, merged into existing).
 - [x] **ICN-T-3** ✅ — `bb_binop_gen.cpp` + `rt_binop_gen` runtime: `BB_BINOP_GEN` x86 TEXT template (cross-product arith/relop). GATE-PK 516/0/599.
 - [ ] **ICN-T-4** — `bb_proc_gen.cpp`: `BB_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
-- [ ] **ICN-T-5** — `bb_upto.cpp`: `BB_UPTO`. Verify rung03 suspend/generator PASS. GATE-PK.
+- [x] **ICN-T-5** ✅ — `bb_upto.cpp`: `BB_UPTO` inline x86, no RT calls. GATE-PK 513/0/602.
 - [ ] **ICN-T-6** — `bb_gen_alt.cpp`: `BB_GEN_ALT`. Verify rung04 `A|B` PASS. GATE-PK.
 - [ ] **ICN-T-7** — `bb_limit.cpp`: `BB_LIMIT`. Verify rung05 `gen\N` PASS. GATE-PK.
-- [ ] **ICN-T-8** — `bb_iterate.cpp`: `BB_ITERATE`. Verify rung06 `!list` PASS. GATE-PK.
+- [x] **ICN-T-8** ✅ — `bb_iterate.cpp`: `BB_ITERATE` inline x86, static char slots, no RT calls.
 - [ ] **ICN-T-9** — `bb_gen_scan.cpp`: `BB_GEN_SCAN`. Verify rung07 scan PASS. GATE-PK.
 - [ ] **ICN-T-10** — `bb_keyword.cpp`: `BB_KEYWORD`. Verify rung08 keywords PASS. GATE-PK.
 - [ ] **ICN-T-11..N** — remaining `BB_*` kinds, one per step, one rung per step.
@@ -338,8 +338,9 @@ PL-T-3 ✅ bb_arith.cpp + bb_pl_seq.cpp
 ICN-T-2 ✅ bb_to_by.cpp + icn_to_by_rt (BB_TO_BY int+real)
 ICN-T-3 ✅ bb_binop_gen.cpp + rt_binop_gen (BB_BINOP_GEN cross-product)
 RENAME ✅ BB_ICN_* → BB_* complete; RULE ✅ no template code in emit_core.c
-NEXT: ICN-T-4 — bb_proc_gen.cpp (BB_PROC_GEN rung02)
-      PL-T-4  — bb_call.cpp (BB_CALL rung04)
+NEXT: ICN-T-6 — bb_gen_alt.cpp (BB_GEN_ALT inline x86)
+      ICN-T-7 — bb_limit.cpp (BB_LIMIT inline x86)
+      PL-T-4  — bb_call.cpp (BB_CALL)
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
