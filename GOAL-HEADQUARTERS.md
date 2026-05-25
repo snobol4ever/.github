@@ -23,7 +23,26 @@
 
 ---
 
-## Session State (2026-05-25 — NB-1 ✅ + NB-2 partial ✅: bb_bin_t sweep; Prolog binary arms fixed)
+## Session State (2026-05-25 — NB-2 bb_lit ✅ + NB-3a ✅ + NB-3b bb_lit ✅: buffer-family removal begun)
+
+**one4all commit this session: `12ee08e0`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
+
+**NB-2 `bb_lit` BINARY ✅ — last compile-time-constant-site arm converted to `bb_bin_t`.** `bb_lit` MEDIUM_BINARY arm was the final `bb_sink_str`+`emit_jmp`+`emit_label_define` arm with static sites. Converted to one `bb_bin_t` return: `bin = { {22,89,105,109,121}, {fail,fail,succ,back,fail}, {f,f,f,TRUE,f} }` + single 125-byte concat. Key fix during conversion: the two conditional jumps are `JG` (`0F 8F`, 6 bytes) and `JNE` (`0F 85`, 6 bytes) — NOT `E9` (5 bytes); first wrong attempt used `\xE9` for all and failed the structural gate by 2 bytes (123 vs 125). `lit`/`memcmp` pointers + `len` baked as movabs/imm operands (masked by `.bin` normalizer). Byte-identical vs `BB_PAT_LIT.bin` baseline.
+
+**NB-3 REMOVAL LADDER added + NB-3a/3b begun.** New rung in this file: systematically remove the buffer-writing family (`emit_jmp`/`emit_label_define`/`emit_text_jmp`/`emit_text_label`/`bb_sink_str` — all write through `bb_emit_buf`/`bb_emit_pos` page machinery) in favor of the pure `s_*` (string) and `bb_bin_t` (string+fixup list) paths. Full call-site inventory in the ladder. Buffer-family footprint reduced **11 files → 6 files** this session.
+
+**NB-3a ✅** — `bb_fail`, `bb_eps`, `bb_pat_arb`: identical trivial shape (2 JMP + 1 label_def at compile-time offsets {1,5,6}) converted from `emit_jmp`+`emit_label_define` to static `bb_bin_t` return + `bb_emit_asm_result(str, bin)` wrapper. `BB_PAT_ARB.bin`/`BB_FAIL.bin` byte-identical; `BB_EPS` has no per-kind audit cell (degenerate box, never sampled).
+
+**NB-3b `bb_lit` ✅** — `bb_lit` TEXT arm converted from imperative `emit_comment`/`emit_2asm`/`emit_text_jmp`/`emit_text_label` (returning `std::string()` after side-effects) to a pure `s_*` CONCAT (`s_comment`/`s_2asm`/`s_1asm(std::string(lbl)+":")`). `emit_intern_str(lit)` side-effect (string registration) + `g_emit_pos += 7` bookkeeping preserved as statements before the return. Leading-space difference between `emit_text_jmp` (`"jg X\n"`, no indent) and `s_2asm` (`" jg X\n"`, one space) is normalized away — `normalize_per_kind_cell.py` line 114 does `tokens.extend(line.split())`. `bb_lit` now FULLY off the buffer family (BINARY=`bb_bin_t`, TEXT=`s_*`). `BB_PAT_LIT.s` byte-identical.
+
+**REMAINING (NB-3c/3d driver-lift — 6 files):**
+- **NB-3c** `bb_capture`, `bb_arbno` — `for(port=0..1)` loop with conditional `emit_label_define(_.lbl_back_p)` mid-loop; sites depend on port iteration → lift loop to driver collection or carry mid-blob def site.
+- **NB-3d** `bb_pl_arith`, `bb_pl_unify`, `bb_pl_builtin`, `bb_pl_seq` — conditional `if(ls)`/`if(rs)`/`if(op_lbl)` movabs sequences mean rel32 sites are NOT compile-time constants (LP-5 intern-buffer aliasing prereq: `emit_intern_str` returns shared `g_intern_str_buf`). **PLUS latent bug**: `bb_pl_seq` BINARY arm + `pl_unify_tail_binary()` helper emit text comments via `emit_text_n` INTO the binary stream (baked into `BB_PL_SEQ.bin.raw` baseline — verify: `od -A x -t x1z baselines/per_kind/x86/binary/BB_PL_SEQ.bin.raw` shows ASCII `# BOX PL_SEQ`), and the trailing `emit_text_jmp`/`emit_text_label` are no-ops in binary mode so the jump bytes are MISSING. Proper fix removes the text + adds real jump bytes → baseline re-freeze expected (NEW/GONE churn is correct here, not a regression).
+- **NB-3e** — once all 6 off the buffer family: delete `emit_jmp`/`emit_label_define`/`emit_text_jmp`/`emit_text_label`/`bb_sink_str` + `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_emit_patch_rel32`; collapse the `bb_emit_asm_result` REPLAY bridge to a direct page write.
+
+⛔ Beauty gate SUSPENDED.
+
+
 
 **one4all commits this session: `b91fd3dd` (NB-1) + `c01959f4` (NB-2 partial) + `1dcbd29e` (NB-2 Prolog fix).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
 
@@ -51,6 +70,26 @@
 - [ ] **NB-2** Convert remaining (abort/rem/fence/pos/tab ✅):  MEDIUM_BINARY arms to `bb_bin_t` return: `bb_lit`, `bb_capture`, `bb_arbno`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_rem`, `bb_pat_abort`, charset `bb_pat_any`/`break`/`span`/`notany`/`arb`, `bb_pl_*`. Wire each wrapper to `bb_emit_asm_result(bb_bin_t)`. Gate each.
 - [ ] **NB-3** FINAL buffer deletion: delete `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_sink_str`/`emit_jmp`/`emit_label_define`/`bb_emit_patch_rel32`. GATE-PK NEW=0 GONE=0.
 ⛔ Beauty gate SUSPENDED. (Snocone `+`→`.` port is LATER, not this work — Lon.)
+
+### ⚡ NB-3 REMOVAL LADDER — eliminate buffer-family from templates (s_* / bb_bin_t replace them)
+
+**Principle.** The buffer family (`emit_jmp`, `emit_label_define`, `emit_text_jmp`, `emit_text_label`, `bb_sink_str`) writes through the growable `bb_emit_buf`/`bb_emit_pos` page machinery. The `s_*` family (`s_1asm`, `s_2asm`, `s_L2asm`, `s_comment`, `s_directive`) and the `bb_bin_t` return path are pure (string + fixup list, no buffer). Every template call site of the buffer family must move to one of those two. Once zero template call sites remain, delete the buffer functions + `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_emit_patch_rel32` and the `bb_emit_asm_result` REPLAY bridge collapses to a direct `bb_asm_apply`-style page write.
+
+**Call-site inventory (one4all, this session):**
+
+| Class | Files | Fix |
+|---|---|---|
+| **NB-3a — trivial static `bb_bin_t`** | `bb_fail`, `bb_eps`, `bb_pat_arb` (2 JMP + 1 label_def, compile-time offsets) | `bb_bin_t` static return like `bb_pat_abort` |
+| **NB-3b — TEXT-arm `emit_text_jmp`/`emit_text_label`** | `bb_lit` (TEXT), `bb_pl_seq` (TEXT/mixed), `bb_pl_unify` (helper + TEXT) | replace with `s_2asm("jmp",lbl)` / `s_L2asm(lbl+":","jmp",…)` CONCAT |
+| **NB-3c — driver-lift port-loop BINARY** | `bb_capture`, `bb_arbno` (`for(port)` + conditional `emit_label_define` mid-loop) | lift port loop to driver collection → static `bb_bin_t` per port; OR carry the back-label def via a single mid-blob site |
+| **NB-3d — driver-lift Prolog conditional BINARY** | `bb_pl_arith`, `bb_pl_unify`, `bb_pl_builtin` (conditional `if(ls)`/`if(rs)` movabs → sites not compile-time constant; shared `emit_intern_str` buffer aliasing) | LP-5 prereq: lift intern to distinct `g_emit` fields; conditional bytes computed in driver, sites recomputed |
+| **NB-3e — final deletion** | `emit_str.h/.cpp`, `emit_core.c`, `emit_bb.c` | delete the 5 buffer fns + `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_emit_patch_rel32`; collapse `bb_emit_asm_result` bridge |
+
+- [x] **NB-3a** — `bb_fail` ✅, `bb_eps` ✅, `bb_pat_arb` ✅ → `bb_bin_t` static 2-JMP+label_def return. GATE byte-identical (BB_PAT_ARB.bin / BB_FAIL.bin unchanged; BB_EPS has no audit cell).
+- [ ] **NB-3b** — `bb_lit` TEXT arm ✅ → pure `s_*` CONCAT (`emit_comment`/`emit_2asm`/`emit_text_jmp`/`emit_text_label` → `s_comment`/`s_2asm`/`s_1asm(lbl+":")`; `emit_intern_str` side-effect + `g_emit_pos += 7` preserved; leading-space diff normalized away by `.split()` in normalizer). `bb_lit` now FULLY off buffer family (BINARY=bb_bin_t, TEXT=s_*). REMAINING: `bb_pl_seq`/`bb_pl_unify` TEXT/mixed arms — `bb_pl_seq` BINARY arm emits text comments via `emit_text_n` INTO the binary stream (latent bug, baked into `BB_PL_SEQ.bin` baseline) + `emit_text_jmp` no-ops in binary (jumps MISSING from binary); proper fix removes text + adds jump bytes → baseline re-freeze → belongs in NB-3d. `pl_unify_tail_binary()` helper same mixed-mode bug. GATE 504/0/625 byte-identical.
+- [ ] **NB-3c** — `bb_capture`/`bb_arbno` port-loop driver-lift. GATE.
+- [ ] **NB-3d** — `bb_pl_arith`/`unify`/`builtin`/`seq` conditional-BINARY driver-lift (LP-5 intern prereq) + fix text-in-binary baked baselines (re-freeze expected). GATE.
+- [ ] **NB-3e** — delete buffer functions + page machinery; collapse bridge. GATE-PK NEW=0 GONE=0.
 
 ---
 
