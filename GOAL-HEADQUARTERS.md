@@ -45,7 +45,7 @@
 
 **THE-RULE-ALL (RP) complete through RP-14.** All G1 (Prolog registry), G2 (strtab rodata), G4 (cap fixup) fprintf eliminated. Nine new XA templates: xa_pl_kids_rodata, xa_pl_sub_builder, xa_pl_builder, xa_pl_registry_table, xa_strtab_rodata, xa_cap_fixup (plus RP-1 xa_expression_registry from prior session). RP-13 (walk-internal JVM/NET/JS/WASM per-instruction) deferred — Lon direction needed. PP-B/C/D open.
 
-**NEXT: PP-B (R4 conversion-locals) or RP-13 (Lon directs).**
+**NEXT: PP-C (R3 string-globals Σ shape) or RP-13 (Lon directs).**
 
 ### OOD ladder (all rungs ✅)
 OOD-1…14 complete — all bare emission helpers deleted/inlined into SM/BB/XA template bodies. See prior session watermarks in git log for detail.
@@ -103,8 +103,8 @@ those — emitting label definitions and jumps as TEXT, not via `emit_label_defi
 - [x] **PP-A6 — Prolog operand derefs (bb_pl_arith/unify/builtin `pBB->c[0]/c[1]`).** RULING: pBB->c[0]/c[1] are sub-records of the DATA struct passed in — direct field reads are legal template body operations (Snocone DATA() model). No driver flattening needed. Ruling-resolved no-op. GATE-PK 442/0/612.
 - [x] **PP-A7 — audit.** grep templates for `emit_flat_ir`, `emit_label_define_bb`, `emit_jmp_label`, `emit_label_initf`, `alloca`, `prog->instrs`, `pBB->c[` → all hits ruling-resolved or comment-only. No template returns `std::string()` after side-effects (BINARY medium imperative idiom is correct by design). GATE-PK 442/0/612, AUDIT GREEN, PROLOG 124/0/0.
 
-#### PP-B — R4 conversion-locals (after de-drive)
-Inline every `const char *x = x_s.c_str();` (33: 26 BB active x86, 7 SM stub arms). GATE.
+#### PP-B — R4 conversion-locals (after de-drive) ✅ `391d36ac`
+Eliminate all `.c_str()` conversions from BB/SM/XA templates. Added `std::string` overloads to `emit_1asm`/`emit_2asm` in `emit_io.h`. Replaced `emit_fmt(...).c_str()` with direct `std::string` args or string concatenation. 5 residual `.c_str()` pass to C callbacks — KEEP. GATE.
 
 #### PP-C — R3 string-globals shape
 `Σ` (`const char *` + `Σlen`) → `std::string` for direct concat; preserve emitted-asm ABI for
