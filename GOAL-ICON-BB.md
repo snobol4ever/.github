@@ -148,7 +148,7 @@ A rung is **honestly complete** iff: (a) output matches `--interp`, (b) passes u
 - [x] JCON: `ir_a_Limitation`. Gate: standard + anchor. (rung14 TT_LIMIT ✅ `554aa38f`)
 
 #### A4 — CH-17i-iterate — `AST_ITERATE` (`!E`)
-- [ ] JCON: `ir_a_Unop` with closure. Gate: standard + anchor.
+- [x] JCON: `ir_a_Unop` with closure. lower_iterate→SM_EXEC_BB via lower_icn_expr_top. SM_BB_EVAL eradicated. one4all `7af3551d`.
 
 #### A5 — CH-17i-seqexpr-gen — `AST_SEQ_EXPR` (generative `;`-parens)
 - [ ] JCON: `ir_conjunction`. Gate: standard + anchor.
@@ -186,7 +186,9 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
-## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h)
+## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h — A4 done 2026-05-25, one4all `7af3551d`)
+
+**NEXT: A5** — `AST_SEQ_EXPR` generative parens. Then A1 (bang_binary/lconcat).
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
 lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
