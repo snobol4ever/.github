@@ -4,6 +4,8 @@
 
 **NO C BYRD-BOX FUNCTIONS.** A C Byrd box is any `DESCR_t foo(void *zeta, int entry)` implementing α/β/γ/ω. ZERO permitted. All Byrd boxes are x86 assembly emitted by the emitter. Only `icn_bb_dcg` is exempt (infrastructure DCG driver). Write a C function like this → DELETE IT; implement as `IR_block_t` DCG in `ir_exec.c` + `lower_icn.c`.
 
+**BB TEMPLATE PORT LABELS MUST USE SINGLE-LETTER GREEK-DERIVED SUFFIXES.** Every local label in a BB template TEXT block that marks a port entry or exit must use `_a` (α fresh entry), `_b` (β retry entry), `_g` (γ success exit), `_w` (ω failure exit). Labels named `_back`, `_succ`, `_fail`, `_done`, `_retry`, `_exit`, or any other descriptive name for a port are forbidden. Internal non-port loop labels may keep descriptive names (e.g. `.Lfoo42_scan`). Pattern: `.Lfoo<id>_b:` for β, jump to `.Lfoo<id>_g` for success, `.Lfoo<id>_w` for failure. The infrastructure struct fields `_.lbl_succ`/`_.lbl_fail`/`_.lbl_back` are broker inputs — forward them to `_g`/`_w`/`_b` local labels immediately in the TEXT preamble.
+
 **NO AST WALKING IN MODES 2/3/4.** `sm_interp_run`, `sm_jit_run`, and all `src/emitter/*.c` code may not dereference `tree_t*` — no `->t`, `->c[]`, `->n`, `->v`. Mode 1 is DELETED (CLI-3M-9, 2026-05-18). `--interp` = mode 2 (SM dispatch). Stub sites print `[NO-AST] <opcode>` and set `last_ok=0`. Fix: write fresh SM/BB lowering. Never restore the AST call.
 
 **NO RESTORED DELETED INTERPRETER CODE.** `sno_engine.js` and pattern-interpreter sections of `sno_runtime.js` are gone forever. JS/JVM/NET/WASM emitters use Byrd-box factory functions only.
