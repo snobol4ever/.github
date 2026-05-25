@@ -356,3 +356,42 @@ NEXT: ICN-T-6 — bb_gen_alt.cpp (BB_GEN_ALT inline x86)
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
+
+## FREE-BB-BEFORE-RUN — Delete SM+BB before Mode 3/4 execution (added 2026-05-25)
+
+**Root insight (Lon, session 2026-05-25):** BB and SM graph structures must be completely deleted
+BEFORE execution in Mode 3 (--run) and Mode 4 (--compile). They have no access to the tree at
+runtime. Mode 3/4 x86 blobs are self-contained. Mode 2 (--interp) walks sm->instrs at runtime
+so it must NOT free them.
+
+**What stage2_free_bb_only does:** frees only BB_graph_t objects. Leaves sm->instrs alive so
+sm_jit_run can still read CUR_INS operand strings/integers via CUR_INS->a[0].s etc.
+**stage2_free_sm_bb:** frees everything — called after sm_jit_run completes.
+
+### Steps
+
+- [x] **FREE-1** — Add `stage2_free_bb_only(s2)` in `scrip_sm.c`/`scrip_sm.h`. Wire in
+  `scrip.c` Mode 3: call after `SM_codegen`, before `sm_jit_run`. Simple SNOBOL4 SM opcodes
+  (output/arith/concat) work. `SM_EXEC_STMT` and `SM_BB_ONCE_PROC` segfault because they
+  reach into freed `bb_table` at runtime.
+
+- [ ] **FREE-2** — Fix `SM_EXEC_STMT` in `sm_jit_interp.c`. `h_exec_stmt` reads
+  `g_stage2.sm.bb_table[i]` at runtime — freed. Fix: add a `case SM_EXEC_STMT:` in
+  `SM_codegen` that, if `a[2].i >= 0` (has BB pattern), walks the BB pattern graph at
+  codegen time and emits a blob that calls the already-compiled BB_PAT Byrd boxes directly
+  (via their emitter-process addresses, baked in at codegen). The blob must NOT reference
+  `bb_table` at runtime. SNOBOL4 `pattern_replace` and `goto` crosscheck will pass.
+
+- [ ] **FREE-3** — Fix `SM_BB_ONCE_PROC` in `sm_jit_interp.c`. `h_bb_once_proc` calls
+  `pl_bb_once_proc_by_name` → `bb_graph_of_pred` → freed graph. Fix: add a `case
+  SM_BB_ONCE_PROC:` in `SM_codegen` that walks the Prolog predicate's BB graph at codegen
+  time and emits fully-compiled Byrd box x86 for each BB_PL_* node. Runtime handler must
+  NOT touch `dcg_table` or any BB_graph_t. Prolog Mode 3 crosscheck 6 FAILs → 0.
+
+- [ ] **FREE-4** — After FREE-2 and FREE-3, move `stage2_free_bb_only` call to immediately
+  after `SM_codegen` returns in Mode 3. Confirm crosscheck_snobol4 and crosscheck_prolog
+  both clean. Then extend to Mode 4: `stage2_free_sm_bb` already called after
+  `sm_codegen_text` (correct — emitter needs graph, binary runs later without it).
+
+- [ ] **FREE-5** — ASAN verify: `ASAN_OPTIONS=detect_use_after_free=1` on all smoke gates.
+  Zero UAF. Mirrors PJ-12c.
