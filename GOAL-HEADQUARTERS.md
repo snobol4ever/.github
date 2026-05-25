@@ -23,6 +23,21 @@
 
 ---
 
+## Session State (2026-05-28 — HQ item (c) COMPLETE ✅ — last 2 SM binary arms wired, fork resolved)
+
+**one4all commit this session: `c95634b9` (sm_call_expression + sm_bb_pump_proc MEDIUM_BINARY arms).** GATE-PK **503/0/626** NEW=0 GONE=0 (was 501/0/628 — +2 SM binary PASS, −2 STUB), AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
+
+**⛔ FORK RESOLVED by Lon ruling: "no buffers for string-concatenating templates, just std::string."** This eliminated BOTH framings of the prior A/B fork:
+- **Option A (buffered SM cells)** was *defined* by the buffered `bb_emit_pos` path → dead under "no buffers."
+- **Option B (runtime `rt_call_pc` trampoline)** required a runtime PC→host-address map that does NOT exist in `rt.c` (the real pipeline resolves `call .L<pc>` via the assembler, not at runtime). Building one is a major new subsystem and would diverge binary from text semantically. Rejected.
+- **Resolution (3rd path):** each binary arm returns a pure 5-byte `std::string` `bytes("\xE8\x00\x00\x00\x00", 5)` — the honest, layout-independent encoding of `call rel32` with a placeholder (zero) displacement. No buffer, no patch list, no runtime helper. The displacement is zero exactly as a pre-link object would have it (parallels the `.bin` normalizer masking address-baked operands). Faithful for the per-kind audit cell, which emits each opcode in ISOLATION (`g_emit.n=1`, no surrounding program → no target offset exists by construction).
+
+**KEY FINDING — x86/binary gate is STRUCTURAL (byte-length), not bit-identity.** `test_per_kind_diff.sh` lines 73-80: for `x86/binary` it compares `base_sz == cur_sz` only, by explicit design (process-local/ASLR addresses bake into binary cells, can't be bit-stable). So (a) the 2 new arms PASS on 0→5 size change; (b) re-freezing surfaced 6 unrelated address-baking cells (`SM_BB_ONCE_PROC`, `SM_PAT_CAPTURE`, `SM_PAT_CAPTURE_FN`, `SM_PUSH_LIT_CS/S`, `SM_SUSPEND_VALUE`) whose `mov esi,imm32` operand shifts between builds (normalizer masks `movabs` imm64 via `48 B8/BF`, NOT the `BE` imm32) — these were REVERTED from the commit (their byte LENGTH is unchanged, so the structural gate passes either build's bytes; committing the churn would be pure noise). Pre-existing normalizer gap (handoff-flagged out-of-scope). Commit kept tight: 2 source files + 2 baseline cells (`.norm`+`.raw`) + 2 MANIFEST lines.
+
+**NEXT:** HQ item (c) is now COMPLETE — all SM binary arms wired. Resume IFT ladder: **IFT-3** (`sm_returns.cpp` stateful `g_in_define_body` `emit_mode_set`+`emit_text_n` mid-arm → lift to driver), then IFT-4 (`sm_template_common.h` ret-guard helpers → return strings), IFT-5 (XA template-vs-driver ruling for Lon). Latent: NORMALIZER-GAP rung — mask `mov esi/edi,imm32` for address-derived SM binary cells so re-freeze is build-stable (own rung; risk of over-masking real arity constants). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-27 — HQ item (c) PARTIAL + IFT-1/IFT-2 ✅ + IFT-AUDIT-1 ✅)
 
 **one4all commits this session: `31dc3efe` (4 SM arms) + `d404e22c` (emit_call_label) + `963eb9f5` (IFT-1) + `933dc567` (IFT-2) + IFT-AUDIT-1 (purity audit script).** GATE-PK **501/0/628** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
