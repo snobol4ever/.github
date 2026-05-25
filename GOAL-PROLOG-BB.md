@@ -105,28 +105,34 @@ The existing templates (`bb_builtin.cpp`, `bb_arith.cpp`, `bb_pl_seq.cpp`, etc.)
 5. **No `rt_*` port-logic helpers.** Permitted external calls: `trail_mark`, `trail_unwind`, `unify`, `prolog_atom_intern`, `term_new_int`, `term_new_atom` — utility functions with no port state.
 6. **Globals:** `g_pl_trail` and `g_pl_env` accessed via `lea rdi, [rip + g_pl_trail]` in TEXT.
 
-### ⛔ RULE: Port label names MUST derive from the Greek letter (single-letter suffixes only)
+### ⛔ RULE (always was): FOUR PORTS = FOUR ONE-CHARACTER GREEK NAMES EVERYWHERE
 
-Every local label inside a BB template TEXT block that marks a port entry or port exit **must** use the single-letter Greek-derived suffix. No descriptive alternatives (`scan`, `back`, `succ`, `fail`, `done`, `retry`, `exit`, etc.) are permitted for port labels.
+Every reference to a port — in `g_emit` struct fields, emitter C/C++ code, and in emitted assembly labels — must use the actual Greek character: `α` `β` `γ` `ω`. No English synonyms anywhere.
 
-| Port | Role | Required suffix | Example label |
-|------|------|-----------------|---------------|
-| α (alpha) | fresh entry | `_a` | `.Lupto42_a:` |
-| β (beta) | resume/retry entry | `_b` | `.Lupto42_b:` |
-| γ (gamma) | success exit | `_g` | `.Lupto42_g:` |
-| ω (omega) | failure exit | `_w` | `.Lupto42_w:` |
+| Port | Greek | Struct field | Emitted label suffix |
+|------|-------|--------------|----------------------|
+| fresh entry | α | *(entry is implicit — no field needed)* | `_α` if labelled |
+| retry entry | β | `lbl_β`, `lbl_β_p` | `_β` |
+| success exit | γ | `lbl_γ`, `lbl_γ_p` | `_γ` |
+| failure exit | ω | `lbl_ω`, `lbl_ω_p` | `_ω` |
 
-Applying this to `bb_upto.cpp`: the label `_.lbl_back` is β → rename to `_.lbl_b` (or emit `.Lupto<id>_b:`). The jump to `_.lbl_succ` is γ → `.Lupto<id>_g`. The jump to `_.lbl_fail` is ω → `.Lupto<id>_w`. Internal labels for the scan loop body (`.Lupto<id>_scan`, `.Lupto<id>_done`) are non-port internal labels — these may keep descriptive names since they are not port entries/exits.
+The current codebase uses `lbl_back`/`lbl_succ`/`lbl_fail` (and `_p` variants) in `emit_globals.h` and all 26 BB template files — **these are all wrong and must be renamed**. See step PJ-13 below.
 
-The struct fields `_.lbl_succ`, `_.lbl_fail`, `_.lbl_back` in `emit_globals.h` are the *infrastructure* names feeding in from the broker. The template TEXT itself must forward them to local labels with Greek-derived names immediately, so the emitted assembly is self-documenting at the four-port level. Pattern:
+### Step PJ-13 — Mass rename lbl_back/succ/fail → lbl_β/γ/ω across all emitter files
 
-```
-.Lfoo<id>_b:          /* β — retry entry: jump here from broker */
-    ...
-    jmp .Lfoo<id>_g   /* γ — success */
-    ...
-    jmp .Lfoo<id>_w   /* ω — failure */
-```
+**Scope:** 34 files, ~170 occurrences. Struct fields in `emit_globals.h`, all `BB_templates/*.cpp`, `emit_bb.c/.h`, `emit.h`, `xa_*.cpp`, `xa_bb_macro_library.cpp`, `sm_template_common.h`, `emit_per_kind_audit.c`.
+
+**Rename map:**
+- `lbl_succ_p` → `lbl_γ_p`
+- `lbl_fail_p` → `lbl_ω_p`
+- `lbl_back_p` → `lbl_β_p`
+- `lbl_succ` → `lbl_γ`
+- `lbl_fail` → `lbl_ω`
+- `lbl_back` → `lbl_β`
+
+**Do NOT rename** `flat_lbl_succ` / `flat_lbl_fail` in `emit_globals.h` lines 70–71 — those are flat-path infrastructure names, not port names.
+
+**Gate:** build clean, smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5.
 
 ### BB_PL_SEQ data layout (conjunction engine)
 
