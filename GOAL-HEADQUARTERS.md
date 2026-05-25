@@ -23,7 +23,32 @@
 
 ---
 
-## Session State (2026-05-25 — LOCAL-PURGE COMPLETE ✅ — TEMPLATE-PURITY GREEN, every arm pure)
+## Session State (2026-05-25 — SM_PUMP_BB deleted; SM opcode/macro/template inventory recorded)
+
+**one4all HEAD: `db4c355f`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, PURITY GREEN. Byte-identical.
+
+**THIS SESSION:** LP-7-NONX86 closed LOCAL-PURGE (PURITY GREEN, `7164247b`). Then audited SM opcode coverage and deleted one dead opcode.
+
+**SM_PUMP_BB DELETED (`db4c355f`)** — it was the LAST enum value before `SM_OPCODE_COUNT`, so removal renumbered nothing (baselines safe). No lowering site emitted it. Removed enum entry + dead `sm_interp.c` case + `g_handlers` NULL line.
+
+**⚠ ENUM IS POSITIONAL** — only `SM_LABEL = 0` is explicit; all others implicit/sequential. Deleting any MID-enum opcode renumbers everything after it → invalidates frozen per-kind baselines, `g_handlers[]`, name tables, serialized SM. Mid-enum deletions require a full baseline re-freeze — NOT a quick edit.
+
+**SM OPCODE INVENTORY (89 total after deletion):**
+- **WITHOUT a template function: 13** — `SM_BB_EVAL`, `SM_BB_ONCE`, `SM_BB_PUMP`, `SM_BB_PUMP_CASE`, `SM_BB_PUMP_EVERY`, `SM_BB_PUMP_SM`, `SM_ICMP_GT`, `SM_ICMP_LT`, `SM_LOAD_FRAME`, `SM_LOAD_GLOCAL`, `SM_STORE_FRAME`, `SM_STORE_GLOCAL`, `SM_SUSPEND`. (76 have one.)
+- **WITHOUT a macro: 14** — same set minus the ICMP pair (which share `COMP`), plus `SM_EXEC_BB` (has a template fn `sm_exec_bb` but NO macro — its TEXT arm is raw inline asm; lone "fn-but-no-macro" case).
+
+**Breakdown of the 13 missing-template opcodes:**
+- **LIVE Icon generator scaffolding, SILENTLY DROPPED (3):** `SM_BB_EVAL`, `SM_BB_PUMP_EVERY`, `SM_BB_PUMP_CASE`. Lowering (`lower.c`) emits these across MOST of the Icon corpus (e.g. `rung36_jcon_ck.icn`:141, `_numeric`:111, `_augment`:127 occurrences) for every/limit/case/generator-in-value-context. The x86 emitter has NO case → they fall through `codegen_sm_dispatch` `default: return 0` and VANISH (no stub, no diagnostic). This is the cause of widespread Icon segfaults/aborts. ⚡ THESE ARE THE REAL TARGETS for the upcoming Icon BB-construction session — not dead, just unwired. (Note: simple Icon every-loops route through `SM_BB_PUMP_PROC`, which IS dispatched+macro'd and works; the bare ops are the unfinished richer-context path. `ICN_BB_EVAL(t)` macro in lower.c is now a NO-OP since DAI-3.)
+- **DEAD, mid-enum (3):** `SM_BB_ONCE` (deleted PB-7, now FATAL if reached), `SM_BB_PUMP`, `SM_BB_PUMP_SM` — no live emit site. Deletable but need baseline re-freeze (positional enum).
+- **INTERP-ONLY / lowering-rewritten (7):** `SM_ICMP_GT`, `SM_ICMP_LT` (share `COMP`), `SM_LOAD_FRAME`, `SM_STORE_FRAME`, `SM_LOAD_GLOCAL`, `SM_STORE_GLOCAL`, `SM_SUSPEND` — never reach x86 emission.
+
+**ALSO FOUND (macro/inline toggle):** the old expanded-vs-macro'd `.s` view collapsed during template migration. Every SM `MEDIUM_TEXT` arm emits the macro INVOCATION; the expanded bodies live ONLY in `MEDIUM_MACRO_DEF` arms. `g_emit_inline`/`EMIT_TEXT_INLINE`/`USE_SM_MACROS` scaffolding survives but: no CLI flag sets `g_emit_inline=1`, and NO template reads `USE_SM_MACROS`. Probe-verified: forcing inline=1 skips the `.macro` preamble but still emits invocations → un-assemblable (`no such instruction: 'push_int 2'`). Reviving expanded view = add `--inline` flag + each TEXT arm branches `USE_SM_MACROS ? invocation : <MACRO_DEF body via shared _str helper>`.
+
+**NEXT:** Icon + Prolog BB-construction sessions (Lon, imminent) — wire `SM_BB_EVAL`/`PUMP_EVERY`/`PUMP_CASE` to real x86 templates. Then batch-delete the 3 dead mid-enum ops with a baseline re-freeze. ⛔ Beauty gate SUSPENDED.
+
+---
+
+## Previous Session State (LOCAL-PURGE COMPLETE ✅ — TEMPLATE-PURITY GREEN, every arm pure)
 
 **one4all HEAD: `7164247b`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. **TEMPLATE-PURITY GREEN.** Byte-identical.
 
