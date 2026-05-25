@@ -66,7 +66,7 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles" f
 | **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ sm-run 223/280 ✅. See `BUG_CATEGORIZATION_20260516.md`. |
 | **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
 | **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |
-| **BB Template Ladder — Icon + Prolog** | `GOAL-BB-TEMPLATE-LADDER.md` | one4all+corpus+.github | ICN-T-2 ✅ `13f4c7d4`. BB_ICN_* rename complete (BB_GEN_ALT/BINOP/SCAN for collisions). GATE-PK 507/0/608. **NEXT: ICN-T-3** (`bb_gen_binop.cpp`, BB_GEN_BINOP arith/relop cross-product) + **PL-T-4** (`bb_pl_call.cpp`). |
+| **BB Template Ladder — Icon + Prolog** | `GOAL-BB-TEMPLATE-LADDER.md` | one4all+corpus+.github | ICN-T-2 ✅ `13f4c7d4`. **NEXT: FREE-2** — fix SM_EXEC_STMT in SM_codegen to not touch bb_table at runtime (SNOBOL4 pattern/goto Mode 3). FREE-1 ✅ stage2_free_bb_only landed. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | one4all+corpus+.github | ✅ COMPLETE 2026-05-25 — PJ-12c ASAN verify clean. Mode 4 factorial working. All steps done. |
 | **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
 | **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
