@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `111422a3`** ✅ GATE-PK 442/0/612. RP-1..12 ✅. RP-14 ✅ (audit GREEN — walk-internal JVM/NET/JS/WASM deferred to RP-13). **NEXT: RP-13 or PP-B (Lon directs).** ⛔ Beauty gate SUSPENDED.
+**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `379376cf`** ✅ GATE-PK 442/0/612. RP-1..14 ✅. PP-A..B ✅. PP-C no-op (Σ never C++-concatenated). PP-D ✅. **PP-PURE-1 ✅** (XA templates pure + emit_for + strtab_label_s). **NEXT: PP-PURE-2** (xa_bb_ptr_slot side-effect + SM remaining + BB templates). See GOAL-PURE-TEMPLATES.md. ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -45,7 +45,7 @@
 
 **THE-RULE-ALL (RP) complete through RP-14.** All G1 (Prolog registry), G2 (strtab rodata), G4 (cap fixup) fprintf eliminated. Nine new XA templates: xa_pl_kids_rodata, xa_pl_sub_builder, xa_pl_builder, xa_pl_registry_table, xa_strtab_rodata, xa_cap_fixup (plus RP-1 xa_expression_registry from prior session). RP-13 (walk-internal JVM/NET/JS/WASM per-instruction) deferred — Lon direction needed. PP-B/C/D open.
 
-**NEXT: PP-C (R3 string-globals Σ shape) or RP-13 (Lon directs).**
+**NEXT: RP-13 (walk-internal JVM/NET/JS/WASM per-instruction dispatch).**
 
 ### OOD ladder (all rungs ✅)
 OOD-1…14 complete — all bare emission helpers deleted/inlined into SM/BB/XA template bodies. See prior session watermarks in git log for detail.
@@ -70,7 +70,10 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 
 ## Active Rungs
 
-### ⚡ PURE-PROJECTION (PP) — templates are pure CONCAT/IF/FOR — OPEN
+### ⚡ PURE-PROJECTION (PP) — templates are pure CONCAT/IF/FOR — SUPERSEDED by PP-PURE
+See GOAL-PURE-TEMPLATES.md for the active pure-template ladder (PP-PURE-1..7).
+
+### ⚡ PURE-PROJECTION (PP) — original steps archive
 Tracker: `.github/TRACK-PURE-PROJECTION.md`.
 
 **Principle (Lon, 2026-05-25).** A template is a pure function `state → one string`, no side
@@ -106,9 +109,8 @@ those — emitting label definitions and jumps as TEXT, not via `emit_label_defi
 #### PP-B — R4 conversion-locals (after de-drive) ✅ `391d36ac`
 Eliminate all `.c_str()` conversions from BB/SM/XA templates. Added `std::string` overloads to `emit_1asm`/`emit_2asm` in `emit_io.h`. Replaced `emit_fmt(...).c_str()` with direct `std::string` args or string concatenation. 5 residual `.c_str()` pass to C callbacks — KEEP. GATE.
 
-#### PP-C — R3 string-globals shape
-`Σ` (`const char *` + `Σlen`) → `std::string` for direct concat; preserve emitted-asm ABI for
-`&Σ`/`Σlen` (`TEMPLATE_ADDR_SIGMA`). Per Lon ruling. GATE.
+#### PP-C — R3 string-globals shape ⏳ RULING PENDING (likely no-op)
+`Σ` (`const char *` + `Σlen`) — templates never C++-concatenate Σ; only address-baked via `TEMPLATE_ADDR_SIGMA/SIGLEN` in x86 BINARY. No PP-C changes needed unless Lon rules otherwise.
 
 #### PP-D — R1/R2 scope tighten + final audit
 Each SM template reads only SM_t-fields + sanctioned globals; each BB template only BB_t-fields +
