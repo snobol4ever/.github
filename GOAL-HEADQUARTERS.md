@@ -25,7 +25,7 @@
 
 ## Session State (2026-05-25 — CAPS-CONCAT CC-1/CC-2 ✅; X86 arms folding into IF()-concat)
 
-**one4all HEAD: `b896bde8`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4 + bytes() arg-flip.
+**one4all HEAD: `c4b8c880`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4 + bytes() arg-flip + CC-5 partial (5 SM fns).
 
 **THIS SESSION:** CAPS-CONCAT rung (see Active Rungs). Added `IF(c,...)` (variadic — handles top-level commas, e.g. embedded `FOR(...)`) + `FOR(lo,hi,f)` macros to `emit_str.h`; `emit_for` kept as a thin alias of `FOR`. Collapsed the `PLATFORM_X86` block of **21 of 24** BB templates from a sequence of `if (MEDIUM_x){…return…}` into ONE `return IF(MEDIUM_MACRO_DEF,…)+IF(MEDIUM_BINARY,…)+IF(MEDIUM_TEXT,…);`, with `bin` set unconditionally (or via ternary) at the top of the X86 block. Branchy arms (`rpos`/`rtab`/`bb_pl_ls`/`n==0`/`xa_bb_ep_n>0`) folded via `?:` ternaries; charset-FOR family (`any`/`notany`/`break`/`span`) and `cat`/`alt`/`fence` use `FOR(...)`. Helper `scripts/consolidate_x86_arm.py` (brace-parser; SKIPs branchy arms). Every batch built + gated byte-identical.
 
@@ -132,7 +132,11 @@ during migration (call sites flip to `FOR`, then alias is deleted).
       **💡 FUTURE IDEA (Lon, 2026-05-25) — `SIZE(&len, expr)` selector:** the data-dependency CAN be expressed inside one concat with a new helper `SIZE(int* out, std::string s) { *out = (int)s.size(); return s; }`. Then the binary arm becomes, e.g., `IF(MEDIUM_BINARY, SIZE(&len, IF(_.bb_pl_ls, movabs(lhs)) + IF(_.bb_pl_rs, movabs(rhs)) + call_indirect) + SET_BIN(len, …) + tail_bytes)` — `len` is captured mid-concat, then the `bin` offsets are computed from it. Needs a tiny `SET_BIN(...)` (or IIFE) that writes `bin` by ref and returns `""`. This keeps the one-return shape AND handles the size-dependent offsets. Deferred — try on `bb_pl_arith` first as the prototype, then `unify`/`builtin`.
 - [x] **CC-4** All real `emit_for(` call sites flipped to `FOR(` (during CC-2/CC-3). `emit_for` alias retained in emit_str.h (harmless; delete is cosmetic). Remaining grep hits are `emit_form.h` substring false-positives, not calls.
 - [ ] **CC-4** Flip remaining `emit_for`→`FOR` (bb_pat_break/span/fence/any/notany + bb_template_common.h), then delete the `emit_for` alias.
-- [ ] **CC-5** (optional, later pass) extend consolidation to SM_templates + XA_templates, and to the JVM/JS/NET/WASM arms.
+- [ ] **CC-5** Extend `IF()`-concat fold to SM_templates (and later XA + non-x86 arms). **DONE (5 fns):** `sm_halt`, `sm_exec_bb`, `sm_pat_anchors`, `sm_pat_nullary`, `sm_compare`. SM templates have NO `bin` param (pure `(const SM_t*)→std::string`; binary arm just returns bytes) — simpler than BB, no bin-hoist. GATE-PK 504/0/625, AUDIT GREEN — byte-identical.
+      **SM-specific gotchas / remaining work (per-block, not per-file — one file holds several `_str` fns, each its own X86 block):**
+      - **`std::pair<std::string,int>` return shape (SKIP for plain IF):** `sm_calls` (sm_call_str), and blocks in `sm_jumps`, `sm_returns`. Their arms return `{string, flag}` — `IF(c,s)` yields `std::string()` on false, which won't compose with a pair. Needs a pair-aware selector or restructure; left as explicit medium blocks.
+      - **Side-effecting TEXT arm (SKIP or IIFE):** `sm_stno` (in sm_compare.cpp) calls `emit_text_stno_banner(...)` BEFORE its return — two statements, can't fold into `IF(MEDIUM_TEXT, expr)` without dropping the banner. Same pattern likely in `sm_defines`/`sm_expr_incr`/`sm_pat_combine`/`sm_push_pop_lits` (each has 2–5 side-effect calls in X86 arms — inspect per block). Fold only the blocks whose arms are single pure returns.
+      - **Clean multi-block candidates to finish:** re-inspect `sm_arith`(2), `sm_bb_calls`(2), `sm_jumps`(2, minus pair block), `sm_pat_combine`(5), `sm_push_pop_lits`(4), `sm_expr_incr`(3), `sm_defines`(1) block-by-block; fold the pure-return blocks, leave pair/side-effect ones. Then XA_templates, then (much later) the JVM/JS/NET/WASM arms.
 
 ---
 
