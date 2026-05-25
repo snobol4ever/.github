@@ -23,7 +23,17 @@
 
 ---
 
-## Session State (2026-05-25 — LOCAL-PURGE-5 ✅ — bb_arbno + bb_capture driver-lifted, all template bodies pure)
+## Session State (2026-05-25 — LOCAL-PURGE-6 ✅ — pl_* intern driver-lifted, shared-buffer aliasing fixed)
+
+**one4all HEAD: `07708564`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
+
+**LOCAL-PURGE-6 ✅** — `bb_pl_atom`/`bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin` driver-lifted. `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`), so the simultaneously-live `ls`/`rs`/`op_lbl` in arith/unify all aliased it — every label rendered as the LAST operand's `.S` (latent bug, masked by per-kind coverage). New `bb_prepare_pl(BB_t*)` (emit_bb.c, X86-gated) interns each operand up-front and copies its label into a distinct `g_emit` field (`bb_pl_ls`/`bb_pl_rs`/`bb_pl_op_lbl`, backed by `bb_pl_{ls,rs,op}_buf[64]`), wired in `walk_bb_node` before each pl_* dispatch (mirrors the LP-5 `bb_prepare_capture_arbno` pattern). All four bodies now hold ZERO `emit_intern_str` calls — pure reads of the lifted fields.
+
+**NEXT: LOCAL-PURGE-7** (optional deeper purge — drive remaining `std::string` value-builders into fields if Lon wants strict "loop-index-only" bodies; current remaining locals are benign accumulators / node-ptr aliases / size-offsets, NOT the shared-state hazard). Or proceed to the next HQ rung. ⛔ Beauty gate SUSPENDED.
+
+---
+
+## Previous Session State (LOCAL-PURGE-5 ✅ — bb_arbno + bb_capture driver-lifted, all template bodies pure)
 
 **one4all HEAD: `59e94d41`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
 
@@ -58,8 +68,8 @@
 - **LP-5 ✅** BB arbno/capture driver-lift — `bb_prepare_capture_arbno()` (emit_bb.c, X86-gated) lifts rt-obj/banner/XA_BB_PTR_SLOT/child-lbl/cap-fixup; new `g_emit.bb_rt_obj`+`bb_child_lbl`; bodies pure. CALLCAP branch was dead (op_name2 always NULL) — collapsed. `59e94d41`. GATE-PK 504/0/625, smoke 188/190-71.
 
 #### LOCAL-PURGE-6 — pl_* driver-lift + final audit — NEXT
-- [ ] `bb_pl_atom`/`bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin`: `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`) — `ls`/`rs`/`op_lbl` alias it, so simple-inline is unsafe (latent bug, masked by coverage). Driver-lift each into distinct `g_emit` fields, then inline. (`bb_lit` already pure; `xa_epilogue` benign `_str` — sanctioned.)
-- [ ] Final audit: `grep` in `_str()` bodies returns only `for (int i/j/port` lines. GATE-PK 504/0/625 NEW=0 GONE=0, AUDIT GREEN, PROLOG 124/0/0.
+- [x] `bb_pl_atom`/`bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin`: `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`) — `ls`/`rs`/`op_lbl` aliased it (latent bug: all three rendered the LAST operand's `.S` label). Driver-lifted into distinct `g_emit.bb_pl_ls`/`bb_pl_rs`/`bb_pl_op_lbl` (backed by `bb_pl_{ls,rs,op}_buf[64]`) via new `bb_prepare_pl(BB_t*)` (emit_bb.c, X86-gated), wired in `walk_bb_node` before each pl_* dispatch. All four bodies now hold ZERO `emit_intern_str` calls — pure reads of the lifted fields. (`bb_lit` already pure; `xa_epilogue` benign `_str` — sanctioned.)
+- [x] Audit: `grep emit_intern_str` in the four bodies returns 0. Remaining locals are benign value-builders (`std::string b/load_*/hdr`, node ptrs `lhs/rhs/arg`, `int j` size-offsets) — not the shared-buffer hazard. GATE-PK 504/0/625 NEW=0 GONE=0, AUDIT GREEN, PROLOG 124/0/0, smoke 188 / 190-71.
 
 ---
 
