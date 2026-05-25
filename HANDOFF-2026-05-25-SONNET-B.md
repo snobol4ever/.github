@@ -1,66 +1,62 @@
-# HANDOFF — 2026-05-25 Session B — Claude Sonnet 4.6
+# HANDOFF — 2026-05-25 Sonnet Session B
 
-**one4all HEAD:** `7161b357`
-**.github HEAD:** `8c49ed2d`
-**Gate:** GATE-PK 442/0/612 NEW=0 GONE=0 · AUDIT GREEN · PROLOG 124/0/0
-**Beauty gate:** ⛔ SUSPENDED
+## Session summary
 
----
+Goal: GOAL-PROLOG-BB — two new steps recorded and PJ-12 implemented.
 
-## Work completed this session (Session B)
+## What was done
 
-### RP rung — THE-RULE-ALL: all emission into BB/SM/XA templates
+### PJ-12 — Three-deletion pipeline cleanup (one4all `d073acf9`)
 
-**Full fprintf offender scan** found 8 groups, 14 steps (RP-1..14).
+Three data structures are now freed at the correct pipeline boundaries:
 
-**RP-10 ✅** — 3 stray `fprintf` in `codegen_sm_x86` loop → `emit_textf`.
+**1. `tree_t *ast_prog` — freed after `lower()` completes**
+- Added `ast_tree_free(tree_t *p)` inline to `src/include/ast.h`
+- Recursively frees every node and its `c[]` children block
+- Does NOT free `v.sval` — may alias lexer buffers
+- Called immediately after every `sm_preamble()` call in `scrip.c`
+- Also called after `codegen_program()` for non-x86 paths
 
-**RP-11 ✅** — `jvm_class_hdr` and `js_escape` called from `bb_capture.cpp` template replaced with `_str` twins + `emit_text_n`; deleted `fprintf` variants from `emit_core.c`.
+**2+3. `SM_sequence_t` arrays + `BB_graph_t` objects — freed after emitter**
+- Added `stage2_free_sm_bb(stage2_t *s2)` to `scrip_sm.c`/`scrip_sm.h`
+- Frees each `BB_graph_t*` in `bb_table[]` via `BB_free()`, then frees SM arrays
+- Called after `sm_codegen_text` succeeds (text emit path)
+- Called after `sm_jit_run` completes (JIT path — SM instrs needed during execution via `CUR_INS`, so free is AFTER run, not before)
+- `--interp` path untouched — SM walked at runtime
 
-**RP-12 ✅** — `wasm_emit_data_segments` (called from `xa_epilogue` template) converted `fprintf`/`fputc` → `emit_textf`.
+### PJ-11 + PJ-12 steps recorded in GOAL-PROLOG-BB.md (.github `8cd1c14a`)
 
-**RP-1 ✅** — `XA_EXPRESSION_REGISTRY` new opcode + template (`xa_expression_registry.cpp`). `codegen_expression_registry` is now a pure driver: walks `prog->instrs[]`, fills `g_emit.xa_expr_names/pcs/str_idxs/count`, calls `xa_dispatch(XA_EXPRESSION_REGISTRY)`. Template emits `.section .data` + `.Lexpression_registry:` + `.quad .SN / .quad .LPC` pairs + sentinel + `.text`. Retired old `XA_EXPRESSION_REGISTRY` enum entry that was marked RETIRED.
+PJ-11: ban raw `(uintptr_t)pBB` pointer embedding in BB templates for text/binary emit arms. Known offenders: `bb_binop_gen.cpp`, `bb_alt.cpp`, `bb_arith.cpp`, `bb_builtin.cpp`. Fix: use `_.node->*` for scalar reads; `bb_ptr_slot_lbl` (TEXT) / `bb_rt_obj` (BINARY) for pointer operands.
 
----
+## Gates at handoff
 
-## NEXT: RP-2..5 (Prolog predicate registry XA templates)
-
-The remaining Prolog `fprintf` offenders in `emit_sm.c`:
-
-- **RP-2** `XA_PL_KIDS_RODATA` — `codegen_pl_kids_rodata_for_pred`: emits `.section .rodata` + `.Lpl_kids_P_N:` + `.int` child-index arrays. Driver fills collection, template emits.
-- **RP-3** `XA_PL_SUB_BUILDER` — `codegen_pl_sub_builder_fn`: emits sub-builder function body (rodata kids + function label + prologue + `rt_pl_b_sub_*@PLT` calls + `ret`).
-- **RP-4** `XA_PL_BUILDER` — `codegen_pl_builder_fn`: emits main per-predicate builder function. Deletes `codegen_pl_b_node_call` and `codegen_pl_b_kids_call` too.
-- **RP-5** `XA_PL_REGISTRY_TABLE` — trailing `.Lpl_registry:` `.data` table in `codegen_pl_predicate_registry`.
-
-After RP-2..5, remaining open work:
-- **RP-6** audit (Prolog clean)
-- **RP-7** `XA_STRTAB_RODATA` (`walk_strtab_rodata`)
-- **RP-8** `XA_PATTERN_BLOBS` (`walk_bb_pattern_blobs`)
-- **RP-9** `XA_CAP_FIXUP` (`codegen_cap_fixup_init_calls`)
-- **RP-13** walk-internal fprintf (JVM/NET/JS/WASM per-instruction — large, future)
-- **RP-14** final audit
-
----
-
-## g_emit fields added this session
-
-```c
-const char **  xa_expr_names;    // expression label names (RP-1)
-int *          xa_expr_pcs;      // entry PCs (RP-1)
-int *          xa_expr_str_idxs; // strtab indices for .S%d labels (RP-1)
-int            xa_expr_count;    // count (RP-1)
+```
+smoke_prolog:        5/5  ✅
+crosscheck_prolog:   128/0 SKIP=4 ORACLE_MISS=11  ✅
+crosscheck_snobol4:  5/0 (beauty_omega pre-existing ORACLE_MISS, not regression)  ✅
+crosscheck_icon:     4/0  ✅
 ```
 
-(Prior session added `xa_label_names/pcs/count` for JS label register.)
+## Watermarks
 
----
+```
+one4all:  d073acf9
+.github:  8cd1c14a
+```
 
-## Namespace convention (established Session A)
+## Next step
 
-| Prefix | Meaning |
-|---|---|
-| `parser_*` | Parse → AST |
-| `lower_*` / `lower_flat_*` | AST → IR; flat lowering |
-| `codegen_*` | Orchestrate backend pass; driver |
-| `walk_*` | Traverse SM/BB structures |
-| `emit_*` | Template entry points + sanctioned primitives only |
+**PJ-11a** — In all BB templates, replace `pBB->ival` / `pBB->ival2` / `pBB->sval` with `_.node->ival` / `_.node->ival2` / `_.node->sval`. This is the scalar read fix (no pointer embedding yet). Build clean; gates unchanged.
+
+Then PJ-11b: add `bb_prepare_binop_gen()` in `emit_bb.c` (allocates `bb_rt_obj`, calls `xa_dispatch(XA_BB_PTR_SLOT)` in TEXT).
+Then PJ-11c: TEXT arm — `lea rdi, [rip + _.bb_ptr_slot_lbl]`.
+Then PJ-11d: BINARY arm — `u64le(_.bb_rt_obj)`.
+Then PJ-12c: ASAN verify no use-after-free.
+
+## Session start for next session
+
+1. Clone `.github`, `corpus`, `one4all`
+2. Read `PLAN.md` and `GOAL-PROLOG-BB.md`
+3. Read `RULES.md`
+4. Run `cd /home/claude/one4all && bash scripts/build_scrip.sh`
+5. First incomplete step: **PJ-11a**
