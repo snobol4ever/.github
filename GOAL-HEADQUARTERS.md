@@ -23,6 +23,18 @@
 
 ---
 
+## Session State (2026-05-24 — IFT-7 COMPLETE ✅ — flat_drive_cat/alt/fence de-driven through BB templates)
+
+**one4all commit this session: `0870bd74` (IFT-7).** GATE-PK **503/0/626** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
+
+**IFT-7 ✅ — flat_drive_cat / flat_drive_alt / flat_drive_fence de-driven.** These three driver functions in `emit_bb.c` were emitting x86 assembly directly via `emit_label_define_bb`/`emit_jmp_label` without a BB/SM/XA opcode — THE RULE violation. Fixed: driver pre-loads epilogue label/jmp pairs into new `g_emit.xa_bb_ep_define[]` / `g_emit.xa_bb_ep_jmp[]` collection (`xa_bb_ep_n` entries, max `XA_BB_EP_MAX=32`), then calls `EP_FILL(pBB,...)` which dispatches through `walk_bb_node` → template. New `PLATFORM_X86 / MEDIUM_TEXT` arm in `bb_pat_cat.cpp` and `bb_pat_alt.cpp` FORs over the collection emitting label defines and jmp instructions. `bb_pat_fence.cpp` `MEDIUM_TEXT` arm extended to handle the with-children EP case (`xa_bb_ep_n > 0`) vs. the zero-child inline case. New macros in `emit_bb.c`: `EP_RESET`, `EP_DEF`, `EP_JMP`, `EP_DEF_JMP`, `EP_FILL`. Purity audit: bb_pat_cat / bb_pat_alt / bb_pat_fence now **GONE** from the violators list. Baselines re-frozen: `text_macro`/`binary` cells for CAT/ALT correctly reflect `MEDIUM_MACRO_DEF` stub (`# no macro form`) — prior baselines had accidentally captured driver-side emission that bypassed medium discrimination.
+
+**Remaining purity audit violators:** bb_arbno / bb_capture (shared DE-DRIVE prereq: lift `xa_dispatch(XA_BB_PTR_SLOT)` + `g_cap_fixup_cb` to driver), bb_lit (independently convertible — no xa_dispatch), xa_bb_macro_library, xa_flat (sanctioned).
+
+**NEXT: DE-DRIVE bb_lit x86 TEXT arm** (no xa_dispatch dependency — independently convertible). Convert `emit_2asm` memcmp sequence to pure CONCAT return. Then tackle bb_capture / bb_arbno (shared DE-DRIVE prereq). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-24 — IFT-6 COMPLETE ✅ — FILE* out removed from sm_emit_t)
 
 **one4all commit this session: `afcdea29` (IFT-6).** GATE-PK **503/0/626** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188. Byte-identical.
@@ -258,7 +270,7 @@ DONE. xa_js_label_register + xa_epilogue + xa_file_header + xa_entry_dispatch �
 #### IFT-6 — remove _.out (and is_binary?) from sm_emit_t  ✅ (2026-05-24, `afcdea29`)
 DONE. `FILE* out` deleted from `sm_emit_t`. New `static FILE* g_emit_sink` in `emit_io.c` owned by `emit_io_set_sink(FILE*)`. `emit_text_n`/`emit_textf` read `g_emit_sink`; `emit_io.c` no longer includes `emit_globals.h`. All 14 `g_emit.out =` assignments across `emit_sm.c`/`emit_core.c`/`emit_per_kind_audit.c` → `emit_io_set_sink(...)`. xa_flat sanctioned arms confirmed to use `bb_emit_out`/`emit_outf()` (driver-layer binary sink, not `g_emit.out`). GATE-PK 503/0/626 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
 
-#### IFT-7 — de-drive flat_drive_cat / flat_drive_alt / flat_drive_fence  ← NEXT
+#### IFT-7 — de-drive flat_drive_cat / flat_drive_alt / flat_drive_fence  ✅ (2026-05-24, `0870bd74`)
 THE RULE violation: these three driver functions in `emit_bb.c` emit x86 assembly directly via `emit_jmp_label` / `emit_label_define_bb` without a BB/SM/XA opcode — violates Invariant 16. Fix follows the PP-A model exactly:
 
 **Shape:** driver pre-computes all label names + jump targets into `g_emit` collections/scalars, then calls `bb_pat_cat(pBB)` / `bb_pat_alt(pBB)` / `bb_pat_fence(pBB)` (which dispatch through `walk_bb_node` → template). The template's PLATFORM_X86 arm (currently `return std::string()` for cat/alt, and the zero-child MEDIUM_TEXT arm for fence) becomes a full CONCAT/IF/FOR over the pre-loaded label collections.
