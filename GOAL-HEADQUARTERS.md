@@ -29,7 +29,7 @@
 
 **XA driver/template split complete.** Six XA templates corrected: traversal→drivers, emission→templates. xa_rodata + xa_pattern_blobs deleted; xa_macro_library/xa_wasm_main split to open/close pairs; xa_flat emit_label_define_bb moved to driver; xa_js_label_register iterates g_emit collection. PP complete (PP-C Σ ruling pending).
 
-**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `7161b357`** ✅ GATE-PK 442/0/612. RP-10/11/12 ✅. RP-1 ✅ (XA_EXPRESSION_REGISTRY). **NEXT: RP-2..5** (Prolog XA templates). ⛔ Beauty gate SUSPENDED.
+**CORRAL-EMIT COMPLETE ✅ `b27c5f66`.** All `emit_*` in driver files are sanctioned primitives. **one4all HEAD: `111422a3`** ✅ GATE-PK 442/0/612. RP-1..12 ✅. RP-14 ✅ (audit GREEN — walk-internal JVM/NET/JS/WASM deferred to RP-13). **NEXT: RP-13 or PP-B (Lon directs).** ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -38,6 +38,14 @@
 **one4all HEAD: `3785ffd1`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN.
 
 **THE RULE holds. OOD ladder + OOD-PHASE-2 + NO-SNPRINTF all complete.**
+
+## Session State (2026-05-24 — RP-2..9+RP-14 COMPLETE)
+
+**one4all HEAD: `111422a3`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
+
+**THE-RULE-ALL (RP) complete through RP-14.** All G1 (Prolog registry), G2 (strtab rodata), G4 (cap fixup) fprintf eliminated. Nine new XA templates: xa_pl_kids_rodata, xa_pl_sub_builder, xa_pl_builder, xa_pl_registry_table, xa_strtab_rodata, xa_cap_fixup (plus RP-1 xa_expression_registry from prior session). RP-13 (walk-internal JVM/NET/JS/WASM per-instruction) deferred — Lon direction needed. PP-B/C/D open.
+
+**NEXT: PP-B (R4 conversion-locals) or RP-13 (Lon directs).**
 
 ### OOD ladder (all rungs ✅)
 OOD-1…14 complete — all bare emission helpers deleted/inlined into SM/BB/XA template bodies. See prior session watermarks in git log for detail.
@@ -133,37 +141,37 @@ Driver (`codegen_sm_x86`) walks `prog->instrs[]` collecting expression-label nam
 
 Driver fills `xa_pl_pred_idx`, per-node kids arrays into `g_emit` collection. Template emits `.section .rodata` + `.align 4` + `.Lpl_kids_P_N:` labels + `.int` arrays + `.text`. Delete `codegen_pl_kids_rodata_for_pred`.
 
-- [ ] **RP-2** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE.
+- [x] **RP-2** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-3 — XA_PL_SUB_BUILDER (new opcode + template)
 
 Driver fills scalars: pred_idx, node_idx, sub-graph node list into `g_emit` collection. Template emits optional rodata kids block + function label + prologue + `rt_pl_b_sub_*@PLT` call sequence + `ret`. Delete `codegen_pl_sub_builder_fn`.
 
-- [ ] **RP-3** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE.
+- [x] **RP-3** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-4 — XA_PL_BUILDER (new opcode + template)
 
 Driver fills: pred_idx, cfg node list, entry_idx, predicate name label, arity. Template emits builder function body. Delete `codegen_pl_builder_fn`, `codegen_pl_b_node_call`, `codegen_pl_b_kids_call`.
 
-- [ ] **RP-4** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE.
+- [x] **RP-4** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-5 — XA_PL_REGISTRY_TABLE (new opcode + template)
 
 Driver fills: `xa_pl_reg_names`, `xa_pl_reg_arities`, `xa_pl_reg_fn_labels`, `xa_pl_reg_count`. Template emits `.section .data` + `.Lpl_registry:` + quad table. Delete `codegen_pl_predicate_registry` body emission; loop becomes pure walker.
 
-- [ ] **RP-5** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE.
+- [x] **RP-5** — implement; wire opcode; driver fills + `xa_dispatch`; delete. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-6 — final audit (Prolog + expression registry)
 
 `grep -n "fprintf" src/emitter/emit_sm.c` returns zero emission fprintf calls in G1 functions. GATE.
 
-- [ ] **RP-6** — audit G1 clean. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
+- [x] **RP-6** — audit G1 clean. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
 
 #### RP-7 — XA_STRTAB_RODATA (walk_strtab_rodata → template)
 
 `walk_strtab_rodata` emits `.section .rodata` + `.S%d: .string %s` entries + `.text`. Driver calls `xa_dispatch(XA_STRTAB_RODATA)`; template iterates `g_emit.xa_strtab` collection. `XA_STRTAB_RODATA` opcode replaces direct call in `codegen_sm_x86`.
 
-- [ ] **RP-7** — implement `xa_strtab_rodata.cpp`; wire opcode; driver fills strtab collection into `g_emit`; delete fprintf from `walk_strtab_rodata` (convert to pure collection-filler or delete). GATE.
+- [x] **RP-7** — implement `xa_strtab_rodata.cpp`; wire opcode; driver fills strtab collection into `g_emit`; delete fprintf from `walk_strtab_rodata`. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-8 — XA_PATTERN_BLOBS (walk_bb_pattern_blobs → template)
 
@@ -175,7 +183,7 @@ Driver fills: `xa_pl_reg_names`, `xa_pl_reg_arities`, `xa_pl_reg_fn_labels`, `xa
 
 `codegen_cap_fixup_init_calls` emits `lea`/`call rt_init_arbno@PLT` etc. New `xa_cap_fixup.cpp` template. Driver fills per-cap-fixup scalars into `g_emit` collection, calls `xa_dispatch(XA_CAP_FIXUP)` per entry.
 
-- [ ] **RP-9** — implement; wire opcode; driver fills + `xa_dispatch`; delete fprintf. GATE.
+- [x] **RP-9** — implement; wire opcode; driver fills + `xa_dispatch`; delete fprintf. GATE-PK 442/0/612 NEW=0 GONE=0.
 
 #### RP-10 — SM x86 walker stray fprintf (codegen_sm_x86 inline labels)
 
@@ -207,7 +215,7 @@ Called from `xa_epilogue` template. Convert `fprintf` calls to `emit_textf` so o
 
 `grep -rn "fprintf\|fputs\|fputc\|fwrite" src/emitter/emit_sm.c src/emitter/emit_bb.c src/emitter/emit_core.c` returns only: sanctioned primitives (`emit_label_define_bb`, `ef_t3c`, `emit_text_stno_banner`, `emit_text_rawf`, `bb_label_define` stderr path), infrastructure (error paths to stderr), and walk-internal per-instruction emission deferred to RP-13.
 
-- [ ] **RP-14** — final audit. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0.
+- [x] **RP-14** — final audit. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0. Remaining fprintf in drivers: sanctioned primitives (emit_core.c) + walk-internal JVM/NET/JS/WASM per-instruction emission (deferred to RP-13).
 
 ### ⚡ CORRAL-EMIT (CE) — corral all emission into BB/SM/XA templates — OPEN
 
