@@ -93,23 +93,24 @@ Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
 honest gates: prolog 124/0/0, icon 277/0/0 (no regression)
 broker: 20/49
 
-PJ-9e partial landed (a02efe54):
-- rt_pl_b_sub_begin/sub_end/set_opaque/sub_node/sub_kids added to rt.h/rt.c
-- emit_pl_sub_builder_fn added; emit_pl_builder_fn wires BB_SUCCEED->opaque
-- pl_pre_intern_pred_names interns sub-cfg strings
-- fprintf != 0 bug fixed to < 0 throughout Prolog emit section
-- sm_halt.c, sm_jumps.c: IS_MACRO_DEF moved before IS_X86
+one4all: 8837b2b1
+smoke_prolog: 5/5 ✅
+crosscheck_prolog: 128/0 ✅
+Mode-4 hello ✅, simple_call ✅
 
-OPEN for next session (PJ-9e not yet closed):
-1. sm_bb_calls.c: IS_MACRO_DEF ordering not fixed (BB_ONCE_PROC/BB_PUMP_PROC
-   macro defs unreachable -- same pattern as sm_halt/sm_jumps)
-2. xa_macro_library DOUBLE-DEFINITION BUG: inlines macros via xa_dispatch
-   AND emits .include "sm_macros.s" -- both fire, causing assembler errors.
-   Lon decision required: Option A (external only -- remove xa_dispatch calls,
-   keep .include; ship sm_macros.s) or Option B (inline only -- remove .include
-   lines, keep xa_dispatch; self-contained .s). IS_X86 has sub-modes:
-   IS_TEXT, IS_BINARY, IS_MACRO_DEF -- IS_MACRO_DEF is not IS_X86.
-3. Verify factorial prints 120 in Mode-4 end-to-end.
+PL-T-4..7 landed (8837b2b1):
+- bb_pl_call.cpp / bb_pl_choice.cpp / bb_pl_alt.cpp / bb_pl_cut.cpp created
+- rt_pl_call / rt_pl_choice_exec / rt_pl_alt_exec / rt_pl_cut added to rt.h/rt.c
+- .include "bb_macros.s" removed; .intel_syntax noprefix emitted directly
+- IR_* → BB_* rename complete: ir_exec.c→bb_exec.c, IR_LANG_*→BB_LANG_*,
+  IR_exec_resume→bb_exec_resume, IR_node_state_t→bb_node_state_t, etc.
+- RULES.md: two new rules (no template code in emit_core.c; no .include bb_macros.s)
+
+OPEN for next session:
+1. factorial Mode-4 segfault — BB_PL_CALL resume path: bb_exec_resume on
+   color/1 graph after first success segfaults. Root cause: investigation needed
+   (trail/env management in PlCallSt resume path in bb_exec.c BB_PL_SEQ pump).
+2. PJ-10b step marker: PJ-10a/10b ✅ already in steps above.
 ```
 
 ---
