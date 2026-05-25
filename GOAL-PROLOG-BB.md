@@ -111,3 +111,34 @@ OPEN for next session (PJ-9e not yet closed):
    IS_TEXT, IS_BINARY, IS_MACRO_DEF -- IS_MACRO_DEF is not IS_X86.
 3. Verify factorial prints 120 in Mode-4 end-to-end.
 ```
+
+---
+
+## Step PJ-10 — Rename BB_PL_* → BB_* (promote opcode sharing)
+
+**Rationale:** Language is mostly gone at the AST/SM/BB boundary. `BB_PL_` prefix is vestigial.
+Promote clean names; keep `PL`-prefix compressed only where collision exists with Icon/Snocone ops.
+
+**Collision analysis (four collide with Icon ops — distinct semantics, cannot merge):**
+
+| Old | Conflict | New |
+|---|---|---|
+| BB_PL_VAR | BB_VAR (Icon variable ref) | **BB_PL_VAR** (kept — readable) |
+| BB_PL_CALL | BB_CALL (Icon proc call w/ generators) | **BB_PL_CALL** (kept — readable) |
+| BB_PL_SEQ | BB_SEQ (Icon sequence) | **BB_PL_SEQ** (kept — readable) |
+| BB_PL_ALT | BB_ALT (Icon alternation generator) | **BB_PL_ALT** (kept — readable) |
+| BB_PL_ARITH | — | **BB_ARITH** |
+| BB_PL_ATOM | — | **BB_ATOM** |
+| BB_PL_BUILTIN | — | **BB_BUILTIN** |
+| BB_PL_CHOICE | — | **BB_CHOICE** |
+| BB_PL_CUT | — | **BB_CUT** |
+| BB_PL_UNIFY | — | **BB_UNIFY** |
+
+**INVARIANT:** `.s` files are always emitted next to the original source (CWD == source dir).
+`bb_macros.s` also lands in that same CWD. Run scripts must `cd` to source dir before
+invoking scrip AND before invoking the assembler. Never use a temp dir as emit CWD.
+
+**Steps:**
+
+- [x] PJ-10a — sed-rename all `BB_PL_*`/`IR_PL_*` occurrences across `one4all/src/` per table above. Rename `IR_PL_VAR`→`IR_PLVAR` etc. to match. Build clean. Gates unchanged.
+- [x] PJ-10b — rename BB_template files: `bb_pl_var.cpp`→`bb_plvar.cpp`, `bb_pl_builtin.cpp`→`bb_builtin.cpp`, etc. Update Makefile RT_PIC_SRCS and main SRCS. Build clean. Gates unchanged.
