@@ -31,6 +31,8 @@
 
 **NEXT: LOCAL-PURGE-7** (optional deeper purge — drive remaining `std::string` value-builders into fields if Lon wants strict "loop-index-only" bodies; current remaining locals are benign accumulators / node-ptr aliases / size-offsets, NOT the shared-state hazard). Or proceed to the next HQ rung. ⛔ Beauty gate SUSPENDED.
 
+**LP-6 COVERAGE FINDING (for whoever next touches PL_ARITH/PL_UNIFY):** the 3-simultaneous-label TEXT path in `bb_pl_arith`/`bb_pl_unify` is NOT reached by the per-kind harness (interning is inert there — `emit_per_kind_audit.c` primes PL_ARITH children with no live strtab, so the frozen cell shows all-NULL: `xor edx,edx`/`xor r9d,r9d`/`push 0`) NOR by any current corpus program (`X is foo+bar` lowers via the Prolog *builder* path `rt_pl_b_node`, not the PL_ARITH BB template). That coverage gap is WHY the shared-buffer aliasing stayed latent. The fix is verified byte-identical on every path that DOES exercise these templates (GATE-PK + smoke + prolog all green). A future cell that drives PL_ARITH with three distinct live svals would lock the fix in as a regression gate.
+
 ---
 
 ## Previous Session State (LOCAL-PURGE-5 ✅ — bb_arbno + bb_capture driver-lifted, all template bodies pure)
