@@ -39,6 +39,37 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — CONSULT irgen.icn BEFORE IMPLEMENTING ANY BB KIND — NO EXCEPTIONS           ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  JCON's irgen.icn is the authoritative reference for every Icon BB (Byrd-box) construct.        ║
+║  It contains ir_a_<Construct> procedures that show exactly what ports fire, what state is       ║
+║  needed, and how generators compose. READ IT FIRST for every new BB kind.                       ║
+║                                                                                                  ║
+║  Location: /home/claude/corpus/programs/icon/jcon-ref/irgen.icn                                ║
+║                                                                                                  ║
+║  For TT_ITERATE (!E): ir_a_Unop with closure — the collection is evaluated once on α,          ║
+║  then each element is yielded in order on β. Exhaustion → ω.                                   ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ ABSOLUTE RULE — NO NEW FUNCTIONS IN icon_box_rt.c / RT — NO EXCEPTIONS                      ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Do NOT write rt_list_bang(), rt_iterate_something(), or any other C helper in                  ║
+║  icon_box_rt.c, rt.c, or any runtime file to support a BB template.                             ║
+║                                                                                                  ║
+║  ALL logic for a BB kind must live in its BB_templates/bb_*.cpp file, emitted as inline x86.   ║
+║  If the operation requires runtime state (counter, cached collection), store it in pBB->counter ║
+║  and pBB->opaque — both are valid at JIT-emitter time and addressable via movabs.               ║
+║                                                                                                  ║
+║  The only permitted RT calls from a BB template are pre-existing PLT symbols                    ║
+║  (subscript_get, rt_push_str, rt_push_int, GC_malloc, etc.) — not new functions you write.     ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
 **Repo:** one4all + .github
 **Sister docs:** `GOAL-CHUNKS.md`, `GOAL-CHUNKS-STEP17.md`, `GOAL-LANG-ICON.md`
 **Carved:** 2026-05-10
