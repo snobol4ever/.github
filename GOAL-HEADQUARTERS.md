@@ -23,6 +23,29 @@
 
 ---
 
+## Session State (2026-05-26c — CORRAL-EMIT ✅ + RP-8 ✅ + PP-C no-op ✅ + SM-X86-BINARY-BASELINE ✅)
+
+**one4all HEAD: `fa232e9c`.** GATE-PK **497/0/632** NEW=0 GONE=0 (was 442/0/612 — +55 SM x86/binary PASS, +20 SM binary STUB), AUDIT GREEN, prolog 124/0/0, test_emit_io 6/6, smoke parity 188 / run 190/71.
+
+**SM X86/BINARY BASELINE FROZEN (HQ item b ✅).** Root cause of "no SM_* binary cells": the audit harness (`emit_per_kind_audit.c`) exercised SM opcodes text-only (`g_sm_backends` had no EMIT_BINARY_WIRED entry) — the SM MEDIUM_BINARY arms wired by SM-BINARY-WIRE were never sampled. Fix: (1) added `{EMIT_BINARY_WIRED,"x86/binary","bin"}` to `g_sm_backends`; made `emit_one_sm_cell` mode-aware. The SM binary arms emit raw-byte std::strings via the text FILE* sink (NOT bb_emit_pos), so no buffer machinery needed — emit_mode_set(EMIT_BINARY_WIRED) selects the binary arm via g_medium. Now produces 75 SM x86/binary cells (55 non-empty, 20 honest stubs = unwired arms). (2) Build-stability: SM binary arms bake absolute host addresses (rt-fn ptrs, string/name ptrs) as `movabs reg,imm64` — non-reproducible across builds. Extended `.bin` normalizer to mask the 8 imm bytes after every `48 B8..48 BF` (movabs) opcode → zeroes, keeping skeleton + `FF D0` call framing. Binary analogue of the 0xADDR text rule; exact operands stay pinned by x86/text cells. Also correctly masks 10 BB binary cells that address-bake (bb_lit TEMPLATE_ADDR_SIGMA etc.). Re-froze entire baseline (1129 cells, 501 non-empty) so both diff sides use the same normalizer. Proven address-shift-immune (synthetic byte-flip test → identical norm). Disassembly-verified SM_PUSH_LIT_I = `movabs rdi,42; movabs rax,&rt_push_int; call rax`.
+NOTE (pre-existing, not fixed): freeze script writes `.raw` via the normalizer too (identical cmd to `.norm`), so `.raw` is NOT forensic-unfiltered as its comment claims — out of scope this session.
+
+**NEXT:** HQ item (c) — wire remaining empty SM binary arms: sm_incr_decr, sm_define_group, sm_bb_once_proc (add rdi=lbl, movabs pattern); sm_call_expression + sm_bb_pump_proc need label/reloc machinery (relative `call .L<pc>`), not movabs. After wiring each, re-freeze (cells move STUB→PASS) + gate. RP-13 deferred (X86-ONLY). RE-4 awaits Lon ruling. ⛔ Beauty gate SUSPENDED.
+
+---
+
+## Session State (2026-05-26c — CORRAL-EMIT COMPLETE ✅ + RP-8 COMPLETE ✅)
+
+**one4all working tree on `72902d76` + test_emit_io.c rewrite + bin_grow_to unused-attr + RP-8 (xa_pattern_blobs).** GATE-PK 442/0/612 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, test_emit_io 6/6, smoke parity 188 / run 190/71.
+
+**RP-8 COMPLETE.** Last remaining actionable THE-RULE-ALL step closed (RP-13 stays deferred — JVM/NET/JS/WASM per-instruction, gated by X86-ONLY rule + awaits Lon). `walk_bb_pattern_blobs` had two stray `fprintf` (`.intel_syntax noprefix` / `.text` section prelude) — the last non-template direct emission in emit_sm.c's pattern path. Resurrected the RETIRED `XA_PATTERN_BLOBS` opcode as a pure prelude template (CONCAT, gated on `g_emit.xa_pat_blob_invariant_n`); driver keeps its `g_pat_windows[]` traversal + `codegen_flat_build` (sanctioned). New file `XA_templates/xa_pattern_blobs.cpp`; wired in XA.h enum, xa_templates.h decl, emit_core.c dispatch, Makefile scrip target compile line.
+
+**CORRAL-EMIT (CE-1..5) COMPLETE.** Scan baseline `ae7e7abd` was stale — OOD-PHASE-2/RE-1/THE-RULE-ALL had already eliminated emit_prologue/emit_epilogue (→ XA_PROLOGUE/EPILOGUE templates) and emit_banner_stno (→ emit_text_stno_banner sink). The generic byte-append trio (emit_byte/emit_bytes/emit_text + emit_*asm helpers) was fully deleted; only the standalone EC-UNI-11 self-test still referenced them (and no longer linked). Verified emit_io_set_buffered(1) is never called in production ⇒ generic g_bin_buf path is dead; mode-4 bytes flow only through bb_emit_byte (EMIT_BINARY_WIRED). Repaired test to cover the surviving text funnel; quieted dead bin_grow_to. CE-5 audit: zero non-sanctioned emit_* defs remain in any driver file.
+
+**NEXT:** HQ items (b) freeze SM x86/binary baselines (`baselines/per_kind/x86/binary/` — no SM_* cells yet) via `scripts/freeze_per_kind_baseline.sh`; (c) wire remaining empty SM binary arms (sm_incr_decr, sm_define_group, sm_bb_once_proc add rdi=lbl; sm_call_expression + sm_bb_pump_proc need label/reloc). RP-13 deferred. ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-26b — BUILD FIXED, SM-BINARY-WIRE ✅ VERIFIED)
 
 **one4all HEAD: `72902d76`** ✅ GATE-PK 442/0/612 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. smoke three-mode parity 188 / --run 190/71.
@@ -141,8 +164,8 @@ those — emitting label definitions and jumps as TEXT, not via `emit_label_defi
 #### PP-B — R4 conversion-locals (after de-drive) ✅ `391d36ac`
 Eliminate all `.c_str()` conversions from BB/SM/XA templates. Added `std::string` overloads to `emit_1asm`/`emit_2asm` in `emit_io.h`. Replaced `emit_fmt(...).c_str()` with direct `std::string` args or string concatenation. 5 residual `.c_str()` pass to C callbacks — KEEP. GATE.
 
-#### PP-C — R3 string-globals shape ⏳ RULING PENDING (likely no-op)
-`Σ` (`const char *` + `Σlen`) — templates never C++-concatenate Σ; only address-baked via `TEMPLATE_ADDR_SIGMA/SIGLEN` in x86 BINARY. No PP-C changes needed unless Lon rules otherwise.
+#### PP-C — R3 string-globals shape ✅ RESOLVED NO-OP (2026-05-26c)
+Verified empirically: every Σ/Σlen use in a template body is either (a) BINARY-arm address-baking via `u64le(TEMPLATE_ADDR_SIGMA/SIGLEN)` — emits the address OF the pointer, never the bytes; or (b) TEXT-arm emission of the fixed assembler token `[rip + Σ]`/`[rip + Σlen]` — Σ here is a GAS symbol NAME in the output, not the C variable's value concatenated into a std::string. The Σ string bytes live in emitted .data/.rodata (xa_flat / strtab), never pulled into a template concat. Sites surveyed: bb_pat_pos, bb_pat_len, bb_lit, bb_pat_tab, bb_pat_rem, xa_flat, xa_bb_macro_library. Pure-projection already holds for Σ. No code change. (Minor latent tidy noted but NOT done: xa_flat.cpp:12 defines a local ADDR_SIGMA duplicating global TEMPLATE_ADDR_SIGMA — cosmetic, binary path, left to avoid byte-shift risk.)
 
 #### PP-D — R1/R2 scope tighten + final audit
 Each SM template reads only SM_t-fields + sanctioned globals; each BB template only BB_t-fields +
@@ -211,7 +234,7 @@ Driver fills: `xa_pl_reg_names`, `xa_pl_reg_arities`, `xa_pl_reg_fn_labels`, `xa
 
 `walk_bb_pattern_blobs` emits pattern BB blobs. Driver calls `xa_dispatch(XA_PATTERN_BLOBS)`; template emits. Already has an opcode slot from prior work — resurrect it properly.
 
-- [ ] **RP-8** — implement `xa_pattern_blobs.cpp`; wire opcode; delete fprintf from `walk_bb_pattern_blobs`. GATE.
+- [x] **RP-8** — implement `xa_pattern_blobs.cpp`; wire opcode; delete fprintf from `walk_bb_pattern_blobs`. GATE-PK 442/0/612 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. New XA template emits the `.intel_syntax noprefix` + `.text` section prelude (gated on g_emit.xa_pat_blob_invariant_n > 0); driver keeps its g_pat_windows traversal + codegen_flat_build calls (sanctioned). XA_PATTERN_BLOBS opcode un-retired in XA.h, declared in xa_templates.h, dispatched in emit_core.c, compiled+linked via Makefile scrip target.
 
 #### RP-9 — XA_CAP_FIXUP (codegen_cap_fixup_init_calls → template)
 
@@ -251,7 +274,8 @@ Called from `xa_epilogue` template. Convert `fprintf` calls to `emit_textf` so o
 
 - [x] **RP-14** — final audit. GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0. Remaining fprintf in drivers: sanctioned primitives (emit_core.c) + walk-internal JVM/NET/JS/WASM per-instruction emission (deferred to RP-13).
 
-### ⚡ CORRAL-EMIT (CE) — corral all emission into BB/SM/XA templates — OPEN
+### ⚡ CORRAL-EMIT (CE) — corral all emission into BB/SM/XA templates — COMPLETE ✅ (2026-05-26c)
+Resolution: scan baseline `ae7e7abd` predated several rungs (OOD-PHASE-2, RE-1, THE-RULE-ALL) that had already eliminated most offenders. Final-state audit at `72902d76`: `emit_prologue`/`emit_epilogue` gone — all prologue/epilogue emission routes through `xa_dispatch(XA_PROLOGUE/XA_EPILOGUE/XA_FLAT_*)` → XA templates (CE-2 ✅). `emit_banner_stno` gone — banner is `emit_text_stno_banner`, a sanctioned text sink (CE-3 ✅). `emit_byte`/`emit_bytes`/`emit_text`/`emit_3asm`/`emit_L1asm`/`emit_L2asm`/`emit_L3asm` fully deleted from production, zero non-test callers (CE-1/CE-4 ✅). `emit_io_set_buffered(1)` never called in production ⇒ generic g_bin_buf binary-append path is dead there; bytes reach mode-4 output only via `bb_emit_byte` (EMIT_BINARY_WIRED). Repaired orphaned `test_emit_io.c` (was linking deleted symbols) to exercise surviving text funnel + flush/save/restore; marked dead `bin_grow_to` unused. CE-5 audit: every `emit_*` def left in driver files is a sanctioned sink/infra/atomic-builder (emit_io.c Layer-3 sinks; emit_core.c label/jump/reloc + emit_text_stno_banner/emit_text_rawf; emit_bb.c emit_intern_str; emit_sm.c zero). GATE-PK 442/0/612 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, test_emit_io 6/6.
 
 **Principle.** Every `emit_*()` call that produces output must be reachable from the root of a BB, SM, or XA template. Driver/walker files (`emit_bb.c`, `emit_sm.c`, `emit_core.c`, `emit_io.c`) may contain orchestration, traversal, and infrastructure — but zero direct emission.
 
@@ -271,11 +295,11 @@ Called from `xa_epilogue` template. Convert `fprintf` calls to `emit_textf` so o
 | `emit_L3asm()` | `emit_io.c` | Emission helper — same |
 
 **Steps:**
-- [ ] **CE-1 — verify dead/alias:** Confirm `emit_byte`, `emit_text`, `emit_3asm`, `emit_L1asm`, `emit_L2asm`, `emit_L3asm` have zero callers outside test files. Delete or alias-eliminate.
-- [ ] **CE-2 — `emit_prologue` / `emit_epilogue`:** Audit callers. If only called from non-template brokered path, wrap in XA opcodes; driver calls `xa_dispatch(XA_PROLOGUE_BROKERED)` etc. Templates emit the `fprintf` bodies.
-- [ ] **CE-3 — `emit_banner_stno`:** Called per-statement from SM walker. Wrap as `XA_BANNER_STNO`; driver primes `g_emit` scalars (stno, lineno, src_text), template emits the banner.
-- [ ] **CE-4 — `emit_bytes`:** Audit callers. If reachable only from test files, leave. If in driver emission paths, wrap or inline into template via `bb_sink_str`.
-- [ ] **CE-5 — gate.** GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0. All `emit_*` in driver files are infrastructure/orchestration only.
+- [x] **CE-1 — verify dead/alias:** Confirm `emit_byte`, `emit_text`, `emit_3asm`, `emit_L1asm`, `emit_L2asm`, `emit_L3asm` have zero callers outside test files. Delete or alias-eliminate.
+- [x] **CE-2 — `emit_prologue` / `emit_epilogue`:** Audit callers. If only called from non-template brokered path, wrap in XA opcodes; driver calls `xa_dispatch(XA_PROLOGUE_BROKERED)` etc. Templates emit the `fprintf` bodies.
+- [x] **CE-3 — `emit_banner_stno`:** Called per-statement from SM walker. Wrap as `XA_BANNER_STNO`; driver primes `g_emit` scalars (stno, lineno, src_text), template emits the banner.
+- [x] **CE-4 — `emit_bytes`:** Audit callers. If reachable only from test files, leave. If in driver emission paths, wrap or inline into template via `bb_sink_str`.
+- [x] **CE-5 — gate.** GATE-PK 442/0/612 NEW=0 GONE=0, audit GREEN, prolog 124/0/0. All `emit_*` in driver files are infrastructure/orchestration only.
 
 ### ⚡ RENAME-EMIT (RE) — reserve emit_* for template emission only — OPEN
 
@@ -410,7 +434,7 @@ TSX-INLINE, TSX-DELETE, TSX-WIRE, TSX-CHARSET all done. insn_* family eliminated
 ---
 
 ## Oracle (every gate)
-`bash scripts/test_per_kind_diff.sh` → PASS=442 FAIL=0 STUB=612 NEW=0 GONE=0
+`bash scripts/test_per_kind_diff.sh` → PASS=497 FAIL=0 STUB=632 NEW=0 GONE=0 (was 442/0/612 before SM x86/binary cells frozen 2026-05-26c)
 `bash scripts/util_three_section_audit.sh` → AUDIT GREEN
 `bash scripts/test_prolog_bb_honest.sh` → 124/0/0
 Smoke (`test_smoke_snobol4_jit.sh`) only when binary paths touched: parity 184 / `--run` 186/75.
