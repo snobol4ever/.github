@@ -23,6 +23,16 @@
 
 ---
 
+## Session State (2026-05-24 — IFT-6 COMPLETE ✅ — FILE* out removed from sm_emit_t)
+
+**one4all commit this session: `afcdea29` (IFT-6).** GATE-PK **503/0/626** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188. Byte-identical.
+
+**IFT-6 ✅ — FILE* out deleted from sm_emit_t.** New `static FILE* g_emit_sink` in `emit_io.c`; `emit_io_set_sink(FILE*)` replaces all `g_emit.out =` assignments (14 sites across emit_sm.c/emit_core.c/emit_per_kind_audit.c). `emit_text_n`/`emit_textf` now read `g_emit_sink`. `emit_io.c` no longer includes `emit_globals.h`. xa_flat sanctioned binary arms confirmed to use `bb_emit_out`/`emit_outf()` (driver-layer), not `g_emit.out`. IFT ladder complete: sm_emit_t carries zero I/O state.
+
+**NEXT: IFT-7** — de-drive `flat_drive_cat` / `flat_drive_alt` / `flat_drive_fence` (emit_bb.c). These driver functions emit x86 via `emit_jmp_label`/`emit_label_define_bb` without a BB/SM/XA opcode — THE RULE violation. Fix: driver pre-computes label collections into new `g_emit.xa_bb_jmps[]` / `g_emit.xa_bb_defines[]` fields, then dispatches through the existing template. `bb_pat_cat_str`/`bb_pat_alt_str` gain a full PLATFORM_X86 CONCAT/FOR arm; `bb_pat_fence_str` MEDIUM_TEXT arm extended. See IFT-7 rung below. ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-29 — IFT-3 + IFT-4 + IFT-5 COMPLETE ✅ — SM templates _.out-free, all XA ruled)
 
 **one4all commits this session: `edae5eb0` (IFT-3+IFT-4) + IFT-5 (this commit).** GATE-PK **503/0/626** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. All output-preserving (byte-identical).
@@ -245,8 +255,26 @@ DONE. 7 dead fprintf(_.out) helpers (jvm_ret_guard, net_ret_guard, jvm_pat_str_p
 #### IFT-5 — XA templates ✅ (2026-05-29) — Lon ruling: pure-able ⇒ strings; driver-really ⇒ keep as XA imperative
 DONE. xa_js_label_register + xa_epilogue + xa_file_header + xa_entry_dispatch → PURE strings. wasm_emit_data_segments_str twin written (emit_core.c, extern "C++"). xa_file_header cap-fixup+rt_init orchestration demoted to SM driver. xa_flat_prologue/epilogue/data_section KEPT AS XA (sanctioned imperative: bb_emit_byte / g_emit_pos / data-buffer — documented in file header). See 2026-05-29 watermark for detail.
 
-#### IFT-6 — remove _.out (and is_binary?) from sm_emit_t  ← NEXT
-Once IFT-1..5 leave zero template-body reads of `_.out`, delete the `FILE* out` field from `sm_emit_t` (emit_globals.h) + every `g_emit.out =` assignment in drivers/audit; callers thread the sink locally. Confirm no buffer/memory-write field remains in the struct (none currently — binary path uses bb_emit_buf, separate). **CAUTION (added 2026-05-29):** xa_flat sanctioned-imperative arms still read `bb_emit_out`/`emit_outf()` for the binary path — confirm those are driver-layer reads (they run inside dispatch, write the buffered binary sink), NOT template-body `_.out` reads, before deleting the field. GATE.
+#### IFT-6 — remove _.out (and is_binary?) from sm_emit_t  ✅ (2026-05-24, `afcdea29`)
+DONE. `FILE* out` deleted from `sm_emit_t`. New `static FILE* g_emit_sink` in `emit_io.c` owned by `emit_io_set_sink(FILE*)`. `emit_text_n`/`emit_textf` read `g_emit_sink`; `emit_io.c` no longer includes `emit_globals.h`. All 14 `g_emit.out =` assignments across `emit_sm.c`/`emit_core.c`/`emit_per_kind_audit.c` → `emit_io_set_sink(...)`. xa_flat sanctioned arms confirmed to use `bb_emit_out`/`emit_outf()` (driver-layer binary sink, not `g_emit.out`). GATE-PK 503/0/626 NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical.
+
+#### IFT-7 — de-drive flat_drive_cat / flat_drive_alt / flat_drive_fence  ← NEXT
+THE RULE violation: these three driver functions in `emit_bb.c` emit x86 assembly directly via `emit_jmp_label` / `emit_label_define_bb` without a BB/SM/XA opcode — violates Invariant 16. Fix follows the PP-A model exactly:
+
+**Shape:** driver pre-computes all label names + jump targets into `g_emit` collections/scalars, then calls `bb_pat_cat(pBB)` / `bb_pat_alt(pBB)` / `bb_pat_fence(pBB)` (which dispatch through `walk_bb_node` → template). The template's PLATFORM_X86 arm (currently `return std::string()` for cat/alt, and the zero-child MEDIUM_TEXT arm for fence) becomes a full CONCAT/IF/FOR over the pre-loaded label collections.
+
+**Required g_emit fields to add (new scalars/collections):**
+- `xa_bb_jmps[]` — list of `(from_lbl, to_lbl, jmp_type)` triples: one per `emit_jmp_label` call the driver currently makes
+- `xa_bb_defines[]` — list of label pointers: one per `emit_label_define_bb` call
+- These parallel how `xa_expr_names`/`xa_expr_pcs` carry the expression-registry collection
+
+**Per-template changes:**
+- `bb_pat_cat_str`: add `PLATFORM_X86 / MEDIUM_TEXT` arm: FOR over `g_emit.xa_bb_defines[]` emit label definitions; FOR over `g_emit.xa_bb_jmps[]` emit jumps. No recursion, no child deref — all label strings pre-computed by driver.
+- `bb_pat_alt_str`: same pattern.
+- `bb_pat_fence_str`: MEDIUM_TEXT arm already exists (zero-child case); extend to cover the with-children label/jump sequences pre-loaded by the driver.
+- `flat_drive_cat` / `flat_drive_alt` / `flat_drive_fence`: replace `emit_jmp_label` / `emit_label_define_bb` calls with collections fills + `FILL(pBB, ...)` / `walk_bb_node(pBB, ...)` dispatch.
+
+**Gate:** GATE-PK NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Purity audit: flat_drive_* no longer appear as violators.
 
 
 
