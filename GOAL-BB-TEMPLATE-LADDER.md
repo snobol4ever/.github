@@ -33,6 +33,7 @@ Icon is 99% BB. Prolog is 99% BB. The SM shims (`SM_BB_PUMP_PROC`,
 
 ## Invariants (non-negotiable)
 
+0. **THE GOAL IS TO EMIT BYTES. A template that returns an empty string or only stub jumps has NOT been implemented. It is a stub. Stubs do not count as done. A rung is complete only when MEDIUM_TEXT emits real GAS instructions that implement the full generator semantics, AND MEDIUM_BINARY emits the corresponding raw x86 machine code bytes. An empty return or `bytes(1,"\xE9")+u32le(0)` placeholder is NOT completion — it is nothing. Do the work or do not mark the rung done.**
 1. One template file per BB kind — RULES.md. No grouped ICN or PL stubs.
 2. No C Byrd-box functions — RULES.md. Emit x86; do not write `DESCR_t foo(void*,int)`.
 3. No AST walking in modes 2/3/4 — RULES.md.
