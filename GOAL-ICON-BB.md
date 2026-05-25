@@ -186,6 +186,34 @@ CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / fi
 
 ---
 
+## Phase F — SM_BB_SWITCH: entire Icon program as composed Byrd boxes
+
+**Architecture:** The SM is a 2-3 instruction bootstrap. Every Icon construct is a `bb_node_t { bb_box_fn fn; void *ζ }`. Boxes wire γ/ω directly to each other in C — SM never re-enters after `SM_BB_SWITCH`. `BB_graph_t` / `BB_t` / `bb_exec_node` are the OLD path and will be deleted as Phase F progresses.
+
+**CONSULT irgen.icn before each rung.** `bb_node_t` = Byrd box. `icn_list_bang` is the model.
+
+#### F-1 — bb_node_t for `!E` ✅ `a3505d4c`
+- [x] `icn_list_bang(void *ζ, int entry)` — α pops collection from vstack, β advances counter. `lower_iterate` emits child expr + `SM_BB_SWITCH(node)`.
+
+#### F-2 — bb_node_t for `every E do B`
+- [ ] JCON: `ir_a_Every`. Box: α fires generator E (inner `bb_node_t`); on γ fires body B; on ω from E → whole every ω. β re-enters E at β. ζ holds inner box + body box.
+- [ ] `lower_every` emits `SM_BB_SWITCH` into `icn_every_box`.
+
+#### F-3 — bb_node_t for `E1 | E2` alternation
+- [ ] JCON: `ir_a_Binop` alt. Box: α tries E1; on ω tries E2; β resumes last active arm. ζ holds left/right boxes + phase.
+- [ ] `lower_alternate` → `icn_alt_box`.
+
+#### F-4 — bb_node_t for `lo to hi` / `lo to hi by step`
+- [ ] `icn_to_by_rt` already exists as a Byrd box fn. Wire `lower_to` / `lower_to_by` to `SM_BB_SWITCH` with `icn_to_by_rt_make` ζ. Delete `BB_TO` / `BB_TO_BY` graph nodes.
+
+#### F-5 — bb_node_t for proc body (replace `lower_icn_proc_body` / `BB_graph_t`)
+- [ ] Each Icon proc becomes one `bb_node_t`. ζ holds param slots + array of statement boxes. α sequences statements; body-falls-off → ω. Replace SM sequence emission in `lower_proc_skeletons` with single `SM_BB_SWITCH`.
+
+#### F-6 — delete `BB_graph_t` / `BB_t` / `bb_exec_node` for Icon
+- [ ] Once F-1..F-5 land: `lower_icn_proc_body`, `lower_icn_expr_top`, `lower_icn_expr_node` deleted. `BB_graph_t` no longer built for Icon. `bb_exec_node` Icon cases removed.
+
+---
+
 ## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h — A4 done 2026-05-25, one4all `7af3551d`)
 
 **NEXT: A5** — `AST_SEQ_EXPR` generative parens. Then A1 (bang_binary/lconcat).
