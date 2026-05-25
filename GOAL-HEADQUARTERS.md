@@ -31,7 +31,7 @@
 
 **Remaining purity audit violators:** bb_arbno / bb_capture (shared DE-DRIVE prereq: lift `xa_dispatch(XA_BB_PTR_SLOT)` + `g_cap_fixup_cb` to driver), bb_lit (independently convertible — no xa_dispatch), xa_bb_macro_library, xa_flat (sanctioned).
 
-**NEXT: DE-DRIVE bb_lit x86 TEXT arm** (no xa_dispatch dependency — independently convertible). Convert `emit_2asm` memcmp sequence to pure CONCAT return. Then tackle bb_capture / bb_arbno (shared DE-DRIVE prereq). ⛔ Beauty gate SUSPENDED.
+**NEXT: LOCAL-PURGE-1** — eliminate all non-loop locals from SM `_str()` functions (simple-inline + strtab fixes). See LOCAL-PURGE rung below. ⛔ Beauty gate SUSPENDED.
 
 ---
 
@@ -288,7 +288,101 @@ THE RULE violation: these three driver functions in `emit_bb.c` emit x86 assembl
 
 **Gate:** GATE-PK NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Purity audit: flat_drive_* no longer appear as violators.
 
+### ⚡ LOCAL-PURGE — eliminate all non-loop locals from every `_str()` function — OPEN
 
+**Principle.** Every `_str()` template function must have zero local variable declarations except loop indices (`for (int i …)`). All inputs come from `g_emit` / `pBB` / `pSM` fields read inline. No named temporaries, no `char buf[]`, no `std::string accumulator`. This enforces Invariant 12 (no shadow locals) mechanically.
+
+**Scan (2026-05-25, this session).** Full inventory of non-loop locals across all BB/SM/XA `_str()` functions:
+
+| File | Count | Locals |
+|---|---|---|
+| `bb_arbno.cpp` | 10 | `nid/sid`, `lbl_succ/fail/back`, `L_s/f/b`, `z`, `zlbl`, `clbl`, `combo_s`, `tag_s` |
+| `bb_capture.cpp` | 18 | `nid/sid`, `name`, `lbl_succ/fail/back`, `L_s/f/b`, `banner_kind`, `cap_imm`, `z`, `combo_imm_flag/callcap_flag`, `fnc_name`, `zlbl`, `clbl` (×2), `varname` |
+| `bb_lit.cpp` | 7 | `nid/sid`, `lit`, `lit_label`, `len`, `tag_s`, `sval`, `lit` (×2) |
+| `bb_pat_abort.cpp` | 3 | `nid`, `lbl_fail/back`, `sid` |
+| `bb_pat_alt.cpp` | 3 | `nid/sid`, `r`, `tag_s` |
+| `bb_pat_any.cpp` | 14 | `nid/sid`, `zp/fn`, `s` (×2), `chars`, `id`, `slbl_s`, `zlbl_s`, `esc_s`, `c`, `nm/hit`, `tag_s`, `tag_fail_s` |
+| `bb_pat_arb.cpp` | 6 | `nid`, `id`, `zlbl`, `sid` (×2), `tag_s` |
+| `bb_pat_break.cpp` | 13 | same pattern as `bb_pat_any` + `nm` |
+| `bb_pat_cat.cpp` | 3 | `nid/sid`, `r`, `tag_s` |
+| `bb_pat_fence.cpp` | 3 | `nid`, `r`, `sid` |
+| `bb_pat_len.cpp` | 7 | `nid/sid`, `n` (×3), `lbl_succ/fail/back`, `tag_s` |
+| `bb_pat_notany.cpp` | 13 | same pattern as `bb_pat_any` + `nm/hit` |
+| `bb_pat_pos.cpp` | 9 | `nid/sid`, `rpos`, `n` (×2), `body`, `nm`, `tag_s`, `lbl` |
+| `bb_pat_rem.cpp` | 4 | `nid`, `lbl_succ/fail/back`, `sid` (×2) |
+| `bb_pat_span.cpp` | 13 | same pattern as `bb_pat_any` + `nm` |
+| `bb_pat_tab.cpp` | 10 | `nid/sid`, `rtab`, `n` (×2), `back`, `nm`, `tag_s`, `tag_fail`, `lbl` |
+| `bb_pl_arith.cpp` | 4 | `op`, `ls`, `rs`, `op_lbl` |
+| `bb_pl_atom.cpp` | 2 | `atom`, `lbl` |
+| `bb_pl_builtin.cpp` | 12 | `fn`, `hdr`, `pre` (×3), `atom/lbl` (×2), `nl`, `stub`, `write_body` |
+| `bb_pl_unify.cpp` | 4 | `atom/lbl` (×2), `ls`, `rs` |
+| `bb_pl_var.cpp` | 1 | `slot` |
+| `sm_compare.cpp` | 1 | `val` |
+| `sm_defines.cpp` | 4 | `is_entry`, `has_repl`, `subj_name`, `r` |
+| `sm_expr_incr.cpp` | 1 | `op` |
+| `sm_pat_anchors.cpp` | 4 | `s`, `op`, `lbl[64]`, `r` |
+| `sm_pat_combine.cpp` | 15 | `s/kind`, `lbl[64]` (×4), `fname/namelist`, `is_imm` (×2), `flbl[64]` (×2), `nlbl[64]`, `r` (×2), `nargs` (×2), `sname`, `has_repl` |
+| `sm_pat_nullary.cpp` | 1 | `i` (non-loop use of `_.i`) |
+| `sm_push_pop_lits.cpp` | 8 | `s` (×2), `lbl[64]/preview`, `val/bits` (×2), `op`, `addr` |
+| `sm_returns.cpp` | 2 | `i` (×2, non-loop use of `_.i`) |
+| `xa_flat.cpp` | 1 | `buf[BB_BANNER_RULE_LEN+4]` |
+| `xa_pl_builder.cpp` | 6 | `pred_idx`, `cfg_n`, `entry_idx`, `name_lbl`, `sv`, `nk` |
+| `xa_pl_kids_rodata.cpp` | 2 | `any`, `nk` |
+| `xa_pl_sub_builder.cpp` | 8 | `pred_idx`, `node_idx`, `sub_n`, `entry_idx`, `any_kids`, `nk`, `sv` |
+
+**Strategy.** Three classes of fix:
+
+1. **Simple inline** — local is a trivial alias for a `g_emit`/`pBB`/`pSM` field read. Replace every use with the field read inline. (`slot`, `op`, `val`, `is_entry`, `atom`, `lbl_succ`, etc.)
+2. **`strtab_label_s()` replacement** — `char lbl[64]; strtab_label(lbl, …)` → `strtab_label_s(s)` call inline at each use site. Covers all `char[]` buffer locals in SM templates.
+3. **Driver lift** — local requires a side effect or allocation that cannot be inlined (`g_flat_node_id++`, `rt_bb_arbno_new`, `child_cache_get_lbl`, `bb_label_from_name`). These move to the driver; a new `g_emit` field carries the result.
+
+**Order:** simple-inline and strtab fixes first (no driver changes, no gate impact). Driver-lift fixes last (require new `g_emit` fields + driver changes + gate re-freeze).
+
+#### LOCAL-PURGE-1 — SM simple-inline + strtab fixes
+- [ ] `sm_compare`: inline `val` → `(int)pSM->a[0].i` at use site.
+- [ ] `sm_expr_incr`: inline `op` → `(int)pSM->op` at use site.
+- [ ] `sm_defines`: inline `is_entry`, `has_repl`, `subj_name`; eliminate `r` accumulator → single CONCAT return.
+- [ ] `sm_pat_anchors`: inline `s`, `op`; replace `char lbl[64]` → `strtab_label_s()`; eliminate `r` accumulator.
+- [ ] `sm_pat_combine`: inline `s`, `kind`, `fname`, `namelist`, `is_imm`, `nargs`, `sname`, `has_repl`; replace all `char lbl/flbl/nlbl[64]` → `strtab_label_s()`; eliminate `r` accumulators.
+- [ ] `sm_push_pop_lits`: inline `s`, `op`; replace `char lbl[64]` → `strtab_label_s()`; inline `val/bits` → `__builtin_memcpy` inline or union cast; eliminate `preview` → direct `emit_fmt`.
+- [ ] `sm_returns`: inline `i` → `_.i` at use site (already a field read — remove the named copy).
+- [ ] `sm_pat_nullary`: inline `i` → `_.i` at use site.
+- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+
+#### LOCAL-PURGE-2 — XA simple-inline fixes
+- [ ] `xa_pl_builder`: inline `pred_idx`, `cfg_n`, `entry_idx`, `name_lbl` → direct `g_emit.*` reads; inline `sv`, `nk` → `g_emit.xa_pl_node_sval[i]` / `g_emit.xa_pl_node_nkids[i]` inside FOR body.
+- [ ] `xa_pl_kids_rodata`: inline `any` → ternary/FOR result; inline `nk` → direct field read in FOR body.
+- [ ] `xa_pl_sub_builder`: inline all scalars → direct `g_emit.*` reads; inline `sv`, `nk` → field reads in FOR body; eliminate `any_kids` → ternary.
+- [ ] `xa_flat`: replace `char buf[…]` in `xa_flat_prologue_str` → `emit_fmt` or `std::string(…, …)` inline.
+- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+
+#### LOCAL-PURGE-3 — BB simple-inline fixes (non-driver-lift)
+- [ ] `bb_pat_abort`: inline `lbl_fail`, `lbl_back` → `_.lbl_fail`, `_.lbl_back`; inline `nid`, `sid`.
+- [ ] `bb_pat_rem`: inline `lbl_succ/fail/back` → `_.lbl_*`; inline `nid`, `sid`.
+- [ ] `bb_pat_len`: inline `n`, `lbl_succ/fail/back`, `nid`, `sid`; eliminate `tag_s` → `emit_fmt(…)` inline.
+- [ ] `bb_pat_pos`: inline `rpos`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `body`, `tag_s`.
+- [ ] `bb_pat_tab`: inline `rtab`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `back`, `tag_s`, `tag_fail`.
+- [ ] `bb_pat_alt` / `bb_pat_cat` / `bb_pat_fence`: eliminate `r` accumulator → single CONCAT/FOR return; inline `nid`, `sid`, `tag_s`.
+- [ ] `bb_pl_var`: inline `slot` → `(int)pBB->ival2`.
+- [ ] `bb_pl_atom`: inline `atom`, `lbl` → `pBB->sval` / `emit_intern_str(pBB->sval)` inline.
+- [ ] `bb_pl_arith`: inline `op`, `ls`, `rs`, `op_lbl` → direct field/call inline.
+- [ ] `bb_pl_unify`: inline `atom/lbl`, `ls`, `rs` → direct inline.
+- [ ] `bb_pl_builtin`: inline `fn`, `hdr`, `pre`, `nl`, `stub`, `write_body`, `atom/lbl` → CONCAT/IF expressions.
+- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+
+#### LOCAL-PURGE-4 — BB charset driver-lift (bb_pat_any, bb_pat_break, bb_pat_span, bb_pat_notany, bb_pat_arb)
+- [ ] Move `id = g_flat_node_id++` to driver (`walk_bb_flat` / per-kind dispatch); add `g_emit.bb_cs_id` field.
+- [ ] Inline `chars`, `slbl_s`, `zlbl_s`, `esc_s`, `zp`, `fn`, `s`, `c`, `nm`, `hit`, `tag_s`, `tag_fail_s`, `zlbl` → pure expressions reading `g_emit.bb_cs_id` and `pBB->sval`.
+- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+
+#### LOCAL-PURGE-5 — BB arbno/capture driver-lift (bb_arbno, bb_capture, bb_lit)
+- [ ] `bb_lit`: inline `lit`, `lit_label`, `len`, `sval`, `tag_s`, `nid`, `sid` → direct reads/calls inline.
+- [ ] `bb_arbno` / `bb_capture`: move `rt_bb_arbno_new` / `bb_cap_new_call` allocation to driver; add `g_emit.bb_rt_obj`; move `child_cache_get_lbl` to driver; add `g_emit.bb_child_lbl`; move `bb_label_from_name(lbl_*)` to driver (already have `_.lbl_succ_p` etc.); inline remaining `nid/sid`, `combo_s`, `zlbl`, `clbl`, `banner_kind`, `cap_imm`, `fnc_name`, `varname`.
+- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+
+#### LOCAL-PURGE-6 — Final audit
+- [ ] Run: `grep -rn "^\s\{4,\}\(const \)\?[a-zA-Z_][a-zA-Z0-9_ ]*[*&]\?[a-zA-Z_][a-zA-Z0-9_]*\s*[=;]" BB_templates/ SM_templates/ XA_templates/` inside `_str()` bodies returns only `for (int i` / `for (int j` / `for (int port` lines.
+- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN. PROLOG 124/0/0.
 
 ### ⚡ PURE-PROJECTION (PP) — templates are pure CONCAT/IF/FOR — SUPERSEDED by PP-PURE
 See GOAL-PURE-TEMPLATES.md for the active pure-template ladder (PP-PURE-1..7).
