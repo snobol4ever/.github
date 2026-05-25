@@ -23,6 +23,16 @@
 
 ---
 
+## Session State (2026-05-25 — xa_bb_ptr_slot body FULLY PURE — LP-5 prereq landed; charset family done)
+
+**one4all commits this session: `c793cca8` (charset family) + `760b3edc` (xa_bb_ptr_slot).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
+
+**xa_bb_ptr_slot ✅ — the LP-5 prerequisite is done.** The XA_BB_PTR_SLOT body minted a label (`g_flat_node_id++`) + `strncpy`'d it into `g_emit.bb_ptr_slot_lbl` (consumed downstream by `bb_arbno`/`bb_capture`), then read it back to emit the `.quad 0` slot. Both side-effects LIFTED to the `extern "C"` dispatch wrapper, gated on `MEDIUM_TEXT`; the body now PURELY reads `g_emit.bb_ptr_slot_lbl`. ⚠ Cross-template ORDERING preserved: the wrapper populates the field before the body emits AND before the subsequent `bb_arbno`/`bb_capture` dispatch consumes it — verified via smoke (capture/arbno exercise the slot live, parity 188 / run 190/71 unchanged). The per-kind isolation gate does NOT cover this ordering (each kind emitted alone), so smoke was the necessary oracle here.
+
+**NEXT (LOCAL-PURGE-5 — the last template-body violators):** `bb_arbno`(1) + `bb_capture`(47, X86-ONLY-stubbed JVM/JS arms) driver-lift. Prereq (pure `xa_bb_ptr_slot`) is now satisfied. Per the LP-5 plan: move `rt_bb_arbno_new`/`bb_cap_new_call` → `g_emit.bb_rt_obj`; `child_cache_get_lbl` → `g_emit.bb_child_lbl`; `bb_label_from_name` to driver; the `g_cap_fixup_cb` registration lifts to the driver too. Then inline remaining scalars. (`xa_epilogue`(1) is the benign `_str` call — sanctioned.) ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-25 — CHARSET FAMILY COMPLETE: notany/span/break/arb FULLY PURE — entire charset family off locals)
 
 **one4all commit this session: `c793cca8`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. All four cells byte-identical (BB_PAT_NOTANY/SPAN/BREAK text+binary).
