@@ -23,13 +23,24 @@
 
 ---
 
-## Session State (2026-05-27 — HQ item (c) PARTIAL: 4 SM binary arms wired ✅)
+## Session State (2026-05-27 — HQ item (c) PARTIAL: 4 SM binary arms wired ✅ + emit_call_label foundation ✅)
 
-**one4all working tree (post-`fa232e9c`).** GATE-PK **501/0/628** NEW=0 GONE=0 (was 497/0/632 — +4 SM binary PASS, −4 STUB), AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
+**one4all working tree (post-`fa232e9c`): commits `31dc3efe` (4 arms) + `d404e22c` (emit_call_label).** GATE-PK **501/0/628** NEW=0 GONE=0 (was 497/0/632 — +4 SM binary PASS, −4 STUB), AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71.
 
-**HQ item (c) PARTIAL — 4 movabs-pattern SM binary arms wired + re-frozen.** Wired the three movabs-class arms named in the prior NEXT (`sm_incr_decr` → 2 cells SM_INCR/SM_DECR, `sm_define_group` → 2 cells SM_DEFINE/SM_DEFINE_ENTRY). `sm_bb_once_proc` was found ALREADY wired (prior NEXT note was stale on it — its binary arm emits `mov esi,n; movabs rax,&rt_pl_once; call rax`, dropping the `lea rdi,[rip+lbl]` from the macro since label-address needs reloc, not movabs — honest partial). Encodings (disasm-verified): SM_INCR/DECR = `movabs rdi,n` (`48 BF`+imm64) + `movabs rax,&rt_incr|rt_decr` (`48 B8`+imm64) + `call rax` (`FF D0`) = 22 bytes; SM_DEFINE/DEFINE_ENTRY = `movabs rax,&rt_define|rt_define_entry` + `call rax` = 12 bytes (pure-call macro, no reg args). Added `#include "rt/rt.h"` to sm_expr_incr.cpp + sm_defines.cpp. Re-froze baseline (1129 cells, 505 non-empty, was 501); `.bin` normalizer masks the movabs imm64 operands → build-stable. Both diff sides use same normalizer; address-shift-immune.
+**HQ item (c) PARTIAL — 4 movabs-class SM binary arms wired + re-frozen.** Wired the three movabs-class arms named in the prior NEXT (`sm_incr_decr` → 2 cells SM_INCR/SM_DECR, `sm_define_group` → 2 cells SM_DEFINE/SM_DEFINE_ENTRY). `sm_bb_once_proc` was found ALREADY wired (prior NEXT note was stale on it — its binary arm emits `mov esi,n; movabs rax,&rt_pl_once; call rax`, dropping the `lea rdi,[rip+lbl]` from the macro since label-address needs reloc, not movabs — honest partial). Encodings (disasm-verified): SM_INCR/DECR = `movabs rdi,n` (`48 BF`+imm64) + `movabs rax,&rt_incr|rt_decr` (`48 B8`+imm64) + `call rax` (`FF D0`) = 22 bytes; SM_DEFINE/DEFINE_ENTRY = `movabs rax,&rt_define|rt_define_entry` + `call rax` = 12 bytes (pure-call macro, no reg args). Added `#include "rt/rt.h"` to sm_expr_incr.cpp + sm_defines.cpp. Re-froze baseline (1129 cells, 505 non-empty, was 501); `.bin` normalizer masks the movabs imm64 operands → build-stable. Both diff sides use same normalizer; address-shift-immune.
 
-**NEXT:** HQ item (c) remainder — `sm_call_expression` + `sm_bb_pump_proc` still empty binary arms; both need label/relocation machinery (relative `call .L<pc>`), NOT movabs — the target is an emitted local label whose address isn't known at template time. Requires a reloc/patch path (see ER-8 relocation rethink: abs-addr PLT fallback vs rel32). RP-13 deferred (X86-ONLY). RE-4 awaits Lon ruling. ⛔ Beauty gate SUSPENDED.
+**emit_call_label primitive added (`d404e22c`, inert).** New `emit_core.c` primitive mirroring `emit_jmp_label`: binary emits `0xE8` + `bb_emit_patch_rel32(target)`, text emits `call <name>`. Inert until a call site uses it — added so the foundation for the last two SM binary arms is in place once Lon rules on the fork below.
+
+### ⛔ FORK FOR LON — last 2 SM binary arms (sm_call_expression, sm_bb_pump_proc)
+
+Both arms emit `call .L<pc>` where `.L<pc>` is an emitted **local label** whose byte offset is only known at link/layout time → genuinely needs the **rel32 patch list** (`bb_emit_patch_rel32`), NOT movabs. Root constraint: the SM-binary audit cell path (`emit_one_sm_cell` in emit_per_kind_audit.c) uses the **FILE\* text sink** (`emit_text_n`) — same as all 55 existing movabs-class SM binary arms, which return self-contained `bytes(...)` strings needing no patch. The rel32 patch list requires the **buffered `bb_emit_begin`** path (`bb_emit_pos` to write/dump from), which only the BB cell path (`emit_one_bb_cell`) currently sets up.
+
+- **Option A — buffered binary for SM cells (mirror BB).** Make `emit_one_sm_cell` detect `EMIT_BINARY_WIRED` → `emitter_init_binary` + `bin_buf`, dump `bb_emit_pos`, clear `bb_patch_count` per cell (BB path already handles unresolved forward refs as placeholder 0x00 rel32). The two arms then call `emit_call_label(target)` (side-effect, return empty string) — same idiom as `bb_pat_fence` binary arm. **Risk:** all 55 existing SM binary arms write via `emit_text_n`; switching the cell path to a buffer means those arms must ALSO move to `bb_emit_*`, or the cell mixes two sinks → frozen-baseline byte-shift across all SM binary cells. Large, sweeping.
+- **Option B — abs-addr runtime trampoline.** Add `rt_call_pc(int pc)` (or reuse proc-table entry_pc lookup) so the arm becomes self-contained `movabs rdi,pc; movabs rax,&rt_call_pc; call rax` — uniform with the other 55 SM arms, no audit-path change, no baseline shift. **Cost:** introduces a runtime indirection the text/real pipeline doesn't use (text pipeline emits direct `call .L<pc>`), so binary ≠ text at the instruction level for these two (though semantically equal). Mild divergence from "binary mirrors macro".
+
+Recommendation: **Option B** is lower-risk (no baseline shift, uniform with existing SM arms) but trades exact text/binary instruction parity. Option A is "purer" rel32 but sweeping. Awaiting Lon ruling (ties into ER-8 relocation rethink: abs-addr PLT fallback vs rel32).
+
+**NEXT:** Lon rules A vs B on the fork above, then wire the final two arms accordingly. RP-13 deferred (X86-ONLY). RE-4 awaits Lon ruling. ⛔ Beauty gate SUSPENDED.
 
 ---
 
