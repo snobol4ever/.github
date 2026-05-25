@@ -23,6 +23,27 @@
 
 ---
 
+## Session State (2026-05-25 — NO-BUFFERS: emit_io two-buffer removed ✅ + bb_asm binary mechanism proven ✅ + LP-3 cat/alt/fence/pl_var ✅)
+
+**one4all commits this session: `cbcbee35` (LP-3) + `4c2be7a7` (NO-BUFFERS emit_io) + `c07acbb3` (bb_asm + bb_pat_len).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical throughout (incl. live JIT).
+
+**LP-3 continued ✅ (cat/alt/fence/pl_var).** `bb_pat_cat` / `bb_pat_alt`: X86 MEDIUM_TEXT `r`-accumulator → `emit_for` lambda; `nid`/`sid` declarations moved BELOW the X86 arm (non-X86 arms only, matches `bb_pat_len` convention). `bb_pat_fence`: with-children X86 TEXT branch `r`-accumulator → `emit_for`; zero-child branch unchanged. `bb_pl_var`: inlined `slot` → `(int)pBB->ival2` at all sites (incl. sanctioned binary `hdr`). **DEFERRED to LP-5:** `bb_pl_atom`/`arith`/`unify`/`builtin` — `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`); `ls`/`rs`/`op_lbl` alias the same buffer, so simple-inline is UNSAFE (latent bug already present, masked by test coverage: TEXT arm reads `ls`/`rs` after the buffer was overwritten by `op_lbl`). Requires driver-lift into distinct `g_emit` fields — LP-5 nature.
+
+**⚡ NO-BUFFERS ruling (Lon, this session): "remove any buffers — text, binary, AND macro-def. Use std::string concat. Patchable binary via a list of offset+length; write to the page segment AFTER the fact."**
+
+**NO-BUFFERS #1 ✅ — dead emit_io two-buffer removed (`4c2be7a7`).** `emit_io.c` had a growable two-buffer design (`g_text_buf`/`g_bin_buf`) gated by `g_emit_io_buffered`, DEAD in production (`emit_io_set_buffered(1)` only ever called by the `test_emit_io.c` self-test — its own header admitted this). Removed: both buffers + `text_grow_to`/`bin_grow_to` + `EMIT_IO_INIT_CAP` + `emit_io_set_buffered` + `emit_io_save`/`restore` + `emit_io_saved_t` + `emit_io_text_ptr`/`len` + `emit_io_bin_ptr`/`len`. `emit_text_n`/`emit_textf` now write straight to `g_emit_sink` via `fwrite`/`vfprintf`. `emit_io_flush`/`emit_io_reset` kept as no-ops (still called at emit_core.c production flush sites; nothing to flush in passthrough). Retired `test_emit_io.c` + Makefile target. −313/+26 lines.
+
+**NO-BUFFERS binary mechanism ✅ PROVEN (`c07acbb3`).** New `bb_asm` fluent assembler in emit_str.h/.cpp: a MEDIUM_BINARY arm is one Snocone-style chained expression `bb_asm().b(bytes).jmp(lbl,kind).call(lbl).lbldef(lbl)....str()`. `.b()` appends literal bytes; `.jmp()`/`.call()` append opcode + 4-byte rel32 placeholder and push a `(site,length,label,REL32)` fixup; `.lbldef()` pushes a zero-length def fixup at the current offset. NO raw growable byte buffer in the template; bytes live in a `std::string`; fixups are a `std::vector<bb_fixup_t>` (module-static, single-threaded by construction). `bb_asm_apply(page,base)` writes label offsets + patches rel32 sites directly into an executable page (the "write after the fact" path). `bb_emit_asm_result(str)` is the dispatch-wrapper bridge: binary mode REPLAYS the arm's bytes + fixups through the EXISTING `bb_emit_buf`/`bb_label_define`/`bb_emit_patch_rel32` machinery (so byte-identity + cross-arm label resolution hold exactly during the transition); text mode → `emit_text_n`. **`bb_pat_len` MEDIUM_BINARY arm converted as the proof** — gate byte-identical incl. live JIT smoke.
+
+**NEXT (NO-BUFFERS binary sweep — RECOMMEND FRESH SESSION, high-risk JIT path):**
+1. Convert the remaining 12 MEDIUM_BINARY arms to the `bb_asm` chain + wire each wrapper to `bb_emit_asm_result`, gating each: `bb_lit`, `bb_capture`, `bb_arbno`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_rem`, `bb_pat_abort`, charset `bb_pat_any`/`break`/`span`/`notany`/`arb`, and `bb_pl_*` (atom/arith/unify/builtin — note LP-5 intern-aliasing applies to their TEXT arms, not the binary byte emission).
+2. FINAL buffer deletion: once all arms are off `bb_emit_byte`, switch `bb_emit_asm_result` + the JIT driver (`codegen_flat_body`/`bb_build_flat`/`bb_build_brokered` in emit_bb.c) to use `bb_asm_apply` directly — concat all node bytes into one string, `memcpy` to the page once, apply fixups — THEN delete `bb_emit_buf`/`bb_emit_pos`/`bb_emit_size`/`bb_sink_str`/`emit_jmp`/`emit_label_define`/`bb_emit_patch_rel32`. `bb_asm_apply` is already written for this. This is the "completely remove buffers, write to page after the fact" end-state.
+3. THEN resume LP-3 remainder (bb_pl_* TEXT-arm driver-lift = LP-5) and LP-4 (charset driver-lift).
+
+⛔ Beauty gate SUSPENDED. (Snocone `+`→`.` port is LATER, not this work — Lon.)
+
+---
+
 ## Session State (2026-05-25 — LOCAL-PURGE-1/2/3 X86-arm sweep ✅ — SM + XA done, BB simple-inline partial; BIG-CONCAT reshape)
 
 **one4all this session.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN (no new violators), prolog 124/0/0. Byte-identical / output-preserving throughout (9 successive green gates).
@@ -323,12 +344,9 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 - [x] `bb_pat_len`: inline `n`, `lbl_succ/fail/back`, `nid`, `sid`; eliminate `tag_s`.
 - [x] `bb_pat_pos`: inline `rpos`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `body`, `tag_s`.
 - [x] `bb_pat_tab`: inline `rtab`, `n`, `nm`, `lbl`, `nid`, `sid`; eliminate `back`, `tag_s`, `tag_fail`.
-- [ ] `bb_pat_alt` / `bb_pat_cat` / `bb_pat_fence`: eliminate `r` → single CONCAT/FOR return; inline `nid`, `sid`, `tag_s`.
-- [ ] `bb_pl_var`: inline `slot` → `(int)pBB->ival2`.
-- [ ] `bb_pl_atom`: inline `atom`, `lbl` → `pBB->sval` / `emit_intern_str(pBB->sval)` inline.
-- [ ] `bb_pl_arith`: inline `op`, `ls`, `rs`, `op_lbl` inline.
-- [ ] `bb_pl_unify`: inline `atom/lbl`, `ls`, `rs` inline.
-- [ ] `bb_pl_builtin`: inline `fn`, `hdr`, `pre`, `nl`, `stub`, `write_body`, `atom/lbl` → CONCAT/IF.
+- [x] `bb_pat_alt` / `bb_pat_cat` / `bb_pat_fence`: X86 TEXT `r` accumulator → `emit_for` lambda; `nid`/`sid` moved below X86 arm (non-X86 only). ✅ `cbcbee35`
+- [x] `bb_pl_var`: inline `slot` → `(int)pBB->ival2`. ✅ `cbcbee35`
+- [ ] `bb_pl_atom` / `bb_pl_arith` / `bb_pl_unify` / `bb_pl_builtin`: DEFERRED to LP-5 — `emit_intern_str` shared-buffer aliasing (`g_intern_str_buf`) makes TEXT-arm inline unsafe; needs driver-lift to distinct `g_emit` fields.
 - [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
 
 #### LOCAL-PURGE-4 — BB charset driver-lift (bb_pat_any, bb_pat_break, bb_pat_span, bb_pat_notany, bb_pat_arb)
