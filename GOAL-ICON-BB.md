@@ -222,14 +222,14 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 - `runtime/interp/icon_box_rt.c` (34 uses) — shims deleted after F-6g
 
 #### F-6a — port-wire `BB_LIST_BANG` (replace `c[0]` child with α port to evaluator node)
-- [ ] `lower_icn.c` TT_ITERATE: build two nodes — BB_EVAL_CHILD (α→evaluator) + BB_LIST_BANG. Wire α/β/γ/ω. No `c[]`.
+- [x] `lower_icn.c` TT_ITERATE: build two nodes — BB_EVAL_CHILD (α→evaluator) + BB_LIST_BANG. Wire α/β/γ/ω. No `c[]`.
 
 #### F-6b — port-wire `BB_TO` / `BB_TO_BY` (replace `c[0..2]` with bound data in sval/ival)
-- [ ] `lower_icn.c` TT_TO / TT_TO_BY: store bounds in `ival`/`dval`/`ival2`/`ival3`. No `c[]`.
-- [ ] `bb_to_by.cpp` template: read from `pBB->ival*` not `pBB->c[*]`.
+- [x] `lower_icn.c` TT_TO / TT_TO_BY: store bounds in `ival`/`dval`/`ival2`/`ival3`. No `c[]`.
+- [x] `bb_to_by.cpp` template: read from `pBB->ival*` not `pBB->c[*]`.
 
 #### F-6c — port-wire `BB_ALT` / `BB_ALTERNATE` (replace `c[0..n]` with α/β chains)
-- [ ] Each alt arm is a BB_t node. Wire: BB_ALT.α→arm0.α; arm0.ω→arm1.α; armN.ω→BB_ALT.ω.
+- [x] Each alt arm is a BB_t node. Wire: BB_ALT.α→arm0.α; arm0.ω→arm1.α; armN.ω→BB_ALT.ω.
 
 #### F-6d — port-wire `BB_BINOP_GEN`, `BB_ARITH`, `BB_UNIFY` (replace `c[0..1]`)
 - [ ] Operand nodes wired via α/β ports. `bb_arith.cpp`, `bb_unify.cpp` read ports not children.
@@ -248,7 +248,7 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h — A4 done 2026-05-25, one4all `7af3551d`)
+## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h — A4 done 2026-05-25, one4all `7af3551d`) — F-6a/b/c done 2026-05-25 `5871962e`. NEXT: F-6d (BB_BINOP_GEN/ARITH/UNIFY)
 
 **NEXT: A5** — `AST_SEQ_EXPR` generative parens. Then A1 (bang_binary/lconcat).
 
