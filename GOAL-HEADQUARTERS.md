@@ -23,7 +23,21 @@
 
 ---
 
-## Session State (2026-05-25 — SM_PUMP_BB deleted; SM opcode/macro/template inventory recorded)
+## Session State (2026-05-25 — CAPS-CONCAT CC-1/CC-2 ✅; X86 arms folding into IF()-concat)
+
+**one4all HEAD: `a3d4fbe1`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4.
+
+**THIS SESSION:** CAPS-CONCAT rung (see Active Rungs). Added `IF(c,...)` (variadic — handles top-level commas, e.g. embedded `FOR(...)`) + `FOR(lo,hi,f)` macros to `emit_str.h`; `emit_for` kept as a thin alias of `FOR`. Collapsed the `PLATFORM_X86` block of **21 of 24** BB templates from a sequence of `if (MEDIUM_x){…return…}` into ONE `return IF(MEDIUM_MACRO_DEF,…)+IF(MEDIUM_BINARY,…)+IF(MEDIUM_TEXT,…);`, with `bin` set unconditionally (or via ternary) at the top of the X86 block. Branchy arms (`rpos`/`rtab`/`bb_pl_ls`/`n==0`/`xa_bb_ep_n>0`) folded via `?:` ternaries; charset-FOR family (`any`/`notany`/`break`/`span`) and `cat`/`alt`/`fence` use `FOR(...)`. Helper `scripts/consolidate_x86_arm.py` (brace-parser; SKIPs branchy arms). Every batch built + gated byte-identical.
+
+**LESSONS:** (1) function-style `IF` chokes on top-level commas → made it variadic. (2) Folding `alt`/`cat` dropped their empty `MEDIUM_BINARY` arm → three-section AUDIT went RED; restored as `IF(MEDIUM_BINARY, std::string())`. Even empty arms must keep their `IF(MEDIUM_x,…)` slot. (3) **Real obstacle:** `bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin` compute `bin` offsets from `(int)b.size()` of a variable-length byte prefix built INSIDE the binary arm — `bin` is data-dependent, can't be hoisted. Left as explicit medium blocks pending Lon's call on an IIFE-with-side-effect fold (CC-3 details).
+
+**GATES (end of CAPS-CONCAT pass):** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0. Byte-identical. ⛔ Beauty gate SUSPENDED.
+
+**NEXT:** Lon's call on the 3 pl_* obstacle files (CC-3), then optional CC-5 (extend to SM/XA + non-x86 arms). Icon BB-construction (`SM_BB_EVAL`/`PUMP_EVERY`/`PUMP_CASE`) remains the standing HQ target.
+
+---
+
+## Previous Session State (2026-05-25 — SM_PUMP_BB deleted; SM opcode/macro/template inventory recorded)
 
 **one4all HEAD: `db4c355f`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, PURITY GREEN. Byte-identical.
 
@@ -95,6 +109,32 @@
 
 
 ## Active Rungs
+
+### 🔄 CAPS-CONCAT — one `return` per X86 arm via `IF(...)`/`FOR(...)` selectors
+
+**Principle.** Every template's `PLATFORM_X86` block collapses from a sequence of
+`if (MEDIUM_x) { … return …; }` statements into ONE return: a big concat of
+`IF(MEDIUM_MACRO_DEF, …) + IF(MEDIUM_BINARY, …) + IF(MEDIUM_TEXT, …)`. The medium
+selector is now visible at a glance and mirrors the eventual Snocone port (`+`→`.`).
+`bin` is set UNCONDITIONALLY at the top of the X86 block (only read on the binary
+path, harmless elsewhere) — this dodges the side-effect-in-expression problem.
+Only the X86 arm is consolidated this pass; JVM/JS/NET/WASM left untouched.
+
+**Macros (emit_str.h):** `IF(c, ...) ((c) ? (__VA_ARGS__) : std::string())` — variadic
+so the string expression may contain top-level commas (e.g. a `FOR(0,n,lambda)` call).
+`FOR(lo,hi,f)` = pure concat loop `f(lo)+…+f(hi-1)`; `emit_for` kept as a thin alias
+during migration (call sites flip to `FOR`, then alias is deleted).
+
+- [x] **CC-1** `IF`/`FOR` macros added to `emit_str.h`; `emit_for`→`FOR` alias. Pilot `bb_pat_len` consolidated. GATE-PK 504/0/625 byte-identical.
+- [x] **CC-2** Simple uniform X86 arms consolidated (one each MACRO_DEF/BINARY/TEXT, single bin assign): `bb_eps`, `bb_fail`, `bb_pat_abort`, `bb_pat_rem`, `bb_pl_var`, `bb_arbno`, `bb_capture`. Plus FOR-only arms hand-edited: `bb_pat_alt`, `bb_pat_cat`. Helper `scripts/consolidate_x86_arm.py` (parses brace structure; SKIPs branchy arms). GATE-PK 504/0/625 byte-identical.
+- [x] **CC-3** Branchy X86 arms — internal `if` inside a medium lifted into the string expr (`?:`) before folding. **DONE (11/14):** `bb_lit`, `bb_pat_any`, `bb_pat_arb`, `bb_pat_break`, `bb_pat_notany`, `bb_pat_span`, `bb_pat_pos`, `bb_pat_tab`, `bb_pat_fence`, `bb_pl_atom`, `bb_pl_seq`. (`rpos`/`rtab`/`bb_pl_ls`/`n==0`/`xa_bb_ep_n>0` structural branches → ternaries; `bin` set via ternary at top of X86 block.) GATE-PK 504/0/625, AUDIT GREEN, prolog 124/0/0 — byte-identical throughout.
+      **⚠ AUDIT REGRESSION CAUGHT+FIXED:** folding `bb_pat_alt`/`bb_pat_cat` dropped their (empty) `MEDIUM_BINARY` arm → `util_three_section_audit.sh` went RED (MISSING-BINARY). Restored as `IF(MEDIUM_BINARY, std::string())` — AUDIT GREEN again. Lesson: even an empty arm must keep its `IF(MEDIUM_x, …)` slot so the three-section audit stays GREEN.
+      **💡 FUTURE IDEA (Lon, 2026-05-25) — `SIZE(&len, expr)` selector:** the data-dependency CAN be expressed inside one concat with a new helper `SIZE(int* out, std::string s) { *out = (int)s.size(); return s; }`. Then the binary arm becomes, e.g., `IF(MEDIUM_BINARY, SIZE(&len, IF(_.bb_pl_ls, movabs(lhs)) + IF(_.bb_pl_rs, movabs(rhs)) + call_indirect) + SET_BIN(len, …) + tail_bytes)` — `len` is captured mid-concat, then the `bin` offsets are computed from it. Needs a tiny `SET_BIN(...)` (or IIFE) that writes `bin` by ref and returns `""`. This keeps the one-return shape AND handles the size-dependent offsets. Deferred — try on `bb_pl_arith` first as the prototype, then `unify`/`builtin`.
+- [x] **CC-4** All real `emit_for(` call sites flipped to `FOR(` (during CC-2/CC-3). `emit_for` alias retained in emit_str.h (harmless; delete is cosmetic). Remaining grep hits are `emit_form.h` substring false-positives, not calls.
+- [ ] **CC-4** Flip remaining `emit_for`→`FOR` (bb_pat_break/span/fence/any/notany + bb_template_common.h), then delete the `emit_for` alias.
+- [ ] **CC-5** (optional, later pass) extend consolidation to SM_templates + XA_templates, and to the JVM/JS/NET/WASM arms.
+
+---
 
 ### ✅ LOCAL-PURGE — COMPLETE (every `_str()` arm pure; TEMPLATE-PURITY GREEN)
 
