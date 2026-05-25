@@ -23,6 +23,24 @@
 
 ---
 
+## Session State (2026-05-25 — LOCAL-PURGE whole-template begins: bb_lit + bb_pat_any FULLY PURE; scope ruling recorded)
+
+**one4all commits this session: `7088c76a` (NB-3f/3g) + `82fc7560` (bb_lit + bb_pat_any).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Flat text byte-identical (md5 `ec26b57f`); BB_PAT_ANY text+binary cells byte-identical.
+
+**⚡ SCOPE RULING (Lon): LOCAL-PURGE is WHOLE-TEMPLATE.** Every non-loop local in EVERY arm (X86 macro/binary/text + JVM + JS + NET + WASM) must go — not just the X86 arm. The earlier LOCAL-PURGE-1/2/3 X86-only sweeps are INCOMPLETE; their non-X86 arms still hold locals. A template is done only when its `_str()` body has zero non-loop declarations across all platforms. Recorded in the LOCAL-PURGE rung principle.
+
+**bb_lit ✅** — lifted lone `g_emit_pos += 7` (TEXT length bookkeeping) to the dispatch wrapper. Body pure.
+
+**bb_pat_any ✅ — PROVEN RECIPE for the charset family (notany/span/break/arb follow).** Zero locals in all 5 arms. The recipe:
+1. **Shared helper** `gas_escape_str(const char*)` in emit_str.cpp/.h — returns the quoted GAS `.string` operand (`"`/`\` escaped, printable verbatim, else `\%03o` octal). Replaces the inline `esc_s` build-loop in all 5 charset TEXT arms.
+2. **Side-effect lift to the dispatch wrapper** (LOCAL-PURGE-4): `g_emit.bb_cs_id = g_flat_node_id++` (TEXT-only) + `g_emit.bb_cs_zeta = rt_cs_new(chars)` (BINARY-only). New `g_emit` fields `bb_cs_id` (int) + `bb_cs_zeta` (void*). New runtime ctor `rt_cs_new(chars)` in rt.c/.h (GC_MALLOC of `rt_cs_t`) REPLACES the template's private `typedef struct {chars,delta} cs_t` + `calloc` — allocation now lives where the struct lives.
+3. **emit_for** folds the `for(port=0..1)` accumulator (`s += …`) into a pure lambda CONCAT.
+4. **Inline** all scalar aliases: `nid`→`bb_node_id(pBB)` (pure: `nd%100000`), `sid`→`0`, `chars`→`pBB->sval?:""`, JVM `nm`/`hit`/`tag_s`/`tag_fail_s`→literal `emit_fmt`, label strings→inline `emit_fmt(".Lcs%d_z", g_emit.bb_cs_id)`.
+
+**NEXT (apply the recipe):** bb_pat_notany (identical shape to any), bb_pat_span (identical), bb_pat_break (⚠ BINARY arm has `calloc` but NO `zp`/`fn` movabs pair — divergent BINARY shape, inspect before converting), bb_pat_arb (⚠ NO calloc — only `id`; simpler, TEXT-only side effect). Each: gate BB_PAT_<K> text+binary byte-identical + full suite. THEN remaining template-body side effects: `xa_bb_ptr_slot` `g_flat_node_id++`+`strncpy` (LP-5 / bb_arbno+bb_capture de-drive). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-25 — NB-3f + NB-3g ✅: xa_flat + xa_bb_macro_library FULLY PURE — every BB/SM/XA template body is now a side-effect-free (std::string, bb_bin_t) function)
 
 **one4all commit this session: `7088c76a`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Flat text byte-identical (md5 `ec26b57f`).
@@ -359,6 +377,8 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 ### ⚡ LOCAL-PURGE — eliminate all non-loop locals from every `_str()` function — CURRENT
 
 **Principle.** Every `_str()` template function must have zero local variable declarations except loop indices (`for (int i …)`). All inputs come from `g_emit` / `pBB` / `pSM` fields read inline. No named temporaries, no `char buf[]`, no `std::string accumulator`. This enforces Invariant 12 (no shadow locals) mechanically.
+
+**⚡ SCOPE RULING (Lon, 2026-05-25): purge is WHOLE-TEMPLATE, not per-arm.** When a template is touched, EVERY local in EVERY arm (PLATFORM_X86 / JVM / JS / NET / WASM, every MEDIUM) must go — not just the X86 arm. A template counts as LOCAL-PURGE-done only when `grep` of its `_str()` body returns zero non-loop declarations across all platforms. The earlier per-arm sweeps (LOCAL-PURGE-1/2/3 marked X86-arm-only) are therefore INCOMPLETE: the non-X86 arms still hold `chars`/`slbl_s`/`zlbl_s`/`esc_s`/`nm`/`hit`/`s`/`id` etc. and must be folded into CONCAT/`emit_for`/inline reads. The X86-ONLY build rule (RULES.md) means non-X86 arms are stubbed for *emission correctness* — it does NOT exempt them from local-purge; a stubbed arm with a dead local still violates Invariant 12. Side-effecting locals whose initializer mutates a global (`id = g_flat_node_id++`, `g_emit_pos += 7`) lift to the driver via a new `g_emit` field FIRST, then the now-pure read inlines like any other.
 
 **Scan (2026-05-25, this session).** Full inventory of non-loop locals across all BB/SM/XA `_str()` functions:
 
