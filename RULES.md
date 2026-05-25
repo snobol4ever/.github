@@ -87,6 +87,7 @@ All scripts in `one4all/scripts/`. Naming: `install_` / `build_` / `regenerate_`
 
 - One template file per BB kind (`BB_templates/` folder).
 - **NO TEMPLATE CODE IN emit_core.c, emit_bb.c, OR ANY NON-TEMPLATE FILE.** All x86/JVM/JS/NET/WASM emission logic lives exclusively in `BB_templates/`, `SM_templates/`, or `XA_templates/`. `emit_core.c` contains only the dispatch switch (`case BB_FOO: bb_foo(nd); return 0;`). Violations: delete the inline code, move it to the correct template file, re-test.
+- **Never emit `.include "bb_macros.s"` in generated `.s` output.** BB macros are inlined by the `MEDIUM_MACRO_DEF` pass; a `.include` would double-define them and cause assembler errors.
 - No append-only accumulating files. Git log is the session record.
 - No symlinks. No duplicate corpus source files (exception: self-contained demo folders).
 - Never patch corpus `.sno`/`.inc` to work around runtime bugs — fix the runtime.
