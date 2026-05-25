@@ -82,6 +82,56 @@ GATE-4  bash scripts/test_icon_all_rungs.sh        # cross-language honest gate 
 
 `SM_BB_ONCE_PROC` routes through `pl_bb_dcg` + `dcg_table[i].ir_body` ✅. PJ-8 closed: SM-dispatch no longer reaches AST helpers (the `_usercall_hook` Prolog branch is `[NO-AST]`-stubbed). `pl_runtime.c` AST-walking paths remain only for mode 1 (`--interp` reference). `pl_bb_build` lazy fallbacks replaced ✅. Inline x86 emitters for Prolog primitives written (mode 4) — STILL TODO for full Mode 4 deliverable. smoke_prolog 5/5 ✅. GATE-1..4 green ✅.
 
+---
+
+## Architecture as understood after PJ-1..12 (2026-05-25)
+
+### The two execution paths
+
+**Mode 2/3 (interpret/JIT):** `rt_pl_once` → `pl_bb_once_proc_by_name` → `bb_broker` → `bb_exec_node` in `bb_exec.c`. The `bb_exec.c` interpreter IS the reference implementation of all BB node semantics. Every `case BB_CHOICE:`, `case BB_PL_SEQ:`, etc. in `bb_exec.c` is the exact logic that must be translated to x86 for Mode 4 templates.
+
+**Mode 4 (emit x86):** `rt_pl_once` (called from emitted `main`) → `rt_register_predicates_pl` → builder functions reconstruct `BB_graph_t` at binary startup → `bb_broker` → (future) emitted x86 Byrd boxes. Currently `bb_exec.c` is still the executor even in Mode 4 because the BB templates (`bb_pl_call.cpp`, `bb_pl_choice.cpp`, etc.) are stubs.
+
+### What the existing PL-T-1..3 templates actually do — and the problem
+
+The existing templates (`bb_builtin.cpp`, `bb_arith.cpp`, `bb_pl_seq.cpp`, etc.) emit x86 TEXT that **calls C helper functions** (`rt_pl_seq_exec`, `rt_pl_arith`, etc.) which do the port logic in C. This violates **INVARIANT 9** from GOAL-BB-TEMPLATE-LADDER: "BB templates may not call RT functions. PERIOD." These were acceptable scaffolding for Mode 2/3. For Mode 4, each template must emit the α/β/γ/ω port logic directly as inline x86 — translating the corresponding `case` in `bb_exec.c`.
+
+### How to translate bb_exec.c → x86 template (the method)
+
+1. **Read `bb_exec.c` `case BB_FOO:`** — this is the complete specification.
+2. **State lives in `BB_t` fields:** `nd->state` (int), `nd->counter` (int64), `nd->value` (DESCR_t), `nd->opaque` (void*). Offsets are fixed; use them directly.
+3. **Port dispatch:** entry==α → `nd->state==0`; entry==β → `nd->state>0`. `entry` arrives in `edi`.
+4. **Return γ/ω:** store result in `nd->value`, tail-call `nd->γ(nd)` or `nd->ω(nd)`.
+5. **No `rt_*` port-logic helpers.** Permitted external calls: `trail_mark`, `trail_unwind`, `unify`, `prolog_atom_intern`, `term_new_int`, `term_new_atom` — utility functions with no port state.
+6. **Globals:** `g_pl_trail` and `g_pl_env` accessed via `lea rdi, [rip + g_pl_trail]` in TEXT.
+
+### BB_PL_SEQ data layout (conjunction engine)
+
+```
+nd->c[i]       = goal node i
+nd->c[i]->state = 0=fresh, 1=live (resumable)
+nd->c[i]->opaque = PlCallSt* for BB_PL_CALL when state==1
+```
+Forward: run `bb_exec_once(goal->cfg)`. Backtrack: scan left for state==1 node, call `bb_exec_resume`. Key: `bb_exec_once` / `bb_exec_resume` are C entry points today; they become emitted boxes eventually.
+
+### BB_CHOICE data layout (multi-clause selector)
+
+```
+nd->state    = next clause to try (0=fresh)
+nd->counter  = (int64_t) trail mark saved at last success
+nd->opaque   = (Term**) g_pl_env saved at last success
+nd->c[i]     = BB_SUCCEED node; nd->c[i]->opaque = BB_graph_t* clause body
+```
+β: `trail_unwind(mark)`, restore `g_pl_env`, try `nd->c[nd->state]` body.
+
+### Key fix this session
+
+`g_pl_trail` was never initialized in Mode 4 (`rt_init` skipped `polyglot_init`). Fix: `trail_init(&g_pl_trail)` added to `rt_init`. `1a65b62b`. factorial(5)=120 ✅.
+
+### Next: PL-T-4..7 (in GOAL-BB-TEMPLATE-LADDER)
+
+`BB_PL_CALL` (PL-T-4), `BB_CHOICE` (PL-T-5), `BB_PL_ALT` (PL-T-6), `BB_CUT` (PL-T-7). Each: translate the corresponding `bb_exec.c` block (lines 1783–1935) to x86 TEXT. No new `rt_*`. No C Byrd box functions.
+
 ## Watermark
 
 ```
