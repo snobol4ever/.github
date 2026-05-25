@@ -31,7 +31,7 @@
 
 **NB-2 partial ✅** — `bb_pat_abort`, `bb_pat_rem`, `bb_pat_fence`, `bb_pat_pos` (pos+rpos), `bb_pat_tab` (tab+rtab) all converted to `bb_bin_t` single-return BINARY arms. Wrappers use `bb_emit_asm_result(str, bin)`. GATE-PK 504/0/625 NEW=0 GONE=0.
 
-**NEXT: NB-2 remainder** — `bb_lit`, `bb_pl_var`, `bb_pl_atom`, `bb_pl_arith`, `bb_pl_unify`, `bb_pl_builtin`. Then also TEXT arm cleanup (bb_lit TEXT still uses imperative emit_2asm), then NB-3 buffer deletion.
+**NEXT: NB-2 remainder** — `bb_lit` (TEXT arm still imperative), bb_pl_arith/unify/builtin BINARY arms still use bb_sink_str+emit_jmp (LP-5 scope: conditional byte layout). NB-3: delete bb_sink_str/emit_jmp/emit_label_define/bb_emit_buf.
 
 **LP-3 continued ✅ (cat/alt/fence/pl_var).** `bb_pat_cat` / `bb_pat_alt`: X86 MEDIUM_TEXT `r`-accumulator → `emit_for` lambda; `nid`/`sid` declarations moved BELOW the X86 arm (non-X86 arms only, matches `bb_pat_len` convention). `bb_pat_fence`: with-children X86 TEXT branch `r`-accumulator → `emit_for`; zero-child branch unchanged. `bb_pl_var`: inlined `slot` → `(int)pBB->ival2` at all sites (incl. sanctioned binary `hdr`). **DEFERRED to LP-5:** `bb_pl_atom`/`arith`/`unify`/`builtin` — `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`); `ls`/`rs`/`op_lbl` alias the same buffer, so simple-inline is UNSAFE (latent bug already present, masked by test coverage: TEXT arm reads `ls`/`rs` after the buffer was overwritten by `op_lbl`). Requires driver-lift into distinct `g_emit` fields — LP-5 nature.
 
