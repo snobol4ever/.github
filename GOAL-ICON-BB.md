@@ -1,72 +1,76 @@
-# GOAL-ICON-BB.md — All Icon Byrd-Box constructs in modes 1/2/3 (then 4)
+# GOAL-ICON-BB.md — Icon Byrd-Box templates, hello-world → algorithms, one rung at a time
+
+**Repo:** one4all + corpus + .github
+**Sister docs:** `GOAL-HEADQUARTERS.md` (the template system), `GOAL-PROLOG-BB.md` (mirror), `GOAL-BB-TEMPLATE-LADDER.md`, `GOAL-LANG-ICON.md`
+**Carved:** 2026-05-10 · **Rewritten as a template-construction ladder:** 2026-05-25
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
-║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
+║  ⛔ READ FIRST — THE ONLY LEGAL WAY TO MAKE A BYRD BOX EXIST                                     ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
-║  Sess 2026-05-15g removed all tree_t* dereferences from sm_interp.c (mode 2) and                ║
-║  sm_jit_interp.c (mode 3). Stubs print [NO-AST] <opcode> on stderr.                              ║
+║  A Byrd box is x86 ASSEMBLY TEXT returned by a C++ template function. It is NOT a C function.    ║
 ║                                                                                                  ║
-║  If a gate breaks with [NO-AST] FOO — write fresh SM/BB lowering for FOO.                       ║
-║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
-║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
+║  FORBIDDEN — instant rejection (RULES.md, HQ Invariant #2 + #16):                               ║
+║    DESCR_t foo(void *zeta, int entry) { ...four-port logic... }   ← NEVER write this            ║
+║    Any new function that emits code without carrying a BB / SM / XA opcode.                     ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  REQUIRED — every Byrd box is born exactly these six steps:                                     ║
+║    1. A `BB_<KIND>` enum value (already in the IR — see ir.h).                                   ║
+║    2. A template file `src/emitter/BB_templates/bb_<kind>.cpp` whose body is a pure              ║
+║       `std::string bb_<kind>_str(BB_t * pBB)` returning                                          ║
+║         IF(MEDIUM_MACRO_DEF, …) + IF(MEDIUM_BINARY, …) + IF(MEDIUM_TEXT, …);                     ║
+║       guarded by `if (PLATFORM_X86)`. JVM/JS/NET/WASM arms `return std::string();`.             ║
+║    3. A case in `walk_bb_node` (src/emitter/emit_core.c) routing the kind → `bb_<kind>(nd)`.    ║
+║    4. A forward decl in `BB_templates/bb_templates.h`.                                           ║
+║    5. TWO Makefile edits: add to the BB_SRCS list AND add an explicit `.o` rule.                ║
+║    6. An SM root hook that emits the opcode driving this BB (see §"The SM→BB hook").             ║
+║                                                                                                  ║
+║  If you just wrote `DESCR_t foo(void *zeta, int entry)` — DELETE IT and do the six steps.        ║
+║  The ONLY exempt C function with that signature is `icn_bb_dcg` (infrastructure DCG driver).    ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
-
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
-║  ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — NO EXCEPTIONS — READ THIS BEFORE WRITING CODE  ║
-╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
-║                                                                                                  ║
-║  A C Byrd box (C BB) is ANY C function with this signature:                                     ║
-║                                                                                                  ║
-║      DESCR_t foo(void *zeta, int entry)                                                         ║
-║                                                                                                  ║
-║  implementing four-port logic (α / β / γ / ω).                                                  ║
-║                                                                                                  ║
-║  THERE MUST BE ZERO OF THESE IN THE CODEBASE. NOT ONE. NONE. EVER.                              ║
-║                                                                                                  ║
-║  ALL Byrd boxes are x86 ASSEMBLY emitted at runtime by the emitter.                             ║
-║  If you want a BB, you EMIT it. You do not write a C function for it.                           ║
-║                                                                                                  ║
-║  The only permitted C functions with (void *zeta, int entry) signature are:                     ║
-║    • icn_lazy_box  — infrastructure shim, not a generator                                       ║
-║    • icn_bb_dcg    — infrastructure DCG driver, not a generator                                 ║
-║                                                                                                  ║
-║  If you just wrote DESCR_t foo(void *zeta, int entry) { ... } — DELETE IT.                     ║
-║  Implement it as an IR_block_t DCG (ir_exec.c + lower_icn.c) driven by icn_bb_dcg.             ║
-║  See IR_ICN_UPTO in ir_exec.c and lower_icn_upto() in lower_icn.c as the template.             ║
-║                                                                                                  ║
+║  ⛔ NO AST WALKING IN MODES 2/3/4 (RULES.md). Mode 1 is DELETED. `--interp` = mode 2 (SM).      ║
+║  No `tree_t*` deref (`->t/->c[]/->n/->v`) in sm_interp.c, sm_jit_interp.c, or src/emitter/*.    ║
+║  A `[NO-AST] <opcode>` print + `last_ok=0` is the honest tripwire. Fix = write SM/BB lowering.  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
-
-**Repo:** one4all + .github
-**Sister docs:** `GOAL-CHUNKS.md`, `GOAL-CHUNKS-STEP17.md`, `GOAL-LANG-ICON.md`
-**Carved:** 2026-05-10
-
-**Done when:**
-1. Every AST kind reachable from a `--interp` PASS Icon program lowers via `lower.c` to pure SM — no `emit_push_expr + SM_BB_PUMP` legacy fallthrough fires. Legacy block physically deleted.
-2. `--ir-emit` byte-identical to pre-rung baseline for every corpus program.
-3. `SCRIP_NO_AST_WALK=1 ./scrip --interp` == `./scrip --interp` for every program in the `--interp` PASS set (the *honest* gate).
-4. Every SM opcode emitted by Icon lowering has a `sm_codegen_x64` mirror.
-5. `is_suspendable` / `coro_eval` not reachable from SM dispatch under `SCRIP_NO_AST_WALK=1`.
-
-⛔ **"Cheating":** `--interp` silently calls `coro_eval` for un-migrated kinds. `SCRIP_NO_AST_WALK=1` aborts on this. Output equality alone is not sufficient.
 
 ---
 
-## Architecture
+## Current reality (verified 2026-05-25 — READ before starting)
+
+**Icon BB templates are STUBS today. This is the work.**
+
+- `BB_templates/bb_icn_to.cpp` and `bb_icn_to_by.cpp` exist but their bodies are `return std::string();` — they emit NOTHING.
+- `walk_bb_node` routes ~30 Icon BB kinds (`BB_ICN_UPTO`, `BB_ICN_ALTERNATE`, `BB_ICN_LIMIT`, `BB_ICN_SCAN`, `BB_ICN_SECTION`, `BB_ICN_ITERATE`, …) to `bb_icn_stub` / `bb_cset`, which are placeholders.
+- Upstream, the SM root hooks `SM_BB_EVAL`, `SM_BB_PUMP_EVERY`, `SM_BB_PUMP_CASE` are **emitted by `lower.c` but have NO x86 dispatch case** — they fall through `codegen_sm_dispatch` `default: return 0` and VANISH silently. That is the cause of widespread Icon mode-3/4 segfaults/aborts. (Simple every-loops route through `SM_BB_PUMP_PROC`, which IS wired and works — that is your starting exemplar on the SM side.)
+
+**Your job:** fill the stub template bodies AND wire their SM root hooks, one rung at a time, copying the live patterns that already work. You are NOT inventing the system — you are extending it.
+
+**Exemplars to copy (REAL fully-fleshed templates — open them before writing a line):**
+- Generator-shaped BB with α/β ports + back-label: `BB_templates/bb_pat_span.cpp` (FOR(0,2,…) over ports, `_.lbl_succ`/`_.lbl_back`/`_.lbl_fail`, BINARY rel32 patch slots, TEXT gas).
+- Scalar/leaf BB: `BB_templates/bb_lit_scalar.cpp`.
+- SM root hook that drives a BB by name: `SM_templates/sm_bb_calls.cpp` (`sm_bb_once_proc` / `sm_bb_pump_proc` — the MACRO_DEF+BINARY+TEXT shape every SM root hook follows).
+- Structural mirror in another language (further along): `bb_pl_atom.cpp` / `bb_pl_arith.cpp` — the `IF(MEDIUM_*)`-concat idiom outside SNOBOL4.
+
+---
+
+## The SM→BB hook (how an Icon construct reaches a template)
 
 ```
 .icn → icon_parse() → AST_t*
-  --ir-emit  → ir_print_program()                        Mode 1
-  --interp   → execute_program() → interp_eval()         Mode 2  (AST walker)
-  --interp   → lower() → SM_Program → sm_interp_run()   Mode 3
-  --run  → lower() → sm_codegen_x64() → run         Mode 3.5
-  --compile → lower() → sm_codegen_x64() → binary      Mode 4
+   lower.c   walks AST, emits SM_Program. For a generator/every/case construct it emits
+             ONE Icon SM ROOT HOOK:  SM_BB_EVAL / SM_BB_PUMP_EVERY / SM_BB_PUMP_CASE
+             (today: emitted but UNWIRED). Simple every → SM_BB_PUMP_PROC (wired, works).
+   ── mode 2 (--interp)   sm_interp.c       dispatches the opcode → drives the BB via bb_broker
+   ── mode 3 (--run)      sm_jit_interp.c   same, JIT
+   ── mode 4 (--compile)  src/emitter/emit_sm.c   emits the opcode's x86; that x86 calls the
+             runtime BB driver, which per BB node calls walk_bb_node(nd) → bb_<kind>(nd)
+             → your template's assembly text.
 ```
 
-Proebsting four-port template (start/resume/succeed/fail) → `SM_SUSPEND_VALUE` + goto wiring.
-JCON gold: `/home/claude/jcon-extract/jcon-master/tran/irgen.icn` (69 `ir_a_<Construct>` procedures).
+A rung is complete only when ALL FOUR exist: (a) `lower.c` emits the SM root hook; (b) the hook has an `emit_sm.c` x86 case (mode 4) + interp/jit cases (modes 2/3); (c) every BB kind the construct lowers to has a non-stub `bb_<kind>.cpp` wired in `walk_bb_node`; (d) gates green across modes.
+
+⛔ **Cheating tripwire.** `SCRIP_NO_AST_WALK=1 ./scrip --interp` MUST equal `./scrip --interp`. If a construct silently falls back to `coro_eval`/AST interp, the NO_AST run aborts or diverges. Output equality alone is NOT sufficient.
 
 ---
 
@@ -74,151 +78,152 @@ JCON gold: `/home/claude/jcon-extract/jcon-master/tran/irgen.icn` (69 `ir_a_<Con
 
 ```bash
 cd /home/claude/one4all
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 bash scripts/install_system_packages.sh
-bash scripts/build_scrip.sh
-bash scripts/build_spitbol_oracle.sh
+bash scripts/build_scrip.sh                 # builds scrip + libscrip_rt.so
 ```
 
-Baseline gates (all green before picking up next rung):
+Optional Icon oracle (validate/regenerate `.expected`): `/home/claude/icon-master/bin/{icont,iconx}` if present.
+
+### Baseline gates — capture BEFORE touching anything; must not regress
+
 ```bash
-bash scripts/test_smoke_icon.sh                 # PASS=5
-bash scripts/test_smoke_unified_broker.sh       # PASS=49
-bash scripts/test_isolation_ir_sm.sh            # PASS
-bash scripts/test_icon_all_rungs.sh          # 185/48/30
-bash scripts/test_icon_all_rungs.sh        # honest dial (224/~39/0 at sess 2026-05-11c)
+bash scripts/test_smoke_icon.sh                              # inline smokes
+bash scripts/test_icon_all_rungs.sh                          # --interp ladder rung01..rung37
+bash scripts/test_crosscheck_icon.sh                         # 3-mode (ir/sm/jit) consistency
+bash scripts/test_smoke_unified_broker.sh                    # cross-language broker, Icon rows
+SCRIP_NO_AST_WALK=1 bash scripts/test_icon_all_rungs.sh      # the HONEST dial
 ```
 
-⚠️ `test_icon_sm_no_ast_walk.sh` uses 8s timeouts — some long-running programs register as FAIL. Run a manual sweep with 10s+ timeouts to get accurate count.
+Record the four numbers (smoke / --interp / crosscheck / honest) in the watermark.
 
 ---
 
-## Honest-mode-3 protocol
+## The corpus ladder (already on disk — `/home/claude/corpus/programs/icon/`)
 
-Probe helpers in `scripts/icon_bb_probes.sh`: `bb_probe_detect`, `bb_probe_complete`, `bb_probe_scoreboard`.
-Baseline md5: `baselines/icon-bb/sm-run-honest.md5` (created sess 2026-05-11c).
+Each rung is `rungNN_*.icn` files with `.expected` (and optional `.stdin`, `.xfail`). The ladder already climbs hello-world → algorithms; you make the BB/template machinery PASS each rung honestly, in order.
 
-A rung is **honestly complete** iff: (a) output matches `--interp`, (b) passes under `SCRIP_NO_AST_WALK=1`, (c) audit counter zero for kind, (d) smokes unchanged, (e) ≥1 program flipped honest.
+```bash
+bash scripts/test_icon_all_rungs.sh --rung rung04               # one rung, --interp
+bash scripts/util_crosscheck_3mode.sh <file.icn> [oracle.ref]   # one file, all 3 modes
+```
 
----
+Run `ls /home/claude/corpus/programs/icon/rungNN_*` to see exact files per rung.
 
-## Phase A — drain legacy fallthrough
+| Rung | Theme | First constructs that must lower to non-stub BBs |
+|------|-------|--------------------------------------------------|
+| 01 | paper §2 generators | `i to j`, `*`, `<`, nested `to`, `every write(...)` — `BB_ICN_TO`, `SM_BB_PUMP_EVERY` |
+| 02 | arith + proc | binops as generators, user `procedure` call |
+| 03 | conditionals | `if/then/else`, comparison generators |
+| 04 | strings | `||` concat, string scalars |
+| 05–07 | control flow | `while`/`until`/`repeat`, `every`, conjunction `&` |
+| 08 | string builtins | size/find/etc. |
+| 09 | loops | nested loops, `break`/`next` |
+| 10–12 | relops + size | string relops, `*x` size |
+| 13 | gen in value context | `BB_ICN_ALTERNATE`, conjunction-in-generator |
+| 14 | limit | `\` limit — `BB_ICN_LIMIT` |
+| 15 | iterate | `!E` bang — `BB_ICN_ITERATE`, `BB_ICN_LIST_BANG` |
+| 16–20 | scan / section / seqexpr | `? {…}`, `s[i:j]`, `(e;e)` |
+| 21–24 | globals / records / fields | `initial{}`, record def, field get/set |
+| 25–35 | tables, csets, real arith, key-gen, augops | richer generator contexts |
+| 36 | JCON-scale programs | full algorithms (timeout 30s) |
+| 37 | extended | additional algorithm set |
 
-`lower_bang_binary` and generative `lower_lconcat` emit `SM_BB_PUMP_AST` (bridges to `coro_eval` via `g_ast_pump_active` exemption — not caught by `SCRIP_EXPRS_AUDIT`). Phase A replaces each with a pure SM coroutine using the `emit_range_coroutine` pattern: `SM_JUMP` over body → `SM_RESUME` → loop with `SM_STORE/LOAD_GLOCAL` + `SM_SUSPEND` → `SM_PUSH_NULL + SM_RETURN` → `SM_PUSH_EXPRESSION + SM_BB_PUMP_SM`.
-
-#### A1 — CH-17i-bang-concat-gen — `AST_BANG_BINARY` + `AST_LCONCAT` (generative)
-- [ ] JCON: `ir_a_Binop` with closure / `ir_a_Unop`. Reuse `icn_bang_binary_state_t` / `icn_binop_gen_state_t`.
-- [ ] Anchor: `rung15_real_swap_lconcat.icn`. Gate: smoke ×6, isolation PASS, anchor flips honest.
-- [ ] Files: `sm_prog.h/c`, `sm_interp.h/c`, `sm_codegen.c`, `lower.c`
-
-#### A2 — CH-17i-section — `AST_SECTION*`
-- [ ] JCON: `ir_a_Sectionop`. State: `icn_section_state_t { subj, lo, hi, kind }`. Gate: standard + anchor honest.
-
-#### A3 — CH-17i-limit-random — `AST_LIMIT` + `AST_RANDOM`
-- [x] JCON: `ir_a_Limitation`. Gate: standard + anchor. (rung14 TT_LIMIT ✅ `554aa38f`)
-
-#### A4 — CH-17i-iterate — `AST_ITERATE` (`!E`)
-- [ ] JCON: `ir_a_Unop` with closure. Gate: standard + anchor.
-
-#### A5 — CH-17i-seqexpr-gen — `AST_SEQ_EXPR` (generative `;`-parens)
-- [ ] JCON: `ir_conjunction`. Gate: standard + anchor.
-
-#### A6 — CH-17i-fallthrough-delete
-- [ ] After A1–A5: delete legacy block, replace with `abort()`. Gate: zero `SM_PUSH_EXPR` fires corpus-wide.
-
----
-
-## Phase B — generative reductions
-
-Scalar ops become generators when `is_suspendable(child)`. Extend scalar arms in `lower.c`; use existing `SM_SUSPEND_VALUE` + goto wiring.
-
-- [ ] **B1** arith-gen — `AST_ADD/SUB/MUL/DIV/MOD/…` gen children.
-- [ ] **B2** rel-gen — relops gen children.
-- [ ] **B3** cat-gen — `AST_CAT`/`AST_LCONCAT` mixed.
-- [ ] **B4** deref-gen — `AST_NONNULL`/`AST_NULL`/`AST_IDENTICAL` gen.
-- [ ] **B5** idx-gen — `AST_IDX` gen index.
-- [ ] **B6** assign-gen — `AST_ASSIGN` gen RHS + `AST_REVASSIGN`/`AST_REVSWAP`.
+JCON gold for port semantics: `/home/claude/jcon-extract/jcon-master/tran/irgen.icn` (`ir_a_<Construct>` procedures). Icon four-port = Proebsting start/resume/succeed/fail.
 
 ---
 
-## Phase C — control-flow generator-awareness
+## Rung procedure — DO THIS for every rung (do not skip ahead, do not batch)
 
-- [ ] **C1** fnc-gen — `AST_FNC` gen arg / user proc with `suspend`.
-- [ ] **C2** loop-cond-gen — `while/until/repeat` gen condition.
-- [ ] **C3** if-gen — `AST_IF` gen condition (Proebsting §4.5).
-- [ ] **C4** not-gen — `AST_NOT` gen subexpr.
+1. **Pick the lowest red rung.** `bash scripts/test_icon_all_rungs.sh --rung rungNN`. Read each failing `.icn` and its `.expected`.
+2. **Identify construct → SM root hook → BB kinds.** Dump the SM (`./scrip --emit-sm file.icn` or the available SM-dump mode). Note which `SM_BB_*` opcode `lower.c` emits and which `BB_*` kinds appear. A `[NO-AST] SM_BB_EVAL/PUMP_EVERY/PUMP_CASE` print = that hook is unwired = your target.
+3. **Wire the SM root hook (if unwired).** Add the x86 dispatch case in `src/emitter/emit_sm.c` (copy `emit_sm_bb_once_proc_dispatch` / the `sm_bb_pump_proc` shape) and the mode-2/3 cases in `sm_interp.c` / `sm_jit_interp.c` (copy the live `SM_BB_PUMP_PROC` handler). The hook looks up the IR block and drives it via `bb_broker`.
+4. **Fill the BB template(s).** For each stubbed `BB_*` kind the rung needs:
+   - Open the closest live exemplar (`bb_pat_span.cpp` generator, `bb_lit_scalar.cpp` leaf).
+   - Write `bb_<kind>_str(BB_t*)` returning `IF(MEDIUM_MACRO_DEF,…)+IF(MEDIUM_BINARY,…)+IF(MEDIUM_TEXT,…)`, x86-only. Keep EVERY medium's `IF()` slot even if empty (`IF(MEDIUM_BINARY, std::string())`) — a missing slot turns the three-section AUDIT red.
+   - TEXT arm: readable gas, `_.lbl_succ`/`_.lbl_back`/`_.lbl_fail`, `call rt_<helper>@PLT`. BINARY arm: same bytes + rel32 patch slots. MACRO_DEF arm: `.macro`/`.endm` form or `# no macro form` comment.
+   - **No runtime C Byrd box.** If the BB needs runtime help, add a PLAIN helper to `src/runtime/rt/rt.c` (e.g. `rt_bb_icn_to`) that the emitted asm CALLS — a callee, not a four-port box.
+5. **Wire it.** Replace `bb_icn_stub(nd)` for that kind in `walk_bb_node` with `bb_<kind>(nd)`; add forward decl in `bb_templates.h`; add the SRCS line AND the explicit `.o` rule in the Makefile.
+6. **Build + gate.** `bash scripts/build_scrip.sh`, then:
+   - `bash scripts/test_icon_all_rungs.sh --rung rungNN` → was red, now green.
+   - `bash scripts/util_crosscheck_3mode.sh <file.icn>` → ir == sm == jit.
+   - `SCRIP_NO_AST_WALK=1 bash scripts/test_icon_all_rungs.sh --rung rungNN` → still green (HONEST).
+   - Full `test_icon_all_rungs.sh` + `test_smoke_icon.sh` + `test_smoke_unified_broker.sh` → no regression.
+7. **Commit one rung.** `git add -A && git commit -m "ICN-BB rungNN <construct>: <BB kinds> templates + SM_BB_* hook (honest N→M)"`. Update watermark. Next red rung.
 
----
-
-## Phase D/E (owned by CHUNKS-STEP17)
-
-CH-17g-irrun-prep → CH-17g-irrun-execution → mode3-completeness / mode4 / final-isolation. All after Phase C.
-
----
-
-## Active next targets (honest dial: 213/~30/1 at sess 2026-05-11h)
-
-Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
-lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
-GLOCAL[0] holds remaining count. Outer SM_GEN_TICK drives limit coroutine; limit coroutine
-drives inner alternate via nested SM_GEN_TICK, counting down from N, suspending each value.
-SM_DECR 1 decrements; separate VOID_POP cleanup for FAILDESCR (done_inner) and yielded_val (done_ctr).
-lower_every detects gen_expr->t == TT_LIMIT and delegates. Honest SM: 212→213.
-
-Remaining failures — known root causes:
-- rung15: `!E` iterate — Phase A4 AST_ITERATE.
-- rung36: complex Icon features (segfaults, timeouts).
-- Some IR failures: interp_eval.c slot reads still use v.ival.
-
-Next: rung15 AST_ITERATE (`!E`) — Phase A4.
+A rung is **honestly complete** iff: (a) output matches `--interp`; (b) passes under `SCRIP_NO_AST_WALK=1`; (c) the construct's `[NO-AST]` tripwire never fires; (d) all smokes unchanged; (e) ≥1 program flipped honest.
 
 ---
 
-## Invariants
+## Done when
 
-1. Mode 1 (`--ir-emit`) byte-identical at every rung.
-2. Icon `--interp` corpus 185/48/30 byte-identical until CH-17g-irrun-execution lands.
-3. No `EXPR_t*` in SM bytecode — BB-pump opcodes take integer registry IDs.
-4. Fallthrough delete (A6) is one-way: future generative kinds must add their own lowering.
-5. `is_suspendable` stays in sync with lowering rungs.
-
----
-
-## Closed rungs
-
-| Rung | Commit | Honest gain | Notes |
-|------|--------|-------------|-------|
-| A0 — cheat-tripwire | — | — | `SCRIP_NO_AST_WALK=1` guard in `coro_eval`/`interp_eval`/etc. |
-| A3-seed-fix | — | 116→117 | Unified 3 LCG seeds → `bb_icn_rnd_seed` |
-| A4 — alternate | — | 117→122 | `AST_ALTERNATE` → `SM_BB_PUMP_AST` |
-| CH-17g-smcall-proc | `60656fce` | 126→130 | `SM_CALL_FN` scans `proc_table` before NV dispatch |
-| CH-17g-augop-inline | `bb6d4ee7` | 130→140 | `AST_AUGOP` inline read-compute-writeback |
-| CH-17g-loop-stack | `864fe914` | 140→143 | `SM_VOID_POP` before `SM_PUSH_NULL` at while/until exit |
-| CH-17g-scan | `d8760856` | 143→152 | `AST_CSET`→string; `AST_SCAN`→`ICN_SCAN_PUSH/POP` |
-| CH-17g-builtin-batch | `c95eb2bd` | 141→167 | SIZE/NONNULL/NULL/FIELD_GET/SET/MAKELIST/RECORD_MAKE/etc. |
-| CH-17g-case-swap-null | `7adfdc20` | 167→174 | `AST_CASE`; `AST_SWAP`; `AST_NULL` |
-| AST_IF condition leak | `2f3dbc65` | 174→177 | `SM_VOID_POP` after `SM_JUMP_F` |
-| CH-17g-scan-subject | `5f6d9d8b` | 180→185 | `NV_GET/SET_fn` for `&subject`/`&pos` |
-| CH-17g-icon-conjunction | `74faf1d0` | — | `AST_SEQ` + `LANG_ICN` → `SM_JUMP_F` |
-| CH-17g-initial-once | `b4d7ee18` | 172→175 | `initial {}` sentinel via NV |
-| rung24 record-field-assign | `bc6357da` | 203→205 | AST_FIELD lvalue in interp_eval + icn_bb_assign_gen |
-| loop_next fix | `cf389ad7` | 205→224 | `coro_bb_every`: save/clear/restore `FRAME.loop_next` around body |
-| assign-cat fix | `f32e690e` | 224→226 | `icn_bb_assign_cat`: re-eval RHS each tick when AST_VAR alongside leaf gen |
-| rung06 scan/any fix | `4b2a8700` | 226→227 | ICN_SCAN_PUSH/POP inline in sm_interp; Icon & conjunction SM_JUMP_F in lower_proc_skeletons |
-| g_lang LANG_ICN scoped | `3648dae5` | 227→~231 | SM_BB_PUMP_PROC saves/restores g_lang; sm_preamble sets after lower(); rung28+rung24 gain |
-| SI-13 union-clobber fix | `b891504a` | 0→209 honest, 1→182 IR | Four v.sval/v.ival alias bugs: nparams→_id; callee skip; slot→_id; baseline rebake |
-| rung13 conjunction-in-generator | `fa8bd48f` | 208→211 honest | SM_GEN_TICK + bb_broker_drive_sm_one + IcnFrame.every_gen[]; lower_every hoists TT_ALTERNATE as inner SM coroutine; outer SM_GEN_TICK loop |
-| rung14 limit-in-generator | `554aa38f` | 212→213 honest | lower_limit_every: slot_inner (TT_ALTERNATE coro) + slot_limit (limit wrapper); GLOCAL[0]=count; nested SM_GEN_TICK; SM_DECR 1; stack cleanup at each exit |
+1. Every construct reachable from a `--interp` PASS Icon program lowers to non-stub BB templates driven by a wired SM root hook — no `bb_icn_stub` fallthrough and no `[NO-AST] SM_BB_*` for a PASS program.
+2. `SCRIP_NO_AST_WALK=1 ./scrip --interp` == `./scrip --interp` for every program in the `--interp` PASS set.
+3. `test_crosscheck_icon.sh` green (ir == sm == jit) across the corpus.
+4. Mode 4 (`--compile --target=x86`) assembles, links, and runs each rung's programs producing `.expected`.
+5. Every `SM_BB_*` opcode emitted by Icon lowering has an `emit_sm.c` x86 case AND interp/jit handlers.
+6. ZERO `DESCR_t foo(void *zeta, int entry)` added (only `icn_bb_dcg` exempt).
 
 ---
 
 ## File ownership
 
-| Path | Touches? |
-|------|----------|
-| `src/runtime/x86/lower.c` | Yes (every rung) |
-| `src/runtime/x86/sm_prog.h/c` | Yes (Phase A) |
-| `src/runtime/x86/sm_interp.h/c` | Yes (Phase A) |
-| `src/runtime/x86/sm_codegen.c` | Yes (Phase A JIT mirrors) |
-| `src/runtime/interp/coro_runtime.c` | Fixes |
-| `src/runtime/interp/interp_eval.c` | Builtin additions |
-| `baselines/icon-bb/` | Baseline md5 files |
+| Path | Role in a rung |
+|------|----------------|
+| `src/emitter/BB_templates/bb_icn_*.cpp` | BB templates you FILL (one file per kind) |
+| `src/emitter/BB_templates/bb_templates.h` | Forward decls — add yours |
+| `src/emitter/emit_core.c` (`walk_bb_node`) | Route `BB_ICN_*` → your template |
+| `src/emitter/emit_sm.c` | x86 dispatch for `SM_BB_EVAL`/`PUMP_EVERY`/`PUMP_CASE` (mode 4) |
+| `src/emitter/SM_templates/sm_bb_calls.cpp` | SM root hook templates (exemplar + extend) |
+| `src/runtime/x86/lower.c` | Emits the SM root hook for the construct |
+| `src/runtime/x86/sm_interp.c` / `sm_jit_interp.c` | Mode 2/3 dispatch of the SM root hook |
+| `src/runtime/rt/rt.c` / `rt.h` | Plain runtime helpers the emitted asm CALLs (NOT four-port boxes) |
+| `Makefile` | SRCS line + explicit `.o` rule per new template |
+| `baselines/icon-bb/` | Honest-mode md5 baselines |
+
+---
+
+## Invariants
+
+1. `--interp` (mode 2) reference output is byte-identical across a rung — you add capability, never change semantics.
+2. No `EXPR_t*`/`tree_t*` in SM bytecode — BB hooks take integer/string registry operands.
+3. Each new generative kind adds its OWN lowering + template — no shared catch-all.
+4. `is_suspendable` stays in sync with which kinds have generator templates.
+5. Every medium arm (`MACRO_DEF`/`BINARY`/`TEXT`) present in every template, even if empty.
+
+---
+
+## Closed rungs (historical SM-lowering work — pre-template-ladder)
+
+These landed SM-side lowering before the template system was the law; they are the substrate
+the template rungs build on. (honest dial reached 277/0/0 at the PJ-9d cross-audit.)
+
+| Rung | Commit | Honest gain | Notes |
+|------|--------|-------------|-------|
+| CH-17g-smcall-proc | `60656fce` | 126→130 | `SM_CALL_FN` scans `proc_table` |
+| CH-17g-augop-inline | `bb6d4ee7` | 130→140 | `AST_AUGOP` inline read-compute-writeback |
+| CH-17g-scan | `d8760856` | 143→152 | `AST_CSET`→string; `AST_SCAN`→`ICN_SCAN_PUSH/POP` |
+| CH-17g-builtin-batch | `c95eb2bd` | 141→167 | SIZE/NONNULL/NULL/FIELD/MAKELIST/RECORD_MAKE |
+| CH-17g-case-swap-null | `7adfdc20` | 167→174 | `AST_CASE`/`AST_SWAP`/`AST_NULL` |
+| rung13 conjunction-in-gen | `fa8bd48f` | 208→211 | SM_GEN_TICK + IcnFrame.every_gen[] |
+| rung14 limit-in-gen | `554aa38f` | 212→213 | lower_limit_every nested SM_GEN_TICK |
+| ICN-T-1 | `43b873a1` | — | `BB_ICN_TO` template FILE created (still stub body) |
+
+---
+
+## Watermark
+
+```
+one4all: 6f4996f7      corpus: 1fe096c       (handoff verified 2026-05-25)
+smoke_icon: 5/5 ✅      crosscheck_icon (3-mode): 4/0 ✅
+GATE-PK: 513/0/602  NEW=0 GONE=0 ✅  (+9 PASS from bb_upto/bb_iterate/bb_to_by/bb_binop_gen fills)
+unified_broker Icon rows: SHARED_VAL read still empty (SM_BB_EVAL path) — expected, in progress
+FILLED this session (ICN-T-*): bb_upto.cpp, bb_iterate.cpp, bb_to_by.cpp, bb_binop_gen.cpp
+  — real inline x86 MEDIUM_BINARY bytes (Invariant 0/8), with rt_*/icon_box_rt callees
+STILL STUB: bb_proc_gen, bb_gen_alt, bb_limit, bb_gen_scan, bb_keyword (ICN-T-4/6/7/9/10)
+Renames since last doc: BB_ICN_*→BB_* (collisions → BB_GEN_ALT/BB_GEN_BINOP/BB_GEN_SCAN);
+  BB_ICN_TO_BY+BB_ICN_LIMIT merged into BB_TO_BY+BB_LIMIT; ir_exec.c→bb_exec.c;
+  lbl_back/succ/fail→lbl_β/γ/ω (PJ-13)
+Current rung: <rungNN — construct — which BB kinds + SM hook>
+SM root hooks: SM_BB_EVAL/PUMP_EVERY/PUMP_CASE — verify wiring state in emit_sm.c before next rung
+```

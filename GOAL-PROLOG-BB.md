@@ -1,113 +1,230 @@
-# GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
+# GOAL-PROLOG-BB.md — Prolog Byrd-Box templates, hello-world → algorithms, one rung at a time
 
 **Repo:** one4all + corpus + .github
-**Prereq:** GOAL-PROLOG-BB-COMPLETE ✅ `c9b7428d` (PB-8 honest 111/294 FAIL=0 ABORT=0)
-**Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
+**Sister docs:** `GOAL-HEADQUARTERS.md` (the template system), `GOAL-ICON-BB.md` (mirror), `GOAL-BB-TEMPLATE-LADDER.md`, `GOAL-LANG-PROLOG.md`
+**Prereq:** PJ-1..PJ-9d ✅ (registry + Mode-4 simple-body recursion working). **Rewritten as a template-construction ladder:** 2026-05-25
 
-## Invariants (READ FIRST)
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ READ FIRST — THE ONLY LEGAL WAY TO MAKE A BYRD BOX EXIST                                     ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║  A Byrd box is x86 ASSEMBLY TEXT returned by a C++ template function. It is NOT a C function.    ║
+║                                                                                                  ║
+║  FORBIDDEN — instant rejection (RULES.md, HQ Invariant #2 + #16):                               ║
+║    DESCR_t foo(void *zeta, int entry) { ...α/β/γ/ω logic... }   ← NEVER write this              ║
+║    Any new function that emits code without carrying a BB / SM / XA opcode.                     ║
+║    NOTE: the `pl_bb_dcg` C-function sketch from old versions of this file is NOT the work        ║
+║    pattern — `pl_bb_dcg` is the ONE exempt infrastructure shim (twin of `icn_bb_dcg`). Do not   ║
+║    write any OTHER four-port C function. Predicate bodies are IR_block_t graphs + BB templates.  ║
+║                                                                                                  ║
+║  REQUIRED — every Byrd box is born exactly these six steps:                                     ║
+║    1. A `BB_PL_<KIND>` enum value (already in the IR — see ir.h).                                ║
+║    2. A template file `src/emitter/BB_templates/bb_pl_<kind>.cpp` whose body is a pure           ║
+║       `std::string bb_pl_<kind>_str(BB_t * pBB, bb_bin_t & bin)` returning                       ║
+║         IF(MEDIUM_MACRO_DEF, …) + IF(MEDIUM_BINARY, …) + IF(MEDIUM_TEXT, …);                     ║
+║       guarded by `if (PLATFORM_X86)`. JVM/JS/NET/WASM arms `return std::string();`.             ║
+║    3. A case in `walk_bb_node` (src/emitter/emit_core.c) routing the kind → `bb_pl_<kind>(nd)`. ║
+║    4. A forward decl in `BB_templates/bb_templates.h`.                                           ║
+║    5. TWO Makefile edits: add to the BB_SRCS list AND add an explicit `.o` rule.                ║
+║    6. The SM root hook `SM_BB_ONCE_PROC` already drives all Prolog BBs (see §"The SM→BB hook"). ║
+║                                                                                                  ║
+║  Good news: steps 1–6 are ALREADY DONE for six Prolog kinds. You COPY them. See "Current        ║
+║  reality" — bb_pl_atom/arith/unify/builtin/seq/var are real, fleshed-out templates.            ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-The five invariants from GOAL-HEADQUARTERS.md apply verbatim with names substituted:
-Icon `proc_table` ↔ Prolog `dcg_table`; `icn_bb_dcg` ↔ `pl_bb_dcg`; `SM_BB_PUMP_PROC` ↔ `SM_BB_ONCE_PROC`. **Cross-language semantics differ per port** — Icon β advances a generator counter; Prolog β pops a choice-point + unwinds the trail; SNOBOL4 β backtracks the pattern anchor. Never invoke language-A's SM-bridge handler with language-B's BB object.
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔ NO AST WALKING IN MODES 2/3/4 (RULES.md). Mode 1 is the DELETED reference. `--interp`=mode 2.║
+║  No `tree_t*` deref in sm_interp.c, sm_jit_interp.c, or src/emitter/*. `[NO-AST] <opcode>` =     ║
+║  honest tripwire. PJ-8 already stubbed the `_usercall_hook` Prolog AST branch under SM dispatch. ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+## Port semantics (Prolog differs from Icon — never cross the wires)
+
+| Port | Icon | Prolog |
+|---|---|---|
+| α | enter generator, first attempt | enter predicate, first clause, `trail_mark` |
+| β | resume, advance generator | retry: `trail_unwind`, advance to next clause |
+| γ | success (yield value) | success (head unified/bound) |
+| ω | failure (exhausted) | failure (no more clauses) |
+
+`proc_table` (Icon) ↔ `dcg_table`/predicate registry (Prolog); `icn_bb_dcg` ↔ `pl_bb_dcg`; `SM_BB_PUMP_PROC` ↔ `SM_BB_ONCE_PROC`. Never invoke language-A's SM-bridge handler with language-B's BB object.
+
+---
+
+## Current reality (verified 2026-05-25 — READ before starting)
+
+**Prolog templates ALREADY EXIST and are real — this is your copy-me set:**
+
+- `BB_templates/bb_pl_atom.cpp` (44 LOC) — atom literal, full MACRO_DEF+BINARY+TEXT, `rt_pl_atom_push@PLT`.
+- `BB_templates/bb_pl_arith.cpp` (72) — `Y is X+N`.
+- `BB_templates/bb_pl_unify.cpp` (111) — `X = Y`.
+- `BB_templates/bb_pl_builtin.cpp` (103) — write/nl/halt/etc.
+- `BB_templates/bb_pl_seq.cpp` (47) — conjunction `A,B,C`.
+- `BB_templates/bb_pl_var.cpp` (34) — variable slot read.
+- `BB_templates/bb_pl.cpp` (19) — CALL/CHOICE/CUT/ALT entry.
+
+All are wired in `walk_bb_node` (most via `bb_prepare_pl(nd)` first, which interns operand labels into distinct `g_emit` fields — see HQ LOCAL-PURGE-6), declared in `bb_templates.h`, and in the Makefile (SRCS + `.o` rule). The SM root hook `SM_BB_ONCE_PROC` is wired in mode 2 (`sm_interp.c`), mode 3 (`sm_jit_interp.c`, PJ-9a), and mode 4 (`emit_sm.c` → `rt_bb_once_proc`, PJ-9c). The Mode-4 predicate REGISTRY emit exists (PJ-9d: `rt_register_predicates_pl` + `xa_pl_*` builder templates).
+
+**What is NOT done (the remaining ladder):**
+- **Mode-4 multi-clause bodies** (PJ-9e, OPEN): per-clause sub-cfg bodies stored in `IR_SUCCEED.opaque` are not all emitted into the standalone binary's builder. Factorial recursion prints in modes 1/2/3 but NOT mode 4. Sub-builder mechanism landed (`a02efe54`); three open items below.
+- **Higher rungs** (lists, findall/bagof/setof, cut-heavy, term inspection, arithmetic edges, ISO errors) — corpus rung16..rung39 exist but BB coverage thins out past the basics.
+
+**Exemplars beyond Prolog (for richer port shapes):** `bb_pat_span.cpp` (Icon/SNOBOL generator with α/β + back-label + FOR(0,2,…) over ports) when a Prolog construct needs a multi-port generator beyond simple once/retry.
+
+---
+
+## The SM→BB hook (how a Prolog goal reaches a template)
+
+```
+.pl → pl_parse() → AST_t*
+   lower.c + lower_pl.c   build per-predicate IR_block_t graphs, register them, and for each
+             top-level goal (`:- initialization(G).`) emit  SM_BB_ONCE_PROC name/arity.
+   ── mode 2 (--interp)   sm_interp.c case SM_BB_ONCE_PROC → pl_bb_once_proc_by_name + bb_broker
+   ── mode 3 (--run)      sm_jit_interp.c h_bb_once_proc → same (PJ-9a)
+   ── mode 4 (--compile)  emit_sm.c → emits BB_ONCE_PROC; rt.c rt_bb_once_proc drives it;
+             rt_register_predicates_pl rebuilds the IR_block_t graphs at binary startup
+             (xa_pl_builder / xa_pl_sub_builder / xa_pl_registry_table / xa_pl_kids_rodata).
+   bb_broker walks each IR_block_t node → walk_bb_node(nd) → bb_pl_<kind>(nd) → template asm.
+```
+
+BB executor cases (in `src/lower/bb_exec.c` — renamed from `ir_exec.c` at PJ-8837b2b1) the BBs lean on: `BB_UNIFY`, `BB_CALL`, `BB_CHOICE`/`BB_ALT`, `BB_SEQ`, `BB_CUT`, `BB_BUILTIN`, `BB_ARITH`, `BB_VAR`, `BB_ATOM`. (The `IR_PL_*`/`IR_LANG_*` prefixes were dropped tree-wide at PJ-10/PJ-T-7; `IR_block_t` graphs are now `BB_graph_t`.)
+
+⛔ **Cheating tripwire.** `SCRIP_NO_AST_WALK=1` must not change `--interp` output. PJ-8 closed the `_usercall_hook` AST back-door; keep it closed.
+
+---
 
 ## Session Setup
 
-```
-cd /home/claude/one4all && bash scripts/build_scrip.sh
-```
-
-## Architecture
-
-Same shape as Icon (SM is entry; SM_BB_XXX bridges into BB-land; nothing dereferences `tree_t*` at runtime), with three differences in port semantics:
-
-| Port | Icon semantics | Prolog semantics |
-|---|---|---|
-| α | enter generator, first attempt | enter predicate, first clause, trail_mark |
-| β | resume, advance generator state | retry: trail_unwind, advance to next clause |
-| γ | success (yield value) | success (unification succeeded; head bound) |
-| ω | failure (exhausted) | failure (no more clauses) |
-
-**Target shape per Prolog program:** the SM stream contains one `SM_BB_ONCE_PROC` per top-level call (typically just `?- main.`). Each predicate's body is one `IR_block_t*` in `dcg_table[i].ir_body`. Multi-clause predicates compose alternatives via `IR_PL_CHOICE`; recursive calls via `IR_PL_CALL`; cut via `IR_PL_CUT`.
-
-**The `pl_bb_dcg` bridge (to be added):**
-```c
-typedef struct { IR_block_t *cfg; int first; int trail_mark; } pl_dcg_state_t;
-DESCR_t pl_bb_dcg(void *zeta, int entry) {
-    pl_dcg_state_t *z = zeta;
-    if (entry == α) { z->first = 1; z->trail_mark = pl_trail_top(); }
-    if (z->first) { z->first = 0; return IR_exec_once(z->cfg); }
-    pl_trail_unwind(z->trail_mark);
-    return IR_exec_resume(z->cfg);
-}
+```bash
+cd /home/claude/one4all
+git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+bash scripts/build_scrip.sh                 # builds scrip + out/libscrip_rt.so
+make libscrip_rt                            # if Mode-4 runner reports it missing
 ```
 
-**`dcg_table` (to be added):** mirror of `proc_table`. Indexed by `name/arity`. Each entry holds `ir_body : IR_block_t*` plus argument scope info.
+Optional oracles: `bash scripts/install_swi_prolog_tests.sh` / `install_gnu_prolog_tests.sh`.
 
-## IR executor cases needed (ir_exec.c)
+### Baseline gates — capture BEFORE touching anything; must not regress
 
-| IR kind | Purpose | Notes |
-|---|---|---|
-| `IR_PL_UNIFY` | `X = Y` | calls `pl_unify(L, R)`; γ on success, ω on fail (with trail unwind via caller's mark) |
-| `IR_PL_CALL` | predicate call | look up `dcg_table[name/arity]`, build fresh `pl_dcg_state_t`, drive via inner `IR_exec_once`/`_resume` |
-| `IR_PL_CHOICE` | multi-clause `A; B; C` | `nd->state` = clause index; `nd->counter` = saved trail position; β unwinds + advances |
-| `IR_PL_CUT` | `!` | discard choice points back to enclosing barrier; mark surrounding CHOICE so β skips past cut |
-| `IR_PL_BUILTIN` | `write`, `nl`, `is`, type tests | direct C calls; γ on success, ω on failure |
-
-## Gates
-
-```
-GATE-1  bash scripts/test_smoke_prolog.sh               # PASS=5 (currently 0)
-GATE-2  bash scripts/test_smoke_unified_broker.sh       # PASS >= baseline (Prolog rows non-regressive)
-GATE-3  bash scripts/test_prolog_rung_suite.sh          # PASS >= prev
-GATE-4  bash scripts/test_icon_all_rungs.sh        # cross-language honest gate non-regressive
+```bash
+bash scripts/test_smoke_prolog.sh            # 5/5 (write_atom, unify, arith, clause, recursion)
+bash scripts/test_crosscheck_prolog.sh       # mode-consistency across ir/sm/jit (128/0 at PJ-9d)
+bash scripts/test_prolog_bb_honest.sh        # honest dial 124/0/0
+bash scripts/test_smoke_unified_broker.sh    # broker, Prolog rows non-regressive (20/49 at PJ-9d)
 ```
 
-## Active steps
+For Mode-4 end-to-end on one file:
+```bash
+bash scripts/run_prolog_via_x86_backend.sh /home/claude/corpus/programs/prolog/rung01_hello_hello.pl
+```
 
-| Step | Description | Gate |
-|---|---|---|
-| **PJ-1** ✅ | Add `pl_bb_dcg` bridge + `g_dcg_table[]` registry skeleton. Mirror of `icn_bb_dcg`/`proc_table`. Landed at one4all `e6af028c`. | Build clean; gates unchanged |
-| **PJ-2** ✅ | Create `src/lower/lower_pl.c` + `.h`. `lower_pl_predicate(tree_t*)` returns NULL placeholder. Wire `lower()` to populate `dcg_table[i].ir_body = NULL`. Landed `d9fe1496`. | Build clean; gates unchanged |
-| **PJ-3** ✅ | Replace `[NO-AST]` stub in `sm_interp.c case SM_BB_ONCE_PROC` with body handler: lookup `dcg_table[name/arity]`, wrap via `pl_bb_once_proc_by_name`, drive via `bb_broker`. Landed `f5db4e5f`. | smoke_prolog still 0/5 (no IR yet) |
-| **PJ-4** ✅ | `lower_pl_expr_node` handles TT_FNC(write/nl), TT_UNIFY, TT_FNC("is"), TT_VAR, TT_ILIT/QLIT/NAME. Wire into `lower_pl_predicate` building `IR_SEQ`. IR_PL_BUILTIN/VAR/ATOM/ARITH/UNIFY executors in ir_exec.c. pl_bb_env_push/pop. Landed `cb1417a5`. | smoke_prolog 3/5 (write+unify+arith PASS) |
-| **PJ-5/6** ✅ | IR_PL_ALT landed `141c4816`. IR_PL_CHOICE/ALT split done; arity emit fix; n-ary comma fix; ival/sval union collision fixed (IR_PL_VAR/CALL/BUILTIN). smoke_prolog 3/5. NEXT blockers: (A) head-arg unification: IR_PL_UNIFY executor must handle IR_LIT_I/F match (for count(0)); (B) comparison ops: lower_pl_stmt_node must route TT_FNC(">/<") to builtin, not IR_PL_CALL; (C) backtracking: IR_PL_CHOICE multi-clause + pump for clause test. |
-| **PJ-5a** ✅ | Fix entry-point invocation + add IR_PL_SEQ + cut barrier. (1) `lower.c` TT_CHOICE-subject stmts made no-op (was auto-invoking every defined predicate at program start, with no args, before main); `:- initialization(name).` now emits `SM_BB_ONCE_PROC name/arity` (was no-op). (2) Added `IR_PL_SEQ` opcode + executor: short-circuit on first goal failure, succeed if all succeed (replaces Icon-flavored IR_SEQ in `lower_pl.c`). (3) `IR_PL_CUT` now sets `g_pl_cut_flag`; `IR_PL_CHOICE` checks it and stops trying alternatives. smoke_prolog 4/5: recursion PASS (was FAIL). broker: 19/49 (was 18). Other smokes & honest gates unchanged. |
-| **PJ-7** ✅ | Backtracking pump for `clause` test landed. Three coordinated changes in `src/lower/ir_exec.c`: (1) `IR_PL_CHOICE` made stateful — `nd->state` = next clause to try; resume picks up where prior success left off via `IR_exec_resume` (no reset). (2) `IR_PL_CALL` made resumable — stores `PlCallSt{callee_env, saved_env, trail_mark, nslots}` in `nd->opaque`; shared-term propagation (the same `term_new_var(ai)` instance lives in both caller's `saved_env[caller_slot]` AND `callee_env[ai]` so unifications flow via `term_deref` and respect trail unwind). (3) `IR_PL_SEQ` made backtracking — on goal-j failure, scans leftward via `backtrack_from` cursor for resumable goal (IR_PL_CALL state==1 or IR_PL_ALT state==1); calls `IR_exec_resume` on callee's body; on success restarts forward at `found+1`; on exhaustion continues leftward without restarting the exhausted call. smoke_prolog 5/5: clause PASS (was FAIL). broker: 20/49 (was 19). |
-| **PJ-8** ✅ | Stub the AST-walking Prolog branch in `_usercall_hook` (`src/driver/interp_hooks.c:81`) when SM dispatch is active. Single 5-line change: gates the `g_pl_active` branch with `if (g_sm_dispatch_active && !g_ast_pump_active)` printing `[NO-AST] _usercall_hook prolog branch: needs fresh SM/BB lowering (PJ-8)` and returning FAILDESCR. This shuts down the only path by which SM-dispatch code reaches `pl_unified_term_from_expr` / `pl_pred_table_lookup` AST helpers. The `pl_broker.c` AST callers (lines 31, 90-91, 122, 387, 396) are only reached from mode 1 (`pl_runtime.c` and `interp_eval.c`), which RULES.md keeps as the reference AST-walking path. No changes to `pl_broker.c` needed. Gates: smoke_prolog 5/5, broker 20/49, honest_prolog 124/0/0, honest_icon 277/0/0 — all unchanged. |
-| **PJ-9a** ✅ | **Wired `h_bb_once_proc` in sm_jit_interp.c through `pl_bb_once_proc_by_name`+`bb_broker` (Mode 3 JIT dispatch).** Was `[NO-AST]` stub, so `--run` Prolog crosscheck was 0/4. Mode 2 (`sm_interp.c:671`) already did this work; Mode 3 now mirrors it: lookup name+arity from `CUR_INS->a[0].s` / `a[1].i`, call `pl_bb_once_proc_by_name`, on `node.fn` push/run/pop `pl_bb_env`, drive via `bb_broker(node, BB_ONCE, NULL, NULL)`, set `STATE->last_ok`. On miss keeps the `[NO-AST]` print. Also regenerated stale `snocone_parse.tab.h` (out-of-sync since `4aa8727b` PST-SC-4b blocked all builds). Gates: `test_crosscheck_prolog.sh` 0→**4/4** ✅ (jit-run rows now PASS); smoke_prolog 5/5, honest_prolog 124/0/0, honest_icon 277/0/0, unified_broker 20/49 — all unchanged. |
-| **PJ-9b** ✅ | **Aligned Mode 3 stub fingerprints with Mode 2 opcode-name convention (RULES.md compliance); extended crosscheck.** RULES.md: *"Each stub fingerprint names the exact opcode that still needs fresh SM/BB lowering."* Mode 2 used opcode names (SM_BB_PUMP, SM_BB_ONCE, etc.); Mode 3 used C handler names (h_bb_pump, etc.). Renamed four miss-arm fingerprints in `sm_jit_interp.c` (h_bb_pump→SM_BB_PUMP, h_bb_once→SM_BB_ONCE, h_bb_once_proc→SM_BB_ONCE_PROC, h_bb_pump_every→SM_BB_PUMP_EVERY). PL_UNIFY/PL_BUILTIN stubs at lines 804/828 already used opcode-style names. Also extended `test_crosscheck_prolog.sh` to walk the flat-file rung corpus (was looking for nonexistent rung01/02/03 subdirs) and split xcheck logic: mode-consistency PASS/FAIL (the dispatch invariant) vs ORACLE_MISS (informational; 3 modes agree but differ from .ref oracle — that's frontend completeness, not mode dispatch). Gates: `test_crosscheck_prolog.sh` **4→128 PASS**, FAIL=0, SKIP=4, ORACLE_MISS=11 (frontend gaps not mode issues). smoke_prolog 5/5, honest_prolog 124/0/0, honest_icon 277/0/0, unified_broker 20/49 — all unchanged. |
-| **PJ-9c** ✅ (partial) | **Mode 4 (`--compile --target=x86`) dispatch wiring for `SM_BB_ONCE_PROC` — first Prolog primitive routed through emit pipeline.** Three coordinated changes: (1) **`src/runtime/rt/rt.c`**: added `rt_bb_once_proc(const char *name, int arity)` helper mirroring `case SM_BB_ONCE_PROC` in `sm_interp.c:671` — calls `pl_bb_once_proc_by_name`, on hit pushes `pl_bb_env`, drives `bb_broker(node, BB_ONCE, NULL, NULL)`, pops env. On miss prints the same `[NO-AST] SM_BB_ONCE_PROC stub` fingerprint as Modes 2/3 (PJ-9b consistency). Includes `pl_runtime.h` for types. `pl_runtime.c` already in `RT_PIC_SRCS` so link works. (2) **`src/emitter/emit_sm.c:562`**: changed `g_sm_templates[]` entry from `SM_TPL_ARITH / "rt_unhandled_sm"` to `SM_TPL_LBL_INT32 / "rt_bb_once_proc"` (same shape as `SM_CALL_FN` — string + int operands). (3) **`src/emitter/emit_sm.c`**: added `emit_sm_bb_once_proc_dispatch` (modeled on `emit_sm_call_dispatch`) and `case SM_BB_ONCE_PROC` in the master switch at line 2956. Result: `scrip --compile --target=x86 hello.pl` now emits `BB_ONCE_PROC .S0, 0` (was `UNHANDLED 60`); assembles and links cleanly; produced binary runs and reaches `rt_bb_once_proc` correctly. **Open issue (PJ-9d):** the standalone binary's `g_dcg_table` is empty at runtime because the Mode-4 emit doesn't include a Prolog predicate-registry initialization (analog of the `rt_register_expressions` call already emitted for Snocone). So the runtime helper currently hits its miss-arm `[NO-AST]` print rather than executing the predicate body. Dispatch shape is correct; the registry-population emit is the next step. **All gates hold:** smoke_prolog 5/5, crosscheck_prolog 128/0, honest_prolog 124/0/0, honest_icon 277/0/0, unified_broker 20/49 — all unchanged from PJ-9b. |
-| **PJ-9d** 🔄 (partial) | **Predicate-registry emit for Mode-4 Prolog binaries — registry mechanism + simple-body recursion working; multi-clause clause-body recursion is the open gap.** Three coordinated changes plus one new script. (1) **`src/runtime/rt/rt.h`/`rt.c`**: added `rt_predicate_entry_t {name, arity, builder}`, `rt_register_predicates_pl(tbl)`, and a small builder API (`rt_pl_b_begin/_node/_kids/_entry/_end_register`) that lets a per-predicate "builder" function reconstruct an `IR_block_t*` graph at standalone-binary startup by calling back into the runtime. Followed PJ-9c's pattern of including `pl_runtime.h` from `rt.c` (`pl_runtime.c` already in `RT_PIC_SRCS`). The builder helpers handle the `IR_t` union aliasing (`ival`/`dval`/`sval` share storage) by writing only the relevant side based on kind. (2) **`src/emitter/emit_sm.c`**: added `pl_pre_intern_pred_names()` (Phase A — runs **after** `strtab_collect` since that function resets the strtab), `emit_pl_predicate_registry` + helpers `emit_pl_builder_fn`, `emit_pl_b_node_call`, `emit_pl_b_kids_call`, `emit_pl_kids_rodata_for_pred`, plus the kind-awareness helper `pl_ir_kind_uses_sval` (only `IR_PL_ATOM/BUILTIN/ARITH/CALL` carry real sval; `IR_PL_VAR`'s sval comes from a tree_t union slot that holds the variable's slot integer, so it's garbage and must be skipped). Extended `emit_file_header` signature with `has_pl_registry` param to emit `lea rdi, [rip + .Lpl_registry]; call rt_register_predicates_pl@PLT` right after the existing `rt_register_expressions` call. Wired both phases into the master `emit_walk_codegen` driver. (3) **`scripts/run_prolog_via_x86_backend.sh`**: new end-to-end runner — invokes `scrip --compile --target=x86`, assembles with GNU `as --64`, links against `out/libscrip_rt.so`, executes. Uses 8s timeout per RULES.md self-contained-scripts rule. **Verified working in Mode 4 end-to-end:** (i) `:- initialization(greet).` with `greet :- write('hi'), nl.` → prints `hi`; (ii) multi-predicate + cross-predicate call (`main :- say_a, say_b.`) → prints `A\nB\n`; (iii) arithmetic + arg-binding (`addtwo(X,Y) :- Y is X+2.` `:- initialization(addtwo(5,Y)), write(Y).`) → prints `7`; (iv) mixed writes (`main :- write('count: '), write(3), nl.`) → prints `count: 3`. **Open gap (PJ-9e candidate):** multi-clause predicates fail in Mode 4. Root cause located: `lower_pl.c:147` stores each per-clause `IR_block_t*` body in the wrapper `IR_SUCCEED` node's `opaque` field (consumed by `ir_exec.c:1234`). These sub-cfgs are **separate `IR_block_t` allocations not in the parent `cfg->all[]`** — my builder only walks `cfg->all[]`, so it emits the `IR_PL_CHOICE` and the `IR_SUCCEED` wrappers but loses the per-clause bodies. Test cases that exercise this gap: factorial recursion (test5 → mode 4 prints nothing, modes 1/2/3 print `120`); multi-clause facts like `color(red).`/`color(green).`/`color(blue).` with `:- color(green)` (Mode 4 silent, Modes 1/2/3 also fail but for an unrelated frontend reason — not yet differentiated). Fix shape: add `rt_pl_b_set_opaque_cfg(node_idx, sub_builder_fn_ptr)` helper; emit a recursive per-sub-cfg builder; have the parent's builder invoke each sub-builder which returns a fresh `IR_block_t*` to be stashed into `opaque`. Also: this session **completed the cross-language AST-walking audit** Lon asked about — see Watermark below. **All other gates hold:** smoke_prolog 5/5, crosscheck_prolog 128/0, honest_prolog 124/0/0, honest_icon 277/0/0, unified_broker 20/49, all six smoke gates (snobol4 7/7, snocone 5/5, rebus 4/4, raku 5/5, icon 5/5, prolog 5/5). |
+---
+
+## The corpus ladder (already on disk — `/home/claude/corpus/programs/prolog/`)
+
+`rungNN_*.pl` with `.expected`. rung01..rung39 present. Climb hello-world → algorithms, making the BB/template machinery PASS each rung honestly across modes.
+
+```bash
+bash scripts/test_prolog_rung12.sh                              # a specific rung script
+bash scripts/util_crosscheck_3mode.sh <file.pl> [oracle.ref]    # one file, all 3 modes
+```
+
+Run `ls /home/claude/corpus/programs/prolog/rungNN_*` for exact files.
+
+| Rung | Theme | BB kinds / executor cases |
+|------|-------|---------------------------|
+| 01 | hello | `write/1`, `nl/0`, `halt/0` — `BB_PL_BUILTIN`, `SM_BB_ONCE_PROC` ✅ |
+| 02 | facts + backtracking | fact lookup, `fail`/`;`, `BB_PL_CHOICE`/`ALT` ✅ |
+| 03 | unification | head unify, compound terms — `BB_PL_UNIFY` ✅ |
+| 04–05 | arithmetic | `is/2`, comparison — `BB_PL_ARITH` ✅ |
+| 06–08 | recursion | recursive predicates, accumulator pattern (Mode-4 OPEN past simple bodies) |
+| 09–11 | lists | `[H|T]`, member, append — list term BBs |
+| 12–15 | cut + control | `!`, `->`/`;`, `\+` negation — `BB_PL_CUT` + barrier |
+| 16–20 | term inspection | `functor/3`, `arg/3`, `=..`, `copy_term` |
+| 21–25 | findall family | `findall/3`, `bagof/3`, `setof/3` |
+| 26–30 | strings/atoms | `atom_codes`, `atom_length`, `sub_atom` |
+| 31–35 | bridges | catch/throw, negation, `call/N`, setof bridge |
+| 36–39 | ISO edges + algorithms | arith edge cases, term ops, ISO errors, atom ISO; queens/roman/palindrome-scale |
+
+---
+
+## Rung procedure — DO THIS for every rung (do not skip, do not batch)
+
+1. **Pick the lowest red rung** across modes. Run its rung script (or `test_prolog_bb_honest.sh`) and the Mode-4 runner on its files. Read each failing `.pl` and `.expected`.
+2. **Identify goal → IR cases → BB kinds.** Dump the SM/IR. Confirm `SM_BB_ONCE_PROC` is emitted for the entry goal. Note which `BB_PL_*` kinds the clause bodies lower to and whether each has a non-stub template.
+3. **Extend lowering if needed.** `src/lower/lower_pl.c` turns a clause into the `BB_graph_t` graph; `src/lower/bb_exec.c` executes each `BB_*` node. Add/extend the executor case AND the lowering for any new construct. (Backtracking/resume lives here — `BB_CHOICE.state`, `BB_CALL` resumability, `BB_SEQ` leftward rescan — see PJ-7. Resume entry is `bb_exec_resume`.)
+4. **Fill/extend the BB template.** For each `BB_PL_*` kind that is stubbed or missing:
+   - Copy the closest live one (`bb_pl_arith.cpp` for compute, `bb_pl_unify.cpp` for unify, `bb_pl_builtin.cpp` for a runtime call, `bb_pl_atom.cpp` for a leaf).
+   - `bb_pl_<kind>_str(BB_t*, bb_bin_t&)` returning `IF(MEDIUM_MACRO_DEF,…)+IF(MEDIUM_BINARY,…)+IF(MEDIUM_TEXT,…)`, x86-only, EVERY medium slot present even if empty.
+   - If operand labels are needed, lift them in `bb_prepare_pl` (emit_bb.c) into distinct `g_emit` fields and read them in the body — DO NOT call `emit_intern_str` inside the body (it returns a SHARED static buffer; aliasing bug — see HQ LOCAL-PURGE-6).
+   - Runtime help = a PLAIN `rt_pl_<thing>` callee in `rt.c`, never a four-port C box.
+5. **Wire it.** `walk_bb_node` case → `bb_prepare_pl(nd); bb_pl_<kind>(nd);`; forward decl in `bb_templates.h`; Makefile SRCS line + `.o` rule.
+6. **Build + gate.** `bash scripts/build_scrip.sh && make libscrip_rt`, then:
+   - rung script → green; `util_crosscheck_3mode.sh <file.pl>` → ir == sm == jit.
+   - `run_prolog_via_x86_backend.sh <file.pl>` → matches `.expected` (Mode-4 honest).
+   - `test_smoke_prolog.sh` 5/5, `test_prolog_bb_honest.sh` non-regressive, `test_crosscheck_prolog.sh` non-regressive, `test_smoke_unified_broker.sh` Prolog rows non-regressive.
+7. **Commit one rung.** `git add -A && git commit -m "PL-BB rungNN <construct>: bb_pl_<kind> + bb_exec case (mode-4 N/M)"`. Update watermark. Next red rung.
+
+---
+
+## Mode-4 items (PJ-9e — status as of handoff 2026-05-25)
+
+1. ~~**`sm_bb_calls.c`: `IS_MACRO_DEF` ordering**~~ — **RESOLVED (PJ-10/f9cda41a).** `IS_MACRO_DEF` moved before `IS_X86`; it is a sub-mode of X86, not separate.
+2. ~~**`xa_macro_library` DOUBLE-DEFINITION**~~ — **RESOLVED via Option B (PJ-10 + PJ-T-7).** The session took inline-only: dropped the `.include "sm_macros.s"` / `.include "bb_macros.s"` lines and now emits `.intel_syntax` + the macro library directly, so each `.s` is self-contained. (This was the cause of the 280-SKIP `test_mode4_broad_corpus_snobol4` run earlier — re-run that suite to confirm it now lights up.)
+3. **Multi-clause sub-cfg emit (STILL OPEN)** — per-clause `BB_graph_t*` bodies live in the wrapper `BB_SUCCEED` node's `opaque` (consumed by `bb_exec.c`), separate allocations NOT in `cfg->all[]`. The builder must recurse into each sub-cfg. Sub-builder helpers landed (`rt_pl_b_sub_*`, `emit_pl_sub_builder_fn`); the Mode-4 factorial **segfault was fixed at PJ-9e/1a65b62b** (`trail_init` moved into `rt_init`; Icon BB templates added to `RT_PIC_SRCS`). Re-verify factorial prints `120` end-to-end after any builder change.
+
+---
 
 ## Done when
 
-`SM_BB_ONCE_PROC` routes through `pl_bb_dcg` + `dcg_table[i].ir_body` ✅. PJ-8 closed: SM-dispatch no longer reaches AST helpers (the `_usercall_hook` Prolog branch is `[NO-AST]`-stubbed). `pl_runtime.c` AST-walking paths remain only for mode 1 (`--interp` reference). `pl_bb_build` lazy fallbacks replaced ✅. Inline x86 emitters for Prolog primitives written (mode 4) — STILL TODO for full Mode 4 deliverable. smoke_prolog 5/5 ✅. GATE-1..4 green ✅.
+`SM_BB_ONCE_PROC` routes through the predicate registry + BB templates ✅. PJ-8 AST back-door stays closed ✅. The three Mode-4 items above closed (factorial=120 in mode 4). Each corpus rung PASSes honestly across modes 2/3/4. ZERO `DESCR_t foo(void*,int)` added beyond the exempt `pl_bb_dcg` shim.
+
+---
+
+## File ownership
+
+| Path | Role in a rung |
+|------|----------------|
+| `src/emitter/BB_templates/bb_pl_*.cpp` | BB templates (copy/extend; one file per kind) |
+| `src/emitter/BB_templates/bb_templates.h` | Forward decls |
+| `src/emitter/emit_core.c` (`walk_bb_node`) | Route `BB_PL_*` → template (via `bb_prepare_pl`) |
+| `src/emitter/emit_bb.c` (`bb_prepare_pl`) | Lift operand labels into `g_emit` fields |
+| `src/emitter/emit_sm.c` | `SM_BB_ONCE_PROC` mode-4 dispatch + predicate registry emit |
+| `src/emitter/XA_templates/xa_pl_*.cpp` | Mode-4 predicate-registry builder templates |
+| `src/lower/lower_pl.c` | Clause → BB_graph_t graph |
+| `src/lower/bb_exec.c` | `BB_*` executor cases (backtracking lives here; renamed from `ir_exec.c`) |
+| `src/runtime/x86/sm_interp.c` / `sm_jit_interp.c` | Mode 2/3 `SM_BB_ONCE_PROC` |
+| `src/runtime/rt/rt.c` / `rt.h` | `rt_pl_*` callees + registry helpers (NOT four-port boxes) |
+| `Makefile` | SRCS line + explicit `.o` rule per new template |
+
+---
+
+## Closed steps (PJ ladder — substrate for the rung work)
+
+| Step | Commit | Result |
+|---|---|---|
+| PJ-1 | `e6af028c` | `pl_bb_dcg` shim + registry skeleton |
+| PJ-4 | `cb1417a5` | write/unify/arith executors — smoke 3/5 |
+| PJ-5a | — | entry-point fix + IR_PL_SEQ + cut barrier — smoke 4/5 |
+| PJ-7 | — | backtracking pump (CHOICE/CALL/SEQ resumable) — smoke 5/5 |
+| PJ-8 | — | `_usercall_hook` AST branch `[NO-AST]`-stubbed under SM dispatch |
+| PJ-9a | — | Mode-3 JIT `h_bb_once_proc` wired — crosscheck 4/4 |
+| PJ-9b | — | stub fingerprints aligned to opcode names — crosscheck 128/0 |
+| PJ-9c | — | Mode-4 `SM_BB_ONCE_PROC` dispatch → `rt_bb_once_proc` |
+| PJ-9d | — | Mode-4 predicate registry emit; simple bodies + cross-pred calls run |
+| PJ-9e | `a02efe54` | sub-builder mechanism (partial — 3 open items above) |
+
+---
 
 ## Watermark
 
 ```
-one4all: a02efe54 (PJ-9e partial)
-corpus:  1fe096c
-smoke_prolog: 5/5 ✅
-crosscheck_prolog: 128/0 ✅
-Other smokes: snobol4 7/7, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5
-honest gates: prolog 124/0/0, icon 277/0/0 (no regression)
-broker: 20/49
-
-PJ-9e partial landed (a02efe54):
-- rt_pl_b_sub_begin/sub_end/set_opaque/sub_node/sub_kids added to rt.h/rt.c
-- emit_pl_sub_builder_fn added; emit_pl_builder_fn wires BB_SUCCEED->opaque
-- pl_pre_intern_pred_names interns sub-cfg strings
-- fprintf != 0 bug fixed to < 0 throughout Prolog emit section
-- sm_halt.c, sm_jumps.c: IS_MACRO_DEF moved before IS_X86
-
-OPEN for next session (PJ-9e not yet closed):
-1. sm_bb_calls.c: IS_MACRO_DEF ordering not fixed (BB_ONCE_PROC/BB_PUMP_PROC
-   macro defs unreachable -- same pattern as sm_halt/sm_jumps)
-2. xa_macro_library DOUBLE-DEFINITION BUG: inlines macros via xa_dispatch
-   AND emits .include "sm_macros.s" -- both fire, causing assembler errors.
-   Lon decision required: Option A (external only -- remove xa_dispatch calls,
-   keep .include; ship sm_macros.s) or Option B (inline only -- remove .include
-   lines, keep xa_dispatch; self-contained .s). IS_X86 has sub-modes:
-   IS_TEXT, IS_BINARY, IS_MACRO_DEF -- IS_MACRO_DEF is not IS_X86.
-3. Verify factorial prints 120 in Mode-4 end-to-end.
+one4all: 6f4996f7      corpus: 1fe096c       (handoff verified 2026-05-25)
+smoke_prolog: 5/5 ✅      crosscheck_prolog: 128/0 (4 skip, 11 oracle-miss) ✅      honest_prolog: non-regressive
+GATE-PK: 513/0/602  NEW=0 GONE=0 ✅      unified_broker: 23/49 (was 20)
+Renames since last doc: ir_exec.c→bb_exec.c; IR_PL_*/IR_LANG_*→BB_*/BB_LANG_*; IR_block_t→BB_graph_t;
+  lbl_back/succ/fail→lbl_β/γ/ω (PJ-13, 505 files, GATE-PK byte-identical through it)
+Mode-4: items 1 (IS_MACRO_DEF order) + 2 (macro double-def, Option B) RESOLVED; factorial segfault fixed (1a65b62b)
+Current rung: <rungNN — construct — which BB_* kinds + bb_exec cases>
+STILL OPEN: item 3 multi-clause sub-cfg emit (verify factorial=120 mode-4 end-to-end);
+  re-run test_mode4_broad_corpus_snobol4 to confirm Option-B fix cleared the 280-SKIP
 ```
