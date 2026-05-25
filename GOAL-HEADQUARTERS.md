@@ -23,6 +23,21 @@
 
 ---
 
+## Session State (2026-05-25 — CHARSET FAMILY COMPLETE: notany/span/break/arb FULLY PURE — entire charset family off locals)
+
+**one4all commit this session: `c793cca8`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. All four cells byte-identical (BB_PAT_NOTANY/SPAN/BREAK text+binary).
+
+**The bb_pat_any recipe applied verbatim to the rest of the charset family.** All five charset templates (any/notany/span/break/arb) now have zero non-loop locals across EVERY arm (X86 macro/binary/text + JVM + JS + NET + WASM). Charset family is GONE from the purity violators list — remaining violators are exactly `bb_arbno`(1), `bb_capture`(47, X86-ONLY-stubbed JVM/JS arms), `xa_epilogue`(1, benign), as predicted.
+
+- **bb_pat_notany ✅** — recipe verbatim (`gas_escape_str` + `emit_for` + `bb_cs_id`/`bb_cs_zeta` wrapper lift). Inlined nid/sid/z/zp/fn/chars/id/slbl_s/zlbl_s/esc_s (X86) + nm/hit/tag_s (JVM) + chars (NET). ⚠ KEY: notany's JVM arm renders `if_icmpge`/`ifge` as `s_1asm("if_icmpge " + tag + "_ω")` (operand glued into s_1asm, literal UTF-8 ω), NOT `s_2asm(...)` with octal — preserved faithfully (differs from `any`'s rendering; both are byte-identical to their own frozen cells).
+- **bb_pat_span ✅** — same recipe; JVM/NET are richer (loop + `matched_len`/`_count` state). tag_s inlined to `emit_fmt("span_%d_%d", 0, bb_node_id(pBB))`, nm→"span", chars→`pBB->sval` inline.
+- **bb_pat_break ✅** — the HQ "divergent BINARY — inspect first" caution RESOLVED: on inspection break's X86 BINARY arm is IDENTICAL in shape to any (calloc→zp/fn→movabs→port-loop, only `rt_bb_brk`). Recipe applied cleanly. tag_s→`emit_fmt("brk_%d_%d")`, nm→"brk".
+- **bb_pat_arb ✅** — genuinely divergent (no charset runtime — no `rt_cs_new`; BINARY uses the `bb_bin_t` relocation path with sites {1,5,6}; TEXT side-effect is only `g_flat_node_id++` minting `.Larb%d_z` labels). REUSED `g_emit.bb_cs_id` to carry the lifted `g_flat_node_id++` (TEXT-only) — no new field needed. Inlined zlbl→`emit_fmt(".Larb%d_z", g_emit.bb_cs_id)`, nid/sid/tag_s.
+
+**NEXT (continue LOCAL-PURGE):** `xa_bb_ptr_slot` `g_flat_node_id++` + `strncpy(g_emit.bb_ptr_slot_lbl,…)` (LP-5 / bb_arbno+bb_capture de-drive prereq). Then `bb_arbno`/`bb_capture` (LOCAL-PURGE-5 driver-lift: `rt_bb_arbno_new`/`bb_cap_new_call`→`g_emit.bb_rt_obj`, `child_cache_get_lbl`→`g_emit.bb_child_lbl`). ⛔ Beauty gate SUSPENDED.
+
+---
+
 ## Session State (2026-05-25 — LOCAL-PURGE whole-template begins: bb_lit + bb_pat_any FULLY PURE; scope ruling recorded)
 
 **one4all commits this session: `7088c76a` (NB-3f/3g) + `82fc7560` (bb_lit + bb_pat_any).** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Flat text byte-identical (md5 `ec26b57f`); BB_PAT_ANY text+binary cells byte-identical.
@@ -455,10 +470,10 @@ Open question for Lon: is "template may iterate a g_emit collection with a simpl
 - [ ] `bb_pl_atom` / `bb_pl_arith` / `bb_pl_unify` / `bb_pl_builtin`: DEFERRED to LP-5 — `emit_intern_str` shared-buffer aliasing (`g_intern_str_buf`) makes TEXT-arm inline unsafe; needs driver-lift to distinct `g_emit` fields.
 - [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
 
-#### LOCAL-PURGE-4 — BB charset driver-lift (bb_pat_any, bb_pat_break, bb_pat_span, bb_pat_notany, bb_pat_arb)
-- [ ] Move `id = g_flat_node_id++` to driver; add `g_emit.bb_cs_id` field.
-- [ ] Inline `chars`, `slbl_s`, `zlbl_s`, `esc_s`, `zp`, `fn`, `s`, `c`, `nm`, `hit`, `tag_s`, `tag_fail_s`, `zlbl` → pure expressions reading `g_emit.bb_cs_id` and `pBB->sval`.
-- [ ] GATE-PK 503/0/626 NEW=0 GONE=0. AUDIT GREEN.
+#### LOCAL-PURGE-4 — BB charset driver-lift (bb_pat_any, bb_pat_break, bb_pat_span, bb_pat_notany, bb_pat_arb) ✅ (2026-05-25, `82fc7560` + `c793cca8`)
+- [x] Move `id = g_flat_node_id++` to driver; add `g_emit.bb_cs_id` field (+ `g_emit.bb_cs_zeta` for BINARY, `rt_cs_new` ctor).
+- [x] Inline `chars`, `slbl_s`, `zlbl_s`, `esc_s` (→`gas_escape_str`), `zp`, `fn`, `s`, `c`, `nm`, `hit`, `tag_s`, `tag_fail_s`, `zlbl` → pure expressions reading `g_emit.bb_cs_id`/`bb_cs_zeta` and `pBB->sval`. `for(port)` accumulators → `emit_for`. bb_pat_arb reuses `bb_cs_id` for its TEXT id mint (no charset rt).
+- [x] GATE-PK 504/0/625 NEW=0 GONE=0. AUDIT GREEN. (any+arb `82fc7560`; notany/span/break/arb `c793cca8`.)
 
 #### LOCAL-PURGE-5 — BB arbno/capture/lit driver-lift
 - [ ] `bb_lit`: inline `lit`, `lit_label`, `len`, `sval`, `tag_s`, `nid`, `sid` → direct reads/calls inline.
