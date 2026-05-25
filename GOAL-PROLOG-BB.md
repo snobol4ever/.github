@@ -143,3 +143,50 @@ invoking scrip AND before invoking the assembler. Never use a temp dir as emit C
 
 - [x] PJ-10a — sed-rename all `BB_PL_*`/`IR_PL_*` occurrences across `one4all/src/` per table above. Rename `IR_PL_VAR`→`IR_PLVAR` etc. to match. Build clean. Gates unchanged.
 - [x] PJ-10b — rename BB_template files: `bb_pl_var.cpp`→`bb_plvar.cpp`, `bb_pl_builtin.cpp`→`bb_builtin.cpp`, etc. Update Makefile RT_PIC_SRCS and main SRCS. Build clean. Gates unchanged.
+
+---
+
+## Step PJ-11 — Ban `pBB` dereference in BB templates for modes 3 and 4
+
+**Rationale:** `BB_t *pBB` is a pointer into the compile-time BB graph — a heap object that exists only during the lower→emit pipeline. In mode 3 (`MEDIUM_TEXT`) and mode 4 (`MEDIUM_BINARY`) the template encodes addresses or data into the emitted output. If that output encodes `(uintptr_t)pBB` directly (i.e. the live heap pointer), the resulting `.s` text or binary blob is wrong: the `BB_t*` address is meaningless at program execution time. The runtime will receive a stale/dangling pointer.
+
+The correct pattern — already used by `bb_arbno` and `bb_capture` — is:
+- **mode 3 (TEXT):** emit `lea rdi, [rip + _.bb_ptr_slot_lbl]` so the runtime receives an RIP-relative `.data` slot filled at link time by a fixup callback, never the raw build-time heap address.
+- **mode 4 (BINARY):** emit `_.bb_rt_obj` (a pre-built runtime object whose address IS stable at runtime, held in a `.data` slot) via `bb_prepare_capture_arbno` / analogous prepare call, never `(uintptr_t)pBB`.
+- **Scalar operands** (`pBB->ival`, `pBB->sval`, `pBB->ival2`) are data-values embedded in the emitted stream, not pointers, and are always read from `_.node` (= `g_emit.node`, which is set to the current `BB_t*` by the walker before calling each template). Templates must use `_.node->ival` etc., **not the local `pBB` parameter**, so that if `pBB` is eventually removed the read site is already correct.
+
+**All gates (modes 2, 3, and 4) must be run after every sub-step. Mode 4 is tested via `scripts/run_prolog_via_x86_backend.sh` and `scripts/test_smoke_prolog.sh`.**
+
+**Affected template: `bb_binop_gen.cpp`**
+
+| Line | Violation | Fix |
+|---|---|---|
+| `pBB->ival` (op lookup) | reads BB node field via local param | replace with `_.node->ival` |
+| `pBB->ival2` (is_relop) | reads BB node field via local param | replace with `_.node->ival2` |
+| `(uintptr_t)pBB` ×4 in MEDIUM_TEXT | encodes live heap pointer into `.s` text | replace with `lea rdi, [rip + _.bb_ptr_slot_lbl]` pattern (call `xa_dispatch(XA_BB_PTR_SLOT)` in prepare phase; emit `lea` in text arm) |
+| `(uintptr_t)pBB` ×2 in MEDIUM_BINARY | encodes live heap pointer into binary blob | replace with `u64le((uint64_t)(uintptr_t)_.bb_rt_obj)` — requires a prepare function that allocates the runtime object before the template runs |
+
+**Sub-steps:**
+
+- [ ] PJ-11a — In `bb_binop_gen_str`: replace all four `pBB->*` scalar reads with `_.node->*`. Confirm build clean; gates unchanged (modes 2+3+4).
+- [ ] PJ-11b — Add `bb_prepare_binop_gen(BB_t *nd)` in `emit_bb.c` (mirror of `bb_prepare_capture_arbno`): allocates the `rt_binop_gen` runtime state object into `g_emit.bb_rt_obj`; in `MEDIUM_TEXT` emits the banner comment and calls `xa_dispatch(XA_BB_PTR_SLOT)` to allocate `g_emit.bb_ptr_slot_lbl`. Wire call from `walk_bb_node` before `bb_binop_gen(nd)`. Build clean; gates unchanged.
+- [ ] PJ-11c — In `bb_binop_gen_str` MEDIUM_TEXT arm: replace `mov rdi, 0x%lx(uintptr_t)pBB` (both α and β sites) with `lea rdi, [rip + _.bb_ptr_slot_lbl]`. Replace `mov rdi, 0x%lx(uintptr_t)rt_binop_gen` + indirect call with `call rt_binop_gen@PLT`. Build clean; **run mode 3 test** (`scrip --compile --target=x86` → text output contains `lea` not raw hex address). Gates unchanged.
+- [ ] PJ-11d — In `bb_binop_gen_str` MEDIUM_BINARY arm: replace `u64le((uint64_t)(uintptr_t)pBB)` (both sites) with `u64le((uint64_t)(uintptr_t)_.bb_rt_obj)`; replace `u64le((uint64_t)(uintptr_t)rt_binop_gen) + bytes(2, "\\xFF\\xD0")` (indirect call) with a direct PLT-relative call encoding. Build clean; run mode 4 end-to-end smoke. Gates unchanged.
+
+**Audit note:** After PJ-11 is complete, do a project-wide grep for `(uintptr_t)pBB` and `pBB->` inside `MEDIUM_TEXT`/`MEDIUM_BINARY` arms across ALL `BB_templates/*.cpp` files. Any remaining hits are the same class of bug and must be filed as follow-on steps (or fixed immediately if trivial). Known current offenders beyond `bb_binop_gen`: `bb_alt.cpp` (TEXT arm encodes `(uintptr_t)pBB`), `bb_arith.cpp`, `bb_builtin.cpp`. Each must go through the same PJ-11 pattern.
+
+---
+
+## Step PJ-12 — Free SM_sequence_t and BB_graph_t after emission in modes 3 and 4
+
+**Rationale:** After the pipeline `parser → lower → (SM_sequence_t + BB_graph_t) → emitter`, the `SM_sequence_t` opcode array and every `BB_graph_t` wired into `bb_table[]` are pure build artifacts. In mode 2 (`--interp`) the SM stream is traversed at runtime so it must stay alive. In modes 3 and 4 (`--compile --target=x86` text or binary) the emitter has consumed all information it needs; the structures serve no further purpose. Keeping them alive after emission (a) wastes memory for large programs, and (b) — more importantly — means `BB_t*` pointers embedded in any RT object or `.data` slot are potentially dangling if the arena is ever relocated or freed before the OS reclaims the process. The clean fix is to free immediately after `emit_walk_codegen` (or `SM_codegen`) returns successfully.
+
+**Scope:** `src/driver/scrip.c` modes 3 and 4 exit paths. The comments currently read `/* g_stage2 is global; no free */`; these will become `SM_seq_free` + per-entry `BB_free` calls.
+
+**All gates (modes 2, 3, 4) must be run after every sub-step.**
+
+**Sub-steps:**
+
+- [ ] PJ-12a — Add a helper `stage2_free_sm_bb(stage2_t *s2)` in `scrip_sm.c` / `scrip_sm.h`: iterates `s2->sm.bb_table[0..bb_count-1]`, calls `BB_free(s2->sm.bb_table[i])` on each, then `SM_seq_free(&s2->sm)` (or the appropriate free call for the embedded struct). Set all freed pointers to NULL and counts to 0 so double-free is safe.
+- [ ] PJ-12b — Call `stage2_free_sm_bb(s2)` in `scrip.c` immediately after each successful mode-3 (`sm_codegen_text`) and mode-4 (`SM_codegen`) return path. Do NOT call it on the mode-2 (`--interp`) path or on any error path that exits before emission is complete (the SM is still needed for diagnostics). Build clean; gates unchanged.
+- [ ] PJ-12c — Verify with a sanitizer run (`ASAN_OPTIONS=detect_use_after_free=1 make && scrip --compile --target=x86 test/smoke/hello.pl`) that no use-after-free fires. If a violation fires, the offending site is a BB template that cached `pBB` across the free boundary — fix per PJ-11 pattern. Gates unchanged after fix.
