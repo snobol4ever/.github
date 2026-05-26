@@ -463,8 +463,8 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
   `sm_interp_run` (Mode 2 path) in the interim. The crosscheck_prolog FAIL=6 for `jit-run vs ir-run`
   is correct/expected — do NOT fix by keeping BB graph alive or calling bb_exec_once from sm_run_linear.
   Gate: clean build; smoke_prolog 5/5; crosscheck_prolog FAIL=6 unchanged (pre-existing, expected).
-- [ ] **PJ-AGW-1d (was PJ-AGW-1's signature half)** — Extend `lower_pl` to the full 4-attribute signature `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)` (mirror H-1). Leaf nodes set `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`. This is the prerequisite for the γ/ω-chain SEQ/CHOICE rewrites (AGW-2/3) that eliminate the aux structs altogether. Gate: clean build, no behaviour change.
-- [ ] **PJ-AGW-2** — `BB_PL_SEQ` (conjunction): replace the goal-vector-in-`counter` representation with the γ/ω-chain per the table above (mirror H-2's BB_SEQ γ-chain, but Prolog ω points LEFT to the predecessor's β, not forward — conjunction backtracks). Delete the `if (!sq) return nd->ω;` guard and the `bb_pl_seq_state_t` aux. bb_exec.c `BB_PL_SEQ` case: walk via ports, not the stashed vector. Gate: smoke_prolog conjunction case executes; broker non-regressive.
+- [x] **PJ-AGW-1d (was PJ-AGW-1's signature half)** — Extend `lower_pl` to the full 4-attribute signature `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)` (mirror H-1). Leaf nodes set `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`. This is the prerequisite for the γ/ω-chain SEQ/CHOICE rewrites (AGW-2/3) that eliminate the aux structs altogether. Gate: clean build, no behaviour change.
+- [x] **PJ-AGW-2** — `BB_PL_SEQ` (conjunction): replace the goal-vector-in-`counter` representation with the γ/ω-chain per the table above (mirror H-2's BB_SEQ γ-chain, but Prolog ω points LEFT to the predecessor's β, not forward — conjunction backtracks). Delete the `if (!sq) return nd->ω;` guard and the `bb_pl_seq_state_t` aux. bb_exec.c `BB_PL_SEQ` case: walk via ports, not the stashed vector. Gate: smoke_prolog conjunction case executes; broker non-regressive.
 - [ ] **PJ-AGW-3** — `BB_CHOICE` (clause alternatives): wire alternatives as a β-resume chain per the table; the per-clause `IR_block_t*` bodies that `lower_pl.c:147` currently stashes in the `IR_SUCCEED` wrapper's `opaque` become real CHOICE alternatives reachable through ports (this also closes the PJ-9e Mode-4 multi-clause gap — the sub-cfgs are now in the port graph, so the emitter port-walk reaches them naturally). Gate: smoke_prolog clause/recursion multi-clause cases pass; crosscheck_prolog non-regressive.
 - [ ] **PJ-AGW-4** — `BB_PL_CALL`: synthesize α=callee entry, β=callee redo; thread γ_in/ω_in through. Recursion becomes a normal port traversal; the active-cfg-stack snapshot/restore hack from HANDOFF Attempt 3 is unnecessary once call activation lives in trail + transient `counter`/`state` (which `bb_reset` is *meant* to clear) rather than aliased persistent aux. Gate: smoke_prolog recursion + deep-recursion (rung10) stable across ≥5 runs.
 - [ ] **PJ-AGW-5** — `BB_PL_CUT` cut-barrier via ω rewiring (discard choice-points to parent clause entry). Gate: cut smoke case correct; backtracking past a cut stops.
@@ -481,6 +481,38 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
 ## Watermark
 
 ```
+=== 2026-05-26 Sonnet 4.6 — PJ-AGW-1d ✅ + PJ-AGW-2 ✅ ===
+one4all: 2844fcf6 — BUILD GREEN
+smoke_prolog 5/5, broker 23, honest 128/0/0 — all unchanged.
+
+PJ-AGW-1d ✅ (4b99b51c): lower_pl_threaded — 4-attribute AG wrapper.
+  Added lower_pl_threaded(cfg, tree, γ_in, ω_in, &α_out, &β_out) mirroring
+  lower_icn_expr_threaded. pl_kind_owns_omega_operand always-false placeholder.
+  Clean build; no behaviour change.
+
+PJ-AGW-2 ✅ (2844fcf6): proper 4-attribute AG lowerer for Prolog + BB_PL_SEQ port walk.
+  lower_pl.c rewritten as full AG: every function lower_pl_*(cfg,tree,γ_in,ω_in,&α,&β).
+  γ/ω inherited DOWN at build time; α/β synthesized UP to caller.
+  Conjunction (n goals): back-to-front build; β = nearest resumable left ancestor
+  (BB_PL_CALL/CHOICE/ALT β=self; leaves β=nearest-resumable-left); ω wired goal[i].ω=gβ[i-1].
+  Disjunction (;): alt[0].ω=alt[1].α (fail→try second), alt[1].ω=ω_in.
+  BB_PL_SEQ executor simplified: return nd->α (port graph drives all execution).
+  BB_PL_CALL gets β-resume path: bb_exec_resume delivers next solution.
+  Key bug fixed: pass 3 ω-wiring needed gβ computed AFTER knowing which nodes are resumable.
+  Non-resumable nodes (leaves/builtins) get gβ=nearest-left-resumable-ancestor's β,
+  so ω-chain skips through them correctly until hitting a node with a real retry.
+
+CONFUSION FROM THIS SESSION (do not repeat):
+  PJ-AGW-1c was mistakenly implemented as a runtime bb_exec_once drive from sm_run_linear,
+  keeping the BB graph alive past stage2_free_bb_after_emit. REVERTED. The BB graph is
+  consumed at emit time and freed — Mode 3 routes through sm_interp_run for Prolog until
+  bb_pl_*.cpp templates are filled (AGW-8..10). crosscheck FAIL=6 jit-run is EXPECTED.
+  GOAL-PROLOG-BB.md now has MANDATORY READ section explaining this at the top.
+
+NEXT: PJ-AGW-3 — BB_CHOICE port wiring (multi-clause alternatives as β-chain, replacing
+  bb_pl_choice_state_t aux); then AGW-4 BB_PL_CALL full AG threading; then AGW-8..10 emitter.
+```
+
 === 2026-05-26 Opus 4.7 — PJ-AGW-1 ✅ + PJ-AGW-1b ✅ — smoke_prolog 0/5 → 5/5 ===
 one4all: c6e0d8c7 — BUILD GREEN (rebased over f0f99035 GOAL-ICON-BB G-2a/b/g; build+smoke re-verified green)
 .github: (this session) — GOAL top priority = Prolog rung ladder (LOWER+EMITTER); SNOBOL4 M4/bench DEFERRED;
