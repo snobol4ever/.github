@@ -476,7 +476,30 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, build GREEN, gates GREEN on `319b2b6e`) — Phase H.
+## Active next targets (2026-05-26, build GREEN, gates GREEN on `3681a6a9`) — Phase H.
+
+Sess 2026-05-26h (Opus, EMERGENCY HANDOFF — but GREEN and committed+pushed): one bounded rung fix
+landed. **one4all `3681a6a9` pushed to origin/main.** Tree CLEAN.
+GATES: smoke_icon **5/5**, unified_broker **18**, icon_all_rungs **176** (was 174, +2). Honest
+(NO_AST_WALK identical). Prolog smoke 0/5 unchanged (pre-existing, see 26g below).
+FIX: negative literal step `by -3` in `lo to hi by step` produced EMPTY output. `-3` parses as
+`(TT_MNS (TT_ILIT 3))`, NOT `TT_ILIT -3`; TT_TO_BY lowerer (lower_icn.c) read `by_n->v.ival`
+directly (=0 on a TT_MNS node) → step defaulted to 1 → exhaustion check fired immediately. New
+static `icn_fold_signed_lit()` folds unary TT_MNS/TT_PLS over int/float literals at lower time;
+used for both is_real detection and the step value (int + real arms). Flipped `rung01_paper_to_by`
++ `rung19_pow_toby_real_toby_neg` to PASS. Only `src/lower/lower_icn.c` touched (+32/-3).
+⚠ EMERGENCY NOTE — NOT a code breakage: flagged because the container FS reset mid-session; the
+fix had to be re-confirmed already-committed-but-unpushed (local HEAD ahead of origin by 1) and
+then pushed. Nothing is broken. Lesson for next session: commit+push immediately after a green gate;
+do not leave work uncommitted across turns.
+⚠ SEPARATE PRE-EXISTING ISSUE OBSERVED (out of scope, NOT regressed, NOT fixed): `--run` (Mode 3.5
+JIT) on rung01 prints `sm_eval_subexpr: invalid entry_pc 1` — BB_TO_BY has no working x86 emitter
+path yet. This is emitter work (G-6 / Phase H emit), independent of the interp lowering fix. The
+rung gate is `--interp`-only so it is unaffected.
+NEXT (unchanged from H plan): H-1 full inherited-γ/ω threading; then H-2..H-5, G-2..G-8. Prolog
+counter-aliasing decision still pending Lon (see 26g + HANDOFF-2026-05-26-OPUS-PROLOG-COUNTER-ALIASING.md).
+
+### (prior) 2026-05-26g watermark below
 
 Sess 2026-05-26g (Opus): **DIAGNOSIS-ONLY — tree CLEAN at `319b2b6e`, nothing committed to code.**
 Root-caused the Prolog `--interp` empty-output (smoke 0/5) bug. CAUSE: `bb_reset` (scrip_ir.c:58)
@@ -671,6 +694,7 @@ Remaining failures — known root causes:
 | SI-13 union-clobber fix | `b891504a` | 0→209 honest, 1→182 IR | Four v.sval/v.ival alias bugs: nparams→_id; callee skip; slot→_id; baseline rebake |
 | rung13 conjunction-in-generator | `fa8bd48f` | 208→211 honest | SM_GEN_TICK + bb_broker_drive_sm_one + IcnFrame.every_gen[]; lower_every hoists TT_ALTERNATE as inner SM coroutine; outer SM_GEN_TICK loop |
 | rung14 limit-in-generator | `554aa38f` | 212→213 honest | lower_limit_every: slot_inner (TT_ALTERNATE coro) + slot_limit (limit wrapper); GLOCAL[0]=count; nested SM_GEN_TICK; SM_DECR 1; stack cleanup at each exit |
+| rung01 to-by neg-step | `3681a6a9` | rungs 174→176 | `icn_fold_signed_lit` folds (TT_MNS (TT_ILIT 3)) → -3 in TT_TO_BY lowering; was defaulting step to 1 → empty output. Also flips rung19. |
 
 ---
 
