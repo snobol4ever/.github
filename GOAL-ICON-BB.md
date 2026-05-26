@@ -478,6 +478,31 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ## Active next targets (2026-05-26, build GREEN, gates GREEN on `319b2b6e`) — Phase H.
 
+Sess 2026-05-26g (Opus): **DIAGNOSIS-ONLY — tree CLEAN at `319b2b6e`, nothing committed to code.**
+Root-caused the Prolog `--interp` empty-output (smoke 0/5) bug. CAUSE: `bb_reset` (scrip_ir.c:58)
+zeroes `nd->counter`, but option-(b) (2026-05-26d) overloaded `counter` to carry PERSISTENT
+compile-time aux pointers (goal/clause/arg vectors) for BB_PL_SEQ/CHOICE/PL_CALL/PAT_ARBNO. First
+`bb_exec_once`→`bb_reset` wipes the vectors → SEQ `if(!sq)` guard fires → silent empty output. This
+is the field-aliasing hazard prior watermarks gestured at: `counter` carries TWO incompatible
+lifetimes (transient runtime state, zeroed on reset, used by PROC_GEN/FIND_GEN; vs persistent aux
+ptr, must survive). THREE fixes attempted + REVERTED: (1) preserve counter by node-type → smoke
+0/5→5/5, broker 18→22, sno-JIT-interp 185→188, NO regression on icon/sno smoke or icon_all_rungs,
+but rung10 crashes ~30% (parent 0/30); (2) +clear transient sub-fields → still crashes; (3) +active-
+cfg-stack recursion guard w/ conditional bb_snapshot/restore on BB_PL_CALL (mirrors BB_CALL Icon
+guard) → smoke 5/5, valid deep recursion (count(50)+nrev+append) 0/25, backtracking preserved
+(clause smoke ok) — but rung10 STILL crashes. WHY rung10 defeats all: it PARSE-ERRORS at line 187
+(truncated corpus file, present at parent too), never executes, never counted; crash is in TEARDOWN
+of a partial graph — preserving counter by node-type is unsound when counter holds garbage/transient
+on an aborted graph. FIX NEEDS LON'S DECISION (see HANDOFF-2026-05-26-OPUS-PROLOG-COUNTER-ALIASING.md):
+disambiguate the two lifetimes — (A) bit-cast aux ptr into ival/dval (BB.h already calls these
+"compile-time IR payload"; needs GOLDEN-rule ruling) [RECOMMENDED], or (B) cfg-level side table.
+Then re-add the Attempt-3 recursion guard (independently correct for deep Prolog recursion).
+ALSO RAISED w/ Lon: `SCRIP_NO_AST_WALK` env is DEAD (unread by any C code; grep-verified) — the
+"honest gate" is now a no-op since mode-1 AST walker was physically deleted (CLI-3M-9). "Done when
+#3" is tautological; candidate cleanup. (Assess g_ast_pump_active separately — live in SM_BB_PUMP_PROC.)
+NOTE: baseline gates re-confirmed unchanged this session: smoke_icon 5/5, broker 18, icon_all_rungs
+174, prolog smoke 0/5, prolog_bb_honest 128/0/0.
+
 Sess 2026-05-26f (Opus): **GATES RED→GREEN, COMMITTED `319b2b6e`.** Fixed the two bb_exec.c bugs
 the 2026-05-26e handoff flagged. ROOT CAUSE was systemic, deeper than described: `BB_node_alloc`
 seeded `α=nd, β=nd` (self-pointers). Any lowerer that conditionally set a port left a live
