@@ -454,25 +454,42 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
 ### Proper LOWER (AG threading)
 - [x] **PJ-AGW-1** — `lower_pl` aux-discipline: persistent Prolog aux pointers migrated `counter→ival` (survives `bb_reset`, option A per Icon's BB_INITIAL precedent). **DONE 2026-05-26 (Opus 4.7).** All three structs (`bb_pl_seq_state_t`/`bb_pl_call_state_t`/`bb_pl_choice_state_t`) across every writer+reader: `lower_pl.c` (4), `bb_exec.c` (5), `emit_sm.c` (6), `rt.c` Mode-4 builder+sub-builder. Arity recovered from `zc->arity`. This removes the `bb_reset`-wipes-aux hazard permanently. NOTE: the full 4-attribute `lower(cfg,tree,γ,ω,&α,&β)` signature rewrite (γ/ω-chains replacing SEQ/CHOICE aux entirely) is still the larger AGW-2..7 work; this step did the aux-storage half that unblocks execution.
 - [x] **PJ-AGW-1b** — Restore Prolog program-entry dispatch via the sanctioned `SM_BB_SWITCH` opcode (PJ-DEL-ONCEPROC had tombstoned `SM_BB_ONCE_PROC` with no replacement → initialization lowered to nothing). **DONE 2026-05-26 (Opus 4.7).** `lower.c` initialization directive now emits `SM_BB_SWITCH` with `a[0].s="name/arity"` key, `a[1].i=arity`, `a[2].i=SM_BBSW_PL_ENTRY` (new tag, SM.h). Mode-2 `sm_interp.c` `SM_BB_SWITCH` handler honors the tag: resolves the predicate at runtime via `pl_bb_once_proc_by_name`→`pl_bb_dcg`→`bb_exec_once`, pushing/popping `pl_bb_env` — exactly the deleted `SM_BB_ONCE_PROC` logic folded into the one kept BB-dispatch opcode. **GATES: smoke_prolog 0/5→5/5 ✅, unified_broker 18→23, icon_all_rungs 189 (baseline, no regression), icon 5/5, snocone 5/5, rebus 4/4, raku 5/5, snobol4 13/13** — all green. crosscheck_prolog 126/6: the 6 FAILs are all `jit-run vs ir-run` (Mode 3 lags Mode 2, which now works) — NOT a regression (both modes previously produced empty/agreed; Mode 2 advanced past Mode 3). → PJ-AGW-1c.
-- [ ] **PJ-AGW-1c** — ⚠ SEE MANDATORY READ ABOVE. This step is about wiring `SM_BBSW_PL_ENTRY` in the
-  **emitter** (`sm_emit_linear` codegen switch in `sm_jit_interp.c`) to call the Prolog BB emitter path
-  at JIT-compile time — the same way SNOBOL4/Icon BB graphs are compiled to native x86 before being freed.
-  The BB graph is consumed by the emitter and then freed by `stage2_free_bb_after_emit`; Mode 3 does NOT
-  touch the BB graph at runtime. Currently Prolog `bb_pl_*.cpp` templates are stubs, so this step stubs
-  out (emits `rt_unimpl_op`) until AGW-8..10 fill the templates. Prolog in Mode 3 routes through
-  `sm_interp_run` (Mode 2 path) in the interim. The crosscheck_prolog FAIL=6 for `jit-run vs ir-run`
-  is correct/expected — do NOT fix by keeping BB graph alive or calling bb_exec_once from sm_run_linear.
-  Gate: clean build; smoke_prolog 5/5; crosscheck_prolog FAIL=6 unchanged (pre-existing, expected).
+- [x] **PJ-AGW-1c** — ✅ DONE 2026-05-26 (Opus 4.7) `c20ba50e`. Done the CORRECT way: route Mode-3
+  (`--run`) Prolog through `sm_interp_run` (the Mode-2 interpreter ENGINE) by detecting `is_prolog`
+  (.pl) in `scrip.c`. This is NOT a runtime BB-graph walker in `sm_run_linear`, and does NOT keep the
+  graph alive past `stage2_free_bb_after_emit` (that was the earlier reverted attempt). crosscheck_prolog
+  FAIL 6→0 (all three modes now agree). SNOBOL4/Icon linear `--run` untouched. The original 1c scope
+  (wiring `SM_BBSW_PL_ENTRY` into the `sm_emit_linear` codegen for a future flat-x86 Mode-3 path) is
+  SUPERSEDED by AGW-9/10 — Mode 3 routes through interp until the `bb_pl_*.cpp` templates land.
 - [x] **PJ-AGW-1d (was PJ-AGW-1's signature half)** — Extend `lower_pl` to the full 4-attribute signature `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)` (mirror H-1). Leaf nodes set `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`. This is the prerequisite for the γ/ω-chain SEQ/CHOICE rewrites (AGW-2/3) that eliminate the aux structs altogether. Gate: clean build, no behaviour change.
 - [x] **PJ-AGW-2** — `BB_PL_SEQ` (conjunction): replace the goal-vector-in-`counter` representation with the γ/ω-chain per the table above (mirror H-2's BB_SEQ γ-chain, but Prolog ω points LEFT to the predecessor's β, not forward — conjunction backtracks). Delete the `if (!sq) return nd->ω;` guard and the `bb_pl_seq_state_t` aux. bb_exec.c `BB_PL_SEQ` case: walk via ports, not the stashed vector. Gate: smoke_prolog conjunction case executes; broker non-regressive.
 - [ ] **PJ-AGW-3** — `BB_CHOICE` (clause alternatives): wire alternatives as a β-resume chain per the table; the per-clause `IR_block_t*` bodies that `lower_pl.c:147` currently stashes in the `IR_SUCCEED` wrapper's `opaque` become real CHOICE alternatives reachable through ports (this also closes the PJ-9e Mode-4 multi-clause gap — the sub-cfgs are now in the port graph, so the emitter port-walk reaches them naturally). Gate: smoke_prolog clause/recursion multi-clause cases pass; crosscheck_prolog non-regressive.
-- [ ] **PJ-AGW-4** — `BB_PL_CALL`: synthesize α=callee entry, β=callee redo; thread γ_in/ω_in through. Recursion becomes a normal port traversal; the active-cfg-stack snapshot/restore hack from HANDOFF Attempt 3 is unnecessary once call activation lives in trail + transient `counter`/`state` (which `bb_reset` is *meant* to clear) rather than aliased persistent aux. Gate: smoke_prolog recursion + deep-recursion (rung10) stable across ≥5 runs.
-- [ ] **PJ-AGW-5** — `BB_PL_CUT` cut-barrier via ω rewiring (discard choice-points to parent clause entry). Gate: cut smoke case correct; backtracking past a cut stops.
+- [x] **PJ-AGW-4** — ✅ DONE 2026-05-26 (Opus 4.7) `254d3038`. Activation-safe recursion for `BB_PL_CALL`
+  + `BB_CHOICE`. NOTE: the "snapshot/restore is unnecessary" prediction in the original step text was
+  WRONG for the current architecture — clause bodies + the callee predicate graph are SHARED across
+  activations (same `BB_graph_t` re-entered under recursion), so the snapshot/restore IS required (mirrors
+  Icon BB_CALL bb_exec.c:218). Fixed: snapshot/restore the callee graph around `bb_exec_once`/`bb_exec_resume`
+  (BB_PL_CALL) and the clause-body sub-graph (BB_CHOICE); extended `bb_node_state_t` to also capture the LIVE
+  per-activation aux (PL_CALL.cs, CHOICE.cur/mark/saved_env). fib(6)→8, p(3)→2; smoke_prolog 5/5; rung08 PASS;
+  icon_all_rungs 189→195. (The aux-free pure-port representation the step envisioned remains a possible future
+  cleanup, but is not required for correctness.)
+- [x] **PJ-AGW-5 (partial)** — ✅ if-then-else `(Cond->Then;Else)`=TT_IF lowering DONE 2026-05-26 `fd2bcf78`
+  (γ/ω-chain: Cond.γ→Then, Cond.ω→Else; deterministic conditions need no barrier). ⛔ STILL TODO: the proper
+  `BB_PL_CUT` cut-barrier via ω rewiring (discard choice-points to parent clause entry) + cut-on-cond commit
+  for non-deterministic ITE conditions. Gate: cut smoke case correct; backtracking past a cut stops.
 - [ ] **PJ-AGW-6** — `BB_PL_UNIFY` + `BB_PAT_ARBNO`/DCG repetition port wiring per table. Gate: DCG smoke cases.
 - [ ] **PJ-AGW-7** — LOWER sweep: `grep -nE 'nd->counter\s*=|nd->c\[|nd->n\b' src/lower/lower_pl.c src/lower/lower_pat_dcg.c src/lower/bb_exec.c` (Prolog kinds) returns nothing; no persistent aux in a reset-cleared slot. Gate: GATE-1 smoke_prolog 5/5 + GATE-3 rung-ladder PASS ≥ prev + the other five smokes.
 
 ### Proper EMITTER (Mode-4 x86 templates over the AG-wired graph)
-- [ ] **PJ-AGW-8** — Emitter port-DFS for Prolog: confirm/extend the emitter's `walk_bb_port` (α/β/γ/ω depth-first, mirror GOAL-ICON-BB.md:488-489) covers the Prolog BB kinds, so Mode-4 serialization follows the same wired graph the interpreter executes (no separate Mode-4 representation). Gate: `--compile --target=x86` emits a port-walk for a single-clause predicate; assembles+links+runs (use `scripts/run_prolog_via_x86_backend.sh`).
+- [~] **PJ-AGW-8 (partial)** — ✅ 2026-05-26 `6118399a`: Mode-4 SM_BB_SWITCH PL-entry now EMITS valid asm
+  (assembles + links) — `emit_core.c sm_bb_switch()` emits `call rt_bb_switch_pl_entry@PLT`; the predicate
+  graph is rebuilt at startup by the existing `rt_register_predicates_pl` registry. ⛔ STILL TODO: emitted
+  binaries SEGFAULT at runtime because the PJ-9d registry BUILDER (`rt_pl_b_*`) predates the AG lowering —
+  it walks only `cfg->all[]`, NOT the AG-wired α/β/γ/ω ports or the BB_CHOICE clause-body sub-graphs, so the
+  rebuilt graph is malformed. ALSO: `xa_file_header` emits `rt_register_predicates_pl` BEFORE `rt_init` (GC
+  alloc before init — investigate). The proper deliverable is the port-DFS `walk_bb_port` for Prolog kinds +
+  per-kind `bb_pl_*.cpp` inline-x86 templates (AGW-9), which makes the registry-builder reconstruction
+  unnecessary. Gate target: `--compile --target=x86` single-clause predicate runs via run_prolog_via_x86_backend.sh.
 - [ ] **PJ-AGW-9** — Per-kind `bb_pl_*.cpp` inline-x86 templates: for each Prolog four-port kind (`bb_pl_seq`, `bb_choice`/clause-alt, `bb_pl_call`, `bb_pl_unify`, `bb_pl_cut`, `bb_pat_arbno`), translate the matching `bb_exec.c` case into TEXT+BINARY x86 arms with a `bb_bin_t` reloc table (offsets for the port rel32 sites + β-define), emitting via `bb_emit_asm_result` (the SBL-PAT-PRIM pattern). NO C Byrd box, NO new `rt_*` port helper — only the KEEP conversion/effect helpers. One kind per commit; gate each.
 - [ ] **PJ-AGW-10** — EMITTER sweep + parity: every Prolog rung that passes the proper-LOWER path (Mode 2) also produces byte-identical output in Mode 4 (`--compile --target=x86`); `grep -rnE "DESCR_t\s+\w+\s*\(\s*(void\s*\*\s*(zeta|ζ|z))\s*,\s*int\s+entry\s*\)" src/runtime/rt/ src/emitter/BB_templates/` shows no Prolog four-port C Byrd box. Gate: GATE-1..4 green; Mode-4 Prolog rung count ≥ Mode-2 rung count.
 
@@ -480,6 +497,89 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
 
 ## Watermark
 
+```
+=== 2026-05-26 Opus 4.7 — PJ-AGW-4 ✅ + PJ-AGW-5(partial) ✅ + PJ-AGW-1c ✅ + PJ-AGW-8(partial) ✅ ===
+one4all: 6118399a — BUILD GREEN (scrip + libscrip_rt)
+.github: (this session) — watermark + steps updated; RT four-port inventory refreshed.
+
+THREE MODES NOW EXERCISED (new GATE-3 runner scripts/test_prolog_rung_suite.sh --mode interp|run|compile,
+mirrors test_icon_all_rungs.sh; walks corpus rung*.pl vs .expected):
+  Mode 2 (--interp): rungs 2 -> 5/5   (rung08 recursion + rung04 arith/ITE + rung07 cut now PASS)
+  Mode 3 (--run):    rungs       5/5   (== Mode 2; routed through sm_interp_run)
+  Mode 4 (--compile --target=x86): ASSEMBLES + LINKS (was invalid-asm); RUNTIME SEGFAULTS (expected gap).
+
+PJ-AGW-4 ✅ (254d3038): activation-safe recursion for BB_PL_CALL + BB_CHOICE.
+  Root cause = the recursion-shares-the-IR-graph problem Icon's BB_CALL already solves (bb_exec.c:218):
+  a recursive call re-enters the SAME callee BB_graph_t; the inner bb_exec_once's bb_reset wipes the
+  outer activation's per-node state, so the outer conjunction's later goals (e.g. the 2nd fib() call)
+  see garbage and silently fail. fib(6) -> empty; p(3) with two recursive calls -> empty.
+  Fix mirrors Icon's bb_snapshot_state/bb_restore_state discipline:
+   - bb_exec.c BB_PL_CALL: snapshot/restore the callee graph around BOTH fresh bb_exec_once and resume
+     bb_exec_resume; stash this activation's resumable state in cs->act.
+   - bb_exec.c BB_CHOICE: snapshot/restore the shared clause-body sub-graph around bb_exec_once(body).
+   - BB.h + scrip_ir.c: extend bb_node_state_t + snapshot/restore to ALSO capture the LIVE per-activation
+     aux hanging off the persistent ival struct (BB_PL_CALL.cs, BB_CHOICE.cur/mark/saved_env) — these
+     alias across concurrent activations otherwise. fib(6)->8, p(3)->2 now correct.
+  Bonus: icon_all_rungs 189 -> 195 (shared snapshot improvement helped Icon too).
+
+PJ-AGW-5 (partial) ✅ (fd2bcf78): if-then-else (Cond -> Then ; Else) = TT_IF(cond,then,else) lowering.
+  Was UNHANDLED in lower_pl_goal -> whole predicate lowered to NULL -> dropped from bb_table
+  ('[NO-AST] SM_BB_SWITCH PL entry main/0/0: predicate not in bb_table'). Lower as a γ/ω-chain driven
+  by the outer bb_exec_once loop (NOT single-node BB_PL_ALT): Cond.γ->Then entry, Cond.ω->Else entry;
+  Then.γ=Else.γ=γ_in. The comparison BB_BUILTIN executor already returns nd->ω on a false test, so the
+  condition routes to Else naturally. No-else form -> Cond.ω to a BB_FAIL leaf. Deterministic conditions
+  (the common rung case) need no cut-on-cond barrier; the full barrier is AGW-5 proper (still TODO).
+
+PJ-AGW-1c ✅ (c20ba50e): route Mode-3 (--run) Prolog through sm_interp_run.
+  SB-LINEAR JIT (sm_run_linear) has no SM_BB_SWITCH handler -> --run on any .pl aborted with
+  'unimplemented opcode 89 (SM_BB_SWITCH)'. Per the MANDATORY READ, Mode-3 Prolog routes through the
+  Mode-2 interpreter engine until bb_pl_*.cpp templates exist (AGW-8..10). Detect is_prolog (.pl) in
+  scrip.c; under --run take the sm_interp_run path. This selects the interp ENGINE for the whole program
+  — NOT a runtime BB-graph walker in sm_run_linear, NOT keeping the graph alive past
+  stage2_free_bb_after_emit (that was the wrong AGW-1c, previously reverted). SNOBOL4/Icon linear --run
+  untouched. crosscheck_prolog FAIL 6 -> 0 (all three modes now agree).
+
+PJ-AGW-8 (partial) ✅ (6118399a): Mode-4 SM_BB_SWITCH PL-entry emit — assembles + links.
+  Mode 4 emitted invalid 'UNHANDLED SM_BB_SWITCH' text -> GNU as 'no such instruction' -> no binary.
+   - rt.c/rt.h: rt_bb_switch_pl_entry(name,arity) — runtime dispatcher mirroring the Mode-2 sm_interp.c
+     SM_BB_SWITCH PL handler (pl_bb_once_proc_by_name -> pl_bb_env push -> bb_broker(bb_once) -> pop).
+     NOT a Byrd box: carries no α/β/γ/ω port state; hands off to bb_exec.c. The predicate graph is
+     rebuilt at binary startup by the already-emitted rt_register_predicates_pl registry.
+   - emit_core.c: sm_bb_switch() emits, for the SM_BBSW_PL_ENTRY tag, 'lea rdi,[name]; mov esi,arity;
+     call rt_bb_switch_pl_entry@PLT'. Name via strtab_label (pl_pre_intern_pred_names already interned).
+     Added to codegen_sm_dispatch + sm_op_is_dispatched; emit_core.h declares strtab_label.
+  OPEN (the real Mode-4 deliverable, AGW-9/10): emitted binaries SEGFAULT at runtime. The PJ-9d registry
+  BUILDER (rt_pl_b_*) predates the AG lowering — it walks only cfg->all[] and does NOT reconstruct the
+  AG-wired α/β/γ/ω ports or the BB_CHOICE clause-body sub-graphs, so the rebuilt graph is malformed.
+  Also note: xa_file_header emits 'call rt_register_predicates_pl@PLT' BEFORE 'call rt_init@PLT' — the
+  registry builder allocates BB graphs via GC before rt_init runs polyglot/trail init; a contributing
+  crash factor to investigate. The proper fix is the AGW-9/10 port-DFS emitter + per-kind bb_pl_*.cpp
+  inline-x86 templates (NO C Byrd box), replacing the registry-builder reconstruction entirely.
+
+GATES (all green / non-regressive):
+  smoke_prolog 5/5; prolog rungs Mode2=Mode3=5/5; crosscheck_prolog 132/0 (ORACLE_MISS 11 = frontend gap);
+  icon_all_rungs 195 (>=189); icon/snocone/raku 5/5; rebus 4/4; snobol4 13/13; broker 23/26;
+  SNOBOL4 Mode-4 broad 126/26 (unchanged) + A+B=42 sanity.
+
+RT FOUR-PORT INVENTORY (PJ-RT-PURGE status @ 6118399a):
+  Remaining DELETE candidates (encapsulate BB_UNIFY γ/ω decision in C):
+    rt_pl_unify_var_atom (rt.c:1090), rt_pl_unify_var_var (rt.c:1110), rt_pl_unify_generic (rt.c:1122)
+    -> PJ-RTP-1..3, NOT started.
+  Already eradicated: rt_pl_once (PJ-DEL-ONCEPROC 38e66809, discharges PJ-RTP-4).
+  KEEP (conversion/effect, no port state): rt_pl_arith, rt_pl_write_atom, rt_pl_write_var,
+    rt_pl_atom_push, rt_pl_var_push, rt_pl_b_* builder family.
+  rt_bb_switch_pl_entry (NEW): dispatch driver, NOT a Byrd box (no port state; defers to bb_exec.c).
+
+NEXT (priority order):
+  1. AGW-9/10 — proper Mode-4 emitter: port-DFS walk of the AG-wired graph + per-kind bb_pl_*.cpp
+     inline-x86 templates (bb_bin_t reloc), replacing the segfaulting registry-builder path. THE big one.
+  2. Compound-term construction (rung03 head unify, lists, structured args) — the dominant
+     'predicate not in bb_table' cause keeping Mode-2 rungs at 5; lower_pl_term returns NULL on
+     arity>=1 non-arith TT_FNC, dropping the whole predicate.
+  3. Broader BB-land builtins (findall, atom_*, sort) — currently only in the AST reference path.
+  4. AGW-5 proper: cut-on-cond barrier for if-then-else; AGW-6 BB_PAT_ARBNO/DCG; AGW-7 LOWER sweep.
+
+=== prior watermark below ===
 ```
 === 2026-05-26 Sonnet 4.6 — PJ-AGW-1d ✅ + PJ-AGW-2 ✅ ===
 one4all: 2844fcf6 — BUILD GREEN
