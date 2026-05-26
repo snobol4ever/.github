@@ -31,10 +31,60 @@ cd /home/claude/one4all && bash scripts/build_scrip.sh   # needs libgc-dev (apt-
 | **SBL-FN-ARGS** | `rt_call_fn` bound params to `NULVCL`, never to actual args (so `DOUBLE(21)` saw `X=0`). Pop args before `sp=0`, bind `call_args[k]` to each param (mirror trampoline `h_call`). | ✅ verified — part of `define` PASS |
 | **SBL-EXEC-PATD** | `rt_exec_stmt` passed `NULVCL` instead of popped `pat_d` on the no-blob branch. Now pops `pat_d` and passes it to `exec_stmt`. | ✅ landed (no-blob branch only) |
 | **SBL-PAT-BLOB** ✅ | `pattern` (`S 'b' = 'X'`) Mode 3 `Xabc` → `aXc`. **Landed `a6dd2735` (2026-05-26 Opus).** Root cause was TWO empty/wrong `MEDIUM_BINARY` arms in the shared flat BB-box emitter (`src/emitter/XA_templates/xa_flat.cpp`), NOT a deep pattern-compiler bug: (1) `xa_flat_prologue_str` binary arm returned `""`, so the brokered blob never set `r10=&Δ` nor dispatched on entry port — literal box read garbage delta. Fixed: emit `mov r10,&Δ; cmp esi,0; jne β` (β via `bb_bin_t` reloc site @ off 15 using new `g_emit.flat_β_p`; new `TEMPLATE_ADDR_DELTA`). (2) `codegen_flat_body` (emit_bb.c) defined BOTH γ and ω at the SAME address before the epilogue, so every ω/fail jump landed on the SUCCESS epilogue → failed match at pos 0 falsely "succeeded" empty (start=end=0) → `Xabc` splice. Fixed: removed premature ω define; epilogue now defines ω BETWEEN success-ret and fail-half (binary `is_def` site @ succ_half.size(); text inline label). | ✅ verified — `pattern` PASS, smoke 6/6 |
-| **SBL-GATE** | Add the 6-case `--run` variant to `scripts/test_smoke_snobol4.sh` as a permanent gate (the `mode` param already exists). SBL-PAT-BLOB now green ✅. | ⛔ TODO — unblocked |
-| **SBL-BENCH** | Run the SNOBOL4 benchmark suite under **all three modes** — Mode 2 (`--interp`, SM dispatch), Mode 3 (`--run`, SB-LINEAR linear x86), Mode 4 (`--compile --target=x86`, emitted standalone binary) — and record timings + output-equivalence. Bench corpus lives under `/home/claude/corpus/benchmarks/` (see `corpus/BENCHMARKS.md` / `one4all/bench/BENCHMARKS.md`); SKIP gracefully if corpus absent (RULES.md). Add/extend a `scripts/test_bench_snobol4_modes.sh` runner: for each bench .sno, run all three modes with `timeout 30s`, assert all three produce identical stdout (correctness gate), and emit a per-mode wall-clock table (parse/lower/exec via `--bench` where available). Goal product line is "Ten times faster" — this step establishes the Mode 2 vs 3 vs 4 baseline. **Only after SBL-GATE is green** (the 6-case smoke must pass in all relevant modes first). | ⛔ TODO — after SBL-GATE |
+| **SBL-IDX** | Mode 3 (`--run`) linear `rt_call_fn` (`sm_jit_interp.c`) did not special-case the synthetic `IDX` / `IDX_SET` opcodes that table indexing (`T<I>` / `T<I> = v`) lowers to — it fell through to `INVOKE_fn("IDX",…)` which doesn't know them → "Error 5 Undefined function or operation". The JIT trampoline `h_call` already handled IDX/IDX_SET; mirrored that logic into `rt_call_fn` (using `subscript_get`/`subscript_get2`/`subscript_set`/`subscript_set2`, `g_jit_state->last_ok`; omitted the `comm_var` monitor hook — not needed for correctness in the linear path). **Landed 2026-05-26 (Opus).** A/B verified against pre-fix HEAD: smoke_snobol4_jit `--run` PASS **137→146 (+9)**, FAIL 124→115; `--interp` unchanged at 181 (proves linear-path isolation); table_access bench Mode 3 now matches Mode 2 (`result: 250500`). | ✅ done — +9 |
+| **SBL-DIVERGE** (survey) | Ran ALL SNOBOL4 x86 suites in Mode 2 (`--interp`) AND Mode 3 (`--run`). Broad-corpus crosscheck (`/home/claude/corpus/crosscheck`, 261 with .ref): **both_ok=141, M2-passes-M3-fails=38, M3-only=4, both_fail=78.** NOTE: `scrip` default mode is `--run` (Mode 3) — `scrip.c:121` sets `mode_run=1` when no flag given; so `test_interp_broad_corpus_and_beauty.sh` (no flag) was silently running Mode 3, not Mode 2. Explicit both-mode counts: **Mode 2 = 186/280, Mode 3 = 146/280** (40-test gap). `--monitor` confirmed the gap but itself segfaults on the offending programs (it drives the JIT step-runner into the same crash). **Root cause of the largest cluster (pattern primitives) located:** `ANY('aeiou')` Mode 3 → `bb_emit_end: 1 unresolved forward reference(s): label='pat_brok_β'`, then abort/segfault. The `bb_pat_any` BINARY arm (`BB_templates/bb_pat_any.cpp`) emits raw bytes via `emit_text_n` with **NO `bb_bin_t` relocation table** — so its rel32 port jumps (`0F 85 …`, `E9 …`) are never patched and the β (retry) label is never defined. Contrast `bb_lit.cpp` which builds `bb_bin_t bin = {{offsets},{label_ptrs},{is_define}}` and calls `bb_emit_asm_result(str,bin)` — that's how LIT defines β (SBL-PAT-BLOB). Same gap affects NOTANY/SPAN/BREAK/LEN/TAB and the `W05_*`/`pat_*` family. **FIX SHAPE (next step SBL-PAT-PRIM):** give each pattern-primitive BINARY arm a `bb_bin_t` reloc table (offsets for the two rel32 sites + a β define site), refactor `bb_pat_<x>_str` to take `bb_bin_t &bin` and emit via `bb_emit_asm_result` like `bb_lit`. | ⛔ TODO — root-caused, fix scoped |
+| **SBL-BENCH** | Run the SNOBOL4 benchmark suite under **all three modes** — Mode 2 (`--interp`, SM dispatch), Mode 3 (`--run`, SB-LINEAR linear x86), Mode 4 (`--compile --target=x86`, emitted standalone binary) — and record timings + output-equivalence. Bench corpus lives under `/home/claude/corpus/benchmarks/` (see `corpus/BENCHMARKS.md` / `one4all/bench/BENCHMARKS.md`); SKIP gracefully if corpus absent (RULES.md). Add/extend a `scripts/test_bench_snobol4_modes.sh` runner: for each bench .sno, run all three modes with `timeout 30s`, assert all three produce identical stdout (correctness gate), and emit a per-mode wall-clock table (parse/lower/exec via `--bench` where available). Goal product line is "Ten times faster" — this step establishes the Mode 2 vs 3 vs 4 baseline. **Only after SBL-GATE is green** (the 6-case smoke must pass in all relevant modes first). | 🔄 runner landed (`test_bench_snobol4_modes.sh`) — baseline captured (see SBL-BENCH-ALL) |
+| **SBL-BENCH-ALL** | **Get ALL SNOBOL4 benchmarks running + output-equivalent in all three modes** (m2=m3=m4=N, DIFF=0). The runner (`scripts/test_bench_snobol4_modes.sh`) is the gate: per-bench it runs `--interp`, `--run`, and the Mode-4 compile→assemble→link→exec pipeline, strips timing lines (`ms:` / `BENCH ` / `iterations:`), and asserts all modes that ran agree. **Sub-goals, in order:** (a) Mode 2 baseline — fix any bench that fails even under `--interp` (frontend gaps: `func_call`/`var_access`/`func_call_overhead` time out at 30s — likely &STLIMIT/loop-size, not engine; `roman.sno` segfaults Mode 2 — investigate). (b) Mode 3 parity — depends on **SBL-PAT-PRIM** (pattern primitives) + **SBL-IDX** ✅ (tables, done). (c) Mode 4 — blocked by the `--target=x86` assembler bug (`STORE_VAR .S0 A` space-separated macro args → GNU `as` "too many positional arguments"); see **SBL-M4-ASM**. Done when the runner prints `m2=m3=m4=<TOTAL> DIFF=0`. | ⛔ TODO — runner ready; baseline below |
+| **SBL-PAT-PRIM** | Give each pattern-primitive BB BINARY arm a proper `bb_bin_t` relocation table + β define site, mirroring `bb_lit.cpp`. Currently `bb_pat_any/notany/span/break/len/tab` binary arms emit raw bytes via `emit_text_n` with NO `bb_bin_t` → `pat_brok_β` never defined, rel32 port jumps never patched → `bb_emit_end: unresolved forward reference` abort in Mode 3. Refactor `bb_pat_<x>_str(BB_t*)` → `bb_pat_<x>_str(BB_t*, bb_bin_t &bin)`, populate `bin = {{offsets},{label_ptrs},{is_define}}` for the two rel32 sites + the β-entry define, and emit via `bb_emit_asm_result`. Start with `ANY` (simplest), then NOTANY/SPAN/BREAK/LEN/TAB. This unblocks ~30 of the 38 Mode-2-only broad-corpus programs and the pattern benches in Mode 3. | ⛔ TODO — root-caused (SBL-DIVERGE) |
+| **SBL-M4-ASM** | Fix Mode-4 (`--compile --target=x86`) assembler failure. Emitter outputs macro invocations like `STORE_VAR .S0 A` with **space-separated** args; GNU `as` macro calls require **comma**-separated args → "Error: too many positional arguments" at the first `STORE_VAR`/`PUSH_VAR`-family line. Either (a) emit commas between macro args in the SM/XA template that prints these, or (b) define the macros to take the args as given. Until fixed, Mode-4 SNOBOL4 broad corpus is 0/280 (all SKIP at assemble) and SBL-BENCH-ALL Mode-4 column is all `-`. | ⛔ TODO — pre-existing, out of prior scope |
+
+### Session watermark 2026-05-26 (Opus) — SBL-GATE + SBL-IDX landed; pattern-primitive Mode-3 gap root-caused
+```
+one4all: <this commit> — BUILD GREEN
+smoke_snobol4 (both modes): 13/13 (Mode 2: 7, Mode 3: 6) — permanent dual-mode gate
+smoke_snobol4_jit: --interp 181/261, --run 146/261 (was 137; +9 from SBL-IDX)
+crosscheck_snobol4: 5/6 (1 pre-existing PATTERN/xTrace)
+broad corpus: Mode 2 186/280, Mode 3 146/280 (40-gap; largest cluster = pattern primitives)
+mode4 broad: 0/280 (280 SKIP) — pre-existing, unrelated: --compile --target=x86 emits
+  `STORE_VAR .S0 A` (space-separated macro args) → GNU as "too many positional arguments"
+ASAN (Mode 3, leaks off): exercised SM+BB-pattern+fn-call+table → correct output, rc=0,
+  ZERO use-after-free. Confirms SM_sequence_t/bb_table[]/BB graphs freed before run are never touched.
+Cross-lang smokes: icon 5/5 snocone 5/5 rebus 4/4 raku 5/5. prolog 0/5 pre-existing.
+NEXT: SBL-PAT-PRIM — add bb_bin_t reloc tables to bb_pat_any/notany/span/break/len/tab binary arms.
+```
 
 **Verified Mode 3 (`--run`) smoke at this watermark: PASS=6 FAIL=0 (output/concat/arith/pattern/goto_s/define).**
+
+### SBL-BENCH baseline (`scripts/test_bench_snobol4_modes.sh`, TIMEOUT=12; 16 benches)
+
+```
+bench                  m2(ms)  m3(ms)  m4   equiv     note
+arith_loop               2266    1142   -   OK(2)     m3 ~2x faster
+eval_dynamic             7072    4677   -   OK(2)
+eval_fixed               5875    3752   -   OK(2)
+fibonacci               10463    6888   -   OK(2)
+func_call                   -       -   -   none      both timeout (heavy loop)
+func_call_overhead          -       -   -   none      both timeout
+indirect_dispatch          12      10   -   DIFF*     *both error on $FN(X) (unsupported);
+                                                       stdout differs by 1 trailing newline only
+mixed_workload           3089    1770   -   OK(2)
+op_dispatch              5434    2968   -   OK(2)
+pattern_bt                 10      10   -   OK(2)
+roman                       -      10   -   1mode     m2 segfaults (frontend)
+string_concat            2279    2141   -   OK(2)
+string_manip                -       -   -   none      both timeout
+string_pattern           1565    1043   -   OK(2)
+table_access                -    8572   -   1mode     m2 OK at 60s -> 250500 == m3 (SBL-IDX)
+var_access                  -       -   -   none      both timeout
+ran: m2=10/16 m3=12/16 m4=0/16 | equiv PASS=9 DIFF=1(artifact)
+```
+
+**Findings:** (1) Zero *genuine* Mode 2 vs Mode 3 divergences — every bench that runs in both
+produces identical normalized output; the lone DIFF (indirect_dispatch) is a 1-byte stderr-path
+stdout-newline artifact on a builtin (`$FN(X)`) unsupported in BOTH modes. (2) **Mode 3 (SB-LINEAR)
+is consistently ~1.5–2× faster than Mode 2** on the compute benches — the "Ten times faster" baseline.
+(3) Mode 4 = 0/16 (SBL-M4-ASM assembler bug). (4) Remaining gaps to all-3-mode-green: SBL-PAT-PRIM
+(Mode 3 pattern primitives), SBL-M4-ASM (Mode 4), heavy-loop timeouts + roman m2 segfault (frontend).
 Landed `a6dd2735`. one4all build GREEN. Mode 2 `--interp` 7/7 unregressed; icon 5/5, snocone 5/5,
 rebus 4/4, raku 5/5 all unchanged. NOTE: this work sits on the `f2ecf7af` emergency-handoff branch
 where `smoke_prolog` is 0/5 and `unified_broker` 18/31 — both PRE-EXISTING (confirmed via git stash
