@@ -35,9 +35,9 @@ cd /home/claude/one4all && bash scripts/build_scrip.sh   # needs libgc-dev (apt-
 | **SBL-DIVERGE** (survey) | Ran ALL SNOBOL4 x86 suites in Mode 2 (`--interp`) AND Mode 3 (`--run`). Broad-corpus crosscheck (`/home/claude/corpus/crosscheck`, 261 with .ref): **both_ok=141, M2-passes-M3-fails=38, M3-only=4, both_fail=78.** NOTE: `scrip` default mode is `--run` (Mode 3) — `scrip.c:121` sets `mode_run=1` when no flag given; so `test_interp_broad_corpus_and_beauty.sh` (no flag) was silently running Mode 3, not Mode 2. Explicit both-mode counts: **Mode 2 = 186/280, Mode 3 = 146/280** (40-test gap). `--monitor` confirmed the gap but itself segfaults on the offending programs (it drives the JIT step-runner into the same crash). **Root cause of the largest cluster (pattern primitives) located:** `ANY('aeiou')` Mode 3 → `bb_emit_end: 1 unresolved forward reference(s): label='pat_brok_β'`, then abort/segfault. The `bb_pat_any` BINARY arm (`BB_templates/bb_pat_any.cpp`) emits raw bytes via `emit_text_n` with **NO `bb_bin_t` relocation table** — so its rel32 port jumps (`0F 85 …`, `E9 …`) are never patched and the β (retry) label is never defined. Contrast `bb_lit.cpp` which builds `bb_bin_t bin = {{offsets},{label_ptrs},{is_define}}` and calls `bb_emit_asm_result(str,bin)` — that's how LIT defines β (SBL-PAT-BLOB). Same gap affects NOTANY/SPAN/BREAK/LEN/TAB and the `W05_*`/`pat_*` family. **FIX SHAPE (next step SBL-PAT-PRIM):** give each pattern-primitive BINARY arm a `bb_bin_t` reloc table (offsets for the two rel32 sites + a β define site), refactor `bb_pat_<x>_str` to take `bb_bin_t &bin` and emit via `bb_emit_asm_result` like `bb_lit`. | ⛔ TODO — root-caused, fix scoped |
 | **SBL-BENCH** | Run the SNOBOL4 benchmark suite under **all three modes** — Mode 2 (`--interp`, SM dispatch), Mode 3 (`--run`, SB-LINEAR linear x86), Mode 4 (`--compile --target=x86`, emitted standalone binary) — and record timings + output-equivalence. Bench corpus lives under `/home/claude/corpus/benchmarks/` (see `corpus/BENCHMARKS.md` / `one4all/bench/BENCHMARKS.md`); SKIP gracefully if corpus absent (RULES.md). Add/extend a `scripts/test_bench_snobol4_modes.sh` runner: for each bench .sno, run all three modes with `timeout 30s`, assert all three produce identical stdout (correctness gate), and emit a per-mode wall-clock table (parse/lower/exec via `--bench` where available). Goal product line is "Ten times faster" — this step establishes the Mode 2 vs 3 vs 4 baseline. **Only after SBL-GATE is green** (the 6-case smoke must pass in all relevant modes first). | 🔄 runner landed (`test_bench_snobol4_modes.sh`) — baseline captured (see SBL-BENCH-ALL) |
 | **SBL-BENCH-ALL** | **Get ALL SNOBOL4 benchmarks running + output-equivalent in all three modes** (m2=m3=m4=N, DIFF=0). The runner (`scripts/test_bench_snobol4_modes.sh`) is the gate: per-bench it runs `--interp`, `--run`, and the Mode-4 compile→assemble→link→exec pipeline, strips timing lines (`ms:` / `BENCH ` / `iterations:`), and asserts all modes that ran agree. **Sub-goals, in order:** (a) Mode 2 baseline — fix any bench that fails even under `--interp` (frontend gaps: `func_call`/`var_access`/`func_call_overhead` time out at 30s — likely &STLIMIT/loop-size, not engine; `roman.sno` segfaults Mode 2 — investigate). (b) Mode 3 parity — depends on **SBL-PAT-PRIM** (pattern primitives) + **SBL-IDX** ✅ (tables, done). (c) Mode 4 — **SBL-M4-ASM ✅** unblocked it (broad corpus 0→126); remaining Mode-4 bench gaps are **SBL-M4-OPDISPATCH** (comparison-builtin runtime abort) + pattern primitives (SBL-PAT-PRIM) + heavy-loop timeouts. Done when the runner prints `m2=m3=m4=<TOTAL> DIFF=0`. | ⛔ TODO — runner ready; baseline below |
-| **SBL-PAT-PRIM** | Give each pattern-primitive BB BINARY arm a proper `bb_bin_t` relocation table + β define site, mirroring `bb_lit.cpp`. Currently `bb_pat_any/notany/span/break/len/tab` binary arms emit raw bytes via `emit_text_n` with NO `bb_bin_t` → `pat_brok_β` never defined, rel32 port jumps never patched → `bb_emit_end: unresolved forward reference` abort in Mode 3. Refactor `bb_pat_<x>_str(BB_t*)` → `bb_pat_<x>_str(BB_t*, bb_bin_t &bin)`, populate `bin = {{offsets},{label_ptrs},{is_define}}` for the two rel32 sites + the β-entry define, and emit via `bb_emit_asm_result`. Start with `ANY` (simplest), then NOTANY/SPAN/BREAK/LEN/TAB. This unblocks ~30 of the 38 Mode-2-only broad-corpus programs and the pattern benches in Mode 3. | ⛔ TODO — root-caused (SBL-DIVERGE) |
+| **SBL-PAT-PRIM** | Give each pattern-primitive BB BINARY arm a proper `bb_bin_t` relocation table + β define site, mirroring `bb_lit.cpp`. Currently `bb_pat_any/notany/span/break/len/tab` binary arms emit raw bytes via `emit_text_n` with NO `bb_bin_t` → `pat_brok_β` never defined, rel32 port jumps never patched → `bb_emit_end: unresolved forward reference` abort in Mode 3. Refactor `bb_pat_<x>_str(BB_t*)` → `bb_pat_<x>_str(BB_t*, bb_bin_t &bin)`, populate `bin = {{offsets},{label_ptrs},{is_define}}` for the two rel32 sites + the β-entry define, and emit via `bb_emit_asm_result`. Start with `ANY` (simplest), then NOTANY/SPAN/BREAK/LEN/TAB. This unblocks ~30 of the 38 Mode-2-only broad-corpus programs and the pattern benches in Mode 3. **DONE 2026-05-26 (Opus 4.7) `4bd0ffb6`:** added `bb_bin_t` reloc tables `{43,48,52,95,100}` (γ-ref, ω-ref, β-define, β-body γ/ω) to ANY/NOTANY/SPAN/BREAK; LEN already converted. m2==m3 byte-identical with replacement (`= 'X'`). smoke_snobol4_jit `--run` 146→150. ⚠ standalone `0XX_pat_*` tests STILL fail in Mode 3 — they use `. V` conditional-assignment capture, a SEPARATE pre-existing segfault (crashes for plain LIT capture at clean HEAD `340b14b9`). **TAB still open:** its binary arm has an off-by-one reloc AND an empty-match value bug (reverted to avoid shipping silently-wrong output). | ✅ done (TAB + `. V` capture remain) |
 | **SBL-M4-ASM** | Fix Mode-4 (`--compile --target=x86`) assembler + link failures. **Landed 2026-05-26 (Opus).** TWO bug classes: (1) **bare-annotation macro args** — emitter templates appended human-readable annotations as space-separated tokens after GAS macro calls (`STORE_VAR .S0 A`, `CALL_FN .S2, 0 TIME`, `PUSH_STR .S8, 0 "..."`, `RETURN_VARIANT 0,1,20 SM_RETURN_S`, `CALL_EXPRESSION .L5 name...`, `DEFINE_ENTRY FIB`) → `as` "too many positional arguments". Fix: emit the annotation as a `#`-comment line (`s_2asm/s_1asm + s_comment`), not a bare arg. 6 files: `sm_push_pop_lits.cpp`, `sm_calls.cpp`, `sm_returns.cpp` (×3), `sm_bb_calls.cpp`, `sm_defines.cpp`. (2) **unresolved enum symbol** — arith macros emitted `mov edi, SM_ADD` (a C enum NAME with no assembler/linker definition) → `R_X86_64_32S against undefined symbol SM_ADD`. Fix (`sm_arith.cpp`): emit numeric immediate `mov edi, %d` via `(int)SM_ADD` (enum resolves at emitter compile time, always correct). **Result: Mode-4 broad corpus 0 → 126 PASS** (FAIL=26 SKIP=128), matching Mode 3's reach. Bench 3-mode equivalence achieved: arith_loop/eval_dynamic/eval_fixed/string_concat/fibonacci all OK(3). Verified end-to-end: A+B→13, arith_loop→1000000, fibonacci→832040 (recursion+DEFINE work in Mode 4). | ✅ done — 0→126 |
-| **SBL-M4-OPDISPATCH** | `op_dispatch.sno` (and likely other comparison-heavy benches) compiles + links in Mode 4 but **aborts at runtime** (rc=1, "Aborted"). Uses `GE`/`LT`/arith-comparison builtins in a tight loop. Genuine Mode-4 runtime bug (not a timeout, not an assembler issue) — distinct from SBL-M4-ASM. Investigate the comparison-builtin path in the Mode-4 `rt_*` runtime / emitted dispatch. The 26 Mode-4 broad-corpus FAILs likely share root causes here. | ⛔ TODO — found this session |
+| **SBL-M4-OPDISPATCH** ✅ | `op_dispatch.sno` aborted at runtime ("SM value stack overflow cap=65536"). **FIXED 2026-05-26 (Opus 4.7) `5a8bf79d`.** Root cause was NOT comparison-builtin correctness — it was a missing per-statement vstack reset. Mode 2 `sm_interp.c` SM_STNO does `st->sp=0` every statement; Mode 4 `rt_set_stno` did not, so a statement failing mid-eval (GE/LT → DT_FAIL) left operands on the vstack; over a tight loop the residue overflowed. Fix: `rt_set_stno` resets to `g_vframe_base` (NOT absolute 0 — that regressed recursion; frame base is set by `call_native_chunk` to the caller's `saved_vtop`). op_dispatch m4 `result:122172` == m2 == m3 OK(3). Mode-4 broad corpus 126/26 unchanged; 3 recursion tests confirmed still passing. | ✅ done |
 
 ### Session watermark 2026-05-26b (Opus) — SBL-M4-ASM: Mode 4 unblocked (0→126 broad corpus)
 ```
@@ -257,8 +257,63 @@ nd->c[i]     = BB_SUCCEED node; nd->c[i]->opaque = BB_graph_t* clause body
 
 `BB_PL_CALL` (PL-T-4), `BB_CHOICE` (PL-T-5), `BB_PL_ALT` (PL-T-6), `BB_CUT` (PL-T-7). Each: translate the corresponding `bb_exec.c` block (lines 1783–1935) to x86 TEXT. No new `rt_*`. No C Byrd box functions.
 
+---
+
+## ⛔ Step PJ-RT-PURGE — Delete every RT function that implements 4-port (α/β/γ/ω) logic for Prolog
+
+**Rule being enforced (already written in THIS file, three times):**
+- INVARIANT 9 (line ~199): *"BB templates may not call RT functions. PERIOD."*
+- Translation method rule 5 (line ~207): *"No `rt_*` port-logic helpers."* Permitted external calls are ONLY the side-effect-free utilities: `trail_mark`, `trail_unwind`, `unify`, `prolog_atom_intern`, `term_new_int`, `term_new_atom`.
+- PL-T-4..7 (line ~258): *"No new `rt_*`. No C Byrd box functions."*
+- RULES.md line 1: *"NO C BYRD-BOX FUNCTIONS … ZERO permitted."*
+
+**Scope (Lon, 2026-05-26):** Delete ONLY the RT functions that carry 4-port / control-flow / port-state logic. Do NOT touch string/term *conversion* helpers — those stay. The port logic must instead be emitted as inline x86 in the corresponding `bb_*` template (translating the matching `case` in `bb_exec.c`), per the method in this file.
+
+**Classification of the `rt_pl_*` surface at HEAD (`4bd0ffb6`):**
+
+| RT function | Called by template | Verdict |
+|---|---|---|
+| `rt_pl_once` | `bb_pl_seq.cpp` | **DELETE** — ONCE-port driver (looks up pred, drives `bb_broker`/`bb_exec_once`); pure 4-port control. |
+| `rt_pl_unify_generic` | `bb_unify.cpp` | **DELETE** — encapsulates the BB_UNIFY γ/ω decision + trail side-effects in C. |
+| `rt_pl_unify_var_atom` | `bb_unify.cpp` | **DELETE** — same; unify port decision in C. |
+| `rt_pl_unify_var_var` | `bb_unify.cpp` | **DELETE** — same. |
+| `rt_pl_arith` | `bb_arith.cpp` | **KEEP** — pure expression evaluation (term→long), no port state. Conversion. |
+| `rt_pl_write_atom` | `bb_builtin.cpp` | **KEEP** — builtin I/O effect (fputs); not a port. Conversion/effect. |
+| `rt_pl_write_var` | `bb_builtin.cpp` | **KEEP** — builtin I/O effect (term→text→stdout). Conversion/effect. |
+| `rt_pl_atom_push` | `bb_atom.cpp` | **KEEP** — term→DESCR + vstack push. Conversion. |
+| `rt_pl_var_push` | `bb_pl_var.cpp` | **KEEP** — slot deref→DESCR + vstack push. Conversion. |
+| `rt_pl_b_*` (builder family) | emit_sm.c (Mode-4 startup) | **KEEP** — graph reconstruction at binary startup, not runtime port logic (separate concern; revisit only if Lon directs). |
+
+**Sub-steps — DO ONE AT A TIME, each its own commit, gates green between each. For each: (a) write the inline-x86 port logic into the BB template translating the matching `bb_exec.c` case, (b) delete the RT function from `rt.c` + `rt.h`, (c) confirm no remaining caller, (d) run GATE-1..4 + all six smoke gates, (e) commit.**
+
+- [ ] **PJ-RTP-1** — `rt_pl_unify_var_atom`: emit BB_UNIFY var-vs-atom port logic inline in `bb_unify.cpp` (γ on bind/match, ω on mismatch; trail via whitelisted `trail_mark`/`unify`). Delete `rt_pl_unify_var_atom` from rt.c/rt.h.
+- [ ] **PJ-RTP-2** — `rt_pl_unify_var_var`: emit BB_UNIFY var-vs-var port logic inline in `bb_unify.cpp`. Delete from rt.c/rt.h.
+- [ ] **PJ-RTP-3** — `rt_pl_unify_generic`: emit BB_UNIFY generic-fallback port logic inline in `bb_unify.cpp`. Delete from rt.c/rt.h.
+- [ ] **PJ-RTP-4** — `rt_pl_once`: emit BB_PL ONCE-port driver inline (translate `bb_exec_once` entry in `bb_exec.c`); `bb_pl_seq.cpp` must drive α/β/γ/ω directly. Delete `rt_pl_once` from rt.c/rt.h. NOTE: this is the SM_BB_ONCE_PROC entry shared with Mode 2/3 — verify those paths still resolve (they use `pl_bb_once_proc_by_name` directly, not `rt_pl_once`, but confirm).
+
+**Done when:** zero `rt_pl_*` *port-logic* functions remain in rt.c/rt.h; the four KEEP/conversion helpers are the only `rt_pl_*` runtime callees from BB templates; `grep -nE "rt_pl_(once|unify)" src/runtime/rt/rt.{c,h}` returns nothing; GATE-1..4 + six smoke gates non-regressive.
+
 ## Watermark
 
+```
+=== 2026-05-26 Opus 4.7 — SBL-PAT-PRIM + SBL-M4-OPDISPATCH + PJ-RT-PURGE step authored ===
+one4all: 5a8bf79d — BUILD GREEN
+.github: (this session) — SBL rows marked ✅; new ⛔ Step PJ-RT-PURGE authored
+SBL-PAT-PRIM ✅ (4bd0ffb6): bb_bin_t reloc tables on ANY/NOTANY/SPAN/BREAK cset primitives.
+  m2==m3 byte-identical with replacement. smoke_snobol4_jit --run 146→150.
+SBL-M4-OPDISPATCH ✅ (5a8bf79d): per-statement vstack reset in Mode 4 rt_set_stno (to
+  g_vframe_base, set by call_native_chunk). op_dispatch m4 result:122172 OK(3). Broad corpus
+  126/26 (no regression). Root cause was missing st->sp=0 mirror, NOT comparison correctness.
+Gates: smoke_snobol4 13/13, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5. Mode-4 broad 126/26.
+  smoke_prolog 0/5 + unified_broker 18/31 PRE-EXISTING on this branch (340b14b9 lineage).
+PJ-RT-PURGE: NEW step authored to delete the 4-port-logic rt_pl_* helpers (rt_pl_once +
+  rt_pl_unify_{var_atom,var_var,generic}) per INVARIANT 9 / RULES.md "NO C BYRD-BOX FUNCTIONS".
+  Conversion helpers (rt_pl_arith / write_atom / write_var / atom_push / var_push) KEEP.
+  Sub-steps PJ-RTP-1..4, one at a time. NOT YET STARTED.
+OPEN: `. V` capture segfault (pre-existing, blocks 0XX_pat_* in Mode 3); TAB binary value bug;
+  mixed_workload m4 empty output; PJ-RT-PURGE PJ-RTP-1..4.
+
+=== prior watermarks below ===
 ```
 === 2026-05-26 Opus — SB-LINEAR Mode 3 (--run) SNOBOL4 — EMERGENCY HANDOFF ===
 one4all: 537cb4ec — BUILD GREEN
