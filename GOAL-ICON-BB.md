@@ -161,8 +161,21 @@ DONE (e099fdae): emit_core.c, lower_pl.c, lower_icn.c, icon_box_rt.c, scrip_ir.c
 REMAINING: bb_exec.c — 294 violations. Build fails at bb_exec.c:57.
 Mapping used: c[0]→α, c[1]→β, c[2]→γ; ival2→ival or state (is_relop); ival3→state (has-run);
   sval2→dropped (runtime data); opaque→counter (ptr cast); nd->n→ival (arity) or dropped.
+
+⚠️  STRUCTURAL GAP — γ/ω NOT FULLY WIRED:
+The lowerer currently wires operands into α/β but does NOT thread γ (success) and ω (failure)
+continuations through the graph. BB_node_alloc initialises α=nd (self), β=nd (self), γ=NULL, ω=NULL.
+Most nodes exit with γ=NULL → executor crashes on success.
+JCON solution: IR code-gen passes four label continuations DOWN into each recursive call so every
+ir_* instruction is born with all four ports filled. SCRIP must do the same: lower_icn_expr_node
+and lower_pl_stmt_node must accept (succ, fail) BB_t* arguments and wire them into every node
+they create. This is the real G-1 gap — field renaming alone is not enough.
+G-2 (bb_exec.c cleanup) can proceed mechanically, but the graph is not semantically correct
+until continuation threading is added to the lowerer.
+
 - [x] emit_core.c, all BB_templates, lower_pl.c, lower_icn.c, icon_box_rt.c, scrip_ir.c
 - [ ] bb_exec.c (294 hits) — NEXT SESSION
+- [ ] Thread γ/ω continuations through lowerer (lower_icn_expr_node, lower_pl_stmt_node)
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
 #### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
