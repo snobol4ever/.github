@@ -4,21 +4,45 @@
 **Prereq:** GOAL-PROLOG-BB-COMPLETE ✅ `c9b7428d` (PB-8 honest 111/294 FAIL=0 ABORT=0)
 **Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
 
-## ⛔ MANDATORY READ BEFORE ANY PJ-AG-WIRE WORK
+## ⛔ MANDATORY: ARCHITECTURE OF PJ-AG-WIRE — READ BEFORE EVERY SESSION
 
-Before touching any PJ-AGW-* step, read **GOAL-ICON-BB.md** in full:
-- §"GOLDEN BB RULE" — BB_t is the IR node for ALL modes (2/3/4). Mode 3 (`--run`) JIT-compiles
-  the BB graph to native x86 via templates at emit time; the graph is then freed. Mode 3 does NOT
-  walk the BB graph at runtime. Prolog in Mode 3 routes through `sm_interp_run` (Mode 2 path)
-  until bb_pl_*.cpp templates are filled (AGW-8..10). The crosscheck_prolog FAIL=6 for jit-run
-  is correct and expected until then — do NOT fix it by keeping the BB graph alive past
-  stage2_free_bb_after_emit or by calling bb_exec_once from sm_run_linear.
-- §"Phase H — The Attribute Grammar" — the LOWER→graph + EMITTER→templates two-path structure
-  that PJ-AG-WIRE mirrors exactly. AG threading: γ/ω inherited DOWN, α/β synthesized UP.
-- §"G-2 RT-DELETE ladder" — no C Byrd boxes, no new rt_* port helpers; inline x86 only.
+**What PJ-AG-WIRE is:** two things, in order:
+1. **LOWER** — `lower_pl` walks the Prolog AST and builds a properly 4-port-wired `BB_t` graph.
+   AG threading: γ/ω inherited DOWN into each node, α/β synthesized UP out of each node.
+   Signature: `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)`.
+   Leaf nodes: `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`.
+2. **EMITTER** — the emitter port-DFS walks the wired graph and emits inline x86 via
+   per-kind `bb_pl_*.cpp` templates with `bb_bin_t` reloc tables. NO C Byrd boxes.
+   NO new `rt_*` port helpers. One template file per BB kind.
 
-**The pipeline is:** `Prolog AST → lower_pl (AG-wired BB_t graph) → emitter port-DFS → bb_pl_*.cpp templates → x86`
-**Not:** driving bb_exec_once from Mode 3 runtime. The BB graph is consumed at emit time.
+**The pipeline:** `Prolog AST → lower_pl (AG-wired BB_t graph) → emitter port-DFS → bb_pl_*.cpp → x86`
+
+**BB_t is the IR for ALL modes (2/3/4).** BB_t is SCRIP's IR node — equivalent to JCON's `ir_*`
+instruction records. The four ports (α/β/γ/ω) are pointers, not labels. The SM is NOT the IR;
+it is a 3-instruction bootstrap only (`SM_JUMP`, `SM_LABEL`, `SM_BB_SWITCH`).
+
+**Mode 2 (`--interp`):** `sm_interp_run` dispatches `SM_BB_SWITCH` → `pl_bb_dcg` → `bb_exec_once`
+walks the live BB graph in C. This is the correctness reference path.
+
+**Mode 4 (`--compile --target=x86`):** the emitter port-DFS walks the BB graph at emit time
+and writes GAS text via `bb_pl_*.cpp` templates. The BB graph is consumed at emit time and
+then **freed by `stage2_free_bb_after_emit`**. The emitted x86 runs without any BB graph.
+
+**Mode 3 (`--run`) — DO NOT TOUCH FOR PROLOG:**
+Mode 3 JIT-compiles SM to native x86 blobs via `sm_emit_linear`. For Prolog, Mode 3
+routes through `sm_interp_run` (Mode 2 path) until `bb_pl_*.cpp` templates are filled
+(AGW-8..10). The `crosscheck_prolog FAIL=6` for `jit-run vs ir-run` is **correct and
+expected** — it is pre-existing. Do NOT fix it by:
+- keeping the BB graph alive past `stage2_free_bb_after_emit`
+- calling `bb_exec_once` from `sm_run_linear` at runtime
+- adding `rt_bb_switch_pl_entry` or any runtime BB-graph walker to Mode 3
+Those approaches violate RULES.md "BB/SM deletion is total" and the deliberate
+`stage2_free_bb_after_emit` contract. Leave FAIL=6 alone until AGW-8..10.
+
+**No C Byrd boxes. Ever.** A C Byrd box is `DESCR_t foo(void *zeta, int entry)` implementing
+α/β/γ/ω. Zero permitted. All four-port logic lives in `bb_pl_*.cpp` inline x86 templates.
+If you find yourself writing a new C function with port logic to make something work in
+Mode 3 — stop. That is a Byrd box. Delete it. Implement as a template.
 
 ---
 
