@@ -583,10 +583,18 @@ Flag OFF: original broken `call rt_bb_pump_proc` unchanged.
 - [x] `--run hello.icn` SCRIP_JIT_FLAT_BB=1 prints "hello" ✅
 - [x] `double(21)` returns 42 under SCRIP_JIT_FLAT_BB=1 ✅
 - [x] smoke 5/5 both flag states ✅; broker 23 unchanged ✅
-- [ ] **NEXT: wire SM_ACOMP (opcode 80, arith compare — needed for Icon `if n<=1`).**
-  Then SM_JUMP_S/F for conditional control flow. Then run full broker≥19/rungs≥195 gate with flag ON.
-  Then J-5 (ignored slots: PUMP_SM/PUMP_CASE/BB_SWITCH). Then J-6 flip default + delete C bridge.
-  ⛔ `rt_bb_pump_proc` still reachable from `--run` when flag OFF — deleted at J-6.
+- [x] **SM_ACOMP + SM_LCOMP wired** ✅ (`dfaf3032`, 2026-05-26 Opus 4.7). JIT-local
+  `rt_acomp_op`/`rt_lcomp_op` in sm_jit_interp.c mirror rt.c rt_acomp/rt_lcomp; one int
+  op-arg (TT_LE etc.) in rdi via sl_mov_rdi_i64+sl_call, same shape as SM_INCR. Was
+  falling to rt_unimpl_op. `fib(7)=13` under SCRIP_JIT_FLAT_BB=1 == --interp ✅.
+  SM_JUMP_S/F verified composing with new last_ok (then/else/if-as-value byte-identical
+  to --interp). SM_ICMP_GT/LT confirmed DEAD (never emitted). smoke 5/5, broker 23,
+  rungs01-35 189/2 — both flag states.
+- [ ] **NEXT: GENERATORS.** `every`/`to`/`by` abort under --run flag-on
+  (`rung01_paper_to_by` → `sm_interp: stack underflow`). Generator iteration (SM gen-tick
+  / BB generator pump) not yet on flat-x86 path; substantial J-5 work, overlaps BB
+  generator templates. Then J-5 ignored slots (NOTE: SM_PUMP_CASE=Raku-only,
+  SM_BB_SWITCH=Prolog — neither is Icon), then J-6 flip default + delete C bridge.
 
 #### J-5 — Migrate the rest of the J-1 seam (PUMP_SM, PUMP_CASE, BB_SWITCH, generator path) ⏳
 - [ ] One opcode per sub-step, same flag, same gate each. Bring the JIT's `ignored slots` BB
