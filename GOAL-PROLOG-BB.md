@@ -4,6 +4,41 @@
 **Prereq:** GOAL-PROLOG-BB-COMPLETE ✅ `c9b7428d` (PB-8 honest 111/294 FAIL=0 ABORT=0)
 **Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
 
+---
+
+## ⛔⛔ TOP PRIORITY — SB-LINEAR Mode 3 (`--run`) SNOBOL4 FIRST, then back to Prolog ⛔⛔
+
+**Honesty note (2026-05-26, Opus):** prior notes claimed Mode 3 was "complete" / "wired".
+It was NOT. `--run` actually crashed `define` (stack-underflow abort) and mis-ran `pattern`.
+Mode 3 status is now tracked ONLY by a reproducible gate — no "done" without green numbers below.
+
+**Order of work:** finish SNOBOL4 Mode 3 (`--run`) to 6/6 smoke FIRST. Only then resume Prolog
+Mode 3 (`SM_BB_ONCE_PROC` lookup miss → `[NO-AST]` stub; `:- initialization(main)` runs empty).
+
+### SB-LINEAR honest gate (run EVERY time; this is the source of truth)
+```
+# SNOBOL4 --run smoke (6 cases): output, concat, arith, pattern, goto_s, define
+# reproduce each case from scripts/test_smoke_snobol4.sh but with mode "--run"
+cd /home/claude/one4all && bash scripts/build_scrip.sh   # needs libgc-dev (apt-get install libgc-dev)
+# then run the 6 smoke bodies through:  ./scrip --run FILE
+```
+
+### SB-LINEAR steps (do top-down)
+
+| Step | Description | Status |
+|---|---|---|
+| **SBL-FN-RET** | Function call/return in linear x86. `rt_call_fn` enters body via native `((blob_fn_t)blob)()`; `SM_RETURN` must do a NATIVE `ret`, not just `STATE->pc` bookkeeping. Made `h_return_impl`/`rt_return*` return int; emit `test al,al; jz +1; ret` (`sl_ret_if_eax`) after every RETURN-family helper. | ✅ verified — `define` 0/abort → PASS=42 |
+| **SBL-FN-ARGS** | `rt_call_fn` bound params to `NULVCL`, never to actual args (so `DOUBLE(21)` saw `X=0`). Pop args before `sp=0`, bind `call_args[k]` to each param (mirror trampoline `h_call`). | ✅ verified — part of `define` PASS |
+| **SBL-EXEC-PATD** | `rt_exec_stmt` passed `NULVCL` instead of popped `pat_d` on the no-blob branch. Now pops `pat_d` and passes it to `exec_stmt`. | ✅ landed (no-blob branch only) |
+| **SBL-PAT-BLOB** 🔄 | `pattern` (`S 'b' = 'X'`) → Mode 3 gives `Xabc`, want `aXc`. **VERIFIED root cause (2026-05-26 Opus):** NOT a blob-vs-pat_d choice. Tested both — passing the runtime `pat_d` (DT_P) into `exec_stmt` ALSO yields `Xabc`, because `exec_stmt`'s DT_P branch (stmt_exec.c:273) compiles the PATND_t via `bb_build_flat`/`bb_build_brokered` and runs the SAME blob. The compiled blob mis-anchors (matches empty at pos 0 instead of `b` at pos 1). Mode 2 is correct ONLY because it takes the `bb_exec_pat(pat_bb,...)` BB-graph INTERPRETER branch (sm_interp.c:585), which never compiles. **Fix = repair anchoring in `bb_build_brokered`/`bb_build_flat` (emit_bb.c:611) so compiled simple-literal patterns scan forward like the interpreter.** This is a deep BB-pattern-compiler bug, not a linear-dispatch bug. | ⛔ OPEN — needs emit_bb.c pattern-anchor fix |
+| **SBL-GATE** | Add the 6-case `--run` variant to `scripts/test_smoke_snobol4.sh` as a permanent gate (the `mode` param already exists). Only after SBL-PAT-BLOB is green. | ⛔ TODO |
+
+**Verified Mode 3 (`--run`) smoke at this watermark: PASS=5 FAIL=1 (pattern).**
+All edits uncommitted in `src/processor/sm_jit_interp.c`: `sl_ret_if_eax`, int-returning
+`h_return_impl`/`rt_return*`, `rt_call_fn` arg-bind, `rt_exec_stmt` pat_d. Build GREEN.
+
+---
+
 ## Invariants (READ FIRST)
 
 The five invariants from GOAL-HEADQUARTERS.md apply verbatim with names substituted:
@@ -157,6 +192,18 @@ nd->c[i]     = BB_SUCCEED node; nd->c[i]->opaque = BB_graph_t* clause body
 
 ## Watermark
 
+```
+=== 2026-05-26 Opus — SB-LINEAR Mode 3 (--run) SNOBOL4 — EMERGENCY HANDOFF ===
+one4all: 537cb4ec — BUILD GREEN
+.github: GOAL top block "SB-LINEAR FIRST" + HANDOFF-2026-05-26-OPUS-SBL-MODE3.md
+Mode 3 --run SNOBOL4 smoke: 5/6 — output/concat/arith/goto_s/define PASS; pattern FAIL (Xabc want aXc)
+Mode 2 --interp SNOBOL4 smoke: 7/7 (UNREGRESSED — all edits isolated to --run linear path)
+Fixed: SBL-FN-RET (native ret on RETURN), SBL-FN-ARGS (bind call args to params), SBL-EXEC-PATD (pass pat_d)
+OPEN: SBL-PAT-BLOB — bb_build_brokered/flat (emit_bb.c:611) mis-anchors simple literals; fix to match
+      bb_exec_pat interpreter (bb_exec.c:2069). Then SBL-GATE (add --run to test_smoke_snobol4.sh), then Prolog.
+Honesty: prior "Mode 3 complete" claims were false (define aborted, pattern wrong). Gate is now sole truth.
+
+=== prior watermarks below ===
 ```
 one4all: a02efe54 (PJ-9e partial)
 corpus:  1fe096c
