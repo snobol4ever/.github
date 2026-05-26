@@ -239,10 +239,19 @@ wired into the predecessor's inherited γ slot). N-ary (CALL args, IDX_SET/SECTI
 γ-chain, never packed into the 2 operand ports.
 
 #### H-1 — Extend lowerer signature to the 4-attribute form ⏳
+⚠ **PARTIAL (2026-05-26f).** The full 4-attribute signature rewrite is NOT done. BUT a prerequisite
+bug was fixed: `BB_node_alloc` no longer seeds `α=nd, β=nd` (self) — it inits all four ports to NULL.
+The self-pointer default was making leaf nodes (BB_VAR) and operand-less nodes (body-less BB_EVERY,
+literal BB_TO) falsely appear to have operands, causing infinite recursion in ir_is_single_shot and
+the has_dyn-style executor tests. With NULL defaults, leaf/operand-less ports are now honestly empty.
+BB_IF was given correct statement-context wiring (else→ω, both exits→γ); this is correct for
+leaf/last-statement IF but the GENERAL inherited-γ/ω threading (below) is still required for nested
+non-leaf conditionals and deep generator composition.
 - [ ] `lower_icn_expr_node(cfg, e)` → `lower_icn_expr_node(cfg, e, BB_t *γ, BB_t *ω, BB_t **α_out, BB_t **β_out)`.
 - [ ] Leaf nodes (LIT_I/F/S, VAR, KEYWORD): set `*α_out = *β_out = nd; nd->γ = γ; nd->ω = ω;`.
 - [ ] `lower_icn_expr_top` / `lower_icn_proc_body` seed the top γ/ω (program success / program fail sentinels).
 - [ ] Gate: clean build (signature compiles), no behaviour change yet on leaves.
+- [x] (2026-05-26f) BB_node_alloc α/β default NULL not self; BB_IF else→ω statement-context wiring. Gates green.
 
 #### H-2 — Replace BB_SEQ child-array with γ-chain ⏳
 **SPEC (from JCON ir_a_Compound, irgen.icn:1231 — consulted 2026-05-26):**
@@ -467,7 +476,33 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, build GREEN, uncommitted on `72a30688`/`97b92f26`) — Phase H.
+## Active next targets (2026-05-26, build GREEN, gates GREEN on `319b2b6e`) — Phase H.
+
+Sess 2026-05-26f (Opus): **GATES RED→GREEN, COMMITTED `319b2b6e`.** Fixed the two bb_exec.c bugs
+the 2026-05-26e handoff flagged. ROOT CAUSE was systemic, deeper than described: `BB_node_alloc`
+seeded `α=nd, β=nd` (self-pointers). Any lowerer that conditionally set a port left a live
+self-pointer, so leaf/operand-less nodes falsely appeared to have operands. Three manifestations:
+(1) body-less `every` had β=self → infinite self-recursion at the body call (the documented
+"every write(1 to 3) SEGFAULT"); (2) literal `1 to 3` had α/β=self → BB_TO has_dyn=(α&&β) fired
+wrongly → recursion; (3) BB_VAR leaf had α=self → ir_is_single_shot recursed forever (hit by
+`every i:=1 to 3 do write(i)`). FIX: `BB_node_alloc` now inits α/β to NULL. Verified no executor
+reads `α==nd` as meaningful — every site tests non-NULL as "has operand" (grep: 67, 1561, 1977);
+lower_pat_dcg.c sets its self-entry explicitly so it's unaffected.
+BB_IF both-branches: lowerer wired else into `nd->γ` (the success-continuation port) so cond-success
+followed γ into the else box. FIX: else now on `nd->ω` (failure port); BB_IF executor runs ω only on
+cond-failure, both paths return inherited γ; lower_icn_proc_body SEQ-chain no longer clobbers a
+BB_IF's ω (skips ω-forward for BB_IF). lower_icn.c also: TT_TO literal-vs-dynamic split (non-literal
+bounds → operand boxes in α/β), TT_EVERY/WHILE/UNTIL set β explicitly.
+GATES: smoke_icon **5/5** (was 3/5), broker **18** (was 15, baseline ≥17, stable ×3), rungs **174**
+(was 118, baseline 153, target ≥169 — exceeded). All verified under `SCRIP_NO_AST_WALK=1` (honest,
+no AST back-doors). Prolog smoke 0/5 unchanged (pre-existing from 1c4e37c7, confirmed via git stash);
+SNOBOL4 smoke 7/0 clean. Files: scrip_ir.c, lower_icn.c, bb_exec.c.
+NEXT: H-1 proper inherited-γ/ω threading remains for nested non-leaf IF/generator composition (the
+fixes here are correct for statement-context + leaf/last-stmt; full attribute-grammar threading per
+the Phase H spec is still the larger task). Then continue H-2..H-5, G-2..G-8. Also still open from
+2026-05-26e: verify multi-clause Prolog Mode-4 emission (`;/2` [NO-AST] in interp; check --compile).
+
+### (prior) 2026-05-26e watermark below
 
 Sess 2026-05-26e (Opus): **BUILD RESTORED RED→GREEN.** Prior "RED at emit_sm.c only" was wrong —
 sm_jit_interp.c died first (broken since 7b087f0f, masked by bb_exec.c errors). Fixed sm_jit_interp.c
