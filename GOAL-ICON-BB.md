@@ -512,6 +512,7 @@ TBBLK_t*, find_gen_state_t*) AND a counter AND a bound need >3 slots. Options: (
 into counter (works only where counter unused — BB_CALL did this), (b) allocate an aux state
 struct via GC and stash its pointer in counter, freeing the other slots. (b) is the general
 answer and matches JCON's per-construct state records. Recommend (b) next session.
+[one4all HEAD this checkpoint: 309274c2]
 
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
