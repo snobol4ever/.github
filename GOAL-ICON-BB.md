@@ -561,27 +561,32 @@ violation dissolves. So J-2/J-3 stand; J-1's "RED marker" is explained.
 - The C-walker symbols themselves (`icn_bb_dcg` icn_runtime.c:334, `pl_bb_dcg` pl_runtime.c:36,
   `bb_exec_once`/`resume` bb_exec.c:2021/2036) STAY DEFINED — Mode 2 needs them (FACT 1). Only the
   mode-3 CALL EDGE dies. `sm_interp.c` reaching the walker is FINE (that is mode 2).
-- [ ] Write the loader: copy emitter bytes into the JIT exec buffer, apply each `bb_fixup_*`
-  relocation against the buffer's runtime address, register the proc's entry under its name in
-  `g_label_blob_map` (mirror existing blob registration). RELIES on RULES.md "BB/SM deletion is
-  total" — emitter-side BB freed after emit, exec-buffer bytes freed after run; no live alias across.
-- [ ] Gate: loader unit executes the loaded `main` blob for `hello.icn` and prints "hello" — proves
-  emitted-x86 entry/exit works in-process. smoke 5/5 unaffected (still behind a flag).
+**Sess 2026-05-26 (Sonnet 4.6, `de0f2352`):** J-3 re-scoped. Shared emitter emits TEXT asm; BB_templates
+for Icon are stubs. Correct J-3: `SM_BB_PUMP_PROC` in mode-3 emits `call rel32` to proc's SM
+entry_pc in the linear blob (mirrors mode-4 `CALL_EXPRESSION .L<entry_pc>`). No binary loader
+needed. Also fixed `rt_call_fn` to try `icn_try_call_builtin_by_name` before INVOKE_fn.
+- [x] Gate: `--run hello.icn` SCRIP_JIT_FLAT_BB=1 prints "hello". smoke 5/5 unchanged.
 
 #### J-4 — Route `SM_BB_PUMP_PROC` JIT codegen through J-2/J-3 (behind `SCRIP_JIT_FLAT_BB=1`) ⏳
-- [ ] In sm_jit_interp.c, when the flag is set, replace the `call rt_bb_pump_proc` baking with:
-  emit (once per proc) the proc's flat x86 via J-2, load via J-3, then bake `call <blob_addr>`.
-  Flag OFF = current C path (zero-risk default during bring-up).
-  ⛔ **The flag is BRING-UP SCAFFOLDING ONLY, not a permanent option.** Per FACT 2, the C path must
-  NOT remain reachable from mode 3 in the end state. The flag exists so each step stays committable;
-  once flag-ON is green across all gates, the flag-OFF C path (`rt_bb_pump_proc` + the two bake
-  sites) is DELETED (J-5/J-6) and the C walker becomes unreachable from `--run`. Do not enshrine the
-  flag. ⛔ Do NOT "fix" the RED by keeping bb_table alive past the free — that is the PJ-AGW-1c
-  mistake (reverted upstream `1af97d90`); see FACT 3.
-- [ ] Gate: with flag ON — smoke 5/5, broker ≥19, rungs ≥195, byte-identical mode-1/mode-4.
-  With flag OFF — unchanged. BOTH must pass. New check: under flag ON, `rt_bb_pump_proc` is never
-  entered on `--run` (assert via a counter/`__builtin_trap` in a debug build, removed before commit
-  per RULES.md "Never commit diagnostic patches").
+**Sess 2026-05-26 (Sonnet 4.6, `de0f2352`):** Implemented together with J-3. When `SCRIP_JIT_FLAT_BB=1`,
+`sl_emit_one` SM_BB_PUMP_PROC looks up `entry_pc` from `g_stage2.proc_table` at emit time, emits
+`rt_setup_icn_frame(name,nargs)` + `sub rsp,8/call rel32/add rsp,8` + `rt_teardown_icn_frame()`,
+patches call target in pass 2 via `sl_add_patch`. No BB, no SM ptr, no C walker at runtime.
+Flag OFF: original broken `call rt_bb_pump_proc` unchanged.
+**Sess 2026-05-26 (Sonnet 4.6, `b9203411`):** Four correctness fixes:
+1. `SM_VOID_POP` before `SM_RETURN*` = no-op in sl_emit_one. Root cause: mode-2 `sm_interp.c`
+   has `case SM_VOID_POP:` falling through to `SM_RETURN` (no break) — never pops; return value
+   stays on stack. Mode-3 was popping it via `rt_void_pop`. Peek-ahead fix in sl_emit_one.
+2. `h_return_impl`: when `NV_GET_fn(retval_name)` = empty/null, use stack top (Icon proc return).
+3. `SM_LOAD_FRAME`/`SM_STORE_FRAME` wired via `rt_load_frame`/`rt_store_frame` (icn_frame_env_*).
+4. `rt_call_fn`: push IcnFrame from call args before native blob call; pop after.
+- [x] `--run hello.icn` SCRIP_JIT_FLAT_BB=1 prints "hello" ✅
+- [x] `double(21)` returns 42 under SCRIP_JIT_FLAT_BB=1 ✅
+- [x] smoke 5/5 both flag states ✅; broker 23 unchanged ✅
+- [ ] **NEXT: wire SM_ACOMP (opcode 80, arith compare — needed for Icon `if n<=1`).**
+  Then SM_JUMP_S/F for conditional control flow. Then run full broker≥19/rungs≥195 gate with flag ON.
+  Then J-5 (ignored slots: PUMP_SM/PUMP_CASE/BB_SWITCH). Then J-6 flip default + delete C bridge.
+  ⛔ `rt_bb_pump_proc` still reachable from `--run` when flag OFF — deleted at J-6.
 
 #### J-5 — Migrate the rest of the J-1 seam (PUMP_SM, PUMP_CASE, BB_SWITCH, generator path) ⏳
 - [ ] One opcode per sub-step, same flag, same gate each. Bring the JIT's `ignored slots` BB
