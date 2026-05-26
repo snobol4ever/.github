@@ -329,3 +329,21 @@ SB-LINEAR: sm_emit_linear + sm_run_linear landed.
 - BLOCKED: build broken by pre-existing G-1 bb_exec.c (BB_t->n/c[] removed).
 - NEXT: fix G-1 bb_exec.c to unblock link; run smoke_snobol4 --run gate.
 ```
+
+---
+
+## SB-LINEAR next session plan
+
+**Immediate blocker: G-1 bb_exec.c**
+bb_exec.c references BB_t->n and BB_t->c[] which were removed in the GOLDEN BB RULE
+commit (185cb274). These fields moved to BB_graph_t->n and BB_graph_t->all[].
+Fix: update all `nd->n` → look up via graph, `nd->c[i]` → `graph->all[i]` or equivalent.
+This unblocks the link step and allows smoke_snobol4 --run to run.
+
+**After G-1 fix:**
+1. Run smoke_snobol4 --run — expect PASS on output/concat/arith/goto/define/pattern.
+2. Add --run variants to test_smoke_snobol4.sh gate (currently only --interp tested).
+3. ASAN verify: zero use-after-free (SM+BB freed before sm_run_linear).
+4. Remove g_jit_prog global entirely (now unused — label_blob_lookup replaces it).
+5. Remove CUR_INS macro (now unused — all handlers read g_baked_* or are dead).
+6. Delete dead h_* handlers that are no longer called from SM_codegen switch.
