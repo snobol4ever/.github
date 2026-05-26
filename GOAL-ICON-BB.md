@@ -154,20 +154,15 @@ Labels in JCON irgen.icn = pointers in SCRIP BB graphs. α/β/γ/ω are pointers
 #### G-0 — Commit 2026-05-25 session work ✅ `bd6b0917`
 SM_UNUSED_1..5 rename + F-6d partial (BB_BINOP/BINOP_GEN/LCONCAT/ARITH/UNIFY/BUILTIN/PL_ALT → α/β). Done. one4all `bd6b0917`, .github `213c9370`.
 
-#### G-1 — Migrate all c[]/n/sval2/ival2/ival3/opaque out of BB_t callers ⏳
-BB.h struct is correct (GOLDEN BB RULE). Build fails at emit_core.c:913 and ~80 other sites.
-Files to fix: emit_core.c, emit_bb.c, BB_templates/bb_*.cpp, bb_exec.c, lower_icn.c, lower_pl.c, scrip_ir.c, icon_box_rt.c.
-Strategy per site:
-- `nd->c[i]` child traversal → walk α/β/γ/ω ports instead
-- `nd->sval` / `nd->ival` / `nd->dval` → already present on new BB_t (kept); fix `sval2`/`ival2`/`ival3` → decompose to chained BB nodes or fold into sval/ival/dval
-- `nd->opaque` → move runtime state into `value`/`counter`/`state` or delete
-- `nd->n` / `nd->c` array → delete; replace child traversal with port walk
-- [ ] Fix emit_core.c bb_walk_rec — replace c[]/n loop with α/β/γ/ω port walk
-- [ ] Fix emit_bb.c — same
-- [ ] Fix BB_templates/bb_builtin.cpp, bb_unify.cpp, bb_to_by.cpp, bb_binop_gen.cpp
-- [ ] Fix bb_exec.c — replace all c[]/n with port walks; opaque→state/counter
-- [ ] Fix lower_icn.c, lower_pl.c — replace nd->c[i]= with port wiring
-- [ ] Fix scrip_ir.c debug printer
+#### G-1 — Migrate all c[]/n/ival2/ival3/sval2/opaque out of BB_t callers ⏳
+DONE (e099fdae): emit_core.c, lower_pl.c, lower_icn.c, icon_box_rt.c, scrip_ir.c,
+  bb_builtin.cpp, bb_unify.cpp, bb_arith.cpp, bb_binop_gen.cpp, bb_pat_pos.cpp,
+  bb_pat_tab.cpp, bb_to_by.cpp, bb_upto.cpp, bb_iterate.cpp, bb_pl_var.cpp.
+REMAINING: bb_exec.c — 294 violations. Build fails at bb_exec.c:57.
+Mapping used: c[0]→α, c[1]→β, c[2]→γ; ival2→ival or state (is_relop); ival3→state (has-run);
+  sval2→dropped (runtime data); opaque→counter (ptr cast); nd->n→ival (arity) or dropped.
+- [x] emit_core.c, all BB_templates, lower_pl.c, lower_icn.c, icon_box_rt.c, scrip_ir.c
+- [ ] bb_exec.c (294 hits) — NEXT SESSION
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
 #### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
