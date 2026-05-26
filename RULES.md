@@ -154,9 +154,13 @@ deleted object may survive anywhere in the process after the free call returns. 
   (e.g. `g_exec_stmt_bbs[]`) are FORBIDDEN.  If a structure must survive execution it must NOT
   be freed before execution.  Choose one: free early (before run) or free late (after run).
   Never split the object across two free calls with a live alias in between.
-- **No partial frees.**  `stage2_free_bb_only` and similar "free some but not all" helpers are
-  FORBIDDEN.  There is exactly one correct moment to free the BB/SM graph: after the last
-  consumer has finished with it.  Identify that moment and free everything at once.
+- **No partial frees without distinct lifetimes.**  "Free some but not all" at a single moment
+  is FORBIDDEN.  However, BB and SM have genuinely distinct lifetimes in mode 3 (JIT): BB is
+  consumed by SM_codegen (the emitter) and must be freed immediately after it returns;
+  SM instrs are consumed by sm_jit_run (the runner) and must be freed immediately after it
+  returns.  Use `stage2_free_bb_after_emit` then `stage2_free_sm_bb` in that order.
+  Any other split — or any helper that frees a subset without a documented distinct lifetime
+  — is FORBIDDEN.
 - **Verification.**  After any free of BB or SM data, ASAN (`detect_use_after_free=1`) must
   report zero errors on all smoke gates.  A smoke gate that passes without ASAN is not
   sufficient proof of correct deletion.
