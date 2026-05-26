@@ -239,18 +239,31 @@ wired into the predecessor's inherited γ slot). N-ary (CALL args, IDX_SET/SECTI
 γ-chain, never packed into the 2 operand ports.
 
 #### H-1 — Extend lowerer signature to the 4-attribute form ⏳
-⚠ **PARTIAL (2026-05-26f).** The full 4-attribute signature rewrite is NOT done. BUT a prerequisite
-bug was fixed: `BB_node_alloc` no longer seeds `α=nd, β=nd` (self) — it inits all four ports to NULL.
-The self-pointer default was making leaf nodes (BB_VAR) and operand-less nodes (body-less BB_EVERY,
-literal BB_TO) falsely appear to have operands, causing infinite recursion in ir_is_single_shot and
-the has_dyn-style executor tests. With NULL defaults, leaf/operand-less ports are now honestly empty.
-BB_IF was given correct statement-context wiring (else→ω, both exits→γ); this is correct for
-leaf/last-statement IF but the GENERAL inherited-γ/ω threading (below) is still required for nested
-non-leaf conditionals and deep generator composition.
-- [ ] `lower_icn_expr_node(cfg, e)` → `lower_icn_expr_node(cfg, e, BB_t *γ, BB_t *ω, BB_t **α_out, BB_t **β_out)`.
-- [ ] Leaf nodes (LIT_I/F/S, VAR, KEYWORD): set `*α_out = *β_out = nd; nd->γ = γ; nd->ω = ω;`.
-- [ ] `lower_icn_expr_top` / `lower_icn_proc_body` seed the top γ/ω (program success / program fail sentinels).
-- [ ] Gate: clean build (signature compiles), no behaviour change yet on leaves.
+⚠ **PARTIAL (2026-05-26f + 2026-05-26k).** Sess 2026-05-26k (Opus 4.7, with Lon) landed the
+attribute-grammar FOUNDATION (`45c1bde2`): added `lower_icn_expr_threaded(cfg, e, γ_in, ω_in,
+&α_out, &β_out)` — the 4-attribute signature (γ/ω inherited down, α/β synthesized up). It is ADDITIVE:
+it does NOT rewrite the 70 internal `lower_icn_expr_node` call sites (those still build operand
+sub-graphs the old way); instead it builds the node via the existing recursive builder then STAMPS
+the inherited γ/ω onto the synthesized node (filling only ports the builder left NULL), and reports
+α/β up. `lower_icn_proc_body` now builds the statement spine BACK-TO-FRONT through the worker so each
+statement is born with its success/failure continuation threaded (JCON ir_a_Compound: a failed stmt
+still advances → both γ and ω point forward). This REPLACES the old after-the-fact γ/ω patch loop +
+its BB_IF special case. Guard `icn_kind_owns_omega_operand()` prevents the worker stamping ω on kinds
+that use ω as a compile-time operand (currently only BB_IF). ⚠ As H-3/H-4 migrate more operand-bearing
+kinds, AUDIT whether any new kind uses ω (or γ) as an operand before the worker stamps it.
+This exposed + fixed a latent γ-conflation in BB_IDX_SET/BB_SECTION (see H-4 — done this session).
+rungs 189→195 (+6), smoke 5/5, broker 19, zero regressions.
+The prior 2026-05-26f fixes (BB_node_alloc α/β→NULL; BB_IF else→ω) remain in place.
+STILL TODO (the real remaining H-1 work): full inherited-γ/ω threading for NESTED non-leaf IF
+(if-as-value: `x := if a then b else c` — then/else branches need their OWN inherited continuations,
+which the additive stamp does not yet provide) and deep generator composition. That needs per-construct
+threading inside the builders (passing γ/ω DOWN to recursively-lowered then/else/body), not just a
+post-hoc stamp on the parent.
+- [x] (2026-05-26k) `lower_icn_expr_threaded` 4-attribute signature added (additive wrapper form). `45c1bde2`.
+- [x] (2026-05-26k) Leaf nodes already return `nd->γ`/`nd->ω` (executor was ready); worker stamps them. Verified leaves compose.
+- [x] (2026-05-26k) `lower_icn_proc_body` seeds top γ/ω (NULL = trampoline-halt sentinel) + back-to-front spine threading.
+- [x] (2026-05-26k) Gate: clean build, smoke 5/5, broker 19, rungs 189→195. No regressions.
+- [ ] **REMAINING:** per-construct DOWN-threading of γ/ω into then/else/body for nested non-leaf IF + generator composition (push the full signature into the builders, not just stamp the parent).
 - [x] (2026-05-26f) BB_node_alloc α/β default NULL not self; BB_IF else→ω statement-context wiring. Gates green.
 
 #### H-2 — Replace BB_SEQ child-array with γ-chain ⏳
@@ -280,7 +293,7 @@ NOTE: full build still blocked by remaining ~328 c[]/n hits in bb_exec.c (other 
 
 #### H-4 — N-ary kinds (CALL, IDX_SET, SECTION) via γ-chain ⏳
 - [x] CALL args γ-chain: general call (lower_icn.c:333) + **MAKELIST (`82ec79f8`, 2026-05-26i)** build `args[0]→α`, `args[j]->γ=args[j+1]`; arity→`nd->ival`. Executor walks α→γ→γ for nd->ival args (bb_exec.c:166-178). MAKELIST had been α/β-only → `[1,2,3]` built empty list; fix recovered rungs 181→189 (all rung22 lists). BB_SEQ_GEN (≤2 args) + BB_FIND_GEN (positional α/β/γ) correct as-is.
-- [ ] IDX_SET / SECTION (3 operands): γ-chain of 3 operand boxes feeding the operator node.
+- [x] **IDX_SET / SECTION (3 operands)** ✅ `45c1bde2` (2026-05-26k) — both packed their 3rd operand onto the γ port (BB_IDX_SET: base→α, idx→β, rhs→γ; BB_SECTION: base→α, i1→β, i2→γ). γ is the success-continuation port; the old SEQ patch loop only worked because it OVERWROTE γ after building (clobbering the operand). H-1 threading exposed the conflation — `t[k]:=v` followed by any statement dead-ended. FIX: 3rd operand moved onto the β node's γ-chain (`idx->γ=rhs` / `i1->γ=i2`), freeing each node's own γ for the inherited continuation. Executors read the operand from `nd->β->γ` and return `nd->γ`. Recovered the regression + fixed the rung13/23/35 table/subscript-assign cluster (rungs 189→195).
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
 #### H-5 — Sweep remaining bb_exec.c c[]/n; build green ⏳
@@ -496,7 +509,30 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, build GREEN, gates GREEN on `f0f99035`) — Phase H is next.
+## Active next targets (2026-05-26, build GREEN, gates GREEN on `45c1bde2`) — Phase H continues.
+
+Sess 2026-05-26k cont. (Opus 4.7, with Lon — H-1 FOUNDATION LANDED, one4all `45c1bde2` PUSHED):
+After closing the G-2 ladder (see below), landed the Phase H attribute-grammar foundation. Added
+`lower_icn_expr_threaded(cfg, e, γ_in, ω_in, &α_out, &β_out)` (additive wrapper — does NOT touch the
+70 internal lower_icn_expr_node sites; stamps inherited γ/ω onto the synthesized node, fills NULL
+ports only, guards ω-operand kinds via icn_kind_owns_omega_operand=BB_IF). `lower_icn_proc_body`
+rewired to thread the statement spine BACK-TO-FRONT (each stmt born with its continuation; replaces
+the old patch loop + BB_IF special case). This EXPOSED a latent γ-conflation: BB_IDX_SET and
+BB_SECTION packed their 3rd operand onto the γ-continuation port — worked before ONLY because the
+old SEQ loop overwrote γ post-build. Fixed both (H-4 IDX_SET/SECTION done): 3rd operand → β node's
+γ-chain, freeing γ for the continuation; executors read `nd->β->γ`. **rungs 189→195 (+6: rung13/23/35
+table+subscript-assign cluster + rung36_jcon_trim), smoke 5/5, broker 19, ZERO regressions** (verified
+comm -23 BASE vs new = empty). Honest (interp via bb_exec.c ports).
+⚠ AUDIT NOTE for next session: the worker's ω-operand guard lists only BB_IF. As H-3/H-4 migrate more
+operand-bearing kinds, check each for ω-as-operand (or γ-as-operand, like the IDX_SET/SECTION bug just
+fixed) BEFORE the worker stamps continuations.
+**NEXT: complete H-1's remaining work** — full inherited-γ/ω DOWN-threading into then/else/body for
+NESTED non-leaf IF (if-as-value, where branches need their own continuations) + deep generator
+composition. This means pushing the 4-attribute signature INTO the builders (recursive lowering of
+then/else/body receives γ/ω), not just stamping the parent post-hoc. Then H-2 (BB_SEQ formalization),
+H-3 (2-operand kinds), rest of H-4 (N-ary CALL already done 26i), H-5 (sweep bb_exec.c c[]/n).
+
+### (prior G-2 ladder close) 2026-05-26k watermark below
 
 Sess 2026-05-26k (Opus 4.7, with Lon): **G-2 RT-DELETE ladder CLOSED** — finished the decl-scrub
 tail (G-2a/G-2b/G-2g) in one commit `f0f99035` (rebased onto upstream `38e66809`, no conflict).
@@ -764,6 +800,7 @@ Remaining failures — known root causes:
 | rung13 conjunction-in-generator | `fa8bd48f` | 208→211 honest | SM_GEN_TICK + bb_broker_drive_sm_one + IcnFrame.every_gen[]; lower_every hoists TT_ALTERNATE as inner SM coroutine; outer SM_GEN_TICK loop |
 | rung14 limit-in-generator | `554aa38f` | 212→213 honest | lower_limit_every: slot_inner (TT_ALTERNATE coro) + slot_limit (limit wrapper); GLOCAL[0]=count; nested SM_GEN_TICK; SM_DECR 1; stack cleanup at each exit |
 | rung01 to-by neg-step | `3681a6a9` | rungs 174→176 | `icn_fold_signed_lit` folds (TT_MNS (TT_ILIT 3)) → -3 in TT_TO_BY lowering; was defaulting step to 1 → empty output. Also flips rung19. |
+| H-1 threading + IDX_SET/SECTION | `45c1bde2` | rungs 189→195 | Attribute-grammar threaded lowerer (`lower_icn_expr_threaded`) + back-to-front spine threading in lower_icn_proc_body. Fixed BB_IDX_SET/BB_SECTION 3rd-operand-on-γ conflation (operand moved to β γ-chain). Gains: rung13_table_subscript_assign, rung23_table_table_{basic,default,key,member}, rung35_table_str_str_{default_int_key,table_read}, rung36_jcon_trim. |
 
 ---
 
