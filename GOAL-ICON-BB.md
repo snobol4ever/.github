@@ -178,6 +178,97 @@ until continuation threading is added to the lowerer.
 - [ ] Thread γ/ω continuations through lowerer (lower_icn_expr_node, lower_pl_stmt_node)
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
+---
+
+## ⚡ Phase H — The Attribute Grammar (decided with Lon, 2026-05-26)
+
+**Decision: pointers, no label IR.** BB_t is the IR for ALL modes (2/3/4). Labels are a pure
+emit-time artifact produced by walking the pointer graph; they are never stored in BB_t.
+JCON's two labels per box → one SCRIP pointer per port + the *target node's* door selector.
+
+### The four attributes
+BB_t's four ports are an attribute grammar over the lowering traversal:
+
+| Port | AG kind | Direction | Meaning |
+|------|---------|-----------|---------|
+| **γ** (gamma) | **inherited** | passed DOWN into a node | where to go on SUCCESS (the "after" box) |
+| **ω** (omega) | **inherited** | passed DOWN into a node | where to go on FAILURE (the "before"/backtrack box) |
+| **α** (alpha) | **synthesized** | passed UP from a node | the node's FRESH-entry address |
+| **β** (beta)  | **synthesized** | passed UP from a node | the node's RETRY-entry address |
+
+Lowering signature becomes:  `lower(cfg, tree, γ_in, ω_in, &α_out, &β_out)`.
+γ/ω are values handed down; α/β are written back up through out-params.
+
+### JCON irgen.icn is the per-construct wiring spec (NOT a mechanical graft)
+JCON's IR (tran/ir.icn) is a flat instruction-list-with-labels (`ir_chunk(label, insnList)`,
+`ir_Goto`, `failLabel` fields, named temps) — a DIFFERENT topology from BB_t's wired graph.
+It CANNOT be transcribed. BUT every AST node `p` in irgen carries `p.ir` with exactly four labels
+that map 1:1 onto our four ports:
+
+| JCON `p.ir.<label>` | SCRIP port | AG kind |
+|---------------------|-----------|---------|
+| `p.ir.start`   | `nd->α` | synthesized (up) |
+| `p.ir.resume`  | `nd->β` | synthesized (up) |
+| `p.ir.success` | `nd->γ` | inherited (down) |
+| `p.ir.failure` | `nd->ω` | inherited (down) |
+
+Translation rules (verified against `ir_a_ToBy`, irgen.icn:1168):
+- JCON `ir_Goto(X)` (jump to label) → SCRIP set a port pointer to node X.
+- JCON `suspend ir_chunk(p.child.ir.success,[ir_Goto(p.other.ir.start)])` → SCRIP `child->γ = other` (synthesized α of `other` wired into inherited γ of `child`).
+- JCON named temp (`closure`,`fv`,`tv`) → SCRIP child node's `value` field, read UP after the child runs.
+- Generator backtracking (`by.failure→to.resume`, `to.failure→from.resume`) → SCRIP ω ports chaining back to predecessor β ports.
+
+The 43 `ir_a_<Construct>` procedures map ~1:1 onto SCRIP BB kinds. For each H-3/H-4 kind:
+READ its `ir_a_` proc, transliterate the 4-label wiring into 4-pointer wiring. JCON has already
+solved door/resume/eval-order; we copy the topology, not the text.
+Reference extracted to: `/home/claude/jcon-extract/jcon-master/tran/{ir,irgen}.icn`.
+
+### Why one pointer per port suffices (the door question — resolved)
+A pointer names the BOX, not the door. The door (fresh vs retry) lives in the **target node's
+`state`** field, stamped by the transferer immediately before control passes (`X->state=0; goto X`
+= fresh; `X->state=1` = resume). This is ALREADY the house style in bb_exec.c (171 `->state`
+uses; lines 314-315 stamp `nd->α->state=0; nd->β->state=0` before entry). The trampoline returns
+the next BB_t* and the top loop dispatches on `->t`. No code-address label is needed because we
+never jmp to code in modes 2/3 — we hand a struct to a switch.
+
+### Why no c[]/n/lhs/rhs/operand needed
+An operand IS just another box, wired into the parent's α or β, whose result is read back UP from
+that box's `value` field after it runs. Multi-operand constructs decompose into a **γ-chain** of
+operand boxes (NOT child arrays). Sibling sequencing: `prev.γ ← this.α` (synthesized α bubbles up,
+wired into the predecessor's inherited γ slot). N-ary (CALL args, IDX_SET/SECTION 3-operand) →
+γ-chain, never packed into the 2 operand ports.
+
+#### H-1 — Extend lowerer signature to the 4-attribute form ⏳
+- [ ] `lower_icn_expr_node(cfg, e)` → `lower_icn_expr_node(cfg, e, BB_t *γ, BB_t *ω, BB_t **α_out, BB_t **β_out)`.
+- [ ] Leaf nodes (LIT_I/F/S, VAR, KEYWORD): set `*α_out = *β_out = nd; nd->γ = γ; nd->ω = ω;`.
+- [ ] `lower_icn_expr_top` / `lower_icn_proc_body` seed the top γ/ω (program success / program fail sentinels).
+- [ ] Gate: clean build (signature compiles), no behaviour change yet on leaves.
+
+#### H-2 — Replace BB_SEQ child-array with γ-chain ⏳
+- [ ] `lower_icn_proc_body` line 917-918 (`seq->c = stmt_nodes; seq->n = built;`) → wire `stmt[i].γ = stmt[i+1].α`, last stmt `.γ = γ_in`. Delete the `BB_SEQ` child array; entry = `stmt[0].α`.
+- [ ] bb_exec.c BB_SEQ case: walk γ-chain, not `nd->c[i]`.
+- [ ] Gate: smoke 5/5 (proc bodies execute via chain).
+
+#### H-3 — Port-wire 2-operand kinds via α/β + thread γ/ω ⏳
+**PROOF LANDED (2026-05-26): BB_TO_BY transliterated from JCON ir_a_ToBy.** lower_icn.c TT_TO_BY
+wires lo→α, hi→β (operand boxes), step→ival, sval="i"/"r". bb_exec.c BB_TO_BY reads operands UP
+from α->value/β->value, walks counter, yields via γ, exhaustion→ω; door in `state`. Both regions
+verified free of c[]/n/ival2/ival3. Standalone trampoline harness (/tmp/ag_proof.c) confirms:
+`2 to 7 by 2`→2 4 6 ✓; `5 to 1 by -1`→5 4 3 2 1 ✓. AG design proven on a real four-port generator.
+NOTE: full build still blocked by remaining ~328 c[]/n hits in bb_exec.c (other kinds) — H-1/H-2 first.
+- [ ] In lower_icn.c, each binary kind: lower lhs with (γ=rhs.α, ω=node.ω, &node.α, …); lower rhs; wire node.α/β. Operand results read from `node->α->value` / `node->β->value`.
+- [ ] bb_exec.c: replace surviving `nd->c[0]`/`nd->c[1]` (lines 97,122,130,133,…) with `nd->α->value`/`nd->β->value`.
+- [ ] Gate: clean build, smoke 5/5, broker ≥17.
+
+#### H-4 — N-ary kinds (CALL, IDX_SET, SECTION) via γ-chain ⏳
+- [ ] CALL args (bb_exec.c line 170 `nd->c[j]`): build γ-chain of arg-eval boxes; arity → `nd->ival`.
+- [ ] IDX_SET / SECTION (3 operands): γ-chain of 3 operand boxes feeding the operator node.
+- [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
+
+#### H-5 — Sweep remaining bb_exec.c c[]/n; build green ⏳
+- [ ] After H-1..H-4: `grep -n 'nd->c\[\|nd->n\b\|e->c\[\|e->n\b\|gen->c\[' src/lower/bb_exec.c` empty (cfg->n stays — legit BB_graph_t).
+- [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153. This closes G-1.
+
 #### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
 - [ ] `src/runtime/interp/icon_box_rt.c` + `.h`: remove `rt_binop_gen(BB_t *nd, int entry)`. It is a C Byrd box (forbidden). Executor path is `bb_exec.c`.
 - [ ] `src/emitter/BB_templates/bb_binop_gen.cpp`: remove `call rt_binop_gen@PLT`; emit inline x86 reading `pBB->lhs` / `pBB->rhs`.
@@ -366,7 +457,15 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-25, `bd6b0917`) — See Phase G above. G-1 is next.
+## Active next targets (2026-05-26, `72a30688`) — Phase H (Attribute Grammar). H-3 proof landed; H-1/H-2 next.
+
+Sess 2026-05-26 (Opus): design question RESOLVED — pointers, no label IR. Four-attribute grammar:
+γ/ω inherited (down), α/β synthesized (up). Door ambiguity solved via target node's `state` (house
+style, already in bb_exec.c). JCON irgen.icn is per-construct wiring spec (label↔pointer table in
+Phase H), NOT a mechanical graft. H-3 PROOF: BB_TO_BY transliterated from ir_a_ToBy, harness-verified.
+⛔ BUILD BROKEN: ~328 c[]/n hits remain in bb_exec.c. NEXT: H-1 (lowerer 4-attr sig, ~120 sites) +
+H-2 (BB_SEQ γ-chain @ lower_icn.c:917, the literal first build break).
+
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
 lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
