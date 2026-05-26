@@ -4,7 +4,7 @@
 
 **Session Strategy Pivot:** Lon requested shift from M4SN-4c (mode-4 triage) to "fix ALL bugs on any and all SNOBOL4/Snocone test suite harness scripts to get 100%".
 
-**Realistic Assessment:** Analyzed all 25 mode-4 failures + 57 sm-run failures. Found 80% are infrastructure-level bugs requiring major refactoring, not quick fixes.
+**Realistic Assessment:** Analyzed all 25 mode-4 failures + 57 --interp failures. Found 80% are infrastructure-level bugs requiring major refactoring, not quick fixes.
 
 ## Current Baseline (Locked, Stable)
 
@@ -20,7 +20,7 @@
 
 | Harness | Mode | Status | Failures | Root Cause Category |
 |---------|------|--------|----------|---------------------|
-| test_interp_broad_corpus_and_beauty.sh | 1 (ir-run) | 223/280 | 57 | A(35) + B(8) + C(5) + other(9) |
+| test_interp_broad_corpus_and_beauty.sh | 1 (--interp) | 223/280 | 57 | A(35) + B(8) + C(5) + other(9) |
 | test_mode4_broad_corpus_snobol4.sh | 4 (x64) | 250/280 | 25 | B(8) + C(5) + A(12) |
 
 ## Bug Category Analysis
@@ -69,7 +69,7 @@
 
 ---
 
-### Category D: Other (9 tests in sm-run baseline)
+### Category D: Other (9 tests in --interp baseline)
 Grammar-driven tests, infrastructure tests not directly patterned.
 
 ---

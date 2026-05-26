@@ -55,7 +55,7 @@ function signatures.  Standard CHUNKS gate set + full Icon corpus
 land).
 
 > **CH-17i-survey-mode3 LANDED 2026-05-09** — `docs/CHUNKS-step17i-survey-mode3.md`.
-> 177 Icon ir-run PASS → 111 sm-run diverge (all semantic; root cause: generator
+> 177 Icon --interp PASS → 111 --interp diverge (all semantic; root cause: generator
 > kinds inside proc bodies emit SM_PUSH_EXPR+SM_BB_PUMP, incompatible with SM dispatch).
 > Prolog: 4 PASS → 1 fail (initialization/2 bridge gap). Sub-rungs: CH-17i-every-suspend,
 > CH-17i-bang-concat, CH-17i-section, CH-17i-limit-random, CH-17i-prolog-initialization.
@@ -69,7 +69,7 @@ land).
 > body_fn NULL because `coro_bb_every` already runs the do-clause via `bb_exec_stmt`
 > (passing `pump_print` would double-print, verified empirically).  Pushes NULVCL to
 > balance proc-body's trailing `SM_VOID_POP` (legacy was net-stack-zero — root cause
-> of the 111 sm-run divergences).  Files: `sm_prog.h/c` (+enum +name), `sm_interp.h/c`
+> of the 111 --interp divergences).  Files: `sm_prog.h/c` (+enum +name), `sm_interp.h/c`
 > (+every_table API + handler), `sm_codegen.c` (+JIT mirror), `sm_lower.c` (carve case
 > out of legacy fallthrough).  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5,
 > 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, broad_unified_broker PASS=6,

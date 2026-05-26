@@ -115,13 +115,13 @@ Stateful boxes require per-invocation DATA in the flat glob's DATA block — not
 
 ## EM-ICN-FLAT — Convert all 44 ICN_* RTCALL boxes to flat DATA-in-glob emit
 
-**Baseline (sess 2026-05-14):** Icon ir-run PASS=191 FAIL=44; honest (SCRIP_NO_AST_WALK=1 --interp) PASS=275 FAIL=2; broker 23/49. smoke_icon 5/5.
+**Baseline (sess 2026-05-14):** Icon --interp PASS=191 FAIL=44; honest (SCRIP_NO_AST_WALK=1 --interp) PASS=275 FAIL=2; broker 23/49. smoke_icon 5/5.
 
 Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode emits `N` zeroed `.quad` slots in `.data` then routes the α and β ports through `emit_seq_port_call_rip`. That is correct but routes through an abstraction that will be deleted once ARBNO/CALLCAP/CHARSET are also flat. The ICN flat work converts each `emit_bb_icon_*` from the `emit_bb_stateful` wrapper to the canonical two-path pattern: `if (IS_TEXT) { emit_bb_icn_text_data(nquads, zlbl); emit_seq_port_call_rip(...port0...); emit_label_define(b); emit_seq_port_call_rip(...port1...); return; } emit_seq_port_call(...port0...); emit_label_define(b); emit_seq_port_call(...port1...);` — identical semantics, no abstraction layer.
 
 **Helper to add once (IF-0):** `static void emit_bb_icn_text_data(int nquads, char *zlbl_out)` — same body as `emit_bb_stateful_text_data` but renamed for ICN use; keeps the non-ICN `emit_bb_stateful_text_data` intact for ARBNO/CALLCAP/CHARSET until those are also flat.
 
-**Grouping:** ICN boxes are grouped into batches of ~8 per step to keep each commit reviewable. All steps gate on: smoke_icon 5/5; broker ≥23/49; ir-run PASS ≥ prev; honest PASS ≥ 275.
+**Grouping:** ICN boxes are grouped into batches of ~8 per step to keep each commit reviewable. All steps gate on: smoke_icon 5/5; broker ≥23/49; --interp PASS ≥ prev; honest PASS ≥ 275.
 
 - [x] **IF-0** ✅ `3e29a9e3` — Add `emit_bb_icn_text_data(int nquads, char *zlbl_out)` static helper in `emit_bb.c` (copy of `emit_bb_rtcall_data` body, distinct name). No callers yet. Gates: smoke_snobol4 7/7, smoke_icon 5/5.
 - [x] **IF-1** ✅ `bfe58803` — Convert batch A (8 boxes): `emit_bb_icon_alt`, `emit_bb_icon_bang`, `emit_bb_icon_every`, `emit_bb_icon_iterate`, `emit_bb_icon_lconcat`, `emit_bb_icon_limit`, `emit_bb_icon_seq`, `emit_bb_icon_to`. ICN_EMIT2 macro; C constructors deleted/moved to static inline. Gates: smoke_snobol4 7/7, smoke_icon 5/5.
@@ -139,6 +139,6 @@ Every ICN_* emitter currently calls `emit_bb_stateful(...)` which in TEXT mode e
 
 **Completed this session:** SF-8 (IDENT/DIFFER fix + ARBNO/CAP startup patching, beauty 7→17/17) + SF-12 (emit_bb_rtcall_data → emit_bb_ptr_slot, XFNME/XNME inline consolidation). **EM-STATEFUL-FLAT section complete.**
 
-**Best next for mode-4 everywhere:** EM-ICN-FLAT — apply the same startup-patching mechanism (rt_init_cap / rt_init_arbno pattern from SF-8) to ICN_* boxes. All 44 ICN boxes use ICN_EMIT2 (IF-1..IF-5 done) which emits `emit_bb_icn_text_data` + `emit_seq_port_call_rip`. In TEXT mode, the `.Licn{id}_z` `.data` blocks are all zeros — ICN state structs need initialization via a new `rt_init_icn_box(slot_ptr, child_fn, state_t_size)` pattern before rt_init. Baseline: smoke_icon 5/5, broker 23/49, ir-run 191/235.
+**Best next for mode-4 everywhere:** EM-ICN-FLAT — apply the same startup-patching mechanism (rt_init_cap / rt_init_arbno pattern from SF-8) to ICN_* boxes. All 44 ICN boxes use ICN_EMIT2 (IF-1..IF-5 done) which emits `emit_bb_icn_text_data` + `emit_seq_port_call_rip`. In TEXT mode, the `.Licn{id}_z` `.data` blocks are all zeros — ICN state structs need initialization via a new `rt_init_icn_box(slot_ptr, child_fn, state_t_size)` pattern before rt_init. Baseline: smoke_icon 5/5, broker 23/49, --interp 191/235.
 
 **Next session must:** Read RULES.md, ARCH-x86.md, ARCH-SCRIP.md, GOAL-MODE4-EMIT.md, ARCH-EMITTER.md. Confirm one4all HEAD `4f0e2996`.

@@ -177,7 +177,7 @@ SC-8 done: strings/stack/trace/counter already passing all 3 modes.
 SC-9 done: E_SCAN sm_lower.c pushes SM_PUSH_NULL after SM_EXEC_STMT. test_pattern.sc 9/9. Commit: 59adc9f4
 SC-10 done: match/roman/semantic/ShiftReduce/ReadWrite already passing all 3 modes.
 SC-11 SKIP: beauty subsystem has no driver.sc — expected.
-SC-12 done: 14/14 ir-run PASS (achieved in SC-3 session).
+SC-12 done: 14/14 --interp PASS (achieved in SC-3 session).
 SC-13 done: fibonacci.sc all 3 modes. Commit: 995f1294
 SC-14 done: palindrome.sc all 3 modes. Commit: 995f1294
 SC-15 done: wordcount.sc all 3 modes. Commit: 995f1294
@@ -188,7 +188,7 @@ SC-16 done: quicksort.sc all 3 modes. Commit: 995f1294
 ### Next: SC-19 — all 14 beauty-sc subsystems under --interp (14/14 PASS)
 
 ### Known deferred issue
-beauty_global sm-run: UTF indirect EM_DASH FAIL — root cause is subscript_get2
+beauty_global --interp: UTF indirect EM_DASH FAIL — root cause is subscript_get2
 returning NULVCL (not FAILDESCR) for out-of-bounds 2-arg array subscript. Being
 fixed in the SNOBOL4 session (shared snobol4_pattern.c). Not a Snocone-specific bug.
 

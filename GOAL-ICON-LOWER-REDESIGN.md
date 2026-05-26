@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** one4all + .github
-**Prereq:** GOAL-HEADQUARTERS (ir-run target met), GOAL-ICON-BB-NATIVE ✅
+**Prereq:** GOAL-HEADQUARTERS (--interp target met), GOAL-ICON-BB-NATIVE ✅
 
 ---
 
@@ -226,7 +226,7 @@ Bottom-up pass after lower produces the node tree. Wires four ports per node:
   Graph-walk executor: follows port_start, port_resume, port_succ, port_fail.
   Returns DESCR_t. Replaces `bb_eval_value(tree_t*)` call site in SM_BB_EVAL handler.
 - SM_BB_EVAL handler: if wired icn_ir_node_t exists, use icn_ir_exec; else fall back.
-- GATE-3 ir-run must not regress. Commit.
+- GATE-3 --interp must not regress. Commit.
 
 ### IL-4 — delete SM_BB_EVAL, every_table, ICN_BB_EVAL macro for Icon
 

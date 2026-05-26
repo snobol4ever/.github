@@ -12,7 +12,7 @@ Three execution modes, one orthogonal BB strategy axis (under `--interp` only):
 | `--run` | SM/BB emit to memory, execute in-process (JIT) | wired only (forced) |
 | `--compile` | SM/BB emit asm → assemble+link → separate process | wired only (forced) |
 
-Mode 1 (AST-interp, `--ast-run`/`--ir-run`) and all deprecated aliases deleted. `interp_eval.c` / `interp_exec.c` / `interp_call.c` gone; live runtime moved to `icn_runtime.c`, `interp_globals.c`, `interp_hooks.c`, `interp_data.c`. One name per concept across the codebase.
+Mode 1 (AST-interp, `--ast-run`/`----interp`) and all deprecated aliases deleted. `interp_eval.c` / `interp_exec.c` / `interp_call.c` gone; live runtime moved to `icn_runtime.c`, `interp_globals.c`, `interp_hooks.c`, `interp_data.c`. One name per concept across the codebase.
 
 ## Closed step trail (git log is authority)
 

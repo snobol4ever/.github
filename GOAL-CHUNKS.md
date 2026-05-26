@@ -267,7 +267,7 @@ The goal's individual steps below are grouped under these
 milestones:
 
   - **M1** — Steps 1–7: SNOBOL4 + Snocone fully isolated through
-    modes 2 (sm-run) and 3 (jit-run).  No EXPR_t reachable from
+    modes 2 (--interp) and 3 (--run).  No EXPR_t reachable from
     any SM-mode runtime path during pure-SNO/Snocone execution.
     First shippable milestone.
   - **M2** — Step 8: Mode 4 x86 emitter for SNOBOL4 + Snocone

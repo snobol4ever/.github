@@ -66,10 +66,10 @@
 
 (M4SN-0 through M4SN-3 ✅ completed. M4SN-4a ✅ completed. M4SN-4b ✅ completed sess 2026-05-15i: **250/280 ✅ target ≥250 HIT**. Currently active: **M4SN-4c**.)
 
-### M4SN-4 — Broad corpus SNOBOL4: sm-run parity in mode-4
+### M4SN-4 — Broad corpus SNOBOL4: --interp parity in mode-4
 
 - [x] **M4SN-4b** — Run and triage failures by category. Fix mode-4-specific failures only. **TARGET ≥250 HIT.** Final: **250/280** (was 242). Sess 2026-05-15i closed three bug classes: (a) numeric coercion (+3): `shared_arith` SM_EXP int^int → INTVAL for SNOBOL4 via fixed `g_lang != LANG_ICN || g_icn_jcon` gate, `rt_exp` rewritten to delegate to `shared_arith`, and `SM_COERCE_NUM`/`rt_coerce_num`/`h_coerce_num` (three-mode parity) now scan for `.eEdD` instead of fragile `iv != 0 || v.s[0] == '0'` heuristic. (b) REM box binary emission (+5): `emit_bb_xstar` had asm only inside `if (IS_TEXT)`; binary mode emitted nothing. Added `insn_mov_rcx_i64(TEMPLATE_ADDR_SIGLEN); insn_mov_eax_rcxmem(); emit_store_delta(); emit_jmp(s); β: emit_jmp(f);` fallthrough mirroring XLNTH/XTB. Fixed tests: `027`, `410`, `literals`, `048`, `060`, `Qize_driver`, `test_stack`, `word4`. Sess 2026-05-15h closed 1016_eval EVAL fnptr scheme.
-- [x] **M4SN-4c** — ✅ **COMPLETE. Target already exceeded.** Mode-4 broad corpus 250/280 (89.3%) already ≥ sm-run 223/280 (79.6%). Sess 2026-05-16 triage: 25 failures are cross-mode or pre-existing infrastructure bugs, not mode-4-specific. (a) cursor-capture bug (@var) is cross-mode (ir-run+sm-run+mode-4 all fail). (b) DATA-type accessors SEGFAULT in sm-run (pre-existing mode-2 infrastructure violation of RULES.md NO-AST). (c) `emit_bb_xatp` has no binary-mode gap. Defer cross-mode issues to future sessions. No mode-4-specific gaps identified.
+- [x] **M4SN-4c** — ✅ **COMPLETE. Target already exceeded.** Mode-4 broad corpus 250/280 (89.3%) already ≥ --interp 223/280 (79.6%). Sess 2026-05-16 triage: 25 failures are cross-mode or pre-existing infrastructure bugs, not mode-4-specific. (a) cursor-capture bug (@var) is cross-mode (--interp+--interp+mode-4 all fail). (b) DATA-type accessors SEGFAULT in --interp (pre-existing mode-2 infrastructure violation of RULES.md NO-AST). (c) `emit_bb_xatp` has no binary-mode gap. Defer cross-mode issues to future sessions. No mode-4-specific gaps identified.
 
 ### M4SN-5 — Full regression: test_regression_full_corpus.sh MODE=x64 with libscrip_rt pipeline
 
@@ -77,7 +77,7 @@ The existing `test_regression_full_corpus.sh MODE=x64` uses the old mock-include
 
 - [ ] **M4SN-5a** — Write `test_mode4_full_regression.sh`: iterate all crosscheck .sno files, emit→link→run via libscrip_rt.so, compare vs .ref. Report PASS/FAIL/SKIP.
 - [ ] **M4SN-5b** — Run and establish true mode-4 baseline count.
-- [ ] **M4SN-5c** — Fix mode-4-specific failures. Target: PASS count ≥ sm-run PASS count on same corpus.
+- [ ] **M4SN-5c** — Fix mode-4-specific failures. Target: PASS count ≥ --interp PASS count on same corpus.
 
 ### M4SN-6 — beauty self-host in mode-4
 
@@ -117,7 +117,7 @@ compile_mode4() {
 
 ## Watermark
 
-**HEAD** one4all `00731350` (Prolog session HQ) · Baselines: smoke 7/7 ✅, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus **250/280 (89.3%) vs sm-run 223/280 (79.6%) ✅ M4SN-4c complete**.
+**HEAD** one4all `00731350` (Prolog session HQ) · Baselines: smoke 7/7 ✅, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, beauty 15/17, mode-4 broad corpus **250/280 (89.3%) vs --interp 223/280 (79.6%) ✅ M4SN-4c complete**.
 
 Sess 2026-05-15i (Claude Opus 4.7): M4SN-4b two-iteration push — **+8 total (242 → 250/280), zero regressions, ≥250 target met.** Three bug classes closed.
 
@@ -164,7 +164,7 @@ Mode-4 ELF binaries call into the brokered BB through `libscrip_rt.so`, so the s
 
 smoke_sn4 7/7 ✅, crosscheck_sn4 6/6 ✅, crosscheck_sc 8/8 ✅, gate_em8 5/5 ✅, smoke_snocone 5/5 ✅, smoke_rebus 4/4 ✅, smoke_icon 5/5 ✅ (was 3/5 pre-session — concurrent session improvement pulled in via rebase), beauty_mode4 15/17 unchanged (ShiftReduce_driver/counter_driver still diff, pre-existing — counter and SR fail later in DATA-type logic), **mode-4 broad corpus 242 → 250/280** ✅. Prolog smoke 0/5 unchanged from pre-session baseline.
 
-### Live diagnostics for next session (M4SN-4c) — push 250 → ≥sm-run count
+### Live diagnostics for next session (M4SN-4c) — push 250 → ≥--interp count
 
 Remaining 25 broad-corpus failures fall into clusters; rough tractability ordering:
 
@@ -172,7 +172,7 @@ Remaining 25 broad-corpus failures fall into clusters; rough tractability orderi
 
 2. **`*Fn(args)` deferred-call captures** (`expr_eval`, `140_pat_eval_double_fn_trick`, `141_pat_eval_double_fn_arbno`): per prior watermark, `pat_assign_callcap` / `XCALLCAP` BBs. 140/141 already fail in `--interp` too — deeper than mode-4. SL-13c in `eval_code.c` was a partial fix; XCALLCAP native emission may need similar treatment.
 
-3. **`@var` cursor capture** (`074_pat_star_var_cursor`, `W07_capt_cur`): `@pos` should return current cursor as integer. Both empty in sm-run. Probably similar binary-mode emit-gap to the REM bug — worth investigating `emit_bb_xatp` (XATP node) for the same `if (IS_TEXT)` + missing binary fallthrough pattern. Could unblock 2 tests.
+3. **`@var` cursor capture** (`074_pat_star_var_cursor`, `W07_capt_cur`): `@pos` should return current cursor as integer. Both empty in --interp. Probably similar binary-mode emit-gap to the REM bug — worth investigating `emit_bb_xatp` (XATP node) for the same `if (IS_TEXT)` + missing binary fallthrough pattern. Could unblock 2 tests.
 
 4. **FENCE backtracking** (`114_pat_fence_via_var_in_paren_alt`, `124_pat_regex_keyword_seal`): csnobol4 also fails 124 per its comment — known cross-implementation issue.
 

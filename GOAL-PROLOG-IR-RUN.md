@@ -78,7 +78,7 @@ Claude presents each test result and asks: **T or F?**
   Gate: `make scrip` clean with prolog objects included.
 
 - [x] **S-2** — Write `prolog_driver.c` + wire `.pl` in `scrip.c`.
-  Gate: `./scrip --interp hello.pl` reaches ir-run (Error 5, not parse error).
+  Gate: `./scrip --interp hello.pl` reaches --interp (Error 5, not parse error).
 
 - [x] **S-3** — Allocate `PlInterp` state in `scrip.c` for Prolog programs:
   `Trail`, global atom table pointer, predicate lookup table (functor/arity → `E_CHOICE*`).

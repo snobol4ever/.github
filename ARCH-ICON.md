@@ -119,7 +119,7 @@ surviving Icon zeta-fn bodies (`icn_lazy_box` plus others) —
 empirically unreachable, but link-resolvable. Outside `icn_runtime.c`,
 zero callers of the three amputated symbols remain in `src/`.
 
-Pre-CLI-3M-10, mode 1 (`--ast-run` / `--ir-run` flags) and mode 2
+Pre-CLI-3M-10, mode 1 (`--ast-run` / `----interp` flags) and mode 2
 (`--interp` flag) were at empirical full parity on the Icon rung
 ladder (both 194/265, byte-identical PASS/FAIL sets per DAI-3 and
 DAI-5c-trans). CLI-3M-10 (2026-05-17j) deleted the mode-1 flags.
