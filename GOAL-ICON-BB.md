@@ -384,6 +384,155 @@ grep -rnE "(nd|pBB|gen|seq|binop|asgn|e)->(c\[|n\b)" \
 
 ---
 
+## ⚡ Phase J — Mode 3 (`--run`) executes the SHARED emitter's flat-wired x86 (kill the JIT's C-walker bridge)
+
+**Motto: we do things right the 10th time.** This phase is the right way, not the fast way.
+
+### The defect (root-caused 2026-05-26, Opus 4.7, with Lon)
+Mode 3 and mode 4 are meant to be the SAME flat-wired x86 BB — identical code, differing ONLY in
+execution context (mode 3 = JIT executes the emitted blob in-process; mode 4 = `--compile` writes
+it to a binary run as a separate process). Today they are NOT identical: they are two independent
+x86 producers.
+- **Mode 4** routes through the shared emitter (`src/emitter/` + `BB_templates/*.cpp`), sink =
+  `g_emit_sink` (a `FILE*`, `emit_io.c:13`). `EMIT_BINARY_WIRED` (emit_core.c:31) already produces
+  flat-wired binary x86 with `bb_fixup_*` relocation fixups (emit_core.c, string-concat + offset/
+  length list — NO growable buffer, per Lon's 2026-05-28 ruling).
+- **Mode 3** is a SEPARATE hand-written x86 generator in `sm_jit_interp.c` with its own `sl_*`
+  byte-emitters, baking machine code into an `mmap` `PROT_EXEC` buffer (`label_blob_lookup`,
+  `((blob_fn_t)blob)()` @ ~299). It natively compiles only the SM SPINE. For `SM_BB_PUMP_PROC` it
+  bakes `mov rdi,name; mov rsi,nargs; call rt_bb_pump_proc` (sm_jit_interp.c:2069) → C path:
+  `icn_bb_pump_proc_by_name` → `bb_node_t{.fn=icn_bb_dcg}` → `bb_broker(bb_pump)` → `icn_bb_dcg`
+  (C four-port shim, RULES-exempt) → `bb_exec_once`/`bb_exec_resume` = the **C graph-walker**
+  (`bb_exec.c`). `SM_BB_SWITCH`/`SM_BB_PUMP_SM`/`SM_BB_PUMP_CASE` are in the JIT's **no-op**
+  `ignored slots` list (sm_jit_interp.c:~2086) — not handled at all on the native path.
+
+Net: mode 3 walks the BB graph in C; only mode 4 realizes "BB = emitted x86". This violates the
+design intent (mode 3 ≡ mode 4 sans process boundary) and is the last C-walker dependency on `--run`.
+
+### The fix (one emitter, two consumers)
+Make the **shared emitter the single source of x86 truth** for both modes. Mode 3 stops generating
+its own BB x86 and instead consumes the emitter's `EMIT_BINARY_WIRED` output (bytes + `bb_fixup_*`),
+loading it into the JIT `PROT_EXEC` buffer and `call`ing into it. Mode 4 is unchanged. No second
+copy of BB x86 anywhere (option-2 "replicate templates in `sl_*`" is FORBIDDEN — it drifts).
+
+⛔ **Invariant for the whole phase:** every closed step keeps smoke 5/5, broker ≥19, rungs ≥195,
+AND mode-1/mode-4 emit byte-identical to their pre-J baselines. No broken commits.
+
+#### J-1 — Characterize + pin the seam (no code) ✅ (2026-05-26, Opus 4.7)
+**SEAM MAP (empirical, scrip @ `45c1bde2`):**
+- JIT `rt_*` helpers that reach the C BB graph-walker: **ONLY `rt_bb_pump_proc`** (sm_jit_interp.c:233
+  → `icn_bb_pump_proc_by_name` → `bb_node_t{.fn=icn_bb_dcg}` → `bb_broker(bb_pump)` → `bb_exec_once`/
+  `bb_exec_resume`). Audited the other BB-family helpers: `rt_call_fn` (244) dispatches the NATIVE
+  blob via `label_blob_lookup`+`((blob_fn_t)blob)()` (correct SM-spine path, NOT a walker) then
+  builtins (IDX/etc.); `rt_suspend*`/`rt_call_expression`/`rt_exec_stmt` contain no walker refs.
+  `SM_BB_SWITCH`/`SM_BB_PUMP_SM`/`SM_BB_PUMP_CASE` are in the JIT `ignored slots` NO-OP list
+  (sm_jit_interp.c:~2086) — never handled natively. So the migration surface is small.
+- ⚠ **NEW FINDING — mode 3 is RED for Icon TODAY, not merely C-delegated.** `./scrip --run
+  /tmp/hello.icn` (the trivial `procedure main(); write("hello"); end`) prints NOTHING and errors
+  `sm_eval_subexpr: invalid entry_pc 1` on stderr. `--interp` on the same file prints `hello`
+  correctly. SNOBOL4 `--run` works (prints "hi"). So the JIT SM-spine is fine; the Icon
+  `SM_BB_PUMP_PROC` JIT path is BROKEN, not just sub-optimal. Phase J fixes a real regression, not
+  only an architectural wart. Marker frozen: `baselines/icon-bb/phase-j/mode3-icon-CURRENTLY-RED.txt`.
+- ⚠ **NEW FINDING — `--ir-emit` (mode 1) is EMPTY for Icon.** md5 of `--ir-emit /tmp/hello.icn` ==
+  `d41d8cd98f00b204e9800998ecf8427e` (= md5 of empty input). Mode 1 emits nothing for an Icon proc
+  body; the "byte-identical mode-1" gate in later J steps is therefore trivially satisfied for Icon
+  (it is the SNOBOL4 corpus that mode-1 must not perturb). Adjust J-4..J-6 gates accordingly:
+  mode-1 byte-identity matters for the SNOBOL4/Snocone corpus, not Icon.
+- ⚠ **NEW FINDING — mode 4 `--compile` emits `.macro NAME … call rt_*@PLT … .endm` spine.** The
+  emitter's x86 is a spine of `call rt_*@PLT` into `libscrip_rt.so` PLUS wired BB — it is NOT fully
+  self-contained inline x86. This is fine and expected: the "flat-wired BB" the JIT must consume is
+  the same call-into-RT spine the emitter already produces; the JIT just needs those `rt_*` symbols
+  resolvable in-process (they already are — same process, same RT). CLI confirms design intent:
+  usage text reads "`--run` and `--compile` force wired".
+- CLI flags confirmed: `--interp` (mode 2), `--run` (mode 3, DEFAULT, "x86 bytes → mmap slab → jump
+  in"), `--compile` (mode 4, "emit standalone x86-64 asm to stdout, links libscrip_rt.so").
+- Baselines frozen: `baselines/icon-bb/phase-j/hello.md5` (hello.ir-emit + hello.compile md5s).
+- [x] Seam map produced (above). Migration surface = `rt_bb_pump_proc` + 3 no-op'd BB opcodes.
+- [x] Pre-J baselines frozen under `baselines/icon-bb/phase-j/`.
+- [x] Mode-3 Icon RED state captured as a regression marker (J-4 must turn it GREEN).
+- [ ] STILL TODO before J-2: identify the exact emitter entry point that drives ONE proc body
+  through templates in `EMIT_BINARY_WIRED` (the function the JIT will call per-proc). Candidate:
+  the per-proc driver behind `--compile`; trace `SM_codegen`/`emit_*` proc loop next session.
+
+#### J-2 — Emitter binary sink usable from the JIT (in-memory, not FILE) ⏳
+**⚠ ROOT CAUSE of the mode-3 Icon RED found FIRST (2026-05-26, Opus 4.7) — reshapes J-2/J-3.**
+Traced the two emit entry points: mode 4 `--compile` → `sm_codegen_text` → `codegen_sm_x86`
+(shared emitter, emit_sm.c, writes text to a `FILE*`). Mode 3 `--run` → `sm_image_init` →
+**`sm_emit_linear`** (defined in sm_jit_interp.c — the BESPOKE JIT generator, NOT the shared
+emitter) → `sm_run_with_recovery_linear`. Confirmed: two independent x86 producers, as J-1 said.
+
+The `--run` Icon failure `sm_eval_subexpr: invalid entry_pc 1` root-causes to a **lifetime bug**, not
+a missing template:
+1. scrip.c:424-444 (`mode_run`): after `sm_emit_linear`, calls `stage2_free_bb_after_emit(s2)` THEN
+   `stage2_free_sm_bb(s2)` — freeing `g_stage2.sm.bb_table[]` AND the SM — **before**
+   `sm_run_with_recovery_linear(NULL)` runs.
+2. At runtime the JIT bakes `call rt_bb_pump_proc` (sm_jit_interp.c:2072). `rt_bb_pump_proc` →
+   `icn_bb_pump_proc_by_name("main")` → `bb_graph_of_proc(e)` reads `g_stage2.sm.bb_table[e->bb_idx]`
+   (icn_runtime.h:47-52) — **but bb_table was already freed in step 1** → returns NULL/garbage.
+3. NULL graph → falls through to the `proc_table_call` oneshot (icn_runtime.c:380) → `sm_eval_subexpr`
+   (icn_runtime.c:227) — **but the SM was also freed in step 1**, so entry_pc 1 is invalid → the error.
+
+This is a textbook RULES.md "BB/SM deletion is total → distinct lifetimes" violation: mode 3 frees
+the BB graph (consumed by the EMITTER) correctly, but the Icon path then tries to consume that graph
+AGAIN at RUN time via the C walker — two consumers, one freed object, live alias in between. The
+mode-2 `--interp` path works because it NEVER frees bb_table before running (scrip.c:414-423 has no
+free) — the C walker reads a live graph.
+
+**Consequence for the phase design:** the fix is NOT "give the C walker the graph back" (that
+re-introduces the dual-consumer hazard and keeps the C walker on `--run`). The fix is the original
+Phase-J thesis, now mandatory: mode 3 must EMIT the proc's flat x86 (so the BB graph is consumed
+ONCE, by the emitter, at emit time — exactly like mode 4) and the JIT executes those bytes. After
+that, `bb_table` being freed pre-run is CORRECT (nothing reads it at run time) and the lifetime
+violation dissolves. So J-2/J-3 stand; J-1's "RED marker" is explained.
+
+- [ ] Decide sink mechanism: `open_memstream` as the `FILE*` for `codegen_sm_x86` so the shared
+  emitter produces the SAME bytes mode 4 does, into memory (no new buffer API; honors 2026-05-28).
+  Verify `EMIT_BINARY_WIRED` via memstream == file bytes for `hello.icn`'s `main`.
+- [ ] Gate: `test_jit_emitter_bridge_unit` asserts memstream bytes == file bytes for hello's `main`.
+- [ ] ⚠ NOTE: mode 3's emit entry is `sm_emit_linear`, NOT `sm_codegen_text`. J-4 must decide:
+  (a) replace `sm_emit_linear`'s per-proc BB handling with a call into `codegen_sm_x86` for proc
+  bodies, or (b) longer-term, retire `sm_emit_linear` entirely in favor of the shared emitter +
+  in-memory load (the true "mode 3 == mode 4 sans process" endgame, J-6). Recommend (a) incrementally
+  behind `SCRIP_JIT_FLAT_BB`, converging to (b) at J-6.
+
+#### J-3 — Load emitted bytes + apply `bb_fixup_*` into the JIT `PROT_EXEC` buffer ⏳
+- [ ] Write the loader: copy emitter bytes into the JIT exec buffer, apply each `bb_fixup_*`
+  relocation against the buffer's runtime address, register the proc's entry under its name in
+  `g_label_blob_map` (mirror existing blob registration). RELIES on RULES.md "BB/SM deletion is
+  total" — emitter-side BB freed after emit, exec-buffer bytes freed after run; no live alias across.
+- [ ] Gate: loader unit executes the loaded `main` blob for `hello.icn` and prints "hello" — proves
+  emitted-x86 entry/exit works in-process. smoke 5/5 unaffected (still behind a flag).
+
+#### J-4 — Route `SM_BB_PUMP_PROC` JIT codegen through J-2/J-3 (behind `SCRIP_JIT_FLAT_BB=1`) ⏳
+- [ ] In sm_jit_interp.c, when the flag is set, replace the `call rt_bb_pump_proc` baking with:
+  emit (once per proc) the proc's flat x86 via J-2, load via J-3, then bake `call <blob_addr>`.
+  Flag OFF = current C path (zero-risk default during bring-up).
+- [ ] Gate: with flag ON — smoke 5/5, broker ≥19, rungs ≥195, byte-identical mode-1/mode-4.
+  With flag OFF — unchanged. BOTH must pass. New check: under flag ON, `rt_bb_pump_proc` is never
+  entered on `--run` (assert via a counter/`__builtin_trap` in a debug build, removed before commit
+  per RULES.md "Never commit diagnostic patches").
+
+#### J-5 — Migrate the rest of the J-1 seam (PUMP_SM, PUMP_CASE, BB_SWITCH, generator path) ⏳
+- [ ] One opcode per sub-step, same flag, same gate each. Bring the JIT's `ignored slots` BB
+  opcodes onto the emitted-x86 path so generators/case/switch run native in mode 3.
+- [ ] Gate (each): smoke 5/5, broker ≥19, rungs ≥195, byte-identical mode-1/mode-4.
+
+#### J-6 — Flip default to flat BB; delete the C bridge ⏳
+- [ ] Make `SCRIP_JIT_FLAT_BB` the default (then remove the flag). Delete `rt_bb_pump_proc` and any
+  now-orphaned `rt_*` BB bridges from sm_jit_interp.c. Confirm `icn_bb_dcg`/`bb_exec_once` are no
+  longer reachable from `--run` (they remain the mode-2 `--interp` reference path — do NOT delete).
+- [ ] Honest check: `--run` executes ZERO C-walker BB code; the ONLY BB x86 in the process is the
+  shared emitter's output. grep proves no JIT-local BB x86 generation remains (`sl_*` BB arms gone).
+- [ ] Gate: smoke 5/5, broker ≥19, rungs ≥195, byte-identical mode-1/mode-4, ASAN clean
+  (`detect_use_after_free=1`) on all smoke gates per RULES.md deletion-total rule.
+
+**Phase J done when:** mode 3 (`--run`) and mode 4 (`--compile`) execute the IDENTICAL emitter-
+produced flat-wired x86 BB, differing only in process boundary; `rt_bb_pump_proc` + JIT-local BB
+x86 deleted; `icn_bb_dcg`/`bb_exec.c` unreachable from `--run` (still live for `--interp`);
+smoke 5/5, broker ≥19, rungs ≥195, mode-1/mode-4 byte-identical, ASAN clean.
+
+---
+
 ## Honest-mode-3 protocol
 
 Probe helpers in `scripts/icon_bb_probes.sh`: `bb_probe_detect`, `bb_probe_complete`, `bb_probe_scoreboard`.
