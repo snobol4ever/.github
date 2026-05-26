@@ -293,8 +293,79 @@ nd->c[i]     = BB_SUCCEED node; nd->c[i]->opaque = BB_graph_t* clause body
 
 **Done when:** zero `rt_pl_*` *port-logic* functions remain in rt.c/rt.h; the four KEEP/conversion helpers are the only `rt_pl_*` runtime callees from BB templates; `grep -nE "rt_pl_(once|unify)" src/runtime/rt/rt.{c,h}` returns nothing; GATE-1..4 + six smoke gates non-regressive.
 
+---
+
+## ⛔ Step PJ-DEL-ONCEPROC — Eradicate the SM_BB_ONCE_PROC opcode (C-traversal, never jumps into a flat BB)
+
+**Lon verdict (2026-05-26):** `SM_BB_ONCE_PROC` (a) uses a C function to traverse a graph — `pl_bb_once_proc_by_name → bb_broker → pl_bb_dcg → bb_exec_once/_resume` in `bb_exec.c` — and (b) does NOT use an emitted BB (`node.fn` == C `pl_bb_dcg`, not flat x86). Same forbidden category as the already-tombstoned `SM_BB_PUMP`/`SM_BB_ONCE` (SM.h: *"stub, never jumped into a BB"*). DELETE it.
+
+**Method = tombstone (matches existing convention).** The SM enum is positional and an index-aligned name table (`sm_prog.c`) + audit table depend on it; physical removal would renumber every later opcode. So rename `SM_BB_ONCE_PROC` → `SM_UNUSED_6` in the enum (inert slot) and DELETE all machinery that emits or handles it.
+
+**Consequence (accepted):** Prolog top-level execution (`:- initialization(X).`) goes dead through this path until the flat-x86 BB replacement exists. smoke_prolog already 0/5 on this branch lineage — no gate regresses.
+
+**Eradication sites (10):**
+- [ ] **PD-1** `src/include/SM.h:86` — `SM_BB_ONCE_PROC` → `SM_UNUSED_6 /* was SM_BB_ONCE_PROC — C bb_exec.c walker, never jumped into flat x86 BB */`.
+- [ ] **PD-2** `src/lower/lower.c:1462,1603` — delete the two `SM_emit_si(..., SM_BB_ONCE_PROC, ...)` emit sites + now-dead `:- initialization`/predicate-registration logic around them.
+- [ ] **PD-3** `src/emitter/emit_core.c:758,810` — remove the dispatch `case` + the grouped case.
+- [ ] **PD-4** `src/emitter/emit_sm.c:1168` — remove from opcode list.
+- [ ] **PD-5** `src/processor/sm_jit_interp.c:241,527,1287,1677,2103` — delete `h_bb_once_proc`, handler-table wiring, dispatch cases.
+- [ ] **PD-6** `src/processor/sm_interp.c:594-609` — delete Mode-2 case.
+- [ ] **PD-7** `src/emitter/SM_templates/sm_bb_calls.cpp` — delete `sm_bb_once_proc` template fn (keep SM_BB_PUMP_PROC parts).
+- [ ] **PD-8** `src/runtime/rt/rt.c,rt.h` — delete `rt_pl_once` (overlaps PJ-RTP-4; this also discharges that sub-step).
+- [ ] **PD-9** `src/lower/sm_prog.c:252` — `"SM_BB_ONCE_PROC"` → `"SM_UNUSED_6"`.
+- [ ] **PD-10** `src/tools/emit_per_kind_audit.c:238` — remove the audit entry.
+
+**Done when:** `grep -rn SM_BB_ONCE_PROC src/` returns nothing (except the SM.h tombstone comment if kept); build GREEN; six smoke gates non-regressive (snobol4 13/13, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5; prolog 0/5 pre-existing); Mode-4 broad corpus 126/26 unchanged.
+
+**✅ DONE 2026-05-26 (Opus 4.7) `38e66809`.** All 10 sites eradicated; tombstoned to SM_UNUSED_6; rt_pl_once deleted (also discharges PJ-RTP-4). grep = comments/tombstone only. Build GREEN; snobol4 13/13, icon/snocone/raku 5/5, rebus 4/4, crosscheck_prolog 132/0, Mode-4 broad 126/26 — all unchanged.
+
+---
+
+## ⛔ Step PJ-DEL-PUMP — Eradicate SM_BB_PUMP_PROC, SM_BB_PUMP_SM, SM_BB_PUMP_CASE (C walkers, never jump into x86 BBs)
+
+**Lon verdict (2026-05-26):** audit of all live `SM_BB_*` opcodes. Three more are the same forbidden category as SM_BB_ONCE_PROC — they traverse via C, never jump into an emitted flat x86 Byrd box:
+- **SM_BB_PUMP_PROC** — Icon twin of ONCE_PROC: `icn_bb_pump_proc_by_name` → `node.fn = icn_bb_dcg`/`icn_bb_oneshot` (C) → `bb_broker` → C `bb_exec`.
+- **SM_BB_PUMP_SM** — `bb_broker_drive_sm(gs,…)` which RE-ENTERS `sm_interp_run` (C SM interpreter) in a loop. Pure C generator driver.
+- **SM_BB_PUMP_CASE** — pops case PCs, calls `sm_eval_subexpr(pc)` (C sub-expression evaluator).
+
+**KEEP: SM_BB_SWITCH** — the brand-new GOLDEN-BB-RULE opcode. By definition it jumps into Byrd-Box land: `node->fn(node->ζ, entry)` is the indirect call into an emitted flat x86 box. This is the SOLE legitimate BB-dispatch opcode and the intended end-state (one switch opcode → x86 boxes).
+
+**Method:** tombstone each in the enum (SM.h) → `SM_UNUSED_7/8/9` (positional enum + index-aligned name table in sm_prog.c; do NOT renumber). Delete ALL machinery. Accepted consequence: Icon generator-proc pumping + case-pump + SM-pump dispatch go dead through these paths until flat-x86 BB replacements exist (Icon honest-gate rungs may drop; that path was never jumping into x86 anyway).
+
+**Site map (verified this session; mirror the PD-1..10 pattern):**
+- [ ] **PP-1 SM.h** — `SM_BB_PUMP_PROC`→`SM_UNUSED_7`, `SM_BB_PUMP_CASE`→`SM_UNUSED_8`, `SM_BB_PUMP_SM`→`SM_UNUSED_9` (keep SM_BB_SWITCH).
+- [ ] **PP-2 sm_prog.c name table** (the line with `"SM_BB_PUMP_PROC","SM_BB_PUMP_CASE","SM_BB_PUMP_SM"`) — rename to matching `"SM_UNUSED_7/8/9"`.
+- [ ] **PP-3 emit_per_kind_audit.c** — remove the three `{ SM_BB_PUMP_*, "..." }` audit entries.
+- [ ] **PP-4 emit_core.c** — remove dispatch `case SM_BB_PUMP_PROC: return sm_bb_pump_proc(pSM);` and any PUMP_CASE/PUMP_SM cases + their entries in the grouped no-AST case list.
+- [ ] **PP-5 emit_sm.c** — remove `SM_BB_PUMP_PROC` (and PUMP_CASE/PUMP_SM if present) from the opcode list (the one ONCE_PROC was just removed from).
+- [ ] **PP-6 sm_interp.c (Mode 2)** — delete the three `case SM_BB_PUMP_PROC/PUMP_CASE/PUMP_SM` bodies. Then `bb_broker_drive_sm` / `bb_broker` / `icn_bb_pump_proc_by_name` / `icn_bb_dcg` / `icn_bb_oneshot` / `sm_eval_subexpr` likely become orphaned — delete those too if no remaining callers (grep first; SM_BB_SWITCH does NOT use them — it calls node->fn directly).
+- [ ] **PP-7 sm_jit_interp.c (Mode 3)** — delete `rt_bb_pump_proc` + `h_bb_pump_proc`/`h_bb_pump_case`/`h_bb_pump_sm`, their `g_handlers[...]=` wiring, and the bake + SB-LINEAR dispatch cases (mirror PD-5).
+- [ ] **PP-8 sm_bb_calls.cpp** — delete `sm_bb_pump_proc` template (the file is now empty of live templates — consider deleting the file + its Makefile SRCS entry, or leave a stub). Remove protos in sm_templates.h / emit_templates.h.
+- [ ] **PP-9 rt.c/rt.h** — delete `rt_bb_pump_proc` if present (Mode-4 helper). KEEP conversion helpers.
+- [ ] **PP-10 lower.c** — find the emit site(s) for SM_BB_PUMP_PROC/CASE/SM (Icon generator-proc lowering); neutralize like PD-2 (lower to nothing).
+
+**Done when:** `grep -rn "SM_BB_PUMP_PROC\|SM_BB_PUMP_SM\|SM_BB_PUMP_CASE" src/` = comments/tombstones only; SM_BB_SWITCH intact and still the BB-dispatch path; build GREEN (scrip + libscrip_rt); smoke gates: snobol4 13/13, snocone 5/5, rebus 4/4, raku 5/5 non-regressive (icon may drop — note honestly, accepted); Mode-4 broad 126/26 unchanged.
+
 ## Watermark
 
+```
+=== 2026-05-26 Opus 4.7 — PJ-DEL-ONCEPROC ✅ + audit + PJ-DEL-PUMP authored ===
+one4all: 38e66809 — BUILD GREEN
+.github: (this session)
+PJ-DEL-ONCEPROC ✅ (38e66809): SM_BB_ONCE_PROC eradicated (10 sites, tombstone SM_UNUSED_6);
+  rt_pl_once deleted (discharges PJ-RTP-4). It used a C function (pl_bb_dcg→bb_exec_once) to
+  traverse a graph and never jumped into a flat x86 BB. Gates all unchanged (snobol4 13/13,
+  icon/snocone/raku 5/5, rebus 4/4, crosscheck_prolog 132/0, Mode-4 broad 126/26).
+AUDIT of all live SM_BB_*: three more are the same forbidden C-walker category →
+  SM_BB_PUMP_PROC (icn_bb_dcg via bb_broker), SM_BB_PUMP_SM (bb_broker_drive_sm re-enters
+  sm_interp_run), SM_BB_PUMP_CASE (sm_eval_subexpr). SM_BB_SWITCH is the ONE legit BB-dispatch
+  opcode (node->fn(ζ,entry) jumps into emitted x86) — KEEP.
+PJ-DEL-PUMP authored (PP-1..10) to dump the three PUMP opcodes; end-state = SM_BB_SWITCH sole
+  BB-dispatch opcode. NOT STARTED — next session, full context budget. Icon honest-gate may
+  drop (accepted; that path never jumped into x86).
+NEXT: execute PJ-DEL-PUMP PP-1..10.
+
+=== prior watermarks below ===
 ```
 === 2026-05-26 Opus 4.7 — SBL-PAT-PRIM + SBL-M4-OPDISPATCH + PJ-RT-PURGE step authored ===
 one4all: 5a8bf79d — BUILD GREEN
