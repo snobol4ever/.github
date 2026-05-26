@@ -1,6 +1,54 @@
 # GOAL-ICON-BB.md — All Icon Byrd-Box constructs in modes 1/2/3 (then 4)
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║  ⛔⛔⛔  THE FOUR FACTS — Lon has said these for 2 months. They are ALL THE SAME RULE.  READ FIRST. ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                                  ║
+║  Every session re-derives these. STOP. They are stated here so you do not have to re-learn them: ║
+║                                                                                                  ║
+║  FACT 1 — C WALKERS LIVE IN MODE 2 ONLY.                                                         ║
+║    Mode 2 (--interp, SM dispatch) is the reference path; C four-port walkers are PERMITTED here. ║
+║    icn_bb_dcg / pl_bb_dcg / bb_exec_once / bb_exec_resume / bb_exec.c belong to MODE 2.          ║
+║                                                                                                  ║
+║  FACT 2 — NO C WALKERS IN MODE 3 OR MODE 4.  PERIOD.  NONE.                                      ║
+║    Mode 3 (--run, in-process JIT) and Mode 4 (--compile) run ONLY self-contained emitted x86.   ║
+║    Zero calls to icn_bb_dcg / pl_bb_dcg / bb_exec_once / bb_exec_resume reachable from --run or  ║
+║    --compile. Those symbols stay DEFINED (Mode 2 needs them) but become UNREACHABLE from 3/4.    ║
+║                                                                                                  ║
+║  FACT 3 — IN MODE 3 / MODE 4 THE SM AND BB STRUCTURES DO NOT EXIST AT RUN TIME.                  ║
+║    They exist ONLY at emit time. The emitter reads them ONCE and lays down flat-wired x86 with   ║
+║    relocations baked into the BYTES (never graph pointers). scrip.c frees the SM + BB tables     ║
+║    (stage2_free_bb_after_emit + stage2_free_sm_bb) BEFORE the runner executes; the runner gets   ║
+║    NULL. At run time there is no SM array, no bb_table, no BB_graph_t — nothing to dereference.  ║
+║    ⛔ Keeping a structure alive past the free (e.g. PJ-AGW-1c's \"skip freeing Prolog BB graphs\")  ║
+║       is FORBIDDEN and was REVERTED (upstream 1af97d90). Do not re-attempt it for any language.  ║
+║                                                                                                  ║
+║  FACT 4 — BOTH SM AND BB ARE x86 ASM FROM THE SHARED TEMPLATE EMITTER.  ONE SOURCE, TWO CONSUMERS.║
+║    The shared emitter (src/emitter/ + BB_templates/*.cpp, SM_templates/, XA_templates/) is the   ║
+║    SINGLE source of x86 truth. Mode 4 writes its bytes to a binary run as a separate process;    ║
+║    Mode 3 loads the SAME bytes into a PROT_EXEC buffer and calls into them in-process. They      ║
+║    differ ONLY in the process boundary. A second x86 producer (e.g. replicating templates in     ║
+║    the JIT's sl_* byte-emitters) is FORBIDDEN — two copies drift.                                ║
+║                                                                                                  ║
+║  WHY THEY ARE ONE RULE: a C walker would need the freed structures to walk (FACT 3 ⇒ FACT 2),    ║
+║  and the only thing that can exist at run time in mode 3/4 is the blob + fixed PLT symbols        ║
+║  (subscript_get, rt_push_*, GC_malloc, …). Run time = self-contained x86 blob + PLT. Nothing else.║
+║                                                                                                  ║
+║  COMPLETION TEST (verifiable, not a vibe): from any Mode-3 (--run) or Mode-4 (--compile) entry   ║
+║  point, reachability to icn_bb_dcg / pl_bb_dcg / bb_exec_once / bb_exec_resume == ZERO.           ║
+║                                                                                                  ║
+║  CURRENT ICON VIOLATION (the exact edge to cut for Phase J):                                     ║
+║    sm_jit_interp.c:2072  sl_call(rt_bb_pump_proc)             ← bakes call into mode-3 blob      ║
+║    sm_jit_interp.c:1648  bake_blob_call_si(rt_bb_pump_proc..) ← same, with args                  ║
+║    rt_bb_pump_proc (sm_jit_interp.c:233, JIT-local) → icn_bb_pump_proc_by_name →                 ║
+║      bb_node_t{.fn=icn_bb_dcg} → bb_exec_once/resume  = the C walker. SEVER these two bake sites; ║
+║      replace with the shared emitter's flat-wired BB x86 (the same x86 Mode 4 already emits).    ║
+║    Symptom today: --run hello.icn → 'sm_eval_subexpr: invalid entry_pc 1' because the baked call ║
+║      reads bb_table AFTER it is freed (FACT 3) → NULL → oneshot → invalid pc. --interp prints OK.║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║  Sess 2026-05-15g removed all tree_t* dereferences from sm_interp.c (mode 2) and                ║
@@ -485,10 +533,19 @@ ONCE, by the emitter, at emit time — exactly like mode 4) and the JIT executes
 that, `bb_table` being freed pre-run is CORRECT (nothing reads it at run time) and the lifetime
 violation dissolves. So J-2/J-3 stand; J-1's "RED marker" is explained.
 
-- [ ] Decide sink mechanism: `open_memstream` as the `FILE*` for `codegen_sm_x86` so the shared
+- [x] Decide sink mechanism: `open_memstream` as the `FILE*` for `codegen_sm_x86` so the shared
   emitter produces the SAME bytes mode 4 does, into memory (no new buffer API; honors 2026-05-28).
   Verify `EMIT_BINARY_WIRED` via memstream == file bytes for `hello.icn`'s `main`.
-- [ ] Gate: `test_jit_emitter_bridge_unit` asserts memstream bytes == file bytes for hello's `main`.
+  ✅ **DONE 2026-05-26 (Opus 4.7), one4all `106b7c51` PUSHED.** `sm_codegen_x64_emit_test.c` gained
+  a `--memcheck` mode: `emit_to_mem()` (open_memstream FILE* sink) vs `emit_to()` (file sink) for
+  the canonical SM programs (EM-2 lit+halt, EM-3 arith, EM-4b loop) → **3/3 BYTE-IDENTICAL**.
+  ⚠ FINDING: `codegen_sm_x86` carries PROCESS-GLOBAL accumulators (strtab/registry/macro-library)
+  that are NOT reset between calls, so two emits in one process differ (+segfault). The faithful
+  contract is SINGLE-SHOT-PER-PROCESS — which is exactly how mode-3/mode-4 each invoke it (once).
+  The memcheck therefore fork-isolates each emission. Makefile harness target also fixed (was
+  missing `-I$(SRC)/include`; SM.h lives there). Gates unchanged: smoke 5/5, broker 23, rungs 195.
+- [x] Gate: `--memcheck` asserts memstream bytes == file bytes. ✅ (3/3). Built via
+  `make out/sm_codegen_x64_emit_test`, run `./out/sm_codegen_x64_emit_test --memcheck`.
 - [ ] ⚠ NOTE: mode 3's emit entry is `sm_emit_linear`, NOT `sm_codegen_text`. J-4 must decide:
   (a) replace `sm_emit_linear`'s per-proc BB handling with a call into `codegen_sm_x86` for proc
   bodies, or (b) longer-term, retire `sm_emit_linear` entirely in favor of the shared emitter +
@@ -496,6 +553,14 @@ violation dissolves. So J-2/J-3 stand; J-1's "RED marker" is explained.
   behind `SCRIP_JIT_FLAT_BB`, converging to (b) at J-6.
 
 #### J-3 — Load emitted bytes + apply `bb_fixup_*` into the JIT `PROT_EXEC` buffer ⏳
+**⛔ DELETION SURFACE MAPPED (2026-05-26, Opus 4.7) — the exact mode-3 → C-walker edge to sever:**
+- `sm_jit_interp.c:2072` — `sl_call(rt_bb_pump_proc)` (bakes the call into the mode-3 blob)
+- `sm_jit_interp.c:1648` — `bake_blob_call_si(rt_bb_pump_proc, ...)` (same, with args)
+- `rt_bb_pump_proc` (sm_jit_interp.c:233, JIT-local) → `icn_bb_pump_proc_by_name` →
+  `bb_node_t{.fn=icn_bb_dcg}` → `bb_exec_once`/`bb_exec_resume` = THE C WALKER (FACT 2 violation).
+- The C-walker symbols themselves (`icn_bb_dcg` icn_runtime.c:334, `pl_bb_dcg` pl_runtime.c:36,
+  `bb_exec_once`/`resume` bb_exec.c:2021/2036) STAY DEFINED — Mode 2 needs them (FACT 1). Only the
+  mode-3 CALL EDGE dies. `sm_interp.c` reaching the walker is FINE (that is mode 2).
 - [ ] Write the loader: copy emitter bytes into the JIT exec buffer, apply each `bb_fixup_*`
   relocation against the buffer's runtime address, register the proc's entry under its name in
   `g_label_blob_map` (mirror existing blob registration). RELIES on RULES.md "BB/SM deletion is
@@ -507,6 +572,12 @@ violation dissolves. So J-2/J-3 stand; J-1's "RED marker" is explained.
 - [ ] In sm_jit_interp.c, when the flag is set, replace the `call rt_bb_pump_proc` baking with:
   emit (once per proc) the proc's flat x86 via J-2, load via J-3, then bake `call <blob_addr>`.
   Flag OFF = current C path (zero-risk default during bring-up).
+  ⛔ **The flag is BRING-UP SCAFFOLDING ONLY, not a permanent option.** Per FACT 2, the C path must
+  NOT remain reachable from mode 3 in the end state. The flag exists so each step stays committable;
+  once flag-ON is green across all gates, the flag-OFF C path (`rt_bb_pump_proc` + the two bake
+  sites) is DELETED (J-5/J-6) and the C walker becomes unreachable from `--run`. Do not enshrine the
+  flag. ⛔ Do NOT "fix" the RED by keeping bb_table alive past the free — that is the PJ-AGW-1c
+  mistake (reverted upstream `1af97d90`); see FACT 3.
 - [ ] Gate: with flag ON — smoke 5/5, broker ≥19, rungs ≥195, byte-identical mode-1/mode-4.
   With flag OFF — unchanged. BOTH must pass. New check: under flag ON, `rt_bb_pump_proc` is never
   entered on `--run` (assert via a counter/`__builtin_trap` in a debug build, removed before commit
