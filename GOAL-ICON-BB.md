@@ -166,6 +166,61 @@ Shared emitter emits TEXT asm; Icon BB_templates are stubs. SM_BB_PUMP_PROC in m
 
 **Phase J done when:** mode 3 ≡ mode 4 flat-wired x86 sans process boundary; rt_bb_pump_proc + JIT-local BB x86 deleted; icn_bb_dcg/bb_exec.c unreachable from --run; smoke 5/5, broker ≥23, rungs ≥196, mode-1/mode-4 byte-identical, ASAN clean.
 
+
+---
+
+## ⛔ HQ-ALIGNMENT AUDIT (2026-05-26, Opus 4.7 — Lon-requested method/technique review)
+
+Audit of the live source tree at one4all `9be28a5` against RULES.md + GOAL-HEADQUARTERS Invariants
++ THE FOUR FACTS (this file's header). Findings are EMPIRICAL (grep-verified), not from the prose.
+Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps with line evidence.
+
+**VERIFIED VIOLATIONS (Icon surface):**
+
+1. **The Mode-3 → C-walker edge is STILL LIVE and STILL the default.** Confirmed exactly where J-1/J-3
+   said: `sm_jit_interp.c:1666` bakes `rt_bb_pump_proc` (via `bake_blob_call_si`), and lines 2144/2149
+   `sl_call(rt_bb_pump_proc)`. `rt_bb_pump_proc` (235) → `icn_bb_pump_proc_by_name` → `bb_node_t{.fn=…}`
+   → `bb_broker(node, bb_pump, …)` = the C graph-walker (`bb_exec.c`). The J-4 fix EXISTS but is gated
+   behind `SCRIP_JIT_FLAT_BB` (default OFF, `sm_jit_interp.c:2202`). So a bare `--run hello.icn` STILL
+   takes the forbidden C-walker path (FACT-2 violation) and STILL hits the freed-`bb_table` lifetime bug
+   (FACT-3) — the J-1 RED marker is still RED in the default configuration. **This audit re-asserts: the
+   phase is NOT done while the violating edge is the default. JA-1 forces the flip-and-delete to the front.**
+
+2. **`bb_icn_to.cpp` / `bb_icn_to_by.cpp` templates delegate generator port logic to the C walker.** Both
+   headers state the work is "handled at runtime … via `bb_exec_once/bb_exec_resume`" — i.e. the `to`/`by`
+   generator (the exact J-4 "NEXT: GENERATORS" blocker, `rung01_paper_to_by` aborts under flag-on) has NO
+   inline-x86 template body; it runs in the C walker. This is the Icon mirror of Prolog's empty `bb_pl_*`
+   templates and the same HQ-Invariant-11 (INLINE-ALL) gap. **JA-2 makes it measurable + ties it to J-5.**
+
+**ALIGNMENT GRADE — Icon-BB: B−.**
+- **Phase G/H (the IR-node + attribute-grammar rebuild): A−.** This is the strongest work in either goal.
+  The "BB_t IS the IR; α/β/γ/ω are pointers; γ/ω inherited, α/β synthesized; JCON irgen is the per-construct
+  wiring spec" model is coherent, correct, and faithfully executed (H-1 threaded lowerer, H-2 γ-chain SEQ,
+  BB_CONJ split). rungs 153→196 is real ladder progress. This is the HQ method done right.
+- **Phase J (mode-3 ≡ mode-4 flat x86): C+.** The defect is impeccably root-caused (the freed-`bb_table`
+  dual-consumer lifetime bug is a textbook RULES.md "deletion is total" violation, correctly diagnosed).
+  J-2/J-3/J-4 made genuine progress (memcheck byte-identity proof; `SCRIP_JIT_FLAT_BB` path; hello.icn green
+  flag-on; SM_ACOMP/LCOMP). BUT it is behind a non-default flag, generators still abort, and the C-walker
+  edge is still the shipped default. Half-migrated.
+- **Process discipline: A.** THE FOUR FACTS header is the single best artifact in the HQ — it ends the
+  per-session re-derivation Lon complained about for two months. Root-causing before coding, freezing RED
+  markers as regression oracles, one-opcode-per-commit gating: textbook. The gap is scope/sequencing, not rigor.
+
+### ⛔ Correction rungs (added by this audit — do in order; each its own commit, gates green between)
+
+- [ ] **JA-1** — Bring J-6 forward: make the flat-BB path correct enough to be the DEFAULT, then delete the
+  edge. (a) Close the J-4 generator blocker first (see JA-2). (b) Flip `g_jit_flat_bb` default ON and
+  remove the `SCRIP_JIT_FLAT_BB` env-gate. (c) Delete `rt_bb_pump_proc` (sm_jit_interp.c:235) + its two bake
+  sites (1666, 2144/2149). (d) FACT-2 completion test: `grep`-prove reachability from any `--run`/`--compile`
+  entry to `icn_bb_dcg`/`bb_exec_once`/`bb_exec_resume` == 0 (they stay DEFINED for Mode 2). Gate: smoke 5/5,
+  broker ≥19, rungs ≥196, `--run hello.icn` (no env) prints `hello`, mode-1/mode-4 byte-identical, ASAN clean.
+- [ ] **JA-2** — Generators onto the emitted-x86 path (the J-4/J-5 "NEXT: GENERATORS" item, made concrete).
+  `bb_icn_to.cpp` + `bb_icn_to_by.cpp` currently emit no port logic (C-walker delegation). Translate the
+  `to`/`by` four-port generator (`bb_exec.c` `BB_TO`/`BB_TO_BY` cases) into inline x86 TEXT+BINARY arms with
+  a `bb_bin_t` reloc table, so `every`/`to`/`by` run native in Mode 3. Add the same per-template emptiness
+  audit as Prolog PA-2 covering `bb_icn_to`/`bb_icn_to_by`. Anchor: `rung01_paper_to_by` runs under flat-BB
+  (was `stack underflow`). Gate: smoke 5/5, broker ≥19, rungs ≥196, anchor PASS, mode-4 byte-identical.
+
 ---
 
 ## Invariants
