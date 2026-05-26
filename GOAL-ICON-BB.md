@@ -494,6 +494,25 @@ BB_FIELD_*/BB_LIMIT/BB_NOT/BB_SIZE/BB_REPEAT/BB_RETURN c[] reads → α/β/γ pe
 (lowerer already wires these to ports — verify each). emit_bb.c(20)/emit_sm.c(17) untouched.
 NO GATES RUN (build red). one4all working tree dirty — committed as WIP.
 
+Sess 2026-05-26c (Opus, checkpoint — BUILD STILL RED at BB_LIMIT): continued executor port-
+migration. NOW MIGRATED (read α/β, no c[]/n): BB_INITIAL (has-run flag ival3→ival since ival is
+IR payload that survives bb_reset, unlike state; body c[0]→α), BB_RETURN (retval→α), BB_IF
+(cond→α/then→β/else→γ; ⚠ else-on-γ collides with γ-as-success-continuation — works only for
+leaf/last-statement IF, full fix needs H-1 inherited-γ/ω threading; flagged inline), BB_EVERY/
+BB_WHILE/BB_UNTIL (gen|cond→α, body→β), BB_REPEAT (body→α), BB_NOT/BB_NONNULL/BB_NULL_TEST/
+BB_RANDOM/BB_NEG/BB_POS/BB_CSET_COMPL (operand→α), BB_IDENTICAL (α/β). bb_exec.c c[] 229→130,
+n 57→37. NEXT (the hard cluster, needs per-node state-packing design — opaque/ival2 collide with
+counter where multiple live at once): BB_LIMIT (bb_exec.c:566, uses c[0]/c[1]/ival/ival2/counter/
+state together), then BB_LCONCAT-adjacent generators BB_LIST_BANG/BB_KEY_GEN/BB_FIND_GEN/BB_GEN_*/
+BB_BINOP_GEN/BB_ALT/BB_TO/BB_UPTO/BB_PROC_GEN, plus remaining BB_IDX/BB_SECTION/BB_FIELD_*/
+BB_SIZE/BB_CASE multi-operand (c[]→α/β/γ-chain). Then emit_bb.c(20)/emit_sm.c(17). NO GATES RUN.
+DECISION NEEDED for the generator cluster: BB_t has only value/counter/state as runtime-mutable
++ sval/ival/dval as reset-surviving payload. Generators caching a pointer (GeneratorState*,
+TBBLK_t*, find_gen_state_t*) AND a counter AND a bound need >3 slots. Options: (a) cast pointer
+into counter (works only where counter unused — BB_CALL did this), (b) allocate an aux state
+struct via GC and stash its pointer in counter, freeing the other slots. (b) is the general
+answer and matches JCON's per-construct state records. Recommend (b) next session.
+
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
 lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
