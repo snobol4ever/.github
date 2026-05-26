@@ -312,6 +312,7 @@ post-hoc stamp on the parent.
 - [x] (2026-05-26k) `lower_icn_proc_body` seeds top γ/ω (NULL = trampoline-halt sentinel) + back-to-front spine threading.
 - [x] (2026-05-26k) Gate: clean build, smoke 5/5, broker 19, rungs 189→195. No regressions.
 - [ ] **REMAINING:** per-construct DOWN-threading of γ/ω into then/else/body for nested non-leaf IF + generator composition (push the full signature into the builders, not just stamp the parent).
+- [x] (2026-05-26m) Conjunction `E1 & E2` split off BB_IF → own opcode BB_CONJ (generator: resume E1 across pumps, fail on E1 exhaustion). Fixes `every (gen) & body` infinite loop. rungs 195→196, smoke 5/5, broker 23, zero regress. (Part of generator-composition; BB_CONJ mode-3/4 emitter template still TODO.)
 - [x] (2026-05-26f) BB_node_alloc α/β default NULL not self; BB_IF else→ω statement-context wiring. Gates green.
 
 #### H-2 — Replace BB_SEQ child-array with γ-chain ⏳
@@ -742,7 +743,25 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, build GREEN, gates GREEN on `45c1bde2`) — Phase H continues.
+## Active next targets (2026-05-26, build GREEN, gates GREEN) — Phase H continues.
+
+Sess 2026-05-26m (Opus 4.7, with Lon — one4all `9be28a5d` PUSHED — H-1 GENERATOR-COMPOSITION: BB_CONJ): split Icon conjunction
+`E1 & E2` off the overloaded BB_IF into its own opcode **BB_CONJ**. Root cause of rung13_alt_alt_filter
+infinite loop (`every (x:=(1|2|3|4|5)) > 2 & write(x)` → `3 4 5 3 4 5…`): TT_SEQ lowered to BB_IF
+(α=E1, β=E2), but BB_IF (if-then) treats cond-FAILURE as NON-FATAL — returns γ (success) with &null.
+A conjunction must return ω (FAIL) when E1 is exhausted. The fake success kept the enclosing `every`
+pumping, so the cond generator reset and restarted forever. Fix: new BB_CONJ kind (BB.h enum +
+scrip_ir.c name table, inserted after BB_IF — positional name list updated to stay aligned); TT_SEQ →
+BB_CONJ; BB_CONJ executor is a proper GENERATOR (state 0=fresh: reset+drive E1; 1=resume E1's
+generator for next success; each E1-success runs E2 fresh + yields E2-value via γ; E1-exhaustion → ω).
+Classifier `default` already treats BB_CONJ as gen iff E1 is gen (no change needed). **rungs 195→196
+(+1: rung13_alt_alt_filter), smoke 5/5, broker 23, ZERO regressions** (only non-rung36 fail left =
+rung06_cset_upto_basic, a separate scan-`?`-resume bug). bb_exec.c mode-2 only; mode-3 `--run`
+`sm_eval_subexpr: invalid entry_pc 1` is the documented PRE-EXISTING Icon mode-3 emitter gap (hits even
+plain hello.icn), NOT caused by BB_CONJ. BB_CONJ needs a bb_*.cpp emitter template for mode-3/4 (TODO,
+flagged with Phase J emitter work).
+**NEXT: rung06 scan-`?` generator resume** (`every (S ? write(upto(c)))` loops — scan subject/pos not
+resuming), then the remaining H-1 work below (nested non-leaf IF DOWN-threading).
 
 Sess 2026-05-26k cont. (Opus 4.7, with Lon — H-1 FOUNDATION LANDED, one4all `45c1bde2` PUSHED):
 After closing the G-2 ladder (see below), landed the Phase H attribute-grammar foundation. Added
