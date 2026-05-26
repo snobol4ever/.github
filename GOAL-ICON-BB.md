@@ -113,13 +113,107 @@ bash scripts/build_spitbol_oracle.sh
 Baseline gates (all green before picking up next rung):
 ```bash
 bash scripts/test_smoke_icon.sh                 # PASS=5
-bash scripts/test_smoke_unified_broker.sh       # PASS=49
-bash scripts/test_isolation_ir_sm.sh            # PASS
-bash scripts/test_icon_all_rungs.sh          # 185/48/30
-bash scripts/test_icon_all_rungs.sh        # honest dial (224/~39/0 at sess 2026-05-11c)
+bash scripts/test_smoke_unified_broker.sh       # PASS=17
+bash scripts/test_icon_all_rungs.sh             # PASS=153 (regression recovers at G-4)
 ```
 
-⚠️ `test_icon_sm_no_ast_walk.sh` uses 8s timeouts — some long-running programs register as FAIL. Run a manual sweep with 10s+ timeouts to get accurate count.
+---
+
+## ⚡ CURRENT WORK — Phase G: Eradicate BB_t.c[]/n
+
+**NEXT STEP: G-1** — add `lhs`/`rhs`/`operand` fields to `BB_t`.
+
+`BB_t` is a node in a **wired directed graph**. It is NOT a tree. `BB_t **c` and `int n` smuggle tree-child semantics into graph nodes. Every `nd->c[i]` on a `BB_t` is wrong.
+
+**Architecture:**
+```
+tree_t         — produced by parser. Has c[]/n. Correct there.
+  ↓ lower()
+SM_sequence_t  — flat array of SM instructions (primary output of lower)
+BB_graph_t     — wired directed graph of Byrd boxes, in sm.bb_table[]
+```
+
+Labels in JCON irgen.icn = pointers in SCRIP BB graphs. α/β/γ/ω are pointers.
+- **γ/ω** inherited — caller sets where box jumps out on succeed/fail
+- **α/β** synthesized — box's own entry points exposed to callers
+- **lhs/rhs/operand** — operand sub-boxes the box evaluates; NOT control flow
+
+**Baseline:** smoke 5/5, broker 17, rungs 153 (G-4 recovers to ≥169).
+
+#### G-0 — Commit 2026-05-25 session work ✅ `bd6b0917`
+SM_UNUSED_1..5 rename + F-6d partial (BB_BINOP/BINOP_GEN/LCONCAT/ARITH/UNIFY/BUILTIN/PL_ALT → α/β). Done.
+
+#### G-1 — Add lhs/rhs/operand fields to BB_t ⏳
+- [ ] `src/include/BB.h`: add after port fields in `struct BB_t`:
+      ```c
+      BB_t * lhs;      /* left operand sub-box  (binary kinds) */
+      BB_t * rhs;      /* right operand sub-box (binary kinds) */
+      BB_t * operand;  /* single operand sub-box (unary kinds) */
+      ```
+      Mark `BB_t **c` and `int n` as DEPRECATED in comment.
+- [ ] Update enum comments for BB_ARITH/BB_UNIFY/BB_BINOP_GEN to say lhs/rhs.
+- [ ] Gate: `bash scripts/build_scrip.sh` only — no behaviour change.
+
+#### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
+- [ ] `src/runtime/interp/icon_box_rt.c` + `.h`: remove `rt_binop_gen(BB_t *nd, int entry)`. It is a C Byrd box (forbidden). Executor path is `bb_exec.c`.
+- [ ] `src/emitter/BB_templates/bb_binop_gen.cpp`: remove `call rt_binop_gen@PLT`; emit inline x86 reading `pBB->lhs` / `pBB->rhs`.
+- [ ] `icn_every_box`: verify callers — if only dead paths, delete too.
+- [ ] Gate: smoke 5/5, broker ≥17.
+
+#### G-3 — Migrate unary BB kinds → operand field ⏳
+Replace `nd->c[0] = inner` / `nd->c[0]` with `nd->operand` in both `lower_icn.c` (builder) and `bb_exec.c` (executor) for each kind.
+
+Kinds: `BB_SIZE`, `BB_NOT`, `BB_NONNULL`, `BB_NULL_TEST`, `BB_RANDOM`, `BB_NEG`, `BB_POS`, `BB_CSET_COMPL`, `BB_CALL` (inner expr), `BB_RETURN` (retval), `BB_REPEAT` (body), `BB_INITIAL` (body), `BB_KEY_GEN` (table expr).
+
+- [ ] Migrate all — builder + executor together per kind.
+- [ ] Gate: smoke 5/5, rungs PASS≥153.
+
+#### G-4 — Migrate binary BB kinds → lhs/rhs fields ⏳
+Replace `nd->c[0]=lhs; nd->c[1]=rhs` with `nd->lhs = lhs; nd->rhs = rhs` in `lower_icn.c` + `bb_exec.c`.
+
+- [ ] G-4a: `BB_ASSIGN`, `BB_SWAP`, `BB_IDENTICAL`
+- [ ] G-4b: `BB_IDX`, `BB_FIELD_GET`, `BB_FIELD_SET`
+- [ ] G-4c: `BB_CSET_UNION`, `BB_CSET_DIFF`, `BB_CSET_INTER`, `BB_GEN_SCAN`
+- [ ] G-4d: `BB_LIMIT`, `BB_EVERY`, `BB_WHILE`, `BB_UNTIL`
+- [ ] G-4e: `BB_BINOP` — fix augop path in `lower_icn.c` (TT_AUGOP still writes `binop->c[]`). `binop->lhs = lhs; binop->rhs = rhs; asgn->lhs = lhs2; asgn->rhs = binop`.
+- [ ] G-4 special — `BB_IF`: cond → `nd->operand`; then/else → `nd->γ = then_nd; nd->ω = else_nd`.
+- [ ] G-4 special — `BB_IDX_SET`, `BB_SECTION` (3 operands): `nd->lhs = base; nd->rhs = idx_or_i1; nd->operand = rhs_or_i2`.
+- [ ] Gate: smoke 5/5, **rungs PASS≥169** (regression from F-6d augop recovers here).
+
+#### G-5 — Migrate Prolog BB kinds ⏳
+- [ ] `BB_PL_SEQ`: wire as γ-chain. `nd->operand = first_stmt`; each stmt `.γ → next`.
+- [ ] `BB_PL_CALL` with args: γ-sequence of arg nodes; `nd->lhs = first_arg`, `nd->sval = name`, `nd->ival2 = arity`.
+- [ ] `BB_CHOICE`: ω-chain. `blk[i].ω → blk[i+1].α`; `nd->operand = first_clause_bb`. Replace `nd->c[nd->n++] = blk`.
+- [ ] Verify `BB_UNIFY` clause-head already migrated (F-6d); fix if not.
+- [ ] Gate: broker PASS≥17.
+
+#### G-6 — Migrate emitter files ⏳
+- [ ] `src/emitter/emit_bb.c`: `nd->c[0]` → `nd->operand`; `nd->c[i]` loops → γ-chain walk (BB_PAT_ARBNO, BB_PAT_ASSIGN_IMM/COND, pre_build_children).
+- [ ] `src/emitter/emit_sm.c`: `nd->c[k]` in BB_CHOICE/PL_SEQ serialiser → γ-chain walk.
+- [ ] `src/emitter/BB_templates/bb_builtin.cpp`: `pBB->c[0]` → `pBB->operand`.
+- [ ] `src/emitter/emit_core.c`: `bb_walk_rec` `nd->c[i]` → walk lhs/rhs/operand/γ/ω.
+- [ ] Gate: smoke 5/5, broker ≥17, rungs ≥169.
+
+#### G-7 — Delete c[]/n from BB_t struct ⏳
+Verify zero remaining offences:
+```bash
+grep -rn "nd->c\[\|pBB->c\[" \
+  src/lower/bb_exec.c src/lower/lower_icn.c src/lower/lower_pl.c \
+  src/emitter/emit_bb.c src/emitter/emit_sm.c src/emitter/emit_core.c \
+  src/emitter/BB_templates/ src/runtime/interp/icon_box_rt.c src/lower/scrip_ir.c
+# Must be empty
+```
+- [ ] Remove `BB_t **c; int n;` from `struct BB_t` in `BB.h`.
+- [ ] Remove DEPRECATED comments from G-1.
+- [ ] Remove any `c`/`n` init from `BB_node_alloc`.
+- [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥169.
+
+#### G-8 — Fix scrip_ir.c debug printer ⏳
+- [ ] `src/lower/scrip_ir.c` ~line 130: prints `nd->c[j]`. Replace with lhs/rhs/operand/γ/ω walk or stub.
+
+**Phase G done when:** `BB_t` has no `c`/`n`, zero `nd->c[` in the files above, smoke 5/5, broker ≥17, rungs ≥169.
+
+---
 
 ---
 
@@ -248,156 +342,7 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-25, `bd6b0917`) — F-6a/b/c/d-partial done. Rungs 153 (regression from F-6d augop path, recovers in G-4). NEXT: Phase G (eradicate BB_t.c[]/n).
-
-**NEXT: G-0** — commit, then G-1 add lhs/rhs/operand fields.
-
----
-
-## Phase G — Eradicate BB_t.c[] / BB_t.n: replace with named fields
-
-### Why
-
-`BB_t` is a node in a **wired directed graph** (Byrd boxes connected by four
-ports α β γ ω). It is NOT a tree. The fields `BB_t **c` and `int n` smuggle
-AST-tree-child semantics into graph nodes. Every `nd->c[i]` on a `BB_t` is
-wrong and must be replaced.
-
-**Architecture:**
-```
-tree_t         — produced by parser. Has c[]/n. Correct there.
-  ↓ lower()
-SM_sequence_t  — flat array of SM instructions (primary output of lower)
-BB_graph_t     — wired directed graph of Byrd boxes, stored in sm.bb_table[]
-                 referenced from SM instructions by integer index
-```
-
-`BB_graph_t` nodes (`BB_t`) use only:
-- **α, β** — this box's own entry points (callers jump IN)
-- **γ, ω** — successor boxes this box jumps OUT to on succeed/fail
-- **lhs, rhs, operand** — named sub-box pointers for operand sub-expressions
-- **ival, ival2, ival3, sval, sval2, dval** — compile-time scalar data
-- **opaque** — runtime state struct pointer
-
-Labels in JCON irgen.icn = pointers in SCRIP BB graphs. α/β/γ/ω are pointers.
-
-**α/β vs γ/ω vs lhs/rhs/operand:**
-- γ/ω are **inherited** — set by the caller; tell the box where to jump out
-- α/β are **synthesized** — the box's own entry points, exposed to callers
-- lhs/rhs/operand are **operand sub-boxes** the box evaluates; NOT control flow
-
-**Baseline at G-0:** smoke 5/5, broker 17, rungs 153 (regression recovers in G-4).
-
-#### G-0 — Commit 2026-05-25 session work ⏳
-- [ ] `git add -A && git commit` in one4all: SM_UNUSED_1..5 rename + F-6d partial
-      (BB_BINOP/BINOP_GEN/LCONCAT/ARITH/UNIFY/BUILTIN/PL_ALT → α/β).
-      **Already done: `bd6b0917`.**
-
-#### G-1 — Add lhs/rhs/operand fields to BB_t ⏳
-- [ ] `src/include/BB.h`: add three fields to `struct BB_t` after the port fields:
-      ```c
-      BB_t * lhs;      /* left operand sub-box  (binary kinds) */
-      BB_t * rhs;      /* right operand sub-box (binary kinds) */
-      BB_t * operand;  /* single operand sub-box (unary kinds) */
-      ```
-      Mark `BB_t **c` and `int n` as DEPRECATED in a comment.
-- [ ] Update enum comments for BB_ARITH/BB_UNIFY/BB_BINOP_GEN to say lhs/rhs.
-- [ ] Build only — no behaviour change. Gate: `bash scripts/build_scrip.sh`.
-
-#### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
-- [ ] `src/runtime/interp/icon_box_rt.c`: remove `rt_binop_gen(BB_t *nd, int entry)`.
-      It is a C Byrd box (forbidden by GOAL-ICON-BB rule). Executor path is bb_exec.c.
-- [ ] `src/runtime/interp/icon_box_rt.h`: remove declaration.
-- [ ] `src/emitter/BB_templates/bb_binop_gen.cpp`: remove `call rt_binop_gen@PLT`;
-      emit inline x86 reading `pBB->lhs` and `pBB->rhs` instead.
-- [ ] `icn_every_box`: check callers — still referenced? If only from dead paths, delete.
-- [ ] Gate: smoke 5/5, broker ≥17.
-
-#### G-3 — Migrate unary BB kinds → operand field ⏳
-All use `nd->c[0] = inner` in lower_icn.c and `nd->c[0]` in bb_exec.c.
-Replace with `nd->operand = inner` / `nd->operand`.
-
-Kinds: `BB_SIZE`, `BB_NOT`, `BB_NONNULL`, `BB_NULL_TEST`, `BB_RANDOM`,
-`BB_NEG`, `BB_POS`, `BB_CSET_COMPL`, `BB_CALL` (inner expr),
-`BB_RETURN` (retval), `BB_REPEAT` (body), `BB_INITIAL` (body),
-`BB_KEY_GEN` (table expr).
-
-- [ ] For each kind: update `lower_icn.c` (builder) AND `bb_exec.c` (executor) together.
-- [ ] Gate after all: smoke 5/5, rungs PASS≥153.
-
-#### G-4 — Migrate binary BB kinds → lhs/rhs fields ⏳
-All use `nd->c[0]=lhs; nd->c[1]=rhs` in lower_icn.c and reads in bb_exec.c.
-Replace with `nd->lhs = lhs; nd->rhs = rhs`.
-
-Kinds: `BB_ASSIGN`, `BB_SWAP`, `BB_IDENTICAL`, `BB_IDX`,
-`BB_FIELD_GET`, `BB_FIELD_SET` (obj+rhs; sval=fieldname),
-`BB_CSET_UNION`, `BB_CSET_DIFF`, `BB_CSET_INTER`,
-`BB_GEN_SCAN` (subj+body), `BB_LIMIT` (gen+lim),
-`BB_EVERY` (gen+body), `BB_WHILE`/`BB_UNTIL` (cond+body),
-`BB_BINOP` (lhs+rhs — augop lower still uses c[], fix here).
-
-- [ ] G-4a: `BB_ASSIGN`, `BB_SWAP`, `BB_IDENTICAL` — lower_icn.c + bb_exec.c.
-- [ ] G-4b: `BB_IDX`, `BB_FIELD_GET`, `BB_FIELD_SET` — lower_icn.c + bb_exec.c.
-- [ ] G-4c: `BB_CSET_UNION/DIFF/INTER`, `BB_GEN_SCAN` — lower_icn.c + bb_exec.c.
-- [ ] G-4d: `BB_LIMIT`, `BB_EVERY`, `BB_WHILE`, `BB_UNTIL` — lower_icn.c + bb_exec.c.
-- [ ] G-4e: `BB_BINOP` augop path in lower_icn.c (TT_AUGOP still writes binop->c[]).
-      Fix → `binop->lhs = lhs; binop->rhs = rhs; asgn->lhs = lhs2; asgn->rhs = binop`.
-- [ ] Gate: smoke 5/5, rungs PASS≥169 (regression from F-6d recovers here).
-
-**G-4 special — BB_IF (ternary):**
-- [ ] `BB_IF`: cond → `nd->operand`. Then/else → wire as `nd->γ = then_nd; nd->ω = else_nd`.
-      Executor evaluates `nd->operand`, follows γ on success, ω on fail. No c[] needed.
-
-**G-4 special — BB_IDX_SET, BB_SECTION (three operands):**
-- [ ] Use `nd->lhs = base; nd->rhs = idx_or_i1; nd->operand = rhs_or_i2`.
-
-#### G-5 — Migrate Prolog BB kinds ⏳
-Remaining c[] uses in lower_pl.c and bb_exec.c.
-
-- [ ] `BB_PL_SEQ` (N-stmt conjunction): wire as γ-chain.
-      `seq[0].γ → seq[1]; ... seq[N-1].γ → outer_γ`. No array.
-      `nd->operand = first_stmt`; each stmt chains via γ to next.
-- [ ] `BB_PL_CALL` with args: args evaluated as γ-sequence; `nd->lhs = first_arg_chain`,
-      `nd->sval = name`, `nd->ival2 = arity`.
-- [ ] Clause-body BB_UNIFY: verify already migrated to α/β (F-6d). Fix if not.
-- [ ] `BB_CHOICE` choice chain: `blk[i].ω → blk[i+1].α`; `nd->operand = first_clause_bb`.
-- [ ] `nd->c[nd->n++] = blk` in lower_pl_choice_body: replace with ω-chain wiring.
-- [ ] Gate: broker PASS≥17.
-
-#### G-6 — Migrate emitter files ⏳
-- [ ] `src/emitter/emit_bb.c`: `walk_bb_flat` and `pre_build_children` use `nd->c[0]`/`nd->c[i]`
-      for BB_PAT_ARBNO, BB_PAT_ASSIGN_IMM/COND, SNOBOL4 pattern walk.
-      Replace `nd->c[0]` → `nd->operand`; `nd->c[i]` loop → γ-chain traversal.
-- [ ] `src/emitter/emit_sm.c`: `nd->c[k]` in BB_CHOICE/PL_SEQ serialiser → γ-chain walk.
-- [ ] `src/emitter/BB_templates/bb_builtin.cpp`: `pBB->c[0]` → `pBB->operand`.
-- [ ] `src/emitter/emit_core.c`: `bb_walk_rec` `nd->c[i]` loop → walk lhs/rhs/operand/γ/ω.
-- [ ] Gate: smoke 5/5, broker ≥17, rungs ≥169.
-
-#### G-7 — Delete c[]/n from BB_t struct ⏳
-Only when zero remaining `->c[` references exist on BB_t variables.
-
-Verify clean:
-```bash
-grep -rn "nd->c\[\|pBB->c\[\|->c\[" \
-  src/lower/bb_exec.c src/lower/lower_icn.c src/lower/lower_pl.c \
-  src/emitter/emit_bb.c src/emitter/emit_sm.c src/emitter/emit_core.c \
-  src/emitter/BB_templates/ src/runtime/interp/icon_box_rt.c \
-  src/lower/scrip_ir.c
-# Must be empty
-```
-
-- [ ] Remove `BB_t **c; int n;` from `struct BB_t` in BB.h.
-- [ ] Remove DEPRECATED comments added in G-1.
-- [ ] Remove any `c`/`n` initialization from `BB_node_alloc`.
-- [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥169.
-
-#### G-8 — Fix scrip_ir.c debug printer ⏳
-- [ ] `src/lower/scrip_ir.c` line ~130: prints `nd->c[j]` child indices.
-      After G-7, c[] is gone. Update to walk lhs/rhs/operand/γ/ω fields.
-- [ ] Low priority; can stub to `/* children removed */` if needed.
-
-**Phase G done when:** zero `->c[` on BB_t, struct has no c/n, smoke 5/5,
-broker ≥17, rungs ≥169, clean build.
+## Active next targets (2026-05-25, `bd6b0917`) — See Phase G above. G-1 is next.
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
 lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
@@ -407,11 +352,10 @@ SM_DECR 1 decrements; separate VOID_POP cleanup for FAILDESCR (done_inner) and y
 lower_every detects gen_expr->t == TT_LIMIT and delegates. Honest SM: 212→213.
 
 Remaining failures — known root causes:
+- Rungs regression 169→153: F-6d augop path, recovers at G-4e.
 - rung15: `!E` iterate — Phase A4 AST_ITERATE.
 - rung36: complex Icon features (segfaults, timeouts).
 - Some IR failures: interp_eval.c slot reads still use v.ival.
-
-Next: rung15 AST_ITERATE (`!E`) — Phase A4.
 
 ---
 
