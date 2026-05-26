@@ -4,6 +4,22 @@
 **Prereq:** GOAL-PROLOG-BB-COMPLETE ✅ `c9b7428d` (PB-8 honest 111/294 FAIL=0 ABORT=0)
 **Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
 
+## ⛔ MANDATORY READ BEFORE ANY PJ-AG-WIRE WORK
+
+Before touching any PJ-AGW-* step, read **GOAL-ICON-BB.md** in full:
+- §"GOLDEN BB RULE" — BB_t is the IR node for ALL modes (2/3/4). Mode 3 (`--run`) JIT-compiles
+  the BB graph to native x86 via templates at emit time; the graph is then freed. Mode 3 does NOT
+  walk the BB graph at runtime. Prolog in Mode 3 routes through `sm_interp_run` (Mode 2 path)
+  until bb_pl_*.cpp templates are filled (AGW-8..10). The crosscheck_prolog FAIL=6 for jit-run
+  is correct and expected until then — do NOT fix it by keeping the BB graph alive past
+  stage2_free_bb_after_emit or by calling bb_exec_once from sm_run_linear.
+- §"Phase H — The Attribute Grammar" — the LOWER→graph + EMITTER→templates two-path structure
+  that PJ-AG-WIRE mirrors exactly. AG threading: γ/ω inherited DOWN, α/β synthesized UP.
+- §"G-2 RT-DELETE ladder" — no C Byrd boxes, no new rt_* port helpers; inline x86 only.
+
+**The pipeline is:** `Prolog AST → lower_pl (AG-wired BB_t graph) → emitter port-DFS → bb_pl_*.cpp templates → x86`
+**Not:** driving bb_exec_once from Mode 3 runtime. The BB graph is consumed at emit time.
+
 ---
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER: proper LOWER + proper EMITTER ⛔⛔
@@ -414,7 +430,15 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
 ### Proper LOWER (AG threading)
 - [x] **PJ-AGW-1** — `lower_pl` aux-discipline: persistent Prolog aux pointers migrated `counter→ival` (survives `bb_reset`, option A per Icon's BB_INITIAL precedent). **DONE 2026-05-26 (Opus 4.7).** All three structs (`bb_pl_seq_state_t`/`bb_pl_call_state_t`/`bb_pl_choice_state_t`) across every writer+reader: `lower_pl.c` (4), `bb_exec.c` (5), `emit_sm.c` (6), `rt.c` Mode-4 builder+sub-builder. Arity recovered from `zc->arity`. This removes the `bb_reset`-wipes-aux hazard permanently. NOTE: the full 4-attribute `lower(cfg,tree,γ,ω,&α,&β)` signature rewrite (γ/ω-chains replacing SEQ/CHOICE aux entirely) is still the larger AGW-2..7 work; this step did the aux-storage half that unblocks execution.
 - [x] **PJ-AGW-1b** — Restore Prolog program-entry dispatch via the sanctioned `SM_BB_SWITCH` opcode (PJ-DEL-ONCEPROC had tombstoned `SM_BB_ONCE_PROC` with no replacement → initialization lowered to nothing). **DONE 2026-05-26 (Opus 4.7).** `lower.c` initialization directive now emits `SM_BB_SWITCH` with `a[0].s="name/arity"` key, `a[1].i=arity`, `a[2].i=SM_BBSW_PL_ENTRY` (new tag, SM.h). Mode-2 `sm_interp.c` `SM_BB_SWITCH` handler honors the tag: resolves the predicate at runtime via `pl_bb_once_proc_by_name`→`pl_bb_dcg`→`bb_exec_once`, pushing/popping `pl_bb_env` — exactly the deleted `SM_BB_ONCE_PROC` logic folded into the one kept BB-dispatch opcode. **GATES: smoke_prolog 0/5→5/5 ✅, unified_broker 18→23, icon_all_rungs 189 (baseline, no regression), icon 5/5, snocone 5/5, rebus 4/4, raku 5/5, snobol4 13/13** — all green. crosscheck_prolog 126/6: the 6 FAILs are all `jit-run vs ir-run` (Mode 3 lags Mode 2, which now works) — NOT a regression (both modes previously produced empty/agreed; Mode 2 advanced past Mode 3). → PJ-AGW-1c.
-- [ ] **PJ-AGW-1c** — Mirror the `SM_BBSW_PL_ENTRY` entry dispatch into Mode 3 (`--run`, `sm_jit_interp.c`), whose `SM_BB_SWITCH` is currently `g_handlers[...]=NULL` "not yet wired" (line 1269) and sits in the unhandled-case group (line 2089). Until then crosscheck_prolog shows 6 `jit-run vs ir-run` FAILs (hello/backtrack/arith/recursion/rung01/rung02). Gate: crosscheck_prolog back to FAIL=0; smoke_prolog 5/5 unchanged.
+- [ ] **PJ-AGW-1c** — ⚠ SEE MANDATORY READ ABOVE. This step is about wiring `SM_BBSW_PL_ENTRY` in the
+  **emitter** (`sm_emit_linear` codegen switch in `sm_jit_interp.c`) to call the Prolog BB emitter path
+  at JIT-compile time — the same way SNOBOL4/Icon BB graphs are compiled to native x86 before being freed.
+  The BB graph is consumed by the emitter and then freed by `stage2_free_bb_after_emit`; Mode 3 does NOT
+  touch the BB graph at runtime. Currently Prolog `bb_pl_*.cpp` templates are stubs, so this step stubs
+  out (emits `rt_unimpl_op`) until AGW-8..10 fill the templates. Prolog in Mode 3 routes through
+  `sm_interp_run` (Mode 2 path) in the interim. The crosscheck_prolog FAIL=6 for `jit-run vs ir-run`
+  is correct/expected — do NOT fix by keeping BB graph alive or calling bb_exec_once from sm_run_linear.
+  Gate: clean build; smoke_prolog 5/5; crosscheck_prolog FAIL=6 unchanged (pre-existing, expected).
 - [ ] **PJ-AGW-1d (was PJ-AGW-1's signature half)** — Extend `lower_pl` to the full 4-attribute signature `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)` (mirror H-1). Leaf nodes set `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`. This is the prerequisite for the γ/ω-chain SEQ/CHOICE rewrites (AGW-2/3) that eliminate the aux structs altogether. Gate: clean build, no behaviour change.
 - [ ] **PJ-AGW-2** — `BB_PL_SEQ` (conjunction): replace the goal-vector-in-`counter` representation with the γ/ω-chain per the table above (mirror H-2's BB_SEQ γ-chain, but Prolog ω points LEFT to the predecessor's β, not forward — conjunction backtracks). Delete the `if (!sq) return nd->ω;` guard and the `bb_pl_seq_state_t` aux. bb_exec.c `BB_PL_SEQ` case: walk via ports, not the stashed vector. Gate: smoke_prolog conjunction case executes; broker non-regressive.
 - [ ] **PJ-AGW-3** — `BB_CHOICE` (clause alternatives): wire alternatives as a β-resume chain per the table; the per-clause `IR_block_t*` bodies that `lower_pl.c:147` currently stashes in the `IR_SUCCEED` wrapper's `opaque` become real CHOICE alternatives reachable through ports (this also closes the PJ-9e Mode-4 multi-clause gap — the sub-cfgs are now in the port graph, so the emitter port-walk reaches them naturally). Gate: smoke_prolog clause/recursion multi-clause cases pass; crosscheck_prolog non-regressive.
