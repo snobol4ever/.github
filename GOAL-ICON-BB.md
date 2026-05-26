@@ -245,8 +245,17 @@ wired into the predecessor's inherited γ slot). N-ary (CALL args, IDX_SET/SECTI
 - [ ] Gate: clean build (signature compiles), no behaviour change yet on leaves.
 
 #### H-2 — Replace BB_SEQ child-array with γ-chain ⏳
-- [ ] `lower_icn_proc_body` line 917-918 (`seq->c = stmt_nodes; seq->n = built;`) → wire `stmt[i].γ = stmt[i+1].α`, last stmt `.γ = γ_in`. Delete the `BB_SEQ` child array; entry = `stmt[0].α`.
-- [ ] bb_exec.c BB_SEQ case: walk γ-chain, not `nd->c[i]`.
+**SPEC (from JCON ir_a_Compound, irgen.icn:1231 — consulted 2026-05-26):**
+- `seq.α → stmt[0]` (entry); or set `cfg->entry = stmt[0]` and drop the SEQ head node.
+- Middle statements i (0..n-2): wire **BOTH** `stmt[i].γ = stmt[i+1]` **AND** `stmt[i].ω = stmt[i+1]`.
+  ⚠ Icon semantic: a statement that FAILS still advances to the next statement (failure is not
+  fatal in a compound). Both ports point forward. Do NOT wire ω to the body failure.
+- Last statement: `stmt[n-1].γ = γ_in`, `stmt[n-1].ω = ω_in` (inherit body's continuation).
+- ⚠ `FRAME.returning` early-out (current bb_exec.c:232): NOT part of sequence wiring in JCON —
+  `return` is its own control construct (ir_a_Return). The γ-chain handles normal fall-through;
+  `return` short-circuits via its own ω/γ to the proc exit. Verify return path before deleting the loop.
+- [ ] `lower_icn_proc_body` line 920-923 (`seq->c=stmt_nodes; seq->n=built;`) → γ/ω-chain per above.
+- [ ] bb_exec.c BB_SEQ case (226): walk via ports, not `nd->c[i]`; reconcile FRAME.returning.
 - [ ] Gate: smoke 5/5 (proc bodies execute via chain).
 
 #### H-3 — Port-wire 2-operand kinds via α/β + thread γ/ω ⏳
