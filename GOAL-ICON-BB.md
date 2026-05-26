@@ -476,6 +476,24 @@ Phase H), NOT a mechanical graft. H-3 PROOF: BB_TO_BY transliterated from ir_a_T
 ⛔ BUILD BROKEN: ~328 c[]/n hits remain in bb_exec.c. NEXT: H-1 (lowerer 4-attr sig, ~120 sites) +
 H-2 (BB_SEQ γ-chain @ lower_icn.c:917, the literal first build break).
 
+Sess 2026-05-26b (Opus, checkpoint — BUILD STILL BROKEN, emergency handoff): H-2 + partial H-4
+landed in lower + exec for the program-spine kinds. DONE: (1) `ir_is_single_shot` classifier
+walks α/β + γ-chains, no c[]/n. (2) BB_SEQ — lower_icn_proc_body now γ/ω-chains statements off
+α (both γ and ω point forward per Icon compound semantics, JCON ir_a_Compound); executor walks
+α→γ. seq->ival = stmt count. (3) BB_SEQ_EXPR — statement γ-chain moved from nd->γ to nd->α
+(γ stays the node's own success continuation); executor finds tail by walking α→γ, head-once/
+pump-tail state machine preserved. (4) BB_CALL — args now a γ-chain off α (was: only first 2
+args into α/β, args 3+ DROPPED — that was a real bug); executor walks α→γ for nd->ival args;
+opaque→counter (intptr cast) for the generator-state cache. (5) BB_ASSIGN, BB_SWAP execs read
+α/β. bb_exec.c c[]/n: 229→187 c[], 57 n. STILL TODO (next session, all in bb_exec.c): generator
+executors using opaque(32)/ival2(18)/ival3(3)/sval2(2) — NOT mechanical: several pack multiple
+removed fields live simultaneously (opaque+counter+ival2), so the goal-file "opaque→counter"
+map COLLIDES there; needs per-node state-packing decision. First remaining error: bb_exec.c:405
+(ival3, BB_INITIAL has-run flag → map to state). Then BB_IF/BB_CASE/BB_IDX/BB_SECTION/
+BB_FIELD_*/BB_LIMIT/BB_NOT/BB_SIZE/BB_REPEAT/BB_RETURN c[] reads → α/β/γ per lower_icn.c wiring
+(lowerer already wires these to ports — verify each). emit_bb.c(20)/emit_sm.c(17) untouched.
+NO GATES RUN (build red). one4all working tree dirty — committed as WIP.
+
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
 lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
