@@ -375,12 +375,21 @@ sm_jit_run can still read CUR_INS operand strings/integers via CUR_INS->a[0].s e
   (output/arith/concat) work. `SM_EXEC_STMT` and `SM_BB_ONCE_PROC` segfault because they
   reach into freed `bb_table` at runtime.
 
-- [ ] **FREE-2** — Fix `SM_EXEC_STMT` in `sm_jit_interp.c`. `h_exec_stmt` reads
-  `g_stage2.sm.bb_table[i]` at runtime — freed. Fix: add a `case SM_EXEC_STMT:` in
-  `SM_codegen` that, if `a[2].i >= 0` (has BB pattern), walks the BB pattern graph at
-  codegen time and emits a blob that calls the already-compiled BB_PAT Byrd boxes directly
-  (via their emitter-process addresses, baked in at codegen). The blob must NOT reference
-  `bb_table` at runtime. SNOBOL4 `pattern_replace` and `goto` crosscheck will pass.
+- [ ] **FREE-2** — Fix `SM_EXEC_STMT` — WIP one4all `5ea638d3`.
+  Architecture correct: `ExecStmtPat_t` flat table, copy from BB+SM before delete,
+  `stage2_free_bb_only` frees BB, `SM_codegen` emits self-contained blob from table,
+  free table, `stage2_free_sm_bb` frees SM after run. `goto --run` PASSES.
+  **Root cause of remaining segfault:** `bb_build_brokered` bakes `pBB->sval`
+  (BB_PAT_LIT literal string, e.g. 'b') as raw `imm64` into the blob.
+  `BB_lower_pat` sets `nd->sval = t->v.sval` (aliases the AST node string).
+  `ast_tree_free` runs before `exec_stmt_pat_table_build`, so the AST string
+  is freed before `bb_build_brokered` reads it → dangling pointer baked in blob
+  → segfault at runtime when blob dereferences the literal string.
+  **Fix:** In `bb_build_brokered` (or in `BB_lower_pat`), `GC_strdup` every
+  `nd->sval` string before baking the pointer as imm64. One line per BB kind
+  that carries a string. After that fix, `pattern_replace --run` will pass.
+  Then FREE-3 (Prolog `SM_BB_ONCE_PROC`), FREE-4 (SM instrs also freed before run),
+  FREE-5 (ASAN clean).
 
 - [ ] **FREE-3** — Fix `SM_BB_ONCE_PROC` in `sm_jit_interp.c`. `h_bb_once_proc` calls
   `pl_bb_once_proc_by_name` → `bb_graph_of_pred` → freed graph. Fix: add a `case
@@ -395,3 +404,21 @@ sm_jit_run can still read CUR_INS operand strings/integers via CUR_INS->a[0].s e
 
 - [ ] **FREE-5** — ASAN verify: `ASAN_OPTIONS=detect_use_after_free=1` on all smoke gates.
   Zero UAF. Mirrors PJ-12c.
+
+## Watermark (2026-05-25, Claude Sonnet 4.6, session 5)
+
+```
+one4all: HEAD 5ea638d3 (FREE-2 WIP — BROKEN pattern_replace --run)
+.github: HEAD (RULES update + FREE-2 diagnosis)
+Gates: PASS=496 FAIL=17 STUB=602 | smoke_prolog 5/5 | smoke_icon 5/5
+RULES: BB/SM deletion must be 100% complete — zero residue rule added
+FREE-1 ✅ stage2_free_bb_only wired in Mode 3
+FREE-2 🔄 WIP — architecture correct, one bug remaining:
+  bb_build_brokered bakes pBB->sval as raw imm64.
+  sval aliases freed AST string → dangling pointer in blob → segfault.
+  Fix: GC_strdup every nd->sval in bb_build_brokered before baking imm64.
+  goto --run PASSES. pattern_replace --run BROKEN.
+FREE-3..5: not started.
+NEXT: GC_strdup sval strings in bb_build_brokered → pattern_replace passes →
+      FREE-3 SM_BB_ONCE_PROC → FREE-4 SM instrs freed before run → FREE-5 ASAN.
+```
