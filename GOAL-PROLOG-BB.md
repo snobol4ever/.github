@@ -496,20 +496,23 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
   (γ/ω-chain: Cond.γ→Then, Cond.ω→Else; deterministic conditions need no barrier). ⛔ STILL TODO: the proper
   `BB_PL_CUT` cut-barrier via ω rewiring (discard choice-points to parent clause entry) + cut-on-cond commit
   for non-deterministic ITE conditions. Gate: cut smoke case correct; backtracking past a cut stops.
-- [~] **PJ-AGW-6 (partial — compound terms + lists; ⛔ OPEN REGRESSION, NOT committed clean)** — Added
-  `BB_PL_STRUCT` opcode (BB.h); `lower_pl_term` now lowers general compound terms `f(X,a)` AND `TT_MAKELIST`
-  lists `[a,b,c]`/`[X|_]` (cons chain `'.'(H,T)` as nested BB_PL_STRUCT, honoring `v.ival==1` explicit tail);
-  added `pl_node_to_term` helper + `case BB_PL_STRUCT` in bb_exec.c; refactored `BB_UNIFY` and `BB_PL_CALL`
-  arg-binding to use it (handles DT_DATA struct terms). Fixed a var-slot collision: `lower_clause_from_tree`
-  (prolog_lower.c) now numbers bare top-level head-arg vars to their argument position and all nested/body
-  vars above the arity range (was: all from 0 → inner head vars aliased arg slots). RESULTS: smoke_prolog 5/5,
-  GATE-3 rung suite 5→6 (rung03 compound-unify gained; rung08 fib/factorial regression found+fixed via the
-  slot fix), broker 6/0. **⛔ OPEN: crosscheck_prolog 132/0 → 122/10.** The 10 FAILs are `--run vs --interp`
-  on rung23 (arith ext: `**`,`^`,max/min,sign,truncate) + rung29 (float ops): `BB_ARITH` in bb_exec.c is
-  integer-only (no float/power), so float/power arithmetic now diverges. **DO NOT COMMIT CLEAN until BB_ARITH
-  gains float+power handling.** NEXT: (1) fix BB_ARITH float/pow → restore crosscheck_prolog 132/0; (2) PJ-AGW-3
-  (multi-clause BB_CHOICE β-resume) for rung05/06 backtracking (member iterates only 1st solution today).
-  Gate: DCG smoke cases, crosscheck_prolog 132/0.
+- [x] **PJ-AGW-6 ✅ DONE 2026-05-26 (Opus 4.7) `b2c70937`** — compound terms + lists (prior partial) PLUS
+  the arith regression CLOSED. The earlier partial added `BB_PL_STRUCT` (compound terms `f(X,a)` + `TT_MAKELIST`
+  lists, cons chain `'.'(H,T)`), `pl_node_to_term`, and the head-arg var-slot fix (bare head vars keep arg
+  position, nested/body vars above arity) — that took GATE-3 rung suite 5→6 but opened crosscheck_prolog
+  132/0→122/10 because `BB_ARITH` was integer-only AND evaluable functors (pi/e, sqrt/exp/…, `**`/`^`, max/min/gcd,
+  bitwise, truncate/round/floor/ceiling, float_*) fell through lowering into `BB_PL_STRUCT` → garbage doubles in
+  BOTH modes. **FIX = perfect the LOWER + executor:** (1) `lower_pl.c` `pl_is_arith_functor` recognizer routes ALL
+  evaluable functors (arity 0/1/2) into `BB_ARITH` (functor in sval, arity in ival, operands on α/β; no γ-chain
+  among operands — they are walked by the recursive evaluator, not the port-walker). (2) `bb_exec.c` recursive
+  float-aware `pl_arith_eval(BB_t*)` returns type-preserving `DESCR_t` (DT_I/DT_R) per ISO promotion, walks the
+  BB graph (IR not AST — **NOT a Byrd box**: signature is `(BB_t*)` not `(void*,int)`, no port logic; ports stay
+  in the `case BB_ARITH` via `nd->γ`/`nd->ω`). `is`/comparison operands routed through it (resolves bare pi/e atoms
+  + nested arith). New `pl_format_float` (SWI shortest round-trip, always a decimal point). **RESULTS:
+  crosscheck_prolog 122/10→132/0 (regression CLOSED); GATE-3 rung suite 6→15 (+9: rung23 bitwise/max_min/power/
+  sign/truncate + rung29 float_constants/conversion/math/parts/gcd); smoke_prolog 5/5; icon rungs 195; broker 23;
+  snobol4 dual-mode 13/13 — all non-regressive, median-of-3 stable.** Rebased onto upstream `4d498065` (mode-3 JIT
+  real-literal xmm0/rdi calling-convention fix) — coexists cleanly; `--run` float output now byte-matches `--interp`.
 - [ ] **PJ-AGW-6b** — `BB_PAT_ARBNO`/DCG repetition port wiring per table. Gate: DCG smoke cases.
 - [ ] **PJ-AGW-7** — LOWER sweep: `grep -nE 'nd->counter\s*=|nd->c\[|nd->n\b' src/lower/lower_pl.c src/lower/lower_pat_dcg.c src/lower/bb_exec.c` (Prolog kinds) returns nothing; no persistent aux in a reset-cleared slot. Gate: GATE-1 smoke_prolog 5/5 + GATE-3 rung-ladder PASS ≥ prev + the other five smokes.
 
