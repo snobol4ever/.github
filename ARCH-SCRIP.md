@@ -31,6 +31,18 @@ These are the components every mode reaches through:
 
 No mode 2/3/4 code path may walk the AST (`tree_t *` / `STMT_t`).
 
+**No SM/BB walking at runtime in modes 3/4 (RULES.md absolute rule).** Modes 3 (`--run`) and 4
+(`--compile`) execute **native x86 only** at runtime. At runtime they may NOT (a) index the SM array
+by program counter (`g_jit_prog->instrs[STATE->pc]` opcode-dispatch loop / per-opcode `h_*` C handler)
+nor (b) traverse a `BB_t` graph in C (`bb_exec_once` / `bb_exec_resume` / `bb_exec_node` / `bb_broker`).
+Mode 4's emitter walks SM/BB **at emit time** (required and permitted) then frees the graph
+(`stage2_free_bb_after_emit`); the standalone binary holds no graph. The C SM/BB walkers
+(`sm_interp_run`, `bb_exec_*`) belong to **mode 2 (`--interp`) ONLY**. The SB-LINEAR endpoint is
+`sm_emit_linear` → `sm_run_linear` (enter native blob); the legacy `sm_jit_run` trampoline is itself an
+SM-walking loop and is a migration target, not the end state. The single documented temporary exception
+is Prolog `--run` → `sm_interp_run` (AGW-1c), to be removed once `bb_pl_*.cpp` templates land. Runtime
+stub sites in modes 3/4 print `[NO-SM-BB] <opcode>` and set `last_ok=0`.
+
 **Former mode-1 entry points — all deleted (CLI-3M-9, 2026-05-18):**
 
 | Symbol | Former file | Status |
