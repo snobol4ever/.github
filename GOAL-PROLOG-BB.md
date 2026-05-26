@@ -312,3 +312,20 @@ Gate: smoke gates unchanged. Build clean.
 called immediately after SM_codegen returns, before sm_jit_run.
 ASAN verify: zero use-after-free on all smoke gates.
 Gate: smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5, crosscheck_prolog 128/0.
+
+---
+
+## SB-LINEAR watermark (this session)
+
+```
+one4all: 916d61a5
+SB-LINEAR: sm_emit_linear + sm_run_linear landed.
+- Linear emit: iterate SM instrs, emit call-rt_* blobs sequentially into SEG_CODE.
+- Fall-through between instructions. Only SM_JUMP*/SM_HALT emit jmp/ret.
+- Pass 2 relocates jump slots. Seals SEG_CODE. Calls sl_instr_addr[0].
+- SM + BB freed immediately after sm_emit_linear, before sm_run_linear.
+- All rt_* helpers written (arith, pat, return, exec_stmt, call_fn, suspend, etc.)
+- label_blob_map populated during emit; rt_call_fn uses label_blob_lookup.
+- BLOCKED: build broken by pre-existing G-1 bb_exec.c (BB_t->n/c[] removed).
+- NEXT: fix G-1 bb_exec.c to unblock link; run smoke_snobol4 --run gate.
+```
