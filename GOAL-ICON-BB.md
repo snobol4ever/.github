@@ -305,13 +305,13 @@ decls, defined nowhere).
 Do ONE function per step. Each step: confirm callers, delete def + decl, rewire emitter template
 to inline x86 (or confirm kind unreachable), build, gate (smoke 5/5, broker ≥17, rungs ≥153), commit.
 
-- [ ] **G-2a — `rt_alt` (dead extern)** — `bb_alt.cpp` emits `call rt_alt@PLT` but no definition exists. Determine if BB_ALT is emit-reachable. If unreachable: delete the extern + call sites. If reachable: emit inline x86 alt logic (α tries arm0, ω→arm1, β resumes). Remove decl. Gate.
-- [ ] **G-2b — dead `icn_bb_*` decls** — remove the 9 never-defined declarations from `src/runtime/interp/icon_gen.h` + matching `extern` lines in `emit_bb.c`. ALSO 4 dead `icon_box_rt.h` decls found 2026-05-26j: `icon_to_make`, `icon_to_by_make`, `icon_to_tick`, `icon_to_by_tick` (declared, never defined, never referenced). Pure decl scrub, no logic. Gate (build only).
+- [x] **G-2a — `rt_alt` (dead extern)** ✅ `f0f99035` — `rt_alt` defined NOWHERE (latent mode-4 link bug); BB_ALT interp path runs via bb_exec.c:589 ω-chain walk. Removed extern decl from bb_alt.cpp; TEXT+BINARY arms rewired to port-jump (α→γ, β→ω, mirror G-2c bb_binop_gen); inline-x86 n-ary gen flagged mode-4 TODO. Binary bin-table corrected (was 3-fixup on 2-jmp body). smoke 5/5 broker 19 rungs 189.
+- [x] **G-2b — dead `icn_bb_*` decls** ✅ `f0f99035` — removed 8 never-defined decls from `icon_gen.h` (to_nested, upto_subj, to_by, iterate, binop, alternate, limit, cset_compl) + 4 matching dead `extern` lines from `emit_bb.c` (to_by/iterate/alternate/limit) + 4 dead `icon_to_{make,by_make,tick,by_tick}` decls from `icon_box_rt.h`. Pure decl scrub, no logic. smoke 5/5 broker 19 rungs 189. NOTE: emit_bb.c still carries ~36 other never-called `extern DESCR_t icn_bb_*` decls (lines ~20-98) — out of this step's scope; candidate for a future broader scrub.
 - [x] **G-2c — `rt_binop_gen`** ✅ `7d43dc79` — deleted `rt_binop_gen(BB_t*,int)` + IS_GEN macro + icn_binop_apply extern from icon_box_rt.c/.h. bb_binop_gen.cpp TEXT+BINARY arms rewired to port-jump (α→γ, β→ω); inline-x86 cross-product gen flagged mode-4 TODO. smoke 5/5 broker 19 rungs 189. sym gone from binary.
 - [x] **G-2d — `icn_every_box`** ✅ `1101884f` — was an ORPHAN (no callers; F-2 SM_BB_SWITCH approach superseded by bb_exec.c BB_EVERY port path). Deleted fn + `icn_every_bb_state_t`; also fixed a misplaced `#endif` in icon_box_rt.h (struct sat outside the include guard). smoke 5/5 broker 19 rungs 189.
 - [x] **G-2e — `icn_list_bang`** ✅ `3666025a` — deleted fn + `icn_list_bang_state_t` + snobol4.h include. `lower_iterate` (lower.c) was the LAST holdout still emitting SM_BB_SWITCH→C Byrd box; rewrote it to the sibling pattern (`lower_icn_expr_top` + `lower_unhandled`, matching lower_to/lower_to_by/lower_bang_binary) — `!E` now lowers via BB_LIST_BANG port path (lower_icn.c:935). smoke 5/5 broker 19 rungs 189 (bang rungs unaffected — BB path already carried them).
 - [x] **G-2f — `icn_to_by_rt` (+ `_make`/`_make_real`)** ✅ `4da7a6b7` — deleted the four-port fn AND both state ctors (dead once the Byrd box went; nothing else used them). bb_to_by.cpp TEXT arm rewired to port-jump (was still calling icn_to_by_rt@PLT + _make despite H-3 "proof"). **icon_box_rt.c is now an EMPTY TU** (only #include + comment). `icn_to_by_rt_state_t` struct retained in header pending bb_to_by inline-x86 gen. smoke 5/5 broker 19 rungs 189. All 3 syms gone.
-- [ ] **G-2g — sweep** — `grep -rnE "DESCR_t\s+\w+\s*\(\s*(void\s*\*\s*(zeta|ζ|z)|BB_t\s*\*\s*\w+)\s*,\s*int\s+entry\s*\)" src/runtime/interp/icon_box_rt.c` empty ✅ (file is empty TU). DECISION FOR LON: icon_box_rt.c is now empty — either (a) delete the file + its 2 Makefile lines (179, 391), or (b) leave as empty TU. Recommend (a) next session. Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
+- [x] **G-2g — sweep + delete empty TU** ✅ `f0f99035` — grep for four-port `DESCR_t foo(void*|BB_t*,int entry)` in icon_box_rt.c empty (file deleted). Chose option (a): deleted the now-empty `icon_box_rt.c` + both Makefile lines (SRC list + compile recipe). `icon_box_rt.h` retained (`icn_to_by_rt_state_t` pending bb_to_by inline-x86 gen). Clean build, smoke 5/5, broker 19, rungs 189. **G-2 RT-DELETE ladder COMPLETE.**
 
 #### G-3 — Migrate unary BB kinds → operand field ⏳
 ⛔ **SUPERSEDED by Phase H (2026-05-26).** BB.h FORBIDS `operand`/`lhs`/`rhs`. Do NOT add them.
@@ -496,7 +496,29 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, build GREEN, gates GREEN on `4da7a6b7`) — Phase H + RT-DELETE.
+## Active next targets (2026-05-26, build GREEN, gates GREEN on `f0f99035`) — Phase H is next.
+
+Sess 2026-05-26k (Opus 4.7, with Lon): **G-2 RT-DELETE ladder CLOSED** — finished the decl-scrub
+tail (G-2a/G-2b/G-2g) in one commit `f0f99035` (rebased onto upstream `38e66809`, no conflict).
+G-2a: `rt_alt` was a dead extern (declared in bb_alt.cpp, `call rt_alt@PLT` in the mode-4 TEXT arm,
+DEFINED NOWHERE — a latent mode-4 link bug); BB_ALT's real interp path is bb_exec.c:589 (ω-chain
+walk), so nothing executed it. Removed the extern + rewired TEXT/BINARY arms to port-jump (α→γ,
+β→ω; inline-x86 n-ary gen = mode-4 TODO), mirroring G-2c. Also corrected a stale BINARY bin-table
+(3 fixups on a 2-jmp body → 2 fixups). G-2b: removed 8 never-defined `icn_bb_*` decls from
+icon_gen.h + 4 matching dead externs from emit_bb.c + 4 dead `icon_to_*` decls from icon_box_rt.h.
+G-2g: `icon_box_rt.c` was empty (all four Byrd boxes gone by G-2f) → deleted file + 2 Makefile
+lines (chose option (a)); icon_box_rt.h kept for `icn_to_by_rt_state_t`. GATES green throughout:
+smoke 5/5, broker 19 (×3 stable), rungs 189 — all unchanged from `8078211f` baseline.
+⚠ OBSERVED (out of scope, NOT done): emit_bb.c still carries ~36 other never-called
+`extern DESCR_t icn_bb_*` decls (lines ~20-98, e.g. icn_bb_every/not/while_gen/case_gen/intlit/...);
+all undefined, all dead. A future broad scrub candidate — left untouched to keep G-2b's diff tight.
+Also still noted from prior sessions: `SCRIP_NO_AST_WALK=1` prefix in icon_bb_probes.sh +
+test_prolog_bb_honest.sh is a dead no-op (the real tripwire is the always-on NO_AST_WALK_GUARD
+macro) — ~5 min cleanup, not yet done.
+**NEXT: H-1** — full inherited-γ/ω threading in the lowerer (`lower_icn_expr_node` 4-attribute
+signature) for nested non-leaf IF/generators; then H-2..H-5. The G-2 ladder no longer blocks it.
+
+### (prior) 2026-05-26j watermark below
 
 Sess 2026-05-26j (Opus, with Lon — RT-DELETE ladder): per Lon directive "remove all RT functions
 that handle 4-port logic; string-conversion/value RT helpers STAY." Audited the Icon RT path and
