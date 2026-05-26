@@ -514,6 +514,35 @@ struct via GC and stash its pointer in counter, freeing the other slots. (b) is 
 answer and matches JCON's per-construct state records. Recommend (b) next session.
 [one4all HEAD this checkpoint: 309274c2]
 
+Sess 2026-05-26d (Opus, EMERGENCY HANDOFF — BUILD RED at emit_sm.c only): full c[]/n/opaque/
+ival2/sval2 eradication across the INTERPRETER path. DESIGN RESOLVED with Lon: BB_t needs NO new
+fields. Three runtime slots (value/counter/state) + option-(b) GC aux-struct (pointer stashed in
+counter, intptr cast) covers every kind; matches JCON per-construct state records. New aux structs
+in BB.h: bb_arbno_state_t, bb_pl_seq_state_t, bb_pl_choice_state_t, bb_pl_call_state_t.
+DONE (compiles clean): (1) ALL Icon kinds in bb_exec.c — LIMIT(c0/c1→α/β, max re-read from
+β->value), ALT(walk ω-chain from α), CSET_*/GEN_SCAN/SIZE/IDX/SECTION/FIELD_GET/SET/IDX_SET
+(α/β/γ per lower_icn wiring), LIST_BANG/KEY_GEN(re-read α->value, no opaque), SEQ_GEN(step
+re-read from β->value), CASE(walk γ-chain sel→key→val), TO(α/β dyn or ival/dval static, no ival2),
+UPTO(hay=scan_subj not sval2), ITERATE(α->value), FIND_GEN(option-b find_gen_state_t+pos in
+counter), PROC_GEN(counter, matches lower_icn:95), GEN_ALT/GEN_BINOP/TO_NESTED(counter),
+PAT_POS/PAT_TAB(from-end flag n→sval "r"), PAT_ARBNO(bb_arbno_state_t in counter). (2) ALL Prolog
+kinds — PL_SEQ/CHOICE/PL_CALL/PL_ALT/PL_VAR + ARITH/UNIFY/BUILTIN slot reads (ival2→ival). Field
+semantics STANDARDIZED: PL_VAR slot + PL_CALL arity → ival; is_relop derived in icn_binop_apply.
+(3) lower_pl.c — both SEQ builders (lower_pl_seq γ-chain REVERTED to goal-array aux; clause_body
+seq->c/n→aux), lower_pl_predicate (BB_CHOICE bodies→bb_pl_choice_state_t), PL_CALL N-arg vector
+(was only α/β = real >2-arg bug, now full args[] in aux). +#include <gc/gc.h>. (4) rt.c — rt_pl_b_node/
+sub_node (per-kind aux alloc), rt_pl_b_kids/sub_kids (route to aux goals/args or α/β), rt_pl_b_set_
+opaque (append to BB_CHOICE.bodies[]). (5) lower_pat_dcg.c (ARBNO aux x2, POS/TAB sval flag). (6)
+lower_icn.c TT_AUGOP (dropped dead binop->c calloc; BB_ASSIGN α/β not c/n).
+⛔ REMAINING — emit_sm.c (Mode-4 Prolog serializer) ONLY. Helpers ADDED (pl_node_kids, pl_node_
+ival2, pl_node_choice_body0) but NOT yet wired into the 4 read sites (~322/378/388/445 etc). NOT
+mechanical: old serializer used per-BB_SUCCEED opaque clause carriers (one body each); new
+bb_pl_choice_state_t holds ALL clause bodies in ONE BB_CHOICE node — the XA_PL_SUB_BUILDER loop
+must be reshaped to iterate bb_pl_choice_state_t.bodies[] instead of scanning for BB_SUCCEED+opaque.
+Then: full build → smoke 5/5, broker ≥17, rungs ≥153 → commit. NOTHING committed this session
+beyond this handoff. BB_t struct is FINAL — do not add fields.
+[one4all working tree this handoff: based on 309274c2, uncommitted interp-path migration]
+
 
 Sess 2026-05-11h (Claude Sonnet 4.6): rung14 limit-in-generator ✅ `554aa38f`:
 lower_limit_every: two SM gen slots (slot_inner=alternate coroutine, slot_limit=limit wrapper).
