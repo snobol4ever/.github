@@ -285,23 +285,20 @@ NOTE: full build still blocked by remaining ~328 c[]/n hits in bb_exec.c (other 
 - [ ] Gate: smoke 5/5, broker ≥17.
 
 #### G-3 — Migrate unary BB kinds → operand field ⏳
-Replace `nd->c[0] = inner` / `nd->c[0]` with `nd->operand` in both `lower_icn.c` (builder) and `bb_exec.c` (executor) for each kind.
-
-Kinds: `BB_SIZE`, `BB_NOT`, `BB_NONNULL`, `BB_NULL_TEST`, `BB_RANDOM`, `BB_NEG`, `BB_POS`, `BB_CSET_COMPL`, `BB_CALL` (inner expr), `BB_RETURN` (retval), `BB_REPEAT` (body), `BB_INITIAL` (body), `BB_KEY_GEN` (table expr).
-
-- [ ] Migrate all — builder + executor together per kind.
-- [ ] Gate: smoke 5/5, rungs PASS≥153.
+⛔ **SUPERSEDED by Phase H (2026-05-26).** BB.h FORBIDS `operand`/`lhs`/`rhs`. Do NOT add them.
+Unary kinds get their operand wired into the **α port** (operand box); result read UP from `α->value`.
+Per-kind wiring spec = the matching `ir_a_<Construct>` in irgen.icn. Kinds below still need migrating
+(into ports, not fields): `BB_SIZE`, `BB_NOT`, `BB_NONNULL`, `BB_NULL_TEST`, `BB_RANDOM`, `BB_NEG`,
+`BB_POS`, `BB_CSET_COMPL`, `BB_CALL` (inner expr), `BB_RETURN`, `BB_REPEAT`, `BB_INITIAL`, `BB_KEY_GEN`.
+- [ ] Migrate all via α-port (builder + executor per kind). See H-3.
 
 #### G-4 — Migrate binary BB kinds → lhs/rhs fields ⏳
-Replace `nd->c[0]=lhs; nd->c[1]=rhs` with `nd->lhs = lhs; nd->rhs = rhs` in `lower_icn.c` + `bb_exec.c`.
-
-- [ ] G-4a: `BB_ASSIGN`, `BB_SWAP`, `BB_IDENTICAL`
-- [ ] G-4b: `BB_IDX`, `BB_FIELD_GET`, `BB_FIELD_SET`
-- [ ] G-4c: `BB_CSET_UNION`, `BB_CSET_DIFF`, `BB_CSET_INTER`, `BB_GEN_SCAN`
-- [ ] G-4d: `BB_LIMIT`, `BB_EVERY`, `BB_WHILE`, `BB_UNTIL`
-- [ ] G-4e: `BB_BINOP` — fix augop path in `lower_icn.c` (TT_AUGOP still writes `binop->c[]`). `binop->lhs = lhs; binop->rhs = rhs; asgn->lhs = lhs2; asgn->rhs = binop`.
-- [ ] G-4 special — `BB_IF`: cond → `nd->operand`; then/else → `nd->γ = then_nd; nd->ω = else_nd`.
-- [ ] G-4 special — `BB_IDX_SET`, `BB_SECTION` (3 operands): `nd->lhs = base; nd->rhs = idx_or_i1; nd->operand = rhs_or_i2`.
+⛔ **SUPERSEDED by Phase H (2026-05-26).** No `lhs`/`rhs` fields — wire operands into **α/β ports**
+(2-operand) or **γ-chains** (3+ operands, e.g. IDX_SET/SECTION). Read results UP from `α->value`/
+`β->value`. BB_IF: cond→α, then→γ, else→ω. Kinds still to migrate (into ports): `BB_ASSIGN`, `BB_SWAP`,
+`BB_IDENTICAL`, `BB_IDX`, `BB_FIELD_GET/SET`, `BB_CSET_UNION/DIFF/INTER`, `BB_GEN_SCAN`, `BB_LIMIT`,
+`BB_EVERY`, `BB_WHILE`, `BB_UNTIL`, `BB_BINOP` (incl. TT_AUGOP path), `BB_IF`, `BB_IDX_SET`, `BB_SECTION`.
+- [ ] Migrate all via α/β + γ-chain. Per-kind spec = irgen.icn `ir_a_*`. See H-3/H-4.
 - [ ] Gate: smoke 5/5, **rungs PASS≥169** (regression from F-6d augop recovers here).
 
 #### G-5 — Migrate Prolog BB kinds ⏳
@@ -318,18 +315,22 @@ Replace `nd->c[0]=lhs; nd->c[1]=rhs` with `nd->lhs = lhs; nd->rhs = rhs` in `low
 - [ ] `src/emitter/emit_core.c`: `bb_walk_rec` `nd->c[i]` → walk lhs/rhs/operand/γ/ω.
 - [ ] Gate: smoke 5/5, broker ≥17, rungs ≥169.
 
-#### G-7 — Delete c[]/n from BB_t struct ⏳
+#### G-7 — Verify zero c[]/n references; finalize ⏳
+⚠ **CORRECTION (2026-05-26): `c` and `n` are ALREADY GONE from `struct BB_t`** (removed in
+`e099fdae`; that is WHY the build is broken). There is nothing to delete from the struct or from
+`BB_node_alloc` (no `c`/`n` init exists). G-7's only remaining task is verifying zero REFERENCES
+remain after Phase H migrates them. Reference ledger as of `72a30688`: bb_exec.c ~312, emit_bb.c 27,
+emit_sm.c 20, lower_icn.c 4 (2 = the H-2 seq->c/seq->n), lower_pl.c 4. emit_core.c/scrip_ir.c clean.
 Verify zero remaining offences:
 ```bash
-grep -rn "nd->c\[\|pBB->c\[" \
+grep -rnE "(nd|pBB|gen|seq|binop|asgn|e)->(c\[|n\b)" \
   src/lower/bb_exec.c src/lower/lower_icn.c src/lower/lower_pl.c \
   src/emitter/emit_bb.c src/emitter/emit_sm.c src/emitter/emit_core.c \
   src/emitter/BB_templates/ src/runtime/interp/icon_box_rt.c src/lower/scrip_ir.c
-# Must be empty
+# Must be empty (cfg->n / graph->n on BB_graph_t are legit and excluded)
 ```
-- [ ] Remove `BB_t **c; int n;` from `struct BB_t` in `BB.h`.
+- [ ] Confirm grep empty after H-1..H-6 + G-6 (emitter).
 - [ ] Remove DEPRECATED comments from G-1.
-- [ ] Remove any `c`/`n` init from `BB_node_alloc`.
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥169.
 
 #### G-8 — Fix scrip_ir.c debug printer ⏳
