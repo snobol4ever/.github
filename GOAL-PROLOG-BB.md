@@ -6,24 +6,46 @@
 
 ---
 
-## ⛔⛔ TOP PRIORITY — SB-LINEAR Mode 3 (`--run`) SNOBOL4 FIRST, then back to Prolog ⛔⛔
+## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER: proper LOWER + proper EMITTER ⛔⛔
 
-**Honesty note (2026-05-26, Opus):** prior notes claimed Mode 3 was "complete" / "wired".
-It was NOT. `--run` actually crashed `define` (stack-underflow abort) and mis-ran `pattern`.
-Mode 3 status is now tracked ONLY by a reproducible gate — no "done" without green numbers below.
+**Order of work (2026-05-26, Lon):** drive the Prolog **rung ladder** up via the two principled
+paths, in this order:
 
-**Order of work:** finish SNOBOL4 Mode 3 (`--run`) to 6/6 smoke FIRST. Only then resume Prolog
-Mode 3 (`SM_BB_ONCE_PROC` lookup miss → `[NO-AST]` stub; `:- initialization(main)` runs empty).
+1. **Proper LOWER** — `PJ-AG-WIRE` (PJ-AGW-1..7): Attribute-Grammar lowering of the Prolog AST into
+   a properly 4-port-wired `BB_t` graph (γ/ω inherited DOWN, α/β synthesized UP). This is the
+   principled fix for smoke_prolog 0/5 (the `counter`-overload aliasing) and restores Mode-2
+   `--interp` rungs *by construction*. See the `## ⛔ Step PJ-AG-WIRE` section below.
+2. **Proper EMITTER** — Mode-4 (`--compile --target=x86`) emit of the AG-wired BB graph for each
+   Prolog rung: emit the four-port boxes as inline x86 (no C Byrd boxes; RULES.md), close the
+   PJ-9e multi-clause registry gap, and bring each rung's Mode-4 output to parity with Mode 2/3.
 
-### SB-LINEAR honest gate (run EVERY time; this is the source of truth)
+**The rung ladder is the source of truth for both.** A rung is "up" only when it passes through the
+proper LOWER path (Mode 2 AG-wired ports) AND, when EMITTER work reaches it, Mode 4 agrees.
+Track every rung honestly via the aggregate gate (GATE-3 below); no "done" without green numbers.
+
+### ⏸ DEFERRED — SNOBOL4 Mode-4 benchmark work (do later)
+The SNOBOL4 Mode-4 emitter + benchmark steps — `SBL-M4-ASM` ✅, `SBL-M4-OPDISPATCH` ✅, `SBL-BENCH`,
+`SBL-BENCH-ALL`, and the `m2=m3=m4` benchmark-equivalence push — are **paused** in favor of the
+Prolog rung ladder above. The already-landed SNOBOL4 dual-mode smoke gate (13/13) stays a permanent
+non-regression gate, but no NEW SNOBOL4 Mode-4 / benchmark work this session. Resume after the
+Prolog rung ladder is up through proper LOWER + EMITTER.
+
+### Prolog rung honest gate (run EVERY time; this is the source of truth)
 ```
-# SNOBOL4 --run smoke (6 cases): output, concat, arith, pattern, goto_s, define
-# reproduce each case from scripts/test_smoke_snobol4.sh but with mode "--run"
 cd /home/claude/one4all && bash scripts/build_scrip.sh   # needs libgc-dev (apt-get install libgc-dev)
-# then run the 6 smoke bodies through:  ./scrip --run FILE
+bash scripts/test_smoke_prolog.sh        # GATE-1 — 5/5 target (currently 0/5: counter-aliasing)
+bash scripts/test_prolog_rung_suite.sh   # GATE-3 — aggregate rung-ladder count, PASS >= prev
+                                         #   (aggregate runner: build it if absent, mirror
+                                         #    scripts/test_icon_all_rungs.sh; walk corpus
+                                         #    /home/claude/corpus/programs/prolog/rung*)
 ```
 
-### SB-LINEAR steps (do top-down)
+### SB-LINEAR steps (do top-down) — ⏸ SECTION DEFERRED (SNOBOL4 Mode-4/bench; see TOP PRIORITY)
+
+> ⏸ **This section is the deferred SNOBOL4 work.** Completed rows (✅) remain accurate history and
+> their gates stay non-regressive, but the OPEN SNOBOL4 Mode-4 / benchmark rows below
+> (`SBL-BENCH`, `SBL-BENCH-ALL`, and any remaining `SBL-M4-*` follow-ups) are **paused** in favor
+> of the Prolog RUNG LADDER (proper LOWER `PJ-AG-WIRE` + proper EMITTER). Resume after the ladder is up.
 
 | Step | Description | Status |
 |---|---|---|
@@ -346,8 +368,93 @@ nd->c[i]     = BB_SUCCEED node; nd->c[i]->opaque = BB_graph_t* clause body
 
 **Done when:** `grep -rn "SM_BB_PUMP_PROC\|SM_BB_PUMP_SM\|SM_BB_PUMP_CASE" src/` = comments/tombstones only; SM_BB_SWITCH intact and still the BB-dispatch path; build GREEN (scrip + libscrip_rt); smoke gates: snobol4 13/13, snocone 5/5, rebus 4/4, raku 5/5 non-regressive (icon may drop — note honestly, accepted); Mode-4 broad 126/26 unchanged.
 
+---
+
+## ⛔ Step PJ-AG-WIRE — Attribute-Grammar lowering: AST → properly 4-port-wired BB graph
+
+**This is the Prolog mirror of GOAL-ICON-BB Phase H (the Attribute Grammar, decided with Lon 2026-05-26) — DO EXACTLY WHAT ICON DOES; it is correct.** Read GOAL-ICON-BB.md §"Phase H — The Attribute Grammar" + §"GOLDEN BB RULE" + the G-2/RT-DELETE ladder in full first. The AG is identical; only the port *semantics* differ per the language-A/language-B rule in this file's Invariants. The goal: every Prolog AST node is lowered into a `BB_t` whose four ports are wired by a single attribute-grammar traversal (proper LOWER), then walked by the emitter's port-DFS and emitted as inline x86 via per-kind `BB_templates/bb_*.cpp` templates (proper EMITTER) — exactly Icon's two-path structure.
+
+**Mimic Icon precisely on all four points:**
+
+1. **AG threading (LOWER).** `lower_pl` takes the 4-attribute form `lower(cfg, tree, γ_in, ω_in, &α_out, &β_out)`: γ/ω inherited DOWN, α/β synthesized UP. This is the literal "STRUCTURAL GAP" Icon's G-1 names (GOAL-ICON-BB.md:165-174) — field renaming alone is not enough; the lowerer must thread continuations into every node it creates.
+
+2. **GOLDEN BB RULE — no new fields, and the aux-storage discipline (THE bug fix).** `BB_t` is the IR for all modes; it has ONLY `sval`/`ival`/`dval` (compile-time payload, **survives `bb_reset`**) + `value`/`counter`/`state` (runtime-mutable, **zeroed by `bb_reset`** — confirmed scrip_ir.c:63-65). The smoke 0/5 bug was storing PERSISTENT compile-time aux (goal/clause/arg vectors) in `counter`, which `bb_reset` wipes. **Icon's own resolution is the model:** BB_INITIAL moved its has-run flag from a runtime slot to `ival` *"since ival is IR payload that survives bb_reset, unlike state"* (GOAL-ICON-BB.md:645). So: control flow → ports (no aux at all for SEQ/CHOICE once they are γ/ω-chains); any genuinely-needed persistent pointer (e.g. a per-construct state record, JCON-style) → **bit-cast into `ival`/`dval`** (the reset-surviving payload, option (A) of the HANDOFF), NEVER `counter`. Transient per-activation state (trail mark, current-clause cursor) MAY live in `counter`/`state` because it is *meant* to reset. This split — persistent-in-payload, transient-in-runtime — is what removes the aliasing by construction.
+
+3. **Gold per-construct reference.** Icon transliterates each kind's port wiring from JCON `irgen.icn`'s `ir_a_<Construct>` proc (the absolute rule at GOAL-ICON-BB.md:42-55). Prolog has no JCON; the per-construct spec is the standard Byrd-box / WAM control semantics, encoded in the wiring table below. Treat that table the way Icon treats `ir_a_*`: it is the authority for which port fires when.
+
+4. **Emitter templates (EMITTER).** Mirror Icon's emit path: the emitter follows `α/β/γ/ω` depth-first (Icon's `walk_bb_port`, GOAL-ICON-BB.md:488-489), and each Prolog BB kind emits inline x86 from its `src/emitter/BB_templates/bb_pl_*.cpp` template — **NO C Byrd box, NO new `rt_*` port helper** (RULES.md line 1; this goal's INVARIANT 9; the G-2 RT-DELETE ladder Icon just completed for `rt_binop_gen`/`icn_every_box`/`icn_list_bang`/`icn_to_by_rt`). Port logic translates the matching `bb_exec.c` case into TEXT/BINARY x86 arms with a `bb_bin_t` reloc table (the pattern SBL-PAT-PRIM established for SNOBOL4). Permitted external calls are only the side-effect-free conversion/effect helpers (`trail_mark`, `unify`, `term_*`, `prolog_atom_intern`, the KEEP list in PJ-RT-PURGE) — never a four-port dispatcher.
+
+**The four attributes (identical to Phase H; Prolog port meanings):**
+
+| Port | AG kind | Direction | Prolog meaning |
+|------|---------|-----------|----------------|
+| **γ** (gamma) | **inherited** | DOWN | continuation on SUCCESS — the next goal / clause-success exit |
+| **ω** (omega) | **inherited** | DOWN | continuation on FAILURE — pop choice-point + unwind trail to the predecessor's β |
+| **α** (alpha) | **synthesized** | UP | this node's FRESH-solve entry |
+| **β** (beta) | **synthesized** | UP | this node's REDO (retry / next-solution) entry |
+
+Lowering signature (mirror H-1): `lower_pl(cfg, tree, γ_in, ω_in, BB_t **α_out, BB_t **β_out)`. γ/ω handed down; α/β written back up. Door (fresh vs redo) lives in the **target node's `state`** field, stamped by the transferer before control passes — exactly as bb_exec.c already does (`X->state=0` fresh / `X->state=1` redo). One pointer per port; a pointer names the BOX, the door selector lives in the target's `state`. No label IR.
+
+**Per-construct wiring spec — the Prolog control constructs and how each threads γ/ω and synthesizes α/β:**
+
+| Construct (BB kind) | α (fresh) | β (redo) | γ wiring (success) | ω wiring (failure) |
+|---|---|---|---|---|
+| `BB_PL_SEQ` (conjunction `a, b, c`) | first goal's α | — (redo enters via last failing goal's β) | `goal[i].γ = goal[i+1].α`; last goal `.γ = γ_in` | `goal[i].ω = goal[i-1].β` (fail → redo the goal to the LEFT); first goal `.ω = ω_in` |
+| `BB_CHOICE` (clause alternatives / `;`) | first alternative's α | next untried alternative's α | each alt `.γ = γ_in` (a solution flows out) | alt[i] `.ω = alt[i+1].α` via β-resume; last alt `.ω = ω_in` (all clauses exhausted) |
+| `BB_PL_CALL` (predicate call) | callee entry (callee's α) | callee's β (next solution of callee) | callee success → `γ_in` | callee exhausted → `ω_in` |
+| `BB_PL_UNIFY` | self (leaf) | — | bind/match → `γ_in` (trail via whitelisted `trail_mark`/`unify`) | mismatch → `ω_in` |
+| `BB_PL_CUT` | self | — | `γ_in` (commit) | sets cut barrier: discard choice-points up to the parent clause entry, then `ω_in` |
+| `BB_PAT_ARBNO` / DCG repetition | body's α | body's β (next length) | body success → `γ_in` | body exhausted → `ω_in` |
+| leaf (`BB_PL_ATOM`, `BB_PL_VAR`, arith/builtin) | self | — | `γ_in` | `ω_in` |
+
+These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for Icon, with Prolog's backtracking ports substituted: where Icon's ω advances a generator counter, Prolog's ω pops a choice-point and unwinds the trail (Invariant: never invoke language-A's bridge handler with language-B's BB object).
+
+**Sub-steps — DO ONE AT A TIME, each its own commit, gates green between each. LOWER first (AGW-1..7), then EMITTER (AGW-8..10).**
+
+### Proper LOWER (AG threading)
+- [x] **PJ-AGW-1** — `lower_pl` aux-discipline: persistent Prolog aux pointers migrated `counter→ival` (survives `bb_reset`, option A per Icon's BB_INITIAL precedent). **DONE 2026-05-26 (Opus 4.7).** All three structs (`bb_pl_seq_state_t`/`bb_pl_call_state_t`/`bb_pl_choice_state_t`) across every writer+reader: `lower_pl.c` (4), `bb_exec.c` (5), `emit_sm.c` (6), `rt.c` Mode-4 builder+sub-builder. Arity recovered from `zc->arity`. This removes the `bb_reset`-wipes-aux hazard permanently. NOTE: the full 4-attribute `lower(cfg,tree,γ,ω,&α,&β)` signature rewrite (γ/ω-chains replacing SEQ/CHOICE aux entirely) is still the larger AGW-2..7 work; this step did the aux-storage half that unblocks execution.
+- [x] **PJ-AGW-1b** — Restore Prolog program-entry dispatch via the sanctioned `SM_BB_SWITCH` opcode (PJ-DEL-ONCEPROC had tombstoned `SM_BB_ONCE_PROC` with no replacement → initialization lowered to nothing). **DONE 2026-05-26 (Opus 4.7).** `lower.c` initialization directive now emits `SM_BB_SWITCH` with `a[0].s="name/arity"` key, `a[1].i=arity`, `a[2].i=SM_BBSW_PL_ENTRY` (new tag, SM.h). Mode-2 `sm_interp.c` `SM_BB_SWITCH` handler honors the tag: resolves the predicate at runtime via `pl_bb_once_proc_by_name`→`pl_bb_dcg`→`bb_exec_once`, pushing/popping `pl_bb_env` — exactly the deleted `SM_BB_ONCE_PROC` logic folded into the one kept BB-dispatch opcode. **GATES: smoke_prolog 0/5→5/5 ✅, unified_broker 18→23, icon_all_rungs 189 (baseline, no regression), icon 5/5, snocone 5/5, rebus 4/4, raku 5/5, snobol4 13/13** — all green. crosscheck_prolog 126/6: the 6 FAILs are all `jit-run vs ir-run` (Mode 3 lags Mode 2, which now works) — NOT a regression (both modes previously produced empty/agreed; Mode 2 advanced past Mode 3). → PJ-AGW-1c.
+- [ ] **PJ-AGW-1c** — Mirror the `SM_BBSW_PL_ENTRY` entry dispatch into Mode 3 (`--run`, `sm_jit_interp.c`), whose `SM_BB_SWITCH` is currently `g_handlers[...]=NULL` "not yet wired" (line 1269) and sits in the unhandled-case group (line 2089). Until then crosscheck_prolog shows 6 `jit-run vs ir-run` FAILs (hello/backtrack/arith/recursion/rung01/rung02). Gate: crosscheck_prolog back to FAIL=0; smoke_prolog 5/5 unchanged.
+- [ ] **PJ-AGW-1d (was PJ-AGW-1's signature half)** — Extend `lower_pl` to the full 4-attribute signature `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)` (mirror H-1). Leaf nodes set `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`. This is the prerequisite for the γ/ω-chain SEQ/CHOICE rewrites (AGW-2/3) that eliminate the aux structs altogether. Gate: clean build, no behaviour change.
+- [ ] **PJ-AGW-2** — `BB_PL_SEQ` (conjunction): replace the goal-vector-in-`counter` representation with the γ/ω-chain per the table above (mirror H-2's BB_SEQ γ-chain, but Prolog ω points LEFT to the predecessor's β, not forward — conjunction backtracks). Delete the `if (!sq) return nd->ω;` guard and the `bb_pl_seq_state_t` aux. bb_exec.c `BB_PL_SEQ` case: walk via ports, not the stashed vector. Gate: smoke_prolog conjunction case executes; broker non-regressive.
+- [ ] **PJ-AGW-3** — `BB_CHOICE` (clause alternatives): wire alternatives as a β-resume chain per the table; the per-clause `IR_block_t*` bodies that `lower_pl.c:147` currently stashes in the `IR_SUCCEED` wrapper's `opaque` become real CHOICE alternatives reachable through ports (this also closes the PJ-9e Mode-4 multi-clause gap — the sub-cfgs are now in the port graph, so the emitter port-walk reaches them naturally). Gate: smoke_prolog clause/recursion multi-clause cases pass; crosscheck_prolog non-regressive.
+- [ ] **PJ-AGW-4** — `BB_PL_CALL`: synthesize α=callee entry, β=callee redo; thread γ_in/ω_in through. Recursion becomes a normal port traversal; the active-cfg-stack snapshot/restore hack from HANDOFF Attempt 3 is unnecessary once call activation lives in trail + transient `counter`/`state` (which `bb_reset` is *meant* to clear) rather than aliased persistent aux. Gate: smoke_prolog recursion + deep-recursion (rung10) stable across ≥5 runs.
+- [ ] **PJ-AGW-5** — `BB_PL_CUT` cut-barrier via ω rewiring (discard choice-points to parent clause entry). Gate: cut smoke case correct; backtracking past a cut stops.
+- [ ] **PJ-AGW-6** — `BB_PL_UNIFY` + `BB_PAT_ARBNO`/DCG repetition port wiring per table. Gate: DCG smoke cases.
+- [ ] **PJ-AGW-7** — LOWER sweep: `grep -nE 'nd->counter\s*=|nd->c\[|nd->n\b' src/lower/lower_pl.c src/lower/lower_pat_dcg.c src/lower/bb_exec.c` (Prolog kinds) returns nothing; no persistent aux in a reset-cleared slot. Gate: GATE-1 smoke_prolog 5/5 + GATE-3 rung-ladder PASS ≥ prev + the other five smokes.
+
+### Proper EMITTER (Mode-4 x86 templates over the AG-wired graph)
+- [ ] **PJ-AGW-8** — Emitter port-DFS for Prolog: confirm/extend the emitter's `walk_bb_port` (α/β/γ/ω depth-first, mirror GOAL-ICON-BB.md:488-489) covers the Prolog BB kinds, so Mode-4 serialization follows the same wired graph the interpreter executes (no separate Mode-4 representation). Gate: `--compile --target=x86` emits a port-walk for a single-clause predicate; assembles+links+runs (use `scripts/run_prolog_via_x86_backend.sh`).
+- [ ] **PJ-AGW-9** — Per-kind `bb_pl_*.cpp` inline-x86 templates: for each Prolog four-port kind (`bb_pl_seq`, `bb_choice`/clause-alt, `bb_pl_call`, `bb_pl_unify`, `bb_pl_cut`, `bb_pat_arbno`), translate the matching `bb_exec.c` case into TEXT+BINARY x86 arms with a `bb_bin_t` reloc table (offsets for the port rel32 sites + β-define), emitting via `bb_emit_asm_result` (the SBL-PAT-PRIM pattern). NO C Byrd box, NO new `rt_*` port helper — only the KEEP conversion/effect helpers. One kind per commit; gate each.
+- [ ] **PJ-AGW-10** — EMITTER sweep + parity: every Prolog rung that passes the proper-LOWER path (Mode 2) also produces byte-identical output in Mode 4 (`--compile --target=x86`); `grep -rnE "DESCR_t\s+\w+\s*\(\s*(void\s*\*\s*(zeta|ζ|z))\s*,\s*int\s+entry\s*\)" src/runtime/rt/ src/emitter/BB_templates/` shows no Prolog four-port C Byrd box. Gate: GATE-1..4 green; Mode-4 Prolog rung count ≥ Mode-2 rung count.
+
+**Done when (both halves):** **LOWER** — Prolog `--interp` (Mode 2) executes via the 4-port BB graph with NO persistent aux in a reset-cleared slot (persistent pointers bit-cast into `ival`/`dval`; only transient state in `counter`/`state`); **smoke_prolog 5/5** restored *by construction*; `bb_exec.c` Prolog cases dispatch purely on ports. **EMITTER** — the emitter port-DFS walks the same graph; each Prolog four-port kind emits inline x86 from its `bb_pl_*.cpp` template with a `bb_bin_t` reloc table; ZERO Prolog four-port C Byrd box or new `rt_*` port helper remains (RULES.md / INVARIANT 9 / Icon's G-2 RT-DELETE precedent); every Mode-2-passing rung is byte-identical in Mode 4. **Gates:** GATE-1..4 green; crosscheck_prolog non-regressive; the other five smoke gates (snobol4 13/13, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5) non-regressive. This supersedes the option-(b) `counter`-overload representation and resolves the HANDOFF decision in favor of option (A) (bit-cast persistent aux into payload), matching Icon's BB_INITIAL precedent.
+
 ## Watermark
 
+```
+=== 2026-05-26 Opus 4.7 — PJ-AGW-1 ✅ + PJ-AGW-1b ✅ — smoke_prolog 0/5 → 5/5 ===
+one4all: c6e0d8c7 — BUILD GREEN (rebased over f0f99035 GOAL-ICON-BB G-2a/b/g; build+smoke re-verified green)
+.github: (this session) — GOAL top priority = Prolog rung ladder (LOWER+EMITTER); SNOBOL4 M4/bench DEFERRED;
+  PJ-AG-WIRE step authored (AGW-1..10) mirroring GOAL-ICON-BB Phase H; AGW-1/1b marked done.
+PJ-AGW-1 ✅: persistent Prolog aux ptrs migrated counter→ival (survives bb_reset; option A, Icon
+  BB_INITIAL precedent). 3 structs × all sites: lower_pl.c(4) bb_exec.c(5) emit_sm.c(6) rt.c builder
+  +sub-builder. Arity recovered from zc->arity. Removes the bb_reset-wipes-aux hazard permanently.
+PJ-AGW-1b ✅: program-entry dispatch restored via the SANCTIONED SM_BB_SWITCH (PJ-DEL-ONCEPROC had
+  tombstoned SM_BB_ONCE_PROC with NO replacement → :- initialization(main) lowered to nothing →
+  BB_PL_SEQ never reached). New a[2].i=SM_BBSW_PL_ENTRY tag (SM.h); lower.c emits SM_BB_SWITCH with
+  "name/arity" key; sm_interp.c (Mode 2) handler resolves at runtime via pl_bb_once_proc_by_name →
+  pl_bb_dcg → bb_exec_once (old SM_BB_ONCE_PROC logic folded into the one kept BB-dispatch opcode).
+GATES: smoke_prolog 0/5→5/5 ✅; unified_broker 18→23; icon_all_rungs 189 (baseline, no regression);
+  icon 5/5, snocone 5/5, rebus 4/4, raku 5/5, snobol4 13/13 — all green.
+crosscheck_prolog 126/6: the 6 FAILs are all jit-run vs ir-run (Mode 3 lags now-working Mode 2) —
+  NOT a regression (both modes previously empty/agreed; Mode 2 advanced). → PJ-AGW-1c.
+Files: src/include/SM.h, src/lower/lower.c, src/lower/lower_pl.c, src/lower/bb_exec.c,
+  src/emitter/emit_sm.c, src/runtime/rt/rt.c, src/processor/sm_interp.c.
+NEXT: PJ-AGW-1c (mirror SM_BBSW_PL_ENTRY into Mode 3 sm_jit_interp.c → crosscheck FAIL=0), then
+  PJ-AGW-1d (full 4-attr lower_pl signature) → AGW-2/3 γ/ω-chain SEQ/CHOICE → EMITTER AGW-8..10.
+
+=== prior watermark below ===
 ```
 === 2026-05-26 Opus 4.7 — PJ-DEL-ONCEPROC ✅ + audit + PJ-DEL-PUMP authored ===
 one4all: 38e66809 — BUILD GREEN
