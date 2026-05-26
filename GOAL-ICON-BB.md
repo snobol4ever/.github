@@ -121,7 +121,18 @@ bash scripts/test_icon_all_rungs.sh             # PASS=153 (regression recovers 
 
 ## ⚡ CURRENT WORK — Phase G: Eradicate BB_t.c[]/n
 
-**NEXT STEP: G-1** — add `lhs`/`rhs`/`operand` fields to `BB_t`.
+### GOLDEN BB RULE (established 2026-05-25, session with Lon)
+BB_t is SCRIP's **IR node** — equivalent to JCON's `ir_*` instruction records (ir_IntLit, ir_Var, ir_Field, ...).
+JCON has ONE IR. SCRIP has ONE IR: BB_t. The SM is NOT the IR — it is a 3-instruction bootstrap only.
+JCON's four label ports → BB_t's four pointer ports (α/β/γ/ω).
+JCON's per-record payload fields (val, name, field, op) → BB_t's `sval`/`ival`/`dval`.
+Multi-scalar opcodes (e.g. BB_TO_BY with lo/hi/step) decompose into a chain of BB nodes.
+BB_t must NOT have: `c[]`, `n`, `lhs`, `rhs`, `operand`, `opaque`, `sval2`, `ival2`, `ival3`.
+BB_t DOES have: `sval`, `ival`, `dval` (IR payload) + `value`/`counter`/`state` (interpreter runtime).
+
+BB.h has been updated to the correct struct. Build currently fails at emit_core.c:913 (`nd->c[]`/`nd->n`) — all `c[]`/`n`/`sval2`/`ival2`/`ival3`/`opaque` references across emitter + lower files must be migrated.
+
+**NEXT STEP: G-1** — migrate all `c[]`/`n` references out of BB_t callers.
 
 `BB_t` is a node in a **wired directed graph**. It is NOT a tree. `BB_t **c` and `int n` smuggle tree-child semantics into graph nodes. Every `nd->c[i]` on a `BB_t` is wrong.
 
@@ -143,16 +154,21 @@ Labels in JCON irgen.icn = pointers in SCRIP BB graphs. α/β/γ/ω are pointers
 #### G-0 — Commit 2026-05-25 session work ✅ `bd6b0917`
 SM_UNUSED_1..5 rename + F-6d partial (BB_BINOP/BINOP_GEN/LCONCAT/ARITH/UNIFY/BUILTIN/PL_ALT → α/β). Done. one4all `bd6b0917`, .github `213c9370`.
 
-#### G-1 — Add lhs/rhs/operand fields to BB_t ⏳
-- [ ] `src/include/BB.h`: add after port fields in `struct BB_t`:
-      ```c
-      BB_t * lhs;      /* left operand sub-box  (binary kinds) */
-      BB_t * rhs;      /* right operand sub-box (binary kinds) */
-      BB_t * operand;  /* single operand sub-box (unary kinds) */
-      ```
-      Mark `BB_t **c` and `int n` as DEPRECATED in comment.
-- [ ] Update enum comments for BB_ARITH/BB_UNIFY/BB_BINOP_GEN to say lhs/rhs.
-- [ ] Gate: `bash scripts/build_scrip.sh` only — no behaviour change.
+#### G-1 — Migrate all c[]/n/sval2/ival2/ival3/opaque out of BB_t callers ⏳
+BB.h struct is correct (GOLDEN BB RULE). Build fails at emit_core.c:913 and ~80 other sites.
+Files to fix: emit_core.c, emit_bb.c, BB_templates/bb_*.cpp, bb_exec.c, lower_icn.c, lower_pl.c, scrip_ir.c, icon_box_rt.c.
+Strategy per site:
+- `nd->c[i]` child traversal → walk α/β/γ/ω ports instead
+- `nd->sval` / `nd->ival` / `nd->dval` → already present on new BB_t (kept); fix `sval2`/`ival2`/`ival3` → decompose to chained BB nodes or fold into sval/ival/dval
+- `nd->opaque` → move runtime state into `value`/`counter`/`state` or delete
+- `nd->n` / `nd->c` array → delete; replace child traversal with port walk
+- [ ] Fix emit_core.c bb_walk_rec — replace c[]/n loop with α/β/γ/ω port walk
+- [ ] Fix emit_bb.c — same
+- [ ] Fix BB_templates/bb_builtin.cpp, bb_unify.cpp, bb_to_by.cpp, bb_binop_gen.cpp
+- [ ] Fix bb_exec.c — replace all c[]/n with port walks; opaque→state/counter
+- [ ] Fix lower_icn.c, lower_pl.c — replace nd->c[i]= with port wiring
+- [ ] Fix scrip_ir.c debug printer
+- [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
 #### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
 - [ ] `src/runtime/interp/icon_box_rt.c` + `.h`: remove `rt_binop_gen(BB_t *nd, int entry)`. It is a C Byrd box (forbidden). Executor path is `bb_exec.c`.
