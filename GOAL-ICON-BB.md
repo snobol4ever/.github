@@ -467,7 +467,24 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, `72a30688`) — Phase H (Attribute Grammar). H-3 proof landed; H-1/H-2 next.
+## Active next targets (2026-05-26, build GREEN, uncommitted on `72a30688`/`97b92f26`) — Phase H.
+
+Sess 2026-05-26e (Opus): **BUILD RESTORED RED→GREEN.** Prior "RED at emit_sm.c only" was wrong —
+sm_jit_interp.c died first (broken since 7b087f0f, masked by bb_exec.c errors). Fixed sm_jit_interp.c
+(CUR_INS macro missing, rt.h include collision, macro ordering, fwd decls, SM_instr_t→SM_t,
+bb_exec_pat_fn→exec_stmt_blob link fix). DONE the documented emit_sm.c Prolog serializer reshape
+(XA_PL_SUB_BUILDER now iterates bb_pl_choice_state_t.bodies[]; new xa_pl_sub_body_idx threaded
+through both XA templates; multi-body BB_CHOICE emits N sub-builders each appending via set_opaque).
+DONE the COUPLED flat-pattern pair (emit_sm.c builder + emit_bb.c walk_bb_flat) → new
+bb_pat_kids_state_t GC aux (BB.h) replacing c[]/n; emit_per_kind_audit.c synthetic nodes too.
+scrip links (8.8MB). See HANDOFF-2026-05-26-OPUS-BUILD-GREEN.md.
+⛔ GATES RED — pre-existing Phase H bugs in bb_exec.c (NOT touched this sess): (1) BB_IF runs BOTH
+branches (needs H-1 inherited-γ/ω threading; else-on-γ collides w/ success continuation), (2)
+`every write(1 to 3)` SEGFAULTS (BB_EVERY+BB_TO port re-read). smoke 3/5, broker 15, rungs 118/113/35.
+NEXT: fix those two bb_exec.c bugs → smoke 5/5, broker ≥17, rungs ≥153 → COMMIT. Verify multi-clause
+Prolog Mode-4 emission (`;/2` directive is [NO-AST] in interp; check --compile CLI).
+
+### (prior) 2026-05-26d watermark below
 
 Sess 2026-05-26 (Opus): design question RESOLVED — pointers, no label IR. Four-attribute grammar:
 γ/ω inherited (down), α/β synthesized (up). Door ambiguity solved via target node's `state` (house
