@@ -399,7 +399,7 @@ Self-host output md5 byte-identical to SPITBOL
   `interp.c:execute_program` (--interp), `sm_interp.c SM_STNO`
   (--interp), `sm_codegen.c h_stno` (--run). Gate
   `test_smoke_sn26_label_flow.sh` PASS=5 (csn=3 LABELs, sbl=4,
-  scrip ir-run=3, sm-run=4, jit-run=4 — SPL counts END as a
+  scrip --interp=3, --interp=4, --run=4 — SPL counts END as a
   stmt). All existing bridge smokes updated for new record
   ordering and PASS. Smoke=7, Broker=49 preserved. SN-30
   beauty md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved.
@@ -517,7 +517,7 @@ Self-host output md5 byte-identical to SPITBOL
   self-host.
 
   **Also fixed:** Pre-existing `test_smoke_sn26_label_flow.sh`
-  FAIL=2 from -k: sm-run/jit-run expected 4 LABELs but got 5 after
+  FAIL=2 from -k: --interp/--run expected 4 LABELs but got 5 after
   blank-line fix. Updated to expect 5 (1 blank + 3 stmts + END).
   Fixed `UnboundLocalError` in `monitor_sync_bin.py` (redundant
   local `from collections import deque` shadowed top-level import).

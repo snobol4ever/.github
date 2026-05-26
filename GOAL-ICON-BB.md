@@ -620,7 +620,7 @@ smoke 5/5, broker ≥19, rungs ≥195, mode-1/mode-4 byte-identical, ASAN clean.
 ## Honest-mode-3 protocol
 
 Probe helpers in `scripts/icon_bb_probes.sh`: `bb_probe_detect`, `bb_probe_complete`, `bb_probe_scoreboard`.
-Baseline md5: `baselines/icon-bb/sm-run-honest.md5` (created sess 2026-05-11c).
+Baseline md5: `baselines/icon-bb/--interp-honest.md5` (created sess 2026-05-11c).
 
 A rung is **honestly complete** iff: (a) output matches `--interp`, (b) passes under `SCRIP_NO_AST_WALK=1`, (c) audit counter zero for kind, (d) smokes unchanged, (e) ≥1 program flipped honest.
 

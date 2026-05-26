@@ -131,7 +131,7 @@ After Milestone 2 lands on x86-64, Milestone 3 replaces "scrip
 - `node sno-interp.js` (JS) — at `src/driver/js/sno-interp.js` today, hand-written
 - `java -jar Interpreter` (JVM) — at `src/driver/jvm/` today, hand-written
 - `dotnet snobol4dotnet.dll` (.NET) — at `src/driver/net/` today, hand-written
-- `wasm-run scrip.wasm` (WASM) — at `src/driver/wasm/` today, stub
+- `wa--interp scrip.wasm` (WASM) — at `src/driver/wasm/` today, stub
 
 Each of those four existing hand-written interpreters becomes the
 **bootstrap host** for its backend — Stage-1 on that platform.

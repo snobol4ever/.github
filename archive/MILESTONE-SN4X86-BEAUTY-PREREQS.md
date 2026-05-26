@@ -27,13 +27,13 @@ echo "--- PASS=$PASS FAIL=$FAIL"
 
 ---
 
-## BP-0 — &STLIMIT / &STCOUNT wired in ir-run loop
+## BP-0 — &STLIMIT / &STCOUNT wired in --interp loop
 
 **Status:** ✅ COMPLETE (bea4045f) — execute_program + call_user_function hardcoded limits removed; sno_err_is_terminal break wired
 **Priority:** FIRST — needed for all debugging of infinite loops
 
 `kw_stlimit` and `kw_stcount` are declared in `snobol4.h` and exist in `snobol4.c`
-but are **never checked in the top-level ir-run statement loop** in `scrip.c`.
+but are **never checked in the top-level --interp statement loop** in `scrip.c`.
 The inner `call_user_function` loop has a hardcoded `step_limit = 5000000` but
 the top-level loop has no guard at all.
 

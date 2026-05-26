@@ -125,7 +125,7 @@ Target architecture:
 
 - [x] **U-10** — Replace `icn_broker` call sites in `scrip.c`/`icon_gen.c` with `bb_broker(..., BB_PUMP, ...)`.
   Remove `icn_broker` function entirely. DONE.
-  Gate: make scrip clean; Icon ir-run PASS=48/59 (non-regressing). ✅
+  Gate: make scrip clean; Icon --interp PASS=48/59 (non-regressing). ✅
 
 - [x] **U-11** — Replace `pl_exec_goal` call sites with `bb_broker(..., BB_ONCE, ...)`.
   Remove `pl_exec_goal` function entirely. DONE.

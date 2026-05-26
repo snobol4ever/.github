@@ -73,7 +73,7 @@ All three are solved the same way: the script itself handles it.
 
   | Script | Failure Mode(s) | Fix Needed |
   |--------|----------------|------------|
-  | `test_smoke_scrip_all_modes.sh` | **Stdin** — no `< /dev/null` on scrip calls | Add `< /dev/null` + `timeout 8` to sm-run and ir-run calls |
+  | `test_smoke_scrip_all_modes.sh` | **Stdin** — no `< /dev/null` on scrip calls | Add `< /dev/null` + `timeout 8` to --interp and --interp calls |
   | `test_csnobol4_budne_suite.sh` | **Env vars** — `CORPUS`, `INTERP`, `TIMEOUT`, `SUITE`, `FENCE` set via `:-` defaults only; no auto-clone if corpus missing | Derive paths from `$0`; add corpus SKIP-or-clone guard |
   | `test_interp_broad_corpus_and_beauty.sh` | **Env vars** + **Stdin** — `INTERP`, `CORPUS`, `INC`, `BEAUTY`, `DEMO` via `:-` only; `run_test` does not pass `< /dev/null` when no input file given | Derive paths from `$0`; add `< /dev/null` to all no-input scrip calls |
   | `test_icon_all_rungs.sh` | **Env vars** — uses `CORPUS_REPO` (non-standard); exits with error if corpus missing | Switch to `$0`-derived default; degrade to SKIP if corpus absent |

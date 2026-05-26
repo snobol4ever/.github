@@ -159,7 +159,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 - [ ] **SC-9** — Full gate: all 14 beauty-sc subsystems PASS.
   Gate: `bash test/beauty-sc/run_beauty_sc_subsystem.sh arith assign strings match roman stack trace counter fence global semantic ReadWrite ShiftReduce tree` → 14/14 PASS.
-  Also: `make scrip` clean; SNOBOL4 regression PASS=156 non-regressing; Icon ir-run PASS=48/59 non-regressing.
+  Also: `make scrip` clean; SNOBOL4 regression PASS=156 non-regressing; Icon --interp PASS=48/59 non-regressing.
 
 ---
 
@@ -167,7 +167,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 - Every step leaves `make scrip` clean (zero errors, zero warnings).
 - SNOBOL4 regression baseline PASS=156 must not drop.
-- Icon ir-run baseline PASS=48/59 must not drop.
+- Icon --interp baseline PASS=48/59 must not drop.
 - Do not modify `execute_program` / `stmt_exec` for Snocone-specific cases —
   Snocone IR must work through the existing shared interpreter unchanged.
 - Synthetic label names use prefix `_sc_` to avoid collision with user labels.

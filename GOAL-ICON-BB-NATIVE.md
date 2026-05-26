@@ -330,7 +330,7 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
 - [x] grep lower.c for SM_BB_PUMP_AST in LANG_ICN-reachable paths. Must be zero.
 - [x] Any remaining call: replace with abort("BUG: Icon AST pump — kind %d", t->t).
 - [x] GATE-1..4 full corpus sweep. GATE-5 JIT crosscheck full corpus.
-- [x] Honest PASS count == ir-run PASS count. Explain any gap in commit message.
+- [x] Honest PASS count == --interp PASS count. Explain any gap in commit message.
 - [x] Commit.
 
 ### IB-10 — purge SM coroutine opcodes from Icon path
@@ -426,7 +426,7 @@ Deltas in the table above are against the live baseline.
 
 ## Watermark
 
-  Last session:    2026-05-12 (Claude Sonnet 4.6) — 10 commits, ir-run 180->196, honest 215->259.
+  Last session:    2026-05-12 (Claude Sonnet 4.6) — 10 commits, --interp 180->196, honest 215->259.
                    (1) TT_ITERATE DT_DATA/DT_T before descr_to_str_icn (ir +8).
                    (2) SM_EXP real result for Icon ^ (ir +5).
                    (3) SM_BB_EVAL for TT_ALTERNATE value context (honest +29).
@@ -443,9 +443,9 @@ Deltas in the table above are against the live baseline.
                    at high slot indices; bb_eval_value was reading empty slots instead of NV.
   one4all HEAD:    7efdf09a
   Honest PASS:     259 FAIL=1 ABORT=0 (FAIL=rung36_jcon_arith &collections flakiness)
-  ir-run PASS:     196 FAIL=39
+  --interp PASS:     196 FAIL=39
   BB tally:        43 JCON ir_a_* total. 8 templates (IB-1..IB-8). 35 on SM_BB_PUMP_EVERY.
-  Current rung:    GOAL DONE. NEXT: ir-run triage (39 FAILs). Priority:
+  Current rung:    GOAL DONE. NEXT: --interp triage (39 FAILs). Priority:
                    roman "cannot convert" (integer(n)>0|fail — PROC_FAIL in alternate);
                    nested generator conjunction (every A & B: both A and B must generate);
                    more missing builtins (args, image(x,w), remove);
