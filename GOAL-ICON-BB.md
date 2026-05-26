@@ -141,7 +141,7 @@ Labels in JCON irgen.icn = pointers in SCRIP BB graphs. α/β/γ/ω are pointers
 **Baseline:** smoke 5/5, broker 17, rungs 153 (G-4 recovers to ≥169).
 
 #### G-0 — Commit 2026-05-25 session work ✅ `bd6b0917`
-SM_UNUSED_1..5 rename + F-6d partial (BB_BINOP/BINOP_GEN/LCONCAT/ARITH/UNIFY/BUILTIN/PL_ALT → α/β). Done.
+SM_UNUSED_1..5 rename + F-6d partial (BB_BINOP/BINOP_GEN/LCONCAT/ARITH/UNIFY/BUILTIN/PL_ALT → α/β). Done. one4all `bd6b0917`, .github `213c9370`.
 
 #### G-1 — Add lhs/rhs/operand fields to BB_t ⏳
 - [ ] `src/include/BB.h`: add after port fields in `struct BB_t`:
