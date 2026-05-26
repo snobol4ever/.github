@@ -287,11 +287,31 @@ NOTE: full build still blocked by remaining ~328 c[]/n hits in bb_exec.c (other 
 - [ ] After H-1..H-4: `grep -n 'nd->c\[\|nd->n\b\|e->c\[\|e->n\b\|gen->c\[' src/lower/bb_exec.c` empty (cfg->n stays — legit BB_graph_t).
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153. This closes G-1.
 
-#### G-2 — Delete rt_binop_gen (dead C Byrd box) ⏳
-- [ ] `src/runtime/interp/icon_box_rt.c` + `.h`: remove `rt_binop_gen(BB_t *nd, int entry)`. It is a C Byrd box (forbidden). Executor path is `bb_exec.c`.
-- [ ] `src/emitter/BB_templates/bb_binop_gen.cpp`: remove `call rt_binop_gen@PLT`; emit inline x86 reading `pBB->lhs` / `pBB->rhs`.
-- [ ] `icn_every_box`: verify callers — if only dead paths, delete too.
-- [ ] Gate: smoke 5/5, broker ≥17.
+#### G-2 — RT-DELETE ladder: eradicate every four-port C Byrd box from the Icon RT path ⏳
+
+**Scope (Lon, 2026-05-26j):** Delete ONLY C functions implementing four-port (α/β/γ/ω) Byrd-box
+logic — `DESCR_t foo(void *zeta|BB_t *nd, int entry)` with entry==0/1 dispatch + value/FAILDESCR
+return. NOT in scope (these STAY): string-conversion / value-push / subscript RT helpers a template
+calls (e.g. `subscript_get`, `rt_vstack_pop`, `rt_push_*`, `icn_binop_apply`). Exempt per RULES.md:
+`icn_bb_dcg`, `icn_bb_oneshot` (infrastructure DCG driver/shim, not generators). Out of scope:
+Prolog `pl_*_fn` / `pl_bb_dcg` (GOAL-PROLOG-BB), SNOBOL4 `bb_deferred_var` (SN4 goal).
+
+Defined four-port C Byrd boxes in the Icon RT path (audit @ `82ec79f8`):
+`icn_to_by_rt`, `rt_binop_gen`, `icn_list_bang`, `icn_every_box` (all in icon_box_rt.c).
+Dead declarations to also scrub: `rt_alt` (extern in bb_alt.cpp, defined nowhere),
+`icn_bb_{to_by,iterate,binop,alternate,limit,upto_subj,to_nested,cset_compl,every}` (icon_gen.h
+decls, defined nowhere).
+
+Do ONE function per step. Each step: confirm callers, delete def + decl, rewire emitter template
+to inline x86 (or confirm kind unreachable), build, gate (smoke 5/5, broker ≥17, rungs ≥153), commit.
+
+- [ ] **G-2a — `rt_alt` (dead extern)** — `bb_alt.cpp` emits `call rt_alt@PLT` but no definition exists. Determine if BB_ALT is emit-reachable. If unreachable: delete the extern + call sites. If reachable: emit inline x86 alt logic (α tries arm0, ω→arm1, β resumes). Remove decl. Gate.
+- [ ] **G-2b — dead `icn_bb_*` decls** — remove the 9 never-defined declarations from `src/runtime/interp/icon_gen.h` + matching `extern` lines in `emit_bb.c`. ALSO 4 dead `icon_box_rt.h` decls found 2026-05-26j: `icon_to_make`, `icon_to_by_make`, `icon_to_tick`, `icon_to_by_tick` (declared, never defined, never referenced). Pure decl scrub, no logic. Gate (build only).
+- [x] **G-2c — `rt_binop_gen`** ✅ `7d43dc79` — deleted `rt_binop_gen(BB_t*,int)` + IS_GEN macro + icn_binop_apply extern from icon_box_rt.c/.h. bb_binop_gen.cpp TEXT+BINARY arms rewired to port-jump (α→γ, β→ω); inline-x86 cross-product gen flagged mode-4 TODO. smoke 5/5 broker 19 rungs 189. sym gone from binary.
+- [x] **G-2d — `icn_every_box`** ✅ `1101884f` — was an ORPHAN (no callers; F-2 SM_BB_SWITCH approach superseded by bb_exec.c BB_EVERY port path). Deleted fn + `icn_every_bb_state_t`; also fixed a misplaced `#endif` in icon_box_rt.h (struct sat outside the include guard). smoke 5/5 broker 19 rungs 189.
+- [x] **G-2e — `icn_list_bang`** ✅ `3666025a` — deleted fn + `icn_list_bang_state_t` + snobol4.h include. `lower_iterate` (lower.c) was the LAST holdout still emitting SM_BB_SWITCH→C Byrd box; rewrote it to the sibling pattern (`lower_icn_expr_top` + `lower_unhandled`, matching lower_to/lower_to_by/lower_bang_binary) — `!E` now lowers via BB_LIST_BANG port path (lower_icn.c:935). smoke 5/5 broker 19 rungs 189 (bang rungs unaffected — BB path already carried them).
+- [x] **G-2f — `icn_to_by_rt` (+ `_make`/`_make_real`)** ✅ `4da7a6b7` — deleted the four-port fn AND both state ctors (dead once the Byrd box went; nothing else used them). bb_to_by.cpp TEXT arm rewired to port-jump (was still calling icn_to_by_rt@PLT + _make despite H-3 "proof"). **icon_box_rt.c is now an EMPTY TU** (only #include + comment). `icn_to_by_rt_state_t` struct retained in header pending bb_to_by inline-x86 gen. smoke 5/5 broker 19 rungs 189. All 3 syms gone.
+- [ ] **G-2g — sweep** — `grep -rnE "DESCR_t\s+\w+\s*\(\s*(void\s*\*\s*(zeta|ζ|z)|BB_t\s*\*\s*\w+)\s*,\s*int\s+entry\s*\)" src/runtime/interp/icon_box_rt.c` empty ✅ (file is empty TU). DECISION FOR LON: icon_box_rt.c is now empty — either (a) delete the file + its 2 Makefile lines (179, 391), or (b) leave as empty TU. Recommend (a) next session. Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
 #### G-3 — Migrate unary BB kinds → operand field ⏳
 ⛔ **SUPERSEDED by Phase H (2026-05-26).** BB.h FORBIDS `operand`/`lhs`/`rhs`. Do NOT add them.
@@ -476,7 +496,34 @@ Files using `nd->c` / `nd->n` today (must all be migrated first):
 
 ---
 
-## Active next targets (2026-05-26, build GREEN, gates GREEN on `3681a6a9`) — Phase H.
+## Active next targets (2026-05-26, build GREEN, gates GREEN on `4da7a6b7`) — Phase H + RT-DELETE.
+
+Sess 2026-05-26j (Opus, with Lon — RT-DELETE ladder): per Lon directive "remove all RT functions
+that handle 4-port logic; string-conversion/value RT helpers STAY." Audited the Icon RT path and
+deleted all FOUR defined C four-port Byrd boxes (`DESCR_t foo(void*|BB_t*,int entry)`), one per
+commit, gates green at each: **G-2c rt_binop_gen `7d43dc79`, G-2d icn_every_box `1101884f`,
+G-2e icn_list_bang `3666025a`, G-2f icn_to_by_rt+ctors `4da7a6b7`.** All four were reachable ONLY
+from their mode-4 TEXT emitter templates (`call …@PLT`); the interp path (modes 2/3) already uses
+bb_exec.c BB-port executors, which is WHY every gate held at smoke 5/5 / broker 19 / rungs 189
+unchanged across all four deletions. Each template's TEXT+BINARY arms rewired to the port-jump form
+(α→γ, β→ω, mirroring bb_alt) — the inline-x86 GENERATOR logic for each is now flagged `mode-4 TODO`
+in-template (this is real future emitter work, but mode-4 to/by is already broken today: `--run`
+prints `invalid entry_pc 1`, so nothing regressed). `lower_iterate` (the last SM_BB_SWITCH holdout)
+rerouted to lower_icn_expr_top. **`icon_box_rt.c` is now an EMPTY translation unit.**
+⚠ one4all `82ec79f8`(start) → `4da7a6b7`(end), tree CLEAN, all four pushed-pending (see handoff).
+NOTE on scope: NOT touched (correctly out of scope per directive) — Prolog `pl_*_fn`/`pl_bb_dcg`
+(GOAL-PROLOG-BB), SNOBOL4 `bb_deferred_var` (SN4 goal), and the EXEMPT infra shims `icn_bb_dcg`/
+`icn_bb_oneshot` (RULES.md). Value/conversion helpers `rt_vstack_pop`/`subscript_get`/`icn_binop_apply`
+KEPT (they are not four-port dispatchers).
+REMAINING in G-2 ladder (decl-scrub only, no logic, next session ~15 min): G-2a `rt_alt` dead extern
+in bb_alt.cpp (defined NOWHERE — latent mode-4 link bug; BB_ALT runs via bb_exec.c:589 interp path);
+G-2b nine dead `icn_bb_*` decls in icon_gen.h + four dead `icon_to_{make,by_make,tick,by_tick}` decls
+in icon_box_rt.h (all declared-never-defined-never-referenced); G-2g decision: delete the now-empty
+icon_box_rt.c + its Makefile lines 179/391, or keep as empty TU (recommend delete).
+NEXT after cleanup (unchanged from H plan): H-1 full inherited-γ/ω threading; then H-2..H-5.
+
+### (prior) 2026-05-26h watermark below
+
 
 Sess 2026-05-26h (Opus, EMERGENCY HANDOFF — but GREEN and committed+pushed): one bounded rung fix
 landed. **one4all `3681a6a9` pushed to origin/main.** Tree CLEAN.
