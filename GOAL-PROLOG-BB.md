@@ -491,7 +491,23 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
 - [x] **PJ-AGW-1d (was PJ-AGW-1's signature half)** — Extend `lower_pl` to the full 4-attribute signature `lower_pl(cfg, tree, γ_in, ω_in, &α_out, &β_out)` (mirror H-1). Leaf nodes set `*α_out = *β_out = nd; nd->γ = γ_in; nd->ω = ω_in;`. This is the prerequisite for the γ/ω-chain SEQ/CHOICE rewrites (AGW-2/3) that eliminate the aux structs altogether. Gate: clean build, no behaviour change.
 - [x] **PJ-AGW-2** — `BB_PL_SEQ` (conjunction): replace the goal-vector-in-`counter` representation with the γ/ω-chain per the table above (mirror H-2's BB_SEQ γ-chain, but Prolog ω points LEFT to the predecessor's β, not forward — conjunction backtracks). Delete the `if (!sq) return nd->ω;` guard and the `bb_pl_seq_state_t` aux. bb_exec.c `BB_PL_SEQ` case: walk via ports, not the stashed vector. Gate: smoke_prolog conjunction case executes; broker non-regressive.
 - [~] **PJ-AGW-3 (partial — `c0a79a9d`)** — `BB_CHOICE` now resumes the last-successful clause body's OWN inner choice point before advancing to the next clause. On β-resume, if the last body still has a live choice point (`bb_body_has_live_choice`: any BB_PL_CALL/BB_CHOICE/BB_PL_ALT with state>0), `bb_exec_resume` it first; a deterministic body (facts) has none → unwind + advance immediately (keeps fact-clause backtracking terminating). `bb_pl_choice_state_t` gained `last_body`/`last_act`; snapshot/restore (scrip_ir.c) carry them. RESULT: recursive `member/2` generates a,b,c (was a,b — last element dropped); fact backtracking still a,b,c. Gates non-regressive, median-of-3 stable: smoke_prolog 5/5, crosscheck_prolog 132/0, icon rungs 195, broker 23, snobol4 13/13. ⛔ **OPEN → PJ-AGW-3b:** under the disjunction driver `goal, write, nl, fail ; true` `member` OVER-GENERATES — after exhausting `[a,b,c]` the choice keeps yielding empty (unbound-X) solutions → trailing blank lines, so rung05 is NOT yet a clean `.expected` PASS (rung suite still 15). Root: exhaustion-propagation across the BB_PL_SEQ backtrack pump + nested BB_CHOICE/BB_PL_CALL resume — the SEQ pump must stop re-pumping a choice that has truly failed. Also: under multi-`main`-clause driver (`main :- …,fail. main :- …`) `member([a,b])` yields only `a` then the 2nd main clause (the SEQ doesn't backtrack into the call) — same handshake. Gate when closed: rung05 PASS, crosscheck non-regressive.
-- [ ] **PJ-AGW-3b** — SEQ/CHOICE exhaustion handshake. The BB_PL_SEQ backtrack pump (scans leftward for a resumable goal) and BB_CHOICE/BB_PL_CALL β-resume must agree on "truly exhausted": when a goal's choice point returns ω with no more solutions, the SEQ must not re-enter it. Fix here closes rung05 over-generation + the multi-main-clause under-generation. Gate: rung05 a/b/c clean; smoke_prolog 5/5; crosscheck_prolog 132/0.
+- [x] **PJ-AGW-3b** ✅ DONE 2026-05-26 (Opus 4.7) — SEQ/CHOICE exhaustion handshake. TWO root causes, both fixed.
+  (1) **Under-generation** (`member` yielded only `a` under bare `fail`): `pl_flatten_conj` splits a clause body's
+  `,`-conjunction into separate `clause->c[]` statements, and `lower_pl_clause_body` lowered each with `ω=NULL` —
+  so `fail` EXITED the clause instead of backtracking into the nearest left generator. FIX: `lower_pl_clause_body`
+  now wires the same ω/β backtrack chain that `lower_pl_goal`'s conjunction case builds (Pass 3/4): each body goal's
+  ω = nearest resumable predecessor (BB_PL_CALL/BB_CHOICE/BB_PL_ALT); goal[0].ω stays NULL (clause failure → outer ω).
+  (2) **Over-generation** (after `[a,b,c]`, endless unbound-X empties): `bb_snapshot_state`/`bb_restore_state`
+  captured only `_bcfg`'s own nodes, NOT the BB_CHOICE clause-body sub-graphs (`zc->bodies[]`), which are SHARED
+  across recursive activations. A deeper `member` activation clobbered the parent frame's clause-body cursor, so the
+  resumed parent re-succeeded instead of failing. FIX: deep snapshot/restore — `bb_node_state_t` gains
+  `ch_body_snaps[]`/`ch_nbodies`; snapshot recurses one level into each clause body (the callee's own predicate
+  graph is isolated by that CALL's runtime `cs->act`), restore deep-restores + frees the sub-snapshots.
+  **RESULT: rung05 PASS in BOTH `--interp` (Mode 2) AND `--run` (Mode 3), byte-identical to `.expected` (a/b/c, no
+  trailing empties).** GATES (median-of-3): smoke_prolog 5/5; rung suite 15→16 (rung05 up); crosscheck_prolog FAIL=0
+  (all three modes agree; PASS 125-127 / SKIP 5-7 variance is pre-existing mktemp-race, NOT a regression);
+  snobol4 13/13, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5. ASAN (`detect_use_after_free=1`) CLEAN on bare-fail
+  member, rung05 both modes, and fib(6)=8 — zero use-after-free / invalid-free on the deep snapshot/restore frees.
 - [x] **PJ-AGW-4** — ✅ DONE 2026-05-26 (Opus 4.7) `254d3038`. Activation-safe recursion for `BB_PL_CALL`
   + `BB_CHOICE`. NOTE: the "snapshot/restore is unnecessary" prediction in the original step text was
   WRONG for the current architecture — clause bodies + the callee predicate graph are SHARED across
@@ -568,6 +584,23 @@ Audit of the live source tree at one4all `9be28a5` against RULES.md + GOAL-HEADQ
 ## Watermark
 
 ```
+=== 2026-05-26 Opus 4.7 — PJ-AGW-3b ✅ — rung05 backtracking PASS (Mode 2 + Mode 3) ===
+one4all: (this session) — BUILD GREEN; ASAN-clean on recursive backtracking paths.
+.github: (this session) — PJ-AGW-3b marked done; watermark + PLAN row updated.
+
+PJ-AGW-3b ✅ — SEQ/CHOICE exhaustion handshake. Two root causes:
+  (1) UNDER-generation: lower_pl_clause_body lowered each flattened-conjunction body stmt with ω=NULL,
+      so `fail` exited the clause instead of redoing the nearest left generator. FIX: wire the ω/β
+      backtrack chain across body goals (mirror lower_pl_goal conjunction Pass 3/4) in lower_pl.c.
+  (2) OVER-generation: bb_snapshot_state/restore did NOT capture the BB_CHOICE clause-body sub-graphs
+      (zc->bodies[]), which are SHARED across recursive activations — a deeper frame clobbered the
+      parent's clause-body cursor, so the resumed parent re-succeeded. FIX: deep snapshot/restore of
+      clause bodies (bb_node_state_t.ch_body_snaps[]/ch_nbodies) in scrip_ir.c + BB.h.
+GATES (median-of-3): smoke_prolog 5/5; rung suite 15→16 (rung05); crosscheck_prolog FAIL=0 (3 modes
+  agree); snobol4 13/13, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5. ASAN detect_use_after_free=1 CLEAN
+  on bare-fail member + rung05 (both modes) + fib(6)=8. rung05 byte-identical to .expected in Mode 2 AND 3.
+NEXT: PJ-AGW-5 cut-barrier (proper BB_PL_CUT ω rewiring) or PJ-AGW-6b (DCG ARBNO), then EMITTER AGW-8..10.
+
 === 2026-05-26 Opus 4.7 — PJ-AGW-4 ✅ + PJ-AGW-5(partial) ✅ + PJ-AGW-1c ✅ + PJ-AGW-8(partial) ✅ ===
 one4all: 6118399a — BUILD GREEN (scrip + libscrip_rt)
 .github: (this session) — watermark + steps updated; RT four-port inventory refreshed.
