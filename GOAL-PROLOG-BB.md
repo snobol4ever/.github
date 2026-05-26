@@ -242,3 +242,73 @@ crosscheck_prolog: 128/0 ✅
 smoke_snobol4: 7/7 ✅
 smoke_icon: 5/5 ✅
 ```
+
+---
+
+## FREE-3 / SM-BAKE steps — eliminate CUR_INS at runtime; free SM+BB after SM_codegen
+
+**Goal:** After `SM_codegen` returns, `sm->instrs` and `bb_table[]` are freed immediately.
+`sm_jit_run` executes purely from EXEC space — no `CUR_INS`, no `g_jit_prog->instrs`,
+no `bb_table[]` dereference at runtime. Every operand is baked as an immediate in the blob.
+
+**Architecture:** Each SM opcode that currently reads `CUR_INS->a[*]` in a C handler
+gets a dedicated `emit_<opcode>_blob(operands..., trampoline_off)` function.
+The blob pushes operands as imm64/imm32 into registers before calling the C runtime helper.
+The C handler (`h_*`) is then dead and deleted. `emit_standard_blob` is called only for
+zero-operand opcodes; all others get baked blobs.
+
+**Free sequence (mode 3) after this work:**
+```
+sm_preamble(ast_prog)        → s2  (tree_t freed right after)
+exec_stmt_pat_table_build()       (consumes SM+BB, produces pat_tbl — already done)
+SM_codegen(sm, pat_tbl, ...)      (emits all blobs into EXEC space)
+stage2_free_bb_after_emit(s2)     (BB freed — no runtime reference)
+stage2_free_sm_bb(s2)             (SM freed — no runtime reference)
+sm_jit_run(...)                   (executes purely from EXEC space)
+```
+
+### Step SB-1 — Bake SM_STNO: emit stno imm32 inline; delete h_stno CUR_INS read
+Operand: `a[0].i` (stno number). Emit blob: inc pc, mov edi imm32, call rt_stno_hook, jmp trampoline.
+Remove `emit_standard_blob_no_stack` call for SM_STNO; add `emit_stno_blob(stno, trampoline)`.
+`h_stno` body inlined into blob; `h_stno`'s `CUR_INS->a[0].i` read eliminated.
+Gate: smoke gates unchanged. SM_STNO no longer reads sm->instrs at runtime.
+
+### Step SB-2 — Bake SM_PUSH_LIT_I / SM_PUSH_LIT_F / SM_PUSH_LIT_S / SM_PUSH_NULL
+Operands: `a[0].i`, `a[0].f`, `a[0].s` respectively. Null has none.
+Emit blobs: bake value as imm64 (int/float) or pointer (string) directly into PUSH sequence.
+Delete `h_push_lit_i/f/s` CUR_INS reads. Gate: smoke gates unchanged.
+
+### Step SB-3 — Bake SM_PUSH_VAR / SM_STORE_VAR / SM_LOAD_GLOCAL / SM_STORE_GLOCAL
+Operands: `a[0].s` (name), `a[1].i` (kind/is_imm). Bake name pointer + kind as imm64/imm32.
+Delete handler CUR_INS reads. Gate: smoke gates unchanged.
+
+### Step SB-4 — Bake SM_INCR / SM_DECR
+Operand: `a[0].i` (delta). Bake as imm32 mov before call to shared helper.
+Delete `h_incr`/`h_decr` CUR_INS reads. Gate: smoke gates unchanged.
+
+### Step SB-5 — Bake SM_CALL_FN / SM_CALL_EXPRESSION / SM_PUSH_EXPRESSION
+Operands: `a[0].s` (fname), `a[1].i` (is_imm/nargs), `a[2].i` (nargs).
+Bake all three as imm64/imm32. Delete handler CUR_INS reads. Gate: smoke gates unchanged.
+
+### Step SB-6 — Bake SM_BB_ONCE_PROC / SM_BB_PUMP_PROC / SM_BB_PUMP_CASE / SM_BB_PUMP_SM / SM_BB_SWITCH
+Operands: `a[0].s` (name), `a[1].i` (arity/ncases), `a[1].i` (has_default).
+Bake name pointer + int operands. Delete handler CUR_INS reads. Gate: smoke gates unchanged.
+
+### Step SB-7 — Bake SM_PAT_LIT / SM_PAT_REFNAME / SM_PAT_USERCALL / SM_PAT_CAPTURE_FN etc.
+Operands: `a[0].s`, `a[1].i`, `a[2].s/i`. Bake all. Delete handler CUR_INS reads.
+Gate: smoke gates unchanged.
+
+### Step SB-8 — Bake SM_ADD/SUB/MUL/DIV/MOD/EXP/NEG (arith) — bake CUR_INS->op
+Operand: opcode itself (`CUR_INS->op`) passed to `shared_arith`. Bake as imm32.
+Delete `h_arith` CUR_INS read. Gate: smoke gates unchanged.
+
+### Step SB-9 — Audit: grep CUR_INS in sm_jit_interp.c → zero hits. Assert g_jit_prog unused.
+Remove `g_jit_prog` global and its assignment in `sm_jit_run`. Remove `CUR_INS` macro.
+Confirm `sm_jit_run` signature no longer needs `SM_sequence_t *prog` for runtime use
+(keep param for `g_blob_addrs` trampoline init if needed, else remove).
+Gate: smoke gates unchanged. Build clean.
+
+### Step SB-10 — Move free calls in scrip.c: both stage2_free_bb_after_emit + stage2_free_sm_bb
+called immediately after SM_codegen returns, before sm_jit_run.
+ASAN verify: zero use-after-free on all smoke gates.
+Gate: smoke_prolog 5/5, smoke_snobol4 7/7, smoke_icon 5/5, crosscheck_prolog 128/0.
