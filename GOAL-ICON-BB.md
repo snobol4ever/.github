@@ -279,7 +279,7 @@ NOTE: full build still blocked by remaining ~328 c[]/n hits in bb_exec.c (other 
 - [ ] Gate: clean build, smoke 5/5, broker ≥17.
 
 #### H-4 — N-ary kinds (CALL, IDX_SET, SECTION) via γ-chain ⏳
-- [ ] CALL args (bb_exec.c line 170 `nd->c[j]`): build γ-chain of arg-eval boxes; arity → `nd->ival`.
+- [x] CALL args γ-chain: general call (lower_icn.c:333) + **MAKELIST (`82ec79f8`, 2026-05-26i)** build `args[0]→α`, `args[j]->γ=args[j+1]`; arity→`nd->ival`. Executor walks α→γ→γ for nd->ival args (bb_exec.c:166-178). MAKELIST had been α/β-only → `[1,2,3]` built empty list; fix recovered rungs 181→189 (all rung22 lists). BB_SEQ_GEN (≤2 args) + BB_FIND_GEN (positional α/β/γ) correct as-is.
 - [ ] IDX_SET / SECTION (3 operands): γ-chain of 3 operand boxes feeding the operator node.
 - [ ] Gate: clean build, smoke 5/5, broker ≥17, rungs ≥153.
 
