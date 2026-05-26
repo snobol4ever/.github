@@ -44,6 +44,14 @@ Those approaches violate RULES.md "BB/SM deletion is total" and the deliberate
 If you find yourself writing a new C function with port logic to make something work in
 Mode 3 — stop. That is a Byrd box. Delete it. Implement as a template.
 
+**No SM/BB walking at runtime in Modes 3/4** (RULES.md absolute rule). Modes 3/4 run native x86
+only: no `g_jit_prog->instrs[STATE->pc]` opcode loop, no `h_*` trampoline handler, and no
+`bb_exec_once`/`bb_exec_resume`/`bb_exec_node`/`bb_broker` reached from a mode-3/4 run path.
+The emitter walking SM/BB **at emit time** (Mode 4) is required and permitted; the emitted binary
+holds no graph (`stage2_free_bb_after_emit`). The reference SM/BB walkers (`sm_interp_run`,
+`bb_exec_*`) are the **Mode-2 (`--interp`) path ONLY**. The single documented temporary exception is
+Prolog `--run` → `sm_interp_run` (AGW-1c), to be deleted once `bb_pl_*.cpp` templates land (AGW-8..10).
+
 ---
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER: proper LOWER + proper EMITTER ⛔⛔
