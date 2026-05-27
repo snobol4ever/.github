@@ -200,3 +200,84 @@ Signature: `lower(cfg, tree, γ_in, ω_in, &α_out, &β_out)`. JCON `{start,resu
 
 ## File ownership (`0206b998`)
 `src/lower/lower_icn.c` · `src/lower/bb_exec.c` · `src/lower/scrip_ir.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
+
+---
+
+## ⚡ HOW AG-LOWERING + EMITTER TEMPLATES ACTUALLY WORK (Sonnet, 2026-05-26 — learned by reading code)
+
+Hard-won mental model. Read this before touching generators; it cost a full session to assemble.
+
+### The two-stage pipeline, concretely
+
+```
+Icon AST → LOWER (builds SM bootstrap + BB graph) → EMITTER walks BB at emit time → x86 via templates
+```
+
+There are TWO lowerers and they are NOT the same file:
+- `lower.c` — the SM-spine lowerer. Emits the flat `SM_sequence_t` (PUSH/CALL/JUMP/BB_SWITCH...).
+  This is the "bootstrap" / statement scaffold. `lower_to`, `lower_to_by`, `lower_every` live here.
+- `lower_icn.c` — the BB-graph builder. `lower_icn_expr_top(tree)` returns a `BB_graph_t*` whose
+  `->entry` is a four-port-wired `BB_t` tree. THIS is the IR the emitter walks. `BB_t IS the IR`.
+
+The bridge between them: `SM_seq_bb_add(g_p, cfg)` registers a `BB_graph_t*` into
+`g_stage2.sm.bb_table[]` and returns an `int bb_idx`. The SM carries that idx in an
+`SM_BB_SWITCH` instruction. This is the SAME mechanism SNOBOL4 patterns use (`SM_EXEC_STMT`
+carries a bb_idx) and Prolog uses (`SM_BB_SWITCH` + `SM_BBSW_PL_ENTRY`). One pattern, three langs.
+
+### Attribute Grammar = the four ports, threaded by lower_icn.c
+
+γ/ω are INHERITED (passed DOWN into children): success-continuation, fail-continuation.
+α/β are SYNTHESIZED (returned UP from children): fresh-entry addr, retry-entry addr.
+Signature shape: `lower(cfg, tree, γ_in, ω_in, &α_out, &β_out)`. Leaf: `α=β=self; γ=γ_in; ω=ω_in`.
+Composition wires child.γ → next sibling, last.γ → parent.γ, etc. (see `lower_icn.c` arg-γ-chain
+at the `BB_CALL` case: `args[j-1]->γ = args[j]`). The mode-2 reference walker `bb_exec.c`
+(was `ir_exec.c`) executes this graph by following ports — it is the SEMANTIC SOURCE OF TRUTH for
+every BB kind. To implement any construct: read its `case BB_X:` in bb_exec.c, translate to x86.
+
+### EMITTER templates — the THREE things that are easy to get wrong
+
+1. **emit_core.c is DISPATCH-ONLY.** Template bodies live in `BB_templates/bb_*.cpp`,
+   `SM_templates/sm_*.cpp`, `XA_templates/xa_*.cpp`. emit_core just does `case BB_X: bb_x(nd);`.
+   A template emitting empty string / stub jumps is NOTHING (Invariant 0). Real GAS in MEDIUM_TEXT
+   AND real bytes in MEDIUM_BINARY, or it is not done.
+
+2. **There are TWO value-stack conventions and they DIFFER BY MEDIUM. This is the #1 trap.**
+   - MEDIUM_TEXT (mode-4 `--compile`): values go through the rt ABI — `mov rdi,<v>; call rt_push_int@PLT`.
+     This is what `bb_upto.cpp` TEXT does and what WORKS in the SM mode-4 ABI.
+   - MEDIUM_BINARY (mode-3 flat/brokered): raw `r12` value-stack — `mov [r12+8],rax; add r12,16`.
+   `bb_icn_to.cpp` originally used raw-r12 in its TEXT arm (brokered convention) → SEGFAULT in
+   mode-4 because r12 is not set up as a vstack there. FIX was `rt_push_int@PLT`. When you write a
+   TEXT arm, push via rt helpers; r12 is for BINARY only. (Invariants 8/9: BINARY must embed no
+   emitter-process pointers and no four-port rt_* helper; TEXT may `call util@PLT` for non-port utils.)
+
+3. **last_ok is a FUNCTION, not a data symbol.** `nm` shows `T rt_last_ok` (getter) and
+   `T rt_set_last_ok` (setter). Writing `mov [rip+rt_last_ok],1` corrupts code. Use
+   `mov rdi,<0|1>; call rt_set_last_ok@PLT`.
+
+### How to make a registered generator graph emit inline (the SM_BB_SWITCH ICN_GEN pattern)
+
+The SM_BB_SWITCH template, for an Icon generator, fetches `g_stage2.sm.bb_table[idx]->entry`,
+sets `g_emit.lbl_α/β/γ/ω` (+ `_p` pointers) to fresh labels, then calls `walk_bb_node(gen, out)`.
+walk_bb_node dispatches to the box's `bb_*` template, which emits its α-body at lbl_α and jumps to
+lbl_γ/ω/β. The SM template then defines those labels: γ → set last_ok=1 + continue; ω → set
+last_ok=0 + continue. This emits the box's four-port x86 INLINE at emit time — NO runtime BB walk,
+NO C Byrd box (the PD-8 trap). MUST set lbl_α too or the box emits `(null):` → assembler error.
+
+### The every-loop back-edge gotcha (the open J-4a bug)
+
+`lower_every` (lower.c) captures `switch_pc = SM_label-1` AFTER `lower_expr(gen_expr)`. For
+`every write(1 to 3)`, gen_expr is the WHOLE call, so lower_expr emits SM_BB_SWITCH (inner `to`)
+THEN SM_CALL_FN write — `switch_pc` wrongly points at the CALL. The loop back-edge must re-enter
+the GENERATOR's switch PC, not the consuming CALL. Fix: locate the SM_BB_SWITCH PC emitted within
+gen_expr (or lower the bare generator separately from its consumer body). mode-2 is immune because
+SM_BB_PUMP_PROC drives the whole proc via the C graph walk, ignoring the SM loop scaffold.
+
+### Gate reality
+
+- `test_icon_all_rungs.sh` is `--interp` (mode-2) ONLY — pinned ~198 regardless of emitter work.
+  It CANNOT measure mode-4 generator progress. Build a mode-4 Icon rung gate (mirror Prolog GATE-3:
+  per-rung emit→assemble→link→run, assert == mode-2 output) to make EMITTER rungs honestly count.
+- GATE-PK (per-kind) is the emitter-output gate but has been stale-RED since `a5775d1a` (baseline
+  not re-frozen across ~9 emitter commits). Owner decision needed: verify cells then re-freeze.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
