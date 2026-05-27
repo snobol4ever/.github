@@ -54,15 +54,22 @@ static inline void    ag_ring_clear(BB_graph_t *cfg);                /* by bb_re
 
 ### Migration sequence (per-family, gates green each commit)
 
+**CRITICAL ORDERING LESSON (Lon 2026-05-27):** AG-pure migration must climb OUTWARD from leaves through sequencers in dependency order. A box cannot be AG-pure if the box that DISPATCHES it still swallows chain visibility. BB_SEQ's executor recurses into `bb_exec_node(stmt)` directly — those recursive calls DO NOT go through the outer chain walker, so they do NOT push to the cfg ring. Until BB_SEQ becomes AG-pure (stmts laid out as a γ-chain at the outer walker level), no apply box dispatched from inside it can read the ring.
+
+**Correct order:**
+
 1. **Step 1** ✅ `64805e16` — ring fields dormant in BB_graph_t.
-2. **Step 2** — chain walker: `bb_exec_once`/`bb_exec_resume`/`bb_exec_pump` clear ring on entry and push `cur->value` after each successful step; `bb_reset` clears ring. Still dormant: no apply box reads yet.
-3. **Step 3 — BB_BINOP** (Family 3): lower produces lhs→rhs→apply chain (γ-linked); apply reads ring peek(1)/peek(0); old α=lhs/β=rhs goes to NULL. Mirrors `irgen.icn:ir_a_Binop`.
-4. **Step 4 — BB_IF** (Family 4): cond box; cond.γ = then.α; cond.ω = else.α (NOT nd->ω); then.γ/else.γ = γ_in; then.ω/else.ω = ω_in. Retire `icn_kind_owns_omega_operand`.
-5. **Step 5 — BB_CONJ** (Family 5): left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=left.β. Apply box reads peek(0) for E2 value.
-6. **Step 6 — BB_ALT** (Family 6): arm[i].ω=arm[i+1].α; arm[i].γ=apply (or directly γ_in). nd->counter=current arm index.
-7. **Step 7 — BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN** (Family 7): generator kinds. β=self (resumable). Every: gen.γ=body.α; body.γ=gen.β; body.ω=gen.β; gen.ω=ω_in.
-8. **Step 8 — BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET / etc.** — N-ary arg chains read via peek(N-1..0).
-9. **Step 9 — DELETE** `bb_operand_aux_set/get` calls from Icon path; sidecar struct stays for other langs.
+2. **Step 2** ✅ `e2850a98` — chain walker pushes `cur->value` to ring after each successful step. `bb_reset` clears ring.
+3. **Step 3** ✅ `9d4d25b0` — BB_BINOP AG-pure. Works at TOP-LEVEL expression position (e.g., `lower_icn_expr_top`). Inside BB_SEQ-wrapped statement position the inner BINOP sub-expr still uses legacy α/β (which is fine because legacy BINOP works recursively and produces a correct nd->value, which the outer chain walker then pushes).
+4. **Step 4 — BB_SEQ AG-pure** ⛔ NEXT. Replace the executor's recursive stmt-dispatch loop with a γ-chain layout: stmt[i].γ = stmt[i+1].α, last_stmt.γ = NULL (chain end). BB_SEQ becomes a passthrough that just returns `nd->α` (the first stmt entry). The proc_body lowerer already builds this chain — the executor change is the trigger.
+5. **Step 5 — BB_IF**: cond.γ = BB_IF; cond.ω = BB_IF; BB_IF.γ = then.α; BB_IF.ω = else.α; then.γ/else.γ = γ_in; then.ω/else.ω = ω_in. nd->α = nd->β = NULL.
+6. **Step 6 — BB_CONJ**: left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=left.β.
+7. **Step 7 — BB_ALT**: arm[i].ω=arm[i+1].α; arm[i].γ=γ_in; nd->counter=current arm index.
+8. **Step 8 — BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN**: generator kinds. β=self (resumable).
+9. **Step 9 — BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET / N-ary apply**: read peek(N-1..0).
+10. **Step 10 — DELETE** `bb_operand_aux_set/get` calls from Icon path.
+
+**Failed attempt log:** Step 4-attempted-as-BB_IF on 2026-05-27 (reverted): broke smoke `if_expr` 5→4 because BB_SEQ's recursive dispatch hid BINOP's push from the ring. Lesson recorded above. Sequencer-first ordering enforced.
 
 ### Per-step gate
 ```bash
