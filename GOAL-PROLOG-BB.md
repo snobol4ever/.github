@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-1 = 5/5, GATE-2 = 19/107 (--mode run; held), GATE-3 = 89/107, GATE-4 = 4/4, mode-4 rung suite = 19/107.** HEAD `e15e86b0` (Opus 4.7, 2026-05-27). CAT-D-7 landed (`d2ce06fc`): write(compound) mode-4 via emit-time recursive walker. CAT-D-8 landed (`710ee0b0`): BB_PL_ITE wrapper for mode-4 if-then-else. CAT-D-9 landed (`b1a37351`): all 12 comparison ops (was the always-succeeds stub); +4 honest rungs. CAT-D-9b landed (`e15e86b0`): compound-term `==` correctness via emit-time post-order Term builder walker + two new helpers (rt_pl_compound_build_n / rt_pl_term_cmp_terms); no rung delta, correctness fix only (corpus doesn't yet exercise compound-`==` directly). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive) or CAT-D-6 (atom_chars/atom_codes — bidirectional list↔atom, bigger surface).
+**Current state: GATE-1 = 5/5, GATE-2 = 54/132 (held), GATE-3 = 89/107, GATE-4 = 4/4, mode-3 rung suite = 21/107, mode-4 rung suite = 21/107.** HEAD `060aad55` (Sonnet 4.7, 2026-05-27). CAT-D-7 landed (`d2ce06fc`): write(compound) mode-4 via emit-time recursive walker. CAT-D-8 landed (`710ee0b0`): BB_PL_ITE wrapper for mode-4 if-then-else. CAT-D-9 landed (`b1a37351`): all 12 comparison ops (was the always-succeeds stub); +4 honest rungs. CAT-D-9b landed (`e15e86b0`): compound-term `==` correctness via emit-time post-order Term builder walker + two new helpers (rt_pl_compound_build_n / rt_pl_term_cmp_terms); no rung delta, correctness fix only (corpus doesn't yet exercise compound-`==` directly). **CAT-D-6 landed (`b60ebfa4`, Sonnet 4.7, 2026-05-27):** atom_chars/atom_codes/string_chars/string_codes bidirectional list↔atom mode-4 emission via two-path template (scalar a1 → rt_pl_atom_chars_codes 7-scalar helper; literal cons-cell a1 → rt_pl_atom_chars_codes_term + emit_build_compound_term). Shared static atom_chars_codes_common(t0,t1) factors decompose/compose logic. Plus rt_pl_write_var TERM_COMPOUND → pl_write 1-line fix (was dropping to "_"). +2 mode-3 rung (rung12_atom_chars + rung12_atom_codes), +2 mode-4 rung. **CAT-D-10 landed (`c5fc7d3c`/`060aad55`, Sonnet 4.7, 2026-05-27):** 11 1-arg type-test builtins (var/nonvar/atom/atomic/number/integer/float/compound/callable/is_list/ground) — fixed silent always-succeeds bug. Two-path template (scalar arg via rt_pl_type_test 4-arg; compound-literal arg via rt_pl_type_test_term + emit_build_compound_term). Mode-2/3/4 byte-identical across full battery. No rung-count delta (type tests live inside ITEs whose branches still depend on unimplemented functor/arg/=..). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive on design); CAT-D-11 (sort/msort — RT helper does term-array build + insertion-sort via pl_term_compare + dedup + cons-list build + unify, ZERO port logic, template owns γ/ω); CAT-D-12 (functor/3 + arg/3 + =../2 — unblocks rung09).
 
 **Session setup:**
 ```
@@ -434,11 +434,59 @@ directive) → CAT-B → CAT-C → PJ-AGW-5.
   copy_term(hello,C),write(C) outputs 'hello' byte-identical to --interp. The helper is correct
   and will pull rung26_copy_term over once those orthogonal gaps land.
 
-  **CAT-D-6 — NEXT (pick from):** `atom_chars/2` + `atom_codes/2` (bidirectional list↔atom,
-  bigger surface — helper needs cons-cell construction/decomposition); `atom_number/2`
-  (text↔number with int/float parsing); `atomic_list_concat/2,3` (variable-arity, list scan);
-  `succ/2` (3 entries in rung18); type tests `atom/1`, `integer/1`, etc. (usually ITE conditions
-  — need PJ-AGW-5 to surface as PASS lifts).
+  **CAT-D-6 ✅ landed (`b60ebfa4`, Sonnet 4.7, 2026-05-27):** atom_chars/2, atom_codes/2,
+  string_chars/2, string_codes/2 — bidirectional list↔atom via two-path template. Path A
+  (scalar a1 = BB_PL_VAR or BB_ATOM): 7-scalar `rt_pl_atom_chars_codes(as_codes, k0,i0,s0,
+  k1,i1,s1)` — 6 regs + 1 stack slot under `sub rsp,16`. Path B (literal cons-cell a1 =
+  BB_PL_STRUCT): emit `emit_build_compound_term(a1)` to build Term* tree at runtime, pass
+  pointer in r8, call `rt_pl_atom_chars_codes_term(as_codes, k0,i0,s0, Term*)`. Shared static
+  `atom_chars_codes_common(as_codes, t0, t1)` factors decompose (arg0 ground → build cons
+  list, unify into arg1) vs compose (arg0 unbound → walk cons list, build atom text, unify
+  into arg0). Term* forward-declared as void* in bb_exec.h (transitive include scope
+  doesn't have Term); cast at the .c entry. ALSO landed in same commit: rt_pl_write_var
+  TERM_COMPOUND case now routes to pl_write (was falling through to fputs("_"), pre-existing
+  CAT-D-7 follow-up).
+  Gate effect: **+2 mode-3 rung (rung12_atom_chars + rung12_atom_codes); +2 mode-4 rung
+  (same two). Mode-3 and mode-4 byte-identical across full edge-case battery (atom_codes
+  ([97,98,99]) → abc; atom_chars('',[]) → []; round-trip atom_codes(abc,Cs),atom_codes(Y,Cs)
+  → abc).**
+
+  **CAT-D-10 ✅ landed (`c5fc7d3c`/`060aad55`, Sonnet 4.7, 2026-05-27):** all 11 1-arg type
+  tests (var, nonvar, atom, atomic, number, integer, float, compound, callable, is_list,
+  ground). Previously fell through to bb_pl_builtin's stub-comment + succ_back, so every
+  test returned `yes` silently — correctness horror in any ITE-conditioned program. Two-path
+  emission mirrors CAT-D-9b: scalar arg → 4-arg `rt_pl_type_test(fn, k,i,s)` (all 4 regs,
+  no stack); compound-literal arg (e.g. `is_list([1,2,3])`) → `emit_build_compound_term`
+  + `rt_pl_type_test_term(fn, Term*)` under `sub rsp,16` for walker scratch. Both helpers
+  share static `type_test_common(fn, Term*)` mirroring bb_exec.c:2899-2909. Op string interned
+  via strtab_label. **Mode-2/3/4 byte-identical** across full 9-test scalar battery
+  (atom/integer/number/atomic/compound/var/nonvar/etc.) AND the 4-test compound battery.
+  Gate: no rung-count delta — type tests are conditions inside ITEs whose true/else branches
+  still depend on functor/arg/=.. (still stub-comment). Diff against rung09_builtins: type-
+  test lines now read `yes yes no no` instead of all-yes. **All sibling smokes held; FACT
+  RULE 0; GATE-1 5/5; mode-2 89/107; mode-3 21/107; mode-4 21/107.**
+
+  **CAT-D-11 — NEXT TARGET — sort/2 + msort/2.** RT helper does the work (term-array build
+  from cons list via cur=term_deref(cur->compound.args[1]) loop; insertion sort comparing
+  via pl_term_compare; dedup for sort/2 not msort/2; cons-list build in reverse with
+  term_new_compound(ATOM_DOT,2,c); unify result into arg1 under a trail mark). ZERO port
+  logic in the helper — template owns the γ/ω jump as in CAT-D-1..10. Two-path template
+  needed because corpus rung17 fixtures always pass list-literal a0 (BB_PL_STRUCT):
+  rt_pl_sort_msort(int do_msort, int k0,i0,s0, int k1,i1,s1) for the scalar (BB_PL_VAR)
+  case and rt_pl_sort_msort_term(int do_msort, Term* t0, int k1,i1,s1) for the struct case
+  built via emit_build_compound_term. Mode-2 oracle: bb_exec.c near "/*--- sort/2, msort/2
+  ---*/" already present and tested. Estimated +4 mode-3 rung + +4 mode-4 rung if the
+  result-list pattern unification step (e.g. `S = [A,B,C]`) also works in mode-4 — needs
+  verification; if list-cons unify is broken downstream the sort call itself will land but
+  the pattern step will still fail. Test with rung17_sort_sort_basic, rung17_sort_msort_basic,
+  rung17_sort_sort_already_sorted, rung17_sort_msort_dupes (rung17_sort_sort_empty already
+  PASSes mode-4 because no list-pattern step).
+
+  **CAT-D-12 — alternative NEXT — functor/3 + arg/3 + =../2.** Unblocks rung09_builtins
+  directly. functor/3 has decompose path (TERM_COMPOUND → unify name+arity) and construct
+  path (Name+Arity → build fresh-var compound, unify); arg/3 indexes into compound.args[];
+  =../2 builds a cons-list of [functor|args]. All three need compound construction/decomp
+  which is well-trodden territory (emit_build_compound_term + rt_pl_compound_build_n exist).
 
   **Pre-existing mode-4 gaps blocking compound-using rungs (worth fixing for big lifts):**
   (a) `write(compound)` renders the slot index, not the term shape. Minimal repro:
@@ -596,14 +644,44 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   - if-then-else ✅ (`710ee0b0`, CAT-D-8 — BB_PL_ITE wrapper + flat_drive_pl_ite + bb_pl_ite.cpp)
   - 12 comparison ops ==, \\==, @<, @>, @=<, @>=, =:=, =\\=, <, >, <=, >= ✅ (`b1a37351`, CAT-D-9 — rt_pl_term_cmp + rt_pl_arith_cmp; single 7-scalar arm)
   - compound-term `==`/`\\==`/`@<`/`@>`/`@=<`/`@>=` correctness ✅ (`e15e86b0`, CAT-D-9b — emit_build_compound_term post-order walker + rt_pl_compound_build_n + rt_pl_term_cmp_terms; no rung delta, correctness fix only)
+  - atom_chars/2, atom_codes/2, string_chars/2, string_codes/2 ✅ (`b60ebfa4`, CAT-D-6, Sonnet 4.7 — two-path: scalar rt_pl_atom_chars_codes 7-scalar / cons-cell rt_pl_atom_chars_codes_term + emit_build_compound_term; shared static atom_chars_codes_common; rt_pl_write_var TERM_COMPOUND → pl_write fix included; +2 mode-3 + +2 mode-4 rung)
+  - 11 1-arg type tests var/nonvar/atom/atomic/number/integer/float/compound/callable/is_list/ground ✅ (`060aad55`, CAT-D-10, Sonnet 4.7 — fixed silent always-succeeds; two-path scalar 4-arg rt_pl_type_test / compound-literal rt_pl_type_test_term; shared static type_test_common; no rung delta, correctness fix gating downstream ITEs)
 
-**Gates at HEAD (post-CAT-D-9b, 2026-05-27 Opus 4.7, one4all `e15e86b0`):** GATE-1 5/5,
-GATE-2 = **19/107** (--mode run; held — no rung delta; correctness fix only),
+**Gates at HEAD (post-CAT-D-10, 2026-05-27 Sonnet 4.7, one4all `060aad55`):** GATE-1 5/5,
+GATE-2 = **54/132** (crosscheck mode-2/3 agreement, held),
 GATE-3 **89/107** (--mode interp; held), **GATE-4 4/4** (mode-4 minimal held),
-mode-4 rung suite **19/107** (--mode compile; held), crosscheck 52 PASS held.
+mode-3 rung suite **21/107** (--mode run; +2 from 19 baseline via CAT-D-6),
+mode-4 rung suite **21/107** (--mode compile; +2 from 19 baseline via CAT-D-6),
+crosscheck 54 PASS held.
 Sibling smoke: icon/snocone/raku 5/5, rebus 4/4.
 
-**This session (Opus 4.7, post-CAT-D-5 → CAT-D-7..9):**
+**This session (Sonnet 4.7, 2026-05-27, after CAT-D-9b handoff):**
+- **CAT-D-6** (`b60ebfa4`) — atom_chars/2, atom_codes/2, string_chars/2, string_codes/2
+  mode-4 emission. Two-path template (scalar a1 → rt_pl_atom_chars_codes / literal cons-cell
+  a1 → rt_pl_atom_chars_codes_term + emit_build_compound_term). Shared static
+  atom_chars_codes_common(t0,t1) factors decompose vs compose. Term* forward-decl'd as void*
+  in bb_exec.h. Plus rt_pl_write_var TERM_COMPOUND → pl_write (1-line, was dropping to "_").
+  Verified byte-identical across all three SCRIP modes on full edge battery: ground
+  decompose (`atom_chars(hello,Cs)` → `[h,e,l,l,o]`); ground compose with code list
+  (`atom_codes(X,[97,98,99])` → `abc`); empty atom (`atom_chars('',Cs)` → `[]`); round-trip
+  (`atom_codes(abc,Cs),atom_codes(Y,Cs)` → `abc`). **+2 mode-3 rung, +2 mode-4 rung
+  (rung12_atom_chars + rung12_atom_codes).**
+
+- **CAT-D-10** (`c5fc7d3c`/`060aad55`) — 11 1-arg type-test builtins (var, nonvar, atom,
+  atomic, number, integer, float, compound, callable, is_list, ground) mode-4 emission.
+  Previously fell through to bb_pl_builtin stub-comment + succ_back, so every type test
+  returned `yes` silently — correctness horror in ITE-conditioned programs. Two-path emission
+  mirrors CAT-D-9b: scalar arg → 4-arg `rt_pl_type_test(fn,k,i,s)` (all 4 regs, no stack);
+  compound-literal arg → emit_build_compound_term + `rt_pl_type_test_term(fn,Term*)` under
+  sub rsp,16. Both share static `type_test_common(fn,Term*)` mirroring bb_exec.c:2899-2909.
+  Op string interned via strtab_label (BB_BUILTIN already in pl_ir_kind_uses_sval).
+  **Mode-2/3/4 byte-identical** across full 9-test scalar battery AND 4-test compound battery
+  (compound(foo(a,b)), is_list([1,2,3]), is_list(notlist), ground(f(a,b))). No rung-count
+  delta (type tests live inside ITEs whose true/else branches still depend on functor/arg/=..
+  which remain stubs). Diff against rung09_builtins fixture: type-test lines now read
+  `yes yes no no` correctly instead of all-yes silent always-succeed.
+
+Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5;
 - **CAT-D-7** (`d2ce06fc`) — `write(compound)` mode-4 100% template emission. Three new
   pure-effect runtime helpers (rt_pl_write_int / _float / _cstr — one-liners). Recursive
   emit-time walker `emit_write_term` in bb_builtin.cpp emits asm call sequence for
@@ -650,10 +728,31 @@ CAT-A-2 `471ab202` structural prerequisite (no numeric lift); CAT-D-1 `95f73bad`
 upcase_atom/downcase_atom); CAT-D-2..5 `bb8bb529` +6 (atom_concat / string_*/atom_string /
 string_to_atom / copy_term).
 
-Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume stubs; needs Lon directive on design).
-CAT-D-6 (atom_chars/atom_codes — bigger surface due to list cons-cell construction).
-rung26_copy_term independent gap: copy_term doesn't share var identity between A and B in
-mode-4 (`copy_term(f(X,X), f(A,B))` → A==B should hold but doesn't); orthogonal to CAT-D-9b.
+Next blockers (Sonnet 4.7 handoff, 2026-05-27, post-CAT-D-10):
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume stubs; needs Lon directive on design).
+  Largest single-step unlock (estimated +15-25 PASS). Blocked on choice between inline-on-
+  demand vs resumable-call protocol — see CAT-A-3 ledger entry above.
+- **CAT-D-11** (sort/2 + msort/2). RT helper does term-array build from cons list +
+  insertion-sort via pl_term_compare + dedup (sort only) + reverse cons-list build + unify
+  into arg1 under trail mark. ZERO port logic in helper — template owns γ/ω as in CAT-D-1..10.
+  Two-path template needed: rung17 fixtures always pass list-literal a0 (BB_PL_STRUCT), so
+  emit_build_compound_term path is primary. Helper signatures:
+  `rt_pl_sort_msort(int do_msort, int k0,i0,s0, int k1,i1,s1)` (path A — scalar a0 with bound
+  list, future-proofing) and `rt_pl_sort_msort_term(int do_msort, Term* t0, int k1,i1,s1)`
+  (path B — literal cons-cell a0 built via emit_build_compound_term). Estimated +4 mode-3 rung
+  + +4 mode-4 rung IF list-pattern unification (e.g. `S = [A,B,C]`) also works in mode-4 — if
+  list-cons unify is broken downstream, sort itself lands but the pattern step still fails;
+  worth a probe BEFORE committing. Test fixtures: rung17_sort_sort_basic, rung17_sort_msort_basic,
+  rung17_sort_sort_already_sorted, rung17_sort_msort_dupes (rung17_sort_sort_empty already passes
+  mode-4 — no list-pattern step).
+- **CAT-D-12** (functor/3 + arg/3 + =../2). Unblocks rung09_builtins directly. All three need
+  compound construction/decomposition — territory already covered by emit_build_compound_term
+  + rt_pl_compound_build_n. functor/3 has decompose (TERM_COMPOUND → name+arity) and construct
+  (Name+Arity → fresh-var compound) paths; arg/3 indexes compound.args[]; =../2 builds
+  cons-list of [functor|args]. Helpers: rt_pl_functor / rt_pl_arg / rt_pl_univ (with _term
+  variants for compound-literal args).
+- **rung26_copy_term independent gap:** copy_term doesn't share var identity between A and B in
+  mode-4 (`copy_term(f(X,X), f(A,B))` → A==B should hold but doesn't); orthogonal to CAT-D-9b.
 
 Latent bug worth fixing: `lower_pl.c:65` puts garbage `sval` on BB_PL_VAR (union with ival).
 
