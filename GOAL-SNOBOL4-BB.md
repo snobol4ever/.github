@@ -569,3 +569,85 @@ not emission sites — they coordinate templates. `rt_cap_assign` is a pattern-b
 **(HQ issue — track here, fix in HQ session)**
 
 `sm_pat_nullary.cpp` BINARY arm: `bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)sm_pat_nullary_rt_fn(...))` embeds the emitter-process `rt_pat_*` function pointer as imm64 in the emitted binary. This violates **GOAL-BB-TEMPLATE-LADDER Invariant 8**: "MEDIUM_BINARY must never embed emitter-process pointers." The binary blob calls `mov rax, <emitter_addr>; call rax` — the emitter address is meaningless in the linked binary. This makes `--run` (mode-3) pattern-building corrupt for these opcodes. Fix: SM_PAT_* TEXT arm already calls `rt_pat_*@PLT` correctly (via macro invocation in GAS). BINARY arm should do the same — call `rt_pat_arb@PLT` etc. directly rather than embedding a pointer. Add to GOAL-HEADQUARTERS as rung `SM-BINARY-PAT-FIX`.
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 4) — handoff note
+
+**Built on `836844e0`** (the prior SBL session's last push: nested-ALT EP_RESET fix).
+**HEAD one4all: `7c834dea`** (committed locally, NOT yet pushed).
+**.github: this update pending commit.** corpus: untouched.
+
+### SBL-BREAKX-1 — distinct SM_PAT_BREAKX opcode (wiring complete, mode-2 backtrack incomplete)
+
+Added a new SM opcode `SM_PAT_BREAKX` and routed BREAKX through it cleanly,
+separating it from plain BREAK (which previously dropped the X). Changes
+threaded through every layer that handles `SM_PAT_BREAK`:
+
+1. `SM.h`: new enum value
+2. `lower.c`: `TT_BREAKX` → `SM_PAT_BREAKX` (all 3 sites: TT_BREAKX case + 2 TT_FNC dispatch points)
+3. `sm_prog.c`: name table + charset operand-kind case
+4. `lower_pat_dcg.c`: BREAK and BREAKX now separate `if` branches; BREAKX sets
+   `nd->ival=1; nd->β=nd` (self-loop for retry)
+5. `bb_exec.c BB_PAT_BREAK`: branches on `nd->ival==1` — applies `rt_bb_brkx`
+   semantics (rewind to origin = Δ − counter, step past break char, scan forward
+   to next break char, fail+rewind if exhausted, else update counter + advance Δ + γ)
+6. `emit_core.c`: dispatch `SM_PAT_BREAKX` through `sm_pat_nullary`
+7. `emit_sm.c`: `SM_PAT_BREAKX` creates `BB_PAT_BREAK` with `ival=1, β=self`
+8. `sm_pat_nullary.cpp`: `rt_pat_breakx` fn ptr + `PAT_BREAKX` macro + MEDIUM_TEXT case
+9. `bb_pat_break.cpp` TEXT arm: branches on `pBB->ival`:
+   - α saves Δ to `.Lbrk<id>_z_orig` for both kinds (needed for BREAKX rewind)
+   - β `ival==0`: existing undo + jmp ω
+   - β `ival==1`: rescan loop — restore Δ = origin, `counter += 1` (step past stop
+     char), forward `strchr`-loop to next break char, jmp ω if exhausted, else
+     `Δ = origin + counter; jmp γ`
+10. `rt.c` + `rt.h`: `rt_pat_breakx` (pops cset, pushes `pat_breakx(cs)`)
+11. `snobol4.h`: declare `pat_breakx`
+12. `sm_interp.c`: `SM_PAT_BREAKX` case (mode-2 interp dispatch — calls `pat_breakx`)
+
+### Gates (all green, no regressions)
+- GATE-1 mode-2 smoke 7/7
+- GATE-2 broker 24/24 (was 24 — unchanged)
+- Rung suite M2=9, M4=9, SKIP-M4=0 (unchanged)
+- Broad corpus PASS=184/280 (unchanged)
+
+### What's NOT yet working — and why
+Mode-2 BREAKX **backtracking** still produces empty output on tests that exercise
+β re-entry (e.g. `S BREAKX('.') . V '.' BREAKX('.') . W` on 'abc.def.ghi' yields
+empty; oracle gives V=abc W=def).
+
+**Root cause:** Mode-2 SNOBOL4 pattern matching flows through `stmt_exec.c` lines
+266-313 via `bb_build_brokered((PATND_t *)val.p)` — a cast from `PATND_t*` to
+`BB_t*`. The `bb_build_brokered` function (defined in `emit_bb.c:809`) takes a
+`BB_t*` and dispatches via `walk_bb_flat` on `nd->t` (`BB_op_t`). But the
+`PATND_t.kind` field (XKIND_t enum) does **not** align with `BB_op_t` enum
+values — e.g. `XBRKC=2` vs `BB_PAT_BREAK≈37`. So how does this currently work
+at all for plain BREAK? Hypothesis: `bb_build_brokered` doesn't actually execute
+template code for these PATND-tagged inputs — it falls back to a brokered C
+helper inside `bb_broker` / `bb_boxes`, which means **`pat_breakx()` → XBRKX
+PATND** has no corresponding handler in that fallback path. Plain BREAK (XBRKC)
+likely hits a path that's been wired up historically; XBRKX needs the same
+wiring.
+
+**Next step (small):** Trace what `bb_build_brokered` actually does when handed
+a PATND_t with `kind=XBRKX`. Look for a runtime-dispatch table inside the
+brokered binary that switches on the kind. If there's a missing case for XBRKX,
+add one that mirrors XBRKC plus the BREAKX β rescan logic. (Could also be in
+`bb_boxes.c` — historically held C Byrd boxes; FACT-RULE-deleted most, but
+there may be a PATND→box dispatch helper still alive.)
+
+**Mode-4 BREAKX:** The TEXT arm is written but no rung exercises it (rungs
+038-057 don't include BREAKX). To verify mode-4, add a rung 058 with the
+sample above and re-run `test_snobol4_pat_rung_suite.sh`. Should pass M4 once
+the mode-2 path is fixed (because M4 doesn't depend on the PATND brokered path).
+
+### Follow-up priorities (unchanged from prior session, BREAKX added)
+1. **SBL-BREAKX-3** — bridge PATND XBRKX through the brokered runtime path
+   (the actual remaining work for SBL-BREAKX). Trace the PATND→BB conversion
+   inside `bb_build_brokered`. May involve adding an XBRKX case to whatever
+   dispatch table the brokered binary uses internally.
+2. **SBL-ATP** — new BB kind for `@var` cursor capture (PLAN.md priority).
+3. **SBL-*-2 BINARY arms** — mode-3 BINARY parallel for the six TEXT arms.
+4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
