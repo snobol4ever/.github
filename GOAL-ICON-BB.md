@@ -84,7 +84,7 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `7be51cd5`)
+## ⚡ CURRENT WATERMARK (one4all `fcfc7a73`)
 
 GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
 (Re-verified 2026-05-26, Opus 4.7, at live HEAD `4d976602` — the Icon-BB content hash since `9be28a5d` is unchanged; HEAD advanced only via GOAL-PROLOG-BB commits PA-1/2/3 + JA-2a `76488946`. All three Icon gates rebuilt-and-rerun green. THIS SESSION added the H-1 cross-arg odometer: rungs 196→198 via cross-arg odometer + side-effect fix.)
@@ -286,8 +286,8 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
 | rung01 to-by neg-step | `3681a6a9` | 174→176 |
 | H-1 threading + IDX_SET/SECTION | `45c1bde2` | 189→195 |
 | BB_CONJ (E1 & E2) | `9be28a5d` | 195→196 |
-| H-1 cross-arg odometer | `7be51cd5` | 196→197 |
-| H-1 odometer side-effect fix | `7be51cd5` | 197→198 |
+| H-1 cross-arg odometer | `fcfc7a73` | 196→197 |
+| H-1 odometer side-effect fix | `fcfc7a73` | 197→198 |
 
 ---
 
