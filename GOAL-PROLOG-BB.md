@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-3 = 88/107.** `one4all 87ed9b24` (2026-05-27).
+**Current state: GATE-3 = 88/107, GATE-4 = 4/4, GATE-2 = 36/96 (real, post-V-5).** Next HEAD on hand-off commit (Opus 4.7, 2026-05-27).
 
 **Session setup:**
 ```
@@ -259,6 +259,46 @@ For each `case BB_FOO:` in `bb_exec.c`:
 - [ ] After every session that adds a mode-2 builtin rung: add an entry: `rung<N> <desc>: mode-2 ✅ YYYY-MM-DD | mode-4 ⏳`. Sessions are NOT allowed to let the open ledger exceed 5 entries before addressing mode-4 gaps.
 - [ ] Current debt: rungs 1–85 mode-2 passing; zero verified mode-4. First paydown: make rungs 01..10 (atoms, arithmetic, unification, write) pass mode-4 via PL-AGW-9A-3.
 
+#### PL-DEBT-1 — Seeded ledger (2026-05-27, Opus 4.7, post-V-5)
+
+V-5 retired the AGW-1c fake-parity; GATE-2 now measures real mode-3/mode-4 agreement and reports
+**36/96**. The 96 failures sort into four structural categories. Each is a discrete next-session
+target; each has a measurable gate (GATE-2 PASS lift).
+
+- [ ] **CAT-A — `BB_PL_SEQ`-in-`BB_PL_ALT` α channel bug.** `lower_pl.c:213` returns the
+  conjunction's α as `*α_out = gα[0]` (first goal), not `*α_out = seq` (the SEQ wrapper). When
+  `;` disjunction at `lower_pl.c:222-228` sets `nd->α = aα`, the alt's left branch enters the
+  first goal directly with the OUTER γ — the rest of the conjunction (`G2..Gn`) is silently
+  dropped. Affects rung02_facts, rung05_backtrack, every program with `(G1, …, Gn ; H)`.
+  **Fix:** `lower_pl.c:213 → *α_out = seq;` paired with verifying the interp's `BB_PL_ALT`
+  case (`bb_exec_node(nd->α)`) handles `nd->α = BB_PL_SEQ` correctly (its single-step return is
+  `seq->α = gα[0]`, which the outer `bb_exec_once` loop drives). Estimated +20–40 GATE-2 PASS.
+
+- [ ] **CAT-B — Compound-term unify binds nothing.** `bb_unify.cpp build_term_text` calls
+  `rt_pl_node_to_term(kind, ival, sval, dval)` with only the operand's own scalar fields; for a
+  `BB_PL_STRUCT` the argument nodes hanging off α + γ-chain (per `BB.h:84`) are never built or
+  attached. `f(X, a) = f(b, Y)` prints `_ _` instead of binding X=b, Y=a. **Fix sketch:**
+  recursively materialize args (walk `nd->α` + `nd->α->γ` for `ival` arity) via
+  `rt_pl_node_to_term`, push, then call a new effect helper `rt_pl_compound_build(functor_label,
+  arity, args)` — same shape as `rt_pl_arith` precedent (no port logic). Estimated +10–20 PASS.
+  Also prerequisite for several rung-ladder builtins that construct return terms (rung28
+  catch/throw, rung25 term_to_atom output).
+
+- [ ] **CAT-C — List/cons walking + `member/2` segfault.** Lists lower as nested `BB_PL_STRUCT`
+  cons-cells (`lower_pl.c:80`). `member(X, [a,b,c]), write(X), fail ; true` segfaults in the
+  child. Same compound-term root as CAT-B, plus `bb_pl_call.cpp` arg-passing (env push/save +
+  `pl_bb_bind_arg`) may not unify head/tail slots correctly when the arg is a cons compound with
+  unbound tail variable. Needs `gdb` on a child binary to localize precisely. Closes after CAT-B.
+
+- [ ] **CAT-D — Builtin coverage in flat-emit.** `bb_builtin.cpp` covers `write/1`, `nl/0`,
+  `is/2`, and a handful of others. The full builtin set (findall/3, sort/2, format/2,
+  atom_codes/2, atom_concat/3, retract/retractall, assertz/asserta, abolish/1, succ/plus/3,
+  catch/throw, etc.) exists ONLY in `bb_exec.c BB_BUILTIN` (mode-2). Each unknown name in the
+  template emits a stub-comment + `jmp γ`, so the call silently succeeds without effect. Each
+  builtin needs an arm in `bb_builtin.cpp` (template byte emission only — effect helpers
+  `rt_pl_*` stay in `rt.c`). Recommend ordering: write/print-class first (rung06, rung09),
+  then atom_*-class (rung12), then findall/sort/format (rung11/aggregates).
+
 ## Open steps (priority order)
 
 ### 🔴 VIOLATIONS LEDGER (found session 2026-05-27 — fix BEFORE writing more rungs)
@@ -318,15 +358,20 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   rt_register_predicates_pl calls 1 → 0; bb_exec_* 0 → 0. Gates HELD: GATE-1 5/5, GATE-2 132/0,
   GATE-3 88/107, GATE-4 4/4, Icon smoke/rungs/mode-4 unchanged, FACT RULE 0.
 
-- [ ] **V-5 — Mode 3 (`--run`) Prolog runs the C SM+BB walker, not flat x86 (AGW-1c exception).**
-  `scrip.c:432/441/446` route Prolog `--run` through `sm_run_with_recovery(&s2->sm, sm_interp_run)`,
-  which dispatches `SM_BB_SWITCH` → `pl_bb_dcg` → `bb_exec_once` (C walker). RULES.md sanctions this as
-  the *temporary* AGW-1c exception "until the bb_pl_*.cpp templates land." Mode 3 is therefore currently
-  identical to mode 2 at runtime — NOT the `sm_emit_linear`→`sm_run_linear` flat-blob path. **FIX:**
-  after V-3/V-4, route Prolog `--run` through the same flat-emit path as mode 4 (in-proc: emit to a
-  PROT_EXEC buffer and jump in), delete the Prolog branch at scrip.c:423-446, and REMOVE the AGW-1c
-  exception text from RULES.md. **Gate:** Prolog `--run` emits/enters flat x86 (no `sm_interp_run`,
-  no `bb_exec_*` reached from the `--run` path); GATE-1..4 green; ASAN clean.
+- [x] **V-5 — Mode 3 (`--run`) Prolog now runs flat x86 via fork+exec pipeline (AGW-1c RETIRED). ✅ 2026-05-27 (Opus 4.7).**
+  `scrip.c:422-432` rewired: Prolog `--run` no longer routes through `sm_interp_run`. New static
+  helper `scrip_run_via_x86_pipeline(s2, input_path)` mkdtemps `/tmp/scrip_run_XXXXXX`, chdirs in,
+  calls `sm_codegen_text` to write `prog.s`, runs `stage2_free_bb_after_emit`, spawns external `as`
+  + `gcc` (linking against libscrip_rt.so located via `$SCRIP_RT_LIB` or `/proc/self/exe` dirname
+  search), then forks + execvs `prog.bin` in a child and waits. Child exit status propagated to the
+  scrip driver's return. Sibling helpers `scrip_locate_rt_lib` and `scrip_spawn_wait` added. The
+  AGW-1c comment block ("Mode 3 (--run) routes through sm_interp_run … until the bb_pl_*.cpp
+  emitter templates are filled") is DELETED from the branch and replaced with the V-5 commentary.
+  **GATE-2 collapses from a fake 132/0 to a real 36/96** — the prior parity was meaningless
+  because both `--interp` and `--run` walked the same C code; the 96 new failures are the
+  genuine mode-3/mode-4 gap, ledgered as PL-DEBT-1 below. GATE-1 5/5, GATE-3 88/107, GATE-4 4/4
+  held. Sibling smoke (Icon/Snocone/Raku/Rebus) 5/5/5/4 held. FACT RULE grep 0. **RULES.md TODO:**
+  delete the "Exception: Prolog `--run` via `sm_interp_run` … AGW-1c" sanction line — V-5 closes it.
 
 - [ ] **V-6 — C Byrd box `pl_bb_dcg` (DESCR_t fn(void*,int)) must die with the C walker.**
   `pl_bb_dcg` (pl_runtime.c:36) is a C Byrd box that calls `bb_exec_once`/`bb_exec_resume` — exactly the
