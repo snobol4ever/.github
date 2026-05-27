@@ -578,10 +578,35 @@ Audit of the live source tree at one4all `9be28a5` against RULES.md + GOAL-HEADQ
 ### ⛔ Correction rungs (added by this audit — do in order; each its own commit, gates green between)
 
 - [x] **PA-1** ✅ DONE `3a384681` (Opus 4.7, 2026-05-26). Deleted the three port-deciding `rt_pl_unify_var_atom/_var_var/_generic` C fns (INVARIANT 9). `bb_unify.cpp` now emits the γ/ω branch INLINE; operands built via pure conversion `rt_pl_node_to_term`, unified via effect helper `rt_pl_unify_terms` (1/0, no jump) — both KEEP-side per PJ-RT-PURGE. grep rt_pl_unify_{var_atom,var_var,generic}=0. BB_UNIFY per-kind cell RE-FROZEN (targeted; pre-existing 39-FAIL/GONE=6 drift untouched; my delta 471→472 FAIL→PASS, NEW=0). Gates: smoke_prolog 5/5, rung 16, crosscheck 126/0, honest 123/0/0, icon/snocone/raku 5/5, rebus 4/4, snobol4 13/13; Mode-2 unify hello/eq OK in --interp & --run. No in-tree ASAN harness (Makefile ignores sanitize flags); risk nil — GC-alloc only, Mode-2 ref path (bb_exec.c) untouched.
-- [~] **PA-2 (part 1 ✅)** `4cb0651d` — `scripts/util_prolog_template_emptiness_audit.sh` created; FAILs (exit 1) while any of bb_pl_seq/call/choice/alt/cut is an empty stub (no s_*asm/emit_fmt/bytes/etc). Confirms audit claim: EMPTY=5 FILLED=0. ⛔ PART 2 OPEN (= AGW-9): fill ONE template per commit (translate its bb_exec.c case to TEXT+BINARY + bb_bin_t reloc), decrementing EMPTY each time; D grade lifts only at EMPTY=0. Gate per template: EMPTY drops by 1, that kind runs via run_prolog_via_x86_backend.sh, GATE-1..4 non-regressive.
+- [~] **PA-2 (part 1 ✅; part 2 in progress — 1/5 filled)** `4cb0651d` — `scripts/util_prolog_template_emptiness_audit.sh` created; FAILs (exit 1) while any of bb_pl_seq/call/choice/alt/cut is an empty stub (no s_*asm/emit_fmt/bytes/etc). Confirms audit claim: EMPTY=5 FILLED=0. PART 2 (= AGW-9): fill ONE template per commit (translate its bb_exec.c case to TEXT+BINARY + bb_bin_t reloc), decrementing EMPTY each time; D grade lifts only at EMPTY=0. **bb_pl_cut FILLED 2026-05-26 (Opus 4.7):** simplest box — translates the `BB_CUT` case (`g_pl_cut_flag=1; return nd->γ`) to inline x86. γ/β port jumps emitted INLINE (`bb_bin_t` reloc `{j+1,j+5,j+6}` for γ-ref/β-ref/β-define, TEXT `call rt_pl_cut_set@PLT; jmp γ; β: jmp γ`); only the flag-set EFFECT delegated to new KEEP-side helper `rt_pl_cut_set` (twin of `rt_pl_write_atom`; no port state, no entry selector, no graph walk). EMPTY 5→4. Emitted asm assembles (`as --64` rc=0); Mode-2/3 cut reference path intact (`go:-p(X),!,write(X),nl` → `1` both modes). Remaining EMPTY=4: seq/call/choice/alt. Gate per template: EMPTY drops by 1, GATE-1..4 non-regressive.
 - [x] **PA-3** ✅ DONE `659ca95d` (Opus 4.7, 2026-05-26). Reachability proof = 0: sm_jit_interp.c referenced ZERO pl_box_*/pl_*_fn (it uses bb_broker/bb_node_t from bb_broker.h + icn_bb_pump_proc_by_name). The pl_broker.h include (line 536) was DEAD — build links green without it; DELETED + replaced with a documenting comment. pl_broker.c header now documents its 11 pl_*_fn boxes as the Mode-1/2 AST-reference broker ONLY (Prolog analog of the icn_bb_dcg exemption), unreachable from any --run/--compile RUN path. Gates: smoke_prolog 5/5, crosscheck 128/0, rung 16, icon/snocone/raku 5/5, rebus 4/4, snobol4 13/13; per-kind 472/39 NEW=0 unchanged.
 
 ## Watermark
+
+```
+=== 2026-05-26 Opus 4.7 — AGW-9 / PA-2-part2: bb_pl_cut FILLED (EMPTY 5→4) ===
+one4all: <this commit> — BUILD GREEN. .github: (this session).
+First of the five empty Prolog four-port templates filled. bb_pl_cut.cpp translates the
+bb_exec.c BB_CUT case (g_pl_cut_flag=1; return nd->γ) to inline x86:
+  MACRO_DEF: no form (comment). BINARY: `mov rax,0; call rax` + two rel32 port jumps,
+    bb_bin_t reloc {j+1,j+5,j+6} → {γ-ref, β-ref, β-define}. TEXT: α: ; call rt_pl_cut_set@PLT;
+    jmp γ; β: jmp γ.
+  γ/β PORT JUMPS EMITTED INLINE (not in a C walker). Only the flag-set EFFECT is delegated to a
+  NEW KEEP-side helper rt_pl_cut_set() (rt.c/rt.h) — the Prolog twin of rt_pl_write_atom: pure
+  side effect, no α/β/γ/ω state, no `entry` selector, no graph walk. RULES-compliant (no C Byrd
+  box, no rt_* PORT helper).
+Emptiness audit: EMPTY=5 FILLED=0 → EMPTY=4 FILLED=1. Emitted asm assembles (as --64 rc=0).
+Mode-2 + Mode-3 cut reference path intact: `go :- p(X), !, write(X), nl.` prints `1` (cut commits
+  to first solution, no backtrack to 2/3) in BOTH --interp and --run.
+GATES (all green / non-regressive): smoke_prolog 5/5; rung suite 16; crosscheck_prolog 127/0;
+  icon 5/5, snocone 5/5, rebus 4/4, raku 5/5, snobol4 13/13.
+Files: src/emitter/BB_templates/bb_pl_cut.cpp (filled), src/runtime/rt/rt.c (+rt_pl_cut_set),
+  src/runtime/rt/rt.h (+proto).
+NEXT (AGW-9, remaining EMPTY=4, one per commit): bb_pl_seq → bb_pl_call → bb_pl_choice → bb_pl_alt.
+  Then AGW-8 registry-builder rewrite over AG-wired ports + AGW-10 Mode-4 parity. The seq/call/
+  choice/alt boxes are materially harder than cut (state in nd->state/counter, trail mark/unwind,
+  snapshot/restore of shared sub-graphs) — translate each matching bb_exec.c case carefully.
+```
 
 ```
 === 2026-05-26 Opus 4.7 — HQ-AUDIT correction rungs: PA-1 ✅, PA-3 ✅, PA-2 part-1 ✅ ===
