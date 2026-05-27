@@ -1,13 +1,13 @@
 # HANDOFF — 2026-05-27 — Sonnet 4.7 — Prolog BB V-4 CLOSED
 
-**one4all HEAD: `88f03a41`** ✅ all gates green
+**one4all HEAD: `b95e4318`** ✅ all gates green
 **.github HEAD: pending watermark + V-5 decision doc commit**
 
 ---
 
 ## What landed
 
-### V-4 — `rt_pl_b_*` runtime BB-rebuild path RETIRED (`88f03a41`)
+### V-4 — `rt_pl_b_*` runtime BB-rebuild path RETIRED (`b95e4318`)
 
 Predicate BB graphs are now inlined as flat x86 by `SM_BB_SWITCH PL_ENTRY` at
 emit time (V-1/V-2/V-3 landed earlier today). The runtime path that rebuilt the
@@ -56,7 +56,7 @@ Kept enum slots to avoid renumbering downstream opcodes.
 | FACT RULE grep | 0 | **0** ✅ |
 | All remaining `rt_pl_b_*` source refs | live + comments | comments only |
 
-**Gates HELD at `88f03a41`:**
+**Gates HELD at `b95e4318`:**
 
 - GATE-1 `test_smoke_prolog.sh`: **5/5** ✅
 - GATE-2 `test_crosscheck_prolog.sh`: **132/0** ✅ (5 oracle-miss, pre-existing)
@@ -181,9 +181,9 @@ bash scripts/test_prolog_mode4_rung.sh    # GATE-4: 4/4
 bash scripts/test_crosscheck_prolog.sh    # GATE-2: 132/0
 ```
 
-**Confirm `88f03a41` watermark:**
+**Confirm `b95e4318` watermark:**
 
 ```bash
 cd /home/claude/one4all && git log --oneline -1
-# expect: 88f03a41 V-4: retire rt_pl_b_* runtime BB-rebuild path
+# expect: b95e4318 V-4: retire rt_pl_b_* runtime BB-rebuild path
 ```

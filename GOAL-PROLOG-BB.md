@@ -306,7 +306,7 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
         And `rt.c` lacked `prolog_atom.h` include → `prolog_atom_name` return defaulted to int
         and got 32-bit truncated; plus `rt_init` didn't call `prolog_atom_init`. All three fixed.
 
-- [x] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk"). ✅ 2026-05-27 (Sonnet 4.7, `88f03a41`).**
+- [x] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk"). ✅ 2026-05-27 (Sonnet 4.7, `b95e4318`).**
   Predicate BB graphs are now inlined as flat x86 by SM_BB_SWITCH PL_ENTRY at emit time. The
   runtime rebuild via `rt_register_predicates_pl` + `rt_pl_b_*` was dead (0 `bb_exec_*` calls in
   emitted .s) — it built a graph nothing read. Deletions: `xa_pl_{builder,sub_builder,registry_table,kids_rodata}.cpp`;
