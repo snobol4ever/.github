@@ -219,9 +219,10 @@ wrong — fix the BB graph, not the runtime.
     8→9 (+rk_str22), GATE-RK4 9→10 (+rk_str22). All smokes hold. FACT
     RULE clean. 100% template emission preserved.
 
-  - [~] **RK-BB-3a** (mode-2 ✅, mode-4 WIP, 2026-05-27, Opus 4.7) —
-    `for @arr -> $v` polymorphism for `BB_ITERATE`. **Mode-2 GREEN; +2
-    gate wins (rk_for_array_simple + rk_for_array).** Decomposition:
+  - [x] **RK-BB-3a** ✅ (mode-2 + mode-3 + mode-4 all green; 2026-05-27,
+    Opus 4.7, one4all `cc6c1a06`) — `for @arr -> $v` polymorphism for
+    `BB_ITERATE`. Decomposition (mode-2/-3 landed at `706e2828`; mode-4
+    completed at `cc6c1a06`):
 
     **Lowering** (lower.c): `lower_raku_iterate_arr(arr_vname)` builds
     a 1-node BB graph — `BB_ITERATE`, `sval=intern(arr_vname)`,
@@ -246,42 +247,40 @@ wrong — fix the BB graph, not the runtime.
     fresh GC-allocated DT_S; advances counter past separator (end+1).
     Exhaustion (counter ≥ slen) → ω. Icon legacy path untouched.
 
-    **Mode-4** (bb_iterate.cpp): Raku MEDIUM_TEXT arm authored. .data
-    slots: `.Liter<id>_name: .asciz "<vname>"` + `.Liter<id>_cnt: .quad
-    0`. α resets counter, jmp load. β falls through to load (counter
-    already advanced). load: `call NV_GET_fn@PLT` → DESCR_t in
-    `rax:rdx` per SysV ABI (≤16-byte struct); `mov rsi,rax; shr rsi,32`
-    extracts slen; `mov r10,rdx` saves base ptr; bounds check vs counter
-    `jge ω`. scan: walks `rcx` looking for `\x01` byte or slen end.
-    send: computes `r8=seg_len`, `r11=seg_start_ptr`; advances counter
-    to `end+1`; `mov rdi=r11, rsi=r8; call rt_push_str@PLT; jmp γ`.
+    **Mode-4** (bb_iterate.cpp): Raku MEDIUM_TEXT arm. .data slots:
+    `.Liter<id>_name: .asciz "<vname>"` + `.Liter<id>_cnt: .quad 0`.
+    α resets counter, jmp load. β falls through to load. load:
+    `call NV_GET_fn@PLT` → DESCR_t in `rax:rdx` (SysV ABI ≤16-byte
+    struct); extracts slen from rax high32, base ptr from rdx.
+    **slen-fallback** (added cc6c1a06): if slen==0 and base ptr is
+    non-NULL, call `strlen@PLT` inline — the codebase-wide convention
+    is that STRVAL() hardcodes .slen=0 and every consumer recovers via
+    strlen. Bounds check vs counter `jge ω`. scan: walks `rcx` looking
+    for `\x01` byte or slen end. send: computes `r8=seg_len`,
+    `r11=seg_start_ptr`; advances counter to `end+1`; **allocates a
+    fresh NUL-terminated copy** via `GC_malloc@PLT` + inline `rep
+    movsb` + NUL-terminate (required: downstream `write`/`say` use
+    `fputs(s)` which prints from ptr to NUL — passing a mid-string
+    ptr+len pair would yield the whole tail). Then `rt_push_str(new,
+    seg_len)`; jmp γ. Stack discipline 16-aligned across PLT calls
+    via paired push/sub or 2-push patterns.
+
     **100% template emission** — only conversion/effect helpers
-    (NV_GET_fn, rt_push_str) via @PLT; all port-logic inline x86.
-    FACT RULE clean (no seg_byte/SL_B/sl_emit_one/emit_standard_blob).
+    (NV_GET_fn, strlen, GC_malloc, rt_push_str) via @PLT; all port-
+    logic (α/β/γ/ω routing, scan, NUL-terminate) inline x86. FACT
+    RULE clean (no seg_byte/SL_B/sl_emit_one/emit_standard_blob).
 
-    **Mode-4 known issue (blocks `rk_for_array_simple` mode-4 PASS):**
-    in the full program, `NV_GET_fn("x")` returns NULVCL (slen=0) at
-    the BB_ITERATE body, even though `push(@x,...)` mutators correctly
-    populate `_var_buckets["x"]` and `say(@x)` reads the populated
-    value. **Isolated asm test** (gcc-compiled standalone with the
-    exact instruction sequence) yields 3 segments correctly. So the
-    asm logic is verified — the issue is at the wrapper/program level.
-    Hypotheses for next session:
-      (a) Section-switch fall-through: `.section .data` slots are
-          embedded between `.Licngen<n>_fresh:` and `.Licngen<n>_α:`;
-          assembler may be misplacing the fall-through.
-      (b) Name mismatch: my `.asciz "x"` from `pBB->sval` vs `.S2:
-          .string "x"` used by `PUSH_VAR` — unlikely lexically identical
-          but worth a binary check.
-      (c) Scope/timing: `_var_buckets` may be cleared/reset between
-          the push calls and the BB_ITERATE entry.
-    Recommendation: `objdump -d` on the linked binary; print the
-    `_var_buckets[hash("x")]->val.slen` from a small custom debug
-    helper called right before `NV_GET_fn`.
-
-  - [ ] **RK-BB-3a-mode4-debug** — root-cause + fix the slen=0 bug in
-    the full-program mode-4 path. Once green, RK-BB-3a closes; mode-4
-    flips +2 (rk_for_array_simple + rk_for_array, mirroring mode-2).
+    **Mode-4 debug history (for context):** initial mode-4 emission
+    (706e2828) hit slen=0 from NV_GET_fn at the BB body. Three
+    hypotheses listed in the prior handoff (section-switch fall-
+    through, name lookup mismatch, scope/timing). Root cause turned
+    out to be NONE of those: it was the codebase-wide convention that
+    STRVAL() macro hardcodes .slen=0 in stored DESCR_t values, with
+    every downstream consumer recovering via strlen(s). The template
+    now honors that convention (slen-fallback) AND adds a NUL-
+    terminated segment copy because rt_push_str writes the raw ptr
+    directly into the DESCR — without the copy, mid-string ptrs leak
+    the rest of the array via downstream NUL-bounded reads.
 
   - [ ] **RK-BB-3b/c** — map/grep as Seq consumers. Once 3a's polymorphic
     BB_ITERATE exists, lazy map = `BB_ITERATE(@arr)` → γ-side block runs
@@ -380,14 +379,14 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 706e2828 (RK-BB-3a partial — mode-2 + mode-3 polymorphism; +2 mode-2 +2 mode-3; mode-4 template authored)
-.github: HEAD (handoff — RK-BB-3a partial; mode-4 blocked on slen=0 NV_GET issue)
+one4all: cc6c1a06 (RK-BB-3a CLOSED — mode-4 slen-fallback + segment NUL-copy; +2 GATE-RK4)
+.github: HEAD (handoff — RK-BB-3a closed; ladder advances to RK-BB-3b/c lazy map/grep)
 corpus:  unchanged
 
-Gates at RK-BB-3a partial (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  12/31  (cumulative +4 from baseline 8: rk_str22, rk_arrays, rk_for_array_simple, rk_for_array)
-  Mode-3 (--run):  12/31  (matches mode-2; bb_exec.c polymorphism serves both — SBL-MODE3-REACTIVATE 380b4683 made --run live again this session)
-  GATE-RK4 mode-4: 11/31  (cumulative +2 from baseline 9: rk_str22, rk_arrays — RK-BB-3a mode-4 not yet flipping; see blocker below)
+Gates at RK-BB-3a closed (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  12/31  HOLD (cumulative +4 from baseline 8 across 3.0a/3.0b/3a)
+  Mode-3 (--run):  12/31  HOLD (matches mode-2)
+  GATE-RK4 mode-4: 13/31  (+2 from prior 11: rk_for_array_simple, rk_for_array)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -395,6 +394,89 @@ Gates at RK-BB-3a partial (2026-05-27, Opus 4.7):
   GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
+
+⛔ RK-BB-3a-mode4-debug ✅ CLOSED — 2026-05-27, Opus 4.7, one4all cc6c1a06:
+
+ONE FILE TOUCHED (+58/-4): src/emitter/BB_templates/bb_iterate.cpp
+
+TWO BUGS, BOTH ROOTED IN CODEBASE-WIDE STRING CONVENTION:
+
+(1) slen=0 from NV_GET_fn was NOT a wrapper-level issue at all. STRVAL()
+    in src/runtime/snobol4/snobol4.h:20 hard-codes `.slen=0` for every
+    DT_S DESCR built via STRVAL(s_) — the codebase convention is that
+    consumers recover length via strlen(s) at use-time. say/write does
+    `fputs(s, dest)`; elems does `strchr(s, SOH)`; arr_get does
+    `strchr(seg, SOH)`. The mutating push handler (raku_builtins_byname.c
+    L220 `NV_SET_fn(vname, STRVAL(acc))` after manually NUL-terminating
+    `acc`) produces a slen=0 DESCR with valid NUL-terminated string.
+    So when our template did `cmp rcx, rsi (where rsi=slen=0); jge ω`,
+    it jumped straight to ω and yielded nothing.
+
+    The prior handoff's three hypotheses (section-switch fall-through,
+    name mismatch, scope/timing) were ALL wrong. The trace evidence
+    that pointed there (LD_PRELOAD shim returning slen=0) was technically
+    correct, but the conclusion was reversed: slen=0 is the NORMAL
+    return from NV_GET_fn for any DT_S string built via STRVAL — every
+    other consumer just doesn't care.
+
+    Fix: template adds slen-fallback after the rax-high32 extract — if
+    slen==0 AND base ptr non-NULL, call strlen@PLT inline. Stack
+    discipline: push r10 + sub rsp, 8 keeps rsp 16-aligned across the
+    PLT call; symmetric add/pop on the other side.
+
+(2) After (1), the for-loop iterated but each yield contained the WHOLE
+    REMAINING STRING from the segment start onward. Diagnosis via a
+    second LD_PRELOAD shim wrapping rt_push_str showed slen=2 was being
+    passed correctly for "10", "20", "30" — but the printed output
+    was "10\\x0120\\x0130", "20\\x0130", "30". Root cause: rt_push_str
+    stores (ptr, slen) into the DESCR with .s=ptr and .slen=slen, but
+    downstream write/say use fputs(s) which reads the raw ptr to the
+    nearest NUL — and our seg_start_ptr pointed INTO the source string
+    (which has a NUL only at the END of the whole \\x01-joined array).
+
+    Fix: send block now allocates a fresh seg_len+1 buffer via
+    GC_malloc@PLT, copies the segment via inline rep movsb, NUL-
+    terminates at [rax + r8], then pushes that fresh buffer via
+    rt_push_str. GC_malloc is a memory-conversion helper (already used
+    throughout the runtime — raku_builtins_byname.c's push handler at
+    L213 does the same). rep movsb is purely inline (no PLT). Stack
+    discipline: 2 pushes before GC_malloc maintain 16-alignment; the
+    rep block uses 1 push+pop with no intervening call so 8-misalign
+    is harmless there.
+
+VERIFIED:
+  - rk_for_array_simple mode-4 byte-exact: 10\\n20\\n30\\n
+  - rk_for_array        mode-4 byte-exact: 10\\n20\\n30\\n60\\nalpha\\nbeta\\ngamma\\n
+  - rk_for_array_simple + rk_for_array mode-2 + mode-3 still byte-exact (no regression).
+  - All sibling smokes HOLD: icon 5/5, prolog 5/5, raku 5/0, broker 198.
+  - FACT RULE grep: 0 (no seg_byte, SL_B, sl_emit_one, emit_standard_blob).
+  - Build clean.
+
+NEXT — RK-BB-3b/c (lazy map/grep as Seq consumers):
+
+The polymorphic BB_ITERATE substrate is now COMPLETE in mode-2, mode-3,
+and mode-4. Both convention quirks (slen=0 DESCRs, NUL-bounded fputs)
+are now properly handled by the template. The next rung is lazy map/grep.
+
+Per Open Q3 (recommendation: eager-drain for first cut, lazy as future
+rung): `my @x = map { ... } @y` materializes into a fresh \\x01-string
+by walking the BB_ITERATE on @y, running the lambda body on each γ
+yield, accumulating results via the same push-builtin path. grep is
+the same with a γ-side predicate gate.
+
+The two follow-on segfault clusters from the prior handoff (rk_subs,
+rk_interp, rk_try_catch25 — verified at baseline pre-RK-BB-3.0a)
+remain a separate concern, not blocking RK-BB-3b/c.
+
+The Open Q5 union-clobber proper fix (TT_SUB_DECL v.ival vs v.sval)
+also remains deferred; the RK-BB-2 step 6 defensive `v.ival=0` is
+still load-bearing for gather/take.
+
+⛔ END RK-BB-3a-mode4-debug HANDOFF
+
+⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: RK-BB-3a partial (706e2828),
+   RK-BB-3.0b (7a60d30e), RK-BB-3.0a (ba481112), RK-BB-3.0+3d infra
+   (fcac4ab3), RK-BB-2 step 6 (d08237e0) below.
 
 ⛔ RK-BB-3a partial ✅ (mode-2) + ⚠ (mode-4 blocked) — 2026-05-27, Opus 4.7:
 
