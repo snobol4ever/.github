@@ -14,7 +14,49 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `ce649c14` — Opus 4.7 session 2026-05-27b; ICN-Z-0/1 + BINOP_GEN target corrected; rebased onto upstream Prolog mode-4 `058f7846`)
+## ⚡ CURRENT WATERMARK (one4all `7ff8fce8` — Opus 4.7 session 2026-05-27c; ICN-XA-1 done + ICN-M4 binop-gen cross-product; mode4_rung PASS=2→5)
+
+⛔ **SESSION 2026-05-27c (Opus 4.7) — ICN-XA-1 LANDED + the `lt`/`mult`/`compound` mode-4 FAILs FIXED. mode4_rung PASS=2→5 FAIL=0.**
+
+**KEY CORRECTION to the prior watermark's BINOP_GEN target.** The prior "sharper target" assumed
+mode-4 routed `mult`/`lt`/`compound` through `bb_binop_gen.cpp` and only needed a template fill. Tracing
+the ACTUAL mode-4 lowering showed it did NOT: `lower_mul`/`lower_acomp` (lower.c) emitted a FLAT SM
+scaffold (`SM_BB_SWITCH; SM_BB_SWITCH; SM_MUL`) — TWO independent `BB_TO` graphs with no cross-product
+driver between them. The single every-loop back-edge re-drives only the first switch → wrong output.
+`bb_binop_gen.cpp` was NEVER reached in mode-4 for these programs. So the gate-movers needed BOTH a
+lowering change AND the template fill — not template-only.
+
+**DONE (real, verified, non-regressing):**
+1. **ICN-XA-1 `walk_bb_node_str_c`** (emit_core.c/.h): `BB_t* → char*` variant — swaps the shared
+   emit sink to an `open_memstream` FILE* around the EXISTING `walk_bb_node` dispatch, restores after.
+   NOT a second producer: every byte still originates in the keyed template fns (FACT RULE grep 0).
+   `sm_bb_switch.cpp` ICN_GEN arm rewired to `pre + walk_bb_node_str_c(gen) + post` — the LOCAL-PURGE
+   violation (`emit_text_n` + `walk_bb_node` mid-`_str()`) is GONE; the arm is now pure.
+2. **Generator-binop routing** (lower.c): `lower_add/sub/mul/div/mod/acomp` now call
+   `lower_icn_gen_binop(t)` first — if an operand is suspendable, register the WHOLE binop subtree as
+   ONE BB graph (`lower_icn_expr_top` builds BB_BINOP_GEN w/ α=lhs β=rhs operand boxes) and emit a
+   SINGLE `SM_BB_SWITCH` (exactly like `lower_to`). Mode-4 now routes through `bb_binop_gen.cpp`.
+3. **`bb_binop_gen.cpp` real odometer** (TEXT/mode-4): inline x86 cross-product mirroring `bb_exec.c`
+   BB_BINOP_GEN (688-762). Seeds outer (lhs) + inner (rhs); on β advances inner, on inner-exhaust
+   advances outer + re-seeds inner; applies via `rt_arith` (arith) / `rt_acomp`+`rt_last_ok` (relop,
+   with relop-fail retry); outer-exhaust → ω. Operand boxes emitted INLINE: generators via
+   `walk_bb_node_str_c`, BB_LIT_I single-shot via `synth_single_shot_box`. DESCR_t pop reads union
+   `.i` from **rdx** (16-byte struct SysV ABI — `v|slen`→rax, union→rdx; the all-`36` bug was reading
+   rax). Nested BINOP_GEN (compound) works: non-static child labels avoid reentrancy aliasing.
+
+**GATES: smoke_icon 5/5 · broker 23 · icon_all_rungs 198 · smoke_prolog 5/5 (ALL unchanged) ·
+mode4_rung PASS=5 FAIL=0 (was 2/3) · FACT RULE grep 0.** `lt`→`3,4`; `mult`→`1,2,2,4,3,6`;
+`compound`→`4,6` — all byte-exact vs `--interp`.
+
+**ICN-M4 follow-on (documented, not blocking):** `synth_single_shot_box` handles BB_LIT_I only; BB_VAR
+/BB_KEYWORD/non-int-literal single-shot operands fall to a `[non-gen … inline TODO]` port-stub (jmp ω).
+DT_I round-trip in the apply path assumes integer operand generators (true for the gate seed set);
+real/string operand values need a descr-preserving holding cell. BINARY (mode-3 brokered) arm is still
+the α→γ/β→ω passthrough stub — mode-4 TEXT is the gate path per the MODE-PRIORITY directive.
+
+---
+
+
 
 ⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 + ICN-Z-1 landed; ICN-Z-2 substantial; ICN-Z-3 found BLOCKED.**
 ICN-Z-0: `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` + bounded-aware
@@ -318,14 +360,17 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
 
 ### Phase ICN-XA — Template purity fix for sm_bb_switch ICN_GEN arm
 
-#### ICN-XA-1 — Route ICN_GEN walk through `XA_ICN_GEN_DRIVE` opcode ⏳ ⚡ NOW THE PRIORITY PREREQ
-**⚡ This (specifically the `walk_bb_node_str` half) is the ONE prerequisite for the mode-4
-`lt`/`mult`/`compound` gate movers — see the BINOP_GEN CORRECTION in the watermark. Build
-`walk_bb_node_str` first, then fill `bb_binop_gen.cpp`'s odometer; mode4_rung climbs PASS=2→5.**
-- [ ] **Diagnosis:** `sm_bb_switch_str` ICN_GEN arm calls `emit_text_n(pre.data(), pre.size())` then `walk_bb_node(gen, emit_outf())` mid-body — LOCAL-PURGE violation. `_str()` must be `state → std::string`, zero `emit_text_n` inside.
-- [ ] **Fix:** create `src/emitter/XA_templates/xa_icn_gen_drive.cpp` with opcode `XA_ICN_GEN_DRIVE`. Its `_str()` body: (a) build pre-amble string; (b) call `walk_bb_node_str(gen)` → returns `std::string` (add this variant to walk_bb_node if it doesn't exist); (c) return concatenation. Dispatch via `xa_dispatch` in `emit_core.c`.
-- [ ] Wire `sm_bb_switch_str` ICN_GEN arm to return `XA_ICN_GEN_DRIVE` output — zero `emit_text_n` inside.
-- [ ] Gate: AUDIT GREEN, GATE-PK holds, smoke_icon 5/5.
+#### ICN-XA-1 — Route ICN_GEN walk through string-returning walk_bb_node ✅ (2026-05-27c, Opus 4.7)
+**⚡ This (specifically the `walk_bb_node_str` half) was the ONE prerequisite for the mode-4
+`lt`/`mult`/`compound` gate movers — now landed; gate climbed PASS=2→5.**
+- [x] **`walk_bb_node_str_c`** added (emit_core.c/.h): `BB_t* → char*` — `open_memstream` sink swap
+  around the existing `walk_bb_node` dispatch, then restore. Caller frees. Zero `emit_text_n` inside;
+  same single producer (FACT RULE grep 0).
+- [x] `sm_bb_switch_str` ICN_GEN arm rewired to `pre + walk_bb_node_str_c(gen) + post` — the
+  LOCAL-PURGE violation (emit_text_n + walk_bb_node mid-body) removed; arm is pure.
+- [x] Gate: smoke_icon 5/5, broker 23, rungs 198, smoke_prolog 5/5, mode4_rung PASS=5, FACT RULE 0.
+- [ ] (follow-on) The PL_ENTRY arm still has an `emit_text_n` + `walk_bb_flat` mid-body — Prolog scope,
+  not Icon; convert when `walk_bb_flat` gets a string variant.
 
 ---
 
