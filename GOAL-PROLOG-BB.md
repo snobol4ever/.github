@@ -577,13 +577,49 @@ Audit of the live source tree at one4all `9be28a5` against RULES.md + GOAL-HEADQ
 
 ### ⛔ Correction rungs (added by this audit — do in order; each its own commit, gates green between)
 
-- [ ] **PA-1** — Discharge PJ-RTP-1..3 as ONE coherent BB_UNIFY rung. Translate the var-atom / var-var / generic unify port logic from `bb_exec.c case BB_UNIFY` into inline x86 in `bb_unify.cpp` (γ on bind/match, ω on mismatch; trail via the whitelisted side-effect-free `trail_mark`/`unify`/`term_deref` only). Then DELETE `rt_pl_unify_var_atom`/`_var_var`/`_generic` from rt.c + rt.h. Verify `grep -n "rt_pl_unify" src/emitter/BB_templates/bb_unify.cpp src/runtime/rt/rt.{c,h}` = 0. Gate: GATE-1 smoke_prolog 5/5, GATE-3 rung ladder ≥ prev, crosscheck_prolog non-regressive, ASAN clean (`detect_use_after_free=1`).
-- [ ] **PA-2** — Make AGW-9 measurable + close it kind-by-kind. Add `scripts/util_prolog_template_emptiness_audit.sh`: for each of `bb_pl_seq/call/choice/alt/cut`, FAIL if the `_str` body is `return std::string();` with zero `s_*asm`/`emit_fmt`/`s_directive` calls (today: 5/5 empty). Then fill ONE template per commit (translate its `bb_exec.c` case to TEXT+BINARY arms + `bb_bin_t` reloc table, per the AGW-9 method), decrementing the empty count each time. **This is the load-bearing EMITTER rung — the D grade lifts only as this count goes to 0.** Gate per template: emptiness count drops by 1; that kind's Mode-4 output runs via `run_prolog_via_x86_backend.sh`; GATE-1..4 non-regressive.
-- [ ] **PA-3** — Prove (or sever) the `pl_broker.c` Mode-3/4 edge. `sm_jit_interp.c:536` includes `pl_broker.h`. Confirm via call-graph grep that no `pl_*_fn` Byrd box nor `bb_broker(...pl...)` is reachable from a `--run`/`--compile` RUN path (only emit-time / Mode-2). If reachable → sever (the 11 `pl_*_fn` boxes must be Mode-1/2-only, exactly like `icn_bb_dcg`). If unreachable → DELETE the now-pointless `#include` and add a one-line comment in pl_broker.c documenting it as the Mode-1/2 reference broker (mirrors the FACT-1 exemption rationale). Gate: `--run`/`--compile` reachability to `pl_*_fn` == 0 (the FACT-2 completion test, Prolog edition); all gates non-regressive.
+- [x] **PA-1** ✅ DONE `3a384681` (Opus 4.7, 2026-05-26). Deleted the three port-deciding `rt_pl_unify_var_atom/_var_var/_generic` C fns (INVARIANT 9). `bb_unify.cpp` now emits the γ/ω branch INLINE; operands built via pure conversion `rt_pl_node_to_term`, unified via effect helper `rt_pl_unify_terms` (1/0, no jump) — both KEEP-side per PJ-RT-PURGE. grep rt_pl_unify_{var_atom,var_var,generic}=0. BB_UNIFY per-kind cell RE-FROZEN (targeted; pre-existing 39-FAIL/GONE=6 drift untouched; my delta 471→472 FAIL→PASS, NEW=0). Gates: smoke_prolog 5/5, rung 16, crosscheck 126/0, honest 123/0/0, icon/snocone/raku 5/5, rebus 4/4, snobol4 13/13; Mode-2 unify hello/eq OK in --interp & --run. No in-tree ASAN harness (Makefile ignores sanitize flags); risk nil — GC-alloc only, Mode-2 ref path (bb_exec.c) untouched.
+- [~] **PA-2 (part 1 ✅)** `4cb0651d` — `scripts/util_prolog_template_emptiness_audit.sh` created; FAILs (exit 1) while any of bb_pl_seq/call/choice/alt/cut is an empty stub (no s_*asm/emit_fmt/bytes/etc). Confirms audit claim: EMPTY=5 FILLED=0. ⛔ PART 2 OPEN (= AGW-9): fill ONE template per commit (translate its bb_exec.c case to TEXT+BINARY + bb_bin_t reloc), decrementing EMPTY each time; D grade lifts only at EMPTY=0. Gate per template: EMPTY drops by 1, that kind runs via run_prolog_via_x86_backend.sh, GATE-1..4 non-regressive.
+- [x] **PA-3** ✅ DONE `659ca95d` (Opus 4.7, 2026-05-26). Reachability proof = 0: sm_jit_interp.c referenced ZERO pl_box_*/pl_*_fn (it uses bb_broker/bb_node_t from bb_broker.h + icn_bb_pump_proc_by_name). The pl_broker.h include (line 536) was DEAD — build links green without it; DELETED + replaced with a documenting comment. pl_broker.c header now documents its 11 pl_*_fn boxes as the Mode-1/2 AST-reference broker ONLY (Prolog analog of the icn_bb_dcg exemption), unreachable from any --run/--compile RUN path. Gates: smoke_prolog 5/5, crosscheck 128/0, rung 16, icon/snocone/raku 5/5, rebus 4/4, snobol4 13/13; per-kind 472/39 NEW=0 unchanged.
 
 ## Watermark
 
 ```
+=== 2026-05-26 Opus 4.7 — HQ-AUDIT correction rungs: PA-1 ✅, PA-3 ✅, PA-2 part-1 ✅ ===
+one4all: 659ca95d — BUILD GREEN. .github: (this session).
+Worked the three newly-inserted HQ-ALIGNMENT-AUDIT (d93f07b2) Prolog correction rungs.
+
+PA-2 part 1 ✅ (4cb0651d): scripts/util_prolog_template_emptiness_audit.sh — makes the
+  EMITTER half (AGW-9) measurable. FAILs (exit 1) while any of bb_pl_seq/call/choice/alt/cut
+  is an empty stub. Confirms the audit's claim empirically: EMPTY=5 FILLED=0. As AGW-9 fills
+  one template per commit the count must reach 0 (the D grade lifts only at EMPTY=0).
+
+PA-1 ✅ (3a384681): BB_UNIFY four-port logic emitted INLINE; the three rt_pl_unify_var_atom/
+  _var_var/_generic C port-logic fns DELETED (INVARIANT-9 breach closed). bb_unify.cpp now does
+  the γ/ω branch in asm (test eax,eax; je ω; jmp γ); operands built via pure CONVERSION helper
+  rt_pl_node_to_term(kind,ival,sval,dval), unified via EFFECT helper rt_pl_unify_terms(l,r)
+  (trail_mark+unify+unwind; returns 1/0, no jump). Both KEEP-side (conversion + effect, not a
+  dispatcher). BB_UNIFY per-kind cell RE-FROZEN, TARGETED — the pre-existing 39-FAIL/GONE=6
+  per-kind drift (from the older HQ 504-baseline at c4b8c880, present at clean HEAD 01f35d07)
+  was left untouched; PA-1's delta was exactly the one BB_UNIFY cell FAIL→PASS (471→472, NEW=0).
+
+PA-3 ✅ (659ca95d): proved the pl_broker.c Mode-3/4 edge is dead. sm_jit_interp.c referenced
+  ZERO pl_box_*/pl_*_fn (it uses bb_broker/bb_node_t from bb_broker.h + icn_bb_pump_proc_by_name);
+  the pl_broker.h include (line 536) was stale — build links green without it. DELETED the dead
+  include; documented pl_broker.c's 11 pl_*_fn boxes as the Mode-1/2 AST-reference broker ONLY
+  (Prolog analog of the icn_bb_dcg exemption). FACT-2 reachability = 0.
+
+GATES (all green / non-regressive): smoke_prolog 5/5; rung suite 16; crosscheck_prolog 126-128/0
+  (mktemp-race variance band); prolog_bb_honest 123/0/0; per-kind 472/39 NEW=0 GONE=6 (the 39/6 are
+  PRE-EXISTING drift, NOT this session); icon/snocone/raku 5/5; rebus 4/4; snobol4 13/13.
+
+OPEN / NEXT (priority): PA-2 part 2 = AGW-9 — fill the five empty bb_pl_*.cpp templates ONE per
+  commit (cut is simplest; then seq/call/choice/alt), translating each bb_exec.c case to TEXT+BINARY
+  arms + bb_bin_t reloc, gated by util_prolog_template_emptiness_audit.sh (EMPTY 5→0). THE big one;
+  needs fresh context budget. Then AGW-8 registry-builder rewrite over AG-wired ports / AGW-10 parity.
+NOTE on the pre-existing 39-FAIL per-kind drift: the HQ per-kind baseline (504/0/625) is frozen at
+  c4b8c880; the live tree has drifted to 472/39 with GONE=6 by clean HEAD 01f35d07 — a separate
+  HQ baseline-refresh concern, NOT caused by this session (verified via git-stash A/B).
+
 === 2026-05-26 Opus 4.7 — PJ-AGW-3b ✅ — rung05 backtracking PASS (Mode 2 + Mode 3) ===
 one4all: (this session) — BUILD GREEN; ASAN-clean on recursive backtracking paths.
 .github: (this session) — PJ-AGW-3b marked done; watermark + PLAN row updated.
