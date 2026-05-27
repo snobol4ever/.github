@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-1 = 5/5, GATE-2 = 38/94 (+2 post-CAT-D-1), GATE-3 = 88/107, GATE-4 = 4/4.** HEAD `95f73bad` (Opus 4.7, 2026-05-27). CAT-A-2 landed (`471ab202`, structural prerequisite, gate-safe); CAT-D-1 landed (`95f73bad`, atom_length/upcase_atom/downcase_atom flat-emit + 3 rt helpers, +2 GATE-2). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive) or CAT-D-2 (more atom builtins; mechanical extension of CAT-D-1 pattern).
+**Current state: GATE-1 = 5/5, GATE-2 = 11/107 (+6 post-CAT-D-2..5; --mode run, real V-5 accounting), GATE-3 = 88/107, GATE-4 = 4/4.** HEAD `bb8bb529` (Opus 4.7, 2026-05-27). CAT-D-1 landed (`95f73bad`, atom_length/upcase_atom/downcase_atom). CAT-D-2 + CAT-D-3 landed (`ecb3b229`): atom_concat/3 with new 9-arg rt_pl_atom_concat helper (3 stack args under aligned 32B frame); string_length/string_upper/string_lower/string_concat aliased onto existing CAT-D-1/D-2 helpers (SCRIP TERM_ATOM backs both atom and string — zero new rt code). CAT-D-4 landed (`52a78efb`): atom_string/2 + string_to_atom/2 bidirectional via new rt_pl_atom_string_pair helper that detects which side is ground. CAT-D-5 landed (`bb8bb529`): copy_term/2 via new rt_pl_copy_term helper calling bb_copy_term. Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive) or CAT-D-6 (atom_chars/atom_codes — bidirectional list↔atom, bigger surface), or pre-existing mode-4 gaps blocking copy_term rung: write(compound) renders slot index not term shape, and ITE-with-==/2 evaluates as silent fail (minimal repro `X=a,Y=a,(X==Y->write(same);write(diff))` outputs blank).
 
 **Session setup:**
 ```
@@ -408,11 +408,49 @@ directive) → CAT-B → CAT-C → PJ-AGW-5.
   defaults to `"[]"` in `rt_pl_node_to_term`. The template check is now `k==BB_ATOM && sval`
   (not `*sval`), so empty atom routes through strtab properly; `atom_length('', 0)` correct.
 
-  **CAT-D-2 — NEXT (pick from):** `succ/2` (3 entries in rung18); `string_length/2`,
-  `string_upper/2`, `string_lower/2` (one rung12 sub-test each); type tests `atom/1`,
-  `integer/1`, etc. — but these are usually ITE conditions and need PJ-AGW-5 to surface as
-  PASS lifts on their own; `atom_concat/3` and similar 3-arg atom builtins (mechanical extension
-  of CAT-D-1 to 3-arg shape — add r9-based 9th scalar via stack or split into two helpers).
+  **CAT-D-2 ✅ landed (`ecb3b229`):** atom_concat/3 via new rt_pl_atom_concat 9-arg helper.
+  Template uses System V ABI (rdi/rsi/rdx/rcx/r8/r9) + 3 stack args at [rsp+0/+8/+16] under
+  `sub rsp,32` / `add rsp,32` for 16B call alignment; rax scratch for the 64-bit i2 immediate
+  and optional s2 strtab label. Helper materializes a0+a1 via rt_pl_node_to_term, reads
+  atomic text via shared helper, concats under GC_MALLOC, interns, unifies into a2. Gate
+  effect: `rung12_atom_builtins_atom_concat` PASSES --mode run (was FAIL=`_`).
+
+  **CAT-D-3 ✅ landed (`ecb3b229`):** string_length/string_upper/string_lower/string_concat
+  aliased onto existing CAT-D-1/D-2 rt helpers. SCRIP Terms make NO atom-vs-string distinction
+  (both TERM_ATOM, both intern through prolog_atom_intern); mode-2 paths in bb_exec.c:2877-2900
+  also bottom out identically. Pure template-arm name-match extension — ZERO new rt code.
+  Gate effect: +3 in --mode run (rung24_string_length/string_case/string_concat all PASS).
+
+  **CAT-D-4 ✅ landed (`52a78efb`):** atom_string/2 + string_to_atom/2 bidirectional via new
+  rt_pl_atom_string_pair helper. Detects which side is ground (term_deref + tag != TERM_VAR
+  test) and unifies the atom-interned text into the OTHER side. Same 6-scalar shape as CAT-D-1.
+  Gate effect: +2 in --mode run (rung24_atom_string + rung26_string_to_atom both PASS).
+
+  **CAT-D-5 ✅ landed (`bb8bb529`):** copy_term/2 via new rt_pl_copy_term helper (calls static
+  bb_copy_term — deep clone with fresh-var renaming, then unify into arg1). Joined the CAT-D-4
+  arm in bb_builtin.cpp; dispatch on fn-name between rt_pl_copy_term and rt_pl_atom_string_pair.
+  Gate effect: 0 on the rung_suite (the rung26_copy_term fixture requires write(compound) +
+  ITE-with-==/2, both pre-existing mode-4 gaps below). Standalone /tmp/test_copy.pl with
+  copy_term(hello,C),write(C) outputs 'hello' byte-identical to --interp. The helper is correct
+  and will pull rung26_copy_term over once those orthogonal gaps land.
+
+  **CAT-D-6 — NEXT (pick from):** `atom_chars/2` + `atom_codes/2` (bidirectional list↔atom,
+  bigger surface — helper needs cons-cell construction/decomposition); `atom_number/2`
+  (text↔number with int/float parsing); `atomic_list_concat/2,3` (variable-arity, list scan);
+  `succ/2` (3 entries in rung18); type tests `atom/1`, `integer/1`, etc. (usually ITE conditions
+  — need PJ-AGW-5 to surface as PASS lifts).
+
+  **Pre-existing mode-4 gaps blocking compound-using rungs (worth fixing for big lifts):**
+  (a) `write(compound)` renders the slot index, not the term shape. Minimal repro:
+      `main :- copy_term(f(a,b),D), write(D), nl.` outputs `2` (slot index) instead of `f(a,b)`.
+      The bb_pl_builtin.cpp `write` arm at line 38-58 only handles BB_ATOM and BB_PL_VAR — the
+      VAR arm calls `rt_pl_write_var(slot)` which DOES render compounds in mode-2 but its
+      mode-4 emission must be loading the wrong value. Look at `rt_pl_write_var` first.
+  (b) ITE-with-`==/2` in mode-4 evaluates as silent fail. Minimal repro:
+      `main :- X=a,Y=a,(X==Y->write(same);write(diff)), nl.` outputs blank line. The PJ-AGW-5
+      partial fix (β→ω_in) handles re-evaluate-Cond loops; this is a different path where
+      `==/2` BB_BUILTIN itself doesn't reach γ. Verify the `==` arm is reached in mode-4
+      (it may be falling through to "unknown 'is' — stub" path).
 
 
 
@@ -541,22 +579,37 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
 **SBL-M4-ASM ✅** — Mode-4 broad corpus 0→126.
 **SBL-M4-OPDISPATCH ✅** — vstack reset in `rt_set_stno`.
 
-**Builtins landed (all as BB_BUILTIN in bb_exec.c):**
+**Builtins landed (all as BB_BUILTIN in bb_exec.c, with mode-4 emission via bb_builtin.cpp template arms + rt_pl_* effect helpers):**
 - write/writeln/nl/is/comparisons/succ/== ✅
 - functor/arg/=../type-tests/atom_*/char_type ✅
-- findall/copy_term/atomic_list_concat ✅
-- string_*/term_to_atom(forward)/atom_number ✅
+- findall/atomic_list_concat ✅ (mode-2 only)
+- term_to_atom(forward)/atom_number ✅ (mode-2 only)
 - sort/msort/format/numbervars/writeq/write_canonical/print/retract/retractall ✅ (2026-05-27)
 - abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
 - assertz/asserta directives (lower-time static fold) ✅
+- **Mode-4 emit (new in this session, CAT-D-2..5, 2026-05-27 Opus 4.7):**
+  - atom_concat/3 ✅ (`ecb3b229`, new rt_pl_atom_concat 9-arg helper)
+  - string_length/2, string_upper/2, string_lower/2, string_concat/3 ✅ (`ecb3b229`, aliased onto CAT-D-1/D-2 helpers — ZERO new rt code)
+  - atom_string/2, string_to_atom/2 ✅ (`52a78efb`, new rt_pl_atom_string_pair bidirectional helper)
+  - copy_term/2 ✅ (`bb8bb529`, new rt_pl_copy_term helper)
 
-**Gates at HEAD (post-CAT-D-1, 2026-05-27 Opus 4.7, one4all `95f73bad`):** GATE-1 5/5, GATE-2
-**38/94** (+1 atom_case +1 atom_length from CAT-D-1; baseline 36/96 from CAT-A; CAT-A-2 itself
-gate-safe with no GATE-2 change), GATE-3 88/19, **GATE-4 4/4**. Earlier landings: 449f4ca3 GATE-2
-132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5 → 36/96 real; CAT-A-2 `471ab202`
-structural prerequisite (no numeric lift); CAT-D-1 `95f73bad` +2. snobol4 --interp smoke 7/13
-(pre-existing). icon/snocone/raku smoke 5/5, rebus 4/4. Next blockers: CAT-A-3 (BB_PL_CALL +
-BB_CHOICE β-resume stubs; needs Lon directive on design), CAT-D-2 (more atom builtins; mechanical).
+**Gates at HEAD (post-CAT-D-5, 2026-05-27 Opus 4.7, one4all `bb8bb529`):** GATE-1 5/5,
+GATE-2 = **11/107** (--mode run rung_suite; +6 this session: +atom_concat +atom_length +atom_case
++string_length +string_concat +string_case +atom_string +string_to_atom; counted under V-5 real
+mode-4 accounting), GATE-3 **88/19** (--mode interp), **GATE-4 4/4** (mode-4 minimal m4-seq/call/
+choice/alt). honest mode-3 audit (test_prolog_bb_honest.sh) 128/0/0. Sibling smoke: snobol4 7/13
+(pre-existing), icon/snocone/raku 5/5, rebus 4/4. **GATE-2 numbering note:** PLAN.md cited 38/94
+post-CAT-D-1, but `test_prolog_rung_suite.sh --mode run` reports a denominator of 107 (matching
+GATE-3). The 94 figure may reference a different driver or pre-V-5 accounting. Worth a Lon audit
+when next looking at GATE-2 — directionally CAT-D-2..5 added +6 PASS, which is the real signal.
+
+Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5;
+CAT-A-2 `471ab202` structural prerequisite (no numeric lift); CAT-D-1 `95f73bad` +2 (atom_length/
+upcase_atom/downcase_atom). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume stubs; needs
+Lon directive on design), CAT-D-6 (atom_chars/atom_codes — bigger surface due to list cons-cell
+construction), or the two pre-existing mode-4 gaps documented in CAT-D-5 note (write(compound)
+slot-index bug + ITE-with-==/2 silent fail) which would together unlock several rungs at once.
+
 Latent bug worth fixing: `lower_pl.c:65` puts garbage `sval` on BB_PL_VAR (union with ival).
 
 ---
