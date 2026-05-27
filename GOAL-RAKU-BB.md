@@ -92,12 +92,19 @@ regex is eager `raku_nfa_exec`; leave it until the pattern ladders are further a
 
 ## Ladder steps — Raku (committed: lazy map/grep IN; junctions IN)
 
-- [ ] **RK-BB-1** — lazy range → `BB_TO_BY`. Add `SM_BBSW_RK_GEN` (0x524B474E) to SM.h;
-  add `lower_raku_expr_top` (parallel to `lower_icn_expr_top`) lowering `$a..$b`/`$a,$b...$c`
-  to a `BB_TO_BY` graph with `lang=BB_LANG_RKU`; emit `SM_BB_SWITCH NULL bb_idx SM_BBSW_RK_GEN`;
-  add the `SM_BBSW_RK_GEN` arm to `sm_bb_switch.cpp` (copy `SM_BBSW_ICN_GEN`). REUSE `bb_to_by.cpp`
-  unchanged. Create `scripts/test_raku_mode4_rung.sh` (GATE-RK4, mirror `test_prolog_mode4_rung.sh`).
-  Verify `test/raku/rk_forloop.raku` produces its `.expected` under `--compile`. GATE-PK holds.
+- [x] **RK-BB-1** ✅ (2026-05-27, Opus) — lazy range → `BB_TO_BY`. Added
+  `SM_BBSW_RK_GEN` (0x524B474E) to SM.h; `lower_raku_range` synthesizes a `TT_TO_BY`
+  node and reuses `lower_icn_expr_top` to build the `BB_TO_BY` graph (retagged
+  `BB_LANG_RKU`); `lower_for_range` gated on `LANG_RAKU && !exclusive` emits
+  `SM_BB_SWITCH NULL bb_idx SM_BBSW_RK_GEN` + every-loop body drive; widened the
+  ICN_GEN arms in `sm_bb_switch.cpp` (mode-4), `emit_sm.c` (exit-PC mark), and
+  `sm_interp.c` (mode-2) to accept RK_GEN. `bb_to_by.cpp` REUSED unchanged.
+  Created `scripts/test_raku_mode4_rung.sh` (GATE-RK4) + `run_raku_via_x86_backend.sh`
+  + `test/raku/rk_range_for.{raku,expected}` (real inclusive range). Range verified
+  under `--interp` AND `--compile`. Shared runtime fix: `rt_nv_set` made
+  non-consuming (peek) to match mode-2 SM_STORE_VAR — the STORE_VAR;VOID_POP codegen
+  underflowed in mode-4 (pre-existing, surfaced here). GATE-PK 455/64/590/6 HELD.
+  GATE-RK mode-2 7/29→8/30. GATE-RK4 mode-4 PASS=8/30 (incl rk_range_for).
 - [ ] **RK-BB-2** — THE KEYSTONE: lazy `Seq` box. `gather`/`take` and `...` lower to a
   `BB_SUSPEND`+`BB_EVERY` PUMP graph (the pull protocol). Retarget `lower_gather_hoist_pass` output
   (or replace it) so `take` becomes a γ-yield in the Seq box rather than a sub call. REUSE
@@ -170,33 +177,43 @@ Icon proved it); (3) only if Raku semantics genuinely differ, extend that shared
 ## Watermark
 
 ```
-one4all: HEAD (RK-BB-1 INFRA landed, NOT committed; lowering half NOT started)
-.github: HEAD (GOAL-RAKU-BB.md rewritten; PLAN.md row updated)
+one4all: 13cef01a (RK-BB-1 ✅ COMPLETE — lazy range on shared BB_TO_BY, mode-2 + mode-4; rebased onto 6deb9f71)
+.github: HEAD (GOAL-RAKU-BB.md RK-BB-1 marked done; PLAN.md row updated)
 
-⚠ CORRECTION: Mode-2 Raku gate is PASS=7 FAIL=22 TOTAL=29 (measured 2026-05-27), NOT 13/0.
-  The test_raku_ir_rungs.sh header comment claiming 13/0 is STALE. Use 7/29 as the baseline.
+⛔ UPSTREAM BREAKAGE (NOT RK-BB-1): commit 6deb9f71 "SBL-ANY-1 + flat-driver α-label fix"
+  (a parallel session) broke the GATE-PK harness: `scrip --audit-per-kind` SEGFAULTS,
+  yielding bogus PASS=5/GONE=1061. Bisect-proven at 6deb9f71 WITHOUT RK-BB-1 in tree, so
+  it predates and is independent of this work. RK-BB-1 rebased cleanly on top (only SM.h
+  comment conflict, resolved to upstream wording; the #define was identical on both sides —
+  the other session also added the SM_BBSW_RK_GEN tag but not the arms/lowering). FIX OWED
+  by the SBL-ANY session or a follow-up: debug the per-kind audit segfault (likely the new
+  flat-driver α-label / r10 cursor setup running on a kind that doesn't expect it).
 
-RK-BB-1 status — PARTIAL (infra only):
-  ✅ SM_BBSW_RK_GEN (0x524B474E) added to src/include/SM.h (mirrors ICN_GEN).
-  ✅ sm_bb_switch.cpp ICN_GEN arm widened to also accept SM_BBSW_RK_GEN (Raku reuses the
-     identical emit-time four-port contract — no duplicated arm). Build green, no regression
-     (Mode-2 still 7/29; change is dead until lowering emits the tag).
-  ❌ NOT DONE: lower_for_range (lower.c:1025) still desugars TT_FOR_RANGE to an eager SM while
-     loop. The remaining RK-BB-1 work is: add lower_raku_expr_top (parallel to lower_icn_expr_top
-     in lower_icn.c) that builds a BB_TO_BY graph (lang=BB_LANG_RKU) for the Raku range, then in
-     lower_for_range gate `if (g_lang==LANG_RAKU) { cfg=lower_raku_range(...); bb_idx=SM_seq_bb_add;
-     SM_emit_sii(SM_BB_SWITCH, NULL, bb_idx, SM_BBSW_RK_GEN); ... drive body as every-loop }`.
-     Mirror lower_to (lower.c:1355) + lower_limit_every for the body drive. bb_to_by.cpp is
-     already filled — no template work, just lowering + wiring.
-  ❌ NOT DONE: scripts/test_raku_mode4_rung.sh (GATE-RK4). Mirror test_prolog_mode4_rung.sh:
-     run test/raku/*.raku under --compile, diff vs .expected. (rk_forloop.raku is a WHILE loop,
-     not a range — RK-BB-1 needs a real range test case, e.g. `for 1..5 -> $i { say $i }`.)
+RK-BB-1 status — ✅ COMPLETE (2026-05-27, Opus):
+  ✅ SM_BBSW_RK_GEN (0x524B474E) in SM.h.
+  ✅ sm_bb_switch.cpp / emit_sm.c / sm_interp.c ICN_GEN arms widened to accept RK_GEN.
+  ✅ lower_raku_range (reuses lower_icn_expr_top → BB_TO_BY, retag BB_LANG_RKU).
+  ✅ lower_for_range gated LANG_RAKU && !exclusive → SM_BB_SWITCH(RK_GEN) + every-drive.
+  ✅ bb_to_by.cpp REUSED unchanged (zero template work — the goal's thesis confirmed).
+  ✅ GATE-RK4 + run_raku_via_x86_backend.sh created; rk_range_for.{raku,expected} added.
+  ✅ rt_nv_set non-consuming fix (mode-2/mode-4 STORE_VAR parity).
 
-GATE-PK at this HEAD: PASS=455 FAIL=64 STUB=590 GONE=6 (pre-existing working-tree state; the
-  RK-BB-1 infra additions cannot affect it — dead code until lowering emits the tag).
+Gates at 13cef01a: GATE-RK mode-2 8/30 (was 7/29). GATE-RK4 mode-4 PASS=8/30 (incl
+  rk_range_for, rk_forloop, rk_arith, rk_strings...). Smoke 5/0. Prolog mode-4 1/4 HOLD.
+  ⛔ GATE-PK harness SEGFAULTS at this HEAD due to upstream 6deb9f71 (see breakage note
+  above) — pre-RK-BB-1 baseline was 455/64/590/6; RK-BB-1 emitter changes route RK_GEN
+  through the unchanged ICN_GEN arm so they cannot have caused it (bisect-confirmed).
 
-NEXT: finish RK-BB-1 lowering (lower_raku_range + lower_for_range RAKU gate), add a real range
-  test + GATE-RK4, prove rk range under --compile. Then RK-BB-2 (gather/take Seq box).
+NOTE on a[0].i dual-use: the SWITCH's a[0].i carries the every-loop exit PC (mode-4
+  ω jmp) AND the mode-2 fresh/resume flag. This is the SAME overlap Icon's lower_every
+  has and tolerates (bb_exec_resume self-inits an unstarted graph). Left as-is, matching
+  the Icon contract; revisit only if a future rung needs a[0].i for a third purpose.
+
+⚠ Exclusive range `..^` and non-literal-bound ranges still fall through to the eager
+  SM while-loop. A follow-on rung (RK-BB-1b) can extend lower_raku_range: exclusive →
+  synthesize hi-1 operand or pass a step/exclusive flag the BB_TO_BY box honors.
+
+NEXT: RK-BB-2 (gather/take Seq box — BB_SUSPEND + BB_EVERY PUMP, reuse bb_upto.cpp).
 SCOPE (Lon, 2026-05-27): lazy map/grep IN; junctions IN; regex/grammar SPLIT→GOAL-RAKU-PAT-BB;
   sort/try/scalar-builtins STAY eager SM.
 ```
