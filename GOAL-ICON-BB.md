@@ -98,14 +98,25 @@ ARBNO needs a growable frame stack; stash ptr in `pBB->counter` (intptr cast), o
 
 ---
 
-## ⚡ CORRECTIVE RUNGS — ZIPPER + GATE (added 2026-05-27, analysis by Claude Sonnet 4.6)
+## ⚡ CORRECTIVE RUNGS — ZIPPER + GATE (added 2026-05-27, revised vs irgen 2026-05-27, Sonnet 4.6)
 
-**Root diagnosis (five structural defects — read before any session):**
+**Root diagnosis — read irgen.icn before any session touching lower_icn.c:**
 
-1. **ICN-1 / ICN-2 — WRONG SIGNATURE + OPERAND-AS-PORT.** `lower_icn_expr_node(cfg, e)` has no `γ_in/ω_in/α_out/β_out`. It is the un-threaded signature. `lower_icn_expr_threaded` wraps it and patches ports afterward, but composites (BB_IF, BB_CALL, BB_ALT, BB_ASSIGN...) leave α/β as operand-child pointers, not control-flow ports. `bb_exec.c` walks those as a child tree — AST-walking-in-disguise. Mode 3/4 flat-wired x86 has nowhere to fall back. Fix: one-pass replacement of `lower_icn_expr_node` with the full zipper (see ICN-Z-1..5 below).
-2. **ICN-3 — NO MODE-3/4 RUNG GATE.** `test_icon_all_rungs.sh` is `--interp` only. Emitter work (bb_icn_to, sm_bb_switch) has no falsifiable gate. Fix: build `test_icon_mode4_rung.sh` (see ICN-G-1).
-3. **ICN-4 — sm_bb_switch TEXT ARM VIOLATES TEMPLATE PURITY.** The ICN_GEN arm calls `emit_text_n` mid-body then returns a string — mixing side-effect and return-value emission. Violates LOCAL-PURGE / TEMPLATE-PURITY invariant (every `_str()` body is `state → std::string`, zero `emit_text_n` inside). Fix: route the walk through an `XA_ICN_GEN_DRIVE` opcode (ICN-XA-1).
-4. **ICN-5 — every-loop SM SCAFFOLD IS REDUNDANT POST-ZIPPER.** Once lower_icn is fully zipper-wired, `every`'s back-edge is a BB port wire (`body.γ→expr.β`), not an `SM_JUMP`. The `lower_every` scan-for-SM_BB_SWITCH fix was a bandage. Post-zipper, `lower_every` emits only `SM_BB_SWITCH` (the generator entry), and the loop body is fully BB-graph-internal. Fix: rung ICN-Z-5 deletes the SM back-edge after zipper lands.
+The irgen.icn in `/home/claude/corpus/programs/icon/jcon-ref/irgen.icn` is the canonical source of truth for every construct's port wiring. Read the actual procedure before implementing any construct — do not rely on summaries. The following defects are confirmed against irgen:
+
+1. **ICN-1/ICN-2 — α/β USED AS OPERAND-CHILD POINTERS.** In lower_icn.c, BB_IF stores else in `nd->ω`, BB_CALL stores args via `nd->α` γ-chain, BB_ASSIGN stores lhs/rhs in α/β. bb_exec.c walks these as child trees — AST-walking-in-disguise. Fix: one-pass signature change to carry `γ_in/ω_in/&α_out/&β_out`. See ICN-Z below.
+2. **ICN-3 — NO MODE-3/4 RUNG GATE.** `test_icon_all_rungs.sh` is `--interp` only. Fix: ICN-G-1.
+3. **ICN-4 — sm_bb_switch TEXT ARM VIOLATES TEMPLATE PURITY.** Calls `emit_text_n` mid-body, then returns a string. Fix: ICN-XA-1.
+4. **ICN-5 — every-loop SM SCAFFOLD REDUNDANT POST-ZIPPER.** After lower_icn is fully zipper-wired, every's back-edge is a BB port wire, not SM_JUMP. Fix: ICN-Z-5.
+
+**CRITICAL irgen-verified corrections to the prior HOW AG-LOWERING section in this file:**
+
+- **`bounded` is NOT optional.** irgen's signature carries `bounded`: `/bounded &` guards mean the resume chunk is omitted when the context is always-bounded. In always-bounded context, β=ω_in (no retry exists), even for generator kinds. The zipper must carry a bounded flag; `icn_leaf` must respect it.
+- **BB_EVERY: body.ω→expr.β, NOT body.γ→expr.β.** irgen `ir_a_Every`: BOTH `body.ir.success` AND `body.ir.failure` go to `expr.ir.resume` (≡ our expr.β). Body success and body failure both re-drive the generator. Body never fails the every-loop — only expr.failure exits to p.ir.failure. The prior HOW section said only "body.γ→expr.β"; it omitted body.ω→expr.β, which is equally essential.
+- **BB_COMPOUND: intermediate statement failure ADVANCES, not retries.** irgen `ir_a_Compound`: `L[i].ir.failure → ir_Goto(L[i+1].ir.start)`. Intermediate statement failure is non-fatal and advances to the next statement. **Do NOT apply the Prolog back-to-front zipper to BB_COMPOUND/BB_SEQ.** That zipper is for `ir_Mutual` / Icon `(e1;e2;e3)` mutual evaluation (which does backtrack). Compound statements do not.
+- **BB_IF: unbounded context needs an `ir_TmpLabel` resume-pointer slot.** irgen `ir_a_If` in `/bounded` context stores the active branch's resume label in a temp slot `t` (indirect goto register) so the if-node's own β can re-enter the correct branch. Simple `cond.γ→then.α, cond.ω→else.α` is only correct for always-bounded (no-retry) context. In unbounded context, implement the label-register pattern.
+- **BB_TOBE / ToBy: operand evaluation is one-time (α only); β is internal.** irgen `ir_a_ToBy` uses `ir_ResumeValue` (resuming a closure) for its own resume chunk — this maps to our BB_TO_BY node's β being **self** (the node increments counter and re-checks bounds internally). The operand sub-expressions (from/to/by) are evaluated once via their own sub-graphs wired `from.success→to.start→by.start`. After by.success the closure/counter is set and the node yields. **β does not re-enter the operand sub-graphs.** The current code's α=lo_box, β=hi_box is wrong because it re-evaluates bounds on every resume.
+- **BB_ALT: resume is via `ir_IndirectGoto`, not a simple port chain.** irgen `ir_a_Alt` stores the currently-active arm's resume label in a temp slot `t` (`ir_MoveLabel`) and resumes via `ir_IndirectGoto(t)`. This is NOT equivalent to a simple arm[0].ω→arm[1].α ω-chain for β. The ω-chain is for α (trying arms left-to-right on fresh entry); β re-enters only the currently-active arm via the stored label.
 
 ---
 
@@ -114,86 +125,121 @@ ARBNO needs a growable frame stack; stash ptr in `pBB->counter` (intptr cast), o
 #### ICN-G-1 — Build `test_icon_mode4_rung.sh` ⏳
 - [ ] Create `scripts/test_icon_mode4_rung.sh`: for a small set of Icon programs (at minimum `every write(1 to 3)`, `every write(1 to 5 by 2)`, and three others from rungs 1..5), run `scrip --compile --target=x86 file.icn` → assemble → link → execute, diff stdout against `scrip --interp file.icn`. PASS=N FAIL=M format. Zero programs needed to pass initially — the gate just needs to exist and run without crashing the harness.
 - [ ] Wire into Session Setup below alongside `test_icon_all_rungs.sh`.
-- [ ] **Gate threshold: mode-4 PASS ≥ 1 before any emitter rung is marked complete.** A template that returns an empty string or stub jumps is NOT done (HQ Invariant 0).
+- [ ] **Gate threshold: mode-4 PASS ≥ 1 before any emitter rung is marked complete.** A template returning an empty string or stub jumps is NOT done (HQ Invariant 0).
 
 #### ICN-G-2 — Re-freeze GATE-PK ⏳
-- [ ] Run `bash scripts/test_per_kind_diff.sh`. For every FAIL cell, inspect: if the template body is an honest stub (returns `std::string()`), the baseline should be empty — re-freeze that cell. If the body claims to emit real x86 but the diff fails, it is a real bug — fix first.
-- [ ] Target: GATE-PK FAIL=0 (stubs have empty baselines; filled templates match). NEW=0 GONE=0.
+- [ ] Run `bash scripts/test_per_kind_diff.sh`. For every FAIL cell: if the template body is an honest stub (returns `std::string()`), the baseline should be empty — re-freeze. If the body claims to emit real x86 but diffs fail, it is a real bug — fix first.
+- [ ] Target: GATE-PK FAIL=0. NEW=0 GONE=0.
 - [ ] Gate: `test_per_kind_diff.sh` PASS ≥ 504 FAIL=0 before any HQ emitter work resumes.
 
 ---
 
-### Phase ICN-Z — Zipper rewire of lower_icn (the ONE-PASS signature change)
+### Phase ICN-Z — Zipper rewire of lower_icn (ONE-PASS signature change)
 
-**⚠ This is NOT additive.** The signature of `lower_icn_expr_node` changes and all ~70 call sites inside it change in ONE pass. Do not attempt partial completion. Gate: `test_icon_all_rungs.sh` ≥198 after each sub-rung. `bb_exec.c` remains the mode-2 oracle throughout.
+**⚠ This is NOT additive.** All ~70 call sites in `lower_icn_expr_node` change in ONE pass. Do not attempt partial completion. Gate: `test_icon_all_rungs.sh` ≥198 after each sub-rung. `bb_exec.c` remains the mode-2 oracle.
 
-#### ICN-Z-0 — Add `icn_leaf` helper (twin of `pl_leaf`) ⏳
-- [ ] In `lower_icn.c`, add (immediately above `lower_icn_expr_threaded`):
+**Before writing any code for a construct: read its `ir_a_*` procedure in irgen.icn.**
+`/home/claude/corpus/programs/icon/jcon-ref/irgen.icn` — the canonical port-wiring source.
+
+#### ICN-Z-0 — Add `icn_leaf` helper + bounded context flag ⏳
+- [ ] Add to `lower_icn.c`:
   ```c
-  static BB_t *icn_leaf(BB_t *nd, BB_t *γ_in, BB_t *ω_in, BB_t **α_out, BB_t **β_out) {
+  /* icn_leaf — wire a leaf node. In always-bounded context β=ω_in (no retry).
+     In unbounded context, generators get β=self; non-generators get β=ω_in. */
+  static BB_t *icn_leaf(BB_t *nd, BB_t *γ_in, BB_t *ω_in, BB_t **α_out, BB_t **β_out, int bounded) {
       if (!nd) return NULL;
       nd->γ = γ_in; nd->ω = ω_in;
       if (α_out) *α_out = nd;
-      if (β_out) *β_out = icn_kind_is_resumable(nd->t) ? nd : ω_in;
+      if (β_out) *β_out = (!bounded && icn_kind_is_resumable(nd->t)) ? nd : ω_in;
       return nd; }
   ```
+- [ ] Add `bounded` parameter to `lower_icn_expr_node` signature: `lower_icn_expr_node(cfg, e, γ_in, ω_in, α_out, β_out, bounded)`. `bounded=0` = unbounded (can resume); `bounded=1` = always bounded (no resume chunk needed).
 - [ ] Gate: build clean, smoke_icon 5/5, rungs ≥198.
 
 #### ICN-Z-1 — Rewire leaves: BB_LIT_I/F/S, BB_VAR, BB_KEYWORD, BB_FAIL, BB_BREAK, BB_NEXT ⏳
-- [ ] Change `lower_icn_expr_node` signature to `lower_icn_expr_node(cfg, e, γ_in, ω_in, α_out, β_out)`.
-- [ ] All leaf cases: replace `BB_node_alloc + payload` with `BB_node_alloc + payload + icn_leaf(nd, γ_in, ω_in, α_out, β_out)`. Leaves set `α: emit-lit-then-jmp-γ` semantically (already correct via γ_in wire); `β: jmp ω` (β=ω_in per `icn_leaf`).
-- [ ] Update every internal recursive call site to pass `γ_in, ω_in, &sub_α, &sub_β`.
+- [ ] All leaf cases: `BB_node_alloc + payload + icn_leaf(nd, γ_in, ω_in, α_out, β_out, bounded)`.
+- [ ] Leaves: α=β=self in unbounded context (irgen: start→emit lit→goto success; resume→goto failure). In bounded context β=ω_in (no resume). `icn_leaf` handles this.
 - [ ] Gate: smoke_icon 5/5, rungs ≥198.
 
-#### ICN-Z-2 — Rewire seq / conjunctions: BB_SEQ, BB_CONJ, BB_EVERY (statement-level) ⏳
-- [ ] `BB_SEQ`: back-to-front zipper (mirror `lower_pl_goal` conjunction, lower_pl.c:160-203). Build stmt[n-1] first with γ=γ_in; i=n-2..0 with `my_γ = stmt_α[i+1]`. Wire `stmt[i].ω = stmt_β[i-1]` (fail→redo nearest left generator). β-by-kind: resumable→β=self; non-resumable→β=left neighbor's β.
-- [ ] `BB_CONJ` (E1 & E2): lower E2 first (γ_in, ω_in); lower E1 with γ=E2.α, ω=ω_in. Node α=E1.α, β=E1.β (E1 is the generator), γ/ω=γ_in/ω_in.
-- [ ] `BB_EVERY` (statement-level): lower expr (generator) and body. Wire `expr.γ→body.α`, `body.γ→expr.β` (the loop back-edge — a PORT WIRE, not SM_JUMP), `expr.ω→ω_in`. Node α=expr.α. **After this rung, `lower_every` in lower.c emits only `SM_BB_SWITCH` (generator entry) with no SM_JUMP back-edge — the loop is wholly BB-internal.**
+#### ICN-Z-2 — Rewire BB_COMPOUND / BB_SEQ (Icon statement sequence) ⏳
+- [ ] **Icon statement sequences are NOT backtracking.** irgen `ir_a_Compound`: `L[i].failure → L[i+1].start` (advances). `L[i].success → L[i+1].start` (also advances). Only last statement's success/failure propagate to the compound's success/failure.
+- [ ] Implementation: forward pass only, no back-to-front zipper. Lower stmt[0..n-2] with `bounded=1` (always-bounded, no retry). Lower stmt[n-1] with caller's bounded. Wire stmt[i].γ→stmt[i+1].α AND stmt[i].ω→stmt[i+1].α (failure advances). Last stmt.γ→γ_in; last stmt.ω→ω_in.
 - [ ] Gate: smoke_icon 5/5, rungs ≥198.
 
-#### ICN-Z-3 — Rewire conditionals: BB_IF, BB_ALT (alternation) ⏳
-- [ ] `BB_IF`: lower cond (γ=then.α, ω=else.α or ω_in); lower then (γ=γ_in, ω=ω_in); lower else if present (γ=γ_in, ω=ω_in). Node α=cond.α, β=cond.β (cond is the generator). γ/ω=γ_in/ω_in. **`nd->ω` is no longer the else-branch operand; it is the failure continuation.**
-- [ ] `BB_ALT` (n-ary): mirror `lower_pl_goal` disjunction (lower_pl.c:206-217). Lower arms right-to-left: last arm gets (γ_in, ω_in); arm[i] gets (γ_in, arm[i+1].α as ω). Node α=arm[0].α, β=arm[0].β (left is tried first). **Arms wired ω-chain by lowering, NOT by the executor post-hoc.**
+#### ICN-Z-3 — Rewire BB_CONJ (E1 & E2 — conjunction generator) ⏳
+- [ ] irgen `ir_conjunction`: start→E1.start; E1.success→E2.start; E1.failure→p.failure; E2.success→p.success; E2.failure→E1.resume.
+- [ ] This IS a backtracking conjunction: E2 failure re-drives E1. Lower E1 unbounded; lower E2 with caller's bounded. Node α=E1.α, β=E1.β (E1 is the generator). On β: resume E1; on E1 success: re-run E2 from fresh.
 - [ ] Gate: smoke_icon 5/5, rungs ≥198.
 
-#### ICN-Z-4 — Rewire operand-chains: BB_CALL, BB_ASSIGN, BB_BINOP, BB_IDENTICAL, BB_FIELD_GET/SET, BB_IDX, BB_IDX_SET ⏳
-- [ ] These all currently use α/β as operand-child pointers. Convert to separate operand boxes wired `operand.γ→next_operand.α`, last operand's γ→op-node's own logic then→γ_in. **α/β on the op-node become control-flow: α=first-operand.α (entry), β=ω_in (no retry on a call result).**
-- [ ] `BB_CALL`: lower each arg separately (arg[j].γ→arg[j+1].α; last arg.γ→call-node body→γ_in). Node α=arg[0].α (or body α if 0 args). `nd->α` is no longer the head-of-args-γ-chain.
-- [ ] Re-express `bb_exec.c` BB_CALL/ASSIGN/BINOP to follow ports rather than walking `nd->α` as a child-linked list. These must be pure port-followers after the zipper lands.
+#### ICN-Z-4 — Rewire BB_EVERY ⏳
+- [ ] **irgen `ir_a_Every` — read it carefully before implementing.**
+  - `p.ir.start → expr.ir.start`
+  - `expr.ir.success → body.ir.start`
+  - `expr.ir.failure → p.ir.failure` (generator exhausted = every fails)
+  - `body.ir.success → expr.ir.resume` (body done → pump generator again)
+  - `body.ir.failure → expr.ir.resume` (body fail also pumps generator — both paths re-drive)
+  - `p.ir.resume → ir_IndirectGoto(continue)` (only in unbounded context — for `break` etc.)
+- [ ] **body.ω→expr.β is equally required as body.γ→expr.β.** Both wire to expr.resume.
+- [ ] Lower expr unbounded (it is the generator). Lower body always-bounded. Wire the four edges above as BB port connections.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198, `every write(1 to 3)` → `1 2 3`.
+
+#### ICN-Z-5 — Rewire BB_IF ⏳
+- [ ] **irgen `ir_a_If` has TWO shapes depending on `bounded`:**
+  - **Always-bounded (simpler):** `expr.success→then.start; expr.failure→else.start`. then/else each wire `.success→p.success, .failure→p.failure`. No temp label needed.
+  - **Unbounded:** ADDITIONALLY stores the active branch's resume in temp label `t` via `ir_MoveLabel`, so `p.ir.resume → ir_IndirectGoto(t)` can re-enter the correct branch.
+- [ ] The condition expr is ALWAYS lowered always-bounded (`"always bounded"` in irgen). The then/else branches carry the caller's bounded.
+- [ ] `nd->ω` in our current code stores the else-branch operand AND the failure continuation — these must be separate. The else-branch becomes its own BB subgraph; `nd->ω` becomes purely the failure continuation (as per port contract).
 - [ ] Gate: smoke_icon 5/5, rungs ≥198.
 
-#### ICN-Z-5 — Delete SM back-edge from `lower_every`; verify every-loop is BB-internal ⏳
-- [ ] After ICN-Z-2 lands, `lower_every` in `lower.c` no longer emits `SM_JUMP` (the back-edge was replaced by `body.γ→expr.β` port wire in ICN-Z-2). Remove the `switch_pc` capture + `SM_label()` + `SM_JUMP` from `lower_every`. The SM carries only `SM_BB_SWITCH` (the generator entry).
+#### ICN-Z-6 — Rewire BB_ALT (n-ary alternation) ⏳
+- [ ] **irgen `ir_a_Alt`:** α = arm[0].start. Arms chained: arm[i].failure → arm[i+1].start; last arm.failure → p.failure. Each arm.success → p.success (with MoveLabel of arm's resume into `t` in unbounded context). Resume: `ir_IndirectGoto(t)` — re-enters only the currently-active arm's resume.
+- [ ] This is NOT a simple ω-chain where β tries arm[1] after arm[0] exhausts. β goes to the *same* arm that last succeeded (stored in `t`). **Do not implement as arm[0].ω→arm[1].α for β.** The ω-chain is for α-entry only.
+- [ ] In always-bounded context, no `t` needed — each arm.success simply → p.success.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-7 — Rewire BB_CALL operand chain ⏳
+- [ ] **irgen `ir_a_Call`:** L = [fn] ||| args. `L[i].success → L[i+1].start`; `L[i].failure → L[i-1].resume`. `L[1].failure → p.failure`. `L[-1].success → ir_Call(closure, fn, args) → ir_Move → p.success`. `p.ir.resume → ir_ResumeValue(closure, L[-1].resume) → p.success`.
+- [ ] The operand chain wires sub-expressions `fn.γ→arg[0].α→arg[1].α...`; failure of any operand re-drives the previous operand. This IS a proper backtracking evaluation. Lower each sub-expression with `bounded=0` (they can be generators).
+- [ ] After all operands evaluated, the call node itself: α=fn.α (chain entry). β=self (re-enters via closure resume). **`nd->α` stores the chain entry address; it is NOT the head of a γ-linked operand list as in current code.** The arg nodes are separate BB nodes wired via their own ports.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-8 — Rewire BB_TO / BB_TO_BY operand evaluation vs internal state ⏳
+- [ ] **irgen `ir_a_ToBy`:** fromexpr, toexpr, byexpr are each lowered as sub-graphs. Their results are stored in temp slots `fv, tv, bv`. Chain: `from.success→to.start→by.start`. Then `by.success → ir_opfn("...", [fv,tv,bv]) → ir_Move(target, closure) → p.success`. `p.ir.resume → ir_ResumeValue(target, closure, by.resume) → p.success`.
+- [ ] In our BB system: operand sub-graphs evaluated once on α-entry (wired `from.γ→to.α→by.α`); results cached in node fields. **β = self**; β-entry skips the sub-evaluation and directly increments/checks the counter. The current code's α=lo_box, β=hi_box (trying to re-read operands on every β) is wrong.
+- [ ] Fix: on α, walk the operand sub-graph to get lo/hi/by values and cache them in `nd->counter` (cur) and `nd->ival` (hi/step). On β, read from those cached fields. `nd->α` in the fixed version points to the operand-chain entry (for walking on α-entry), NOT to lo_box as an always-live child pointer.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198, `every write(1 to 3)` and `every write(1 to 9 by 3)` correct.
+
+#### ICN-Z-9 — Delete SM back-edge from `lower_every`; verify every-loop is BB-internal ⏳
+- [ ] After ICN-Z-4 lands, `lower_every` in `lower.c` no longer needs `SM_JUMP` (the back-edges are BB port wires inside the graph). Remove the `switch_pc` capture + `SM_label()` + `SM_JUMP` from `lower_every`. The SM carries only `SM_BB_SWITCH` (the generator entry).
 - [ ] Verify: `--dump-sm` for `every write(1 to 3)` shows NO `SM_JUMP` targeting the switch PC.
-- [ ] Gate: smoke_icon 5/5, rungs ≥198, `every write(1 to 3)` → `1 2 3` in --interp.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
 
 ---
 
 ### Phase ICN-XA — Template purity fix for sm_bb_switch ICN_GEN arm
 
 #### ICN-XA-1 — Route ICN_GEN walk through `XA_ICN_GEN_DRIVE` opcode ⏳
-- [ ] **Diagnosis:** `sm_bb_switch_str` ICN_GEN TEXT arm calls `emit_text_n(pre.data(), pre.size())` then `walk_bb_node(gen, emit_outf())` mid-body — this is a LOCAL-PURGE violation (side-effecting emission inside a `_str()` body). TEMPLATE-PURITY requires `_str()` to be `state → std::string` with zero `emit_text_n` calls inside.
-- [ ] **Fix:** create `src/emitter/XA_templates/xa_icn_gen_drive.cpp` with opcode `XA_ICN_GEN_DRIVE`. Its `_str()` body: (a) collect the pre-amble string; (b) iterate `walk_bb_node_str(gen)` → accumulate into a string (requires `walk_bb_node` to have a `_str` variant that returns `std::string` instead of calling the sink); (c) return concatenation. Dispatch through `xa_dispatch` in `emit_core.c`.
-- [ ] If `walk_bb_node_str` does not exist, add it (mirrors `walk_bb_node` but returns string, does not call sink).
-- [ ] Wire `sm_bb_switch_str` ICN_GEN arm to emit `XA_ICN_GEN_DRIVE` and return the result — zero `emit_text_n` inside.
-- [ ] Gate: AUDIT GREEN (`util_template_purity_audit.sh`), GATE-PK holds, smoke_icon 5/5.
+- [ ] **Diagnosis:** `sm_bb_switch_str` ICN_GEN arm calls `emit_text_n(pre.data(), pre.size())` then `walk_bb_node(gen, emit_outf())` mid-body — LOCAL-PURGE violation. `_str()` must be `state → std::string`, zero `emit_text_n` inside.
+- [ ] **Fix:** create `src/emitter/XA_templates/xa_icn_gen_drive.cpp` with opcode `XA_ICN_GEN_DRIVE`. Its `_str()` body: (a) build pre-amble string; (b) call `walk_bb_node_str(gen)` → returns `std::string` (add this variant to walk_bb_node if it doesn't exist); (c) return concatenation. Dispatch via `xa_dispatch` in `emit_core.c`.
+- [ ] Wire `sm_bb_switch_str` ICN_GEN arm to return `XA_ICN_GEN_DRIVE` output — zero `emit_text_n` inside.
+- [ ] Gate: AUDIT GREEN, GATE-PK holds, smoke_icon 5/5.
 
 ---
 
-### Phase ICN-M4 — Mode-4 emitter rungs (only after ICN-G-1 gate exists + ICN-Z complete)
+### Phase ICN-M4 — Mode-4 emitter rungs (only after ICN-G-1 exists + ICN-Z complete)
 
-**Do NOT begin these until ICN-G-1 gate script exists AND ICN-Z-1..5 are complete.**
+**Do NOT begin these until ICN-G-1 gate script exists AND ICN-Z-1..9 are complete.**
 
 #### ICN-M4-1 — `bb_icn_to.cpp` literal generator: honest TEXT + BINARY x86 ⏳
-- [ ] The LITERAL fast-path TEXT arm exists and is non-empty. Verify it produces correct x86 for `every write(1 to 3)` via `test_icon_mode4_rung.sh`. If PASS ≥ 1, mark done.
-- [ ] BINARY arm: implement the raw x86 bytes mirroring the TEXT arm (counter in `&pBB->counter`; `cmp; jg ω; push value; jmp γ; β: add; jmp check`). Gate: GATE-PK re-frozen cell holds.
-- [ ] DYNAMIC operand arm: implement value-field read from operand boxes (H-3 — reads `lo_box->value.i` / `hi_box->value.i` after walking lo/hi subtrees). Gate: `every write(x to y)` with variable bounds passes mode-4.
+- [ ] LITERAL fast-path TEXT arm exists. Verify via `test_icon_mode4_rung.sh`. If PASS ≥ 1, mark done.
+- [ ] BINARY arm: raw x86 (counter in `&pBB->counter`; `cmp; jg ω; rt_push_int; jmp γ; β: add; jmp check`).
+- [ ] DYNAMIC operand arm: after ICN-Z-8, α-entry walks operand sub-graph to populate counter/ival; the template reads those cached fields.
 
 #### ICN-M4-2 — `bb_to_by.cpp` literal generator: honest BINARY + dynamic arms ⏳
-- [ ] Same pattern as ICN-M4-1 but for `lo to hi by step`. Literal TEXT arm exists; verify via gate. Add BINARY arm and dynamic arm.
+- [ ] Same pattern as ICN-M4-1. Literal TEXT arm exists; verify via gate. Add BINARY and dynamic.
 
-#### ICN-M4-3 — `bb_icn_to.cpp` + `bb_to_by.cpp`: real MEDIUM_TEXT values via rt_push_int@PLT ⏳
-- [ ] **The #1 trap (from HOW AG-LOWERING section):** TEXT arm (mode-4) must use `mov rdi,<v>; call rt_push_int@PLT`, not raw r12 push. BINARY arm uses raw r12. Audit both templates for this; fix any TEXT arm that uses r12 directly.
+#### ICN-M4-3 — TEXT arms: rt_push_int@PLT, not raw r12 ⏳
+- [ ] TEXT arm (mode-4) must use `mov rdi,<v>; call rt_push_int@PLT`. BINARY arm uses raw r12. Audit both templates.
 
 ---
 
