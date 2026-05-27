@@ -71,6 +71,21 @@ paths, in this order:
 proper LOWER path (Mode 2 AG-wired ports) AND, when EMITTER work reaches it, Mode 4 agrees.
 Track every rung honestly via the aggregate gate (GATE-3 below); no "done" without green numbers.
 
+> **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 57 → 61 (+4). :- assertz/asserta directives.** `one4all 77a2b884`.
+> `prolog_lower.c` directive loop: `:- assertz(Clause)` / `:- asserta(Clause)` now folds the asserted clause
+> into the matching predicate's `TT_CHOICE` at lower time (assertz appends → tried last; asserta prepends →
+> tried first). The argument is a bare head fact `f(a)` or a `:-`(Head,Body) rule; a synthetic `[head(,body)]`
+> `TT_CLAUSE` is built and run through the existing `lower_clause_from_tree`, exactly like a source clause.
+> KEY GOTCHA: facts must pass NO body child (so `raw_body` is NULL) — a `TT_NUL` body child is pushed as a
+> spurious goal by `pl_flatten_conj` (which has no TT_NUL skip), silently failing the clause. This static fold
+> is correct for the ground directive-assert-before-query pattern (rung13); full RUNTIME assert/retract of a
+> live database (asserting from inside a clause body, retract matching) is separate. Lower-time → all 3 modes
+> agree. Unblocked rung13 assertz/asserta x5. smoke_prolog 5/5; crosscheck_prolog 132/0; icon/snocone/raku 5/5,
+> rebus 4/4, snobol4 7/6 (pre-existing). **NEXT:** rung14 `retract`/`retractall`, rung15 `abolish` (these are
+> runtime DB ops — harder than the static assertz fold; the directive forms could fold similarly but the
+> in-clause-body forms need a live mutable predicate store); rung17 sort/msort; rung18 plus/3; rung19 format;
+> rung20 numbervars; rung22 writeq; rung27 aggregate; rung28 catch/throw.
+
 > **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 48 → 57 (+9). main/0 auto-run LANDED.** `one4all 62ce5788`.
 > Driver-only fix in `lower()`: a Prolog program that defines `main/0` but emits NO `:- initialization`
 > directive now auto-runs `main/0` (the rung13..18 corpus convention; `swipl -t main script.pl`). Guarded
