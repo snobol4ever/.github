@@ -280,3 +280,68 @@ GATE-PK-PAT-STATUS=stale    # set GREEN after SBL-G-2 complete
 ```
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
+
+---
+
+## Addendum: Git history audit (2026-05-27)
+
+**Commit `0206b998` "DELETE rt_bb_* C runtime functions — total annihilation"** deleted exactly **10 `rt_bb_*` functions**. Each maps as follows:
+
+| Deleted function | What it did | Template needed |
+|---|---|---|
+| `rt_bb_any(zeta, port)` | charset match 1 char (α: match+advance; β: undo) | `bb_pat_any.cpp` PLATFORM_X86 arm |
+| `rt_bb_notany(zeta, port)` | match 1 char NOT in charset (α/β same shape as ANY) | `bb_pat_notany.cpp` PLATFORM_X86 arm |
+| `rt_bb_span(zeta, port)` | match longest run in charset; β yields one shorter | `bb_pat_span.cpp` PLATFORM_X86 arm |
+| `rt_bb_brk(zeta, port)` | scan up to char in charset; no retry | `bb_pat_break.cpp` PLATFORM_X86 α/β arm — plain BREAK β |
+| `rt_bb_brkx(zeta, port)` | BREAKX: like BREAK but β steps past the break char and rescans | `bb_pat_break.cpp` PLATFORM_X86 arm — **extended β** for BREAKX; `lower_pat_dcg.c` routes both BREAK and BREAKX to `BB_PAT_BREAK`; template must distinguish via a node flag (`nd->ival` or `nd->sval`) |
+| `rt_bb_arbno(zeta, port)` | greedy match of inner blob; β pops one repetition | `bb_arbno.cpp` PLATFORM_X86 arm |
+| `rt_bb_arbno_new(fn, state)` | ctor — allocates `rt_arbno_t`; NOT port-logic | still in `bb_boxes.c` as `bb_arbno_new`; no template needed |
+| `rt_bb_atp(zeta, port)` | cursor capture `@var` — write Δ as integer to named var | **No BB kind exists yet.** Lives in old `PATND_t/XATP` world. `lower_pat_dcg.c` has no case for it. Needs: new BB kind `BB_PAT_ATP`, lowering in `lower_pat_dcg.c`, execution in `bb_exec.c`, template `bb_pat_atp.cpp`. See SBL-ATP below. |
+| `rt_bb_cap(zeta, port)` | capture matched span into var (immediate or conditional) | `bb_capture.cpp` PLATFORM_X86 arm |
+| `rt_bb_switch_pl_entry(name, arity)` | Prolog predicate dispatch from mode-4 binary | `sm_bb_switch.cpp` — partially handled (ICN_GEN arm exists; PL_ENTRY arm still emits a comment stub) |
+
+**Total: 6 hollow template x86 arms to fill** (ANY, NOTANY, SPAN, BREAK/BREAKX, ARBNO, CAPTURE) + 1 new BB kind + template needed (ATP) + 1 partially addressed (PL_ENTRY in sm_bb_switch).
+
+**BREAKX note:** `lower_pat_dcg.c` maps both `BREAK` and `BREAKX` to `BB_PAT_BREAK` (line 205-208). The BREAKX β semantics (advance past break char and rescan) differ from plain BREAK (which simply fails on β). The template must distinguish them. Options: (a) set `nd->ival=1` for BREAKX in `lower_pat_dcg.c` and check it in the template; (b) add a separate `BB_PAT_BREAKX` kind. Option (a) is simpler. See SBL-BREAK.
+
+**rt_pat_* note (NOT in scope here):** The 29 `rt_pat_*` functions in `rt.c` (called from `sm_pat_nullary.cpp` via `@PLT`) are **pattern-building** helpers — they construct `DESCR_t` pattern objects and push them onto the vstack. They are NOT four-port Byrd boxes. They are called from template-produced GAS (`call rt_pat_arb@PLT` etc.) which is the correct pattern. These are NOT violations and are NOT the subject of this goal. **However**, `sm_pat_nullary.cpp` BINARY arm embeds emitter-process function pointers as imm64 — a separate Invariant-8 violation that belongs in GOAL-HEADQUARTERS as an HQ rung.
+
+---
+
+### Phase SBL-BREAKX — Distinguish BREAKX in bb_pat_break.cpp
+
+#### SBL-BREAKX-1 — Tag BREAKX nodes in lower_pat_dcg.c ⏳
+- [ ] In `lower_pat_dcg.c` TT_FNC case, where BREAKX is currently mapped identically to BREAK: set `nd->ival = 1` (flag for BREAKX) on the BB_PAT_BREAK node built for BREAKX. For plain BREAK, `nd->ival = 0`.
+- [ ] Verify: `--dump-bb` for a BREAKX pattern shows `ival=1` on the BB_PAT_BREAK node.
+- [ ] Gate: GATE-1 7/7, GATE-2 23/23, build clean.
+
+#### SBL-BREAKX-2 — Implement BREAKX β in bb_pat_break.cpp TEXT arm ⏳
+- [ ] After SBL-BREAK-1 fills the plain BREAK TEXT arm: add BREAKX β logic. When `pBB->ival == 1` (BREAKX): β steps past the break char that stopped the previous scan and rescans to the next break char. Yield the longer match or fail if no further break char. Read `rt_bb_brkx` body (git show `0206b998 -- src/runtime/rt/rt.c`) for exact semantics.
+- [ ] Gate: GATE-1 7/7. BREAKX probe: `'abc.def.ghi' BREAKX('.') . V` yields `abc` then `abc.def` on retry.
+
+---
+
+### Phase SBL-ATP — New BB kind for `@var` cursor capture
+
+#### SBL-ATP-1 — Add BB_PAT_ATP to BB.h and lower_pat_dcg.c ⏳
+- [ ] Add `BB_PAT_ATP` to the `BB_op_t` enum in `BB.h` (after `BB_PAT_CALLOUT`).
+- [ ] Add lowering for `@var` to `lower_pat_dcg.c`: detect `TT_ATP` or the `@var` AST node. Build: `nd = BB_node_alloc(cfg, BB_PAT_ATP); nd->sval = varname; nd->α=nd; nd->β=fp; nd->γ=sp; nd->ω=fp;` (ATP always succeeds — it writes Δ to var and matches empty).
+- [ ] Gate: build clean, GATE-1 7/7.
+
+#### SBL-ATP-2 — Add bb_exec.c case BB_PAT_ATP ⏳
+- [ ] Case: on α (state==0): write `Δ` as an integer DESCR_t to `nd->sval` via `NV_SET_fn`. Set state=1. Return `nd->γ`. On β: state=0, return `nd->ω`. (ATP matches the empty string and captures the cursor position as an integer.)
+- [ ] Gate: `scrip --interp` with `@var` pattern correctly binds cursor position. GATE-1 7/7.
+
+#### SBL-ATP-3 — Create bb_pat_atp.cpp and wire into emit_core.c ⏳
+- [ ] Create `src/emitter/BB_templates/bb_pat_atp.cpp`. Dispatch in emit_core.c.
+- [ ] TEXT arm x86: α: load `[r10]` (Δ); call `rt_nv_set_int@PLT(varname_ptr, Δ)`; jmp γ. β: jmp ω. (No cursor advance — ATP is a zero-width assertion.)
+- [ ] BINARY arm: rel32 fixup for γ and ω jumps.
+- [ ] Gate: GATE-PK re-frozen for BB_PAT_ATP. Mode-4 `@var` probe matches `--interp`.
+
+---
+
+### Phase SBL-SM-BINARY — sm_pat_nullary.cpp BINARY Invariant-8 violation
+
+**(HQ issue — track here, fix in HQ session)**
+
+`sm_pat_nullary.cpp` BINARY arm: `bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)sm_pat_nullary_rt_fn(...))` embeds the emitter-process `rt_pat_*` function pointer as imm64 in the emitted binary. This violates **GOAL-BB-TEMPLATE-LADDER Invariant 8**: "MEDIUM_BINARY must never embed emitter-process pointers." The binary blob calls `mov rax, <emitter_addr>; call rax` — the emitter address is meaningless in the linked binary. This makes `--run` (mode-3) pattern-building corrupt for these opcodes. Fix: SM_PAT_* TEXT arm already calls `rt_pat_*@PLT` correctly (via macro invocation in GAS). BINARY arm should do the same — call `rt_pat_arb@PLT` etc. directly rather than embedding a pointer. Add to GOAL-HEADQUARTERS as rung `SM-BINARY-PAT-FIX`.
