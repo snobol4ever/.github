@@ -71,6 +71,19 @@ paths, in this order:
 proper LOWER path (Mode 2 AG-wired ports) AND, when EMITTER work reaches it, Mode 4 agrees.
 Track every rung honestly via the aggregate gate (GATE-3 below); no "done" without green numbers.
 
+> **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 20 → 32.** Builtin coverage on the PJ-AGW unify pattern:
+> rung09 (`functor/3`, `arg/3`, `=../2`, 11 type tests), rung12 ×5 (`atom_length/concat/chars/codes`,
+> `upcase/downcase_atom`), rung11 ×5 + rung30 (`findall/3` via self-contained Goal sub-graph). Meaty fix:
+> **determinacy guard in BB_PL_CALL resume** — a callee body with no live inner choice point reports
+> exhaustion on resume instead of re-firing forever (killed `findall(X,fact(X),_)` ∞-loop + fixed DCG
+> generate). Also: arith functors in TERM position reconstruct as compound terms (findall `K-V` template).
+> honest 128/0/0, smoke_prolog 5/5, smoke_icon 5/5, smoke_snobol4 7/6 (pre-existing). See
+> `HANDOFF-2026-05-26-OPUS-PROLOG-BUILTINS-FINDALL.md`.
+> **NEXT:** (A) `main/0` auto-run — STILL NEEDS LON (gates ~30 directiveless rungs incl. rung16). Then
+> (B) rung16 `@<`/`@>=`, rung17 sort, rung19 format, rung21 char_type, rung24 string_io — each a
+> BB_BUILTIN arm, unify the outputs exactly as functor/arg/atom_* do.
+
+
 ### ⏸ DEFERRED — SNOBOL4 Mode-4 benchmark work (do later)
 The SNOBOL4 Mode-4 emitter + benchmark steps — `SBL-M4-ASM` ✅, `SBL-M4-OPDISPATCH` ✅, `SBL-BENCH`,
 `SBL-BENCH-ALL`, and the `m2=m3=m4` benchmark-equivalence push — are **paused** in favor of the
