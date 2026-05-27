@@ -7,25 +7,88 @@ Mode 2 (`--interp`) first, then mode 3 (`--run`). Mode 4 (`--compile`) DEFERRED.
 
 ---
 
-## ⛔ NEXT: ICN-Z-ATOMIC Families 3-7
+## ⛔ NEXT: AG-PURE WHOLESALE REWRITE OF LOWER + EXECUTOR
 
-**Status:** PEERS RULE landed `78e4c067`. Families 1 (BB_ASSIGN) and 2 (BB_CALL) on sidecar. All gates green. See `one4all/SESSION-2026-05-27-OPUS-PEERS-RULE.md`.
+**Status:** AG-pure step 1 landed `64805e16` on branch `ag-pure-icn`. Dormant value-ring added to `BB_graph_t`. Gates green. PEERS sidecar superseded for Icon by AG-pure model below — sidecar stays for Prolog/SNOBOL4 until those languages are migrated.
 
-### THE PEERS RULE (HQ Invariant 17)
-BB_t stays LEAN. Per-kind aux in CFG-OWNED SIDECARS:
-1. **α/β/γ/ω**: control-flow ONLY.
-2. **Operand-value refs**: `BB_graph_t.operand_aux` sidecar keyed by `BB_t*`.
-3. **sval/ival/dval**: IR payload (unchanged).
-4. **value/counter/state**: runtime per-activation state (unchanged).
+### THE AG-PURE MODEL (HQ Invariant 17 v2, Lon directive 2026-05-27)
+
+There are no operands on BB nodes. There is no tree. There is a CFG of boxes wired by four ports, period. Every TT_* construct lowers to a graph whose every box has all four ports wired before LOWER returns.
+
+**The four ports are ALL CFG edges. NONE of them point at "operand subgraphs":**
+
+| Port | Direction | Meaning |
+|------|-----------|---------|
+| **α** | synthesized UP | fresh entry of THIS box's subgraph (where control enters on first try) |
+| **β** | synthesized UP | retry entry of THIS box's subgraph (self for resumable, else = ω_in) |
+| **γ** | inherited DOWN | success continuation — points at NEXT box's α |
+| **ω** | inherited DOWN | failure continuation — points at PRIOR box's β (backtrack) or outer ω |
+
+**Operand values flow through the cfg value-ring, not through node pointers.** When the chain walker (`bb_exec_once` / `bb_exec_resume`) executes box B successfully, it pushes `B->value` into `cfg->ring`. An apply box (BB_BINOP, BB_CALL, BB_ASSIGN, BB_LCONCAT, ...) reads its inputs with `ag_ring_peek(cfg, k)` — peek(0) = newest = the immediate predecessor's value, peek(1) = the prior one, etc.
 
 ```c
-int bb_operand_aux_set(BB_graph_t *cfg, BB_t *nd, BB_t * const *src, int n);
-BB_t * const *bb_operand_aux_get(const BB_graph_t *cfg, const BB_t *nd, int *out_n);
+/* In BB.h (landed 64805e16): */
+typedef struct BB_graph_t {
+    BB_t * entry;  BB_t ** all;  int n, max, lang;
+    bb_operand_aux_t *operand_aux; int operand_aux_n, operand_aux_max;  /* legacy, other langs */
+    #define AG_RING 16
+    DESCR_t  ring[AG_RING];
+    int      ring_head;       /* newest index; advances mod AG_RING                          */
+    int      ring_depth;      /* valid count, saturates at AG_RING                            */
+} BB_graph_t;
+static inline void    ag_ring_push (BB_graph_t *cfg, DESCR_t v);
+static inline DESCR_t ag_ring_peek (const BB_graph_t *cfg, int k);  /* k=0 newest            */
+static inline void    ag_ring_clear(BB_graph_t *cfg);                /* by bb_reset           */
 ```
 
-`bb_exec.c` has `g_current_cfg` (module-static) set with save/restore around each public `bb_exec_*` entry.
+**LOWER's job, per TT_* kind:** allocate boxes for the sub-expressions, wire their γ to the next box in evaluation order, the LAST sub-expression's γ to the apply box, every box's ω to the appropriate failure target (outer ω, or a sibling's β for backtracking), and report α_out = subgraph entry, β_out = self if resumable else ω_in.
 
-DO NOT add fields to BB_t.
+**EXECUTOR's job, per apply-box kind:** read N values via `ag_ring_peek(cfg, N-1 .. 0)`, apply the operation, write result to `nd->value`, return `nd->γ` on success / `nd->ω` on failure. Apply boxes DO NOT recurse into `nd->α`/`nd->β` for value evaluation — those ports are CFG edges, not tree edges.
+
+### THE FOUR FACTS (revised)
+1. **BB_t has α/β/γ/ω plus IR payload (sval/ival/dval) plus runtime scratch (value/counter/state). NOTHING ELSE.**
+2. **All four ports are CFG edges. None point at "operands".**
+3. **Operand values live in `BB_graph_t.ring`, populated by the chain walker.**
+4. **PEERS sidecar (`operand_aux`) is LEGACY for Icon — kept for Prolog/SNOBOL4 mid-migration.**
+5. **TEMPLATE-ONLY EMISSION still holds for mode 3/4.**
+
+### Migration sequence (per-family, gates green each commit)
+
+1. **Step 1** ✅ `64805e16` — ring fields dormant in BB_graph_t.
+2. **Step 2** — chain walker: `bb_exec_once`/`bb_exec_resume`/`bb_exec_pump` clear ring on entry and push `cur->value` after each successful step; `bb_reset` clears ring. Still dormant: no apply box reads yet.
+3. **Step 3 — BB_BINOP** (Family 3): lower produces lhs→rhs→apply chain (γ-linked); apply reads ring peek(1)/peek(0); old α=lhs/β=rhs goes to NULL. Mirrors `irgen.icn:ir_a_Binop`.
+4. **Step 4 — BB_IF** (Family 4): cond box; cond.γ = then.α; cond.ω = else.α (NOT nd->ω); then.γ/else.γ = γ_in; then.ω/else.ω = ω_in. Retire `icn_kind_owns_omega_operand`.
+5. **Step 5 — BB_CONJ** (Family 5): left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=left.β. Apply box reads peek(0) for E2 value.
+6. **Step 6 — BB_ALT** (Family 6): arm[i].ω=arm[i+1].α; arm[i].γ=apply (or directly γ_in). nd->counter=current arm index.
+7. **Step 7 — BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN** (Family 7): generator kinds. β=self (resumable). Every: gen.γ=body.α; body.γ=gen.β; body.ω=gen.β; gen.ω=ω_in.
+8. **Step 8 — BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET / etc.** — N-ary arg chains read via peek(N-1..0).
+9. **Step 9 — DELETE** `bb_operand_aux_set/get` calls from Icon path; sidecar struct stays for other langs.
+
+### Per-step gate
+```bash
+bash scripts/test_smoke_icon.sh                # PASS=5
+bash scripts/test_icon_all_rungs.sh            # PASS≥198
+bash scripts/test_smoke_prolog.sh              # PASS=5
+bash scripts/test_smoke_unified_broker.sh      # PASS≥24
+grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l  # ==0
+```
+
+### Acceptance (whole rewrite)
+1. `grep -nE 'nd->[αβ] = ' src/lower/lower_icn.c | wc -l` == 0 (no operand-as-port writes).
+2. `grep -nE 'bb_exec_node\(nd->[αβ]\)' src/lower/bb_exec.c | wc -l` == 0 (no recursive operand eval).
+3. `icn_kind_owns_omega_operand` removed.
+4. `bb_operand_aux_set` not called from Icon lower path.
+5. rungs PASS≥198 holds throughout.
+
+### DO NOT
+- Touch SNOBOL4 / Snocone / Rebus / Raku / Prolog lower or BB families until their own migrations begin.
+- Touch BB_PAT_*.
+- Add fields to BB_t.
+- Use `nd->α` / `nd->β` as tree pointers for any new Icon code.
+
+---
+
+## LEGACY (pre-AG-pure) — kept for reference until migration completes
 
 ### Families 3-7 — irgen.icn wiring (read procedure before coding each)
 
