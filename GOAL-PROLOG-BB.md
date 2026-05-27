@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-1 = 5/5, GATE-2 = 19/107 (--mode run; +4 this session via CAT-D-9), GATE-3 = 89/107, GATE-4 = 4/4, mode-4 rung suite = 19/107.** HEAD `b1a37351` (Opus 4.7, 2026-05-27). CAT-D-7 landed (`d2ce06fc`): write(compound) mode-4 via emit-time recursive walker (rt_pl_write_int/_float/_cstr helpers; punct interned by pl_pre_intern_pred_names). CAT-D-8 landed (`710ee0b0`): BB_PL_ITE wrapper for mode-4 if-then-else (new bb_pl_ite.cpp template + flat_drive_pl_ite driver + ival state struct). CAT-D-9 landed (`b1a37351`): all 12 comparison ops (==, \\==, @<, @>, @=<, @>=, =:=, =\\=, <, >, <=, >=) — previously all fell through to "unknown stub" + succ_back (silently succeeded). Two new effect helpers (rt_pl_term_cmp / rt_pl_arith_cmp); single template arm dispatches both via 7-scalar System V (op + 2×(k,i,s)). +5 genuine PASS (rung04, rung16_atop_*), -1 spurious (rung26 copy_term was relying on the always-succeeds bug). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive) or CAT-D-6 (atom_chars/atom_codes — bidirectional list↔atom, bigger surface) or CAT-D-9b (compound-term ==, emit-time term-walk).
+**Current state: GATE-1 = 5/5, GATE-2 = 19/107 (--mode run; held), GATE-3 = 89/107, GATE-4 = 4/4, mode-4 rung suite = 19/107.** HEAD `e15e86b0` (Opus 4.7, 2026-05-27). CAT-D-7 landed (`d2ce06fc`): write(compound) mode-4 via emit-time recursive walker. CAT-D-8 landed (`710ee0b0`): BB_PL_ITE wrapper for mode-4 if-then-else. CAT-D-9 landed (`b1a37351`): all 12 comparison ops (was the always-succeeds stub); +4 honest rungs. CAT-D-9b landed (`e15e86b0`): compound-term `==` correctness via emit-time post-order Term builder walker + two new helpers (rt_pl_compound_build_n / rt_pl_term_cmp_terms); no rung delta, correctness fix only (corpus doesn't yet exercise compound-`==` directly). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive) or CAT-D-6 (atom_chars/atom_codes — bidirectional list↔atom, bigger surface).
 
 **Session setup:**
 ```
@@ -595,12 +595,13 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   - write(compound) ✅ (`d2ce06fc`, CAT-D-7 — emit_write_term recursive walker)
   - if-then-else ✅ (`710ee0b0`, CAT-D-8 — BB_PL_ITE wrapper + flat_drive_pl_ite + bb_pl_ite.cpp)
   - 12 comparison ops ==, \\==, @<, @>, @=<, @>=, =:=, =\\=, <, >, <=, >= ✅ (`b1a37351`, CAT-D-9 — rt_pl_term_cmp + rt_pl_arith_cmp; single 7-scalar arm)
+  - compound-term `==`/`\\==`/`@<`/`@>`/`@=<`/`@>=` correctness ✅ (`e15e86b0`, CAT-D-9b — emit_build_compound_term post-order walker + rt_pl_compound_build_n + rt_pl_term_cmp_terms; no rung delta, correctness fix only)
 
-**Gates at HEAD (post-CAT-D-9, 2026-05-27 Opus 4.7, one4all `b1a37351`):** GATE-1 5/5,
-GATE-2 = **19/107** (--mode run rung_suite; +4 this session via CAT-D-9 12-comparison sweep),
-GATE-3 **89/107** (--mode interp; held — comparisons already correct in interp),
-**GATE-4 4/4** (mode-4 minimal m4-seq/call/choice/alt held), mode-4 rung suite **19/107**
-(--mode compile; +4 same lift as GATE-2). Sibling smoke: icon/snocone/raku 5/5, rebus 4/4.
+**Gates at HEAD (post-CAT-D-9b, 2026-05-27 Opus 4.7, one4all `e15e86b0`):** GATE-1 5/5,
+GATE-2 = **19/107** (--mode run; held — no rung delta; correctness fix only),
+GATE-3 **89/107** (--mode interp; held), **GATE-4 4/4** (mode-4 minimal held),
+mode-4 rung suite **19/107** (--mode compile; held), crosscheck 52 PASS held.
+Sibling smoke: icon/snocone/raku 5/5, rebus 4/4.
 
 **This session (Opus 4.7, post-CAT-D-5 → CAT-D-7..9):**
 - **CAT-D-7** (`d2ce06fc`) — `write(compound)` mode-4 100% template emission. Three new
@@ -628,7 +629,21 @@ GATE-3 **89/107** (--mode interp; held — comparisons already correct in interp
   reveals a pre-existing copy_term var-identity gap that surfaces only when == tells the
   truth). Net +4 honest. Scope: scalar args (LIT_I/LIT_F/ATOM/PL_VAR). Compound term
   comparison (`f(a) == f(a)`) needs emit-time term walk like CAT-D-7's emit_write_term;
-  deferred to CAT-D-9b.
+  closed by CAT-D-9b below.
+- **CAT-D-9b** (`e15e86b0`) — compound-term mode-4 correctness for the six term-compare
+  ops. CAT-D-9's flat scalar path squashed compound operands into `term_new_int(arity)`
+  via `rt_pl_node_to_term`'s default arm, so every compound looked equal (`f(a,b)==f(a,c)`
+  returned `same` instead of `diff`). New emit-time walker `emit_build_compound_term` in
+  bb_pl_builtin.cpp post-order builds a Term* tree: leaves dispatch to rt_pl_node_to_term;
+  BB_PL_STRUCT subs rsp by aligned(arity*8), recursively builds each child into a slot,
+  calls new helper `rt_pl_compound_build_n(functor_name, arity, rsp)` — which GC-allocates
+  the args array and term_new_compounds it. Outer == arm builds t0, saves to [rsp+0]
+  across t1's build, then calls new helper `rt_pl_term_cmp_terms(op, t0, t1)`. Wired
+  BEFORE the CAT-D-9 scalar fast path so leaf-leaf compares stay fast. No rung delta
+  (corpus doesn't exercise compound-== directly today) but verified byte-identical
+  against --interp across a 7-test probe battery: f(a,b)==f(a,b)/f(a,c),
+  [1,2,3]==[1,2,3]/[1,2,4], nested f(g(x),y)==f(g(x),y)/f(g(z),y), point(1,2)@<point(1,3),
+  mixed atom-vs-compound. All gates and sibling smokes held. FACT RULE 0.
 
 Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5;
 CAT-A-2 `471ab202` structural prerequisite (no numeric lift); CAT-D-1 `95f73bad` +2 (atom_length/
@@ -636,8 +651,9 @@ upcase_atom/downcase_atom); CAT-D-2..5 `bb8bb529` +6 (atom_concat / string_*/ato
 string_to_atom / copy_term).
 
 Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume stubs; needs Lon directive on design).
-CAT-D-6 (atom_chars/atom_codes — bigger surface due to list cons-cell construction). CAT-D-9b
-(compound-term == — emit-time term-walk mirroring CAT-D-7's emit_write_term).
+CAT-D-6 (atom_chars/atom_codes — bigger surface due to list cons-cell construction).
+rung26_copy_term independent gap: copy_term doesn't share var identity between A and B in
+mode-4 (`copy_term(f(X,X), f(A,B))` → A==B should hold but doesn't); orthogonal to CAT-D-9b.
 
 Latent bug worth fixing: `lower_pl.c:65` puts garbage `sval` on BB_PL_VAR (union with ival).
 
