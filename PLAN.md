@@ -48,7 +48,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **ICON-BB** | `GOAL-ICON-BB.md` | ⛔ ICN-Z-ATOMIC Families 3-7 (BB_BINOP, BB_IF, BB_CONJ, BB_ALT, BB_EVERY/TO/TO_BY/BINOP_GEN). PEERS RULE landed `78e4c067`. Families 1-2 ✅. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | AGW-9 CLOSED. GATE-3 88/107, GATE-4 4/4 ✅. Next: V-4 retire rt_pl_b_* path. |
 | **Raku BB** | `GOAL-RAKU-BB.md` | RK-BB-1 ✅. RK-BB-2 ⛔ NEEDS LON DECISION (scope). |
-| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | NEXT: SBL-BREAKX or SBL-ATP or SBL-*-2 BINARY arms. Broad corpus 184. |
+| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | SBL-BREAKX-1 wiring DONE (SM_PAT_BREAKX opcode + ival=1 routing). Mode-2 backtrack incomplete (PATND XBRKX brokered path needs bridging). Broad corpus 184. |
 | **PP-PURE** | `GOAL-PURE-TEMPLATES.md` | PP-PURE-2 — xa_bb_ptr_slot side-effect fix + SM locals. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **Mode-4 SN4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | M4SN-5 or M4SN-6. 250/280 ✅. |
