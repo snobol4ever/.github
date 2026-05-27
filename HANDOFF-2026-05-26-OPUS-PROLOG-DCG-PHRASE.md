@@ -67,6 +67,52 @@ correct activation env, or to not free/clobber the caller env while a shared var
 This single fix should unlock a large rung cluster: rung06 (lists), and the deterministic-output
 half of many others.
 
+## UPDATE (same session, second pass) — unify-binding + unify-`is` works for lists BUT couples with the backtrack snapshot
+
+Re-applied the unify-binding (shared-var) approach AND fixed the real co-bug: the `is` handler
+(`bb_exec.c` BB_BUILTIN `is` arm) was binding its result with a **raw `g_pl_env[slot] = vt`
+overwrite**, which SEVERS the shared-var link a unify-bound caller var relies on (that's why
+`len/2` went empty under unify-binding — the recursively-computed `N` never reached the caller).
+Fix = `is` must `unify(pl_node_to_term(nd->α), vt, &g_pl_trail)` so the result propagates through
+the shared trail. With BOTH changes:
+- **rung06 lists FULLY PASSES**: `[a,b,c,d]` / `4` / `[d,c,b,a]` (append/3 tail + reverse/2 nested
+  append + length/2 recursion+is all correct).
+- `len([a,b],N)` → `2`, `append([a],[b],L)` → `[a,b]` — all the list class fixed.
+
+**But it is NOT a clean win — exact tradeoff measured by PASS-set diff (suite + honest):**
+- GATE-3 rung suite: **GAINED rung06, LOST rung05** → net 19 (no change).
+- Honest gate: **124 → 122** (rung10_programs_puzzle_14 + _16 newly SIGSEGV; baseline already
+  crashes puzzle_12/13/15/18 — deep constraint-search puzzles, pre-fragile).
+- rung05 (`member(X,[a,b,c]),write(X),nl,fail;true`) over-generates: `a b <blanks>` instead of
+  `a b c`.
+
+**ROOT INSIGHT (the real design issue to solve next):** shared-var unification binding and the
+**snapshot/restore backtracking machinery are coupled**. `BB_CHOICE`/`BB_PL_CALL` resume relies on
+`bb_snapshot_state`/`bb_restore_state` (per-node state) + trail marks to rewind between solutions
+(this is what PJ-AGW-3b carefully fixed for rung05/member). When caller and callee vars are ALIASED
+through the trail (unify-binding), restoring per-node state no longer models the full binding state:
+the shared var bindings made across the activation boundary are not captured by the per-node
+snapshot, so a resumed backtrack sees stale/over-bound vars → rung05 blanks, and partial/aborted
+deep graphs (rung10 puzzles) deref bad state → segfault. The slot-copy writeback (current committed
+code) AVOIDS this coupling precisely because it does NOT alias — it copies values at success time,
+keeping each activation's vars independent, which is why rung05 + the puzzles survive but append's
+nested-compound output var is missed.
+
+**Proper fix direction (for next session — this is the meaty one):** make backtrack resume
+trail-complete under shared vars. On each `BB_CHOICE`/`BB_PL_CALL` retry, `trail_unwind` to the
+call's `mark` BEFORE re-running (so shared-var bindings from the prior solution are undone via the
+trail, not just the per-node snapshot), and ensure `bb_snapshot_state` either (a) also snapshots the
+trail top so restore is trail-complete, or (b) is replaced for the binding-state dimension by pure
+trail discipline (snapshot only the graph CURSOR/control state, let the trail own ALL var bindings).
+Option (b) is the principled WAM model: control state in the snapshot, binding state in the trail,
+never both. Once resume is trail-complete, re-apply unify-binding + unify-`is` and rung05 + rung06 +
+the puzzles should all hold. Verify with: rung05 = `a b c`, rung06 = `[a,b,c,d]/4/[d,c,b,a]`,
+honest >= 124, no new rung10 SIGSEGV, ASAN clean on member + rung05 + fib(6).
+
+The unify-`is` fix (unify instead of raw slot overwrite) is correct INDEPENDENT of binding strategy
+and should probably land on its own once the trail-complete resume is in — but DO NOT land it alone
+on the current slot-copy code without checking it doesn't regress (slot-copy + unify-is may interact).
+
 ## Other gates / corpus notes
 - rung30_dcg_generate still empty: blocked by `findall/3` being ABSENT from the live BB path
   (only in stubbed `pl_runtime.c`). Distinct meta-call feature (cross-backtrack solution
