@@ -71,6 +71,23 @@ paths, in this order:
 proper LOWER path (Mode 2 AG-wired ports) AND, when EMITTER work reaches it, Mode 4 agrees.
 Track every rung honestly via the aggregate gate (GATE-3 below); no "done" without green numbers.
 
+> **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 32 → 48 (+16). Builtin coverage wave 2.** `one4all cf17fd90`.
+> All on the PJ-AGW unify pattern (bidirectional via `unify`+trail, outputs unified exactly as
+> functor/arg/atom_* do). NEW builtins: **`char_type/2`** (rung21 5/5 — type tests alpha/alnum/digit/
+> space/upper/lower/punct/graph/csym/csymf/end_of_line + compound extractors digit(W)/upper(L)/lower(U)/
+> to_upper(U)/to_lower(L)/code(C)); **string I/O** (rung24 5/5 — `atom_string/2`, `number_string/2`,
+> `string_upper/lower/2`, `string_concat/3`, `string_length/2`, `string_chars/codes/2`, `string_to_atom/2`,
+> `term_to_atom/2` forward via `pl_term_to_string`, `atom_number/2`); **`copy_term/2`** (via existing
+> `bb_copy_term`); **`atomic_list_concat/2,3`** (+ separator form) + **`concat_atom/2`** (rung26 5/5); **term
+> comparison `==`/`\==`/`@<`/`@>`/`@=<`/`@>=`** via new self-contained `pl_term_compare` (ISO standard order
+> of terms: Var<Number<Atom<Compound; compounds by arity then functor then args). Two files: `bb_exec.c`
+> (+236, exec arms + helper), `lower_pl.c` (+15, recognizer entries). GATE-1 smoke_prolog 5/5; crosscheck_prolog
+> 132/0 (3 modes agree); icon/snocone/raku 5/5, rebus 4/4, snobol4 7/6 (pre-existing). rung25 1/3.
+> **NEXT:** (A) `main/0` auto-run — STILL NEEDS LON; gates rung16 (`@<`/`@>=` operators DONE but unreachable
+> — no `:- initialization`), rung17 sort, rung20 numbervars. Then (B) rung17 sort/msort, rung19 format,
+> rung20 numbervars, rung22 writeq/write_canonical, rung27 aggregate — each a BB_BUILTIN arm. (C) rung25_arith
+> `term_to_atom(1+2,A)` needs an operator-notation term writer (currently renders `+(1,2)`).
+
 > **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 20 → 32.** Builtin coverage on the PJ-AGW unify pattern:
 > rung09 (`functor/3`, `arg/3`, `=../2`, 11 type tests), rung12 ×5 (`atom_length/concat/chars/codes`,
 > `upcase/downcase_atom`), rung11 ×5 + rung30 (`findall/3` via self-contained Goal sub-graph). Meaty fix:
