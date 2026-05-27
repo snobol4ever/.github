@@ -95,10 +95,9 @@ wrong — fix the BB graph, not the runtime.
   Open follow-on (RK-BB-1b): exclusive `..^` + non-literal-bound ranges
   (currently fall through to eager SM).
 
-- [ ] **RK-BB-2** ⛔ STEPS 1-5 LANDED, STEP 6 PARTIAL — KEYSTONE lazy `Seq` box. `gather`/`take` + `…`
-  → `BB_SUSPEND`+`BB_EVERY` PUMP. Retarget `lower_gather_hoist_pass` so `take`
-  becomes γ-yield in the Seq box (lower-risk than full replacement). REUSE
-  `bb_upto.cpp`. Verify `test/raku/rk_gather.raku` under `--compile`.
+- [x] **RK-BB-2** ✅ (2026-05-27, Opus 4.7, one4all `d08237e0`) — KEYSTONE lazy `Seq` box.
+  `gather`/`take` + `…` → `BB_SUSPEND`+`BB_EVERY` PUMP. REUSE `bb_upto.cpp`.
+  `test/raku/rk_gather.raku` PASSES `--compile` (mode-4): byte-exact `10\n20\n30\ndone\n`.
   - Step 1 ✅ (one4all `2f2aed25`) — `lower_icn_proc_body` accepts TT_SUB_DECL;
     hoist registers `__gather_N` in proc_table.
   - Step 2 ✅ (one4all `340b804d`) — `TT_SUSPEND` case in `lower_icn_expr_node`
@@ -107,20 +106,26 @@ wrong — fix the BB graph, not the runtime.
     LANG_RAKU; have_switch guard prevents PUSH_VAR a[0] clobber.
   - Step 4 ✅ (one4all `e8568ee4`) — `bb_suspend.cpp` template authored:
     literal-int fast-path pushes DESCR_t{DT_I, val_i} onto r12 via
-    `rt_push_int@PLT` (TEXT) or inline 16-byte stack push (BINARY). α→push+γ,
-    β→ω. Dynamic operand passthrough mirrors bb_to_by H-3 TODO.
+    `rt_push_int@PLT` (TEXT) or inline 16-byte stack push (BINARY).
   - Step 5 ✅ (one4all `e8568ee4`) — `emit_core.c` walk_bb_node: BB_SUSPEND
     peeled off bb_stub group → routes to `bb_suspend(nd)`.
-  - Step 6 ⛔ PARTIAL (one4all `6ea3637d`) — three downstream pieces authored,
-    blocked by upstream. (a) `bb_seq.cpp` NEW: multi-yield driver using
-    .data resume_addr slot + indirect-jmp on β. (b) emit_core: BB_SEQ peeled
-    off bb_stub → routes to `bb_seq(nd)`. (c) `lower_fnc` detects `__gather_*`
-    is_generator calls and emits `SM_BB_SWITCH(SM_BBSW_RK_GEN)` in place of
-    `SM_CALL_FN`. BLOCKER: `lower_icn_proc_body` returns NULL for EVERY Raku
-    TT_SUB_DECL (both `main` and synthesized `__gather_N`) — TT_SUSPEND lowering
-    never reached. Need `lower_raku_proc_body()` parallel to `lower_pl_predicate`,
-    handling the strict gather-body shape (BB_SUSPEND chain). See
-    HANDOFF-2026-05-27-OPUS-RK-BB-2-STEPS-4-6-PARTIAL.md for the diagnostic.
+  - Step 6 ✅ (one4all `d08237e0`) — UNBLOCKED. Three-edit patch in lower.c:
+    (a) `lower_hoist_gather_in_expr`: `def->v.sval = intern(gname)` →
+        `def->v.ival = 0`. The v.sval/v.ival union-clobber was causing
+        `lower_icn_proc_body` to read garbage as nparams (Open Q5).
+    (b) `lower_stmt` RAKU+TT_SUB_DECL branch: skip body emission when the
+        proc name starts with `__gather_`. Body lives in the BB graph;
+        emitting at top-level orphans it (stack underflow on startup).
+    (c) `lower_expr_inner` TT_SUB_DECL case: same defensive skip; keeps
+        `SM_PUSH_NULL` contract intact.
+    lower_icn_proc_body builds the BB graph (BB_SEQ→3×BB_SUSPEND); lower_fnc
+    routing emits `SM_BB_SWITCH(SM_BBSW_RK_GEN, bb_idx)` at every call site;
+    sm_bb_switch.cpp dispatches via bb_seq → bb_suspend (template emission).
+    NOT needed: the separate `lower_raku_proc_body()` the handoff anticipated.
+    The existing path works once nparams is correct. Open follow-on
+    (RK-BB-2b): mode-2 still stack-underflows on `rk_gather` (bb_exec.c has
+    no executor for BB_SUSPEND) — a separate Icon-shared goal per the
+    handoff's gating comment in TT_SUSPEND.
 
 - [ ] **RK-BB-3** — lazy `map`/`grep` as Seq CONSUMERS. REUSE `bb_iterate.cpp`;
   grep adds γ-port predicate test (loop on false, γ on true, ω on source ω).
@@ -183,62 +188,70 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 6ea3637d (RK-BB-2 step 6 PARTIAL — bb_seq + dispatch peel + lower_fnc routing; blocked by lower_icn_proc_body NULL on Raku)
+one4all: d08237e0 (RK-BB-2 step 6 ✅ — three-edit unblock: union-clobber fix + body-orphan suppress)
 .github: HEAD (this update)
 corpus:  unchanged
 
-Gates at 6ea3637d (2026-05-27, Opus 4.7, RK-BB-2 steps 4-5 ✅ + step 6 PARTIAL):
-  GATE-RK mode-2:  8/30   HOLD
-  GATE-RK4 mode-4: 8/30   HOLD
+Gates at d08237e0 (2026-05-27, Opus 4.7, RK-BB-2 ✅ rk_gather PASSES mode-4):
+  GATE-RK mode-2:  8/30   HOLD  (BB_SUSPEND has no bb_exec.c executor — separate Icon goal)
+  GATE-RK4 mode-4: 9/30   ✅ rk_gather flipped 8→9
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
   Icon all rungs:  198/34/36 HOLD
-  Prolog mode-4:   1/4    HOLD (carried)
+  Prolog mode-4:   4/4    (was carried 1/4; unrelated upstream improvement)
   GATE-PK: ⛔ harness segfault — INHERITED FROM upstream 6deb9f71 (SBL-ANY-1
            + flat-driver α-label fix). Pre-6deb9f71 baseline was 455/64/590/6.
            Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
 
-⛔ RK-BB-2 STEPS 4-5 ✅ DONE (2026-05-27, Opus 4.7, commit e8568ee4):
+⛔ RK-BB-2 STEP 6 ✅ COMPLETE (2026-05-27, Opus 4.7, commit d08237e0):
 
-Step 4 (bb_suspend.cpp): four-port template. α reads pBB->α->ival (literal-int
-  fast-path), pushes DESCR_t{DT_I, val_i} via rt_push_int@PLT (TEXT) or inline
-  16-byte r12 push (BINARY), jmp γ. β: jmp ω. Dynamic operand passthrough mirrors
-  bb_to_by H-3 TODO. FACT RULE clean; PEERS RULE clean.
-Step 5 (emit_core.c): BB_SUSPEND peeled off bb_stub group → bb_suspend(nd).
+Three surgical edits in src/lower/lower.c (only file touched, +27/-5):
 
-⛔ RK-BB-2 STEP 6 PARTIAL (2026-05-27, Opus 4.7, commit 6ea3637d):
+(1) lower_hoist_gather_in_expr (~L2202): the Open Q5 union-clobber.
+    `def->v.sval = intern(gname)` clobbered v.ival (same union), so
+    lower_icn_proc_body read garbage as nparams → body_off overshot
+    proc->n → NULL return on every Raku TT_SUB_DECL. Fix: v.ival = 0
+    (nparams=0). Name lives in c[0]->v.sval (TT_VAR), already correct.
 
-  (a) bb_seq.cpp NEW: multi-yield driver. .data resume_addr quad; outer α jmps
-      child0_α; outer β load+indirect-jmp resume_addr. Per-child γ fixup writes
-      resume_addr := next-child-α (or done-trampoline for last) then jmps outer γ.
-      Each child's ω points at next child's α (substituted via emit_child_box_seq's
-      lbl_ω repointing). n==0 guard preserves passthrough for non-gather BB_SEQ.
-      MEDIUM_TEXT only; MEDIUM_BINARY stubbed.
-  (b) emit_core.c: BB_SEQ peeled off bb_stub group → bb_seq(nd).
-  (c) lower_fnc: detects Raku `__gather_*` is_generator proc calls, emits
-      SM_BB_SWITCH(SM_BBSW_RK_GEN, bb_idx) in place of SM_CALL_FN. Mirrors
-      lower_for_range's RK-BB-1 pattern.
+(2) lower_stmt RAKU+TT_SUB_DECL branch (~L1787): skip body emission
+    when proc name starts with __gather_. Hoisted gather procs are
+    driven via SM_BB_SWITCH(RK_GEN) at the call site; their body lives
+    in the BB graph. Emitting at top-level orphaned it before main
+    started → stack underflow on startup.
 
-  ⛔ BLOCKER: lower_icn_proc_body returns NULL for EVERY Raku TT_SUB_DECL.
-  [DBG-procbody] proves both `main` AND `__gather_0` get body_irb=(nil).
-  [DBG-tt_suspend] probe in lower_icn_expr_node's TT_SUSPEND case never fires —
-  so the TT_SUSPEND lowering Step 2 added is currently UNREACHABLE. proc_table[].
-  bb_idx stays -1 → lower_fnc routing falls through to default SM_CALL_FN →
-  bb_seq.cpp and bb_suspend.cpp unreached.
+(3) lower_expr_inner TT_SUB_DECL case (~L1965): same defensive skip.
+    SM_PUSH_NULL still emitted to preserve the contract.
 
-  ROOT CAUSE LIKELY: lower_icn_expr_threaded_b (or an inner check) rejects Raku
-  stmt shapes before reaching lower_icn_expr_node. For `__gather_0` body =
-  3× TT_SUSPEND(TT_ILIT) — the simplest possible BB graph — yet still NULL.
+Diagnostic path (probes removed before commit):
+  [DBG-procbody] both main AND __gather_0 → body_irb=(nil) initially.
+  [DBG-subdecl] __gather_0 had proc->n=4 children:
+    [TT_VAR(5), TT_SUSPEND(50), TT_SUSPEND(50), TT_SUSPEND(50)] —
+    BB graph should have been trivial to build.
+  After v.ival=0 fix: body_irb=0x37bdbad0 — BB graph built.
+  SM dump count: 49 → 25 after orphan-emit suppression.
 
-  FIX (recommended next session): author lower_raku_proc_body() parallel to
-  lower_pl_predicate, handling only the strict gather-body shape (BB_SUSPEND
-  chain on simple operands). Gate at lower.c:2083 on
-  proc->t==TT_SUB_DECL && name prefix "__gather_". See HANDOFF doc.
+NOT needed: the separate lower_raku_proc_body() the prior handoff
+anticipated. lower_icn_proc_body widened in Step 1 already handles
+TT_SUB_DECL correctly once nparams is right.
 
-NEXT: RK-BB-2 step 6.1 (diagnose) → 6.2 (lower_raku_proc_body) → 6.3 (verify 9/30).
+End-to-end verification via run_raku_via_x86_backend.sh:
+  ./scrip --compile rk_gather.raku → .s → as → ld → ./a.out
+  Output: 10\n20\n30\ndone\n — byte-exact to .expected.
+
+OPEN: RK-BB-2b — mode-2 still stack-underflows on rk_gather. bb_exec.c
+has no executor for BB_SUSPEND (TT_SUSPEND case in lower_icn.c gates on
+BB_LANG_RKU specifically because Icon `suspend` would break rung03 if
+BB_SUSPEND emitted with no mode-2 handler). Adding a mode-2 BB_SUSPEND
+executor is a separate cross-language session (Icon-shared) — see the
+gating comment in lower_icn.c TT_SUSPEND case (~L651).
+
+NEXT: RK-BB-3 — lazy map/grep as Seq CONSUMERS. BB_ITERATE consumer +
+γ-port predicate test for grep. Migrate lower.c:1872-1881 off eager
+SM_CALL_FN raku_map / raku_grep for the lazy path. Reuse bb_iterate.cpp
+(Icon proved most cases). Verify rk_map_grep_sort24.raku under --compile.
 ```
 
 ## Open questions for Lon
