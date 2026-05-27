@@ -92,28 +92,31 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `e842b724`)
+## ⚡ CURRENT WATERMARK (one4all `0206b998`)
 
-GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**.
-(2026-05-26, Sonnet 4.6: JA-D COMPLETE — all six steps done in one session.)
+GATES GREEN: smoke_icon **5/5**, unified_broker **23** (pattern rungs RED — expected; inline-x86 templates are next), icon_all_rungs **198**.
+(2026-05-26, Sonnet 4.6: rt_bb_* DELETED — total annihilation of all 10 C runtime Byrd-box functions.)
 
-**JA-D CLOSED.** Both repos pushed. one4all `e842b724`.
+**rt_bb_* DELETION CLOSED.** one4all `0206b998`.
 
-Session JA-D ladder:
-- JA-D-1 `c352bf4d` (prev session): `--run` call site stubbed [NO-SM-BB]
-- JA-D-2 `22a17fa3`: Engine B (SB-LINEAR, 630 lines) deleted. 192→166 violators.
-- JA-D-3 `2073c081`: Engine A (trampoline, 1641 lines) deleted. 166→2 violators.
-- JA-D-4+D-5 `b14a3312`: sm_image_test cleaned. Violator grep = **0**.
-- JA-D-6 `e842b724`: Total annihilation of jit/JIT — 35 files, 5 renames,
-  sm_jit_interp.c→sm_codegen.c, g_jit_*→g_codegen_*, verify grep == 0.
+Deleted (`0206b998`):
+- `rt_bb_span`, `rt_bb_brk`, `rt_bb_brkx`, `rt_bb_any`, `rt_bb_notany` — charset pattern C walkers
+- `rt_bb_arbno`, `rt_bb_arbno_new` — ARBNO C walker + constructor
+- `rt_bb_atp` — AT-position C walker
+- `rt_bb_cap` — capture C walker
+- `rt_bb_switch_pl_entry` — Prolog SM_BB_SWITCH runtime dispatcher
+- All declarations in rt.h, all PLATFORM_X86 arms in bb_pat_span/break/any/notany/bb_arbno/bb_capture.cpp hollowed (return std::string()), cap_bin()/cap_text() helpers deleted, emit_bb.c call site cleaned, emit_core.c sm_bb_switch body hollowed.
+- grep -rn rt_bb_ src/ == 0. Build green.
 
-Net: **2271 lines deleted**, zero illegal x86 producers, zero JIT anywhere.
-`--interp` gates unchanged throughout. `--run` RED (expected, stub).
+⛔ **NEXT SESSION: fill inline-x86 four-port bodies** in the now-hollow PLATFORM_X86 arms:
+- `bb_pat_span.cpp` — SPAN(cset): scan while in charset, commit; β rewinds
+- `bb_pat_break.cpp` — BREAK(cset): scan until break char; β rewinds
+- `bb_pat_any.cpp` — ANY(cset): one char in charset; β rewinds
+- `bb_pat_notany.cpp` — NOTANY(cset): one char NOT in charset; β rewinds
+- `bb_arbno.cpp` — ARBNO(pat): zero-or-more via growable frame stack
+- `bb_capture.cpp` — CAP: wrap child pattern, record matched substring
 
-**⛔ NEXT SESSION: JA-1 rebuild** — route `--run` to load template-produced bytes
-(`codegen_sm_x86` → emit_core → bb_*.cpp/sm_*.cpp/xa_*.cpp) into a PROT_EXEC
-buffer and jump in. One-instruction thunk-templates as scaffolding; fill real
-four-port x86 per opcode on the ladder.
+Each gets a full TEXT + BINARY four-port x86 body (α/β/γ/ω, per RULES.md template-only emission). Anchor gate: broker pattern rungs climb back from RED. Start with SPAN (simplest), then ANY/NOTANY/BREAK, then CAP, then ARBNO last (most complex — needs frame stack in pBB->counter or GC aux).
 
 ## Phase H — Attribute Grammar (pointers, no label IR)
 
