@@ -8,7 +8,7 @@
 
 GATES: smoke_icon **5/5** ✅ · broker **23** (pattern rungs RED — expected) · icon_all_rungs **198** ✅
 (2026-05-26, Sonnet 4.6: all 10 `rt_bb_*` C runtime Byrd-box functions deleted. `grep rt_bb_ src/ == 0`.)
-✅ **FACT RULE COMPLETION TEST VERIFIED:** `grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/` outside `*_templates/`+`emit_core.c` == **0**. All asm emitter violators gone.
+⚠ **FACT RULE STATUS:** `seg_byte(SEG_CODE,…)` / `SL_B` / `sl_emit_one` / `emit_standard_blob` / `bake_blob_call` outside `*_templates/`+`emit_core.c` == **0** ✅. BUT: `src/processor/sm_image_test.c` calls `seg_byte/seg_u32/seg_u64(SEG_DATA,…)` — a unit test for the segment infrastructure itself. If ALL DATA+EXEC sections must go through templates, this file must be deleted or gutted. **Lon's call.**
 
 ⛔ **NEXT: fill inline-x86 four-port bodies** in the hollow `PLATFORM_X86 { return std::string(); }` arms.
 Order: SPAN → ANY → NOTANY → BREAK → CAP → ARBNO (simplest first; each its own commit, gates green between).
@@ -25,6 +25,8 @@ Each gets TEXT + BINARY x86 four-port body (α fresh-entry, β retry, γ success
 Anchor gate per template: broker pattern rungs climb from RED.
 `rt_cs_new` (allocates `rt_cs_t {chars,delta}`) is still live — use it for the charset state pointer.
 ARBNO needs a growable frame stack; stash ptr in `pBB->counter` (intptr cast), or GC aux struct.
+
+⚠ **PENDING LON DECISION: `sm_image_test.c`** — calls `seg_byte/seg_u32/seg_u64(SEG_DATA,…)` directly. It is a unit test for the segment infrastructure itself (not emitting program code), but if ALL DATA+EXEC sections must go through templates, this file must be deleted or gutted. Resolve before or after the template fills above.
 
 ---
 
