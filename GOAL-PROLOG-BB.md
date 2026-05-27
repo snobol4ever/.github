@@ -24,6 +24,80 @@
 
 ---
 
+---
+
+## 🔴🔴🔴 PRIORITY #1 (2026-05-27, Lon directive) — FINISH FOUR-PORT BB MODE-4 EXECUTION
+
+**THE WHOOPS:** mode-4 Prolog has *never executed*. The top-level query `?- main` lowers to an
+`SM_BB_SWITCH PL_ENTRY` instruction whose mode-4 template arm was a stub emitting a `[NO-SM-BB]`
+comment + `HALT`. The `xa_pl_builder` path *rebuilds* the BB graph at runtime via `rt_pl_b_*` but
+then nothing runs it — execution hit `HALT`. So GATE-4 = 0/4 was not "templates empty," it was
+"the entry never dispatched into any code." This is now fixed at the entry (see LANDED below); two
+concrete blockers remain before the first green m4-seq.
+
+**LANDED this session (built clean, gates green GATE-1 5/5 / GATE-2 132/0 / GATE-3 88/107, NOT yet
+proven end-to-end — GATE-4 still 0/4):**
+1. `flat_drive_pl_seq` in `emit_bb.c` — byte-free driver mirroring `flat_drive_cat`. Walks
+   `bb_pl_seq_state_t->goals[]` (via new `pl_seq_goals_em`), mints `plseq%d_g%d_α/β`, chains
+   `goal[i].γ=goal[i+1].α` / `goal[i].ω=goal[i-1].β`, then `EP_FILL`→`bb_pl_seq.cpp`.
+2. `bb_pl_seq.cpp` FILLED — emits collected `xa_bb_ep_*` glue (copy of `bb_pat_cat_str` TEXT arm).
+   Emptiness audit EMPTY 4→3, FILLED 1→2.
+3. `walk_bb_flat` arms added: `BB_PL_SEQ`→`flat_drive_pl_seq`; `BB_ARITH/BB_BUILTIN/BB_UNIFY/BB_ATOM`
+   →`FILL` (their leaf templates already emit real four-port x86 reading `_.lbl_α/γ/β/ω`).
+4. `sm_bb_switch.cpp` PL_ENTRY arm REWRITTEN — looks up the predicate at EMIT time via new
+   `pl_bb_entry_node(name,arity)` (in `pl_runtime.c`), then `walk_bb_flat(entry, γ,ω,β)` to inline
+   the four-port graph (mirrors the working `SM_BBSW_ICN_GEN` arm). γ→last_ok=1, ω→last_ok=0, both
+   fall through to `_done`. The `[NO-SM-BB]`/`HALT` stub is GONE — real flat x86 now emits.
+
+**TWO BLOCKERS to first green m4-seq (`main :- X is 1+2, write(X), nl.`):**
+
+- **B-1 — clause body has NO `BB_PL_SEQ` wrapper; `cfg->entry` is the FIRST GOAL.**
+  `lower_pl_clause_body` (lower_pl.c:471) threads body statements directly via their own node-pointer
+  γ/ω and sets `cfg->entry = nα[0]` (the first goal). It does NOT build a `BB_PL_SEQ`. So
+  `flat_drive_pl_seq` never fires for a clause; `walk_bb_flat` enters the first goal with
+  `γ=.Lplent_γ` and emits ONLY that one goal (observed: emitted just `is`, jmp γ). **FIX (pick one):**
+  (a) PREFERRED — in `lower_pl_clause_body`, after threading, wrap the statement list in a
+  `BB_PL_SEQ` node (populate `bb_pl_seq_state_t->goals[]` = the `gnodes[]`/`nα[]` list, set
+  `seq->α=nα[0]`) and `cfg->entry = seq`. Then `flat_drive_pl_seq` drives the whole chain. Mirror the
+  explicit-conjunction case at lower_pl.c:198-203. Verify mode-2 (GATE-3) unaffected — the executor's
+  `BB_PL_SEQ` case is trivial "enter at α," so wrapping should be transparent to interp.
+  OR (b) in `sm_bb_switch.cpp` PL_ENTRY, if `entry->t != BB_PL_SEQ`, walk the goal chain as a seq at
+  emit time (follow node-pointer γ to collect goals, then drive like `flat_drive_pl_seq`). (a) is
+  cleaner and reuses the driver; do (a).
+
+- **B-2 — `is/2` lowers to `BB_BUILTIN` (template prints "unknown 'is' — stub"), not `BB_ARITH`.**
+  The working four-port arith template is `bb_pl_arith.cpp` (`BB_ARITH`, calls `rt_pl_arith`). The
+  `is` goal is reaching `bb_pl_builtin.cpp` which has no `is` arm. **FIX:** check `lower_pl_goal`'s
+  recognizer — `X is Expr` must lower to `BB_ARITH` (it does in the interp path; confirm the
+  clause-body path at lower_pl.c:511 `lower_pl_goal(...)` produces `BB_ARITH` for `is`). If it already
+  does and the kind is right, then the issue is `walk_bb_flat`'s `BB_ARITH` arm vs what `cfg` actually
+  holds — dump `nd->t` for main's goals (`scrip --dump-bb` or a printf in `pl_bb_entry_node`). Likely
+  `is` is lowering as builtin in the *clause-body* path specifically; align it with the conjunction path.
+
+**THEN:** rebuild, `bash scripts/test_prolog_mode4_rung.sh` → m4-seq must PASS (`3`). That is the
+first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 ✅`.
+
+**AFTER m4-seq green — AGW-9B (call/choice/alt), each EMPTY→FILLED + a GATE-4 row:**
+- `bb_pl_call.cpp` (EMPTY): predicate→predicate linkage. PL_ENTRY pattern generalises — emit
+  `jmp <callee entry label>`; callee γ→caller γ_in, callee ω→caller ω_in. Needs a stable per-predicate
+  entry label (emit each predicate's flat graph once under `.Lpl_<name>_<arity>_α`, have PL_ENTRY and
+  BB_PL_CALL both `jmp` it). This RETIRES the `xa_pl_builder` runtime-rebuild path — delete
+  `rt_pl_b_*` calls from the emit once all predicates flat-emit (RULES.md no-runtime-walk).
+- `bb_pl_choice.cpp` (EMPTY): multi-clause. Inline `trail_mark`/`trail_unwind` (effect helpers OK);
+  clause[i].ω→clause[i+1].α; last ω→ω_in. STATEFUL — hardest; mirror `bb_exec.c` BB_CHOICE.
+- `bb_pl_alt.cpp` (EMPTY): `;` disjunction. Same trail discipline, two branches.
+
+**GATE for each:** `util_prolog_template_emptiness_audit.sh` EMPTY count drops by 1; corresponding
+`test_prolog_mode4_rung.sh` row (m4-call/choice/alt) PASSes; GATE-1/2/3 unchanged.
+
+**Files touched this session (uncommitted at handoff — committed in emergency handoff):**
+`src/emitter/emit_bb.c` (flat_drive_pl_seq + pl_seq_goals_em + walk_bb_flat arms),
+`src/emitter/BB_templates/bb_pl_seq.cpp` (filled),
+`src/emitter/SM_templates/sm_bb_switch.cpp` (PL_ENTRY flat emit),
+`src/runtime/interp/pl_runtime.c` (pl_bb_entry_node accessor).
+
+---
+
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
 **Current state: GATE-3 = 88/107.** `one4all 87ed9b24` (2026-05-27).
