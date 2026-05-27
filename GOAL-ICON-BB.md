@@ -65,9 +65,9 @@ static inline void    ag_ring_clear(BB_graph_t *cfg);                /* by bb_re
 5. **Step 5** ✅ `687d6694` — BB_IF AG-pure. cond.γ = cond.ω = nd_if; nd_if.γ = then.α; nd_if.ω = else.α. Executor reads peek(0) = cond value, routes via γ/ω.
 6. **Step 6** ✅ `76453c56` — BB_CONJ AG-pure. left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=ω_in. Executor reads peek(0) = right value.
 7. **Step 7** ✅ `e8217005` — BB_ALT AG-pure. arms chained via ω (legacy already did this); arm.γ=nd_alt. Executor AG branch (nd->α==NULL) reads peek(0) = winning arm's value.
-8. **Step 8 — Generators** ⛔ NEXT. Sub-ordered:
-   - **8.1 BB_EVERY** first — it's a DISPATCHER like BB_SEQ, internally drives its child generator via recursive `bb_exec_node(nd->α)` which swallows chain visibility. Must become AG-pure passthrough so the child generator's operand chain pushes to the ring properly.
-   - **8.2 BB_TO / BB_TO_BY** — once EVERY drives via the chain walker, these can have AG-pure dynamic-bound paths. Cache lo+hi on first run (state==0) into counter (int pos) + dval-bit-cast (int hi) for int mode, dval (real pos) + counter-bit-cast (real hi) for real mode.
+8. **Step 8 — Generators** Sub-ordered:
+   - **8.1 BB_EVERY** ✅ `f81e1d51` — dispatcher passthrough for literal-bound gens. Gated on `gen->α == NULL && gen->β == NULL && gen->γ != NULL` (flat-wire condition from TT_EVERY lowering at lower_icn.c:444). Marker `nd->ival = 1` selects AG-pure branch in executor; state==0 hands off to nd->α via chain, state==1 = re-entry from gen.ω → return γ. Common `every write(gen)` (BB_CALL-with-gen-args) still uses legacy path until Step 9.
+   - **8.2 BB_TO / BB_TO_BY** ⛔ NEXT. Dynamic-bound paths via ring. Architectural Q: route TT_EVERY's gen through `lower_icn_expr_threaded_b` to capture chain entry, OR special-case inline. See HANDOFF-2026-05-27-OPUS-ICON-BB-AG-STEP-8-1.md.
    - **8.3 BB_BINOP_GEN** — cross-product odometer. Major rework. Defer.
    - **Dispatchers to consider for AG-pure conversion at this step:** BB_LIMIT, BB_REPEAT, BB_WHILE, BB_UNTIL, BB_SCAN — same swallowing pattern.
 9. **Step 9 — N-ary applies**: BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET. Args chain via γ, last arg's γ → apply; apply reads peek(N-1..0).
@@ -214,7 +214,7 @@ bash scripts/test_icon_mode4_rung.sh       # PASS=5
 | Family 1 BB_ASSIGN sidecar | `78e4c067` |
 | Family 2 BB_CALL sidecar | `78e4c067` |
 
-**WATERMARK:** one4all `78e4c067`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5 · mode4_rung PASS=5.
+**WATERMARK:** one4all `f81e1d51`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5 · mode4_rung PASS=5.
 
 ---
 
