@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-1 = 5/5, GATE-2 = 36/96 (real, post-CAT-A-2), GATE-3 = 88/107, GATE-4 = 4/4.** HEAD `471ab202` (Opus 4.7, 2026-05-27). CAT-A-2 landed as a gate-safe structural prerequisite for CAT-A-3; numeric GATE-2 lift comes when CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume) lands.
+**Current state: GATE-1 = 5/5, GATE-2 = 38/94 (+2 post-CAT-D-1), GATE-3 = 88/107, GATE-4 = 4/4.** HEAD `95f73bad` (Opus 4.7, 2026-05-27). CAT-A-2 landed (`471ab202`, structural prerequisite, gate-safe); CAT-D-1 landed (`95f73bad`, atom_length/upcase_atom/downcase_atom flat-emit + 3 rt helpers, +2 GATE-2). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive) or CAT-D-2 (more atom builtins; mechanical extension of CAT-D-1 pattern).
 
 **Session setup:**
 ```
@@ -374,14 +374,47 @@ directive) → CAT-B → CAT-C → PJ-AGW-5.
   `pl_bb_bind_arg`) may not unify head/tail slots correctly when the arg is a cons compound with
   unbound tail variable. Needs `gdb` on a child binary to localize precisely. Closes after CAT-B.
 
-- [ ] **CAT-D — Builtin coverage in flat-emit.** `bb_builtin.cpp` covers `write/1`, `nl/0`,
-  `is/2`, and a handful of others. The full builtin set (findall/3, sort/2, format/2,
-  atom_codes/2, atom_concat/3, retract/retractall, assertz/asserta, abolish/1, succ/plus/3,
-  catch/throw, etc.) exists ONLY in `bb_exec.c BB_BUILTIN` (mode-2). Each unknown name in the
-  template emits a stub-comment + `jmp γ`, so the call silently succeeds without effect. Each
-  builtin needs an arm in `bb_builtin.cpp` (template byte emission only — effect helpers
-  `rt_pl_*` stay in `rt.c`). Recommend ordering: write/print-class first (rung06, rung09),
-  then atom_*-class (rung12), then findall/sort/format (rung11/aggregates).
+- [~] **CAT-D — Builtin coverage in flat-emit (STARTED 2026-05-27).** `bb_builtin.cpp` covers `write/1`,
+  `nl/0`, `is/2`, **and now `atom_length/2`, `upcase_atom/2`, `downcase_atom/2`** (CAT-D-1, see below).
+  Remaining builtin set (findall/3, sort/2, format/2, atom_codes/2, atom_concat/3, retract/retractall,
+  assertz/asserta, abolish/1, succ/plus/3, catch/throw, etc.) exists ONLY in `bb_exec.c BB_BUILTIN`
+  (mode-2). Each unknown name in the template emits a stub-comment + `jmp γ`, so the call silently
+  succeeds without effect. Each builtin needs an arm in `bb_builtin.cpp` (template byte emission only
+  — effect helpers `rt_pl_*` stay in `rt.c`/`bb_exec.c`). Recommend ordering: write/print-class first
+  (rung06, rung09), then atom_*-class (rung12), then findall/sort/format (rung11/aggregates).
+
+  **CAT-D-1 ✅ (2026-05-27, Opus 4.7, one4all `95f73bad`)** — `atom_length/2`, `upcase_atom/2`,
+  `downcase_atom/2`. Single template arm in `bb_builtin.cpp` dispatches all three to per-builtin rt
+  helpers via the `rt_pl_is` precedent: flatten each of the two args to (kind, ival, sval) scalars,
+  pass in `rdi/rsi/rdx/rcx/r8/r9` (x86-64 calling convention), call the helper, branch `eax` → γ/ω.
+  Helpers `rt_pl_atom_length` / `rt_pl_upcase_atom` / `rt_pl_downcase_atom` added to `bb_exec.c`
+  (declared in `bb_exec.h`) with shared `rt_pl_atomic_text_helper` + `rt_pl_case_atom_common`. Each
+  materializes Terms via `rt_pl_node_to_term`, reads the atomic text, computes the result, unifies
+  into arg1 under a trail mark, returns 1/0. Template owns the γ/ω jumps; helper has no port logic
+  (RULES-compliant effect helper). **GATE-2: 36/96 → 38/94 (+2)** — `rung12_atom_case` and
+  `rung12_atom_length` both flipped to PASS, zero regressions. GATE-1 5/5, GATE-3 88/19, GATE-4 4/4
+  all held; sibling smokes (Icon/Raku/Snocone/Rebus 5/5/5/4) held; FACT RULE 0 held.
+
+  **Latent bug discovered (NOT FIXED — worked around in CAT-D-1 template):** `BB_PL_VAR` nodes
+  carry **garbage `sval`** because `lower_pl.c:65` does `nd->sval = e->v.sval` where the AST
+  union slot holds the variable slot index as `ival` (the union shares storage with `sval`). So
+  e.g. variable in slot 1 has `nd->sval = 0x1` (slot index reinterpreted as char pointer).
+  Manifests as a segfault when any emit-time code dereferences `nd->sval` on a `BB_PL_VAR`. CAT-D-1
+  template guards `strtab_label` calls on `k == BB_ATOM` to avoid this; the helper only uses ival
+  for VAR args anyway. **Follow-up: `lower_pl.c:65` should set `sval = NULL` for `BB_PL_VAR` (slot
+  index is in `ival` only).** Estimated low-risk fix; do it before more CAT-D arms land.
+
+  **Empty-atom edge:** `''` has `sval = ""` (non-NULL, empty), `[]` has `sval = NULL` →
+  defaults to `"[]"` in `rt_pl_node_to_term`. The template check is now `k==BB_ATOM && sval`
+  (not `*sval`), so empty atom routes through strtab properly; `atom_length('', 0)` correct.
+
+  **CAT-D-2 — NEXT (pick from):** `succ/2` (3 entries in rung18); `string_length/2`,
+  `string_upper/2`, `string_lower/2` (one rung12 sub-test each); type tests `atom/1`,
+  `integer/1`, etc. — but these are usually ITE conditions and need PJ-AGW-5 to surface as
+  PASS lifts on their own; `atom_concat/3` and similar 3-arg atom builtins (mechanical extension
+  of CAT-D-1 to 3-arg shape — add r9-based 9th scalar via stack or split into two helpers).
+
+
 
 ## Open steps (priority order)
 
@@ -517,13 +550,14 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
 - abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
 - assertz/asserta directives (lower-time static fold) ✅
 
-**Gates at HEAD (post-CAT-A-2, 2026-05-27 Opus 4.7, one4all `471ab202`):** GATE-1 5/5, GATE-2
-**36/96** (UNCHANGED from CAT-A baseline; CAT-A-2 is structurally correct/gate-safe but does not
-surface as a numeric lift on its own — see CAT-A-3 below for why), GATE-3 88/19, **GATE-4 4/4**.
-Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity), CAT-A `*α_out=seq` af5c5ecd GATE-2 +5 →
-36/96 real. snobol4 --interp smoke 7/13 (pre-existing). icon/snocone/raku smoke 5/5, rebus 4/4.
-Next blocker: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume stubs); needs Lon directive on design
-(inline-on-demand vs resumable-call protocol).
+**Gates at HEAD (post-CAT-D-1, 2026-05-27 Opus 4.7, one4all `95f73bad`):** GATE-1 5/5, GATE-2
+**38/94** (+1 atom_case +1 atom_length from CAT-D-1; baseline 36/96 from CAT-A; CAT-A-2 itself
+gate-safe with no GATE-2 change), GATE-3 88/19, **GATE-4 4/4**. Earlier landings: 449f4ca3 GATE-2
+132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5 → 36/96 real; CAT-A-2 `471ab202`
+structural prerequisite (no numeric lift); CAT-D-1 `95f73bad` +2. snobol4 --interp smoke 7/13
+(pre-existing). icon/snocone/raku smoke 5/5, rebus 4/4. Next blockers: CAT-A-3 (BB_PL_CALL +
+BB_CHOICE β-resume stubs; needs Lon directive on design), CAT-D-2 (more atom builtins; mechanical).
+Latent bug worth fixing: `lower_pl.c:65` puts garbage `sval` on BB_PL_VAR (union with ival).
 
 ---
 
