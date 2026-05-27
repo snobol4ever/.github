@@ -49,7 +49,15 @@ proven end-to-end — GATE-4 still 0/4):**
    the four-port graph (mirrors the working `SM_BBSW_ICN_GEN` arm). γ→last_ok=1, ω→last_ok=0, both
    fall through to `_done`. The `[NO-SM-BB]`/`HALT` stub is GONE — real flat x86 now emits.
 
-**TWO BLOCKERS to first green m4-seq (`main :- X is 1+2, write(X), nl.`):** see VIOLATIONS LEDGER
+**✅ UPDATE 2026-05-27 (Opus): FIRST GREEN m4-seq — GATE-4 0/4 → 1/4.** `main :- X is 1+2, write(X), nl.`
+compiles to standalone x86 and prints `3`. V-1 + V-2 CLOSED (uncommitted; see
+HANDOFF-2026-05-27-OPUS-PROLOG-BB-GATE4-FIRST-GREEN.md). Two infra fixes were also required and landed:
+(a) `pl_bb_env_push` emitted on the PL_ENTRY flat path (g_pl_env was NULL → segfault); (b) `rt_gc_init`
+(`GC_INIT()`) emitted as main's first instruction (Boehm GC faulted during the pre-rt_init graph-rebuild
+under -no-pie). m4-call/choice/alt still FAIL (V-3 — empty call/choice/alt templates). NEW bug found:
+write(atom) mode-4 emits NULL atom (bb_pl_ls channel loss on the BB_BUILTIN path; var-arg write works).
+
+**TWO BLOCKERS to first green m4-seq (`main :- X is 1+2, write(X), nl.`):** ✅ BOTH CLOSED. see VIOLATIONS LEDGER
 V-1 (clause-body `BB_PL_SEQ` wrapper) and V-2 (`is/2`→`BB_ARITH`) in "Open steps" — that ledger is the
 canonical, gated fix list for every deviation found this session (V-1..V-6). Summary below.
 
@@ -246,7 +254,7 @@ V-1/V-2 unblock the first green mode-4 execution; V-3..V-6 retire the C-walker d
 modes 3/4 non-compliant. **No new rung/builtin work should be marked complete on a mode-4 claim until
 V-1 and V-2 land and GATE-4 ≥ 1.**
 
-- [ ] **V-1 — Clause body has no `BB_PL_SEQ` wrapper (blocks all mode-4 flat-seq emission).**
+- [x] **V-1 — Clause body has no `BB_PL_SEQ` wrapper (blocks all mode-4 flat-seq emission).** ✅ 2026-05-27 (Opus, uncommitted).
   `lower_pl_clause_body` (lower_pl.c:471) threads body statements via node-pointer γ/ω and sets
   `cfg->entry = nα[0]` (first goal). So `flat_drive_pl_seq` never fires; `walk_bb_flat` emits only the
   first goal. **FIX:** after the threading loop (after lower_pl.c:537), allocate a `BB_PL_SEQ` node,
@@ -255,7 +263,7 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   (lower_pl.c:198-203). **Gate:** GATE-3 unchanged (88/107 — the executor's `BB_PL_SEQ` case is
   trivial "enter at α", so wrapping is transparent to mode 2); GATE-4 emits all goals of m4-seq.
 
-- [ ] **V-2 — `is/2` lowers to `BB_BUILTIN` (stub) not `BB_ARITH` in the clause-body path.**
+- [x] **V-2 — `is/2` lowers to `BB_BUILTIN` (stub) not `BB_ARITH` in the clause-body path.** ✅ 2026-05-27 (Opus, uncommitted). Resolved via serializable-scalar `rt_pl_is` effect helper rather than re-shaping BB_ARITH (binary-arith RHS; non-binary RHS still TODO).
   Observed emit: `# BOX PL_BUILTIN(is/2) … # PL_BUILTIN: unknown 'is' — stub`. The working four-port
   arith template `bb_pl_arith.cpp` (calls effect helper `rt_pl_arith`) is keyed to `BB_ARITH`.
   **FIX:** in the clause-body lowering path (lower_pl.c:511 `lower_pl_goal(...)`), ensure `X is Expr`
