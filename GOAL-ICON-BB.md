@@ -45,7 +45,7 @@ Mapping doc (LFJ-0) is the contract — transcription does not deviate from it.
 |------|-------|------------|
 | LFJ-0  | Write `LOWER-IRGEN-MAPPING.md` in `.github`. Pure documentation: JCON `ir_chunk(label,insns)` → SCRIP `BB_t` alloc; JCON `ir_Goto(L)` → port assignment; the four labels (start/resume/failure/success) → ports (α/β/ω/γ); ir_info record → BB_t fields. No C yet. | ✅ `bc7dae2a` |
 | LFJ-1a-i  | Extract 9 leaf cases (ILIT/FLIT/QLIT/CSET/VAR/KEYWORD/LOOP_BREAK/LOOP_NEXT/PROC_FAIL) into `lower_icn_legacy_<KIND>` static fns. Switch arms become one-line dispatches. ZERO logic change. | ✅ `f79ea9ba`. rungs 198. |
-| LFJ-1a-ii | Extract next batch: TT_SCAN, TT_ASSIGN, TT_SWAP, TT_FNC, TT_SEQ, TT_SEQ_EXPR. Switch arms one-line. | rungs 198. |
+| LFJ-1a-ii | Extract next batch: TT_SCAN, TT_ASSIGN, TT_SWAP, TT_FNC, TT_SEQ, TT_SEQ_EXPR. Switch arms one-line. | ✅ `013703ff`. rungs 198. |
 | LFJ-1a-iii | Extract TT_IF, TT_TO, TT_TO_BY, TT_EVERY, TT_WHILE, TT_UNTIL, TT_REPEAT, TT_LIMIT. | rungs 198. |
 | LFJ-1a-iv | Extract binop group (TT_ADD..TT_NE, TT_CAT, TT_LCONCAT, TT_LLT..TT_LNE), TT_NOT, TT_ALTERNATE, TT_AUGOP. | rungs 198. |
 | LFJ-1a-v  | Extract TT_GLOBAL/LOCAL/STATIC_DECL, TT_INITIAL, TT_RETURN, TT_SUSPEND, TT_IDENTICAL, TT_NONNULL, TT_NULL, TT_RANDOM, TT_MATCH_UNARY, TT_MNS, TT_PLS, TT_CSET_*. | rungs 198. |
@@ -293,7 +293,7 @@ bash scripts/test_icon_mode4_rung.sh       # PASS=5
 | Family 1 BB_ASSIGN sidecar | `78e4c067` |
 | Family 2 BB_CALL sidecar | `78e4c067` |
 
-**WATERMARK:** one4all `f81e1d51`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5 · mode4_rung PASS=5.
+**WATERMARK:** one4all `013703ff`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5.
 
 ---
 
