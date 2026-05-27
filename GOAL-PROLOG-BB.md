@@ -26,7 +26,7 @@
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-3 = 85/107.** `one4all b5614aa5` (2026-05-27).
+**Current state: GATE-3 = 88/107.** `one4all 87ed9b24` (2026-05-27).
 
 **Session setup:**
 ```
@@ -38,7 +38,7 @@ bash scripts/test_crosscheck_prolog.sh   # GATE-2: 132/0
 
 **NEXT builtin targets (lower_pl.c recognizer + bb_exec.c BB_BUILTIN arm):**
 - rung14: 2 remaining (retract_all loop, retract_nonexistent edge cases — see below)
-- rung15: `abolish/1` — remove predicate entirely from g_pl_bb_table
+- rung15: `abolish/1` ✅ 3/5 (87ed9b24). 2 remaining BLOCKED: one_of_two needs full stateful committed-ITE node (AGW-5); then_reassert needs runtime assertz-in-body (unimplemented — only lower-time directive fold exists).
 - rung18: `plus/3` — bidirectional arithmetic (X+Y=Z, any two bound)
 - rung25: `term_to_atom/2` operator-notation writer (currently renders `+(1,2)` instead of `1+2`)
 - rung27: aggregate builtins
@@ -51,16 +51,15 @@ The four structural templates (seq/call/choice/alt) are EMPTY stubs. They cannot
 
 ---
 
-## Rung ladder state (85/107 passing)
+## Rung ladder state (88/107 passing)
 
-**PASSING (no action needed):** rung01-13 ✅, rung16 ✅, rung17 ✅, rung18 (2/5) ✅, rung19 ✅, rung20 ✅, rung21 ✅, rung22 (4/5) ✅, rung23 ✅, rung24 ✅, rung26 ✅, rung29 ✅, rung30 (4/5) ✅
+**PASSING (no action needed):** rung01-14 ✅, rung16 ✅, rung17 ✅, rung18 (2/5) ✅, rung19 ✅, rung20 ✅, rung21 ✅, rung22 ✅, rung23 (4/5) ✅, rung24 ✅, rung26 ✅, rung29 ✅, rung30 (4/5) ✅
 
 **OPEN:**
-- rung14: 3/5 (retract_all + retract_nonexistent need edge-case work)
-- rung15: 0/5 (abolish — delete predicate from bb_table)
+- rung15: 3/5 (abolish ✅ — existing/nonexistent/then_query_fail pass). 2 remaining: one_of_two (ITE backtracking loop — needs full stateful committed-ITE, AGW-5); then_reassert (needs runtime assertz-in-body).
 - rung18: 2/5 remaining (plus/3 bidirectional)
-- rung22: 4/5 (write_canonical_list ✅ fixed this session)
-- rung25: partial (term_to_atom operator-notation writer)
+- rung23: 4/5 (1 fail — pre-existing, not ITE-related)
+- rung25: 1/3 (term_to_atom operator-notation writer)
 - rung27: 0/5 (aggregate)
 - rung28: 0/5 (catch/throw)
 - rung30: 4/5 (dcg_pushback_rest — `[NO-AST] SM_BB_SWITCH`)
@@ -163,10 +162,11 @@ For each `case BB_FOO:` in `bb_exec.c`:
 ## Open steps (priority order)
 
 ### Rung ladder builtins (Mode 2/3, lower_pl.c + bb_exec.c)
-- [ ] **rung15-ABOLISH** — `abolish(Name/Arity)`: parse the `/` compound, find entry in `g_pl_bb_table`, set `bb_idx=-1` and free the BB graph. Gate: rung15 5/5.
+- [~] **rung15-ABOLISH** — `abolish(Name/Arity)` ✅ 3/5 (87ed9b24). Implemented as BB_BUILTIN: parse `/`(Name,Arity) compound, `pl_bb_lookup`, zero `zc->nbodies` on the predicate's BB_CHOICE; always succeeds. 2 remaining blocked: **one_of_two** (ITE backtracking loop — see PJ-AGW-5 below) + **then_reassert** (runtime assertz-in-body, unimplemented).
 - [ ] **rung18-PLUS3** — `plus(X,Y,Z)` bidirectional: if X+Y bound → unify Z; if X+Z bound → unify Y; etc. Gate: rung18 5/5.
 - [ ] **rung25-TERM2ATOM-OPS** — `term_to_atom/2` operator writer: current `pl_term_to_string` renders `+(1,2)` instead of `1+2`. Fix `pl_term_to_string` in `prolog_builtin.c` to use operator notation (same logic as `pl_writeq_term`). Gate: rung25 3/3.
 - [ ] **rung28-CATCH-THROW** — `catch(Goal,Catcher,Recovery)` / `throw(Term)`. Lower as BB_BUILTIN with 3-arg γ-chain; exec arm uses `setjmp`/`longjmp` or a global exception term + flag. Gate: rung28 5/5.
+- [ ] **PL-RT-ASSERTZ** — runtime `assertz/asserta` *inside a goal body* (not just `:-` directive fold). Currently a body-level `assertz(foo(x))` produces no effect. Must materialise a fresh clause body BB graph at runtime and append/prepend to the predicate's `BB_CHOICE` `zc->bodies[]` (inverse of abolish). Blocks rung15 then_reassert.
 
 ### Emitter (Mode 4, AGW-9)
 - [ ] **AGW-9-SEQ** — Add `flat_drive_pl_seq` to `walk_bb_flat` (emit_bb.c). Walks goals back-to-front, wires `goal[i].γ→goal[i+1].α`, `goal[i].ω→goal[i-1].β`. Fill `bb_pl_seq.cpp` glue (emit `jmp nd->α`). Gate: `go :- a, b, c.` runs via `run_prolog_via_x86_backend.sh`; EMPTY 4→3.
@@ -176,7 +176,7 @@ For each `case BB_FOO:` in `bb_exec.c`:
 - [ ] **AGW-10** — Mode-4 parity: every Mode-2-passing rung byte-identical in Mode 4. Gate: GATE-1..4 green; Mode-4 rung count ≥ Mode-2 count.
 
 ### Cleanup (lower priority)
-- [ ] **PJ-AGW-5-CUT-BARRIER** — Proper `BB_CUT` ω-rewiring for non-deterministic if-then-else conditions (cut-on-cond commit). Currently deterministic ITE works; non-det doesn't stop backtracking.
+- [~] **PJ-AGW-5-CUT-BARRIER** — Proper `BB_CUT` ω-rewiring for non-deterministic if-then-else conditions (cut-on-cond commit). **Partial (87ed9b24):** Prolog ITE `β` (redo) port now routes to `ω_in` (lower_pl.c TT_IF block) instead of re-entering Cond — stops the simplest re-evaluate-Cond loops (+3 net on suite). **Still open:** rung15 one_of_two still loops — when Cond is a *real* predicate (even with 0 clauses after abolish) the redo path is not fully determinate, and a stale `cat_found` appears on first solve. Needs a dedicated stateful committed-ITE BB node (mirror Icon `BB_IF` at bb_exec.c:803) that runs Cond+chosen-branch in one node call and records the committed branch, rather than pure ALT-style port chaining. Currently deterministic ITE works; non-det / abolished-pred conditions don't fully commit.
 - [ ] **PJ-AGW-6b** — `BB_PAT_ARBNO`/DCG repetition port wiring. Gate: DCG pushback_rest.
 - [ ] **PJ-AGW-7** — LOWER sweep: no persistent aux in reset-cleared slots.
 - [ ] **PJ-DEL-PUMP** (PP-1..10) — Tombstone `SM_BB_PUMP_PROC/SM/CASE` → `SM_UNUSED_7/8/9`. Keep `SM_BB_SWITCH` only. Site map in archived watermarks.
@@ -210,9 +210,10 @@ For each `case BB_FOO:` in `bb_exec.c`:
 - findall/copy_term/atomic_list_concat ✅
 - string_*/term_to_atom(forward)/atom_number ✅
 - sort/msort/format/numbervars/writeq/write_canonical/print/retract/retractall ✅ (2026-05-27)
+- abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
 - assertz/asserta directives (lower-time static fold) ✅
 
-**Gates at b5614aa5:** GATE-1 5/5, GATE-2 132/0, GATE-3 85/107, icon/snocone/raku 5/5, rebus 4/4, snobol4 --interp 7/7.
+**Gates at 87ed9b24:** GATE-1 5/5, GATE-2 132/0, GATE-3 88/107, icon/snocone/raku smoke 5/5, rebus 4/4, snobol4 --interp smoke 7/13 (pre-existing, unchanged from b5614aa5).
 
 ---
 
