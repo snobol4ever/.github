@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-3 = 88/107, GATE-4 = 4/4, GATE-2 = 36/96 (real, post-V-5).** Next HEAD on hand-off commit (Opus 4.7, 2026-05-27).
+**Current state: GATE-3 = 88/107, GATE-4 = 4/4, GATE-2 = 36/96 (real, post-CAT-A).** Next HEAD on hand-off commit (Opus 4.7, 2026-05-27).
 
 **Session setup:**
 ```
@@ -265,14 +265,32 @@ V-5 retired the AGW-1c fake-parity; GATE-2 now measures real mode-3/mode-4 agree
 **36/96**. The 96 failures sort into four structural categories. Each is a discrete next-session
 target; each has a measurable gate (GATE-2 PASS lift).
 
-- [ ] **CAT-A — `BB_PL_SEQ`-in-`BB_PL_ALT` α channel bug.** `lower_pl.c:213` returns the
-  conjunction's α as `*α_out = gα[0]` (first goal), not `*α_out = seq` (the SEQ wrapper). When
-  `;` disjunction at `lower_pl.c:222-228` sets `nd->α = aα`, the alt's left branch enters the
-  first goal directly with the OUTER γ — the rest of the conjunction (`G2..Gn`) is silently
-  dropped. Affects rung02_facts, rung05_backtrack, every program with `(G1, …, Gn ; H)`.
-  **Fix:** `lower_pl.c:213 → *α_out = seq;` paired with verifying the interp's `BB_PL_ALT`
-  case (`bb_exec_node(nd->α)`) handles `nd->α = BB_PL_SEQ` correctly (its single-step return is
-  `seq->α = gα[0]`, which the outer `bb_exec_once` loop drives). Estimated +20–40 GATE-2 PASS.
+- [x] **CAT-A — `BB_PL_SEQ`-in-`BB_PL_ALT` α channel bug.** ✅ 2026-05-27 (Opus 4.7).
+  `lower_pl.c:213` was returning `*α_out = gα[0]` (first goal) instead of `*α_out = seq` (the
+  SEQ wrapper). Fixed to `*α_out = seq`. **GATE-2 +5: 31 → 36 PASS, 101 → 96 FAIL** (exactly
+  the 36/96 figure ledgered). GATE-1 5/5, GATE-3 88/19, GATE-4 4/4 all held. **Diagnostic
+  refinement vs original write-up:** the bug was strictly mode-3/4 (emitter), not mode-2. In
+  mode 2, BB_PL_ALT is not actually entered for simple disjunctions — the lowerer wires goal
+  ω-port shortcuts (left-conj `goals[0].ω = bα` = right branch's α) so the outer `bb_exec_once`
+  follows the chain through both branches without ever calling the ALT executor. The mode-4
+  emitter, however, calls `flat_drive_pl_alt` which walks `pBB->α` exactly once — with the old
+  `gα[0]` value it emitted only the first goal of the left conjunction; with `seq` it dispatches
+  to `flat_drive_pl_seq` and emits all goals. Mode 2 unaffected (as predicted).
+
+- [ ] **CAT-A-2 — `flat_drive_pl_seq` mechanical ω-wiring loops on FAIL (next-session blocker).**
+  The CAT-A fix unblocked emission of the full conjunction but exposed this: `flat_drive_pl_seq`
+  in `emit_bb.c:401-403` wires `gi_ω = (i==0) ? lbl_ω : &gβ[i-1]` mechanically for every i,
+  without accounting for **resumability**. The interp lowerer Pass 3 (`lower_pl.c:191-194`) computes
+  `gβ[i]` correctly: resumable nodes (BB_PL_CALL/BB_CHOICE/BB_PL_ALT) are their own β; non-resumable
+  goals inherit the left neighbor's effective β. The flat driver doesn't replicate this. Consequence:
+  the `backtrack` test (`main :- fact(X), write(X), nl, fail ; true.`) — fact(X) is the only
+  resumable goal — emits a chain where `fail.γ→plseq_g2_β` and `plseq_g2_β: jmp plseq_g3_α` →
+  infinite loop on FAIL (the test went from silent-empty-output to a 5s timeout — louder, but
+  still wrong). **Fix:** in `flat_drive_pl_seq`, mirror `lower_pl.c:191-194` to compute an effective
+  β label per goal: walk goals[], for each `goals[i]`, if `goals[i]->t` is BB_PL_CALL/BB_CHOICE/BB_PL_ALT
+  use `&gβ[i]`, else use the previous effective label. Then `gi_ω = (i==0) ? lbl_ω : gβ_eff[i-1]`.
+  Should push GATE-2 substantially higher — most remaining failures involve `fail`/`,` patterns
+  where backtrack needs to find the nearest resumable predecessor.
 
 - [ ] **CAT-B — Compound-term unify binds nothing.** `bb_unify.cpp build_term_text` calls
   `rt_pl_node_to_term(kind, ival, sval, dval)` with only the operand's own scalar fields; for a
@@ -433,9 +451,11 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
 - abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
 - assertz/asserta directives (lower-time static fold) ✅
 
-**Gates at 449f4ca3 (2026-05-27, Opus):** GATE-1 5/5, GATE-2 132/0, GATE-3 88/107, **GATE-4 2/4**
-(m4-seq + m4-call), emptiness EMPTY=2 (seq+call FILLED; choice/alt remain). Earlier at 87ed9b24:
-GATE-4 was 1/4. snobol4 --interp smoke 7/13 (pre-existing). icon/snocone/raku smoke 5/5, rebus 4/4.
+**Gates at HEAD (post-CAT-A, 2026-05-27 Opus 4.7 — pending commit):** GATE-1 5/5, GATE-2 36/96
+(was 31/101, +5 from CAT-A `*α_out=seq` fix; CAT-A-2 is the next blocker — `flat_drive_pl_seq`
+ω-wiring ignores resumability, loops on FAIL), GATE-3 88/19, **GATE-4 4/4**. Earlier at 449f4ca3:
+GATE-2 132/0 (fake parity), GATE-4 2/4. snobol4 --interp smoke 7/13 (pre-existing). icon/snocone/raku
+smoke 5/5, rebus 4/4.
 
 ---
 
