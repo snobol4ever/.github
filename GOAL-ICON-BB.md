@@ -84,18 +84,24 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `fcfc7a73`)
+## ⚡ CURRENT WATERMARK (one4all `e67bc975`)
 
 GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
-(Re-verified 2026-05-26, Opus 4.7, at live HEAD `4d976602` — the Icon-BB content hash since `9be28a5d` is unchanged; HEAD advanced only via GOAL-PROLOG-BB commits PA-1/2/3 + JA-2a `76488946`. All three Icon gates rebuilt-and-rerun green. THIS SESSION added the H-1 cross-arg odometer: rungs 196→198 via cross-arg odometer + side-effect fix.)
+(2026-05-26, Opus 4.7: JA-2b part-1 — `bb_icn_to.cpp` literal-integer `lo to hi` four-port generator FILLED (`e67bc975`), assembled+disassembled-verified, gates unchanged. Empirically reconfirmed Icon `--compile` emits ZERO `# BOX` banners → JA-1 is the true front. Prior session `fcfc7a73`: H-1 cross-arg odometer rungs 196→198.)
 
 Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes gone, icon_box_rt.c deleted); H-1 AG foundation `lower_icn_expr_threaded` + back-to-front spine threading (`45c1bde2`); H-4 IDX_SET/SECTION γ-conflation fix; BB_CONJ split off BB_IF for `E1 & E2` (`9be28a5d`, rungs 195→196).
 
 ⚠ Mode-3 `--run` for Icon is RED today: even hello.icn → `sm_eval_subexpr: invalid entry_pc 1` (BB graph freed before the baked C-walker call reads it — Phase J root cause, FACT 3 violation). --interp is fine. Rung gate is --interp-only so unaffected.
 
-**NEXT:** JA-2b (dynamic/real `to`/`by` operand path via H-3 value-field read; then `bb_icn_to.cpp`), then
-JA-1 (flip flat-BB default + delete `rt_bb_pump_proc` C-walker edge so the new `bb_to_by` template is actually
-exercised by `--run`). H-1 remaining — push the 4-attribute signature INTO the builders so γ/ω thread DOWN.
+**NEXT:** **JA-0 (done this session, doc-only) → JA-1 is the true front.** The template detour is now
+pinned: `src/processor/sm_jit_interp.c` is a COMPLETE second x86 producer (`sl_emit_one` per-opcode switch +
+`sl_*`/`SL_*` byte-emitters, 25 raw sites) outside `*_templates/` — Icon `--run`/`--compile` executes IT, not
+the `bb_*.cpp` templates (proven: Icon `--compile` emits ZERO `# BOX` banners). See JA-0 for the full
+inventory + the secondary `emit_bb.c:614` inline-prologue note. JA-2b part-1 (`bb_icn_to.cpp` literal
+generator) is DONE at template level but dormant until JA-1 routes Icon generators through the shared emitter
+and deletes `sl_emit_one`/`rt_bb_pump_proc`. JA-1 simultaneously unblocks JA-2a, JA-2b, and the J-4a generator
+frontier. Then JA-2b part-2 (dynamic/real operand value-field read). H-1 remaining — push the 4-attribute
+signature INTO the builders so γ/ω thread DOWN (generator-composition reachable; if-as-value BLOCKED at parser).
 ⚠ Of H-1's two halves, only **generator-composition is frontend-reachable** today; the if-as-value half
 (`x := if a then b else c`) is BLOCKED at the parser (`if` not accepted in expression position — see H-1
 FRONTEND-REACHABILITY note below). Attack generator-composition first; if-as-value waits on a frontend rung.
@@ -229,6 +235,45 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
 
 ### ⛔ Correction rungs (added by this audit — do in order; each its own commit, gates green between)
 
+- [ ] **JA-0 — INVENTORY + PIN THE SECOND X86 PRODUCER (the template detour).** ⚡ NEW, grep-verified
+  2026-05-26 (Opus 4.7). Answer to "is there a code-emitting path that detours around `*_templates/`, and
+  any code-emitting function NOT in a `*_templates` folder?" — **YES, conclusively.** This step is the
+  no-code characterization that makes JA-1's "delete the edge" concrete and bounded (mirror of J-1).
+  - **THE DETOUR = `src/processor/sm_jit_interp.c`** is a COMPLETE second x86 byte-emitter living entirely
+    outside `*_templates/`, in direct violation of FACT-4 ("a second x86 producer is FORBIDDEN — two copies
+    drift") and RULES.md ("NO TEMPLATE CODE IN ... ANY NON-TEMPLATE FILE"). Surface (grep-verified at
+    `e67bc975`):
+    - Raw byte primitives: `SL_B` / `SL_U32` / `SL_U64` (macros, sm_jit_interp.c:1776-1778) — **25 raw
+      byte-emit sites**.
+    - Register/flow helpers: `sl_call` (1782, emits `mov rax,imm64; call rax`), `sl_mov_rdi_ptr` (1795),
+      `sl_mov_rsi_*`/`sl_mov_rdx_ptr` (1800-1812), `sl_ret`/`sl_ret_if_eax` (1815/1822), `sl_jcc_last_ok`
+      (1835), `sl_add_patch` (1865). These are an emitter register-ABI layer duplicating what the BB/SM
+      templates + emit_core serializer already provide.
+    - Per-opcode dispatch: `sl_emit_one` (1904) is a full second `switch(op)` that emits x86 for EVERY SM
+      opcode — the parallel of the shared emitter's `sm_codegen_x64`/`emit_core.c` dispatch. This is the
+      function Icon `--run` actually executes; it never calls any `bb_*.cpp` / `sm_*.cpp` template.
+  - **MEASURED CONSEQUENCE:** `scrip --compile every-write-(3 to 7).icn` → 4753 bytes, `grep -c '# BOX' = 0`.
+    The BB templates emit `# BOX <KIND>` TEXT banners; their total absence proves Icon mode-3/4 bypasses the
+    template emitter entirely. (Re-run this as the JA-0/JA-1 probe: a nonzero BOX-banner count on an Icon
+    generator program == the detour is severed.)
+  - **SECONDARY (minor, non-JIT) inline-emission sites found in the same sweep — log, fix opportunistically,
+    NOT blockers:**
+    - `src/emitter/emit_bb.c:614` — inline `push rbp; mov rbp,rsp` (0x55 48 89 E5) prologue in
+      `bb_build_brokered` (the `--bb=wired` brokered-blob wrapper). A wrapper frame, not per-construct
+      template logic, but still raw x86 in a non-template file → should move to a tiny prologue helper or a
+      template once the brokered path is templatized.
+    - **CLEAN (correctly placed, do NOT touch):** `emit_core.c` `bb_emit_byte`/`bb_emit_u32`/`ef_b1..b4` =
+      the shared BINARY *serializer sink* the templates write through (infrastructure, not template logic).
+      `sm_image_test.c:58` = a self-contained unit test (`mov eax,42; ret`). `emit_bb.c:210-212` +
+      `emit_core.c:961` = Unicode box-drawing bytes in comments/symbol names, not code emission.
+  - **REDIRECT (what JA-1 must do, now precise):** route Icon mode-3 generator proc bodies through the SHARED
+    emitter (`sm_codegen_x64` → `emit_core.c` dispatch → `bb_*.cpp`/`sm_*.cpp` templates, the SAME producer
+    mode-4 uses), then DELETE `sl_emit_one` + the `sl_*`/`SL_*` family + `rt_bb_pump_proc`. End state: ONE x86
+    producer; `sm_jit_interp.c` retains only the in-proc loader (SM bytes → PROT_EXEC buffer → jump in), no
+    byte-emission of its own. Completion probe: BOX-banner count > 0 on Icon generator `--run`/`--compile`,
+    and grep for `SL_B(`/`sl_emit_one` in src/ == 0.
+  - [ ] JA-0 is doc-only (this inventory). No code. Gates untouched.
+
 - [ ] **JA-1** — Bring J-6 forward: make the flat-BB path correct enough to be the DEFAULT, then delete the
   edge. (a) Close the J-4 generator blocker first (see JA-2). (b) Flip `g_jit_flat_bb` default ON and
   remove the `SCRIP_JIT_FLAT_BB` env-gate. (c) Delete `rt_bb_pump_proc` (sm_jit_interp.c:235) + its two bake
@@ -251,9 +296,41 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
     `.Ltoby<id>_*`) drift across relinks and aren't masked by normalize_per_kind_cell.py, so the cell can't be
     address-stably re-frozen on this branch (same pre-existing fragility as BB_UPTO/BB_ITERATE/BB_PAT_POS, all
     already in FAIL=40). GATE-PK left at 471/40; re-freeze deferred to a build that masks the entry-label drift.
-  - [ ] **JA-2b** — Dynamic/real operand path: lower α/β operand-box `value` fields into the generator (H-3
+  - [~] **JA-2b** — Dynamic/real operand path: lower α/β operand-box `value` fields into the generator (H-3
     value-field read). Currently dynamic+real bounds fall to the documented passthrough arm (yields nothing).
     Then `bb_icn_to.cpp` (BB_TO, the `lo to hi` no-step form) gets the same literal+dynamic treatment.
+    - [x] **JA-2b part-1 (this session, 2026-05-26, Opus 4.7) — `bb_icn_to.cpp` LITERAL-INTEGER generator
+      FILLED.** Was a pure stub (`bb_icn_to_str` returned `std::string()`, never even called the emit helper).
+      Now emits a REAL four-port literal `lo to hi` generator (step +1), TEXT + BINARY, mirroring the
+      JA-2a `bb_to_by.cpp` literal arm line-for-line with two changes: step hardcoded `1` (no `by`), bounds
+      read from `pBB->ival` (lo) / `pBB->dval` bit-cast (hi) instead of α->ival/β->ival — matches the BB_TO
+      lowering shape (lower_icn.c TT_TO folds literal bounds into ival/dval, leaves α/β NULL; `lit_bounds`
+      detected as `α==NULL && β==NULL`). α: cur=lo; β: cur+=1; chk: `cur>hi → ω`; yield DT_I(cur)→γ. Counter
+      in per-node `.data` quad (TEXT) / `&pBB->counter` (BINARY); `bin` reloc {ω,γ,β}. Dynamic α/β-box arm
+      kept as the documented passthrough (α→γ, β→ω), identical to bb_to_by's dynamic arm. **VERIFICATION:**
+      builds clean; BINARY byte sequence assembled (`as --64`) + disassembled (`objdump -M intel`) — every
+      encoding correct (movabs/mov-qword/add-qword/cmp/jg/DT_I=6 yield/jmp), alpha_jmp rel8 patch
+      (`chk_off-(alpha_jmp+2)`) lands on β-entry, reloc offsets {fail+2, succ+1, back} match disasm. Gates
+      green + unchanged: smoke_icon 5/5, broker 23, rungs 198. ⚠ **NOT yet `--run`/`--compile`-reachable**
+      (same status as JA-2a) — see EMPIRICAL FINDING below.
+    - ⚠ **EMPIRICAL FINDING (this session): Icon `--compile`/`--run` emits ZERO `# BOX` banners.** `scrip
+      --compile every-write-(3 to 7).icn` → 4753 bytes, `grep -c '# BOX' = 0`. The BB_templates (bb_to_by,
+      bb_icn_to, …) are dispatched ONLY via `emit_core.c`'s mode-4 BB path, which the Icon `--compile`/`--run`
+      pipeline does NOT reach — Icon goes through `sm_emit_linear`/`sl_emit_one`, which emits `call` to C-runtime
+      helpers, not the inline-x86 BB templates. This is the concrete, measured form of audit finding #1 +
+      FACT-4 ("a second x86 producer is FORBIDDEN — two copies drift"): today there ARE two producers and the
+      Icon generators take the wrong one. So neither JA-2a nor JA-2b part-1 is exercised by `--run` yet — the
+      literal/dynamic template work is correct-but-dormant until **JA-1 / Phase-J convergence** routes Icon
+      generator proc bodies through the shared BB emitter (the bb_*.cpp templates) instead of `sl_emit_one`.
+      This re-confirms JA-1 is the true blocking prerequisite, exactly as the audit ordered it.
+    - [ ] **JA-2b part-2 (REMAINING):** dynamic/real α/β operand-box `value`-field read for BOTH bb_to_by and
+      bb_icn_to. BLOCKED behind JA-1 (no point emitting inline-x86 operand reads on a path that can't execute
+      them). Reference semantics: bb_exec.c BB_TO (dynamic) reads `nd->α->value.i`/`nd->β->value.i` on fresh
+      entry, re-pumps β (hi-gen) then α (lo-gen) on exhaustion for cross-product; BB_TO_BY reads α/β value with
+      DT_R promotion for the real arm. The operand-box `value` lives in the BB node, which does NOT exist at
+      run time in modes 3/4 (FACT 3) — so the dynamic path requires the operand boxes themselves to be emitted
+      as port-wired x86 ahead of the generator, writing their result to a known stack/register slot the
+      generator reads. That is genuine Phase-J emitter design, gated on JA-1.
 
 ---
 
