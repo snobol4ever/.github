@@ -7,7 +7,81 @@ Mode 2 (`--interp`) first, then mode 3 (`--run`). Mode 4 (`--compile`) DEFERRED.
 
 ---
 
-## ⛔ NEXT: AG-PURE WHOLESALE REWRITE OF LOWER + EXECUTOR
+## ⛔ ACTIVE: LFJ — LOWER FROM JCON (transcribe `irgen.icn`, one `ir_a_*` per rung)
+
+**Supersedes the AG-PURE incremental staircase below.** Per `LOWER-REWRITE-FROM-JCON.md`
+(Lon directive, issued 4×). The AG-PURE work patched the mega-switch in
+`lower_icn_expr_node` with discriminator markers (sval "ag"/"ai"/"ar", `nd->ival = 1`,
+TT_ASSIGN/TT_TO routing intercepts inside `lower_icn_expr_threaded_b`) — exactly the
+anti-pattern the JCON directive forbids. AG-PURE commits 1–8.2 stay in tree as the
+green-gate baseline; LFJ replaces the substrate underneath them.
+
+**Method — per-kind dispatch table on ONE graph.** A function-pointer table indexed by AST
+kind selects, for each `TT_*`, which lowerer handles that kind: legacy or new. Both lowerers
+build into the **same `BB_graph_t`** — there is no shadow graph and no comparator. At any
+point during the migration, a single Icon program's lowering walks AST nodes and dispatches
+each to whichever lowerer owns that kind right now. Legacy entries dominate at the start;
+the table flips one entry per rung as `ir_a_*` procedures land in `lower_icn_new.c`. When
+the last entry flips (LFJ-14), the legacy file is unreachable and gets deleted (LFJ-15).
+
+Concretely: `lower_icn_expr_node(cfg, e)` becomes the dispatcher — it reads
+`lower_kind_table[e->t]` (a `BB_t* (*)(BB_graph_t*, tree_t*)` function pointer) and calls it.
+At startup `lower_kind_table_init()` fills every slot with `lower_icn_legacy_<kind>`
+(the existing case-body extracted from the mega-switch into a per-kind function — mechanical
+refactor, no logic change). Each LFJ rung replaces one or more table slots with new
+`lower_icn_new_<kind>` functions transcribed from `irgen.icn`. Replaced legacy functions are
+not deleted until LFJ-15 — they stay compiled and linkable so a one-line table-edit reverts
+any rung if it breaks gates.
+
+No build flags. No comparator. No shadow graph. Just a table of function pointers, flipped
+one entry per rung, on one in-memory `BB_graph_t`.
+
+**Reference:** `/home/claude/corpus/programs/icon/jcon-ref/irgen.icn` (1559 lines).
+Mapping doc (LFJ-0) is the contract — transcription does not deviate from it.
+
+### Staircase
+
+| Rung | Scope | Acceptance |
+|------|-------|------------|
+| LFJ-0  | Write `LOWER-IRGEN-MAPPING.md` in `.github`. Pure documentation: JCON `ir_chunk(label,insns)` → SCRIP `BB_t` alloc; JCON `ir_Goto(L)` → port assignment; the four labels (start/resume/failure/success) → ports (α/β/ω/γ); ir_info record → BB_t fields. No C yet. | Doc committed. Next rung reads it before writing one line. |
+| LFJ-1a | Mechanical refactor: extract each `case TT_*` body in `lower_icn_expr_node`'s mega-switch into a separate static function `lower_icn_legacy_<kind>(cfg, e)`. The switch in `lower_icn_expr_node` becomes a thin dispatcher that calls the extracted function. ZERO logic change. | rungs 198 unchanged. |
+| LFJ-1b | Introduce `lower_kind_table[TT_MAX]` of `BB_t* (*)(BB_graph_t*, tree_t*)`. `lower_kind_table_init()` populates every slot with the matching `lower_icn_legacy_<kind>`. Dispatcher now reads the table instead of switching directly. | rungs 198 unchanged. |
+| LFJ-1c | Create empty `lower_icn_new.c` + `lower_icn_new.h`. No new functions yet. Wire it into the build. | rungs 198 unchanged. |
+| LFJ-2  | Transcribe `ir_a_NoOp` → `lower_icn_new_NoOp`. Table slot for `TT_NULL` (or whichever AST kind is Icon's NoOp) flips to the new function. Legacy function remains compiled, unreached. | rungs 198. Manual verify: ASCII print of a NoOp-containing program shows the BB graph came from the new function (one-time `printf("[new]")` then removed). |
+| LFJ-3  | Transcribe `ir_a_Intlit`, `ir_a_Reallit`, `ir_a_Stringlit`, `ir_a_Csetlit`. Flip 4 table slots. | rungs 198. |
+| LFJ-4  | Transcribe `ir_a_Global` + `ir_value` helper. Flip slot(s). | rungs 198. |
+| LFJ-5  | Transcribe `ir_binary` helper + `ir_a_Binop`. Flip the binop slots. | rungs 198. |
+| LFJ-6  | Transcribe `ir_a_If`. Flip TT_IF. | rungs 198. |
+| LFJ-7  | Transcribe `ir_a_ToBy` (+ `ir_a_To` shim if separate). Flip TT_TO, TT_TO_BY. | rungs 198. |
+| LFJ-8  | Transcribe `ir_a_Every`. Flip TT_EVERY. | rungs 198. |
+| LFJ-9  | Transcribe `ir_a_Compound`, `ir_a_ProcBody`. Flip the relevant slots. | rungs 198. |
+| LFJ-10 | Transcribe `ir_a_Call`, `ir_a_Field`, `ir_a_Sectionop`. Flip the slots. | rungs 198. |
+| LFJ-11 | Transcribe `ir_a_Alt`, `ir_conjunction`, `ir_a_Not`. Flip the slots. | rungs 198. |
+| LFJ-12 | Transcribe `ir_a_While`, `ir_a_Until`, `ir_a_Repeat`, `ir_a_Limitation`. Flip the slots. | rungs 198. |
+| LFJ-13 | Transcribe `ir_a_Scan`, `ir_a_Case`, `ir_a_Return`, `ir_a_Suspend`, `ir_a_Break`, `ir_a_Next`. Flip the slots. | rungs 198. |
+| LFJ-14 | Transcribe remaining `ir_a_Create`, `ir_a_Mutual`, `ir_a_Key`, `ir_a_Invocable`, `ir_a_Link`, `ir_a_Initial`, `ir_a_RepAlt`, `ir_a_CoexpList`, `ir_a_Unop`, `ir_augmented_assignment`. Every table slot now points into `lower_icn_new.c`. | rungs 198. `grep "lower_icn_legacy_" src/` shows the legacy functions defined but not in any table slot. |
+| LFJ-15 | Delete `lower_icn.c`. Delete all `_threaded_b` AG-PURE intercept branches. Delete the `lower_kind_table` indirection — calls now go directly to the new functions or the dispatcher switches on the new functions. Rename `lower_icn_new.c` → `lower_icn.c`. | rungs 198. No legacy code. No table indirection. One file, one traversal. |
+
+### Per-rung gate (every commit)
+```bash
+bash scripts/build_scrip.sh
+bash scripts/test_smoke_icon.sh              # PASS=5
+bash scripts/test_icon_all_rungs.sh          # PASS=198
+bash scripts/test_smoke_prolog.sh            # PASS=5
+bash scripts/test_smoke_unified_broker.sh    # PASS=24
+```
+
+### DO NOT
+- Edit `lower_icn.c` (the mega-switch) except for LFJ-1a/1b mechanical refactor.
+- Add discriminator markers (`nd->ival = N`, sval tags) in new code.
+- Add `_threaded_b`-style intercept branches to legacy code as a workaround.
+- Skip the mapping doc. Drift starts the moment that doc is missing.
+- Resume AG-PURE work below until LFJ-15 lands.
+- Build a "comparator" or "shadow graph." There is one graph, one entry per kind in the dispatch table.
+
+---
+
+## LEGACY (frozen) — AG-PURE WHOLESALE REWRITE OF LOWER + EXECUTOR
 
 **Status:** AG-pure step 1 landed `64805e16` on branch `ag-pure-icn`. Dormant value-ring added to `BB_graph_t`. Gates green. PEERS sidecar superseded for Icon by AG-pure model below — sidecar stays for Prolog/SNOBOL4 until those languages are migrated.
 
