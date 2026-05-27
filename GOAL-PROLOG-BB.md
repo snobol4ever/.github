@@ -128,6 +128,34 @@ labels in test/diagnostic OUTPUT and comments with the flag name of the mode it 
 | **SBL-M4-ASM** | Fix Mode-4 (`--compile --target=x86`) assembler + link failures. **Landed 2026-05-26 (Opus).** TWO bug classes: (1) **bare-annotation macro args** — emitter templates appended human-readable annotations as space-separated tokens after GAS macro calls (`STORE_VAR .S0 A`, `CALL_FN .S2, 0 TIME`, `PUSH_STR .S8, 0 "..."`, `RETURN_VARIANT 0,1,20 SM_RETURN_S`, `CALL_EXPRESSION .L5 name...`, `DEFINE_ENTRY FIB`) → `as` "too many positional arguments". Fix: emit the annotation as a `#`-comment line (`s_2asm/s_1asm + s_comment`), not a bare arg. 6 files: `sm_push_pop_lits.cpp`, `sm_calls.cpp`, `sm_returns.cpp` (×3), `sm_bb_calls.cpp`, `sm_defines.cpp`. (2) **unresolved enum symbol** — arith macros emitted `mov edi, SM_ADD` (a C enum NAME with no assembler/linker definition) → `R_X86_64_32S against undefined symbol SM_ADD`. Fix (`sm_arith.cpp`): emit numeric immediate `mov edi, %d` via `(int)SM_ADD` (enum resolves at emitter compile time, always correct). **Result: Mode-4 broad corpus 0 → 126 PASS** (FAIL=26 SKIP=128), matching Mode 3's reach. Bench 3-mode equivalence achieved: arith_loop/eval_dynamic/eval_fixed/string_concat/fibonacci all OK(3). Verified end-to-end: A+B→13, arith_loop→1000000, fibonacci→832040 (recursion+DEFINE work in Mode 4). | ✅ done — 0→126 |
 | **SBL-M4-OPDISPATCH** ✅ | `op_dispatch.sno` aborted at runtime ("SM value stack overflow cap=65536"). **FIXED 2026-05-26 (Opus 4.7) `5a8bf79d`.** Root cause was NOT comparison-builtin correctness — it was a missing per-statement vstack reset. Mode 2 `sm_interp.c` SM_STNO does `st->sp=0` every statement; Mode 4 `rt_set_stno` did not, so a statement failing mid-eval (GE/LT → DT_FAIL) left operands on the vstack; over a tight loop the residue overflowed. Fix: `rt_set_stno` resets to `g_vframe_base` (NOT absolute 0 — that regressed recursion; frame base is set by `call_native_chunk` to the caller's `saved_vtop`). op_dispatch m4 `result:122172` == m2 == m3 OK(3). Mode-4 broad corpus 126/26 unchanged; 3 recursion tests confirmed still passing. | ✅ done |
 
+### Session watermark 2026-05-26 (Opus 4.7) — DCG phrase/2,3 + compound-write landed (GATE-3 16→19)
+```
+one4all: f43aff1d — BUILD GREEN
+GATE-1 smoke_prolog 5/5 · prolog_bb_honest 124/0/0 · smoke_icon 5/5 · smoke_snobol4 13/13
+GATE-3 prolog_rung_suite: 16 → 19 / 107
+
+0c547c01 — lower-time phrase/2,3 DCG rewrite (lower_pl.c):
+  phrase(NT,List)->NT(List,[]) ; phrase(NT,List,Rest)->NT(List,Rest).
+  Intercepted before general predicate-call in lower_pl_goal so the live BB path
+  (BB_PL_CALL->pl_bb_lookup) resolves the difference-list call. rung30 basic_terminals
+  + nonterminals PASS (were FAIL).
+f43aff1d — write/1 of compound terms bound via a variable (bb_exec.c):
+  (1) BB_PL_VAR now yields {DT_DATA,.ptr=t} for a bound TERM_COMPOUND (was NULVCL).
+  (2) BB_BUILTIN write/writeln gained a DT_DATA arm rendering via pl_write.
+  foo(X):-X=[a]. main:-foo(R),write(R) now prints [a] (was empty). rung30 phrase3 PASS.
+
+⛔ NEXT (see HANDOFF-2026-05-26-OPUS-PROLOG-DCG-PHRASE.md): the principled
+BB_PL_CALL arg-binding fix — replace the slot-copy writeback (misses vars nested in
+compound args → append/3 tail bug `[a|_G5]`) with WAM-style shared-var unification:
+pl_node_to_term(arg) in CALLER env then unify(param,callerterm). Attempted; fixed
+append+reverse but left ONE residual segfault in recursion+`is` (len/2 at depth≥2);
+reverted to keep tree green. Honest gate caught it (124→120). Redo + trace g_pl_env at
+depth 2 during pl_arith_eval. Also: findall/3 absent from live BB path (blocks
+rung11_findall_* + rung30_dcg_generate); pushback DCG rest (rung30_dcg_pushback_rest)
+hits [NO-AST] SM_BB_SWITCH; --dump-ast segfaults on Prolog DCG files.
+```
+
+
 ### Session watermark 2026-05-26b (Opus) — SBL-M4-ASM: Mode 4 unblocked (0→126 broad corpus)
 ```
 one4all: 340b14b9 — BUILD GREEN, libscrip_rt rebuilt
