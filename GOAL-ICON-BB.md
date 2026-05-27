@@ -4,10 +4,23 @@
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `289d4aa1`)
+## ⛔ MODE PRIORITY (Lon, 2026-05-26) — MODE 2 then 3; MODE 4 DEFERRED
 
-GATES: smoke_icon **5/5** ✅ · broker **23** (pattern rungs RED — expected) · icon_all_rungs **198** ✅
-(2026-05-26, Sonnet 4.6: all 10 `rt_bb_*` deleted + `sm_image_test.c` deleted. FACT RULE fully clean.)
+Get correctness in **mode 2 (`--interp`)** first, then **mode 3 (`--run`, in-proc)**. **Mode 4
+(`--compile`) is DEFERRED until further notice** — it is the slowest to iterate (emit asm → gcc -c →
+link libscrip_rt → run) and should not gate generator/AG work. Bring constructs up in 2→3 order;
+mode 4 follows for free once 3 is flat-wired (mode 3 ≡ mode 4 x86, differing only in process
+boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 still have gaps.
+
+---
+
+## ⚡ CURRENT WATERMARK (one4all `7bfd1178` + uncommitted)
+
+GATES: smoke_icon **5/5** ✅ · broker **23** · icon_all_rungs **198** ✅ · smoke_prolog **5/5** ✅
+(2026-05-26, Opus 4.7: every-loop control ports FLAT-WIRED per ir_a_Every — `gen.γ→body`,
+`body.γ→gen`, `body.ω→gen`, `gen.ω→every` — additive over literal generators; mode-2 oracle intact.
+`lower_every` SM back-edge also fixed. β-synthesis in lower_icn_expr_threaded now matches Prolog
+zipper rule (resumable→self, single-shot→ω_in via new icn_kind_is_resumable). FACT-RULE 0.)
 ✅ `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/` outside `*_templates/`+`emit_core.c` == **0**.
 
 ⛔ **SESSION 2026-05-26 (Sonnet) — J-4a LOWER + SM template + BB box reached; ONE bug remains.**
@@ -31,27 +44,38 @@ GATES: smoke_icon **5/5** ✅ · broker **23** (pattern rungs RED — expected) 
    `# BOX TO(lo=1 hi=3)` inline four-port body (α sets cur, β increments, chk `jg ω`, yields via
    rt_push_int); assembles + links clean.
 
-⛔ **OPEN BUG (emergency handoff — mode-4 NOT end-to-end yet): `lower_every` back-edge target.**
-mode-4 `every write(1 to 3)` aborts `SM value stack underflow`. ROOT CAUSE diagnosed, not fixed:
-in `lower_every` (lower.c:1377-1388), `switch_pc = SM_label(g_p)-1` is captured AFTER
-`lower_expr(gen_expr)`. For `every write(1 to 3)`, gen_expr is the WHOLE call `write(1 to 3)`, so
-`lower_expr` emits `SM_BB_SWITCH` (for inner `1 to 3`) THEN `SM_CALL_FN write` — so `switch_pc`
-points at the CALL (PC3), not the SWITCH (PC2). The loop back-edge `SM_JUMP -> switch_pc` therefore
-re-enters at the CALL with an empty value-stack on iteration 2 → underflow. (SM dump confirms:
-PC2 SM_BB_SWITCH, PC3 CALL_FN, PC7 SM_JUMP->3.) **FIX:** lower_every must re-enter at the GENERATOR's
-SM_BB_SWITCH PC, not the post-switch consumer. Either (a) capture the switch PC by scanning for the
-SM_BB_SWITCH emitted within gen_expr, or (b) restructure so the bare generator is lowered separately
-from its consuming body so the back-edge targets the switch. mode-2 is unaffected (it drives the
-whole proc via SM_BB_PUMP_PROC → C graph walk, ignoring the SM loop scaffold). Once the back-edge is
-fixed, `bb_icn_to`/`bb_to_by` literal generators should run in mode-4; then wire dynamic-operand arms
-and remaining generator kinds (bb_binop_gen still a passthrough stub), and a mode-4 Icon rung gate.
+✅ **`lower_every` back-edge target — FIXED (2026-05-26, Opus 4.7).** The diagnosed bug
+(`switch_pc = SM_label(g_p)-1` captured the CALL PC, not the SWITCH PC) is now fixed in
+`lower.c` `lower_every`: capture `gen_start = g_p->count` BEFORE `lower_expr(gen_expr)`, then
+scan forward `[gen_start, g_p->count)` for the first `SM_BB_SWITCH` and use that PC as the
+back-edge target. SM dump now shows `SM_JUMP -> 2` (the SWITCH), not `-> 3` (the CALL). The
+stray `SM_LABEL` the old `SM_label()` side-effect emitted is gone (count 15→14). **mode-2
+`every write(1 to 3)` → `1 2 3` ✅; gates non-regressing (smoke_icon 5/5, broker 23, rungs 198,
+smoke_prolog 5/5, FACT-RULE 0).**
 
-**Files touched (NOT committed by prior turn — committed this handoff):** src/include/SM.h,
-src/lower/lower.c, src/processor/sm_interp.c, src/emitter/SM_templates/sm_bb_switch.cpp (new),
-src/emitter/SM_templates/sm_templates.h, src/emitter/emit_core.c, src/emitter/BB_templates/bb_icn_to.cpp,
-Makefile.
+⛔ **MODE 3 (`--run`) IS A GLOBAL STUB.** `--run` currently prints
+`[NO-SM-BB] --run: linear emitter deleted (FACT RULE); use --interp until templates land` — the
+SB-LINEAR emitter was deleted under the FACT RULE and the `bb_*`/`sm_*` mode-3 templates have not
+landed. This is NOT Icon-specific; it is the Phase J work. **NEXT for this goal (per Lon's
+MODE-PRIORITY directive): bring `--run` (mode 3) up via the shared template producer** — route
+`--run` through `sm_emit_linear`→`sm_run_linear` (PROT_EXEC slab), reusing the SAME template
+functions mode 4 uses, so mode 3 and mode 4 stay byte-identical. Until `--run` exists, generator
+correctness can only be validated in mode 2.
 
-**GATE-PK still RED/stale (455/62/592) since `a5775d1a` — owner decision on re-freeze pending (see below).**
+🟡 **MODE 4 (`--compile`) — DEFERRED (Lon, 2026-05-26).** Progress was made this session before
+the defer directive: `sm_bb_switch.cpp` ICN_GEN arm now emits an α/β entry-state dispatch (per-
+switch `.data` flag mirroring the interp's `a[0].i`: first entry → α fresh, re-entry → β retry),
+fixing the infinite-`1` restart. REMAINING mode-4 bug (do NOT pursue until un-deferred): the
+generator-exhaustion (ω) path falls through to `SM_CALL_FN write` before the loop-exit `SM_JUMP_F`,
+so `write` runs on an empty value-stack on the final iteration → underflow. Fix when resumed:
+restructure `lower_every` so the ω test gates the consumer (emit SWITCH → `SM_JUMP_F loop_exit`
+BEFORE the consumer body), OR have the ω path skip to loop-exit directly.
+
+**Files touched this session (Opus 4.7, mode 2/3 focus):** src/lower/lower.c (lower_every scan fix),
+src/emitter/SM_templates/sm_bb_switch.cpp (α/β dispatch — mode-4, deferred). NOT yet committed.
+
+**GATE-PK still RED/stale (455/62/592) since `a5775d1a` — owner decision on re-freeze pending. With
+mode 4 deferred, GATE-PK is not a blocking gate; revisit when mode 4 resumes.**
 
 ---
 
@@ -233,6 +257,91 @@ Composition wires child.γ → next sibling, last.γ → parent.γ, etc. (see `l
 at the `BB_CALL` case: `args[j-1]->γ = args[j]`). The mode-2 reference walker `bb_exec.c`
 (was `ir_exec.c`) executes this graph by following ports — it is the SEMANTIC SOURCE OF TRUTH for
 every BB kind. To implement any construct: read its `case BB_X:` in bb_exec.c, translate to x86.
+
+**ALL FOUR PORTS MUST BE WIRED — flat-wired, no NULL, no trampoline (corrected 2026-05-26, Opus
+4.7, after Lon).** The canonical model is JCON `irgen.icn` `record ir_info(start, resume, failure,
+success)` ≡ our `α/β/γ/ω`. In irgen EVERY chunk wires EVERY port to a concrete target via
+`ir_Goto(coord, <other-port>)` — there is NO NULL exit and NO fall-through to any "trampoline/halt".
+Even a LEAF wires all ports: `ir_a_Intlit` does `start: [IntLit; Goto(success)]` and (bounded)
+`resume: [Goto(failure)]`. A generator like `ir_a_ToBy` wires eight chunks — `start→fromexpr.start`,
+`resume→[ResumeValue; Goto success]`, `fromexpr.success→toexpr.start`,
+`fromexpr.failure→ir.failure`, `toexpr.success→byexpr.start`, `toexpr.failure→fromexpr.resume`,
+`byexpr.success→[opfn; Move; Goto success]`, `byexpr.failure→toexpr.resume`. Every port lands on a
+port; the top-level seeds the terminal success/failure with real halt chunks.
+
+⛔ **OUR CURRENT lower_icn.c DIVERGES — this is the real defect to fix.** Two problems:
+(1) **Leaves leave ports NULL.** `BB_node_alloc` NULLs α/β/γ/ω and leaf cases (TT_ILIT/TT_VAR/…)
+set only the payload (ival/sval), never wiring start→success / resume→failure as irgen requires.
+(2) **α/β are OVERLOADED as operand-child pointers, not control-flow ports.** e.g. TT_TO_BY does
+`nd->α = lo; nd->β = hi;` (the lo/hi OPERAND boxes), and the BB_CALL case chains args as
+`e->α … a = a->γ` (γ = "next operand sibling"). So `bb_exec.c` walks α/β/γ as an OPERAND TREE in C —
+that is AST-walking-in-disguise and is exactly what flat-wiring must eliminate. It "works" in mode 2
+ONLY because the C executor patches the holes at runtime (the `? : NULL` guards I earlier mis-read
+as "design"). Flat-wired x86 (mode 3/4) has nowhere to fall back to: an unwired port = jump-to-
+garbage; an operand-in-port = no control-flow successor at all. **NEXT (mode 2→3): rewire lower_icn.c
+so α/β/γ/ω are PURE control-flow links per irgen — operands become separate boxes whose `success`
+(γ) flows into the next box's `start` (α) — and verify against `bb_exec.c` re-expressed as a flat
+port-follower (no tree recursion). Read each `ir_a_*` in irgen.icn for the exact per-port wiring.**
+
+#### Canonical per-port wiring (extracted from irgen.icn — α=start β=resume γ=success ω=failure)
+
+Terminal seeding (`ir_a_ProcBody`/`ir_a_ProcCode`): the proc's last stmt `γ → proc.γ` and
+`ω → proc.ω`; proc.γ/proc.ω are real terminal chunks (`ir_Fail`/halt). The buck stops at concrete
+top-level chunks — NEVER a NULL or an implicit trampoline.
+
+- **Intlit/Reallit/Stringlit/Csetlit (leaf):** `α: [emit lit; Goto γ]`; (bounded) `β: [Goto ω]`.
+- **Ident/Var (leaf):** same shape — `α` does the load then `Goto γ`; `β → ω`.
+- **ToBy:** `α→from.α`; `β: [ResumeValue; Goto γ]`; `from.γ→to.α`; `from.ω→ω`; `to.γ→by.α`;
+  `to.ω→from.β`; `by.γ: [opfn "..."; Move target; Goto γ]`; `by.ω→to.β`.
+- **Every:** `α→expr.α`; `expr.γ→body.α`; `expr.ω→ω`; `body.γ→expr.β`; `body.ω→expr.β`.
+  (`body.γ→expr.β` IS the loop back-edge — a PORT WIRE, not an SM_JUMP. The whole loop is BB-graph
+  internal; no SM scaffold needed once lower_icn wires it.)
+- **If:** `α→cond.α`; `cond.γ→then.α`; `cond.ω→else.α` (or `→ω` if no else); `then.γ→γ`;
+  `then.ω→ω`; `else.γ→γ`; `else.ω→ω`. (Read ir_a_If:577 for the exact bounded/rval variant.)
+- **Compound (seq):** chain `stmt[i].γ→stmt[i+1].α`; last `.γ→γ`; failures per ir_a_Compound:1231.
+- **Alt (`E1|E2`):** `α→e1.α`; `e1.γ→γ`; `e1.ω→e2.α`; `e2.γ→γ`; `e2.ω→ω`; resume re-enters the
+  currently-active arm (ir_a_Alt:167).
+- **Field/Binop/Unop/Call:** operand boxes are SEPARATE nodes wired `operand.γ→next.α`; the op's own
+  `α` is the first operand's `α`, the result is produced in the last operand's `γ` chunk which then
+  `Goto γ`. Operands are NOT stored in α/β as child pointers (our current bug).
+
+REWIRE ORDER (mode 2 must stay green each step — bb_exec.c is the oracle): (1) leaves
+(Intlit/Var/Stringlit/Cset) wire α→γ, β→ω; (2) ProcBody/ProcCode terminal seeding; (3) Compound
+seq γ-chain; (4) If/Alt; (5) ToBy/Every/Upto generators (back-edge = body.γ→expr.β port wire);
+(6) Call/Binop operand-box chains (retire α/β-as-operand-child). After each: smoke_icon 5/5,
+rungs ≥198. bb_exec.c must be re-expressed as a pure port-follower (no `a = a->γ` operand-tree
+recursion) once ports are control-flow only.
+
+#### THE ZIPPER — copy Prolog's lower_pl.c exactly (Lon, 2026-05-26). lower_pl ALREADY does this.
+
+Two inherited attrs go DOWN (γ_in, ω_in = where to go on success/fail); two synthesized attrs come
+UP (α_out, β_out = my fresh-entry, my retry-entry). Signature (mirror EXACTLY):
+`lower_icn_expr_node(cfg, e, BB_t *γ_in, BB_t *ω_in, BB_t **α_out, BB_t **β_out)`.
+
+LEAF SEEDER (twin of `pl_leaf`, lower_pl.c:21 — add `icn_leaf`):
+```c
+static BB_t *icn_leaf(BB_t *nd, BB_t *γ_in, BB_t *ω_in, BB_t **α_out, BB_t **β_out){
+    if(!nd) return NULL;
+    nd->γ=γ_in; nd->ω=ω_in;            /* inherited DOWN */
+    if(α_out)*α_out=nd;                /* leaf is its own fresh-entry, synth UP */
+    if(β_out)*β_out=ω_in;              /* leaf has no retry: β=ω → ω-chain skips through it */
+    return nd; }
+```
+Every leaf case becomes: `return icn_leaf(nd, γ_in, ω_in, α_out, β_out);` (see lower_pl.c:62-63).
+
+CONJUNCTION/SEQ = back-to-front zipper (lower_pl_goal conjunction, lower_pl.c:160-203):
+build goal[n-1] first with γ=γ_in; then i=n-2..0 with `my_γ = gα[i+1]` (success→next entry);
+wire `goal[i].ω = gβ[i-1]` (fail→redo nearest LEFT generator). β-by-kind:
+resumable (generators: TO/TO_BY/UPTO/ALT/EVERY/PROC_GEN…) → β=self; non-resumable → β=left neighbor's β.
+
+DISJUNCTION/ALT (lower_pl.c:206-217): lower 2nd branch first (γ_in,ω_in)→bα; lower 1st with
+`ω=bα` (1st fails→try 2nd)→aα; node α=aα β=bα γ=γ_in ω=ω_in.
+
+This is NOT additive — it is a signature change touching ~70 call sites in lower_icn_expr_node, done
+in ONE pass top-to-bottom (you cannot half-zip). After: α/β/γ/ω are PURE control flow; retire the
+α/β-as-operand reads in bb_exec.c (operands become boxes wired operand.γ→next.α). Gate each language
+construct group: smoke_icon 5/5, rungs ≥198. EVERY already pre-wired (gen.γ→body, body.γ→gen,
+gen.ω→every) for literal generators — fold into the zipper when EVERY's turn comes.
 
 ### EMITTER templates — the THREE things that are easy to get wrong
 
